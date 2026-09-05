@@ -1,6 +1,9 @@
 'use strict';
 
-const fs = require('node:fs');
+// Electron's patched fs treats app.asar as a directory; hash the raw archive.
+const fs = process.versions.electron
+  ? require('original-fs')
+  : require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 

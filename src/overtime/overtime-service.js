@@ -22,6 +22,7 @@ const {
   applyFixedEffectRepeatedly,
   clampMs,
   getGiftEventId,
+  isLegacyGiftImagePath,
   isRemoteGiftImagePath,
   normalizeQuantity,
   normalizeState,
@@ -80,7 +81,7 @@ function createOvertimeService(options = {}) {
       serverNowMs,
       revision: state.revision,
       background: { path: state.backgroundPath, fit: state.backgroundFit },
-      rules: store.listRules(),
+      rules: migrateRuleImages(store.listRules()),
       limits: { ...OVERTIME_LIMITS },
     };
   }
@@ -176,7 +177,7 @@ function createOvertimeService(options = {}) {
   }
 
   function replaceRules(input) {
-    const rules = validateRules(migrateRemoteRuleImages(input), {
+    const rules = validateRules(migrateRuleImages(input), {
       allowedRemoteImageOrigins: options.allowedRemoteImageOrigins,
     });
     store.replaceRules(rules, toIso(now()));
@@ -185,7 +186,7 @@ function createOvertimeService(options = {}) {
     return getSnapshot();
   }
 
-  function migrateRemoteRuleImages(input) {
+  function migrateRuleImages(input) {
     if (
       !Array.isArray(input) ||
       typeof options.resolveGiftImagePath !== 'function'
@@ -195,7 +196,12 @@ function createOvertimeService(options = {}) {
       if (!rule || typeof rule !== 'object' || Array.isArray(rule)) return rule;
       const imagePath = String(rule.imagePath ?? rule.image_path ?? '').trim();
       const giftId = String(rule.giftId ?? rule.gift_id ?? '').trim();
-      if (!giftId || !isRemoteGiftImagePath(imagePath)) return rule;
+      if (
+        !giftId ||
+        (!isRemoteGiftImagePath(imagePath) &&
+          !isLegacyGiftImagePath(imagePath))
+      )
+        return rule;
       let replacement = '';
       try {
         replacement = String(

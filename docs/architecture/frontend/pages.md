@@ -107,7 +107,7 @@
 | `other.js`                                                           | 百宝箱侧边导航(功能面板切换,不承载业务)                                                                                                                                                                     | [app.md](app.md) §6                       |
 | `desktop-lyric.js`                                                   | 桌面歌词设置表单(自动保存)                                                                                                                                                                                  | [app.md](app.md) §6                       |
 | `desktop-lyric-preview.js`                                           | 桌面歌词实时预览(完整时间轴 + 连续/离散逐字高亮 + 弹簧跟随动画)                                                                                                                                             | [app.md](app.md) §6                       |
-| `start-animation.js`                                                 | 开播动画编辑、轨道动效选择、固定 Browser Source 地址、人物图/音乐上传与恢复、音量控制                                                                                                                       | [app.md](app.md) §6                       |
+| `start-animation.js`                                                 | 开播动画编辑、轨道动效选择、固定 Browser Source 地址、人物图/音乐上传与清除、音量控制                                                                                                                       | [app.md](app.md) §6                       |
 | `clock-card.js`                                                      | 萌时钟固定地址、持久化设置、五套风格选择与横竖 iframe 实时预览                                                                                                                                              | [app.md](app.md) §6                       |
 | `song-category-filter.js`                                            | 分类/标签筛选工具(拆分、选中态读取)                                                                                                                                                                         | [app.md](app.md) §4                       |
 | `gifts/index.js`                                                     | 礼物面板统一渲染入口                                                                                                                                                                                        | [app.md](app.md) §5                       |
@@ -126,7 +126,7 @@
 | `song-virtual-scroller.js`                                                  | 歌单虚拟滚动器(环形 DOM 窗口)                                                                                                                                          |
 | `queue.js` / `songs.js` / `blindbox.js` / `overtime.js` / `lyric-window.js` | 各叠加层逻辑,详见 [overlays.md](overlays.md)                                                                                                                           |
 | `games.js`                                                                  | 直播小游戏入口与会话渲染；你画我猜在本地预览图形后把直线/矩形/圆形拆为归一化坐标点，取色器只吸附到现有安全色板；通过 `danmaku-feed.js` 的显式 ESM 接口消费你画我猜弹幕 |
-| `opening.js`                                                                | 开播动画 Browser Source：读取本地配置与内置/上传人物图、播放内置/上传音乐，并驱动人物待机与心形/灯带/流光轨道动画                                                      |
+| `opening.js`                                                                | 开播动画 Browser Source：读取本地配置与用户上传人物图/音乐，未上传时无人物图且不播放音乐，并驱动人物待机与心形/灯带/流光轨道动画                                          |
 | `clock.js`                                                                  | 萌时钟 Browser Source：读取已保存配置并兼容 URL 参数覆盖，按本地秒边界更新时间/日期、切换横竖设计画布并在页面隐藏时暂停调度                                            |
 | `danmaku-feed.js`                                                           | 可复用弹幕气泡组件：安全构建身份/消息 DOM，并根据文本视觉长度写入气泡宽高 CSS 变量                                                                                     |
 
@@ -164,43 +164,16 @@
 
 | 资源                                                                                                                                                         | 说明                                                                                                                                                                                                                                                  |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `img/bilibili-gifts.json`                                                                                                                                    | 礼物目录，字段 schema 见 §6.1                                                                                                                                                                                                                         |
-| `img/bilibili-gifts/`                                                                                                                                        | 礼物图标(按价格区间分目录:`0000-under-0100/` ~ `3000-above/`、`blind-box/`、`special/`),映射说明见 `gift-mapping.md`                                                                                                                                  |
 | `img/overtime-machine/`                                                                                                                                      | 加班机内置背景:`midnight-grid.svg`、`gift-placeholder.svg`(占位图),选型见 ADR [0005-built-in-overtime-backgrounds](../adr/0005-built-in-overtime-backgrounds.md)                                                                                      |
 | `img/admin/gifts/bilibili-guard-*.png`                                                                                                                       | 大航海(总督/提督/舰长)图标,加班机内置三档守护礼物                                                                                                                                                                                                     |
 | `img/playback/qqmusic-icon.png` / `img/playback/player-turntable-chassis.png` / `img/admin/gifts/gift-section-icon.png` / `img/shared/live-refresh-icon.png` | 播放器/礼物面板图标                                                                                                                                                                                                                                   |
-| `data/theme-presets.json`                                                                                                                                    | 点歌板/歌单板主题预设，字段 schema 见 §6.2                                                                                                                                                                                                            |
+| `data/theme-presets.json`                                                                                                                                    | 点歌板/歌单板主题预设，字段 schema 见 §6.1                                                                                                                                                                                                            |
+| `data/overtime-gift-catalog.json` / `data/overtime-gift-images/` / `data/overtime-gift-assets-state.json`                                                     | 运行时用户数据，不属于 `public/` 静态资源；分别保存服务器付费礼物元数据、首次授权后按精确 ID 准备的图片缓存和版本化扫描完成状态，不进入源码或安装包                           |
 | 字体                                                                                                                                                         | **无内置字体文件**(无 `@font-face`):全部走系统字体栈(Bahnschrift SemiCondensed 用于加班机数字,Bahnschrift 用于 LIVE 标签,Microsoft YaHei/PingFang SC 中文字体栈),见 [utils.js:5](../../../public/js/shared/utils.js#L5) 的 `multilingualFontFallback` |
 
-### 6.1 img/bilibili-gifts.json 格式(唯一成文处)
+礼物主目录由当前配置直播间的 Bilibili 礼物面板、`giftConfig` 和已配置的在售盲盒展开产生。LIRA Server 全局礼物目录不增加主目录成员；首次授权后，本地运行时保存其金瓜子正价子集并按精确礼物 ID 准备全部图片，供全局本地搜索、盲盒、历史高价值礼物和已保存规则复用。同名不同 ID 保持各自映射。服务器或图片不可用时保留礼物条目并显示 `gift-placeholder.svg`。因此源码和安装包不包含 `img/bilibili-gifts.json`、`img/bilibili-gifts/` 或三份旧礼物 Markdown。
 
-由礼物面板(`gifts/index.js`)与加班机礼物规则编辑器(`admin/overtime.js`)在启动时加载。
-
-顶层结构：
-
-```json
-{
-  "retrievedAt": "<ISO 时间戳>",
-  "gifts": [ <GiftEntry>, … ]
-}
-```
-
-`GiftEntry` 字段：
-
-| 字段        | 类型   | 说明                                                                                  |
-| ----------- | ------ | ------------------------------------------------------------------------------------- |
-| `id`        | number | 礼物 ID，与 Bilibili 协议层的 `giftId` 对应                                           |
-| `name`      | string | 礼物名称                                                                              |
-| `price`     | string | 展示价格文本，如 `"90电池"`                                                           |
-| `battery`   | number | 电池数量（与金瓜子 ×10 对应）                                                         |
-| `rmb`       | number | 等值人民币（`battery / 10`）                                                          |
-| `image`     | string | 本地图标路径，相对于 `public/img/`，如 `"bilibili-gifts/blind-box/35800.webp"`        |
-| `sourceUrl` | string | 图标来源 CDN URL（用于更新图标）                                                      |
-| `category`  | string | 分类标签：`blind-box`（盲盒）/ `guard`（大航海）/ `special`（特殊）/ 其他值为普通礼物 |
-
-消费方逻辑：加班机礼物规则选择器按 `id` 匹配规则的 `giftId`，并展示 `image`；最近礼物卡片按 `id` 匹配收到的 `gift_id`，为单价至少 1000 元的普通礼物展示 `image`；礼物面板展示 `name`/`rmb`；`category` 用于在 UI 中做分组展示。
-
-### 6.2 data/theme-presets.json 格式(唯一成文处)
+### 6.1 data/theme-presets.json 格式(唯一成文处)
 
 由 `shared/theme.js` 的 `loadThemeConfig()` 在页面启动时加载，结果挂 `window.AdminApp.theme`。
 

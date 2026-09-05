@@ -61,6 +61,18 @@ reports `LEGACY_PARTIAL` rather than claiming complete history.
   `giftBlindBoxConfig`, when the client reconciles cloud settings, it shall keep
   its local mapping and seed that mapping to the server instead of replacing it
   with an empty list.
+- While v2 detection is active, the server shall combine the current immutable
+  official catalog package with only the authenticated tenant's confirmed
+  `giftBlindBoxCustomConfigV2`. A catalog output relation alone shall never be
+  treated as evidence that an ordinary gift event opened a blind box.
+- When a verified blind-box event is first inserted, the server shall resolve
+  its source by box ID, candidate-parent name, or unique parent, then freeze the
+  nullable `blindBoxId`, cost, and catalog/settings basis. Later catalog or
+  settings changes shall not reclassify that group or historical rows.
+- Every realtime, cursor, bootstrap, and history projection shall carry a
+  required nullable `blindBoxId`; a non-null value shall be a canonical 1-20
+  digit Bilibili gift ID, while old or ambiguous history shall normalize to
+  null.
 
 ## Architecture
 
@@ -69,6 +81,8 @@ flowchart LR
   Bili[Bilibili WebSocket] --> Room[Per-tenant RoomMonitor]
   Room --> Parser[Gift parser]
   Parser --> Detector[Per-tenant authoritative detector]
+  Catalog[Official v2 package] --> Detector
+  Custom[Tenant private v2 mappings] --> Detector
   Detector --> Ledger[(streamer.db gift ledger)]
   Ledger --> Outbox[(final delivery cursor)]
   Detector --> Broker[Per-streamer memory broker]
@@ -86,9 +100,13 @@ flowchart LR
 - `RoomMonitor` owns Bilibili ingress and binds every parsed event to its
   authenticated/configured Streamer runtime before detection.
 - `gift-detector.js` owns business identity, compatibility duplicate matching,
-  cumulative maxima, blind-box values, and the 10-second quiet window.
+  cumulative maxima, evidence-gated blind-box resolution, frozen source/cost
+  basis, and the 10-second quiet window. Official relations and private custom
+  mappings are composed per tenant; relation metadata never creates event
+  evidence.
 - `streamer-storage.js` owns the tenant ledger migration and the final-delivery
-  cursor transaction. A final row and its delivery cursor commit atomically.
+  cursor transaction. The nullable source box ID is fixed when the row is first
+  established; a final row and its delivery cursor commit atomically.
 - `gift-event-broker.js` is an online fan-out only. It is keyed by internal
   `streamerId`, has no offline queue, and never supplies tenant selection from a
   request field.
@@ -116,6 +134,7 @@ The stream event name is `gift-event`. The JSON allowlist is:
     "totalPrice": 0.2,
     "coinType": "gold",
     "isBlindBox": false,
+    "blindBoxId": null,
     "blindBoxName": "",
     "blindBoxPrice": null,
     "blindProfit": null,
@@ -130,6 +149,9 @@ raw packets, cookies, CSRF values, access tokens, and internal database IDs.
 Money fields are normalized to two decimals. A positive `totalPrice` must remain
 positive after that normalization, so a source value such as `0.001` is rejected
 instead of crossing the boundary as zero; `unitPrice` may still be zero.
+`blindBoxId` is always present and nullable. A non-null value is a canonical
+1-20 digit source box gift ID, not a client-supplied tenant or authorization
+selector; unknown, ambiguous, name-only custom, and legacy history use null.
 
 ### Electron main process
 
@@ -151,6 +173,12 @@ instead of crossing the boundary as zero; `unitPrice` may still be zero.
   into the current gift ledger using an event-derived platform key. It freezes
   local consumer eligibility on the first observed phase, dispatches final
   consumers once, and stores no server raw payload.
+- Cloud settings submit only tenant-private `giftBlindBoxCustomConfigV2`; official
+  relations remain read-only. A missing v2 field preserves the saved private
+  value, explicit `[]` clears only that layer, and the client displays the
+  server-confirmed `blindBoxMapping` mode/catalog/settings state. Dirty editor
+  text survives cloud refresh and failed saves until a confirmed response is
+  applied.
 
 ## Security and privacy
 
@@ -160,6 +188,9 @@ instead of crossing the boundary as zero; `unitPrice` may still be zero.
   the authenticated Device or the RoomMonitor's bound Streamer.
 - Wire output is an explicit display DTO. No UID or upstream/raw identifier is
   needed after authoritative detection, so those fields remain server-private.
+- The public official catalog never contains tenant custom mappings or settings
+  revisions. Custom edits use the authenticated settings scope, and the client
+  cannot upload an official relation or claim that a detector adopted a version.
 - The server publishes no more than two Device messages per detected gift group.
   Keepalive comments contain no event or identity data. Final recovery is pull
   based and happens only at startup/reconnect, using pages of at most 200.
@@ -182,6 +213,9 @@ instead of crossing the boundary as zero; `unitPrice` may still be zero.
 - Bilibili REST/WebSocket disconnects and server downtime before ingress still
   have no upstream historical replay guarantee. This design does not claim
   zero-loss Bilibili ingestion.
+- Reconnect and detector recreation load the row's frozen blind-box identity and
+  cost basis. They do not resolve an existing progress group again against a
+  newer official package or tenant settings revision.
 - The in-memory broker is single-process. A future multi-instance deployment
   requires a separate single-consumer/fan-out decision and is outside this
   change.
@@ -222,3 +256,7 @@ instead of crossing the boundary as zero; `unitPrice` may still be zero.
 9. Remote Device transport accepts only a credential-free HTTPS root origin with
    a valid DNS hostname and rejects HTTP, localhost, IP literals, invalid DNS
    labels, non-root paths, queries, and fragments.
+10. Same-name gift IDs and a shared multi-parent output remain distinct; only an
+    upstream-confirmed blind-box event is resolved, ambiguity keeps
+    `blindBoxId=null`, and refreshing mappings never changes an established
+    group's source or profit basis.

@@ -1,6 +1,6 @@
 # 音乐领域服务:注册表、缓存、曲库、队列与歌词状态
 
-> 涉及文件:[provider-registry.js](../../../../src/music/provider-registry.js)、[provider-health.js](../../../../src/music/provider-health.js)、[stream-resolver.js](../../../../src/music/stream-resolver.js)、[track-contract.js](../../../../src/music/track-contract.js)、[music-cache.js](../../../../src/music/music-cache.js)、[lyrics-service.js](../../../../src/music/lyrics-service.js)、[song-service.js](../../../../src/music/song-service.js)、[queue-service.js](../../../../src/music/queue-service.js)、[song-matcher.js](../../../../src/music/song-matcher.js)、[random-song-filter.js](../../../../src/music/random-song-filter.js)、[tag-aliases.js](../../../../src/music/tag-aliases.js)、[requester-target-store.js](../../../../src/music/requester-target-store.js)、[song-import-schema.js](../../../../src/music/song-import-schema.js)、[song-file-codec.js](../../../../src/music/song-file-codec.js)、[lyric-state.js](../../../../src/music/lyric-state.js)、[lyric-timeline.js](../../../../src/music/lyric-timeline.js)
+> 涉及文件:[provider-registry.js](../../../../src/music/provider-registry.js)、[provider-health.js](../../../../src/music/provider-health.js)、[stream-resolver.js](../../../../src/music/stream-resolver.js)、[track-contract.js](../../../../src/music/track-contract.js)、[music-cache.js](../../../../src/music/music-cache.js)、[lyrics-service.js](../../../../src/music/lyrics-service.js)、[song-service.js](../../../../src/music/song-service.js)、[song-store.js](../../../../src/storage/song-store.js)、[queue-service.js](../../../../src/music/queue-service.js)、[song-matcher.js](../../../../src/music/song-matcher.js)、[random-song-filter.js](../../../../src/music/random-song-filter.js)、[tag-aliases.js](../../../../src/music/tag-aliases.js)、[requester-target-store.js](../../../../src/music/requester-target-store.js)、[song-import-schema.js](../../../../src/music/song-import-schema.js)、[song-file-codec.js](../../../../src/music/song-file-codec.js)、[lyric-state.js](../../../../src/music/lyric-state.js)、[lyric-timeline.js](../../../../src/music/lyric-timeline.js)
 
 本文档是 `src/music/` 下**非 Provider、非 WeSing** 模块的唯一事实源:模块职责、导出签名、关键算法与常量只在此成表。上游 Provider 逆向工程见 [qq-provider.md](qq-provider.md) / [netease-provider.md](netease-provider.md);全民 K 歌采集见 [wesing.md](wesing.md);HTTP 端点见 [api.md](../api.md)(music-routes / song-routes / queue-routes 节);WebSocket 快照字段与消息见 [ws.md](../ws.md);DB 表结构见 [storage.md](../storage.md);领域装配点见 [server-core.md](../server-core.md) §5。
 
@@ -13,7 +13,7 @@
 | stream-resolver.js + track-contract.js     | 播放 URL 解析编排与曲目契约                              | §4   |
 | music-cache.js                             | API/歌词磁盘缓存(TTL + 容量裁剪)                         | §5   |
 | lyrics-service.js                          | 搜索 / 首页 / 歌词 / 匹配 / 歌单写入的门面               | §6   |
-| song-service.js + song-field-utils.js      | 曲库 CRUD/分类/导入导出/随机选歌；字段归一化与解析纯函数 | §7   |
+| song-service.js + song-field-utils.js      | 曲库业务规则、字段归一化与解析纯函数；SQL 由 song-store.js 持有 | §7   |
 | queue-service.js                           | 点歌队列统一语义                                         | §8   |
 | song-matcher.js                            | 曲目匹配打分(自动接受阈值)                               | §9   |
 | random-song-filter.js + tag-aliases.js     | 随机点歌纯筛选规则与标签别名                             | §10  |
@@ -32,7 +32,7 @@
 | `musicRegistry` | `createMusicProviderRegistry()`(首次,无参;启动重建时注入 `musicAuth` 适配器)                             | [server.js:166](../../../../src/server.js#L166)、[server.js:443](../../../../src/server.js#L443)                                                                       |
 | `weSingCapture` | `createWeSingCapture({…})`,内含 `createWeSingOnlineLyricResolver({ getRegistry, lyricsService })`        | [server.js:167-192](../../../../src/server.js#L167-L192),见 [wesing.md](wesing.md)                                                                                     |
 
-`createDomainServices` 产出 `songs`(song-service 封装)与 `queue`(queue-service 封装),见 [server-core.md](../server-core.md) §5 的表;API context 的 `music` 组把 `registry` + `lyrics` 注入路由([server.js:404-405](../../../../src/server.js#L404-L405)),`weSing` 组见 [wesing.md](wesing.md) §8。
+`createDomainServices` 创建 `createSongStore(db.songDb)` 并产出 `songs`(song-service 封装)与 `queue`(queue-service 封装),见 [server-core.md](../server-core.md) §5 的表;API context 的 `music` 组把 `registry` + `lyrics` 注入路由([server.js:404-405](../../../../src/server.js#L404-L405)),`weSing` 组见 [wesing.md](wesing.md) §8。
 
 ## 3. Provider 注册表与健康检查
 
@@ -168,32 +168,32 @@ Provider 内部实现见各 Provider 文档 §7.2;这里只记录编排层语义
 
 | 函数                                       | 行为                                                                                                                                                                                                                                                                                    | 出处                                                                       |
 | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| `saveSong(db, input)`                      | **upsert 语义**:有 `input.id` 走 UPDATE(不存在抛"歌曲不存在",UNIQUE 冲突翻译成"歌曲名称和艺术家与已有歌曲重复");无 id 时先按 `(name, artist)` 精确查重,存在则 UPDATE 其余字段,否则 INSERT。`name` 必填;分类缺省"默认"(`ensureCategory`);`name_pinyin = name_initial = getInitial(name)` | [song-service.js:20-88](../../../../src/music/song-service.js#L20-L88)     |
-| `listSongs(db, filters)`                   | 过滤:关键词(`songs.name/artist/tags/category_name` 四列 LIKE)、分类列表、language、artist、`enabledOnly`;**tag 过滤在 SQL 之后用 JS 全匹配**(大小写不敏感);排序按 `name_initial` + `name`(`zh-Hans-CN-u-co-pinyin`);返回行 `is_enabled` 布尔化                                          | [song-service.js:90-146](../../../../src/music/song-service.js#L90-L146)   |
-| `findSong(db, songName, artist?)`          | 有 artist 先精确 `(name, artist)`;否则按 name 取 `updated_at` 最新;仅启用歌曲                                                                                                                                                                                                           | [song-service.js:148-172](../../../../src/music/song-service.js#L148-L172) |
-| `findUniqueSongNameMatch(db, songName)`    | 精确失败后 LIKE `%name%`(转义 `\ % _`),**恰好 1 条才返回**(模糊匹配拒绝猜测)                                                                                                                                                                                                            | [song-service.js:174-191](../../../../src/music/song-service.js#L174-L191) |
-| `deleteSong` / `toggleSong` / `countSongs` | 单曲写操作封装(按 id 删除;切换启用返回 `{ok}`;总数)                                                                                                                                                                                                                                     | [song-service.js:200-216](../../../../src/music/song-service.js#L200-L216) |
+| `saveSong(store, input)`                   | **upsert 语义**:有 `input.id` 走 UPDATE(不存在抛"歌曲不存在",UNIQUE 冲突翻译成"歌曲名称和艺术家与已有歌曲重复");无 id 时先按 `(name, artist)` 精确查重,存在则 UPDATE 其余字段,否则 INSERT。`name` 必填;分类缺省"默认"(`ensureCategory`);`name_pinyin = name_initial = getInitial(name)` | [song-service.js](../../../../src/music/song-service.js) |
+| `listSongs(store, filters)`                | store 保留关键词/分类的 SQL LIKE 语义、语言/歌手候选筛选与启用筛选及 SQL 初始顺序；领域层做完整字段和 tag 匹配，再按 `name_initial` + `name`(`zh-Hans-CN-u-co-pinyin`) 稳定排序并布尔化 `is_enabled` | [song-service.js](../../../../src/music/song-service.js) |
+| `findSong(store, songName, artist?)`       | 有 artist 先精确 `(name, artist)`;否则按 name 取 `updated_at` 最新;仅启用歌曲 | [song-service.js](../../../../src/music/song-service.js) |
+| `findUniqueSongNameMatch(store, songName)` | 精确失败后由 store 执行转义 LIKE `%name%`,**恰好 1 条才返回**(模糊匹配拒绝猜测) | [song-service.js](../../../../src/music/song-service.js) |
+| `deleteSong` / `toggleSong` / `countSongs` | 委托 store 的单曲写操作(删除时在同一事务解除 queue/request 引用);切换启用返回 `{ok}`;总数 | [song-service.js](../../../../src/music/song-service.js) |
 
 ### 7.2 分类与标签
 
-- `listCategories`:`sort_order ASC, name` 排序,`is_enabled` 布尔化
-- `ensureCategory(name)`:`INSERT OR 返回` 语义,新建时 `sort_order=0, is_enabled=1`([song-service.js:231-242](../../../../src/music/song-service.js#L231-L242))
-- `listTags`:扫描全表非空 tags,按 `[,，]` 切分去重,`zh-Hans-CN` 排序([song-service.js:366-373](../../../../src/music/song-service.js#L366-L373))
-- `splitSongTags`:逗号(全/半角)切分
+- `listCategories`:`sort_order ASC, name` 排序,`is_enabled` 布尔化(store 查询)
+- `ensureCategory(name)`:`INSERT OR 返回` 语义,新建时 `sort_order=0, is_enabled=1`(store 原子写入)
+- `listTags`:领域层扫描 store 提供的非空 tags，使用共用字段解析器切分去重，`zh-Hans-CN` 排序
+- `splitSongTags`:兼容全/半角逗号、顿号、分号和竖线；语言字段统一支持全角斜杠。歌手字段保留显式兼容模式：库筛选兼容逗号分隔导入，随机请求保留歌手名内的逗号，不把合法姓名拆碎。
 
-### 7.3 导入(importSongs,[song-service.js:246-316](../../../../src/music/song-service.js#L246-L316))
+### 7.3 导入(importSongs,[song-service.js](../../../../src/music/song-service.js))
 
-- `normalizeImportedSongRow` 逐行归一(§11);单事务 `BEGIN`/`COMMIT`,失败 `ROLLBACK`
-- 逐行:名空计 failed → `(name, artist)` 重复计 duplicate 跳过 → 新分类计数 → INSERT
+- `normalizeImportedSongRow` 与空歌名/云快照校验由领域层负责(§11);`store.importRows` 将有效行与 `import_batches` 写入同一事务,失败 `ROLLBACK`
+- 逐行:名空计 failed → `(name, artist)` 重复计 duplicate 跳过 → 新分类计数 → INSERT;`store.replaceAll` 负责清空并解除历史引用后原子写入云快照
 - 结束写 `import_batches` 批次记录;返回 `{total, inserted, duplicate, failed, createdCategories, failures}`
 
-### 7.4 随机选歌(pickRandomSong,[song-service.js:320-346](../../../../src/music/song-service.js#L320-L346))
+### 7.4 随机选歌(pickRandomSong,[song-service.js](../../../../src/music/song-service.js))
 
-1. `listRandomSongCandidates(db, scopeText)`:SQL 只取 `is_enabled=1` 的全量行 + 分类启用标记,组合筛选交给纯模块 `filterRandomSongCandidates`(§10)
-2. 排除**最近 10 次** `source = 'random' 或 'random:%'` 的点歌流水歌名(`requests` 表,`datetime(created_at) DESC LIMIT 10`)——避免随机重复刚点过的歌
+1. store 只取 `is_enabled=1` 的全量行 + 分类启用标记,组合筛选交给纯模块 `filterRandomSongCandidates`(§10)
+2. store 提供最近 10 次 `source = 'random' 或 'random:%'` 的点歌流水歌名(`requests` 表),领域层排除它们——避免随机重复刚点过的歌
 3. 排除后为空则回退全池;`randomSourceValue(scopeText)` 生成 `source = 'random'` 或 `random:<scope>`(弹幕机器人据此定位请求者,见 §12)
 
-`describeRandomSongScope`(导出名映射到库版,[song-service.js:348-357](../../../../src/music/song-service.js#L348-L357)):同样的数据源调 `describeRandomSongScope`(§10),供"随机点歌说明"用。`normalizeRandomScopeText` 会剥掉前导 `+＋:：-—` 符号([song-service.js:375-381](../../../../src/music/song-service.js#L375-L381))。
+`describeRandomSongScope`(导出名映射到库版,[song-service.js](../../../../src/music/song-service.js)):同样的数据源调 `describeRandomSongScope`(§10),供"随机点歌说明"用。`normalizeRandomScopeText` 会剥掉前导 `+＋:：-—` 符号。
 
 ## 8. 点歌队列(queue-service.js)
 

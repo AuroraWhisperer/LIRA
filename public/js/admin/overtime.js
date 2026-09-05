@@ -42,12 +42,13 @@ let rulesSaving = false;
 let backgroundDirty = false;
 let backgroundSaving = false;
 let catalogRefreshing = false;
-let serverGiftSearchPending = false;
+let globalGiftSearchPending = false;
 let giftCatalogSnapshot = null;
 let giftCatalogApplyGeneration = 0;
 let catalogLiveStatus = null;
 let saleGiftIds = new Set();
-let serverGiftMatches = [];
+let globalGiftMatches = [];
+let serverGiftArtworkById = new Map();
 let giftPickerSource = 'sale';
 let ruleEditor = null;
 
@@ -73,7 +74,13 @@ const overtimeStatusView = createOvertimeStatusView({
   renderInitialDuration,
   setValueUnlessFocused,
   getGiftDetection: () => giftDetection,
-  getRuleEditor: () => ruleEditor,
+  getRuleEditor: () =>
+    ruleEditor
+      ? {
+          renderRules: (rules) =>
+            ruleEditor.renderRules(decorateOvertimeRules(rules)),
+        }
+      : null,
   isRulesDirty: () => rulesDirty,
   isBackgroundDirty: () => backgroundDirty,
   syncRuleAvailability,
@@ -100,7 +107,8 @@ function init() {
     if (payload.adjustment) refresh().catch(showError);
   });
   eventBus.on(Events.GIFT_CATALOG_UPDATED, ({ snapshot }) => {
-    if (snapshot?.source !== 'server') applyGiftCatalog(snapshot);
+    if (snapshot?.source === 'server') applyServerGiftArtwork(snapshot);
+    else applyGiftCatalog(snapshot);
   });
   eventBus.on('app:shutdown', stopClockLoop);
   document.addEventListener('visibilitychange', syncClockLoop);
@@ -145,9 +153,9 @@ function bindControls() {
     'keydown',
     handleGiftSearchKeydown,
   );
-  byId('overtimeServerGiftSearchBtn').addEventListener(
+  byId('overtimeGlobalGiftSearchBtn').addEventListener(
     'click',
-    searchServerGifts,
+    searchGlobalGifts,
   );
   byId('overtimeRules').addEventListener('input', markRulesDirty);
   byId('overtimeRules').addEventListener('change', markRulesDirty);
@@ -319,7 +327,8 @@ function applyGiftCatalog(snapshot) {
       catalogGroup: gift.catalogGroup,
       catalogOrder: gift.catalogOrder,
       imagePath: String(
-        gift.imagePath ||
+        serverGiftArtworkById.get(String(gift.id)) ||
+          gift.imagePath ||
           (gift.image ? `/img/${String(gift.image).replace(/^\/+/, '')}` : ''),
       ),
     }))
@@ -332,10 +341,64 @@ function applyGiftCatalog(snapshot) {
   renderGiftCatalogStatus();
   syncRuleAvailability();
   // Keep an already-open picker in sync with a pushed catalog revision.
-  // Server-search mode remains selected; only its availability labels are
+  // Global-search mode remains selected; only its availability labels are
   // refreshed, so an update cannot discard the user's current query.
   const picker = byId('overtimeGiftPicker');
   if (picker?.open) renderGiftPicker();
+}
+
+function applyServerGiftArtwork(snapshot) {
+  if (!snapshot || typeof snapshot !== 'object') return;
+  if (!Array.isArray(snapshot.gifts)) return;
+
+  const nextArtworkById = new Map(serverGiftArtworkById);
+  for (const gift of snapshot.gifts) {
+    const giftId = String(gift?.id ?? '').trim();
+    const imagePath = normalizeGiftArtworkPath(gift?.imagePath);
+    if (giftId && imagePath) nextArtworkById.set(giftId, imagePath);
+  }
+  serverGiftArtworkById = nextArtworkById;
+
+  catalog = catalog.map((gift) => {
+    const imagePath = serverGiftArtworkById.get(gift.id);
+    return imagePath ? { ...gift, imagePath } : gift;
+  });
+  globalGiftMatches = globalGiftMatches.map((gift) => {
+    const imagePath = serverGiftArtworkById.get(gift.id);
+    return imagePath ? { ...gift, imagePath } : gift;
+  });
+  for (const row of byId('overtimeRules').querySelectorAll(
+    '[data-overtime-rule]',
+  )) {
+    const imagePath = serverGiftArtworkById.get(
+      String(row.dataset.giftId || ''),
+    );
+    if (!imagePath) continue;
+    row.dataset.imagePath = imagePath;
+    const image = row.querySelector('.overtime-rule-gift img');
+    if (image) image.src = imagePath;
+  }
+  const picker = byId('overtimeGiftPicker');
+  if (picker?.open) renderGiftPicker();
+}
+
+function decorateOvertimeRules(rules) {
+  if (!Array.isArray(rules)) return rules;
+  return rules.map((rule) => {
+    const imagePath = serverGiftArtworkById.get(
+      String(rule?.giftId ?? '').trim(),
+    );
+    return imagePath ? { ...rule, imagePath } : rule;
+  });
+}
+
+function normalizeGiftArtworkPath(value) {
+  const imagePath = String(value ?? '').trim();
+  return /^\/overtime-gift-images\/[a-z0-9._-]+\.(?:gif|webp|png|jpe?g)$/i.test(
+    imagePath,
+  ) && !imagePath.includes('..')
+    ? imagePath
+    : '';
 }
 
 function renderGiftCatalogStatus() {
@@ -400,7 +463,7 @@ function syncRuleAvailability() {
 function openGiftPicker() {
   const search = byId('overtimeGiftSearch');
   search.value = '';
-  serverGiftMatches = [];
+  globalGiftMatches = [];
   giftPickerSource = 'sale';
   renderGiftPicker();
   byId('overtimeGiftPicker').showModal();
@@ -419,42 +482,44 @@ function handleGiftSearchInput() {
 function handleGiftSearchKeydown(event) {
   if (event.key !== 'Enter') return;
   event.preventDefault();
-  searchServerGifts();
+  searchGlobalGifts();
 }
 
-async function searchServerGifts() {
-  if (serverGiftSearchPending) return;
+async function searchGlobalGifts() {
+  if (globalGiftSearchPending) return;
   const query = byId('overtimeGiftSearch').value.trim();
   if (!query || Array.from(query).length > 100) {
     showError(new Error('请输入 1–100 个字符的礼物名称或 ID。'));
     return;
   }
-  serverGiftSearchPending = true;
-  syncServerGiftSearchButton();
+  globalGiftSearchPending = true;
+  syncGlobalGiftSearchButton();
   try {
-    const result = await api('/api/overtime/gifts/server/search', { query });
-    serverGiftMatches = (
+    const result = await api('/api/overtime/gifts/local/search', { query });
+    globalGiftMatches = (
       Array.isArray(result.data?.gifts) ? result.data.gifts : []
     ).map((gift) => ({
       id: String(gift.id),
       name: String(gift.name || gift.id),
       rmb: Number(gift.rmb) || 0,
-      imagePath: String(gift.imagePath || ''),
+      imagePath:
+        serverGiftArtworkById.get(String(gift.id)) ||
+        String(gift.imagePath || ''),
     }));
-    giftPickerSource = 'server';
+    giftPickerSource = 'global';
     renderGiftPicker();
   } catch (_) {
   } finally {
-    serverGiftSearchPending = false;
-    syncServerGiftSearchButton();
+    globalGiftSearchPending = false;
+    syncGlobalGiftSearchButton();
   }
 }
 
-function syncServerGiftSearchButton() {
-  const button = byId('overtimeServerGiftSearchBtn');
+function syncGlobalGiftSearchButton() {
+  const button = byId('overtimeGlobalGiftSearchBtn');
   if (!button) return;
-  button.disabled = serverGiftSearchPending;
-  button.textContent = serverGiftSearchPending ? '搜索中…' : '搜索服务器礼物';
+  button.disabled = globalGiftSearchPending;
+  button.textContent = globalGiftSearchPending ? '搜索中…' : '搜索全部礼物';
 }
 
 function renderGiftPicker() {
@@ -465,7 +530,7 @@ function renderGiftPicker() {
       byId('overtimeRules').querySelectorAll('[data-overtime-rule]'),
     ).map((row) => row.dataset.giftId),
   );
-  const source = giftPickerSource === 'server' ? serverGiftMatches : catalog;
+  const source = giftPickerSource === 'global' ? globalGiftMatches : catalog;
   const matches = source.filter(
     (gift) =>
       !selectedIds.has(gift.id) &&
@@ -474,12 +539,12 @@ function renderGiftPicker() {
         gift.name.toLocaleLowerCase().includes(query)),
   );
   root.replaceChildren();
-  if (giftPickerSource === 'server' && matches.length) {
+  if (giftPickerSource === 'global' && matches.length) {
     const cachedImages = matches.filter((gift) => gift.imagePath).length;
     root.append(
       createMessage(
         'overtime-rule-empty overtime-local-gift-search-status',
-        `服务器匹配 ${matches.length} 个，已缓存 ${cachedImages} 张图片；这些礼物可手动加入，不要求当前在售。`,
+        `全部目录匹配 ${matches.length} 个，已有 ${cachedImages} 张图片；这些礼物可手动加入，不要求当前在售。`,
       ),
     );
   }
@@ -504,7 +569,7 @@ function renderGiftPicker() {
     if (!gift.id.startsWith('guard-')) {
       const meta = document.createElement('small');
       const availability =
-        giftPickerSource === 'server'
+        giftPickerSource === 'global'
           ? saleGiftIds.has(gift.id)
             ? '目录中'
             : '当前未在售（目录外）'
@@ -520,8 +585,8 @@ function renderGiftPicker() {
     root.append(
       createMessage(
         'overtime-rule-empty',
-        giftPickerSource === 'server'
-          ? '服务器目录中没有匹配礼物。'
+        giftPickerSource === 'global'
+          ? '全部礼物中没有匹配项。'
           : '没有找到当前在售礼物。',
       ),
     );

@@ -133,7 +133,7 @@ LIRA 的主要产品形态是 **Electron 桌面客户端**。`public/` 下的管
 | 自动更新状态机                                                | [desktop/update.md](desktop/update.md)                                   |
 | `local-media://` 协议/请求头伪装(webRequest)                  | [desktop/main.md](desktop/main.md)                                       |
 | 页面入口 URL 与 public/ 模块清单                              | [frontend/pages.md](frontend/pages.md)                                   |
-| `bilibili-gifts.json` 字段 schema / `theme-presets.json` 结构 | [frontend/pages.md](frontend/pages.md) §6.1–§6.2                         |
+| 礼物目录来源、精确 ID 图片缓存与 `theme-presets.json` 结构       | [backend/overtime.md](backend/overtime.md) §1.5 / [frontend/pages.md](frontend/pages.md) §6.1 |
 | 叠加层 CSS 变量(`--overlay-*`)完整注入表                      | [frontend/overlays.md](frontend/overlays.md) §1.2                        |
 | 歌词解析器(LRC/YRC/QRC 行模型、逐字词、时间容差)              | [backend/music/services.md](backend/music/services.md) §14               |
 | 加班机算法(权重/时钟/重试)                                    | [backend/overtime.md](backend/overtime.md)                               |

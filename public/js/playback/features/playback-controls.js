@@ -3,6 +3,7 @@
 'use strict';
 
 import * as PlaybackUtils from '../utils.js';
+import { PlaybackConfig } from '../config.js';
 
 function isInterruptedMediaPlayError(error) {
   return (
@@ -121,14 +122,16 @@ export function createPlaybackControls(deps) {
       !options.fromHistory
     ) {
       playbackState.history.push(playbackState.current);
-      playbackState.history = playbackState.history.slice(-50);
+      playbackState.history = playbackState.history.slice(
+        -PlaybackConfig.HISTORY_MAX_SIZE,
+      );
     }
     // 更新展示用播放历史（200首，去重，最新置顶）
     if (!options.fromHistory) {
       playbackState.displayHistory = [
         { ...track, playedAt: Date.now() },
         ...playbackState.displayHistory.filter((t) => t.id !== track.id),
-      ].slice(0, 200);
+      ].slice(0, PlaybackConfig.DISPLAY_HISTORY_MAX_SIZE);
     }
 
     playbackState.current = track;

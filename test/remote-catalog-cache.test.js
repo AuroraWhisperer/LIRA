@@ -7,17 +7,97 @@ const path = require('node:path');
 const test = require('node:test');
 const {
   CACHE_FILE_NAME,
-  createRemoteGiftCatalogCache,
+  createRemoteGiftCatalogCache: createRemoteGiftCatalogCacheImpl,
   normalizeImageBaseUrl,
+  normalizeBilibiliImageUrl,
   normalizeImagePath,
-  normalizeRemoteCatalog,
+  normalizeRemoteCatalog: normalizeRemoteCatalogImpl,
 } = require('../src/bilibili/gift/remote-catalog-cache');
 const {
   createHybridGiftSaleCatalogService,
+  mergeRoomCatalog,
 } = require('../src/bilibili/gift/hybrid-catalog');
 
 const QUIET_LOGGER = { debug() {}, warn() {} };
 const UPDATED_AT = '2026-08-29T08:00:00.000Z';
+
+function v2CatalogResponse(response) {
+  if (!response || response.notModified === true || response.ok === false) {
+    return response;
+  }
+  return {
+    schemaVersion: 2,
+    blindBoxes: [],
+    ...response,
+    gifts: (response.gifts || []).map((gift) => ({
+      active: true,
+      isBlindBox: false,
+      ...gift,
+    })),
+  };
+}
+
+function createRemoteGiftCatalogCache(options) {
+  const fetchRemote = options.fetchRemote;
+  return createRemoteGiftCatalogCacheImpl({
+    ...options,
+    fetchRemote: async (request) =>
+      v2CatalogResponse(await fetchRemote(request)),
+  });
+}
+
+function normalizeRemoteCatalog(response, options) {
+  return normalizeRemoteCatalogImpl(v2CatalogResponse(response), options);
+}
+
+test('point gift lookup follows catalog replacements and does not expose mutable rows', async (t) => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-gift-index-'));
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  let version = 1;
+  const cache = createRemoteGiftCatalogCache({
+    dataDir, logger: QUIET_LOGGER,
+    fetchRemote: async () => ({
+      schemaVersion: 2, blindBoxes: [],
+      version: String(version), updatedAt: UPDATED_AT,
+      gifts: [{ id: version === 3 ? '1002' : '1001', name: `gift-${version}`, priceRaw: 1000, coinType: 'gold' }],
+    }),
+  });
+  assert.equal(cache.getGift('1001'), null);
+  await cache.refresh({ force: true });
+  const row = cache.getGift('1001');
+  row.name = 'modified';
+  assert.equal(cache.getGift('1001').name, 'gift-1');
+  version = 2;
+  await cache.refresh({ force: true });
+  assert.equal(cache.getGift('1001').name, 'gift-2');
+  version = 3;
+  await cache.refresh({ force: true });
+  assert.equal(cache.getGift('1001'), null);
+  cache.stop();
+});
+
+test('rule artwork lookup checks only the requested gift, not all catalog images', () => {
+  let snapshots = 0;
+  let imageChecks = 0;
+  let imagePath = 'first';
+  const catalog = createHybridGiftSaleCatalogService({
+    local: { getSnapshot: () => ({ gifts: [] }), refresh: async () => ({ gifts: [] }) },
+    remoteCatalog: {
+      getSnapshot() { snapshots += 1; return { gifts: [] }; },
+      getGift: (id) => id === '1001' ? { id, imagePath } : null,
+      refresh: async () => ({ gifts: [] }),
+    },
+    remoteImageCache: {
+      getCachedGiftImagePath(gift) { imageChecks += 1; return gift.imagePath; },
+    },
+  });
+  const initialSnapshots = snapshots;
+  assert.equal(catalog.resolveGiftImagePath('1001'), 'first');
+  imagePath = 'updated';
+  assert.equal(catalog.resolveGiftImagePath('1001'), 'updated');
+  assert.equal(snapshots, initialSnapshots);
+  assert.equal(imageChecks, 2);
+});
 
 test('persists and coalesces remote catalog refreshes', async () => {
   const dataDir = fs.mkdtempSync(
@@ -199,10 +279,19 @@ test('does not let a future persisted check time suppress refresh', async () => 
       path.join(dataDir, CACHE_FILE_NAME),
       JSON.stringify({
         etag: '"old"',
+        schemaVersion: 2,
         version: 'old',
         updatedAt: UPDATED_AT,
         checkedAt: '2099-01-01T00:00:00.000Z',
-        gifts: [{ id: '301', name: '旧礼物', priceRaw: 100, coinType: 'gold' }],
+        gifts: [{
+          id: '301',
+          name: '旧礼物',
+          priceRaw: 100,
+          coinType: 'gold',
+          active: true,
+          isBlindBox: false,
+        }],
+        blindBoxes: [],
       }),
     );
     let calls = 0;
@@ -267,7 +356,7 @@ test('stopping the cache suppresses late writes and update notifications', async
   }
 });
 
-test('normalizes only same-origin immutable gift images and deduplicates ids', () => {
+test('normalizes only same-origin immutable gift images and rejects duplicate ids', () => {
   assert.throws(
     () =>
       normalizeRemoteCatalog({
@@ -326,10 +415,29 @@ test('normalizes only same-origin immutable gift images and deduplicates ids', (
     version: 'advertised-origin',
     imageBaseUrl: 'https://untrusted.example',
     gifts: [
-      { id: '401', name: '不可信图片', imageUrl: '/gift-media/images/a.webp' },
+      {
+        id: '401',
+        name: '不可信图片',
+        priceRaw: 100,
+        coinType: 'gold',
+        imageUrl: '/gift-media/images/a.webp',
+      },
     ],
   });
   assert.equal(advertisedOrigin.gifts[0].imagePath, '');
+
+  assert.throws(
+    () =>
+      normalizeRemoteCatalog({
+        ok: true,
+        version: 'duplicate',
+        gifts: [
+          { id: '400', name: '第一条', priceRaw: 100, coinType: 'gold' },
+          { id: '000400', name: '重复条', priceRaw: 100, coinType: 'gold' },
+        ],
+      }),
+    (error) => error.code === 'REMOTE_CATALOG_DUPLICATE_GIFT',
+  );
 
   const snapshot = normalizeRemoteCatalog({
     ok: true,
@@ -337,15 +445,170 @@ test('normalizes only same-origin immutable gift images and deduplicates ids', (
     imageBaseUrl: 'https://api.lirahub.cn',
     gifts: [
       { id: '400', name: '第一条', priceRaw: 100, coinType: 'gold' },
-      { id: '000400', name: '重复条', priceRaw: 100, coinType: 'gold' },
       { id: '13000', name: '发红包', priceRaw: 0, coinType: 'gold' },
       { id: '33972', name: '舰长一号', priceRaw: 100, coinType: 'gold' },
+      { id: '401', name: '免费礼物', priceRaw: 0, coinType: 'gold' },
+      { id: '402', name: '银瓜子礼物', priceRaw: 25, coinType: 'silver' },
     ],
   });
   assert.deepEqual(
     snapshot.gifts.map((gift) => gift.id),
-    ['400'],
+    ['400', '401'],
   );
+  assert.equal(
+    normalizeBilibiliImageUrl(
+      'https://i0.hdslb.com/bfs/live/source.webp',
+    ),
+    'https://i0.hdslb.com/bfs/live/source.webp',
+  );
+  assert.equal(
+    normalizeBilibiliImageUrl('https://evil.example/source.webp'),
+    '',
+  );
+});
+
+test('requires explicit v2 gift state booleans', () => {
+  const missingActive = v2CatalogResponse({
+    version: 'missing-active',
+    gifts: [{ id: '410', name: '礼物', priceRaw: 100, coinType: 'gold' }],
+  });
+  delete missingActive.gifts[0].active;
+  assert.throws(
+    () => normalizeRemoteCatalogImpl(missingActive),
+    (error) => error.code === 'REMOTE_CATALOG_GIFT_INVALID',
+  );
+
+  const invalidBlindBox = v2CatalogResponse({
+    version: 'invalid-blind-box',
+    gifts: [{ id: '411', name: '礼物', priceRaw: 100, coinType: 'gold' }],
+  });
+  invalidBlindBox.gifts[0].isBlindBox = 1;
+  assert.throws(
+    () => normalizeRemoteCatalogImpl(invalidBlindBox),
+    (error) => error.code === 'REMOTE_CATALOG_GIFT_INVALID',
+  );
+});
+
+test('persists and notifies a relation-only catalog update', async () => {
+  const dataDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'lira-remote-catalog-relations-'),
+  );
+  try {
+    let outputGiftId = '602';
+    const updates = [];
+    const cache = createRemoteGiftCatalogCache({
+      dataDir,
+      logger: QUIET_LOGGER,
+      minRefreshMs: 1,
+      fetchRemote: async () => ({
+        version: 'same-version',
+        updatedAt: UPDATED_AT,
+        gifts: [
+          {
+            id: '601',
+            name: '盲盒',
+            priceRaw: 5000,
+            coinType: 'gold',
+            isBlindBox: true,
+          },
+          { id: '602', name: '产物 A', priceRaw: 100, coinType: 'gold' },
+          { id: '603', name: '产物 B', priceRaw: 200, coinType: 'gold' },
+        ],
+        blindBoxes: [{ giftId: '601', outputGiftIds: [outputGiftId] }],
+      }),
+      onUpdated: (snapshot) => updates.push(snapshot),
+    });
+
+    await cache.refresh({ force: true });
+    outputGiftId = '603';
+    await cache.refresh({ force: true });
+
+    assert.equal(updates.length, 2);
+    assert.deepEqual(cache.getSnapshot().blindBoxes, [
+      { giftId: '601', outputGiftIds: ['603'] },
+    ]);
+    const persisted = JSON.parse(
+      fs.readFileSync(path.join(dataDir, CACHE_FILE_NAME), 'utf8'),
+    );
+    assert.deepEqual(persisted.blindBoxes, cache.getSnapshot().blindBoxes);
+  } finally {
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
+test('retains the previous snapshot when a relation reference is invalid', async () => {
+  const dataDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'lira-remote-catalog-invalid-relation-'),
+  );
+  try {
+    let outputGiftId = '612';
+    const cache = createRemoteGiftCatalogCache({
+      dataDir,
+      logger: QUIET_LOGGER,
+      minRefreshMs: 1,
+      fetchRemote: async () => ({
+        version: outputGiftId === '612' ? 'valid' : 'invalid',
+        gifts: [
+          {
+            id: '611',
+            name: '盲盒',
+            priceRaw: 5000,
+            coinType: 'gold',
+            isBlindBox: true,
+          },
+          { id: '612', name: '产物', priceRaw: 100, coinType: 'gold' },
+        ],
+        blindBoxes: [{ giftId: '611', outputGiftIds: [outputGiftId] }],
+      }),
+    });
+
+    await cache.refresh({ force: true });
+    outputGiftId = '999';
+    await assert.rejects(
+      cache.refresh({ force: true }),
+      (error) => error.code === 'REMOTE_CATALOG_BLIND_BOXES_INVALID',
+    );
+    assert.equal(cache.getSnapshot().version, 'valid');
+    assert.deepEqual(cache.getSnapshot().blindBoxes[0].outputGiftIds, ['612']);
+  } finally {
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
+test('retains the in-memory snapshot when the replacement cannot be persisted', async () => {
+  const dataDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'lira-remote-catalog-write-failure-'),
+  );
+  const cacheDir = path.join(dataDir, 'cache');
+  try {
+    let giftId = '621';
+    const cache = createRemoteGiftCatalogCache({
+      dataDir,
+      cachePath: path.join(cacheDir, 'catalog.json'),
+      logger: QUIET_LOGGER,
+      minRefreshMs: 1,
+      fetchRemote: async () => ({
+        version: giftId,
+        gifts: [
+          { id: giftId, name: `礼物 ${giftId}`, priceRaw: 100, coinType: 'gold' },
+        ],
+      }),
+    });
+
+    await cache.refresh({ force: true });
+    fs.rmSync(cacheDir, { recursive: true, force: true });
+    fs.writeFileSync(cacheDir, 'blocks cache writes');
+    giftId = '622';
+
+    await assert.rejects(
+      cache.refresh({ force: true }),
+      (error) => error.code === 'REMOTE_CATALOG_CACHE_WRITE_FAILED',
+    );
+    assert.equal(cache.getGift('621').name, '礼物 621');
+    assert.equal(cache.getGift('622'), null);
+  } finally {
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
 });
 
 test('does not persist or use a response-advertised image origin without configuration', async () => {
@@ -364,6 +627,8 @@ test('does not persist or use a response-advertised image origin without configu
           {
             id: '402',
             name: '不可信图片',
+            priceRaw: 100,
+            coinType: 'gold',
             imageUrl: '/gift-media/images/a.webp',
           },
         ],
@@ -390,9 +655,18 @@ test('refreshes a persisted snapshot that has no prior check timestamp', async (
       path.join(dataDir, CACHE_FILE_NAME),
       JSON.stringify({
         etag: '"old"',
+        schemaVersion: 2,
         version: 'old',
         updatedAt: UPDATED_AT,
-        gifts: [{ id: '499', name: '旧礼物', priceRaw: 100, coinType: 'gold' }],
+        gifts: [{
+          id: '499',
+          name: '旧礼物',
+          priceRaw: 100,
+          coinType: 'gold',
+          active: true,
+          isBlindBox: false,
+        }],
+        blindBoxes: [],
       }),
     );
     let calls = 0;
@@ -502,6 +776,8 @@ test('strictly normalizes remote booleans and binds restored image paths to the 
           {
             id: '502',
             name: '图片礼物',
+            priceRaw: 100,
+            coinType: 'gold',
             imageUrl: '/gift-media/images/a.webp',
           },
         ],
@@ -528,16 +804,28 @@ test('strictly normalizes remote booleans and binds restored image paths to the 
   }
 });
 
-test('preserves nullable prices for non-gold remote gifts', () => {
+test('keeps nonnegative-price gold gifts in the local catalog', () => {
   const snapshot = normalizeRemoteCatalog({
     ok: true,
     version: 'nullable-price',
     gifts: [
       { id: '503', name: '银瓜子礼物', priceRaw: 25, coinType: 'silver' },
+      { id: '504', name: '免费礼物', priceRaw: 0, coinType: 'gold' },
+      {
+        id: '505',
+        name: '付费礼物',
+        priceRaw: 100,
+        coinType: 'gold',
+        sourceUrl: 'https://i0.hdslb.com/bfs/live/paid.webp',
+      },
     ],
   });
-  assert.equal(snapshot.gifts[0].battery, null);
-  assert.equal(snapshot.gifts[0].rmb, null);
+  assert.deepEqual(snapshot.gifts.map((gift) => gift.id), ['504', '505']);
+  assert.equal(snapshot.gifts[0].priceRaw, 0);
+  assert.equal(
+    snapshot.gifts[1].sourceUrl,
+    'https://i0.hdslb.com/bfs/live/paid.webp',
+  );
 });
 
 test('retains the validated image origin when later snapshots omit the optional field', async () => {
@@ -560,6 +848,8 @@ test('retains the validated image origin when later snapshots omit the optional 
             {
               id: '503',
               name: '持续图片',
+              priceRaw: 100,
+              coinType: 'gold',
               imageUrl: '/gift-media/images/cover.webp',
             },
           ],
@@ -584,18 +874,25 @@ test('retains the validated image origin when later snapshots omit the optional 
 test('hybrid catalog keeps local room catalog primary and exposes remote search separately', async () => {
   const calls = { local: 0, remote: 0, search: 0 };
   const local = {
-    getSnapshot: () => ({ source: 'local', gifts: [{ id: '1' }] }),
+    getSnapshot: () => ({
+      source: 'local',
+      gifts: [
+        { id: '1', name: '同名礼物' },
+        { id: '2', name: '同名礼物' },
+      ],
+    }),
     refresh: async () => {
       calls.local += 1;
-      return { source: 'local', gifts: [{ id: '1' }] };
+      return local.getSnapshot();
     },
-    searchLocal: () => ({ gifts: [] }),
   };
   const remote = {
     getSnapshot: () => ({
       source: 'server',
       version: '1',
       gifts: [
+        { id: '1', name: '同名礼物', imagePath: 'first.webp' },
+        { id: '2', name: '同名礼物', imagePath: 'second.webp' },
         { id: '21', name: '服务器礼物', imagePath: '' },
         { id: '22', name: '另一个礼物', imagePath: '' },
       ],
@@ -612,12 +909,22 @@ test('hybrid catalog keeps local room catalog primary and exposes remote search 
   });
   assert.deepEqual(await hybrid.refresh(), {
     source: 'local',
-    gifts: [{ id: '1' }],
+    gifts: [
+      { id: '1', name: '同名礼物', imagePath: 'first.webp' },
+      { id: '2', name: '同名礼物', imagePath: 'second.webp' },
+    ],
+    count: 2,
+    cached: false,
   });
   assert.equal(calls.local, 1);
   assert.deepEqual(hybrid.getSnapshot(), {
     source: 'local',
-    gifts: [{ id: '1' }],
+    gifts: [
+      { id: '1', name: '同名礼物', imagePath: 'first.webp' },
+      { id: '2', name: '同名礼物', imagePath: 'second.webp' },
+    ],
+    count: 2,
+    cached: true,
   });
   const search = await hybrid.searchRemote('服务器');
   assert.deepEqual(search.gifts.map((gift) => gift.id), ['21']);
@@ -625,12 +932,57 @@ test('hybrid catalog keeps local room catalog primary and exposes remote search 
   assert.equal(calls.search, 1);
 });
 
+test('room expansion uses exact box ids and removes relation-only outputs', () => {
+  const serverSnapshot = {
+    gifts: [
+      { id: '900', name: '同名盲盒', active: true },
+      { id: '901', name: '同名盲盒', active: true },
+      { id: '902', name: '有效产物', active: true },
+      { id: '903', name: '停用产物', active: false },
+    ],
+    blindBoxes: [
+      { giftId: '900', outputGiftIds: ['902', '903'] },
+    ],
+  };
+
+  const wrongId = mergeRoomCatalog(
+    { gifts: [{ id: '901', name: '同名盲盒' }] },
+    serverSnapshot,
+  );
+  assert.deepEqual(wrongId.gifts.map((gift) => gift.id), ['901']);
+
+  const expanded = mergeRoomCatalog(
+    { gifts: [{ id: '900', name: '同名盲盒' }] },
+    serverSnapshot,
+  );
+  assert.deepEqual(expanded.gifts.map((gift) => gift.id), ['900', '902']);
+
+  const removed = mergeRoomCatalog(
+    { gifts: [{ id: '900', name: '同名盲盒' }] },
+    { ...serverSnapshot, blindBoxes: [] },
+  );
+  assert.deepEqual(removed.gifts.map((gift) => gift.id), ['900']);
+
+  const independentlyPresent = mergeRoomCatalog(
+    {
+      gifts: [
+        { id: '900', name: '同名盲盒' },
+        { id: '902', name: '有效产物' },
+      ],
+    },
+    { ...serverSnapshot, blindBoxes: [] },
+  );
+  assert.deepEqual(
+    independentlyPresent.gifts.map((gift) => gift.id),
+    ['900', '902'],
+  );
+});
+
 test('hybrid server search reports unavailable when refresh has no cache', async () => {
   const hybrid = createHybridGiftSaleCatalogService({
     local: {
       getSnapshot: () => ({ source: 'local', gifts: [] }),
       refresh: async () => ({ source: 'local', gifts: [] }),
-      searchLocal: () => ({ gifts: [] }),
     },
     remoteCatalog: {
       getSnapshot: () => null,
@@ -639,6 +991,6 @@ test('hybrid server search reports unavailable when refresh has no cache', async
   });
   await assert.rejects(
     hybrid.searchRemote('礼物'),
-    /服务器礼物目录尚未同步或当前不可用/,
+    /服务器礼物目录本地缓存尚不可用/,
   );
 });

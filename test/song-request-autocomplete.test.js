@@ -8,6 +8,7 @@ const test = require('node:test');
 const songService = require('../src/music/song-service');
 const { createDomainServices } = require('../src/server/domain-services');
 const { closeDatabases, createDatabases } = require('../src/storage/database');
+const { createSongStore } = require('../src/storage/song-store');
 const { createSettingsStore } = require('../src/storage/settings-store');
 
 function createTestDatabases(prefix) {
@@ -26,26 +27,27 @@ function closeTestDatabases(testContext) {
 test('unique song-name matching prefers exact names and ignores disabled or ambiguous matches', () => {
   const testContext = createTestDatabases('song-plugin-autocomplete-match-');
   const { songDb } = testContext.databases;
+  const songStore = createSongStore(songDb);
 
   try {
-    songService.saveSong(songDb, { name: '不醉不会', artist: '田馥甄' });
-    songService.saveSong(songDb, { name: '不醉不会现场版', artist: '田馥甄' });
-    songService.saveSong(songDb, { name: '1022比尔的歌', artist: 'Bomb比尔' });
-    songService.saveSong(songDb, { name: '比尔隐藏版', isEnabled: false });
-    songService.saveSong(songDb, { name: '100%真心', artist: '测试歌手' });
-    songService.saveSong(songDb, { name: '1000真心', artist: '测试歌手' });
+    songService.saveSong(songStore, { name: '不醉不会', artist: '田馥甄' });
+    songService.saveSong(songStore, { name: '不醉不会现场版', artist: '田馥甄' });
+    songService.saveSong(songStore, { name: '1022比尔的歌', artist: 'Bomb比尔' });
+    songService.saveSong(songStore, { name: '比尔隐藏版', isEnabled: false });
+    songService.saveSong(songStore, { name: '100%真心', artist: '测试歌手' });
+    songService.saveSong(songStore, { name: '1000真心', artist: '测试歌手' });
 
     assert.equal(
-      songService.findUniqueSongNameMatch(songDb, '不醉不会').name,
+      songService.findUniqueSongNameMatch(songStore, '不醉不会').name,
       '不醉不会',
     );
-    assert.equal(songService.findUniqueSongNameMatch(songDb, '不醉'), null);
+    assert.equal(songService.findUniqueSongNameMatch(songStore, '不醉'), null);
     assert.equal(
-      songService.findUniqueSongNameMatch(songDb, '比尔').name,
+      songService.findUniqueSongNameMatch(songStore, '比尔').name,
       '1022比尔的歌',
     );
     assert.equal(
-      songService.findUniqueSongNameMatch(songDb, '100%').name,
+      songService.findUniqueSongNameMatch(songStore, '100%').name,
       '100%真心',
     );
   } finally {

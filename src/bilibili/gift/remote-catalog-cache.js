@@ -5,12 +5,15 @@ const path = require('node:path');
 const { isDnsHostname } = require('../../shared/remote-url-policy');
 const { isGuardGiftAliasId } = require('./guard-gift-aliases');
 
-const CACHE_FILE_NAME = 'overtime-gift-catalog.json';
-const DEFAULT_POLL_INTERVAL_MS = 10 * 60 * 1000;
+const CACHE_FILE_NAME = 'overtime-gift-catalog-v2.json';
+const DEFAULT_POLL_INTERVAL_MS = 12 * 60 * 60 * 1000;
 const DEFAULT_MIN_REFRESH_MS = 5 * 60 * 1000;
 const MAX_GIFTS = 10000;
+const MAX_BLIND_BOXES = 100;
+const MAX_OUTPUTS_PER_BLIND_BOX = 200;
 const MAX_TEXT_LENGTH = 256;
 const EXCLUDED_GIFT_IDS = new Set(['13000']);
+const BILIBILI_IMAGE_HOST = 'hdslb.com';
 
 function createRemoteGiftCatalogCache(options = {}) {
   const dataDir = String(options.dataDir || '').trim();
@@ -50,6 +53,7 @@ function createRemoteGiftCatalogCache(options = {}) {
     initialImageBaseUrl,
     bootstrapNowMs,
   );
+  let giftsById = new Map((cache?.snapshot?.gifts || []).map((gift) => [gift.id, gift]));
   let pending = null;
   let timer = null;
   let lifecycleGeneration = 0;
@@ -59,6 +63,11 @@ function createRemoteGiftCatalogCache(options = {}) {
   function getSnapshot() {
     if (!cache?.snapshot) return null;
     return cloneSnapshot(cache.snapshot, true);
+  }
+
+  function getGift(giftId) {
+    const gift = giftsById.get(String(giftId || '').trim());
+    return gift ? { ...gift } : null;
   }
 
   function refresh(requestOptions = {}) {
@@ -107,8 +116,7 @@ function createRemoteGiftCatalogCache(options = {}) {
         };
         if (stopped || requestGeneration !== lifecycleGeneration)
           return getSnapshot();
-        cache = nextCache;
-        writePersistedCache(cachePath, cache, logger);
+        if (writePersistedCache(cachePath, nextCache, logger)) cache = nextCache;
         return getSnapshot();
       }
 
@@ -136,9 +144,12 @@ function createRemoteGiftCatalogCache(options = {}) {
       };
       if (stopped || requestGeneration !== lifecycleGeneration)
         return getSnapshot();
-      cache = nextCache;
       if (changed) {
-        writePersistedCache(cachePath, cache, logger);
+        if (!writePersistedCache(cachePath, nextCache, logger)) {
+          throw catalogError('REMOTE_CATALOG_CACHE_WRITE_FAILED');
+        }
+        cache = nextCache;
+        giftsById = new Map(snapshot.gifts.map((gift) => [gift.id, gift]));
         if (stopped || requestGeneration !== lifecycleGeneration)
           return getSnapshot();
         const update = cloneSnapshot(cache.snapshot, false);
@@ -158,7 +169,7 @@ function createRemoteGiftCatalogCache(options = {}) {
       // not change. This keeps a restarted client from losing the latest
       // server freshness information while avoiding another update event for
       // an identical snapshot.
-      writePersistedCache(cachePath, cache, logger);
+      if (writePersistedCache(cachePath, nextCache, logger)) cache = nextCache;
       return getSnapshot();
     })().finally(() => {
       pending = null;
@@ -166,11 +177,11 @@ function createRemoteGiftCatalogCache(options = {}) {
     return pending;
   }
 
-  function start() {
+  function start(onPoll = refresh) {
     stopped = false;
     if (timer || pollIntervalMs <= 0) return;
     timer = setInterval(() => {
-      refresh({ reason: 'schedule' }).catch((error) => {
+      onPoll({ reason: 'schedule' }).catch((error) => {
         logger.warn?.('[GiftCatalog] scheduled refresh failed:', error);
       });
     }, pollIntervalMs);
@@ -190,6 +201,7 @@ function createRemoteGiftCatalogCache(options = {}) {
   return {
     cachePath,
     getSnapshot,
+    getGift,
     refresh,
     start,
     stop,
@@ -213,6 +225,9 @@ function normalizeRemoteCatalog(response, options = {}) {
   if (!source || source.ok === false) {
     throw catalogError(String(source?.error || 'REMOTE_CATALOG_INVALID'));
   }
+  if (source.schemaVersion !== 2 || !Array.isArray(source.blindBoxes)) {
+    throw catalogError('REMOTE_CATALOG_SCHEMA_UNSUPPORTED');
+  }
   const rawGifts = Array.isArray(source.gifts) ? source.gifts : [];
   if (rawGifts.length === 0) throw catalogError('REMOTE_CATALOG_EMPTY');
   if (rawGifts.length > MAX_GIFTS)
@@ -226,11 +241,19 @@ function normalizeRemoteCatalog(response, options = {}) {
   const seenIds = new Set();
   for (const rawGift of rawGifts) {
     const gift = normalizeRemoteGift(rawGift, configuredImageBaseUrl);
-    if (!gift || seenIds.has(gift.id)) continue;
+    if (!gift) throw catalogError('REMOTE_CATALOG_GIFT_INVALID');
+    if (seenIds.has(gift.id)) throw catalogError('REMOTE_CATALOG_DUPLICATE_GIFT');
     seenIds.add(gift.id);
-    gifts.push(gift);
+    if (
+      gift.coinType === 'gold' &&
+      !EXCLUDED_GIFT_IDS.has(gift.id) &&
+      !isGuardGiftAliasId(gift.id)
+    ) {
+      gifts.push(gift);
+    }
   }
   if (gifts.length === 0) throw catalogError('REMOTE_CATALOG_EMPTY');
+  const blindBoxes = normalizeBlindBoxes(source.blindBoxes, gifts);
   const version = safeText(source.version || source.revision, MAX_TEXT_LENGTH);
   if (!version) throw catalogError('REMOTE_CATALOG_VERSION_MISSING');
   const updatedAt =
@@ -238,6 +261,7 @@ function normalizeRemoteCatalog(response, options = {}) {
     isoTime(options.now || Date.now());
   const sources = normalizeSources(source.sources);
   return {
+    schemaVersion: 2,
     source: 'server',
     roomId: '',
     panelCount: gifts.length,
@@ -251,6 +275,7 @@ function normalizeRemoteCatalog(response, options = {}) {
     sources,
     count: gifts.length,
     gifts,
+    blindBoxes,
   };
 }
 
@@ -264,12 +289,19 @@ function normalizeRemoteGift(value, imageBaseUrl) {
   } catch (_) {
     return null;
   }
-  if (EXCLUDED_GIFT_IDS.has(id) || isGuardGiftAliasId(id)) return null;
   const name =
     safeText(value.name ?? value.displayName ?? value.giftName, 100) ||
     `礼物 ${id}`;
-  const priceRaw = finiteNonNegative(value.priceRaw ?? value.price_raw);
+  const priceRaw = strictNonNegativeInteger(value.priceRaw ?? value.price_raw);
   const coinType = safeText(value.coinType ?? value.coin_type, 32);
+  if (
+    priceRaw === null ||
+    !coinType ||
+    typeof value.active !== 'boolean' ||
+    typeof value.isBlindBox !== 'boolean'
+  ) {
+    return null;
+  }
   const battery =
     value.battery == null
       ? coinType === 'gold'
@@ -290,11 +322,78 @@ function normalizeRemoteGift(value, imageBaseUrl) {
     priceRaw,
     coinType,
     bagGift: parseBooleanLike(value.bagGift ?? value.bag_gift),
+    active: value.active,
+    isBlindBox: value.isBlindBox,
+    sourceUrl: normalizeBilibiliImageUrl(
+      value.sourceUrl ?? value.source_url ?? value.imageSourceUrl,
+    ),
     imagePath: normalizeImagePath(
       value.imagePath || value.imageUrl,
       imageBaseUrl,
     ),
   };
+}
+
+function normalizeBlindBoxes(value, gifts) {
+  if (!Array.isArray(value) || value.length > MAX_BLIND_BOXES) {
+    throw catalogError('REMOTE_CATALOG_BLIND_BOXES_INVALID');
+  }
+  const giftById = new Map(gifts.map((gift) => [gift.id, gift]));
+  const seenBoxIds = new Set();
+  return value.map((entry) => {
+    const giftId = normalizeGiftId(entry?.giftId);
+    if (
+      !giftId ||
+      seenBoxIds.has(giftId) ||
+      !giftById.get(giftId)?.isBlindBox ||
+      !Array.isArray(entry?.outputGiftIds) ||
+      entry.outputGiftIds.length === 0 ||
+      entry.outputGiftIds.length > MAX_OUTPUTS_PER_BLIND_BOX
+    ) {
+      throw catalogError('REMOTE_CATALOG_BLIND_BOXES_INVALID');
+    }
+    seenBoxIds.add(giftId);
+    const outputGiftIds = entry.outputGiftIds.map(normalizeGiftId);
+    if (
+      outputGiftIds.some((id) => !id || id === giftId || !giftById.has(id)) ||
+      new Set(outputGiftIds).size !== outputGiftIds.length
+    ) {
+      throw catalogError('REMOTE_CATALOG_BLIND_BOXES_INVALID');
+    }
+    return { giftId, outputGiftIds };
+  });
+}
+
+function normalizeGiftId(value) {
+  const id = String(value ?? '').trim();
+  if (!/^[1-9]\d{0,19}$/u.test(id)) return '';
+  try {
+    return BigInt(id) > 0n ? id : '';
+  } catch (_) {
+    return '';
+  }
+}
+
+function normalizeBilibiliImageUrl(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  try {
+    const parsed = new URL(raw);
+    const hostname = parsed.hostname.toLowerCase();
+    if (
+      parsed.protocol !== 'https:' ||
+      (hostname !== BILIBILI_IMAGE_HOST &&
+        !hostname.endsWith(`.${BILIBILI_IMAGE_HOST}`)) ||
+      parsed.username ||
+      parsed.password ||
+      (parsed.port && parsed.port !== '443') ||
+      parsed.hash
+    )
+      return '';
+    return parsed.href;
+  } catch (_) {
+    return '';
+  }
 }
 
 function normalizeSources(value) {
@@ -434,11 +533,13 @@ function writePersistedCache(filePath, value, logger) {
         {
           etag: value.etag,
           imageBaseUrl: value.imageBaseUrl || '',
+          schemaVersion: value.snapshot.schemaVersion,
           version: value.snapshot.version,
           updatedAt: value.snapshot.updatedAt,
           stale: value.snapshot.stale,
           sources: value.snapshot.sources,
           gifts: value.snapshot.gifts,
+          blindBoxes: value.snapshot.blindBoxes,
           fetchedAt: value.snapshot.fetchedAt,
           checkedAt: value.checkedAt,
         },
@@ -447,8 +548,10 @@ function writePersistedCache(filePath, value, logger) {
       )}\n`,
     );
     fs.renameSync(tempPath, filePath);
+    return true;
   } catch (error) {
     logger.warn?.('[GiftCatalog] cache write failed:', error?.message || error);
+    return false;
   } finally {
     if (fs.existsSync(tempPath)) {
       try {
@@ -472,6 +575,10 @@ function cloneSnapshot(snapshot, cached) {
       effects: { ...snapshot.sources.effects },
     },
     gifts: snapshot.gifts.map((gift) => ({ ...gift })),
+    blindBoxes: snapshot.blindBoxes.map((box) => ({
+      ...box,
+      outputGiftIds: [...box.outputGiftIds],
+    })),
   };
 }
 
@@ -482,6 +589,7 @@ function snapshotFingerprint(snapshot) {
     stale: snapshot.stale,
     sources: snapshot.sources,
     gifts: snapshot.gifts,
+    blindBoxes: snapshot.blindBoxes,
   });
 }
 
@@ -494,6 +602,12 @@ function catalogError(code) {
 function finiteNonNegative(value) {
   const number = Number(value);
   return Number.isFinite(number) && number >= 0 ? number : 0;
+}
+
+function strictNonNegativeInteger(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const number = Number(value);
+  return Number.isSafeInteger(number) && number >= 0 ? number : null;
 }
 
 function positiveMs(value, fallback) {
@@ -540,6 +654,7 @@ module.exports = {
   CACHE_FILE_NAME,
   createRemoteGiftCatalogCache,
   normalizeImageBaseUrl,
+  normalizeBilibiliImageUrl,
   normalizeImagePath,
   normalizeRemoteCatalog,
   normalizeRemoteGift,

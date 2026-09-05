@@ -11,6 +11,7 @@ const { createCheckinStore } = require('../storage/checkin-store');
 const { createQueueStore } = require('../storage/queue-store');
 const { createSuperChatStore } = require('../storage/superchat-store');
 const { createGiftEventStore } = require('../storage/gift-event-store');
+const { createSongStore } = require('../storage/song-store');
 const {
   createRequesterTargetStore,
 } = require('../music/requester-target-store');
@@ -44,6 +45,7 @@ function createDomainServices(options) {
     onGiftFlushed,
     onOvertimeUpdate,
   } = options;
+  const songStore = createSongStore(db.songDb);
   const cooldownStore = createCooldownStore(db.songDb);
   const playbackStore = createPlaybackStore(db.musicDb);
   const themeStore = createThemeStore(db.songDb, settingsStore);
@@ -65,8 +67,8 @@ function createDomainServices(options) {
 
   const state = {
     cooldownByUser: new Map(),
-    blindBoxCache: null,
   };
+  const giftState = { blindBoxCache: null };
   // schema 版本只在启动迁移时变化，运行时缓存避免每次 /api/health 重算 5 个 SELECT。
   let schemaVersionsCache = null;
 
@@ -78,35 +80,24 @@ function createDomainServices(options) {
     );
   }
 
-  const baseContext = {
-    db,
-    settings: () => settingsStore.getSettings(),
-    settingsStore,
-    songService,
-    cooldownStore,
-    state,
-  };
-
   const songs = {
-    save: (input) => songService.saveSong(db.songDb, input),
-    list: (options) => songService.listSongs(db.songDb, options),
+    save: (input) => songService.saveSong(songStore, input),
+    list: (options) => songService.listSongs(songStore, options),
     find: (songName, artist) =>
-      songService.findSong(db.songDb, songName, artist),
+      songService.findSong(songStore, songName, artist),
     findUniqueNameMatch: (songName) =>
-      songService.findUniqueSongNameMatch(db.songDb, songName),
-    listCategories: () => songService.listCategories(db.songDb),
-    listTags: () => songService.listTags(db.songDb),
-    ensureCategory: (name) => songService.ensureCategory(db.songDb, name),
-    import: (rows) => songService.importSongs(db.songDb, rows),
-    replaceCloud: (rows) => songService.replaceCloudSongs(db.songDb, rows),
-    // 下面三个原来在 facade 层写了内联 SQL，现统一委托给 song-service
-    count: () => songService.countSongs(db.songDb),
-    delete: (id) => songService.deleteSong(db.songDb, id),
-    toggle: (id) => songService.toggleSong(db.songDb, id),
-    // 随机选歌：供 bilibili-message-handler 通过 context 调用，屏蔽 DB 句柄
-    pickRandom: (scopeText) => songService.pickRandomSong(db.songDb, scopeText),
+      songService.findUniqueSongNameMatch(songStore, songName),
+    listCategories: () => songService.listCategories(songStore),
+    listTags: () => songService.listTags(songStore),
+    ensureCategory: (name) => songService.ensureCategory(songStore, name),
+    import: (rows) => songService.importSongs(songStore, rows),
+    replaceCloud: (rows) => songService.replaceCloudSongs(songStore, rows),
+    count: () => songService.countSongs(songStore),
+    delete: (id) => songService.deleteSong(songStore, id),
+    toggle: (id) => songService.toggleSong(songStore, id),
+    pickRandom: (scopeText) => songService.pickRandomSong(songStore, scopeText),
     describeRandomScope: (scopeText) =>
-      songService.describeRandomSongScope(db.songDb, scopeText),
+      songService.describeRandomSongScope(songStore, scopeText),
   };
 
   const queueContext = {
@@ -133,26 +124,20 @@ function createDomainServices(options) {
       return typeof imageBaseUrl === 'function' ? imageBaseUrl() : imageBaseUrl;
     },
     resolveGiftImagePath: (giftId) => {
-      const snapshot = overtimeGiftCatalog?.getSnapshot?.();
       const id = String(giftId || '').trim();
-      return (
-        snapshot?.gifts?.find((gift) => String(gift?.id || '').trim() === id)
-          ?.imagePath || ''
-      );
+      return overtimeGiftCatalog?.resolveGiftImagePath?.(id) || '';
     },
   });
   const localOvertimeGiftCatalog =
-    options.dataDir && options.publicDir
+    options.dataDir
       ? createGiftSaleCatalogService({
           dataDir: options.dataDir,
-          publicDir: options.publicDir,
           getRoomId:
             options.giftSaleGetRoomId ||
             (() => settingsStore.getSettings().roomId),
           getBlindBoxConfig:
             options.giftSaleGetBlindBoxConfig ||
             (() => settingsStore.getSettings().giftBlindBoxConfig),
-          getCookieHeader: options.giftSaleGetCookieHeader,
           fetchJson: options.giftSaleFetchJson,
         })
       : createUnavailableGiftSaleCatalogService();
@@ -168,20 +153,39 @@ function createDomainServices(options) {
           minRefreshMs: options.remoteGiftCatalog.minRefreshMs,
           pollIntervalMs: options.remoteGiftCatalog.pollIntervalMs,
           imageBaseUrl: options.remoteGiftCatalog.imageBaseUrl,
+          getBlindBoxCustomConfigV2: () => {
+            try {
+              const value = JSON.parse(
+                settingsStore.getSettings().giftBlindBoxCustomConfigV2 || 'null',
+              );
+              return Array.isArray(value) ? value : [];
+            } catch (_) {
+              return [];
+            }
+          },
           remoteCatalog: options.remoteGiftCatalog.remoteCatalog,
           remoteImageCache: options.remoteGiftCatalog.remoteImageCache,
+          giftCatalogInitializer:
+            options.remoteGiftCatalog.giftCatalogInitializer,
           fetchImage: options.remoteGiftCatalog.fetchImage,
           imageConcurrency: options.remoteGiftCatalog.imageConcurrency,
         })
       : localOvertimeGiftCatalog;
   const overtimeConsumer = createOvertimeConsumer({ service: overtime });
-  const giftRuntime = giftService.createGiftService(baseContext, {
-    onGiftFlushed,
-    consumers: [overtimeConsumer],
-    giftEventStore,
-    getOvertimeEpoch: overtime.getCurrentEpoch,
-    captureWhenDisabled: Boolean(giftEffectResolver),
-  });
+  const giftRuntime = giftService.createGiftService(
+    {
+      db: { giftDb: db.giftDb },
+      settings: () => settingsStore.getSettings(),
+      state: giftState,
+    },
+    {
+      onGiftFlushed,
+      consumers: [overtimeConsumer],
+      giftEventStore,
+      getOvertimeEpoch: overtime.getCurrentEpoch,
+      captureWhenDisabled: Boolean(giftEffectResolver),
+    },
+  );
   const gifts = {
     ...giftRuntime,
     async resolveEffect(giftId) {
@@ -202,7 +206,14 @@ function createDomainServices(options) {
     handleDanmaku(danmaku) {
       const result = bilibiliMessageHandler.handleDanmakuMessage(
         {
-          ...baseContext,
+          settings: () => settingsStore.getSettings(),
+          // message-handler still reads this legacy-shaped adapter; it only
+          // exposes the defaults query rather than the full settings store.
+          settingsStore: {
+            getDefaultSettings: () => settingsStore.getDefaultSettings(),
+          },
+          cooldownStore,
+          state,
           addQueueItem: queue.add,
           resolveSongRequest: songs.findUniqueNameMatch,
           // 通过 songs.pickRandom 传入，让 message-handler 无需直接访问 DB 句柄
@@ -252,7 +263,7 @@ function createDomainServices(options) {
       const result = database.clearGiftData(db.giftDb, {
         sourceId: getActiveGiftSourceId(gifts),
       });
-      state.blindBoxCache = null;
+      giftState.blindBoxCache = null;
       return result;
     },
     clearAll() {
@@ -268,7 +279,7 @@ function createDomainServices(options) {
       // 只有完全成功时才重置内存状态
       if (result.cleared === true && !result.partial) {
         state.cooldownByUser.clear();
-        state.blindBoxCache = null;
+        giftState.blindBoxCache = null;
         songs.ensureCategory('默认');
         queue.ensureUnified();
       }

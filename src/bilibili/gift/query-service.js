@@ -245,6 +245,7 @@ function mapLedgerHistoryRow(row) {
       totalPrice: totalPriceCents / 100,
       coinType: canonicalCoinType(row.coin_type),
       isBlindBox,
+      blindBoxId: isBlindBox ? normalizeBlindBoxId(row.blind_box_id) : null,
       blindBoxName: isBlindBox
         ? canonicalGiftText(row.blind_box_name)
         : '',
@@ -255,6 +256,11 @@ function mapLedgerHistoryRow(row) {
       createdAt: normalizeIsoTimestamp(row.created_at),
     },
   };
+}
+
+function normalizeBlindBoxId(value) {
+  const id = String(value ?? '').trim();
+  return /^[1-9]\d{0,19}$/u.test(id) ? id : null;
 }
 
 function normalizeLedgerQuery(value) {

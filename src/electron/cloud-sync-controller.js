@@ -27,6 +27,8 @@ function createCloudSyncController(options = {}) {
   let timer = null;
   let disposed = false;
   let active = false;
+  let lifecycleGeneration = 0;
+  let requestController = null;
   let operation = Promise.resolve();
   let streamAbortController = null;
   let streamReconnectTimer = null;
@@ -51,6 +53,11 @@ function createCloudSyncController(options = {}) {
       !disposed &&
       licenseManager.getState() === licenseManager.LicenseState.AUTHORIZED
     );
+  }
+
+  function isCurrent(work) {
+    return active && isAuthorized() &&
+      work.generation === lifecycleGeneration && !work.signal?.aborted;
   }
 
   function clearTimer() {
@@ -125,6 +132,7 @@ function createCloudSyncController(options = {}) {
       .watchCloudStateChangesInternal({
         signal: controller.signal,
         onOpen() {
+          if (streamAbortController !== controller || controller.signal.aborted) return;
           streamRetryMs = STREAM_RETRY_MIN_MS;
           streamConnections += 1;
           if (streamConnections > 1) {
@@ -134,6 +142,7 @@ function createCloudSyncController(options = {}) {
           }
         },
         onChange(event) {
+          if (streamAbortController !== controller || controller.signal.aborted) return;
           if (!hasNewCloudRevision(event)) return;
           syncNow().catch((error) => {
             void error;
@@ -158,39 +167,53 @@ function createCloudSyncController(options = {}) {
     streamConnections = 0;
   }
 
-  async function flushScope(scope) {
-    if (!dirty.has(scope) || !isAuthorized()) return false;
+  async function flushScope(scope, work) {
+    if (!dirty.has(scope) || !isCurrent(work)) return false;
     const dirtyGeneration = dirtyGenerations[scope];
+    const requestOptions = { signal: work.signal };
+    let result;
     if (scope === 'settings') {
-      const result = await licenseManager.updateCloudSettings(
+      result = await licenseManager.updateCloudSettings(
         runtime.getCloudSettingsSnapshot(),
+        requestOptions,
       );
-      revisions.settings = Number(result?.revision) || revisions.settings;
     } else if (scope === 'songs') {
-      const result = await licenseManager.syncSongs(
+      result = await licenseManager.syncSongs(
         runtime.getCloudSongsSnapshot(),
+        requestOptions,
       );
-      revisions.songs = Number(result?.revision) || revisions.songs;
     } else {
       const state = await bilibiliAuth.getAuthState();
-      let result;
+      if (!isCurrent(work)) return false;
       if (state?.loggedIn) {
         const cookie = await bilibiliAuth.getCookieHeader();
-        result = await licenseManager.setBilibiliCredentialsInternal(cookie);
+        if (!isCurrent(work)) return false;
+        result = await licenseManager.setBilibiliCredentialsInternal(cookie, requestOptions);
       } else {
-        result = await licenseManager.clearBilibiliCredentialsInternal();
+        result = await licenseManager.clearBilibiliCredentialsInternal(requestOptions);
       }
-      revisions.bilibili = Number(result?.revision) || revisions.bilibili;
     }
+    if (!isCurrent(work)) return false;
+    if (
+      scope === 'settings' &&
+      dirtyGenerations.settings === dirtyGeneration &&
+      result?.values
+    ) {
+      await runtime.applyCloudSettingsSnapshot(result.values);
+      if (!isCurrent(work)) return false;
+      runtime.setBlindBoxMappingState?.(result?.blindBoxMapping || null);
+    }
+    revisions[scope] = Number(result?.revision) || revisions[scope];
     if (dirtyGenerations[scope] === dirtyGeneration) dirty.delete(scope);
     return true;
   }
 
-  async function flushDirty() {
+  async function flushDirty(work) {
     for (const scope of VALID_SCOPES) {
+      if (!isCurrent(work)) return;
       if (!dirty.has(scope)) continue;
       try {
-        await flushScope(scope);
+        await flushScope(scope, work);
       } catch (error) {
         // Keep the scope dirty. The next scheduled or explicit sync retries it.
         void error;
@@ -198,18 +221,19 @@ function createCloudSyncController(options = {}) {
     }
   }
 
-  async function seedScope(scope) {
+  async function seedScope(scope, work) {
+    if (!isCurrent(work)) return;
     markScopeDirty(scope);
     try {
-      await flushScope(scope);
+      await flushScope(scope, work);
     } catch (error) {
       // The dirty scope remains protected from cloud pulls until retry succeeds.
       void error;
     }
   }
 
-  function shouldApply(scope, cloudRevision) {
-    if (dirty.has(scope)) return false;
+  function shouldApply(scope, cloudRevision, work) {
+    if (!isCurrent(work) || dirty.has(scope)) return false;
     const incoming = Number(cloudRevision) || 0;
     const current = revisions[scope];
     return current === null || incoming > current;
@@ -220,82 +244,90 @@ function createCloudSyncController(options = {}) {
     dirty.add(scope);
   }
 
-  async function reconcileSettings(state) {
+  async function reconcileSettings(state, work) {
+    if (!isCurrent(work)) return;
     if (!state?.initialized) {
-      await seedScope('settings');
+      await seedScope('settings', work);
       return;
     }
-    if (!shouldApply('settings', state.revision)) return;
+    if (!shouldApply('settings', state.revision, work)) return;
     const values = state.values || {};
     const isMissingBlindBoxConfig = !Object.prototype.hasOwnProperty.call(
       values,
       'giftBlindBoxConfig',
     );
     await runtime.applyCloudSettingsSnapshot(values);
+    if (!isCurrent(work)) return;
+    runtime.setBlindBoxMappingState?.(state.blindBoxMapping || null);
     revisions.settings = Number(state.revision) || 0;
-    if (isMissingBlindBoxConfig) await seedScope('settings');
+    if (isMissingBlindBoxConfig) await seedScope('settings', work);
   }
 
-  async function reconcileSongs(state) {
+  async function reconcileSongs(state, work) {
+    if (!isCurrent(work)) return;
     if (!state?.initialized) {
-      await seedScope('songs');
+      await seedScope('songs', work);
       return;
     }
-    if (!shouldApply('songs', state.revision)) return;
-    const result = await licenseManager.getCloudSongs();
+    if (!shouldApply('songs', state.revision, work)) return;
+    const result = await licenseManager.getCloudSongs({ signal: work.signal });
     const cloudRevision = Math.max(
       Number(state.revision) || 0,
       Number(result?.revision) || 0,
     );
-    if (!shouldApply('songs', cloudRevision)) return;
+    if (!shouldApply('songs', cloudRevision, work)) return;
     await runtime.replaceCloudSongsSnapshot(
       Array.isArray(result?.songs) ? result.songs : [],
     );
+    if (!isCurrent(work)) return;
     revisions.songs = cloudRevision;
   }
 
-  async function reconcileBilibili(state) {
+  async function reconcileBilibili(state, work) {
+    if (!isCurrent(work)) return;
     if (!state?.initialized) {
-      await seedScope('bilibili');
+      await seedScope('bilibili', work);
       return;
     }
-    if (!shouldApply('bilibili', state.revision)) return;
-    const result = await licenseManager.getBilibiliCredentialsInternal();
+    if (!shouldApply('bilibili', state.revision, work)) return;
+    const result = await licenseManager.getBilibiliCredentialsInternal({ signal: work.signal });
     const cloudRevision = Math.max(
       Number(state.revision) || 0,
       Number(result?.revision) || 0,
     );
-    if (!shouldApply('bilibili', cloudRevision)) return;
+    if (!shouldApply('bilibili', cloudRevision, work)) return;
     if (result?.loggedIn && result.cookie) {
       await bilibiliAuth.replaceCookieHeader(result.cookie);
     } else {
       await bilibiliAuth.logout();
     }
-    revisions.bilibili = cloudRevision;
+    if (isCurrent(work)) revisions.bilibili = cloudRevision;
   }
 
-  async function runSync() {
-    if (!active || !isAuthorized()) return false;
+  async function runSync(work) {
+    if (!isCurrent(work)) return false;
     clearTimer();
     try {
-      await flushDirty();
-      if (!isAuthorized()) return false;
-      const state = await licenseManager.getCloudState();
-      await reconcileSettings(state?.settings);
-      await reconcileSongs(state?.songs);
-      await reconcileBilibili(state?.bilibili);
-      return true;
+      await flushDirty(work);
+      if (!isCurrent(work)) return false;
+      const state = await licenseManager.getCloudState({ signal: work.signal });
+      await reconcileSettings(state?.settings, work);
+      await reconcileSongs(state?.songs, work);
+      await reconcileBilibili(state?.bilibili, work);
+      return isCurrent(work);
     } finally {
-      schedule();
+      if (isCurrent(work)) schedule();
     }
   }
 
   function syncNow() {
-    return enqueue(runSync);
+    const work = { generation: lifecycleGeneration, signal: requestController?.signal };
+    return enqueue(() => runSync(work));
   }
 
   function start() {
     if (disposed) return Promise.resolve(false);
+    if (!active) requestController = new AbortController();
     active = true;
     startEventStream();
     return syncNow();
@@ -303,16 +335,19 @@ function createCloudSyncController(options = {}) {
 
   function stop() {
     active = false;
+    lifecycleGeneration += 1;
+    requestController?.abort();
+    requestController = null;
     clearTimer();
     stopEventStream();
+    runtime.setBlindBoxMappingState?.(null);
   }
 
   function markDirty(scope) {
     if (disposed || !VALID_SCOPES.has(scope)) return;
     markScopeDirty(scope);
     if (isAuthorized()) {
-      active = true;
-      syncNow().catch((error) => {
+      start().catch((error) => {
         void error;
       });
     }

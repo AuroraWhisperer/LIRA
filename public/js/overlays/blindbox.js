@@ -2,9 +2,10 @@
 // 盲盒盈亏 overlay — 直播间投屏展示
 'use strict';
 
+import { createOverlaySocket } from './socket-client.js';
+
 let state = null;
-let reconnectTimer = null;
-let reconnectAttempts = 0;
+let socketController = null;
 let refreshTimer = null;
 let initialBlindboxViewportWidth = 0;
 let initialBlindboxViewportHeight = 0;
@@ -47,6 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   loadStateThenStats();
   connectSocket();
+  window.addEventListener('beforeunload', disposeSocket, { once: true });
 
   if (REFRESH_SEC > 0) {
     refreshTimer = setInterval(loadStats, REFRESH_SEC * 1000);
@@ -95,19 +97,13 @@ async function loadStats() {
 }
 
 function connectSocket() {
-  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const token = window.__API_TOKEN__;
-  const wsUrl = `${protocol}//${location.host}/ws${token ? '?token=' + encodeURIComponent(token) : ''}`;
-  const socket = new WebSocket(wsUrl);
-
-  socket.addEventListener('open', () => {
-    clearTimeout(reconnectTimer);
-    reconnectAttempts = 0;
-  });
-
-  socket.addEventListener('message', (event) => {
-    const payload = JSON.parse(event.data);
-    if (payload.type === 'snapshot') {
+  if (socketController) return;
+  socketController = createOverlaySocket({
+    onReconnect: () => {
+      loadStats();
+    },
+    onMessage: (payload) => {
+      if (payload.type !== 'snapshot') return;
       // 礼物相关更新时刷新统计数据
       const reason = payload.reason || '';
       if (
@@ -121,20 +117,14 @@ function connectSocket() {
         // 其他更新只缓存 state（主题等）
         if (payload.state) state = payload.state;
       }
-    }
+    },
   });
+  socketController.start();
+}
 
-  socket.addEventListener('close', () => {
-    const delay = Math.min(
-      30000,
-      800 * Math.pow(2, Math.min(reconnectAttempts, 6)),
-    );
-    reconnectAttempts += 1;
-    reconnectTimer = setTimeout(() => {
-      loadStats();
-      connectSocket();
-    }, delay);
-  });
+function disposeSocket() {
+  socketController?.dispose();
+  socketController = null;
 }
 
 function render(stats) {

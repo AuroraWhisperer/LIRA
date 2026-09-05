@@ -20,10 +20,10 @@ const {
   getSchemaVersions,
 } = require('../src/storage/database');
 
-test('gift database v8 creates overtime tables and safe singleton defaults', () => {
+test('gift database v9 creates overtime tables and safe singleton defaults', () => {
   const fixture = createFixture();
   try {
-    assert.equal(getSchemaVersions(fixture.db).giftDb, 8);
+    assert.equal(getSchemaVersions(fixture.db).giftDb, 9);
     const tables = new Set(
       fixture.db.giftDb
         .prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
@@ -50,7 +50,7 @@ test('gift database v8 creates overtime tables and safe singleton defaults', () 
   }
 });
 
-test('gift database v8 preserves v5 overtime state while widening its bounds', () => {
+test('gift database v9 preserves v5 overtime state while widening its bounds', () => {
   const dataDir = fs.mkdtempSync(
     path.join(os.tmpdir(), 'song-plugin-overtime-migration-'),
   );
@@ -83,7 +83,7 @@ test('gift database v8 preserves v5 overtime state while widening its bounds', (
     const state = db.giftDb
       .prepare('SELECT * FROM overtime_machine_state WHERE id = 1')
       .get();
-    assert.equal(getSchemaVersions(db).giftDb, 8);
+    assert.equal(getSchemaVersions(db).giftDb, 9);
     assert.equal(state.enabled, 1);
     assert.equal(state.enable_epoch, 7);
     assert.equal(state.remaining_ms, 2_700_000);
@@ -93,6 +93,41 @@ test('gift database v8 preserves v5 overtime state while widening its bounds', (
         'UPDATE overtime_machine_state SET remaining_ms = ? WHERE id = 1',
       )
       .run(MAX_OVERTIME_SECONDS * 1000);
+  } finally {
+    closeDatabases(db);
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
+test('gift database v9 adds nullable blind_box_id to an existing v8 database', () => {
+  const dataDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'song-plugin-blind-box-id-migration-'),
+  );
+  let db = createDatabases({ dataDir });
+  try {
+    db.giftDb.exec(`
+      ALTER TABLE gift_events DROP COLUMN blind_box_id;
+      INSERT INTO gift_events (gift_id, gift_name, created_at, updated_at)
+      VALUES ('35207', 'legacy output', '2026-09-05T00:00:00.000Z', '2026-09-05T00:00:00.000Z');
+      UPDATE schema_version SET version = 8 WHERE key = 'gift_db';
+    `);
+    closeDatabases(db);
+
+    db = createDatabases({ dataDir });
+    assert.equal(getSchemaVersions(db).giftDb, 9);
+    const columns = new Set(
+      db.giftDb
+        .prepare('PRAGMA table_info(gift_events)')
+        .all()
+        .map((column) => column.name),
+    );
+    assert.equal(columns.has('blind_box_id'), true);
+    const row = db.giftDb
+      .prepare("SELECT gift_id, gift_name, blind_box_id FROM gift_events WHERE gift_id = '35207'")
+      .get();
+    assert.equal(row.gift_id, '35207');
+    assert.equal(row.gift_name, 'legacy output');
+    assert.equal(row.blind_box_id, null);
   } finally {
     closeDatabases(db);
     fs.rmSync(dataDir, { recursive: true, force: true });

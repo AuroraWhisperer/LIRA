@@ -25,6 +25,10 @@ const routes = {
     overtime.getGiftCatalog(),
   ),
 
+  'GET /api/overtime/gifts/catalog': overtimeRoute((overtime) =>
+    overtime.getGlobalGiftCatalog(),
+  ),
+
   'POST /api/overtime/gifts/refresh': overtimeRoute((overtime) =>
     overtime.refreshGiftCatalog({
       reason: 'manual',

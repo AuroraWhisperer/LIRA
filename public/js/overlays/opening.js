@@ -12,9 +12,9 @@ const DEFAULTS = Object.freeze({
   showEq: true,
   audio: 'browser',
   volume: 0.35,
-  audioUrl: '/img/overlays/opening/music.ogg',
-  audioName: '默认音乐：果实',
-  characterUrl: '/img/overlays/opening/avatar.webp',
+  audioUrl: '',
+  audioName: '',
+  characterUrl: '',
   debug: false,
 });
 
@@ -195,8 +195,9 @@ function startRuntime(config) {
     clearSchedulers();
   }
 
-  if (config.audio === 'browser' && config.enabled && audio) {
-    audio.src = safeAudioUrl(config.audioUrl);
+  const audioUrl = safeAudioUrl(config.audioUrl);
+  if (config.audio === 'browser' && config.enabled && audio && audioUrl) {
+    audio.src = audioUrl;
     audio.volume = parseVolume(config.volume);
     audio.load();
     audio.play().catch((error) => {
@@ -292,7 +293,12 @@ function applyOpeningConfig(config) {
   );
   document.body.classList.toggle('opening-disabled', !config.enabled);
   if (nameRow) nameRow.hidden = config.name.length === 0;
-  if (avatar) avatar.src = safeCharacterUrl(config.characterUrl);
+  if (avatar) {
+    const characterUrl = safeCharacterUrl(config.characterUrl);
+    avatar.hidden = !characterUrl;
+    if (characterUrl) avatar.src = characterUrl;
+    else avatar.removeAttribute('src');
+  }
   createNodes(config);
   startRuntime(config);
 }

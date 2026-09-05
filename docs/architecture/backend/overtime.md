@@ -18,8 +18,8 @@
 | `overtime-contract.js`    | 输入校验与常量(`validateTimeInput/validateAction/validateBackground/validateRules` 及 `MAX_*` 常量,§4–§5)           |
 | `overtime-consumer.js`    | 礼物消费者适配层(`createOvertimeConsumer`):`progress → observeGift`、`final → finalizeGift`                         |
 | `remote-catalog-cache.js` | Electron 主进程注入的服务器全局礼物目录缓存:持久化规范化快照、ETag 条件刷新、单飞与低频轮询；网络失败不覆盖已有快照 |
-| `remote-gift-image-cache.js` | 服务器搜索图片缓存:限定配置服务器 origin/固定路径、限制下载大小与时限、校验 raster 图片并原子写入运行时 data 目录 |
-| `hybrid-catalog.js`       | 目录 facade:主读取/刷新固定使用 Bilibili 当前房间目录；服务器快照只用于按名称或 ID 搜索，并缓存命中图片             |
+| `remote-gift-image-cache.js` | 服务器图片缓存:限定配置服务器 origin/固定路径、限制下载大小与时限、校验 raster 图片并原子写入运行时 data 目录 |
+| `hybrid-catalog.js`       | 目录 facade:主读取/刷新固定使用 Bilibili 当前房间目录；服务器快照按精确礼物 ID 提供图片并支持按名称或 ID 搜索             |
 | `index.js`                | 统一导出(contract 透传 + 三个工厂)                                                                                  |
 
 ### 1.2 装配与单例
@@ -57,11 +57,13 @@ final    → service.finalizeGift(event)  // 立即结算(单一静默窗口,不
 
 ### 1.5 服务器全局礼物目录联动
 
-目录选择器与礼物事件管线分离。主目录始终来自当前配置直播间的礼物面板、盲盒和当前账号可用背包。Electron main process 将已配置的 `LIRA_LICENSE_API_BASE` 作为唯一服务器入口，通过公开的 `GET /api/public/gifts/catalog` 读取全局 active 礼物代码，但该快照只供弹窗“搜索服务器礼物”使用；入口只接受使用 DNS 主机名的 HTTPS 根 origin，HTTP、`localhost` 和 IP literal 均被拒绝。设备令牌只用于授权门控，不随公共目录请求发送，也不进入 renderer。
+规则图片解析使用目录 facade 的 `resolveGiftImagePath(giftId)` 点查询。远程缓存维护随完整目录替换的 ID 索引，`getGift(id)` 返回单条副本；解析一条规则只检查该礼物的本地图片，不调用全局或房间完整快照来逐个验证全部图片。目录更新立即替换索引，图片缓存仍自行负责当前图片与最近成功图片的选择；快照查询不修改持久化规则或历史结算。
 
-`remote-catalog-cache.js` 在本地 `data/overtime-gift-catalog.json` 保存 ETag、同步版本、更新时间和规范化礼物数组。后台刷新和 `POST /api/overtime/gifts/server/search` 使用 `If-None-Match` 与单飞，`304` 只更新时间，网络或上游失败保留旧快照。搜索按名称/ID 返回至多 100 项，并把命中的服务器 `/gift-media/images/<basename>` 下载到 `data/overtime-gift-images/`；Admin 只接收本地 `/overtime-gift-images/<basename>`，避免跨 origin CORP 限制并支持离线复用。单图缺失或下载失败只显示占位图。
+目录选择器与礼物事件管线分离。主目录始终来自当前配置直播间的礼物面板、`giftConfig` 和已配置的在售盲盒展开，不读取个人账号背包。Electron main process 将已配置的 `LIRA_LICENSE_API_BASE` 作为唯一服务器入口，通过公开的 `GET /api/public/gifts/catalog` 读取全局 active 礼物目录；本地只保留金瓜子正价礼物，并供主目录精确 ID 补图和弹窗“搜索全部礼物”使用，不会增加或替换房间成员，也不会按名称合并同名不同 ID。入口只接受使用 DNS 主机名的 HTTPS 根 origin，HTTP、`localhost` 和 IP literal 均被拒绝。设备令牌只用于授权门控，不随公共目录请求发送，也不进入 renderer。
 
-`GET /api/overtime/gifts` 与 `POST /api/overtime/gifts/refresh` 不受远程目录是否配置影响，始终读取/刷新房间面板、盲盒和背包目录。服务器 run 变化后，Live 本地 `/ws` 仍广播 `gift-catalog:update`，但 Admin 不把该远程快照应用成主目录；下次服务器搜索直接使用更新后的缓存。既有 `/api/overtime/gifts/local/search` 继续作为兼容端点保留。ICP备案后的公网页面仍使用 lira-server 原有分组 API 与 `/gifts` 路由，不依赖本地目录服务。
+`remote-catalog-cache.js` 在本地 `data/overtime-gift-catalog.json` 保存 ETag、同步版本、更新时间和规范化付费礼物数组。首次授权成功后，`gift-catalog-initializer.js` 保持登录页可见，扫描完整目录并从已校验的 Bilibili `sourceUrl` 下载图片；只有缺少可用源地址的条目才下载服务器 `/gift-media/images/<basename>`，B 站失败不会自动转为服务器批量下载。文件按礼物 ID、源 URL 和已校验服务器图片 URL 的 hash 分离，`data/overtime-gift-images/index.json`（schemaVersion 1，`images` 为 ID 到安全 basename 的映射）原子保存最近成功图片，换图失败继续使用旧图。完成状态写入 `data/overtime-gift-assets-state.json`。目录不可用且没有旧快照时提供重试；单图失败不永久阻塞。已有完成状态的每次授权启动立即进入 Admin，并以 `If-None-Match` 检查一次；持续运行每 12 小时再检查，关闭时清理定时器。304 也检查本地缺图并补齐。Admin 只接收本地 `/overtime-gift-images/<basename>`，支持离线复用。
+
+`GET /api/overtime/gifts` 与 `POST /api/overtime/gifts/refresh` 不受远程目录是否配置影响，始终读取/刷新房间面板、`giftConfig` 和已配置的在售盲盒展开，不请求个人背包。`GET /api/overtime/gifts/catalog` 返回本地全局快照；`POST /api/overtime/gifts/local/search` 纯本地匹配名称/ID，旧 `/server/search` 只是同一实现的兼容别名。目录变化或缺图修复后，Live 完成图片扫描再通过本地 `/ws` 广播 `gift-catalog:update`，携带本地图片路径及 `assetsUpdatedAt`；Admin 按精确 ID 更新图片，不把全局成员列表应用成房间主目录。后续实际下载由既有 IPC 进度驱动单条 toast，显示开始、进度、完成或部分失败；无下载时不提示。目录更新不覆盖盲盒映射 `giftBlindBoxConfig`、计时规则或历史账本。所有本地搜索都不读取 Markdown、静态图库或在查询时联网。ICP备案后的公网页面仍使用 lira-server 原有分组 API 与 `/gifts` 路由，不依赖本地目录服务。
 
 ## 2. 状态模型与权威计时
 
@@ -150,7 +152,7 @@ final    → service.finalizeGift(event)  // 立即结算(单一静默窗口,不
   "giftName": "心动时刻",
   "quantity": 100,
   "totalPrice": 10,
-  "imagePath": "/img/bilibili-gifts/.../35521.webp",
+  "imagePath": "/overtime-gift-images/35521.webp",
   "mode": "fixed",
   "quantityMode": "item",
   "applicationCount": 100,
@@ -209,7 +211,7 @@ final    → service.finalizeGift(event)  // 立即结算(单一静默窗口,不
 | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 背景 `path` | 必须为空字符串,或匹配 `/img/overtime-machine/<name>` 的内置图片路径                                                                                                                                                         | [overtime-contract.js:30-41](../../../src/overtime/overtime-contract.js#L30-L41)                                                                  |
 | 背景 `fit`  | `cover`(默认)`\| contain \| fill`                                                                                                                                                                                           | 同上                                                                                                                                              |
-| 路径安全    | `isAllowedImagePath`:本地路径拒绝 `..`、反斜杠和协议头且限定于内置目录；新服务器搜索规则只保存 `/overtime-gift-images/<basename>`，并兼容组合根允许 origin 下既有 `/gift-media/images/<basename>` 绝对 URL；均拒绝凭据、查询参数、hash 和第三方源 | [overtime-contract.js](../../../src/overtime/overtime-contract.js) |
+| 路径安全    | `isAllowedImagePath`:本地路径拒绝 `..`、反斜杠和协议头且限定于内置目录；新服务器目录规则只保存 `/overtime-gift-images/<basename>`，并兼容组合根允许 origin 下既有 `/gift-media/images/<basename>` 绝对 URL；旧 `/img/bilibili-gifts/...` 只在迁移时按礼物 ID 替换，均拒绝凭据、查询参数、hash 和第三方源 | [overtime-contract.js](../../../src/overtime/overtime-contract.js) |
 | 时间输入    | `initialSeconds`/`remainingSeconds` 至少一个,0–315,328,464,000 整数                                                                                                                                                         | [overtime-contract.js:9-22](../../../src/overtime/overtime-contract.js#L9-L22)                                                                    |
 | 动作        | `start \| pause \| reset \| enable \| disable`                                                                                                                                                                              | [overtime-contract.js:22-28](../../../src/overtime/overtime-contract.js#L22-L28)                                                                  |
 

@@ -17,6 +17,13 @@ const {
 
 const ROOT_DIR = path.join(__dirname, '..');
 
+function runnableRecentScript(source) {
+  return `const eventBus = window.AdminApp.eventBus || { on: () => () => {} };
+const Events = { GIFT_CATALOG_UPDATED: 'gift:catalog_updated' };
+const getLegacyAdminModules = () => window.AdminApp;
+${source.replace(/^import .*?;\r?\n/gm, '')}`;
+}
+
 test('gift workspace exposes one page heading and seven semantic panel titles', () => {
   const page = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'pages', 'admin', 'gifts', 'page.html'),
@@ -407,6 +414,135 @@ test('blind-box settings persist an explicit empty JSON array', () => {
   assert.match(source, /let raw = textarea\.value\.trim\(\) \|\| '\[\]'/);
 });
 
+test('blind-box mapping renders official entries read-only', async () => {
+  const container = { innerHTML: '' };
+  const textarea = {
+    value: JSON.stringify([
+      {
+        giftId: null,
+        name: '主播自定义盒',
+        price: 5,
+        outputs: [{ giftId: '102', name: '自定义产物', price: 2 }],
+      },
+    ]),
+  };
+  const status = { textContent: '' };
+  const document = {
+    readyState: 'loading',
+    addEventListener() {},
+    getElementById(id) {
+      return { blindBoxList: container, giftBlindBoxCustomConfigV2: textarea,
+        blindBoxMappingStatus: status }[id] || null;
+    },
+  };
+  const window = {
+    AdminApp: {
+      utils: {
+        escapeHtml: (value) => String(value),
+        escapeAttr: (value) => String(value),
+        formatTime: (value) => String(value),
+        formatMoney: (value) => String(value),
+        readJsonResponse: async () => ({}),
+      },
+      state: {
+        getAppState: () => ({
+          blindBoxMapping: { mode: 'v2', applied: true, customCount: 1 },
+        }),
+      },
+      gifts: { recent: { getBlindBoxIcon: () => null } },
+    },
+  };
+
+  await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'blindbox.js'),
+    { document, window, fetch: () => new Promise(() => {}) },
+  );
+  window.AdminApp.gifts.blindbox.applyOfficialCatalogSnapshot({
+    gifts: [
+      { id: '100', name: '官方盲盒', rmb: 5, isBlindBox: true },
+      { id: '101', name: '官方产物', rmb: 3, isBlindBox: false },
+    ],
+    blindBoxes: [{ giftId: '100', outputGiftIds: ['101'] }],
+  });
+
+  assert.match(container.innerHTML, /官方盲盒/);
+  assert.match(container.innerHTML, /<span class="bb-chip-source">官方<\/span>/);
+  assert.match(container.innerHTML, /主播自定义盒/);
+  assert.equal((container.innerHTML.match(/class="chip-delete"/g) || []).length, 1);
+});
+
+test('blind-box JSON draft survives state refresh and a failed save', async () => {
+  const draft = '[{"name":"未保存草稿"}]';
+  const textarea = {
+    value: draft,
+    dataset: { preserveDirty: 'true', dirty: 'true' },
+    closest: () => null,
+    addEventListener() {},
+  };
+  const document = {
+    activeElement: null,
+    getElementById: (id) =>
+      id === 'giftBlindBoxCustomConfigV2' ? textarea : null,
+    querySelectorAll: () => [],
+  };
+  const window = { AdminApp: {} };
+  const { FormsService } = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'forms.js'),
+    { document, window },
+  );
+  const forms = new FormsService();
+  forms.fillForm({ giftBlindBoxCustomConfigV2: '[]' });
+  assert.equal(textarea.value, draft);
+
+  const elements = new Map();
+  const makeElement = (value = '') => {
+    const listeners = new Map();
+    return {
+      value,
+      checked: false,
+      dataset: {},
+      hidden: false,
+      textContent: '',
+      href: '',
+      addEventListener: (type, handler) => listeners.set(type, handler),
+      listeners,
+    };
+  };
+  for (const id of [
+    'blindBoxAddBtn', 'blindBoxList', 'blindBoxAdvancedToggle',
+    'giftBlindBoxSaveBtn', 'blindboxOverlayTitle', 'blindboxOverlayTop',
+    'blindboxWinnersOnly', 'blindboxHeartBoxOnly', 'blindboxCopyUrlBtn',
+    'giftBlindBoxCustomConfigV2', 'importBtn', 'blindBoxAdvanced',
+    'blindboxOverlayUrl', 'blindboxLiveLink',
+  ]) elements.set(id, makeElement());
+  const editable = elements.get('giftBlindBoxCustomConfigV2');
+  editable.value = draft;
+  const { createBlindboxSettings } = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'settings-blindbox.js'),
+  );
+  const settings = createBlindboxSettings({
+    documentRef: { getElementById: (id) => elements.get(id) || null },
+    navigatorRef: { clipboard: { writeText: async () => {} } },
+    promptRef() {},
+    locationRef: {},
+    value: (id) => elements.get(id)?.value || '',
+    toast() {},
+    saveSettings: async () => { throw new Error('offline'); },
+    getGifts: () => null,
+    getState: () => null,
+    getImports: () => null,
+    localOverlayOrigin: () => 'http://127.0.0.1:3000',
+  });
+  settings.init();
+  editable.listeners.get('input')();
+  await assert.rejects(
+    elements.get('giftBlindBoxSaveBtn').listeners.get('click')(),
+    /offline/,
+  );
+  assert.equal(editable.value, draft);
+  assert.equal(editable.dataset.dirty, 'true');
+});
+
 test('blindbox ranking count supports all, summary-only, and one-to-ten modes', () => {
   const html = readAdminHtml();
   const settingsSource = fs.readFileSync(
@@ -455,8 +591,12 @@ test('blindbox ranking count supports all, summary-only, and one-to-ten modes', 
       location: { search },
       document: { addEventListener() {} },
     };
+    const executableSource = overlaySource.replace(
+      /^import\s+\{\s*createOverlaySocket\s*\}\s+from\s+['"]\.\/socket-client\.js['"];\s*/m,
+      '',
+    );
     vm.runInNewContext(
-      `${overlaySource}\nthis.result = { top: TOP_N, summaryOnly: SUMMARY_ONLY };`,
+      `${executableSource}\nthis.result = { top: TOP_N, summaryOnly: SUMMARY_ONLY };`,
       sandbox,
     );
     return { top: sandbox.result.top, summaryOnly: sandbox.result.summaryOnly };
@@ -483,6 +623,10 @@ test('blindbox overlay fills the capture width and reflows without hiding data',
   );
   const panelRule = styles.match(/\.blindbox-panel\s*\{[\s\S]*?\n\}/)?.[0];
 
+  assert.match(
+    html,
+    /<script type="module" src="\/js\/overlays\/blindbox\.js\?v=[^"]+"><\/script>/,
+  );
   assert.ok(panelRule, 'blindbox panel styles should remain defined');
   assert.doesNotMatch(html, /blindbox-live-status|>实时</);
   assert.doesNotMatch(styles, /blindbox-live-status/);
@@ -573,7 +717,7 @@ test('recent gift cards stay within six rows as the grid width changes', () => {
     created_at: index,
   }));
 
-  vm.runInNewContext(source, sandbox);
+  vm.runInNewContext(runnableRecentScript(source), sandbox);
   sandbox.window.AdminApp.gifts.recent.renderGiftRecentList(items);
 
   assert.equal(cards.filter((card) => !card.hidden).length, 18);
@@ -646,7 +790,7 @@ test('recent guard gift cards use subtle matching guard level colors', () => {
   );
 });
 
-test('recent blind box cards keep box colors while profit text uses stock-style colors', () => {
+test('recent blind box cards keep heart and lucky colors and default all others to purple', () => {
   const script = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'recent.js'),
     'utf8',
@@ -659,11 +803,9 @@ test('recent blind box cards keep box colors while profit text uses stock-style 
   );
   assert.match(script, /className: 'blind-box-heart'/);
   assert.match(script, /className: 'blind-box-lucky'/);
-  assert.match(script, /className: 'blind-box-bear'/);
-  assert.match(script, /className: 'blind-box-qixi'/);
-  assert.match(script, /className: 'blind-box-bond'/);
-  assert.match(script, /blind-box\/35786\.webp/);
-  assert.match(script, /blind-box\/35461\.webp/);
+  assert.match(script, /className: type\?\.className \|\| 'blind-box-default'/);
+  assert.doesNotMatch(script, /className: 'blind-box-(?:bear|qixi|bond)'/);
+  assert.doesNotMatch(script, /\/img\/bilibili-gifts/);
   assert.match(
     styles,
     /\.gift-card\.blind-box-card\.blind-box-heart\s*\{[^}]*border-left-color:\s*#f3a2aa/,
@@ -674,15 +816,7 @@ test('recent blind box cards keep box colors while profit text uses stock-style 
   );
   assert.match(
     styles,
-    /\.gift-card\.blind-box-card\.blind-box-bear\s*\{[^}]*border-left-color:\s*#f5a6cb/,
-  );
-  assert.match(
-    styles,
-    /\.gift-card\.blind-box-card\.blind-box-qixi\s*\{[^}]*border-left-color:\s*#d786dc[^}]*background:\s*linear-gradient/,
-  );
-  assert.match(
-    styles,
-    /\.gift-card\.blind-box-card\.blind-box-bond\s*\{[^}]*border-left-color:\s*#ff6fb8[^}]*background:\s*linear-gradient/,
+    /\.gift-card\.blind-box-card\.blind-box-default\s*\{[^}]*border-left-color:\s*#8459c7[^}]*background:\s*linear-gradient/,
   );
   assert.match(
     styles,
@@ -698,7 +832,7 @@ test('recent blind box cards keep box colors while profit text uses stock-style 
   );
 });
 
-test('七夕鹊匣 gift card uses the box artwork and pink-purple theme', () => {
+test('same-name 七夕鹊匣 gift card uses server artwork for its exact ID', async () => {
   const script = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'recent.js'),
     'utf8',
@@ -717,15 +851,37 @@ test('七夕鹊匣 gift card uses the box artwork and pink-purple theme', () => 
           formatMoney: (value) => String(value),
         },
       },
+      fetch: async (url) => {
+        assert.equal(url, '/api/overtime/gifts/catalog');
+        return {
+          ok: true,
+          json: async () => ({
+            ok: true,
+            data: {
+              gifts: [
+                {
+                  id: '35786',
+                  imagePath: '/overtime-gift-images/35786.webp',
+                },
+                {
+                  id: '45786',
+                  imagePath: '/overtime-gift-images/45786.webp',
+                },
+              ],
+            },
+          }),
+        };
+      },
       getComputedStyle: () => ({ gridTemplateColumns: '270px' }),
     },
     document: { getElementById: () => list },
   };
 
-  vm.runInNewContext(script, sandbox);
+  vm.runInNewContext(runnableRecentScript(script), sandbox);
+  await sandbox.window.AdminApp.gifts.recent.loadGiftArtworkCatalog();
   sandbox.window.AdminApp.gifts.recent.renderGiftRecentList([
     {
-      gift_id: '35786',
+      gift_id: '45786',
       gift_name: '七夕鹊匣',
       user_name: 'Alice',
       num: 1,
@@ -736,8 +892,145 @@ test('七夕鹊匣 gift card uses the box artwork and pink-purple theme', () => 
     },
   ]);
 
-  assert.match(list.innerHTML, /blind-box-card blind-box-qixi/);
-  assert.match(list.innerHTML, /\/img\/bilibili-gifts\/blind-box\/35786\.webp/);
+  assert.match(list.innerHTML, /blind-box-card blind-box-default/);
+  assert.match(list.innerHTML, /\/overtime-gift-images\/45786\.webp/);
+  assert.doesNotMatch(list.innerHTML, /\/overtime-gift-images\/35786\.webp/);
+
+  sandbox.window.AdminApp.gifts.recent.renderGiftRecentList([
+    {
+      gift_id: '99999',
+      gift_name: '盲盒产物',
+      blind_box_id: '35786',
+      blind_box_name: '七夕鹊匣',
+      user_name: 'Alice',
+      num: 1,
+      unit_price: 1,
+      total_price: 1,
+      is_blind_box: true,
+      blind_box_price: 25,
+    },
+  ]);
+  assert.match(list.innerHTML, /\/overtime-gift-images\/35786\.webp/);
+
+  sandbox.window.AdminApp.gifts.recent.renderGiftRecentList([
+    {
+      gift_id: '99999',
+      gift_name: '七夕鹊匣',
+      user_name: 'Alice',
+      num: 1,
+      unit_price: 25,
+      total_price: 25,
+      is_blind_box: true,
+      blind_box_price: 25,
+    },
+  ]);
+  assert.match(list.innerHTML, /\/img\/overtime-machine\/gift-placeholder\.svg/);
+  assert.doesNotMatch(list.innerHTML, /\/overtime-gift-images\/35786\.webp/);
+
+  sandbox.window.AdminApp.gifts.recent.renderGiftRecentList([
+    {
+      gift_id: '35786',
+      gift_name: '七夕鹊匣产物',
+      user_name: 'Alice',
+      num: 1,
+      unit_price: 1,
+      total_price: 1,
+      is_blind_box: false,
+      blind_box_id: null,
+    },
+  ]);
+  assert.doesNotMatch(list.innerHTML, /blind-box-card/);
+});
+
+test('recent gift artwork refreshes from live catalog events without a slow fetch rollback', async () => {
+  const script = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'recent.js'),
+    'utf8',
+  );
+  const list = {
+    classList: { toggle() {} },
+    querySelectorAll: () => [],
+    innerHTML: '',
+  };
+  let resolveFetch;
+  const fetchPromise = new Promise((resolve) => {
+    resolveFetch = resolve;
+  });
+  let eventHandler;
+  const eventBus = {
+    on(event, handler) {
+      assert.equal(event, 'gift:catalog_updated');
+      eventHandler = handler;
+      return () => {
+        eventHandler = null;
+      };
+    },
+  };
+  const sandbox = {
+    window: {
+      AdminApp: {
+        utils: {
+          escapeHtml: (value) => String(value),
+          formatTime: (value) => String(value),
+          formatMoney: (value) => String(value),
+        },
+        eventBus,
+      },
+      fetch: () => fetchPromise,
+      getComputedStyle: () => ({ gridTemplateColumns: '270px' }),
+    },
+    document: { getElementById: () => list },
+  };
+
+  vm.runInNewContext(runnableRecentScript(script), sandbox);
+  const recent = sandbox.window.AdminApp.gifts.recent;
+  recent.renderGiftRecentList([
+    {
+      gift_id: '35792',
+      gift_name: '宸星定情',
+      user_name: 'Alice',
+      num: 1,
+      unit_price: 1200,
+      total_price: 1200,
+    },
+  ]);
+  const initialPromise = recent.loadGiftArtworkCatalog();
+
+  eventHandler({
+    snapshot: {
+      source: 'server',
+      version: 'v2',
+      gifts: [
+        { id: '35792', imagePath: '/overtime-gift-images/35792-new.webp' },
+      ],
+    },
+  });
+  assert.match(list.innerHTML, /\/overtime-gift-images\/35792-new\.webp/);
+
+  resolveFetch({
+    ok: true,
+    json: async () => ({
+      ok: true,
+      data: {
+        gifts: [
+          { id: '35792', imagePath: '/overtime-gift-images/35792-old.webp' },
+        ],
+      },
+    }),
+  });
+  await initialPromise;
+
+  assert.match(list.innerHTML, /\/overtime-gift-images\/35792-new\.webp/);
+  assert.doesNotMatch(list.innerHTML, /\/overtime-gift-images\/35792-old\.webp/);
+
+  eventHandler({
+    snapshot: {
+      source: 'server',
+      version: 'v3',
+      gifts: [{ id: '35792', imagePath: 'https://example.test/gift.webp' }],
+    },
+  });
+  assert.match(list.innerHTML, /\/overtime-gift-images\/35792-new\.webp/);
 });
 
 test('recent gift totals worth at least 1000 RMB use gold while unit-value artwork comes from the catalog', async () => {
@@ -761,13 +1054,19 @@ test('recent gift totals worth at least 1000 RMB use gold while unit-value artwo
         },
       },
       fetch: async (url) => {
-        assert.equal(url, '/img/bilibili-gifts.json');
+        assert.equal(url, '/api/overtime/gifts/catalog');
         return {
           ok: true,
           json: async () => ({
-            gifts: [
-              { id: 35792, image: 'bilibili-gifts/1200-1300/35792.webp' },
-            ],
+            ok: true,
+            data: {
+              gifts: [
+                {
+                  id: '35792',
+                  imagePath: '/overtime-gift-images/35792.webp',
+                },
+              ],
+            },
           }),
         };
       },
@@ -776,7 +1075,7 @@ test('recent gift totals worth at least 1000 RMB use gold while unit-value artwo
     document: { getElementById: () => list },
   };
 
-  vm.runInNewContext(script, sandbox);
+  vm.runInNewContext(runnableRecentScript(script), sandbox);
   await sandbox.window.AdminApp.gifts.recent.loadGiftArtworkCatalog();
   sandbox.window.AdminApp.gifts.recent.renderGiftRecentList([
     {
@@ -801,8 +1100,7 @@ test('recent gift totals worth at least 1000 RMB use gold while unit-value artwo
   assert.equal((list.innerHTML.match(/gift-high-value-icon/g) || []).length, 1);
   assert.equal(
     (
-      list.innerHTML.match(/\/img\/bilibili-gifts\/1200-1300\/35792\.webp/g) ||
-      []
+      list.innerHTML.match(/\/overtime-gift-images\/35792\.webp/g) || []
     ).length,
     1,
   );

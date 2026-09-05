@@ -324,7 +324,6 @@
   filter: drop-shadow(0 3px 3px rgba(92, 58, 8, 0.2));
 }
 
-/* 小熊虫盲盒礼物卡片样式 — 配色取自盲盒图标（蜜桃粉 #f5a6cb / 暖金 #fede82 / 深玫瑰 #d1568e）*/
 .gift-card.blind-box-card.blind-box-heart {
   border-left-color: #f3a2aa;
   background: linear-gradient(90deg, #ffecef 0%, var(--color-bg-primary) 100%);
@@ -335,27 +334,13 @@
   background: linear-gradient(90deg, #f2fadf 0%, var(--color-bg-primary) 100%);
 }
 
-.gift-card.blind-box-card.blind-box-bear {
-  border-left-color: #f5a6cb;
-  background: linear-gradient(90deg, #ffeaf4 0%, var(--color-bg-primary) 100%);
-}
-
-.gift-card.blind-box-card.blind-box-qixi {
-  border-left-color: #d786dc;
+.gift-card.blind-box-card.blind-box-default {
+  border-color: #b89ae8;
+  border-left-color: #8459c7;
   background: linear-gradient(
     90deg,
-    #ffeaf8 0%,
-    #f4ebff 48%,
-    var(--color-bg-primary) 100%
-  );
-}
-
-.gift-card.blind-box-card.blind-box-bond {
-  border-left-color: #ff6fb8;
-  background: linear-gradient(
-    90deg,
-    #fff0fa 0%,
-    #eefbff 48%,
+    #eee5ff 0%,
+    #f7f1ff 52%,
     var(--color-bg-primary) 100%
   );
 }

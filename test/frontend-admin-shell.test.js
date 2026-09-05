@@ -1477,7 +1477,7 @@ test('admin state events render queue empty states and song data', () => {
   );
 });
 
-test('overtime picker keeps the room catalog primary when the server cache updates', () => {
+test('overtime picker keeps the room catalog primary when the global cache updates', () => {
   const stateSource = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'js', 'admin', 'state.js'),
     'utf8',
@@ -1497,14 +1497,27 @@ test('overtime picker keeps the room catalog primary when the server cache updat
   );
   assert.match(
     overtimeSource,
-    /snapshot\?\.source !== ["']server["'][\s\S]*applyGiftCatalog\(snapshot\)/,
+    /snapshot\?\.source === ["']server["'][\s\S]*applyServerGiftArtwork\(snapshot\)/,
   );
+  assert.match(overtimeSource, /function applyServerGiftArtwork\(snapshot\)/);
+  assert.match(overtimeSource, /serverGiftArtworkById\.get\(gift\.id\)/);
+  assert.match(
+    overtimeSource,
+    /globalGiftMatches = globalGiftMatches\.map\(\(gift\) => \{[\s\S]*?serverGiftArtworkById\.get\(gift\.id\)/,
+  );
+  assert.match(overtimeSource, /function decorateOvertimeRules\(rules\)/);
+  assert.match(
+    overtimeSource,
+    /renderRules: \(rules\) =>\s*ruleEditor\.renderRules\(decorateOvertimeRules\(rules\)\)/,
+  );
+  assert.match(overtimeSource, /row\.dataset\.imagePath = imagePath/);
+  assert.match(stateSource, /assetsUpdatedAt: String\(snapshot\.assetsUpdatedAt/);
   assert.match(
     overtimeSource,
     /function openGiftPicker\(\)[\s\S]*refreshGiftCatalog\(\{ notify: false \}\)/,
   );
   assert.match(overtimeSource, /if \(picker\?\.open\) renderGiftPicker\(\)/);
-  assert.match(overtimeSource, /服务器目录中没有匹配礼物/);
+  assert.match(overtimeSource, /全部礼物中没有匹配项/);
   assert.match(overtimeSource, /没有找到当前在售礼物/);
   assert.match(
     html,

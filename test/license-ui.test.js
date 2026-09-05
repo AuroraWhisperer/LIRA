@@ -29,8 +29,30 @@ test('license renderer uses main-process bridge and clears secrets on success', 
   assert.match(script, /window\.liraLicense/);
   assert.match(script, /passwordInput\.value = ''/);
   assert.match(script, /codeInput\.value = ''/);
+  assert.match(script, /api\.getGiftCatalogState\(\)/);
+  assert.match(script, /api\.retryGiftCatalog\(\)/);
+  assert.match(script, /api\.onGiftCatalogStateChanged/);
+  assert.doesNotMatch(script, /window\.location/);
   assert.doesNotMatch(script, /api\.lir[a-z]+hub\.cn/);
   assert.doesNotMatch(script, /localStorage/);
+});
+
+test('license page replaces the form with an accessible gift initialization card', () => {
+  const html = fs.readFileSync(
+    path.join(ROOT, 'public', 'pages', 'license.html'),
+    'utf8',
+  );
+  const styles = fs.readFileSync(
+    path.join(ROOT, 'public', 'css', 'license.css'),
+    'utf8',
+  );
+  assert.match(html, /id="licenseLoginCard"/);
+  assert.match(html, /id="giftCatalogInitializationCard"[^>]*aria-busy="true"[^>]*hidden/s);
+  assert.match(html, /id="giftCatalogInitializationProgress"[^>]*max="100"/s);
+  assert.match(html, /id="giftCatalogInitializationStatus"[^>]*role="status"/s);
+  assert.match(html, /id="giftCatalogInitializationRetryBtn"/);
+  assert.match(styles, /\.license-initialization-card\s*\{/);
+  assert.match(styles, /\.license-progress::-webkit-progress-value\s*\{/);
 });
 
 test('license renderer explains session replacement and temporary server failures', () => {

@@ -2,10 +2,14 @@
 // 盲盒统计模块 - 负责盲盒映射配置和统计数据显示
 'use strict';
 
+import { getLegacyAdminModules } from '../legacy-admin-bridge.js';
+
 (function () {
   const { escapeHtml, escapeAttr, formatTime, formatMoney, readJsonResponse } =
     window.AdminApp.utils;
   let statsInitialized = false;
+  let officialBlindBoxes = [];
+  let officialCatalogLoadPromise = null;
 
   /**
    * 渲染盲盒映射配置列表
@@ -13,25 +17,26 @@
   function renderBlindBoxList() {
     const container = document.getElementById('blindBoxList');
     if (!container) return;
-    const textarea = document.getElementById('giftBlindBoxConfig');
+    const textarea = document.getElementById('giftBlindBoxCustomConfigV2');
     if (!textarea) return;
 
     const raw = (textarea.value || '').trim();
-    if (!raw) {
-      container.innerHTML = '<span class="hint">暂无盲盒配置</span>';
-      return;
-    }
-
-    let config;
+    let config = [];
     try {
-      config = JSON.parse(raw);
-      if (!Array.isArray(config)) throw new Error('不是数组');
+      const parsed = raw ? JSON.parse(raw) : [];
+      if (parsed !== null && !Array.isArray(parsed)) throw new Error('不是数组');
+      config = Array.isArray(parsed) ? parsed : [];
     } catch (e) {
       container.innerHTML = '<span class="hint">配置格式错误</span>';
       return;
     }
 
-    if (config.length === 0) {
+    const entries = [
+      ...officialBlindBoxes.map((item) => ({ ...item, official: true })),
+      ...config.map((item, index) => ({ ...item, index, official: false })),
+    ];
+    renderBlindBoxMappingStatus();
+    if (entries.length === 0) {
       container.innerHTML = '<span class="hint">暂无盲盒配置</span>';
       return;
     }
@@ -39,22 +44,28 @@
     // 使用 recent 模块的工具函数
     const getBlindBoxIcon = window.AdminApp.gifts.recent.getBlindBoxIcon;
 
-    container.innerHTML = config
-      .map((item, index) => {
+    container.innerHTML = entries
+      .map((item) => {
         const name = escapeHtml(item.name || '未命名');
         const price = formatMoney(item.price);
         const outputs = Array.isArray(item.outputs)
           ? item.outputs
               .map((o) => {
                 if (typeof o === 'object' && o !== null) {
-                  return `<span class="bb-output">${escapeHtml(o.name)}<small>${formatMoney(o.price)}</small></span>`;
+                  const outputId = escapeHtml(String(o.giftId || ''));
+                  const outputPrice = Number(o.price);
+                  return `<span class="bb-output">${escapeHtml(o.name)}${outputId ? `<small>#${outputId}</small>` : ''}${Number.isFinite(outputPrice) && outputPrice > 0 ? `<small>${formatMoney(outputPrice)}</small>` : ''}</span>`;
                 }
                 return escapeHtml(String(o));
               })
               .join('')
           : '—';
 
-        const icon = getBlindBoxIcon(item);
+        const icon = getBlindBoxIcon({
+          is_blind_box: true,
+          blind_box_id: item.giftId || null,
+          blind_box_name: item.name || '',
+        });
         const iconHtml = icon
           ? `<img class="bb-chip-icon" src="${escapeAttr(icon.src)}" alt="${escapeAttr(icon.name)}" onerror="this.style.display='none'">`
           : `<span class="bb-chip-icon-fallback">🎁</span>`;
@@ -69,11 +80,83 @@
             </div>
             <div class="bb-chip-outputs">${outputs}</div>
           </div>
-          <button class="chip-delete" data-blind-index="${index}" title="删除">✕</button>
+          ${item.official
+            ? '<span class="bb-chip-source">官方</span>'
+            : `<button class="chip-delete" data-blind-index="${item.index}" title="删除">✕</button>`}
         </div>
       `;
       })
       .join('');
+  }
+
+  function renderBlindBoxMappingStatus() {
+    const status = document.getElementById('blindBoxMappingStatus');
+    if (!status) return;
+    const mapping = getLegacyAdminModules().state?.getAppState?.()?.blindBoxMapping;
+    if (!mapping) {
+      status.textContent = '正在读取服务器映射状态';
+      return;
+    }
+    const parts = [];
+    if (mapping.mode === 'legacy') {
+      parts.push(`旧配置待确认 ${Number(mapping.migrationPendingCount) || 0} 项`);
+    } else {
+      parts.push(mapping.applied ? '服务器已应用' : '等待服务器应用');
+      parts.push(`自定义 ${Number(mapping.customCount) || 0} 项`);
+    }
+    if (Number(mapping.takenOverCount) > 0) {
+      parts.push(`官方已接管 ${Number(mapping.takenOverCount)} 项`);
+    }
+    status.textContent = parts.join(' · ');
+  }
+
+  function applyOfficialCatalogSnapshot(snapshot) {
+    const gifts = Array.isArray(snapshot?.gifts) ? snapshot.gifts : [];
+    const giftById = new Map(
+      gifts.map((gift) => [String(gift?.id || '').trim(), gift]),
+    );
+    const relationById = new Map(
+      (Array.isArray(snapshot?.blindBoxes) ? snapshot.blindBoxes : []).map(
+        (relation) => [String(relation?.giftId || '').trim(), relation],
+      ),
+    );
+    officialBlindBoxes = gifts
+      .filter((gift) => gift?.isBlindBox === true)
+      .map((gift) => {
+        const giftId = String(gift.id);
+        const relation = relationById.get(giftId);
+        return {
+          giftId,
+          name: gift.name,
+          price: gift.rmb,
+          outputs: (relation?.outputGiftIds || []).map((outputGiftId) => {
+            const output = giftById.get(String(outputGiftId));
+            return {
+              giftId: String(outputGiftId),
+              name: output?.name || `礼物 ${outputGiftId}`,
+              price: output?.rmb ?? null,
+            };
+          }),
+        };
+      });
+    renderBlindBoxList();
+  }
+
+  function loadOfficialCatalog() {
+    if (officialCatalogLoadPromise) return officialCatalogLoadPromise;
+    officialCatalogLoadPromise = fetch('/api/overtime/gifts/catalog')
+      .then((response) => readJsonResponse(response, '礼物目录加载失败'))
+      .then((payload) => {
+        if (payload?.ok === false) throw new Error(payload.error);
+        applyOfficialCatalogSnapshot(payload?.data);
+      })
+      .catch((error) => {
+        console.warn('[BlindBox] catalog refresh failed:', error.message || error);
+      })
+      .finally(() => {
+        officialCatalogLoadPromise = null;
+      });
+    return officialCatalogLoadPromise;
   }
 
   // ── 盲盒统计 ──
@@ -280,8 +363,10 @@
   window.AdminApp.gifts = window.AdminApp.gifts || {};
   window.AdminApp.gifts.blindbox = {
     renderBlindBoxList,
+    applyOfficialCatalogSnapshot,
     loadBlindBoxStats,
     renderBlindBoxStats,
     initBlindBoxStatsToggle,
   };
+  loadOfficialCatalog();
 })();

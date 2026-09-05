@@ -3,6 +3,7 @@
 'use strict';
 
 import { getHomeActionTitle } from '../utils.js';
+import { CACHEABLE_ACTIONS } from '../content/loader.js';
 
 /**
  * 首页服务类
@@ -22,6 +23,20 @@ export class HomeService {
     this.homePage = 1;
     this.drawerHistory = [];
     this._currentPlaylistId = '';
+    this._requestGeneration = 0;
+  }
+
+  _beginRequest() {
+    this._requestGeneration += 1;
+    return this._requestGeneration;
+  }
+
+  _isCurrentRequest(generation) {
+    return generation === this._requestGeneration;
+  }
+
+  _staleResult() {
+    return { stale: true };
   }
 
   /**
@@ -30,9 +45,11 @@ export class HomeService {
    * @returns {Promise<Object>} {items, itemType, action}
    */
   async loadContent(action) {
+    const generation = this._beginRequest();
+
     // 本地历史记录特殊处理
     if (action === 'recent') {
-      return this.loadLocalRecentHistory();
+      return this.loadLocalRecentHistory(generation);
     }
 
     // 使用 contentLoader 加载在线内容
@@ -41,7 +58,12 @@ export class HomeService {
     }
 
     try {
-      const result = await this.contentLoader.loadHomeContent(action);
+      const result = await this.contentLoader.loadHomeContent(action, {
+        requestGeneration: generation,
+      });
+      if (!this._isCurrentRequest(generation) || result?.stale) {
+        return this._staleResult();
+      }
 
       this.homeItems = result.items;
       this.homeItemType = result.itemType;
@@ -55,6 +77,7 @@ export class HomeService {
         page: this.homePage,
       };
     } catch (error) {
+      if (!this._isCurrentRequest(generation)) return this._staleResult();
       this.clearHomeState();
       throw error;
     }
@@ -64,10 +87,12 @@ export class HomeService {
    * 加载本地最近播放历史
    * @returns {Object}
    */
-  loadLocalRecentHistory() {
+  loadLocalRecentHistory(generation = this._beginRequest()) {
     if (!this.state) {
       throw new Error('State not initialized');
     }
+
+    if (!this._isCurrentRequest(generation)) return this._staleResult();
 
     const tracks = this.state.displayHistory || [];
 
@@ -91,6 +116,7 @@ export class HomeService {
    * @returns {Promise<Object>}
    */
   async loadPlaylistTracks(playlistIndex) {
+    const generation = this._beginRequest();
     const playlist = this.homeItems[playlistIndex];
     if (!playlist) {
       throw new Error('Playlist not found');
@@ -104,24 +130,31 @@ export class HomeService {
       throw new Error('ContentLoader not initialized');
     }
 
-    // 保存当前状态到历史记录
-    this.pushHistory({
+    const previousState = {
       items: this.homeItems,
       itemType: this.homeItemType,
       action: this.homeAction,
       page: this.homePage,
-    });
+    };
 
     try {
       const result = await this.contentLoader.loadHomeContent(
         'playlist-tracks',
         {
           playlistId: playlist.id,
+          requestGeneration: generation,
         },
       );
 
+      if (!this._isCurrentRequest(generation) || result?.stale) {
+        return this._staleResult();
+      }
+
       // 记录当前歌单 ID，供刷新时使用
       this._currentPlaylistId = playlist.id;
+
+      // 仅在请求仍然有效时保存当前状态到历史记录
+      this.pushHistory(previousState);
 
       // ContentLoader 已经设置了 homeItems 等状态，同步到 HomeService
       this.homeItems = result.items;
@@ -136,6 +169,7 @@ export class HomeService {
         title: playlist.title || playlist.id,
       };
     } catch (error) {
+      if (!this._isCurrentRequest(generation)) return this._staleResult();
       this.onError(error);
       throw error;
     }
@@ -149,6 +183,7 @@ export class HomeService {
    */
   async refreshContent() {
     const action = this.homeAction;
+    const generation = this._beginRequest();
 
     if (!action) {
       throw new Error('没有可刷新的内容');
@@ -159,18 +194,17 @@ export class HomeService {
     }
 
     // —— 可缓存类型：走 ContentLoader 强制刷新 ——
-    const CACHED_ACTIONS = [
-      'liked',
-      'created-playlists',
-      'collected-playlists',
-      'playlist-tracks',
-    ];
-    if (CACHED_ACTIONS.includes(action) && this.contentLoader) {
+    if (CACHEABLE_ACTIONS.has(action) && this.contentLoader) {
       try {
         const result = await this.contentLoader.loadHomeContent(action, {
           forceRefresh: true,
           playlistId: this._currentPlaylistId,
+          requestGeneration: generation,
         });
+
+        if (!this._isCurrentRequest(generation) || result?.stale) {
+          return this._staleResult();
+        }
 
         this.homeItems = result.items;
         this.homeItemType = result.itemType;
@@ -184,6 +218,7 @@ export class HomeService {
           page: this.homePage,
         };
       } catch (error) {
+        if (!this._isCurrentRequest(generation)) return this._staleResult();
         this.onError(error);
         throw error;
       }
@@ -194,17 +229,18 @@ export class HomeService {
       throw new Error('当前内容不支持刷新');
     }
 
-    this.homePage += 1;
+    const nextPage = this.homePage + 1;
+    const platform = this.state.selectedSource;
 
     try {
       const response = await fetch('/api/music/home', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          platform: this.state.selectedSource,
+          platform,
           action,
           limit: action === 'personalized' ? 12 : 100,
-          page: this.homePage,
+          page: nextPage,
           refresh: true,
         }),
       });
@@ -212,6 +248,14 @@ export class HomeService {
       const payload = await this.readJsonResponse(response, '刷新内容失败');
       if (!response.ok || !payload.ok) {
         throw new Error(payload.error || '刷新内容失败');
+      }
+
+      if (
+        !this._isCurrentRequest(generation) ||
+        this.state.selectedSource !== platform ||
+        this.homeAction !== action
+      ) {
+        return this._staleResult();
       }
 
       const data = payload.data || {};
@@ -222,12 +266,12 @@ export class HomeService {
           : [];
 
       if (items.length === 0) {
-        this.homePage = Math.max(1, this.homePage - 1);
         throw new Error('没有更多内容了');
       }
 
       this.homeItems = items;
       this.homeItemType = Array.isArray(data.playlists) ? 'playlist' : 'track';
+      this.homePage = nextPage;
 
       return {
         items: this.homeItems,
@@ -236,7 +280,7 @@ export class HomeService {
         page: this.homePage,
       };
     } catch (error) {
-      this.homePage = Math.max(1, this.homePage - 1);
+      if (!this._isCurrentRequest(generation)) return this._staleResult();
       this.onError(error);
       throw error;
     }
@@ -260,10 +304,18 @@ export class HomeService {
    * @param {{items, itemType, action}} update
    */
   _applyBackgroundUpdate(update) {
+    if (
+      (update.requestGeneration !== undefined &&
+        update.requestGeneration !== this._requestGeneration) ||
+      (update.platform && update.platform !== this.state?.selectedSource)
+    ) {
+      return false;
+    }
     this.homeItems = Array.isArray(update.items) ? update.items : [];
     this.homeItemType = update.itemType || this.homeItemType;
     this.homeAction = update.action || this.homeAction;
     this.homePage = 1;
+    return true;
   }
 
   /**
@@ -309,6 +361,7 @@ export class HomeService {
    * 清空首页状态
    */
   clearHomeState() {
+    this._beginRequest();
     this.homeItems = [];
     this.homeItemType = '';
     this.homeAction = '';
@@ -328,6 +381,7 @@ export class HomeService {
    * @returns {Object|null}
    */
   goBack() {
+    this._beginRequest();
     if (this.drawerHistory.length === 0) {
       return null;
     }

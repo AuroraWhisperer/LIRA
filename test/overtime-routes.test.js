@@ -12,27 +12,16 @@ test('overtime API requires auth, validates commands, extends snapshots, and bro
   const dataDir = fs.mkdtempSync(
     path.join(os.tmpdir(), 'song-plugin-overtime-routes-'),
   );
-  const giftSalePublicDir = createGiftSalePublicFixture(dataDir);
+  const giftSaleEndpoints = [];
   const runtime = createServerRuntime({
     dataDir,
-    giftSalePublicDir,
     giftSaleGetRoomId: () => '22637261',
-    giftSaleFetchJson: async (name, _url, _roomId, requestOptions) => {
+    giftSaleFetchJson: async (name) => {
+      giftSaleEndpoints.push(name);
       if (name === 'gift_data') {
         return {
           code: 0,
           data: { room_gift_list: { gold_list: [{ gift_id: 35793 }] } },
-        };
-      }
-      if (name === 'gift_bag') {
-        assert.deepEqual(requestOptions, { cookieHeader: 'SESSDATA=fixture' });
-        return {
-          code: 0,
-          data: {
-            list: [
-              { gift_id: 35794, gift_num: 1, expire_at: 0, bind_roomid: 0 },
-            ],
-          },
         };
       }
       return {
@@ -59,8 +48,38 @@ test('overtime API requires auth, validates commands, extends snapshots, and bro
       startPort: await findAvailablePort(),
       bilibiliAuth: {
         getAuthState: async () => ({ loggedIn: true, uid: 1 }),
-        getCookieHeader: async () => 'SESSDATA=fixture',
         getUid: async () => 1,
+      },
+      remoteGiftCatalog: {
+        imageBaseUrl: 'https://api.example.test',
+        fetch: async () => ({
+          ok: true,
+          schemaVersion: 2,
+          version: 'room-route-1',
+          updatedAt: '2026-09-05T08:00:00.000Z',
+          gifts: [
+            {
+              id: '35793',
+              name: '传情鹊',
+              priceRaw: 100,
+              coinType: 'gold',
+              active: true,
+              isBlindBox: false,
+              imageUrl: '/gift-media/images/35793.webp',
+            },
+            {
+              id: '35600',
+              name: '万象天衣',
+              priceRaw: 3000000,
+              coinType: 'gold',
+              active: true,
+              isBlindBox: false,
+              imageUrl: '/gift-media/images/35600.webp',
+            },
+          ],
+          blindBoxes: [],
+        }),
+        fetchImage: async () => new Response(webpBytes()),
       },
     });
     const token = runtime.getApiToken();
@@ -87,14 +106,15 @@ test('overtime API requires auth, validates commands, extends snapshots, and bro
       {},
     );
     assert.equal(refreshedCatalog.response.status, 200);
-    assert.equal(refreshedCatalog.payload.data.count, 2);
+    assert.equal(refreshedCatalog.payload.data.count, 1);
     assert.deepEqual(
       refreshedCatalog.payload.data.gifts.map((gift) => gift.id),
-      ['35793', '35794'],
+      ['35793'],
     );
+    assert.deepEqual(giftSaleEndpoints, ['gift_data', 'gift_config']);
     assert.equal(
       refreshedCatalog.payload.data.gifts[0].imagePath,
-      '/img/bilibili-gifts/0000-under-0100/35793.webp',
+      '/overtime-gift-images/35793.webp',
     );
 
     const localSearch = await postJson(
@@ -110,7 +130,13 @@ test('overtime API requires auth, validates commands, extends snapshots, and bro
         name: '万象天衣',
         battery: 30000,
         rmb: 3000,
-        imagePath: '/img/bilibili-gifts/3000-above/35600.webp',
+        priceRaw: 3000000,
+        coinType: 'gold',
+        bagGift: false,
+        active: true,
+        isBlindBox: false,
+        sourceUrl: '',
+        imagePath: '/overtime-gift-images/35600.webp',
       },
     ]);
     const invalidLocalSearch = await postJson(
@@ -130,7 +156,7 @@ test('overtime API requires auth, validates commands, extends snapshots, and bro
           {
             giftId: '35600',
             giftName: '万象天衣',
-            imagePath: '/img/bilibili-gifts/3000-above/35600.webp',
+            imagePath: '',
             mode: 'fixed',
             fixedSeconds: 60,
             quantityMode: 'item',
@@ -271,14 +297,13 @@ test('overtime API requires auth, validates commands, extends snapshots, and bro
   }
 });
 
-test('server gift search caches images and serves them from a fixed local path', async () => {
+test('catalog initialization caches images and both searches stay local', async () => {
   const dataDir = fs.mkdtempSync(
     path.join(os.tmpdir(), 'lira-overtime-server-search-'),
   );
-  const giftSalePublicDir = createGiftSalePublicFixture(dataDir);
   let remoteCalls = 0;
   let imageCalls = 0;
-  const runtime = createServerRuntime({ dataDir, giftSalePublicDir });
+  const runtime = createServerRuntime({ dataDir });
   try {
     const app = await runtime.start({
       host: '127.0.0.1',
@@ -289,17 +314,21 @@ test('server gift search caches images and serves them from a fixed local path',
           remoteCalls += 1;
           return {
             ok: true,
+            schemaVersion: 2,
             version: String(remoteCalls),
             updatedAt: '2026-08-29T08:00:00.000Z',
             gifts: [
               {
                 id: '8001',
-                name: '服务器搜索礼物',
+                name: '本地搜索礼物',
                 priceRaw: 100,
                 coinType: 'gold',
+                active: true,
+                isBlindBox: false,
                 imageUrl: '/gift-media/images/search.webp',
               },
             ],
+            blindBoxes: [],
           };
         },
         fetchImage: async () => {
@@ -309,12 +338,29 @@ test('server gift search caches images and serves them from a fixed local path',
       },
     });
     const token = runtime.getApiToken();
+    await runtime.initializeGiftCatalog({ force: true, reason: 'test' });
+    assert.equal(remoteCalls, 1);
+    assert.equal(imageCalls, 1);
+
+    const catalog = await requestJson(
+      app.baseUrl,
+      token,
+      '/api/overtime/gifts/catalog',
+    );
+    assert.equal(catalog.count, 1);
+    assert.deepEqual(catalog.gifts.map((gift) => gift.id), ['8001']);
+    assert.equal(
+      catalog.gifts[0].imagePath,
+      '/overtime-gift-images/search.webp',
+    );
+    assert.equal(remoteCalls, 1);
+    assert.equal(imageCalls, 1);
 
     const search = await postJson(
       app.baseUrl,
       token,
-      '/api/overtime/gifts/server/search',
-      { query: '服务器' },
+      '/api/overtime/gifts/local/search',
+      { query: '本地' },
     );
     assert.equal(search.response.status, 200);
     assert.deepEqual(search.payload.data.gifts.map((gift) => gift.id), ['8001']);
@@ -322,6 +368,19 @@ test('server gift search caches images and serves them from a fixed local path',
       search.payload.data.gifts[0].imagePath,
       '/overtime-gift-images/search.webp',
     );
+    assert.equal(remoteCalls, 1);
+    assert.equal(imageCalls, 1);
+
+    const legacyAlias = await postJson(
+      app.baseUrl,
+      token,
+      '/api/overtime/gifts/server/search',
+      { query: '本地' },
+    );
+    assert.equal(legacyAlias.response.status, 200);
+    assert.deepEqual(legacyAlias.payload.data.gifts.map((gift) => gift.id), [
+      '8001',
+    ]);
     assert.equal(remoteCalls, 1);
     assert.equal(imageCalls, 1);
 
@@ -352,35 +411,6 @@ test('server gift search caches images and serves them from a fixed local path',
     fs.rmSync(dataDir, { recursive: true, force: true });
   }
 });
-
-function createGiftSalePublicFixture(root) {
-  const publicDir = path.join(root, 'public-fixture');
-  const giftDir = path.join(publicDir, 'img', 'bilibili-gifts');
-  fs.mkdirSync(path.join(giftDir, '0000-under-0100'), { recursive: true });
-  fs.mkdirSync(path.join(giftDir, '3000-above'), { recursive: true });
-  fs.writeFileSync(
-    path.join(giftDir, '0000-under-0100', '35793.webp'),
-    'fixture',
-  );
-  fs.writeFileSync(path.join(giftDir, '3000-above', '35600.webp'), 'fixture');
-  const gold = `# gifts
-
-| 礼物 ID | 图片 | 礼物名称 | 电池 | 人民币 | 同特效代码 |
-| ---: | --- | --- | ---: | ---: | --- |
-| 35793 | [35793.webp](0000-under-0100/35793.webp) | 传情鹊 | 1 | ¥0.10 |
-| 35600 | [35600.webp](3000-above/35600.webp) | 万象天衣 | 30000 | ¥3000.00 |
-`;
-  const silver = `# free
-
-| 礼物 ID | 图片 | 礼物名称 | 电池 | 人民币 |
-| ---: | --- | --- | ---: | ---: |
-| 13000 | https://i0.hdslb.com/free.webp | 发红包 | 0 | ¥0.00 |
-`;
-  fs.writeFileSync(path.join(giftDir, 'gift-mapping-under-100.md'), gold);
-  fs.writeFileSync(path.join(giftDir, 'gift-mapping-100-above.md'), gold);
-  fs.writeFileSync(path.join(giftDir, 'silver-free-mapping.md'), silver);
-  return publicDir;
-}
 
 function webpBytes() {
   const bytes = Buffer.alloc(16);

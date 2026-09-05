@@ -23,6 +23,7 @@ function normalizeGiftRow(row) {
     unit_price: normalizeMoney(row.unit_price),
     total_price: totalPrice,
     is_blind_box: Boolean(row.is_blind_box),
+    blind_box_id: normalizeOptionalGiftId(row.blind_box_id),
     blind_box_name: cleanText(row.blind_box_name),
     blind_box_price: blindBoxPrice,
     blind_profit:
@@ -65,6 +66,7 @@ function normalizeGiftInput(input) {
     comboTotalPrice,
     coinType: cleanText(input && input.coinType),
     isBlindBox: Boolean(input && input.isBlindBox),
+    blindBoxId: normalizeOptionalGiftId(input && input.blindBoxId),
     blindBoxName: cleanText(input && input.blindBoxName),
     blindBoxPrice,
     blindProfit,
@@ -74,6 +76,11 @@ function normalizeGiftInput(input) {
       cleanText(input && input.createdAt) ||
       now(),
   };
+}
+
+function normalizeOptionalGiftId(value) {
+  const id = String(value ?? '').trim();
+  return /^[1-9]\d{0,19}$/u.test(id) ? id : null;
 }
 
 module.exports = {

@@ -369,6 +369,87 @@ test('SSE epoch mismatch triggers a generation-safe rebuild', async () => {
   controller.dispose();
 });
 
+test('transient discovery failure retries initialization and reaches LIVE', async () => {
+  let attempts = 0;
+  const fixture = createFixture({
+    getGiftEventsPage() {
+      attempts += 1;
+      if (attempts === 1) throw Object.assign(new Error('REQUEST_TIMEOUT'), { retryable: true });
+      return capabilityPage();
+    },
+  });
+  const controller = createRemoteGiftController(fixture.options);
+  assert.equal(await controller.start(), false);
+  assert.equal(fixture.scheduledTimers.length, 1);
+  assert.equal(fixture.scheduledTimers[0].delay, 1000);
+  fixture.scheduledTimers[0].callback();
+  await controller.whenIdle();
+  assert.equal(controller.getStatus().state, GiftSyncState.LIVE);
+  controller.dispose();
+});
+
+test('a final event burst shares one cursor catch-up task', async () => {
+  const fixture = createFixture();
+  const controller = createRemoteGiftController(fixture.options);
+  await controller.start();
+  await controller.whenIdle();
+  let pulls = 0;
+  fixture.options.licenseManager.getGiftEventsInternal = async () => {
+    pulls += 1;
+    return capabilityPage({
+      nextCursor: 30, latestCursor: 30,
+      events: pulls === 1 ? Array.from({ length: 20 }, (_, i) => makeEvent(`burst-${i}`, i + 11)) : [],
+    });
+  };
+  for (let i = 0; i < 20; i += 1) fixture.stream.onEvent(makeEvent(`burst-${i}`, i + 11));
+  await controller.whenIdle();
+  assert.equal(controller.getCursor(), 30);
+  assert.equal(pulls, 1);
+  controller.dispose();
+});
+
+test('repeated transient recovery failures back off and stop invalidates the retry', async () => {
+  let attempts = 0;
+  const fixture = createFixture({
+    getGiftEventsPage() {
+      attempts += 1;
+      throw Object.assign(new Error('REQUEST_TIMEOUT'), { retryable: true });
+    },
+  });
+  const controller = createRemoteGiftController(fixture.options);
+  await controller.start();
+  fixture.scheduledTimers[0].callback();
+  await controller.whenIdle();
+  assert.deepEqual(fixture.timerDelays, [1000, 2000]);
+  controller.stop();
+  fixture.scheduledTimers[1].callback();
+  await controller.whenIdle();
+  assert.equal(attempts, 2);
+  controller.dispose();
+});
+
+test('catch-up keeps an invalidation that arrives during its pending pull', async () => {
+  const fixture = createFixture();
+  const controller = createRemoteGiftController(fixture.options);
+  await controller.start();
+  await controller.whenIdle();
+  const first = createDeferred();
+  let pulls = 0;
+  fixture.options.licenseManager.getGiftEventsInternal = async () => {
+    pulls += 1;
+    if (pulls === 1) return first.promise;
+    return capabilityPage({ nextCursor: 12, latestCursor: 12, events: pulls === 2 ? [makeEvent('second', 12)] : [] });
+  };
+  fixture.stream.onEvent(makeEvent('first', 11));
+  await waitFor(() => pulls === 1);
+  fixture.stream.onEvent(makeEvent('second', 12));
+  first.resolve(capabilityPage({ nextCursor: 11, latestCursor: 11, events: [makeEvent('first', 11)] }));
+  await controller.whenIdle();
+  assert.equal(controller.getCursor(), 12);
+  assert.equal(pulls, 2);
+  controller.dispose();
+});
+
 test('loopback HTTP source is rejected', async () => {
   const fixture = createFixture({
     remoteBaseUrl: 'http://127.0.0.1:13000',
@@ -396,6 +477,7 @@ function createFixture(options = {}) {
   const catchUpCommits = [];
   const streamSignals = [];
   const timerDelays = [];
+  const scheduledTimers = [];
   const baseState = {
     sourceId: source.id,
     syncEpoch: null,
@@ -587,6 +669,7 @@ function createFixture(options = {}) {
     catchUpCommits,
     streamSignals,
     timerDelays,
+    scheduledTimers,
     get stream() {
       return stream;
     },
@@ -596,7 +679,9 @@ function createFixture(options = {}) {
       timers: {
         setTimeout(callback, delay) {
           timerDelays.push(delay);
-          return { callback, delay, unref() {} };
+          const timer = { callback, delay, unref() {} };
+          scheduledTimers.push(timer);
+          return timer;
         },
         clearTimeout() {},
       },
@@ -660,6 +745,7 @@ function makeEvent(eventId, cursor) {
       totalPrice: 0.1,
       coinType: 'gold',
       isBlindBox: false,
+      blindBoxId: null,
       blindBoxName: '',
       blindBoxPrice: null,
       blindProfit: null,

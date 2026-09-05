@@ -23,6 +23,9 @@ data/
 ├── gift-data.db               # 礼物库(gift_events + 加班机三表)
 ├── music-data.db              # 播放器库(历史/队列态/收藏/歌单)
 ├── checkin-data.db            # 签到库
+├── overtime-gift-catalog-v2.json      # 官方 gold 礼物与盲盒关系的原子 v2 镜像
+├── overtime-gift-assets-state-v2.json # v2 图片扫描完成状态
+├── overtime-gift-images/      # 按精确礼物 ID 管理的运行时图片缓存与 index.json
 ├── music-api-cache/           # 音乐 API 响应 JSON 缓存(TTL 5 分钟)
 ├── music-lyrics-cache/        # 歌词缓存(TTL 30 天)
 ├── .session-token             # 会话令牌(0600,服务关闭时删除)
@@ -73,7 +76,7 @@ data/
 | 表                       | 用途                                                                 | 关键列/索引                                                                                                                                                                                                                         |
 | ------------------------ | -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `gift_sources`           | 远端主播来源字典                                                   | `source_key` 唯一；renderer 不接收或选择内部 `id`                                                                                                                                                                                  |
-| `gift_events`            | 礼物事件 + **共享检测账本**(见 [bilibili/gift.md](bilibili/gift.md)) | 业务列 + `source_id` + 检测列；legacy 身份索引 `(platform_id, uid)`，远端幂等索引 `(source_id, platform_id, cmd)`，来源/时间复合索引                                                                                                   |
+| `gift_events`            | 礼物事件 + **共享检测账本**(见 [bilibili/gift.md](bilibili/gift.md)) | 业务列 + `source_id` + 检测列；可空 `blind_box_id` 保存服务端确认的盒子礼物 ID，旧/未知来源保持 `NULL`；legacy 身份索引 `(platform_id, uid)`，远端幂等索引 `(source_id, platform_id, cmd)`，来源/时间复合索引 |
 | `gift_sync_state`        | 每个来源的投影恢复状态                                             | `source_id` PK、epoch/final cursor、bootstrap token/锚点、`projection_generation`、最后验证时间                                                                                                                                     |
 | `overtime_machine_state` | 加班机单例状态                                                       | **id=1 CHECK 单行**;enabled/enable_epoch/initial_seconds/remaining_ms/anchor_at_ms/status(paused\|running\|finished)/background_path/background_fit(cover\|contain\|fill)/revision,见 [overtime.md](overtime.md)                    |
 | `overtime_gift_rules`    | 加班机礼物规则                                                       | gift_id PK、mode(fixed\|random\|display)、fixed_seconds、outcomes_json、enabled、sort_order；display 文字与数量模式存于 outcomes_json                                                                                               |
@@ -105,7 +108,7 @@ data/
 | ----------- | --------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | songDb      | `song_db`       | v1-v5 | v1 列补全(tags/language/source_platform/original_group、pinned_at、requester_* 元数据);v2 `seedThemePresets`;v3 清理重复 (name, artist) 后建唯一索引;v4 幂等补充 `songs.request_price`;v5 幂等补充 `songs.song_clip`，旧歌曲的新字段均默认空字符串                                                                            |
 | superChatDb | `super_chat_db` | v1    | 基线                                                                                                                                                                                                                                                                                                                          |
-| giftDb      | `gift_db`       | v1-v8 | v1 `ensureGiftColumns`(cmd/blind_box/raw_json 等);v2 platform_id 索引;v3 `collapseDuplicateGiftIdentities` + 唯一索引 (platform_id, uid);v4 **检测账本升级**(`ensureGiftDetectionColumns`,历史记录标记 final 且仅归属礼物统计);v5 插入加班机单例行(id=1);v6 扩展加班机倒计时安全上限;v7 放开加班机 `display` 文字展板规则模式;v8 增加来源分区、同步状态、远程来源约束与索引 |
+| giftDb      | `gift_db`       | v1-v9 | v1 `ensureGiftColumns`(cmd/blind_box/raw_json 等);v2 platform_id 索引;v3 `collapseDuplicateGiftIdentities` + 唯一索引 (platform_id, uid);v4 **检测账本升级**(`ensureGiftDetectionColumns`,历史记录标记 final 且仅归属礼物统计);v5 插入加班机单例行(id=1);v6 扩展加班机倒计时安全上限;v7 放开加班机 `display` 文字展板规则模式;v8 增加来源分区、同步状态、远程来源约束与索引；v9 幂等增加可空 `gift_events.blind_box_id`，旧行保持 `NULL` |
 | musicDb     | `music_db`      | v1    | 基线                                                                                                                                                                                                                                                                                                                          |
 | checkinDb   | `checkin_db`    | v1    | 基线                                                                                                                                                                                                                                                                                                                          |
 
@@ -192,6 +195,8 @@ Phase 1 失败且全部事务已回滚时也恢复两个写入器,然后由服�
 
 ## 7. 设置存储(settings-store)
 
+批量写能力 `setSettings(values)` 由存储层持有 `BEGIN IMMEDIATE` / `COMMIT` / `ROLLBACK`，返回实际变化的键；没有变化时不写入。只有提交成功才清除内存缓存，失败同时保留数据库旧值与缓存旧值。`setSetting(key, value)` 继续供既有单键调用者使用。HTTP 设置 patch 与云端设置快照都走批量能力，字段校验归属 [API 设置契约](api.md#2-设置域settings)，不由存储层重复定义。
+
 `createSettingsStore(db)`([settings-store.js:126](../../../src/storage/settings-store.js#L126-L155)):首次调用把 `DEFAULT_SETTINGS` 全部 `INSERT OR IGNORE` 进 DB;`getSettings()` 内存缓存合并默认值;`setSetting(key, value)` 持久化并清缓存。默认键按组:
 
 | 分组         | 键(代表)                                                                                                                                                                                                                                                                                                                                                                                                             |
@@ -200,7 +205,7 @@ Phase 1 失败且全部事务已回滚时也恢复两个写入器,然后由服�
 | 首次启动引导 | `onboardingVersion`、`onboardingCompletedAt`、`onboardingSkippedOptional`；仅保存完成契约版本、完成时间和可选步骤跳过记录                                                                                                                                                                                                                                                                                            |
 | 点歌行为     | `onlyFromLibrary`、`allowDuplicate`、`allowCompactRequest`                                                                                                                                                                                                                                                                                                                                                           |
 | 弹幕机器人   | `enableRandomTagReply`、`enableCheckinBot`、`enableFortuneBot`、`enableCustomReplyBot`、`checkinBlessings`、`fortunePool`、`customReplyRules`                                                                                                                                                                                                                                                                        |
-| 礼物         | `enableGiftSprint`、`giftSprintTargetRmb`、`giftBlindBoxConfig`、`enableGiftNotification`、`giftFrameEnabled`、`giftFrameThresholdRmb`、`giftFrameTheme`、`giftFrameMotionMode`；礼物边框默认关闭、阈值为 20 元、主题为 `woodland-bloom`、动效为 `auto`；新安装的盲盒目录来自 `src/storage/default-blind-box-config.json`，非空旧格式由 `settings-migrations.js` 的冻结价格快照升级并补齐历史默认项；已有空字符串规范化为 `[]`，合法 `[]` 表示用户明确清空且重启不回填默认项 |
+| 礼物         | `enableGiftSprint`、`giftSprintTargetRmb`、legacy `giftBlindBoxConfig`、云端私有 `giftBlindBoxCustomConfigV2`、`enableGiftNotification`、`giftFrameEnabled`、`giftFrameThresholdRmb`、`giftFrameTheme`、`giftFrameMotionMode`；礼物边框默认关闭、阈值为 20 元、主题为 `woodland-bloom`、动效为 `auto`。官方映射来自只读 v2 目录缓存，不写回设置；缺少 v2 私有字段表示不覆盖，合法 `[]` 只清空自定义层。非空 legacy 配置保持迁移待确认，不按名称猜 ID |
 | 滚动/字号    | `scrollSeconds`、风格 1 的 `queueScrollMode`/`queueScrollSpeed`/`queueSongFontSize`、风格 2 的 `identityQueueScrollMode`/`identityQueueScrollSpeed`/`identityQueueFontSize`、风格 3–6 各自的 `storybook*`/`neonVinyl*`/`cherryRibbon*`/`goldenLily*` 字号与滚动键、`songBoardFontSize` 及各 `*RangeVersion`/`queueStyleSettingsVersion` 迁移版本键；`queueStyleSettingsVersion=1` 首次升级时把旧共享值复制到各风格键 |
 | 主题         | `themePrimary/themeAccent/themeText/themeBackground/themeOpacity/themeRadius/themeFontScale` 等 + `songBoard*` 独立一套                                                                                                                                                                                                                                                                                              |
 | 悬浮层       | `danmakuOverlayStyle`(`bubble`/`signal`/`minimal`/`ranked`/`transparent`/`outline`，默认 `signal`)、`danmakuFullscreenDurationSeconds`(默认 `6`，服务端限制 2–30 的安全整数)、`overlayQueueStyle`(`classic`/`identity`/`storybook`/`neon-vinyl`/`cherry-ribbon`/`golden-lily`,遗留 `festival` 按 identity 使用)、插画风格各自的 `*QueueFontFamily`/`*QueueFontWeight`/`*QueueUseCustomTextColor`/`*QueueTextColor`、`overlayLowPowerMode`、`backdropBlur`、`glowIntensity`、`overlayPin1-3`、`overlayRule1-6` 及颜色/字号       |
@@ -217,14 +222,14 @@ Phase 1 失败且全部事务已回滚时也恢复两个写入器,然后由服�
 
 ## 8. 云端 scope 的本地落盘
 
-云端 revision 保存在独立 lira-server，本地 SQLite 不复制 revision；[cloud-sync-controller.js](../../../src/electron/cloud-sync-controller.js) 在当前授权进程内维护 `settings`、`songs`、`bilibili` 三个已应用 revision、dirty 标志和本地 mutation 代次。上传完成时只有未出现更新代次才清除 dirty；远端 songs/Bilibili 内容返回后会在本地写入前重新检查 dirty。应用云端 settings 时，`applyCloudSettingsSnapshot` 写入同步白名单（包括验证后的 `giftBlindBoxConfig` 数组），随后重新配置本地 Bilibili runtime 并广播 `cloud:settings` 快照。
+云端 revision 保存在独立 lira-server，本地 SQLite 不复制 revision；[cloud-sync-controller.js](../../../src/electron/cloud-sync-controller.js) 在当前授权进程内维护 `settings`、`songs`、`bilibili` 三个已应用 revision、dirty 标志和本地 mutation 代次。上传完成时只有未出现更新代次才清除 dirty；远端 songs/Bilibili 内容返回后会在本地写入前重新检查 dirty。应用云端 settings 时，`applyCloudSettingsSnapshot` 写入同步白名单（包括验证后的 legacy `giftBlindBoxConfig` 与 `giftBlindBoxCustomConfigV2`），并把只读 `blindBoxMapping` 状态单独放入运行时快照；设置页只上传私有 v2 数组，dirty JSON 在刷新或失败时保留。随后重新配置本地 Bilibili runtime 并广播 `cloud:settings` 快照。
 
-应用云端歌库由 `song-service.replaceCloudSongs` 拥有一个 `BEGIN` / `COMMIT` 事务：先把 `queue.song_id` 与 `requests.song_id` 全部置空，保留 `song_name`、artist、requester、message 等文字历史；再删除旧歌曲和分类、重建默认分类并插入新快照。由于本地已有 `(name, artist)` 唯一索引，同一云端快照的重复身份按输入顺序最后一项获胜。任何一步失败都会 `ROLLBACK`，不会暴露半替换歌库。
+应用云端歌库时，`song-service.replaceCloudSongs` 先完成规范化、校验和最后一项获胜的身份去重，再调用 [song-store.js](../../../src/storage/song-store.js) 的 `replaceAll`。Store 拥有一个 `BEGIN` / `COMMIT` 事务：先把 `queue.song_id` 与 `requests.song_id` 全部置空，保留 `song_name`、artist、requester、message 等文字历史；再删除旧歌曲和分类、重建默认分类并插入新快照。任何一步失败都会 `ROLLBACK`，不会暴露半替换歌库。单曲保存/删除与批量导入的事务同样归 SongStore，领域层不再接收 SQLite 句柄。
 
 本地 settings、歌曲保存/删除/启停/导入和清空歌库成功后才请求对应 scope 上传。云端应用路径不发 dirty 通知，避免写回回声；网络失败时 dirty 内容留在本地数据库，并由下一次同步继续上传。
 
 ## 9. 礼物账本完整投影（Implemented）
 
-ADR [0011-source-partitioned-gift-ledger-projection](../adr/0011-source-partitioned-gift-ledger-projection.md) 接受在现有 `gift-data.db` 内增加 `gift_sources`、nullable `gift_events.source_id` 与 `gift_sync_state`。迁移前的行保留 `source_id=NULL`；新 `LIRA_SERVER_GIFT` 行必须由触发器保证引用有效 source。source/time 索引服务完整历史查询，远程幂等唯一键改为 `(source_id, platform_id, cmd)`。
+ADR [0011-source-partitioned-gift-ledger-projection](../adr/0011-source-partitioned-gift-ledger-projection.md) 接受在现有 `gift-data.db` 内增加 `gift_sources`、nullable `gift_events.source_id` 与 `gift_sync_state`。迁移前的行保留 `source_id=NULL`；新 `LIRA_SERVER_GIFT` 行必须由触发器保证引用有效 source。v9 追加可空 `gift_events.blind_box_id`，已有行不重判并保持 `NULL`；新远端投影保存服务器 DTO 中已验证的盒子 ID。source/time 索引服务完整历史查询，远程幂等唯一键改为 `(source_id, platform_id, cmd)`。
 
 `gift-sync-store.js` 将历史页和 page token、增量页和 cursor、最终历史页和 epoch/recovery cursor，以及清库重建的 generation/state reset 分别放在单个 `BEGIN IMMEDIATE` transaction 中。旧 `remote-gift-cursor.json` 不再作为当前状态源。可配置 retention 不删除非空 `source_id` 的服务器投影；数据库级清空礼物会在同一事务递增 projection generation 并重置同步状态，然后显式重建。完整 DDL、不变量和验收条件见 [gift-ledger-projection-sync_design.md](../../../specs/gift-ledger-projection-sync_design.md)。

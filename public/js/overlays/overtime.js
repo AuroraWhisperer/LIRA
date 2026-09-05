@@ -1,5 +1,7 @@
 'use strict';
 
+import { createOverlaySocket } from './socket-client.js';
+
 const MAX_ANIMATION_QUEUE = 5;
 const PLACEHOLDER = '/img/overtime-machine/gift-placeholder.svg';
 const quality = new URLSearchParams(location.search).get('quality') || '';
@@ -10,8 +12,7 @@ let currentState = null;
 let currentRevision = -1;
 let anchorRemainingMs = 0;
 let localAnchorMs = performance.now();
-let reconnectAttempts = 0;
-let reconnectTimer = null;
+let socketController = null;
 let clockTimer = null;
 let lastClockValue = '';
 let animationActive = false;
@@ -22,6 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('visibilitychange', syncClock);
   loadSnapshot();
   connectSocket();
+  window.addEventListener('beforeunload', disposeSocket, { once: true });
 });
 
 async function loadSnapshot() {
@@ -37,38 +39,34 @@ async function loadSnapshot() {
 }
 
 function connectSocket() {
-  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const token = window.__API_TOKEN__;
-  const url = `${protocol}//${location.host}/ws${token ? `?token=${encodeURIComponent(token)}` : ''}`;
-  const socket = new WebSocket(url);
-
-  socket.addEventListener('open', () => {
-    clearTimeout(reconnectTimer);
-    reconnectAttempts = 0;
-  });
-  socket.addEventListener('message', (event) => {
-    const payload = JSON.parse(event.data);
-    if (payload.type === 'snapshot') {
-      if (payload.state?.overtime)
-        applyState(payload.state.overtime, { force: true });
-      return;
-    }
-    if (payload.type === 'overtime:update') {
-      const revision = Number(payload.state?.revision) || 0;
-      if (revision <= currentRevision) return;
-      applyState(payload.state, { force: false });
-      if (payload.adjustment) enqueueAdjustment(payload.adjustment);
-    }
-  });
-  socket.addEventListener('close', () => {
-    setConnectionStatus('连接中断');
-    const delay = Math.min(30000, 800 * 2 ** Math.min(reconnectAttempts, 6));
-    reconnectAttempts += 1;
-    reconnectTimer = setTimeout(() => {
+  if (socketController) return;
+  socketController = createOverlaySocket({
+    onReconnect: () => {
       loadSnapshot();
-      connectSocket();
-    }, delay);
+    },
+    onMessage: (payload) => {
+      if (payload.type === 'snapshot') {
+        if (payload.state?.overtime)
+          applyState(payload.state.overtime, { force: true });
+        return;
+      }
+      if (payload.type === 'overtime:update') {
+        const revision = Number(payload.state?.revision) || 0;
+        if (revision <= currentRevision) return;
+        applyState(payload.state, { force: false });
+        if (payload.adjustment) enqueueAdjustment(payload.adjustment);
+      }
+    },
+    onClose: () => {
+      setConnectionStatus('连接中断');
+    },
   });
+  socketController.start();
+}
+
+function disposeSocket() {
+  socketController?.dispose();
+  socketController = null;
 }
 
 function applyState(state, { force }) {

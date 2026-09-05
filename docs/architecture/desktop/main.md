@@ -38,7 +38,8 @@
 12. 创建 `cloudSyncController`，注入授权 manager、本地 runtime 与仅 main process 可访问的 Bilibili Cookie 适配器；创建 `remoteGiftController` 及 `dataDir/remote-gift-cursor.json` 游标存储；已授权时先完成一次云端同步再恢复本地 Bilibili 工作和远程礼物接收
 13. 由 `license/license-resume.js` 的 `createLicenseResumeHandler` 注册 `powerMonitor` 的 `resume` 监听;系统唤醒时由 main process 立即调用 `licenseManager.resume()` 重新确认设备会话，并在成功后请求云端同步和远程礼物 cursor resume
 14. `registerLocalFontPermissionHandler(...)` — 将本机字体权限限制为内嵌服务的精确 origin,并用原生对话框取得用户明确同意(§4)
-15. 按最终授权状态加载 `/admin?desktop=1` 或 `/license`;若启动验证已成功,显式调用一次 `cloudSyncController.start()`，完成后并行恢复 Bilibili 工作与 `remoteGiftController.start()`；授权离开 `AUTHORIZED` 时立即停止远程礼物流
+15. main process 按授权和礼物目录完成状态决定初始路由：未授权或首次目录尚未完成时加载 `/license`，初始化卡通过受限 IPC 展示目录/图片进度；完成后才导航 `/admin?desktop=1`。已有完成状态的授权启动立即进入 Admin，每次启动强制执行一次条件请求（仍携带 ETag），持续运行每 12 小时检查并增量补图；后续实际下载使用同一受限 IPC 在 Admin 显示单条进度 toast，无变化时保持安静
+16. 若启动验证已成功,显式调用一次 `cloudSyncController.start()`，完成后并行恢复 Bilibili 工作与 `remoteGiftController.start()`；授权离开 `AUTHORIZED` 时立即停止远程礼物流并切回 `/license`
 
 `createDesktopRuntime`([main.js:156-180](../../../src/electron/main.js#L156-L180))是兼容适配器:若传入模块已是运行时(具备 `start/stop/setPreShutdownHook`)直接返回;若暴露 `createServerRuntime(options)` 则调用之;否则退化为包装 `startServer`/`shutdownApplication` 的旧兼容层。
 
@@ -58,15 +59,19 @@
 
 ### 2.2 云端同步生命周期
 
+每轮同步在入队时捕获生命周期代际和取消信号；停止时递增代际并取消在途 HTTP/SSE，请求返回及每次本地写入前再次检查代际。旧轮次不能因新的 `start()` 恢复为有效，也不能在 `dispose()` 后发起下一 scope 或修改本地状态。云端与礼物控制器保持独立，只在远端客户端内部共用 SSE 读取和 reader 清理机制。
+
 `cloud-sync-controller.js` 是 Electron 进程内的同步协调者，不持久化云端 revision。授权成功后立即同步并建立一条 main-process DeviceBearer SSE；事件只含 scope revision，收到更新 revision 后通过既有 GET 对账。SSE 正常结束或失败后按 1–60 秒有界退避重连，重连成功立即同步。系统 resume 在设备会话恢复后调用 `syncNow()`。可 `unref()` 的 10 分钟单次 timer 只作为代理假在线或漏通知的自动兜底，每轮结束（包括读取失败）都会重新调度。授权离开 `AUTHORIZED` 时 abort SSE 并停止 timer；退出时 `dispose()` 同时移除本地 mutation 与授权状态 listener。
 
 三个 scope 各自跟踪 revision、dirty 和本地 mutation 代次。成功的本地 mutation 先递增代次、标记 dirty 并立即串行上传；上传只在完成时代次仍未变化的情况下清除 dirty，因此上传期间出现的新修改会再上传一次。失败保留 dirty，下一轮重试，且 dirty 上传成功前不应用该 scope 的云端快照。songs/Bilibili 在等待远端内容后、写入本地 owner 前再次检查 dirty 与 revision，避免首次判断后发生的本地修改被旧拉取覆盖。未初始化的云端 settings/songs 由首台授权客户端上传本地快照；Bilibili scope 按本地登录态播种凭据或明确的未登录状态。云端 revision 较新时，settings 与 songs 通过本地 runtime owner 应用，Bilibili 凭据只通过 [auth.md](auth.md) §13 的 main-process 内部方法导入。离线期间服务端不排设备事件；启动、resume、SSE 重连与低频兜底直接比较云端当前 revision。
 
 ### 2.3 服务端权威礼物接收生命周期
 
-`remote-gift-controller.js` 只在授权状态为 `AUTHORIZED` 且云端同步完成后启动。它先对 `GET /api/device/gift-events` 做一次无回放 baseline（首次只保存最新 final cursor），再建立 main-process DeviceBearer SSE；SSE 建立后立即执行 cursor catch-up，以覆盖 baseline 与连接建立之间的竞态。在线事件只允许每组一条 `progress` 和一条 `final`，真正恢复依赖 final cursor pull，单页最多 200 条，progress 不补拉。
+初始化、历史 bootstrap 或增量拉取的可重试错误会按有上限的指数退避重新进入恢复流程；不可重试的契约错误保留错误态。礼物控制器按代际合并尚未完成的 cursor catch-up，同批 final 通知共享一次拉取，拉取期间出现的新通知通过 dirty 标记保留。成功追平后重置退避；停止或切换代际后，旧重试和旧回调均失效。
 
-final 事件成功投影到本地 runtime 后才保存 `dataDir/remote-gift-cursor.json`；文件权限为 `0600`，仅保存版本、哈希化 source key 和非负 cursor，不写入 token、UID、roomId、raw packet 或租户明文。重复 final 按 cursor 与本地导入器幂等处理。SSE 断开按 1–60 秒退避重连，连接最多约 5 分钟；授权撤销、退出或设备切换时 abort stream 并停止投影。B 站上游断线期间服务端不承诺零丢失。
+`remote-gift-controller.js` 只在授权状态为 `AUTHORIZED` 时执行。它先发现远端历史能力和 sync epoch，使用当前 source 的 SQLite 记录恢复 bootstrap 页或进行 cursor catch-up，再建立 main-process SSE 并追平连接窗口内的事件。没有历史能力的旧服务明确进入 `LEGACY_PARTIAL`，不把 baseline 当成完整历史。在线 progress 只在 LIVE 时直接投影，final 通知触发游标补拉；恢复仍以 pull 为真相源。
+
+历史页/page token 和增量页/cursor 由 `gift-sync-store` 在同一事务中提交；旧 JSON cursor 文件不再是当前状态源。重复 final 按游标与事件身份幂等处理。SSE 断开按 1–60 秒退避重连；停止时取消 HTTP、SSE 和恢复 timer，异步任务由四字段 fence 阻止迟到写入。B 站上游断线期间服务端不承诺零丢失。
 
 ## 3. 数据目录决策
 
@@ -87,13 +92,13 @@ final 事件成功投影到本地 runtime 后才保存 `dataDir/remote-gift-curs
 
 ## 4. 主窗口
 
-`createMainWindow(baseUrl)`([main.js:317-375](../../../src/electron/main.js#L317-L375)):
+`createMainWindow(baseUrl, authorized)` 创建唯一主窗口；后续 `/license` 与 `/admin?desktop=1` 切换只由 main process 的授权和礼物初始化状态监听器负责：
 
 | 事实           | 值                                                                                                                 | 出处                                                       |
 | -------------- | ------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------- |
 | 尺寸           | **1280×720**,minWidth 1024,minHeight 680                                                                           | [main.js:320](../../../src/electron/main.js#L320)          |
 | 窗口形态       | `frame: false`(自绘标题栏)、`backgroundColor: '#f7f3ef'`(暖白,防白屏闪烁)、`show: false` 等 `ready-to-show` 再显示 | [main.js:321-322](../../../src/electron/main.js#L321-L322) |
-| 加载 URL       | `{baseUrl}/admin?desktop=1`(页面清单见 [../frontend/pages.md](../frontend/pages.md))                               | [main.js:333](../../../src/electron/main.js#L333)          |
+| 加载 URL       | 已授权且礼物目录已初始化时 `{baseUrl}/admin?desktop=1`，否则 `{baseUrl}/license`                                  | [main.js](../../../src/electron/main.js)                   |
 | webPreferences | `preload: preload.js`、`contextIsolation: true`、`nodeIntegration: false`、`sandbox: false`                        | [main.js:323-326](../../../src/electron/main.js#L323-L326) |
 | 图标           | 打包资源 `build/icon.png` 存在时附加                                                                               | [main.js:328-329](../../../src/electron/main.js#L328-L329) |
 
@@ -202,8 +207,8 @@ Main: requestPlaybackFlush(mainWindow, 2000)
 
 主窗口 `sandbox: false`([main.js:325](../../../src/electron/main.js#L325)):preload 桥需在页面上下文暴露 `contextBridge` API 并访问完整 `ipcRenderer`;辅助窗口无此需求,保持 `sandbox: true` 收紧。IPC 安全边界见 [preload.md](preload.md) §1。
 
-## 10. 礼物 source 切换与完整投影（Accepted，实施中）
+## 10. 礼物 source 切换与完整投影
 
-ADR [0011](../adr/0011-source-partitioned-gift-ledger-projection.md) 接受以 SQLite `gift_sync_state` 替代 §2.3 的 JSON cursor 当前路径。remote gift controller 将拥有 `SOURCE_SWITCHING/BOOTSTRAPPING/CATCHING_UP/LIVE/OFFLINE/LEGACY_PARTIAL/ERROR` 状态和外部 HTTP/SSE abort。每个异步任务捕获 `{sourceId, authorizationEpoch, controllerGeneration, projectionGeneration}`，在 await 前后与写事务前复核。
+ADR [0011](../adr/0011-source-partitioned-gift-ledger-projection.md) 以 SQLite `gift_sync_state` 替代旧 JSON cursor 路径。remote gift controller 拥有 `SOURCE_SWITCHING/BOOTSTRAPPING/CATCHING_UP/LIVE/OFFLINE/LEGACY_PARTIAL/ERROR` 状态和 HTTP/SSE 取消能力。每个异步任务捕获 `{sourceId, authorizationEpoch, controllerGeneration, projectionGeneration}`，在 await 前后与写事务前复核。
 
 授权 principal 变化时，`main.js` 先冻结本地礼物 API、递增 controller generation、abort HTTP/SSE 并 `await whenIdle()`，然后解析新 source 并只开放该分区。清库使用相同的 quiesce 边界并在 SQLite transaction 内递增 projection generation。Device token、source hash 输入、bootstrap token 和远端句柄始终只在 main process；日志不记录页 token 或完整礼物响应。完整时序见 [gift-ledger-projection-sync_design.md](../../specs/gift-ledger-projection-sync_design.md)。

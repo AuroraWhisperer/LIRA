@@ -138,7 +138,7 @@ body:not(.is-connected) .danmaku-signal-count {
 
 .draw-danmaku-item {
   --signal-accent: var(--signal-cyan);
-  --danmaku-avatar-art: url('/img/overlays/danmaku-ranked/viewer.png');
+  --danmaku-avatar-art: url('/img/overlays/danmaku-ranked/viewer.webp');
   position: relative;
   display: grid;
   grid-template-columns: 42px minmax(0, 1fr);
@@ -174,13 +174,13 @@ body:not(.is-connected) .danmaku-signal-count {
   --signal-accent: var(--signal-berry);
 }
 .draw-danmaku-item[data-identity='captain'] {
-  --danmaku-avatar-art: url('/img/overlays/danmaku-ranked/captain.png');
+  --danmaku-avatar-art: url('/img/overlays/danmaku-ranked/captain.webp');
 }
 .draw-danmaku-item[data-identity='admiral'] {
-  --danmaku-avatar-art: url('/img/overlays/danmaku-ranked/admiral.png');
+  --danmaku-avatar-art: url('/img/overlays/danmaku-ranked/admiral.webp');
 }
 .draw-danmaku-item[data-identity='governor'] {
-  --danmaku-avatar-art: url('/img/overlays/danmaku-ranked/governor.png');
+  --danmaku-avatar-art: url('/img/overlays/danmaku-ranked/governor.webp');
 }
 .draw-danmaku-item::after {
   position: absolute;
@@ -580,15 +580,15 @@ body[data-style='bubble'] .draw-danmaku-item[data-identity='fan'] {
 }
 body[data-style='bubble'] .draw-danmaku-item[data-identity='captain'] {
   --bubble-accent: var(--guard-captain);
-  --guard-avatar-frame: url('/img/overlays/danmaku-guard/bubble-captain-frame.png');
+  --guard-avatar-frame: url('/img/overlays/danmaku-guard/bubble-captain-frame.webp');
 }
 body[data-style='bubble'] .draw-danmaku-item[data-identity='admiral'] {
   --bubble-accent: var(--guard-admiral);
-  --guard-avatar-frame: url('/img/overlays/danmaku-guard/bubble-admiral-frame.png');
+  --guard-avatar-frame: url('/img/overlays/danmaku-guard/bubble-admiral-frame.webp');
 }
 body[data-style='bubble'] .draw-danmaku-item[data-identity='governor'] {
   --bubble-accent: var(--guard-governor);
-  --guard-avatar-frame: url('/img/overlays/danmaku-guard/bubble-governor-frame.png');
+  --guard-avatar-frame: url('/img/overlays/danmaku-guard/bubble-governor-frame.webp');
 }
 body[data-style='bubble'] .draw-danmaku-item[data-identity] {
   padding-right: 30px;
@@ -810,15 +810,15 @@ body[data-style='minimal'] .draw-danmaku-item[data-identity='fan'] {
 }
 body[data-style='minimal'] .draw-danmaku-item[data-identity='captain'] {
   --minimal-accent: var(--guard-captain);
-  --nameplate-divider: url('/img/overlays/danmaku-guard/nameplate-captain-divider.png');
+  --nameplate-divider: url('/img/overlays/danmaku-guard/nameplate-captain-divider.webp');
 }
 body[data-style='minimal'] .draw-danmaku-item[data-identity='admiral'] {
   --minimal-accent: var(--guard-admiral);
-  --nameplate-divider: url('/img/overlays/danmaku-guard/nameplate-admiral-divider.png');
+  --nameplate-divider: url('/img/overlays/danmaku-guard/nameplate-admiral-divider.webp');
 }
 body[data-style='minimal'] .draw-danmaku-item[data-identity='governor'] {
   --minimal-accent: var(--guard-governor);
-  --nameplate-divider: url('/img/overlays/danmaku-guard/nameplate-governor-divider.png');
+  --nameplate-divider: url('/img/overlays/danmaku-guard/nameplate-governor-divider.webp');
 }
 body[data-style='minimal']
   .draw-danmaku-item:is(
@@ -1042,7 +1042,7 @@ body[data-style='transparent'] .draw-danmaku-feed {
 body[data-style='transparent'] .draw-danmaku-item {
   --transparent-ink: #fff;
   --transparent-medal: #f3dda0;
-  --danmaku-avatar-art: url('/img/overlays/danmaku-ranked/viewer.png');
+  --danmaku-avatar-art: url('/img/overlays/danmaku-ranked/viewer.webp');
   grid-template-columns: 58px minmax(0, 1fr);
   gap: 12px;
   align-items: start;
@@ -1064,7 +1064,7 @@ body[data-style='transparent'] .draw-danmaku-item[data-identity='fan'],
 body[data-style='transparent'] .draw-danmaku-item[data-identity='captain'],
 body[data-style='transparent'] .draw-danmaku-item[data-identity='admiral'],
 body[data-style='transparent'] .draw-danmaku-item[data-identity='governor'] {
-  --danmaku-avatar-art: url('/img/overlays/danmaku-ranked/viewer.png');
+  --danmaku-avatar-art: url('/img/overlays/danmaku-ranked/viewer.webp');
 }
 body[data-style='transparent'] .draw-danmaku-avatar {
   align-self: start;

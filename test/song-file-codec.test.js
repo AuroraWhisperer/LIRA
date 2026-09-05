@@ -14,6 +14,7 @@ const {
 } = require('../src/music/song-import-schema');
 const { createZip, readZipFiles } = require('../src/shared/xlsx-codec');
 const { SONG_SCHEMA } = require('../src/storage/schema');
+const { createSongStore } = require('../src/storage/song-store');
 const songService = require('../src/music/song-service');
 
 function namespaceWorksheetTags(buffer) {
@@ -65,6 +66,7 @@ test('song workbook codec uses the default column order and leaves the exported 
 
 test('song service persists workbook metadata columns and preserves them on edit', () => {
   const db = new DatabaseSync(':memory:');
+  const songStore = createSongStore(db);
   try {
     db.exec(SONG_SCHEMA);
     const rows = parseSongsFromXlsx(
@@ -80,7 +82,7 @@ test('song service persists workbook metadata columns and preserves them on edit
       ]),
     );
 
-    assert.equal(songService.importSongs(db, rows).inserted, 1);
+    assert.equal(songService.importSongs(songStore, rows).inserted, 1);
     const imported = db
       .prepare(
         `
@@ -91,7 +93,7 @@ test('song service persists workbook metadata columns and preserves them on edit
     assert.equal(imported.request_price, '舰长');
     assert.equal(imported.song_clip, 'BV1ImportedClip');
 
-    songService.saveSong(db, {
+    songService.saveSong(songStore, {
       id: imported.id,
       name: imported.name,
       artist: imported.artist,

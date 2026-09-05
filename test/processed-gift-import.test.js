@@ -93,12 +93,14 @@ test('processed final-only recovery imports once without synthesizing progress d
   try {
     const recoveredEvent = makeEvent('final', 12, {
       isBlindBox: true,
+      blindBoxId: '35206',
       blindBoxPrice: 0.3,
       blindProfit: -0.2,
     });
     const finalized = fixture.importProcessedEvent(recoveredEvent);
     assert.equal(finalized.detection_status, 'final');
     assert.equal(finalized.is_blind_box, true);
+    assert.equal(finalized.blind_box_id, '35206');
     assert.equal(finalized.blind_profit, -0.2);
     assert.deepEqual(fixture.events.map((event) => event.phase), ['final']);
     assert.deepEqual(fixture.finalizedIds, [finalized.id]);
@@ -307,6 +309,7 @@ test('live final replay compares the full canonical DTO and rolls back its page'
         totalPrice: 0.2,
         coinType: ' GOLD ',
         isBlindBox: true,
+        blindBoxId: '32251',
         blindBoxName: ' Cafe\u0301  Box ',
         blindBoxPrice: 0.1,
         blindProfit: 0.1,
@@ -323,6 +326,7 @@ test('live final replay compares the full canonical DTO and rolls back its page'
         totalPrice: 0.2,
         coinType: 'gold',
         isBlindBox: true,
+        blindBoxId: '32251',
         blindBoxName: 'Caf\u00e9 Box',
         blindBoxPrice: 0.1,
         blindProfit: 0.1,
@@ -374,11 +378,13 @@ test('live final replay compares the full canonical DTO and rolls back its page'
         'isBlindBox',
         {
           isBlindBox: false,
+          blindBoxId: null,
           blindBoxName: '',
           blindBoxPrice: null,
           blindProfit: null,
         },
       ],
+      ['blindBoxId', { blindBoxId: '35206' }],
       ['blindBoxName', { blindBoxName: 'Different Box' }],
       [
         'blindBoxPriceCents',
@@ -638,6 +644,10 @@ test('history wire contract rejects incomplete, coerced, or extended pages atomi
     (page) => {
       page.events[0].gift.isBlindBox = 1;
     },
+    (page) => delete page.events[0].gift.blindBoxId,
+    (page) => {
+      page.events[0].gift.blindBoxId = '0';
+    },
     (page) => delete page.events[0].gift.blindBoxName,
     (page) => delete page.events[0].gift.blindBoxPrice,
     (page) => {
@@ -856,6 +866,7 @@ function makeEvent(phase, cursor, giftOverrides = {}) {
       totalPrice: 0.1,
       coinType: 'gold',
       isBlindBox: false,
+      blindBoxId: null,
       blindBoxName: '',
       blindBoxPrice: null,
       blindProfit: null,

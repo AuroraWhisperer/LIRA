@@ -25,6 +25,7 @@ import {
   normalizePersistedQueueStyle,
   resolveQueueStyleSettings,
 } from '../shared/queue-style-settings.js';
+import { createOverlaySocket } from './socket-client.js';
 
 const ILLUSTRATED_QUEUE_RENDERERS = {
   storybook: renderStorybookQueue,
@@ -43,8 +44,7 @@ const ILLUSTRATED_QUEUE_ROW_GAPS = {
 };
 
 let state = null;
-let reconnectTimer = null;
-let reconnectAttempts = 0;
+let socketController = null;
 let stateRefreshTimer = null;
 let overlayResizeTimer = null;
 let lastRenderKey = null;
@@ -52,6 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
   loadState();
   connectSocket();
   window.addEventListener('resize', handleQueueViewportResize);
+  window.addEventListener('beforeunload', disposeSocket, { once: true });
 });
 
 function handleQueueViewportResize() {
@@ -77,20 +78,16 @@ async function loadState() {
 }
 
 function connectSocket() {
-  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const token = window.__API_TOKEN__;
-  const wsUrl = `${protocol}//${location.host}/ws${token ? '?token=' + encodeURIComponent(token) : ''}`;
-  const socket = new WebSocket(wsUrl);
-
-  socket.addEventListener('open', () => {
-    clearTimeout(reconnectTimer);
-    reconnectAttempts = 0;
-    lastRenderKey = null;
-  });
-
-  socket.addEventListener('message', (event) => {
-    const payload = JSON.parse(event.data);
-    if (payload.type === 'snapshot') {
+  if (socketController) return;
+  socketController = createOverlaySocket({
+    onOpen: () => {
+      lastRenderKey = null;
+    },
+    onReconnect: () => {
+      loadState();
+    },
+    onMessage: (payload) => {
+      if (payload.type !== 'snapshot') return;
       if (payload.reason === 'live:status' && state) {
         state.liveStatus = payload.state.liveStatus;
         return;
@@ -114,20 +111,14 @@ function connectSocket() {
       lastRenderKey = newKey;
       state = payload.state;
       render();
-    }
+    },
   });
+  socketController.start();
+}
 
-  socket.addEventListener('close', () => {
-    const delay = Math.min(
-      30000,
-      800 * Math.pow(2, Math.min(reconnectAttempts, 6)),
-    );
-    reconnectAttempts += 1;
-    reconnectTimer = setTimeout(() => {
-      loadState();
-      connectSocket();
-    }, delay);
-  });
+function disposeSocket() {
+  socketController?.dispose();
+  socketController = null;
 }
 
 function isSongRequestSnapshotReason(reason) {

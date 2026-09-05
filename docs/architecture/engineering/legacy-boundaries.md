@@ -22,6 +22,12 @@ the named test and test case are the only numeric authority.
 
 ## Domain SQL Outside Storage
 
+Song service migration is complete: the composition root creates
+`src/storage/song-store.js`, and song domain functions receive that store rather
+than a database. Its old SQL debt budget is removed and a strict no-SQL assertion
+protects the boundary. Gift-domain legacy SQL remains separate, explicitly
+tracked debt; this migration does not silently certify those paths.
+
 - **Current shape:** Selected domain and server files issue SQL through known
   database receivers outside `src/storage/`.
 - **New-code rule:** New domain behavior depends on a narrow store or repository;

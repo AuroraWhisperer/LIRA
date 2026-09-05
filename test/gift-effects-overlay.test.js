@@ -185,12 +185,12 @@ test('gift frame overlay uses one full-perimeter artwork and bounded perimeter f
   );
 
   assert.equal(
-    fs.statSync(path.join(assetDir, 'frame-composite.png')).isFile(),
+    fs.statSync(path.join(assetDir, 'frame-composite.webp')).isFile(),
     true,
   );
   assert.match(
     html,
-    /id="giftFrameArtworkImage"[^>]+data-frame-part="composite"[^>]+frame-composite\.png/,
+    /id="giftFrameArtworkImage"[^>]+data-frame-part="composite"[^>]+frame-composite\.webp/,
   );
   assert.doesNotMatch(html, /data-frame-part="(?:top|right|bottom|left)"/);
   assert.doesNotMatch(html, /id="giftFrameSvg"/);
@@ -239,19 +239,19 @@ test('gift frame accents remain separate, bounded, and reduced-motion safe', () 
     'woodland-bloom',
   );
   const accents = {
-    branch: 'accent-branch-sprig.png',
-    crystal: 'accent-crystal-charm.png',
-    floral: 'accent-floral-knot.png',
+    branch: 'accent-branch-sprig.webp',
+    crystal: 'accent-crystal-charm.webp',
+    floral: 'accent-floral-knot.webp',
   };
 
   for (const [accent, fileName] of Object.entries(accents)) {
     const assetPath = path.join(assetDir, fileName);
     assert.equal(fs.statSync(assetPath).isFile(), true);
-    assert.equal(
-      fs.readFileSync(assetPath)[25],
-      6,
-      `${fileName} must use RGBA PNG color type`,
-    );
+    const header = fs.readFileSync(assetPath);
+    assert.equal(header.subarray(0, 4).toString('ascii'), 'RIFF');
+    assert.equal(header.subarray(8, 12).toString('ascii'), 'WEBP');
+    assert.equal(header.subarray(12, 16).toString('ascii'), 'VP8L');
+    assert.ok(header.readUInt32LE(21) & (1 << 28), `${fileName} must retain alpha`);
     assert.match(
       html,
       new RegExp(

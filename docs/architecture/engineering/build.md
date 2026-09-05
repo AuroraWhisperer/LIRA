@@ -31,13 +31,15 @@
 
 | 类型            | 包                  | 版本       | 用途                                                                    |
 | --------------- | ------------------- | ---------- | ----------------------------------------------------------------------- |
+| dependencies    | `@clamber_l/crypto` | `0.1.12`   | QQ音乐加密音频解码                                                      |
 | dependencies    | `@jixun/qmweb-sign` | `2.0.3`    | QQ音乐 zzcSign 请求签名([package.json:24](../../../package.json#L24))   |
 | dependencies    | `qrc-decoder`       | `1.0.2`    | QQ音乐 QRC 歌词 3DES 解密([package.json:26](../../../package.json#L26)) |
 | dependencies    | `electron-updater`  | `^6.8.4`   | 应用内自动更新(运行时见 [desktop/update.md](../desktop/update.md))      |
 | devDependencies | `electron`          | `43.2.0`   | Electron 运行时,精确锁定([package.json:29](../../../package.json#L29))  |
 | devDependencies | `electron-builder`  | `^26.11.1` | 打包器([package.json:30](../../../package.json#L30))                    |
+| devDependencies | `playwright`        | `^1.62.1`  | 开发期浏览器自动化工具;不随正式应用打包,包括其依赖 `playwright-core`      |
 
-**engines:`node >=24`**([package.json:20-22](../../../package.json#L20-L22))。运行时依赖仅 3 个,其余功能全部手写(见 [00-overview.md](../README.md))。
+**engines:`node >=24`**([package.json:20-22](../../../package.json#L20-L22))。运行时依赖 4 个,开发依赖 3 个;版本与依赖归类以 [package.json](../../../package.json) 为准。
 
 **npm overrides**([package.json:79-81](../../../package.json#L79-L81)):js-yaml 强制 `^4.3.1` 以解决 GHSA-5p4m-2wfm-xmqj(CVE-2026-59870,!!omap 二次方 CPU 消耗)。该漏洞影响 electron-updater 与 electron-builder 的传递依赖 js-yaml 4.0.0-4.3.0;override 后生产依赖审计为 0 高危漏洞。
 
@@ -51,9 +53,10 @@
 | `productName`                                            | LIRA                                                          | [package.json:34](../../../package.json#L34)        | 安装/卸载显示名                                                                        |
 | `artifactName`                                           | `lira-setup-${version}.${ext}`                                | [package.json:35](../../../package.json#L35)        | 安装包命名                                                                             |
 | `directories.output`                                     | `release`                                                     | [package.json:37](../../../package.json#L37)        | 产物目录(见 §4)                                                                        |
-| `files`                                                  | `src/**/*` + `public/**/*` + `package.json` + 静态 PNG 排除项 | [package.json:40-64](../../../package.json#L40-L64) | 白名单打包;静态界面 PNG 保留在源码但由 WebP 兄弟文件替代进入安装包;礼物目录 PNG 不排除 |
+| `files`                                                  | `src/**/*` + `public/**/*` + `package.json` + 静态 PNG 排除项 + 旧礼物资源排除项 | [package.json:40-64](../../../package.json#L40-L64) | 白名单打包;静态界面 PNG 保留在源码但由 WebP 兄弟文件替代进入安装包;`public/img/bilibili-gifts/`、`public/img/bilibili-gifts.json` 等旧礼物资源不再存在或进入安装包 |
 | `asar`                                                   | `true`                                                        | [package.json:45](../../../package.json#L45)        | 源码打成 asar 归档                                                                     |
 | `npmRebuild`                                             | `false`                                                       | [package.json:46](../../../package.json#L46)        | 无原生模块,跳过重编译                                                                  |
+| `afterPack`                                              | `scripts/after-pack.js`                                        | [after-pack.js](../../../scripts/after-pack.js)      | 仅移除构建输出中的 `resources/default_app.asar`,兼容本地 Electron 目录构建及已由打包器清理的正常构建 |
 | `win.icon`                                               | `build/icon.ico`                                              | [package.json:48](../../../package.json#L48)        | 由 make:icon 生成                                                                      |
 | `win.target`                                             | nsis / x64                                                    | [package.json:49-56](../../../package.json#L49-L56) | 仅 Windows x64                                                                         |
 | `nsis.oneClick`                                          | `false`                                                       | [package.json:61](../../../package.json#L61)        | 标准安装向导,非一键安装                                                                |
@@ -66,7 +69,13 @@
 
 `artifactName` 在顶层 `build` 与 `build.nsis` 各声明一次([package.json:35](../../../package.json#L35)、[package.json:59](../../../package.json#L59));发布脚本按 `build.nsis.artifactName` 计算产物文件名([publish-release.js:14-16](../../../scripts/publish-release.js#L14-L16))。
 
+礼物图片和目录快照不再随源码或安装包分发。加班机房间目录由 Bilibili 面板/配置及在售盲盒展开决定；首次授权后，桌面运行时从 LIRA Server 获取付费目录并把全部可用图片写入 `data/overtime-gift-images/`，元数据与完成状态写入同一用户数据目录，不属于 `app.asar`。构建验收应检查源码树、新生成的 `app.asar`、`win-unpacked` 和 NSIS 安装包均不含 `public/img/bilibili-gifts/`、`public/img/bilibili-gifts.json`、三份旧礼物 Markdown 或背包图库维护脚本；既有 release 产物不会因新构建自动改写。
+
 ## 4. 产物(release/)
+
+正式应用不包含开发依赖 Playwright/Playwright Core 或 Electron 默认示例程序。`afterPack` 只处理构建输出里的默认示例文件,不修改开发环境的 Electron 分发目录、LIRA 的 `app.asar`、更新元数据或礼物特效素材。离线回归覆盖见 `test/packaging-scope.test.js`。
+
+礼物边框与弹幕装饰的 18 个 PNG 后缀资源保留为源码素材,对应 WebP 进入安装包:其中 15 张 PNG 无损转换,3 张守护气泡图原本就是 WebP 编码,保留原始字节并使用正确后缀;已有第 3–6 套队列主题 WebP 不变。开播音乐与人物图不再内置,三个原始素材移至 `test/fixtures/opening/` 供手动上传测试;该目录在打包白名单之外,`public/img/overlays/opening/` 也显式排除。实际用户上传继续写入现有 data 目录,不会打入 `app.asar`。
 
 | 产物                                | 说明                                     |
 | ----------------------------------- | ---------------------------------------- |
@@ -94,6 +103,8 @@
 - `customUnInstall`([installer.nsh:21-26](../../../build/installer.nsh#L21-L26)):卸载时递归删除 `%APPDATA%\LIRA` — 旧版本残留在 %APPDATA% 下的 Chromium 分区数据(userData 已重定向到安装目录下 `data/`,见 [desktop/main.md](../desktop/main.md))。同时兼容清理更早期的 `%APPDATA%\bilibili-live-song-plugin` 遗留数据。
 
 ## 7. 发布流程(scripts/publish-release.js)
+
+发布门禁先拒绝未提交或未跟踪的工作区变更，并核对本地标签对应提交和远端标签的 peeled commit 均与 HEAD 一致；图标生成后再次检查源状态。构建失败的一轮直接失败重试，不会因为已存在旧附件而判定成功。成功构建后逐项核对本次本地产物与远端附件的名称、字节数和 SHA-256；远端没有摘要时，下载到独立临时目录计算摘要并清理。Git 和 gh 使用直接进程参数，仅 Windows 的 npm/npx 使用命令 shell。导入脚本不会执行构建或发布，离线覆盖见 `test/publish-release.test.js`。
 
 `npm run release:win` 一键发布,目标仓库取自 `build.publish[0]`([publish-release.js:12-13](../../../scripts/publish-release.js#L12-L13)):
 

@@ -87,6 +87,10 @@ function createDesktopRuntime(serverModule, options = {}) {
       typeof serverModule.applyCloudSettingsSnapshot === 'function'
         ? (settings) => serverModule.applyCloudSettingsSnapshot(settings)
         : null,
+    setBlindBoxMappingState:
+      typeof serverModule.setBlindBoxMappingState === 'function'
+        ? (state) => serverModule.setBlindBoxMappingState(state)
+        : null,
     getCloudSongsSnapshot:
       typeof serverModule.getCloudSongsSnapshot === 'function'
         ? () => serverModule.getCloudSongsSnapshot()
@@ -98,6 +102,27 @@ function createDesktopRuntime(serverModule, options = {}) {
     onCloudSyncRequested:
       typeof serverModule.onCloudSyncRequested === 'function'
         ? (listener) => serverModule.onCloudSyncRequested(listener)
+        : () => () => {},
+    getGiftCatalogInitializationState:
+      typeof serverModule.getGiftCatalogInitializationState === 'function'
+        ? () => serverModule.getGiftCatalogInitializationState()
+        : () => ({ status: 'ready', phase: 'complete', percent: 100 }),
+    initializeGiftCatalog:
+      typeof serverModule.initializeGiftCatalog === 'function'
+        ? (request) => serverModule.initializeGiftCatalog(request)
+        : () => Promise.resolve({
+            status: 'ready',
+            phase: 'complete',
+            percent: 100,
+          }),
+    isGiftCatalogInitialized:
+      typeof serverModule.isGiftCatalogInitialized === 'function'
+        ? () => serverModule.isGiftCatalogInitialized()
+        : () => true,
+    onGiftCatalogInitializationStateChanged:
+      typeof serverModule.onGiftCatalogInitializationStateChanged === 'function'
+        ? (listener) =>
+            serverModule.onGiftCatalogInitializationStateChanged(listener)
         : () => () => {},
   };
 }

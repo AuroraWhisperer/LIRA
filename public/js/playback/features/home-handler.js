@@ -163,6 +163,7 @@ export function createHomeHandler(deps) {
 
     try {
       const result = await homeService.loadContent(action);
+      if (result?.stale) return;
       renderPlaybackHomeResults(result.action);
     } catch (error) {
       setPlaybackDrawerError(error.message || String(error));
@@ -179,6 +180,7 @@ export function createHomeHandler(deps) {
 
     try {
       const result = await homeService.loadPlaylistTracks(index);
+      if (result?.stale) return;
       renderPlaybackHomeResults(result.action, result.title);
     } catch (error) {
       setPlaybackDrawerError(error.message || String(error));
@@ -191,6 +193,7 @@ export function createHomeHandler(deps) {
 
     try {
       const result = await homeService.refreshContent();
+      if (result?.stale) return;
       renderPlaybackHomeResults(result.action);
     } catch (error) {
       const homeState = homeService.getHomeState();

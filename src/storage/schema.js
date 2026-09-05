@@ -308,6 +308,7 @@ const GIFT_TABLE_SCHEMA = `
     total_price REAL NOT NULL DEFAULT 0,
     coin_type TEXT NOT NULL DEFAULT '',
     is_blind_box INTEGER NOT NULL DEFAULT 0,
+    blind_box_id TEXT,
     blind_box_name TEXT NOT NULL DEFAULT '',
     blind_box_price REAL,
     blind_profit REAL,

@@ -162,15 +162,15 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
   );
   assert.match(
     styles,
-    /body\[data-style='bubble'\] \.draw-danmaku-item\[data-identity='captain'\] \{ --bubble-accent: var\(--guard-captain\);[^}]*bubble-captain-frame\.png/,
+    /body\[data-style='bubble'\] \.draw-danmaku-item\[data-identity='captain'\] \{ --bubble-accent: var\(--guard-captain\);[^}]*bubble-captain-frame\.webp/,
   );
   assert.match(
     styles,
-    /body\[data-style='bubble'\] \.draw-danmaku-item\[data-identity='admiral'\] \{ --bubble-accent: var\(--guard-admiral\);[^}]*bubble-admiral-frame\.png/,
+    /body\[data-style='bubble'\] \.draw-danmaku-item\[data-identity='admiral'\] \{ --bubble-accent: var\(--guard-admiral\);[^}]*bubble-admiral-frame\.webp/,
   );
   assert.match(
     styles,
-    /body\[data-style='bubble'\] \.draw-danmaku-item\[data-identity='governor'\] \{ --bubble-accent: var\(--guard-governor\);[^}]*bubble-governor-frame\.png/,
+    /body\[data-style='bubble'\] \.draw-danmaku-item\[data-identity='governor'\] \{ --bubble-accent: var\(--guard-governor\);[^}]*bubble-governor-frame\.webp/,
   );
   assert.match(
     styles,
@@ -190,15 +190,15 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
   );
   assert.match(
     styles,
-    /body\[data-style='minimal'\] \.draw-danmaku-item\[data-identity='captain'\] \{[^}]*nameplate-captain-divider\.png/,
+    /body\[data-style='minimal'\] \.draw-danmaku-item\[data-identity='captain'\] \{[^}]*nameplate-captain-divider\.webp/,
   );
   assert.match(
     styles,
-    /body\[data-style='minimal'\] \.draw-danmaku-item\[data-identity='admiral'\] \{[^}]*nameplate-admiral-divider\.png/,
+    /body\[data-style='minimal'\] \.draw-danmaku-item\[data-identity='admiral'\] \{[^}]*nameplate-admiral-divider\.webp/,
   );
   assert.match(
     styles,
-    /body\[data-style='minimal'\] \.draw-danmaku-item\[data-identity='governor'\] \{[^}]*nameplate-governor-divider\.png/,
+    /body\[data-style='minimal'\] \.draw-danmaku-item\[data-identity='governor'\] \{[^}]*nameplate-governor-divider\.webp/,
   );
   assert.match(
     styles,
@@ -249,18 +249,18 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
     styles,
     /body\[data-style='ranked'\] \.draw-danmaku-avatar \{[^}]*mask-image:/s,
   );
-  assert.match(styles, /url\('\/img\/overlays\/danmaku-ranked\/viewer\.png'\)/);
+  assert.match(styles, /url\('\/img\/overlays\/danmaku-ranked\/viewer\.webp'\)/);
   assert.match(
     styles,
-    /url\('\/img\/overlays\/danmaku-ranked\/captain\.png'\)/,
+    /url\('\/img\/overlays\/danmaku-ranked\/captain\.webp'\)/,
   );
   assert.match(
     styles,
-    /url\('\/img\/overlays\/danmaku-ranked\/admiral\.png'\)/,
+    /url\('\/img\/overlays\/danmaku-ranked\/admiral\.webp'\)/,
   );
   assert.match(
     styles,
-    /url\('\/img\/overlays\/danmaku-ranked\/governor\.png'\)/,
+    /url\('\/img\/overlays\/danmaku-ranked\/governor\.webp'\)/,
   );
   assert.match(
     styles,
@@ -296,7 +296,7 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
   );
   assert.match(
     styles,
-    /body\[data-style='transparent'\] \.draw-danmaku-item\[data-identity='viewer'\],[^}]*body\[data-style='transparent'\] \.draw-danmaku-item\[data-identity='fan'\],[^}]*body\[data-style='transparent'\] \.draw-danmaku-item\[data-identity='captain'\],[^}]*body\[data-style='transparent'\] \.draw-danmaku-item\[data-identity='admiral'\],[^}]*body\[data-style='transparent'\] \.draw-danmaku-item\[data-identity='governor'\] \{[^}]*--danmaku-avatar-art:\s*url\('\/img\/overlays\/danmaku-ranked\/viewer\.png'\);/s,
+    /body\[data-style='transparent'\] \.draw-danmaku-item\[data-identity='viewer'\],[^}]*body\[data-style='transparent'\] \.draw-danmaku-item\[data-identity='fan'\],[^}]*body\[data-style='transparent'\] \.draw-danmaku-item\[data-identity='captain'\],[^}]*body\[data-style='transparent'\] \.draw-danmaku-item\[data-identity='admiral'\],[^}]*body\[data-style='transparent'\] \.draw-danmaku-item\[data-identity='governor'\] \{[^}]*--danmaku-avatar-art:\s*url\('\/img\/overlays\/danmaku-ranked\/viewer\.webp'\);/s,
   );
   assert.match(
     styles,
@@ -356,12 +356,12 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
     /body\.is-preview\[data-style='outline'\] \{[^}]*#101628[^}]*#070b17/s,
   );
   for (const asset of [
-    'bubble-captain-frame.png',
-    'bubble-admiral-frame.png',
-    'bubble-governor-frame.png',
-    'nameplate-captain-divider.png',
-    'nameplate-admiral-divider.png',
-    'nameplate-governor-divider.png',
+    'bubble-captain-frame.webp',
+    'bubble-admiral-frame.webp',
+    'bubble-governor-frame.webp',
+    'nameplate-captain-divider.webp',
+    'nameplate-admiral-divider.webp',
+    'nameplate-governor-divider.webp',
   ]) {
     assert.ok(
       fs.existsSync(

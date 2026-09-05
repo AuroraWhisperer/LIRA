@@ -194,6 +194,12 @@ export class FormsService {
       const element = document.getElementById(key);
       // Keep an in-progress edit intact while a live state snapshot arrives.
       if (element?.closest('#openingAnimationForm')) continue;
+      if (
+        element?.dataset.preserveDirty === 'true' &&
+        element.dataset.dirty === 'true'
+      ) {
+        continue;
+      }
       if (element && element !== document.activeElement)
         element.value = inputValue;
     }

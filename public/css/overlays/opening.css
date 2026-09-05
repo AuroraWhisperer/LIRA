@@ -336,6 +336,10 @@ body {
 .character-breathe {
   animation: character-breathe 7.8s ease-in-out 0.9s infinite;
 }
+.character-image[hidden] {
+  display: none;
+}
+
 .character-image {
   display: block;
   width: auto;

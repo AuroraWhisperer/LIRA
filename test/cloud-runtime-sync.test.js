@@ -9,6 +9,7 @@ const songService = require('../src/music/song-service');
 const { createServerRuntime } = require('../src/server');
 const { closeDatabases, createDatabases } = require('../src/storage/database');
 const { createQueueStore } = require('../src/storage/queue-store');
+const { createSongStore } = require('../src/storage/song-store');
 
 const TEST_BLIND_BOX_CONFIG = [
   {
@@ -22,9 +23,10 @@ test('cloud song replacement is atomic, deduplicates local identities, and prese
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cloud-songs-'));
   const databases = createDatabases({ dataDir });
   const { songDb } = databases;
+  const songStore = createSongStore(songDb);
 
   try {
-    const oldSong = songService.saveSong(songDb, {
+    const oldSong = songService.saveSong(songStore, {
       name: '旧歌曲',
       artist: '旧歌手',
       categoryName: '旧分类',
@@ -47,7 +49,7 @@ test('cloud song replacement is atomic, deduplicates local identities, and prese
       createdAt: '2026-08-30T00:00:00.000Z',
     });
 
-    const result = songService.replaceCloudSongs(songDb, [
+    const result = songService.replaceCloudSongs(songStore, [
       { title: '云端歌曲', artist: '歌手', categoryName: '云端分类' },
       {
         title: '云端歌曲',
@@ -190,6 +192,19 @@ test('runtime applies cloud snapshots without echo and emits dirty scopes after 
       'content-type': 'application/json',
       origin: server.baseUrl,
     };
+    const mappingState = {
+      mode: 'v2',
+      catalogVersion: 'sha256:catalog',
+      settingsRevision: 7,
+      customCount: 1,
+      takenOverCount: 2,
+      migrationPendingCount: 0,
+      applied: true,
+    };
+    runtime.setBlindBoxMappingState(mappingState);
+    const stateResponse = await fetch(`${server.baseUrl}/api/state`, { headers });
+    assert.equal(stateResponse.status, 200);
+    assert.deepEqual((await stateResponse.json()).data.blindBoxMapping, mappingState);
     const settingsResponse = await fetch(`${server.baseUrl}/api/settings`, {
       method: 'POST',
       headers,

@@ -1,6 +1,7 @@
 'use strict';
 
 const { execFileSync } = require('node:child_process');
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const net = require('node:net');
 const os = require('node:os');
@@ -18,27 +19,33 @@ const EXE_NAME = PKG.build.nsis.artifactName
   .replace('${version}', VERSION)
   .replace('${ext}', 'exe');
 const EXPECTED_ASSETS = [EXE_NAME, `${EXE_NAME}.blockmap`, 'latest.yml'];
+const OUTPUT_DIR = path.resolve(ROOT_DIR, PKG.build.directories.output);
 const MAX_PUBLISH_ATTEMPTS = 3;
 // 常见本地代理端口（Clash 默认 7890、v2rayN 默认 10809/1080），上传慢时自动探测提速
 const LOCAL_PROXY_PORTS = [7890, 10809, 1080];
 
 let proxyUrl = '';
 
-main().catch((error) => {
-  console.error(`[publish-release] ${error.message || error}`);
-  process.exit(1);
-});
+if (require.main === module) {
+  main().catch((error) => {
+    console.error(`[publish-release] ${error.message || error}`);
+    process.exit(1);
+  });
+}
 
 async function main() {
   log(`Preparing release ${TAG} for ${OWNER}/${REPO}`);
 
+  const head = ensureCleanEnoughGitState();
   proxyUrl = await resolveProxy();
-  ensureCleanEnoughGitState();
-  ensureTag();
+  ensureTag(head);
   ensureGhToken();
   ensureGithubRelease();
 
   run('npm', ['run', '--silent', 'make:icon']);
+  if (ensureCleanEnoughGitState() !== head) {
+    throw new Error('Release source changed while preparing build resources.');
+  }
 
   for (let attempt = 1; attempt <= MAX_PUBLISH_ATTEMPTS; attempt += 1) {
     log(`electron-builder publish attempt ${attempt}/${MAX_PUBLISH_ATTEMPTS}`);
@@ -55,9 +62,10 @@ async function main() {
       ]);
     } catch (error) {
       log(`electron-builder exited with an error: ${error.message}`);
+      continue;
     }
 
-    const missing = findMissingAssets();
+    const missing = await findMissingAssets();
     if (missing.length === 0) {
       log(`All expected assets uploaded: ${EXPECTED_ASSETS.join(', ')}`);
       return;
@@ -119,6 +127,8 @@ function probeProxyPort(port) {
 }
 
 function ensureCleanEnoughGitState() {
+  const status = runCapture('git', ['status', '--porcelain=v1', '--untracked-files=normal']).trim();
+  if (status) throw new Error('Release requires a clean worktree. Commit or move pending changes before publishing.');
   const branch = runCapture('git', [
     'rev-parse',
     '--abbrev-ref',
@@ -126,17 +136,25 @@ function ensureCleanEnoughGitState() {
   ]).trim();
   const head = runCapture('git', ['rev-parse', 'HEAD']).trim();
   log(`Current branch ${branch} at ${head.slice(0, 12)}`);
+  return head;
 }
 
-function ensureTag() {
-  const localTag = tryCapture('git', ['rev-parse', TAG]);
+function ensureTag(head) {
+  const localTag = tryCapture('git', ['rev-parse', '--verify', `${TAG}^{commit}`]).trim();
+  if (localTag && localTag !== head) throw new Error(`Local tag ${TAG} does not identify HEAD.`);
+  const remoteTags = runCapture('git', ['ls-remote', '--tags', 'origin', TAG, `${TAG}^{}`]);
+  const refs = new Map(remoteTags.trim().split(/\r?\n/).filter(Boolean).map((line) => {
+    const [commit, ref] = line.split(/\s+/);
+    return [ref, commit];
+  }));
+  const remoteTag = refs.get(`refs/tags/${TAG}^{}`) || refs.get(`refs/tags/${TAG}`);
+  if (remoteTag && remoteTag !== head) throw new Error(`Remote tag ${TAG} does not identify HEAD.`);
   if (!localTag) {
     log(`Creating annotated tag ${TAG}`);
     run('git', ['tag', '-a', TAG, '-m', TAG]);
   }
 
-  const remoteTag = runCapture('git', ['ls-remote', '--tags', 'origin', TAG]);
-  if (!remoteTag.trim()) {
+  if (!remoteTag) {
     log(`Pushing tag ${TAG} to origin`);
     run('git', ['push', 'origin', TAG]);
   }
@@ -172,10 +190,7 @@ function ensureGithubRelease() {
   log(
     `Creating GitHub release ${TAG} up front to avoid electron-builder's create-race`,
   );
-  // Notes go through a temp file + --notes-file rather than a raw --notes arg:
-  // execFileSync runs with shell:true on Windows, and release notes routinely
-  // contain backticks (inline code in the changelog) that a shell would treat
-  // as command substitution, corrupting or failing the whole "gh" invocation.
+  // Keep multiline release notes out of command-line arguments.
   const notesPath = path.join(os.tmpdir(), `release-notes-${TAG}.md`);
   fs.writeFileSync(notesPath, extractReleaseNotes(VERSION), 'utf8');
   try {
@@ -211,7 +226,7 @@ function extractReleaseNotes(version) {
   return content.slice(afterHeading, sectionEnd).trim() || `Release ${version}`;
 }
 
-function findMissingAssets() {
+async function findMissingAssets() {
   // Deliberately avoid "gh api --jq ..." here: on Windows the jq expression
   // gets mangled by cmd.exe's quoting, which made this always look empty
   // and falsely report every asset as missing. Parse the plain JSON instead.
@@ -228,12 +243,52 @@ function findMissingAssets() {
     return EXPECTED_ASSETS;
   }
 
-  const uploaded = new Set(
+  const uploaded = new Map(
     (release.assets || [])
       .filter((asset) => asset.state === 'uploaded')
-      .map((asset) => asset.name),
+      .map((asset) => [asset.name, asset]),
   );
-  return EXPECTED_ASSETS.filter((name) => !uploaded.has(name));
+  const missing = [];
+  for (const name of EXPECTED_ASSETS) {
+    const asset = uploaded.get(name);
+    const localPath = path.join(OUTPUT_DIR, name);
+    if (!asset || !fs.existsSync(localPath) || asset.size !== fs.statSync(localPath).size) {
+      missing.push(name);
+      continue;
+    }
+    const localDigest = await fileDigest(localPath);
+    try {
+      const remoteDigest = await publishedAssetDigest(asset);
+      if (remoteDigest !== localDigest) missing.push(name);
+    } catch (error) {
+      log(`Cannot verify ${name}: ${error.message}`);
+      missing.push(name);
+    }
+  }
+  return missing;
+}
+
+async function fileDigest(filePath) {
+  const hash = crypto.createHash('sha256');
+  for await (const chunk of fs.createReadStream(filePath)) hash.update(chunk);
+  return hash.digest('hex');
+}
+
+async function publishedAssetDigest(asset) {
+  const digest = String(asset.digest || '');
+  if (/^sha256:[a-f0-9]{64}$/i.test(digest)) return digest.slice(7).toLowerCase();
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-release-verify-'));
+  const filePath = path.join(directory, asset.name);
+  try {
+    run('gh', ['release', 'download', TAG, '--repo', `${OWNER}/${REPO}`, '--pattern', asset.name, '--output', filePath]);
+    return await fileDigest(filePath);
+  } finally {
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+}
+
+function needsCommandShell(command) {
+  return process.platform === 'win32' && (command === 'npm' || command === 'npx');
 }
 
 function proxyEnv(baseEnv) {
@@ -253,7 +308,7 @@ function run(command, args) {
   execFileSync(command, args, {
     cwd: ROOT_DIR,
     stdio: 'inherit',
-    shell: process.platform === 'win32',
+    shell: needsCommandShell(command),
     env,
   });
 }
@@ -261,7 +316,7 @@ function run(command, args) {
 function runCapture(command, args) {
   return execFileSync(command, args, {
     cwd: ROOT_DIR,
-    shell: process.platform === 'win32',
+    shell: needsCommandShell(command),
     env: proxyEnv(process.env),
   }).toString();
 }
@@ -270,7 +325,7 @@ function tryCapture(command, args) {
   try {
     return execFileSync(command, args, {
       cwd: ROOT_DIR,
-      shell: process.platform === 'win32',
+      shell: needsCommandShell(command),
       stdio: ['ignore', 'pipe', 'ignore'],
       env: proxyEnv(process.env),
     }).toString();
@@ -282,3 +337,5 @@ function tryCapture(command, args) {
 function log(message) {
   console.log(`[publish-release] ${message}`);
 }
+
+module.exports = { main };

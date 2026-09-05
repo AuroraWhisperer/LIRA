@@ -9,7 +9,6 @@ export function createInitializer(deps) {
     playbackState,
     getPlaybackAudio,
     uiRenderer,
-    playerController,
     storageManager,
     localFileManager,
     renderPlayback,
@@ -43,9 +42,6 @@ export function createInitializer(deps) {
 
     // 初始化 UI 渲染器
     uiRenderer.init();
-
-    // 设置播放器控制器的音频元素
-    playerController.setAudio(audio);
 
     // 设置全屏播放器 seek 回调
     uiRenderer.getFullscreenPlayer().setSeekCallback(() => {

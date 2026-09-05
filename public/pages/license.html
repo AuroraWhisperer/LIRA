@@ -33,7 +33,11 @@
       </header>
 
       <main class="license-main">
-        <section class="license-card" aria-labelledby="licenseHeading">
+        <section
+          id="licenseLoginCard"
+          class="license-card"
+          aria-labelledby="licenseHeading"
+        >
           <div class="license-card-heading">
             <p class="license-kicker">主播工作台</p>
             <h1 id="licenseHeading">登录 LIRA</h1>
@@ -102,6 +106,46 @@
             </button>
           </form>
           <p class="license-footnote">密码和激活密钥不会保存在本机。</p>
+        </section>
+        <section
+          id="giftCatalogInitializationCard"
+          class="license-card license-initialization-card"
+          aria-labelledby="giftCatalogInitializationHeading"
+          aria-busy="true"
+          hidden
+        >
+          <div class="license-card-heading">
+            <p class="license-kicker">首次使用准备</p>
+            <h1 id="giftCatalogInitializationHeading">正在准备礼物图片</h1>
+            <p id="giftCatalogInitializationPhase">正在获取礼物目录</p>
+          </div>
+          <div class="license-progress-heading">
+            <strong id="giftCatalogInitializationPercent">0%</strong>
+            <span id="giftCatalogInitializationCount">等待开始</span>
+          </div>
+          <progress
+            id="giftCatalogInitializationProgress"
+            class="license-progress"
+            max="100"
+            value="0"
+            aria-label="礼物图片初始化进度"
+          ></progress>
+          <p
+            id="giftCatalogInitializationStatus"
+            class="license-status license-initialization-status loading"
+            role="status"
+            aria-live="polite"
+          >
+            正在连接服务器…
+          </p>
+          <button
+            id="giftCatalogInitializationRetryBtn"
+            class="license-retry"
+            type="button"
+            hidden
+          >
+            重试初始化
+          </button>
         </section>
       </main>
     </div>

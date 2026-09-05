@@ -4,6 +4,8 @@
 
 Draft — Ready for implementation after minor spec fixes
 
+2026-09-05 素材策略更新: 本文早期 MVP 中内置 `music.ogg` 和默认人物图的要求已被用户上传专用策略取代。默认无音乐、无人物图;原始素材仅存放于 `test/fixtures/opening/` 供手动上传测试,不再位于 public 或进入安装包。当前行为见 [人物上传与空状态规格](opening-character-upload_design.md)。
+
 ## Goal
 
 为 LIRA 增加一个可被 B 站直播姬或 OBS Browser Source 加载的 **1920×1080 全屏开播等待场景**。

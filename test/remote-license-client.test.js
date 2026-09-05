@@ -219,7 +219,7 @@ test('remote client reads the public flat gift catalog with conditional etag req
   assert.equal(first.etag, '"catalog-42"');
   assert.equal(
     requests[0].url,
-    'https://api.lirahub.cn/api/public/gifts/catalog',
+    'https://api.lirahub.cn/api/public/gifts/catalog?schemaVersion=2',
   );
   assert.equal(requests[0].init.method, 'GET');
   assert.equal(requests[0].init.body, undefined);
@@ -479,6 +479,54 @@ test('external abort is not misreported as a request timeout', async () => {
   await assert.rejects(pending, (error) => error?.name === 'AbortError');
 });
 
+test('cloud HTTP operations preserve their caller cancellation signal', async () => {
+  const signals = [];
+  const client = createRemoteLicenseClient({
+    baseUrl: 'https://review.example.test',
+    fetchImpl: async (_url, init) => new Promise((_resolve, reject) => {
+      signals.push(init.signal);
+      init.signal.addEventListener('abort', () => reject(new DOMException('cancelled', 'AbortError')), { once: true });
+    }),
+  });
+  const controller = new AbortController();
+  const options = { signal: controller.signal };
+  const pending = [
+    client.getCloudState('fixture', options),
+    client.getCloudSongs('fixture', options),
+    client.updateCloudSettings({}, 'fixture', options),
+    client.syncSongs([], 'fixture', options),
+    client.getBilibiliCredentials('fixture', options),
+    client.setBilibiliCredentials('fixture', 'fixture', options),
+    client.clearBilibiliCredentials('fixture', options),
+  ];
+  controller.abort();
+  for (const request of pending) await assert.rejects(request, (error) => error.name === 'AbortError');
+  assert.equal(signals.length, 7);
+  assert.equal(signals.every((signal) => signal.aborted), true);
+});
+
+test('SSE readers are cancelled and released when a consumer fails during open', async () => {
+  let cancelled = 0;
+  let released = 0;
+  const client = createRemoteLicenseClient({
+    baseUrl: 'https://review.example.test',
+    fetchImpl: async () => ({
+      ok: true, status: 200,
+      headers: { get: () => 'text/event-stream' },
+      body: { getReader: () => ({
+        read: async () => ({ done: true }),
+        cancel: async () => { cancelled += 1; },
+        releaseLock: () => { released += 1; },
+      }) },
+    }),
+  });
+  await assert.rejects(client.watchCloudStateChanges('fixture', {
+    onOpen() { throw new Error('fixture consumer failure'); },
+  }), /fixture consumer failure/);
+  assert.equal(cancelled, 1);
+  assert.equal(released, 1);
+});
+
 test('gift event stream allowlists valid SSE fields and ignores malformed blocks', async () => {
   const requests = [];
   const encoder = new TextEncoder();
@@ -495,6 +543,7 @@ test('gift event stream allowlists valid SSE fields and ignores malformed blocks
       totalPrice: 0.1,
       coinType: 'gold',
       isBlindBox: false,
+      blindBoxId: null,
       blindBoxName: '',
       blindBoxPrice: null,
       blindProfit: null,

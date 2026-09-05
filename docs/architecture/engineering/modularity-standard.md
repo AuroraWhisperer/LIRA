@@ -165,7 +165,7 @@ contract:
 
 Current fitness functions block or freeze selected regressions, including:
 
-- Queue and SuperChat services issuing SQLite statements directly.
+- Song, Queue and SuperChat services issuing SQLite statements directly.
 - Receiver-aware domain SQL debt expanding outside storage.
 - Admin legacy global debt expanding to a new file or beyond a file baseline.
 - Empty or comment-only catch debt expanding in `src/` or `public/js/`.
@@ -175,10 +175,32 @@ Current fitness functions block or freeze selected regressions, including:
 - Selected server and desktop composition roots regaining mutable subsystem
   behavior.
 - Public ESM modules referencing identifiers they neither declare nor import.
+- Literal CommonJS imports of backend composition entrypoints from internal
+  modules, checked by enumerating the backend directory.
+- Storage adapters importing server, Electron, or browser modules.
+- The reviewed queue, song, overtime, and blind-box overlays constructing their
+  own sockets instead of using their owned transport adapter.
+- Removal of wheel cleanup or reintroduction of the obsolete playback class.
 
-Internal modules importing composition entrypoints remain prohibited. Current
-coverage for that direction is partial, so review and future directory-wide
-fitness tests must treat it as an enforcement gap rather than a passed gate.
+Internal modules importing composition entrypoints remain prohibited. The
+directory-wide gate checks literal CommonJS require paths; computed/dynamic
+imports and frontend composition directions still require review. This is not
+full dependency-graph enforcement.
+
+### Review Remediation Coverage
+
+The settings contract is shared by local and cloud adapters; settings batch
+atomicity is exercised against an in-memory SQLite database. Cloud requests,
+gift retries/catch-up, wheel timers, playback request/cache ownership, and
+overlay connections have explicit lifecycle regression tests. SSE reading stays
+inside the remote client, and the overlay connector stays in its adapter domain;
+neither is a domain-neutral shared utility or a universal sync manager.
+
+These checks strengthen the existing rules without changing their status to
+`Enforced`. Remaining legacy Admin globals, domain SQL exceptions, empty catches,
+the shared utility aggregation point, and incomplete public-contract inventory
+remain tracked debt. Passing the current gates does not certify the entire
+repository as free of coupling or asynchronous defects.
 
 ## 9. Change Workflow
 

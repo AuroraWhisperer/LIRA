@@ -240,13 +240,13 @@ function createGiftDetectionService(context, options = {}) {
         INSERT INTO gift_events (
           source_id, platform_id, cmd, gift_id, gift_name,
           uid, user_name, num, unit_price, total_price, coin_type,
-          is_blind_box, blind_box_name, blind_box_price, blind_profit,
+          is_blind_box, blind_box_id, blind_box_name, blind_box_price, blind_profit,
           counted_in_sprint, detection_status,
           first_detected_at_ms, last_platform_at_ms, finalized_at_ms,
           gift_stats_eligible, gift_stats_delivered, overtime_epoch,
           status, raw_json, created_at, updated_at
         ) VALUES (
-          ?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?, ?, ?,
+          ?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
           0, 'final', ?, ?, ?, 0, 1, 0, 'active', '', ?, ?
         )
       `,
@@ -263,6 +263,7 @@ function createGiftDetectionService(context, options = {}) {
         gift.totalPrice,
         gift.coinType,
         gift.isBlindBox ? 1 : 0,
+        gift.blindBoxId,
         gift.blindBoxName,
         gift.blindBoxPrice,
         gift.blindProfit,
@@ -461,7 +462,7 @@ function updateProcessedGift(giftDb, id, sourceId, gift, detectedAtMs) {
     UPDATE gift_events
     SET gift_id = ?, gift_name = ?, user_name = ?, num = ?,
         unit_price = ?, total_price = ?, coin_type = ?, is_blind_box = ?,
-        blind_box_name = ?, blind_box_price = ?, blind_profit = ?,
+        blind_box_id = ?, blind_box_name = ?, blind_box_price = ?, blind_profit = ?,
         last_platform_at_ms = ?, raw_json = '', updated_at = ?
     WHERE id = ? AND source_id = ? AND detection_status = 'progress'
   `,
@@ -475,6 +476,7 @@ function updateProcessedGift(giftDb, id, sourceId, gift, detectedAtMs) {
       gift.totalPrice,
       gift.coinType,
       gift.isBlindBox ? 1 : 0,
+      gift.blindBoxId,
       gift.blindBoxName,
       gift.blindBoxPrice,
       gift.blindProfit,
@@ -492,13 +494,13 @@ function insertProgressGift(giftDb, gift, eligibility) {
     INSERT INTO gift_events (
       source_id, platform_id, cmd, gift_id, gift_name,
       uid, user_name, num, unit_price, total_price, coin_type,
-      is_blind_box, blind_box_name, blind_box_price, blind_profit,
+      is_blind_box, blind_box_id, blind_box_name, blind_box_price, blind_profit,
       counted_in_sprint, detection_status,
       first_detected_at_ms, last_platform_at_ms, finalized_at_ms,
       gift_stats_eligible, gift_stats_delivered, overtime_epoch,
       status, raw_json, created_at, updated_at
     ) VALUES (
-      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+      ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
       0, 'progress', ?, ?, 0, ?, 0, ?, 'active', ?, ?, ?
     )
   `,
@@ -516,6 +518,7 @@ function insertProgressGift(giftDb, gift, eligibility) {
       gift.totalPrice,
       gift.coinType,
       gift.isBlindBox ? 1 : 0,
+      gift.blindBoxId,
       gift.blindBoxName,
       gift.blindBoxPrice,
       gift.blindProfit,
@@ -556,6 +559,7 @@ function isMatchingHistoryProjection(row, record) {
         totalPrice: row.total_price,
         coinType: row.coin_type,
         isBlindBox: Number(row.is_blind_box) === 1,
+        blindBoxId: row.blind_box_id,
         blindBoxName: row.blind_box_name,
         blindBoxPrice: row.blind_box_price,
         blindProfit: row.blind_profit,

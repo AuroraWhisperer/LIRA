@@ -5,7 +5,7 @@
 import { getHomeActionTitle } from '../utils.js';
 
 /** 可缓存的 action 列表 */
-const CACHEABLE_ACTIONS = new Set([
+export const CACHEABLE_ACTIONS = new Set([
   'liked',
   'created-playlists',
   'collected-playlists',
@@ -33,31 +33,95 @@ export class ContentLoader {
 
     // 防止同一 action 并发后台刷新
     this._bgRefreshing = new Set();
+    this._requestGeneration = 0;
+    this._activeRequest = null;
+    this._cacheRequestGenerations = new Map();
   }
 
   /**
    * 构建缓存键
    * @param {string} action
    * @param {string} [extra] - 额外标识（如歌单 ID）
+   * @param {string} [platform] - 请求所属的平台
    * @returns {string}
    */
-  _cacheKey(action, extra = '') {
-    const platform = this.state ? this.state.selectedSource : '';
+  _cacheKey(action, extra = '', platform = this.state?.selectedSource || '') {
     const base = `${platform}:${action}`;
     return extra ? `${base}:${extra}` : base;
   }
 
-  /**
-   * 从缓存恢复主页内容
-   * @param {{items, itemType, action}} cached
-   * @param {string} action
-   */
-  _restoreFromCache(cached, action) {
-    this.homeItems = Array.isArray(cached.items) ? cached.items : [];
-    this.homeItemType =
-      cached.itemType || (action === 'liked' ? 'track' : 'playlist');
-    this.homeAction = cached.action || action;
+  _createRequest(action, options = {}) {
+    const playlistId = String(options.playlistId || '');
+    const platform = String(this.state?.selectedSource || '');
+    const cacheKey = this._cacheKey(action, playlistId, platform);
+    const generation = ++this._requestGeneration;
+    const request = {
+      action,
+      title: getHomeActionTitle(action),
+      playlistId,
+      platform,
+      cacheKey,
+      generation,
+      homeGeneration: options.requestGeneration,
+    };
+    this._activeRequest = request;
+    return request;
+  }
+
+  _isCurrentRequest(request) {
+    return (
+      request.generation === this._requestGeneration &&
+      String(this.state?.selectedSource || '') === request.platform
+    );
+  }
+
+  _applyResult(result) {
+    this.homeItems = Array.isArray(result.items) ? result.items : [];
+    this.homeItemType = result.itemType || '';
+    this.homeAction = result.action || '';
     this.homePage = 1;
+  }
+
+  _writeCache(request, result) {
+    if (!CACHEABLE_ACTIONS.has(request.action) || !this.cacheManager) return false;
+    if (this._cacheRequestGenerations.get(request.cacheKey) !== request.generation)
+      return false;
+    this.cacheManager.set(request.cacheKey, {
+      items: result.items,
+      itemType: result.itemType,
+      action: result.action,
+    });
+    return true;
+  }
+
+  async _fetchRequest(request) {
+    if (CACHEABLE_ACTIONS.has(request.action)) {
+      this._cacheRequestGenerations.set(request.cacheKey, request.generation);
+    }
+    try {
+      const result = await this._fetchByAction(request);
+      return { result, cacheWritten: this._writeCache(request, result) };
+    } finally {
+      if (this._cacheRequestGenerations.get(request.cacheKey) === request.generation) {
+        this._cacheRequestGenerations.delete(request.cacheKey);
+      }
+    }
+  }
+
+  _publishCachedUpdate(request, result) {
+    const current = this._activeRequest;
+    if (!current?.cachedResult || current.cacheKey !== request.cacheKey ||
+      !this._isCurrentRequest(current)) return;
+    const changed = this._hasChanged(current.cachedResult.items, result.items, request.action);
+    if (!changed) return;
+    current.cachedResult = result;
+    this._applyResult(result);
+    this.onBackgroundUpdate?.({
+      ...result,
+      platform: current.platform,
+      requestGeneration: current.homeGeneration,
+      changed: true,
+    });
   }
 
   /**
@@ -71,114 +135,87 @@ export class ContentLoader {
   async loadHomeContent(action, options = {}) {
     if (!this.state) throw new Error('State not initialized');
 
-    const title = getHomeActionTitle(action);
+    const request = this._createRequest(action, options);
     const forceRefresh = options.forceRefresh === true;
 
     // —— 缓存优先：可缓存的 action 先查缓存（forceRefresh 除外） ——
     if (!forceRefresh && CACHEABLE_ACTIONS.has(action) && this.cacheManager) {
-      const extra = options.playlistId || '';
-      const cacheKey = this._cacheKey(action, String(extra));
-      const cached = this.cacheManager.get(cacheKey);
+      const cached = this.cacheManager.get(request.cacheKey);
 
       if (cached) {
-        this._restoreFromCache(cached, action);
+        const cachedResult = {
+          items: Array.isArray(cached.items) ? cached.items : [],
+          itemType: cached.itemType || (action === 'liked' ? 'track' : 'playlist'),
+          action: cached.action || action,
+          title: request.title,
+        };
+        request.cachedResult = cachedResult;
+        this._applyResult(cachedResult);
 
         // 后台静默刷新：返回缓存数据的同时，异步请求最新数据
-        this._backgroundRefresh(action, title, options);
+        void this._backgroundRefresh(request);
 
         return {
           items: this.homeItems,
           itemType: this.homeItemType,
           action: this.homeAction,
-          title: title,
+          title: request.title,
           fromCache: true,
         };
       }
     }
 
     // —— 缓存未命中 或 强制刷新，走 API ——
-    const result = await this._fetchByAction(action, title, options);
-
-    // 写入缓存
-    if (CACHEABLE_ACTIONS.has(action) && this.cacheManager) {
-      const extra = options.playlistId || '';
-      const cacheKey = this._cacheKey(action, String(extra));
-      this.cacheManager.set(cacheKey, {
-        items: this.homeItems,
-        itemType: this.homeItemType,
-        action: this.homeAction,
-      });
+    const { result, cacheWritten } = await this._fetchRequest(request);
+    if (!this._isCurrentRequest(request)) {
+      if (cacheWritten) this._publishCachedUpdate(request, result);
+      return { stale: true };
     }
 
-    return result;
+    this._applyResult(result);
+
+    return {
+      items: this.homeItems,
+      itemType: this.homeItemType,
+      action: this.homeAction,
+      title: request.title,
+    };
   }
 
   /**
    * 根据 action 分发到对应的 API 请求方法
-   * @param {string} action
-   * @param {string} title
-   * @param {Object} options
+   * @param {Object} request - 固定的平台、缓存键和请求代际
    * @returns {Promise<Object>}
    */
-  async _fetchByAction(action, title, options) {
-    if (action === 'liked') {
-      return this._fetchLikedTracksAll(title);
+  async _fetchByAction(request) {
+    if (request.action === 'liked') {
+      return this._fetchLikedTracksAll(request.title, request.platform);
     }
-    if (action === 'playlist-tracks') {
-      return this._fetchPlaylistTracks(title, options.playlistId);
+    if (request.action === 'playlist-tracks') {
+      return this._fetchPlaylistTracks(
+        request.title,
+        request.playlistId,
+        request.platform,
+      );
     }
-    return this._fetchGeneric(action, title);
+    return this._fetchGeneric(request.action, request.title, request.platform);
   }
 
   /**
    * 后台静默刷新（stale-while-revalidate）
    * 不阻塞 UI，静默更新缓存；数据有变化时触发 onBackgroundUpdate 回调
-   * @param {string} action
-   * @param {string} title
-   * @param {Object} options
+   * @param {Object} request - 固定的平台、缓存键和请求代际
    */
-  async _backgroundRefresh(action, title, options) {
-    const extra = options.playlistId || '';
-    const bgKey = `${action}:${extra}`;
+  async _backgroundRefresh(request) {
+    const bgKey = request.cacheKey;
 
     // 防止同一 action 并发刷新
     if (this._bgRefreshing.has(bgKey)) return;
     this._bgRefreshing.add(bgKey);
 
     try {
-      // 保存旧数据用于对比
-      const oldItems = this.homeItems;
-      const oldItemType = this.homeItemType;
-
-      // 调用 API 获取最新数据（会临时覆盖 this.homeItems）
-      const freshResult = await this._fetchByAction(action, title, options);
-
-      // 更新缓存
-      if (this.cacheManager) {
-        const cacheKey = this._cacheKey(action, String(extra));
-        this.cacheManager.set(cacheKey, {
-          items: freshResult.items,
-          itemType: freshResult.itemType,
-          action: freshResult.action,
-        });
-      }
-
-      // 对比是否有变化
-      const changed = this._hasChanged(oldItems, freshResult.items, action);
-
-      // 恢复旧数据（当前页面继续显示缓存，下次打开看到新的）
-      this.homeItems = oldItems;
-      this.homeItemType = oldItemType;
-
-      if (changed && this.onBackgroundUpdate) {
-        this.onBackgroundUpdate({
-          action: action,
-          items: freshResult.items,
-          itemType: freshResult.itemType,
-          title: title,
-          changed: true,
-        });
-      }
+      const { result, cacheWritten } = await this._fetchRequest(request);
+      if (cacheWritten) this._publishCachedUpdate(request, result);
     } catch (_) {
       // 后台刷新失败静默处理，不影响已有缓存
     } finally {
@@ -229,9 +266,10 @@ export class ContentLoader {
    * 分页循环加载"我喜欢"的全部歌曲（API 请求）
    * 每次请求 100 首，直到 API 返回不足 100 首为止
    * @param {string} title - 显示标题
+   * @param {string} [platform] - 请求所属的平台
    * @returns {Promise<Object>} 加载结果
    */
-  async _fetchLikedTracksAll(title) {
+  async _fetchLikedTracksAll(title, platform = this.state?.selectedSource || '') {
     const BATCH_SIZE = 100;
     let offset = 0;
     let allTracks = [];
@@ -242,7 +280,7 @@ export class ContentLoader {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          platform: this.state.selectedSource,
+          platform,
           action: 'liked',
           limit: BATCH_SIZE,
           offset: offset,
@@ -277,15 +315,10 @@ export class ContentLoader {
       if (tracks.length < BATCH_SIZE) break;
     }
 
-    this.homeItems = allTracks;
-    this.homeItemType = 'track';
-    this.homeAction = 'liked';
-    this.homePage = 1;
-
     return {
-      items: this.homeItems,
-      itemType: this.homeItemType,
-      action: this.homeAction,
+      items: allTracks,
+      itemType: 'track',
+      action: 'liked',
       title: title,
     };
   }
@@ -294,14 +327,19 @@ export class ContentLoader {
    * 加载歌单详情曲目（API 请求）
    * @param {string} title
    * @param {string} playlistId
+   * @param {string} [platform] - 请求所属的平台
    * @returns {Promise<Object>}
    */
-  async _fetchPlaylistTracks(title, playlistId) {
+  async _fetchPlaylistTracks(
+    title,
+    playlistId,
+    platform = this.state?.selectedSource || '',
+  ) {
     const response = await fetch('/api/music/home', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        platform: this.state.selectedSource,
+        platform,
         action: 'playlist-tracks',
         playlistId: playlistId,
         limit: 5000,
@@ -313,16 +351,14 @@ export class ContentLoader {
       throw new Error(payload.error || '打开歌单失败');
     }
 
-    this.homeItems = Array.isArray(payload.data && payload.data.tracks)
+    const items = Array.isArray(payload.data && payload.data.tracks)
       ? payload.data.tracks
       : [];
-    this.homeItemType = 'track';
-    this.homeAction = 'playlist-tracks';
 
     return {
-      items: this.homeItems,
-      itemType: this.homeItemType,
-      action: this.homeAction,
+      items,
+      itemType: 'track',
+      action: 'playlist-tracks',
       title: title,
     };
   }
@@ -331,14 +367,19 @@ export class ContentLoader {
    * 通用主页内容请求（推荐/每日/电台/歌单列表）
    * @param {string} action
    * @param {string} title
+   * @param {string} [platform] - 请求所属的平台
    * @returns {Promise<Object>}
    */
-  async _fetchGeneric(action, title) {
+  async _fetchGeneric(
+    action,
+    title,
+    platform = this.state?.selectedSource || '',
+  ) {
     const response = await fetch('/api/music/home', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        platform: this.state.selectedSource,
+        platform,
         action: action,
         limit: 5000,
       }),
@@ -352,27 +393,26 @@ export class ContentLoader {
 
     const data = payload.data || {};
 
+    let items = [];
+    let itemType = '';
     if (action === 'personalized') {
-      this.homeItems = Array.isArray(data.playlists) ? data.playlists : [];
-      this.homeItemType = 'playlist';
+      items = Array.isArray(data.playlists) ? data.playlists : [];
+      itemType = 'playlist';
     } else if (action === 'daily' || action === 'radio') {
-      this.homeItems = Array.isArray(data.tracks) ? data.tracks : [];
-      this.homeItemType = 'track';
+      items = Array.isArray(data.tracks) ? data.tracks : [];
+      itemType = 'track';
     } else if (
       action === 'created-playlists' ||
       action === 'collected-playlists'
     ) {
-      this.homeItems = Array.isArray(data.playlists) ? data.playlists : [];
-      this.homeItemType = 'playlist';
+      items = Array.isArray(data.playlists) ? data.playlists : [];
+      itemType = 'playlist';
     }
 
-    this.homeAction = action;
-    this.homePage = 1;
-
     return {
-      items: this.homeItems,
-      itemType: this.homeItemType,
-      action: this.homeAction,
+      items,
+      itemType,
+      action,
       title: title,
     };
   }
@@ -398,6 +438,8 @@ export class ContentLoader {
   }
 
   clearHomeContent() {
+    this._requestGeneration += 1;
+    this._activeRequest = null;
     this.homeItems = [];
     this.homeItemType = '';
     this.homeAction = '';

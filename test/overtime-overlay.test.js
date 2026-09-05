@@ -15,6 +15,10 @@ test('overtime overlay has independent layers and responsive container scaling',
   const serverSource = read('src/server/http-utils.js');
 
   assert.match(
+    html,
+    /<script type="module" src="\/js\/overlays\/overtime\.js\?v=[^"]+"><\/script>/,
+  );
+  assert.match(
     serverSource,
     /\['\/overtime', 'pages\/overlays\/overtime\.html'\]/,
   );

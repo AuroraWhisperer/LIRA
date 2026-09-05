@@ -11,6 +11,20 @@ const SAFE_LICENSE_STATES = new Set([
   'authorized',
   'blocked',
 ]);
+const SAFE_GIFT_CATALOG_STATUSES = new Set([
+  'required',
+  'running',
+  'updating',
+  'ready',
+  'error',
+]);
+const SAFE_GIFT_CATALOG_PHASES = new Set([
+  'idle',
+  'catalog',
+  'images',
+  'complete',
+  'error',
+]);
 const SONG_PUBLIC_FIELDS = [
   'id',
   'title',
@@ -39,6 +53,7 @@ function registerLicenseIpc(options = {}) {
   const {
     ipcMain,
     licenseManager,
+    giftCatalog = null,
     getMainWindow = () => null,
     getDesktopBaseUrl = () => '',
     hasExactOrigin = () => false,
@@ -97,6 +112,29 @@ function registerLicenseIpc(options = {}) {
       ...sanitizeStateSnapshot(snapshot),
     };
   });
+  if (giftCatalog) {
+    safeHandle('license:get-gift-catalog-state', () => ({
+      ok: true,
+      ...sanitizeGiftCatalogState(giftCatalog.getState?.()),
+    }));
+    safeHandle('license:retry-gift-catalog', async () => {
+      if (safeState(licenseManager.getState()) !== 'authorized') {
+        return {
+          ok: false,
+          ...sanitizeGiftCatalogState({
+            status: 'required',
+            phase: 'idle',
+            error: 'LICENSE_REQUIRED',
+          }),
+        };
+      }
+      const snapshot = await giftCatalog.initialize?.();
+      const state = sanitizeGiftCatalogState(
+        snapshot || giftCatalog.getState?.(),
+      );
+      return { ok: state.status === 'ready', ...state };
+    });
+  }
   safeHandle('license:get-profile', () =>
     licenseManager
       .getProfile()
@@ -155,7 +193,7 @@ function registerLicenseIpc(options = {}) {
       .then((result) => sanitizeBackgroundResponse(result)),
   );
 
-  return licenseManager.onStateChanged((snapshot) => {
+  const disposeLicenseState = licenseManager.onStateChanged((snapshot) => {
     const window = getMainWindow();
     if (window && !window.isDestroyed?.())
       window.webContents.send(
@@ -163,6 +201,18 @@ function registerLicenseIpc(options = {}) {
         sanitizeStateSnapshot(snapshot),
       );
   });
+  const disposeGiftCatalogState = giftCatalog?.onStateChanged?.((snapshot) => {
+    const window = getMainWindow();
+    if (window && !window.isDestroyed?.())
+      window.webContents.send(
+        'license:gift-catalog-state-changed',
+        sanitizeGiftCatalogState(snapshot),
+      );
+  });
+  return () => {
+    disposeGiftCatalogState?.();
+    disposeLicenseState?.();
+  };
 }
 
 function safeErrorCode(error) {
@@ -197,6 +247,44 @@ function sanitizeStateSnapshot(snapshot = {}) {
   const device = sanitizeDevice(snapshot?.device);
   if (device) response.device = device;
   return response;
+}
+
+function sanitizeGiftCatalogState(snapshot = {}) {
+  const total = safeNonNegativeInteger(snapshot?.total);
+  const completedAtMs = Date.parse(safeString(snapshot?.completedAt, 32));
+  const completed = Math.min(
+    safeNonNegativeInteger(snapshot?.completed),
+    total,
+  );
+  return {
+    status: SAFE_GIFT_CATALOG_STATUSES.has(snapshot?.status)
+      ? snapshot.status
+      : 'required',
+    background: snapshot?.background === true,
+    phase: SAFE_GIFT_CATALOG_PHASES.has(snapshot?.phase)
+      ? snapshot.phase
+      : 'idle',
+    completed,
+    total,
+    available: Math.min(
+      safeNonNegativeInteger(snapshot?.available),
+      completed,
+    ),
+    failed: Math.min(safeNonNegativeInteger(snapshot?.failed), completed),
+    percent: Math.min(100, safeNonNegativeInteger(snapshot?.percent)),
+    currentGiftId: safeString(snapshot?.currentGiftId, 32),
+    currentGiftName: safeString(snapshot?.currentGiftName, 100),
+    completedAt: Number.isFinite(completedAtMs)
+      ? new Date(completedAtMs).toISOString()
+      : null,
+    error: sanitizeOptionalError(snapshot?.error),
+    warning: sanitizeOptionalError(snapshot?.warning),
+  };
+}
+
+function safeNonNegativeInteger(value) {
+  const number = Number(value);
+  return Number.isSafeInteger(number) && number >= 0 ? number : 0;
 }
 
 function sanitizeOptionalError(value) {

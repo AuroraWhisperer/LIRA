@@ -90,11 +90,11 @@ export function createStatePersistence(deps) {
       shuffleOrder: playbackState.shuffleOrder,
       shuffleCursor: playbackState.shuffleCursor,
       history: playbackState.history
-        .slice(-50)
+        .slice(-PlaybackConfig.HISTORY_MAX_SIZE)
         .map(serializeTrack)
         .filter(Boolean),
       displayHistory: playbackState.displayHistory
-        .slice(0, 200)
+        .slice(0, PlaybackConfig.DISPLAY_HISTORY_MAX_SIZE)
         .map(serializeTrack)
         .filter(Boolean),
     };

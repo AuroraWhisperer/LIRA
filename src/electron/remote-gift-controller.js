@@ -62,6 +62,8 @@ function createRemoteGiftController(options = {}) {
   let initializing = false;
   let streamEpochMismatch = false;
   let operation = Promise.resolve();
+  let reconcileTask = null;
+  let reconcileGeneration = null;
   let generationController = null;
   let streamController = null;
   let streamTask = null;
@@ -100,6 +102,8 @@ function createRemoteGiftController(options = {}) {
   function beginGeneration() {
     active = true;
     controllerGeneration += 1;
+    reconcileTask = null;
+    reconcileGeneration = null;
     abortRemoteWork();
     generationController = new AbortController();
     authorizationEpoch = getAuthorizationEpoch();
@@ -207,6 +211,7 @@ function createRemoteGiftController(options = {}) {
   }
 
   async function handleGenerationError(error, generation) {
+    let failure = error;
     if (!isGenerationActive(generation) || isAbortError(error)) return false;
     if (!ensureFenceCurrent(captureFence())) return false;
     if (REBUILD_ERROR_CODES.has(error?.code) && currentSource) {
@@ -219,9 +224,16 @@ function createRemoteGiftController(options = {}) {
         ) {
           return false;
         }
+        failure = rebuildError;
       }
     }
     setSyncState(GiftSyncState.ERROR);
+    if (failure?.retryable === true) {
+      abortEventStream();
+      epochValidated = false;
+      dirty = true;
+      scheduleReconnect(generation, true);
+    }
     return false;
   }
 
@@ -358,6 +370,7 @@ function createRemoteGiftController(options = {}) {
         if (!ensureFenceCurrent(fence)) return false;
       }
     } while (dirty && active && isAuthorized());
+    reconnectDelayMs = RECONNECT_MIN_MS;
     setSyncState(GiftSyncState.LEGACY_PARTIAL);
     return true;
   }
@@ -378,7 +391,6 @@ function createRemoteGiftController(options = {}) {
         signal: controller.signal,
         onOpen(metadata = {}) {
           if (!ensureFenceCurrent(streamFence)) return;
-          reconnectDelayMs = RECONNECT_MIN_MS;
           const streamEpoch = metadata.syncEpoch || null;
           if (
             !legacyMode &&
@@ -390,13 +402,13 @@ function createRemoteGiftController(options = {}) {
             dirty = true;
             setSyncState(GiftSyncState.CATCHING_UP);
             if (!initializing) {
-              enqueue(() => reconcileSafely(generation));
+              requestReconcile(generation);
             }
             return;
           }
           epochValidated = legacyMode ? false : Boolean(streamEpoch);
           publishContext();
-          if (!initializing) enqueue(() => reconcileSafely(generation));
+          if (!initializing) requestReconcile(generation);
         },
         onEvent(input) {
           if (!ensureFenceCurrent(streamFence)) return;
@@ -421,7 +433,7 @@ function createRemoteGiftController(options = {}) {
           dirty = true;
           if (legacyMode) publishContext();
           else setSyncState(GiftSyncState.CATCHING_UP);
-          enqueue(() => reconcileSafely(generation));
+          requestReconcile(generation);
         },
       });
     } catch (error) {
@@ -466,6 +478,29 @@ function createRemoteGiftController(options = {}) {
     }
   }
 
+  function requestReconcile(generation) {
+    dirty = true;
+    if (reconcileTask && reconcileGeneration === generation) return reconcileTask;
+    const task = enqueue(async () => {
+      try {
+        let result = false;
+        do {
+          if (!isGenerationActive(generation)) return false;
+          result = await reconcileSafely(generation);
+        } while (result && dirty && isGenerationActive(generation));
+        return result;
+      } finally {
+        if (reconcileTask === task) {
+          reconcileTask = null;
+          reconcileGeneration = null;
+        }
+      }
+    });
+    reconcileTask = task;
+    reconcileGeneration = generation;
+    return task;
+  }
+
   function updateLiveState() {
     if (
       active &&
@@ -475,6 +510,7 @@ function createRemoteGiftController(options = {}) {
       !dirty &&
       currentState.finalCursor === latestCursor
     ) {
+      reconnectDelayMs = RECONNECT_MIN_MS;
       setSyncState(GiftSyncState.LIVE);
     } else if (
       active &&
@@ -488,14 +524,16 @@ function createRemoteGiftController(options = {}) {
     }
   }
 
-  function scheduleReconnect(generation) {
+  function scheduleReconnect(generation, initialize = false) {
     clearReconnectTimer();
     if (!isGenerationActive(generation) || !isAuthorized()) return;
     const delay = reconnectDelayMs;
     reconnectDelayMs = Math.min(RECONNECT_MAX_MS, reconnectDelayMs * 2);
     reconnectTimer = timers.setTimeout(() => {
       reconnectTimer = null;
-      if (ensureFenceCurrent(captureFence())) startEventStream(generation);
+      if (!ensureFenceCurrent(captureFence()) || !isGenerationActive(generation)) return;
+      if (initialize) enqueue(() => initializeGeneration(generation));
+      else startEventStream(generation);
     }, delay);
     reconnectTimer.unref?.();
   }
@@ -524,6 +562,8 @@ function createRemoteGiftController(options = {}) {
     if (disposed) return;
     active = false;
     controllerGeneration += 1;
+    reconcileTask = null;
+    reconcileGeneration = null;
     abortRemoteWork();
     dirty = false;
     epochValidated = false;

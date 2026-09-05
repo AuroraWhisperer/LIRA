@@ -111,6 +111,16 @@ function isRemoteGiftImagePath(value) {
   }
 }
 
+function isLegacyGiftImagePath(value) {
+  return (
+    typeof value === 'string' &&
+    /^\/img\/bilibili-gifts\/(?:[A-Za-z0-9._-]+\/)*[A-Za-z0-9._-]+\.(?:gif|jpe?g|png|webp)$/iu.test(
+      value,
+    ) &&
+    !value.includes('..')
+  );
+}
+
 function toIso(value) {
   return new Date(Math.max(0, Number(value) || 0)).toISOString();
 }
@@ -120,6 +130,7 @@ module.exports = {
   applyFixedEffectRepeatedly,
   clampMs,
   getGiftEventId,
+  isLegacyGiftImagePath,
   isRemoteGiftImagePath,
   normalizeQuantity,
   normalizeState,

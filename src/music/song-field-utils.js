@@ -9,22 +9,23 @@ function splitSongLanguages(value) {
     .filter(Boolean);
 }
 
-function splitSongArtists(value) {
+function splitSongArtists(value, { preservePunctuation = false } = {}) {
+  // Random requests preserve punctuation inside artist names; library filters
+  // retain the legacy comma-separated import format.
+  const separator = preservePunctuation
+    ? /\s*(?:\/|／|&|＆)\s*/
+    : /\s*(?:\/|／|&|＆|、|,|，)\s*/;
   return String(value || '')
-    .split(/\s*(?:\/|／|&|＆|、|,|，)\s*/)
+    .split(separator)
     .map((artist) => cleanText(artist))
     .filter(Boolean);
 }
 
 function splitSongTags(value) {
   return String(value || '')
-    .split(/[,，]/)
+    .split(/[,，、;；|]/)
     .map((tag) => cleanText(tag))
     .filter(Boolean);
-}
-
-function escapeLikePattern(value) {
-  return value.replace(/[\\%_]/g, '\\$&');
 }
 
 function normalizeRandomScopeText(value) {
@@ -44,7 +45,6 @@ module.exports = {
   splitSongLanguages,
   splitSongArtists,
   splitSongTags,
-  escapeLikePattern,
   normalizeRandomScopeText,
   randomSourceValue,
 };

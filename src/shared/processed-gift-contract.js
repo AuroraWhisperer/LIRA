@@ -16,6 +16,7 @@ const GIFT_KEYS = Object.freeze([
   'totalPrice',
   'coinType',
   'isBlindBox',
+  'blindBoxId',
   'blindBoxName',
   'blindBoxPrice',
   'blindProfit',
@@ -235,6 +236,13 @@ function validateGiftDisplayWire(source, errorFactory) {
   ) {
     throw errorFactory();
   }
+  if (
+    source.blindBoxId !== null &&
+    (typeof source.blindBoxId !== 'string' ||
+      !/^[1-9]\d{0,19}$/u.test(source.blindBoxId))
+  ) {
+    throw errorFactory();
+  }
 }
 
 function canonicalizeGiftDisplay(source, errorFactory) {
@@ -279,10 +287,12 @@ function canonicalizeGiftDisplay(source, errorFactory) {
   }
 
   const isBlindBox = source.isBlindBox === true;
+  let blindBoxId = null;
   let blindBoxName = '';
   let blindBoxPriceCents = null;
   let blindProfitCents = null;
   if (isBlindBox) {
+    blindBoxId = normalizeOptionalBlindBoxId(source.blindBoxId, errorFactory);
     blindBoxName = boundedCanonicalText(
       canonicalGiftText(source.blindBoxName),
       100,
@@ -304,6 +314,7 @@ function canonicalizeGiftDisplay(source, errorFactory) {
         : totalPriceCents - blindBoxPriceCents;
     if (suppliedProfitCents !== blindProfitCents) throw errorFactory();
   } else if (
+    source.blindBoxId !== null ||
     canonicalGiftText(source.blindBoxName) ||
     (source.blindBoxPrice !== null && source.blindBoxPrice !== undefined) ||
     (source.blindProfit !== null && source.blindProfit !== undefined)
@@ -322,6 +333,7 @@ function canonicalizeGiftDisplay(source, errorFactory) {
     totalPriceCents,
     coinType,
     isBlindBox,
+    blindBoxId,
     blindBoxName,
     blindBoxPrice:
       blindBoxPriceCents === null ? null : blindBoxPriceCents / 100,
@@ -330,6 +342,14 @@ function canonicalizeGiftDisplay(source, errorFactory) {
     blindProfitCents,
     createdAt: new Date(createdAtMs).toISOString(),
   });
+}
+
+function normalizeOptionalBlindBoxId(value, errorFactory) {
+  if (value === null) return null;
+  if (typeof value !== 'string') throw errorFactory();
+  const id = value.trim();
+  if (!/^[1-9]\d{0,19}$/u.test(id)) throw errorFactory();
+  return id;
 }
 
 function normalizeRequiredSyncMetadata(input, errorFactory) {

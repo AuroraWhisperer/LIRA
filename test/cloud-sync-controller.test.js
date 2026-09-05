@@ -196,7 +196,67 @@ test('uninitialized cloud scopes are seeded from the authorized desktop', async 
   await fixture.controller.start();
   assert.deepEqual(
     fixture.calls.map((call) => call[0]),
-    ['push-settings', 'push-songs', 'push-bilibili'],
+    ['push-settings', 'apply-settings', 'push-songs', 'push-bilibili'],
+  );
+  fixture.controller.dispose();
+});
+
+test('a settings upload applies the server-assigned custom id and mapping state', async () => {
+  const submitted = [
+    {
+      giftId: null,
+      name: '本地主播盲盒',
+      price: 5,
+      outputs: [{ giftId: '35207', name: '幸运泡泡', price: 1.5 }],
+    },
+  ];
+  const assigned = [{ ...submitted[0], customId: '11111111-1111-4111-8111-111111111111' }];
+  const mappingState = {
+    mode: 'v2',
+    catalogVersion: 'sha256:catalog',
+    settingsRevision: 8,
+    customCount: 1,
+    takenOverCount: 0,
+    migrationPendingCount: 0,
+    applied: true,
+  };
+  const fixture = createFixture({
+    licenseManager: {
+      updateCloudSettings: async (settings) => {
+        fixture.calls.push(['push-settings', settings]);
+        return {
+          initialized: true,
+          revision: 8,
+          values: { ...settings, giftBlindBoxCustomConfigV2: assigned },
+          blindBoxMapping: mappingState,
+        };
+      },
+    },
+    runtime: {
+      getCloudSettingsSnapshot: () => ({
+        roomId: 'local-room',
+        enableBilibili: true,
+        paused: false,
+        queueLimit: 25,
+        userCooldownSeconds: 5,
+        onlyFromLibrary: false,
+        allowDuplicate: true,
+        giftBlindBoxConfig: LOCAL_BLIND_BOX_CONFIG,
+        giftBlindBoxCustomConfigV2: submitted,
+      }),
+      setBlindBoxMappingState: (state) =>
+        fixture.calls.push(['mapping-state', state]),
+    },
+  });
+
+  fixture.emitLocal('settings');
+  await fixture.controller.whenIdle();
+
+  const applied = fixture.calls.find((call) => call[0] === 'apply-settings');
+  assert.deepEqual(applied[1].giftBlindBoxCustomConfigV2, assigned);
+  assert.deepEqual(
+    fixture.calls.find((call) => call[0] === 'mapping-state')[1],
+    mappingState,
   );
   fixture.controller.dispose();
 });
@@ -321,7 +381,7 @@ test('a failed dirty upload is retried and blocks an older cloud pull', async ()
   assert.equal(attempts, 2);
   assert.equal(
     fixture.calls.some((call) => call[0] === 'apply-settings'),
-    false,
+    true,
   );
   fixture.controller.dispose();
 });
@@ -478,6 +538,48 @@ test('authorization loss stops polling and dispose removes both subscriptions', 
     fixture.calls.some((call) => call[0] === 'push-songs'),
     false,
   );
+});
+
+test('stopping a cloud read prevents late settings and song writes', async () => {
+  let resolveRead;
+  let entered;
+  const reading = new Promise((resolve) => { entered = resolve; });
+  const fixture = createFixture({
+    licenseManager: {
+      getCloudState: () => {
+        entered();
+        return new Promise((resolve) => { resolveRead = resolve; });
+      },
+    },
+  });
+  const task = fixture.controller.start();
+  await reading;
+  fixture.controller.stop();
+  resolveRead({ settings: { initialized: true, revision: 99, values: {} } });
+  await task;
+  assert.deepEqual(fixture.calls, []);
+  fixture.controller.dispose();
+});
+
+test('disposing during a song fetch prevents applying its late response', async () => {
+  let resolveRead;
+  let entered;
+  const reading = new Promise((resolve) => { entered = resolve; });
+  const fixture = createFixture({
+    licenseManager: {
+      getCloudSongs: () => {
+        entered();
+        return new Promise((resolve) => { resolveRead = resolve; });
+      },
+    },
+  });
+  const task = fixture.controller.start();
+  await reading;
+  fixture.controller.dispose();
+  const before = fixture.calls.length;
+  resolveRead({ songs: [{ title: 'late' }], revision: 3 });
+  await task;
+  assert.equal(fixture.calls.length, before);
 });
 
 test('a failed cloud poll still schedules the next retry', async () => {

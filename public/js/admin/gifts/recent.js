@@ -1,13 +1,23 @@
 // 编写人：Aurora
 // 最近礼物模块 - 负责最近礼物列表渲染和图标工具函数
+import { eventBus, Events } from '../../shared/event-bus.js';
+import { getLegacyAdminModules } from '../legacy-admin-bridge.js';
+
 'use strict';
 
 (function () {
   const MAX_RECENT_GIFT_ROWS = 6;
   const HIGH_VALUE_GIFT_MIN_RMB = 1000;
+  const GIFT_PLACEHOLDER = '/img/overtime-machine/gift-placeholder.svg';
+  const SPECIAL_BLIND_BOX_TYPES = [
+    { name: '心动盲盒', id: '32251', className: 'blind-box-heart' },
+    { name: '幸运盲盒', id: '35206', className: 'blind-box-lucky' },
+  ];
   let recentGiftResizeObserver = null;
   let giftArtworkById = null;
   let giftArtworkLoadPromise = null;
+  let giftArtworkRevision = 0;
+  let giftArtworkEventsUnsubscribe = null;
   let latestRecentGiftItems = [];
 
   const { escapeHtml, formatTime, formatMoney } = window.AdminApp.utils;
@@ -37,17 +47,22 @@
     if (giftArtworkById) return giftArtworkById;
     if (giftArtworkLoadPromise) return giftArtworkLoadPromise;
 
+    const requestRevision = giftArtworkRevision;
     giftArtworkLoadPromise = (async () => {
       const artworkById = new Map();
       if (typeof window.fetch !== 'function') return artworkById;
 
       try {
-        const response = await window.fetch('/img/bilibili-gifts.json');
+        const response = await window.fetch('/api/overtime/gifts/catalog');
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const payload = await response.json();
-        for (const gift of Array.isArray(payload?.gifts) ? payload.gifts : []) {
+        if (payload?.ok === false)
+          throw new Error(payload.error || '礼物目录不可用');
+        for (const gift of Array.isArray(payload?.data?.gifts)
+          ? payload.data.gifts
+          : []) {
           const giftId = String(gift?.id ?? '').trim();
-          const imagePath = normalizeGiftArtworkPath(gift?.image);
+          const imagePath = normalizeGiftArtworkPath(gift?.imagePath);
           if (giftId && imagePath) artworkById.set(giftId, imagePath);
         }
       } catch (error) {
@@ -56,24 +71,62 @@
       return artworkById;
     })();
 
-    giftArtworkById = await giftArtworkLoadPromise;
+    const loadedArtwork = await giftArtworkLoadPromise;
     giftArtworkLoadPromise = null;
+    if (!giftArtworkById && requestRevision === giftArtworkRevision)
+      giftArtworkById = loadedArtwork;
+    if (!giftArtworkById) giftArtworkById = new Map();
     if (latestRecentGiftItems.length > 0)
       renderGiftRecentList(latestRecentGiftItems);
     return giftArtworkById;
   }
 
   function normalizeGiftArtworkPath(value) {
-    const imagePath = String(value ?? '')
-      .trim()
-      .replace(/^\/+/, '');
+    const imagePath = String(value ?? '').trim();
     if (
-      !/^bilibili-gifts\/[a-z0-9-]+\/[a-z0-9._-]+\.(?:webp|png|jpe?g)$/i.test(
+      !/^\/overtime-gift-images\/[a-z0-9._-]+\.(?:gif|webp|png|jpe?g)$/i.test(
         imagePath,
-      )
+      ) ||
+      imagePath.includes('..')
     )
       return '';
-    return `/img/${imagePath}`;
+    return imagePath;
+  }
+
+  function applyGiftArtworkSnapshot(snapshot) {
+    if (!snapshot || typeof snapshot !== 'object') return;
+    if (!Array.isArray(snapshot.gifts)) return;
+
+    giftArtworkRevision += 1;
+    const artworkById = giftArtworkById
+      ? new Map(giftArtworkById)
+      : new Map();
+    for (const gift of snapshot.gifts) {
+      const giftId = String(gift?.id ?? '').trim();
+      const imagePath = normalizeGiftArtworkPath(gift?.imagePath);
+      if (giftId && imagePath) artworkById.set(giftId, imagePath);
+    }
+    giftArtworkById = artworkById;
+    getLegacyAdminModules().gifts?.blindbox?.applyOfficialCatalogSnapshot?.(snapshot);
+    if (latestRecentGiftItems.length > 0)
+      renderGiftRecentList(latestRecentGiftItems);
+  }
+
+  function initGiftArtworkCatalog(eventBusRef, events) {
+    giftArtworkEventsUnsubscribe?.();
+    giftArtworkEventsUnsubscribe = null;
+    if (
+      typeof eventBusRef?.on === 'function' &&
+      events?.GIFT_CATALOG_UPDATED
+    ) {
+      giftArtworkEventsUnsubscribe = eventBusRef.on(
+        events.GIFT_CATALOG_UPDATED,
+        ({ snapshot } = {}) => applyGiftArtworkSnapshot(snapshot),
+      );
+    }
+    return loadGiftArtworkCatalog().catch((error) => {
+      console.warn('初始化礼物图片目录失败：', error);
+    });
   }
 
   // ── 最近礼物列表 ──
@@ -222,45 +275,25 @@
    * @returns {Object|null} 图标信息 {name, src}
    */
   function getBlindBoxIcon(item) {
+    if (!(item?.is_blind_box === true || item?.is_blind_box === 1)) return null;
+    const recordedBoxName = String(item?.blind_box_name || '').trim();
     const blindBoxName = String(
-      (item && (item.blind_box_name || item.name || item.gift_name)) || '',
+      recordedBoxName || item?.name || item?.gift_name || '',
     ).trim();
-    if (blindBoxName.includes('心动盲盒')) {
-      return {
-        name: '心动盲盒',
-        className: 'blind-box-heart',
-        src: '/img/bilibili-gifts/blind-box/32251.webp',
-      };
-    }
-    if (blindBoxName.includes('幸运盲盒')) {
-      return {
-        name: '幸运盲盒',
-        className: 'blind-box-lucky',
-        src: '/img/bilibili-gifts/blind-box/35206.webp',
-      };
-    }
-    if (blindBoxName.includes('小熊虫盲盒')) {
-      return {
-        name: '小熊虫盲盒',
-        className: 'blind-box-bear',
-        src: '/img/bilibili-gifts/blind-box/35800.webp',
-      };
-    }
-    if (blindBoxName.includes('七夕鹊匣')) {
-      return {
-        name: '七夕鹊匣',
-        className: 'blind-box-qixi',
-        src: '/img/bilibili-gifts/blind-box/35786.webp',
-      };
-    }
-    if (blindBoxName.includes('羁绊宝盒')) {
-      return {
-        name: '羁绊宝盒',
-        className: 'blind-box-bond',
-        src: '/img/bilibili-gifts/blind-box/35461.webp',
-      };
-    }
-    return null;
+    const blindBoxId = String(item?.blind_box_id || '').trim();
+    const type = SPECIAL_BLIND_BOX_TYPES.find(
+      ({ id, name }) => blindBoxId === id || (!blindBoxId && blindBoxName.includes(name)),
+    );
+    // Open-result records carry the output ID, while direct box records carry
+    // the box ID. Only the latter can be resolved from item.gift_id exactly.
+    const artworkId =
+      blindBoxId ||
+      (recordedBoxName ? type?.id : String(item?.gift_id || '').trim());
+    return {
+      name: type?.name || blindBoxName || '盲盒',
+      className: type?.className || 'blind-box-default',
+      src: giftArtworkById?.get(artworkId) || GIFT_PLACEHOLDER,
+    };
   }
 
   function getHighValueGiftArtwork(item) {
@@ -287,7 +320,5 @@
     loadGiftArtworkCatalog,
   };
 
-  loadGiftArtworkCatalog().catch((error) => {
-    console.warn('初始化礼物图片目录失败：', error);
-  });
+  initGiftArtworkCatalog(eventBus, Events);
 })();

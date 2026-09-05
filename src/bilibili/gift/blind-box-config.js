@@ -66,6 +66,88 @@ function normalizeGiftBlindBoxConfig(input) {
   return boxes;
 }
 
+function normalizeGiftBlindBoxCustomConfigV2(input) {
+  if (!Array.isArray(input) || input.length > MAX_BOXES) throw invalidConfig();
+  const seenCustomIds = new Set();
+  const seenNames = new Set();
+  const seenGiftIds = new Set();
+  const boxes = input.map((box) => {
+    if (!box || typeof box !== 'object' || Array.isArray(box)) {
+      throw invalidConfig();
+    }
+    const name = normalizeV2Name(box.name);
+    if (seenNames.has(name)) throw invalidConfig();
+    seenNames.add(name);
+    const customId = normalizeOptionalCustomId(box.customId);
+    if (customId && seenCustomIds.has(customId)) throw invalidConfig();
+    if (customId) seenCustomIds.add(customId);
+    const giftId = normalizeGiftId(box.giftId, { nullable: true });
+    if (giftId && seenGiftIds.has(giftId)) throw invalidConfig();
+    if (giftId) seenGiftIds.add(giftId);
+    if (
+      !Array.isArray(box.outputs) ||
+      box.outputs.length === 0 ||
+      box.outputs.length > MAX_OUTPUTS_PER_BOX
+    ) {
+      throw invalidConfig();
+    }
+    const outputIds = new Set();
+    const outputs = box.outputs.map((output) => {
+      if (!output || typeof output !== 'object' || Array.isArray(output)) {
+        throw invalidConfig();
+      }
+      const outputGiftId = normalizeGiftId(output.giftId);
+      if (outputIds.has(outputGiftId)) throw invalidConfig();
+      outputIds.add(outputGiftId);
+      const normalized = {
+        giftId: outputGiftId,
+        name: normalizeV2Name(output.name),
+      };
+      if (output.price !== undefined && output.price !== null) {
+        normalized.price = normalizePrice(output.price);
+      }
+      return normalized;
+    });
+    return {
+      ...(customId ? { customId } : {}),
+      giftId,
+      name,
+      price: normalizePrice(box.price),
+      outputs,
+    };
+  });
+  if (Buffer.byteLength(JSON.stringify(boxes), 'utf8') > MAX_CONFIG_BYTES) {
+    throw invalidConfig();
+  }
+  return boxes;
+}
+
+function normalizeV2Name(value) {
+  const name = String(value || '').trim().normalize('NFC');
+  if (!name || name.length > MAX_NAME_LENGTH || /\p{Cc}/u.test(name)) {
+    throw invalidConfig();
+  }
+  return name;
+}
+
+function normalizeGiftId(value, { nullable = false } = {}) {
+  if (nullable && (value === null || value === undefined || value === '')) {
+    return null;
+  }
+  const id = String(value ?? '').trim();
+  if (!/^[1-9]\d{0,19}$/u.test(id)) throw invalidConfig();
+  return id;
+}
+
+function normalizeOptionalCustomId(value) {
+  if (value === null || value === undefined || value === '') return null;
+  const id = String(value).trim().toLowerCase();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u.test(id)) {
+    throw invalidConfig();
+  }
+  return id;
+}
+
 function loadBlindBoxMap(context) {
   const settings = context.settings();
   const raw = cleanText(settings.giftBlindBoxConfig);
@@ -114,4 +196,8 @@ function matchBlindBox(context, giftName) {
   return map.get(cleanText(giftName)) || null;
 }
 
-module.exports = { matchBlindBox, normalizeGiftBlindBoxConfig };
+module.exports = {
+  matchBlindBox,
+  normalizeGiftBlindBoxConfig,
+  normalizeGiftBlindBoxCustomConfigV2,
+};

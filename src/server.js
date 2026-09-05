@@ -37,9 +37,6 @@ const { createGiftSyncStore } = require('./storage/gift-sync-store');
 const { DEFAULT_SETTINGS } = require('./storage/settings-defaults');
 const { prepareSettingsBootstrap } = require('./server/settings-bootstrap');
 const giftService = require('./bilibili/gift');
-const {
-  normalizeGiftBlindBoxConfig,
-} = require('./bilibili/gift/blind-box-config');
 const giftEffectModule = require('./bilibili/gift/effect-config');
 const giftFrameModule = require('./bilibili/gift/frame-config');
 const { createDanmakuFeedBuffer } = require('./bilibili/danmaku/feed-buffer');
@@ -53,63 +50,10 @@ const PORT_CLEANUP_TIMEOUT_MS = 7500;
 const PORT_CLEANUP_POLL_MS = 120;
 const MAX_BODY_BYTES = 16 * 1024 * 1024;
 const LOCAL_GIFT_DETECTION_ENABLED = false;
-const CLOUD_SETTING_KEYS = [
-  'roomId',
-  'enableBilibili',
-  'paused',
-  'queueLimit',
-  'userCooldownSeconds',
-  'onlyFromLibrary',
-  'allowDuplicate',
-];
-
-function normalizeCloudBoolean(value) {
-  if (value === true || value === false) return value;
-  if (value === 'true' || value === '1' || value === 1) return true;
-  if (value === 'false' || value === '0' || value === 0) return false;
-  throw new Error('云端同步设置包含无效布尔值。');
-}
-
-function normalizeCloudInteger(value, min, max) {
-  const number = Number(value);
-  if (!Number.isInteger(number) || number < min || number > max) {
-    throw new Error('云端同步设置包含无效整数。');
-  }
-  return number;
-}
-
-function normalizeCloudSettingsSnapshot(input) {
-  if (!input || typeof input !== 'object' || Array.isArray(input)) {
-    throw new Error('云端同步设置格式无效。');
-  }
-  for (const key of CLOUD_SETTING_KEYS) {
-    if (!Object.prototype.hasOwnProperty.call(input, key)) {
-      throw new Error(`云端同步设置缺少 ${key}。`);
-    }
-  }
-  const rawRoomId = String(input.roomId || '').trim();
-  const roomId = sharedUtils.normalizeRoomInput(rawRoomId);
-  if (rawRoomId && !roomId) throw new Error('云端直播间号无效。');
-  const settings = {
-    roomId,
-    enableBilibili: normalizeCloudBoolean(input.enableBilibili),
-    paused: normalizeCloudBoolean(input.paused),
-    queueLimit: normalizeCloudInteger(input.queueLimit, 1, 300),
-    userCooldownSeconds: normalizeCloudInteger(
-      input.userCooldownSeconds,
-      0,
-      3600,
-    ),
-    onlyFromLibrary: normalizeCloudBoolean(input.onlyFromLibrary),
-    allowDuplicate: normalizeCloudBoolean(input.allowDuplicate),
-  };
-  if (Object.prototype.hasOwnProperty.call(input, 'giftBlindBoxConfig')) {
-    settings.giftBlindBoxConfig = normalizeGiftBlindBoxConfig(
-      input.giftBlindBoxConfig,
-    );
-  }
-  return settings;
-}
+const {
+  normalizeCloudSettingsSnapshot,
+  serializeCloudSettings,
+} = require('./server/settings-contract');
 
 function createServerRuntime(runtimeOptions = {}) {
   const {
@@ -150,6 +94,7 @@ function createServerRuntime(runtimeOptions = {}) {
   let shutdownPromise = null;
   let sessionToken = '';
   let rebuildGiftProjection = () => false;
+  let blindBoxMappingState = null;
   const cloudSyncListeners = new Set();
   const inflightTracker = createInflightTracker();
   const licenseGate = runtimeOptions.licenseGate || {
@@ -214,13 +159,9 @@ function createServerRuntime(runtimeOptions = {}) {
         db,
         settingsStore,
         dataDir: DATA_DIR,
-        publicDir: runtimeOptions.giftSalePublicDir || PUBLIC_DIR,
         giftSaleGetRoomId: runtimeOptions.giftSaleGetRoomId,
         giftSaleGetBlindBoxConfig: runtimeOptions.giftSaleGetBlindBoxConfig,
         giftSaleFetchJson: runtimeOptions.giftSaleFetchJson,
-        giftSaleGetCookieHeader:
-          runtimeOptions.giftSaleGetCookieHeader ||
-          options.bilibiliAuth?.getCookieHeader,
         remoteGiftCatalog:
           typeof options.remoteGiftCatalog?.fetch === 'function'
             ? {
@@ -483,6 +424,7 @@ function createServerRuntime(runtimeOptions = {}) {
       gifts: domainServices.gifts.getSnapshot(),
       giftSprint: domainServices.gifts.getSprintSnapshot(),
       giftDetection: domainServices.gifts.getStatus(),
+      blindBoxMapping: blindBoxMappingState,
       overtime: domainServices.overtime.getSnapshot(),
       settings: settingsStore.getSettings(),
       categories: domainServices.songs.listCategories(),
@@ -550,6 +492,7 @@ function createServerRuntime(runtimeOptions = {}) {
       shutdownPayload: { type: 'shutdown', reason: 'manual' },
     });
     gameSessionService?.dispose();
+    wheelSessionService?.dispose();
     if (aiRuntime) {
       try {
         await aiRuntime.shutdown();
@@ -683,35 +626,36 @@ function createServerRuntime(runtimeOptions = {}) {
 
   function getCloudSettingsSnapshot() {
     if (!settingsStore) throw new Error('Settings store not ready.');
-    const settings = settingsStore.getSettings();
-    return {
-      roomId: sharedUtils.normalizeRoomInput(settings.roomId),
-      enableBilibili: settings.enableBilibili === 'true',
-      paused: settings.paused === 'true',
-      queueLimit: Number(settings.queueLimit),
-      userCooldownSeconds: Number(settings.userCooldownSeconds),
-      onlyFromLibrary: settings.onlyFromLibrary === 'true',
-      allowDuplicate: settings.allowDuplicate === 'true',
-      giftBlindBoxConfig: normalizeGiftBlindBoxConfig(
-        JSON.parse(settings.giftBlindBoxConfig),
-      ),
-    };
+    return serializeCloudSettings(settingsStore.getSettings());
   }
 
   function applyCloudSettingsSnapshot(input) {
     if (!settingsStore || !bilibiliRuntime) {
       throw new Error('Application runtime not ready.');
     }
-    const settings = normalizeCloudSettingsSnapshot(input);
-    for (const [key, value] of Object.entries(settings)) {
-      settingsStore.setSetting(
-        key,
-        key === 'giftBlindBoxConfig' ? JSON.stringify(value) : String(value),
-      );
-    }
+    settingsStore.setSettings(normalizeCloudSettingsSnapshot(input));
     bilibiliRuntime.configure();
     broadcastSnapshot('cloud:settings');
     return getCloudSettingsSnapshot();
+  }
+
+  function setBlindBoxMappingState(input) {
+    if (!input || typeof input !== 'object' || Array.isArray(input)) {
+      blindBoxMappingState = null;
+      return;
+    }
+    blindBoxMappingState = Object.freeze({
+      mode: input.mode === 'legacy' ? 'legacy' : 'v2',
+      catalogVersion: String(input.catalogVersion || '') || null,
+      settingsRevision: Math.max(0, Number(input.settingsRevision) || 0),
+      customCount: Math.max(0, Number(input.customCount) || 0),
+      takenOverCount: Math.max(0, Number(input.takenOverCount) || 0),
+      migrationPendingCount: Math.max(
+        0,
+        Number(input.migrationPendingCount) || 0,
+      ),
+      applied: input.applied === true,
+    });
   }
 
   function getCloudSongsSnapshot() {
@@ -742,6 +686,36 @@ function createServerRuntime(runtimeOptions = {}) {
     return () => cloudSyncListeners.delete(listener);
   }
 
+  function getGiftCatalogInitializationState() {
+    return (
+      domainServices?.overtimeGiftCatalog?.getInitializationState?.() || {
+        status: 'required',
+        phase: 'idle',
+        percent: 0,
+      }
+    );
+  }
+
+  function initializeGiftCatalog(options = {}) {
+    if (!domainServices?.overtimeGiftCatalog?.initializeGlobalCatalog)
+      return Promise.reject(new Error('Gift catalog is not ready.'));
+    return domainServices.overtimeGiftCatalog.initializeGlobalCatalog(options);
+  }
+
+  function isGiftCatalogInitialized() {
+    return (
+      domainServices?.overtimeGiftCatalog?.isGlobalCatalogInitialized?.() === true
+    );
+  }
+
+  function onGiftCatalogInitializationStateChanged(listener) {
+    return (
+      domainServices?.overtimeGiftCatalog?.onInitializationStateChanged?.(
+        listener,
+      ) || (() => {})
+    );
+  }
+
   return {
     start: startServer,
     stop: shutdownApplication,
@@ -760,9 +734,14 @@ function createServerRuntime(runtimeOptions = {}) {
     importProcessedGiftEvent,
     getCloudSettingsSnapshot,
     applyCloudSettingsSnapshot,
+    setBlindBoxMappingState,
     getCloudSongsSnapshot,
     replaceCloudSongsSnapshot,
     onCloudSyncRequested,
+    getGiftCatalogInitializationState,
+    initializeGiftCatalog,
+    isGiftCatalogInitialized,
+    onGiftCatalogInitializationStateChanged,
     getApiToken: () => sessionToken,
     getSetting,
   };

@@ -84,8 +84,9 @@ async function postSettings(body) {
   const context = {
     settings: {
       defaults: { ...DEFAULT_SETTINGS, danmakuOverlayStyle: 'signal' },
-      set(key, value) {
-        writes.push([key, value]);
+      setMany(values) {
+        writes.push(...Object.entries(values));
+        return Object.keys(values);
       },
     },
     bilibili: {

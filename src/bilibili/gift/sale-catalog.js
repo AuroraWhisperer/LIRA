@@ -8,24 +8,17 @@ const GIFT_DATA_URL =
   'https://api.live.bilibili.com/xlive/web-room/v1/giftPanel/giftData';
 const GIFT_CONFIG_URL =
   'https://api.live.bilibili.com/xlive/web-room/v1/giftPanel/giftConfig';
-const GIFT_BAG_URL =
-  'https://api.live.bilibili.com/xlive/web-room/v1/gift/bag_list';
 const {
-  MAPPING_FILES,
   EXCLUDED_GIFT_IDS,
   buildGiftCatalog,
   collectPanelGiftIds,
-  collectSendableBackpackGiftIds,
   expandBlindBoxSaleIds,
   finiteNonNegative,
   isExcludedGiftId,
   parseGiftConfig,
-  parseGiftMappingDocument,
-  readGiftMappings,
-  searchLocalGiftCatalog,
-  validateLocalGiftQuery,
 } = saleCatalogParser;
 const DEFAULT_MIN_REFRESH_MS = 10_000;
+const SNAPSHOT_SCHEMA_VERSION = 1;
 
 function createUnavailableGiftSaleCatalogService() {
   return {
@@ -50,15 +43,9 @@ function createUnavailableGiftSaleCatalogService() {
 
 function createGiftSaleCatalogService(options = {}) {
   const dataDir = path.resolve(String(options.dataDir || ''));
-  const publicDir = path.resolve(String(options.publicDir || ''));
-  if (!options.dataDir || !options.publicDir)
-    throw new Error('dataDir and publicDir are required.');
+  if (!options.dataDir) throw new Error('dataDir is required.');
   const getRoomId = options.getRoomId || (() => '');
   const getBlindBoxConfig = options.getBlindBoxConfig || (() => '');
-  const getCookieHeader =
-    typeof options.getCookieHeader === 'function'
-      ? options.getCookieHeader
-      : null;
   const fetchJson = options.fetchJson || defaultFetchJson;
   const now = options.now || Date.now;
   const minRefreshMs = Math.max(
@@ -81,10 +68,6 @@ function createGiftSaleCatalogService(options = {}) {
     };
   }
 
-  function searchLocal(query) {
-    return searchLocalGiftCatalog(publicDir, query);
-  }
-
   async function refresh() {
     const roomId = validateRoomId(getRoomId());
     const currentMs = now();
@@ -98,19 +81,12 @@ function createGiftSaleCatalogService(options = {}) {
     if (pending) return pending;
 
     pending = (async () => {
-      const cookieHeader = getCookieHeader
-        ? String((await getCookieHeader()) || '').trim()
-        : '';
-      const [giftData, giftConfig, giftBag] = await Promise.all([
+      const [giftData, giftConfig] = await Promise.all([
         fetchJson('gift_data', giftDataUrl(roomId), roomId),
         fetchJson('gift_config', giftConfigUrl(roomId), roomId),
-        cookieHeader
-          ? fetchJson('gift_bag', giftBagUrl(roomId), roomId, { cookieHeader })
-          : Promise.resolve(null),
       ]);
       validateBilibiliPayload(giftData, '礼物面板');
       validateBilibiliPayload(giftConfig, '礼物配置');
-      if (giftBag) validateBilibiliPayload(giftBag, '礼物背包');
       const panelSaleIds = collectPanelGiftIds(giftData);
       if (panelSaleIds.size === 0)
         throw new Error('Bilibili 礼物面板没有返回可用礼物。');
@@ -120,14 +96,7 @@ function createGiftSaleCatalogService(options = {}) {
         configById,
         getBlindBoxConfig(),
       );
-      for (const id of collectSendableBackpackGiftIds(
-        giftBag,
-        roomId,
-        currentMs,
-      ))
-        saleIds.add(id);
-      const mappings = readGiftMappings(publicDir);
-      const gifts = buildGiftCatalog(saleIds, configById, mappings);
+      const gifts = buildGiftCatalog(saleIds, configById);
       snapshot = {
         roomId,
         refreshedAt: new Date(currentMs).toISOString(),
@@ -136,7 +105,10 @@ function createGiftSaleCatalogService(options = {}) {
         gifts,
         cached: false,
       };
-      writeJsonAtomic(snapshotPath, snapshot);
+      writeJsonAtomic(snapshotPath, {
+        schemaVersion: SNAPSHOT_SCHEMA_VERSION,
+        ...snapshot,
+      });
       lastRefreshMs = currentMs;
       console.log(
         `[Bilibili][GiftSale] roomId=${roomId} refreshed=${gifts.length}`,
@@ -148,7 +120,13 @@ function createGiftSaleCatalogService(options = {}) {
     return pending;
   }
 
-  return { getSnapshot, refresh, searchLocal };
+  return {
+    getSnapshot,
+    refresh,
+    searchLocal() {
+      throw new Error('本地礼物搜索服务未配置。');
+    },
+  };
 }
 
 function validateRoomId(value) {
@@ -175,11 +153,7 @@ function giftConfigUrl(roomId) {
   return `${GIFT_CONFIG_URL}?platform=pc&source=live&room_id=${encodeURIComponent(roomId)}`;
 }
 
-function giftBagUrl(roomId) {
-  return `${GIFT_BAG_URL}?room_id=${encodeURIComponent(roomId)}`;
-}
-
-async function defaultFetchJson(endpointName, url, roomId, options = {}) {
+async function defaultFetchJson(endpointName, url, roomId) {
   const headers = {
     'User-Agent':
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126 Safari/537.36',
@@ -188,8 +162,6 @@ async function defaultFetchJson(endpointName, url, roomId, options = {}) {
     Origin: 'https://live.bilibili.com',
     Referer: `https://live.bilibili.com/${encodeURIComponent(roomId)}`,
   };
-  const cookieHeader = String(options.cookieHeader || '').trim();
-  if (cookieHeader) headers.Cookie = cookieHeader;
   const response = await fetch(url, {
     signal: AbortSignal.timeout(15_000),
     headers,
@@ -211,6 +183,8 @@ async function defaultFetchJson(endpointName, url, roomId, options = {}) {
 function readSnapshot(filePath) {
   try {
     const parsed = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    if (parsed.schemaVersion !== SNAPSHOT_SCHEMA_VERSION)
+      throw new Error('Unsupported gift sale snapshot schema.');
     const gifts = Array.isArray(parsed.gifts)
       ? parsed.gifts.map(normalizeSnapshotGift).filter(Boolean)
       : [];
@@ -242,9 +216,7 @@ function normalizeSnapshotGift(gift) {
     name: String(gift?.name || `礼物 ${id}`).slice(0, 100),
     battery: finiteNonNegative(gift?.battery),
     rmb: finiteNonNegative(gift?.rmb),
-    imagePath: String(gift?.imagePath || '').startsWith('/img/bilibili-gifts/')
-      ? String(gift.imagePath)
-      : '',
+    imagePath: '',
   };
 }
 
@@ -267,21 +239,14 @@ function getUncachedSnapshot(value) {
 }
 
 module.exports = {
-  GIFT_BAG_URL,
   GIFT_CONFIG_URL,
   GIFT_DATA_URL,
   EXCLUDED_GIFT_IDS,
-  MAPPING_FILES,
   buildGiftCatalog,
   collectPanelGiftIds,
-  collectSendableBackpackGiftIds,
   createGiftSaleCatalogService,
   createUnavailableGiftSaleCatalogService,
   expandBlindBoxSaleIds,
   parseGiftConfig,
-  parseGiftMappingDocument,
-  readGiftMappings,
-  searchLocalGiftCatalog,
-  validateLocalGiftQuery,
   validateRoomId,
 };

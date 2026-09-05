@@ -25,10 +25,10 @@ const ROOT_DIR = path.join(__dirname, '..');
 const read = (...parts) =>
   fs.readFileSync(path.join(ROOT_DIR, ...parts), 'utf8');
 
-test('opening overlay assets and explicit route are registered', () => {
+test('opening samples stay outside public assets and the overlay route remains registered', () => {
   const musicPath = path.join(
     ROOT_DIR,
-    'public/img/overlays/opening/music.ogg',
+    'test/fixtures/opening/music.ogg',
   );
   assert.ok(
     fs.existsSync(path.join(ROOT_DIR, 'public/pages/overlays/opening.html')),
@@ -41,7 +41,7 @@ test('opening overlay assets and explicit route are registered', () => {
   );
   assert.ok(
     fs.existsSync(
-      path.join(ROOT_DIR, 'public/img/overlays/opening/avatar.webp'),
+      path.join(ROOT_DIR, 'test/fixtures/opening/avatar.webp'),
     ),
   );
   assert.ok(fs.existsSync(musicPath));
@@ -50,6 +50,10 @@ test('opening overlay assets and explicit route are registered', () => {
     fs.readFileSync(musicPath).subarray(0, 4).toString('ascii'),
     'OggS',
   );
+  for (const name of ['music.ogg', 'avatar.webp', 'opening-character.png']) {
+    assert.ok(fs.existsSync(path.join(ROOT_DIR, 'test/fixtures/opening', name)));
+    assert.equal(fs.existsSync(path.join(ROOT_DIR, 'public/img/overlays/opening', name)), false);
+  }
   const server = read('src', 'server', 'http-utils.js');
   const serverRuntime = [
     read('src', 'server.js'),
@@ -58,7 +62,7 @@ test('opening overlay assets and explicit route are registered', () => {
   assert.match(server, /\['\/opening',\s*'pages\/overlays\/opening\.html'\]/);
   assert.match(server, /'\.ogg':\s*'audio\/ogg'/);
   assert.equal(
-    contentType(path.join(ROOT_DIR, 'public/img/overlays/opening/music.ogg')),
+    contentType(musicPath),
     'audio/ogg',
   );
   assert.match(
@@ -115,6 +119,8 @@ test('opening overlay is frameable and keeps the required character transform la
   );
   assert.doesNotMatch(html, /id="openingAudio"[^>]+autoplay/);
   assert.doesNotMatch(html, /id="openingAudio"[^>]+src=/);
+  assert.match(html, /id="openingAvatar"[^>]+hidden/);
+  assert.doesNotMatch(html, /id="openingAvatar"[^>]+src=/);
   assert.doesNotMatch(html, /SINGING LIVE/);
   assert.doesNotMatch(html, /歌声即将开始/);
   assert.match(html, /id="openingFooter"[^>]*>欢迎来到直播间<\/p>/);
@@ -194,8 +200,11 @@ test('opening overlay animation honors quality, motion, visibility, and safe tex
   assert.match(script, /safeCharacterUrl/);
   assert.match(
     script,
-    /avatar\.src\s*=\s*safeCharacterUrl\(config\.characterUrl\)/,
+    /avatar\.hidden\s*=\s*!characterUrl/,
   );
+  assert.match(script, /avatar\.removeAttribute\('src'\)/);
+  assert.match(css, /\.character-image\[hidden\]\s*\{\s*display:\s*none/);
+  assert.match(script, /config\.enabled && audio && audioUrl/);
   assert.match(script, /titleSizeForLength/);
   assert.match(script, /title:\s*'唱一首，在一首，给你的歌'/);
   assert.match(script, /MAX_LENGTHS = Object\.freeze\(\{\s*title:\s*20/);
@@ -359,7 +368,7 @@ test('Toolbox opening animation persists configuration and keeps a fixed source 
       },
       system: { dataDir: os.tmpdir() },
     }).characterUrl,
-    '/img/overlays/opening/avatar.webp',
+    '',
   );
   assert.match(script, /openingTitleCount/);
   assert.match(script, /Array\.from\(config\.title\)\.length}\/20/);
@@ -375,6 +384,40 @@ test('Toolbox opening animation persists configuration and keeps a fixed source 
     read('public', 'js', 'admin', 'app.js'),
     /initStartAnimation\(\)/,
   );
+});
+
+test('opening media defaults and missing uploads have no bundled fallback', async () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-opening-empty-'));
+  try {
+    for (const values of [{}, {
+      openingAudioFile: 'missing.mp3',
+      openingAudioName: 'old music',
+      openingCharacterFile: 'missing.png',
+      openingCharacterName: 'old image',
+    }]) {
+      const config = openingRoutes.getOpeningConfig({
+        system: { dataDir },
+        settings: { get: () => values },
+      });
+      assert.equal(config.audioUrl, '');
+      assert.equal(config.audioName, '');
+      assert.equal(config.characterUrl, '');
+      assert.equal(config.characterName, '');
+      assert.equal(config.hasUploadedAudio, false);
+      assert.equal(config.hasUploadedCharacter, false);
+    }
+  } finally {
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+  const overlay = await import('../public/js/overlays/opening.js');
+  assert.equal(overlay.DEFAULTS.audioUrl, '');
+  assert.equal(overlay.DEFAULTS.characterUrl, '');
+  assert.equal(overlay.safeAudioUrl('/img/overlays/opening/music.ogg'), '');
+  assert.equal(overlay.safeCharacterUrl('/img/overlays/opening/avatar.webp'), '');
+  assert.equal(overlay.safeAudioUrl('/opening-media/custom.mp3'), '/opening-media/custom.mp3');
+  assert.equal(overlay.safeCharacterUrl('/opening-character/custom.webp'), '/opening-character/custom.webp');
+  assert.equal(overlay.safeAudioUrl('https://example.com/music.mp3'), '');
+  assert.equal(overlay.safeCharacterUrl('https://example.com/image.png'), '');
 });
 
 test('opening track motion settings reject values outside the public enum', async () => {
@@ -393,8 +436,9 @@ test('opening track motion settings reject values outside the public enum', asyn
   const context = {
     settings: {
       defaults: DEFAULT_SETTINGS,
-      set(key, value) {
-        writes.push([key, value]);
+      setMany(values) {
+        writes.push(...Object.entries(values));
+        return Object.keys(values);
       },
     },
     bilibili: {
@@ -535,6 +579,12 @@ test('opening music uploads stay inside the configured data directory', async ()
     const files = fs.readdirSync(openingRoutes.getMusicDir(dataDir));
     assert.equal(files.length, 1);
     assert.match(files[0], /^opening-.*\.mp3$/);
+    assert.equal(responsePayload.data.hasUploadedAudio, true);
+    await openingRoutes.routes['DELETE /api/opening/music'](context, {}, response);
+    assert.equal(responsePayload.data.audioUrl, '');
+    assert.equal(responsePayload.data.audioName, '');
+    assert.equal(responsePayload.data.hasUploadedAudio, false);
+    assert.ok(fs.existsSync(path.join(openingRoutes.getMusicDir(dataDir), files[0])));
   } finally {
     fs.rmSync(dataDir, { recursive: true, force: true });
   }
@@ -628,6 +678,11 @@ test('opening character uploads validate image signatures and stay inside the da
     const files = fs.readdirSync(openingRoutes.getCharacterDir(dataDir));
     assert.equal(files.length, 1);
     assert.equal(files[0], settings.values.openingCharacterFile);
+    await openingRoutes.routes['DELETE /api/opening/character'](context, {}, uploaded.response);
+    assert.equal(uploaded.payload.data.characterUrl, '');
+    assert.equal(uploaded.payload.data.characterName, '');
+    assert.equal(uploaded.payload.data.hasUploadedCharacter, false);
+    assert.ok(fs.existsSync(path.join(openingRoutes.getCharacterDir(dataDir), files[0])));
   } finally {
     fs.rmSync(dataDir, { recursive: true, force: true });
   }

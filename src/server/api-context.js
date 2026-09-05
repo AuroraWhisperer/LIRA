@@ -81,14 +81,13 @@ function createApiContext(options) {
       setBackground: domainServices.overtime.setBackground,
       replaceRules: domainServices.overtime.replaceRules,
       getGiftCatalog: overtimeGiftCatalog.getSnapshot,
+      getGlobalGiftCatalog:
+        typeof overtimeGiftCatalog.getGlobalSnapshot === 'function'
+          ? overtimeGiftCatalog.getGlobalSnapshot
+          : () => null,
       refreshGiftCatalog: overtimeGiftCatalog.refresh,
       searchLocalGifts: overtimeGiftCatalog.searchLocal,
-      searchServerGifts:
-        typeof overtimeGiftCatalog.searchRemote === 'function'
-          ? overtimeGiftCatalog.searchRemote
-          : () => {
-              throw new Error('服务器礼物搜索服务未配置。');
-            },
+      searchServerGifts: overtimeGiftCatalog.searchLocal,
     },
     data: {
       clearSongLibrary: domainServices.data.clearSongLibrary,
@@ -137,6 +136,7 @@ function createApiContext(options) {
       defaults: settings.defaults,
       get: settings.store.getSettings,
       set: settings.store.setSetting,
+      setMany: settings.store.setSettings,
     },
     system: {
       dataDir: system.dataDir,

@@ -240,9 +240,9 @@ function initStartAnimation() {
       }
       setFormConfig(root, payload.data);
       if (audioName)
-        audioName.textContent = payload.data.audioName || '默认音乐：果实';
+        audioName.textContent = payload.data.audioName || '未上传音乐';
       if (characterName)
-        characterName.textContent = payload.data.characterName || '默认人物图';
+        characterName.textContent = payload.data.characterName || '未上传人物图';
       hydrated = true;
       render(true);
     } catch (_) {
@@ -343,15 +343,15 @@ function initStartAnimation() {
         });
         const payload = await response.json();
         if (!response.ok || !payload?.ok)
-          throw new Error(payload?.error || '恢复默认人物图失败');
+          throw new Error(payload?.error || '清除人物图失败');
         if (characterName)
           characterName.textContent =
-            payload.data.characterName || '默认人物图';
-        if (characterStatus) characterStatus.textContent = '已恢复默认人物图。';
+            payload.data.characterName || '未上传人物图';
+        if (characterStatus) characterStatus.textContent = '已清除人物图。';
         render(true);
       } catch (error) {
         if (characterStatus)
-          characterStatus.textContent = error.message || '恢复默认人物图失败。';
+          characterStatus.textContent = error.message || '清除人物图失败。';
       }
     });
 
@@ -364,14 +364,14 @@ function initStartAnimation() {
         });
         const payload = await response.json();
         if (!response.ok || !payload?.ok)
-          throw new Error(payload?.error || '恢复默认音乐失败');
+          throw new Error(payload?.error || '清除音乐失败');
         if (audioName)
-          audioName.textContent = payload.data.audioName || '默认音乐：果实';
-        if (audioStatus) audioStatus.textContent = '已恢复默认音乐：果实。';
+          audioName.textContent = payload.data.audioName || '未上传音乐';
+        if (audioStatus) audioStatus.textContent = '已清除音乐。';
         render(true);
       } catch (error) {
         if (audioStatus)
-          audioStatus.textContent = error.message || '恢复默认音乐失败。';
+          audioStatus.textContent = error.message || '清除音乐失败。';
       }
     });
 

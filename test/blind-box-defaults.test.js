@@ -17,8 +17,6 @@ const {
 const defaultBlindBoxConfig = require('../src/storage/default-blind-box-config.json');
 const { DEFAULT_SETTINGS, migrateBlindBoxConfig } = settingsStoreModule;
 
-const ROOT_DIR = path.join(__dirname, '..');
-
 const qixiOutputs = [
   ['宸星定情', 1200],
   ['星河相拥', 500],
@@ -224,8 +222,9 @@ test('settings route rejects malformed blind-box values and stores normalized JS
   const context = {
     settings: {
       defaults: DEFAULT_SETTINGS,
-      set(key, value) {
-        writes.push([key, value]);
+      setMany(values) {
+        writes.push(...Object.entries(values));
+        return Object.keys(values);
       },
     },
     bilibili: { configure() {} },
@@ -302,55 +301,4 @@ test('blind-box prices must remain positive after two-decimal normalization', ()
     /INVALID_GIFT_BLIND_BOX_CONFIG/,
   );
   assert.deepEqual(normalizeGiftBlindBoxConfig(config(0.01)), config(0.01));
-});
-
-test('event blind-box artwork uses RMB value folders', () => {
-  const expectedPaths = new Map([
-    [35461, ['blind-box/35461.webp', 33]],
-    [35462, ['0000-under-0100/35462.webp', 5]],
-    [35463, ['0000-under-0100/35463.webp', 20]],
-    [35464, ['0000-under-0100/35464.webp', 35]],
-    [35465, ['0100-0200/35465.webp', 100]],
-    [35466, ['0200-0300/35466.webp', 200]],
-    [35467, ['0800-0900/35467.webp', 800]],
-    [35468, ['2500-2999/35468.webp', 2888]],
-    [35786, ['blind-box/35786.webp', 25]],
-    [35787, ['0000-under-0100/35787.webp', 5]],
-    [35788, ['0000-under-0100/35788.webp', 19]],
-    [35789, ['0000-under-0100/35789.webp', 26]],
-    [35790, ['0000-under-0100/35790.webp', 66]],
-    [35791, ['0500-0600/35791.webp', 500]],
-    [35792, ['1200-1300/35792.webp', 1200]],
-  ]);
-  const giftRoot = path.join(ROOT_DIR, 'public', 'img', 'bilibili-gifts');
-  const manifest = JSON.parse(
-    fs.readFileSync(
-      path.join(ROOT_DIR, 'public', 'img', 'bilibili-gifts.json'),
-      'utf8',
-    ),
-  );
-  const paidMapping = fs.readFileSync(
-    path.join(giftRoot, 'gift-mapping-100-above.md'),
-    'utf8',
-  );
-
-  assert.equal(fs.existsSync(path.join(giftRoot, 'qixi-que-box')), false);
-  for (const [id, [relativePath, rmb]] of expectedPaths) {
-    assert.equal(
-      fs.existsSync(path.join(giftRoot, relativePath)),
-      true,
-      `${id} artwork should exist`,
-    );
-    const gift = manifest.gifts.find((item) => item.id === id);
-    assert.equal(gift?.image, `bilibili-gifts/${relativePath}`);
-    assert.equal(gift?.rmb, rmb);
-  }
-  assert.match(
-    paidMapping,
-    /\|\s*31134\s*\|[^\n]+\|\s*守护之翼\s*\|\s*2000\s*\|\s*¥200\.00\s*\|[^\n]+非目前在售\s*\|/,
-  );
-  assert.match(
-    paidMapping,
-    /\|\s*35465\s*\|[^\n]+\|\s*守护之翼\s*\|\s*1000\s*\|\s*¥100\.00\s*\|[^\n]+在售\s*\|/,
-  );
 });

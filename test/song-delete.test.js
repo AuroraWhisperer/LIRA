@@ -8,14 +8,16 @@ const test = require('node:test');
 const songService = require('../src/music/song-service');
 const { closeDatabases, createDatabases } = require('../src/storage/database');
 const { createQueueStore } = require('../src/storage/queue-store');
+const { createSongStore } = require('../src/storage/song-store');
 
 test('deleting a song preserves queue and request history without song references', () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-delete-'));
   const databases = createDatabases({ dataDir });
   const { songDb } = databases;
+  const songStore = createSongStore(songDb);
 
   try {
-    const song = songService.saveSong(songDb, {
+    const song = songService.saveSong(songStore, {
       name: '待删除歌曲',
       artist: '测试歌手',
       categoryName: '测试分类',
@@ -39,7 +41,7 @@ test('deleting a song preserves queue and request history without song reference
       createdAt: '2026-08-30T00:00:00.000Z',
     });
 
-    songService.deleteSong(songDb, song.id);
+    songService.deleteSong(songStore, song.id);
 
     assert.equal(
       songDb.prepare('SELECT id FROM songs WHERE id = ?').get(song.id),

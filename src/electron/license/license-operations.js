@@ -24,8 +24,8 @@ function createLicenseOperations(options = {}) {
     return options.getSnapshot();
   }
 
-  async function getCloudState() {
-    return withAuthorizedToken((token) => remote.getCloudState(token));
+  async function getCloudState(requestOptions = {}) {
+    return withAuthorizedToken((token) => remote.getCloudState(token, requestOptions));
   }
 
   async function watchCloudStateChangesInternal(options = {}) {
@@ -127,7 +127,7 @@ function createLicenseOperations(options = {}) {
     );
   }
 
-  async function updateCloudSettings(settings) {
+  async function updateCloudSettings(settings, requestOptions = {}) {
     if (!settings || typeof settings !== 'object' || Array.isArray(settings)) {
       throw new RemoteLicenseError(
         'INVALID_SYNC_SETTINGS',
@@ -135,17 +135,17 @@ function createLicenseOperations(options = {}) {
       );
     }
     return withAuthorizedToken((token) =>
-      remote.updateCloudSettings(settings, token),
+      remote.updateCloudSettings(settings, token, requestOptions),
     );
   }
 
-  async function getBilibiliCredentialsInternal() {
+  async function getBilibiliCredentialsInternal(requestOptions = {}) {
     return withAuthorizedSecret((token) =>
-      remote.getBilibiliCredentials(token),
+      remote.getBilibiliCredentials(token, requestOptions),
     );
   }
 
-  async function setBilibiliCredentialsInternal(cookie) {
+  async function setBilibiliCredentialsInternal(cookie, requestOptions = {}) {
     const value = String(cookie || '').trim();
     if (!value || value.length > 12_000 || /[\r\n\0]/u.test(value)) {
       throw new RemoteLicenseError(
@@ -154,29 +154,29 @@ function createLicenseOperations(options = {}) {
       );
     }
     return withAuthorizedToken((token) =>
-      remote.setBilibiliCredentials(value, token),
+      remote.setBilibiliCredentials(value, token, requestOptions),
     );
   }
 
-  async function clearBilibiliCredentialsInternal() {
+  async function clearBilibiliCredentialsInternal(requestOptions = {}) {
     return withAuthorizedToken((token) =>
-      remote.clearBilibiliCredentials(token),
+      remote.clearBilibiliCredentials(token, requestOptions),
     );
   }
 
-  async function syncSongs(songs) {
+  async function syncSongs(songs, requestOptions = {}) {
     if (!Array.isArray(songs) || songs.length > 5000)
       throw new RemoteLicenseError(
         'SONG_LIST_INVALID',
         '歌库数量超出同步上限。',
       );
     return withAuthorizedToken((token) =>
-      remote.syncSongs(songs.map(mapSongForSync), token),
+      remote.syncSongs(songs.map(mapSongForSync), token, requestOptions),
     );
   }
 
-  async function getCloudSongs() {
-    return withAuthorizedToken((token) => remote.getCloudSongs(token));
+  async function getCloudSongs(requestOptions = {}) {
+    return withAuthorizedToken((token) => remote.getCloudSongs(token, requestOptions));
   }
 
   async function getGiftCatalog(input = {}) {

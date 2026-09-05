@@ -1,6 +1,6 @@
 # 播放引擎(playback/)
 
-> 涉及文件:[js/playback.js](../../../public/js/playback.js)、[js/playback/index.js](../../../public/js/playback/index.js)、[js/playback/controller.js](../../../public/js/playback/controller.js)、[js/playback/core/](../../../public/js/playback/core/)、[js/playback/state/](../../../public/js/playback/state/)、[js/playback/provider/](../../../public/js/playback/provider/)、[js/playback/player/](../../../public/js/playback/player/)、[js/playback/queue/](../../../public/js/playback/queue/)、[js/playback/services/](../../../public/js/playback/services/)、[js/playback/features/](../../../public/js/playback/features/)、[js/playback/operations/](../../../public/js/playback/operations/)、[js/playback/ui/](../../../public/js/playback/ui/)、[js/playback/content/](../../../public/js/playback/content/)、[js/playback/local/](../../../public/js/playback/local/)、[js/playback/cache/](../../../public/js/playback/cache/)、[js/playback/config.js](../../../public/js/playback/config.js)、[js/playback/utils.js](../../../public/js/playback/utils.js)、[js/admin/app.js](../../../public/js/admin/app.js)
+> 涉及文件:[js/playback.js](../../../public/js/playback.js)、[js/playback/index.js](../../../public/js/playback/index.js)、[js/playback/controller.js](../../../public/js/playback/controller.js)、[js/playback/core/](../../../public/js/playback/core/)、[js/playback/state/](../../../public/js/playback/state/)、[js/playback/provider/](../../../public/js/playback/provider/)、[js/playback/queue/](../../../public/js/playback/queue/)、[js/playback/services/](../../../public/js/playback/services/)、[js/playback/features/](../../../public/js/playback/features/)、[js/playback/operations/](../../../public/js/playback/operations/)、[js/playback/ui/](../../../public/js/playback/ui/)、[js/playback/content/](../../../public/js/playback/content/)、[js/playback/local/](../../../public/js/playback/local/)、[js/playback/cache/](../../../public/js/playback/cache/)、[js/playback/config.js](../../../public/js/playback/config.js)、[js/playback/utils.js](../../../public/js/playback/utils.js)、[js/admin/app.js](../../../public/js/admin/app.js)
 
 本文档描述播放引擎(播放助手页,`/admin#playback`)的模块结构与核心流程。音乐平台 Provider 服务端实现见 [qq-music-provider.md](../backend/music/qq-provider.md)/[netease-music-provider.md](../backend/music/netease-provider.md) 与 [api.md](../backend/api.md);播放数据落库见 [storage.md](../backend/storage.md) §3.4;歌词上报的 WS 契约见 [ws.md](../backend/ws.md) §3;IPC 通道见 [desktop/preload.md](../desktop/preload.md)。
 
@@ -20,7 +20,6 @@ js/playback.js          兼容层,仅 import playback/index.js
 | `core/`       | initializer / renderer / event-handlers / queue-coordinator / action-adapters                                                                                          | 初始化时序、渲染与 DOM 事件；队列/播放委托接线；把控制器依赖收窄为各功能实际需要的动作适配器                                                        |
 | `state/`      | manager / storage                                                                                                                                                      | `StateManager` 响应式状态(createInitialState/validateState/normalizeState);`StorageManager` 状态恢复(服务端优先→localStorage v2→v1 迁移)            |
 | `provider/`   | manager                                                                                                                                                                | 平台选择(QQ/网易云/WeSing)、健康检查、登录态;桌面走 IPC、Web 回退 HTTP(见 [comms.md](comms.md) §4)                                                  |
-| `player/`     | controller                                                                                                                                                             | `PlayerController`:audio 元素状态机(load/play/pause/seek/next/volume/mode),事件绑定 `play/pause/ended/timeupdate/volumechange/error/loadedmetadata` |
 | `queue/`      | manager                                                                                                                                                                | `QueueManager`:普通/电台/歌单三种队列、shuffle 顺序、电台自动补量                                                                                   |
 | `services/`   | search / stream / lyric / match / import / home / wesing                                                                                                               | 业务服务(§4)                                                                                                                                        |
 | `features/`   | search-handler / match-handler / stream-handler / queue-operations / playback-controls / lyric-controls / radio-mode / home-handler / import-handler / pending-handler | UI 操作处理器,注入渲染回调与队列回调                                                                                                                |
@@ -48,7 +47,7 @@ playbackControls.playPlaybackTrack(track,{origin})
                      STREAM_REFRESH_MARGIN_MS 强制刷新;失败重试 STREAM_MAX_RETRIES=1 次)
         │
         ▼
-PlayerController.setAudio → audio.load()/play()
+playbackControls → audio.load()/play()
         │
         ├─ timeupdate → renderPlaybackProgress + savePlaybackState + syncPlaybackLyricWindow
         ├─ ended → playbackNext(true)(单曲循环/下一首/列表循环回绕;电台队列自动补量)
@@ -57,16 +56,17 @@ PlayerController.setAudio → audio.load()/play()
 
 关键常量([config.js](../../../public/js/playback/config.js)):`STREAM_REFRESH_MARGIN_MS=30s`、`STREAM_MAX_RETRIES=1`、`RADIO_REFILL_THRESHOLD=3`、`RADIO_REFILL_BATCH_SIZE=10`、`HISTORY_MAX_SIZE=50`、`DISPLAY_HISTORY_MAX_SIZE=200`、`FULLSCREEN_BG_THEME_COUNT=30`。
 
-**PlayerController 状态机细节**([player/controller.js](../../../public/js/playback/player/controller.js)):
+**唯一播放实现**：[features/playback-controls.js](../../../public/js/playback/features/playback-controls.js) 处理实际播放命令；旧的重复播放器类和仅用于 `setAudio` 的组合接线已移除。
 
-| 操作                  | 行为                                                                                                                     |
-| --------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `togglePlayback`      | 无当前曲目时先 `queueManager.takeNext()`;音频源与 track 不匹配(`dataset.trackId`)则重新 `playTrack`;否则 play/pause 切换 |
-| `previous`            | 当前播放 >5s 则回到 0;否则从 `history` 弹出上一首(origin=history)                                                        |
-| `next(fromEnded)`     | 单曲循环 → 队列下一首 → 列表循环回绕 → `fromEnded` 时卸载 src 并暂停                                                     |
-| `cycleMode`           | sequence → loop → single → shuffle 轮换;进 shuffle 时重建乱序                                                            |
-| `seek/setVolume/stop` | 钳制边界后写 audio 与 state,统一 `onStateChange`                                                                         |
-| 播放历史维护          | `playTrack` 时把旧 current 压入 `history`(50 上限)、`displayHistory` 去重头插(200 上限)                                  |
+| 操作 | 行为 |
+| ---- | ---- |
+| `playPlaybackTrack` | 解析音源并以播放代际保护迟到结果，更新当前曲目和历史后驱动 audio |
+| `togglePlayback` | 无当前曲目时取下一首，否则在有效音源上切换播放/暂停 |
+| `playbackPrevious` | 当前进度超过 5 秒先回到开头，否则读取播放历史 |
+| `playbackNext` | 保留单曲循环、队列推进、列表回绕及电台补量语义 |
+| `changePlaybackQuality` | 保存音质选择并重新解析当前流，恢复切换前进度 |
+
+播放与持久化共同读取 `PlaybackConfig` 中的历史上限，不再分别硬编码限制。
 
 **播放历史**:前端不直接写 `play_history` 表——每次状态落盘时把 `history/displayHistory`(各 50/200 条上限)放进 queue-state 载荷,服务端 `playback-store.recordPlay` 按 `(client_id, track_key)` 幂等累加 `play_count`(见 [storage.md](../backend/storage.md) §3.4)。
 
@@ -91,6 +91,8 @@ PlayerController.setAudio → audio.load()/play()
 | import-service | 点歌队列导入:读 `/api/state` 的 queue 快照 → 按 track 结构转换后插入播放队列                                                                                                                                                                     |
 | home-service   | 首页内容 `POST /api/music/home`(action: 推荐/每日/电台/歌单…),`ContentLoader` 提供缓存 + 后台刷新(首页命中缓存先渲染,后台更新后 toast"已自动更新")                                                                                               |
 | wesing-service | 全民 K 歌适配层:`/api/music/wesing/*`(active/refresh/configure/offset)+ WS `wesing-state` 实时状态 + `LyricWordRenderer` 逐字现场(详见 [backend/music/wesing.md](../backend/music/wesing.md));源切换用 `activationQueue` 串行化,避免后端状态错乱 |
+
+首页请求在开始时固定平台、action、歌单 ID 和缓存键。HomeService 的代际决定页面是否接受结果，ContentLoader 的每键请求代际决定缓存是否接受写入：切换分类、最近历史、音源或返回历史后，旧成功和旧失败均不能覆盖新页面。后台刷新使用局部结果，不把页面状态当临时工作区；重复缓存读取可复用在途刷新，同键较新的实际请求优先，完成后清理请求记录。可缓存 action 只由 ContentLoader 的 `CACHEABLE_ACTIONS` 定义，HomeService 复用该集合。
 
 ## 5. 队列、电台与歌单
 

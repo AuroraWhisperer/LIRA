@@ -8,29 +8,50 @@ const path = require('node:path');
 const test = require('node:test');
 const { createServerRuntime } = require('../src/server');
 
-test('keeps the current room catalog primary and uses the server catalog only for search', async () => {
+test('keeps the current room catalog primary and decorates exact IDs with server artwork', async () => {
   const dataDir = fs.mkdtempSync(
     path.join(os.tmpdir(), 'lira-remote-overtime-'),
   );
-  const giftSalePublicDir = createGiftSalePublicFixture(dataDir);
   let remoteCalls = 0;
   let receivedEtag = '';
   const runtime = createServerRuntime({
     dataDir,
-    giftSalePublicDir,
     giftSaleGetRoomId: () => '22637261',
+    giftSaleGetBlindBoxConfig: () =>
+      JSON.stringify([
+        {
+          name: '当前盲盒',
+          outputs: [{ name: '当前盲盒产物', price: 2 }],
+        },
+      ]),
     giftSaleFetchJson: async (name) => {
       if (name === 'gift_data') {
         return {
           code: 0,
-          data: { room_gift_list: { gold_list: [{ gift_id: 35793 }] } },
+          data: {
+            room_gift_list: {
+              gold_list: [
+                { gift_id: 400 },
+                { gift_id: 35793 },
+                { gift_id: 35794 },
+              ],
+            },
+          },
         };
       }
       return {
         code: 0,
         data: {
           list: [
-            { id: 35793, name: '直播间礼物', price: 100, coin_type: 'gold' },
+            { id: 400, name: '当前盲盒', price: 1000, coin_type: 'gold' },
+            {
+              id: 401,
+              name: '当前盲盒产物',
+              price: 2000,
+              coin_type: 'gold',
+            },
+            { id: 35793, name: '同名礼物', price: 3000, coin_type: 'gold' },
+            { id: 35794, name: '同名礼物', price: 4000, coin_type: 'gold' },
           ],
         },
       };
@@ -49,6 +70,7 @@ test('keeps the current room catalog primary and uses the server catalog only fo
           receivedEtag = request.etag;
           return {
             ok: true,
+            schemaVersion: 2,
             version: 'remote-1',
             updatedAt: '2026-08-29T08:00:00.000Z',
             stale: false,
@@ -58,13 +80,58 @@ test('keeps the current room catalog primary and uses the server catalog only fo
             },
             imageBaseUrl: 'https://api.lirahub.cn',
             etag: '"remote-1"',
+            blindBoxes: [
+              { giftId: '400', outputGiftIds: ['401'] },
+            ],
             gifts: [
               {
+                id: '400',
+                name: '当前盲盒',
+                priceRaw: 1000,
+                coinType: 'gold',
+                bagGift: false,
+                active: true,
+                isBlindBox: true,
+                imageUrl: '/gift-media/images/box.webp',
+              },
+              {
+                id: '401',
+                name: '当前盲盒产物',
+                priceRaw: 2000,
+                coinType: 'gold',
+                bagGift: false,
+                active: true,
+                isBlindBox: false,
+                imageUrl: '/gift-media/images/output.webp',
+              },
+              {
+                id: '35793',
+                name: '同名礼物',
+                priceRaw: 3000,
+                coinType: 'gold',
+                bagGift: false,
+                active: true,
+                isBlindBox: false,
+                imageUrl: '/gift-media/images/same-first.webp',
+              },
+              {
+                id: '35794',
+                name: '同名礼物',
+                priceRaw: 4000,
+                coinType: 'gold',
+                bagGift: false,
+                active: true,
+                isBlindBox: false,
+                imageUrl: '/gift-media/images/same-second.webp',
+              },
+              {
                 id: '987654321',
-                name: '服务器礼物',
+                name: '同名礼物',
                 priceRaw: 500,
                 coinType: 'gold',
                 bagGift: false,
+                active: true,
+                isBlindBox: false,
                 imageUrl: '/gift-media/images/server.webp',
               },
             ],
@@ -91,14 +158,34 @@ test('keeps the current room catalog primary and uses the server catalog only fo
       {},
     );
     assert.equal(refreshed.response.status, 200);
-    assert.deepEqual(refreshed.payload.data.gifts.map((gift) => gift.id), ['35793']);
-    assert.equal(remoteCalls, 0);
+    assert.deepEqual(
+      refreshed.payload.data.gifts.map((gift) => [gift.id, gift.imagePath]),
+      [
+        ['400', '/overtime-gift-images/box.webp'],
+        ['401', '/overtime-gift-images/output.webp'],
+        ['35793', '/overtime-gift-images/same-first.webp'],
+        ['35794', '/overtime-gift-images/same-second.webp'],
+      ],
+    );
+    assert.equal(remoteCalls, 1);
+
+    const cachedSearch = await postJson(
+      app.baseUrl,
+      token,
+      '/api/overtime/gifts/local/search',
+      { query: '987654321' },
+    );
+    assert.equal(cachedSearch.response.status, 200);
+    assert.deepEqual(cachedSearch.payload.data.gifts.map((gift) => gift.id), [
+      '987654321',
+    ]);
+    assert.equal(remoteCalls, 1);
 
     const searched = await postJson(
       app.baseUrl,
       token,
       '/api/overtime/gifts/server/search',
-      { query: '服务器' },
+      { query: '987654321' },
     );
     assert.equal(searched.response.status, 200);
     assert.deepEqual(searched.payload.data.gifts.map((gift) => gift.id), ['987654321']);
@@ -117,7 +204,7 @@ test('keeps the current room catalog primary and uses the server catalog only fo
         rules: [
           {
             giftId: '987654321',
-            giftName: '服务器礼物',
+            giftName: '同名礼物',
             imagePath: '/overtime-gift-images/server.webp',
             mode: 'fixed',
             fixedSeconds: 60,
@@ -137,16 +224,78 @@ test('keeps the current room catalog primary and uses the server catalog only fo
   }
 });
 
-test('server search forces a refresh and falls back to the previous remote cache', async () => {
+test('room refresh keeps its gifts when server artwork is unavailable', async () => {
+  const dataDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'lira-remote-overtime-offline-'),
+  );
+  const runtime = createServerRuntime({
+    dataDir,
+    giftSaleGetRoomId: () => '22637261',
+    giftSaleFetchJson: async (name) =>
+      name === 'gift_data'
+        ? {
+            code: 0,
+            data: { room_gift_list: { gold_list: [{ gift_id: 35793 }] } },
+          }
+        : {
+            code: 0,
+            data: {
+              list: [
+                {
+                  id: 35793,
+                  name: '离线仍可用礼物',
+                  price: 100,
+                  coin_type: 'gold',
+                },
+              ],
+            },
+          },
+    licenseGate: { isAuthorized: () => true },
+  });
+
+  try {
+    const app = await runtime.start({
+      host: '127.0.0.1',
+      startPort: await findAvailablePort(),
+      remoteGiftCatalog: {
+        imageBaseUrl: 'https://api.lirahub.cn',
+        fetch: async () => {
+          throw new Error('offline');
+        },
+        logger: { warn() {}, debug() {} },
+      },
+    });
+    const refreshed = await postJson(
+      app.baseUrl,
+      runtime.getApiToken(),
+      '/api/overtime/gifts/refresh',
+      {},
+    );
+
+    assert.equal(refreshed.response.status, 200);
+    assert.deepEqual(refreshed.payload.data.gifts, [
+      {
+        id: '35793',
+        name: '离线仍可用礼物',
+        battery: 1,
+        rmb: 0.1,
+        imagePath: '',
+      },
+    ]);
+  } finally {
+    await runtime.stop({ exitProcess: false });
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
+test('local and legacy server searches never fetch while handling the query', async () => {
   const dataDir = fs.mkdtempSync(
     path.join(os.tmpdir(), 'lira-remote-overtime-force-'),
   );
-  const giftSalePublicDir = createGiftSalePublicFixture(dataDir);
   let remoteCalls = 0;
   let offline = false;
   const runtime = createServerRuntime({
     dataDir,
-    giftSalePublicDir,
     licenseGate: { isAuthorized: () => true },
   });
 
@@ -161,14 +310,18 @@ test('server search forces a refresh and falls back to the previous remote cache
           if (offline) throw new Error('offline');
           return {
             ok: true,
+            schemaVersion: 2,
             version: 'manual-1',
             updatedAt: '2026-08-29T08:00:00.000Z',
+            blindBoxes: [],
             gifts: [
               {
                 id: '987654322',
                 name: '手动同步礼物',
                 priceRaw: 100,
                 coinType: 'gold',
+                active: true,
+                isBlindBox: false,
               },
             ],
           };
@@ -177,35 +330,33 @@ test('server search forces a refresh and falls back to the previous remote cache
     });
     const token = runtime.getApiToken();
 
+    await runtime.initializeGiftCatalog({ force: true, reason: 'test' });
+    assert.equal(remoteCalls, 1);
+
     const first = await postJson(
       app.baseUrl,
       token,
-      '/api/overtime/gifts/server/search',
+      '/api/overtime/gifts/local/search',
       { query: '手动同步' },
     );
     assert.equal(first.response.status, 200);
+    assert.deepEqual(first.payload.data.gifts.map((gift) => gift.id), [
+      '987654322',
+    ]);
     assert.equal(remoteCalls, 1);
 
     offline = true;
-    const failed = await postJson(
+    const legacyAlias = await postJson(
       app.baseUrl,
       token,
       '/api/overtime/gifts/server/search',
       { query: '手动同步' },
     );
-    assert.equal(failed.response.status, 200);
-    assert.equal(remoteCalls, 2);
-
-    // A second click immediately after the failure must issue another forced
-    // conditional request instead of being hidden by the five-minute backoff.
-    const retried = await postJson(
-      app.baseUrl,
-      token,
-      '/api/overtime/gifts/server/search',
-      { query: '手动同步' },
-    );
-    assert.equal(retried.response.status, 200);
-    assert.equal(remoteCalls, 3);
+    assert.equal(legacyAlias.response.status, 200);
+    assert.deepEqual(legacyAlias.payload.data.gifts.map((gift) => gift.id), [
+      '987654322',
+    ]);
+    assert.equal(remoteCalls, 1);
   } finally {
     await runtime.stop({ exitProcess: false });
     fs.rmSync(dataDir, { recursive: true, force: true });
@@ -222,20 +373,6 @@ async function postJson(baseUrl, token, pathname, body) {
     body: JSON.stringify(body),
   });
   return { response, payload: await response.json() };
-}
-
-function createGiftSalePublicFixture(root) {
-  const publicDir = path.join(root, 'public-fixture');
-  const giftDir = path.join(publicDir, 'img', 'bilibili-gifts');
-  fs.mkdirSync(giftDir, { recursive: true });
-  for (const fileName of [
-    'gift-mapping-under-100.md',
-    'gift-mapping-100-above.md',
-    'silver-free-mapping.md',
-  ]) {
-    fs.writeFileSync(path.join(giftDir, fileName), '# fixture\n');
-  }
-  return publicDir;
 }
 
 function findAvailablePort() {

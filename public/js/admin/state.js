@@ -99,8 +99,13 @@ export class StateService {
         const signature = JSON.stringify({
           version,
           updatedAt: String(snapshot.updatedAt || snapshot.refreshedAt || ''),
+          assetsUpdatedAt: String(snapshot.assetsUpdatedAt || ''),
           stale: parseBooleanLike(snapshot.stale),
           sources: snapshot.sources || null,
+          gifts: snapshot.gifts.map((gift) => [
+            String(gift?.id ?? '').trim(),
+            String(gift?.imagePath ?? '').trim(),
+          ]),
         });
         if (signature === this.giftCatalogVersion) return;
         this.giftCatalogVersion = signature;

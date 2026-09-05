@@ -348,6 +348,19 @@ async function startDesktopApp() {
   registerLicenseIpc({
     ipcMain,
     licenseManager,
+    giftCatalog: {
+      getState: () =>
+        lifecycleState.runtime.getGiftCatalogInitializationState(),
+      initialize: () =>
+        lifecycleState.runtime.initializeGiftCatalog({
+          force: true,
+          reason: 'license-retry',
+        }),
+      onStateChanged: (listener) =>
+        lifecycleState.runtime.onGiftCatalogInitializationStateChanged(
+          listener,
+        ),
+    },
     getMainWindow: () => windowState.main,
     getDesktopBaseUrl: () => serverInfo.baseUrl,
     hasExactOrigin,
@@ -390,10 +403,53 @@ async function startDesktopApp() {
     hasExactOrigin,
   });
   phaseStartedAt = Date.now();
+  let mainRoute =
+    licenseManager.getState() === LicenseState.AUTHORIZED &&
+    lifecycleState.runtime.isGiftCatalogInitialized()
+      ? 'admin'
+      : 'license';
   createMainWindow(
     serverInfo.baseUrl,
-    licenseManager.getState() === LicenseState.AUTHORIZED,
+    mainRoute === 'admin',
   );
+  let mainNavigationGeneration = 0;
+  const navigateMain = (route) => {
+    if (
+      mainRoute === route ||
+      !windowState.main ||
+      windowState.main.isDestroyed()
+    )
+      return;
+    mainRoute = route;
+    const navigationGeneration = ++mainNavigationGeneration;
+    const pathname = route === 'admin' ? '/admin?desktop=1' : '/license';
+    windowState.main
+      .loadURL(windowState.baseUrl + pathname)
+      .catch((error) => {
+        if (
+          navigationGeneration === mainNavigationGeneration &&
+          mainRoute === route
+        )
+          mainRoute = '';
+        writeLog('license-navigation', error);
+      });
+  };
+  const refreshGiftCatalogForAuthorizedSession = (request) => {
+    const initialization = lifecycleState.runtime.initializeGiftCatalog(request);
+    initialization?.catch?.((error) =>
+      writeLog('gift-catalog-initialization', error),
+    );
+    return initialization;
+  };
+  lifecycleState.runtime.onGiftCatalogInitializationStateChanged((snapshot) => {
+    if (
+      snapshot?.status === 'ready' &&
+      licenseManager?.getState() === LicenseState.AUTHORIZED &&
+      lifecycleState.runtime.isGiftCatalogInitialized()
+    ) {
+      navigateMain('admin');
+    }
+  });
   licenseManager.onStateChanged((snapshot) => {
     writeLog('license-state', {
       event: 'changed',
@@ -409,22 +465,29 @@ async function startDesktopApp() {
       ]);
       if (resumePromise?.catch)
         resumePromise.catch((error) => writeLog('license-resume', error));
+      if (lifecycleState.runtime.isGiftCatalogInitialized()) {
+        navigateMain('admin');
+        refreshGiftCatalogForAuthorizedSession({
+          force: true,
+          reason: 'authorized-session',
+        });
+      } else {
+        navigateMain('license');
+        refreshGiftCatalogForAuthorizedSession({
+          force: true,
+          reason: 'first-authorization',
+        });
+      }
     } else {
       remoteGiftController?.stop();
     }
-    if (!windowState.main || windowState.main.isDestroyed()) return;
-    if (snapshot.state === LicenseState.AUTHORIZED) {
-      windowState.main
-        .loadURL(windowState.baseUrl + '/admin?desktop=1')
-        .catch((error) => writeLog('license-navigation', error));
-    } else if (
+    if (
+      snapshot.state !== LicenseState.AUTHORIZED &&
       snapshot.state !== LicenseState.CHECKING &&
       snapshot.state !== LicenseState.AUTHORIZING
     ) {
       lifecycleState.runtime.pauseAuthorizedWork?.();
-      windowState.main
-        .loadURL(windowState.baseUrl + '/license')
-        .catch((error) => writeLog('license-navigation', error));
+      navigateMain('license');
     }
   });
   if (licenseManager.getState() === LicenseState.AUTHORIZED) {
@@ -437,6 +500,12 @@ async function startDesktopApp() {
     ]);
     if (resumePromise?.catch)
       resumePromise.catch((error) => writeLog('license-resume', error));
+    refreshGiftCatalogForAuthorizedSession({
+      force: true,
+      reason: lifecycleState.runtime.isGiftCatalogInitialized()
+        ? 'authorized-startup'
+        : 'first-authorized-startup',
+    });
   }
   logStartupPhase('window-create', phaseStartedAt);
   writeLog('lifecycle', { event: 'READY', baseUrl: serverInfo.baseUrl });

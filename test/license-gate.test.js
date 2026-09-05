@@ -71,6 +71,31 @@ test('Electron startup restores authorized work and owns the system-resume liste
   );
   assert.match(
     source,
+    /giftCatalog:\s*\{[^]*?getGiftCatalogInitializationState[^]*?initializeGiftCatalog[^]*?onGiftCatalogInitializationStateChanged/,
+  );
+  assert.match(
+    source,
+    /licenseManager\.getState\(\) === LicenseState\.AUTHORIZED &&\s*lifecycleState\.runtime\.isGiftCatalogInitialized\(\)/,
+  );
+  assert.match(
+    source,
+    /onGiftCatalogInitializationStateChanged\([^]*?snapshot\?\.status === 'ready'[^]*?navigateMain\('admin'\)/,
+  );
+  assert.match(
+    source,
+    /refreshGiftCatalogForAuthorizedSession\(\{\s*force: true,\s*reason: 'authorized-session'/,
+  );
+  assert.match(
+    source,
+    /refreshGiftCatalogForAuthorizedSession\(\{\s*force: true,\s*reason: lifecycleState\.runtime\.isGiftCatalogInitialized\(\)/,
+  );
+  assert.match(source, /let mainNavigationGeneration = 0/);
+  assert.match(
+    source,
+    /const navigationGeneration = \+\+mainNavigationGeneration[^]*?navigationGeneration === mainNavigationGeneration &&\s*mainRoute === route[^]*?mainRoute = ''/,
+  );
+  assert.match(
+    source,
     /app\.on\(["']before-quit["'][^]*?licenseResumeController\?\.unregister\(\)/,
   );
   const initialGiftStart = source.indexOf(

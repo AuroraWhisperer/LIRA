@@ -267,6 +267,14 @@
   background: rgba(239, 68, 68, 0.08);
 }
 
+.bb-chip-source {
+  align-self: center;
+  color: #7653ad;
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-semibold);
+  white-space: nowrap;
+}
+
 #blindBoxAdvanced {
   margin-top: 12px;
 }

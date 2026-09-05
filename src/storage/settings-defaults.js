@@ -30,6 +30,7 @@ const DEFAULT_SETTINGS = {
   giftFrameTheme: 'woodland-bloom',
   giftFrameMotionMode: 'auto',
   giftBlindBoxConfig: JSON.stringify(DEFAULT_BLIND_BOX_CONFIG),
+  giftBlindBoxCustomConfigV2: 'null',
   paused: 'false',
   allowCompactRequest: 'true',
   onlyFromLibrary: 'false',

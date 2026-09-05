@@ -4,6 +4,7 @@
 
 const { cleanText } = require('../shared/utils');
 const { matchesLibraryTag } = require('./tag-aliases');
+const { splitSongArtists, splitSongLanguages, splitSongTags } = require('./song-field-utils');
 
 const LANGUAGE_ALIAS_GROUPS = [
   ['日语', '日文', '日本语', '日语歌', '日文歌', 'ja', 'jp', 'japanese'],
@@ -87,7 +88,7 @@ function songMatchesTerm(song, term) {
 
   const artistMatches =
     normalizeComparable(song.artist) === normalizedTerm ||
-    splitSongArtists(song.artist).some(
+    splitSongArtists(song.artist, { preservePunctuation: true }).some(
       (artist) => normalizeComparable(artist) === normalizedTerm,
     );
   const languageAliases = randomLanguageAliases(term);
@@ -106,14 +107,6 @@ function songMatchesTerm(song, term) {
   return artistMatches || languageMatches || categoryMatches || tagMatches;
 }
 
-function splitSongArtists(value) {
-  return splitSongValues(value, /\s*(?:\/|&|＆)\s*/);
-}
-
-function splitSongLanguages(value) {
-  return splitSongValues(value, /\s*(?:\/|、|，|,)\s*/);
-}
-
 function splitSongCategories(value) {
   return splitSongValues(value, /\s*\/\s*/);
 }
@@ -122,16 +115,6 @@ function splitSongValues(value, separator) {
   return String(value || '')
     .split(separator)
     .map((item) => cleanText(item))
-    .filter(Boolean);
-}
-
-/**
- * 标签必须按完整项匹配，避免输入“情”误命中“抒情”。兼容导入文件常见分隔符。
- */
-function splitSongTags(value) {
-  return String(value || '')
-    .split(/[,，、;；|]/)
-    .map((tag) => cleanText(tag))
     .filter(Boolean);
 }
 

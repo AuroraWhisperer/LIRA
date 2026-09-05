@@ -1237,7 +1237,7 @@ test('overtime toolbox panel loads its isolated controller and renders untrusted
   assert.match(html, /id="overtimeRefreshGiftsBtn"/);
   assert.match(
     html,
-    /id="overtimeServerGiftSearchBtn"[^>]*>\s*搜索服务器礼物\s*<\/button\s*>/,
+    /id="overtimeGlobalGiftSearchBtn"[^>]*>\s*搜索全部礼物\s*<\/button\s*>/,
   );
   assert.match(html, /id="overtimeGiftCatalogStatus"[^>]+role="status"/);
   assert.match(html, /id="overtimePreview"/);
@@ -1247,8 +1247,8 @@ test('overtime toolbox panel loads its isolated controller and renders untrusted
   assert.doesNotMatch(source, /fetch\('\/img\/bilibili-gifts\.json'/);
   assert.match(source, /fetch\('\/api\/overtime\/gifts'/);
   assert.match(source, /\/api\/overtime\/gifts\/refresh/);
-  assert.match(source, /\/api\/overtime\/gifts\/server\/search/);
-  assert.doesNotMatch(source, /\/api\/overtime\/gifts\/local\/search/);
+  assert.match(source, /\/api\/overtime\/gifts\/local\/search/);
+  assert.doesNotMatch(source, /\/api\/overtime\/gifts\/server\/search/);
   assert.match(
     source,
     /catalogRoomLabel\(giftCatalogSnapshot, catalogLiveStatus\)/,

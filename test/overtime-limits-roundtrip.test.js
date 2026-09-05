@@ -191,6 +191,34 @@ test('backend migrates a saved remote rule image when the catalog origin changes
   }
 });
 
+test('backend resolves legacy bundled gift artwork by gift ID without removing the rule', () => {
+  const fixture = createFixture();
+  const original = fixture.createService();
+  original.replaceRules([
+    {
+      giftId: '35793',
+      giftName: '传情鹊',
+      imagePath: '/img/bilibili-gifts/0000-under-0100/35793.webp',
+      mode: 'fixed',
+      fixedSeconds: 60,
+    },
+  ]);
+  original.dispose();
+
+  const service = fixture.createService({
+    resolveGiftImagePath: (giftId) =>
+      giftId === '35793' ? '/overtime-gift-images/35793.webp' : '',
+  });
+  try {
+    const [rule] = service.getSnapshot().rules;
+    assert.equal(rule.giftId, '35793');
+    assert.equal(rule.imagePath, '/overtime-gift-images/35793.webp');
+  } finally {
+    service.dispose();
+    fixture.close();
+  }
+});
+
 test('backend accepts maximum boundary random weight values', () => {
   const fixture = createFixture();
   const service = fixture.createService();

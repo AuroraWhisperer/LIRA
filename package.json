@@ -1,6 +1,6 @@
 {
   "name": "lira",
-  "version": "4.0.7",
+  "version": "4.0.8",
   "private": true,
   "license": "UNLICENSED",
   "description": "LIRA - Live Interactive Request Assistant",
@@ -17,7 +17,7 @@
     "verify:quick": "npm run verify:docs && npm run check && npm run verify:architecture",
     "verify": "npm run verify:quick && npm test",
     "refresh:gifts": "node scripts/refresh-bilibili-gift-sale.js",
-    "sync:backpack-gifts": "node scripts/sync-bilibili-backpack-gifts.js",
+    "sync:gifts": "node scripts/initialize-gift-catalog.js",
     "diagnose:wesing": "node scripts/inspect-wesing-playback.js",
     "make:icon": "node scripts/create-icon.js",
     "dist:win": "npm run make:icon && electron-builder --win nsis --x64",
@@ -31,12 +31,12 @@
     "@clamber_l/crypto": "0.1.12",
     "@jixun/qmweb-sign": "2.0.3",
     "electron-updater": "^6.8.4",
-    "playwright": "^1.62.1",
     "qrc-decoder": "1.0.2"
   },
   "devDependencies": {
     "electron": "43.2.0",
-    "electron-builder": "^26.11.1"
+    "electron-builder": "^26.11.1",
+    "playwright": "^1.62.1"
   },
   "build": {
     "appId": "com.aurorawhisperer.lira",
@@ -49,12 +49,17 @@
     "files": [
       "src/**/*",
       "public/**/*",
+      "!public/img/bilibili-gifts/**/*",
+      "!public/img/bilibili-gifts.json",
       "!public/img/admin/queue/*.png",
       "!public/img/admin/gifts/bilibili-guard-*.png",
       "!public/img/admin/gifts/gift-section-icon.png",
       "!public/img/shared/live-refresh-icon.png",
       "!public/img/admin/nav-icons/*.png",
-      "!public/img/overlays/opening/avatar.png",
+      "!public/img/overlays/opening/**/*",
+      "!public/img/overlays/gift-frame/woodland-bloom/*.png",
+      "!public/img/overlays/danmaku-ranked/*.png",
+      "!public/img/overlays/danmaku-guard/*.png",
       "!public/img/overlays/song-board-style-3/*.png",
       "!public/img/overlays/song-board-style-4/*.png",
       "!public/img/overlays/song-board-style-5/*.png",
@@ -70,6 +75,7 @@
     ],
     "asar": true,
     "npmRebuild": false,
+    "afterPack": "scripts/after-pack.js",
     "win": {
       "icon": "build/icon.ico",
       "target": [

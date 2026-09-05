@@ -79,6 +79,10 @@ contextBridge.exposeInMainWorld('liraLicense', {
   getState: () => ipcRenderer.invoke('license:get-state'),
   activate: (payload) => ipcRenderer.invoke('license:activate', payload),
   retry: () => ipcRenderer.invoke('license:retry'),
+  getGiftCatalogState: () =>
+    ipcRenderer.invoke('license:get-gift-catalog-state'),
+  retryGiftCatalog: () =>
+    ipcRenderer.invoke('license:retry-gift-catalog'),
   getProfile: () => ipcRenderer.invoke('license:get-profile'),
   syncSongs: (songs) => ipcRenderer.invoke('license:sync-songs', songs),
   getCloudSongs: () => ipcRenderer.invoke('license:get-cloud-songs'),
@@ -96,5 +100,15 @@ contextBridge.exposeInMainWorld('liraLicense', {
     const listener = (_event, snapshot) => callback(snapshot);
     ipcRenderer.on('license:state-changed', listener);
     return () => ipcRenderer.removeListener('license:state-changed', listener);
+  },
+  onGiftCatalogStateChanged: (callback) => {
+    if (typeof callback !== 'function') return () => {};
+    const listener = (_event, snapshot) => callback(snapshot);
+    ipcRenderer.on('license:gift-catalog-state-changed', listener);
+    return () =>
+      ipcRenderer.removeListener(
+        'license:gift-catalog-state-changed',
+        listener,
+      );
   },
 });

@@ -2,6 +2,10 @@
 
 (function initLicensePage() {
   const api = window.liraLicense;
+  const loginCard = document.getElementById('licenseLoginCard');
+  const initializationCard = document.getElementById(
+    'giftCatalogInitializationCard',
+  );
   const form = document.getElementById('licenseForm');
   const accountInput = document.getElementById('licenseAccountName');
   const passwordInput = document.getElementById('licensePassword');
@@ -9,8 +13,30 @@
   const submitButton = document.getElementById('licenseSubmitBtn');
   const retryButton = document.getElementById('licenseRetryBtn');
   const status = document.getElementById('licenseStatus');
+  const initializationHeading = document.getElementById(
+    'giftCatalogInitializationHeading',
+  );
+  const initializationPhase = document.getElementById(
+    'giftCatalogInitializationPhase',
+  );
+  const initializationPercent = document.getElementById(
+    'giftCatalogInitializationPercent',
+  );
+  const initializationCount = document.getElementById(
+    'giftCatalogInitializationCount',
+  );
+  const initializationProgress = document.getElementById(
+    'giftCatalogInitializationProgress',
+  );
+  const initializationStatus = document.getElementById(
+    'giftCatalogInitializationStatus',
+  );
+  const initializationRetryButton = document.getElementById(
+    'giftCatalogInitializationRetryBtn',
+  );
   let busy = false;
   let unsubscribe = () => {};
+  let unsubscribeGiftCatalog = () => {};
 
   const messages = {
     ACTIVATION_CODE_INVALID: '激活密钥无效，请检查后重试。',
@@ -100,6 +126,13 @@
 
   function render(snapshot = {}) {
     const state = String(snapshot.state || 'needs_activation');
+    if (state === 'authorized') {
+      showGiftCatalogInitialization();
+      loadGiftCatalogState();
+      return;
+    }
+    loginCard.hidden = false;
+    initializationCard.hidden = true;
     const isAuthorizing = state === 'authorizing' || busy;
     submitButton.disabled = isAuthorizing;
     retryButton.hidden = !(state === 'needs_connection' || state === 'blocked');
@@ -114,6 +147,89 @@
     else if (snapshot.error) setStatus(errorMessage(snapshot.error), 'error');
   }
 
+  function showGiftCatalogInitialization() {
+    loginCard.hidden = true;
+    initializationCard.hidden = false;
+  }
+
+  function renderGiftCatalogState(snapshot = {}) {
+    showGiftCatalogInitialization();
+    const catalogStatus =
+      snapshot?.ok === false && snapshot?.status !== 'ready'
+        ? 'error'
+        : String(snapshot.status || 'required');
+    const phase = String(snapshot.phase || 'idle');
+    const total = safeCount(snapshot.total);
+    const completed = Math.min(safeCount(snapshot.completed), total);
+    const failed = Math.min(safeCount(snapshot.failed), completed);
+    const percent = Math.min(100, safeCount(snapshot.percent));
+    initializationProgress.value = percent;
+    initializationPercent.textContent = `${percent}%`;
+    initializationCount.textContent = total
+      ? `${completed} / ${total} 张`
+      : '等待目录';
+    initializationRetryButton.hidden = catalogStatus !== 'error';
+    initializationRetryButton.disabled = catalogStatus !== 'error';
+    initializationCard.setAttribute(
+      'aria-busy',
+      catalogStatus === 'ready' || catalogStatus === 'error' ? 'false' : 'true',
+    );
+
+    if (catalogStatus === 'error') {
+      initializationHeading.textContent = '礼物图片准备未完成';
+      initializationPhase.textContent = '无法获取礼物目录';
+      setInitializationStatus(catalogErrorMessage(snapshot.error), 'error');
+      return;
+    }
+    if (catalogStatus === 'ready') {
+      initializationHeading.textContent = '礼物图片准备完成';
+      initializationPhase.textContent = '正在进入 LIRA';
+      setInitializationStatus(
+        failed > 0
+          ? `${failed} 张图片暂不可用，后续启动会继续补齐。`
+          : '全部礼物图片已准备好。',
+        'good',
+      );
+      return;
+    }
+
+    initializationHeading.textContent = '正在准备礼物图片';
+    if (phase === 'images') {
+      initializationPhase.textContent = '正在下载礼物图片';
+      const giftName = String(snapshot.currentGiftName || '').trim();
+      setInitializationStatus(
+        giftName ? `正在处理：${giftName}` : '正在检查本地图片…',
+        'loading',
+      );
+    } else {
+      initializationPhase.textContent = '正在获取礼物目录';
+      setInitializationStatus('正在连接服务器…', 'loading');
+    }
+  }
+
+  function setInitializationStatus(message, tone) {
+    initializationStatus.textContent = message;
+    initializationStatus.className = `license-status license-initialization-status${tone ? ` ${tone}` : ''}`;
+  }
+
+  function catalogErrorMessage(code) {
+    const value = String(code || '');
+    if (
+      value === 'REMOTE_CATALOG_NOT_READY' ||
+      value === 'REMOTE_CATALOG_EMPTY' ||
+      value === 'NETWORK_UNAVAILABLE' ||
+      value === 'REQUEST_TIMEOUT' ||
+      /^HTTP_(429|5\d\d)$/.test(value)
+    )
+      return '礼物目录暂时无法下载，请检查网络后重试。';
+    return '礼物图片初始化失败，请重试。';
+  }
+
+  function safeCount(value) {
+    const number = Number(value);
+    return Number.isSafeInteger(number) && number >= 0 ? number : 0;
+  }
+
   function finishBusy() {
     busy = false;
     submitButton.disabled = false;
@@ -126,6 +242,26 @@
       render(await api.getState());
     } catch (_) {
       setStatus(errorMessage('NETWORK_UNAVAILABLE'), 'error');
+    }
+  }
+
+  async function loadGiftCatalogState() {
+    if (!api?.getGiftCatalogState) {
+      renderGiftCatalogState({
+        status: 'error',
+        phase: 'error',
+        error: 'CATALOG_INITIALIZATION_UNAVAILABLE',
+      });
+      return;
+    }
+    try {
+      renderGiftCatalogState(await api.getGiftCatalogState());
+    } catch (_) {
+      renderGiftCatalogState({
+        status: 'error',
+        phase: 'error',
+        error: 'NETWORK_UNAVAILABLE',
+      });
     }
   }
 
@@ -148,10 +284,7 @@
       if (result?.ok) {
         passwordInput.value = '';
         codeInput.value = '';
-        setStatus('授权成功，正在打开 LIRA…', 'good');
-        setTimeout(() => {
-          window.location.href = '/admin?desktop=1';
-        }, 60);
+        render(result);
       } else {
         render(result || { state: 'needs_activation' });
       }
@@ -168,9 +301,7 @@
     render({ state: 'checking' });
     try {
       const result = await api.retry();
-      if (result?.ok && result.state === 'authorized')
-        window.location.href = '/admin?desktop=1';
-      else render(result);
+      render(result);
     } catch (_) {
       setStatus(errorMessage('NETWORK_UNAVAILABLE'), 'error');
     } finally {
@@ -178,8 +309,24 @@
     }
   }
 
+  async function retryGiftCatalog() {
+    if (!api?.retryGiftCatalog) return;
+    initializationRetryButton.disabled = true;
+    renderGiftCatalogState({ status: 'running', phase: 'catalog' });
+    try {
+      renderGiftCatalogState(await api.retryGiftCatalog());
+    } catch (_) {
+      renderGiftCatalogState({
+        status: 'error',
+        phase: 'error',
+        error: 'NETWORK_UNAVAILABLE',
+      });
+    }
+  }
+
   form?.addEventListener('submit', activate);
   retryButton?.addEventListener('click', retry);
+  initializationRetryButton?.addEventListener('click', retryGiftCatalog);
   document
     .getElementById('licenseMinimizeBtn')
     ?.addEventListener('click', () =>
@@ -197,10 +344,15 @@
     );
   if (api?.onStateChanged)
     unsubscribe = api.onStateChanged((snapshot) => {
-      if (snapshot?.state === 'authorized')
-        window.location.href = '/admin?desktop=1';
-      else render(snapshot);
+      render(snapshot);
     });
-  window.addEventListener('pagehide', () => unsubscribe());
+  if (api?.onGiftCatalogStateChanged)
+    unsubscribeGiftCatalog = api.onGiftCatalogStateChanged(
+      renderGiftCatalogState,
+    );
+  window.addEventListener('pagehide', () => {
+    unsubscribeGiftCatalog();
+    unsubscribe();
+  });
   loadState();
 })();

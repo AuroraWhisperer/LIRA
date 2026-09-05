@@ -19,6 +19,7 @@ const {
   createRequesterTargetStore,
 } = require('../src/music/requester-target-store');
 const { closeDatabases, createDatabases } = require('../src/storage/database');
+const { createSongStore } = require('../src/storage/song-store');
 
 const SONGS = [
   {
@@ -125,6 +126,17 @@ test('preserves artist names containing punctuation', () => {
   assert.equal(filterRandomSongCandidates(songs, '开一枪').length, 0);
 });
 
+test('random matching shares full-width field separators with the library', () => {
+  const { splitSongLanguages, splitSongArtists, splitSongTags } = require('../src/music/song-field-utils');
+  const song = { name: 'fixture', artist: 'Alice／Bob', language: 'English／Japanese', tags: 'first;second' };
+  assert.deepEqual(splitSongLanguages(song.language), ['English', 'Japanese']);
+  assert.deepEqual(splitSongArtists(song.artist), ['Alice', 'Bob']);
+  assert.deepEqual(splitSongTags(song.tags), ['first', 'second']);
+  for (const query of ['Alice', 'Bob', 'English', 'Japanese', 'first', 'second']) {
+    assert.equal(filterRandomSongCandidates([song], query).length, 1, query);
+  }
+});
+
 test('matches category components and common category aliases', () => {
   const songs = [{ name: '跨分类歌曲', category_name: '流行 / R&B / 说唱' }];
 
@@ -177,23 +189,24 @@ test('song service only returns enabled library songs satisfying every term', ()
     path.join(os.tmpdir(), 'song-plugin-random-filter-'),
   );
   const databases = createDatabases({ dataDir });
+  const songStore = createSongStore(databases.songDb);
 
   try {
-    songService.saveSong(databases.songDb, {
+    songService.saveSong(songStore, {
       name: '完整匹配',
       artist: '周杰伦',
       categoryName: '流行',
       language: '国语',
       tags: '抒情',
     });
-    songService.saveSong(databases.songDb, {
+    songService.saveSong(songStore, {
       name: '缺少标签',
       artist: '周杰伦',
       categoryName: '流行',
       language: '国语',
       tags: '轻快',
     });
-    songService.saveSong(databases.songDb, {
+    songService.saveSong(songStore, {
       name: '已禁用',
       artist: '周杰伦',
       categoryName: '流行',
@@ -203,7 +216,7 @@ test('song service only returns enabled library songs satisfying every term', ()
     });
 
     const matches = songService.listRandomSongCandidates(
-      databases.songDb,
+      songStore,
       '国语+周杰伦+抒情',
     );
     assert.deepEqual(
@@ -211,7 +224,7 @@ test('song service only returns enabled library songs satisfying every term', ()
       ['完整匹配'],
     );
     const aliasMatches = songService.listRandomSongCandidates(
-      databases.songDb,
+      songStore,
       '国语+周杰伦+情歌',
     );
     assert.deepEqual(
@@ -226,7 +239,7 @@ test('song service only returns enabled library songs satisfying every term', ()
     );
     assert.deepEqual(
       songService.listRandomSongCandidates(
-        databases.songDb,
+        songStore,
         '国语+周杰伦+摇滚',
       ),
       [],

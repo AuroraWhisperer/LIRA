@@ -72,22 +72,22 @@
 ### 1.4 礼物四方边框(`/gift-effects`)
 
 `gift-effects.html` 保留透明全屏浏览器源地址，但运行路径只消费 `gift:frame`。内置
-`woodland-bloom` 主题由一张完整合成 PNG 和上、右、下、左四张透明 PNG 组件组成；正常播放
-分别控制四个组件，任一组件加载失败时切到本地完整合成图，不加载远程美术。礼物名称、观众、
-数量与最终金额由 DOM `textContent` 写入下边组件自带的象牙色铭牌；中间安全区保持透明。
-结构图之上另有 `branch`、`crystal`、`floral` 三张本地透明装饰 PNG；它们不参与四边拼接，
+`woodland-bloom` 主题当前使用一张完整合成 WebP 作为边框；上、右、下、左四张分片 WebP
+也保留在资源目录中，但当前页面不直接加载它们，不加载远程美术。礼物名称、观众、
+数量与最终金额由 DOM `textContent` 写入边框底部铭牌区域；中间安全区保持透明。
+结构图之上另有 `branch`、`crystal`、`floral` 三张本地透明装饰 WebP；它们不参与四边拼接，
 由 `FrameController` 独立进入、退场，并在 Holding 阶段分别完成一次花藤轻摆、水晶钟摆和花结
 落位动作。三段动作不循环、位移不超过 8px、旋转不超过 3°；`reduced` 只显示静态装饰。
 
 播放由 Overlay 内部 `GiftFrameController` 管理：单个 `PlaybackSession` 按 `900ms` 进入、
-`2600ms` 保持、`650ms` 退场的冻结时序运行，四个组件以各自方向的位移和 clip reveal 与信息座
+`2600ms` 保持、`650ms` 退场的冻结时序运行，完整边框、独立装饰与信息座
 在进入阶段并行重叠；
 队列最多 3 条 pending，事件等待超过 12 秒丢弃，实时事件按稳定 `gift-frame:<id>` 去重，
 金额更高的新事件可替换 pending 中最低且最晚入队的一条。每个会话拥有 `AbortController`、
 WAAPI 句柄、timer 与 watchdog，正常、异常、超时和主动取消都从同一 `finally` 清理出口恢复透明。
 
 粒子 Canvas 最多创建 6 个错峰萤火光点，每个只沿框体周边完成一次短距离漂移和明暗变化，
-不进入中央直播安全区；粒子失败不影响 PNG/DOM 生命周期。
+不进入中央直播安全区；粒子失败不影响 WebP/DOM 生命周期。
 动效解析优先级为 URL `?motion=` > `gift:frame.motionMode`/快照 settings > 系统
 `prefers-reduced-motion`；`reduced` 关闭粒子和大幅位移但保留边框结构与礼物信息。旧
 `gift:effect` MP4 查询接口仍作为兼容入口保留，但新 Overlay 不消费也不加载远程礼物媒体。
@@ -100,8 +100,9 @@ WAAPI 句柄、timer 与 watchdog，正常、异常、超时和主动取消都�
 SVG 时间轴，启用画面时统一归零并从首轮立即移动；
 灯带用金色短划线连续偏移，流光用单段粉色 dash 沿整条路径循环；任何时刻只显示一种前景
 动效，不创建任意 CSS/SVG 输入面。页面隐藏、低画质或 `prefers-reduced-motion` 时暂停或停用
-连续轨道动画，固定 `/opening` 地址本身不携带配置。右侧人物图默认读取内置 WebP；Admin 可上传
-PNG/JPEG/WebP，Overlay 只接受内置 URL 或受限的 `/opening-character/` 当前文件 URL。
+连续轨道动画，固定 `/opening` 地址本身不携带配置。人物图和音乐默认均为空；Admin 可上传
+PNG/JPEG/WebP 和受支持的音频，Overlay 只接受受限的 `/opening-character/`、`/opening-media/`
+当前文件 URL。未上传或清除后隐藏人物图并移除 src，不加载或播放空音频地址。
 
 ## 2. 队列叠加层(/queue)
 
@@ -227,7 +228,7 @@ PNG/JPEG/WebP，Overlay 只接受内置 URL 或受限的 `/opening-character/` �
 | songs        | `/api/state` + `/api/songs`                                          | snapshot                                    | orderKey/layoutKey/motionKey            | `songs:*`/`database:clear`(220ms 重载)                         |
 | blindbox     | `/api/state` + `/api/gifts/blind-box-stats`                          | snapshot(仅缓存)+ 轮询                      | 统计接口每次重取                        | `bilibili:gift`/`gift:sprint:reset`/`connect`                  |
 | overtime     | `/api/state`(overtime 字段)                                          | snapshot + `overtime:update`                | `revision` 单调比较                     | `overtime:update` 的 adjustment → 动画入队                     |
-| gift-effects | `/gift-effects` 页面内置完整合成图 + 四方结构 PNG + 三张独立装饰 PNG | `gift:frame`                                | `eventId` 稳定去重 + 3 条 pending 队列  | 每个合格 final 礼物一次播放                                    |
+| gift-effects | `/gift-effects` 页面加载完整合成 WebP + 三张独立装饰 WebP；保留四方分片资源 | `gift:frame`                                | `eventId` 稳定去重 + 3 条 pending 队列  | 每个合格 final 礼物一次播放                                    |
 | opening      | `/api/opening/config`                                                | 无                                          | 无；首帧配置经枚举/文本清洗             | 页面加载一次；Admin 预览可由 URL 参数覆盖                      |
 | clock        | `/api/clock/config` + 设备本地时间；URL 参数可覆盖                   | 本地秒边界定时器                            | 无；页面恢复可见时立即校时              | 页面加载一次；不消费 WebSocket reason                          |
 | lyrics       | `/api/settings`                                                      | `lyric-state` + `lyric-timeline` + snapshot | 当前行与时间轴内部去重                  | 播放页按状态变化推送                                           |

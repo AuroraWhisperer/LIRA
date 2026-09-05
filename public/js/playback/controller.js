@@ -8,7 +8,6 @@ import { UIRenderer } from './ui/index.js';
 import { StateManager } from './state/manager.js';
 import { StorageManager } from './state/storage.js';
 import { QueueManager } from './queue/manager.js';
-import { PlayerController } from './player/controller.js';
 import { ProviderManager } from './provider/manager.js';
 import { ContentLoader } from './content/loader.js';
 import { LocalFileManager } from './local/manager.js';
@@ -101,7 +100,8 @@ export function createPlaybackController(initialOptions = {}) {
 
   function applyBackgroundHomeUpdate(update) {
     if (homeService.getHomeState().action !== update.action) return;
-    homeService._applyBackgroundUpdate(update);
+    if (playbackState.selectedSource !== update.platform) return;
+    if (!homeService._applyBackgroundUpdate(update)) return;
     renderPlaybackHomeResults(update.action, update.title);
     toast(HomeService.getActionName(update.action) + '已自动更新');
   }
@@ -123,19 +123,6 @@ export function createPlaybackController(initialOptions = {}) {
     state: playbackState,
     radioRefillThreshold: playbackRadioRefillThreshold,
     radioRefillBatchSize: playbackRadioRefillBatchSize,
-  });
-
-  const playerController = new PlayerController({
-    state: playbackState,
-    queueManager,
-    onTrackChange: playPlaybackTrack,
-    onStateChange: () => {
-      renderPlayback();
-      savePlaybackState();
-    },
-    onError: (error) => {
-      showError(error);
-    },
   });
 
   const searchService = new SearchService({
@@ -509,7 +496,6 @@ export function createPlaybackController(initialOptions = {}) {
     playbackState,
     getPlaybackAudio,
     uiRenderer,
-    playerController,
     storageManager,
     localFileManager,
     renderPlayback,

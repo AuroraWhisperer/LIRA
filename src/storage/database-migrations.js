@@ -284,6 +284,10 @@ function runAllMigrations(databases, options = {}) {
           END;
         `);
       },
+      (db) => {
+        // v9: 远端盲盒事件保留稳定的盒子礼物 ID；旧行保持 NULL。
+        ensureGiftBlindBoxIdColumn(db);
+      },
     ]),
   );
 
@@ -434,6 +438,18 @@ function ensureGiftColumns(db) {
     if (!columns.has(name)) {
       db.exec(`ALTER TABLE gift_events ADD COLUMN ${name} ${definition}`);
     }
+  }
+}
+
+function ensureGiftBlindBoxIdColumn(db) {
+  const columns = new Set(
+    db
+      .prepare('PRAGMA table_info(gift_events)')
+      .all()
+      .map((column) => column.name),
+  );
+  if (!columns.has('blind_box_id')) {
+    db.exec('ALTER TABLE gift_events ADD COLUMN blind_box_id TEXT');
   }
 }
 

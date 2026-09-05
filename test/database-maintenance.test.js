@@ -180,7 +180,7 @@ test('createDatabases upgrades genuine pre-v1 song and gift databases idempotent
       assert.deepEqual(getSchemaVersions(databases), {
         songDb: 5,
         superChatDb: 1,
-        giftDb: 8,
+        giftDb: 9,
         musicDb: 1,
         checkinDb: 1,
       });
@@ -232,7 +232,7 @@ test('createDatabases upgrades genuine pre-v1 song and gift databases idempotent
         .prepare(
           `
         SELECT gift_name, num, counted_in_sprint, detection_status,
-               gift_stats_eligible, gift_stats_delivered
+               gift_stats_eligible, gift_stats_delivered, blind_box_id
         FROM gift_events WHERE id = 1
       `,
         )
@@ -246,6 +246,7 @@ test('createDatabases upgrades genuine pre-v1 song and gift databases idempotent
           detection_status: 'final',
           gift_stats_eligible: 1,
           gift_stats_delivered: 1,
+          blind_box_id: null,
         },
       );
 

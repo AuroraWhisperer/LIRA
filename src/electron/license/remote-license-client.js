@@ -176,7 +176,7 @@ function createRemoteLicenseClient(options = {}) {
     const normalizedEtag = safeHeaderValue(etag);
     return requestWithBody(
       'GET',
-      '/api/public/gifts/catalog',
+      '/api/public/gifts/catalog?schemaVersion=2',
       undefined,
       '',
       // The catalog endpoint is public.  Never forward a device session token,
@@ -190,10 +190,10 @@ function createRemoteLicenseClient(options = {}) {
     );
   }
 
-  async function watchCloudStateChanges(token, options = {}) {
+  async function readEventStream(pathname, token, options, onOpen, onBlock) {
     let response;
     try {
-      response = await fetchImpl(`${baseUrl}/api/device/cloud-state/events`, {
+      response = await fetchImpl(`${baseUrl}${pathname}`, {
         method: 'GET',
         headers: {
           Accept: 'text/event-stream',
@@ -211,19 +211,9 @@ function createRemoteLicenseClient(options = {}) {
       );
     }
 
-    if (!response.ok) {
-      const error = await readStreamError(response);
-      throw error;
-    }
+    if (!response.ok) throw await readStreamError(response);
     const contentType = String(response.headers?.get?.('content-type') || '');
-    if (!/^text\/event-stream(?:\s*;|$)/iu.test(contentType)) {
-      throw new RemoteLicenseError(
-        'INVALID_RESPONSE',
-        '授权服务器返回无效响应。',
-        { status: response.status, retryable: true },
-      );
-    }
-    if (!response.body?.getReader) {
+    if (!/^text\/event-stream(?:\s*;|$)/iu.test(contentType) || !response.body?.getReader) {
       throw new RemoteLicenseError(
         'INVALID_RESPONSE',
         '授权服务器返回无效响应。',
@@ -231,11 +221,11 @@ function createRemoteLicenseClient(options = {}) {
       );
     }
 
-    options.onOpen?.();
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
     try {
+      onOpen(response);
       while (true) {
         const { value, done } = await reader.read();
         buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
@@ -251,14 +241,30 @@ function createRemoteLicenseClient(options = {}) {
         while (boundary >= 0) {
           const block = buffer.slice(0, boundary);
           buffer = buffer.slice(boundary + 2);
-          handleCloudStateEventBlock(block, options.onChange);
+          onBlock(block);
           boundary = buffer.indexOf('\n\n');
         }
         if (done) break;
       }
     } finally {
+      try {
+        await reader.cancel?.();
+      } catch (error) {
+        // An aborted stream may already be errored when cleanup runs.
+        void error;
+      }
       reader.releaseLock?.();
     }
+  }
+
+  function watchCloudStateChanges(token, options = {}) {
+    return readEventStream(
+      '/api/device/cloud-state/events',
+      token,
+      options,
+      () => options.onOpen?.(),
+      (block) => handleCloudStateEventBlock(block, options.onChange),
+    );
   }
 
   async function getGiftEvents(after, limit, token, options = {}) {
@@ -292,83 +298,25 @@ function createRemoteLicenseClient(options = {}) {
     );
   }
 
-  async function watchGiftEvents(token, options = {}) {
-    let response;
-    try {
-      response = await fetchImpl(`${baseUrl}/api/device/gift-events/stream`, {
-        method: 'GET',
-        headers: {
-          Accept: 'text/event-stream',
-          Authorization: `Bearer ${token}`,
-        },
-        signal: options.signal,
-        redirect: 'error',
-      });
-    } catch (error) {
-      if (error?.name === 'AbortError') throw error;
-      throw new RemoteLicenseError(
-        'NETWORK_UNAVAILABLE',
-        '无法连接授权服务器，请检查网络后重试。',
-        { retryable: true },
-      );
-    }
-
-    if (!response.ok) throw await readStreamError(response);
-    const contentType = String(response.headers?.get?.('content-type') || '');
-    if (!/^text\/event-stream(?:\s*;|$)/iu.test(contentType)) {
-      throw new RemoteLicenseError(
-        'INVALID_RESPONSE',
-        '授权服务器返回无效响应。',
-        { status: response.status, retryable: true },
-      );
-    }
-    if (!response.body?.getReader) {
-      throw new RemoteLicenseError(
-        'INVALID_RESPONSE',
-        '授权服务器返回无效响应。',
-        { status: response.status, retryable: true },
-      );
-    }
-
-    const rawSyncEpoch = response.headers?.get?.(
-      'x-lira-gift-sync-epoch',
-    );
-    const syncEpoch = normalizeSyncEpochHeader(rawSyncEpoch);
-    if (rawSyncEpoch !== null && syncEpoch === null) {
-      throw new RemoteLicenseError(
-        'INVALID_RESPONSE',
-        '授权服务器返回无效响应。',
-        { status: response.status, retryable: true },
-      );
-    }
-    options.onOpen?.({ syncEpoch });
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-    try {
-      while (true) {
-        const { value, done } = await reader.read();
-        buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
-        if (buffer.length > 64 * 1024) {
+  function watchGiftEvents(token, options = {}) {
+    return readEventStream(
+      '/api/device/gift-events/stream',
+      token,
+      options,
+      (response) => {
+        const rawSyncEpoch = response.headers?.get?.('x-lira-gift-sync-epoch');
+        const syncEpoch = normalizeSyncEpochHeader(rawSyncEpoch);
+        if (rawSyncEpoch !== null && syncEpoch === null) {
           throw new RemoteLicenseError(
-            'RESPONSE_TOO_LARGE',
-            '授权服务器响应过大。',
+            'INVALID_RESPONSE',
+            '授权服务器返回无效响应。',
             { status: response.status, retryable: true },
           );
         }
-        buffer = buffer.replace(/\r\n/g, '\n');
-        let boundary = buffer.indexOf('\n\n');
-        while (boundary >= 0) {
-          const block = buffer.slice(0, boundary);
-          buffer = buffer.slice(boundary + 2);
-          handleGiftEventBlock(block, options.onEvent);
-          boundary = buffer.indexOf('\n\n');
-        }
-        if (done) break;
-      }
-    } finally {
-      reader.releaseLock?.();
-    }
+        options.onOpen?.({ syncEpoch });
+      },
+      (block) => handleGiftEventBlock(block, options.onEvent),
+    );
   }
 
   return {
@@ -378,30 +326,32 @@ function createRemoteLicenseClient(options = {}) {
     verify: (body) => request('POST', '/api/device/verify', body),
     heartbeat: (token) => request('POST', '/api/device/heartbeat', {}, token),
     profile: (token) => request('GET', '/api/device/profile', undefined, token),
-    getCloudState: (token) =>
-      request('GET', '/api/device/cloud-state', undefined, token),
+    getCloudState: (token, requestOptions) =>
+      request('GET', '/api/device/cloud-state', undefined, token, requestOptions),
     watchCloudStateChanges,
     getGiftEvents,
     getGiftHistory,
     watchGiftEvents,
-    updateCloudSettings: (settings, token) =>
-      request('PUT', '/api/device/cloud-settings', settings, token),
-    syncSongs: (songs, token) =>
-      request('PUT', '/api/device/songs/sync', { songs }, token),
-    getCloudSongs: (token) =>
+    updateCloudSettings: (settings, token, requestOptions) =>
+      request('PUT', '/api/device/cloud-settings', settings, token, requestOptions),
+    syncSongs: (songs, token, requestOptions) =>
+      request('PUT', '/api/device/songs/sync', { songs }, token, requestOptions),
+    getCloudSongs: (token, requestOptions = {}) =>
       request('GET', '/api/device/songs', undefined, token, {
         maxResponseBytes: 4 * 1024 * 1024,
+        signal: requestOptions.signal,
       }),
-    getBilibiliCredentials: (token) =>
-      request('GET', '/api/device/bilibili-credentials', undefined, token),
-    setBilibiliCredentials: (cookie, token) =>
-      request('PUT', '/api/device/bilibili-credentials', { cookie }, token),
-    clearBilibiliCredentials: (token) =>
+    getBilibiliCredentials: (token, requestOptions) =>
+      request('GET', '/api/device/bilibili-credentials', undefined, token, requestOptions),
+    setBilibiliCredentials: (cookie, token, requestOptions) =>
+      request('PUT', '/api/device/bilibili-credentials', { cookie }, token, requestOptions),
+    clearBilibiliCredentials: (token, requestOptions) =>
       request(
         'DELETE',
         '/api/device/bilibili-credentials',
         undefined,
         token,
+        requestOptions,
       ),
     getGiftCatalog: (etag, token) => requestGiftCatalog(etag, token),
     getSongPageBackground: (token) =>
@@ -419,17 +369,22 @@ function createRemoteLicenseClient(options = {}) {
   };
 }
 
-function handleGiftEventBlock(block, onEvent) {
+function parseEventBlock(block) {
   let eventName = '';
   const dataLines = [];
   for (const line of String(block || '').split('\n')) {
     if (line.startsWith('event:')) eventName = line.slice(6).trim();
     else if (line.startsWith('data:')) dataLines.push(line.slice(5).trimStart());
   }
-  if (eventName !== 'gift-event' || dataLines.length === 0) return;
+  return { eventName, data: dataLines.join('\n') };
+}
+
+function handleGiftEventBlock(block, onEvent) {
+  const { eventName, data } = parseEventBlock(block);
+  if (eventName !== 'gift-event' || !data) return;
   try {
     const event = normalizeProcessedGiftEvent(
-      JSON.parse(dataLines.join('\n')),
+      JSON.parse(data),
     );
     onEvent?.(event);
   } catch (error) {
@@ -441,16 +396,11 @@ function handleGiftEventBlock(block, onEvent) {
 }
 
 function handleCloudStateEventBlock(block, onChange) {
-  let eventName = '';
-  const dataLines = [];
-  for (const line of String(block || '').split('\n')) {
-    if (line.startsWith('event:')) eventName = line.slice(6).trim();
-    else if (line.startsWith('data:')) dataLines.push(line.slice(5).trimStart());
-  }
-  if (eventName !== 'cloud-state-changed' || dataLines.length === 0) return;
+  const { eventName, data } = parseEventBlock(block);
+  if (eventName !== 'cloud-state-changed' || !data) return;
   let parsed;
   try {
-    parsed = JSON.parse(dataLines.join('\n'));
+    parsed = JSON.parse(data);
   } catch (error) {
     void error;
     return;

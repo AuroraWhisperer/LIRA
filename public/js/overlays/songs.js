@@ -1,4 +1,5 @@
 import { SongVirtualScroller } from './song-virtual-scroller.js';
+import { createOverlaySocket } from './socket-client.js';
 
 ('use strict');
 
@@ -6,8 +7,7 @@ let state = null;
 let songs = [];
 let songsRevision = 0;
 let reloadTimer = null;
-let reconnectTimer = null;
-let reconnectAttempts = 0;
+let socketController = null;
 let resizeTimer = null;
 let resizeObserver = null;
 let relayoutRevision = 0;
@@ -22,6 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initializeScroller();
   loadAll();
   connectSocket();
+  window.addEventListener('beforeunload', disposeSocket, { once: true });
 });
 
 function initializeScroller() {
@@ -99,48 +100,37 @@ async function loadAll() {
 }
 
 function connectSocket() {
-  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const token = window.__API_TOKEN__;
-  const wsUrl = `${protocol}//${location.host}/ws${token ? `?token=${encodeURIComponent(token)}` : ''}`;
-  const socket = new WebSocket(wsUrl);
-
-  socket.addEventListener('open', () => {
-    clearTimeout(reconnectTimer);
-    reconnectAttempts = 0;
-  });
-
-  socket.addEventListener('message', (event) => {
-    const payload = JSON.parse(event.data);
-    if (payload.type !== 'snapshot') return;
-    if (payload.reason === 'live:status' && state) {
-      state.liveStatus = payload.state.liveStatus;
-      return;
-    }
-
-    state = payload.state;
-    if (
-      payload.reason &&
-      (payload.reason.startsWith('songs:') ||
-        payload.reason === 'database:clear')
-    ) {
-      clearTimeout(reloadTimer);
-      reloadTimer = setTimeout(loadAll, 220);
-      return;
-    }
-    render();
-  });
-
-  socket.addEventListener('close', () => {
-    const delay = Math.min(
-      30000,
-      800 * Math.pow(2, Math.min(reconnectAttempts, 6)),
-    );
-    reconnectAttempts += 1;
-    reconnectTimer = setTimeout(() => {
+  if (socketController) return;
+  socketController = createOverlaySocket({
+    onReconnect: () => {
       loadAll();
-      connectSocket();
-    }, delay);
+    },
+    onMessage: (payload) => {
+      if (payload.type !== 'snapshot') return;
+      if (payload.reason === 'live:status' && state) {
+        state.liveStatus = payload.state.liveStatus;
+        return;
+      }
+
+      state = payload.state;
+      if (
+        payload.reason &&
+        (payload.reason.startsWith('songs:') ||
+          payload.reason === 'database:clear')
+      ) {
+        clearTimeout(reloadTimer);
+        reloadTimer = setTimeout(loadAll, 220);
+        return;
+      }
+      render();
+    },
   });
+  socketController.start();
+}
+
+function disposeSocket() {
+  socketController?.dispose();
+  socketController = null;
 }
 
 function render({

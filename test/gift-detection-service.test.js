@@ -25,7 +25,7 @@ test('gift database v4 exposes the shared detection ledger columns', () => {
   const db = createDatabases({ dataDir });
 
   try {
-    assert.equal(getSchemaVersions(db).giftDb, 8);
+    assert.equal(getSchemaVersions(db).giftDb, 9);
     const columns = new Set(
       db.giftDb
         .prepare('PRAGMA table_info(gift_events)')
@@ -85,7 +85,7 @@ test('gift database v3 upgrades before creating indexes that depend on v4 column
     giftDb.close();
 
     db = createDatabases({ dataDir });
-    assert.equal(getSchemaVersions(db).giftDb, 8);
+    assert.equal(getSchemaVersions(db).giftDb, 9);
     const indexes = new Set(
       db.giftDb
         .prepare("SELECT name FROM sqlite_master WHERE type = 'index'")

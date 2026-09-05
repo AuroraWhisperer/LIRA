@@ -13,8 +13,12 @@ of sync with its visibility animation.
   enabled scene starts, and move from the first cycle without the old endpoint
   holds.
 - Admin accepts one PNG, JPEG, or WebP character image up to 16 MiB, shows the
-  saved display name, reloads the preview after upload, and can restore the
-  bundled default image.
+  saved display name, reloads the preview after upload, and can clear the
+  selected image. With no upload, the character is hidden and has no src.
+- Opening music likewise has no bundled default: no selection or a missing
+  selected file returns empty URL/name fields and does not start audio playback.
+- Original music and character samples live in `test/fixtures/opening/` for
+  manual upload tests, outside the public root and release package allowlist.
 - The selected character survives reload and is returned by the public,
   read-only opening configuration used by the fixed `/opening` source.
 - Unsupported, empty, oversized, or extension/signature-mismatched uploads are
@@ -26,8 +30,10 @@ of sync with its visibility animation.
 beside the existing opening controls. `public/js/admin/start-animation.js`
 performs early extension and size checks for feedback, uploads with
 `multipart/form-data`, and reloads the existing preview URL after success or
-reset. `public/js/overlays/opening.js` accepts only the bundled avatar URL or the
-dedicated local character-media prefix before assigning `img.src`.
+clear. `public/js/overlays/opening.js` accepts only the dedicated local
+character-media prefix before assigning `img.src`; an empty or unsupported URL
+hides the image and removes src. Audio uses the dedicated music-media prefix
+and never loads or plays an empty source.
 
 The heart's opacity animation moves from CSS to the same inline SVG as
 `animateMotion`. The motion has no initial endpoint hold. The overlay resets the
@@ -39,9 +45,11 @@ cannot offset the first cycle.
 `POST /api/opening/character` stores a validated upload under the data
 directory's `opening-character/` folder using a generated basename, then saves
 that basename and the cleaned display name in the existing key/value settings
-store. `DELETE /api/opening/character` clears those settings and restores the
-bundled avatar. `GET /api/opening/config` returns the selected safe URL and
-display state.
+store. `DELETE /api/opening/character` clears those settings and leaves no
+character selected. The existing music DELETE follows the same empty-state
+rule. Neither operation deletes previously uploaded files. `GET
+/api/opening/config` returns the selected safe URL and display state, or empty
+URL/name fields with the corresponding hasUploaded flag false.
 
 The explicit `/opening-character/<generated-name>` media route serves only the
 single basename currently selected in settings. No database schema migration,

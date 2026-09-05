@@ -37,31 +37,45 @@ function createSettingsStore(db) {
   }
 
   let cache = null;
+  const writeSetting = db.prepare(`
+    INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)
+    ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+  `);
+
+  function getSettings() {
+    if (cache) return { ...cache };
+    const rows = db.prepare('SELECT key, value FROM settings').all();
+    cache = { ...DEFAULT_SETTINGS };
+    for (const row of rows) cache[row.key] = row.value;
+    return { ...cache };
+  }
 
   return {
     getDefaultSettings() {
       return { ...DEFAULT_SETTINGS };
     },
 
-    getSettings() {
-      if (cache) return { ...cache };
-      const rows = db.prepare('SELECT key, value FROM settings').all();
-      cache = { ...DEFAULT_SETTINGS };
-      for (const row of rows) {
-        cache[row.key] = row.value;
-      }
-      return { ...cache };
-    },
+    getSettings,
 
     setSetting(key, value) {
-      db.prepare(
-        `
-        INSERT INTO settings (key, value, updated_at)
-        VALUES (?, ?, ?)
-        ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
-      `,
-      ).run(key, value, now());
+      writeSetting.run(key, value, now());
       cache = null;
+    },
+
+    setSettings(values) {
+      const previous = getSettings();
+      const changes = Object.entries(values).filter(([key, value]) => previous[key] !== value);
+      if (changes.length === 0) return [];
+      db.exec('BEGIN IMMEDIATE');
+      try {
+        for (const [key, value] of changes) writeSetting.run(key, value, now());
+        db.exec('COMMIT');
+      } catch (error) {
+        db.exec('ROLLBACK');
+        throw error;
+      }
+      cache = null;
+      return changes.map(([key]) => key);
     },
   };
 }

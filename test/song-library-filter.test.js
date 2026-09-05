@@ -10,6 +10,7 @@ const test = require('node:test');
 const vm = require('node:vm');
 const { fileURLToPath, pathToFileURL } = require('node:url');
 const { createDatabases, closeDatabases } = require('../src/storage/database');
+const { createSongStore } = require('../src/storage/song-store');
 const songService = require('../src/music/song-service');
 const ROOT_DIR = path.join(__dirname, '..');
 
@@ -92,28 +93,29 @@ test('song library requires every selected category and composes with other filt
     path.join(os.tmpdir(), 'song-library-filter-'),
   );
   const databases = createDatabases({ dataDir });
+  const songStore = createSongStore(databases.songDb);
 
   try {
-    songService.saveSong(databases.songDb, {
+    songService.saveSong(songStore, {
       name: '双分类可点',
       artist: '歌手甲',
       categoryName: '流行 / R&B / 说唱',
       language: '国语',
     });
-    songService.saveSong(databases.songDb, {
+    songService.saveSong(songStore, {
       name: '双分类停用',
       artist: '歌手甲',
       categoryName: 'R&B / 说唱',
       language: '国语',
       isEnabled: false,
     });
-    songService.saveSong(databases.songDb, {
+    songService.saveSong(songStore, {
       name: '只有R&B',
       artist: '歌手甲',
       categoryName: '流行 / R&B',
       language: '国语',
     });
-    songService.saveSong(databases.songDb, {
+    songService.saveSong(songStore, {
       name: '语言不同',
       artist: '歌手甲',
       categoryName: 'R&B / 说唱',
@@ -122,14 +124,14 @@ test('song library requires every selected category and composes with other filt
 
     assert.deepEqual(
       songService
-        .listSongs(databases.songDb, { categories: ['R&B', '说唱'] })
+        .listSongs(songStore, { categories: ['R&B', '说唱'] })
         .map((song) => song.name)
         .sort(),
       ['双分类停用', '双分类可点', '语言不同'],
     );
     assert.deepEqual(
       songService
-        .listSongs(databases.songDb, {
+        .listSongs(songStore, {
           categories: ['R&B', '说唱'],
           language: '国语',
           artist: '歌手甲',
@@ -139,7 +141,7 @@ test('song library requires every selected category and composes with other filt
       ['双分类可点'],
     );
     assert.deepEqual(
-      songService.listSongs(databases.songDb, { categories: ['R&B', '民谣'] }),
+      songService.listSongs(songStore, { categories: ['R&B', '民谣'] }),
       [],
     );
   } finally {
@@ -153,19 +155,20 @@ test('song library artist filter matches an individual artist in a collaboration
     path.join(os.tmpdir(), 'song-library-artist-filter-'),
   );
   const databases = createDatabases({ dataDir });
+  const songStore = createSongStore(databases.songDb);
 
   try {
-    songService.saveSong(databases.songDb, {
+    songService.saveSong(songStore, {
       name: '合作歌曲',
       artist: '歌手甲 / 歌手乙',
       categoryName: '流行',
     });
-    songService.saveSong(databases.songDb, {
+    songService.saveSong(songStore, {
       name: '歌手甲独唱',
       artist: '歌手甲',
       categoryName: '流行',
     });
-    songService.saveSong(databases.songDb, {
+    songService.saveSong(songStore, {
       name: '其他歌曲',
       artist: '歌手丙',
       categoryName: '流行',
@@ -173,14 +176,14 @@ test('song library artist filter matches an individual artist in a collaboration
 
     assert.deepEqual(
       songService
-        .listSongs(databases.songDb, { artist: '歌手甲' })
+        .listSongs(songStore, { artist: '歌手甲' })
         .map((song) => song.name)
         .sort(),
       ['合作歌曲', '歌手甲独唱'].sort(),
     );
     assert.deepEqual(
       songService
-        .listSongs(databases.songDb, { artist: '歌手乙' })
+        .listSongs(songStore, { artist: '歌手乙' })
         .map((song) => song.name),
       ['合作歌曲'],
     );
@@ -195,19 +198,20 @@ test('song library language filter matches an individual language in a combined 
     path.join(os.tmpdir(), 'song-library-language-filter-'),
   );
   const databases = createDatabases({ dataDir });
+  const songStore = createSongStore(databases.songDb);
 
   try {
-    songService.saveSong(databases.songDb, {
+    songService.saveSong(songStore, {
       name: '双语歌曲',
       artist: '歌手甲',
       language: '国语/英语',
     });
-    songService.saveSong(databases.songDb, {
+    songService.saveSong(songStore, {
       name: '国语歌曲',
       artist: '歌手乙',
       language: '国语',
     });
-    songService.saveSong(databases.songDb, {
+    songService.saveSong(songStore, {
       name: '粤语歌曲',
       artist: '歌手丙',
       language: '粤语',
@@ -215,14 +219,14 @@ test('song library language filter matches an individual language in a combined 
 
     assert.deepEqual(
       songService
-        .listSongs(databases.songDb, { language: '国语' })
+        .listSongs(songStore, { language: '国语' })
         .map((song) => song.name)
         .sort(),
       ['双语歌曲', '国语歌曲'].sort(),
     );
     assert.deepEqual(
       songService
-        .listSongs(databases.songDb, { language: '英语' })
+        .listSongs(songStore, { language: '英语' })
         .map((song) => song.name),
       ['双语歌曲'],
     );
@@ -237,37 +241,38 @@ test('song library requires every selected complete tag and composes with catego
     path.join(os.tmpdir(), 'song-library-tag-filter-'),
   );
   const databases = createDatabases({ dataDir });
+  const songStore = createSongStore(databases.songDb);
 
   try {
-    songService.saveSong(databases.songDb, {
+    songService.saveSong(songStore, {
       name: '双标签匹配',
       categoryName: 'R&B / 说唱',
       tags: '抒情, 治愈',
     });
-    songService.saveSong(databases.songDb, {
+    songService.saveSong(songStore, {
       name: '只有抒情',
       categoryName: 'R&B / 说唱',
       tags: '抒情',
     });
-    songService.saveSong(databases.songDb, {
+    songService.saveSong(songStore, {
       name: '分类不同',
       categoryName: '民谣',
       tags: '抒情，治愈',
     });
-    songService.saveSong(databases.songDb, {
+    songService.saveSong(songStore, {
       name: '部分文字不算标签',
       categoryName: 'R&B / 说唱',
       tags: '治愈系',
     });
 
-    assert.deepEqual(songService.listTags(databases.songDb), [
+    assert.deepEqual(songService.listTags(songStore), [
       '抒情',
       '治愈',
       '治愈系',
     ]);
     assert.deepEqual(
       songService
-        .listSongs(databases.songDb, {
+        .listSongs(songStore, {
           categories: ['R&B', '说唱'],
           tags: ['抒情', '治愈'],
         })
@@ -275,7 +280,7 @@ test('song library requires every selected complete tag and composes with catego
       ['双标签匹配'],
     );
     assert.deepEqual(
-      songService.listSongs(databases.songDb, { tags: ['抒情', '摇滚'] }),
+      songService.listSongs(songStore, { tags: ['抒情', '摇滚'] }),
       [],
     );
   } finally {

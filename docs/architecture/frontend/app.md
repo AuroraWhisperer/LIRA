@@ -78,12 +78,14 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 | `Events.SONG_UPDATED`                                                                            | app.js(接 stateService)→ songs.renderSongs      | 歌库列表/筛选器重渲染                                                |
 | `Events.GIFT_RECEIVED`                                                                           | stateService(礼物类 reason)→ 礼物通知模块       | 新礼物 toast 触发                                                    |
 | `Events.OVERTIME_UPDATED`                                                                        | stateService(overtime:update)→ overtime.js      | 加班机面板增量刷新(带 revision 去重)                                 |
-| `Events.GIFT_CATALOG_UPDATED`                                                                    | stateService(gift-catalog:update)→ overtime.js  | 服务器搜索缓存版本变化时保留通知，但不得覆盖当前直播间主目录；不触发歌库或礼物事件重载 |
+| `Events.GIFT_CATALOG_UPDATED`                                                                    | stateService(gift-catalog:update)→ overtime.js / gifts/recent.js  | 图片扫描完成后按精确 ID 刷新本地图片，去重包含图片路径和 assetsUpdatedAt；不得覆盖当前直播间成员，不触发歌库或礼物事件重载 |
 | CustomEvent `app:lyric-state` / `app:lyric-timeline` / `app:wesing-state` / `app:settings-state` | stateService → 各页面 `window.addEventListener` | WeSing 面板、桌面歌词预览、设置自动保存就绪信号                      |
 
 **迁移期调用示例**:`app.js` 收到 `STATE_LOADED` 后通过 bridge 返回的 `queue.renderState` 渲染;遗留模块内部现有的全局调用保持兼容,新增跨模块调用不得继续扩大该模式。
 
-加班姬礼物选择器的 `GET /api/overtime/gifts` 与刷新按钮始终使用当前直播间礼物面板、盲盒和背包目录。弹窗中的服务器搜索通过 `POST /api/overtime/gifts/server/search` 查询 Electron main process 缓存的全局目录，命中图片以本地 `/overtime-gift-images/<basename>` 展示；`gift-catalog:update` 只更新服务器搜索缓存，不替换主目录。远程 HTTPS 域名入口的配置说明见 [backend/overtime.md](../backend/overtime.md) §1.5。
+加班姬礼物选择器的 `GET /api/overtime/gifts` 与刷新按钮始终使用当前直播间礼物面板、`giftConfig` 和已配置的在售盲盒展开，不读取个人背包。首次授权初始化的付费全局目录通过精确礼物 ID 为这些房间条目提供本地图片；弹窗中的“搜索全部礼物”通过 `POST /api/overtime/gifts/local/search` 查询本机快照，最近礼物模块通过 `GET /api/overtime/gifts/catalog` 取得盲盒和高价值礼物图片映射。两者都只显示 `/overtime-gift-images/<basename>`，同名不同 ID 不共享映射，缺失图片保留礼物并显示占位图。`gift-catalog:update` 按精确 ID 刷新最近礼物、已显示规则和选择器图片，不替换房间成员或规则内容；推送的新图片优先于尚未结束的首次 HTTP 读取，失败不清空已有映射。远程 HTTPS 域名入口的配置说明见 [backend/overtime.md](../backend/overtime.md) §1.5。
+
+`gifts/catalog-update-toast.js` 在 Admin 入口订阅既有授权目录进度桥，以单条 toast 原位显示后续图片下载的开始、已处理数量、完成或失败，完成后自动移除；首次初始化、目录检查和零下载更新不提示。订阅后再读取当前状态，较新的事件优先；本次后台更新在页面加载前已完成时也能显示结果。关闭页面或应用时清理订阅和计时器。进度字段由 [desktop/preload.md](../desktop/preload.md) 定义。
 
 ## 3. 启动时序
 
@@ -153,7 +155,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 | detection.js                                            | 礼物检测状态(toggle + 共享收礼核心状态)                                   | snapshot `giftDetection`/`giftSprint`/`liveStatus`                                              |
 | notification.js                                         | 礼物提示(桌面 toast,`gift-notify-toast`,最多 6 条)                        | snapshot `gifts.recent` 新增比对                                                                |
 | sprint.js                                               | 月底冲刺(目标/已收/剩余,水晶球)                                           | snapshot `giftSprint`                                                                           |
-| recent.js                                               | 最近礼物(最多 6 行,高价值礼物专用图标映射)                                | snapshot `gifts.recent`                                                                         |
+| recent.js                                               | 最近礼物(最多 6 行,按精确礼物 ID 使用本地全局目录图片或占位图)             | snapshot `gifts.recent` + `/api/overtime/gifts/catalog` + `Events.GIFT_CATALOG_UPDATED` 图片映射 |
 | blindbox.js                                             | 今日盲盒盈亏(汇总/盈亏榜/映射列表)                                        | `GET /api/gifts/blind-box-stats`                                                                |
 | blindbox-analysis.js                                    | 盲盒分析工作区(观众排行/盲盒汇总/开盒记录三视图,25 条分页,500ms 刷新防抖) | `GET /api/gifts/blind-box-analysis?...`                                                         |
 | history.js                                              | 礼物历史抽屉(时间范围/平台筛选)                                           | `GET /api/gifts/history`;清最近/清礼物走 `/api/gifts/clear-recent`、`/api/database/clear-gifts` |

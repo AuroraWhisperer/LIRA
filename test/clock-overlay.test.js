@@ -255,8 +255,9 @@ test('clock settings are persisted through validated keys and exposed by a publi
       get() {
         return Object.fromEntries(writes);
       },
-      set(key, value) {
-        writes.push([key, value]);
+      setMany(values) {
+        writes.push(...Object.entries(values));
+        return Object.keys(values);
       },
     },
     bilibili: {

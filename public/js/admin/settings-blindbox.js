@@ -12,6 +12,28 @@ function parseBlindboxConfig(textarea) {
   }
 }
 
+function parseBlindboxOutputs(value) {
+  const outputs = String(value || '')
+    .split(/[,，]/u)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((item) => {
+      const parts = item.split(':').map((part) => part.trim());
+      const giftId = parts.shift() || '';
+      const name = parts.shift() || '';
+      const priceText = parts.join(':');
+      if (!/^[1-9]\d{0,19}$/u.test(giftId) || !name) return null;
+      const price = priceText === '' ? null : Number(priceText);
+      if (price !== null && (!Number.isFinite(price) || price <= 0)) return null;
+      return {
+        giftId,
+        name,
+        ...(price === null ? {} : { price }),
+      };
+    });
+  return outputs.some((output) => !output) ? null : outputs;
+}
+
 export function createBlindboxSettings({
   documentRef,
   navigatorRef,
@@ -61,37 +83,32 @@ export function createBlindboxSettings({
     documentRef
       .getElementById('blindBoxAddBtn')
       .addEventListener('click', async () => {
+        const giftId = (value('blindBoxGiftId') || '').trim();
         const name = (value('blindBoxName') || '').trim();
         const price = parseFloat(value('blindBoxPrice'));
         const outputsRaw = (value('blindBoxOutputs') || '').trim();
         if (!name) return toast('请输入盲盒名');
-        if (isNaN(price) || price < 0) return toast('请输入有效成本');
+        if (isNaN(price) || price <= 0) return toast('请输入有效成本');
+        if (giftId && !/^[1-9]\d{0,19}$/u.test(giftId))
+          return toast('请输入有效盲盒 ID');
         if (!outputsRaw) return toast('请输入可能开出的礼物');
 
-        const outputs = outputsRaw
-          .split(/[,，]/)
-          .map((item) => item.trim())
-          .filter(Boolean)
-          .map((item) => {
-            const colonIndex = item.lastIndexOf(':');
-            if (colonIndex > 0) {
-              const giftName = item.slice(0, colonIndex).trim();
-              const giftPrice = parseFloat(item.slice(colonIndex + 1).trim());
-              if (giftName && !isNaN(giftPrice) && giftPrice > 0) {
-                return { name: giftName, price: giftPrice };
-              }
-            }
-            return item;
-          });
-        if (!outputs.length) return toast('请输入可能开出的礼物');
+        const outputs = parseBlindboxOutputs(outputsRaw);
+        if (!outputs?.length)
+          return toast('请按“产物 ID:名称:价格”填写礼物');
 
-        const textarea = documentRef.getElementById('giftBlindBoxConfig');
+        const textarea = documentRef.getElementById(
+          'giftBlindBoxCustomConfigV2',
+        );
         const config = parseBlindboxConfig(textarea);
-        config.push({ name, price, outputs });
+        config.push({ giftId: giftId || null, name, price, outputs });
         const newRaw = JSON.stringify(config, null, 2);
         textarea.value = newRaw;
-        await saveSettings({ giftBlindBoxConfig: newRaw });
-        toast(`已添加盲盒「${name}」`);
+        textarea.dataset.dirty = 'true';
+        await saveSettings({ giftBlindBoxCustomConfigV2: newRaw });
+        textarea.dataset.dirty = 'false';
+        toast(`已保存盲盒「${name}」，等待服务器确认`);
+        documentRef.getElementById('blindBoxGiftId').value = '';
         documentRef.getElementById('blindBoxName').value = '';
         documentRef.getElementById('blindBoxPrice').value = '';
         documentRef.getElementById('blindBoxOutputs').value = '';
@@ -105,15 +122,19 @@ export function createBlindboxSettings({
         if (!btn) return;
         const index = parseInt(btn.dataset.blindIndex, 10);
         if (isNaN(index)) return;
-        const textarea = documentRef.getElementById('giftBlindBoxConfig');
+        const textarea = documentRef.getElementById(
+          'giftBlindBoxCustomConfigV2',
+        );
         const config = parseBlindboxConfig(textarea);
         if (index < 0 || index >= config.length) return;
         const removed = config[index];
         config.splice(index, 1);
         const newRaw = JSON.stringify(config, null, 2);
         textarea.value = newRaw;
-        await saveSettings({ giftBlindBoxConfig: newRaw });
-        toast(`已移除盲盒「${removed.name || '未命名'}」`);
+        textarea.dataset.dirty = 'true';
+        await saveSettings({ giftBlindBoxCustomConfigV2: newRaw });
+        textarea.dataset.dirty = 'false';
+        toast(`已保存移除「${removed.name || '未命名'}」，等待服务器确认`);
         renderBlindboxList();
       });
 
@@ -129,7 +150,9 @@ export function createBlindboxSettings({
     documentRef
       .getElementById('giftBlindBoxSaveBtn')
       .addEventListener('click', async () => {
-        const textarea = documentRef.getElementById('giftBlindBoxConfig');
+        const textarea = documentRef.getElementById(
+          'giftBlindBoxCustomConfigV2',
+        );
         let raw = textarea.value.trim() || '[]';
         try {
           const parsed = JSON.parse(raw);
@@ -139,8 +162,10 @@ export function createBlindboxSettings({
           toast('盲盒配置 JSON 格式错误：' + error.message);
           return;
         }
-        await saveSettings({ giftBlindBoxConfig: raw });
-        toast('盲盒配置已保存');
+        textarea.dataset.dirty = 'true';
+        await saveSettings({ giftBlindBoxCustomConfigV2: raw });
+        textarea.dataset.dirty = 'false';
+        toast('自定义盲盒已保存，等待服务器确认');
         renderBlindboxList();
         await getState()?.reloadState?.();
       });
@@ -178,6 +203,13 @@ export function createBlindboxSettings({
       });
 
     updateOverlayUrl();
+    const customConfig = documentRef.getElementById(
+      'giftBlindBoxCustomConfigV2',
+    );
+    customConfig.dataset.preserveDirty = 'true';
+    customConfig.addEventListener('input', () => {
+      customConfig.dataset.dirty = 'true';
+    });
     documentRef.getElementById('importBtn').addEventListener('click', () => {
       getImports()?.importSongs?.();
     });

@@ -13,8 +13,8 @@ const {
 const prefixes = ['/api/opening'];
 const OPENING_MUSIC_DIR_NAME = 'opening-music';
 const OPENING_CHARACTER_DIR_NAME = 'opening-character';
-const DEFAULT_AUDIO_URL = '/img/overlays/opening/music.ogg';
-const DEFAULT_CHARACTER_URL = '/img/overlays/opening/avatar.webp';
+const DEFAULT_AUDIO_URL = '';
+const DEFAULT_CHARACTER_URL = '';
 const MAX_UPLOAD_BYTES = 64 * 1024 * 1024;
 const MAX_CHARACTER_UPLOAD_BYTES = 16 * 1024 * 1024;
 const MAX_CHARACTER_REQUEST_BYTES = MAX_CHARACTER_UPLOAD_BYTES + 64 * 1024;
@@ -163,14 +163,14 @@ function getOpeningConfig(context) {
       : DEFAULT_AUDIO_URL,
     audioName: hasUploadedAudio
       ? cleanText(settings.openingAudioName, 160) || audioFile
-      : '默认音乐：果实',
+      : '',
     hasUploadedAudio,
     characterUrl: hasUploadedCharacter
       ? `/opening-character/${encodeURIComponent(characterFile)}`
       : DEFAULT_CHARACTER_URL,
     characterName: hasUploadedCharacter
       ? cleanText(settings.openingCharacterName, 160) || characterFile
-      : '默认人物图',
+      : '',
     hasUploadedCharacter,
   };
 }

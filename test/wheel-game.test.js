@@ -119,3 +119,26 @@ test('wheel routes normalize config and return the service state in the standard
   assert.equal(payload.ok, true);
   assert.equal(payload.data.totalWeight, 5);
 });
+
+test('wheel disposal clears its owned timer and prevents a late publication', () => {
+  const published = [];
+  const cancelled = [];
+  let timer;
+  const wheel = createWheelSessionService({
+    random: () => 0,
+    broadcast: (payload) => published.push(payload),
+    setTimeout(callback) {
+      timer = { callback, unref() {} };
+      return timer;
+    },
+    clearTimeout: (value) => cancelled.push(value),
+  });
+  wheel.configure([{ label: 'A', weight: 1 }, { label: 'B', weight: 1 }]);
+  wheel.spin();
+  const count = published.length;
+  wheel.dispose();
+  wheel.dispose();
+  assert.equal(cancelled.filter((value) => value === timer).length, 1);
+  timer.callback();
+  assert.equal(published.length, count);
+});

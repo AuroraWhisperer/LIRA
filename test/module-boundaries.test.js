@@ -52,7 +52,6 @@ const DOMAIN_SQL_LIMITS = {
   'src/bilibili/gift/detection-service.js': 7,
   'src/bilibili/gift/event-service.js': 11,
   'src/bilibili/gift/statistics-consumer.js': 6,
-  'src/music/song-service.js': 30,
   'src/overtime/overtime-store.js': 21,
 };
 const EMPTY_CATCH_LIMITS = {
@@ -116,11 +115,52 @@ function listJavaScriptFiles(relativeDirectory) {
 test('domain services use stores instead of SQLite statements', () => {
   const queueService = read('src/music/queue-service.js');
   const superChatService = read('src/bilibili/superchat-service.js');
+  const songs = read('src/music/song-service.js');
 
   assert.doesNotMatch(queueService, /\.(?:prepare|exec)\s*\(/);
   assert.doesNotMatch(superChatService, /\.(?:prepare|exec)\s*\(/);
   assert.doesNotMatch(queueService, /context\.db|\bdb\.songDb\b/);
   assert.doesNotMatch(superChatService, /context\.db|\bdb\.superChatDb\b/);
+  assert.doesNotMatch(songs, /\.(?:prepare|exec)\s*\(/);
+  assert.doesNotMatch(songs, /require\([^\n]*storage\//);
+});
+
+test('internal backend modules do not import composition entrypoints', () => {
+  const entrypoints = new Set(['src/server.js', 'src/electron/main.js']);
+  for (const file of listJavaScriptFiles('src')) {
+    if (entrypoints.has(file)) continue;
+    for (const match of read(file).matchAll(/\brequire\(\s*['"](\.[^'"]+)['"]\s*\)/g)) {
+      let target = path.posix.normalize(path.posix.join(path.posix.dirname(file), match[1]));
+      if (!path.posix.extname(target)) target += '.js';
+      assert.equal(entrypoints.has(target), false, `${file} imports composition entry ${target}`);
+    }
+  }
+});
+
+test('storage adapters do not depend on server, desktop, or browser modules', () => {
+  for (const file of listJavaScriptFiles('src/storage')) {
+    for (const match of read(file).matchAll(/\brequire\(\s*['"](\.[^'"]+)['"]\s*\)/g)) {
+      const target = path.posix.normalize(path.posix.join(path.posix.dirname(file), match[1]));
+      assert.doesNotMatch(target, /^(?:src\/(?:server(?:\.js|\/|$)|electron\/)|public\/)/, file);
+    }
+  }
+});
+
+test('reviewed overlay pages share one owned connection adapter', () => {
+  for (const name of ['queue', 'songs', 'overtime', 'blindbox']) {
+    const source = read(`public/js/overlays/${name}.js`);
+    assert.match(source, /from ['"]\.\/socket-client\.js['"]/);
+    assert.doesNotMatch(source, /new WebSocket\s*\(/);
+  }
+  assert.equal(fs.existsSync(path.join(ROOT_DIR, 'public/js/shared/overlay-socket.js')), false);
+});
+
+test('composition owns wheel cleanup and does not revive the obsolete player', () => {
+  assert.match(read('src/server.js'), /wheelSessionService\?\.dispose\(\)/);
+  assert.equal(fs.existsSync(path.join(ROOT_DIR, 'public/js/playback/player/controller.js')), false);
+  for (const file of listJavaScriptFiles('public/js/playback')) {
+    assert.doesNotMatch(read(file), /PlayerController|player\/controller\.js/, file);
+  }
 });
 
 test('Admin application accesses legacy globals only through its bridge', () => {

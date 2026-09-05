@@ -16,7 +16,6 @@ async function main() {
   const blindBoxConfig = readConfiguredBlindBoxConfig(dataDir);
   const service = createGiftSaleCatalogService({
     dataDir,
-    publicDir: path.join(ROOT_DIR, 'public'),
     getRoomId: () => roomId,
     getBlindBoxConfig: () => blindBoxConfig,
     minRefreshMs: 0,

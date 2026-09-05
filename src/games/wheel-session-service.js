@@ -64,11 +64,14 @@ function createWheelSessionService(options = {}) {
     typeof options.broadcast === 'function' ? options.broadcast : () => {};
   const random =
     typeof options.random === 'function' ? options.random : Math.random;
+  const scheduleTimeout = options.setTimeout || setTimeout;
+  const cancelTimeout = options.clearTimeout || clearTimeout;
   let entries = [];
   let totalWeight = 0;
   let lastResult = null;
   let activeSpin = null;
   let spinTimer = null;
+  let disposed = false;
 
   function getState() {
     const spin =
@@ -129,8 +132,9 @@ function createWheelSessionService(options = {}) {
     };
     publish();
     const spinId = activeSpin.id;
-    clearTimeout(spinTimer);
-    spinTimer = setTimeout(() => {
+    cancelTimeout(spinTimer);
+    spinTimer = scheduleTimeout(() => {
+      spinTimer = null;
       if (activeSpin?.id === spinId) publish();
     }, SPIN_DURATION_MS);
     spinTimer.unref?.();
@@ -138,10 +142,19 @@ function createWheelSessionService(options = {}) {
   }
 
   function publish() {
+    if (disposed) return;
     broadcast({ type: 'wheel:update', state: getState() });
   }
 
-  return { getState, configure, spin };
+  function dispose() {
+    if (disposed) return;
+    disposed = true;
+    if (spinTimer) cancelTimeout(spinTimer);
+    spinTimer = null;
+    activeSpin = null;
+  }
+
+  return { getState, configure, spin, dispose };
 }
 
 module.exports = {
