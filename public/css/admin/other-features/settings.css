@@ -25,29 +25,6 @@
   min-width: 0;
 }
 
-.license-account-header > div > p:last-child {
-  max-width: 62ch;
-  margin-top: 8px;
-  color: var(--muted);
-}
-
-.license-account-kicker,
-.license-account-eyebrow {
-  margin: 0 0 6px;
-  color: var(--primary);
-}
-
-.license-account-badge {
-  flex: 0 0 auto;
-  padding: 5px 9px;
-  border: 1px solid rgba(67, 150, 111, 0.24);
-  border-radius: 999px;
-  background: rgba(67, 150, 111, 0.08);
-  color: var(--success, #3e956f);
-  font-size: var(--type-size-caption);
-  font-weight: var(--type-weight-semibold);
-}
-
 .license-account-card {
   padding: 18px;
   border: 1px solid var(--border);

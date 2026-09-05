@@ -43,6 +43,8 @@ let backgroundDirty = false;
 let backgroundSaving = false;
 let catalogRefreshing = false;
 let globalGiftSearchPending = false;
+let globalGiftSearchError = '';
+let giftPickerGeneration = 0;
 let giftCatalogSnapshot = null;
 let giftCatalogApplyGeneration = 0;
 let catalogLiveStatus = null;
@@ -155,7 +157,7 @@ function bindControls() {
   );
   byId('overtimeGlobalGiftSearchBtn').addEventListener(
     'click',
-    searchGlobalGifts,
+    toggleGiftPickerSource,
   );
   byId('overtimeRules').addEventListener('input', markRulesDirty);
   byId('overtimeRules').addEventListener('change', markRulesDirty);
@@ -461,10 +463,14 @@ function syncRuleAvailability() {
 }
 
 function openGiftPicker() {
+  giftPickerGeneration += 1;
   const search = byId('overtimeGiftSearch');
   search.value = '';
   globalGiftMatches = [];
+  globalGiftSearchPending = false;
+  globalGiftSearchError = '';
   giftPickerSource = 'sale';
+  syncGlobalGiftSearchButton();
   renderGiftPicker();
   byId('overtimeGiftPicker').showModal();
   search.focus();
@@ -475,30 +481,41 @@ function openGiftPicker() {
 }
 
 function handleGiftSearchInput() {
-  giftPickerSource = 'sale';
   renderGiftPicker();
 }
 
 function handleGiftSearchKeydown(event) {
   if (event.key !== 'Enter') return;
   event.preventDefault();
-  searchGlobalGifts();
+  renderGiftPicker();
 }
 
-async function searchGlobalGifts() {
+async function toggleGiftPickerSource() {
   if (globalGiftSearchPending) return;
-  const query = byId('overtimeGiftSearch').value.trim();
-  if (!query || Array.from(query).length > 100) {
-    showError(new Error('请输入 1–100 个字符的礼物名称或 ID。'));
+  if (giftPickerSource === 'global') {
+    giftPickerSource = 'sale';
+    syncGlobalGiftSearchButton();
+    renderGiftPicker();
+    byId('overtimeGiftSearch').focus();
     return;
   }
+  const requestGeneration = ++giftPickerGeneration;
+  giftPickerSource = 'global';
+  globalGiftMatches = [];
+  globalGiftSearchError = '';
   globalGiftSearchPending = true;
   syncGlobalGiftSearchButton();
+  renderGiftPicker();
+  byId('overtimeGiftSearch').focus();
   try {
-    const result = await api('/api/overtime/gifts/local/search', { query });
-    globalGiftMatches = (
-      Array.isArray(result.data?.gifts) ? result.data.gifts : []
-    ).map((gift) => ({
+    const response = await fetch('/api/overtime/gifts/catalog');
+    const result = await readJsonResponse(response, '读取本地礼物库失败');
+    if (requestGeneration !== giftPickerGeneration) return;
+    if (!result.ok) throw new Error(result.error || '读取本地礼物库失败');
+    if (!Array.isArray(result.data?.gifts)) {
+      throw new Error('本地礼物库尚未缓存。');
+    }
+    globalGiftMatches = result.data.gifts.map((gift) => ({
       id: String(gift.id),
       name: String(gift.name || gift.id),
       rmb: Number(gift.rmb) || 0,
@@ -506,12 +523,15 @@ async function searchGlobalGifts() {
         serverGiftArtworkById.get(String(gift.id)) ||
         String(gift.imagePath || ''),
     }));
-    giftPickerSource = 'global';
-    renderGiftPicker();
-  } catch (_) {
+  } catch (error) {
+    if (requestGeneration !== giftPickerGeneration) return;
+    globalGiftSearchError = error.message || '读取本地礼物库失败';
   } finally {
-    globalGiftSearchPending = false;
-    syncGlobalGiftSearchButton();
+    if (requestGeneration === giftPickerGeneration) {
+      globalGiftSearchPending = false;
+      syncGlobalGiftSearchButton();
+      renderGiftPicker();
+    }
   }
 }
 
@@ -519,11 +539,30 @@ function syncGlobalGiftSearchButton() {
   const button = byId('overtimeGlobalGiftSearchBtn');
   if (!button) return;
   button.disabled = globalGiftSearchPending;
-  button.textContent = globalGiftSearchPending ? '搜索中…' : '搜索全部礼物';
+  button.textContent = globalGiftSearchPending
+    ? '加载中…'
+    : giftPickerSource === 'global'
+      ? '返回在售礼物'
+      : '搜索全部礼物';
 }
 
 function renderGiftPicker() {
   const root = byId('overtimeGiftResults');
+  root.replaceChildren();
+  if (
+    giftPickerSource === 'global' &&
+    (globalGiftSearchPending || globalGiftSearchError)
+  ) {
+    root.append(
+      createMessage(
+        'overtime-rule-empty overtime-local-gift-search-status',
+        globalGiftSearchPending
+          ? '正在读取本地礼物库…'
+          : globalGiftSearchError,
+      ),
+    );
+    return;
+  }
   const query = byId('overtimeGiftSearch').value.trim().toLocaleLowerCase();
   const selectedIds = new Set(
     Array.from(
@@ -538,13 +577,11 @@ function renderGiftPicker() {
         gift.id.toLocaleLowerCase().includes(query) ||
         gift.name.toLocaleLowerCase().includes(query)),
   );
-  root.replaceChildren();
   if (giftPickerSource === 'global' && matches.length) {
-    const cachedImages = matches.filter((gift) => gift.imagePath).length;
     root.append(
       createMessage(
         'overtime-rule-empty overtime-local-gift-search-status',
-        `全部目录匹配 ${matches.length} 个，已有 ${cachedImages} 张图片；这些礼物可手动加入，不要求当前在售。`,
+        `本地礼物库 · ${matches.length} / ${globalGiftMatches.length} 个`,
       ),
     );
   }
@@ -553,6 +590,8 @@ function renderGiftPicker() {
     button.type = 'button';
     button.className = 'overtime-gift-option';
     const image = document.createElement('img');
+    image.loading = 'lazy';
+    image.decoding = 'async';
     image.src = gift.imagePath || PLACEHOLDER;
     image.alt = '';
     image.addEventListener(
@@ -586,10 +625,19 @@ function renderGiftPicker() {
       createMessage(
         'overtime-rule-empty',
         giftPickerSource === 'global'
-          ? '全部礼物中没有匹配项。'
+          ? globalGiftMatches.length
+            ? '全部礼物中没有匹配项。'
+            : '本地礼物库暂无礼物。'
           : '没有找到当前在售礼物。',
       ),
     );
+}
+
+function createMessage(className, message) {
+  const node = document.createElement('div');
+  node.className = className;
+  node.textContent = message;
+  return node;
 }
 
 function addGiftRule(gift) {

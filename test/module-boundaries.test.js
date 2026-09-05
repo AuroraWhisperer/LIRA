@@ -80,7 +80,6 @@ const EMPTY_CATCH_LIMITS = {
   'public/js/admin/other.js': 2,
   'public/js/admin/overtime.js': 3,
   'public/js/admin/theme.js': 1,
-  'public/js/admin/todo.js': 1,
   'public/js/gift-audit/index.js': 2,
   'public/js/playback/cache/manager.js': 3,
   'public/js/playback/content/loader.js': 1,

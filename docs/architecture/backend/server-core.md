@@ -117,6 +117,8 @@ phase 为 `ready` 时，`server.on('upgrade')` 仅把 `/ws` 交给 `webSocketHub
 
 ## 6. 启动与关闭时序(服务端唯一成文处)
 
+`bilibiliRuntime` 的客户端替换按请求串行执行。替换请求、禁用监听、显式断开和关闭会同步递增运行代次并停止当前客户端；排队任务在开始和登录信息读取完成后检查代次。旧代次不会再创建客户端、派发业务/状态回调或传播过期重连错误，重新启用后只运行当前请求。
+
 ### 6.1 启动(startServer)
 
 1. 无 I/O 校验端口参数；`createServerRuntime()` 本身只保存配置并创建未监听的 HTTP server，不创建数据目录、数据库、token 或日志。

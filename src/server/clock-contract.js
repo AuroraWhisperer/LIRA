@@ -6,6 +6,7 @@ const CLOCK_STYLE_VALUES = new Set([
   'soda',
   'timeline-horizontal',
   'timeline-vertical',
+  'digital',
 ]);
 const CLOCK_BOOLEAN_SETTING_KEYS = new Set([
   'clockShowDate',
@@ -23,6 +24,7 @@ const DEFAULT_LABELS = Object.freeze({
   soda: '今天也要元气满满',
   'timeline-horizontal': '',
   'timeline-vertical': '',
+  digital: '',
 });
 const MAX_LABEL_LENGTH = 16;
 

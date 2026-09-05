@@ -62,6 +62,18 @@
           >当前样式 · 直播信号带</span
         >
       </div>
+      <div
+        id="danmakuStylePreview"
+        class="danmaku-style-preview"
+        aria-label="弹幕姬网页预览"
+      >
+        <iframe
+          id="danmakuStylePreviewFrame"
+          src="/danmaku?preview=1&amp;style=signal"
+          title="弹幕姬样式预览"
+          loading="lazy"
+        ></iframe>
+      </div>
       <div class="danmaku-overlay-link">
         <label
           ><span>固定网页链接</span
@@ -82,13 +94,12 @@
           aria-labelledby="danmakuFixedStyleTitle"
         >
           <div class="danmaku-style-group-heading">
-            <strong id="danmakuFixedStyleTitle">固定区域</strong>
-            <small>弹幕按顺序排列，适合持续展示直播互动。</small>
+            <strong id="danmakuFixedStyleTitle">固定位置弹幕</strong>
           </div>
           <div
-            class="danmaku-style-options"
+            class="danmaku-style-options danmaku-style-options-fixed"
             role="group"
-            aria-label="选择固定区域弹幕姬样式"
+            aria-label="选择固定位置弹幕样式"
           >
             <button
               class="danmaku-style-option"
@@ -96,15 +107,7 @@
               data-danmaku-style="bubble"
               aria-pressed="false"
             >
-              <span
-                class="danmaku-style-option-visual is-bubble"
-                aria-hidden="true"
-                ><i></i><i></i><i></i
-              ></span>
-              <span class="danmaku-style-option-copy"
-                ><strong>聊天气泡</strong
-                ><small>轻松圆润，适合聊天互动</small></span
-              >
+              聊天气泡
             </button>
             <button
               class="danmaku-style-option"
@@ -112,15 +115,7 @@
               data-danmaku-style="signal"
               aria-pressed="true"
             >
-              <span
-                class="danmaku-style-option-visual is-signal"
-                aria-hidden="true"
-                ><i></i><i></i><i></i
-              ></span>
-              <span class="danmaku-style-option-copy"
-                ><strong>直播信号带</strong
-                ><small>层次清晰，适合信息密集场景</small></span
-              >
+              直播信号带
             </button>
             <button
               class="danmaku-style-option"
@@ -128,15 +123,7 @@
               data-danmaku-style="minimal"
               aria-pressed="false"
             >
-              <span
-                class="danmaku-style-option-visual is-minimal"
-                aria-hidden="true"
-                ><i></i><i></i><i></i
-              ></span>
-              <span class="danmaku-style-option-copy"
-                ><strong>航海铭牌</strong
-                ><small>名字在上，三级身份各有装饰</small></span
-              >
+              蝴蝶结
             </button>
             <button
               class="danmaku-style-option"
@@ -144,15 +131,7 @@
               data-danmaku-style="ranked"
               aria-pressed="false"
             >
-              <span
-                class="danmaku-style-option-visual is-ranked"
-                aria-hidden="true"
-                ><i></i><i></i><i></i><i></i
-              ></span>
-              <span class="danmaku-style-option-copy"
-                ><strong>直播气泡</strong
-                ><small>左侧头像，昵称灯牌在上</small></span
-              >
+              直播气泡
             </button>
             <button
               class="danmaku-style-option"
@@ -160,30 +139,21 @@
               data-danmaku-style="transparent"
               aria-pressed="false"
             >
-              <span
-                class="danmaku-style-option-visual is-transparent"
-                aria-hidden="true"
-                ><i></i><i></i><i></i
-              ></span>
-              <span class="danmaku-style-option-copy"
-                ><strong>透明简约</strong
-                ><small>透明底色，粉丝牌等级在下</small></span
-              >
+              透明简约
             </button>
           </div>
         </section>
         <section
-          class="danmaku-style-group danmaku-style-group-fullscreen"
-          aria-labelledby="danmakuFullscreenStyleTitle"
+          class="danmaku-style-group danmaku-style-group-random"
+          aria-labelledby="danmakuRandomStyleTitle"
         >
           <div class="danmaku-style-group-heading">
-            <strong id="danmakuFullscreenStyleTitle">全屏随机</strong>
-            <small>只显示发送者和正文，随机散布在整个画面。</small>
+            <strong id="danmakuRandomStyleTitle">全直播间随机弹幕</strong>
           </div>
           <div
-            class="danmaku-style-options danmaku-style-options-fullscreen"
+            class="danmaku-style-options danmaku-style-options-random"
             role="group"
-            aria-label="选择全屏随机弹幕姬样式"
+            aria-label="选择全直播间随机弹幕样式"
           >
             <button
               class="danmaku-style-option"
@@ -191,15 +161,7 @@
               data-danmaku-style="outline"
               aria-pressed="false"
             >
-              <span
-                class="danmaku-style-option-visual is-outline"
-                aria-hidden="true"
-                ><i></i><i></i><i></i><i></i
-              ></span>
-              <span class="danmaku-style-option-copy"
-                ><strong>全屏随机</strong
-                ><small>只显示发送者和正文，随机散布</small></span
-              >
+              全屏随机
             </button>
           </div>
           <label
@@ -207,7 +169,7 @@
             class="danmaku-fullscreen-duration"
             hidden
           >
-            <span>单条停留时间（秒）</span>
+            <span>停留（秒）</span>
             <input
               id="danmakuFullscreenDurationSeconds"
               type="number"
@@ -224,21 +186,7 @@
           class="danmaku-style-save-state"
           role="status"
           aria-live="polite"
-        >
-          选择后自动保存，已打开的弹幕姬会同步切换。
-        </p>
-      </div>
-      <div
-        id="danmakuStylePreview"
-        class="danmaku-style-preview"
-        aria-label="弹幕姬网页预览"
-      >
-        <iframe
-          id="danmakuStylePreviewFrame"
-          src="/danmaku?preview=1&amp;style=signal"
-          title="弹幕姬样式预览"
-          loading="lazy"
-        ></iframe>
+        ></p>
       </div>
     </section>
     <section

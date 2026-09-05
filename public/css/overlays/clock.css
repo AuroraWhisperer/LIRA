@@ -921,23 +921,27 @@ body {
   font-family: inherit;
   font-size: 68px;
   font-weight: 400;
-  letter-spacing: -0.08em;
+  letter-spacing: 0;
   line-height: 0.9;
   text-shadow: 0 0 3px rgba(247, 249, 243, 0.76);
 }
 
 .clock-card[data-clock-style='timeline-horizontal'] .clock-colon {
-  margin: 0 0.18em;
+  align-self: center;
+  flex: 0 0 16px;
+  height: 3px;
+  margin: 0 2px;
   animation: none;
-  font-size: 0.42em;
-  font-weight: 400;
-  letter-spacing: 0.02em;
+  background: currentColor;
+  font-size: 0;
+  /* Center against the digits, excluding the font's descender space. */
+  transform: translateY(-5px);
 }
 
 .clock-card[data-clock-style='timeline-horizontal'] .clock-seconds {
   flex: 0 0 auto;
   min-width: 0;
-  margin-left: 0.17em;
+  margin-left: 12px;
   padding: 0;
   border: 0;
   border-radius: 0;
@@ -1075,6 +1079,95 @@ body {
   border-radius: 0;
   background: currentColor;
   opacity: 0.58;
+}
+
+.clock-card[data-clock-style='digital'] {
+  border: 0;
+  border-radius: 0;
+  color: #fff;
+  background: transparent;
+  box-shadow: none;
+  font-family: 'Impact', 'Arial Narrow', 'Bahnschrift', sans-serif;
+  font-weight: 400;
+  letter-spacing: 0;
+  -webkit-text-stroke: 1px rgba(20, 24, 27, 0.72);
+  paint-order: stroke fill;
+  text-shadow: 0 1px 2px rgba(20, 24, 27, 0.3);
+}
+
+.clock-card[data-clock-style='digital'] .clock-content {
+  align-items: flex-start;
+  gap: 6px;
+  padding: 12px 24px;
+}
+
+.clock-card[data-clock-style='digital'] .clock-sparkles,
+.clock-card[data-clock-style='digital'] .clock-peach-mascot,
+.clock-card[data-clock-style='digital'] .clock-night-mascot,
+.clock-card[data-clock-style='digital'] .clock-soda-mascot,
+.clock-card[data-clock-style='digital'] .clock-label,
+.clock-card[data-clock-style='digital'] .clock-date-row > i {
+  display: none;
+}
+
+.clock-card[data-clock-style='digital'] .clock-kicker-row {
+  position: absolute;
+  top: 20px;
+  right: 24px;
+}
+
+.clock-card[data-clock-style='digital'] .clock-period {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  font-size: 22px;
+  font-weight: inherit;
+  letter-spacing: 0;
+}
+
+.clock-card[data-clock-style='digital'] .clock-date-row {
+  order: -1;
+  gap: 12px;
+  margin-top: 0;
+  font-size: 46px;
+  font-weight: inherit;
+  letter-spacing: 0;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.clock-card[data-clock-style='digital'] .clock-time {
+  margin-top: 0;
+  font-family: inherit;
+  font-size: 122px;
+  font-weight: inherit;
+  letter-spacing: 0;
+  line-height: 0.9;
+}
+
+.clock-card[data-clock-style='digital'] .clock-colon {
+  margin: 0 0.035em;
+  animation: none;
+}
+
+.clock-card[data-clock-style='digital'] .clock-seconds {
+  display: inline-flex;
+  flex: 0 0 auto;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  font-size: inherit;
+  letter-spacing: 0;
+  line-height: inherit;
+  text-shadow: inherit;
+}
+
+.clock-card[data-clock-style='digital'] .clock-seconds::before {
+  margin: 0 0.035em;
+  content: ':';
 }
 
 @keyframes clock-colon-breathe {

@@ -321,19 +321,37 @@ test('danmaku tool separates the fixed live overlay from the sender and reply gr
   assert.match(html, /id="danmakuOverlayUrl"/);
   assert.match(html, /id="danmakuCopyOverlayUrlBtn"/);
   assert.match(html, /id="danmakuOpenOverlayBtn"/);
-  assert.match(html, /data-danmaku-style="bubble"/);
+  const styleOptions = Array.from(
+    html.matchAll(
+      /<button\b[^>]*data-danmaku-style="([^"]+)"[^>]*>\s*([^<]+?)\s*<\/button>/g,
+    ),
+    ([, style, label]) => [style, label.trim()],
+  );
+  assert.deepEqual(styleOptions, [
+    ['bubble', '聊天气泡'],
+    ['signal', '直播信号带'],
+    ['minimal', '蝴蝶结'],
+    ['ranked', '直播气泡'],
+    ['transparent', '透明简约'],
+    ['outline', '全屏随机'],
+  ]);
   assert.match(html, /data-danmaku-style="signal"[^>]+aria-pressed="true"/);
-  assert.match(html, /data-danmaku-style="minimal"/);
   assert.match(
     html,
-    /data-danmaku-style="transparent"[\s\S]*class="danmaku-style-option-visual is-transparent"[\s\S]*<strong>透明简约<\/strong\s*>[\s\S]*<small>透明底色，粉丝牌等级在下<\/small\s*>/,
+    /class="danmaku-style-group danmaku-style-group-fixed"[^>]+aria-labelledby="danmakuFixedStyleTitle"[\s\S]*id="danmakuFixedStyleTitle">固定位置弹幕<[\s\S]*aria-label="选择固定位置弹幕样式"/,
   );
   assert.match(
     html,
-    /data-danmaku-style="outline"[\s\S]*class="danmaku-style-option-visual is-outline"[\s\S]*<strong>全屏随机<\/strong\s*>[\s\S]*<small>只显示发送者和正文，随机散布<\/small\s*>/,
+    /class="danmaku-style-group danmaku-style-group-random"[^>]+aria-labelledby="danmakuRandomStyleTitle"[\s\S]*id="danmakuRandomStyleTitle">全直播间随机弹幕<[\s\S]*aria-label="选择全直播间随机弹幕样式"/,
   );
-  assert.match(html, /固定区域/);
-  assert.match(html, /全屏随机/);
+  assert.doesNotMatch(
+    html,
+    /danmaku-style-option-(?:visual|copy)/,
+  );
+  assert.match(
+    html,
+    /id="danmakuStyleSaveState"[^>]+role="status"[^>]+aria-live="polite"[^>]*><\/p>/,
+  );
   assert.match(html, /id="danmakuFullscreenDurationSeconds"[^>]+type="number"[^>]+min="2"[^>]+max="30"[^>]+step="1"/);
   assert.match(html, /id="danmakuFullscreenDurationField"[^>]+hidden/);
   assert.match(
@@ -383,13 +401,21 @@ test('danmaku tool separates the fixed live overlay from the sender and reply gr
   assert.match(styles, /\.danmaku-style-options/);
   assert.match(
     styles,
-    /\.danmaku-style-options\s*\{[^}]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\);/s,
+    /\.danmaku-style-picker\s*\{[^}]*grid-template-columns:\s*minmax\(0, 2fr\) minmax\(240px, 1fr\);/s,
   );
-  assert.match(styles, /\.danmaku-style-group/);
-  assert.match(styles, /\.danmaku-style-option-visual\.is-outline/);
-  assert.match(styles, /\.danmaku-style-option-visual\.is-transparent/);
+  assert.match(
+    styles,
+    /\.danmaku-style-options-fixed\s*\{[^}]*grid-template-columns:\s*repeat\(5, minmax\(0, 1fr\)\);/s,
+  );
+  assert.match(
+    styles,
+    /@container danmaku-style-picker \(max-width: 600px\)[\s\S]*\.danmaku-style-group\s*\{[^}]*grid-column:\s*1 \/ -1;/,
+  );
+  assert.match(styles, /\.danmaku-style-group-random/);
+  assert.doesNotMatch(styles, /\.danmaku-style-option-visual/);
+  assert.match(styles, /\.danmaku-style-save-state:empty\s*\{\s*display:\s*none;/);
   assert.match(styles, /\.danmaku-style-option\[aria-pressed='true'\]/);
-  assert.match(styles, /\.danmaku-style-preview/);
+  assert.match(styles, /\.danmaku-style-preview\s*\{[^}]*height:\s*380px;/s);
   assert.doesNotMatch(styles, /\.danmaku-style-preview \.draw-danmaku-item/);
 });
 

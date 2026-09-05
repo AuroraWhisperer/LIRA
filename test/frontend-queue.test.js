@@ -1247,7 +1247,8 @@ test('overtime toolbox panel loads its isolated controller and renders untrusted
   assert.doesNotMatch(source, /fetch\('\/img\/bilibili-gifts\.json'/);
   assert.match(source, /fetch\('\/api\/overtime\/gifts'/);
   assert.match(source, /\/api\/overtime\/gifts\/refresh/);
-  assert.match(source, /\/api\/overtime\/gifts\/local\/search/);
+  assert.match(source, /fetch\('\/api\/overtime\/gifts\/catalog'\)/);
+  assert.doesNotMatch(source, /\/api\/overtime\/gifts\/local\/search/);
   assert.doesNotMatch(source, /\/api\/overtime\/gifts\/server\/search/);
   assert.match(
     source,

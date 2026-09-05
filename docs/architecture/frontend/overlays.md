@@ -126,7 +126,7 @@ PNG/JPEG/WebP 和受支持的音频，Overlay 只接受受限的 `/opening-chara
 
 - 数据:`GET /api/state` + `GET /api/songs?enabledOnly=true[&category=]`(支持 URL `?category=` 单分类过滤)。
 - 排序:`songBoardSortMode`(默认拼音/字母,`length` 按时长分组),`buildSongRecords` 生成记录,分组模式下加分组头。
-- 指纹:`orderKey(songsRevision:sortMode)`、`layoutKey(字体族/字号组)`、`motionKey(滚动速度)`;歌曲变更(`songs:*` reason 或 database:clear)220ms 防抖重载;`live:status` 不触发重渲染。
+- 指纹:`orderKey(songsRevision:sortMode)`、`layoutKey(字体族/字号组)`、`motionKey(滚动速度)`;歌曲变更(`songs:*`、`cloud:songs` reason 或 database:clear)220ms 防抖重载;`live:status` 不触发重渲染。
 - 虚拟滚动与 §1.3 一致;字体 `loadingdone` 与 ResizeObserver 触发 `relayout`(等待 `document.fonts.ready`)。
 
 ## 4. 加班机叠加层(/overtime)
@@ -207,13 +207,15 @@ PNG/JPEG/WebP 和受支持的音频，Overlay 只接受受限的 `/opening-chara
 设备本地时区显示当前时间、日期和星期。页面外层透明；横向样式使用 560×190
 设计画布，竖向时间轴使用 220×380 设计画布，并在浏览器源不足时按可用空间缩小。
 
-- 风格参数仅接受 `style=peach|starlight|soda|timeline-horizontal|timeline-vertical`，
+- 风格参数仅接受 `style=peach|starlight|soda|timeline-horizontal|timeline-vertical|digital`，
   非法或缺失值回退桃桃便签(`peach`)；前三套分别使用奶油蜜桃兔耳、靛蓝月亮云朵
   与薄荷气泡小鸭。横向刻度和竖向刻度使用无卡片底的细线排版、年份与英文星期，
-  其中竖向款适配 240×400 Browser Source（含页面边距）。
+  其中竖向款适配 240×400 Browser Source（含页面边距）。白字数显(`digital`)
+  使用透明背景、白色粗窄数字和细暗描边，上排为 `YYYY-MM-DD` 与英文星期，
+  下排为同字号的 `HH:MM:SS`，沿用横向画布。
 - `date=0|1`、`seconds=0|1`、`format=12|24` 控制日期、秒数和小时制；非法值
   回退默认显示日期/秒数与 24 小时制。`label` 合并空白并截到 16 个 Unicode
-  字符，始终通过 `textContent` 输出；透明时间轴不显示角标文案。
+  字符，始终通过 `textContent` 输出；透明时间轴和白字数显不显示角标文案。
 - 时钟按下一秒边界使用一次性 timeout 更新；页面隐藏时停止调度，恢复可见后
   立即校时。冒号与星点动效在 `prefers-reduced-motion: reduce` 下停用。
 - Admin 百宝箱的「萌时钟」卡片只展示并复制固定地址；表单修改经受 token 保护的
@@ -225,7 +227,7 @@ PNG/JPEG/WebP 和受支持的音频，Overlay 只接受受限的 `/opening-chara
 | 叠加层       | 首帧                                                                 | 实时                                        | 去重指纹                                | 触发重载的 reason                                              |
 | ------------ | -------------------------------------------------------------------- | ------------------------------------------- | --------------------------------------- | -------------------------------------------------------------- |
 | queue        | `/api/state`                                                         | snapshot                                    | current+waiting+SC+全部主题键           | `queue:add`/`bilibili:danmaku`/`bilibili:superchat`(80ms 强刷) |
-| songs        | `/api/state` + `/api/songs`                                          | snapshot                                    | orderKey/layoutKey/motionKey            | `songs:*`/`database:clear`(220ms 重载)                         |
+| songs        | `/api/state` + `/api/songs`                                          | snapshot                                    | orderKey/layoutKey/motionKey            | `songs:*`/`cloud:songs`/`database:clear`(220ms 重载)                         |
 | blindbox     | `/api/state` + `/api/gifts/blind-box-stats`                          | snapshot(仅缓存)+ 轮询                      | 统计接口每次重取                        | `bilibili:gift`/`gift:sprint:reset`/`connect`                  |
 | overtime     | `/api/state`(overtime 字段)                                          | snapshot + `overtime:update`                | `revision` 单调比较                     | `overtime:update` 的 adjustment → 动画入队                     |
 | gift-effects | `/gift-effects` 页面加载完整合成 WebP + 三张独立装饰 WebP；保留四方分片资源 | `gift:frame`                                | `eventId` 稳定去重 + 3 条 pending 队列  | 每个合格 final 礼物一次播放                                    |

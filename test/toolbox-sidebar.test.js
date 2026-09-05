@@ -765,33 +765,36 @@ test('danmaku detail panel fills the workspace and keeps actions grouped', () =>
   );
   assert.match(
     html,
-    /data-danmaku-style="ranked"[\s\S]*?class="danmaku-style-option-visual is-ranked"[\s\S]*?<strong>\s*直播气泡\s*<\/strong\s*>[\s\S]*?<small>\s*左侧头像，昵称灯牌在上\s*<\/small\s*>/,
+    /data-danmaku-style="ranked"[^>]*>\s*直播气泡\s*<\/button>/,
   );
   assert.match(
     html,
-    /data-danmaku-style="transparent"[\s\S]*?class="danmaku-style-option-visual is-transparent"[\s\S]*?<strong>\s*透明简约\s*<\/strong\s*>[\s\S]*?<small>\s*透明底色，粉丝牌等级在下\s*<\/small\s*>/,
+    /data-danmaku-style="transparent"[^>]*>\s*透明简约\s*<\/button>/,
   );
   assert.match(
     html,
-    /data-danmaku-style="outline"[\s\S]*?class="danmaku-style-option-visual is-outline"[\s\S]*?<strong>\s*全屏随机\s*<\/strong\s*>[\s\S]*?<small>\s*只显示发送者和正文，随机散布\s*<\/small\s*>/,
+    /data-danmaku-style="outline"[^>]*>\s*全屏随机\s*<\/button>/,
   );
-  assert.match(html, /danmaku-style-group-fixed[\s\S]*固定区域/);
-  assert.match(html, /danmaku-style-group-fullscreen[\s\S]*全屏随机/);
+  assert.match(html, /danmaku-style-group-fixed/);
+  assert.match(html, /danmaku-style-group-random/);
+  assert.doesNotMatch(html, /danmaku-style-option-visual/);
   assert.match(html, /id="danmakuFullscreenDurationSeconds"/);
   assert.match(
     html,
-    /id="danmakuStyleTitle"[\s\S]*?class="danmaku-overlay-link"[\s\S]*?class="danmaku-style-options"/,
+    /id="danmakuStyleTitle"[\s\S]*?class="danmaku-overlay-link"[\s\S]*?class="danmaku-style-options\b/,
   );
-  assert.match(styles, /\.danmaku-style-option-visual\.is-ranked\s*\{/);
-  assert.match(styles, /\.danmaku-style-option-visual\.is-transparent\s*\{/);
-  assert.match(styles, /\.danmaku-style-option-visual\.is-outline\s*\{/);
-  assert.match(styles, /\.danmaku-style-group/);
   assert.match(
     styles,
-    /\.danmaku-style-option-visual\.is-ranked i::before\s*\{[^}]*border-radius:\s*50%;/s,
+    /\.danmaku-style-picker\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:\s*minmax\(0, 2fr\) minmax\(240px, 1fr\);/s,
   );
-  for (const color of ['#6ed6dc', '#2f9bff', '#a45cff', '#f0445a'])
-    assert.match(styles, new RegExp(`--preview-rank:\\s*${color};`));
+  assert.match(
+    styles,
+    /\.danmaku-style-option\s*\{[^}]*min-height:\s*36px;[^}]*border-radius:\s*6px;/s,
+  );
+  assert.match(
+    styles,
+    /\.danmaku-style-preview\s*\{[^}]*background:\s*transparent;/s,
+  );
   assert.match(
     styles,
     /\.danmaku-tool-panel\s*\{[^}]*width:\s*100%[^}]*max-width:\s*none/,
@@ -970,6 +973,6 @@ test('toolbox tabs rely on sidebar titles instead of repeating page headers', ()
   assert.doesNotMatch(styles, /\.other-feature-page-header\b/);
   assert.match(
     styles,
-    /\.planner-session-form label > span,[\s\S]*?font-size:\s*var\(--type-size-control\)/,
+    /\.planner-event-dialog label:not\(\.planner-all-day\),[\s\S]*?font-size:\s*var\(--type-size-control\)/,
   );
 });

@@ -163,14 +163,12 @@ export class StateService {
 
     const previousLyricState = this.appState?.lyricState;
     this.appState = payload.data;
-    if (
-      !this.acceptLyricState(this.appState?.lyricState) &&
-      previousLyricState
-    ) {
+    const lyricAccepted = this.acceptLyricState(this.appState?.lyricState);
+    if (!lyricAccepted && previousLyricState) {
       this.appState.lyricState = previousLyricState;
     }
     dispatchRealtimeState('app:settings-state', this.appState?.settings);
-    if (this.acceptLyricState(this.appState?.lyricState)) {
+    if (lyricAccepted) {
       dispatchRealtimeState('app:lyric-state', this.appState?.lyricState);
     }
     dispatchRealtimeState('app:lyric-timeline', this.appState?.lyricTimeline);
@@ -318,7 +316,8 @@ function isGiftSnapshotReason(reason) {
 }
 
 function isSongsSnapshotReason(reason) {
-  return String(reason || '').startsWith('songs:');
+  const snapshotReason = String(reason || '');
+  return snapshotReason === 'cloud:songs' || snapshotReason.startsWith('songs:');
 }
 
 // 创建单例实例

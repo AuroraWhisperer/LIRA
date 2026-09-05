@@ -7,273 +7,342 @@
   hidden
 >
   <div id="streamerPlanner" class="other-feature-panel-body streamer-planner">
-    <header class="planner-show-card">
-      <form
-        id="plannerSessionForm"
-        class="planner-session-form"
-        autocomplete="off"
-      >
-        <label class="planner-session-date">
-          <span>直播日期</span>
-          <input
-            id="plannerSessionDate"
-            type="date"
-            data-session-field="date"
-          />
-        </label>
-        <label class="planner-session-time">
-          <span>开播时间</span>
-          <input
-            id="plannerSessionTime"
-            type="time"
-            data-session-field="time"
-          />
-        </label>
-        <label class="planner-session-title">
-          <span>这场播什么</span>
-          <input
-            id="plannerSessionTitle"
-            type="text"
-            maxlength="60"
-            data-session-field="title"
-            placeholder="例如：周五点歌回 · 新歌首唱"
-          />
-        </label>
-        <label class="planner-session-goal">
-          <span>今晚想让观众记住什么</span>
-          <input
-            id="plannerSessionGoal"
-            type="text"
-            maxlength="100"
-            data-session-field="goal"
-            placeholder="例如：新歌首唱，周日还有一场点歌回"
-          />
-        </label>
+    <header class="planner-header">
+      <div class="planner-heading">
+        <h2 id="plannerTodayLabel"></h2>
+      </div>
+      <div class="planner-header-actions">
         <span
           id="plannerSaveState"
           class="planner-save-state"
           role="status"
           aria-live="polite"
-          >已自动保存</span
+          >已保存到本机</span
         >
-      </form>
+        <button class="primary planner-command" type="button" data-event-new>
+          <svg class="planner-icon" aria-hidden="true">
+            <use href="/img/admin/workbench-icons.svg#plus"></use>
+          </svg>
+          新建日程
+        </button>
+      </div>
     </header>
 
     <div class="planner-workspace">
-      <section class="planner-plan-panel" aria-labelledby="plannerPlanTitle">
+      <section
+        class="planner-calendar-panel"
+        aria-labelledby="plannerCalendarTitle"
+      >
         <div class="planner-panel-heading">
-          <div>
-            <span class="planner-section-label ui-eyebrow">ON-AIR CUES</span>
-            <h3 id="plannerPlanTitle" class="ui-section-title">
-              本场提词
-              <lira-help
-                >只写直播时需要看一眼的提醒，按顺序说完一条勾掉一条。</lira-help
-              >
-            </h3>
-          </div>
-          <div class="planner-plan-progress">
-            <strong id="plannerPlanSummary">0 / 0</strong>
-            <span id="plannerPlanStatus">等待安排</span>
+          <h3 id="plannerCalendarTitle">
+            <svg class="planner-icon" aria-hidden="true">
+              <use href="/img/admin/workbench-icons.svg#calendar-days"></use>
+            </svg>
+            日历
+          </h3>
+          <div class="planner-calendar-navigation" aria-label="日历月份">
+            <button
+              type="button"
+              class="planner-icon-button"
+              data-month-offset="-1"
+              aria-label="上个月"
+              title="上个月"
+            >
+              <svg class="planner-icon" aria-hidden="true">
+                <use href="/img/admin/workbench-icons.svg#chevron-left"></use>
+              </svg>
+            </button>
+            <strong id="plannerMonthLabel" aria-live="polite"></strong>
+            <button
+              type="button"
+              class="planner-icon-button"
+              data-month-offset="1"
+              aria-label="下个月"
+              title="下个月"
+            >
+              <svg class="planner-icon" aria-hidden="true">
+                <use href="/img/admin/workbench-icons.svg#chevron-right"></use>
+              </svg>
+            </button>
+            <button
+              type="button"
+              class="planner-today-button"
+              id="plannerGoToday"
+            >
+              今天
+            </button>
           </div>
         </div>
+        <div class="planner-calendar-legend" aria-label="日程分类">
+          <span class="event-live">直播</span
+          ><span class="event-work">工作</span
+          ><span class="event-personal">个人</span>
+          <span id="plannerMonthCount" class="planner-month-count"
+            >本月 0 项安排</span
+          >
+        </div>
+        <div class="planner-weekdays" aria-hidden="true">
+          <span>一</span><span>二</span><span>三</span><span>四</span
+          ><span>五</span><span>六</span><span>日</span>
+        </div>
+        <div
+          id="plannerCalendarGrid"
+          class="planner-calendar-grid"
+          role="group"
+          aria-label="选择日程日期"
+        ></div>
+        <section class="planner-agenda" aria-labelledby="plannerAgendaTitle">
+          <div class="planner-panel-heading">
+            <div class="planner-agenda-heading">
+              <h3 id="plannerAgendaTitle"></h3>
+              <span id="plannerAgendaCount" class="planner-count"></span>
+            </div>
+            <button
+              type="button"
+              class="planner-icon-button"
+              data-event-new
+              aria-label="在所选日期添加日程"
+              title="添加日程"
+            >
+              <svg class="planner-icon" aria-hidden="true">
+                <use href="/img/admin/workbench-icons.svg#plus"></use>
+              </svg>
+            </button>
+          </div>
+          <div
+            id="plannerAgendaList"
+            class="planner-agenda-list"
+            role="list"
+            aria-live="polite"
+          ></div>
+        </section>
+      </section>
 
-        <form id="plannerTaskForm" class="planner-task-form" autocomplete="off">
-          <label class="planner-task-input">
-            <span>添加一句提醒</span>
+      <aside class="planner-side-panel">
+        <section
+          class="planner-notes-panel"
+          aria-labelledby="plannerNotesTitle"
+        >
+          <div class="planner-panel-heading">
+            <h3 id="plannerNotesTitle">
+              <svg class="planner-icon" aria-hidden="true">
+                <use href="/img/admin/workbench-icons.svg#notebook-pen"></use>
+              </svg>
+              备忘录
+            </h3>
+            <span id="plannerNoteCount" class="planner-count">0 条</span>
+          </div>
+          <form
+            id="plannerNoteForm"
+            class="planner-note-form"
+            autocomplete="off"
+          >
+            <label class="planner-sr-only" for="plannerNoteBody"
+              >备忘内容</label
+            >
+            <textarea
+              id="plannerNoteBody"
+              maxlength="2000"
+              required
+              placeholder="记一笔…"
+            ></textarea>
+            <div class="planner-note-actions">
+              <label class="planner-note-type-field">
+                <span class="planner-sr-only">备忘分类</span>
+                <select id="plannerNoteType" data-dropdown-variant="toolbox">
+                  <option value="idea">随手记</option>
+                  <option value="promise">观众约定</option>
+                  <option value="review">复盘</option>
+                </select>
+              </label>
+              <button
+                id="plannerNoteCancel"
+                type="button"
+                class="planner-icon-button"
+                aria-label="取消编辑备忘"
+                title="取消编辑"
+                hidden
+              >
+                <svg class="planner-icon" aria-hidden="true">
+                  <use href="/img/admin/workbench-icons.svg#x"></use>
+                </svg>
+              </button>
+              <button
+                id="plannerNoteSubmit"
+                class="planner-note-submit"
+                type="submit"
+              >
+                保存备忘
+              </button>
+            </div>
+          </form>
+          <div
+            id="plannerNoteList"
+            class="planner-note-list"
+            role="list"
+            aria-live="polite"
+          ></div>
+        </section>
+
+        <section class="planner-tasks-panel" aria-labelledby="plannerPlanTitle">
+          <div class="planner-panel-heading">
+            <h3 id="plannerPlanTitle">
+              <svg class="planner-icon" aria-hidden="true">
+                <use href="/img/admin/workbench-icons.svg#list-todo"></use>
+              </svg>
+              待办
+            </h3>
+            <div
+              class="planner-task-filters"
+              role="group"
+              aria-label="待办状态"
+            >
+              <button
+                type="button"
+                data-task-filter="pending"
+                aria-pressed="true"
+              >
+                未完成 <span id="plannerPendingCount">0</span>
+              </button>
+              <button
+                type="button"
+                data-task-filter="done"
+                aria-pressed="false"
+              >
+                已完成 <span id="plannerDoneCount">0</span>
+              </button>
+            </div>
+          </div>
+          <form
+            id="plannerTaskForm"
+            class="planner-task-form"
+            autocomplete="off"
+          >
+            <label class="planner-sr-only" for="plannerTaskTitle"
+              >待办内容</label
+            >
             <input
               id="plannerTaskTitle"
               type="text"
               maxlength="80"
               required
-              placeholder="例如：冷场时问大家最近在循环哪首歌"
+              placeholder="添加待办"
             />
-          </label>
-          <label>
-            <span>放在哪个环节</span>
-            <select id="plannerTaskStage" data-dropdown-variant="toolbox">
-              <option value="before">开场</option>
-              <option value="live">互动</option>
-              <option value="after">收尾</option>
-            </select>
-          </label>
-          <button class="primary planner-add-button" type="submit">
-            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path
-                d="M12 5v14M5 12h14"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-              />
-            </svg>
-            加入提词
-          </button>
-        </form>
-
-        <div class="planner-template-row" aria-label="常用直播提词">
-          <span>常用：</span>
-          <button
-            type="button"
-            data-planner-template
-            data-title="欢迎刚进来的观众，简单说明今天播什么"
-            data-stage="before"
-          >
-            开场说明
-          </button>
-          <button
-            type="button"
-            data-planner-template
-            data-title="开场问大家：今天最想听哪类歌？"
-            data-stage="before"
-          >
-            暖场问题
-          </button>
-          <button
-            type="button"
-            data-planner-template
-            data-title="冷场时聊：最近单曲循环的一首歌"
-            data-stage="live"
-          >
-            备用话题
-          </button>
-          <button
-            type="button"
-            data-planner-template
-            data-title="让大家二选一：下一首唱轻快的还是抒情的？"
-            data-stage="live"
-          >
-            互动选择
-          </button>
-          <button
-            type="button"
-            data-planner-template
-            data-title="中场再说一次点歌方式和本场主题"
-            data-stage="live"
-          >
-            重点提醒
-          </button>
-          <button
-            type="button"
-            data-planner-template
-            data-title="结束前预告下次直播时间和内容"
-            data-stage="after"
-          >
-            下次预告
-          </button>
-        </div>
-
-        <div class="planner-stage-track" aria-label="开场、互动和收尾提词">
-          <section
-            class="planner-stage planner-stage-before"
-            data-planner-stage="before"
-          >
-            <header class="planner-stage-heading">
-              <span class="planner-stage-index">01</span>
-              <span class="planner-stage-dot" aria-hidden="true"></span>
-              <div>
-                <h4>开场</h4>
-                <p>让刚进来的人马上知道今天播什么</p>
-              </div>
-              <strong id="plannerBeforeCount">0 项</strong>
-            </header>
-            <div
-              id="plannerBeforeList"
-              class="planner-task-list"
-              role="list"
-              aria-live="polite"
-            ></div>
-          </section>
-
-          <section
-            class="planner-stage planner-stage-live"
-            data-planner-stage="live"
-          >
-            <header class="planner-stage-heading">
-              <span class="planner-stage-index">02</span>
-              <span class="planner-stage-dot" aria-hidden="true"></span>
-              <div>
-                <h4>互动</h4>
-                <p>暖场问题、备用话题和观众参与</p>
-              </div>
-              <strong id="plannerLiveCount">0 项</strong>
-            </header>
-            <div
-              id="plannerLiveList"
-              class="planner-task-list"
-              role="list"
-              aria-live="polite"
-            ></div>
-          </section>
-
-          <section
-            class="planner-stage planner-stage-after"
-            data-planner-stage="after"
-          >
-            <header class="planner-stage-heading">
-              <span class="planner-stage-index">03</span>
-              <span class="planner-stage-dot" aria-hidden="true"></span>
-              <div>
-                <h4>收尾</h4>
-                <p>回顾本场、感谢观众和下次预告</p>
-              </div>
-              <strong id="plannerAfterCount">0 项</strong>
-            </header>
-            <div
-              id="plannerAfterList"
-              class="planner-task-list"
-              role="list"
-              aria-live="polite"
-            ></div>
-          </section>
-        </div>
-      </section>
-
-      <aside class="planner-notes-panel" aria-labelledby="plannerNotesTitle">
-        <div class="planner-panel-heading planner-notes-heading">
-          <div>
-            <span class="planner-section-label ui-eyebrow">LIVE NOTES</span>
-            <h3 id="plannerNotesTitle" class="ui-section-title">
-              直播速记
-              <lira-help
-                >接住观众请求、临时话题和高光时间点，避免一转头就忘。</lira-help
-              >
-            </h3>
-          </div>
-          <span id="plannerNoteCount" class="planner-note-count">0 条</span>
-        </div>
-
-        <form id="plannerNoteForm" class="planner-note-form" autocomplete="off">
-          <label>
-            <span>随手记</span>
-            <textarea
-              id="plannerNoteBody"
-              maxlength="300"
-              required
-              placeholder="谁点了哪首歌、要稍后回应的问题、高光发生在几点……"
-            ></textarea>
-          </label>
-          <div class="planner-note-actions">
-            <label>
-              <span>分类</span>
-              <select id="plannerNoteType" data-dropdown-variant="toolbox">
-                <option value="idea">话题灵感</option>
-                <option value="promise">观众请求</option>
-                <option value="review">高光时刻</option>
-              </select>
-            </label>
-            <button class="planner-note-submit" type="submit">记下来</button>
-          </div>
-        </form>
-
-        <div
-          id="plannerNoteList"
-          class="planner-note-list"
-          role="list"
-          aria-live="polite"
-        ></div>
-        <p class="planner-notes-tip">
-          <strong>小提示：</strong>需要在本场再说一次的速记，可以直接转成提词。
-        </p>
+            <button
+              type="submit"
+              class="planner-icon-button"
+              aria-label="添加待办"
+              title="添加待办"
+            >
+              <svg class="planner-icon" aria-hidden="true">
+                <use href="/img/admin/workbench-icons.svg#plus"></use>
+              </svg>
+            </button>
+          </form>
+          <div
+            id="plannerTaskList"
+            class="planner-task-list"
+            role="list"
+            aria-live="polite"
+          ></div>
+        </section>
       </aside>
     </div>
+
+    <dialog
+      id="plannerEventDialog"
+      class="planner-event-dialog"
+      aria-labelledby="plannerEventDialogTitle"
+    >
+      <form id="plannerEventForm" autocomplete="off">
+        <div class="planner-panel-heading">
+          <h3 id="plannerEventDialogTitle">新建日程</h3>
+          <button
+            type="button"
+            class="planner-icon-button"
+            data-event-cancel
+            aria-label="关闭日程编辑"
+            title="关闭"
+          >
+            <svg class="planner-icon" aria-hidden="true">
+              <use href="/img/admin/workbench-icons.svg#x"></use>
+            </svg>
+          </button>
+        </div>
+        <label
+          >日程名称<input
+            id="plannerEventTitle"
+            type="text"
+            maxlength="80"
+            required
+            placeholder="日程名称"
+        /></label>
+        <div class="planner-event-fields">
+          <label
+            >日期<input
+              id="plannerEventDate"
+              type="date"
+              min="0001-01-01"
+              max="9999-12-31"
+              required
+          /></label>
+          <label>时间<input id="plannerEventTime" type="time" /></label>
+        </div>
+        <label class="planner-all-day"
+          ><input id="plannerEventAllDay" type="checkbox" />全天</label
+        >
+        <fieldset class="planner-event-types">
+          <legend>分类</legend>
+          <label class="event-live"
+            ><input
+              type="radio"
+              name="plannerEventType"
+              value="live"
+              checked
+            />直播</label
+          >
+          <label class="event-work"
+            ><input
+              type="radio"
+              name="plannerEventType"
+              value="work"
+            />工作</label
+          >
+          <label class="event-personal"
+            ><input
+              type="radio"
+              name="plannerEventType"
+              value="personal"
+            />个人</label
+          >
+        </fieldset>
+        <label
+          >备注<textarea
+            id="plannerEventDetail"
+            maxlength="500"
+            rows="3"
+            placeholder="备注（选填）"
+          ></textarea>
+        </label>
+        <p
+          id="plannerEventError"
+          class="planner-form-error"
+          role="alert"
+          hidden
+        ></p>
+        <div class="planner-dialog-actions">
+          <button
+            id="plannerEventDelete"
+            type="button"
+            class="planner-delete-command"
+            hidden
+          >
+            删除日程
+          </button>
+          <button type="button" data-event-cancel>取消</button
+          ><button type="submit" class="primary">保存日程</button>
+        </div>
+      </form>
+    </dialog>
   </div>
 </section>

@@ -116,6 +116,7 @@ function connectSocket() {
       if (
         payload.reason &&
         (payload.reason.startsWith('songs:') ||
+          payload.reason === 'cloud:songs' ||
           payload.reason === 'database:clear')
       ) {
         clearTimeout(reloadTimer);

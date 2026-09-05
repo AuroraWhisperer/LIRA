@@ -6,6 +6,7 @@ const CLOCK_STYLE_VALUES = new Set([
   'soda',
   'timeline-horizontal',
   'timeline-vertical',
+  'digital',
 ]);
 const DEFAULT_LABELS = Object.freeze({
   peach: '今天也要闪闪发光',
@@ -13,6 +14,7 @@ const DEFAULT_LABELS = Object.freeze({
   soda: '今天也要元气满满',
   'timeline-horizontal': '',
   'timeline-vertical': '',
+  digital: '',
 });
 const MAX_LABEL_LENGTH = 16;
 const CLOCK_FRAME_GUTTER = 20;
@@ -22,6 +24,7 @@ const CLOCK_LAYOUTS = Object.freeze({
   soda: Object.freeze({ width: 560, height: 190 }),
   'timeline-horizontal': Object.freeze({ width: 560, height: 190 }),
   'timeline-vertical': Object.freeze({ width: 220, height: 380 }),
+  digital: Object.freeze({ width: 560, height: 190 }),
 });
 
 function clockLayoutForStyle(style = 'peach') {
@@ -125,7 +128,7 @@ function createClockFormatters(config) {
       month: '2-digit',
       day: '2-digit',
     }),
-    weekday: timelineStyle
+    weekday: timelineStyle || config.style === 'digital'
       ? new Intl.DateTimeFormat('en-US', { weekday: 'short' })
       : new Intl.DateTimeFormat('zh-CN', { weekday: 'long' }),
   };
@@ -193,12 +196,15 @@ async function initClock() {
     const month = partValue(dateParts, 'month', '01').padStart(2, '0');
     const day = partValue(dateParts, 'day', '01').padStart(2, '0');
     const timelineStyle = config.style.startsWith('timeline-');
+    const digitalStyle = config.style === 'digital';
     yearNode.textContent = String(now.getFullYear());
     timeSeparatorNode.textContent = timelineStyle ? '—' : ':';
-    dateNode.textContent = timelineStyle
-      ? `${month}/${day}`
-      : `${month}月${day}日`;
-    weekdayNode.textContent = timelineStyle
+    dateNode.textContent = digitalStyle
+      ? `${now.getFullYear()}-${month}-${day}`
+      : timelineStyle
+        ? `${month}/${day}`
+        : `${month}月${day}日`;
+    weekdayNode.textContent = timelineStyle || digitalStyle
       ? formatters.weekday.format(now).toUpperCase()
       : formatters.weekday.format(now);
     timeNode.dateTime = now.toISOString();

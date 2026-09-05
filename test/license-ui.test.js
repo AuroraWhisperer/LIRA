@@ -240,8 +240,10 @@ test('account settings show non-sensitive profile data without device-management
   assert.match(script, /await licenseBridge\.getProfile\(\)/);
   assert.match(script, /accountEl\.textContent/);
   assert.match(script, /deviceEl\.textContent/);
-  assert.match(html, /登录密码[\s\S]*?为保护账户安全不可查看/);
-  assert.match(html, /设备管理[\s\S]*?由服务器管理员统一处理/);
+  assert.match(html, /id="licenseAccountName"/);
+  assert.match(html, /id="licenseDeviceName"/);
+  assert.match(html, /忘记密码？[\s\S]*?请联系管理员重置密码。/);
+  assert.doesNotMatch(html, /安全存储|设备私钥|首次授权|激活密钥|设备管理/);
   assert.doesNotMatch(script, /createPairingCode|listPairingCodes|revokePairingCode/);
   assert.doesNotMatch(preload, /createPairingCode|listPairingCodes|revokePairingCode/);
 });

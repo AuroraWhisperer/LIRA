@@ -22,6 +22,7 @@ function createDanmakuSenderService(dependencies) {
     log = console.log,
   } = dependencies;
   let lastSentAt = 0;
+  let sendChain = Promise.resolve();
   let displayCache = {
     account: { key: '', name: '', expiresAt: 0 },
     room: { key: '', name: '', expiresAt: 0 },
@@ -113,7 +114,14 @@ function createDanmakuSenderService(dependencies) {
     }
   }
 
-  async function send({
+  function send(input) {
+    // Rate checks and every chunk belong to the same serialized operation.
+    const operation = sendChain.then(() => sendNow(input));
+    sendChain = operation.catch(() => {});
+    return operation;
+  }
+
+  async function sendNow({
     message,
     mentionRequester = false,
     mentionTarget = null,

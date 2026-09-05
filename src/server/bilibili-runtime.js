@@ -65,6 +65,7 @@ function createBilibiliRuntime(options) {
       userInfoService.ensure(uid, profileOptions),
   });
   let stopped = false;
+  let clientGeneration = 0;
   let replaceClientChain = Promise.resolve();
 
   const danmakuSender = createDanmakuSenderService({
@@ -131,7 +132,7 @@ function createBilibiliRuntime(options) {
     setActiveDanmakuRoom(enabled ? roomId : '');
 
     if (!enabled) {
-      stopClient();
+      disconnect();
       updateStatus({
         connected: false,
         enabled: false,
@@ -174,15 +175,19 @@ function createBilibiliRuntime(options) {
   }
 
   function replaceClient(roomId, restart = false) {
+    disconnect();
+    const generation = clientGeneration;
+    const isCurrent = () => !stopped && generation === clientGeneration;
     const run = async () => {
-      if (stopped) return;
-      stopClient();
+      if (!isCurrent()) return;
       await refreshAuthCache();
-      if (stopped) return;
+      if (!isCurrent()) return;
       const nextClient = buildClient(roomId, {
-        isShuttingDown: () => stopped,
+        isShuttingDown: () => !isCurrent(),
         danmakuSender,
-        updateLiveStatus: updateStatus,
+        updateLiveStatus: (status) => {
+          if (isCurrent()) updateStatus(status);
+        },
         bilibiliDiagnostics: diagnostics,
         runtimeGiftCommandPrefixes,
         messageBuffer,
@@ -191,16 +196,14 @@ function createBilibiliRuntime(options) {
       });
       client = nextClient;
       if (restart) {
-        try {
-          await nextClient.restart();
-        } finally {
-          if (stopped) nextClient.stop();
-        }
+        await nextClient.restart();
       } else {
         nextClient.start();
       }
     };
-    const result = replaceClientChain.then(run, run);
+    const result = replaceClientChain.then(run, run).catch((error) => {
+      if (isCurrent()) throw error;
+    });
     replaceClientChain = result.catch(() => {});
     return result;
   }
@@ -233,16 +236,21 @@ function createBilibiliRuntime(options) {
     client = null;
   }
 
+  function disconnect() {
+    clientGeneration += 1;
+    stopClient();
+  }
+
   function stop() {
     if (stopped) return;
     stopped = true;
-    stopClient();
+    disconnect();
     userInfoService.dispose();
   }
 
   return {
     configure,
-    disconnect: stopClient,
+    disconnect,
     reconnect,
     stop,
     setAuthProvider,

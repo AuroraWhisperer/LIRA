@@ -1,6 +1,7 @@
 .danmaku-tool-panel {
   width: 100%;
   max-width: none;
+  row-gap: var(--spacing-xl);
 }
 .danmaku-reply-target {
   display: flex;
@@ -14,8 +15,8 @@
 }
 .danmaku-feature-section {
   display: grid;
-  gap: 14px;
-  padding: 16px;
+  gap: 20px;
+  padding: 20px;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--surface);
@@ -23,7 +24,7 @@
 .danmaku-bot-switch-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: var(--spacing-md);
 }
 .danmaku-bot-switch-card {
   min-width: 0;
@@ -33,6 +34,33 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
+}
+.danmaku-section-heading,
+.danmaku-tool-panel .xiaomi-ai-heading {
+  position: relative;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+.danmaku-section-heading::after,
+.danmaku-tool-panel .xiaomi-ai-heading::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 28px;
+  height: 2px;
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--accent) 65%, var(--border));
+  pointer-events: none;
+}
+.danmaku-style-section > .danmaku-section-heading::after,
+.danmaku-tool-panel .xiaomi-ai-heading::after {
+  width: 44px;
+  background: color-mix(in srgb, var(--primary) 65%, var(--border));
+}
+.danmaku-compose-section > .danmaku-section-heading,
+.danmaku-fixed-reply-section > .danmaku-section-heading {
+  border-bottom-style: dashed;
 }
 .danmaku-section-heading h3 {
   margin: 0;
@@ -79,73 +107,81 @@
   font-weight: 700;
 }
 .danmaku-style-picker {
+  container: danmaku-style-picker / inline-size;
   display: grid;
-  gap: 8px;
+  grid-template-columns: minmax(0, 2fr) minmax(240px, 1fr);
+  gap: 12px;
 }
 .danmaku-style-group {
   display: grid;
+  align-content: start;
   gap: 10px;
+  min-width: 0;
   padding: 12px;
   border: 1px solid var(--border);
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--surface-2) 68%, var(--surface));
+  border-top: 2px solid color-mix(in srgb, var(--primary) 70%, var(--border));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-2) 72%, var(--surface));
 }
-.danmaku-style-group-heading {
-  display: grid;
-  gap: 3px;
+.danmaku-style-group-random {
+  border-top-color: color-mix(in srgb, var(--accent) 70%, var(--border));
 }
 .danmaku-style-group-heading strong {
   color: var(--text);
   font-size: var(--type-size-card-title);
-}
-.danmaku-style-group-heading small {
-  color: var(--muted);
-  font-size: var(--type-size-caption);
-  line-height: 1.4;
+  line-height: 1.35;
 }
 .danmaku-style-options {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 8px;
+  background: var(--surface-2);
 }
-.danmaku-style-options-fullscreen {
-  grid-template-columns: minmax(0, 240px);
+.danmaku-style-options-fixed {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+.danmaku-style-options-random {
+  grid-template-columns: minmax(0, 1fr);
 }
 .danmaku-fullscreen-duration {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(96px, 140px);
+  display: flex;
   align-items: center;
-  gap: 12px;
-  max-width: 360px;
+  gap: 8px;
   color: var(--muted);
   font-size: var(--type-size-control);
   font-weight: 700;
+  white-space: nowrap;
 }
 .danmaku-fullscreen-duration[hidden] {
   display: none;
 }
 .danmaku-fullscreen-duration input {
-  width: 100%;
+  width: 68px;
+  min-height: 36px;
+  padding: 6px 8px;
 }
 .danmaku-style-option {
-  display: grid;
-  gap: 10px;
   min-width: 0;
-  padding: 8px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--surface);
-  color: var(--text);
-  text-align: left;
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--type-size-control);
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
   cursor: pointer;
   transition:
     border-color 160ms ease,
-    box-shadow 160ms ease,
-    transform 160ms ease;
+    background-color 160ms ease,
+    color 160ms ease;
 }
 .danmaku-style-option:hover:not(:disabled) {
-  border-color: color-mix(in srgb, var(--primary) 46%, var(--border));
-  transform: translateY(-1px);
+  background: var(--surface);
+  color: var(--text);
 }
 .danmaku-style-option:focus-visible {
   outline: 2px solid var(--primary);
@@ -153,311 +189,37 @@
 }
 .danmaku-style-option[aria-pressed='true'] {
   border-color: var(--primary);
-  background: color-mix(in srgb, var(--primary) 5%, var(--surface));
-  box-shadow:
-    inset 0 0 0 1px var(--primary),
-    0 6px 16px color-mix(in srgb, var(--primary) 12%, transparent);
+  background: var(--surface);
+  color: var(--primary);
 }
 .danmaku-style-option:disabled {
   cursor: wait;
   opacity: 0.68;
 }
-.danmaku-style-option-visual {
-  position: relative;
-  display: block;
-  height: 76px;
-  overflow: hidden;
-  border-radius: 8px;
-  background: #101628;
-}
-.danmaku-style-option-visual i {
-  position: absolute;
-  display: block;
-}
-.danmaku-style-option-visual.is-bubble {
-  background: linear-gradient(145deg, #fff8ed, #f2ecec 58%, #e8f5ef);
-}
-.danmaku-style-option-visual.is-bubble i {
-  left: 14px;
-  width: 68%;
-  height: 15px;
-  border: 1px solid rgba(72, 64, 92, 0.12);
-  border-radius: 10px 10px 10px 3px;
-  background: rgba(255, 255, 255, 0.86);
-  box-shadow: 0 3px 8px rgba(63, 54, 76, 0.08);
-}
-.danmaku-style-option-visual.is-bubble i:nth-child(1) {
-  top: 10px;
-}
-.danmaku-style-option-visual.is-bubble i:nth-child(2) {
-  top: 31px;
-  left: 28%;
-  width: 62%;
-  background: #dff1ea;
-}
-.danmaku-style-option-visual.is-bubble i:nth-child(3) {
-  top: 52px;
-  width: 52%;
-  background: #eee6f6;
-}
-.danmaku-style-option-visual.is-signal {
-  background:
-    radial-gradient(
-      circle at 84% 18%,
-      rgba(112, 92, 210, 0.26),
-      transparent 34%
-    ),
-    #11152a;
-}
-.danmaku-style-option-visual.is-signal i {
-  left: 12px;
-  height: 14px;
-  border: 1px solid rgba(165, 177, 232, 0.22);
-  background: linear-gradient(
-    90deg,
-    rgba(49, 59, 88, 0.92),
-    rgba(46, 43, 79, 0.78)
-  );
-  clip-path: polygon(
-    0 0,
-    calc(100% - 8px) 0,
-    100% 50%,
-    calc(100% - 8px) 100%,
-    0 100%
-  );
-}
-.danmaku-style-option-visual.is-signal i:nth-child(1) {
-  top: 10px;
-  width: 84%;
-}
-.danmaku-style-option-visual.is-signal i:nth-child(2) {
-  top: 31px;
-  width: 72%;
-}
-.danmaku-style-option-visual.is-signal i:nth-child(3) {
-  top: 52px;
-  width: 60%;
-  border-color: rgba(97, 223, 192, 0.28);
-  background: rgba(27, 78, 78, 0.65);
-}
-.danmaku-style-option-visual.is-minimal {
-  background: linear-gradient(160deg, #eef3fa, #d7e0ec);
-}
-.danmaku-style-option-visual.is-minimal i {
-  left: 12px;
-  width: 72%;
-  height: 17px;
-  border-left: 3px solid var(--preview-rank);
-  border-radius: 2px 7px 7px 2px;
-  background: linear-gradient(
-    90deg,
-    color-mix(in srgb, var(--preview-rank) 28%, #121827),
-    #121827 52%,
-    rgba(18, 24, 39, 0.76)
-  );
-  box-shadow: 0 2px 5px rgba(18, 25, 39, 0.18);
-}
-.danmaku-style-option-visual.is-minimal i::after {
-  position: absolute;
-  top: 6px;
-  left: 9px;
-  width: 45%;
-  height: 2px;
-  background: var(--preview-rank);
-  content: '';
-  box-shadow: 0 4px rgba(255, 255, 255, 0.32);
-}
-.danmaku-style-option-visual.is-minimal i:nth-child(1) {
-  --preview-rank: #2f9bff;
-  top: 8px;
-}
-.danmaku-style-option-visual.is-minimal i:nth-child(2) {
-  --preview-rank: #a45cff;
-  top: 30px;
-  left: 20%;
-  width: 68%;
-}
-.danmaku-style-option-visual.is-minimal i:nth-child(3) {
-  --preview-rank: #f0445a;
-  top: 52px;
-  width: 78%;
-}
-.danmaku-style-option-visual.is-ranked {
-  background: linear-gradient(145deg, #f4fbfc, #dcecf2);
-}
-.danmaku-style-option-visual.is-ranked i {
-  right: 8px;
-  left: 27px;
-  height: 14px;
-  border-radius: 3px 9px 9px 9px;
-  background: var(--preview-rank);
-  box-shadow: 0 2px 4px color-mix(in srgb, var(--preview-rank) 28%, transparent);
-}
-.danmaku-style-option-visual.is-ranked i::before {
-  position: absolute;
-  top: 0;
-  left: -20px;
-  width: 14px;
-  height: 14px;
-  border: 2px solid rgba(255, 255, 255, 0.84);
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--preview-rank) 74%, white);
-  box-shadow: 0 2px 4px rgba(26, 33, 43, 0.16);
-  content: '';
-}
-.danmaku-style-option-visual.is-ranked i::after {
-  position: absolute;
-  top: 4px;
-  right: 8px;
-  width: 24px;
-  height: 3px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.68);
-  content: '';
-}
-.danmaku-style-option-visual.is-ranked i:nth-child(1) {
-  --preview-rank: #6ed6dc;
-  top: 6px;
-}
-.danmaku-style-option-visual.is-ranked i:nth-child(2) {
-  top: 24px;
-  --preview-rank: #2f9bff;
-}
-.danmaku-style-option-visual.is-ranked i:nth-child(3) {
-  top: 42px;
-  --preview-rank: #a45cff;
-}
-.danmaku-style-option-visual.is-ranked i:nth-child(4) {
-  top: 60px;
-  --preview-rank: #f0445a;
-}
-.danmaku-style-option-visual.is-transparent {
-  background:
-    linear-gradient(45deg, #354156 25%, transparent 25%) 0 0 / 16px 16px,
-    linear-gradient(45deg, transparent 75%, #354156 75%) 0 0 / 16px 16px,
-    #263145;
-}
-.danmaku-style-option-visual.is-transparent i {
-  left: 34px;
-  width: 58%;
-  height: 3px;
-  border-radius: 999px;
-  background: #fff;
-  box-shadow:
-    0 6px 0 rgba(255, 255, 255, 0.82),
-    0 13px 0 #f3dda0,
-    0 2px 3px rgba(0, 0, 0, 0.48);
-}
-.danmaku-style-option-visual.is-transparent i::before {
-  position: absolute;
-  top: -2px;
-  left: -23px;
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.92);
-  border-radius: 50%;
-  background: #8395ad;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.32);
-  content: '';
-}
-.danmaku-style-option-visual.is-transparent i:nth-child(1) {
-  top: 7px;
-}
-.danmaku-style-option-visual.is-transparent i:nth-child(2) {
-  top: 30px;
-  width: 48%;
-}
-.danmaku-style-option-visual.is-transparent i:nth-child(3) {
-  top: 53px;
-  width: 64%;
-}
-.danmaku-style-option-visual.is-outline {
-  background:
-    radial-gradient(
-      circle at 82% 18%,
-      rgba(47, 155, 255, 0.22),
-      transparent 38%
-    ),
-    linear-gradient(145deg, #101628, #070b17 76%);
-}
-.danmaku-style-option-visual.is-outline i {
-  left: 10px;
-  width: 76%;
-  height: 15px;
-  border: 1px solid var(--preview-rank);
-  border-radius: 5px;
-  background: rgba(9, 15, 27, 0.2);
-}
-.danmaku-style-option-visual.is-outline i::before {
-  position: absolute;
-  top: -4px;
-  left: 50%;
-  width: 30%;
-  height: 4px;
-  border-radius: 999px;
-  background: var(--preview-rank);
-  box-shadow: 0 0 0 3px #101628;
-  content: '';
-  transform: translateX(-50%);
-}
-.danmaku-style-option-visual.is-outline i::after {
-  position: absolute;
-  top: 5px;
-  left: 20%;
-  width: 60%;
-  height: 3px;
-  border-radius: 999px;
-  background: var(--preview-rank);
-  content: '';
-}
-.danmaku-style-option-visual.is-outline i:nth-child(1) {
-  --preview-rank: #fff;
-  top: 6px;
-  width: 68%;
-}
-.danmaku-style-option-visual.is-outline i:nth-child(2) {
-  --preview-rank: #fff;
-  top: 24px;
-  left: 18%;
-  width: 76%;
-}
-.danmaku-style-option-visual.is-outline i:nth-child(3) {
-  --preview-rank: #fff;
-  top: 42px;
-  width: 62%;
-}
-.danmaku-style-option-visual.is-outline i:nth-child(4) {
-  --preview-rank: #fff;
-  top: 60px;
-  left: 18%;
-  width: 72%;
-}
-.danmaku-style-option-copy {
-  display: grid;
-  gap: 3px;
-  padding: 0 2px 2px;
-}
-.danmaku-style-option-copy strong {
-  font-size: var(--type-size-card-title);
-  line-height: 1.3;
-}
-.danmaku-style-option-copy small {
-  color: var(--muted);
-  font-size: var(--type-size-caption);
-  line-height: 1.4;
+@container danmaku-style-picker (max-width: 600px) {
+  .danmaku-style-group {
+    grid-column: 1 / -1;
+  }
+  .danmaku-style-options-fixed {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 .danmaku-style-save-state {
+  grid-column: 1 / -1;
   margin: 0;
   color: var(--muted);
   font-size: var(--type-size-caption);
   line-height: 1.5;
 }
+.danmaku-style-save-state:empty {
+  display: none;
+}
 .danmaku-style-preview {
-  height: 310px;
+  height: 380px;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--primary) 28%, var(--border));
   border-radius: 14px;
-  background: #0b101b;
+  background: transparent;
   box-shadow: 0 12px 24px rgba(7, 6, 20, 0.12);
 }
 .danmaku-style-preview iframe {
@@ -651,15 +413,6 @@
   }
   .danmaku-style-chip {
     align-self: flex-start;
-  }
-  .danmaku-style-options {
-    grid-template-columns: 1fr;
-  }
-  .danmaku-style-options-fullscreen {
-    grid-template-columns: 1fr;
-  }
-  .danmaku-fullscreen-duration {
-    grid-template-columns: 1fr;
   }
   .danmaku-overlay-link {
     grid-template-columns: 1fr;

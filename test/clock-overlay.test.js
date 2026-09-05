@@ -6,6 +6,8 @@ const path = require('node:path');
 const test = require('node:test');
 const { handleApi } = require('../src/server/api-routes');
 const {
+  CLOCK_STYLE_VALUES,
+  DEFAULT_LABELS,
   cleanClockLabel,
   getClockConfig,
 } = require('../src/server/clock-contract');
@@ -52,7 +54,7 @@ test('cute clock overlay owns a fixed frameable route and complete assets', () =
   assert.equal(headers.has('X-Frame-Options'), false);
 });
 
-test('cute clock overlay exposes five distinct styles and safe time parameters', () => {
+test('cute clock overlay exposes six distinct styles and safe time parameters', () => {
   const html = read('public', 'pages', 'overlays', 'clock.html');
   const css = read('public', 'css', 'overlays', 'clock.css');
   const script = read('public', 'js', 'overlays', 'clock.js');
@@ -77,6 +79,7 @@ test('cute clock overlay exposes five distinct styles and safe time parameters',
   assert.match(css, /\[data-clock-style='soda'\]/);
   assert.match(css, /\[data-clock-style='timeline-horizontal'\]/);
   assert.match(css, /\[data-clock-style='timeline-vertical'\]/);
+  assert.match(css, /\[data-clock-style='digital'\]/);
   assert.match(css, /width:\s*560px/);
   assert.match(css, /height:\s*190px/);
   assert.match(css, /width:\s*220px/);
@@ -96,7 +99,7 @@ test('cute clock overlay exposes five distinct styles and safe time parameters',
   assert.match(script, /new URLSearchParams\(location\.search\)/);
   assert.match(
     script,
-    /new Set\(\[\s*'peach',\s*'starlight',\s*'soda',\s*'timeline-horizontal',\s*'timeline-vertical',?\s*\]\)/,
+    /new Set\(\[\s*'peach',\s*'starlight',\s*'soda',\s*'timeline-horizontal',\s*'timeline-vertical',\s*'digital',?\s*\]\)/,
   );
   assert.match(script, /booleanParameter\(params,\s*'date'/);
   assert.match(script, /booleanParameter\(params,\s*'seconds'/);
@@ -113,6 +116,7 @@ test('cute clock overlay exposes five distinct styles and safe time parameters',
 test('clock overlay scales its complete design canvas without moving style artwork', async () => {
   const module = await loadModuleExports(CLOCK_ENTRY, { URLSearchParams });
 
+  assert.deepEqual([...module.CLOCK_STYLE_VALUES], [...CLOCK_STYLE_VALUES]);
   assert.equal(module.clockScaleForViewport(580, 210), 1);
   assert.equal(module.clockScaleForViewport(300, 115), 0.5);
   assert.equal(module.clockScaleForViewport(1140, 400), 2);
@@ -120,6 +124,8 @@ test('clock overlay scales its complete design canvas without moving style artwo
   assert.equal(module.clockLayoutForStyle('timeline-horizontal').height, 190);
   assert.equal(module.clockLayoutForStyle('timeline-vertical').width, 220);
   assert.equal(module.clockLayoutForStyle('timeline-vertical').height, 380);
+  assert.equal(module.clockLayoutForStyle('digital').width, 560);
+  assert.equal(module.clockLayoutForStyle('digital').height, 190);
   assert.equal(
     module.clockScaleForViewport(580, 210, 'timeline-horizontal'),
     1,
@@ -169,11 +175,17 @@ test('toolbox composes the named clock card with fixed URL and custom controls',
   assert.match(panel, /data-clock-style-option="soda"/);
   assert.match(panel, /data-clock-style-option="timeline-horizontal"/);
   assert.match(panel, /data-clock-style-option="timeline-vertical"/);
+  assert.match(panel, /data-clock-style-option="digital"/);
   assert.match(panel, />桃桃便签</);
   assert.match(panel, />星夜软糖</);
   assert.match(panel, />汽水小鸭</);
   assert.match(panel, />横向刻度</);
   assert.match(panel, />竖向刻度</);
+  assert.match(panel, />白字数显</);
+  assert.equal(
+    panel.match(/data-clock-style-option="[^"]+"/g)?.length,
+    CLOCK_STYLE_VALUES.size,
+  );
   assert.match(panel, /is-timeline-horizontal/);
   assert.match(panel, /is-timeline-vertical/);
   assert.match(panel, /clockCustomLabelHelp/);
@@ -187,6 +199,10 @@ test('toolbox composes the named clock card with fixed URL and custom controls',
   assert.match(script, /params\.set\('seconds'/);
   assert.match(script, /params\.set\('format'/);
   assert.match(script, /params\.set\('label'/);
+  assert.match(
+    script,
+    /new Set\(\[\s*'peach',\s*'starlight',\s*'soda',\s*'timeline-horizontal',\s*'timeline-vertical',\s*'digital',?\s*\]\)/,
+  );
   assert.match(script, /clockSettingsPayload/);
   assert.match(script, /fetch\(SETTINGS_ENDPOINT/);
   assert.match(script, /fetch\(CLOCK_CONFIG_ENDPOINT/);
@@ -199,17 +215,38 @@ test('toolbox composes the named clock card with fixed URL and custom controls',
   assert.match(script, /button\.disabled = hydrating/);
   assert.match(
     script,
-    /customLabel\.disabled\s*=\s*hydrating\s*\|\|\s*timeline/,
+    /customLabel\.disabled\s*=\s*hydrating\s*\|\|\s*transparent/,
   );
   assert.match(script, /label:\s*customLabel\.value/);
   assert.doesNotMatch(script, /customLabel\.value\s*=\s*''/);
-  assert.match(script, /透明时间轴不显示/);
+  assert.match(script, /此样式不显示/);
   assert.match(styles, /aspect-ratio:\s*240\s*\/\s*400/);
   assert.match(styles, /is-timeline-horizontal/);
   assert.match(styles, /is-timeline-vertical/);
 });
 
 test('clock settings are persisted through validated keys and exposed by a public read-only route', async () => {
+  assert.deepEqual([...CLOCK_STYLE_VALUES], [
+    'peach',
+    'starlight',
+    'soda',
+    'timeline-horizontal',
+    'timeline-vertical',
+    'digital',
+  ]);
+  assert.deepEqual(
+    Object.fromEntries(
+      [...CLOCK_STYLE_VALUES].map((style) => [style, DEFAULT_LABELS[style]]),
+    ),
+    {
+      peach: '今天也要闪闪发光',
+      starlight: '今晚与星星一起值班',
+      soda: '今天也要元气满满',
+      'timeline-horizontal': '',
+      'timeline-vertical': '',
+      digital: '',
+    },
+  );
   assert.equal(DEFAULT_SETTINGS.clockStyle, 'peach');
   assert.equal(DEFAULT_SETTINGS.clockShowDate, 'true');
   assert.equal(DEFAULT_SETTINGS.clockShowSeconds, 'true');
@@ -241,6 +278,13 @@ test('clock settings are persisted through validated keys and exposed by a publi
   });
   assert.deepEqual(getClockConfig({ clockStyle: 'timeline-vertical' }), {
     style: 'timeline-vertical',
+    showDate: true,
+    showSeconds: true,
+    hourFormat: '24',
+    label: '',
+  });
+  assert.deepEqual(getClockConfig({ clockStyle: 'digital' }), {
+    style: 'digital',
     showDate: true,
     showSeconds: true,
     hourFormat: '24',
@@ -351,6 +395,51 @@ test('clock settings are persisted through validated keys and exposed by a publi
   assert.equal(publicResponse.payload.ok, true);
 });
 
+test('digital clock config round-trips through admin payload and fixed URL query overrides', async () => {
+  const overlay = await loadModuleExports(CLOCK_ENTRY, { URLSearchParams });
+  const admin = await loadModuleExports(CLOCK_CARD_ENTRY, { URL });
+  const config = {
+    style: 'digital',
+    showDate: false,
+    showSeconds: true,
+    hourFormat: '12',
+    label: '',
+  };
+
+  const payload = { ...admin.clockSettingsPayload(config) };
+  assert.deepEqual(payload, {
+    clockStyle: 'digital',
+    clockShowDate: 'false',
+    clockShowSeconds: 'true',
+    clockHourFormat: '12',
+    clockLabel: '',
+  });
+  assert.deepEqual(getClockConfig(payload), config);
+
+  const fixedUrl = admin.buildClockUrl('http://127.0.0.1:3000/clock', config);
+  const params = new URL(fixedUrl).searchParams;
+  const queryConfig = overlay.readClockConfig(params);
+  assert.deepEqual({ ...queryConfig }, {
+    style: 'digital',
+    showDate: false,
+    showSeconds: true,
+    hour12: true,
+    label: '',
+  });
+  assert.deepEqual(
+    {
+      ...overlay.mergeClockConfig(config, queryConfig, params),
+    },
+    {
+      style: 'digital',
+      showDate: false,
+      showSeconds: true,
+      hour12: true,
+      label: '',
+    },
+  );
+});
+
 test('clock overlay loads saved settings while explicit legacy parameters still override each field', async () => {
   const module = await loadModuleExports(CLOCK_ENTRY, { URLSearchParams });
   const saved = {
@@ -417,4 +506,5 @@ test('clock card keeps custom text that matches another style default', async ()
     true,
   );
   assert.equal(module.usesDefaultClockLabel('timeline-horizontal', ''), true);
+  assert.equal(module.usesDefaultClockLabel('digital', ''), true);
 });

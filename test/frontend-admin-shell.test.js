@@ -379,6 +379,17 @@ test('toolbox owns independent settings, overtime, streamer planner, start anima
     ),
     'utf8',
   );
+  const accountSettingsHtml = fs.readFileSync(
+    path.join(
+      ROOT_DIR,
+      'public',
+      'pages',
+      'admin',
+      'toolbox',
+      'settings.html',
+    ),
+    'utf8',
+  );
   const managementTabs = html.match(
     /<div class="tabs" role="tablist">([\s\S]*?)<\/div>/,
   )?.[1];
@@ -443,9 +454,12 @@ test('toolbox owns independent settings, overtime, streamer planner, start anima
   assert.match(html, /id="licenseAccountDevice"[^>]+hidden/);
   assert.match(html, /id="licenseAccountName"/);
   assert.match(html, /id="licenseDeviceName"/);
-  assert.match(html, /设备私钥由系统安全存储保护/);
-  assert.match(html, /密码和激活密钥不会保存/);
-  assert.match(html, /设备管理[\s\S]*?由服务器管理员统一处理/);
+  assert.match(html, /账号信息/);
+  assert.match(html, /忘记密码？[\s\S]*?请联系管理员重置密码。/);
+  assert.doesNotMatch(
+    accountSettingsHtml,
+    /安全存储|设备私钥|首次授权|激活密钥|设备管理/,
+  );
   assert.match(html, /data-other-feature="otherUsageGuideFeature"/);
   assert.match(html, /id="otherUsageGuideFeature"[\s\S]*?usage-guide-panel/);
   assert.match(html, /id="otherUsageGuideFeature"[\s\S]*?usage-guide-faq-grid/);

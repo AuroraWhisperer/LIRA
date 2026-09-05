@@ -8,6 +8,7 @@ const CLOCK_STYLE_VALUES = new Set([
   'soda',
   'timeline-horizontal',
   'timeline-vertical',
+  'digital',
 ]);
 const CLOCK_STYLE_LABELS = Object.freeze({
   peach: '今天也要闪闪发光',
@@ -15,6 +16,7 @@ const CLOCK_STYLE_LABELS = Object.freeze({
   soda: '今天也要元气满满',
   'timeline-horizontal': '',
   'timeline-vertical': '',
+  digital: '',
 });
 const SETTINGS_ENDPOINT = '/api/' + 'settings';
 const CLOCK_CONFIG_ENDPOINT = '/api/clock/config';
@@ -51,8 +53,12 @@ function clockSettingsPayload(config) {
   };
 }
 
-function isTimelineStyle(style) {
-  return style === 'timeline-horizontal' || style === 'timeline-vertical';
+function isTransparentClockStyle(style) {
+  return (
+    style === 'timeline-horizontal' ||
+    style === 'timeline-vertical' ||
+    style === 'digital'
+  );
 }
 
 function usesDefaultClockLabel(style, label) {
@@ -104,16 +110,16 @@ function initClockCard() {
   function render() {
     const previewUrl = buildClockUrl(fixedUrl, currentConfig());
     if (preview.src !== previewUrl) preview.src = previewUrl;
-    const timeline = isTimelineStyle(selectedStyle);
+    const transparent = isTransparentClockStyle(selectedStyle);
     const vertical = selectedStyle === 'timeline-vertical';
     preview.dataset.clockStyle = selectedStyle;
     showDate.disabled = hydrating;
     showSeconds.disabled = hydrating;
     hourFormat.disabled = hydrating;
-    customLabel.disabled = hydrating || timeline;
+    customLabel.disabled = hydrating || transparent;
     if (customLabelHelp)
-      customLabelHelp.textContent = timeline
-        ? '透明时间轴不显示'
+      customLabelHelp.textContent = transparent
+        ? '此样式不显示'
         : '最多 16 个字';
     if (recommendedSize)
       recommendedSize.textContent = vertical
@@ -192,7 +198,7 @@ function initClockCard() {
         currentLabel,
       );
       selectedStyle = style;
-      if (!isTimelineStyle(selectedStyle) && usesDefaultLabel) {
+      if (!isTransparentClockStyle(selectedStyle) && usesDefaultLabel) {
         customLabel.value = CLOCK_STYLE_LABELS[selectedStyle];
       }
       handleConfigChange();

@@ -202,7 +202,7 @@ domain-services 的 messages 域按序组装点歌 → 签到 → 抽签 → 自
 | `result.fortuneReply`     | 抽签命令接受后                                         | [server.js:648-655](../../../../src/server.js#L648-L655) |
 | `result.customReplyReply` | 自定义关键词命中                                       | [server.js:656-663](../../../../src/server.js#L656-L663) |
 
-另有一条独立发送通道:AI 互动助手回复经 `aiAssistant` 走 `danmakuSender.send({waitForRateLimit: true})`([server.js:260-261](../../../../src/server.js#L260-L261)),见 [ai.md](../ai.md)。
+AI 互动助手回复也经 `aiAssistant` 调用同一个 `danmakuSender.send({waitForRateLimit: true})`，见 [ai.md](../ai.md)。所有调用共享 FIFO 发送队列，每次调用的全部分块发送完毕或失败后才处理下一次调用。限频检查在出队后执行，仍保留调用方的 `rateLimitIntervalMs` 和等待/报错选项；零间隔调用也不会与其他消息的分块交错，失败不会阻塞后续调用。
 
 ## 8. 诊断快照与调试缓冲
 

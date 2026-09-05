@@ -14,7 +14,7 @@ let autoBotRunning = false;
 const DANMAKU_OVERLAY_STYLES = Object.freeze({
   bubble: '聊天气泡',
   signal: '直播信号带',
-  minimal: '航海铭牌',
+  minimal: '蝴蝶结',
   ranked: '直播气泡',
   transparent: '透明简约',
   outline: '全屏随机',
@@ -72,13 +72,13 @@ function init() {
       const nextStyle = normalizeOverlayStyle(button.dataset.danmakuStyle);
       if (nextStyle === currentOverlayStyle) return;
       currentOverlayStyle = renderOverlayStyle(elements, nextStyle);
-      elements.styleSaveState.textContent = '正在保存并同步到弹幕姬…';
+      elements.styleSaveState.textContent = '正在保存…';
       elements.styleButtons.forEach((item) => {
         item.disabled = true;
       });
       try {
         await saveSetting('danmakuOverlayStyle', nextStyle);
-        elements.styleSaveState.textContent = `已切换为${DANMAKU_OVERLAY_STYLES[nextStyle]}，打开中的弹幕姬会同步更新。`;
+        elements.styleSaveState.textContent = '已保存';
         toast(`弹幕姬已切换为${DANMAKU_OVERLAY_STYLES[nextStyle]}`);
       } catch (error) {
         currentOverlayStyle = renderOverlayStyle(elements, previousStyle);
@@ -104,14 +104,14 @@ function init() {
     }
     elements.fullscreenDuration.value = String(nextDuration);
     elements.fullscreenDuration.disabled = true;
-    elements.styleSaveState.textContent = '正在保存全屏随机停留时间…';
+    elements.styleSaveState.textContent = '正在保存…';
     try {
       await saveSetting(
         'danmakuFullscreenDurationSeconds',
         String(nextDuration),
       );
       currentFullscreenDurationSeconds = nextDuration;
-      elements.styleSaveState.textContent = `已保存全屏随机，每条停留 ${nextDuration} 秒。`;
+      elements.styleSaveState.textContent = '已保存';
     } catch (error) {
       elements.fullscreenDuration.value = String(previousDuration);
       elements.styleSaveState.textContent =
