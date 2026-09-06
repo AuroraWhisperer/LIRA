@@ -138,7 +138,7 @@ function createBilibiliRuntime(options) {
         enabled: false,
         roomId,
         mode: 'disabled',
-        message: '未启用 Bilibili 监听',
+        message: roomId ? '未启用 Bilibili 监听' : '未设置直播间',
       });
       return;
     }

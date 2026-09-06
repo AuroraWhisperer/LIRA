@@ -10,8 +10,9 @@ export function initUsageGuide() {
   const panel = document.getElementById('otherUsageGuideFeature');
   if (!panel) return;
   const scroller = panel.querySelector('.other-feature-panel-body');
+  const toc = panel.querySelector('.usage-guide-toc');
   const links = Array.from(panel.querySelectorAll('[data-usage-guide-link]'));
-  if (!scroller || !links.length) return;
+  if (!scroller || !toc || !links.length) return;
 
   const reduceMotionQuery = window.matchMedia?.(
     '(prefers-reduced-motion: reduce)',
@@ -20,6 +21,19 @@ export function initUsageGuide() {
     panel.querySelectorAll('.usage-guide-section[id]'),
   );
   if (!sections.length) return;
+
+  let sectionOffset = 110;
+
+  function updateTocLayout() {
+    if (panel.hidden) return;
+    const tocStyle = window.getComputedStyle(toc);
+    sectionOffset =
+      tocStyle.flexDirection === 'column'
+        ? 24
+        : toc.getBoundingClientRect().height + parseFloat(tocStyle.top) + 12;
+    panel.style.setProperty('--usage-guide-scroll-offset', `${sectionOffset}px`);
+    updateActiveOnScroll();
+  }
 
   function setActiveLink(id) {
     links.forEach((link) => {
@@ -30,7 +44,8 @@ export function initUsageGuide() {
   function updateActiveOnScroll() {
     if (panel.hidden) return;
     // 吸顶目录下方的判定线：越过该线的最近一个章节视为当前章节
-    const marker = Math.min(window.innerHeight * 0.3, 220);
+    const marker =
+      Math.max(0, scroller.getBoundingClientRect().top) + sectionOffset + 1;
     let current = sections[0];
     for (const section of sections) {
       if (section.getBoundingClientRect().top <= marker) current = section;
@@ -90,6 +105,8 @@ export function initUsageGuide() {
   scroller.addEventListener('scroll', onScroll, { passive: true });
   window.addEventListener('scroll', onScroll, { passive: true });
   setActiveLink(sections[0].id);
+  const tocObserver = new ResizeObserver(updateTocLayout);
+  tocObserver.observe(toc);
 
   // 绑定重新打开交互式引导按钮
   const reopenTourBtn = document.getElementById('reopenInteractiveTourBtn');

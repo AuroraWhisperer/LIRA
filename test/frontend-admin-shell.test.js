@@ -70,13 +70,37 @@ test('queue headers share a fixed minimum height and song queue controls stay co
     /\.queues-row \.queue-panel \.panel-header\s*\{[\s\S]*?\n\}/,
   )?.[0];
   const buttonRule = source.match(
-    /\.queues-row \.song-queue-panel \.panel-header button\s*\{[\s\S]*?\n\}/,
+    /\.queues-row \.queue-panel \.panel-header button\s*\{[\s\S]*?\n\}/,
   )?.[0];
 
   assert.ok(headerRule, 'queue header sizing should remain defined');
   assert.match(headerRule, /min-height:\s*72px/);
   assert.ok(buttonRule, 'song queue header controls should remain compact');
   assert.match(buttonRule, /min-height:\s*32px/);
+});
+
+test('queue headers group counts with titles and keep passive surfaces still', () => {
+  const html = readAdminHtml();
+  const styles = readCssBundle('public', 'css', 'admin', 'workspace.css');
+  for (const counterId of ['superChatSize', 'queueSize']) {
+    assert.match(
+      html,
+      new RegExp(`<div class="queue-heading">(?:(?!</div>)[\\s\\S])*id="${counterId}"`),
+    );
+  }
+  const clearRule = styles.match(
+    /\.queues-row \.queue-panel \.panel-header button\.danger\s*\{[\s\S]*?\n\}/,
+  )?.[0];
+  assert.ok(clearRule);
+  assert.match(clearRule, /border:\s*1px solid var\(--border\)/);
+  assert.match(clearRule, /color:\s*var\(--muted\)/);
+  const emptyRule = styles.match(
+    /\.queues-row \.queue-panel \.queue-list > \.empty\s*\{[\s\S]*?\n\}/,
+  )?.[0];
+  assert.ok(emptyRule);
+  assert.match(emptyRule, /border:\s*0/);
+  assert.match(emptyRule, /background:\s*transparent/);
+  assert.doesNotMatch(styles, /\.queue-panel:hover|\.empty:hover/);
 });
 
 test('minimum-height desktop reclaims space before the point-song page heading', () => {
@@ -286,7 +310,6 @@ test('accent actions do not add a colored frame around their fill or active stat
     path.join(ROOT_DIR, 'public', 'css', 'admin', 'layout.css'),
     'utf8',
   );
-  const workspace = readCssBundle('public', 'css', 'admin', 'workspace.css');
   const lyric = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'css', 'admin', 'desktop-lyric-preview.css'),
     'utf8',
@@ -299,9 +322,6 @@ test('accent actions do not add a colored frame around their fill or active stat
   const playback = readCssBundle('public', 'css', 'styles-playback.css');
   const rules = [
     layout.match(/\.status-strip button\.danger\s*\{[\s\S]*?\n\}/)?.[0],
-    workspace.match(
-      /\.queues-row \.song-queue-panel \.panel-header button\.danger\s*\{[\s\S]*?\n\}/,
-    )?.[0],
     lyric.match(/\.desktop-lyric-reset-button\s*\{[\s\S]*?\n\}/)?.[0],
     responsive.match(/\.gift-history-open-btn\s*\{[\s\S]*?\n\}/)?.[0],
     toolbox.match(/\.other-feature-button\.active\s*\{[\s\S]*?\n\}/)?.[0],
@@ -347,7 +367,7 @@ test('SuperChat clear control lives in the SC queue header', () => {
   assert.ok(scPanel, 'SC queue panel should remain present');
   assert.match(
     scPanel,
-    /id="clearSuperChatsBtn"[^>]*>\s*清空 SC 记录\s*<\/button>/,
+    /id="clearSuperChatsBtn"[^>]*>\s*<svg[^>]*aria-hidden="true"[^>]*>[\s\S]*?<\/svg>\s*清空 SC 记录\s*<\/button>/,
   );
   assert.doesNotMatch(importPage, /id="clearSuperChatsBtn"/);
 });
@@ -731,6 +751,9 @@ test('usage guide defers image loading and avoids sticky backdrop blur', () => {
   );
   assert.ok(tocRule, 'usage guide table of contents should remain defined');
   assert.match(tocRule, /background:\s*var\(--surface\)/);
+  assert.match(tocRule, /display:\s*grid/);
+  assert.match(tocRule, /grid-template-columns:[\s\S]*auto-fit/);
+  assert.doesNotMatch(tocRule, /white-space:\s*nowrap|overflow-x:\s*(?:auto|scroll)/);
   assert.doesNotMatch(tocRule, /backdrop-filter/);
 });
 
@@ -739,6 +762,205 @@ test('usage guide names the AI assistant section without removing the DeepSeek a
 
   assert.match(html, /href="#ug-deepseek"[^>]*>配置 AI 助手<\/a>/);
   assert.match(html, /id="ug-deepseek"[^>]*>[\s\S]*?>\s*配置 AI 助手\s*<\/h3>/);
+});
+
+function createUsageGuideFixture({
+  flexDirection = 'row',
+  tocTop = '8px',
+  tocHeight = 72,
+  scrollerTop = 0,
+  sectionTops = [0, 200],
+  scrollerHeight = 400,
+  scrollerScrollHeight = 1000,
+} = {}) {
+  const observers = [];
+  const windowListeners = new Map();
+  const createClassList = () => {
+    const names = new Set();
+    return {
+      contains: (name) => names.has(name),
+      toggle(name, enabled) {
+        if (enabled) names.add(name);
+        else names.delete(name);
+      },
+    };
+  };
+  const sections = sectionTops.map((_, index) => ({
+    id: `usage-section-${index + 1}`,
+    getBoundingClientRect: () => ({ top: sectionTops[index] }),
+  }));
+  const links = sections.map((section) => ({
+    hash: `#${section.id}`,
+    classList: createClassList(),
+    addEventListener() {},
+  }));
+  const toc = {
+    height: tocHeight,
+    reads: 0,
+    getBoundingClientRect() {
+      this.reads += 1;
+      return { height: this.height };
+    },
+  };
+  const scrollerListeners = new Map();
+  const scroller = {
+    clientHeight: scrollerHeight,
+    scrollHeight: scrollerScrollHeight,
+    scrollTop: 0,
+    addEventListener: (name, listener) => scrollerListeners.set(name, listener),
+    getBoundingClientRect: () => ({ top: scrollerTop }),
+  };
+  const panel = {
+    hidden: false,
+    style: {
+      setProperty(name, value) {
+        this[name] = value;
+      },
+    },
+    querySelector(selector) {
+      if (selector === '.other-feature-panel-body') return scroller;
+      if (selector === '.usage-guide-toc') return toc;
+      return null;
+    },
+    querySelectorAll(selector) {
+      if (selector === '[data-usage-guide-link]') return links;
+      if (selector === '.usage-guide-section[id]') return sections;
+      return [];
+    },
+  };
+  const document = {
+    documentElement: { scrollHeight: 2000 },
+    getElementById: (id) =>
+      id === 'otherUsageGuideFeature' ? panel : null,
+  };
+  const window = {
+    innerHeight: 600,
+    scrollY: 0,
+    matchMedia: () => ({ matches: false }),
+    getComputedStyle: () => ({ flexDirection, top: tocTop }),
+    requestAnimationFrame: (callback) => callback(),
+    addEventListener(name, listener) {
+      windowListeners.set(name, listener);
+    },
+  };
+  const ResizeObserver = class {
+    constructor(callback) {
+      observers.push(callback);
+    }
+
+    observe() {}
+  };
+
+  return {
+    document,
+    panel,
+    sectionTops,
+    links,
+    toc,
+    window,
+    ResizeObserver,
+    triggerResize: () => observers.at(-1)?.(),
+    get scrollOffset() {
+      return panel.style['--usage-guide-scroll-offset'];
+    },
+    triggerScrollerScroll() {
+      scrollerListeners.get('scroll')?.();
+    },
+    triggerWindowScroll() {
+      windowListeners.get('scroll')?.();
+    },
+  };
+}
+
+async function loadUsageGuide(fixture) {
+  const { initUsageGuide } = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'usage-guide.js'),
+    fixture,
+  );
+  initUsageGuide();
+}
+
+test('usage guide recalculates visible toc offset and skips hidden layout updates', async () => {
+  const fixture = createUsageGuideFixture({ tocHeight: 72, tocTop: '8px' });
+  await loadUsageGuide(fixture);
+
+  fixture.triggerResize();
+  assert.equal(fixture.scrollOffset, '92px');
+
+  fixture.toc.height = 108;
+  fixture.triggerResize();
+  assert.equal(fixture.scrollOffset, '128px');
+
+  const visibleReads = fixture.toc.reads;
+  fixture.panel.hidden = true;
+  fixture.toc.height = 180;
+  fixture.triggerResize();
+  assert.equal(fixture.scrollOffset, '128px');
+  assert.equal(fixture.toc.reads, visibleReads);
+});
+
+test('usage guide keeps a compact offset for the vertical toc regardless of its height', async () => {
+  const fixture = createUsageGuideFixture({
+    flexDirection: 'column',
+    tocHeight: 320,
+    tocTop: '18px',
+  });
+  await loadUsageGuide(fixture);
+
+  fixture.triggerResize();
+  assert.equal(fixture.scrollOffset, '24px');
+
+  fixture.toc.height = 640;
+  fixture.triggerResize();
+  assert.equal(fixture.scrollOffset, '24px');
+});
+
+test('usage guide desktop active section follows a resized toc in the internal scroller', async () => {
+  const fixture = createUsageGuideFixture({
+    tocHeight: 40,
+    tocTop: '8px',
+    scrollerTop: 100,
+    sectionTops: [120, 210, 340],
+    scrollerHeight: 400,
+    scrollerScrollHeight: 1600,
+  });
+  await loadUsageGuide(fixture);
+
+  fixture.triggerResize();
+  assert.equal(fixture.links[0].classList.contains('active'), true);
+  assert.equal(fixture.links[1].classList.contains('active'), false);
+
+  fixture.toc.height = 100;
+  fixture.triggerResize();
+  assert.equal(fixture.links[0].classList.contains('active'), false);
+  assert.equal(fixture.links[1].classList.contains('active'), true);
+  fixture.sectionTops[1] = 300;
+  fixture.triggerScrollerScroll();
+  assert.equal(fixture.links[0].classList.contains('active'), true);
+});
+
+test('usage guide narrow-window active section follows a resized toc', async () => {
+  const fixture = createUsageGuideFixture({
+    tocHeight: 40,
+    tocTop: '4px',
+    scrollerTop: -200,
+    sectionTops: [55, 100, 180],
+    scrollerHeight: 600,
+    scrollerScrollHeight: 600,
+  });
+  await loadUsageGuide(fixture);
+
+  fixture.triggerResize();
+  assert.equal(fixture.links[0].classList.contains('active'), true);
+  assert.equal(fixture.links[1].classList.contains('active'), false);
+
+  fixture.toc.height = 90;
+  fixture.triggerResize();
+  assert.equal(fixture.links[0].classList.contains('active'), false);
+  assert.equal(fixture.links[1].classList.contains('active'), true);
+  fixture.sectionTops[1] = 140;
+  fixture.triggerWindowScroll();
+  assert.equal(fixture.links[0].classList.contains('active'), true);
 });
 
 test('other feature navigation selects panels without feature-specific dependencies', () => {

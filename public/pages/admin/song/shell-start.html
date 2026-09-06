@@ -13,10 +13,13 @@
                   draggable="false" /></span
               >SC 队列
             </h2>
+            <span id="superChatSize" class="pill">0 条</span>
           </div>
           <div class="actions">
-            <span id="superChatSize" class="pill">0 条</span>
             <button id="clearSuperChatsBtn" class="danger" type="button">
+              <svg class="queue-action-icon" aria-hidden="true">
+                <use href="/img/admin/workbench-icons.svg#trash"></use>
+              </svg>
               清空 SC 记录
             </button>
           </div>
@@ -38,11 +41,21 @@
                   draggable="false" /></span
               >点歌队列
             </h2>
+            <span id="queueSize" class="pill">0 首</span>
           </div>
           <div class="actions">
-            <span id="queueSize" class="pill">0 首</span>
-            <button id="nextBtn" class="primary">切歌</button>
-            <button id="clearBtn" class="danger">清空全部队列</button>
+            <button id="nextBtn" class="primary" type="button">
+              <svg class="queue-action-icon" aria-hidden="true">
+                <use href="/img/admin/workbench-icons.svg#skip-forward"></use>
+              </svg>
+              切歌
+            </button>
+            <button id="clearBtn" class="danger" type="button">
+              <svg class="queue-action-icon" aria-hidden="true">
+                <use href="/img/admin/workbench-icons.svg#trash"></use>
+              </svg>
+              清空全部队列
+            </button>
           </div>
         </div>
         <div class="panel-body">

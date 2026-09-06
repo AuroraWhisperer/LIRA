@@ -25,93 +25,64 @@ body.player-dock-expanded .song-workspace {
   height: 450px;
 }
 
-.queues-row .queue-panel {
+.queues-row .panel.queue-panel {
+  --surface: var(--color-bg-primary);
+  --border: var(--color-border-default);
+  --text: var(--color-text-primary);
+  --muted: var(--color-text-secondary);
   display: flex;
   flex-direction: column;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
   position: relative;
-  border: 1px solid rgba(31, 43, 68, 0.06);
-  border-radius: 16px;
-  background: #fff;
-  box-shadow: 0 2px 12px rgba(31, 43, 68, 0.04);
-  transition: all 280ms cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: 0 2px 4px rgba(22, 31, 43, 0.03);
 }
 
-/* SC 队列：左侧细线 + 顶部微妙光晕 */
-.queues-row .sc-queue-panel::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  background: linear-gradient(180deg, #d28a22 0%, #e8a547 100%);
-  border-radius: 16px 0 0 16px;
+.queues-row .sc-queue-panel {
+  --queue-accent: var(--color-warning);
+  --queue-tint: var(--color-warning-light);
 }
 
-.queues-row .sc-queue-panel::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  height: 1px;
-  background: linear-gradient(
-    90deg,
-    rgba(210, 138, 34, 0.3) 0%,
-    transparent 50%
-  );
-}
-
-/* 点歌队列：右侧细线 + 底部微妙光晕 */
-.queues-row .song-queue-panel::before {
-  content: '';
-  position: absolute;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  width: 3px;
-  background: linear-gradient(180deg, #168f83 0%, #21b6a8 100%);
-  border-radius: 0 16px 16px 0;
-}
-
-.queues-row .song-queue-panel::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 1px;
-  background: linear-gradient(
-    90deg,
-    transparent 50%,
-    rgba(22, 143, 131, 0.3) 100%
-  );
-}
-
-.queues-row .queue-panel:hover {
-  border-color: rgba(31, 43, 68, 0.12);
-  box-shadow: 0 8px 24px rgba(31, 43, 68, 0.08);
-  transform: translateY(-2px);
+.queues-row .song-queue-panel {
+  --queue-accent: var(--color-success-dark);
+  --queue-tint: var(--color-success-light);
 }
 
 .queues-row .queue-panel .panel-header {
+  flex: 0 0 auto;
+  flex-wrap: wrap;
   min-height: 72px;
   padding: 16px 20px;
-  border-bottom: 1px solid rgba(31, 43, 68, 0.05);
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0) 0%,
-    rgba(248, 250, 252, 0.4) 100%
-  );
+  border-bottom: 1px solid var(--color-border-light);
+  background: var(--surface);
   position: relative;
 }
 
+.queues-row .queue-panel .panel-header::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 24px;
+  width: 3px;
+  height: 24px;
+  border-radius: 0 2px 2px 0;
+  background: var(--queue-accent);
+}
+
 .queue-heading {
-  display: grid;
-  gap: 3px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  min-width: 0;
+}
+
+.queues-row .queue-panel .panel-header .actions {
+  margin-left: auto;
 }
 
 .queue-eyebrow {
@@ -124,26 +95,11 @@ body.player-dock-expanded .song-workspace {
   letter-spacing: var(--type-tracking-eyebrow);
 }
 
-.queue-panel h2 {
-  gap: 10px;
-  letter-spacing: var(--type-tracking-tight);
-}
-
-/* SC 队列图标：温暖橙金色 */
-.sc-queue-panel .queue-mark {
+.queues-row .queue-mark {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 34px;
-  height: 34px;
-  overflow: visible;
-}
-
-/* 点歌队列图标：清新青绿色 */
-.song-queue-panel .queue-mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  flex: 0 0 34px;
   width: 34px;
   height: 34px;
   overflow: visible;
@@ -157,61 +113,60 @@ body.player-dock-expanded .song-workspace {
   pointer-events: none;
 }
 
-.queues-row .song-queue-panel .panel-header button {
+.queues-row .queue-panel .panel-header button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   min-height: 32px;
-  padding: 4px 12px;
+  padding: 5px 10px;
   font-size: var(--type-size-control);
   font-weight: var(--type-weight-semibold);
   line-height: var(--type-leading-control);
   border-radius: 7px;
-  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease;
+}
+
+.queue-action-icon {
+  flex: 0 0 15px;
+  width: 15px;
+  height: 15px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .queues-row .song-queue-panel .panel-header button.primary {
   border-color: transparent;
-  background: linear-gradient(
-    135deg,
-    var(--color-success-dark) 0%,
-    #0f8077 100%
-  );
-  box-shadow: 0 2px 6px rgba(22, 143, 131, 0.2);
+  background: var(--queue-accent);
+  box-shadow: none;
 }
 
-.queues-row .song-queue-panel .panel-header button.primary:hover {
-  box-shadow: 0 4px 12px rgba(22, 143, 131, 0.3);
-  transform: translateY(-1px);
+.queues-row .song-queue-panel .panel-header button.primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--queue-accent) 88%, #000);
 }
 
-.queues-row .song-queue-panel .panel-header button.danger {
-  border: 0;
-  color: #a56810;
-  background: transparent;
+.queues-row .queue-panel .panel-header button.danger {
+  border: 1px solid var(--border);
+  color: var(--muted);
+  background: var(--surface);
 }
 
-.queues-row .song-queue-panel .panel-header button.danger:hover {
-  border-color: transparent;
-  background: linear-gradient(135deg, #fff8ed 0%, #fff3e0 100%);
+.queues-row .queue-panel .panel-header button.danger:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--danger) 30%, var(--border));
+  color: var(--danger);
+  background: var(--color-danger-light);
 }
 
-.queues-row .sc-queue-panel .panel-header button {
-  min-height: 32px;
-  padding: 4px 12px;
-  font-size: var(--type-size-control);
-  font-weight: var(--type-weight-semibold);
-  line-height: var(--type-leading-control);
-  border-radius: 7px;
-  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.queues-row .sc-queue-panel .panel-header button.danger {
-  border: 0;
-  color: #a56810;
-  background: transparent;
-}
-
-.queues-row .sc-queue-panel .panel-header button.danger:hover {
-  border-color: transparent;
-  background: linear-gradient(135deg, #fff8ed 0%, #fff3e0 100%);
+.queues-row .queue-panel .panel-header button:focus-visible {
+  outline: 2px solid var(--queue-accent);
+  outline-offset: 3px;
 }
 
 .queues-row .queue-panel .panel-header h2 {
@@ -219,31 +174,31 @@ body.player-dock-expanded .song-workspace {
   font-size: var(--type-size-section-title);
   font-weight: var(--type-weight-bold);
   line-height: var(--type-leading-section-title);
-  letter-spacing: var(--type-tracking-tight);
+  letter-spacing: 0;
   color: var(--text);
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-/* SC 队列数量标签：橙金色 */
-.sc-queue-panel .panel-header .pill {
-  border: 1px solid rgba(210, 138, 34, 0.2);
-  background: linear-gradient(135deg, #fffbf5 0%, #fff8ed 100%);
-  color: #a56810;
+.queues-row .queue-panel .panel-header .pill {
+  justify-content: center;
+  min-width: 42px;
+  min-height: 26px;
+  padding: 2px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--queue-tint);
+  color: var(--queue-accent);
   font-size: var(--type-size-caption);
   font-weight: var(--type-weight-semibold);
   line-height: var(--type-leading-caption);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
-/* 点歌队列数量标签：青绿色 */
-.song-queue-panel .panel-header .pill {
-  border: 1px solid rgba(22, 143, 131, 0.2);
-  background: linear-gradient(135deg, #f0faf8 0%, #e8f6f3 100%);
-  color: #08766c;
-  font-size: var(--type-size-caption);
-  font-weight: var(--type-weight-semibold);
-  line-height: var(--type-leading-caption);
+.queues-row .queue-panel .panel-header h2::before {
+  content: none;
 }
 
 .queues-row .queue-panel .panel-body {
@@ -291,9 +246,14 @@ body.player-dock-expanded .song-workspace {
 /* 队列为空时，empty 占位块撑满面板（与 1.x 版本行为一致） */
 .queues-row .queue-panel .queue-list:has(> .empty) {
   display: flex;
+  padding-right: 0;
 }
 .queues-row .queue-panel .queue-list > .empty {
   flex: 1;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  transition: none;
 }
 
 /* ---- 管理面板（标签页区）fills remaining space ---- */
@@ -434,39 +394,13 @@ body.player-dock-expanded .song-workspace {
   letter-spacing: var(--type-tracking-normal);
 }
 
-.sc-empty .empty-icon {
+.queues-row .queue-panel .empty .empty-icon {
   width: 68px;
   height: 68px;
   background: transparent;
   box-shadow: none;
-  opacity: 0.72;
-}
-
-.sc-empty {
-  border-color: rgba(210, 138, 34, 0.15);
-  background: linear-gradient(
-    135deg,
-    rgba(210, 138, 34, 0.02) 0%,
-    rgba(255, 255, 255, 0.5) 100%
-  );
-}
-
-.sc-empty:hover {
-  border-color: rgba(210, 138, 34, 0.25);
-  background: linear-gradient(
-    135deg,
-    rgba(210, 138, 34, 0.04) 0%,
-    rgba(255, 255, 255, 0.6) 100%
-  );
-}
-
-/* 点歌队列空状态：青绿色调 */
-.song-queue-panel .empty .empty-icon {
-  width: 68px;
-  height: 68px;
-  background: transparent;
-  box-shadow: none;
-  opacity: 0.72;
+  opacity: 1;
+  transform: none;
 }
 
 .empty-queue-image {
@@ -475,32 +409,18 @@ body.player-dock-expanded .song-workspace {
   height: 68px;
   object-fit: contain;
   pointer-events: none;
-  opacity: 0.68;
-  filter: saturate(0.9);
-  transition:
-    opacity 200ms ease,
-    transform 200ms ease;
+  opacity: 0.85;
 }
 
-.empty:hover .empty-queue-image {
-  opacity: 0.86;
-  transform: scale(1.05);
+.queues-row .queue-panel .empty-text {
+  color: var(--queue-accent);
+  font-size: var(--type-size-body);
+  font-weight: var(--type-weight-medium);
+  opacity: 1;
+  text-align: center;
 }
 
-.song-queue-panel .empty {
-  border-color: rgba(22, 143, 131, 0.15);
-  background: linear-gradient(
-    135deg,
-    rgba(22, 143, 131, 0.02) 0%,
-    rgba(255, 255, 255, 0.5) 100%
-  );
-}
-
-.song-queue-panel .empty:hover {
-  border-color: rgba(22, 143, 131, 0.25);
-  background: linear-gradient(
-    135deg,
-    rgba(22, 143, 131, 0.04) 0%,
-    rgba(255, 255, 255, 0.6) 100%
-  );
+.queues-row .queue-panel .empty-hint {
+  color: var(--muted);
+  opacity: 1;
 }

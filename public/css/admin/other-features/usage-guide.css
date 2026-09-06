@@ -18,7 +18,7 @@
   font-size: var(--type-size-page-title);
   font-weight: var(--type-weight-bold);
   line-height: var(--type-leading-page-title);
-  letter-spacing: var(--type-tracking-tight);
+  letter-spacing: 0;
 }
 
 .usage-guide-lead {
@@ -93,36 +93,38 @@
   min-width: 0;
 }
 
-/* 目录（默认形态：吸顶横条，超宽可横向滑动） */
+/* 横向目录最多六列，常规宽度两行；空间不足时自动增加行数。 */
 .usage-guide-toc {
   position: sticky;
   top: 8px;
   z-index: 6;
-  display: flex;
-  gap: 2px;
-  padding: 4px;
-  overflow-x: auto;
-  scrollbar-width: none;
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(min(100%, max(148px, calc((100% - 20px) / 6))), 1fr)
+  );
+  gap: 4px;
+  min-width: 0;
+  padding: 6px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 8px;
   background: var(--surface);
   box-shadow: var(--shadow-sm);
   counter-reset: usage-guide-toc;
 }
 
-.usage-guide-toc::-webkit-scrollbar {
-  display: none;
-}
-
 .usage-guide-toc a {
-  flex: 0 0 auto;
-  padding: 7px 11px;
-  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  min-height: 36px;
+  padding: 8px 10px;
+  border-radius: 6px;
   color: var(--muted);
   font-size: var(--type-size-control);
   font-weight: 600;
   line-height: 1.4;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
   text-decoration: none;
   transition:
     background 0.15s ease,
@@ -160,7 +162,7 @@
   background: var(--surface);
   content-visibility: auto;
   contain-intrinsic-size: auto 720px;
-  scroll-margin-top: 64px;
+  scroll-margin-top: var(--usage-guide-scroll-offset, 110px);
 }
 
 .usage-guide-render-all .usage-guide-section {
@@ -195,10 +197,10 @@
   line-height: 1.7;
 }
 
-/* 快速上手三卡片 */
+/* 快速上手四个条目 */
 .usage-guide-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -435,6 +437,7 @@
 
   .other-page.sidebar-collapsed .usage-guide-toc {
     top: 18px;
+    display: flex;
     flex-direction: column;
     gap: 1px;
     padding: 0;
@@ -453,7 +456,7 @@
     color: var(--muted);
     font-size: var(--type-size-micro);
     font-weight: 700;
-    letter-spacing: 0.14em;
+    letter-spacing: 0;
   }
 
   .other-page.sidebar-collapsed .usage-guide-toc a {

@@ -112,6 +112,22 @@ test('only the latest requested room starts after pending auth resolves', async 
   assert.deepEqual(fixture.clients.map((client) => client.roomId), ['456']);
 });
 
+test('missing room status is distinct from disabled listening', async (t) => {
+  const fixture = createReplacementFixture();
+  t.after(() => fixture.runtime.stop());
+  fixture.settings.roomId = '';
+  fixture.runtime.configure();
+  assert.equal(fixture.runtime.getLiveStatus().message, '未设置直播间');
+  const { liveStatus } = await fixture.runtime.reconnect();
+  assert.equal(liveStatus.message, '未设置直播间');
+  assert.equal(fixture.clients.length, 0);
+
+  fixture.settings.roomId = '123';
+  fixture.settings.enableBilibili = 'false';
+  fixture.runtime.configure();
+  assert.equal(fixture.runtime.getLiveStatus().message, '未启用 Bilibili 监听');
+});
+
 test('disabled client cannot report late status or restart failure', async (t) => {
   const restart = Promise.withResolvers();
   const fixture = createReplacementFixture({ restart: () => restart.promise });
