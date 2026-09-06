@@ -49,3 +49,8 @@ test('desktop injects Electron safeStorage into the server AI secret boundary', 
     /createDesktopRuntime\(serverRuntimeModule, \{[\s\S]*?dataDir: pathState\.dataDir,[\s\S]*?safeStorage[\s\S]*?\}\)/,
   );
 });
+
+test('only a completed Bilibili login marks cloud credentials dirty', () => {
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'src', 'electron', 'main.js'), 'utf8');
+  assert.match(source, /if \(result\?\.state\?\.loggedIn\) cloudSyncController\?\.markDirty\('bilibili'\)/);
+});

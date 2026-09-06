@@ -3,14 +3,17 @@
     <!-- Bilibili 账号登录 -->
     <fieldset class="theme-section" style="border-color: #fb7299">
       <legend>
-        🔐 Bilibili 账号登录 <lira-help>登录后弹幕和礼物接收更稳定。</lira-help>
+        🔐 Bilibili 账号登录
+        <lira-help
+          >每个 LIRA 账号使用独立的 Bilibili 凭据；仅上传到当前已授权的 LIRA 账号。云端凭据保存成功且直播间已配置并启用后才接收弹幕和礼物，未登录不会匿名采集。关闭应用不会停止已配置的云端采集。</lira-help
+        >
       </legend>
       <div
         class="bilibili-auth-row"
         style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap"
       >
         <span id="bilibiliAuthStatus" class="pill warn" style="padding: 2px 7px"
-          >未登录</span
+          >本机未登录</span
         >
         <span id="bilibiliAuthProfile" class="bilibili-auth-profile" hidden>
           <img

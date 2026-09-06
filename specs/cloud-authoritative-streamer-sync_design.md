@@ -33,9 +33,12 @@ decision with cloud-authoritative last-successful-write synchronization.
   Bilibili QR login, the server shall obtain and poll the QR challenge, keep all
   resulting cookies out of browser responses, and encrypt a successful login in
   the tenant database.
-- While a non-empty room and enabled monitor are saved, the cloud shall restart
-  that tenant's `RoomMonitor`; clearing the room or disabling monitoring shall
-  stop it.
+- While a non-empty room, enabled monitor, active tenant and Bilibili login are
+  saved, the cloud shall restart that tenant's `RoomMonitor`; clearing the room,
+  disabling monitoring or successfully synchronizing Bilibili logout stops it.
+- Before Bilibili credentials are saved in the authorized tenant, the cloud
+  shall not poll the room or capture danmaku/gifts anonymously. Local login alone
+  is not proof of successful cloud synchronization.
 
 ## Synchronized data
 
@@ -63,6 +66,10 @@ is the cookie-backed account identity required by server-side Bilibili requests.
   settings and song routes remain the UI write surface.
 - Save, loading, QR expiration, scanned-but-unconfirmed, success, and error states
   are explicit and rendered with text-safe DOM operations.
+- Desktop login help explains current-LIRA-account ownership, successful upload
+  plus configured/enabled room as prerequisites, and the difference between
+  closing the app and explicitly logging out. The local status label does not
+  claim cloud readiness; offline logout takes effect remotely only after sync.
 
 ### Backend
 
@@ -90,6 +97,10 @@ is the cookie-backed account identity required by server-side Bilibili requests.
   latest upload succeeds. A mutation that occurs during an upload remains dirty
   for another upload, and a remote payload is checked again after any awaited
   content fetch before it may replace local state.
+- Sync work is bound to the authenticated remote origin and LIRA accountName,
+  not a Bilibili UID or room. Switching account/origin aborts old work and clears
+  its dirty/revision baselines; late old-account responses are discarded. A
+  same-account temporary authorization interruption retains pending retries.
 - Cloud settings are written into the local settings store and reconfigure the
   local Bilibili runtime. Cloud songs replace the local library transactionally.
 - Cloud Bilibili cookies are imported into `persist:bilibili`, saved with
@@ -124,9 +135,12 @@ write. This limitation is visible in the specification and tests.
 - Existing song IDs are snapshot-local and are not used as stable cross-device
   identifiers. Applying a cloud snapshot clears stale local `song_id` references
   while preserving textual queue/request history.
-- A cloud scope with no initialized revision is seeded from the first authorized
-  desktop instead of erasing existing local state. Existing non-empty server
-  song or room data is treated as initialized during migration.
+- A settings/songs scope with no initialized revision is seeded from the first
+  authorized desktop. Existing non-empty cloud song, room and credential data
+  stays initialized. An uninitialized Bilibili scope clears the unowned local
+  Cookie instead of seeding it; the user must explicitly log in for the current
+  LIRA account. Existing cloud login state restores normally. This narrows the
+  original credential-seeding rule under server ADR-0026.
 - Bilibili upstream disconnect windows still have no historical replay guarantee.
 
 ## Non-goals
@@ -143,7 +157,7 @@ write. This limitation is visible in the specification and tests.
    credentials by submitting an ID.
 2. A room URL saved in either surface is normalized to its numeric room ID,
    advances the settings revision, and immediately starts/stops the cloud monitor
-   according to `enableBilibili`.
+   according to `enableBilibili` and saved Bilibili credentials.
 3. The web QR flow reports not-scanned, scanned, expired, and success states; on
    success the browser receives no Cookie/CSRF while the tenant has encrypted
    credentials and an account UID.
@@ -161,6 +175,10 @@ write. This limitation is visible in the specification and tests.
    Electron to reconcile without waiting for fallback polling. Offline Devices
    have no server-side notification queue and reconcile current revisions after
    startup or reconnection.
+9. A's login/logout changes only A's cloud credentials and monitor. A pending
+   upload cannot be retried under B, a late A response cannot replace B's local
+   Cookie, and switching back to A restores A's saved state independently of B's
+   revision. An empty B account never receives unowned local credentials.
 
 ## Done When
 

@@ -264,7 +264,7 @@ async function startDesktopApp() {
     getProfile: getBilibiliAccountProfile,
     login: async () => {
       const result = await loginBilibiliAccount();
-      cloudSyncController?.markDirty('bilibili');
+      if (result?.state?.loggedIn) cloudSyncController?.markDirty('bilibili');
       return result;
     },
     logout: async () => {

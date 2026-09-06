@@ -3,6 +3,7 @@
 'use strict';
 
 import { getLegacyAdminModules } from '../legacy-admin-bridge.js';
+import { eventBus, Events } from '../../shared/event-bus.js';
 
 (function () {
   const { escapeHtml, escapeAttr, formatTime, formatMoney, readJsonResponse } =
@@ -12,6 +13,10 @@ import { getLegacyAdminModules } from '../legacy-admin-bridge.js';
   let officialCatalogLoadPromise = null;
   let saleGiftIds = new Set();
   let saleCatalogRevision = 0;
+  let saleCatalogLoadPromise = Promise.resolve();
+  let saleRoomId = '';
+  let bilibiliLoggedIn = false;
+  let authRevision = 0;
 
   /**
    * 渲染盲盒映射配置列表
@@ -39,7 +44,11 @@ import { getLegacyAdminModules } from '../legacy-admin-bridge.js';
     ].sort(
       (left, right) =>
         Number(saleGiftIds.has(String(right.giftId))) -
-        Number(saleGiftIds.has(String(left.giftId))),
+          Number(saleGiftIds.has(String(left.giftId))) ||
+        String(left.name || '未命名').localeCompare(
+          String(right.name || '未命名'),
+          'zh-Hans-CN',
+        ),
     );
     renderBlindBoxMappingStatus();
     if (entries.length === 0) {
@@ -157,22 +166,72 @@ import { getLegacyAdminModules } from '../legacy-admin-bridge.js';
   }
 
   function applySaleCatalogSnapshot(snapshot) {
+    if (
+      !bilibiliLoggedIn ||
+      !saleRoomId ||
+      String(snapshot?.roomId || '') !== saleRoomId
+    )
+      return;
     saleCatalogRevision += 1;
     const gifts = Array.isArray(snapshot?.gifts) ? snapshot.gifts : [];
     saleGiftIds = new Set(gifts.map((gift) => String(gift.id)));
     renderBlindBoxList();
   }
 
-  async function loadSaleCatalog() {
-    const requestRevision = saleCatalogRevision;
+  function loadSaleCatalog() {
+    const requestRevision = ++saleCatalogRevision;
+    saleGiftIds = new Set();
+    renderBlindBoxList();
+    // Serialize room changes so the shared refresh cannot reuse our old room's
+    // in-flight request. Skip queued contexts that have already been replaced.
+    saleCatalogLoadPromise = saleCatalogLoadPromise.then(async () => {
+      if (
+        requestRevision !== saleCatalogRevision ||
+        !bilibiliLoggedIn ||
+        !saleRoomId
+      )
+        return;
+      try {
+        for (let attempt = 0; attempt < 2; attempt += 1) {
+          const response = await fetch('/api/overtime/gifts/refresh', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: '{}',
+          });
+          const payload = await readJsonResponse(response, '在售礼物目录加载失败');
+          if (!response.ok || payload?.ok === false) throw new Error(payload.error);
+          if (requestRevision !== saleCatalogRevision) return;
+          // The overtime picker may already be refreshing a different room.
+          if (String(payload?.data?.roomId || '') !== saleRoomId) continue;
+          applySaleCatalogSnapshot(payload.data);
+          eventBus.emit(Events.GIFT_CATALOG_UPDATED, { snapshot: payload.data });
+          return;
+        }
+      } catch (error) {
+        console.warn('[BlindBox] sale catalog load failed:', error.message || error);
+      }
+    });
+    return saleCatalogLoadPromise;
+  }
+
+  function updateSaleRoom(settings) {
+    const roomId = String(settings?.roomId || '').trim();
+    if (roomId === saleRoomId) return;
+    saleRoomId = roomId;
+    loadSaleCatalog();
+  }
+
+  async function refreshBilibiliAuth() {
+    const requestRevision = ++authRevision;
+    bilibiliLoggedIn = false;
+    loadSaleCatalog();
     try {
-      const response = await fetch('/api/overtime/gifts');
-      const payload = await readJsonResponse(response, '在售礼物目录加载失败');
-      if (!response.ok || payload?.ok === false) throw new Error(payload.error);
-      if (requestRevision === saleCatalogRevision)
-        applySaleCatalogSnapshot(payload?.data);
+      const state = await window.bilibiliAuth?.getAuthState?.();
+      if (requestRevision !== authRevision) return;
+      bilibiliLoggedIn = state?.loggedIn === true;
+      if (bilibiliLoggedIn) loadSaleCatalog();
     } catch (error) {
-      console.warn('[BlindBox] sale catalog load failed:', error.message || error);
+      console.warn('[BlindBox] auth state load failed:', error.message || error);
     }
   }
 
@@ -381,6 +440,7 @@ import { getLegacyAdminModules } from '../legacy-admin-bridge.js';
 
     if (!statsInitialized) {
       statsInitialized = true;
+      eventBus.on(Events.GIFT_RECEIVED, loadBlindBoxStats);
       loadBlindBoxStats();
     }
   }
@@ -403,5 +463,10 @@ import { getLegacyAdminModules } from '../legacy-admin-bridge.js';
     initBlindBoxStatsToggle,
   };
   loadOfficialCatalog();
-  loadSaleCatalog();
+  window.addEventListener('app:settings-state', (event) =>
+    updateSaleRoom(event.detail),
+  );
+  document.addEventListener('app:bilibili-auth-changed', refreshBilibiliAuth);
+  updateSaleRoom(getLegacyAdminModules().state?.getAppState?.()?.settings);
+  refreshBilibiliAuth();
 })();

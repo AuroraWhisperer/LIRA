@@ -31,6 +31,8 @@ function createFixture(overrides = {}) {
   const licenseManager = {
     LicenseState: { AUTHORIZED: 'authorized' },
     getState: () => 'authorized',
+    getSnapshot: () => ({ streamer: { accountName: 'fixture' } }),
+    getRemoteBaseUrl: () => 'https://api.example.test',
     onStateChanged(listener) {
       stateListener = listener;
       return () => {
@@ -178,7 +180,7 @@ test('authorized bootstrap applies initialized cloud settings, songs, and Bilibi
   assert.equal(fixture.timers.size, 0);
 });
 
-test('uninitialized cloud scopes are seeded from the authorized desktop', async () => {
+test('only non-credential uninitialized scopes are seeded from the authorized desktop', async () => {
   const fixture = createFixture({
     licenseManager: {
       getCloudState: async () => ({
@@ -196,7 +198,7 @@ test('uninitialized cloud scopes are seeded from the authorized desktop', async 
   await fixture.controller.start();
   assert.deepEqual(
     fixture.calls.map((call) => call[0]),
-    ['push-settings', 'apply-settings', 'push-songs', 'push-bilibili'],
+    ['push-settings', 'apply-settings', 'push-songs', 'apply-bilibili-logout'],
   );
   fixture.controller.dispose();
 });
@@ -334,7 +336,7 @@ test('an explicit empty cloud blind-box config is applied without reseeding', as
   fixture.controller.dispose();
 });
 
-test('an uninitialized Bilibili scope is seeded as logged out', async () => {
+test('an uninitialized Bilibili scope clears local login without a cloud mutation', async () => {
   const fixture = createFixture({
     licenseManager: {
       getCloudState: async () => ({
@@ -351,9 +353,10 @@ test('an uninitialized Bilibili scope is seeded as logged out', async () => {
   });
   await fixture.controller.start();
   assert.equal(
-    fixture.calls.some((call) => call[0] === 'clear-bilibili'),
+    fixture.calls.some((call) => call[0] === 'apply-bilibili-logout'),
     true,
   );
+  assert.equal(fixture.calls.some((call) => call[0] === 'clear-bilibili'), false);
   fixture.controller.dispose();
 });
 

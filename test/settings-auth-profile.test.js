@@ -20,6 +20,7 @@ function createElement(id, overrides = {}) {
     title: '',
     disabled: false,
     style: {},
+    listeners,
     addEventListener(type, handler) {
       listeners.set(type, handler);
     },
@@ -79,7 +80,7 @@ test('Bilibili settings render the current account profile in the existing row',
   });
   await new Promise((resolve) => setImmediate(resolve));
 
-  assert.equal(elements.get('bilibiliAuthStatus').textContent, '已登录');
+  assert.equal(elements.get('bilibiliAuthStatus').textContent, '本机已登录');
   assert.equal(elements.get('bilibiliAuthProfile').hidden, false);
   assert.equal(elements.get('bilibiliAuthName').textContent, '主播小号');
   assert.equal(elements.get('bilibiliAuthUid').textContent, 'UID: 288594073');
@@ -104,6 +105,103 @@ test('Bilibili settings render the current account profile in the existing row',
     module.bilibiliAvatarSource('https://images.example.com/avatar.jpg'),
     '',
   );
+});
+
+test('Bilibili auth copy keeps local login separate from cloud capture', async () => {
+  const module = await loadModuleExports(
+    path.join(ROOT, 'public', 'js', 'admin', 'settings-auth.js'),
+    {
+      URL,
+      URLSearchParams,
+      CustomEvent: class CustomEvent {
+        constructor(type) {
+          this.type = type;
+        }
+      },
+    },
+  );
+  const elements = new Map([
+    ['bilibiliAuthStatus', createElement('bilibiliAuthStatus')],
+    [
+      'bilibiliAuthProfile',
+      createElement('bilibiliAuthProfile', { hidden: true }),
+    ],
+    [
+      'bilibiliAuthAvatar',
+      createElement('bilibiliAuthAvatar', { hidden: true }),
+    ],
+    ['bilibiliAuthName', createElement('bilibiliAuthName')],
+    ['bilibiliAuthUid', createElement('bilibiliAuthUid')],
+    ['bilibiliLoginBtn', createElement('bilibiliLoginBtn')],
+    [
+      'bilibiliLogoutBtn',
+      createElement('bilibiliLogoutBtn', { style: { display: 'none' } }),
+    ],
+  ]);
+  const toasts = [];
+  let authState = { loggedIn: false };
+  const windowRef = {
+    __API_TOKEN__: '',
+    bilibiliAuth: {
+      getAuthState: async () => authState,
+      login: async () => {
+        authState = { loggedIn: true, uid: 42 };
+        return { state: authState };
+      },
+      logout: async () => {
+        authState = { loggedIn: false };
+      },
+    },
+  };
+  const authEvents = [];
+  const documentRef = {
+    getElementById: (id) => elements.get(id),
+    dispatchEvent(event) {
+      authEvents.push(event.type);
+    },
+  };
+  let logoutPrompt;
+
+  module.initBilibiliAuth({
+    documentRef,
+    windowRef,
+    toast: (message) => toasts.push(message),
+    logoutConfirm: async (options) => {
+      logoutPrompt = options;
+      return true;
+    },
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+
+  await elements.get('bilibiliLoginBtn').listeners.get('click')();
+  assert.match(toasts[0], /当前 LIRA 账号/);
+  assert.match(toasts[0], /云端凭据保存成功且直播间已配置并启用后/);
+  assert.doesNotMatch(toasts[0], /同步成功|同步完成|弹幕姬状态已刷新/);
+  assert.deepEqual(authEvents, ['app:bilibili-auth-changed']);
+
+  await elements.get('bilibiliLogoutBtn').listeners.get('click')();
+  assert.match(logoutPrompt.message, /当前 LIRA 账号/);
+  assert.match(logoutPrompt.message, /同步成功后停止/);
+  assert.match(logoutPrompt.message, /不会回退为匿名采集/);
+  assert.match(toasts[1], /同步成功后生效/);
+  assert.doesNotMatch(toasts[1], /同步完成|匿名模式/);
+  assert.deepEqual(authEvents, [
+    'app:bilibili-auth-changed',
+    'app:bilibili-auth-changed',
+  ]);
+});
+
+test('Bilibili settings explain tenant-scoped credentials and no anonymous capture', () => {
+  const html = fs.readFileSync(
+    path.join(ROOT, 'public', 'pages', 'admin', 'song', 'settings.html'),
+    'utf8',
+  );
+
+  assert.match(html, /每个 LIRA 账号使用独立的 Bilibili 凭据/);
+  assert.match(html, /仅上传到当前已授权的 LIRA 账号/);
+  assert.match(html, /云端凭据保存成功且直播间已配置并启用后才接收弹幕和礼物/);
+  assert.match(html, /未登录不会匿名采集/);
+  assert.match(html, /关闭应用不会停止已配置的云端采集/);
 });
 
 test('Bilibili account markup keeps avatar, identity and actions in one aligned row', () => {

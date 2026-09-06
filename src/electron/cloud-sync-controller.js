@@ -28,6 +28,7 @@ function createCloudSyncController(options = {}) {
   let disposed = false;
   let active = false;
   let lifecycleGeneration = 0;
+  let accountKey = null;
   let requestController = null;
   let operation = Promise.resolve();
   let streamAbortController = null;
@@ -57,7 +58,32 @@ function createCloudSyncController(options = {}) {
 
   function isCurrent(work) {
     return active && isAuthorized() &&
+      work.accountKey === accountKey && accountKey === getAccountKey() &&
       work.generation === lifecycleGeneration && !work.signal?.aborted;
+  }
+
+  function getAccountKey() {
+    const accountName = String(
+      licenseManager.getSnapshot?.()?.streamer?.accountName || '',
+    ).trim().toLowerCase();
+    if (!accountName) return null;
+    try {
+      return `${new URL(licenseManager.getRemoteBaseUrl()).origin}\n${accountName}`;
+    } catch {
+      return null;
+    }
+  }
+
+  function prepareAccount() {
+    const nextAccountKey = getAccountKey();
+    if (!nextAccountKey) return false;
+    if (accountKey !== null && accountKey !== nextAccountKey) {
+      stop();
+      dirty.clear();
+      for (const scope of VALID_SCOPES) revisions[scope] = null;
+    }
+    accountKey = nextAccountKey;
+    return true;
   }
 
   function clearTimer() {
@@ -286,7 +312,10 @@ function createCloudSyncController(options = {}) {
   async function reconcileBilibili(state, work) {
     if (!isCurrent(work)) return;
     if (!state?.initialized) {
-      await seedScope('bilibili', work);
+      if (!shouldApply('bilibili', 0, work)) return;
+      // An unowned local Cookie must never seed a newly authorized account.
+      await bilibiliAuth.logout();
+      if (isCurrent(work)) revisions.bilibili = 0;
       return;
     }
     if (!shouldApply('bilibili', state.revision, work)) return;
@@ -321,12 +350,12 @@ function createCloudSyncController(options = {}) {
   }
 
   function syncNow() {
-    const work = { generation: lifecycleGeneration, signal: requestController?.signal };
+    const work = { generation: lifecycleGeneration, accountKey, signal: requestController?.signal };
     return enqueue(() => runSync(work));
   }
 
   function start() {
-    if (disposed) return Promise.resolve(false);
+    if (!isAuthorized() || !prepareAccount()) return Promise.resolve(false);
     if (!active) requestController = new AbortController();
     active = true;
     startEventStream();
@@ -345,6 +374,11 @@ function createCloudSyncController(options = {}) {
 
   function markDirty(scope) {
     if (disposed || !VALID_SCOPES.has(scope)) return;
+    if (
+      scope === 'bilibili' && !isAuthorized() &&
+      (!accountKey || accountKey !== getAccountKey())
+    ) return;
+    if (isAuthorized() && !prepareAccount()) return;
     markScopeDirty(scope);
     if (isAuthorized()) {
       start().catch((error) => {

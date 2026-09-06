@@ -24,6 +24,119 @@ const getLegacyAdminModules = () => window.AdminApp;
 ${source.replace(/^import .*?;\r?\n/gm, '')}`;
 }
 
+async function flushBlindboxTasks() {
+  await new Promise((resolve) => setImmediate(resolve));
+}
+
+async function createBlindboxFixture({
+  roomId = '',
+  loggedIn = false,
+} = {}) {
+  const container = { innerHTML: '' };
+  const textarea = { value: '[]' };
+  const status = { textContent: '' };
+  const windowListeners = new Map();
+  const documentListeners = new Map();
+  const refreshRequests = [];
+  let currentRoomId = roomId;
+  let currentAuthState = { loggedIn };
+
+  const document = {
+    readyState: 'loading',
+    addEventListener(type, handler) {
+      documentListeners.set(type, handler);
+    },
+    dispatchEvent(event) {
+      documentListeners.get(event.type)?.(event);
+    },
+    getElementById(id) {
+      return {
+        blindBoxList: container,
+        giftBlindBoxCustomConfigV2: textarea,
+        blindBoxMappingStatus: status,
+      }[id] || null;
+    },
+  };
+  const window = {
+    addEventListener(type, handler) {
+      windowListeners.set(type, handler);
+    },
+    dispatchEvent(event) {
+      windowListeners.get(event.type)?.(event);
+    },
+    AdminApp: {
+      utils: {
+        escapeHtml: (value) => String(value),
+        escapeAttr: (value) => String(value),
+        formatTime: (value) => String(value),
+        formatMoney: (value) => String(value),
+        readJsonResponse: async (result) => result.payload,
+      },
+      state: {
+        getAppState: () => ({
+          settings: { roomId: currentRoomId },
+          blindBoxMapping: { mode: 'v2', applied: true, customCount: 1 },
+        }),
+      },
+      gifts: { recent: { getBlindBoxIcon: () => null } },
+    },
+    bilibiliAuth: {
+      getAuthState: async () => currentAuthState,
+    },
+  };
+
+  const fetchCalls = [];
+  const fetch = (url, options = {}) => {
+    fetchCalls.push({ url, options });
+    if (url === '/api/overtime/gifts/catalog') {
+      return Promise.resolve(response({
+        ok: true,
+        data: { schemaVersion: 2, gifts: [], blindBoxes: [] },
+      }));
+    }
+    if (url === '/api/overtime/gifts/refresh') {
+      return new Promise((resolve) => refreshRequests.push({ resolve, options }));
+    }
+    return Promise.resolve(response({ ok: true, data: {} }));
+  };
+
+  await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'blindbox.js'),
+    { document, window, fetch },
+  );
+  await flushBlindboxTasks();
+
+  return {
+    container,
+    textarea,
+    status,
+    window,
+    document,
+    fetchCalls,
+    refreshRequests,
+    setAuth(nextAuthState) {
+      currentAuthState = nextAuthState;
+    },
+    dispatchSettings(nextRoomId) {
+      currentRoomId = nextRoomId;
+      window.dispatchEvent({
+        type: 'app:settings-state',
+        detail: { roomId: nextRoomId },
+      });
+    },
+    dispatchAuthChanged() {
+      document.dispatchEvent({ type: 'app:bilibili-auth-changed' });
+    },
+    async resolveRefresh(data) {
+      const request = refreshRequests.shift();
+      assert.ok(request, 'expected a pending blind-box refresh request');
+      request.resolve(response({ ok: true, data }));
+      await flushBlindboxTasks();
+    },
+    module: window.AdminApp.gifts.blindbox,
+  };
+}
+
 test('gift workspace exposes one page heading and seven semantic panel titles', () => {
   const page = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'pages', 'admin', 'gifts', 'page.html'),
@@ -70,6 +183,101 @@ test('admin blind box summary shows one row per viewer and opens analysis', () =
   assert.match(source, /data-viewer=/);
   assert.match(source, /analysis\?\.open/);
   assert.match(source, /closest\('#blindBoxAnalysisOpenBtn'/);
+});
+
+test('blind box summary refreshes on gift events and coalesces in-flight updates', async () => {
+  const { EventBus } = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'shared', 'event-bus.js'),
+  );
+  const section = { dataset: {}, querySelector: () => null };
+  const summary = { innerHTML: '', closest: () => section };
+  const body = { innerHTML: '', addEventListener() {} };
+  const pending = [];
+  let statsRequests = 0;
+  const window = {
+    addEventListener() {},
+    AdminApp: {
+      eventBus: new EventBus(),
+      utils: {
+        escapeHtml: String,
+        escapeAttr: String,
+        formatMoney: (value) => Number(value).toFixed(2),
+        readJsonResponse: async (result) => result.payload,
+      },
+    },
+  };
+  await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'blindbox.js'),
+    {
+      window,
+      document: {
+        readyState: 'complete',
+        addEventListener() {},
+        querySelector: () => section,
+        getElementById: (id) => ({
+          blindBoxStatsSummary: summary,
+          blindBoxStatsBody: body,
+        })[id] || null,
+      },
+      fetch: (url) => {
+        if (url !== '/api/gifts/blind-box-stats') {
+          return Promise.resolve(response({ ok: true, data: { gifts: [] } }));
+        }
+        statsRequests += 1;
+        return new Promise((resolve) => pending.push(resolve));
+      },
+    },
+  );
+  const empty = {
+    summary: { boxCount: 0, totalCost: 0, totalValue: 0, totalProfit: 0 },
+    perUser: [],
+  };
+  const finishRequest = async (data) => {
+    pending.shift()(response({ ok: true, data }));
+    await new Promise(setImmediate);
+  };
+
+  assert.equal(statsRequests, 1);
+  await finishRequest(empty);
+  assert.equal(section.dataset.state, 'empty');
+
+  const eventBus = window.AdminApp.eventBus;
+  eventBus.emit('state:loaded', { state: {} });
+  assert.equal(statsRequests, 1);
+  eventBus.emit('gift:received', { reason: 'bilibili:gift' });
+  assert.equal(statsRequests, 2);
+  eventBus.emit('gift:received', { reason: 'bilibili:gift' });
+  eventBus.emit('gift:received', { reason: 'bilibili:gift' });
+  assert.equal(statsRequests, 2);
+  await finishRequest(empty);
+  assert.equal(statsRequests, 3);
+  await finishRequest({
+    summary: { boxCount: 2, totalCost: 48, totalValue: 49, totalProfit: 1 },
+    perUser: [{
+      userName: 'Test viewer',
+      viewer: 'name:Test viewer',
+      boxCount: 2,
+      boxTypeCount: 2,
+      totalCost: 48,
+      totalValue: 49,
+      totalProfit: 1,
+    }],
+  });
+  assert.equal(section.dataset.state, 'ready');
+  assert.match(summary.innerHTML, /<strong>48\.00<\/strong>/);
+  assert.match(summary.innerHTML, /<strong>49\.00<\/strong>/);
+  assert.match(summary.innerHTML, /<strong>\+1\.00<\/strong>/);
+  assert.match(body.innerHTML, /Test viewer/);
+  assert.match(body.innerHTML, /<td>2<\/td>/);
+
+  window.AdminApp.gifts.blindbox.initBlindBoxStatsToggle();
+  assert.equal(eventBus.listenerCount('gift:received'), 1);
+  assert.equal(statsRequests, 3);
+  eventBus.emit('gift:received', { reason: 'database:clear-gifts' });
+  assert.equal(statsRequests, 4);
+  await finishRequest(empty);
+  assert.equal(section.dataset.state, 'empty');
+  assert.doesNotMatch(body.innerHTML, /Test viewer/);
 });
 
 test('gift history drawer restores the 3.x table without search or date toolbars', () => {
@@ -594,58 +802,17 @@ test('blind-box settings persist an explicit empty JSON array', () => {
   assert.match(source, /let raw = textarea\.value\.trim\(\) \|\| '\[\]'/);
 });
 
-test('blind-box mapping puts room sale entries first and keeps official entries read-only', async () => {
-  const container = { innerHTML: '' };
-  const textarea = {
-    value: JSON.stringify([
-      {
-        giftId: null,
-        name: '主播自定义盒',
-        price: 5,
-        outputs: [{ giftId: '102', name: '自定义产物', price: 2 }],
-      },
-      { giftId: '200', name: '在售自定义盒', price: 10, outputs: [] },
-    ]),
-  };
-  const status = { textContent: '' };
-  const document = {
-    readyState: 'loading',
-    addEventListener() {},
-    getElementById(id) {
-      return { blindBoxList: container, giftBlindBoxCustomConfigV2: textarea,
-        blindBoxMappingStatus: status }[id] || null;
-    },
-  };
-  const window = {
-    AdminApp: {
-      utils: {
-        escapeHtml: (value) => String(value),
-        escapeAttr: (value) => String(value),
-        formatTime: (value) => String(value),
-        formatMoney: (value) => String(value),
-        readJsonResponse: async (response) => response.payload,
-      },
-      state: {
-        getAppState: () => ({
-          blindBoxMapping: { mode: 'v2', applied: true, customCount: 1 },
-        }),
-      },
-      gifts: { recent: { getBlindBoxIcon: () => null } },
-    },
-  };
-
-  await loadModuleExports(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'blindbox.js'),
+test('blind-box mapping refreshes the logged-in room and sorts sale entries first', async () => {
+  const fixture = await createBlindboxFixture({ roomId: '123', loggedIn: true });
+  fixture.textarea.value = JSON.stringify([
     {
-      document,
-      window,
-      fetch: (url) => url === '/api/overtime/gifts'
-        ? Promise.resolve(response({ ok: true, data: {
-          roomId: '123', gifts: [{ id: 104 }, { id: '103' }, { id: '200' }],
-        } }))
-        : new Promise(() => {}),
+      giftId: null,
+      name: '主播自定义盒',
+      price: 5,
+      outputs: [{ giftId: '102', name: '自定义产物', price: 2 }],
     },
-  );
+    { giftId: '200', name: '在售自定义盒', price: 10, outputs: [] },
+  ]);
   const snapshot = {
     schemaVersion: 2,
     source: 'server',
@@ -659,11 +826,28 @@ test('blind-box mapping puts room sale entries first and keeps official entries 
     ],
     blindBoxes: [{ giftId: '100', outputGiftIds: ['101'] }],
   };
-  const { applyOfficialCatalogSnapshot } = window.AdminApp.gifts.blindbox;
+  const { applyOfficialCatalogSnapshot, renderBlindBoxList } = fixture.module;
   applyOfficialCatalogSnapshot(snapshot);
-  await new Promise(setImmediate);
 
-  const renderedNames = () => [...container.innerHTML.matchAll(
+  assert.equal(
+    fixture.fetchCalls.filter(({ url }) => url === '/api/overtime/gifts').length,
+    0,
+  );
+  assert.equal(fixture.refreshRequests.length, 1);
+  assert.equal(fixture.fetchCalls.at(-1).url, '/api/overtime/gifts/refresh');
+  assert.equal(fixture.fetchCalls.at(-1).options.method, 'POST');
+  assert.equal(fixture.fetchCalls.at(-1).options.body, '{}');
+
+  const catalogEvents = [];
+  fixture.window.AdminApp.eventBus.on('gift:catalog_updated', (data) => {
+    catalogEvents.push(data);
+  });
+  await fixture.resolveRefresh({
+    roomId: '123',
+    gifts: [{ id: 104 }, { id: '103' }, { id: '200' }],
+  });
+
+  const renderedNames = () => [...fixture.container.innerHTML.matchAll(
     /<span class="bb-chip-name">([^<]+)<\/span>/g,
   )].map(([, name]) => name);
   assert.deepEqual(renderedNames(), [
@@ -671,34 +855,158 @@ test('blind-box mapping puts room sale entries first and keeps official entries 
     '官方盲盒', '历史官方盒', '主播自定义盒',
   ]);
 
-  assert.match(container.innerHTML, /官方盲盒/);
-  assert.match(container.innerHTML, /官方产物<small>#101<\/small><small>3<\/small>/);
-  assert.match(container.innerHTML, /<span class="bb-chip-source">官方<\/span>/);
-  assert.match(container.innerHTML, /主播自定义盒/);
-  assert.equal((container.innerHTML.match(/class="chip-delete"/g) || []).length, 2);
-  assert.deepEqual([...container.innerHTML.matchAll(/data-blind-index="(\d+)"/g)]
+  assert.deepEqual(JSON.parse(JSON.stringify(catalogEvents)), [{
+    snapshot: {
+      roomId: '123',
+      gifts: [{ id: 104 }, { id: '103' }, { id: '200' }],
+    },
+  }]);
+  assert.match(fixture.container.innerHTML, /官方盲盒/);
+  assert.match(fixture.container.innerHTML, /官方产物<small>#101<\/small><small>3<\/small>/);
+  assert.match(fixture.container.innerHTML, /<span class="bb-chip-source">官方<\/span>/);
+  assert.match(fixture.container.innerHTML, /主播自定义盒/);
+  assert.equal((fixture.container.innerHTML.match(/class="chip-delete"/g) || []).length, 2);
+  assert.deepEqual([...fixture.container.innerHTML.matchAll(/data-blind-index="(\d+)"/g)]
     .map(([, index]) => index), ['1', '0']);
-  assert.equal(JSON.parse(textarea.value)[0].name, '主播自定义盒');
+  assert.equal(JSON.parse(fixture.textarea.value)[0].name, '主播自定义盒');
+  renderBlindBoxList();
+  assert.equal(JSON.parse(fixture.textarea.value)[0].name, '主播自定义盒');
+  fixture.dispatchSettings('123');
+  await flushBlindboxTasks();
+  assert.equal(fixture.refreshRequests.length, 0);
+});
 
-  applyOfficialCatalogSnapshot({ roomId: '123', gifts: [{ id: '102' }] });
-  applyOfficialCatalogSnapshot(snapshot);
-  assert.deepEqual(renderedNames(), [
-    '历史官方盒', '官方盲盒', '在售官方盒甲', '在售官方盒乙',
-    '主播自定义盒', '在售自定义盒',
+test('blind-box mapping sorts alphabetically until both room and Bilibili auth exist', async () => {
+  const fixture = await createBlindboxFixture({ roomId: '123', loggedIn: false });
+  fixture.textarea.value = JSON.stringify([
+    { giftId: '200', name: '在售自定义盒', price: 10, outputs: [] },
+    { giftId: null, name: '主播自定义盒', price: 5, outputs: [] },
+  ]);
+  fixture.module.applyOfficialCatalogSnapshot({
+    gifts: [
+      { id: '100', name: '官方盲盒', rmb: 5, isBlindBox: true },
+      { id: '101', name: '历史官方盒', rmb: 5, isBlindBox: true },
+    ],
+    blindBoxes: [],
+  });
+
+  const names = () => [...fixture.container.innerHTML.matchAll(
+    /<span class="bb-chip-name">([^<]+)<\/span>/g,
+  )].map(([, name]) => name);
+  fixture.module.applyOfficialCatalogSnapshot({
+    roomId: '123', gifts: [{ id: '200' }],
+  });
+  assert.equal(fixture.refreshRequests.length, 0);
+  assert.deepEqual(names(), [
+    '官方盲盒', '历史官方盒', '在售自定义盒', '主播自定义盒',
   ]);
 
-  applyOfficialCatalogSnapshot({ roomId: '123', gifts: [] });
-  assert.deepEqual(renderedNames(), [
-    '官方盲盒', '在售官方盒甲', '历史官方盒', '在售官方盒乙',
-    '主播自定义盒', '在售自定义盒',
+  fixture.setAuth({ loggedIn: true });
+  fixture.dispatchAuthChanged();
+  await flushBlindboxTasks();
+  assert.equal(fixture.refreshRequests.length, 1);
+  await fixture.resolveRefresh({ roomId: '123', gifts: [{ id: '200' }] });
+  assert.deepEqual(names(), [
+    '在售自定义盒', '官方盲盒', '历史官方盒', '主播自定义盒',
   ]);
 
-  applyOfficialCatalogSnapshot({ roomId: '', gifts: [] });
-  assert.deepEqual(renderedNames(), [
-    '官方盲盒', '在售官方盒甲', '历史官方盒', '在售官方盒乙',
-    '主播自定义盒', '在售自定义盒',
+  fixture.dispatchSettings('');
+  assert.deepEqual(names(), [
+    '官方盲盒', '历史官方盒', '在售自定义盒', '主播自定义盒',
   ]);
-  assert.match(container.innerHTML, /官方产物/);
+  assert.equal(fixture.refreshRequests.length, 0);
+  fixture.dispatchSettings('');
+  fixture.dispatchAuthChanged();
+  await flushBlindboxTasks();
+  assert.equal(fixture.refreshRequests.length, 0);
+
+  fixture.dispatchSettings('456');
+  await flushBlindboxTasks();
+  assert.equal(fixture.refreshRequests.length, 1);
+  fixture.setAuth({ loggedIn: false });
+  fixture.dispatchAuthChanged();
+  assert.deepEqual(names(), [
+    '官方盲盒', '历史官方盒', '在售自定义盒', '主播自定义盒',
+  ]);
+  await fixture.resolveRefresh({ roomId: '456', gifts: [{ id: '200' }] });
+  assert.deepEqual(names(), [
+    '官方盲盒', '历史官方盒', '在售自定义盒', '主播自定义盒',
+  ]);
+  assert.equal(fixture.refreshRequests.length, 0);
+});
+
+test('blind-box mapping skips obsolete room requests and retries a wrong-room response once', async () => {
+  const fixture = await createBlindboxFixture({ roomId: '123', loggedIn: true });
+  fixture.textarea.value = '[]';
+  fixture.module.applyOfficialCatalogSnapshot({
+    gifts: [
+      { id: 'old', name: '旧盒', rmb: 5, isBlindBox: true },
+      { id: 'final', name: '最终盒', rmb: 5, isBlindBox: true },
+    ],
+    blindBoxes: [],
+  });
+  assert.equal(fixture.refreshRequests.length, 1);
+
+  fixture.dispatchSettings('456');
+  fixture.dispatchSettings('789');
+  await fixture.resolveRefresh({ roomId: '123', gifts: [{ id: 'old' }] });
+  await flushBlindboxTasks();
+  assert.equal(
+    fixture.fetchCalls.filter(({ url }) => url === '/api/overtime/gifts/refresh').length,
+    2,
+  );
+  assert.equal(fixture.refreshRequests.length, 1);
+  await fixture.resolveRefresh({ roomId: '789', gifts: [{ id: 'final' }] });
+  assert.deepEqual(
+    [...fixture.container.innerHTML.matchAll(/<span class="bb-chip-name">([^<]+)<\/span>/g)]
+      .map(([, name]) => name),
+    ['最终盒', '旧盒'],
+  );
+
+  fixture.dispatchSettings('999');
+  await flushBlindboxTasks();
+  assert.equal(fixture.refreshRequests.length, 1);
+  await fixture.resolveRefresh({ roomId: 'stale', gifts: [{ id: 'wrong' }] });
+  await flushBlindboxTasks();
+  assert.deepEqual(
+    [...fixture.container.innerHTML.matchAll(/<span class="bb-chip-name">([^<]+)<\/span>/g)]
+      .map(([, name]) => name),
+    ['旧盒', '最终盒'],
+  );
+  assert.equal(
+    fixture.fetchCalls.filter(({ url }) => url === '/api/overtime/gifts/refresh').length,
+    4,
+  );
+  assert.equal(fixture.refreshRequests.length, 1);
+  await fixture.resolveRefresh({ roomId: '999', gifts: [{ id: 'current' }] });
+});
+
+test('blind-box mapping stays alphabetical after a failed refresh and can refresh the next room', async () => {
+  const fixture = await createBlindboxFixture({ roomId: '123', loggedIn: true });
+  fixture.module.applyOfficialCatalogSnapshot({
+    gifts: [
+      { id: '100', name: '官方盲盒', rmb: 5, isBlindBox: true },
+      { id: '200', name: '在售盲盒', rmb: 5, isBlindBox: true },
+    ],
+    blindBoxes: [],
+  });
+  const names = () => [...fixture.container.innerHTML.matchAll(
+    /<span class="bb-chip-name">([^<]+)<\/span>/g,
+  )].map(([, name]) => name);
+  await fixture.resolveRefresh({ roomId: '123', gifts: [{ id: '200' }] });
+  assert.deepEqual(names(), ['在售盲盒', '官方盲盒']);
+
+  fixture.dispatchSettings('456');
+  await flushBlindboxTasks();
+  fixture.refreshRequests.shift().resolve(response({ ok: false, error: 'offline' }));
+  await flushBlindboxTasks();
+  assert.deepEqual(names(), ['官方盲盒', '在售盲盒']);
+  assert.equal(fixture.refreshRequests.length, 0);
+
+  fixture.dispatchSettings('789');
+  await flushBlindboxTasks();
+  await fixture.resolveRefresh({ roomId: '789', gifts: [{ id: '200' }] });
+  assert.deepEqual(names(), ['在售盲盒', '官方盲盒']);
 });
 
 test('blind-box advanced editor remains available without changing values, drafts, or expansion', async () => {
@@ -712,6 +1020,7 @@ test('blind-box advanced editor remains available without changing values, draft
     blindBoxAdvanced: advanced,
   };
   const window = {
+    addEventListener() {},
     AdminApp: {
       utils: { escapeHtml: String, escapeAttr: String, formatMoney: String },
       gifts: { recent: { getBlindBoxIcon: () => null } },
