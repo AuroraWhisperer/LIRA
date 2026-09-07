@@ -296,10 +296,32 @@ test('license IPC allowlists remote responses before crossing into the renderer'
     },
   );
 
-  licenseManager.syncSongs = async () => ({ ok: false, count: 0 });
+  licenseManager.syncSongs = async () => ({ ok: false, count: 0, index: 2 });
   assert.deepEqual(await handlers.get('license:sync-songs')(trustedEvent, []), {
     ok: false,
     count: 0,
+    index: 2,
+  });
+  licenseManager.syncSongs = async () => ({
+    ok: false,
+    count: 0,
+    index: '2',
+  });
+  assert.deepEqual(await handlers.get('license:sync-songs')(trustedEvent, []), {
+    ok: false,
+    count: 0,
+  });
+  licenseManager.syncSongs = async () => {
+    const error = new Error('INVALID_SONG');
+    error.code = 'INVALID_SONG';
+    error.index = 2;
+    throw error;
+  };
+  assert.deepEqual(await handlers.get('license:sync-songs')(trustedEvent, []), {
+    ok: false,
+    state: 'authorized',
+    error: 'INVALID_SONG',
+    index: 2,
   });
   licenseManager.getCloudSongs = async () => [
     { title: 'Array song', token: 'drop' },

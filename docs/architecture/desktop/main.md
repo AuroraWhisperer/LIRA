@@ -69,7 +69,7 @@
 
 初始化、历史 bootstrap 或增量拉取的可重试错误会按有上限的指数退避重新进入恢复流程；不可重试的契约错误保留错误态。礼物控制器按代际合并尚未完成的 cursor catch-up，同批 final 通知共享一次拉取，拉取期间出现的新通知通过 dirty 标记保留。成功追平后重置退避；停止或切换代际后，旧重试和旧回调均失效。
 
-`remote-gift-controller.js` 只在授权状态为 `AUTHORIZED` 时执行。它先发现远端历史能力和 sync epoch，使用当前 source 的 SQLite 记录恢复 bootstrap 页或进行 cursor catch-up，再建立 main-process SSE 并追平连接窗口内的事件。没有历史能力的旧服务明确进入 `LEGACY_PARTIAL`，不把 baseline 当成完整历史。在线 progress 只在 LIVE 时直接投影，final 通知触发游标补拉；恢复仍以 pull 为真相源。
+`remote-gift-controller.js` 只在授权状态为 `AUTHORIZED` 时执行。它先发现远端历史能力和 sync epoch，使用当前 source 的 SQLite 记录恢复 bootstrap 页或进行 cursor catch-up，再建立 main-process SSE 并追平连接窗口内的事件。没有历史能力的旧服务明确进入 `LEGACY_PARTIAL`，不把 baseline 当成完整历史。在线 progress 只在 LIVE 时直接投影；控制器处于干净 `LIVE`、bootstrap 已完成、SSE epoch 已验证且 cursor 连续时，`final` 通知先立即进入幂等 live importer，同时触发游标补拉；初始化、已有恢复、乱序、断线或 epoch 未验证时仍只走 pull/rebuild，恢复真相源仍是 pull。
 
 历史页/page token 和增量页/cursor 由 `gift-sync-store` 在同一事务中提交；旧 JSON cursor 文件不再是当前状态源。重复 final 按游标与事件身份幂等处理。SSE 断开按 1–60 秒退避重连；停止时取消 HTTP、SSE 和恢复 timer，异步任务由四字段 fence 阻止迟到写入。B 站上游断线期间服务端不承诺零丢失。
 

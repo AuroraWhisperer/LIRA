@@ -202,10 +202,18 @@ any active state -> OFFLINE | ERROR
 
 Every asynchronous operation captures and rechecks the immutable fence
 `{sourceId, authorizationEpoch, controllerGeneration, projectionGeneration}`
-before enqueueing, after awaits, and before a transaction. SSE is a dirty hint
-during bootstrap/catch-up; pull is recovery truth. The controller serializes
-imports, treats cursor gaps as catch-up work, and marks LIVE only after epoch and
-latest-cursor validation with no dirty/gap/in-flight work.
+before enqueueing, after awaits, and before a transaction. After bootstrap is
+complete, the SSE epoch is validated, and the controller is in clean `LIVE`, a
+`final` event whose cursor is exactly the next cursor is passed immediately to
+the idempotent live importer so the local UI and consumers do not wait for an
+HTTP round trip. The controller still marks the projection dirty and schedules
+cursor catch-up; the immediate import
+does not advance the durable cursor. During bootstrap, legacy mode, an
+unvalidated or mismatched epoch, a cursor gap/duplicate, rebuild, or a stale
+fence, the event is handled only by pull/rebuild. Cursor pull remains recovery
+and continuity truth. The controller serializes recovery imports, keeps the
+immediate path idempotent, and marks LIVE only after epoch and latest-cursor
+validation with no dirty/gap/in-flight work.
 
 On principal change, main first freezes the local gift API in
 `SOURCE_SWITCHING`, increments controller generation, aborts HTTP and SSE, and
@@ -311,6 +319,10 @@ New renderer modules use named ESM imports/exports and do not add to `window.Adm
     table layout, without search/date/sync toolbars, summary/ranking/trend panels,
     or statistics requests. It reads all dates with keyset navigation and shows
     incomplete/offline/error synchronization status only when relevant.
+17. After a capable source is clean `LIVE`, a final SSE event with a validated
+    epoch and the next contiguous cursor is projected before the cursor pull it
+    triggers resolves; gaps, unvalidated epochs, bootstrap/rebuild, and stale
+    fences wait for recovery, and replay does not duplicate side effects.
 
 ## Done When
 

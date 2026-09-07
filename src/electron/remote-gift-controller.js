@@ -430,6 +430,10 @@ function createRemoteGiftController(options = {}) {
             });
             return;
           }
+          if (event.phase === 'final') {
+            projectFinalImmediately(event);
+            if (!ensureFenceCurrent(streamFence)) return;
+          }
           dirty = true;
           if (legacyMode) publishContext();
           else setSyncState(GiftSyncState.CATCHING_UP);
@@ -453,6 +457,50 @@ function createRemoteGiftController(options = {}) {
         setSyncState(GiftSyncState.OFFLINE);
         scheduleReconnect(generation);
       });
+  }
+
+  // Keep the live path independent from a potentially slow cursor pull.
+  function projectFinalImmediately(event) {
+    if (
+      event.phase !== 'final' ||
+      legacyMode ||
+      initializing ||
+      syncState !== GiftSyncState.LIVE ||
+      dirty ||
+      !epochValidated ||
+      !currentState?.bootstrapComplete ||
+      !Number.isSafeInteger(currentState.finalCursor) ||
+      event.cursor !== currentState.finalCursor + 1 ||
+      typeof runtime.importProcessedGiftEvent !== 'function'
+    ) {
+      return false;
+    }
+
+    const fence = captureFence();
+    if (!ensureFenceCurrent(fence)) return false;
+
+    let result;
+    try {
+      result = runtime.importProcessedGiftEvent(event, fence.sourceId);
+    } catch {
+      return false;
+    }
+
+    if (result && typeof result.then === 'function') {
+      Promise.resolve(result)
+        .then(
+          () => {
+            ensureFenceCurrent(fence);
+          },
+          () => {
+            if (!ensureFenceCurrent(fence)) return;
+            dirty = true;
+            requestReconcile(fence.controllerGeneration).catch(() => {});
+          },
+        )
+        .catch(() => {});
+    }
+    return true;
   }
 
   async function rebuildAfterStreamMismatch() {

@@ -139,6 +139,36 @@ test('remote client does not expose arbitrary response text as an error code', a
   );
 });
 
+test('remote client carries only safe song error indexes', async () => {
+  const values = [
+    { value: 2, expected: 2 },
+    { value: -1 },
+    { value: 1.5 },
+    { value: Number.MAX_SAFE_INTEGER + 1 },
+    { value: '2' },
+  ];
+  for (const { value, expected } of values) {
+    const client = createRemoteLicenseClient({
+      baseUrl: 'https://api.lirahub.cn',
+      fetchImpl: async () =>
+        new Response(JSON.stringify({ error: 'INVALID_SONG', index: value }), {
+          status: 400,
+          headers: { 'content-type': 'application/json' },
+        }),
+    });
+    await assert.rejects(
+      client.syncSongs([], 'device-token'),
+      (error) => {
+        assert.equal(error instanceof RemoteLicenseError, true);
+        assert.equal(error.code, 'INVALID_SONG');
+        if (expected === undefined) assert.equal(error.index, undefined);
+        else assert.equal(error.index, expected);
+        return true;
+      },
+    );
+  }
+});
+
 test('remote client rejects non-object JSON responses as protocol errors', async () => {
   for (const body of ['null', '[]', '"ok"']) {
     const client = createRemoteLicenseClient({

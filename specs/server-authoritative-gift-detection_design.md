@@ -208,8 +208,11 @@ selector; unknown, ambiguous, name-only custom, and legacy history use null.
 - A client crash after local import but before cursor persistence replays the
   same public event ID; the local importer treats it as already final and does
   not re-run consumers, then advances the cursor.
-- SSE is an acceleration path, not the source of recovery truth. Cursor pull is
-  the recovery path for final events; progress is intentionally not replayed.
+- SSE is an acceleration path, not the source of recovery truth. After bootstrap
+  and stream-epoch validation, while the controller is clean `LIVE`, a contiguous
+  final event is projected immediately through the idempotent live importer;
+  cursor pull remains the recovery and continuity path, and progress is
+  intentionally not replayed.
 - Bilibili REST/WebSocket disconnects and server downtime before ingress still
   have no upstream historical replay guarantee. This design does not claim
   zero-loss Bilibili ingestion.
@@ -245,8 +248,10 @@ selector; unknown, ambiguous, name-only custom, and legacy history use null.
 4. The Device payload contains only the documented allowlist and never contains
    UID, room/Streamer identity, command/combo/platform identity, raw JSON, or
    credentials.
-5. A disconnect after final commit is recovered in cursor order without double
-   local statistics, overtime settlement, history, snapshot, or `gift:frame`.
+5. While the controller is clean `LIVE`, a validated contiguous final SSE is
+   projected immediately; a disconnect after final commit is recovered in cursor
+   order without double local statistics, overtime settlement, history, snapshot,
+   or `gift:frame`.
 6. A fresh client establishes a latest-cursor baseline and does not replay old
    server history.
 7. Disabling local gift detection does not stop local danmaku, song request,

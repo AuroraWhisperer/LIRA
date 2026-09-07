@@ -85,11 +85,14 @@ function registerLicenseIpc(options = {}) {
       try {
         return await handler(payload);
       } catch (error) {
-        return {
+        const response = {
           ok: false,
           state: safeState(licenseManager.getState()),
           error: safeErrorCode(error),
         };
+        const index = safeErrorIndex(error?.index);
+        if (index !== undefined) response.index = index;
+        return response;
       }
     });
   };
@@ -287,6 +290,10 @@ function safeNonNegativeInteger(value) {
   return Number.isSafeInteger(number) && number >= 0 ? number : 0;
 }
 
+function safeErrorIndex(value) {
+  return Number.isSafeInteger(value) && value >= 0 ? value : undefined;
+}
+
 function sanitizeOptionalError(value) {
   if (value === undefined || value === null || value === '') return null;
   return safeErrorCode({ code: value });
@@ -323,6 +330,8 @@ function safeString(value, maxLength) {
 function sanitizeSyncResponse(result = {}) {
   const response = { ok: result?.ok !== false };
   copyPrimitiveField(response, result, 'count');
+  const index = safeErrorIndex(result?.index);
+  if (index !== undefined) response.index = index;
   const songPageUrl = sanitizePublicUrl(result?.songPageUrl);
   if (songPageUrl !== undefined) response.songPageUrl = songPageUrl;
   return response;

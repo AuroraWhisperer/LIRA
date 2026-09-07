@@ -128,6 +128,16 @@ function sanitizeDevice(value) {
 
 function mapSongForSync(song = {}) {
   const enabled = song.isEnabled ?? song.is_enabled ?? song.enabled ?? true;
+  const rawRequestPrice =
+    song.requestPrice !== undefined
+      ? song.requestPrice
+      : song.request_price;
+  const requestPrice =
+    rawRequestPrice === undefined || rawRequestPrice === null
+      ? null
+      : typeof rawRequestPrice === 'string'
+        ? rawRequestPrice.trim() || null
+        : rawRequestPrice;
   return {
     name: String(song.name ?? song.title ?? '').trim(),
     artist: String(song.artist ?? '').trim(),
@@ -138,7 +148,7 @@ function mapSongForSync(song = {}) {
       song.sourcePlatform ?? song.source_platform ?? '',
     ).trim(),
     note: String(song.note ?? '').trim(),
-    requestPrice: String(song.requestPrice ?? song.request_price ?? '').trim(),
+    requestPrice,
     songClip: String(song.songClip ?? song.song_clip ?? '').trim(),
     isEnabled: !(
       enabled === false ||

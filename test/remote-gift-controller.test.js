@@ -408,6 +408,122 @@ test('a final event burst shares one cursor catch-up task', async () => {
   controller.dispose();
 });
 
+test('a contiguous final SSE is projected before cursor catch-up returns', async () => {
+  const fixture = createFixture();
+  const controller = createRemoteGiftController(fixture.options);
+  await controller.start();
+  await controller.whenIdle();
+
+  const deferred = createDeferred();
+  let pulls = 0;
+  fixture.options.licenseManager.getGiftEventsInternal = async (input = {}) => {
+    pulls += 1;
+    if (input.after === 10) return deferred.promise;
+    return capabilityPage({ nextCursor: 11, latestCursor: 11 });
+  };
+
+  const event = makeEvent('live-final', 11);
+  fixture.stream.onEvent(event);
+  await waitFor(() => pulls === 1);
+
+  assert.deepEqual(fixture.liveImports, ['live-final']);
+  assert.equal(controller.getCursor(), 10);
+  assert.equal(controller.getStatus().state, GiftSyncState.CATCHING_UP);
+
+  deferred.resolve(
+    capabilityPage({
+      events: [event],
+      nextCursor: 11,
+      latestCursor: 11,
+    }),
+  );
+  await controller.whenIdle();
+
+  assert.equal(controller.getCursor(), 11);
+  assert.equal(controller.getStatus().state, GiftSyncState.LIVE);
+  controller.dispose();
+});
+
+test('a failed immediate final projection falls back to cursor catch-up', async () => {
+  let immediateAttempts = 0;
+  const fixture = createFixture({
+    importProcessedGiftEvent() {
+      immediateAttempts += 1;
+      return Promise.reject(new Error('LOCAL_IMPORT_FAILED'));
+    },
+  });
+  const controller = createRemoteGiftController(fixture.options);
+  await controller.start();
+  await controller.whenIdle();
+
+  const deferred = createDeferred();
+  let pulls = 0;
+  fixture.options.licenseManager.getGiftEventsInternal = async (input = {}) => {
+    pulls += 1;
+    if (input.after === 10) return deferred.promise;
+    return capabilityPage({ nextCursor: 11, latestCursor: 11 });
+  };
+
+  const event = makeEvent('recovered-final', 11);
+  fixture.stream.onEvent(event);
+  await waitFor(() => pulls === 1);
+
+  assert.equal(immediateAttempts, 1);
+  assert.deepEqual(fixture.liveImports, []);
+
+  deferred.resolve(
+    capabilityPage({
+      events: [event],
+      nextCursor: 11,
+      latestCursor: 11,
+    }),
+  );
+  await controller.whenIdle();
+
+  assert.deepEqual(fixture.liveImports, ['recovered-final']);
+  assert.equal(controller.getCursor(), 11);
+  assert.equal(controller.getStatus().state, GiftSyncState.LIVE);
+  controller.dispose();
+});
+
+test('a final SSE cursor gap waits for ordered catch-up', async () => {
+  const fixture = createFixture();
+  const controller = createRemoteGiftController(fixture.options);
+  await controller.start();
+  await controller.whenIdle();
+
+  const deferred = createDeferred();
+  let pulls = 0;
+  fixture.options.licenseManager.getGiftEventsInternal = async (input = {}) => {
+    pulls += 1;
+    if (input.after === 10) return deferred.promise;
+    return capabilityPage({ nextCursor: 13, latestCursor: 13 });
+  };
+
+  const event = makeEvent('gapped-final', 13);
+  fixture.stream.onEvent(event);
+  await waitFor(() => pulls === 1);
+
+  assert.deepEqual(fixture.liveImports, []);
+
+  deferred.resolve(
+    capabilityPage({
+      events: [
+        makeEvent('recovered-11', 11),
+        makeEvent('recovered-12', 12),
+        event,
+      ],
+      nextCursor: 13,
+      latestCursor: 13,
+    }),
+  );
+  await controller.whenIdle();
+
+  assert.equal(controller.getCursor(), 13);
+  assert.equal(controller.getStatus().state, GiftSyncState.LIVE);
+  controller.dispose();
+});
+
 test('repeated transient recovery failures back off and stop invalidates the retry', async () => {
   let attempts = 0;
   const fixture = createFixture({
@@ -642,6 +758,9 @@ function createFixture(options = {}) {
     },
     async importProcessedGiftEvent(event, sourceId) {
       assert.equal(sourceId, source.id);
+      if (options.importProcessedGiftEvent) {
+        return options.importProcessedGiftEvent(event, sourceId);
+      }
       liveImports.push(event.eventId);
     },
   };

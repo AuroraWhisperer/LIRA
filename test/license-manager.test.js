@@ -268,6 +268,22 @@ test('song sync maps local snake_case song fields to the remote contract', () =>
       sortOrder: 3,
     },
   );
+  assert.equal(
+    mapSongForSync({ title: 'Free', requestPrice: ' 免费 ' }).requestPrice,
+    '免费',
+  );
+  assert.equal(
+    mapSongForSync({ title: 'Guard', request_price: '舰长' }).requestPrice,
+    '舰长',
+  );
+  assert.equal(
+    mapSongForSync({ title: 'Legacy', requestPrice: 12.5 }).requestPrice,
+    12.5,
+  );
+  assert.equal(
+    mapSongForSync({ title: 'Empty' }).requestPrice,
+    null,
+  );
 });
 
 test('song background operations use the authorized device token and preserve binary bytes', async () => {

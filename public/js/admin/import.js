@@ -19,6 +19,36 @@
     REQUEST_TIMEOUT: '连接授权服务器超时，请重试。',
   };
 
+  function safeSongIndex(value) {
+    return Number.isSafeInteger(value) && value >= 0 ? value : undefined;
+  }
+
+  function createSongSyncError(response) {
+    const code = String(response?.error || 'SONG_SYNC_FAILED');
+    const error = new Error(code);
+    error.code = code;
+    const index = safeSongIndex(response?.index);
+    if (index !== undefined) error.index = index;
+    return error;
+  }
+
+  function songSyncErrorMessage(error) {
+    const code = String(error?.code || error?.message || '');
+    if (code === 'INVALID_SONG') {
+      const index = safeSongIndex(error?.index);
+      return index === undefined
+        ? '歌库中有歌曲字段格式无效，请检查点歌价格、启用状态或排序后重试。'
+        : `第 ${index + 1} 首歌曲的字段格式无效，请检查点歌价格、启用状态或排序后重试。`;
+    }
+    if (code === 'SONG_LIST_INVALID' || code === 'SONGS_ARRAY_REQUIRED')
+      return '歌库格式无效，请重试。';
+    if (code === 'TOO_MANY_SONGS') return '歌库超过 5000 首限制。';
+    if (code === 'NETWORK_UNAVAILABLE')
+      return '无法连接授权服务器，请检查网络后重试。';
+    if (code === 'REQUEST_TIMEOUT') return '连接授权服务器超时，请重试。';
+    return '请稍后重试。';
+  }
+
   async function importSongs() {
     let text = value('importText');
     const file = document.getElementById('importFile').files[0];
@@ -347,7 +377,7 @@
         // earlier array could silently overwrite those newer local edits.
         const songs = [...(window['AdminApp']?.state?.getSongs?.() || [])];
         const response = await window.liraLicense.syncSongs(songs);
-        if (!response?.ok) throw new Error(response?.error || '同步失败');
+        if (!response?.ok) throw createSongSyncError(response);
         const reportedCount = Number(response.count);
         const syncedCount =
           Number.isSafeInteger(reportedCount) && reportedCount >= 0
@@ -367,7 +397,7 @@
         renderLastCloudSync();
         toast('云端歌单同步完成');
       } catch (error) {
-        result.textContent = `同步失败：${error.message || '请稍后重试'}`;
+        result.textContent = `同步失败：${songSyncErrorMessage(error)}`;
       } finally {
         syncConfirmationPending = false;
         syncButton.disabled = false;

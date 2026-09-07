@@ -14,6 +14,8 @@ class RemoteLicenseError extends Error {
     this.code = code;
     this.status = options.status || 0;
     this.retryable = options.retryable === true;
+    const index = normalizeErrorIndex(options.index);
+    if (index !== undefined) this.index = index;
   }
 }
 
@@ -126,6 +128,7 @@ function createRemoteLicenseClient(options = {}) {
         throw new RemoteLicenseError(code, code, {
           status: response.status,
           retryable: isRetryableStatus(response.status),
+          index: data.index,
         });
       }
       if (requestOptions.includeResponseMeta === true) {
@@ -430,6 +433,7 @@ async function readStreamError(response) {
   return new RemoteLicenseError(code, code, {
     status: response.status,
     retryable: isRetryableStatus(response.status),
+    index: data.index,
   });
 }
 
@@ -441,6 +445,10 @@ function isRetryableStatus(status) {
 function normalizeErrorCode(value, fallback = 'LICENSE_ERROR') {
   const code = String(value ?? '').trim();
   return /^[A-Z][A-Z0-9_]{0,63}$/.test(code) ? code : fallback;
+}
+
+function normalizeErrorIndex(value) {
+  return Number.isSafeInteger(value) && value >= 0 ? value : undefined;
 }
 
 function safeHeaderValue(value) {
@@ -469,5 +477,6 @@ module.exports = {
   handleGiftEventBlock,
   RemoteLicenseError,
   normalizeErrorCode,
+  normalizeErrorIndex,
   resolveConfiguredBaseUrl,
 };

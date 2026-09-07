@@ -221,6 +221,16 @@ test('cloud song sync compares against the cloud count and records the last sync
   assert.match(script, /Number\.isSafeInteger\(reportedCount\)/);
 });
 
+test('cloud song sync explains which song failed validation', () => {
+  const script = fs.readFileSync(
+    path.join(ROOT, 'public', 'js', 'admin', 'import.js'),
+    'utf8',
+  );
+  assert.match(script, /INVALID_SONG/);
+  assert.match(script, /第 \$\{index \+ 1\} 首歌曲的字段格式无效/);
+  assert.match(script, /点歌价格、启用状态或排序/);
+});
+
 test('song background controls wait for the initial response before accepting changes', () => {
   const script = fs.readFileSync(
     path.join(ROOT, 'public', 'js', 'admin', 'import.js'),

@@ -139,4 +139,4 @@ Electron 只在 main process 使用授权 DeviceBearer 调用 `GET /api/device/g
 
 现有 §6.1 的 fresh-client latest baseline 仍是旧服务器兼容语义。ADR [0011](../../adr/0011-source-partitioned-gift-ledger-projection.md) 和 [完整投影规格](../../../specs/gift-ledger-projection-sync_design.md) 接受的新能力模式会按认证账号解析本地 source，先通过独立 history-only importer 构建服务器 `final + active + paid` 历史，再从 snapshot recovery cursor 增量补齐。历史行明确不进入 detector/consumer，不触发冲刺、加班、快照或 `gift:frame`。
 
-capability 缺失时继续接收兼容 live final，但状态固定为 `LEGACY_PARTIAL`。capability 存在时，SSE 只作 dirty hint，epoch-aware cursor pull 是恢复真相源；所有远程任务使用 source/auth/controller/projection 四字段 fence。礼物明细、搜索和统计只读 Electron main 选定的 active source，renderer 不能提交 `sourceId`。
+capability 缺失时继续接收兼容 live final，但状态固定为 `LEGACY_PARTIAL`。capability 存在时，控制器处于干净 `LIVE`、bootstrap 已完成、SSE epoch 已验证且 cursor 连续时，`final` 事件会先通过幂等 live importer 即时投影；控制器仍标记 dirty 并执行 epoch-aware cursor pull，后者是恢复与连续性真相源。初始化、已有恢复、乱序、断线或 epoch 未验证时只走 pull/rebuild；所有远程任务使用 source/auth/controller/projection 四字段 fence。礼物明细、搜索和统计只读 Electron main 选定的 active source，renderer 不能提交 `sourceId`。
