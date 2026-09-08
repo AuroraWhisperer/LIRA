@@ -40,6 +40,23 @@ const GIFT_METRICS_SQL = `
   END), 0) AS blindProfitCents,
   MIN(giftMoneyCents(g.unit_price)) AS validatedUnitPriceCents
 `;
+const HISTORY_SORT_EXPRESSIONS = Object.freeze({
+  created_at: 'g.created_at',
+  gift_name: 'canonicalGiftText(g.gift_name)',
+  price: 'giftMoneyCents(g.total_price)',
+  remarks: `CASE
+    WHEN canonicalGiftText(g.gift_name) LIKE '%总督%'
+      OR canonicalGiftId(g.gift_id) = 'guard-1' THEN 300000
+    WHEN canonicalGiftText(g.gift_name) LIKE '%提督%'
+      OR canonicalGiftId(g.gift_id) = 'guard-2' THEN 200000
+    WHEN canonicalGiftText(g.gift_name) LIKE '%舰长%'
+      OR canonicalGiftId(g.gift_id) = 'guard-3' THEN 100000
+    WHEN g.is_blind_box = 1 AND g.blind_box_price IS NOT NULL
+      THEN giftMoneyCents(g.total_price) - giftMoneyCents(g.blind_box_price)
+    WHEN g.is_blind_box = 1 THEN 0
+    ELSE -99999900
+  END`,
+});
 
 function createGiftQueryStore(giftDb) {
   if (!giftDb || typeof giftDb.prepare !== 'function') {
@@ -83,25 +100,59 @@ function createGiftQueryStore(giftDb) {
     asOf,
     cursor,
     limit,
+    sortField = 'created_at',
+    sortDirection = 'desc',
   }) {
+    const sort = normalizeHistorySort(sortField, sortDirection);
     const filter = buildLedgerFilter({
       sourceId,
       query,
       rangeStart,
       asOf,
       cursor,
+      sortField: sort.field,
+      sortDirection: sort.direction,
     });
     return giftDb
       .prepare(
         `
-        SELECT g.*
+        SELECT g.*, ${sort.expression} AS history_sort_value
         FROM gift_events g
         WHERE ${filter.sql}
-        ORDER BY g.created_at DESC, g.id DESC
+        ORDER BY ${sort.expression} ${sort.sqlDirection}, g.id DESC
         LIMIT ?
       `,
       )
       .all(...filter.params, limit);
+  }
+
+  function countHistory({
+    sourceId,
+    query,
+    rangeStart,
+    asOf,
+    sortField = 'created_at',
+    sortDirection = 'desc',
+  }) {
+    const sort = normalizeHistorySort(sortField, sortDirection);
+    const filter = buildLedgerFilter({
+      sourceId,
+      query,
+      rangeStart,
+      asOf,
+      sortField: sort.field,
+      sortDirection: sort.direction,
+    });
+    const row = giftDb
+      .prepare(
+        `
+        SELECT COUNT(*) AS count
+        FROM gift_events g
+        WHERE ${filter.sql}
+      `,
+      )
+      .get(...filter.params);
+    return Number(row?.count || 0);
   }
 
   function readStatistics({ sourceId, query, rangeStart, asOf, range }) {
@@ -208,6 +259,7 @@ function createGiftQueryStore(giftDb) {
     resetSprint,
     listRecent,
     listHistory,
+    countHistory,
     readStatistics,
     readSprint,
     search,
@@ -231,7 +283,33 @@ function normalizeSourceScope(sourceScope) {
   return { sql, params };
 }
 
-function buildLedgerFilter({ sourceId, query, rangeStart, asOf, cursor = null }) {
+function normalizeHistorySort(sortField, sortDirection) {
+  const field = String(sortField || 'created_at');
+  if (!Object.hasOwn(HISTORY_SORT_EXPRESSIONS, field)) {
+    throw new Error('INVALID_GIFT_SORT_FIELD');
+  }
+  const direction = String(sortDirection || 'desc').toLowerCase();
+  if (direction !== 'asc' && direction !== 'desc') {
+    throw new Error('INVALID_GIFT_SORT_DIRECTION');
+  }
+  return {
+    field,
+    direction,
+    expression: HISTORY_SORT_EXPRESSIONS[field],
+    sqlDirection: direction.toUpperCase(),
+  };
+}
+
+function buildLedgerFilter({
+  sourceId,
+  query,
+  rangeStart,
+  asOf,
+  cursor = null,
+  sortField = 'created_at',
+  sortDirection = 'desc',
+}) {
+  const sort = normalizeHistorySort(sortField, sortDirection);
   const sql = [
     'g.source_id = ?',
     "g.detection_status = 'final'",
@@ -254,8 +332,11 @@ function buildLedgerFilter({ sourceId, query, rangeStart, asOf, cursor = null })
     params.push(query, query);
   }
   if (cursor) {
-    sql.push('(g.created_at < ? OR (g.created_at = ? AND g.id < ?))');
-    params.push(cursor.createdAt, cursor.createdAt, cursor.id);
+    const operator = sort.direction === 'asc' ? '>' : '<';
+    sql.push(
+      `(${sort.expression} ${operator} ? OR (${sort.expression} = ? AND g.id < ?))`,
+    );
+    params.push(cursor.sortValue, cursor.sortValue, cursor.id);
   }
   return { sql: sql.join('\n          AND '), params };
 }

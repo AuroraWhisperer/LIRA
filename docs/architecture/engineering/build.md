@@ -99,8 +99,8 @@
 被 `nsis.include` 引用([package.json:60](../../../package.json#L60)),在标准 NSIS 流程上追加:
 
 - `ManifestDPIAware true`([installer.nsh:1](../../../build/installer.nsh#L1)):安装器进程高 DPI 感知。
-- `customInit`([installer.nsh:3-19](../../../build/installer.nsh#L3-L19)):安装前遍历 `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall`,删除 DisplayName 为「LIRA」但 UninstallString 指向的文件已不存在的**残留注册表项** — 避免 NSIS 因找不到旧卸载程序而中止(`Failed to uninstall old application files.: 2`)。
-- `customUnInstall`([installer.nsh:21-26](../../../build/installer.nsh#L21-L26)):卸载时递归删除 `%APPDATA%\LIRA` — 旧版本残留在 %APPDATA% 下的 Chromium 分区数据(userData 已重定向到安装目录下 `data/`,见 [desktop/main.md](../desktop/main.md))。同时兼容清理更早期的 `%APPDATA%\bilibili-live-song-plugin` 遗留数据。
+- `customInit`([installer.nsh](../../../build/installer.nsh)):在旧卸载器运行前，若 `<安装目录>/data` 存在且稳定目标尚未初始化，先用系统 `robocopy` 完整复制到 `%APPDATA%/com.aurorawhisperer.lira/data.migration`。返回码 0–7 才以同卷 `Rename` 发布为 `data`；返回码 ≥8 或发布失败会清理临时目录并中止安装，旧数据保持不动。随后继续遍历 `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall`，删除 DisplayName 为「LIRA」但 UninstallString 指向文件已不存在的残留注册表项。
+- 不再定义 `customUnInstall`，因此新版卸载和自动更新都不删除持久化用户数据。稳定路径与应用启动侧的兼容迁移见 [desktop/main.md](../desktop/main.md) §3 和 ADR [0013](../adr/0013-persistent-desktop-user-data.md)。
 
 ## 7. 发布流程(scripts/publish-release.js)
 

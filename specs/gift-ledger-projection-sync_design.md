@@ -228,11 +228,14 @@ complete or report complete statistics.
 ## Local Query And UI Contract
 
 `GET /api/gifts/history` resolves `activeSourceId` internally and accepts
-`query`, bounded time filters, `limit` up to 100, and an opaque/local keyset
-cursor. Default ordering is `(created_at DESC, id DESC)` with a strict composite
-boundary. There is no 3000-row preselection. Search uses parameterized
-`instr(canonicalGiftText(gift_name), :query)` and the same expression for
-`blind_box_name`; `%` and `_` are literal characters.
+`query`, bounded time filters, `limit` up to 100, an opaque/local keyset cursor,
+and allowlisted `sortField` (`created_at`, `gift_name`, `price`, or `remarks`)
+plus `sortDirection` (`asc` or `desc`). Default ordering is
+`(created_at DESC, id DESC)`; every selected order uses `id DESC` as its strict
+composite tie-breaker and is bound into the cursor. The response includes the
+matching `total` and `totalPages`. There is no 3000-row preselection. Search uses
+parameterized `instr(canonicalGiftText(gift_name), :query)` and the same
+expression for `blind_box_name`; `%` and `_` are literal characters.
 
 `GET /api/gifts/statistics` resolves the same active source and returns:
 
@@ -248,8 +251,9 @@ state returns `partial=false`; bootstrapping, catch-up, dirty, offline,
 
 The desktop client's recent-gift history drawer restores the 3.x layout:
 title/actions, a six-column row table (time, gift, quantity, amount, user, remarks),
-and footer pagination. It has no name search, date-range controls, or separate
-sync toolbar. Requests always use `range=all` with keyset history navigation.
+sortable time/gift/amount/remarks headers, and footer pagination with current and
+total pages. It has no name search, date-range controls, or separate sync toolbar.
+Requests always use `range=all` with keyset history navigation.
 Incomplete/offline/error sync states appear below the title only when relevant,
 without a sync timestamp. Explicit loading/error/empty states remain. Summary,
 ranking, and trend dashboards belong to the server web interface, not this
@@ -302,8 +306,9 @@ New renderer modules use named ESM imports/exports and do not add to `window.Adm
    or advance token/cursor state.
 9. A capable server reaches LIVE only after epoch/latest-cursor validation. An
    old server reaches `LEGACY_PARTIAL`, never complete.
-10. Local history searches both gift and box names literally, pages beyond 3000
-    rows with a composite keyset, and never accepts renderer `sourceId`.
+10. Local history searches both gift and box names literally, sorts the four
+    allowlisted fields in either direction across pages, pages beyond 3000 rows
+    with a composite keyset, and never accepts renderer `sourceId`.
 11. Statistics use integer cents and the fixed time/range/blind-box semantics;
     only fully validated LIVE results report `partial=false`.
 12. Clear-display changes no rows. Database gift/all clear resets projection
@@ -316,9 +321,11 @@ New renderer modules use named ESM imports/exports and do not add to `window.Adm
     valid DNS hostname and rejects HTTP, localhost, IP literals, invalid DNS
     labels, non-root paths, queries, and fragments.
 16. The desktop history drawer renders individual six-column rows in the 3.x
-    table layout, without search/date/sync toolbars, summary/ranking/trend panels,
-    or statistics requests. It reads all dates with keyset navigation and shows
-    incomplete/offline/error synchronization status only when relevant.
+    table layout with sortable time/gift/amount/remarks headers, total-count and
+    current/total-page feedback, without search/date/sync toolbars,
+    summary/ranking/trend panels, or statistics requests. It reads all dates with
+    keyset navigation and shows incomplete/offline/error synchronization status
+    only when relevant.
 17. After a capable source is clean `LIVE`, a final SSE event with a validated
     epoch and the next contiguous cursor is projected before the cursor pull it
     triggers resolves; gaps, unvalidated epochs, bootstrap/rebuild, and stale

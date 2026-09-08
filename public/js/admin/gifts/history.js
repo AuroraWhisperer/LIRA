@@ -13,6 +13,8 @@ import {
 } from '../../shared/utils.js';
 
 const GIFT_HISTORY_LIMIT = 50;
+const DEFAULT_HISTORY_SORT_FIELD = 'created_at';
+const DEFAULT_HISTORY_SORT_DIRECTION = 'desc';
 
 let initialized = false;
 let historyRequestSequence = 0;
@@ -27,6 +29,10 @@ export function createGiftLedgerState() {
     page: 1,
     items: [],
     hasMore: false,
+    sortField: DEFAULT_HISTORY_SORT_FIELD,
+    sortDirection: DEFAULT_HISTORY_SORT_DIRECTION,
+    total: 0,
+    totalPages: 1,
   };
 }
 
@@ -37,11 +43,20 @@ export function resetGiftLedgerDisplay(state) {
 export function buildGiftHistoryUrl({
   cursor = null,
   limit = GIFT_HISTORY_LIMIT,
+  sortField = DEFAULT_HISTORY_SORT_FIELD,
+  sortDirection = DEFAULT_HISTORY_SORT_DIRECTION,
 } = {}) {
   const params = new URLSearchParams();
   params.set('range', 'all');
   params.set('limit', String(limit));
   if (cursor) params.set('cursor', cursor);
+  if (
+    sortField !== DEFAULT_HISTORY_SORT_FIELD ||
+    sortDirection !== DEFAULT_HISTORY_SORT_DIRECTION
+  ) {
+    params.set('sortField', sortField);
+    params.set('sortDirection', sortDirection);
+  }
   return `/api/gifts/history?${params}`;
 }
 
@@ -56,6 +71,7 @@ export function initGiftHistoryDrawer() {
   const clearDatabaseButton = get('giftHistoryClearDatabaseBtn');
   const previousButton = get('giftHistoryPrev');
   const nextButton = get('giftHistoryNext');
+  const sortableHeaders = getSortableHeaders();
 
   openButton?.addEventListener('click', () => {
     previousFocus = openButton;
@@ -92,6 +108,30 @@ export function initGiftHistoryDrawer() {
     loadGiftHistory();
   });
 
+  sortableHeaders.forEach((header) => {
+    const sort = header.dataset?.sort;
+    if (!sort) return;
+    const applySort = () => {
+      if (giftLedgerState.sortField === sort) {
+        giftLedgerState.sortDirection =
+          giftLedgerState.sortDirection === 'asc' ? 'desc' : 'asc';
+      } else {
+        giftLedgerState.sortField = sort;
+        giftLedgerState.sortDirection = 'asc';
+      }
+      resetGiftLedgerPagination(giftLedgerState);
+      renderGiftHistorySort();
+      loadGiftHistory();
+    };
+    header.addEventListener?.('click', applySort);
+    header.addEventListener?.('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      event.preventDefault?.();
+      applySort();
+    });
+  });
+  renderGiftHistorySort();
+
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && isGiftHistoryOpen()) {
       closeGiftHistoryDrawer();
@@ -124,6 +164,8 @@ export async function loadGiftHistory() {
       buildGiftHistoryUrl({
         cursor: giftLedgerState.cursor,
         limit: GIFT_HISTORY_LIMIT,
+        sortField: giftLedgerState.sortField,
+        sortDirection: giftLedgerState.sortDirection,
       }),
     );
     const payload = await readJsonResponse(response, '礼物流水加载失败');
@@ -138,6 +180,17 @@ export async function loadGiftHistory() {
     giftLedgerState.items = Array.isArray(data.items) ? data.items : [];
     giftLedgerState.nextCursor = data.nextCursor || null;
     giftLedgerState.hasMore = data.hasMore === true;
+    giftLedgerState.total = Number.isSafeInteger(Number(data.total))
+      ? Number(data.total)
+      : giftLedgerState.items.length;
+    giftLedgerState.totalPages = Number.isSafeInteger(Number(data.totalPages))
+      ? Math.max(1, Number(data.totalPages))
+      : Math.max(
+          1,
+          giftLedgerState.hasMore
+            ? giftLedgerState.page + 1
+            : giftLedgerState.page,
+        );
     renderGiftHistory();
     renderSyncStatus(data);
   } catch (error) {
@@ -154,6 +207,8 @@ function resetGiftLedgerPagination(state) {
   state.page = 1;
   state.items = [];
   state.hasMore = false;
+  state.total = 0;
+  state.totalPages = 1;
 }
 
 async function clearGiftDatabase() {
@@ -203,7 +258,7 @@ function renderHistoryError(error) {
 
 function renderGiftHistory() {
   const items = giftLedgerState.items;
-  setText('giftHistoryTotal', `本页 ${items.length} 条`);
+  setText('giftHistoryTotal', `共 ${giftLedgerState.total} 条`);
   setText(
     'giftHistoryState',
     items.length === 0 ? '暂无礼物记录' : '已加载',
@@ -213,6 +268,7 @@ function renderGiftHistory() {
       ? '<tr><td colspan="6" class="empty">暂无礼物记录</td></tr>'
       : items.map(renderGiftHistoryRow).join(''),
   );
+  renderGiftHistorySort();
   updatePagination(false);
 }
 
@@ -264,7 +320,34 @@ function updatePagination(loading) {
     nextButton.disabled =
       loading || !giftLedgerState.hasMore || !giftLedgerState.nextCursor;
   }
-  setText('giftHistoryPageInfo', `第 ${giftLedgerState.page} 页`);
+  setText(
+    'giftHistoryPageInfo',
+    `第 ${giftLedgerState.page}/${giftLedgerState.totalPages} 页`,
+  );
+}
+
+function renderGiftHistorySort() {
+  getSortableHeaders().forEach((header) => {
+    const sort = header.dataset?.sort;
+    if (!sort) return;
+    const active = sort === giftLedgerState.sortField;
+    header.setAttribute?.(
+      'aria-sort',
+      active
+        ? giftLedgerState.sortDirection === 'asc'
+          ? 'ascending'
+          : 'descending'
+        : 'none',
+    );
+    const arrow = header.querySelector?.('.sort-arrow');
+    if (arrow) {
+      arrow.textContent = active
+        ? giftLedgerState.sortDirection === 'asc'
+          ? ' ▲'
+          : ' ▼'
+        : '';
+    }
+  });
 }
 
 function renderSyncStatus(data) {
@@ -323,6 +406,10 @@ function setText(id, value) {
 
 function get(id) {
   return document.getElementById(id);
+}
+
+function getSortableHeaders() {
+  return document.querySelectorAll?.('#giftHistoryDrawer th[data-sort]') || [];
 }
 
 function isGiftHistoryOpen() {

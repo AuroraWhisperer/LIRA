@@ -292,13 +292,16 @@ test('gift history drawer restores the 3.x table without search or date toolbars
   assert.match(html, /id="giftLedgerSyncStatus"[^>]*role="status"[^>]*hidden/);
   assert.match(
     html,
-    /<th[^>]*>时间<\/th>\s*<th[^>]*>礼物<\/th>\s*<th[^>]*>数量<\/th>\s*<th[^>]*>金额<\/th>\s*<th[^>]*>用户<\/th>\s*<th[^>]*>备注<\/th>/,
+    /<th[^>]*data-sort="created_at"[^>]*aria-sort="descending"[^>]*>时间[\s\S]*?<span[^>]*class="sort-arrow"[\s\S]*?<\/th>\s*<th[^>]*data-sort="gift_name"[^>]*>礼物[\s\S]*?<\/th>\s*<th[^>]*>数量<\/th>\s*<th[^>]*data-sort="price"[^>]*>金额[\s\S]*?<\/th>\s*<th[^>]*>用户<\/th>\s*<th[^>]*data-sort="remarks"[^>]*>备注[\s\S]*?<\/th>/,
   );
   assert.doesNotMatch(html, /giftLedgerSummary|giftLedgerTopGifts|giftLedgerTimeSeries/);
   assert.doesNotMatch(html, /礼物排行|时间趋势/);
   assert.match(html, /id="giftHistoryState"[^>]*role="status"/);
   assert.match(html, /id="giftHistoryPrev"/);
   assert.match(html, /id="giftHistoryNext"/);
+  assert.match(html, /← 上一页/);
+  assert.match(html, /第 1\/1 页/);
+  assert.match(html, /下一页 →/);
 });
 
 test('gift history always requests all dates and never exposes source identity', async () => {
@@ -330,6 +333,14 @@ test('gift history always requests all dates and never exposes source identity',
     }),
     '/api/gifts/history?range=all&limit=50&cursor=opaque%2F%2B+token',
   );
+  assert.equal(
+    ledger.buildGiftHistoryUrl({
+      limit: 50,
+      sortField: 'price',
+      sortDirection: 'asc',
+    }),
+    '/api/gifts/history?range=all&limit=50&sortField=price&sortDirection=asc',
+  );
   assert.deepEqual(
     { ...ledger.describeGiftSyncStatus('LIVE', false) },
     { state: 'live', label: '历史记录已同步' },
@@ -344,6 +355,141 @@ test('gift history always requests all dates and never exposes source identity',
     'offline',
   );
   assert.equal(ledger.describeGiftSyncStatus('ERROR', true).state, 'error');
+});
+
+test('gift history headers sort from page one with click and keyboard input', async () => {
+  const modulePath = path.join(
+    ROOT_DIR,
+    'public',
+    'js',
+    'admin',
+    'gifts',
+    'history.js',
+  );
+  const elements = new Map();
+  for (const id of [
+    'giftHistoryOpenBtn',
+    'giftHistoryClose',
+    'giftHistoryBackdrop',
+    'giftHistoryDrawer',
+    'giftHistoryClearDisplayBtn',
+    'giftHistoryClearDatabaseBtn',
+    'giftHistoryPrev',
+    'giftHistoryNext',
+    'giftHistoryState',
+    'giftHistoryTotal',
+    'giftHistoryBody',
+    'giftHistoryPageInfo',
+    'giftLedgerSyncStatus',
+  ]) {
+    elements.set(id, {
+      ...createLyricToggleButton(),
+      dataset: {},
+      hidden: false,
+      disabled: false,
+      handlers: {},
+      addEventListener(type, handler) {
+        this.handlers[type] = handler;
+      },
+      focus() {},
+    });
+  }
+  const headers = ['created_at', 'gift_name', 'price', 'remarks'].map(
+    (sort) => {
+      const arrow = { textContent: '' };
+      const attributes = new Map();
+      return {
+        dataset: { sort },
+        handlers: {},
+        arrow,
+        attributes,
+        querySelector(selector) {
+          return selector === '.sort-arrow' ? arrow : null;
+        },
+        setAttribute(name, value) {
+          attributes.set(name, value);
+        },
+        addEventListener(type, handler) {
+          this.handlers[type] = handler;
+        },
+      };
+    },
+  );
+  const requests = [];
+  const document = {
+    getElementById(id) {
+      return elements.get(id) || null;
+    },
+    querySelectorAll(selector) {
+      return selector === '#giftHistoryDrawer th[data-sort]' ? headers : [];
+    },
+    querySelector() {
+      return null;
+    },
+    addEventListener() {},
+  };
+  const ledger = await loadModuleExports(modulePath, {
+    document,
+    location: {},
+    URLSearchParams,
+    fetch: async (url) => {
+      requests.push(url);
+      return {
+        ok: true,
+        status: 200,
+        text: async () =>
+          JSON.stringify({
+            ok: true,
+            data: {
+              items: [],
+              hasMore: false,
+              total: 0,
+              totalPages: 1,
+              syncState: 'LIVE',
+              partial: false,
+            },
+          }),
+      };
+    },
+  });
+
+  ledger.initGiftHistoryDrawer();
+  elements.get('giftHistoryOpenBtn').handlers.click();
+  await new Promise(setImmediate);
+  headers[1].handlers.click();
+  await new Promise(setImmediate);
+  assert.equal(
+    requests.at(-1),
+    '/api/gifts/history?range=all&limit=50&sortField=gift_name&sortDirection=asc',
+  );
+  assert.equal(headers[1].attributes.get('aria-sort'), 'ascending');
+  assert.equal(headers[1].arrow.textContent, ' ▲');
+  assert.equal(headers[0].attributes.get('aria-sort'), 'none');
+  headers[1].handlers.click();
+  await new Promise(setImmediate);
+  assert.equal(
+    requests.at(-1),
+    '/api/gifts/history?range=all&limit=50&sortField=gift_name&sortDirection=desc',
+  );
+  headers[2].handlers.keydown({
+    key: 'Enter',
+    preventDefault() {},
+  });
+  await new Promise(setImmediate);
+  assert.equal(
+    requests.at(-1),
+    '/api/gifts/history?range=all&limit=50&sortField=price&sortDirection=asc',
+  );
+  headers[2].handlers.keydown({
+    key: ' ',
+    preventDefault() {},
+  });
+  await new Promise(setImmediate);
+  assert.equal(
+    requests.at(-1),
+    '/api/gifts/history?range=all&limit=50&sortField=price&sortDirection=desc',
+  );
+  assert.equal(requests.some((url) => /source(?:Id|_id)/u.test(url)), false);
 });
 
 test('loadGiftHistory requests one history page and renders canonical escaped rows', async () => {
@@ -417,6 +563,8 @@ test('loadGiftHistory requests one history page and renders canonical escaped ro
               ],
               nextCursor: 'next-page-token',
               hasMore: true,
+              total: 52,
+              totalPages: 2,
               syncState: 'LIVE',
               partial: false,
               syncedAt: '2025-01-03T04:05:06.000Z',
@@ -446,11 +594,11 @@ test('loadGiftHistory requests one history page and renders canonical escaped ro
   assert.match(body, /Box &lt;one&gt;/);
   assert.match(body, /盲盒 成本未知/);
 
-  assert.equal(elements.get('giftHistoryTotal').textContent, '本页 2 条');
+  assert.equal(elements.get('giftHistoryTotal').textContent, '共 52 条');
   assert.equal(elements.get('giftHistoryState').textContent, '已加载');
   assert.equal(elements.get('giftHistoryPrev').disabled, true);
   assert.equal(elements.get('giftHistoryNext').disabled, false);
-  assert.equal(elements.get('giftHistoryPageInfo').textContent, '第 1 页');
+  assert.equal(elements.get('giftHistoryPageInfo').textContent, '第 1/2 页');
   assert.equal(elements.get('giftLedgerSyncStatus').dataset.state, 'live');
   assert.equal(elements.get('giftLedgerSyncStatus').hidden, true);
   assert.equal(
@@ -480,6 +628,8 @@ test('clear display resets the displayed rows and cursor history without deletin
   state.page = 3;
   state.items = [{ eventId: 'event-1' }];
   state.hasMore = true;
+  state.total = 140;
+  state.totalPages = 3;
   state.cursorHistory.push(null, 'previous-token');
 
   ledger.resetGiftLedgerDisplay(state);
@@ -539,6 +689,8 @@ test('gift history keeps cursor navigation, ignores responses after clear, and r
     items: [{ eventId: 'first', gift: { giftName: '测试礼物' } }],
     hasMore: true,
     nextCursor: 'page-2',
+    total: 2,
+    totalPages: 2,
     syncState: 'LIVE',
     partial: false,
   };
@@ -549,15 +701,21 @@ test('gift history keeps cursor navigation, ignores responses after clear, and r
   assert.equal(elements.get('giftHistoryClose').focused, true);
   assert.match(elements.get('giftHistoryBody').innerHTML, /测试礼物/);
   click('giftHistoryNext');
-  await finishRequest({ items: [], syncState: 'OFFLINE', partial: true });
+  await finishRequest({
+    items: [],
+    total: 2,
+    totalPages: 2,
+    syncState: 'OFFLINE',
+    partial: true,
+  });
   assert.equal(requests.at(-1), '/api/gifts/history?range=all&limit=50&cursor=page-2');
-  assert.equal(elements.get('giftHistoryPageInfo').textContent, '第 2 页');
+  assert.equal(elements.get('giftHistoryPageInfo').textContent, '第 2/2 页');
   assert.equal(elements.get('giftLedgerSyncStatus').hidden, false);
   assert.equal(elements.get('giftLedgerSyncStatus').textContent, '离线，正在显示本地记录');
   click('giftHistoryPrev');
   await finishRequest(firstPage);
   assert.equal(requests.at(-1), '/api/gifts/history?range=all&limit=50');
-  assert.equal(elements.get('giftHistoryPageInfo').textContent, '第 1 页');
+  assert.equal(elements.get('giftHistoryPageInfo').textContent, '第 1/2 页');
 
   click('giftHistoryNext');
   const countBeforeClear = requests.length;

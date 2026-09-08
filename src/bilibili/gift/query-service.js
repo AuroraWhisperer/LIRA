@@ -17,7 +17,15 @@ const CRYSTAL_BALL_VALUE_RMB = 100;
 const DEFAULT_HISTORY_LIMIT = 50;
 const MAX_HISTORY_LIMIT = 100;
 const MAX_SEARCH_LENGTH = 100;
-const MAX_CURSOR_LENGTH = 1024;
+const MAX_CURSOR_LENGTH = 4096;
+const DEFAULT_HISTORY_SORT_FIELD = 'created_at';
+const DEFAULT_HISTORY_SORT_DIRECTION = 'desc';
+const HISTORY_SORT_FIELDS = Object.freeze([
+  'created_at',
+  'gift_name',
+  'price',
+  'remarks',
+]);
 const GIFT_METRIC_FIELDS = Object.freeze([
   'eventCount',
   'itemCount',
@@ -60,14 +68,28 @@ function getGiftHistory(context, options = {}) {
   const query = normalizeLedgerQuery(options.query);
   const range = normalizeLedgerRange(options.range);
   const limit = normalizeHistoryLimit(options.limit);
-  const cursor = decodeHistoryCursor(options.cursor, { query, range });
+  const sortField = normalizeHistorySortField(options.sortField);
+  const sortDirection = normalizeHistorySortDirection(options.sortDirection);
+  const cursor = decodeHistoryCursor(options.cursor, {
+    query,
+    range,
+    sortField,
+    sortDirection,
+  });
   const asOf = cursor?.asOf || resolveAsOf(context);
-  const rows = createGiftQueryStore(context.db.giftDb).listHistory({
+  const queryStore = createGiftQueryStore(context.db.giftDb);
+  const historyOptions = {
     sourceId: activeSource.sourceId,
     query,
     rangeStart: resolveRangeStart(range, asOf),
     asOf,
     cursor,
+    sortField,
+    sortDirection,
+  };
+  const total = queryStore.countHistory(historyOptions);
+  const rows = queryStore.listHistory({
+    ...historyOptions,
     limit: limit + 1,
   });
   const hasMore = rows.length > limit;
@@ -81,14 +103,20 @@ function getGiftHistory(context, options = {}) {
     nextCursor:
       hasMore && last
         ? encodeHistoryCursor({
-            createdAt: normalizeIsoTimestamp(last.created_at),
+            sortValue: last.history_sort_value,
             id: Number(last.id),
             asOf,
             query,
             range,
+            sortField,
+            sortDirection,
           })
         : null,
     hasMore,
+    total,
+    totalPages: Math.max(1, Math.ceil(total / limit)),
+    sortField,
+    sortDirection,
     ...buildSyncMetadata(activeSource),
   };
 }
@@ -291,6 +319,30 @@ function normalizeHistoryLimit(value) {
   return limit;
 }
 
+function normalizeHistorySortField(value) {
+  const sortField = String(value || DEFAULT_HISTORY_SORT_FIELD);
+  if (!HISTORY_SORT_FIELDS.includes(sortField)) {
+    throw createGiftQueryError(
+      'INVALID_GIFT_SORT_FIELD',
+      '礼物排序字段无效。',
+    );
+  }
+  return sortField;
+}
+
+function normalizeHistorySortDirection(value) {
+  const sortDirection = String(
+    value || DEFAULT_HISTORY_SORT_DIRECTION,
+  ).toLowerCase();
+  if (sortDirection !== 'asc' && sortDirection !== 'desc') {
+    throw createGiftQueryError(
+      'INVALID_GIFT_SORT_DIRECTION',
+      '礼物排序方向无效。',
+    );
+  }
+  return sortDirection;
+}
+
 function resolveAsOf(context) {
   const value =
     typeof context.now === 'function' ? context.now() : new Date().toISOString();
@@ -304,15 +356,33 @@ function resolveRangeStart(range, asOf) {
 }
 
 function encodeHistoryCursor(value) {
+  const isDefaultSort =
+    value.sortField === DEFAULT_HISTORY_SORT_FIELD &&
+    value.sortDirection === DEFAULT_HISTORY_SORT_DIRECTION;
+  const payload = isDefaultSort
+    ? {
+        version: 1,
+        createdAt: normalizeIsoTimestamp(value.sortValue),
+        id: value.id,
+        asOf: value.asOf,
+        query: value.query,
+        range: value.range,
+      }
+    : {
+        version: 2,
+        sortField: value.sortField,
+        sortDirection: value.sortDirection,
+        sortValue: normalizeHistoryCursorSortValue(
+          value.sortField,
+          value.sortValue,
+        ),
+        id: value.id,
+        asOf: value.asOf,
+        query: value.query,
+        range: value.range,
+      };
   return Buffer.from(
-    JSON.stringify({
-      version: 1,
-      createdAt: value.createdAt,
-      id: value.id,
-      asOf: value.asOf,
-      query: value.query,
-      range: value.range,
-    }),
+    JSON.stringify(payload),
     'utf8',
   ).toString('base64url');
 }
@@ -329,22 +399,53 @@ function decodeHistoryCursor(value, expected) {
   try {
     const parsed = JSON.parse(Buffer.from(value, 'base64url').toString('utf8'));
     const id = Number(parsed?.id);
-    const createdAt = normalizeIsoTimestamp(parsed?.createdAt);
     const asOf = normalizeIsoTimestamp(parsed?.asOf);
+    const version = parsed?.version;
     if (
-      parsed?.version !== 1 ||
       !Number.isSafeInteger(id) ||
       id < 1 ||
       parsed?.query !== expected.query ||
       parsed?.range !== expected.range ||
-      createdAt >= asOf
+      (version !== 1 && version !== 2)
     ) {
       throw new Error('invalid cursor');
     }
-    return Object.freeze({ id, createdAt, asOf });
+    if (version === 1) {
+      if (
+        expected.sortField !== DEFAULT_HISTORY_SORT_FIELD ||
+        expected.sortDirection !== DEFAULT_HISTORY_SORT_DIRECTION
+      ) {
+        throw new Error('invalid cursor');
+      }
+      const createdAt = normalizeIsoTimestamp(parsed?.createdAt);
+      if (createdAt >= asOf) throw new Error('invalid cursor');
+      return Object.freeze({ id, sortValue: createdAt, asOf });
+    }
+    if (
+      parsed?.sortField !== expected.sortField ||
+      parsed?.sortDirection !== expected.sortDirection
+    ) {
+      throw new Error('invalid cursor');
+    }
+    const sortValue = normalizeHistoryCursorSortValue(
+      expected.sortField,
+      parsed?.sortValue,
+    );
+    if (expected.sortField === 'created_at' && sortValue >= asOf) {
+      throw new Error('invalid cursor');
+    }
+    return Object.freeze({ id, sortValue, asOf });
   } catch (_) {
     throw createGiftQueryError('INVALID_GIFT_CURSOR', '礼物分页游标无效。');
   }
+}
+
+function normalizeHistoryCursorSortValue(sortField, value) {
+  if (sortField === 'created_at') return normalizeIsoTimestamp(value);
+  if (sortField === 'gift_name') return canonicalGiftText(value);
+  const number = Number(value);
+  if (!Number.isSafeInteger(number)) throw new Error('invalid cursor');
+  return number;
 }
 
 function mapIntegerFields(row, fields) {
@@ -411,4 +512,6 @@ module.exports = {
   getGiftSprintSnapshot,
   searchGifts,
   clearRecentGifts,
+  normalizeHistorySortField,
+  normalizeHistorySortDirection,
 };

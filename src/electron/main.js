@@ -25,6 +25,10 @@ const {
   createDesktopUpdateController,
 } = require('./desktop-update-controller');
 const { createDesktopState } = require('./desktop-state');
+const {
+  migrateLegacyUserData,
+  resolveDesktopUserDataPaths,
+} = require('./desktop-user-data');
 const { registerLocalFontPermissionHandler } = require('./desktop-permissions');
 const {
   createLocalMediaAccess,
@@ -131,11 +135,22 @@ protocol.registerSchemesAsPrivileged([
   },
 ]);
 
-// 将 Electron userData 目录重定向到应用安装目录下的 data/，
-// 确保卸载时所有登录态（包括 Chromium 持久化分区）一并清理，
-// 不会残留在 %APPDATA% 中。
-const appDir = app.isPackaged ? path.dirname(app.getPath('exe')) : ROOT_DIR;
-app.setPath('userData', path.join(appDir, 'data'));
+const desktopUserDataPaths = resolveDesktopUserDataPaths({
+  isPackaged: app.isPackaged,
+  appDataPath: app.getPath('appData'),
+  exePath: app.getPath('exe'),
+  rootDir: ROOT_DIR,
+});
+const userDataMigrationState = { migration: null, error: null };
+try {
+  userDataMigrationState.migration = migrateLegacyUserData({
+    sourceDir: desktopUserDataPaths.legacyDataDir,
+    targetDir: desktopUserDataPaths.dataDir,
+  });
+} catch (error) {
+  userDataMigrationState.error = error;
+}
+app.setPath('userData', desktopUserDataPaths.dataDir);
 
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
@@ -205,7 +220,15 @@ app.on('before-quit', function (event) {
 // ---- startup ----
 
 async function startDesktopApp() {
+  if (userDataMigrationState.error) {
+    throw new Error(
+      '无法把旧版用户数据迁移到永久保存目录。为避免以空数据启动，LIRA 已停止启动：' +
+        (userDataMigrationState.error.message ||
+          String(userDataMigrationState.error)),
+    );
+  }
   configureDesktopEnvironment();
+  writeLog('user-data-migration', userDataMigrationState.migration);
   const startupStartedAt = Date.now();
   startupTiming.startedAt = startupStartedAt;
   logStartupPhase('start', startupStartedAt);

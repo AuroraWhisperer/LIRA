@@ -32,13 +32,22 @@ test('gift ledger routes pass only allowlisted filters and reject source selecto
   const history = createResponse();
   routes['GET /api/gifts/history'](
     context,
-    createRequest('query=%25_&range=90d&limit=25&cursor=opaque'),
+    createRequest(
+      'query=%25_&range=90d&limit=25&cursor=opaque&sortField=price&sortDirection=asc',
+    ),
     history,
   );
   assert.equal(history.status, 200);
   assert.deepEqual(calls[0], [
     'history',
-    { query: '%_', range: '90d', limit: '25', cursor: 'opaque' },
+    {
+      query: '%_',
+      range: '90d',
+      limit: '25',
+      cursor: 'opaque',
+      sortField: 'price',
+      sortDirection: 'asc',
+    },
   ]);
 
   const statistics = createResponse();
@@ -52,6 +61,27 @@ test('gift ledger routes pass only allowlisted filters and reject source selecto
     'statistics',
     { query: 'box', range: 'all', limit: undefined, cursor: null },
   ]);
+});
+
+test('gift ledger routes return 400 for invalid sorting parameters', () => {
+  for (const code of ['INVALID_GIFT_SORT_FIELD', 'INVALID_GIFT_SORT_DIRECTION']) {
+    const error = new Error('礼物排序参数无效。');
+    error.code = code;
+    const response = createResponse();
+    routes['GET /api/gifts/history'](
+      {
+        gifts: {
+          getHistory() {
+            throw error;
+          },
+        },
+      },
+      createRequest('range=all'),
+      response,
+    );
+    assert.equal(response.status, 400);
+    assert.equal(response.payload.code, code);
+  }
 });
 
 test('gift ledger routes expose stable source-unavailable errors', () => {

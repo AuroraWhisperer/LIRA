@@ -14,7 +14,7 @@
 
 ## 2. 数据目录布局(唯一成表处)
 
-`dataDir` 解析顺序:`runtimeOptions.dataDir` → 环境变量 `SONG_PLUGIN_DATA_DIR` → 仓库根 `data/`([server.js:57-61](../../../src/server.js#L57-L61));Electron 模式下 `app.setPath('userData', 安装目录/data)`(见 [desktop/main.md](../desktop/main.md))。
+`dataDir` 解析顺序:`runtimeOptions.dataDir` → 环境变量 `SONG_PLUGIN_DATA_DIR` → 仓库根 `data/`([runtime-config.js](../../../src/server/runtime-config.js));Electron 打包版使用 `%APPDATA%/com.aurorawhisperer.lira/data`，开发版继续使用仓库根 `data/`，旧安装目录数据的升级迁移见 [desktop/main.md](../desktop/main.md) §3。
 
 ```
 data/

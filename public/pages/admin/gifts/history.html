@@ -10,7 +10,7 @@
   <div class="gift-drawer-head">
     <div class="gift-drawer-title">
       <strong id="giftHistoryTitle" class="ui-section-title">全部礼物流水</strong>
-      <span id="giftHistoryTotal" class="ui-caption">本页 0 条</span>
+      <span id="giftHistoryTotal" class="ui-caption">共 0 条</span>
       <span
         id="giftLedgerSyncStatus"
         class="ui-caption"
@@ -68,12 +68,12 @@
     <table class="gift-history-table">
       <thead>
         <tr>
-          <th data-column="createdAt">时间</th>
-          <th>礼物</th>
+          <th data-sort="created_at" aria-sort="descending" tabindex="0">时间<span class="sort-arrow" aria-hidden="true"> ▼</span></th>
+          <th data-sort="gift_name" aria-sort="none" tabindex="0">礼物<span class="sort-arrow" aria-hidden="true"></span></th>
           <th>数量</th>
-          <th>金额</th>
+          <th data-sort="price" aria-sort="none" tabindex="0">金额<span class="sort-arrow" aria-hidden="true"></span></th>
           <th>用户</th>
-          <th>备注</th>
+          <th data-sort="remarks" aria-sort="none" tabindex="0">备注<span class="sort-arrow" aria-hidden="true"></span></th>
         </tr>
       </thead>
       <tbody id="giftHistoryBody">
@@ -84,8 +84,8 @@
     </table>
   </div>
   <div class="gift-drawer-footer">
-    <button id="giftHistoryPrev" type="button" disabled>上一页</button>
-    <span id="giftHistoryPageInfo" class="gift-page-info">第 1 页</span>
-    <button id="giftHistoryNext" type="button" disabled>下一页</button>
+    <button id="giftHistoryPrev" type="button" disabled>← 上一页</button>
+    <span id="giftHistoryPageInfo" class="gift-page-info">第 1/1 页</span>
+    <button id="giftHistoryNext" type="button" disabled>下一页 →</button>
   </div>
 </aside>

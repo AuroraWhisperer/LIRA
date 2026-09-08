@@ -121,6 +121,214 @@ test('active-source history searches literally and keyset-pages beyond 3000 rows
   }
 });
 
+test('history sorting is deterministic across keyset pages with stable totals', () => {
+  const fixture = createFixture();
+  try {
+    const source = fixture.resolveSource('e'.repeat(64));
+    fixture.setActiveSource(source.id, {
+      syncState: 'LIVE',
+      partial: false,
+      dirty: false,
+      epochValidated: true,
+    });
+    const rows = [
+      {
+        id: 'ordinary-old',
+        giftId: 'ordinary-old',
+        giftName: '普通礼物',
+        totalPrice: 1,
+        createdAt: '2026-08-28T12:00:00.000Z',
+      },
+      {
+        id: 'guard-governor',
+        giftId: 'guard-1',
+        giftName: '总督',
+        totalPrice: 3,
+        createdAt: '2026-08-29T12:00:00.000Z',
+      },
+      {
+        id: 'blind-loss',
+        giftId: 'blind-loss',
+        giftName: '盲盒礼物',
+        totalPrice: 5,
+        isBlindBox: true,
+        blindBoxPrice: 20005,
+        createdAt: '2026-08-30T12:00:00.000Z',
+      },
+      {
+        id: 'guard-captain',
+        giftId: 'guard-3',
+        giftName: '舰长',
+        totalPrice: 2,
+        createdAt: '2026-08-31T12:00:00.000Z',
+      },
+      {
+        id: 'guard-admiral',
+        giftId: 'guard-2',
+        giftName: '提督',
+        totalPrice: 4,
+        createdAt: '2026-09-01T12:00:00.000Z',
+      },
+    ];
+    for (const row of rows) fixture.insertGift(source.id, row.id, row);
+
+    const expectedBySort = {
+      created_at: ['ordinary-old', 'guard-governor', 'blind-loss', 'guard-captain', 'guard-admiral'],
+      gift_name: ['guard-governor', 'guard-admiral', 'ordinary-old', 'blind-loss', 'guard-captain'],
+      price: ['ordinary-old', 'guard-captain', 'guard-governor', 'guard-admiral', 'blind-loss'],
+      remarks: ['ordinary-old', 'blind-loss', 'guard-captain', 'guard-admiral', 'guard-governor'],
+    };
+
+    for (const sortField of Object.keys(expectedBySort)) {
+      for (const sortDirection of ['asc', 'desc']) {
+        const first = getGiftHistory(fixture.context, {
+          range: 'all',
+          limit: 2,
+          sortField,
+          sortDirection,
+        });
+        const second = first.nextCursor
+          ? getGiftHistory(fixture.context, {
+              range: 'all',
+              limit: 2,
+              cursor: first.nextCursor,
+              sortField,
+              sortDirection,
+            })
+          : null;
+        const third = second?.nextCursor
+          ? getGiftHistory(fixture.context, {
+              range: 'all',
+              limit: 2,
+              cursor: second.nextCursor,
+              sortField,
+              sortDirection,
+            })
+          : null;
+        const ids = [
+          ...first.items,
+          ...(second?.items || []),
+          ...(third?.items || []),
+        ].map((item) => item.eventId);
+        const expected =
+          sortDirection === 'asc'
+            ? expectedBySort[sortField]
+            : [...expectedBySort[sortField]].reverse();
+        assert.deepEqual(ids, expected);
+        assert.equal(new Set(ids).size, rows.length);
+        assert.equal(first.total, rows.length);
+        assert.equal(first.totalPages, 3);
+        assert.equal(second?.total, rows.length);
+        assert.equal(third?.totalPages, 3);
+      }
+    }
+
+    fixture.insertGift(source.id, 'same-price-first', {
+      giftId: 'same-price-first',
+      giftName: '同价',
+      totalPrice: 2,
+      createdAt: '2026-08-27T12:00:00.000Z',
+    });
+    fixture.insertGift(source.id, 'same-price-second', {
+      giftId: 'same-price-second',
+      giftName: '同价',
+      totalPrice: 2,
+      createdAt: '2026-08-27T12:00:00.000Z',
+    });
+    for (const sortDirection of ['asc', 'desc']) {
+      const tiedPage = getGiftHistory(fixture.context, {
+        query: '同价',
+        range: 'all',
+        limit: 1,
+        sortField: 'price',
+        sortDirection,
+      });
+      assert.deepEqual(
+        tiedPage.items.map((item) => item.eventId),
+        ['same-price-second'],
+      );
+      const tiedNext = getGiftHistory(fixture.context, {
+        query: '同价',
+        range: 'all',
+        limit: 1,
+        cursor: tiedPage.nextCursor,
+        sortField: 'price',
+        sortDirection,
+      });
+      assert.deepEqual(
+        tiedNext.items.map((item) => item.eventId),
+        ['same-price-first'],
+      );
+      assert.equal(tiedPage.total, 2);
+      assert.equal(tiedPage.totalPages, 2);
+    }
+    const longUnicode = '🌟'.repeat(100);
+    fixture.insertGift(source.id, 'long-unicode-first', {
+      giftId: 'long-unicode-first',
+      giftName: longUnicode,
+      totalPrice: 7,
+      createdAt: '2026-08-26T12:00:00.000Z',
+    });
+    fixture.insertGift(source.id, 'long-unicode-second', {
+      giftId: 'long-unicode-second',
+      giftName: longUnicode,
+      totalPrice: 8,
+      createdAt: '2026-08-25T12:00:00.000Z',
+    });
+    const longPage = getGiftHistory(fixture.context, {
+      query: longUnicode,
+      range: 'all',
+      limit: 1,
+      sortField: 'gift_name',
+      sortDirection: 'asc',
+    });
+    assert.ok(longPage.nextCursor.length > 1024);
+    assert.doesNotThrow(() =>
+      getGiftHistory(fixture.context, {
+        query: longUnicode,
+        range: 'all',
+        limit: 1,
+        cursor: longPage.nextCursor,
+        sortField: 'gift_name',
+        sortDirection: 'asc',
+      }),
+    );
+
+    const sorted = getGiftHistory(fixture.context, {
+      range: 'all',
+      limit: 2,
+      sortField: 'gift_name',
+      sortDirection: 'asc',
+    });
+    assert.throws(
+      () =>
+        getGiftHistory(fixture.context, {
+          range: 'all',
+          limit: 2,
+          cursor: sorted.nextCursor,
+          sortField: 'gift_name',
+          sortDirection: 'desc',
+        }),
+      (error) => error.code === 'INVALID_GIFT_CURSOR',
+    );
+    assert.throws(
+      () => getGiftHistory(fixture.context, { range: 'all', sortField: 'id' }),
+      (error) => error.code === 'INVALID_GIFT_SORT_FIELD',
+    );
+    assert.throws(
+      () =>
+        getGiftHistory(fixture.context, {
+          range: 'all',
+          sortField: 'price',
+          sortDirection: 'sideways',
+        }),
+      (error) => error.code === 'INVALID_GIFT_SORT_DIRECTION',
+    );
+  } finally {
+    fixture.close();
+  }
+});
+
 test('statistics use cents, canonical rows, active source and completeness state', () => {
   const fixture = createFixture();
   try {

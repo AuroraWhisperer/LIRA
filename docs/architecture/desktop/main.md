@@ -1,6 +1,6 @@
 # 桌面壳主进程:窗口、协议与生命周期
 
-> 涉及文件:[src/electron/main.js](../../../src/electron/main.js)、[src/electron/cloud-sync-controller.js](../../../src/electron/cloud-sync-controller.js)、[src/electron/remote-gift-controller.js](../../../src/electron/remote-gift-controller.js)、[src/electron/remote-gift-cursor-store.js](../../../src/electron/remote-gift-cursor-store.js)、[src/electron/desktop-auth-controller.js](../../../src/electron/desktop-auth-controller.js)、[src/electron/desktop-update-controller.js](../../../src/electron/desktop-update-controller.js)、[src/electron/desktop-logger.js](../../../src/electron/desktop-logger.js)、[src/electron/media-request-headers.js](../../../src/electron/media-request-headers.js)、[src/electron/license/license-manager.js](../../../src/electron/license/license-manager.js)、[src/electron/license/license-runtime-policy.js](../../../src/electron/license/license-runtime-policy.js)、[src/electron/desktop-state.js](../../../src/electron/desktop-state.js)、[src/electron/desktop-permissions.js](../../../src/electron/desktop-permissions.js)、[src/electron/playback-flush.js](../../../src/electron/playback-flush.js)、[src/electron/terminal-log.js](../../../src/electron/terminal-log.js)、[src/electron/local-media-access.js](../../../src/electron/local-media-access.js)、[package.json](../../../package.json)
+> 涉及文件:[src/electron/main.js](../../../src/electron/main.js)、[src/electron/desktop-user-data.js](../../../src/electron/desktop-user-data.js)、[src/electron/cloud-sync-controller.js](../../../src/electron/cloud-sync-controller.js)、[src/electron/remote-gift-controller.js](../../../src/electron/remote-gift-controller.js)、[src/electron/remote-gift-cursor-store.js](../../../src/electron/remote-gift-cursor-store.js)、[src/electron/desktop-auth-controller.js](../../../src/electron/desktop-auth-controller.js)、[src/electron/desktop-update-controller.js](../../../src/electron/desktop-update-controller.js)、[src/electron/desktop-logger.js](../../../src/electron/desktop-logger.js)、[src/electron/media-request-headers.js](../../../src/electron/media-request-headers.js)、[src/electron/license/license-manager.js](../../../src/electron/license/license-manager.js)、[src/electron/license/license-runtime-policy.js](../../../src/electron/license/license-runtime-policy.js)、[src/electron/desktop-state.js](../../../src/electron/desktop-state.js)、[src/electron/desktop-permissions.js](../../../src/electron/desktop-permissions.js)、[src/electron/playback-flush.js](../../../src/electron/playback-flush.js)、[src/electron/terminal-log.js](../../../src/electron/terminal-log.js)、[src/electron/local-media-access.js](../../../src/electron/local-media-access.js)、[package.json](../../../package.json)
 
 本文档是 Electron 桌面壳的**唯一事实源**:进程入口、启动序列、主窗口规格、`local-media://` 协议、请求头伪装、关闭时序与日志只在此成文。IPC 通道全量注册表见 [preload.md](preload.md),登录会话见 [auth.md](auth.md),辅助窗口见 [windows.md](windows.md),自动更新运行时见 [update.md](update.md);后端服务生命周期见 [../backend/server-core.md](../backend/server-core.md),数据目录树见 [../backend/storage.md](../backend/storage.md)。
 
@@ -12,7 +12,7 @@
 | -------- | --------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
 | 入口     | `package.json` 的 `main` 指向 `src/electron/main.js`,Electron 启动即执行此文件                                        | [package.json:8](../../../package.json#L8)                                                   |
 | 运行形态 | `npm run desktop` → `electron .`;后端 HTTP 服务与 Electron main **同进程**(`require('../server')` 的运行时适配,见 §2) | [package.json:11](../../../package.json#L11)、[server-core.md](../backend/server-core.md) §1 |
-| 应用名   | `app.setName('LIRA')` — 决定 `%APPDATA%/LIRA` 等派生路径                                                              | [main.js:69](../../../src/electron/main.js#L69)                                              |
+| 应用名   | `app.setName('LIRA')`；持久化目录使用固定 appId 名称，不再依赖产品展示名派生                                               | [main.js](../../../src/electron/main.js)                                                     |
 
 **单实例锁**:`app.requestSingleInstanceLock()` 拿不到锁立即 `app.quit()`([main.js:59-67](../../../src/electron/main.js#L59-L67));`second-instance` 事件时还原并聚焦主窗口([main.js:71-75](../../../src/electron/main.js#L71-L75));锁在退出流程末尾释放(§7)。
 
@@ -22,9 +22,9 @@
 
 ## 2. 启动序列 startDesktopApp
 
-`app.whenReady()` 后执行([main.js:106-154](../../../src/electron/main.js#L106-L154)):
+模块初始化时先由 `desktop-user-data.js` 解析稳定目录并执行一次性旧目录迁移，再设置 Electron `userData`；迁移失败会保留旧源并停止启动，避免应用以空数据库继续运行。`app.whenReady()` 后执行:
 
-1. `configureDesktopEnvironment()` — 数据/日志目录、环境变量、terminal 日志、local-media 访问控制(§3/§5/§8)
+1. `configureDesktopEnvironment()` — 创建迁移后的数据/日志目录、环境变量、terminal 日志、local-media 访问控制(§3/§5/§8)
 2. `migrateUserDataFromAppData()` — 旧 `%APPDATA%` 登录分区迁移(§3.2)
 3. `configureMenu()` — `Menu.setApplicationMenu(null)`([main.js:236-238](../../../src/electron/main.js#L236-L238))
 4. `configureLocalMediaProtocol()` — 注册 `local-media` handler(§5)
@@ -75,20 +75,22 @@
 
 ## 3. 数据目录决策
 
-### 3.1 userData 重定向
+### 3.1 userData 持久化路径
 
-| 事实     | 值                                                                                                          | 出处                                                       |
-| -------- | ----------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| 目标     | `app.setPath('userData', <安装目录或仓库根>/data)`                                                          | [main.js:54-57](../../../src/electron/main.js#L54-L57)     |
-| 打包版   | `path.dirname(app.getPath('exe'))/data` — 卸载时登录态(含 Chromium 持久化分区)随安装目录一并清理            | [main.js:54-55](../../../src/electron/main.js#L54-L55)     |
-| 开发版   | `ROOT_DIR/data`(仓库根)                                                                                     | [main.js:56](../../../src/electron/main.js#L56)            |
-| 环境变量 | `process.env.SONG_PLUGIN_DATA_DIR = dataDir`、`process.env.ELECTRON_DESKTOP = '1'`、`HOST` 缺省 `127.0.0.1` | [main.js:211-213](../../../src/electron/main.js#L211-L213) |
+| 事实     | 值                                                                                                          | 出处                                                               |
+| -------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| 打包版   | `%APPDATA%/com.aurorawhisperer.lira/data` — 与可替换的安装目录分离，普通升级和卸载不删除                     | [desktop-user-data.js](../../../src/electron/desktop-user-data.js) |
+| 开发版   | `ROOT_DIR/data`(仓库根)，保持现有开发数据和脚本行为                                                          | [desktop-user-data.js](../../../src/electron/desktop-user-data.js) |
+| 日志     | `path.dirname(dataDir)/logs`；打包版为 `%APPDATA%/com.aurorawhisperer.lira/logs`                             | [main.js](../../../src/electron/main.js)                           |
+| 环境变量 | `process.env.SONG_PLUGIN_DATA_DIR = dataDir`、`process.env.ELECTRON_DESKTOP = '1'`、`HOST` 缺省 `127.0.0.1` | [main.js](../../../src/electron/main.js)                           |
 
 目录树(五库、`music-auth/`、`bilibili-auth/`、`Partitions/`、允许清单)见 [../backend/storage.md](../backend/storage.md) §2 — 本文件不重复成树。
 
-### 3.2 旧数据迁移 migrateUserDataFromAppData
+### 3.2 升级迁移
 
-旧版本把 Chromium 登录分区残留在 `%APPDATA%/LIRA/Partitions/`,升级后用户会丢失登录态。`migrateUserDataFromAppData`([main.js:218-234](../../../src/electron/main.js#L218-L234)):当旧路径存在且新路径不存在时 `fs.cpSync(oldPartitions, newPartitions, {recursive:true})`;失败仅记日志、不阻断启动(非致命)。
+v1.5.6–v4.0.15 打包版把全部数据放在 `<安装目录>/data`，旧卸载器会在升级时替换该目录。新版 NSIS `customInit` 在旧卸载器运行前把整棵目录复制到稳定路径旁的 `data.migration`，仅当 `robocopy` 返回 0–7 时用同卷 `Rename` 发布；失败会清理临时目录、中止安装并保留旧源。稳定目标已存在时不覆盖。
+
+`desktop-user-data.js` 在 Electron 使用新目录前提供第二道一次性迁移，覆盖手工替换程序等未经过 NSIS 的场景：复制到唯一同级 staging 目录、成功后原子 `rename`，失败清理本轮 staging 并停止应用启动。旧 `%APPDATA%/LIRA/Partitions/` 的更早期登录分区仍由 `migrateUserDataFromAppData` 在目标缺失时兼容复制。决策与失败模式见 ADR [0013](../adr/0013-persistent-desktop-user-data.md)。
 
 ## 4. 主窗口
 

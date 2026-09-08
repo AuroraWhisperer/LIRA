@@ -154,6 +154,16 @@ function sendGiftLedgerResponse(context, request, res, operation) {
       range: query?.get?.('range') || '30d',
       limit: query?.get?.('limit') || undefined,
       cursor: query?.get?.('cursor') || null,
+      ...(operation === 'getHistory'
+        ? {
+            sortField: query?.has?.('sortField')
+              ? query.get('sortField')
+              : undefined,
+            sortDirection: query?.has?.('sortDirection')
+              ? query.get('sortDirection')
+              : undefined,
+          }
+        : {}),
     });
     sendJson(res, 200, { ok: true, data });
   } catch (error) {
@@ -169,7 +179,9 @@ function sendGiftLedgerResponse(context, request, res, operation) {
       error?.code === 'INVALID_GIFT_QUERY' ||
       error?.code === 'INVALID_GIFT_RANGE' ||
       error?.code === 'INVALID_GIFT_LIMIT' ||
-      error?.code === 'INVALID_GIFT_CURSOR'
+      error?.code === 'INVALID_GIFT_CURSOR' ||
+      error?.code === 'INVALID_GIFT_SORT_FIELD' ||
+      error?.code === 'INVALID_GIFT_SORT_DIRECTION'
     ) {
       sendJson(res, 400, {
         ok: false,
