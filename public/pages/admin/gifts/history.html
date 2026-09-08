@@ -66,9 +66,17 @@
       >正在加载…</span
     >
     <table class="gift-history-table">
+      <colgroup>
+        <col class="gift-history-time-col" />
+        <col class="gift-history-name-col" />
+        <col class="gift-history-count-col" />
+        <col class="gift-history-money-col" />
+        <col class="gift-history-user-col" />
+        <col class="gift-history-remarks-col" />
+      </colgroup>
       <thead>
         <tr>
-          <th data-sort="created_at" aria-sort="descending" tabindex="0">时间<span class="sort-arrow" aria-hidden="true"> ▼</span></th>
+          <th data-sort="created_at" aria-sort="none" tabindex="0">时间<span class="sort-arrow" aria-hidden="true"></span></th>
           <th data-sort="gift_name" aria-sort="none" tabindex="0">礼物<span class="sort-arrow" aria-hidden="true"></span></th>
           <th>数量</th>
           <th data-sort="price" aria-sort="none" tabindex="0">金额<span class="sort-arrow" aria-hidden="true"></span></th>

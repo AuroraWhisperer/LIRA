@@ -7,7 +7,6 @@ import {
   escapeAttr,
   escapeHtml,
   formatDateTime,
-  formatMoney,
   readJsonResponse,
   toast,
 } from '../../shared/utils.js';
@@ -29,8 +28,8 @@ export function createGiftLedgerState() {
     page: 1,
     items: [],
     hasMore: false,
-    sortField: DEFAULT_HISTORY_SORT_FIELD,
-    sortDirection: DEFAULT_HISTORY_SORT_DIRECTION,
+    sortField: null,
+    sortDirection: null,
     total: 0,
     totalPages: 1,
   };
@@ -51,8 +50,9 @@ export function buildGiftHistoryUrl({
   params.set('limit', String(limit));
   if (cursor) params.set('cursor', cursor);
   if (
-    sortField !== DEFAULT_HISTORY_SORT_FIELD ||
-    sortDirection !== DEFAULT_HISTORY_SORT_DIRECTION
+    sortField &&
+    (sortField !== DEFAULT_HISTORY_SORT_FIELD ||
+      sortDirection !== DEFAULT_HISTORY_SORT_DIRECTION)
   ) {
     params.set('sortField', sortField);
     params.set('sortDirection', sortDirection);
@@ -113,8 +113,12 @@ export function initGiftHistoryDrawer() {
     if (!sort) return;
     const applySort = () => {
       if (giftLedgerState.sortField === sort) {
-        giftLedgerState.sortDirection =
-          giftLedgerState.sortDirection === 'asc' ? 'desc' : 'asc';
+        if (giftLedgerState.sortDirection === 'asc') {
+          giftLedgerState.sortDirection = 'desc';
+        } else {
+          giftLedgerState.sortField = null;
+          giftLedgerState.sortDirection = null;
+        }
       } else {
         giftLedgerState.sortField = sort;
         giftLedgerState.sortDirection = 'asc';
@@ -272,6 +276,12 @@ function renderGiftHistory() {
   updatePagination(false);
 }
 
+function formatHistoryMoney(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number <= 0) return '¥0.0';
+  return `¥${number.toFixed(1)}`;
+}
+
 function renderGiftHistoryRow(item) {
   const gift = item?.gift || {};
   const price = Number(gift.totalPrice || 0);
@@ -287,7 +297,7 @@ function renderGiftHistoryRow(item) {
       const profitClass =
         blindProfit > 0 ? 'profit-up' : blindProfit < 0 ? 'profit-down' : '';
       remarks.push(
-        `<span class="gift-remark-tag blind ${profitClass}">盲盒 ${profitSign}${formatMoney(Math.abs(Number(blindProfit) || 0))}</span>`,
+        `<span class="gift-remark-tag blind ${profitClass}">盲盒 ${profitSign}${formatHistoryMoney(Math.abs(Number(blindProfit) || 0))}</span>`,
       );
     }
   }
@@ -302,7 +312,7 @@ function renderGiftHistoryRow(item) {
       <td>${formatDateTime(gift.createdAt)}</td>
       <td class="gift-name-cell" title="${escapeAttr(gift.giftName || '')}">${escapeHtml(gift.giftName || '未知礼物')}</td>
       <td>${Number(gift.num || 1)}</td>
-      <td>${formatMoney(price)}</td>
+      <td>${formatHistoryMoney(price)}</td>
       <td class="gift-user-cell" title="${escapeAttr(gift.userName || '')}">${escapeHtml(gift.userName || '观众')}</td>
       <td>${remarks.length ? remarks.join(' ') : '<span class="hint">—</span>'}</td>
     </tr>
