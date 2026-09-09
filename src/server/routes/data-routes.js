@@ -36,6 +36,55 @@ function resumeClearAllWriters(context) {
   }
 }
 
+async function clearGiftDatabases(context, request, res) {
+  const body = await request.body();
+  if (body.confirm !== true) {
+    sendJson(res, 400, { ok: false, error: '缺少清空确认。' });
+    return;
+  }
+  if (typeof context.giftSync?.clearRemote !== 'function') {
+    sendJson(res, 503, {
+      ok: false,
+      error: '服务器礼物流水清理不可用，本地数据未删除。',
+    });
+    return;
+  }
+
+  let remoteResult;
+  try {
+    remoteResult = await context.giftSync.clearRemote();
+  } catch {
+    sendJson(res, 502, {
+      ok: false,
+      error: '服务器礼物流水清理失败，本地数据未删除。',
+    });
+    return;
+  }
+
+  let result;
+  try {
+    result = context.data.clearGifts();
+  } catch {
+    triggerGiftRebuild(context);
+    sendJson(res, 500, {
+      ok: false,
+      partial: true,
+      error: '服务器礼物流水已清空，但本地清理失败，正在重新同步。',
+    });
+    return;
+  }
+
+  triggerGiftRebuild(context);
+  context.broadcastSnapshot('database:clear-gifts');
+  sendJson(res, 200, {
+    ok: true,
+    data: {
+      ...result,
+      remoteDeletedCounts: remoteResult.deletedCounts,
+    },
+  });
+}
+
 const routes = {
   'POST /api/database/clear': clearRoute(
     (context) => context.data.clearSongLibrary(),
@@ -49,10 +98,7 @@ const routes = {
     (context) => context.data.clearPlayback(),
     'database:clear-playback',
   ),
-  'POST /api/database/clear-gifts': clearRoute(
-    (context) => context.data.clearGifts(),
-    'database:clear-gifts',
-  ),
+  'POST /api/database/clear-gifts': clearGiftDatabases,
 
   // 清空全部：需要静默异步写入器并处理部分失败
   async 'POST /api/database/clear-all'(context, request, res) {

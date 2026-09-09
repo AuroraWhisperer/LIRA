@@ -428,7 +428,7 @@ test('gift recovery uses the fixed Device endpoint and bounded cursor query', as
   assert.equal(requests[0].init.body, undefined);
 });
 
-test('gift history and epoch-aware recovery use fixed abortable Device endpoints', async () => {
+test('gift history, clear, and epoch-aware recovery use fixed abortable Device endpoints', async () => {
   const requests = [];
   const client = createRemoteLicenseClient({
     baseUrl: 'https://api.lirahub.cn',
@@ -436,7 +436,13 @@ test('gift history and epoch-aware recovery use fixed abortable Device endpoints
       requests.push({ url, init });
       const pathname = new URL(url).pathname;
       const body =
-        pathname === '/api/device/gift-history'
+        pathname === '/api/device/gift-history/clear'
+          ? {
+              ok: true,
+              deletedCounts: { giftEvents: 12, giftEventDeliveries: 10 },
+              syncEpoch: 'epoch-2',
+            }
+          : pathname === '/api/device/gift-history'
           ? {
               ok: true,
               events: [],
@@ -470,6 +476,9 @@ test('gift history and epoch-aware recovery use fixed abortable Device endpoints
     'device-token',
     { signal: historyAbort.signal },
   );
+  await client.clearGiftHistory('device-token', {
+    signal: historyAbort.signal,
+  });
   await client.getGiftEvents(8, 200, 'device-token', {
     syncEpoch: 'epoch-1',
     signal: recoveryAbort.signal,
@@ -479,10 +488,16 @@ test('gift history and epoch-aware recovery use fixed abortable Device endpoints
   assert.equal(historyUrl.pathname, '/api/device/gift-history');
   assert.equal(historyUrl.searchParams.get('pageToken'), 'opaque page/+ token');
   assert.equal(requests[0].init.signal.aborted, false);
-  const recoveryUrl = new URL(requests[1].url);
+  const clearUrl = new URL(requests[1].url);
+  assert.equal(clearUrl.pathname, '/api/device/gift-history/clear');
+  assert.equal(clearUrl.search, '');
+  assert.equal(requests[1].init.method, 'POST');
+  assert.equal(requests[1].init.body, JSON.stringify({ confirm: true }));
+  assert.equal(requests[1].init.signal.aborted, false);
+  const recoveryUrl = new URL(requests[2].url);
   assert.equal(recoveryUrl.searchParams.get('after'), '8');
   assert.equal(recoveryUrl.searchParams.get('syncEpoch'), 'epoch-1');
-  assert.equal(requests[1].init.signal.aborted, false);
+  assert.equal(requests[2].init.signal.aborted, false);
   assert.equal(
     requests.every(({ init }) => init.headers.Authorization === 'Bearer device-token'),
     true,

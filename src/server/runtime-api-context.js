@@ -16,7 +16,10 @@ function createRuntimeApiContextFactory(options = {}) {
       broadcastSnapshot: options.broadcastSnapshot,
       broadcastGiftEffectPreview: options.broadcastGiftEffectPreview,
       requestCloudSync: options.requestCloudSync,
-      giftSync: { rebuild: options.rebuildGiftProjection },
+      giftSync: {
+        rebuild: options.rebuildGiftProjection,
+        clearRemote: options.clearRemoteGiftHistory,
+      },
       domainServices,
       publishLyricState: musicRuntime.publishLyricState,
       publishLyricTimeline: musicRuntime.publishLyricTimeline,

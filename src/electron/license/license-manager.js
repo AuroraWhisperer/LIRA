@@ -541,6 +541,7 @@ function createLicenseManager(options = {}) {
 
   const {
     clearBilibiliCredentialsInternal,
+    clearGiftHistoryInternal,
     deleteSongPageBackground,
     getBilibiliCredentialsInternal,
     getCloudSongs,
@@ -588,6 +589,7 @@ function createLicenseManager(options = {}) {
     getGiftCatalog,
     getGiftEventsInternal,
     getGiftHistoryInternal,
+    clearGiftHistoryInternal,
     getSongPageBackground,
     uploadSongPageBackground,
     deleteSongPageBackground,

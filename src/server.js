@@ -94,6 +94,7 @@ function createServerRuntime(runtimeOptions = {}) {
   let shutdownPromise = null;
   let sessionToken = '';
   let rebuildGiftProjection = () => false;
+  let clearRemoteGiftHistory = null;
   let blindBoxMappingState = null;
   const cloudSyncListeners = new Set();
   const inflightTracker = createInflightTracker();
@@ -132,6 +133,10 @@ function createServerRuntime(runtimeOptions = {}) {
         typeof options.giftSync?.rebuild === 'function'
           ? options.giftSync.rebuild
           : () => false;
+      clearRemoteGiftHistory =
+        typeof options.giftSync?.clearRemote === 'function'
+          ? options.giftSync.clearRemote
+          : null;
       const reportPhase =
         typeof runtimeOptions.onPhase === 'function'
           ? runtimeOptions.onPhase
@@ -286,6 +291,12 @@ function createServerRuntime(runtimeOptions = {}) {
     broadcastGiftEffectPreview: (payload) => webSocketHub.broadcast(payload),
     requestCloudSync,
     rebuildGiftProjection: () => rebuildGiftProjection(),
+    clearRemoteGiftHistory: () => {
+      if (typeof clearRemoteGiftHistory !== 'function') {
+        throw new Error('REMOTE_GIFT_CLEAR_UNAVAILABLE');
+      }
+      return clearRemoteGiftHistory();
+    },
     getDomainServices: () => domainServices,
     getMusicRuntime: () => musicRuntime,
     getBilibiliRuntime: () => bilibiliRuntime,
@@ -533,6 +544,7 @@ function createServerRuntime(runtimeOptions = {}) {
     applicationInitialized = false;
     publishOvertimeUpdate = () => {};
     rebuildGiftProjection = () => false;
+    clearRemoteGiftHistory = null;
   }
 
   function closeHttpServer() {

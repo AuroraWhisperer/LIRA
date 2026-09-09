@@ -664,6 +664,19 @@ test('SEND_GIFT_V2 progress and COMBO_SEND final produce one cumulative event', 
   }
 });
 
+test('gift star progress commands are ignored as non-gift state events', () => {
+  for (const cmd of [
+    'GIFT_STAR_PROCESS',
+    'WIDGET_GIFT_STAR_PROCESS',
+    'WIDGET_GIFT_STAR_PROCESS_V2',
+  ]) {
+    assert.equal(
+      packetParser.isBilibiliGiftLikeCommand(cmd, new Set()),
+      false,
+    );
+  }
+});
+
 test('COMBO_END does not create a second gift event', () => {
   const dataDir = fs.mkdtempSync(
     path.join(os.tmpdir(), 'song-plugin-gift-combo-end-'),

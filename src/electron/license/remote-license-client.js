@@ -301,6 +301,16 @@ function createRemoteLicenseClient(options = {}) {
     );
   }
 
+  function clearGiftHistory(token, options = {}) {
+    return request(
+      'POST',
+      '/api/device/gift-history/clear',
+      { confirm: true },
+      token,
+      options,
+    );
+  }
+
   function watchGiftEvents(token, options = {}) {
     return readEventStream(
       '/api/device/gift-events/stream',
@@ -334,6 +344,7 @@ function createRemoteLicenseClient(options = {}) {
     watchCloudStateChanges,
     getGiftEvents,
     getGiftHistory,
+    clearGiftHistory,
     watchGiftEvents,
     updateCloudSettings: (settings, token, requestOptions) =>
       request('PUT', '/api/device/cloud-settings', settings, token, requestOptions),

@@ -81,10 +81,12 @@ test('server API context keeps route domains explicit and publishes lyric state'
     theme: { get: noop },
   };
   const published = [];
+  const clearRemote = () => {};
   const context = createApiContext({
     maxBodyBytes: 1024,
     sessionToken: 'session-token',
     broadcastSnapshot: noop,
+    giftSync: { clearRemote },
     domainServices,
     publishLyricState: (state) => published.push(state),
     publishLyricTimeline: noop,
@@ -140,6 +142,7 @@ test('server API context keeps route domains explicit and publishes lyric state'
   assert.equal(context.sessionToken, 'session-token');
   assert.equal(context.songs.list, domainServices.songs.list);
   assert.equal(context.gifts.clearRecent, domainServices.gifts.clearRecent);
+  assert.equal(context.giftSync.clearRemote, clearRemote);
   assert.equal('debug' in context, false);
   assert.equal(context.playback, domainServices.playback);
   context.playbackLyrics.publish({ trackTitle: '测试' });

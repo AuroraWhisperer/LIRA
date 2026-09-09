@@ -29,10 +29,13 @@ the old live-event compatibility behavior and the client reports
 - Super Chat is excluded and remains in its existing independent subsystem.
 - The first statistics release supports `7d`, `30d`, `90d`, and `all` ranges.
 - "Clear display" resets filters and does not delete projected ledger rows.
-- Database-level gift clearing remains available, but atomically clears the
-  local projection and synchronization state and then bootstraps again.
-- Server gift ledger and delivery outbox rows are retained permanently in this
-  protocol version. Deletion/tombstone synchronization is outside this change.
+- Database-level gift clearing is an explicit destructive action that first
+  clears the authenticated Streamer's complete server ledger/outbox, then
+  atomically clears the matching local projection and synchronization state.
+- Normal retention keeps server gift ledger and delivery outbox rows
+  permanently. The whole-ledger clear action is the only gift deletion
+  exception; single-row deletion, correction, and time-based retention remain
+  outside this change.
 - Unique supporter counts are excluded because the display DTO intentionally
   contains no stable viewer identifier.
 
@@ -225,6 +228,28 @@ If `historyBootstrapVersion` is absent, the controller can retain compatible
 live final delivery but sets `LEGACY_PARTIAL`; it does not mark bootstrap
 complete or report complete statistics.
 
+## Server-Linked Clear Contract
+
+The main-process remote client exposes a fixed, DeviceBearer-protected
+`POST /api/device/gift-history/clear` call with the exact body
+`{confirm: true}`. The server derives the target only from the authenticated
+Device, rejects tenant selectors and extra fields, stops that Streamer's gift
+monitor/detector, and uses one tenant SQLite transaction to delete all
+`gift_events` plus their delivery rows, reset their sequences, set
+`legacyFinalMaxId=0`, and rotate `syncEpoch`. After commit it closes the
+tenant's existing gift SSE connections and resumes monitoring. No other tenant
+or data domain is touched.
+
+The local `POST /api/database/clear-gifts` route awaits that remote action
+before mutating the local projection. A remote error, unavailable endpoint, or
+invalid success response leaves all local rows intact. After remote success,
+the local clear increments the current source projection generation, removes
+that source's rows and derived settlements, resets sync state, and starts a
+fresh bootstrap against the now-empty server ledger. If the local transaction
+fails after the remote commit, the route reports a partial result and starts
+reconciliation; the rotated epoch prevents old local state from being accepted
+as current.
+
 ## Local Query And UI Contract
 
 `GET /api/gifts/history` resolves `activeSourceId` internally and accepts
@@ -267,6 +292,8 @@ New renderer modules use named ESM imports/exports and do not add to `window.Adm
 - Tokens and authorization epoch remain in Electron main only.
 - Renderer-facing routes have no source selector and fail closed while there is
   no verified active source or while source switching is in progress.
+- The renderer cannot call the remote clear endpoint or provide its Device
+  token, Streamer identity, source identity, or remote request body.
 - SQL is parameterized; sort/range fields use explicit allowlists.
 - Wire objects are validated against explicit field allowlists and bounded
   lengths before storage.
@@ -280,6 +307,8 @@ New renderer modules use named ESM imports/exports and do not add to `window.Adm
 - The original no-replay baseline remains the compatibility contract for old
   servers and old clients. This specification supersedes that baseline only for
   a capable new client/server pair.
+- A server without the clear action cannot satisfy a database clear request;
+  the client reports the remote failure and deliberately preserves local data.
 - No Redis, worker, pre-aggregation table, export-all endpoint, tombstone
   protocol, unique supporter metric, or renderer credential access is added.
 - Performance architecture changes require measured failure of the documented
@@ -311,8 +340,11 @@ New renderer modules use named ESM imports/exports and do not add to `window.Adm
     with a composite keyset, and never accepts renderer `sourceId`.
 11. Statistics use integer cents and the fixed time/range/blind-box semantics;
     only fully validated LIVE results report `partial=false`.
-12. Clear-display changes no rows. Database gift/all clear resets projection
-    generation and sync state in the same transaction and starts bootstrap.
+12. Clear-display changes no rows. Database gift clear first removes the
+    authenticated Streamer's complete server ledger/outbox and rotates its
+    epoch, then resets the matching local projection generation and sync state
+    in one transaction and starts bootstrap. Remote failure leaves local rows
+    unchanged; no request field can select another tenant.
 13. Retention does not delete remote-source rows, and legacy null-source rows do
     not enter active-source results.
 14. Remote DTOs and logs contain none of the prohibited identity, raw, internal,
@@ -334,7 +366,8 @@ New renderer modules use named ESM imports/exports and do not add to `window.Adm
 ## Done When
 
 - Storage, canonical contract, importer, controller/fence, principal-switch,
-  query/statistics, clear/rebuild, retention, API, and renderer tests pass.
+  query/statistics, remote-first clear/rebuild, retention, API, and renderer
+  tests pass.
 - Shared fixture tests pass once the server fixture is present.
 - Architecture, prior-design relationship, endpoint/storage documentation, and
   specification index reflect the implemented runtime.

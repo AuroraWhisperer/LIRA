@@ -320,6 +320,12 @@ async function startDesktopApp() {
     },
     giftSync: {
       rebuild: () => remoteGiftController?.start() ?? false,
+      clearRemote: () => {
+        if (!licenseManager?.clearGiftHistoryInternal) {
+          throw new Error('LICENSE_NOT_AUTHORIZED');
+        }
+        return licenseManager.clearGiftHistoryInternal();
+      },
     },
     remoteGiftCatalog: {
       // The callback is evaluated after the license manager is created. It

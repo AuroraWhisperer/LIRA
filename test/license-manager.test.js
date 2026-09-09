@@ -32,6 +32,7 @@ function createHarness({
     giftEventRequests: [],
     giftEventOptions: [],
     giftHistoryRequests: [],
+    giftHistoryClearRequests: [],
     giftWatchRequests: [],
   };
   const generated = crypto.generateKeyPairSync('ec', {
@@ -134,6 +135,14 @@ function createHarness({
         recoveryCursor: 4,
         syncEpoch: 'epoch-1',
         historyBootstrapVersion: 1,
+      };
+    },
+    clearGiftHistory: async (token, options) => {
+      calls.giftHistoryClearRequests.push({ token, options });
+      return {
+        ok: true,
+        deletedCounts: { giftEvents: 12, giftEventDeliveries: 10 },
+        syncEpoch: 'epoch-2',
       };
     },
     watchGiftEvents: async (token, options) => {
@@ -352,6 +361,7 @@ test('internal gift operations use the current authorized token and bypass publi
     pageToken,
     signal,
   });
+  const cleared = await manager.clearGiftHistoryInternal({ signal });
   await manager.watchGiftEventsInternal({ signal, onEvent() {} });
 
   assert.deepEqual(page, {
@@ -369,6 +379,13 @@ test('internal gift operations use the current authorized token and bypass publi
   assert.equal(calls.giftHistoryRequests[0].pageToken, pageToken);
   assert.equal(calls.giftHistoryRequests[0].token, 'token');
   assert.equal(calls.giftHistoryRequests[0].options.signal, signal);
+  assert.deepEqual(cleared, {
+    ok: true,
+    deletedCounts: { giftEvents: 12, giftEventDeliveries: 10 },
+    syncEpoch: 'epoch-2',
+  });
+  assert.equal(calls.giftHistoryClearRequests[0].token, 'token');
+  assert.equal(calls.giftHistoryClearRequests[0].options.signal, signal);
   assert.equal(calls.giftWatchRequests.length, 1);
   assert.equal(calls.giftWatchRequests[0].token, 'token');
   assert.equal(calls.giftWatchRequests[0].options.signal, signal);
@@ -402,6 +419,24 @@ test('internal gift operations reject coerced and oversized cursors before remot
 
   assert.deepEqual(calls.giftEventRequests, []);
   assert.deepEqual(calls.giftHistoryRequests, []);
+  manager.dispose();
+});
+
+test('internal gift clear rejects malformed server success responses', async () => {
+  const { manager, remote } = createHarness({
+    identity: { deviceId: 'd', publicKeyPem: 'public' },
+  });
+  await manager.bootstrap();
+  remote.clearGiftHistory = async () => ({
+    ok: true,
+    deletedCounts: { giftEvents: '12', giftEventDeliveries: 10 },
+    syncEpoch: 'epoch-2',
+  });
+
+  await assert.rejects(
+    manager.clearGiftHistoryInternal(),
+    (error) => error.code === 'INVALID_RESPONSE' && error.retryable === true,
+  );
   manager.dispose();
 });
 

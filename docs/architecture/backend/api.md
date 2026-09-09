@@ -66,8 +66,10 @@ Electron main process 通过 [remote-license-client.js](../../../src/electron/li
 | `GET /api/device/songs` | revision 变化后拉取最多 5000 首的完整云端歌库。 |
 | `PUT /api/device/songs/sync` | 上传本地完整歌库并推进云端 song revision。 |
 | `GET/PUT/DELETE /api/device/bilibili-credentials` | 在 Electron main 与云端间读取、上传或清除 Bilibili 登录凭据；这些方法不进入本地 HTTP、preload 或 renderer。 |
+| `GET /api/device/gift-history`、`GET /api/device/gift-events`、`GET /api/device/gift-events/stream` | 构建当前认证主播的本地礼物投影，并以 epoch/cursor 对账和 SSE 在线加速保持连续。 |
+| `POST /api/device/gift-history/clear` | 以固定 `{confirm:true}` 清空当前认证主播的服务端礼物 ledger/outbox；只由 Electron main 调用，不接收租户选择字段。 |
 
-本地 renderer 仍只调用既有 `/api/settings`、`/api/songs/*` 与 `/api/database/clear`。这些写入成功后通过运行时内部 `requestCloudSync(scope)` 通知 [cloud-sync-controller.js](../../../src/electron/cloud-sync-controller.js) 标记 dirty；云端应用使用 `applyCloudSettingsSnapshot` / `replaceCloudSongsSnapshot` 直接写本地 owner，不再发出 dirty 回声。授权后立即同步、SSE 失效通知、10 分钟自动兜底、resume/重连同步和冲突规则见 [../desktop/main.md](../desktop/main.md) §2.2。
+本地 renderer 仍只调用既有 `/api/settings`、`/api/songs/*` 与 `/api/database/*`，不持有远端凭据。云端 scope 写入成功后通过运行时内部 `requestCloudSync(scope)` 通知 [cloud-sync-controller.js](../../../src/electron/cloud-sync-controller.js) 标记 dirty；云端应用使用 `applyCloudSettingsSnapshot` / `replaceCloudSongsSnapshot` 直接写本地 owner，不再发出 dirty 回声。授权后立即同步、SSE 失效通知、10 分钟自动兜底、resume/重连同步和冲突规则见 [../desktop/main.md](../desktop/main.md) §2.2。
 
 ---
 
@@ -359,7 +361,7 @@ handler 未包 try/catch:抛错走顶层 **500**。
 | `POST /api/database/clear`            | `{confirm: true}`                                                                                            | 清点歌库(songs/分类/导入批次,保留 settings 与主题);广播 `database:clear`            | 400                             |
 | `POST /api/database/clear-superchats` | `{confirm: true}`                                                                                            | 清 SC 库;广播 `database:clear-superchats`                                           | 400                             |
 | `POST /api/database/clear-playback`   | `{confirm: true}`                                                                                            | 清播放历史与队列态(保留收藏/歌单);广播 `database:clear-playback`                    | 400                             |
-| `POST /api/database/clear-gifts`      | `{confirm: true}`                                                                                            | 清礼物事件+结算流水(保留加班机状态/规则);广播 `database:clear-gifts`                | 400                             |
+| `POST /api/database/clear-gifts`      | `{confirm: true}`                                                                                            | 先清当前 Device 认证主播的服务器礼物 ledger/outbox，再清当前本地 source 的礼物事件+结算流水并重建空投影；保留加班机状态/规则；广播 `database:clear-gifts` | 400、502/503(服务器未清理，本地不删除)、500(服务器已清理但本地失败) |
 | `POST /api/database/clear-all`        | `{confirm: true}`                                                                                            | **清五库全部业务数据**(见 §12.1);调用前静默异步写入器;成功广播 `database:clear-all` | 400、**500**(部分失败,见 §12.1) |
 | `GET /api/database/stats`             | 无                                                                                                           | `{schemaVersions, tables}`(各库版本 + 保留期统计行数/时间范围/raw_json 字节数)      | —                               |
 | `POST /api/database/retention`        | `{dryRun?`, `confirm?`, `policy?}`:`dryRun: true` 只统计不删除(**免 confirm**,不广播);否则需 `confirm: true` | 保留策略执行统计;非 dryRun 广播 `database:retention`                                | 400(`缺少清理确认。`)           |

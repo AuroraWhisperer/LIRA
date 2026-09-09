@@ -51,7 +51,13 @@ function isBilibiliGiftCommand(cmd, runtimeGiftPrefixes) {
 
 function isBilibiliGiftLikeCommand(cmd, runtimeGiftPrefixes) {
   const text = String(cmd || '');
-  if (text.startsWith('COMBO_END')) return false;
+  if (
+    text.startsWith('COMBO_END') ||
+    text.startsWith('GIFT_STAR_PROCESS') ||
+    text.startsWith('WIDGET_GIFT_STAR_PROCESS')
+  ) {
+    return false;
+  }
   return (
     isBilibiliGiftCommand(text, runtimeGiftPrefixes) ||
     text.includes('GIFT') ||

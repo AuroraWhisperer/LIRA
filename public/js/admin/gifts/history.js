@@ -217,10 +217,10 @@ function resetGiftLedgerPagination(state) {
 
 async function clearGiftDatabase() {
   const confirmed = await dangerConfirm({
-    title: '清空数据库礼物记录',
+    title: '清空本地和服务器礼物流水',
     message:
-      '此操作会删除全部礼物流水并重新同步当前账号的历史记录。同步完成前历史记录可能不完整。',
-    confirmLabel: '确认清空',
+      '此操作会永久删除当前账号在本地和服务器上的全部礼物流水，其他设备也会在下次同步时清空，且无法恢复。若服务器清理失败，本地数据不会删除。',
+    confirmLabel: '全部清空',
   });
   if (!confirmed) return;
 
@@ -234,7 +234,7 @@ async function clearGiftDatabase() {
     if (!response.ok || !payload.ok) {
       throw new Error(payload.error || '清空礼物失败');
     }
-    toast('礼物数据库已清空，正在重新同步');
+    toast('本地和服务器礼物流水已清空');
     resetGiftLedgerPagination(giftLedgerState);
     loadGiftHistory();
   } catch (error) {

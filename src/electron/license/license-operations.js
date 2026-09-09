@@ -119,6 +119,45 @@ function createLicenseOperations(options = {}) {
     );
   }
 
+  async function clearGiftHistoryInternal(input = {}) {
+    return withAuthorizedToken(
+      async (token) => {
+        const result = await remote.clearGiftHistory(token, {
+          signal: input.signal,
+        });
+        const deletedCounts = result?.deletedCounts;
+        const syncEpoch = result?.syncEpoch;
+        if (
+          result?.ok !== true ||
+          !deletedCounts ||
+          !Number.isSafeInteger(deletedCounts.giftEvents) ||
+          deletedCounts.giftEvents < 0 ||
+          !Number.isSafeInteger(deletedCounts.giftEventDeliveries) ||
+          deletedCounts.giftEventDeliveries < 0 ||
+          typeof syncEpoch !== 'string' ||
+          !syncEpoch ||
+          syncEpoch.length > 128
+        ) {
+          throw new RemoteLicenseError(
+            'INVALID_RESPONSE',
+            '授权服务器返回无效响应。',
+            { retryable: true },
+          );
+        }
+        return {
+          ok: true,
+          deletedCounts: {
+            giftEvents: deletedCounts.giftEvents,
+            giftEventDeliveries: deletedCounts.giftEventDeliveries,
+          },
+          syncEpoch,
+        };
+      },
+      0,
+      false,
+    );
+  }
+
   async function watchGiftEventsInternal(options = {}) {
     return withAuthorizedToken(
       (token) => remote.watchGiftEvents(token, options),
@@ -237,6 +276,7 @@ function createLicenseOperations(options = {}) {
 
   return {
     clearBilibiliCredentialsInternal,
+    clearGiftHistoryInternal,
     deleteSongPageBackground,
     getBilibiliCredentialsInternal,
     getCloudSongs,

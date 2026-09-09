@@ -325,6 +325,12 @@ test('gift history always requests all dates and never exposes source identity',
   assert.doesNotMatch(source, /\/api\/gifts\/statistics/);
   assert.doesNotMatch(source, /sourceId|source_id/);
   assert.doesNotMatch(source, /giftHistorySearch|data-gift-range|syncedAt/);
+  assert.match(source, /清空本地和服务器礼物流水/);
+  assert.match(source, /永久删除当前账号在本地和服务器上的全部礼物流水/);
+  assert.match(source, /无法恢复/);
+  assert.match(source, /若服务器清理失败，本地数据不会删除/);
+  assert.match(source, /本地和服务器礼物流水已清空/);
+  assert.doesNotMatch(source, /重新同步当前账号的历史记录/);
   assert.equal(ledger.buildGiftHistoryUrl(), '/api/gifts/history?range=all&limit=50');
   assert.equal(
     ledger.buildGiftHistoryUrl({

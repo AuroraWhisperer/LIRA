@@ -73,6 +73,10 @@ function createApiContext(options) {
         typeof giftSync?.rebuild === 'function'
           ? giftSync.rebuild
           : () => false,
+      clearRemote:
+        typeof giftSync?.clearRemote === 'function'
+          ? giftSync.clearRemote
+          : null,
     },
     overtime: {
       getOverview: domainServices.overtime.getOverview,
