@@ -1,12 +1,13 @@
 'use strict';
 
 const {
-  normalizeProcessedGiftEvent,
+  canonicalizeProcessedGiftEvent,
 } = require('../shared/processed-gift-contract');
 const { createRemoteGiftSourceKey } = require('./remote-gift-cursor-store');
 
 const RECONNECT_MIN_MS = 1000;
 const RECONNECT_MAX_MS = 60_000;
+const RECONCILE_INTERVAL_MS = 10_000;
 const REBUILD_ERROR_CODES = new Set([
   'SYNC_EPOCH_MISMATCH',
   'CURSOR_AHEAD',
@@ -69,6 +70,7 @@ function createRemoteGiftController(options = {}) {
   let streamTask = null;
   let reconnectTimer = null;
   let reconnectDelayMs = RECONNECT_MIN_MS;
+  let reconcileTimer = null;
 
   function isAuthorized() {
     return (
@@ -414,7 +416,7 @@ function createRemoteGiftController(options = {}) {
           if (!ensureFenceCurrent(streamFence)) return;
           let event;
           try {
-            event = normalizeProcessedGiftEvent(input);
+            event = canonicalizeProcessedGiftEvent(input);
           } catch {
             return;
           }
@@ -527,6 +529,7 @@ function createRemoteGiftController(options = {}) {
   }
 
   function requestReconcile(generation) {
+    clearReconcileTimer();
     dirty = true;
     if (reconcileTask && reconcileGeneration === generation) return reconcileTask;
     const task = enqueue(async () => {
@@ -572,6 +575,28 @@ function createRemoteGiftController(options = {}) {
     }
   }
 
+  function scheduleReconcile() {
+    clearReconcileTimer();
+    if (!active || !isAuthorized()) return;
+    const fence = captureFence();
+    const timer = timers.setTimeout(() => {
+      if (reconcileTimer !== timer) return;
+      reconcileTimer = null;
+      if (!ensureFenceCurrent(fence)) return;
+      requestReconcile(fence.controllerGeneration).catch((error) => {
+        void error;
+      });
+    }, RECONCILE_INTERVAL_MS);
+    reconcileTimer = timer;
+    timer.unref?.();
+  }
+
+  function clearReconcileTimer() {
+    if (!reconcileTimer) return;
+    timers.clearTimeout(reconcileTimer);
+    reconcileTimer = null;
+  }
+
   function scheduleReconnect(generation, initialize = false) {
     clearReconnectTimer();
     if (!isGenerationActive(generation) || !isAuthorized()) return;
@@ -594,6 +619,7 @@ function createRemoteGiftController(options = {}) {
 
   function abortRemoteWork() {
     clearReconnectTimer();
+    clearReconcileTimer();
     generationController?.abort();
     generationController = null;
     abortEventStream();
@@ -626,6 +652,14 @@ function createRemoteGiftController(options = {}) {
 
   function setSyncState(nextState) {
     syncState = nextState;
+    if (
+      nextState === GiftSyncState.LIVE ||
+      nextState === GiftSyncState.LEGACY_PARTIAL
+    ) {
+      scheduleReconcile();
+    } else {
+      clearReconcileTimer();
+    }
     publishContext();
   }
 

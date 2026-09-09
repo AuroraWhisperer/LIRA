@@ -6,6 +6,7 @@ const {
   GiftSyncState,
   createRemoteGiftController,
 } = require('../src/electron/remote-gift-controller');
+const { createRemoteLicenseClient } = require('../src/electron/license/remote-license-client');
 
 test('controller bootstraps history, catches recovery cursor, and becomes LIVE', async () => {
   const fixture = createFixture({
@@ -444,6 +445,163 @@ test('a contiguous final SSE is projected before cursor catch-up returns', async
   controller.dispose();
 });
 
+test('validated SSE canonical events reach progress and immediate final handoff', async () => {
+  const encoder = new TextEncoder();
+  let streamController;
+  let delayedRecovery;
+  let recoveryCalls = 0;
+  const receivedEvents = [];
+  const fixture = createFixture({
+    getGiftEventsPage(input) {
+      if (!Object.hasOwn(input, 'after')) {
+        return capabilityPage({ latestCursor: 10 });
+      }
+      recoveryCalls += 1;
+      if (recoveryCalls === 1) {
+        return capabilityPage({ nextCursor: 10, latestCursor: 10 });
+      }
+      delayedRecovery = createDeferred();
+      return delayedRecovery.promise;
+    },
+    importProcessedGiftEvent(event) {
+      receivedEvents.push(event);
+    },
+  });
+  const client = createRemoteLicenseClient({
+    baseUrl: 'https://api.example.test',
+    fetchImpl: async (_url, init) => {
+      const stream = new ReadableStream({
+        start(controller) {
+          streamController = controller;
+          init.signal.addEventListener(
+            'abort',
+            () => controller.close(),
+            { once: true },
+          );
+        },
+      });
+      return new Response(stream, {
+        status: 200,
+        headers: {
+          'content-type': 'text/event-stream; charset=utf-8',
+          'x-lira-gift-sync-epoch': 'epoch-1',
+        },
+      });
+    },
+  });
+  fixture.options.licenseManager.watchGiftEventsInternal = (streamOptions) =>
+    client.watchGiftEvents('device-token', streamOptions);
+  const controller = createRemoteGiftController(fixture.options);
+
+  try {
+    await controller.start();
+    await controller.whenIdle();
+    assert.equal(controller.getStatus().state, GiftSyncState.LIVE);
+
+    const progress = { ...makeEvent('sse-progress', null), phase: 'progress' };
+    streamController.enqueue(
+      encoder.encode(`event: gift-event\ndata: ${JSON.stringify(progress)}\n\n`),
+    );
+    await waitFor(() => receivedEvents.some((event) => event.eventId === 'sse-progress'));
+    const progressEvent = receivedEvents.find((event) => event.eventId === 'sse-progress');
+    assert.equal(progressEvent.cursor, null);
+    assert.equal(progressEvent.gift.unitPriceCents, 10);
+    assert.equal(progressEvent.gift.totalPriceCents, 10);
+
+    streamController.enqueue(
+      encoder.encode(
+        `event: gift-event\ndata: ${JSON.stringify(makeEvent('sse-final', 11))}\n\n`,
+      ),
+    );
+    await waitFor(() => recoveryCalls === 2);
+    await waitFor(() => receivedEvents.some((event) => event.eventId === 'sse-final'));
+
+    const finalEvent = receivedEvents.find((event) => event.eventId === 'sse-final');
+    assert.equal(finalEvent.phase, 'final');
+    assert.equal(finalEvent.gift.totalPriceCents, 10);
+    assert.equal(controller.getCursor(), 10);
+    assert.equal(controller.getStatus().state, GiftSyncState.CATCHING_UP);
+    assert.equal(fixture.timerDelays.some((delay) => delay === 1000), false);
+  } finally {
+    controller.dispose();
+    delayedRecovery?.resolve(capabilityPage({ nextCursor: 10, latestCursor: 10 }));
+    await controller.whenIdle();
+  }
+});
+
+test('gift SSE wire boundary rejects malformed and privacy-sensitive extra fields', async () => {
+  const encoder = new TextEncoder();
+  let streamController;
+  const receivedEvents = [];
+  const fixture = createFixture({
+    importProcessedGiftEvent(event) {
+      receivedEvents.push(event);
+    },
+  });
+  const client = createRemoteLicenseClient({
+    baseUrl: 'https://api.example.test',
+    fetchImpl: async (_url, init) => {
+      const stream = new ReadableStream({
+        start(controller) {
+          streamController = controller;
+          init.signal.addEventListener(
+            'abort',
+            () => controller.close(),
+            { once: true },
+          );
+        },
+      });
+      return new Response(stream, {
+        status: 200,
+        headers: {
+          'content-type': 'text/event-stream; charset=utf-8',
+          'x-lira-gift-sync-epoch': 'epoch-1',
+        },
+      });
+    },
+  });
+  fixture.options.licenseManager.watchGiftEventsInternal = (streamOptions) =>
+    client.watchGiftEvents('device-token', streamOptions);
+  const controller = createRemoteGiftController(fixture.options);
+
+  try {
+    await controller.start();
+    await controller.whenIdle();
+    assert.equal(controller.getStatus().state, GiftSyncState.LIVE);
+
+    const malformed = 'event: gift-event\ndata: {"eventId":\n\n';
+    const topLevelExtra = {
+      ...makeEvent('top-level-extra', 11),
+      uid: 'private-user-id',
+    };
+    const giftExtra = {
+      ...makeEvent('gift-extra', 12),
+      gift: { ...makeEvent('gift-extra', 12).gift, roomId: 'private-room-id' },
+    };
+    const validProgress = { ...makeEvent('valid-progress', null), phase: 'progress' };
+    streamController.enqueue(
+      encoder.encode(
+        [
+          malformed,
+          `event: gift-event\ndata: ${JSON.stringify(topLevelExtra)}\n\n`,
+          `event: gift-event\ndata: ${JSON.stringify(giftExtra)}\n\n`,
+          `event: gift-event\ndata: ${JSON.stringify(validProgress)}\n\n`,
+        ].join(''),
+      ),
+    );
+    await waitFor(() => receivedEvents.some((event) => event.eventId === 'valid-progress'));
+
+    assert.deepEqual(
+      receivedEvents.map((event) => event.eventId),
+      ['valid-progress'],
+    );
+    assert.equal(controller.getStatus().state, GiftSyncState.LIVE);
+  } finally {
+    controller.dispose();
+    await controller.whenIdle();
+  }
+});
+
 test('a failed immediate final projection falls back to cursor catch-up', async () => {
   let immediateAttempts = 0;
   const fixture = createFixture({
@@ -524,6 +682,195 @@ test('a final SSE cursor gap waits for ordered catch-up', async () => {
   controller.dispose();
 });
 
+test('silent open SSE recovers finals and later ticks use the advanced cursor', async () => {
+  let catchUpCalls = 0;
+  const fixture = createFixture({
+    getGiftEventsPage(input) {
+      if (!Object.hasOwn(input, 'after')) return capabilityPage({ latestCursor: 10 });
+      catchUpCalls += 1;
+      if (catchUpCalls === 1) return capabilityPage({ nextCursor: 10, latestCursor: 10 });
+      if (catchUpCalls === 2) {
+        return capabilityPage({
+          events: [makeEvent('silent-final', 11)],
+          nextCursor: 11,
+          latestCursor: 11,
+        });
+      }
+      return capabilityPage({ nextCursor: 11, latestCursor: 11 });
+    },
+  });
+  const controller = createRemoteGiftController(fixture.options);
+
+  await controller.start();
+  await controller.whenIdle();
+
+  const firstTimer = fixture.scheduledTimers.find((timer) => timer.delay === 10_000);
+  assert.ok(firstTimer);
+  firstTimer.callback();
+  await controller.whenIdle();
+
+  assert.deepEqual(fixture.liveImports, ['silent-final']);
+  assert.equal(controller.getCursor(), 11);
+  assert.equal(controller.getStatus().state, GiftSyncState.LIVE);
+
+  const secondTimer = fixture.scheduledTimers.at(-1);
+  assert.notEqual(secondTimer, firstTimer);
+  assert.equal(secondTimer.delay, 10_000);
+  secondTimer.callback();
+  await controller.whenIdle();
+
+  assert.equal(catchUpCalls, 3);
+  assert.deepEqual(fixture.pullCalls, [null, 10, 10, 11]);
+  assert.equal(controller.getCursor(), 11);
+  assert.equal(controller.getStatus().state, GiftSyncState.LIVE);
+  controller.dispose();
+});
+
+test('silent-stream reconciliation does not overlap a pending cursor pull', async () => {
+  let catchUpCalls = 0;
+  const pending = createDeferred();
+  const fixture = createFixture({
+    getGiftEventsPage(input) {
+      if (!Object.hasOwn(input, 'after')) return capabilityPage({ latestCursor: 10 });
+      catchUpCalls += 1;
+      if (catchUpCalls === 1) return capabilityPage({ nextCursor: 10, latestCursor: 10 });
+      return pending.promise;
+    },
+  });
+  const controller = createRemoteGiftController(fixture.options);
+
+  await controller.start();
+  await controller.whenIdle();
+
+  const timer = fixture.scheduledTimers.find((scheduled) => scheduled.delay === 10_000);
+  assert.ok(timer);
+  timer.callback();
+  await waitFor(() => catchUpCalls === 2);
+
+  timer.callback();
+  await Promise.resolve();
+  assert.equal(catchUpCalls, 2);
+  assert.equal(controller.getStatus().state, GiftSyncState.CATCHING_UP);
+
+  pending.resolve(capabilityPage({ nextCursor: 10, latestCursor: 10 }));
+  await controller.whenIdle();
+  assert.equal(controller.getStatus().state, GiftSyncState.LIVE);
+  controller.dispose();
+});
+
+test('stop invalidates a silent-stream reconciliation callback before it pulls', async () => {
+  const fixture = createFixture();
+  const controller = createRemoteGiftController(fixture.options);
+
+  await controller.start();
+  await controller.whenIdle();
+  const timer = fixture.scheduledTimers.find((scheduled) => scheduled.delay === 10_000);
+  assert.ok(timer);
+  const pullCount = fixture.pullCalls.length;
+
+  controller.stop();
+  timer.callback();
+  await controller.whenIdle();
+
+  assert.equal(timer.cleared, true);
+  assert.equal(fixture.pullCalls.length, pullCount);
+  assert.deepEqual(fixture.liveImports, []);
+  assert.equal(controller.getStatus().state, GiftSyncState.OFFLINE);
+  controller.dispose();
+});
+
+test('dispose invalidates a silent-stream reconciliation callback before it writes', async () => {
+  const fixture = createFixture();
+  const controller = createRemoteGiftController(fixture.options);
+
+  await controller.start();
+  await controller.whenIdle();
+  const timer = fixture.scheduledTimers.find((scheduled) => scheduled.delay === 10_000);
+  assert.ok(timer);
+  const pullCount = fixture.pullCalls.length;
+
+  controller.dispose();
+  timer.callback();
+  await controller.whenIdle();
+
+  assert.equal(timer.cleared, true);
+  assert.equal(fixture.pullCalls.length, pullCount);
+  assert.deepEqual(fixture.liveImports, []);
+  assert.equal(controller.getStatus().state, GiftSyncState.OFFLINE);
+});
+
+test('restart invalidates the previous silent-stream callback', async () => {
+  const fixture = createFixture();
+  const controller = createRemoteGiftController(fixture.options);
+
+  await controller.start();
+  await controller.whenIdle();
+  const timer = fixture.scheduledTimers.find((scheduled) => scheduled.delay === 10_000);
+  assert.ok(timer);
+
+  const restarted = controller.start();
+  timer.callback();
+  assert.equal(timer.cleared, true);
+  assert.equal(fixture.liveImports.length, 0);
+  assert.equal(await restarted, true);
+  await controller.whenIdle();
+
+  assert.deepEqual(fixture.liveImports, []);
+  assert.equal(controller.getStatus().state, GiftSyncState.LIVE);
+  controller.dispose();
+});
+
+test('authorization epoch fence rejects a stale silent-stream callback', async () => {
+  const fixture = createFixture();
+  const controller = createRemoteGiftController(fixture.options);
+
+  await controller.start();
+  await controller.whenIdle();
+  const timer = fixture.scheduledTimers.find((scheduled) => scheduled.delay === 10_000);
+  assert.ok(timer);
+  fixture.authorization.epoch += 1;
+  const pullCount = fixture.pullCalls.length;
+
+  timer.callback();
+  await controller.whenIdle();
+
+  assert.equal(fixture.pullCalls.length, pullCount + 2);
+  assert.deepEqual(fixture.liveImports, []);
+  assert.equal(controller.getStatus().state, GiftSyncState.LIVE);
+  controller.dispose();
+});
+
+test('legacy reconciliation remains LEGACY_PARTIAL after a silent-stream pull', async () => {
+  let legacyPulls = 0;
+  const fixture = createFixture({
+    discovery: legacyPage({ nextCursor: 5 }),
+    streamEpoch: null,
+    getGiftEventsPage(input) {
+      if (!Object.hasOwn(input, 'after')) return legacyPage({ nextCursor: 5 });
+      legacyPulls += 1;
+      return legacyPage({
+        events: legacyPulls === 1 ? [makeEvent('legacy-silent', 6)] : [],
+        nextCursor: 6,
+      });
+    },
+  });
+  const controller = createRemoteGiftController(fixture.options);
+
+  await controller.start();
+  await controller.whenIdle();
+
+  const timer = fixture.scheduledTimers.find((scheduled) => scheduled.delay === 10_000);
+  assert.ok(timer);
+  timer.callback();
+  await controller.whenIdle();
+
+  assert.deepEqual(fixture.liveImports, ['legacy-silent']);
+  assert.equal(controller.getCursor(), 6);
+  assert.equal(controller.getStatus().state, GiftSyncState.LEGACY_PARTIAL);
+  assert.equal(fixture.activeContexts.at(-1).partial, true);
+  controller.dispose();
+});
+
 test('repeated transient recovery failures back off and stop invalidates the retry', async () => {
   let attempts = 0;
   const fixture = createFixture({
@@ -541,6 +888,47 @@ test('repeated transient recovery failures back off and stop invalidates the ret
   fixture.scheduledTimers[1].callback();
   await controller.whenIdle();
   assert.equal(attempts, 2);
+  controller.dispose();
+});
+
+test('retryable silent-stream pull uses reconnect backoff and cancels stale polling', async () => {
+  let catchUpCalls = 0;
+  const fixture = createFixture({
+    getGiftEventsPage(input) {
+      if (!Object.hasOwn(input, 'after')) return capabilityPage({ latestCursor: 10 });
+      catchUpCalls += 1;
+      if (catchUpCalls === 2) {
+        throw Object.assign(new Error('REQUEST_TIMEOUT'), { retryable: true });
+      }
+      return capabilityPage({ nextCursor: 10, latestCursor: 10 });
+    },
+  });
+  const controller = createRemoteGiftController(fixture.options);
+
+  await controller.start();
+  await controller.whenIdle();
+  const reconcileTimer = fixture.scheduledTimers.find((timer) => timer.delay === 10_000);
+  assert.ok(reconcileTimer);
+
+  reconcileTimer.callback();
+  await controller.whenIdle();
+
+  assert.equal(controller.getStatus().state, GiftSyncState.ERROR);
+  const reconnectTimer = fixture.scheduledTimers.find(
+    (timer) => timer.delay === 1_000 && !timer.cleared,
+  );
+  assert.ok(reconnectTimer);
+  const pullCount = fixture.pullCalls.length;
+  reconcileTimer.callback();
+  await controller.whenIdle();
+  assert.equal(fixture.pullCalls.length, pullCount);
+
+  reconnectTimer.callback();
+  await controller.whenIdle();
+
+  assert.equal(catchUpCalls, 3);
+  assert.equal(controller.getStatus().state, GiftSyncState.LIVE);
+  assert.deepEqual(fixture.timerDelays, [10_000, 1_000, 10_000]);
   controller.dispose();
 });
 
@@ -802,7 +1190,9 @@ function createFixture(options = {}) {
           scheduledTimers.push(timer);
           return timer;
         },
-        clearTimeout() {},
+        clearTimeout(timer) {
+          timer.cleared = true;
+        },
       },
       now: () => '2026-09-01T02:00:00.000Z',
     },
