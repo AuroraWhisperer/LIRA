@@ -30,7 +30,9 @@ ManifestDPIAware true
   ReadRegStr $R3 SHELL_CONTEXT "${UNINSTALL_REGISTRY_KEY}" "UninstallString"
   StrCpy $R4 $R3 1
   StrCmp $R4 '"' 0 customInitDone
-  !insertmacro GetInQuotes $R4 "$R3"
+  Push "$R3"
+  Call GetInQuotes
+  Pop $R4
   ; An empty/malformed/unknown command is not proof that its executable is missing.
   StrCmp $R4 "" customInitDone
   IfFileExists "$R4" customInitDone

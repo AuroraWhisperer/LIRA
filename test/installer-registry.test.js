@@ -9,7 +9,8 @@ test('installer stale-entry cleanup uses the builder app key, context, and quote
   const source = fs.readFileSync(path.join(__dirname, '../build/installer.nsh'), 'utf8');
   assert.doesNotMatch(source, /EnumRegKey/);
   assert.match(source, /ReadRegStr \$R3 SHELL_CONTEXT "\$\{UNINSTALL_REGISTRY_KEY\}" "UninstallString"/);
-  assert.match(source, /!insertmacro GetInQuotes \$R4 "\$R3"/);
+  assert.match(source, /Push "\$R3"\s+Call GetInQuotes\s+Pop \$R4/);
+  assert.doesNotMatch(source, /!insertmacro GetInQuotes/);
   assert.match(source, /StrCmp \$R4 "" customInitDone\s+IfFileExists "\$R4" customInitDone\s+DeleteRegKey SHELL_CONTEXT "\$\{UNINSTALL_REGISTRY_KEY\}"/);
   assert.doesNotMatch(source, /IfFileExists "\$R3"/);
 });
