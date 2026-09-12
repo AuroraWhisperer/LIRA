@@ -16,14 +16,17 @@ export function createBlessingEditor({ document, saveSetting, toast }) {
 
   let items = [];
   let dirty = false;
+  let editRevision = 0;
+  let saving = false;
 
   const setStatus = (text, kind = '') => {
     elements.status.textContent = text;
     elements.status.className = `hint${kind ? ` ${kind}` : ''}`;
   };
   const markDirty = () => {
+    editRevision += 1;
     dirty = true;
-    elements.saveButton.disabled = false;
+    elements.saveButton.disabled = saving;
     setStatus('有尚未保存的更改', 'warn');
   };
   const render = () => {
@@ -81,31 +84,40 @@ export function createBlessingEditor({ document, saveSetting, toast }) {
     add();
   });
   elements.saveButton.addEventListener('click', async () => {
+    if (saving) return;
     const cleaned = items.map((item) => item.trim()).filter(Boolean);
     if (cleaned.length === 0) {
       toast('请至少保留一条祝福语');
       setStatus('至少需要一条祝福语', 'warn');
       return;
     }
+    const submittedRevision = editRevision;
+    saving = true;
     elements.saveButton.disabled = true;
     setStatus('正在保存');
     try {
       await saveSetting('checkinBlessings', JSON.stringify(cleaned));
-      items = cleaned;
-      dirty = false;
-      render();
-      setStatus(`已保存 ${items.length} 条`, 'good');
+      if (editRevision === submittedRevision) {
+        items = cleaned;
+        dirty = false;
+        render();
+        setStatus(`已保存 ${items.length} 条`, 'good');
+      } else {
+        setStatus('本次已保存，仍有未保存的更改', 'warn');
+      }
       toast('签到祝福语已保存');
     } catch (error) {
-      elements.saveButton.disabled = false;
       setStatus('保存失败', 'warn');
       toast(error.message || '保存祝福语失败');
+    } finally {
+      saving = false;
+      elements.saveButton.disabled = !dirty;
     }
   });
 
   return {
     load(rawValue) {
-      if (dirty) return;
+      if (dirty || saving) return;
       items = parseJsonArray(rawValue)
         .map((item) => String(item || '').trim())
         .filter(Boolean);
@@ -138,14 +150,17 @@ export function createFortuneEditor({ document, saveSetting, toast }) {
   ];
   let items = [];
   let dirty = false;
+  let editRevision = 0;
+  let saving = false;
 
   const setStatus = (text, kind = '') => {
     elements.status.textContent = text;
     elements.status.className = `hint${kind ? ` ${kind}` : ''}`;
   };
   const markDirty = () => {
+    editRevision += 1;
     dirty = true;
-    elements.saveButton.disabled = false;
+    elements.saveButton.disabled = saving;
     setStatus('有尚未保存的更改', 'warn');
   };
   const createField = (fortune, index, field, labelText, maxLength) => {
@@ -229,6 +244,7 @@ export function createFortuneEditor({ document, saveSetting, toast }) {
     });
   });
   elements.saveButton.addEventListener('click', async () => {
+    if (saving) return;
     const cleaned = items.map(normalizeFortune);
     if (
       cleaned.length === 0 ||
@@ -238,25 +254,33 @@ export function createFortuneEditor({ document, saveSetting, toast }) {
       setStatus('每条签文都需要填写完整', 'warn');
       return;
     }
+    const submittedRevision = editRevision;
+    saving = true;
     elements.saveButton.disabled = true;
     setStatus('正在保存');
     try {
       await saveSetting('fortunePool', JSON.stringify(cleaned));
-      items = cleaned;
-      dirty = false;
-      render();
-      setStatus(`已保存 ${items.length} 条`, 'good');
+      if (editRevision === submittedRevision) {
+        items = cleaned;
+        dirty = false;
+        render();
+        setStatus(`已保存 ${items.length} 条`, 'good');
+      } else {
+        setStatus('本次已保存，仍有未保存的更改', 'warn');
+      }
       toast('抽签机器人词库已保存');
     } catch (error) {
-      elements.saveButton.disabled = false;
       setStatus('保存失败', 'warn');
       toast(error.message || '保存抽签词库失败');
+    } finally {
+      saving = false;
+      elements.saveButton.disabled = !dirty;
     }
   });
 
   return {
     load(rawValue) {
-      if (dirty) return;
+      if (dirty || saving) return;
       items = parseJsonArray(rawValue)
         .map(normalizeFortune)
         .filter(isCompleteFortune);
@@ -281,14 +305,17 @@ export function createCustomReplyEditor({ document, saveSetting, toast }) {
 
   let items = [];
   let dirty = false;
+  let editRevision = 0;
+  let saving = false;
 
   const setStatus = (text, kind = '') => {
     elements.status.textContent = text;
     elements.status.className = `hint${kind ? ` ${kind}` : ''}`;
   };
   const markDirty = () => {
+    editRevision += 1;
     dirty = true;
-    elements.saveButton.disabled = false;
+    elements.saveButton.disabled = saving;
     setStatus('有尚未保存的更改', 'warn');
   };
   const createField = (rule, index, field, labelText, maxLength) => {
@@ -364,28 +391,37 @@ export function createCustomReplyEditor({ document, saveSetting, toast }) {
     });
   });
   elements.saveButton.addEventListener('click', async () => {
+    if (saving) return;
     const cleaned = items
       .map(normalizeCustomReply)
       .filter((item) => item.keyword && item.reply);
+    const submittedRevision = editRevision;
+    saving = true;
     elements.saveButton.disabled = true;
     setStatus('正在保存');
     try {
       await saveSetting('customReplyRules', JSON.stringify(cleaned));
-      items = cleaned;
-      dirty = false;
-      render();
-      setStatus(`已保存 ${items.length} 条`, 'good');
+      if (editRevision === submittedRevision) {
+        items = cleaned;
+        dirty = false;
+        render();
+        setStatus(`已保存 ${items.length} 条`, 'good');
+      } else {
+        setStatus('本次已保存，仍有未保存的更改', 'warn');
+      }
       toast('DIY 关键词回复已保存');
     } catch (error) {
-      elements.saveButton.disabled = false;
       setStatus('保存失败', 'warn');
       toast(error.message || '保存 DIY 关键词回复失败');
+    } finally {
+      saving = false;
+      elements.saveButton.disabled = !dirty;
     }
   });
 
   return {
     load(rawValue) {
-      if (dirty) return;
+      if (dirty || saving) return;
       items = parseJsonArray(rawValue)
         .map(normalizeCustomReply)
         .filter((item) => item.keyword && item.reply);

@@ -369,3 +369,51 @@ test('audio errors refresh the current stream and skip safely after the retry li
   assert.equal(app.resolveStreamRequestCount(), 2);
   assert.deepEqual(app.errors(), []);
 });
+
+test('clearing playback queue invalidates a pending next-track stream', async () => {
+  let resolveNextStream;
+  const nextStream = new Promise((resolve) => {
+    resolveNextStream = resolve;
+  });
+  const app = await createPlaybackApp(
+    {
+      current: track('current', '当前歌曲'),
+      currentOrigin: 'normal',
+      requestedQueue: [],
+      normalQueue: [track('next', '下一首')],
+      normalQueueTracks: [],
+      radioQueue: [],
+      history: [],
+      displayHistory: [],
+      mode: 'sequence',
+      selectedSource: 'qq',
+      queueType: 'queue',
+      queueTitle: '播放队列',
+      volume: 0.75,
+    },
+    {
+      async resolveStream(requestCount) {
+        if (requestCount === 2) return nextStream;
+        return { url: 'https://example.test/current.mp3' };
+      },
+    },
+  );
+
+  await app.init();
+  await flushAsyncWork();
+  await app.emit('playbackPlayPause', 'click');
+  await flushAsyncWork();
+  await app.emit('music-player', 'ended');
+  await flushAsyncWork();
+
+  assert.equal(app.resolveStreamRequestCount(), 2);
+
+  await app.emit('playbackClearQueue', 'click');
+  resolveNextStream({ url: 'https://example.test/next.mp3' });
+  await flushAsyncWork();
+
+  assert.equal(app.savedState().current, null);
+  assert.equal(app.element('music-player').src, '');
+  assert.equal(app.element('music-player').paused, true);
+  assert.equal(app.audioPlayCalls(), 1);
+});

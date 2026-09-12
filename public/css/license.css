@@ -1,14 +1,22 @@
 :root {
   color-scheme: light dark;
-  --license-bg: #f6f7fb;
-  --license-surface: rgba(255, 255, 255, 0.92);
-  --license-text: #17202a;
-  --license-muted: #647181;
-  --license-border: rgba(23, 32, 42, 0.12);
-  --license-primary: #d94b70;
-  --license-primary-strong: #b9365a;
-  --license-accent: #21b6a8;
-  --license-shadow: 0 22px 70px rgba(40, 49, 68, 0.13);
+  --license-bg: #f2f2ef;
+  --license-surface: #fdfdfb;
+  --license-text: #30342f;
+  --license-muted: #656b5f;
+  --license-border: #dedfd8;
+  --license-primary: #3e463b;
+  --license-primary-strong: #2e352b;
+  --license-on-primary: #fff;
+  --license-brand-accent: color-mix(in srgb, var(--color-primary-strong) 30%, #85867c);
+  --license-intro-bg: #e9eae3;
+  --license-record-bg: #e0e2d8;
+  --license-groove: rgba(85, 94, 76, 0.16);
+  --license-input-bg: #fff;
+  --license-input-border: #d8dad2;
+  --license-placeholder: #74786f;
+  --license-display-font: 'Segoe UI Variable Display', 'Segoe UI', 'Microsoft YaHei', sans-serif;
+  --license-shadow: 0 16px 48px rgba(41, 47, 35, 0.05), 0 2px 6px rgba(41, 47, 35, 0.02);
 }
 
 * {
@@ -24,9 +32,7 @@ body {
   margin: 0;
   background: var(--license-bg);
   color: var(--license-text);
-  font-family:
-    'Microsoft YaHei', 'Microsoft JhengHei', 'PingFang SC', 'Segoe UI', Arial,
-    sans-serif;
+  font-family: var(--font);
 }
 
 button,
@@ -41,38 +47,15 @@ button {
   position: relative;
   overflow: hidden;
 }
-.license-shell::before {
-  content: '';
-  position: absolute;
-  width: 520px;
-  height: 520px;
-  top: -250px;
-  left: -180px;
-  border-radius: 50%;
-  background: rgba(217, 75, 112, 0.08);
-  pointer-events: none;
-}
-.license-shell::after {
-  content: '';
-  position: absolute;
-  width: 440px;
-  height: 440px;
-  right: -190px;
-  bottom: -230px;
-  border-radius: 50%;
-  background: rgba(33, 182, 168, 0.08);
-  pointer-events: none;
-}
 .license-titlebar {
   position: relative;
   z-index: 1;
-  height: 64px;
+  height: 52px;
   display: flex;
   align-items: center;
   gap: 18px;
-  padding: 0 28px;
+  padding: 0 22px;
   -webkit-app-region: drag;
-  border-bottom: 1px solid var(--license-border);
 }
 .license-window-controls button {
   -webkit-app-region: no-drag;
@@ -82,22 +65,22 @@ button {
   align-items: center;
   gap: 9px;
   color: var(--license-text);
-  font-size: 16px;
-  font-weight: 700;
-  letter-spacing: 0;
+  font-family: var(--license-display-font);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
   user-select: none;
 }
 .license-brand-mark {
   display: grid;
-  width: 26px;
-  height: 26px;
+  width: 23px;
+  height: 23px;
   place-items: center;
-  border-radius: 8px;
+  border-radius: 6px;
   background: var(--license-primary);
-  color: #fff;
-  font-size: 16px;
+  color: var(--license-on-primary);
+  font-size: 14px;
   letter-spacing: 0;
-  box-shadow: 0 5px 16px rgba(217, 75, 112, 0.26);
 }
 .license-window-controls {
   display: flex;
@@ -169,36 +152,212 @@ button {
   display: grid;
   place-items: center;
   align-items: center;
-  width: min(100%, 760px);
-  height: calc(100dvh - 64px);
+  width: min(100%, 1100px);
+  height: calc(100dvh - 52px);
   min-height: 0;
   margin: 0 auto;
-  padding: 24px 28px 30px;
+  padding: 24px 28px 36px;
 }
-.license-card {
-  width: min(100%, 440px);
-  padding: 26px 30px 22px;
+.license-stage {
+  display: grid;
+  grid-template-columns: 0.94fr 1fr;
+  width: 100%;
+  min-height: 548px;
   border: 1px solid var(--license-border);
-  border-radius: 16px;
+  border-radius: 20px;
   background: var(--license-surface);
   box-shadow: var(--license-shadow);
-  backdrop-filter: blur(16px);
+}
+.license-intro {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 22px;
+  padding: 36px 40px 32px;
+  border-right: 1px solid var(--license-border);
+  border-radius: 19px 0 0 19px;
+  background: var(--license-intro-bg);
+}
+.license-intro-label {
+  margin: 0 0 20px;
+  color: var(--license-muted);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.13em;
+}
+.license-intro h2 {
+  margin: 0;
+  font-family: var(--license-display-font);
+  font-size: 32px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  line-height: 1.55;
+}
+.license-art {
+  display: grid;
+  flex: 1;
+  place-items: center;
+  min-height: 218px;
+}
+.license-record {
+  position: relative;
+  display: grid;
+  width: 218px;
+  aspect-ratio: 1;
+  place-items: center;
+  border: 1px solid var(--license-groove);
+  border-radius: 50%;
+  background:
+    repeating-radial-gradient(
+      circle at center,
+      transparent 0 7px,
+      var(--license-groove) 7px 8px
+    ),
+    var(--license-record-bg);
+  box-shadow: 0 12px 24px rgba(41, 47, 35, 0.07);
+}
+.license-record::before {
+  content: '';
+  position: absolute;
+  inset: 31%;
+  border: 1px solid var(--license-groove);
+  border-radius: 50%;
+  background:
+    linear-gradient(var(--license-muted), var(--license-muted))
+      center 16px / 20px 1px no-repeat,
+    linear-gradient(var(--license-groove), var(--license-groove))
+      center 21px / 12px 1px no-repeat,
+    var(--license-intro-bg);
+}
+.license-record::after {
+  content: '';
+  z-index: 1;
+  width: 5px;
+  height: 5px;
+  border: 1px solid var(--license-groove);
+  border-radius: 50%;
+  background: var(--license-record-bg);
+}
+.license-intro-caption {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  color: var(--license-muted);
+  font-size: 12px;
+  line-height: 1.9;
+}
+.license-signal {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 16px;
+  color: var(--license-muted);
+}
+.license-signal span {
+  width: 2px;
+  height: 8px;
+  border-radius: 1px;
+  background: currentColor;
+}
+.license-signal span:nth-child(2),
+.license-signal span:nth-child(4) {
+  height: 13px;
+}
+.license-signal span:nth-child(3) {
+  height: 16px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .license-intro-label,
+  .license-intro h2,
+  .license-art,
+  .license-intro-caption {
+    animation: license-intro-enter 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .license-intro h2 {
+    animation-delay: 80ms;
+  }
+  .license-art {
+    animation-delay: 160ms;
+  }
+  .license-intro-caption {
+    animation-delay: 240ms;
+  }
+  .license-record::before {
+    animation: license-record-turn 24s linear infinite;
+  }
+  .license-signal span {
+    animation: license-signal-pulse 1800ms ease-in-out infinite alternate;
+  }
+  .license-signal span:nth-child(2) {
+    animation-delay: -1200ms;
+  }
+  .license-signal span:nth-child(3) {
+    animation-delay: -600ms;
+  }
+  .license-signal span:nth-child(4) {
+    animation-delay: -1600ms;
+  }
+  .license-signal span:nth-child(5) {
+    animation-delay: -900ms;
+  }
+}
+@keyframes license-intro-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes license-record-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes license-signal-pulse {
+  from {
+    transform: scaleY(0.4);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+.license-card {
+  align-self: center;
+  width: 100%;
+  min-width: 0;
+  padding: 32px 44px;
 }
 .license-card-heading {
-  margin-bottom: 19px;
+  margin-bottom: 24px;
 }
 .license-kicker {
-  margin: 0 0 8px;
-  color: var(--license-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  color: var(--license-muted);
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 500;
   letter-spacing: 0.12em;
 }
+.license-kicker::before {
+  content: '';
+  width: 14px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--license-brand-accent);
+}
 .license-card h1 {
-  margin: 0 0 5px;
-  font-size: 26px;
-  letter-spacing: -0.035em;
-  line-height: 1.2;
+  margin: 0 0 8px;
+  font-family: var(--license-display-font);
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+  line-height: 1.3;
 }
 .license-card-heading > p:not(.license-kicker) {
   margin: 0;
@@ -231,12 +390,12 @@ button {
   overflow: hidden;
   border: 0;
   border-radius: 4px;
-  background: rgba(23, 32, 42, 0.1);
+  background: var(--license-border);
   color: var(--license-primary);
 }
 .license-progress::-webkit-progress-bar {
   border-radius: 4px;
-  background: rgba(23, 32, 42, 0.1);
+  background: var(--license-border);
 }
 .license-progress::-webkit-progress-value {
   border-radius: 4px;
@@ -249,31 +408,43 @@ button {
 }
 .license-field {
   display: grid;
-  gap: 5px;
-  margin-top: 14px;
+  gap: 6px;
+  margin-top: 16px;
   color: var(--license-text);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
+}
+.license-field:first-child {
+  margin-top: 0;
 }
 .license-field input {
   width: 100%;
-  min-height: 40px;
-  padding: 8px 11px;
-  border: 1px solid rgba(23, 32, 42, 0.18);
-  border-radius: 9px;
-  background: rgba(255, 255, 255, 0.8);
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid var(--license-input-border);
+  border-radius: var(--radius-md);
+  background: var(--license-input-bg);
   color: var(--license-text);
+  font-size: 13px;
+  font-weight: 400;
   outline: none;
   transition:
     border-color 140ms ease,
     box-shadow 140ms ease;
 }
 .license-field input::placeholder {
-  color: #8d98a5;
+  color: var(--license-placeholder);
+}
+.license-field input:hover:not(:focus) {
+  border-color: var(--license-muted);
 }
 .license-field input:focus {
   border-color: var(--license-primary);
-  box-shadow: 0 0 0 3px rgba(217, 75, 112, 0.16);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--license-primary) 12%, transparent);
+}
+#licenseActivationCode {
+  font-family: 'Cascadia Mono', Consolas, monospace;
+  letter-spacing: 0.06em;
 }
 .license-password-control {
   position: relative;
@@ -284,6 +455,28 @@ button {
 }
 .license-field-label label {
   color: inherit;
+}
+.license-field lira-help {
+  color: var(--license-muted);
+}
+.license-field lira-help:focus-visible {
+  outline-color: var(--license-primary);
+}
+.license-field .lira-help-mark {
+  border-color: var(--license-input-border);
+  background: var(--license-bg);
+}
+.license-field lira-help:hover .lira-help-mark,
+.license-field lira-help:focus-visible .lira-help-mark {
+  border-color: var(--license-primary);
+  background: var(--license-primary);
+  color: var(--license-on-primary);
+}
+.lira-help-tooltip {
+  border-color: var(--license-border);
+  background: var(--license-surface);
+  color: var(--license-text);
+  box-shadow: var(--license-shadow);
 }
 .license-password-control input {
   padding-right: 44px;
@@ -314,21 +507,22 @@ button {
 }
 .license-field small {
   color: var(--license-muted);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 400;
+  line-height: 1.5;
 }
 .license-status {
   min-height: 18px;
-  margin: 9px 0 7px;
+  margin: 10px 0 8px;
   color: var(--license-muted);
   font-size: 12px;
   line-height: 1.5;
 }
 .license-status.error {
-  color: #b3261e;
+  color: var(--color-danger);
 }
 .license-status.good {
-  color: #08766c;
+  color: var(--color-success-dark);
 }
 .license-status.loading {
   color: var(--license-primary);
@@ -336,19 +530,35 @@ button {
 .license-submit,
 .license-retry {
   width: 100%;
-  min-height: 42px;
-  border-radius: 9px;
+  min-height: 44px;
+  border-radius: var(--radius-md);
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 500;
   transition:
     transform 140ms ease,
     background 140ms ease,
     opacity 140ms ease;
 }
 .license-submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
   border: 1px solid transparent;
   background: var(--license-primary);
-  color: #fff;
+  color: var(--license-on-primary);
+}
+.license-submit svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.license-submit:focus-visible,
+.license-retry:focus-visible {
+  outline: 2px solid var(--license-primary);
+  outline-offset: 3px;
 }
 .license-submit:hover:not(:disabled) {
   background: var(--license-primary-strong);
@@ -381,37 +591,62 @@ button {
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --license-bg: #171b24;
-    --license-surface: rgba(30, 36, 49, 0.95);
-    --license-text: #f3f5f8;
-    --license-muted: #aab3c2;
-    --license-border: rgba(255, 255, 255, 0.12);
-    --license-shadow: 0 22px 70px rgba(0, 0, 0, 0.28);
+    --license-bg: #20221f;
+    --license-surface: #292c27;
+    --license-text: #edeee8;
+    --license-muted: #a5aa9f;
+    --license-border: #3c4037;
+    --license-primary: #c4ccbb;
+    --license-primary-strong: #d6ddce;
+    --license-on-primary: #252c22;
+    --license-intro-bg: #30352c;
+    --license-record-bg: #393f33;
+    --license-groove: rgba(183, 195, 166, 0.16);
+    --license-input-bg: #252822;
+    --license-input-border: #4c5146;
+    --license-placeholder: #8c9484;
+    --license-shadow: 0 16px 48px rgba(0, 0, 0, 0.12);
   }
-  .license-field input {
-    border-color: rgba(255, 255, 255, 0.16);
-    background: rgba(16, 20, 29, 0.62);
+  .license-status.error {
+    color: #eda69b;
   }
-  .license-progress,
-  .license-progress::-webkit-progress-bar {
-    background: rgba(255, 255, 255, 0.12);
+  .license-status.good {
+    color: #afc6ab;
   }
 }
 @media (max-width: 760px) {
   .license-titlebar {
-    height: 56px;
     padding: 0 18px;
   }
   .license-main {
-    width: min(520px, calc(100% - 32px));
-    height: calc(100dvh - 56px);
-    padding: 20px 0 24px;
+    width: min(520px, 100%);
+    padding: 20px 18px;
+  }
+  .license-stage {
+    grid-template-columns: 1fr;
+    min-height: 0;
+  }
+  .license-intro {
+    display: none;
   }
   .license-card {
-    padding: 22px 20px 18px;
+    padding: 28px;
   }
 }
-@media (max-height: 620px) {
+@media (max-height: 700px) {
+  .license-main {
+    padding-top: 12px;
+    padding-bottom: 20px;
+  }
+  .license-card {
+    padding-top: 26px;
+    padding-bottom: 26px;
+  }
+  .license-card-heading {
+    margin-bottom: 20px;
+  }
+}
+@media (max-height: 640px) {
   html,
   body {
     height: auto;
@@ -420,6 +655,6 @@ button {
   }
   .license-main {
     height: auto;
-    min-height: calc(100dvh - 64px);
+    min-height: calc(100dvh - 52px);
   }
 }

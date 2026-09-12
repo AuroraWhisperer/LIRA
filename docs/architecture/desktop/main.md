@@ -1,10 +1,10 @@
 # 桌面壳主进程:窗口、协议与生命周期
 
-> 涉及文件:[src/electron/main.js](../../../src/electron/main.js)、[src/electron/desktop-user-data.js](../../../src/electron/desktop-user-data.js)、[src/electron/cloud-sync-controller.js](../../../src/electron/cloud-sync-controller.js)、[src/electron/remote-gift-controller.js](../../../src/electron/remote-gift-controller.js)、[src/electron/remote-gift-cursor-store.js](../../../src/electron/remote-gift-cursor-store.js)、[src/electron/desktop-auth-controller.js](../../../src/electron/desktop-auth-controller.js)、[src/electron/desktop-update-controller.js](../../../src/electron/desktop-update-controller.js)、[src/electron/desktop-logger.js](../../../src/electron/desktop-logger.js)、[src/electron/media-request-headers.js](../../../src/electron/media-request-headers.js)、[src/electron/license/license-manager.js](../../../src/electron/license/license-manager.js)、[src/electron/license/license-runtime-policy.js](../../../src/electron/license/license-runtime-policy.js)、[src/electron/desktop-state.js](../../../src/electron/desktop-state.js)、[src/electron/desktop-permissions.js](../../../src/electron/desktop-permissions.js)、[src/electron/playback-flush.js](../../../src/electron/playback-flush.js)、[src/electron/terminal-log.js](../../../src/electron/terminal-log.js)、[src/electron/local-media-access.js](../../../src/electron/local-media-access.js)、[package.json](../../../package.json)
+> 涉及文件:[src/electron/main.js](../../../src/electron/main.js)、[src/electron/desktop-user-data.js](../../../src/electron/desktop-user-data.js)、[src/electron/cloud-sync-controller.js](../../../src/electron/cloud-sync-controller.js)、[src/electron/remote-gift-controller.js](../../../src/electron/remote-gift-controller.js)、[src/electron/desktop-auth-controller.js](../../../src/electron/desktop-auth-controller.js)、[src/electron/desktop-update-controller.js](../../../src/electron/desktop-update-controller.js)、[src/electron/desktop-logger.js](../../../src/electron/desktop-logger.js)、[src/electron/media-request-headers.js](../../../src/electron/media-request-headers.js)、[src/electron/license/license-manager.js](../../../src/electron/license/license-manager.js)、[src/electron/license/license-runtime-policy.js](../../../src/electron/license/license-runtime-policy.js)、[src/electron/desktop-state.js](../../../src/electron/desktop-state.js)、[src/electron/desktop-permissions.js](../../../src/electron/desktop-permissions.js)、[src/electron/playback-flush.js](../../../src/electron/playback-flush.js)、[src/electron/terminal-log.js](../../../src/electron/terminal-log.js)、[src/electron/local-media-access.js](../../../src/electron/local-media-access.js)、[package.json](../../../package.json)
 
 本文档是 Electron 桌面壳的**唯一事实源**:进程入口、启动序列、主窗口规格、`local-media://` 协议、请求头伪装、关闭时序与日志只在此成文。IPC 通道全量注册表见 [preload.md](preload.md),登录会话见 [auth.md](auth.md),辅助窗口见 [windows.md](windows.md),自动更新运行时见 [update.md](update.md);后端服务生命周期见 [../backend/server-core.md](../backend/server-core.md),数据目录树见 [../backend/storage.md](../backend/storage.md)。
 
-**主进程模块边界:** `main.js` 是唯一 Electron 组合根，拥有 app/window/protocol/IPC 的接线与生命周期；`cloud-sync-controller.js` 只协调三个云端 scope 的 revision、dirty、SSE 失效通知、低频兜底和应用，`remote-gift-controller.js` 只负责服务端权威礼物的 DeviceBearer SSE、final cursor 对账、断线重连和本地投影，`remote-gift-cursor-store.js` 只持久化按服务端/主播/设备哈希隔离的 final cursor；`desktop-auth-controller.js` 只管理登录窗口和认证快照，`desktop-update-controller.js` 只适配更新运行时，`desktop-logger.js` 只做有序日志写入，`media-request-headers.js` 只安装媒体请求头规则。授权域由 `license-manager.js` 持有状态和远端流程，`license-runtime-policy.js` 只计算可授权能力与状态映射。辅助模块通过显式回调访问窗口/路径，不反向读取 `main.js` 的可变全局。
+**主进程模块边界:** `main.js` 是唯一 Electron 组合根，拥有 app/window/protocol/IPC 的接线与生命周期；`cloud-sync-controller.js` 只协调三个云端 scope 的 revision、dirty、SSE 失效通知、低频兜底和应用，`remote-gift-controller.js` 只负责服务端权威礼物的 DeviceBearer SSE、final cursor 对账、断线重连和本地投影，本地 `gift-sync-store` 在 SQLite 投影事务中保存按来源隔离的恢复状态与 final cursor；`desktop-auth-controller.js` 只管理登录窗口和认证快照，`desktop-update-controller.js` 只适配更新运行时，`desktop-logger.js` 只做有序日志写入，`media-request-headers.js` 只安装媒体请求头规则。授权域由 `license-manager.js` 持有状态和远端流程，`license-runtime-policy.js` 只计算可授权能力与状态映射。辅助模块通过显式回调访问窗口/路径，不反向读取 `main.js` 的可变全局。
 
 礼物同步进入 `LIVE` 或 `LEGACY_PARTIAL` 后，`remote-gift-controller.js` 每 **10 秒**经现有串行队列补拉 final cursor，覆盖 SSE 保持连接但未送达礼物通知的情况。补拉结束后重新计时，不叠加慢请求；离开上述状态、停止、销毁或切换 generation 时取消定时器，回调仍校验 source/auth/controller/projection fence。SSE 继续负责即时投影，定时补拉不改变历史导入、幂等结算或授权边界。
 
@@ -33,13 +33,13 @@
 3. `configureMenu()` — `Menu.setApplicationMenu(null)`([main.js:236-238](../../../src/electron/main.js#L236-L238))
 4. `configureLocalMediaProtocol()` — 注册 `local-media` handler(§5)
 5. `configureUpdateIpc()` / `configureMusicIpc()` / `configureBilibiliIpc()` — 注册 IPC handler(通道清单见 [preload.md](preload.md) §2)
-6. `configureMusicMediaRequestHeaders()` / `configureBilibiliMediaRequestHeaders()` — 请求头伪装(§6)
+6. `configureMediaRequestHeaders()` — 请求头伪装(§6)
 7. `updateMgr.configureAutoUpdater(...)` — 自动更新运行时([update.md](update.md) §3)
 8. `await restoreMusicCookieSnapshots()` → `await restoreBilibiliCookieSnapshot()` — **先于服务器启动**恢复会话([auth.md](auth.md) §8)
 9. `desktopRuntime = createDesktopRuntime(serverRuntimeModule, { dataDir, safeStorage })` + `setPreShutdownHook(requestPlaybackFlush)`([main.js:133-137](../../../src/electron/main.js#L133-L137))
 10. `await desktopRuntime.start(serverOptions)` — 启动内嵌 HTTP 服务(注入契约见 [auth.md](auth.md) §11,[server-core.md](../backend/server-core.md) §6.1)
 11. 创建 `licenseManager`,注册 license IPC,再 `await licenseManager.bootstrap()`;本地服务此时仍通过动态 `licenseGate` 拒绝 Admin、业务 API 和 WebSocket
-12. 创建 `cloudSyncController`，注入授权 manager、本地 runtime 与仅 main process 可访问的 Bilibili Cookie 适配器；创建 `remoteGiftController` 及 `dataDir/remote-gift-cursor.json` 游标存储；已授权时先完成一次云端同步再恢复本地 Bilibili 工作和远程礼物接收
+12. 创建 `cloudSyncController`，注入授权 manager、本地 runtime 与仅 main process 可访问的 Bilibili Cookie 适配器；创建 `remoteGiftController` 并注入本地 runtime 的 SQLite 礼物同步 owner；已授权时先完成一次云端同步再恢复本地 Bilibili 工作和远程礼物接收
 13. 由 `license/license-resume.js` 的 `createLicenseResumeHandler` 注册 `powerMonitor` 的 `resume` 监听;系统唤醒时由 main process 立即调用 `licenseManager.resume()` 重新确认设备会话，并在成功后请求云端同步和远程礼物 cursor resume
 14. `registerLocalFontPermissionHandler(...)` — 将本机字体权限限制为内嵌服务的精确 origin,并用原生对话框取得用户明确同意(§4)
 15. main process 按授权和礼物目录完成状态决定初始路由：未授权或首次目录尚未完成时加载 `/license`，初始化卡通过受限 IPC 展示目录/图片进度；完成后才导航 `/admin?desktop=1`。已有完成状态的授权启动立即进入 Admin，每次启动强制执行一次条件请求（仍携带 ETag），持续运行每 12 小时检查并增量补图；后续实际下载使用同一受限 IPC 在 Admin 显示单条进度 toast，无变化时保持安静
@@ -67,7 +67,9 @@
 
 `cloud-sync-controller.js` 是 Electron 进程内的同步协调者，不持久化云端 revision。授权成功后立即同步并建立一条 main-process DeviceBearer SSE；事件只含 scope revision，收到更新 revision 后通过既有 GET 对账。SSE 正常结束或失败后按 1–60 秒有界退避重连，重连成功立即同步。系统 resume 在设备会话恢复后调用 `syncNow()`。可 `unref()` 的 10 分钟单次 timer 只作为代理假在线或漏通知的自动兜底，每轮结束（包括读取失败）都会重新调度。授权离开 `AUTHORIZED` 时 abort SSE 并停止 timer；退出时 `dispose()` 同时移除本地 mutation 与授权状态 listener。
 
-三个 scope 各自跟踪 revision、dirty 和本地 mutation 代次。成功的本地 mutation 先递增代次、标记 dirty 并立即串行上传；上传只在完成时代次仍未变化的情况下清除 dirty，因此上传期间出现的新修改会再上传一次。失败保留 dirty，下一轮重试，且 dirty 上传成功前不应用该 scope 的云端快照。songs/Bilibili 在等待远端内容后、写入本地 owner 前再次检查 dirty 与 revision，避免首次判断后发生的本地修改被旧拉取覆盖。未初始化的云端 settings/songs 由首台授权客户端上传本地快照；Bilibili scope 按本地登录态播种凭据或明确的未登录状态。云端 revision 较新时，settings 与 songs 通过本地 runtime owner 应用，Bilibili 凭据只通过 [auth.md](auth.md) §13 的 main-process 内部方法导入。离线期间服务端不排设备事件；启动、resume、SSE 重连与低频兜底直接比较云端当前 revision。
+三个 scope 各自跟踪 revision、dirty 和本地 mutation 代次。成功的本地 mutation 先递增代次、标记 dirty 并立即串行上传；上传只在完成时代次仍未变化的情况下清除 dirty，因此上传期间出现的新修改会再上传一次。失败保留 dirty，下一轮重试，且 dirty 上传成功前不应用该 scope 的云端快照。songs/Bilibili 在等待远端内容后、写入本地 owner 前再次检查 dirty 与 revision，避免首次判断后发生的本地修改被旧拉取覆盖。未初始化的云端 settings/songs 由首台授权客户端上传本地快照；未初始化的 Bilibili scope 清除本地登录态，不从旧本地 Cookie 自动播种云端凭据。云端 revision 较新时，settings 与 songs 通过本地 runtime owner 应用，Bilibili 凭据只通过 [auth.md](auth.md) §13 的 main-process 内部方法导入。离线期间服务端不排设备事件；启动、resume、SSE 重连与低频兜底直接比较云端当前 revision。
+
+歌曲库的新增、编辑、删除和清空由 Electron 客户端本地管理页完成；每次成功 mutation 都立即触发 songs scope 的完整快照上传。Streamer `/manage` 只展示最新同步歌单，不提供歌曲新增、编辑、启用切换、保存或删除控件。服务端既有歌曲 CRUD API 继续保留以兼容既有调用方，云端拉取、revision 和多设备恢复语义不变。
 
 ### 2.3 服务端权威礼物接收生命周期
 
@@ -108,7 +110,7 @@ v1.5.6–v4.0.15 打包版把全部数据放在 `<安装目录>/data`，旧卸�
 | webPreferences | `preload: preload.js`、`contextIsolation: true`、`nodeIntegration: false`、`sandbox: false`                        | [main.js:323-326](../../../src/electron/main.js#L323-L326) |
 | 图标           | 打包资源 `build/icon.png` 存在时附加                                                                               | [main.js:328-329](../../../src/electron/main.js#L328-L329) |
 
-导航策略:`setWindowOpenHandler` 一律 `shell.openExternal` + `{action:'deny'}`([main.js:346-349](../../../src/electron/main.js#L346-L349));`will-navigate` 仅放行与 `baseUrl` 同协议/同 host/同端口的导航,其余拦截并交系统浏览器([main.js:351-357](../../../src/electron/main.js#L351-L357))。
+导航策略：`setWindowOpenHandler` 拒绝创建窗口，只对 `isAllowedExternal` 或 `isAllowedLocalUrl` 允许的目标调用 `shell.openExternal`；`will-navigate` 放行当前内嵌服务 origin，其余导航被拦截，也只有通过上述允许规则的目标交给系统浏览器。实际规则由 [main.js](../../../src/electron/main.js) 与 [desktop-permissions.js](../../../src/electron/desktop-permissions.js) 共同执行。
 
 最大化状态:窗口 `maximize`/`unmaximize` 事件经 `desktop:window-maximized` 推给渲染进程([main.js:364-374](../../../src/electron/main.js#L364-L374),消费方见 [preload.md](preload.md) §2.2)。
 
@@ -147,7 +149,7 @@ v1.5.6–v4.0.15 打包版把全部数据放在 `<安装目录>/data`，旧卸�
 
 ## 6. 请求头伪装(唯一成文处)
 
-Chromium `session.defaultSession.webRequest.onBeforeSendHeaders` 为第三方媒体/API 请求补齐 Referer/Origin,避免因缺头被拒;**仅当请求头缺失时注入,不覆盖既有值**;host 小写化后按 `endsWith` 判定。唯一成表处:
+Chromium `session.defaultSession.webRequest.onBeforeSendHeaders` 由一个合并监听器为音乐和 B站媒体/API 请求补齐 Referer/Origin，避免同一事件后注册的处理器覆盖前者；**仅当请求头缺失时注入，不覆盖既有值**。host 小写化后匹配域名本身或以点分隔的子域。唯一成表处:
 
 | 匹配 URL 模式                                                    | host 判定                                          | 注入                                                                      |
 | ---------------------------------------------------------------- | -------------------------------------------------- | ------------------------------------------------------------------------- |
@@ -159,15 +161,17 @@ Chromium `session.defaultSession.webRequest.onBeforeSendHeaders` 为第三方媒
 
 ## 7. 关闭序列与播放状态冲刷
 
-`before-quit`([main.js:81-102](../../../src/electron/main.js#L81-L102)):
+`before-quit` 与 `desktop:restart` 共用 [main.js](../../../src/electron/main.js) 的 `requestDesktopShutdown({ restart = false } = {})`，关闭状态保存在 `lifecycleState.shutdownPromise`：
 
-1. `gracefulQuitStarted` 防重入;首次进入 `event.preventDefault()` 接管关闭
-2. `licenseResumeController.unregister()` 移除 `powerMonitor` resume 监听(`license/license-resume.js`),防止关闭阶段再启动授权请求
-3. `remoteGiftController.dispose()` abort 礼物 SSE 并清理重连 timer；`cloudSyncController.dispose()` 停止同步 timer 并移除 listener，不把客户端退出解释为云端 monitor stop
-4. 5s 兜底定时器 → 释放单实例锁 + `app.exit(0)`(渲染进程卡死不阻塞退出)
-5. `Promise.all(controller.whenIdle())` 等待两个控制器已排队的 cursor、礼物投影和云同步操作结束；此时 runtime/SQLite 仍保持可用
-6. `shutdownApplication({ exitProcess: false })` → 服务器关闭流程([server-core.md](../backend/server-core.md) §6.2),其中 `preShutdownHook()` 即本壳注入的 `requestPlaybackFlush`([main.js:137](../../../src/electron/main.js#L137))
-7. 完成后释放授权维护 timer、清兜底定时器、释放单实例锁、`app.exit(0)`
+1. 每个受控 `before-quit` 都先 `event.preventDefault()`，再请求同一关闭任务。尚无后端且没有受控任务时保留 Electron 默认退出；重启入口在后端缺失时也能完成
+2. 首个请求保存共享 Promise 并启动唯一 **5s 总兜底定时器**，后续请求复用任务，不刷新期限，也不改变首次的退出/重启意图
+3. `licenseResumeController.unregister()` 移除 `powerMonitor` resume 监听(`license/license-resume.js`)，防止关闭阶段再启动授权请求
+4. `remoteGiftController.dispose()` abort 礼物 SSE 并清理重连 timer；`cloudSyncController.dispose()` 停止同步 timer 并移除 listener。两个控制器各自阻止新任务与晚回包的本地提交；客户端退出不表示云端 monitor stop，也不保证撤回已发出的上游请求
+5. `await Promise.all(controller.whenIdle())` 等待两个控制器已排队的 cursor、礼物投影和云同步操作结束；此时 runtime/SQLite 仍保持可用
+6. `lifecycleState.shutdown({ exitProcess: false })` 委托 runtime.stop → 服务器关闭流程([server-core.md](../backend/server-core.md) §6.2)，其中 `preShutdownHook()` 仍为本壳注入的 `requestPlaybackFlush`；正常终结等待后端关闭完成
+7. 完成、清理失败或超时都由同一个幂等终结函数清除兜底 timer、dispose 授权 manager、释放单实例锁，再按首次意图选择是否 `app.relaunch()`，最后 `app.exit(0)`。失败记录 `shutdown-error`；超时记录 `QUIT_TIMEOUT`，其他终结记录 `QUIT_DONE`
+
+若同步等待失败，直接进入失败终结，不把失败当作成功排空继续停止后端。超时后的同步晚完成不会再进入后端关闭阶段；已开始的后端关闭不能物理撤回，其晚完成或晚失败也不会再次释放、重启或退出。启动中的 Cookie 恢复、runtime.start 和授权 bootstrap 在 await 后检查关闭状态，避免关闭已开始后继续创建下一阶段资源。
 
 **播放状态冲刷握手**([playback-flush.js](../../../src/electron/playback-flush.js)):
 
@@ -181,7 +185,7 @@ Main: requestPlaybackFlush(mainWindow, 2000)
 
 `requestPlaybackFlush`([playback-flush.js:5-27](../../../src/electron/playback-flush.js#L5-L27))为单飞握手:存在 pending flush 时新请求立即完成;主窗口已销毁则 `{status:'skipped'}`;`acknowledgePlaybackFlush`([playback-flush.js:29-33](../../../src/electron/playback-flush.js#L29-L33))由 `playback:flush-ack` handler 调用。渲染进程侧行为见 [preload.md](preload.md) §3。
 
-`desktop:restart` 同样先走 `shutdownApplication({exitProcess:false})` 再 `app.relaunch()` + `app.exit(0)`([main.js:414-425](../../../src/electron/main.js#L414-L425))。
+`desktop:restart` 的 [IPC 适配器](../../../src/electron/ipc/update-ipc.js) 只记录请求并 `await requestRestart()`，回调由 main 注入；通道无参数、成功结果为 `undefined`。连续重启至多安排一次 relaunch；退出先到则后续重启仍只退出，重启先到则后续退出仍按重启终结。安装更新继续委托既有 updater，不走此重启 IPC。
 
 ## 8. 日志
 

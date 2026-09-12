@@ -15,7 +15,7 @@ let wbiKeyCache = null;
 
 function bilibiliErrorHint(code) {
   if (Number(code) === -352) {
-    return '原因：B 站风控/校验失败，通常与 WBI 签名、正常浏览器请求头、Cookie/设备标识或当前网络/IP 风控有关。';
+    return '原因：直播平台风控/校验失败，通常与 WBI 签名、正常浏览器请求头、Cookie/设备标识或当前网络/IP 风控有关。';
   }
   if (Number(code) === 60004) {
     return '原因：直播间不存在或填写的不是直播间号。';
@@ -26,7 +26,7 @@ function bilibiliErrorHint(code) {
   if (Number(code) === -412) {
     return '原因：请求被风控拦截。';
   }
-  return '原因：B 站接口返回了非成功业务码。';
+  return '原因：直播平台接口返回了非成功业务码。';
 }
 
 function formatBilibiliApiError(endpointName, response, payload, extraHint) {
@@ -37,7 +37,7 @@ function formatBilibiliApiError(endpointName, response, payload, extraHint) {
     payload && payload.data
       ? ` data=${JSON.stringify(payload.data).slice(0, 220)}`
       : '';
-  return `Bilibili API ${endpointName} failed: http=${response.status} code=${code} message=${message}. ${hint}${extraHint ? ` ${extraHint}` : ''}${data}`;
+  return `直播平台 API ${endpointName} failed: http=${response.status} code=${code} message=${message}. ${hint}${extraHint ? ` ${extraHint}` : ''}${data}`;
 }
 
 async function getBilibiliWbiMixinKey(headers) {
@@ -55,7 +55,7 @@ async function getBilibiliWbiMixinKey(headers) {
     payload = JSON.parse(text);
   } catch (_) {
     throw new Error(
-      `Bilibili WBI key request returned non-JSON response. HTTP ${response.status}. Body: ${text.slice(0, 160)}`,
+      `直播平台 WBI key request returned non-JSON response. HTTP ${response.status}. Body: ${text.slice(0, 160)}`,
     );
   }
 
@@ -69,7 +69,7 @@ async function getBilibiliWbiMixinKey(headers) {
         'wbi_nav',
         response,
         payload,
-        '获取 WBI 签名参数失败，后续弹幕服务器请求可能会被 B 站风控拒绝。',
+        '获取 WBI 签名参数失败，后续弹幕服务器请求可能会被直播平台风控拒绝。',
       ),
     );
   }

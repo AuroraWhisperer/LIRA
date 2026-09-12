@@ -91,6 +91,11 @@ test('finished game can restart with the same player configuration', () => {
     if (index < 5)
       service.move({ value: `${String.fromCharCode(66 + index)}1` }, 'viewer');
   }
+  assert.deepEqual(service.getSession().winner, {
+    role: 'host',
+    uid: '',
+    name: '',
+  });
   const restarted = service.restart();
 
   assert.equal(restarted.game, 'gomoku');

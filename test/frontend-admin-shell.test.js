@@ -702,20 +702,20 @@ test('usage guide main-flow steps keep body text out of the number gutter', () =
   assert.match(markerRule, /left:\s*2px/);
 });
 
-test('usage guide fills the available panel and lead width in both sidebar states', () => {
+test('usage guide keeps expanded sidebar content in one column with a readable intro', () => {
   const source = readCssBundle('public', 'css', 'admin', 'other-features.css');
   const panelRule = source.match(/\.usage-guide-panel\s*\{[\s\S]*?\n\}/)?.[0];
   const leadRule = source.match(/\.usage-guide-lead\s*\{[\s\S]*?\n\}/)?.[0];
-  const collapsedRule = source.match(
-    /\.other-page\.sidebar-collapsed \.usage-guide-panel\s*\{[\s\S]*?\n\}/,
-  )?.[0];
-
   assert.ok(panelRule, 'usage guide panel sizing should remain defined');
   assert.ok(leadRule, 'usage guide lead sizing should remain defined');
-  assert.ok(collapsedRule, 'collapsed sidebar sizing should remain defined');
   assert.match(panelRule, /max-width:\s*none/);
-  assert.match(leadRule, /max-width:\s*none/);
-  assert.match(collapsedRule, /max-width:\s*none/);
+  assert.match(leadRule, /max-width:\s*80ch/);
+  const collapsedRule = source.match(
+    /\.other-page\.sidebar-collapsed \.usage-guide-panel\s*\{[^}]*\}/,
+  )?.[0];
+  assert.ok(collapsedRule, 'only the collapsed sidebar should enable two columns');
+  assert.doesNotMatch(panelRule, /grid-template-columns/);
+  assert.match(collapsedRule, /grid-template-columns:\s*176px minmax\(0, 1fr\)/);
 });
 
 test('usage guide presents overlays for both live companion and OBS users', () => {
@@ -750,9 +750,8 @@ test('usage guide defers image loading and avoids sticky backdrop blur', () => {
     true,
   );
   assert.ok(tocRule, 'usage guide table of contents should remain defined');
-  assert.match(tocRule, /background:\s*var\(--surface-2\)/);
+  assert.match(tocRule, /background:\s*var\(--surface\)/);
   assert.match(tocRule, /display:\s*grid/);
-  assert.match(tocRule, /grid-template-columns:[\s\S]*auto-fit/);
   assert.doesNotMatch(tocRule, /white-space:\s*nowrap|overflow-x:\s*(?:auto|scroll)/);
   assert.doesNotMatch(tocRule, /backdrop-filter/);
 });
@@ -769,6 +768,8 @@ function createUsageGuideFixture({
   tocTop = '8px',
   tocHeight = 72,
   scrollerTop = 0,
+  scrollerPaddingTop = '0px',
+  scrollerOverflowY = 'auto',
   sectionTops = [0, 200],
   scrollerHeight = 400,
   scrollerScrollHeight = 1000,
@@ -837,7 +838,10 @@ function createUsageGuideFixture({
     innerHeight: 600,
     scrollY: 0,
     matchMedia: () => ({ matches: false }),
-    getComputedStyle: () => ({ flexDirection, top: tocTop }),
+    getComputedStyle: (element) =>
+      element === toc
+        ? { flexDirection, top: tocTop }
+        : { paddingTop: scrollerPaddingTop, overflowY: scrollerOverflowY },
     requestAnimationFrame: (callback) => callback(),
     addEventListener(name, listener) {
       windowListeners.set(name, listener);
@@ -899,11 +903,33 @@ test('usage guide recalculates visible toc offset and skips hidden layout update
   assert.equal(fixture.toc.reads, visibleReads);
 });
 
+test('usage guide horizontal toc includes padding only for its internal scroller', async () => {
+  for (const [scrollerOverflowY, expectedOffset] of [
+    ['auto', '110px'],
+    ['visible', '92px'],
+  ]) {
+    const fixture = createUsageGuideFixture({
+      scrollerPaddingTop: '18px',
+      scrollerOverflowY,
+      sectionTops: [0, 105],
+    });
+    await loadUsageGuide(fixture);
+
+    fixture.triggerResize();
+    assert.equal(fixture.scrollOffset, expectedOffset);
+    assert.equal(
+      fixture.links[1].classList.contains('active'),
+      scrollerOverflowY === 'auto',
+    );
+  }
+});
+
 test('usage guide keeps a compact offset for the vertical toc regardless of its height', async () => {
   const fixture = createUsageGuideFixture({
     flexDirection: 'column',
     tocHeight: 320,
     tocTop: '18px',
+    scrollerPaddingTop: '18px',
   });
   await loadUsageGuide(fixture);
 

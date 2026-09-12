@@ -65,10 +65,16 @@ function createOvertimeService(options = {}) {
   let zeroTimer = null;
   let retryTimer = null;
   let recovering = false;
+  let recoveryPaused = false;
   let disposed = false;
 
-  recoverPersistedClock();
-  recoverSettlements();
+  try {
+    recoverPersistedClock();
+    recoverSettlements();
+  } catch (error) {
+    dispose();
+    throw error;
+  }
 
   function getSnapshot() {
     const serverNowMs = Math.floor(now());
@@ -100,15 +106,15 @@ function createOvertimeService(options = {}) {
 
   function setTime(input) {
     const value = validateTimeInput(input);
-    materialize();
+    const nextState = materialize();
     if (Object.hasOwn(value, 'initialSeconds'))
-      state.initialSeconds = value.initialSeconds;
+      nextState.initialSeconds = value.initialSeconds;
     if (Object.hasOwn(value, 'remainingSeconds')) {
-      state.remainingMs = value.remainingSeconds * 1000;
-      state.status =
-        state.enabled && state.remainingMs === 0 ? 'finished' : 'paused';
+      nextState.remainingMs = value.remainingSeconds * 1000;
+      nextState.status =
+        nextState.enabled && nextState.remainingMs === 0 ? 'finished' : 'paused';
     }
-    commit('manual');
+    commit('manual', nextState);
     return getSnapshot();
   }
 
@@ -123,56 +129,56 @@ function createOvertimeService(options = {}) {
 
   function enable() {
     if (state.enabled) return getSnapshot();
-    materialize();
-    state.enabled = true;
-    state.enableEpoch += 1;
-    state.status = 'paused';
-    commit('manual');
+    const nextState = materialize();
+    nextState.enabled = true;
+    nextState.enableEpoch += 1;
+    nextState.status = 'paused';
+    commit('manual', nextState);
     return getSnapshot();
   }
 
   function disable() {
     if (!state.enabled) return getSnapshot();
-    materialize();
-    state.enabled = false;
-    state.status = 'paused';
-    commit('manual', { ignorePending: true });
+    const nextState = materialize();
+    nextState.enabled = false;
+    nextState.status = 'paused';
+    commit('manual', nextState, { ignorePending: true });
     return getSnapshot();
   }
 
   function start() {
     if (!state.enabled)
       throw new Error('overtime must be enabled before start.');
-    materialize();
-    if (state.remainingMs <= 0) state.status = 'finished';
-    else state.status = 'running';
-    commit('manual');
+    const nextState = materialize();
+    if (nextState.remainingMs <= 0) nextState.status = 'finished';
+    else nextState.status = 'running';
+    commit('manual', nextState);
     return getSnapshot();
   }
 
   function pause() {
     if (!state.enabled) return getSnapshot();
-    materialize();
-    state.status = state.remainingMs <= 0 ? 'finished' : 'paused';
-    commit('manual');
+    const nextState = materialize();
+    nextState.status = nextState.remainingMs <= 0 ? 'finished' : 'paused';
+    commit('manual', nextState);
     return getSnapshot();
   }
 
   function reset() {
-    materialize();
-    state.remainingMs = state.initialSeconds * 1000;
-    state.status =
-      state.enabled && state.remainingMs === 0 ? 'finished' : 'paused';
-    commit('manual');
+    const nextState = materialize();
+    nextState.remainingMs = nextState.initialSeconds * 1000;
+    nextState.status =
+      nextState.enabled && nextState.remainingMs === 0 ? 'finished' : 'paused';
+    commit('manual', nextState);
     return getSnapshot();
   }
 
   function setBackground(input) {
     const background = validateBackground(input);
-    materialize();
-    state.backgroundPath = background.path;
-    state.backgroundFit = background.fit;
-    commit('config');
+    const nextState = materialize();
+    nextState.backgroundPath = background.path;
+    nextState.backgroundFit = background.fit;
+    commit('config', nextState);
     return getSnapshot();
   }
 
@@ -181,8 +187,7 @@ function createOvertimeService(options = {}) {
       allowedRemoteImageOrigins: options.allowedRemoteImageOrigins,
     });
     store.replaceRules(rules, toIso(now()));
-    materialize();
-    commit('rules');
+    commit('rules', materialize());
     return getSnapshot();
   }
 
@@ -216,6 +221,7 @@ function createOvertimeService(options = {}) {
   }
 
   function observeGift(event) {
+    if (recoveryPaused) return false;
     const giftEventId = getGiftEventId(event);
     if (giftEventId === 0) return false;
     try {
@@ -228,6 +234,7 @@ function createOvertimeService(options = {}) {
   }
 
   function finalizeGift(event) {
+    if (recoveryPaused) return false;
     const giftEventId = getGiftEventId(event);
     if (giftEventId === 0) return false;
 
@@ -242,8 +249,7 @@ function createOvertimeService(options = {}) {
         return false;
       }
 
-      materialize();
-      const materializedState = { ...state };
+      const materializedState = materialize();
       const updatedAt = toIso(now());
       const result = store.settleFinal(
         giftEventId,
@@ -456,6 +462,16 @@ function createOvertimeService(options = {}) {
     scheduleZeroTimer();
   }
 
+  function reloadState() {
+    if (disposed) return;
+    state = normalizeState(
+      store.getState() || store.ensureState(toIso(now())),
+    );
+    clearRetryTimer();
+    recoverPersistedClock();
+    recoverSettlements();
+  }
+
   function getEffectiveRemainingMs() {
     if (state.status !== 'running') return clampMs(state.remainingMs);
     const elapsedMs = Math.max(
@@ -467,26 +483,35 @@ function createOvertimeService(options = {}) {
 
   function materialize() {
     const currentWallMs = Math.floor(now());
-    state.remainingMs = getEffectiveRemainingMs();
-    state.anchorAtMs = Math.max(0, currentWallMs);
-    monotonicAnchorMs = monotonicNow();
-    if (state.status === 'running' && state.remainingMs === 0)
-      state.status = 'finished';
+    const nextState = {
+      ...state,
+      remainingMs: getEffectiveRemainingMs(),
+      anchorAtMs: Math.max(0, currentWallMs),
+    };
+    if (nextState.status === 'running' && nextState.remainingMs === 0)
+      nextState.status = 'finished';
+    return nextState;
   }
 
-  function commit(reason, options = {}) {
-    state.remainingMs = clampMs(state.remainingMs);
-    state.revision += 1;
-    state.updatedAt = toIso(now());
-    if (options.ignorePending) store.saveStateAndIgnorePending(state);
-    else store.saveState(state);
+  function commit(reason, nextState, options = {}) {
+    const committedState = {
+      ...nextState,
+      remainingMs: clampMs(nextState.remainingMs),
+      revision: nextState.revision + 1,
+      updatedAt: toIso(now()),
+    };
+    const nextMonotonicAnchorMs = monotonicNow();
+    if (options.ignorePending) store.saveStateAndIgnorePending(committedState);
+    else store.saveState(committedState);
+    state = committedState;
+    monotonicAnchorMs = nextMonotonicAnchorMs;
     scheduleZeroTimer();
     if (!state.enabled) clearRetryTimer();
     onUpdate({ reason, state: getSnapshot() });
   }
 
   function recoverSettlements() {
-    if (disposed || recovering || !state.enabled) return;
+    if (disposed || recoveryPaused || recovering || !state.enabled) return;
     recovering = true;
     try {
       const giftEventIds = store.listRecoverableFinal(
@@ -507,13 +532,13 @@ function createOvertimeService(options = {}) {
   }
 
   function scheduleNextRecovery() {
-    if (recovering || disposed || !state.enabled) return;
+    if (recovering || disposed || recoveryPaused || !state.enabled) return;
     const nextAt = store.getNextPendingAt(state.enableEpoch);
     if (nextAt !== null) scheduleRecovery(nextAt);
   }
 
   function scheduleRecovery(atMs) {
-    if (disposed || !state.enabled) return;
+    if (disposed || recoveryPaused || !state.enabled) return;
     clearRetryTimer();
     const delay = Math.max(0, Math.floor(atMs) - Math.floor(now()));
     retryTimer = scheduleTimeout(() => {
@@ -534,7 +559,8 @@ function createOvertimeService(options = {}) {
       cancelTimeout(zeroTimer);
       zeroTimer = null;
     }
-    if (disposed || !state.enabled || state.status !== 'running') return;
+    if (disposed || recoveryPaused || !state.enabled || state.status !== 'running')
+      return;
     const remainingMs = getEffectiveRemainingMs();
     const delay = Math.min(MAX_TIMER_CHUNK_MS, Math.max(0, remainingMs));
     zeroTimer = scheduleTimeout(handleZeroTimer, delay);
@@ -543,15 +569,37 @@ function createOvertimeService(options = {}) {
 
   function handleZeroTimer() {
     zeroTimer = null;
-    if (disposed || !state.enabled || state.status !== 'running') return;
+    if (disposed || recoveryPaused || !state.enabled || state.status !== 'running')
+      return;
     if (getEffectiveRemainingMs() > 0) {
       scheduleZeroTimer();
       return;
     }
-    materialize();
-    state.remainingMs = 0;
-    state.status = 'finished';
-    commit('finished');
+    const nextState = materialize();
+    nextState.remainingMs = 0;
+    nextState.status = 'finished';
+    commit('finished', nextState);
+  }
+
+  function pauseRecovery() {
+    if (disposed || recoveryPaused) return false;
+    recoveryPaused = true;
+    if (zeroTimer) cancelTimeout(zeroTimer);
+    zeroTimer = null;
+    clearRetryTimer();
+    return true;
+  }
+
+  function resumeRecovery() {
+    if (disposed || !recoveryPaused) return;
+    recoveryPaused = false;
+    try {
+      scheduleZeroTimer();
+      recoverSettlements();
+    } catch (error) {
+      pauseRecovery();
+      throw error;
+    }
   }
 
   function dispose() {
@@ -572,6 +620,9 @@ function createOvertimeService(options = {}) {
     act,
     setBackground,
     replaceRules,
+    reloadState,
+    pauseRecovery,
+    resumeRecovery,
     dispose,
   };
 }

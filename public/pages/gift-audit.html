@@ -9,7 +9,7 @@
   <body>
     <h1>🔍 礼物审计 · 气泡 × WebSocket 交叉对比</h1>
     <p class="subtitle">
-      粘贴 Bilibili 直播间的 <code>.bubble-list</code> HTML → 解析气泡礼物 → 与
+      粘贴直播间的 <code>.bubble-list</code> HTML → 解析气泡礼物 → 与
       WebSocket 捕获记录交叉对比
       <span id="connInfo" style="margin-left: 12px; color: var(--text2)"
         >连接中...</span
@@ -25,7 +25,7 @@
       <div class="panel-header">
         <span>📋 气泡 HTML 输入</span>
         <span class="hint"
-          >从 Bilibili 直播间 DevTools 复制 <code>.bubble-list</code> 元素的
+          >从直播间 DevTools 复制 <code>.bubble-list</code> 元素的
           outerHTML</span
         >
       </div>
@@ -44,7 +44,7 @@
         </div>
         <textarea
           id="bubbleHtml"
-          placeholder="在此粘贴 Bilibili 直播间气泡 HTML...
+          placeholder="在此粘贴直播间气泡 HTML...
 
 从浏览器 DevTools 中找到 .bubble-list 元素，右键 → Copy → Copy outerHTML，然后粘贴到这里"
         ></textarea>
@@ -174,7 +174,7 @@
     <!-- 帮助 -->
     <div class="help-section">
       <strong>🛠️ 使用说明</strong><br />
-      1. 在 Bilibili 直播间页面按 <code>F12</code> 打开 DevTools<br />
+      1. 在直播间页面按 <code>F12</code> 打开 DevTools<br />
       2. 用 Elements 面板找到 <code>.bubble-list</code> 元素（通常在
       <code>#player-section</code> 内）<br />
       3. 右键 → <code>Copy → Copy outerHTML</code><br />

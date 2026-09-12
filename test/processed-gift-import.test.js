@@ -39,6 +39,98 @@ const giftSyncFixture = JSON.parse(
     'utf8',
   ),
 );
+const heartBox = require('../../lira-server/test/fixtures/heart-blind-box-events.json');
+const { getGiftSnapshot } = require('../src/bilibili/gift/query-service');
+
+test('heart-box output metadata survives remote import and recent snapshot projection', () => {
+  const fixture = createFixture();
+  try {
+    for (const [index, item] of heartBox.outputs.entries()) {
+      const event = makeEvent('final', index + 1, {
+        giftId: item.id, giftName: item.name, unitPrice: item.rmb, totalPrice: item.rmb,
+        isBlindBox: true, blindBoxId: heartBox.box.id, blindBoxName: heartBox.box.name,
+        blindBoxPrice: heartBox.box.rmb, blindProfit: item.profit,
+      });
+      event.eventId = `heart-output-${index}`;
+      fixture.importProcessedEvent(event);
+      fixture.importProcessedEvent(event);
+    }
+    const snapshot = getGiftSnapshot({ db: fixture.db,
+      getActiveGiftSource: () => ({ sourceId: fixture.sourceId }),
+    });
+    assert.equal(snapshot.recent.length, 2);
+    for (const item of heartBox.outputs) {
+      const row = snapshot.recent.find(gift => gift.gift_id === item.id);
+      assert.equal(row.is_blind_box, true);
+      assert.equal(row.blind_box_id, heartBox.box.id);
+      assert.equal(row.blind_box_name, heartBox.box.name);
+      assert.equal(row.total_price, item.rmb);
+      assert.equal(row.blind_box_price, heartBox.box.rmb);
+      assert.equal(row.blind_profit, item.profit);
+    }
+  } finally {
+    fixture.close();
+  }
+});
+
+test('paused gift imports roll back history and catch-up cursors until writes resume', () => {
+  const fixture = createFixture();
+  const store = createGiftSyncStore({
+    giftDb: fixture.db.giftDb,
+    importHistoryRecord: fixture.detection.importProcessedHistoryRecord,
+    importLiveEvent: fixture.detection.importProcessedEvent,
+  });
+  try {
+    const history = {
+      sourceId: fixture.sourceId, projectionGeneration: 1,
+      records: [makeHistoryRecord()], nextPageToken: null, hasMore: false,
+      recoveryCursor: 5, syncEpoch: 'epoch-1',
+    };
+    const initial = store.getState(fixture.sourceId);
+    fixture.detection.pauseDetection();
+    assert.throws(() => store.commitHistoryPage(history), /GIFT_DETECTION_PAUSED/);
+    assert.deepEqual(store.getState(fixture.sourceId), initial);
+    assert.equal(fixture.db.giftDb.prepare('SELECT COUNT(*) AS count FROM gift_events').get().count, 0);
+    fixture.detection.resumeDetection();
+    store.commitHistoryPage(history);
+
+    const event = { ...makeEvent('final', 6), eventId: 'next-final' };
+    const page = {
+      sourceId: fixture.sourceId, projectionGeneration: 1,
+      events: [event], nextCursor: 6, syncEpoch: 'epoch-1',
+    };
+    const bootstrapped = store.getState(fixture.sourceId);
+    fixture.detection.pauseDetection();
+    assert.throws(() => store.commitCatchUpPage(page), /GIFT_DETECTION_PAUSED/);
+    assert.deepEqual(store.getState(fixture.sourceId), bootstrapped);
+    assert.equal(fixture.db.giftDb.prepare('SELECT COUNT(*) AS count FROM gift_events').get().count, 1);
+    fixture.detection.resumeDetection();
+    assert.equal(store.commitCatchUpPage(page).finalCursor, 6);
+    assert.equal(fixture.db.giftDb.prepare('SELECT COUNT(*) AS count FROM gift_events').get().count, 2);
+  } finally {
+    fixture.close();
+  }
+});
+
+test('a deferred gift delivery cannot replay its old row across a clear-all pause', () => {
+  const fixture = createFixture();
+  const afterCommit = [];
+  try {
+    const row = fixture.detection.importProcessedEvent(
+      makeEvent('final', 1), fixture.sourceId,
+      { registerAfterCommit: (callback) => afterCommit.push(callback) },
+    );
+    assert.equal(afterCommit.length, 1);
+    fixture.detection.pauseDetection();
+    fixture.db.giftDb.prepare('DELETE FROM gift_events WHERE id = ?').run(row.id);
+    fixture.detection.resumeDetection();
+    afterCommit[0]();
+    assert.deepEqual(fixture.events, []);
+    assert.deepEqual(fixture.finalizedIds, []);
+  } finally {
+    fixture.close();
+  }
+});
 
 test('processed server progress stays pending until the matching server final', () => {
   const fixture = createFixture();

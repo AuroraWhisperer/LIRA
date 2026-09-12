@@ -9,6 +9,7 @@ export function createPlaybackQueueCoordinator({
   renderPlayback,
   getPlaybackAudio,
   syncPlaybackLyricWindow,
+  invalidatePlaybackRequests,
   playPlaybackTrack,
   ensurePlaybackRadioQueueFilled,
   toast,
@@ -20,6 +21,7 @@ export function createPlaybackQueueCoordinator({
     renderPlayback,
     getPlaybackAudio,
     syncPlaybackLyricWindow,
+    invalidatePlaybackRequests,
   });
 
   function rebuildPlaybackShuffleOrder() {

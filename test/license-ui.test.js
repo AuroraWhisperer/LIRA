@@ -84,7 +84,7 @@ test('license page is independent from existing onboarding and exposes only thre
   assert.match(html, /id="licenseAccountName"/);
   assert.match(html, /id="licensePassword"/);
   assert.match(html, /id="licenseActivationCode"/);
-  assert.match(html, /激活并进入 LIRA/);
+  assert.match(html, /激活并进入/);
   assert.doesNotMatch(html, /跳过/);
 });
 
@@ -149,7 +149,7 @@ test('license renderer re-enables both actions after a failed async attempt', ()
     'utf8',
   );
   assert.match(script, /function finishBusy\(\)/);
-  assert.match(script, /submitButton\.disabled = false/);
+  assert.match(script, /submitButton\.disabled = !canActivate/);
   assert.match(script, /retryButton\.disabled = false/);
   assert.match(script, /finally\s*\{\s*finishBusy\(\);\s*\}/);
 });

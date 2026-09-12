@@ -1,11 +1,11 @@
 <div id="settingsPage" class="tab-page">
   <div class="panel-body stack">
-    <!-- Bilibili 账号登录 -->
+    <!-- 直播账号登录 -->
     <fieldset class="theme-section" style="border-color: #fb7299">
       <legend>
-        🔐 Bilibili 账号登录
+        🔐 直播账号登录
         <lira-help
-          >每个 LIRA 账号使用独立的 Bilibili 凭据；仅上传到当前已授权的 LIRA 账号。云端凭据保存成功且直播间已配置并启用后才接收弹幕和礼物，未登录不会匿名采集。关闭应用不会停止已配置的云端采集。</lira-help
+          >每个 LIRA 账号使用独立的直播账号凭据；仅上传到当前已授权的 LIRA 账号。云端凭据保存成功且直播间已配置并启用后才接收弹幕和礼物，未登录不会匿名采集。关闭应用不会停止已配置的云端采集。</lira-help
         >
       </legend>
       <div
@@ -38,7 +38,7 @@
             min-height: 26px;
           "
         >
-          📱 扫码登录 Bilibili
+          📱 扫码登录直播账号
         </button>
         <button
           id="bilibiliLogoutBtn"
@@ -54,14 +54,14 @@
     <form id="settingsForm" class="stack">
       <div class="grid-3">
         <label>
-          Bilibili 直播间号或链接
+          直播间号或链接
           <input
             id="roomId"
-            placeholder="例如：123456 或 https://live.bilibili.com/123456"
+            placeholder="例如：123456，或粘贴直播间链接"
           />
         </label>
         <label>
-          启用 Bilibili 监听
+          启用弹幕监听
           <select id="enableBilibili" data-dropdown-variant="settings">
             <option value="false">暂不启用</option>
             <option value="true">启用</option>

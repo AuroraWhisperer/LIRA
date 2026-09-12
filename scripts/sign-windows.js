@@ -17,8 +17,9 @@
  *   configuration.path - 待签名的可执行文件路径
  */
 
-const { execFileSync } = require('node:child_process');
+const { execFileSync, spawnSync } = require('node:child_process');
 const path = require('node:path');
+const { redactReleaseOutput, sanitizeCommandError, checkCommandResult } = require('./release-output');
 
 // RFC 3161 时间戳服务器(优先级顺序)
 const TIMESTAMP_SERVERS = [
@@ -43,8 +44,10 @@ const SIGNTOOL_SEARCH_PATHS = [
  * @returns {Promise<void>}
  */
 exports.default = async function sign(configuration) {
+  const log = (message) => console.log(redactReleaseOutput(message, process.env));
+  const warn = (message) => console.warn(redactReleaseOutput(message, process.env));
   const filePath = configuration.path;
-  console.log(`[sign-windows] Signing: ${filePath}`);
+  log(`[sign-windows] Signing: ${filePath}`);
 
   // 检查证书配置
   const certFile = process.env.WINDOWS_CERT_FILE;
@@ -69,20 +72,20 @@ exports.default = async function sign(configuration) {
     );
   }
 
-  console.log(`[sign-windows] Using signtool: ${signtool}`);
+  log(`[sign-windows] Using signtool: ${signtool}`);
 
   // 构建 signtool 参数
   const args = ['sign', '/fd', 'sha256'];
 
   // 证书来源
   if (certFile) {
-    console.log(`[sign-windows] Using certificate file: ${certFile}`);
+    log(`[sign-windows] Using certificate file: ${certFile}`);
     args.push('/f', certFile);
     if (certPassword) {
       args.push('/p', certPassword);
     }
   } else {
-    console.log(
+    log(
       `[sign-windows] Using certificate from store: ${certThumbprint}`,
     );
     args.push('/sha1', certThumbprint);
@@ -94,33 +97,43 @@ exports.default = async function sign(configuration) {
 
   for (const tsUrl of TIMESTAMP_SERVERS) {
     try {
-      console.log(`[sign-windows] Attempting timestamp: ${tsUrl}`);
+      log(`[sign-windows] Attempting timestamp: ${tsUrl}`);
       const tsArgs = [...args, '/tr', tsUrl, '/td', 'sha256', filePath];
 
-      execFileSync(signtool, tsArgs, {
-        stdio: 'inherit',
+      const result = spawnSync(signtool, tsArgs, {
+        stdio: ['ignore', 'pipe', 'pipe'],
         shell: false,
       });
+      checkCommandResult(result, signtool, process.env);
+      if (result.stdout?.length) log(result.stdout.toString().trimEnd());
+      if (result.stderr?.length) warn(result.stderr.toString().trimEnd());
 
       timestampSuccess = true;
-      console.log(
+      log(
         `[sign-windows] ✅ Signed successfully with timestamp from ${tsUrl}`,
       );
       break;
     } catch (error) {
-      lastTimestampError = error;
-      console.warn(
-        `[sign-windows] ⚠️  Timestamp server ${tsUrl} failed: ${error.message}`,
+      lastTimestampError = sanitizeCommandError(error, process.env);
+      warn(
+        `[sign-windows] ⚠️  Timestamp server ${tsUrl} failed: ${lastTimestampError.message}`,
       );
+      if (lastTimestampError.stdout) log(lastTimestampError.stdout.trimEnd());
+      if (lastTimestampError.stderr) warn(lastTimestampError.stderr.trimEnd());
     }
   }
 
   if (!timestampSuccess) {
-    throw new Error(
+    const error = new Error(
       `Failed to sign with timestamp after trying all servers.\n` +
         `Last error: ${lastTimestampError?.message || 'unknown'}\n` +
         `Signing without timestamp is not recommended (signature expires with certificate).`,
+      { cause: lastTimestampError },
     );
+    for (const key of ['status', 'code', 'signal']) {
+      if (lastTimestampError?.[key] != null) error[key] = lastTimestampError[key];
+    }
+    throw error;
   }
 };
 
@@ -133,7 +146,9 @@ function findSigntool() {
 
   // 优先从 PATH 查找
   try {
-    execFileSync('where', ['signtool.exe'], { encoding: 'utf8', shell: true });
+    execFileSync('where', ['signtool.exe'], {
+      encoding: 'utf8', shell: true, stdio: ['ignore', 'pipe', 'pipe'],
+    });
     return 'signtool.exe'; // 在 PATH 中可直接调用
   } catch {
     // PATH 中未找到,搜索常见安装路径
@@ -156,7 +171,7 @@ function findSigntool() {
         '/b',
         'C:\\Program Files (x86)\\Windows Kits\\*signtool.exe',
       ],
-      { encoding: 'utf8', shell: false, timeout: 10000 },
+      { encoding: 'utf8', shell: false, timeout: 10000, stdio: ['ignore', 'pipe', 'pipe'] },
     );
     const lines = result.trim().split('\n');
     if (lines.length > 0 && lines[0].trim()) {

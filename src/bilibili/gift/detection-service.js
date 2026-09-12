@@ -44,10 +44,12 @@ function createGiftDetectionService(context, options = {}) {
   const timers = new Map();
   const consumerRetryTimers = new Map();
   const consumerRetryAttempts = new Map();
+  let detectionPaused = false;
+  let detectionGeneration = 0;
   let disposed = false;
 
   function detect(input) {
-    if (disposed) return null;
+    if (disposed || detectionPaused) return null;
 
     const giftStatisticsEligible =
       context.settings().enableGiftSprint === 'true';
@@ -133,6 +135,7 @@ function createGiftDetectionService(context, options = {}) {
   }
 
   function importProcessedEvent(input, sourceId, importOptions = {}) {
+    if (detectionPaused) throw new Error('GIFT_DETECTION_PAUSED');
     if (disposed) return null;
 
     const capturedSourceId = requireRemoteSource(giftDb, sourceId);
@@ -211,6 +214,7 @@ function createGiftDetectionService(context, options = {}) {
   }
 
   function importProcessedHistoryRecord(input, sourceId) {
+    if (detectionPaused) throw new Error('GIFT_DETECTION_PAUSED');
     if (disposed) return null;
 
     const capturedSourceId = requireRemoteSource(giftDb, sourceId);
@@ -281,6 +285,7 @@ function createGiftDetectionService(context, options = {}) {
     finalizedAtMs = Math.floor(nowMs()),
     finalizeOptions = {},
   ) {
+    if (detectionPaused) return null;
     const id = Number(giftEventId) || 0;
     if (id <= 0) return null;
     clearGiftTimer(id);
@@ -297,7 +302,9 @@ function createGiftDetectionService(context, options = {}) {
     const row = readGift(giftDb, id);
     if (!row || Number(result.changes) === 0) return row;
 
+    const generation = detectionGeneration;
     const deliverFinal = () => {
+      if (detectionPaused || generation !== detectionGeneration) return;
       dispatch(row, 'final');
       if (onGiftFinalized) onGiftFinalized(row);
     };
@@ -310,12 +317,15 @@ function createGiftDetectionService(context, options = {}) {
   }
 
   function scheduleFinalization(row) {
+    if (detectionPaused) return;
     const id = Number(row?.id) || 0;
     if (id <= 0 || row.detection_status !== 'progress') return;
     clearGiftTimer(id);
     const dueAtMs = Number(row.last_platform_at_ms) + GIFT_FINALIZE_QUIET_MS;
+    const generation = detectionGeneration;
     const timer = scheduleTimeout(
       () => {
+        if (detectionPaused || generation !== detectionGeneration) return;
         timers.delete(id);
         finalizeDetected(id, Math.floor(nowMs()));
       },
@@ -326,6 +336,7 @@ function createGiftDetectionService(context, options = {}) {
   }
 
   function flushPending({ force = false } = {}) {
+    if (detectionPaused) return;
     const rows = giftDb
       .prepare(
         `
@@ -349,6 +360,7 @@ function createGiftDetectionService(context, options = {}) {
   }
 
   function recover() {
+    if (disposed || detectionPaused) return;
     flushPending();
     const finalRows = giftDb
       .prepare(
@@ -386,13 +398,42 @@ function createGiftDetectionService(context, options = {}) {
     };
   }
 
-  function dispose() {
-    if (disposed) return;
-    disposed = true;
+  function cancelPendingTimers() {
     for (const timer of timers.values()) cancelTimeout(timer);
     timers.clear();
     for (const timer of consumerRetryTimers.values()) cancelTimeout(timer);
     consumerRetryTimers.clear();
+  }
+
+  function pauseDetection() {
+    if (disposed || detectionPaused) return false;
+    detectionPaused = true;
+    detectionGeneration += 1;
+    cancelPendingTimers();
+    return true;
+  }
+
+  function resumeDetection() {
+    if (disposed || !detectionPaused) return;
+    detectionPaused = false;
+    try {
+      recover();
+      // 非统计消费者的失败也可能留有重试；只恢复仍存在的已落库事件。
+      for (const id of consumerRetryAttempts.keys()) {
+        const row = readGift(giftDb, id);
+        if (row?.detection_status === 'final') scheduleConsumerRetry(id);
+        else clearConsumerRetry(id);
+      }
+    } catch (error) {
+      pauseDetection();
+      throw error;
+    }
+  }
+
+  function dispose() {
+    if (disposed) return;
+    disposed = true;
+    cancelPendingTimers();
     consumerRetryAttempts.clear();
     flushPending({ force: true });
   }
@@ -418,11 +459,14 @@ function createGiftDetectionService(context, options = {}) {
   }
 
   function scheduleConsumerRetry(id) {
-    if (disposed || id <= 0 || consumerRetryTimers.has(id)) return;
+    if (disposed || detectionPaused || id <= 0 || consumerRetryTimers.has(id))
+      return;
     const attempt = consumerRetryAttempts.get(id) || 0;
     const delayMs = Math.min(CONSUMER_RETRY_MAX_MS, 1000 * 2 ** attempt);
     consumerRetryAttempts.set(id, Math.min(attempt + 1, 5));
+    const generation = detectionGeneration;
     const timer = scheduleTimeout(() => {
+      if (detectionPaused || generation !== detectionGeneration) return;
       consumerRetryTimers.delete(id);
       const row = readGift(giftDb, id);
       if (!row || row.detection_status !== 'final') {
@@ -450,6 +494,8 @@ function createGiftDetectionService(context, options = {}) {
     recover,
     flushPending,
     finalizeDetected,
+    pauseDetection,
+    resumeDetection,
     getStatus,
     dispose,
   };

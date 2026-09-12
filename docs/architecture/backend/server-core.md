@@ -36,7 +36,7 @@
 | 回退辅助     | `listenWithFallback` 扫描 `startPort..startPort+19`,仅独立/兼容模式可用                                 | [lifecycle.js:13-29](../../../src/server/lifecycle.js#L13-L29)   |
 | 端口冲突处理 | 启动前 `cleanupOwnPortOccupant`:识别并关闭**上一个本服务实例**(同数据目录/SERVICE_ID/可执行路径),再绑定 | [lifecycle.js:65-111](../../../src/server/lifecycle.js#L65-L111) |
 
-`SERVICE_ID = 'lira'`([lifecycle.js:11](../../../src/server/lifecycle.js#L11)),用于 `/api/health` 应答与旧实例识别。旧实例清理顺序:读 `.server-runtime.json` → GET `/api/health` 验证身份 → POST `/api/system/shutdown` 请求退出 → 轮询端口释放(7.5s 超时/120ms 间隔)→ 仍占用则 `SIGTERM` 杀进程。等待预算覆盖 Electron 的 2 秒 renderer flush 和正常退出余量，避免健康旧实例仍在写库时被过早终止。
+`SERVICE_ID = 'lira'`([lifecycle.js:11](../../../src/server/lifecycle.js#L11)),用于 `/api/health` 应答与旧实例识别。旧实例清理顺序:读 `.server-runtime.json` → GET `/api/health` 验证身份 → POST `/api/system/shutdown` 请求退出 → 轮询端口释放(7.5s 超时/120ms 间隔)→ 仍占用且重新验证归属后才发送 `SIGTERM`。进程归属检查对 Windows 路径统一小写；打包 exe 必须精确属于当前 `resources/app(.asar)` 的安装根，同名 `lira.exe` 不足以判定归属。Node/Electron 路径证据限于对应运行时直接启动的绝对入口：Node 为本根的 `src/server.js`，Electron 为本根或其 `src/electron/main.js`；相对入口、通用文件名、相邻目录前缀或其他参数中的根路径均不足以授权终止。强制终止前重新读取进程身份；此前以 SERVICE_ID 识别的服务可通过新健康响应及相同 PID 再确认，不复用等待前的身份缓存。等待预算覆盖 Electron 的 2 秒 renderer flush 和正常退出余量，避免健康旧实例仍在写库时被过早终止。
 
 **安全边界(H06 Browser Origin Boundary)**:主机验证在 `createServerRuntime()` 构造时执行，**先于任何文件系统或数据库副作用**。非环回地址被拒时抛出错误，阻止服务启动。这确保服务仅监听本地环回接口，防止 LAN/WAN 暴露。
 
@@ -57,7 +57,7 @@
 1. phase 非 `ready` 时，仅 `/api/health` 返回最小进程身份与 phase；其他 HTTP 请求稳定返回 503，WebSocket upgrade 同样拒绝。
 2. **Host 头验证**(H06):检查 `req.headers.host` 是否与运行时 baseUrl 匹配，不匹配返回 400。
 3. **Origin 验证**(H06):对状态变更请求(`POST`/`PUT`/`DELETE`/`PATCH`)，检查 `req.headers.origin` 是否在允许列表内(当前仅运行时 baseUrl)。无 Origin 头的请求(非浏览器客户端，如 curl)放行。不匹配返回 403。
-4. `pathname === '/ws'` → 直接 400(提示用 WebSocket 客户端;升级请求走 `server.on('upgrade')`)
+4. `pathname === '/ws'` → 直接 400(提示用 WebSocket 客户端;升级请求走 `server.on('upgrade')`)；升级入口捕获 URL 解析异常，畸形 Host/请求 URL 返回 400 并关闭该连接，不使服务退出。
 5. `pathname.startsWith('/api/')` → 经 [inflight-tracker.js](../../../src/server/inflight-tracker.js) 接纳并跟踪，再调用 [api-routes.js](../../../src/server/api-routes.js) 的 `handleApi(createApiContext(), req, res, requestUrl)`。
 6. 其余 → `httpUtils.servePageOrAsset(PUBLIC_DIR, …)` 静态页面/资源。
 
@@ -81,7 +81,7 @@ phase 为 `ready` 时，`server.on('upgrade')` 仅把 `/ws` 交给 `webSocketHub
 
 ### 4.2 API Context 注入
 
-`server.js` 内的轻量适配函数 `createApiContext()`([server.js:201](../../../src/server.js#L201))只收集当前运行时依赖,实际的 Context 结构由 [api-context.js:7](../../../src/server/api-context.js#L7) 统一构建。Context **按领域分组**注入,避免退化成平铺 Fat Context:`songs / queue / superChat / gifts / overtime / data / playback / playbackLyrics / weSing / theme / bilibili / ai / settings / system / music` 共 15 组,外加 `maxBodyBytes`、`sessionToken`、`broadcastSnapshot`。各组内部函数来自领域服务或显式注入的运行时组件。
+`server.js` 内的轻量适配函数 `createApiContext()`([server.js:201](../../../src/server.js#L201))只收集当前运行时依赖,实际的 Context 结构由 [api-context.js:7](../../../src/server/api-context.js#L7) 统一构建。Context **按领域分组**注入,避免退化成平铺 Fat Context:`songs / queue / superChat / gifts / overtime / data / playback / playbackLyrics / weSing / theme / bilibili / ai / settings / system / music / cloudSync / giftSync / games / wheel` 共 19 组,外加 `maxBodyBytes`、`sessionToken`、`broadcastSnapshot`。各组内部函数来自领域服务或显式注入的运行时组件。
 
 ### 4.3 静态页面服务与 Token 注入
 
@@ -92,6 +92,7 @@ phase 为 `ready` 时，`server.on('upgrade')` 仅把 `/ws` 交给 `webSocketHub
   1. 给指向 `/api/` 的同源 `<a>` 链接补 `?token=`
   2. 包装 `window.fetch`,对 `/api/*`(除 `/api/health`)自动附加 `Authorization: Bearer <token>`
   3. 包装 `window.WebSocket`,对 `/ws` 自动追加 `?token=`
+- **OBS 会话恢复**:仅 `public/pages/overlays/` 下的 HTML 启用。当前服务的 `/ws` 断开或同源 `/api/` 返回 401 时，使用页面原 token 请求 `/api/state`；只有探测也返回 401 才刷新页面以重新注入 token。探测单飞、5 秒超时，离线、服务启动中或会话有效均不刷新；`pagehide` 取消探测。现有 WebSocket 退避重连与服务器鉴权保持不变，管理页不会因此刷新。
 - 响应头:`Cache-Control: no-store`;MIME 映射覆盖 html/css/js/json/svg/png/jpg/jpeg/gif/webp/ico。
 - 辅助函数:`readJsonBody`、`sendJson`(统一 `{ok,…}` 包装 + no-store)、`sendCsv`、`sendBuffer`。
 
@@ -130,6 +131,8 @@ phase 为 `ready` 时，`server.on('upgrade')` 仅把 `/ws` 交给 `webSocketHub
 
 启动失败时按已创建资源逆序停止 runtime、关闭数据库、关闭 listener，再删除本实例拥有的 token/runtime 文件并重抛。`startPromise` 单飞(重复调用返回同一 Promise);`isShuttingDown` 期间拒绝新启动。
 
+`createDomainServices` 在完整返回前负责部分装配回滚，依次释放已取得的 gift runtime、hybrid catalog、本地 catalog 和 overtime；单步清理失败记录警告后继续，保留原始装配错误。overtime 自身恢复中断时取消已创建的归零/重试计时器。hybrid 的终止 `dispose()` 移除本实例的 initializer 监听器并停止自己创建的 remote cache，保留外部借用对象；正常可恢复的 `start()` / `stop()` 契约不变。数据库、settings store 和 resolver 的关闭责任仍在外层；清理不重置已持久化的倒计时或礼物状态。
+
 ### 6.2 关闭(shutdownApplication)
 
 顺序:
@@ -137,8 +140,8 @@ phase 为 `ready` 时，`server.on('upgrade')` 仅把 `/ws` 交给 `webSocketHub
 1. 同步切换 phase 为 `quiescing` 并让 `inflight-tracker` 停止接纳新 API；listener 继续占用端口，作为数据库独占边界。
 2. 等待正在进行的启动结束，停止 Bilibili 与 WebSocket 新入口。
 3. `preShutdownHook()` 通过 Electron IPC 刷新 renderer 播放状态，此时数据库仍开放。
-4. drain quiesce 前已接纳的 HTTP handlers，再执行 `aiRuntime.shutdown()`：取消网络/工具调用并等待 active generation、delivery、direct provider 操作和日志写入。
-5. `gifts.dispose()` 强制结清待决礼物并清 timer，随后 `overtime.dispose()`、`weSingCapture.stop()`。
+4. drain quiesce 前已接纳的 HTTP handlers，释放 `gameSessionService` 与 `wheelSessionService`，再执行 `aiRuntime.shutdown()`：取消网络/工具调用并等待 active generation、delivery、direct provider 操作和日志写入。
+5. `gifts.dispose()` 强制结清待决礼物并清 timer，随后停止 `overtimeGiftCatalog` 的刷新 timer，再执行 `overtime.dispose()`、`weSingCapture.stop()`。
 6. `optimizeDatabases(db)` → `closeDatabases(db)`。
 7. 最后 `server.close()` + `closeAllConnections()` 释放端口，再删除本实例拥有的 `.session-token` 与 `.server-runtime.json`。
 8. `exitProcess` 时 `process.exit(0)`。

@@ -1,73 +1,60 @@
-# 点歌全链路时序图(观众弹幕 → 播放)
+# 点歌与播放时序
 
-> 涉及文件: [src/bilibili/danmaku-client.js](../../../src/bilibili/danmaku-client.js)(WS 二进制帧解析) · [src/bilibili/bilibili-message-handler.js](../../../src/bilibili/bilibili-message-handler.js)(命令解析) · [src/music/queue-service.js](../../../src/music/queue-service.js)(队列) · [src/music/song-matcher.js](../../../src/music/song-matcher.js)(匹配打分) · [src/music/music-cache.js](../../../src/music/music-cache.js)(缓存) · [src/music/providers/qq-provider.js](../../../src/music/providers/qq-provider.js)(上游搜索/流地址) · [src/storage/database.js](../../../src/storage/database.js)(SQLite) · [src/server/ws.js](../../../src/server/ws.js)(快照广播) · [public/js/playback/](../../../public/js/playback/)(播放引擎)
+弹幕点歌在本地歌库匹配并入队。播放器选中曲目后，独立执行在线音源搜索、匹配及流地址解析；入队本身不调用 QQ 搜索，也不保证自动开始播放。
 
-本图由 Mermaid `sequenceDiagram` 渲染(GitHub 原生支持;本地预览用 VSCode Mermaid 插件)。
+拥有者：[命令处理](../../../src/bilibili/bilibili-message-handler.js)、[领域装配](../../../src/server/domain-services.js)、[队列服务](../../../src/music/queue-service.js)、[队列存储](../../../src/storage/queue-store.js)、[音乐路由](../../../src/server/routes/music-routes.js)、[播放路由](../../../src/server/routes/playback-routes.js)。
 
 ```mermaid
 sequenceDiagram
-    actor Viewer as直播间观众
-    participant BL as B站直播服务器
-    participant DC as BilibiliDanmakuClient
-    participant CMD as 命令解析器
-    participant QS as QueueService
-    participant SM as SongMatcher
-    participant CACHE as MusicCache
-    participant QQ as QQ音乐Provider
-    participant DB as SQLite
-    participant WS as WebSocket广播
-    participant FE as 播放引擎
-    participant OBS as OBS悬浮层
-
-    Viewer->>BL: 发弹幕 "点歌 夜曲"
-    BL-->>DC: WS 二进制帧推送
-    DC->>DC: protobuf 解析 + 去重过滤
-
-    DC->>CMD: handleDanmaku(danmaku)
-    CMD->>CMD: 识别命令类型 → 点歌请求
-
-    CMD->>QS: addRequest(songName, uid)
-    QS->>SM: matchSong("夜曲")
-    SM->>CACHE: lookup("夜曲")
-
-    alt缓存命中
-        CACHE-->>SM: 曲目元数据
-    else 缓存未命中
-        SM->>QQ: search("夜曲")
-        QQ->>QQ: GTK签名 + zzcSign 计算
-        QQ-->>SM: 搜索结果列表
-        SM->>SM: 多维打分排序
-        SM->>CACHE: 写入缓存 (TTL)
-    end
-
-    SM-->>QS: 匹配曲目 + 相似度分值
-    QS->>DB: INSERT INTO queue (song, uid, pos)
-    DB-->>QS: 入队成功
-    QS-->>CMD: 回调 → 发送弹幕确认
-
-    CMD->>BL: 发弹幕回复 "已点夜曲 ✓"
-    CMD->>WS: broadcastSnapshot('queue:add')
-
-    par WS 广播到所有客户端
-        WS-->>FE: 队列快照更新
-        WS-->>OBS: 队列悬浮层刷新
-    end
-
-    Note over OBS: 队列层实时显示新增曲目
-
-    Note over FE: 当前曲目播放结束
-    FE->>QQ: GET /api/music/stream?id=xxx
-    QQ->>QQ: 解析播放 URL / 格式协商
-    QQ-->>FE: 302 重定向 → 流地址
-
-    FE->>FE: 开始播放 + 加载歌词
-    FE->>WS: POST /api/playback/status (playing)
-    WS->>WS: broadcastSnapshot('playback:start')
-
-    par 歌词广播
-        WS-->>OBS: 歌词快照 + YRC逐字词时间轴
-    end
-
-    OBS->>OBS: 桌面歌词层逐字渐显动画
-    FE->>DB: 播放记录写入 (history)
+    actor Viewer as 观众
+    participant BL as B站弹幕通道
+    participant CMD as 本地点歌命令处理
+    participant QS as 队列服务
+    participant DB as 本地歌库与队列存储
+    participant WS as 本地WebSocket
+    participant UI as 管理页与队列浏览器源
+    Viewer->>BL: 点歌 夜曲
+    BL->>CMD: 已解析的弹幕
+    CMD->>DB: resolveSongRequest 本地歌名匹配
+    CMD->>QS: addQueueItem
+    QS->>QS: 容量、重复与歌库限制校验
+    QS->>DB: songs.find 与 insertRequest 事务
+    DB-->>QS: 队列项
+    QS-->>CMD: accepted 与 queueItem
+    CMD->>WS: broadcastSnapshot bilibili:danmaku
+    WS-->>UI: snapshot 队列状态
 ```
+
+队列的请求人身份只在相应领域使用，公开页面使用各自的投影。点歌确认弹幕取决于机器人设置，不是每次入队的固定步骤。
+
+```mermaid
+sequenceDiagram
+    actor User as 主播或播放器队列
+    participant FE as 播放引擎
+    participant API as 本地音乐与播放API
+    participant P as 选定的音乐Provider
+    participant CDN as 音频来源
+    participant WS as 本地WebSocket
+    participant Lyric as 歌词消费者
+    User->>FE: 选择要播放的曲目
+    opt 需要在线搜索与匹配
+        FE->>API: POST /api/music/search 等音乐查询
+        API->>P: 搜索候选
+        P-->>API: 候选音轨
+        API-->>FE: JSON 音轨结果
+    end
+    FE->>API: POST /api/music/resolve-stream
+    API->>P: resolvePlayableUrl
+    P-->>API: 流描述与有效期
+    API-->>FE: JSON ok/data，含播放URL
+    FE->>CDN: 播放URL请求，QQ加密流经本地解密路由
+    FE->>API: POST /api/music/lyrics
+    API->>P: 获取歌词
+    API-->>FE: 歌词数据
+    FE->>API: POST /api/playback/lyric-timeline 与 lyric-state
+    API->>WS: lyric-timeline 与 lyric-state
+    WS-->>Lyric: 时间轴与当前播放进度
+    FE->>API: POST /api/playback/history
+```
+
+本地文件和全民 K 歌分别走本地媒体与采集通道；详细播放/歌词消息约束见 [music/services.md](../backend/music/services.md) 和 [ws.md](../backend/ws.md)。

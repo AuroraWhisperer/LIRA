@@ -19,6 +19,7 @@ export class StateService {
     this.songs = [];
     this.categories = [];
     this.songReloadTimer = null;
+    this.songReloadVersion = 0;
     this.shuttingDown = false;
     this.songLanguages = new Set();
     this.songArtists = new Set();
@@ -186,6 +187,7 @@ export class StateService {
    * 重新加载歌曲列表
    */
   async reloadSongs(options = {}) {
+    const requestVersion = ++this.songReloadVersion;
     const params = new URLSearchParams();
     if (value('songSearch')) params.set('query', value('songSearch'));
     for (const category of readSelectedCategories()) {
@@ -201,12 +203,15 @@ export class StateService {
 
     const response = await fetch(`/api/songs?${params}`);
     const payload = await response.json();
+    // 只接纳最新请求，避免旧筛选结果覆盖当前列表。
+    if (requestVersion !== this.songReloadVersion) return;
     if (!payload.ok) throw new Error(payload.error || '读取歌库失败');
 
     this.songs = payload.data || [];
     if (options.reloadState !== false) {
       await this.reloadState();
     }
+    if (requestVersion !== this.songReloadVersion) return;
 
     // 发布歌曲更新事件
     eventBus.emit(Events.SONG_UPDATED, {

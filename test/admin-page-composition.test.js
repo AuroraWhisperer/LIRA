@@ -161,7 +161,7 @@ test('admin pages include frame protection headers', () => {
   }
 });
 
-test('overlay pages do not include frame protection headers', () => {
+test('overlay pages do not include frame protection headers', async () => {
   const overlayPaths = [
     '/queue',
     '/songlist',
@@ -177,26 +177,35 @@ test('overlay pages do not include frame protection headers', () => {
   ];
 
   for (const pathname of overlayPaths) {
+    let status;
     let headers = {};
-    const response = {
-      setHeader(name, value) {
-        headers[name] = value;
-      },
-      writeHead(status, nextHeaders) {
-        headers = { ...headers, ...nextHeaders };
-      },
-      end() {},
-    };
+    const body = await new Promise((resolve) => {
+      const response = {
+        setHeader(name, value) {
+          headers[name] = value;
+        },
+        writeHead(nextStatus, nextHeaders) {
+          status = nextStatus;
+          headers = { ...headers, ...nextHeaders };
+        },
+        end: resolve,
+      };
 
-    servePageOrAsset(
-      PUBLIC_DIR,
-      { method: 'GET' },
-      response,
-      new URL(`http://127.0.0.1${pathname}`),
-      'test-token',
-    );
+      servePageOrAsset(
+        PUBLIC_DIR,
+        { method: 'GET' },
+        response,
+        new URL(`http://127.0.0.1${pathname}`),
+        'test-token',
+      );
+    });
 
-    assert.equal(headers['Content-Security-Policy'], undefined);
-    assert.equal(headers['X-Frame-Options'], undefined);
+    assert.equal(status, 200, pathname);
+    assert.equal(headers['Content-Type'], 'text/html; charset=utf-8', pathname);
+    const html = body.toString('utf8');
+    assert.match(html, /<!doctype html>/i, pathname);
+    assert.match(html, /<\/html>\s*$/, pathname);
+    assert.equal(headers['Content-Security-Policy'], undefined, pathname);
+    assert.equal(headers['X-Frame-Options'], undefined, pathname);
   }
 });

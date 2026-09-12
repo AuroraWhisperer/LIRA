@@ -1,6 +1,6 @@
 # Windows 代码签名
 
-> 涉及文件:[package.json](../../../package.json)(`build.win` 签名配置)、[scripts/sign-windows.js](../../../scripts/sign-windows.js)(签名脚本,待实现)、[scripts/verify-windows-release.js](../../../scripts/verify-windows-release.js)(签名验证,待实现)、[scripts/publish-release.js](../../../scripts/publish-release.js)(发布门禁集成点)
+> 涉及文件:[package.json](../../../package.json)(`build.win` 签名配置)、[scripts/sign-windows.js](../../../scripts/sign-windows.js)(签名脚本)、[scripts/verify-windows-release.js](../../../scripts/verify-windows-release.js)(签名验证)、[scripts/publish-release.js](../../../scripts/publish-release.js)(发布门禁集成点)
 
 本文档是 Windows 代码签名的**唯一事实源**:签名配置、证书存储、验证流程、发布门禁、测试策略只在此成文。当前状态:**设计完成,实现阻塞于所有者输入**(见 §1)。构建配置见 [build.md](build.md),自动更新的完整性验证见 [../desktop/update.md](../desktop/update.md)(SHA-512 哈希验证已存在)。
 
@@ -19,7 +19,7 @@
 - 正式证书:通过 SSL.com、DigiCert、Sectigo 等 CA 购买 EV Code Signing Certificate(Extended Validation,最高可信度)或标准 Code Signing Certificate
 - 测试证书:使用 PowerShell `New-SelfSignedCertificate` 生成自签名证书(仅测试,Windows SmartScreen 仍会警告)
 
-**当前状态**:设计已完成(见 §2-§6),签名脚本与验证脚本为骨架实现(见 §3、§4),等待所有者提供上述输入后填充实际配置。
+**当前状态**:设计已完成(见 §2-§6),签名与验证脚本已实现(见 §3、§4)，实际签名仍需有效证书和发布者配置；§5 是尚未接入发布入口的集成建议。
 
 ## 2. electron-builder 签名配置
 
@@ -45,7 +45,7 @@
 
 ## 3. 签名脚本设计(scripts/sign-windows.js)
 
-**当前状态**:骨架已创建,证书加载与 signtool 调用逻辑等待所有者输入后实现。
+**当前状态**:已实现证书文件/指纹选择、signtool 调用与时间戳重试；凭据由运行环境提供。
 
 脚本职责:
 
@@ -83,7 +83,7 @@ signtool.exe sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /sha1 
 
 ## 4. 签名验证脚本(scripts/verify-windows-release.js)
 
-**当前状态**:骨架已创建,PowerShell `Get-AuthenticodeSignature` 检查逻辑已设计。
+**当前状态**:已实现；Node 脚本调用 PowerShell `Get-AuthenticodeSignature`，并检查有效签名与发布者。命令行使用两个位置参数：exe 路径、预期发布者。
 
 验证流程:
 
@@ -114,7 +114,7 @@ Write-Host "签名验证通过: $($sig.SignerCertificate.Subject)"
 
 该脚本由 Node.js 通过 `child_process.execFileSync` 调用,stdout 输出签名信息,非零退出码表示验证失败。
 
-## 5. 发布门禁集成
+## 5. 发布门禁集成建议（尚未接入）
 
 在 [scripts/publish-release.js](../../../scripts/publish-release.js) 的 electron-builder 成功后(当前 §7 步骤 6-7 之间)插入签名验证:
 
@@ -130,15 +130,10 @@ if (!expectedPublisher) {
 log(`Verifying code signature for ${exePath}`);
 try {
   execFileSync(
-    'powershell',
+    process.execPath,
     [
-      '-ExecutionPolicy',
-      'Bypass',
-      '-File',
       path.join(ROOT_DIR, 'scripts', 'verify-windows-release.js'),
-      '-FilePath',
       exePath,
-      '-ExpectedPublisher',
       expectedPublisher,
     ],
     { cwd: ROOT_DIR, stdio: 'inherit' },
@@ -152,7 +147,7 @@ try {
 }
 ```
 
-**门禁策略**:签名验证失败时,发布脚本**立即中止**,不上传任何产物到 GitHub Releases。确保用户下载的安装包必然包含有效签名。
+**拟议门禁策略**（当前发布入口尚未调用此验证脚本）:签名验证失败时,发布脚本**立即中止**,不上传任何产物到 GitHub Releases。确保用户下载的安装包必然包含有效签名。
 
 ## 6. 测试策略
 
@@ -197,7 +192,7 @@ $cert.Thumbprint
 2. 配置 `package.json`:设置 `certificateSubjectName="LIRA Test"` + `sign="./scripts/sign-windows.js"`
 3. 运行 `npm run dist:win`(或 `dist:win:local`)
 4. 验证 `release/lira-setup-<version>.exe` 签名:`powershell -Command "Get-AuthenticodeSignature release\lira-setup-<version>.exe | Format-List"`
-5. 运行 `node scripts/verify-windows-release.js -FilePath release\lira-setup-<version>.exe -ExpectedPublisher "LIRA Test"`
+5. 运行 `node scripts/verify-windows-release.js "release/lira-setup-<version>.exe" "LIRA Test"`
 
 **Windows SmartScreen 行为**:自签名证书的应用在首次运行时仍会触发 SmartScreen 警告("Windows 已保护你的电脑"),需点击「更多信息」→「仍要运行」。正式 EV 证书购买后,积累足够下载量与良好声誉后,SmartScreen 警告会消失。
 
@@ -251,3 +246,5 @@ $cert.Thumbprint
 - 本地开发:使用 Windows 证书存储区(无需文件管理,密码由系统保护)
 - CI/CD:使用加密的 Secrets 存储 Base64 编码的 .pfx + 密码,构建时临时解码到内存或临时文件
 - 生产发布:由受信任的发布者在本地机器上执行,证书私钥不离开该机器
+
+安装器旧卸载项检查由 [build/installer.nsh](../../../build/installer.nsh) 的 `customInit` 执行：仅检查当前安装上下文中 builder 指定的确切 app key，解析带引号的卸载 exe 后验证文件存在性；命令参数不参与路径判断，空值或无法解析的记录保持原状。

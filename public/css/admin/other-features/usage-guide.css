@@ -1,32 +1,46 @@
 /* ===== 使用文档 ===== */
 .usage-guide-panel {
+  --usage-guide-accent: color-mix(in srgb, var(--primary-strong) 75%, var(--text));
+  --usage-guide-accent-soft: color-mix(
+    in srgb,
+    var(--usage-guide-accent) 7%,
+    var(--surface)
+  );
+  --usage-guide-accent-border: color-mix(
+    in srgb,
+    var(--usage-guide-accent) 25%,
+    var(--surface)
+  );
+  --usage-guide-fill: color-mix(in srgb, var(--surface-2) 40%, var(--surface));
+  --usage-guide-rule: color-mix(in srgb, var(--border) 65%, var(--surface));
   width: 100%;
   max-width: none;
   margin: 0 auto;
-  gap: 16px;
+  gap: 24px;
 }
 
 .usage-guide-intro {
   display: grid;
-  gap: 12px;
-  padding: 6px;
+  gap: 10px;
+  padding: 8px 6px 0;
 }
 
 .usage-guide-title {
   margin: 0;
   color: var(--text);
+  font-family: var(--font-display);
   font-size: var(--type-size-page-title);
   font-weight: var(--type-weight-bold);
   line-height: var(--type-leading-page-title);
-  letter-spacing: 0;
+  letter-spacing: var(--type-tracking-tight);
 }
 
 .usage-guide-lead {
-  max-width: none;
+  max-width: 80ch;
   margin: 0;
   color: var(--muted);
   font-size: var(--type-size-body);
-  line-height: 1.75;
+  line-height: 1.85;
 }
 
 .usage-guide-hero-actions {
@@ -34,8 +48,8 @@
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-start;
-  gap: 8px;
-  margin: 2px 0 0;
+  gap: 10px;
+  margin: 8px 0 0;
 }
 
 .usage-guide-hero-actions a,
@@ -43,15 +57,16 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 42px;
-  padding: 6px 13px;
+  min-height: 36px;
+  padding: 8px 14px;
   border: 0;
-  border-radius: 7px;
+  border-radius: var(--radius-md);
   background: transparent;
-  color: var(--primary-strong);
+  color: var(--muted);
   font-size: var(--type-size-control);
   font-weight: 600;
   line-height: 1.4;
+  white-space: nowrap;
   text-decoration: none;
   transition: background 0.15s ease;
 }
@@ -59,26 +74,37 @@
 .usage-guide-hero-actions a:hover,
 .usage-guide-hero-actions a.active,
 .usage-guide-hero-actions button:hover {
-  background: var(--color-primary-light);
+  background: var(--usage-guide-fill);
+  color: var(--text);
 }
 
 .usage-guide-hero-actions a:first-child {
-  background: var(--primary);
-  color: var(--color-text-white);
+  background: var(--text);
+  color: var(--surface);
 }
 
 .usage-guide-hero-actions a:first-child:hover,
 .usage-guide-hero-actions a:first-child.active {
-  background: var(--primary-strong);
+  background: color-mix(in srgb, var(--text) 82%, var(--muted));
+  color: var(--surface);
+}
+
+.usage-guide-hero-actions a:nth-child(2) {
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--usage-guide-rule);
+}
+
+.usage-guide-reopen {
+  margin-left: auto;
 }
 
 .usage-guide-hero-actions a:focus-visible,
 .usage-guide-hero-actions button:focus-visible {
-  outline: 2px solid var(--primary-strong);
-  outline-offset: 1px;
+  outline: 2px solid var(--usage-guide-accent);
+  outline-offset: 3px;
 }
 
-/* 布局：默认单栏；侧栏收缩且窗口够宽时切换为「目录栏 + 正文」双栏（规则在文件下方） */
+/* 侧栏展开时保留单栏正文；收起且窗口够宽时使用左侧目录。 */
 .usage-guide-layout {
   display: grid;
   gap: 16px;
@@ -88,43 +114,57 @@
 
 .usage-guide-main {
   display: grid;
-  gap: 16px;
+  gap: 32px;
   align-content: start;
   min-width: 0;
 }
 
-/* 横向目录最多六列，常规宽度两行；空间不足时自动增加行数。 */
+/* 横向目录按阅读目的分组，为较长的章节名称预留空间。 */
 .usage-guide-toc {
   position: sticky;
   top: 8px;
   z-index: 6;
   display: grid;
-  grid-template-columns: repeat(
-    auto-fit,
-    minmax(min(100%, max(148px, calc((100% - 20px) / 6))), 1fr)
-  );
-  grid-auto-rows: 1fr;
-  gap: 4px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.25fr);
+  gap: 20px;
   min-width: 0;
-  padding: 6px;
-  border-block: 1px solid var(--border);
-  background: var(--surface-2);
+  padding: 14px 6px;
+  border-block: 1px solid var(--usage-guide-rule);
+  background: var(--surface);
   counter-reset: usage-guide-toc;
+}
+
+.usage-guide-toc-group {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: 4px;
+  align-content: start;
+  min-width: 0;
+}
+
+.usage-guide-toc-heading {
+  grid-column: 1 / -1;
+  margin: 0 8px 6px;
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+  font-weight: 500;
+  line-height: 1.5;
 }
 
 .usage-guide-toc a {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   min-width: 0;
-  min-height: 44px;
-  padding: 8px 10px;
+  min-height: 34px;
+  padding: 7px 8px;
+  border-radius: var(--radius-md);
   color: var(--muted);
   font-size: var(--type-size-control);
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.4;
   overflow-wrap: anywhere;
-  text-align: center;
+  text-align: left;
   text-decoration: none;
   transition:
     background 0.15s ease,
@@ -132,18 +172,18 @@
 }
 
 .usage-guide-toc a:hover {
-  background: var(--surface);
+  background: var(--usage-guide-fill);
   color: var(--text);
 }
 
 .usage-guide-toc a.active {
-  background: var(--surface);
-  color: var(--primary-strong);
-  box-shadow: inset 0 -2px 0 var(--primary);
+  background: var(--usage-guide-accent-soft);
+  color: var(--usage-guide-accent);
+  font-weight: 600;
 }
 
 .usage-guide-toc a:focus-visible {
-  outline: 2px solid var(--primary-strong);
+  outline: 2px solid var(--usage-guide-accent);
   outline-offset: 1px;
 }
 
@@ -153,14 +193,13 @@
   display: none;
 }
 
-/* 章节卡片 */
+/* 章节以留白和分隔线组织，避免多层卡片边框。 */
 .usage-guide-section {
   display: grid;
   gap: 16px;
-  padding: 22px 24px 24px;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: var(--surface);
+  min-width: 0;
+  padding: 0 6px 28px;
+  border-bottom: 1px solid var(--usage-guide-rule);
   content-visibility: auto;
   contain-intrinsic-size: auto 720px;
   scroll-margin-top: var(--usage-guide-scroll-offset, 110px);
@@ -175,8 +214,6 @@
   align-items: baseline;
   gap: 12px;
   margin: 0;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--border);
   color: var(--text);
   font-size: var(--type-size-section-title);
   font-weight: 600;
@@ -184,7 +221,7 @@
 }
 
 .usage-guide-section-index {
-  color: var(--primary);
+  color: var(--usage-guide-accent);
   font-size: var(--type-size-micro);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -210,14 +247,14 @@
   gap: 8px;
   align-content: start;
   padding: 15px 16px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--surface-2);
+  border: 1px solid var(--usage-guide-rule);
+  border-radius: var(--radius-lg);
+  background: var(--usage-guide-fill);
   transition: border-color 0.16s ease;
 }
 
 .usage-guide-card:hover {
-  border-color: var(--color-border-primary);
+  border-color: var(--usage-guide-accent-border);
 }
 
 .usage-guide-card strong,
@@ -262,7 +299,7 @@
 }
 
 .usage-guide-steps li + li {
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--usage-guide-rule);
 }
 
 .usage-guide-steps li::before {
@@ -274,9 +311,9 @@
   place-items: center;
   width: 24px;
   height: 24px;
-  border: 1px solid var(--color-border-primary);
+  border: 1px solid var(--usage-guide-accent-border);
   border-radius: 50%;
-  color: var(--primary-strong);
+  color: var(--usage-guide-accent);
   font-size: var(--type-size-control);
   font-weight: 700;
 }
@@ -303,7 +340,7 @@
 }
 
 .usage-guide-feature + .usage-guide-feature {
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--usage-guide-rule);
 }
 
 .usage-guide-feature-head {
@@ -316,9 +353,9 @@
 .usage-guide-chip {
   flex: 0 0 auto;
   padding: 2px 9px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--usage-guide-rule);
   border-radius: 999px;
-  background: var(--surface-2);
+  background: var(--usage-guide-fill);
   color: var(--muted);
   font-size: var(--type-size-caption);
   font-weight: 600;
@@ -337,7 +374,7 @@
 }
 
 .usage-guide-feature li::marker {
-  color: var(--primary);
+  color: var(--usage-guide-accent);
 }
 
 .usage-guide-image {
@@ -359,20 +396,20 @@
 }
 
 .usage-guide-faq {
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--surface-2);
+  border: 1px solid var(--usage-guide-rule);
+  border-radius: var(--radius-lg);
+  background: var(--usage-guide-fill);
   transition:
     border-color 0.16s ease,
     background 0.16s ease;
 }
 
 .usage-guide-faq:hover {
-  border-color: var(--color-border-primary);
+  border-color: var(--usage-guide-accent-border);
 }
 
 .usage-guide-faq[open] {
-  border-color: var(--color-border-primary);
+  border-color: var(--usage-guide-accent-border);
   background: var(--surface);
 }
 
@@ -399,7 +436,7 @@
 }
 
 .usage-guide-faq summary:focus-visible {
-  outline: 2px solid var(--primary-strong);
+  outline: 2px solid var(--usage-guide-accent);
   outline-offset: -2px;
   border-radius: 10px;
 }
@@ -416,83 +453,103 @@
 
 .usage-guide-faq[open] .usage-guide-faq-chevron {
   transform: rotate(180deg);
-  color: var(--primary-strong);
+  color: var(--usage-guide-accent);
 }
 
 .usage-guide-faq p {
   margin: 0 15px;
   padding: 10px 0 13px;
-  border-top: 1px dashed var(--border);
+  border-top: 1px dashed var(--usage-guide-rule);
 }
 
-/* 侧边栏收缩且窗口足够宽：目录变成左侧常驻栏，正文填满剩余宽度 */
+/* 侧栏收起且窗口够宽时，目录与正文并排显示。 */
 @media (min-width: 1120px) {
   .other-page.sidebar-collapsed .usage-guide-panel {
-    max-width: none;
+    grid-template-columns: 176px minmax(0, 1fr);
+    column-gap: 28px;
   }
 
   .other-page.sidebar-collapsed .usage-guide-layout {
-    grid-template-columns: 196px minmax(0, 1fr);
-    gap: 30px;
+    display: contents;
+  }
+
+  .other-page.sidebar-collapsed .usage-guide-intro,
+  .other-page.sidebar-collapsed .usage-guide-main {
+    grid-column: 2;
+  }
+
+  .other-page.sidebar-collapsed .usage-guide-intro {
+    grid-row: 1;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--usage-guide-rule);
   }
 
   .other-page.sidebar-collapsed .usage-guide-toc {
-    top: 18px;
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    align-self: start;
+    top: 12px;
     display: flex;
     flex-direction: column;
-    gap: 1px;
-    padding: 0;
-    overflow: visible;
+    gap: 2px;
+    max-height: calc(100dvh - var(--player-dock-height, 96px) - 128px);
+    padding: 4px 6px 4px 4px;
+    overflow-y: auto;
+    scrollbar-width: thin;
     border: 0;
     border-radius: 0;
     background: none;
-    box-shadow: none;
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
   }
 
   .other-page.sidebar-collapsed .usage-guide-toc::before {
     content: '本页目录';
-    padding: 0 12px 8px;
+    padding: 0 12px 10px;
     color: var(--muted);
-    font-size: var(--type-size-micro);
-    font-weight: 700;
-    letter-spacing: 0;
+    font-size: var(--type-size-caption);
+    font-weight: 500;
+  }
+
+  .other-page.sidebar-collapsed .usage-guide-toc-group {
+    display: contents;
+  }
+
+  .other-page.sidebar-collapsed .usage-guide-toc-heading {
+    display: none;
   }
 
   .other-page.sidebar-collapsed .usage-guide-toc a {
-    display: flex;
-    align-items: center;
+    flex: 0 0 auto;
+    justify-content: flex-start;
+    min-height: 34px;
     padding: 7px 10px;
-    border-left: 2px solid var(--border);
-    border-radius: 0;
+    border-left: 2px solid var(--usage-guide-rule);
+    border-radius: 0 var(--radius-md) var(--radius-md) 0;
+    text-align: left;
   }
 
   .other-page.sidebar-collapsed .usage-guide-toc a:hover {
-    background: none;
-    border-left-color: var(--color-border-primary);
+    background: var(--usage-guide-fill);
     color: var(--text);
   }
 
   .other-page.sidebar-collapsed .usage-guide-toc a.active {
-    background: none;
-    border-left-color: var(--primary);
-    color: var(--primary-strong);
+    background: var(--usage-guide-accent-soft);
+    border-left-color: var(--usage-guide-accent);
+    color: var(--usage-guide-accent);
     box-shadow: none;
   }
 
   .other-page.sidebar-collapsed .usage-guide-toc a::before {
     display: inline;
-    min-width: 26px;
+    flex: 0 0 24px;
     color: var(--muted);
     font-size: var(--type-size-micro);
-    font-weight: 700;
+    font-weight: 500;
     font-variant-numeric: tabular-nums;
-    letter-spacing: 0.04em;
   }
 
   .other-page.sidebar-collapsed .usage-guide-toc a.active::before {
-    color: var(--primary-strong);
+    color: var(--usage-guide-accent);
   }
 
   .other-page.sidebar-collapsed .usage-guide-section {
@@ -502,11 +559,21 @@
 
 @media (max-width: 640px) {
   .usage-guide-section {
-    padding: 16px;
+    padding: 0 2px 24px;
   }
 
   .usage-guide-toc {
     top: 4px;
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .usage-guide-toc-group {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .usage-guide-reopen {
+    margin-left: 0;
   }
 }
 

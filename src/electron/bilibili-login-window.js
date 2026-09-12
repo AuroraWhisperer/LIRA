@@ -22,7 +22,7 @@ async function openBilibiliLoginWindow(options = {}) {
   const loginWindow = new BrowserWindow({
     width: 1000,
     height: 720,
-    title: `登录${config.name}`,
+    title: '登录直播账号',
     parent: mainWindow || undefined,
     modal: false,
     show: true,
@@ -33,6 +33,8 @@ async function openBilibiliLoginWindow(options = {}) {
       sandbox: true,
     },
   });
+
+  loginWindow.on('page-title-updated', (event) => event.preventDefault());
 
   // 登录页(直播首页)可能自动播放带声音的直播流,默认禁音避免打扰
   loginWindow.webContents.setAudioMuted(true);

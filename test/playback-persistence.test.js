@@ -10,6 +10,80 @@ const {
   track,
 } = require('./helpers/playback-app');
 
+for (const mode of ['repeat-one', 'single']) {
+  for (const source of ['server', 'v2', 'v1']) {
+    test(`single-track repeat restores its queue and position from ${source} (${mode})`, async () => {
+      const current = track('repeat-current', '循环歌曲');
+      const next = track('repeat-next', '下一首');
+      const saved = {
+        current,
+        currentOrigin: 'normal',
+        normalQueue: [next],
+        normalQueueTracks: [current, next],
+        mode,
+        volume: 0.75,
+        selectedSource: 'qq',
+        queueType: 'playlist',
+        queueTitle: '循环歌单',
+        playlistIndex: 0,
+        currentTime: 42,
+      };
+      const storage = new Map();
+      if (source === 'v2') storage.set('playbackState:v2', JSON.stringify(saved));
+      const app = await createPlaybackApp(saved, {
+        serverState: source === 'server' ? saved : {},
+        localState: source === 'v1' ? saved : null,
+        storage,
+      });
+
+      await app.init();
+      await flushAsyncWork();
+      assert.equal(app.element('playbackModeLabel').textContent, '单曲');
+      assert.equal(app.element('playbackTrackTitle').textContent, current.title);
+      assert.equal(app.element('playbackCurrentTime').textContent, '00:42');
+      assert.match(app.element('playbackQueueList').innerHTML, /下一首/);
+      await app.emitWindow('pagehide');
+      const persisted = app.ipcSavedState();
+      assert.equal(persisted.mode, 'repeat-one');
+      assert.equal(persisted.current.id, current.id);
+      assert.deepEqual(persisted.normalQueue.map((item) => item.id), [next.id]);
+
+      await app.emit('playbackPlayPause', 'click');
+      await flushAsyncWork();
+      await app.emit('music-player', 'ended');
+      await flushAsyncWork();
+      assert.equal(app.element('music-player').dataset.trackId, current.id);
+      assert.deepEqual(app.savedState().normalQueue.map((item) => item.id), [next.id]);
+    });
+  }
+}
+
+test('the single-track repeat mode selected in the UI survives a server snapshot round trip', async () => {
+  const current = track('repeat-ui', '界面选择的循环歌曲');
+  const next = track('repeat-ui-next', '界面选择的下一首');
+  const app = await createPlaybackApp({
+    current,
+    normalQueue: [next],
+    mode: 'sequence',
+    volume: 0.75,
+    selectedSource: 'qq',
+  });
+  await app.init();
+  await flushAsyncWork();
+  await app.emit('playbackModeBtn', 'click');
+  await app.emit('playbackModeBtn', 'click');
+  await app.emitWindow('pagehide');
+  const saved = app.ipcSavedState();
+  assert.equal(saved.mode, 'repeat-one');
+
+  const restored = await createPlaybackApp(saved, { localState: null });
+  await restored.init();
+  await flushAsyncWork();
+  assert.equal(restored.element('playbackModeLabel').textContent, '单曲');
+  assert.equal(restored.element('playbackTrackTitle').textContent, current.title);
+  assert.match(restored.element('playbackQueueList').innerHTML, /界面选择的下一首/);
+});
+
 test('empty playback uses the latest authenticated provider state', async () => {
   const app = await createPlaybackApp(
     {

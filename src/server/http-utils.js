@@ -142,6 +142,9 @@ function servePageOrAsset(publicDir, req, res, requestUrl, injectToken) {
       injectToken.length > 0 &&
       resolvedPath.endsWith('.html')
     ) {
+      const recoverOverlaySession = resolvedPath.startsWith(
+        path.join(publicDir, 'pages', 'overlays') + path.sep,
+      );
       const tokenScript = Buffer.from(
         `\n<script>(function(){` +
           `var t=${JSON.stringify(injectToken)};window.__API_TOKEN__=t;` +
@@ -156,16 +159,30 @@ function servePageOrAsset(publicDir, req, res, requestUrl, injectToken) {
           `else patchApiAnchors();` +
           // Patch fetch to auto-add Authorization header
           `var _fetch=window.fetch;` +
+          `var recover=${JSON.stringify(recoverOverlaySession)},checking=null,reloading=false,unloading=false;` +
+          `var isLocal=function(u,socket){try{var v=new URL(typeof u==="string"?u:u.url||u.href,location.href);` +
+          `return v.host===location.host&&v.protocol===(socket?(location.protocol==="https:"?"wss:":"ws:"):location.protocol)` +
+          `&&(socket?v.pathname==="/ws":v.pathname.startsWith("/api/"));}catch(_){return false;}};` +
+          // A failed handshake hides its HTTP status. Confirm token expiry before reloading an OBS source.
+          `var recoverSession=function(){if(!recover||checking||reloading||unloading)return;` +
+          `var c=new AbortController();checking=c;var timer=setTimeout(function(){c.abort();},5000);` +
+          `_fetch.call(window,"/api/state",{headers:{Authorization:"Bearer "+t},cache:"no-store",signal:c.signal})` +
+          `.then(function(r){return r.status===401;}).catch(function(){return false;})` +
+          `.then(function(expired){if(expired&&!unloading){reloading=true;location.reload();}})` +
+          `.finally(function(){clearTimeout(timer);checking=null;});};` +
+          `if(recover)window.addEventListener("pagehide",function(){unloading=true;if(checking)checking.abort();},{once:true});` +
           `window.fetch=function(u,o){o=o||{};o.headers=o.headers||{};` +
           `if(typeof u==="string"&&u.startsWith("/api/")&&u!=="/api/health"&&!o.headers.Authorization&&!o.headers.authorization)` +
           `{o.headers=new Headers(o.headers);o.headers.set("Authorization","Bearer "+t);}` +
-          `return _fetch.call(this,u,o);};` +
+          `var pending=_fetch.call(this,u,o);if(!recover||!isLocal(u,false))return pending;` +
+          `return pending.then(function(r){if(r.status===401)recoverSession();return r;});};` +
           // Patch WebSocket to append ?token= for /ws connections
           `var _WS=window.WebSocket;` +
           `window.WebSocket=function(u,p){` +
           `if(typeof u==="string"&&u.indexOf("/ws")!==-1&&u.indexOf("?token=")===-1)` +
           `{u=u+(u.indexOf("?")===-1?"?":"&")+"token="+encodeURIComponent(t);}` +
-          `return p?new _WS(u,p):new _WS(u);};` +
+          `var s=p?new _WS(u,p):new _WS(u);` +
+          `if(recover&&isLocal(u,true))s.addEventListener("close",recoverSession);return s;};` +
           `window.WebSocket.prototype=_WS.prototype;` +
           `window.WebSocket.CONNECTING=_WS.CONNECTING;` +
           `window.WebSocket.OPEN=_WS.OPEN;` +

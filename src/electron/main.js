@@ -36,8 +36,7 @@ const {
 } = require('./local-media-access');
 const { registerLocalMediaProtocol } = require('./local-media-protocol');
 const {
-  configureMusicMediaRequestHeaders,
-  configureBilibiliMediaRequestHeaders,
+  configureMediaRequestHeaders,
 } = require('./media-request-headers');
 const updateMgr = require('./update-manager');
 const playbackFlush = require('./playback-flush');
@@ -178,44 +177,71 @@ app.on('window-all-closed', function () {
 });
 
 app.on('before-quit', function (event) {
-  if (lifecycleState.gracefulQuitStarted || !lifecycleState.shutdown) return;
+  if (!lifecycleState.shutdownPromise && !lifecycleState.shutdown) return;
   event.preventDefault();
-  lifecycleState.gracefulQuitStarted = true;
-  licenseResumeController?.unregister();
-  const controllersToDrain = [remoteGiftController, cloudSyncController].filter(
-    Boolean,
-  );
-  for (const controller of controllersToDrain) controller.dispose();
-  remoteGiftController = null;
-  cloudSyncController = null;
-  writeLog('lifecycle', { event: 'QUIT_BEGIN' });
-  lifecycleState.forceQuitTimer = setTimeout(function () {
-    writeLog('lifecycle', { event: 'QUIT_TIMEOUT' });
-    app.releaseSingleInstanceLock();
-    app.exit(0);
-  }, 5000);
-  Promise.all(
-    controllersToDrain.map((controller) => controller.whenIdle()),
-  )
-    .then(function () {
-      return lifecycleState.shutdown({ exitProcess: false });
-    })
-    .catch(function (error) {
-      writeLog('shutdown-error', error);
-      console.warn('Shutdown failed:', error.message);
-    })
-    .finally(function () {
-      if (lifecycleState.forceQuitTimer) {
-        clearTimeout(lifecycleState.forceQuitTimer);
-        lifecycleState.forceQuitTimer = null;
-      }
-      writeLog('lifecycle', { event: 'QUIT_DONE' });
-      licenseManager?.dispose();
-      licenseManager = null;
-      app.releaseSingleInstanceLock();
-      app.exit(0);
-    });
+  requestDesktopShutdown();
 });
+
+function requestDesktopShutdown({ restart = false } = {}) {
+  if (lifecycleState.shutdownPromise) return lifecycleState.shutdownPromise;
+  // The first request owns the final action and the deadline, including reentry.
+  const { promise, resolve } = Promise.withResolvers();
+  lifecycleState.shutdownPromise = promise;
+  let finished = false;
+  writeLog('lifecycle', { event: 'QUIT_BEGIN' });
+  const forceQuitTimer = setTimeout(function () {
+    finish('QUIT_TIMEOUT');
+  }, 5000);
+
+  function logError(error) {
+    writeLog('shutdown-error', error);
+    console.warn('Shutdown failed:', error.message);
+  }
+
+  function finish(event) {
+    if (finished) return;
+    finished = true;
+    clearTimeout(forceQuitTimer);
+    writeLog('lifecycle', { event });
+    try {
+      licenseManager?.dispose();
+    } catch (error) {
+      logError(error);
+    }
+    licenseManager = null;
+    try {
+      app.releaseSingleInstanceLock();
+      if (restart) app.relaunch();
+    } catch (error) {
+      logError(error);
+    } finally {
+      app.exit(0);
+      resolve();
+    }
+  }
+
+  void (async function () {
+    try {
+      licenseResumeController?.unregister();
+      const controllersToDrain = [remoteGiftController, cloudSyncController].filter(
+        Boolean,
+      );
+      for (const controller of controllersToDrain) controller.dispose();
+      remoteGiftController = null;
+      cloudSyncController = null;
+      await Promise.all(
+        controllersToDrain.map((controller) => controller.whenIdle()),
+      );
+      if (finished) return;
+      await lifecycleState.shutdown?.({ exitProcess: false });
+    } catch (error) {
+      if (!finished) logError(error);
+    } finally {
+      finish('QUIT_DONE');
+    }
+  })();
+  return promise;
+}
 
 // ---- startup ----
 
@@ -250,7 +276,7 @@ async function startDesktopApp() {
     checkForUpdates,
     downloadUpdate,
     installUpdate,
-    getShutdownApplication: () => lifecycleState.shutdown,
+    requestRestart: () => requestDesktopShutdown({ restart: true }),
     getMainWindow: () => windowState.main,
     normalizeGiftDisplayTrace,
     writeLog,
@@ -296,14 +322,15 @@ async function startDesktopApp() {
       return result;
     },
   });
-  configureMusicMediaRequestHeaders(session.defaultSession, mediaState);
-  configureBilibiliMediaRequestHeaders(session.defaultSession);
+  configureMediaRequestHeaders(session.defaultSession, mediaState);
   configureAutoUpdater();
   phaseStartedAt = Date.now();
   await restoreMusicCookieSnapshots();
+  if (lifecycleState.shutdownPromise) return;
   logStartupPhase('music-cookie-restore', phaseStartedAt);
   phaseStartedAt = Date.now();
   await restoreBilibiliCookieSnapshot();
+  if (lifecycleState.shutdownPromise) return;
   logStartupPhase('bilibili-cookie-restore', phaseStartedAt);
 
   var serverOptions = {
@@ -365,6 +392,7 @@ async function startDesktopApp() {
 
   phaseStartedAt = Date.now();
   var serverInfo = await lifecycleState.runtime.start(serverOptions);
+  if (lifecycleState.shutdownPromise) return;
   logStartupPhase('runtime-ready', phaseStartedAt);
 
   licenseManager = createLicenseManager({
@@ -395,6 +423,7 @@ async function startDesktopApp() {
     hasExactOrigin,
   });
   await licenseManager.bootstrap();
+  if (lifecycleState.shutdownPromise) return;
   writeLog('license-state', {
     event: 'bootstrap',
     ...licenseManager.getSnapshot(),

@@ -327,6 +327,8 @@ export function createPlaybackController(initialOptions = {}) {
     renderPlayback: () => renderPlayback(),
     getPlaybackAudio,
     syncPlaybackLyricWindow: () => syncPlaybackLyricWindow(),
+    invalidatePlaybackRequests: () =>
+      playbackControls.invalidatePlaybackRequests(),
     playPlaybackTrack: (...args) => playPlaybackTrack(...args),
     ensurePlaybackRadioQueueFilled: (...args) =>
       ensurePlaybackRadioQueueFilled(...args),
@@ -403,6 +405,7 @@ export function createPlaybackController(initialOptions = {}) {
     streamService,
     playbackState,
     getPlaybackAudio,
+    createPlaybackRequestGuard: playbackControls.createPlaybackRequestGuard,
     playPlaybackTrack,
     playbackNext,
   });

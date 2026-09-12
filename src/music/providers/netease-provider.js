@@ -171,6 +171,11 @@ class NeteaseMusicProvider {
     await this.requireLogin('我喜欢需要先登录网易云音乐。');
     const limit = clampInteger(options.limit, 1, 5000, 200);
     const offset = clampInteger(options.offset, 0, 200000, 0);
+    const playlistId = await this.getLikedPlaylistId();
+    return this.getPlaylistTracks(playlistId, { limit, offset });
+  }
+
+  async getLikedPlaylistId() {
     const profile = await this.getUserProfile();
     const playlists = await this.getUserPlaylists(profile.userId, {
       limit: 50,
@@ -183,7 +188,7 @@ class NeteaseMusicProvider {
         '没有从网易云音乐读取到“我喜欢”，当前登录凭证不完整或已失效，请重新登录网易云音乐。',
       );
     }
-    return this.getPlaylistTracks(likedPlaylist.id, { limit, offset });
+    return likedPlaylist.id;
   }
 
   async getCreatedPlaylists(options = {}) {
@@ -286,7 +291,11 @@ class NeteaseMusicProvider {
 
   async writePlaylistTracks(operation, playlist, tracks) {
     await this.requireLogin('修改网易云音乐歌单需要先登录。');
-    const playlistId = String((playlist && playlist.id) || '').trim();
+    const requestedId = String((playlist && playlist.id) || '').trim();
+    const playlistId =
+      requestedId === 'liked'
+        ? String(await this.getLikedPlaylistId())
+        : requestedId;
     if (!/^\d+$/.test(playlistId)) throw new Error('缺少网易云歌单 ID。');
     const trackIds = normalizeNeteasePlaylistTrackIds(tracks);
     const data = await this.requestWeapiJson(

@@ -64,7 +64,11 @@ playbackControls → audio.load()/play()
 | `togglePlayback` | 无当前曲目时取下一首，否则在有效音源上切换播放/暂停 |
 | `playbackPrevious` | 当前进度超过 5 秒先回到开头，否则读取播放历史 |
 | `playbackNext` | 保留单曲循环、队列推进、列表回绕及电台补量语义 |
-| `changePlaybackQuality` | 保存音质选择并重新解析当前流，恢复切换前进度 |
+| `changePlaybackQuality` | 保存音质选择并重新解析当前流，只有请求仍有效时恢复切换前进度 |
+
+切歌、音质切换与清空队列共用播放控制器拥有的请求代际。队列通过内部 `invalidatePlaybackRequests` 回调使在途操作失效；流解析使用曲目副本，只有当前请求才能合并流元数据、替换音频或恢复进度，迟到成功与失败不能覆盖新状态。
+
+错误重试通过 `createPlaybackRequestGuard` 捕获当前音频的有效代际，经 `stream-handler` 注入 `StreamService`。重试使用曲目副本和原始来源；入口、URL 解析结果与失败分支均校验播放权，过时任务不能重播、跳过新曲或提示旧错误。新曲仍在解析时，旧音频新触发的错误也不再拥有播放权；切换失败后，为保留的原音频建立新的有效代际，允许其后续错误恢复，旧任务仍失效。新曲无可用 URL 时保留当前曲目、来源与音频，并沿用地址解析服务的不可播放提示。
 
 播放与持久化共同读取 `PlaybackConfig` 中的历史上限，不再分别硬编码限制。
 
@@ -97,7 +101,7 @@ playbackControls → audio.load()/play()
 ## 5. 队列、电台与歌单
 
 - **三种队列形态**:`normalQueue`(点歌队列/歌单播放)、`radioQueue`(电台)、`normalQueueTracks`(歌单全量,`playlistIndex` 游标);`queueType` ∈ queue/playlist/radio;`requestedQueue` 承载观众点歌待确认项。`insertTracksNext` 在 playlist 模式从 `playlistIndex+1` 处插入,`removeTrack` 同步从全量列表剔除;`clearQueue` 复位全部队列与 shuffle 游标([queue/manager.js:83-95](../../../public/js/playback/queue/manager.js#L83-L95))。
-- **播放模式**:`mode` ∈ sequence/loop/single/shuffle,`cycleMode()` 轮换;shuffle 用 `shuffleOrder` 索引数组 + `shuffleCursor` 游标(`rebuildShuffleOrder` Fisher–Yates,游标越界回退顺序取队首)。
+- **播放模式**:UI 经 `getNextMode()` 在 sequence/shuffle/repeat-one 间轮换；服务端快照和本地 v2/v1 恢复均接受 repeat-one，旧值 single 归一化为 repeat-one，保留旧值 loop 的兼容接纳。shuffle 用 `shuffleOrder` 索引数组 + `shuffleCursor` 游标(`rebuildShuffleOrder` Fisher–Yates,游标越界回退顺序取队首)。
 - **电台补量**:`ensureRadioQueueFilled` 在电台队列 ≤3 首时按 10 首一批 `POST /api/music/home`(action=radio),过滤最近 30 首历史与队列内重复([queue/manager.js:244-290](../../../public/js/playback/queue/manager.js#L244-L290))。
 - **收藏/歌单**:`playlist-operations.js` 走 `/api/music/playlists/tracks/add|remove`、`/api/music/home`(歌单列表)与 `POST /api/playback/favorites` 系列;收藏/歌单数据经 `CacheManager` 24h 缓存跨启动保留。
 - **缓存统计**:`cache-operations.js` 展示 `GET /api/music/cache` 并支持 `/api/music/cache/clear`。

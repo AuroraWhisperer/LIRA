@@ -17,10 +17,17 @@ const {
 
 function parseSongsFromXlsx(buffer) {
   if (!buffer.length) throw new Error('Excel 文件为空。');
-  const files = readZipFiles(buffer);
-  const worksheetEntry = Array.from(files.keys()).find((name) =>
-    /^xl\/worksheets\/sheet\d+\.xml$/i.test(name),
-  );
+  let worksheetEntry = '';
+  const files = readZipFiles(buffer, {
+    selectEntry(name) {
+      if (name === 'xl/sharedStrings.xml') return true;
+      if (!worksheetEntry && /^xl\/worksheets\/sheet\d+\.xml$/i.test(name)) {
+        worksheetEntry = name;
+        return true;
+      }
+      return false;
+    },
+  });
   if (!worksheetEntry) throw new Error('Excel 文件里没有找到工作表。');
   const sharedStrings = parseSharedStrings(
     files.get('xl/sharedStrings.xml') || '',
@@ -59,8 +66,19 @@ function songToExportRow(song) {
 
 function buildSongsCsv(rows) {
   return [SONG_EXPORT_HEADERS.join(',')]
-    .concat(rows.map((song) => songToExportRow(song).map(csvCell).join(',')))
+    .concat(rows.map((song) => songToExportRow(song).map(songCsvCell).join(',')))
     .join('\n');
+}
+
+function songCsvCell(value) {
+  const text = String(value || '');
+  const formulaPrefix = /^[\s\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2060-\u206f]*[=+\-@＝＋－＠]/u;
+  const leadingControl = /^[\s\u0000-\u001f\u007f-\u009f]*[\u0000-\u001f\u007f-\u009f]/u;
+  if (!formulaPrefix.test(text) && !leadingControl.test(text)) return csvCell(text);
+  // Keep the marker on CSV reimport; never remove an original apostrophe.
+  // XLSX uses inlineStr and does not need this CSV-only text marker.
+  const cell = csvCell(`'${text}`);
+  return cell.startsWith('"') ? cell : `"${cell}"`;
 }
 
 function templateSongs() {

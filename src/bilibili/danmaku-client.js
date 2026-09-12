@@ -225,7 +225,7 @@ class BilibiliDanmakuClient {
       enabled: true,
       roomId: this.roomId,
       mode: 'bilibili',
-      message: '正在连接 Bilibili 弹幕服务',
+      message: '正在连接弹幕服务',
     });
 
     const roomInfo = await this.apiClient.resolveRoomInfo();

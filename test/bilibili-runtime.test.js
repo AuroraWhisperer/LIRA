@@ -125,7 +125,7 @@ test('missing room status is distinct from disabled listening', async (t) => {
   fixture.settings.roomId = '123';
   fixture.settings.enableBilibili = 'false';
   fixture.runtime.configure();
-  assert.equal(fixture.runtime.getLiveStatus().message, '未启用 Bilibili 监听');
+  assert.equal(fixture.runtime.getLiveStatus().message, '未启用弹幕监听');
 });
 
 test('disabled client cannot report late status or restart failure', async (t) => {

@@ -89,7 +89,7 @@ function createGiftSaleCatalogService(options = {}) {
       validateBilibiliPayload(giftConfig, '礼物配置');
       const panelSaleIds = collectPanelGiftIds(giftData);
       if (panelSaleIds.size === 0)
-        throw new Error('Bilibili 礼物面板没有返回可用礼物。');
+        throw new Error('礼物面板没有返回可用礼物。');
       const configById = parseGiftConfig(giftConfig);
       const saleIds = expandBlindBoxSaleIds(
         panelSaleIds,
@@ -132,7 +132,7 @@ function createGiftSaleCatalogService(options = {}) {
 function validateRoomId(value) {
   const text = String(value || '').trim();
   if (!/^\d{1,20}$/.test(text) || BigInt(text) <= 0n) {
-    throw new Error('请先在设置中填写有效的 Bilibili 直播间号。');
+    throw new Error('请先在设置中填写有效的直播间号。');
   }
   return text;
 }
@@ -171,11 +171,11 @@ async function defaultFetchJson(endpointName, url, roomId) {
   try {
     payload = JSON.parse(text);
   } catch (_) {
-    throw new Error(`Bilibili ${endpointName} 返回了非 JSON 响应。`);
+    throw new Error(`直播平台${endpointName}返回了非 JSON 响应。`);
   }
   if (!response.ok)
     throw new Error(
-      `Bilibili ${endpointName} 请求失败：HTTP ${response.status}`,
+      `直播平台${endpointName}请求失败：HTTP ${response.status}`,
     );
   return payload;
 }

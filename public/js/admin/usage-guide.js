@@ -27,10 +27,18 @@ export function initUsageGuide() {
   function updateTocLayout() {
     if (panel.hidden) return;
     const tocStyle = window.getComputedStyle(toc);
+    const scrollerStyle = window.getComputedStyle(scroller);
+    const scrollerPadding =
+      scrollerStyle.overflowY === 'auto'
+        ? parseFloat(scrollerStyle.paddingTop)
+        : 0;
     sectionOffset =
       tocStyle.flexDirection === 'column'
         ? 24
-        : toc.getBoundingClientRect().height + parseFloat(tocStyle.top) + 12;
+        : toc.getBoundingClientRect().height +
+          parseFloat(tocStyle.top) +
+          scrollerPadding +
+          12;
     panel.style.setProperty('--usage-guide-scroll-offset', `${sectionOffset}px`);
     updateActiveOnScroll();
   }

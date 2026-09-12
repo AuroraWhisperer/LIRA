@@ -189,7 +189,7 @@ function createLicenseOperations(options = {}) {
     if (!value || value.length > 12_000 || /[\r\n\0]/u.test(value)) {
       throw new RemoteLicenseError(
         'BILIBILI_CREDENTIALS_INVALID',
-        'Bilibili 登录凭据无效。',
+        '直播账号登录凭据无效。',
       );
     }
     return withAuthorizedToken((token) =>

@@ -55,6 +55,8 @@ function createApiContext(options) {
       handleAction: domainServices.superChats.handleAction,
     },
     gifts: {
+      pauseDetection: domainServices.gifts.pauseDetection,
+      resumeDetection: domainServices.gifts.resumeDetection,
       resetSprint: domainServices.gifts.resetSprint,
       getHistory: (historyOptions) =>
         domainServices.gifts.getHistory(historyOptions),
@@ -79,6 +81,8 @@ function createApiContext(options) {
           : null,
     },
     overtime: {
+      pauseRecovery: domainServices.overtime.pauseRecovery,
+      resumeRecovery: domainServices.overtime.resumeRecovery,
       getOverview: domainServices.overtime.getOverview,
       setTime: domainServices.overtime.setTime,
       act: domainServices.overtime.act,

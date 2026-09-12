@@ -2,7 +2,7 @@
 
 > 涉及文件:[shared/utils.js](../../../public/js/shared/utils.js)、[shared/event-bus.js](../../../public/js/shared/event-bus.js)、[admin/state.js](../../../public/js/admin/state.js)、[admin/overtime.js](../../../public/js/admin/overtime.js)、[desktop.js](../../../public/js/desktop.js)、[overlays/queue.js](../../../public/js/overlays/queue.js)、[src/server/http-utils.js](../../../src/server/http-utils.js)
 
-本文档描述前端与后端/桌面层的**通信客户端行为**。传输层实现、快照 16 字段、消息类型全集归 [ws.md](../backend/ws.md) 所有;端点清单归 [api.md](../backend/api.md) 所有;IPC 通道注册表归 [desktop/preload.md](../desktop/preload.md) 所有。
+本文档描述前端与后端/桌面层的**通信客户端行为**。传输层实现、快照 17 字段、消息类型全集归 [ws.md](../backend/ws.md) 所有;端点清单归 [api.md](../backend/api.md) 所有;IPC 通道注册表归 [desktop/preload.md](../desktop/preload.md) 所有。
 
 ## 1. Token 获取与服务端注入
 
@@ -17,6 +17,8 @@
 | 兜底           | 显式使用 token 的代码仍是合法模式:`utils.api()` 手动加 Bearer([utils.js:156](../../../public/js/shared/utils.js#L156))、`state.js` 拼接 `ws://host/ws?token=…`([state.js:31-32](../../../public/js/admin/state.js#L31-L32)) |
 
 **Token 生命周期**:随服务启动生成、关闭删除(见 [server-core.md](../backend/server-core.md) §7)。页面缓存被禁止(`Cache-Control: no-store`),每次刷新都能拿到新注入的 token。
+
+OBS 页面确认会话过期后会自动刷新以恢复当前服务的连接；临时离线继续使用既有重连。触发条件、探测与取消归 [server-core.md](../backend/server-core.md) §4.3 所有。
 
 ## 2. HTTP 模式(fetch + `{ok}` 信封)
 
@@ -36,13 +38,13 @@
 
 ### 2.2 响应信封约定
 
-- 所有 `/api/*` 成功返回 `{ok:true, data:…}`,失败返回 `{ok:false, error:…}`,统一由 `sendJson` 包装(见 [server-core.md](../backend/server-core.md) §4.3)。
+- 普通 JSON `/api/*` 接口成功返回 `{ok:true, data:…}`,失败返回 `{ok:false, error:…}`,统一由 `sendJson` 包装(见 [server-core.md](../backend/server-core.md) §4.3)。
 - 前端错误呈现:普通失败 `toast(错误信息)`;表单提交失败走 `showError`;直播刷新失败走 `forms.reconnectErrorMessage()` 把网络类错误翻译成可操作文案([forms.js:316-325](../../../public/js/admin/forms.js#L316-L325))。
 - 404/501 探测:`ProviderManager` 把 `auth-state` 类可选接口的 404/501 标记为"不可用",避免重复请求([provider/manager.js:86-100](../../../public/js/playback/provider/manager.js#L86-L100))。
 
 ### 2.3 状态获取与乐观更新
 
-- 全量状态:`GET /api/state`(快照 16 字段,见 [ws.md](../backend/ws.md) §2),管理页 `StateService.reloadState()`、叠加层 `loadState()` 首屏都用它兜底(WS 未连上时保证可渲染)。
+- 全量状态:`GET /api/state`(快照 17 字段,见 [ws.md](../backend/ws.md) §2),管理页 `StateService.reloadState()`、叠加层 `loadState()` 首屏都用它兜底(WS 未连上时保证可渲染)。
 - 歌库:`GET /api/songs?query=&category=&language=&artist=&tag=&enabledOnly=`([state.js:128-155](../../../public/js/admin/state.js#L128-L155))。
 - **乐观 UI**:管理页所有变更操作(POST 后)立即调用 `reloadState()/reloadAll()` 重取,不等待 WS 广播;快照到达后对歌库相关变更做 **240ms 防抖**重载(`scheduleSongReload`,合并短时间内多次快照,[state.js:160-165](../../../public/js/admin/state.js#L160-L165));播放页则是本地状态先行 + `savePlaybackState()` 落盘(见 [playback.md](playback.md) §6)。
 - **错误呈现分工**:表单/操作类错误 → `showError`(toast);`reconnectBilibili` 等直接 fetch 的调用自己解析 `{ok}` 信封并处理 404/网络类错误;静默上报类(歌词状态、队列状态落盘)失败只丢弃不打扰用户。
@@ -85,17 +87,18 @@
 
 ### 3.4 客户端消费的消息类型(全集在 [ws.md](../backend/ws.md) §3)
 
-`snapshot`(所有页面)、`overtime:update`(管理页 + 加班机层,revision 去重)、`gift-catalog:update`(管理页加班机选择器,version 去重)、`wesing-state`(管理页 WeSing 面板)、`lyric-state`/`lyric-timeline`(管理页歌词预览、歌词窗口)、`shutdown`(管理页)。所有页面都不向服务端发送业务消息(服务端丢弃客户端帧,见 [ws.md](../backend/ws.md) §1)。
+`snapshot`(订阅快照的页面；clock/opening 仅 HTTP 获取)、`overtime:update`(管理页 + 加班机层,revision 去重)、`gift-catalog:update`(管理页加班机选择器,version 去重)、`wesing-state`(管理页 WeSing 面板)、`lyric-state`/`lyric-timeline`(管理页歌词预览、歌词窗口)、`shutdown`(管理页)，以及 `gift:frame`、`game:update`/`game:draw`、`wheel:update`、`danmaku:message` 各自的专用消费者。所有页面都不向服务端发送业务消息(服务端丢弃客户端帧,见 [ws.md](../backend/ws.md) §1)。
 
-## 4. 桌面桥(preload 暴露的三个命名空间)
+## 4. 桌面桥(preload 暴露的四个命名空间)
 
-桌面渲染进程通过 preload 的 `contextBridge` 获得三个命名空间(通道注册表见 [desktop/preload.md](../desktop/preload.md)),浏览器环境**不注入**,前端一律先做特性检测:
+桌面渲染进程通过 preload 的 `contextBridge` 获得四个命名空间(通道注册表见 [desktop/preload.md](../desktop/preload.md)),浏览器环境**不注入**,前端一律先做特性检测:
 
 | 桥                            | 典型用法                                                                                                                                                                                                                                                                      | 检测方式                                                                                         |
 | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
 | `window.songAssistantDesktop` | 窗口控制 `minimizeWindow/maximizeWindow/closeWindow/restart`、`onWindowMaximized` 图标切换、更新流程 `checkForUpdates/downloadUpdate/installUpdate`、`openDataDir/openLogDir/openGithub`、`setAutoUpdate`                                                                     | `if (window.songAssistantDesktop)`([settings.js:327](../../../public/js/admin/settings.js#L327)) |
 | `window.musicAPI`             | 播放器域:登录态/健康 `getAuthState/providerHealth`、播放状态落盘 `savePlaybackState`(卸载/关机前刷新)、本地文件 `selectLocalFiles/getRecentLocalFiles/resolveLocalMediaUrls`、WeSing 目录选择 `selectWeSingCacheDirectory`、关机钩子 `onPrepareShutdown/confirmShutdownFlush` | `typeof window.musicAPI?.xxx === 'function'`                                                     |
 | `window.bilibiliAuth`         | Bilibili 扫码登录 `login/logout/getAuthState`;Web 模式禁用并显示"Web 模式(不可用)"                                                                                                                                                                                            | `!!window.bilibiliAuth`([settings.js:23-30](../../../public/js/admin/settings.js#L23-L30))       |
+| `window.liraLicense` | 设备授权状态、重试、云端歌单与背景、目录初始化进度 | `typeof window.liraLicense?.xxx === 'function'` |
 
 **降级路径**:同一功能先走 IPC、后端不可用再回退 HTTP(如 `ProviderManager.refreshProviderState` 先 `musicAPI.providerHealth(source)`,浏览器回退 `GET /api/music/health`([provider/manager.js:42-64](../../../public/js/playback/provider/manager.js#L42-L64)));登录态接口 404/501 时标记不可用并静默返回空态。
 
@@ -111,4 +114,4 @@
        播放页:本地 StateManager 先行,state-persistence 防抖落盘(HTTP + IPC 双通道)
 ```
 
-快照是**唯一实时真相源**;HTTP 用于命令与冷启动兜底;两路数据最终都要过 `{ok}` 信封与上述去重/退避约定。
+快照提供其 17 个字段的完整恢复状态；游戏画布、转盘、礼物边框和实时弹幕另有专用消息/恢复语义，见 [ws.md](../backend/ws.md)。HTTP 用于命令及状态查询，普通 JSON 响应使用 `{ok}` 信封；WebSocket 按 `{type,...}` 分发，音频、图片与其他二进制响应不使用 JSON 信封。去重和退避由各消费者按其契约执行。

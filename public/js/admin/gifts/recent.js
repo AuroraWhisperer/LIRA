@@ -168,7 +168,7 @@ import { getLegacyAdminModules } from '../legacy-admin-bridge.js';
         const typeIcon = guardBadge
           ? `<img class="gift-type-icon gift-guard-icon" src="${guardBadge.src}" alt="${guardBadge.name}图标" title="${guardBadge.name}">`
           : blindBoxIcon
-            ? `<img class="gift-type-icon gift-blind-box-icon" src="${blindBoxIcon.src}" alt="${blindBoxIcon.name}图标" title="${blindBoxIcon.name}">`
+            ? `<img class="gift-type-icon gift-blind-box-icon" src="${blindBoxIcon.src}" alt="${escapeHtml(blindBoxIcon.name)}图标" title="${escapeHtml(blindBoxIcon.name)}">`
             : highValueGiftArtwork
               ? `<img class="gift-type-icon gift-high-value-icon" src="${highValueGiftArtwork.src}" alt="${giftName}照片" title="${giftName}">`
               : '';
@@ -182,7 +182,7 @@ import { getLegacyAdminModules } from '../legacy-admin-bridge.js';
         if (isHighValueTotal && !guardBadge && !blindBoxIcon)
           cardClass += ' high-value-gift-card';
 
-        if (item.is_blind_box && item.blind_box_name) {
+        if (item.is_blind_box && Number.isFinite(blindProfit)) {
           const profitSign = blindProfit > 0 ? '+' : blindProfit < 0 ? '-' : '';
           const profitClass =
             blindProfit > 0
@@ -191,12 +191,8 @@ import { getLegacyAdminModules } from '../legacy-admin-bridge.js';
                 ? 'profit-down'
                 : 'profit-neutral';
           blindLine = `<span class="gift-result">盈亏 <span class="${profitClass}">${profitSign}${formatMoney(Math.abs(Number(blindProfit) || 0))}</span></span>`;
-        } else if (
-          item.is_blind_box &&
-          item.blind_box_price !== null &&
-          item.blind_box_price !== undefined
-        ) {
-          blindLine = `<span class="gift-result">开出 ${formatMoney(item.total_price)}</span>`;
+        } else if (item.is_blind_box) {
+          blindLine = '<span class="gift-result">盈亏待确认</span>';
         }
 
         return `

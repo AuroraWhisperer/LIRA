@@ -83,8 +83,13 @@ function openSqliteDatabase(filePath, options = {}) {
   if (options.foreignKeys === true) {
     pragmas.push('PRAGMA foreign_keys = ON');
   }
-  database.exec(pragmas.map((p) => `${p};`).join('\n'));
-  return database;
+  try {
+    database.exec(pragmas.map((p) => `${p};`).join('\n'));
+    return database;
+  } catch (error) {
+    databaseMaintenance.closeDatabases(database);
+    throw error;
+  }
 }
 
 module.exports = {

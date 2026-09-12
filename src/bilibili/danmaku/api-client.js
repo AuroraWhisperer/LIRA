@@ -24,7 +24,7 @@ class BilibiliApiClient {
   async resolveRoomInfo() {
     if (!this.roomId) {
       throw new Error(
-        '请填写 Bilibili 直播间号，或直接粘贴 https://live.bilibili.com/房间号。',
+        '请填写直播间号，或直接粘贴直播间链接。',
       );
     }
     const { payload, response } = await this.fetchJson(
@@ -37,7 +37,7 @@ class BilibiliApiClient {
           'room_init',
           response,
           payload,
-          '请确认填写的是直播间地址里的房间号，不是主播 UID、昵称或个人主页 ID。也可以直接粘贴 https://live.bilibili.com/房间号。',
+          '请确认填写的是直播间地址里的房间号，不是主播 UID、昵称或个人主页 ID。也可以直接粘贴直播间链接。',
         ),
       );
     }
@@ -108,7 +108,7 @@ class BilibiliApiClient {
   async fetchAvatarImage(value) {
     const avatarUrl = normalizeBilibiliAvatarUrl(value);
     if (!avatarUrl) {
-      const error = new Error('Bilibili 头像地址无效。');
+      const error = new Error('直播账号头像地址无效。');
       error.statusCode = 400;
       throw error;
     }
@@ -121,7 +121,7 @@ class BilibiliApiClient {
       signal: AbortSignal.timeout(8000),
     });
     if (!response.ok)
-      throw new Error(`Bilibili 头像读取失败。HTTP ${response.status}`);
+      throw new Error(`直播账号头像读取失败。HTTP ${response.status}`);
     const contentType = String(response.headers.get('content-type') || '')
       .split(';', 1)[0]
       .toLowerCase();
@@ -134,14 +134,14 @@ class BilibiliApiClient {
         'image/avif',
       ].includes(contentType)
     ) {
-      throw new Error('Bilibili 头像返回了非图片内容。');
+      throw new Error('直播账号头像返回了非图片内容。');
     }
     const contentLength = Number(response.headers.get('content-length')) || 0;
     if (contentLength > MAX_AVATAR_BYTES)
-      throw new Error('Bilibili 头像文件过大。');
+      throw new Error('直播账号头像文件过大。');
     const data = Buffer.from(await response.arrayBuffer());
     if (data.length > MAX_AVATAR_BYTES)
-      throw new Error('Bilibili 头像文件过大。');
+      throw new Error('直播账号头像文件过大。');
     return { contentType, data };
   }
 
@@ -160,7 +160,7 @@ class BilibiliApiClient {
           'getDanmuInfo',
           response,
           payload,
-          '这是获取弹幕服务器信息失败，不是点歌逻辑失败。常见原因是 B 站风控、WBI 签名变化、缺少登录 Cookie 或网络/IP 被风控。',
+          '这是获取弹幕服务器信息失败，不是点歌逻辑失败。常见原因是直播平台风控、WBI 签名变化、缺少登录 Cookie 或网络/IP 被风控。',
         ),
       );
     }
@@ -222,7 +222,7 @@ class BilibiliApiClient {
 
   async sendDanmaku(roomId, message, reply = {}) {
     const rawText = String(message || '').trim();
-    if (!this.cookieHeader) throw new Error('请先登录 Bilibili 账号。');
+    if (!this.cookieHeader) throw new Error('请先登录直播账号。');
     const csrf = extractCookie(this.cookieHeader, 'bili_jct');
     if (!csrf) throw new Error('登录态缺少 bili_jct，无法发送弹幕。');
     if (!rawText || rawText.length > 1000)
@@ -294,7 +294,7 @@ class BilibiliApiClient {
       payload = JSON.parse(text);
     } catch (_) {
       throw new Error(
-        `Bilibili API ${endpointName} returned non-JSON response. HTTP ${response.status}. Body: ${text.slice(0, 160)}`,
+        `直播平台 API ${endpointName} returned non-JSON response. HTTP ${response.status}. Body: ${text.slice(0, 160)}`,
       );
     }
     if (!quiet) {
@@ -346,12 +346,12 @@ function formatBilibiliApiError(endpointName, response, payload, extraHint) {
     payload && payload.data
       ? ` data=${JSON.stringify(payload.data).slice(0, 220)}`
       : '';
-  return `Bilibili API ${endpointName} failed: http=${response.status} code=${code} message=${message}. ${hint}${extraHint ? ` ${extraHint}` : ''}${data}`;
+  return `直播平台 API ${endpointName} failed: http=${response.status} code=${code} message=${message}. ${hint}${extraHint ? ` ${extraHint}` : ''}${data}`;
 }
 
 function bilibiliErrorHint(code) {
   if (Number(code) === -352) {
-    return '原因：B 站风控/校验失败，通常与 WBI 签名、正常浏览器请求头、Cookie/设备标识或当前网络/IP 风控有关。';
+    return '原因：直播平台风控/校验失败，通常与 WBI 签名、正常浏览器请求头、Cookie/设备标识或当前网络/IP 风控有关。';
   }
   if (Number(code) === 60004) {
     return '原因：直播间不存在或填写的不是直播间号。';
@@ -362,7 +362,7 @@ function bilibiliErrorHint(code) {
   if (Number(code) === -412) {
     return '原因：请求被风控拦截。';
   }
-  return '原因：B 站接口返回了非成功业务码。';
+  return '原因：直播平台接口返回了非成功业务码。';
 }
 
 function redactUrl(url) {

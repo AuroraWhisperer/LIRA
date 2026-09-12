@@ -1,6 +1,6 @@
 {
   "name": "lira",
-  "version": "4.0.19",
+  "version": "4.1.0",
   "private": true,
   "license": "UNLICENSED",
   "description": "LIRA - Live Interactive Request Assistant",
@@ -49,6 +49,7 @@
     "files": [
       "src/**/*",
       "public/**/*",
+      "build/icon.png",
       "!public/img/bilibili-gifts/**/*",
       "!public/img/bilibili-gifts.json",
       "!public/img/admin/queue/*.png",

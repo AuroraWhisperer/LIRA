@@ -59,7 +59,6 @@ function createLicensePage(result = { state: 'needs_activation' }) {
     }),
     dispatchPasswordEvent(type, event = {}) {
       const listener = getElementById('licensePassword').listeners.get(type);
-      assert.ok(listener, `password input should listen for ${type}`);
       const dispatchedEvent = {
         isComposing: false,
         data: null,
@@ -69,7 +68,7 @@ function createLicensePage(result = { state: 'needs_activation' }) {
         },
         ...event,
       };
-      listener(dispatchedEvent);
+      listener?.(dispatchedEvent);
       return dispatchedEvent;
     },
   };
@@ -84,10 +83,12 @@ test('license page offers password visibility without the storage footnote', () 
   assert.match(html, /大写/);
   assert.match(html, /小写/);
   assert.match(html, /数字/);
-  assert.match(html, /半角特殊符号/);
-  assert.match(html, /中文[\u4e00-\u9fff、，\s]*空格/);
+  assert.match(html, /至少三类/);
+  assert.match(html, /已有账号.*原密码/);
+  assert.match(html, /72 字节/);
+  assert.doesNotMatch(html.match(/<input\s+id="licensePassword"[\s\S]*?>/)[0], /maxlength=|minlength=|pattern=/);
   assert.match(html, /<script type="module" src="\/js\/admin\/contextual-help\.js"><\/script>/);
-  assert.match(html, /placeholder="8–64 个字符"/);
+  assert.match(html, /placeholder="请输入密码"/);
   assert.match(html, /id="licensePasswordToggle"[^>]*type="button"[^>]*aria-label="显示密码"[^>]*aria-pressed="false"/s);
   assert.match(html, /id="licensePasswordIcon"[^>]*href="\/img\/shared\/password-visibility\.svg#eye"/s);
   assert.doesNotMatch(html, /密码和激活密钥不会保存在本机。/);
@@ -101,6 +102,7 @@ for (const [error, message] of [
   ['PASSWORD_CONTROL_CHARACTERS', '密码不能包含换行、控制字符或不可见格式字符。'],
   ['PASSWORD_COMPLEXITY', '密码不符合要求，请查看密码旁的说明。'],
   ['PASSWORD_BCRYPT_TRUNCATED', '密码的 UTF-8 编码不能超过 72 字节，请缩短密码。'],
+  ['PASSWORD_WEAK', '密码过于常见或接近用户名，请更换。'],
 ]) {
   test(`license form preserves the server ${error} response`, async () => {
     const page = createLicensePage({ state: 'needs_activation', error });
@@ -112,37 +114,27 @@ for (const [error, message] of [
   });
 }
 
-for (const [password, message] of [
-  ['Abc123!\n', '密码不能包含换行、控制字符或不可见格式字符。'],
-  ['Abc123!\u200b', '密码不能包含换行、控制字符或不可见格式字符。'],
-  ['Abc123! ', '密码不能包含空格。'],
-  ['Abc123!中', '密码不能包含中文，请切换为英文输入。'],
-  ['Abc123!é', '密码只能使用半角英文字母、数字和特殊符号。'],
-  ['Abc123!', '密码至少 8 个字符。'],
-  ['Abc123!?'.repeat(8) + 'A', '密码不能超过 64 个字符。'],
-  ['abcdefgh', '密码缺少大写英文字母。'],
-  ['ABCDEFGH', '密码缺少小写英文字母。'],
-  ['Abcdefgh', '密码缺少数字。'],
-  ['Abcdef12', '密码缺少特殊符号。'],
-]) {
-  test(`license form reports only the first password error: ${message}`, async () => {
-    const page = createLicensePage();
-    page.getElementById('licensePassword').value = password;
+for (const sample of require('./fixtures/password-compatibility.json')) {
+  test(`license form preserves shared password sample: ${sample.id}`, async () => {
+    const page = createLicensePage({ state: 'needs_activation', error: 'INVALID_CREDENTIALS' });
+    const password = page.getElementById('licensePassword');
+    const event = page.dispatchPasswordEvent('beforeinput', { data: sample.password });
+    assert.equal(event.defaultPrevented, false);
+    password.value = sample.password;
+    page.dispatchPasswordEvent('input');
+    page.dispatchPasswordEvent('compositionend');
+    assert.equal(password.value, sample.password);
     await page.submit();
-    assert.equal(page.submissions.length, 0);
-    assert.equal(page.getElementById('licenseStatus').textContent, message);
+    assert.equal(page.submissions.length, sample.clientSubmits ? 1 : 0);
+    if (sample.clientSubmits) {
+      assert.equal(page.submissions[0].password, sample.password);
+      assert.equal(page.getElementById('licenseStatus').textContent, '用户名或密码错误。');
+    } else {
+      assert.equal(page.getElementById('licenseStatus').textContent, '请输入密码。');
+    }
+    assert.equal(password.value, sample.password, 'failed authentication preserves the original input');
   });
 }
-
-test('license form distinguishes an empty password from a short password', async () => {
-  const page = createLicensePage();
-  await page.submit();
-  assert.equal(page.getElementById('licenseStatus').textContent, '请输入密码。');
-  page.getElementById('licensePassword').value = 'Abc123!';
-  await page.submit();
-  assert.equal(page.getElementById('licenseStatus').textContent, '密码至少 8 个字符。');
-  assert.equal(page.submissions.length, 0);
-});
 
 test('license form keeps existing account password checks on the server', async () => {
   const page = createLicensePage({ state: 'needs_activation', error: 'INVALID_CREDENTIALS' });
@@ -194,61 +186,6 @@ test('every printable ASCII punctuation character can satisfy the special-symbol
     );
     assert.equal(page.submissions[0].password, password);
   }
-});
-
-test('password input rejects invalid characters before insertion', () => {
-  const page = createLicensePage();
-  const event = page.dispatchPasswordEvent('beforeinput', { data: '中' });
-  assert.equal(event.defaultPrevented, true);
-  assert.equal(page.getElementById('licenseStatus').textContent, '密码不能包含中文，请切换为英文输入。');
-
-  const composingEvent = page.dispatchPasswordEvent('beforeinput', {
-    data: '中',
-    isComposing: true,
-  });
-  assert.equal(composingEvent.defaultPrevented, false);
-});
-
-test('password input restores the complete last accepted value after invalid edits', () => {
-  const page = createLicensePage();
-  const password = page.getElementById('licensePassword');
-  password.value = VALID_PASSWORD;
-  page.dispatchPasswordEvent('input');
-
-  password.value = 'Abc123!中';
-  page.dispatchPasswordEvent('input');
-  assert.equal(password.value, VALID_PASSWORD);
-  assert.equal(page.getElementById('licenseStatus').textContent, '密码不能包含中文，请切换为英文输入。');
-
-  password.value = 'Abc123!中';
-  page.dispatchPasswordEvent('input', { isComposing: true });
-  assert.equal(password.value, 'Abc123!中');
-  page.dispatchPasswordEvent('compositionend');
-  assert.equal(password.value, VALID_PASSWORD);
-});
-
-test('password input saves each new valid value as the complete restore value', () => {
-  const page = createLicensePage();
-  const password = page.getElementById('licensePassword');
-  password.value = VALID_PASSWORD;
-  page.dispatchPasswordEvent('input');
-  password.value = 'Xy9$abcd';
-  page.dispatchPasswordEvent('input');
-
-  password.value = 'Xy9$中cd';
-  page.dispatchPasswordEvent('input');
-  assert.equal(password.value, 'Xy9$abcd');
-});
-
-test('successful activation clears the last accepted password before clearing the field', async () => {
-  const page = createLicensePage({ ok: true, state: 'authorized' });
-  const password = page.getElementById('licensePassword');
-  password.value = VALID_PASSWORD;
-  page.dispatchPasswordEvent('input');
-  await page.submit();
-  password.value = 'Abc123!中';
-  page.dispatchPasswordEvent('input');
-  assert.equal(password.value, '');
 });
 
 test('password visibility toggles without changing or submitting the password', () => {

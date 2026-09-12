@@ -128,199 +128,231 @@ function createDomainServices(options) {
       return overtimeGiftCatalog?.resolveGiftImagePath?.(id) || '';
     },
   });
-  const localOvertimeGiftCatalog =
-    options.dataDir
-      ? createGiftSaleCatalogService({
-          dataDir: options.dataDir,
-          getRoomId:
-            options.giftSaleGetRoomId ||
-            (() => settingsStore.getSettings().roomId),
-          getBlindBoxConfig:
-            options.giftSaleGetBlindBoxConfig ||
-            (() => settingsStore.getSettings().giftBlindBoxConfig),
-          fetchJson: options.giftSaleFetchJson,
-        })
-      : createUnavailableGiftSaleCatalogService();
-  overtimeGiftCatalog =
-    typeof options.remoteGiftCatalog?.fetch === 'function' && options.dataDir
-      ? createHybridGiftSaleCatalogService({
-          local: localOvertimeGiftCatalog,
-          dataDir: options.dataDir,
-          fetchRemote: options.remoteGiftCatalog.fetch,
-          onUpdated: options.remoteGiftCatalog.onUpdated,
-          now: options.remoteGiftCatalog.now,
-          logger: options.remoteGiftCatalog.logger,
-          minRefreshMs: options.remoteGiftCatalog.minRefreshMs,
-          pollIntervalMs: options.remoteGiftCatalog.pollIntervalMs,
-          imageBaseUrl: options.remoteGiftCatalog.imageBaseUrl,
-          getBlindBoxCustomConfigV2: () => {
-            try {
-              const value = JSON.parse(
-                settingsStore.getSettings().giftBlindBoxCustomConfigV2 || 'null',
-              );
-              return Array.isArray(value) ? value : [];
-            } catch (_) {
-              return [];
-            }
-          },
-          remoteCatalog: options.remoteGiftCatalog.remoteCatalog,
-          remoteImageCache: options.remoteGiftCatalog.remoteImageCache,
-          giftCatalogInitializer:
-            options.remoteGiftCatalog.giftCatalogInitializer,
-          fetchImage: options.remoteGiftCatalog.fetchImage,
-          imageConcurrency: options.remoteGiftCatalog.imageConcurrency,
-        })
-      : localOvertimeGiftCatalog;
-  const overtimeConsumer = createOvertimeConsumer({ service: overtime });
-  const giftRuntime = giftService.createGiftService(
-    {
-      db: { giftDb: db.giftDb },
-      settings: () => settingsStore.getSettings(),
-      state: giftState,
-    },
-    {
-      onGiftFlushed,
-      consumers: [overtimeConsumer],
-      giftEventStore,
-      getOvertimeEpoch: overtime.getCurrentEpoch,
-      captureWhenDisabled: Boolean(giftEffectResolver),
-    },
-  );
-  const gifts = {
-    ...giftRuntime,
-    async resolveEffect(giftId) {
-      if (!giftEffectResolver) return null;
-      return giftEffectResolver.resolveEffect(giftId);
-    },
-  };
+  let localOvertimeGiftCatalog;
+  let giftRuntime;
+  try {
+    localOvertimeGiftCatalog =
+      options.dataDir
+        ? createGiftSaleCatalogService({
+            dataDir: options.dataDir,
+            getRoomId:
+              options.giftSaleGetRoomId ||
+              (() => settingsStore.getSettings().roomId),
+            getBlindBoxConfig:
+              options.giftSaleGetBlindBoxConfig ||
+              (() => settingsStore.getSettings().giftBlindBoxConfig),
+            fetchJson: options.giftSaleFetchJson,
+          })
+        : createUnavailableGiftSaleCatalogService();
+    overtimeGiftCatalog =
+      typeof options.remoteGiftCatalog?.fetch === 'function' && options.dataDir
+        ? createHybridGiftSaleCatalogService({
+            local: localOvertimeGiftCatalog,
+            dataDir: options.dataDir,
+            fetchRemote: options.remoteGiftCatalog.fetch,
+            onUpdated: options.remoteGiftCatalog.onUpdated,
+            now: options.remoteGiftCatalog.now,
+            logger: options.remoteGiftCatalog.logger,
+            minRefreshMs: options.remoteGiftCatalog.minRefreshMs,
+            pollIntervalMs: options.remoteGiftCatalog.pollIntervalMs,
+            imageBaseUrl: options.remoteGiftCatalog.imageBaseUrl,
+            getBlindBoxCustomConfigV2: () => {
+              try {
+                const value = JSON.parse(
+                  settingsStore.getSettings().giftBlindBoxCustomConfigV2 || 'null',
+                );
+                return Array.isArray(value) ? value : [];
+              } catch (_) {
+                return [];
+              }
+            },
+            remoteCatalog: options.remoteGiftCatalog.remoteCatalog,
+            remoteImageCache: options.remoteGiftCatalog.remoteImageCache,
+            giftCatalogInitializer:
+              options.remoteGiftCatalog.giftCatalogInitializer,
+            fetchImage: options.remoteGiftCatalog.fetchImage,
+            imageConcurrency: options.remoteGiftCatalog.imageConcurrency,
+          })
+        : localOvertimeGiftCatalog;
+    const overtimeConsumer = createOvertimeConsumer({ service: overtime });
+    giftRuntime = giftService.createGiftService(
+      {
+        db: { giftDb: db.giftDb },
+        settings: () => settingsStore.getSettings(),
+        state: giftState,
+      },
+      {
+        onGiftFlushed,
+        consumers: [overtimeConsumer],
+        giftEventStore,
+        getOvertimeEpoch: overtime.getCurrentEpoch,
+        captureWhenDisabled: Boolean(giftEffectResolver),
+      },
+    );
+    const gifts = {
+      ...giftRuntime,
+      async resolveEffect(giftId) {
+        if (!giftEffectResolver) return null;
+        return giftEffectResolver.resolveEffect(giftId);
+      },
+    };
 
-  const superChatContext = { store: superChatStore };
-  const superChats = {
-    getSnapshot: () => superChatService.getSuperChatSnapshot(superChatContext),
-    add: (input) => superChatService.addSuperChatItem(superChatContext, input),
-    handleAction: (action, id) =>
-      superChatService.handleSuperChatAction(superChatContext, action, id),
-  };
+    const superChatContext = { store: superChatStore };
+    const superChats = {
+      getSnapshot: () => superChatService.getSuperChatSnapshot(superChatContext),
+      add: (input) => superChatService.addSuperChatItem(superChatContext, input),
+      handleAction: (action, id) =>
+        superChatService.handleSuperChatAction(superChatContext, action, id),
+    };
 
-  const messages = {
-    handleDanmaku(danmaku) {
-      const result = bilibiliMessageHandler.handleDanmakuMessage(
-        {
-          settings: () => settingsStore.getSettings(),
-          // message-handler still reads this legacy-shaped adapter; it only
-          // exposes the defaults query rather than the full settings store.
-          settingsStore: {
-            getDefaultSettings: () => settingsStore.getDefaultSettings(),
+    const messages = {
+      handleDanmaku(danmaku) {
+        const result = bilibiliMessageHandler.handleDanmakuMessage(
+          {
+            settings: () => settingsStore.getSettings(),
+            // message-handler still reads this legacy-shaped adapter; it only
+            // exposes the defaults query rather than the full settings store.
+            settingsStore: {
+              getDefaultSettings: () => settingsStore.getDefaultSettings(),
+            },
+            cooldownStore,
+            state,
+            addQueueItem: queue.add,
+            resolveSongRequest: songs.findUniqueNameMatch,
+            // 通过 songs.pickRandom 传入，让 message-handler 无需直接访问 DB 句柄
+            pickRandomSong: songs.pickRandom,
+            describeRandomSongScope: songs.describeRandomScope,
           },
-          cooldownStore,
-          state,
-          addQueueItem: queue.add,
-          resolveSongRequest: songs.findUniqueNameMatch,
-          // 通过 songs.pickRandom 传入，让 message-handler 无需直接访问 DB 句柄
-          pickRandomSong: songs.pickRandom,
-          describeRandomSongScope: songs.describeRandomScope,
-        },
-        danmaku,
-      );
-      const checkin = checkins.handleDanmaku(danmaku);
-      if (checkin.command) {
+          danmaku,
+        );
+        const checkin = checkins.handleDanmaku(danmaku);
+        if (checkin.command) {
+          return {
+            ...result,
+            checkin,
+            checkinReply: checkin.autoReply || null,
+          };
+        }
+        const fortune = fortunes.handleDanmaku(danmaku);
+        if (fortune.command) {
+          return {
+            ...result,
+            fortune,
+            fortuneReply: fortune.autoReply || null,
+          };
+        }
+        if (result.command) return result;
+        const customReply = customReplies.handleDanmaku(danmaku);
+        if (!customReply.command) return result;
         return {
           ...result,
-          checkin,
-          checkinReply: checkin.autoReply || null,
+          customReply,
+          customReplyReply: customReply.autoReply || null,
         };
-      }
-      const fortune = fortunes.handleDanmaku(danmaku);
-      if (fortune.command) {
-        return {
-          ...result,
-          fortune,
-          fortuneReply: fortune.autoReply || null,
-        };
-      }
-      if (result.command) return result;
-      const customReply = customReplies.handleDanmaku(danmaku);
-      if (!customReply.command) return result;
-      return {
-        ...result,
-        customReply,
-        customReplyReply: customReply.autoReply || null,
-      };
-    },
-    logDanmaku: bilibiliMessageHandler.logDanmakuCommand,
-  };
+      },
+      logDanmaku: bilibiliMessageHandler.logDanmakuCommand,
+    };
 
-  const data = {
-    clearSongLibrary() {
-      const result = database.clearSongLibraryData(db.songDb);
-      songs.ensureCategory('默认');
-      queue.ensureUnified();
-      return result;
-    },
-    clearSuperChats: () => database.clearSuperChatData(db.superChatDb),
-    clearPlayback: () => database.clearPlaybackData(db.musicDb),
-    clearGifts() {
-      const result = database.clearGiftData(db.giftDb, {
-        sourceId: getActiveGiftSourceId(gifts),
-      });
-      giftState.blindBoxCache = null;
-      return result;
-    },
-    clearAll() {
-      const result = database.clearAllData(
-        db.songDb,
-        db.superChatDb,
-        db.giftDb,
-        db.musicDb,
-        db.checkinDb,
-        { sourceId: getActiveGiftSourceId(gifts) },
-      );
-
-      // 只有完全成功时才重置内存状态
-      if (result.cleared === true && !result.partial) {
-        state.cooldownByUser.clear();
-        giftState.blindBoxCache = null;
+    const data = {
+      clearSongLibrary() {
+        const result = database.clearSongLibraryData(db.songDb);
         songs.ensureCategory('默认');
         queue.ensureUnified();
+        return result;
+      },
+      clearSuperChats: () => database.clearSuperChatData(db.superChatDb),
+      clearPlayback: () => database.clearPlaybackData(db.musicDb),
+      clearGifts() {
+        const result = database.clearGiftData(db.giftDb, {
+          sourceId: getActiveGiftSourceId(gifts),
+        });
+        giftState.blindBoxCache = null;
+        return result;
+      },
+      clearAll() {
+        const result = database.clearAllData(
+          db.songDb,
+          db.superChatDb,
+          db.giftDb,
+          db.musicDb,
+          db.checkinDb,
+          { sourceId: getActiveGiftSourceId(gifts) },
+        );
+
+        // 只有完全成功时才重置内存状态
+        if (result.cleared === true && !result.partial) {
+          try {
+            overtime.reloadState();
+            state.cooldownByUser.clear();
+            giftState.blindBoxCache = null;
+            songs.ensureCategory('默认');
+            queue.ensureUnified();
+          } catch (error) {
+            return {
+              ...result,
+              ok: false,
+              cleared: false,
+              partial: true,
+              phase: 'runtime-reset',
+              failed: [],
+              error: `数据已清空，但运行状态重载失败：${error.message}`,
+            };
+          }
+        }
+
+        return result;
+      },
+      getSchemaVersions: () => {
+        if (!schemaVersionsCache)
+          schemaVersionsCache = database.getSchemaVersions(db);
+        return schemaVersionsCache;
+      },
+      getRetentionStats: () => retention.getRetentionStats(db),
+      runRetention(options = {}) {
+        const policy =
+          options.policy ||
+          retention.readRetentionPolicy(settingsStore.getSettings());
+        return retention.applyRetentionPolicies(db, {
+          policy,
+          dryRun: options.dryRun === true,
+        });
+      },
+    };
+
+    return {
+      state,
+      songs,
+      queue,
+      gifts,
+      overtime,
+      overtimeGiftCatalog,
+      superChats,
+      messages,
+      requesterTargets,
+      checkins,
+      fortunes,
+      customReplies,
+      data,
+      playback: playbackStore,
+      theme: themeStore,
+      cooldowns: cooldownStore,
+    };
+  } catch (error) {
+    // Factories retain ownership until the complete service bundle is returned.
+    for (const [name, cleanup] of [
+      ['gifts', () => giftRuntime?.dispose()],
+      ['gift catalog', () => overtimeGiftCatalog?.dispose?.()],
+      ['local gift catalog', () => localOvertimeGiftCatalog?.stop?.()],
+      ['overtime', () => overtime.dispose()],
+    ]) {
+      try {
+        cleanup();
+      } catch (cleanupError) {
+        console.warn(`[Startup] ${name} cleanup failed:`, cleanupError.message);
       }
-
-      return result;
-    },
-    getSchemaVersions: () => {
-      if (!schemaVersionsCache)
-        schemaVersionsCache = database.getSchemaVersions(db);
-      return schemaVersionsCache;
-    },
-    getRetentionStats: () => retention.getRetentionStats(db),
-    runRetention(options = {}) {
-      const policy =
-        options.policy ||
-        retention.readRetentionPolicy(settingsStore.getSettings());
-      return retention.applyRetentionPolicies(db, {
-        policy,
-        dryRun: options.dryRun === true,
-      });
-    },
-  };
-
-  return {
-    state,
-    songs,
-    queue,
-    gifts,
-    overtime,
-    overtimeGiftCatalog,
-    superChats,
-    messages,
-    requesterTargets,
-    checkins,
-    fortunes,
-    customReplies,
-    data,
-    playback: playbackStore,
-    theme: themeStore,
-    cooldowns: cooldownStore,
-  };
+    }
+    throw error;
+  }
 }
 
 function getActiveGiftSourceId(gifts) {

@@ -16,6 +16,7 @@
  */
 
 const { execFileSync } = require('node:child_process');
+const { X509Certificate } = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 
@@ -31,6 +32,11 @@ if (args.length < 2) {
 }
 
 const [exePath, expectedPublisher] = args;
+
+if (!expectedPublisher.trim()) {
+  console.error('[verify-signature] Expected publisher must not be empty or blank.');
+  process.exit(1);
+}
 
 // 验证文件存在
 if (!fs.existsSync(exePath)) {
@@ -52,6 +58,7 @@ try {
       Status = $sig.Status.ToString()
       StatusMessage = $sig.StatusMessage
       SignerCertificateSubject = if ($sig.SignerCertificate) { $sig.SignerCertificate.Subject } else { $null }
+      SignerCertificateRawData = if ($sig.SignerCertificate) { [Convert]::ToBase64String($sig.SignerCertificate.RawData) } else { $null }
       SignerCertificateIssuer = if ($sig.SignerCertificate) { $sig.SignerCertificate.Issuer } else { $null }
       SignerCertificateNotAfter = if ($sig.SignerCertificate) { $sig.SignerCertificate.NotAfter.ToString('o') } else { $null }
       TimeStamperCertificateSubject = if ($sig.TimeStamperCertificate) { $sig.TimeStamperCertificate.Subject } else { $null }
@@ -101,18 +108,20 @@ try {
   }
 
   // 检查发布者名称
-  if (!sigInfo.SignerCertificateSubject) {
+  if (!sigInfo.SignerCertificateRawData) {
     console.error(
-      '[verify-signature] ❌ Signer certificate subject is missing.',
+      '[verify-signature] ❌ Signer certificate data is missing.',
     );
     process.exit(1);
   }
 
-  // 简单的包含检查(CN=expectedPublisher 或 expectedPublisher 出现在 Subject 中)
-  const subjectLower = sigInfo.SignerCertificateSubject.toLowerCase();
+  // Decode CN from the certificate, not its escaped/quoted Subject display text.
+  const certificate = new X509Certificate(Buffer.from(sigInfo.SignerCertificateRawData, 'base64'));
+  const commonName = certificate.toLegacyObject().subject.CN;
   const expectedLower = expectedPublisher.toLowerCase();
 
-  if (!subjectLower.includes(expectedLower)) {
+  // Multiple CN attributes are ambiguous and are returned as an array.
+  if (typeof commonName !== 'string' || commonName.toLowerCase() !== expectedLower) {
     console.error(`[verify-signature] ❌ Publisher mismatch:`);
     console.error(`  Expected: ${expectedPublisher}`);
     console.error(`  Actual: ${sigInfo.SignerCertificateSubject}`);

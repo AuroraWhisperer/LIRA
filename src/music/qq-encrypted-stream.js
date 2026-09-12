@@ -1,6 +1,8 @@
 'use strict';
 
 const { ready, QMC2 } = require('@clamber_l/crypto');
+const { Readable, Transform } = require('node:stream');
+const { pipeline } = require('node:stream/promises');
 
 const MAX_UPSTREAM_BYTES = 64 * 1024 * 1024;
 const QQ_MEDIA_HOSTS = new Set([
@@ -53,62 +55,79 @@ async function serveQQEncryptedStream(record, req, res, options = {}) {
   if (range)
     headers.Range = `bytes=${range.start}-${range.end == null ? '' : range.end}`;
 
-  const fetchImpl = options.fetchImpl || fetch;
-  const upstream = await fetchImpl(mediaUrl, { headers, redirect: 'follow' });
+  const controller = new AbortController();
+  const cancel = () => controller.abort();
+  const onClose = () => { if (!res.writableFinished) cancel(); };
+  req.once('aborted', cancel);
+  res.once('close', onClose);
+  let upstream;
+  let cipher;
   try {
-    validateMediaUrl(upstream.url || mediaUrl);
-  } catch (_) {
-    sendError(res, 502, 'QQ 加密媒体重定向到了不受支持的地址。');
-    return;
-  }
-  if (!upstream.ok && upstream.status !== 206) {
-    sendError(
-      res,
-      upstream.status === 416 ? 416 : 502,
-      'QQ 加密媒体暂时不可用。',
-    );
-    return;
-  }
-  const contentLength = Number(upstream.headers.get('content-length') || 0);
-  if (contentLength > MAX_UPSTREAM_BYTES) {
-    sendError(res, 502, 'QQ 加密媒体响应过大。');
-    return;
-  }
-
-  await ready;
-  const cipher = new QMC2(String(record.ekey || ''));
-  const startOffset = range ? range.start : 0;
-  const responseHeaders = {
-    'Content-Type':
-      record.contentType ||
-      (record.family === 'Q0' ? 'audio/flac' : 'audio/ogg'),
-    'Accept-Ranges': 'bytes',
-    'Cache-Control': 'no-store',
-  };
-  for (const name of ['content-length', 'content-range']) {
-    const value = upstream.headers.get(name);
-    if (value)
-      responseHeaders[name.replace(/^[a-z]/, (char) => char.toUpperCase())] =
-        value;
-  }
-  const contentRange = upstream.headers.get('content-range');
-  if (contentRange) responseHeaders['Content-Range'] = contentRange;
-  res.writeHead(upstream.status === 206 ? 206 : 200, responseHeaders);
-
-  try {
-    if (!upstream.body) return res.end();
-    let offset = startOffset;
-    for await (const chunk of upstream.body) {
-      const buffer = Buffer.from(chunk);
-      cipher.decrypt(buffer, offset);
-      offset += buffer.length;
-      res.write(buffer);
+    if (req.aborted || res.destroyed) return;
+    const fetchImpl = options.fetchImpl || fetch;
+    upstream = await fetchImpl(mediaUrl, {
+      headers, redirect: 'follow', signal: controller.signal,
+    });
+    if (controller.signal.aborted) return;
+    try {
+      validateMediaUrl(upstream.url || mediaUrl);
+    } catch (_) {
+      sendError(res, 502, 'QQ 加密媒体重定向到了不受支持的地址。');
+      return;
     }
-    res.end();
+    if (!upstream.ok && upstream.status !== 206) {
+      sendError(res, upstream.status === 416 ? 416 : 502, 'QQ 加密媒体暂时不可用。');
+      return;
+    }
+    const contentLength = Number(upstream.headers.get('content-length') || 0);
+    if (contentLength > MAX_UPSTREAM_BYTES) {
+      sendError(res, 502, 'QQ 加密媒体响应过大。');
+      return;
+    }
+    await ready;
+    if (controller.signal.aborted) return;
+    cipher = new QMC2(String(record.ekey || ''));
+    const responseHeaders = {
+      'Content-Type': record.contentType || (record.family === 'Q0' ? 'audio/flac' : 'audio/ogg'),
+      'Accept-Ranges': 'bytes',
+      'Cache-Control': 'no-store',
+    };
+    for (const name of ['content-length', 'content-range']) {
+      const value = upstream.headers.get(name);
+      if (value) responseHeaders[name] = value;
+    }
+    res.writeHead(upstream.status === 206 ? 206 : 200, responseHeaders);
+    if (!upstream.body) return res.end();
+    let receivedBytes = 0;
+    const decrypt = new Transform({
+      transform(buffer, _encoding, callback) {
+        if (receivedBytes + buffer.length > MAX_UPSTREAM_BYTES) {
+          callback(new Error('QQ 加密媒体响应过大。'));
+          return;
+        }
+        try {
+          cipher.decrypt(buffer, (range ? range.start : 0) + receivedBytes);
+          receivedBytes += buffer.length;
+          callback(null, buffer);
+        } catch (error) {
+          callback(error);
+        }
+      },
+    });
+    await pipeline(Readable.fromWeb(upstream.body), decrypt, res, { signal: controller.signal });
   } catch (error) {
-    if (!res.destroyed) res.destroy(error);
+    if (!controller.signal.aborted && !res.destroyed) {
+      if (!res.headersSent) throw error;
+      res.destroy(error);
+    }
   } finally {
-    cipher.free();
+    req.removeListener('aborted', cancel);
+    res.removeListener('close', onClose);
+    controller.abort();
+    if (upstream?.body && !upstream.body.locked) {
+      await upstream.body.cancel().catch(() => {});
+    }
+    cipher?.free();
   }
 }
 

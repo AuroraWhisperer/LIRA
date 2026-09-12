@@ -10,6 +10,7 @@ const lowMotion =
 
 let currentState = null;
 let currentRevision = -1;
+let connectionGeneration = 0;
 let anchorRemainingMs = 0;
 let localAnchorMs = performance.now();
 let socketController = null;
@@ -27,12 +28,15 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function loadSnapshot() {
+  const requestedGeneration = connectionGeneration;
   try {
     const response = await fetch('/api/state');
     const payload = await response.json();
+    if (requestedGeneration !== connectionGeneration) return;
     if (payload.ok && payload.data?.overtime)
-      applyState(payload.data.overtime, { force: true });
+      applyState(payload.data.overtime);
   } catch (error) {
+    if (requestedGeneration !== connectionGeneration) return;
     setConnectionStatus('连接中断');
     console.warn('[overtime-overlay] snapshot failed:', error.message || error);
   }
@@ -41,23 +45,28 @@ async function loadSnapshot() {
 function connectSocket() {
   if (socketController) return;
   socketController = createOverlaySocket({
+    onOpen: () => {
+      // A new connection may belong to a restarted service. Repeated snapshots
+      // on that connection still use the same revision comparison as updates.
+      connectionGeneration += 1;
+      currentRevision = -1;
+    },
     onReconnect: () => {
       loadSnapshot();
     },
     onMessage: (payload) => {
       if (payload.type === 'snapshot') {
         if (payload.state?.overtime)
-          applyState(payload.state.overtime, { force: true });
+          applyState(payload.state.overtime);
         return;
       }
       if (payload.type === 'overtime:update') {
-        const revision = Number(payload.state?.revision) || 0;
-        if (revision <= currentRevision) return;
-        applyState(payload.state, { force: false });
-        if (payload.adjustment) enqueueAdjustment(payload.adjustment);
+        if (applyState(payload.state) && payload.adjustment)
+          enqueueAdjustment(payload.adjustment);
       }
     },
     onClose: () => {
+      connectionGeneration += 1;
       setConnectionStatus('连接中断');
     },
   });
@@ -65,14 +74,15 @@ function connectSocket() {
 }
 
 function disposeSocket() {
+  connectionGeneration += 1;
   socketController?.dispose();
   socketController = null;
 }
 
-function applyState(state, { force }) {
-  if (!state) return;
+function applyState(state) {
+  if (!state) return false;
   const revision = Number(state.revision) || 0;
-  if (!force && revision <= currentRevision) return;
+  if (revision <= currentRevision) return false;
   currentRevision = revision;
   currentState = state;
   const transportElapsedMs =
@@ -88,6 +98,7 @@ function applyState(state, { force }) {
   renderBackground();
   renderTickets();
   syncClock();
+  return true;
 }
 
 function syncClock() {

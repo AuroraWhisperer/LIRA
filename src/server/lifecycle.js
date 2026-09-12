@@ -134,8 +134,13 @@ async function cleanupOwnPortOccupant(options) {
     return;
   }
 
-  const currentProcessInfo = processInfo || getProcessInfo(pid);
-  if (!serviceIdIsOwn && !isOwnProcessInfo(currentProcessInfo, options)) {
+  const currentHealth = serviceIdIsOwn
+    ? await readLocalHealth(port, host, fetchImpl)
+    : null;
+  const currentServiceIsOwn = currentHealth?.ok &&
+    currentHealth.data?.serviceId === SERVICE_ID &&
+    Number(currentHealth.data.pid) === pid;
+  if (!currentServiceIsOwn && !isOwnProcessInfo(getProcessInfo(pid), options)) {
     markPhase('port-cleanup', { result: 'graceful-timeout-unverified' });
     return;
   }
@@ -357,14 +362,20 @@ function getProcessInfo(pid) {
 function isOwnProcessInfo(info, options) {
   if (!info || typeof info !== 'object') return false;
   const executablePath = normalizePathForCompare(info.ExecutablePath || '');
-  const commandLine = String(info.CommandLine || '').toLowerCase();
+  const args = String(info.CommandLine || '').match(/"[^"]*"|[^\s"]+/g) || [];
+  const entryArgument = (args[1] || '').replace(/^"|"$/g, '');
+  const entryPath = path.isAbsolute(entryArgument)
+    ? normalizePathForCompare(entryArgument)
+    : '';
   const ownRoot = normalizePathForCompare(options.rootDir);
+  if (!ownRoot) return false;
+  const packagedExecutable = ownRoot.replace(/\\resources\\app(?:\.asar)?$/, '\\lira.exe');
 
   return (
-    (executablePath && executablePath.endsWith('\\LIRA.exe')) ||
-    (ownRoot && commandLine.includes(ownRoot.toLowerCase())) ||
-    commandLine.includes('src\\server.js') ||
-    commandLine.includes('src/server.js')
+    (executablePath && executablePath.endsWith('\\lira.exe') && executablePath === packagedExecutable) ||
+    (executablePath.endsWith('\\node.exe') && entryPath === `${ownRoot}\\src\\server.js`) ||
+    (executablePath.endsWith('\\electron.exe') &&
+      (entryPath === ownRoot || entryPath === `${ownRoot}\\src\\electron\\main.js`))
   );
 }
 

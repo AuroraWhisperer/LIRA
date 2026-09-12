@@ -11,6 +11,24 @@ test('reports skipped when the renderer window is unavailable', async () => {
   assert.deepEqual(await requestPlaybackFlush(null, 5), { status: 'skipped' });
 });
 
+test('overlapping flush requests share one acknowledgement and both settle', async () => {
+  let sends = 0;
+  const window = { isDestroyed: () => false, webContents: { send() { sends += 1; } } };
+  const first = requestPlaybackFlush(window, 5);
+  const second = requestPlaybackFlush(window, 5);
+  acknowledgePlaybackFlush();
+  let timer;
+  try {
+    const result = await Promise.race([
+      Promise.all([first, second]),
+      new Promise((resolve) => { timer = setTimeout(() => resolve('hung'), 50); }),
+    ]);
+    assert.deepEqual(result, [{ status: 'ack' }, { status: 'ack' }]);
+    assert.equal(first, second);
+    assert.equal(sends, 1);
+  } finally { clearTimeout(timer); }
+});
+
 test('reports renderer acknowledgement before the shutdown timeout', async () => {
   const sent = [];
   const window = {

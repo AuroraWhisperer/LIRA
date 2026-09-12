@@ -55,6 +55,7 @@ export class StreamService {
       forceRefresh: options.forceRefresh === true,
       quality: requestedQuality,
     });
+    if (options.isCurrent && !options.isCurrent()) return '';
 
     if (!stream || !stream.url) {
       this.toast('当前账号无法播放该歌曲');
@@ -119,10 +120,17 @@ export class StreamService {
    * @param {HTMLAudioElement} audio - 音频元素
    * @param {Function} onRetrySuccess - 重试成功回调
    * @param {Function} onRetryFailed - 重试失败回调
+   * @param {Function} isCurrent - 错误任务是否仍拥有当前音频的播放权
    * @returns {Promise<void>}
    */
-  async handlePlaybackError(track, audio, onRetrySuccess, onRetryFailed) {
-    if (!track) return;
+  async handlePlaybackError(
+    track,
+    audio,
+    onRetrySuccess,
+    onRetryFailed,
+    isCurrent = () => true,
+  ) {
+    if (!track || !isCurrent()) return;
 
     // 本地音频播放失败
     if (isLocalTrack(track)) {
@@ -144,7 +152,11 @@ export class StreamService {
       audio && Number.isFinite(audio.currentTime) ? audio.currentTime : 0;
 
     try {
-      const newUrl = await this.getTrackUrl(track, { forceRefresh: true });
+      const newUrl = await this.getTrackUrl(track, {
+        forceRefresh: true,
+        isCurrent,
+      });
+      if (!isCurrent()) return;
 
       if (newUrl) {
         this.toast('播放地址已刷新');
@@ -155,6 +167,7 @@ export class StreamService {
         throw new Error('无法获取新的播放地址');
       }
     } catch (error) {
+      if (!isCurrent()) return;
       this.onError(error);
       if (onRetryFailed) await onRetryFailed();
     }

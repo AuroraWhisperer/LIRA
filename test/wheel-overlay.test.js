@@ -39,24 +39,34 @@ test('wheel overlay is mapped, transparent, and renders labels through DOM APIs'
   assert.match(styles, /\.wheel-center-arrow/);
 });
 
-test('wheel overlay page is served without frame protection headers', () => {
+test('wheel overlay page is served without frame protection headers', async () => {
+  let status;
   let headers = {};
-  const response = {
-    setHeader(name, value) {
-      headers[name] = value;
-    },
-    writeHead(status, nextHeaders) {
-      headers = { ...headers, ...nextHeaders };
-    },
-    end() {},
-  };
-  servePageOrAsset(
-    PUBLIC_DIR,
-    { method: 'GET' },
-    response,
-    new URL('http://127.0.0.1/wheel'),
-    'test-token',
-  );
+  const body = await new Promise((resolve) => {
+    const response = {
+      setHeader(name, value) {
+        headers[name] = value;
+      },
+      writeHead(nextStatus, nextHeaders) {
+        status = nextStatus;
+        headers = { ...headers, ...nextHeaders };
+      },
+      end: resolve,
+    };
+    servePageOrAsset(
+      PUBLIC_DIR,
+      { method: 'GET' },
+      response,
+      new URL('http://127.0.0.1/wheel'),
+      'test-token',
+    );
+  });
+  assert.equal(status, 200);
+  assert.equal(headers['Content-Type'], 'text/html; charset=utf-8');
+  const html = body.toString('utf8');
+  assert.match(html, /<!doctype html>/i);
+  assert.match(html, /id="wheelSvg"/);
+  assert.match(html, /<\/html>\s*$/);
   assert.equal(headers['Content-Security-Policy'], undefined);
   assert.equal(headers['X-Frame-Options'], undefined);
 });

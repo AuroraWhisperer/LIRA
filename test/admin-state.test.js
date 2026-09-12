@@ -50,6 +50,145 @@ function createGlobals(fetch) {
   };
 }
 
+async function createSongReloadHarness() {
+  const requests = [];
+  const globals = createGlobals((url) => {
+    const request = Promise.withResolvers();
+    requests.push({ url, ...request });
+    return request.promise;
+  });
+  const filters = { songSearch: 'older' };
+  globals.URLSearchParams = URLSearchParams;
+  globals.document.getElementById = (id) => ({ value: filters[id] || '' });
+  globals.document.querySelectorAll = () => [];
+  const { StateService } = await loadModuleExports(STATE_PATH, globals);
+  const service = new StateService();
+  const updates = [];
+  globals.window.AdminApp.eventBus.on('song:updated', ({ songs }) => updates.push(songs));
+  let stateReloads = 0;
+  service.reloadState = async () => {
+    stateReloads += 1;
+  };
+  return {
+    service,
+    filters,
+    requests,
+    updates,
+    get stateReloads() {
+      return stateReloads;
+    },
+  };
+}
+
+function resolveSongs(request, songs) {
+  request.resolve({ json: async () => ({ ok: true, data: songs }) });
+}
+
+for (const reloadState of [true, false]) {
+  for (const olderFirst of [true, false]) {
+    test(`Admin accepts only the latest song filter request (reloadState=${reloadState}, olderFirst=${olderFirst})`, async () => {
+      const harness = await createSongReloadHarness();
+      const { service, filters, requests, updates } = harness;
+      const initialSongs = [{ id: 0 }];
+      const newerSongs = [{ id: 2 }];
+      service.songs = initialSongs;
+      const options = reloadState ? undefined : { reloadState: false };
+      const olderReload = service.reloadSongs(options);
+      filters.songSearch = 'newer';
+      const newerReload = service.reloadSongs(options);
+      assert.deepEqual(requests.map(({ url }) => url), [
+        '/api/songs?query=older',
+        '/api/songs?query=newer',
+      ]);
+
+      if (olderFirst) {
+        resolveSongs(requests[0], [{ id: 1 }]);
+        await olderReload;
+        assert.equal(service.getSongs(), initialSongs);
+        assert.deepEqual(updates, []);
+        assert.equal(harness.stateReloads, 0);
+      }
+      resolveSongs(requests[1], newerSongs);
+      await newerReload;
+      assert.equal(service.getSongs(), newerSongs);
+      assert.deepEqual(updates, [newerSongs]);
+
+      if (!olderFirst) {
+        resolveSongs(requests[0], [{ id: 1 }]);
+        await olderReload;
+      }
+      assert.equal(service.getSongs(), newerSongs);
+      assert.deepEqual(updates, [newerSongs]);
+      assert.equal(harness.stateReloads, reloadState ? 1 : 0);
+    });
+  }
+}
+
+test('Admin ignores an older song response whose JSON finishes after a newer reload', async () => {
+  const { service, filters, requests, updates } = await createSongReloadHarness();
+  const body = Promise.withResolvers();
+  const parsing = Promise.withResolvers();
+  const olderReload = service.reloadSongs({ reloadState: false });
+  requests[0].resolve({
+    json() {
+      parsing.resolve();
+      return body.promise;
+    },
+  });
+  await parsing.promise;
+  filters.songSearch = 'newer';
+  const newerReload = service.reloadSongs({ reloadState: false });
+  const newerSongs = [{ id: 2 }];
+  resolveSongs(requests[1], newerSongs);
+  await newerReload;
+  body.resolve({ ok: true, data: [{ id: 1 }] });
+  await olderReload;
+
+  assert.equal(service.getSongs(), newerSongs);
+  assert.deepEqual(updates, [newerSongs]);
+});
+
+test('Admin does not emit an obsolete song update after waiting for application state', async () => {
+  const { service, filters, requests, updates } = await createSongReloadHarness();
+  const stateStarted = Promise.withResolvers();
+  const stateFinished = Promise.withResolvers();
+  service.reloadState = () => {
+    stateStarted.resolve();
+    return stateFinished.promise;
+  };
+  const olderReload = service.reloadSongs();
+  resolveSongs(requests[0], [{ id: 1 }]);
+  await stateStarted.promise;
+
+  filters.songSearch = 'newer';
+  const newerReload = service.reloadSongs({ reloadState: false });
+  const newerSongs = [{ id: 2 }];
+  resolveSongs(requests[1], newerSongs);
+  await newerReload;
+  stateFinished.resolve();
+  await olderReload;
+
+  assert.equal(service.getSongs(), newerSongs);
+  assert.deepEqual(updates, [newerSongs]);
+});
+
+test('Admin reports the latest song request failure without accepting an older result', async () => {
+  const harness = await createSongReloadHarness();
+  const { service, filters, requests, updates } = harness;
+  const initialSongs = service.getSongs();
+  const olderReload = service.reloadSongs();
+  filters.songSearch = 'newer';
+  const newerReload = service.reloadSongs();
+  requests[1].resolve({ json: async () => ({ ok: false, error: '最新筛选失败' }) });
+  await assert.rejects(newerReload, /最新筛选失败/);
+  resolveSongs(requests[0], [{ id: 1 }]);
+  await olderReload;
+
+  assert.equal(service.getSongs(), initialSongs);
+  assert.deepEqual(updates, []);
+  assert.equal(harness.stateReloads, 0);
+});
+
 test('Admin reloads songs for cloud invalidation and preserves snapshot filtering', async () => {
   const globals = createGlobals(async () => ({
     json: async () => ({ ok: true, data: { categories: [], tags: [] } }),

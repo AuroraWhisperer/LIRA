@@ -30,12 +30,14 @@ export function createLyricPerformanceProfile(options = {}) {
       if (Number(duration) > LONG_FRAME_MS) {
         longFrames += 1;
         healthyFrames = 0;
-        if (longFrames >= DEGRADE_AFTER && profile.wordAnimation !== 'static') {
+        if (longFrames >= DEGRADE_AFTER && profile.wordAnimation === 'waapi') {
+          longFrames = 0;
           publish({ wordAnimation: 'manual', effects: 'low' });
         } else if (
           longFrames >= DEGRADE_AFTER &&
           profile.wordAnimation === 'manual'
         ) {
+          longFrames = 0;
           publish({ wordAnimation: 'static', effects: 'low' });
         }
       } else {

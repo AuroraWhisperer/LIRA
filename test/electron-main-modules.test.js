@@ -11,7 +11,7 @@ test('desktop shutdown drains sync controllers before stopping the runtime', () 
     path.join(__dirname, '..', 'src', 'electron', 'main.js'),
     'utf8',
   );
-  const start = source.indexOf("app.on('before-quit'");
+  const start = source.indexOf('function requestDesktopShutdown(');
   const end = source.indexOf('// ---- startup ----', start);
   const shutdown = source.slice(start, end);
 
@@ -22,11 +22,11 @@ test('desktop shutdown drains sync controllers before stopping the runtime', () 
   );
   assert.match(
     shutdown,
-    /Promise\.all\([\s\S]*?controller\.whenIdle\(\)[\s\S]*?\)[\s\S]*?\.then\([\s\S]*?lifecycleState[\s\S]*?\.shutdown\(\{ exitProcess: false \}\)/,
+    /await Promise\.all\([\s\S]*?controller\.whenIdle\(\)[\s\S]*?await lifecycleState\.shutdown\?\.\(\{ exitProcess: false \}\)/,
   );
   assert.ok(
     shutdown.indexOf('controller.whenIdle()') <
-      shutdown.indexOf('lifecycleState.shutdown({ exitProcess: false })'),
+      shutdown.indexOf('lifecycleState.shutdown?.({ exitProcess: false })'),
   );
 });
 

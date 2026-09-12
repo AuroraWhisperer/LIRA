@@ -162,7 +162,7 @@ function render(stats) {
   if (SUMMARY_ONLY || summaryValues.boxCount > 0) {
     const profitClass =
       summaryValues.totalProfit >= 0 ? 'profit-up' : 'profit-down';
-    const profitSign = summaryValues.totalProfit >= 0 ? '+' : '';
+    const profitSign = summaryValues.totalProfit >= 0 ? '+' : '-';
     summaryEl.innerHTML = `
       <div class="blindbox-stat-card">
         <span class="stat-icon">📦</span>
@@ -221,7 +221,7 @@ function render(stats) {
           rankIcon = '🥉';
         }
 
-        const profitSign = user.totalProfit >= 0 ? '+' : '';
+        const profitSign = user.totalProfit >= 0 ? '+' : '-';
         const profitIsUp = user.totalProfit >= 0;
         const isLoss = user.totalProfit < 0;
 

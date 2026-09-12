@@ -51,7 +51,7 @@ function createDanmakuSenderService(dependencies) {
       customReplyBotEnabled: Boolean(getCustomReplyBotEnabled()),
       canSend: Boolean(loggedIn && roomId),
       unavailableReason: !loggedIn
-        ? '请先登录 Bilibili 账号。'
+        ? '请先登录直播账号。'
         : !roomId
           ? '请先设置直播间号。'
           : '',
@@ -138,8 +138,8 @@ function createDanmakuSenderService(dependencies) {
     else if (remainingWait > 0) throw new Error('发送过于频繁，请稍后再试。');
     const [auth, room] = await Promise.all([getAuth(), getRoom()]);
     if (!auth || !auth.loggedIn || !auth.cookieHeader)
-      throw new Error('请先登录 Bilibili 账号。');
-    if (!room || !room.roomId) throw new Error('请先设置 Bilibili 直播间号。');
+      throw new Error('请先登录直播账号。');
+    if (!room || !room.roomId) throw new Error('请先设置直播间号。');
 
     const target = normalizeReplyTarget(
       mentionTarget || (mentionRequester ? await getMentionTarget() : null),

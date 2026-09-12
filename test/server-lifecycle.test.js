@@ -6,9 +6,36 @@ const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 const http = require('node:http');
+const childProcess = require('node:child_process');
 
 const lifecycle = require('../src/server/lifecycle');
 const { createInflightTracker } = require('../src/server/inflight-tracker');
+
+test('packaged process recognition is case insensitive and requires the owning install path', { skip: process.platform !== 'win32' }, async (t) => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-process-owner-'));
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  let executablePath;
+  t.mock.method(childProcess, 'execFileSync', () => JSON.stringify({ ExecutablePath: executablePath, CommandLine: `"${executablePath}"` }));
+  t.mock.method(process, 'kill', () => assert.fail('synthetic process must never be terminated'));
+  for (const [executable, expectedShutdown] of [
+    ['C:\\Apps\\Lira\\LIRA.exe', true],
+    ['c:\\apps\\lira\\lira.EXE', true],
+    ['C:\\Other\\LIRA.exe', false],
+    ['C:\\Apps\\Lira\\Other.exe', false],
+  ]) {
+    executablePath = executable;
+    lifecycle.writeRuntimeInfo(dataDir, { pid: 12345, port: 3000, host: 'localhost' });
+    let requestedShutdown = false;
+    await lifecycle.cleanupOwnPortOccupant({
+      ...cleanupOptions(dataDir, async (url) => {
+        if (String(url).endsWith('/api/system/shutdown')) requestedShutdown = true;
+        return new Response('{}', { status: 503 });
+      }, async () => false),
+      rootDir: 'C:\\Apps\\Lira\\resources\\app.asar',
+    });
+    assert.equal(requestedShutdown, expectedShutdown, executable);
+  }
+});
 
 function cleanupOptions(dataDir, fetchImpl, canConnectToPort) {
   return {
@@ -23,6 +50,93 @@ function cleanupOptions(dataDir, fetchImpl, canConnectToPort) {
     canConnectToPort,
   };
 }
+
+test('process cleanup requires an exact owned runtime entry, not a generic path or argument', { skip: process.platform !== 'win32' }, async (t) => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-process-entry-'));
+  t.after(() => {
+    assert.equal(path.dirname(fs.realpathSync(dataDir)), fs.realpathSync(os.tmpdir()));
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  });
+  let info;
+  const stopped = [];
+  t.mock.method(childProcess, 'execFileSync', () => JSON.stringify(info));
+  t.mock.method(process, 'kill', (pid, signal) => stopped.push({ pid, signal }));
+  for (const [executable, command, expectedStop] of [
+    ['node.exe', 'node.exe C:\\OtherProject\\src\\server.js', false],
+    ['node.exe', 'node.exe src/server.js', false],
+    ['node.exe', 'node.exe C:\\Apps\\Lira-other\\src\\server.js', false],
+    ['node.exe', 'node.exe C:\\Apps\\Lira\\src\\server.js.old', false],
+    ['node.exe', 'node.exe C:\\OtherProject\\main.js --data-dir C:\\Apps\\Lira', false],
+    ['powershell.exe', 'powershell.exe C:\\Apps\\Lira\\src\\server.js', false],
+    ['node.exe', 'node.exe "C:\\Apps\\Lira\\src\\server.js"', true],
+    ['node.exe', 'node.exe C:/APPS/LIRA/src/server.js', true],
+    ['electron.exe', 'electron.exe "C:\\Apps\\Lira"', true],
+    ['electron.exe', 'electron.exe C:\\Apps\\Lira\\src\\electron\\main.js', true],
+  ]) {
+    info = { ExecutablePath: `C:\\Runtime\\${executable}`, CommandLine: command };
+    stopped.length = 0;
+    const requests = [];
+    lifecycle.writeRuntimeInfo(dataDir, { pid: 12345, port: 3000, host: 'localhost' });
+    await lifecycle.cleanupOwnPortOccupant({
+      ...cleanupOptions(dataDir, async (url) => {
+        requests.push(String(url));
+        return new Response('{}', { status: 404 });
+      }, async () => true),
+      rootDir: 'C:\\Apps\\Lira', cleanupTimeoutMs: 0,
+    });
+    assert.deepEqual(stopped, expectedStop ? [{ pid: 12345, signal: 'SIGTERM' }] : [], command);
+    assert.equal(requests.some((url) => url.endsWith('/api/system/shutdown')), expectedStop, command);
+  }
+});
+
+test('cleanup rechecks a runtime PID after the graceful shutdown wait', { skip: process.platform !== 'win32' }, async (t) => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-process-reuse-'));
+  t.after(() => {
+    assert.equal(path.dirname(fs.realpathSync(dataDir)), fs.realpathSync(os.tmpdir()));
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  });
+  let queries = 0;
+  t.mock.method(childProcess, 'execFileSync', () => JSON.stringify({
+    ExecutablePath: 'C:\\Runtime\\node.exe',
+    CommandLine: ++queries === 1
+      ? 'node.exe C:\\Apps\\Lira\\src\\server.js'
+      : 'node.exe C:\\OtherProject\\src\\server.js',
+  }));
+  t.mock.method(process, 'kill', () => assert.fail('reused PID must not be terminated'));
+  lifecycle.writeRuntimeInfo(dataDir, { pid: 12345, port: 3000, host: 'localhost' });
+  await lifecycle.cleanupOwnPortOccupant({
+    ...cleanupOptions(dataDir, async () => new Response('{}', { status: 404 }), async () => true),
+    rootDir: 'C:\\Apps\\Lira', cleanupTimeoutMs: 0,
+  });
+  assert.equal(queries, 2);
+});
+
+test('forced cleanup refreshes service health and binds it to the same PID', async (t) => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-process-health-'));
+  t.after(() => {
+    assert.equal(path.dirname(fs.realpathSync(dataDir)), fs.realpathSync(os.tmpdir()));
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  });
+  t.mock.method(childProcess, 'execFileSync', () => 'null');
+  const stopped = [];
+  t.mock.method(process, 'kill', (pid) => stopped.push(pid));
+  for (const currentPid of [null, 23456, 12345]) {
+    let healthReads = 0;
+    stopped.length = 0;
+    await lifecycle.cleanupOwnPortOccupant({
+      ...cleanupOptions(dataDir, async (url) => {
+        if (!String(url).endsWith('/api/health')) return new Response('{}');
+        const pid = ++healthReads === 1 ? 12345 : currentPid;
+        return new Response(JSON.stringify(pid ? {
+          ok: true, data: { serviceId: lifecycle.SERVICE_ID, pid },
+        } : {}), { status: pid ? 200 : 404 });
+      }, async () => true),
+      cleanupTimeoutMs: 0,
+    });
+    assert.deepEqual(stopped, currentPid === 12345 ? [12345] : []);
+    assert.equal(healthReads, 2);
+  }
+});
 
 function createPreviousServerFetch(dataDir, requests) {
   return async (url, options = {}) => {

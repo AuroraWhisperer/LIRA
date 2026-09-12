@@ -6,6 +6,8 @@
 
 **内部模块边界:** `database.js` 只负责五库打开、PRAGMA 装配与对外数据库句柄；`database-migrations.js` 拥有 schema/data migration 执行顺序；`database-maintenance.js` 拥有清理、优化与关闭等维护操作。设置域由 `settings-store.js` 提供 CRUD 门面，`settings-defaults.js` 只声明不可变默认值，`settings-migrations.js` 只执行设置键迁移。上层不得直接调用迁移或维护模块来绕过这些门面。
 
+单个数据库在 PRAGMA 初始化完成前由 `openSqliteDatabase` 持有；失败时关闭尚未登记的句柄并保留原错误。`createDatabases` 继续清理此前已登记的数据库，成功返回后才把整组句柄交给服务器生命周期。关闭失败沿用 `closeDatabases` 的逐库警告并继续清理；这不撤销已经提交的初始化或迁移数据。
+
 ## 1. 技术选型
 
 - **`node:sqlite` 内置模块 `DatabaseSync`**(同步 API),零第三方数据库依赖;要求 Node ≥ 24(见 [engineering/build.md](../engineering/build.md))。
@@ -42,7 +44,7 @@ data/
 
 ## 3. 五库 × 表清单(唯一成表处)
 
-共 **25 张业务表 + 每库 1 张 `schema_version`**。文件常量 `DB_FILE_NAMES`([database.js:20-26](../../../src/storage/database.js#L20-L26)),DDL 定义在 [schema.js](../../../src/storage/schema.js)。
+共 **27 张业务表 + 每库 1 张 `schema_version`**。文件常量 `DB_FILE_NAMES`([database.js:20-26](../../../src/storage/database.js#L20-L26)),DDL 定义在 [schema.js](../../../src/storage/schema.js)。
 
 ### 3.1 song-request-data.db(点歌库,14 表)
 
@@ -143,7 +145,7 @@ data/
 - `settings`:直播间号、主题颜色、所有功能开关
 - `ai_configuration`:AI 提供商配置与凭证
 - `theme_presets`:主题预设(内置 + 用户自建)
-- `overtime_machine_state`:加班机状态(清空后重置为 id=1 禁用行)
+- `overtime_machine_state`:加班机状态(清空后重置为 id=1 禁用行；同一事务内递增已有 revision，单例缺失时才从 0 创建)
 - `overtime_gift_rules`:加班机礼物规则
 - `favorites`:播放器收藏
 - `playlists` + `playlist_tracks`:播放器歌单
@@ -165,35 +167,38 @@ data/
 
 **Phase 1**(预提交验证):
 
-1. 对所有 5 个数据库依次执行 `BEGIN` + `DELETE` + 统计行数,但**不提交**
-2. 若任一 BEGIN/DELETE 失败,回滚全部并抛出聚合错误(`error.details` 包含各库状态)
+1. 对所有 5 个数据库依次执行 `BEGIN` + `DELETE` + 统计行数,但**不提交**；在各自事务内重建默认分类与禁用的加班机状态行
+2. 若任一 BEGIN/DELETE/默认行重建失败，只回滚本次已经开启的事务；全部回滚成功后抛出聚合错误(`error.details` 包含库名与 `delete`/`recreate` 阶段)，不报告清空成功
+3. 若回滚失败，返回 `partial: true`、`phase: 'pre-commit'`、`committed: []` 与 `rolledBack`/`rollbackFailed`，保持写入器暂停
 
 **Phase 2**(提交):
 
 1. 依次对所有数据库执行 `COMMIT`
-2. 若全部成功:重建默认行,返回 `{ cleared: true, preserved: [...], deletedCounts: {...}, recreated: [...] }`
+2. 若全部成功:删除与必需默认行均已提交，返回 `{ cleared: true, committed: [...], preserved: [...], deletedCounts: {...}, recreated: [...] }`
 3. 若任一 COMMIT 失败:立即停止,回滚失败库及所有尚未提交的库,返回 `{ ok: false, partial: true, committed: [...], failed: [...], rolledBack: [...], rollbackFailed: [...], deletedCounts: {...} }`
 
 部分失败时数据库处于**不一致状态**(部分库已清空、部分未清空),路由返回 HTTP 500 + `partial: true`,前端强制刷新页面并提示用户手动检查。若 `giftDb` 已提交当前投影重置，路由仍立即触发礼物 controller 重建，使本地礼物状态保持 partial，而不会继续宣称旧投影为 LIVE。
 
 ### 6.3 并发写入静默(Quiesce)
 
-清空全部前路由会调用上下文的静默方法([data-routes.js:30-37](../../../src/server/routes/data-routes.js#L30-L37)):
+清空全部前，[路由](../../../src/server/routes/data-routes.js)通过 [API 上下文](../../../src/server/api-context.js)调用真实领域服务的静默方法:
 
-- `context.gifts.pauseDetection()`:暂停礼物检测写入
-- `context.overtime.pauseRecovery()`:暂停加班机后台恢复写入
+- `context.gifts.pauseDetection()`:暂停本地检测、finalize 与消费重试，取消计时器且不强制 flush；暂停期间销毁也不 flush。远端实时/历史导入抛出 `GIFT_DETECTION_PAUSED`，使礼物与同步游标所属事务一起回滚，避免丢事件
+- `context.overtime.pauseRecovery()`:暂停礼物结算、后台补偿与倒计时归零写入，取消零点/重试计时器
 - 路由同时清理音乐 API 与歌词文件缓存；Electron 桌面端在成功响应后还会清理 QQ 音乐、网易云音乐会话缓存（不删除登录 Cookie）。
 
-成功后恢复:
+完全成功并重载已提交的默认状态后，先恢复加班机消费者，再恢复礼物检测器:
 
-- `context.gifts.resumeDetection()`
 - `context.overtime.resumeRecovery()`
+- `context.gifts.resumeDetection()`：从仍持久化的 pending/final 行重建工作，保留未完成的非统计消费者重试
 
-Phase 1 失败且全部事务已回滚时也恢复两个写入器,然后由服务器返回稳定错误。
+Phase 1 失败且全部事务已回滚时，只解除本次请求取得的暂停，然后由服务器返回稳定错误。此前部分失败留下的暂停不会被另一次失败请求解除；再次完整清空成功后才能恢复。
 
-部分失败时**不恢复**,避免向不一致的数据库写入。
+部分提交、回滚失败、提交后的领域状态重载失败或写入恢复失败时**保持两个写入器暂停**，返回 HTTP 500 与 `partial: true`，不发成功快照/云同步请求。后两种失败分别标记 `phase: 'runtime-reset'`/`'resume'`、`cleared: false`，并保留实际已提交的库与已重建的默认行信息；跨库提交仍不具备崩溃原子性。
 
 ## 7. 设置存储(settings-store)
+
+启动入口 `prepareSettingsBootstrap` 委托存储门面 `bootstrapSettingsStore(db)`：在同一 `BEGIN IMMEDIATE` 事务内读取旧版本、补齐默认值、转换设置并写入版本检查点；全部成功才提交，任何异常回滚整次初始化。新库的默认滚动速度同步保存当前版本，重启不会按旧范围再次转换。故障回归使用独立临时 SQLite 库与版本写入触发器，不读取用户数据。
 
 批量写能力 `setSettings(values)` 由存储层持有 `BEGIN IMMEDIATE` / `COMMIT` / `ROLLBACK`，返回实际变化的键；没有变化时不写入。只有提交成功才清除内存缓存，失败同时保留数据库旧值与缓存旧值。`setSetting(key, value)` 继续供既有单键调用者使用。HTTP 设置 patch 与云端设置快照都走批量能力，字段校验归属 [API 设置契约](api.md#2-设置域settings)，不由存储层重复定义。
 

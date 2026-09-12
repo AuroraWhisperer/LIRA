@@ -12,6 +12,7 @@ export function createQueueOperations(deps) {
     renderPlayback,
     getPlaybackAudio,
     syncPlaybackLyricWindow,
+    invalidatePlaybackRequests,
   } = deps;
 
   function startPlaybackCollection(
@@ -208,6 +209,7 @@ export function createQueueOperations(deps) {
   }
 
   function clearPlaybackQueue() {
+    invalidatePlaybackRequests();
     const audio = getPlaybackAudio();
     if (audio) {
       audio.pause();

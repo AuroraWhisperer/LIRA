@@ -7,6 +7,7 @@ export function createStreamHandler(deps) {
     streamService,
     playbackState,
     getPlaybackAudio,
+    createPlaybackRequestGuard,
     playPlaybackTrack,
     playbackNext,
   } = deps;
@@ -18,14 +19,17 @@ export function createStreamHandler(deps) {
   async function handlePlaybackError() {
     const track = playbackState.current;
     const audio = getPlaybackAudio();
+    if (!track) return;
+    const isCurrent = createPlaybackRequestGuard(track);
+    const origin = playbackState.currentOrigin;
 
     await streamService.handlePlaybackError(
-      track,
+      { ...track },
       audio,
       (track, resumeAt) => {
         // 重试成功回调
-        playPlaybackTrack(track, {
-          origin: playbackState.currentOrigin,
+        return playPlaybackTrack(track, {
+          origin,
           isRetry: true,
           startAt: resumeAt,
         });
@@ -34,6 +38,7 @@ export function createStreamHandler(deps) {
         // 重试失败回调
         return playbackNext(false);
       },
+      isCurrent,
     );
   }
 

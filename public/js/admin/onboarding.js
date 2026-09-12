@@ -256,8 +256,8 @@ export function createOnboardingController(deps = {}) {
     if (elements.bilibiliState) {
       elements.bilibiliState.textContent = state.bilibiliAvailable
         ? state.bilibiliLoggedIn
-          ? 'Bilibili 已登录。保存房间号后刷新直播即可。'
-          : '尚未登录 Bilibili。'
+          ? '直播账号已登录。保存房间号后刷新直播即可。'
+          : '尚未登录直播账号。'
         : '当前是 Web 模式，扫码登录需要桌面版。';
       elements.bilibiliState.className = `lira-onboarding-inline-status ${state.bilibiliLoggedIn ? 'good' : ''}`;
     }

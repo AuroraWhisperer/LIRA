@@ -74,8 +74,8 @@ test('clear-all route resumes writers after a fully rolled-back exception', asyn
   assert.deepEqual(calls, [
     'gifts:pause',
     'overtime:pause',
-    'gifts:resume',
     'overtime:resume',
+    'gifts:resume',
   ]);
 });
 
@@ -157,8 +157,8 @@ test('clear-all route resumes writers and broadcasts after success', async () =>
     'gifts:pause',
     'overtime:pause',
     'music:clear-cache',
-    'gifts:resume',
     'overtime:resume',
+    'gifts:resume',
     'broadcast:database:clear-all',
   ]);
 });
@@ -186,8 +186,8 @@ test('successful projection clears trigger a gift bootstrap rebuild', async () =
     'gifts:pause',
     'overtime:pause',
     'music:clear-cache',
-    'gifts:resume',
     'overtime:resume',
+    'gifts:resume',
     'gift-sync:rebuild',
     'broadcast:database:clear-all',
   ]);

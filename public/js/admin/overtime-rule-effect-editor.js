@@ -4,6 +4,7 @@ export function createOvertimeRuleEffectEditor({
   createHelp,
   document: documentRef,
   getLimits,
+  markDirty,
   nextControlId,
   updateRuleSummary,
 }) {
@@ -66,6 +67,7 @@ export function createOvertimeRuleEffectEditor({
       );
       refreshOutcomeCards(randomPanel);
       updateRuleSummary(randomPanel.closest('[data-overtime-rule]'));
+      markDirty();
       outcomeList.lastElementChild.querySelector('input')?.focus();
     });
     randomFooter.append(outcomeCount, addOutcome);
@@ -301,6 +303,7 @@ export function createOvertimeRuleEffectEditor({
       card.remove();
       refreshOutcomeCards(editor);
       updateRuleSummary(row);
+      markDirty();
     });
     card.append(heading, result, chance, remove);
     return card;

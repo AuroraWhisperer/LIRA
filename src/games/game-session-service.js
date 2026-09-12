@@ -125,7 +125,9 @@ function createGameSessionService(options = {}) {
     if (!result.accepted) return result;
     session.state = result.state;
     if (player === 'viewer') viewer = normalizeViewer(playerIdentity, viewer);
-    if (result.state.winner) {
+    if (result.state.winner === 'draw') {
+      winner = null;
+    } else if (result.state.winner) {
       winner =
         result.state.winner === 'viewer'
           ? { role: 'viewer', ...(viewer || {}) }

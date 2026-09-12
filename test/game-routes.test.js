@@ -261,6 +261,70 @@ test('game session route restarts a finished game without an empty-session respo
   });
 });
 
+test('gomoku draw stays consistent across move, snapshot and broadcast projections', async () => {
+  const published = [];
+  const service = createGameSessionService({
+    broadcast: (message) => published.push(message),
+  });
+  service.start({ game: 'gomoku', mode: 'multi' });
+  const moves = { host: [], viewer: [] };
+  // Shift BBWW by two columns each row: no line can contain five equal stones.
+  for (let row = 0; row < 15; row += 1) {
+    for (let column = 0; column < 15; column += 1) {
+      const player = (row * 2 + column) % 4 < 2 ? 'host' : 'viewer';
+      moves[player].push(`${String.fromCharCode(65 + column)}${row + 1}`);
+    }
+  }
+  assert.equal(moves.host.length, 113);
+  assert.equal(moves.viewer.length, 112);
+  for (let index = 0; index < moves.viewer.length; index += 1) {
+    for (const player of ['host', 'viewer']) {
+      const result = service.move({ value: moves[player][index] }, player);
+      assert.equal(result.accepted, true);
+      assert.equal(result.state.winner, '');
+    }
+  }
+
+  let status;
+  let payload;
+  const response = {
+    writeHead(nextStatus) {
+      status = nextStatus;
+    },
+    end(body) {
+      payload = JSON.parse(body);
+    },
+  };
+  await routes['POST /api/games/session/move'](
+    { games: service },
+    { body: async () => ({ value: moves.host.at(-1) }) },
+    response,
+  );
+
+  assert.equal(status, 200);
+  assert.equal(payload.ok, true);
+  const drawnSession = payload.data;
+  assert.equal(drawnSession.state.history.length, 225);
+  assert.equal(drawnSession.state.board.flat().every(Boolean), true);
+  assert.equal(drawnSession.state.winner, 'draw');
+  assert.equal(drawnSession.state.turn, '');
+  assert.equal(Object.hasOwn(drawnSession, 'winner'), false);
+  assert.deepEqual(service.getSession(), drawnSession);
+  assert.deepEqual(published.at(-1), {
+    type: 'game:update',
+    session: drawnSession,
+  });
+
+  routes['GET /api/games/session']({ games: service }, {}, response);
+  assert.equal(status, 200);
+  assert.deepEqual(payload, { ok: true, data: drawnSession });
+  assert.equal(service.move({ value: 'A1' }, 'host').accepted, false);
+  const restarted = service.restart();
+  assert.equal(restarted.state.winner, '');
+  assert.equal(restarted.state.history.length, 0);
+  assert.equal(Object.hasOwn(restarted, 'winner'), false);
+});
+
 test('game winner profile route returns transient avatar data', async () => {
   let status;
   let payload;

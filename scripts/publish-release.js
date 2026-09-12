@@ -1,11 +1,12 @@
 'use strict';
 
-const { execFileSync } = require('node:child_process');
+const { execFileSync, spawnSync } = require('node:child_process');
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const net = require('node:net');
 const os = require('node:os');
 const path = require('node:path');
+const { redactReleaseOutput, sanitizeCommandError, checkCommandResult } = require('./release-output');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 const PKG = JSON.parse(
@@ -47,6 +48,7 @@ async function main() {
     throw new Error('Release source changed while preparing build resources.');
   }
 
+  let lastPublishError = null;
   for (let attempt = 1; attempt <= MAX_PUBLISH_ATTEMPTS; attempt += 1) {
     log(`electron-builder publish attempt ${attempt}/${MAX_PUBLISH_ATTEMPTS}`);
     try {
@@ -60,7 +62,9 @@ async function main() {
         'always',
         '--config.electronDist=node_modules/electron/dist',
       ]);
+      lastPublishError = null;
     } catch (error) {
+      lastPublishError = error;
       log(`electron-builder exited with an error: ${error.message}`);
       continue;
     }
@@ -76,10 +80,15 @@ async function main() {
     );
   }
 
-  throw new Error(
+  const error = new Error(
     `Release ${TAG} is incomplete after ${MAX_PUBLISH_ATTEMPTS} attempts. ` +
-      `Check "gh release view ${TAG}" and re-run this script.`,
+      `Check "gh release view ${TAG}" and re-run this script.` +
+      (lastPublishError ? `\nLast error: ${lastPublishError.message}` : ''),
   );
+  for (const key of ['status', 'code', 'signal']) {
+    if (lastPublishError?.[key] != null) error[key] = lastPublishError[key];
+  }
+  throw error;
 }
 
 async function resolveProxy() {
@@ -305,20 +314,37 @@ function proxyEnv(baseEnv) {
 function run(command, args) {
   log(`$ ${command} ${args.join(' ')}`);
   const env = proxyEnv({ ...process.env, ELECTRON_SKIP_BINARY_DOWNLOAD: '1' });
-  execFileSync(command, args, {
-    cwd: ROOT_DIR,
-    stdio: 'inherit',
-    shell: needsCommandShell(command),
-    env,
-  });
+  try {
+    const result = spawnSync(command, args, {
+      cwd: ROOT_DIR,
+      stdio: ['inherit', 'pipe', 'pipe'],
+      maxBuffer: 64 * 1024 * 1024,
+      shell: needsCommandShell(command),
+      env,
+    });
+    checkCommandResult(result, command, env);
+    if (result.stdout?.length) log(result.stdout.toString().trimEnd());
+    if (result.stderr?.length) log(result.stderr.toString().trimEnd());
+  } catch (error) {
+    const sanitized = sanitizeCommandError(error, env);
+    if (sanitized.stdout) log(sanitized.stdout.trimEnd());
+    if (sanitized.stderr) log(sanitized.stderr.trimEnd());
+    throw sanitized;
+  }
 }
 
 function runCapture(command, args) {
-  return execFileSync(command, args, {
-    cwd: ROOT_DIR,
-    shell: needsCommandShell(command),
-    env: proxyEnv(process.env),
-  }).toString();
+  const env = proxyEnv(process.env);
+  try {
+    return execFileSync(command, args, {
+      cwd: ROOT_DIR,
+      shell: needsCommandShell(command),
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env,
+    }).toString();
+  } catch (error) {
+    throw sanitizeCommandError(error, env);
+  }
 }
 
 function tryCapture(command, args) {
@@ -335,7 +361,7 @@ function tryCapture(command, args) {
 }
 
 function log(message) {
-  console.log(`[publish-release] ${message}`);
+  console.log(`[publish-release] ${redactReleaseOutput(message, process.env)}`);
 }
 
 module.exports = { main };

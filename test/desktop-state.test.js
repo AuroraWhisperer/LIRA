@@ -9,10 +9,10 @@ test('desktop state instances isolate runtime, window, and update mutations', ()
   const second = createDesktopState();
 
   first.window.baseUrl = 'http://127.0.0.1:3000';
-  first.lifecycle.gracefulQuitStarted = true;
+  first.lifecycle.shutdownPromise = Promise.resolve();
   first.update.value.status = 'available';
 
   assert.equal(second.window.baseUrl, '');
-  assert.equal(second.lifecycle.gracefulQuitStarted, false);
+  assert.equal(second.lifecycle.shutdownPromise, null);
   assert.equal(second.update.value.status, 'idle');
 });

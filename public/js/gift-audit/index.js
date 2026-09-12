@@ -33,11 +33,11 @@ function connectWs() {
   ws.onmessage = (event) => {
     try {
       const msg = JSON.parse(event.data);
-      if (msg.type === 'snapshot' && msg.data) {
-        renderConnBar(msg.data);
+      if (msg.type === 'snapshot' && msg.state) {
+        renderConnBar(msg.state);
         // 自动更新服务器礼物缓存
-        if (msg.data.gifts && Array.isArray(msg.data.gifts.recent)) {
-          for (const g of msg.data.gifts.recent) {
+        if (msg.state.gifts && Array.isArray(msg.state.gifts.recent)) {
+          for (const g of msg.state.gifts.recent) {
             if (!serverGiftCache.find((s) => s.id === g.id)) {
               serverGiftCache.push(g);
             }
@@ -182,7 +182,7 @@ function clearAll() {
 
 function loadExample() {
   document.getElementById('bubbleHtml').value =
-    `<!-- 示例：Bilibili 直播气泡 HTML -->
+    `<!-- 示例：直播气泡 HTML -->
 <!-- 请替换为从 DevTools 复制的真实 .bubble-list outerHTML -->
 <div class="bubble-list">
   <div class="super-gift-item">

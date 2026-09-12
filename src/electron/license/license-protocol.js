@@ -37,8 +37,8 @@ function validateActivationInput(input = {}) {
     return { ok: false, error: 'ACCOUNT_NAME_LENGTH' };
   if (!/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(accountName))
     return { ok: false, error: 'ACCOUNT_NAME_INVALID' };
-  if (password.length < 6) return { ok: false, error: 'PASSWORD_TOO_SHORT' };
-  if (password.length > 128) return { ok: false, error: 'PASSWORD_TOO_LONG' };
+  // The server distinguishes a new password from an existing account credential.
+  if (!password) return { ok: false, error: 'PASSWORD_TOO_SHORT' };
   if (!activationCode || normalizeActivationCode(activationCode).length < 4)
     return { ok: false, error: 'ACTIVATION_CODE_INVALID' };
   return { ok: true, accountName, password, activationCode };

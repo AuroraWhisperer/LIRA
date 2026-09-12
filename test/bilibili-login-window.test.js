@@ -13,9 +13,10 @@ class FakeBrowserWindow extends EventEmitter {
   static latest = null;
   static loadError = null;
 
-  constructor() {
+  constructor(options) {
     super();
     FakeBrowserWindow.latest = this;
+    this.options = options;
     this.destroyed = false;
     this.webContents = new EventEmitter();
     this.webContents.audioMuteCalls = [];
@@ -131,6 +132,29 @@ test('login window is muted by default so the live homepage cannot play sound', 
   assert.deepEqual(FakeBrowserWindow.latest.webContents.audioMuteCalls, [true]);
   FakeBrowserWindow.latest.close();
   await resultPromise;
+});
+
+test('login window keeps its neutral title when the platform page changes its title', async () => {
+  const resultPromise = open(createAuth());
+  await new Promise((resolve) => setImmediate(resolve));
+  const win = FakeBrowserWindow.latest;
+  try {
+    assert.equal(win.options.title, '登录直播账号');
+    let prevented = false;
+    win.emit(
+      'page-title-updated',
+      {
+        preventDefault() {
+          prevented = true;
+        },
+      },
+      'Bilibili',
+    );
+    assert.equal(prevented, true);
+  } finally {
+    win.close();
+    await resultPromise;
+  }
 });
 
 test('login completion is logged and closed once when several cookie changes arrive together', async () => {

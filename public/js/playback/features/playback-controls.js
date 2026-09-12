@@ -32,6 +32,25 @@ export function createPlaybackControls(deps) {
     U,
   } = deps;
   let playRequestGeneration = 0;
+  let audioRequestGeneration = 0;
+
+  function invalidatePlaybackRequests() {
+    playRequestGeneration += 1;
+    return playRequestGeneration;
+  }
+
+  function isCurrentPlaybackRequest(requestGeneration, track) {
+    return (
+      requestGeneration === playRequestGeneration &&
+      playbackState.current?.id === track.id
+    );
+  }
+
+  function createPlaybackRequestGuard(track) {
+    // 错误属于当前音频；新曲尚在解析时也不能让旧音频抢回播放权。
+    const requestGeneration = audioRequestGeneration;
+    return () => isCurrentPlaybackRequest(requestGeneration, track);
+  }
 
   async function ensureLocalTrackPlayable(track) {
     if (!PlaybackUtils.isLocalTrack(track)) return true;
@@ -81,19 +100,25 @@ export function createPlaybackControls(deps) {
   async function playPlaybackTrack(track, options = {}) {
     const audio = getPlaybackAudio();
     if (!audio || !track) return;
-    const requestGeneration = ++playRequestGeneration;
+    const requestGeneration = invalidatePlaybackRequests();
 
     // For local tracks, ensure the file is accessible before trying to play
     if (PlaybackUtils.isLocalTrack(track)) {
       const ok = await ensureLocalTrackPlayable(track);
-      if (!ok) return;
+      if (!ok) {
+        if (requestGeneration === playRequestGeneration) {
+          audioRequestGeneration = requestGeneration;
+        }
+        return;
+      }
     }
 
     if (requestGeneration !== playRequestGeneration) return;
 
     let streamUrl = '';
+    const streamTrack = { ...track };
     try {
-      streamUrl = await streamService.getTrackUrl(track, {
+      streamUrl = await streamService.getTrackUrl(streamTrack, {
         forceRefresh: options.forceRefresh === true,
         quality: PlaybackUtils.normalizeQuality(
           track.source,
@@ -102,18 +127,18 @@ export function createPlaybackControls(deps) {
       });
     } catch (error) {
       if (requestGeneration !== playRequestGeneration) return;
+      audioRequestGeneration = requestGeneration;
       showError(error);
       renderPlayback();
       return;
     }
     if (requestGeneration !== playRequestGeneration) return;
     if (!streamUrl) {
-      playbackState.current = track;
-      playbackState.currentOrigin =
-        options.origin || playbackState.currentOrigin || 'normal';
+      audioRequestGeneration = requestGeneration;
       renderPlayback();
       return;
     }
+    Object.assign(track, streamTrack);
 
     if (!options.isRetry) streamService.resetRetryCount();
     if (
@@ -137,6 +162,7 @@ export function createPlaybackControls(deps) {
     playbackState.current = track;
     playbackState.currentOrigin =
       options.origin || playbackState.currentOrigin || 'normal';
+    audioRequestGeneration = requestGeneration;
     audio.dataset.trackId = track.id;
     audio.src = streamUrl;
     audio.load();
@@ -146,6 +172,7 @@ export function createPlaybackControls(deps) {
       audio.addEventListener(
         'loadedmetadata',
         () => {
+          if (!isCurrentPlaybackRequest(requestGeneration, track)) return;
           if (Number.isFinite(audio.duration) && audio.duration > 0) {
             audio.currentTime = Math.min(
               startAt,
@@ -159,6 +186,7 @@ export function createPlaybackControls(deps) {
 
     try {
       await audio.play();
+      if (!isCurrentPlaybackRequest(requestGeneration, track)) return;
       if (startAt > 0) {
         const dur = audio.duration;
         if (Number.isFinite(dur) && dur > 0) {
@@ -174,7 +202,7 @@ export function createPlaybackControls(deps) {
       }
     }
 
-    if (requestGeneration !== playRequestGeneration) return;
+    if (!isCurrentPlaybackRequest(requestGeneration, track)) return;
 
     playbackState.restoredTime = 0;
 
@@ -222,18 +250,24 @@ export function createPlaybackControls(deps) {
 
     const resumeAt = Number.isFinite(audio.currentTime) ? audio.currentTime : 0;
     const shouldResume = !audio.paused;
+    const requestGeneration = invalidatePlaybackRequests();
     try {
-      const streamUrl = await streamService.getTrackUrl(track, {
+      const streamTrack = { ...track };
+      const streamUrl = await streamService.getTrackUrl(streamTrack, {
         forceRefresh: true,
         quality: normalizedQuality,
       });
+      if (!isCurrentPlaybackRequest(requestGeneration, track)) return;
+      audioRequestGeneration = requestGeneration;
       if (!streamUrl) return;
+      Object.assign(track, streamTrack);
 
       audio.src = streamUrl;
       audio.load();
       audio.addEventListener(
         'loadedmetadata',
         () => {
+          if (!isCurrentPlaybackRequest(requestGeneration, track)) return;
           if (Number.isFinite(audio.duration) && audio.duration > 0) {
             audio.currentTime = Math.min(
               resumeAt,
@@ -244,6 +278,8 @@ export function createPlaybackControls(deps) {
         { once: true },
       );
       if (shouldResume) await audio.play();
+
+      if (!isCurrentPlaybackRequest(requestGeneration, track)) return;
 
       const actualQuality = PlaybackUtils.getQualityLabel(
         source,
@@ -261,6 +297,8 @@ export function createPlaybackControls(deps) {
       savePlaybackState();
       renderPlayback();
     } catch (error) {
+      if (!isCurrentPlaybackRequest(requestGeneration, track)) return;
+      audioRequestGeneration = requestGeneration;
       showError(error);
       renderPlayback();
     }
@@ -403,5 +441,7 @@ export function createPlaybackControls(deps) {
     playbackNext,
     loadPlaybackLyrics,
     ensureLocalTrackPlayable,
+    invalidatePlaybackRequests,
+    createPlaybackRequestGuard,
   };
 }

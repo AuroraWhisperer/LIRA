@@ -131,6 +131,9 @@ export class LyricWordAnimator {
 
   setMode(mode) {
     if (!['waapi', 'manual', 'static', 'discrete'].includes(mode)) return;
+    if (mode === this.mode) return;
+    this.animations.forEach((animation) => animation?.cancel?.());
+    this.animations = [];
     if (this.mode === 'discrete' && mode !== 'discrete') {
       this.elements.forEach((entry) => setDiscreteState(entry, false));
     }

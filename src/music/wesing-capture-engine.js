@@ -52,6 +52,7 @@ function createWeSingCapture(options = {}) {
   let lyricArtists = [];
   let lyricDurationMs = 0;
   let refreshVersion = 0;
+  let lifecycleVersion = 0;
   let pendingRefresh = Promise.resolve();
   let lastProgressMs = -1;
   let lastProgressChangeAt = 0;
@@ -130,6 +131,8 @@ function createWeSingCapture(options = {}) {
       return getStatus();
     }
     state.active = nextActive;
+    const version = ++lifecycleVersion;
+    refreshVersion += 1;
     if (!nextActive) {
       stopMonitor();
       stopQrcWatcher();
@@ -155,6 +158,7 @@ function createWeSingCapture(options = {}) {
       try {
         await ensureWeSingCacheDirectory(cachePath);
       } catch (error) {
+        if (version !== lifecycleVersion) return getStatus();
         state.active = false;
         state.status = 'error';
         state.message = `无法创建全民 K 歌缓存目录：${error.message || String(error)}`;
@@ -163,8 +167,11 @@ function createWeSingCapture(options = {}) {
         return getStatus();
       }
     }
+    if (version !== lifecycleVersion || !state.active) return getStatus();
     try {
-      monitor = monitorFactory(handleMonitorSample);
+      monitor = monitorFactory((sample) => {
+        if (version === lifecycleVersion) handleMonitorSample(sample);
+      });
       monitor.start();
       state.status = 'waiting';
       state.message = '正在检测全民 K 歌客户端…';
@@ -177,10 +184,15 @@ function createWeSingCapture(options = {}) {
   }
 
   async function refresh() {
-    state.cacheReady = await isDirectory(
-      path.join(cachePath, 'WeSingDL', 'Res'),
+    const version = lifecycleVersion;
+    const requestedCachePath = cachePath;
+    const cacheReady = await isDirectory(
+      path.join(requestedCachePath, 'WeSingDL', 'Res'),
     );
+    if (version !== lifecycleVersion || requestedCachePath !== cachePath) return getStatus();
+    state.cacheReady = cacheReady;
     await syncQrcWatcher();
+    if (version !== lifecycleVersion || requestedCachePath !== cachePath) return getStatus();
     if (!state.active) {
       emit();
       return getStatus();
@@ -402,6 +414,7 @@ function createWeSingCapture(options = {}) {
   }
 
   async function refreshLyrics(title) {
+    if (!state.active) return;
     const version = ++refreshVersion;
     state.status = 'loading';
     state.message = `正在匹配《${title}》的歌词…`;
@@ -414,7 +427,7 @@ function createWeSingCapture(options = {}) {
       durationMs: state.durationMs,
       resolveFallbackLyrics,
     });
-    if (version !== refreshVersion || title !== state.trackTitle) return;
+    if (!state.active || version !== refreshVersion || title !== state.trackTitle) return;
     if (!result) {
       lyrics = [];
       lyricArtists = [];
@@ -504,9 +517,11 @@ function createWeSingCapture(options = {}) {
   }
 
   function schedulePlaybackRefresh(title) {
+    const version = lifecycleVersion;
     playbackRefreshPending = false;
     if (playbackRefreshTimer !== null) clearTimer(playbackRefreshTimer);
     playbackRefreshTimer = setTimer(() => {
+      if (version !== lifecycleVersion) return;
       playbackRefreshTimer = null;
       if (
         !state.active ||
@@ -549,6 +564,8 @@ function createWeSingCapture(options = {}) {
   }
 
   function stop() {
+    lifecycleVersion += 1;
+    refreshVersion += 1;
     state.active = false;
     loadingTrackTitle = '';
     pausePlaybackClock(now());

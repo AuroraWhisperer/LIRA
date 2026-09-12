@@ -156,23 +156,34 @@ async function createJsonlWriter(outputPath) {
   const handle = await fs.promises.open(outputPath, 'w');
   let pending = Promise.resolve();
   let failure = null;
+  let closing = null;
 
   return {
     write(record) {
       const line = `${JSON.stringify(record)}\n`;
       pending = pending
         .then(async () => {
+          if (failure) return;
           await handle.appendFile(line, 'utf8');
         })
         .catch((error) => {
           failure ??= error;
         });
-      return pending;
+      return pending.then(() => {
+        if (failure) throw failure;
+      });
     },
-    async close() {
-      await pending;
-      await handle.close();
-      if (failure) throw failure;
+    close() {
+      closing ??= (async () => {
+        await pending;
+        try {
+          await handle.close();
+        } catch (error) {
+          failure ??= error;
+        }
+        if (failure) throw failure;
+      })();
+      return closing;
     },
   };
 }
@@ -381,14 +392,16 @@ async function runDiagnostic(configuration) {
   let latestSample = null;
   let lastConsoleAt = 0;
   let lastSignature = '';
-  let finished = false;
+  let finishPromise = null;
+  let failure = null;
+  let acceptingRecords = true;
   let finishResolve;
   let durationTimer = null;
   const finishedPromise = new Promise((resolve) => {
     finishResolve = resolve;
   });
 
-  function writeRecord(record) {
+  async function writeRecord(record) {
     return writer.write({
       observedAt: new Date().toISOString(),
       elapsedMs: Math.round(performance.now() - startedAt),
@@ -419,59 +432,100 @@ async function runDiagnostic(configuration) {
     );
   }
 
-  const monitor = createPowerShellWeSingMonitor(
-    (sample) => {
-      latestSample = sample;
-      void writeRecord({ event: 'monitor-sample', sample });
-      showSample(sample);
-    },
-    { includeDiagnostics: true, pollIntervalMs: 250 },
-  );
-
-  const logProbe = createWeSingLogProbe(configuration.cachePath, (event) => {
-    void writeRecord(event);
-    if (event.startKSong) {
-      console.log(
-        `[全民日志] StartKSong：${event.startKSong.songName || '-'} (${event.startKSong.mid || '-'})`,
-      );
-    }
-  });
-
+  let monitor = null;
+  let logProbe = null;
   let rawModeEnabled = false;
+  let inputResumed = false;
+  const previousRawMode = process.stdin.isRaw === true;
+  const inputWasPaused = process.stdin.isPaused();
+  const readlineListeners = [];
   let keypressHandler = null;
   let sigintHandler = null;
 
-  async function finish(reason) {
-    if (finished) return;
-    finished = true;
-    if (durationTimer) clearTimeout(durationTimer);
-    monitor.stop();
-    await logProbe.stop();
-    await writeRecord({
-      event: 'diagnostic-stop',
-      reason,
-      latestSample: summarizeSample(latestSample),
+  function recordEvent(record) {
+    if (!acceptingRecords) return;
+    void writeRecord(record).catch((error) => {
+      finish('error', error);
     });
-    if (keypressHandler) process.stdin.off('keypress', keypressHandler);
-    if (rawModeEnabled) process.stdin.setRawMode(false);
-    process.stdin.pause();
-    if (sigintHandler) process.off('SIGINT', sigintHandler);
-    await writer.close();
-    console.log(`\n诊断已结束，日志已保存：\n${configuration.outputPath}`);
-    finishResolve();
   }
 
-  await writeRecord({
-    event: 'diagnostic-start',
-    cachePath: configuration.cachePath,
-    outputPath: configuration.outputPath,
-    nodeVersion: process.version,
-    platform: process.platform,
-  });
-  await logProbe.start();
-  monitor.start();
+  function finish(reason, error) {
+    failure ??= error;
+    if (finishPromise) return finishPromise;
+    finishPromise = Promise.resolve().then(async () => {
+      async function cleanUp(action) {
+        try {
+          await action();
+        } catch (cleanupError) {
+          failure ??= cleanupError;
+        }
+      }
 
-  console.log(`
+      await cleanUp(() => clearTimeout(durationTimer));
+      await cleanUp(() => monitor?.stop());
+      await cleanUp(() => logProbe?.stop());
+      acceptingRecords = false;
+      await cleanUp(() => writeRecord({
+        event: 'diagnostic-stop',
+        reason,
+        latestSample: summarizeSample(latestSample),
+      }));
+      await cleanUp(() => {
+        if (keypressHandler) process.stdin.off('keypress', keypressHandler);
+      });
+      for (const [event, listener] of readlineListeners) {
+        await cleanUp(() => process.stdin.off(event, listener));
+      }
+      await cleanUp(() => {
+        if (rawModeEnabled) process.stdin.setRawMode(previousRawMode);
+      });
+      await cleanUp(() => {
+        if (inputResumed && inputWasPaused) process.stdin.pause();
+      });
+      await cleanUp(() => {
+        if (sigintHandler) process.off('SIGINT', sigintHandler);
+      });
+      await cleanUp(() => writer.close());
+      if (failure) throw failure;
+      console.log(`\n诊断已结束，日志已保存：\n${configuration.outputPath}`);
+    });
+    // Observe every event-triggered finish, including before startup completes.
+    finishPromise.then(() => finishResolve(null), finishResolve);
+    return finishPromise;
+  }
+
+  async function start() {
+    monitor = createPowerShellWeSingMonitor(
+      (sample) => {
+        latestSample = sample;
+        recordEvent({ event: 'monitor-sample', sample });
+        showSample(sample);
+      },
+      { includeDiagnostics: true, pollIntervalMs: 250 },
+    );
+
+    logProbe = createWeSingLogProbe(configuration.cachePath, (event) => {
+      recordEvent(event);
+      if (event.startKSong) {
+        console.log(
+          `[全民日志] StartKSong：${event.startKSong.songName || '-'} (${event.startKSong.mid || '-'})`,
+        );
+      }
+    });
+
+    await writeRecord({
+      event: 'diagnostic-start',
+      cachePath: configuration.cachePath,
+      outputPath: configuration.outputPath,
+      nodeVersion: process.version,
+      platform: process.platform,
+    });
+    await logProbe.start();
+    if (finishPromise) return;
+    await monitor.start();
+    if (finishPromise) return;
+
+    console.log(`
 诊断已经开始。请先在全民 K 歌里执行动作，动作完成后马上按对应数字键打标：
 
   1  点击 K 歌 / 开始录制
@@ -486,46 +540,59 @@ WeSingCache：${configuration.cachePath}
 日志文件：${configuration.outputPath}
 `);
 
-  if (process.stdin.isTTY) {
-    readline.emitKeypressEvents(process.stdin);
-    process.stdin.setRawMode(true);
-    rawModeEnabled = true;
-    process.stdin.resume();
-    keypressHandler = (text, key = {}) => {
-      if (key.ctrl && key.name === 'c') {
-        void finish('ctrl-c');
-        return;
+    if (process.stdin.isTTY) {
+      const previousListeners = new Map(['data', 'newListener'].map((event) => [
+        event, new Set(process.stdin.listeners(event)),
+      ]));
+      try {
+        readline.emitKeypressEvents(process.stdin);
+        process.stdin.setRawMode(true);
+        rawModeEnabled = true;
+        process.stdin.resume();
+        inputResumed = true;
+        keypressHandler = (text, key = {}) => {
+          if (key.ctrl && key.name === 'c') {
+            return finish('ctrl-c');
+          }
+          if (String(key.name || text || '').toLowerCase() === 'q') {
+            return finish('q');
+          }
+          const marker = markerForKey(key.name || text);
+          if (!marker) return;
+          recordEvent({
+            event: 'user-marker',
+            key: String(key.name || text),
+            marker,
+            latestSample: summarizeSample(latestSample),
+          });
+          console.log(`\n[操作标记] ${marker}`);
+        };
+        process.stdin.on('keypress', keypressHandler);
+      } finally {
+        for (const [event, previous] of previousListeners) {
+          for (const listener of process.stdin.listeners(event)) {
+            if (!previous.has(listener)) readlineListeners.push([event, listener]);
+          }
+        }
       }
-      if (String(key.name || text || '').toLowerCase() === 'q') {
-        void finish('q');
-        return;
-      }
-      const marker = markerForKey(key.name || text);
-      if (!marker) return;
-      void writeRecord({
-        event: 'user-marker',
-        key: String(key.name || text),
-        marker,
-        latestSample: summarizeSample(latestSample),
-      });
-      console.log(`\n[操作标记] ${marker}`);
-    };
-    process.stdin.on('keypress', keypressHandler);
-  } else {
-    console.log('当前终端不支持数字键标记，可用 Ctrl+C 或 --duration 结束。');
+    } else {
+      console.log('当前终端不支持数字键标记，可用 Ctrl+C 或 --duration 结束。');
+    }
+
+    sigintHandler = () => finish('sigint');
+    process.on('SIGINT', sigintHandler);
+    if (configuration.durationMs > 0) {
+      durationTimer = setTimeout(() => finish('duration'), configuration.durationMs);
+    }
   }
 
-  sigintHandler = () => {
-    void finish('sigint');
-  };
-  process.on('SIGINT', sigintHandler);
-  if (configuration.durationMs > 0) {
-    durationTimer = setTimeout(() => {
-      void finish('duration');
-    }, configuration.durationMs);
+  try {
+    await start();
+  } catch (error) {
+    finish('error', error);
   }
-
-  await finishedPromise;
+  const finishError = await finishedPromise;
+  if (finishError) throw finishError;
 }
 
 async function main() {

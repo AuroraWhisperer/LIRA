@@ -288,7 +288,9 @@ test('gift history drawer restores the 3.x table without search or date toolbars
 
   assert.doesNotMatch(html, /giftHistorySearch|data-gift-range|gift-ledger-toolbar|gift-ledger-sync/);
   assert.doesNotMatch(html, /时间范围|重置筛选|giftLedgerSyncDetail/);
-  assert.match(html, /id="giftHistoryClearDisplayBtn"[^>]*>\s*清理显示\s*<\/button>/);
+  assert.doesNotMatch(html, /giftHistoryClearDisplayBtn|清理显示/);
+  assert.match(html, /id="giftHistoryRetryBtn"[^>]*hidden[^>]*>\s*重新加载/);
+  assert.match(html, /id="giftHistoryClearDatabaseBtn"[^>]*>\s*清空全部记录/);
   assert.match(html, /id="giftLedgerSyncStatus"[^>]*role="status"[^>]*hidden/);
   assert.match(
     html,
@@ -325,11 +327,11 @@ test('gift history always requests all dates and never exposes source identity',
   assert.doesNotMatch(source, /\/api\/gifts\/statistics/);
   assert.doesNotMatch(source, /sourceId|source_id/);
   assert.doesNotMatch(source, /giftHistorySearch|data-gift-range|syncedAt/);
-  assert.match(source, /清空本地和服务器礼物流水/);
-  assert.match(source, /永久删除当前账号在本地和服务器上的全部礼物流水/);
-  assert.match(source, /无法恢复/);
-  assert.match(source, /若服务器清理失败，本地数据不会删除/);
-  assert.match(source, /本地和服务器礼物流水已清空/);
+  assert.match(source, /清空全部礼物记录/);
+  assert.match(source, /永久删除当前账号在本机和云端的全部礼物记录/);
+  assert.match(source, /无法撤销/);
+  assert.match(source, /礼物记录已清空/);
+  assert.doesNotMatch(source, /resetGiftLedgerDisplay|giftHistoryClearDisplayBtn/);
   assert.doesNotMatch(source, /重新同步当前账号的历史记录/);
   assert.equal(ledger.buildGiftHistoryUrl(), '/api/gifts/history?range=all&limit=50');
   assert.equal(
@@ -353,7 +355,7 @@ test('gift history always requests all dates and never exposes source identity',
   );
   assert.deepEqual(
     { ...ledger.describeGiftSyncStatus('LIVE', false) },
-    { state: 'live', label: '历史记录已同步' },
+    { state: 'live', label: '礼物记录已更新' },
   );
   assert.equal(ledger.describeGiftSyncStatus('LIVE', true).state, 'partial');
   assert.equal(
@@ -382,7 +384,6 @@ test('gift history headers sort from page one with click and keyboard input', as
     'giftHistoryClose',
     'giftHistoryBackdrop',
     'giftHistoryDrawer',
-    'giftHistoryClearDisplayBtn',
     'giftHistoryClearDatabaseBtn',
     'giftHistoryPrev',
     'giftHistoryNext',
@@ -442,6 +443,10 @@ test('gift history headers sort from page one with click and keyboard input', as
     document,
     location: {},
     URLSearchParams,
+    AbortController,
+    AbortSignal,
+    clearTimeout() {},
+    setTimeout() {},
     fetch: async (url) => {
       requests.push(url);
       return {
@@ -558,6 +563,10 @@ test('loadGiftHistory requests one history page and renders canonical escaped ro
     document,
     location: {},
     URLSearchParams,
+    AbortController,
+    AbortSignal,
+    clearTimeout() {},
+    setTimeout() {},
     fetch: async (url) => {
       requests.push(url);
       return {
@@ -637,51 +646,15 @@ test('loadGiftHistory requests one history page and renders canonical escaped ro
   assert.equal(elements.get('giftLedgerSyncStatus').hidden, true);
   assert.equal(
     elements.get('giftLedgerSyncStatus').textContent,
-    '历史记录已同步',
+    '礼物记录已更新',
   );
 });
 
-test('clear display resets the displayed rows and cursor history without deleting data', async () => {
-  const modulePath = path.join(
-    ROOT_DIR,
-    'public',
-    'js',
-    'admin',
-    'gifts',
-    'history.js',
-  );
-  const source = fs.readFileSync(modulePath, 'utf8');
-  const ledger = await loadModuleExports(modulePath, {
-    document: {},
-    location: {},
-    URLSearchParams,
-  });
-  const state = ledger.createGiftLedgerState();
-  state.cursor = 'next-token';
-  state.nextCursor = 'following-token';
-  state.page = 3;
-  state.items = [{ eventId: 'event-1' }];
-  state.hasMore = true;
-  state.total = 140;
-  state.totalPages = 3;
-  state.cursorHistory.push(null, 'previous-token');
-
-  ledger.resetGiftLedgerDisplay(state);
-
-  assert.equal(state.cursor, null);
-  assert.equal(state.nextCursor, null);
-  assert.equal(state.page, 1);
-  assert.equal(state.hasMore, false);
-  assert.deepEqual(Array.from(state.items), []);
-  assert.deepEqual(Array.from(state.cursorHistory), []);
-  assert.doesNotMatch(source, /\/api\/gifts\/clear-recent/);
-});
-
-test('gift history keeps cursor navigation, ignores responses after clear, and reloads on reopen', async () => {
+test('gift history keeps cursor navigation, ignores responses after close, and reloads on reopen', async () => {
   const elements = new Map();
   for (const id of [
     'giftHistoryOpenBtn', 'giftHistoryClose', 'giftHistoryBackdrop',
-    'giftHistoryDrawer', 'giftHistoryClearDisplayBtn', 'giftHistoryPrev',
+    'giftHistoryDrawer', 'giftHistoryPrev',
     'giftHistoryNext', 'giftHistoryState', 'giftHistoryTotal',
     'giftHistoryBody', 'giftHistoryPageInfo', 'giftLedgerSyncStatus',
   ]) {
@@ -705,6 +678,10 @@ test('gift history keeps cursor navigation, ignores responses after clear, and r
       },
       location: {},
       URLSearchParams,
+      AbortController,
+      AbortSignal,
+      clearTimeout() {},
+      setTimeout() {},
       fetch: (url) => {
         requests.push(url);
         return new Promise((resolve) => pending.push(resolve));
@@ -736,7 +713,7 @@ test('gift history keeps cursor navigation, ignores responses after clear, and r
   assert.match(elements.get('giftHistoryBody').innerHTML, /测试礼物/);
   click('giftHistoryNext');
   await finishRequest({
-    items: [],
+    items: [{ eventId: 'second', gift: { giftName: '另一礼物' } }],
     total: 2,
     totalPages: 2,
     syncState: 'OFFLINE',
@@ -745,24 +722,24 @@ test('gift history keeps cursor navigation, ignores responses after clear, and r
   assert.equal(requests.at(-1), '/api/gifts/history?range=all&limit=50&cursor=page-2');
   assert.equal(elements.get('giftHistoryPageInfo').textContent, '第 2/2 页');
   assert.equal(elements.get('giftLedgerSyncStatus').hidden, false);
-  assert.equal(elements.get('giftLedgerSyncStatus').textContent, '离线，正在显示本地记录');
+  assert.equal(elements.get('giftLedgerSyncStatus').textContent, '当前离线，显示已保存的记录');
   click('giftHistoryPrev');
   await finishRequest(firstPage);
   assert.equal(requests.at(-1), '/api/gifts/history?range=all&limit=50');
   assert.equal(elements.get('giftHistoryPageInfo').textContent, '第 1/2 页');
 
   click('giftHistoryNext');
-  const countBeforeClear = requests.length;
-  click('giftHistoryClearDisplayBtn');
+  const countBeforeClose = requests.length;
+  click('giftHistoryClose');
+  const bodyBeforeResponse = elements.get('giftHistoryBody').innerHTML;
   await finishRequest(firstPage);
-  assert.equal(requests.length, countBeforeClear);
-  assert.match(elements.get('giftHistoryBody').innerHTML, /已清理显示/);
+  assert.equal(requests.length, countBeforeClose);
+  assert.equal(elements.get('giftHistoryBody').innerHTML, bodyBeforeResponse);
   assert.doesNotMatch(elements.get('giftHistoryBody').innerHTML, /测试礼物/);
   assert.equal(elements.get('giftHistoryPrev').disabled, true);
   assert.equal(elements.get('giftHistoryNext').disabled, true);
   assert.equal(elements.get('giftLedgerSyncStatus').hidden, true);
 
-  click('giftHistoryClose');
   assert.equal(elements.get('giftHistoryOpenBtn').focused, true);
   click('giftHistoryOpenBtn');
   await finishRequest(firstPage);
@@ -1442,6 +1419,62 @@ test('blindbox ranking count supports all, summary-only, and one-to-ten modes', 
   assert.deepEqual(readMode('?top=0'), { top: 0, summaryOnly: true });
   assert.deepEqual(readMode(''), { top: 3, summaryOnly: false });
   assert.deepEqual(readMode('?top=25'), { top: 10, summaryOnly: false });
+});
+
+test('blindbox overlay renders signed summary and per-user profit text', async (t) => {
+  const source = readJsModuleBundle('public', 'js', 'overlays', 'blindbox.js');
+  const elements = {
+    blindboxTitle: { textContent: '' },
+    blindboxSummary: { innerHTML: '' },
+    blindboxLeaderboard: { innerHTML: '' },
+  };
+  const panel = { classList: { toggle() {} }, style: {} };
+  const sandbox = {
+    URLSearchParams,
+    location: { search: '' },
+    document: {
+      addEventListener() {},
+      getElementById: (id) => elements[id],
+      querySelector: () => panel,
+      documentElement: { style: { setProperty() {} } },
+    },
+  };
+  vm.runInNewContext(source, sandbox);
+
+  const cases = [
+    { totalProfit: -12.345, text: '-¥12.35' },
+    { totalProfit: 0, text: '+¥0.00' },
+    { totalProfit: 12.345, text: '+¥12.35' },
+  ];
+  const perUser = cases.map(({ totalProfit }, index) => ({
+    userName: `Viewer ${index + 1}`,
+    boxCount: 1,
+    totalProfit,
+  }));
+
+  for (const { totalProfit, text } of cases) {
+    await t.test(`summary ${text} with mixed user profits`, () => {
+      sandbox.render({
+        summary: { boxCount: 3, totalCost: 75.25, totalProfit },
+        perUser,
+      });
+
+      const summaryText = [...elements.blindboxSummary.innerHTML.matchAll(
+        /<span class="stat-value">([^<]*)<\/span>/g,
+      )].map((match) => match[1]);
+      const userText = [...elements.blindboxLeaderboard.innerHTML.matchAll(
+        /<span class="profit-value [^"]*">([^<]*)<\/span>/g,
+      )].map((match) => match[1]);
+
+      assert.deepEqual(
+        { summary: summaryText, perUser: userText },
+        {
+          summary: ['3', '¥75.25', text],
+          perUser: ['-¥12.35', '+¥0.00', '+¥12.35'],
+        },
+      );
+    });
+  }
 });
 
 test('blindbox overlay fills the capture width and reflows without hiding data', () => {

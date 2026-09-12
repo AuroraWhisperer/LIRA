@@ -444,7 +444,6 @@ export function createDrawController({
     finalizeActiveStroke();
     if (!getSession().state.canvas.strokes.length) return;
     const operation = { action: 'undo', clientId: drawClientId };
-    mergeDrawOperation(operation, true);
     queueDrawOperation(operation);
   }
 
@@ -467,7 +466,8 @@ export function createDrawController({
 
   function applyBroadcast(operation) {
     if (!operation || getSession()?.game !== 'draw-guess') return;
-    if (operation.clientId === drawClientId) {
+    // Undo waits for confirmation because the server selects the stroke.
+    if (operation.clientId === drawClientId && operation.action !== 'undo') {
       if (getSession().state?.canvas)
         getSession().state.canvas.revision = operation.revision;
       return;

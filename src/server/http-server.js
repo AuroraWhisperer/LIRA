@@ -177,10 +177,16 @@ function createHttpServer(options = {}) {
       );
       return;
     }
-    const requestUrl = new URL(
-      req.url,
-      `http://${req.headers.host || `${host}:${startPort}`}`,
-    );
+    let requestUrl;
+    try {
+      requestUrl = new URL(
+        req.url,
+        `http://${req.headers.host || `${host}:${startPort}`}`,
+      );
+    } catch (_) {
+      socket.end('HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\n');
+      return;
+    }
     if (requestUrl.pathname !== '/ws') {
       socket.destroy();
       return;

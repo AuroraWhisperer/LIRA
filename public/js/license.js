@@ -2,6 +2,7 @@
 
 (function initLicensePage() {
   const api = window.liraLicense;
+  const canActivate = typeof api?.activate === 'function';
   const loginCard = document.getElementById('licenseLoginCard');
   const initializationCard = document.getElementById(
     'giftCatalogInitializationCard',
@@ -35,7 +36,6 @@
   let unsubscribe = () => {};
   let unsubscribeGiftCatalog = () => {};
   let unsubscribeWindowMaximized = () => {};
-  let acceptedPasswordValue = '';
 
   const messages = {
     ACTIVATION_CODE_INVALID: '激活密钥无效，请检查后重试。',
@@ -54,6 +54,7 @@
       '密码不符合要求，请查看密码旁的说明。',
     PASSWORD_BCRYPT_TRUNCATED:
       '密码的 UTF-8 编码不能超过 72 字节，请缩短密码。',
+    PASSWORD_WEAK: '密码过于常见或接近用户名，请更换。',
     ACCOUNT_NAME_MISMATCH: '此激活码不属于该主播账号。',
     ACCOUNT_NAME_MUST_MATCH_SUBDOMAIN: '用户名与已分配主播空间不一致。',
     INVALID_CREDENTIALS: '用户名或密码错误。',
@@ -113,37 +114,6 @@
     return messages.NETWORK_UNAVAILABLE;
   }
 
-  function passwordCharacterError(password) {
-    if (/\p{Script=Han}/u.test(password))
-      return '密码不能包含中文，请切换为英文输入。';
-    if (/[\p{Cc}\p{Cf}]/u.test(password))
-      return messages.PASSWORD_CONTROL_CHARACTERS;
-    if (/\s/u.test(password)) return '密码不能包含空格。';
-    if (/[^\x21-\x7e]/.test(password))
-      return '密码只能使用半角英文字母、数字和特殊符号。';
-    return '';
-  }
-
-  function rejectInvalidPasswordInput(event) {
-    if (event.isComposing) return;
-    const error = passwordCharacterError(event.data || '');
-    if (!error) return;
-    event.preventDefault();
-    setStatus(error, 'error');
-  }
-
-  function acceptPasswordInput(event) {
-    if (event.isComposing) return;
-    const error = passwordCharacterError(passwordInput.value);
-    if (error) {
-      // Reject the whole edit instead of silently changing a pasted password.
-      passwordInput.value = acceptedPasswordValue;
-      setStatus(error, 'error');
-      return;
-    }
-    acceptedPasswordValue = passwordInput.value;
-  }
-
   function validate() {
     const accountName = accountInput.value.trim().toLowerCase();
     const password = passwordInput.value;
@@ -155,14 +125,6 @@
     if (!/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(accountName))
       return messages.ACCOUNT_NAME_INVALID;
     if (!password) return '请输入密码。';
-    const characterError = passwordCharacterError(password);
-    if (characterError) return characterError;
-    if (password.length < 8) return messages.PASSWORD_TOO_SHORT;
-    if (password.length > 64) return messages.PASSWORD_TOO_LONG;
-    if (!/[A-Z]/.test(password)) return '密码缺少大写英文字母。';
-    if (!/[a-z]/.test(password)) return '密码缺少小写英文字母。';
-    if (!/[0-9]/.test(password)) return '密码缺少数字。';
-    if (!/[^A-Za-z0-9]/.test(password)) return '密码缺少特殊符号。';
     if (!activationCode) return '请输入激活密钥。';
     return '';
   }
@@ -189,7 +151,7 @@
     loginCard.hidden = false;
     initializationCard.hidden = true;
     const isAuthorizing = state === 'authorizing' || busy;
-    submitButton.disabled = isAuthorizing;
+    submitButton.disabled = isAuthorizing || !canActivate;
     retryButton.hidden = !(state === 'needs_connection' || state === 'blocked');
     retryButton.disabled = isAuthorizing;
     if (state === 'checking') setStatus('正在检查本机设备授权…', 'loading');
@@ -264,7 +226,7 @@
 
   function finishBusy() {
     busy = false;
-    submitButton.disabled = false;
+    submitButton.disabled = !canActivate;
     retryButton.disabled = false;
   }
 
@@ -315,7 +277,6 @@
       });
       if (result?.ok) {
         passwordInput.value = '';
-        acceptedPasswordValue = '';
         codeInput.value = '';
         setPasswordVisible(false);
         render(result);
@@ -359,9 +320,6 @@
   }
 
   form?.addEventListener('submit', activate);
-  passwordInput?.addEventListener('beforeinput', rejectInvalidPasswordInput);
-  passwordInput?.addEventListener('input', acceptPasswordInput);
-  passwordInput?.addEventListener('compositionend', acceptPasswordInput);
   passwordToggle?.addEventListener('click', () =>
     setPasswordVisible(passwordInput.type === 'password'),
   );
@@ -402,5 +360,10 @@
     unsubscribeGiftCatalog();
     unsubscribe();
   });
+  // The page CSP blocks native submission even if this script cannot initialize.
+  if (form && submitButton) {
+    submitButton.disabled = !canActivate;
+    setStatus(canActivate ? '' : '激活功能未就绪，请重启 LIRA 后重试。');
+  }
   loadState();
 })();

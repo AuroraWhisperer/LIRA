@@ -2,7 +2,7 @@
 
 > 涉及文件:[src/server/ws.js](../../../src/server/ws.js)、[src/server.js](../../../src/server.js)(getState/广播点)
 
-本文档是 WebSocket 的**唯一事实源**:传输层实现、快照 16 字段、全部消息类型与广播原因只在此成表。客户端消费语义见 [frontend/comms.md](../frontend/comms.md),各字段的领域细节链接到对应行为文档。
+本文档是 WebSocket 的**唯一事实源**:传输层实现、快照 17 字段、全部消息类型与广播原因只在此成表。客户端消费语义见 [frontend/comms.md](../frontend/comms.md),各字段的领域细节链接到对应行为文档。
 
 ## 1. 传输层(手写 RFC 6455)
 
@@ -25,9 +25,9 @@
 
 **WebSocket Context**:升级时传入的 `context` 对象包含 `getState`、`sessionToken` 和 **`allowedOrigins`**(当前仅运行时 baseUrl)。`getWebSocketContext()` 在 [server.js](../../../src/server.js) 中构造。
 
-## 2. 快照(Snapshot)16 字段
+## 2. 快照(Snapshot)17 字段
 
-每次连接建立时发送 `{type:'snapshot', reason:'connect', state}`,之后每次业务变更触发全量快照重推。`state` 由 [server.js](../../../src/server.js) 的 `getState()` 组装,共 **16 个字段**:
+每次连接建立时发送 `{type:'snapshot', reason:'connect', state}`,之后快照域的业务变更触发全量快照重推；游戏、转盘等独立状态沿 §3 的专用消息与 HTTP 恢复接口传输。`state` 由 [server.js](../../../src/server.js) 的 `getState()` 组装,共 **17 个字段**:
 
 | 字段                  | 生产者                                     | 内容概述                                                                                                          |
 | --------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
@@ -36,6 +36,7 @@
 | `gifts`               | `domainServices.gifts.getSnapshot()`       | 礼物事件列表                                                                                                      |
 | `giftSprint`          | `domainServices.gifts.getSprintSnapshot()` | 礼物冲刺状态                                                                                                      |
 | `giftDetection`       | `domainServices.gifts.getStatus()`         | 礼物检测管道状态(`coreActive` 等),见 [bilibili/gift.md](bilibili/gift.md)                                         |
+| `blindBoxMapping` | `blindBoxMappingState` | 当前盲盒映射配置与同步状态 |
 | `overtime`            | `domainServices.overtime.getSnapshot()`    | 加班机状态,见 [overtime.md](overtime.md)                                                                          |
 | `settings`            | `settingsStore.getSettings()`              | 全部设置键值,见 [storage.md](storage.md)                                                                          |
 | `categories`          | `domainServices.songs.listCategories()`    | 歌曲分类                                                                                                          |
@@ -54,8 +55,9 @@
 
 | 类型                  | 载荷                                                                                                                 | 触发点                                                                                                                                                                                                                                                                                                                                                             |
 | --------------------- | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `snapshot`            | `{type, reason, state}`(16 字段全量)                                                                                 | 连接建立(`reason:'connect'`);业务变更广播                                                                                                                                                                                                                                                                                                                          |
+| `snapshot`            | `{type, reason, state}`(17 字段全量)                                                                                 | 连接建立(`reason:'connect'`);业务变更广播                                                                                                                                                                                                                                                                                                                          |
 | `danmaku:message`     | `{type:'danmaku:message', item}`                                                                                     | 每条 `source:'danmaku'` 的实时 B 站弹幕；仅投递给以 `topic=danmaku` 连接的固定 `/danmaku` 浏览器源，重连后由 snapshot 中的 `danmakuFeed` 恢复                                                                                                                                                                                                                      |
+| `gift:frame` | `{type,eventId,giftEventId,giftId,giftName,num,totalPriceCents,userName,themeId}`；预览另含 `preview/previewSessionId/motionMode` | final 礼物达到边框配置阈值时广播，或管理页显式预览；由 `gift/frame-config.js` 生成，金额单位为人民币分 |
 | `lyric-state`         | `{type:'lyric-state', state}`;state 兼容携带单调 `generation`/`sequence`                                             | 播放页歌词上报([server.js:348](../../../src/server.js#L348))、WeSing 采集状态变化([server.js:187](../../../src/server.js#L187))                                                                                                                                                                                                                                    |
 | `lyric-timeline`      | `{type:'lyric-timeline', timeline}`                                                                                  | 播放页歌词时间轴上报、WeSing 时间轴([server.js:163](../../../src/server.js#L163))                                                                                                                                                                                                                                                                                  |
 | `wesing-state`        | `{type:'wesing-state', state}`                                                                                       | WeSing 采集状态变化([server.js:184](../../../src/server.js#L184))                                                                                                                                                                                                                                                                                                  |
@@ -63,7 +65,7 @@
 | `gift-catalog:update` | `{type:'gift-catalog:update', snapshot}`；`snapshot` 包含付费全局目录、`version`、`stale`、来源时间、本地 `imagePath` 及 `assetsUpdatedAt`（ISO 字符串或空） | 本地图片扫描完成后广播；目录元数据变化及同版本缺图修复均可触发。Admin 去重包含图片 ID/路径和资源时间，按 ID 更新图片，不替换当前直播间成员，不改变礼物事件或规则结算 |
 | `shutdown`            | `{type:'shutdown', reason:'manual'}`                                                                                 | 服务关闭前(`webSocketHub.stop` 的 `shutdownPayload`,见 §1)                                                                                                                                                                                                                                                                                                         |
 | `game:update`         | `{type:'game:update', session}`                                                                                      | 小游戏会话开始、停止、落子、弹幕答对或画猜回合变化；Admin 与固定 `/games` 浏览器源消费，浏览器源按 `session.game` 切换画面；画猜公开状态不含题词或别名，且在答案公布前 `revealedAnswer` 为空；活动会话附带本局弹幕流，消息项为有界的 `{uid,name,message,avatarUrl,guardLevel,medalName,medalLevel,timestamp}`，其中大航海等级限定为 `0..3`、灯牌为当前房间公开身份 |
-| `game:draw`           | `{type:'game:draw', operation, revision}`                                                                            | 你画我猜已经校验的增量笔画、清空或撤销操作；撤销操作带服务端决定的 `strokeId`。所有 `/games` 实例消费，发起页按 `operation.clientId` 忽略自己的回声，刷新/重连通过 `GET /api/games/session` 的完整画布恢复                                                                                                                                                         |
+| `game:draw`           | `{type:'game:draw', operation, revision}`                                                                            | 你画我猜已经校验的增量笔画、清空或撤销操作；撤销操作带服务端决定的 `strokeId`。所有 `/games` 实例消费，发起页仅忽略已乐观应用的自有笔画/清空回声；自有撤销仍应用服务端决定的 `strokeId`，刷新/重连通过 `GET /api/games/session` 的完整画布恢复                                                                                                                                                         |
 | `wheel:update`        | `{type:'wheel:update', state}`                                                                                       | 独立转盘配置或抽取状态变更；管理页与 `/wheel` 透明浏览器源消费，不受 `game:update` 会话互斥影响                                                                                                                                                                                                                                                                    |
 
 ### 3.1 `snapshot` 的 reason 枚举

@@ -926,6 +926,81 @@ test('official-chat web search calls are executed and returned to the model', as
   assert.equal(deliveries[0].message, '已核实');
 });
 
+test('reply cache separates viewers and their conversation context', async (t) => {
+  const contexts = new Map([
+    ['alice', { question: '我在北京', answer: '知道了' }],
+    ['bob', { question: '我在上海', answer: '知道了' }],
+  ]);
+  const inputs = [];
+  const deliveries = [];
+  const service = createTestService({
+    store: {
+      getContext: (uid) => contexts.get(uid) || null,
+      setContext: (uid, value) => contexts.set(uid, value),
+    },
+    deepseek: {
+      async createResponse(request) {
+        if (request.purpose !== 'generation') {
+          return { text: '{"allowed":true,"safeText":""}', functionCalls: [], usage: {} };
+        }
+        inputs.push(String(request.input));
+        return { text: String(request.input).includes('北京') ? '你在北京' : '你在上海', functionCalls: [], usage: {} };
+      },
+    },
+    sendReply: async (value) => deliveries.push(value),
+  });
+  t.after(() => service.shutdown());
+  service.handleDanmaku({ uid: 'alice', userName: '甲', message: '小米 我在哪个城市？' });
+  await waitUntil(() => deliveries.length === 1);
+  service.handleDanmaku({ uid: 'bob', userName: '乙', message: '小米 我在哪个城市？' });
+  await waitUntil(() => deliveries.length === 2);
+  assert.equal(inputs.length, 2);
+  assert.match(inputs[1], /上海/);
+  assert.equal(deliveries[1].message, '你在上海');
+});
+
+test('reply cache reuses identical input but invalidates changed context and generation config', async (t) => {
+  let context = null;
+  const config = {
+    ...AI_CONFIG_DEFAULTS, enabled: true, trigger: '小米',
+    deepseekResponsesUrl: 'https://example.test/responses',
+    deepseekApiKey: 'test-key', model: 'test-model',
+  };
+  let generated = 0;
+  const deliveries = [];
+  const service = createTestService({
+    store: { getConfig: () => ({ ...config }), getContext: () => context },
+    deepseek: {
+      async createResponse(request) {
+        if (request.purpose !== 'generation') {
+          return { text: '{"allowed":true,"safeText":""}', functionCalls: [], usage: {} };
+        }
+        generated += 1;
+        return { text: `回答${generated}`, functionCalls: [], usage: {} };
+      },
+    },
+    sendReply: async (value) => deliveries.push(value),
+  });
+  t.after(() => service.shutdown());
+  const ask = async () => {
+    const expected = deliveries.length + 1;
+    assert.equal(service.handleDanmaku({ uid: 'alice', userName: '甲', message: '小米 继续说说' }).accepted, true);
+    await waitUntil(() => deliveries.length === expected);
+  };
+  await ask();
+  await ask();
+  assert.equal(generated, 1);
+  context = { question: '换到上海', answer: '好的' };
+  await ask();
+  assert.equal(generated, 2);
+  config.systemPrompt += '\n请使用简短回答。';
+  await ask();
+  assert.equal(generated, 3);
+  config.deepseekResponsesUrl = 'https://second.example.test/responses';
+  await ask();
+  assert.equal(generated, 4);
+});
+
 function createTestService(overrides = {}) {
   const config = {
     ...AI_CONFIG_DEFAULTS,

@@ -128,8 +128,8 @@ test('expandBlindBoxSaleIds distinguishes same-name gifts by configured price', 
   );
 });
 
-test('gift sale service validates room ID, caches refreshes, persists snapshots, and needs no public assets', async () => {
-  const fixture = createFixture();
+test('gift sale service validates room ID, caches refreshes, persists snapshots, and needs no public assets', async (t) => {
+  const fixture = createFixture(t);
   let nowMs = Date.parse('2026-08-16T06:00:00.000Z');
   let roomId = '22637261';
   let fetchCount = 0;
@@ -221,10 +221,12 @@ test('gift sale service validates room ID, caches refreshes, persists snapshots,
   assert.equal(fetchCount, 6);
 });
 
-test('gift sale service does not call upstream without a configured room', async () => {
+test('gift sale service does not call upstream without a configured room', async (t) => {
   let called = false;
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-gift-sale-empty-'));
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
   const service = createGiftSaleCatalogService({
-    dataDir: fs.mkdtempSync(path.join(os.tmpdir(), 'lira-gift-sale-empty-')),
+    dataDir,
     getRoomId: () => '',
     async fetchJson() {
       called = true;
@@ -234,8 +236,8 @@ test('gift sale service does not call upstream without a configured room', async
   assert.equal(called, false);
 });
 
-test('gift sale service requests only room panel/config and does not infer historical bag gifts', async () => {
-  const fixture = createFixture();
+test('gift sale service requests only room panel/config and does not infer historical bag gifts', async (t) => {
+  const fixture = createFixture(t);
   const endpoints = [];
   const service = createGiftSaleCatalogService({
     dataDir: fixture.dataDir,
@@ -274,8 +276,8 @@ test('gift sale service requests only room panel/config and does not infer histo
   );
 });
 
-test('gift sale service ignores legacy snapshots that may contain backpack gifts', () => {
-  const fixture = createFixture();
+test('gift sale service ignores legacy snapshots that may contain backpack gifts', (t) => {
+  const fixture = createFixture(t);
   fs.writeFileSync(
     path.join(fixture.dataDir, 'overtime-gift-sale.json'),
     JSON.stringify({
@@ -304,8 +306,9 @@ test('gift sale service ignores legacy snapshots that may contain backpack gifts
   assert.deepEqual(snapshot.gifts, []);
 });
 
-function createFixture() {
+function createFixture(t) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-gift-sale-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const dataDir = path.join(root, 'data');
   fs.mkdirSync(dataDir, { recursive: true });
   return { dataDir };

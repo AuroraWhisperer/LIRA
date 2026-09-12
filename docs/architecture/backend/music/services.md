@@ -63,6 +63,8 @@
 
 ## 4. 流解析编排(stream-resolver.js + track-contract.js)
 
+QQ 加密媒体由 `qq-encrypted-stream.js` 通过 Node `pipeline` 解密并写入响应，传递下游背压；客户端中断或响应提前关闭会中止上游 fetch。响应头和实际累计字节均受 64 MiB 上限约束，超过实际额度时断开已开始的响应；拒绝、取消和完成路径均释放响应体及 QMC2 实例。
+
 Provider 内部实现见各 Provider 文档 §7.2;这里只记录编排层语义。
 
 ### 4.1 normalizeMusicTrackForProvider(track-contract.js)
@@ -89,7 +91,7 @@ Provider 内部实现见各 Provider 文档 §7.2;这里只记录编排层语义
 3. return provider.resolvePlayableUrl(normalizedTrack, { forceRefresh, quality })
 ```
 
-- **TTL**:两个 Provider 各自 `STREAM_TTL_MS = 5 分钟`([qq-provider.js:15](../../../../src/music/providers/qq-provider.js#L15)、[netease-provider.js:8](../../../../src/music/providers/netease-provider.js#L8)),返回值带 `expireAt`/`playUrlExpireAt`;当前两个 Provider 均**忽略 `forceRefresh`**(QQ 由 vkey 缓存、网易云是纯字符串构造),刷新语义实际由播放器调用方与 §5 缓存层决定
+- **TTL**：QQ 流由 [qq-provider-streams.js](../../../../src/music/providers/qq-provider-streams.js) 管理，默认有效期 5 分钟；网易云 [resolvePlayableUrl](../../../../src/music/providers/netease-provider.js) 每次请求原生 player URL 接口，使用返回的 `expi`，缺失时才回退 5 分钟，并保留试听/权限结果。`forceRefresh` 从调用链传入，不应据此推断所有 Provider 都有相同的缓存策略。
 - 本模块自身**不做磁盘缓存**(流 URL 短命,缓存无意义);歌词与首页内容缓存见 §5
 
 ## 5. 音乐缓存(music-cache.js)
@@ -339,7 +341,7 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 
 | 载荷                                                | 生产者                                                                                                                        | 广播点                                                                                                             |
 | --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `lyricState`(快照 16 字段之一 + `lyric-state` 消息) | 播放页上报:API context `playbackLyrics.publish(state)`;WeSing 采集:`weSingCapture.onState` 在 active 且有 `lyricState` 时同步 | [server.js:345-349](../../../../src/server.js#L345-L349)、[server.js:183-188](../../../../src/server.js#L183-L188) |
+| `lyricState`(快照 17 字段之一 + `lyric-state` 消息) | 播放页上报:API context `playbackLyrics.publish(state)`;WeSing 采集:`weSingCapture.onState` 在 active 且有 `lyricState` 时同步 | [server.js:345-349](../../../../src/server.js#L345-L349)、[server.js:183-188](../../../../src/server.js#L183-L188) |
 | `lyricTimeline`(快照字段 + `lyric-timeline` 消息)   | `publishLyricTimeline(input)`:归一化后广播;WeSing `onTimeline` 仅 `active` 时发布                                             | [server.js:161-165](../../../../src/server.js#L161-L165)、[server.js:189-191](../../../../src/server.js#L189-L191) |
 
 歌词内容本身的时序消费在下方 §14 的解析器文档。

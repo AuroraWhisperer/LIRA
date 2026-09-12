@@ -7,6 +7,37 @@ const { now } = require('../shared/utils');
 const { DEFAULT_SETTINGS } = require('./settings-defaults');
 const settingsMigrations = require('./settings-migrations');
 
+function bootstrapSettingsStore(db) {
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    const read = db.prepare('SELECT value FROM settings WHERE key = ?');
+    const queueSpeedVersion = read.get('queueScrollSpeedRangeVersion')?.value;
+    const fontSizeVersion = read.get('queueFontSizeRangeVersion')?.value;
+    const styleVersion = read.get('queueStyleSettingsVersion')?.value;
+    const songSpeedVersion = read.get('songScrollSpeedRangeVersion')?.value;
+    const songSpeed = read.get('scrollSeconds');
+    const settingsStore = createSettingsStore(db);
+    settingsMigrations.migrateQueueScrollSpeedSetting(db, queueSpeedVersion);
+    if (!songSpeed && !songSpeedVersion) {
+      // A new default is already in the current range; persist its checkpoint.
+      settingsStore.setSetting('songScrollSpeedRangeVersion', '2');
+    } else {
+      settingsMigrations.migrateSongScrollSpeedSetting(db, songSpeedVersion);
+    }
+    settingsMigrations.migrateQueueFontSizeSettings(db, fontSizeVersion);
+    settingsMigrations.migrateQueueStyleSettings(db, styleVersion);
+    settingsMigrations.migrateSongBoardFontSizeSetting(db);
+    settingsMigrations.clearLegacyIdentityRuleDefaults(db);
+    settingsMigrations.migrateBlindBoxConfig(db);
+    settingsStore.setSetting('openingEnabled', 'false');
+    db.exec('COMMIT');
+    return settingsStore;
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
+  }
+}
+
 function createSettingsStore(db) {
   // Initialize defaults into DB on first call
   for (const [key, value] of Object.entries(DEFAULT_SETTINGS)) {
@@ -83,5 +114,6 @@ function createSettingsStore(db) {
 module.exports = {
   DEFAULT_SETTINGS,
   createSettingsStore,
+  bootstrapSettingsStore,
   ...settingsMigrations,
 };

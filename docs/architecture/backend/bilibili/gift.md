@@ -50,7 +50,7 @@ createGiftService (gift/index.js)                    ← domainServices.gifts
 | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 静默收尾窗口 | `GIFT_FINALIZE_QUIET_MS = 10s`(自 `last_platform_at_ms` 起算,定时器 `unref`)                                                                                                                                  | [detection-service.js:14](../../../../src/bilibili/gift/detection-service.js#L14)、[detection-service.js:116-127](../../../../src/bilibili/gift/detection-service.js#L116-L127) |
 | 收尾         | `UPDATE … SET detection_status='final', finalized_at_ms=?`(仅限 `progress` 行)→ `dispatch('final')` + `onGiftFinalized`(即 server 的 `onGiftFlushed`,触发 `bilibili:gift` 快照广播,见 [ws.md](../ws.md) §3.1) | [detection-service.js:98-114](../../../../src/bilibili/gift/detection-service.js#L98-L114)                                                                                      |
-| 兜底 flush   | `flushPending({force})` 强制收尾全部 `progress` 行(dispose 时 `force:true`)                                                                                                                                   | [detection-service.js:129-143](../../../../src/bilibili/gift/detection-service.js#L129-L143)                                                                                    |
+| 兜底 flush   | `flushPending({force})` 收尾本地 `progress` 行(dispose 时 `force:true`)；清空暂停期间禁止 flush，含 dispose，见 [清空静默协议](../storage.md#63-并发写入静默quiesce) | [detection-service.js](../../../../src/bilibili/gift/detection-service.js) |
 | 启动恢复     | `recover()` = flush 待决 + 重放「final 且 `gift_stats_eligible=1` 且 `gift_stats_delivered=0`」事件给消费者                                                                                                   | [detection-service.js:145-155](../../../../src/bilibili/gift/detection-service.js#L145-L155)                                                                                    |
 | 状态快照     | `getStatus()` → `{coreActive, consumers:{giftStatistics, overtime}, pendingCount}`;**`coreActive = giftStatistics \|\| overtime \|\| pendingCount > 0`**                                                      | [detection-service.js:157-168](../../../../src/bilibili/gift/detection-service.js#L157-L168)                                                                                    |
 
@@ -74,6 +74,10 @@ createGiftService (gift/index.js)                    ← domainServices.gifts
 - 平台身份、跨命令与无 combo/batch 标识的同命令近期查重见 §2.1。
 
 ## 4. 盲盒:协议标记 → 配置重命名 → 价值覆盖
+
+当前远端收礼区分常规直送礼物、盲盒商品和盲盒产物。目录 `isBlindBox` 表示盒子本身，产物由准确 ID 的奖池关系关联；服务器按 REQ-GIFT-006 校验有效关系/活动身份后，可为上游漏标的产物补全事件 `isBlindBox`、来源 `blindBoxId`、名称、成本和盈亏。客户端导入这些权威字段，不根据目录自行改变账本。`public/js/admin/gifts/recent.js` 根据事件标记与来源 ID 显示盲盒图片及配色；有限数字盈亏直接显示符号和盈利/亏损颜色，不依赖可空盒名，未知值显示“盈亏待确认”。心动盲盒单盒 15 元、棉花糖 9 元对应 -6 元，爱心抱枕 16 元对应 +1 元。共享奖品来源仍有歧义时成本/盈亏保留未知，旧记录不自动重算。以下本地原始解析逻辑为保留的兼容路径，当前远端流程见 §9。
+
+目录显示与收礼判定分开：`public/js/shared/gift-catalog-roles.js` 根据完整 schema 2 快照生成三类显示标签，`public/js/admin/overtime.js` 在礼物选择器展示标签与对应奖池；服务器网页的 schema 3 标签遵循完整活动身份。索引只随既有目录加载/更新重建，不增加实时传输字段、网络请求或持久化分类，不用于账本判定。共享产物列出全部奖池；身份不符时不显示推测标签，旧请求不得恢复更新后已移除的奖池关系。
 
 协议层只做**标记**(见 [protocol.md](protocol.md) §6.5);进入检测管道后 `applyBlindBoxMetadata(context, gift)`([event-service.js:23-37](../../../../src/bilibili/gift/event-service.js#L23-L37)):
 
@@ -104,9 +108,9 @@ createGiftService (gift/index.js)                    ← domainServices.gifts
 
 原始 B 站包的解析、平台身份去重、连击累计、盲盒价值覆盖和 10 秒静默收尾由 `D:/Work/lira-server` 的每主播 `RoomMonitor`/`gift-detector` 独占。该服务器把 final 行与 delivery cursor 在同一个 SQLite 事务中提交,再通过按 `streamerId` 分桶的内存 broker 加速在线设备投递;旧历史行保留但不会生成新的 delivery cursor。
 
-Electron 只在 main process 使用授权 DeviceBearer 调用 `GET /api/device/gift-events` 和 `GET /api/device/gift-events/stream`。传输 DTO 仅允许 `eventId/cursor/phase/gift` 及礼物展示字段(`giftId/giftName/userName/num/unitPrice/totalPrice/coinType/isBlindBox/blindBoxName/blindBoxPrice/blindProfit/createdAt`),不含 UID、roomId、streamerId、cmd、平台/连击 ID、raw JSON、Cookie、CSRF 或 token。金额规范化为两位小数，要求为正的 `totalPrice` 在规范化后仍必须大于 0；`0.001` 不得作为 `0` 进入本地账本。每组最多一条 `progress` 和一条 `final`;progress 的 cursor 为 null,补拉只返回 final 且单页最多 200 条。
+Electron 只在 main process 使用授权 DeviceBearer 调用 `GET /api/device/gift-events` 和 `GET /api/device/gift-events/stream`。传输 DTO 仅允许 `eventId/cursor/phase/gift` 及礼物展示字段(`giftId/giftName/userName/num/unitPrice/totalPrice/coinType/isBlindBox/blindBoxId/blindBoxName/blindBoxPrice/blindProfit/createdAt`),不含 UID、roomId、streamerId、cmd、平台/连击 ID、raw JSON、Cookie、CSRF 或 token。`blindBoxId` 是规范化的正十进制字符串或 null，旧/未知来源保持 null。金额规范化为两位小数，要求为正的 `totalPrice` 在规范化后仍必须大于 0；`0.001` 不得作为 `0` 进入本地账本。每组最多一条 `progress` 和一条 `final`;progress 的 cursor 为 null,补拉只返回 final 且单页最多 200 条。
 
-首次没有本地游标时只保存服务器最新 cursor,不回放历史;SSE 建立后立即按游标补拉以覆盖建立竞态。SSE 断线、进程崩溃或漏包时,final cursor pull 才是恢复真相源,progress 不补拉。main process 将事件交给 `importProcessedGiftEvent`→`importProcessedEvent`,本地幂等键为 `lira-server:<eventId>`;重复 final 只推进游标,不会重复统计、加班结算、历史/快照或 `gift:frame`。
+具备历史能力的服务按 §9 执行 bootstrap 与来源分区恢复；无历史能力的旧服务只保存 baseline 并显式处于 `LEGACY_PARTIAL`。历史页及 final cursor 和本地礼物投影在同一事务提交。SSE 断线、进程崩溃或漏包后以 final cursor pull 恢复，progress 不补拉；当前幂等身份包含 source 与远端事件身份，重复 final 不重复统计、加班结算或 `gift:frame`。
 
 本地 B 站连接仍负责弹幕、点歌、SC、用户信息和小游戏;仅礼物 detector 回调暂停。B 站上游 WebSocket/REST 断线发生在服务器收到事件之前时没有历史重放或零丢失保证。单进程 broker 不承诺多实例 fan-out,多实例部署需另行设计。
 

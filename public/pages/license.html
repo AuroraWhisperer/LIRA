@@ -2,6 +2,7 @@
 <html lang="zh-CN">
   <head>
     <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="form-action 'none'" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>登录 LIRA</title>
     <link rel="stylesheet" href="/css/styles-base.css" />
@@ -54,142 +55,160 @@
       </header>
 
       <main class="license-main">
-        <section
-          id="licenseLoginCard"
-          class="license-card"
-          aria-labelledby="licenseHeading"
-        >
-          <div class="license-card-heading">
-            <p class="license-kicker">主播工作台</p>
-            <h1 id="licenseHeading">登录 LIRA</h1>
-            <p>首次登录需绑定这台设备</p>
-          </div>
-          <form id="licenseForm" novalidate>
-            <label class="license-field" for="licenseAccountName">
-              <span>用户名</span>
-              <input
-                id="licenseAccountName"
-                name="accountName"
-                type="text"
-                inputmode="text"
-                autocomplete="username"
-                autocapitalize="none"
-                spellcheck="false"
-                maxlength="32"
-                placeholder="请输入用户名"
-                required
-              />
-              <small>小写字母、数字或中划线</small>
-            </label>
-            <div class="license-field">
-              <div class="license-field-label">
-                <label for="licensePassword">密码</label>
-                <lira-help label="密码规则" tooltip-id="licensePasswordRules">
-                  8–64 个字符，必须包含大写英文字母、小写英文字母、数字和半角特殊符号（如 !@#$%）。不允许中文、空格或不可见字符。
-                </lira-help>
-              </div>
-              <div class="license-password-control">
+        <div class="license-stage">
+          <aside class="license-intro" aria-labelledby="licenseWelcomeHeading">
+            <div>
+              <p class="license-intro-label">主播工作台</p>
+              <h2 id="licenseWelcomeHeading">让每一次互动，<br />都有回响。</h2>
+            </div>
+            <div class="license-art" aria-hidden="true">
+              <div class="license-record"></div>
+            </div>
+            <p class="license-intro-caption">
+              <span class="license-signal" aria-hidden="true">
+                <span></span><span></span><span></span><span></span><span></span>
+              </span>
+              点歌 · 弹幕 · 礼物
+            </p>
+          </aside>
+          <section
+            id="licenseLoginCard"
+            class="license-card"
+            aria-labelledby="licenseHeading"
+          >
+            <div class="license-card-heading">
+              <h1 id="licenseHeading">开始使用</h1>
+              <p>首次登录需绑定这台设备</p>
+            </div>
+            <form id="licenseForm" novalidate>
+              <label class="license-field" for="licenseAccountName">
+                <span>用户名</span>
                 <input
-                  id="licensePassword"
-                  name="password"
-                  type="password"
-                  autocomplete="new-password"
+                  id="licenseAccountName"
+                  name="accountName"
+                  type="text"
+                  inputmode="text"
+                  autocomplete="username"
                   autocapitalize="none"
                   spellcheck="false"
-                  aria-describedby="licensePasswordRules"
-                  maxlength="128"
-                  placeholder="8–64 个字符"
+                  maxlength="32"
+                  placeholder="请输入用户名"
                   required
                 />
-                <button
-                  id="licensePasswordToggle"
-                  class="license-password-toggle"
-                  type="button"
-                  aria-label="显示密码"
-                  aria-pressed="false"
-                  aria-controls="licensePassword"
-                  title="显示密码"
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
-                    <use
-                      id="licensePasswordIcon"
-                      href="/img/shared/password-visibility.svg#eye"
-                    />
-                  </svg>
-                </button>
+                <small>小写字母、数字或中划线</small>
+              </label>
+              <div class="license-field">
+                <div class="license-field-label">
+                  <label for="licensePassword">密码</label>
+                  <lira-help label="密码规则" tooltip-id="licensePasswordRules">
+                    已有账号请输入原密码。新密码需 8–64 个 Unicode 字符且 UTF-8 不超过 72 字节；大写字母、小写字母、无大小写字母（如中文）、数字、标点或符号中至少三类。允许空格，但不能含控制或不可见格式字符，也不能使用常见弱密码。由服务器校验。
+                  </lira-help>
+                </div>
+                <div class="license-password-control">
+                  <input
+                    id="licensePassword"
+                    name="password"
+                    type="password"
+                    autocomplete="new-password"
+                    autocapitalize="none"
+                    spellcheck="false"
+                    aria-describedby="licensePasswordRules"
+                    placeholder="请输入密码"
+                    required
+                  />
+                  <button
+                    id="licensePasswordToggle"
+                    class="license-password-toggle"
+                    type="button"
+                    aria-label="显示密码"
+                    aria-pressed="false"
+                    aria-controls="licensePassword"
+                    title="显示密码"
+                  >
+                    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                      <use
+                        id="licensePasswordIcon"
+                        href="/img/shared/password-visibility.svg#eye"
+                      />
+                    </svg>
+                  </button>
+                </div>
               </div>
+              <label class="license-field" for="licenseActivationCode">
+                <span>激活密钥</span>
+                <input
+                  id="licenseActivationCode"
+                  name="activationCode"
+                  type="text"
+                  autocomplete="off"
+                  autocapitalize="characters"
+                  spellcheck="false"
+                  maxlength="128"
+                  placeholder="XXXX-XXXX-XXXX-XXXX"
+                  required
+                />
+                <small>由管理员提供的一次性密钥</small>
+              </label>
+              <p
+                id="licenseStatus"
+                class="license-status"
+                role="status"
+                aria-live="polite"
+              >激活功能正在加载；若长时间无响应，请重启 LIRA。</p>
+              <button id="licenseSubmitBtn" class="license-submit" type="submit" disabled>
+                激活并进入
+                <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M5 12h14m-5-5 5 5-5 5" />
+                </svg>
+              </button>
+              <button
+                id="licenseRetryBtn"
+                class="license-retry"
+                type="button"
+                hidden
+              >
+                重试连接
+              </button>
+            </form>
+          </section>
+          <section
+            id="giftCatalogInitializationCard"
+            class="license-card license-initialization-card"
+            aria-labelledby="giftCatalogInitializationHeading"
+            aria-busy="true"
+            hidden
+          >
+            <div class="license-card-heading">
+              <p class="license-kicker">首次使用准备</p>
+              <h1 id="giftCatalogInitializationHeading">正在为你准备直播工具</h1>
             </div>
-            <label class="license-field" for="licenseActivationCode">
-              <span>激活密钥</span>
-              <input
-                id="licenseActivationCode"
-                name="activationCode"
-                type="text"
-                autocomplete="off"
-                autocapitalize="characters"
-                spellcheck="false"
-                maxlength="128"
-                placeholder="XXXX-XXXX-XXXX-XXXX"
-                required
-              />
-              <small>由管理员提供的一次性密钥</small>
-            </label>
+            <div class="license-progress-heading">
+              <strong id="giftCatalogInitializationPercent">0%</strong>
+            </div>
+            <progress
+              id="giftCatalogInitializationProgress"
+              class="license-progress"
+              max="100"
+              value="0"
+              aria-label="准备进度"
+            ></progress>
             <p
-              id="licenseStatus"
-              class="license-status"
+              id="giftCatalogInitializationStatus"
+              class="license-status license-initialization-status"
               role="status"
               aria-live="polite"
+              hidden
             ></p>
-            <button id="licenseSubmitBtn" class="license-submit" type="submit">
-              激活并进入 LIRA
-            </button>
             <button
-              id="licenseRetryBtn"
+              id="giftCatalogInitializationRetryBtn"
               class="license-retry"
               type="button"
               hidden
             >
-              重试连接
+              重试
             </button>
-          </form>
-        </section>
-        <section
-          id="giftCatalogInitializationCard"
-          class="license-card license-initialization-card"
-          aria-labelledby="giftCatalogInitializationHeading"
-          aria-busy="true"
-          hidden
-        >
-          <div class="license-card-heading">
-            <p class="license-kicker">首次使用准备</p>
-            <h1 id="giftCatalogInitializationHeading">正在为你准备直播工具</h1>
-          </div>
-          <div class="license-progress-heading">
-            <strong id="giftCatalogInitializationPercent">0%</strong>
-          </div>
-          <progress
-            id="giftCatalogInitializationProgress"
-            class="license-progress"
-            max="100"
-            value="0"
-            aria-label="准备进度"
-          ></progress>
-          <p
-            id="giftCatalogInitializationStatus"
-            class="license-status license-initialization-status"
-            role="status"
-            aria-live="polite"
-            hidden
-          ></p>
-          <button
-            id="giftCatalogInitializationRetryBtn"
-            class="license-retry"
-            type="button"
-            hidden
-          >
-            重试
-          </button>
-        </section>
+          </section>
+        </div>
       </main>
     </div>
     <script type="module" src="/js/admin/contextual-help.js"></script>

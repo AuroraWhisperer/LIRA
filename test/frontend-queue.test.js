@@ -1265,7 +1265,7 @@ test('overtime toolbox panel loads its isolated controller and renders untrusted
   );
   assert.match(
     source,
-    /meta\.textContent = `ID \$\{gift\.id\} · ¥\$\{gift\.rmb\.toFixed\(2\)\}/,
+    /meta\.textContent = \[giftRoleLookup\(gift\), `ID \$\{gift\.id\} · ¥\$\{gift\.rmb\.toFixed\(2\)\}`\]\s*\.filter\(Boolean\)\.join\(' · '\)/,
   );
   assert.match(source, /\/api\/overtime\/rules/);
   assert.match(

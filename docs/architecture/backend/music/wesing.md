@@ -5,7 +5,9 @@
 
 本文档是 WeSing(全民 K 歌)**离线歌词采集**的唯一事实源:监视源、日志/QRC 扫描、播放时钟、v3.3.14 的 loading 过渡跟踪、在线兜底打分与 WS 集成只在此成表。消息契约见 [ws.md](../ws.md),设置持久化见 [storage.md](../storage.md) §7,诊断工具见 [engineering/test.md](../../engineering/test.md)。
 
-**内部模块边界:** `wesing-capture.js` 是兼容导出门面；`wesing-capture-engine.js` 拥有采集生命周期和监视样本状态机；`wesing-playback-clock.js` 只维护单调播放时钟；`wesing-lyric-resolver.js` 只决定本地/在线歌词结果；`wesing-qrc-watcher.js` 只管理 QRC 文件监听与防抖。后三者通过显式依赖注入接入引擎，不反向依赖引擎状态。
+**内部模块边界:** `wesing-capture.js` 是兼容导出门面；`wesing-capture-engine.js` 拥有采集生命周期和监视样本状态机；`wesing-playback-clock.js` 只维护单调播放时钟；`wesing-lyric-resolver.js` 只决定本地/在线歌词结果；`wesing-qrc-watcher.js` 只管理 QRC 文件监听与防抖；`wesing-cache.js` 拥有目录、日志、QRC 解密与偏移校验，`wesing-monitor.js` 拥有 PowerShell 进程与脚本组装。后三者通过显式依赖注入接入引擎，不反向依赖引擎状态。
+
+采集器的启停代次使旧目录检查、旧监视样本及延时刷新失效；停用和 `stop()` 同时推进歌词刷新版本。旧歌词结果即使在重新启用后才返回，也不能发布状态或时间线。QRC watcher 单独持有监听代次，关闭后的目录检查、防抖回调和旧文件事件均不能重新创建监听或干扰新会话。
 
 ## 1. 概述
 
@@ -43,7 +45,7 @@ Windows 独有(仅 `platform === 'win32'` 支持):采集全民 K 歌客户端**�
 └──────────────────────┘   └──────────────────────────────┘   └────────────────────────┘
    ▲ fs.watch 递归(2s 防抖,.qrc 过滤)    │ refreshVersion 竞态守卫
    └─────────────────────────────────────┴────────────► 行模型 lyrics[]
-                                                        │ updateLyricState: currentMs + lyricOffsetMs(±1500)
+                                                        │ updateLyricState: currentMs + lyricOffsetMs(±3000)
                                                         │ findCurrentLyricLine 二分 → lyricState
                                                         ▼
                                    WS: wesing-state / lyric-state / lyric-timeline(见 ws.md §3)
@@ -53,24 +55,24 @@ Windows 独有(仅 `platform === 'win32'` 支持):采集全民 K 歌客户端**�
 
 | 常量                       | 值                                                | 出处                                                                           |
 | -------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `LOG_TAIL_BYTES`           | 100 KB(日志尾部扫描窗口)                          | [wesing-capture.js:12](../../../../src/music/wesing-capture.js#L12)            |
-| `MAX_QRC_BYTES`            | 4 MB(单个 QRC 文件上限)                           | [wesing-capture.js:13](../../../../src/music/wesing-capture.js#L13)            |
-| `MAX_FALLBACK_FILES`       | 80(目录扫描兜底文件数上限)                        | [wesing-capture.js:14](../../../../src/music/wesing-capture.js#L14)            |
-| `PAUSED_AFTER_MS`          | 1500(进度停滞 1.5s 判暂停)                        | [wesing-capture.js:15](../../../../src/music/wesing-capture.js#L15)            |
-| `PROGRESS_COMPENSATION_MS` | 130(进度采样补偿)                                 | [wesing-capture.js:16](../../../../src/music/wesing-capture.js#L16)            |
-| `QRC_REFRESH_DEBOUNCE_MS`  | 2000(fs.watch 防抖)                               | [wesing-capture.js:17](../../../../src/music/wesing-capture.js#L17)            |
-| `MIN/MAX_LYRIC_OFFSET_MS`  | ±1500(歌词时间偏移夹取)                           | [wesing-capture.js:18-19](../../../../src/music/wesing-capture.js#L18-L19)     |
-| `SAFE_SONG_MID`            | `/^[a-zA-Z0-9_-]{1,128}$/`(mid 白名单,防路径穿越) | [wesing-capture.js:20](../../../../src/music/wesing-capture.js#L20)            |
-| PowerShell 轮询间隔        | 默认 100ms,clamp 100–5000                         | [wesing-capture.js:780-783](../../../../src/music/wesing-capture.js#L780-L783) |
+| `LOG_TAIL_BYTES`           | 100 KB(日志尾部扫描窗口)                          | [wesing-cache.js](../../../../src/music/wesing-cache.js)            |
+| `MAX_QRC_BYTES`            | 4 MB(单个 QRC 文件上限)                           | [wesing-cache.js](../../../../src/music/wesing-cache.js)            |
+| `MAX_FALLBACK_FILES`       | 80(目录扫描兜底文件数上限)                        | [wesing-cache.js](../../../../src/music/wesing-cache.js)            |
+| `PAUSED_AFTER_MS`          | 1500(进度停滞 1.5s 判暂停)                        | [wesing-capture-engine.js](../../../../src/music/wesing-capture-engine.js)            |
+| `PROGRESS_COMPENSATION_MS` | 130(进度采样补偿)                                 | [wesing-capture-engine.js](../../../../src/music/wesing-capture-engine.js)            |
+| `QRC_REFRESH_DEBOUNCE_MS`  | 2000(fs.watch 防抖)                               | [wesing-qrc-watcher.js](../../../../src/music/wesing-qrc-watcher.js)            |
+| `MIN/MAX_LYRIC_OFFSET_MS`  | ±3000(歌词时间偏移夹取)                           | [wesing-cache.js](../../../../src/music/wesing-cache.js)     |
+| `SAFE_SONG_MID`            | `/^[a-zA-Z0-9_-]{1,128}$/`(mid 白名单,防路径穿越) | [wesing-cache.js](../../../../src/music/wesing-cache.js)            |
+| PowerShell 轮询间隔        | 默认 100ms,clamp 100–5000                         | [wesing-monitor.js](../../../../src/music/wesing-monitor.js) |
 
 ## 4. 监视源(两层)
 
-### 4.1 PowerShell 外壳(createPowerShellWeSingMonitor,[wesing-capture.js:724-776](../../../../src/music/wesing-capture.js#L724-L776))
+### 4.1 PowerShell 外壳(createPowerShellWeSingMonitor,[wesing-monitor.js](../../../../src/music/wesing-monitor.js))
 
 - 启动参数:`powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command <command>`,`windowsHide: true`
-- **脚本注入方式(v3.3.13 起)**:脚本 UTF-8 编码 → Base64 → `[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('<b64>')) | Invoke-Expression`([wesing-capture.js:735-739](../../../../src/music/wesing-capture.js#L735-L739));替换了旧版 UTF-16 `-EncodedCommand`(解决中文编码问题)
+- **脚本注入方式(v3.3.13 起)**:脚本 UTF-8 编码 → Base64 → `[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('<b64>')) | Invoke-Expression`([wesing-monitor.js](../../../../src/music/wesing-monitor.js));替换了旧版 UTF-16 `-EncodedCommand`(解决中文编码问题)
 - stdout 按行解析:每行非空即 `JSON.parse` 成样本喂 `onSample`,半行残留攒到下一块;stderr 保留最近 2000 字符;非主动停止的退出(exit 非 0)上报 `{error}`
-- `buildPowerShellMonitorScript(options)`([wesing-capture.js:778-876](../../../../src/music/wesing-capture.js#L778-L876)):内嵌 C# 源码 `Add-Type -TypeDefinition … -ReferencedAssemblies Accessibility` 编译;每轮:找进程 → 音频快照 → 找播放窗口 → MSAA 进度 → UIA 兜底 → `ConvertTo-Json -Compress` 输出 + `Start-Sleep`
+- `buildPowerShellMonitorScript(options)`([wesing-monitor.js](../../../../src/music/wesing-monitor.js)):内嵌 C# 源码 `Add-Type -TypeDefinition … -ReferencedAssemblies Accessibility` 编译;每轮:找进程 → 音频快照 → 找播放窗口 → MSAA 进度 → UIA 兜底 → `ConvertTo-Json -Compress` 输出 + `Start-Sleep`
 
 ### 4.2 C# 原生监视源(WESING_NATIVE_MONITOR_SOURCE,[wesing-native-monitor-source.js:3-351](../../../../src/music/wesing-native-monitor-source.js#L3-L351))
 
@@ -82,23 +84,23 @@ Windows 独有(仅 `platform === 'win32'` 支持):采集全民 K 歌客户端**�
 | `GetAccessiblePlaybackSnapshot(handle)` | MSAA:`AccessibleObjectFromWindow(OBJID_CLIENT = 0xFFFFFFFC)` 拿 `IAccessible` 根,深度优先遍历(`MaximumAccessibleDepth = 20`、`MaximumAccessibleNodes = 3000` 双上限);每个节点 `get_accName` 匹配 `^\s*(\d{1,3}):(\d{2})\s*\|\s*(\d{1,3}):(\d{2})\s*$`(**MM:SS \| MM:SS 双进度**),校验 `total > 0 && 0 ≤ current ≤ total` 后返回 `{CurrentSec, TotalSec}`;任何节点名含 `"歌曲加载中"` 置 `Loading = true`([wesing-native-monitor-source.js:91-186](../../../../src/music/wesing-native-monitor-source.js#L91-L186)) |
 | `GetAudioSessionSnapshot(processIds)`   | WASAPI:默认音频端点(渲染流)→ `IAudioSessionManager2.GetSessionEnumerator` 遍历会话,`IAudioSessionControl2.GetProcessId` 匹配进程 → `GetState`(Active=1 即 `audioActive`)+ `IAudioMeterInformation.GetPeakValue`(跨会话取峰);无匹配会话 `State = -1`([wesing-native-monitor-source.js:193-253](../../../../src/music/wesing-native-monitor-source.js#L193-L253))                                                                                                                                                    |
 
-PowerShell 侧兜底:**MSAA 未给出进度时**,UIAutomation 从窗口句柄 `AutomationElement.FromHandle` 找全部 Text 控件,`Name` 匹配同一正则即 `progressSource: 'uia'`,含"歌曲加载中"同样置 loading([wesing-capture.js:822-838](../../../../src/music/wesing-capture.js#L822-L838));`includeDiagnostics` 开启时额外收集控件清单(≤250 行,仅 Button/Text/Slider)。
+PowerShell 侧兜底:**MSAA 未给出进度时**,UIAutomation 从窗口句柄 `AutomationElement.FromHandle` 找全部 Text 控件,`Name` 匹配同一正则即 `progressSource: 'uia'`,含"歌曲加载中"同样置 loading([wesing-monitor.js](../../../../src/music/wesing-monitor.js));`includeDiagnostics` 开启时额外收集控件清单(≤250 行,仅 Button/Text/Slider)。
 
 ## 5. 缓存/日志扫描与 QRC 歌词
 
-### 5.1 日志扫描(findLatestSongEntry,[wesing-capture.js:48-99](../../../../src/music/wesing-capture.js#L48-L99))
+### 5.1 日志扫描(findLatestSongEntry,[wesing-cache.js](../../../../src/music/wesing-cache.js))
 
 1. `Log/WeSing/` 下全部 `*.log` 按 mtime 降序取**最新文件**
 2. 尾部 `LOG_TAIL_BYTES = 100KB`,起始偏移按 `& ~1` **偶数对齐**(UTF-16LE 防半个字符)
 3. 整块 `utf16le` 解码,按行**倒序**找含 `"StartKSong"` 的行,正则提取 `"mid"` 与 `"songname"`(`decodeJsonString` 解转义)
 4. `SAFE_SONG_MID` 校验失败整体返回 null;传入期望标题时按 `normalizeTitle`(去"全民K歌 - "前缀 + 去空白 + 小写)过滤
 
-### 5.2 QRC 歌词加载(loadWeSingLyrics,[wesing-capture.js:101-126](../../../../src/music/wesing-capture.js#L101-L126))
+### 5.2 QRC 歌词加载(loadWeSingLyrics,[wesing-cache.js](../../../../src/music/wesing-cache.js))
 
 1. 日志命中 → 直读 `WeSingDL/Res/<mid>/<mid>.qrc`(tryReadQrc 成功即返回)
-2. 兜底:目录扫描 `listRecentQrcFiles`([wesing-capture.js:128-152](../../../../src/music/wesing-capture.js#L128-L152))——`SAFE_SONG_MID` 子目录批量(每批 100)stat 各自的 `.qrc`(`0 < size ≤ 4MB`),按 mtime 降序取最多 80 个,逐个解析直至标题匹配(`normalizeTitle` 相等)
+2. 兜底:目录扫描 `listRecentQrcFiles`([wesing-cache.js](../../../../src/music/wesing-cache.js))——`SAFE_SONG_MID` 子目录批量(每批 100)stat 各自的 `.qrc`(`0 < size ≤ 4MB`),按 mtime 降序取最多 80 个,逐个解析直至标题匹配(`normalizeTitle` 相等)
 
-### 5.3 QRC 解密与解析(tryReadQrc / parseQrcDocument,[wesing-capture.js:154-209](../../../../src/music/wesing-capture.js#L154-L209))
+### 5.3 QRC 解密与解析(tryReadQrc / parseQrcDocument,[wesing-cache.js](../../../../src/music/wesing-cache.js))
 
 ```
 1. 读文件(≤4MB)→ 前 8 字节 ASCII 为 "[offset:" 时剥掉首个换行前的内容
@@ -114,7 +116,7 @@ PowerShell 侧兜底:**MSAA 未给出进度时**,UIAutomation 从窗口句柄 `A
 
 `toLyricResult` 汇出 `{songMid, title, artists, durationMs, lines}`;`loadWeSingLyrics` 命中后调用方补 `source: 'wesing'`。
 
-### 5.4 缓存目录监视(syncQrcWatcher,[wesing-capture.js:652-690](../../../../src/music/wesing-capture.js#L652-L690))
+### 5.4 缓存目录监视(syncQrcWatcher,[wesing-qrc-watcher.js](../../../../src/music/wesing-qrc-watcher.js))
 
 - active + 目录存在时 `fs.watch(cachePath, {recursive: true})`;`unref()` 防阻塞退出
 - `handleQrcWatchEvent` 只认 `*.qrc` 事件;`QRC_REFRESH_DEBOUNCE_MS = 2s` 防抖后 `refreshLyrics(state.trackTitle)`;切目录先停旧 watcher
@@ -122,13 +124,13 @@ PowerShell 侧兜底:**MSAA 未给出进度时**,UIAutomation 从窗口句柄 `A
 
 ## 6. 播放时钟
 
-### 6.1 单调外推(performance.now(),[wesing-capture.js:519-554](../../../../src/music/wesing-capture.js#L519-L554))
+### 6.1 单调外推(performance.now(),[wesing-playback-clock.js](../../../../src/music/wesing-playback-clock.js))
 
 - `now` 可注入,默认 `performance.now()`(monotonic,不受系统时间跳变影响)
 - 时钟 = `baseMs + (running ? now - startedAt : 0)`,`readPlaybackClock` 再夹到 `[0, durationMs]`(`state.durationMs || lyricDurationMs`)
 - `setPlaybackClock(ms, ts)` 设基准并停走;`startPlaybackClock` 起走(幂等);`pausePlaybackClock` 冻结当前值;`resetPlaybackClock` 归零并清 `lastProgressMs`/`hasStartedCurrentTrack`
 
-### 6.2 采样对齐(handleMonitorSample,[wesing-capture.js:348-517](../../../../src/music/wesing-capture.js#L348-L517))
+### 6.2 采样对齐(handleMonitorSample,[wesing-capture-engine.js](../../../../src/music/wesing-capture-engine.js))
 
 每个样本按分支顺序处理:
 
@@ -156,9 +158,9 @@ PowerShell 侧兜底:**MSAA 未给出进度时**,UIAutomation 从窗口句柄 `A
 
 | 事件                                                          | 行为                                                                                                                    | 出处                                                                                                                                                                                                                                                                                                                           |
 | ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 采样 `loading === true`                                       | `loadingTrackTitle = title`,重置时钟(进度此时不可信)                                                                    | [wesing-capture.js:427-436](../../../../src/music/wesing-capture.js#L427-L436)                                                                                                                                                                                                                                                 |
-| **loading 标记消失且标题未变**(`loadingTrackTitle === title`) | 清标记,`pendingRefresh = refresh()` —— **恰好触发一次歌词刷新**(`refresh` 内部按 `state.trackTitle` 走 `refreshLyrics`) | [wesing-capture.js:438-441](../../../../src/music/wesing-capture.js#L438-L441)                                                                                                                                                                                                                                                 |
-| 标题变化 / 平台丢失 / 标题清空 / 停用 / stop                  | 清 `loadingTrackTitle`(未触发的刷新作废)                                                                                | [wesing-capture.js:391-400](../../../../src/music/wesing-capture.js#L391-L400)、[wesing-capture.js:379-388](../../../../src/music/wesing-capture.js#L379-L388)、[wesing-capture.js:413-415](../../../../src/music/wesing-capture.js#L413-L415)、[wesing-capture.js:296,713](../../../../src/music/wesing-capture.js#L296-L713) |
+| 采样 `loading === true`                                       | `loadingTrackTitle = title`,重置时钟(进度此时不可信)                                                                    | [wesing-capture-engine.js](../../../../src/music/wesing-capture-engine.js)                                                                                                                                                                                                                                                 |
+| **loading 标记消失且标题未变**(`loadingTrackTitle === title`) | 清标记,`pendingRefresh = refresh()` —— **恰好触发一次歌词刷新**(`refresh` 内部按 `state.trackTitle` 走 `refreshLyrics`) | [wesing-capture-engine.js](../../../../src/music/wesing-capture-engine.js)                                                                                                                                                                                                                                                 |
+| 标题变化 / 平台丢失 / 标题清空 / 停用 / stop                  | 清 `loadingTrackTitle`(未触发的刷新作废)                                                                                | [wesing-capture-engine.js](../../../../src/music/wesing-capture-engine.js)、[wesing-capture-engine.js](../../../../src/music/wesing-capture-engine.js)、[wesing-capture-engine.js](../../../../src/music/wesing-capture-engine.js)、[wesing-capture-engine.js](../../../../src/music/wesing-capture-engine.js) |
 
 动机:加载期间日志里可能已有新歌的 StartKSong、磁盘也刚开始写 QRC——标记消失是"播放真正开始"的最佳时机,一次刷新即可拿到新歌词,避免空轮询。
 
@@ -166,18 +168,18 @@ PowerShell 侧兜底:**MSAA 未给出进度时**,UIAutomation 从窗口句柄 `A
 
 ### 7.1 偏移(lyricOffsetMs)
 
-- 校验 `normalizeWeSingLyricOffsetMs`(±1500,取整,[wesing-capture.js:38-46](../../../../src/music/wesing-capture.js#L38-L46));`setLyricOffsetMs` 先持久化再生效([wesing-capture.js:274-284](../../../../src/music/wesing-capture.js#L274-L284))
-- 生效点 `updateLyricState`([wesing-capture.js:610-628](../../../../src/music/wesing-capture.js#L610-L628)):`lyricCurrentMs = clamp(0, currentMs + offset)` 再夹到时长;`findCurrentLyricLine` 二分取当前行,产出 `lyricState`(经 `normalizeLyricState`,字段契约见 [services.md](services.md) §13)
+- 校验 `normalizeWeSingLyricOffsetMs`(±3000,取整,[wesing-cache.js](../../../../src/music/wesing-cache.js));`setLyricOffsetMs` 先持久化再生效([wesing-capture-engine.js](../../../../src/music/wesing-capture-engine.js))
+- 生效点 `updateLyricState`([wesing-capture-engine.js](../../../../src/music/wesing-capture-engine.js)):`lyricCurrentMs = clamp(0, currentMs + offset)` 再夹到时长;`findCurrentLyricLine` 二分取当前行,产出 `lyricState`(经 `normalizeLyricState`,字段契约见 [services.md](services.md) §13)
 - 设置键 `weSingCachePath` / `weSingLyricOffsetMs`,持久化见 [storage.md](../storage.md) §7
 - 未手动配置时,缓存目录默认按当前 Windows 用户的 `%APPDATA%\\Tencent\\WeSing\\WeSingCache` 生成;保存目录或首次启用检测时会递归创建缺失的 `WeSingCache` 目录
 
 ### 7.2 刷新竞态
 
-`refreshLyrics(title)`([wesing-capture.js:556-608](../../../../src/music/wesing-capture.js#L556-L608)):`version = ++refreshVersion`;本地加载 + 在线兜底(§8)都完成后校验 `version !== refreshVersion || title !== state.trackTitle` 则丢弃结果(切歌/重复刷新的旧结果不得落地)。无结果 → `qrcReady:false, status:'empty'`;有行 → `qrcReady:true, status:'ready'`,`durationMs` 缺失时用歌词时长补。`resetLyrics` 同样 `refreshVersion++` 使在途刷新失效。
+`refreshLyrics(title)`([wesing-capture-engine.js](../../../../src/music/wesing-capture-engine.js)):`version = ++refreshVersion`;本地加载 + 在线兜底(§8)都完成后校验 `version !== refreshVersion || title !== state.trackTitle` 则丢弃结果(切歌/重复刷新的旧结果不得落地)。无结果 → `qrcReady:false, status:'empty'`;有行 → `qrcReady:true, status:'ready'`,`durationMs` 缺失时用歌词时长补。`resetLyrics` 同样 `refreshVersion++` 使在途刷新失效。
 
 ## 8. 在线兜底(wesing-online-lyrics.js)
 
-`createWeSingOnlineLyricResolver({ getRegistry, lyricsService, platforms, preferredPlatform })`([wesing-online-lyrics.js:15-56](../../../../src/music/wesing-online-lyrics.js#L15-L56))返回 `resolveWeSingOnlineLyrics({title, artist?, artists?, durationMs})`,由 [server.js:167-170](../../../../src/server.js#L167-L170) 注入 weSingCapture 的 `resolveFallbackLyrics`。采集器会从匹配标题的最新 `StartKSong` 日志记录提取 `artist`/`singer` 等歌手字段；歌手存在时在线搜索关键词为“歌名 歌手”，并将歌手一致性纳入候选打分。
+`createWeSingOnlineLyricResolver({ getRegistry, lyricsService, platforms, preferredPlatform })`([wesing-online-lyrics.js:15-56](../../../../src/music/wesing-online-lyrics.js#L15-L56))返回 `resolveWeSingOnlineLyrics({title, artist?, artists?, durationMs})`,由 [music-runtime.js](../../../../src/server/music-runtime.js) 注入 weSingCapture 的 `resolveFallbackLyrics`。采集器会从匹配标题的最新 `StartKSong` 日志记录提取 `artist`/`singer` 等歌手字段；歌手存在时在线搜索关键词为“歌名 歌手”，并将歌手一致性纳入候选打分。
 
 | 常量                    | 值                   | 出处                                                                          |
 | ----------------------- | -------------------- | ----------------------------------------------------------------------------- |
@@ -198,7 +200,7 @@ PowerShell 侧兜底:**MSAA 未给出进度时**,UIAutomation 从窗口句柄 `A
 
 ## 9. createWeSingCapture 契约
 
-### 9.1 选项([wesing-capture.js:211-226](../../../../src/music/wesing-capture.js#L211-L226))
+### 9.1 选项([wesing-capture-engine.js](../../../../src/music/wesing-capture-engine.js))
 
 | 选项                                  | 默认                            | 说明                                                       |
 | ------------------------------------- | ------------------------------- | ---------------------------------------------------------- |
@@ -212,7 +214,7 @@ PowerShell 侧兜底:**MSAA 未给出进度时**,UIAutomation 从窗口句柄 `A
 | `saveCachePath` / `saveLyricOffsetMs` | 无                              | 设置持久化回调(写 `weSingCachePath`/`weSingLyricOffsetMs`) |
 | `cachePath` / `lyricOffsetMs`         | 无                              | 初始值(非法值安全降级:空串 / 0)                            |
 
-### 9.2 状态对象([wesing-capture.js:244-262](../../../../src/music/wesing-capture.js#L244-L262))
+### 9.2 状态对象([wesing-capture-engine.js](../../../../src/music/wesing-capture-engine.js))
 
 `getStatus()` 深拷贝快照:字段见 §2 图中 `wesing-state` 载荷,含 `status` 枚举与文案:
 
@@ -228,29 +230,29 @@ PowerShell 侧兜底:**MSAA 未给出进度时**,UIAutomation 从窗口句柄 `A
 
 另有 `cacheReady`(WeSingDL/Res 存在)、`platformDetected`、`qrcReady`、`songMid`、`lyricSource`(`wesing`/`qq`/`netease`)、`currentMs`/`durationMs`/`playing`/`waitingForPlayback`/`lyricOffsetMs`、内嵌 `lyricState`(normalizeLyricState 产物)。
 
-### 9.3 返回 API([wesing-capture.js:721](../../../../src/music/wesing-capture.js#L721))
+### 9.3 返回 API([wesing-capture-engine.js](../../../../src/music/wesing-capture-engine.js))
 
 | 方法                      | 行为                                                                                                                     |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
 | `getStatus()`             | 状态深拷贝                                                                                                               |
 | `setCachePath(input)`     | 校验 + 停 watcher + 持久化 + `resetLyrics` + `refresh`;返回新状态                                                        |
-| `setLyricOffsetMs(input)` | ±1500 校验 + 持久化 + 立即重算 lyricState 并 emit                                                                        |
+| `setLyricOffsetMs(input)` | ±3000 校验 + 持久化 + 立即重算 lyricState 并 emit                                                                        |
 | `setActive(active)`       | 启停总开关:停 = 停监视/watcher/时钟;启 = supported 检查 → `monitor.start()` → `refresh`                                  |
 | `refresh()`               | 重查 `cacheReady` + 同步 watcher;有标题则 `refreshLyrics`(有 `waitForRefresh` 可等待在途刷新)                            |
-| `stop()`                  | 关闭一切(服务关闭时序调用点 [server.js:772](../../../../src/server.js#L772),见 [server-core.md](../server-core.md) §6.2) |
+| `stop()`                  | 关闭一切(服务关闭时序调用点 [server.js](../../../../src/server.js),见 [server-core.md](../server-core.md) §6.2) |
 
 ## 10. WS 集成与本地端点
 
-装配([server.js:171-192](../../../../src/server.js#L171-L192)):
+装配([music-runtime.js](../../../../src/server/music-runtime.js)):
 
 | 回调                   | 广播                                                                                                                                                                                |
 | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `onState(state)`       | `{type:'wesing-state', state}`;且 active 且有 `lyricState` 时同步为全局 `lyricState` 并广播 `{type:'lyric-state', state}`([server.js:183-188](../../../../src/server.js#L183-L188)) |
-| `onTimeline(timeline)` | `timeline.active` 时经 `publishLyricTimeline` 归一化后广播 `{type:'lyric-timeline', timeline}`([server.js:189-191](../../../../src/server.js#L189-L191))                            |
+| `onState(state)`       | `{type:'wesing-state', state}`;且 active 且有 `lyricState` 时同步为全局 `lyricState` 并广播 `{type:'lyric-state', state}`([music-runtime.js](../../../../src/server/music-runtime.js)) |
+| `onTimeline(timeline)` | `timeline.active` 时经 `publishLyricTimeline` 归一化后广播 `{type:'lyric-timeline', timeline}`([music-runtime.js](../../../../src/server/music-runtime.js))                            |
 
-消息契约归属 [ws.md](../ws.md) §3;快照 16 字段中的 `weSing` 取 `weSingCapture.getStatus()`([server.js:519](../../../../src/server.js#L519))。
+消息契约归属 [ws.md](../ws.md) §3;快照 17 字段中的 `weSing` 取 `weSingCapture.getStatus()`([music-runtime.js](../../../../src/server/music-runtime.js))。
 
-本地端点前缀为 `/api/music/wesing/*`(端点清单与请求体见 [api.md](../api.md) 的 wesing-routes 节,此处不枚举):全部路由转发到 `context.weSing` 门面([server.js:354-360](../../../../src/server.js#L354-L360)),统一 `{ok, data}` 包装、业务失败回 400;`configure`/`offset` 在门面内完成设置持久化(§9.1 的 save 回调),`active`/`refresh` 直接透传采集器。
+本地端点前缀为 `/api/music/wesing/*`(端点清单与请求体见 [api.md](../api.md) 的 wesing-routes 节,此处不枚举):全部路由转发到 `context.weSing` 门面([api-context.js](../../../../src/server/api-context.js)),统一 `{ok, data}` 包装、业务失败回 400;`configure`/`offset` 在门面内完成设置持久化(§9.1 的 save 回调),`active`/`refresh` 直接透传采集器。
 
 ## 11. 诊断工具
 

@@ -248,7 +248,7 @@ export function describeDanmakuConnection(liveStatus, localConnected) {
   }
   const connected = Boolean(liveStatus.connected);
   return {
-    text: message || (connected ? '弹幕接收中' : 'B站弹幕连接中'),
+    text: message || (connected ? '弹幕接收中' : '弹幕连接中'),
     connected,
   };
 }

@@ -9,8 +9,7 @@ function createDesktopState() {
     lifecycle: {
       runtime: null,
       shutdown: null,
-      gracefulQuitStarted: false,
-      forceQuitTimer: null,
+      shutdownPromise: null,
     },
     media: {
       headersConfigured: false,

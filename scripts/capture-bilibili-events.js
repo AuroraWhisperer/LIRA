@@ -113,37 +113,58 @@ async function captureEvents(options) {
     parseErrorCount: 0,
   };
   let timer = null;
+  let connectTimer = null;
   let stopping = false;
-  let finishCapture;
-  const completion = new Promise((resolve) => {
-    finishCapture = resolve;
+  let connected = false;
+  let failure = null;
+  let requestStop;
+  let pendingWrites = Promise.resolve();
+  const writeWait = new AbortController();
+  const stopped = new Promise((resolve) => {
+    requestStop = resolve;
+  });
+
+  function stop(reason, error) {
+    failure ??= error;
+    if (failure) writeWait.abort();
+    if (stopping) return;
+    stopping = true;
+    summary.stoppedAt = new Date().toISOString();
+    summary.reason = reason;
+    requestStop();
+  }
+
+  function onWriterError(error) {
+    stop('output-error', error);
+  }
+
+  writer.on('error', onWriterError);
+  // Wait for close as well as finish: closing the file descriptor can fail.
+  const writerClosed = new Promise((resolve) => {
+    writer.once('close', () => {
+      if (!writer.writableFinished && !failure) {
+        stop('output-error', new Error('Capture output closed before finishing'));
+      }
+      resolve();
+    });
   });
 
   function writeRecord(record) {
-    writer.write(`${JSON.stringify(record)}\n`);
-  }
-
-  async function stop(reason) {
-    if (stopping) return;
-    stopping = true;
-    clearTimeout(timer);
-    process.off('SIGINT', onSignal);
-    summary.stoppedAt = new Date().toISOString();
-    summary.reason = reason;
-    writeRecord(summary);
-    connection.close();
-    writer.end();
-    await once(writer, 'finish');
-    finishCapture();
+    pendingWrites = pendingWrites.then(async () => {
+      if (failure) return;
+      if (!writer.write(`${JSON.stringify(record)}\n`)) {
+        await once(writer, 'drain', { signal: writeWait.signal });
+      }
+    }).catch(onWriterError);
+    return pendingWrites;
   }
 
   function onSignal() {
-    stop('interrupted').catch((error) =>
-      console.error(`[Capture] shutdown failed: ${error.message}`),
-    );
+    stop('interrupted');
   }
 
   connection.on('message', (buffer) => {
+    if (stopping) return;
     try {
       for (const message of packetParser.parseBilibiliPackets(buffer)) {
         if (!shouldCaptureMessage(message, options.giftOnly)) continue;
@@ -158,17 +179,25 @@ async function captureEvents(options) {
     }
   });
   connection.on('close', () => {
-    if (!stopping)
-      stop('connection-closed').catch((error) =>
-        console.error(`[Capture] shutdown failed: ${error.message}`),
-      );
+    stop('connection-closed', connected ? null : new Error('弹幕 WebSocket 连接已关闭。'));
   });
-  connection.on('error', () => {
+  connection.on('error', (error) => {
     console.warn('[Capture] WebSocket reported an error');
+    stop('connection-error', error instanceof Error ? error : new Error('弹幕 WebSocket 连接失败。'));
   });
 
   try {
-    await connection.connect(
+    await once(writer, 'open', { signal: writeWait.signal });
+    process.once('SIGINT', onSignal);
+    // Own the open timeout here so stopping during connect cancels every wait.
+    const opened = new Promise((resolve) => connection.on('open', () => {
+      connected = true;
+      resolve();
+    }));
+    connectTimer = setTimeout(() => {
+      stop('connection-error', new Error('弹幕 WebSocket 连接超时，请稍后重试。'));
+    }, 8000);
+    const connecting = connection.connect(
       `wss://${host.host}:${host.wss_port || 443}/sub`,
       {
         uid: apiClient.uid || 0,
@@ -178,31 +207,53 @@ async function captureEvents(options) {
         type: 2,
         key: danmuInfo.token,
       },
-      { waitForOpen: true },
     );
-
-    writeRecord({
-      type: 'meta',
-      startedAt: new Date().toISOString(),
-      roomId: String(roomInfo.roomId),
-      giftOnly: options.giftOnly,
-      authenticated: Boolean(apiClient.cookieHeader && apiClient.uid),
-      uid: apiClient.uid || 0,
-    });
-    process.once('SIGINT', onSignal);
-    timer = setTimeout(() => {
-      stop('duration-elapsed').catch((error) =>
-        console.error(`[Capture] shutdown failed: ${error.message}`),
-      );
-    }, options.durationMs);
-    await completion;
+    await Promise.race([Promise.all([connecting, opened]), stopped]);
+    clearTimeout(connectTimer);
+    if (!stopping) {
+      await writeRecord({
+        type: 'meta',
+        startedAt: new Date().toISOString(),
+        roomId: String(roomInfo.roomId),
+        giftOnly: options.giftOnly,
+        authenticated: Boolean(apiClient.cookieHeader && apiClient.uid),
+        uid: apiClient.uid || 0,
+      });
+    }
+    if (!stopping) {
+      timer = setTimeout(() => stop('duration-elapsed'), options.durationMs);
+    }
+    await stopped;
   } catch (error) {
-    connection.close();
-    writer.destroy();
-    throw error;
+    stop('capture-error', error);
   }
 
-  return summary;
+  return completeCapture();
+
+  async function completeCapture() {
+    clearTimeout(timer);
+    clearTimeout(connectTimer);
+    process.off('SIGINT', onSignal);
+    try {
+      connection.clearHandlers();
+      connection.close();
+    } catch (error) {
+      onWriterError(error);
+    }
+    await pendingWrites;
+    if (!failure) await writeRecord(summary);
+    try {
+      if (failure) writer.destroy();
+      else writer.end();
+    } catch (error) {
+      onWriterError(error);
+      writer.destroy();
+    }
+    await writerClosed;
+    writer.off('error', onWriterError);
+    if (failure) throw failure;
+    return summary;
+  }
 }
 
 async function loadBilibiliDesktopAuth(userDataPath) {

@@ -60,7 +60,6 @@ const EMPTY_CATCH_LIMITS = {
   'src/bilibili/danmaku/websocket-connection.js': 3,
   'src/bilibili/parsers/packet-decoder.js': 1,
   'src/electron/bilibili-login-window.js': 1,
-  'src/electron/ipc/update-ipc.js': 1,
   'src/electron/local-media-access.js': 1,
   'src/electron/terminal-log.js': 2,
   'src/music/music-cache.js': 2,

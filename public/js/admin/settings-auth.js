@@ -49,7 +49,7 @@ export function initBilibiliAuth({
     avatarEl.alt = avatarSource
       ? name
         ? `${name}的头像`
-        : 'Bilibili 账号头像'
+        : '直播账号头像'
       : '';
     if (avatarSource) avatarEl.src = avatarSource;
     else avatarEl.removeAttribute('src');
@@ -66,7 +66,7 @@ export function initBilibiliAuth({
     statusEl.textContent = 'Web 模式（不可用）';
     statusEl.className = 'pill';
     loginBtn.disabled = true;
-    loginBtn.title = 'Bilibili 扫码登录仅在桌面版中可用';
+    loginBtn.title = '直播账号扫码登录仅在桌面版中可用';
     return;
   }
 
@@ -122,7 +122,7 @@ export function initBilibiliAuth({
             new CustomEvent('app:bilibili-auth-changed'),
           );
           toast(
-            'Bilibili 登录成功；凭据只属于当前 LIRA 账号。云端凭据保存成功且直播间已配置并启用后，才开始接收弹幕和礼物。',
+            '直播账号登录成功；凭据只属于当前 LIRA 账号。云端凭据保存成功且直播间已配置并启用后，才开始接收弹幕和礼物。',
           );
         }
       }
@@ -130,16 +130,16 @@ export function initBilibiliAuth({
       toast('登录失败：' + (error.message || String(error)));
     } finally {
       loginBtn.disabled = false;
-      loginBtn.textContent = '📱 扫码登录 Bilibili';
+      loginBtn.textContent = '📱 扫码登录直播账号';
     }
   });
 
   logoutBtn.addEventListener('click', async () => {
     const confirmed = await logoutConfirm({
       title: '退出登录',
-      platform: 'Bilibili',
+      platform: '直播平台',
       message:
-        '退出后会同步当前 LIRA 账号的 Bilibili 退出状态；同步成功后停止该账号的云端监听。离线时不会回退为匿名采集。',
+        '退出后会同步当前 LIRA 账号的直播账号退出状态；同步成功后停止该账号的云端监听。离线时不会回退为匿名采集。',
       icon: '→',
       confirmLabel: '确认退出',
     });
@@ -154,7 +154,7 @@ export function initBilibiliAuth({
         new CustomEvent('app:bilibili-auth-changed'),
       );
       toast(
-        'Bilibili 已退出；当前 LIRA 账号的云端状态需在同步成功后生效，不会回退为匿名采集。',
+        '直播账号已退出；当前 LIRA 账号的云端状态需在同步成功后生效，不会回退为匿名采集。',
       );
     } catch (error) {
       toast('退出失败：' + (error.message || String(error)));

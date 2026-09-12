@@ -20,6 +20,7 @@ export function createOvertimeRuleEditor(root, markDirty, dependencies = {}) {
     createHelp,
     document: documentRef,
     getLimits,
+    markDirty,
     nextControlId: (kind) => `overtime-rule-${kind}-${++ruleControlSequence}`,
     updateRuleSummary,
   });
@@ -89,6 +90,7 @@ export function createOvertimeRuleEditor(root, markDirty, dependencies = {}) {
       true,
     );
     root.append(row);
+    refreshMoveButtons();
     return row;
   }
 
@@ -146,6 +148,7 @@ export function createOvertimeRuleEditor(root, markDirty, dependencies = {}) {
       moveRule(row, -1),
     );
     moveUp.classList.add('overtime-rule-icon-button');
+    moveUp.dataset.ruleMoveUp = 'true';
     const moveDown = ruleButton(
       '↓',
       '将这条规则下移',
@@ -153,10 +156,12 @@ export function createOvertimeRuleEditor(root, markDirty, dependencies = {}) {
       () => moveRule(row, 1),
     );
     moveDown.classList.add('overtime-rule-icon-button');
+    moveDown.dataset.ruleMoveDown = 'true';
     controls.append(moveUp, moveDown);
     const remove = ruleButton('删除', '删除规则', false, () => {
       markDirty();
       row.remove();
+      refreshMoveButtons();
     });
     remove.classList.add('overtime-rule-remove');
     controls.append(remove);
@@ -353,6 +358,16 @@ export function createOvertimeRuleEditor(root, markDirty, dependencies = {}) {
     markDirty();
     if (direction < 0) row.parentNode.insertBefore(row, sibling);
     else row.parentNode.insertBefore(sibling, row);
+    refreshMoveButtons();
+  }
+
+  function refreshMoveButtons() {
+    const rows = Array.from(root.querySelectorAll('[data-overtime-rule]'));
+    rows.forEach((row, index) => {
+      row.querySelector('[data-rule-move-up]').disabled = index === 0;
+      row.querySelector('[data-rule-move-down]').disabled =
+        index === rows.length - 1;
+    });
   }
 
   function createMessage(className, message) {

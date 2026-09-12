@@ -11,7 +11,7 @@
 对比总结上一版更新了什么，用于提交github和release的时候说明并且写进去
 
 # 2. 验证 + 提交
-Claude Code 默认会给提交添加署名。提交前确认 `.claude/settings.json` 含有：
+仅在使用 Claude Code 时，才需要在提交前确认 `.claude/settings.json` 含有：
 `"attribution": { "commit": "", "pr": "" }`
 npm test
 git add . && git commit -m "vX.Y.Z"

@@ -60,7 +60,7 @@ export function validateState(state) {
   }
 
   // 验证播放模式
-  const validModes = ['sequence', 'loop', 'single', 'shuffle'];
+  const validModes = ['sequence', 'loop', 'single', 'shuffle', 'repeat-one'];
   if (!validModes.includes(state.mode)) return false;
 
   // 验证音量范围
@@ -119,7 +119,8 @@ export function normalizeState(state) {
   }
 
   // 确保播放模式合法
-  const validModes = ['sequence', 'loop', 'single', 'shuffle'];
+  if (normalized.mode === 'single') normalized.mode = 'repeat-one';
+  const validModes = ['sequence', 'loop', 'shuffle', 'repeat-one'];
   if (!validModes.includes(normalized.mode)) {
     normalized.mode = 'sequence';
   }

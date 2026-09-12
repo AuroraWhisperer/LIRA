@@ -34,6 +34,7 @@ function createHybridGiftSaleCatalogService(options = {}) {
   const logger = options.logger || console;
   let giftCatalogInitializer = options.giftCatalogInitializer || null;
   let stopped = false;
+  let disposed = false;
   let lastUpdateSignature = '';
   let assetsUpdatedAt = '';
   const getCustomBlindBoxes =
@@ -98,7 +99,7 @@ function createHybridGiftSaleCatalogService(options = {}) {
     remoteImageCache,
   );
   let roomRefreshPending = null;
-  giftCatalogInitializer?.onStateChanged?.((state) => {
+  let unsubscribe = giftCatalogInitializer?.onStateChanged?.((state) => {
     if (stopped || state.status !== 'ready') return;
     if (state.total > 0 && !state.error)
       assetsUpdatedAt = state.completedAt || assetsUpdatedAt;
@@ -239,7 +240,20 @@ function createHybridGiftSaleCatalogService(options = {}) {
     searchRemote,
     searchLocal,
     resolveGiftImagePath,
+    dispose() {
+      if (disposed) return;
+      disposed = true;
+      stopped = true;
+      try {
+        unsubscribe?.();
+      } finally {
+        unsubscribe = null;
+        // Shared caches and the local catalog retain their existing owners.
+        if (!options.remoteCatalog) remoteCatalog.stop?.();
+      }
+    },
     start() {
+      if (disposed) return;
       stopped = false;
       remoteCatalog.start?.(
         giftCatalogInitializer

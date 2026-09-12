@@ -63,8 +63,12 @@ reports `LEGACY_PARTIAL` rather than claiming complete history.
   with an empty list.
 - While v2 detection is active, the server shall combine the current immutable
   official catalog package with only the authenticated tenant's confirmed
-  `giftBlindBoxCustomConfigV2`. A catalog output relation alone shall never be
-  treated as evidence that an ordinary gift event opened a blind box.
+  `giftBlindBoxCustomConfigV2`. Under the 2026-09-12 REQ-GIFT-006 clarification,
+  the server may recover an omitted opening flag from an effective exact-ID,
+  matching-name gold output relation; activity-aware recovery also requires a
+  uniquely matched output activity and a verified relation. Direct gifts, box
+  products and outputs remain separate roles. The client consumes the confirmed
+  event and does not independently reclassify it or recompute settlement.
 - When a verified blind-box event is first inserted, the server shall resolve
   its source by box ID, candidate-parent name, or unique parent, then freeze the
   nullable `blindBoxId`, cost, and catalog/settings basis. Later catalog or
@@ -261,7 +265,7 @@ selector; unknown, ambiguous, name-only custom, and legacy history use null.
 9. Remote Device transport accepts only a credential-free HTTPS root origin with
    a valid DNS hostname and rejects HTTP, localhost, IP literals, invalid DNS
    labels, non-root paths, queries, and fragments.
-10. Same-name gift IDs and a shared multi-parent output remain distinct; only an
-    upstream-confirmed blind-box event is resolved, ambiguity keeps
+10. Same-name gift IDs and a shared multi-parent output remain distinct; an
+    upstream- or verified-relation-confirmed output is resolved, ambiguity keeps
     `blindBoxId=null`, and refreshing mappings never changes an established
     group's source or profit basis.

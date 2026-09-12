@@ -54,7 +54,7 @@ v1 仍使用服务器同步成功运行的 `id` 作为 `version`。v2 把确定�
     {
       "id": "100",
       "name": "示例礼物",
-      "battery": 100,
+      "battery": 10,
       "rmb": 1,
       "priceRaw": 1000,
       "coinType": "gold",
@@ -67,7 +67,7 @@ v1 仍使用服务器同步成功运行的 `id` 作为 `version`。v2 把确定�
     {
       "id": "101",
       "name": "示例产物",
-      "battery": 50,
+      "battery": 5,
       "rmb": 0.5,
       "priceRaw": 500,
       "coinType": "gold",
@@ -102,7 +102,7 @@ Cache rules:
 8. `POST /api/overtime/gifts/local/search` filters the persisted snapshot by gift name or ID without a network request. The legacy `/server/search` route is the same local operation and remains only for compatibility. Without a local snapshot both report an understandable error.
 9. Every cached gold catalog gift, including zero-price metadata and inactive referenced records, is checked in `data/overtime-gift-images/`. Valid current files are reused; changed source or validated server image URLs produce a new ID-plus-image-identity-hash filename. `index.json` atomically retains last-good basenames by exact ID. Failed replacements keep old artwork (or a placeholder), with no network fallback to LIRA Server when a Bilibili source exists. Server-only rows remain downloadable. Renderer image paths are `/overtime-gift-images/<basename>`.
 
-The preferred image source must be HTTPS on `hdslb.com` or a subdomain, without credentials, a non-default port, or a fragment. The fallback URL is resolved only against the configured, already validated LIRA Server HTTPS origin and fixed media path. Both paths reject redirects and enforce a 15-second timeout, 5 MiB limit, raster signature validation and atomic writes. When a desktop user saves a gift as an overtime rule, the rule stores the same-origin `/overtime-gift-images/<basename>` path. Existing guard paths remain valid; an obsolete `/img/bilibili-gifts/...` rule path is replaced by the current exact-ID local image when available and otherwise displays the placeholder without deleting the rule. Gift names are rendered with `textContent`, and missing or invalid images use the existing placeholder.
+The preferred image source must be HTTPS on `hdslb.com` or a subdomain, without credentials, a non-default port, or a fragment. The server-only URL is used only when no validated Bilibili source exists, and is resolved only against the configured, already validated LIRA Server HTTPS origin and fixed media path. Both paths reject redirects and enforce a 15-second timeout, 5 MiB limit, raster signature validation and atomic writes. When a desktop user saves a gift as an overtime rule, the rule stores the same-origin `/overtime-gift-images/<basename>` path. Existing guard paths remain valid; an obsolete `/img/bilibili-gifts/...` rule path is replaced by the current exact-ID local image when available and otherwise displays the placeholder without deleting the rule. Gift names are rendered with `textContent`, and missing or invalid images use the existing placeholder.
 
 ## Security and failure boundaries
 

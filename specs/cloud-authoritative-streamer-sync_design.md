@@ -2,20 +2,22 @@
 
 ## Goal
 
-When an authorized broadcaster changes the live-room or song-request settings,
-the Bilibili account, or the song library from either the Electron client or the
-Streamer web console, LIRA shall persist the change to the same cloud tenant and
-propagate it to the other surface. The cloud monitor shall keep consuming the
-configured Bilibili room after the desktop application exits.
+When an authorized broadcaster changes the live-room or song-request settings or
+the Bilibili account from either the Electron client or the Streamer web console,
+or changes the song library in the Electron client, LIRA shall persist the change
+to the same cloud tenant and propagate it to the other surface. The cloud monitor
+shall keep consuming the configured Bilibili room after the desktop application
+exits.
 
 ## Context
 
 The desktop currently owns its settings, Bilibili Chromium partition, and song
 database. The server already owns a per-streamer `RoomMonitor`, encrypted
-Bilibili credential storage, and a web-editable song snapshot, but the Device API
-does not connect those owners. The accepted server ADR-0004 describes the song
-database as a manually uploaded display snapshot; this feature replaces that
-decision with cloud-authoritative last-successful-write synchronization.
+Bilibili credential storage, and a song snapshot displayed by the web console, but
+the Device API does not connect those owners. The accepted server ADR-0004
+describes the song database as a manually uploaded display snapshot; this feature
+replaces that decision with cloud-authoritative last-successful-write
+synchronization.
 
 ## Requirements
 
@@ -27,8 +29,9 @@ decision with cloud-authoritative last-successful-write synchronization.
   tenant snapshot and retry transient failures without accepting an older cloud
   snapshot over a pending local write.
 - While a Streamer web session is authenticated, when the broadcaster edits the
-  synchronized settings or songs, the server shall update only that session's
-  tenant and advance its revision.
+  synchronized settings, the server shall update only that session's tenant and
+  advance its revision. The web console displays the latest cloud song snapshot;
+  supported song add/edit/delete operations remain in the Electron client.
 - While a Streamer web session is authenticated, when the broadcaster requests a
   Bilibili QR login, the server shall obtain and poll the QR challenge, keep all
   resulting cookies out of browser responses, and encrypt a successful login in
@@ -60,8 +63,9 @@ is the cookie-backed account identity required by server-side Bilibili requests.
 
 ### Frontend
 
-- The Streamer `/manage` page gains a settings form, Bilibili QR login/status,
-  and existing song management remains the remote song editor.
+- The Streamer `/manage` page gains a settings form and Bilibili QR login/status,
+  and displays the latest synchronized song snapshot without song editing
+  controls. Song add/edit/delete remains a supported Electron client operation.
 - The Electron renderer never receives cloud Bilibili cookies. Existing local
   settings and song routes remain the UI write surface.
 - Save, loading, QR expiration, scanned-but-unconfirmed, success, and error states
@@ -132,6 +136,8 @@ write. This limitation is visible in the specification and tests.
 
 - Existing local routes, settings keys, song schema, Streamer song CRUD URLs,
   public song page, Device authentication, and local Bilibili listener remain.
+  Streamer song CRUD URLs are retained for compatibility; they are not a
+  supported web-console editing surface.
 - Existing song IDs are snapshot-local and are not used as stable cross-device
   identifiers. Applying a cloud snapshot clears stale local `song_id` references
   while preserving textual queue/request history.
@@ -164,8 +170,11 @@ write. This limitation is visible in the specification and tests.
 4. A local Bilibili login uploads to the tenant; a remote login or unlink is
    imported by Electron main on the next sync without credentials entering the
    renderer.
-5. Web song add/edit/delete and desktop song mutations advance a revision and
-   converge to the same complete library, with no partial replacement.
+5. Desktop song add/edit/delete/clear mutations advance a revision and converge
+   to the same complete library, with no partial replacement. The Streamer
+   `/manage` page displays the latest synchronized snapshot and does not expose
+   song editing controls; retained Streamer song CRUD URLs remain compatibility
+   APIs.
 6. A pending transient desktop upload is retried, a mutation during upload is
    uploaded again, and polling/content fetches do not replace that dirty scope
    with an older cloud snapshot.

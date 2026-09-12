@@ -6,6 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const { pathToFileURL } = require('node:url');
+const heart = require('../../lira-server/test/fixtures/heart-blind-box-events.json');
 
 const ROOT_DIR = path.join(__dirname, '..');
 const OVERTIME_ENTRY = path.join(
@@ -15,6 +16,50 @@ const OVERTIME_ENTRY = path.join(
   'admin',
   'overtime.js',
 );
+
+test('gift picker derives three role labels from the shared server catalog without extra requests', async () => {
+  const gifts = [heart.box, ...heart.outputs, { id: '100', name: '小花花', rmb: 1 },
+    { id: '999', name: '棉花糖', rmb: 9 }].map(item => ({ ...item, isBlindBox: item === heart.box }));
+  const snapshot = { schemaVersion: 2, source: 'server', gifts,
+    blindBoxes: [{ giftId: heart.box.id, outputGiftIds: heart.outputs.map(item => item.id) }] };
+  const fixture = await createFixture({ globalGifts: gifts, fetchPayload: { ok: true, data: snapshot } });
+  await openPicker(fixture);
+  await fixture.elements.globalSearchButton.dispatchEvent('click');
+  const labels = optionNodes(fixture).map(nodeText);
+  assert.match(labels[0], /盲盒本体/);
+  assert.match(labels[1], /盲盒产物 · 心动盲盒/);
+  assert.match(labels[2], /盲盒产物 · 心动盲盒/);
+  assert.match(labels[3], /常规直送礼物/);
+  assert.match(labels[4], /常规直送礼物/);
+  assert.equal(fixture.state.fetchCalls.length, 1);
+
+  fixture.namespace.applyServerGiftArtwork({ ...snapshot,
+    gifts: [...gifts, { id: '900', name: '另一个盲盒', rmb: 20, isBlindBox: true }],
+    blindBoxes: [...snapshot.blindBoxes, { giftId: '900', outputGiftIds: ['32126'] }] });
+  assert.match(nodeText(optionNodes(fixture)[1]), /盲盒产物 · 心动盲盒 \/ 另一个盲盒/);
+  fixture.namespace.applyServerGiftArtwork({ ...snapshot, blindBoxes: [] });
+  assert.match(nodeText(optionNodes(fixture)[1]), /常规直送礼物/);
+  assert.doesNotMatch(nodeText(optionNodes(fixture)[1]), /盲盒产物/);
+  fixture.namespace.applyServerGiftArtwork({ ...snapshot, gifts: gifts.map(item =>
+    item.id === '32126' ? { ...item, name: '另一个活动', rmb: 12 } : item) });
+  assert.doesNotMatch(nodeText(optionNodes(fixture)[1]), /盲盒产物|常规直送礼物/);
+});
+
+test('a slower picker fetch cannot restore removed pool labels after a catalog update', async () => {
+  const gifts = [heart.box, ...heart.outputs].map(item => ({ ...item, isBlindBox: item === heart.box }));
+  const snapshot = { schemaVersion: 2, gifts,
+    blindBoxes: [{ giftId: heart.box.id, outputGiftIds: heart.outputs.map(item => item.id) }] };
+  const pending = deferred();
+  const fixture = await createFixture({ globalGifts: gifts, fetchImpl: () => pending.promise });
+  await openPicker(fixture);
+  const activation = fixture.elements.globalSearchButton.dispatchEvent('click');
+  await flush();
+  fixture.namespace.applyServerGiftArtwork({ ...snapshot, blindBoxes: [] });
+  pending.resolve({ ok: true, payload: { ok: true, data: snapshot } });
+  await activation;
+  assert.match(nodeText(optionNodes(fixture)[1]), /常规直送礼物/);
+  assert.doesNotMatch(nodeText(optionNodes(fixture)[1]), /盲盒产物/);
+});
 
 test('blank global activation renders the full local catalog and filters in place', async () => {
   const globalGifts = createGifts(3000);
@@ -316,13 +361,17 @@ async function loadOvertimeModule({ document, window, state, saleGifts }) {
     __testEventBus: { on() {} },
     __testEvents: {},
   });
-  const source = `${fs.readFileSync(OVERTIME_ENTRY, 'utf8')}\nexport { init, applyGiftCatalog, openGiftPicker };`;
+  const source = `${fs.readFileSync(OVERTIME_ENTRY, 'utf8')}\nexport { init, applyGiftCatalog, applyServerGiftArtwork, openGiftPicker };`;
   const entryUrl = pathToFileURL(OVERTIME_ENTRY).href;
   const module = new vm.SourceTextModule(source, {
     context,
     identifier: entryUrl,
   });
   const stubs = {
+    '../shared/gift-catalog-roles.js': new vm.SourceTextModule(
+      fs.readFileSync(path.join(ROOT_DIR, 'public/js/shared/gift-catalog-roles.js'), 'utf8'),
+      { context, identifier: `${entryUrl}?gift-catalog-roles` },
+    ),
     '../shared/event-bus.js': new vm.SourceTextModule(
       'export const eventBus = globalThis.__testEventBus; export const Events = globalThis.__testEvents;',
       { context, identifier: `${entryUrl}?event-bus` },

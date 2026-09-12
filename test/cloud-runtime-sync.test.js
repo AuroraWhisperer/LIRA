@@ -225,6 +225,93 @@ test('runtime applies cloud snapshots without echo and emits dirty scopes after 
   }
 });
 
+test('local song mutations emit complete snapshots for cloud upload', async () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cloud-song-mutations-'));
+  const runtime = createServerRuntime({
+    dataDir,
+    licenseGate: { isAuthorized: () => true },
+  });
+  const requestedSnapshots = [];
+  const unsubscribe = runtime.onCloudSyncRequested((scope) => {
+    if (scope !== 'songs') return;
+    requestedSnapshots.push(
+      runtime.getCloudSongsSnapshot().map((song) => ({
+        name: song.name,
+        artist: song.artist,
+        tags: song.tags,
+        is_enabled: song.is_enabled,
+      })),
+    );
+  });
+
+  try {
+    const server = await runtime.start({ host: '127.0.0.1', startPort: 0 });
+    const headers = {
+      authorization: `Bearer ${runtime.getApiToken()}`,
+      'content-type': 'application/json',
+      origin: server.baseUrl,
+    };
+    const save = async (body) => {
+      const response = await fetch(`${server.baseUrl}/api/songs/save`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+      });
+      assert.equal(response.status, 200);
+      return (await response.json()).data;
+    };
+    const remove = async (id) => {
+      const response = await fetch(`${server.baseUrl}/api/songs/delete`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ id }),
+      });
+      assert.equal(response.status, 200);
+    };
+
+    const first = await save({ name: '本地新增', artist: '原歌手' });
+    const second = await save({ name: '另一首', artist: '另一歌手' });
+    await save({
+      id: first.id,
+      name: '本地编辑',
+      artist: '新歌手',
+      tags: '编辑标签',
+      isEnabled: false,
+    });
+    await remove(second.id);
+
+    const clearResponse = await fetch(`${server.baseUrl}/api/database/clear`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ confirm: true }),
+    });
+    assert.equal(clearResponse.status, 200);
+
+    assert.deepEqual(requestedSnapshots, [
+      [{ name: '本地新增', artist: '原歌手', tags: '', is_enabled: true }],
+      [
+        { name: '本地新增', artist: '原歌手', tags: '', is_enabled: true },
+        { name: '另一首', artist: '另一歌手', tags: '', is_enabled: true },
+      ],
+      [
+        {
+          name: '本地编辑',
+          artist: '新歌手',
+          tags: '编辑标签',
+          is_enabled: false,
+        },
+        { name: '另一首', artist: '另一歌手', tags: '', is_enabled: true },
+      ],
+      [{ name: '本地编辑', artist: '新歌手', tags: '编辑标签', is_enabled: false }],
+      [],
+    ]);
+  } finally {
+    unsubscribe();
+    await runtime.stop({ exitProcess: false });
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
 test('runtime exposes the transactional gift projection sync surface', async () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gift-runtime-'));
   const runtime = createServerRuntime({

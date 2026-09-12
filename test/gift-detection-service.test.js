@@ -310,6 +310,83 @@ test('consumer eligibility is frozen by the first packet', () => {
   }
 });
 
+test('pause stops gift finalization and disposal writes, while resume recovers persisted progress', () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-gift-pause-'));
+  const db = createDatabases({ dataDir });
+  const clock = createFakeClock(1_800_000_000_000);
+  const detection = createGiftDetectionService(
+    { db, settings: () => ({ enableGiftSprint: 'true' }), state: {} },
+    { now: clock.now, setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout },
+  );
+  try {
+    const first = detection.detect(makeGift({}, clock.now()));
+    const before = readGift(db, first.id);
+    assert.equal(detection.pauseDetection(), true);
+    assert.equal(detection.pauseDetection(), false);
+    clock.advance(30_000);
+    assert.equal(detection.detect(makeGift({ num: 2 }, clock.now())), null);
+    detection.finalizeDetected(first.id);
+    detection.flushPending({ force: true });
+    detection.recover();
+    assert.deepEqual(readGift(db, first.id), before);
+
+    detection.resumeDetection();
+    assert.equal(readGift(db, first.id).detection_status, 'final');
+    const next = detection.detect(makeGift({ platformId: 'combo:next:2' }, clock.now()));
+    assert.equal(next.detection_status, 'progress');
+    detection.pauseDetection();
+    detection.dispose();
+    clock.advance(30_000);
+    assert.equal(readGift(db, next.id).detection_status, 'progress');
+  } finally {
+    detection.dispose();
+    closeDatabases(db);
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
+test('pause cancels consumer retries and resume retains failed non-statistics deliveries', () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-gift-retry-pause-'));
+  const db = createDatabases({ dataDir });
+  const clock = createFakeClock(1_800_000_000_000);
+  let attempts = 0;
+  const detection = createGiftDetectionService(
+    { db, settings: () => ({ enableGiftSprint: 'true' }), state: {} },
+    {
+      now: clock.now, setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout,
+      consumerRegistry: createGiftConsumerRegistry({
+        consumers: [createGiftStatisticsConsumer({ giftDb: db.giftDb }), {
+          name: 'retry-once',
+          handle(event) {
+            if (event.phase !== 'final') return;
+            attempts += 1;
+            if (attempts === 1) throw new Error('retry required');
+          },
+        }],
+        onError() {},
+      }),
+    },
+  );
+  try {
+    const row = detection.detect(makeGift({}, clock.now()));
+    clock.advance(10_000);
+    assert.equal(attempts, 1);
+    assert.equal(readGift(db, row.id).gift_stats_delivered, 1);
+    detection.pauseDetection();
+    clock.advance(30_000);
+    assert.equal(attempts, 1);
+    detection.resumeDetection();
+    clock.advance(30_000);
+    assert.equal(attempts, 2);
+    clock.advance(30_000);
+    assert.equal(attempts, 2);
+  } finally {
+    detection.dispose();
+    closeDatabases(db);
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
 function makeGift(overrides, timestamp) {
   return {
     platformId: 'combo:shared:1',

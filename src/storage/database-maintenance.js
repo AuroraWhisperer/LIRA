@@ -58,7 +58,7 @@ const CLEAR_ALL_MATRIX = {
         status: 'paused',
         background_path: '',
         background_fit: 'cover',
-        revision: 0,
+        revision: 0, // Missing singleton default; an existing revision advances on clear-all.
       },
     },
   ],
@@ -157,8 +157,8 @@ function clearGiftData(giftDb, options = {}) {
 }
 
 /**
- * 清空全部业务数据，保留配置。使用两阶段提交确保原子性。
- * Phase 1: 开启所有事务并执行 DELETE，但不提交
+ * 清空全部业务数据，保留配置。跨库依次提交，失败时报告部分完成。
+ * Phase 1: 开启所有事务，执行 DELETE 并重建必需默认行，但不提交
  * Phase 2: 依次提交所有事务；如有失败则返回部分失败状态
  */
 function clearAllData(
@@ -201,12 +201,17 @@ function clearAllData(
 
   // Phase 1: 开启所有事务并执行 DELETE，统计行数
   const beginErrors = [];
+  const begun = new Set();
+  const rolledBack = [];
+  const rollbackFailed = [];
   const rollbackAll = () => {
     for (const { name, db } of databases) {
-      if (db) {
+      if (begun.has(name)) {
         try {
           db.exec('ROLLBACK');
+          rolledBack.push(name);
         } catch (rollbackError) {
+          rollbackFailed.push(name);
           console.warn(
             `[Database] Failed to rollback ${name}:`,
             rollbackError.message,
@@ -219,6 +224,7 @@ function clearAllData(
   try {
     // songDb: 清空业务数据，保留 settings, ai_configuration, theme_presets
     songDb.exec('BEGIN');
+    begun.add('songDb');
     counts.songs = countRows(songDb, 'songs');
     counts.categories = countRows(songDb, 'song_categories');
     counts.queue = countRows(songDb, 'queue');
@@ -258,6 +264,7 @@ function clearAllData(
   if (beginErrors.length === 0) {
     try {
       superChatDb.exec('BEGIN');
+      begun.add('superChatDb');
       counts.sc = countRows(superChatDb, 'super_chats');
       superChatDb.prepare('DELETE FROM super_chats').run();
       superChatDb
@@ -276,6 +283,7 @@ function clearAllData(
   if (beginErrors.length === 0) {
     try {
       giftDb.exec('BEGIN IMMEDIATE');
+      begun.add('giftDb');
       const timestamp = now();
       const giftResult = clearGiftScopeInTransaction(
         giftDb,
@@ -294,6 +302,7 @@ function clearAllData(
   if (beginErrors.length === 0 && musicDb) {
     try {
       musicDb.exec('BEGIN');
+      begun.add('musicDb');
       counts.playHistory = countRows(musicDb, 'play_history');
       counts.playQueueState = countRows(musicDb, 'play_queue_state');
       musicDb.prepare('DELETE FROM play_history').run();
@@ -314,6 +323,7 @@ function clearAllData(
   if (beginErrors.length === 0 && checkinDb) {
     try {
       checkinDb.exec('BEGIN');
+      begun.add('checkinDb');
       counts.checkins = countRows(checkinDb, 'checkin_users');
       checkinDb.prepare('DELETE FROM checkin_users').run();
     } catch (error) {
@@ -326,12 +336,60 @@ function clearAllData(
     }
   }
 
-  // 如果 Phase 1 有任何失败，返回错误
+  // 默认行与所属库的删除一起提交；重建失败时尚未提交任何数据库。
+  if (beginErrors.length === 0) {
+    let defaultDb = 'songDb';
+    try {
+      const timestamp = now();
+      songDb
+        .prepare(
+          `
+        INSERT INTO song_categories (name, sort_order, is_enabled, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?)
+      `,
+        )
+        .run('默认', 0, 1, timestamp, timestamp);
+
+      defaultDb = 'giftDb';
+      giftDb
+        .prepare(
+          `
+        INSERT OR REPLACE INTO overtime_machine_state (
+          id, enabled, enable_epoch, initial_seconds, remaining_ms,
+          anchor_at_ms, status, background_path, background_fit, revision, updated_at
+        ) VALUES (1, 0, 0, 0, 0, 0, 'paused', '', 'cover',
+          COALESCE((SELECT revision + 1 FROM overtime_machine_state WHERE id = 1), 0), ?)
+      `,
+        )
+        .run(timestamp);
+    } catch (error) {
+      beginErrors.push({ db: defaultDb, phase: 'recreate', error: error.message });
+      rollbackAll();
+    }
+  }
+
+  // 仅在所有已开启事务都回滚后抛出可安全恢复写入的错误。
   if (beginErrors.length > 0) {
     const error = new Error(
       `Clear-all pre-commit failed: ${beginErrors.map((e) => `${e.db} ${e.phase}`).join(', ')}`,
     );
     error.details = beginErrors;
+    if (rollbackFailed.length > 0) {
+      return {
+        ok: false,
+        cleared: false,
+        partial: true,
+        phase: 'pre-commit',
+        committed: [],
+        failed: beginErrors.map((entry) => entry.db),
+        rolledBack,
+        rollbackFailed,
+        error: error.message,
+        deletedCounts: counts,
+        giftProjectionReset,
+        results: beginErrors.map((entry) => ({ ...entry, status: 'failed' })),
+      };
+    }
     throw error;
   }
 
@@ -383,40 +441,10 @@ function clearAllData(
     };
   }
 
-  // Phase 3: 所有提交成功，重建默认行
-  try {
-    // 重建默认分类
-    const timestamp = now();
-    songDb
-      .prepare(
-        `
-      INSERT INTO song_categories (name, sort_order, is_enabled, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?)
-    `,
-      )
-      .run('默认', 0, 1, timestamp, timestamp);
-
-    // 确保加班机状态行存在且为禁用状态
-    giftDb
-      .prepare(
-        `
-      INSERT OR REPLACE INTO overtime_machine_state (
-        id, enabled, enable_epoch, initial_seconds, remaining_ms,
-        anchor_at_ms, status, background_path, background_fit, revision, updated_at
-      ) VALUES (1, 0, 0, 0, 0, 0, 'paused', '', 'cover', 0, ?)
-    `,
-      )
-      .run(timestamp);
-  } catch (error) {
-    console.warn(
-      '[Database] Failed to recreate defaults after clear-all:',
-      error.message,
-    );
-  }
-
   return {
     cleared: true,
     scope: 'all',
+    committed,
     preserved: CLEAR_ALL_MATRIX.preserve,
     deletedCounts: counts,
     totalDeleted: Object.values(counts).reduce((a, b) => a + b, 0),

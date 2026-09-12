@@ -39,7 +39,7 @@ test('sends danmaku with visible mention and Bilibili reply metadata', async () 
 
 test('rejects danmaku sending without a logged-in cookie', async () => {
   const client = new BilibiliApiClient('123');
-  await assert.rejects(client.sendDanmaku(123, 'hello'), /登录 Bilibili/);
+  await assert.rejects(client.sendDanmaku(123, 'hello'), /登录直播账号/);
 });
 
 test('rejects invalid reply uid before calling Bilibili', async () => {

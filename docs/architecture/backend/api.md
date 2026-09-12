@@ -48,9 +48,9 @@
 
 ## 0.2 LIRA Server 全局礼物目录(桌面选择器)
 
-桌面端通过已配置的 `LIRA_LICENSE_API_BASE` 请求独立 lira-server 的公开端点 `GET /api/public/gifts/catalog`。默认入口是 `https://api.lirahub.cn`，覆盖配置也必须是使用 DNS 主机名的 HTTPS 根 origin。该请求由 Electron main process 发起，不携带 DeviceBearer；首次授权后，本地运行时只持久化 `coinType === 'gold' && priceRaw > 0` 的付费子集并准备全部图片，后续每次授权启动及持续运行每 12 小时条件检查一次。renderer 的房间主目录访问本地 `/api/overtime/gifts`，全局目录通过本地 `/api/overtime/gifts/catalog` 一次读取完整快照并在前端筛选名称/ID，`/api/overtime/gifts/local/search` 保留原有查询契约，图片只显示本地 `/overtime-gift-images/<basename>`。本地全局快照补充 `assetsUpdatedAt`（本进程实际图片扫描完成的 ISO 时间或空字符串），用于同版本缺图修复的通知去重，不改变服务器字段。服务器目录不决定房间成员，只按精确礼物 ID 为房间面板/配置和在售盲盒展开出的条目提供图片。
+桌面端通过已配置的 `LIRA_LICENSE_API_BASE` 请求独立 lira-server 的公开端点 `GET /api/public/gifts/catalog?schemaVersion=2`。默认入口是 `https://api.lirahub.cn`，覆盖配置也必须是使用 DNS 主机名的 HTTPS 根 origin。该请求由 Electron main process 发起，不携带 DeviceBearer；首次授权后，本地运行时只持久化 `coinType === 'gold' && priceRaw >= 0` 的付费子集并准备全部图片，后续每次授权启动及持续运行每 12 小时条件检查一次。renderer 的房间主目录访问本地 `/api/overtime/gifts`，全局目录通过本地 `/api/overtime/gifts/catalog` 一次读取完整快照并在前端筛选名称/ID，`/api/overtime/gifts/local/search` 保留原有查询契约，图片只显示本地 `/overtime-gift-images/<basename>`。本地全局快照补充 `assetsUpdatedAt`（本进程实际图片扫描完成的 ISO 时间或空字符串），用于同版本缺图修复的通知去重，不改变服务器字段。服务器目录不决定房间成员，只按精确礼物 ID 为房间面板/配置和在售盲盒展开出的条目提供图片。
 
-成功响应是一次性的扁平全局 active 礼物代码快照，包含 `version`(最近成功同步 run ID 字符串)、`updatedAt`、`stale`、`sources`、`count` 与 `gifts[]`；每项含字符串 `id`、`name`、`coinType`，非 gold 礼物的 `battery`/`rmb` 可为 `null`，`priceRaw` 为非负数，`bagGift` 为布尔值，经过白名单校验的 Bilibili `sourceUrl` 或 `null`，以及同源 `/gift-media/images/<basename>` 或 `null` 的 `imageUrl`。服务端按成功 run ID 在内存复用读模型并返回 ETag；客户端以 `If-None-Match` 条件请求，命中返回 `304`。未就绪返回 `503` 和 `Retry-After: 60`，网络失败时本地持久缓存继续服务。服务器端完整字段与缓存契约见 lira-server 的 `docs/protocol/client-server-api.md`；本地选择器联动与回退见 [overtime.md](overtime.md) §1.5。
+成功响应是完整 v2 全局礼物与关系快照（含关系引用的非活跃条目），包含 `schemaVersion:2`、`blindBoxes[]`、 `version`(最近成功同步 run ID 字符串)、`updatedAt`、`stale`、`sources`、`count` 与 `gifts[]`；每项含字符串 `id`、`name`、`coinType`，非 gold 礼物的 `battery`/`rmb` 可为 `null`，`priceRaw` 为非负整数，`active/isBlindBox` 为显式布尔值，`bagGift` 为布尔值，经过白名单校验的 Bilibili `sourceUrl` 或 `null`，以及同源 `/gift-media/images/<basename>` 或 `null` 的 `imageUrl`。服务端按成功 run ID 在内存复用读模型并返回 ETag；客户端以 `If-None-Match` 条件请求，命中返回 `304`。未就绪返回 `503` 和 `Retry-After: 60`，网络失败时本地持久缓存继续服务。服务器端完整字段与缓存契约见 lira-server 的 `docs/protocol/client-server-api.md`；本地选择器联动与回退见 [overtime.md](overtime.md) §1.5。
 
 ---
 
@@ -81,7 +81,7 @@ Electron main process 通过 [remote-license-client.js](../../../src/electron/li
 | 端点                        | 请求                                                                                                                                                                      | 响应(data)                                                                                                                    | 错误码               |
 | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | -------------------- |
 | `GET /api/health`           | 无(**免 token 端点之一**；其余为只读 `GET /api/clock/config`、`GET /api/opening/config`，见 `PUBLIC_API_PATHS` [api-routes.js:30](../../../src/server/api-routes.js#L30)) | 健康信息:`serviceId/rootDir/dataDir/各库路径/schemaVersions/desktop/pid/liveStatus`(详见 [server-core.md](server-core.md) §7) | —                    |
-| `GET /api/state`            | 无                                                                                                                                                                        | 全量状态快照,与 WS 快照 `state` 的 **16 字段一致**(见 [ws.md](ws.md) §2)                                                      | —                    |
+| `GET /api/state`            | 无                                                                                                                                                                        | 全量状态快照,与 WS 快照 `state` 的 **17 字段一致**(见 [ws.md](ws.md) §2)                                                      | —                    |
 | `GET /api/system/metrics`   | 查询参数 `windowMs`(可选,默认 5000)                                                                                                                                       | `getSystemMetrics` 采样窗口内 CPU/内存/GPU 指标(见 [server-core.md](server-core.md) §8)                                       | —                    |
 | `GET /api/system/hardware`  | 查询参数 `includeTemperatures=true`(可选)                                                                                                                                 | 本机 CPU/物理 GPU/内存型号与容量（排除虚拟显示适配器）；仅显式传 `true` 时读取支持的 GPU 温度，结果不含序列号                 | —                    |
 | `POST /api/system/shutdown` | body `{confirm: true}`(必须)                                                                                                                                              | `{shuttingDown: true}`,随后延迟 250ms 关闭服务                                                                                | 400 `缺少退出确认。` |
@@ -368,7 +368,7 @@ handler 未包 try/catch:抛错走顶层 **500**。
 
 ### 12.1 Clear-All 部分失败契约
 
-`POST /api/database/clear-all` 使用两阶段提交,可能返回部分失败状态:
+`POST /api/database/clear-all` 使用两阶段协调，默认分类和禁用的加班机状态行在提交前、各自库的事务内重建。重建失败且全部回滚成功时返回普通 HTTP 500，业务数据保留；跨库提交、回滚或提交后的运行状态恢复失败时返回结构化部分失败:
 
 **成功响应(HTTP 200)**:
 
@@ -378,6 +378,7 @@ handler 未包 try/catch:抛错走顶层 **500**。
   "data": {
     "cleared": true,
     "scope": "all",
+    "committed": ["songDb", "superChatDb", "giftDb", "musicDb", "checkinDb"],
     "preserved": [
       "settings",
       "ai_configuration",
@@ -440,18 +441,19 @@ handler 未包 try/catch:抛错走顶层 **500**。
 - 前端检测 `response.partial === true` 时**强制刷新页面**并提示用户数据库不一致,需手动检查
 - 部分失败后异步写入器(礼物检测/加班机恢复)**不恢复**,避免向不一致数据库写入
 - `committed` 数组列出已清空的库,`failed` 列出失败的库
+- 回滚失败附带 `data.phase: 'pre-commit'`、`committed: []` 和 `rollbackFailed`；提交后的状态重载/写入恢复失败分别附带 `data.phase: 'runtime-reset'`/`'resume'`、`cleared: false`、实际 `committed` 与 `failed: []`，表示数据库提交完成但运行状态尚未恢复
 - 数据库处于不一致状态,建议用户手动清理或恢复备份
 
 **静默协调(Quiesce)**:
-清空全部前路由调用:
+清空全部前路由经 `api-context` 调用真实领域服务；暂停端口缺失会在清库前报错:
 
-- `context.gifts.pauseDetection()`:暂停礼物检测写入
-- `context.overtime.pauseRecovery()`:暂停加班机后台恢复
+- `context.gifts.pauseDetection()`:停止检测、finalize 与消费重试；远端导入抛出 `GIFT_DETECTION_PAUSED`，避免同步游标越过未写入的记录
+- `context.overtime.pauseRecovery()`:停止结算补偿与倒计时归零写入
 
-成功后恢复:
+成功后先恢复加班机消费者，再恢复礼物检测器；完整回滚的错误只解除当前请求取得的暂停，不能解除此前部分失败留下的暂停:
 
-- `context.gifts.resumeDetection()`
 - `context.overtime.resumeRecovery()`
+- `context.gifts.resumeDetection()`
 
 行为文档:[server-core.md](server-core.md) §5、[storage.md](storage.md) §6(清空矩阵详细说明)。
 

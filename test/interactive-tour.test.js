@@ -185,8 +185,8 @@ test('tour introduces LIRA and the four primary buttons before seven sequential 
   assert.match(actionSteps[0].content, /礼物/);
   assert.match(actionSteps[0].content, /百宝箱/);
   assert.equal(actionSteps[0].targetSelector, '.main-page-tabs');
-  assert.match(actionSteps[1].content, /用手机 Bilibili 扫描/);
-  assert.match(actionSteps[2].note, /live\.bilibili\.com\/123456/);
+  assert.match(actionSteps[1].content, /用手机上的直播平台应用扫描/);
+  assert.match(actionSteps[2].note, /房间号「123456」.*粘贴直播间链接/);
   assert.match(actionSteps[3].content, /页面右上角/);
   assert.match(actionSteps[4].note, /暂时没有歌单也没关系/);
   assert.match(actionSteps[5].content, /全民 K 歌客户端/);

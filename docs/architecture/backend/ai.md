@@ -42,13 +42,13 @@ AI 弹幕姬是一个由模型服务驱动的通用互动助手；当前默认�
 [generateReply](../../../src/ai/ai-assistant-service.js#L92-L179) 按序执行:
 
 1. **本地拒绝短路**:`item.localRefusal` 直接返回,`category: 'safety'`,不消耗模型配额。
-2. **查询缓存**:缓存键 `"${model}\n${question}"`(sha256 落库),命中返回 `category: 'cache'`;投递重试时 `bypassCache` 强制绕过([ai-assistant-service.js:98-100](../../../src/ai/ai-assistant-service.js#L98-L100)、[250](../../../src/ai/ai-assistant-service.js#L250))。
+2. **查询缓存**:先读取当前 uid 最近成功投递的上下文；以 `reply-v2`、配置快照、uid、观众名、问题、上下文和排序后的不可用工具集合组成 JSON 缓存键，store 仅保存其 SHA-256 摘要，不把配置秘密写入键列。命中返回 `category: 'cache'`；用户、上下文或配置改变不能复用旧答案。并发生成和缓存命中都不写上下文，聊天/工具/缓存回答仅在 FIFO 投递成功后提交最终文本；有回流确认器时须确认送达。全部投递失败保留旧上下文，后续问题读取当时最近已送达的轮次。投递重试固定本请求首次读取的上下文，以 `bypassCache` 强制绕过缓存，TTL 和表格式不变，旧键自然过期。见 [ai-assistant-service.js](../../../src/ai/ai-assistant-service.js)。
 3. **输入安全审核**:`runSafetyReview(buildInputReviewPrompt(question))` 未通过 → 直接返回拒答。
-4. **观众上下文**:按 uid 读取 `ai_viewer_context` 中的上轮 `{question, answer}`,以"短期上下文"前缀拼入本次问题([buildConversationInput](../../../src/ai/ai-assistant-service.js#L322-L325))。
+4. **观众上下文**:使用步骤 2 固定的上轮 `{question, answer}`，以"短期上下文"前缀拼入本次问题([buildConversationInput](../../../src/ai/ai-assistant-helpers.js))。
 5. **主生成**:`deepseek.createResponse`(见 §4),`instructions` = 人格预设 + `<runtime_task_policy>` 长度合约([buildReplyInstructions](../../../src/ai/ai-assistant-service.js#L331-L342))。
 6. **工具循环**:`response.functionCalls` 非空时执行工具(§5),结果以 `function_call_output` 回填并带 `previousResponseId` 续问;累计调用超过 `maxToolCalls`(默认 6)→ `TOOL_LIMIT`。
 7. **输出安全与质量审核**:`runSafetyReview(buildOutputReviewPrompt(question, rawText))` 未通过 → 用模型给出的 `safeText` 或 `SAFE_REFUSAL` 替换。
-8. **截断与落库**:按长度预算 `truncateReply`(超出截断加 `…`);写上下文、写缓存、写 `ai_request_logs`(`category` 为 `tool`/`chat`,工具调用数 > 0 记 `tool`)。
+8. **截断与落库**:按长度预算 `truncateReply`(超出截断加 `…`);写缓存、写 `ai_request_logs`；上下文仅在 FIFO 投递成功确认后提交最终答案（见步骤 2）(`category` 为 `tool`/`chat`,工具调用数 > 0 记 `tool`)。
 
 长度预算([getReplyLengthBudget](../../../src/ai/ai-assistant-service.js#L344-L354)):单条弹幕 `DANMAKU_MESSAGE_LIMIT = 40` 减去 `@用户名 ` 长度,允许 1–3 条;偏好长度 `replyMaxChars`(默认 50,10–50 区间)仅是偏好不是目标。运行时预算会覆盖人格预设中的"50 字符"旧表述。
 

@@ -155,12 +155,30 @@ function createAiAssistantService(dependencies) {
         toolCalls: 0,
       };
     }
-    const cacheKey = `${config.model}\n${item.question}`;
-    const cached = options.bypassCache ? null : store.getCache(cacheKey);
-    if (cached?.text) return { ...cached, category: 'cache' };
     const usage = { inputTokens: 0, outputTokens: 0 };
     let toolCallCount = 0;
     try {
+      if (!Object.prototype.hasOwnProperty.call(item, 'conversationContext')) {
+        item.conversationContext = store.getContext(item.uid);
+      }
+      const context = item.conversationContext;
+      const excludedToolNames = new Set(
+        quotaStore?.getExcludedToolNames?.() || [],
+      );
+      // The store persists only the key hash, not config secrets or context text.
+      const cacheKey = JSON.stringify([
+        'reply-v2',
+        config,
+        item.uid,
+        item.userName,
+        item.question,
+        context,
+        [...excludedToolNames].sort(),
+      ]);
+      const cached = options.bypassCache ? null : store.getCache(cacheKey);
+      if (cached?.text) {
+        return { ...cached, category: 'cache' };
+      }
       const inputReview = await runSafetyReview(
         config,
         buildInputReviewPrompt(item.question),
@@ -177,14 +195,7 @@ function createAiAssistantService(dependencies) {
         };
       }
 
-      if (!Object.prototype.hasOwnProperty.call(item, 'conversationContext')) {
-        item.conversationContext = store.getContext(item.uid);
-      }
-      const context = item.conversationContext;
       const input = buildConversationInput(item.question, context);
-      const excludedToolNames = new Set(
-        quotaStore?.getExcludedToolNames?.() || [],
-      );
       const replyBudget = getReplyLengthBudget(
         item.userName,
         config.replyMaxChars,
@@ -270,12 +281,6 @@ function createAiAssistantService(dependencies) {
         usage,
         toolCalls: toolCallCount,
       };
-      throwIfShuttingDown();
-      store.setContext(
-        item.uid,
-        { question: item.question, answer: text },
-        config.contextTtlSeconds,
-      );
       throwIfShuttingDown();
       store.setCache(cacheKey, result, config.cacheTtlSeconds);
       throwIfShuttingDown();
@@ -395,15 +400,23 @@ function createAiAssistantService(dependencies) {
       });
       throwIfShuttingDown();
       lastDeliveryAt = now();
-      if (typeof waitForDelivery !== 'function') return;
-      const delivered = await waitForDelivery({
+      const delivered = typeof waitForDelivery !== 'function' || await waitForDelivery({
         ...delivery,
         mentionName: mentionTarget.name,
         timeoutMs: DELIVERY_CONFIRM_TIMEOUT_MS,
         signal: shutdownController.signal,
       });
       throwIfShuttingDown();
-      if (delivered) return;
+      if (delivered) {
+        if (['chat', 'tool', 'cache'].includes(currentResult.category)) {
+          store.setContext(
+            item.uid,
+            { question: item.question, answer: currentResult.text },
+            store.getConfig().contextTtlSeconds,
+          );
+        }
+        return;
+      }
       log.warn?.(
         `[AI] reply missing from room feed uid=${JSON.stringify(item.uid)} attempt=${attempt}/${MAX_DELIVERY_ATTEMPTS}`,
       );

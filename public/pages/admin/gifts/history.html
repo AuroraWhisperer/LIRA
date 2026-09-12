@@ -10,7 +10,7 @@
   <div class="gift-drawer-head">
     <div class="gift-drawer-title">
       <strong id="giftHistoryTitle" class="ui-section-title">全部礼物流水</strong>
-      <span id="giftHistoryTotal" class="ui-caption">共 0 条</span>
+      <span id="giftHistoryTotal" class="ui-caption" hidden></span>
       <span
         id="giftLedgerSyncStatus"
         class="ui-caption"
@@ -20,20 +20,20 @@
       ></span>
     </div>
     <button
-      id="giftHistoryClearDisplayBtn"
+      id="giftHistoryRetryBtn"
       class="secondary sm"
       type="button"
-      title="清理当前显示，不删除数据库记录"
+      hidden
     >
-      清理显示
+      重新加载
     </button>
     <button
       id="giftHistoryClearDatabaseBtn"
       class="danger sm"
       type="button"
-      title="清空数据库全部礼物记录"
+      title="删除当前账号在本机和云端的全部礼物记录"
     >
-      清理数据库
+      清空全部记录
     </button>
     <button
       id="giftHistoryClose"
@@ -63,7 +63,7 @@
       class="sr-only"
       role="status"
       aria-live="polite"
-      >正在加载…</span
+      >正在加载礼物记录…</span
     >
     <table class="gift-history-table">
       <colgroup>
@@ -86,7 +86,7 @@
       </thead>
       <tbody id="giftHistoryBody">
         <tr>
-          <td colspan="6" class="empty">加载中…</td>
+          <td colspan="6" class="empty">正在加载礼物记录…</td>
         </tr>
       </tbody>
     </table>

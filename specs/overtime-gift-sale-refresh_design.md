@@ -30,9 +30,9 @@
 - `GET /api/overtime/gifts` 返回当前房间目录的最后一次成功快照；`POST /api/overtime/gifts/refresh` 使用设置中的直播间号刷新礼物面板和盲盒，然后缓存这些 ID 对应的服务器图片。
 - `GET /api/overtime/gifts/catalog` 返回本机付费全局目录及当前可用图片路径；`POST /api/overtime/gifts/local/search` 按名称或 ID 返回至多 100 个本地匹配项，二者都不发起远程请求，也不修改在售快照。
 - 既有 `POST /api/overtime/gifts/server/search` 保留路由和响应结构，但只是同一本地搜索的兼容别名，Admin 不调用该别名。
-- 房间快照写入 `data/overtime-gift-sale.json`，远程快照写入 `data/overtime-gift-catalog.json`；二者只保存元数据，不包含图片字节。旧版无 schema 版本的房间快照可能混有个人背包礼物，升级后不再读取，首次打开礼物选择器时重新按房间刷新。
-- 服务器端目录通过 `GET /api/public/gifts/catalog` 一次返回，客户端在首次授权初始化、后续授权恢复和低频轮询时条件请求，304 或网络失败都复用旧缓存；客户端只把 `coinType === 'gold' && priceRaw > 0` 的快照写入 `data/overtime-gift-catalog.json`。
-- 首次授权先按目录中的安全 Bilibili `sourceUrl` 下载全部付费礼物图片到 `data/overtime-gift-images/`，没有源地址或下载失败时回退配置服务器的 `/gift-media/images/<basename>`。图片按礼物 ID 和源 URL hash 命名并通过本地 `/overtime-gift-images/<basename>` 展示；单张失败只使用占位图，后续启动继续补齐。
+- 房间快照写入 `data/overtime-gift-sale.json`，远程快照写入 `data/overtime-gift-catalog-v2.json`；二者只保存元数据，不包含图片字节。旧版无 schema 版本的房间快照可能混有个人背包礼物，升级后不再读取，首次打开礼物选择器时重新按房间刷新。
+- 服务器端目录通过 `GET /api/public/gifts/catalog?schemaVersion=2` 一次返回，客户端在首次授权初始化、后续授权恢复和低频轮询时条件请求，304 或网络失败都复用旧缓存；客户端只把 `coinType === 'gold' && priceRaw >= 0` 的快照写入 `data/overtime-gift-catalog-v2.json`。
+- 首次授权先按目录中的安全 Bilibili `sourceUrl` 下载全部付费礼物图片到 `data/overtime-gift-images/`，仅在没有合法 Bilibili 源地址时选择配置服务器的 `/gift-media/images/<basename>`；已选 Bilibili 源下载失败不会再尝试服务器。图片按礼物 ID 和源 URL hash 命名并通过本地 `/overtime-gift-images/<basename>` 展示；单张更新失败保留该 ID 的旧图，无旧图时使用占位图，后续启动继续补齐。
 - 旧的背包图集同步脚本随静态图库一起删除；房间目录诊断脚本保留，但不再读取 `publicDir`，新安装包显式排除旧资源路径。
 
 ### Security
@@ -41,7 +41,7 @@
 - 远程公共目录只由 Electron main process 使用已配置的 `LIRA_LICENSE_API_BASE` 访问；配置只接受使用有效 DNS 主机名且无凭据、无子路径/查询/片段的 HTTPS 根 origin，HTTP、`localhost` 和 IP literal 均被拒绝。设备 token 不进入 renderer，也不作为公共目录的必需鉴权。
 - 上游 URL 固定为 Bilibili 官方 HTTPS 礼物面板/配置接口，禁止调用方控制目标，避免 SSRF；不再请求账号背包接口或传递 Bilibili Cookie。
 - 每次 Bilibili 房间目录请求设 15 秒超时，十秒内重复刷新返回缓存并合并并发刷新。服务器目录后台轮询使用更低频的条件请求；搜索只读取本地快照，初始化失败重试才强制发起目录请求。
-- 本地 API 只返回目录所需的显式字段。首选图片源仅允许 HTTPS `hdslb.com` 或其子域，不允许凭据、非默认端口或片段；服务器回退源仅允许已配置 API origin 下的 `/gift-media/images/<basename>`。下载禁止重定向、限制 15 秒和 5 MiB，并校验 raster 图片签名。
+- 本地 API 只返回目录所需的显式字段。首选图片源仅允许 HTTPS `hdslb.com` 或其子域，不允许凭据、非默认端口或片段；仅无 Bilibili 源时可选的服务器图片源仅允许已配置 API origin 下的 `/gift-media/images/<basename>`。下载禁止重定向、限制 15 秒和 5 MiB，并校验 raster 图片签名。
 - 礼物名称通过 DOM `textContent` 输出；未知图片只使用内置占位图。
 - 客户端不解析 Markdown 或静态礼物 manifest；服务器目录和房间接口响应均按显式字段规范化。
 - 全局本地搜索查询去除首尾空白后必须为 1–100 个字符；服务端不接受客户端提交 URL、图片文件名或路径。
@@ -58,7 +58,7 @@
 - 标签页条目的 `upgrade_gift`
 - `data.discount_gift_list` 中可识别的礼物数组
 
-在售盲盒会按设置中的 `giftBlindBoxConfig` 展开产物；产物通过礼物名称和人民币价格匹配当前 `giftConfig`，不读取个人背包。盲盒本体和每个产物使用各自礼物 ID，分别进入目录和计数。无法从礼物面板或配置识别的活动礼物仍可通过全局本地搜索手动加入，且不会写入在售快照。
+在售盲盒按服务器 v2 目录中 `blindBoxes` 的准确 ID 关系展开产物，不按名称和价格推断，不读取个人背包。盲盒本体和每个产物使用各自礼物 ID，分别进入目录和计数。无法从礼物面板或配置识别的活动礼物仍可通过全局本地搜索手动加入，且不会写入在售快照。
 
 `special.is_use` 表示当前账号是否满足赠送条件，不用于判定是否在售；例如等级礼物和大航海专属礼物仍属于当前面板礼物。
 

@@ -30,7 +30,7 @@ export const TOUR_CONFIG_STEPS = [
     title: '欢迎使用 LIRA',
     kicker: '第 0 步 · 认识 LIRA',
     content:
-      'LIRA 的全称是 <strong>Live Interactive Request Assistant</strong>，中文可以理解为「直播互动点歌助手」。首次使用请先在桌面端完成「登录 LIRA」设备授权；进入管理页后，只要跟着提示依次认识主要功能、登录 Bilibili、填写直播间、导入歌单和选择音乐平台。<br><strong>页面会自动跳到要操作的位置</strong>，看到高亮区域后照着做即可。',
+      'LIRA 的全称是 <strong>Live Interactive Request Assistant</strong>，中文可以理解为「直播互动点歌助手」。首次使用请先在桌面端完成「登录 LIRA」设备授权；进入管理页后，只要跟着提示依次认识主要功能、登录直播账号、填写直播间、导入歌单和选择音乐平台。<br><strong>页面会自动跳到要操作的位置</strong>，看到高亮区域后照着做即可。',
     targetPage: null, // 不切换页面
     targetSelector: null, // 不高亮元素
     position: 'center', // 居中显示
@@ -51,10 +51,10 @@ export const TOUR_CONFIG_STEPS = [
   },
   {
     id: 'bilibili-login',
-    title: '登录你的 Bilibili 账号',
+    title: '登录你的直播账号',
     kicker: '第 2 步 · 登录账号',
     content:
-      '点击高亮区域里的<strong>「扫码登录 Bilibili」</strong>，再用手机 Bilibili 扫描弹出的二维码。登录成功后，LIRA 才能稳定收到你直播间里的弹幕和礼物。',
+      '点击高亮区域里的<strong>「扫码登录直播账号」</strong>，再用手机上的直播平台应用扫描弹出的二维码。登录成功后，LIRA 才能稳定收到你直播间里的弹幕和礼物。',
     note: '二维码会在新窗口中打开；请在这台电脑上的 LIRA 桌面版完成。',
     targetPage: 'songAssistantPage', // 切换到点歌页
     targetTab: '[data-tab="settingsPage"]', // 切换到设置子标签
@@ -77,7 +77,7 @@ export const TOUR_CONFIG_STEPS = [
     kicker: '第 3 步 · 填写直播间',
     content:
       '点击高亮的输入框，填写你正在直播的房间号；也可以直接粘贴直播间网址。填好后，这一步会自动显示为已完成。',
-    note: '例如：房间号「123456」，或网址「https://live.bilibili.com/123456」。',
+    note: '例如：房间号「123456」，也可以直接粘贴直播间链接。',
     targetPage: 'songAssistantPage',
     targetTab: '[data-tab="settingsPage"]',
     targetSelector: '#roomId',

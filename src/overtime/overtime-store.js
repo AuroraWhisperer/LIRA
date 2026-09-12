@@ -267,6 +267,7 @@ function createOvertimeStore(giftDb) {
       FROM overtime_settlements s
       JOIN gift_events g ON g.id = s.gift_event_id
       WHERE s.status = 'pending' AND g.overtime_epoch = ?
+        AND g.detection_status = 'final'
     `,
       )
       .get(Number(enableEpoch));

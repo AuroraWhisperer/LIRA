@@ -34,6 +34,8 @@
 
 ### 1.3 服务构造时的恢复顺序
 
+运行中的“清空全部数据”成功后，`domain-services.data.clearAll()` 调用内部 `overtime.reloadState()`，重新读取已提交的状态并同步单调时钟锚点、归零与补偿定时器。后续暂停或礼物操作不能写回清空前的时间；存储失败或部分提交失败时不执行该重载。禁用默认行随 giftDb 事务提交，已有单例的 revision 在同一事务内递增而不归零，使现有 OBS 连接接受清空快照及后续操作，并继续拒绝清空前晚到的 HTTP 状态；仅缺失单例时从 revision 0 创建。部分失败时路由保持后台结算/计时写入暂停；完整回滚时恢复当前请求取得的暂停，详见 [storage.md](storage.md#63-并发写入静默quiesce)。此操作不增加 HTTP/IPC 接口。
+
 `createOvertimeService` 构造即执行两步恢复([overtime-service.js:27-35](../../../src/overtime/overtime-service.js#L27-L35)):
 
 1. `recoverPersistedClock()` — 若持久状态为 `running`,按墙钟锚点扣减停机期间流逝(§2.3);否则只重建锚点。
@@ -46,7 +48,7 @@
 - 检测核心的运行条件(消费者级联):`coreActive = enableGiftSprint==='true' || overtimeEpoch>0 || 存在 progress 组`;两者都关闭时停止接收新礼物但仍把已持久化的 progress 组排空为 final([detection-service.js:157-168](../../../src/bilibili/gift/detection-service.js#L157-L168)、[129-143](../../../src/bilibili/gift/detection-service.js#L129-L143))。
 - 消费者注册表逐个 `try/catch` 分发,单个消费者抛错不影响其他消费者;final 分发有失败名单时按指数退避重发([consumer-registry.js](../../../src/bilibili/gift/consumer-registry.js)、[detection-service.js:188-224](../../../src/bilibili/gift/detection-service.js#L188-L224))。
 - **查询只读**:礼物统计/历史查询一律只读 `detection_status='final' AND gift_stats_eligible=1` 的行([query-service.js:25-152](../../../src/bilibili/gift/query-service.js#L25-L152)),不触发任何生命周期变更;progress 与仅供加班机的事件不会出现在礼物统计功能中。
-- 服务关闭时 `overtime.dispose()` 取消归零/重试定时器;检测核心 `dispose()` 则 `flushPending({force:true})` 把残留 progress 组全部 final 化(见 [server-core.md](server-core.md) §6.2)。
+- 服务关闭时 `overtime.dispose()` 取消归零/重试定时器;检测核心 `dispose()` 在未因清空暂停时执行 `flushPending({force:true})`，暂停状态下不再写入(见 [storage.md](storage.md#63-并发写入静默quiesce))。
 
 `OvertimeConsumer.handle` 只区分 `phase`([overtime-consumer.js:12-16](../../../src/overtime/overtime-consumer.js#L12-L16)):
 
@@ -61,7 +63,7 @@ final    → service.finalizeGift(event)  // 立即结算(单一静默窗口,不
 
 目录选择器与礼物事件管线分离。主目录始终来自当前配置直播间的礼物面板、`giftConfig` 和已配置的在售盲盒展开，不读取个人账号背包。Electron main process 将已配置的 `LIRA_LICENSE_API_BASE` 作为唯一服务器入口，通过公开的 `GET /api/public/gifts/catalog` 读取全局 active 礼物目录；本地只保留金瓜子正价礼物，并供主目录精确 ID 补图和弹窗“搜索全部礼物”使用，不会增加或替换房间成员，也不会按名称合并同名不同 ID。入口只接受使用 DNS 主机名的 HTTPS 根 origin，HTTP、`localhost` 和 IP literal 均被拒绝。设备令牌只用于授权门控，不随公共目录请求发送，也不进入 renderer。
 
-`remote-catalog-cache.js` 在本地 `data/overtime-gift-catalog.json` 保存 ETag、同步版本、更新时间和规范化付费礼物数组。首次授权成功后，`gift-catalog-initializer.js` 保持登录页可见，扫描完整目录并从已校验的 Bilibili `sourceUrl` 下载图片；只有缺少可用源地址的条目才下载服务器 `/gift-media/images/<basename>`，B 站失败不会自动转为服务器批量下载。文件按礼物 ID、源 URL 和已校验服务器图片 URL 的 hash 分离，`data/overtime-gift-images/index.json`（schemaVersion 1，`images` 为 ID 到安全 basename 的映射）原子保存最近成功图片，换图失败继续使用旧图。完成状态写入 `data/overtime-gift-assets-state.json`。目录不可用且没有旧快照时提供重试；单图失败不永久阻塞。已有完成状态的每次授权启动立即进入 Admin，并以 `If-None-Match` 检查一次；持续运行每 12 小时再检查，关闭时清理定时器。304 也检查本地缺图并补齐。Admin 只接收本地 `/overtime-gift-images/<basename>`，支持离线复用。
+`remote-catalog-cache.js` 在本地 `data/overtime-gift-catalog-v2.json` 保存 ETag、同步版本、更新时间和规范化付费礼物数组。首次授权成功后，`gift-catalog-initializer.js` 保持登录页可见，扫描完整目录并从已校验的 Bilibili `sourceUrl` 下载图片；只有缺少可用源地址的条目才下载服务器 `/gift-media/images/<basename>`，B 站失败不会自动转为服务器批量下载。文件按礼物 ID、源 URL 和已校验服务器图片 URL 的 hash 分离，`data/overtime-gift-images/index.json`（schemaVersion 1，`images` 为 ID 到安全 basename 的映射）原子保存最近成功图片，换图失败继续使用旧图。完成状态写入 `data/overtime-gift-assets-state-v2.json`。目录不可用且没有旧快照时提供重试；单图失败不永久阻塞。已有完成状态的每次授权启动立即进入 Admin，并以 `If-None-Match` 检查一次；持续运行每 12 小时再检查，关闭时清理定时器。304 也检查本地缺图并补齐。Admin 只接收本地 `/overtime-gift-images/<basename>`，支持离线复用。
 
 `GET /api/overtime/gifts` 与 `POST /api/overtime/gifts/refresh` 不受远程目录是否配置影响，始终读取/刷新房间面板、`giftConfig` 和已配置的在售盲盒展开，不请求个人背包。`GET /api/overtime/gifts/catalog` 返回本地全局快照；`POST /api/overtime/gifts/local/search` 纯本地匹配名称/ID，旧 `/server/search` 只是同一实现的兼容别名。目录变化或缺图修复后，Live 完成图片扫描再通过本地 `/ws` 广播 `gift-catalog:update`，携带本地图片路径及 `assetsUpdatedAt`；Admin 按精确 ID 更新图片，不把全局成员列表应用成房间主目录。后续实际下载由既有 IPC 进度驱动单条 toast，显示开始、进度、完成或部分失败；无下载时不提示。目录更新不覆盖盲盒映射 `giftBlindBoxConfig`、计时规则或历史账本。所有本地搜索都不读取 Markdown、静态图库或在查询时联网。ICP备案后的公网页面仍使用 lira-server 原有分组 API 与 `/gifts` 路由，不依赖本地目录服务。
 
@@ -85,6 +87,8 @@ final    → service.finalizeGift(event)  // 立即结算(单一静默窗口,不
 
 ### 2.2 状态转移(全部先 `materialize()` 物化再写锚点)
 
+手动状态及背景变更先在候选副本上物化时间、修改字段与递增 revision；只有 `saveState` 成功后才替换活跃内存状态和单调时钟锚点，并重排归零定时器、广播。禁用须等待 `saveStateAndIgnorePending` 的状态与 pending 事务整体提交后才生效。保存失败继续抛错，保留上次已提交状态及原有归零/重试定时器；原运行中的倒计时照常流逝，同一手动操作可再次提交。保存成功后的通知异常不回滚已提交状态。
+
 | 操作         | 语义                                                                                                 | 出处                                                                                                                                     |
 | ------------ | ---------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | `enable`     | 置 enabled、epoch+1、status=`paused`(**启用后保持暂停,须手动开始**);已启用则 no-op                   | [overtime-service.js:85-93](../../../src/overtime/overtime-service.js#L85-L93)                                                           |
@@ -100,7 +104,7 @@ final    → service.finalizeGift(event)  // 立即结算(单一静默窗口,不
 见 [0002-server-authoritative-timing](../adr/0002-server-authoritative-timing.md),实现要点:
 
 - **有效剩余时间**:`effectiveRemainingMs = max(0, remaining_ms - (now_ms - anchor_at_ms))`,仅 `running` 状态按流逝扣减;`paused/finished` 恒返回物化值([getEffectiveRemainingMs:290-294](../../../src/overtime/overtime-service.js#L290-L294))。
-- **运行中单调时钟**:进程内流逝用 `performance.now()`(单调,不受 NTP/手工校时影响,见 [server-core.md](server-core.md) 的 Node 运行时假设);每次开始/暂停/调整/结算先 `materialize()` 把时间物化到当前瞬间并重建锚点([materialize:296-302](../../../src/overtime/overtime-service.js#L296-L302))。**墙钟只用于持久化与跨重启恢复**。
+- **运行中单调时钟**:进程内流逝用 `performance.now()`(单调,不受 NTP/手工校时影响,见 [server-core.md](server-core.md) 的 Node 运行时假设);每次开始/暂停/调整/结算先 `materialize()` 把时间物化到候选状态，持久化成功后再更新活跃状态和单调锚点。**墙钟只用于持久化与跨重启恢复**。
 - **重启恢复**:启动时若持久状态为 `running`,按墙钟锚点扣减停机流逝 `offlineElapsedMs = max(0, now - anchor_at_ms)`,归零则置 `finished` 并 revision+1,随后重建归零定时器([recoverPersistedClock:268-288](../../../src/overtime/overtime-service.js#L268-L288))。**系统时钟回拨时停机流逝按 0 计,绝不反向增加时间**;大幅前跳按真实墙钟扣减(无法与长时间停机可靠区分)。
 - **上限**:`MAX_OVERTIME_MS = 315_328_464_000_000`,`clampMs` 双向钳制([overtime-service.js:14](../../../src/overtime/overtime-service.js#L14)、[516-519](../../../src/overtime/overtime-service.js#L516-L519))。
 
@@ -170,7 +174,7 @@ final    → service.finalizeGift(event)  // 立即结算(单一静默窗口,不
 | 机制           | 行为                                                                                                                                                                                                                 | 出处                                                                                                                                                               |
 | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | 结算事务失败   | 事务回滚,行保持 pending;`recordFailure` 递增 `retry_count`、写 `settle_after_ms = now + delay`,延迟按指数退避 `min(30, 2^(retryCount-1))` 秒(**1、2、4、8、16、30、30…**);`last_error` 只存单行化错误摘要(≤500 字符) | [overtime-store.js:165-185](../../../src/overtime/overtime-store.js#L165-L185)、[344-346](../../../src/overtime/overtime-store.js#L344-L346)                       |
-| 重试调度       | `scheduleRecovery` 单定时器(可 `unref`)到点执行 `recoverSettlements`;空闲时按 `getNextPendingAt` 取最近到期时间预排,无需礼物活动                                                                                     | [overtime-service.js:333-353](../../../src/overtime/overtime-service.js#L333-L353)、[overtime-store.js:200-208](../../../src/overtime/overtime-store.js#L200-L208) |
+| 重试调度       | `scheduleRecovery` 单定时器(可 `unref`)到点执行 `recoverSettlements`;空闲时按 `getNextPendingAt` 只从 final 礼物的 pending 结算取最近到期时间预排；未封账的 progress 不参与重试调度,无需礼物活动                                                                                     | [overtime-service.js:333-353](../../../src/overtime/overtime-service.js#L333-L353)、[overtime-store.js:200-208](../../../src/overtime/overtime-store.js#L200-L208) |
 | 补偿扫描       | 服务构造时与每次重试:扫描 `detection_status='final' AND overtime_epoch=当前epoch AND (无 settlement 或 pending 到期)` 的组补投,按 `id ASC`、单批 ≤100                                                                | [overtime-store.js:187-198](../../../src/overtime/overtime-store.js#L187-L198)、[overtime-service.js:315-331](../../../src/overtime/overtime-service.js#L315-L331) |
 | 检测核心侧重投 | final 分发失败时核心侧按 `min(30s, 1s·2^attempt)` 退避重发同一 `final` 事件(attempt 上限 5),直到 dispatch 无失败                                                                                                     | [detection-service.js:188-224](../../../src/bilibili/gift/detection-service.js#L188-L224)                                                                          |
 
@@ -201,8 +205,8 @@ final    → service.finalizeGift(event)  // 立即结算(单一静默窗口,不
 ### 4.3 存储形态与带权抽取
 
 - 规则存储:`mode='fixed'` 时写入 version 2 effect;`random` 写入 version 2 outcomes;`display` 写入 `{ "version": 3, "quantityMode": "group", "displayText": "…" }`([overtime-store.js:78-80](../../../src/overtime/overtime-store.js#L78-L80))。
-- 结算行审计:盲盒结果 `outcomes_json` 持久化为 `{ "version": 1, "selectedIndex": 0, "selectedSeconds": 300, "totalWeight": 100 }`,客户端只播放已保存的 `selectedSeconds`,绝不自行随机;固定规则快照 `outcomes: []`、随机规则快照 `fixedSeconds: null`,流水可仅凭快照还原当时配置。
-- `selectRuleResult`([overtime-service.js:247-266](../../../src/overtime/overtime-service.js#L247-L266)):`fixed` 直接取 `fixedSeconds`;`random` 按 outcomes 数组顺序累计权重,用 **`node:crypto.randomInt(totalWeight)`** 抽取一次(import 见 [overtime-service.js:3](../../../src/overtime/overtime-service.js#L3);校验已保证权重 ≥1,无结果分支正常不可达)。
+- 结算行审计：单次随机结果保存 `{version:2,selectedIndex,selectedEffect:{operation,value},totalWeight}`；多次执行保存 `{version:3,quantity,selectedIndexes,totalWeight}`，并结合结算行的规则快照还原各项效果。客户端仅展示持久化结果，不自行重抽。
+- `selectRuleResult` 位于 [overtime-service.js](../../../src/overtime/overtime-service.js)：fixed 使用 `fixedEffect`，random 按权重通过 `node:crypto.randomInt(totalWeight)` 选择 effect；多次结果由 [overtime-effects.js](../../../src/overtime/overtime-effects.js) 的 `summarizeRandomOutcomes` 汇总。
 - **随机结果按执行次数产生**:`group` 模式抽一次,`item` 模式按最终数量独立抽取;同一结算会保存全部抽中索引。页面刷新、WS 重连和重复礼物包都不能重抽(结算行已 complete)。
 
 ## 5. 配置校验
@@ -243,7 +247,7 @@ final    → service.finalizeGift(event)  // 立即结算(单一静默窗口,不
 | `rules`    | 规则集替换                             |
 | `finished` | 倒计时自然归零定时器触发               |
 
-快照侧:`state.overtime`(16 字段之一,生产者 `domainServices.overtime.getSnapshot()`,[ws.md](ws.md) §2)与 `state.giftDetection`(`giftDetection.getStatus()`:`coreActive/consumers/pendingCount`,[detection-service.js:157-168](../../../src/bilibili/gift/detection-service.js#L157-L168))在每次连接与业务变更时全量下发。
+快照侧:`state.overtime`(17 字段之一,生产者 `domainServices.overtime.getSnapshot()`,[ws.md](ws.md) §2)与 `state.giftDetection`(`giftDetection.getStatus()`:`coreActive/consumers/pendingCount`,[detection-service.js:157-168](../../../src/bilibili/gift/detection-service.js#L157-L168))在每次连接与业务变更时全量下发。
 
 增量消息形态(逐字契约见 [ws.md](ws.md) §3.2;`state` 含 `effectiveRemainingMs/serverNowMs/status/revision`,配置或规则变化时另带完整 `background/rules`):
 

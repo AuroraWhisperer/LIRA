@@ -13,7 +13,7 @@ function registerUpdateIpc({
   checkForUpdates,
   downloadUpdate,
   installUpdate,
-  getShutdownApplication,
+  requestRestart,
   getMainWindow,
   normalizeGiftDisplayTrace,
   writeLog,
@@ -67,15 +67,7 @@ function registerUpdateIpc({
   });
   ipcMain.handle('desktop:restart', async function () {
     writeLog('ipc', { action: 'restart' });
-    try {
-      const shutdownApplication = getShutdownApplication();
-      if (shutdownApplication)
-        await shutdownApplication({ exitProcess: false });
-    } catch (_) {
-      // Server may already be stopped.
-    }
-    app.relaunch();
-    app.exit(0);
+    await requestRestart();
   });
   ipcMain.handle('desktop:close-window', function () {
     writeLog('ipc', { action: 'close-window' });

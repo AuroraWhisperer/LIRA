@@ -11,6 +11,10 @@ const { readCssBundle } = require('./helpers/css-bundle');
 const { readJsModuleBundle } = require('./helpers/js-module-bundle');
 const { NUMBER_LIMITS } = require('../src/ai/config');
 const {
+  MIN_CHUNK_INTERVAL_MS,
+  MAX_CHUNK_INTERVAL_MS,
+} = require('../src/ai/ai-assistant-helpers');
+const {
   createLyricToggleButton,
   loadModuleExports,
   response,
@@ -534,9 +538,9 @@ test('danmaku tool places the AI interaction assistant after the manual sender w
   assert.match(html, /id="xiaomiAiReplyMaxChars"[^>]*min="10"[^>]*max="50"/);
   assert.match(html, /回复长度偏好/);
   assert.match(html, /优先一条；内容较多时两条，必要时三条/);
-  assert.match(
-    html,
-    /不同回复随机 500–2000 毫秒；同一回复分段随机 500–1000 毫秒/,
+  assert.equal(
+    html.match(/value="(不同回复随机[^"]+)"\s+readonly/)?.[1],
+    `不同回复随机 500–2000 毫秒；同一回复分段随机 ${MIN_CHUNK_INTERVAL_MS}–${MAX_CHUNK_INTERVAL_MS} 毫秒`,
   );
   assert.match(html, /id="xiaomiAiUserCooldown"[^>]*min="0"[^>]*value="0"/);
   assert.doesNotMatch(html, /id="xiaomiAiSendInterval"/);

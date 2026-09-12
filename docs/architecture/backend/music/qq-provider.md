@@ -5,22 +5,22 @@
 
 本文档是 QQ 音乐**上游接口**(`*.qq.com`)的逆向工程唯一事实源:域名、请求头、Cookie 语义、GTK/zzcSign 签名、13 个上游端点及响应结构只在此成表。Cookie 持久化(登录分区、快照加密)见 [auth.md](../../desktop/auth.md);本地 `/api/music/*` 端点清单与行为见 [api.md](../api.md) 的 music-routes 节,不在此重复。网易云侧见 [netease-provider.md](netease-provider.md),歌词行解析算法见该文的歌词解析器一节。
 
-**内部模块边界:** `qq-provider.js` 是 Provider 公共门面并编排搜索、歌词、推荐、歌单与写操作；`qq-provider-streams.js` 继承底层客户端，只拥有 vkey、品质降级和播放流选择。流模块不拥有歌单/推荐业务，门面也不重复实现流解析。
+**内部模块边界:** `qq-provider.js` 是 Provider 公共门面并编排搜索、歌词、推荐、歌单与写操作；`qq-provider-streams.js` 当前拥有搜索、歌词、健康检查及 vkey/播放流选择；`qq-provider-client.js` 拥有请求头、Cookie、签名请求与歌单写入传输，`qq-provider-utils.js` 拥有映射和纯算法。歌单/推荐流程仍由门面编排，拆分不改变继承链的公共方法。
 
 ## 1. 上游域名与用途
 
 | 域名                          | 用途                                                                                  | 出处                                                                                   |
 | ----------------------------- | ------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| `c.y.qq.com`                  | 搜索、旧版歌词、公开歌单详情、我创建的歌单(回退)、收藏资产(回退)                      | [qq-provider.js:7-13](../../../../src/music/providers/qq-provider.js#L7-L13)           |
+| `c.y.qq.com`                  | 搜索、旧版歌词、公开歌单详情、我创建的歌单(回退)、收藏资产(回退)                      | [qq-provider-client.js](../../../../src/music/providers/qq-provider-client.js)           |
 | `u.y.qq.com`                  | `musicu.fcg`:播放 URL(CDN 分发 + vkey)、新版歌词、推荐 Feed、每日推荐、电台、最近播放 | 同上                                                                                   |
 | `u6.y.qq.com`                 | `musics.fcg` 客户端 API:我的歌单、收藏歌单、歌单详情、歌单写入(zzcSign)               | 同上                                                                                   |
-| `i2.y.qq.com`                 | 歌单写入请求的 `Origin`/`Referer`(zzcSign 场景专属,写接口校验)                        | [qq-provider.js:550-551](../../../../src/music/providers/qq-provider.js#L550-L551)     |
-| `y.gtimg.cn`                  | 专辑封面 CDN(`T002R300x300M000{albumMid}.jpg` 构造)                                   | [qq-provider.js:1019-1022](../../../../src/music/providers/qq-provider.js#L1019-L1022) |
-| `isure.stream.qqmusic.qq.com` | 音频流 CDN 默认前缀(sip 为空时的兜底)                                                 | [qq-provider.js:217](../../../../src/music/providers/qq-provider.js#L217)              |
+| `i2.y.qq.com`                 | 歌单写入请求的 `Origin`/`Referer`(zzcSign 场景专属,写接口校验)                        | [qq-provider-client.js](../../../../src/music/providers/qq-provider-client.js)     |
+| `y.gtimg.cn`                  | 专辑封面 CDN(`T002R300x300M000{albumMid}.jpg` 构造)                                   | [qq-provider-utils.js](../../../../src/music/providers/qq-provider-utils.js) |
+| `isure.stream.qqmusic.qq.com` | 音频流 CDN 默认前缀(sip 为空时的兜底)                                                 | [qq-provider-streams.js](../../../../src/music/providers/qq-provider-streams.js)              |
 
 ## 2. 请求头
 
-`buildHeaders()`([qq-provider.js:824-834](../../../../src/music/providers/qq-provider.js#L824-L834))构造所有接口的公共头:
+`buildHeaders()`([qq-provider-client.js](../../../../src/music/providers/qq-provider-client.js))构造所有接口的公共头:
 
 ```javascript
 {
@@ -32,7 +32,7 @@
 }
 ```
 
-歌单写入在公共头上叠加:`Content-Type: application/x-www-form-urlencoded`、`Origin: https://i2.y.qq.com`、`Referer: https://i2.y.qq.com/`([qq-provider.js:548-551](../../../../src/music/providers/qq-provider.js#L548-L551))。
+歌单写入在公共头上叠加:`Content-Type: application/x-www-form-urlencoded`、`Origin: https://i2.y.qq.com`、`Referer: https://i2.y.qq.com/`([qq-provider-client.js](../../../../src/music/providers/qq-provider-client.js))。
 
 ## 3. Cookie 分析
 
@@ -42,14 +42,14 @@ Provider 通过构造时注入的 `getCookieHeader(source)` 获取整串 Cookie(
 
 | Cookie        | 用途                                           | 出处                                                                                   |
 | ------------- | ---------------------------------------------- | -------------------------------------------------------------------------------------- |
-| `qqmusic_key` | 新版登录凭证(authst 第一来源)                  | [qq-provider.js:737-738](../../../../src/music/providers/qq-provider.js#L737-L738)     |
+| `qqmusic_key` | GTK 首选来源；authst 在 qm_keyst 缺失时回退到它                  | [qq-provider-client.js](../../../../src/music/providers/qq-provider-client.js)     |
 | `qm_keyst`    | 旧版登录凭证(authst 优先取它,其次 qqmusic_key) | 同上                                                                                   |
-| `p_skey`      | QQ 互联 skey(GTK 源,优先级第三)                | [qq-provider.js:1134-1140](../../../../src/music/providers/qq-provider.js#L1134-L1140) |
+| `p_skey`      | QQ 互联 skey(GTK 源,优先级第三)                | [qq-provider-utils.js](../../../../src/music/providers/qq-provider-utils.js) |
 | `skey`        | QQ 旧版 skey(GTK 源,兜底)                      | 同上                                                                                   |
 
-GTK 源提取顺序固定为 `qqmusic_key > qm_keyst > p_skey > skey`(`extractQQGtkSource`)。Provider 内部的兼容性判定 `hasQQMusicAuthCookie` 检查这 4 个 Cookie 任一非空,用于决定是否尝试带登录态的播放/网页回退;它不等同于 Electron 的登录完成判定,`requestMusicsClient` 仍要求 `uin` 与 `qm_keyst`/`qqmusic_key`([qq-provider.js:1151-1153](../../../../src/music/providers/qq-provider.js#L1151-L1153))。
+GTK 源提取顺序固定为 `qqmusic_key > qm_keyst > p_skey > skey`(`extractQQGtkSource`)。Provider 内部的兼容性判定 `hasQQMusicAuthCookie` 检查这 4 个 Cookie 任一非空,用于决定是否尝试带登录态的播放/网页回退;它不等同于 Electron 的登录完成判定,`requestMusicsClient` 仍要求 `uin` 与 `qm_keyst`/`qqmusic_key`([qq-provider-utils.js](../../../../src/music/providers/qq-provider-utils.js))。
 
-### 3.2 QQ 号提取(`extractUin`,[qq-provider.js:1162-1185](../../../../src/music/providers/qq-provider.js#L1162-L1185))
+### 3.2 QQ 号提取(`extractUin`,[qq-provider-utils.js](../../../../src/music/providers/qq-provider-utils.js))
 
 按优先级逐级回退,值格式 `o<QQ号>` 或 `<QQ号>`,QQ 号长度 5-15 位:
 
@@ -62,7 +62,7 @@ GTK 源提取顺序固定为 `qqmusic_key > qm_keyst > p_skey > skey`(`extractQQ
 
 ### 3.3 客户端 API 额外字段(`requestMusicsClient`)
 
-`comm` 除固定字段外,从 Cookie 提取([qq-provider.js:741-765](../../../../src/music/providers/qq-provider.js#L741-L765)):
+`comm` 除固定字段外,从 Cookie 提取([qq-provider-client.js](../../../../src/music/providers/qq-provider-client.js)):
 
 | 字段                                                                                       | 来源                                                             |
 | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
@@ -73,7 +73,7 @@ GTK 源提取顺序固定为 `qqmusic_key > qm_keyst > p_skey > skey`(`extractQQ
 
 ## 4. GTK 签名算法
 
-经典 QQ GTK 散列(`calcQQGtk`,[qq-provider.js:1155-1160](../../../../src/music/providers/qq-provider.js#L1155-L1160)):
+经典 QQ GTK 散列(`calcQQGtk`,[qq-provider-utils.js](../../../../src/music/providers/qq-provider-utils.js)):
 
 ```javascript
 let hash = 5381;
@@ -81,24 +81,24 @@ for (const ch of source) hash += (hash << 5) + ch.charCodeAt(0);
 return hash & 0x7fffffff; // 保留 31 位正数
 ```
 
-源取 §3.1 顺序的第一个存在 Cookie 的**完整值**;无 GTK 源时多处回退 `5381`(空串哈希值),公开接口可用([qq-provider.js:151](../../../../src/music/providers/qq-provider.js#L151))。
+源取 §3.1 顺序的第一个存在 Cookie 的**完整值**;无 GTK 源时多处回退 `5381`(空串哈希值),公开接口可用([qq-provider-streams.js](../../../../src/music/providers/qq-provider-streams.js))。
 
 ## 5. zzcSign 签名
 
-仅用于歌单写入:`url.searchParams.set('sign', zzcSign(body))`,`body` 为完整 `JSON.stringify` 后的请求体([qq-provider.js:545-547](../../../../src/music/providers/qq-provider.js#L545-L547)),算法来自 `@jixun/qmweb-sign` 包,不在本仓库实现。
+仅用于歌单写入:`url.searchParams.set('sign', zzcSign(body))`,`body` 为完整 `JSON.stringify` 后的请求体([qq-provider-client.js](../../../../src/music/providers/qq-provider-client.js)),算法来自 `@jixun/qmweb-sign` 包,不在本仓库实现。
 
 ## 6. 请求方法
 
-所有请求统一超时 `REQUEST_TIMEOUT_MS = 10000`([qq-provider.js:14](../../../../src/music/providers/qq-provider.js#L14)),`redirect: 'follow'`。
+所有请求统一超时 `REQUEST_TIMEOUT_MS = 10000`([qq-provider-streams.js](../../../../src/music/providers/qq-provider-streams.js)),`redirect: 'follow'`。
 
 | 方法                  | 形式            | 要点                                                                                                                                                  | 出处                                                                               |
 | --------------------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `requestJson`         | GET             | 参数逐个 `searchParams.set`;`AbortSignal.timeout(10000)`;`stripJsonp` 解包后 JSON.parse;非 JSON 抛"返回了非 JSON 响应"                                | [qq-provider.js:803-822](../../../../src/music/providers/qq-provider.js#L803-L822) |
-| `requestText`         | GET             | 同 requestJson 但返回原始文本(当前无调用点,保留工具)                                                                                                  | [qq-provider.js:787-801](../../../../src/music/providers/qq-provider.js#L787-L801) |
-| `requestMusicu`       | GET musicu      | `data=<JSON.stringify({...modules, comm})>` 查询参数;comm 固定 `{uin, format:'json', ct:24, cv:0}`                                                    | [qq-provider.js:698-712](../../../../src/music/providers/qq-provider.js#L698-L712) |
-| `requestMusicuPost`   | POST musicu     | `Content-Type: application/json`,body 为 `{...modules, comm}`(comm 由调用方传)                                                                        | [qq-provider.js:714-732](../../../../src/music/providers/qq-provider.js#L714-L732) |
-| `requestMusicsClient` | POST musics.fcg | `Content-Type: application/x-www-form-urlencoded`,URL 加 `pcachetime=floor(now/1000)`;**前置要求 `uin` + `authst` 都存在**,否则抛"登录 Cookie 不完整" | [qq-provider.js:734-785](../../../../src/music/providers/qq-provider.js#L734-L785) |
-| 歌单写入直发          | POST musics.fcg | URL 加 `_=Date.now()` 与 `sign=zzcSign(body)`;头 `i2.y.qq.com`                                                                                        | [qq-provider.js:545-558](../../../../src/music/providers/qq-provider.js#L545-L558) |
+| `requestJson`         | GET             | 参数逐个 `searchParams.set`;`AbortSignal.timeout(10000)`;`stripJsonp` 解包后 JSON.parse;非 JSON 抛"返回了非 JSON 响应"                                | [qq-provider-client.js](../../../../src/music/providers/qq-provider-client.js) |
+| `requestText`         | GET             | 同 requestJson 但返回原始文本(当前无调用点,保留工具)                                                                                                  | [qq-provider-client.js](../../../../src/music/providers/qq-provider-client.js) |
+| `requestMusicu`       | GET musicu      | `data=<JSON.stringify({...modules, comm})>` 查询参数;comm 固定 `{uin, format:'json', ct:24, cv:0}`                                                    | [qq-provider-client.js](../../../../src/music/providers/qq-provider-client.js) |
+| `requestMusicuPost`   | POST musicu     | `Content-Type: application/json`,body 为 `{...modules, comm}`(comm 由调用方传)                                                                        | [qq-provider-client.js](../../../../src/music/providers/qq-provider-client.js) |
+| `requestMusicsClient` | POST musics.fcg | `Content-Type: application/x-www-form-urlencoded`,URL 加 `pcachetime=floor(now/1000)`;**前置要求 `uin` + `authst` 都存在**,否则抛"登录 Cookie 不完整" | [qq-provider-client.js](../../../../src/music/providers/qq-provider-client.js) |
+| 歌单写入直发          | POST musics.fcg | URL 加 `_=Date.now()` 与 `sign=zzcSign(body)`;头 `i2.y.qq.com`                                                                                        | [qq-provider-client.js](../../../../src/music/providers/qq-provider-client.js) |
 
 ## 7. 上游端点详解(13 个)
 
@@ -129,14 +129,14 @@ GET https://c.y.qq.com/soso/fcgi-bin/client_search_cp
 | `new_json` `aggr` `cr` `catZhida`                          | `1`                                  | 新版 JSON / 聚合 / 纠错 / 直达区                                               |
 | `t`                                                        | `0`                                  | 搜索类型,0 = 单曲                                                              |
 | `lossless`                                                 | `0`                                  | 不要求无损                                                                     |
-| `p`                                                        | 页码,clamp 1-50 默认 1               | [qq-provider.js:67](../../../../src/music/providers/qq-provider.js#L67)        |
-| `n`                                                        | 每页,clamp 1-30 默认 20              | [qq-provider.js:59](../../../../src/music/providers/qq-provider.js#L59)        |
-| `w`                                                        | 关键词(必填,空抛错)                  | [qq-provider.js:57-58](../../../../src/music/providers/qq-provider.js#L57-L58) |
+| `p`                                                        | 页码,clamp 1-50 默认 1               | [qq-provider-streams.js](../../../../src/music/providers/qq-provider-streams.js)        |
+| `n`                                                        | 每页,clamp 1-30 默认 20              | [qq-provider-streams.js](../../../../src/music/providers/qq-provider-streams.js)        |
+| `w`                                                        | 关键词(必填,空抛错)                  | [qq-provider-streams.js](../../../../src/music/providers/qq-provider-streams.js) |
 | `format` `inCharset` `outCharset` `platform` `needNewCode` | `json`/`utf8`/`utf-8`/`yqq.json`/`0` | 固定                                                                           |
 
 响应路径 `data.data.song.list[]` → `mapQQSong`(见 §8.1)。关键词长度由 lyrics-service 层限制(见 [services.md](services.md) §6)。
 
-### 7.2 播放 URL 解析([qq-provider.js:211](../../../../src/music/providers/qq-provider.js#L211))
+### 7.2 播放 URL 解析([qq-provider-streams.js](../../../../src/music/providers/qq-provider-streams.js))
 
 ```
 GET https://u.y.qq.com/cgi-bin/musicu.fcg?data=<JSON>
@@ -180,24 +180,24 @@ GET https://u.y.qq.com/cgi-bin/musicu.fcg?data=<JSON>
 - 拼接 `baseUrl = sip.find(Boolean) || 'https://isure.stream.qqmusic.qq.com/'`,最终 `url = baseUrl + purl`
 - 全部 `purl` 为空:无登录 Cookie 抛"请先登录 QQ 音乐后再播放该歌曲";有登录 Cookie 抛"当前 QQ 音乐账号没有该歌曲的完整播放或试听权益"
 - 返回 `{ requestedQuality, quality }`;`quality` 按实际文件名前缀识别,使前端能提示 SQ 降级 HQ/标准
-- TTL:`STREAM_TTL_MS = 5 * 60 * 1000`([qq-provider.js:15](../../../../src/music/providers/qq-provider.js#L15)),`expireAt`/`playUrlExpireAt` 同值;忽略调用方 `forceRefresh`(由 music-cache 层控制)
+- TTL:`STREAM_TTL_MS = 5 * 60 * 1000`([qq-provider-streams.js](../../../../src/music/providers/qq-provider-streams.js)),`expireAt`/`playUrlExpireAt` 同值;本方法不额外缓存普通 vkey，外层刷新编排见 [services.md](services.md)
 
 **桌面专属音效边界**:同一份 HAR 还出现 `music.vkey.GetEVkey/CgiGetEVkey` 返回的 `Q0...mflac` 与 `O8...mgg`。Provider 现在对 QQ 登录用户提供实验性的 `premium`/`immersive` 档位：服务端短期保存 EVkey 的 `ekey`,通过本地 Range 代理使用 QMC2 解密后返回普通 FLAC/Ogg,不把密钥暴露给 renderer。Q0 的 `Atmos` 只作为媒体元数据标记,不等于空间渲染；O8、杜比、臻品母带 4.0 和臻品全景声 3.0 仍依赖 QQ 客户端 DSP/空间音频能力,Electron 无法保证效果,解析失败时应回退到浏览器可解码的标准/HQ/SQ。
 
-### 7.3 歌词获取(双路径,[qq-provider.js:82-175](../../../../src/music/providers/qq-provider.js#L82-L175))
+### 7.3 歌词获取(双路径,[qq-provider-streams.js](../../../../src/music/providers/qq-provider-streams.js))
 
 **路径 A(优先):PlayLyricInfo 新版接口**,前提是解析出数值 `sourceSongId > 0`:
 
-- `resolveSourceSongId`([qq-provider.js:130-145](../../../../src/music/providers/qq-provider.js#L130-L145)):track 自带 `sourceSongId` 则直接用;否则用 `title + 第一位歌手` 调搜索(limit 20),按 `sourceTrackId(mid)` 精确匹配反查数值 id;失败返回 0 走旧版
+- `resolveSourceSongId`([qq-provider-streams.js](../../../../src/music/providers/qq-provider-streams.js)):track 自带 `sourceSongId` 则直接用;否则用 `title + 第一位歌手` 调搜索(limit 20),按 `sourceTrackId(mid)` 精确匹配反查数值 id;失败返回 0 走旧版
 - `POST musicu.fcg`:`req_0 = { module: 'music.musichallSong.PlayLyricInfo', method: 'GetPlayLyricInfo', param: { songID, songMID, songType: 0, qrc: 1, trans: 1, roma: 1, crypt: 1 } }`
 - 校验 `response.code === 0 && req_0.code === 0 && req_0.data` 存在,否则抛"未返回完整歌词数据"
-- 解密(`decodeQQPlayableLyric`,[qq-provider.js:963-975](../../../../src/music/providers/qq-provider.js#L963-L975)):
+- 解密(`decodeQQPlayableLyric`,[qq-provider-utils.js](../../../../src/music/providers/qq-provider-utils.js)):
   - `data.crypt !== 1` → 直接 Base64 解码
   - `crypt === 1` → 校验 hex 串:长度 `≤ 2*1024*1024`、`% 16 === 0`、仅 `[0-9a-f]`,任一不满足抛"无效的加密歌词";通过则 `decryptQrc(hex)` → `extractQrcLyricContent`(取 `<Lyric_1 LyricContent="..."/>` 属性,无 XML 包裹用原文)→ `decodeXmlEntities`(&#x/&#/&quot;/&apos;/&lt;/&gt;/&amp;)
-- **注意**:翻译与罗马音同样按上述规则解密;`parseLyricResult(lyric, translation, lyric, roma)` 的**逐字歌词参数传入的是主歌词本身**([qq-provider.js:114](../../../../src/music/providers/qq-provider.js#L114))
+- **注意**:翻译与罗马音同样按上述规则解密;`parseLyricResult(lyric, translation, lyric, roma)` 的**逐字歌词参数传入的是主歌词本身**([qq-provider-streams.js](../../../../src/music/providers/qq-provider-streams.js))
 - 解析出的行数 > 0 即返回;否则抛"歌词无法解析"落入回退
 
-**路径 B(回退):旧版 Legacy 接口**([qq-provider.js:147-175](../../../../src/music/providers/qq-provider.js#L147-L175)):
+**路径 B(回退):旧版 Legacy 接口**([qq-provider-streams.js](../../../../src/music/providers/qq-provider-streams.js)):
 
 ```
 GET https://c.y.qq.com/lyric/fcgi-bin/fcg_query_lyric_new.fcg
@@ -205,9 +205,9 @@ GET https://c.y.qq.com/lyric/fcgi-bin/fcg_query_lyric_new.fcg
   format=json / inCharset=utf8 / outCharset=utf-8 / notice=0 / platform=yqq.json / needNewCode=0
 ```
 
-响应 `data.lyric` / `data.trans` / `data.romalrc` 均为 Base64 → `decodeQQBase64` 后 `parseLyricResult(lyric, trans, '', romalrc)`。双路径都失败时,报错文案优先取新版路径的错误([qq-provider.js:125-127](../../../../src/music/providers/qq-provider.js#L125-L127))。
+响应 `data.lyric` / `data.trans` / `data.romalrc` 均为 Base64 → `decodeQQBase64` 后 `parseLyricResult(lyric, trans, '', romalrc)`。双路径都失败时,报错文案优先取新版路径的错误([qq-provider-streams.js](../../../../src/music/providers/qq-provider-streams.js))。
 
-### 7.4 推荐歌单([qq-provider.js:228-281](../../../../src/music/providers/qq-provider.js#L228-L281))
+### 7.4 推荐歌单([qq-provider.js](../../../../src/music/providers/qq-provider.js))
 
 ```
 POST https://u.y.qq.com/cgi-bin/musicu.fcg   (requestMusicuPost)
@@ -218,16 +218,16 @@ POST https://u.y.qq.com/cgi-bin/musicu.fcg   (requestMusicuPost)
 - `page` clamp 1-50;`limit` clamp 1-30 默认 9;`vUniq` 透传调用方去重列表(截 200)
 - 响应路径 `req_1.data.v_shelf[].v_niche[].v_card[]`,**只取 `card.type === 500`(歌单卡片)** → `mapRecommendCard`(见 §8.3),最后 `slice(0, limit)`
 
-### 7.5 每日推荐([qq-provider.js:283-344](../../../../src/music/providers/qq-provider.js#L283-L344))
+### 7.5 每日推荐([qq-provider.js](../../../../src/music/providers/qq-provider.js))
 
 两步流程,与"为你推荐"同一 Feed 接口:
 
 1. **翻页收集 type 200 卡片**:每页 `get_recommend_feed`(同上 comm),从所有 shelf 的 `v_niche.v_card[]` 收集 `card.type === 200 && card.id` 的数值 songId;最多 `min(5, max(1, ceil(limit/9)))` 页;某页无卡片即 break
-2. **批量补全歌曲信息**:`resolveTrackInfoByIds`([qq-provider.js:347-370](../../../../src/music/providers/qq-provider.js#L347-L370)) — `POST musicu.fcg`,`req_1 = { module: 'music.trackInfo.UniformRuleCtrl', method: 'CgiGetTrackInfo', param: { ids: <数值id列表>, types: [200,...], source: 'AiNoFree' } }`,响应 `req_1.data.tracks[]` → `mapQQSong`
+2. **批量补全歌曲信息**:`resolveTrackInfoByIds`([qq-provider.js](../../../../src/music/providers/qq-provider.js)) — `POST musicu.fcg`,`req_1 = { module: 'music.trackInfo.UniformRuleCtrl', method: 'CgiGetTrackInfo', param: { ids: <数值id列表>, types: [200,...], source: 'AiNoFree' } }`,响应 `req_1.data.tracks[]` → `mapQQSong`
 
 去重:`seen` Set 同时记 id 与 mid;已见 id 在翻页后也加入,避免下一页重复。`limit` clamp 1-100 默认 30;`page` clamp 1-50。**Feed 无单曲卡片时回退 `getRadioTracks`**(代码注释:已从 HAR 抓包确认客户端真实流程)。
 
-### 7.6 电台([qq-provider.js:372-409](../../../../src/music/providers/qq-provider.js#L372-L409))
+### 7.6 电台([qq-provider.js](../../../../src/music/providers/qq-provider.js))
 
 ```
 GET https://u.y.qq.com/cgi-bin/musicu.fcg?data=<JSON>   (requestMusicu)
@@ -240,7 +240,7 @@ GET https://u.y.qq.com/cgi-bin/musicu.fcg?data=<JSON>   (requestMusicu)
 - 轮数 `min(12, max(3, ceil(limit/4)))`;每轮 `extractRadioSongs` 按 `tracks` / `track_list` / `songlist` 三路径取,去重后累计;**一轮 0 首新歌即停(防空转)**
 - 响应路径 `data.songlist.data.{tracks|track_list|songlist}` → `mapQQSong`
 
-### 7.7 我喜欢([qq-provider.js:411-421](../../../../src/music/providers/qq-provider.js#L411-L421))
+### 7.7 我喜欢([qq-provider.js](../../../../src/music/providers/qq-provider.js))
 
 1. `requireLogin('QQ 音乐”我喜欢”需要先登录。')`
 2. `getCreatedPlaylists({ limit: 50, includeLiked: true })`(includeLiked 缺省即不过滤)
@@ -249,7 +249,7 @@ GET https://u.y.qq.com/cgi-bin/musicu.fcg?data=<JSON>   (requestMusicu)
 
 `limit` clamp 1-5000 默认 200;`offset` clamp 0-200000。
 
-### 7.8 我的歌单([qq-provider.js:423-455](../../../../src/music/providers/qq-provider.js#L423-L455))
+### 7.8 我的歌单([qq-provider.js](../../../../src/music/providers/qq-provider.js))
 
 **路径 A(优先):客户端 API** — `POST musics.fcg?pcachetime=…`(requestMusicsClient,comm 见 §3.3):
 
@@ -269,25 +269,25 @@ GET https://u.y.qq.com/cgi-bin/musicu.fcg?data=<JSON>   (requestMusicu)
 
 结果 `mapQQPlaylist`(见 §8.2);`includeLiked === false` 时过滤 `dirId !== '201'`。`limit` clamp 1-500 默认 200。
 
-### 7.9 收藏歌单([qq-provider.js:457-485](../../../../src/music/providers/qq-provider.js#L457-L485))
+### 7.9 收藏歌单([qq-provider.js](../../../../src/music/providers/qq-provider.js))
 
 同 §7.8 双路径结构:
 
 - 客户端:`PlaylistFavRead.GetPlaylistFavInfo`,param `{ uin }`,响应 `data[callKey].data.v_list[]`
 - 回退:`GET c.y.qq.com/fav/fcgi-bin/fcg_get_profile_order_asset.fcg`,`ct=20`、`cid=205360956`、`userid=<QQ号>`、`reqtype=3`(3 = 收藏歌单)、`sin=0`、`ein=<limit>`、`g_tk`;响应 `data.data.cdlist[]`
 
-### 7.10 歌单详情([qq-provider.js:641-696](../../../../src/music/providers/qq-provider.js#L641-L696))
+### 7.10 歌单详情([qq-provider.js](../../../../src/music/providers/qq-provider.js))
 
 **路径 A(仅当 Cookie 含任一登录 Cookie):客户端 API** — `DissInfoForPc.uniform_get_Dissinfo`,param `{ disstid: Number(id), host_uin: Number(uin), login_uin: Number(uin) }`,响应 `data[callKey].data.songlist[]`,直接 `slice(offset, offset + limit)` 映射。失败静默落入路径 B(网页登录态不一定具备桌面客户端权限)。
 
 **路径 B(公开)**:`GET c.y.qq.com/qzone/fcg-bin/fcg_ucc_getcdinfo_byids_cp.fcg`,参数 `type=1`、`json=1`、`utf8=1`、`onlysong=0`、`disstid=<id>`、`g_tk`、`loginUin`、`hostUin=0`、`platform=yqq`。
 
-- **分页参数添加条件:仅当 `limit <= 100 || offset > 0`** 才附加 `song_begin=<offset>` 与 `song_num=<limit>`([qq-provider.js:688-691](../../../../src/music/providers/qq-provider.js#L688-L691))——即 limit > 100 且 offset = 0 时不带分页,服务端返回全部歌曲再本地截断
+- **分页参数添加条件:仅当 `limit <= 100 || offset > 0`** 才附加 `song_begin=<offset>` 与 `song_num=<limit>`([qq-provider.js](../../../../src/music/providers/qq-provider.js))——即 limit > 100 且 offset = 0 时不带分页,服务端返回全部歌曲再本地截断
 - 响应 `data.cdlist[0].songlist[]`(**cdlist 在顶层**,不是 `data.data` 下),`slice(0, limit)` 映射
 
 `limit` clamp 1-5000 默认 1000;`offset` clamp 0-200000。
 
-### 7.11 最近播放([qq-provider.js:577-639](../../../../src/music/providers/qq-provider.js#L577-L639))
+### 7.11 最近播放([qq-provider.js](../../../../src/music/providers/qq-provider.js))
 
 **路径 A:musicu** — `req_0 = { module: 'music.globalchannel.GlobalChannelSvr', method: 'GetPlayHistory', param: { uin, start: 0, num: limit } }`,响应 `req_0.data.result_song_list[]` → `mapQQSong(item.songInfo || item)`;有结果即返回。
 
@@ -295,7 +295,7 @@ GET https://u.y.qq.com/cgi-bin/musicu.fcg?data=<JSON>   (requestMusicu)
 
 双路径都空 → 抛错并附诊断:`[musicu:{code, dataKeys}]` + `[legacy keys:...]`。`limit` clamp 1-100 默认 50。
 
-### 7.12 歌单写入([qq-provider.js:487-575](../../../../src/music/providers/qq-provider.js#L487-L575))
+### 7.12 歌单写入([qq-provider.js](../../../../src/music/providers/qq-provider.js))
 
 `addTracksToPlaylist` → `AddSonglist`,`removeTracksFromPlaylist` → `DelSonglist`;两者汇入 `writePlaylistTracks(method, playlist, tracks)`:
 
@@ -321,11 +321,11 @@ POST https://u6.y.qq.com/cgi-bin/musics.fcg?_=<Date.now()>&sign=<zzcSign(body)>
 语义要点:
 
 - **前置**:`requireLogin` → Cookie 提取 `uin`(空则抛错附 Cookie 名诊断)→ `extractQQGtkSource`(空则抛"登录 Cookie 不完整")→ `calcQQGtk`
-- **写入目标校验** `normalizeQQPlaylistWriteTarget`([qq-provider.js:1103-1112](../../../../src/music/providers/qq-provider.js#L1103-L1112)):`dirId`/`tid` 必须为正整数、`dirName` 非空——写入用的是**数值 dirId/tid**,不是歌单字符串 id
-- **歌曲必须是数值 songId**(`sourceSongId || songId`),去重、最多 100 首、非数值直接抛"缺少 QQ 音乐数值 songId"([qq-provider.js:1114-1126](../../../../src/music/providers/qq-provider.js#L1114-L1126))
-- **成功判定**:`data.code === 0 && inner.code === 0 && retCode === 0` 三者齐平才算成功([qq-provider.js:567-573](../../../../src/music/providers/qq-provider.js#L567-L573));**任何非零 code 一律抛错**(含 502——本 Provider 不做"已存在"标记,那是网易云侧行为,见 [netease-provider.md](netease-provider.md) §7.11);成功返回 `inner.data.result || { dirId, tid, songlist: [] }`
+- **写入目标校验** `normalizeQQPlaylistWriteTarget`([qq-provider-utils.js](../../../../src/music/providers/qq-provider-utils.js)):`dirId`/`tid` 必须为正整数、`dirName` 非空——写入用的是**数值 dirId/tid**,不是歌单字符串 id
+- **歌曲必须是数值 songId**(`sourceSongId || songId`),去重、最多 100 首、非数值直接抛"缺少 QQ 音乐数值 songId"([qq-provider-utils.js](../../../../src/music/providers/qq-provider-utils.js))
+- **成功判定**:`data.code === 0 && inner.code === 0 && retCode === 0` 三者齐平才算成功([qq-provider.js](../../../../src/music/providers/qq-provider.js));**任何非零 code 一律抛错**(含 502——本 Provider 不做"已存在"标记,那是网易云侧行为,见 [netease-provider.md](netease-provider.md) §7.11);成功返回 `inner.data.result || { dirId, tid, songlist: [] }`
 
-### 7.13 健康检查([qq-provider.js:29-54](../../../../src/music/providers/qq-provider.js#L29-L54))
+### 7.13 健康检查([qq-provider-streams.js](../../../../src/music/providers/qq-provider-streams.js))
 
 `getSafeAuthState()`(吞异常返回 null)→ `searchTracks('晴天', { limit: 1 })`:
 
@@ -356,15 +356,15 @@ POST https://u6.y.qq.com/cgi-bin/musics.fcg?_=<Date.now()>&sign=<zzcSign(body)>
 | `vip`            | `pay.pay_play > 0 \|\| Vip > 0`                                                                    |
 | `id`             | `qq:<sourceTrackId>`                                                                               |
 
-### 8.2 mapQQPlaylist([qq-provider.js:912-929](../../../../src/music/providers/qq-provider.js#L912-L929))
+### 8.2 mapQQPlaylist([qq-provider-utils.js](../../../../src/music/providers/qq-provider-utils.js))
 
 `id`(content_id/dissid/tid/id)、`title` 必填;`dirId` 与 `tid` 单独透出(写入与"我喜欢"识别用);`trackCount`/`playCount`/`creatorUserId`(uin/hostuin)/`coverUrl` 按多键回退。
 
-### 8.3 mapRecommendCard([qq-provider.js:931-944](../../../../src/music/providers/qq-provider.js#L931-L944))
+### 8.3 mapRecommendCard([qq-provider-utils.js](../../../../src/music/providers/qq-provider-utils.js))
 
 `{ id, source:'qq', title, description: subtitle, coverUrl: cover, trackCount: 0, playCount: cnt, creatorUserId:'', dirId:'' }` — 推荐卡片无 dirId/tid,不可直接写入。
 
-### 8.4 封面 URL([qq-provider.js:1019-1045](../../../../src/music/providers/qq-provider.js#L1019-L1045))
+### 8.4 封面 URL([qq-provider-utils.js](../../../../src/music/providers/qq-provider-utils.js))
 
 优先响应内直链(`coverUrl`/`cover`/`picurl`/`imgurl`/`albumcover`/`AlbumPic`/`AlbumPic150X150`/`AlbumPic300X300`/`AlbumPic500X500`/`SingerPic`/`SingerPic300X300`/`album.picUrl`/`album.picurl`/`album.imgurl`),命中 `^https?://` 才直接用;否则 `https://y.gtimg.cn/music/photo_new/T002R300x300M000{albumMid}.jpg`。
 
@@ -372,19 +372,19 @@ POST https://u6.y.qq.com/cgi-bin/musics.fcg?_=<Date.now()>&sign=<zzcSign(body)>
 
 | 函数                               | 行为                                                      | 出处                                                                                   |
 | ---------------------------------- | --------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| `stripJsonp`                       | `/^[^(]*\(([\s\S]*)\)\s*;?$/` 剥掉 JSONP 回调壳           | [qq-provider.js:1005-1009](../../../../src/music/providers/qq-provider.js#L1005-L1009) |
-| `buildGuid`                        | `1000000000 + floor(random()*9000000000)` 的 10 位数字串  | [qq-provider.js:1187-1189](../../../../src/music/providers/qq-provider.js#L1187-L1189) |
-| `clampInteger`                     | 有限数值截断到 [min,max],否则回退值                       | [qq-provider.js:1191-1195](../../../../src/music/providers/qq-provider.js#L1191-L1195) |
-| `extractCookieValue`               | `(?:^                                                     | ;\s*)<name>=([^;]+)` 取单个 Cookie 值                                                  | [qq-provider.js:1128-1132](../../../../src/music/providers/qq-provider.js#L1128-L1132) |
-| `readQQModuleData`                 | 模块级 code 非 0 抛"<动作>失败(code=…)",返回 `inner.data` | [qq-provider.js:1142-1149](../../../../src/music/providers/qq-provider.js#L1142-L1149) |
-| `extractQQRecentSongs` 等 3 个辅助 | 泛化"最近播放"容器收集器,**当前无调用点(死代码)**         | [qq-provider.js:1047-1101](../../../../src/music/providers/qq-provider.js#L1047-L1101) |
+| `stripJsonp`                       | `/^[^(]*\(([\s\S]*)\)\s*;?$/` 剥掉 JSONP 回调壳           | [qq-provider-utils.js](../../../../src/music/providers/qq-provider-utils.js) |
+| `buildGuid`                        | `1000000000 + floor(random()*9000000000)` 的 10 位数字串  | [qq-provider-utils.js](../../../../src/music/providers/qq-provider-utils.js) |
+| `clampInteger`                     | 有限数值截断到 [min,max],否则回退值                       | [qq-provider-utils.js](../../../../src/music/providers/qq-provider-utils.js) |
+| `extractCookieValue`               | `(?:^                                                     | ;\s*)<name>=([^;]+)` 取单个 Cookie 值                                                  | [qq-provider-utils.js](../../../../src/music/providers/qq-provider-utils.js) |
+| `readQQModuleData`                 | 模块级 code 非 0 抛"<动作>失败(code=…)",返回 `inner.data` | [qq-provider-utils.js](../../../../src/music/providers/qq-provider-utils.js) |
+| `extractQQRecentSongs` 等 3 个辅助 | 泛化"最近播放"容器收集器,**当前无调用点(死代码)**         | [qq-provider-utils.js](../../../../src/music/providers/qq-provider-utils.js) |
 
 ## 9. 登录态要求总表
 
 | 操作                                                                     | 需要登录 | 判定方式                                                                                                                                                                                                                                                                 |
 | ------------------------------------------------------------------------ | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | 搜索 / 歌词 / 播放 URL / 推荐歌单 / 每日推荐 / 电台 / 歌单详情(公开路径) | ❌       | —(播放 URL 按 Cookie 有无自动置 `loginflag`)                                                                                                                                                                                                                             |
-| 我喜欢 / 我的歌单 / 收藏歌单 / 最近播放 / 歌单写入                       | ✅       | `requireLogin`([qq-provider.js:852-859](../../../../src/music/providers/qq-provider.js#L852-L859)) 使用 `auth.loggedIn` 或 Provider 兼容性 Cookie 判定(4 个 Cookie 之一);真正的客户端歌单接口仍需 `uin` + `authst`(`qm_keyst`/`qqmusic_key`),失败后按各操作回退 Web 接口 |
+| 我喜欢 / 我的歌单 / 收藏歌单 / 最近播放 / 歌单写入                       | ✅       | `requireLogin`([qq-provider-client.js](../../../../src/music/providers/qq-provider-client.js)) 使用 `auth.loggedIn` 或 Provider 兼容性 Cookie 判定(4 个 Cookie 之一);真正的客户端歌单接口仍需 `uin` + `authst`(`qm_keyst`/`qqmusic_key`),失败后按各操作回退 Web 接口 |
 | 健康检查                                                                 | ❌       | 状态按 §7.13 区分                                                                                                                                                                                                                                                        |
 
 Provider 工厂与健康聚合见 [services.md](services.md) §3;本地 HTTP 暴露见 [api.md](../api.md) 的 music-routes 节。

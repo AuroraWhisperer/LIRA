@@ -422,6 +422,41 @@ test('playlist write service routes Netease writes to its provider', async () =>
   assert.equal(result.result.songlist[0].songId, '789012');
 });
 
+test('Netease liked removal resolves the logged-in users actual playlist ID', async () => {
+  const provider = createProvider();
+  provider.getUserProfile = async () => ({ userId: '42' });
+  provider.getUserPlaylists = async (uid) => {
+    assert.equal(uid, '42');
+    return [{ id: '123456', title: '我喜欢的音乐' }];
+  };
+  let request;
+  provider.requestWeapiJson = async (pathname, params) => {
+    request = { pathname, params };
+    return { code: 200 };
+  };
+
+  const result = await writeMusicPlaylistTracks({ get: () => provider }, {
+    platform: 'netease',
+    playlist: { id: 'liked' },
+    tracks: [{ sourceTrackId: '789012' }],
+  }, 'remove');
+  assert.equal(request.params.pid, '123456');
+  assert.equal(request.params.op, 'del');
+  assert.equal(request.params.trackIds, '["789012"]');
+  assert.equal(result.result.playlistId, '123456');
+});
+
+test('Netease liked removal fails without writing to an arbitrary playlist', async () => {
+  const provider = createProvider();
+  provider.getUserProfile = async () => ({ userId: '42' });
+  provider.getUserPlaylists = async () => [{ id: '123456', title: 'Daily Mix' }];
+  provider.requestWeapiJson = async () => assert.fail('must not write without liked playlist');
+  await assert.rejects(
+    provider.removeTracksFromPlaylist({ id: 'liked' }, [{ sourceTrackId: '789012' }]),
+    /没有从网易云音乐读取到.*我喜欢/,
+  );
+});
+
 test('created playlist content marks only playlists without the track as available', async () => {
   const provider = {
     async getCreatedPlaylists() {

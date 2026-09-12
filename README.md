@@ -18,8 +18,8 @@ LIRA remains local-first, but the desktop client must complete online authorizat
 
 1. **Activate the first device.** On the “Log in to LIRA” page, enter the account name, password, and the one-time activation key supplied by the administrator, then choose “Activate and enter LIRA”. The server creates an independent device identity; the password and activation key are not stored locally.
 2. **Later launches verify automatically.** A bound device does not require the account name, password, or first activation key again, but it still performs an online authorization check at startup. If the service is temporarily unreachable, use “Retry connection”. A revoked device/license or disabled account requires administrator assistance.
-3. **Pair another computer.** Ask the server administrator to issue a one-time authorization code for the new device; the desktop client cannot create, view, or revoke these codes. On the new computer, enter the same account name, password, and the one-time code supplied by the administrator. Each computer gets its own device identity; pairing does not copy the local library, settings, Bilibili login, or music-platform login. Never copy the old computer's `data`, `userData`, private key, or token.
-4. **Sync the public playlist manually.** In “Song requests → Import/Export”, “Cloud playlist” can publish a full snapshot of the local library to the public playlist page after confirmation. The current service accepts up to 5,000 songs, does not merge concurrent edits, and does not automatically restore the cloud snapshot to the local library. Unresolved edits from another computer or the web page may be overwritten by the next full sync. The same page manages a PNG/JPG/JPEG/WebP/GIF background image up to 5 MB; uploading replaces the latest image and deleting it restores the default background.
+3. **Pair another computer.** Ask the server administrator for a one-time device authorization code and enter it with the same account name and password on the new computer. Each computer gets an independent device identity. After authorization, cloud sync can restore supported shared songs and settings; local files, device identity, and music-platform sessions are not copied by pairing. Never copy the old computer's `data`, `userData`, private key, or token.
+4. **Cloud playlist sync is automatic.** Local library changes mark the song scope dirty and upload a full snapshot after authorization. When no local upload is pending, the client pulls newer cloud revisions. “Song requests → Import/Export” also supports a manual full sync. The service accepts up to 5,000 songs; snapshots do not merge concurrent edits. The same page manages a PNG/JPG/JPEG/WebP/GIF background up to 5 MB; uploading replaces the image and deleting restores the default.
 
 In the current client, the LIRA server handles account/device authorization, optional cloud data, and authoritative Bilibili gift detection. The desktop receives normalized gift events over the authenticated HTTPS device channel and projects them into its existing local history, statistics, overtime, and overlay flows. Bilibili login, danmaku, the queue, playback, and the local library remain in the local runtime. The public playlist URL usually looks like `https://account.lirahub.cn/`; use the URL shown by “Open web playlist” for the remote HTTPS song page. OBS and 直播姬 browser sources continue to use the local `127.0.0.1` URLs and require OBS/直播姬 and LIRA to run on the same computer.
 
@@ -51,7 +51,7 @@ In the current client, the LIRA server handles account/device authorization, opt
 
 **Song Queue Display**
 
-- Two display styles: classic queue / transparent leaderboard identity
+- Six display styles: classic, identity leaderboard, storybook, neon vinyl, cherry ribbon, and golden lily
 - Loop or bounce scrolling with adjustable speed
 - 11 preset themes + customizable colors, transparency, font size, border radius, font family, weight
 - Glass morphism, gradient background, glow intensity, low resource mode
@@ -68,7 +68,7 @@ In the current client, the LIRA server handles account/device authorization, opt
 
 - Third playback source on the player page: reads current song, progress, and word-by-word lyrics from the local Quanmin K-Ge client, auto-follows playback and syncs desktop lyrics
 - Local QRC cache, auto-fallback to QQ Music / NetEase Cloud online lyrics when missing
-- Manual lyrics time offset (±1500ms)
+- Manual lyrics time offset (±3000ms)
 
 **Songlist Display Board**
 
@@ -95,7 +95,7 @@ In the current client, the LIRA server handles account/device authorization, opt
 
 **Streamer Planner**
 
-- Local streaming planner: organize work by today / this week / this month across song learning, stream prep, content publishing, and stream review — all data stays local
+- Local streamer workbench: dated calendar events, before / live / after tasks, ideas, viewer promises, and reviews; the v3 model migrates older planner data
 
 **Desktop Features**
 

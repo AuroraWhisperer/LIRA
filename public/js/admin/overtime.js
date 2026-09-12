@@ -1,6 +1,7 @@
 'use strict';
 
 import { eventBus, Events } from '../shared/event-bus.js';
+import { createGiftCatalogRoleLookup } from '../shared/gift-catalog-roles.js';
 import {
   api,
   copyText,
@@ -39,6 +40,7 @@ let catalog = [];
 let settlements = [];
 let rulesDirty = false;
 let rulesSaving = false;
+let rulesEditRevision = 0;
 let backgroundDirty = false;
 let backgroundSaving = false;
 let catalogRefreshing = false;
@@ -50,6 +52,8 @@ let giftCatalogApplyGeneration = 0;
 let catalogLiveStatus = null;
 let globalGiftMatches = [];
 let serverGiftArtworkById = new Map();
+let giftRoleLookup = createGiftCatalogRoleLookup(null);
+let giftRoleRevision = 0;
 let giftPickerSource = 'sale';
 let ruleEditor = null;
 
@@ -226,10 +230,13 @@ async function saveRules() {
   syncRulesSaveButton();
   try {
     const rules = ruleEditor.readRules();
+    const submittedRevision = rulesEditRevision;
     const result = await api('/api/overtime/rules', { rules });
-    rulesDirty = false;
+    rulesDirty = rulesEditRevision !== submittedRevision;
     renderState(result.data);
-    toast('修改已保存');
+    toast(
+      rulesDirty ? '本次修改已保存，仍有未保存的更改' : '修改已保存',
+    );
   } catch (error) {
     showError(error);
   } finally {
@@ -239,6 +246,7 @@ async function saveRules() {
 }
 
 function markRulesDirty() {
+  rulesEditRevision += 1;
   rulesDirty = true;
   syncRulesSaveButton();
 }
@@ -346,6 +354,7 @@ function applyGiftCatalog(snapshot) {
 function applyServerGiftArtwork(snapshot) {
   if (!snapshot || typeof snapshot !== 'object') return;
   if (!Array.isArray(snapshot.gifts)) return;
+  applyGiftRoleCatalog(snapshot);
 
   const nextArtworkById = new Map(serverGiftArtworkById);
   for (const gift of snapshot.gifts) {
@@ -376,6 +385,12 @@ function applyServerGiftArtwork(snapshot) {
   }
   const picker = byId('overtimeGiftPicker');
   if (picker?.open) renderGiftPicker();
+}
+
+function applyGiftRoleCatalog(snapshot) {
+  if (!Array.isArray(snapshot?.blindBoxes)) return;
+  giftRoleLookup = createGiftCatalogRoleLookup(snapshot);
+  giftRoleRevision += 1;
 }
 
 function decorateOvertimeRules(rules) {
@@ -472,6 +487,7 @@ async function toggleGiftPickerSource() {
     return;
   }
   const requestGeneration = ++giftPickerGeneration;
+  const requestRoleRevision = giftRoleRevision;
   giftPickerSource = 'global';
   globalGiftMatches = [];
   globalGiftSearchError = '';
@@ -487,6 +503,7 @@ async function toggleGiftPickerSource() {
     if (!Array.isArray(result.data?.gifts)) {
       throw new Error('礼物库尚未缓存。');
     }
+    if (requestRoleRevision === giftRoleRevision) applyGiftRoleCatalog(result.data);
     globalGiftMatches = result.data.gifts.map((gift) => ({
       id: String(gift.id),
       name: String(gift.name || gift.id),
@@ -579,7 +596,8 @@ function renderGiftPicker() {
     text.append(name);
     if (!gift.id.startsWith('guard-')) {
       const meta = document.createElement('small');
-      meta.textContent = `ID ${gift.id} · ¥${gift.rmb.toFixed(2)}`;
+      meta.textContent = [giftRoleLookup(gift), `ID ${gift.id} · ¥${gift.rmb.toFixed(2)}`]
+        .filter(Boolean).join(' · ');
       text.append(meta);
     }
     button.append(image, text);

@@ -150,6 +150,70 @@ test('domain gift clear resolves the active source and fails closed while switch
   }
 });
 
+test('domain clear-all resets the live overtime clock before another action can save it', () => {
+  const fixture = createFixture();
+  const services = createDomainServices({
+    db: fixture.databases,
+    settingsStore: createSettingsStore(fixture.databases.songDb),
+  });
+  try {
+    services.overtime.setTime({ initialSeconds: 120, remainingSeconds: 120 });
+    services.overtime.act('enable');
+    services.overtime.act('start');
+
+    assert.equal(services.data.clearAll().cleared, true);
+    const snapshot = services.overtime.getSnapshot();
+    assert.equal(snapshot.enabled, false);
+    assert.equal(snapshot.status, 'disabled');
+    assert.equal(snapshot.effectiveRemainingMs, 0);
+    assert.equal(snapshot.initialSeconds, 0);
+    assert.equal(services.overtime.getCurrentEpoch(), 0);
+
+    services.overtime.act('pause');
+    const persisted = fixture.databases.giftDb
+      .prepare('SELECT enabled, remaining_ms FROM overtime_machine_state WHERE id = 1')
+      .get();
+    assert.equal(persisted.enabled, 0);
+    assert.equal(persisted.remaining_ms, 0);
+  } finally {
+    services.gifts.dispose();
+    services.overtime.dispose();
+    fixture.close();
+  }
+});
+
+test('domain clear-all preserves the running overtime clock on a partial commit failure', () => {
+  const fixture = createFixture();
+  const services = createDomainServices({
+    db: fixture.databases,
+    settingsStore: createSettingsStore(fixture.databases.songDb),
+  });
+  const musicDb = fixture.databases.musicDb;
+  const originalExec = musicDb.exec;
+  try {
+    services.overtime.setTime({ remainingSeconds: 120 });
+    services.overtime.act('enable');
+    services.overtime.act('start');
+    musicDb.exec = function (sql) {
+      if (sql === 'COMMIT') throw new Error('test commit failure');
+      return originalExec.call(this, sql);
+    };
+
+    const result = services.data.clearAll();
+    assert.equal(result.partial, true);
+    assert.ok(result.committed.includes('giftDb'));
+    const snapshot = services.overtime.getSnapshot();
+    assert.equal(snapshot.enabled, true);
+    assert.equal(snapshot.status, 'running');
+    assert.ok(snapshot.effectiveRemainingMs > 0);
+  } finally {
+    musicDb.exec = originalExec;
+    services.gifts.dispose();
+    services.overtime.dispose();
+    fixture.close();
+  }
+});
+
 test('retention and legacy clear-recent never delete remote-source rows', () => {
   const fixture = createFixture();
   try {

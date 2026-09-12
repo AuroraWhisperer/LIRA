@@ -8,6 +8,27 @@ const test = require('node:test');
 const pkg = require('../package.json');
 const lock = require('../package-lock.json');
 
+test('the runtime window icon survives electron-builder buildResources exclusions', async () => {
+  const { getMainFileMatchers } = require('app-builder-lib/out/fileMatcher');
+  const projectDir = path.resolve(__dirname, '..');
+  const output = path.join(os.tmpdir(), 'lira-icon-matcher-output');
+  const matchers = getMainFileMatchers(projectDir, output, (value) => value, {}, {
+    info: {
+      projectDir,
+      buildResourcesDir: path.join(projectDir, pkg.build.directories.buildResources),
+      config: pkg.build,
+      debugLogger: { isEnabled: false },
+    },
+  }, output, false);
+  const filter = matchers[0].createFilter();
+  for (const relative of ['build', 'build/icon.png']) {
+    const filename = path.join(projectDir, relative);
+    assert.equal(filter(filename, await fs.stat(filename)), true, relative);
+  }
+  const sourceImage = path.join(projectDir, 'build/icon-source.png');
+  assert.equal(filter(sourceImage, await fs.stat(sourceImage)), false);
+});
+
 test('Playwright remains available only as a development dependency', () => {
   assert.equal(pkg.dependencies.playwright, undefined);
   assert.ok(pkg.devDependencies.playwright);

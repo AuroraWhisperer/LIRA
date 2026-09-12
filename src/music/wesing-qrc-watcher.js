@@ -15,18 +15,30 @@ function createWeSingQrcWatcher(options) {
   let watcher = null;
   let watchedCachePath = '';
   let refreshTimer = null;
+  let watchVersion = 0;
+  let syncVersion = 0;
 
   async function sync() {
+    const version = ++syncVersion;
     const cachePath = options.getCachePath();
-    if (!options.isActive() || !cachePath || !(await isDirectory(cachePath))) {
+    if (!options.isActive() || !cachePath) {
+      stop();
+      return;
+    }
+    const exists = await isDirectory(cachePath);
+    if (version !== syncVersion || !options.isActive() || cachePath !== options.getCachePath()) return;
+    if (!exists) {
       stop();
       return;
     }
     if (watcher && watchedCachePath === cachePath) return;
 
     stop();
+    const installedVersion = watchVersion;
     try {
-      watcher = watchFactory(cachePath, { recursive: true }, handleWatchEvent);
+      watcher = watchFactory(cachePath, { recursive: true }, (...args) => {
+        if (installedVersion === watchVersion) handleWatchEvent(...args);
+      });
       watcher.unref?.();
       watchedCachePath = cachePath;
     } catch (_) {
@@ -38,7 +50,9 @@ function createWeSingQrcWatcher(options) {
   function handleWatchEvent(_eventType, filename) {
     if (!options.isActive() || !/\.qrc$/i.test(String(filename || ''))) return;
     if (refreshTimer !== null) clearTimer(refreshTimer);
+    const version = watchVersion;
     refreshTimer = setTimer(() => {
+      if (version !== watchVersion) return;
       refreshTimer = null;
       if (options.isActive()) options.onRefresh();
     }, QRC_REFRESH_DEBOUNCE_MS);
@@ -46,6 +60,8 @@ function createWeSingQrcWatcher(options) {
   }
 
   function stop() {
+    watchVersion += 1;
+    syncVersion += 1;
     if (refreshTimer !== null) {
       clearTimer(refreshTimer);
       refreshTimer = null;

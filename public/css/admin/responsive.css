@@ -346,6 +346,13 @@
   color: var(--muted);
   padding: 20px;
 }
+.gift-history-table .empty strong,
+.gift-history-table .empty span {
+  display: block;
+}
+.gift-history-table .empty span {
+  margin-top: 6px;
+}
 
 .gift-remark-tag {
   display: inline-flex;

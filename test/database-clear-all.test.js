@@ -515,6 +515,54 @@ describe('clearAllData Matrix', () => {
     assert.strictEqual(overtimeState.enabled, 0);
   });
 
+  for (const [databaseName, table] of [
+    ['songDb', 'song_categories'],
+    ['giftDb', 'overtime_machine_state'],
+  ]) {
+    it(`rolls back all deletions when recreating ${table} fails`, (t) => {
+      const { songDb, superChatDb, giftDb, musicDb, checkinDb } = databases;
+      const timestamp = now();
+      songDb.prepare(`INSERT INTO song_categories
+        (name, created_at, updated_at) VALUES ('保留分类', ?, ?)`)
+        .run(timestamp, timestamp);
+      giftDb.exec(`UPDATE overtime_machine_state
+        SET enabled = 1, status = 'running', remaining_ms = 120000 WHERE id = 1`);
+      musicDb.prepare(`INSERT INTO play_queue_state
+        (client_id, payload, updated_at) VALUES ('retain', '{}', ?)`)
+        .run(timestamp);
+      const originalState = giftDb.prepare('SELECT * FROM overtime_machine_state').get();
+      let commits = 0;
+      for (const db of Object.values(databases)) {
+        const exec = db.exec;
+        t.mock.method(db, 'exec', function (sql) {
+          if (sql === 'COMMIT') commits += 1;
+          return exec.call(this, sql);
+        });
+      }
+      databases[databaseName].exec(`CREATE TEMP TRIGGER fail_defaults
+        BEFORE INSERT ON ${table} BEGIN SELECT RAISE(ABORT, 'default insert failed'); END`);
+
+      assert.throws(
+        () => clearAllData(songDb, superChatDb, giftDb, musicDb, checkinDb),
+        (error) => {
+          assert.deepStrictEqual(error.details, [
+            { db: databaseName, phase: 'recreate', error: 'default insert failed' },
+          ]);
+          return true;
+        },
+      );
+      assert.strictEqual(commits, 0);
+      assert.deepStrictEqual(songDb.prepare('SELECT name FROM song_categories').all()
+        .map((row) => row.name), ['保留分类']);
+      assert.deepStrictEqual(giftDb.prepare('SELECT * FROM overtime_machine_state').get(), originalState);
+      assert.strictEqual(musicDb.prepare('SELECT COUNT(*) AS count FROM play_queue_state').get().count, 1);
+      for (const db of Object.values(databases)) {
+        db.exec('BEGIN');
+        db.exec('ROLLBACK');
+      }
+    });
+  }
+
   it('should rollback every uncommitted database after a commit failure', () => {
     const { songDb, superChatDb, giftDb, musicDb, checkinDb } = databases;
     const timestamp = now();
