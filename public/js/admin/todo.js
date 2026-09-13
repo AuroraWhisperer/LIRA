@@ -7,12 +7,9 @@ import {
   PREVIOUS_STORAGE_KEY,
   LEGACY_STORAGE_KEY,
   STAGES,
-  NOTE_LABELS,
   NOTE_STAGE,
-  EVENT_LABELS,
   createItemId,
   toDateValue,
-  getCalendarDays,
   shiftMonth,
   normalizeEvent,
   normalizeTask,
@@ -25,6 +22,14 @@ import {
   dangerConfirm,
   showConfirmationDialog,
 } from '../shared/confirmation-dialog.js';
+
+import {
+  renderTodo,
+  renderTodoCalendar,
+  renderTodoAgenda,
+  renderTodoTasks,
+  readTodoAction,
+} from './todo-view.js';
 
 (function () {
   let readFailed = false;
@@ -258,303 +263,26 @@ import {
     return { ...event };
   }
 
-  function createElement(tag, className = '', text = '') {
-    const element = document.createElement(tag);
-    if (className) element.className = className;
-    if (text) element.textContent = text;
-    return element;
-  }
-
-  function createIcon(name) {
-    const icon = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    icon.setAttribute('class', 'planner-icon');
-    icon.setAttribute('aria-hidden', 'true');
-    const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
-    use.setAttribute('href', `/img/admin/workbench-icons.svg#${name}`);
-    icon.append(use);
-    return icon;
-  }
-
-  function iconButton(icon, label, action, id) {
-    const button = createElement('button', 'planner-icon-button');
-    button.type = 'button';
-    button.title = label;
-    button.setAttribute('aria-label', label);
-    button.dataset[action] = id;
-    button.append(createIcon(icon));
-    return button;
-  }
-
-  function formatDate(value, options) {
-    return new Intl.DateTimeFormat('zh-CN', options).format(
-      new Date(`${value}T12:00:00`),
-    );
-  }
-
-  function eventsForDate(date) {
-    return moduleState.planner.events
-      .filter((event) => event.date === date)
-      .sort((a, b) => a.time.localeCompare(b.time));
-  }
-
-  function renderCalendar() {
-    byId('plannerMonthLabel').textContent = formatDate(
-      `${moduleState.month}-01`,
-      { year: 'numeric', month: 'long' },
-    );
-    byId('plannerMonthCount').textContent =
-      `本月 ${moduleState.planner.events.filter((event) => event.date.startsWith(moduleState.month)).length} 项安排`;
-    byId('plannerCalendarGrid').replaceChildren(
-      ...getCalendarDays(moduleState.month).map((day) => {
-        const events = eventsForDate(day.date);
-        const button = createElement('button', 'planner-calendar-day');
-        button.type = 'button';
-        button.dataset.calendarDate = day.date;
-        button.classList.toggle('is-outside', !day.isCurrentMonth);
-        button.classList.toggle('is-today', day.date === toDateValue());
-        button.classList.toggle(
-          'is-selected',
-          day.date === moduleState.selectedDate,
-        );
-        button.tabIndex = day.date === moduleState.selectedDate ? 0 : -1;
-        button.setAttribute(
-          'aria-pressed',
-          String(day.date === moduleState.selectedDate),
-        );
-        button.setAttribute(
-          'aria-label',
-          `${day.date}，${events.length} 项安排`,
-        );
-        if (day.date === toDateValue())
-          button.setAttribute('aria-current', 'date');
-        button.append(
-          createElement(
-            'span',
-            'planner-calendar-day-number',
-            String(Number(day.date.slice(-2))),
-          ),
-        );
-        if (events.length) {
-          const event = events[0];
-          button.append(
-            createElement(
-              'span',
-              `planner-calendar-event event-${event.type}`,
-              event.title,
-            ),
-          );
-          button.title = events
-            .map((item) => `${item.time || '全天'} ${item.title}`)
-            .join('\n');
-        }
-        if (events.length > 1)
-          button.append(
-            createElement(
-              'span',
-              'planner-calendar-more',
-              `+${events.length - 1} 项`,
-            ),
-          );
-        return button;
-      }),
-    );
-  }
-
-  function renderAgenda() {
-    const date = moduleState.selectedDate;
-    const events = eventsForDate(date);
-    byId('plannerAgendaTitle').textContent =
-      `${date === toDateValue() ? '今天 · ' : ''}${formatDate(date, { month: 'long', day: 'numeric', weekday: 'short' })}`;
-    byId('plannerAgendaCount').textContent = `${events.length} 项安排`;
-    byId('plannerAgendaList').replaceChildren(
-      ...(events.length
-        ? events.map((event) => {
-            const row = createElement(
-              'article',
-              `planner-agenda-row event-${event.type}`,
-            );
-            row.setAttribute('role', 'listitem');
-            const time = createElement(
-              'time',
-              'planner-agenda-time',
-              event.time || '全天',
-            );
-            time.dateTime = event.time
-              ? `${event.date}T${event.time}`
-              : event.date;
-            const open = createElement('button', 'planner-event-open');
-            open.type = 'button';
-            open.dataset.eventEdit = event.id;
-            open.title = '编辑日程';
-            open.append(createElement('strong', '', event.title));
-            open.append(
-              createElement(
-                'span',
-                '',
-                event.detail || EVENT_LABELS[event.type],
-              ),
-            );
-            row.append(
-              time,
-              open,
-              iconButton('pencil', '编辑日程', 'eventEdit', event.id),
-            );
-            return row;
-          })
-        : [createElement('p', 'planner-empty-state', '这一天暂无安排')]),
-    );
-  }
-
-  function renderTasks() {
-    const tasks = moduleState.planner.tasks;
-    const done = tasks.filter((task) => task.done).length;
-    byId('plannerPendingCount').textContent = String(tasks.length - done);
-    byId('plannerDoneCount').textContent = String(done);
-    byId('streamerPlanner')
-      .querySelectorAll('[data-task-filter]')
-      .forEach((button) => {
-        button.setAttribute(
-          'aria-pressed',
-          String(button.dataset.taskFilter === moduleState.taskFilter),
-        );
-      });
-    const visible = tasks.filter(
-      (task) => task.done === (moduleState.taskFilter === 'done'),
-    );
-    byId('plannerTaskList').replaceChildren(
-      ...(visible.length
-        ? visible.map((task) => {
-            const row = createElement(
-              'article',
-              `planner-task-row${task.done ? ' is-complete' : ''}`,
-            );
-            row.setAttribute('role', 'listitem');
-            const check = createElement('input', 'planner-task-check');
-            check.type = 'checkbox';
-            check.checked = task.done;
-            check.dataset.taskComplete = task.id;
-            check.setAttribute(
-              'aria-label',
-              `${task.done ? '恢复待办' : '完成'}：${task.title}`,
-            );
-            const title = createElement('input', 'planner-task-copy');
-            title.type = 'text';
-            title.maxLength = 80;
-            title.value = task.title;
-            title.title = task.title;
-            title.dataset.taskTitle = task.id;
-            title.setAttribute('aria-label', '编辑待办内容');
-            row.append(
-              check,
-              title,
-              iconButton('x', `删除待办：${task.title}`, 'taskDelete', task.id),
-            );
-            return row;
-          })
-        : [
-            createElement(
-              'p',
-              'planner-empty-state',
-              moduleState.taskFilter === 'done' ? '暂无已完成事项' : '暂无待办',
-            ),
-          ]),
-    );
-  }
-
-  function renderNote(note) {
-    const card = createElement(
-      'article',
-      `planner-note-card note-${note.type}${note.pinned ? ' is-pinned' : ''}`,
-    );
-    card.setAttribute('role', 'listitem');
-    const head = createElement('div', 'planner-note-card-head');
-    const date = new Date(note.createdAt);
-    const time = createElement(
-      'time',
-      '',
-      Number.isNaN(date.getTime())
-        ? ''
-        : new Intl.DateTimeFormat('zh-CN', {
-            month: 'numeric',
-            day: 'numeric',
-          }).format(date),
-    );
-    time.dateTime = note.createdAt;
-    const pin = iconButton(
-      'pin',
-      note.pinned ? '取消置顶' : '置顶备忘',
-      'notePin',
-      note.id,
-    );
-    pin.setAttribute('aria-pressed', String(note.pinned));
-    head.append(
-      createElement('span', 'planner-note-type', NOTE_LABELS[note.type]),
-      time,
-      pin,
-    );
-    const actions = createElement('div', 'planner-note-card-actions');
-    const promoted = moduleState.planner.tasks.some(
-      (task) => task.id === note.promotedTaskId,
-    );
-    const promote = createElement(
-      'button',
-      'planner-note-promote',
-      promoted ? '已加入待办' : '转为待办',
-    );
-    promote.type = 'button';
-    promote.dataset.notePromote = note.id;
-    promote.disabled = promoted;
-    if (!promoted) promote.append(createIcon('arrow-up-right'));
-    actions.append(
-      promote,
-      iconButton('pencil', '编辑备忘', 'noteEdit', note.id),
-      iconButton('x', '删除备忘', 'noteDelete', note.id),
-    );
-    card.append(
-      head,
-      createElement('p', 'planner-note-copy', note.body),
-      actions,
-    );
-    return card;
-  }
-
-  function renderNotes() {
-    const notes = [...moduleState.planner.notes]
-      .reverse()
-      .sort((a, b) => Number(b.pinned) - Number(a.pinned));
-    byId('plannerNoteCount').textContent = `${notes.length} 条`;
-    byId('plannerNoteList').replaceChildren(
-      ...(notes.length
-        ? notes.map(renderNote)
-        : [createElement('p', 'planner-empty-state', '暂无备忘')]),
-    );
+  function viewSnapshot() {
+    return {
+      planner: getState(),
+      month: moduleState.month,
+      selectedDate: moduleState.selectedDate,
+      taskFilter: moduleState.taskFilter,
+      saveFailed: moduleState.saveFailed,
+      readFailed,
+    };
   }
 
   function render() {
-    if (!byId('streamerPlanner')) return;
-    byId('plannerTodayLabel').textContent = formatDate(toDateValue(), {
-      month: 'long',
-      day: 'numeric',
-      weekday: 'long',
-    });
-    const status = byId('plannerSaveState');
-    status.textContent = readFailed
-      ? '本机记录读取失败，已暂停写入'
-      : moduleState.saveFailed
-        ? '保存失败，请勿关闭页面'
-        : '已保存到本机';
-    status.classList.toggle('is-error', readFailed || moduleState.saveFailed);
-    renderCalendar();
-    renderAgenda();
-    renderNotes();
-    renderTasks();
+    renderTodo(viewSnapshot());
   }
 
   function selectDate(date, focus = false) {
     moduleState.selectedDate = date;
     moduleState.month = date.slice(0, 7);
-    renderCalendar();
-    renderAgenda();
+    renderTodoCalendar(viewSnapshot());
+    renderTodoAgenda(viewSnapshot());
     if (focus)
       byId('plannerCalendarGrid')
         .querySelector('[aria-pressed="true"]')
@@ -596,27 +324,143 @@ import {
     byId('plannerEventTitle').focus();
   }
 
+  async function confirmTaskDelete(taskId) {
+    const confirmed = await dangerConfirm({
+      title: '删除待办？',
+      description: '删除后无法恢复。',
+      confirmLabel: '删除待办',
+    });
+    if (confirmed) removeTask(taskId);
+  }
+
+  async function confirmNoteEdit(noteId) {
+    const body = byId('plannerNoteBody').value.trim();
+    const previous = moduleState.planner.notes.find(
+      (note) => note.id === moduleState.editingNoteId,
+    );
+    if (body && body !== previous?.body) {
+      const confirmed = await showConfirmationDialog({
+        variant: 'caution',
+        title: '放弃修改？',
+        description: '尚未保存的备忘内容将会丢失。',
+        confirmLabel: '放弃修改',
+        cancelLabel: '继续编辑',
+        initialFocus: 'cancel',
+      });
+      if (!confirmed) return;
+    }
+    editNote(noteId);
+  }
+
+  async function confirmNoteDelete(noteId) {
+    const confirmed = await dangerConfirm({
+      title: '删除备忘？',
+      description: '删除后无法恢复。',
+      confirmLabel: '删除备忘',
+    });
+    if (confirmed) {
+      if (moduleState.editingNoteId === noteId) editNote();
+      removeNote(noteId);
+    }
+  }
+
+  function toggleNotePin(noteId) {
+    const note = moduleState.planner.notes.find((item) => item.id === noteId);
+    if (note) updateNote(note.id, { pinned: !note.pinned });
+  }
+
+  function handleAction(action) {
+    if (!action) return;
+    const { type, value } = action;
+    switch (type) {
+      case 'monthOffset':
+        return selectDate(`${shiftMonth(moduleState.month, Number(value))}-01`);
+      case 'calendarDate':
+        return selectDate(value, true);
+      case 'eventNew':
+        return openEvent();
+      case 'eventEdit':
+        return openEvent(value);
+      case 'eventCancel':
+        return byId('plannerEventDialog').close();
+      case 'taskFilter':
+        moduleState.taskFilter = value;
+        return renderTodoTasks(viewSnapshot());
+      case 'taskDelete':
+        return confirmTaskDelete(value);
+      case 'notePromote':
+        return promoteNote(value);
+      case 'noteEdit':
+        return confirmNoteEdit(value);
+      case 'notePin':
+        return toggleNotePin(value);
+      case 'noteDelete':
+        return confirmNoteDelete(value);
+    }
+  }
+
+  function submitTask(event) {
+    event.preventDefault();
+    if (addTask({ title: byId('plannerTaskTitle').value })) {
+      byId('plannerTaskTitle').value = '';
+      byId('plannerTaskTitle').focus();
+    }
+  }
+
+  function submitNote(event) {
+    event.preventDefault();
+    const input = {
+      body: byId('plannerNoteBody').value,
+      type: byId('plannerNoteType').value,
+    };
+    const note = moduleState.editingNoteId
+      ? updateNote(moduleState.editingNoteId, input)
+      : addNote(input);
+    if (note) editNote();
+  }
+
+  function submitEvent(event) {
+    event.preventDefault();
+    const input = {
+      title: byId('plannerEventTitle').value,
+      date: byId('plannerEventDate').value,
+      time: byId('plannerEventAllDay').checked
+        ? ''
+        : byId('plannerEventTime').value,
+      type: byId('plannerEventForm').querySelector(
+        '[name="plannerEventType"]:checked',
+      ).value,
+      detail: byId('plannerEventDetail').value,
+    };
+    const saved = moduleState.editingEventId
+      ? updateEvent(moduleState.editingEventId, input)
+      : addEvent(input);
+    if (saved) byId('plannerEventDialog').close();
+    else {
+      byId('plannerEventError').textContent =
+        '请填写日程名称和有效的日期、时间。';
+      byId('plannerEventError').hidden = false;
+    }
+  }
+
+  async function confirmEventDelete() {
+    const eventId = moduleState.editingEventId;
+    if (!eventId) return;
+    byId('plannerEventDialog').close();
+    const confirmed = await dangerConfirm({
+      title: '删除日程？',
+      description: '删除后无法恢复。',
+      confirmLabel: '删除日程',
+    });
+    if (confirmed) removeEvent(eventId);
+    else openEvent(eventId);
+  }
+
   function init() {
     const root = byId('streamerPlanner');
     if (!root || moduleState.initialized) return;
-    byId('plannerTaskForm').addEventListener('submit', (event) => {
-      event.preventDefault();
-      if (addTask({ title: byId('plannerTaskTitle').value })) {
-        byId('plannerTaskTitle').value = '';
-        byId('plannerTaskTitle').focus();
-      }
-    });
-    byId('plannerNoteForm').addEventListener('submit', (event) => {
-      event.preventDefault();
-      const input = {
-        body: byId('plannerNoteBody').value,
-        type: byId('plannerNoteType').value,
-      };
-      const note = moduleState.editingNoteId
-        ? updateNote(moduleState.editingNoteId, input)
-        : addNote(input);
-      if (note) editNote();
-    });
+    byId('plannerTaskForm').addEventListener('submit', submitTask);
+    byId('plannerNoteForm').addEventListener('submit', submitNote);
     byId('plannerNoteCancel').addEventListener('click', () => editNote());
     byId('plannerGoToday').addEventListener('click', () =>
       selectDate(toDateValue()),
@@ -624,41 +468,8 @@ import {
     byId('plannerEventAllDay').addEventListener('change', (event) => {
       byId('plannerEventTime').disabled = event.target.checked;
     });
-    byId('plannerEventForm').addEventListener('submit', (event) => {
-      event.preventDefault();
-      const input = {
-        title: byId('plannerEventTitle').value,
-        date: byId('plannerEventDate').value,
-        time: byId('plannerEventAllDay').checked
-          ? ''
-          : byId('plannerEventTime').value,
-        type: byId('plannerEventForm').querySelector(
-          '[name="plannerEventType"]:checked',
-        ).value,
-        detail: byId('plannerEventDetail').value,
-      };
-      const saved = moduleState.editingEventId
-        ? updateEvent(moduleState.editingEventId, input)
-        : addEvent(input);
-      if (saved) byId('plannerEventDialog').close();
-      else {
-        byId('plannerEventError').textContent =
-          '请填写日程名称和有效的日期、时间。';
-        byId('plannerEventError').hidden = false;
-      }
-    });
-    byId('plannerEventDelete').addEventListener('click', async () => {
-      const eventId = moduleState.editingEventId;
-      if (!eventId) return;
-      byId('plannerEventDialog').close();
-      const confirmed = await dangerConfirm({
-        title: '删除日程？',
-        description: '删除后无法恢复。',
-        confirmLabel: '删除日程',
-      });
-      if (confirmed) removeEvent(eventId);
-      else openEvent(eventId);
-    });
+    byId('plannerEventForm').addEventListener('submit', submitEvent);
+    byId('plannerEventDelete').addEventListener('click', confirmEventDelete);
     root.addEventListener('change', (event) => {
       const target = event.target;
       if (target.dataset.taskComplete)
@@ -666,67 +477,9 @@ import {
       if (target.dataset.taskTitle)
         updateTask(target.dataset.taskTitle, { title: target.value });
     });
-    root.addEventListener('click', async (event) => {
-      const target = event.target.closest('button');
-      if (!target) return;
-      const data = target.dataset;
-      if (data.monthOffset)
-        selectDate(
-          `${shiftMonth(moduleState.month, Number(data.monthOffset))}-01`,
-        );
-      if (data.calendarDate) selectDate(data.calendarDate, true);
-      if (data.eventNew !== undefined) openEvent();
-      if (data.eventEdit) openEvent(data.eventEdit);
-      if (data.eventCancel !== undefined) byId('plannerEventDialog').close();
-      if (data.taskFilter) {
-        moduleState.taskFilter = data.taskFilter;
-        renderTasks();
-      }
-      if (data.taskDelete) {
-        const confirmed = await dangerConfirm({
-          title: '删除待办？',
-          description: '删除后无法恢复。',
-          confirmLabel: '删除待办',
-        });
-        if (confirmed) removeTask(data.taskDelete);
-      }
-      if (data.notePromote) promoteNote(data.notePromote);
-      if (data.noteEdit) {
-        const body = byId('plannerNoteBody').value.trim();
-        const previous = moduleState.planner.notes.find(
-          (note) => note.id === moduleState.editingNoteId,
-        );
-        if (body && body !== previous?.body) {
-          const confirmed = await showConfirmationDialog({
-            variant: 'caution',
-            title: '放弃修改？',
-            description: '尚未保存的备忘内容将会丢失。',
-            confirmLabel: '放弃修改',
-            cancelLabel: '继续编辑',
-            initialFocus: 'cancel',
-          });
-          if (!confirmed) return;
-        }
-        editNote(data.noteEdit);
-      }
-      if (data.notePin) {
-        const note = moduleState.planner.notes.find(
-          (item) => item.id === data.notePin,
-        );
-        if (note) updateNote(note.id, { pinned: !note.pinned });
-      }
-      if (data.noteDelete) {
-        const confirmed = await dangerConfirm({
-          title: '删除备忘？',
-          description: '删除后无法恢复。',
-          confirmLabel: '删除备忘',
-        });
-        if (confirmed) {
-          if (moduleState.editingNoteId === data.noteDelete) editNote();
-          removeNote(data.noteDelete);
-        }
-      }
-    });
+    root.addEventListener('click', (event) =>
+      handleAction(readTodoAction(event.target)),
+    );
     byId('plannerCalendarGrid').addEventListener('keydown', (event) => {
       const offsets = {
         ArrowLeft: -1,

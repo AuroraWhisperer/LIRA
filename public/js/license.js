@@ -14,6 +14,8 @@
   const passwordIcon = document.getElementById('licensePasswordIcon');
   const codeInput = document.getElementById('licenseActivationCode');
   const submitButton = document.getElementById('licenseSubmitBtn');
+  const loginModeButton = document.getElementById('licenseLoginMode');
+  const registerModeButton = document.getElementById('licenseRegisterMode');
   const retryButton = document.getElementById('licenseRetryBtn');
   const maximizeButton = document.getElementById('licenseMaximizeBtn');
   const status = document.getElementById('licenseStatus');
@@ -33,6 +35,7 @@
     'giftCatalogInitializationRetryBtn',
   );
   let busy = false;
+  let registration = false;
   let unsubscribe = () => {};
   let unsubscribeGiftCatalog = () => {};
   let unsubscribeWindowMaximized = () => {};
@@ -45,13 +48,12 @@
     ACCOUNT_NAME_INVALID:
       '用户名只能使用小写字母、数字和中划线，且不能以中划线开头或结尾。',
     ACCOUNT_NAME_RESERVED: '此用户名为系统保留名称，请更换。',
-    ACCOUNT_NAME_ALREADY_EXISTS: '此用户名已被使用，请更换或联系管理员。',
+    ACCOUNT_NAME_ALREADY_EXISTS:
+      '此用户名已被使用；已有账号请选择“登录已有账号”。',
     PASSWORD_TOO_SHORT: '密码至少 8 个字符。',
     PASSWORD_TOO_LONG: '密码不能超过 64 个字符。',
-    PASSWORD_CONTROL_CHARACTERS:
-      '密码不能包含换行、控制字符或不可见格式字符。',
-    PASSWORD_COMPLEXITY:
-      '密码不符合要求，请查看密码旁的说明。',
+    PASSWORD_CONTROL_CHARACTERS: '密码不能包含换行、控制字符或不可见格式字符。',
+    PASSWORD_COMPLEXITY: '密码不符合要求，请查看密码旁的说明。',
     PASSWORD_BCRYPT_TRUNCATED:
       '密码的 UTF-8 编码不能超过 72 字节，请缩短密码。',
     PASSWORD_WEAK: '密码过于常见或接近用户名，请更换。',
@@ -72,6 +74,9 @@
     DEVICE_FINGERPRINT_MISMATCH: '当前电脑与已绑定设备不一致，请联系管理员。',
     SIGNATURE_INVALID: '本机设备密钥验证失败。',
     DEVICE_NOT_FOUND: '本机设备登记不存在，需要重新激活。',
+    DEVICE_IDENTITY_AMBIGUOUS:
+      '检测到多条相同电脑的历史记录，请联系管理员核对后重试。',
+    PAIRING_CODE_ADMIN_ONLY: '请联系管理员下发新的短效登录码。',
     DEVICE_TOKEN_INVALID: '当前授权会话无效，请重新验证。',
     DEVICE_AUTH_EPOCH_CHANGED: '当前设备授权状态已变更，请重新验证。',
     DEVICE_SESSION_NOT_FOUND: '当前设备会话已失效，请重新验证。',
@@ -125,8 +130,44 @@
     if (!/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(accountName))
       return messages.ACCOUNT_NAME_INVALID;
     if (!password) return '请输入密码。';
-    if (!activationCode) return '请输入激活密钥。';
+    if (!activationCode)
+      return registration ? '请输入注册激活码。' : '请输入短效登录码。';
     return '';
+  }
+
+  function setAccountMode(isRegistration) {
+    if (busy) return;
+    registration = isRegistration;
+    loginModeButton?.setAttribute('aria-pressed', String(!registration));
+    registerModeButton?.setAttribute('aria-pressed', String(registration));
+    for (const [id, value] of [
+      ['licenseHeading', registration ? '注册 LIRA' : '登录 LIRA'],
+      [
+        'licenseModeDescription',
+        registration
+          ? '创建账号并授权这台电脑'
+          : '重装或使用新电脑，请向管理员获取短效登录码',
+      ],
+      ['licenseCodeLabel', registration ? '注册激活码' : '短效登录码'],
+      [
+        'licenseCodeHelp',
+        registration
+          ? '由管理员下发的一次性注册码，用户名不可重复'
+          : '由管理员下发，仅限本账号使用一次；同机重装保留原授权记录',
+      ],
+      ['licenseSubmitLabel', registration ? '注册并进入' : '登录并进入'],
+    ]) {
+      const element = document.getElementById(id);
+      if (element) element.textContent = value;
+    }
+    passwordInput.setAttribute(
+      'autocomplete',
+      registration ? 'new-password' : 'current-password',
+    );
+    passwordInput.value = '';
+    codeInput.value = '';
+    setPasswordVisible(false);
+    setStatus('');
   }
 
   function setPasswordVisible(visible) {
@@ -156,7 +197,7 @@
     retryButton.disabled = isAuthorizing;
     if (state === 'checking') setStatus('正在检查本机设备授权…', 'loading');
     else if (state === 'authorizing')
-      setStatus('正在绑定设备并验证授权，请稍候…', 'loading');
+      setStatus('正在验证账号与本机授权，请稍候…', 'loading');
     else if (state === 'needs_connection')
       setStatus(connectionErrorMessage(snapshot.error), 'error');
     else if (state === 'blocked')
@@ -320,6 +361,8 @@
   }
 
   form?.addEventListener('submit', activate);
+  loginModeButton?.addEventListener('click', () => setAccountMode(false));
+  registerModeButton?.addEventListener('click', () => setAccountMode(true));
   passwordToggle?.addEventListener('click', () =>
     setPasswordVisible(passwordInput.type === 'password'),
   );

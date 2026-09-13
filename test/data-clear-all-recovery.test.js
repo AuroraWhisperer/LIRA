@@ -322,11 +322,7 @@ test('gift database clear reports a partial result and rebuilds after local fail
     response.payload.error,
     '服务器礼物流水已清空，但本地清理失败，正在重新同步。',
   );
-  assert.deepEqual(calls, [
-    'remote:clear',
-    'local:clear',
-    'gift-sync:rebuild',
-  ]);
+  assert.deepEqual(calls, ['remote:clear', 'local:clear', 'gift-sync:rebuild']);
 });
 
 test('shared api preserves the parsed error payload and HTTP status', async () => {

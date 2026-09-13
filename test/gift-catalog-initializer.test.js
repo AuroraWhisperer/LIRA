@@ -73,12 +73,18 @@ test('initializes the catalog and all available images on first login', async ()
     assert.equal(result.failed, 0);
     assert.equal(result.percent, 100);
     assert.equal(result.completedAt, COMPLETED_AT);
-    assert.equal(states.some((state) => state.phase === 'catalog'), true);
-    assert.equal(states.some((state) => state.phase === 'images'), true);
+    assert.equal(
+      states.some((state) => state.phase === 'catalog'),
+      true,
+    );
+    assert.equal(
+      states.some((state) => state.phase === 'images'),
+      true,
+    );
     assert.equal(initializer.isInitialized(), true);
 
     const persisted = JSON.parse(
-      fs.readFileSync(path.join(dataDir, STATE_FILE_NAME), 'utf8'),
+      fs.readFileSync(path.join(dataDir, 'cache', STATE_FILE_NAME), 'utf8'),
     );
     assert.deepEqual(persisted, {
       schemaVersion: 2,
@@ -207,7 +213,7 @@ test('fails first initialization when the catalog is unavailable and no local co
     assert.equal(initializer.getState().status, 'error');
     assert.equal(initializer.getState().phase, 'error');
     assert.equal(
-      fs.existsSync(path.join(dataDir, STATE_FILE_NAME)),
+      fs.existsSync(path.join(dataDir, 'cache', STATE_FILE_NAME)),
       false,
     );
   } finally {

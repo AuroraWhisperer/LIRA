@@ -211,8 +211,15 @@ function validateProcessedGiftHistoryRecordWire(input, errorFactory) {
 }
 
 function validateGiftDisplayWire(source, errorFactory) {
-  if (!isPlainObject(source) || (!hasExactKeys(source, GIFT_KEYS) &&
-      !hasExactKeys(source, [...GIFT_KEYS, 'giftVariantId', 'blindBoxVariantId']))) {
+  if (
+    !isPlainObject(source) ||
+    (!hasExactKeys(source, GIFT_KEYS) &&
+      !hasExactKeys(source, [
+        ...GIFT_KEYS,
+        'giftVariantId',
+        'blindBoxVariantId',
+      ]))
+  ) {
     throw errorFactory();
   }
   normalizeGiftIdentityFields(source, errorFactory);
@@ -272,11 +279,7 @@ function canonicalizeGiftDisplay(source, errorFactory) {
   );
   const num = source.num;
   const unitPriceCents = moneyToCents(source.unitPrice, false, errorFactory);
-  const totalPriceCents = moneyToCents(
-    source.totalPrice,
-    false,
-    errorFactory,
-  );
+  const totalPriceCents = moneyToCents(source.totalPrice, false, errorFactory);
   const createdAtMs = Date.parse(String(source.createdAt || ''));
   if (
     (!giftId && !giftName) ||
@@ -311,9 +314,7 @@ function canonicalizeGiftDisplay(source, errorFactory) {
       errorFactory,
     );
     blindProfitCents =
-      blindBoxPriceCents === null
-        ? null
-        : totalPriceCents - blindBoxPriceCents;
+      blindBoxPriceCents === null ? null : totalPriceCents - blindBoxPriceCents;
     if (suppliedProfitCents !== blindProfitCents) throw errorFactory();
   } else if (
     source.blindBoxId !== null ||
@@ -351,11 +352,16 @@ function normalizeGiftIdentityFields(source, errorFactory) {
   const result = {};
   for (const key of ['giftVariantId', 'blindBoxVariantId']) {
     const value = source[key];
-    if (value !== undefined && value !== null &&
-        (typeof value !== 'string' || !/^gv_[a-f0-9]{64}$/u.test(value))) throw errorFactory();
+    if (
+      value !== undefined &&
+      value !== null &&
+      (typeof value !== 'string' || !/^gv_[a-f0-9]{64}$/u.test(value))
+    )
+      throw errorFactory();
     result[key] = value ?? null;
   }
-  if (source.isBlindBox !== true && result.blindBoxVariantId !== null) throw errorFactory();
+  if (source.isBlindBox !== true && result.blindBoxVariantId !== null)
+    throw errorFactory();
   return result;
 }
 
@@ -393,7 +399,9 @@ function normalizeRequiredSyncMetadata(input, errorFactory) {
 }
 
 function canonicalGiftId(value) {
-  return String(value ?? '').trim().normalize('NFC');
+  return String(value ?? '')
+    .trim()
+    .normalize('NFC');
 }
 
 function canonicalGiftText(value) {
@@ -404,7 +412,10 @@ function canonicalGiftText(value) {
 }
 
 function canonicalCoinType(value) {
-  return String(value ?? '').trim().toLowerCase().normalize('NFC');
+  return String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFC');
 }
 
 function moneyToCents(value, signed, errorFactory) {

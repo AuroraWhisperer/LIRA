@@ -17,21 +17,46 @@ function streamFixture(t, write = (_chunk, _encoding, callback) => callback()) {
   const module = { exports: {} };
   const filename = require.resolve('../src/music/qq-encrypted-stream');
   vm.compileFunction(fs.readFileSync(filename, 'utf8'), ['require', 'module'])(
-    (id) => id === '@clamber_l/crypto' ? {
-      ready: Promise.resolve(),
-      QMC2: class {
-        constructor() { this.offsets = []; this.freed = 0; ciphers.push(this); }
-        decrypt(buffer, offset) { this.offsets.push(offset); }
-        free() { this.freed += 1; }
-      },
-    } : require(id), module,
+    (id) =>
+      id === '@clamber_l/crypto'
+        ? {
+            ready: Promise.resolve(),
+            QMC2: class {
+              constructor() {
+                this.offsets = [];
+                this.freed = 0;
+                ciphers.push(this);
+              }
+              decrypt(buffer, offset) {
+                this.offsets.push(offset);
+              }
+              free() {
+                this.freed += 1;
+              }
+            },
+          }
+        : require(id),
+    module,
   );
   const req = Object.assign(new EventEmitter(), { headers: {} });
   const res = new Writable({ highWaterMark: 1, write });
-  res.writeHead = (status, headers) => { res.status = status; res.headers = headers; res.headersSent = true; };
+  res.writeHead = (status, headers) => {
+    res.status = status;
+    res.headers = headers;
+    res.headersSent = true;
+  };
   t.after(() => res.destroy());
-  const record = { url: 'https://isure.stream.qqmusic.qq.com/a.mflac', expiresAt: Date.now() + 60000 };
-  return { req, res, ciphers, run: (fetchImpl) => module.exports.serveQQEncryptedStream(record, req, res, { fetchImpl }) };
+  const record = {
+    url: 'https://isure.stream.qqmusic.qq.com/a.mflac',
+    expiresAt: Date.now() + 60000,
+  };
+  return {
+    req,
+    res,
+    ciphers,
+    run: (fetchImpl) =>
+      module.exports.serveQQEncryptedStream(record, req, res, { fetchImpl }),
+  };
 }
 
 test('QQ stream honors backpressure and cancels a blocked stream on downstream close', async (t) => {
@@ -40,10 +65,18 @@ test('QQ stream honors backpressure and cancels a blocked stream on downstream c
   let cancelled = 0;
   let signal;
   const body = new ReadableStream({
-    pull(controller) { pulls += 1; controller.enqueue(Buffer.alloc(65536)); },
-    cancel() { cancelled += 1; },
+    pull(controller) {
+      pulls += 1;
+      controller.enqueue(Buffer.alloc(65536));
+    },
+    cancel() {
+      cancelled += 1;
+    },
   });
-  const running = f.run(async (_url, options) => { signal = options.signal; return new Response(body); });
+  const running = f.run(async (_url, options) => {
+    signal = options.signal;
+    return new Response(body);
+  });
   await new Promise(setImmediate);
   assert.ok(pulls > 0 && pulls < 8, `bounded read ahead: ${pulls}`);
   f.res.destroy();
@@ -57,10 +90,15 @@ test('QQ stream honors backpressure and cancels a blocked stream on downstream c
 test('QQ stream aborts an upstream fetch before headers when the client leaves', async (t) => {
   const f = streamFixture(t);
   let signal;
-  const running = f.run((_url, options) => new Promise((_resolve, reject) => {
-    signal = options.signal;
-    signal.addEventListener('abort', () => reject(signal.reason), { once: true });
-  }));
+  const running = f.run(
+    (_url, options) =>
+      new Promise((_resolve, reject) => {
+        signal = options.signal;
+        signal.addEventListener('abort', () => reject(signal.reason), {
+          once: true,
+        });
+      }),
+  );
   f.req.emit('aborted');
   await running;
   assert.equal(signal.aborted, true);
@@ -71,13 +109,25 @@ test('QQ stream aborts an upstream fetch before headers when the client leaves',
 for (const contentLength of [undefined, '1']) {
   test(`QQ stream enforces actual byte limit with ${contentLength ?? 'missing'} length`, async (t) => {
     let written = 0;
-    const f = streamFixture(t, (chunk, _encoding, callback) => { written += chunk.length; callback(); });
+    const f = streamFixture(t, (chunk, _encoding, callback) => {
+      written += chunk.length;
+      callback();
+    });
     let cancelled = 0;
     const body = new ReadableStream({
-      pull(controller) { controller.enqueue(Buffer.alloc(1024 * 1024)); },
-      cancel() { cancelled += 1; },
+      pull(controller) {
+        controller.enqueue(Buffer.alloc(1024 * 1024));
+      },
+      cancel() {
+        cancelled += 1;
+      },
     });
-    await f.run(async () => new Response(body, { headers: contentLength ? { 'content-length': contentLength } : {} }));
+    await f.run(
+      async () =>
+        new Response(body, {
+          headers: contentLength ? { 'content-length': contentLength } : {},
+        }),
+    );
     assert.equal(written, 64 * 1024 * 1024);
     assert.equal(f.res.destroyed, true);
     assert.equal(cancelled, 1);
@@ -89,7 +139,17 @@ test('QQ stream releases rejected bodies and preserves range decrypt offsets', a
   for (const headers of [{ 'content-length': String(65 * 1024 * 1024) }]) {
     const f = streamFixture(t);
     let cancelled = 0;
-    await f.run(async () => new Response(new ReadableStream({ cancel() { cancelled += 1; } }), { headers }));
+    await f.run(
+      async () =>
+        new Response(
+          new ReadableStream({
+            cancel() {
+              cancelled += 1;
+            },
+          }),
+          { headers },
+        ),
+    );
     assert.equal(f.res.status, 502);
     assert.equal(cancelled, 1);
     assert.equal(f.ciphers.length, 0);
@@ -98,9 +158,19 @@ test('QQ stream releases rejected bodies and preserves range decrypt offsets', a
   f.req.headers.range = 'bytes=100-105';
   await f.run(async (_url, options) => {
     assert.equal(options.headers.Range, 'bytes=100-105');
-    return new Response(new ReadableStream({ start(c) { c.enqueue(Buffer.alloc(3)); c.enqueue(Buffer.alloc(3)); c.close(); } }), {
-      status: 206, headers: { 'content-range': 'bytes 100-105/200' },
-    });
+    return new Response(
+      new ReadableStream({
+        start(c) {
+          c.enqueue(Buffer.alloc(3));
+          c.enqueue(Buffer.alloc(3));
+          c.close();
+        },
+      }),
+      {
+        status: 206,
+        headers: { 'content-range': 'bytes 100-105/200' },
+      },
+    );
   });
   assert.deepEqual(f.ciphers[0].offsets, [100, 103]);
   assert.equal(f.res.status, 206);

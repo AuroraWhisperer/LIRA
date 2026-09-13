@@ -88,7 +88,9 @@ test('registered restart IPC drains both controllers before stopping and relaunc
   h.backendStop.resolve();
   assert.equal(await restart, undefined);
   assertFinalized(h, true);
-  assert.ok(h.calls.indexOf('runtime:stopped') < h.calls.indexOf('app:relaunch'));
+  assert.ok(
+    h.calls.indexOf('runtime:stopped') < h.calls.indexOf('app:relaunch'),
+  );
   assert.ok(h.calls.indexOf('app:relaunch') < h.calls.indexOf('app:exit'));
 });
 
@@ -130,7 +132,12 @@ for (const firstIntent of ['quit', 'restart']) {
       }
       await h.settle();
       assertFinalized(h, firstIntent === 'restart');
-      assert.equal(h.logs.filter((log) => log.scope === 'shutdown-error' && log.value === error).length, 1);
+      assert.equal(
+        h.logs.filter(
+          (log) => log.scope === 'shutdown-error' && log.value === error,
+        ).length,
+        1,
+      );
       assert.equal(h.count('runtime:stop'), failedStage === 'sync' ? 0 : 1);
       if (firstIntent === 'restart') assert.equal(await result, undefined);
       h.cloudIdle.resolve();
@@ -163,31 +170,48 @@ for (const firstIntent of ['quit', 'restart']) {
         assert.equal(await duplicate, undefined);
         if (firstIntent === 'restart') assert.equal(await result, undefined);
 
-        const deferred = timedOutStage === 'sync' ? h.remoteIdle : h.backendStop;
-        deferred[lateResult](lateResult === 'reject' ? new Error('late failure') : undefined);
+        const deferred =
+          timedOutStage === 'sync' ? h.remoteIdle : h.backendStop;
+        deferred[lateResult](
+          lateResult === 'reject' ? new Error('late failure') : undefined,
+        );
         h.cloudIdle.resolve();
         await h.settle();
         assertFinalized(h, firstIntent === 'restart');
         assert.equal(h.count('runtime:stop'), timedOutStage === 'sync' ? 0 : 1);
-        assert.deepEqual(h.logs.filter((log) => ['QUIT_DONE', 'QUIT_TIMEOUT'].includes(log.value?.event)).map((log) => log.value.event), ['QUIT_TIMEOUT']);
+        assert.deepEqual(
+          h.logs
+            .filter((log) =>
+              ['QUIT_DONE', 'QUIT_TIMEOUT'].includes(log.value?.event),
+            )
+            .map((log) => log.value.event),
+          ['QUIT_TIMEOUT'],
+        );
       });
     }
   }
 }
 
 test('synchronous sync disposal failure still finalizes through the bounded owner', async () => {
-  const h = createShutdownHarness({ syncDisposeError: new Error('dispose failed') });
+  const h = createShutdownHarness({
+    syncDisposeError: new Error('dispose failed'),
+  });
   await h.start();
   const event = h.quit();
   await h.settle();
   assert.equal(event.defaultPrevented, true);
   assertFinalized(h, false);
   assert.equal(h.count('runtime:stop'), 0);
-  assert.equal(h.logs.filter((log) => log.scope === 'shutdown-error').length, 1);
+  assert.equal(
+    h.logs.filter((log) => log.scope === 'shutdown-error').length,
+    1,
+  );
 });
 
 test('license disposal failure is logged without preventing restart termination', async () => {
-  const h = createShutdownHarness({ licenseDisposeError: new Error('license dispose failed') });
+  const h = createShutdownHarness({
+    licenseDisposeError: new Error('license dispose failed'),
+  });
   await h.start();
   const result = h.restart();
   h.remoteIdle.resolve();
@@ -196,7 +220,10 @@ test('license disposal failure is logged without preventing restart termination'
   await h.settle();
   assertFinalized(h, true);
   assert.equal(await result, undefined);
-  assert.equal(h.logs.filter((log) => log.scope === 'shutdown-error').length, 1);
+  assert.equal(
+    h.logs.filter((log) => log.scope === 'shutdown-error').length,
+    1,
+  );
 });
 
 test('quit before runtime initialization preserves Electron default exit', () => {

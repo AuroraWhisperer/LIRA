@@ -175,9 +175,7 @@ async function defaultFetchJson(endpointName, url, roomId) {
     throw new Error(`直播平台${endpointName}返回了非 JSON 响应。`);
   }
   if (!response.ok)
-    throw new Error(
-      `直播平台${endpointName}请求失败：HTTP ${response.status}`,
-    );
+    throw new Error(`直播平台${endpointName}请求失败：HTTP ${response.status}`);
   return payload;
 }
 

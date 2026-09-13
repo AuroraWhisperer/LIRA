@@ -322,7 +322,9 @@ function isGiftSnapshotReason(reason) {
 
 function isSongsSnapshotReason(reason) {
   const snapshotReason = String(reason || '');
-  return snapshotReason === 'cloud:songs' || snapshotReason.startsWith('songs:');
+  return (
+    snapshotReason === 'cloud:songs' || snapshotReason.startsWith('songs:')
+  );
 }
 
 // 创建单例实例

@@ -18,7 +18,7 @@ test('desktop shutdown drains sync controllers before stopping the runtime', () 
   assert.ok(start >= 0 && end > start);
   assert.match(
     shutdown,
-    /const controllersToDrain = \[remoteGiftController, cloudSyncController\]/,
+    /const controllersToDrain = \[\s*remoteGiftController,\s*cloudSyncController,?\s*\]/,
   );
   assert.match(
     shutdown,
@@ -111,10 +111,9 @@ test('desktop runtime adapts the legacy server API without changing calls', asyn
     cursor: 1,
     gift: { giftName: '小花花', totalPrice: 1 },
   };
-  assert.deepEqual(
-    await runtime.importProcessedGiftEvent(processedEvent, 7),
-    { imported: 'gift-1' },
-  );
+  assert.deepEqual(await runtime.importProcessedGiftEvent(processedEvent, 7), {
+    imported: 'gift-1',
+  });
   const sourceKey = 'a'.repeat(64);
   assert.deepEqual(runtime.resolveGiftSource(sourceKey), {
     id: 7,
@@ -153,9 +152,19 @@ test('desktop freezes gift source switching before waiting for cloud sync', () =
     path.join(__dirname, '..', 'src', 'electron', 'main.js'),
     'utf8',
   );
-  const start = source.indexOf('licenseManager.onStateChanged');
-  const end = source.indexOf("if (licenseManager.getState()", start);
-  const stateChange = source.slice(start, end);
+  const readinessSource = fs.readFileSync(
+    path.join(
+      __dirname,
+      '..',
+      'src',
+      'electron',
+      'desktop-readiness-controller.js',
+    ),
+    'utf8',
+  );
+  const start = readinessSource.indexOf('function resumeAuthorizedWork');
+  const end = readinessSource.indexOf('function start()', start);
+  const stateChange = readinessSource.slice(start, end);
 
   assert.ok(start >= 0 && end > start);
   assert.doesNotMatch(source, /createRemoteGiftCursorStore/u);

@@ -2,7 +2,11 @@
 
 import { eventBus, Events } from '../shared/event-bus.js';
 import { createGiftCatalogRoleLookup } from '../shared/gift-catalog-roles.js';
-import { giftSelectionKey, giftArtworkKey, rowGiftIdentity } from './overtime-gift-identity.js';
+import {
+  giftSelectionKey,
+  giftArtworkKey,
+  rowGiftIdentity,
+} from './overtime-gift-identity.js';
 import { setGiftImage } from '../shared/gift-image-fallback.js';
 import {
   api,
@@ -101,7 +105,7 @@ function init() {
   if (initialized || !document.getElementById('overtimePanel')) return;
   initialized = true;
   ruleEditor = createOvertimeRuleEditor(byId('overtimeRules'), markRulesDirty, {
-    onReselect: row => openGiftPicker(row),
+    onReselect: (row) => openGiftPicker(row),
   });
   bindControls();
   eventBus.on(Events.STATE_LOADED, ({ state }) => {
@@ -238,9 +242,7 @@ async function saveRules() {
     const result = await api('/api/overtime/rules', { rules });
     rulesDirty = rulesEditRevision !== submittedRevision;
     renderState(result.data);
-    toast(
-      rulesDirty ? '本次修改已保存，仍有未保存的更改' : '修改已保存',
-    );
+    toast(rulesDirty ? '本次修改已保存，仍有未保存的更改' : '修改已保存');
   } catch (error) {
     showError(error);
   } finally {
@@ -402,9 +404,7 @@ function applyGiftRoleCatalog(snapshot) {
 function decorateOvertimeRules(rules) {
   if (!Array.isArray(rules)) return rules;
   return rules.map((rule) => {
-    const imagePath = serverGiftArtworkById.get(
-      giftArtworkKey(rule),
-    );
+    const imagePath = serverGiftArtworkById.get(giftArtworkKey(rule));
     return imagePath ? { ...rule, imagePath } : rule;
   });
 }
@@ -457,7 +457,9 @@ function syncCatalogRefreshButton() {
 
 function openGiftPicker(row = null) {
   reselectingRule = row?.dataset?.overtimeRule ? row : null;
-  byId('overtimeGiftPickerTitle').textContent = reselectingRule ? '重新选择礼物' : '添加礼物';
+  byId('overtimeGiftPickerTitle').textContent = reselectingRule
+    ? '重新选择礼物'
+    : '添加礼物';
   giftPickerGeneration += 1;
   const search = byId('overtimeGiftSearch');
   search.value = '';
@@ -511,7 +513,8 @@ async function toggleGiftPickerSource() {
     if (!Array.isArray(result.data?.gifts)) {
       throw new Error('礼物库尚未缓存。');
     }
-    if (requestRoleRevision === giftRoleRevision) applyGiftRoleCatalog(result.data);
+    if (requestRoleRevision === giftRoleRevision)
+      applyGiftRoleCatalog(result.data);
     globalGiftMatches = result.data.gifts.map((gift) => ({
       variantId: gift.variantId,
       giftIdentity: gift.giftIdentity,
@@ -552,92 +555,102 @@ function renderGiftPicker() {
     giftPickerSource === 'global' &&
     (globalGiftSearchPending || globalGiftSearchError)
   ) {
-    root.append(
-      createMessage(
-        'overtime-rule-empty overtime-local-gift-search-status',
-        globalGiftSearchPending
-          ? '正在读取礼物库…'
-          : globalGiftSearchError,
-      ),
+    appendPickerMessage(
+      root,
+      'overtime-rule-empty overtime-local-gift-search-status',
+      globalGiftSearchPending ? '正在读取礼物库…' : globalGiftSearchError,
     );
     return;
   }
   const query = byId('overtimeGiftSearch').value.trim().toLocaleLowerCase();
-  const selectedIds = new Set(
-    Array.from(
-      byId('overtimeRules').querySelectorAll('[data-overtime-rule]'),
-    ).filter(row => row !== reselectingRule)
-      .map(row => giftSelectionKey({ ...row.dataset, giftIdentity: rowGiftIdentity(row) })),
-  );
+  const selectedIds = new Set();
+  const rows = byId('overtimeRules').querySelectorAll('[data-overtime-rule]');
+  for (const row of rows) {
+    if (row === reselectingRule) continue;
+    const gift = { ...row.dataset, giftIdentity: rowGiftIdentity(row) };
+    selectedIds.add(giftSelectionKey(gift));
+  }
   const source = giftPickerSource === 'global' ? globalGiftMatches : catalog;
-  const matches = source.filter(
+  const matches = filterGiftOptions(source, selectedIds, query);
+  if (giftPickerSource === 'global' && matches.length) {
+    appendPickerMessage(
+      root,
+      'overtime-rule-empty overtime-local-gift-search-status',
+      `礼物库 · ${matches.length} / ${globalGiftMatches.length} 个`,
+    );
+  }
+  for (const gift of matches) root.append(createGiftOption(gift));
+  if (!matches.length)
+    appendPickerMessage(
+      root,
+      'overtime-rule-empty',
+      giftPickerSource === 'global'
+        ? globalGiftMatches.length
+          ? '全部礼物中没有匹配项。'
+          : '礼物库暂无礼物。'
+        : '没有找到当前在售礼物。',
+    );
+}
+
+function filterGiftOptions(source, selectedIds, query) {
+  return source.filter(
     (gift) =>
       !selectedIds.has(giftSelectionKey(gift)) &&
       (!query ||
         gift.id.toLocaleLowerCase().includes(query) ||
         gift.name.toLocaleLowerCase().includes(query)),
   );
-  if (giftPickerSource === 'global' && matches.length) {
-    root.append(
-      createMessage(
-        'overtime-rule-empty overtime-local-gift-search-status',
-        `礼物库 · ${matches.length} / ${globalGiftMatches.length} 个`,
-      ),
-    );
-  }
-  for (const gift of matches) {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'overtime-gift-option';
-    button.disabled = /^\d+$/u.test(gift.id) && !gift.giftIdentity;
-    const image = document.createElement('img');
-    image.loading = 'lazy';
-    image.decoding = 'async';
-    setGiftImage(image, gift.imagePath);
-    image.alt = '';
-    const text = document.createElement('span');
-    const name = document.createElement('strong');
-    name.textContent = gift.name;
-    text.append(name);
-    if (!gift.id.startsWith('guard-')) {
-      const meta = document.createElement('small');
-      meta.textContent = [`ID ${gift.id} · ¥${gift.rmb.toFixed(2)}`, giftRoleLookup(gift),
-        gift.giftIdentity?.bagGift ? '背包礼物' : '']
-        .filter(Boolean).join(' · ');
-      if (button.disabled) meta.textContent += ' · 资料待同步，请刷新礼物库';
-      text.append(meta);
-    }
-    button.append(image, text);
-    button.addEventListener('click', () => addGiftRule(gift));
-    root.append(button);
-  }
-  if (!matches.length)
-    root.append(
-      createMessage(
-        'overtime-rule-empty',
-        giftPickerSource === 'global'
-          ? globalGiftMatches.length
-            ? '全部礼物中没有匹配项。'
-            : '礼物库暂无礼物。'
-          : '没有找到当前在售礼物。',
-      ),
-    );
 }
 
-function createMessage(className, message) {
+function createGiftOption(gift) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'overtime-gift-option';
+  button.disabled = /^\d+$/u.test(gift.id) && !gift.giftIdentity;
+  const image = document.createElement('img');
+  image.loading = 'lazy';
+  image.decoding = 'async';
+  setGiftImage(image, gift.imagePath);
+  image.alt = '';
+  const text = document.createElement('span');
+  const name = document.createElement('strong');
+  name.textContent = gift.name;
+  text.append(name);
+  if (!gift.id.startsWith('guard-')) {
+    const meta = document.createElement('small');
+    meta.textContent = [
+      `ID ${gift.id} · ¥${gift.rmb.toFixed(2)}`,
+      giftRoleLookup(gift),
+      gift.giftIdentity?.bagGift ? '背包礼物' : '',
+    ]
+      .filter(Boolean)
+      .join(' · ');
+    if (button.disabled) meta.textContent += ' · 资料待同步，请刷新礼物库';
+    text.append(meta);
+  }
+  button.append(image, text);
+  button.addEventListener('click', () => addGiftRule(gift));
+  return button;
+}
+
+function appendPickerMessage(root, className, message) {
   const node = document.createElement('div');
   node.className = className;
   node.textContent = message;
-  return node;
+  root.append(node);
 }
 
 function addGiftRule(gift) {
   const replacing = Boolean(reselectingRule);
-  const row = replacing ? ruleEditor.reselectGift(reselectingRule, gift) : ruleEditor.createRule(gift);
+  const row = replacing
+    ? ruleEditor.reselectGift(reselectingRule, gift)
+    : ruleEditor.createRule(gift);
   reselectingRule = null;
   byId('overtimeGiftPicker').close();
   row.scrollIntoView({ block: 'nearest' });
-  toast(replacing ? `已选择 ${gift.name}，原规则设置已保留` : `已添加 ${gift.name}`);
+  toast(
+    replacing ? `已选择 ${gift.name}，原规则设置已保留` : `已添加 ${gift.name}`,
+  );
 }
 
 function overlayUrl() {

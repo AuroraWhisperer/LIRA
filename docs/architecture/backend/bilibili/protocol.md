@@ -1,10 +1,10 @@
 # Bilibili 直播协议:HTTP API、WBI 签名与 WebSocket 弹幕长连
 
-> 涉及文件:[api-client.js](../../../../src/bilibili/danmaku/api-client.js)、[wbi-signer.js](../../../../src/bilibili/wbi-signer.js)、[websocket-connection.js](../../../../src/bilibili/danmaku/websocket-connection.js)、[packet-decoder.js](../../../../src/bilibili/parsers/packet-decoder.js)、[protobuf-decoder.js](../../../../src/bilibili/protocols/protobuf-decoder.js)、[danmaku-parser.js](../../../../src/bilibili/parsers/danmaku-parser.js)、[superchat-parser.js](../../../../src/bilibili/parsers/superchat-parser.js)、[gift-parser.js](../../../../src/bilibili/parsers/gift-parser.js)、[gift-command-utils.js](../../../../src/bilibili/parsers/gift-command-utils.js)、[gift-guard-parser.js](../../../../src/bilibili/parsers/gift-guard-parser.js)、[gift-normalizers.js](../../../../src/bilibili/utils/gift-normalizers.js)、[user-meta-extractor.js](../../../../src/bilibili/utils/user-meta-extractor.js)、[helpers.js](../../../../src/bilibili/helpers.js)、[danmaku-client.js](../../../../src/bilibili/danmaku-client.js) 的连接部分、[message-handlers.js](../../../../src/bilibili/danmaku/message-handlers.js) 的分发部分
+> 涉及文件:[api-client.js](../../../../src/bilibili/danmaku/api-client.js)、[wbi-signer.js](../../../../src/bilibili/wbi-signer.js)、[websocket-connection.js](../../../../src/bilibili/danmaku/websocket-connection.js)、[packet-decoder.js](../../../../src/bilibili/parsers/packet-decoder.js)、[protobuf-decoder.js](../../../../src/bilibili/protocols/protobuf-decoder.js)、[danmaku-parser.js](../../../../src/bilibili/parsers/danmaku-parser.js)、[superchat-parser.js](../../../../src/bilibili/parsers/superchat-parser.js)、[gift-identity-hints.js](../../../../src/bilibili/users/gift-identity-hints.js)、[gift-command-utils.js](../../../../src/bilibili/parsers/gift-command-utils.js)、[user-meta-extractor.js](../../../../src/bilibili/utils/user-meta-extractor.js)、[helpers.js](../../../../src/bilibili/helpers.js)、[danmaku-client.js](../../../../src/bilibili/danmaku-client.js) 的连接部分、[message-handlers.js](../../../../src/bilibili/danmaku/message-handlers.js) 的分发部分
 
 本文档是 **Bilibili 平台出向协议**的唯一事实源:HTTP 端点、WBI 签名、WebSocket 二进制帧、自实现 Protobuf 解码与消息解析规则只在此成表。平台侧 API 的完整参考(用户/直播间信息、管理、消息流等)见 [`docs/bilibili-live-api/`](../../../bilibili-live-api/info.md) 目录,本文不复述。消息经解析后进入的监听管线见 [danmaku.md](danmaku.md),礼物/SC 的入库与服务层见 [gift.md](gift.md)。
 
-**礼物解析模块边界:** `gift-parser.js` 只编排命令分支并生成统一礼物事件；`gift-command-utils.js` 只处理命令名、字段提取和通用归一化；`gift-guard-parser.js` 只拥有大航海/守护类命令及其证据兼容规则。辅助模块不发起网络请求，也不向消息处理层反向分发。
+**礼物相关消息边界：** `gift-command-utils.js` 只识别消息命令和重复舰队提示；`users/gift-identity-hints.js` 只读取发送者 UID、昵称、头像及已验证的舰队身份。客户端没有原始礼物解析器，不计算金额、数量、连击、盲盒或订单身份；礼物账本接收服务器确认的结果。
 
 ## 1. 架构总览
 
@@ -192,33 +192,9 @@ while (offset + 16 <= buffer.length):
 - 值追加到 `fields[field]` 数组(支持 repeated,[protobuf-decoder.js:77-78](../../../../src/bilibili/protocols/protobuf-decoder.js#L77-L78))。
 - 入口:`decodeBilibiliGiftV2Proto(value)` 先 `cleanText` 后 Base64 解码([protobuf-decoder.js:84-93](../../../../src/bilibili/protocols/protobuf-decoder.js#L84-L93))。
 
-### 5.3 SEND_GIFT_V2 字段映射
+### 5.3 SEND_GIFT_V2 身份字段
 
-`extractBilibiliGiftV2Message`([gift-parser.js:65-126](../../../../src/bilibili/parsers/gift-parser.js#L65-L126)):
-
-| 位置               | 字段              | 说明                               |
-| ------------------ | ----------------- | ---------------------------------- |
-| root `1`           | uid               | 送礼者 uid                         |
-| root `2`           | userName          | 送礼者昵称                         |
-| root `10`          | giftInfo          | 嵌套消息(缺失 → 解析失败)          |
-| giftInfo `1` / `2` | giftId / giftName | `giftName` 缺失回退 `'未知礼物'`   |
-| giftInfo `3`       | num               | 本次 protobuf 包的礼物数量,下限 1  |
-| giftInfo `4`       | giftType          | 礼物类型,**不是数量字段**          |
-| giftInfo `5` / `6` | unitCoin          | 单价金瓜子(6 为回退)               |
-| giftInfo `7`       | totalCoin         | 本次包的总价金瓜子                 |
-| giftInfo `8`       | coinType          | 仅 `'gold'` 视为付费               |
-| giftInfo `9`       | tid               | 本包事务 ID(无连击 ID 时回退)      |
-| giftInfo `10`      | timestamp         | 消息时间戳                         |
-| giftInfo `11`      | comboCount        | 当前灰度协议的连击次数             |
-| giftInfo `12`      | comboId           | 共享 `batch_combo_id`,连击归并主键 |
-| giftInfo `14`      | comboTotalCoin    | 当前连击累计总价金瓜子(扩展字段)   |
-
-付费换算:`RMB = 金瓜子数 / 1000`([gift-parser.js:95-99](../../../../src/bilibili/parsers/gift-parser.js#L95-L99));`totalPrice = max(totalCoin, unitCoin*num) / 1000`。
-
-当 `comboCount` 存在时,解析器额外输出 `comboNum = num * comboCount` 和
-`comboTotalPrice = max(comboTotalCoin, unitCoin*comboNum) / 1000`;检测服务以
-`comboId` 合并进度包并在最终包或静默窗口收尾。`platformId` 优先使用
-`comboId`,无连击 ID 时才回退到 `tid`。
+[gift-identity-hints.js](../../../../src/bilibili/users/gift-identity-hints.js) 使用通用 Protobuf 解码器，仅从根字段 `1` 读取 UID、`2` 读取昵称。它不解释 giftInfo 的金额、数量或连击字段，也不要求这些字段存在。解码失败时继续尝试包中的 JSON 发送者字段；缺少 UID 则忽略。
 
 ## 6. 消息解析与分发(协议 → 领域事件)
 
@@ -228,7 +204,7 @@ while (offset + 16 <= buffer.length):
 | ---------------------------------- | ---------------------- | ---------------------------------------------------------------- |
 | `cmd` 以 `DANMU_MSG` 开头          | 弹幕                   | `onMessage(source:'danmaku')`                                    |
 | `cmd` 以 `SUPER_CHAT_MESSAGE` 开头 | SC                     | `onSuperChat` + 命令文本二次分发 `onMessage(source:'superchat')` |
-| `isBilibiliGiftLikeCommand(cmd)`   | 礼物(5 条路径,见 §6.4) | `onGift`                                                         |
+| `isBilibiliGiftLikeCommand(cmd)` | 发送者身份（见 §6.4） | `handleIdentityMessage` → 用户信息服务 |
 | 其他                               | —                      | 仅记诊断,跳过                                                    |
 
 ### 6.1 弹幕(DANMU_MSG)
@@ -241,12 +217,13 @@ while (offset + 16 <= buffer.length):
 info[1]           → 弹幕文本
 info[2][0]/[2][1] → uid / userName
 info[3]           → 粉丝牌数组 (数组或对象)
+info[0][13]       → 整条图片表情（对象或 JSON 字符串），正文作为缺失 text 的触发文本
 info[0][15]       → danmakuOptions（对象或 JSON 字符串）,可内含 user、emoticon、emots、extra
 ```
 
 发送者头像由 `danmakuOptions.user.face` 或 `danmakuOptions.user.base.face` 提取，并只接受 HTTPS 的 B 站 `*.hdslb.com` 地址；在线榜和历史消息里的头像字段经 `UserInfoService` 按 uid 合并。解析器只产出 hint，不访问 cache、profile provider 或头像代理。
 
-弹幕表情由 `extractBilibiliDanmakuEmotes(info)` 从 `danmakuOptions` 及其 JSON `extra` 中归一化：`emoticon` 表示整条表情，`emots` 表示正文中的行内表情映射。输出为 `{text,url,width,height}` 数组，触发文本去重；图片地址只接受 B 站 `*.hdslb.com`，并把可信的 HTTP 地址升级为 HTTPS。
+弹幕表情由 `extractBilibiliDanmakuEmotes(info)` 从 `danmakuOptions` 及其 JSON `extra` 中归一化：`emoticon` 表示整条表情，`emots` 表示正文中的行内表情映射；随后补读 `info[0][13]` 的整条图片表情，即使 `info[0][15]` 缺失也必须保留该图片。输出为 `{text,url,width,height}` 数组，触发文本去重；同一触发文本在多个来源重复出现时保持既有 `danmakuOptions` / `extra` 的优先级。图片地址只接受 B 站 `*.hdslb.com`，并把可信的 HTTP 地址升级为 HTTPS。两种输入编码、缺少 options、来源重复及非法图片回退由 `test/bilibili-danmaku-parser.test.js` 验证；此输出沿既有弹幕流交给全部六种 `/danmaku` 样式，不增加新的设置或 WebSocket 字段。
 
 用户元数据(勋章/大航海)由 `extractBilibiliDanmakuUserMeta`([user-meta-extractor.js:38-60](../../../../src/bilibili/utils/user-meta-extractor.js#L38-L60))提取:
 
@@ -276,118 +253,17 @@ info[0][15]       → danmakuOptions（对象或 JSON 字符串）,可内含 use
 
 `isPinned = price >= SUPER_CHAT_PIN_THRESHOLD`(`= 2` RMB,[superchat-service.js:14](../../../../src/bilibili/superchat-service.js#L14)),由分发层计算([message-handlers.js:173](../../../../src/bilibili/danmaku/message-handlers.js#L173))。SC 命令文本会二次触发 `onMessage(source:'superchat')`([message-handlers.js:151-175](../../../../src/bilibili/danmaku/message-handlers.js#L151-L175));入库门槛与状态机见 [gift.md](gift.md) §7。
 
-### 6.3 礼物识别命令
+### 6.3 礼物类命令路由
 
-`isBilibiliGiftCommand(cmd, runtimeGiftPrefixes)`([gift-parser.js:406-419](../../../../src/bilibili/parsers/gift-parser.js#L406-L419)):
+[gift-command-utils.js](../../../../src/bilibili/parsers/gift-command-utils.js) 识别 SEND_GIFT、BLIND_GIFT、COMBO_SEND、GUARD_BUY、USER_TOAST_MSG 和开放平台 SEND_GIFT/GUARD 前缀。`isBilibiliGiftLikeCommand` 也识别含 GIFT/COMBO/GUARD 的命令，排除 COMBO_END、GIFT_STAR_PROCESS、WIDGET_GIFT_STAR_PROCESS。它只用于路由身份提示及显式诊断抓包，不生成礼物记录；已删除动态检测前缀注册。
 
-```
-精确匹配 runtimePrefixes 前缀
-|| cmd.startsWith(prefix + '_')
-|| cmd.startsWith('SEND_GIFT') | 'BLIND_GIFT' | 'COMBO_SEND'
-|| cmd.startsWith('GUARD_BUY') | 'USER_TOAST_MSG'
-|| cmd.startsWith('LIVE_OPEN_PLATFORM_SEND_GIFT') | 'LIVE_OPEN_PLATFORM_GUARD'
-```
+### 6.4 独立发送者身份读取
 
-`isBilibiliGiftLikeCommand` 在其上追加 `cmd` 含 `GIFT/COMBO/GUARD` 子串即匹配([gift-parser.js:421-428](../../../../src/bilibili/parsers/gift-parser.js#L421-L428));`COMBO_END` 显式排除。
+`MessageHandlers.handleIdentityMessage` 调用 [extractBilibiliGiftIdentity](../../../../src/bilibili/users/gift-identity-hints.js)，把 `{uid, name, avatarUrl, roomIdentity?}` 交给用户信息服务。JSON 身份读取支持 sender_uinfo/user_info 的 base 与消息根字段；SEND_GIFT_V2 只读取 §5.3 的发送者字段。
 
-### 6.4 礼物解析 — 5 条路径
+仅 USER_TOAST_MSG 的等级或舰队名称可形成已验证的本房间大航海提示。GUARD_BUY 和 USER_TOAST_MSG_V2 的 source=2 附带消息会被忽略；普通送礼包不能据其中的 guard_level 提升房间身份。后续身份合并、头像校验和连接代次隔离仍由用户信息服务负责。
 
-`extractBilibiliGiftMessage(packet)`([gift-parser.js:31-62](../../../../src/bilibili/parsers/gift-parser.js#L31-L62)):
-
-| 路径           | 触发条件                         | 函数                                                                                | 说明                                                                                                                                                                                               |
-| -------------- | -------------------------------- | ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 开放平台礼物   | `LIVE_OPEN_PLATFORM_SEND_GIFT`   | [gift-parser.js:114-140](../../../../src/bilibili/parsers/gift-parser.js#L114-L140) | `gift_num`、`r_price`/`price` 金瓜子,`paid` 标志决定是否计费;`msg_id` 作平台 ID;`blind_gift/combo_gift` 非空即盲盒                                                                                 |
-| 开放平台大航海 | `LIVE_OPEN_PLATFORM_GUARD`       | [gift-parser.js](../../../../src/bilibili/parsers/gift-parser.js)                   | `guard_level` 优先,否则从 `gift_name/role_name` 反推;`giftId = guard-{level}`,价格取 `price/total_price/amount`;`guard_num` 仅在 `guard_unit` 为空或含「月」时作为结算数量,其他单位按 1 次订单处理 |
-| Web 大航海     | `USER_TOAST_MSG`                 | [gift-parser.js:310-396](../../../../src/bilibili/parsers/gift-parser.js#L310-L396) | 见下                                                                                                                                                                                               |
-| Protobuf       | `SEND_GIFT_V2` 且 `data.pb` 非空 | [gift-parser.js:64-112](../../../../src/bilibili/parsers/gift-parser.js#L64-L112)   | 见 §5.3;解析失败**落穿**到 Web 通用路径继续尝试 JSON 字段([gift-parser.js:54-59](../../../../src/bilibili/parsers/gift-parser.js#L54-L59))                                                         |
-| Web 通用       | 以上都不满足的 gift-like 命令    | [gift-parser.js:176-308](../../../../src/bilibili/parsers/gift-parser.js#L176-L308) | 见下                                                                                                                                                                                               |
-
-**排除项**:`COMBO_END` 直接返回 null;**`GUARD_BUY` 直接返回 null** —— 它只携带标价而非实付金额,实付由随后到达的 `USER_TOAST_MSG` 携带;`USER_TOAST_MSG_V2` 的 `option.source=2` 是付费 `source=0` 后的附带消息,解析器与分发层均提前跳过,不写礼物账本、诊断失败或身份缓存([gift-parser.js](../../../../src/bilibili/parsers/gift-parser.js)、[message-handlers.js](../../../../src/bilibili/danmaku/message-handlers.js))。
-
-**Web 通用路径要点**([gift-parser.js:176-308](../../../../src/bilibili/parsers/gift-parser.js#L176-L308)):
-
-- `num = max(eventNum, comboNum)`,下限 1;`comboNum` 取 `batch_combo_num/combo_num` 各候选最大值([gift-parser.js:181-191](../../../../src/bilibili/parsers/gift-parser.js#L181-L191))。
-- 付费判定 `paid = coinType === 'gold'`;`coinType` 缺失时回退 `paid/is_paid` 标志,`COMBO_SEND` 且携带累计金额时也判付费([gift-parser.js:192-218](../../../../src/bilibili/parsers/gift-parser.js#L192-L218))。
-- **`combo_total_coin` 是连击累计总价,不能作为单次 `totalCoin` 回退**,仅 `COMBO_SEND` 且无 `totalCoin` 时作 `totalPriceCoin`([gift-parser.js:200-225](../../../../src/bilibili/parsers/gift-parser.js#L200-L225))。
-- 盲盒字段见 §6.5。
-- 平台 ID 回退链:`msg_id/msgId/tid/gift_tid/rnd/batch_combo_id/combo_id` → SHA1 兜底([gift-parser.js:262-273](../../../../src/bilibili/parsers/gift-parser.js#L262-L273))。
-
-**Web 大航海(USER_TOAST_MSG)要点**([gift-parser.js:310-396](../../../../src/bilibili/parsers/gift-parser.js#L310-L396)):
-
-- 等级:先 `guard_info/data.guard_level/privilege_type`,再从 `gift_name/role_name` 反推([gift-parser.js:319-334](../../../../src/bilibili/parsers/gift-parser.js#L319-L334))。
-- 金额:**toast 携带实付订单总额**——`total_price/total_coin/pay_amount` 优先,否则 `pay_info.price/amount` 或 `data.price/gift_price/amount`([gift-parser.js:351-359](../../../../src/bilibili/parsers/gift-parser.js#L351-L359))。
-- `pay_info.unit` 为空或含「月」时,`num` 是购买**月数**而非同价礼物个数;非月单位(例如 `*3天`)不把 `num` 当月数,结算数量保守归一为 1。两种情况均保持 `unitPrice = totalPrice`,不虚构平均月价([gift-parser.js](../../../../src/bilibili/parsers/gift-parser.js))。
-- 平台 ID 优先 `guard-order:{payflowId}`,其次 `guard:{uid}:{giftId}:{startTime}`(见 [gift-parser.js:398-404](../../../../src/bilibili/parsers/gift-parser.js#L398-L404)),再回退 `id/tid/order_id/toast_msg_id/msg_id` 与 SHA1([gift-parser.js:365-376](../../../../src/bilibili/parsers/gift-parser.js#L365-L376))。
-
-**大航海等级与名称**([gift-normalizers.js:27-53](../../../../src/bilibili/utils/gift-normalizers.js#L27-L53)):
-
-| 等级 | 名称 | detectGuardLevelFromName 匹配             |
-| ---- | ---- | ----------------------------------------- |
-| 1    | 总督 | 含「总督」;`governor`/`viceroy`;数字 `1`  |
-| 2    | 提督 | 含「提督」;`admiral`/`commodore`;数字 `2` |
-| 3    | 舰长 | 含「舰长」;`captain`/`commander`;数字 `3` |
-
-> 注:价格**不再硬编码**(旧文档的 19998/1998/198 RMB 常量已在代码中移除),一律取协议字段,见上。
-
-### 6.5 盲盒检测
-
-Web 通用路径([gift-parser.js:233-259](../../../../src/bilibili/parsers/gift-parser.js#L233-L259)):
-
-```
-isBlindBox = cmd.startsWith('BLIND_GIFT')
-  || blindInfo 对象非空
-  || data.blind_gift_id / blindGiftId / blind_box_id / blindBoxId
-
-blindInfo = data.blind_gift / blindGift / blind_box / blindBox / origin_info / originInfo
-
-blindBoxCoin = blindInfo.original_gift_price / price / gift_price / original_price
-             || data.blind_original_gift_price / blind_price / blind_box_price
-             || data.original_gift_price / original_price
-
-blindBoxPrice = blindBoxCoin * num / 1000  (RMB, 无则 null)
-```
-
-开放平台路径还识别 `blind_gift/combo_gift` 非空即盲盒([gift-parser.js:134](../../../../src/bilibili/parsers/gift-parser.js#L134))。协议层的盲盒**标记**只到这一步,盲盒的**重命名与真实价值覆盖**在 gift 服务层的 `applyBlindBoxMetadata`(见 [gift.md](gift.md) §4)。
-
-### 6.6 统一礼物输出格式与 Platform ID 兜底
-
-五条路径输出统一形状(gift.md §1 的 `normalizeGiftInput` 再归一化):
-
-```javascript
-{
-  (platformId,
-    cmd,
-    giftId,
-    giftName,
-    uid,
-    userName,
-    num,
-    comboId,
-    unitPrice,
-    totalPrice,
-    comboTotalPrice,
-    coinType, // coinType: 'gold'|'silver'|'free'|'guard'
-    isBlindBox,
-    blindBoxName,
-    blindBoxPrice,
-    rawJson,
-    messageTimestamp);
-}
-```
-
-金瓜子换算:`RMB = 金瓜子数 / 1000`([gift-parser.js:89-90](../../../../src/bilibili/parsers/gift-parser.js#L89-L90)、[gift-parser.js:219-225](../../../../src/bilibili/parsers/gift-parser.js#L219-L225)、[gift-normalizers.js:22-25](../../../../src/bilibili/utils/gift-normalizers.js#L22-L25))。
-
-**Platform ID SHA1 兜底** `buildBilibiliFallbackGiftId(packet, data)`([gift-normalizers.js:55-65](../../../../src/bilibili/utils/gift-normalizers.js#L55-L65)):
-
-```
-SHA1("{cmd}|{uid}|{giftName}|{price}|{timestamp}") → 40 位 hex
-```
-
-其中 `price` 取 `price/gift_price/total_price` 各候选,`timestamp` 取 `timestamp/ts/time/start_time` 各候选、缺失时用当前秒([gift-normalizers.js:59-62](../../../../src/bilibili/utils/gift-normalizers.js#L59-L62))。兜底 ID 与协议 ID 一起进入 `platform_id` 唯一去重(见 [gift.md](gift.md) §2 与 [storage.md](../storage.md) §3.3)。
-
-### 6.7 解析结果校验
-
-`MessageHandlers.handleGift` 对解析结果做 `isValidGiftResult` 校验([message-handlers.js:185-211](../../../../src/bilibili/danmaku/message-handlers.js#L185-L211)):有真实 `giftId` / 非占位 `giftName` / `totalPrice > 0` / 盲盒有价任一满足即视为有效;无效或 null 记录 Bilibili runtime 内部 `messageBuffer`(容量 500,不对 HTTP/静态页面暴露)与未解析计数诊断([helpers.js:32-37](../../../../src/bilibili/helpers.js#L32-L37))。
+该路径没有礼物数量/金额计算、付费判定、平台 ID 生成、盲盒匹配、礼物日志或 onGift 记账回调。服务器结果经独立投影器导入，见 [gift.md](gift.md) §2/§6.1。
 
 ## 7. 关键常数速查
 

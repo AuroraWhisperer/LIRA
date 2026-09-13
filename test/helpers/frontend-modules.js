@@ -70,7 +70,7 @@ async function loadModuleExports(entryPath, globals = {}) {
 
   const modules = new Map();
 
-  async function load(filePath) {
+  function load(filePath) {
     const identifier = pathToFileURL(filePath).href;
     if (modules.has(identifier)) return modules.get(identifier);
     const module = new vm.SourceTextModule(fs.readFileSync(filePath, 'utf8'), {
@@ -78,14 +78,14 @@ async function loadModuleExports(entryPath, globals = {}) {
       identifier,
     });
     modules.set(identifier, module);
-    await module.link((specifier, referencingModule) => {
-      const dependencyUrl = new URL(specifier, referencingModule.identifier);
-      return load(fileURLToPath(dependencyUrl));
-    });
     return module;
   }
 
-  const module = await load(entryPath);
+  const module = load(entryPath);
+  await module.link((specifier, referencingModule) => {
+    const dependencyUrl = new URL(specifier, referencingModule.identifier);
+    return load(fileURLToPath(dependencyUrl));
+  });
   await module.evaluate();
   return module.namespace;
 }

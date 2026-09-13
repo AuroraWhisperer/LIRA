@@ -32,6 +32,7 @@ function createFixture(overrides = {}) {
     LicenseState: { AUTHORIZED: 'authorized' },
     getState: () => 'authorized',
     getSnapshot: () => ({ streamer: { accountName: 'fixture' } }),
+    getCloudSyncIdentity: () => ({ accountName: 'fixture', streamerId: 1 }),
     getRemoteBaseUrl: () => 'https://api.example.test',
     onStateChanged(listener) {
       stateListener = listener;
@@ -80,8 +81,7 @@ function createFixture(overrides = {}) {
       revision: 4,
       loggedIn: true,
       uid: '288594073',
-      cookie:
-        'DedeUserID=288594073; SESSDATA=cloud; bili_jct=cloud-csrf',
+      cookie: 'DedeUserID=288594073; SESSDATA=cloud; bili_jct=cloud-csrf',
     }),
     setBilibiliCredentialsInternal: async (cookie) => {
       calls.push(['push-bilibili', cookie]);
@@ -102,6 +102,7 @@ function createFixture(overrides = {}) {
     ...overrides.licenseManager,
   };
   const runtime = {
+    prepareCloudRoomAccount: () => false,
     getCloudSettingsSnapshot: () => ({
       roomId: 'local-room',
       enableBilibili: true,
@@ -212,7 +213,9 @@ test('a settings upload applies the server-assigned custom id and mapping state'
       outputs: [{ giftId: '35207', name: '幸运泡泡', price: 1.5 }],
     },
   ];
-  const assigned = [{ ...submitted[0], customId: '11111111-1111-4111-8111-111111111111' }];
+  const assigned = [
+    { ...submitted[0], customId: '11111111-1111-4111-8111-111111111111' },
+  ];
   const mappingState = {
     mode: 'v2',
     catalogVersion: 'sha256:catalog',
@@ -356,7 +359,10 @@ test('an uninitialized Bilibili scope clears local login without a cloud mutatio
     fixture.calls.some((call) => call[0] === 'apply-bilibili-logout'),
     true,
   );
-  assert.equal(fixture.calls.some((call) => call[0] === 'clear-bilibili'), false);
+  assert.equal(
+    fixture.calls.some((call) => call[0] === 'clear-bilibili'),
+    false,
+  );
   fixture.controller.dispose();
 });
 
@@ -546,12 +552,16 @@ test('authorization loss stops polling and dispose removes both subscriptions', 
 test('stopping a cloud read prevents late settings and song writes', async () => {
   let resolveRead;
   let entered;
-  const reading = new Promise((resolve) => { entered = resolve; });
+  const reading = new Promise((resolve) => {
+    entered = resolve;
+  });
   const fixture = createFixture({
     licenseManager: {
       getCloudState: () => {
         entered();
-        return new Promise((resolve) => { resolveRead = resolve; });
+        return new Promise((resolve) => {
+          resolveRead = resolve;
+        });
       },
     },
   });
@@ -567,12 +577,16 @@ test('stopping a cloud read prevents late settings and song writes', async () =>
 test('disposing during a song fetch prevents applying its late response', async () => {
   let resolveRead;
   let entered;
-  const reading = new Promise((resolve) => { entered = resolve; });
+  const reading = new Promise((resolve) => {
+    entered = resolve;
+  });
   const fixture = createFixture({
     licenseManager: {
       getCloudSongs: () => {
         entered();
-        return new Promise((resolve) => { resolveRead = resolve; });
+        return new Promise((resolve) => {
+          resolveRead = resolve;
+        });
       },
     },
   });

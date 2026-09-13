@@ -12,15 +12,6 @@ function firstProtoScalar(values) {
   return value === undefined ? '' : value;
 }
 
-function firstProtoObject(values) {
-  if (!Array.isArray(values)) return null;
-  return (
-    values.find(
-      (item) => item && typeof item === 'object' && !Buffer.isBuffer(item),
-    ) || null
-  );
-}
-
 function readBilibiliProtoVarint(buffer, offset) {
   let value = 0n;
   let shift = 0n;
@@ -112,7 +103,6 @@ function decodeBilibiliGiftV2Proto(value) {
 
 module.exports = {
   firstProtoScalar,
-  firstProtoObject,
   readBilibiliProtoVarint,
   decodeBilibiliProtoFields,
   decodeBilibiliGiftV2Proto,

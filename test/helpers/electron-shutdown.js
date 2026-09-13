@@ -18,14 +18,18 @@ function createClock() {
   const delays = [];
   return {
     delays,
-    get pending() { return timers.size; },
+    get pending() {
+      return timers.size;
+    },
     setTimeout(callback, delay) {
       const id = ++nextId;
       delays.push(delay);
       timers.set(id, { callback, at: now + delay });
       return id;
     },
-    clearTimeout(id) { timers.delete(id); },
+    clearTimeout(id) {
+      timers.delete(id);
+    },
     advance(milliseconds) {
       now += milliseconds;
       for (const [id, timer] of timers) {
@@ -41,6 +45,7 @@ function createShutdownHarness(options = {}) {
   const calls = [];
   const logs = [];
   const startupErrors = [];
+  const storageCalls = [];
   const state = createDesktopState();
   const clock = createClock();
   const ready = Promise.withResolvers();
@@ -56,19 +61,33 @@ function createShutdownHarness(options = {}) {
   const app = Object.assign(new EventEmitter(), {
     isPackaged: false,
     getPath: () => 'C:\\synthetic-lira-shutdown',
-    setPath(name) { calls.push('app:path:' + name); },
+    setPath(name, value) {
+      calls.push('app:path:' + name);
+      storageCalls.push({ type: 'path', name, value });
+    },
     getName: () => 'LIRA',
     setName() {},
     getVersion: () => '0.0.0-test',
-    requestSingleInstanceLock: () => true,
-    whenReady: () => ready.promise,
+    requestSingleInstanceLock() {
+      storageCalls.push({ type: 'lock' });
+      return options.instanceLock !== false;
+    },
+    whenReady() {
+      storageCalls.push({ type: 'ready' });
+      return ready.promise;
+    },
     releaseSingleInstanceLock: () => calls.push('app:release-lock'),
     relaunch: () => calls.push('app:relaunch'),
     exit(code) {
-      assert.equal(code, options.recoveryDataDir ? 1 : 0);
+      assert.equal(
+        code,
+        options.recoveryDataDir || options.migrationError ? 1 : 0,
+      );
       calls.push('app:exit');
     },
-    quit() { return quit(); },
+    quit() {
+      return quit();
+    },
   });
 
   class FakeWindow extends EventEmitter {
@@ -77,17 +96,23 @@ function createShutdownHarness(options = {}) {
       this.webContents = new EventEmitter();
       this.webContents.setWindowOpenHandler = () => {};
     }
-    loadURL() { return Promise.resolve(); }
-    isDestroyed() { return false; }
+    loadURL() {
+      return Promise.resolve();
+    }
+    isDestroyed() {
+      return false;
+    }
   }
 
   const runtime = {
     start() {
       calls.push('runtime:start');
       runtimeOpen = true;
-      startPromise = Promise.resolve(options.runtimeStart?.promise).then(() => ({
-        baseUrl: 'http://127.0.0.1:3000',
-      }));
+      startPromise = Promise.resolve(options.runtimeStart?.promise).then(
+        () => ({
+          baseUrl: 'http://127.0.0.1:3000',
+        }),
+      );
       return startPromise;
     },
     async stop(stopOptions) {
@@ -99,7 +124,9 @@ function createShutdownHarness(options = {}) {
       runtimeOpen = false;
       calls.push('runtime:stopped');
     },
-    setPreShutdownHook(hook) { preShutdownHook = hook; },
+    setPreShutdownHook(hook) {
+      preShutdownHook = hook;
+    },
     onGiftCatalogInitializationStateChanged() {},
   };
   const licenseManager = {
@@ -124,13 +151,19 @@ function createShutdownHarness(options = {}) {
     },
   });
   const modules = {
-    'node:fs': { mkdirSync() {}, existsSync: (value) => Boolean(options.recoveryDataDir && value === options.recoveryDataDir) },
+    'node:fs': {
+      mkdirSync() {},
+      existsSync: (value) =>
+        Boolean(options.recoveryDataDir && value === options.recoveryDataDir),
+    },
     'node:path': path,
     'node:crypto': { randomUUID: () => 'shutdown-test' },
     electron: {
       app,
       BrowserWindow: FakeWindow,
-      dialog: { showErrorBox: (_title, message) => startupErrors.push(message) },
+      dialog: {
+        showErrorBox: (_title, message) => startupErrors.push(message),
+      },
       ipcMain: { handle: (channel, handler) => handlers.set(channel, handler) },
       Menu: { setApplicationMenu() {} },
       protocol: { registerSchemesAsPrivileged() {} },
@@ -138,6 +171,7 @@ function createShutdownHarness(options = {}) {
       shell: {},
       powerMonitor,
     },
+    './desktop-readiness-controller': require('../../src/electron/desktop-readiness-controller'),
     './desktop-state': { createDesktopState: () => state },
     './desktop-runtime': require('../../src/electron/desktop-runtime'),
     './desktop-auth-controller': {
@@ -159,8 +193,22 @@ function createShutdownHarness(options = {}) {
       }),
     },
     './desktop-user-data': {
-      resolveDesktopUserDataPaths: () => ({ dataDir: app.getPath(), recoveryDataDir: options.recoveryDataDir }),
+      resolveDesktopUserDataPaths: () => ({
+        ...require('../../src/shared/data-paths').resolveDataPaths(
+          app.getPath(),
+        ),
+        recoveryDataDir: options.recoveryDataDir,
+      }),
       migrateLegacyUserData() {},
+    },
+    '../storage/data-directory-migration': {
+      migrateBrowserData() {
+        storageCalls.push({ type: 'browser-migration' });
+        if (options.migrationError) throw options.migrationError;
+      },
+      migrateCacheData() {
+        storageCalls.push({ type: 'cache-migration' });
+      },
     },
     './cloud-sync-controller': {
       createCloudSyncController() {
@@ -183,7 +231,11 @@ function createShutdownHarness(options = {}) {
     './update-manager': {},
     './playback-flush': {
       async requestPlaybackFlush() {
-        assert.equal(runtimeOpen, true, 'playback flush precedes resource close');
+        assert.equal(
+          runtimeOpen,
+          true,
+          'playback flush precedes resource close',
+        );
         calls.push('playback:flush');
         await options.playbackFlush?.promise;
         calls.push('playback:flushed');
@@ -208,23 +260,32 @@ function createShutdownHarness(options = {}) {
     './external-url-policy': {},
   };
 
-  vm.runInNewContext(MAIN_SOURCE, {
-    require(id) {
-      assert.ok(Object.hasOwn(modules, id), `Unexpected main dependency: ${id}`);
-      return modules[id];
+  vm.runInNewContext(
+    MAIN_SOURCE,
+    {
+      require(id) {
+        assert.ok(
+          Object.hasOwn(modules, id),
+          `Unexpected main dependency: ${id}`,
+        );
+        return modules[id];
+      },
+      __dirname: path.dirname(MAIN_PATH),
+      process: { env: {}, platform: 'win32', pid: 12345 },
+      console: { warn() {} },
+      setTimeout: clock.setTimeout,
+      clearTimeout: clock.clearTimeout,
+      URL,
     },
-    __dirname: path.dirname(MAIN_PATH),
-    process: { env: {}, platform: 'win32', pid: 12345 },
-    console: { warn() {} },
-    setTimeout: clock.setTimeout,
-    clearTimeout: clock.clearTimeout,
-    URL,
-  }, { filename: MAIN_PATH });
+    { filename: MAIN_PATH },
+  );
 
   function quit() {
     const event = {
       defaultPrevented: false,
-      preventDefault() { this.defaultPrevented = true; },
+      preventDefault() {
+        this.defaultPrevented = true;
+      },
     };
     app.emit('before-quit', event);
     if (!event.defaultPrevented) calls.push('app:default-quit');
@@ -232,9 +293,22 @@ function createShutdownHarness(options = {}) {
   }
 
   return {
-    calls, logs, state, clock, remoteIdle, cloudIdle, backendStop, startupErrors,
-    powerMonitor, handlers, quit, settle,
-    get runtimeOpen() { return runtimeOpen; },
+    calls,
+    logs,
+    state,
+    clock,
+    remoteIdle,
+    cloudIdle,
+    backendStop,
+    startupErrors,
+    storageCalls,
+    powerMonitor,
+    handlers,
+    quit,
+    settle,
+    get runtimeOpen() {
+      return runtimeOpen;
+    },
     async start({ expectStartupError = false } = {}) {
       ready.resolve();
       await settle();

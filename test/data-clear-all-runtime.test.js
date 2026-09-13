@@ -18,7 +18,9 @@ test.after(() => {
 const { createDatabases, closeDatabases } = require('../src/storage/database');
 const { createSettingsStore } = require('../src/storage/settings-store');
 const { createDomainServices } = require('../src/server/domain-services');
-const { createRuntimeApiContextFactory } = require('../src/server/runtime-api-context');
+const {
+  createRuntimeApiContextFactory,
+} = require('../src/server/runtime-api-context');
 const { routes } = require('../src/server/routes/data-routes');
 const clearAll = routes['POST /api/database/clear-all'];
 
@@ -50,8 +52,10 @@ function fixture(t) {
     broadcastSnapshot: (reason) => broadcasts.push(reason),
     requestCloudSync: (scope) => syncs.push(scope),
     getMusicRuntime: () => ({
-      getMusicRegistry: () => ({}), lyricsService: {},
-      publishLyricState: noop, publishLyricTimeline: noop,
+      getMusicRegistry: () => ({}),
+      lyricsService: {},
+      publishLyricState: noop,
+      publishLyricTimeline: noop,
       weSingCapture: {},
     }),
     getBilibiliRuntime: () => ({ getAuthProvider: () => null }),
@@ -75,8 +79,12 @@ function response() {
   return {
     status: 0,
     payload: null,
-    writeHead(status) { this.status = status; },
-    end(body) { this.payload = JSON.parse(body); },
+    writeHead(status) {
+      this.status = status;
+    },
+    end(body) {
+      this.payload = JSON.parse(body);
+    },
   };
 }
 
@@ -84,19 +92,51 @@ function request() {
   return { body: async () => ({ confirm: true }) };
 }
 
-function gift() {
-  return {
-    platformId: 'clear-all-late-gift', cmd: 'SEND_GIFT', giftId: '1',
-    giftName: '测试礼物', num: 1, unitPrice: 1, totalPrice: 1,
-    uid: '1', userName: '测试观众',
-  };
+function importGift(f) {
+  const timestamp = '2026-09-13T00:00:00.000Z';
+  const source = f.db.giftDb
+    .prepare(
+      `
+    INSERT INTO gift_sources (source_key, created_at, updated_at) VALUES (?, ?, ?)
+  `,
+    )
+    .run('c'.repeat(64), timestamp, timestamp);
+  return f.services.gifts.importProcessedEvent(
+    {
+      eventId: 'clear-all-late-gift',
+      phase: 'final',
+      cursor: 1,
+      gift: {
+        giftId: '1',
+        giftName: '测试礼物',
+        num: 1,
+        unitPrice: 1,
+        totalPrice: 1,
+        userName: '测试观众',
+        coinType: 'gold',
+        isBlindBox: false,
+        blindBoxId: null,
+        blindBoxName: '',
+        blindBoxPrice: null,
+        blindProfit: null,
+        createdAt: timestamp,
+      },
+    },
+    Number(source.lastInsertRowid),
+  );
 }
 
 function assertPaused(f) {
   assert.equal(f.timers.size, 0);
-  assert.equal(f.services.gifts.add(gift()), null);
-  assert.throws(() => f.services.gifts.importProcessedEvent({}, 1), /GIFT_DETECTION_PAUSED/);
-  assert.throws(() => f.services.gifts.importProcessedHistoryRecord({}, 1), /GIFT_DETECTION_PAUSED/);
+  assert.equal(f.services.gifts.add, undefined);
+  assert.throws(
+    () => f.services.gifts.importProcessedEvent({}, 1),
+    /GIFT_DETECTION_PAUSED/,
+  );
+  assert.throws(
+    () => f.services.gifts.importProcessedHistoryRecord({}, 1),
+    /GIFT_DETECTION_PAUSED/,
+  );
   assert.equal(f.services.gifts.pauseDetection(), false);
   assert.equal(f.services.overtime.pauseRecovery(), false);
   assert.deepEqual(f.broadcasts, []);
@@ -107,28 +147,41 @@ test('real runtime context exposes writer controls and resumes after successful 
   const f = fixture(t);
   assert.equal(f.context.gifts.pauseDetection, f.services.gifts.pauseDetection);
   assert.equal(typeof f.context.gifts.pauseDetection, 'function');
-  assert.equal(f.context.overtime.resumeRecovery, f.services.overtime.resumeRecovery);
+  assert.equal(
+    f.context.overtime.resumeRecovery,
+    f.services.overtime.resumeRecovery,
+  );
   assert.equal(typeof f.context.overtime.resumeRecovery, 'function');
   const res = response();
   await clearAll(f.context, request(), res);
   assert.equal(res.status, 200);
   assert.equal(res.payload.data.cleared, true);
   assert.equal(f.services.overtime.getSnapshot().enabled, false);
-  assert.deepEqual(f.services.songs.listCategories().map((row) => row.name), ['默认']);
-  assert.ok(f.services.gifts.add(gift()));
+  assert.deepEqual(
+    f.services.songs.listCategories().map((row) => row.name),
+    ['默认'],
+  );
+  assert.equal(importGift(f).detection_status, 'final');
   assert.deepEqual(f.broadcasts, ['database:clear-all']);
   assert.deepEqual(f.syncs, ['songs']);
 });
 
 test('default insertion failure rolls back and resumes real writers', async (t) => {
   const f = fixture(t);
-  f.db.giftDb.exec(`CREATE TEMP TRIGGER fail_defaults BEFORE INSERT ON overtime_machine_state
+  f.db.giftDb
+    .exec(`CREATE TEMP TRIGGER fail_defaults BEFORE INSERT ON overtime_machine_state
     BEGIN SELECT RAISE(ABORT, 'default insert failed'); END`);
-  await assert.rejects(clearAll(f.context, request(), response()), /pre-commit failed/);
+  await assert.rejects(
+    clearAll(f.context, request(), response()),
+    /pre-commit failed/,
+  );
   assert.equal(f.services.overtime.getSnapshot().enabled, true);
-  assert.deepEqual(f.services.songs.listCategories().map((row) => row.name), ['保留分类']);
+  assert.deepEqual(
+    f.services.songs.listCategories().map((row) => row.name),
+    ['保留分类'],
+  );
   assert.ok(f.timers.size > 0);
-  assert.ok(f.services.gifts.add(gift()));
+  assert.equal(importGift(f).detection_status, 'final');
   assert.deepEqual(f.broadcasts, []);
 });
 
@@ -143,13 +196,25 @@ test('partial commit keeps real timers and imports paused, including a failed re
   await clearAll(f.context, request(), res);
   assert.equal(res.status, 500);
   assert.equal(res.payload.partial, true);
-  assert.deepEqual(res.payload.data.committed, ['songDb', 'superChatDb', 'giftDb']);
-  assert.equal(f.db.giftDb.prepare('SELECT enabled FROM overtime_machine_state').get().enabled, 0);
+  assert.deepEqual(res.payload.data.committed, [
+    'songDb',
+    'superChatDb',
+    'giftDb',
+  ]);
+  assert.equal(
+    f.db.giftDb.prepare('SELECT enabled FROM overtime_machine_state').get()
+      .enabled,
+    0,
+  );
   assertPaused(f);
 
-  f.db.songDb.exec(`CREATE TEMP TRIGGER fail_defaults BEFORE INSERT ON song_categories
+  f.db.songDb
+    .exec(`CREATE TEMP TRIGGER fail_defaults BEFORE INSERT ON song_categories
     BEGIN SELECT RAISE(ABORT, 'retry default failed'); END`);
-  await assert.rejects(clearAll(f.context, request(), response()), /pre-commit failed/);
+  await assert.rejects(
+    clearAll(f.context, request(), response()),
+    /pre-commit failed/,
+  );
   assertPaused(f);
 
   f.db.songDb.exec('DROP TRIGGER fail_defaults');
@@ -157,12 +222,14 @@ test('partial commit keeps real timers and imports paused, including a failed re
   const retried = response();
   await clearAll(f.context, request(), retried);
   assert.equal(retried.status, 200);
-  assert.ok(f.services.gifts.add(gift()));
+  assert.equal(importGift(f).detection_status, 'final');
 });
 
 test('post-commit runtime reload failure returns partial and keeps writers paused', async (t) => {
   const f = fixture(t);
-  t.mock.method(f.services.overtime, 'reloadState', () => { throw new Error('reload failed'); });
+  t.mock.method(f.services.overtime, 'reloadState', () => {
+    throw new Error('reload failed');
+  });
   const res = response();
   await clearAll(f.context, request(), res);
   assert.equal(res.status, 500);
@@ -174,7 +241,9 @@ test('post-commit runtime reload failure returns partial and keeps writers pause
 
 test('writer resume failure returns partial and pauses both writers again', async (t) => {
   const f = fixture(t);
-  t.mock.method(f.context.gifts, 'resumeDetection', () => { throw new Error('resume failed'); });
+  t.mock.method(f.context.gifts, 'resumeDetection', () => {
+    throw new Error('resume failed');
+  });
   const res = response();
   await clearAll(f.context, request(), res);
   assert.equal(res.status, 500);
@@ -186,7 +255,8 @@ test('writer resume failure returns partial and pauses both writers again', asyn
 
 test('failed rollback is partial and never resumes real writers', async (t) => {
   const f = fixture(t);
-  f.db.giftDb.exec(`CREATE TEMP TRIGGER fail_defaults BEFORE INSERT ON overtime_machine_state
+  f.db.giftDb
+    .exec(`CREATE TEMP TRIGGER fail_defaults BEFORE INSERT ON overtime_machine_state
     BEGIN SELECT RAISE(ABORT, 'default insert failed'); END`);
   const exec = f.db.songDb.exec;
   t.mock.method(f.db.songDb, 'exec', function (sql) {

@@ -21,7 +21,10 @@ test('gift migration partitions remote rows and fails closed without a source', 
       1,
     );
     assert.equal(hasColumn(fixture.giftDb, 'gift_events', 'source_id'), true);
-    assert.equal(hasColumn(fixture.giftDb, 'gift_events', 'blind_box_id'), true);
+    assert.equal(
+      hasColumn(fixture.giftDb, 'gift_events', 'blind_box_id'),
+      true,
+    );
     assert.equal(hasTable(fixture.giftDb, 'gift_sources'), true);
     assert.equal(hasTable(fixture.giftDb, 'gift_sync_state'), true);
 
@@ -178,7 +181,9 @@ test('catch-up and projection replacement fence stale generations', () => {
     assert.equal(reset.finalCursor, null);
     assert.equal(
       fixture.giftDb
-        .prepare('SELECT COUNT(*) AS count FROM gift_events WHERE source_id = ?')
+        .prepare(
+          'SELECT COUNT(*) AS count FROM gift_events WHERE source_id = ?',
+        )
         .get(source.id).count,
       0,
     );

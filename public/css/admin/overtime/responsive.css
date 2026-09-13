@@ -1,0 +1,111 @@
+.overtime-admin :is(button, input, select, textarea):focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--ot-teal) 48%, transparent);
+  outline-offset: 2px;
+}
+
+@media (max-width: 820px) {
+  .overtime-console,
+  .overtime-section-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .overtime-control-stack {
+    justify-items: stretch;
+  }
+  .overtime-consumer-status,
+  .overtime-actions {
+    justify-content: flex-start;
+  }
+  .overtime-rules-heading-title {
+    justify-content: space-between;
+  }
+  .overtime-gift-catalog-status {
+    max-width: none;
+    text-align: left;
+  }
+  .overtime-heading-actions > button {
+    flex: 1 1 150px;
+  }
+  .overtime-rule-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .overtime-rule-buttons {
+    justify-content: flex-start;
+  }
+  .overtime-rule-body {
+    grid-template-columns: 1fr;
+  }
+  .overtime-rule-mode {
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .overtime-outcome-list {
+    grid-template-columns: 1fr;
+  }
+  .overtime-manual-duration,
+  .overtime-duration-selectors,
+  .overtime-time-editor > button,
+  .overtime-screen-section label,
+  .overtime-screen-section > button {
+    grid-column: 1 / -1;
+  }
+  .overtime-settlement-row {
+    grid-template-columns: 1fr auto;
+  }
+}
+
+@media (max-width: 480px) {
+  .overtime-duration-selectors {
+    grid-template-columns: 1fr;
+  }
+  .overtime-rule-mode,
+  .overtime-fixed-editor,
+  .overtime-random-editor,
+  .overtime-display-editor {
+    padding-inline: 12px;
+  }
+  .overtime-rule-mode-options {
+    grid-template-columns: 1fr;
+  }
+  .overtime-effect-sentence {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .overtime-operation-control,
+  .overtime-outcome-card .overtime-operation-control {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .overtime-operation-option {
+    justify-content: center;
+  }
+  .overtime-duration-control {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .overtime-duration-control label {
+    display: grid !important;
+    justify-items: stretch;
+    text-align: center;
+  }
+  .overtime-duration-control input {
+    width: 100% !important;
+  }
+  .overtime-random-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .overtime-add-outcome {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overtime-gift-picker::backdrop {
+    backdrop-filter: none;
+  }
+  .overtime-rule-enabled > span,
+  .overtime-rule-enabled > span::after {
+    transition: none;
+  }
+}

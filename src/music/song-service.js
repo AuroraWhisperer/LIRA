@@ -95,9 +95,7 @@ function listSongs(
     .filter((row) => {
       if (
         cleanLang &&
-        !splitSongLanguages(row.language).some(
-          (value) => value === cleanLang,
-        )
+        !splitSongLanguages(row.language).some((value) => value === cleanLang)
       ) {
         return false;
       }

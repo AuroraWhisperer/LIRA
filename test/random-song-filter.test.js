@@ -127,12 +127,28 @@ test('preserves artist names containing punctuation', () => {
 });
 
 test('random matching shares full-width field separators with the library', () => {
-  const { splitSongLanguages, splitSongArtists, splitSongTags } = require('../src/music/song-field-utils');
-  const song = { name: 'fixture', artist: 'Alice／Bob', language: 'English／Japanese', tags: 'first;second' };
+  const {
+    splitSongLanguages,
+    splitSongArtists,
+    splitSongTags,
+  } = require('../src/music/song-field-utils');
+  const song = {
+    name: 'fixture',
+    artist: 'Alice／Bob',
+    language: 'English／Japanese',
+    tags: 'first;second',
+  };
   assert.deepEqual(splitSongLanguages(song.language), ['English', 'Japanese']);
   assert.deepEqual(splitSongArtists(song.artist), ['Alice', 'Bob']);
   assert.deepEqual(splitSongTags(song.tags), ['first', 'second']);
-  for (const query of ['Alice', 'Bob', 'English', 'Japanese', 'first', 'second']) {
+  for (const query of [
+    'Alice',
+    'Bob',
+    'English',
+    'Japanese',
+    'first',
+    'second',
+  ]) {
     assert.equal(filterRandomSongCandidates([song], query).length, 1, query);
   }
 });
@@ -238,10 +254,7 @@ test('song service only returns enabled library songs satisfying every term', ()
       '抒情',
     );
     assert.deepEqual(
-      songService.listRandomSongCandidates(
-        songStore,
-        '国语+周杰伦+摇滚',
-      ),
+      songService.listRandomSongCandidates(songStore, '国语+周杰伦+摇滚'),
       [],
     );
   } finally {

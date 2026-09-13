@@ -101,10 +101,16 @@ is the cookie-backed account identity required by server-side Bilibili requests.
   latest upload succeeds. A mutation that occurs during an upload remains dirty
   for another upload, and a remote payload is checked again after any awaited
   content fetch before it may replace local state.
-- Sync work is bound to the authenticated remote origin and LIRA accountName,
+- Sync work is bound to the authenticated remote origin, LIRA accountName and
+  stable streamerId from the main-process saved device identity,
   not a Bilibili UID or room. Switching account/origin aborts old work and clears
   its dirty/revision baselines; late old-account responses are discarded. A
   same-account temporary authorization interruption retains pending retries.
+- Before any cloud request for a new identity, the settings store atomically
+  binds the local room to that identity and detaches an old/unowned room. The
+  internal owner marker persists across restart, is not a cloud revision or an
+  authorization credential, and is excluded from ordinary settings snapshots.
+  A storage failure prevents synchronization until preparation succeeds.
 - Cloud settings are written into the local settings store and reconfigure the
   local Bilibili runtime. Cloud songs replace the local library transactionally.
 - Cloud Bilibili cookies are imported into `persist:bilibili`, saved with
@@ -142,7 +148,13 @@ write. This limitation is visible in the specification and tests.
   identifiers. Applying a cloud snapshot clears stale local `song_id` references
   while preserving textual queue/request history.
 - A settings/songs scope with no initialized revision is seeded from the first
-  authorized desktop. Existing non-empty cloud song, room and credential data
+  authorized desktop, but only that identity's local room can be included. A
+  room from a different or unknown owner is reset before seeding or dirty
+  upload, including first upgrade, process restart, changed origin and a
+  deleted/recreated account with the same name but a different streamerId.
+  The user can then explicitly configure the room in the current account.
+  This narrows server ADR-0006 clause 6 under ADR-0041; other settings and song
+  seeding remain unchanged. Existing non-empty cloud song, room and credential data
   stays initialized. An uninitialized Bilibili scope clears the unowned local
   Cookie instead of seeding it; the user must explicitly log in for the current
   LIRA account. Existing cloud login state restores normally. This narrows the
@@ -188,6 +200,12 @@ write. This limitation is visible in the specification and tests.
    upload cannot be retried under B, a late A response cannot replace B's local
    Cookie, and switching back to A restores A's saved state independently of B's
    revision. An empty B account never receives unowned local credentials.
+10. Given an old local room and a new/unknown room owner, startup and account
+    changes detach the room before any settings upload. First-sync failure and
+    restart cannot resurrect it. The same owner retains its configured room and
+    pending in-process retry across authorization interruption; saved cloud
+    rooms restore normally. A failed owner write rolls back both room and marker
+    and permits no cloud writes. No marker appears in settings/Device snapshots.
 
 ## Done When
 

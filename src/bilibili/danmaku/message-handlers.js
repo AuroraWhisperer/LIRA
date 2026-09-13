@@ -5,7 +5,7 @@
 const packetParser = require('../packet-parser');
 const bilibiliHelpers = require('../helpers');
 const { SUPER_CHAT_PIN_THRESHOLD } = require('../superchat-service');
-const { detectGuardLevelFromName } = require('../utils/gift-normalizers');
+const { extractBilibiliGiftIdentity } = require('../users/gift-identity-hints');
 const { isBilibiliCommandText } = require('./command-text');
 const { cleanText, now, timestampToIso } = require('../../shared/utils');
 
@@ -21,14 +21,11 @@ class MessageHandlers {
     this.userInfoService = userInfoService;
     this.deduplicator = deduplicator;
     this.diagnostics = diagnostics;
-    this.runtimeGiftCommandPrefixes =
-      options.runtimeGiftCommandPrefixes || new Set();
     this.startedAtMs = options.startedAtMs || Date.now();
     this.connectionGeneration = Number(options.connectionGeneration) || 0;
     this.connectionAttempt = Number(options.connectionAttempt) || 0;
     this.roomOwnerUid = cleanText(options.roomOwnerUid);
     this.roomRunContext = null;
-    this.messageBuffer = options.messageBuffer || null;
     this.isCommandText =
       typeof options.isCommandText === 'function'
         ? options.isCommandText
@@ -75,15 +72,8 @@ class MessageHandlers {
         String(message.cmd).startsWith('SUPER_CHAT_MESSAGE')
       ) {
         this.handleSuperChat(message);
-      } else if (
-        packetParser.isBilibiliGiftLikeCommand(
-          message.cmd,
-          this.runtimeGiftCommandPrefixes,
-        )
-      ) {
-        // 所有 gift-like 消息都尝试解析，包括未知 CMD
-        // extractBilibiliGiftMessage 有通用 fallback 能处理大部分格式
-        this.handleGift(message);
+      } else if (packetParser.isBilibiliGiftLikeCommand(message.cmd)) {
+        this.handleIdentityMessage(message);
       }
     }
   }
@@ -236,105 +226,10 @@ class MessageHandlers {
     });
   }
 
-  handleGift(message) {
-    // GUARD_BUY only carries the list price. Wait for USER_TOAST_MSG with the paid total.
-    if (cleanText(message && message.cmd).startsWith('GUARD_BUY')) return;
-    // USER_TOAST_MSG_V2 source=2 is a companion of the paid source=0 message.
-    if (packetParser.isBilibiliDuplicateGuardToast(message)) return;
-
-    const isKnownCmd = packetParser.isBilibiliGiftCommand(
-      message.cmd,
-      this.runtimeGiftCommandPrefixes,
-    );
-    const gift = packetParser.extractBilibiliGiftMessage(message);
-
-    if (!gift || !isValidGiftResult(gift)) {
-      const dataKeys =
-        message.data && typeof message.data === 'object'
-          ? Object.keys(message.data).slice(0, 15).join(',')
-          : 'N/A';
-      const failureKind = !gift ? 'null-result' : 'validation-failed';
-      const diagnosticReason = isKnownCmd
-        ? 'known-gift-command'
-        : 'gift-like-command';
-      bilibiliHelpers.logUnparsedGiftLikeCommand(
-        message,
-        `${diagnosticReason}:${failureKind}`,
-        {
-          status: isKnownCmd ? 'rejected' : 'unrecognized',
-          connectionGeneration: this.connectionGeneration,
-          connectionAttempt: this.connectionAttempt,
-        },
-      );
-      if (this.messageBuffer) {
-        this.messageBuffer.record({
-          cmd: message.cmd,
-          category: isKnownCmd ? 'parse-failed' : 'unrecognized-cmd',
-          rawData: message.data,
-          detail: gift
-            ? `Parsed but validation failed: giftId="${gift.giftId || ''}" giftName="${gift.giftName || ''}" totalPrice=${gift.totalPrice || 0}`
-            : `extractBilibiliGiftMessage returned null; data keys: ${dataKeys}`,
-        });
-      }
-      if (isKnownCmd) {
-        bilibiliHelpers.recordBilibiliGiftDiagnostic(
-          this.diagnostics,
-          message.cmd,
-          'known-gift-command',
-        );
-      } else {
-        bilibiliHelpers.recordBilibiliGiftDiagnostic(
-          this.diagnostics,
-          message.cmd,
-          'gift-like-command',
-        );
-      }
-      return;
-    }
-
-    // Keep one readable line per parsed gift; persistence is reflected in the UI.
-    console.log(
-      formatBilibiliGiftLog(gift, {
-        connectionGeneration: this.connectionGeneration,
-        connectionAttempt: this.connectionAttempt,
-      }),
-    );
-    this.diagnostics.lastGiftAt = now();
-    this.diagnostics.parsedGiftCount += 1;
-    if (this.messageBuffer) {
-      this.messageBuffer.record({
-        cmd: message.cmd,
-        category: 'parsed-ok',
-        rawData: message.data,
-        parsed: gift,
-        detail: isKnownCmd
-          ? ''
-          : `New/unrecognized CMD parsed successfully via fallback`,
-      });
-    }
-    const isVerifiedGuardPurchase =
-      cleanText(gift.cmd).startsWith('USER_TOAST_MSG') &&
-      normalizeGuardLevelFromGift(gift) > 0;
-    const requester = this.ingestIdentity(
-      {
-        uid: gift.uid,
-        name: gift.userName,
-        avatarUrl: gift.avatarUrl,
-        roomIdentity: isVerifiedGuardPurchase
-          ? {
-              guardKnown: true,
-              guardLevel: normalizeGuardLevelFromGift(gift),
-            }
-          : undefined,
-      },
-      'gift',
-      isVerifiedGuardPurchase,
-    );
-    this.handlers.onGift({
-      ...gift,
-      uid: requester.uid,
-      userName: requester.userName,
-    });
+  handleIdentityMessage(message) {
+    const identity = extractBilibiliGiftIdentity(message);
+    if (!identity) return;
+    this.ingestIdentity(identity.hint, 'gift', identity.roomIdentityVerified);
   }
 
   ingestIdentity(hint, source, roomIdentityVerified) {
@@ -389,43 +284,11 @@ function compatibilityRequester(snapshot, fallback) {
   };
 }
 
-function normalizeGuardLevelFromGift(gift) {
-  const match = /^guard-(\d+)$/.exec(cleanText(gift && gift.giftId));
-  if (match) return Number(match[1]);
-  return detectGuardLevelFromName(gift && gift.giftName);
-}
-
 function normalizeBilibiliCommandName(value) {
   const cmd = cleanText(value);
   if (cmd.startsWith('DANMU_MSG')) return 'DANMU_MSG';
   if (cmd.startsWith('SUPER_CHAT_MESSAGE')) return 'SUPER_CHAT_MESSAGE';
   return cmd;
-}
-
-function formatBilibiliGiftLog(gift, trace = null) {
-  const userName = JSON.stringify(cleanText(gift && gift.userName) || '观众');
-  const giftName = JSON.stringify(
-    cleanText(gift && gift.giftName) || '未知礼物',
-  );
-  const quantity = Math.max(1, Number(gift && gift.num) || 1);
-  const totalPrice = Number(gift && gift.totalPrice);
-  const amount = Number.isFinite(totalPrice) ? totalPrice.toFixed(2) : '0.00';
-  const tags = [];
-  if (gift && gift.isBlindBox) tags.push('blind-box');
-  if (gift && gift.coinType && gift.coinType !== 'gold')
-    tags.push(`coin=${gift.coinType}`);
-  const suffix = tags.length > 0 ? ` ${tags.join(' ')}` : '';
-  const traceSuffix = trace
-    ? ` trace=${JSON.stringify({
-        connectionGeneration: Number(trace.connectionGeneration) || 0,
-        connectionAttempt: Number(trace.connectionAttempt) || 0,
-        cmd: cleanText(gift && gift.cmd),
-        platformId: cleanText(gift && gift.platformId),
-        comboId: cleanText(gift && gift.comboId),
-        messageTimestamp: timestampToIso(gift && gift.messageTimestamp),
-      })}`
-    : '';
-  return `[Bilibili][Gift] status=parsed user=${userName} gift=${giftName} x${quantity} amount=¥${amount}${suffix}${traceSuffix}`;
 }
 
 function formatBilibiliSuperChatLog(superChat, trace = {}) {
@@ -444,26 +307,7 @@ function formatBilibiliSuperChatLog(superChat, trace = {}) {
   );
 }
 
-/**
- * 验证解析后的礼物结果是否有意义的数据。
- * 过滤掉非礼物消息（CMD 碰巧含 GIFT 关键字但没有实际礼物字段）。
- */
-function isValidGiftResult(gift) {
-  if (!gift) return false;
-  // 有真实 giftId（非空）
-  if (gift.giftId && gift.giftId !== '') return true;
-  // 有真实 giftName（非默认占位）
-  if (gift.giftName && gift.giftName !== '未知礼物') return true;
-  // 有付费金额 —— 即使名字解析不出来，有金额就是真礼物
-  if (gift.totalPrice > 0) return true;
-  // 盲盒
-  if (gift.isBlindBox && gift.blindBoxPrice !== null && gift.blindBoxPrice > 0)
-    return true;
-  return false;
-}
-
 module.exports = {
   MessageHandlers,
-  formatBilibiliGiftLog,
   formatBilibiliSuperChatLog,
 };

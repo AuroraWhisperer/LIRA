@@ -10,13 +10,15 @@ const { createCooldownStore } = require('../storage/cooldown-store');
 const { createCheckinStore } = require('../storage/checkin-store');
 const { createQueueStore } = require('../storage/queue-store');
 const { createSuperChatStore } = require('../storage/superchat-store');
-const { createGiftEventStore } = require('../storage/gift-event-store');
 const { createSongStore } = require('../storage/song-store');
 const {
   createRequesterTargetStore,
 } = require('../music/requester-target-store');
 const songService = require('../music/song-service');
-const { previewSongImport, applySongImport } = require('../music/song-import-update');
+const {
+  previewSongImport,
+  applySongImport,
+} = require('../music/song-import-update');
 const queueService = require('../music/queue-service');
 const giftService = require('../bilibili/gift');
 const superChatService = require('../bilibili/superchat-service');
@@ -54,7 +56,6 @@ function createDomainServices(options) {
   const checkinStore = createCheckinStore(db.checkinDb);
   const queueStore = createQueueStore(db.songDb);
   const superChatStore = createSuperChatStore(db.superChatDb);
-  const giftEventStore = createGiftEventStore(db.giftDb);
   const checkins = createCheckinService({
     store: checkinStore,
     settings: () => settingsStore.getSettings(),
@@ -69,7 +70,6 @@ function createDomainServices(options) {
   const state = {
     cooldownByUser: new Map(),
   };
-  const giftState = { blindBoxCache: null };
   // schema 版本只在启动迁移时变化，运行时缓存避免每次 /api/health 重算 5 个 SELECT。
   let schemaVersionsCache = null;
 
@@ -134,19 +134,18 @@ function createDomainServices(options) {
   let localOvertimeGiftCatalog;
   let giftRuntime;
   try {
-    localOvertimeGiftCatalog =
-      options.dataDir
-        ? createGiftSaleCatalogService({
-            dataDir: options.dataDir,
-            getRoomId:
-              options.giftSaleGetRoomId ||
-              (() => settingsStore.getSettings().roomId),
-            getBlindBoxConfig:
-              options.giftSaleGetBlindBoxConfig ||
-              (() => settingsStore.getSettings().giftBlindBoxConfig),
-            fetchJson: options.giftSaleFetchJson,
-          })
-        : createUnavailableGiftSaleCatalogService();
+    localOvertimeGiftCatalog = options.dataDir
+      ? createGiftSaleCatalogService({
+          dataDir: options.dataDir,
+          getRoomId:
+            options.giftSaleGetRoomId ||
+            (() => settingsStore.getSettings().roomId),
+          getBlindBoxConfig:
+            options.giftSaleGetBlindBoxConfig ||
+            (() => settingsStore.getSettings().giftBlindBoxConfig),
+          fetchJson: options.giftSaleFetchJson,
+        })
+      : createUnavailableGiftSaleCatalogService();
     overtimeGiftCatalog =
       typeof options.remoteGiftCatalog?.fetch === 'function' && options.dataDir
         ? createHybridGiftSaleCatalogService({
@@ -162,7 +161,8 @@ function createDomainServices(options) {
             getBlindBoxCustomConfigV2: () => {
               try {
                 const value = JSON.parse(
-                  settingsStore.getSettings().giftBlindBoxCustomConfigV2 || 'null',
+                  settingsStore.getSettings().giftBlindBoxCustomConfigV2 ||
+                    'null',
                 );
                 return Array.isArray(value) ? value : [];
               } catch (_) {
@@ -182,12 +182,10 @@ function createDomainServices(options) {
       {
         db: { giftDb: db.giftDb },
         settings: () => settingsStore.getSettings(),
-        state: giftState,
       },
       {
         onGiftFlushed,
         consumers: [overtimeConsumer],
-        giftEventStore,
         getOvertimeEpoch: overtime.getCurrentEpoch,
         captureWhenDisabled: Boolean(giftEffectResolver),
       },
@@ -202,8 +200,10 @@ function createDomainServices(options) {
 
     const superChatContext = { store: superChatStore };
     const superChats = {
-      getSnapshot: () => superChatService.getSuperChatSnapshot(superChatContext),
-      add: (input) => superChatService.addSuperChatItem(superChatContext, input),
+      getSnapshot: () =>
+        superChatService.getSuperChatSnapshot(superChatContext),
+      add: (input) =>
+        superChatService.addSuperChatItem(superChatContext, input),
       handleAction: (action, id) =>
         superChatService.handleSuperChatAction(superChatContext, action, id),
     };
@@ -269,7 +269,6 @@ function createDomainServices(options) {
         const result = database.clearGiftData(db.giftDb, {
           sourceId: getActiveGiftSourceId(gifts),
         });
-        giftState.blindBoxCache = null;
         return result;
       },
       clearAll() {
@@ -287,7 +286,6 @@ function createDomainServices(options) {
           try {
             overtime.reloadState();
             state.cooldownByUser.clear();
-            giftState.blindBoxCache = null;
             songs.ensureCategory('默认');
             queue.ensureUnified();
           } catch (error) {

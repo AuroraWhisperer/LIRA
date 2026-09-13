@@ -1,0 +1,167 @@
+/* Calendar categories share the desktop's semantic palette. */
+.streamer-planner {
+  --planner-live: var(--color-primary-strong);
+  --planner-work: var(--color-success-dark);
+  --planner-personal: var(--color-info);
+  display: grid;
+  grid-auto-rows: max-content;
+  align-content: start;
+  gap: 16px;
+  padding: 20px;
+  background: var(--surface);
+  color: var(--text);
+  letter-spacing: 0;
+}
+
+.streamer-planner,
+.planner-note-list,
+.planner-task-list {
+  scrollbar-width: none;
+}
+
+.streamer-planner::-webkit-scrollbar,
+.planner-note-list::-webkit-scrollbar,
+.planner-task-list::-webkit-scrollbar {
+  display: none;
+}
+
+.planner-header,
+.planner-heading,
+.planner-header-actions,
+.planner-panel-heading,
+.planner-calendar-navigation,
+.planner-agenda-heading,
+.planner-note-card-head,
+.planner-note-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.planner-header,
+.planner-panel-heading,
+.planner-note-card-head {
+  justify-content: space-between;
+}
+
+.planner-header {
+  flex-wrap: wrap;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.planner-heading {
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.planner-header h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--type-size-metric-sm);
+  line-height: 1.3;
+}
+
+.planner-count,
+.planner-save-state,
+.planner-month-count {
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+  font-variant-numeric: tabular-nums;
+}
+
+.planner-save-state {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.planner-save-state::before {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  content: '';
+}
+.planner-save-state.is-error,
+.planner-form-error {
+  color: var(--danger);
+}
+.planner-save-state.is-error::before {
+  background: var(--danger);
+}
+
+.streamer-planner .planner-icon {
+  display: block;
+  flex: 0 0 auto;
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.streamer-planner .planner-icon-button {
+  display: inline-grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 30px;
+  min-width: 30px;
+  height: 30px;
+  min-height: 30px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--muted);
+  box-shadow: none;
+}
+.streamer-planner .planner-icon-button:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.streamer-planner .planner-command {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 8px 13px;
+  border-radius: 6px;
+  font-size: var(--type-size-control);
+  white-space: nowrap;
+}
+
+.planner-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(290px, 1fr);
+  align-items: start;
+  gap: 28px;
+}
+.planner-calendar-panel,
+.planner-side-panel,
+.planner-notes-panel,
+.planner-tasks-panel {
+  min-width: 0;
+}
+.planner-side-panel {
+  padding-left: 26px;
+  border-left: 1px solid var(--color-border-light);
+}
+.planner-panel-heading {
+  min-height: 32px;
+  margin-bottom: 10px;
+}
+.planner-panel-heading h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: var(--type-size-card-title);
+  font-weight: var(--type-weight-semibold);
+  line-height: 1.4;
+  letter-spacing: 0;
+}
+.planner-panel-heading h3 > .planner-icon {
+  color: var(--muted);
+}

@@ -137,7 +137,8 @@ async function cleanupOwnPortOccupant(options) {
   const currentHealth = serviceIdIsOwn
     ? await readLocalHealth(port, host, fetchImpl)
     : null;
-  const currentServiceIsOwn = currentHealth?.ok &&
+  const currentServiceIsOwn =
+    currentHealth?.ok &&
     currentHealth.data?.serviceId === SERVICE_ID &&
     Number(currentHealth.data.pid) === pid;
   if (!currentServiceIsOwn && !isOwnProcessInfo(getProcessInfo(pid), options)) {
@@ -369,13 +370,20 @@ function isOwnProcessInfo(info, options) {
     : '';
   const ownRoot = normalizePathForCompare(options.rootDir);
   if (!ownRoot) return false;
-  const packagedExecutable = ownRoot.replace(/\\resources\\app(?:\.asar)?$/, '\\lira.exe');
+  const packagedExecutable = ownRoot.replace(
+    /\\resources\\app(?:\.asar)?$/,
+    '\\lira.exe',
+  );
 
   return (
-    (executablePath && executablePath.endsWith('\\lira.exe') && executablePath === packagedExecutable) ||
-    (executablePath.endsWith('\\node.exe') && entryPath === `${ownRoot}\\src\\server.js`) ||
+    (executablePath &&
+      executablePath.endsWith('\\lira.exe') &&
+      executablePath === packagedExecutable) ||
+    (executablePath.endsWith('\\node.exe') &&
+      entryPath === `${ownRoot}\\src\\server.js`) ||
     (executablePath.endsWith('\\electron.exe') &&
-      (entryPath === ownRoot || entryPath === `${ownRoot}\\src\\electron\\main.js`))
+      (entryPath === ownRoot ||
+        entryPath === `${ownRoot}\\src\\electron\\main.js`))
   );
 }
 

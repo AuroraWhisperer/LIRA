@@ -51,9 +51,16 @@ reports `LEGACY_PARTIAL` rather than claiming complete history.
   that event locally, it shall use a dedicated processed-event import path and
   shall never call the local raw gift detector.
 - While the local Bilibili connection is enabled, when it receives a gift
-  command, the client shall suppress only the local gift detector callback;
+  command, the client shall retain only user identity hints from the local
+  parser and shall not register a raw gift accounting callback or record local
+  gift detection diagnostics;
   danmaku, song requests, Super Chat, user metadata, and games shall remain
   active.
+- The desktop gift service shall expose only processed-event import and local
+  consumer/query operations. Startup, resume, and shutdown shall neither finalize
+  legacy local progress groups nor automatically reparse/repair old raw gift
+  records. Existing history is preserved; consumer retries apply only to imported
+  server finals. Server unavailability shall never enable a local raw detector.
 - While a server event is replayed after a crash or reconnect, when the client
   imports the same public event ID again, local statistics, overtime settlement,
   history updates, snapshots, and `gift:frame` shall not be delivered twice.
@@ -177,6 +184,11 @@ selector; unknown, ambiguous, name-only custom, and legacy history use null.
   into the current gift ledger using an event-derived platform key. It freezes
   local consumer eligibility on the first observed phase, dispatches final
   consumers once, and stores no server raw payload.
+- Domain assembly creates only `createGiftProjectionService`. Raw gift detection,
+  local combo timers, amount/blind-box calculation, repair helpers, and their
+  dedicated tests are removed. There is no local detector mode or fallback.
+  Local Bilibili messages supply only sender identity through a separate
+  identity helper, since the Device gift DTO intentionally omits user IDs.
 - Cloud settings submit only tenant-private `giftBlindBoxCustomConfigV2`; official
   relations remain read-only. A missing v2 field preserves the saved private
   value, explicit `[]` clears only that layer, and the client displays the

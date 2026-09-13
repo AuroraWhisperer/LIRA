@@ -1,6 +1,7 @@
 'use strict';
 
 const path = require('node:path');
+const { resolveDataPaths } = require('../shared/data-paths');
 
 function normalizeServerHost(host) {
   const value = String(host || '').trim();
@@ -24,6 +25,7 @@ function resolveServerRuntimeConfig(rootDir, runtimeOptions = {}) {
     : process.env.SONG_PLUGIN_DATA_DIR
       ? path.resolve(process.env.SONG_PLUGIN_DATA_DIR)
       : path.join(rootDir, 'data');
+  const paths = resolveDataPaths(dataDir);
 
   return {
     HOST: validateServerHost(runtimeOptions.host || process.env.HOST),
@@ -33,8 +35,8 @@ function resolveServerRuntimeConfig(rootDir, runtimeOptions = {}) {
     GIFT_DB_PATH: path.join(dataDir, 'gift-data.db'),
     MUSIC_DB_PATH: path.join(dataDir, 'music-data.db'),
     CHECKIN_DB_PATH: path.join(dataDir, 'checkin-data.db'),
-    MUSIC_API_CACHE_DIR: path.join(dataDir, 'music-api-cache'),
-    MUSIC_LYRIC_CACHE_DIR: path.join(dataDir, 'music-lyrics-cache'),
+    MUSIC_API_CACHE_DIR: paths.musicApiCacheDir,
+    MUSIC_LYRIC_CACHE_DIR: paths.musicLyricsCacheDir,
     OPENING_MUSIC_DIR: path.join(dataDir, 'opening-music'),
     AI_LOG_PATH: path.join(path.dirname(dataDir), 'logs', 'ai.log'),
   };

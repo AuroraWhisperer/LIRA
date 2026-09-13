@@ -15,8 +15,12 @@ tools/qq-music-analyzer/analysis-report.json
 tools/qq-music-analyzer/recommend-feed-response.json
 
 # These HTML fragments are intentionally incomplete: the server composes them
-# with the matching shell-start/page-end fragments before serving a document.
+# before serving a document. Formatting a start fragment can add closing tags
+# that break the composed page.
 public/pages/admin/document-end.html
 public/pages/admin/main-end.html
+public/pages/admin/shell-start.html
+public/pages/admin/song/shell-start.html
 public/pages/admin/song/shell-end.html
+public/pages/admin/toolbox/shell-start.html
 public/pages/admin/toolbox/shell-end.html

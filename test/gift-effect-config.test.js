@@ -6,6 +6,10 @@ const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 const {
+  createGiftSource,
+  makeProcessedGiftEvent,
+} = require('./helpers/processed-gifts');
+const {
   EFFECT_API_URL,
   buildEffectMap,
   buildGiftEffectEvent,
@@ -14,7 +18,7 @@ const {
   parseEffectLayout,
   pickEffect,
 } = require('../src/bilibili/gift/effect-config');
-const { createGiftDetectionService } = require('../src/bilibili/gift');
+const { createGiftProjectionService } = require('../src/bilibili/gift');
 const { closeDatabases, createDatabases } = require('../src/storage/database');
 
 function confEntry(
@@ -346,11 +350,11 @@ test('gift effect capture stays active when sprint and overtime consumers are di
   );
   const db = createDatabases({ dataDir });
   const finalized = [];
-  const detection = createGiftDetectionService(
+  const sourceId = createGiftSource(db.giftDb);
+  const detection = createGiftProjectionService(
     {
       db,
-      settings: () => ({ enableGiftSprint: 'false', giftBlindBoxConfig: '' }),
-      state: { blindBoxCache: null },
+      settings: () => ({ enableGiftSprint: 'false' }),
     },
     {
       captureWhenDisabled: true,
@@ -359,16 +363,17 @@ test('gift effect capture stays active when sprint and overtime consumers are di
   );
 
   try {
-    const row = detection.detect({
-      cmd: 'SEND_GIFT',
-      giftId: '31645',
-      giftName: '测试礼物',
-      uid: '42',
-      userName: '观众A',
-      num: 1,
-      unitPrice: 1,
-      totalPrice: 1,
-    });
+    const row = detection.importProcessedEvent(
+      makeProcessedGiftEvent({
+        giftId: '31645',
+        giftName: '测试礼物',
+        userName: '观众A',
+        num: 1,
+        unitPrice: 1,
+        totalPrice: 1,
+      }),
+      sourceId,
+    );
 
     assert.equal(row.detection_status, 'final');
     assert.equal(finalized.length, 1);

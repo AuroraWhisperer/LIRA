@@ -26,7 +26,11 @@
 
 ## 2. 启动序列 startDesktopApp
 
-模块初始化时先由 `desktop-user-data.js` 解析稳定目录并执行一次性旧目录迁移，再设置 Electron `userData`；迁移失败会保留旧源并停止启动，避免应用以空数据库继续运行。`app.whenReady()` 后执行:
+远端礼物的历史能力、投影替换、游标页连续性和恢复错误分类由 [remote-gift-recovery-rules.js](../../../src/electron/remote-gift-recovery-rules.js) 提供纯规则；控制器继续独占授权/来源/投影代次、串行任务、HTTP/SSE 取消和定时资源。
+
+批次 C 将授权/目录就绪后的导航与恢复交给 [desktop-readiness-controller.js](../../../src/electron/desktop-readiness-controller.js)。main 在创建主窗口后启动它，退出时先 dispose，再注销系统恢复监听、排空同步并关闭 runtime。就绪控制器拥有两类订阅及恢复代次；内部导航协作者独占 route 与 loadURL 代次。撤销、授权轮换或 dispose 后，等待中的云同步完成不能继续恢复旧授权工作；旧导航失败不能清除较新路由。
+
+模块初始化时先由 `desktop-user-data.js` 解析稳定目录并执行一次性旧 AppData 迁移，在业务数据根申请单实例锁后迁移浏览器/缓存，再设置 Electron `userData` 与 `sessionData`；迁移失败保留数据并停止启动，避免应用以空 profile 继续运行。`app.whenReady()` 后执行:
 
 1. `configureDesktopEnvironment()` — 创建迁移后的数据/日志目录、环境变量、terminal 日志、local-media 访问控制(§3/§5/§8)
 2. `migrateUserDataFromAppData()` — 旧 `%APPDATA%` 登录分区迁移(§3.2)
@@ -63,6 +67,8 @@
 
 ### 2.2 云端同步生命周期
 
+账号边界使用 `licenseManager.getCloudSyncIdentity()` 返回的已保存 `accountName` 和 `streamerId`，与认证服务器 origin 一起构成同步 owner；该方法仅供 main process 内部使用，不新增 IPC。控制器在首轮同步及身份变化时，先通过 runtime 的 `prepareCloudRoomAccount` 同步完成[房间归属事务](../backend/storage.md#8-云端-scope-的本地落盘)，再允许 HTTP/SSE。无有效身份或事务失败时不发请求；房间变化后配置本地 runtime 并广播 `cloud:settings`，不发 dirty 回声。同一 owner 的重启或临时授权中断保留房间，其他/未知 owner 的旧房间不能进入新账号的首次播种或 dirty 上传。没有已建立账号边界时的 settings mutation 不取得待上传归属。
+
 每轮同步在入队时捕获生命周期代际和取消信号；停止时递增代际并取消在途 HTTP/SSE，请求返回及每次本地写入前再次检查代际。旧轮次不能因新的 `start()` 恢复为有效，也不能在 `dispose()` 后发起下一 scope 或修改本地状态。云端与礼物控制器保持独立，只在远端客户端内部共用 SSE 读取和 reader 清理机制。
 
 `cloud-sync-controller.js` 是 Electron 进程内的同步协调者，不持久化云端 revision。授权成功后立即同步并建立一条 main-process DeviceBearer SSE；事件只含 scope revision，收到更新 revision 后通过既有 GET 对账。SSE 正常结束或失败后按 1–60 秒有界退避重连，重连成功立即同步。系统 resume 在设备会话恢复后调用 `syncNow()`。可 `unref()` 的 10 分钟单次 timer 只作为代理假在线或漏通知的自动兜底，每轮结束（包括读取失败）都会重新调度。授权离开 `AUTHORIZED` 时 abort SSE 并停止 timer；退出时 `dispose()` 同时移除本地 mutation 与授权状态 listener。
@@ -81,24 +87,26 @@
 
 ## 3. 数据目录决策
 
-### 3.1 userData 持久化路径
+### 3.1 业务数据与浏览器持久化路径
 
 | 事实     | 值                                                                                                          | 出处                                                               |
 | -------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
 | 打包版   | `<安装目录>/data`；首次安装有 D 盘时默认 `D:\LIRA`，无 D 盘时沿用 builder 默认；升级沿用本机原安装目录，用户可选择其他目录 | [desktop-user-data.js](../../../src/electron/desktop-user-data.js)、[installer.nsh](../../../build/installer.nsh) |
 | 开发版   | `ROOT_DIR/data`(仓库根)，保持现有开发数据和脚本行为                                                          | [desktop-user-data.js](../../../src/electron/desktop-user-data.js) |
 | 日志     | `path.dirname(dataDir)/logs`；打包版为 `<安装目录>/logs`                             | [main.js](../../../src/electron/main.js)                           |
-| 会话与崩溃记录 | `sessionData = userData`，持久登录分区继续位于 `data/Partitions/`，`crashDumps = data/Crashpad` | [main.js](../../../src/electron/main.js) |
+| 会话与崩溃记录 | `sessionData = userData = data/browser`；业务 `dataDir` 仍为 `data`，`crashDumps = data/browser/Crashpad` | [main.js](../../../src/electron/main.js) |
 | 更新缓存 | `<安装目录>/updates/lira-updater`，不再使用默认 AppData 更新缓存 | [update-manager.js](../../../src/electron/update-manager.js) |
 | 环境变量 | `process.env.SONG_PLUGIN_DATA_DIR = dataDir`、`process.env.ELECTRON_DESKTOP = '1'`、`HOST` 缺省 `127.0.0.1` | [main.js](../../../src/electron/main.js)                           |
 
 目录树(五库、`music-auth/`、`bilibili-auth/`、`Partitions/`、允许清单)见 [../backend/storage.md](../backend/storage.md) §2 — 本文件不重复成树。
 
+单实例锁先使用原业务数据根申请，再切换 Chromium profile，保证新旧版本及重复启动共享同一锁身份。迁移在 ready 前完成；`.browser-layout-v1.json` 与 `.cache-layout-v1.json` 记录待迁条目并在完成后标记，重启可继续未完成的重命名。具体约束见 [ADR-0016](../adr/0016-separated-client-data-lifecycles.md)。
+
 ### 3.2 升级迁移
 
 旧卸载器可能递归删除安装目录；旧版运行时的 Cookies 也不能安全复制。NSIS 在选定目录后的首个隐藏安装 section 中检查 LIRA 进程，交互安装要求先关闭旧版再重试，静默安装有界等待；确认退出后，才将数据完整复制到 `<新安装目录>.lira-data-backup.partial`，复制返回码 0–7 后重命名为不受旧卸载器删除影响的同级备份。失败中止安装并保留源；已有恢复备份或不同目标数据产生冲突时停止，不覆盖。
 
-程序替换完成后、启动新版前，安装器将备份恢复为 `<新安装目录>/data`。新版卸载器保留 `data/`、`logs/`、`updates/`；恢复失败保留备份并报告具体位置。Electron 发现未完成恢复的同级备份时拒绝启动后端，避免生成空库。
+程序替换完成后、启动新版前，安装器将备份恢复为 `<新安装目录>/data`。升级调用新版卸载器时保留 `data/`、`logs/`、`updates/`；普通卸载清理日志和更新文件，默认保留数据，只有勾选并确认后才删除用户数据，详见 [卸载策略](../engineering/build.md#6-nsis-安装脚本buildinstallernsh)。恢复失败保留备份并报告具体位置。Electron 发现未完成恢复的同级备份时拒绝启动后端，避免生成空库。
 
 只有本地 `data/` 不存在时，安装器和 `desktop-user-data.js` 才把 `%APPDATA%/com.aurorawhisperer.lira/data` 作为兼容来源，完整复制后发布到安装目录；已有本地目录优先，历史 AppData 副本保留，不再作为活动写入目标。启动侧迁移使用唯一 staging 目录，失败停止启动。更早期 `%APPDATA%/LIRA/Partitions/` 仍在目标缺失时兼容读取。授权私钥继续使用 `safeStorage`，文件位置改变不改变机器绑定或加密边界。决策见 ADR [0015](../adr/0015-install-local-desktop-data.md)。Windows 注册表及安装解压使用的系统临时目录不属于客户端持久数据目录。
 

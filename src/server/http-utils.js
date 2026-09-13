@@ -4,6 +4,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { resolveDataPaths } = require('../shared/data-paths');
 const { composeAdminHtml, isAdminPageRoute } = require('./admin-page');
 const {
   isSafeBasename,
@@ -353,8 +354,7 @@ function serveOvertimeGiftImage(dataDir, req, res, requestUrl) {
     return;
   }
   const filePath = path.join(
-    path.resolve(String(dataDir || '')),
-    'overtime-gift-images',
+    resolveDataPaths(String(dataDir || '')).giftImagesDir,
     encodedName,
   );
   fs.lstat(filePath, (statError, stats) => {

@@ -6,8 +6,12 @@ const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 const { run } = require('../scripts/initialize-gift-catalog');
-const { CACHE_FILE_NAME } = require('../src/bilibili/gift/remote-catalog-cache');
-const { STATE_FILE_NAME } = require('../src/bilibili/gift/gift-catalog-initializer');
+const {
+  CACHE_FILE_NAME,
+} = require('../src/bilibili/gift/remote-catalog-cache');
+const {
+  STATE_FILE_NAME,
+} = require('../src/bilibili/gift/gift-catalog-initializer');
 
 const QUIET_LOGGER = { debug() {}, warn() {} };
 
@@ -28,7 +32,10 @@ test('gift catalog CLI persists the versioned gold catalog and downloads its ima
     onProgress: (state) => progress.push(state),
     fetchImpl: async (url, options = {}) => {
       requests.push({ url: String(url), options });
-      if (url === 'https://api.example.test/api/public/gifts/catalog?schemaVersion=3') {
+      if (
+        url ===
+        'https://api.example.test/api/public/gifts/catalog?schemaVersion=3'
+      ) {
         assert.equal(options.headers.Authorization, undefined);
         return new Response(
           JSON.stringify({
@@ -45,8 +52,7 @@ test('gift catalog CLI persists the versioned gold catalog and downloads its ima
                 coinType: 'gold',
                 active: true,
                 isBlindBox: false,
-                sourceUrl:
-                  'https://i0.hdslb.com/bfs/live/cli-paid.webp',
+                sourceUrl: 'https://i0.hdslb.com/bfs/live/cli-paid.webp',
                 imageUrl: '/gift-media/images/cli-paid.webp',
               },
               {
@@ -56,8 +62,7 @@ test('gift catalog CLI persists the versioned gold catalog and downloads its ima
                 coinType: 'silver',
                 active: true,
                 isBlindBox: false,
-                sourceUrl:
-                  'https://i0.hdslb.com/bfs/live/cli-free.webp',
+                sourceUrl: 'https://i0.hdslb.com/bfs/live/cli-free.webp',
                 imageUrl: '/gift-media/images/cli-free.webp',
               },
             ],
@@ -79,8 +84,14 @@ test('gift catalog CLI persists the versioned gold catalog and downloads its ima
   assert.equal(result.status, 'ready');
   assert.equal(result.total, 1);
   assert.equal(result.available, 1);
-  assert.equal(progress.some((state) => state.phase === 'catalog'), true);
-  assert.equal(progress.some((state) => state.phase === 'images'), true);
+  assert.equal(
+    progress.some((state) => state.phase === 'catalog'),
+    true,
+  );
+  assert.equal(
+    progress.some((state) => state.phase === 'images'),
+    true,
+  );
   assert.deepEqual(
     requests.map((request) => request.url),
     [
@@ -90,16 +101,19 @@ test('gift catalog CLI persists the versioned gold catalog and downloads its ima
   );
 
   const catalog = JSON.parse(
-    fs.readFileSync(path.join(dataDir, CACHE_FILE_NAME), 'utf8'),
+    fs.readFileSync(path.join(dataDir, 'cache', CACHE_FILE_NAME), 'utf8'),
   );
   assert.equal(catalog.schemaVersion, 2);
   assert.deepEqual(catalog.blindBoxes, []);
-  assert.deepEqual(catalog.gifts.map((gift) => gift.id), ['7001']);
+  assert.deepEqual(
+    catalog.gifts.map((gift) => gift.id),
+    ['7001'],
+  );
   assert.equal(
     catalog.gifts[0].sourceUrl,
     'https://i0.hdslb.com/bfs/live/cli-paid.webp',
   );
-  const imageDir = path.join(dataDir, 'overtime-gift-images');
+  const imageDir = path.join(dataDir, 'cache', 'overtime-gift-images');
   const index = JSON.parse(
     fs.readFileSync(path.join(imageDir, 'index.json'), 'utf8'),
   );
@@ -111,10 +125,7 @@ test('gift catalog CLI persists the versioned gold catalog and downloads its ima
   );
 
   const completion = JSON.parse(
-    fs.readFileSync(
-      path.join(dataDir, STATE_FILE_NAME),
-      'utf8',
-    ),
+    fs.readFileSync(path.join(dataDir, 'cache', STATE_FILE_NAME), 'utf8'),
   );
   assert.equal(completion.catalogVersion, 'cli-v1');
   assert.equal(completion.total, 1);

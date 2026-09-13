@@ -2,7 +2,7 @@
 
 > Status: Applies to new code and code changed by the current task
 >
-> Scope: `src/`, `public/js/`, `scripts/`, and `test/`
+> Scope: `src/`, `public/`, `scripts/`, `tools/`, `test/`, and maintained installer source in `build/`
 
 This standard defines dependency direction, composition, persistence boundaries,
 and compatibility migration for the LIRA modular monolith. The objective is not
@@ -132,15 +132,17 @@ Status meanings:
 - `Migration Target`: desired direction is documented but not comprehensively
   machine-enforced.
 
-| Rule ID               | Rule                                                 | Status                 | Enforcement                                                                                                                                                                      |
-| --------------------- | ---------------------------------------------------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `MOD-COMPOSITION-001` | Composition roots only wire components and lifecycle | Incrementally Enforced | Selected composition-root assertions plus review                                                                                                                                 |
-| `MOD-STORAGE-001`     | Domain services do not issue SQL                     | Incrementally Enforced | Receiver-aware SQL debt budget                                                                                                                                                   |
-| `MOD-STORAGE-002`     | Stores own transaction boundaries                    | Incrementally Enforced | Selected store atomicity tests plus review                                                                                                                                       |
-| `MOD-ADMIN-001`       | New Admin code does not add global-state access      | Incrementally Enforced | `window.AdminApp` debt budget                                                                                                                                                    |
-| `MOD-FRONTEND-001`    | New frontend code uses explicit ESM boundaries       | Incrementally Enforced | `test/esm-module-boundaries.test.js` rejects undeclared or unimported identifiers in ES modules under `public/js/`; review covers explicit exports and classic-script exceptions |
-| `MOD-SHARED-001`      | Shared utilities remain domain-neutral               | Migration Target       | Selected regression assertions                                                                                                                                                   |
-| `MOD-CONTRACT-001`    | Public contracts remain compatible by default        | Incrementally Enforced | Existing regression tests; full inventory deferred                                                                                                                               |
+| Rule ID               | Rule                                                          | Status                 | Enforcement                                                                                                                                                                      |
+| --------------------- | ------------------------------------------------------------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MOD-COMPOSITION-001` | Composition roots only wire components and lifecycle          | Incrementally Enforced | Selected composition-root assertions plus review                                                                                                                                 |
+| `MOD-STORAGE-001`     | Domain services do not issue SQL                              | Incrementally Enforced | Receiver-aware SQL debt budget                                                                                                                                                   |
+| `MOD-STORAGE-002`     | Stores own transaction boundaries                             | Incrementally Enforced | Selected store atomicity tests plus review                                                                                                                                       |
+| `MOD-ADMIN-001`       | New Admin code does not add global-state access               | Incrementally Enforced | `window.AdminApp` debt budget                                                                                                                                                    |
+| `MOD-FRONTEND-001`    | New frontend code uses explicit ESM boundaries                | Incrementally Enforced | `test/esm-module-boundaries.test.js` rejects undeclared or unimported identifiers in ES modules under `public/js/`; review covers explicit exports and classic-script exceptions |
+| `MOD-SHARED-001`      | Shared utilities remain domain-neutral                        | Migration Target       | Selected regression assertions                                                                                                                                                   |
+| `MOD-CONTRACT-001`    | Public contracts remain compatible by default                 | Incrementally Enforced | Existing regression tests; full inventory deferred                                                                                                                               |
+| `MOD-SIZE-001`        | Ordinary source has an 800-line ceiling; 601–800 needs review | Incrementally Enforced | `test/modularity-size.test.js` enforces physical lines and exact-file reviewed ceilings; existing overflow is frozen debt                                                        |
+| `MOD-FUNCTION-001`    | Long or complex functions need semantic decomposition review  | Migration Target       | Named debt and next-change triggers in [modularity-debt.md](modularity-debt.md); no repository-wide function metric gate                                                         |
 
 Review-only or partial coverage must not be labeled `Enforced`.
 
@@ -186,6 +188,93 @@ Internal modules importing composition entrypoints remain prohibited. The
 directory-wide gate checks literal CommonJS require paths; computed/dynamic
 imports and frontend composition directions still require review. This is not
 full dependency-graph enforcement.
+
+### File Size Gate And Review
+
+[ADR-0017](../adr/0017-incremental-modularity-size-gate.md) adopts the September
+13 reassessment's batch D policy. `npm run verify:modularity` reports the size
+gate directly; `verify:architecture`, `verify:quick`, `verify` and `npm test`
+also run it. No separate hosted CI workflow is currently configured.
+
+- Count physical lines, including comments and blanks. Empty files have zero
+  lines; a final newline adds no phantom line. CRLF, LF and CR use the same
+  counting rule. Directory totals are not size limits.
+- Format changed source with the repository Prettier configuration before
+  counting. The dependency-free gate reads stored text; it does not install or
+  invoke Prettier and does not certify formatting. The September 13 baseline
+  uses the existing Prettier 3.7.4 formatting. Intentionally incomplete HTML
+  in `.prettierignore` remains unformatted but is still counted.
+- The scanner recursively includes `.js`, `.mjs`, `.cjs`, `.css`, `.html`,
+  `.json`, `.ps1`, `.cmd`, `.bat` and `.nsh` in `src/`, `public/`, `scripts/`,
+  `tools/`, `test/` and `build/`. It includes new/untracked files, test helpers
+  and fixtures. These exact roots/extensions define the gate's coverage.
+  Repository-root configuration, Markdown documents, binary/vector media and
+  data outside these roots are not source-size inputs. New source kinds require
+  updating the scanner and its coverage test; they are not implicit exemptions.
+- **Up to 600 lines:** no file-size record is required. This does not waive
+  function, dependency or ownership review.
+- **601–800 lines:** require an exact-file `review` record identifying the owner,
+  cohesive responsibility, alternatives/removal trigger, protection test,
+  reviewed line ceiling and review date. Growth past that ceiling fails even
+  when the file remains below 800.
+- **Above 800 lines:** new ordinary source is prohibited. Current oversized
+  files use `legacy` records with frozen ceilings and concrete extraction plans.
+  They must not gain independent responsibilities, even through line-neutral
+  rewrites. This semantic restriction requires diff review.
+- The machine-readable register is
+  [modularity-baseline.json](modularity-baseline.json). Paths must identify one
+  existing scanned file; duplicate, wildcard, missing, invalid and expired
+  records fail. `reviewBy` is inclusive and evaluated against the UTC date.
+  Shrinking to 600 or below requires removing the file-size record. When a
+  legacy file falls into the warning band, lower its ceiling and change it to
+  `review`. Lower ceilings alongside reductions; do not restore removed debt.
+- Do not regenerate or raise the baseline merely to pass a gate. New warning
+  assessments and changed exceptions require explicit review of the diff and
+  recorded rationale. Raising a legacy ceiling is not ordinary maintenance;
+  split the new responsibility instead. The gate validates registry structure,
+  not approval provenance or the truth of prose assessments.
+
+### Test Policy And Exact-file Exceptions
+
+Tests use the same default 600/800 review bands, with scenario cohesion as the
+primary boundary. Split by behavior, provider or lifecycle stage; retain
+cross-layer integration assertions and isolated state. Keep named test commands
+such as `test:admin` synchronized with test moves. A large fake DOM may be
+extracted when consumers justify it; neither all tests nor all fixtures are
+excluded. A larger cohesive test needs its own reviewed `exception` with a
+reason and ceiling. Current oversized tests remain `legacy` work, not fixtures.
+
+Two static-content exceptions are accepted: `public/data/theme-presets.json`
+keeps a fixed-address pure-data catalog, and
+`public/pages/admin/toolbox/usage-guide.html` keeps help chapters and anchors.
+Their exact ceilings, owners, reasons, exit triggers, deadlines and protection
+tests are recorded in the registry. The help exception explicitly extends the
+static-data rule to static HTML content; it does not cover settings forms or
+other HTML. Exceptions still fail on growth or expiry and are reviewed for
+continued static content. Handwritten migration executors and analyzers are
+ordinary source, not generated snapshots or fixtures.
+
+### Function Review And Incremental Debt
+
+Functions spanning **81–120 physical lines** normally need semantic extraction;
+those **over 120**, with **branch estimate over 20**, or **nesting over 4** need
+an explicit remediation/defer decision. Count the full function span including
+nested callbacks; moving it into a class or a mutable context bag is not a fix.
+Keep cancellation, tokens, timers, transactions and cleanup with one owner.
+
+For continuity with the reassessment, the branch estimate starts at 1 and counts
+conditions, loops, non-default switch cases, catch, ternaries and logical
+operators/assignments. Nested functions are counted separately; optional chains
+and default parameters are excluded. Nesting counts control structures and
+ternaries, with else-if not adding a level. This is a review estimate, not an
+ESLint complexity result. Fix a parser/tool version before any future numeric
+function gate; do not use regex estimates as a hard gate.
+
+[modularity-debt.md](modularity-debt.md) records known factories, initializers
+and historical migrations, their owners, protections and next-change triggers.
+Reassess these on relevant edits and by the register's review dates. It is not
+an audit of every function below 600 file lines. Preserving a coherent legacy
+state owner does not certify compliance with the 120-line rule.
 
 ### Review Remediation Coverage
 

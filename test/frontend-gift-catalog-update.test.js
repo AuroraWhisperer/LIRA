@@ -158,7 +158,10 @@ test('gift catalog update toast shows a background completion without prior prog
   controller.handleState(state);
 
   assert.equal(container.children.length, 1);
-  assert.equal(controller.getNode().children[0].textContent, '礼物图片更新完成');
+  assert.equal(
+    controller.getNode().children[0].textContent,
+    '礼物图片更新完成',
+  );
   assert.equal(timers.timers.length, 1);
 });
 
@@ -182,7 +185,10 @@ test('gift catalog update toast warns instead of reporting success for a fatal b
     error: 'CATALOG_ASSET_STATE_WRITE_FAILED',
   });
 
-  assert.equal(controller.getNode().children[0].textContent, '礼物图片更新失败');
+  assert.equal(
+    controller.getNode().children[0].textContent,
+    '礼物图片更新失败',
+  );
   assert.equal(controller.getNode().children[1].textContent, '下次检查时重试');
 });
 

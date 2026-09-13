@@ -12,12 +12,16 @@ export function setGiftImage(image, source) {
       }
       image.src = GIFT_PLACEHOLDER;
     });
-    image.addEventListener('load', () => { image.hidden = false; });
+    image.addEventListener('load', () => {
+      image.hidden = false;
+    });
     boundImages.add(image);
   }
   image.hidden = false;
-  image.src = !source || source === '/img/overtime-machine/gift-placeholder.svg'
-    ? GIFT_PLACEHOLDER : source;
+  image.src =
+    !source || source === '/img/overtime-machine/gift-placeholder.svg'
+      ? GIFT_PLACEHOLDER
+      : source;
 }
 
 export function setGiftImageFallbacks(root) {

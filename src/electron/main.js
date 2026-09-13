@@ -19,6 +19,9 @@ const {
 const { createDesktopAuthController } = require('./desktop-auth-controller');
 const { createCloudSyncController } = require('./cloud-sync-controller');
 const { createRemoteGiftController } = require('./remote-gift-controller');
+const {
+  createDesktopReadinessController,
+} = require('./desktop-readiness-controller');
 const { createDesktopLogger } = require('./desktop-logger');
 const { createDesktopRuntime } = require('./desktop-runtime');
 const {
@@ -29,15 +32,17 @@ const {
   migrateLegacyUserData,
   resolveDesktopUserDataPaths,
 } = require('./desktop-user-data');
+const {
+  migrateBrowserData,
+  migrateCacheData,
+} = require('../storage/data-directory-migration');
 const { registerLocalFontPermissionHandler } = require('./desktop-permissions');
 const {
   createLocalMediaAccess,
   hasExactOrigin,
 } = require('./local-media-access');
 const { registerLocalMediaProtocol } = require('./local-media-protocol');
-const {
-  configureMediaRequestHeaders,
-} = require('./media-request-headers');
+const { configureMediaRequestHeaders } = require('./media-request-headers');
 const updateMgr = require('./update-manager');
 const playbackFlush = require('./playback-flush');
 const { installTerminalLog } = require('./terminal-log');
@@ -116,6 +121,7 @@ var licenseManager = null;
 var licenseResumeController = null;
 var cloudSyncController = null;
 var remoteGiftController = null;
+var readinessController = null;
 const remoteGiftCatalogBootstrapBase = resolveConfiguredBaseUrl();
 
 // ---- app lifecycle ----
@@ -141,41 +147,59 @@ const desktopUserDataPaths = resolveDesktopUserDataPaths({
   rootDir: ROOT_DIR,
 });
 const userDataMigrationState = { migration: null, error: null };
+var gotInstanceLock = false;
 try {
-  if (desktopUserDataPaths.recoveryDataDir && fs.existsSync(desktopUserDataPaths.recoveryDataDir)) {
-    throw new Error('上次安装的数据尚未恢复，请重新运行安装包。数据保留在：' + desktopUserDataPaths.recoveryDataDir);
+  if (
+    desktopUserDataPaths.recoveryDataDir &&
+    fs.existsSync(desktopUserDataPaths.recoveryDataDir)
+  ) {
+    throw new Error(
+      '上次安装的数据尚未恢复，请重新运行安装包。数据保留在：' +
+        desktopUserDataPaths.recoveryDataDir,
+    );
   }
   userDataMigrationState.migration = migrateLegacyUserData({
     sourceDir: desktopUserDataPaths.legacyDataDir,
     targetDir: desktopUserDataPaths.dataDir,
   });
+  fs.mkdirSync(desktopUserDataPaths.dataDir, { recursive: true });
+  // Keep the lock identity shared with old releases before relocating the profile.
+  app.setPath('userData', desktopUserDataPaths.dataDir);
+  gotInstanceLock = app.requestSingleInstanceLock();
+  if (gotInstanceLock) {
+    migrateBrowserData({ dataDir: desktopUserDataPaths.dataDir });
+    migrateCacheData({ dataDir: desktopUserDataPaths.dataDir });
+    fs.mkdirSync(desktopUserDataPaths.browserDir, { recursive: true });
+    app.setPath('userData', desktopUserDataPaths.browserDir);
+    app.setPath('sessionData', desktopUserDataPaths.browserDir);
+    app.setPath('logs', desktopUserDataPaths.logDir);
+    app.setPath(
+      'crashDumps',
+      path.join(desktopUserDataPaths.browserDir, 'Crashpad'),
+    );
+  }
 } catch (error) {
   userDataMigrationState.error = error;
 }
 if (userDataMigrationState.error) {
   // Stop before Chromium creates an empty profile that would conflict with recovery.
-  dialog.showErrorBox('启动失败',
+  dialog.showErrorBox(
+    '启动失败',
     '无法准备安装目录中的用户数据。LIRA 已停止启动：' +
-    (userDataMigrationState.error.message || String(userDataMigrationState.error)));
+      (userDataMigrationState.error.message ||
+        String(userDataMigrationState.error)),
+  );
   app.exit(1);
+} else if (!gotInstanceLock) {
+  app.quit();
 } else {
-  app.setPath('userData', desktopUserDataPaths.dataDir);
-  app.setPath('sessionData', desktopUserDataPaths.dataDir);
-  app.setPath('logs', path.join(path.dirname(desktopUserDataPaths.dataDir), 'logs'));
-  app.setPath('crashDumps', path.join(desktopUserDataPaths.dataDir, 'Crashpad'));
-
-  const gotLock = app.requestSingleInstanceLock();
-  if (!gotLock) {
-    app.quit();
-  } else {
-    app
-      .whenReady()
-      .then(startDesktopApp)
-      .catch(function (error) {
-        dialog.showErrorBox('启动失败', error.message || String(error));
-        app.quit();
-      });
-  }
+  app
+    .whenReady()
+    .then(startDesktopApp)
+    .catch(function (error) {
+      dialog.showErrorBox('启动失败', error.message || String(error));
+      app.quit();
+    });
 }
 
 app.setName('LIRA');
@@ -236,10 +260,13 @@ function requestDesktopShutdown({ restart = false } = {}) {
 
   void (async function () {
     try {
+      readinessController?.dispose();
+      readinessController = null;
       licenseResumeController?.unregister();
-      const controllersToDrain = [remoteGiftController, cloudSyncController].filter(
-        Boolean,
-      );
+      const controllersToDrain = [
+        remoteGiftController,
+        cloudSyncController,
+      ].filter(Boolean);
       for (const controller of controllersToDrain) controller.dispose();
       remoteGiftController = null;
       cloudSyncController = null;
@@ -468,110 +495,20 @@ async function startDesktopApp() {
     hasExactOrigin,
   });
   phaseStartedAt = Date.now();
-  let mainRoute =
-    licenseManager.getState() === LicenseState.AUTHORIZED &&
-    lifecycleState.runtime.isGiftCatalogInitialized()
-      ? 'admin'
-      : 'license';
+  readinessController = createDesktopReadinessController({
+    licenseManager,
+    runtime: lifecycleState.runtime,
+    remoteGiftController,
+    cloudSyncController,
+    getMainWindow: () => windowState.main,
+    baseUrl: serverInfo.baseUrl,
+    writeLog,
+  });
   createMainWindow(
     serverInfo.baseUrl,
-    mainRoute === 'admin',
+    readinessController.initialRoute === 'admin',
   );
-  let mainNavigationGeneration = 0;
-  const navigateMain = (route) => {
-    if (
-      mainRoute === route ||
-      !windowState.main ||
-      windowState.main.isDestroyed()
-    )
-      return;
-    mainRoute = route;
-    const navigationGeneration = ++mainNavigationGeneration;
-    const pathname = route === 'admin' ? '/admin?desktop=1' : '/license';
-    windowState.main
-      .loadURL(windowState.baseUrl + pathname)
-      .catch((error) => {
-        if (
-          navigationGeneration === mainNavigationGeneration &&
-          mainRoute === route
-        )
-          mainRoute = '';
-        writeLog('license-navigation', error);
-      });
-  };
-  const refreshGiftCatalogForAuthorizedSession = (request) => {
-    const initialization = lifecycleState.runtime.initializeGiftCatalog(request);
-    initialization?.catch?.((error) =>
-      writeLog('gift-catalog-initialization', error),
-    );
-    return initialization;
-  };
-  lifecycleState.runtime.onGiftCatalogInitializationStateChanged((snapshot) => {
-    if (
-      snapshot?.status === 'ready' &&
-      licenseManager?.getState() === LicenseState.AUTHORIZED &&
-      lifecycleState.runtime.isGiftCatalogInitialized()
-    ) {
-      navigateMain('admin');
-    }
-  });
-  licenseManager.onStateChanged((snapshot) => {
-    writeLog('license-state', {
-      event: 'changed',
-      state: snapshot.state,
-      error: snapshot.error || null,
-    });
-    if (snapshot.state === LicenseState.AUTHORIZED) {
-      const resumePromise = Promise.all([
-        remoteGiftController?.start(),
-        cloudSyncController
-          ?.whenIdle()
-          .then(() => lifecycleState.runtime.resumeAuthorizedWork?.()),
-      ]);
-      if (resumePromise?.catch)
-        resumePromise.catch((error) => writeLog('license-resume', error));
-      if (lifecycleState.runtime.isGiftCatalogInitialized()) {
-        navigateMain('admin');
-        refreshGiftCatalogForAuthorizedSession({
-          force: true,
-          reason: 'authorized-session',
-        });
-      } else {
-        navigateMain('license');
-        refreshGiftCatalogForAuthorizedSession({
-          force: true,
-          reason: 'first-authorization',
-        });
-      }
-    } else {
-      remoteGiftController?.stop();
-    }
-    if (
-      snapshot.state !== LicenseState.AUTHORIZED &&
-      snapshot.state !== LicenseState.CHECKING &&
-      snapshot.state !== LicenseState.AUTHORIZING
-    ) {
-      lifecycleState.runtime.pauseAuthorizedWork?.();
-      navigateMain('license');
-    }
-  });
-  if (licenseManager.getState() === LicenseState.AUTHORIZED) {
-    const resumePromise = Promise.all([
-      remoteGiftController.start(),
-      cloudSyncController
-        .start()
-        .catch((error) => writeLog('cloud-sync', error))
-        .then(() => lifecycleState.runtime.resumeAuthorizedWork?.()),
-    ]);
-    if (resumePromise?.catch)
-      resumePromise.catch((error) => writeLog('license-resume', error));
-    refreshGiftCatalogForAuthorizedSession({
-      force: true,
-      reason: lifecycleState.runtime.isGiftCatalogInitialized()
-        ? 'authorized-startup'
-        : 'first-authorized-startup',
-    });
-  }
+  readinessController.start();
   logStartupPhase('window-create', phaseStartedAt);
   writeLog('lifecycle', { event: 'READY', baseUrl: serverInfo.baseUrl });
 
@@ -588,8 +525,8 @@ async function startDesktopApp() {
 }
 
 function configureDesktopEnvironment() {
-  pathState.dataDir = app.getPath('userData');
-  pathState.logDir = path.join(path.dirname(pathState.dataDir), 'logs');
+  pathState.dataDir = desktopUserDataPaths.dataDir;
+  pathState.logDir = desktopUserDataPaths.logDir;
   pathState.logFile = path.join(pathState.logDir, 'desktop.log');
   pathState.terminalLogFile = path.join(pathState.logDir, 'terminal.log');
   fs.mkdirSync(pathState.dataDir, { recursive: true });

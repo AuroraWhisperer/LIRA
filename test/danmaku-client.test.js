@@ -76,7 +76,6 @@ test('extracted danmaku client keeps runtime dependencies and diagnostics', asyn
     recentCommands: [],
     recentGiftLikeCommands: [],
   };
-  const runtimeGiftCommandPrefixes = new Set();
   let client;
 
   global.WebSocket = FakeWebSocket;
@@ -130,7 +129,6 @@ test('extracted danmaku client keeps runtime dependencies and diagnostics', asyn
       },
       {
         diagnostics,
-        runtimeGiftCommandPrefixes,
       },
     );
 

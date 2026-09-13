@@ -270,9 +270,7 @@ function parseBilibiliCookieHeader(cookieHeader) {
     cookies.push({ name, value: cookieValue });
     names.add(name);
   }
-  if (
-    BILIBILI_LOGIN_CONFIG.keyCookies.some((name) => !names.has(name))
-  ) {
+  if (BILIBILI_LOGIN_CONFIG.keyCookies.some((name) => !names.has(name))) {
     throw new Error('BILIBILI_CREDENTIALS_INVALID');
   }
   return cookies;

@@ -83,8 +83,11 @@ export class ContentLoader {
   }
 
   _writeCache(request, result) {
-    if (!CACHEABLE_ACTIONS.has(request.action) || !this.cacheManager) return false;
-    if (this._cacheRequestGenerations.get(request.cacheKey) !== request.generation)
+    if (!CACHEABLE_ACTIONS.has(request.action) || !this.cacheManager)
+      return false;
+    if (
+      this._cacheRequestGenerations.get(request.cacheKey) !== request.generation
+    )
       return false;
     this.cacheManager.set(request.cacheKey, {
       items: result.items,
@@ -102,7 +105,10 @@ export class ContentLoader {
       const result = await this._fetchByAction(request);
       return { result, cacheWritten: this._writeCache(request, result) };
     } finally {
-      if (this._cacheRequestGenerations.get(request.cacheKey) === request.generation) {
+      if (
+        this._cacheRequestGenerations.get(request.cacheKey) ===
+        request.generation
+      ) {
         this._cacheRequestGenerations.delete(request.cacheKey);
       }
     }
@@ -110,9 +116,17 @@ export class ContentLoader {
 
   _publishCachedUpdate(request, result) {
     const current = this._activeRequest;
-    if (!current?.cachedResult || current.cacheKey !== request.cacheKey ||
-      !this._isCurrentRequest(current)) return;
-    const changed = this._hasChanged(current.cachedResult.items, result.items, request.action);
+    if (
+      !current?.cachedResult ||
+      current.cacheKey !== request.cacheKey ||
+      !this._isCurrentRequest(current)
+    )
+      return;
+    const changed = this._hasChanged(
+      current.cachedResult.items,
+      result.items,
+      request.action,
+    );
     if (!changed) return;
     current.cachedResult = result;
     this._applyResult(result);
@@ -145,7 +159,8 @@ export class ContentLoader {
       if (cached) {
         const cachedResult = {
           items: Array.isArray(cached.items) ? cached.items : [],
-          itemType: cached.itemType || (action === 'liked' ? 'track' : 'playlist'),
+          itemType:
+            cached.itemType || (action === 'liked' ? 'track' : 'playlist'),
           action: cached.action || action,
           title: request.title,
         };
@@ -269,7 +284,10 @@ export class ContentLoader {
    * @param {string} [platform] - 请求所属的平台
    * @returns {Promise<Object>} 加载结果
    */
-  async _fetchLikedTracksAll(title, platform = this.state?.selectedSource || '') {
+  async _fetchLikedTracksAll(
+    title,
+    platform = this.state?.selectedSource || '',
+  ) {
     const BATCH_SIZE = 100;
     let offset = 0;
     let allTracks = [];

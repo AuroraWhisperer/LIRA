@@ -80,9 +80,7 @@ test('keeps the current room catalog primary and decorates exact IDs with server
             },
             imageBaseUrl: 'https://api.lirahub.cn',
             etag: '"remote-1"',
-            blindBoxes: [
-              { giftId: '400', outputGiftIds: ['401'] },
-            ],
+            blindBoxes: [{ giftId: '400', outputGiftIds: ['401'] }],
             gifts: [
               {
                 id: '400',
@@ -176,9 +174,10 @@ test('keeps the current room catalog primary and decorates exact IDs with server
       { query: '987654321' },
     );
     assert.equal(cachedSearch.response.status, 200);
-    assert.deepEqual(cachedSearch.payload.data.gifts.map((gift) => gift.id), [
-      '987654321',
-    ]);
+    assert.deepEqual(
+      cachedSearch.payload.data.gifts.map((gift) => gift.id),
+      ['987654321'],
+    );
     assert.equal(remoteCalls, 1);
 
     const searched = await postJson(
@@ -188,7 +187,10 @@ test('keeps the current room catalog primary and decorates exact IDs with server
       { query: '987654321' },
     );
     assert.equal(searched.response.status, 200);
-    assert.deepEqual(searched.payload.data.gifts.map((gift) => gift.id), ['987654321']);
+    assert.deepEqual(
+      searched.payload.data.gifts.map((gift) => gift.id),
+      ['987654321'],
+    );
     assert.equal(
       searched.payload.data.gifts[0].imagePath,
       '/overtime-gift-images/server.webp',
@@ -343,9 +345,10 @@ test('local and legacy server searches never fetch while handling the query', as
       { query: '手动同步' },
     );
     assert.equal(first.response.status, 200);
-    assert.deepEqual(first.payload.data.gifts.map((gift) => gift.id), [
-      '987654322',
-    ]);
+    assert.deepEqual(
+      first.payload.data.gifts.map((gift) => gift.id),
+      ['987654322'],
+    );
     assert.equal(remoteCalls, 1);
 
     offline = true;
@@ -356,9 +359,10 @@ test('local and legacy server searches never fetch while handling the query', as
       { query: '手动同步' },
     );
     assert.equal(legacyAlias.response.status, 200);
-    assert.deepEqual(legacyAlias.payload.data.gifts.map((gift) => gift.id), [
-      '987654322',
-    ]);
+    assert.deepEqual(
+      legacyAlias.payload.data.gifts.map((gift) => gift.id),
+      ['987654322'],
+    );
     assert.equal(remoteCalls, 1);
   } finally {
     await runtime.stop({ exitProcess: false });

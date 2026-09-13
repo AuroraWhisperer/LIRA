@@ -1,0 +1,81 @@
+@media (max-width: 760px) {
+  .wheel-card-trigger {
+    grid-template-columns: 1fr;
+  }
+  .wheel-card-trigger .game-card-poster {
+    min-height: 118px;
+  }
+  .wheel-card-summary {
+    min-height: 0;
+  }
+  .wheel-entry-row {
+    grid-template-columns: 1fr;
+  }
+  .wheel-remove-entry {
+    justify-self: start;
+  }
+}
+@media (max-width: 760px) {
+  .draw-card-trigger {
+    grid-template-columns: 1fr;
+  }
+  .draw-card-trigger .game-card-poster {
+    min-height: 118px;
+  }
+  .draw-card-summary {
+    min-height: 0;
+  }
+  .draw-config,
+  .draw-word-categories {
+    grid-template-columns: 1fr;
+  }
+  .draw-word-library-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .draw-host-panel {
+    grid-template-columns: 1fr;
+  }
+  .draw-host-meta {
+    justify-items: start;
+  }
+}
+@media (max-width: 1050px) {
+  .games-link-deck {
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+  .games-link-actions {
+    justify-content: flex-start;
+  }
+}
+@media (max-width: 760px) {
+  .games-category {
+    padding: 14px;
+    border-radius: 18px;
+  }
+  .games-category-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .games-category-meta {
+    justify-content: flex-start;
+  }
+  .game-admin-card {
+    grid-template-columns: 1fr;
+  }
+  .game-admin-card:has(.lira-select.is-open) > .game-card-poster {
+    border-radius: 17px 17px 0 0;
+  }
+  .game-card-poster {
+    min-height: 100px;
+  }
+  .game-config-grid {
+    grid-template-columns: 1fr;
+  }
+  .games-admin-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

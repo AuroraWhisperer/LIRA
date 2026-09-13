@@ -1,5 +1,6 @@
 /* Toolbox styles - ordered compatibility entrypoint. */
 @import url('./other-features/shell.css');
+@import url('./other-features/performance.css');
 @import url('./other-features/danmaku-tool.css');
 @import url('./other-features/ai-assistant.css');
 @import url('./other-features/danmaku-editors.css');
@@ -8,6 +9,9 @@
 @import url('./other-features/onboarding.css');
 @import url('./other-features/streamer-planner.css');
 @import url('./other-features/games.css');
+@import url('./other-features/games-wheel.css');
+@import url('./other-features/games-draw.css');
+@import url('./other-features/games-responsive.css');
 @import url('./other-features/start-animation.css');
 @import url('./other-features/clock.css');
 @import url('./other-features/settings.css');

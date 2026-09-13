@@ -140,7 +140,10 @@ test('a stale quality stream cannot replace a newer quality selection', async ()
   await staleQualityRequest;
   await flushAsyncWork();
 
-  assert.equal(app.element('music-player').src, 'https://example.test/high.mp3');
+  assert.equal(
+    app.element('music-player').src,
+    'https://example.test/high.mp3',
+  );
   assert.equal(app.element('music-player').paused, false);
   assert.equal(app.audioPlayCalls(), 2);
   await app.emit('music-player', 'loadedmetadata');
@@ -163,7 +166,10 @@ test('a stale quality stream cannot replace a newer quality selection', async ()
   await staleQualityError;
   await flushAsyncWork();
 
-  assert.equal(app.element('music-player').src, 'https://example.test/high.mp3');
+  assert.equal(
+    app.element('music-player').src,
+    'https://example.test/high.mp3',
+  );
   assert.equal(app.element('music-player').paused, false);
   assert.equal(app.audioPlayCalls(), 3);
   assert.deepEqual(app.errors(), []);

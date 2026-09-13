@@ -13,6 +13,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { sanitizeSource } = require('./esm-source-sanitizer');
 
 const KEYWORDS = new Set(
   [
@@ -250,7 +251,7 @@ const BROWSER_GLOBALS = new Set(
     .split(' '),
 );
 
-const IDENTIFIER_RE = /[A-Za-z_$][\w$]*/g;
+const IDENTIFIER_RE = /(?<![\w$])[A-Za-z_$][\w$]*/g;
 
 // Keywords that can precede `(...)` and a following `{` in a non-definition
 // position. `get`/`set`/`async`/`static` are deliberately absent so that a
@@ -261,190 +262,6 @@ const CONTROL_KEYWORDS = new Set(
     .join(' ')
     .split(' '),
 );
-
-// Replaces source[start, end) with spaces while preserving newlines so that
-// reported line numbers match the original file.
-function blank(source, start, end) {
-  let out = '';
-  for (let k = start; k < end; k += 1) {
-    out += source[k] === '\n' ? '\n' : ' ';
-  }
-  return out;
-}
-
-// Strips comments, string literals, template literal text (keeping `${...}`
-// interpolations), and regex literals, leaving the code tokens in place.
-function sanitizeSource(source) {
-  const n = source.length;
-  let i = 0;
-
-  function scanExpression(stopChar) {
-    const seg = [];
-    let parenDepth = 0;
-    let bracketDepth = 0;
-    let braceDepth = 0;
-
-    const prevCharOf = (buffer) => {
-      for (let k = buffer.length - 1; k >= 0; k -= 1) {
-        if (!/\s/.test(buffer[k])) return buffer[k];
-      }
-      return '';
-    };
-    const lastWordOf = (buffer) => {
-      let k = buffer.length - 1;
-      while (k >= 0 && /\s/.test(buffer[k])) k -= 1;
-      const end = k;
-      while (k >= 0 && /[A-Za-z0-9_$]/.test(buffer[k])) k -= 1;
-      return buffer.slice(k + 1, end + 1).join('');
-    };
-    const isRegexStart = (buffer) => {
-      const prev = prevCharOf(buffer);
-      if (!prev) return true;
-      if ('([{:;,=!&|?+-*%^~<>'.includes(prev)) return true;
-      return /^(return|typeof|instanceof|in|of|new|void|delete|do|else|case|yield|await|throw|extends)$/.test(
-        lastWordOf(buffer),
-      );
-    };
-
-    while (i < n) {
-      const ch = source[i];
-      if (
-        stopChar &&
-        ch === stopChar &&
-        parenDepth === 0 &&
-        bracketDepth === 0 &&
-        braceDepth === 0
-      ) {
-        i += 1;
-        break;
-      }
-      if (ch === '(') {
-        parenDepth += 1;
-        seg.push(ch);
-        i += 1;
-        continue;
-      }
-      if (ch === ')') {
-        parenDepth = Math.max(0, parenDepth - 1);
-        seg.push(ch);
-        i += 1;
-        continue;
-      }
-      if (ch === '[') {
-        bracketDepth += 1;
-        seg.push(ch);
-        i += 1;
-        continue;
-      }
-      if (ch === ']') {
-        bracketDepth = Math.max(0, bracketDepth - 1);
-        seg.push(ch);
-        i += 1;
-        continue;
-      }
-      if (ch === '{') {
-        braceDepth += 1;
-        seg.push(ch);
-        i += 1;
-        continue;
-      }
-      if (stopChar && ch === '}') {
-        braceDepth = Math.max(0, braceDepth - 1);
-        seg.push(ch);
-        i += 1;
-        continue;
-      }
-      if (ch === '/' && source[i + 1] === '/') {
-        const end = source.indexOf('\n', i + 2);
-        const stop = end === -1 ? n : end;
-        seg.push(blank(source, i, stop));
-        i = stop;
-        continue;
-      }
-      if (ch === '/' && source[i + 1] === '*') {
-        const end = source.indexOf('*/', i + 2);
-        const stop = end === -1 ? n : end + 2;
-        seg.push(blank(source, i, stop));
-        i = stop;
-        continue;
-      }
-      if (ch === "'" || ch === '"') {
-        let j = i + 1;
-        while (j < n && source[j] !== ch && source[j] !== '\n') {
-          if (source[j] === '\\') j += 1;
-          j += 1;
-        }
-        const stop = Math.min(j + 1, n);
-        seg.push(blank(source, i, stop));
-        i = stop;
-        continue;
-      }
-      if (ch === '`') {
-        seg.push(' ');
-        i += 1;
-        while (i < n) {
-          const c = source[i];
-          if (c === '`') {
-            seg.push(' ');
-            i += 1;
-            break;
-          }
-          if (c === '\\') {
-            seg.push(' ');
-            i += 2;
-            continue;
-          }
-          if (c === '$' && source[i + 1] === '{') {
-            seg.push('  ');
-            i += 2;
-            seg.push(scanExpression('}'));
-            continue;
-          }
-          seg.push(c === '\n' ? '\n' : ' ');
-          i += 1;
-        }
-        continue;
-      }
-      if (ch === '/') {
-        if (isRegexStart(seg)) {
-          let j = i + 1;
-          let inClass = false;
-          let terminated = false;
-          while (j < n) {
-            const rc = source[j];
-            if (rc === '\\') {
-              j += 2;
-              continue;
-            }
-            if (rc === '\n') break;
-            if (rc === '[') inClass = true;
-            else if (rc === ']') inClass = false;
-            else if (rc === '/' && !inClass) {
-              terminated = true;
-              break;
-            }
-            j += 1;
-          }
-          if (terminated) {
-            let k = j + 1;
-            while (k < n && /[A-Za-z]/.test(source[k])) k += 1;
-            seg.push(blank(source, i, k));
-            i = k;
-            continue;
-          }
-        }
-        seg.push(ch);
-        i += 1;
-        continue;
-      }
-      seg.push(ch);
-      i += 1;
-    }
-    return seg.join('');
-  }
-
-  return scanExpression('');
-}
 
 function balancedParens(text, openIdx) {
   let depth = 0;

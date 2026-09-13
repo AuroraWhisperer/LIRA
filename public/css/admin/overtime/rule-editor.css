@@ -1,0 +1,559 @@
+.overtime-gift-catalog-status {
+  max-width: min(100%, 420px);
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+  line-height: 1.4;
+  text-align: right;
+}
+.overtime-rules-heading-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.overtime-refresh-gifts-action,
+.overtime-add-gift-action,
+.overtime-save-rules-action {
+  min-width: 104px;
+  min-height: 38px;
+  font-weight: 700;
+  transition:
+    background 150ms ease,
+    border-color 150ms ease,
+    box-shadow 150ms ease;
+}
+.overtime-refresh-gifts-action {
+  min-width: 118px;
+}
+.overtime-add-gift-action {
+  border-color: var(--ot-action-add);
+  background: var(--ot-action-add);
+  color: #fff;
+  box-shadow: 0 4px 10px
+    color-mix(in srgb, var(--ot-action-add) 18%, transparent);
+}
+.overtime-add-gift-action:hover {
+  border-color: color-mix(in srgb, var(--ot-action-add) 86%, #000);
+  background: color-mix(in srgb, var(--ot-action-add) 86%, #000);
+  box-shadow: 0 5px 14px
+    color-mix(in srgb, var(--ot-action-add) 24%, transparent);
+}
+.overtime-save-rules-action:disabled {
+  border-color: var(--border);
+  background: var(--surface-2);
+  color: var(--muted);
+  opacity: 1;
+}
+.overtime-save-rules-action.is-dirty {
+  border-color: var(--ot-action-save);
+  background: var(--ot-action-save);
+  color: #fff;
+  box-shadow: 0 4px 10px
+    color-mix(in srgb, var(--ot-action-save) 18%, transparent);
+}
+.overtime-save-rules-action.is-dirty:hover {
+  border-color: color-mix(in srgb, var(--ot-action-save) 86%, #000);
+  background: color-mix(in srgb, var(--ot-action-save) 86%, #000);
+  box-shadow: 0 5px 14px
+    color-mix(in srgb, var(--ot-action-save) 24%, transparent);
+}
+
+.overtime-rule-list,
+.overtime-settlement-list {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 8px;
+}
+.overtime-rule-list {
+  gap: 8px;
+}
+.overtime-rule-empty,
+.overtime-settlement-empty {
+  padding: 20px;
+  border: 1px dashed var(--border);
+  border-radius: 9px;
+  color: var(--muted);
+  text-align: center;
+}
+.overtime-rule-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--surface);
+  box-shadow: 0 4px 14px rgba(24, 24, 35, 0.05);
+}
+.overtime-rule-header,
+.overtime-rule-gift,
+.overtime-rule-buttons,
+.overtime-effect-sentence,
+.overtime-random-footer,
+.overtime-outcome-card > header,
+.overtime-outcome-weight {
+  display: flex;
+  align-items: center;
+}
+.overtime-rule-header {
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 62px;
+  padding: 9px 12px;
+  background: linear-gradient(
+    110deg,
+    color-mix(in srgb, var(--surface-2) 86%, #fff),
+    var(--surface)
+  );
+}
+.overtime-rule-gift {
+  min-width: 0;
+  gap: 10px;
+}
+.overtime-rule-row img,
+.overtime-gift-option img {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+}
+.overtime-rule-row img {
+  width: 42px;
+  height: 42px;
+  padding: 3px;
+  border: 1px solid color-mix(in srgb, var(--border) 70%, var(--ot-pink));
+  border-radius: 10px;
+  background: var(--surface);
+}
+.overtime-rule-identity {
+  min-width: 0;
+}
+.overtime-rule-identity strong,
+.overtime-rule-identity small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.overtime-rule-identity strong {
+  font-size: var(--type-size-card-title);
+}
+.overtime-rule-identity small {
+  margin-top: 2px;
+  color: var(--muted);
+}
+.overtime-rule-identity [data-gift-binding] {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.overtime-rule-summary {
+  color: color-mix(in srgb, var(--ot-teal) 76%, var(--text)) !important;
+  font-weight: 700;
+}
+.overtime-rule-buttons {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px;
+}
+.overtime-rule-buttons button {
+  min-width: 0;
+  min-height: 32px;
+  padding: 5px 9px;
+  font-size: var(--type-size-control);
+}
+.overtime-rule-buttons .overtime-rule-icon-button {
+  width: 32px;
+  padding-inline: 0;
+  font-size: var(--type-size-card-title);
+}
+.overtime-rule-remove {
+  color: var(--muted);
+}
+.overtime-rule-toggle {
+  border-color: color-mix(
+    in srgb,
+    var(--ot-teal) 54%,
+    var(--border)
+  ) !important;
+  color: color-mix(in srgb, var(--ot-teal) 76%, var(--text)) !important;
+  font-weight: 700;
+}
+.overtime-rule-enabled {
+  display: inline-flex !important;
+  grid-template-columns: none !important;
+  align-items: center;
+  gap: 8px !important;
+  min-height: 32px;
+  margin-right: 2px;
+  color: var(--text) !important;
+  font-weight: 700;
+  cursor: pointer;
+}
+.overtime-rule-enabled input {
+  position: absolute;
+  width: 1px !important;
+  height: 1px;
+  opacity: 0;
+}
+.overtime-rule-enabled > span {
+  position: relative;
+  width: 34px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--muted) 25%, var(--surface));
+  transition:
+    background 160ms ease,
+    border-color 160ms ease;
+}
+.overtime-rule-enabled > span::after {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(24, 24, 35, 0.25);
+  content: '';
+  transition: transform 160ms ease;
+}
+.overtime-rule-enabled input:checked + span {
+  border-color: var(--ot-teal);
+  background: var(--ot-teal);
+}
+.overtime-rule-enabled input:checked + span::after {
+  transform: translateX(14px);
+}
+.overtime-rule-enabled:has(input:focus-visible) > span {
+  outline: 3px solid color-mix(in srgb, var(--ot-teal) 48%, transparent);
+  outline-offset: 2px;
+}
+
+.overtime-rule-body {
+  display: grid;
+  grid-template-columns: minmax(190px, 220px) minmax(0, 1fr);
+  border-top: 1px solid var(--border);
+}
+.overtime-rule-body[hidden] {
+  display: none;
+}
+.overtime-rule-mode,
+.overtime-fixed-editor,
+.overtime-random-editor,
+.overtime-display-editor {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+}
+.overtime-rule-mode {
+  border-right: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.overtime-rule-mode-options,
+.overtime-rule-quantity-options,
+.overtime-operation-control,
+.overtime-duration-control {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.overtime-rule-mode-options,
+.overtime-rule-quantity-options {
+  display: grid;
+  gap: 6px;
+}
+.overtime-rule-quantity-options {
+  margin-top: 8px;
+}
+.overtime-rule-mode-options > legend,
+.overtime-rule-quantity-options > legend,
+.overtime-operation-control > legend,
+.overtime-duration-control > legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.overtime-mode-option {
+  position: relative;
+  display: flex !important;
+  grid-template-columns: none !important;
+  align-items: center;
+  gap: 8px !important;
+  min-width: 0;
+  min-height: 36px;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--surface-2);
+  color: var(--text) !important;
+  cursor: pointer;
+}
+.overtime-mode-option input {
+  flex: 0 0 auto;
+  width: auto !important;
+  accent-color: var(--ot-pink);
+}
+.overtime-mode-option > span {
+  display: grid;
+  min-width: 0;
+}
+.overtime-mode-option strong {
+  font-size: var(--type-size-control);
+}
+.overtime-mode-option:has(input:checked) {
+  border-color: var(--ot-pink);
+  background: color-mix(in srgb, var(--ot-pink) 9%, var(--surface));
+  box-shadow: inset 3px 0 0 var(--ot-pink);
+}
+.overtime-mode-option.is-random:has(input:checked) {
+  border-color: var(--ot-gold);
+  background: color-mix(in srgb, var(--ot-gold) 12%, var(--surface));
+  box-shadow: inset 3px 0 0 var(--ot-gold);
+}
+.overtime-mode-option.is-random input {
+  accent-color: var(--ot-gold);
+}
+.overtime-mode-option.is-display:has(input:checked) {
+  border-color: var(--ot-pink);
+  background: color-mix(in srgb, var(--ot-pink) 12%, var(--surface));
+  box-shadow: inset 3px 0 0 var(--ot-pink);
+}
+.overtime-mode-option.is-display input {
+  accent-color: var(--ot-pink);
+}
+.overtime-mode-option:has(input:focus-visible),
+.overtime-operation-option:has(input:focus-visible) {
+  outline: 3px solid color-mix(in srgb, var(--ot-teal) 48%, transparent);
+  outline-offset: 2px;
+}
+
+.overtime-rule-effect {
+  min-width: 0;
+}
+.overtime-rule-effect [hidden] {
+  display: none !important;
+}
+.overtime-rule-effect.is-random {
+  background: color-mix(in srgb, var(--ot-gold) 3%, var(--surface));
+}
+.overtime-rule-effect.is-display {
+  background: color-mix(in srgb, var(--ot-pink) 3%, var(--surface));
+}
+.overtime-display-input {
+  max-width: 360px;
+  color: var(--text) !important;
+  font-weight: 700;
+}
+.overtime-display-input input {
+  max-width: 240px;
+  font-size: var(--type-size-section-title);
+  letter-spacing: 0.08em;
+}
+.overtime-effect-sentence {
+  min-width: 0;
+}
+.overtime-effect-controls {
+  display: grid;
+  flex: 1 1 620px;
+  min-width: 0;
+  gap: 8px;
+}
+.overtime-operation-control {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(68px, 1fr));
+  gap: 5px;
+}
+.overtime-operation-option {
+  display: inline-flex !important;
+  grid-template-columns: none !important;
+  align-items: center;
+  gap: 6px !important;
+  min-height: 34px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--text) !important;
+  cursor: pointer;
+}
+.overtime-operation-option input {
+  position: absolute;
+  width: 1px !important;
+  height: 1px;
+  opacity: 0;
+}
+.overtime-operation-option > span {
+  font-family: Bahnschrift, sans-serif;
+  font-size: var(--type-size-body);
+  font-weight: var(--type-weight-bold);
+  line-height: 1;
+}
+.overtime-operation-option strong {
+  font-size: var(--type-size-control);
+  white-space: nowrap;
+}
+.overtime-operation-option.is-add:has(input:checked) {
+  border-color: var(--ot-teal);
+  background: color-mix(in srgb, var(--ot-teal) 13%, var(--surface));
+  color: color-mix(in srgb, var(--ot-teal) 72%, var(--text)) !important;
+  box-shadow: inset 0 0 0 1px var(--ot-teal);
+}
+.overtime-operation-option.is-subtract:has(input:checked) {
+  border-color: var(--ot-coral);
+  background: color-mix(in srgb, var(--ot-coral) 12%, var(--surface));
+  color: color-mix(in srgb, var(--ot-coral) 76%, var(--text)) !important;
+  box-shadow: inset 0 0 0 1px var(--ot-coral);
+}
+.overtime-operation-option.is-multiply:has(input:checked) {
+  border-color: var(--ot-gold);
+  background: color-mix(in srgb, var(--ot-gold) 14%, var(--surface));
+  color: color-mix(in srgb, var(--ot-gold) 76%, var(--text)) !important;
+  box-shadow: inset 0 0 0 1px var(--ot-gold);
+}
+.overtime-operation-option.is-divide:has(input:checked) {
+  border-color: var(--ot-pink);
+  background: color-mix(in srgb, var(--ot-pink) 12%, var(--surface));
+  color: color-mix(in srgb, var(--ot-pink) 78%, var(--text)) !important;
+  box-shadow: inset 0 0 0 1px var(--ot-pink);
+}
+.overtime-operation-option.is-clear:has(input:checked) {
+  border-color: var(--muted);
+  background: color-mix(in srgb, var(--ot-night) 88%, var(--surface));
+  color: #fff7fb !important;
+  box-shadow: inset 0 0 0 1px var(--muted);
+}
+.overtime-duration-control {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.overtime-duration-control label {
+  display: inline-flex !important;
+  grid-template-columns: none !important;
+  align-items: center;
+  gap: 5px !important;
+  color: var(--text) !important;
+  font-weight: 700;
+}
+.overtime-duration-control input {
+  width: 54px !important;
+  height: 34px;
+  min-width: 0;
+  padding-inline: 6px;
+  text-align: center;
+  font:
+    700 14px/1 Bahnschrift,
+    sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+.overtime-factor-control {
+  display: grid !important;
+  grid-template-columns: auto minmax(84px, 120px) !important;
+  align-items: center;
+  justify-content: start;
+  gap: 8px !important;
+  color: var(--text) !important;
+  font-weight: 700;
+}
+.overtime-factor-control input {
+  width: 100% !important;
+  height: 34px;
+  text-align: center;
+  font-weight: 700;
+}
+.overtime-clear-hint {
+  padding: 10px 12px;
+  border-left: 3px solid var(--ot-night);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--ot-night) 7%, var(--surface));
+  font-size: var(--type-size-caption);
+}
+
+.overtime-random-hint {
+  margin: 0 !important;
+  padding: 8px 10px;
+  border-left: 3px solid var(--ot-gold);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--ot-gold) 13%, var(--surface));
+  color: var(--text) !important;
+}
+.overtime-outcome-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.overtime-outcome-card {
+  display: grid;
+  min-width: 0;
+  gap: 9px;
+  padding: 10px;
+  border: 1px solid color-mix(in srgb, var(--border) 76%, var(--ot-gold));
+  border-top: 3px solid var(--ot-gold);
+  border-radius: 11px;
+  background: var(--surface-2);
+}
+.overtime-outcome-card > header {
+  justify-content: space-between;
+  gap: 10px;
+}
+.overtime-outcome-card > header > strong {
+  font-size: var(--type-size-card-title);
+}
+.overtime-outcome-probability {
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: var(--ot-night);
+  color: #fff7fb;
+  font-family: Bahnschrift, sans-serif;
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-bold);
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+.overtime-outcome-result {
+  display: grid;
+  gap: 9px;
+}
+.overtime-outcome-card .overtime-operation-control {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.overtime-outcome-weight {
+  display: grid !important;
+  grid-template-columns: auto minmax(72px, 100px) auto !important;
+  justify-content: start;
+  gap: 7px !important;
+  color: var(--text) !important;
+  font-weight: 700;
+}
+.overtime-outcome-weight input {
+  width: 100% !important;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.overtime-remove-outcome {
+  justify-self: start;
+  min-height: 30px;
+  padding: 5px 8px;
+  font-size: var(--type-size-control);
+}
+.overtime-remove-outcome:disabled {
+  cursor: not-allowed;
+  opacity: 0.68;
+}
+.overtime-random-footer {
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.overtime-random-footer > span {
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+}
+.overtime-add-outcome {
+  border-color: color-mix(in srgb, var(--ot-gold) 62%, var(--border));
+  font-weight: 700;
+}

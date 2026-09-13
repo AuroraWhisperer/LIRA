@@ -33,8 +33,7 @@ async function loadSnapshot() {
     const response = await fetch('/api/state');
     const payload = await response.json();
     if (requestedGeneration !== connectionGeneration) return;
-    if (payload.ok && payload.data?.overtime)
-      applyState(payload.data.overtime);
+    if (payload.ok && payload.data?.overtime) applyState(payload.data.overtime);
   } catch (error) {
     if (requestedGeneration !== connectionGeneration) return;
     setConnectionStatus('连接中断');
@@ -56,8 +55,7 @@ function connectSocket() {
     },
     onMessage: (payload) => {
       if (payload.type === 'snapshot') {
-        if (payload.state?.overtime)
-          applyState(payload.state.overtime);
+        if (payload.state?.overtime) applyState(payload.state.overtime);
         return;
       }
       if (payload.type === 'overtime:update') {

@@ -1,0 +1,80 @@
+.overtime-gift-picker {
+  width: min(680px, calc(100vw - 32px));
+  max-height: min(720px, calc(100dvh - 32px));
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+}
+.overtime-gift-picker::backdrop {
+  background: rgba(10, 10, 18, 0.62);
+  backdrop-filter: blur(4px);
+}
+.overtime-picker-shell {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+}
+.overtime-picker-shell header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.overtime-picker-shell h3 {
+  margin: 0;
+}
+.overtime-gift-search-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+.overtime-gift-search-row > :is(input, button) {
+  min-height: 42px;
+}
+.overtime-gift-search-row > button {
+  min-width: 128px;
+  font-weight: 700;
+}
+.overtime-gift-results {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 8px;
+  max-height: 480px;
+  overflow: auto;
+}
+.overtime-gift-option {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 9px;
+  align-items: center;
+  min-height: 58px;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface-2);
+  color: var(--text);
+  text-align: left;
+}
+.overtime-gift-option:hover {
+  border-color: var(--ot-pink);
+}
+.overtime-gift-option span {
+  min-width: 0;
+}
+.overtime-gift-option strong,
+.overtime-gift-option small {
+  display: block;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+.overtime-gift-option small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-weight: 400;
+}
+.overtime-local-gift-search-status {
+  grid-column: 1 / -1;
+}

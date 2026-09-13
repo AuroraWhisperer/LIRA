@@ -95,10 +95,7 @@ test('Bilibili settings render the current account profile in the existing row',
     avatarUrl.searchParams.get('url'),
     'https://i0.hdslb.com/bfs/face/host.jpg',
   );
-  assert.equal(
-    avatarUrl.searchParams.get('token'),
-    'desktop-session-token',
-  );
+  assert.equal(avatarUrl.searchParams.get('token'), 'desktop-session-token');
   assert.equal(elements.get('bilibiliLoginBtn').style.display, 'none');
   assert.equal(elements.get('bilibiliLogoutBtn').style.display, '');
   assert.equal(
@@ -198,7 +195,7 @@ test('Bilibili settings explain tenant-scoped credentials and no anonymous captu
   );
 
   assert.match(html, /每个 LIRA 账号使用独立的直播账号凭据/);
-  assert.match(html, /仅上传到当前已授权的 LIRA 账号/);
+  assert.match(html, /仅上传到当前已授权的 LIRA\s+账号/);
   assert.match(html, /云端凭据保存成功且直播间已配置并启用后才接收弹幕和礼物/);
   assert.match(html, /未登录不会匿名采集/);
   assert.match(html, /关闭应用不会停止已配置的云端采集/);
@@ -221,8 +218,13 @@ test('Bilibili account markup keeps avatar, identity and actions in one aligned 
   assert.match(row, /id="bilibiliAuthAvatar"/);
   assert.match(row, /id="bilibiliAuthName"/);
   assert.match(row, /id="bilibiliAuthUid"/);
-  assert.ok(row.indexOf('bilibiliAuthProfile') < row.indexOf('bilibiliLogoutBtn'));
+  assert.ok(
+    row.indexOf('bilibiliAuthProfile') < row.indexOf('bilibiliLogoutBtn'),
+  );
   assert.match(css, /\.bilibili-auth-profile\s*\{[\s\S]*?align-items: center/);
   assert.match(css, /\.bilibili-auth-avatar\s*\{[\s\S]*?width: 28px/);
-  assert.match(css, /\.bilibili-auth-identity\s*\{[\s\S]*?flex-direction: column/);
+  assert.match(
+    css,
+    /\.bilibili-auth-identity\s*\{[\s\S]*?flex-direction: column/,
+  );
 });

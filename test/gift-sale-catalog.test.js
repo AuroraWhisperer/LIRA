@@ -57,16 +57,15 @@ test('parseGiftConfig and buildGiftCatalog keep unknown sale IDs without local a
       ],
     },
   });
-  const catalog = buildGiftCatalog(
-    new Set([202, 303, 34637]),
-    config,
-  );
+  const catalog = buildGiftCatalog(new Set([202, 303, 34637]), config);
   assert.deepEqual(catalog, [
     {
       id: '202',
       name: '别名礼物',
       battery: 20,
-      priceRaw: 2000, coinType: 'gold', bagGift: false,
+      priceRaw: 2000,
+      coinType: 'gold',
+      bagGift: false,
       rmb: 2,
       imagePath: '',
     },
@@ -74,7 +73,9 @@ test('parseGiftConfig and buildGiftCatalog keep unknown sale IDs without local a
       id: '303',
       name: '礼物 303',
       battery: 0,
-      priceRaw: null, coinType: '', bagGift: null,
+      priceRaw: null,
+      coinType: '',
+      bagGift: null,
       rmb: 0,
       imagePath: '',
     },
@@ -229,7 +230,9 @@ test('gift sale service validates room ID, caches refreshes, persists snapshots,
 
 test('gift sale service does not call upstream without a configured room', async (t) => {
   let called = false;
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-gift-sale-empty-'));
+  const dataDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'lira-gift-sale-empty-'),
+  );
   t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
   const service = createGiftSaleCatalogService({
     dataDir,

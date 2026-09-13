@@ -26,11 +26,11 @@ test('packaged desktop data stays beside the installed executable', () => {
       'data',
     ),
   );
+  assert.equal(paths.dataDir, path.resolve('D:\\Apps\\LIRA\\data'));
   assert.equal(
-    paths.dataDir,
-    path.resolve('D:\\Apps\\LIRA\\data'),
+    paths.recoveryDataDir,
+    path.resolve('D:\\Apps\\LIRA.lira-data-backup'),
   );
-  assert.equal(paths.recoveryDataDir, path.resolve('D:\\Apps\\LIRA.lira-data-backup'));
 });
 
 test('development desktop data remains in the repository data directory', () => {
@@ -43,7 +43,9 @@ test('development desktop data remains in the repository data directory', () => 
       rootDir,
     }),
     {
-      dataDir: path.join(rootDir, 'data'),
+      ...require('../src/shared/data-paths').resolveDataPaths(
+        path.join(rootDir, 'data'),
+      ),
       legacyDataDir: path.join(rootDir, 'data'),
     },
   );
@@ -56,7 +58,10 @@ test('packaged data follows a selected installation on another drive', () => {
     exePath: 'C:\\Apps\\LIRA\\LIRA.exe',
   });
   assert.equal(paths.dataDir, path.resolve('C:\\Apps\\LIRA\\data'));
-  assert.equal(paths.recoveryDataDir, path.resolve('C:\\Apps\\LIRA.lira-data-backup'));
+  assert.equal(
+    paths.recoveryDataDir,
+    path.resolve('C:\\Apps\\LIRA.lira-data-backup'),
+  );
 });
 
 test('legacy desktop data is completely published after a successful copy', () => {
@@ -161,28 +166,34 @@ test('a failed copy does not publish a partial durable destination', () => {
   }
 });
 
-test(
-  'the Windows installer preserves legacy data before uninstalling an update',
-  () => {
-    const installer = fs.readFileSync(
-      path.join(__dirname, '..', 'build', 'installer.nsh'),
-      'utf8',
-    );
-    const preservation = fs.readFileSync(
-      path.join(__dirname, '..', 'build', 'installer-data.nsh'), 'utf8',
-    );
+test('the Windows installer preserves legacy data before uninstalling an update', () => {
+  const installer = fs.readFileSync(
+    path.join(__dirname, '..', 'build', 'installer.nsh'),
+    'utf8',
+  );
+  const preservation = fs.readFileSync(
+    path.join(__dirname, '..', 'build', 'installer-data.nsh'),
+    'utf8',
+  );
+  const removal = fs.readFileSync(
+    path.join(__dirname, '..', 'build', 'installer-uninstall.nsh'),
+    'utf8',
+  );
 
-    assert.match(preservation, /\$INSTDIR\\data/);
-    assert.match(
-      preservation,
-      /\$APPDATA\\com\.aurorawhisperer\.lira\\data/,
-    );
-    assert.match(preservation, /robocopy\.exe/);
-    assert.match(installer, /Section "-LIRA Preserve Data"/);
-    assert.match(installer, /!macro customRemoveFiles/);
-    assert.match(preservation, /lira-data-backup/);
-    assert.ok(installer.indexOf('Call liraWaitForAppExit') < installer.indexOf('Call liraPreserveInstallData'));
-    assert.match(installer, /SetShellVarContext current\s+Call liraPreserveInstallData/);
-    assert.doesNotMatch(installer, /RMDir \/r "\$APPDATA\\LIRA"/);
-  },
-);
+  assert.match(preservation, /\$INSTDIR\\data/);
+  assert.match(preservation, /\$APPDATA\\com\.aurorawhisperer\.lira\\data/);
+  assert.match(preservation, /robocopy\.exe/);
+  assert.match(installer, /Section "-LIRA Preserve Data"/);
+  assert.match(installer, /!include "installer-uninstall\.nsh"/);
+  assert.match(removal, /!macro customRemoveFiles/);
+  assert.match(preservation, /lira-data-backup/);
+  assert.ok(
+    installer.indexOf('Call liraWaitForAppExit') <
+      installer.indexOf('Call liraPreserveInstallData'),
+  );
+  assert.match(
+    installer,
+    /SetShellVarContext current\s+Call liraPreserveInstallData/,
+  );
+  assert.doesNotMatch(installer, /RMDir \/r "\$APPDATA\\LIRA"/);
+});

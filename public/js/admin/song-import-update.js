@@ -1,24 +1,43 @@
 'use strict';
 
 import { api } from '../shared/utils.js';
+import { parseTable } from './song-import-parser.js';
 
 const PAGE_SIZE = 25;
 const FIELD_LABELS = {
-  name: '歌名', artist: '歌手', categoryName: '分类', tags: '标签',
-  isEnabled: '是否可点', language: '语言', requestPrice: '点歌价格',
-  songClip: '歌切', sourcePlatform: '核对平台', note: '备注',
+  name: '歌名',
+  artist: '歌手',
+  categoryName: '分类',
+  tags: '标签',
+  isEnabled: '是否可点',
+  language: '语言',
+  requestPrice: '点歌价格',
+  songClip: '歌切',
+  sourcePlatform: '核对平台',
+  note: '备注',
 };
 const STATUS_LABELS = {
-  inserted: '新增', updated: '更新', unchanged: '未改变', conflict: '冲突', invalid: '无效',
+  inserted: '新增',
+  updated: '更新',
+  unchanged: '未改变',
+  conflict: '冲突',
+  invalid: '无效',
 };
 const ERROR_MESSAGES = {
   SONG_IMPORT_PREVIEW_STALE: '歌库或导入内容已变化，请重新预览。',
-  SONG_IMPORT_PREVIEW_INVALID: '请修正冲突或无效行后重新预览；没有变更时无需应用。',
-  SONG_IMPORT_INPUT_INVALID: '无法读取更新内容，请使用完整模板或带表头的文件（最多 5000 行）。',
+  SONG_IMPORT_PREVIEW_INVALID:
+    '请修正冲突或无效行后重新预览；没有变更时无需应用。',
+  SONG_IMPORT_INPUT_INVALID:
+    '无法读取更新内容，请使用完整模板或带表头的文件（最多 5000 行）。',
   SONG_IMPORT_FAILED: '导入未完成，已回滚，请重试。',
 };
 
-export function initSongImportUpdate({ imports, reloadSongs, request = api, documentRef = document }) {
+export function initSongImportUpdate({
+  imports,
+  reloadSongs,
+  request = api,
+  documentRef = document,
+}) {
   const mode = documentRef.getElementById('songImportMode');
   if (!mode) return;
   const textInput = documentRef.getElementById('importText');
@@ -69,10 +88,19 @@ export function initSongImportUpdate({ imports, reloadSongs, request = api, docu
     const rows = preview.data.rows;
     for (const row of rows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)) {
       const tr = documentRef.createElement('tr');
-      const changes = row.differences.map((diff) =>
-        `${FIELD_LABELS[diff.field] || diff.field}：${displayValue(diff.before)} → ${displayValue(diff.after)}`).join('\n');
-      for (const value of [row.row, `${row.name || '（无歌名）'} / ${row.artist || '（无歌手）'}`,
-        STATUS_LABELS[row.status], changes, row.reason || '']) {
+      const changes = row.differences
+        .map(
+          (diff) =>
+            `${FIELD_LABELS[diff.field] || diff.field}：${displayValue(diff.before)} → ${displayValue(diff.after)}`,
+        )
+        .join('\n');
+      for (const value of [
+        row.row,
+        `${row.name || '（无歌名）'} / ${row.artist || '（无歌手）'}`,
+        STATUS_LABELS[row.status],
+        changes,
+        row.reason || '',
+      ]) {
         const td = documentRef.createElement('td');
         td.textContent = String(value);
         tr.appendChild(td);
@@ -92,11 +120,17 @@ export function initSongImportUpdate({ imports, reloadSongs, request = api, docu
       return { base64: await imports.readFileAsBase64(file), allowEmptyClear };
     }
     const text = file ? await imports.readTextFile(file) : textInput.value;
-    return { rows: imports.parseTable(text, { preserveMissing: true }), allowEmptyClear };
+    return {
+      rows: parseTable(text, { preserveMissing: true }),
+      allowEmptyClear,
+    };
   }
 
   function showFailure(error) {
-    result.textContent = ERROR_MESSAGES[error?.code || error?.message] || error?.message || '导入失败，请重新预览。';
+    result.textContent =
+      ERROR_MESSAGES[error?.code || error?.message] ||
+      error?.message ||
+      '导入失败，请重新预览。';
   }
 
   previewButton.addEventListener('click', async () => {
@@ -114,7 +148,8 @@ export function initSongImportUpdate({ imports, reloadSongs, request = api, docu
       preview = { payload, data: response.data };
       page = 0;
       summary.textContent = Object.entries(response.data.counts)
-        .map(([key, count]) => `${STATUS_LABELS[key]} ${count}`).join('，');
+        .map(([key, count]) => `${STATUS_LABELS[key]} ${count}`)
+        .join('，');
       panel.hidden = false;
       renderPage();
       result.textContent = response.data.canApply
@@ -138,7 +173,8 @@ export function initSongImportUpdate({ imports, reloadSongs, request = api, docu
     result.textContent = '正在应用预览…';
     try {
       const response = await request('/api/songs/import-apply', {
-        ...submitted.payload, previewToken: submitted.data.previewToken,
+        ...submitted.payload,
+        previewToken: submitted.data.previewToken,
       });
       if (current === generation) {
         panel.hidden = true;
@@ -149,7 +185,8 @@ export function initSongImportUpdate({ imports, reloadSongs, request = api, docu
       try {
         await reloadSongs();
       } catch (error) {
-        if (current === generation) result.textContent += ' 本地已保存，但列表刷新失败，请刷新页面。';
+        if (current === generation)
+          result.textContent += ' 本地已保存，但列表刷新失败，请刷新页面。';
       }
     } catch (error) {
       if (current === generation) {
@@ -167,9 +204,17 @@ export function initSongImportUpdate({ imports, reloadSongs, request = api, docu
   textInput.addEventListener('input', invalidate);
   fileInput.addEventListener('change', invalidate);
   clearInput.addEventListener('change', invalidate);
-  previous.addEventListener('click', () => { if (preview && page > 0) { page -= 1; renderPage(); } });
+  previous.addEventListener('click', () => {
+    if (preview && page > 0) {
+      page -= 1;
+      renderPage();
+    }
+  });
   next.addEventListener('click', () => {
-    if (preview && (page + 1) * PAGE_SIZE < preview.data.rows.length) { page += 1; renderPage(); }
+    if (preview && (page + 1) * PAGE_SIZE < preview.data.rows.length) {
+      page += 1;
+      renderPage();
+    }
   });
   refreshButtons();
 }

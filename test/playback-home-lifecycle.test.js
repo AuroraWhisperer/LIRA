@@ -10,7 +10,12 @@ const ROOT_DIR = path.join(__dirname, '..');
 test('cached readers share refresh work without invalidating its cache write', async () => {
   for (const forceRefresh of [false, true]) {
     const pending = [];
-    const cache = new Map([['qq:liked', { items: [{ id: 'cached' }], itemType: 'track', action: 'liked' }]]);
+    const cache = new Map([
+      [
+        'qq:liked',
+        { items: [{ id: 'cached' }], itemType: 'track', action: 'liked' },
+      ],
+    ]);
     const updates = [];
     const { ContentLoader } = await loadModuleExports(
       path.join(ROOT_DIR, 'public/js/playback/content/loader.js'),
@@ -18,13 +23,19 @@ test('cached readers share refresh work without invalidating its cache write', a
     );
     const loader = new ContentLoader({
       state: { selectedSource: 'qq' },
-      cacheManager: { get: (key) => cache.get(key), set: (key, value) => cache.set(key, value) },
+      cacheManager: {
+        get: (key) => cache.get(key),
+        set: (key, value) => cache.set(key, value),
+      },
       readJsonResponse: async (result) => result.payload,
       onBackgroundUpdate: (update) => updates.push(update),
     });
     await loader.loadHomeContent('liked', { requestGeneration: 1 });
     const explicitRefresh = forceRefresh
-      ? loader.loadHomeContent('liked', { forceRefresh: true, requestGeneration: 2 })
+      ? loader.loadHomeContent('liked', {
+          forceRefresh: true,
+          requestGeneration: 2,
+        })
       : null;
     await loader.loadHomeContent('liked', { requestGeneration: 3 });
     assert.equal(pending.length, forceRefresh ? 2 : 1);
@@ -32,7 +43,9 @@ test('cached readers share refresh work without invalidating its cache write', a
     pending.at(-1)(fresh);
     if (explicitRefresh) {
       assert.equal((await explicitRefresh).stale, true);
-      pending[0](response({ ok: true, data: { tracks: [{ id: 'old-background' }] } }));
+      pending[0](
+        response({ ok: true, data: { tracks: [{ id: 'old-background' }] } }),
+      );
     }
     await new Promise((resolve) => setImmediate(resolve));
     assert.equal(cache.get('qq:liked').items[0].id, 'fresh');
@@ -78,7 +91,10 @@ test('HomeService keeps the newest home request and ignores stale success or fai
   });
 
   const currentResult = await currentRequest;
-  assert.deepEqual(currentResult.items.map((item) => item.id), ['new-item']);
+  assert.deepEqual(
+    currentResult.items.map((item) => item.id),
+    ['new-item'],
+  );
   assert.equal(currentResult.itemType, 'track');
   assert.equal(currentResult.action, 'new');
   assert.equal(currentResult.page, 1);
@@ -132,14 +148,7 @@ test('ContentLoader keeps a fixed provider cache key when the provider changes d
   let resolveRequest;
   const cache = new Map();
   const { ContentLoader } = await loadModuleExports(
-    path.join(
-      ROOT_DIR,
-      'public',
-      'js',
-      'playback',
-      'content',
-      'loader.js',
-    ),
+    path.join(ROOT_DIR, 'public', 'js', 'playback', 'content', 'loader.js'),
     {
       fetch(_url, options) {
         assert.equal(JSON.parse(options.body).platform, 'qq');
@@ -165,7 +174,9 @@ test('ContentLoader keeps a fixed provider cache key when the provider changes d
 
   const request = loader.loadHomeContent('liked', { forceRefresh: true });
   state.selectedSource = 'netease';
-  resolveRequest(response({ ok: true, data: { tracks: [{ id: 'qq-track' }] } }));
+  resolveRequest(
+    response({ ok: true, data: { tracks: [{ id: 'qq-track' }] } }),
+  );
 
   assert.equal((await request).stale, true);
   assert.equal(cache.has('qq:liked'), true);
@@ -176,14 +187,7 @@ test('ContentLoader keeps the newest result when same-key requests finish out of
   const pending = [];
   const cache = new Map();
   const { ContentLoader } = await loadModuleExports(
-    path.join(
-      ROOT_DIR,
-      'public',
-      'js',
-      'playback',
-      'content',
-      'loader.js',
-    ),
+    path.join(ROOT_DIR, 'public', 'js', 'playback', 'content', 'loader.js'),
     {
       fetch() {
         return new Promise((resolve) => pending.push(resolve));
@@ -230,14 +234,7 @@ test('ContentLoader background refresh does not overwrite a newer active page', 
     ],
   ]);
   const { ContentLoader } = await loadModuleExports(
-    path.join(
-      ROOT_DIR,
-      'public',
-      'js',
-      'playback',
-      'content',
-      'loader.js',
-    ),
+    path.join(ROOT_DIR, 'public', 'js', 'playback', 'content', 'loader.js'),
     {
       fetch(_url, options) {
         const body = JSON.parse(options.body);
@@ -276,7 +273,10 @@ test('ContentLoader background refresh does not overwrite a newer active page', 
   await new Promise((resolve) => setTimeout(resolve, 0));
 
   const current = loader.getCurrentHomeContent();
-  assert.deepEqual(current.items.map((item) => item.id), ['created-playlist']);
+  assert.deepEqual(
+    current.items.map((item) => item.id),
+    ['created-playlist'],
+  );
   assert.equal(current.itemType, 'playlist');
   assert.equal(current.action, 'created-playlists');
   assert.equal(current.page, 1);

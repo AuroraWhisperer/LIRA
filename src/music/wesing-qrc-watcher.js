@@ -26,7 +26,12 @@ function createWeSingQrcWatcher(options) {
       return;
     }
     const exists = await isDirectory(cachePath);
-    if (version !== syncVersion || !options.isActive() || cachePath !== options.getCachePath()) return;
+    if (
+      version !== syncVersion ||
+      !options.isActive() ||
+      cachePath !== options.getCachePath()
+    )
+      return;
     if (!exists) {
       stop();
       return;

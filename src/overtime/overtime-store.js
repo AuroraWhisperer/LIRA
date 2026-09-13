@@ -177,7 +177,9 @@ function createOvertimeStore(giftDb) {
       const platformGift = /^\d+$/u.test(canonicalGiftId);
       const identityKey = platformGift ? gift.gift_variant_id : '';
       const ruleRow =
-        (identityKey != null ? findRule.get(canonicalGiftId, identityKey) : null) ||
+        (identityKey != null
+          ? findRule.get(canonicalGiftId, identityKey)
+          : null) ||
         (canonicalGiftId !== rawGiftId ? findRule.get(rawGiftId, '') : null);
       if (!ruleRow) {
         ignoreSettlement(giftEventId, updatedAt);
@@ -435,8 +437,11 @@ function normalizeRule(row) {
       : parseLegacyOutcomes(stored);
   const normalized = {
     giftIdentity: parseStoredJson(row.gift_identity_json),
-    bindingStatus: row.gift_identity_key || !/^\d+$/u.test(canonicalizeGuardGiftId(row.gift_id))
-      ? 'bound' : 'needs-selection',
+    bindingStatus:
+      row.gift_identity_key ||
+      !/^\d+$/u.test(canonicalizeGuardGiftId(row.gift_id))
+        ? 'bound'
+        : 'needs-selection',
     giftId: row.gift_id,
     giftName: row.gift_name,
     imagePath: row.image_path,

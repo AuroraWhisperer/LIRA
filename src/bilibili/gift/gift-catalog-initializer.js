@@ -3,6 +3,7 @@
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
+const { resolveDataPaths } = require('../../shared/data-paths');
 
 const STATE_FILE_NAME = 'overtime-gift-assets-state-v2.json';
 const STATE_SCHEMA_VERSION = 2;
@@ -24,7 +25,7 @@ function createGiftCatalogInitializer(options = {}) {
   const logger = options.logger || console;
   const now = typeof options.now === 'function' ? options.now : Date.now;
   const statePath = path.resolve(
-    options.statePath || path.join(dataDir, STATE_FILE_NAME),
+    options.statePath || resolveDataPaths(dataDir).giftAssetsStatePath,
   );
   fs.mkdirSync(path.dirname(statePath), { recursive: true });
   let completion = readCompletion(statePath, logger);
@@ -84,18 +85,23 @@ function createGiftCatalogInitializer(options = {}) {
       let snapshot = null;
       let refreshError = null;
       try {
-        snapshot = request.refresh === false
-          ? catalog.getSnapshot()
-          : await catalog.refresh({
-              force: request.force !== false,
-              reason: request.reason || 'initialization',
-            });
+        snapshot =
+          request.refresh === false
+            ? catalog.getSnapshot()
+            : await catalog.refresh({
+                force: request.force !== false,
+                reason: request.reason || 'initialization',
+              });
       } catch (error) {
         refreshError = error;
         snapshot = catalog.getSnapshot();
       }
       snapshot = snapshot || catalog.getSnapshot();
-      if (!snapshot || !Array.isArray(snapshot.gifts) || !snapshot.gifts.length) {
+      if (
+        !snapshot ||
+        !Array.isArray(snapshot.gifts) ||
+        !snapshot.gifts.length
+      ) {
         throw refreshError || new Error('REMOTE_CATALOG_NOT_READY');
       }
 
@@ -128,11 +134,14 @@ function createGiftCatalogInitializer(options = {}) {
       for (;;) {
         version = String(snapshot.version || '').trim();
         const gifts = snapshot.gifts;
-        const work = wasInitialized && typeof imageCache.isGiftImageCurrent === 'function'
-          ? gifts.filter((gift) =>
-              !imageCache.isGiftImageCurrent(gift) &&
-              imageCache.hasGiftImageSource?.(gift) !== false)
-          : gifts;
+        const work =
+          wasInitialized && typeof imageCache.isGiftImageCurrent === 'function'
+            ? gifts.filter(
+                (gift) =>
+                  !imageCache.isGiftImageCurrent(gift) &&
+                  imageCache.hasGiftImageSource?.(gift) !== false,
+              )
+            : gifts;
         if (work.length) {
           publish({
             status: wasInitialized ? 'updating' : 'running',
@@ -170,14 +179,18 @@ function createGiftCatalogInitializer(options = {}) {
           failed = work.length - available;
         }
         const latest = catalog.getSnapshot();
-        if (latest && JSON.stringify([latest.version, latest.gifts]) !==
-          JSON.stringify([snapshot.version, snapshot.gifts])) {
+        if (
+          latest &&
+          JSON.stringify([latest.version, latest.gifts]) !==
+            JSON.stringify([snapshot.version, snapshot.gifts])
+        ) {
           snapshot = latest;
           continue;
         }
-        const catalogAvailable = typeof imageCache.isGiftImageCurrent === 'function'
-          ? gifts.filter((gift) => imageCache.isGiftImageCurrent(gift)).length
-          : gifts.length - (work.length ? failed : 0);
+        const catalogAvailable =
+          typeof imageCache.isGiftImageCurrent === 'function'
+            ? gifts.filter((gift) => imageCache.isGiftImageCurrent(gift)).length
+            : gifts.length - (work.length ? failed : 0);
         completion = {
           schemaVersion: STATE_SCHEMA_VERSION,
           catalogVersion: version,
@@ -333,7 +346,9 @@ function writeCompletion(filePath, value) {
 }
 
 function safeErrorCode(error) {
-  const code = String(error?.code || error?.message || 'CATALOG_INITIALIZATION_FAILED')
+  const code = String(
+    error?.code || error?.message || 'CATALOG_INITIALIZATION_FAILED',
+  )
     .trim()
     .toUpperCase()
     .replace(/[^A-Z0-9_]/gu, '_')
@@ -349,7 +364,9 @@ function nonNegativeInteger(value) {
 }
 
 function safeText(value, maxLength) {
-  return String(value || '').trim().slice(0, maxLength);
+  return String(value || '')
+    .trim()
+    .slice(0, maxLength);
 }
 
 function validIso(value) {

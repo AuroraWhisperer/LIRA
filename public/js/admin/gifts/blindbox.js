@@ -4,7 +4,10 @@
 
 import { getLegacyAdminModules } from '../legacy-admin-bridge.js';
 import { eventBus, Events } from '../../shared/event-bus.js';
-import { GIFT_PLACEHOLDER, setGiftImageFallbacks } from '../../shared/gift-image-fallback.js';
+import {
+  GIFT_PLACEHOLDER,
+  setGiftImageFallbacks,
+} from '../../shared/gift-image-fallback.js';
 
 (function () {
   const { escapeHtml, escapeAttr, formatTime, formatMoney, readJsonResponse } =
@@ -40,7 +43,8 @@ import { GIFT_PLACEHOLDER, setGiftImageFallbacks } from '../../shared/gift-image
     let config = [];
     try {
       const parsed = raw ? JSON.parse(raw) : [];
-      if (parsed !== null && !Array.isArray(parsed)) throw new Error('不是数组');
+      if (parsed !== null && !Array.isArray(parsed))
+        throw new Error('不是数组');
       if (parsed === null && textarea.dataset?.dirty !== 'true') {
         textarea.value = '';
       }
@@ -62,7 +66,9 @@ import { GIFT_PLACEHOLDER, setGiftImageFallbacks } from '../../shared/gift-image
           'zh-Hans-CN',
         ),
     );
-    const otherCount = entries.filter((item) => !isBlindBoxAvailable(item)).length;
+    const otherCount = entries.filter(
+      (item) => !isBlindBoxAvailable(item),
+    ).length;
     if (toggle) {
       toggle.hidden = otherCount === 0;
       toggle.textContent = expanded
@@ -113,9 +119,11 @@ import { GIFT_PLACEHOLDER, setGiftImageFallbacks } from '../../shared/gift-image
             </div>
             <div class="bb-chip-outputs">${outputs}</div>
           </div>
-          ${item.official
-            ? '<span class="bb-chip-source">官方</span>'
-            : `<button class="chip-delete" data-blind-index="${item.index}" title="删除">✕</button>`}
+          ${
+            item.official
+              ? '<span class="bb-chip-source">官方</span>'
+              : `<button class="chip-delete" data-blind-index="${item.index}" title="删除">✕</button>`
+          }
         </div>
       `;
       })
@@ -132,7 +140,8 @@ import { GIFT_PLACEHOLDER, setGiftImageFallbacks } from '../../shared/gift-image
   function renderBlindBoxMappingStatus() {
     const status = document.getElementById('blindBoxMappingStatus');
     if (!status) return;
-    const mapping = getLegacyAdminModules().state?.getAppState?.()?.blindBoxMapping;
+    const mapping =
+      getLegacyAdminModules().state?.getAppState?.()?.blindBoxMapping;
     if (!mapping) {
       status.textContent = '正在读取服务器映射状态';
       return;
@@ -161,24 +170,37 @@ import { GIFT_PLACEHOLDER, setGiftImageFallbacks } from '../../shared/gift-image
     const gifts = Array.isArray(snapshot?.gifts) ? snapshot.gifts : [];
     const identityMode = snapshot.schemaVersion === 3;
     const giftById = new Map(
-      gifts.map((gift) => [String(identityMode ? gift.variantId : gift.id), gift]),
+      gifts.map((gift) => [
+        String(identityMode ? gift.variantId : gift.id),
+        gift,
+      ]),
     );
     const relationById = new Map(
-      (identityMode ? snapshot.variantBlindBoxes || [] : snapshot.blindBoxes || []).map(
-        (relation) => [String(identityMode ? relation.variantId : relation.giftId), relation],
-      ),
+      (identityMode
+        ? snapshot.variantBlindBoxes || []
+        : snapshot.blindBoxes || []
+      ).map((relation) => [
+        String(identityMode ? relation.variantId : relation.giftId),
+        relation,
+      ]),
     );
     officialBlindBoxes = gifts
       .filter((gift) => gift?.isBlindBox === true)
       .map((gift) => {
         const giftId = String(gift.id);
-        const relation = relationById.get(identityMode ? gift.variantId : giftId);
+        const relation = relationById.get(
+          identityMode ? gift.variantId : giftId,
+        );
         return {
           giftId,
           variantId: gift.variantId,
           name: gift.name,
           price: gift.rmb,
-          outputs: ((identityMode ? relation?.outputVariantIds : relation?.outputGiftIds) || []).map((outputGiftId) => {
+          outputs: (
+            (identityMode
+              ? relation?.outputVariantIds
+              : relation?.outputGiftIds) || []
+          ).map((outputGiftId) => {
             const output = giftById.get(String(outputGiftId));
             return {
               giftId: String(output?.id || outputGiftId),
@@ -192,15 +214,13 @@ import { GIFT_PLACEHOLDER, setGiftImageFallbacks } from '../../shared/gift-image
   }
 
   function applySaleCatalogSnapshot(snapshot) {
-    if (
-      !saleRoomId ||
-      String(snapshot?.roomId || '') !== saleRoomId
-    )
-      return;
+    if (!saleRoomId || String(snapshot?.roomId || '') !== saleRoomId) return;
     saleCatalogRevision += 1;
     const gifts = Array.isArray(snapshot?.gifts) ? snapshot.gifts : [];
     saleGiftIds = new Set(gifts.map((gift) => String(gift.id)));
-    saleVariantIds = new Set(gifts.map((gift) => gift.variantId).filter(Boolean));
+    saleVariantIds = new Set(
+      gifts.map((gift) => gift.variantId).filter(Boolean),
+    );
     renderBlindBoxList();
   }
 
@@ -212,11 +232,7 @@ import { GIFT_PLACEHOLDER, setGiftImageFallbacks } from '../../shared/gift-image
     // Serialize room changes so the shared refresh cannot reuse our old room's
     // in-flight request. Skip queued contexts that have already been replaced.
     saleCatalogLoadPromise = saleCatalogLoadPromise.then(async () => {
-      if (
-        requestRevision !== saleCatalogRevision ||
-        !saleRoomId
-      )
-        return;
+      if (requestRevision !== saleCatalogRevision || !saleRoomId) return;
       try {
         for (let attempt = 0; attempt < 2; attempt += 1) {
           const response = await fetch('/api/overtime/gifts/refresh', {
@@ -224,17 +240,26 @@ import { GIFT_PLACEHOLDER, setGiftImageFallbacks } from '../../shared/gift-image
             headers: { 'Content-Type': 'application/json' },
             body: '{}',
           });
-          const payload = await readJsonResponse(response, '在售礼物目录加载失败');
-          if (!response.ok || payload?.ok === false) throw new Error(payload.error);
+          const payload = await readJsonResponse(
+            response,
+            '在售礼物目录加载失败',
+          );
+          if (!response.ok || payload?.ok === false)
+            throw new Error(payload.error);
           if (requestRevision !== saleCatalogRevision) return;
           // The overtime picker may already be refreshing a different room.
           if (String(payload?.data?.roomId || '') !== saleRoomId) continue;
           applySaleCatalogSnapshot(payload.data);
-          eventBus.emit(Events.GIFT_CATALOG_UPDATED, { snapshot: payload.data });
+          eventBus.emit(Events.GIFT_CATALOG_UPDATED, {
+            snapshot: payload.data,
+          });
           return;
         }
       } catch (error) {
-        console.warn('[BlindBox] sale catalog load failed:', error.message || error);
+        console.warn(
+          '[BlindBox] sale catalog load failed:',
+          error.message || error,
+        );
       }
     });
     return saleCatalogLoadPromise;
@@ -256,7 +281,10 @@ import { GIFT_PLACEHOLDER, setGiftImageFallbacks } from '../../shared/gift-image
         applyOfficialCatalogSnapshot(payload?.data);
       })
       .catch((error) => {
-        console.warn('[BlindBox] catalog refresh failed:', error.message || error);
+        console.warn(
+          '[BlindBox] catalog refresh failed:',
+          error.message || error,
+        );
       })
       .finally(() => {
         officialCatalogLoadPromise = null;

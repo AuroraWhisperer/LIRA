@@ -8,15 +8,22 @@
   --license-primary: #3e463b;
   --license-primary-strong: #2e352b;
   --license-on-primary: #fff;
-  --license-brand-accent: color-mix(in srgb, var(--color-primary-strong) 30%, #85867c);
+  --license-brand-accent: color-mix(
+    in srgb,
+    var(--color-primary-strong) 30%,
+    #85867c
+  );
   --license-intro-bg: #e9eae3;
   --license-record-bg: #e0e2d8;
   --license-groove: rgba(85, 94, 76, 0.16);
+  --license-record-sheen: rgba(255, 255, 255, 0.55);
   --license-input-bg: #fff;
   --license-input-border: #d8dad2;
   --license-placeholder: #74786f;
-  --license-display-font: 'Segoe UI Variable Display', 'Segoe UI', 'Microsoft YaHei', sans-serif;
-  --license-shadow: 0 16px 48px rgba(41, 47, 35, 0.05), 0 2px 6px rgba(41, 47, 35, 0.02);
+  --license-display-font:
+    'Segoe UI Variable Display', 'Segoe UI', 'Microsoft YaHei', sans-serif;
+  --license-shadow:
+    0 16px 48px rgba(41, 47, 35, 0.05), 0 2px 6px rgba(41, 47, 35, 0.02);
 }
 
 * {
@@ -178,13 +185,6 @@ button {
   border-radius: 19px 0 0 19px;
   background: var(--license-intro-bg);
 }
-.license-intro-label {
-  margin: 0 0 20px;
-  color: var(--license-muted);
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.13em;
-}
 .license-intro h2 {
   margin: 0;
   font-family: var(--license-display-font);
@@ -199,9 +199,20 @@ button {
   place-items: center;
   min-height: 218px;
 }
+.license-art::before {
+  content: '';
+  grid-area: 1 / 1;
+  width: 218px;
+  aspect-ratio: 1;
+  border: 1px solid var(--license-groove);
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+}
 .license-record {
   position: relative;
   display: grid;
+  grid-area: 1 / 1;
   width: 218px;
   aspect-ratio: 1;
   place-items: center;
@@ -210,8 +221,9 @@ button {
   background:
     repeating-radial-gradient(
       circle at center,
-      transparent 0 7px,
-      var(--license-groove) 7px 8px
+      transparent 0 10px,
+      var(--license-groove) 10.5px 11px,
+      transparent 11.5px 12px
     ),
     var(--license-record-bg);
   box-shadow: 0 12px 24px rgba(41, 47, 35, 0.07);
@@ -219,24 +231,33 @@ button {
 .license-record::before {
   content: '';
   position: absolute;
-  inset: 31%;
-  border: 1px solid var(--license-groove);
-  border-radius: 50%;
-  background:
-    linear-gradient(var(--license-muted), var(--license-muted))
-      center 16px / 20px 1px no-repeat,
-    linear-gradient(var(--license-groove), var(--license-groove))
-      center 21px / 12px 1px no-repeat,
-    var(--license-intro-bg);
+  inset: 0;
+  border-radius: inherit;
+  background: conic-gradient(
+    from -35deg,
+    transparent 0deg,
+    var(--license-record-sheen) 50deg,
+    transparent 100deg 180deg,
+    var(--license-record-sheen) 230deg,
+    transparent 280deg 360deg
+  );
 }
 .license-record::after {
   content: '';
+  position: absolute;
+  inset: 34%;
   z-index: 1;
-  width: 5px;
-  height: 5px;
   border: 1px solid var(--license-groove);
   border-radius: 50%;
-  background: var(--license-record-bg);
+  background:
+    radial-gradient(
+      circle at center,
+      var(--license-muted) 0 1.5px,
+      var(--license-record-bg) 2px 3.5px,
+      var(--license-groove) 4px 4.5px,
+      transparent 5px
+    ),
+    var(--license-intro-bg);
 }
 .license-intro-caption {
   display: flex;
@@ -268,7 +289,6 @@ button {
   height: 16px;
 }
 @media (prefers-reduced-motion: no-preference) {
-  .license-intro-label,
   .license-intro h2,
   .license-art,
   .license-intro-caption {
@@ -280,11 +300,14 @@ button {
   .license-art {
     animation-delay: 160ms;
   }
+  .license-art::before {
+    animation: license-echo-expand 8s ease-out infinite;
+  }
   .license-intro-caption {
     animation-delay: 240ms;
   }
   .license-record::before {
-    animation: license-record-turn 24s linear infinite;
+    animation: license-record-turn 16s linear infinite;
   }
   .license-signal span {
     animation: license-signal-pulse 1800ms ease-in-out infinite alternate;
@@ -317,6 +340,21 @@ button {
     transform: rotate(360deg);
   }
 }
+@keyframes license-echo-expand {
+  0% {
+    opacity: 0;
+    transform: scale(1);
+  }
+  18% {
+    opacity: 0.6;
+    transform: scale(1.04);
+  }
+  80%,
+  100% {
+    opacity: 0;
+    transform: scale(1.28);
+  }
+}
 @keyframes license-signal-pulse {
   from {
     transform: scaleY(0.4);
@@ -330,6 +368,28 @@ button {
   width: 100%;
   min-width: 0;
   padding: 32px 44px;
+}
+.license-account-modes {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.license-account-modes button {
+  padding: 0 0 6px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--license-muted);
+  font-size: 13px;
+}
+.license-account-modes button[aria-pressed='true'] {
+  border-bottom-color: var(--license-primary);
+  color: var(--license-text);
+  font-weight: 600;
+}
+.license-account-modes button:focus-visible {
+  outline: 2px solid var(--license-primary);
+  outline-offset: 4px;
 }
 .license-card-heading {
   margin-bottom: 24px;
@@ -440,7 +500,8 @@ button {
 }
 .license-field input:focus {
   border-color: var(--license-primary);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--license-primary) 12%, transparent);
+  box-shadow: 0 0 0 3px
+    color-mix(in srgb, var(--license-primary) 12%, transparent);
 }
 #licenseActivationCode {
   font-family: 'Cascadia Mono', Consolas, monospace;
@@ -602,6 +663,7 @@ button {
     --license-intro-bg: #30352c;
     --license-record-bg: #393f33;
     --license-groove: rgba(183, 195, 166, 0.16);
+    --license-record-sheen: rgba(255, 255, 255, 0.08);
     --license-input-bg: #252822;
     --license-input-border: #4c5146;
     --license-placeholder: #8c9484;

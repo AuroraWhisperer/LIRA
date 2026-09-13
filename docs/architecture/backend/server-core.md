@@ -52,6 +52,8 @@
 
 ## 4. 请求管线
 
+领域事件发布统一由 [runtime-transport.js](../../../src/server/runtime-transport.js) 适配：`publishGiftFlushed` 保持日志→快照→礼物边框顺序，`publishGiftCatalogUpdate` 发布目录快照，`publishDanmaku` 保留 feed 缓冲及 topic，`publishOvertimeUpdate` 保留可选 adjustment。server 通过 getter 接线，仍按数据库、领域服务、音乐/直播/AI、启动恢复阶段创建资源，并在 initializeApplication 失败时统一 dispose；传输模块不拥有这些资源。
+
 [server.js](../../../src/server.js) 的 `http.createServer` 回调先检查 runtime phase，再按序分发:
 
 1. phase 非 `ready` 时，仅 `/api/health` 返回最小进程身份与 phase；其他 HTTP 请求稳定返回 503，WebSocket upgrade 同样拒绝。
@@ -112,9 +114,9 @@ phase 为 `ready` 时，`server.on('upgrade')` 仅把 `/ws` 交给 `webSocketHub
 | `data`                                                   | 清库/保留策略入口(database + retention)                   | [storage.md](storage.md)                   |
 | `playback / theme / cooldowns`                           | playback-store / theme-store / cooldown-store             | [storage.md](storage.md)                   |
 
-**启动时数据修复链**仅在精确端口绑定成功后执行:`createDatabases`/schema migration → `settingsBootstrap` 设置迁移 → runtime 装配 → 旧 `giftEffectResolver` 按显式兼容 API 惰性加载 → `repairGiftV2Events` → `ensureCategory('默认')` → `queue.clearOnStartup()` → `runStartupRetention()`(仅在 `autoRetentionOnStartup==='true'` 时,失败不阻断启动)。`/gift-effects` 的实时路径不再预热或消费旧媒体映射。
+**启动时数据修复链**仅在精确端口绑定成功后执行:`createDatabases`/schema migration → `settingsBootstrap` 设置迁移 → runtime 装配 → 旧 `giftEffectResolver` 按显式兼容 API 惰性加载 → `ensureCategory('默认')` → `queue.clearOnStartup()` → `runStartupRetention()`(仅在 `autoRetentionOnStartup==='true'` 时,失败不阻断启动)。客户端原始礼物检测与修复实现已删除，旧本地礼物不再重新解析或合并。`/gift-effects` 的实时路径不再预热或消费旧媒体映射。
 
-**运行时组件装配**:音乐 Provider Registry、歌词服务、歌词状态与 WeSing 捕获由 `buildMusicRuntime()` 拥有;AI 配置、配额、DeepSeek 客户端、工具、投递校验与请求日志由 `buildAiRuntime()` 拥有;Bilibili 登录缓存、客户端替换串行化、liveStatus、诊断缓冲和弹幕发送器由 `createBilibiliRuntime()` 拥有。`server.js` 作为 composition root 只创建这些 runtime、连接广播/领域回调并控制启动与逆序关闭。当前 Bilibili runtime 仍创建并维持 `BilibiliDanmakuClient`;组合根只向客户端传入 `giftDetectionEnabled:false`,因此仅本地 `onGift → gifts.add()` 回调被抑制，弹幕、点歌/机器人、SC、用户信息和小游戏仍继续处理。服务器权威礼物由 `D:/Work/lira-server` 的每主播 `RoomMonitor` 检测，Electron main 通过 DeviceBearer final cursor/SSE 拉取后调用本地 `importProcessedGiftEvent`;本仓库的 renderer 不直接访问远程接口或凭据。`enableBilibili` 设置和本地客户端实现保持不变，云端仍可据此控制租户 `RoomMonitor`。远程礼物协议、baseline/catch-up 与隐私白名单见 `specs/server-authoritative-gift-detection_design.md`。
+**运行时组件装配**:音乐 Provider Registry、歌词服务、歌词状态与 WeSing 捕获由 `buildMusicRuntime()` 拥有;AI 配置、配额、DeepSeek 客户端、工具、投递校验与请求日志由 `buildAiRuntime()` 拥有;Bilibili 登录缓存、客户端替换串行化、liveStatus、诊断缓冲和弹幕发送器由 `createBilibiliRuntime()` 拥有。`server.js` 作为 composition root 只创建这些 runtime、连接广播/领域回调并控制启动与逆序关闭。当前 Bilibili runtime 仍创建并维持 `BilibiliDanmakuClient`，本地 `onGift → gifts.add()` 记账入口已移除；弹幕、点歌/机器人、SC、用户信息和小游戏仍继续处理。服务器权威礼物由 `D:/Work/lira-server` 的每主播 `RoomMonitor` 检测，Electron main 通过 DeviceBearer final cursor/SSE 拉取后调用本地 `importProcessedGiftEvent`;本仓库的 renderer 不直接访问远程接口或凭据。`enableBilibili` 设置和本地客户端实现保持不变，云端仍可据此控制租户 `RoomMonitor`。远程礼物协议、baseline/catch-up 与隐私白名单见 `specs/server-authoritative-gift-detection_design.md`。
 
 ## 6. 启动与关闭时序(服务端唯一成文处)
 
@@ -127,7 +129,7 @@ phase 为 `ready` 时，`server.on('upgrade')` 仅把 `/ws` 交给 `webSocketHub
 3. `listenExactly` 绑定精确端口，phase 进入 `starting`;此时仅最小 `/api/health` 可用，其余请求返回 503。
 4. 打开/迁移数据库，装配 domain/music/Bilibili/AI runtimes，执行数据修复、默认分类、队列清理和 retention。
 5. 生成 `sessionToken`,写入 `.session-token` 与 `.server-runtime.json`，原子切换 phase 为 `ready`。
-6. `AUTO_OPEN_ADMIN=1` 时打开管理页；最后仍调用 `bilibiliRuntime.reconnect()`，建立本地 Bilibili 连接并继续处理非礼物消息，仅由 `giftDetectionEnabled:false` 抑制本地礼物 detector。
+6. `AUTO_OPEN_ADMIN=1` 时打开管理页；最后仍调用 `bilibiliRuntime.reconnect()`，建立本地 Bilibili 连接并继续处理非礼物功能。礼物服务只创建服务器结果投影器，本地消息不再注册礼物记账回调，仅保留用户身份提示。
 
 启动失败时按已创建资源逆序停止 runtime、关闭数据库、关闭 listener，再删除本实例拥有的 token/runtime 文件并重抛。`startPromise` 单飞(重复调用返回同一 Promise);`isShuttingDown` 期间拒绝新启动。
 
@@ -141,7 +143,7 @@ phase 为 `ready` 时，`server.on('upgrade')` 仅把 `/ws` 交给 `webSocketHub
 2. 等待正在进行的启动结束，停止 Bilibili 与 WebSocket 新入口。
 3. `preShutdownHook()` 通过 Electron IPC 刷新 renderer 播放状态，此时数据库仍开放。
 4. drain quiesce 前已接纳的 HTTP handlers，释放 `gameSessionService` 与 `wheelSessionService`，再执行 `aiRuntime.shutdown()`：取消网络/工具调用并等待 active generation、delivery、direct provider 操作和日志写入。
-5. `gifts.dispose()` 强制结清待决礼物并清 timer，随后停止 `overtimeGiftCatalog` 的刷新 timer，再执行 `overtime.dispose()`、`weSingCapture.stop()`。
+5. `gifts.dispose()` 清理消费者重试 timer，不收尾本地或服务器的 progress 礼物，随后停止 `overtimeGiftCatalog` 的刷新 timer，再执行 `overtime.dispose()`、`weSingCapture.stop()`。
 6. `optimizeDatabases(db)` → `closeDatabases(db)`。
 7. 最后 `server.close()` + `closeAllConnections()` 释放端口，再删除本实例拥有的 `.session-token` 与 `.server-runtime.json`。
 8. `exitProcess` 时 `process.exit(0)`。

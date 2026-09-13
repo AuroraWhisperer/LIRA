@@ -1,0 +1,185 @@
+.planner-calendar-navigation {
+  gap: 4px;
+}
+.planner-calendar-navigation strong {
+  width: 112px;
+  text-align: center;
+  font-family: var(--font-display);
+  font-size: var(--type-size-body);
+  font-variant-numeric: tabular-nums;
+}
+.planner-today-button {
+  min-height: 28px;
+  margin-left: 5px;
+  padding: 4px 9px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface);
+  font-size: var(--type-size-caption);
+}
+.event-live {
+  --event-color: var(--planner-live);
+}
+.event-work {
+  --event-color: var(--planner-work);
+}
+.event-personal {
+  --event-color: var(--planner-personal);
+}
+.planner-calendar-legend {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 0 0 10px;
+  font-size: var(--type-size-caption);
+  color: var(--muted);
+}
+.planner-calendar-legend > span:not(.planner-month-count) {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.planner-calendar-legend > span:not(.planner-month-count)::before {
+  width: 6px;
+  height: 6px;
+  border-radius: 2px;
+  background: var(--event-color);
+  content: '';
+}
+.planner-month-count {
+  margin-left: auto;
+}
+.planner-weekdays,
+.planner-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+.planner-weekdays {
+  padding-bottom: 6px;
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+  text-align: center;
+}
+.planner-calendar-grid {
+  border-top: 1px solid var(--color-border-light);
+  border-left: 1px solid var(--color-border-light);
+}
+.streamer-planner .planner-calendar-day {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 2px;
+  min-width: 0;
+  height: 54px;
+  padding: 4px;
+  border: 0;
+  border-right: 1px solid var(--color-border-light);
+  border-bottom: 1px solid var(--color-border-light);
+  border-radius: 0;
+  background: var(--surface);
+  color: var(--text);
+  text-align: left;
+  box-shadow: none;
+}
+.streamer-planner .planner-calendar-day:hover {
+  background: var(--color-bg-tertiary);
+}
+.streamer-planner .planner-calendar-day.is-outside {
+  color: var(--color-text-muted);
+}
+.streamer-planner .planner-calendar-day.is-selected {
+  background: var(--color-primary-light);
+  box-shadow: inset 0 0 0 1.5px var(--color-primary);
+}
+.planner-calendar-day-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-start;
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  font-family: var(--font-display);
+  font-size: var(--type-size-control);
+  font-variant-numeric: tabular-nums;
+}
+.planner-calendar-day.is-today .planner-calendar-day-number {
+  background: var(--color-primary-strong);
+  color: var(--color-text-white);
+  font-weight: var(--type-weight-semibold);
+}
+.planner-calendar-event {
+  display: block;
+  min-width: 0;
+  padding-left: 4px;
+  overflow: hidden;
+  border-left: 2px solid var(--event-color);
+  color: var(--event-color);
+  font-size: var(--type-size-micro);
+  line-height: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.planner-calendar-more {
+  color: var(--muted);
+  font-size: var(--type-size-micro);
+  line-height: 8px;
+}
+.planner-agenda {
+  margin-top: 16px;
+}
+.planner-agenda .planner-panel-heading {
+  margin-bottom: 6px;
+}
+.planner-agenda-list {
+  display: grid;
+}
+.planner-agenda-row {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) 30px;
+  align-items: center;
+  gap: 12px;
+  min-height: 59px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-border-light);
+}
+.planner-agenda-time {
+  color: var(--event-color);
+  font-family: var(--font-mono);
+  font-size: var(--type-size-control);
+  font-weight: var(--type-weight-semibold);
+}
+.streamer-planner .planner-event-open {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 0 0 0 11px;
+  border: 0;
+  border-left: 2px solid var(--event-color);
+  border-radius: 0;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  box-shadow: none;
+}
+.planner-event-open strong,
+.planner-event-open span {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.planner-event-open strong {
+  font-size: var(--type-size-body);
+}
+.planner-event-open span {
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+}
+.planner-empty-state {
+  margin: 0;
+  padding: 22px 0;
+  color: var(--muted);
+  font-size: var(--type-size-control);
+  text-align: center;
+}

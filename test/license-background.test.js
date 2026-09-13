@@ -444,7 +444,7 @@ test('song background panel is wired into the admin import page and preload brid
     'utf8',
   );
   const importScript = fs.readFileSync(
-    path.join(ROOT, 'public', 'js', 'admin', 'import.js'),
+    path.join(ROOT, 'public', 'js', 'admin', 'song-background.js'),
     'utf8',
   );
   const preload = fs.readFileSync(

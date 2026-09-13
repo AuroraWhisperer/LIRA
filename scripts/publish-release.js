@@ -6,7 +6,11 @@ const fs = require('node:fs');
 const net = require('node:net');
 const os = require('node:os');
 const path = require('node:path');
-const { redactReleaseOutput, sanitizeCommandError, checkCommandResult } = require('./release-output');
+const {
+  redactReleaseOutput,
+  sanitizeCommandError,
+  checkCommandResult,
+} = require('./release-output');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 const PKG = JSON.parse(
@@ -136,8 +140,15 @@ function probeProxyPort(port) {
 }
 
 function ensureCleanEnoughGitState() {
-  const status = runCapture('git', ['status', '--porcelain=v1', '--untracked-files=normal']).trim();
-  if (status) throw new Error('Release requires a clean worktree. Commit or move pending changes before publishing.');
+  const status = runCapture('git', [
+    'status',
+    '--porcelain=v1',
+    '--untracked-files=normal',
+  ]).trim();
+  if (status)
+    throw new Error(
+      'Release requires a clean worktree. Commit or move pending changes before publishing.',
+    );
   const branch = runCapture('git', [
     'rev-parse',
     '--abbrev-ref',
@@ -149,15 +160,34 @@ function ensureCleanEnoughGitState() {
 }
 
 function ensureTag(head) {
-  const localTag = tryCapture('git', ['rev-parse', '--verify', `${TAG}^{commit}`]).trim();
-  if (localTag && localTag !== head) throw new Error(`Local tag ${TAG} does not identify HEAD.`);
-  const remoteTags = runCapture('git', ['ls-remote', '--tags', 'origin', TAG, `${TAG}^{}`]);
-  const refs = new Map(remoteTags.trim().split(/\r?\n/).filter(Boolean).map((line) => {
-    const [commit, ref] = line.split(/\s+/);
-    return [ref, commit];
-  }));
-  const remoteTag = refs.get(`refs/tags/${TAG}^{}`) || refs.get(`refs/tags/${TAG}`);
-  if (remoteTag && remoteTag !== head) throw new Error(`Remote tag ${TAG} does not identify HEAD.`);
+  const localTag = tryCapture('git', [
+    'rev-parse',
+    '--verify',
+    `${TAG}^{commit}`,
+  ]).trim();
+  if (localTag && localTag !== head)
+    throw new Error(`Local tag ${TAG} does not identify HEAD.`);
+  const remoteTags = runCapture('git', [
+    'ls-remote',
+    '--tags',
+    'origin',
+    TAG,
+    `${TAG}^{}`,
+  ]);
+  const refs = new Map(
+    remoteTags
+      .trim()
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .map((line) => {
+        const [commit, ref] = line.split(/\s+/);
+        return [ref, commit];
+      }),
+  );
+  const remoteTag =
+    refs.get(`refs/tags/${TAG}^{}`) || refs.get(`refs/tags/${TAG}`);
+  if (remoteTag && remoteTag !== head)
+    throw new Error(`Remote tag ${TAG} does not identify HEAD.`);
   if (!localTag) {
     log(`Creating annotated tag ${TAG}`);
     run('git', ['tag', '-a', TAG, '-m', TAG]);
@@ -261,7 +291,11 @@ async function findMissingAssets() {
   for (const name of EXPECTED_ASSETS) {
     const asset = uploaded.get(name);
     const localPath = path.join(OUTPUT_DIR, name);
-    if (!asset || !fs.existsSync(localPath) || asset.size !== fs.statSync(localPath).size) {
+    if (
+      !asset ||
+      !fs.existsSync(localPath) ||
+      asset.size !== fs.statSync(localPath).size
+    ) {
       missing.push(name);
       continue;
     }
@@ -285,11 +319,24 @@ async function fileDigest(filePath) {
 
 async function publishedAssetDigest(asset) {
   const digest = String(asset.digest || '');
-  if (/^sha256:[a-f0-9]{64}$/i.test(digest)) return digest.slice(7).toLowerCase();
-  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-release-verify-'));
+  if (/^sha256:[a-f0-9]{64}$/i.test(digest))
+    return digest.slice(7).toLowerCase();
+  const directory = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'lira-release-verify-'),
+  );
   const filePath = path.join(directory, asset.name);
   try {
-    run('gh', ['release', 'download', TAG, '--repo', `${OWNER}/${REPO}`, '--pattern', asset.name, '--output', filePath]);
+    run('gh', [
+      'release',
+      'download',
+      TAG,
+      '--repo',
+      `${OWNER}/${REPO}`,
+      '--pattern',
+      asset.name,
+      '--output',
+      filePath,
+    ]);
     return await fileDigest(filePath);
   } finally {
     fs.rmSync(directory, { recursive: true, force: true });
@@ -297,7 +344,9 @@ async function publishedAssetDigest(asset) {
 }
 
 function needsCommandShell(command) {
-  return process.platform === 'win32' && (command === 'npm' || command === 'npx');
+  return (
+    process.platform === 'win32' && (command === 'npm' || command === 'npx')
+  );
 }
 
 function proxyEnv(baseEnv) {

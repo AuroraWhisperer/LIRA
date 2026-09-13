@@ -1,0 +1,126 @@
+/* 信号带：高密度直播控制台，保留当前默认视觉。 */
+body[data-style='signal'] .danmaku-signal-stage {
+  isolation: isolate;
+}
+body[data-style='signal'] .danmaku-signal-header {
+  display: none;
+}
+body[data-style='signal'] .draw-danmaku-item[data-identity='viewer'] {
+  --signal-accent: #7d91a8;
+  --signal-rank: 'VIEWER';
+}
+body[data-style='signal'] .draw-danmaku-item[data-identity='fan'] {
+  --signal-accent: #7d91a8;
+  --signal-rank: 'FAN LINK';
+}
+body[data-style='signal'] .draw-danmaku-item[data-identity='captain'] {
+  --signal-accent: var(--guard-captain);
+  --signal-rank: 'CPT · III';
+}
+body[data-style='signal'] .draw-danmaku-item[data-identity='admiral'] {
+  --signal-accent: var(--guard-admiral);
+  --signal-rank: 'ADM · II';
+}
+body[data-style='signal'] .draw-danmaku-item[data-identity='governor'] {
+  --signal-accent: var(--guard-governor);
+  --signal-rank: 'GOV · I';
+}
+body[data-style='signal'] .draw-danmaku-item[data-identity] {
+  border-left-width: 4px;
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--signal-accent) 19%, transparent),
+      transparent 56%
+    ),
+    linear-gradient(90deg, rgba(16, 21, 34, 0.97), rgba(16, 21, 34, 0.82));
+}
+body[data-style='signal']
+  .draw-danmaku-item:is(
+    [data-identity='captain'],
+    [data-identity='admiral'],
+    [data-identity='governor']
+  ) {
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--signal-accent) 29%, transparent),
+      transparent 58%
+    ),
+    linear-gradient(90deg, rgba(16, 21, 34, 0.97), rgba(16, 21, 34, 0.82));
+  box-shadow:
+    0 10px 26px color-mix(in srgb, var(--signal-accent) 22%, transparent),
+    inset 0 1px rgba(255, 255, 255, 0.09);
+}
+body[data-style='signal'] .draw-danmaku-identity {
+  padding-right: 68px;
+}
+body[data-style='signal'] .draw-danmaku-item[data-identity]::before {
+  position: absolute;
+  top: 7px;
+  right: 33px;
+  color: color-mix(in srgb, var(--signal-accent) 80%, white);
+  content: var(--signal-rank);
+  font:
+    700 7px/1 'Cascadia Mono',
+    Consolas,
+    monospace;
+  letter-spacing: 0.09em;
+  opacity: 0.76;
+}
+body[data-style='signal'] .draw-danmaku-item[data-identity='viewer']::after {
+  width: 8px;
+  box-shadow: none;
+}
+body[data-style='signal'] .draw-danmaku-item[data-identity='fan']::after {
+  width: 14px;
+  box-shadow: -5px 4px 0 -1px var(--signal-accent);
+}
+body[data-style='signal'] .draw-danmaku-item[data-identity='captain']::after {
+  width: 18px;
+  box-shadow: -6px 4px 0 -1px var(--signal-accent);
+}
+body[data-style='signal'] .draw-danmaku-item[data-identity='admiral']::after {
+  width: 22px;
+  box-shadow:
+    -7px 4px 0 -1px var(--signal-accent),
+    -14px 8px 0 -1px var(--signal-accent);
+}
+body[data-style='signal'] .draw-danmaku-item[data-identity='governor']::after {
+  width: 28px;
+  box-shadow:
+    -8px 4px 0 -1px var(--signal-accent),
+    -16px 8px 0 -1px var(--signal-accent);
+}
+body[data-style='signal']
+  .draw-danmaku-item[data-identity='fan']
+  .draw-danmaku-medal {
+  color: #c9c0ff;
+  background: rgba(110, 87, 226, 0.2);
+  clip-path: polygon(5px 0, 100% 0, calc(100% - 5px) 100%, 0 100%);
+}
+body[data-style='signal'] .draw-danmaku-guard {
+  display: none;
+}
+body[data-style='signal'] .draw-danmaku-medal {
+  max-width: 100%;
+}
+body[data-style='signal'] .draw-danmaku-medal-level {
+  padding: 2px 6px 1px;
+  border: 1px solid color-mix(in srgb, var(--signal-accent) 72%, white);
+  border-bottom: 0;
+  color: #fff;
+  background: color-mix(in srgb, var(--signal-accent) 68%, #101522);
+  box-shadow: 0 -3px 9px
+    color-mix(in srgb, var(--signal-accent) 22%, transparent);
+  font:
+    800 12px/1 'Cascadia Mono',
+    Consolas,
+    monospace;
+}
+body[data-style='signal'] .draw-danmaku-medal-level::before {
+  margin-right: 2px;
+  content: 'LV';
+  font-size: 6px;
+  opacity: 0.7;
+}

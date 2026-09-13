@@ -21,9 +21,6 @@ class BilibiliDanmakuClient {
     this.handlers = handlers;
     this.options = options;
     this.diagnostics = options.diagnostics || createEmptyDiagnostics();
-    this.runtimeGiftCommandPrefixes =
-      options.runtimeGiftCommandPrefixes || new Set();
-    this.messageBuffer = options.messageBuffer || null;
     this.stopped = true;
     this.connectionGeneration = 0;
     this.connectionAttempt = 0;
@@ -58,9 +55,7 @@ class BilibiliDanmakuClient {
       this.deduplicator,
       this.diagnostics,
       {
-        runtimeGiftCommandPrefixes: this.runtimeGiftCommandPrefixes,
         startedAtMs: this.startedAtMs,
-        messageBuffer: this.messageBuffer,
         isCommandText: options.isCommandText,
       },
     );

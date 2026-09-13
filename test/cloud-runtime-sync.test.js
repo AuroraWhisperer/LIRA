@@ -7,40 +7,116 @@ const path = require('node:path');
 const test = require('node:test');
 const songService = require('../src/music/song-service');
 const { createServerRuntime } = require('../src/server');
+const { createDesktopRuntime } = require('../src/electron/desktop-runtime');
 const { closeDatabases, createDatabases } = require('../src/storage/database');
 const { createQueueStore } = require('../src/storage/queue-store');
 const { createSongStore } = require('../src/storage/song-store');
 
+test('room account preparation reaches the runtime without dirty echo or metadata exposure', async () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cloud-room-runtime-'));
+  const runtime = createServerRuntime({
+    dataDir,
+    licenseGate: { isAuthorized: () => true },
+  });
+  const dirty = [];
+  const unsubscribe = runtime.onCloudSyncRequested((scope) =>
+    dirty.push(scope),
+  );
+  try {
+    await runtime.start({ host: '127.0.0.1', startPort: 0 });
+    const adapter = createDesktopRuntime({
+      startServer() {},
+      shutdownApplication() {},
+      prepareCloudRoomAccount: (key) => runtime.prepareCloudRoomAccount(key),
+    });
+    assert.equal(adapter.prepareCloudRoomAccount('first'), true);
+    runtime.applyCloudSettingsSnapshot({
+      ...runtime.getCloudSettingsSnapshot(),
+      roomId: '111',
+      enableBilibili: false,
+    });
+    assert.equal(adapter.prepareCloudRoomAccount('first'), false);
+    assert.equal(runtime.getCloudSettingsSnapshot().roomId, '111');
+    assert.equal(adapter.prepareCloudRoomAccount('second'), true);
+    assert.equal(runtime.getCloudSettingsSnapshot().roomId, '');
+    assert.equal(runtime.getSetting('cloudRoomAccountKey'), undefined);
+    assert.equal(
+      runtime.getCloudSettingsSnapshot().cloudRoomAccountKey,
+      undefined,
+    );
+    assert.deepEqual(dirty, []);
+  } finally {
+    unsubscribe();
+    await runtime.stop({ exitProcess: false });
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
 test('previewed song updates run through the API facade and request one complete cloud snapshot', async () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-import-update-runtime-'));
-  const runtime = createServerRuntime({ dataDir, licenseGate: { isAuthorized: () => true } });
+  const dataDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'song-import-update-runtime-'),
+  );
+  const runtime = createServerRuntime({
+    dataDir,
+    licenseGate: { isAuthorized: () => true },
+  });
   const snapshots = [];
   const unsubscribe = runtime.onCloudSyncRequested((scope) => {
     if (scope === 'songs') snapshots.push(runtime.getCloudSongsSnapshot());
   });
   try {
     const server = await runtime.start({ host: '127.0.0.1', startPort: 0 });
-    const headers = { authorization: `Bearer ${runtime.getApiToken()}`, 'content-type': 'application/json', origin: server.baseUrl };
+    const headers = {
+      authorization: `Bearer ${runtime.getApiToken()}`,
+      'content-type': 'application/json',
+      origin: server.baseUrl,
+    };
     async function call(endpoint, body) {
-      const response = await fetch(`${server.baseUrl}/api/songs/${endpoint}`, { method: 'POST', headers, body: JSON.stringify(body) });
+      const response = await fetch(`${server.baseUrl}/api/songs/${endpoint}`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(body),
+      });
       return { status: response.status, body: await response.json() };
     }
-    await call('save', { name: '本地原曲', artist: '甲', requestPrice: '舰长', sourcePlatform: 'QQ音乐' });
+    await call('save', {
+      name: '本地原曲',
+      artist: '甲',
+      requestPrice: '舰长',
+      sourcePlatform: 'QQ音乐',
+    });
     snapshots.length = 0;
-    const input = { rows: [{ name: '本地原曲', artist: '甲', requestPrice: '30元SC' }, { name: '新曲', requestPrice: '免费' }] };
+    const input = {
+      rows: [
+        { name: '本地原曲', artist: '甲', requestPrice: '30元SC' },
+        { name: '新曲', requestPrice: '免费' },
+      ],
+    };
     const preview = await call('import-preview', input);
     assert.equal(preview.status, 200);
     assert.equal(preview.body.data.counts.updated, 1);
     assert.equal(snapshots.length, 0);
-    const stale = await call('import-apply', { ...input, previewToken: 'stale' });
+    const stale = await call('import-apply', {
+      ...input,
+      previewToken: 'stale',
+    });
     assert.equal(stale.status, 409);
     assert.equal(snapshots.length, 0);
-    const applied = await call('import-apply', { ...input, previewToken: preview.body.data.previewToken });
+    const applied = await call('import-apply', {
+      ...input,
+      previewToken: preview.body.data.previewToken,
+    });
     assert.equal(applied.status, 200);
     assert.equal(snapshots.length, 1);
     assert.equal(snapshots[0].length, 2);
-    assert.equal(snapshots[0].find((song) => song.name === '本地原曲').request_price, '30元SC');
-    assert.equal(snapshots[0].find((song) => song.name === '本地原曲').source_platform, 'QQ音乐');
+    assert.equal(
+      snapshots[0].find((song) => song.name === '本地原曲').request_price,
+      '30元SC',
+    );
+    assert.equal(
+      snapshots[0].find((song) => song.name === '本地原曲').source_platform,
+      'QQ音乐',
+    );
   } finally {
     unsubscribe();
     await runtime.stop({ exitProcess: false });
@@ -125,7 +201,9 @@ test('cloud song replacement is atomic, deduplicates local identities, and prese
     assert.deepEqual(
       {
         ...songDb
-          .prepare('SELECT song_id,song_name,message FROM requests WHERE queue_id=?')
+          .prepare(
+            'SELECT song_id,song_name,message FROM requests WHERE queue_id=?',
+          )
           .get(queueItem.id),
       },
       { song_id: null, song_name: '旧歌曲', message: '点歌 旧歌曲' },
@@ -143,11 +221,14 @@ test('runtime applies cloud snapshots without echo and emits dirty scopes after 
     licenseGate: { isAuthorized: () => true },
   });
   const dirty = [];
-  const unsubscribe = runtime.onCloudSyncRequested((scope) => dirty.push(scope));
+  const unsubscribe = runtime.onCloudSyncRequested((scope) =>
+    dirty.push(scope),
+  );
 
   try {
     const server = await runtime.start({ host: '127.0.0.1', startPort: 0 });
-    const localBlindBoxConfig = runtime.getCloudSettingsSnapshot().giftBlindBoxConfig;
+    const localBlindBoxConfig =
+      runtime.getCloudSettingsSnapshot().giftBlindBoxConfig;
     runtime.applyCloudSettingsSnapshot({
       roomId: 'https://live.bilibili.com/1963694209',
       enableBilibili: false,
@@ -201,9 +282,7 @@ test('runtime applies cloud snapshots without echo and emits dirty scopes after 
           userCooldownSeconds: 12,
           onlyFromLibrary: true,
           allowDuplicate: false,
-          giftBlindBoxConfig: [
-            { name: '非法盲盒', price: 1, outputs: [] },
-          ],
+          giftBlindBoxConfig: [{ name: '非法盲盒', price: 1, outputs: [] }],
         }),
       /INVALID_GIFT_BLIND_BOX_CONFIG/,
     );
@@ -239,9 +318,14 @@ test('runtime applies cloud snapshots without echo and emits dirty scopes after 
       applied: true,
     };
     runtime.setBlindBoxMappingState(mappingState);
-    const stateResponse = await fetch(`${server.baseUrl}/api/state`, { headers });
+    const stateResponse = await fetch(`${server.baseUrl}/api/state`, {
+      headers,
+    });
     assert.equal(stateResponse.status, 200);
-    assert.deepEqual((await stateResponse.json()).data.blindBoxMapping, mappingState);
+    assert.deepEqual(
+      (await stateResponse.json()).data.blindBoxMapping,
+      mappingState,
+    );
     const settingsResponse = await fetch(`${server.baseUrl}/api/settings`, {
       method: 'POST',
       headers,
@@ -263,7 +347,9 @@ test('runtime applies cloud snapshots without echo and emits dirty scopes after 
 });
 
 test('local song mutations emit complete snapshots for cloud upload', async () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cloud-song-mutations-'));
+  const dataDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'cloud-song-mutations-'),
+  );
   const runtime = createServerRuntime({
     dataDir,
     licenseGate: { isAuthorized: () => true },
@@ -339,7 +425,14 @@ test('local song mutations emit complete snapshots for cloud upload', async () =
         },
         { name: '另一首', artist: '另一歌手', tags: '', is_enabled: true },
       ],
-      [{ name: '本地编辑', artist: '新歌手', tags: '编辑标签', is_enabled: false }],
+      [
+        {
+          name: '本地编辑',
+          artist: '新歌手',
+          tags: '编辑标签',
+          is_enabled: false,
+        },
+      ],
       [],
     ]);
   } finally {

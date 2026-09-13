@@ -5,7 +5,12 @@ const { redactCredentials } = require('../src/shared/log-redaction');
 // Release tools can echo raw arguments or decoded proxy credentials in any output.
 function redactReleaseOutput(value, environment) {
   const secrets = new Set([environment.WINDOWS_CERT_PASSWORD]);
-  for (const key of ['HTTPS_PROXY', 'https_proxy', 'HTTP_PROXY', 'http_proxy']) {
+  for (const key of [
+    'HTTPS_PROXY',
+    'https_proxy',
+    'HTTP_PROXY',
+    'http_proxy',
+  ]) {
     const proxy = environment[key]?.trim();
     if (!proxy) continue;
     try {
@@ -25,7 +30,9 @@ function redactReleaseOutput(value, environment) {
   }
 
   let output = String(value ?? '');
-  for (const secret of [...secrets].filter(Boolean).sort((left, right) => right.length - left.length)) {
+  for (const secret of [...secrets]
+    .filter(Boolean)
+    .sort((left, right) => right.length - left.length)) {
     for (const form of new Set([secret, JSON.stringify(secret).slice(1, -1)])) {
       output = output.split(form).join('[REDACTED]');
     }
@@ -43,12 +50,15 @@ function sanitizeCommandError(error, environment) {
   for (const key of ['code', 'signal']) {
     if (error[key] != null) sanitized[key] = redact(error[key]);
   }
-  if (typeof error.status === 'number' || error.status === null) sanitized.status = error.status;
+  if (typeof error.status === 'number' || error.status === null)
+    sanitized.status = error.status;
   for (const key of ['stdout', 'stderr']) {
     if (error[key] != null) sanitized[key] = redact(error[key]);
   }
   if (Array.isArray(error.output)) {
-    sanitized.output = error.output.map((part) => part == null ? null : redact(part));
+    sanitized.output = error.output.map((part) =>
+      part == null ? null : redact(part),
+    );
   }
   // Do not retain raw spawnargs, causes, or arbitrary child-process properties.
   return sanitized;
@@ -57,8 +67,9 @@ function sanitizeCommandError(error, environment) {
 function checkCommandResult(result, command, environment) {
   if (!result.error && result.status === 0) return;
   const error = new Error(
-    result.error?.message || `${command} failed (exit ${result.status}, signal ${result.signal || 'none'})` +
-      (result.stderr?.length ? `\n${result.stderr}` : ''),
+    result.error?.message ||
+      `${command} failed (exit ${result.status}, signal ${result.signal || 'none'})` +
+        (result.stderr?.length ? `\n${result.stderr}` : ''),
   );
   Object.assign(error, {
     code: result.error?.code,
@@ -71,4 +82,8 @@ function checkCommandResult(result, command, environment) {
   throw sanitizeCommandError(error, environment);
 }
 
-module.exports = { redactReleaseOutput, sanitizeCommandError, checkCommandResult };
+module.exports = {
+  redactReleaseOutput,
+  sanitizeCommandError,
+  checkCommandResult,
+};

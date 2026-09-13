@@ -129,9 +129,7 @@ function sanitizeDevice(value) {
 function mapSongForSync(song = {}) {
   const enabled = song.isEnabled ?? song.is_enabled ?? song.enabled ?? true;
   const rawRequestPrice =
-    song.requestPrice !== undefined
-      ? song.requestPrice
-      : song.request_price;
+    song.requestPrice !== undefined ? song.requestPrice : song.request_price;
   const requestPrice =
     rawRequestPrice === undefined || rawRequestPrice === null
       ? null

@@ -17,6 +17,9 @@
 /* 参数调节滑块 */
 @import url('./components/parameter-range.css');
 
+/* 通用开关控件 */
+@import url('./components/switch-control.css');
+
 /* 折叠组件 */
 @import url('./admin/collapsible.css');
 
@@ -48,7 +51,7 @@
 @import url('./admin/overtime.css');
 
 /* 桌面歌词设置实时预览 */
-@import url('./admin/desktop-lyric-preview.css?v=20260823-01');
+@import url('./admin/desktop-lyric-preview.css?v=20260913-01');
 
 /* 响应式样式 */
 @import url('./admin/responsive.css');

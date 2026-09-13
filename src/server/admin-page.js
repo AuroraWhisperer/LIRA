@@ -7,6 +7,8 @@ const path = require('node:path');
 
 const ADMIN_PAGE_ROUTES = new Set(['/', '/admin', '/settings', '/songs']);
 const composedHtmlCache = new Map();
+const ADMIN_FRAGMENT_INCLUDE_PATTERN =
+  /<!--\s*admin-fragment:\s*(pages\/admin\/(?:[a-z0-9-]+\/)*[a-z0-9-]+\.html)\s*-->/g;
 
 const ADMIN_FRAGMENT_PATHS = Object.freeze([
   'pages/admin/shell-start.html',
@@ -50,12 +52,19 @@ function isAdminPageRoute(pathname) {
   return ADMIN_PAGE_ROUTES.has(pathname);
 }
 
+function readAdminFragment(publicDir, relativePath) {
+  const html = fs.readFileSync(path.join(publicDir, relativePath), 'utf8');
+  return html.replace(ADMIN_FRAGMENT_INCLUDE_PATTERN, (_marker, includePath) =>
+    fs.readFileSync(path.join(publicDir, includePath), 'utf8'),
+  );
+}
+
 function composeAdminHtml(publicDir) {
   const cacheKey = path.resolve(String(publicDir));
   const cached = composedHtmlCache.get(cacheKey);
   if (cached !== undefined) return cached;
   const html = ADMIN_FRAGMENT_PATHS.map((relativePath) =>
-    fs.readFileSync(path.join(publicDir, relativePath), 'utf8'),
+    readAdminFragment(publicDir, relativePath),
   ).join('');
   composedHtmlCache.set(cacheKey, html);
   return html;

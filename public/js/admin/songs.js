@@ -23,23 +23,28 @@ import {
   } = window.AdminApp.utils;
 
   function initSongForm() {
-    document.getElementById('songRequestPrice').addEventListener('input', () => {
-      setValue('songPricePreset', '');
-      updateSongPricePreview();
-    });
-    document.getElementById('songPricePreset').addEventListener('change', () => {
-      const preset = value('songPricePreset');
-      if (!preset) return;
-      setValue('songRequestPrice', preset);
-      updateSongPricePreview();
-      document.getElementById('songRequestPrice').focus();
-    });
+    document
+      .getElementById('songRequestPrice')
+      .addEventListener('input', () => {
+        setValue('songPricePreset', '');
+        updateSongPricePreview();
+      });
+    document
+      .getElementById('songPricePreset')
+      .addEventListener('change', () => {
+        const preset = value('songPricePreset');
+        if (!preset) return;
+        setValue('songRequestPrice', preset);
+        updateSongPricePreview();
+        document.getElementById('songRequestPrice').focus();
+      });
     document
       .getElementById('songForm')
       .addEventListener('submit', async (event) => {
         event.preventDefault();
         updateSongPricePreview();
-        if (!document.getElementById('songRequestPrice').reportValidity()) return;
+        if (!document.getElementById('songRequestPrice').reportValidity())
+          return;
         await api('/api/songs/save', {
           id: value('songId') || undefined,
           name: value('songName'),
@@ -254,10 +259,13 @@ import {
   function updateSongPricePreview() {
     const input = document.getElementById('songRequestPrice');
     const length = input.value.length;
-    const error = length > 1000 ? '点歌价格过长，请缩短后保存（上限 1000）。' : '';
+    const error =
+      length > 1000 ? '点歌价格过长，请缩短后保存（上限 1000）。' : '';
     input.setCustomValidity(error);
-    document.getElementById('songPriceLength').textContent = `${length} / 1000${error ? ' · 超出长度，请修正' : ''}`;
-    document.getElementById('songPricePreview').textContent = input.value.trim();
+    document.getElementById('songPriceLength').textContent =
+      `${length} / 1000${error ? ' · 超出长度，请修正' : ''}`;
+    document.getElementById('songPricePreview').textContent =
+      input.value.trim();
   }
 
   function resetSongForm() {

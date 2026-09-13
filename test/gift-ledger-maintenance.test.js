@@ -171,7 +171,9 @@ test('domain clear-all resets the live overtime clock before another action can 
 
     services.overtime.act('pause');
     const persisted = fixture.databases.giftDb
-      .prepare('SELECT enabled, remaining_ms FROM overtime_machine_state WHERE id = 1')
+      .prepare(
+        'SELECT enabled, remaining_ms FROM overtime_machine_state WHERE id = 1',
+      )
       .get();
     assert.equal(persisted.enabled, 0);
     assert.equal(persisted.remaining_ms, 0);

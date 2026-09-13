@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
+const { readCssBundle } = require('./helpers/css-bundle');
 
 const ROOT_DIR = path.join(__dirname, '..');
 const read = (...parts) =>
@@ -21,7 +22,7 @@ function assertOpenSelectEscapesCard(styles, selector, description) {
 
 test('all audited admin select cards release overflow while a menu is open', () => {
   assertOpenSelectEscapesCard(
-    read('public', 'css', 'admin', 'desktop-lyric-preview.css'),
+    readCssBundle('public', 'css', 'admin', 'desktop-lyric-preview.css'),
     '.desktop-lyric-settings-group:has(.lira-select.is-open)',
     'desktop lyric settings groups',
   );
@@ -31,7 +32,13 @@ test('all audited admin select cards release overflow while a menu is open', () 
     'AI settings cards',
   );
   assertOpenSelectEscapesCard(
-    read('public', 'css', 'admin', 'other-features', 'streamer-planner.css'),
+    readCssBundle(
+      'public',
+      'css',
+      'admin',
+      'other-features',
+      'streamer-planner.css',
+    ),
     '.planner-notes-panel:has(.lira-select.is-open)',
     'planner notes cards',
   );

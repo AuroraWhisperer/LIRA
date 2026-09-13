@@ -4,6 +4,7 @@
 
 const { app } = require('electron');
 const path = require('node:path');
+const { resolveDesktopUserDataPaths } = require('./desktop-user-data');
 
 // 延迟加载 autoUpdater 避免在 app ready 之前初始化
 let autoUpdater = null;
@@ -14,7 +15,12 @@ function getAutoUpdater() {
     if (process.platform === 'win32') {
       // Retain the default Electron HTTP executor; only relocate its disk cache.
       Object.defineProperty(autoUpdater.app, 'baseCachePath', {
-        value: path.join(path.dirname(app.getPath('userData')), 'updates'),
+        value: resolveDesktopUserDataPaths({
+          isPackaged: app.isPackaged,
+          exePath: app.getPath('exe'),
+          appDataPath: app.getPath('appData'),
+          rootDir: path.resolve(__dirname, '../..'),
+        }).updatesDir,
       });
     }
   }

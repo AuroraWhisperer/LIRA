@@ -1,0 +1,77 @@
+.planner-tasks-panel {
+  margin-top: 24px;
+  padding-top: 19px;
+  border-top: 1px solid var(--color-border-light);
+}
+.planner-task-filters {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 5px;
+  background: var(--color-bg-secondary);
+}
+.planner-task-filters button {
+  min-height: 26px;
+  padding: 3px 6px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--type-size-micro);
+  white-space: nowrap;
+}
+.planner-task-filters button[aria-pressed='true'] {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 1px 3px #17202a12;
+}
+.planner-task-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 30px;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 5px 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+}
+.streamer-planner .planner-task-form input,
+.streamer-planner .planner-task-copy {
+  width: 100%;
+  min-width: 0;
+  min-height: 30px;
+  padding: 2px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: var(--type-size-control);
+  box-shadow: none;
+}
+.planner-task-list {
+  max-height: 260px;
+  margin-top: 8px;
+  overflow-y: auto;
+}
+.planner-task-row {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) 30px;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--color-border-light);
+}
+.streamer-planner .planner-task-check,
+.planner-event-dialog input[type='checkbox'],
+.planner-event-dialog input[type='radio'] {
+  width: 16px;
+  height: 16px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--color-success-dark);
+}
+.planner-task-row.is-complete .planner-task-copy {
+  color: var(--muted);
+  text-decoration: line-through;
+}

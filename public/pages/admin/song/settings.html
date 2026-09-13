@@ -5,7 +5,8 @@
       <legend>
         🔐 直播账号登录
         <lira-help
-          >每个 LIRA 账号使用独立的直播账号凭据；仅上传到当前已授权的 LIRA 账号。云端凭据保存成功且直播间已配置并启用后才接收弹幕和礼物，未登录不会匿名采集。关闭应用不会停止已配置的云端采集。</lira-help
+          >每个 LIRA 账号使用独立的直播账号凭据；仅上传到当前已授权的 LIRA
+          账号。云端凭据保存成功且直播间已配置并启用后才接收弹幕和礼物，未登录不会匿名采集。关闭应用不会停止已配置的云端采集。</lira-help
         >
       </legend>
       <div
@@ -24,7 +25,10 @@
           />
           <span class="bilibili-auth-identity">
             <strong id="bilibiliAuthName" class="bilibili-auth-name"></strong>
-            <span id="bilibiliAuthUid" class="bilibili-auth-uid ui-caption"></span>
+            <span
+              id="bilibiliAuthUid"
+              class="bilibili-auth-uid ui-caption"
+            ></span>
           </span>
         </span>
         <button
@@ -55,10 +59,7 @@
       <div class="grid-3">
         <label>
           直播间号或链接
-          <input
-            id="roomId"
-            placeholder="例如：123456，或粘贴直播间链接"
-          />
+          <input id="roomId" placeholder="例如：123456，或粘贴直播间链接" />
         </label>
         <label>
           启用弹幕监听

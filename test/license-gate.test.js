@@ -45,19 +45,28 @@ test('Electron startup restores authorized work and owns the system-resume liste
     source.slice(bootstrapIndex),
   );
   const windowIndex = windowMatch ? bootstrapIndex + windowMatch.index : -1;
-  const listenerIndex = source.indexOf(
-    'licenseManager.onStateChanged',
-    windowIndex,
+  const readiness = fs.readFileSync(
+    path.join(
+      __dirname,
+      '..',
+      'src',
+      'electron',
+      'desktop-readiness-controller.js',
+    ),
+    'utf8',
   );
-  const initialResumeIndex = source.indexOf(
+  const listenerIndex = readiness.indexOf('licenseManager.onStateChanged');
+  const initialResumeIndex = readiness.indexOf(
     'if (licenseManager.getState() === LicenseState.AUTHORIZED)',
     listenerIndex,
   );
-
   assert.ok(bootstrapIndex >= 0 && windowIndex > bootstrapIndex);
-  assert.ok(listenerIndex > windowIndex && initialResumeIndex > listenerIndex);
+  assert.ok(
+    source.indexOf('readinessController.start()', windowIndex) > windowIndex,
+  );
+  assert.ok(listenerIndex >= 0 && initialResumeIndex > listenerIndex);
   assert.match(
-    source.slice(initialResumeIndex, initialResumeIndex + 350),
+    readiness.slice(initialResumeIndex, initialResumeIndex + 350),
     /resumeAuthorizedWork/,
   );
   assert.match(
@@ -74,50 +83,55 @@ test('Electron startup restores authorized work and owns the system-resume liste
     /giftCatalog:\s*\{[^]*?getGiftCatalogInitializationState[^]*?initializeGiftCatalog[^]*?onGiftCatalogInitializationStateChanged/,
   );
   assert.match(
-    source,
-    /licenseManager\.getState\(\) === LicenseState\.AUTHORIZED &&\s*lifecycleState\.runtime\.isGiftCatalogInitialized\(\)/,
+    readiness,
+    /licenseManager\.getState\(\) === LicenseState\.AUTHORIZED &&\s*runtime\.isGiftCatalogInitialized\(\)/,
   );
   assert.match(
-    source,
-    /onGiftCatalogInitializationStateChanged\([^]*?snapshot\?\.status === 'ready'[^]*?navigateMain\('admin'\)/,
+    readiness,
+    /snapshot\?\.status === 'ready'[^]*?navigateMain\('admin'\)/,
   );
   assert.match(
-    source,
-    /refreshGiftCatalogForAuthorizedSession\(\{\s*force: true,\s*reason: 'authorized-session'/,
+    readiness,
+    /onGiftCatalogInitializationStateChanged\(onCatalogChanged\)/,
   );
   assert.match(
-    source,
-    /refreshGiftCatalogForAuthorizedSession\(\{\s*force: true,\s*reason: lifecycleState\.runtime\.isGiftCatalogInitialized\(\)/,
+    readiness,
+    /refreshGiftCatalog\(\s*runtime,[^]*?'authorized-session'/,
   );
-  assert.match(source, /let mainNavigationGeneration = 0/);
   assert.match(
-    source,
-    /const navigationGeneration = \+\+mainNavigationGeneration[^]*?navigationGeneration === mainNavigationGeneration &&\s*mainRoute === route[^]*?mainRoute = ''/,
+    readiness,
+    /refreshGiftCatalog\(\s*runtime,\s*runtime\.isGiftCatalogInitialized\(\)/,
+  );
+  assert.match(readiness, /let navigationGeneration = 0/);
+  assert.match(
+    readiness,
+    /const generation = \+\+navigationGeneration[^]*?generation === navigationGeneration &&\s*mainRoute === route[^]*?mainRoute = ''/,
   );
   assert.match(
     source,
     /app\.on\(["']before-quit["'][^]*?licenseResumeController\?\.unregister\(\)/,
   );
-  const initialGiftStart = source.indexOf(
-    'remoteGiftController.start()',
-    initialResumeIndex,
+  const recoveryStart = readiness.indexOf('function resumeAuthorizedWork');
+  const initialGiftStart = readiness.indexOf(
+    'remoteGiftController?.start()',
+    recoveryStart,
   );
-  const initialStart = source.indexOf(
-    'cloudSyncController\n        .start()',
+  const initialStart = readiness.indexOf(
+    'cloudSyncController',
     initialGiftStart,
   );
-  const initialStartThen = source.indexOf('.then(()', initialStart);
-  assert.ok(initialGiftStart > initialResumeIndex);
+  const initialStartThen = readiness.indexOf('cloudReady?.then', initialStart);
+  assert.ok(initialGiftStart > recoveryStart);
   assert.ok(initialStart > initialGiftStart);
   assert.ok(initialStartThen > initialStart);
-  assert.match(source, /remoteGiftController\?\.stop\(\)/);
+  assert.match(readiness, /remoteGiftController\?\.stop\(\)/);
 
   const resumeSync = source.indexOf('cloudSyncController?.syncNow()');
   const resumeGifts = source.indexOf('remoteGiftController?.resume()');
   assert.ok(resumeSync >= 0 && resumeGifts > resumeSync);
   assert.match(
     source,
-    /licenseResumeController\?\.unregister\(\)[^]*?const controllersToDrain = \[remoteGiftController, cloudSyncController\][^]*?controller\.dispose\(\)/,
+    /licenseResumeController\?\.unregister\(\)[^]*?const controllersToDrain = \[\s*remoteGiftController,\s*cloudSyncController,?\s*\][^]*?controller\.dispose\(\)/,
   );
 
   const preload = fs.readFileSync(

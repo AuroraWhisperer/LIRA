@@ -91,9 +91,15 @@ test('concurrent default sends cannot pass the same rate-limit check', async () 
     service.send({ message: 'second' }),
   ]);
 
-  assert.deepEqual(results.map((result) => result.status), ['fulfilled', 'rejected']);
+  assert.deepEqual(
+    results.map((result) => result.status),
+    ['fulfilled', 'rejected'],
+  );
   assert.match(results[1].reason.message, /发送过于频繁/);
-  assert.deepEqual(sent.map((item) => item.message), ['first']);
+  assert.deepEqual(
+    sent.map((item) => item.message),
+    ['first'],
+  );
 });
 
 test('waiting sends recheck rate limits in FIFO order', async () => {
@@ -104,9 +110,14 @@ test('waiting sends recheck rate limits in FIFO order', async () => {
     service.send({ message: 'third', waitForRateLimit: true }),
   ]);
 
-  assert.deepEqual(sent.map((item) => [item.message, item.at]), [
-    ['first', 10000], ['second', 11500], ['third', 13000],
-  ]);
+  assert.deepEqual(
+    sent.map((item) => [item.message, item.at]),
+    [
+      ['first', 10000],
+      ['second', 11500],
+      ['third', 13000],
+    ],
+  );
   assert.deepEqual(waits, [1500, 1500]);
 });
 
@@ -114,11 +125,15 @@ test('zero-rate sends keep all chunks together across callers', async () => {
   const firstChunk = Promise.withResolvers();
   const { service, sent } = createConcurrentSenderFixture({
     sendDanmaku: async (_roomId, message) => {
-      if (message === 'a'.repeat(DANMAKU_MESSAGE_LIMIT)) await firstChunk.promise;
+      if (message === 'a'.repeat(DANMAKU_MESSAGE_LIMIT))
+        await firstChunk.promise;
       return { message };
     },
   });
-  const first = service.send({ message: 'a'.repeat(DANMAKU_MESSAGE_LIMIT + 1), rateLimitIntervalMs: 0 });
+  const first = service.send({
+    message: 'a'.repeat(DANMAKU_MESSAGE_LIMIT + 1),
+    rateLimitIntervalMs: 0,
+  });
   const second = service.send({ message: 'second', rateLimitIntervalMs: 0 });
   await new Promise((resolve) => setImmediate(resolve));
   const beforeRelease = sent.map((item) => item.message);
@@ -126,9 +141,10 @@ test('zero-rate sends keep all chunks together across callers', async () => {
   await Promise.all([first, second]);
 
   assert.deepEqual(beforeRelease, ['a'.repeat(DANMAKU_MESSAGE_LIMIT)]);
-  assert.deepEqual(sent.map((item) => item.message), [
-    'a'.repeat(DANMAKU_MESSAGE_LIMIT), 'a', 'second',
-  ]);
+  assert.deepEqual(
+    sent.map((item) => item.message),
+    ['a'.repeat(DANMAKU_MESSAGE_LIMIT), 'a', 'second'],
+  );
 });
 
 test('a failed send does not block the next queued caller', async () => {
@@ -143,9 +159,15 @@ test('a failed send does not block the next queued caller', async () => {
     service.send({ message: 'second' }),
   ]);
 
-  assert.deepEqual(results.map((result) => result.status), ['rejected', 'fulfilled']);
+  assert.deepEqual(
+    results.map((result) => result.status),
+    ['rejected', 'fulfilled'],
+  );
   assert.equal(results[0].reason.message, 'synthetic send failure');
-  assert.deepEqual(sent.map((item) => item.message), ['first', 'second']);
+  assert.deepEqual(
+    sent.map((item) => item.message),
+    ['first', 'second'],
+  );
 });
 
 function createConcurrentSenderFixture(options = {}) {
@@ -153,7 +175,11 @@ function createConcurrentSenderFixture(options = {}) {
   const sent = [];
   const waits = [];
   const service = createDanmakuSenderService({
-    getAuth: async () => ({ loggedIn: true, uid: 9, cookieHeader: 'synthetic-cookie' }),
+    getAuth: async () => ({
+      loggedIn: true,
+      uid: 9,
+      cookieHeader: 'synthetic-cookie',
+    }),
     getRoom: async () => ({ roomId: '123' }),
     getLiveStatus: () => ({ connected: true }),
     getMentionTarget: () => null,
@@ -161,7 +187,9 @@ function createConcurrentSenderFixture(options = {}) {
       resolveRoomInfo: async () => ({ roomId: 123 }),
       async sendDanmaku(roomId, message) {
         sent.push({ message, at: currentTime });
-        return options.sendDanmaku ? options.sendDanmaku(roomId, message) : { message };
+        return options.sendDanmaku
+          ? options.sendDanmaku(roomId, message)
+          : { message };
       },
     }),
     now: () => currentTime,

@@ -1,0 +1,245 @@
+/* 极简时间轴：透明画布、窄体数字与编辑排版式留白。 */
+.clock-year {
+  display: none;
+}
+
+.clock-card[data-clock-style='timeline-horizontal'],
+.clock-card[data-clock-style='timeline-vertical'] {
+  border: 0;
+  border-radius: 0;
+  color: #35483f;
+  background: transparent;
+  box-shadow: none;
+  font-family:
+    'Bahnschrift Condensed', 'Aptos Narrow', 'Arial Narrow', sans-serif;
+}
+
+.clock-card[data-clock-style^='timeline-'] .clock-sparkles,
+.clock-card[data-clock-style^='timeline-'] .clock-peach-mascot,
+.clock-card[data-clock-style^='timeline-'] .clock-night-mascot,
+.clock-card[data-clock-style^='timeline-'] .clock-soda-mascot {
+  display: none;
+}
+
+.clock-card[data-clock-style='timeline-horizontal'] {
+  width: 560px;
+  height: 190px;
+  aspect-ratio: 560 / 190;
+}
+
+.clock-card[data-clock-style='timeline-horizontal'] .clock-content {
+  display: grid;
+  grid-template-columns: max-content auto max-content;
+  column-gap: 18px;
+  grid-template-areas: 'year time date';
+  align-items: center;
+  justify-content: center;
+  padding: 24px 30px;
+}
+
+.clock-card[data-clock-style='timeline-horizontal'] .clock-kicker-row,
+.clock-card[data-clock-style='timeline-vertical'] .clock-kicker-row {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.clock-card[data-clock-style='timeline-horizontal'] .clock-label,
+.clock-card[data-clock-style='timeline-vertical'] .clock-label {
+  display: none;
+}
+
+.clock-card[data-clock-style='timeline-horizontal'] .clock-period,
+.clock-card[data-clock-style='timeline-vertical'] .clock-period {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: currentColor;
+  background: transparent;
+  box-shadow: none;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+}
+
+.clock-card[data-clock-style='timeline-horizontal'] .clock-year {
+  display: block;
+  grid-area: year;
+  align-self: center;
+  color: #526359;
+  font-size: 16px;
+  font-weight: 400;
+  letter-spacing: 0.24em;
+  line-height: 1;
+  text-shadow: 0 0 2px rgba(247, 249, 243, 0.72);
+}
+
+.clock-card[data-clock-style='timeline-horizontal'] .clock-time {
+  grid-area: time;
+  justify-self: center;
+  margin-top: 0;
+  color: #30453b;
+  font-family: inherit;
+  font-size: 68px;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 0.9;
+  text-shadow: 0 0 3px rgba(247, 249, 243, 0.76);
+}
+
+.clock-card[data-clock-style='timeline-horizontal'] .clock-colon {
+  align-self: center;
+  flex: 0 0 16px;
+  height: 3px;
+  margin: 0 2px;
+  animation: none;
+  background: currentColor;
+  font-size: 0;
+  /* Center against the digits, excluding the font's descender space. */
+  transform: translateY(-5px);
+}
+
+.clock-card[data-clock-style='timeline-horizontal'] .clock-seconds {
+  flex: 0 0 auto;
+  min-width: 0;
+  margin-left: 12px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: inherit;
+  background: transparent;
+  box-shadow: none;
+  font-size: 0.28em;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-shadow: inherit;
+}
+
+.clock-card[data-clock-style='timeline-horizontal'] .clock-date-row {
+  grid-area: date;
+  justify-self: end;
+  gap: 10px;
+  margin-top: 0;
+  color: #526359;
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  line-height: 1.2;
+  text-shadow: 0 0 2px rgba(247, 249, 243, 0.72);
+}
+
+.clock-card[data-clock-style='timeline-horizontal'] .clock-date-row > i {
+  width: 1px;
+  height: 24px;
+  border-radius: 0;
+  background: currentColor;
+  opacity: 0.55;
+}
+
+.clock-card[data-clock-style='timeline-vertical'] {
+  width: 220px;
+  height: 380px;
+  aspect-ratio: 220 / 380;
+}
+
+.clock-card[data-clock-style='timeline-vertical'] .clock-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 20px;
+}
+
+.clock-card[data-clock-style='timeline-vertical'] .clock-year {
+  display: block;
+  color: #526359;
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0.28em;
+  line-height: 1;
+  text-shadow: 0 0 2px rgba(247, 249, 243, 0.72);
+}
+
+.clock-card[data-clock-style='timeline-vertical'] .clock-year::after {
+  display: block;
+  width: 1px;
+  height: 17px;
+  margin: 10px auto 8px;
+  background: currentColor;
+  content: '';
+  opacity: 0.58;
+}
+
+.clock-card[data-clock-style='timeline-vertical'] .clock-time {
+  display: grid;
+  grid-template-areas: 'hours' 'separator' 'minutes' 'seconds';
+  grid-template-rows: auto 17px auto auto;
+  align-items: center;
+  justify-items: center;
+  row-gap: 0;
+  margin-top: 0;
+  color: #30453b;
+  font-family: inherit;
+  font-size: 66px;
+  font-weight: 400;
+  letter-spacing: -0.08em;
+  line-height: 0.82;
+  text-shadow: 0 0 3px rgba(247, 249, 243, 0.76);
+}
+
+.clock-card[data-clock-style='timeline-vertical'] #clockHours {
+  grid-area: hours;
+}
+.clock-card[data-clock-style='timeline-vertical'] #clockMinutes {
+  grid-area: minutes;
+}
+
+.clock-card[data-clock-style='timeline-vertical'] .clock-colon {
+  grid-area: separator;
+  width: 27px;
+  height: 1px;
+  margin: 0;
+  animation: none;
+  background: currentColor;
+  font-size: 0;
+  opacity: 0.62;
+}
+
+.clock-card[data-clock-style='timeline-vertical'] .clock-seconds {
+  grid-area: seconds;
+  flex: none;
+  min-width: 0;
+  margin: 9px 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: inherit;
+  background: transparent;
+  box-shadow: none;
+  font-size: 17px;
+  font-weight: 400;
+  letter-spacing: 0.14em;
+  line-height: 1;
+  text-shadow: inherit;
+}
+
+.clock-card[data-clock-style='timeline-vertical'] .clock-date-row {
+  flex-direction: column;
+  gap: 9px;
+  margin-top: 13px;
+  color: #526359;
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0.18em;
+  line-height: 1;
+  text-shadow: 0 0 2px rgba(247, 249, 243, 0.72);
+}
+
+.clock-card[data-clock-style='timeline-vertical'] .clock-date-row > i {
+  width: 1px;
+  height: 17px;
+  border-radius: 0;
+  background: currentColor;
+  opacity: 0.58;
+}

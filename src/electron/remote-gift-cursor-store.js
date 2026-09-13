@@ -69,7 +69,9 @@ function createRemoteGiftCursorStore(options = {}) {
 }
 
 function createRemoteGiftSourceKey(baseUrl, streamer = {}) {
-  const accountName = String(streamer.accountName || '').trim().toLowerCase();
+  const accountName = String(streamer.accountName || '')
+    .trim()
+    .toLowerCase();
   if (!accountName) {
     throw new Error('REMOTE_GIFT_SOURCE_UNAVAILABLE');
   }
@@ -103,7 +105,9 @@ function canonicalizeGiftSourceOrigin(baseUrl) {
 }
 
 function normalizeSourceKey(value) {
-  const key = String(value || '').trim().toLowerCase();
+  const key = String(value || '')
+    .trim()
+    .toLowerCase();
   if (!/^[a-f0-9]{64}$/u.test(key)) {
     throw new Error('INVALID_GIFT_SOURCE');
   }

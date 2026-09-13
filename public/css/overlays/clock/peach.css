@@ -1,0 +1,227 @@
+/* 桃桃便签：奶油纸张、蜜桃描边与探头的小兔。 */
+.clock-card[data-clock-style='peach'] {
+  border: 2px solid #ed8eaa;
+  border-radius: 34px 48px 32px 34px;
+  color: #64364a;
+  background:
+    radial-gradient(
+      circle at 7% 18%,
+      rgba(255, 255, 255, 0.92) 0 11%,
+      transparent 11.4%
+    ),
+    radial-gradient(
+      circle at 80% 116%,
+      rgba(244, 133, 158, 0.16) 0 28%,
+      transparent 28.4%
+    ),
+    repeating-linear-gradient(
+      0deg,
+      transparent 0 30px,
+      rgba(196, 101, 128, 0.035) 30px 31px
+    ),
+    linear-gradient(135deg, #fffdf7 0%, #fff4e6 56%, #ffe1e5 100%);
+  box-shadow:
+    0 13px 28px rgba(139, 67, 94, 0.2),
+    inset 0 0 0 5px rgba(255, 255, 255, 0.5);
+}
+
+.clock-card[data-clock-style='peach']::before {
+  position: absolute;
+  top: 10px;
+  left: 98px;
+  z-index: 4;
+  width: 8px;
+  height: 8px;
+  border: 1px solid rgba(198, 112, 65, 0.24);
+  border-radius: 50%;
+  background: radial-gradient(
+    circle at 34% 28%,
+    #ffda82 0 20%,
+    #f3aa48 24% 100%
+  );
+  box-shadow:
+    0 -7px 0 3px #f7aec0,
+    7px -2px 0 3px #f7aec0,
+    4px 6px 0 3px #f7aec0,
+    -4px 6px 0 3px #f7aec0,
+    -7px -2px 0 3px #f7aec0;
+  content: '';
+  filter: drop-shadow(0 2px 2px rgba(157, 70, 99, 0.18));
+  transform: rotate(-8deg);
+}
+
+.clock-card[data-clock-style='peach']::after {
+  position: absolute;
+  right: 105px;
+  bottom: -20px;
+  width: 132px;
+  height: 43px;
+  border-radius: 50%;
+  background: rgba(242, 137, 161, 0.15);
+  content: '';
+  transform: rotate(-7deg);
+}
+
+.clock-card[data-clock-style='peach'] .clock-label {
+  border-color: rgba(225, 119, 148, 0.12);
+  color: #a44967;
+  background: rgba(255, 222, 230, 0.88);
+  box-shadow: 0 3px 8px rgba(160, 75, 103, 0.08);
+}
+.clock-card[data-clock-style='peach'] .clock-period {
+  border-color: rgba(210, 153, 68, 0.12);
+  color: #915b31;
+  background: #ffebbe;
+}
+.clock-card[data-clock-style='peach'] .clock-time {
+  color: #5d3043;
+  text-shadow:
+    0 2px 0 rgba(255, 255, 255, 0.88),
+    0 7px 13px rgba(117, 50, 75, 0.08);
+}
+.clock-card[data-clock-style='peach'] .clock-seconds {
+  border-color: #df6789;
+  color: #fffdf9;
+  background: linear-gradient(145deg, #f184a2, #e5658d);
+  box-shadow:
+    0 4px 0 #c75275,
+    0 8px 13px rgba(163, 67, 98, 0.16);
+}
+.clock-card[data-clock-style='peach'] .clock-date-row {
+  color: #956373;
+}
+.clock-card[data-clock-style='peach'] .clock-date-row > i {
+  background: #f1a043;
+}
+.clock-card[data-clock-style='peach'] .clock-night-mascot,
+.clock-card[data-clock-style='peach'] .clock-soda-mascot {
+  display: none;
+}
+
+.clock-card[data-clock-style='peach'] .clock-sparkles i {
+  width: 9px;
+  height: 9px;
+  border: 3px solid #f3ad4c;
+  border-radius: 2px;
+  transform: rotate(45deg);
+}
+
+.clock-card[data-clock-style='peach'] .clock-sparkles i:nth-child(1) {
+  top: 31px;
+  right: 131px;
+}
+.clock-card[data-clock-style='peach'] .clock-sparkles i:nth-child(2) {
+  right: 22px;
+  bottom: 25px;
+  width: 7px;
+  height: 7px;
+  border-color: #ed7e9b;
+}
+.clock-card[data-clock-style='peach'] .clock-sparkles i:nth-child(3) {
+  top: 30px;
+  right: 25px;
+  width: 6px;
+  height: 6px;
+  border-color: #75b8aa;
+}
+.clock-card[data-clock-style='peach'] .clock-sparkles i:nth-child(4) {
+  right: 143px;
+  bottom: 21px;
+  width: 5px;
+  height: 5px;
+  border-color: #ed7e9b;
+}
+
+.clock-peach-mascot .peach-face {
+  position: absolute;
+  top: 53px;
+  right: 24px;
+  width: 108px;
+  height: 94px;
+  border: 3px solid #da7792;
+  border-radius: 50% 50% 44% 46%;
+  background:
+    radial-gradient(
+      ellipse at 18% 67%,
+      rgba(251, 168, 187, 0.34) 0 8%,
+      transparent 8.6%
+    ),
+    radial-gradient(
+      ellipse at 82% 67%,
+      rgba(251, 168, 187, 0.34) 0 8%,
+      transparent 8.6%
+    ),
+    linear-gradient(180deg, #fffcf7 0 70%, #ffe8e7 100%);
+  box-shadow:
+    inset 0 -7px 0 rgba(255, 211, 218, 0.58),
+    0 8px 16px rgba(134, 59, 86, 0.14);
+}
+
+.clock-peach-mascot .peach-face::before,
+.clock-peach-mascot .peach-face::after {
+  position: absolute;
+  top: 40px;
+  width: 8px;
+  height: 12px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 64% 22%, #fff 0 1px, transparent 1.5px), #694151;
+  content: '';
+}
+
+.clock-peach-mascot .peach-face::before {
+  left: 27px;
+}
+.clock-peach-mascot .peach-face::after {
+  right: 27px;
+}
+
+.clock-peach-mascot .peach-face span {
+  position: absolute;
+  top: 56px;
+  left: 50%;
+  width: 15px;
+  height: 8px;
+  border-bottom: 3px solid #da7792;
+  border-radius: 0 0 12px 12px;
+  transform: translateX(-50%);
+}
+
+.clock-peach-mascot .peach-ear {
+  position: absolute;
+  top: 14px;
+  z-index: -1;
+  width: 35px;
+  height: 70px;
+  border: 3px solid #da7792;
+  border-radius: 60% 60% 42% 42%;
+  background: linear-gradient(
+    90deg,
+    #fffaf4 0 26%,
+    #ffd3dd 27% 72%,
+    #fffaf4 73% 100%
+  );
+  box-shadow: inset 0 5px 8px rgba(255, 255, 255, 0.52);
+}
+
+.clock-peach-mascot .peach-ear-left {
+  right: 89px;
+  transform: rotate(-11deg);
+}
+.clock-peach-mascot .peach-ear-right {
+  right: 38px;
+  transform: rotate(11deg);
+}
+
+.clock-peach-mascot .peach-paw {
+  position: absolute;
+  right: 116px;
+  bottom: 18px;
+  width: 40px;
+  height: 30px;
+  border: 3px solid #da7792;
+  border-radius: 50% 50% 40% 45%;
+  background: linear-gradient(180deg, #fffdf8, #ffe9e8);
+  box-shadow: 0 4px 8px rgba(139, 61, 88, 0.1);
+  transform: rotate(-18deg);
+}

@@ -11,7 +11,7 @@
 | `start`               | `node src/server.js`                                                                                                                                              | 纯 Web 模式:仅启动 HTTP 服务,进程模型见 [backend/server-core.md](../backend/server-core.md)                  |
 | `desktop`             | `electron .`                                                                                                                                                      | 桌面模式:Electron 壳与 HTTP 服务同进程                                                                       |
 | `check`               | `node scripts/check-js.js`                                                                                                                                        | 全量 JS 语法检查(见 [test.md](test.md) §3)                                                                   |
-| `test`                | `node --experimental-vm-modules --test --test-concurrency=4`                                                                                                      | 单元测试:node:test,并发 4(见 [test.md](test.md))                                                             |
+| `test`                | `node --experimental-vm-modules --test --test-concurrency=6`                                                                                                      | 单元测试:node:test,测试文件并发 6(见 [test.md](test.md))                                                     |
 | `test:admin`          | `node --experimental-vm-modules --test --test-concurrency=4 test/admin-page-composition.test.js test/frontend-admin-shell.test.js test/frontend-admin-ai.test.js` | 管理页完整回归测试(显式启用 ESM VM 模块)                                                                     |
 | `verify:docs`         | `node --test test/governance-docs.test.js`                                                                                                                        | 治理文件、路由表、规格索引和范围内 Markdown 链接检查                                                         |
 | `verify:architecture` | `node --experimental-vm-modules --test test/module-boundaries.test.js test/esm-module-boundaries.test.js`                                                         | 模块边界、遗留债务预算和前端 ESM 边界检查                                                                    |
@@ -25,7 +25,7 @@
 
 - 出处:[package.json](../../../package.json) 的 `scripts` 字段。
 - `dist:win:local` 使用**原生 cmd 语法**(`set VAR=1 && …`,Windows-only),未引入任何跨平台环境变量注入工具；通过 Windows 上的 npm 执行。
-- `test` 的 `--test-concurrency=4`(并发数 4,勿改回 1);`--experimental-vm-modules` 必需:多个测试在 vm 中求值前端 ESM 模块(见 [test.md](test.md) §1)。
+- `test` 的 `--test-concurrency=6` 控制测试文件并发数，保留进程隔离；`--experimental-vm-modules` 必需:多个测试在 vm 中求值前端 ESM 模块(见 [test.md](test.md) §1)。
 
 ## 2. 依赖清单(唯一成表处)
 
@@ -69,7 +69,7 @@
 
 `artifactName` 在顶层 `build` 与 `build.nsis` 各声明一次([package.json:35](../../../package.json#L35)、[package.json:59](../../../package.json#L59));发布脚本按 `build.nsis.artifactName` 计算产物文件名([publish-release.js:14-16](../../../scripts/publish-release.js#L14-L16))。
 
-礼物图片和目录快照不再随源码或安装包分发。加班机房间目录由 Bilibili 面板/配置及在售盲盒展开决定；首次授权后，桌面运行时从 LIRA Server 获取付费目录并把全部可用图片写入 `data/overtime-gift-images/`，元数据与完成状态写入同一用户数据目录，不属于 `app.asar`。构建验收应检查源码树、新生成的 `app.asar`、`win-unpacked` 和 NSIS 安装包均不含 `public/img/bilibili-gifts/`、`public/img/bilibili-gifts.json`、三份旧礼物 Markdown 或背包图库维护脚本；既有 release 产物不会因新构建自动改写。
+礼物图片和目录快照不再随源码或安装包分发。加班机房间目录由 Bilibili 面板/配置及在售盲盒展开决定；首次授权后，桌面运行时从 LIRA Server 获取付费目录并把全部可用图片写入 `data/cache/overtime-gift-images/`，元数据与完成状态写入同一用户数据目录，不属于 `app.asar`。构建验收应检查源码树、新生成的 `app.asar`、`win-unpacked` 和 NSIS 安装包均不含 `public/img/bilibili-gifts/`、`public/img/bilibili-gifts.json`、三份旧礼物 Markdown 或背包图库维护脚本；既有 release 产物不会因新构建自动改写。
 
 ## 4. 产物(release/)
 
@@ -100,7 +100,8 @@
 
 - `ManifestDPIAware true`([installer.nsh:1](../../../build/installer.nsh#L1)):安装器进程高 DPI 感知。
 - `customInit`([installer.nsh](../../../build/installer.nsh))只选择默认目录并检查本应用在当前安装上下文中的卸载项；仅在带引号的卸载程序路径明确不存在时删除该项，不遍历其他应用。首次安装有 D 盘时默认 `D:\LIRA`，无 D 盘时保留 builder 默认目录；升级沿用本机已有路径，不限制盘符。[installer-directory.nsh](../../../build/installer-directory.nsh) 在安装模式切换后的目录页再次应用默认值，保留 builder 的更新跳页行为。命令行 `/D` 和目录页的显式选择优先。
-- [installer-data.nsh](../../../build/installer-data.nsh) 在标准安装 section 前确认旧 LIRA 已退出，再用系统 `robocopy` 将完整数据复制并发布到 `<新安装目录>.lira-data-backup`。返回码 0–7 才允许运行旧卸载器；失败、数据冲突或无法检查进程时停止。程序替换后恢复 `data/`，恢复失败保留备份、报告位置并禁止启动空库。`customRemoveFiles` 只替换程序文件，保留 `data/`、`logs/`、`updates/`。详情见 [desktop/main.md](../desktop/main.md) §3 和 ADR [0015](../adr/0015-install-local-desktop-data.md)。
+- [installer-data.nsh](../../../build/installer-data.nsh) 在标准安装 section 前确认旧 LIRA 已退出，再用系统 `robocopy` 将完整数据复制并发布到 `<新安装目录>.lira-data-backup`。返回码 0–7 才允许运行旧卸载器；失败、数据冲突或无法检查进程时停止。程序替换后恢复 `data/`，恢复失败保留备份、报告位置并禁止启动空库。升级时 `customRemoveFiles` 只替换程序文件，保留 `data/`、`logs/`、`updates/`。详情见 [desktop/main.md](../desktop/main.md) §3 和 ADR [0015](../adr/0015-install-local-desktop-data.md)。
+- [installer-uninstall.nsh](../../../build/installer-uninstall.nsh) 拥有普通卸载选项和删除策略。普通卸载自动清理 `logs/`、`updates/`，完整保留 `data/`；“同时删除用户数据”默认不勾选。安装模式选定且程序退出后，勾选者需再次确认，默认回答“否”，拒绝确认会保留数据并继续卸载。确认后清理当前安装数据及当前用户的 `%APPDATA%/com.aurorawhisperer.lira`、`%APPDATA%/lira`，避免重装导入旧资料；手工/安装恢复备份及云端资料保留。静默卸载不删除数据，`--updated` 升级始终保留全部运行目录。删除前拒绝空路径、磁盘根与安装目录链接；递归清理只移除链接本身，不跟随目标，失败返回非零并留下卸载程序用于重试。[原生卸载回归](../../../test/installer-uninstall.test.js) 在隔离目录编译真实卸载页，覆盖默认保留、确认删除、静默/升级、目录链接和失败路径。
 - 交互安装在迁移期间显示等待提示；复制或目录发布失败时显示错误步骤与复制返回码，并把详细输出以 UTF-16 保存到 `%TEMP%/LIRA-install-error.txt`。报告无法写入时仍显示错误弹窗。静默安装不显示等待提示或阻塞弹窗，失败仍返回非零退出码。
 - [collect-install-diagnostics.cmd](../../../scripts/collect-install-diagnostics.cmd) 调用同目录的 [PowerShell 收集脚本](../../../scripts/collect-install-diagnostics.ps1)，在工具旁生成 `LIRA安装诊断-日期时间.txt`（写入失败时退回 `%TEMP%`）。内容限于 Windows 版本/位数、同目录最多五个安装包的大小/哈希/签名、相关进程名、两天内的迁移报告及匹配 LIRA 程序名的崩溃/拦截事件；不会运行安装包、读取业务数据库或上传报告。迁移报告不存在不能证明故障原因。
 

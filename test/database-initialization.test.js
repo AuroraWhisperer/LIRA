@@ -13,11 +13,15 @@ function loadModule(relativePath, overrides = {}, warnings = []) {
   const filename = path.join(__dirname, '..', relativePath);
   const localRequire = createRequire(filename);
   const module = { exports: {} };
-  vm.runInNewContext(fs.readFileSync(filename, 'utf8'), {
-    module,
-    require: (name) => overrides[name] || localRequire(name),
-    console: { ...console, warn: (...args) => warnings.push(args) },
-  }, { filename });
+  vm.runInNewContext(
+    fs.readFileSync(filename, 'utf8'),
+    {
+      module,
+      require: (name) => overrides[name] || localRequire(name),
+      console: { ...console, warn: (...args) => warnings.push(args) },
+    },
+    { filename },
+  );
   return module.exports;
 }
 
@@ -36,24 +40,32 @@ function fixture({ phase, index = 0, closeFails = false } = {}) {
     }
     exec() {
       this.execCount += 1;
-      if (this.index === index && (
-        (phase === 'pragma' && this.execCount === 1) ||
-        (phase === 'schema' && this.execCount === 2) ||
-        (phase === 'index' && this.execCount === 3)
-      )) throw originalError;
+      if (
+        this.index === index &&
+        ((phase === 'pragma' && this.execCount === 1) ||
+          (phase === 'schema' && this.execCount === 2) ||
+          (phase === 'index' && this.execCount === 3))
+      )
+        throw originalError;
     }
     close() {
       closes.push(this.index);
       if (closeFails) throw new Error(`close: ${this.index}`);
     }
   }
-  const maintenance = loadModule('src/storage/database-maintenance.js', {}, warnings);
+  const maintenance = loadModule(
+    'src/storage/database-maintenance.js',
+    {},
+    warnings,
+  );
   const database = loadModule('src/storage/database.js', {
     'node:fs': { mkdirSync() {} },
     'node:sqlite': { DatabaseSync: Database },
     './database-maintenance': maintenance,
     './database-migrations': {
-      runAllMigrations() { if (phase === 'migration') throw originalError; },
+      runAllMigrations() {
+        if (phase === 'migration') throw originalError;
+      },
       migrateLegacySuperChatsToDedicatedDatabase() {
         if (phase === 'legacy') throw originalError;
       },
@@ -67,8 +79,10 @@ for (const phase of ['constructor', 'pragma']) {
     for (const closeFails of [false, true]) {
       test(`${phase} failure at database ${index + 1}, close fails=${closeFails}`, () => {
         const f = fixture({ phase, index, closeFails });
-        assert.throws(() => f.database.createDatabases({ dataDir: 'isolated-fake' }),
-          (error) => error === f.originalError);
+        assert.throws(
+          () => f.database.createDatabases({ dataDir: 'isolated-fake' }),
+          (error) => error === f.originalError,
+        );
         const expected = Array.from({ length: index }, (_, i) => i);
         if (phase === 'pragma') expected.unshift(index);
         assert.deepEqual(f.closes, expected);
@@ -82,8 +96,10 @@ for (const phase of ['constructor', 'pragma']) {
 for (const phase of ['schema', 'migration', 'index', 'legacy']) {
   test(`${phase} failure cleans every registered handle despite close errors`, () => {
     const f = fixture({ phase, closeFails: true });
-    assert.throws(() => f.database.createDatabases({ dataDir: 'isolated-fake' }),
-      (error) => error === f.originalError);
+    assert.throws(
+      () => f.database.createDatabases({ dataDir: 'isolated-fake' }),
+      (error) => error === f.originalError,
+    );
     assert.deepEqual(f.closes, [0, 1, 2, 3, 4]);
     assert.equal(f.warnings.length, 5);
   });
@@ -113,19 +129,28 @@ test('real databases close after a PRAGMA failure and reopen with data and migra
     }
     exec(sql) {
       super.exec(sql);
-      if (fail && this.filePath.endsWith('gift-data.db') && sql.startsWith('PRAGMA')) {
+      if (
+        fail &&
+        this.filePath.endsWith('gift-data.db') &&
+        sql.startsWith('PRAGMA')
+      ) {
         fail = false;
         throw originalError;
       }
     }
-    close() { this.closeCount += 1; super.close(); }
+    close() {
+      this.closeCount += 1;
+      super.close();
+    }
   }
   const database = loadModule('src/storage/database.js', {
     'node:sqlite': { DatabaseSync: ObservedDatabase },
   });
   try {
-    assert.throws(() => database.createDatabases({ dataDir: root }),
-      (error) => error === originalError);
+    assert.throws(
+      () => database.createDatabases({ dataDir: root }),
+      (error) => error === originalError,
+    );
     assert.equal(handles.length, 3);
     for (const handle of handles) {
       assert.equal(handle.closeCount, 1);
@@ -135,13 +160,24 @@ test('real databases close after a PRAGMA failure and reopen with data and migra
     const versions = database.getSchemaVersions(db);
     for (const handle of Object.values(db)) {
       assert.equal(handle.closeCount, 0);
-      assert.equal(handle.prepare('PRAGMA journal_mode').get().journal_mode, 'wal');
+      assert.equal(
+        handle.prepare('PRAGMA journal_mode').get().journal_mode,
+        'wal',
+      );
     }
-    assert.equal(db.giftDb.prepare('PRAGMA foreign_keys').get().foreign_keys, 1);
-    db.songDb.exec("CREATE TABLE init_probe (value TEXT); INSERT INTO init_probe VALUES ('kept');");
+    assert.equal(
+      db.giftDb.prepare('PRAGMA foreign_keys').get().foreign_keys,
+      1,
+    );
+    db.songDb.exec(
+      "CREATE TABLE init_probe (value TEXT); INSERT INTO init_probe VALUES ('kept');",
+    );
     database.closeDatabases(db);
     const reopened = database.createDatabases({ dataDir: root });
-    assert.equal(reopened.songDb.prepare('SELECT value FROM init_probe').get().value, 'kept');
+    assert.equal(
+      reopened.songDb.prepare('SELECT value FROM init_probe').get().value,
+      'kept',
+    );
     assert.deepEqual(database.getSchemaVersions(reopened), versions);
     database.closeDatabases(reopened);
     assert.ok(handles.every((handle) => handle.closeCount === 1));

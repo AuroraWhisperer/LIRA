@@ -29,7 +29,8 @@ for (const mode of ['repeat-one', 'single']) {
         currentTime: 42,
       };
       const storage = new Map();
-      if (source === 'v2') storage.set('playbackState:v2', JSON.stringify(saved));
+      if (source === 'v2')
+        storage.set('playbackState:v2', JSON.stringify(saved));
       const app = await createPlaybackApp(saved, {
         serverState: source === 'server' ? saved : {},
         localState: source === 'v1' ? saved : null,
@@ -39,21 +40,30 @@ for (const mode of ['repeat-one', 'single']) {
       await app.init();
       await flushAsyncWork();
       assert.equal(app.element('playbackModeLabel').textContent, '单曲');
-      assert.equal(app.element('playbackTrackTitle').textContent, current.title);
+      assert.equal(
+        app.element('playbackTrackTitle').textContent,
+        current.title,
+      );
       assert.equal(app.element('playbackCurrentTime').textContent, '00:42');
       assert.match(app.element('playbackQueueList').innerHTML, /下一首/);
       await app.emitWindow('pagehide');
       const persisted = app.ipcSavedState();
       assert.equal(persisted.mode, 'repeat-one');
       assert.equal(persisted.current.id, current.id);
-      assert.deepEqual(persisted.normalQueue.map((item) => item.id), [next.id]);
+      assert.deepEqual(
+        persisted.normalQueue.map((item) => item.id),
+        [next.id],
+      );
 
       await app.emit('playbackPlayPause', 'click');
       await flushAsyncWork();
       await app.emit('music-player', 'ended');
       await flushAsyncWork();
       assert.equal(app.element('music-player').dataset.trackId, current.id);
-      assert.deepEqual(app.savedState().normalQueue.map((item) => item.id), [next.id]);
+      assert.deepEqual(
+        app.savedState().normalQueue.map((item) => item.id),
+        [next.id],
+      );
     });
   }
 }
@@ -80,8 +90,14 @@ test('the single-track repeat mode selected in the UI survives a server snapshot
   await restored.init();
   await flushAsyncWork();
   assert.equal(restored.element('playbackModeLabel').textContent, '单曲');
-  assert.equal(restored.element('playbackTrackTitle').textContent, current.title);
-  assert.match(restored.element('playbackQueueList').innerHTML, /界面选择的下一首/);
+  assert.equal(
+    restored.element('playbackTrackTitle').textContent,
+    current.title,
+  );
+  assert.match(
+    restored.element('playbackQueueList').innerHTML,
+    /界面选择的下一首/,
+  );
 });
 
 test('empty playback uses the latest authenticated provider state', async () => {

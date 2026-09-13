@@ -54,9 +54,10 @@ function createLicensePage(result = { state: 'needs_activation' }) {
   return {
     getElementById,
     submissions,
-    submit: () => getElementById('licenseForm').listeners.get('submit')({
-      preventDefault() {},
-    }),
+    submit: () =>
+      getElementById('licenseForm').listeners.get('submit')({
+        preventDefault() {},
+      }),
     dispatchPasswordEvent(type, event = {}) {
       const listener = getElementById('licensePassword').listeners.get(type);
       const dispatchedEvent = {
@@ -75,33 +76,85 @@ function createLicensePage(result = { state: 'needs_activation' }) {
 }
 
 test('license page offers password visibility without the storage footnote', () => {
-  const html = fs.readFileSync(path.join(ROOT, 'public/pages/license.html'), 'utf8');
-  assert.match(html, /<link rel="stylesheet" href="\/css\/styles-base\.css"\s*\/>/);
-  assert.match(html, /<link rel="stylesheet" href="\/css\/components\/contextual-help\.css"\s*\/>/);
-  assert.match(html, /<lira-help\s+label="密码规则"\s+tooltip-id="licensePasswordRules"[\s\S]*?>/);
+  const html = fs.readFileSync(
+    path.join(ROOT, 'public/pages/license.html'),
+    'utf8',
+  );
+  assert.match(
+    html,
+    /<link rel="stylesheet" href="\/css\/styles-base\.css"\s*\/>/,
+  );
+  assert.match(
+    html,
+    /<link rel="stylesheet" href="\/css\/components\/contextual-help\.css"\s*\/>/,
+  );
+  assert.match(
+    html,
+    /<lira-help\s+label="密码规则"\s+tooltip-id="licensePasswordRules"[\s\S]*?>/,
+  );
   assert.match(html, /8[–-]64/);
   assert.match(html, /大写/);
   assert.match(html, /小写/);
   assert.match(html, /数字/);
   assert.match(html, /至少三类/);
-  assert.match(html, /已有账号.*原密码/);
-  assert.match(html, /72 字节/);
-  assert.doesNotMatch(html.match(/<input\s+id="licensePassword"[\s\S]*?>/)[0], /maxlength=|minlength=|pattern=/);
-  assert.match(html, /<script type="module" src="\/js\/admin\/contextual-help\.js"><\/script>/);
+  assert.doesNotMatch(
+    html.match(/<input\s+id="licensePassword"[\s\S]*?>/)[0],
+    /maxlength=|minlength=|pattern=/,
+  );
+  assert.match(
+    html,
+    /<script type="module" src="\/js\/admin\/contextual-help\.js"><\/script>/,
+  );
   assert.match(html, /placeholder="请输入密码"/);
-  assert.match(html, /id="licensePasswordToggle"[^>]*type="button"[^>]*aria-label="显示密码"[^>]*aria-pressed="false"/s);
-  assert.match(html, /id="licensePasswordIcon"[^>]*href="\/img\/shared\/password-visibility\.svg#eye"/s);
+  assert.match(
+    html,
+    /id="licensePasswordToggle"[^>]*type="button"[^>]*aria-label="显示密码"[^>]*aria-pressed="false"/s,
+  );
+  assert.match(
+    html,
+    /id="licensePasswordIcon"[^>]*href="\/img\/shared\/password-visibility\.svg#eye"/s,
+  );
   assert.doesNotMatch(html, /密码和激活密钥不会保存在本机。/);
 });
 
 const VALID_PASSWORD = 'Abc123!?';
 
+test('account entry switches labels and clears credentials without changing the username', () => {
+  const page = createLicensePage();
+  const get = page.getElementById;
+  get('licensePassword').value = VALID_PASSWORD;
+  get('licenseRegisterMode').listeners.get('click')();
+  assert.equal(get('licenseHeading').textContent, '注册 LIRA');
+  assert.equal(get('licenseCodeLabel').textContent, '注册激活码');
+  assert.equal(
+    get('licensePassword').getAttribute('autocomplete'),
+    'new-password',
+  );
+  assert.equal(get('licensePassword').value, '');
+  assert.equal(get('licenseActivationCode').value, '');
+  assert.equal(get('licenseAccountName').value, 'test-account');
+  get('licenseLoginMode').listeners.get('click')();
+  assert.equal(get('licenseHeading').textContent, '登录 LIRA');
+  assert.equal(get('licenseCodeLabel').textContent, '短效登录码');
+  assert.equal(
+    get('licensePassword').getAttribute('autocomplete'),
+    'current-password',
+  );
+  assert.equal(get('licenseLoginMode').getAttribute('aria-pressed'), 'true');
+});
+
 for (const [error, message] of [
   ['PASSWORD_TOO_SHORT', '密码至少 8 个字符。'],
   ['PASSWORD_TOO_LONG', '密码不能超过 64 个字符。'],
-  ['PASSWORD_CONTROL_CHARACTERS', '密码不能包含换行、控制字符或不可见格式字符。'],
+  [
+    'PASSWORD_CONTROL_CHARACTERS',
+    '密码不能包含换行、控制字符或不可见格式字符。',
+  ],
   ['PASSWORD_COMPLEXITY', '密码不符合要求，请查看密码旁的说明。'],
-  ['PASSWORD_BCRYPT_TRUNCATED', '密码的 UTF-8 编码不能超过 72 字节，请缩短密码。'],
+  [
+    'PASSWORD_BCRYPT_TRUNCATED',
+    '密码的 UTF-8 编码不能超过 72 字节，请缩短密码。',
+  ],
   ['PASSWORD_WEAK', '密码过于常见或接近用户名，请更换。'],
 ]) {
   test(`license form preserves the server ${error} response`, async () => {
@@ -116,9 +169,14 @@ for (const [error, message] of [
 
 for (const sample of require('./fixtures/password-compatibility.json')) {
   test(`license form preserves shared password sample: ${sample.id}`, async () => {
-    const page = createLicensePage({ state: 'needs_activation', error: 'INVALID_CREDENTIALS' });
+    const page = createLicensePage({
+      state: 'needs_activation',
+      error: 'INVALID_CREDENTIALS',
+    });
     const password = page.getElementById('licensePassword');
-    const event = page.dispatchPasswordEvent('beforeinput', { data: sample.password });
+    const event = page.dispatchPasswordEvent('beforeinput', {
+      data: sample.password,
+    });
     assert.equal(event.defaultPrevented, false);
     password.value = sample.password;
     page.dispatchPasswordEvent('input');
@@ -128,25 +186,44 @@ for (const sample of require('./fixtures/password-compatibility.json')) {
     assert.equal(page.submissions.length, sample.clientSubmits ? 1 : 0);
     if (sample.clientSubmits) {
       assert.equal(page.submissions[0].password, sample.password);
-      assert.equal(page.getElementById('licenseStatus').textContent, '用户名或密码错误。');
+      assert.equal(
+        page.getElementById('licenseStatus').textContent,
+        '用户名或密码错误。',
+      );
     } else {
-      assert.equal(page.getElementById('licenseStatus').textContent, '请输入密码。');
+      assert.equal(
+        page.getElementById('licenseStatus').textContent,
+        '请输入密码。',
+      );
     }
-    assert.equal(password.value, sample.password, 'failed authentication preserves the original input');
+    assert.equal(
+      password.value,
+      sample.password,
+      'failed authentication preserves the original input',
+    );
   });
 }
 
 test('license form keeps existing account password checks on the server', async () => {
-  const page = createLicensePage({ state: 'needs_activation', error: 'INVALID_CREDENTIALS' });
+  const page = createLicensePage({
+    state: 'needs_activation',
+    error: 'INVALID_CREDENTIALS',
+  });
   page.getElementById('licensePassword').value = VALID_PASSWORD;
   await page.submit();
   assert.equal(page.submissions.length, 1);
   assert.equal(page.submissions[0].password, VALID_PASSWORD);
-  assert.equal(page.getElementById('licenseStatus').textContent, '用户名或密码错误。');
+  assert.equal(
+    page.getElementById('licenseStatus').textContent,
+    '用户名或密码错误。',
+  );
 });
 
 test('valid passwords are passed to activation unchanged', async () => {
-  const page = createLicensePage({ state: 'needs_activation', error: 'NETWORK_UNAVAILABLE' });
+  const page = createLicensePage({
+    state: 'needs_activation',
+    error: 'NETWORK_UNAVAILABLE',
+  });
   page.getElementById('licensePassword').value = VALID_PASSWORD;
   await page.submit();
   assert.equal(page.submissions.length, 1);
@@ -156,7 +233,10 @@ test('valid passwords are passed to activation unchanged', async () => {
 });
 
 test('a valid 64-character password is passed to activation unchanged', async () => {
-  const page = createLicensePage({ state: 'needs_activation', error: 'NETWORK_UNAVAILABLE' });
+  const page = createLicensePage({
+    state: 'needs_activation',
+    error: 'NETWORK_UNAVAILABLE',
+  });
   const password = `Aa1!${'a'.repeat(60)}`;
   page.getElementById('licensePassword').value = password;
   await page.submit();
@@ -204,7 +284,10 @@ test('password visibility toggles without changing or submitting the password', 
     assert.equal(toggle.getAttribute('aria-label'), label);
     assert.equal(toggle.title, label);
     assert.equal(toggle.getAttribute('aria-pressed'), pressed);
-    assert.equal(icon.getAttribute('href'), `/img/shared/password-visibility.svg#${iconName}`);
+    assert.equal(
+      icon.getAttribute('href'),
+      `/img/shared/password-visibility.svg#${iconName}`,
+    );
   }
   assert.equal(page.submissions.length, 0);
 });

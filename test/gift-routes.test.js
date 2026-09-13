@@ -64,7 +64,10 @@ test('gift ledger routes pass only allowlisted filters and reject source selecto
 });
 
 test('gift ledger routes return 400 for invalid sorting parameters', () => {
-  for (const code of ['INVALID_GIFT_SORT_FIELD', 'INVALID_GIFT_SORT_DIRECTION']) {
+  for (const code of [
+    'INVALID_GIFT_SORT_FIELD',
+    'INVALID_GIFT_SORT_DIRECTION',
+  ]) {
     const error = new Error('礼物排序参数无效。');
     error.code = code;
     const response = createResponse();

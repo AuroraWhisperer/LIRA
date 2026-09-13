@@ -66,7 +66,9 @@ test('Bilibili runtime owns auth refresh, client replacement, and shutdown', asy
 for (const cancellation of ['disable', 'disconnect', 'stop']) {
   test(`pending auth cannot start a client after ${cancellation}`, async (t) => {
     const auth = Promise.withResolvers();
-    const fixture = createReplacementFixture({ getCookieHeader: () => auth.promise });
+    const fixture = createReplacementFixture({
+      getCookieHeader: () => auth.promise,
+    });
     t.after(() => fixture.runtime.stop());
     const pending = fixture.runtime.reconnect();
     await new Promise((resolve) => setImmediate(resolve));
@@ -100,7 +102,9 @@ test('queued reconnect is invalidated before it starts and can be enabled again'
 
 test('only the latest requested room starts after pending auth resolves', async (t) => {
   const auth = Promise.withResolvers();
-  const fixture = createReplacementFixture({ getCookieHeader: () => auth.promise });
+  const fixture = createReplacementFixture({
+    getCookieHeader: () => auth.promise,
+  });
   t.after(() => fixture.runtime.stop());
   const first = fixture.runtime.reconnect();
   await new Promise((resolve) => setImmediate(resolve));
@@ -109,7 +113,10 @@ test('only the latest requested room starts after pending auth resolves', async 
   auth.resolve('synthetic-cookie');
   await Promise.all([first, second]);
 
-  assert.deepEqual(fixture.clients.map((client) => client.roomId), ['456']);
+  assert.deepEqual(
+    fixture.clients.map((client) => client.roomId),
+    ['456'],
+  );
 });
 
 test('missing room status is distinct from disabled listening', async (t) => {
@@ -163,7 +170,10 @@ test('unchanged settings keep the active client and rapid room changes use the l
   await new Promise((resolve) => setImmediate(resolve));
 
   assert.equal(original.stopCount, 1);
-  assert.deepEqual(fixture.clients.map((client) => client.roomId), ['123', '123']);
+  assert.deepEqual(
+    fixture.clients.map((client) => client.roomId),
+    ['123', '123'],
+  );
 });
 
 test('current restart errors still reject without blocking a later reconnect', async (t) => {
@@ -185,7 +195,9 @@ function createReplacementFixture(options = {}) {
   const clients = [];
   const runtime = createBilibiliRuntime({
     settingsStore: { getSettings: () => settings },
-    domainServices: { requesterTargets: { getLatestRandomRequester: () => null } },
+    domainServices: {
+      requesterTargets: { getLatestRandomRequester: () => null },
+    },
     broadcastSnapshot() {},
     buildClient(roomId, context) {
       const client = {
@@ -198,14 +210,17 @@ function createReplacementFixture(options = {}) {
           this.restartCount += 1;
           await options.restart?.();
         },
-        stop() { this.stopCount += 1; },
+        stop() {
+          this.stopCount += 1;
+        },
       };
       clients.push(client);
       return client;
     },
   });
   runtime.setAuthProvider({
-    getCookieHeader: options.getCookieHeader || (async () => 'synthetic-cookie'),
+    getCookieHeader:
+      options.getCookieHeader || (async () => 'synthetic-cookie'),
     getUid: async () => 42,
   });
   return { runtime, settings, clients };

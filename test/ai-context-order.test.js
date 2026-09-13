@@ -20,17 +20,46 @@ function fixture(t, overrides = {}) {
   const sent = [];
   const service = createAiAssistantService({
     store: {
-      getConfig: () => ({ ...AI_CONFIG_DEFAULTS, enabled: true, trigger: '小米', deepseekApiKey: 'test-key', deepseekResponsesUrl: 'https://example.test/responses', model: 'test-model', generationConcurrency: 3, userCooldownSeconds: 0 }),
-      isBlacklisted: () => false, getContext: () => context,
-      setContext(_uid, value) { context = value; commits.push(value); },
-      getCache: overrides.getCache || (() => null), setCache() {}, logRequest() {},
+      getConfig: () => ({
+        ...AI_CONFIG_DEFAULTS,
+        enabled: true,
+        trigger: '小米',
+        deepseekApiKey: 'test-key',
+        deepseekResponsesUrl: 'https://example.test/responses',
+        model: 'test-model',
+        generationConcurrency: 3,
+        userCooldownSeconds: 0,
+      }),
+      isBlacklisted: () => false,
+      getContext: () => context,
+      setContext(_uid, value) {
+        context = value;
+        commits.push(value);
+      },
+      getCache: overrides.getCache || (() => null),
+      setCache() {},
+      logRequest() {},
     },
-    deepseek: { async createResponse(request) {
-      if (request.purpose !== 'generation') return { text: '{"allowed":true}', usage: {}, functionCalls: [] };
-      return new Promise((resolve) => pending.push({ request, resolve: (text) => resolve({ text, usage: {}, functionCalls: [] }) }));
-    } },
-    tools: {}, now: () => 100000, delay: async () => {}, random: () => 0,
-    sendReply: async (value) => { sent.push(value.message); return {}; },
+    deepseek: {
+      async createResponse(request) {
+        if (request.purpose !== 'generation')
+          return { text: '{"allowed":true}', usage: {}, functionCalls: [] };
+        return new Promise((resolve) =>
+          pending.push({
+            request,
+            resolve: (text) => resolve({ text, usage: {}, functionCalls: [] }),
+          }),
+        );
+      },
+    },
+    tools: {},
+    now: () => 100000,
+    delay: async () => {},
+    random: () => 0,
+    sendReply: async (value) => {
+      sent.push(value.message);
+      return {};
+    },
     waitForDelivery: overrides.waitForDelivery,
     log: { warn() {} },
   });
@@ -40,14 +69,34 @@ function fixture(t, overrides = {}) {
     await stopping;
   });
   return {
-    service, pending, sent, commits, context: () => context,
-    ask(question) { assert.equal(service.handleDanmaku({ uid: 'viewer', userName: '观众', message: `小米 ${question}` }).accepted, true); },
+    service,
+    pending,
+    sent,
+    commits,
+    context: () => context,
+    ask(question) {
+      assert.equal(
+        service.handleDanmaku({
+          uid: 'viewer',
+          userName: '观众',
+          message: `小米 ${question}`,
+        }).accepted,
+        true,
+      );
+    },
   };
 }
 
 for (const cached of [false, true]) {
   test(`AI commits same-viewer answers in delivered order (${cached ? 'cached B' : 'fast B'})`, async (t) => {
-    const f = fixture(t, { getCache: cached ? (key) => JSON.parse(key)[4] === '第二问' ? { text: '第二答', category: 'chat' } : null : undefined });
+    const f = fixture(t, {
+      getCache: cached
+        ? (key) =>
+            JSON.parse(key)[4] === '第二问'
+              ? { text: '第二答', category: 'chat' }
+              : null
+        : undefined,
+    });
     f.ask('第一问');
     f.ask('第二问');
     await until(() => f.pending.length === (cached ? 1 : 2));
@@ -57,7 +106,10 @@ for (const cached of [false, true]) {
     f.pending[0].resolve('第一答');
     await until(() => f.commits.length === 2);
     assert.deepEqual(f.sent, ['第一答', '第二答']);
-    assert.deepEqual(f.commits.map((value) => value.question), ['第一问', '第二问']);
+    assert.deepEqual(
+      f.commits.map((value) => value.question),
+      ['第一问', '第二问'],
+    );
     f.ask('第三问');
     await until(() => f.pending.length === (cached ? 2 : 3));
     const third = f.pending.at(-1);
@@ -72,7 +124,9 @@ for (const cached of [false, true]) {
 for (const delivered of [true, false]) {
   test(`AI commits only the confirmed retry; terminal delivery ${delivered ? 'success' : 'failure'}`, async (t) => {
     let confirmations = 0;
-    const f = fixture(t, { waitForDelivery: async () => ++confirmations > 1 && delivered });
+    const f = fixture(t, {
+      waitForDelivery: async () => ++confirmations > 1 && delivered,
+    });
     f.ask('第一问');
     await until(() => f.pending.length === 1);
     f.pending[0].resolve('未确认回答');
@@ -84,10 +138,16 @@ for (const delivered of [true, false]) {
       await until(() => f.pending.length === 3);
       f.pending[2].resolve('最终未送达');
     }
-    await until(() => !f.service.getStatus().delivering && f.service.getStatus().queued === 0);
-    assert.deepEqual(f.context(), delivered
-      ? { question: '第一问', answer: '重试回答' }
-      : { question: '旧问', answer: '旧答' });
+    await until(
+      () =>
+        !f.service.getStatus().delivering && f.service.getStatus().queued === 0,
+    );
+    assert.deepEqual(
+      f.context(),
+      delivered
+        ? { question: '第一问', answer: '重试回答' }
+        : { question: '旧问', answer: '旧答' },
+    );
     assert.equal(f.commits.length, delivered ? 1 : 0);
   });
 }

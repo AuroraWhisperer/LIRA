@@ -19,61 +19,139 @@ function fixture(options = {}) {
   const module = { exports: {} };
   const pkg = {
     version: '1.0.0',
-    build: { publish: [{ owner: 'fixture', repo: 'fixture' }], directories: { output: 'release' }, nsis: { artifactName: 'setup-${version}.${ext}' } },
+    build: {
+      publish: [{ owner: 'fixture', repo: 'fixture' }],
+      directories: { output: 'release' },
+      nsis: { artifactName: 'setup-${version}.${ext}' },
+    },
   };
   const fakeFs = {
-    readFileSync() { return JSON.stringify(pkg); },
-    existsSync() { return true; },
-    statSync() { return { size: bytes.length }; },
-    async *createReadStream() { yield bytes; },
-    mkdtempSync() { return path.join(__dirname, `fixture-verify-${commands.length}`); },
-    rmSync(directory) { cleaned.push(directory); },
+    readFileSync() {
+      return JSON.stringify(pkg);
+    },
+    existsSync() {
+      return true;
+    },
+    statSync() {
+      return { size: bytes.length };
+    },
+    async *createReadStream() {
+      yield bytes;
+    },
+    mkdtempSync() {
+      return path.join(__dirname, `fixture-verify-${commands.length}`);
+    },
+    rmSync(directory) {
+      cleaned.push(directory);
+    },
   };
   function execFileSync(command, args, executionOptions) {
     commands.push([command, ...args]);
     commandOptions.push({ command, ...executionOptions });
-    if (options.childOutput && executionOptions.stdio === 'inherit') logs.push(options.childOutput);
+    if (options.childOutput && executionOptions.stdio === 'inherit')
+      logs.push(options.childOutput);
     if (options.childError && (options.failCommand || 'npx') === command) {
-      if (!executionOptions.stdio) logs.push(options.childError.stderr.toString());
+      if (!executionOptions.stdio)
+        logs.push(options.childError.stderr.toString());
       throw options.childError;
     }
     if (command === 'git') {
-      if (args[0] === 'status') return Buffer.from(options.dirty ? ' M src/changed.js' : '');
-      if (args[0] === 'ls-remote') return Buffer.from(`${options.remoteHead || head}\trefs/tags/v1.0.0^{}`);
+      if (args[0] === 'status')
+        return Buffer.from(options.dirty ? ' M src/changed.js' : '');
+      if (args[0] === 'ls-remote')
+        return Buffer.from(
+          `${options.remoteHead || head}\trefs/tags/v1.0.0^{}`,
+        );
       if (args.includes('--abbrev-ref')) return Buffer.from('main');
-      if (args.some((arg) => arg === 'v1.0.0^{commit}' || arg === 'v1.0.0')) return Buffer.from(options.tagHead || head);
+      if (args.some((arg) => arg === 'v1.0.0^{commit}' || arg === 'v1.0.0'))
+        return Buffer.from(options.tagHead || head);
       return Buffer.from(head);
     }
-    if (command === 'npx' && options.buildFails) throw new Error('fixture build failure');
+    if (command === 'npx' && options.buildFails)
+      throw new Error('fixture build failure');
     if (command === 'gh' && args[0] === 'api') {
-      return Buffer.from(JSON.stringify({ assets: ['setup-1.0.0.exe', 'setup-1.0.0.exe.blockmap', 'latest.yml'].map((name) => ({
-        name, state: 'uploaded', size: bytes.length,
-        digest: options.missingDigests ? undefined : options.staleAssets ? `sha256:${'0'.repeat(64)}` : digest,
-      })) }));
+      return Buffer.from(
+        JSON.stringify({
+          assets: [
+            'setup-1.0.0.exe',
+            'setup-1.0.0.exe.blockmap',
+            'latest.yml',
+          ].map((name) => ({
+            name,
+            state: 'uploaded',
+            size: bytes.length,
+            digest: options.missingDigests
+              ? undefined
+              : options.staleAssets
+                ? `sha256:${'0'.repeat(64)}`
+                : digest,
+          })),
+        }),
+      );
     }
     return Buffer.from(options.childOutput || 'existing');
   }
   const filename = path.resolve(__dirname, '../scripts/publish-release.js');
   const requireFake = (name) => {
-    if (name === './release-output') return require('../scripts/release-output');
+    if (name === './release-output')
+      return require('../scripts/release-output');
     if (name === 'node:fs') return fakeFs;
-    if (name === 'node:child_process') return {
-      execFileSync,
-      spawnSync(command, args, executionOptions) {
-        try {
-          return { status: 0, stdout: execFileSync(command, args, executionOptions), stderr: Buffer.from(options.childOutput ? `synthetic warning ${options.childOutput}` : '') };
-        } catch (error) {
-          return { error, status: error.status ?? 1, stdout: error.stdout, stderr: error.stderr, output: error.output };
-        }
-      },
-    };
+    if (name === 'node:child_process')
+      return {
+        execFileSync,
+        spawnSync(command, args, executionOptions) {
+          try {
+            return {
+              status: 0,
+              stdout: execFileSync(command, args, executionOptions),
+              stderr: Buffer.from(
+                options.childOutput
+                  ? `synthetic warning ${options.childOutput}`
+                  : '',
+              ),
+            };
+          } catch (error) {
+            return {
+              error,
+              status: error.status ?? 1,
+              stdout: error.stdout,
+              stderr: error.stderr,
+              output: error.output,
+            };
+          }
+        },
+      };
     return require(name);
   };
-  vm.runInNewContext(fs.readFileSync(filename, 'utf8'), {
-    require: requireFake, module, __dirname: path.dirname(filename), Buffer,
-    process: { platform: 'win32', env: { RELEASE_NO_PROXY: '1', GH_TOKEN: 'fixture', ...options.environment }, exit() { throw new Error('unexpected process exit'); } },
-    console: { log(...values) { logs.push(values.join(' ')); }, error(...values) { logs.push(values.join(' ')); } },
-  }, { filename });
+  vm.runInNewContext(
+    fs.readFileSync(filename, 'utf8'),
+    {
+      require: requireFake,
+      module,
+      __dirname: path.dirname(filename),
+      Buffer,
+      process: {
+        platform: 'win32',
+        env: {
+          RELEASE_NO_PROXY: '1',
+          GH_TOKEN: 'fixture',
+          ...options.environment,
+        },
+        exit() {
+          throw new Error('unexpected process exit');
+        },
+      },
+      console: {
+        log(...values) {
+          logs.push(values.join(' '));
+        },
+        error(...values) {
+          logs.push(values.join(' '));
+        },
+      },
+    },
+    { filename },
+  );
   return { publisher: module.exports, commands, commandOptions, cleaned, logs };
 }
 
@@ -85,10 +163,17 @@ test('importing the release script does not build, tag, or publish', async () =>
 });
 
 test('release preflight rejects dirty worktrees and mismatched tags before building', async () => {
-  for (const options of [{ dirty: true }, { tagHead: 'b'.repeat(40) }, { remoteHead: 'c'.repeat(40) }]) {
+  for (const options of [
+    { dirty: true },
+    { tagHead: 'b'.repeat(40) },
+    { remoteHead: 'c'.repeat(40) },
+  ]) {
     const f = fixture(options);
     await assert.rejects(f.publisher.main());
-    assert.equal(f.commands.some(([command]) => command === 'npx' || command === 'npm'), false);
+    assert.equal(
+      f.commands.some(([command]) => command === 'npx' || command === 'npm'),
+      false,
+    );
   }
 });
 
@@ -96,7 +181,12 @@ test('a failed build cannot be accepted because old release assets exist', async
   const f = fixture({ buildFails: true });
   await assert.rejects(f.publisher.main(), /incomplete/);
   assert.equal(f.commands.filter(([command]) => command === 'npx').length, 3);
-  assert.equal(f.commands.some(([command, action]) => command === 'gh' && action === 'api'), false);
+  assert.equal(
+    f.commands.some(
+      ([command, action]) => command === 'gh' && action === 'api',
+    ),
+    false,
+  );
 });
 
 test('release assets must match this build content, not just its file names', async () => {
@@ -104,16 +194,35 @@ test('release assets must match this build content, not just its file names', as
   await assert.rejects(stale.publisher.main(), /incomplete/);
   const current = fixture();
   await current.publisher.main();
-  assert.equal(current.commands.filter(([command]) => command === 'npx').length, 1);
+  assert.equal(
+    current.commands.filter(([command]) => command === 'npx').length,
+    1,
+  );
 });
 
 test('release verification downloads assets without digests and cleans isolated output', async () => {
   const f = fixture({ missingDigests: true });
   await f.publisher.main();
-  assert.equal(f.commands.filter(([command, action, operation]) => command === 'gh' && action === 'release' && operation === 'download').length, 3);
+  assert.equal(
+    f.commands.filter(
+      ([command, action, operation]) =>
+        command === 'gh' && action === 'release' && operation === 'download',
+    ).length,
+    3,
+  );
   assert.equal(f.cleaned.length, 3);
-  assert.equal(f.commandOptions.filter(({ command }) => command === 'git' || command === 'gh').every(({ shell }) => shell === false), true);
-  assert.equal(f.commandOptions.filter(({ command }) => command === 'npm' || command === 'npx').every(({ shell }) => shell === true), true);
+  assert.equal(
+    f.commandOptions
+      .filter(({ command }) => command === 'git' || command === 'gh')
+      .every(({ shell }) => shell === false),
+    true,
+  );
+  assert.equal(
+    f.commandOptions
+      .filter(({ command }) => command === 'npm' || command === 'npx')
+      .every(({ shell }) => shell === true),
+    true,
+  );
 });
 
 test('release proxy logging strips userinfo including username-only and encoded credentials', async () => {
@@ -125,28 +234,55 @@ test('release proxy logging strips userinfo including username-only and encoded 
     const f = fixture({ environment: { HTTPS_PROXY: proxy } });
     await f.publisher.main();
     const rendered = f.logs.join('\n');
-    for (const secret of ['syntheticUser', 'syntheticPass', 'synthetic%40Pass']) {
+    for (const secret of [
+      'syntheticUser',
+      'syntheticPass',
+      'synthetic%40Pass',
+    ]) {
       assert.equal(rendered.includes(secret), false, 'proxy credential leaked');
     }
     assert.match(rendered, /proxy.invalid:7890/);
-    assert.equal(f.commandOptions.find(({ command }) => command === 'npx').env.HTTPS_PROXY, proxy);
+    assert.equal(
+      f.commandOptions.find(({ command }) => command === 'npx').env.HTTPS_PROXY,
+      proxy,
+    );
   }
 });
 
 for (const command of ['git', 'npm', 'npx']) {
   test(`release sanitizes ${command} failure output and the final thrown error`, async () => {
     const password = 'syntheticCertPassword';
-    const proxy = 'http://syntheticUser:syntheticProxyPassword@proxy.invalid:7890';
+    const proxy =
+      'http://syntheticUser:syntheticProxyPassword@proxy.invalid:7890';
     const detail = `synthetic tool failure /p ${password}; ${proxy}; user=syntheticUser password=syntheticProxyPassword`;
     const childError = Object.assign(new Error(detail), {
-      code: 'SYNTHETIC_TOOL_FAILURE', status: 23, signal: null,
-      stdout: Buffer.from(detail), stderr: Buffer.from(detail),
-      output: [null, Buffer.from(detail), Buffer.from(detail)], spawnargs: [password],
+      code: 'SYNTHETIC_TOOL_FAILURE',
+      status: 23,
+      signal: null,
+      stdout: Buffer.from(detail),
+      stderr: Buffer.from(detail),
+      output: [null, Buffer.from(detail), Buffer.from(detail)],
+      spawnargs: [password],
     });
-    const f = fixture({ environment: { HTTPS_PROXY: proxy, WINDOWS_CERT_PASSWORD: password }, childError, failCommand: command, childOutput: detail });
+    const f = fixture({
+      environment: { HTTPS_PROXY: proxy, WINDOWS_CERT_PASSWORD: password },
+      childError,
+      failCommand: command,
+      childOutput: detail,
+    });
     const error = await f.publisher.main().catch((failure) => failure);
-    const rendered = [f.logs.join('\n'), error?.message, error?.stack, inspect(error, { depth: 8 }), JSON.stringify(error)].join('\n');
-    for (const secret of [password, 'syntheticUser', 'syntheticProxyPassword']) {
+    const rendered = [
+      f.logs.join('\n'),
+      error?.message,
+      error?.stack,
+      inspect(error, { depth: 8 }),
+      JSON.stringify(error),
+    ].join('\n');
+    for (const secret of [
+      password,
+      'syntheticUser',
+      'syntheticProxyPassword',
+    ]) {
       assert.equal(rendered.includes(secret), false, 'synthetic secret leaked');
     }
     assert.equal(error.status, 23);
@@ -157,10 +293,19 @@ for (const command of ['git', 'npm', 'npx']) {
 
 test('release sanitizes successful child output and preserves credential-free proxy diagnostics', async () => {
   const proxy = 'http://proxy.invalid:7890';
-  const f = fixture({ environment: { HTTPS_PROXY: proxy, WINDOWS_CERT_PASSWORD: 'syntheticCertPassword' }, childOutput: 'synthetic tool completed syntheticCertPassword' });
+  const f = fixture({
+    environment: {
+      HTTPS_PROXY: proxy,
+      WINDOWS_CERT_PASSWORD: 'syntheticCertPassword',
+    },
+    childOutput: 'synthetic tool completed syntheticCertPassword',
+  });
   await f.publisher.main();
   assert.equal(f.logs.join('\n').includes('syntheticCertPassword'), false);
   assert.match(f.logs.join('\n'), /synthetic tool completed/);
   assert.match(f.logs.join('\n'), /synthetic warning/);
-  assert.match(f.logs.join('\n'), /Using proxy from environment: http:\/\/proxy.invalid:7890/);
+  assert.match(
+    f.logs.join('\n'),
+    /Using proxy from environment: http:\/\/proxy.invalid:7890/,
+  );
 });

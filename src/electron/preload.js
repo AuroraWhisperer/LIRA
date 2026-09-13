@@ -81,8 +81,7 @@ contextBridge.exposeInMainWorld('liraLicense', {
   retry: () => ipcRenderer.invoke('license:retry'),
   getGiftCatalogState: () =>
     ipcRenderer.invoke('license:get-gift-catalog-state'),
-  retryGiftCatalog: () =>
-    ipcRenderer.invoke('license:retry-gift-catalog'),
+  retryGiftCatalog: () => ipcRenderer.invoke('license:retry-gift-catalog'),
   getProfile: () => ipcRenderer.invoke('license:get-profile'),
   syncSongs: (songs) => ipcRenderer.invoke('license:sync-songs', songs),
   getCloudSongs: () => ipcRenderer.invoke('license:get-cloud-songs'),

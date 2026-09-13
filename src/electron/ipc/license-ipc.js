@@ -269,10 +269,7 @@ function sanitizeGiftCatalogState(snapshot = {}) {
       : 'idle',
     completed,
     total,
-    available: Math.min(
-      safeNonNegativeInteger(snapshot?.available),
-      completed,
-    ),
+    available: Math.min(safeNonNegativeInteger(snapshot?.available), completed),
     failed: Math.min(safeNonNegativeInteger(snapshot?.failed), completed),
     percent: Math.min(100, safeNonNegativeInteger(snapshot?.percent)),
     currentGiftId: safeString(snapshot?.currentGiftId, 32),

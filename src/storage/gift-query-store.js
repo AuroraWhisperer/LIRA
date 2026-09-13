@@ -391,9 +391,7 @@ function compareText(left, right) {
 }
 
 function shanghaiBucketStart(bucketKey) {
-  const match = /^(\d{4})-(\d{2})(?:-(\d{2}))?$/u.exec(
-    String(bucketKey || ''),
-  );
+  const match = /^(\d{4})-(\d{2})(?:-(\d{2}))?$/u.exec(String(bucketKey || ''));
   if (!match) throw new Error('INVALID_GIFT_TIMESTAMP');
   const year = Number(match[1]);
   const month = Number(match[2]) - 1;

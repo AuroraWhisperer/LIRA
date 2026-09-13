@@ -1,27 +1,28 @@
-# 礼物检测管道与醒目留言服务
+# 礼物服务器投影与醒目留言服务
 
 2026-09-13：main process 在远程 pull/history/SSE 协商 `X-Lira-Gift-Identity: 1`，验证成对可空 `giftVariantId`、`blindBoxVariantId`；旧 DTO 规范化为 null。首次导入写入事件身份列，后续不能把非空身份改成另一身份。旧历史只核对既有展示投影后幂等跳过，不补填身份或重放消费者。加班消费者仅匹配规则的完整身份；目录刷新不修改已结算记录。详见[礼物身份规格](../../../../specs/gift-identity-overtime.md)。
 
-> 涉及文件:[gift/detection-service.js](../../../../src/bilibili/gift/detection-service.js)、[gift/event-service.js](../../../../src/bilibili/gift/event-service.js)、[gift/consumer-registry.js](../../../../src/bilibili/gift/consumer-registry.js)、[gift/statistics-consumer.js](../../../../src/bilibili/gift/statistics-consumer.js)、[gift/normalizer.js](../../../../src/bilibili/gift/normalizer.js)、[gift/query-service.js](../../../../src/bilibili/gift/query-service.js)、[gift/blind-box-config.js](../../../../src/bilibili/gift/blind-box-config.js)、[gift/blind-box-analysis.js](../../../../src/bilibili/gift/blind-box-analysis.js)、[gift/index.js](../../../../src/bilibili/gift/index.js)、[gift-event-store.js](../../../../src/storage/gift-event-store.js)、[superchat-service.js](../../../../src/bilibili/superchat-service.js)、[domain-services.js](../../../../src/server/domain-services.js) 的 gifts/superChats 段
+> 涉及文件:[gift/projection-service.js](../../../../src/bilibili/gift/projection-service.js)、[gift/consumer-registry.js](../../../../src/bilibili/gift/consumer-registry.js)、[gift/statistics-consumer.js](../../../../src/bilibili/gift/statistics-consumer.js)、[gift/normalizer.js](../../../../src/bilibili/gift/normalizer.js)、[gift/query-service.js](../../../../src/bilibili/gift/query-service.js)、[gift/blind-box-config.js](../../../../src/bilibili/gift/blind-box-config.js)、[gift/blind-box-analysis.js](../../../../src/bilibili/gift/blind-box-analysis.js)、[gift/index.js](../../../../src/bilibili/gift/index.js)、[superchat-service.js](../../../../src/bilibili/superchat-service.js)、[domain-services.js](../../../../src/server/domain-services.js) 的 gifts/superChats 段
 
-本文档是 **礼物检测投影与醒目留言服务** 的客户端事实源:本地账本、消费者扇出、盲盒与冲刺统计、SC 状态机只在此成表。原始 B 站礼物解析与权威检测已迁移到 `D:/Work/lira-server`;本地只接收经服务器处理的 DTO 并投影到现有消费者。协议层解析(5 条礼物路径)见 [protocol.md](protocol.md) §6;`gift_events`/`super_chats` 表结构见 [storage.md](../storage.md) §3.3/§3.2;快照 `gifts/giftSprint/giftDetection/superChats` 字段见 [ws.md](../ws.md) §2;礼物与 SC 的 `/api/*` 端点清单见 [api.md](../api.md)。客户端投影与服务器协议详见 [server-authoritative-gift-detection_design.md](../../../specs/server-authoritative-gift-detection_design.md)。
+本文档是 **礼物服务器投影与醒目留言服务** 的客户端事实源:本地账本、消费者扇出、盲盒与冲刺统计、SC 状态机只在此成表。原始 B 站礼物解析与权威检测已迁移到 `D:/Work/lira-server`;本地只接收经服务器处理的 DTO 并投影到现有消费者。本地发送者身份读取见 [protocol.md](protocol.md) §6;`gift_events`/`super_chats` 表结构见 [storage.md](../storage.md) §3.3/§3.2;快照 `gifts/giftSprint/giftDetection/superChats` 字段见 [ws.md](../ws.md) §2;礼物与 SC 的 `/api/*` 端点清单见 [api.md](../api.md)。客户端投影与服务器协议详见 [server-authoritative-gift-detection_design.md](../../../../specs/server-authoritative-gift-detection_design.md)。
 
 **目录内模块边界:** `gift/sale-catalog.js` 拥有缓存、刷新与服务门面，`gift/sale-catalog-parser.js` 只做目录响应的纯解析/归一化；`users/user-info-service.js` 拥有网络、缓存与失败策略，`users/user-info-evidence.js` 只做用户证据和风险字段归一化。解析模块不得持有服务生命周期或重复缓存。
+
+远端目录的 `remote-catalog-cache.js` 独占刷新合并、ETag、停止代次及持久化后发布；`remote-catalog-contract.js` 校验响应封装、v2 礼物/盲盒关系并复用 v3 variant 契约；`remote-catalog-image-policy.js` 校验 B 站原图与配置服务器同源的不可变图片地址。缓存入口保留原具名导出以兼容既有消费者。
 
 ## 1. 架构总览
 
 ```
-MessageHandlers.handleGift (本地兼容解析, 见 protocol.md §6.4-6.7)
-  │ onGift (本地礼物回调已暂停)
+Electron remote gift controller (服务器 SSE / cursor / history)
+  │ importProcessedEvent / importProcessedHistoryRecord
   ▼
 createGiftService (gift/index.js)                    ← domainServices.gifts
-  ├─ GiftDetectionService (detection-service.js)     检测核心: progress→final 生命周期
+  ├─ GiftProjectionService     仅投影服务器 progress/final
   │    ├─ gift_events 共享账本 (storage.md §3.3)
   │    └─ ConsumerRegistry.dispatch(toStandardEvent) 扇出标准事件
   │         ├─ giftStatistics (statistics-consumer.js)  礼物冲刺统计
   │         └─ overtime     (overtime-consumer, 见 overtime.md)
-  ├─ query-service: getSnapshot/getHistory/getSprintSnapshot/盲盒统计
-  └─ event-service: repairGiftV2Events / 盲盒元数据 / 平台身份去重
+  └─ query-service: getSnapshot/getHistory/getSprintSnapshot/盲盒统计
 ```
 
 礼物边框事件由 `src/bilibili/gift/frame-config.js` 作为 final 行之后的具名 Frame Adapter 负责：
@@ -31,73 +32,57 @@ createGiftService (gift/index.js)                    ← domainServices.gifts
 零金额或低于阈值的行不广播。管理页预览通过 `/api/gifts/frame/preview` 使用独立的预览 ID，
 不污染实时去重集合。
 
-装配点:`domainServices` 创建 `createGiftService(baseContext, {onGiftFlushed, consumers:[overtimeConsumer], getOvertimeEpoch})`([domain-services.js:89-95](../../../../src/server/domain-services.js#L89-L95));`index.js` 把 `createGiftStatisticsConsumer` 与注入的加班机消费者一起注册([index.js:29-53](../../../../src/bilibili/gift/index.js#L29-L53))。迁移后本地 B 站客户端仍保持连接,但 `onGift` 回调在 `LOCAL_GIFT_DETECTION_ENABLED=false` 时只返回;服务器事件经 `importProcessedGiftEvent` 进入 `importProcessedEvent`,不调用本地 `detect`(见 §6.1)。
+装配点：`domainServices` 创建 `createGiftService`，注入 final 回调、加班消费者及 `getOvertimeEpoch`；`index.js` 注册礼物统计消费者并创建 `createGiftProjectionService`。原始检测、金额换算、连击定时器、盲盒匹配及旧记录修复实现已删除，没有本地检测模式或回退入口。本地 B 站连接通过独立的 `extractBilibiliGiftIdentity` 读取姓名、头像及舰队身份，不生成礼物记账事件。服务器事件经 `importProcessedGiftEvent` 进入投影器（见 §6.1）。
 
-## 2. 检测核心(GiftDetectionService)
+## 2. 服务器结果投影（GiftProjectionService）
 
-### 2.1 detect 主流程
+### 2.1 实时事件导入
 
-`detect(input)`([detection-service.js:38-96](../../../../src/bilibili/gift/detection-service.js#L38-L96)):
+`importProcessedEvent` 验证服务器 DTO 与本地授权 source，以 `source_id + lira-server:<eventId>` 查找已有投影。首次接收时冻结统计资格与加班 epoch；后续 `progress` 更新直接使用服务器字段，`final` 只完成一次落库和消费者分发。最终记录重复导入时校验内容一致，不重复触发统计、加班或边框。金额、数量、盲盒成本和盈亏均直接来自服务器，不进行本地推算。
 
-1. **消费者启用门控**:`giftStatisticsEligible = enableGiftSprint === 'true'` 且 `overtimeEpoch = getOvertimeEpoch()`;两者都无效时记录 `all-consumers-disabled` 直接忽略([detection-service.js:41-46](../../../../src/bilibili/gift/detection-service.js#L41-L46))。
-2. `normalizeGiftInput` 归一化(见 [normalizer.js:35-68](../../../../src/bilibili/gift/normalizer.js#L35-L68));无 `giftName/giftId` → `invalid-gift` 忽略;`totalPrice <= 0`(免费礼物)→ `non-positive-price` 忽略([detection-service.js:49-57](../../../../src/bilibili/gift/detection-service.js#L49-L57))。
-3. **连击归并**:`comboKey = extractComboRootKey(comboId || platformId)` 命中时以 comboKey 替换 `platformId`;`applyComboTotals` 取 `num/comboNum` 与 `totalPrice/comboTotalPrice` 的较大值并重算 `unitPrice`([detection-service.js:59-61](../../../../src/bilibili/gift/detection-service.js#L59-L61)、[detection-service.js:255-259](../../../../src/bilibili/gift/detection-service.js#L255-L259))。盲盒元数据覆盖见 §4。
-4. **去重**:按 `(platform_id, uid)`(或 uid 缺失时 `(platform_id, user_name)`)[findGiftByPlatformIdentity](../../../../src/bilibili/gift/event-service.js#L151-L164);未命中再查 `findRecentGiftCommandDuplicate`:先把 SEND_GIFT/BLIND_GIFT 与 COMBO_SEND 跨命令在 **±5s** 内同 uid/gift/num/价格的消息视为同组;若消息没有显式 combo/batch 标识,再通过存储端口 [gift-event-store.js](../../../../src/storage/gift-event-store.js) 按相同窗口合并同 CMD、同 uid/gift/num/价格但不同平台消息 ID 的通知。后一分支恢复旧版检测语义,可能把同一用户 5 秒内真实连续发送的两笔完全相同礼物合并。`status='deleted'` 忽略、`detection_status='final'` 幂等返回([detection-service.js](../../../../src/bilibili/gift/detection-service.js))。
-5. **进展合并**:已存在行走 `updateGiftEventIfProgressed`(Math.max 归并 num/total_price,`updateSprint:false` 不触碰 counted_in_sprint,[event-service.js:104-141](../../../../src/bilibili/gift/event-service.js#L104-L141)),并刷新 `last_platform_at_ms`([detection-service.js:72-80](../../../../src/bilibili/gift/detection-service.js#L72-L80));新事件 `insertProgressGift` 以 `detection_status='progress'` 落库,冻结 `first_detected_at_ms`、`gift_stats_eligible` 与 `overtime_epoch`([detection-service.js:230-253](../../../../src/bilibili/gift/detection-service.js#L230-L253))。
-6. **收尾**:先 `dispatch(row,'progress')`;`isPlatformFinal`(`COMBO_SEND` 命令或非 combo-key → 立即)走 `finalizeDetected`,否则 `scheduleFinalization`([detection-service.js:90-95](../../../../src/bilibili/gift/detection-service.js#L90-L95)、[detection-service.js:261-263](../../../../src/bilibili/gift/detection-service.js#L261-L263))。
+服务器事件在消费者关闭时仍会落库，使远端 cursor 能继续推进。UID 与原始包不会进入这条导入路径。实现见 [projection-service.js](../../../../src/bilibili/gift/projection-service.js)，传输与事务协议见 §6.1。
 
-### 2.2 progress → final 生命周期
+### 2.2 progress → final 与本地生命周期
 
-| 事实         | 值                                                                                                                                                                                                            | 出处                                                                                                                                                                            |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 静默收尾窗口 | `GIFT_FINALIZE_QUIET_MS = 10s`(自 `last_platform_at_ms` 起算,定时器 `unref`)                                                                                                                                  | [detection-service.js:14](../../../../src/bilibili/gift/detection-service.js#L14)、[detection-service.js:116-127](../../../../src/bilibili/gift/detection-service.js#L116-L127) |
-| 收尾         | `UPDATE … SET detection_status='final', finalized_at_ms=?`(仅限 `progress` 行)→ `dispatch('final')` + `onGiftFinalized`(即 server 的 `onGiftFlushed`,触发 `bilibili:gift` 快照广播,见 [ws.md](../ws.md) §3.1) | [detection-service.js:98-114](../../../../src/bilibili/gift/detection-service.js#L98-L114)                                                                                      |
-| 兜底 flush   | `flushPending({force})` 收尾本地 `progress` 行(dispose 时 `force:true`)；清空暂停期间禁止 flush，含 dispose，见 [清空静默协议](../storage.md#63-并发写入静默quiesce) | [detection-service.js](../../../../src/bilibili/gift/detection-service.js) |
-| 启动恢复     | `recover()` = flush 待决 + 重放「final 且 `gift_stats_eligible=1` 且 `gift_stats_delivered=0`」事件给消费者                                                                                                   | [detection-service.js:145-155](../../../../src/bilibili/gift/detection-service.js#L145-L155)                                                                                    |
-| 状态快照     | `getStatus()` → `{coreActive, consumers:{giftStatistics, overtime}, pendingCount}`;**`coreActive = giftStatistics \|\| overtime \|\| pendingCount > 0`**                                                      | [detection-service.js:157-168](../../../../src/bilibili/gift/detection-service.js#L157-L168)                                                                                    |
+客户端只在收到服务器 `final` 时收尾，没有静默窗口、主动 flush 或 raw detect 入口。创建、恢复、暂停、恢复写入和销毁都不会把已有 `progress` 自行改为 `final`。暂停/销毁取消的定时器仅用于消费者失败重试；暂停代次同时阻止旧事务的延迟回调在清库之后继续投递。
 
-检测列(`detection_status/first_detected_at_ms/last_platform_at_ms/finalized_at_ms/gift_stats_eligible/gift_stats_delivered/overtime_epoch`)由 giftDb 迁移 v4 升级(见 [storage.md](../storage.md) §4),消费语义见 ADR 0006:资格在**首个平台包**冻结,事件只从 `finalizeDetected()` 单一出口收尾。
+`recover()` 仅重投服务器来源的已确认 final 中尚未完成统计交付的行。`getStatus()` 保留现有快照字段，pendingCount 只统计服务器 progress。既有数据库列名和历史数据保留；旧本地原始礼物不再解析、合并、修复或消费。
 
 ### 2.3 消费者扇出与补偿重投
 
-`consumerRegistry.dispatch(event)` 遍历消费者逐一 `handle`,失败进 `failed` 列表且**不阻断其他消费者**([consumer-registry.js:11-23](../../../../src/bilibili/gift/consumer-registry.js#L11-L23));标准事件 `toStandardEvent` 冻结为 `{phase, giftEventId, gift, eligibility}`([detection-service.js:265-276](../../../../src/bilibili/gift/detection-service.js#L265-L276))。
+[consumer-registry.js](../../../../src/bilibili/gift/consumer-registry.js) 逐一分发冻结的 `{phase, giftEventId, gift, eligibility}`，单个消费者失败不阻断其他消费者。
 
-| 消费者   | name             | 行为                                                                                                                                 | 出处                                                                                       |
-| -------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
-| 礼物统计 | `giftStatistics` | 仅 `final` 且 `giftStatistics` 资格;`BEGIN IMMEDIATE` 内写 `counted_in_sprint = total_price>0?1:0` 与 `gift_stats_delivered=1`(幂等) | [statistics-consumer.js:8-36](../../../../src/bilibili/gift/statistics-consumer.js#L8-L36) |
-| 加班机   | `overtime`       | 按 `overtime_epoch` 结算秒数,见 [overtime.md](../overtime.md)                                                                        | [overtime-consumer.js:9-12](../../../../src/overtime/overtime-consumer.js#L9-L12)          |
+| 消费者         | 行为                                                                                             | 出处                                                                           |
+| -------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
+| giftStatistics | final 且有统计资格时，在事务内更新 counted_in_sprint 和 gift_stats_delivered，重复消费不重复计入 | [statistics-consumer.js](../../../../src/bilibili/gift/statistics-consumer.js) |
+| overtime       | 按冻结的 overtime_epoch 与完整礼物身份结算秒数                                                   | [overtime.md](../overtime.md)                                                  |
 
-**补偿重投**(final 事件首投失败时):指数退避 `delay = min(30s, 1000 * 2^attempt)`,最多 5 次尝试([detection-service.js:15](../../../../src/bilibili/gift/detection-service.js#L15)、[detection-service.js:201-217](../../../../src/bilibili/gift/detection-service.js#L201-L217));重试前校验行仍为 `final` 且未投递;`recover()` 覆盖进程重启后的补投。这是 **at-least-once 投递 + 幂等业务结果**(ADR 0006 §决策)。
+final 分发失败后按 `min(30s, 1000 * 2^attempt)` 退避重投；指数上限为 5，重试次数不限制为 5 次，成功或事件不再存在时停止。消费者各自保证业务结果幂等。需要与远端 cursor 原子提交时，final 分发注册为提交后回调，回滚不触发消费者。
 
-## 3. event-service:持久化与修复
+## 3. 历史导入与存储边界
 
-- `repairGiftV2Events(context)`([event-service.js:39-102](../../../../src/bilibili/gift/event-service.js#L39-L102)):启动修复链的一环(见 [server-core.md](../server-core.md) §5)。扫描 `status='active'`、`cmd LIKE 'SEND_GIFT_V2%'`、`raw_json != ''` 且价格为零、平台身份为空或仍是旧版非 combo/batch 身份的历史行(**LIMIT 200**),从 `raw_json` 重新解析并先应用累计 combo 数量/金额;若与现存平台身份重复则合并并删行,否则更新规范化字段([event-service.js:45-104](../../../../src/bilibili/gift/event-service.js#L45-L104),事务包住)。
-- `extractComboRootKey(platformId)`([event-service.js:16-21](../../../../src/bilibili/gift/event-service.js#L16-L21)):platformId 含 `combo`/`batch`(小写)即返回原值作为连击根 key(不再剥离尾部时间戳 —— 连击聚合已改为 §2.1 的 progress 合并 + 10s 静默收尾,旧文档的 `giftComboPending` 10s TTL 内存缓冲已移除)。
-- 平台身份、跨命令与无 combo/batch 标识的同命令近期查重见 §2.1。
+`importProcessedHistoryRecord` 独立导入服务器历史 final，校验 source 和重复记录一致性，并把历史行标为不参与统计/加班。历史导入不派发消费者或边框事件。`normalizeGiftRow` 仅整理数据库输出类型；原始礼物输入归一化、近期命令查重、连击合并及 `repairGiftV2Events` 均已删除。数据库 schema 和已有历史记录不因删除代码而被清空。
 
-## 4. 盲盒:协议标记 → 配置重命名 → 价值覆盖
+## 4. 盲盒：服务器结果与客户端展示
 
-当前远端收礼区分常规直送礼物、盲盒商品和盲盒产物。目录 `isBlindBox` 表示盒子本身，产物由准确 ID 的奖池关系关联；服务器按 REQ-GIFT-006 校验有效关系/活动身份后，可为上游漏标的产物补全事件 `isBlindBox`、来源 `blindBoxId`、名称、成本和盈亏。客户端导入这些权威字段，不根据目录自行改变账本。`public/js/admin/gifts/recent.js` 根据事件标记与冻结来源身份取对应盲盒图片；无身份的旧记录仅允许 ID、名称唯一匹配，资料不足或歧义时用占位图，特殊配色还须名称匹配；有限数字盈亏直接显示符号和盈利/亏损颜色，不依赖可空盒名，未知值显示“盈亏待确认”。心动盲盒单盒 15 元、棉花糖 9 元对应 -6 元，爱心抱枕 16 元对应 +1 元。共享奖品来源仍有歧义时成本/盈亏保留未知，旧记录不自动重算。以下本地原始解析逻辑为保留的兼容路径，当前远端流程见 §9。
+当前远端收礼区分常规直送礼物、盲盒商品和盲盒产物。目录 `isBlindBox` 表示盒子本身，产物由准确 ID 的奖池关系关联；服务器按 REQ-GIFT-006 校验有效关系/活动身份后，可为上游漏标的产物补全事件 `isBlindBox`、来源 `blindBoxId`、名称、成本和盈亏。客户端导入这些权威字段，不根据目录自行改变账本。`public/js/admin/gifts/recent.js` 根据事件标记与冻结来源身份取对应盲盒图片；无身份的旧记录仅允许 ID、名称唯一匹配，资料不足或歧义时用占位图，特殊配色还须名称匹配；有限数字盈亏直接显示符号和盈利/亏损颜色，不依赖可空盒名，未知值显示“盈亏待确认”。心动盲盒单盒 15 元、棉花糖 9 元对应 -6 元，爱心抱枕 16 元对应 +1 元。共享奖品来源仍有歧义时成本/盈亏保留未知，旧记录不自动重算。当前远端流程见 §9。
 
 目录显示与收礼判定分开：`public/js/shared/gift-catalog-roles.js` 根据完整 schema 2 快照生成三类显示标签，`public/js/admin/overtime.js` 在礼物选择器展示标签与对应奖池；服务器网页的 schema 3 标签遵循完整活动身份。索引只随既有目录加载/更新重建，不增加实时传输字段、网络请求或持久化分类，不用于账本判定。共享产物列出全部奖池；身份不符时不显示推测标签，旧请求不得恢复更新后已移除的奖池关系。
 
-协议层只做**标记**(见 [protocol.md](protocol.md) §6.5);进入检测管道后 `applyBlindBoxMetadata(context, gift)`([event-service.js:23-37](../../../../src/bilibili/gift/event-service.js#L23-L37)):
-
-1. `matchBlindBox(context, blindBoxName) || matchBlindBox(context, giftName)`([blind-box-config.js:47-51](../../../../src/bilibili/gift/blind-box-config.js#L47-L51)):配置 `giftBlindBoxConfig` 形如 `[{name, price, outputs:[{name, price} 或 "字符串" ]}]`,outputs 按礼物名建 Map `{blindBoxName, boxPrice, giftPrice}`;按 `settings` 原始串缓存于 `state.blindBoxCache`([blind-box-config.js:5-45](../../../../src/bilibili/gift/blind-box-config.js#L5-L45))。
-2. 命中后:标记 `isBlindBox`、重命名为配置盒名;`blindBoxPrice` 为空则补 `boxPrice * num`;`giftPrice > 0` 时用 `giftPrice * num` 覆盖 `totalPrice`;**`blindProfit = totalPrice - blindBoxPrice`**([event-service.js:24-36](../../../../src/bilibili/gift/event-service.js#L24-L36))。
+客户端直接保存服务器的盲盒 ID、名称、成本和盈亏，不按礼物名匹配盒子或重新计算价值。[blind-box-config.js](../../../../src/bilibili/gift/blind-box-config.js) 仅验证待同步的盲盒设置格式，实际收礼判定由服务器处理。
 
 盲盒统计/分析查询只读「final + `gift_stats_eligible` + `is_blind_box=1` + `blind_profit` 非空」的**当日**行(北京时间零点切分,[blind-box-analysis.js:148-172](../../../../src/bilibili/gift/blind-box-analysis.js#L148-L172)),视图 `users/boxes/records` 与排序/分页定义见 [blind-box-analysis.js:10-15](../../../../src/bilibili/gift/blind-box-analysis.js#L10-L15)。
 
 ## 5. 礼物冲刺与查询
 
-| 事实       | 值                                                                                                                                                                                                                                                                                                             | 出处                                                                                                                             |
-| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| 开关/目标  | `enableGiftSprint`(默认 `'true'`)、`giftSprintTargetRmb`(默认 `'0'`,见 [storage.md](../storage.md) §7)                                                                                                                                                                                                         | [settings-store.js:19-21](../../../../src/storage/settings-store.js#L19-L21)                                                     |
-| 礼物边框   | `giftFrameEnabled`(默认 `'false'`)、`giftFrameThresholdRmb`(默认 `'20'`)、`giftFrameTheme='woodland-bloom'`、`giftFrameMotionMode='auto'`                                                                                                                                                                      | [frame-config.js](../../../../src/bilibili/gift/frame-config.js)、[settings-store.js](../../../../src/storage/settings-store.js) |
-| 水晶球价值 | `CRYSTAL_BALL_VALUE_RMB = 100`(RMB)                                                                                                                                                                                                                                                                            | [query-service.js:6](../../../../src/bilibili/gift/query-service.js#L6)                                                          |
-| 冲刺快照   | `receivedRmb = SUM(total_price)`(final + 资格 + `counted_in_sprint=1`);`remainingRmb = max(0, target - received)`;**`remainingCrystalBalls = ceil(remaining / 100)`**                                                                                                                                          | [query-service.js:99-122](../../../../src/bilibili/gift/query-service.js#L99-L122)                                               |
+| 事实       | 值                                                                                                                                                                                                                                                                                                                                                                                                                                                                | 出处                                                                                                                             |
+| ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| 开关/目标  | `enableGiftSprint`(默认 `'true'`)、`giftSprintTargetRmb`(默认 `'0'`,见 [storage.md](../storage.md) §7)                                                                                                                                                                                                                                                                                                                                                            | [settings-store.js:19-21](../../../../src/storage/settings-store.js#L19-L21)                                                     |
+| 礼物边框   | `giftFrameEnabled`(默认 `'false'`)、`giftFrameThresholdRmb`(默认 `'20'`)、`giftFrameTheme='woodland-bloom'`、`giftFrameMotionMode='auto'`                                                                                                                                                                                                                                                                                                                         | [frame-config.js](../../../../src/bilibili/gift/frame-config.js)、[settings-store.js](../../../../src/storage/settings-store.js) |
+| 水晶球价值 | `CRYSTAL_BALL_VALUE_RMB = 100`(RMB)                                                                                                                                                                                                                                                                                                                                                                                                                               | [query-service.js:6](../../../../src/bilibili/gift/query-service.js#L6)                                                          |
+| 冲刺快照   | `receivedRmb = SUM(total_price)`(final + 资格 + `counted_in_sprint=1`);`remainingRmb = max(0, target - received)`;**`remainingCrystalBalls = ceil(remaining / 100)`**                                                                                                                                                                                                                                                                                             | [query-service.js:99-122](../../../../src/bilibili/gift/query-service.js#L99-L122)                                               |
 | 列表快照   | `getGiftSnapshot` 最近 **30** 条(final + 资格 + 付费,[query-service.js](../../../../src/bilibili/gift/query-service.js));`getGiftHistory` 解析当前授权 source，分页 limit ≤ **100**，以 allowlist `sortField: created_at/gift_name/price/remarks` + `sortDirection: asc/desc` 做复合 keyset 排序并返回 `total/totalPages`([query-service.js](../../../../src/bilibili/gift/query-service.js)、[gift-query-store.js](../../../../src/storage/gift-query-store.js)) | —                                                                                                                                |
-| 重置       | `resetSprintProgress` 全表 `counted_in_sprint=0`                                                                                                                                                                                                                                                               | [query-service.js:8-19](../../../../src/bilibili/gift/query-service.js#L8-L19)                                                   |
+| 重置       | `resetSprintProgress` 全表 `counted_in_sprint=0`                                                                                                                                                                                                                                                                                                                                                                                                                  | [query-service.js:8-19](../../../../src/bilibili/gift/query-service.js#L8-L19)                                                   |
 
 `counted_in_sprint` 由 `giftStatistics` 消费者在 **final** 时落定(§2.3),因此冲刺统计天然只含已收尾事件。
 
@@ -114,7 +99,7 @@ Electron 只在 main process 使用授权 DeviceBearer 调用 `GET /api/device/g
 
 具备历史能力的服务按 §9 执行 bootstrap 与来源分区恢复；无历史能力的旧服务只保存 baseline 并显式处于 `LEGACY_PARTIAL`。历史页及 final cursor 和本地礼物投影在同一事务提交。SSE 断线、进程崩溃或漏包后以 final cursor pull 恢复，progress 不补拉；当前幂等身份包含 source 与远端事件身份，重复 final 不重复统计、加班结算或 `gift:frame`。
 
-本地 B 站连接仍负责弹幕、点歌、SC、用户信息和小游戏;仅礼物 detector 回调暂停。B 站上游 WebSocket/REST 断线发生在服务器收到事件之前时没有历史重放或零丢失保证。单进程 broker 不承诺多实例 fan-out,多实例部署需另行设计。
+本地 B 站连接仍负责弹幕、点歌、SC、用户信息和小游戏；礼物只保留身份提示解析，记账回调已移除。B 站上游 WebSocket/REST 断线发生在服务器收到事件之前时没有历史重放或零丢失保证。单进程 broker 不承诺多实例 fan-out,多实例部署需另行设计。
 
 ## 7. 醒目留言服务(superchat-service)
 
@@ -130,16 +115,13 @@ Electron 只在 main process 使用授权 DeviceBearer 调用 `GET /api/device/g
 
 ## 8. 关键常数速查
 
-| 参数                    | 值                              | 出处                                                                                                                                                                            |
-| ----------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 静默收尾窗口            | 10s                             | [detection-service.js:14](../../../../src/bilibili/gift/detection-service.js#L14)                                                                                               |
-| 消费者重试退避          | 1s×2^attempt,上限 30s,最多 5 次 | [detection-service.js:15](../../../../src/bilibili/gift/detection-service.js#L15)、[detection-service.js:204-205](../../../../src/bilibili/gift/detection-service.js#L204-L205) |
-| 近期命令查重窗口        | ±5s                             | [event-service.js:192-193](../../../../src/bilibili/gift/event-service.js#L192-L193)                                                                                            |
-| repairGiftV2Events 上限 | 200 行/次                       | [event-service.js:50](../../../../src/bilibili/gift/event-service.js#L50)                                                                                                       |
-| 水晶球价值              | 100 RMB                         | [query-service.js:6](../../../../src/bilibili/gift/query-service.js#L6)                                                                                                         |
-| 剩余水晶球              | ceil                            | [query-service.js:119](../../../../src/bilibili/gift/query-service.js#L119)                                                                                                     |
-| 列表快照 / 历史 limit   | 30 / ≤100                       | [query-service.js:27](../../../../src/bilibili/gift/query-service.js#L27)、[query-service.js:34](../../../../src/bilibili/gift/query-service.js#L34)                            |
-| SC 置顶/入库阈值        | 2 RMB                           | [superchat-service.js:14-15](../../../../src/bilibili/superchat-service.js#L14-L15)                                                                                             |
+| 参数                  | 值                                 | 出处                                                                                                                                                 |
+| --------------------- | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 消费者重试退避        | 1s×2^attempt，上限 30s，成功后停止 | [projection-service.js](../../../../src/bilibili/gift/projection-service.js)                                                                         |
+| 水晶球价值            | 100 RMB                            | [query-service.js:6](../../../../src/bilibili/gift/query-service.js#L6)                                                                              |
+| 剩余水晶球            | ceil                               | [query-service.js:119](../../../../src/bilibili/gift/query-service.js#L119)                                                                          |
+| 列表快照 / 历史 limit | 30 / ≤100                          | [query-service.js:27](../../../../src/bilibili/gift/query-service.js#L27)、[query-service.js:34](../../../../src/bilibili/gift/query-service.js#L34) |
+| SC 置顶/入库阈值      | 2 RMB                              | [superchat-service.js:14-15](../../../../src/bilibili/superchat-service.js#L14-L15)                                                                  |
 
 ## 9. 完整礼物投影过渡（Accepted，实施中）
 

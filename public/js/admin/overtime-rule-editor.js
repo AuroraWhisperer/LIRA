@@ -9,7 +9,6 @@ import {
 import { createOvertimeRuleEffectEditor } from './overtime-rule-effect-editor.js';
 import { setGiftImage } from '../shared/gift-image-fallback.js';
 
-
 function describeBinding(id, identity) {
   return `ID ${id} · 标价 ¥${(identity.priceRaw / 1000).toFixed(2)}${identity.bagGift ? ' · 背包礼物' : ''}`;
 }
@@ -123,9 +122,12 @@ export function createOvertimeRuleEditor(root, markDirty, dependencies = {}) {
     name.textContent = rule.giftName || `礼物 ${rule.giftId}`;
     const binding = documentRef.createElement('small');
     binding.dataset.giftBinding = 'true';
-    binding.textContent = rule.bindingStatus === 'needs-selection'
-      ? '待重新选择礼物 · 原规则已保留，确认前不生效'
-      : rule.giftIdentity ? describeBinding(rule.giftId, rule.giftIdentity) : '';
+    binding.textContent =
+      rule.bindingStatus === 'needs-selection'
+        ? '待重新选择礼物 · 原规则已保留，确认前不生效'
+        : rule.giftIdentity
+          ? describeBinding(rule.giftId, rule.giftIdentity)
+          : '';
     const summary = documentRef.createElement('small');
     summary.className = 'overtime-rule-summary';
     summary.dataset.ruleSummary = 'true';
@@ -149,8 +151,11 @@ export function createOvertimeRuleEditor(root, markDirty, dependencies = {}) {
     );
     controls.append(enabledLabel);
     if (dependencies.onReselect) {
-      controls.append(ruleButton('重新选择礼物', '保留规则设置，重新选择礼物', false,
-        () => dependencies.onReselect(row)));
+      controls.append(
+        ruleButton('重新选择礼物', '保留规则设置，重新选择礼物', false, () =>
+          dependencies.onReselect(row),
+        ),
+      );
     }
     const moveUp = ruleButton('↑', '将这条规则上移', index === 0, () =>
       moveRule(row, -1),
@@ -397,10 +402,15 @@ export function createOvertimeRuleEditor(root, markDirty, dependencies = {}) {
       row.dataset.giftName = gift.name;
       row.dataset.giftIdentity = JSON.stringify(gift.giftIdentity || null);
       row.dataset.imagePath = gift.imagePath || '';
-      setGiftImage(row.querySelector('.overtime-rule-gift img'), gift.imagePath);
-      row.querySelector('.overtime-rule-identity strong').textContent = gift.name;
+      setGiftImage(
+        row.querySelector('.overtime-rule-gift img'),
+        gift.imagePath,
+      );
+      row.querySelector('.overtime-rule-identity strong').textContent =
+        gift.name;
       row.querySelector('[data-gift-binding]').textContent = gift.giftIdentity
-        ? describeBinding(gift.id, gift.giftIdentity) : '';
+        ? describeBinding(gift.id, gift.giftIdentity)
+        : '';
       markDirty();
       return row;
     },

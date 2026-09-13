@@ -31,10 +31,9 @@ test('license window controls dispatch actions and reflect maximize events', () 
     'utf8',
   );
   const elements = new Map(
-    ['licenseMinimizeBtn', 'licenseMaximizeBtn', 'licenseCloseBtn'].map((id) => [
-      id,
-      new EventTarget(),
-    ]),
+    ['licenseMinimizeBtn', 'licenseMaximizeBtn', 'licenseCloseBtn'].map(
+      (id) => [id, new EventTarget()],
+    ),
   );
   const maximizeButton = elements.get('licenseMaximizeBtn');
   maximizeButton.dataset = {};
@@ -50,7 +49,9 @@ test('license window controls dispatch actions and reflect maximize events', () 
     closeWindow: () => calls.push('close'),
     onWindowMaximized: (callback) => {
       onMaximized = callback;
-      return () => { unsubscribed = true; };
+      return () => {
+        unsubscribed = true;
+      };
     },
   };
 
@@ -84,7 +85,9 @@ test('license page is independent from existing onboarding and exposes only thre
   assert.match(html, /id="licenseAccountName"/);
   assert.match(html, /id="licensePassword"/);
   assert.match(html, /id="licenseActivationCode"/);
-  assert.match(html, /激活并进入/);
+  assert.match(html, /登录并进入/);
+  assert.match(html, /登录已有账号/);
+  assert.match(html, /注册新账号/);
   assert.doesNotMatch(html, /跳过/);
 });
 
@@ -114,7 +117,10 @@ test('license page replaces the form with an accessible gift initialization card
     'utf8',
   );
   assert.match(html, /id="licenseLoginCard"/);
-  assert.match(html, /id="giftCatalogInitializationCard"[^>]*aria-busy="true"[^>]*hidden/s);
+  assert.match(
+    html,
+    /id="giftCatalogInitializationCard"[^>]*aria-busy="true"[^>]*hidden/s,
+  );
   assert.match(html, /id="giftCatalogInitializationProgress"[^>]*max="100"/s);
   assert.match(html, /id="giftCatalogInitializationStatus"[^>]*role="status"/s);
   assert.match(html, /id="giftCatalogInitializationRetryBtn"/);
@@ -127,7 +133,10 @@ test('license page replaces the form with an accessible gift initialization card
     'utf8',
   );
   assert.match(script, /正在为你准备直播工具/);
-  assert.doesNotMatch(script, /initializationPhase|initializationCount|currentGiftName|礼物图片|礼物目录/);
+  assert.doesNotMatch(
+    script,
+    /initializationPhase|initializationCount|currentGiftName|礼物图片|礼物目录/,
+  );
   assert.match(styles, /\.license-initialization-card\s*\{/);
   assert.match(styles, /\.license-progress::-webkit-progress-value\s*\{/);
 });
@@ -156,7 +165,7 @@ test('license renderer re-enables both actions after a failed async attempt', ()
 
 test('cloud song sync requires an explicit overwrite confirmation', () => {
   const script = fs.readFileSync(
-    path.join(ROOT, 'public', 'js', 'admin', 'import.js'),
+    path.join(ROOT, 'public', 'js', 'admin', 'cloud-song-sync.js'),
     'utf8',
   );
   const dialogIndex = script.indexOf('showConfirmationDialog({');
@@ -173,12 +182,12 @@ test('cloud song sync requires an explicit overwrite confirmation', () => {
 
 test('cloud song sync snapshots local songs after confirmation', () => {
   const script = fs.readFileSync(
-    path.join(ROOT, 'public', 'js', 'admin', 'import.js'),
+    path.join(ROOT, 'public', 'js', 'admin', 'cloud-song-sync.js'),
     'utf8',
   );
   const confirmedGuardIndex = script.indexOf('if (!confirmed)');
   const snapshotIndex = script.indexOf(
-    "const songs = [...(window['AdminApp']?.state?.getSongs?.() || [])];",
+    'const songs = [...(getSongs() || [])];',
   );
   const syncIndex = script.indexOf(
     'window.liraLicense.syncSongs(songs)',
@@ -197,7 +206,7 @@ test('cloud song sync snapshots local songs after confirmation', () => {
 
 test('cloud song sync compares against the cloud count and records the last sync locally', () => {
   const script = fs.readFileSync(
-    path.join(ROOT, 'public', 'js', 'admin', 'import.js'),
+    path.join(ROOT, 'public', 'js', 'admin', 'cloud-song-sync.js'),
     'utf8',
   );
   const html = fs.readFileSync(
@@ -223,7 +232,7 @@ test('cloud song sync compares against the cloud count and records the last sync
 
 test('cloud song sync explains which song failed validation', () => {
   const script = fs.readFileSync(
-    path.join(ROOT, 'public', 'js', 'admin', 'import.js'),
+    path.join(ROOT, 'public', 'js', 'admin', 'cloud-song-sync.js'),
     'utf8',
   );
   assert.match(script, /INVALID_SONG/);
@@ -233,7 +242,7 @@ test('cloud song sync explains which song failed validation', () => {
 
 test('song background controls wait for the initial response before accepting changes', () => {
   const script = fs.readFileSync(
-    path.join(ROOT, 'public', 'js', 'admin', 'import.js'),
+    path.join(ROOT, 'public', 'js', 'admin', 'song-background.js'),
     'utf8',
   );
   assert.match(script, /fileInput\.disabled = isBusy/);
@@ -264,6 +273,12 @@ test('account settings show non-sensitive profile data without device-management
   assert.match(html, /id="licenseDeviceName"/);
   assert.match(html, /忘记密码？[\s\S]*?请联系管理员重置密码。/);
   assert.doesNotMatch(html, /安全存储|设备私钥|首次授权|激活密钥|设备管理/);
-  assert.doesNotMatch(script, /createPairingCode|listPairingCodes|revokePairingCode/);
-  assert.doesNotMatch(preload, /createPairingCode|listPairingCodes|revokePairingCode/);
+  assert.doesNotMatch(
+    script,
+    /createPairingCode|listPairingCodes|revokePairingCode/,
+  );
+  assert.doesNotMatch(
+    preload,
+    /createPairingCode|listPairingCodes|revokePairingCode/,
+  );
 });

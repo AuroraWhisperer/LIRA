@@ -34,7 +34,9 @@ if (args.length < 2) {
 const [exePath, expectedPublisher] = args;
 
 if (!expectedPublisher.trim()) {
-  console.error('[verify-signature] Expected publisher must not be empty or blank.');
+  console.error(
+    '[verify-signature] Expected publisher must not be empty or blank.',
+  );
   process.exit(1);
 }
 
@@ -109,19 +111,22 @@ try {
 
   // 检查发布者名称
   if (!sigInfo.SignerCertificateRawData) {
-    console.error(
-      '[verify-signature] ❌ Signer certificate data is missing.',
-    );
+    console.error('[verify-signature] ❌ Signer certificate data is missing.');
     process.exit(1);
   }
 
   // Decode CN from the certificate, not its escaped/quoted Subject display text.
-  const certificate = new X509Certificate(Buffer.from(sigInfo.SignerCertificateRawData, 'base64'));
+  const certificate = new X509Certificate(
+    Buffer.from(sigInfo.SignerCertificateRawData, 'base64'),
+  );
   const commonName = certificate.toLegacyObject().subject.CN;
   const expectedLower = expectedPublisher.toLowerCase();
 
   // Multiple CN attributes are ambiguous and are returned as an array.
-  if (typeof commonName !== 'string' || commonName.toLowerCase() !== expectedLower) {
+  if (
+    typeof commonName !== 'string' ||
+    commonName.toLowerCase() !== expectedLower
+  ) {
     console.error(`[verify-signature] ❌ Publisher mismatch:`);
     console.error(`  Expected: ${expectedPublisher}`);
     console.error(`  Actual: ${sigInfo.SignerCertificateSubject}`);

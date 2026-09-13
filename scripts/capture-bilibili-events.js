@@ -9,6 +9,7 @@ const {
 } = require('../src/bilibili/danmaku/websocket-connection');
 const packetParser = require('../src/bilibili/packet-parser');
 const { cleanText } = require('../src/shared/utils');
+const { resolveDataPaths } = require('../src/shared/data-paths');
 
 const DEFAULT_DURATION_SECONDS = 300;
 
@@ -84,10 +85,7 @@ function buildCaptureRecord(message, receivedAt) {
 
 function shouldCaptureMessage(message, giftOnly) {
   if (!giftOnly) return true;
-  return packetParser.isBilibiliGiftLikeCommand(
-    message && message.cmd,
-    new Set(),
-  );
+  return packetParser.isBilibiliGiftLikeCommand(message && message.cmd);
 }
 
 async function captureEvents(options) {
@@ -143,19 +141,24 @@ async function captureEvents(options) {
   const writerClosed = new Promise((resolve) => {
     writer.once('close', () => {
       if (!writer.writableFinished && !failure) {
-        stop('output-error', new Error('Capture output closed before finishing'));
+        stop(
+          'output-error',
+          new Error('Capture output closed before finishing'),
+        );
       }
       resolve();
     });
   });
 
   function writeRecord(record) {
-    pendingWrites = pendingWrites.then(async () => {
-      if (failure) return;
-      if (!writer.write(`${JSON.stringify(record)}\n`)) {
-        await once(writer, 'drain', { signal: writeWait.signal });
-      }
-    }).catch(onWriterError);
+    pendingWrites = pendingWrites
+      .then(async () => {
+        if (failure) return;
+        if (!writer.write(`${JSON.stringify(record)}\n`)) {
+          await once(writer, 'drain', { signal: writeWait.signal });
+        }
+      })
+      .catch(onWriterError);
     return pendingWrites;
   }
 
@@ -179,23 +182,34 @@ async function captureEvents(options) {
     }
   });
   connection.on('close', () => {
-    stop('connection-closed', connected ? null : new Error('弹幕 WebSocket 连接已关闭。'));
+    stop(
+      'connection-closed',
+      connected ? null : new Error('弹幕 WebSocket 连接已关闭。'),
+    );
   });
   connection.on('error', (error) => {
     console.warn('[Capture] WebSocket reported an error');
-    stop('connection-error', error instanceof Error ? error : new Error('弹幕 WebSocket 连接失败。'));
+    stop(
+      'connection-error',
+      error instanceof Error ? error : new Error('弹幕 WebSocket 连接失败。'),
+    );
   });
 
   try {
     await once(writer, 'open', { signal: writeWait.signal });
     process.once('SIGINT', onSignal);
     // Own the open timeout here so stopping during connect cancels every wait.
-    const opened = new Promise((resolve) => connection.on('open', () => {
-      connected = true;
-      resolve();
-    }));
+    const opened = new Promise((resolve) =>
+      connection.on('open', () => {
+        connected = true;
+        resolve();
+      }),
+    );
     connectTimer = setTimeout(() => {
-      stop('connection-error', new Error('弹幕 WebSocket 连接超时，请稍后重试。'));
+      stop(
+        'connection-error',
+        new Error('弹幕 WebSocket 连接超时，请稍后重试。'),
+      );
     }, 8000);
     const connecting = connection.connect(
       `wss://${host.host}:${host.wss_port || 443}/sub`,
@@ -265,7 +279,10 @@ async function loadBilibiliDesktopAuth(userDataPath) {
   }
 
   const { app } = require('electron');
-  app.setPath('userData', userDataPath);
+  const browserDir = resolveDataPaths(userDataPath).browserDir;
+  const profileDir = fs.existsSync(browserDir) ? browserDir : userDataPath;
+  app.setPath('userData', profileDir);
+  app.setPath('sessionData', profileDir);
   await app.whenReady();
 
   const auth = require('../src/electron/bilibili-auth');

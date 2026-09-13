@@ -8,10 +8,7 @@ function assertProfileResponse(response) {
   return response;
 }
 
-export async function initLicenseAccountDevice({
-  documentRef,
-  licenseBridge,
-}) {
+export async function initLicenseAccountDevice({ documentRef, licenseBridge }) {
   const section = documentRef.getElementById('licenseAccountDevice');
   if (!section || !licenseBridge?.getProfile) return;
 

@@ -1,6 +1,7 @@
 'use strict';
 
 const path = require('node:path');
+const { migrateCacheData } = require('../src/storage/data-directory-migration');
 const {
   createRemoteGiftCatalogCache,
 } = require('../src/bilibili/gift/remote-catalog-cache');
@@ -21,6 +22,7 @@ async function run(options = {}) {
       process.env.LIRA_DATA_DIR ||
       path.join(__dirname, '..', 'data'),
   );
+  migrateCacheData({ dataDir });
   const remote = createRemoteLicenseClient({
     baseUrl: options.baseUrl,
     fetchImpl: options.fetchImpl,

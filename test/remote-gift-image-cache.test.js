@@ -42,7 +42,14 @@ test('downloads configured server images into a reusable local cache', async () 
       name: '示例礼物',
       imagePath: '/overtime-gift-images/a.webp',
     });
-    assert.equal(fs.readFileSync(path.join(dataDir, 'overtime-gift-images', 'a.webp')).equals(webpBytes()), true);
+    assert.equal(
+      fs
+        .readFileSync(
+          path.join(dataDir, 'cache', 'overtime-gift-images', 'a.webp'),
+        )
+        .equals(webpBytes()),
+      true,
+    );
 
     const second = await cache.cacheGifts([
       {
@@ -55,7 +62,7 @@ test('downloads configured server images into a reusable local cache', async () 
     assert.equal(calls, 1);
 
     fs.writeFileSync(
-      path.join(dataDir, 'overtime-gift-images', 'a.webp'),
+      path.join(dataDir, 'cache', 'overtime-gift-images', 'a.webp'),
       'not an image',
     );
     assert.equal(
@@ -102,25 +109,45 @@ test('downloads trusted Bilibili images with stable id-specific cache names', as
         '/overtime-gift-images/102-aa0c9beac01c7884.webp',
       ],
     );
-    assert.deepEqual(
-      calls.map((call) => call.url).sort(),
-      [sourceUrl, sourceUrl],
+    assert.deepEqual(calls.map((call) => call.url).sort(), [
+      sourceUrl,
+      sourceUrl,
+    ]);
+    assert.equal(
+      calls[0].options.headers.Referer,
+      'https://live.bilibili.com/',
     );
-    assert.equal(calls[0].options.headers.Referer, 'https://live.bilibili.com/');
     assert.equal(calls[0].options.headers['User-Agent'], 'Mozilla/5.0 LIRA/4');
     assert.equal(
-      fs.existsSync(path.join(dataDir, 'overtime-gift-images', '101-aa0c9beac01c7884.webp')),
+      fs.existsSync(
+        path.join(
+          dataDir,
+          'cache',
+          'overtime-gift-images',
+          '101-aa0c9beac01c7884.webp',
+        ),
+      ),
       true,
     );
     assert.equal(
-      fs.existsSync(path.join(dataDir, 'overtime-gift-images', '102-aa0c9beac01c7884.webp')),
+      fs.existsSync(
+        path.join(
+          dataDir,
+          'cache',
+          'overtime-gift-images',
+          '102-aa0c9beac01c7884.webp',
+        ),
+      ),
       true,
     );
     assert.deepEqual(
       progress.map((value) => value.completed).sort((a, b) => a - b),
       [1, 2],
     );
-    assert.equal(progress.every((value) => value.total === 2 && value.available > 0), true);
+    assert.equal(
+      progress.every((value) => value.total === 2 && value.available > 0),
+      true,
+    );
 
     const reused = await cache.cacheGifts([
       { id: '101', name: '同名礼物', sourceUrl },
@@ -137,8 +164,7 @@ test('stores Bilibili APNG artwork with a locally served PNG extension', async (
     path.join(os.tmpdir(), 'lira-remote-gift-images-apng-'),
   );
   try {
-    const sourceUrl =
-      'https://s1.hdslb.com/bfs/live/source.vnd.mozilla.apng';
+    const sourceUrl = 'https://s1.hdslb.com/bfs/live/source.vnd.mozilla.apng';
     const calls = [];
     const cache = createRemoteGiftImageCache({
       dataDir,
@@ -163,6 +189,7 @@ test('stores Bilibili APNG artwork with a locally served PNG extension', async (
       fs.existsSync(
         path.join(
           dataDir,
+          'cache',
           'overtime-gift-images',
           path.posix.basename(result[0].imagePath),
         ),
@@ -229,9 +256,7 @@ test('does not transfer Bilibili failures to the server image endpoint', async (
       },
     ]);
     assert.equal(result[0].imagePath, '');
-    assert.deepEqual(calls, [
-      'https://i0.hdslb.com/bfs/live/missing.webp',
-    ]);
+    assert.deepEqual(calls, ['https://i0.hdslb.com/bfs/live/missing.webp']);
     assert.equal(
       cache.getCachedGiftImagePath({
         id: '104',
@@ -247,7 +272,9 @@ test('does not transfer Bilibili failures to the server image endpoint', async (
 });
 
 test('revisions replace only changed images and keep previous artwork across offline restarts', async () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-gift-image-revision-'));
+  const dataDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'lira-gift-image-revision-'),
+  );
   try {
     const calls = [];
     let offline = false;
@@ -263,7 +290,10 @@ test('revisions replace only changed images and keep previous artwork across off
     };
     const original = {
       id: '105',
-      name: '礼物', priceRaw: 100, coinType: 'gold', bagGift: false,
+      name: '礼物',
+      priceRaw: 100,
+      coinType: 'gold',
+      bagGift: false,
       sourceUrl: 'https://i0.hdslb.com/bfs/live/same.webp',
       imagePath: 'https://api.example.test/gift-media/images/revision-1.webp',
     };
@@ -291,13 +321,18 @@ test('revisions replace only changed images and keep previous artwork across off
     assert.equal(updated[1].imagePath, before[1].imagePath);
     assert.equal(cache.isGiftImageCurrent(revised), true);
     assert.equal(calls.length, 4);
-    assert.equal(calls.every((url) => url.startsWith('https://i0.hdslb.com/')), true);
+    assert.equal(
+      calls.every((url) => url.startsWith('https://i0.hdslb.com/')),
+      true,
+    );
 
     cache = createRemoteGiftImageCache(options);
     assert.equal(cache.getCachedGiftImagePath(revised), updated[0].imagePath);
     await cache.cacheGifts([revised, unchanged]);
     assert.equal(calls.length, 4);
-    fs.unlinkSync(path.join(cache.cacheDir, path.posix.basename(updated[0].imagePath)));
+    fs.unlinkSync(
+      path.join(cache.cacheDir, path.posix.basename(updated[0].imagePath)),
+    );
     assert.equal(cache.isGiftImageCurrent(revised), false);
     await cache.cacheGifts([revised]);
     assert.equal(calls.length, 5);
@@ -307,15 +342,20 @@ test('revisions replace only changed images and keep previous artwork across off
 });
 
 test('ignores unsafe persisted last-good image mappings', () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-gift-image-index-'));
+  const dataDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'lira-gift-image-index-'),
+  );
   try {
-    const cacheDir = path.join(dataDir, 'overtime-gift-images');
-    fs.mkdirSync(cacheDir);
+    const cacheDir = path.join(dataDir, 'cache', 'overtime-gift-images');
+    fs.mkdirSync(cacheDir, { recursive: true });
     fs.writeFileSync(path.join(dataDir, 'outside.webp'), webpBytes());
-    fs.writeFileSync(path.join(cacheDir, 'index.json'), JSON.stringify({
-      schemaVersion: 1,
-      images: { '107': '../outside.webp', '108': 'bad.svg' },
-    }));
+    fs.writeFileSync(
+      path.join(cacheDir, 'index.json'),
+      JSON.stringify({
+        schemaVersion: 1,
+        images: { 107: '../outside.webp', 108: 'bad.svg' },
+      }),
+    );
     const cache = createRemoteGiftImageCache({
       dataDir,
       imageBaseUrl: 'https://api.example.test',
@@ -385,7 +425,10 @@ test('rejects untrusted paths and invalid image bytes per gift', async () => {
         imagePath: 'https://api.example.test/gift-media/images/b.webp',
       },
     ]);
-    assert.deepEqual(result.map((gift) => gift.imagePath), ['', '', '']);
+    assert.deepEqual(
+      result.map((gift) => gift.imagePath),
+      ['', '', ''],
+    );
     assert.equal(calls, 1);
   } finally {
     fs.rmSync(dataDir, { recursive: true, force: true });
@@ -419,7 +462,10 @@ test('limits concurrent image downloads and enforces the size ceiling', async ()
     }));
     const result = await cache.cacheGifts(gifts);
     assert.equal(peak <= 2, true);
-    assert.equal(result.every((gift) => gift.imagePath), true);
+    assert.equal(
+      result.every((gift) => gift.imagePath),
+      true,
+    );
     assert.equal(MAX_IMAGE_BYTES, 5 * 1024 * 1024);
 
     const oversizedCache = createRemoteGiftImageCache({
@@ -432,13 +478,14 @@ test('limits concurrent image downloads and enforces the size ceiling', async ()
       {
         id: 'oversized',
         name: '超限礼物',
-        imagePath:
-          'https://api.example.test/gift-media/images/oversized.webp',
+        imagePath: 'https://api.example.test/gift-media/images/oversized.webp',
       },
     ]);
     assert.equal(oversized[0].imagePath, '');
     assert.equal(
-      fs.existsSync(path.join(dataDir, 'overtime-gift-images', 'oversized.webp')),
+      fs.existsSync(
+        path.join(dataDir, 'cache', 'overtime-gift-images', 'oversized.webp'),
+      ),
       false,
     );
   } finally {
@@ -446,25 +493,50 @@ test('limits concurrent image downloads and enforces the size ceiling', async ()
   }
 });
 
-test('same-ID image failures reuse only that identity across restart', async t => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-variant-images-'));
+test('same-ID image failures reuse only that identity across restart', async (t) => {
+  const dataDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'lira-variant-images-'),
+  );
   t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
   let fail = false;
-  const options = { dataDir, imageBaseUrl: 'https://api.example.test', logger: QUIET_LOGGER,
-    fetch: async () => fail ? new Response('', { status: 503 }) : new Response(webpBytes()) };
+  const options = {
+    dataDir,
+    imageBaseUrl: 'https://api.example.test',
+    logger: QUIET_LOGGER,
+    fetch: async () =>
+      fail ? new Response('', { status: 503 }) : new Response(webpBytes()),
+  };
   let cache = createRemoteGiftImageCache(options);
-  const old = { id: '34832', name: '旧礼物', variantId: `gv_${'a'.repeat(64)}`,
-    sourceUrl: 'https://i0.hdslb.com/bfs/live/old.webp' };
+  const old = {
+    id: '34832',
+    name: '旧礼物',
+    variantId: `gv_${'a'.repeat(64)}`,
+    sourceUrl: 'https://i0.hdslb.com/bfs/live/old.webp',
+  };
   const oldImage = (await cache.cacheGifts([old]))[0].imagePath;
   assert.ok(oldImage);
   fail = true;
   cache = createRemoteGiftImageCache(options);
-  const update = { ...old, sourceUrl: 'https://i0.hdslb.com/bfs/live/updated.webp' };
-  const reused = { ...update, name: '新礼物', variantId: `gv_${'b'.repeat(64)}` };
+  const update = {
+    ...old,
+    sourceUrl: 'https://i0.hdslb.com/bfs/live/updated.webp',
+  };
+  const reused = {
+    ...update,
+    name: '新礼物',
+    variantId: `gv_${'b'.repeat(64)}`,
+  };
   const results = await cache.cacheGifts([update, reused]);
   assert.equal(results[0].imagePath, oldImage);
   assert.equal(results[1].imagePath, '');
-  assert.equal(cache.getCachedGiftImagePath({ ...old, ...reused, sourceUrl: old.sourceUrl }), '');
+  assert.equal(
+    cache.getCachedGiftImagePath({
+      ...old,
+      ...reused,
+      sourceUrl: old.sourceUrl,
+    }),
+    '',
+  );
 });
 
 function webpBytes() {

@@ -1,0 +1,225 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "path": "src/electron/license/license-manager.js",
+      "kind": "review",
+      "maxLines": 618,
+      "owner": "桌面授权",
+      "reason": "批次 B 已改授权尝试为具名输入并分离结果接受；token、续期与撤销仍归同一授权管理器。",
+      "removal": "大型工厂继续登记；后续仅提取独立无状态职责，保留代次和撤销保护。",
+      "reviewBy": "2026-12-13",
+      "test": "test/license-manager.test.js"
+    },
+    {
+      "path": "src/electron/main.js",
+      "kind": "review",
+      "maxLines": 709,
+      "owner": "桌面组合入口",
+      "reason": "批次 C 已提取就绪导航与恢复协调；入口保留资源创建、接线及停机顺序。",
+      "removal": "继续按真实独立职责整理组合阶段；保留启动失败、授权及停机验证。",
+      "reviewBy": "2026-12-13",
+      "test": "test/electron-main-modules.test.js"
+    },
+    {
+      "path": "src/electron/remote-gift-controller.js",
+      "kind": "review",
+      "maxLines": 775,
+      "owner": "远端礼物同步",
+      "reason": "批次 C 已提取纯恢复规则；授权/来源代次、串行任务、取消和定时器仍由一个控制器管理。",
+      "removal": "文件已降到警告区；725 行工厂债务保留，后续按协议阶段评估，禁止分散可变状态。",
+      "reviewBy": "2026-12-13",
+      "test": "test/remote-gift-controller.test.js"
+    },
+    {
+      "path": "src/overtime/overtime-service.js",
+      "kind": "review",
+      "maxLines": 640,
+      "owner": "加班机计时状态机",
+      "reason": "批次 B 已将结算改为具名输入；计时、随机规则快照、恢复与提交仍由同一服务持有。",
+      "removal": "后续仅提取纯计算；不分散计时状态或改变提交关系。",
+      "reviewBy": "2026-12-13",
+      "test": "test/overtime-service.test.js"
+    },
+    {
+      "path": "src/server.js",
+      "kind": "review",
+      "maxLines": 776,
+      "owner": "服务组合入口",
+      "reason": "批次 C 将礼物、目录、弹幕和加班机广播转换归入 runtime-transport；入口保留初始化阶段及失败清理。",
+      "removal": "按资源阶段继续评估组合职责，避免领域模块反向依赖 server 入口。",
+      "reviewBy": "2026-12-13",
+      "test": "test/server-lifecycle.test.js"
+    },
+    {
+      "path": "src/storage/database-migrations.js",
+      "kind": "review",
+      "maxLines": 662,
+      "owner": "存储历史迁移",
+      "reason": "手写迁移执行器，历史 SQL 和版本顺序已被验证；不是 snapshot 例外。",
+      "removal": "下次实质修改对应库迁移时提取注册或转换函数；新增大型迁移独立注册。",
+      "reviewBy": "2026-12-13",
+      "test": "test/database-maintenance.test.js"
+    },
+    {
+      "path": "public/css/admin/other-features/start-animation.css",
+      "kind": "review",
+      "maxLines": 614,
+      "owner": "开场动画设置",
+      "reason": "上传、音乐与质量控件同属一处编辑界面。",
+      "removal": "新增大型控件时独立成组，复核选择器与级联。",
+      "reviewBy": "2026-12-13",
+      "test": "test/opening-overlay.test.js"
+    },
+    {
+      "path": "public/css/admin/other-features/usage-guide.css",
+      "kind": "review",
+      "maxLines": 774,
+      "owner": "帮助界面样式",
+      "reason": "目录、正文、FAQ 和响应式保持同一内容表面。",
+      "removal": "新增独立控件时提取；不得继续堆积不相关页面样式。",
+      "reviewBy": "2026-12-13",
+      "test": "test/frontend-admin-shell.test.js"
+    },
+    {
+      "path": "public/css/license.css",
+      "kind": "review",
+      "maxLines": 722,
+      "owner": "授权页面",
+      "reason": "单一授权页面的布局、控件与状态，暂保留。",
+      "removal": "出现独立面板职责时再提取，保持授权 UI 行为。",
+      "reviewBy": "2026-12-13",
+      "test": "test/license-ui.test.js"
+    },
+    {
+      "path": "public/css/overlays/opening.css",
+      "kind": "review",
+      "maxLines": 682,
+      "owner": "OBS 开场展示",
+      "reason": "同一开场动画及质量、动效变体，不机械拆媒体查询。",
+      "removal": "增加独立展示组件时按组件整理。",
+      "reviewBy": "2026-12-13",
+      "test": "test/opening-overlay.test.js"
+    },
+    {
+      "path": "public/data/theme-presets.json",
+      "kind": "exception",
+      "maxLines": 893,
+      "owner": "主题静态预设",
+      "reason": "纯数据由固定 JSON 地址读取；拆分会引入额外加载与合并。",
+      "removal": "若加入业务逻辑或改用分段加载则撤销例外；当前保持纯数据。",
+      "reviewBy": "2026-12-13",
+      "test": "test/frontend-admin-shell.test.js"
+    },
+    {
+      "path": "public/js/admin/overtime.js",
+      "kind": "review",
+      "maxLines": 679,
+      "owner": "加班机管理控制器",
+      "reason": "批次 B 已拆分选项过滤与节点构造；搜索代次、来源及选中身份仍由原控制器管理。",
+      "removal": "继续按独立职责评估；不另建选择器状态控制器。",
+      "reviewBy": "2026-12-13",
+      "test": "test/overtime-gift-picker.test.js"
+    },
+    {
+      "path": "public/pages/admin/playback/page.html",
+      "kind": "review",
+      "maxLines": 647,
+      "owner": "播放页组合",
+      "reason": "全民 K 歌、搜索和播放器区域属于页面组合职责。",
+      "removal": "后续新增大型面板时提取完整区域，保持 DOM 顺序。",
+      "reviewBy": "2026-12-13",
+      "test": "test/admin-page-composition.test.js"
+    },
+    {
+      "path": "public/pages/admin/song/queue-theme.html",
+      "kind": "review",
+      "maxLines": 610,
+      "owner": "队列主题设置",
+      "reason": "一个完整主题表单；不因刚入警告区机械切分。",
+      "removal": "新增独立主题控件时复核完整区域边界。",
+      "reviewBy": "2026-12-13",
+      "test": "test/frontend-queue.test.js"
+    },
+    {
+      "path": "public/pages/admin/toolbox/shell-start.html",
+      "kind": "review",
+      "maxLines": 697,
+      "owner": "百宝箱页面组合",
+      "reason": "刻意保留开标签，侧栏 SVG 占主要篇幅；格式化例外不是行数豁免。",
+      "removal": "导航改造时提取完整 aside；组合器继续管理外壳开闭标签。",
+      "reviewBy": "2026-12-13",
+      "test": "test/admin-page-composition.test.js"
+    },
+    {
+      "path": "public/pages/admin/toolbox/usage-guide.html",
+      "kind": "exception",
+      "maxLines": 1549,
+      "owner": "静态帮助正文",
+      "reason": "帮助章节、图片和 FAQ 锚点构成静态内容，不包含业务表单流程。",
+      "removal": "新增脚本或业务表单即撤销例外；需要拆分时按完整帮助章节组织。",
+      "reviewBy": "2026-12-13",
+      "test": "test/frontend-admin-shell.test.js"
+    },
+    {
+      "path": "test/cloud-sync-controller.test.js",
+      "kind": "review",
+      "maxLines": 705,
+      "owner": "云同步控制器测试",
+      "reason": "已核对并行修改给既有云同步夹具补身份和账号准备接口，生命周期测试主题未改变。",
+      "removal": "新增独立同步协议场景时再分组；当前保留完整时序。",
+      "reviewBy": "2026-12-13",
+      "test": "test/cloud-sync-controller.test.js"
+    },
+    {
+      "path": "test/overtime-gift-picker.test.js",
+      "kind": "review",
+      "maxLines": 760,
+      "owner": "礼物选择器测试",
+      "reason": "搜索代次、来源和身份规则共同约束一个选择器。",
+      "removal": "扩展独立控件时分组；DOM 夹具仅按真实复用提取。",
+      "reviewBy": "2026-12-13",
+      "test": "test/overtime-gift-picker.test.js"
+    },
+    {
+      "path": "test/qq-provider.test.js",
+      "kind": "review",
+      "maxLines": 709,
+      "owner": "QQ Provider 测试",
+      "reason": "多个端点共同验证一个 provider 的协议与错误处理。",
+      "removal": "新增独立协议家族时分组；暂保留同一 provider 契约。",
+      "reviewBy": "2026-12-13",
+      "test": "test/qq-provider.test.js"
+    },
+    {
+      "path": "test/server-lifecycle.test.js",
+      "kind": "review",
+      "maxLines": 639,
+      "owner": "服务生命周期测试",
+      "reason": "启动失败与资源关闭共同验证服务所有权。",
+      "removal": "随批次 C 生命周期变更扩展或分组，保留失败清理场景。",
+      "reviewBy": "2026-12-13",
+      "test": "test/server-lifecycle.test.js"
+    },
+    {
+      "path": "test/ui-edit-state.test.js",
+      "kind": "review",
+      "maxLines": 739,
+      "owner": "界面编辑态契约测试",
+      "reason": "多界面共同验证编辑态与远端刷新规则，有统一契约价值。",
+      "removal": "新增界面特有行为回对应功能测试；此处只保留通用编辑契约。",
+      "reviewBy": "2026-12-13",
+      "test": "test/ui-edit-state.test.js"
+    },
+    {
+      "path": "test/wesing-capture-recording-mode.test.js",
+      "kind": "review",
+      "maxLines": 645,
+      "owner": "全民 K 歌录制模式测试",
+      "reason": "拖动、暂停、无进度与音频来源属于完整录制模式。",
+      "removal": "增加独立采集模式时分组，保留录制状态转换覆盖。",
+      "reviewBy": "2026-12-13",
+      "test": "test/wesing-capture-recording-mode.test.js"
+    }
+  ]
+}

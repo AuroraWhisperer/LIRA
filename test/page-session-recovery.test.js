@@ -14,7 +14,9 @@ test('overlay socket closure confirms an expired session and reloads only once',
   let resolveCheck;
   const page = await createPage('/queue', (url, options) => {
     requests.push({ url, options });
-    return new Promise((resolve) => { resolveCheck = resolve; });
+    return new Promise((resolve) => {
+      resolveCheck = resolve;
+    });
   });
   const first = new page.window.WebSocket('ws://127.0.0.1:3000/ws');
   const second = new page.window.WebSocket('ws://127.0.0.1:3000/ws');
@@ -83,7 +85,9 @@ test('leaving an overlay aborts a pending session check and suppresses reload', 
   let resolveCheck;
   const page = await createPage('/queue', (_url, options) => {
     signal = options.signal;
-    return new Promise((resolve) => { resolveCheck = resolve; });
+    return new Promise((resolve) => {
+      resolveCheck = resolve;
+    });
   });
   new page.window.WebSocket('ws://127.0.0.1:3000/ws').close();
   page.hide();
@@ -95,13 +99,21 @@ test('leaving an overlay aborts a pending session check and suppresses reload', 
 
 test('an open overlay recovers after a real runtime restarts with a rotated token', async (t) => {
   const { createServerRuntime } = require('../src/server');
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-overlay-restart-'));
+  const tempDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'lira-overlay-restart-'),
+  );
   const nativeFetch = globalThis.fetch;
   const originalAutoOpen = process.env.AUTO_OPEN_ADMIN;
   process.env.AUTO_OPEN_ADMIN = '0';
   t.mock.method(globalThis, 'fetch', (input, options) => {
-    const url = new URL(typeof input === 'string' ? input : input.url || input.href);
-    assert.equal(url.hostname, '127.0.0.1', 'test must not call external services');
+    const url = new URL(
+      typeof input === 'string' ? input : input.url || input.href,
+    );
+    assert.equal(
+      url.hostname,
+      '127.0.0.1',
+      'test must not call external services',
+    );
     return nativeFetch(input, options);
   });
   const first = createServerRuntime({ dataDir: path.join(tempDir, 'data') });
@@ -124,79 +136,146 @@ test('an open overlay recovers after a real runtime restarts with a rotated toke
 
   const app = await first.start({ host: '127.0.0.1', startPort: 0 });
   const oldToken = first.getApiToken();
-  page = await createPage('/queue', (url, options) =>
-    nativeFetch(new URL(url, app.baseUrl), options), {
-    baseUrl: app.baseUrl,
-    html: await (await nativeFetch(`${app.baseUrl}/queue`)).text(),
-    WebSocket,
-  });
+  page = await createPage(
+    '/queue',
+    (url, options) => nativeFetch(new URL(url, app.baseUrl), options),
+    {
+      baseUrl: app.baseUrl,
+      html: await (await nativeFetch(`${app.baseUrl}/queue`)).text(),
+      WebSocket,
+    },
+  );
   const { createOverlaySocket } = await loadModuleExports(
     path.resolve(__dirname, '..', 'public/js/overlays/socket-client.js'),
-    { window: page.window, WebSocket: page.window.WebSocket, location: new URL(app.baseUrl) },
+    {
+      window: page.window,
+      WebSocket: page.window.WebSocket,
+      location: new URL(app.baseUrl),
+    },
   );
   let opens = 0;
   const retries = [];
   controller = createOverlaySocket({
-    onOpen() { opens += 1; },
-    setTimeoutFn(callback) { const timer = { callback }; retries.push(timer); return timer; },
-    clearTimeoutFn(timer) { timer.cancelled = true; },
+    onOpen() {
+      opens += 1;
+    },
+    setTimeoutFn(callback) {
+      const timer = { callback };
+      retries.push(timer);
+      return timer;
+    },
+    clearTimeoutFn(timer) {
+      timer.cancelled = true;
+    },
   });
   controller.start();
   await waitFor(() => opens === 1);
   await first.stop({ exitProcess: false });
   await waitFor(() => retries.some((timer) => !timer.cancelled));
   second = createServerRuntime({ dataDir: path.join(tempDir, 'data') });
-  await second.start({ host: '127.0.0.1', startPort: Number(new URL(app.baseUrl).port) });
+  await second.start({
+    host: '127.0.0.1',
+    startPort: Number(new URL(app.baseUrl).port),
+  });
   assert.notEqual(second.getApiToken(), oldToken);
-  assert.equal((await nativeFetch(`${app.baseUrl}/api/state`, {
-    headers: { Authorization: `Bearer ${oldToken}` },
-  })).status, 401);
+  assert.equal(
+    (
+      await nativeFetch(`${app.baseUrl}/api/state`, {
+        headers: { Authorization: `Bearer ${oldToken}` },
+      })
+    ).status,
+    401,
+  );
   retries.find((timer) => !timer.cancelled).callback();
   await waitFor(() => page.reloads() === 1);
   page.hide();
   controller.dispose();
 
-  refreshedPage = await createPage('/queue', (url, options) =>
-    nativeFetch(new URL(url, app.baseUrl), options), {
-    baseUrl: app.baseUrl,
-    html: await (await nativeFetch(`${app.baseUrl}/queue`)).text(),
-    WebSocket,
-  });
-  freshSocket = new refreshedPage.window.WebSocket(`${app.baseUrl.replace('http:', 'ws:')}/ws`);
+  refreshedPage = await createPage(
+    '/queue',
+    (url, options) => nativeFetch(new URL(url, app.baseUrl), options),
+    {
+      baseUrl: app.baseUrl,
+      html: await (await nativeFetch(`${app.baseUrl}/queue`)).text(),
+      WebSocket,
+    },
+  );
+  freshSocket = new refreshedPage.window.WebSocket(
+    `${app.baseUrl.replace('http:', 'ws:')}/ws`,
+  );
   await waitFor(() => freshSocket.readyState === WebSocket.OPEN);
   assert.equal(refreshedPage.window.__API_TOKEN__, second.getApiToken());
   assert.equal((await refreshedPage.window.fetch('/api/state')).status, 200);
 });
 
 async function createPage(pathname, fetchFn, options = {}) {
-  const location = new URL(pathname, options.baseUrl || 'http://127.0.0.1:3000');
-  const html = options.html || await new Promise((resolve) => {
-    servePageOrAsset(path.resolve(__dirname, '..', 'public'), { method: 'GET' }, {
-      setHeader() {},
-      writeHead(status) { assert.equal(status, 200); },
-      end(body) { resolve(body.toString()); },
-    }, location, 'old-token');
-  });
-  const match = html.match(/<script>\(function\(\)\{[\s\S]*?\}\)\(\);<\/script>/);
+  const location = new URL(
+    pathname,
+    options.baseUrl || 'http://127.0.0.1:3000',
+  );
+  const html =
+    options.html ||
+    (await new Promise((resolve) => {
+      servePageOrAsset(
+        path.resolve(__dirname, '..', 'public'),
+        { method: 'GET' },
+        {
+          setHeader() {},
+          writeHead(status) {
+            assert.equal(status, 200);
+          },
+          end(body) {
+            resolve(body.toString());
+          },
+        },
+        location,
+        'old-token',
+      );
+    }));
+  const match = html.match(
+    /<script>\(function\(\)\{[\s\S]*?\}\)\(\);<\/script>/,
+  );
   assert.ok(match, 'expected the real injected session script');
   let reloads = 0;
   const listeners = new Map();
-  location.reload = () => { reloads += 1; };
+  location.reload = () => {
+    reloads += 1;
+  };
   class FakeWebSocket extends EventTarget {
-    constructor(url) { super(); this.url = url; }
-    close() { this.dispatchEvent(new Event('close')); }
+    constructor(url) {
+      super();
+      this.url = url;
+    }
+    close() {
+      this.dispatchEvent(new Event('close'));
+    }
   }
-  Object.assign(FakeWebSocket, { CONNECTING: 0, OPEN: 1, CLOSING: 2, CLOSED: 3 });
+  Object.assign(FakeWebSocket, {
+    CONNECTING: 0,
+    OPEN: 1,
+    CLOSING: 2,
+    CLOSED: 3,
+  });
   const window = {
     fetch: fetchFn,
     WebSocket: options.WebSocket || FakeWebSocket,
     addEventListener: (name, listener) => listeners.set(name, listener),
   };
   vm.runInNewContext(match[0].slice(8, -9), {
-    window, location, URL, Headers, AbortController, setTimeout, clearTimeout,
+    window,
+    location,
+    URL,
+    Headers,
+    AbortController,
+    setTimeout,
+    clearTimeout,
     document: { readyState: 'complete', querySelectorAll: () => [] },
   });
-  return { window, reloads: () => reloads, hide: () => listeners.get('pagehide')?.() };
+  return {
+    window,
+    reloads: () => reloads,
+    hide: () => listeners.get('pagehide')?.(),
+  };
 }
 
 function flush() {

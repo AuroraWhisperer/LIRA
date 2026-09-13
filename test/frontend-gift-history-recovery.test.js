@@ -9,11 +9,17 @@ const {
 } = require('./helpers/frontend-modules');
 
 const LIVE_EMPTY = {
-  items: [], total: 0, totalPages: 1, hasMore: false,
-  syncState: 'LIVE', partial: false,
+  items: [],
+  total: 0,
+  totalPages: 1,
+  hasMore: false,
+  syncState: 'LIVE',
+  partial: false,
 };
 const UNAVAILABLE = {
-  ok: false, code: 'GIFT_SOURCE_UNAVAILABLE', error: '当前礼物来源尚未就绪。',
+  ok: false,
+  code: 'GIFT_SOURCE_UNAVAILABLE',
+  error: '当前礼物来源尚未就绪。',
 };
 
 test('gift history recovers an empty ledger without receiving a gift', async () => {
@@ -26,7 +32,10 @@ test('gift history recovers an empty ledger without receiving a gift', async () 
   assert.equal(ui.get('giftLedgerSyncStatus').hidden, true);
 
   ui.runTimer();
-  await ui.reply({ ok: true, data: { ...LIVE_EMPTY, syncState: 'BOOTSTRAPPING', partial: true } });
+  await ui.reply({
+    ok: true,
+    data: { ...LIVE_EMPTY, syncState: 'BOOTSTRAPPING', partial: true },
+  });
   assert.doesNotMatch(ui.body(), /暂无礼物记录/);
   ui.runTimer();
   await ui.reply({ ok: true, data: LIVE_EMPTY });
@@ -35,12 +44,21 @@ test('gift history recovers an empty ledger without receiving a gift', async () 
   assert.equal(ui.get('giftHistoryTotal').hidden, false);
   assert.equal(ui.get('giftHistoryRetryBtn').hidden, true);
   assert.equal([...ui.timers.values()][0].delay, 10000);
-  assert.equal(ui.requests.every((request) => request.url.startsWith('/api/gifts/history?')), true);
+  assert.equal(
+    ui.requests.every((request) =>
+      request.url.startsWith('/api/gifts/history?'),
+    ),
+    true,
+  );
   ui.runTimer();
-  await ui.reply({ ok: true, data: {
-    ...LIVE_EMPTY, total: 1,
-    items: [{ eventId: 'new', gift: { giftName: '新收到的礼物' } }],
-  } });
+  await ui.reply({
+    ok: true,
+    data: {
+      ...LIVE_EMPTY,
+      total: 1,
+      items: [{ eventId: 'new', gift: { giftName: '新收到的礼物' } }],
+    },
+  });
   assert.match(ui.body(), /新收到的礼物/);
   ui.close();
   assert.equal(ui.timers.size, 0);
@@ -80,7 +98,10 @@ test('slow gift history recovery exposes retry and cancels work on close', async
 test('gift history preserves loaded rows on update failures and reconnects offline records', async () => {
   const ui = await createFixture();
   const data = {
-    ...LIVE_EMPTY, total: 1, partial: true, syncState: 'CATCHING_UP',
+    ...LIVE_EMPTY,
+    total: 1,
+    partial: true,
+    syncState: 'CATCHING_UP',
     items: [{ eventId: 'one', gift: { giftName: '保留的礼物' } }],
   };
   ui.open();
@@ -90,16 +111,25 @@ test('gift history preserves loaded rows on update failures and reconnects offli
   await ui.reply({ ok: false, error: 'SQLITE_INTERNAL: private detail' }, 500);
   assert.equal(ui.body(), rows);
   assert.equal(ui.get('giftHistoryTotal').textContent, '共 1 条');
-  assert.equal(ui.get('giftLedgerSyncStatus').textContent, '记录暂未更新，请稍后重试。');
+  assert.equal(
+    ui.get('giftLedgerSyncStatus').textContent,
+    '记录暂未更新，请稍后重试。',
+  );
   assert.equal(ui.get('giftHistoryRetryBtn').hidden, false);
   assert.doesNotMatch(ui.get('giftLedgerSyncStatus').title, /SQLITE|private/);
 
   ui.runTimer();
   await ui.reply({ ok: true, data: { ...data, syncState: 'OFFLINE' } });
   assert.equal(ui.body(), rows);
-  assert.equal(ui.get('giftLedgerSyncStatus').textContent, '当前离线，显示已保存的记录');
+  assert.equal(
+    ui.get('giftLedgerSyncStatus').textContent,
+    '当前离线，显示已保存的记录',
+  );
   ui.runTimer();
-  await ui.reply({ ok: true, data: { ...data, syncState: 'LIVE', partial: false } });
+  await ui.reply({
+    ok: true,
+    data: { ...data, syncState: 'LIVE', partial: false },
+  });
   assert.equal(ui.get('giftLedgerSyncStatus').hidden, true);
   assert.equal([...ui.timers.values()][0].delay, 10000);
   ui.close();
@@ -108,10 +138,16 @@ test('gift history preserves loaded rows on update failures and reconnects offli
 test('a switching gift source removes previously loaded rows before retrying', async () => {
   const ui = await createFixture();
   ui.open();
-  await ui.reply({ ok: true, data: {
-    ...LIVE_EMPTY, partial: true, syncState: 'CATCHING_UP', total: 1,
-    items: [{ eventId: 'old', gift: { giftName: '之前账号的礼物' } }],
-  } });
+  await ui.reply({
+    ok: true,
+    data: {
+      ...LIVE_EMPTY,
+      partial: true,
+      syncState: 'CATCHING_UP',
+      total: 1,
+      items: [{ eventId: 'old', gift: { giftName: '之前账号的礼物' } }],
+    },
+  });
   ui.runTimer();
   await ui.reply(UNAVAILABLE, 409);
   assert.doesNotMatch(ui.body(), /之前账号/);
@@ -138,10 +174,18 @@ test('clearing gifts submits once, rejects stale reads, and recovers without gif
   await ui.reply({ ok: true, data: {} }, 200, clearRequest);
   await clearing;
   const newRead = ui.requests.at(-1);
-  await ui.reply({ ok: true, data: {
-    ...LIVE_EMPTY, total: 1,
-    items: [{ eventId: 'stale', gift: { giftName: '已删除的礼物' } }],
-  } }, 200, staleRead);
+  await ui.reply(
+    {
+      ok: true,
+      data: {
+        ...LIVE_EMPTY,
+        total: 1,
+        items: [{ eventId: 'stale', gift: { giftName: '已删除的礼物' } }],
+      },
+    },
+    200,
+    staleRead,
+  );
   assert.doesNotMatch(ui.body(), /已删除的礼物/);
   await ui.reply(UNAVAILABLE, 409, newRead);
   assert.match(ui.body(), /正在更新礼物记录/);
@@ -149,7 +193,10 @@ test('clearing gifts submits once, rejects stale reads, and recovers without gif
   await ui.reply({ ok: true, data: LIVE_EMPTY });
   assert.equal(ui.get('giftHistoryTotal').textContent, '共 0 条');
   assert.equal(ui.get('giftHistoryClearDatabaseBtn').disabled, false);
-  assert.equal(ui.requests.filter((request) => request.options.method === 'POST').length, 1);
+  assert.equal(
+    ui.requests.filter((request) => request.options.method === 'POST').length,
+    1,
+  );
   ui.close();
 });
 
@@ -179,7 +226,10 @@ test('a partially completed clear retries only the gift history read', async () 
   assert.match(ui.body(), /云端记录已清空，本机记录尚未更新/);
   assert.equal(ui.get('giftHistoryRetryBtn').textContent, '重试更新');
   ui.click('giftHistoryRetryBtn');
-  assert.equal(ui.requests.filter((request) => request.options.method === 'POST').length, 1);
+  assert.equal(
+    ui.requests.filter((request) => request.options.method === 'POST').length,
+    1,
+  );
   await ui.reply({ ok: true, data: LIVE_EMPTY });
   assert.match(ui.body(), /暂无礼物记录/);
   ui.close();
@@ -196,7 +246,10 @@ test('an uncertain gift clear never claims records were preserved or repeats del
   assert.match(ui.body(), /暂时无法确认清空结果/);
   assert.doesNotMatch(ui.body(), /未删除|network disconnected/);
   ui.click('giftHistoryRetryBtn');
-  assert.equal(ui.requests.filter((request) => request.options.method === 'POST').length, 1);
+  assert.equal(
+    ui.requests.filter((request) => request.options.method === 'POST').length,
+    1,
+  );
   await ui.reply({ ok: true, data: LIVE_EMPTY });
   ui.close();
 });
@@ -209,7 +262,10 @@ test('canceling the clear confirmation preserves records and resumes pending rec
   ui.runTimer();
   await ui.confirm(false);
   await clearing;
-  assert.equal(ui.requests.some((request) => request.options.method === 'POST'), false);
+  assert.equal(
+    ui.requests.some((request) => request.options.method === 'POST'),
+    false,
+  );
   await ui.reply({ ok: true, data: LIVE_EMPTY });
   assert.match(ui.body(), /暂无礼物记录/);
   ui.close();
@@ -218,36 +274,66 @@ test('canceling the clear confirmation preserves records and resumes pending rec
 async function createFixture() {
   function element() {
     return {
-      ...createLyricToggleButton(), dataset: {}, handlers: {},
-      hidden: false, textContent: '', innerHTML: '', disabled: false,
-      addEventListener(type, handler) { this.handlers[type] = handler; },
+      ...createLyricToggleButton(),
+      dataset: {},
+      handlers: {},
+      hidden: false,
+      textContent: '',
+      innerHTML: '',
+      disabled: false,
+      addEventListener(type, handler) {
+        this.handlers[type] = handler;
+      },
       focus() {},
     };
   }
-  const elements = new Map([
-    'giftHistoryOpenBtn', 'giftHistoryClose', 'giftHistoryBackdrop',
-    'giftHistoryDrawer', 'giftHistoryClearDatabaseBtn', 'giftHistoryRetryBtn',
-    'giftHistoryPrev', 'giftHistoryNext', 'giftHistoryState', 'giftHistoryTotal',
-    'giftHistoryBody', 'giftHistoryPageInfo', 'giftLedgerSyncStatus',
-  ].map((id) => [id, element()]));
+  const elements = new Map(
+    [
+      'giftHistoryOpenBtn',
+      'giftHistoryClose',
+      'giftHistoryBackdrop',
+      'giftHistoryDrawer',
+      'giftHistoryClearDatabaseBtn',
+      'giftHistoryRetryBtn',
+      'giftHistoryPrev',
+      'giftHistoryNext',
+      'giftHistoryState',
+      'giftHistoryTotal',
+      'giftHistoryBody',
+      'giftHistoryPageInfo',
+      'giftLedgerSyncStatus',
+    ].map((id) => [id, element()]),
+  );
   const requests = [];
   const timers = new Map();
   let timerId = 0;
   let clock = 0;
   let dialog;
   const document = {
-    body: { children: [], appendChild(node) { this.children.push(node); } },
+    body: {
+      children: [],
+      appendChild(node) {
+        this.children.push(node);
+      },
+    },
     getElementById: (id) => elements.get(id) || null,
     querySelector: () => null,
     addEventListener() {},
     removeEventListener() {},
     createElement() {
-      const nodes = new Map([
-        '.lira-confirm-dialog', '.lira-confirm-cancel', '.lira-confirm-confirm',
-      ].map((selector) => [selector, element()]));
+      const nodes = new Map(
+        [
+          '.lira-confirm-dialog',
+          '.lira-confirm-cancel',
+          '.lira-confirm-confirm',
+        ].map((selector) => [selector, element()]),
+      );
       dialog = {
-        ...element(), querySelector: (selector) => nodes.get(selector),
-        remove() { document.body.children = []; },
+        ...element(),
+        querySelector: (selector) => nodes.get(selector),
+        remove() {
+          document.body.children = [];
+        },
       };
       return dialog;
     },
@@ -255,8 +341,15 @@ async function createFixture() {
   const ledger = await loadModuleExports(
     path.join(__dirname, '..', 'public', 'js', 'admin', 'gifts', 'history.js'),
     {
-      document, URLSearchParams, AbortController, AbortSignal,
-      Date: class extends Date { static now() { return clock; } },
+      document,
+      URLSearchParams,
+      AbortController,
+      AbortSignal,
+      Date: class extends Date {
+        static now() {
+          return clock;
+        }
+      },
       console: { warn() {} },
       requestAnimationFrame: (callback) => callback(),
       window: { matchMedia: () => ({ matches: true }) },
@@ -264,10 +357,13 @@ async function createFixture() {
         timers.set(++timerId, { callback, delay });
         return timerId;
       },
-      clearTimeout(id) { timers.delete(id); },
-      fetch: (url, options = {}) => new Promise((resolve, reject) => {
-        requests.push({ url, options, resolve, reject });
-      }),
+      clearTimeout(id) {
+        timers.delete(id);
+      },
+      fetch: (url, options = {}) =>
+        new Promise((resolve, reject) => {
+          requests.push({ url, options, resolve, reject });
+        }),
     },
   );
   ledger.initGiftHistoryDrawer();
@@ -279,21 +375,33 @@ async function createFixture() {
     timer.callback();
   }
   return {
-    requests, timers, runTimer,
+    requests,
+    timers,
+    runTimer,
     get: (id) => elements.get(id),
     body: () => elements.get('giftHistoryBody').innerHTML,
     dialog: () => dialog,
     click: (id) => elements.get(id).handlers.click(),
     open: () => elements.get('giftHistoryOpenBtn').handlers.click(),
     close: () => ledger.closeGiftHistoryDrawer(),
-    elapse(ms) { clock += ms; },
+    elapse(ms) {
+      clock += ms;
+    },
     async reply(payload, status = 200, request = requests.at(-1)) {
-      request.resolve({ ok: status < 400, status, text: async () => JSON.stringify(payload) });
+      request.resolve({
+        ok: status < 400,
+        status,
+        text: async () => JSON.stringify(payload),
+      });
       await flush();
     },
     async confirm(value) {
-      dialog.querySelector(value ? '.lira-confirm-confirm' : '.lira-confirm-cancel').handlers.click();
-      const [id, timer] = [...timers.entries()].find(([, entry]) => entry.delay === 0);
+      dialog
+        .querySelector(value ? '.lira-confirm-confirm' : '.lira-confirm-cancel')
+        .handlers.click();
+      const [id, timer] = [...timers.entries()].find(
+        ([, entry]) => entry.delay === 0,
+      );
       timers.delete(id);
       timer.callback();
       await flush();

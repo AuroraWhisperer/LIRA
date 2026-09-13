@@ -14,13 +14,9 @@ function createBilibiliClient(roomId, context) {
     publishDanmaku,
     updateLiveStatus,
     bilibiliDiagnostics,
-    runtimeGiftCommandPrefixes,
-    messageBuffer,
     bilibiliAuthCache,
-    logGiftDelivery,
     games,
     userInfoService,
-    giftDetectionEnabled = true,
   } = context;
   let client = null;
   client = new BilibiliDanmakuClient(
@@ -160,23 +156,10 @@ function createBilibiliClient(roomId, context) {
           );
         }
       },
-      onGift: (gift) => {
-        if (isShuttingDown() || !giftDetectionEnabled) return;
-        try {
-          const item = domainServices.gifts.add(gift);
-          if (item) logGiftDelivery(item.detection_status || 'detected', item);
-        } catch (error) {
-          console.warn(
-            `[Bilibili] gift record failed: user=${gift.userName || ''} uid=${gift.uid || ''} gift=${gift.giftName || ''} error=${error.message}`,
-          );
-        }
-      },
       onStatus: updateLiveStatus,
     },
     {
       diagnostics: bilibiliDiagnostics,
-      runtimeGiftCommandPrefixes,
-      messageBuffer,
       bilibiliAuth: {
         cookieHeader: bilibiliAuthCache.cookieHeader,
         uid: bilibiliAuthCache.uid,

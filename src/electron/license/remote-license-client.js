@@ -52,9 +52,10 @@ function createRemoteLicenseClient(options = {}) {
     let timedOut = false;
     const abortFromCaller = () => controller.abort(externalSignal.reason);
     if (externalSignal?.aborted) abortFromCaller();
-    else externalSignal?.addEventListener('abort', abortFromCaller, {
-      once: true,
-    });
+    else
+      externalSignal?.addEventListener('abort', abortFromCaller, {
+        once: true,
+      });
     const timer = setTimeout(() => {
       timedOut = true;
       controller.abort();
@@ -201,7 +202,9 @@ function createRemoteLicenseClient(options = {}) {
         headers: {
           Accept: 'text/event-stream',
           Authorization: `Bearer ${token}`,
-          ...(pathname === '/api/device/gift-events/stream' ? { 'X-Lira-Gift-Identity': '1' } : {}),
+          ...(pathname === '/api/device/gift-events/stream'
+            ? { 'X-Lira-Gift-Identity': '1' }
+            : {}),
         },
         signal: options.signal,
         redirect: 'error',
@@ -217,7 +220,10 @@ function createRemoteLicenseClient(options = {}) {
 
     if (!response.ok) throw await readStreamError(response);
     const contentType = String(response.headers?.get?.('content-type') || '');
-    if (!/^text\/event-stream(?:\s*;|$)/iu.test(contentType) || !response.body?.getReader) {
+    if (
+      !/^text\/event-stream(?:\s*;|$)/iu.test(contentType) ||
+      !response.body?.getReader
+    ) {
       throw new RemoteLicenseError(
         'INVALID_RESPONSE',
         '授权服务器返回无效响应。',
@@ -283,7 +289,11 @@ function createRemoteLicenseClient(options = {}) {
       `/api/device/gift-events?${query.toString()}`,
       undefined,
       token,
-      { maxResponseBytes: 512 * 1024, signal: options.signal, headers: { 'X-Lira-Gift-Identity': '1' } },
+      {
+        maxResponseBytes: 512 * 1024,
+        signal: options.signal,
+        headers: { 'X-Lira-Gift-Identity': '1' },
+      },
     );
   }
 
@@ -298,7 +308,11 @@ function createRemoteLicenseClient(options = {}) {
       `/api/device/gift-history${suffix}`,
       undefined,
       token,
-      { maxResponseBytes: 512 * 1024, signal: options.signal, headers: { 'X-Lira-Gift-Identity': '1' } },
+      {
+        maxResponseBytes: 512 * 1024,
+        signal: options.signal,
+        headers: { 'X-Lira-Gift-Identity': '1' },
+      },
     );
   }
 
@@ -341,25 +355,55 @@ function createRemoteLicenseClient(options = {}) {
     heartbeat: (token) => request('POST', '/api/device/heartbeat', {}, token),
     profile: (token) => request('GET', '/api/device/profile', undefined, token),
     getCloudState: (token, requestOptions) =>
-      request('GET', '/api/device/cloud-state', undefined, token, requestOptions),
+      request(
+        'GET',
+        '/api/device/cloud-state',
+        undefined,
+        token,
+        requestOptions,
+      ),
     watchCloudStateChanges,
     getGiftEvents,
     getGiftHistory,
     clearGiftHistory,
     watchGiftEvents,
     updateCloudSettings: (settings, token, requestOptions) =>
-      request('PUT', '/api/device/cloud-settings', settings, token, requestOptions),
+      request(
+        'PUT',
+        '/api/device/cloud-settings',
+        settings,
+        token,
+        requestOptions,
+      ),
     syncSongs: (songs, token, requestOptions) =>
-      request('PUT', '/api/device/songs/sync', { songs }, token, requestOptions),
+      request(
+        'PUT',
+        '/api/device/songs/sync',
+        { songs },
+        token,
+        requestOptions,
+      ),
     getCloudSongs: (token, requestOptions = {}) =>
       request('GET', '/api/device/songs', undefined, token, {
         maxResponseBytes: 4 * 1024 * 1024,
         signal: requestOptions.signal,
       }),
     getBilibiliCredentials: (token, requestOptions) =>
-      request('GET', '/api/device/bilibili-credentials', undefined, token, requestOptions),
+      request(
+        'GET',
+        '/api/device/bilibili-credentials',
+        undefined,
+        token,
+        requestOptions,
+      ),
     setBilibiliCredentials: (cookie, token, requestOptions) =>
-      request('PUT', '/api/device/bilibili-credentials', { cookie }, token, requestOptions),
+      request(
+        'PUT',
+        '/api/device/bilibili-credentials',
+        { cookie },
+        token,
+        requestOptions,
+      ),
     clearBilibiliCredentials: (token, requestOptions) =>
       request(
         'DELETE',
@@ -389,7 +433,8 @@ function parseEventBlock(block) {
   const dataLines = [];
   for (const line of String(block || '').split('\n')) {
     if (line.startsWith('event:')) eventName = line.slice(6).trim();
-    else if (line.startsWith('data:')) dataLines.push(line.slice(5).trimStart());
+    else if (line.startsWith('data:'))
+      dataLines.push(line.slice(5).trimStart());
   }
   return { eventName, data: dataLines.join('\n') };
 }
@@ -398,9 +443,7 @@ function handleGiftEventBlock(block, onEvent) {
   const { eventName, data } = parseEventBlock(block);
   if (eventName !== 'gift-event' || !data) return;
   try {
-    const event = normalizeProcessedGiftEvent(
-      JSON.parse(data),
-    );
+    const event = normalizeProcessedGiftEvent(JSON.parse(data));
     onEvent?.(event);
   } catch (error) {
     // A malformed event is isolated to its SSE block. Cursor recovery remains

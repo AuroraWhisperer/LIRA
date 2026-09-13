@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
+const { readCssBundle } = require('./helpers/css-bundle');
 const vm = require('node:vm');
 
 const ROOT_DIR = path.join(__dirname, '..');
@@ -11,7 +12,7 @@ const ROOT_DIR = path.join(__dirname, '..');
 test('overtime overlay has independent layers and responsive container scaling', () => {
   const html = read('public/pages/overlays/overtime.html');
   const css = read('public/css/overlays/overtime.css');
-  const adminCss = read('public/css/admin/overtime.css');
+  const adminCss = readCssBundle('public', 'css', 'admin', 'overtime.css');
   const serverSource = read('src/server/http-utils.js');
 
   assert.match(

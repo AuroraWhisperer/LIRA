@@ -1,0 +1,161 @@
+<details class="desktop-lyric-settings-group is-render">
+  <summary>
+    <span><strong>背景与渲染</strong></span
+    ><span class="desktop-lyric-group-count">7 项</span>
+  </summary>
+  <div class="desktop-lyric-group-body desktop-lyric-settings-fields">
+    <div class="desktop-lyric-control">
+      <span class="desktop-lyric-control-copy"><strong>显示背景</strong></span
+      ><label class="switch-control"
+        ><input id="desktopLyricBackgroundEnabled" type="checkbox" /><span
+          class="switch-track"
+          aria-hidden="true"
+        ></span
+      ></label>
+    </div>
+    <label class="desktop-lyric-control"
+      ><span class="desktop-lyric-control-copy"
+        ><strong>背景渲染器</strong></span
+      ><select
+        id="desktopLyricBackgroundRenderer"
+        data-dropdown-variant="settings"
+      >
+        <option value="mesh" selected>网格渐变</option>
+        <option value="aurora">柔光渐变</option>
+        <option value="solid">纯色暗幕</option>
+      </select></label
+    >
+    <label class="desktop-lyric-control desktop-lyric-range-control"
+      ><span class="desktop-lyric-control-copy"
+        ><strong
+          >背景不透明度 <lira-help>控制背景图层强度。</lira-help></strong
+        ></span
+      ><span class="range-row"
+        ><input
+          id="desktopLyricBgOpacity"
+          class="parameter-range parameter-range--intensity"
+          type="range"
+          min="0"
+          max="1"
+          step="0.05"
+          value="0.15"
+        /><input
+          id="desktopLyricBgOpacityNumber"
+          type="number"
+          min="0"
+          max="100"
+          step="5"
+          value="15"
+        /><span class="desktop-lyric-unit">%</span></span
+      ></label
+    >
+    <label class="desktop-lyric-control desktop-lyric-range-control"
+      ><span class="desktop-lyric-control-copy"
+        ><strong
+          >全局不透明度
+          <lira-help>控制整个歌词画面的不透明度。</lira-help></strong
+        ></span
+      ><span class="range-row"
+        ><input
+          id="desktopLyricGlobalOpacity"
+          class="parameter-range parameter-range--intensity"
+          type="range"
+          min="0"
+          max="1"
+          step="0.05"
+          value="1"
+        /><input
+          id="desktopLyricGlobalOpacityNumber"
+          type="number"
+          min="0"
+          max="100"
+          step="5"
+          value="100"
+        /><span class="desktop-lyric-unit">%</span></span
+      ></label
+    >
+    <label class="desktop-lyric-control desktop-lyric-range-control"
+      ><span class="desktop-lyric-control-copy"><strong>亮度</strong></span
+      ><span class="range-row"
+        ><input
+          id="desktopLyricBrightness"
+          class="parameter-range parameter-range--intensity"
+          type="range"
+          min="0.2"
+          max="2"
+          step="0.05"
+          value="1"
+        /><input
+          id="desktopLyricBrightnessNumber"
+          type="number"
+          min="20"
+          max="200"
+          step="5"
+          value="100"
+        /><span class="desktop-lyric-unit">%</span></span
+      ></label
+    >
+    <label class="desktop-lyric-control desktop-lyric-range-control"
+      ><span class="desktop-lyric-control-copy"><strong>对比度</strong></span
+      ><span class="range-row"
+        ><input
+          id="desktopLyricContrast"
+          class="parameter-range parameter-range--intensity"
+          type="range"
+          min="0.2"
+          max="2"
+          step="0.05"
+          value="1"
+        /><input
+          id="desktopLyricContrastNumber"
+          type="number"
+          min="20"
+          max="200"
+          step="5"
+          value="100"
+        /><span class="desktop-lyric-unit">%</span></span
+      ></label
+    >
+    <label class="desktop-lyric-control desktop-lyric-range-control"
+      ><span class="desktop-lyric-control-copy"><strong>饱和度</strong></span
+      ><span class="range-row"
+        ><input
+          id="desktopLyricSaturation"
+          class="parameter-range parameter-range--intensity"
+          type="range"
+          min="0"
+          max="2"
+          step="0.05"
+          value="1"
+        /><input
+          id="desktopLyricSaturationNumber"
+          type="number"
+          min="0"
+          max="200"
+          step="5"
+          value="100"
+        /><span class="desktop-lyric-unit">%</span></span
+      ></label
+    >
+  </div>
+</details>
+
+<section class="desktop-lyric-settings-group desktop-lyric-reset-group">
+  <header>
+    <span
+      ><strong
+        >操作
+        <lira-help
+          >只重置桌面歌词显示，不改变全民 K 歌歌词源。</lira-help
+        ></strong
+      ></span
+    >
+  </header>
+  <button
+    id="desktopLyricResetBtn"
+    class="desktop-lyric-reset-button"
+    type="button"
+  >
+    恢复默认
+  </button>
+</section>

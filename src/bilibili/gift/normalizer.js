@@ -2,12 +2,9 @@
 
 const {
   cleanText,
-  now,
-  timestampToIso,
   normalizePositiveInteger,
   normalizeMoney,
   normalizeSignedMoney,
-  normalizeNullableMoney,
 } = require('../../shared/utils');
 
 function normalizeGiftRow(row) {
@@ -35,49 +32,6 @@ function normalizeGiftRow(row) {
   };
 }
 
-function normalizeGiftInput(input) {
-  const num = normalizePositiveInteger(input && input.num) || 1;
-  const comboNum = normalizePositiveInteger(input && input.comboNum);
-  const unitPrice = normalizeMoney(input && input.unitPrice);
-  const totalPrice = normalizeMoney(
-    (input && input.totalPrice) || unitPrice * num,
-  );
-  const comboTotalPrice = normalizeMoney(input && input.comboTotalPrice);
-  const blindBoxPrice =
-    input && input.blindBoxPrice === null
-      ? null
-      : normalizeNullableMoney(input && input.blindBoxPrice);
-  const blindProfit =
-    blindBoxPrice === null
-      ? null
-      : normalizeSignedMoney(totalPrice - blindBoxPrice);
-  return {
-    platformId: cleanText(input && input.platformId),
-    comboId: cleanText(input && input.comboId),
-    cmd: cleanText(input && input.cmd),
-    giftId: cleanText(input && input.giftId),
-    giftName: cleanText(input && input.giftName),
-    uid: cleanText(input && input.uid),
-    userName: cleanText(input && input.userName) || '观众',
-    num,
-    comboNum,
-    unitPrice,
-    totalPrice,
-    comboTotalPrice,
-    coinType: cleanText(input && input.coinType),
-    isBlindBox: Boolean(input && input.isBlindBox),
-    blindBoxId: normalizeOptionalGiftId(input && input.blindBoxId),
-    blindBoxName: cleanText(input && input.blindBoxName),
-    blindBoxPrice,
-    blindProfit,
-    rawJson: cleanText(input && input.rawJson),
-    createdAt:
-      timestampToIso(input && input.messageTimestamp) ||
-      cleanText(input && input.createdAt) ||
-      now(),
-  };
-}
-
 function normalizeOptionalGiftId(value) {
   const id = String(value ?? '').trim();
   return /^[1-9]\d{0,19}$/u.test(id) ? id : null;
@@ -85,5 +39,4 @@ function normalizeOptionalGiftId(value) {
 
 module.exports = {
   normalizeGiftRow,
-  normalizeGiftInput,
 };

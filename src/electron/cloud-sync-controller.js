@@ -9,7 +9,12 @@ function createCloudSyncController(options = {}) {
   const licenseManager = options.licenseManager;
   const runtime = options.runtime;
   const bilibiliAuth = options.bilibiliAuth;
-  if (!licenseManager || !runtime || !bilibiliAuth) {
+  if (
+    !licenseManager ||
+    !runtime ||
+    !bilibiliAuth ||
+    typeof runtime.prepareCloudRoomAccount !== 'function'
+  ) {
     throw new Error('Cloud sync controller dependencies are required.');
   }
   const suppliedTimers = options.timers || {};
@@ -57,18 +62,30 @@ function createCloudSyncController(options = {}) {
   }
 
   function isCurrent(work) {
-    return active && isAuthorized() &&
-      work.accountKey === accountKey && accountKey === getAccountKey() &&
-      work.generation === lifecycleGeneration && !work.signal?.aborted;
+    return (
+      active &&
+      isAuthorized() &&
+      work.accountKey === accountKey &&
+      accountKey === getAccountKey() &&
+      work.generation === lifecycleGeneration &&
+      !work.signal?.aborted
+    );
   }
 
   function getAccountKey() {
-    const accountName = String(
-      licenseManager.getSnapshot?.()?.streamer?.accountName || '',
-    ).trim().toLowerCase();
-    if (!accountName) return null;
+    const identity = licenseManager.getCloudSyncIdentity?.();
+    const accountName = String(identity?.accountName || '')
+      .trim()
+      .toLowerCase();
+    const streamerId = identity?.streamerId;
+    if (!accountName || !Number.isSafeInteger(streamerId) || streamerId <= 0)
+      return null;
     try {
-      return `${new URL(licenseManager.getRemoteBaseUrl()).origin}\n${accountName}`;
+      return JSON.stringify([
+        new URL(licenseManager.getRemoteBaseUrl()).origin,
+        accountName,
+        streamerId,
+      ]);
     } catch {
       return null;
     }
@@ -76,11 +93,18 @@ function createCloudSyncController(options = {}) {
 
   function prepareAccount() {
     const nextAccountKey = getAccountKey();
-    if (!nextAccountKey) return false;
-    if (accountKey !== null && accountKey !== nextAccountKey) {
+    if (!nextAccountKey) {
       stop();
+      return false;
+    }
+    if (accountKey === nextAccountKey) return true;
+    if (accountKey !== null) stop();
+    const roomChanged = runtime.prepareCloudRoomAccount(nextAccountKey);
+    if (accountKey !== null) {
       dirty.clear();
       for (const scope of VALID_SCOPES) revisions[scope] = null;
+    } else if (roomChanged) {
+      dirty.delete('settings');
     }
     accountKey = nextAccountKey;
     return true;
@@ -158,7 +182,8 @@ function createCloudSyncController(options = {}) {
       .watchCloudStateChangesInternal({
         signal: controller.signal,
         onOpen() {
-          if (streamAbortController !== controller || controller.signal.aborted) return;
+          if (streamAbortController !== controller || controller.signal.aborted)
+            return;
           streamRetryMs = STREAM_RETRY_MIN_MS;
           streamConnections += 1;
           if (streamConnections > 1) {
@@ -168,7 +193,8 @@ function createCloudSyncController(options = {}) {
           }
         },
         onChange(event) {
-          if (streamAbortController !== controller || controller.signal.aborted) return;
+          if (streamAbortController !== controller || controller.signal.aborted)
+            return;
           if (!hasNewCloudRevision(event)) return;
           syncNow().catch((error) => {
             void error;
@@ -214,9 +240,13 @@ function createCloudSyncController(options = {}) {
       if (state?.loggedIn) {
         const cookie = await bilibiliAuth.getCookieHeader();
         if (!isCurrent(work)) return false;
-        result = await licenseManager.setBilibiliCredentialsInternal(cookie, requestOptions);
+        result = await licenseManager.setBilibiliCredentialsInternal(
+          cookie,
+          requestOptions,
+        );
       } else {
-        result = await licenseManager.clearBilibiliCredentialsInternal(requestOptions);
+        result =
+          await licenseManager.clearBilibiliCredentialsInternal(requestOptions);
       }
     }
     if (!isCurrent(work)) return false;
@@ -319,7 +349,9 @@ function createCloudSyncController(options = {}) {
       return;
     }
     if (!shouldApply('bilibili', state.revision, work)) return;
-    const result = await licenseManager.getBilibiliCredentialsInternal({ signal: work.signal });
+    const result = await licenseManager.getBilibiliCredentialsInternal({
+      signal: work.signal,
+    });
     const cloudRevision = Math.max(
       Number(state.revision) || 0,
       Number(result?.revision) || 0,
@@ -350,12 +382,16 @@ function createCloudSyncController(options = {}) {
   }
 
   function syncNow() {
-    const work = { generation: lifecycleGeneration, accountKey, signal: requestController?.signal };
+    const work = {
+      generation: lifecycleGeneration,
+      accountKey,
+      signal: requestController?.signal,
+    };
     return enqueue(() => runSync(work));
   }
 
-  function start() {
-    if (!isAuthorized() || !prepareAccount()) return Promise.resolve(false);
+  async function start() {
+    if (!isAuthorized() || !prepareAccount()) return false;
     if (!active) requestController = new AbortController();
     active = true;
     startEventStream();
@@ -375,9 +411,11 @@ function createCloudSyncController(options = {}) {
   function markDirty(scope) {
     if (disposed || !VALID_SCOPES.has(scope)) return;
     if (
-      scope === 'bilibili' && !isAuthorized() &&
+      scope !== 'songs' &&
+      !isAuthorized() &&
       (!accountKey || accountKey !== getAccountKey())
-    ) return;
+    )
+      return;
     if (isAuthorized() && !prepareAccount()) return;
     markScopeDirty(scope);
     if (isAuthorized()) {

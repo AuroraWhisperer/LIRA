@@ -2,12 +2,8 @@
 
 const { createRemoteGiftCatalogCache } = require('./remote-catalog-cache');
 const { mergeVariantRoomCatalog } = require('./variant-room-catalog');
-const {
-  createRemoteGiftImageCache,
-} = require('./remote-gift-image-cache');
-const {
-  createGiftCatalogInitializer,
-} = require('./gift-catalog-initializer');
+const { createRemoteGiftImageCache } = require('./remote-gift-image-cache');
+const { createGiftCatalogInitializer } = require('./gift-catalog-initializer');
 
 const MAX_REMOTE_SEARCH_RESULTS = 100;
 
@@ -50,7 +46,11 @@ function createHybridGiftSaleCatalogService(options = {}) {
       fetchRemote: options.fetchRemote,
       onUpdated: (snapshot) => {
         roomSnapshot = decorateWithCachedImages(
-          mergeRoomCatalog(local.getSnapshot(), snapshot, getCustomBlindBoxes()),
+          mergeRoomCatalog(
+            local.getSnapshot(),
+            snapshot,
+            getCustomBlindBoxes(),
+          ),
           remoteImageCache,
         );
         if (!giftCatalogInitializer) {
@@ -206,13 +206,25 @@ function createHybridGiftSaleCatalogService(options = {}) {
 
   function resolveGiftImagePath(giftId, _imagePath, rule) {
     const id = String(giftId || '').trim();
-    const gift = typeof remoteCatalog.getGift === 'function'
-      ? remoteCatalog.getGift(id, rule?.giftIdentity?.variantId)
-      : remoteCatalog.getSnapshot()?.gifts?.find((item) => String(item.id) === id &&
-        (!rule?.giftIdentity?.variantId || item.variantId === rule.giftIdentity.variantId));
-    const candidate = gift || roomSnapshot.gifts.find((item) => String(item.id) === id);
+    const gift =
+      typeof remoteCatalog.getGift === 'function'
+        ? remoteCatalog.getGift(id, rule?.giftIdentity?.variantId)
+        : remoteCatalog
+            .getSnapshot()
+            ?.gifts?.find(
+              (item) =>
+                String(item.id) === id &&
+                (!rule?.giftIdentity?.variantId ||
+                  item.variantId === rule.giftIdentity.variantId),
+            );
+    const candidate =
+      gift || roomSnapshot.gifts.find((item) => String(item.id) === id);
     if (!candidate) return '';
-    if (candidate.variantId && candidate.variantId !== rule?.giftIdentity?.variantId) return '';
+    if (
+      candidate.variantId &&
+      candidate.variantId !== rule?.giftIdentity?.variantId
+    )
+      return '';
     return remoteImageCache
       ? remoteImageCache.getCachedGiftImagePath(candidate)
       : candidate.imagePath || '';
@@ -274,17 +286,33 @@ function createHybridGiftSaleCatalogService(options = {}) {
 
 function mergeRoomCatalog(roomSnapshot, serverSnapshot, customBlindBoxes = []) {
   if (serverSnapshot?.schemaVersion === 3) {
-    return mergeVariantRoomCatalog(roomSnapshot, serverSnapshot, customBlindBoxes);
+    return mergeVariantRoomCatalog(
+      roomSnapshot,
+      serverSnapshot,
+      customBlindBoxes,
+    );
   }
-  if (serverSnapshot?.gifts?.length && serverSnapshot.gifts.every(gift => gift.variantId)) {
-    const byId = new Map(serverSnapshot.gifts.map(gift => [gift.id, gift.variantId]));
-    return mergeVariantRoomCatalog(roomSnapshot, { ...serverSnapshot,
-      variantBlindBoxes: (serverSnapshot.blindBoxes || []).map(box => ({
-        variantId: byId.get(box.giftId), outputVariantIds: box.outputGiftIds.map(id => byId.get(id)),
-      })),
-    }, customBlindBoxes);
+  if (
+    serverSnapshot?.gifts?.length &&
+    serverSnapshot.gifts.every((gift) => gift.variantId)
+  ) {
+    const byId = new Map(
+      serverSnapshot.gifts.map((gift) => [gift.id, gift.variantId]),
+    );
+    return mergeVariantRoomCatalog(
+      roomSnapshot,
+      {
+        ...serverSnapshot,
+        variantBlindBoxes: (serverSnapshot.blindBoxes || []).map((box) => ({
+          variantId: byId.get(box.giftId),
+          outputVariantIds: box.outputGiftIds.map((id) => byId.get(id)),
+        })),
+      },
+      customBlindBoxes,
+    );
   }
-  const room = roomSnapshot && typeof roomSnapshot === 'object' ? roomSnapshot : {};
+  const room =
+    roomSnapshot && typeof roomSnapshot === 'object' ? roomSnapshot : {};
   const serverById = new Map(
     (Array.isArray(serverSnapshot?.gifts) ? serverSnapshot.gifts : []).map(
       (gift) => [String(gift?.id || '').trim(), gift],
@@ -366,10 +394,12 @@ function decorateWithCachedImages(snapshot, remoteImageCache) {
 function cloneRoomSnapshot(snapshot, cached) {
   return {
     ...snapshot,
-    gifts: (Array.isArray(snapshot?.gifts) ? snapshot.gifts : []).map((gift) => {
-      const { sourceUrl: _sourceUrl, ...publicGift } = gift;
-      return structuredClone(publicGift);
-    }),
+    gifts: (Array.isArray(snapshot?.gifts) ? snapshot.gifts : []).map(
+      (gift) => {
+        const { sourceUrl: _sourceUrl, ...publicGift } = gift;
+        return structuredClone(publicGift);
+      },
+    ),
     cached,
   };
 }

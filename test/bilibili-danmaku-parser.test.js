@@ -106,6 +106,59 @@ test('danmaku emote parser reads whole-message emoticons and upgrades trusted HT
   ]);
 });
 
+test('danmaku emote parser reads whole-message images from metadata slot 13', () => {
+  const emoticon = {
+    url: 'http://i0.hdslb.com/bfs/emote/whole.gif',
+    width: 180,
+    height: 90,
+  };
+  for (const value of [emoticon, JSON.stringify(emoticon)]) {
+    const metadata = Array(14).fill(null);
+    metadata[13] = value;
+    assert.deepEqual(extractBilibiliDanmakuEmotes([metadata, '[整张表情]']), [
+      {
+        text: '[整张表情]',
+        url: 'https://i0.hdslb.com/bfs/emote/whole.gif',
+        width: 180,
+        height: 90,
+      },
+    ]);
+  }
+});
+
+test('metadata slot 13 preserves existing emote precedence and image restrictions', () => {
+  const info = createInfo({});
+  info[1] = '[整张表情]';
+  info[0][13] = {
+    url: 'https://i0.hdslb.com/bfs/emote/whole.png',
+    width: 180,
+    height: 90,
+  };
+  info[0][15].extra = JSON.stringify({
+    emoticon: {
+      url: 'https://i1.hdslb.com/bfs/emote/preferred.webp',
+      width: 64,
+      height: 32,
+    },
+  });
+  assert.deepEqual(extractBilibiliDanmakuEmotes(info), [
+    {
+      text: '[整张表情]',
+      url: 'https://i1.hdslb.com/bfs/emote/preferred.webp',
+      width: 64,
+      height: 32,
+    },
+  ]);
+
+  delete info[0][15].extra;
+  for (const url of ['https://example.com/emote.png', 'javascript:alert(1)']) {
+    info[0][13].url = url;
+    assert.deepEqual(extractBilibiliDanmakuEmotes(info), []);
+  }
+  info[0][13] = '{invalid';
+  assert.deepEqual(extractBilibiliDanmakuEmotes(info), []);
+});
+
 test('danmaku emote parser rejects untrusted images and deduplicates trigger text', () => {
   const info = createInfo({});
   info[0][15].emots = {

@@ -31,8 +31,14 @@ test('unique song-name matching prefers exact names and ignores disabled or ambi
 
   try {
     songService.saveSong(songStore, { name: '不醉不会', artist: '田馥甄' });
-    songService.saveSong(songStore, { name: '不醉不会现场版', artist: '田馥甄' });
-    songService.saveSong(songStore, { name: '1022比尔的歌', artist: 'Bomb比尔' });
+    songService.saveSong(songStore, {
+      name: '不醉不会现场版',
+      artist: '田馥甄',
+    });
+    songService.saveSong(songStore, {
+      name: '1022比尔的歌',
+      artist: 'Bomb比尔',
+    });
     songService.saveSong(songStore, { name: '比尔隐藏版', isEnabled: false });
     songService.saveSong(songStore, { name: '100%真心', artist: '测试歌手' });
     songService.saveSong(songStore, { name: '1000真心', artist: '测试歌手' });

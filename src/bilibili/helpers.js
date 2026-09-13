@@ -2,22 +2,14 @@
 // Bilibili 杂项辅助函数 — 诊断记录、身份解析、时间戳工具。
 'use strict';
 
-const crypto = require('node:crypto');
 const {
   cleanText,
   normalizeTimestampMs,
   normalizePositiveInteger,
-  normalizeMoney,
   normalizeGuardLevel,
-  safeJsonStringify,
 } = require('../shared/utils');
 
 // ── 数值转换 ──
-
-function normalizeBilibiliCoinRmb(value) {
-  const amount = normalizeMoney(value);
-  return amount > 0 ? (amount / 1000).toFixed(2) - 0 : 0;
-}
 
 function parseBooleanLike(value) {
   if (value === true || value === 1) return true;
@@ -34,17 +26,6 @@ function recordBilibiliCommandDiagnostic(diag, cmd) {
   diag.commandCounts[text] = (diag.commandCounts[text] || 0) + 1;
   diag.recentCommands.unshift({ cmd: text, at: diag.lastCommandAt });
   diag.recentCommands = diag.recentCommands.slice(0, 20);
-}
-
-function recordBilibiliGiftDiagnostic(diag, cmd, reason) {
-  const text = cleanText(cmd) || 'UNKNOWN';
-  diag.unparsedGiftCount += 1;
-  diag.recentGiftLikeCommands.unshift({
-    cmd: text,
-    reason: cleanText(reason),
-    at: new Date().toISOString(),
-  });
-  diag.recentGiftLikeCommands = diag.recentGiftLikeCommands.slice(0, 20);
 }
 
 // ── 命令解析 ──
@@ -66,69 +47,6 @@ function buildBilibiliCommandKey(uid, message, timestampMs) {
   const normalizedTimestamp = normalizeTimestampMs(timestampMs) || Date.now();
   const secondBucket = Math.floor(normalizedTimestamp / 1000);
   return cleanText(uid) + '|' + secondBucket + '|' + text;
-}
-
-function buildBilibiliFallbackGiftId(packet, data) {
-  return crypto
-    .createHash('sha1')
-    .update(
-      [
-        cleanText(packet && packet.cmd),
-        cleanText(
-          (data && (data.uid || data.mid || data.username || data.uname)) || '',
-        ),
-        cleanText(
-          (data &&
-            (data.gift_name ||
-              data.giftName ||
-              data.role_name ||
-              data.roleName)) ||
-            '',
-        ),
-        cleanText(
-          (data &&
-            (data.price ||
-              data.gift_price ||
-              data.giftPrice ||
-              data.total_price ||
-              data.totalPrice)) ||
-            '',
-        ),
-        cleanText(
-          (data &&
-            (data.timestamp ||
-              data.ts ||
-              data.time ||
-              data.start_time ||
-              data.startTime)) ||
-            '',
-        ) || Math.floor(Date.now() / 1000),
-      ].join('|'),
-    )
-    .digest('hex');
-}
-
-function formatUnparsedGiftLikeCommandLog(message, reason, options = {}) {
-  const cmd = cleanText(message && message.cmd);
-  const data =
-    message && message.data && typeof message.data === 'object'
-      ? message.data
-      : {};
-  const keys = Object.keys(data).slice(0, 30).join(',');
-  const preview = safeJsonStringify(data).slice(0, 260);
-  const status = cleanText(options.status) || 'unrecognized';
-  const trace =
-    options.connectionGeneration || options.connectionAttempt
-      ? ` trace=${JSON.stringify({
-          connectionGeneration: Number(options.connectionGeneration) || 0,
-          connectionAttempt: Number(options.connectionAttempt) || 0,
-        })}`
-      : '';
-  return `[Bilibili][Gift] status=${status} reason=${cleanText(reason)} cmd=${cmd} dataKeys=${keys} data=${preview}${trace}`;
-}
-
-function logUnparsedGiftLikeCommand(message, reason, options = {}) {
-  console.warn(formatUnparsedGiftLikeCommandLog(message, reason, options));
 }
 
 // ── 身份/勋章解析 ──
@@ -201,15 +119,10 @@ function readBilibiliFansMembersRankItems(data) {
 }
 
 module.exports = {
-  normalizeBilibiliCoinRmb,
   parseBooleanLike,
   recordBilibiliCommandDiagnostic,
-  recordBilibiliGiftDiagnostic,
   isCapturableBilibiliTimestamp,
   buildBilibiliCommandKey,
-  buildBilibiliFallbackGiftId,
-  logUnparsedGiftLikeCommand,
-  formatUnparsedGiftLikeCommandLog,
   normalizeRequesterIdentity,
   guardLevelName,
   readMedalName,

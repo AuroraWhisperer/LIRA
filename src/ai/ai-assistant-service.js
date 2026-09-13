@@ -400,12 +400,14 @@ function createAiAssistantService(dependencies) {
       });
       throwIfShuttingDown();
       lastDeliveryAt = now();
-      const delivered = typeof waitForDelivery !== 'function' || await waitForDelivery({
-        ...delivery,
-        mentionName: mentionTarget.name,
-        timeoutMs: DELIVERY_CONFIRM_TIMEOUT_MS,
-        signal: shutdownController.signal,
-      });
+      const delivered =
+        typeof waitForDelivery !== 'function' ||
+        (await waitForDelivery({
+          ...delivery,
+          mentionName: mentionTarget.name,
+          timeoutMs: DELIVERY_CONFIRM_TIMEOUT_MS,
+          signal: shutdownController.signal,
+        }));
       throwIfShuttingDown();
       if (delivered) {
         if (['chat', 'tool', 'cache'].includes(currentResult.category)) {

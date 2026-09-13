@@ -1,0 +1,156 @@
+.is-wheel .game-card-poster {
+  color: #25193c;
+  background: linear-gradient(145deg, #f6c8e6, #a7d7e8);
+}
+.is-wheel .game-card-poster i {
+  right: -20px;
+  top: 28px;
+  border-color: rgba(37, 25, 60, 0.3);
+  box-shadow:
+    0 0 0 20px rgba(255, 255, 255, 0.22),
+    0 0 0 42px rgba(255, 255, 255, 0.14);
+}
+.is-wheel .game-card-poster i::after {
+  position: absolute;
+  inset: 48px;
+  border-radius: 50%;
+  background: #fff5a8;
+  content: '';
+  box-shadow: 0 0 22px rgba(255, 245, 168, 0.9);
+}
+.wheel-card-trigger {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: 210px minmax(0, 1fr);
+  width: 100%;
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.wheel-card-trigger:hover .wheel-card-summary {
+  background: #fcfaff;
+}
+.wheel-card-trigger:focus-visible {
+  outline: 3px solid rgba(112, 98, 191, 0.35);
+  outline-offset: -3px;
+}
+.wheel-card-summary {
+  display: grid;
+  align-content: center;
+  gap: 14px;
+  min-height: 230px;
+  padding: 22px;
+  transition: background 180ms ease;
+}
+.wheel-card-summary .game-card-heading {
+  display: flex;
+}
+.wheel-card-summary .game-card-heading strong {
+  display: block;
+  margin-top: 3px;
+  font-size: var(--type-size-card-title);
+}
+.wheel-card-description {
+  color: var(--muted);
+  line-height: 1.7;
+}
+.wheel-card-result {
+  color: #6a579e;
+  font-size: var(--type-size-control);
+  font-weight: var(--type-weight-semibold);
+}
+.wheel-expand-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #5d519e;
+  font-size: var(--type-size-control);
+  font-weight: var(--type-weight-semibold);
+}
+.wheel-expand-icon {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid #cfc7ef;
+  border-radius: 50%;
+  background: #f0edff;
+  font-size: 18px;
+  line-height: 1;
+  transition: transform 180ms ease;
+}
+.wheel-expand-mark {
+  display: block;
+  transform: translateY(-1px);
+}
+.is-wheel:not(.is-collapsed) .wheel-expand-icon {
+  transform: rotate(45deg);
+}
+.wheel-card-details {
+  grid-column: 1 / -1;
+  border-top: 1px solid #e4dfef;
+  background: #fdfcff;
+}
+.wheel-card-details[hidden] {
+  display: none;
+}
+.wheel-editor {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid #e1ddec;
+  border-radius: 12px;
+  background: #fbfaff;
+}
+.wheel-editor-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #4e4677;
+  font-size: var(--type-size-control);
+}
+.wheel-editor-heading span {
+  color: var(--muted);
+  font-family: Consolas, monospace;
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-bold);
+}
+.wheel-entry-list {
+  display: grid;
+  gap: 8px;
+}
+.wheel-entry-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 110px auto;
+  gap: 8px;
+  align-items: center;
+}
+.wheel-entry-row label {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: var(--type-size-control);
+  font-weight: 700;
+}
+.wheel-entry-row input {
+  width: 100%;
+}
+.wheel-remove-entry {
+  min-width: 34px;
+  padding-inline: 8px;
+}
+.wheel-add-entry {
+  justify-self: start;
+}
+.wheel-actions {
+  align-items: center;
+}
+.wheel-status {
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+}

@@ -23,9 +23,7 @@ class BilibiliApiClient {
 
   async resolveRoomInfo() {
     if (!this.roomId) {
-      throw new Error(
-        '请填写直播间号，或直接粘贴直播间链接。',
-      );
+      throw new Error('请填写直播间号，或直接粘贴直播间链接。');
     }
     const { payload, response } = await this.fetchJson(
       'room_init',

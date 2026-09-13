@@ -29,6 +29,95 @@ test('admin routes use one explicit ordered fragment composition', () => {
   );
 });
 
+test('admin composition expands the complete danmaku AI subfragment in place', () => {
+  const parentPath = 'pages/admin/toolbox/danmaku.html';
+  const aiPath = 'pages/admin/toolbox/danmaku-ai.html';
+  const parent = fs.readFileSync(path.join(PUBLIC_DIR, parentPath), 'utf8');
+
+  assert.match(
+    parent,
+    /<!-- admin-fragment: pages\/admin\/toolbox\/danmaku-ai\.html -->/,
+  );
+  assert.doesNotMatch(parent, /id="xiaomiAiSection"/);
+  assert.equal(ADMIN_FRAGMENT_PATHS.includes(aiPath), false);
+
+  const ai = fs.readFileSync(path.join(PUBLIC_DIR, aiPath), 'utf8');
+  assert.match(ai, /^\s*<section\b[^>]*id="xiaomiAiSection"/);
+  assert.match(ai, /<form id="xiaomiAiForm"/);
+  assert.match(ai, /<\/section>\s*$/);
+
+  const html = composeAdminHtml(PUBLIC_DIR);
+  assert.doesNotMatch(html, /<!-- admin-fragment:/);
+  assert.ok(html.indexOf('id="danmakuSendForm"') < html.indexOf(ai.trim()));
+  assert.ok(
+    html.indexOf(ai.trim()) < html.indexOf('id="danmakuFixedReplyTitle"'),
+  );
+});
+
+test('admin composition expands complete desktop lyric regions in order', () => {
+  const parentPath = 'pages/admin/song/desktop-lyric.html';
+  const fragmentPaths = [
+    'pages/admin/song/desktop-lyric-appearance.html',
+    'pages/admin/song/desktop-lyric-behavior.html',
+    'pages/admin/song/desktop-lyric-layout.html',
+    'pages/admin/song/desktop-lyric-rendering.html',
+    'pages/admin/song/desktop-lyric-preview.html',
+  ];
+  const parent = fs.readFileSync(path.join(PUBLIC_DIR, parentPath), 'utf8');
+  const markers = Array.from(
+    parent.matchAll(/<!-- admin-fragment: ([^ ]+\.html) -->/g),
+    (match) => match[1],
+  );
+
+  assert.deepEqual(markers, fragmentPaths);
+  assert.match(parent, /^\s*<div id="desktopLyricPage"[\s\S]*<\/div>\s*$/);
+  assert.doesNotMatch(
+    parent,
+    /is-basic|is-effect|is-content|is-visibility|is-layout|is-render|id="desktopLyricLivePreview"/,
+  );
+  for (const fragmentPath of fragmentPaths) {
+    assert.equal(ADMIN_FRAGMENT_PATHS.includes(fragmentPath), false);
+  }
+
+  const fragments = fragmentPaths.map((fragmentPath) =>
+    fs.readFileSync(path.join(PUBLIC_DIR, fragmentPath), 'utf8'),
+  );
+  assert.match(
+    fragments[0],
+    /^\s*<details\b[^>]*is-basic[\s\S]*is-effect[\s\S]*<\/details>\s*$/,
+  );
+  assert.match(
+    fragments[1],
+    /^\s*<details\b[^>]*is-content[\s\S]*is-visibility[\s\S]*<\/details>\s*$/,
+  );
+  assert.match(
+    fragments[2],
+    /^\s*<details\b[^>]*is-layout[\s\S]*<\/details>\s*$/,
+  );
+  assert.match(
+    fragments[3],
+    /^\s*<details\b[^>]*is-render[\s\S]*desktopLyricResetBtn[\s\S]*<\/section>\s*$/,
+  );
+  assert.match(
+    fragments[4],
+    /^\s*<section\b[^>]*id="desktopLyricLivePreview"[\s\S]*<\/section>\s*$/,
+  );
+
+  const html = composeAdminHtml(PUBLIC_DIR);
+  assert.doesNotMatch(html, /<!-- admin-fragment:/);
+  let previousIndex = html.indexOf(
+    'class="theme-section desktop-lyric-source-settings"',
+  );
+  for (const fragment of fragments) {
+    const index = html.indexOf(fragment.trim());
+    assert.ok(index > previousIndex);
+    previousIndex = index;
+  }
+  for (const source of [parent, ...fragments]) {
+    assert.ok(source.trimEnd().split(/\r?\n/).length < 800);
+  }
+});
+
 test('composed admin page is complete, ordered, and has unique ids', () => {
   const html = composeAdminHtml(PUBLIC_DIR);
   const shellStart = fs.readFileSync(
@@ -48,10 +137,7 @@ test('composed admin page is complete, ordered, and has unique ids', () => {
   assert.match(html, /<\/html>\s*$/);
   assert.match(shellStart, /<\/header>\s*$/);
   assert.match(songShellStart, /<\/button>\s*<\/div>\s*$/);
-  assert.match(
-    toolboxShellStart,
-    /<div class="other-feature-content">\s*$/,
-  );
+  assert.match(toolboxShellStart, /<div class="other-feature-content">\s*$/);
   assert.ok(
     html.indexOf('id="songAssistantPage"') <
       html.indexOf('id="giftAssistantPage"'),

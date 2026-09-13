@@ -16,18 +16,29 @@ const prefixes = ['/api/songs', '/api/categories'];
 
 async function readUpdateInput(request) {
   const body = await request.body();
-  if (!body || typeof body !== 'object' || Array.isArray(body) ||
-      (body.base64 !== undefined && (typeof body.base64 !== 'string' || body.rows !== undefined))) {
+  if (
+    !body ||
+    typeof body !== 'object' ||
+    Array.isArray(body) ||
+    (body.base64 !== undefined &&
+      (typeof body.base64 !== 'string' || body.rows !== undefined))
+  ) {
     throw Object.assign(new Error('请提供歌曲行对象或一个 Excel 文件。'), {
-      statusCode: 400, code: 'SONG_IMPORT_INPUT_INVALID',
+      statusCode: 400,
+      code: 'SONG_IMPORT_INPUT_INVALID',
     });
   }
   let rows = body.rows;
   if (body.base64 !== undefined) {
     try {
-      rows = parseSongsFromXlsx(Buffer.from(String(body.base64), 'base64'), { preserveMissing: true });
+      rows = parseSongsFromXlsx(Buffer.from(String(body.base64), 'base64'), {
+        preserveMissing: true,
+      });
     } catch (error) {
-      throw Object.assign(error, { statusCode: 400, code: 'SONG_IMPORT_INPUT_INVALID' });
+      throw Object.assign(error, {
+        statusCode: 400,
+        code: 'SONG_IMPORT_INPUT_INVALID',
+      });
     }
   }
   return {
@@ -39,7 +50,8 @@ async function readUpdateInput(request) {
 
 function sendImportError(res, error) {
   sendJson(res, error.statusCode || 500, {
-    ok: false, error: error.statusCode ? error.code : 'SONG_IMPORT_FAILED',
+    ok: false,
+    error: error.statusCode ? error.code : 'SONG_IMPORT_FAILED',
     message: error.statusCode ? error.message : '导入未完成，已回滚，请重试。',
   });
 }
@@ -149,7 +161,9 @@ const routes = {
 
   async 'POST /api/songs/import-preview'(context, request, res) {
     try {
-      const result = context.songs.previewImport(await readUpdateInput(request));
+      const result = context.songs.previewImport(
+        await readUpdateInput(request),
+      );
       sendJson(res, 200, { ok: true, data: result });
     } catch (error) {
       sendImportError(res, error);

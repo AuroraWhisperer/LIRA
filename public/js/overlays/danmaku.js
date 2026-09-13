@@ -149,10 +149,7 @@ function createOverlayFeed(style, durationSeconds) {
     options.itemLifetimeMs = durationSeconds * 1000;
     options.expireItems = !previewMode;
   }
-  feed = createDanmakuFeed(
-    document.getElementById('danmakuFeed'),
-    options,
-  );
+  feed = createDanmakuFeed(document.getElementById('danmakuFeed'), options);
 }
 
 function normalizeFullscreenDuration(value) {
@@ -171,8 +168,7 @@ function applyConfiguration(styleValue, durationValue) {
   const duration = normalizeFullscreenDuration(durationValue);
   const changed =
     style !== currentOverlayStyle ||
-    (style === 'outline' &&
-      duration !== currentFullscreenDurationSeconds);
+    (style === 'outline' && duration !== currentFullscreenDurationSeconds);
   currentOverlayStyle = style;
   currentFullscreenDurationSeconds = duration;
   document.body.dataset.style = style;
@@ -282,7 +278,15 @@ function previewItems() {
     {
       id: 'preview-565',
       name: '晚风信号',
-      message: '这个转音好稳 ✦',
+      message: '[打call]',
+      emotes: [
+        {
+          text: '[打call]',
+          url: 'https://i0.hdslb.com/bfs/emote/431432c43da3ee5aab5b0e4f8931953e649e9975.png',
+          width: 96,
+          height: 96,
+        },
+      ],
       medalName: '星频',
       medalLevel: 9,
     },

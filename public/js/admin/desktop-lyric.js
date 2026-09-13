@@ -2,7 +2,7 @@
 // 桌面歌词设置
 'use strict';
 
-import { DESKTOP_LYRIC_DEFAULTS } from './desktop-lyric-defaults.js';
+import { DESKTOP_LYRIC_DEFAULTS } from '../lyrics/desktop-lyric-defaults.js';
 import {
   ensureSavedFontOption,
   registerLocalFontSelect,

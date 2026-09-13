@@ -150,9 +150,7 @@ export function initBilibiliAuth({
     try {
       await windowRef.bilibiliAuth.logout();
       await refreshAuthState();
-      documentRef.dispatchEvent(
-        new CustomEvent('app:bilibili-auth-changed'),
-      );
+      documentRef.dispatchEvent(new CustomEvent('app:bilibili-auth-changed'));
       toast(
         '直播账号已退出；当前 LIRA 账号的云端状态需在同步成功后生效，不会回退为匿名采集。',
       );

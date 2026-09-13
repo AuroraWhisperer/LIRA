@@ -14,6 +14,8 @@ const REQUIRED_GOVERNANCE_FILES = [
   'docs/architecture/engineering/ai-workflow.md',
   'docs/architecture/engineering/legacy-boundaries.md',
   'docs/architecture/engineering/modularity-standard.md',
+  'docs/architecture/adr/0017-incremental-modularity-size-gate.md',
+  'docs/architecture/engineering/modularity-debt.md',
   'public/js/admin/AGENTS.md',
   'specs/README.md',
   'src/electron/AGENTS.md',

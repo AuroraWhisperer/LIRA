@@ -79,9 +79,11 @@ test('system resume triggers licenseManager.resume via the latest reference', as
 });
 
 test('resume rejection is logged instead of crashing', async () => {
-  const { powerMonitor, logs, controller, getAfterResumeCalls } = createHarness({
-    resumeError: new Error('boom'),
-  });
+  const { powerMonitor, logs, controller, getAfterResumeCalls } = createHarness(
+    {
+      resumeError: new Error('boom'),
+    },
+  );
   controller.register();
   powerMonitor.emit('resume');
   await new Promise((resolve) => setImmediate(resolve));

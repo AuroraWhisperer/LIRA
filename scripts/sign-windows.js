@@ -19,7 +19,11 @@
 
 const { execFileSync, spawnSync } = require('node:child_process');
 const path = require('node:path');
-const { redactReleaseOutput, sanitizeCommandError, checkCommandResult } = require('./release-output');
+const {
+  redactReleaseOutput,
+  sanitizeCommandError,
+  checkCommandResult,
+} = require('./release-output');
 
 // RFC 3161 时间戳服务器(优先级顺序)
 const TIMESTAMP_SERVERS = [
@@ -44,8 +48,10 @@ const SIGNTOOL_SEARCH_PATHS = [
  * @returns {Promise<void>}
  */
 exports.default = async function sign(configuration) {
-  const log = (message) => console.log(redactReleaseOutput(message, process.env));
-  const warn = (message) => console.warn(redactReleaseOutput(message, process.env));
+  const log = (message) =>
+    console.log(redactReleaseOutput(message, process.env));
+  const warn = (message) =>
+    console.warn(redactReleaseOutput(message, process.env));
   const filePath = configuration.path;
   log(`[sign-windows] Signing: ${filePath}`);
 
@@ -85,9 +91,7 @@ exports.default = async function sign(configuration) {
       args.push('/p', certPassword);
     }
   } else {
-    log(
-      `[sign-windows] Using certificate from store: ${certThumbprint}`,
-    );
+    log(`[sign-windows] Using certificate from store: ${certThumbprint}`);
     args.push('/sha1', certThumbprint);
   }
 
@@ -109,9 +113,7 @@ exports.default = async function sign(configuration) {
       if (result.stderr?.length) warn(result.stderr.toString().trimEnd());
 
       timestampSuccess = true;
-      log(
-        `[sign-windows] ✅ Signed successfully with timestamp from ${tsUrl}`,
-      );
+      log(`[sign-windows] ✅ Signed successfully with timestamp from ${tsUrl}`);
       break;
     } catch (error) {
       lastTimestampError = sanitizeCommandError(error, process.env);
@@ -131,7 +133,8 @@ exports.default = async function sign(configuration) {
       { cause: lastTimestampError },
     );
     for (const key of ['status', 'code', 'signal']) {
-      if (lastTimestampError?.[key] != null) error[key] = lastTimestampError[key];
+      if (lastTimestampError?.[key] != null)
+        error[key] = lastTimestampError[key];
     }
     throw error;
   }
@@ -147,7 +150,9 @@ function findSigntool() {
   // 优先从 PATH 查找
   try {
     execFileSync('where', ['signtool.exe'], {
-      encoding: 'utf8', shell: true, stdio: ['ignore', 'pipe', 'pipe'],
+      encoding: 'utf8',
+      shell: true,
+      stdio: ['ignore', 'pipe', 'pipe'],
     });
     return 'signtool.exe'; // 在 PATH 中可直接调用
   } catch {
@@ -171,7 +176,12 @@ function findSigntool() {
         '/b',
         'C:\\Program Files (x86)\\Windows Kits\\*signtool.exe',
       ],
-      { encoding: 'utf8', shell: false, timeout: 10000, stdio: ['ignore', 'pipe', 'pipe'] },
+      {
+        encoding: 'utf8',
+        shell: false,
+        timeout: 10000,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      },
     );
     const lines = result.trim().split('\n');
     if (lines.length > 0 && lines[0].trim()) {

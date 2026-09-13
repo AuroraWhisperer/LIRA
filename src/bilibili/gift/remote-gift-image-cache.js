@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { normalizeImageBaseUrl } = require('./remote-catalog-cache');
 const { giftVariantId } = require('../../shared/gift-identity');
+const { resolveDataPaths } = require('../../shared/data-paths');
 
 const CACHE_DIR_NAME = 'overtime-gift-images';
 const LOCAL_IMAGE_PREFIX = '/overtime-gift-images/';
@@ -31,14 +32,11 @@ function createRemoteGiftImageCache(options = {}) {
     if (!imageBaseUrl) throw new Error('imageBaseUrl is required.');
     return imageBaseUrl;
   };
-  const cacheDir = path.join(dataDir, CACHE_DIR_NAME);
+  const cacheDir = resolveDataPaths(dataDir).giftImagesDir;
   const fetchImage = options.fetch || globalThis.fetch;
   if (typeof fetchImage !== 'function') throw new Error('fetch is required.');
   const timeoutMs = positiveInteger(options.timeoutMs, DEFAULT_TIMEOUT_MS);
-  const concurrency = positiveInteger(
-    options.concurrency,
-    DEFAULT_CONCURRENCY,
-  );
+  const concurrency = positiveInteger(options.concurrency, DEFAULT_CONCURRENCY);
   const logger = options.logger || console;
   const pending = new Map();
   let active = 0;
@@ -96,9 +94,13 @@ function createRemoteGiftImageCache(options = {}) {
       const imagePath = getCachedCandidatePath(candidate);
       if (imagePath) return imagePath;
     }
-    const previousBasename = lastGoodImages.get(gift?.variantId || giftVariantId(gift));
+    const previousBasename = lastGoodImages.get(
+      gift?.variantId || giftVariantId(gift),
+    );
     return getCachedCandidatePath(
-      previousBasename ? { basename: previousBasename } : bilibiliImageCandidate(gift),
+      previousBasename
+        ? { basename: previousBasename }
+        : bilibiliImageCandidate(gift),
     );
   }
 
@@ -139,10 +141,15 @@ function createRemoteGiftImageCache(options = {}) {
 
   function persistImageIndex() {
     if (!indexDirty) return;
-    writeAtomic(indexPath, Buffer.from(JSON.stringify({
-      schemaVersion: 2,
-      images: Object.fromEntries(lastGoodImages),
-    })));
+    writeAtomic(
+      indexPath,
+      Buffer.from(
+        JSON.stringify({
+          schemaVersion: 2,
+          images: Object.fromEntries(lastGoodImages),
+        }),
+      ),
+    );
     indexDirty = false;
   }
 
@@ -166,14 +173,11 @@ function createRemoteGiftImageCache(options = {}) {
       if (await isValidImageFile(targetPath, basename))
         return `${LOCAL_IMAGE_PREFIX}${basename}`;
       try {
-        const bytes = await downloadImage(
-          url,
-          fetchImage,
-          timeoutMs,
-          headers,
-        );
+        const bytes = await downloadImage(url, fetchImage, timeoutMs, headers);
         if (!validateImageBytes(bytes, basename))
-          throw new Error('downloaded image signature does not match extension');
+          throw new Error(
+            'downloaded image signature does not match extension',
+          );
         writeAtomic(targetPath, bytes);
         return `${LOCAL_IMAGE_PREFIX}${basename}`;
       } catch (error) {
@@ -249,7 +253,15 @@ function bilibiliImageCandidate(gift, serverCandidate = null) {
   if (!extension) return null;
   const sourceHash = crypto
     .createHash('sha256')
-    .update([parsed.href, serverCandidate?.url, gift?.variantId || giftVariantId(gift)].filter(Boolean).join('\n'))
+    .update(
+      [
+        parsed.href,
+        serverCandidate?.url,
+        gift?.variantId || giftVariantId(gift),
+      ]
+        .filter(Boolean)
+        .join('\n'),
+    )
     .digest('hex')
     .slice(0, 16);
   return {
@@ -263,10 +275,18 @@ function readImageIndex(filePath) {
   const images = new Map();
   try {
     const value = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-    if (value?.schemaVersion !== 2 || !value.images || typeof value.images !== 'object')
+    if (
+      value?.schemaVersion !== 2 ||
+      !value.images ||
+      typeof value.images !== 'object'
+    )
       return images;
     for (const [id, basename] of Object.entries(value.images)) {
-      if (/^gv_[a-f0-9]{64}$/u.test(id) && typeof basename === 'string' && isSafeBasename(basename))
+      if (
+        /^gv_[a-f0-9]{64}$/u.test(id) &&
+        typeof basename === 'string' &&
+        isSafeBasename(basename)
+      )
         images.set(id, basename);
     }
   } catch (_) {
@@ -317,7 +337,10 @@ function imageExtension(pathname) {
 }
 
 async function readResponseBytes(response) {
-  if (response.body && typeof response.body[Symbol.asyncIterator] === 'function') {
+  if (
+    response.body &&
+    typeof response.body[Symbol.asyncIterator] === 'function'
+  ) {
     const chunks = [];
     let total = 0;
     for await (const chunk of response.body) {
@@ -331,7 +354,8 @@ async function readResponseBytes(response) {
   if (typeof response.arrayBuffer !== 'function')
     throw new Error('image response body is unavailable');
   const bytes = Buffer.from(await response.arrayBuffer());
-  if (bytes.length > MAX_IMAGE_BYTES) throw new Error('image exceeds size limit');
+  if (bytes.length > MAX_IMAGE_BYTES)
+    throw new Error('image exceeds size limit');
   return bytes;
 }
 
@@ -422,13 +446,31 @@ function validateImageBytes(bytes, basename) {
   if (!Buffer.isBuffer(bytes) || bytes.length === 0) return false;
   const extension = path.posix.extname(String(basename || '')).toLowerCase();
   if (extension === '.png')
-    return bytes.length >= 8 && bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+    return (
+      bytes.length >= 8 &&
+      bytes
+        .subarray(0, 8)
+        .equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+    );
   if (extension === '.jpg' || extension === '.jpeg')
-    return bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+    return (
+      bytes.length >= 3 &&
+      bytes[0] === 0xff &&
+      bytes[1] === 0xd8 &&
+      bytes[2] === 0xff
+    );
   if (extension === '.gif')
-    return bytes.length >= 6 && (bytes.subarray(0, 6).toString('ascii') === 'GIF87a' || bytes.subarray(0, 6).toString('ascii') === 'GIF89a');
+    return (
+      bytes.length >= 6 &&
+      (bytes.subarray(0, 6).toString('ascii') === 'GIF87a' ||
+        bytes.subarray(0, 6).toString('ascii') === 'GIF89a')
+    );
   if (extension === '.webp')
-    return bytes.length >= 12 && bytes.subarray(0, 4).toString('ascii') === 'RIFF' && bytes.subarray(8, 12).toString('ascii') === 'WEBP';
+    return (
+      bytes.length >= 12 &&
+      bytes.subarray(0, 4).toString('ascii') === 'RIFF' &&
+      bytes.subarray(8, 12).toString('ascii') === 'WEBP'
+    );
   return false;
 }
 

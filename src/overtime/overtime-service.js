@@ -112,7 +112,9 @@ function createOvertimeService(options = {}) {
     if (Object.hasOwn(value, 'remainingSeconds')) {
       nextState.remainingMs = value.remainingSeconds * 1000;
       nextState.status =
-        nextState.enabled && nextState.remainingMs === 0 ? 'finished' : 'paused';
+        nextState.enabled && nextState.remainingMs === 0
+          ? 'finished'
+          : 'paused';
     }
     commit('manual', nextState);
     return getSnapshot();
@@ -203,8 +205,7 @@ function createOvertimeService(options = {}) {
       const giftId = String(rule.giftId ?? rule.gift_id ?? '').trim();
       if (
         !giftId ||
-        (!isRemoteGiftImagePath(imagePath) &&
-          !isLegacyGiftImagePath(imagePath))
+        (!isRemoteGiftImagePath(imagePath) && !isLegacyGiftImagePath(imagePath))
       )
         return rule;
       let replacement = '';
@@ -256,13 +257,13 @@ function createOvertimeService(options = {}) {
         materializedState,
         updatedAt,
         ({ gift, rule }) =>
-          resolveGiftSettlement(
+          resolveGiftSettlement({
             giftEventId,
             gift,
             rule,
-            materializedState,
+            currentState: materializedState,
             updatedAt,
-          ),
+          }),
       );
       if (result.kind !== 'applied') {
         scheduleNextRecovery();
@@ -297,13 +298,13 @@ function createOvertimeService(options = {}) {
     }
   }
 
-  function resolveGiftSettlement(
+  function resolveGiftSettlement({
     giftEventId,
     gift,
     rule,
     currentState,
     updatedAt,
-  ) {
+  }) {
     const quantity = normalizeQuantity(gift.num);
     const applicationCount = rule.quantityMode === 'item' ? quantity : 1;
     const beforeMs = clampMs(currentState.remainingMs);
@@ -465,9 +466,7 @@ function createOvertimeService(options = {}) {
 
   function reloadState() {
     if (disposed) return;
-    state = normalizeState(
-      store.getState() || store.ensureState(toIso(now())),
-    );
+    state = normalizeState(store.getState() || store.ensureState(toIso(now())));
     clearRetryTimer();
     recoverPersistedClock();
     recoverSettlements();
@@ -560,7 +559,12 @@ function createOvertimeService(options = {}) {
       cancelTimeout(zeroTimer);
       zeroTimer = null;
     }
-    if (disposed || recoveryPaused || !state.enabled || state.status !== 'running')
+    if (
+      disposed ||
+      recoveryPaused ||
+      !state.enabled ||
+      state.status !== 'running'
+    )
       return;
     const remainingMs = getEffectiveRemainingMs();
     const delay = Math.min(MAX_TIMER_CHUNK_MS, Math.max(0, remainingMs));
@@ -570,7 +574,12 @@ function createOvertimeService(options = {}) {
 
   function handleZeroTimer() {
     zeroTimer = null;
-    if (disposed || recoveryPaused || !state.enabled || state.status !== 'running')
+    if (
+      disposed ||
+      recoveryPaused ||
+      !state.enabled ||
+      state.status !== 'running'
+    )
       return;
     if (getEffectiveRemainingMs() > 0) {
       scheduleZeroTimer();

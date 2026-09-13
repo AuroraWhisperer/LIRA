@@ -57,8 +57,13 @@ test('gift audit consumes snapshot.state while the WebSocket remains open', asyn
   const getElement = (id) => {
     if (!elements.has(id)) {
       elements.set(id, {
-        value: '', textContent: '', innerHTML: '', style: {},
-        addEventListener(type, listener) { this[type] = listener; },
+        value: '',
+        textContent: '',
+        innerHTML: '',
+        style: {},
+        addEventListener(type, listener) {
+          this[type] = listener;
+        },
         scrollIntoView() {},
       });
     }
@@ -74,33 +79,50 @@ test('gift audit consumes snapshot.state while the WebSocket remains open', asyn
       socket = this;
     }
   }
-  await loadModuleExports(path.join(ROOT_DIR, 'public/js/gift-audit/index.js'), {
-    location: { protocol: 'http:', host: 'localhost' },
-    WebSocket: FakeWebSocket,
-    document: {
-      getElementById: getElement,
-      createElement: () => ({
-        textContent: '',
-        get innerHTML() { return this.textContent; },
-      }),
-      body: { appendChild() {} },
+  await loadModuleExports(
+    path.join(ROOT_DIR, 'public/js/gift-audit/index.js'),
+    {
+      location: { protocol: 'http:', host: 'localhost' },
+      WebSocket: FakeWebSocket,
+      document: {
+        getElementById: getElement,
+        createElement: () => ({
+          textContent: '',
+          get innerHTML() {
+            return this.textContent;
+          },
+        }),
+        body: { appendChild() {} },
+      },
+      setTimeout() {},
+      setInterval(callback) {
+        poll = callback;
+      },
+      async fetch() {
+        fetchCount += 1;
+        return {
+          json: async () => ({
+            ok: true,
+            data: {
+              liveStatus: { roomId: 'http-room' },
+              gifts: { recent: [] },
+            },
+          }),
+        };
+      },
     },
-    setTimeout() {},
-    setInterval(callback) { poll = callback; },
-    async fetch() {
-      fetchCount += 1;
-      return { json: async () => ({
-        ok: true,
-        data: { liveStatus: { roomId: 'http-room' }, gifts: { recent: [] } },
-      }) };
-    },
-  });
+  );
   await new Promise(setImmediate);
   assert.match(getElement('connBar').innerHTML, /http-room/);
   socket.onopen();
   const gift = {
-    id: 'gift-1', user_name: '用户A', gift_name: '小花花',
-    gift_id: 1, num: 1, total_price: 0.1, created_at: new Date().toISOString(),
+    id: 'gift-1',
+    user_name: '用户A',
+    gift_name: '小花花',
+    gift_id: 1,
+    num: 1,
+    total_price: 0.1,
+    created_at: new Date().toISOString(),
   };
   const state = {
     liveStatus: { connected: true, roomId: 'ws-room', mode: 'test' },
@@ -111,17 +133,26 @@ test('gift audit consumes snapshot.state while the WebSocket remains open', asyn
   assert.match(getElement('connBar').innerHTML, /ws-room/);
   assert.match(getElement('connBar').innerHTML, /已解析 7 条礼物/);
 
-  socket.onmessage({ data: JSON.stringify({
-    type: 'snapshot',
-    state: { ...state, gifts: { recent: [gift, { ...gift, id: 'gift-2', gift_name: '辣条' }] } },
-  }) });
+  socket.onmessage({
+    data: JSON.stringify({
+      type: 'snapshot',
+      state: {
+        ...state,
+        gifts: { recent: [gift, { ...gift, id: 'gift-2', gift_name: '辣条' }] },
+      },
+    }),
+  });
   poll();
   getElement('bubbleHtml').value = '<div class="bubble-list"></div>';
   await getElement('parseAndCompareBtn').click();
   assert.equal(getElement('statServer').textContent, 2);
   assert.match(getElement('comparisonBody').innerHTML, /小花花/);
   assert.match(getElement('comparisonBody').innerHTML, /辣条/);
-  assert.equal(fetchCount, 1, 'open WebSocket snapshots populate the cache without HTTP refresh');
+  assert.equal(
+    fetchCount,
+    1,
+    'open WebSocket snapshots populate the cache without HTTP refresh',
+  );
 });
 
 test('gift audit analysis parses bubbles without browser dependencies', async () => {

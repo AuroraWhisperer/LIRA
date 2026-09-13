@@ -1,0 +1,84 @@
+/* 蝴蝶结：昵称、统一装饰和正文居中，消息之间留白。 */
+body[data-style='minimal'] .danmaku-signal-stage {
+  width: min(820px, 100vw);
+  gap: 0;
+}
+body[data-style='minimal'] .danmaku-signal-header {
+  display: none;
+}
+body[data-style='minimal'] .draw-danmaku-feed {
+  gap: 24px;
+  height: calc(100vh - clamp(20px, 4.4vw, 48px));
+  max-height: 100vh;
+}
+body[data-style='minimal'] .draw-danmaku-item {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  flex-shrink: 0;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  clip-path: none;
+  animation-name: minimalMessageIn;
+}
+body[data-style='minimal'] .draw-danmaku-item::after,
+body[data-style='minimal'] .draw-danmaku-avatar,
+body[data-style='minimal'] .draw-danmaku-badge {
+  display: none;
+}
+body[data-style='minimal'] .draw-danmaku-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-self: center;
+  gap: 0;
+  width: min(270px, 100%);
+  min-width: 0;
+  text-align: center;
+  text-shadow:
+    0 1px 3px rgba(16, 28, 42, 0.9),
+    0 0 2px rgba(16, 28, 42, 0.9);
+}
+body[data-style='minimal'] .draw-danmaku-identity {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  gap: 0;
+  min-width: 0;
+}
+body[data-style='minimal'] .draw-danmaku-identity strong {
+  /* 正文占容器的 90%，昵称宽度为正文的 70%。 */
+  width: 63%;
+  transform: translateY(6px);
+  color: #dff3ff;
+  font:
+    800 14px/1.4 'Microsoft YaHei UI',
+    sans-serif;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+body[data-style='minimal'] .draw-danmaku-identity::after {
+  width: 100%;
+  /* 利用原图透明留白，让上下文字靠近图案。 */
+  margin: -20px 0 -16px;
+  aspect-ratio: 3 / 1;
+  background: url('/img/overlays/danmaku-guard/bow-divider.webp') center /
+    contain no-repeat;
+  content: '';
+  pointer-events: none;
+}
+body[data-style='minimal'] .draw-danmaku-body p {
+  justify-self: center;
+  width: 90%;
+  margin: 0;
+  color: #f7f9ff;
+  font-size: 18px;
+  line-height: 1.5;
+  text-shadow: inherit;
+}

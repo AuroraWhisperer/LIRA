@@ -2,14 +2,21 @@
 // 礼物流水抽屉：活动来源的逐行历史与同步完整性状态。
 'use strict';
 
+import { dangerConfirm, readJsonResponse, toast } from '../../shared/utils.js';
+
 import {
-  dangerConfirm,
-  escapeAttr,
-  escapeHtml,
-  formatDateTime,
-  readJsonResponse,
-  toast,
-} from '../../shared/utils.js';
+  renderHistoryLoadingView,
+  renderHistoryErrorView,
+  renderHistoryWaitingView,
+  renderGiftHistoryView,
+  renderGiftHistorySortView,
+  renderHistoryNoticeView,
+  setSyncNotice,
+  setRetryButtonView,
+  describeGiftSyncStatus,
+} from './history-view.js';
+
+export { describeGiftSyncStatus };
 
 const GIFT_HISTORY_LIMIT = 50;
 const DEFAULT_HISTORY_SORT_FIELD = 'created_at';
@@ -223,7 +230,11 @@ export async function loadGiftHistory({ background = false } = {}) {
       resetGiftLedgerPagination(giftLedgerState);
       renderHistoryWaiting();
     } else {
-      console.warn('[GiftHistory] Load failed', error.code || error.name, error.status);
+      console.warn(
+        '[GiftHistory] Load failed',
+        error.code || error.name,
+        error.status,
+      );
       renderHistoryError();
     }
     scheduleHistoryRetry(sequence);
@@ -242,9 +253,11 @@ function cancelHistoryLoad() {
 
 function scheduleHistoryRetry(sequence, interval) {
   if (!isGiftHistoryOpen()) return;
-  const delay = interval ?? (Date.now() - historyWaitStartedAt >= HISTORY_WAIT_MS
-    ? HISTORY_SLOW_RETRY_INTERVAL_MS
-    : HISTORY_RETRY_INTERVAL_MS);
+  const delay =
+    interval ??
+    (Date.now() - historyWaitStartedAt >= HISTORY_WAIT_MS
+      ? HISTORY_SLOW_RETRY_INTERVAL_MS
+      : HISTORY_RETRY_INTERVAL_MS);
   historyRetryTimer = setTimeout(() => {
     historyRetryTimer = null;
     if (sequence !== historyRequestSequence || !isGiftHistoryOpen()) return;
@@ -302,9 +315,10 @@ async function clearGiftDatabase() {
       console.warn('[GiftHistory] Clear failed', response.status);
       renderHistoryNotice({
         state: 'error',
-        label: response.status === 503
-          ? '暂时无法清空礼物记录。'
-          : '暂时无法确认清空结果。',
+        label:
+          response.status === 503
+            ? '暂时无法清空礼物记录。'
+            : '暂时无法确认清空结果。',
         detail: '请重新加载记录后检查。',
         retry: true,
       });
@@ -326,149 +340,47 @@ async function clearGiftDatabase() {
     if (button) button.disabled = false;
     setText('giftHistoryClearDatabaseBtn', '清空全部记录');
     if (reload && isGiftHistoryOpen()) loadGiftHistory();
-    else if (!confirmed && isGiftHistoryOpen()) loadGiftHistory({ background: true });
+    else if (!confirmed && isGiftHistoryOpen())
+      loadGiftHistory({ background: true });
   }
+}
+
+function historyViewSnapshot() {
+  return {
+    ledger: giftLedgerState,
+    clearOutcome,
+    hasRows: hasHistoryRows(),
+    loading: !historyLoaded || clearing,
+    slow: Date.now() - historyWaitStartedAt >= HISTORY_WAIT_MS,
+  };
 }
 
 function renderHistoryLoading() {
-  renderHistoryNotice({
-    label: clearOutcome === 'remote-cleared'
-      ? '云端记录已清空，本机记录尚未更新。'
-      : clearOutcome || hasHistoryRows()
-        ? '正在更新礼物记录…'
-        : '正在加载礼物记录…',
-  });
+  renderHistoryLoadingView(historyViewSnapshot());
 }
 
 function renderHistoryError() {
-  renderHistoryNotice({
-    state: 'error',
-    label: clearOutcome === 'cleared'
-      ? '礼物记录已清空，列表暂未更新。'
-      : clearOutcome === 'remote-cleared'
-        ? '云端记录已清空，本机记录尚未更新。'
-        : hasHistoryRows()
-          ? '记录暂未更新，请稍后重试。'
-          : '暂时无法加载礼物记录。',
-    detail: '请稍后重试。',
-    retry: true,
-  });
+  renderHistoryErrorView(historyViewSnapshot());
 }
 
 function renderHistoryWaiting() {
-  const slow = Date.now() - historyWaitStartedAt >= HISTORY_WAIT_MS;
-  renderHistoryNotice({
-    label: clearOutcome === 'remote-cleared'
-      ? '云端记录已清空，本机记录尚未更新。'
-      : slow
-        ? '更新较慢，请稍后重试。'
-        : hasHistoryRows()
-          ? '正在更新，当前记录可能不完整'
-          : '正在更新礼物记录…',
-    retry: slow || clearOutcome === 'remote-cleared',
-  });
+  renderHistoryWaitingView(historyViewSnapshot());
 }
 
 function renderGiftHistory() {
-  const items = giftLedgerState.items;
-  setText('giftHistoryTotal', `共 ${giftLedgerState.total} 条`);
-  const total = get('giftHistoryTotal');
-  if (total) total.hidden = false;
-  setText(
-    'giftHistoryState',
-    items.length === 0 ? '暂无礼物记录' : '已加载',
-  );
-  setHistoryBody(
-    items.length === 0
-      ? '<tr><td colspan="6" class="empty"><strong>暂无礼物记录</strong><span>收到礼物后，记录会显示在这里。</span></td></tr>'
-      : items.map(renderGiftHistoryRow).join(''),
-  );
-  renderGiftHistorySort();
-  updatePagination(false);
-}
-
-function formatHistoryMoney(value) {
-  const number = Number(value);
-  if (!Number.isFinite(number) || number <= 0) return '¥0.0';
-  return `¥${number.toFixed(1)}`;
-}
-
-function renderGiftHistoryRow(item) {
-  const gift = item?.gift || {};
-  const price = Number(gift.totalPrice || 0);
-  const blindProfit = gift.blindProfit;
-  const remarks = [];
-  if (gift.isBlindBox) {
-    if (blindProfit === null || blindProfit === undefined) {
-      remarks.push(
-        '<span class="gift-remark-tag blind">盲盒 成本未知</span>',
-      );
-    } else {
-      const profitSign = blindProfit > 0 ? '+' : blindProfit < 0 ? '-' : '';
-      const profitClass =
-        blindProfit > 0 ? 'profit-up' : blindProfit < 0 ? 'profit-down' : '';
-      remarks.push(
-        `<span class="gift-remark-tag blind ${profitClass}">盲盒 ${profitSign}${formatHistoryMoney(Math.abs(Number(blindProfit) || 0))}</span>`,
-      );
-    }
-  }
-  if (gift.blindBoxName) {
-    remarks.push(
-      `<span class="gift-remark-tag">${escapeHtml(gift.blindBoxName)}</span>`,
-    );
-  }
-
-  return `
-    <tr data-event-id="${escapeAttr(item?.eventId || '')}">
-      <td>${formatDateTime(gift.createdAt)}</td>
-      <td class="gift-name-cell" title="${escapeAttr(gift.giftName || '')}">${escapeHtml(gift.giftName || '未知礼物')}</td>
-      <td>${Number(gift.num || 1)}</td>
-      <td>${formatHistoryMoney(price)}</td>
-      <td class="gift-user-cell" title="${escapeAttr(gift.userName || '')}">${escapeHtml(gift.userName || '观众')}</td>
-      <td>${remarks.length ? remarks.join(' ') : '<span class="hint">—</span>'}</td>
-    </tr>
-  `;
-}
-
-function updatePagination(loading) {
-  const previousButton = get('giftHistoryPrev');
-  const nextButton = get('giftHistoryNext');
-  if (previousButton) {
-    previousButton.disabled =
-      loading || giftLedgerState.cursorHistory.length === 0;
-  }
-  if (nextButton) {
-    nextButton.disabled =
-      loading || !giftLedgerState.hasMore || !giftLedgerState.nextCursor;
-  }
-  setText(
-    'giftHistoryPageInfo',
-    `第 ${giftLedgerState.page}/${giftLedgerState.totalPages} 页`,
-  );
+  renderGiftHistoryView(historyViewSnapshot());
 }
 
 function renderGiftHistorySort() {
-  getSortableHeaders().forEach((header) => {
-    const sort = header.dataset?.sort;
-    if (!sort) return;
-    const active = sort === giftLedgerState.sortField;
-    header.setAttribute?.(
-      'aria-sort',
-      active
-        ? giftLedgerState.sortDirection === 'asc'
-          ? 'ascending'
-          : 'descending'
-        : 'none',
-    );
-    const arrow = header.querySelector?.('.sort-arrow');
-    if (arrow) {
-      arrow.textContent = active
-        ? giftLedgerState.sortDirection === 'asc'
-          ? ' ▲'
-          : ' ▼'
-        : '';
-    }
-  });
+  renderGiftHistorySortView(historyViewSnapshot());
+}
+
+function renderHistoryNotice(notice) {
+  renderHistoryNoticeView(notice, historyViewSnapshot());
+}
+
+function setRetryButton(visible) {
+  setRetryButtonView(visible, historyViewSnapshot());
 }
 
 function renderSyncStatus(data) {
@@ -481,7 +393,10 @@ function renderSyncStatus(data) {
     renderGiftHistory();
     setSyncNotice(status, true);
     setRetryButton(false);
-    scheduleHistoryRetry(historyRequestSequence, HISTORY_SLOW_RETRY_INTERVAL_MS);
+    scheduleHistoryRetry(
+      historyRequestSequence,
+      HISTORY_SLOW_RETRY_INTERVAL_MS,
+    );
     return;
   }
   if (hasHistoryRows()) renderGiftHistory();
@@ -489,7 +404,10 @@ function renderSyncStatus(data) {
     renderHistoryError();
   } else if (syncState === 'LEGACY_PARTIAL') {
     renderHistoryNotice({ ...status, retry: true });
-    scheduleHistoryRetry(historyRequestSequence, HISTORY_SLOW_RETRY_INTERVAL_MS);
+    scheduleHistoryRetry(
+      historyRequestSequence,
+      HISTORY_SLOW_RETRY_INTERVAL_MS,
+    );
     return;
   } else if (status.state === 'offline') {
     renderHistoryNotice({
@@ -505,62 +423,8 @@ function renderSyncStatus(data) {
   scheduleHistoryRetry(historyRequestSequence);
 }
 
-export function describeGiftSyncStatus(syncState, partial) {
-  if (syncState === 'LIVE' && !partial) {
-    return { state: 'live', label: '礼物记录已更新' };
-  }
-  if (syncState === 'OFFLINE') {
-    return { state: 'offline', label: '当前离线，显示已保存的记录' };
-  }
-  if (syncState === 'ERROR') {
-    return { state: 'error', label: '记录暂未更新，请稍后重试。' };
-  }
-  return {
-    state: 'partial',
-    label: syncState === 'LEGACY_PARTIAL'
-      ? '当前仅能查看部分历史记录。'
-      : '正在更新礼物记录…',
-  };
-}
-
 function hasHistoryRows() {
   return historyLoaded && giftLedgerState.items.length > 0;
-}
-
-function renderHistoryNotice({ state = 'partial', label, detail = '', retry = false }) {
-  const hasRows = hasHistoryRows();
-  setText('giftHistoryState', label);
-  setSyncNotice({ state, label }, !hasRows);
-  const total = get('giftHistoryTotal');
-  if (total) total.hidden = !hasRows;
-  if (!hasRows) {
-    setHistoryBody(`<tr><td colspan="6" class="empty"><strong>${escapeHtml(label)}</strong>${detail ? `<span>${escapeHtml(detail)}</span>` : ''}</td></tr>`);
-  }
-  setRetryButton(retry);
-  updatePagination(!historyLoaded || clearing);
-}
-
-function setSyncNotice({ state, label }, hidden) {
-  const element = get('giftLedgerSyncStatus');
-  if (!element) return;
-  element.dataset.state = state;
-  element.hidden = hidden;
-  element.textContent = label;
-  element.title = '';
-}
-
-function setRetryButton(visible) {
-  const button = get('giftHistoryRetryBtn');
-  if (!button) return;
-  button.hidden = !visible;
-  button.textContent = clearOutcome === 'remote-cleared'
-    ? '重试更新'
-    : hasHistoryRows() ? '重试' : '重新加载';
-}
-
-function setHistoryBody(html) {
-  const body = get('giftHistoryBody');
-  if (body) body.innerHTML = html;
 }
 
 function setText(id, value) {

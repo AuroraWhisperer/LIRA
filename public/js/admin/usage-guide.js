@@ -39,7 +39,10 @@ export function initUsageGuide() {
           parseFloat(tocStyle.top) +
           scrollerPadding +
           12;
-    panel.style.setProperty('--usage-guide-scroll-offset', `${sectionOffset}px`);
+    panel.style.setProperty(
+      '--usage-guide-scroll-offset',
+      `${sectionOffset}px`,
+    );
     updateActiveOnScroll();
   }
 

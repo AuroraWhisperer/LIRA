@@ -6,7 +6,7 @@
 
 ## 1. 分区模型(唯一成表处)
 
-每个平台使用独立 **persist 持久化分区**,Cookie 互不干扰;分区目录落在 userData 下的 `Partitions/`(数据目录树见 [../backend/storage.md](../backend/storage.md) §2):
+每个平台使用独立 **persist 持久化分区**,Cookie 互不干扰;分区目录落在 Chromium userData 下的 `Partitions/`，与业务 `dataDir` 分离；旧分区在 ready 前整体迁移，认证快照继续保留原业务路径(数据目录树见 [../backend/storage.md](../backend/storage.md) §2):
 
 | 平台       | 分区                    | 出处                                                              |
 | ---------- | ----------------------- | ----------------------------------------------------------------- |

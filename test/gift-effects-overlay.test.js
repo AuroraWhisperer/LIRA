@@ -22,15 +22,19 @@ function readOverlayModules() {
 
 test('server exposes gift effect lookup and broadcasts finalized gift effects', () => {
   const serverSource = read('src/server.js');
+  const transportSource = read('src/server/runtime-transport.js');
   const apiContextSource = read('src/server/api-context.js');
   const giftRoutesSource = read('src/server/routes/gift-routes.js');
 
   assert.match(serverSource, /giftEffectModule\.createGiftEffectResolver\(/);
   assert.match(
-    serverSource,
-    /giftFrameModule\.buildGiftFrameEvent\([\s\S]*?item,[\s\S]*?settingsStore\.getSettings\(\)/,
+    transportSource,
+    /buildGiftFrameEvent\([\s\S]*?item,[\s\S]*?getSettings\(\)/,
   );
-  assert.match(serverSource, /webSocketHub\.broadcast\(frameEvent\)/);
+  assert.match(
+    transportSource,
+    /getWebSocketHub\(\)\?\.broadcast\(frameEvent\)/,
+  );
   assert.match(apiContextSource, /resolveEffect/);
   assert.match(apiContextSource, /previewEffect/);
   assert.match(giftRoutesSource, /GET \/api\/gifts\/effects\/resolve/);
@@ -251,7 +255,10 @@ test('gift frame accents remain separate, bounded, and reduced-motion safe', () 
     assert.equal(header.subarray(0, 4).toString('ascii'), 'RIFF');
     assert.equal(header.subarray(8, 12).toString('ascii'), 'WEBP');
     assert.equal(header.subarray(12, 16).toString('ascii'), 'VP8L');
-    assert.ok(header.readUInt32LE(21) & (1 << 28), `${fileName} must retain alpha`);
+    assert.ok(
+      header.readUInt32LE(21) & (1 << 28),
+      `${fileName} must retain alpha`,
+    );
     assert.match(
       html,
       new RegExp(

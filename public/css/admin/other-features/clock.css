@@ -287,12 +287,18 @@
 
 .clock-style-swatch.is-digital small {
   color: inherit;
-  font: 400 6px/1 'Impact', 'Arial Narrow', sans-serif;
+  font:
+    400 6px/1 'Impact',
+    'Arial Narrow',
+    sans-serif;
   letter-spacing: 0;
 }
 
 .clock-style-swatch.is-digital b {
-  font: 400 16px/1 'Impact', 'Arial Narrow', sans-serif;
+  font:
+    400 16px/1 'Impact',
+    'Arial Narrow',
+    sans-serif;
   letter-spacing: 0;
 }
 

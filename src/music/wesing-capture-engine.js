@@ -189,10 +189,12 @@ function createWeSingCapture(options = {}) {
     const cacheReady = await isDirectory(
       path.join(requestedCachePath, 'WeSingDL', 'Res'),
     );
-    if (version !== lifecycleVersion || requestedCachePath !== cachePath) return getStatus();
+    if (version !== lifecycleVersion || requestedCachePath !== cachePath)
+      return getStatus();
     state.cacheReady = cacheReady;
     await syncQrcWatcher();
-    if (version !== lifecycleVersion || requestedCachePath !== cachePath) return getStatus();
+    if (version !== lifecycleVersion || requestedCachePath !== cachePath)
+      return getStatus();
     if (!state.active) {
       emit();
       return getStatus();
@@ -427,7 +429,12 @@ function createWeSingCapture(options = {}) {
       durationMs: state.durationMs,
       resolveFallbackLyrics,
     });
-    if (!state.active || version !== refreshVersion || title !== state.trackTitle) return;
+    if (
+      !state.active ||
+      version !== refreshVersion ||
+      title !== state.trackTitle
+    )
+      return;
     if (!result) {
       lyrics = [];
       lyricArtists = [];

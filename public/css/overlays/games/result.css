@@ -1,0 +1,214 @@
+.game-empty {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: start;
+  justify-self: start;
+  display: grid;
+  text-align: left;
+}
+.game-empty strong {
+  font-size: clamp(22px, 3vw, 40px);
+  letter-spacing: -0.04em;
+}
+.game-result[hidden] {
+  display: none;
+}
+.game-result {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  background: rgba(20, 19, 39, 0.82);
+  backdrop-filter: blur(8px);
+  animation: resultFadeIn 320ms ease forwards;
+}
+.game-result-card {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: clamp(10px, 1.4vw, 15px);
+  width: min(360px, calc(100% - 24px));
+  max-height: calc(100% - 24px);
+  padding: clamp(18px, 2.6vw, 28px);
+  overflow: auto;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 18px;
+  background:
+    radial-gradient(
+      circle at 50% 0,
+      rgba(128, 116, 232, 0.24),
+      transparent 50%
+    ),
+    linear-gradient(155deg, rgba(43, 40, 76, 0.98), rgba(24, 22, 47, 0.98));
+  box-shadow:
+    0 18px 46px rgba(0, 0, 0, 0.46),
+    inset 0 1px rgba(255, 255, 255, 0.08);
+  animation: resultCardIn 420ms cubic-bezier(0.34, 1.56, 0.64, 1) 0.15s
+    backwards;
+}
+.game-result-emblem {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: clamp(82px, 10vw, 108px);
+  height: clamp(82px, 10vw, 108px);
+}
+.game-result-emblem::before {
+  position: absolute;
+  inset: 4%;
+  border: 1px solid rgba(255, 200, 87, 0.2);
+  border-radius: 50%;
+  box-shadow: 0 0 32px rgba(128, 116, 232, 0.24);
+  content: '';
+}
+.game-result-icon {
+  display: grid;
+  place-items: center;
+  width: clamp(60px, 7.4vw, 82px);
+  height: clamp(60px, 7.4vw, 82px);
+  animation: resultIconPulse 800ms ease-in-out infinite alternate;
+}
+.game-result-icon svg {
+  width: 100%;
+  height: 100%;
+  display: none;
+}
+.game-result-icon .icon-bomb {
+  display: block;
+  filter: drop-shadow(0 6px 20px rgba(255, 107, 53, 0.5));
+}
+body[data-game='gomoku'] .game-result-icon .icon-bomb {
+  display: none;
+}
+body[data-game='gomoku'] .game-result-icon .icon-gomoku {
+  display: block;
+  filter: drop-shadow(0 6px 20px rgba(228, 216, 182, 0.5));
+}
+.game-result[data-winner='draw'] .game-result-icon svg {
+  filter: drop-shadow(0 6px 20px rgba(180, 160, 220, 0.4));
+}
+.game-result-avatar {
+  position: absolute;
+  right: -3%;
+  bottom: -3%;
+  width: clamp(36px, 4.6vw, 56px);
+  height: clamp(36px, 4.6vw, 56px);
+  aspect-ratio: 1;
+  border: 3px solid #2b284c;
+  border-radius: 50%;
+  background: #2b284c;
+  box-shadow:
+    0 0 0 2px rgba(255, 200, 87, 0.82),
+    0 6px 16px rgba(0, 0, 0, 0.38);
+  object-fit: cover;
+}
+.game-result-avatar[hidden] {
+  display: none;
+}
+.game-result-text {
+  color: var(--ink);
+  font-size: clamp(20px, 2.8vw, 30px);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  text-align: center;
+  animation: resultTextIn 400ms ease 0.3s backwards;
+}
+.game-result-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+  gap: 10px;
+  width: 100%;
+  padding-top: 3px;
+}
+.game-result-button {
+  min-height: 42px;
+  padding: 9px 14px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: var(--ink);
+  font:
+    800 clamp(13px, 1.35vw, 15px)/1 Bahnschrift,
+    'Microsoft YaHei',
+    sans-serif;
+  cursor: pointer;
+  transition:
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    transform 140ms ease;
+}
+.game-result-exit {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.07);
+}
+.game-result-next {
+  color: #211b36;
+  background: linear-gradient(135deg, #ffe28a, var(--amber));
+  box-shadow: 0 6px 18px rgba(255, 200, 87, 0.2);
+}
+.game-result-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+.game-result-exit:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.38);
+  background: rgba(255, 255, 255, 0.11);
+}
+.game-result-next:hover:not(:disabled) {
+  box-shadow: 0 9px 24px rgba(255, 200, 87, 0.3);
+}
+.game-result-button:focus-visible {
+  outline: 2px solid #fff1b8;
+  outline-offset: 3px;
+}
+.game-result-button:disabled {
+  cursor: wait;
+  opacity: 0.58;
+  transform: none;
+}
+.game-result-action-status {
+  margin: -3px 0 0;
+  color: #ffb9c7;
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+}
+.game-result-action-status[hidden] {
+  display: none;
+}
+@keyframes resultFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes resultCardIn {
+  from {
+    opacity: 0;
+    transform: scale(0.88) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+@keyframes resultIconPulse {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.08);
+  }
+}
+@keyframes resultTextIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

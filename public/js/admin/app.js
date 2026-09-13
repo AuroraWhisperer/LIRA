@@ -62,7 +62,10 @@ async function initApp() {
   // 初始化各模块表单（使用兼容层调用）
   modules.queue?.initQueueForm?.();
   modules.songs?.initSongForm?.();
-  initSongImportUpdate({ imports: modules.imports, reloadSongs: () => stateService.reloadAll() });
+  initSongImportUpdate({
+    imports: modules.imports,
+    reloadSongs: () => stateService.reloadAll(),
+  });
   if (modules.settings) {
     modules.settings.initSettingsForm();
     modules.settings.initBilibiliAuth();

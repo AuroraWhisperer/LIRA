@@ -81,10 +81,7 @@ function createDesktopAuthController({
   }
 
   function replaceBilibiliCookieHeader(cookieHeader) {
-    return bilibiliAuth.replaceBilibiliCookieHeader(
-      getDataDir(),
-      cookieHeader,
-    );
+    return bilibiliAuth.replaceBilibiliCookieHeader(getDataDir(), cookieHeader);
   }
 
   async function loginBilibiliAccount() {

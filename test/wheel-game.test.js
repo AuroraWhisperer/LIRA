@@ -133,7 +133,10 @@ test('wheel disposal clears its owned timer and prevents a late publication', ()
     },
     clearTimeout: (value) => cancelled.push(value),
   });
-  wheel.configure([{ label: 'A', weight: 1 }, { label: 'B', weight: 1 }]);
+  wheel.configure([
+    { label: 'A', weight: 1 },
+    { label: 'B', weight: 1 },
+  ]);
   wheel.spin();
   const count = published.length;
   wheel.dispose();

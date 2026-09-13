@@ -4,6 +4,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
+const { readCssBundle } = require('./helpers/css-bundle');
+const { readJsModuleBundle } = require('./helpers/js-module-bundle');
 const { loadModuleExports } = require('./helpers/frontend-modules');
 
 const ROOT_DIR = path.join(__dirname, '..');
@@ -17,18 +19,15 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
     path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku.js'),
     'utf8',
   );
-  const feedScript = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku-feed.js'),
-    'utf8',
-  );
-  const styles = fs
-    .readFileSync(
-      path.join(ROOT_DIR, 'public', 'css', 'overlays', 'danmaku.css'),
-      'utf8',
-    )
-    .replace(/\s+/g, ' ');
+  const feedScript = readJsModuleBundle('public/js/overlays/danmaku-feed.js');
+  const styles = readCssBundle(
+    'public',
+    'css',
+    'overlays',
+    'danmaku.css',
+  ).replace(/\s+/g, ' ');
   const server = fs.readFileSync(
-    path.join(ROOT_DIR, 'src', 'server.js'),
+    path.join(ROOT_DIR, 'src', 'server', 'runtime-transport.js'),
     'utf8',
   );
 
@@ -52,6 +51,10 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
   assert.match(script, /guardLevel:\s*3/);
   assert.equal([...script.matchAll(/\bid:\s*'preview-\d+'/g)].length, 4);
   assert.equal([...script.matchAll(/guardLevel:\s*[123]/g)].length, 3);
+  assert.match(
+    script,
+    /id:\s*'preview-565',[\s\S]*?message:\s*'\[打call\]',\s*emotes:\s*\[\s*\{\s*text:\s*'\[打call\]',\s*url:\s*'https:\/\/i0\.hdslb\.com\/bfs\/emote\/[a-f0-9]+\.png'/,
+  );
   assert.match(script, /payload\.state\.settings\.danmakuOverlayStyle/);
   assert.match(script, /danmakuFullscreenDurationSeconds/);
   assert.match(script, /options\.layout\s*=\s*'fullscreen-random'/);
@@ -64,7 +67,7 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
   assert.match(script, /autoScroll:\s*false/);
   assert.match(
     server,
-    /webSocketHub\.broadcast\(\s*\{\s*type:\s*'danmaku:message',\s*item\s*\},\s*\{\s*topic:\s*'danmaku'\s*\},?\s*\)/,
+    /getWebSocketHub\(\)\?\.broadcast\(\s*\{\s*type:\s*'danmaku:message',\s*item\s*\},\s*\{\s*topic:\s*'danmaku'\s*\},?\s*\)/,
   );
   assert.match(script, /document\.body\.dataset\.style/);
   assert.doesNotMatch(script, /innerHTML/);
@@ -144,9 +147,9 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
     styles,
     /body\[data-style='signal'\] \.draw-danmaku-guard \{ display: none; \}/,
   );
-  assert.match(
+  assert.doesNotMatch(
     styles,
-    /body\[data-style='signal'\] \.draw-danmaku-medal-level \{[^}]*right:\s*9px;[^}]*bottom:\s*0;/s,
+    /body\[data-style='signal'\] \.draw-danmaku-medal-level \{[^}]*position:\s*absolute;/s,
   );
   assert.match(
     styles,
@@ -212,10 +215,7 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
     styles,
     /body\[data-style='minimal'\] \.draw-danmaku-item(?:\[data-(?:identity|tone)|:is\()/,
   );
-  assert.doesNotMatch(
-    styles,
-    /nameplate-(?:captain|admiral|governor)-divider/,
-  );
+  assert.doesNotMatch(styles, /nameplate-(?:captain|admiral|governor)-divider/);
   assert.match(feedScript, /draw-danmaku-medal-level/);
   assert.match(feedScript, /draw-danmaku-medal-name/);
   assert.match(feedScript, /FULLSCREEN_LAYOUT\s*=\s*'fullscreen-random'/);
@@ -261,7 +261,10 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
     styles,
     /body\[data-style='ranked'\] \.draw-danmaku-avatar \{[^}]*mask-image:/s,
   );
-  assert.match(styles, /url\('\/img\/overlays\/danmaku-ranked\/viewer\.webp'\)/);
+  assert.match(
+    styles,
+    /url\('\/img\/overlays\/danmaku-ranked\/viewer\.webp'\)/,
+  );
   assert.match(
     styles,
     /url\('\/img\/overlays\/danmaku-ranked\/captain\.webp'\)/,
@@ -348,7 +351,11 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
   );
   assert.match(
     styles,
-    /body\[data-style='outline'\] \.draw-danmaku-identity \{[^}]*position:\s*absolute;[^}]*top:\s*-0\.72em;[^}]*left:\s*50%;[^}]*transform:\s*translateX\(-50%\)/s,
+    /body\[data-style='outline'\] \.draw-danmaku-identity \{[^}]*justify-content:\s*center;[^}]*max-width:/s,
+  );
+  assert.doesNotMatch(
+    styles,
+    /body\[data-style='outline'\] \.draw-danmaku-identity \{[^}]*position:\s*absolute;/s,
   );
   assert.match(
     styles,
@@ -362,7 +369,10 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
     styles,
     /body\[data-style='outline'\] \.draw-danmaku-item\[data-identity='captain'\],[^}]*body\[data-style='outline'\] \.draw-danmaku-item\[data-identity='admiral'\],[^}]*body\[data-style='outline'\] \.draw-danmaku-item\[data-identity='governor'\] \{ --outline-accent:\s*#fff; \}/s,
   );
-  assert.doesNotMatch(styles, /body\[data-style='outline'\][\s\S]*var\(--guard-/);
+  assert.doesNotMatch(
+    styles,
+    /body\[data-style='outline'\][\s\S]*var\(--guard-/,
+  );
   for (const asset of [
     'bubble-captain-frame.webp',
     'bubble-admiral-frame.webp',
@@ -412,468 +422,6 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
       );
     }
   }
-});
-
-test('ranked danmaku overlay preserves its 624 by 640 design viewport', async () => {
-  const module = await loadModuleExports(
-    path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku.js'),
-    {
-      document: { addEventListener() {} },
-      location: { search: '', protocol: 'http:', host: '127.0.0.1:3000' },
-      URL,
-      URLSearchParams,
-    },
-  );
-
-  assert.equal(module.calculateRankedOverlayScale(624, 640), 1);
-  assert.equal(module.calculateRankedOverlayScale(312, 640), 0.5);
-  assert.equal(module.calculateRankedOverlayScale(1248, 640), 1);
-  assert.equal(module.calculateRankedOverlayScale(1248, 1280), 2);
-  assert.equal(module.calculateRankedOverlayScale(0, 0), 1);
-});
-
-test('shared danmaku renderer replaces whole and inline emote triggers with safe images', async () => {
-  class FakeNode {
-    constructor(tagName = '') {
-      this.tagName = tagName.toUpperCase();
-      this.children = [];
-      this.dataset = {};
-      this.style = { setProperty() {} };
-      this.listeners = {};
-      this.textContent = '';
-      this.className = '';
-    }
-
-    append(...nodes) {
-      for (const node of nodes) {
-        if (node.isFragment) {
-          node.children.forEach((child) => {
-            child.parentNode = this;
-          });
-          this.children.push(...node.children);
-        } else {
-          node.parentNode = this;
-          this.children.push(node);
-        }
-      }
-    }
-
-    replaceChildren(...nodes) {
-      this.children = [];
-      this.append(...nodes);
-    }
-
-    addEventListener(type, listener) {
-      this.listeners[type] = listener;
-    }
-    removeChild(node) {
-      this.children = this.children.filter((child) => child !== node);
-      node.parentNode = null;
-    }
-    setAttribute() {}
-    replaceWith(node) {
-      this.replacement = node;
-    }
-  }
-
-  const root = new FakeNode('div');
-  const module = await loadModuleExports(
-    path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku-feed.js'),
-    {
-      document: {
-        createElement: (tagName) => new FakeNode(tagName),
-        createDocumentFragment: () =>
-          Object.assign(new FakeNode(), { isFragment: true }),
-      },
-    },
-  );
-  const feed = module.createDanmakuFeed(root, {
-    maxItems: 2,
-    autoScroll: false,
-    resolveEmoteUrl: (url) => `/proxy?url=${encodeURIComponent(url)}`,
-  });
-
-  feed.render([
-    {
-      name: '观众',
-      message: '你好[妙][打call]',
-      emotes: [
-        {
-          text: '[妙]',
-          url: 'https://i0.hdslb.com/bfs/emote/miao.png',
-          width: 64,
-          height: 64,
-        },
-        {
-          text: '[打call]',
-          url: 'https://i0.hdslb.com/bfs/emote/call.gif',
-          width: 180,
-          height: 90,
-        },
-      ],
-    },
-  ]);
-
-  const message = root.children[0].children[1].children[1];
-  assert.equal(message.children[0].textContent, '你好');
-  assert.equal(message.children[1].tagName, 'IMG');
-  assert.equal(message.children[1].alt, '[妙]');
-  assert.match(message.children[1].src, /^\/proxy\?url=/);
-  assert.equal(message.children[2].tagName, 'IMG');
-  assert.equal(message.children[2].alt, '[打call]');
-
-  const firstBubble = root.children[0];
-  feed.append({ name: '第二位', message: '第二条' });
-  assert.equal(root.children.length, 2);
-  assert.equal(
-    root.children[0],
-    firstBubble,
-    'incremental append must preserve existing message nodes',
-  );
-  feed.append({ name: '第三位', message: '第三条' });
-  assert.equal(root.children.length, 2);
-  assert.notEqual(
-    root.children[0],
-    firstBubble,
-    'incremental append must trim only the oldest node',
-  );
-
-  const identityRoot = new FakeNode('div');
-  identityRoot.clientHeight = 40;
-  const emptyState = new FakeNode('div');
-  emptyState.className = 'draw-danmaku-empty';
-  identityRoot.append(emptyState);
-  const identityFeed = module.createDanmakuFeed(identityRoot, {
-    maxItems: 5,
-    autoScroll: false,
-    getGuardLabel: (level) =>
-      ({ 1: '总督', 2: '提督', 3: '舰长' })[level] || '',
-  });
-  identityFeed.render([
-    { message: '普通' },
-    { message: '粉丝', medalName: '夜航', medalLevel: 8 },
-    { message: '舰长', guardLevel: 3 },
-    { message: '提督', guardLevel: 2 },
-    { message: '总督', guardLevel: 1, medalName: '夜航' },
-  ]);
-  assert.deepEqual(
-    identityRoot.children.map((item) => item.dataset.identity),
-    ['viewer', 'fan', 'captain', 'admiral', 'governor'],
-  );
-});
-
-test('fixed danmaku feed prunes incremental nodes outside its visible viewport', async () => {
-  class FakeNode {
-    constructor(tagName = '') {
-      this.tagName = tagName.toUpperCase();
-      this.children = [];
-      this.dataset = {};
-      this.style = { setProperty() {} };
-      this.className = '';
-      this.textContent = '';
-    }
-
-    append(...nodes) {
-      nodes.forEach((node) => {
-        if (node.isFragment) {
-          node.children.forEach((child) => {
-            child.parentNode = this;
-          });
-          this.children.push(...node.children);
-        } else {
-          node.parentNode = this;
-          this.children.push(node);
-        }
-      });
-    }
-
-    replaceChildren(...nodes) {
-      this.children = [];
-      this.append(...nodes);
-    }
-
-    removeChild(node) {
-      this.children = this.children.filter((child) => child !== node);
-      node.parentNode = null;
-    }
-
-    addEventListener() {}
-    setAttribute() {}
-  }
-
-  const root = new FakeNode('div');
-  root.clientHeight = 130;
-  const module = await loadModuleExports(
-    path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku-feed.js'),
-    {
-      document: {
-        createElement: (tagName) => new FakeNode(tagName),
-        createDocumentFragment: () =>
-          Object.assign(new FakeNode(), { isFragment: true }),
-      },
-    },
-  );
-  const feed = module.createDanmakuFeed(root, {
-    maxItems: 50,
-    offscreenViewports: 0,
-    autoScroll: false,
-  });
-
-  feed.render([
-    { name: '第一位', message: '第一条' },
-    { name: '第二位', message: '第二条' },
-  ]);
-  const firstBubble = root.children[0];
-  feed.append({ name: '第三位', message: '第三条' });
-
-  assert.equal(root.children.length, 2);
-  assert.notEqual(root.children[0], firstBubble);
-});
-
-test('fullscreen random danmaku positions are stable, bounded, and expire from timers', async () => {
-  class FakeNode {
-    constructor(tagName = '') {
-      this.tagName = tagName.toUpperCase();
-      this.children = [];
-      this.dataset = {};
-      this.className = '';
-      this.textContent = '';
-      this.offsetWidth = tagName === 'article' ? 120 : 0;
-      this.offsetHeight = tagName === 'article' ? 42 : 0;
-      this.clientWidth = 0;
-      this.clientHeight = 0;
-      const values = new Map();
-      this.style = {
-        values,
-        setProperty(name, value) {
-          values.set(name, String(value));
-        },
-        getPropertyValue(name) {
-          return values.get(name) || '';
-        },
-      };
-    }
-
-    append(...nodes) {
-      nodes.forEach((node) => {
-        if (node.isFragment) {
-          node.children.forEach((child) => {
-            child.parentNode = this;
-          });
-          this.children.push(...node.children);
-        } else {
-          node.parentNode = this;
-          this.children.push(node);
-        }
-      });
-    }
-
-    replaceChildren(...nodes) {
-      this.children = [];
-      this.append(...nodes);
-    }
-
-    removeChild(node) {
-      this.children = this.children.filter((child) => child !== node);
-      node.parentNode = null;
-    }
-
-    addEventListener() {}
-    setAttribute() {}
-  }
-
-  const root = new FakeNode('section');
-  root.clientWidth = 400;
-  root.clientHeight = 240;
-  const scheduled = [];
-  const cancelled = [];
-  let now = 1000;
-  const resizeObservers = [];
-  class FakeResizeObserver {
-    constructor(callback) {
-      this.callback = callback;
-      resizeObservers.push(this);
-    }
-    observe() {}
-    disconnect() {}
-    trigger() {
-      this.callback();
-    }
-  }
-  const module = await loadModuleExports(
-    path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku-feed.js'),
-    {
-      document: {
-        createElement: (tagName) => new FakeNode(tagName),
-        createDocumentFragment: () =>
-          Object.assign(new FakeNode(), { isFragment: true }),
-      },
-      ResizeObserver: FakeResizeObserver,
-    },
-  );
-  const feed = module.createDanmakuFeed(root, {
-    layout: 'fullscreen-random',
-    maxItems: 5,
-    itemLifetimeMs: 500,
-    expireItems: true,
-    autoScroll: false,
-    now: () => now,
-    scheduleTimeout(callback, delay) {
-      const timer = { callback, delay };
-      scheduled.push(timer);
-      return timer;
-    },
-    cancelTimeout(timer) {
-      cancelled.push(timer);
-    },
-  });
-  const item = {
-    id: 'stable',
-    uid: '17',
-    timestamp: 700,
-    name: '发送者',
-    message: '全屏消息',
-    guardLevel: 3,
-    medalName: '夜航',
-  };
-
-  feed.render([item]);
-  const firstNode = root.children[0];
-  const firstLeft = firstNode.style.getPropertyValue('left');
-  const firstTop = firstNode.style.getPropertyValue('top');
-  assert.match(firstLeft, /^\d+(?:\.\d+)?px$/);
-  assert.match(firstTop, /^\d+(?:\.\d+)?px$/);
-  assert.ok(Number.parseFloat(firstLeft) >= 8);
-  assert.ok(Number.parseFloat(firstLeft) <= root.clientWidth - firstNode.offsetWidth - 8);
-  assert.ok(Number.parseFloat(firstTop) >= 8);
-  assert.ok(Number.parseFloat(firstTop) <= root.clientHeight - firstNode.offsetHeight - 8);
-  assert.equal(scheduled[0].delay, 200);
-
-  now = 1100;
-  feed.render([{ ...item, guardLevel: 1, medalName: '新牌' }]);
-  assert.equal(root.children[0].style.getPropertyValue('left'), firstLeft);
-  assert.equal(root.children[0].style.getPropertyValue('top'), firstTop);
-  assert.equal(scheduled.at(-1).delay, 100);
-  assert.ok(cancelled.length >= 1);
-
-  const timer = scheduled.at(-1);
-  timer.callback();
-  assert.equal(root.children.length, 0);
-
-  feed.render([{ ...item, timestamp: 1100 }]);
-  const activeTimer = scheduled.at(-1);
-  feed.destroy();
-  assert.ok(cancelled.includes(activeTimer));
-  assert.equal(root.children.length, 0);
-  assert.ok(resizeObservers.length > 0);
-});
-
-test('fullscreen random preview keeps rendered items without expiration timers', async () => {
-  class FakeNode {
-    constructor(tagName = '') {
-      this.tagName = tagName.toUpperCase();
-      this.children = [];
-      this.dataset = {};
-      this.className = '';
-      this.textContent = '';
-      this.style = { setProperty() {} };
-    }
-    append(...nodes) {
-      nodes.forEach((node) => {
-        if (node.isFragment) this.children.push(...node.children);
-        else this.children.push(node);
-      });
-    }
-    replaceChildren(...nodes) {
-      this.children = [];
-      this.append(...nodes);
-    }
-    removeChild(node) {
-      this.children = this.children.filter((child) => child !== node);
-    }
-    addEventListener() {}
-    setAttribute() {}
-  }
-  const root = new FakeNode('section');
-  const scheduled = [];
-  const module = await loadModuleExports(
-    path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku-feed.js'),
-    {
-      document: {
-        createElement: (tagName) => new FakeNode(tagName),
-        createDocumentFragment: () =>
-          Object.assign(new FakeNode(), { isFragment: true }),
-      },
-    },
-  );
-  const feed = module.createDanmakuFeed(root, {
-    layout: 'fullscreen-random',
-    itemLifetimeMs: 500,
-    expireItems: false,
-    scheduleTimeout(callback, delay) {
-      scheduled.push({ callback, delay });
-    },
-  });
-  feed.render([{ id: 'preview', timestamp: 1, message: '预览' }]);
-  assert.equal(root.children.length, 1);
-  assert.equal(scheduled.length, 0);
-});
-
-test('fullscreen random live items without a timestamp still expire from arrival time', async () => {
-  class FakeNode {
-    constructor(tagName = '') {
-      this.children = [];
-      this.dataset = {};
-      this.className = '';
-      this.textContent = '';
-      this.clientWidth = 0;
-      this.clientHeight = 0;
-      this.style = { setProperty() {} };
-      this.tagName = tagName.toUpperCase();
-    }
-    append(...nodes) {
-      nodes.forEach((node) => {
-        if (node.isFragment) this.children.push(...node.children);
-        else {
-          node.parentNode = this;
-          this.children.push(node);
-        }
-      });
-    }
-    replaceChildren(...nodes) {
-      this.children = [];
-      this.append(...nodes);
-    }
-    removeChild(node) {
-      this.children = this.children.filter((child) => child !== node);
-    }
-    addEventListener() {}
-    setAttribute() {}
-  }
-  const root = new FakeNode('section');
-  const scheduled = [];
-  const module = await loadModuleExports(
-    path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku-feed.js'),
-    {
-      document: {
-        createElement: (tagName) => new FakeNode(tagName),
-        createDocumentFragment: () =>
-          Object.assign(new FakeNode(), { isFragment: true }),
-      },
-    },
-  );
-  const feed = module.createDanmakuFeed(root, {
-    layout: 'fullscreen-random',
-    itemLifetimeMs: 500,
-    now: () => 1000,
-    scheduleTimeout(callback, delay) {
-      scheduled.push({ callback, delay });
-    },
-  });
-
-  feed.append({ id: 'arrival-only', message: '没有时间戳' });
-  assert.equal(root.children.length, 1);
-  assert.equal(scheduled[0].delay, 500);
 });
 
 test('fixed danmaku overlay derives its label from Bilibili live status', async () => {

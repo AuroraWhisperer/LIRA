@@ -67,7 +67,11 @@ test('OBS song overlay reloads for cloud and local song invalidations only', asy
   const socket = FakeWebSocket.latest;
   const snapshot = (reason) =>
     socket.emit('message', {
-      data: JSON.stringify({ type: 'snapshot', reason, state: { settings: {} } }),
+      data: JSON.stringify({
+        type: 'snapshot',
+        reason,
+        state: { settings: {} },
+      }),
     });
 
   snapshot('cloud:songs');

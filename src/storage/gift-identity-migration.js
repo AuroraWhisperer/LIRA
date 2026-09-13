@@ -1,12 +1,23 @@
 'use strict';
 
 function migrateGiftIdentities(db) {
-  const columns = new Set(db.prepare('PRAGMA table_info(gift_events)').all().map(column => column.name));
+  const columns = new Set(
+    db
+      .prepare('PRAGMA table_info(gift_events)')
+      .all()
+      .map((column) => column.name),
+  );
   for (const column of ['gift_variant_id', 'blind_box_variant_id']) {
-    if (!columns.has(column)) db.exec(`ALTER TABLE gift_events ADD COLUMN ${column} TEXT`);
+    if (!columns.has(column))
+      db.exec(`ALTER TABLE gift_events ADD COLUMN ${column} TEXT`);
   }
-  if (db.prepare('PRAGMA table_info(overtime_gift_rules)').all()
-    .some(column => column.name === 'gift_identity_key')) return;
+  if (
+    db
+      .prepare('PRAGMA table_info(overtime_gift_rules)')
+      .all()
+      .some((column) => column.name === 'gift_identity_key')
+  )
+    return;
   db.exec(`
     ALTER TABLE overtime_gift_rules RENAME TO overtime_gift_rules_v9;
     CREATE TABLE overtime_gift_rules (

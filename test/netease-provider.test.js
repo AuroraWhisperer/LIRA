@@ -435,11 +435,15 @@ test('Netease liked removal resolves the logged-in users actual playlist ID', as
     return { code: 200 };
   };
 
-  const result = await writeMusicPlaylistTracks({ get: () => provider }, {
-    platform: 'netease',
-    playlist: { id: 'liked' },
-    tracks: [{ sourceTrackId: '789012' }],
-  }, 'remove');
+  const result = await writeMusicPlaylistTracks(
+    { get: () => provider },
+    {
+      platform: 'netease',
+      playlist: { id: 'liked' },
+      tracks: [{ sourceTrackId: '789012' }],
+    },
+    'remove',
+  );
   assert.equal(request.params.pid, '123456');
   assert.equal(request.params.op, 'del');
   assert.equal(request.params.trackIds, '["789012"]');
@@ -449,10 +453,15 @@ test('Netease liked removal resolves the logged-in users actual playlist ID', as
 test('Netease liked removal fails without writing to an arbitrary playlist', async () => {
   const provider = createProvider();
   provider.getUserProfile = async () => ({ userId: '42' });
-  provider.getUserPlaylists = async () => [{ id: '123456', title: 'Daily Mix' }];
-  provider.requestWeapiJson = async () => assert.fail('must not write without liked playlist');
+  provider.getUserPlaylists = async () => [
+    { id: '123456', title: 'Daily Mix' },
+  ];
+  provider.requestWeapiJson = async () =>
+    assert.fail('must not write without liked playlist');
   await assert.rejects(
-    provider.removeTracksFromPlaylist({ id: 'liked' }, [{ sourceTrackId: '789012' }]),
+    provider.removeTracksFromPlaylist({ id: 'liked' }, [
+      { sourceTrackId: '789012' },
+    ]),
     /没有从网易云音乐读取到.*我喜欢/,
   );
 });

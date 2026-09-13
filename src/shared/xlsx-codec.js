@@ -27,7 +27,9 @@ function resourceLimit(limits, name) {
 function checkBudget(size, limit, name) {
   if (size > limit) {
     // Reuse the existing HTTP oversized-input error mapping (413).
-    throw new Error(`Excel file is too large (${name}). Please split the workbook before importing.`);
+    throw new Error(
+      `Excel file is too large (${name}). Please split the workbook before importing.`,
+    );
   }
 }
 
@@ -188,16 +190,18 @@ function readZipEntries(buffer, maxEntries) {
   const centralOffset = buffer.readUInt32LE(eocdOffset + 16);
   checkZip(
     buffer.readUInt16LE(eocdOffset + 4) === 0 &&
-    buffer.readUInt16LE(eocdOffset + 6) === 0 &&
-    buffer.readUInt16LE(eocdOffset + 8) === entryCount &&
-    centralOffset + centralSize === eocdOffset,
+      buffer.readUInt16LE(eocdOffset + 6) === 0 &&
+      buffer.readUInt16LE(eocdOffset + 8) === entryCount &&
+      centralOffset + centralSize === eocdOffset,
   );
   checkBudget(entryCount, maxEntries, 'ZIP entries');
   const entries = [];
   const names = new Set();
   let offset = centralOffset;
   for (let index = 0; index < entryCount; index += 1) {
-    checkZip(offset + 46 <= eocdOffset && buffer.readUInt32LE(offset) === 0x02014b50);
+    checkZip(
+      offset + 46 <= eocdOffset && buffer.readUInt32LE(offset) === 0x02014b50,
+    );
     const flags = buffer.readUInt16LE(offset + 8);
     const method = buffer.readUInt16LE(offset + 10);
     const crc = buffer.readUInt32LE(offset + 16);
@@ -209,11 +213,13 @@ function readZipEntries(buffer, maxEntries) {
     const localOffset = buffer.readUInt32LE(offset + 42);
     const nextOffset = offset + 46 + nameLength + extraLength + commentLength;
     checkZip(
-      nextOffset <= eocdOffset && nameLength > 0 &&
-      buffer.readUInt16LE(offset + 34) === 0 &&
-      compressedSize !== 0xffffffff && size !== 0xffffffff &&
-      localOffset + 30 <= centralOffset &&
-      buffer.readUInt32LE(localOffset) === 0x04034b50,
+      nextOffset <= eocdOffset &&
+        nameLength > 0 &&
+        buffer.readUInt16LE(offset + 34) === 0 &&
+        compressedSize !== 0xffffffff &&
+        size !== 0xffffffff &&
+        localOffset + 30 <= centralOffset &&
+        buffer.readUInt32LE(localOffset) === 0x04034b50,
     );
     const name = buffer.subarray(offset + 46, offset + 46 + nameLength);
     const filename = name.toString('utf8');
@@ -224,41 +230,56 @@ function readZipEntries(buffer, maxEntries) {
     const dataStart = localOffset + 30 + localNameLength + localExtraLength;
     const dataEnd = dataStart + compressedSize;
     checkZip(
-      dataEnd <= centralOffset && localNameLength === nameLength &&
-      name.equals(buffer.subarray(localOffset + 30, localOffset + 30 + localNameLength)) &&
-      flags === buffer.readUInt16LE(localOffset + 6) &&
-      method === buffer.readUInt16LE(localOffset + 8),
+      dataEnd <= centralOffset &&
+        localNameLength === nameLength &&
+        name.equals(
+          buffer.subarray(localOffset + 30, localOffset + 30 + localNameLength),
+        ) &&
+        flags === buffer.readUInt16LE(localOffset + 6) &&
+        method === buffer.readUInt16LE(localOffset + 8),
     );
     let recordEnd = dataEnd;
     if (flags & 8) {
       checkZip(
         [0, crc].includes(buffer.readUInt32LE(localOffset + 14)) &&
-        [0, compressedSize].includes(buffer.readUInt32LE(localOffset + 18)) &&
-        [0, size].includes(buffer.readUInt32LE(localOffset + 22)),
+          [0, compressedSize].includes(buffer.readUInt32LE(localOffset + 18)) &&
+          [0, size].includes(buffer.readUInt32LE(localOffset + 22)),
       );
       checkZip(recordEnd + 12 <= centralOffset);
       if (buffer.readUInt32LE(recordEnd) === 0x08074b50) recordEnd += 4;
       checkZip(
         recordEnd + 12 <= centralOffset &&
-        buffer.readUInt32LE(recordEnd) === crc &&
-        buffer.readUInt32LE(recordEnd + 4) === compressedSize &&
-        buffer.readUInt32LE(recordEnd + 8) === size,
+          buffer.readUInt32LE(recordEnd) === crc &&
+          buffer.readUInt32LE(recordEnd + 4) === compressedSize &&
+          buffer.readUInt32LE(recordEnd + 8) === size,
       );
       recordEnd += 12;
     } else {
       checkZip(
         buffer.readUInt32LE(localOffset + 14) === crc &&
-        buffer.readUInt32LE(localOffset + 18) === compressedSize &&
-        buffer.readUInt32LE(localOffset + 22) === size,
+          buffer.readUInt32LE(localOffset + 18) === compressedSize &&
+          buffer.readUInt32LE(localOffset + 22) === size,
       );
     }
     checkZip(method !== 0 || size === compressedSize);
-    entries.push({ filename, flags, method, crc, size, localOffset, dataStart, dataEnd, recordEnd });
+    entries.push({
+      filename,
+      flags,
+      method,
+      crc,
+      size,
+      localOffset,
+      dataStart,
+      dataEnd,
+      recordEnd,
+    });
     offset = nextOffset;
   }
   checkZip(offset === eocdOffset);
   let previousEnd = 0;
-  for (const entry of [...entries].sort((a, b) => a.localOffset - b.localOffset)) {
+  for (const entry of [...entries].sort(
+    (a, b) => a.localOffset - b.localOffset,
+  )) {
     checkZip(entry.localOffset >= previousEnd);
     previousEnd = entry.recordEnd;
   }
@@ -269,11 +290,13 @@ function readZipEntries(buffer, maxEntries) {
 function readZipFiles(buffer, { selectEntry = () => true, limits = {} } = {}) {
   const maxEntryBytes = resourceLimit(limits, 'entryBytes');
   const maxTotalBytes = resourceLimit(limits, 'totalBytes');
-  const entries = readZipEntries(buffer, resourceLimit(limits, 'zipEntries'))
-    .filter((entry) => selectEntry(entry.filename));
+  const entries = readZipEntries(
+    buffer,
+    resourceLimit(limits, 'zipEntries'),
+  ).filter((entry) => selectEntry(entry.filename));
   let declaredBytes = 0;
   for (const entry of entries) {
-    if ((entry.flags & 0x41) || ![0, 8].includes(entry.method)) {
+    if (entry.flags & 0x41 || ![0, 8].includes(entry.method)) {
       throw new Error('Excel 文件使用了不支持的 ZIP 加密或压缩方式。');
     }
     checkBudget(entry.size, maxEntryBytes, 'entry bytes');
@@ -318,7 +341,8 @@ function findEndOfCentralDirectory(buffer) {
     if (
       buffer.readUInt32LE(offset) === 0x06054b50 &&
       offset + 22 + buffer.readUInt16LE(offset + 20) === buffer.length
-    ) return offset;
+    )
+      return offset;
   }
   return -1;
 }
@@ -344,7 +368,11 @@ function* xmlElements(xml, tag) {
 }
 
 function checkXmlBudget(xml, limits) {
-  checkBudget(Buffer.byteLength(xml, 'utf8'), resourceLimit(limits, 'entryBytes'), 'XML bytes');
+  checkBudget(
+    Buffer.byteLength(xml, 'utf8'),
+    resourceLimit(limits, 'entryBytes'),
+    'XML bytes',
+  );
 }
 
 function parseSharedStrings(xml, limits = {}) {
@@ -399,7 +427,11 @@ function parseWorksheetXml(xml, sharedStrings, limits = {}) {
       checkBudget(rowSlots + growth, maxCells, 'worksheet row slots');
       const value = readWorksheetCell(attrs, body, sharedStrings, maxTextChars);
       checkBudget(value.length, maxTextChars, 'cell text');
-      checkBudget(textChars + value.length, maxTotalTextChars, 'expanded worksheet text');
+      checkBudget(
+        textChars + value.length,
+        maxTotalTextChars,
+        'expanded worksheet text',
+      );
       rowSlots += growth;
       textChars += value.length;
       row[columnIndex] = value;

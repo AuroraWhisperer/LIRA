@@ -82,7 +82,9 @@ function normalizeImportedSongRow(row) {
     ),
     note: cleanText(firstValue(row, SONG_IMPORT_ALIASES.note)),
     requestPrice: prices.values().next().value || '',
-    songClip: cleanTextPreserveLines(firstValue(row, SONG_IMPORT_ALIASES.songClip)),
+    songClip: cleanTextPreserveLines(
+      firstValue(row, SONG_IMPORT_ALIASES.songClip),
+    ),
   };
 }
 

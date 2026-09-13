@@ -4,7 +4,54 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { readCssBundle } = require('./helpers/css-bundle');
 const { loadModuleExports } = require('./helpers/frontend-modules');
+
+test('games overlay styles keep shared, board, drawing, result, responsive, and late drawing ownership', () => {
+  const styleRoot = path.join(__dirname, '..', 'public', 'css', 'overlays');
+  const entry = fs.readFileSync(path.join(styleRoot, 'games.css'), 'utf8');
+  const expectedImports = [
+    "@import url('./games/shared.css');",
+    "@import url('./games/board.css');",
+    "@import url('./games/drawing.css');",
+    "@import url('./games/result.css');",
+    "@import url('./games/responsive.css');",
+    "@import url('./games/drawing-live.css');",
+  ];
+  assert.deepEqual(entry.match(/@import url\('[^']+'\);/g), expectedImports);
+
+  const owners = Object.fromEntries(
+    ['shared', 'board', 'drawing', 'result', 'responsive', 'drawing-live'].map(
+      (name) => [
+        name,
+        fs.readFileSync(path.join(styleRoot, 'games', `${name}.css`), 'utf8'),
+      ],
+    ),
+  );
+
+  assert.match(owners.shared, /\.game-stage\s*\{/);
+  assert.doesNotMatch(owners.shared, /\.bomb-numbers\s*\{/);
+  assert.match(owners.board, /\.bomb-numbers\s*\{/);
+  assert.match(owners.board, /\.gomoku-board\s*\{/);
+  assert.doesNotMatch(owners.board, /\.draw-canvas\s*\{/);
+  assert.match(owners.drawing, /\.draw-canvas\s*\{/);
+  assert.match(owners.drawing, /\.draw-scoreboard/);
+  assert.doesNotMatch(owners.drawing, /\.game-result\s*\{/);
+  assert.match(owners.result, /\.game-empty\s*\{/);
+  assert.match(owners.result, /\.game-result\s*\{/);
+  assert.match(owners.result, /@keyframes resultFadeIn/);
+  assert.doesNotMatch(owners.result, /\.draw-danmaku-feed\s*\{/);
+  assert.match(owners.responsive, /@media \(max-width:\s*700px\)/);
+  assert.match(owners.responsive, /\.bomb-number\s*\{/);
+  assert.match(owners.responsive, /prefers-reduced-motion:\s*reduce/);
+  assert.doesNotMatch(owners.responsive, /\.draw-danmaku-feed\s*\{/);
+  assert.match(
+    owners['drawing-live'],
+    /body\[data-game='draw-guess'\] \.draw-layout\s*\{/,
+  );
+  assert.match(owners['drawing-live'], /\.draw-danmaku-feed\s*\{/);
+  assert.match(owners['drawing-live'], /@keyframes danmakuBubbleIn/);
+});
 
 test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
   const html = fs.readFileSync(
@@ -17,6 +64,17 @@ test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
   );
   const danmakuModule = fs.readFileSync(
     path.join(__dirname, '..', 'public', 'js', 'overlays', 'danmaku-feed.js'),
+    'utf8',
+  );
+  const danmakuRenderer = fs.readFileSync(
+    path.join(
+      __dirname,
+      '..',
+      'public',
+      'js',
+      'overlays',
+      'danmaku-message-renderer.js',
+    ),
     'utf8',
   );
   const drawingModule = fs.readFileSync(
@@ -34,10 +92,7 @@ test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
     ),
     'utf8',
   );
-  const styles = fs.readFileSync(
-    path.join(__dirname, '..', 'public', 'css', 'overlays', 'games.css'),
-    'utf8',
-  );
+  const styles = readCssBundle('public', 'css', 'overlays', 'games.css');
   assert.match(html, /id="gameStage"/);
   assert.match(script, /textContent/);
   assert.doesNotMatch(script, /innerHTML/);
@@ -96,10 +151,10 @@ test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
   assert.match(script, /function avatarSource\(/);
   assert.match(script, /api\/bilibili\/avatar\?url=/);
   assert.match(
-    danmakuModule,
+    danmakuRenderer,
     /const source = String\(resolveAvatarUrl\(item\.avatarUrl\)/,
   );
-  assert.match(danmakuModule, /image\.src\s*=\s*source/);
+  assert.match(danmakuRenderer, /image\.src\s*=\s*source/);
   assert.match(drawingModule, /function scheduleDrawDanmakuRender\(/);
   assert.match(drawingModule, /function getDrawDanmakuRenderInterval\(/);
   assert.match(drawingModule, /drawDanmakuLastRenderDurationMs/);
@@ -154,13 +209,13 @@ test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
   assert.match(script, /drawDanmakuFeed\.render\(items\)/);
   assert.match(script, /offscreenViewports:\s*5/);
   assert.match(danmakuModule, /export function createDanmakuFeed\(/);
-  assert.match(danmakuModule, /export function measureDanmakuText\(/);
-  assert.match(danmakuModule, /--danmaku-width/);
-  assert.match(danmakuModule, /--danmaku-height/);
-  assert.match(danmakuModule, /--danmaku-lines/);
-  assert.match(danmakuModule, /textContent/);
-  assert.doesNotMatch(danmakuModule, /innerHTML/);
-  assert.match(danmakuModule, /draw-danmaku-bubble/);
+  assert.match(danmakuRenderer, /export function measureDanmakuText\(/);
+  assert.match(danmakuRenderer, /--danmaku-width/);
+  assert.match(danmakuRenderer, /--danmaku-height/);
+  assert.match(danmakuRenderer, /--danmaku-lines/);
+  assert.match(danmakuRenderer, /textContent/);
+  assert.doesNotMatch(danmakuRenderer, /innerHTML/);
+  assert.match(danmakuRenderer, /draw-danmaku-bubble/);
   for (const identity of ['viewer', 'fan', 'captain', 'admiral', 'governor']) {
     assert.match(
       styles,

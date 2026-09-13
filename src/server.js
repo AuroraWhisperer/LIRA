@@ -34,11 +34,10 @@ const {
   closeDatabases,
 } = require('./storage/database');
 const { createGiftSyncStore } = require('./storage/gift-sync-store');
+const { migrateCacheData } = require('./storage/data-directory-migration');
 const { DEFAULT_SETTINGS } = require('./storage/settings-defaults');
 const { prepareSettingsBootstrap } = require('./server/settings-bootstrap');
-const giftService = require('./bilibili/gift');
 const giftEffectModule = require('./bilibili/gift/effect-config');
-const giftFrameModule = require('./bilibili/gift/frame-config');
 const { createDanmakuFeedBuffer } = require('./bilibili/danmaku/feed-buffer');
 const { createGameSessionService } = require('./games/game-session-service');
 const { createWheelSessionService } = require('./games/wheel-session-service');
@@ -49,7 +48,6 @@ const START_PORT = 3000;
 const PORT_CLEANUP_TIMEOUT_MS = 7500;
 const PORT_CLEANUP_POLL_MS = 120;
 const MAX_BODY_BYTES = 16 * 1024 * 1024;
-const LOCAL_GIFT_DETECTION_ENABLED = false;
 const {
   normalizeCloudSettingsSnapshot,
   serializeCloudSettings,
@@ -108,7 +106,10 @@ function createServerRuntime(runtimeOptions = {}) {
   const {
     getWebSocketContext,
     broadcastSnapshot,
-    logGiftDelivery,
+    publishGiftFlushed,
+    publishGiftCatalogUpdate,
+    publishDanmaku,
+    publishOvertimeUpdate: broadcastOvertimeUpdate,
     servePageOrAsset,
   } = createRuntimeTransport({
     publicDir: PUBLIC_DIR,
@@ -118,6 +119,8 @@ function createServerRuntime(runtimeOptions = {}) {
     getSessionToken: () => sessionToken,
     getWebSocketHub: () => webSocketHub,
     getState,
+    getSettings: () => settingsStore.getSettings(),
+    getDanmakuFeedBuffer: () => danmakuFeedBuffer,
   });
   const { resumeAuthorizedWork, pauseAuthorizedWork } =
     createAuthorizedWorkController({
@@ -142,6 +145,7 @@ function createServerRuntime(runtimeOptions = {}) {
           ? runtimeOptions.onPhase
           : () => {};
       let phaseStartedAt = Date.now();
+      migrateCacheData({ dataDir: DATA_DIR });
       db = createDatabases({
         dataDir: DATA_DIR,
         defaultSettings: DEFAULT_SETTINGS,
@@ -172,25 +176,13 @@ function createServerRuntime(runtimeOptions = {}) {
             ? {
                 ...options.remoteGiftCatalog,
                 onUpdated: (snapshot) => {
-                  if (webSocketHub)
-                    webSocketHub.broadcast({
-                      type: 'gift-catalog:update',
-                      snapshot,
-                    });
+                  publishGiftCatalogUpdate(snapshot);
                   options.remoteGiftCatalog.onUpdated?.(snapshot);
                 },
               }
             : null,
         giftEffectResolver,
-        onGiftFlushed: (item) => {
-          logGiftDelivery('final', item);
-          broadcastSnapshot('bilibili:gift');
-          const frameEvent = giftFrameModule.buildGiftFrameEvent(
-            item,
-            settingsStore.getSettings(),
-          );
-          if (frameEvent && webSocketHub) webSocketHub.broadcast(frameEvent);
-        },
+        onGiftFlushed: publishGiftFlushed,
         onOvertimeUpdate: (update) => publishOvertimeUpdate(update),
       });
       giftSyncStore = createGiftSyncStore({
@@ -213,13 +205,7 @@ function createServerRuntime(runtimeOptions = {}) {
         settingsStore,
         webSocketHub,
       });
-      publishOvertimeUpdate = (update) =>
-        webSocketHub.broadcast({
-          type: 'overtime:update',
-          reason: update.reason,
-          state: update.state,
-          ...(update.adjustment ? { adjustment: update.adjustment } : {}),
-        });
+      publishOvertimeUpdate = broadcastOvertimeUpdate;
       bilibiliRuntime = createBilibiliRuntime({
         settingsStore,
         domainServices,
@@ -228,21 +214,11 @@ function createServerRuntime(runtimeOptions = {}) {
         buildClient(roomId, context) {
           return buildBilibiliClient(roomId, {
             ...context,
-            giftDetectionEnabled: LOCAL_GIFT_DETECTION_ENABLED,
             aiDanmakuDeliveryVerifier: aiRuntime.deliveryVerifier,
             domainServices,
             aiAssistant: aiRuntime.service,
             broadcastSnapshot,
-            publishDanmaku(danmaku) {
-              const item = danmakuFeedBuffer.push(danmaku);
-              if (item && webSocketHub) {
-                webSocketHub.broadcast(
-                  { type: 'danmaku:message', item },
-                  { topic: 'danmaku' },
-                );
-              }
-            },
-            logGiftDelivery,
+            publishDanmaku,
             games: gameSessionService,
           });
         },
@@ -259,7 +235,6 @@ function createServerRuntime(runtimeOptions = {}) {
 
       musicRuntime.setMusicRegistry(options.musicAuth || {});
       bilibiliRuntime.setAuthProvider(options.bilibiliAuth);
-      giftService.repairGiftV2Events({ db });
       domainServices.songs.ensureCategory('默认');
       domainServices.queue.clearOnStartup();
       runStartupRetention(settingsStore, domainServices.data);
@@ -641,6 +616,18 @@ function createServerRuntime(runtimeOptions = {}) {
     return serializeCloudSettings(settingsStore.getSettings());
   }
 
+  function prepareCloudRoomAccount(accountKey) {
+    if (!settingsStore || !bilibiliRuntime) {
+      throw new Error('Application runtime not ready.');
+    }
+    const changed = settingsStore.prepareCloudRoomAccount(accountKey);
+    if (changed) {
+      bilibiliRuntime.configure();
+      broadcastSnapshot('cloud:settings');
+    }
+    return changed;
+  }
+
   function applyCloudSettingsSnapshot(input) {
     if (!settingsStore || !bilibiliRuntime) {
       throw new Error('Application runtime not ready.');
@@ -716,7 +703,8 @@ function createServerRuntime(runtimeOptions = {}) {
 
   function isGiftCatalogInitialized() {
     return (
-      domainServices?.overtimeGiftCatalog?.isGlobalCatalogInitialized?.() === true
+      domainServices?.overtimeGiftCatalog?.isGlobalCatalogInitialized?.() ===
+      true
     );
   }
 
@@ -745,6 +733,7 @@ function createServerRuntime(runtimeOptions = {}) {
     setActiveGiftSource,
     importProcessedGiftEvent,
     getCloudSettingsSnapshot,
+    prepareCloudRoomAccount,
     applyCloudSettingsSnapshot,
     setBlindBoxMappingState,
     getCloudSongsSnapshot,

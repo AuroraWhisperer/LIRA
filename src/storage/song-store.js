@@ -40,8 +40,11 @@ function createSongStore(songDb) {
   }
 
   function insertSongWithinTransaction(song, createdAt = now(), categoryId) {
-    const initial = song.nameInitial || song.namePinyin || getInitial(song.name);
-    const resolvedCategoryId = categoryId ?? ensureCategoryWithinTransaction(song.categoryName || '默认').id;
+    const initial =
+      song.nameInitial || song.namePinyin || getInitial(song.name);
+    const resolvedCategoryId =
+      categoryId ??
+      ensureCategoryWithinTransaction(song.categoryName || '默认').id;
     songDb
       .prepare(
         `
@@ -126,7 +129,9 @@ function createSongStore(songDb) {
                 song.tags || '',
                 song.language || '',
                 song.sourcePlatform || '',
-                song.hasRequestPrice ? song.requestPrice || '' : existing.request_price,
+                song.hasRequestPrice
+                  ? song.requestPrice || ''
+                  : existing.request_price,
                 song.hasSongClip ? song.songClip || '' : existing.song_clip,
                 updatedAt,
                 Number(song.id),
@@ -156,7 +161,9 @@ function createSongStore(songDb) {
                 song.tags || '',
                 song.language || '',
                 song.sourcePlatform || '',
-                song.hasRequestPrice ? song.requestPrice || '' : existing.request_price,
+                song.hasRequestPrice
+                  ? song.requestPrice || ''
+                  : existing.request_price,
                 song.hasSongClip ? song.songClip || '' : existing.song_clip,
                 updatedAt,
                 existing.id,
@@ -164,7 +171,11 @@ function createSongStore(songDb) {
             return readSongById(existing.id);
           }
 
-          return insertSongWithinTransaction({ ...song, categoryName }, updatedAt, category.id);
+          return insertSongWithinTransaction(
+            { ...song, categoryName },
+            updatedAt,
+            category.id,
+          );
         });
       } catch (error) {
         if (String(error.message || '').includes('UNIQUE constraint')) {
@@ -174,11 +185,19 @@ function createSongStore(songDb) {
       }
     },
 
-    listRows({ query = '', categories = [], language = '', artist = '', enabledOnly = false } = {}) {
+    listRows({
+      query = '',
+      categories = [],
+      language = '',
+      artist = '',
+      enabledOnly = false,
+    } = {}) {
       const conditions = [];
       const args = [];
       if (query) {
-        conditions.push('(songs.name LIKE ? OR songs.artist LIKE ? OR songs.tags LIKE ? OR song_categories.name LIKE ?)');
+        conditions.push(
+          '(songs.name LIKE ? OR songs.artist LIKE ? OR songs.tags LIKE ? OR song_categories.name LIKE ?)',
+        );
         args.push(...Array(4).fill(`%${query}%`));
       }
       for (const category of categories) {
@@ -194,7 +213,9 @@ function createSongStore(songDb) {
         args.push(artist, `%${artist}%`);
       }
       if (enabledOnly) conditions.push('songs.is_enabled = 1');
-      const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+      const where = conditions.length
+        ? `WHERE ${conditions.join(' AND ')}`
+        : '';
       return songDb
         .prepare(
           `
@@ -242,7 +263,10 @@ function createSongStore(songDb) {
     },
 
     findEnabledByNameContains(pattern) {
-      const escaped = String(pattern).replace(/[\\%_]/g, (value) => `\\${value}`);
+      const escaped = String(pattern).replace(
+        /[\\%_]/g,
+        (value) => `\\${value}`,
+      );
       return songDb
         .prepare(
           `
@@ -259,7 +283,9 @@ function createSongStore(songDb) {
     deleteSong(id) {
       return withTransaction(() => {
         const songId = Number(id);
-        songDb.prepare('UPDATE queue SET song_id = NULL WHERE song_id = ?').run(songId);
+        songDb
+          .prepare('UPDATE queue SET song_id = NULL WHERE song_id = ?')
+          .run(songId);
         songDb
           .prepare('UPDATE requests SET song_id = NULL WHERE song_id = ?')
           .run(songId);
@@ -283,12 +309,16 @@ function createSongStore(songDb) {
     },
 
     listCategories() {
-      return listCategoryRows()
-        .map((row) => ({ ...row, is_enabled: Boolean(row.is_enabled) }));
+      return listCategoryRows().map((row) => ({
+        ...row,
+        is_enabled: Boolean(row.is_enabled),
+      }));
     },
 
     ensureCategory(name) {
-      return withTransaction(() => ensureCategoryWithinTransaction(name || '默认'));
+      return withTransaction(() =>
+        ensureCategoryWithinTransaction(name || '默认'),
+      );
     },
 
     importRows(rows, options = {}) {
@@ -302,7 +332,9 @@ function createSongStore(songDb) {
 
         for (const row of rows) {
           const existing = songDb
-            .prepare('SELECT id FROM songs WHERE name = ? AND artist = ? LIMIT 1')
+            .prepare(
+              'SELECT id FROM songs WHERE name = ? AND artist = ? LIMIT 1',
+            )
             .get(row.name, row.artist || '');
           if (existing) {
             duplicate += 1;
@@ -343,7 +375,9 @@ function createSongStore(songDb) {
     applyImportUpdate(buildPlan) {
       return withTransaction(() => {
         const plan = buildPlan(store.listRows(), store.listCategories());
-        const knownCategories = new Set(listCategoryRows().map((row) => row.name));
+        const knownCategories = new Set(
+          listCategoryRows().map((row) => row.name),
+        );
         let createdCategories = 0;
         for (const { id, song } of plan.changes) {
           const categoryName = song.categoryName || '默认';
@@ -355,27 +389,55 @@ function createSongStore(songDb) {
           if (id === undefined) {
             insertSongWithinTransaction(song, now(), category.id);
           } else {
-            songDb.prepare(`
+            songDb
+              .prepare(
+                `
               UPDATE songs SET category_id = ?, is_enabled = ?, note = ?, tags = ?,
                 language = ?, source_platform = ?, request_price = ?, song_clip = ?, updated_at = ?
               WHERE id = ?
-            `).run(category.id, song.isEnabled ? 1 : 0, song.note, song.tags,
-              song.language, song.sourcePlatform, song.requestPrice, song.songClip, now(), id);
+            `,
+              )
+              .run(
+                category.id,
+                song.isEnabled ? 1 : 0,
+                song.note,
+                song.tags,
+                song.language,
+                song.sourcePlatform,
+                song.requestPrice,
+                song.songClip,
+                now(),
+                id,
+              );
           }
         }
-        songDb.prepare(`
+        songDb
+          .prepare(
+            `
           INSERT INTO import_batches (total_count, inserted_count, duplicate_count, failed_count,
             created_category_count, created_at) VALUES (?, ?, ?, 0, ?, ?)
-        `).run(plan.rows.length, plan.counts.inserted, plan.counts.unchanged, createdCategories, now());
+        `,
+          )
+          .run(
+            plan.rows.length,
+            plan.counts.inserted,
+            plan.counts.unchanged,
+            createdCategories,
+            now(),
+          );
         return { total: plan.rows.length, ...plan.counts, createdCategories };
       });
     },
 
     replaceAll(rows) {
       return withTransaction(() => {
-        songDb.prepare('UPDATE queue SET song_id = NULL WHERE song_id IS NOT NULL').run();
         songDb
-          .prepare('UPDATE requests SET song_id = NULL WHERE song_id IS NOT NULL')
+          .prepare('UPDATE queue SET song_id = NULL WHERE song_id IS NOT NULL')
+          .run();
+        songDb
+          .prepare(
+            'UPDATE requests SET song_id = NULL WHERE song_id IS NOT NULL',
+          )
           .run();
         songDb.prepare('DELETE FROM songs').run();
         songDb.prepare('DELETE FROM song_categories').run();

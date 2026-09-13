@@ -31,7 +31,6 @@ const LEGACY_ADMIN_GLOBAL_LIMITS = {
   'public/js/admin/todo.js': 3,
   'public/js/admin/ai-assistant-settings.js': 4,
   'public/js/desktop.js': 7,
-  'public/js/overlays/lyric-window.js': 1,
   'public/js/playback/index.js': 3,
   'public/js/playback/operations/provider-operations.js': 1,
   'public/js/playback/ui/components.js': 8,
@@ -49,8 +48,7 @@ const DOMAIN_SQL_LIMITS = {
   'src/ai/api-quota-store.js': 3,
   'src/ai/config-store.js': 18,
   'src/bilibili/gift/blind-box-analysis.js': 1,
-  'src/bilibili/gift/detection-service.js': 7,
-  'src/bilibili/gift/event-service.js': 11,
+  'src/bilibili/gift/projection-service.js': 5,
   'src/bilibili/gift/statistics-consumer.js': 6,
   'src/overtime/overtime-store.js': 21,
 };
@@ -127,19 +125,35 @@ test('internal backend modules do not import composition entrypoints', () => {
   const entrypoints = new Set(['src/server.js', 'src/electron/main.js']);
   for (const file of listJavaScriptFiles('src')) {
     if (entrypoints.has(file)) continue;
-    for (const match of read(file).matchAll(/\brequire\(\s*['"](\.[^'"]+)['"]\s*\)/g)) {
-      let target = path.posix.normalize(path.posix.join(path.posix.dirname(file), match[1]));
+    for (const match of read(file).matchAll(
+      /\brequire\(\s*['"](\.[^'"]+)['"]\s*\)/g,
+    )) {
+      let target = path.posix.normalize(
+        path.posix.join(path.posix.dirname(file), match[1]),
+      );
       if (!path.posix.extname(target)) target += '.js';
-      assert.equal(entrypoints.has(target), false, `${file} imports composition entry ${target}`);
+      assert.equal(
+        entrypoints.has(target),
+        false,
+        `${file} imports composition entry ${target}`,
+      );
     }
   }
 });
 
 test('storage adapters do not depend on server, desktop, or browser modules', () => {
   for (const file of listJavaScriptFiles('src/storage')) {
-    for (const match of read(file).matchAll(/\brequire\(\s*['"](\.[^'"]+)['"]\s*\)/g)) {
-      const target = path.posix.normalize(path.posix.join(path.posix.dirname(file), match[1]));
-      assert.doesNotMatch(target, /^(?:src\/(?:server(?:\.js|\/|$)|electron\/)|public\/)/, file);
+    for (const match of read(file).matchAll(
+      /\brequire\(\s*['"](\.[^'"]+)['"]\s*\)/g,
+    )) {
+      const target = path.posix.normalize(
+        path.posix.join(path.posix.dirname(file), match[1]),
+      );
+      assert.doesNotMatch(
+        target,
+        /^(?:src\/(?:server(?:\.js|\/|$)|electron\/)|public\/)/,
+        file,
+      );
     }
   }
 });
@@ -150,14 +164,26 @@ test('reviewed overlay pages share one owned connection adapter', () => {
     assert.match(source, /from ['"]\.\/socket-client\.js['"]/);
     assert.doesNotMatch(source, /new WebSocket\s*\(/);
   }
-  assert.equal(fs.existsSync(path.join(ROOT_DIR, 'public/js/shared/overlay-socket.js')), false);
+  assert.equal(
+    fs.existsSync(path.join(ROOT_DIR, 'public/js/shared/overlay-socket.js')),
+    false,
+  );
 });
 
 test('composition owns wheel cleanup and does not revive the obsolete player', () => {
   assert.match(read('src/server.js'), /wheelSessionService\?\.dispose\(\)/);
-  assert.equal(fs.existsSync(path.join(ROOT_DIR, 'public/js/playback/player/controller.js')), false);
+  assert.equal(
+    fs.existsSync(
+      path.join(ROOT_DIR, 'public/js/playback/player/controller.js'),
+    ),
+    false,
+  );
   for (const file of listJavaScriptFiles('public/js/playback')) {
-    assert.doesNotMatch(read(file), /PlayerController|player\/controller\.js/, file);
+    assert.doesNotMatch(
+      read(file),
+      /PlayerController|player\/controller\.js/,
+      file,
+    );
   }
 });
 

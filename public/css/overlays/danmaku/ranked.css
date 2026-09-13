@@ -1,0 +1,164 @@
+/* 直播气泡：固定设计画布等比缩放，头像在左，昵称灯牌与正文上下堆叠。 */
+body[data-style='ranked'] .danmaku-signal-stage {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  grid-template-rows: minmax(0, 1fr);
+  width: var(--ranked-stage-width);
+  height: var(--ranked-stage-height);
+  padding: 6px 12px;
+  transform: scale(var(--ranked-scale));
+  transform-origin: left bottom;
+}
+body[data-style='ranked'] .danmaku-signal-header {
+  display: none;
+}
+body[data-style='ranked'] .draw-danmaku-feed {
+  gap: 10px;
+  width: 100%;
+  height: 100%;
+  max-height: none;
+}
+body[data-style='ranked'] .draw-danmaku-item {
+  --ranked-accent: #6ed6dc;
+  grid-template-columns: var(--ranked-avatar-size) minmax(0, 1fr);
+  gap: 9px;
+  align-items: start;
+  width: max-content;
+  min-width: 0;
+  max-width: var(--ranked-bubble-max-width);
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: #fff;
+  background: transparent;
+  box-shadow: none;
+  clip-path: none;
+  animation-name: rankedMessageIn;
+}
+body[data-style='ranked'] .draw-danmaku-item::after {
+  display: none;
+}
+body[data-style='ranked'] .draw-danmaku-item[data-identity='viewer'],
+body[data-style='ranked'] .draw-danmaku-item[data-identity='fan'] {
+  --ranked-accent: #6ed6dc;
+}
+body[data-style='ranked'] .draw-danmaku-item[data-identity='captain'] {
+  --ranked-accent: var(--guard-captain);
+}
+body[data-style='ranked'] .draw-danmaku-item[data-identity='admiral'] {
+  --ranked-accent: var(--guard-admiral);
+}
+body[data-style='ranked'] .draw-danmaku-item[data-identity='governor'] {
+  --ranked-accent: var(--guard-governor);
+}
+body[data-style='ranked'] .draw-danmaku-avatar {
+  align-self: start;
+  justify-self: start;
+  width: var(--ranked-avatar-size);
+  height: var(--ranked-avatar-size);
+  min-width: var(--ranked-avatar-size);
+  border: 3px solid color-mix(in srgb, var(--ranked-accent) 72%, white);
+  border-radius: 50%;
+  color: transparent;
+  background: var(--danmaku-avatar-art) center / cover no-repeat;
+  box-shadow: 0 3px 8px rgba(12, 18, 30, 0.18);
+  clip-path: none;
+  font-size: 0;
+}
+body[data-style='ranked'] .draw-danmaku-avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+}
+body[data-style='ranked'] .draw-danmaku-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 5px;
+  min-width: 0;
+  max-width: calc(
+    var(--ranked-bubble-max-width) - var(--ranked-avatar-size) - 9px
+  );
+}
+body[data-style='ranked'] .draw-danmaku-identity {
+  display: flex;
+  align-items: center;
+  width: max-content;
+  max-width: 100%;
+  min-height: 26px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  color: #fff;
+  background: color-mix(in srgb, var(--ranked-accent) 82%, white);
+  box-shadow: 0 2px 5px rgba(12, 18, 30, 0.16);
+}
+body[data-style='ranked'] .draw-danmaku-identity strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #fff;
+  font:
+    700 15px/1.2 'Microsoft YaHei UI',
+    'Microsoft YaHei',
+    sans-serif;
+  letter-spacing: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+body[data-style='ranked'] .draw-danmaku-guard,
+body[data-style='ranked'] .draw-danmaku-medal-name {
+  display: none;
+}
+body[data-style='ranked'] .draw-danmaku-medal {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  margin-left: auto;
+  padding: 1px 5px;
+  border: 1px solid rgba(255, 255, 255, 0.56);
+  border-radius: 999px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.16);
+  font:
+    700 12px/1.2 'Microsoft YaHei UI',
+    'Microsoft YaHei',
+    sans-serif;
+}
+body[data-style='ranked'] .draw-danmaku-medal-level {
+  font-size: 1em;
+  line-height: 1;
+}
+body[data-style='ranked'] .draw-danmaku-body p {
+  margin: 0;
+  width: max-content;
+  max-width: 100%;
+  padding: 8px 15px 10px;
+  border-radius: 5px 18px 18px 18px;
+  color: #fff;
+  font-size: 38px;
+  font-weight: 600;
+  line-height: 1.28;
+  background: var(--ranked-accent);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.34);
+}
+body[data-style='ranked'] .draw-danmaku-emote {
+  height: 1.75em;
+  margin: 0 0.06em;
+}
+body[data-style='ranked'] .draw-danmaku-item.is-emote-only .draw-danmaku-emote {
+  height: 4.1em;
+  margin: 0.05em 0;
+}
+body[data-style='ranked'] .draw-danmaku-empty {
+  width: var(--ranked-bubble-max-width);
+  max-width: 100%;
+  padding: 20px 16px;
+  color: rgba(255, 255, 255, 0.62);
+  border-radius: 8px 20px 20px 20px;
+  background: rgba(110, 214, 220, 0.72);
+  clip-path: none;
+}

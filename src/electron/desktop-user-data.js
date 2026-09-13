@@ -1,6 +1,7 @@
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
+const { resolveDataPaths } = require('../shared/data-paths');
 
 // Compatibility source used by releases that stored data outside the installation.
 const PACKAGED_USER_DATA_DIR_NAME = 'com.aurorawhisperer.lira';
@@ -8,19 +9,19 @@ const PACKAGED_USER_DATA_DIR_NAME = 'com.aurorawhisperer.lira';
 /**
  * Resolve the durable and pre-migration data roots for the current desktop mode.
  * @param {{isPackaged?: boolean, appDataPath?: string, exePath?: string, rootDir?: string}} options
- * @returns {{dataDir: string, legacyDataDir: string, recoveryDataDir?: string}}
+ * @returns {ReturnType<typeof resolveDataPaths> & {legacyDataDir: string, recoveryDataDir?: string}}
  */
 function resolveDesktopUserDataPaths(options) {
   const rootDir = path.resolve(String(options.rootDir || ''));
   if (!options.isPackaged) {
     const dataDir = path.join(rootDir, 'data');
-    return { dataDir, legacyDataDir: dataDir };
+    return { ...resolveDataPaths(dataDir), legacyDataDir: dataDir };
   }
 
   const appDataPath = path.resolve(String(options.appDataPath || ''));
   const exePath = path.resolve(String(options.exePath || ''));
   return {
-    dataDir: path.join(path.dirname(exePath), 'data'),
+    ...resolveDataPaths(path.join(path.dirname(exePath), 'data')),
     legacyDataDir: path.join(appDataPath, PACKAGED_USER_DATA_DIR_NAME, 'data'),
     recoveryDataDir: path.dirname(exePath) + '.lira-data-backup',
   };

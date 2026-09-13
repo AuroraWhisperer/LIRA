@@ -250,28 +250,7 @@ test('only the latest playback search updates state and renders', async () => {
 
 test('playback workspace keeps semantic hierarchy and presentation typography', () => {
   const html = readAdminHtml();
-  const playbackCssDir = path.join(ROOT_DIR, 'public', 'css', 'playback');
-  const playbackCssFiles = [
-    'dialogs.css',
-    'drawer.css',
-    'fullscreen.css',
-    'header.css',
-    'player.css',
-    'queue-modal.css',
-    'responsive.css',
-    'song-row.css',
-    path.join('panels', 'confirm-dialog.css'),
-    path.join('panels', 'discovery.css'),
-    path.join('panels', 'match.css'),
-    path.join('panels', 'queue.css'),
-    path.join('panels', 'search.css'),
-    path.join('panels', 'track-menu.css'),
-    path.join('panels', 'user-and-health.css'),
-    path.join('panels', 'wesing.css'),
-  ];
-  const playbackCss = playbackCssFiles
-    .map((file) => fs.readFileSync(path.join(playbackCssDir, file), 'utf8'))
-    .join('\n');
+  const playbackCss = readCssBundle('public', 'css', 'styles-playback.css');
   const drawerSource = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'js', 'playback', 'ui', 'drawer.js'),
     'utf8',

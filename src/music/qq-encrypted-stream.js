@@ -57,7 +57,9 @@ async function serveQQEncryptedStream(record, req, res, options = {}) {
 
   const controller = new AbortController();
   const cancel = () => controller.abort();
-  const onClose = () => { if (!res.writableFinished) cancel(); };
+  const onClose = () => {
+    if (!res.writableFinished) cancel();
+  };
   req.once('aborted', cancel);
   res.once('close', onClose);
   let upstream;
@@ -66,7 +68,9 @@ async function serveQQEncryptedStream(record, req, res, options = {}) {
     if (req.aborted || res.destroyed) return;
     const fetchImpl = options.fetchImpl || fetch;
     upstream = await fetchImpl(mediaUrl, {
-      headers, redirect: 'follow', signal: controller.signal,
+      headers,
+      redirect: 'follow',
+      signal: controller.signal,
     });
     if (controller.signal.aborted) return;
     try {
@@ -76,7 +80,11 @@ async function serveQQEncryptedStream(record, req, res, options = {}) {
       return;
     }
     if (!upstream.ok && upstream.status !== 206) {
-      sendError(res, upstream.status === 416 ? 416 : 502, 'QQ 加密媒体暂时不可用。');
+      sendError(
+        res,
+        upstream.status === 416 ? 416 : 502,
+        'QQ 加密媒体暂时不可用。',
+      );
       return;
     }
     const contentLength = Number(upstream.headers.get('content-length') || 0);
@@ -88,7 +96,9 @@ async function serveQQEncryptedStream(record, req, res, options = {}) {
     if (controller.signal.aborted) return;
     cipher = new QMC2(String(record.ekey || ''));
     const responseHeaders = {
-      'Content-Type': record.contentType || (record.family === 'Q0' ? 'audio/flac' : 'audio/ogg'),
+      'Content-Type':
+        record.contentType ||
+        (record.family === 'Q0' ? 'audio/flac' : 'audio/ogg'),
       'Accept-Ranges': 'bytes',
       'Cache-Control': 'no-store',
     };
@@ -114,7 +124,9 @@ async function serveQQEncryptedStream(record, req, res, options = {}) {
         }
       },
     });
-    await pipeline(Readable.fromWeb(upstream.body), decrypt, res, { signal: controller.signal });
+    await pipeline(Readable.fromWeb(upstream.body), decrypt, res, {
+      signal: controller.signal,
+    });
   } catch (error) {
     if (!controller.signal.aborted && !res.destroyed) {
       if (!res.headersSent) throw error;

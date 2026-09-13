@@ -25,7 +25,9 @@ function createLicenseOperations(options = {}) {
   }
 
   async function getCloudState(requestOptions = {}) {
-    return withAuthorizedToken((token) => remote.getCloudState(token, requestOptions));
+    return withAuthorizedToken((token) =>
+      remote.getCloudState(token, requestOptions),
+    );
   }
 
   async function watchCloudStateChangesInternal(options = {}) {
@@ -51,14 +53,9 @@ function createLicenseOperations(options = {}) {
       limit < 1 ||
       limit > 200 ||
       (syncEpoch !== null &&
-        (typeof syncEpoch !== 'string' ||
-          !syncEpoch ||
-          syncEpoch.length > 128))
+        (typeof syncEpoch !== 'string' || !syncEpoch || syncEpoch.length > 128))
     ) {
-      throw new RemoteLicenseError(
-        'INVALID_GIFT_CURSOR',
-        '礼物事件游标无效。',
-      );
+      throw new RemoteLicenseError('INVALID_GIFT_CURSOR', '礼物事件游标无效。');
     }
     return withAuthorizedToken(
       async (token) => {
@@ -90,9 +87,7 @@ function createLicenseOperations(options = {}) {
         : input.pageToken;
     if (
       pageToken !== null &&
-      (typeof pageToken !== 'string' ||
-        !pageToken ||
-        pageToken.length > 4096)
+      (typeof pageToken !== 'string' || !pageToken || pageToken.length > 4096)
     ) {
       throw new RemoteLicenseError(
         'INVALID_BOOTSTRAP_TOKEN',
@@ -215,7 +210,9 @@ function createLicenseOperations(options = {}) {
   }
 
   async function getCloudSongs(requestOptions = {}) {
-    return withAuthorizedToken((token) => remote.getCloudSongs(token, requestOptions));
+    return withAuthorizedToken((token) =>
+      remote.getCloudSongs(token, requestOptions),
+    );
   }
 
   async function getGiftCatalog(input = {}) {

@@ -4,6 +4,15 @@
 - Date: 2026-08-10
 - Original ID: ADR-OT-005
 
+## 2026-09-13 ownership update
+
+The raw client detector described below has been removed. Parsing, grouping,
+amount/blind-box decisions, and finalization are now owned by the server under
+the [server-authoritative gift specification](../../../specs/server-authoritative-gift-detection_design.md).
+The client [projection service](../backend/bilibili/gift.md) retains consumer
+isolation, frozen eligibility, and idempotent delivery for server events only.
+The original decision below remains a historical record, not a local fallback.
+
 ## Context
 
 Previously `src/bilibili/gift/event-service.js` combined low-level detection, gift event persistence, and the `enableGiftSprint` switch in one service, so gifts were unavailable to overtime whenever `enableGiftSprint` was false. Gift statistics and the overtime machine need the same normalization, platform deduplication, and combo merging, yet their start/stop switches and business outcomes must remain independent. This ADR was extracted from the overtime machine design specification (accepted 2026-08-10) and verified implemented in the v3.3.14 codebase (`src/bilibili/gift/detection-service.js`, `src/bilibili/gift/consumer-registry.js`, `src/bilibili/gift/statistics-consumer.js`, `src/overtime/overtime-consumer.js`).

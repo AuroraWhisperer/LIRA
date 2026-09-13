@@ -23,7 +23,8 @@ function configureMediaRequestHeaders(desktopSession, state) {
       } catch (_) {
         host = '';
       }
-      const matches = (domain) => host === domain || host.endsWith(`.${domain}`);
+      const matches = (domain) =>
+        host === domain || host.endsWith(`.${domain}`);
       if (matches('music.163.com') || matches('music.126.net')) {
         if (!headers.Referer && !headers.referer) {
           headers.Referer = 'https://music.163.com/';

@@ -2,20 +2,23 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const { isDnsHostname } = require('../../shared/remote-url-policy');
-const { isGuardGiftAliasId } = require('./guard-gift-aliases');
-const { normalizeVariantSnapshot } = require('./variant-catalog-snapshot');
-const { giftVariantId } = require('../../shared/gift-identity');
+const {
+  normalizeRemoteCatalog,
+  normalizeRemoteGift,
+  catalogError,
+  validIso,
+  isoTime,
+} = require('./remote-catalog-contract');
+const {
+  normalizeImageBaseUrl,
+  normalizeBilibiliImageUrl,
+  normalizeImagePath,
+} = require('./remote-catalog-image-policy');
+const { resolveDataPaths } = require('../../shared/data-paths');
 
 const CACHE_FILE_NAME = 'overtime-gift-catalog-v2.json';
 const DEFAULT_POLL_INTERVAL_MS = 12 * 60 * 60 * 1000;
 const DEFAULT_MIN_REFRESH_MS = 5 * 60 * 1000;
-const MAX_GIFTS = 10000;
-const MAX_BLIND_BOXES = 100;
-const MAX_OUTPUTS_PER_BLIND_BOX = 200;
-const MAX_TEXT_LENGTH = 256;
-const EXCLUDED_GIFT_IDS = new Set(['13000']);
-const BILIBILI_IMAGE_HOST = 'hdslb.com';
 
 function createRemoteGiftCatalogCache(options = {}) {
   const dataDir = String(options.dataDir || '').trim();
@@ -32,7 +35,7 @@ function createRemoteGiftCatalogCache(options = {}) {
   );
   const minRefreshMs = positiveMs(options.minRefreshMs, DEFAULT_MIN_REFRESH_MS);
   const cachePath = path.resolve(
-    options.cachePath || path.join(dataDir, CACHE_FILE_NAME),
+    options.cachePath || resolveDataPaths(dataDir).giftCatalogPath,
   );
   const configuredImageBaseUrl = () => {
     const value =
@@ -68,8 +71,9 @@ function createRemoteGiftCatalogCache(options = {}) {
   }
 
   function getGift(giftId, variantId) {
-    const candidates = (giftsById.get(String(giftId || '').trim()) || [])
-      .filter(gift => !variantId || gift.variantId === variantId);
+    const candidates = (
+      giftsById.get(String(giftId || '').trim()) || []
+    ).filter((gift) => !variantId || gift.variantId === variantId);
     const gift = candidates.length === 1 ? candidates[0] : null;
     return gift ? structuredClone(gift) : null;
   }
@@ -120,7 +124,8 @@ function createRemoteGiftCatalogCache(options = {}) {
         };
         if (stopped || requestGeneration !== lifecycleGeneration)
           return getSnapshot();
-        if (writePersistedCache(cachePath, nextCache, logger)) cache = nextCache;
+        if (writePersistedCache(cachePath, nextCache, logger))
+          cache = nextCache;
         return getSnapshot();
       }
 
@@ -210,285 +215,6 @@ function createRemoteGiftCatalogCache(options = {}) {
     start,
     stop,
   };
-}
-
-function normalizeRemoteCatalog(response, options = {}) {
-  if (response?.ok === false) {
-    throw catalogError(
-      String(response.error || response.code || 'REMOTE_CATALOG_INVALID'),
-    );
-  }
-  const nested =
-    response?.data &&
-    response?.gifts == null &&
-    typeof response.data === 'object' &&
-    !Array.isArray(response.data)
-      ? response.data
-      : null;
-  const source = nested ? nested : response;
-  if (!source || source.ok === false) {
-    throw catalogError(String(source?.error || 'REMOTE_CATALOG_INVALID'));
-  }
-  if (source.schemaVersion === 3) {
-    return normalizeVariantSnapshot(source, normalizeRemoteGift, normalizeImageBaseUrl(options.imageBaseUrl));
-  }
-  if (source.schemaVersion !== 2 || !Array.isArray(source.blindBoxes)) {
-    throw catalogError('REMOTE_CATALOG_SCHEMA_UNSUPPORTED');
-  }
-  const rawGifts = Array.isArray(source.gifts) ? source.gifts : [];
-  if (rawGifts.length === 0) throw catalogError('REMOTE_CATALOG_EMPTY');
-  if (rawGifts.length > MAX_GIFTS)
-    throw catalogError('REMOTE_CATALOG_TOO_LARGE');
-  // The server origin is supplied by the composition root (the configured
-  // license API base).  Never trust an origin echoed inside the response;
-  // accepting it would let a proxy redirect image requests to an arbitrary
-  // HTTPS host when this normalizer is used without an explicit base.
-  const configuredImageBaseUrl = normalizeImageBaseUrl(options.imageBaseUrl);
-  const gifts = [];
-  const seenIds = new Set();
-  for (const rawGift of rawGifts) {
-    const gift = normalizeRemoteGift(rawGift, configuredImageBaseUrl);
-    if (!gift) throw catalogError('REMOTE_CATALOG_GIFT_INVALID');
-    if (seenIds.has(gift.id)) throw catalogError('REMOTE_CATALOG_DUPLICATE_GIFT');
-    seenIds.add(gift.id);
-    if (
-      gift.coinType === 'gold' &&
-      !EXCLUDED_GIFT_IDS.has(gift.id) &&
-      !isGuardGiftAliasId(gift.id)
-    ) {
-      gifts.push(gift);
-    }
-  }
-  if (gifts.length === 0) throw catalogError('REMOTE_CATALOG_EMPTY');
-  const blindBoxes = normalizeBlindBoxes(source.blindBoxes, gifts);
-  const version = safeText(source.version || source.revision, MAX_TEXT_LENGTH);
-  if (!version) throw catalogError('REMOTE_CATALOG_VERSION_MISSING');
-  const updatedAt =
-    validIso(source.updatedAt || source.refreshedAt) ||
-    isoTime(options.now || Date.now());
-  const sources = normalizeSources(source.sources);
-  return {
-    schemaVersion: 2,
-    source: 'server',
-    roomId: '',
-    panelCount: gifts.length,
-    version,
-    refreshedAt: updatedAt,
-    updatedAt,
-    stale:
-      parseBooleanLike(source.stale) ||
-      sources.gifts.stale ||
-      sources.effects.stale,
-    sources,
-    count: gifts.length,
-    gifts,
-    blindBoxes,
-  };
-}
-
-function normalizeRemoteGift(value, imageBaseUrl) {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-  const rawId = String(value.id ?? value.giftId ?? value.gift_id ?? '').trim();
-  if (!/^\d{1,20}$/u.test(rawId)) return null;
-  const id = rawId.replace(/^0+(?=\d)/u, '');
-  try {
-    if (BigInt(id) <= 0n) return null;
-  } catch (_) {
-    return null;
-  }
-  const name =
-    safeText(value.name ?? value.displayName ?? value.giftName, 100) ||
-    `礼物 ${id}`;
-  const priceRaw = strictNonNegativeInteger(value.priceRaw ?? value.price_raw);
-  const coinType = safeText(value.coinType ?? value.coin_type, 32);
-  if (
-    priceRaw === null ||
-    !coinType ||
-    typeof value.active !== 'boolean' ||
-    typeof value.isBlindBox !== 'boolean'
-  ) {
-    return null;
-  }
-  const battery =
-    value.battery == null
-      ? coinType === 'gold'
-        ? priceRaw / 100
-        : null
-      : finiteNonNegative(value.battery);
-  const rmb =
-    value.rmb == null
-      ? coinType === 'gold'
-        ? priceRaw / 1000
-        : null
-      : finiteNonNegative(value.rmb);
-  const bagGift = parseBooleanLike(value.bagGift ?? value.bag_gift);
-  const variantId = giftVariantId({ id, name, priceRaw, coinType, bagGift });
-  return {
-    id,
-    name,
-    battery,
-    ...(variantId ? { variantId, giftIdentity: { variantId, priceRaw, coinType, bagGift } } : {}),
-    rmb,
-    priceRaw,
-    coinType,
-    bagGift: parseBooleanLike(value.bagGift ?? value.bag_gift),
-    active: value.active,
-    isBlindBox: value.isBlindBox,
-    sourceUrl: normalizeBilibiliImageUrl(
-      value.sourceUrl ?? value.source_url ?? value.imageSourceUrl,
-    ),
-    imagePath: normalizeImagePath(
-      value.imagePath || value.imageUrl,
-      imageBaseUrl,
-    ),
-  };
-}
-
-function normalizeBlindBoxes(value, gifts) {
-  if (!Array.isArray(value) || value.length > MAX_BLIND_BOXES) {
-    throw catalogError('REMOTE_CATALOG_BLIND_BOXES_INVALID');
-  }
-  const giftById = new Map(gifts.map((gift) => [gift.id, gift]));
-  const seenBoxIds = new Set();
-  return value.map((entry) => {
-    const giftId = normalizeGiftId(entry?.giftId);
-    if (
-      !giftId ||
-      seenBoxIds.has(giftId) ||
-      !giftById.get(giftId)?.isBlindBox ||
-      !Array.isArray(entry?.outputGiftIds) ||
-      entry.outputGiftIds.length === 0 ||
-      entry.outputGiftIds.length > MAX_OUTPUTS_PER_BLIND_BOX
-    ) {
-      throw catalogError('REMOTE_CATALOG_BLIND_BOXES_INVALID');
-    }
-    seenBoxIds.add(giftId);
-    const outputGiftIds = entry.outputGiftIds.map(normalizeGiftId);
-    if (
-      outputGiftIds.some((id) => !id || id === giftId || !giftById.has(id)) ||
-      new Set(outputGiftIds).size !== outputGiftIds.length
-    ) {
-      throw catalogError('REMOTE_CATALOG_BLIND_BOXES_INVALID');
-    }
-    return { giftId, outputGiftIds };
-  });
-}
-
-function normalizeGiftId(value) {
-  const id = String(value ?? '').trim();
-  if (!/^[1-9]\d{0,19}$/u.test(id)) return '';
-  try {
-    return BigInt(id) > 0n ? id : '';
-  } catch (_) {
-    return '';
-  }
-}
-
-function normalizeBilibiliImageUrl(value) {
-  const raw = String(value || '').trim();
-  if (!raw) return '';
-  try {
-    const parsed = new URL(raw);
-    const hostname = parsed.hostname.toLowerCase();
-    if (
-      parsed.protocol !== 'https:' ||
-      (hostname !== BILIBILI_IMAGE_HOST &&
-        !hostname.endsWith(`.${BILIBILI_IMAGE_HOST}`)) ||
-      parsed.username ||
-      parsed.password ||
-      (parsed.port && parsed.port !== '443') ||
-      parsed.hash
-    )
-      return '';
-    return parsed.href;
-  } catch (_) {
-    return '';
-  }
-}
-
-function normalizeSources(value) {
-  const source = value && typeof value === 'object' ? value : {};
-  return {
-    gifts: normalizeSource(source.gifts),
-    effects: normalizeSource(source.effects),
-  };
-}
-
-function normalizeSource(value) {
-  const source = value && typeof value === 'object' ? value : {};
-  return {
-    asOf: validIso(source.asOf) || null,
-    stale: parseBooleanLike(source.stale),
-  };
-}
-
-function normalizeImagePath(value, imageBaseUrl = '') {
-  const raw = String(value || '').trim();
-  if (!raw) return '';
-  let base = null;
-  try {
-    base = imageBaseUrl ? new URL(String(imageBaseUrl)) : null;
-  } catch (_) {
-    return '';
-  }
-  if (
-    base &&
-    (base.username ||
-      base.password ||
-      !isDnsHostname(base.hostname) ||
-      (base.pathname !== '/' && base.pathname !== '') ||
-      base.search ||
-      base.hash ||
-      base.protocol !== 'https:')
-  ) {
-    return '';
-  }
-  // An absolute remote URL is only trusted after the composition root has
-  // supplied the configured server origin.  This prevents a startup or
-  // tampered response from turning a missing base into an arbitrary image
-  // request; the main process supplies the configured base before refresh.
-  if (!base) return '';
-  let parsed;
-  try {
-    parsed = new URL(raw, base || undefined);
-  } catch (_) {
-    return '';
-  }
-  if (!/^\/gift-media\/images\/[A-Za-z0-9._-]+$/u.test(parsed.pathname))
-    return '';
-  if (parsed.username || parsed.password || parsed.search || parsed.hash)
-    return '';
-  if (base && parsed.origin !== base.origin) return '';
-  return parsed.href;
-}
-
-function normalizeImageBaseUrl(value) {
-  const raw = String(value || '').trim();
-  if (!raw) return '';
-  try {
-    const parsed = new URL(raw);
-    if (
-      parsed.protocol !== 'https:' ||
-      !isDnsHostname(parsed.hostname) ||
-      parsed.username ||
-      parsed.password ||
-      (parsed.pathname !== '/' && parsed.pathname !== '') ||
-      parsed.search ||
-      parsed.hash
-    )
-      return '';
-    return parsed.origin;
-  } catch (_) {
-    return '';
-  }
-}
-
-function parseBooleanLike(value) {
-  if (value === true || value === 1) return true;
-  if (value === false || value === 0 || value === null || value === undefined)
-    return false;
-  const text = String(value).trim().toLowerCase();
-  return text === 'true' || text === '1' || text === 'yes';
 }
 
 function readPersistedCache(
@@ -614,32 +340,9 @@ function indexGifts(gifts) {
   return byId;
 }
 
-function catalogError(code) {
-  const error = new Error(code);
-  error.code = code;
-  return error;
-}
-
-function finiteNonNegative(value) {
-  const number = Number(value);
-  return Number.isFinite(number) && number >= 0 ? number : 0;
-}
-
-function strictNonNegativeInteger(value) {
-  if (value === null || value === undefined || value === '') return null;
-  const number = Number(value);
-  return Number.isSafeInteger(number) && number >= 0 ? number : null;
-}
-
 function positiveMs(value, fallback) {
   const number = Number(value);
   return Number.isFinite(number) && number > 0 ? number : fallback;
-}
-
-function safeText(value, maxLength) {
-  return String(value ?? '')
-    .trim()
-    .slice(0, maxLength);
 }
 
 function safeHeaderValue(value) {
@@ -647,13 +350,6 @@ function safeHeaderValue(value) {
     .trim()
     .slice(0, 256);
   return /[\r\n]/u.test(text) ? '' : text;
-}
-
-function validIso(value) {
-  const text = String(value || '').trim();
-  if (!text) return null;
-  const time = Date.parse(text);
-  return Number.isFinite(time) ? new Date(time).toISOString() : null;
 }
 
 function parseTime(value) {
@@ -665,10 +361,6 @@ function currentTimeMs(clock) {
   const value = typeof clock === 'function' ? clock() : Date.now();
   const time = value instanceof Date ? value.getTime() : Number(value);
   return Number.isFinite(time) ? time : Date.now();
-}
-
-function isoTime(value) {
-  return new Date(Number(value) || Date.now()).toISOString();
 }
 
 module.exports = {

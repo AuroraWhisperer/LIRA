@@ -128,9 +128,10 @@ function createClockFormatters(config) {
       month: '2-digit',
       day: '2-digit',
     }),
-    weekday: timelineStyle || config.style === 'digital'
-      ? new Intl.DateTimeFormat('en-US', { weekday: 'short' })
-      : new Intl.DateTimeFormat('zh-CN', { weekday: 'long' }),
+    weekday:
+      timelineStyle || config.style === 'digital'
+        ? new Intl.DateTimeFormat('en-US', { weekday: 'short' })
+        : new Intl.DateTimeFormat('zh-CN', { weekday: 'long' }),
   };
 }
 
@@ -204,9 +205,10 @@ async function initClock() {
       : timelineStyle
         ? `${month}/${day}`
         : `${month}月${day}日`;
-    weekdayNode.textContent = timelineStyle || digitalStyle
-      ? formatters.weekday.format(now).toUpperCase()
-      : formatters.weekday.format(now);
+    weekdayNode.textContent =
+      timelineStyle || digitalStyle
+        ? formatters.weekday.format(now).toUpperCase()
+        : formatters.weekday.format(now);
     timeNode.dateTime = now.toISOString();
     timeNode.setAttribute(
       'aria-label',

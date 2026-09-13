@@ -25,10 +25,7 @@ test('server Bilibili client explicitly requests and applies avatar hydration on
     publishDanmaku: (danmaku) => published.push(danmaku),
     updateLiveStatus() {},
     bilibiliDiagnostics: {},
-    runtimeGiftCommandPrefixes: new Set(),
-    messageBuffer: null,
     bilibiliAuthCache: { cookieHeader: '', uid: 0 },
-    logGiftDelivery() {},
     games: {
       handleDanmaku: () => ({ session: { game: 'draw-guess' } }),
       updateDanmakuAvatar: (profile) => hydrated.push(profile),
@@ -71,12 +68,15 @@ test('server Bilibili client explicitly requests and applies avatar hydration on
   }
 });
 
-test('server Bilibili client can suppress gifts without suppressing danmaku', () => {
+test('server Bilibili client has no raw gift writer and preserves identity, danmaku and SC', (t) => {
   let gifts = 0;
   let danmaku = 0;
+  let superChats = 0;
+  const hints = [];
+  const logs = [];
+  t.mock.method(console, 'log', (...args) => logs.push(args));
   const client = createBilibiliClient('123', {
     isShuttingDown: () => false,
-    giftDetectionEnabled: false,
     aiDanmakuDeliveryVerifier: { observe() {} },
     domainServices: {
       messages: {
@@ -87,30 +87,61 @@ test('server Bilibili client can suppress gifts without suppressing danmaku', ()
         logDanmaku() {},
       },
       customReplies: { isCommandText: () => false },
-      superChats: { add() {} },
+      superChats: { add: () => (superChats += 1) },
       gifts: { add: () => (gifts += 1) },
     },
     aiAssistant: { handleDanmaku() {} },
     danmakuSender: { send: async () => {} },
     broadcastSnapshot() {},
     updateLiveStatus() {},
-    bilibiliDiagnostics: {},
-    runtimeGiftCommandPrefixes: new Set(),
-    messageBuffer: null,
+    bilibiliDiagnostics: { parsedGiftCount: 0 },
     bilibiliAuthCache: { cookieHeader: '', uid: 0 },
-    logGiftDelivery() {},
   });
 
   try {
-    client.handlers.onGift({ giftName: '礼物' });
+    assert.equal(client.handlers.onGift, undefined);
+    t.mock.method(client.messageHandlers, 'ingestIdentity', (hint) => {
+      hints.push(hint);
+      return { uid: hint.uid, userName: hint.name };
+    });
+    client.messageHandlers.handleIdentityMessage({
+      cmd: 'SEND_GIFT',
+      data: {
+        uid: 42,
+        uname: 'Alice',
+        giftId: 1,
+        giftName: '礼物',
+        num: 1,
+        price: 1000,
+        total_coin: 1000,
+        coin_type: 'gold',
+      },
+    });
+    client.messageHandlers.handleIdentityMessage({
+      cmd: 'SEND_GIFT',
+      data: {},
+    });
     client.handlers.onMessage({
       uid: '42',
       userName: 'Alice',
       message: '点歌 测试',
       source: 'danmaku',
     });
+    client.handlers.onSuperChat({
+      id: 'sc-1',
+      uid: '42',
+      userName: 'Alice',
+      message: '支持',
+      price: 30,
+    });
     assert.equal(gifts, 0);
     assert.equal(danmaku, 1);
+    assert.equal(superChats, 1);
+    assert.equal(hints.length, 1);
+    assert.equal(hints[0].name, 'Alice');
+    assert.equal(client.diagnostics.parsedGiftCount, 0);
+    assert.deepEqual(logs, []);
+    assert.equal(client.messageHandlers.messageBuffer, undefined);
   } finally {
     client.stop();
   }

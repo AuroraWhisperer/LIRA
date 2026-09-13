@@ -27,27 +27,14 @@ const {
   extractBilibiliSuperChatMessage,
 } = require('./parsers/superchat-parser');
 
-// Gift parsing
+// Gift command routing for identity hints and explicit capture diagnostics.
 const {
-  extractBilibiliGiftMessage,
-  extractBilibiliGiftV2Message,
-  extractBilibiliOpenLiveGiftMessage,
-  extractBilibiliOpenLiveGuardGiftMessage,
-  extractBilibiliWebGiftMessage,
-  extractBilibiliWebGuardGiftMessage,
-  isBilibiliDuplicateGuardToast,
   isBilibiliGiftCommand,
   isBilibiliGiftLikeCommand,
-} = require('./parsers/gift-parser');
-
-// Protocol Buffer decoding
-const {
-  readBilibiliProtoVarint,
-  decodeBilibiliGiftV2Proto,
-} = require('./protocols/protobuf-decoder');
+} = require('./parsers/gift-command-utils');
 
 // ---------------------------------------------------------------------------
-// Exports (maintains original API)
+// Packet, message and identity helpers.
 // ---------------------------------------------------------------------------
 
 module.exports = {
@@ -58,16 +45,7 @@ module.exports = {
   extractBilibiliDanmakuUserMeta,
   extractBilibiliHistoryUserMeta,
   extractBilibiliSuperChatMessage,
-  extractBilibiliGiftMessage,
-  extractBilibiliGiftV2Message,
-  extractBilibiliOpenLiveGiftMessage,
-  extractBilibiliOpenLiveGuardGiftMessage,
-  extractBilibiliWebGiftMessage,
-  extractBilibiliWebGuardGiftMessage,
   extractBilibiliOnlineRankUserMeta,
-  isBilibiliDuplicateGuardToast,
   isBilibiliGiftCommand,
   isBilibiliGiftLikeCommand,
-  readBilibiliProtoVarint,
-  decodeBilibiliGiftV2Proto,
 };

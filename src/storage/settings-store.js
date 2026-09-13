@@ -6,6 +6,7 @@
 const { now } = require('../shared/utils');
 const { DEFAULT_SETTINGS } = require('./settings-defaults');
 const settingsMigrations = require('./settings-migrations');
+const CLOUD_ROOM_ACCOUNT_KEY = 'cloudRoomAccountKey';
 
 function bootstrapSettingsStore(db) {
   db.exec('BEGIN IMMEDIATE');
@@ -77,7 +78,9 @@ function createSettingsStore(db) {
     if (cache) return { ...cache };
     const rows = db.prepare('SELECT key, value FROM settings').all();
     cache = { ...DEFAULT_SETTINGS };
-    for (const row of rows) cache[row.key] = row.value;
+    for (const row of rows) {
+      if (row.key !== CLOUD_ROOM_ACCOUNT_KEY) cache[row.key] = row.value;
+    }
     return { ...cache };
   }
 
@@ -88,6 +91,25 @@ function createSettingsStore(db) {
 
     getSettings,
 
+    prepareCloudRoomAccount(accountKey) {
+      const owner = db
+        .prepare('SELECT value FROM settings WHERE key = ?')
+        .get(CLOUD_ROOM_ACCOUNT_KEY)?.value;
+      if (owner === accountKey) return false;
+      // Ownership and detachment must survive a crash as one change.
+      db.exec('BEGIN IMMEDIATE');
+      try {
+        writeSetting.run('roomId', '', now());
+        writeSetting.run(CLOUD_ROOM_ACCOUNT_KEY, accountKey, now());
+        db.exec('COMMIT');
+      } catch (error) {
+        db.exec('ROLLBACK');
+        throw error;
+      }
+      cache = null;
+      return true;
+    },
+
     setSetting(key, value) {
       writeSetting.run(key, value, now());
       cache = null;
@@ -95,7 +117,9 @@ function createSettingsStore(db) {
 
     setSettings(values) {
       const previous = getSettings();
-      const changes = Object.entries(values).filter(([key, value]) => previous[key] !== value);
+      const changes = Object.entries(values).filter(
+        ([key, value]) => previous[key] !== value,
+      );
       if (changes.length === 0) return [];
       db.exec('BEGIN IMMEDIATE');
       try {

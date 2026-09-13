@@ -107,6 +107,55 @@ test('games admin uses the restored single-column card layout', () => {
   );
 });
 
+test('admin game styles keep shared, wheel, draw, and responsive ownership', () => {
+  const readGameStyle = (name) =>
+    fs.readFileSync(
+      path.join(ROOT_DIR, 'public', 'css', 'admin', 'other-features', name),
+      'utf8',
+    );
+  const entry = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'css', 'admin', 'other-features.css'),
+    'utf8',
+  );
+  const imports = [
+    "@import url('./other-features/games.css');",
+    "@import url('./other-features/games-wheel.css');",
+    "@import url('./other-features/games-draw.css');",
+    "@import url('./other-features/games-responsive.css');",
+    "@import url('./other-features/start-animation.css');",
+  ];
+  const positions = imports.map((statement) => entry.indexOf(statement));
+
+  assert.equal(
+    positions.every((position) => position >= 0),
+    true,
+    'the admin entry should import every game style owner',
+  );
+  assert.deepEqual(
+    positions,
+    [...positions].sort((a, b) => a - b),
+  );
+
+  const shared = readGameStyle('games.css');
+  const wheel = readGameStyle('games-wheel.css');
+  const draw = readGameStyle('games-draw.css');
+  const responsive = readGameStyle('games-responsive.css');
+
+  assert.match(shared, /\.game-admin-card\s*\{/);
+  assert.doesNotMatch(shared, /\.wheel-card-trigger\s*\{/);
+  assert.doesNotMatch(shared, /\.draw-word-library\s*\{/);
+  assert.doesNotMatch(shared, /@media/);
+  assert.match(wheel, /\.wheel-card-trigger\s*\{/);
+  assert.doesNotMatch(wheel, /\.draw-card-trigger\s*\{/);
+  assert.match(draw, /\.draw-card-trigger\s*\{/);
+  assert.match(draw, /\.draw-word-library\s*\{/);
+  assert.doesNotMatch(draw, /\.wheel-card-trigger\s*\{/);
+  assert.match(responsive, /@media \(max-width: 760px\)/);
+  assert.match(responsive, /\.wheel-card-trigger\s*\{/);
+  assert.match(responsive, /\.draw-card-trigger\s*\{/);
+  assert.match(responsive, /\.games-category\s*\{/);
+});
+
 test('games admin dropdowns can escape the first two game cards', () => {
   const styles = fs.readFileSync(
     path.join(
@@ -168,7 +217,7 @@ test('games admin gives the word library a compact selectable shelf', () => {
       'css',
       'admin',
       'other-features',
-      'games.css',
+      'games-draw.css',
     ),
     'utf8',
   );

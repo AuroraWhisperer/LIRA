@@ -165,15 +165,15 @@ function createLicenseManager(options = {}) {
         return setState(LicenseState.NEEDS_ACTIVATION);
       }
       try {
-        const privateKey = keyStore.loadPrivateKey();
-        if (!privateKey) {
+        const privateKeyPem = keyStore.loadPrivateKey();
+        if (!privateKeyPem) {
           clearSession();
           return setState(
             LicenseState.NEEDS_ACTIVATION,
             'DEVICE_KEY_UNAVAILABLE',
           );
         }
-        await authenticate(identity, privateKey);
+        await authenticate({ identity, privateKeyPem });
         return state;
       } catch (error) {
         return handleAuthError(error);
@@ -211,12 +211,11 @@ function createLicenseManager(options = {}) {
         if (!activation)
           return { ok: false, state, error: 'LICENSE_MANAGER_DISPOSED' };
         identity = stateStore.write(activation.identity);
-        const authenticated = await authenticate(
+        const authenticated = await authenticate({
           identity,
-          activation.keyPair.privateKeyPem,
-          0,
+          privateKeyPem: activation.keyPair.privateKeyPem,
           generation,
-        );
+        });
         if (!authenticated)
           return { ok: false, state, error: 'LICENSE_MANAGER_DISPOSED' };
         return {
@@ -298,14 +297,14 @@ function createLicenseManager(options = {}) {
     }
   }
 
-  async function authenticate(
-    currentIdentity,
+  async function authenticate({
+    identity: currentIdentity,
     privateKeyPem,
     attempt = 0,
     generation = lifecycleGeneration,
     expectedState = null,
     expectedToken = null,
-  ) {
+  }) {
     const isAttemptActive = () =>
       isLifecycleActive(generation) &&
       (!expectedState || state === expectedState) &&
@@ -354,18 +353,22 @@ function createLicenseManager(options = {}) {
       });
     } catch (error) {
       if (RETRY_CHALLENGE_CODES.has(getErrorCode(error)) && attempt < 1) {
-        return authenticate(
-          currentIdentity,
+        return authenticate({
+          identity: currentIdentity,
           privateKeyPem,
-          attempt + 1,
+          attempt: attempt + 1,
           generation,
           expectedState,
           expectedToken,
-        );
+        });
       }
       throw error;
     }
     if (!isAttemptActive()) return null;
+    return acceptAuthenticationResult(result);
+  }
+
+  function acceptAuthenticationResult(result) {
     accessToken = String(result.accessToken || '');
     if (!accessToken)
       throw new RemoteLicenseError(
@@ -395,15 +398,14 @@ function createLicenseManager(options = {}) {
       if (!identity || state !== LicenseState.AUTHORIZED) return false;
       const expectedToken = accessToken;
       try {
-        const privateKey = keyStore.loadPrivateKey();
-        const result = await authenticate(
+        const privateKeyPem = keyStore.loadPrivateKey();
+        const result = await authenticate({
           identity,
-          privateKey,
-          0,
-          lifecycleGeneration,
-          LicenseState.AUTHORIZED,
+          privateKeyPem,
+          generation: lifecycleGeneration,
+          expectedState: LicenseState.AUTHORIZED,
           expectedToken,
-        );
+        });
         return Boolean(result);
       } catch (error) {
         const code = getErrorCode(error);
@@ -574,6 +576,10 @@ function createLicenseManager(options = {}) {
     getState,
     getSnapshot,
     getAuthorizationEpoch,
+    getCloudSyncIdentity: () =>
+      identity
+        ? { streamerId: identity.streamerId, accountName: identity.accountName }
+        : null,
     onStateChanged,
     bootstrap,
     activate,

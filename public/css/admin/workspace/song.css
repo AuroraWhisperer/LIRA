@@ -181,7 +181,10 @@ body.player-dock-expanded .song-workspace {
   box-shadow: none;
 }
 
-.queues-row .song-queue-panel .panel-header button.primary:hover:not(:disabled) {
+.queues-row
+  .song-queue-panel
+  .panel-header
+  button.primary:hover:not(:disabled) {
   background: color-mix(in srgb, var(--queue-accent) 88%, #000);
 }
 

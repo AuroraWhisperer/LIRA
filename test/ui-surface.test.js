@@ -29,8 +29,7 @@ test('confirmation dialog keeps one accessible shared contract', () => {
 test('transient surfaces use the shared typography hierarchy without orphan declarations', () => {
   const files = [
     ['public', 'css', 'components', 'confirmation-dialog.css'],
-    ['public', 'css', 'admin', 'toasts', 'system.css'],
-    ['public', 'css', 'admin', 'toasts', 'gifts.css'],
+    ['public', 'css', 'admin', 'toasts', 'desktop-update.css'],
     ['public', 'css', 'admin', 'other-features', 'interactive-tour.css'],
     ['public', 'css', 'overlays', 'desktop.css'],
   ];
@@ -83,7 +82,7 @@ test('native selects and custom menus use the control accent without replacing s
   );
   const qualityUi = read('public', 'js', 'playback', 'ui', 'playback-bar.js');
   const qualityHtml = read('public', 'pages', 'admin', 'playback', 'page.html');
-  const aiHtml = read('public', 'pages', 'admin', 'toolbox', 'danmaku.html');
+  const aiHtml = read('public', 'pages', 'admin', 'toolbox', 'danmaku-ai.html');
   const aiJs = [
     read('public', 'js', 'admin', 'ai-assistant-settings.js'),
     read('public', 'js', 'admin', 'ai-assistant-config-view.js'),

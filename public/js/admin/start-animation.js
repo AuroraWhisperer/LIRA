@@ -242,7 +242,8 @@ function initStartAnimation() {
       if (audioName)
         audioName.textContent = payload.data.audioName || '未上传音乐';
       if (characterName)
-        characterName.textContent = payload.data.characterName || '未上传人物图';
+        characterName.textContent =
+          payload.data.characterName || '未上传人物图';
       hydrated = true;
       render(true);
     } catch (_) {

@@ -24,7 +24,10 @@ function clearRoute(clear, reason) {
   };
 }
 
-function resumeClearAllWriters(context, { gifts = true, overtime = true } = {}) {
+function resumeClearAllWriters(
+  context,
+  { gifts = true, overtime = true } = {},
+) {
   try {
     // 先准备结算消费者，再恢复可能立即派发礼物的检测器。
     if (overtime) context.overtime.resumeRecovery();
@@ -151,10 +154,7 @@ const routes = {
 
     // 处理部分失败：跨库提交、回滚或运行状态恢复未完全成功。
     if (result.partial === true) {
-      if (
-        result.giftProjectionReset &&
-        result.committed?.includes('giftDb')
-      ) {
+      if (result.giftProjectionReset && result.committed?.includes('giftDb')) {
         triggerGiftRebuild(context);
       }
       sendJson(res, 500, {

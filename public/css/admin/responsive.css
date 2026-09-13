@@ -281,12 +281,24 @@
   border-collapse: collapse;
   min-width: 960px;
 }
-.gift-history-time-col { width: 19%; }
-.gift-history-name-col { width: 17%; }
-.gift-history-count-col { width: 7%; }
-.gift-history-money-col { width: 13%; }
-.gift-history-user-col { width: 17%; }
-.gift-history-remarks-col { width: 27%; }
+.gift-history-time-col {
+  width: 19%;
+}
+.gift-history-name-col {
+  width: 17%;
+}
+.gift-history-count-col {
+  width: 7%;
+}
+.gift-history-money-col {
+  width: 13%;
+}
+.gift-history-user-col {
+  width: 17%;
+}
+.gift-history-remarks-col {
+  width: 27%;
+}
 .gift-history-table th {
   position: sticky;
   top: 0;

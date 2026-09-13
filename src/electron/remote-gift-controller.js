@@ -8,14 +8,15 @@ const { createRemoteGiftSourceKey } = require('./remote-gift-cursor-store');
 const RECONNECT_MIN_MS = 1000;
 const RECONNECT_MAX_MS = 60_000;
 const RECONCILE_INTERVAL_MS = 10_000;
-const REBUILD_ERROR_CODES = new Set([
-  'SYNC_EPOCH_MISMATCH',
-  'CURSOR_AHEAD',
-  'CURSOR_TOO_OLD',
-  'INVALID_BOOTSTRAP_TOKEN',
-  'REBUILD_REQUIRED',
-]);
-const BOOTSTRAP_RESTART_CODES = new Set(['BOOTSTRAP_TOKEN_EXPIRED']);
+const {
+  normalizeResolvedSource,
+  hasHistoryCapability,
+  requiresProjectionReplacement,
+  validateEpochAwareCursorPage,
+  giftSyncStalledError,
+  requiresProjectionRebuild,
+  canRestartBootstrap,
+} = require('./remote-gift-recovery-rules');
 const GiftSyncState = Object.freeze({
   SOURCE_SWITCHING: 'SOURCE_SWITCHING',
   BOOTSTRAPPING: 'BOOTSTRAPPING',
@@ -216,14 +217,11 @@ function createRemoteGiftController(options = {}) {
     let failure = error;
     if (!isGenerationActive(generation) || isAbortError(error)) return false;
     if (!ensureFenceCurrent(captureFence())) return false;
-    if (REBUILD_ERROR_CODES.has(error?.code) && currentSource) {
+    if (requiresProjectionRebuild(error) && currentSource) {
       try {
         return await rebuildCurrentGeneration(generation);
       } catch (rebuildError) {
-        if (
-          !isGenerationActive(generation) ||
-          isAbortError(rebuildError)
-        ) {
+        if (!isGenerationActive(generation) || isAbortError(rebuildError)) {
           return false;
         }
         failure = rebuildError;
@@ -242,9 +240,7 @@ function createRemoteGiftController(options = {}) {
   async function bootstrapHistory(discovery) {
     setSyncState(GiftSyncState.BOOTSTRAPPING);
     let pageToken = currentState.bootstrapPageToken;
-    const seenPageTokens = new Set(
-      pageToken === null ? [] : [pageToken],
-    );
+    const seenPageTokens = new Set(pageToken === null ? [] : [pageToken]);
     let restarted = false;
     while (active && isAuthorized()) {
       const fence = captureFence();
@@ -256,7 +252,7 @@ function createRemoteGiftController(options = {}) {
         });
       } catch (error) {
         if (
-          BOOTSTRAP_RESTART_CODES.has(error?.code) &&
+          canRestartBootstrap(error) &&
           !restarted &&
           ensureFenceCurrent(fence)
         ) {
@@ -424,10 +420,7 @@ function createRemoteGiftController(options = {}) {
             const fence = captureFence();
             enqueue(async () => {
               if (!ensureFenceCurrent(fence)) return false;
-              await runtime.importProcessedGiftEvent?.(
-                event,
-                currentSource.id,
-              );
+              await runtime.importProcessedGiftEvent?.(event, currentSource.id);
               return ensureFenceCurrent(fence);
             });
             return;
@@ -531,7 +524,8 @@ function createRemoteGiftController(options = {}) {
   function requestReconcile(generation) {
     clearReconcileTimer();
     dirty = true;
-    if (reconcileTask && reconcileGeneration === generation) return reconcileTask;
+    if (reconcileTask && reconcileGeneration === generation)
+      return reconcileTask;
     const task = enqueue(async () => {
       try {
         let result = false;
@@ -604,7 +598,11 @@ function createRemoteGiftController(options = {}) {
     reconnectDelayMs = Math.min(RECONNECT_MAX_MS, reconnectDelayMs * 2);
     reconnectTimer = timers.setTimeout(() => {
       reconnectTimer = null;
-      if (!ensureFenceCurrent(captureFence()) || !isGenerationActive(generation)) return;
+      if (
+        !ensureFenceCurrent(captureFence()) ||
+        !isGenerationActive(generation)
+      )
+        return;
       if (initialize) enqueue(() => initializeGeneration(generation));
       else startEventStream(generation);
     }, delay);
@@ -667,8 +665,7 @@ function createRemoteGiftController(options = {}) {
     runtime.setActiveGiftSource?.({
       sourceId: currentSource?.id ?? null,
       syncState,
-      partial:
-        syncState !== GiftSyncState.LIVE || dirty || !epochValidated,
+      partial: syncState !== GiftSyncState.LIVE || dirty || !epochValidated,
       syncedThroughCursor: currentState?.finalCursor ?? null,
       syncedAt: currentState?.lastValidatedAt ?? null,
       latestCursor,
@@ -754,79 +751,6 @@ function createRemoteGiftController(options = {}) {
     stop,
     whenIdle,
   };
-}
-
-function normalizeResolvedSource(source, expectedKey) {
-  const id = Number(source?.id);
-  if (
-    !Number.isSafeInteger(id) ||
-    id < 1 ||
-    source?.sourceKey !== expectedKey
-  ) {
-    throw new Error('INVALID_GIFT_SOURCE');
-  }
-  return Object.freeze({ id, sourceKey: expectedKey });
-}
-
-function hasHistoryCapability(discovery) {
-  return (
-    discovery?.historyBootstrapVersion === 1 &&
-    typeof discovery.syncEpoch === 'string' &&
-    discovery.syncEpoch.length > 0 &&
-    discovery.syncEpoch.length <= 128
-  );
-}
-
-function requiresProjectionReplacement(state, discovery) {
-  if (state.bootstrapComplete) {
-    return (
-      state.syncEpoch !== discovery.syncEpoch ||
-      !Number.isSafeInteger(state.finalCursor) ||
-      state.finalCursor > discovery.latestCursor ||
-      state.finalCursor < discovery.earliestCursor - 1
-    );
-  }
-  const hasPageToken = state.bootstrapPageToken !== null;
-  const hasRecoveryCursor = state.bootstrapRecoveryCursor !== null;
-  const hasBootstrapEpoch = state.bootstrapSyncEpoch !== null;
-  return (
-    (hasPageToken && (!hasRecoveryCursor || !hasBootstrapEpoch)) ||
-    (!hasPageToken && (hasRecoveryCursor || hasBootstrapEpoch)) ||
-    (state.bootstrapSyncEpoch !== null &&
-      state.bootstrapSyncEpoch !== discovery.syncEpoch) ||
-    (state.finalCursor !== null && !Number.isSafeInteger(state.finalCursor))
-  );
-}
-
-function validateEpochAwareCursorPage(page, currentCursor) {
-  let previous = currentCursor;
-  for (const event of page.events) {
-    if (event.cursor !== previous + 1) throw cursorGapError();
-    previous = event.cursor;
-  }
-  if (
-    currentCursor < page.earliestCursor - 1 ||
-    currentCursor > page.latestCursor ||
-    previous !== page.nextCursor ||
-    page.nextCursor > page.latestCursor ||
-    (page.hasMore && page.nextCursor <= currentCursor) ||
-    (page.hasMore && page.nextCursor >= page.latestCursor) ||
-    (!page.hasMore && page.nextCursor !== page.latestCursor)
-  ) {
-    throw cursorGapError();
-  }
-}
-
-function giftSyncStalledError() {
-  const error = new Error('GIFT_SYNC_STALLED');
-  error.code = 'GIFT_SYNC_STALLED';
-  return error;
-}
-
-function cursorGapError() {
-  const error = new Error('GIFT_CURSOR_GAP');
-  error.code = 'REBUILD_REQUIRED';
-  return error;
 }
 
 function isAbortError(error) {

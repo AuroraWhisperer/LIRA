@@ -64,7 +64,9 @@ async function createSongReloadHarness() {
   const { StateService } = await loadModuleExports(STATE_PATH, globals);
   const service = new StateService();
   const updates = [];
-  globals.window.AdminApp.eventBus.on('song:updated', ({ songs }) => updates.push(songs));
+  globals.window.AdminApp.eventBus.on('song:updated', ({ songs }) =>
+    updates.push(songs),
+  );
   let stateReloads = 0;
   service.reloadState = async () => {
     stateReloads += 1;
@@ -96,10 +98,10 @@ for (const reloadState of [true, false]) {
       const olderReload = service.reloadSongs(options);
       filters.songSearch = 'newer';
       const newerReload = service.reloadSongs(options);
-      assert.deepEqual(requests.map(({ url }) => url), [
-        '/api/songs?query=older',
-        '/api/songs?query=newer',
-      ]);
+      assert.deepEqual(
+        requests.map(({ url }) => url),
+        ['/api/songs?query=older', '/api/songs?query=newer'],
+      );
 
       if (olderFirst) {
         resolveSongs(requests[0], [{ id: 1 }]);
@@ -125,7 +127,8 @@ for (const reloadState of [true, false]) {
 }
 
 test('Admin ignores an older song response whose JSON finishes after a newer reload', async () => {
-  const { service, filters, requests, updates } = await createSongReloadHarness();
+  const { service, filters, requests, updates } =
+    await createSongReloadHarness();
   const body = Promise.withResolvers();
   const parsing = Promise.withResolvers();
   const olderReload = service.reloadSongs({ reloadState: false });
@@ -149,7 +152,8 @@ test('Admin ignores an older song response whose JSON finishes after a newer rel
 });
 
 test('Admin does not emit an obsolete song update after waiting for application state', async () => {
-  const { service, filters, requests, updates } = await createSongReloadHarness();
+  const { service, filters, requests, updates } =
+    await createSongReloadHarness();
   const stateStarted = Promise.withResolvers();
   const stateFinished = Promise.withResolvers();
   service.reloadState = () => {
@@ -179,7 +183,9 @@ test('Admin reports the latest song request failure without accepting an older r
   const olderReload = service.reloadSongs();
   filters.songSearch = 'newer';
   const newerReload = service.reloadSongs();
-  requests[1].resolve({ json: async () => ({ ok: false, error: '最新筛选失败' }) });
+  requests[1].resolve({
+    json: async () => ({ ok: false, error: '最新筛选失败' }),
+  });
   await assert.rejects(newerReload, /最新筛选失败/);
   resolveSongs(requests[0], [{ id: 1 }]);
   await olderReload;
@@ -229,7 +235,9 @@ test('Admin emits a fresh HTTP lyric version once and ignores duplicate or stale
   await service.reloadState();
 
   assert.deepEqual(
-    globals.events.filter((event) => event.type === 'app:lyric-state').map((event) => event.detail),
+    globals.events
+      .filter((event) => event.type === 'app:lyric-state')
+      .map((event) => event.detail),
     [{ generation: 4, sequence: 1, text: 'fresh' }],
   );
   assert.equal(service.appState.lyricState.text, 'fresh');

@@ -83,6 +83,10 @@ function createDesktopRuntime(serverModule, options = {}) {
       typeof serverModule.getCloudSettingsSnapshot === 'function'
         ? () => serverModule.getCloudSettingsSnapshot()
         : null,
+    prepareCloudRoomAccount:
+      typeof serverModule.prepareCloudRoomAccount === 'function'
+        ? (accountKey) => serverModule.prepareCloudRoomAccount(accountKey)
+        : null,
     applyCloudSettingsSnapshot:
       typeof serverModule.applyCloudSettingsSnapshot === 'function'
         ? (settings) => serverModule.applyCloudSettingsSnapshot(settings)
@@ -110,11 +114,12 @@ function createDesktopRuntime(serverModule, options = {}) {
     initializeGiftCatalog:
       typeof serverModule.initializeGiftCatalog === 'function'
         ? (request) => serverModule.initializeGiftCatalog(request)
-        : () => Promise.resolve({
-            status: 'ready',
-            phase: 'complete',
-            percent: 100,
-          }),
+        : () =>
+            Promise.resolve({
+              status: 'ready',
+              phase: 'complete',
+              percent: 100,
+            }),
     isGiftCatalogInitialized:
       typeof serverModule.isGiftCatalogInitialized === 'function'
         ? () => serverModule.isGiftCatalogInitialized()

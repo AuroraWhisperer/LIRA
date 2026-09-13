@@ -40,7 +40,11 @@ function parseSongsFromXlsx(buffer, { preserveMissing = false } = {}) {
   const bodyRows = hasHeader ? table.slice(1) : table;
   return bodyRows
     .map((row) => {
-      if (preserveMissing && !hasHeader && row.length !== SONG_EXPORT_HEADERS.length) {
+      if (
+        preserveMissing &&
+        !hasHeader &&
+        row.length !== SONG_EXPORT_HEADERS.length
+      ) {
         throw new Error('无表头更新需要完整十列，请使用带表头的模板。');
       }
       const output = {};
@@ -49,7 +53,10 @@ function parseSongsFromXlsx(buffer, { preserveMissing = false } = {}) {
         output[sourceHeader[i]] = row[i] || '';
       return output;
     })
-    .filter((row) => preserveMissing || cleanText(firstValue(row, SONG_IMPORT_ALIASES.name)));
+    .filter(
+      (row) =>
+        preserveMissing || cleanText(firstValue(row, SONG_IMPORT_ALIASES.name)),
+    );
 }
 
 function songToExportRow(song) {
@@ -69,15 +76,20 @@ function songToExportRow(song) {
 
 function buildSongsCsv(rows) {
   return [SONG_EXPORT_HEADERS.join(',')]
-    .concat(rows.map((song) => songToExportRow(song).map(songCsvCell).join(',')))
+    .concat(
+      rows.map((song) => songToExportRow(song).map(songCsvCell).join(',')),
+    )
     .join('\n');
 }
 
 function songCsvCell(value) {
   const text = String(value || '');
-  const formulaPrefix = /^[\s\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2060-\u206f]*[=+\-@＝＋－＠]/u;
-  const leadingControl = /^[\s\u0000-\u001f\u007f-\u009f]*[\u0000-\u001f\u007f-\u009f]/u;
-  if (!formulaPrefix.test(text) && !leadingControl.test(text)) return csvCell(text);
+  const formulaPrefix =
+    /^[\s\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2060-\u206f]*[=+\-@＝＋－＠]/u;
+  const leadingControl =
+    /^[\s\u0000-\u001f\u007f-\u009f]*[\u0000-\u001f\u007f-\u009f]/u;
+  if (!formulaPrefix.test(text) && !leadingControl.test(text))
+    return csvCell(text);
   // Keep the marker on CSV reimport; never remove an original apostrophe.
   // XLSX uses inlineStr and does not need this CSV-only text marker.
   const cell = csvCell(`'${text}`);
@@ -110,9 +122,30 @@ function templateSongs() {
       request_price: '30元SC',
       song_clip: '',
     },
-    { name: '红豆', artist: '王菲', category_name: '流行', is_enabled: true, language: '国语', request_price: '舰长' },
-    { name: '后来', artist: '刘若英', category_name: '流行', is_enabled: true, language: '国语', request_price: '提督' },
-    { name: '遇见', artist: '孙燕姿', category_name: '流行', is_enabled: true, language: '国语', request_price: '总督' },
+    {
+      name: '红豆',
+      artist: '王菲',
+      category_name: '流行',
+      is_enabled: true,
+      language: '国语',
+      request_price: '舰长',
+    },
+    {
+      name: '后来',
+      artist: '刘若英',
+      category_name: '流行',
+      is_enabled: true,
+      language: '国语',
+      request_price: '提督',
+    },
+    {
+      name: '遇见',
+      artist: '孙燕姿',
+      category_name: '流行',
+      is_enabled: true,
+      language: '国语',
+      request_price: '总督',
+    },
   ];
 }
 

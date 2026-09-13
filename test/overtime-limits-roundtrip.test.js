@@ -143,8 +143,7 @@ test('backend accepts only configured remote catalog artwork paths', () => {
         service.replaceRules([
           {
             giftId: 'remote-test',
-            imagePath:
-              'http://127.0.0.1:13000/gift-media/images/hash.webp',
+            imagePath: 'http://127.0.0.1:13000/gift-media/images/hash.webp',
             mode: 'fixed',
             fixedSeconds: 60,
           },

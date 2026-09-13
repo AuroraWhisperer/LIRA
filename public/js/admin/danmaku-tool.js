@@ -132,6 +132,13 @@ function init() {
   elements.openOverlayButton.addEventListener('click', () =>
     window.open(overlayUrl, '_blank', 'noopener'),
   );
+  elements.previewOverlayButton.addEventListener('click', () =>
+    window.open(
+      `${overlayUrl}?preview=1&style=${currentOverlayStyle}`,
+      '_blank',
+      'noopener',
+    ),
+  );
   initialized = true;
 
   const updateCounter = () => {
@@ -316,9 +323,9 @@ function getElements() {
     overlayUrl: document.getElementById('danmakuOverlayUrl'),
     copyOverlayUrlButton: document.getElementById('danmakuCopyOverlayUrlBtn'),
     openOverlayButton: document.getElementById('danmakuOpenOverlayBtn'),
+    previewOverlayButton: document.getElementById('danmakuPreviewOverlayBtn'),
     styleChip: document.getElementById('danmakuStyleChip'),
     styleSaveState: document.getElementById('danmakuStyleSaveState'),
-    stylePreviewFrame: document.getElementById('danmakuStylePreviewFrame'),
     fullscreenDurationField: document.getElementById(
       'danmakuFullscreenDurationField',
     ),
@@ -361,11 +368,6 @@ function renderOverlayStyle(elements, value) {
     );
   });
   elements.styleChip.textContent = `当前样式 · ${label}`;
-  const previewUrl = `/danmaku?preview=1&style=${style}`;
-  if (elements.stylePreviewFrame.getAttribute('src') !== previewUrl) {
-    elements.stylePreviewFrame.setAttribute('src', previewUrl);
-  }
-  elements.stylePreviewFrame.title = `弹幕姬${label}样式预览`;
   elements.fullscreenDurationField.hidden = style !== 'outline';
   return style;
 }

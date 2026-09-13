@@ -1,0 +1,56 @@
+@keyframes clock-colon-breathe {
+  0%,
+  100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes clock-star-twinkle {
+  0%,
+  100% {
+    opacity: 0.34;
+    transform: scale(0.72);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.12);
+  }
+}
+
+@keyframes clock-star-float {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0);
+  }
+  50% {
+    transform: translateY(-6px) rotate(12deg);
+  }
+}
+
+@keyframes clock-bubble-float {
+  0%,
+  100% {
+    opacity: 0.48;
+    transform: translateY(2px) scale(0.92);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-5px) scale(1.05);
+  }
+}
+
+[hidden] {
+  display: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clock-colon,
+  .clock-sparkles i,
+  .night-star,
+  .soda-bubble {
+    animation: none !important;
+  }
+}

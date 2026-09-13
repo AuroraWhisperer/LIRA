@@ -20,16 +20,19 @@ async function createPlayingApp(resolveStream) {
   const current = track('a', '歌曲 A');
   const next = track('b', '歌曲 B');
   const last = track('c', '歌曲 C');
-  const app = await createPlaybackApp({
-    current,
-    currentOrigin: 'normal',
-    normalQueue: [next, last],
-    normalQueueTracks: [current, next, last],
-    mode: 'sequence',
-    volume: 0.75,
-    selectedSource: 'qq',
-    queueType: 'queue',
-  }, { resolveStream });
+  const app = await createPlaybackApp(
+    {
+      current,
+      currentOrigin: 'normal',
+      normalQueue: [next, last],
+      normalQueueTracks: [current, next, last],
+      mode: 'sequence',
+      volume: 0.75,
+      selectedSource: 'qq',
+      queueType: 'queue',
+    },
+    { resolveStream },
+  );
   await app.init();
   await flushAsyncWork();
   await app.emit('playbackPlayPause', 'click');
@@ -48,7 +51,8 @@ for (const action of ['next', 'clear', 'quality']) {
     test(`obsolete stream recovery cannot affect playback after ${action} (${result})`, async () => {
       const refresh = Promise.withResolvers();
       const { app, audio } = await createPlayingApp((_count, request) => {
-        if (request.forceRefresh && request.quality === 'standard') return refresh.promise;
+        if (request.forceRefresh && request.quality === 'standard')
+          return refresh.promise;
         return streamFor(request);
       });
       const recovery = app.emit('music-player', 'error');
@@ -56,25 +60,48 @@ for (const action of ['next', 'clear', 'quality']) {
       if (action === 'quality') {
         await app.emit('playbackQualityPanel', 'click', {
           stopPropagation() {},
-          target: closestTarget({ playbackQuality: 'high' }, 'data-playback-quality'),
+          target: closestTarget(
+            { playbackQuality: 'high' },
+            'data-playback-quality',
+          ),
         });
       } else {
-        await app.emit(action === 'next' ? 'playbackNext' : 'playbackClearQueue', 'click');
+        await app.emit(
+          action === 'next' ? 'playbackNext' : 'playbackClearQueue',
+          'click',
+        );
       }
       await flushAsyncWork();
       const expected = app.savedState();
-      const expectedAudio = { src: audio.src, trackId: audio.dataset.trackId, paused: audio.paused, time: audio.currentTime };
+      const expectedAudio = {
+        src: audio.src,
+        trackId: audio.dataset.trackId,
+        paused: audio.paused,
+        time: audio.currentTime,
+      };
       const expectedPlays = app.audioPlayCalls();
       const expectedToasts = app.element('toast').prepended.slice();
 
-      if (result === 'failure') refresh.reject(new Error('obsolete refresh failure'));
-      else refresh.resolve(result === 'empty' ? {} : { url: 'https://example.test/a-retry.mp3' });
+      if (result === 'failure')
+        refresh.reject(new Error('obsolete refresh failure'));
+      else
+        refresh.resolve(
+          result === 'empty' ? {} : { url: 'https://example.test/a-retry.mp3' },
+        );
       await recovery;
       await flushAsyncWork();
 
       assert.deepEqual(app.errors(), []);
       assert.deepEqual(app.savedState(), expected);
-      assert.deepEqual({ src: audio.src, trackId: audio.dataset.trackId, paused: audio.paused, time: audio.currentTime }, expectedAudio);
+      assert.deepEqual(
+        {
+          src: audio.src,
+          trackId: audio.dataset.trackId,
+          paused: audio.paused,
+          time: audio.currentTime,
+        },
+        expectedAudio,
+      );
       assert.equal(app.audioPlayCalls(), expectedPlays);
       assert.deepEqual(app.element('toast').prepended, expectedToasts);
     });
@@ -84,7 +111,9 @@ for (const action of ['next', 'clear', 'quality']) {
 test('an error from the old audio cannot cancel a newer track still resolving its URL', async () => {
   const nextStream = Promise.withResolvers();
   const { app, audio } = await createPlayingApp((_count, request) =>
-    request.track.sourceTrackId === 'b' ? nextStream.promise : streamFor(request),
+    request.track.sourceTrackId === 'b'
+      ? nextStream.promise
+      : streamFor(request),
   );
   await app.emit('playbackNext', 'click');
   await flushAsyncWork();
@@ -101,7 +130,9 @@ test('an error from the old audio cannot cancel a newer track still resolving it
 
 test('current stream recovery resumes the track and still skips after its retry is exhausted', async () => {
   const { app, audio } = await createPlayingApp((_count, request) =>
-    request.forceRefresh ? { url: 'https://example.test/a-refreshed.mp3' } : streamFor(request),
+    request.forceRefresh
+      ? { url: 'https://example.test/a-refreshed.mp3' }
+      : streamFor(request),
   );
   await app.emit('music-player', 'error');
   await flushAsyncWork();
@@ -114,7 +145,10 @@ test('current stream recovery resumes the track and still skips after its retry 
   await flushAsyncWork();
   assert.equal(audio.dataset.trackId, 'b');
   assert.equal(audio.src, 'https://example.test/b-standard.mp3');
-  assert.deepEqual(app.savedState().normalQueue.map((item) => item.id), ['c']);
+  assert.deepEqual(
+    app.savedState().normalQueue.map((item) => item.id),
+    ['c'],
+  );
   assert.deepEqual(app.errors(), []);
 });
 
@@ -127,7 +161,11 @@ test('a current refresh failure reports its error and advances to the next track
   await flushAsyncWork();
   assert.equal(audio.dataset.trackId, 'b');
   assert.equal(audio.src, 'https://example.test/b-standard.mp3');
-  assert.ok(app.element('toast').prepended.some((item) => item.textContent === 'current refresh failed'));
+  assert.ok(
+    app
+      .element('toast')
+      .prepended.some((item) => item.textContent === 'current refresh failed'),
+  );
 });
 
 for (const action of ['next', 'quality']) {
@@ -135,7 +173,10 @@ for (const action of ['next', 'quality']) {
     test(`retained audio can recover from a new error after ${action} fails (${failure})`, async () => {
       let selectionFailed = true;
       const { app, audio } = await createPlayingApp((_count, request) => {
-        if (selectionFailed && (request.track.sourceTrackId === 'b' || request.quality === 'high')) {
+        if (
+          selectionFailed &&
+          (request.track.sourceTrackId === 'b' || request.quality === 'high')
+        ) {
           if (failure === 'error') throw new Error('new selection failed');
           return {};
         }
@@ -144,7 +185,10 @@ for (const action of ['next', 'quality']) {
       if (action === 'quality') {
         await app.emit('playbackQualityPanel', 'click', {
           stopPropagation() {},
-          target: closestTarget({ playbackQuality: 'high' }, 'data-playback-quality'),
+          target: closestTarget(
+            { playbackQuality: 'high' },
+            'data-playback-quality',
+          ),
         });
       } else {
         await app.emit('playbackNext', 'click');

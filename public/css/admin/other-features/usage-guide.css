@@ -1,6 +1,10 @@
 /* ===== 使用文档 ===== */
 .usage-guide-panel {
-  --usage-guide-accent: color-mix(in srgb, var(--primary-strong) 75%, var(--text));
+  --usage-guide-accent: color-mix(
+    in srgb,
+    var(--primary-strong) 75%,
+    var(--text)
+  );
   --usage-guide-accent-soft: color-mix(
     in srgb,
     var(--usage-guide-accent) 7%,

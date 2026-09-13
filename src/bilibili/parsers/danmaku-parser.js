@@ -43,6 +43,7 @@ function extractBilibiliDanmakuEmotes(info) {
   appendEmoteMap(records, seen, options.emots);
   appendEmoticon(records, seen, extra.emoticon, message);
   appendEmoteMap(records, seen, extra.emots);
+  appendEmoticon(records, seen, parseDanmakuOptions(metadata[13]), message);
   return records;
 }
 

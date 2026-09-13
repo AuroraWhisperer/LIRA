@@ -9,7 +9,9 @@
 >
   <div class="gift-drawer-head">
     <div class="gift-drawer-title">
-      <strong id="giftHistoryTitle" class="ui-section-title">全部礼物流水</strong>
+      <strong id="giftHistoryTitle" class="ui-section-title"
+        >全部礼物流水</strong
+      >
       <span id="giftHistoryTotal" class="ui-caption" hidden></span>
       <span
         id="giftLedgerSyncStatus"
@@ -19,12 +21,7 @@
         hidden
       ></span>
     </div>
-    <button
-      id="giftHistoryRetryBtn"
-      class="secondary sm"
-      type="button"
-      hidden
-    >
+    <button id="giftHistoryRetryBtn" class="secondary sm" type="button" hidden>
       重新加载
     </button>
     <button
@@ -58,11 +55,7 @@
   </div>
 
   <div class="gift-drawer-body">
-    <span
-      id="giftHistoryState"
-      class="sr-only"
-      role="status"
-      aria-live="polite"
+    <span id="giftHistoryState" class="sr-only" role="status" aria-live="polite"
       >正在加载礼物记录…</span
     >
     <table class="gift-history-table">
@@ -76,12 +69,20 @@
       </colgroup>
       <thead>
         <tr>
-          <th data-sort="created_at" aria-sort="none" tabindex="0">时间<span class="sort-arrow" aria-hidden="true"></span></th>
-          <th data-sort="gift_name" aria-sort="none" tabindex="0">礼物<span class="sort-arrow" aria-hidden="true"></span></th>
+          <th data-sort="created_at" aria-sort="none" tabindex="0">
+            时间<span class="sort-arrow" aria-hidden="true"></span>
+          </th>
+          <th data-sort="gift_name" aria-sort="none" tabindex="0">
+            礼物<span class="sort-arrow" aria-hidden="true"></span>
+          </th>
           <th>数量</th>
-          <th data-sort="price" aria-sort="none" tabindex="0">金额<span class="sort-arrow" aria-hidden="true"></span></th>
+          <th data-sort="price" aria-sort="none" tabindex="0">
+            金额<span class="sort-arrow" aria-hidden="true"></span>
+          </th>
           <th>用户</th>
-          <th data-sort="remarks" aria-sort="none" tabindex="0">备注<span class="sort-arrow" aria-hidden="true"></span></th>
+          <th data-sort="remarks" aria-sort="none" tabindex="0">
+            备注<span class="sort-arrow" aria-hidden="true"></span>
+          </th>
         </tr>
       </thead>
       <tbody id="giftHistoryBody">

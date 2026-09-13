@@ -15,6 +15,7 @@ const { addFrameProtectionHeaders } = require('../src/server/http-utils');
 const clockRoutes = require('../src/server/routes/clock-routes');
 const settingsRoutes = require('../src/server/routes/settings-routes');
 const { DEFAULT_SETTINGS } = require('../src/storage/settings-store');
+const { readCssBundle } = require('./helpers/css-bundle');
 const { loadModuleExports } = require('./helpers/frontend-modules');
 
 const ROOT_DIR = path.join(__dirname, '..');
@@ -54,9 +55,56 @@ test('cute clock overlay owns a fixed frameable route and complete assets', () =
   assert.equal(headers.has('X-Frame-Options'), false);
 });
 
+test('clock styles keep fixed base, named theme, and animation ownership', () => {
+  const styleRoot = path.join(ROOT_DIR, 'public', 'css', 'overlays');
+  const entry = fs.readFileSync(path.join(styleRoot, 'clock.css'), 'utf8');
+  const expectedImports = [
+    "@import url('./clock/base.css');",
+    "@import url('./clock/peach.css');",
+    "@import url('./clock/starlight.css');",
+    "@import url('./clock/soda.css');",
+    "@import url('./clock/timeline.css');",
+    "@import url('./clock/digital.css');",
+    "@import url('./clock/animations.css');",
+  ];
+  assert.deepEqual(entry.match(/@import url\('[^']+'\);/g), expectedImports);
+
+  const owners = Object.fromEntries(
+    [
+      'base',
+      'peach',
+      'starlight',
+      'soda',
+      'timeline',
+      'digital',
+      'animations',
+    ].map((name) => [
+      name,
+      fs.readFileSync(path.join(styleRoot, 'clock', `${name}.css`), 'utf8'),
+    ]),
+  );
+
+  assert.match(owners.base, /\.clock-card\s*\{/);
+  assert.doesNotMatch(owners.base, /data-clock-style/);
+  assert.match(owners.peach, /data-clock-style='peach'/);
+  assert.doesNotMatch(owners.peach, /data-clock-style='starlight'/);
+  assert.match(owners.starlight, /data-clock-style='starlight'/);
+  assert.doesNotMatch(owners.starlight, /data-clock-style='soda'/);
+  assert.match(owners.soda, /data-clock-style='soda'/);
+  assert.doesNotMatch(owners.soda, /data-clock-style='timeline-horizontal'/);
+  assert.match(owners.timeline, /data-clock-style='timeline-horizontal'/);
+  assert.match(owners.timeline, /data-clock-style='timeline-vertical'/);
+  assert.doesNotMatch(owners.timeline, /data-clock-style='digital'/);
+  assert.match(owners.digital, /data-clock-style='digital'/);
+  assert.doesNotMatch(owners.digital, /@keyframes/);
+  assert.match(owners.animations, /@keyframes clock-colon-breathe/);
+  assert.match(owners.animations, /prefers-reduced-motion:\s*reduce/);
+  assert.doesNotMatch(owners.animations, /data-clock-style/);
+});
+
 test('cute clock overlay exposes six distinct styles and safe time parameters', () => {
   const html = read('public', 'pages', 'overlays', 'clock.html');
-  const css = read('public', 'css', 'overlays', 'clock.css');
+  const css = readCssBundle('public', 'css', 'overlays', 'clock.css');
   const script = read('public', 'js', 'overlays', 'clock.js');
 
   for (const id of [
@@ -232,14 +280,17 @@ test('toolbox composes the named clock card with fixed URL and custom controls',
 });
 
 test('clock settings are persisted through validated keys and exposed by a public read-only route', async () => {
-  assert.deepEqual([...CLOCK_STYLE_VALUES], [
-    'peach',
-    'starlight',
-    'soda',
-    'timeline-horizontal',
-    'timeline-vertical',
-    'digital',
-  ]);
+  assert.deepEqual(
+    [...CLOCK_STYLE_VALUES],
+    [
+      'peach',
+      'starlight',
+      'soda',
+      'timeline-horizontal',
+      'timeline-vertical',
+      'digital',
+    ],
+  );
   assert.deepEqual(
     Object.fromEntries(
       [...CLOCK_STYLE_VALUES].map((style) => [style, DEFAULT_LABELS[style]]),
@@ -425,13 +476,16 @@ test('digital clock config round-trips through admin payload and fixed URL query
   const fixedUrl = admin.buildClockUrl('http://127.0.0.1:3000/clock', config);
   const params = new URL(fixedUrl).searchParams;
   const queryConfig = overlay.readClockConfig(params);
-  assert.deepEqual({ ...queryConfig }, {
-    style: 'digital',
-    showDate: false,
-    showSeconds: true,
-    hour12: true,
-    label: '',
-  });
+  assert.deepEqual(
+    { ...queryConfig },
+    {
+      style: 'digital',
+      showDate: false,
+      showSeconds: true,
+      hour12: true,
+      label: '',
+    },
+  );
   assert.deepEqual(
     {
       ...overlay.mergeClockConfig(config, queryConfig, params),

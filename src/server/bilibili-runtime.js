@@ -5,9 +5,6 @@ const {
   createDanmakuSenderService,
 } = require('../bilibili/danmaku/sender-service');
 const {
-  createMessageBuffer,
-} = require('../bilibili/diagnostics/message-buffer');
-const {
   createGameWinnerProfileResolver,
 } = require('../bilibili/users/game-winner-profile');
 const {
@@ -42,8 +39,6 @@ function createBilibiliRuntime(options) {
     recentCommands: [],
     recentGiftLikeCommands: [],
   };
-  const runtimeGiftCommandPrefixes = new Set();
-  const messageBuffer = createMessageBuffer(500);
   let authProvider = null;
   let authCache = { cookieHeader: '', uid: 0 };
   let client = null;
@@ -189,8 +184,6 @@ function createBilibiliRuntime(options) {
           if (isCurrent()) updateStatus(status);
         },
         bilibiliDiagnostics: diagnostics,
-        runtimeGiftCommandPrefixes,
-        messageBuffer,
         bilibiliAuthCache: authCache,
         userInfoService,
       });

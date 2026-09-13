@@ -129,9 +129,15 @@ test('overtime API requires auth, validates commands, extends snapshots, and bro
         id: '35600',
         name: '万象天衣',
         battery: 30000,
-        variantId: 'gv_cdd4695c21dcffe7fc2637b95e0e9d7ffca72e01af1660c77c6d008c01e443cd',
-        giftIdentity: { variantId: 'gv_cdd4695c21dcffe7fc2637b95e0e9d7ffca72e01af1660c77c6d008c01e443cd',
-          priceRaw: 3000000, coinType: 'gold', bagGift: false },
+        variantId:
+          'gv_cdd4695c21dcffe7fc2637b95e0e9d7ffca72e01af1660c77c6d008c01e443cd',
+        giftIdentity: {
+          variantId:
+            'gv_cdd4695c21dcffe7fc2637b95e0e9d7ffca72e01af1660c77c6d008c01e443cd',
+          priceRaw: 3000000,
+          coinType: 'gold',
+          bagGift: false,
+        },
         rmb: 3000,
         priceRaw: 3000000,
         coinType: 'gold',
@@ -351,7 +357,10 @@ test('catalog initialization caches images and both searches stay local', async 
       '/api/overtime/gifts/catalog',
     );
     assert.equal(catalog.count, 1);
-    assert.deepEqual(catalog.gifts.map((gift) => gift.id), ['8001']);
+    assert.deepEqual(
+      catalog.gifts.map((gift) => gift.id),
+      ['8001'],
+    );
     assert.equal(
       catalog.gifts[0].imagePath,
       '/overtime-gift-images/search.webp',
@@ -366,7 +375,10 @@ test('catalog initialization caches images and both searches stay local', async 
       { query: '本地' },
     );
     assert.equal(search.response.status, 200);
-    assert.deepEqual(search.payload.data.gifts.map((gift) => gift.id), ['8001']);
+    assert.deepEqual(
+      search.payload.data.gifts.map((gift) => gift.id),
+      ['8001'],
+    );
     assert.equal(
       search.payload.data.gifts[0].imagePath,
       '/overtime-gift-images/search.webp',
@@ -381,24 +393,36 @@ test('catalog initialization caches images and both searches stay local', async 
       { query: '本地' },
     );
     assert.equal(legacyAlias.response.status, 200);
-    assert.deepEqual(legacyAlias.payload.data.gifts.map((gift) => gift.id), [
-      '8001',
-    ]);
+    assert.deepEqual(
+      legacyAlias.payload.data.gifts.map((gift) => gift.id),
+      ['8001'],
+    );
     assert.equal(remoteCalls, 1);
     assert.equal(imageCalls, 1);
 
-    const image = await fetch(`${app.baseUrl}/overtime-gift-images/search.webp`);
+    const image = await fetch(
+      `${app.baseUrl}/overtime-gift-images/search.webp`,
+    );
     assert.equal(image.status, 200);
     assert.equal(image.headers.get('content-type'), 'image/webp');
     assert.equal(image.headers.get('x-content-type-options'), 'nosniff');
     assert.match(image.headers.get('cache-control'), /immutable/);
-    assert.equal(Buffer.from(await image.arrayBuffer()).equals(webpBytes()), true);
+    assert.equal(
+      Buffer.from(await image.arrayBuffer()).equals(webpBytes()),
+      true,
+    );
 
-    const head = await fetch(`${app.baseUrl}/overtime-gift-images/search.webp`, {
-      method: 'HEAD',
-    });
+    const head = await fetch(
+      `${app.baseUrl}/overtime-gift-images/search.webp`,
+      {
+        method: 'HEAD',
+      },
+    );
     assert.equal(head.status, 200);
-    assert.equal(Number(head.headers.get('content-length')), webpBytes().length);
+    assert.equal(
+      Number(head.headers.get('content-length')),
+      webpBytes().length,
+    );
     assert.equal((await head.arrayBuffer()).byteLength, 0);
 
     const traversal = await fetch(

@@ -2,8 +2,7 @@
 // 礼物冲刺服务入口。
 'use strict';
 
-const { repairGiftV2Events } = require('./event-service');
-const { createGiftDetectionService } = require('./detection-service');
+const { createGiftProjectionService } = require('./projection-service');
 const { createGiftConsumerRegistry } = require('./consumer-registry');
 const { createGiftStatisticsConsumer } = require('./statistics-consumer');
 const {
@@ -20,7 +19,7 @@ const {
   getBlindBoxStats,
   getBlindBoxAnalysis,
 } = require('./blind-box-analysis');
-const { normalizeGiftRow, normalizeGiftInput } = require('./normalizer');
+const { normalizeGiftRow } = require('./normalizer');
 
 function createGiftService(context, options = {}) {
   let activeGiftSource = null;
@@ -39,13 +38,12 @@ function createGiftService(context, options = {}) {
       consumers: [statisticsConsumer, ...(options.consumers || [])],
       onError: options.onConsumerError,
     });
-  const detectionService = createGiftDetectionService(giftContext, {
+  const projectionService = createGiftProjectionService(giftContext, {
     ...options,
     consumerRegistry,
   });
   return {
-    ...detectionService,
-    add: detectionService.detect,
+    ...projectionService,
     getSnapshot: () => getGiftSnapshot(giftContext),
     getHistory: (queryOptions) => getGiftHistory(giftContext, queryOptions),
     getStatistics: (queryOptions) =>
@@ -70,8 +68,7 @@ function normalizeActiveGiftSource(source) {
   if (!source || typeof source !== 'object') return null;
   const sourceId = Number(source.sourceId);
   return Object.freeze({
-    sourceId:
-      Number.isSafeInteger(sourceId) && sourceId >= 1 ? sourceId : null,
+    sourceId: Number.isSafeInteger(sourceId) && sourceId >= 1 ? sourceId : null,
     syncState: String(source.syncState || 'OFFLINE').toUpperCase(),
     partial: source.partial !== false,
     syncedThroughCursor:
@@ -92,10 +89,9 @@ function normalizeActiveGiftSource(source) {
 module.exports = {
   CRYSTAL_BALL_VALUE_RMB,
   createGiftService,
-  createGiftDetectionService,
+  createGiftProjectionService,
   createGiftConsumerRegistry,
   createGiftStatisticsConsumer,
-  repairGiftV2Events,
   resetGiftSprintProgress,
   getGiftSnapshot,
   getGiftHistory,
@@ -105,6 +101,5 @@ module.exports = {
   getBlindBoxStats,
   searchGifts,
   normalizeGiftRow,
-  normalizeGiftInput,
   clearRecentGifts,
 };

@@ -4,7 +4,11 @@
 
 const { cleanText } = require('../shared/utils');
 const { matchesLibraryTag } = require('./tag-aliases');
-const { splitSongArtists, splitSongLanguages, splitSongTags } = require('./song-field-utils');
+const {
+  splitSongArtists,
+  splitSongLanguages,
+  splitSongTags,
+} = require('./song-field-utils');
 
 const LANGUAGE_ALIAS_GROUPS = [
   ['日语', '日文', '日本语', '日语歌', '日文歌', 'ja', 'jp', 'japanese'],

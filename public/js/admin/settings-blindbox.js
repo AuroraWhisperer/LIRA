@@ -24,7 +24,8 @@ function parseBlindboxOutputs(value) {
       const priceText = parts.join(':');
       if (!/^[1-9]\d{0,19}$/u.test(giftId) || !name) return null;
       const price = priceText === '' ? null : Number(priceText);
-      if (price !== null && (!Number.isFinite(price) || price <= 0)) return null;
+      if (price !== null && (!Number.isFinite(price) || price <= 0))
+        return null;
       return {
         giftId,
         name,
@@ -94,8 +95,7 @@ export function createBlindboxSettings({
         if (!outputsRaw) return toast('请输入可能开出的礼物');
 
         const outputs = parseBlindboxOutputs(outputsRaw);
-        if (!outputs?.length)
-          return toast('请按“产物 ID:名称:价格”填写礼物');
+        if (!outputs?.length) return toast('请按“产物 ID:名称:价格”填写礼物');
 
         const textarea = documentRef.getElementById(
           'giftBlindBoxCustomConfigV2',

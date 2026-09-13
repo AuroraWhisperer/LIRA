@@ -33,9 +33,13 @@ test('desktop preload exposes a narrow gift display diagnostic bridge', () => {
   assert.match(mainSource, /writeLog\('gift-display', trace\)/);
 });
 
-test('server logs detected gifts and broadcasts only finalized gifts', () => {
+test('server logs and broadcasts finalized server gifts without a raw writer', () => {
   const source = [
     fs.readFileSync(path.join(ROOT_DIR, 'src', 'server.js'), 'utf8'),
+    fs.readFileSync(
+      path.join(ROOT_DIR, 'src', 'server', 'runtime-transport.js'),
+      'utf8',
+    ),
     fs.readFileSync(
       path.join(ROOT_DIR, 'src', 'server', 'bilibili-client.js'),
       'utf8',
@@ -45,10 +49,7 @@ test('server logs detected gifts and broadcasts only finalized gifts', () => {
       'utf8',
     ),
   ].join('\n');
-  assert.match(
-    source,
-    /logGiftDelivery\(item\.detection_status \|\| 'detected', item\)/,
-  );
+  assert.doesNotMatch(source, /domainServices\.gifts\.add\(/);
   assert.match(source, /logGiftDelivery\('final', item\)/);
   assert.match(source, /\[Bilibili\]\[GiftDelivery\] action=broadcast/);
 });

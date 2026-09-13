@@ -1,54 +1,22 @@
 /* global document */
+import {
+  DEFAULT_DANMAKU_CLASSES,
+  createDanmakuMessageRenderer,
+  measureDanmakuText,
+} from './danmaku-message-renderer.js';
 
-const DEFAULT_CLASSES = Object.freeze({
-  item: 'draw-danmaku-item',
-  bubble: 'draw-danmaku-bubble',
-  avatar: 'draw-danmaku-avatar',
-  body: 'draw-danmaku-body',
-  identity: 'draw-danmaku-identity',
-  badge: 'draw-danmaku-badge',
-  guard: 'draw-danmaku-guard',
-  medal: 'draw-danmaku-medal',
-  emote: 'draw-danmaku-emote',
-  text: 'draw-danmaku-text',
-  empty: 'draw-danmaku-empty',
-});
+export { measureDanmakuText };
 
 const DEFAULT_MAX_ITEMS = 120;
 const DEFAULT_OFFSCREEN_VIEWPORTS = 5;
 const DANMAKU_ITEM_SPACING_PX = 11;
-const DANMAKU_LINE_CAPACITY = 13;
 const FULLSCREEN_SAFE_INSET_PX = 16;
+const FULLSCREEN_ITEM_GAP_PX = 10;
 const FULLSCREEN_LAYOUT = 'fullscreen-random';
 
 /**
- * Estimate the visual footprint of a mixed Chinese/Latin message without
- * coupling the component to a particular font or canvas implementation.
- *
- * @param {unknown} message
- * @returns {{ visualLength: number, lines: number, width: number, height: number }}
- */
-export function measureDanmakuText(message) {
-  const text = String(message || '').trim();
-  const visualLength = Math.max(
-    1,
-    Array.from(text).reduce((total, character) => {
-      if (/\s/.test(character)) return total + 0.35;
-      return total + (/^[\u0000-\u00ff]$/.test(character) ? 0.62 : 1);
-    }, 0),
-  );
-  const lines = Math.max(1, Math.ceil(visualLength / DANMAKU_LINE_CAPACITY));
-  const width = Math.min(
-    100,
-    Math.max(52, Math.round(44 + visualLength * 3.8)),
-  );
-  const height = 52 + (lines - 1) * 17;
-  return { visualLength, lines, width, height };
-}
-
-/**
  * Build a reusable live-message feed. The game owns data and lifecycle while
- * this component owns the DOM shape and adaptive bubble sizing.
+ * this component owns message timing, layout, and removal.
  *
  * @param {HTMLElement} root
  * @param {{maxItems?: number, offscreenViewports?: number, autoScroll?: boolean, layout?: string, itemLifetimeMs?: number, expireItems?: boolean, now?: Function, scheduleTimeout?: Function, cancelTimeout?: Function, resolveAvatarUrl?: Function, resolveEmoteUrl?: Function, getGuardLabel?: Function, classNames?: object}} options
@@ -66,28 +34,29 @@ export function createDanmakuFeed(root, options = {}) {
   const offscreenViewports = Number.isFinite(requestedOffscreenViewports)
     ? Math.max(0, requestedOffscreenViewports)
     : DEFAULT_OFFSCREEN_VIEWPORTS;
-  const resolveAvatarUrl =
-    typeof options.resolveAvatarUrl === 'function'
-      ? options.resolveAvatarUrl
-      : (value) => value;
-  const resolveEmoteUrl =
-    typeof options.resolveEmoteUrl === 'function'
-      ? options.resolveEmoteUrl
-      : (value) => value;
-  const getGuardLabel =
-    typeof options.getGuardLabel === 'function'
-      ? options.getGuardLabel
-      : () => '';
-  const classNames = { ...DEFAULT_CLASSES, ...(options.classNames || {}) };
+  const classNames = {
+    ...DEFAULT_DANMAKU_CLASSES,
+    ...(options.classNames || {}),
+  };
   const autoScroll = options.autoScroll !== false;
   const fullscreen = options.layout === FULLSCREEN_LAYOUT;
+  const createBubble = createDanmakuMessageRenderer({
+    document,
+    classNames,
+    fullscreen,
+    resolveAvatarUrl: options.resolveAvatarUrl,
+    resolveEmoteUrl: options.resolveEmoteUrl,
+    getGuardLabel: options.getGuardLabel,
+  });
+  const fitViewport = !fullscreen && offscreenViewports === 0;
   const requestedLifetime = Number(options.itemLifetimeMs);
   const itemLifetimeMs =
     Number.isFinite(requestedLifetime) && requestedLifetime > 0
       ? requestedLifetime
       : 0;
   const expireItems = options.expireItems !== false;
-  const now = typeof options.now === 'function' ? options.now : () => Date.now();
+  const now =
+    typeof options.now === 'function' ? options.now : () => Date.now();
   const scheduleTimeout =
     typeof options.scheduleTimeout === 'function'
       ? options.scheduleTimeout
@@ -106,11 +75,12 @@ export function createDanmakuFeed(root, options = {}) {
   let viewportHeight = 0;
   let renderedContentHeight = 0;
   let renderedEntries = [];
+  let layoutFrame = null;
   const resizeObserver =
     typeof ResizeObserver === 'function'
       ? new ResizeObserver(() => {
           updateViewportHeight();
-          if (fullscreen) repositionFullscreenItems();
+          if (fullscreen || fitViewport) scheduleLayout();
           else pruneOldMessages();
         })
       : null;
@@ -121,6 +91,7 @@ export function createDanmakuFeed(root, options = {}) {
       root.children.length === 1 &&
       root.children[0].className === classNames.empty;
     clearExpirationTimers();
+    renderedEntries.forEach(({ node }) => resizeObserver?.unobserve?.(node));
     updateViewportHeight();
     root.replaceChildren();
     renderedContentHeight = 0;
@@ -144,10 +115,12 @@ export function createDanmakuFeed(root, options = {}) {
       renderedContentHeight += height;
     });
     root.append(fragment);
+    if (fullscreen || fitViewport)
+      renderedEntries.forEach(({ node }) => resizeObserver?.observe(node));
     if (fullscreen) {
-      repositionFullscreenItems();
       [...renderedEntries].forEach(scheduleExpiration);
     }
+    if (fullscreen || fitViewport) scheduleLayout();
     scrollToLatest();
   }
 
@@ -165,11 +138,12 @@ export function createDanmakuFeed(root, options = {}) {
     renderedEntries.push(entry);
     renderedContentHeight += height;
     renderedSequence += 1;
+    if (fullscreen || fitViewport) resizeObserver?.observe(node);
     if (fullscreen) {
-      repositionFullscreenItems();
       scheduleExpiration(entry);
       pruneMaxItems();
-    } else pruneOldMessages();
+    } else if (!fitViewport) pruneOldMessages();
+    if (fullscreen || fitViewport) scheduleLayout();
     scrollToLatest();
   }
 
@@ -177,6 +151,47 @@ export function createDanmakuFeed(root, options = {}) {
     const nextHeight = Number(root.clientHeight);
     if (Number.isFinite(nextHeight) && nextHeight > 0)
       viewportHeight = nextHeight;
+  }
+
+  function scheduleLayout() {
+    if (typeof globalThis.requestAnimationFrame !== 'function') {
+      updateLayout();
+      return;
+    }
+    if (layoutFrame !== null) return;
+    layoutFrame = globalThis.requestAnimationFrame(() => {
+      layoutFrame = null;
+      updateLayout();
+    });
+  }
+
+  function updateLayout() {
+    updateViewportHeight();
+    if (fullscreen) {
+      repositionFullscreenItems();
+      return;
+    }
+    const styles = globalThis.getComputedStyle?.(root);
+    const gap = Number.parseFloat(styles?.rowGap) || 0;
+    const padding =
+      (Number.parseFloat(styles?.paddingTop) || 0) +
+      (Number.parseFloat(styles?.paddingBottom) || 0);
+    renderedContentHeight = renderedEntries.reduce((total, entry) => {
+      const measured = Number(entry.node.offsetHeight);
+      entry.height =
+        measured > 0 ? measured + 1 : estimateItemHeight(entry.item);
+      return total + entry.height;
+    }, 0);
+    // One batched read uses layout height, unaffected by entrance transforms.
+    while (
+      renderedEntries.length > 1 &&
+      (renderedEntries.length > maxItems ||
+        (viewportHeight > 0 &&
+          renderedContentHeight + gap * (renderedEntries.length - 1) + padding >
+            viewportHeight))
+    ) {
+      removeEntry(renderedEntries[0]);
+    }
   }
 
   function pruneOldMessages() {
@@ -205,6 +220,7 @@ export function createDanmakuFeed(root, options = {}) {
       entry.timer = null;
     }
     renderedEntries.splice(index, 1);
+    resizeObserver?.unobserve?.(entry.node);
     renderedContentHeight = Math.max(0, renderedContentHeight - entry.height);
     if (
       entry.node.parentNode === root ||
@@ -247,34 +263,91 @@ export function createDanmakuFeed(root, options = {}) {
     const width = Number(root.clientWidth) || 0;
     const height = Number(root.clientHeight) || 0;
     if (width <= 0 || height <= 0) return;
-    renderedEntries.forEach((entry) => positionFullscreenItem(entry, width, height));
+    const occupied = [];
+    // Read dimensions together before writing positions or evicting old nodes.
+    const measured = renderedEntries.map((entry) => ({
+      entry,
+      width: Number(entry.node.offsetWidth) || 0,
+      height: Number(entry.node.offsetHeight) || 0,
+    }));
+    for (const item of measured) {
+      if (
+        item.width > width - FULLSCREEN_SAFE_INSET_PX * 2 ||
+        item.height > height - FULLSCREEN_SAFE_INSET_PX * 2
+      ) {
+        removeEntry(item.entry);
+        continue;
+      }
+      let position = findFullscreenPosition(item, width, height, occupied);
+      while (!position && occupied.length) {
+        removeEntry(occupied.shift().entry);
+        position = findFullscreenPosition(item, width, height, occupied);
+      }
+      if (!position) {
+        removeEntry(item.entry);
+        continue;
+      }
+      item.entry.position = position;
+      item.entry.node.style.setProperty('left', `${position.left}px`);
+      item.entry.node.style.setProperty('top', `${position.top}px`);
+      item.entry.node.style.setProperty('visibility', 'visible');
+      occupied.push({ ...item, ...position });
+    }
   }
 
-  function positionFullscreenItem(entry, width, height) {
-    const node = entry.node;
-    const rect =
-      typeof node.getBoundingClientRect === 'function'
-        ? node.getBoundingClientRect()
-        : null;
-    // Prefer layout dimensions over the animated bounding box. The entrance
-    // transform briefly scales the box, which could otherwise leave a
-    // message a few pixels outside the safe inset once the animation settles.
-    const nodeWidth = Math.max(0, Number(node.offsetWidth) || Number(rect?.width) || 0);
-    const nodeHeight = Math.max(0, Number(node.offsetHeight) || Number(rect?.height) || 0);
+  function findFullscreenPosition(item, width, height, occupied) {
     const inset = Math.min(
       FULLSCREEN_SAFE_INSET_PX,
       Math.floor(Math.min(width, height) / 2),
     );
-    const maxLeft = Math.max(inset, width - nodeWidth - inset);
-    const maxTop = Math.max(inset, height - nodeHeight - inset);
-    const [leftRatio, topRatio] = fullscreenPositionRatios(entry.item);
-    node.style.setProperty(
-      'left',
-      `${inset + (maxLeft - inset) * leftRatio}px`,
-    );
-    node.style.setProperty(
-      'top',
-      `${inset + (maxTop - inset) * topRatio}px`,
+    const maxLeft = width - item.width - inset;
+    const maxTop = height - item.height - inset;
+    const [leftRatio, topRatio] = fullscreenPositionRatios(item.entry.item);
+    const candidates = [
+      item.entry.position,
+      {
+        left: inset + (maxLeft - inset) * leftRatio,
+        top: inset + (maxTop - inset) * topRatio,
+      },
+      { left: inset, top: inset },
+      { left: maxLeft, top: inset },
+      { left: inset, top: maxTop },
+      { left: maxLeft, top: maxTop },
+    ];
+    for (const box of occupied) {
+      candidates.push(
+        {
+          left: box.left + box.width + FULLSCREEN_ITEM_GAP_PX,
+          top: box.top,
+        },
+        {
+          left: box.left,
+          top: box.top + box.height + FULLSCREEN_ITEM_GAP_PX,
+        },
+        {
+          left: box.left - item.width - FULLSCREEN_ITEM_GAP_PX,
+          top: box.top,
+        },
+        {
+          left: box.left,
+          top: box.top - item.height - FULLSCREEN_ITEM_GAP_PX,
+        },
+      );
+    }
+    return candidates.find(
+      (point) =>
+        point &&
+        point.left >= inset &&
+        point.top >= inset &&
+        point.left <= maxLeft &&
+        point.top <= maxTop &&
+        occupied.every(
+          (box) =>
+            point.left >= box.left + box.width + FULLSCREEN_ITEM_GAP_PX ||
+            point.left + item.width + FULLSCREEN_ITEM_GAP_PX <= box.left ||
+            point.top >= box.top + box.height + FULLSCREEN_ITEM_GAP_PX ||
+            point.top + item.height + FULLSCREEN_ITEM_GAP_PX <= box.top,
+        ),
     );
   }
 
@@ -286,6 +359,7 @@ export function createDanmakuFeed(root, options = {}) {
     const bounded = Array.isArray(items) ? items.slice(-maxItems) : [];
     if (
       fullscreen ||
+      fitViewport ||
       bypassViewportPruning ||
       viewportHeight <= 0 ||
       bounded.length <= 1
@@ -311,146 +385,12 @@ export function createDanmakuFeed(root, options = {}) {
     return measureDanmakuText(item?.message).height + DANMAKU_ITEM_SPACING_PX;
   }
 
-  function createBubble(item = {}, index = 0) {
-    const message = String(item.message || '').trim();
-    const metrics = measureDanmakuText(message);
-    const bubble = document.createElement('article');
-    bubble.className = `${classNames.item} ${classNames.bubble}`;
-    bubble.dataset.tone = String(index % 4);
-    bubble.dataset.identity = identityVariant(item.guardLevel, item.medalName);
-    bubble.style.setProperty('--danmaku-width', `${metrics.width}%`);
-    bubble.style.setProperty('--danmaku-height', `${metrics.height}px`);
-    bubble.style.setProperty('--danmaku-lines', String(metrics.lines));
-    bubble.style.setProperty('--danmaku-delay', `${Math.min(index, 8) * 24}ms`);
-    if (isEmoteOnlyMessage(message, item.emotes))
-      bubble.className += ' is-emote-only';
-
-    const name = String(item.name || '观众').trim() || '观众';
-    let avatar = null;
-    if (!fullscreen) {
-      avatar = document.createElement('div');
-      avatar.className = classNames.avatar;
-      avatar.setAttribute('aria-hidden', 'true');
-      if (item.avatarUrl) {
-        const image = document.createElement('img');
-        image.alt = '';
-        const source = String(resolveAvatarUrl(item.avatarUrl) || '');
-        if (source) {
-          image.src = source;
-          image.addEventListener('error', () => {
-            image.remove();
-            avatar.textContent = Array.from(name)[0] || '观';
-          });
-          avatar.append(image);
-        } else avatar.textContent = Array.from(name)[0] || '观';
-      } else avatar.textContent = Array.from(name)[0] || '观';
-    }
-
-    const body = document.createElement('div');
-    body.className = classNames.body;
-    const identity = document.createElement('div');
-    identity.className = classNames.identity;
-    const nameElement = document.createElement('strong');
-    nameElement.textContent = name;
-    identity.append(nameElement);
-
-    if (!fullscreen) {
-      const guard = String(getGuardLabel(item.guardLevel) || '').trim();
-      if (guard) identity.append(createBadge(guard, classNames.guard));
-      const medalName = String(item.medalName || '').trim();
-      if (medalName) {
-        const medalLevel = Math.max(0, Math.trunc(Number(item.medalLevel)) || 0);
-        const medal = createBadge('', classNames.medal);
-        const medalNameElement = document.createElement('span');
-        medalNameElement.className = 'draw-danmaku-medal-name';
-        medalNameElement.textContent =
-          medalLevel > 0 ? `${medalName} ` : medalName;
-        medal.append(medalNameElement);
-        if (medalLevel > 0) {
-          const medalLevelElement = document.createElement('b');
-          medalLevelElement.className = 'draw-danmaku-medal-level';
-          medalLevelElement.textContent = String(medalLevel);
-          medal.append(medalLevelElement);
-        }
-        identity.append(medal);
-      }
-    }
-
-    const messageElement = document.createElement('p');
-    appendMessageContent(messageElement, message, item.emotes);
-    body.append(identity, messageElement);
-    if (avatar) bubble.append(avatar);
-    bubble.append(body);
-    return bubble;
-  }
-
-  function appendMessageContent(rootElement, message, emotes) {
-    const tokens = normalizeRenderableEmotes(emotes);
-    if (!tokens.length) {
-      rootElement.textContent = message;
-      return;
-    }
-    let cursor = 0;
-    while (cursor < message.length) {
-      const match = findNextEmote(message, cursor, tokens);
-      if (!match) {
-        appendText(rootElement, message.slice(cursor));
-        break;
-      }
-      if (match.index > cursor)
-        appendText(rootElement, message.slice(cursor, match.index));
-      rootElement.append(createEmoteImage(match.emote));
-      cursor = match.index + match.emote.text.length;
-    }
-  }
-
-  function appendText(rootElement, text) {
-    if (!text) return;
-    const span = document.createElement('span');
-    span.className = classNames.text;
-    span.textContent = text;
-    rootElement.append(span);
-  }
-
-  function createEmoteImage(emote) {
-    const source = String(resolveEmoteUrl(emote.url) || '');
-    if (!source) return createTextNode(emote.text);
-    const image = document.createElement('img');
-    image.className = classNames.emote;
-    image.alt = emote.text;
-    image.src = source;
-    image.loading = 'eager';
-    image.decoding = 'async';
-    if (emote.width > 0 && emote.height > 0) {
-      image.style.setProperty(
-        '--danmaku-emote-ratio',
-        `${emote.width} / ${emote.height}`,
-      );
-    }
-    image.addEventListener('error', () => {
-      image.replaceWith(createTextNode(emote.text));
-    });
-    return image;
-  }
-
-  function createTextNode(text) {
-    const fallback = document.createElement('span');
-    fallback.className = classNames.text;
-    fallback.textContent = text;
-    return fallback;
-  }
-
-  function createBadge(label, variantClass) {
-    const badge = document.createElement('span');
-    badge.className = `${classNames.badge} ${variantClass}`;
-    badge.textContent = label;
-    return badge;
-  }
-
   return {
     render,
     append,
     destroy() {
+      if (layoutFrame !== null) globalThis.cancelAnimationFrame?.(layoutFrame);
+      layoutFrame = null;
       resizeObserver?.disconnect();
       clearExpirationTimers();
       renderedSequence = 0;
@@ -462,61 +402,8 @@ export function createDanmakuFeed(root, options = {}) {
   };
 }
 
-function normalizeRenderableEmotes(value) {
-  if (!Array.isArray(value)) return [];
-  const seen = new Set();
-  const tokens = [];
-  for (const item of value) {
-    const text = String((item && item.text) || '').trim();
-    const url = String((item && item.url) || '').trim();
-    if (!text || !url || seen.has(text)) continue;
-    seen.add(text);
-    tokens.push({
-      text,
-      url,
-      width: Math.max(0, Math.trunc(Number(item.width)) || 0),
-      height: Math.max(0, Math.trunc(Number(item.height)) || 0),
-    });
-  }
-  return tokens.sort((left, right) => right.text.length - left.text.length);
-}
-
-function findNextEmote(message, cursor, emotes) {
-  let next = null;
-  for (const emote of emotes) {
-    const index = message.indexOf(emote.text, cursor);
-    if (index < 0) continue;
-    if (
-      !next ||
-      index < next.index ||
-      (index === next.index && emote.text.length > next.emote.text.length)
-    ) {
-      next = { index, emote };
-    }
-  }
-  return next;
-}
-
-function isEmoteOnlyMessage(message, emotes) {
-  const tokens = normalizeRenderableEmotes(emotes);
-  return tokens.length === 1 && tokens[0].text === message;
-}
-
-function identityVariant(guardLevel, medalName) {
-  if (Number(guardLevel) === 3) return 'captain';
-  if (Number(guardLevel) === 2) return 'admiral';
-  if (Number(guardLevel) === 1) return 'governor';
-  return String(medalName || '').trim() ? 'fan' : 'viewer';
-}
-
 function fullscreenPositionRatios(item = {}) {
-  const seed = [
-    item.id,
-    item.uid,
-    item.timestamp,
-    item.name,
-    item.message,
-  ]
+  const seed = [item.id, item.uid, item.timestamp, item.name, item.message]
     .map((value) => String(value ?? ''))
     .join('|');
   const first = stableHash(seed);

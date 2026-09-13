@@ -27,9 +27,7 @@ function createGiftSyncStore(options = {}) {
         )
         .run(key, timestamp, timestamp);
       const source = giftDb
-        .prepare(
-          'SELECT id, source_key FROM gift_sources WHERE source_key = ?',
-        )
+        .prepare('SELECT id, source_key FROM gift_sources WHERE source_key = ?')
         .get(key);
       giftDb
         .prepare(
@@ -369,12 +367,7 @@ function assertBootstrapSnapshot(state, page) {
   }
 }
 
-function validateEventCursors(
-  events,
-  currentCursor,
-  nextCursor,
-  options = {},
-) {
+function validateEventCursors(events, currentCursor, nextCursor, options = {}) {
   let previous = currentCursor;
   for (const event of events) {
     const cursor = normalizeCursor(event?.cursor);
@@ -400,8 +393,7 @@ function mapState(row) {
   return Object.freeze({
     sourceId: Number(row.source_id),
     syncEpoch: row.sync_epoch,
-    finalCursor:
-      row.final_cursor === null ? null : Number(row.final_cursor),
+    finalCursor: row.final_cursor === null ? null : Number(row.final_cursor),
     bootstrapComplete: Number(row.bootstrap_complete) === 1,
     bootstrapPageToken: row.bootstrap_page_token,
     bootstrapRecoveryCursor:
@@ -423,7 +415,9 @@ function normalizePageRecords(value) {
 }
 
 function normalizeSourceKey(value) {
-  const key = String(value || '').trim().toLowerCase();
+  const key = String(value || '')
+    .trim()
+    .toLowerCase();
   if (!/^[a-f0-9]{64}$/u.test(key)) throw new Error('INVALID_GIFT_SOURCE');
   return key;
 }

@@ -70,10 +70,12 @@ function validateRules(input, options = {}) {
     validateRule(value, index, allowedRemoteImageOrigins),
   );
   for (const [index, rule] of rules.entries()) {
-    rule.giftIdentity = validateRuleGiftIdentity({ ...rule, giftIdentity: input[index]?.giftIdentity });
+    rule.giftIdentity = validateRuleGiftIdentity({
+      ...rule,
+      giftIdentity: input[index]?.giftIdentity,
+    });
     const key = `${rule.giftId}:${rule.giftIdentity?.variantId || ''}`;
-    if (giftIds.has(key))
-      throw new Error(`duplicate giftId: ${rule.giftId}`);
+    if (giftIds.has(key)) throw new Error(`duplicate giftId: ${rule.giftId}`);
     giftIds.add(key);
   }
   if (rules.filter((rule) => rule.enabled).length > MAX_ENABLED_RULES) {

@@ -381,7 +381,12 @@ test('OBS and configurable preview typography stay outside Admin roles', () => {
     overlayCss,
     /(?:\.ui-(?:display|page|section|card|body|control|caption|eyebrow|metric)\b|var\(--type-)/,
   );
-  const preview = read('public', 'css', 'admin', 'desktop-lyric-preview.css');
+  const preview = readCssBundle(
+    'public',
+    'css',
+    'admin',
+    'desktop-lyric-preview.css',
+  );
   for (const name of [
     '--preview-font',
     '--preview-size',

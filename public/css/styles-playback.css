@@ -20,6 +20,12 @@
 /* 播放器面板 */
 @import url('./playback/player.css');
 
+/* 音质选择器 */
+@import url('./playback/quality-control.css');
+
+/* 音量控件 */
+@import url('./playback/volume-control.css');
+
 /* 右侧滑出抽屉 */
 @import url('./playback/drawer.css');
 
@@ -31,6 +37,9 @@
 
 /* 全屏播放器 */
 @import url('./playback/fullscreen.css');
+
+/* 全屏播放器背景与唱片机 */
+@import url('./playback/fullscreen-visuals.css');
 
 /* 响应式样式 */
 @import url('./playback/responsive.css');

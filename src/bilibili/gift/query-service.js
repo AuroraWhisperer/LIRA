@@ -256,9 +256,7 @@ function mapLedgerHistoryRow(row) {
       ? moneyToSafeCents(row.blind_box_price)
       : null;
   const blindProfitCents =
-    blindBoxPriceCents === null
-      ? null
-      : totalPriceCents - blindBoxPriceCents;
+    blindBoxPriceCents === null ? null : totalPriceCents - blindBoxPriceCents;
   const platformId = String(row.platform_id || '');
   return {
     eventId: platformId.startsWith('lira-server:')
@@ -274,13 +272,10 @@ function mapLedgerHistoryRow(row) {
       coinType: canonicalCoinType(row.coin_type),
       isBlindBox,
       blindBoxId: isBlindBox ? normalizeBlindBoxId(row.blind_box_id) : null,
-      blindBoxName: isBlindBox
-        ? canonicalGiftText(row.blind_box_name)
-        : '',
+      blindBoxName: isBlindBox ? canonicalGiftText(row.blind_box_name) : '',
       blindBoxPrice:
         blindBoxPriceCents === null ? null : blindBoxPriceCents / 100,
-      blindProfit:
-        blindProfitCents === null ? null : blindProfitCents / 100,
+      blindProfit: blindProfitCents === null ? null : blindProfitCents / 100,
       createdAt: normalizeIsoTimestamp(row.created_at),
     },
   };
@@ -322,10 +317,7 @@ function normalizeHistoryLimit(value) {
 function normalizeHistorySortField(value) {
   const sortField = String(value || DEFAULT_HISTORY_SORT_FIELD);
   if (!HISTORY_SORT_FIELDS.includes(sortField)) {
-    throw createGiftQueryError(
-      'INVALID_GIFT_SORT_FIELD',
-      '礼物排序字段无效。',
-    );
+    throw createGiftQueryError('INVALID_GIFT_SORT_FIELD', '礼物排序字段无效。');
   }
   return sortField;
 }
@@ -345,7 +337,9 @@ function normalizeHistorySortDirection(value) {
 
 function resolveAsOf(context) {
   const value =
-    typeof context.now === 'function' ? context.now() : new Date().toISOString();
+    typeof context.now === 'function'
+      ? context.now()
+      : new Date().toISOString();
   return normalizeIsoTimestamp(value);
 }
 
@@ -381,10 +375,7 @@ function encodeHistoryCursor(value) {
         query: value.query,
         range: value.range,
       };
-  return Buffer.from(
-    JSON.stringify(payload),
-    'utf8',
-  ).toString('base64url');
+  return Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
 }
 
 function decodeHistoryCursor(value, expected) {

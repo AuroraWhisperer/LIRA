@@ -87,12 +87,12 @@ export function createGiftCatalogUpdateToast(dependencies = {}) {
   function isStaleProgress(state) {
     return Boolean(
       latestState &&
-        latestState.status === 'updating' &&
-        latestState.phase === 'images' &&
-        state.status === 'updating' &&
-        state.phase === 'images' &&
-        latestState.total === state.total &&
-        state.completed < latestState.completed,
+      latestState.status === 'updating' &&
+      latestState.phase === 'images' &&
+      state.status === 'updating' &&
+      state.phase === 'images' &&
+      latestState.total === state.total &&
+      state.completed < latestState.completed,
     );
   }
 
@@ -111,11 +111,10 @@ export function createGiftCatalogUpdateToast(dependencies = {}) {
     titleNode.textContent = state.error
       ? '礼物图片更新失败'
       : state.failed
-      ? '部分图片暂未更新'
-      : '礼物图片更新完成';
-    detailNode.textContent = state.error || state.failed
-      ? '下次检查时重试'
-      : formatProgress(state);
+        ? '部分图片暂未更新'
+        : '礼物图片更新完成';
+    detailNode.textContent =
+      state.error || state.failed ? '下次检查时重试' : formatProgress(state);
     setProgress(state);
     clearCompletionTimer();
     if (typeof setTimeoutRef === 'function')

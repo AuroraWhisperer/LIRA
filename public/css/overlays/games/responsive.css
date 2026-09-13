@@ -1,0 +1,52 @@
+@media (max-width: 700px) {
+  .game-stage {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 10px;
+  }
+  .game-stage-header {
+    grid-column: 1;
+    grid-row: 1;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+  }
+  .game-stage-meta {
+    flex: 1 1 auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+  }
+  .game-view,
+  .game-empty {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .bomb-numbers {
+    gap: 3px;
+  }
+  .bomb-number {
+    min-height: 16px;
+    border-radius: 5px;
+  }
+  .draw-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .draw-audience-panel {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .draw-clue-card {
+    grid-column: 1 / -1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}

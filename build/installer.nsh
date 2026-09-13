@@ -1,5 +1,7 @@
 ManifestDPIAware true
 
+!include "installer-uninstall.nsh"
+
 !macro customInit
   Call liraSelectDefaultDirectory
   ; Only inspect this app's key in electron-builder's selected install context.
@@ -73,28 +75,4 @@ ManifestDPIAware true
     ${If} $installMode == "all"
       SetShellVarContext all
     ${EndIf}
-!macroend
-
-!macro customRemoveFiles
-  ; Remove program files while retaining local data, logs and updater downloads.
-  SetOutPath $TEMP
-  FindFirst $R0 $R1 "$INSTDIR\*"
-  liraRemoveNext:
-    StrCmp $R1 "" liraRemoveDone
-    StrCmp $R1 "." liraRemoveSkip
-    StrCmp $R1 ".." liraRemoveSkip
-    StrCmp $R1 "data" liraRemoveSkip
-    StrCmp $R1 "logs" liraRemoveSkip
-    StrCmp $R1 "updates" liraRemoveSkip
-    IfFileExists "$INSTDIR\$R1\*.*" 0 liraRemoveFile
-    RMDir /r "$INSTDIR\$R1"
-    Goto liraRemoveSkip
-    liraRemoveFile:
-      Delete "$INSTDIR\$R1"
-    liraRemoveSkip:
-      FindNext $R0 $R1
-      Goto liraRemoveNext
-  liraRemoveDone:
-    FindClose $R0
-    RMDir "$INSTDIR"
 !macroend

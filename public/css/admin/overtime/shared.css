@@ -1,0 +1,147 @@
+.overtime-admin {
+  --ot-night: #181823;
+  --ot-pink: #ff6f91;
+  --ot-teal: #21b6a8;
+  --ot-coral: #f0677d;
+  --ot-gold: #f5b72f;
+  --ot-action-add: #6657c7;
+  --ot-action-save: #147d73;
+  display: grid;
+  gap: 14px;
+  align-content: start;
+  color: var(--text);
+}
+
+.overtime-admin > .overtime-admin-section {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 260px;
+}
+
+.overtime-section-heading,
+.overtime-console,
+.overtime-heading-actions,
+.overtime-actions,
+.overtime-consumer-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.overtime-admin h3,
+.overtime-admin p {
+  margin: 0;
+}
+.overtime-admin h3 {
+  font-size: var(--type-size-section-title);
+}
+.overtime-admin p {
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: var(--type-size-body);
+  line-height: 1.55;
+}
+
+.overtime-admin-section {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.overtime-section-heading {
+  grid-column: 1 / -1;
+}
+.overtime-section-heading > div:first-child {
+  min-width: 0;
+}
+.overtime-heading-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.overtime-manual-duration {
+  grid-column: span 4;
+}
+.overtime-manual-duration > span {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.overtime-manual-duration small {
+  color: var(--text);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.overtime-manual-duration input {
+  font-variant-numeric: tabular-nums;
+}
+.overtime-duration-selectors {
+  display: grid;
+  grid-column: span 5;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.overtime-duration-selectors legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.overtime-time-editor > button {
+  grid-column: span 3;
+  align-self: end;
+  font-weight: 700;
+}
+.overtime-admin-section label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: var(--type-size-control);
+}
+.overtime-admin-section input,
+.overtime-admin-section select {
+  width: 100%;
+}
+
+.overtime-screen-section label {
+  grid-column: span 3;
+}
+.overtime-screen-section > button {
+  grid-column: span 2;
+  align-self: end;
+}
+.overtime-preview {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-height: 280px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: repeating-conic-gradient(#d9dbe2 0 25%, #f4f5f8 0 50%) 0 / 20px
+    20px;
+}
+.overtime-settlement-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) auto auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 9px 11px;
+  border-bottom: 1px solid var(--border);
+  font-size: var(--type-size-caption);
+}
+.overtime-settlement-row .is-positive {
+  color: var(--ot-teal);
+}
+.overtime-settlement-row .is-negative {
+  color: var(--ot-coral);
+}
+.overtime-settlement-row .is-display {
+  color: var(--ot-pink);
+}

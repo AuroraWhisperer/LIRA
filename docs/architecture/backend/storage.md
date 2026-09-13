@@ -1,6 +1,6 @@
 # 存储层:数据目录、SQLite 五库与迁移
 
-> 涉及文件:[src/storage/database.js](../../../src/storage/database.js)、[src/storage/database-migrations.js](../../../src/storage/database-migrations.js)、[src/storage/database-maintenance.js](../../../src/storage/database-maintenance.js)、[src/storage/schema.js](../../../src/storage/schema.js)、[src/storage/retention.js](../../../src/storage/retention.js)、[src/storage/settings-store.js](../../../src/storage/settings-store.js)、[src/storage/settings-defaults.js](../../../src/storage/settings-defaults.js)、[src/storage/settings-migrations.js](../../../src/storage/settings-migrations.js)、[src/storage/theme-store.js](../../../src/storage/theme-store.js)、[src/storage/playback-store.js](../../../src/storage/playback-store.js)、[src/storage/cooldown-store.js](../../../src/storage/cooldown-store.js)、[src/storage/checkin-store.js](../../../src/storage/checkin-store.js)、[src/storage/gift-event-store.js](../../../src/storage/gift-event-store.js)
+> 涉及文件:[src/storage/database.js](../../../src/storage/database.js)、[src/storage/database-migrations.js](../../../src/storage/database-migrations.js)、[src/storage/database-maintenance.js](../../../src/storage/database-maintenance.js)、[src/storage/schema.js](../../../src/storage/schema.js)、[src/storage/retention.js](../../../src/storage/retention.js)、[src/storage/settings-store.js](../../../src/storage/settings-store.js)、[src/storage/settings-defaults.js](../../../src/storage/settings-defaults.js)、[src/storage/settings-migrations.js](../../../src/storage/settings-migrations.js)、[src/storage/theme-store.js](../../../src/storage/theme-store.js)、[src/storage/playback-store.js](../../../src/storage/playback-store.js)、[src/storage/cooldown-store.js](../../../src/storage/cooldown-store.js)、[src/storage/checkin-store.js](../../../src/storage/checkin-store.js)
 
 本文档是数据库与数据目录的**唯一事实源**:数据库文件名、表清单、DDL 要点、迁移版本、保留策略只在此成表。其他文档一律链接此处。
 
@@ -31,22 +31,34 @@ data/
 ├── gift-data.db               # 礼物库(gift_events + 加班机三表)
 ├── music-data.db              # 播放器库(历史/队列态/收藏/歌单)
 ├── checkin-data.db            # 签到库
-├── overtime-gift-catalog-v2.json      # 官方 gold 礼物与盲盒关系的原子 v2 镜像
-├── overtime-gift-assets-state-v2.json # v2 图片扫描完成状态
-├── overtime-gift-images/      # 按完整礼物身份管理的运行时图片缓存与 index.json
-├── music-api-cache/           # 音乐 API 响应 JSON 缓存(TTL 5 分钟)
-├── music-lyrics-cache/        # 歌词缓存(TTL 30 天)
+├── cache/                    # 可重建的业务缓存
+│   ├── overtime-gift-catalog-v2.json      # 官方 gold 礼物与盲盒关系镜像
+│   ├── overtime-gift-assets-state-v2.json # 图片扫描完成状态
+│   ├── overtime-gift-images/ # 礼物图片与 index.json
+│   ├── music-api-cache/      # 音乐 API 响应(TTL 5 分钟)
+│   └── music-lyrics-cache/   # 歌词(TTL 30 天)
+├── browser/                  # Electron userData/sessionData；包含持久资料
+│   ├── Partitions/           # 音乐与 Bilibili 的独立登录分区
+│   ├── Network/              # 默认会话 Cookie 等网络状态
+│   ├── Local Storage/        # 默认会话的 localStorage
+│   ├── Cache/                # Chromium 自行管理的缓存
+│   └── Crashpad/             # 崩溃报告；其余 Chromium 文件也在 browser 下
+├── .browser-layout-v1.json    # 浏览器目录迁移日志
+├── .cache-layout-v1.json      # 缓存目录迁移日志
 ├── .session-token             # 会话令牌(0600,服务关闭时删除)
 ├── .server-runtime.json       # 运行时信息 {pid, port, host}
 ├── music-auth/qq.cookies.enc          # QQ 音乐 Cookie 快照(safeStorage 加密)
 ├── music-auth/netease.cookies.enc     # 网易云 Cookie 快照
 ├── bilibili-auth/cookies.enc          # B站 Cookie 快照
 ├── bilibili-auth/cookies.txt          # 可选明文导出(脚本用)
-├── Partitions/                # Chromium 登录分区持久化目录
+├── license/                   # 设备授权资料与 safeStorage 加密私钥
+├── opening-music/             # 用户上传音乐，保持持久保存
 └── local-media-access.json      # 本地媒体文件允许清单
 ```
 
 认证文件格式与生命周期见 [desktop/auth.md](../desktop/auth.md);`logs/` 目录(ai.log / terminal.log / desktop.log)位于 data 目录的**父目录**。
+
+路径由 [data-paths.js](../../../src/shared/data-paths.js) 统一计算；`dataDir` 与数据库/授权/上传路径未改变。桌面持有原数据根的单实例锁后，[data-directory-migration.js](../../../src/storage/data-directory-migration.js) 在 ready 前迁移已知浏览器文件与缓存。独立服务及礼物初始化脚本在使用缓存前执行相同缓存迁移。迁移采用落盘日志与同卷重命名，中断可续作，目标冲突、缺失条目、符号链接及活动服务阻止迁移；未知文件保留原处。`browser` 包含登录和界面资料，不能整目录当缓存清理。具体取舍见 [ADR-0016](../adr/0016-separated-client-data-lifecycles.md)。
 
 ## 3. 五库 × 表清单(唯一成表处)
 
@@ -144,7 +156,9 @@ data/
 
 ### 6.1 Clear-All Matrix(清空全部矩阵)
 
-`clearAllData()` 使用跨五库的两阶段协调；SQLite 无法为多个文件提供单一原子 commit，因此提交阶段仍可能返回明确的部分失败。矩阵常量 `CLEAR_ALL_MATRIX`([database.js:465-516](../../../src/storage/database.js#L465-L516)):
+`database-maintenance.js` 保留 `clearAllData` 位置参数门面，内部调用 `database-clear-coordinator.js:coordinateClearAll` 的具名输入。协调器独占 BEGIN、逐库 COMMIT、失败中断和剩余 ROLLBACK；`database-clear-operations.js` 只在既有事务内清理及恢复默认行，计数累加器保留 SQL 失败前的统计，不持有事务状态。`database-clear-result.js` 构造成功、预提交失败和部分提交结果；只有预提交阶段全部回滚成功才抛出可安全恢复的错误。
+
+`clearAllData()` 使用跨五库的两阶段协调；SQLite 无法为多个文件提供单一原子 commit，因此提交阶段仍可能返回明确的部分失败。矩阵常量 `CLEAR_ALL_MATRIX`([database-clear-operations.js](../../../src/storage/database-clear-operations.js)):
 
 **保留(Preserve)**:配置类表,清空后应用仍可用
 
@@ -229,9 +243,11 @@ Phase 1 失败且全部事务已回滚时，只解除本次请求取得的暂停
 
 完整键表以 [settings-store.js:15-124](../../../src/storage/settings-store.js#L15-L124) 为准;设置经 WS 快照 `settings` 字段全量下发(见 [ws.md](ws.md))。
 
-其他 store 模块:`theme-store`(presets 增删改查/应用/内置播种)、`playback-store`(saveQueueState/loadQueueState/播放历史/收藏/歌单)、`cooldown-store`(`loadInto` 重启恢复 + `COOLDOWN_RETENTION_MS`)、`checkin-store`(签到读写)、`gift-event-store`(无 combo/batch 标识礼物的近期同命令查重)、`gift-query-store`(当前 source 的历史、统计与 legacy 页面查询)。关闭时统一 `optimizeDatabases`(PRAGMA optimize)→ `closeDatabases`(见 [server-core.md](server-core.md) §6.2)。
+其他 store 模块:`theme-store`(presets 增删改查/应用/内置播种)、`playback-store`(saveQueueState/loadQueueState/播放历史/收藏/歌单)、`cooldown-store`(`loadInto` 重启恢复 + `COOLDOWN_RETENTION_MS`)、`checkin-store`(签到读写)、`gift-query-store`(当前 source 的历史、统计与 legacy 页面查询)。关闭时统一 `optimizeDatabases`(PRAGMA optimize)→ `closeDatabases`(见 [server-core.md](server-core.md) §6.2)。
 
 ## 8. 云端 scope 的本地落盘
+
+房间归属由 `settings-store.prepareCloudRoomAccount(accountKey)` 保存于现有 `settings` 表的内部 `cloudRoomAccountKey`，值为 `JSON.stringify([origin, accountName, streamerId])`，来自 main process 的设备身份。首次缺失或身份不同（含同名重建的新 streamerId）时，以一个 `BEGIN IMMEDIATE` 事务同时清空 `roomId` 并保存新标记；失败整体回滚，同一 owner 重复调用不写库。标记不进入 `getSettings()`、可编辑 defaults、WS/HTTP settings 或 Device 快照，也不作为服务端授权依据。它不是云端 revision，不新增表或更改 schema 版本。其他设置和歌库的初次播种规则不变；已有云端房间可在随后同步时恢复。
 
 云端 revision 保存在独立 lira-server，本地 SQLite 不复制 revision；[cloud-sync-controller.js](../../../src/electron/cloud-sync-controller.js) 在当前授权进程内维护 `settings`、`songs`、`bilibili` 三个已应用 revision、dirty 标志和本地 mutation 代次。上传完成时只有未出现更新代次才清除 dirty；远端 songs/Bilibili 内容返回后会在本地写入前重新检查 dirty。应用云端 settings 时，`applyCloudSettingsSnapshot` 写入同步白名单（包括验证后的 legacy `giftBlindBoxConfig` 与 `giftBlindBoxCustomConfigV2`），并把只读 `blindBoxMapping` 状态单独放入运行时快照；设置页只上传私有 v2 数组，dirty JSON 在刷新或失败时保留。随后重新配置本地 Bilibili runtime 并广播 `cloud:settings` 快照。
 

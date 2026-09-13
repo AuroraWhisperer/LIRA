@@ -47,14 +47,29 @@
         <input id="songImportAllowEmptyClear" type="checkbox" />
         允许空单元格清空字段（缺少的列仍保留；空启用状态仍保留）
       </label>
-      <p class="hint">按歌名和歌手精确匹配。缺少歌手按空歌手匹配；修改歌名或歌手会视为新歌曲。分类清空归为“默认”。</p>
+      <p class="hint">
+        按歌名和歌手精确匹配。缺少歌手按空歌手匹配；修改歌名或歌手会视为新歌曲。分类清空归为“默认”。
+      </p>
       <button id="songImportPreviewBtn" type="button">预览更新</button>
     </div>
-    <section id="songImportPreview" class="stack" aria-label="歌库更新预览" hidden>
+    <section
+      id="songImportPreview"
+      class="stack"
+      aria-label="歌库更新预览"
+      hidden
+    >
       <p id="songImportPreviewSummary" class="hint" role="status"></p>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>数据行</th><th>歌曲 / 歌手</th><th>操作</th><th>差异</th><th>说明</th></tr></thead>
+          <thead>
+            <tr>
+              <th>数据行</th>
+              <th>歌曲 / 歌手</th>
+              <th>操作</th>
+              <th>差异</th>
+              <th>说明</th>
+            </tr>
+          </thead>
           <tbody id="songImportPreviewRows"></tbody>
         </table>
       </div>
@@ -63,7 +78,9 @@
         <span id="songImportPage" class="hint"></span>
         <button id="songImportNextPage" type="button">下一页</button>
       </div>
-      <button id="songImportApplyBtn" class="primary" type="button" disabled>确认应用这些变更</button>
+      <button id="songImportApplyBtn" class="primary" type="button" disabled>
+        确认应用这些变更
+      </button>
     </section>
     <p class="hint">
       支持 XLSX/CSV/TSV

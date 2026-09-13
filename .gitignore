@@ -10,6 +10,7 @@ build/*
 !build/installer.nsh
 !build/installer-data.nsh
 !build/installer-directory.nsh
+!build/installer-uninstall.nsh
 scripts/capture-ui.js
 .claude/
 *.log

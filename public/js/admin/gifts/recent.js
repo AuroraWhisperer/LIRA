@@ -2,9 +2,12 @@
 // 最近礼物模块 - 负责最近礼物列表渲染和图标工具函数
 import { eventBus, Events } from '../../shared/event-bus.js';
 import { getLegacyAdminModules } from '../legacy-admin-bridge.js';
-import { GIFT_PLACEHOLDER, setGiftImageFallbacks } from '../../shared/gift-image-fallback.js';
+import {
+  GIFT_PLACEHOLDER,
+  setGiftImageFallbacks,
+} from '../../shared/gift-image-fallback.js';
 
-'use strict';
+('use strict');
 
 (function () {
   const MAX_RECENT_GIFT_ROWS = 6;
@@ -92,8 +95,11 @@ import { GIFT_PLACEHOLDER, setGiftImageFallbacks } from '../../shared/gift-image
   }
 
   function normalizedGiftName(value) {
-    return String(value || '').normalize('NFKC').replace(/\s+/gu, ' ').trim()
-      .replace(/[A-Z]/gu, letter => letter.toLowerCase());
+    return String(value || '')
+      .normalize('NFKC')
+      .replace(/\s+/gu, ' ')
+      .trim()
+      .replace(/[A-Z]/gu, (letter) => letter.toLowerCase());
   }
 
   function addGiftArtwork(index, gift) {
@@ -101,9 +107,19 @@ import { GIFT_PLACEHOLDER, setGiftImageFallbacks } from '../../shared/gift-image
     const name = normalizedGiftName(gift?.name);
     if (!id || !name) return;
     const variantId = gift.variantId || gift.giftIdentity?.variantId;
-    const key = variantId || JSON.stringify([id, name, gift.priceRaw ?? gift.rmb,
-      gift.coinType, gift.bagGift]);
-    const imagePath = normalizeGiftArtworkPath(gift.imagePath) || index.get(key)?.imagePath || '';
+    const key =
+      variantId ||
+      JSON.stringify([
+        id,
+        name,
+        gift.priceRaw ?? gift.rmb,
+        gift.coinType,
+        gift.bagGift,
+      ]);
+    const imagePath =
+      normalizeGiftArtworkPath(gift.imagePath) ||
+      index.get(key)?.imagePath ||
+      '';
     index.set(key, { id, name, imagePath });
   }
 
@@ -111,8 +127,9 @@ import { GIFT_PLACEHOLDER, setGiftImageFallbacks } from '../../shared/gift-image
     if (variantId) return giftArtworkById?.get(variantId)?.imagePath || '';
     const normalizedName = normalizedGiftName(name);
     if (!id || !normalizedName) return '';
-    const matches = [...(giftArtworkById?.values() || [])]
-      .filter(gift => gift.id === id && gift.name === normalizedName);
+    const matches = [...(giftArtworkById?.values() || [])].filter(
+      (gift) => gift.id === id && gift.name === normalizedName,
+    );
     return matches.length === 1 ? matches[0].imagePath : '';
   }
 
@@ -121,14 +138,14 @@ import { GIFT_PLACEHOLDER, setGiftImageFallbacks } from '../../shared/gift-image
     if (!Array.isArray(snapshot.gifts)) return;
 
     giftArtworkRevision += 1;
-    const artworkById = giftArtworkById
-      ? new Map(giftArtworkById)
-      : new Map();
+    const artworkById = giftArtworkById ? new Map(giftArtworkById) : new Map();
     for (const gift of snapshot.gifts) {
       addGiftArtwork(artworkById, gift);
     }
     giftArtworkById = artworkById;
-    getLegacyAdminModules().gifts?.blindbox?.applyOfficialCatalogSnapshot?.(snapshot);
+    getLegacyAdminModules().gifts?.blindbox?.applyOfficialCatalogSnapshot?.(
+      snapshot,
+    );
     if (latestRecentGiftItems.length > 0)
       renderGiftRecentList(latestRecentGiftItems);
   }
@@ -136,10 +153,7 @@ import { GIFT_PLACEHOLDER, setGiftImageFallbacks } from '../../shared/gift-image
   function initGiftArtworkCatalog(eventBusRef, events) {
     giftArtworkEventsUnsubscribe?.();
     giftArtworkEventsUnsubscribe = null;
-    if (
-      typeof eventBusRef?.on === 'function' &&
-      events?.GIFT_CATALOG_UPDATED
-    ) {
+    if (typeof eventBusRef?.on === 'function' && events?.GIFT_CATALOG_UPDATED) {
       giftArtworkEventsUnsubscribe = eventBusRef.on(
         events.GIFT_CATALOG_UPDATED,
         ({ snapshot } = {}) => applyGiftArtworkSnapshot(snapshot),
@@ -301,7 +315,8 @@ import { GIFT_PLACEHOLDER, setGiftImageFallbacks } from '../../shared/gift-image
     ).trim();
     const blindBoxId = String(item?.blind_box_id || '').trim();
     const type = SPECIAL_BLIND_BOX_TYPES.find(
-      ({ id, name }) => (!blindBoxId || blindBoxId === id) &&
+      ({ id, name }) =>
+        (!blindBoxId || blindBoxId === id) &&
         normalizedGiftName(blindBoxName) === normalizedGiftName(name),
     );
     // Open-result records carry the output ID, while direct box records carry
@@ -312,19 +327,26 @@ import { GIFT_PLACEHOLDER, setGiftImageFallbacks } from '../../shared/gift-image
     return {
       name: type?.name || blindBoxName || '盲盒',
       className: type?.className || 'blind-box-default',
-      src: findGiftArtwork(artworkId, blindBoxName,
-        recordedBoxName || blindBoxId ? item.blind_box_variant_id : item.gift_variant_id) || GIFT_PLACEHOLDER,
+      src:
+        findGiftArtwork(
+          artworkId,
+          blindBoxName,
+          recordedBoxName || blindBoxId
+            ? item.blind_box_variant_id
+            : item.gift_variant_id,
+        ) || GIFT_PLACEHOLDER,
     };
   }
 
   function getHighValueGiftArtwork(item) {
     const unitPrice = Number(item?.unit_price);
     const giftId = String(item?.gift_id ?? '').trim();
-    const artworkPath = findGiftArtwork(giftId, item?.gift_name, item?.gift_variant_id);
-    if (
-      !Number.isFinite(unitPrice) ||
-      unitPrice < HIGH_VALUE_GIFT_MIN_RMB
-    )
+    const artworkPath = findGiftArtwork(
+      giftId,
+      item?.gift_name,
+      item?.gift_variant_id,
+    );
+    if (!Number.isFinite(unitPrice) || unitPrice < HIGH_VALUE_GIFT_MIN_RMB)
       return null;
     return { src: artworkPath || GIFT_PLACEHOLDER };
   }

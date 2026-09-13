@@ -12,9 +12,10 @@
 
 - While `danmakuOverlayStyle` is `outline`, when a new `danmaku:message` arrives, the overlay shall place the sender name and message at a bounded random position in the full viewport.
 - While `danmakuOverlayStyle` is `outline`, the overlay shall not display avatar, guard label, medal name, or medal level, regardless of the message identity fields.
-- While `danmakuOverlayStyle` is `outline`, each rendered message shall be removed after `danmakuFullscreenDurationSeconds` seconds.
+- While `danmakuOverlayStyle` is `outline`, each rendered message shall be removed after `danmakuFullscreenDurationSeconds` seconds, or earlier when it is the oldest message and space is needed for a newer message.
+- While `danmakuOverlayStyle` is `outline`, messages shall keep a 16px viewport inset and at least 10px separation. Names and images shall remain inside their message. Image loading and viewport resizing shall recalculate placement; fitting existing messages retain their position.
 - While an Admin user edits the fullscreen duration, when the value is saved, the server shall accept only an integer from 2 through 30 and broadcast the normal settings snapshot.
-- While `bubble`, `signal`, `minimal`, or `ranked` is selected, the existing ordered feed layout and identity rendering shall remain unchanged.
+- While a fixed-area style is selected, messages shall remain ordered with visible spacing. Actual message height, including wrapped names and images, shall determine which oldest messages leave the viewport; identity styling remains specific to the selected style.
 
 ## Architecture
 
@@ -48,7 +49,7 @@
 
 1. Admin presents fixed-area styles as one group and `全屏随机` as a distinct full-screen option.
 2. The fullscreen-only duration control persists valid seconds and rejects invalid values server-side.
-3. Fullscreen items are visually distributed across the viewport, stay within bounds, and expire on time.
+3. Fullscreen items are visually distributed across the viewport, stay within bounds with 10px gaps, and expire on time. When crowded, the oldest messages leave first. Resizing or loading an image does not create overlapping messages; names stay inside the border.
 4. Fullscreen output contains sender and message only, with one neutral visual treatment regardless of guard/medal fields.
 5. Existing fixed styles and tests continue to pass.
 

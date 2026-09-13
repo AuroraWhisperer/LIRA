@@ -181,8 +181,7 @@ function clearAll() {
 }
 
 function loadExample() {
-  document.getElementById('bubbleHtml').value =
-    `<!-- 示例：直播气泡 HTML -->
+  document.getElementById('bubbleHtml').value = `<!-- 示例：直播气泡 HTML -->
 <!-- 请替换为从 DevTools 复制的真实 .bubble-list outerHTML -->
 <div class="bubble-list">
   <div class="super-gift-item">
