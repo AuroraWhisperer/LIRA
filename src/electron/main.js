@@ -142,6 +142,9 @@ const desktopUserDataPaths = resolveDesktopUserDataPaths({
 });
 const userDataMigrationState = { migration: null, error: null };
 try {
+  if (desktopUserDataPaths.recoveryDataDir && fs.existsSync(desktopUserDataPaths.recoveryDataDir)) {
+    throw new Error('上次安装的数据尚未恢复，请重新运行安装包。数据保留在：' + desktopUserDataPaths.recoveryDataDir);
+  }
   userDataMigrationState.migration = migrateLegacyUserData({
     sourceDir: desktopUserDataPaths.legacyDataDir,
     targetDir: desktopUserDataPaths.dataDir,
@@ -149,19 +152,30 @@ try {
 } catch (error) {
   userDataMigrationState.error = error;
 }
-app.setPath('userData', desktopUserDataPaths.dataDir);
-
-const gotLock = app.requestSingleInstanceLock();
-if (!gotLock) {
-  app.quit();
+if (userDataMigrationState.error) {
+  // Stop before Chromium creates an empty profile that would conflict with recovery.
+  dialog.showErrorBox('启动失败',
+    '无法准备安装目录中的用户数据。LIRA 已停止启动：' +
+    (userDataMigrationState.error.message || String(userDataMigrationState.error)));
+  app.exit(1);
 } else {
-  app
-    .whenReady()
-    .then(startDesktopApp)
-    .catch(function (error) {
-      dialog.showErrorBox('启动失败', error.message || String(error));
-      app.quit();
-    });
+  app.setPath('userData', desktopUserDataPaths.dataDir);
+  app.setPath('sessionData', desktopUserDataPaths.dataDir);
+  app.setPath('logs', path.join(path.dirname(desktopUserDataPaths.dataDir), 'logs'));
+  app.setPath('crashDumps', path.join(desktopUserDataPaths.dataDir, 'Crashpad'));
+
+  const gotLock = app.requestSingleInstanceLock();
+  if (!gotLock) {
+    app.quit();
+  } else {
+    app
+      .whenReady()
+      .then(startDesktopApp)
+      .catch(function (error) {
+        dialog.showErrorBox('启动失败', error.message || String(error));
+        app.quit();
+      });
+  }
 }
 
 app.setName('LIRA');
@@ -246,13 +260,6 @@ function requestDesktopShutdown({ restart = false } = {}) {
 // ---- startup ----
 
 async function startDesktopApp() {
-  if (userDataMigrationState.error) {
-    throw new Error(
-      '无法把旧版用户数据迁移到永久保存目录。为避免以空数据启动，LIRA 已停止启动：' +
-        (userDataMigrationState.error.message ||
-          String(userDataMigrationState.error)),
-    );
-  }
   configureDesktopEnvironment();
   writeLog('user-data-migration', userDataMigrationState.migration);
   const startupStartedAt = Date.now();

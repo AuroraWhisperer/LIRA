@@ -150,6 +150,12 @@ function createGiftDetectionService(context, options = {}) {
     `,
       )
       .get(capturedSourceId, platformId, REMOTE_GIFT_COMMAND);
+    if (row && [
+      [row.gift_variant_id, event.gift.giftVariantId],
+      [row.blind_box_variant_id, event.gift.blindBoxVariantId],
+    ].some(([stored, incoming]) => stored && incoming && stored !== incoming)) {
+      throw new Error('PROCESSED_GIFT_EVENT_CONFLICT');
+    }
     if (
       (row?.status === 'deleted' || row?.detection_status === 'final') &&
       event.phase === 'final' &&
@@ -173,6 +179,8 @@ function createGiftDetectionService(context, options = {}) {
       rawJson: '',
     });
     gift.giftId = event.gift.giftId;
+    gift.giftVariantId = event.gift.giftVariantId;
+    gift.blindBoxVariantId = event.gift.blindBoxVariantId;
     gift.blindProfit = event.gift.blindProfit;
     if (!row) {
       const giftStatisticsEligible =
@@ -245,12 +253,14 @@ function createGiftDetectionService(context, options = {}) {
           source_id, platform_id, cmd, gift_id, gift_name,
           uid, user_name, num, unit_price, total_price, coin_type,
           is_blind_box, blind_box_id, blind_box_name, blind_box_price, blind_profit,
+          gift_variant_id, blind_box_variant_id,
           counted_in_sprint, detection_status,
           first_detected_at_ms, last_platform_at_ms, finalized_at_ms,
           gift_stats_eligible, gift_stats_delivered, overtime_epoch,
           status, raw_json, created_at, updated_at
         ) VALUES (
           ?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+          ?, ?,
           0, 'final', ?, ?, ?, 0, 1, 0, 'active', '', ?, ?
         )
       `,
@@ -271,6 +281,8 @@ function createGiftDetectionService(context, options = {}) {
         gift.blindBoxName,
         gift.blindBoxPrice,
         gift.blindProfit,
+        gift.giftVariantId,
+        gift.blindBoxVariantId,
         createdAtMs,
         createdAtMs,
         createdAtMs,
@@ -541,12 +553,14 @@ function insertProgressGift(giftDb, gift, eligibility) {
       source_id, platform_id, cmd, gift_id, gift_name,
       uid, user_name, num, unit_price, total_price, coin_type,
       is_blind_box, blind_box_id, blind_box_name, blind_box_price, blind_profit,
+      gift_variant_id, blind_box_variant_id,
       counted_in_sprint, detection_status,
       first_detected_at_ms, last_platform_at_ms, finalized_at_ms,
       gift_stats_eligible, gift_stats_delivered, overtime_epoch,
       status, raw_json, created_at, updated_at
     ) VALUES (
       ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+      ?, ?,
       0, 'progress', ?, ?, 0, ?, 0, ?, 'active', ?, ?, ?
     )
   `,
@@ -568,6 +582,8 @@ function insertProgressGift(giftDb, gift, eligibility) {
       gift.blindBoxName,
       gift.blindBoxPrice,
       gift.blindProfit,
+      gift.giftVariantId ?? null,
+      gift.blindBoxVariantId ?? null,
       eligibility.detectedAtMs,
       eligibility.detectedAtMs,
       eligibility.giftStatisticsEligible ? 1 : 0,
@@ -610,9 +626,18 @@ function isMatchingHistoryProjection(row, record) {
         blindBoxPrice: row.blind_box_price,
         blindProfit: row.blind_profit,
         createdAt: row.created_at,
+        giftVariantId: row.gift_variant_id,
+        blindBoxVariantId: row.blind_box_variant_id,
       },
     });
-    return JSON.stringify(existing) === JSON.stringify(record);
+    for (const [column, key] of [['gift_variant_id', 'giftVariantId'], ['blind_box_variant_id', 'blindBoxVariantId']]) {
+      if (row[column] && record.gift[key] && row[column] !== record.gift[key]) return false;
+    }
+    // Older installed clients persisted no identity. Confirm the historical
+    // display projection without rewriting its identity or replaying consumers.
+    return JSON.stringify(existing) === JSON.stringify({ ...record, gift: {
+      ...record.gift, giftVariantId: existing.gift.giftVariantId, blindBoxVariantId: existing.gift.blindBoxVariantId,
+    } });
   } catch {
     return false;
   }

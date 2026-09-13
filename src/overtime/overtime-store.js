@@ -87,14 +87,17 @@ function createOvertimeStore(giftDb) {
   function replaceRules(rules, updatedAt) {
     const insert = giftDb.prepare(`
       INSERT INTO overtime_gift_rules (
+        gift_identity_key, gift_identity_json,
         gift_id, gift_name, image_path, mode, fixed_seconds,
         outcomes_json, enabled, sort_order, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     return immediate(() => {
       giftDb.prepare('DELETE FROM overtime_gift_rules').run();
       for (const rule of rules) {
         insert.run(
+          rule.giftIdentity?.variantId || '',
+          rule.giftIdentity ? JSON.stringify(rule.giftIdentity) : null,
           rule.giftId,
           rule.giftName,
           rule.imagePath,
@@ -167,11 +170,15 @@ function createOvertimeStore(giftDb) {
       const rawGiftId = String(gift.gift_id || '').trim();
       const canonicalGiftId = canonicalizeGuardGiftId(rawGiftId);
       const findRule = giftDb.prepare(`
-        SELECT * FROM overtime_gift_rules WHERE gift_id = ? AND enabled = 1
+        SELECT * FROM overtime_gift_rules WHERE gift_id = ? AND gift_identity_key = ? AND enabled = 1
       `);
+      // Platform IDs may be reused. Unbound legacy rules cannot identify a
+      // platform gift; guard subscriptions retain their established aliases.
+      const platformGift = /^\d+$/u.test(canonicalGiftId);
+      const identityKey = platformGift ? gift.gift_variant_id : '';
       const ruleRow =
-        findRule.get(canonicalGiftId) ||
-        (canonicalGiftId !== rawGiftId ? findRule.get(rawGiftId) : null);
+        (identityKey != null ? findRule.get(canonicalGiftId, identityKey) : null) ||
+        (canonicalGiftId !== rawGiftId ? findRule.get(rawGiftId, '') : null);
       if (!ruleRow) {
         ignoreSettlement(giftEventId, updatedAt);
         return { kind: 'ignored', settlement: getSettlement(giftEventId) };
@@ -427,6 +434,9 @@ function normalizeRule(row) {
       ? stored.outcomes
       : parseLegacyOutcomes(stored);
   const normalized = {
+    giftIdentity: parseStoredJson(row.gift_identity_json),
+    bindingStatus: row.gift_identity_key || !/^\d+$/u.test(canonicalizeGuardGiftId(row.gift_id))
+      ? 'bound' : 'needs-selection',
     giftId: row.gift_id,
     giftName: row.gift_name,
     imagePath: row.image_path,

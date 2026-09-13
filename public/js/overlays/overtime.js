@@ -1,9 +1,9 @@
 'use strict';
 
 import { createOverlaySocket } from './socket-client.js';
+import { setGiftImage } from '../shared/gift-image-fallback.js';
 
 const MAX_ANIMATION_QUEUE = 5;
-const PLACEHOLDER = '/img/overtime-machine/gift-placeholder.svg';
 const quality = new URLSearchParams(location.search).get('quality') || '';
 const lowMotion =
   quality === 'low' || matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -186,15 +186,8 @@ function renderTickets() {
 
     const image = document.createElement('img');
     image.className = 'overtime-ticket-image';
-    image.src = rule.imagePath || PLACEHOLDER;
+    setGiftImage(image, rule.imagePath);
     image.alt = '';
-    image.addEventListener(
-      'error',
-      () => {
-        image.src = PLACEHOLDER;
-      },
-      { once: true },
-    );
     const name = document.createElement('span');
     name.className = 'overtime-ticket-name';
     name.textContent = rule.giftName || `礼物 ${rule.giftId}`;

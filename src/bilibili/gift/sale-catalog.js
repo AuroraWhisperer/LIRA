@@ -68,10 +68,11 @@ function createGiftSaleCatalogService(options = {}) {
     };
   }
 
-  async function refresh() {
+  async function refresh({ force = false } = {}) {
     const roomId = validateRoomId(getRoomId());
     const currentMs = now();
     if (
+      !force &&
       snapshot.roomId === roomId &&
       lastRefreshMs > 0 &&
       currentMs - lastRefreshMs < minRefreshMs
@@ -215,6 +216,9 @@ function normalizeSnapshotGift(gift) {
     id,
     name: String(gift?.name || `礼物 ${id}`).slice(0, 100),
     battery: finiteNonNegative(gift?.battery),
+    priceRaw: gift?.priceRaw ?? null,
+    coinType: gift?.coinType || '',
+    bagGift: gift?.bagGift ?? null,
     rmb: finiteNonNegative(gift?.rmb),
     imagePath: '',
   };

@@ -320,6 +320,7 @@ function createOvertimeService(options = {}) {
 
     const ruleSnapshot = {
       version: 2,
+      giftIdentity: rule.giftIdentity,
       mode: rule.mode,
       quantityMode: rule.quantityMode,
       fixedEffect: rule.mode === 'fixed' ? rule.fixedEffect : null,

@@ -209,7 +209,7 @@ test('a newer catalog arriving during an image scan is completed without an extr
   }
 });
 
-test('metadata-only changes stay silent and incremental progress counts only changed artwork', async () => {
+test('identity changes recheck artwork and incremental progress counts only changed artwork', async () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-gift-incremental-'));
   let service;
   try {
@@ -235,8 +235,8 @@ test('metadata-only changes stay silent and incremental progress counts only cha
     current.gifts[0].name = 'Renamed gift';
     current.gifts[0].priceRaw = 200;
     await service.initializeGlobalCatalog({ force: true });
-    assert.equal(states.some((state) => state.phase === 'images'), false);
-    assert.equal(imageCalls, 2);
+    assert.equal(states.some((state) => state.phase === 'images'), true);
+    assert.equal(imageCalls, 3);
     assert.equal(updates.at(-1).gifts[0].name, 'Renamed gift');
     assert.equal(updates.at(-1).gifts[0].priceRaw, 200);
     const completion = JSON.parse(fs.readFileSync(
@@ -249,7 +249,7 @@ test('metadata-only changes stay silent and incremental progress counts only cha
     current.version = '3';
     current.gifts[0].imagePath = 'https://api.example.test/gift-media/images/revised.webp';
     await service.initializeGlobalCatalog({ force: true });
-    assert.equal(imageCalls, 3);
+    assert.equal(imageCalls, 4);
     assert.equal(states.filter((state) => state.phase === 'images')
       .every((state) => state.status === 'updating' && state.total === 1), true);
     assert.equal(service.getInitializationState().total, 1);
@@ -291,7 +291,8 @@ test('stopping suppresses notifications from an in-flight image scan', async () 
 });
 
 function createService(options) {
-  const room = { source: 'local', version: 'room-1', gifts: [{ id: '1', name: 'Room gift' }] };
+  const room = { source: 'local', version: 'room-1', gifts: [{ id: '1', name: 'Gift',
+    priceRaw: 100, coinType: 'gold', bagGift: false }] };
   return createHybridGiftSaleCatalogService({
     local: { getSnapshot: () => room, refresh: async () => room },
     imageBaseUrl: 'https://api.example.test',

@@ -2,6 +2,8 @@
 
 import { eventBus, Events } from '../shared/event-bus.js';
 import { createGiftCatalogRoleLookup } from '../shared/gift-catalog-roles.js';
+import { giftSelectionKey, giftArtworkKey, rowGiftIdentity } from './overtime-gift-identity.js';
+import { setGiftImage } from '../shared/gift-image-fallback.js';
 import {
   api,
   copyText,
@@ -14,7 +16,6 @@ import { createOvertimeRuleEditor } from './overtime-rule-editor.js';
 import { createOvertimeTimeView } from './overtime-time-view.js';
 import { createOvertimeStatusView } from './overtime-status-view.js';
 
-const PLACEHOLDER = '/img/overtime-machine/gift-placeholder.svg';
 const GUARD_GIFTS = [
   {
     id: 'guard-1',
@@ -56,6 +57,7 @@ let giftRoleLookup = createGiftCatalogRoleLookup(null);
 let giftRoleRevision = 0;
 let giftPickerSource = 'sale';
 let ruleEditor = null;
+let reselectingRule = null;
 
 const overtimeTimeView = createOvertimeTimeView({
   byId,
@@ -98,7 +100,9 @@ const { renderState, syncClockLoop, stopClockLoop } = overtimeStatusView;
 function init() {
   if (initialized || !document.getElementById('overtimePanel')) return;
   initialized = true;
-  ruleEditor = createOvertimeRuleEditor(byId('overtimeRules'), markRulesDirty);
+  ruleEditor = createOvertimeRuleEditor(byId('overtimeRules'), markRulesDirty, {
+    onReselect: row => openGiftPicker(row),
+  });
   bindControls();
   eventBus.on(Events.STATE_LOADED, ({ state }) => {
     giftDetection = state?.giftDetection || giftDetection;
@@ -328,13 +332,15 @@ function applyGiftCatalog(snapshot) {
     ...saleGifts.map((gift) => ({ ...gift, catalogGroup: 1, catalogOrder: 0 })),
   ]
     .map((gift) => ({
+      variantId: gift.variantId,
+      giftIdentity: gift.giftIdentity,
       id: String(gift.id),
       name: String(gift.name || gift.id),
       rmb: Number(gift.rmb) || 0,
       catalogGroup: gift.catalogGroup,
       catalogOrder: gift.catalogOrder,
       imagePath: String(
-        serverGiftArtworkById.get(String(gift.id)) ||
+        serverGiftArtworkById.get(giftArtworkKey(gift)) ||
           gift.imagePath ||
           (gift.image ? `/img/${String(gift.image).replace(/^\/+/, '')}` : ''),
       ),
@@ -358,30 +364,30 @@ function applyServerGiftArtwork(snapshot) {
 
   const nextArtworkById = new Map(serverGiftArtworkById);
   for (const gift of snapshot.gifts) {
-    const giftId = String(gift?.id ?? '').trim();
+    const giftId = giftArtworkKey(gift);
     const imagePath = normalizeGiftArtworkPath(gift?.imagePath);
     if (giftId && imagePath) nextArtworkById.set(giftId, imagePath);
   }
   serverGiftArtworkById = nextArtworkById;
 
   catalog = catalog.map((gift) => {
-    const imagePath = serverGiftArtworkById.get(gift.id);
+    const imagePath = serverGiftArtworkById.get(giftArtworkKey(gift));
     return imagePath ? { ...gift, imagePath } : gift;
   });
   globalGiftMatches = globalGiftMatches.map((gift) => {
-    const imagePath = serverGiftArtworkById.get(gift.id);
+    const imagePath = serverGiftArtworkById.get(giftArtworkKey(gift));
     return imagePath ? { ...gift, imagePath } : gift;
   });
   for (const row of byId('overtimeRules').querySelectorAll(
     '[data-overtime-rule]',
   )) {
     const imagePath = serverGiftArtworkById.get(
-      String(row.dataset.giftId || ''),
+      giftArtworkKey({ ...row.dataset, giftIdentity: rowGiftIdentity(row) }),
     );
     if (!imagePath) continue;
     row.dataset.imagePath = imagePath;
     const image = row.querySelector('.overtime-rule-gift img');
-    if (image) image.src = imagePath;
+    if (image) setGiftImage(image, imagePath);
   }
   const picker = byId('overtimeGiftPicker');
   if (picker?.open) renderGiftPicker();
@@ -397,7 +403,7 @@ function decorateOvertimeRules(rules) {
   if (!Array.isArray(rules)) return rules;
   return rules.map((rule) => {
     const imagePath = serverGiftArtworkById.get(
-      String(rule?.giftId ?? '').trim(),
+      giftArtworkKey(rule),
     );
     return imagePath ? { ...rule, imagePath } : rule;
   });
@@ -449,7 +455,9 @@ function syncCatalogRefreshButton() {
   button.textContent = catalogRefreshing ? '刷新中…' : '刷新在售礼物';
 }
 
-function openGiftPicker() {
+function openGiftPicker(row = null) {
+  reselectingRule = row?.dataset?.overtimeRule ? row : null;
+  byId('overtimeGiftPickerTitle').textContent = reselectingRule ? '重新选择礼物' : '添加礼物';
   giftPickerGeneration += 1;
   const search = byId('overtimeGiftSearch');
   search.value = '';
@@ -505,11 +513,13 @@ async function toggleGiftPickerSource() {
     }
     if (requestRoleRevision === giftRoleRevision) applyGiftRoleCatalog(result.data);
     globalGiftMatches = result.data.gifts.map((gift) => ({
+      variantId: gift.variantId,
+      giftIdentity: gift.giftIdentity,
       id: String(gift.id),
       name: String(gift.name || gift.id),
       rmb: Number(gift.rmb) || 0,
       imagePath:
-        serverGiftArtworkById.get(String(gift.id)) ||
+        serverGiftArtworkById.get(giftArtworkKey(gift)) ||
         String(gift.imagePath || ''),
     }));
   } catch (error) {
@@ -556,12 +566,13 @@ function renderGiftPicker() {
   const selectedIds = new Set(
     Array.from(
       byId('overtimeRules').querySelectorAll('[data-overtime-rule]'),
-    ).map((row) => row.dataset.giftId),
+    ).filter(row => row !== reselectingRule)
+      .map(row => giftSelectionKey({ ...row.dataset, giftIdentity: rowGiftIdentity(row) })),
   );
   const source = giftPickerSource === 'global' ? globalGiftMatches : catalog;
   const matches = source.filter(
     (gift) =>
-      !selectedIds.has(gift.id) &&
+      !selectedIds.has(giftSelectionKey(gift)) &&
       (!query ||
         gift.id.toLocaleLowerCase().includes(query) ||
         gift.name.toLocaleLowerCase().includes(query)),
@@ -578,26 +589,22 @@ function renderGiftPicker() {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'overtime-gift-option';
+    button.disabled = /^\d+$/u.test(gift.id) && !gift.giftIdentity;
     const image = document.createElement('img');
     image.loading = 'lazy';
     image.decoding = 'async';
-    image.src = gift.imagePath || PLACEHOLDER;
+    setGiftImage(image, gift.imagePath);
     image.alt = '';
-    image.addEventListener(
-      'error',
-      () => {
-        image.src = PLACEHOLDER;
-      },
-      { once: true },
-    );
     const text = document.createElement('span');
     const name = document.createElement('strong');
     name.textContent = gift.name;
     text.append(name);
     if (!gift.id.startsWith('guard-')) {
       const meta = document.createElement('small');
-      meta.textContent = [giftRoleLookup(gift), `ID ${gift.id} · ¥${gift.rmb.toFixed(2)}`]
+      meta.textContent = [`ID ${gift.id} · ¥${gift.rmb.toFixed(2)}`, giftRoleLookup(gift),
+        gift.giftIdentity?.bagGift ? '背包礼物' : '']
         .filter(Boolean).join(' · ');
+      if (button.disabled) meta.textContent += ' · 资料待同步，请刷新礼物库';
       text.append(meta);
     }
     button.append(image, text);
@@ -625,10 +632,12 @@ function createMessage(className, message) {
 }
 
 function addGiftRule(gift) {
-  const row = ruleEditor.createRule(gift);
+  const replacing = Boolean(reselectingRule);
+  const row = replacing ? ruleEditor.reselectGift(reselectingRule, gift) : ruleEditor.createRule(gift);
+  reselectingRule = null;
   byId('overtimeGiftPicker').close();
   row.scrollIntoView({ block: 'nearest' });
-  toast(`已添加 ${gift.name}`);
+  toast(replacing ? `已选择 ${gift.name}，原规则设置已保留` : `已添加 ${gift.name}`);
 }
 
 function overlayUrl() {

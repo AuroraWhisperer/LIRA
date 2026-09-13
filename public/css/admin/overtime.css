@@ -394,6 +394,10 @@
   margin-top: 2px;
   color: var(--muted);
 }
+.overtime-rule-identity [data-gift-binding] {
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
 .overtime-rule-summary {
   color: color-mix(in srgb, var(--ot-teal) 76%, var(--text)) !important;
   font-weight: 700;
@@ -883,7 +887,7 @@
 }
 .overtime-gift-results {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 8px;
   max-height: 480px;
   overflow: auto;
@@ -910,9 +914,9 @@
 .overtime-gift-option strong,
 .overtime-gift-option small {
   display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
 }
 .overtime-gift-option small {
   margin-top: 3px;

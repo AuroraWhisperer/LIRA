@@ -4,6 +4,7 @@
 
 import { getLegacyAdminModules } from '../legacy-admin-bridge.js';
 import { eventBus, Events } from '../../shared/event-bus.js';
+import { GIFT_PLACEHOLDER, setGiftImageFallbacks } from '../../shared/gift-image-fallback.js';
 
 (function () {
   const { escapeHtml, escapeAttr, formatTime, formatMoney, readJsonResponse } =
@@ -12,11 +13,16 @@ import { eventBus, Events } from '../../shared/event-bus.js';
   let officialBlindBoxes = [];
   let officialCatalogLoadPromise = null;
   let saleGiftIds = new Set();
+  let saleVariantIds = new Set();
   let saleCatalogRevision = 0;
   let saleCatalogLoadPromise = Promise.resolve();
   let saleRoomId = '';
-  let bilibiliLoggedIn = false;
-  let authRevision = 0;
+
+  function isBlindBoxAvailable(item) {
+    return item.variantId
+      ? saleVariantIds.has(item.variantId)
+      : saleGiftIds.has(String(item.giftId));
+  }
 
   /**
    * 渲染盲盒映射配置列表
@@ -26,12 +32,18 @@ import { eventBus, Events } from '../../shared/event-bus.js';
     if (!container) return;
     const textarea = document.getElementById('giftBlindBoxCustomConfigV2');
     if (!textarea) return;
+    const toggle = document.getElementById('blindBoxListToggle');
+    const expanded = toggle?.getAttribute('aria-expanded') === 'true';
+    if (toggle) toggle.hidden = true;
 
     const raw = (textarea.value || '').trim();
     let config = [];
     try {
       const parsed = raw ? JSON.parse(raw) : [];
       if (parsed !== null && !Array.isArray(parsed)) throw new Error('不是数组');
+      if (parsed === null && textarea.dataset?.dirty !== 'true') {
+        textarea.value = '';
+      }
       config = Array.isArray(parsed) ? parsed : [];
     } catch (e) {
       container.innerHTML = '<span class="hint">配置格式错误</span>';
@@ -43,13 +55,20 @@ import { eventBus, Events } from '../../shared/event-bus.js';
       ...config.map((item, index) => ({ ...item, index, official: false })),
     ].sort(
       (left, right) =>
-        Number(saleGiftIds.has(String(right.giftId))) -
-          Number(saleGiftIds.has(String(left.giftId))) ||
+        Number(isBlindBoxAvailable(right)) -
+          Number(isBlindBoxAvailable(left)) ||
         String(left.name || '未命名').localeCompare(
           String(right.name || '未命名'),
           'zh-Hans-CN',
         ),
     );
+    const otherCount = entries.filter((item) => !isBlindBoxAvailable(item)).length;
+    if (toggle) {
+      toggle.hidden = otherCount === 0;
+      toggle.textContent = expanded
+        ? `收起其余盲盒（${otherCount}） ▴`
+        : `展开其余盲盒（${otherCount}） ▾`;
+    }
     renderBlindBoxMappingStatus();
     if (entries.length === 0) {
       container.innerHTML = '<span class="hint">暂无盲盒配置</span>';
@@ -79,14 +98,13 @@ import { eventBus, Events } from '../../shared/event-bus.js';
         const icon = getBlindBoxIcon({
           is_blind_box: true,
           blind_box_id: item.giftId || null,
+          blind_box_variant_id: item.variantId || null,
           blind_box_name: item.name || '',
         });
-        const iconHtml = icon
-          ? `<img class="bb-chip-icon" src="${escapeAttr(icon.src)}" alt="${escapeAttr(icon.name)}" onerror="this.style.display='none'">`
-          : `<span class="bb-chip-icon-fallback">🎁</span>`;
+        const iconHtml = `<img class="bb-chip-icon" src="${escapeAttr(icon?.src || GIFT_PLACEHOLDER)}" alt="${escapeAttr(icon?.name || item.name || '礼物图片')}">`;
 
         return `
-        <div class="blind-box-chip">
+        <div class="blind-box-chip"${!expanded && !isBlindBoxAvailable(item) ? ' hidden' : ''}>
           ${iconHtml}
           <div class="bb-chip-body">
             <div class="bb-chip-head">
@@ -102,6 +120,13 @@ import { eventBus, Events } from '../../shared/event-bus.js';
       `;
       })
       .join('');
+    if (!expanded && otherCount === entries.length) {
+      const message = saleRoomId
+        ? '暂未获取到当前直播间可送的盲盒，可展开查看其余映射'
+        : '尚未设置直播间，可展开查看全部盲盒映射';
+      container.innerHTML = `<span class="hint">${message}</span>${container.innerHTML}`;
+    }
+    setGiftImageFallbacks(container);
   }
 
   function renderBlindBoxMappingStatus() {
@@ -112,12 +137,11 @@ import { eventBus, Events } from '../../shared/event-bus.js';
       status.textContent = '正在读取服务器映射状态';
       return;
     }
-    const parts = [];
-    if (mapping.mode === 'legacy') {
-      parts.push(`旧配置待确认 ${Number(mapping.migrationPendingCount) || 0} 项`);
-    } else {
-      parts.push(mapping.applied ? '服务器已应用' : '等待服务器应用');
-      parts.push(`自定义 ${Number(mapping.customCount) || 0} 项`);
+    const parts = [
+      mapping.applied ? '官方映射已启用' : '等待服务器应用官方映射',
+    ];
+    if (Number(mapping.customCount) > 0) {
+      parts.push(`自定义 ${Number(mapping.customCount)} 项`);
     }
     if (Number(mapping.takenOverCount) > 0) {
       parts.push(`官方已接管 ${Number(mapping.takenOverCount)} 项`);
@@ -135,27 +159,29 @@ import { eventBus, Events } from '../../shared/event-bus.js';
       return;
     }
     const gifts = Array.isArray(snapshot?.gifts) ? snapshot.gifts : [];
+    const identityMode = snapshot.schemaVersion === 3;
     const giftById = new Map(
-      gifts.map((gift) => [String(gift?.id || '').trim(), gift]),
+      gifts.map((gift) => [String(identityMode ? gift.variantId : gift.id), gift]),
     );
     const relationById = new Map(
-      (Array.isArray(snapshot?.blindBoxes) ? snapshot.blindBoxes : []).map(
-        (relation) => [String(relation?.giftId || '').trim(), relation],
+      (identityMode ? snapshot.variantBlindBoxes || [] : snapshot.blindBoxes || []).map(
+        (relation) => [String(identityMode ? relation.variantId : relation.giftId), relation],
       ),
     );
     officialBlindBoxes = gifts
       .filter((gift) => gift?.isBlindBox === true)
       .map((gift) => {
         const giftId = String(gift.id);
-        const relation = relationById.get(giftId);
+        const relation = relationById.get(identityMode ? gift.variantId : giftId);
         return {
           giftId,
+          variantId: gift.variantId,
           name: gift.name,
           price: gift.rmb,
-          outputs: (relation?.outputGiftIds || []).map((outputGiftId) => {
+          outputs: ((identityMode ? relation?.outputVariantIds : relation?.outputGiftIds) || []).map((outputGiftId) => {
             const output = giftById.get(String(outputGiftId));
             return {
-              giftId: String(outputGiftId),
+              giftId: String(output?.id || outputGiftId),
               name: output?.name || `礼物 ${outputGiftId}`,
               price: output?.rmb ?? null,
             };
@@ -167,7 +193,6 @@ import { eventBus, Events } from '../../shared/event-bus.js';
 
   function applySaleCatalogSnapshot(snapshot) {
     if (
-      !bilibiliLoggedIn ||
       !saleRoomId ||
       String(snapshot?.roomId || '') !== saleRoomId
     )
@@ -175,19 +200,20 @@ import { eventBus, Events } from '../../shared/event-bus.js';
     saleCatalogRevision += 1;
     const gifts = Array.isArray(snapshot?.gifts) ? snapshot.gifts : [];
     saleGiftIds = new Set(gifts.map((gift) => String(gift.id)));
+    saleVariantIds = new Set(gifts.map((gift) => gift.variantId).filter(Boolean));
     renderBlindBoxList();
   }
 
   function loadSaleCatalog() {
     const requestRevision = ++saleCatalogRevision;
     saleGiftIds = new Set();
+    saleVariantIds = new Set();
     renderBlindBoxList();
     // Serialize room changes so the shared refresh cannot reuse our old room's
     // in-flight request. Skip queued contexts that have already been replaced.
     saleCatalogLoadPromise = saleCatalogLoadPromise.then(async () => {
       if (
         requestRevision !== saleCatalogRevision ||
-        !bilibiliLoggedIn ||
         !saleRoomId
       )
         return;
@@ -214,25 +240,11 @@ import { eventBus, Events } from '../../shared/event-bus.js';
     return saleCatalogLoadPromise;
   }
 
-  function updateSaleRoom(settings) {
+  function updateSaleRoom(settings, { force = false } = {}) {
     const roomId = String(settings?.roomId || '').trim();
-    if (roomId === saleRoomId) return;
+    if (roomId === saleRoomId && !force) return;
     saleRoomId = roomId;
     loadSaleCatalog();
-  }
-
-  async function refreshBilibiliAuth() {
-    const requestRevision = ++authRevision;
-    bilibiliLoggedIn = false;
-    loadSaleCatalog();
-    try {
-      const state = await window.bilibiliAuth?.getAuthState?.();
-      if (requestRevision !== authRevision) return;
-      bilibiliLoggedIn = state?.loggedIn === true;
-      if (bilibiliLoggedIn) loadSaleCatalog();
-    } catch (error) {
-      console.warn('[BlindBox] auth state load failed:', error.message || error);
-    }
   }
 
   function loadOfficialCatalog() {
@@ -466,7 +478,9 @@ import { eventBus, Events } from '../../shared/event-bus.js';
   window.addEventListener('app:settings-state', (event) =>
     updateSaleRoom(event.detail),
   );
-  document.addEventListener('app:bilibili-auth-changed', refreshBilibiliAuth);
+  eventBus.on(Events.STATE_SAVED, ({ settings }) =>
+    updateSaleRoom(settings, { force: true }),
+  );
+  document.addEventListener('app:bilibili-auth-changed', loadSaleCatalog);
   updateSaleRoom(getLegacyAdminModules().state?.getAppState?.()?.settings);
-  refreshBilibiliAuth();
 })();

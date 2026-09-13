@@ -4,6 +4,19 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { createShutdownHarness } = require('./helpers/electron-shutdown');
 
+test('an interrupted installation cannot start an empty backend', async () => {
+  const recoveryDataDir = 'D:\\Apps\\LIRA.lira-data-backup';
+  const h = createShutdownHarness({ recoveryDataDir });
+  await h.start({ expectStartupError: true });
+  assert.equal(h.count('runtime:start'), 0);
+  assert.equal(h.count('app:path:userData'), 0);
+  assert.equal(h.count('app:path:sessionData'), 0);
+  assert.equal(h.count('app:exit'), 1);
+  assert.equal(h.startupErrors.length, 1);
+  assert.ok(h.startupErrors[0].includes(recoveryDataDir));
+  assert.ok(h.startupErrors[0].includes('重新运行安装包'));
+});
+
 function assertFinalized(harness, restart) {
   assert.equal(harness.count('license:dispose'), 1);
   assert.equal(harness.count('app:release-lock'), 1);

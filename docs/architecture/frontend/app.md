@@ -116,7 +116,9 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 
 ### 4.2 songs.js(歌库)
 
-- 渲染:`/api/songs` 列表(首字母/歌名/歌手/分类/标签/语言/可点状态),行操作:编辑(载入表单)、入队(`/api/queue/add`,source=admin)、删除(`dangerConfirm` + `/api/songs/delete`)。
+- 渲染:`/api/songs` 列表(首字母/歌名/歌手/分类/标签/语言/可点状态/点歌价格)，空价格单元格留空；歌名下可展开歌切纯文本。行操作:编辑(载入表单)、入队(`/api/queue/add`,source=admin)、删除(`dangerConfirm` + `/api/songs/delete`)。
+- 价格与歌切始终显示自由文本输入，编辑完整回填 `request_price/song_clip`，保存传 `requestPrice/songClip`；显式空值清空，表单重置清除 id、价格、歌切和快捷状态。价格快捷填写为免费/舰长/提督/总督/可编辑 SC 文本，不设置默认收费金额；预览用纯文本，空值留空。
+- 价格显示 UTF-16 code unit 长度，超过 1000 通过输入有效性阻止提交，历史超长回填不截断。停用说明歌曲不出现在公开歌单；保存反馈仅确认本地成功，网页更新以云端同步结果为准。验收见 [点歌资料规范](../../../specs/song-request-metadata.md)。
 - 筛选:搜索框 180ms 防抖、分类/标签多选(`details` 下拉 + 点击外部收起,见 [song-category-filter.js](../../../public/js/admin/song-category-filter.js))、语言/歌手下拉、`enabledOnly` 开关——任何变化触发 `reloadSongs()`。
 
 ### 4.3 settings.js(设置)
@@ -124,7 +126,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 - 表单收集 `roomId/enableBilibili/paused/queueLimit/userCooldownSeconds/onlyFromLibrary/allowDuplicate` → `POST /api/settings`。
 - 立即生效开关:礼物检测 `enableGiftSprint`、礼物提示 `enableGiftNotification`(失败回滚 checkbox)。
 - Bilibili 扫码登录(仅桌面,`window.bilibiliAuth`,Web 模式禁用);登出走 `logoutConfirm` 弹窗。
-- 盲盒映射:表单添加(chip 展示)/高级 JSON 编辑/逐条删除,保存到 `giftBlindBoxCustomConfigV2` 设置；官方映射和自定义覆盖按当前 v2 编辑器契约分别展示。
+- 盲盒映射:表单添加(chip 展示)/高级 JSON 编辑/逐条删除,保存到 `giftBlindBoxCustomConfigV2` 设置；默认显示当前直播间可送的盒型，其余通过带数量的按钮展开/收起。状态显示服务器确认的官方映射就绪情况及非零自定义/接管计数，不再显示旧配置迁移提示；当前服务端统一使用官方目录和新版私有配置。高级编辑的空配置显示说明，保留 dirty 草稿，未编辑的空状态不触发保存。
 - 盲盒投屏:由 `blindboxOverlayTitle/Top/WinnersOnly/HeartBoxOnly` 实时生成 `/blindbox?top=&title=&winners=&heartBox=` URL([settings.js:354-380](../../../public/js/admin/settings.js#L354-L380))。
 - 系统操作:清歌库/清 SC/清全部(`dangerConfirm` + `/api/database/*`)、退出(`/api/system/shutdown` 后整页替换为退出屏,桌面版带"重新启动"按钮)、刷新直播(`/api/bilibili/reconnect`)。
 
@@ -138,7 +140,12 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 
 - 输入源:粘贴文本 或 文件(.tsv/.csv/.xlsx)。文本先解析表格(引号转义、表头别名映射 `歌名/歌手/分类/标签/可点/语言/核对平台/备注/点歌价格/歌切`,无表头按列位),`readTextFile` 做 UTF-8→GB18030 编码回退;xlsx 读 base64 提交 `/api/songs/import-xlsx`;结果渲染 `总行数/成功/重复/失败/新增分类`。
 - 表头识别:命中任一别名(如 `歌曲名字`/`歌名`/`name`)才按表头解析,否则整表按固定列序([import.js:52-85](../../../public/js/admin/import.js#L52-L85));`可点` 列支持 `是/可点/true/1` 与 `否/停用/false/0` 语义。
+- 价格别名与后端一致，新增「点歌条件 / 点歌说明」；保留原价格别名交给领域入口检查同一行的非空冲突，失败行显示解析后数据行序号和原因。相同值或只有一列非空可接受。默认重复歌曲明确显示“重复跳过（未更新已有歌曲）”，提示通过单曲编辑改价。
 - 成功后 `reloadAll()` 使歌库、分类、计数立即生效。
+
+阶段 4 [song-import-update.js](../../../public/js/admin/song-import-update.js) 由 app 初始化，拥有单一更新预览。模式默认“仅新增”，选择“更新匹配歌曲”后先预览；文本通过 `parseTable(text,{preserveMissing:true})` 保留实际列和无效行，XLSX 原样交本地接口解析。明确的空单元格清空选项默认关闭。
+
+预览显示新增/更新/未改变/冲突/无效数量和逐行差异，每页最多 25 行，可查看全部页；差异用 textContent 展示。只有可应用预览才启用确认按钮。切换模式、文件、粘贴内容或空值选项使预览及在途旧响应失效；提交持有生成预览时的输入，禁止并行/重复提交。过期或失败后必须重新预览；成功反馈只说明本地更新，云端同步另行确认。核对平台导出保存值，默认新增仍跳过已有歌曲。
 
 ### 4.6 metrics.js(性能检测)
 

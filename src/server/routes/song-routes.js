@@ -14,6 +14,36 @@ const XLSX_CONTENT_TYPE =
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const prefixes = ['/api/songs', '/api/categories'];
 
+async function readUpdateInput(request) {
+  const body = await request.body();
+  if (!body || typeof body !== 'object' || Array.isArray(body) ||
+      (body.base64 !== undefined && (typeof body.base64 !== 'string' || body.rows !== undefined))) {
+    throw Object.assign(new Error('请提供歌曲行对象或一个 Excel 文件。'), {
+      statusCode: 400, code: 'SONG_IMPORT_INPUT_INVALID',
+    });
+  }
+  let rows = body.rows;
+  if (body.base64 !== undefined) {
+    try {
+      rows = parseSongsFromXlsx(Buffer.from(String(body.base64), 'base64'), { preserveMissing: true });
+    } catch (error) {
+      throw Object.assign(error, { statusCode: 400, code: 'SONG_IMPORT_INPUT_INVALID' });
+    }
+  }
+  return {
+    rows,
+    allowEmptyClear: body.allowEmptyClear,
+    previewToken: body.previewToken,
+  };
+}
+
+function sendImportError(res, error) {
+  sendJson(res, error.statusCode || 500, {
+    ok: false, error: error.statusCode ? error.code : 'SONG_IMPORT_FAILED',
+    message: error.statusCode ? error.message : '导入未完成，已回滚，请重试。',
+  });
+}
+
 const routes = {
   'GET /api/categories'(context, request, res) {
     sendJson(res, 200, { ok: true, data: context.songs.listCategories() });
@@ -115,6 +145,26 @@ const routes = {
     context.broadcastSnapshot('songs:import-xlsx');
     context.cloudSync.request('songs');
     sendJson(res, 200, { ok: true, data: result });
+  },
+
+  async 'POST /api/songs/import-preview'(context, request, res) {
+    try {
+      const result = context.songs.previewImport(await readUpdateInput(request));
+      sendJson(res, 200, { ok: true, data: result });
+    } catch (error) {
+      sendImportError(res, error);
+    }
+  },
+
+  async 'POST /api/songs/import-apply'(context, request, res) {
+    try {
+      const result = context.songs.applyImport(await readUpdateInput(request));
+      context.broadcastSnapshot('songs:import');
+      context.cloudSync.request('songs');
+      sendJson(res, 200, { ok: true, data: result });
+    } catch (error) {
+      sendImportError(res, error);
+    }
   },
 };
 

@@ -1,4 +1,5 @@
 'use strict';
+const { validateRuleGiftIdentity } = require('../shared/gift-identity');
 
 const { isDnsHostname } = require('../shared/remote-url-policy');
 const MAX_OVERTIME_YEARS = 9_999;
@@ -68,10 +69,12 @@ function validateRules(input, options = {}) {
   const rules = input.map((value, index) =>
     validateRule(value, index, allowedRemoteImageOrigins),
   );
-  for (const rule of rules) {
-    if (giftIds.has(rule.giftId))
+  for (const [index, rule] of rules.entries()) {
+    rule.giftIdentity = validateRuleGiftIdentity({ ...rule, giftIdentity: input[index]?.giftIdentity });
+    const key = `${rule.giftId}:${rule.giftIdentity?.variantId || ''}`;
+    if (giftIds.has(key))
       throw new Error(`duplicate giftId: ${rule.giftId}`);
-    giftIds.add(rule.giftId);
+    giftIds.add(key);
   }
   if (rules.filter((rule) => rule.enabled).length > MAX_ENABLED_RULES) {
     throw new Error(`enabled rules cannot exceed ${MAX_ENABLED_RULES}.`);

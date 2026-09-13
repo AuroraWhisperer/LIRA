@@ -34,12 +34,48 @@
         placeholder="歌曲名字	原唱/首发歌手	歌曲分类	歌曲标签	是否可点	语言	点歌价格	歌切	核对平台	核对备注"
       ></textarea>
     </label>
+    <label>
+      导入模式
+      <select id="songImportMode" data-dropdown-variant="settings">
+        <option value="add">仅新增，跳过已有歌曲</option>
+        <option value="update">更新匹配歌曲（先预览）</option>
+      </select>
+    </label>
     <button id="importBtn" class="primary" type="button">导入歌库</button>
+    <div id="songImportUpdateOptions" class="stack" hidden>
+      <label class="checkbox-label">
+        <input id="songImportAllowEmptyClear" type="checkbox" />
+        允许空单元格清空字段（缺少的列仍保留；空启用状态仍保留）
+      </label>
+      <p class="hint">按歌名和歌手精确匹配。缺少歌手按空歌手匹配；修改歌名或歌手会视为新歌曲。分类清空归为“默认”。</p>
+      <button id="songImportPreviewBtn" type="button">预览更新</button>
+    </div>
+    <section id="songImportPreview" class="stack" aria-label="歌库更新预览" hidden>
+      <p id="songImportPreviewSummary" class="hint" role="status"></p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>数据行</th><th>歌曲 / 歌手</th><th>操作</th><th>差异</th><th>说明</th></tr></thead>
+          <tbody id="songImportPreviewRows"></tbody>
+        </table>
+      </div>
+      <div class="actions">
+        <button id="songImportPreviousPage" type="button">上一页</button>
+        <span id="songImportPage" class="hint"></span>
+        <button id="songImportNextPage" type="button">下一页</button>
+      </div>
+      <button id="songImportApplyBtn" class="primary" type="button" disabled>确认应用这些变更</button>
+    </section>
     <p class="hint">
       支持 XLSX/CSV/TSV
       或粘贴表格，兼容常用表头。多歌手、分类、语言和平台用「/」分隔，多个标签用逗号分隔。清空歌库不影响其他设置。
     </p>
-    <div id="importResult" class="hint"></div>
+    <p class="hint">
+      默认仅新增：相同歌名和歌手的已有歌曲会跳过，不会更新价格；批量改价请选择更新模式并核对预览。
+      点歌价格是一项自由文本，例如免费、30元SC、舰长、提督或总督，一首歌填一种说明；留空时网页不显示价格。
+      表头也支持「点歌条件」「点歌说明」，同一行多个价格列内容不同时会报告冲突。
+      无表头请保留模板完整十列；核对平台导出保存值，歌切可填链接、BV号、时间点或说明。
+    </p>
+    <div id="importResult" class="hint" role="status" aria-live="polite"></div>
     <fieldset id="licenseSongSync" class="theme-section" hidden>
       <legend>云端歌单</legend>
       <p id="licenseProfileStatus" class="hint">正在读取授权账号…</p>

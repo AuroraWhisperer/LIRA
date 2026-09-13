@@ -15,7 +15,7 @@ const {
   firstValue,
 } = require('./song-import-schema');
 
-function parseSongsFromXlsx(buffer) {
+function parseSongsFromXlsx(buffer, { preserveMissing = false } = {}) {
   if (!buffer.length) throw new Error('Excel 文件为空。');
   let worksheetEntry = '';
   const files = readZipFiles(buffer, {
@@ -40,13 +40,16 @@ function parseSongsFromXlsx(buffer) {
   const bodyRows = hasHeader ? table.slice(1) : table;
   return bodyRows
     .map((row) => {
+      if (preserveMissing && !hasHeader && row.length !== SONG_EXPORT_HEADERS.length) {
+        throw new Error('无表头更新需要完整十列，请使用带表头的模板。');
+      }
       const output = {};
       const sourceHeader = hasHeader ? header : SONG_EXPORT_HEADERS;
       for (let i = 0; i < sourceHeader.length; i += 1)
         output[sourceHeader[i]] = row[i] || '';
       return output;
     })
-    .filter((row) => cleanText(firstValue(row, SONG_IMPORT_ALIASES.name)));
+    .filter((row) => preserveMissing || cleanText(firstValue(row, SONG_IMPORT_ALIASES.name)));
 }
 
 function songToExportRow(song) {
@@ -59,7 +62,7 @@ function songToExportRow(song) {
     song.language || '',
     song.request_price || '',
     song.song_clip || '',
-    '',
+    song.source_platform || '',
     song.note || '',
   ];
 }
@@ -104,9 +107,12 @@ function templateSongs() {
       language: '国语',
       source_platform: 'QQ音乐 / 网易云音乐',
       note: '',
-      request_price: '心动 / 30元SC / 舰长 / 冠歌',
+      request_price: '30元SC',
       song_clip: '',
     },
+    { name: '红豆', artist: '王菲', category_name: '流行', is_enabled: true, language: '国语', request_price: '舰长' },
+    { name: '后来', artist: '刘若英', category_name: '流行', is_enabled: true, language: '国语', request_price: '提督' },
+    { name: '遇见', artist: '孙燕姿', category_name: '流行', is_enabled: true, language: '国语', request_price: '总督' },
   ];
 }
 

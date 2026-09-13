@@ -8,6 +8,12 @@
 
 单个数据库在 PRAGMA 初始化完成前由 `openSqliteDatabase` 持有；失败时关闭尚未登记的句柄并保留原错误。`createDatabases` 继续清理此前已登记的数据库，成功返回后才把整组句柄交给服务器生命周期。关闭失败沿用 `closeDatabases` 的逐库警告并继续清理；这不撤销已经提交的初始化或迁移数据。
 
+### 歌库显式更新事务
+
+`songStore.applyImportUpdate(buildPlan)` 在单个事务中读取完整歌曲及分类，将稳定行对象传给音乐域计划器重新校验预览，然后只执行该计划的 INSERT/UPDATE。保留原歌曲 id、队列和历史引用，不删除无关歌曲或分类；插入新分类、歌曲变更及 import_batches 记录一起提交或回滚。事务内不发生网络调用，成功后的同步由路由触发。
+
+本次无 schema 迁移：既有 import_batches 记录总数、新增数、未改变数（存 duplicate_count）及新分类数，实时响应单独返回 updated 数量；不将更新错误记录为新增。预览 token 含全部歌曲与分类内容及时间戳，不依赖内存全局租户状态。要求见 [点歌资料规范](../../../specs/song-request-metadata.md)。
+
 ## 1. 技术选型
 
 - **`node:sqlite` 内置模块 `DatabaseSync`**(同步 API),零第三方数据库依赖;要求 Node ≥ 24(见 [engineering/build.md](../engineering/build.md))。
@@ -16,7 +22,7 @@
 
 ## 2. 数据目录布局(唯一成表处)
 
-`dataDir` 解析顺序:`runtimeOptions.dataDir` → 环境变量 `SONG_PLUGIN_DATA_DIR` → 仓库根 `data/`([runtime-config.js](../../../src/server/runtime-config.js));Electron 打包版使用 `%APPDATA%/com.aurorawhisperer.lira/data`，开发版继续使用仓库根 `data/`，旧安装目录数据的升级迁移见 [desktop/main.md](../desktop/main.md) §3。
+`dataDir` 解析顺序:`runtimeOptions.dataDir` → 环境变量 `SONG_PLUGIN_DATA_DIR` → 仓库根 `data/`([runtime-config.js](../../../src/server/runtime-config.js));Electron 打包版使用 `<安装目录>/data`，首次安装有 D 盘时默认 `D:\LIRA\data`，无 D 盘时跟随原默认安装位置；开发版继续使用仓库根 `data/`，升级保留与旧 AppData 兼容读取见 [desktop/main.md](../desktop/main.md) §3。
 
 ```
 data/
@@ -27,7 +33,7 @@ data/
 ├── checkin-data.db            # 签到库
 ├── overtime-gift-catalog-v2.json      # 官方 gold 礼物与盲盒关系的原子 v2 镜像
 ├── overtime-gift-assets-state-v2.json # v2 图片扫描完成状态
-├── overtime-gift-images/      # 按精确礼物 ID 管理的运行时图片缓存与 index.json
+├── overtime-gift-images/      # 按完整礼物身份管理的运行时图片缓存与 index.json
 ├── music-api-cache/           # 音乐 API 响应 JSON 缓存(TTL 5 分钟)
 ├── music-lyrics-cache/        # 歌词缓存(TTL 30 天)
 ├── .session-token             # 会话令牌(0600,服务关闭时删除)
@@ -110,7 +116,7 @@ data/
 | ----------- | --------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | songDb      | `song_db`       | v1-v5 | v1 列补全(tags/language/source_platform/original_group、pinned_at、requester_* 元数据);v2 `seedThemePresets`;v3 清理重复 (name, artist) 后建唯一索引;v4 幂等补充 `songs.request_price`;v5 幂等补充 `songs.song_clip`，旧歌曲的新字段均默认空字符串                                                                            |
 | superChatDb | `super_chat_db` | v1    | 基线                                                                                                                                                                                                                                                                                                                          |
-| giftDb      | `gift_db`       | v1-v9 | v1 `ensureGiftColumns`(cmd/blind_box/raw_json 等);v2 platform_id 索引;v3 `collapseDuplicateGiftIdentities` + 唯一索引 (platform_id, uid);v4 **检测账本升级**(`ensureGiftDetectionColumns`,历史记录标记 final 且仅归属礼物统计);v5 插入加班机单例行(id=1);v6 扩展加班机倒计时安全上限;v7 放开加班机 `display` 文字展板规则模式;v8 增加来源分区、同步状态、远程来源约束与索引；v9 幂等增加可空 `gift_events.blind_box_id`，旧行保持 `NULL` |
+| giftDb      | `gift_db`       | v1-v10 | v1 `ensureGiftColumns`(cmd/blind_box/raw_json 等);v2 platform_id 索引;v3 `collapseDuplicateGiftIdentities` + 唯一索引 (platform_id, uid);v4 **检测账本升级**(`ensureGiftDetectionColumns`,历史记录标记 final 且仅归属礼物统计);v5 插入加班机单例行(id=1);v6 扩展加班机倒计时安全上限;v7 放开加班机 `display` 文字展板规则模式;v8 增加来源分区、同步状态、远程来源约束与索引；v9 幂等增加可空 `gift_events.blind_box_id`，旧行保持 `NULL`；v10 增加冻结事件身份列并将规则主键升级为 ID + 身份，旧规则设置原样保留 |
 | musicDb     | `music_db`      | v1    | 基线                                                                                                                                                                                                                                                                                                                          |
 | checkinDb   | `checkin_db`    | v1    | 基线                                                                                                                                                                                                                                                                                                                          |
 
@@ -238,3 +244,7 @@ Phase 1 失败且全部事务已回滚时，只解除本次请求取得的暂停
 ADR [0011-source-partitioned-gift-ledger-projection](../adr/0011-source-partitioned-gift-ledger-projection.md) 接受在现有 `gift-data.db` 内增加 `gift_sources`、nullable `gift_events.source_id` 与 `gift_sync_state`。迁移前的行保留 `source_id=NULL`；新 `LIRA_SERVER_GIFT` 行必须由触发器保证引用有效 source。v9 追加可空 `gift_events.blind_box_id`，已有行不重判并保持 `NULL`；新远端投影保存服务器 DTO 中已验证的盒子 ID。source/time 索引服务完整历史查询，远程幂等唯一键改为 `(source_id, platform_id, cmd)`。
 
 `gift-sync-store.js` 将历史页和 page token、增量页和 cursor、最终历史页和 epoch/recovery cursor，以及清库重建的 generation/state reset 分别放在单个 `BEGIN IMMEDIATE` transaction 中。旧 `remote-gift-cursor.json` 不再作为当前状态源。可配置 retention 不删除非空 `source_id` 的服务器投影；数据库级清空礼物会在同一事务递增 projection generation 并重置同步状态，然后显式重建。完整 DDL、不变量和验收条件见 [gift-ledger-projection-sync_design.md](../../../specs/gift-ledger-projection-sync_design.md)。
+
+## 礼物身份迁移 v10
+
+`gift_events` 增加可空 `gift_variant_id`、`blind_box_variant_id`。旧行保持 NULL，新记录随原导入事务写入冻结身份。`overtime_gift_rules` 新增 `gift_identity_key TEXT NOT NULL DEFAULT ''` 和 `gift_identity_json TEXT`，主键改为 `(gift_id, gift_identity_key)`；原九列内容完整复制。迁移可重复检查，不推断旧名称对应的标价。数字平台 ID 的无身份规则保留并等待重新选择；settlements 内容不迁移、不回放。运行时图片 index schema 2 以 variantId 保存最近成功文件，旧 numeric ID 索引不参与回退。详见 [ADR-0014](../adr/0014-gift-identity-bound-overtime.md)。

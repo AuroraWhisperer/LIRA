@@ -6,6 +6,10 @@
 
 ## 1. 职责与架构
 
+2026-09-13 身份升级：[完整规格](../../../specs/gift-identity-overtime.md)、[ADR-0014](../adr/0014-gift-identity-bound-overtime.md)。目录按完整 `variantId` 保留同 ID 的不同名称/标价；规则保存可空 `giftIdentity`，包含 variantId、priceRaw、coinType、bagGift，并以 `(gift_id, gift_identity_key)` 唯一。快照的 `bindingStatus` 为 `bound` 或 `needs-selection`。后者保留原设置、等待重新选择，数字平台 ID 尚不触发加班。重新选择只改礼物资料，保留生效方式、时间、随机设置、数量模式和排序。
+
+结算匹配同一真实 gift ID 的冻结 `gift_variant_id`；未知或其他身份不匹配。规则 snapshot 冻结 `giftIdentity`，既有 applied/ignored 记录及历史同步不重新结算。服务端 Device 三种交付请求主动协商身份字段，旧 DTO 仍可读取为身份未知；大航海别名兼容不变。
+
 加班机是一个**单进程内领域模块**,不新增进程、框架或外部服务:礼物统计与加班机是两个并列消费者,共享同一个礼物检测核心(ADR [0006-shared-gift-detection-core](../adr/0006-shared-gift-detection-core.md)),三张表与 `gift_events` 同库(`gift-data.db`)以便结算在单一 SQLite 事务内完成(ADR [0004-reuse-monolith-and-gift-db](../adr/0004-reuse-monolith-and-gift-db.md))。
 
 ### 1.1 模块布局
@@ -19,7 +23,7 @@
 | `overtime-consumer.js`    | 礼物消费者适配层(`createOvertimeConsumer`):`progress → observeGift`、`final → finalizeGift`                         |
 | `remote-catalog-cache.js` | Electron 主进程注入的服务器全局礼物目录缓存:持久化规范化快照、ETag 条件刷新、单飞与低频轮询；网络失败不覆盖已有快照 |
 | `remote-gift-image-cache.js` | 服务器图片缓存:限定配置服务器 origin/固定路径、限制下载大小与时限、校验 raster 图片并原子写入运行时 data 目录 |
-| `hybrid-catalog.js`       | 目录 facade:主读取/刷新固定使用 Bilibili 当前房间目录；服务器快照按精确礼物 ID 提供图片并支持按名称或 ID 搜索             |
+| `hybrid-catalog.js`       | 目录 facade:主读取/刷新固定使用 Bilibili 当前房间目录；服务器快照按完整礼物身份提供图片并支持按名称或 ID 搜索             |
 | `index.js`                | 统一导出(contract 透传 + 三个工厂)                                                                                  |
 
 ### 1.2 装配与单例
@@ -59,13 +63,15 @@ final    → service.finalizeGift(event)  // 立即结算(单一静默窗口,不
 
 ### 1.5 服务器全局礼物目录联动
 
-规则图片解析使用目录 facade 的 `resolveGiftImagePath(giftId)` 点查询。远程缓存维护随完整目录替换的 ID 索引，`getGift(id)` 返回单条副本；解析一条规则只检查该礼物的本地图片，不调用全局或房间完整快照来逐个验证全部图片。目录更新立即替换索引，图片缓存仍自行负责当前图片与最近成功图片的选择；快照查询不修改持久化规则或历史结算。
+规则图片解析使用目录 facade 的 `resolveGiftImagePath(giftId, imagePath, rule)` 点查询。远程缓存维护随完整目录替换的 ID 索引，`getGift(id, variantId)` 返回单条副本；仅有 ID 且多候选时返回 null；解析一条规则只检查该礼物的本地图片，不调用全局或房间完整快照来逐个验证全部图片。目录更新立即替换索引，图片缓存仍自行负责当前图片与最近成功图片的选择；快照查询不修改持久化规则或历史结算。
 
-目录选择器与礼物事件管线分离。主目录始终来自当前配置直播间的礼物面板、`giftConfig` 和已配置的在售盲盒展开，不读取个人账号背包。Electron main process 将已配置的 `LIRA_LICENSE_API_BASE` 作为唯一服务器入口，通过公开的 `GET /api/public/gifts/catalog` 读取全局 active 礼物目录；本地只保留金瓜子正价礼物，并供主目录精确 ID 补图和弹窗“搜索全部礼物”使用，不会增加或替换房间成员，也不会按名称合并同名不同 ID。入口只接受使用 DNS 主机名的 HTTPS 根 origin，HTTP、`localhost` 和 IP literal 均被拒绝。设备令牌只用于授权门控，不随公共目录请求发送，也不进入 renderer。
+礼物图片缺失或加载失败时，选择器、规则编辑、OBS 加班画面、最近收礼和盲盒映射统一通过 `public/js/shared/gift-image-fallback.js` 显示内置 `/img/gift-placeholder.png`。旧规则中的 SVG 占位地址仅在显示时替换，不修改规则身份或缓存元数据。重复更新图片仍保留错误回退；默认图本身失败时停止重试并保留周围的礼物名称。
 
-`remote-catalog-cache.js` 在本地 `data/overtime-gift-catalog-v2.json` 保存 ETag、同步版本、更新时间和规范化付费礼物数组。首次授权成功后，`gift-catalog-initializer.js` 保持登录页可见，扫描完整目录并从已校验的 Bilibili `sourceUrl` 下载图片；只有缺少可用源地址的条目才下载服务器 `/gift-media/images/<basename>`，B 站失败不会自动转为服务器批量下载。文件按礼物 ID、源 URL 和已校验服务器图片 URL 的 hash 分离，`data/overtime-gift-images/index.json`（schemaVersion 1，`images` 为 ID 到安全 basename 的映射）原子保存最近成功图片，换图失败继续使用旧图。完成状态写入 `data/overtime-gift-assets-state-v2.json`。目录不可用且没有旧快照时提供重试；单图失败不永久阻塞。已有完成状态的每次授权启动立即进入 Admin，并以 `If-None-Match` 检查一次；持续运行每 12 小时再检查，关闭时清理定时器。304 也检查本地缺图并补齐。Admin 只接收本地 `/overtime-gift-images/<basename>`，支持离线复用。
+目录选择器与礼物事件管线分离。主目录始终来自当前配置直播间的礼物面板、`giftConfig` 和已配置的在售盲盒展开，不读取个人账号背包。Electron main process 将已配置的 `LIRA_LICENSE_API_BASE` 作为唯一服务器入口，通过公开的 `GET /api/public/gifts/catalog?schemaVersion=3` 读取全局身份档案；完整校验原包后向选择器提供金瓜子礼物，并供主目录按完整身份补图和弹窗“搜索全部礼物”使用，不会增加或替换房间成员，也不会按名称合并同名不同 ID。入口只接受使用 DNS 主机名的 HTTPS 根 origin，HTTP、`localhost` 和 IP literal 均被拒绝。设备令牌只用于授权门控，不随公共目录请求发送，也不进入 renderer。
 
-`GET /api/overtime/gifts` 与 `POST /api/overtime/gifts/refresh` 不受远程目录是否配置影响，始终读取/刷新房间面板、`giftConfig` 和已配置的在售盲盒展开，不请求个人背包。`GET /api/overtime/gifts/catalog` 返回本地全局快照；`POST /api/overtime/gifts/local/search` 纯本地匹配名称/ID，旧 `/server/search` 只是同一实现的兼容别名。目录变化或缺图修复后，Live 完成图片扫描再通过本地 `/ws` 广播 `gift-catalog:update`，携带本地图片路径及 `assetsUpdatedAt`；Admin 按精确 ID 更新图片，不把全局成员列表应用成房间主目录。后续实际下载由既有 IPC 进度驱动单条 toast，显示开始、进度、完成或部分失败；无下载时不提示。目录更新不覆盖盲盒映射 `giftBlindBoxConfig`、计时规则或历史账本。所有本地搜索都不读取 Markdown、静态图库或在查询时联网。ICP备案后的公网页面仍使用 lira-server 原有分组 API 与 `/gifts` 路由，不依赖本地目录服务。
+`remote-catalog-cache.js` 在本地 `data/overtime-gift-catalog-v2.json` 保存 ETag、同步版本、更新时间和 schema 3 原始身份包及兼容的规范化付费礼物数组。首次授权成功后，`gift-catalog-initializer.js` 保持登录页可见，扫描完整目录并从已校验的 Bilibili `sourceUrl` 下载图片；只有缺少可用源地址的条目才下载服务器 `/gift-media/images/<basename>`，B 站失败不会自动转为服务器批量下载。文件按完整礼物身份、源 URL 和已校验服务器图片 URL 的 hash 分离，`data/overtime-gift-images/index.json`（schemaVersion 2，`images` 为 variantId 到安全 basename 的映射）原子保存最近成功图片，换图失败继续使用旧图。完成状态写入 `data/overtime-gift-assets-state-v2.json`。目录不可用且没有旧快照时提供重试；单图失败不永久阻塞。已有完成状态的每次授权启动立即进入 Admin，并以 `If-None-Match` 检查一次；持续运行每 12 小时再检查，关闭时清理定时器。304 也检查本地缺图并补齐。Admin 只接收本地 `/overtime-gift-images/<basename>`，支持离线复用。
+
+`GET /api/overtime/gifts` 与 `POST /api/overtime/gifts/refresh` 不受远程目录是否配置影响，始终读取/刷新房间面板、`giftConfig` 和已配置的在售盲盒展开，不请求个人背包。`GET /api/overtime/gifts/catalog` 返回本地全局快照；`POST /api/overtime/gifts/local/search` 纯本地匹配名称/ID，旧 `/server/search` 只是同一实现的兼容别名。目录变化或缺图修复后，Live 完成图片扫描再通过本地 `/ws` 广播 `gift-catalog:update`，携带本地图片路径及 `assetsUpdatedAt`；Admin 按完整身份更新图片，不把全局成员列表应用成房间主目录。后续实际下载由既有 IPC 进度驱动单条 toast，显示开始、进度、完成或部分失败；无下载时不提示。目录更新不覆盖盲盒映射 `giftBlindBoxConfig`、计时规则或历史账本。所有本地搜索都不读取 Markdown、静态图库或在查询时联网。ICP备案后的公网页面仍使用 lira-server 原有分组 API 与 `/gifts` 路由，不依赖本地目录服务。
 
 ## 2. 状态模型与权威计时
 
@@ -200,7 +206,7 @@ final    → service.finalizeGift(event)  // 立即结算(单一静默窗口,不
 | `fixed`             | `fixedEffect:{operation, value}`;operation ∈ `add`/`subtract`/`multiply`/`divide`/`clear`;add/subtract 的 value ∈ 0–315,328,464,000;multiply/divide 的 value ∈ 2–1,000                                                                                      | [overtime-contract.js:119-143](../../../src/overtime/overtime-contract.js#L119-L143) |
 | `random`(时间盲盒)  | `outcomes[2..10]`,每项 `{operation, value, weight}`;weight ∈ 1–100,000,总权重 ≤ 100,000                                                                                                                                                                     | [overtime-contract.js:91-107](../../../src/overtime/overtime-contract.js#L91-L107)   |
 | `display`(文字展板) | `displayText` 为 1–6 个 Unicode 字符且无控制字符；礼物结算记录保持幂等，但前后剩余时间相同                                                                                                                                                                  | [overtime-contract.js:75-86](../../../src/overtime/overtime-contract.js#L75-L86)     |
-| 公共                | `giftId` 必填 ≤100 字符且数组内唯一;`giftName` ≤100;`imagePath` 默认必须是站内路径(§5)，桌面远程目录可使用组合根配置 origin 下的 `/gift-media/images/<basename>` URL;`quantityMode` ∈ `group`/`item`;`enabled` 默认 true;`sortOrder` 整数;启用的规则 ≤ 8 条 | [overtime-contract.js:59-108](../../../src/overtime/overtime-contract.js#L59-L108)   |
+| 公共                | `giftId` 必填 ≤100 字符，与 `giftIdentity.variantId` 组合唯一;`giftName` ≤100;`imagePath` 默认必须是站内路径(§5)，桌面远程目录可使用组合根配置 origin 下的 `/gift-media/images/<basename>` URL;`quantityMode` ∈ `group`/`item`;`enabled` 默认 true;`sortOrder` 整数;启用的规则 ≤ 8 条 | [overtime-contract.js:59-108](../../../src/overtime/overtime-contract.js#L59-L108)   |
 
 ### 4.3 存储形态与带权抽取
 
@@ -215,7 +221,7 @@ final    → service.finalizeGift(event)  // 立即结算(单一静默窗口,不
 | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 背景 `path` | 必须为空字符串,或匹配 `/img/overtime-machine/<name>` 的内置图片路径                                                                                                                                                         | [overtime-contract.js:30-41](../../../src/overtime/overtime-contract.js#L30-L41)                                                                  |
 | 背景 `fit`  | `cover`(默认)`\| contain \| fill`                                                                                                                                                                                           | 同上                                                                                                                                              |
-| 路径安全    | `isAllowedImagePath`:本地路径拒绝 `..`、反斜杠和协议头且限定于内置目录；新服务器目录规则只保存 `/overtime-gift-images/<basename>`，并兼容组合根允许 origin 下既有 `/gift-media/images/<basename>` 绝对 URL；旧 `/img/bilibili-gifts/...` 只在迁移时按礼物 ID 替换，均拒绝凭据、查询参数、hash 和第三方源 | [overtime-contract.js](../../../src/overtime/overtime-contract.js) |
+| 路径安全    | `isAllowedImagePath`:本地路径拒绝 `..`、反斜杠和协议头且限定于内置目录；新服务器目录规则只保存 `/overtime-gift-images/<basename>`，并兼容组合根允许 origin 下既有 `/gift-media/images/<basename>` 绝对 URL；旧 `/img/bilibili-gifts/...` 只在迁移时按完整礼物身份替换，均拒绝凭据、查询参数、hash 和第三方源 | [overtime-contract.js](../../../src/overtime/overtime-contract.js) |
 | 时间输入    | `initialSeconds`/`remainingSeconds` 至少一个,0–315,328,464,000 整数                                                                                                                                                         | [overtime-contract.js:9-22](../../../src/overtime/overtime-contract.js#L9-L22)                                                                    |
 | 动作        | `start \| pause \| reset \| enable \| disable`                                                                                                                                                                              | [overtime-contract.js:22-28](../../../src/overtime/overtime-contract.js#L22-L28)                                                                  |
 

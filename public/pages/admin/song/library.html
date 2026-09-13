@@ -24,10 +24,36 @@
           <option value="true">是</option>
           <option value="false">否</option>
         </select>
+        <span class="hint">停用后不出现在公开歌单。</span>
       </label>
       <label>
         语言
         <input id="songLanguage" placeholder="例如：国语" />
+      </label>
+      <label>
+        点歌价格快捷填写
+        <select id="songPricePreset" data-dropdown-variant="settings">
+          <option value="">选择后仍可编辑</option>
+          <option value="免费">免费</option>
+          <option value="舰长">舰长</option>
+          <option value="提督">提督</option>
+          <option value="总督">总督</option>
+          <option value="金额元SC">SC（填写金额）</option>
+        </select>
+      </label>
+      <label>
+        点歌价格
+        <textarea id="songRequestPrice" rows="2" aria-describedby="songPriceHint songPriceLength"></textarea>
+        <span id="songPriceHint" class="hint">一个自由文本；留空时网页不显示价格。</span>
+        <span id="songPriceLength" class="hint">0 / 1000</span>
+      </label>
+      <div>
+        <span class="hint">网页价格预览</span>
+        <p id="songPricePreview" class="hint" style="white-space: pre-wrap; overflow-wrap: anywhere"></p>
+      </div>
+      <label>
+        歌切
+        <textarea id="songClip" rows="2" placeholder="链接 / BV号 / 时间点 / 说明"></textarea>
       </label>
       <label>
         核对平台
@@ -153,6 +179,7 @@
             <th>歌曲标签</th>
             <th>语言</th>
             <th>状态</th>
+            <th>点歌价格</th>
             <th id="songNoteColumnHeader">核对备注</th>
             <th>操作</th>
           </tr>

@@ -368,6 +368,10 @@ async function loadOvertimeModule({ document, window, state, saleGifts }) {
     identifier: entryUrl,
   });
   const stubs = {
+    '../shared/gift-image-fallback.js': new vm.SourceTextModule(
+      fs.readFileSync(path.join(ROOT_DIR, 'public/js/shared/gift-image-fallback.js'), 'utf8'),
+      { context, identifier: `${entryUrl}?gift-image-fallback` },
+    ),
     '../shared/gift-catalog-roles.js': new vm.SourceTextModule(
       fs.readFileSync(path.join(ROOT_DIR, 'public/js/shared/gift-catalog-roles.js'), 'utf8'),
       { context, identifier: `${entryUrl}?gift-catalog-roles` },
@@ -399,6 +403,7 @@ async function loadOvertimeModule({ document, window, state, saleGifts }) {
         '      const row = globalThis.__testDocument.createElement("article");',
         '      row.dataset.overtimeRule = "true";',
         '      row.dataset.giftId = String(gift.id);',
+        '      row.dataset.giftIdentity = JSON.stringify(gift.giftIdentity || null);',
         '      row.scrollIntoView = () => {};',
         '      root.append(row);',
         '      return row;',
@@ -440,6 +445,9 @@ async function loadOvertimeModule({ document, window, state, saleGifts }) {
   };
 
   await module.link((specifier) => {
+    if (specifier === './overtime-gift-identity.js') return new vm.SourceTextModule(
+      fs.readFileSync(path.join(path.dirname(OVERTIME_ENTRY), 'overtime-gift-identity.js'), 'utf8'),
+      { context, identifier: `${entryUrl}?gift-identity` });
     const dependency = stubs[specifier];
     if (!dependency) throw new Error(`Unexpected overtime dependency: ${specifier}`);
     return dependency;
@@ -447,6 +455,29 @@ async function loadOvertimeModule({ document, window, state, saleGifts }) {
   await module.evaluate();
   return module.namespace;
 }
+
+test('same-ID gift identities remain separately selectable and keep their own artwork', async () => {
+  const identities = require('../../lira-server/docs/protocol/fixtures/gift-catalog-variants.json');
+  const globalGifts = identities.response.variants.filter(gift => gift.giftId === '35429').map(gift => ({
+    ...gift, id: gift.giftId, imagePath: `/overtime-gift-images/${gift.variantId}.webp`,
+    giftIdentity: { variantId: gift.variantId, priceRaw: gift.priceRaw, coinType: gift.coinType, bagGift: gift.bagGift },
+  }));
+  const fixture = await createFixture({ globalGifts });
+  await openPicker(fixture);
+  await fixture.elements.globalSearchButton.dispatchEvent('click');
+  assert.equal(optionNodes(fixture).length, 2);
+  const first = optionNodes(fixture)[0];
+  await first.dispatchEvent('click');
+  await openPicker(fixture);
+  await fixture.elements.globalSearchButton.dispatchEvent('click');
+  assert.equal(optionNodes(fixture).length, 1);
+  assert.match(nodeText(optionNodes(fixture)[0]), /七夕盲盒/);
+  fixture.namespace.applyServerGiftArtwork({ schemaVersion: 3, gifts: globalGifts,
+    blindBoxes: [], variantBlindBoxes: [] });
+  assert.equal(optionNodes(fixture)[0].children[0].src, globalGifts[1].imagePath);
+  await optionNodes(fixture)[0].dispatchEvent('click');
+  assert.equal(new Set(fixture.state.addedGifts.map(gift => gift.giftIdentity.variantId)).size, 2);
+});
 
 function createGifts(count) {
   return Array.from({ length: count }, (_, index) => ({

@@ -16,6 +16,7 @@ const {
   createRequesterTargetStore,
 } = require('../music/requester-target-store');
 const songService = require('../music/song-service');
+const { previewSongImport, applySongImport } = require('../music/song-import-update');
 const queueService = require('../music/queue-service');
 const giftService = require('../bilibili/gift');
 const superChatService = require('../bilibili/superchat-service');
@@ -91,6 +92,8 @@ function createDomainServices(options) {
     listTags: () => songService.listTags(songStore),
     ensureCategory: (name) => songService.ensureCategory(songStore, name),
     import: (rows) => songService.importSongs(songStore, rows),
+    previewImport: (input) => previewSongImport(songStore, input),
+    applyImport: (input) => applySongImport(songStore, input),
     replaceCloud: (rows) => songService.replaceCloudSongs(songStore, rows),
     count: () => songService.countSongs(songStore),
     delete: (id) => songService.deleteSong(songStore, id),

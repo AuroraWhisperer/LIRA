@@ -1,4 +1,37 @@
 /* ===== 点歌工作区布局 ===== */
+#songForm label {
+  align-content: start;
+}
+
+#songRequestPrice,
+#songClip {
+  min-height: 72px;
+}
+
+#songPricePreview {
+  max-height: 120px;
+  overflow: auto;
+}
+
+#songImportPreviewRows td {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-width: 360px;
+  vertical-align: top;
+}
+
+#songImportUpdateOptions .checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#songImportAllowEmptyClear {
+  width: 18px;
+  min-height: 18px;
+  flex: 0 0 18px;
+}
+
 .song-workspace {
   display: flex;
   flex-direction: column;

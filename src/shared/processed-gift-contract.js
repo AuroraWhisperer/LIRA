@@ -211,9 +211,11 @@ function validateProcessedGiftHistoryRecordWire(input, errorFactory) {
 }
 
 function validateGiftDisplayWire(source, errorFactory) {
-  if (!isPlainObject(source) || !hasExactKeys(source, GIFT_KEYS)) {
+  if (!isPlainObject(source) || (!hasExactKeys(source, GIFT_KEYS) &&
+      !hasExactKeys(source, [...GIFT_KEYS, 'giftVariantId', 'blindBoxVariantId']))) {
     throw errorFactory();
   }
+  normalizeGiftIdentityFields(source, errorFactory);
   for (const key of [
     'giftId',
     'giftName',
@@ -341,7 +343,20 @@ function canonicalizeGiftDisplay(source, errorFactory) {
     blindProfit: blindProfitCents === null ? null : blindProfitCents / 100,
     blindProfitCents,
     createdAt: new Date(createdAtMs).toISOString(),
+    ...normalizeGiftIdentityFields(source, errorFactory),
   });
+}
+
+function normalizeGiftIdentityFields(source, errorFactory) {
+  const result = {};
+  for (const key of ['giftVariantId', 'blindBoxVariantId']) {
+    const value = source[key];
+    if (value !== undefined && value !== null &&
+        (typeof value !== 'string' || !/^gv_[a-f0-9]{64}$/u.test(value))) throw errorFactory();
+    result[key] = value ?? null;
+  }
+  if (source.isBlindBox !== true && result.blindBoxVariantId !== null) throw errorFactory();
+  return result;
 }
 
 function normalizeOptionalBlindBoxId(value, errorFactory) {

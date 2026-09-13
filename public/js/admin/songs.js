@@ -23,10 +23,23 @@ import {
   } = window.AdminApp.utils;
 
   function initSongForm() {
+    document.getElementById('songRequestPrice').addEventListener('input', () => {
+      setValue('songPricePreset', '');
+      updateSongPricePreview();
+    });
+    document.getElementById('songPricePreset').addEventListener('change', () => {
+      const preset = value('songPricePreset');
+      if (!preset) return;
+      setValue('songRequestPrice', preset);
+      updateSongPricePreview();
+      document.getElementById('songRequestPrice').focus();
+    });
     document
       .getElementById('songForm')
       .addEventListener('submit', async (event) => {
         event.preventDefault();
+        updateSongPricePreview();
+        if (!document.getElementById('songRequestPrice').reportValidity()) return;
         await api('/api/songs/save', {
           id: value('songId') || undefined,
           name: value('songName'),
@@ -35,11 +48,13 @@ import {
           tags: value('songTags'),
           isEnabled: value('songIsEnabled') === 'true',
           language: value('songLanguage'),
+          requestPrice: value('songRequestPrice'),
+          songClip: value('songClip'),
           sourcePlatform: value('songSourcePlatform'),
           note: value('songNote'),
         });
         resetSongForm();
-        toast('歌曲已保存');
+        toast('歌曲已保存到本地；网页更新以云端同步结果为准');
         if (window.AdminApp.state && window.AdminApp.state.reloadAll) {
           await window.AdminApp.state.reloadAll();
         }
@@ -236,6 +251,15 @@ import {
     menu.querySelector('[role="menuitem"]')?.focus();
   }
 
+  function updateSongPricePreview() {
+    const input = document.getElementById('songRequestPrice');
+    const length = input.value.length;
+    const error = length > 1000 ? '点歌价格过长，请缩短后保存（上限 1000）。' : '';
+    input.setCustomValidity(error);
+    document.getElementById('songPriceLength').textContent = `${length} / 1000${error ? ' · 超出长度，请修正' : ''}`;
+    document.getElementById('songPricePreview').textContent = input.value.trim();
+  }
+
   function resetSongForm() {
     setValue('songId', '');
     setValue('songName', '');
@@ -244,6 +268,10 @@ import {
     setValue('songTags', '');
     setValue('songIsEnabled', 'true');
     setValue('songLanguage', '');
+    setValue('songRequestPrice', '');
+    setValue('songClip', '');
+    setValue('songPricePreset', '');
+    updateSongPricePreview();
     setValue('songSourcePlatform', '');
     setValue('songNote', '');
   }
@@ -265,7 +293,7 @@ import {
     const showNoteColumn = songs.some((song) => String(song.note || '').trim());
     document.getElementById('songNoteColumnHeader').hidden = !showNoteColumn;
     if (songs.length === 0) {
-      table.innerHTML = '<tr><td colspan="8">暂无歌曲</td></tr>';
+      table.innerHTML = '<tr><td colspan="9">暂无歌曲</td></tr>';
       return;
     }
     table.innerHTML = songs
@@ -273,12 +301,13 @@ import {
         (song) => `
       <tr>
         <td>${escapeHtml(song.name_initial || '#')}</td>
-        <td><strong>${escapeHtml(song.name)}</strong></td>
+        <td><strong>${escapeHtml(song.name)}</strong>${song.song_clip ? `<details><summary>歌切</summary><span style="white-space: pre-wrap; overflow-wrap: anywhere">${escapeHtml(song.song_clip)}</span></details>` : ''}</td>
         <td>${escapeHtml(song.artist || '')}</td>
         <td>${escapeHtml(song.category_name || '默认')}</td>
         <td>${escapeHtml(song.tags || '')}</td>
         <td>${escapeHtml(song.language || '')}</td>
         <td>${song.is_enabled ? '可点' : '停用'}</td>
+        <td style="white-space: pre-wrap; overflow-wrap: anywhere; max-width: 240px">${escapeHtml(song.request_price ?? '')}</td>
         ${showNoteColumn ? `<td>${escapeHtml(song.note || '')}</td>` : ''}
         <td class="song-actions-cell">
           <div class="song-actions-menu">
@@ -315,6 +344,10 @@ import {
         setValue('songTags', song.tags || '');
         setValue('songIsEnabled', song.is_enabled ? 'true' : 'false');
         setValue('songLanguage', song.language || '');
+        setValue('songRequestPrice', song.request_price ?? '');
+        setValue('songClip', song.song_clip ?? '');
+        setValue('songPricePreset', '');
+        updateSongPricePreview();
         setValue('songSourcePlatform', song.source_platform || '');
         setValue('songNote', song.note || '');
         toast('已加载到编辑表单');

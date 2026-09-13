@@ -56,7 +56,7 @@ function createShutdownHarness(options = {}) {
   const app = Object.assign(new EventEmitter(), {
     isPackaged: false,
     getPath: () => 'C:\\synthetic-lira-shutdown',
-    setPath() {},
+    setPath(name) { calls.push('app:path:' + name); },
     getName: () => 'LIRA',
     setName() {},
     getVersion: () => '0.0.0-test',
@@ -65,7 +65,7 @@ function createShutdownHarness(options = {}) {
     releaseSingleInstanceLock: () => calls.push('app:release-lock'),
     relaunch: () => calls.push('app:relaunch'),
     exit(code) {
-      assert.equal(code, 0);
+      assert.equal(code, options.recoveryDataDir ? 1 : 0);
       calls.push('app:exit');
     },
     quit() { return quit(); },
@@ -124,7 +124,7 @@ function createShutdownHarness(options = {}) {
     },
   });
   const modules = {
-    'node:fs': { mkdirSync() {}, existsSync: () => false },
+    'node:fs': { mkdirSync() {}, existsSync: (value) => Boolean(options.recoveryDataDir && value === options.recoveryDataDir) },
     'node:path': path,
     'node:crypto': { randomUUID: () => 'shutdown-test' },
     electron: {
@@ -159,7 +159,7 @@ function createShutdownHarness(options = {}) {
       }),
     },
     './desktop-user-data': {
-      resolveDesktopUserDataPaths: () => ({ dataDir: app.getPath() }),
+      resolveDesktopUserDataPaths: () => ({ dataDir: app.getPath(), recoveryDataDir: options.recoveryDataDir }),
       migrateLegacyUserData() {},
     },
     './cloud-sync-controller': {
@@ -235,10 +235,10 @@ function createShutdownHarness(options = {}) {
     calls, logs, state, clock, remoteIdle, cloudIdle, backendStop, startupErrors,
     powerMonitor, handlers, quit, settle,
     get runtimeOpen() { return runtimeOpen; },
-    async start() {
+    async start({ expectStartupError = false } = {}) {
       ready.resolve();
       await settle();
-      assert.deepEqual(startupErrors, []);
+      if (!expectStartupError) assert.deepEqual(startupErrors, []);
     },
     restart: () => handlers.get('desktop:restart')(),
     count: (call) => calls.filter((value) => value === call).length,

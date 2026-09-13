@@ -45,6 +45,8 @@ function createApiContext(options) {
       delete: domainServices.songs.delete,
       toggle: domainServices.songs.toggle,
       import: domainServices.songs.import,
+      previewImport: domainServices.songs.previewImport,
+      applyImport: domainServices.songs.applyImport,
       listCategories: domainServices.songs.listCategories,
     },
     queue: {

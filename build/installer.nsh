@@ -1,30 +1,7 @@
 ManifestDPIAware true
 
 !macro customInit
-  ; Preserve the install-local data used by older releases before electron-builder
-  ; runs their uninstaller. The destination intentionally differs from
-  ; $APPDATA\LIRA because the already-installed uninstaller deletes that path.
-  IfFileExists "$INSTDIR\data\*.*" 0 persistentDataMigrationDone
-  IfFileExists "$APPDATA\com.aurorawhisperer.lira\data\*.*" persistentDataMigrationDone 0
-  CreateDirectory "$APPDATA\com.aurorawhisperer.lira"
-  RMDir "$APPDATA\com.aurorawhisperer.lira\data"
-  RMDir /r "$APPDATA\com.aurorawhisperer.lira\data.migration"
-  nsExec::ExecToStack '"$SYSDIR\robocopy.exe" "$INSTDIR\data" "$APPDATA\com.aurorawhisperer.lira\data.migration" /E /XJ /COPY:DAT /DCOPY:DAT /R:2 /W:1 /NFL /NDL /NJH /NJS /NP'
-  Pop $R4
-  Pop $R5
-  StrCmp $R4 "error" persistentDataMigrationFailed
-  IntCmp $R4 8 persistentDataMigrationFailed persistentDataMigrationPublish persistentDataMigrationFailed
-
-  persistentDataMigrationPublish:
-    ClearErrors
-    Rename "$APPDATA\com.aurorawhisperer.lira\data.migration" "$APPDATA\com.aurorawhisperer.lira\data"
-    IfErrors persistentDataMigrationFailed persistentDataMigrationDone
-
-  persistentDataMigrationFailed:
-    RMDir /r "$APPDATA\com.aurorawhisperer.lira\data.migration"
-    Abort "LIRA 无法把旧版用户数据迁移到永久保存目录。安装已停止，旧数据仍保留在原安装目录。"
-
-  persistentDataMigrationDone:
+  Call liraSelectDefaultDirectory
   ; Only inspect this app's key in electron-builder's selected install context.
   ; Its UninstallString is a quoted executable followed by install-mode arguments.
   ReadRegStr $R3 SHELL_CONTEXT "${UNINSTALL_REGISTRY_KEY}" "UninstallString"
@@ -38,4 +15,86 @@ ManifestDPIAware true
   IfFileExists "$R4" customInitDone
   DeleteRegKey SHELL_CONTEXT "${UNINSTALL_REGISTRY_KEY}"
   customInitDone:
+!macroend
+
+!macro customWelcomePage
+  ; The builder resets INSTDIR when the install mode changes. Apply the fresh
+  ; install default again in its directory-page pre-hook, including update pages.
+  !include "installer-directory.nsh"
+!macroend
+
+!macro customHeader
+  !ifndef BUILD_UNINSTALLER
+    !include "installer-data.nsh"
+    Function liraSelectDefaultDirectory
+      ReadRegStr $liraPreviousInstallDir SHELL_CONTEXT "${INSTALL_REGISTRY_KEY}" "InstallLocation"
+      !insertmacro GetDParameter $R0
+      StrCmp $R0 "" 0 liraDirectorySelected
+      StrCmp $liraPreviousInstallDir "" 0 liraDirectorySelected
+      IfFileExists "D:\*.*" 0 liraDirectorySelected
+      StrCpy $INSTDIR "D:\LIRA"
+      liraDirectorySelected:
+        StrCmp $liraPreviousInstallDir "" 0 liraDirectoryReady
+        StrCpy $liraPreviousInstallDir "$INSTDIR"
+      liraDirectoryReady:
+    FunctionEnd
+    ; This section runs after directory selection and before the builder's install
+    ; section. An unelevated all-users instance leaves preservation to its child.
+    Section "-LIRA Preserve Data"
+      ${If} $installMode == "all"
+      ${AndIfNot} ${UAC_IsAdmin}
+        Goto liraPreservationDeferred
+      ${EndIf}
+      Call liraWaitForAppExit
+      ; Electron profiles are per-user even for an all-users installation.
+      SetShellVarContext current
+      Call liraPreserveInstallData
+      ${If} $installMode == "all"
+        SetShellVarContext all
+      ${EndIf}
+      liraPreservationDeferred:
+    SectionEnd
+  !endif
+!macroend
+
+!macro customInstall
+  Call liraRestoreInstallData
+  ; Keep the updater's cached installer alongside its local download cache.
+  Push "$INSTDIR\updates\${APP_INSTALLER_STORE_FILE}"
+  Call GetFileParent
+  Pop $R0
+  CreateDirectory "$R0"
+  ClearErrors
+  StrCmp "$EXEPATH" "$INSTDIR\updates\${APP_INSTALLER_STORE_FILE}" liraInstallerCached
+  CopyFiles /SILENT "$EXEPATH" "$INSTDIR\updates\${APP_INSTALLER_STORE_FILE}"
+  liraInstallerCached:
+    SetShellVarContext current
+    Delete "$LOCALAPPDATA\${APP_INSTALLER_STORE_FILE}"
+    ${If} $installMode == "all"
+      SetShellVarContext all
+    ${EndIf}
+!macroend
+
+!macro customRemoveFiles
+  ; Remove program files while retaining local data, logs and updater downloads.
+  SetOutPath $TEMP
+  FindFirst $R0 $R1 "$INSTDIR\*"
+  liraRemoveNext:
+    StrCmp $R1 "" liraRemoveDone
+    StrCmp $R1 "." liraRemoveSkip
+    StrCmp $R1 ".." liraRemoveSkip
+    StrCmp $R1 "data" liraRemoveSkip
+    StrCmp $R1 "logs" liraRemoveSkip
+    StrCmp $R1 "updates" liraRemoveSkip
+    IfFileExists "$INSTDIR\$R1\*.*" 0 liraRemoveFile
+    RMDir /r "$INSTDIR\$R1"
+    Goto liraRemoveSkip
+    liraRemoveFile:
+      Delete "$INSTDIR\$R1"
+    liraRemoveSkip:
+      FindNext $R0 $R1
+      Goto liraRemoveNext
+  liraRemoveDone:
+    FindClose $R0
+    RMDir "$INSTDIR"
 !macroend

@@ -41,6 +41,10 @@ implementation, but it cannot redefine an accepted specification.
 | `specs/wesing-lyric-source-selection_design.md`  | Design specification  | Implemented | `src/music/wesing-online-lyrics.js`<br>`public/js/admin/desktop-lyric.js`<br>`test/wesing-online-lyrics.test.js`                                                                                                                                                                                                                                                                                             | 2026-08-16    |
 | `specs/wesing-lyric-sync-controls_design.md`     | Design specification  | Implemented | `src/music/wesing-capture-engine.js`<br>`src/server/routes/wesing-routes.js`<br>`test/wesing-capture.test.js`                                                                                                                                                                                                                                                                                                | 2026-08-16    |
 
+| `specs/gift-identity-overtime.md` | Design specification | Implemented | `src/shared/gift-identity.js`<br>`src/storage/gift-identity-migration.js`<br>`src/overtime/overtime-store.js`<br>`test/gift-identity-catalog.test.js`<br>`test/overtime-service.test.js` | 2026-09-13 |
+
+| `specs/song-request-metadata.md` | Design specification | Implemented | `public/js/admin/songs.js`<br>`src/music/song-import-update.js`<br>`test/song-request-form.test.js`<br>`test/song-import-update.test.js`<br>`test/song-import-update-ui.test.js`<br>`test/song-file-codec.test.js` | 2026-09-13 |
+
 <!-- SPEC_INDEX_END -->
 
 ## Status Vocabulary

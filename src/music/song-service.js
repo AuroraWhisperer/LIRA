@@ -3,7 +3,12 @@
 // 纯 music 域，不包含 Bilibili 逻辑。
 'use strict';
 
-const { now, cleanText, getInitial } = require('../shared/utils');
+const {
+  now,
+  cleanText,
+  cleanTextPreserveLines,
+  getInitial,
+} = require('../shared/utils');
 const {
   SONG_EXPORT_HEADERS,
   SONG_IMPORT_ALIASES,
@@ -48,9 +53,11 @@ function saveSong(store, input) {
     language: cleanText(input.language),
     sourcePlatform: cleanText(input.sourcePlatform || input.source_platform),
     hasRequestPrice,
-    requestPrice: cleanText(input.requestPrice ?? input.request_price),
+    requestPrice: cleanTextPreserveLines(
+      String(input.requestPrice ?? input.request_price ?? ''),
+    ),
     hasSongClip,
-    songClip: cleanText(input.songClip ?? input.song_clip),
+    songClip: cleanTextPreserveLines(input.songClip ?? input.song_clip),
     updatedAt: now(),
   });
 }
@@ -169,11 +176,16 @@ function ensureCategory(store, name) {
 }
 
 function importSongs(store, rows) {
-  const normalizedRows = rows.map(normalizeImportedSongRow);
   const failures = [];
   const validRows = [];
-  for (let index = 0; index < normalizedRows.length; index += 1) {
-    const row = normalizedRows[index];
+  for (let index = 0; index < rows.length; index += 1) {
+    let row;
+    try {
+      row = normalizeImportedSongRow(rows[index]);
+    } catch (error) {
+      failures.push({ row: index + 1, reason: error.message });
+      continue;
+    }
     if (!row.name) {
       failures.push({ row: index + 1, reason: '歌曲名字为空' });
       continue;
@@ -182,11 +194,11 @@ function importSongs(store, rows) {
   }
 
   const result = store.importRows(validRows, {
-    totalCount: normalizedRows.length,
+    totalCount: rows.length,
     failedCount: failures.length,
   });
   return {
-    total: normalizedRows.length,
+    total: rows.length,
     inserted: result.inserted,
     duplicate: result.duplicate,
     failed: failures.length,

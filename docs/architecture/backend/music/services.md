@@ -186,8 +186,12 @@ Provider 内部实现见各 Provider 文档 §7.2;这里只记录编排层语义
 ### 7.3 导入(importSongs,[song-service.js](../../../../src/music/song-service.js))
 
 - `normalizeImportedSongRow` 与空歌名/云快照校验由领域层负责(§11);`store.importRows` 将有效行与 `import_batches` 写入同一事务,失败 `ROLLBACK`
-- 逐行:名空计 failed → `(name, artist)` 重复计 duplicate 跳过 → 新分类计数 → INSERT;`store.replaceAll` 负责清空并解除历史引用后原子写入云快照
+- 逐行:价格别名冲突或名空计 failed，`failures` 返回数据行序号与原因 → `(name, artist)` 重复计 duplicate 跳过（不更新已有价格/歌切） → 新分类计数 → INSERT;`store.replaceAll` 负责清空并解除历史引用后原子写入云快照
 - 结束写 `import_batches` 批次记录;返回 `{total, inserted, duplicate, failed, createdCategories, failures}`
+
+显式更新由 [song-import-update.js](../../../../src/music/song-import-update.js) 的 `previewSongImport(store,input)` / `applySongImport(store,input)` 拥有。按清洗后的歌名加歌手精确匹配，包含停用歌曲；只新增和更新，不删除无关记录。缺列保留、空默认保留；显式 `allowEmptyClear` 仅清空存在列的文本，分类空变默认，启用空保留。非空启用值必须明确，价格新值超过 1000 UTF-16 code unit 无效。
+
+预览给五类计数及逐行字段差异；同身份同指定内容重复折叠，不同内容的全组冲突，任何冲突或无效禁止整批提交。预览 token 绑定完整歌曲（含更新时间）、全部分类与输入/空值选项；提交委托 `store.applyImportUpdate(buildPlan)` 在事务内重算并检查，避免预览后歌曲/分类变化时覆盖编辑。通过后一次事务写入，失败全部回滚，保持原 song id。详细 API 和错误见 [API 歌库域](../api.md)。
 
 ### 7.4 随机选歌(pickRandomSong,[song-service.js](../../../../src/music/song-service.js))
 
@@ -303,17 +307,21 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 
 `SONG_EXPORT_HEADERS` 10 列([song-import-schema.js:5-16](../../../../src/music/song-import-schema.js#L5-L16)):`歌曲名字 / 原唱/首发歌手 / 歌曲分类 / 歌曲标签 / 是否可点 / 语言 / 点歌价格 / 歌切 / 核对平台 / 核对备注`。`点歌价格` 是自由文本说明，例如 `免费 / 心动 / 30元SC / 舰长 / 冠歌`;`歌切` 是可放链接、BV 号、时间点或其他说明的自由文本。两列均不参与点歌资格或排序判断。
 
-`SONG_IMPORT_ALIASES` 每字段维护中英文别名([song-import-schema.js:18-29](../../../../src/music/song-import-schema.js#L18-L29));`requestPrice` 接受 `requestPrice / request_price / 点歌价格 / 点歌价 / 点歌门槛 / 点歌要求`;`songClip` 接受 `songClip / song_clip / 歌切 / 歌切链接 / 歌曲切片 / 切片链接`。`firstValue` 按别名顺序取首个非空;`parseEnabled` 识别 `是/可点/启用/true/yes/y/1` 与反向集,未识别回退默认值。`normalizeImportedSongRow` 产出清洗后的行,分类缺省"默认"，点歌价格与歌切均缺省空字符串。
+`SONG_IMPORT_ALIASES` 每字段维护中英文别名([song-import-schema.js](../../../../src/music/song-import-schema.js));`requestPrice` 接受 `requestPrice / request_price / 点歌价格 / 点歌价 / 点歌门槛 / 点歌要求 / 点歌条件 / 点歌说明`;`songClip` 接受 `songClip / song_clip / 歌切 / 歌切链接 / 歌曲切片 / 切片链接`。价格所有非空别名经文本规范化后必须相同，否则该数据行失败；其他字段的 `firstValue` 仍按别名顺序取首个非空。`parseEnabled` 识别 `是/可点/启用/true/yes/y/1` 与反向集,未识别回退默认值。`normalizeImportedSongRow` 产出清洗后的行,分类缺省"默认"，点歌价格与歌切均缺省空字符串。
+
+按 [点歌资料规范](../../../../specs/song-request-metadata.md)，价格和歌切在导入、保存中使用 `cleanTextPreserveLines`，保留内部空格和换行，统一 CRLF、去除控制字符及首尾空白；价格数值 0 变为文本 `0`。显式升级原先的空白折叠和价格首别名规则，其余字段不变。普通保存省略价格/歌切保留旧值，显式空字符串清空。
 
 ### 11.2 编解码(song-file-codec.js)
 
 | 函数                         | 行为                                                                                                                                                                                                                                                                    |
 | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `parseSongsFromXlsx(buffer)` | 零依赖 ZIP 解析(`readZipFiles`):定位 `xl/worksheets/sheet\d+.xml`、读 `sharedStrings.xml`、`parseWorksheetXml`;表头检测 = 任一行单元格命中别名;无表头按导出列序解析;`name` 为空的尾行丢弃([song-file-codec.js:19-37](../../../../src/music/song-file-codec.js#L19-L37)) |
+| `parseSongsFromXlsx(buffer, options?)` | 零依赖 ZIP 解析(`readZipFiles`):定位 `xl/worksheets/sheet\d+.xml`、读 `sharedStrings.xml`、`parseWorksheetXml`;表头检测 = 任一行单元格命中别名;默认新增模式无表头按导出列序解析、丢弃空歌名行；`preserveMissing:true` 更新模式保留无歌名的非空行交由预览报无效，保留缺列语义且无表头要求完整十列。 |
 | `buildSongsCsv(rows)`        | 表头 + `csvCell` 转义逐行                                                                                                                                                                                                                                               |
 | `buildSongsWorkbook(rows)`   | 手工拼 xlsx(inlineStr 单元格 + 6 个 zip 条目,含 workbook/styles/rels)                                                                                                                                                                                                   |
-| `templateSongs()`            | 两行示例数据(晴天/小幸运)，点歌价格示例覆盖 `免费` 及 `心动 / 30元SC / 舰长 / 冠歌`，歌切默认留空                                                                                                                                                                       |
-| `songToExportRow(song)`      | 行映射(分类缺省"默认"、`is_enabled` → 是/否、`request_price` → 点歌价格、`song_clip` → 歌切，核对平台导出为空)                                                                                                                                                          |
+| `templateSongs()`            | 五行示例数据，每首一个价格文本：晴天免费、小幸运30元SC、红豆舰长、后来提督、遇见总督；歌切留空，首行仍为十列表头 |
+| `songToExportRow(song)`      | 行映射(分类缺省"默认"、`is_enabled` → 是/否、`request_price` → 点歌价格、`song_clip` → 歌切，`source_platform` → 核对平台保存值；阶段 4 显式替代空值规则) |
+
+`parseSongsFromXlsx(buffer,{preserveMissing:true})` 用于更新模式：保留无歌名的非空数据行供预览报无效，表头缺列不补为默认字段，无表头必须完整十列；默认新增解析行为不变。
 
 ## 12. 请求者定位(requester-target-store.js)
 

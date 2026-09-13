@@ -53,7 +53,7 @@ test('recent blind-box icon names stay escaped at the HTML attribute boundary', 
       assert.equal(row[field], raw);
       assert.ok(
         list.innerHTML.includes(
-          `<img class="gift-type-icon gift-blind-box-icon" src="/img/overtime-machine/gift-placeholder.svg" alt="${escaped}图标" title="${escaped}">`,
+          `<img class="gift-type-icon gift-blind-box-icon" src="/img/gift-placeholder.png" alt="${escaped}图标" title="${escaped}">`,
         ),
         `expected an escaped icon for ${field}: ${raw}`,
       );
@@ -139,7 +139,7 @@ test('gift panel renders empty and populated recent gifts without legacy history
   assert.equal(globals.console.error.mock.callCount(), 0);
 });
 
-test('heart-box output cards show source artwork and signed profit even without a source name', async () => {
+test('heart-box output cards require source identity evidence for artwork and preserve signed profit', async () => {
   const list = { innerHTML: '', classList: { toggle() {} }, querySelectorAll: () => [] };
   const globals = {
     window: {
@@ -149,8 +149,8 @@ test('heart-box output cards show source artwork and signed profit even without 
         formatMoney: (value) => `¥${Number(value).toFixed(2)}`,
       } },
       fetch: async () => ({ ok: true, json: async () => ({ ok: true, data: { gifts: [
-        { id: heartBox.box.id, imagePath: '/overtime-gift-images/32251.webp' },
-        ...heartBox.outputs.map(item => ({ id: item.id, imagePath: `/overtime-gift-images/${item.id}.webp` })),
+        { id: heartBox.box.id, name: heartBox.box.name, imagePath: '/overtime-gift-images/32251.webp' },
+        ...heartBox.outputs.map(item => ({ id: item.id, name: item.name, imagePath: `/overtime-gift-images/${item.id}.webp` })),
       ] } }) }),
       getComputedStyle: () => ({ gridTemplateColumns: '270px' }),
     },
@@ -165,8 +165,9 @@ test('heart-box output cards show source artwork and signed profit even without 
         is_blind_box: true, blind_box_id: heartBox.box.id, blind_box_name: name,
         total_price: item.rmb, blind_box_price: heartBox.box.rmb, blind_profit: item.profit };
       recent.renderGiftRecentList([row]);
-      assert.match(list.innerHTML, /blind-box-card blind-box-heart/);
-      assert.match(list.innerHTML, /src="\/overtime-gift-images\/32251.webp"/);
+      assert.match(list.innerHTML, name ? /blind-box-card blind-box-heart/ : /blind-box-card blind-box-default/);
+      assert.match(list.innerHTML, name ? /src="\/overtime-gift-images\/32251.webp"/
+        : /src="\/img\/gift-placeholder.png"/);
       assert.ok(!list.innerHTML.includes(`/overtime-gift-images/${item.id}.webp`));
       assert.match(list.innerHTML, item.profit < 0
         ? /class="profit-down">-¥6\.00<\/span>/

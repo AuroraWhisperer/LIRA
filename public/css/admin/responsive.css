@@ -364,8 +364,16 @@
   white-space: nowrap;
 }
 .gift-remark-tag.blind {
-  background: #fef3e2;
-  color: #9a6a00;
+  background: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+}
+.gift-remark-tag.blind.profit-up {
+  background: var(--color-danger-light);
+  color: var(--color-danger);
+}
+.gift-remark-tag.blind.profit-down {
+  background: var(--color-success-light);
+  color: var(--color-success-dark);
 }
 .gift-remark-tag.guard {
   background: #ffe9ed;

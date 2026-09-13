@@ -3,6 +3,7 @@
 'use strict';
 
 const { app } = require('electron');
+const path = require('node:path');
 
 // 延迟加载 autoUpdater 避免在 app ready 之前初始化
 let autoUpdater = null;
@@ -10,6 +11,12 @@ let autoUpdater = null;
 function getAutoUpdater() {
   if (!autoUpdater) {
     autoUpdater = require('electron-updater').autoUpdater;
+    if (process.platform === 'win32') {
+      // Retain the default Electron HTTP executor; only relocate its disk cache.
+      Object.defineProperty(autoUpdater.app, 'baseCachePath', {
+        value: path.join(path.dirname(app.getPath('userData')), 'updates'),
+      });
+    }
   }
   return autoUpdater;
 }

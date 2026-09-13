@@ -3,10 +3,13 @@ data/
 !public/data/theme-presets.json
 node_modules/
 release/
+/output/
 tmp/
 .tmp*/
 build/*
 !build/installer.nsh
+!build/installer-data.nsh
+!build/installer-directory.nsh
 scripts/capture-ui.js
 .claude/
 *.log

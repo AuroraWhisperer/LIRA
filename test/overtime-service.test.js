@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
+const { giftVariantId } = require('../src/shared/gift-identity');
 const {
   MAX_OVERTIME_SECONDS,
   createOvertimeConsumer,
@@ -21,10 +22,10 @@ const {
   getSchemaVersions,
 } = require('../src/storage/database');
 
-test('gift database v9 creates overtime tables and safe singleton defaults', () => {
+test('gift database v10 creates overtime tables and safe singleton defaults', () => {
   const fixture = createFixture();
   try {
-    assert.equal(getSchemaVersions(fixture.db).giftDb, 9);
+    assert.equal(getSchemaVersions(fixture.db).giftDb, 10);
     const tables = new Set(
       fixture.db.giftDb
         .prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
@@ -130,7 +131,7 @@ test('pausing recovery blocks settlement retries and incoming gifts until resume
   }
 });
 
-test('gift database v9 preserves v5 overtime state while widening its bounds', () => {
+test('gift database v10 preserves v5 overtime state while widening its bounds', () => {
   const dataDir = fs.mkdtempSync(
     path.join(os.tmpdir(), 'song-plugin-overtime-migration-'),
   );
@@ -163,7 +164,7 @@ test('gift database v9 preserves v5 overtime state while widening its bounds', (
     const state = db.giftDb
       .prepare('SELECT * FROM overtime_machine_state WHERE id = 1')
       .get();
-    assert.equal(getSchemaVersions(db).giftDb, 9);
+    assert.equal(getSchemaVersions(db).giftDb, 10);
     assert.equal(state.enabled, 1);
     assert.equal(state.enable_epoch, 7);
     assert.equal(state.remaining_ms, 2_700_000);
@@ -179,7 +180,7 @@ test('gift database v9 preserves v5 overtime state while widening its bounds', (
   }
 });
 
-test('gift database v9 adds nullable blind_box_id to an existing v8 database', () => {
+test('gift database v10 adds nullable blind_box_id to an existing v8 database', () => {
   const dataDir = fs.mkdtempSync(
     path.join(os.tmpdir(), 'song-plugin-blind-box-id-migration-'),
   );
@@ -194,7 +195,7 @@ test('gift database v9 adds nullable blind_box_id to an existing v8 database', (
     closeDatabases(db);
 
     db = createDatabases({ dataDir });
-    assert.equal(getSchemaVersions(db).giftDb, 9);
+    assert.equal(getSchemaVersions(db).giftDb, 10);
     const columns = new Set(
       db.giftDb
         .prepare('PRAGMA table_info(gift_events)')
@@ -1285,6 +1286,67 @@ test('clearing gifts also clears settlements while preserving overtime configura
   }
 });
 
+test('same-ID names and prices settle only their bound identity, including replay and restart', () => {
+  const fixture = createFixture();
+  let service = fixture.createService();
+  const rules = [['旧礼物', 1000, 30], ['新礼物', 1000, 60], ['新礼物', 2000, 90]]
+    .map(([name, priceRaw, seconds], index) => {
+      const giftIdentity = { priceRaw, coinType: 'gold', bagGift: false };
+      giftIdentity.variantId = giftVariantId({ ...giftIdentity, giftId: '34832', name });
+      return { ...fixedRule('34832', seconds, index), giftName: name, giftIdentity };
+    });
+  try {
+    service.act('enable');
+    service.replaceRules(rules);
+    assert.equal(service.getSnapshot().rules.length, 3);
+    let expected = 0;
+    for (const rule of rules) {
+      const event = fixture.insertFinalGift({ giftId: rule.giftId, giftName: rule.giftName,
+        giftVariantId: rule.giftIdentity.variantId, overtimeEpoch: 1 });
+      assert.equal(service.finalizeGift(event), true);
+      expected += rule.fixedSeconds * 1000;
+      assert.equal(service.getSnapshot().effectiveRemainingMs, expected);
+      assert.equal(service.finalizeGift(event), false);
+      assert.deepEqual(JSON.parse(fixture.getSettlement(event.giftEventId).rule_snapshot_json).giftIdentity,
+        rule.giftIdentity);
+    }
+    const unknown = fixture.insertFinalGift({ giftId: '34832', giftName: '新礼物', overtimeEpoch: 1 });
+    assert.equal(service.finalizeGift(unknown), false);
+    assert.equal(fixture.getSettlement(unknown.giftEventId).status, 'ignored');
+    service.dispose();
+    service = fixture.createService();
+    assert.equal(service.getSnapshot().rules.length, 3);
+    assert.equal(service.getSnapshot().effectiveRemainingMs, expected);
+    assert.throws(() => service.replaceRules([rules[0], rules[0]]), /duplicate/);
+    assert.throws(() => service.replaceRules([{ ...rules[0], giftName: '伪造名字' }]), /礼物身份/);
+  } finally { service.dispose(); fixture.close(); }
+});
+
+test('legacy numeric rules retain effects but need reselection, and ignored history stays ignored', () => {
+  const fixture = createFixture();
+  const service = fixture.createService();
+  try {
+    service.act('enable');
+    service.replaceRules([{ ...fixedRule('34832', -45), giftName: '旧礼物' }]);
+    const oldRule = service.getSnapshot().rules[0];
+    assert.equal(oldRule.bindingStatus, 'needs-selection');
+    assert.equal(oldRule.fixedEffect.value, 45);
+    service.setTime({ remainingSeconds: 200 });
+    const identity = { priceRaw: 1000, coinType: 'gold', bagGift: false };
+    identity.variantId = giftVariantId({ ...identity, giftId: '34832', name: '新礼物' });
+    const ignored = fixture.insertFinalGift({ giftId: '34832', giftName: '新礼物',
+      giftVariantId: identity.variantId, overtimeEpoch: 1 });
+    assert.equal(service.finalizeGift(ignored), false);
+    service.replaceRules([{ ...oldRule, giftName: '新礼物', giftIdentity: identity }]);
+    assert.equal(service.getSnapshot().rules[0].bindingStatus, 'bound');
+    assert.equal(service.finalizeGift(ignored), false);
+    const next = fixture.insertFinalGift({ giftId: '34832', giftName: '新礼物',
+      giftVariantId: identity.variantId, overtimeEpoch: 1 });
+    assert.equal(service.finalizeGift(next), true);
+    assert.equal(service.getSnapshot().effectiveRemainingMs, 155000);
+  } finally { service.dispose(); fixture.close(); }
+});
+
 function createFixture() {
   const dataDir = fs.mkdtempSync(
     path.join(os.tmpdir(), 'song-plugin-overtime-'),
@@ -1409,6 +1471,8 @@ function insertGift(giftDb, nowMs, options) {
       createdAt,
     );
   const id = Number(result.lastInsertRowid);
+  if (options.giftVariantId) giftDb.prepare('UPDATE gift_events SET gift_variant_id = ? WHERE id = ?')
+    .run(options.giftVariantId, id);
   return {
     phase,
     giftEventId: id,

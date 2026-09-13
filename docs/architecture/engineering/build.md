@@ -99,8 +99,10 @@
 被 `nsis.include` 引用([package.json:60](../../../package.json#L60)),在标准 NSIS 流程上追加:
 
 - `ManifestDPIAware true`([installer.nsh:1](../../../build/installer.nsh#L1)):安装器进程高 DPI 感知。
-- `customInit`([installer.nsh](../../../build/installer.nsh)):在旧卸载器运行前，若 `<安装目录>/data` 存在且稳定目标尚未初始化，先用系统 `robocopy` 完整复制到 `%APPDATA%/com.aurorawhisperer.lira/data.migration`。返回码 0–7 才以同卷 `Rename` 发布为 `data`；返回码 ≥8 或发布失败会清理临时目录并中止安装，旧数据保持不动。随后继续遍历 `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall`，删除 DisplayName 为「LIRA」但 UninstallString 指向文件已不存在的残留注册表项。
-- 不再定义 `customUnInstall`，因此新版卸载和自动更新都不删除持久化用户数据。稳定路径与应用启动侧的兼容迁移见 [desktop/main.md](../desktop/main.md) §3 和 ADR [0013](../adr/0013-persistent-desktop-user-data.md)。
+- `customInit`([installer.nsh](../../../build/installer.nsh))只选择默认目录并检查本应用在当前安装上下文中的卸载项；仅在带引号的卸载程序路径明确不存在时删除该项，不遍历其他应用。首次安装有 D 盘时默认 `D:\LIRA`，无 D 盘时保留 builder 默认目录；升级沿用本机已有路径，不限制盘符。[installer-directory.nsh](../../../build/installer-directory.nsh) 在安装模式切换后的目录页再次应用默认值，保留 builder 的更新跳页行为。命令行 `/D` 和目录页的显式选择优先。
+- [installer-data.nsh](../../../build/installer-data.nsh) 在标准安装 section 前确认旧 LIRA 已退出，再用系统 `robocopy` 将完整数据复制并发布到 `<新安装目录>.lira-data-backup`。返回码 0–7 才允许运行旧卸载器；失败、数据冲突或无法检查进程时停止。程序替换后恢复 `data/`，恢复失败保留备份、报告位置并禁止启动空库。`customRemoveFiles` 只替换程序文件，保留 `data/`、`logs/`、`updates/`。详情见 [desktop/main.md](../desktop/main.md) §3 和 ADR [0015](../adr/0015-install-local-desktop-data.md)。
+- 交互安装在迁移期间显示等待提示；复制或目录发布失败时显示错误步骤与复制返回码，并把详细输出以 UTF-16 保存到 `%TEMP%/LIRA-install-error.txt`。报告无法写入时仍显示错误弹窗。静默安装不显示等待提示或阻塞弹窗，失败仍返回非零退出码。
+- [collect-install-diagnostics.cmd](../../../scripts/collect-install-diagnostics.cmd) 调用同目录的 [PowerShell 收集脚本](../../../scripts/collect-install-diagnostics.ps1)，在工具旁生成 `LIRA安装诊断-日期时间.txt`（写入失败时退回 `%TEMP%`）。内容限于 Windows 版本/位数、同目录最多五个安装包的大小/哈希/签名、相关进程名、两天内的迁移报告及匹配 LIRA 程序名的崩溃/拦截事件；不会运行安装包、读取业务数据库或上传报告。迁移报告不存在不能证明故障原因。
 
 ## 7. 发布流程(scripts/publish-release.js)
 

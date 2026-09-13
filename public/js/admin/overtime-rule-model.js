@@ -20,6 +20,7 @@ export function readRules(root, limits) {
     const base = {
       giftId: row.dataset.giftId,
       giftName: row.dataset.giftName,
+      giftIdentity: JSON.parse(row.dataset.giftIdentity || 'null'),
       imagePath: row.dataset.imagePath,
       mode,
       quantityMode,

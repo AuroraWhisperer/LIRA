@@ -462,6 +462,11 @@
   border-top: 1px dashed var(--usage-guide-rule);
 }
 
+.usage-guide-faq .usage-guide-image {
+  width: auto;
+  max-width: 100%;
+}
+
 /* 侧栏收起且窗口够宽时，目录与正文并排显示。 */
 @media (min-width: 1120px) {
   .other-page.sidebar-collapsed .usage-guide-panel {

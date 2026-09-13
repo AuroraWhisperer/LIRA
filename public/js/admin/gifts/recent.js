@@ -2,13 +2,13 @@
 // 最近礼物模块 - 负责最近礼物列表渲染和图标工具函数
 import { eventBus, Events } from '../../shared/event-bus.js';
 import { getLegacyAdminModules } from '../legacy-admin-bridge.js';
+import { GIFT_PLACEHOLDER, setGiftImageFallbacks } from '../../shared/gift-image-fallback.js';
 
 'use strict';
 
 (function () {
   const MAX_RECENT_GIFT_ROWS = 6;
   const HIGH_VALUE_GIFT_MIN_RMB = 1000;
-  const GIFT_PLACEHOLDER = '/img/overtime-machine/gift-placeholder.svg';
   const SPECIAL_BLIND_BOX_TYPES = [
     { name: '心动盲盒', id: '32251', className: 'blind-box-heart' },
     { name: '幸运盲盒', id: '35206', className: 'blind-box-lucky' },
@@ -61,9 +61,7 @@ import { getLegacyAdminModules } from '../legacy-admin-bridge.js';
         for (const gift of Array.isArray(payload?.data?.gifts)
           ? payload.data.gifts
           : []) {
-          const giftId = String(gift?.id ?? '').trim();
-          const imagePath = normalizeGiftArtworkPath(gift?.imagePath);
-          if (giftId && imagePath) artworkById.set(giftId, imagePath);
+          addGiftArtwork(artworkById, gift);
         }
       } catch (error) {
         console.warn('读取礼物图片目录失败：', error);
@@ -93,6 +91,31 @@ import { getLegacyAdminModules } from '../legacy-admin-bridge.js';
     return imagePath;
   }
 
+  function normalizedGiftName(value) {
+    return String(value || '').normalize('NFKC').replace(/\s+/gu, ' ').trim()
+      .replace(/[A-Z]/gu, letter => letter.toLowerCase());
+  }
+
+  function addGiftArtwork(index, gift) {
+    const id = String(gift?.id ?? '').trim();
+    const name = normalizedGiftName(gift?.name);
+    if (!id || !name) return;
+    const variantId = gift.variantId || gift.giftIdentity?.variantId;
+    const key = variantId || JSON.stringify([id, name, gift.priceRaw ?? gift.rmb,
+      gift.coinType, gift.bagGift]);
+    const imagePath = normalizeGiftArtworkPath(gift.imagePath) || index.get(key)?.imagePath || '';
+    index.set(key, { id, name, imagePath });
+  }
+
+  function findGiftArtwork(id, name, variantId) {
+    if (variantId) return giftArtworkById?.get(variantId)?.imagePath || '';
+    const normalizedName = normalizedGiftName(name);
+    if (!id || !normalizedName) return '';
+    const matches = [...(giftArtworkById?.values() || [])]
+      .filter(gift => gift.id === id && gift.name === normalizedName);
+    return matches.length === 1 ? matches[0].imagePath : '';
+  }
+
   function applyGiftArtworkSnapshot(snapshot) {
     if (!snapshot || typeof snapshot !== 'object') return;
     if (!Array.isArray(snapshot.gifts)) return;
@@ -102,9 +125,7 @@ import { getLegacyAdminModules } from '../legacy-admin-bridge.js';
       ? new Map(giftArtworkById)
       : new Map();
     for (const gift of snapshot.gifts) {
-      const giftId = String(gift?.id ?? '').trim();
-      const imagePath = normalizeGiftArtworkPath(gift?.imagePath);
-      if (giftId && imagePath) artworkById.set(giftId, imagePath);
+      addGiftArtwork(artworkById, gift);
     }
     giftArtworkById = artworkById;
     getLegacyAdminModules().gifts?.blindbox?.applyOfficialCatalogSnapshot?.(snapshot);
@@ -151,6 +172,7 @@ import { getLegacyAdminModules } from '../legacy-admin-bridge.js';
           <span>收到的礼物会显示在这里</span>
         </div>
       `;
+      setGiftImageFallbacks(list);
       return;
     }
 
@@ -211,6 +233,7 @@ import { getLegacyAdminModules } from '../legacy-admin-bridge.js';
       `;
       })
       .join('');
+    setGiftImageFallbacks(list);
     limitRecentGiftRows(list);
     observeRecentGiftGrid(list);
   }
@@ -278,7 +301,8 @@ import { getLegacyAdminModules } from '../legacy-admin-bridge.js';
     ).trim();
     const blindBoxId = String(item?.blind_box_id || '').trim();
     const type = SPECIAL_BLIND_BOX_TYPES.find(
-      ({ id, name }) => blindBoxId === id || (!blindBoxId && blindBoxName.includes(name)),
+      ({ id, name }) => (!blindBoxId || blindBoxId === id) &&
+        normalizedGiftName(blindBoxName) === normalizedGiftName(name),
     );
     // Open-result records carry the output ID, while direct box records carry
     // the box ID. Only the latter can be resolved from item.gift_id exactly.
@@ -288,21 +312,21 @@ import { getLegacyAdminModules } from '../legacy-admin-bridge.js';
     return {
       name: type?.name || blindBoxName || '盲盒',
       className: type?.className || 'blind-box-default',
-      src: giftArtworkById?.get(artworkId) || GIFT_PLACEHOLDER,
+      src: findGiftArtwork(artworkId, blindBoxName,
+        recordedBoxName || blindBoxId ? item.blind_box_variant_id : item.gift_variant_id) || GIFT_PLACEHOLDER,
     };
   }
 
   function getHighValueGiftArtwork(item) {
     const unitPrice = Number(item?.unit_price);
     const giftId = String(item?.gift_id ?? '').trim();
-    const artworkPath = giftArtworkById?.get(giftId);
+    const artworkPath = findGiftArtwork(giftId, item?.gift_name, item?.gift_variant_id);
     if (
       !Number.isFinite(unitPrice) ||
-      unitPrice < HIGH_VALUE_GIFT_MIN_RMB ||
-      !artworkPath
+      unitPrice < HIGH_VALUE_GIFT_MIN_RMB
     )
       return null;
-    return { src: artworkPath };
+    return { src: artworkPath || GIFT_PLACEHOLDER };
   }
 
   // 导出

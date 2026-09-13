@@ -1,5 +1,7 @@
 # 礼物检测管道与醒目留言服务
 
+2026-09-13：main process 在远程 pull/history/SSE 协商 `X-Lira-Gift-Identity: 1`，验证成对可空 `giftVariantId`、`blindBoxVariantId`；旧 DTO 规范化为 null。首次导入写入事件身份列，后续不能把非空身份改成另一身份。旧历史只核对既有展示投影后幂等跳过，不补填身份或重放消费者。加班消费者仅匹配规则的完整身份；目录刷新不修改已结算记录。详见[礼物身份规格](../../../../specs/gift-identity-overtime.md)。
+
 > 涉及文件:[gift/detection-service.js](../../../../src/bilibili/gift/detection-service.js)、[gift/event-service.js](../../../../src/bilibili/gift/event-service.js)、[gift/consumer-registry.js](../../../../src/bilibili/gift/consumer-registry.js)、[gift/statistics-consumer.js](../../../../src/bilibili/gift/statistics-consumer.js)、[gift/normalizer.js](../../../../src/bilibili/gift/normalizer.js)、[gift/query-service.js](../../../../src/bilibili/gift/query-service.js)、[gift/blind-box-config.js](../../../../src/bilibili/gift/blind-box-config.js)、[gift/blind-box-analysis.js](../../../../src/bilibili/gift/blind-box-analysis.js)、[gift/index.js](../../../../src/bilibili/gift/index.js)、[gift-event-store.js](../../../../src/storage/gift-event-store.js)、[superchat-service.js](../../../../src/bilibili/superchat-service.js)、[domain-services.js](../../../../src/server/domain-services.js) 的 gifts/superChats 段
 
 本文档是 **礼物检测投影与醒目留言服务** 的客户端事实源:本地账本、消费者扇出、盲盒与冲刺统计、SC 状态机只在此成表。原始 B 站礼物解析与权威检测已迁移到 `D:/Work/lira-server`;本地只接收经服务器处理的 DTO 并投影到现有消费者。协议层解析(5 条礼物路径)见 [protocol.md](protocol.md) §6;`gift_events`/`super_chats` 表结构见 [storage.md](../storage.md) §3.3/§3.2;快照 `gifts/giftSprint/giftDetection/superChats` 字段见 [ws.md](../ws.md) §2;礼物与 SC 的 `/api/*` 端点清单见 [api.md](../api.md)。客户端投影与服务器协议详见 [server-authoritative-gift-detection_design.md](../../../specs/server-authoritative-gift-detection_design.md)。
@@ -75,7 +77,7 @@ createGiftService (gift/index.js)                    ← domainServices.gifts
 
 ## 4. 盲盒:协议标记 → 配置重命名 → 价值覆盖
 
-当前远端收礼区分常规直送礼物、盲盒商品和盲盒产物。目录 `isBlindBox` 表示盒子本身，产物由准确 ID 的奖池关系关联；服务器按 REQ-GIFT-006 校验有效关系/活动身份后，可为上游漏标的产物补全事件 `isBlindBox`、来源 `blindBoxId`、名称、成本和盈亏。客户端导入这些权威字段，不根据目录自行改变账本。`public/js/admin/gifts/recent.js` 根据事件标记与来源 ID 显示盲盒图片及配色；有限数字盈亏直接显示符号和盈利/亏损颜色，不依赖可空盒名，未知值显示“盈亏待确认”。心动盲盒单盒 15 元、棉花糖 9 元对应 -6 元，爱心抱枕 16 元对应 +1 元。共享奖品来源仍有歧义时成本/盈亏保留未知，旧记录不自动重算。以下本地原始解析逻辑为保留的兼容路径，当前远端流程见 §9。
+当前远端收礼区分常规直送礼物、盲盒商品和盲盒产物。目录 `isBlindBox` 表示盒子本身，产物由准确 ID 的奖池关系关联；服务器按 REQ-GIFT-006 校验有效关系/活动身份后，可为上游漏标的产物补全事件 `isBlindBox`、来源 `blindBoxId`、名称、成本和盈亏。客户端导入这些权威字段，不根据目录自行改变账本。`public/js/admin/gifts/recent.js` 根据事件标记与冻结来源身份取对应盲盒图片；无身份的旧记录仅允许 ID、名称唯一匹配，资料不足或歧义时用占位图，特殊配色还须名称匹配；有限数字盈亏直接显示符号和盈利/亏损颜色，不依赖可空盒名，未知值显示“盈亏待确认”。心动盲盒单盒 15 元、棉花糖 9 元对应 -6 元，爱心抱枕 16 元对应 +1 元。共享奖品来源仍有歧义时成本/盈亏保留未知，旧记录不自动重算。以下本地原始解析逻辑为保留的兼容路径，当前远端流程见 §9。
 
 目录显示与收礼判定分开：`public/js/shared/gift-catalog-roles.js` 根据完整 schema 2 快照生成三类显示标签，`public/js/admin/overtime.js` 在礼物选择器展示标签与对应奖池；服务器网页的 schema 3 标签遵循完整活动身份。索引只随既有目录加载/更新重建，不增加实时传输字段、网络请求或持久化分类，不用于账本判定。共享产物列出全部奖池；身份不符时不显示推测标签，旧请求不得恢复更新后已移除的奖池关系。
 

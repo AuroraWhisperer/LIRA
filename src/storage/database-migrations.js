@@ -9,6 +9,7 @@ const {
 } = require('../shared/utils');
 const schema = require('./schema');
 const { seedThemePresets } = require('./theme-store');
+const { migrateGiftIdentities } = require('./gift-identity-migration');
 
 // ── 迁移注册表 ──
 // 数组下标 + 1 即版本号。只能往末尾追加，不能改动已发布的步骤。
@@ -288,6 +289,8 @@ function runAllMigrations(databases, options = {}) {
         // v9: 远端盲盒事件保留稳定的盒子礼物 ID；旧行保持 NULL。
         ensureGiftBlindBoxIdColumn(db);
       },
+      // v10: identity-bound rules and frozen remote event identities.
+      migrateGiftIdentities,
     ]),
   );
 

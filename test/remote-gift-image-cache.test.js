@@ -263,6 +263,7 @@ test('revisions replace only changed images and keep previous artwork across off
     };
     const original = {
       id: '105',
+      name: '礼物', priceRaw: 100, coinType: 'gold', bagGift: false,
       sourceUrl: 'https://i0.hdslb.com/bfs/live/same.webp',
       imagePath: 'https://api.example.test/gift-media/images/revision-1.webp',
     };
@@ -443,6 +444,27 @@ test('limits concurrent image downloads and enforces the size ceiling', async ()
   } finally {
     fs.rmSync(dataDir, { recursive: true, force: true });
   }
+});
+
+test('same-ID image failures reuse only that identity across restart', async t => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-variant-images-'));
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  let fail = false;
+  const options = { dataDir, imageBaseUrl: 'https://api.example.test', logger: QUIET_LOGGER,
+    fetch: async () => fail ? new Response('', { status: 503 }) : new Response(webpBytes()) };
+  let cache = createRemoteGiftImageCache(options);
+  const old = { id: '34832', name: '旧礼物', variantId: `gv_${'a'.repeat(64)}`,
+    sourceUrl: 'https://i0.hdslb.com/bfs/live/old.webp' };
+  const oldImage = (await cache.cacheGifts([old]))[0].imagePath;
+  assert.ok(oldImage);
+  fail = true;
+  cache = createRemoteGiftImageCache(options);
+  const update = { ...old, sourceUrl: 'https://i0.hdslb.com/bfs/live/updated.webp' };
+  const reused = { ...update, name: '新礼物', variantId: `gv_${'b'.repeat(64)}` };
+  const results = await cache.cacheGifts([update, reused]);
+  assert.equal(results[0].imagePath, oldImage);
+  assert.equal(results[1].imagePath, '');
+  assert.equal(cache.getCachedGiftImagePath({ ...old, ...reused, sourceUrl: old.sourceUrl }), '');
 });
 
 function webpBytes() {

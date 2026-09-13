@@ -6,6 +6,8 @@
 
 ## 1. 传输层(手写 RFC 6455)
 
+礼物身份扩展沿用既有消息封套：`state.overtime.rules` 和加班机更新中的规则携带 `giftIdentity`、`bindingStatus`；目录更新携带完整身份及 schema 3 关系。最近礼物原始行保留 `gift_variant_id` / `blind_box_variant_id`，供界面取对应图片，不通过当前 ID 回填历史。字段与迁移语义见 [加班机契约](overtime.md) 及 [礼物身份规范](../../../specs/gift-identity-overtime.md)。
+
 零依赖实现,[src/server/ws.js](../../../src/server/ws.js) 的 `createWebSocketHub()`。
 
 | 事实                 | 值                                                                                                                                                                                     | 出处                                                  |

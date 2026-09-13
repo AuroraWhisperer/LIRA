@@ -179,7 +179,7 @@ function createRemoteLicenseClient(options = {}) {
     const normalizedEtag = safeHeaderValue(etag);
     return requestWithBody(
       'GET',
-      '/api/public/gifts/catalog?schemaVersion=2',
+      '/api/public/gifts/catalog?schemaVersion=3',
       undefined,
       '',
       // The catalog endpoint is public.  Never forward a device session token,
@@ -201,6 +201,7 @@ function createRemoteLicenseClient(options = {}) {
         headers: {
           Accept: 'text/event-stream',
           Authorization: `Bearer ${token}`,
+          ...(pathname === '/api/device/gift-events/stream' ? { 'X-Lira-Gift-Identity': '1' } : {}),
         },
         signal: options.signal,
         redirect: 'error',
@@ -282,7 +283,7 @@ function createRemoteLicenseClient(options = {}) {
       `/api/device/gift-events?${query.toString()}`,
       undefined,
       token,
-      { maxResponseBytes: 512 * 1024, signal: options.signal },
+      { maxResponseBytes: 512 * 1024, signal: options.signal, headers: { 'X-Lira-Gift-Identity': '1' } },
     );
   }
 
@@ -297,7 +298,7 @@ function createRemoteLicenseClient(options = {}) {
       `/api/device/gift-history${suffix}`,
       undefined,
       token,
-      { maxResponseBytes: 512 * 1024, signal: options.signal },
+      { maxResponseBytes: 512 * 1024, signal: options.signal, headers: { 'X-Lira-Gift-Identity': '1' } },
     );
   }
 

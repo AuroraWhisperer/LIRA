@@ -343,13 +343,25 @@
         </div>
         <div id="blindBoxMappingStatus" class="hint" role="status"></div>
         <div id="blindBoxList" class="blind-box-list"></div>
+        <button
+          id="blindBoxListToggle"
+          class="secondary blind-box-list-toggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="blindBoxList"
+          hidden
+        >
+          展开其余盲盒 ▾
+        </button>
         <div id="blindBoxAdvanced" hidden>
+          <p class="hint">
+            官方盲盒映射自动同步，无需填写。此处仅编辑自定义配置。
+          </p>
           <textarea
             id="giftBlindBoxCustomConfigV2"
+            aria-label="自定义盲盒配置 JSON"
             rows="6"
-            placeholder='[
-              { "giftId": null, "name": "自定义盲盒", "price": 5, "outputs": [{"giftId":"35207","name":"幸运泡泡","price":1.5}] }
-            ]'
+            placeholder="暂无自定义配置。可在上方添加盲盒，或在此输入 JSON 数组。"
           ></textarea>
           <button id="giftBlindBoxSaveBtn" class="primary" type="button">
             保存 JSON

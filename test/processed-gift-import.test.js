@@ -5,6 +5,9 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
+const { giftVariantId } = require('../src/shared/gift-identity');
+const TICKET_IDENTITY = { priceRaw: 100, coinType: 'gold', bagGift: false };
+TICKET_IDENTITY.variantId = giftVariantId({ ...TICKET_IDENTITY, giftId: '33988', name: '人气票' });
 const {
   createGiftConsumerRegistry,
   createGiftDetectionService,
@@ -223,6 +226,8 @@ test('processed events are retained when local gift consumers are disabled', () 
 });
 
 test('processed final reaches existing statistics, overtime, history, snapshot, and frame consumers once', () => {
+  const makeTicketEvent = (phase, cursor, overrides = {}) => makeEvent(phase, cursor,
+    { giftVariantId: TICKET_IDENTITY.variantId, blindBoxVariantId: null, ...overrides });
   const dataDir = fs.mkdtempSync(
     path.join(os.tmpdir(), 'lira-processed-gift-integration-'),
   );
@@ -260,6 +265,7 @@ test('processed final reaches existing statistics, overtime, history, snapshot, 
       {
         giftId: '33988',
         giftName: '人气票',
+        giftIdentity: TICKET_IDENTITY,
         imagePath: '',
         mode: 'fixed',
         fixedSeconds: 60,
@@ -291,13 +297,13 @@ test('processed final reaches existing statistics, overtime, history, snapshot, 
       syncedThroughCursor: 21,
       syncedAt: new Date(clock.now()).toISOString(),
     });
-    gifts.importProcessedEvent(makeEvent('progress', null), sourceId);
+    gifts.importProcessedEvent(makeTicketEvent('progress', null), sourceId);
     const finalized = gifts.importProcessedEvent(
-      makeEvent('final', 21, { num: 3, totalPrice: 0.3 }),
+      makeTicketEvent('final', 21, { num: 3, totalPrice: 0.3 }),
       sourceId,
     );
     gifts.importProcessedEvent(
-      makeEvent('final', 21, { num: 3, totalPrice: 0.3 }),
+      makeTicketEvent('final', 21, { num: 3, totalPrice: 0.3 }),
       sourceId,
     );
 
@@ -967,6 +973,29 @@ function makeEvent(phase, cursor, giftOverrides = {}) {
     },
   };
 }
+
+test('negotiated identity fixture imports atomically, rejects rebinding, and accepts legacy replay', () => {
+  const event = structuredClone(require('../../lira-server/docs/protocol/fixtures/gift-event-identity.json').event);
+  const fixture = createFixture();
+  try {
+    const normalized = normalizeProcessedGiftEvent(event);
+    const row = fixture.importProcessedEvent(normalized);
+    assert.equal(row.gift_variant_id, event.gift.giftVariantId);
+    assert.equal(row.blind_box_variant_id, null);
+    const changed = structuredClone(event);
+    changed.gift.giftVariantId = `gv_${'f'.repeat(64)}`;
+    assert.throws(() => fixture.importProcessedEvent(changed), /PROCESSED_GIFT_EVENT_CONFLICT/);
+    const legacy = structuredClone(event);
+    delete legacy.gift.giftVariantId;
+    delete legacy.gift.blindBoxVariantId;
+    assert.equal(fixture.importProcessedEvent(legacy).gift_variant_id, event.gift.giftVariantId);
+    const malformed = structuredClone(event);
+    delete malformed.gift.blindBoxVariantId;
+    assert.throws(() => normalizeProcessedGiftEvent(malformed), /INVALID_PROCESSED_GIFT_EVENT/);
+    malformed.gift.blindBoxVariantId = 'not-an-identity';
+    assert.throws(() => normalizeProcessedGiftEvent(malformed), /INVALID_PROCESSED_GIFT_EVENT/);
+  } finally { fixture.close(); }
+});
 
 function readGift(db, id) {
   return db.giftDb.prepare('SELECT * FROM gift_events WHERE id = ?').get(id);

@@ -21,6 +21,7 @@ function runnableRecentScript(source) {
   return `const eventBus = window.AdminApp.eventBus || { on: () => () => {} };
 const Events = { GIFT_CATALOG_UPDATED: 'gift:catalog_updated' };
 const getLegacyAdminModules = () => window.AdminApp;
+${fs.readFileSync(path.join(ROOT_DIR, 'public/js/shared/gift-image-fallback.js'), 'utf8').replace(/^export /gm, '')}
 ${source.replace(/^import .*?;\r?\n/gm, '')}`;
 }
 
@@ -31,15 +32,23 @@ async function flushBlindboxTasks() {
 async function createBlindboxFixture({
   roomId = '',
   loggedIn = false,
+  authAvailable = true,
+  mappingState = { mode: 'v2', applied: true, customCount: 1 },
 } = {}) {
-  const container = { innerHTML: '' };
+  const container = { innerHTML: '', querySelectorAll: () => [] };
   const textarea = { value: '[]' };
   const status = { textContent: '' };
+  const listToggle = {
+    hidden: true,
+    textContent: '',
+    attributes: { 'aria-expanded': 'false' },
+    getAttribute(name) { return this.attributes[name]; },
+    setAttribute(name, value) { this.attributes[name] = value; },
+  };
   const windowListeners = new Map();
   const documentListeners = new Map();
   const refreshRequests = [];
   let currentRoomId = roomId;
-  let currentAuthState = { loggedIn };
 
   const document = {
     readyState: 'loading',
@@ -54,6 +63,7 @@ async function createBlindboxFixture({
         blindBoxList: container,
         giftBlindBoxCustomConfigV2: textarea,
         blindBoxMappingStatus: status,
+        blindBoxListToggle: listToggle,
       }[id] || null;
     },
   };
@@ -75,15 +85,16 @@ async function createBlindboxFixture({
       state: {
         getAppState: () => ({
           settings: { roomId: currentRoomId },
-          blindBoxMapping: { mode: 'v2', applied: true, customCount: 1 },
+          blindBoxMapping: mappingState,
         }),
       },
       gifts: { recent: { getBlindBoxIcon: () => null } },
     },
     bilibiliAuth: {
-      getAuthState: async () => currentAuthState,
+      getAuthState: async () => ({ loggedIn }),
     },
   };
+  if (!authAvailable) delete window.bilibiliAuth;
 
   const fetchCalls = [];
   const fetch = (url, options = {}) => {
@@ -110,18 +121,25 @@ async function createBlindboxFixture({
     container,
     textarea,
     status,
+    listToggle,
+    visibleNames: () => [...container.innerHTML.matchAll(
+      /<div class="blind-box-chip">[\s\S]*?<span class="bb-chip-name">([^<]+)<\/span>/g,
+    )].map(([, name]) => name),
     window,
     document,
     fetchCalls,
     refreshRequests,
-    setAuth(nextAuthState) {
-      currentAuthState = nextAuthState;
-    },
     dispatchSettings(nextRoomId) {
       currentRoomId = nextRoomId;
       window.dispatchEvent({
         type: 'app:settings-state',
         detail: { roomId: nextRoomId },
+      });
+    },
+    dispatchSavedSettings(nextRoomId) {
+      currentRoomId = nextRoomId;
+      window.AdminApp.eventBus.emit('state:saved', {
+        settings: { roomId: nextRoomId },
       });
     },
     dispatchAuthChanged() {
@@ -971,8 +989,8 @@ test('blind-box settings persist an explicit empty JSON array', () => {
   assert.match(source, /let raw = textarea\.value\.trim\(\) \|\| '\[\]'/);
 });
 
-test('blind-box mapping refreshes the logged-in room and sorts sale entries first', async () => {
-  const fixture = await createBlindboxFixture({ roomId: '123', loggedIn: true });
+test('blind-box mapping shows room gifts by default and expands the remaining mappings without changing config', async () => {
+  const fixture = await createBlindboxFixture({ roomId: '123' });
   fixture.textarea.value = JSON.stringify([
     {
       giftId: null,
@@ -1023,6 +1041,22 @@ test('blind-box mapping refreshes the logged-in room and sorts sale entries firs
     '在售官方盒甲', '在售官方盒乙', '在售自定义盒',
     '官方盲盒', '历史官方盒', '主播自定义盒',
   ]);
+  assert.deepEqual(fixture.visibleNames(), [
+    '在售官方盒甲', '在售官方盒乙', '在售自定义盒',
+  ]);
+  assert.equal(fixture.listToggle.hidden, false);
+  assert.equal(fixture.listToggle.textContent, '展开其余盲盒（3） ▾');
+  fixture.listToggle.setAttribute('aria-expanded', 'true');
+  renderBlindBoxList();
+  assert.deepEqual(fixture.visibleNames(), renderedNames());
+  assert.equal(fixture.listToggle.textContent, '收起其余盲盒（3） ▴');
+  renderBlindBoxList();
+  assert.deepEqual(fixture.visibleNames(), renderedNames());
+  fixture.listToggle.setAttribute('aria-expanded', 'false');
+  renderBlindBoxList();
+  assert.deepEqual(fixture.visibleNames(), [
+    '在售官方盒甲', '在售官方盒乙', '在售自定义盒',
+  ]);
 
   assert.deepEqual(JSON.parse(JSON.stringify(catalogEvents)), [{
     snapshot: {
@@ -1043,10 +1077,62 @@ test('blind-box mapping refreshes the logged-in room and sorts sale entries firs
   fixture.dispatchSettings('123');
   await flushBlindboxTasks();
   assert.equal(fixture.refreshRequests.length, 0);
+
+  fixture.dispatchSavedSettings('123');
+  await flushBlindboxTasks();
+  assert.equal(fixture.refreshRequests.length, 1);
+  await fixture.resolveRefresh({ roomId: '123', gifts: [{ id: '100' }] });
+  assert.equal(renderedNames()[0], '官方盲盒');
+  assert.deepEqual(fixture.visibleNames(), ['官方盲盒']);
+  assert.equal(fixture.listToggle.textContent, '展开其余盲盒（5） ▾');
+  assert.equal(JSON.parse(fixture.textarea.value)[0].name, '主播自定义盒');
 });
 
-test('blind-box mapping sorts alphabetically until both room and Bilibili auth exist', async () => {
-  const fixture = await createBlindboxFixture({ roomId: '123', loggedIn: false });
+test('blind-box mapping reports official readiness without legacy migration prompts', async () => {
+  const mappingState = {
+    mode: 'legacy', applied: false, customCount: 0, migrationPendingCount: 5,
+  };
+  const fixture = await createBlindboxFixture({ mappingState });
+  assert.equal(fixture.status.textContent, '等待服务器应用官方映射');
+  Object.assign(mappingState, { mode: 'v2', applied: true, migrationPendingCount: 0 });
+  fixture.module.renderBlindBoxList();
+  assert.equal(fixture.status.textContent, '官方映射已启用');
+  Object.assign(mappingState, { customCount: 2, takenOverCount: 1 });
+  fixture.module.renderBlindBoxList();
+  assert.equal(fixture.status.textContent, '官方映射已启用 · 自定义 2 项 · 官方已接管 1 项');
+});
+
+test('blind-box mapping folds historical variants sharing the current gift ID and hides an unnecessary toggle', async () => {
+  const fixture = await createBlindboxFixture({ roomId: '123' });
+  const current = {
+    id: '100', variantId: 'current', name: '当季盲盒', rmb: 10, isBlindBox: true,
+  };
+  fixture.module.applyOfficialCatalogSnapshot({
+    schemaVersion: 3,
+    gifts: [
+      current,
+      { ...current, variantId: 'old', name: '历史盲盒', rmb: 5 },
+    ],
+    blindBoxes: [],
+    variantBlindBoxes: [],
+  });
+  assert.deepEqual(fixture.visibleNames(), []);
+  await fixture.resolveRefresh({ roomId: '123', gifts: [current] });
+  assert.deepEqual(fixture.visibleNames(), ['当季盲盒']);
+  assert.equal(fixture.listToggle.textContent, '展开其余盲盒（1） ▾');
+
+  fixture.module.applyOfficialCatalogSnapshot({
+    schemaVersion: 3,
+    gifts: [current],
+    blindBoxes: [],
+    variantBlindBoxes: [],
+  });
+  assert.deepEqual(fixture.visibleNames(), ['当季盲盒']);
+  assert.equal(fixture.listToggle.hidden, true);
+});
+
+test('blind-box mapping refreshes when a room is configured without a desktop auth bridge and ignores a cleared room', async () => {
+  const fixture = await createBlindboxFixture({ authAvailable: false });
   fixture.textarea.value = JSON.stringify([
     { giftId: '200', name: '在售自定义盒', price: 10, outputs: [] },
     { giftId: null, name: '主播自定义盒', price: 5, outputs: [] },
@@ -1069,9 +1155,10 @@ test('blind-box mapping sorts alphabetically until both room and Bilibili auth e
   assert.deepEqual(names(), [
     '官方盲盒', '历史官方盒', '在售自定义盒', '主播自定义盒',
   ]);
+  assert.deepEqual(fixture.visibleNames(), []);
+  assert.match(fixture.container.innerHTML, /尚未设置直播间/);
 
-  fixture.setAuth({ loggedIn: true });
-  fixture.dispatchAuthChanged();
+  fixture.dispatchSettings('123');
   await flushBlindboxTasks();
   assert.equal(fixture.refreshRequests.length, 1);
   await fixture.resolveRefresh({ roomId: '123', gifts: [{ id: '200' }] });
@@ -1080,6 +1167,7 @@ test('blind-box mapping sorts alphabetically until both room and Bilibili auth e
   ]);
 
   fixture.dispatchSettings('');
+  assert.deepEqual(fixture.visibleNames(), []);
   assert.deepEqual(names(), [
     '官方盲盒', '历史官方盒', '在售自定义盒', '主播自定义盒',
   ]);
@@ -1092,8 +1180,7 @@ test('blind-box mapping sorts alphabetically until both room and Bilibili auth e
   fixture.dispatchSettings('456');
   await flushBlindboxTasks();
   assert.equal(fixture.refreshRequests.length, 1);
-  fixture.setAuth({ loggedIn: false });
-  fixture.dispatchAuthChanged();
+  fixture.dispatchSettings('');
   assert.deepEqual(names(), [
     '官方盲盒', '历史官方盒', '在售自定义盒', '主播自定义盒',
   ]);
@@ -1102,6 +1189,55 @@ test('blind-box mapping sorts alphabetically until both room and Bilibili auth e
     '官方盲盒', '历史官方盒', '在售自定义盒', '主播自定义盒',
   ]);
   assert.equal(fixture.refreshRequests.length, 0);
+});
+
+test('settings form announces the saved room only after a successful save, including an unchanged room', async () => {
+  const elements = new Map();
+  const documentRef = {
+    getElementById(id) {
+      if (!elements.has(id)) {
+        elements.set(id, {
+          addEventListener(type, handler) { this[type] = handler; },
+        });
+      }
+      return elements.get(id);
+    },
+  };
+  const window = {};
+  const { createSettingsForm } = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'settings-form.js'),
+    { window },
+  );
+  const saved = [];
+  window.AdminApp?.eventBus?.on('state:saved', (payload) => saved.push(payload));
+  let resolveSave;
+  let rejectSave;
+  const form = createSettingsForm({
+    documentRef,
+    value: (id) => id === 'roomId' ? '123' : '',
+    api: () => new Promise((resolve, reject) => {
+      resolveSave = resolve;
+      rejectSave = reject;
+    }),
+    toast() {},
+    getState: () => ({ reloadState: async () => {} }),
+    initLicenseAccountDevice: async () => {},
+    blindboxSettings: { init() {} },
+  });
+  await form.init();
+  const submit = () => elements.get('settingsForm').submit({ preventDefault() {} });
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const pending = submit();
+    assert.equal(saved.length, attempt);
+    resolveSave({ ok: true, data: { settings: { roomId: '123' } } });
+    await pending;
+    assert.equal(saved.length, attempt + 1);
+    assert.equal(saved.at(-1).settings.roomId, '123');
+  }
+  const failed = submit();
+  rejectSave(new Error('save failed'));
+  await assert.rejects(failed, /save failed/);
+  assert.equal(saved.length, 2);
 });
 
 test('blind-box mapping skips obsolete room requests and retries a wrong-room response once', async () => {
@@ -1170,6 +1306,8 @@ test('blind-box mapping stays alphabetical after a failed refresh and can refres
   fixture.refreshRequests.shift().resolve(response({ ok: false, error: 'offline' }));
   await flushBlindboxTasks();
   assert.deepEqual(names(), ['官方盲盒', '在售盲盒']);
+  assert.deepEqual(fixture.visibleNames(), []);
+  assert.match(fixture.container.innerHTML, /暂未获取到当前直播间可送的盲盒/);
   assert.equal(fixture.refreshRequests.length, 0);
 
   fixture.dispatchSettings('789');
@@ -1178,12 +1316,12 @@ test('blind-box mapping stays alphabetical after a failed refresh and can refres
   assert.deepEqual(names(), ['在售盲盒', '官方盲盒']);
 });
 
-test('blind-box advanced editor remains available without changing values, drafts, or expansion', async () => {
+test('blind-box advanced editor replaces saved null with an empty state while preserving config, drafts, and expansion', async () => {
   const textarea = { value: 'null', dataset: {} };
   const toggle = { hidden: false, textContent: '高级 ▾' };
   const advanced = { hidden: true };
   const elements = {
-    blindBoxList: { innerHTML: '' },
+    blindBoxList: { innerHTML: '', querySelectorAll: () => [] },
     giftBlindBoxCustomConfigV2: textarea,
     blindBoxAdvancedToggle: toggle,
     blindBoxAdvanced: advanced,
@@ -1222,7 +1360,7 @@ test('blind-box advanced editor remains available without changing values, draft
     assert.equal(toggle.hidden, false);
     assert.equal(advanced.hidden, false);
     assert.equal(toggle.textContent, '高级 ▴');
-    assert.equal(textarea.value, raw);
+    assert.equal(textarea.value, raw === 'null' ? '' : raw);
     assert.equal(textarea.dataset.dirty, undefined);
   }
 
@@ -1270,6 +1408,9 @@ test('blind-box advanced editor remains available without changing values, draft
   assert.doesNotMatch(page, /id="blindBoxAdvancedToggle"[^>]*\bhidden\b/);
   assert.match(page, /id="blindBoxAdvanced"[^>]*\bhidden\b/);
   assert.doesNotMatch(page, /id="blindBoxAddBtn"[^>]*\bhidden\b/);
+  assert.match(page, /placeholder="暂无自定义配置/);
+  assert.match(page, /官方盲盒映射自动同步，无需填写/);
+  assert.match(page, /id="blindBoxListToggle"[^>]*aria-expanded="false"[^>]*aria-controls="blindBoxList"/);
 });
 
 test('blind-box JSON draft survives state refresh and a failed save', async () => {
@@ -1305,12 +1446,14 @@ test('blind-box JSON draft survives state refresh and a failed save', async () =
       hidden: false,
       textContent: '',
       href: '',
+      getAttribute(name) { return this[name]; },
+      setAttribute(name, value) { this[name] = value; },
       addEventListener: (type, handler) => listeners.set(type, handler),
       listeners,
     };
   };
   for (const id of [
-    'blindBoxAddBtn', 'blindBoxList', 'blindBoxAdvancedToggle',
+    'blindBoxAddBtn', 'blindBoxList', 'blindBoxListToggle', 'blindBoxAdvancedToggle',
     'giftBlindBoxSaveBtn', 'blindboxOverlayTitle', 'blindboxOverlayTop',
     'blindboxWinnersOnly', 'blindboxHeartBoxOnly', 'blindboxCopyUrlBtn',
     'giftBlindBoxCustomConfigV2', 'importBtn', 'blindBoxAdvanced',
@@ -1323,6 +1466,8 @@ test('blind-box JSON draft survives state refresh and a failed save', async () =
   const { createBlindboxSettings } = await loadModuleExports(
     path.join(ROOT_DIR, 'public', 'js', 'admin', 'settings-blindbox.js'),
   );
+  const savedConfigs = [];
+  let listRenders = 0;
   const settings = createBlindboxSettings({
     documentRef: { getElementById: (id) => elements.get(id) || null },
     navigatorRef: { clipboard: { writeText: async () => {} } },
@@ -1330,13 +1475,27 @@ test('blind-box JSON draft survives state refresh and a failed save', async () =
     locationRef: {},
     value: (id) => elements.get(id)?.value || '',
     toast() {},
-    saveSettings: async () => { throw new Error('offline'); },
-    getGifts: () => null,
+    saveSettings: async (config) => {
+      savedConfigs.push(config);
+      throw new Error('offline');
+    },
+    getGifts: () => ({ renderBlindBoxList() { listRenders += 1; } }),
     getState: () => null,
     getImports: () => null,
     localOverlayOrigin: () => 'http://127.0.0.1:3000',
   });
   settings.init();
+  const listToggle = elements.get('blindBoxListToggle');
+  listToggle.listeners.get('click')();
+  assert.equal(listToggle.getAttribute('aria-expanded'), 'true');
+  listToggle.listeners.get('click')();
+  assert.equal(listToggle.getAttribute('aria-expanded'), 'false');
+  assert.equal(listRenders, 2);
+
+  editable.value = '';
+  await elements.get('giftBlindBoxSaveBtn').listeners.get('click')();
+  assert.equal(savedConfigs.length, 0, 'saving the untouched empty state must not replace legacy config');
+  assert.equal(editable.dataset.dirty, undefined);
   const toggle = elements.get('blindBoxAdvancedToggle');
   toggle.listeners.get('click')();
   assert.equal(advanced.hidden, false);
@@ -1354,6 +1513,13 @@ test('blind-box JSON draft survives state refresh and a failed save', async () =
   );
   assert.equal(editable.value, draft);
   assert.equal(editable.dataset.dirty, 'true');
+  editable.value = '';
+  editable.listeners.get('input')();
+  await assert.rejects(
+    elements.get('giftBlindBoxSaveBtn').listeners.get('click')(),
+    /offline/,
+  );
+  assert.equal(savedConfigs.at(-1).giftBlindBoxCustomConfigV2, '[]');
 });
 
 test('blindbox ranking count supports all, summary-only, and one-to-ten modes', () => {
@@ -1553,7 +1719,7 @@ test('recent gift cards stay within six rows as the grid width changes', () => {
   let resizeCallback;
   const list = {
     classList: { toggle() {} },
-    querySelectorAll: () => cards,
+    querySelectorAll: selector => selector === '.gift-card' ? cards : [],
     set innerHTML(value) {
       cards.length = (value.match(/class="gift-card/g) ?? []).length;
       for (let index = 0; index < cards.length; index += 1)
@@ -1729,11 +1895,11 @@ test('same-name 七夕鹊匣 gift card uses server artwork for its exact ID', as
             data: {
               gifts: [
                 {
-                  id: '35786',
+                  id: '35786', name: '七夕鹊匣',
                   imagePath: '/overtime-gift-images/35786.webp',
                 },
                 {
-                  id: '45786',
+                  id: '45786', name: '七夕鹊匣',
                   imagePath: '/overtime-gift-images/45786.webp',
                 },
               ],
@@ -1793,7 +1959,7 @@ test('same-name 七夕鹊匣 gift card uses server artwork for its exact ID', as
       blind_box_price: 25,
     },
   ]);
-  assert.match(list.innerHTML, /\/img\/overtime-machine\/gift-placeholder\.svg/);
+  assert.match(list.innerHTML, /\/img\/gift-placeholder\.png/);
   assert.doesNotMatch(list.innerHTML, /\/overtime-gift-images\/35786\.webp/);
 
   sandbox.window.AdminApp.gifts.recent.renderGiftRecentList([
@@ -1870,7 +2036,7 @@ test('recent gift artwork refreshes from live catalog events without a slow fetc
       source: 'server',
       version: 'v2',
       gifts: [
-        { id: '35792', imagePath: '/overtime-gift-images/35792-new.webp' },
+        { id: '35792', name: '宸星定情', imagePath: '/overtime-gift-images/35792-new.webp' },
       ],
     },
   });
@@ -1882,7 +2048,7 @@ test('recent gift artwork refreshes from live catalog events without a slow fetc
       ok: true,
       data: {
         gifts: [
-          { id: '35792', imagePath: '/overtime-gift-images/35792-old.webp' },
+          { id: '35792', name: '宸星定情', imagePath: '/overtime-gift-images/35792-old.webp' },
         ],
       },
     }),
@@ -1896,7 +2062,7 @@ test('recent gift artwork refreshes from live catalog events without a slow fetc
     snapshot: {
       source: 'server',
       version: 'v3',
-      gifts: [{ id: '35792', imagePath: 'https://example.test/gift.webp' }],
+      gifts: [{ id: '35792', name: '宸星定情', imagePath: 'https://example.test/gift.webp' }],
     },
   });
   assert.match(list.innerHTML, /\/overtime-gift-images\/35792-new\.webp/);
@@ -1931,7 +2097,7 @@ test('recent gift totals worth at least 1000 RMB use gold while unit-value artwo
             data: {
               gifts: [
                 {
-                  id: '35792',
+                  id: '35792', name: '宸星定情',
                   imagePath: '/overtime-gift-images/35792.webp',
                 },
               ],

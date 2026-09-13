@@ -89,7 +89,7 @@ function createSongStore(songDb) {
       .all();
   }
 
-  return {
+  const store = {
     saveSong(song) {
       try {
         return withTransaction(() => {
@@ -340,6 +340,37 @@ function createSongStore(songDb) {
       });
     },
 
+    applyImportUpdate(buildPlan) {
+      return withTransaction(() => {
+        const plan = buildPlan(store.listRows(), store.listCategories());
+        const knownCategories = new Set(listCategoryRows().map((row) => row.name));
+        let createdCategories = 0;
+        for (const { id, song } of plan.changes) {
+          const categoryName = song.categoryName || '默认';
+          if (!knownCategories.has(categoryName)) {
+            knownCategories.add(categoryName);
+            createdCategories += 1;
+          }
+          const category = ensureCategoryWithinTransaction(categoryName);
+          if (id === undefined) {
+            insertSongWithinTransaction(song, now(), category.id);
+          } else {
+            songDb.prepare(`
+              UPDATE songs SET category_id = ?, is_enabled = ?, note = ?, tags = ?,
+                language = ?, source_platform = ?, request_price = ?, song_clip = ?, updated_at = ?
+              WHERE id = ?
+            `).run(category.id, song.isEnabled ? 1 : 0, song.note, song.tags,
+              song.language, song.sourcePlatform, song.requestPrice, song.songClip, now(), id);
+          }
+        }
+        songDb.prepare(`
+          INSERT INTO import_batches (total_count, inserted_count, duplicate_count, failed_count,
+            created_category_count, created_at) VALUES (?, ?, ?, 0, ?, ?)
+        `).run(plan.rows.length, plan.counts.inserted, plan.counts.unchanged, createdCategories, now());
+        return { total: plan.rows.length, ...plan.counts, createdCategories };
+      });
+    },
+
     replaceAll(rows) {
       return withTransaction(() => {
         songDb.prepare('UPDATE queue SET song_id = NULL WHERE song_id IS NOT NULL').run();
@@ -386,6 +417,7 @@ function createSongStore(songDb) {
       return songDb.prepare("SELECT tags FROM songs WHERE tags != ''").all();
     },
   };
+  return store;
 }
 
 module.exports = { createSongStore };

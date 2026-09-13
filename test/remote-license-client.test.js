@@ -287,7 +287,7 @@ test('remote client reads the public flat gift catalog with conditional etag req
   assert.equal(first.etag, '"catalog-42"');
   assert.equal(
     requests[0].url,
-    'https://api.lirahub.cn/api/public/gifts/catalog?schemaVersion=2',
+    'https://api.lirahub.cn/api/public/gifts/catalog?schemaVersion=3',
   );
   assert.equal(requests[0].init.method, 'GET');
   assert.equal(requests[0].init.body, undefined);
@@ -459,6 +459,7 @@ test('gift recovery uses the fixed Device endpoint and bounded cursor query', as
 
   const url = new URL(requests[0].url);
   assert.equal(url.pathname, '/api/device/gift-events');
+  assert.equal(requests[0].init.headers['X-Lira-Gift-Identity'], '1');
   assert.equal(url.searchParams.get('after'), '3');
   assert.equal(url.searchParams.get('limit'), '200');
   assert.equal(requests[0].init.method, 'GET');
@@ -524,6 +525,8 @@ test('gift history, clear, and epoch-aware recovery use fixed abortable Device e
 
   const historyUrl = new URL(requests[0].url);
   assert.equal(historyUrl.pathname, '/api/device/gift-history');
+  assert.equal(requests[0].init.headers['X-Lira-Gift-Identity'], '1');
+  assert.equal(requests[2].init.headers['X-Lira-Gift-Identity'], '1');
   assert.equal(historyUrl.searchParams.get('pageToken'), 'opaque page/+ token');
   assert.equal(requests[0].init.signal.aborted, false);
   const clearUrl = new URL(requests[1].url);
@@ -698,6 +701,7 @@ test('gift event stream allowlists valid SSE fields and ignores malformed blocks
   );
   assert.equal(requests[0].init.headers.Authorization, 'Bearer device-token');
   assert.deepEqual(openedEpochs, ['epoch-1']);
+  assert.equal(requests[0].init.headers['X-Lira-Gift-Identity'], '1');
 });
 
 test('gift event stream rejects an oversized sync epoch header', async () => {

@@ -21,6 +21,7 @@ import { initStartAnimation } from './start-animation.js';
 import { initGiftFrame } from './gift-frame.js';
 import { initClockCard } from './clock-card.js';
 import { initGiftHistoryDrawer } from './gifts/history.js';
+import { initSongImportUpdate } from './song-import-update.js';
 
 import { stateService } from './state.js';
 import { formsService } from './forms.js';
@@ -61,6 +62,7 @@ async function initApp() {
   // 初始化各模块表单（使用兼容层调用）
   modules.queue?.initQueueForm?.();
   modules.songs?.initSongForm?.();
+  initSongImportUpdate({ imports: modules.imports, reloadSongs: () => stateService.reloadAll() });
   if (modules.settings) {
     modules.settings.initSettingsForm();
     modules.settings.initBilibiliAuth();

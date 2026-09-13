@@ -734,7 +734,7 @@ test('usage guide defers image loading and avoids sticky backdrop blur', () => {
     html.match(/<img\b[^>]*class="usage-guide-image"[^>]*>/g) || [];
   const tocRule = styles.match(/\.usage-guide-toc\s*\{[\s\S]*?\n\}/)?.[0];
 
-  assert.equal(images.length, 9);
+  assert.equal(images.length, 10);
   assert.equal(
     images.every((image) => /loading="lazy"/.test(image)),
     true,
@@ -1762,10 +1762,10 @@ test('overtime picker keeps the room catalog primary when the global cache updat
     /snapshot\?\.source === ["']server["'][\s\S]*applyServerGiftArtwork\(snapshot\)/,
   );
   assert.match(overtimeSource, /function applyServerGiftArtwork\(snapshot\)/);
-  assert.match(overtimeSource, /serverGiftArtworkById\.get\(gift\.id\)/);
+  assert.match(overtimeSource, /serverGiftArtworkById\.get\(giftArtworkKey\(gift\)\)/);
   assert.match(
     overtimeSource,
-    /globalGiftMatches = globalGiftMatches\.map\(\(gift\) => \{[\s\S]*?serverGiftArtworkById\.get\(gift\.id\)/,
+    /globalGiftMatches = globalGiftMatches\.map\(\(gift\) => \{[\s\S]*?serverGiftArtworkById\.get\(giftArtworkKey\(gift\)\)/,
   );
   assert.match(overtimeSource, /function decorateOvertimeRules\(rules\)/);
   assert.match(
@@ -1776,7 +1776,7 @@ test('overtime picker keeps the room catalog primary when the global cache updat
   assert.match(stateSource, /assetsUpdatedAt: String\(snapshot\.assetsUpdatedAt/);
   assert.match(
     overtimeSource,
-    /function openGiftPicker\(\)[\s\S]*refreshGiftCatalog\(\{ notify: false \}\)/,
+    /function openGiftPicker\(row = null\)[\s\S]*refreshGiftCatalog\(\{ notify: false \}\)/,
   );
   assert.match(overtimeSource, /if \(picker\?\.open\) renderGiftPicker\(\)/);
   assert.match(overtimeSource, /全部礼物中没有匹配项/);

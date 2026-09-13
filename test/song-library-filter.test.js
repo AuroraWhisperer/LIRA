@@ -304,7 +304,7 @@ test('song library table displays the language column for rows and empty results
   assert.ok(header, 'song table markup should remain present');
   assert.match(header, /<th>歌曲标签<\/th>\s*<th>语言<\/th>\s*<th>状态<\/th>/);
   assert.match(source, /escapeHtml\(song\.language \|\| ''\)/);
-  assert.match(source, /colspan="8">暂无歌曲/);
+  assert.match(source, /colspan="9">暂无歌曲/);
 });
 
 test('song library folds row actions into an accessible bordered menu', () => {

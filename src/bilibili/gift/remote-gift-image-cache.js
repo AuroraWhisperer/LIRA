@@ -4,6 +4,7 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const { normalizeImageBaseUrl } = require('./remote-catalog-cache');
+const { giftVariantId } = require('../../shared/gift-identity');
 
 const CACHE_DIR_NAME = 'overtime-gift-images';
 const LOCAL_IMAGE_PREFIX = '/overtime-gift-images/';
@@ -95,7 +96,7 @@ function createRemoteGiftImageCache(options = {}) {
       const imagePath = getCachedCandidatePath(candidate);
       if (imagePath) return imagePath;
     }
-    const previousBasename = lastGoodImages.get(String(gift?.id || ''));
+    const previousBasename = lastGoodImages.get(gift?.variantId || giftVariantId(gift));
     return getCachedCandidatePath(
       previousBasename ? { basename: previousBasename } : bilibiliImageCandidate(gift),
     );
@@ -124,8 +125,8 @@ function createRemoteGiftImageCache(options = {}) {
     // A CDN outage must not turn every client into a full-library server download.
     const [candidate] = giftImageCandidates(gift, imageBaseUrl);
     const imagePath = await cacheCandidate(candidate);
-    const id = String(gift?.id || '');
-    if (imagePath && /^[1-9]\d{0,19}$/u.test(id)) {
+    const id = gift?.variantId || giftVariantId(gift);
+    if (imagePath && id) {
       const basename = path.posix.basename(imagePath);
       if (lastGoodImages.get(id) !== basename) {
         lastGoodImages.set(id, basename);
@@ -139,7 +140,7 @@ function createRemoteGiftImageCache(options = {}) {
   function persistImageIndex() {
     if (!indexDirty) return;
     writeAtomic(indexPath, Buffer.from(JSON.stringify({
-      schemaVersion: 1,
+      schemaVersion: 2,
       images: Object.fromEntries(lastGoodImages),
     })));
     indexDirty = false;
@@ -248,7 +249,7 @@ function bilibiliImageCandidate(gift, serverCandidate = null) {
   if (!extension) return null;
   const sourceHash = crypto
     .createHash('sha256')
-    .update(serverCandidate ? `${parsed.href}\n${serverCandidate.url}` : parsed.href)
+    .update([parsed.href, serverCandidate?.url, gift?.variantId || giftVariantId(gift)].filter(Boolean).join('\n'))
     .digest('hex')
     .slice(0, 16);
   return {
@@ -262,10 +263,10 @@ function readImageIndex(filePath) {
   const images = new Map();
   try {
     const value = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-    if (value?.schemaVersion !== 1 || !value.images || typeof value.images !== 'object')
+    if (value?.schemaVersion !== 2 || !value.images || typeof value.images !== 'object')
       return images;
     for (const [id, basename] of Object.entries(value.images)) {
-      if (/^[1-9]\d{0,19}$/u.test(id) && typeof basename === 'string' && isSafeBasename(basename))
+      if (/^gv_[a-f0-9]{64}$/u.test(id) && typeof basename === 'string' && isSafeBasename(basename))
         images.set(id, basename);
     }
   } catch (_) {

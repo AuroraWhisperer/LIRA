@@ -28,7 +28,7 @@ test('gift catalog CLI persists the versioned gold catalog and downloads its ima
     onProgress: (state) => progress.push(state),
     fetchImpl: async (url, options = {}) => {
       requests.push({ url: String(url), options });
-      if (url === 'https://api.example.test/api/public/gifts/catalog?schemaVersion=2') {
+      if (url === 'https://api.example.test/api/public/gifts/catalog?schemaVersion=3') {
         assert.equal(options.headers.Authorization, undefined);
         return new Response(
           JSON.stringify({
@@ -84,7 +84,7 @@ test('gift catalog CLI persists the versioned gold catalog and downloads its ima
   assert.deepEqual(
     requests.map((request) => request.url),
     [
-      'https://api.example.test/api/public/gifts/catalog?schemaVersion=2',
+      'https://api.example.test/api/public/gifts/catalog?schemaVersion=3',
       'https://i0.hdslb.com/bfs/live/cli-paid.webp',
     ],
   );
@@ -103,11 +103,11 @@ test('gift catalog CLI persists the versioned gold catalog and downloads its ima
   const index = JSON.parse(
     fs.readFileSync(path.join(imageDir, 'index.json'), 'utf8'),
   );
-  assert.equal(index.schemaVersion, 1);
-  assert.deepEqual(Object.keys(index.images), ['7001']);
+  assert.equal(index.schemaVersion, 2);
+  assert.deepEqual(Object.keys(index.images), [catalog.gifts[0].variantId]);
   assert.deepEqual(
     fs.readdirSync(imageDir).sort(),
-    [index.images['7001'], 'index.json'].sort(),
+    [index.images[catalog.gifts[0].variantId], 'index.json'].sort(),
   );
 
   const completion = JSON.parse(

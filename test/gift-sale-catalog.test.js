@@ -66,6 +66,7 @@ test('parseGiftConfig and buildGiftCatalog keep unknown sale IDs without local a
       id: '202',
       name: '别名礼物',
       battery: 20,
+      priceRaw: 2000, coinType: 'gold', bagGift: false,
       rmb: 2,
       imagePath: '',
     },
@@ -73,6 +74,7 @@ test('parseGiftConfig and buildGiftCatalog keep unknown sale IDs without local a
       id: '303',
       name: '礼物 303',
       battery: 0,
+      priceRaw: null, coinType: '', bagGift: null,
       rmb: 0,
       imagePath: '',
     },
@@ -211,14 +213,18 @@ test('gift sale service validates room ID, caches refreshes, persists snapshots,
   assert.equal(cached.cached, true);
   assert.equal(fetchCount, 2);
 
+  const forced = await service.refresh({ force: true });
+  assert.equal(forced.cached, false);
+  assert.equal(fetchCount, 4);
+
   roomId = '6';
   const changedRoom = await service.refresh();
   assert.equal(changedRoom.roomId, '6');
-  assert.equal(fetchCount, 4);
+  assert.equal(fetchCount, 6);
 
   nowMs += 10_001;
   await service.refresh();
-  assert.equal(fetchCount, 6);
+  assert.equal(fetchCount, 8);
 });
 
 test('gift sale service does not call upstream without a configured room', async (t) => {

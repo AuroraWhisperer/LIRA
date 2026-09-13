@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
+const { normalizeImportedSongRow, SONG_IMPORT_ALIASES } = require('../src/music/song-import-schema');
 
 function loadImportModule() {
   const context = {
@@ -50,4 +51,22 @@ test('text song import maps the permanent metadata columns', () => {
   assert.equal(headerless.songClip, 'BV1PositionalClip');
   assert.equal(headerless.sourcePlatform, 'QQ音乐');
   assert.equal(headerless.note, '待核对');
+});
+
+test('text imports use backend price aliases and retain conflicting aliases for row validation', () => {
+  const { parseTable } = loadImportModule();
+  for (const alias of SONG_IMPORT_ALIASES.requestPrice) {
+    for (const separator of [',', '\t']) {
+      const [row] = parseTable(`歌曲名字${separator}${alias}\n别名测试${separator}"30元SC, ""原文""\n第二行"`);
+      assert.equal(normalizeImportedSongRow(row).requestPrice, '30元SC, "原文"\n第二行');
+    }
+  }
+  for (const headers of ['点歌条件\t点歌价格', '点歌价格\trequestPrice', 'requestPrice\t点歌说明']) {
+    const [conflict] = parseTable(`歌曲名字\t${headers}\n冲突\t舰长\t30元SC`);
+    assert.throws(() => normalizeImportedSongRow(conflict), /价格别名冲突/);
+    const [same] = parseTable(`歌曲名字\t${headers}\n一致\t舰长\t舰长`);
+    assert.equal(normalizeImportedSongRow(same).requestPrice, '舰长');
+    const [blank] = parseTable(`歌曲名字\t${headers}\n留空\t\t提督`);
+    assert.equal(normalizeImportedSongRow(blank).requestPrice, '提督');
+  }
 });

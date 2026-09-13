@@ -139,6 +139,15 @@ export function createBlindboxSettings({
       });
 
     documentRef
+      .getElementById('blindBoxListToggle')
+      ?.addEventListener('click', () => {
+        const button = documentRef.getElementById('blindBoxListToggle');
+        const expanded = button.getAttribute('aria-expanded') === 'true';
+        button.setAttribute('aria-expanded', String(!expanded));
+        renderBlindboxList();
+      });
+
+    documentRef
       .getElementById('blindBoxAdvancedToggle')
       .addEventListener('click', () => {
         const advanced = documentRef.getElementById('blindBoxAdvanced');
@@ -153,6 +162,10 @@ export function createBlindboxSettings({
         const textarea = documentRef.getElementById(
           'giftBlindBoxCustomConfigV2',
         );
+        if (!textarea.value.trim() && textarea.dataset.dirty !== 'true') {
+          toast('暂无自定义配置，可在上方添加盲盒');
+          return;
+        }
         let raw = textarea.value.trim() || '[]';
         try {
           const parsed = JSON.parse(raw);

@@ -43,7 +43,7 @@ function namespaceWorksheetTags(buffer) {
   return createZip(Array.from(files.entries()));
 }
 
-test('song workbook codec uses the default column order and leaves the exported source platform blank', () => {
+test('song workbook codec uses the default column order and exports the stored source platform', () => {
   const songs = [
     {
       name: '测试,歌曲',
@@ -71,7 +71,7 @@ test('song workbook codec uses the default column order and leaves the exported 
     tags: '抒情,治愈',
     isEnabled: false,
     language: '国语',
-    sourcePlatform: '',
+    sourcePlatform: 'QQ音乐',
     note: '导入测试',
     requestPrice: '30元SC',
     songClip: 'BV1SongClip',
@@ -233,7 +233,72 @@ test('CSV template and library routes use the song codec output', () => {
     routes[route]({ songs: { list: () => songs } }, {}, response);
     assert.equal(response.body, `\ufeff${buildSongsCsv(rows)}\n`);
   }
-  assert.equal(parseSongsFromXlsx(buildSongsWorkbook(templateSongs())).length, 2);
+  assert.equal(parseSongsFromXlsx(buildSongsWorkbook(templateSongs())).length, 5);
+  assert.deepEqual(templateSongs().map((song) => song.request_price), ['免费', '30元SC', '舰长', '提督', '总督']);
+});
+
+test('price aliases report conflicts per data row and duplicates never overwrite metadata', () => {
+  const db = new DatabaseSync(':memory:');
+  try {
+    db.exec(SONG_SCHEMA);
+    const store = createSongStore(db);
+    const result = songService.importSongs(store, [
+      { name: '冲突', '点歌价格': '舰长', '点歌条件': '30元SC' },
+      { name: '一致', '点歌说明': '舰长', requestPrice: '舰长', songClip: 'BV1 / 01:30' },
+      { name: '填空', '点歌价格': '', '点歌条件': '提督' },
+    ]);
+    assert.equal(result.inserted, 2);
+    assert.equal(result.failed, 1);
+    assert.equal(result.failures[0].row, 1);
+    assert.match(result.failures[0].reason, /价格别名冲突/);
+    assert.equal(songService.importSongs(store, [{ name: '一致', requestPrice: '总督' }]).duplicate, 1);
+    const original = songService.listSongs(store).find((song) => song.name === '一致');
+    assert.equal(original.request_price, '舰长');
+    assert.equal(original.song_clip, 'BV1 / 01:30');
+    songService.saveSong(store, { id: original.id, name: original.name, requestPrice: '', songClip: '' });
+    const cleared = songService.listSongs(store).find((song) => song.name === '一致');
+    assert.equal(cleared.request_price, '');
+    assert.equal(cleared.song_clip, '');
+  } finally {
+    db.close();
+  }
+});
+
+test('price and clip retain internal text whitespace through save, export and reimport', () => {
+  const db = new DatabaseSync(':memory:');
+  try {
+    db.exec(SONG_SCHEMA);
+    const store = createSongStore(db);
+    songService.saveSong(store, { name: '文本', requestPrice: '舰长  原文\r\n第二行', songClip: 'BV1  说明\n01:30' });
+    const [song] = songService.listSongs(store);
+    assert.equal(song.request_price, '舰长  原文\n第二行');
+    assert.equal(song.song_clip, 'BV1  说明\n01:30');
+    const { parseTable } = loadCsvParser();
+    for (const row of [parseSongsFromXlsx(buildSongsWorkbook([song]))[0], parseTable(buildSongsCsv([song]))[0]]) {
+      const normalized = normalizeImportedSongRow(row);
+      assert.equal(normalized.requestPrice, song.request_price);
+      assert.equal(normalized.songClip, song.song_clip);
+    }
+    assert.equal(normalizeImportedSongRow({ name: '零', requestPrice: 0 }).requestPrice, '0');
+    songService.saveSong(store, { id: song.id, name: song.name, requestPrice: 0 });
+    assert.equal(songService.listSongs(store)[0].request_price, '0');
+  } finally {
+    db.close();
+  }
+});
+
+test('XLSX accepts both new price aliases and preserves conflict evidence', () => {
+  for (const alias of ['点歌条件', '点歌说明']) {
+    const workbook = buildSongsWorkbook([{ name: '别名歌曲', request_price: '30元SC, "原文"\n第二行' }]);
+    const files = readZipFiles(workbook);
+    const sheet = files.get('xl/worksheets/sheet1.xml').replace('点歌价格', alias);
+    files.set('xl/worksheets/sheet1.xml', sheet);
+    const [row] = parseSongsFromXlsx(createZip([...files]));
+    assert.equal(normalizeImportedSongRow(row).requestPrice, '30元SC, "原文"\n第二行');
+    files.set('xl/worksheets/sheet1.xml', sheet.replace('核对备注', '点歌价格').replace('<c r="J2" t="inlineStr"><is><t></t>', '<c r="J2" t="inlineStr"><is><t>舰长</t>'));
+    const [conflicting] = parseSongsFromXlsx(createZip([...files]));
+    assert.throws(() => normalizeImportedSongRow(conflicting), /价格别名冲突/);
+  }
 });
 
 test('song workbook import preserves the supported 5000-song scale within default budgets', () => {

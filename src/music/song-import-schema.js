@@ -1,6 +1,6 @@
 'use strict';
 
-const { cleanText } = require('../shared/utils');
+const { cleanText, cleanTextPreserveLines } = require('../shared/utils');
 
 const SONG_EXPORT_HEADERS = [
   '歌曲名字',
@@ -45,6 +45,8 @@ const SONG_IMPORT_ALIASES = {
     '点歌价',
     '点歌门槛',
     '点歌要求',
+    '点歌条件',
+    '点歌说明',
   ],
   songClip: [
     'songClip',
@@ -57,6 +59,12 @@ const SONG_IMPORT_ALIASES = {
 };
 
 function normalizeImportedSongRow(row) {
+  const prices = new Set(
+    SONG_IMPORT_ALIASES.requestPrice
+      .map((key) => cleanTextPreserveLines(String(row[key] ?? '')))
+      .filter(Boolean),
+  );
+  if (prices.size > 1) throw new Error('点歌价格别名冲突：请保留一个价格文本');
   return {
     name: cleanText(firstValue(row, SONG_IMPORT_ALIASES.name)),
     artist: cleanText(firstValue(row, SONG_IMPORT_ALIASES.artist)),
@@ -73,8 +81,8 @@ function normalizeImportedSongRow(row) {
       firstValue(row, SONG_IMPORT_ALIASES.sourcePlatform),
     ),
     note: cleanText(firstValue(row, SONG_IMPORT_ALIASES.note)),
-    requestPrice: cleanText(firstValue(row, SONG_IMPORT_ALIASES.requestPrice)),
-    songClip: cleanText(firstValue(row, SONG_IMPORT_ALIASES.songClip)),
+    requestPrice: prices.values().next().value || '',
+    songClip: cleanTextPreserveLines(firstValue(row, SONG_IMPORT_ALIASES.songClip)),
   };
 }
 

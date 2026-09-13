@@ -1,5 +1,7 @@
 'use strict';
 
+import { eventBus, Events } from '../shared/event-bus.js';
+
 export function createSettingsForm({
   documentRef,
   value,
@@ -77,7 +79,8 @@ export function createSettingsForm({
       .getElementById('settingsForm')
       .addEventListener('submit', async (event) => {
         event.preventDefault();
-        await api('/api/settings', collectSettings());
+        const result = await api('/api/settings', collectSettings());
+        eventBus.emit(Events.STATE_SAVED, { settings: result.data.settings });
         toast('设置已保存');
         await reloadState();
       });

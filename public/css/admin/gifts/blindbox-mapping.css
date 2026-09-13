@@ -18,6 +18,10 @@
   margin-top: 12px;
 }
 
+.blind-box-list-toggle {
+  justify-self: start;
+}
+
 /* ── 盲盒芯片卡片 ── */
 .blind-box-chip {
   display: flex;
@@ -169,17 +173,6 @@
 .blind-box-chip:has(img[alt*='羁绊宝盒']) .bb-chip-price {
   color: #2a87b7;
   background: rgba(42, 135, 183, 0.1);
-}
-
-.bb-chip-icon-fallback {
-  width: 44px;
-  height: 44px;
-  border-radius: 8px;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(135deg, #f0e6ff 0%, #fce4ec 100%);
 }
 
 /* ── 内容主体 ── */

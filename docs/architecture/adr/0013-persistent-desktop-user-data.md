@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Superseded by [ADR-0015](0015-install-local-desktop-data.md) on 2026-09-13. The current explicit requirement keeps all client data in the selected installation directory. D: is only the preferred fresh-install default when available. The original data-preservation requirement remains in force.
 
 ## Context
 

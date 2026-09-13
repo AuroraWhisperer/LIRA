@@ -1265,7 +1265,7 @@ test('overtime toolbox panel loads its isolated controller and renders untrusted
   );
   assert.match(
     source,
-    /meta\.textContent = \[giftRoleLookup\(gift\), `ID \$\{gift\.id\} · ¥\$\{gift\.rmb\.toFixed\(2\)\}`\]\s*\.filter\(Boolean\)\.join\(' · '\)/,
+    /meta\.textContent = \[`ID \$\{gift\.id\} · ¥\$\{gift\.rmb\.toFixed\(2\)\}`, giftRoleLookup\(gift\),[\s\S]*?\.filter\(Boolean\)\.join\(' · '\)/,
   );
   assert.match(source, /\/api\/overtime\/rules/);
   assert.match(
@@ -1355,16 +1355,16 @@ test('overtime gift rule actions keep adding obvious and saving stateful', () =>
     html,
     /id="overtimeSaveRulesBtn"[^>]+disabled\s*>\s*✓ 已保存\s*<\/button\s*>/,
   );
-  assert.match(html, /<h3\s*>\s*添加礼物\s*<\/h3\s*>/);
+  assert.match(html, /<h3\s+id="overtimeGiftPickerTitle">\s*添加礼物\s*<\/h3\s*>/);
   assert.match(html, /placeholder="输入礼物名称或 ID"/);
   assert.match(html, /id="overtimeGiftSearch"[^>]+maxlength="100"/);
   assert.doesNotMatch(html, /按名称或礼物 ID 搜索本地目录/);
   assert.match(
     source,
-    /createOvertimeRuleEditor\(byId\('overtimeRules'\), markRulesDirty\)/,
+    /createOvertimeRuleEditor\(byId\('overtimeRules'\), markRulesDirty,/,
   );
   assert.match(source, /row\.scrollIntoView\(\{ block: 'nearest' \}\)/);
-  assert.match(source, /toast\(`已添加 \$\{gift\.name\}`\)/);
+  assert.match(source, /`已添加 \$\{gift\.name\}`/);
   assert.match(overtimeStyles, /\.overtime-add-gift-action/);
   assert.match(overtimeStyles, /\.overtime-gift-search-row/);
   assert.match(overtimeStyles, /\.overtime-save-rules-action\.is-dirty/);

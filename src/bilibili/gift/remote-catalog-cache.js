@@ -4,6 +4,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { isDnsHostname } = require('../../shared/remote-url-policy');
 const { isGuardGiftAliasId } = require('./guard-gift-aliases');
+const { normalizeVariantSnapshot } = require('./variant-catalog-snapshot');
+const { giftVariantId } = require('../../shared/gift-identity');
 
 const CACHE_FILE_NAME = 'overtime-gift-catalog-v2.json';
 const DEFAULT_POLL_INTERVAL_MS = 12 * 60 * 60 * 1000;
@@ -53,7 +55,7 @@ function createRemoteGiftCatalogCache(options = {}) {
     initialImageBaseUrl,
     bootstrapNowMs,
   );
-  let giftsById = new Map((cache?.snapshot?.gifts || []).map((gift) => [gift.id, gift]));
+  let giftsById = indexGifts(cache?.snapshot?.gifts || []);
   let pending = null;
   let timer = null;
   let lifecycleGeneration = 0;
@@ -65,9 +67,11 @@ function createRemoteGiftCatalogCache(options = {}) {
     return cloneSnapshot(cache.snapshot, true);
   }
 
-  function getGift(giftId) {
-    const gift = giftsById.get(String(giftId || '').trim());
-    return gift ? { ...gift } : null;
+  function getGift(giftId, variantId) {
+    const candidates = (giftsById.get(String(giftId || '').trim()) || [])
+      .filter(gift => !variantId || gift.variantId === variantId);
+    const gift = candidates.length === 1 ? candidates[0] : null;
+    return gift ? structuredClone(gift) : null;
   }
 
   function refresh(requestOptions = {}) {
@@ -149,7 +153,7 @@ function createRemoteGiftCatalogCache(options = {}) {
           throw catalogError('REMOTE_CATALOG_CACHE_WRITE_FAILED');
         }
         cache = nextCache;
-        giftsById = new Map(snapshot.gifts.map((gift) => [gift.id, gift]));
+        giftsById = indexGifts(snapshot.gifts);
         if (stopped || requestGeneration !== lifecycleGeneration)
           return getSnapshot();
         const update = cloneSnapshot(cache.snapshot, false);
@@ -224,6 +228,9 @@ function normalizeRemoteCatalog(response, options = {}) {
   const source = nested ? nested : response;
   if (!source || source.ok === false) {
     throw catalogError(String(source?.error || 'REMOTE_CATALOG_INVALID'));
+  }
+  if (source.schemaVersion === 3) {
+    return normalizeVariantSnapshot(source, normalizeRemoteGift, normalizeImageBaseUrl(options.imageBaseUrl));
   }
   if (source.schemaVersion !== 2 || !Array.isArray(source.blindBoxes)) {
     throw catalogError('REMOTE_CATALOG_SCHEMA_UNSUPPORTED');
@@ -314,10 +321,13 @@ function normalizeRemoteGift(value, imageBaseUrl) {
         ? priceRaw / 1000
         : null
       : finiteNonNegative(value.rmb);
+  const bagGift = parseBooleanLike(value.bagGift ?? value.bag_gift);
+  const variantId = giftVariantId({ id, name, priceRaw, coinType, bagGift });
   return {
     id,
     name,
     battery,
+    ...(variantId ? { variantId, giftIdentity: { variantId, priceRaw, coinType, bagGift } } : {}),
     rmb,
     priceRaw,
     coinType,
@@ -540,6 +550,7 @@ function writePersistedCache(filePath, value, logger) {
           sources: value.snapshot.sources,
           gifts: value.snapshot.gifts,
           blindBoxes: value.snapshot.blindBoxes,
+          ...(value.snapshot.rawCatalog || {}),
           fetchedAt: value.snapshot.fetchedAt,
           checkedAt: value.checkedAt,
         },
@@ -567,14 +578,15 @@ function writePersistedCache(filePath, value, logger) {
 }
 
 function cloneSnapshot(snapshot, cached) {
+  const { rawCatalog: _rawCatalog, ...publicSnapshot } = snapshot;
   return {
-    ...snapshot,
+    ...structuredClone(publicSnapshot),
     cached,
     sources: {
       gifts: { ...snapshot.sources.gifts },
       effects: { ...snapshot.sources.effects },
     },
-    gifts: snapshot.gifts.map((gift) => ({ ...gift })),
+    gifts: structuredClone(snapshot.gifts),
     blindBoxes: snapshot.blindBoxes.map((box) => ({
       ...box,
       outputGiftIds: [...box.outputGiftIds],
@@ -591,6 +603,15 @@ function snapshotFingerprint(snapshot) {
     gifts: snapshot.gifts,
     blindBoxes: snapshot.blindBoxes,
   });
+}
+
+function indexGifts(gifts) {
+  const byId = new Map();
+  for (const gift of gifts) {
+    if (!byId.has(gift.id)) byId.set(gift.id, []);
+    byId.get(gift.id).push(gift);
+  }
+  return byId;
 }
 
 function catalogError(code) {

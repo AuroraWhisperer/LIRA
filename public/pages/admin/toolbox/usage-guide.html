@@ -57,6 +57,29 @@
             <span class="usage-guide-section-index" aria-hidden="true">01</span
             >快速上手
           </h3>
+          <article class="usage-guide-feature">
+            <div class="usage-guide-feature-head">
+              <strong>安装前：建议使用英文路径</strong
+              ><span class="usage-guide-chip">首次安装</span>
+            </div>
+            <p>
+              “英文路径”指安装位置的完整地址中，每一级文件夹名称都不含中文或表情，建议使用英文字母、数字、短横线（-）或下划线（_）。
+            </p>
+            <ul>
+              <li>
+                <strong>推荐：</strong><code>D:\Apps\LIRA</code> 或
+                <code>C:\Apps\LIRA</code>。
+              </li>
+              <li>
+                <strong>不推荐：</strong><code>D:\直播工具\LIRA</code> 或
+                <code>C:\Users\小明\Apps\LIRA</code>；即使最后一层叫
+                LIRA，前面的文件夹含中文也不算英文路径。
+              </li>
+            </ul>
+            <p>
+              使用英文路径可以减少部分组件或外部工具处理中文、特殊字符时可能出现的路径兼容性问题，也更方便定位文件和排查故障。首次安装时，可在“安装位置”中选择这样的文件夹；已安装且使用正常时，覆盖更新仍保持原安装位置即可。
+            </p>
+          </article>
           <div class="usage-guide-grid">
             <article class="usage-guide-card">
               <strong>完成设备授权</strong>
@@ -1397,6 +1420,46 @@
               </summary>
               <p>
                 查看「百宝箱 → 桌面更新」中的状态和错误提示，确认网络正常后重新检查或下载；下载完成后才能安装。持续失败时可从「项目主页」获取安装包，按本页「覆盖安装」操作，并通过「日志目录」提供错误记录。开发模式不支持自动更新。
+              </p>
+            </details>
+            <details class="usage-guide-faq">
+              <summary>
+                <strong>如何卸载 LIRA，卸载程序在哪里</strong>
+                <svg
+                  class="usage-guide-faq-chevron"
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="m5 8 5 5 5-5"
+                    stroke="currentColor"
+                    stroke-width="1.8"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+              </summary>
+              <p>
+                先退出 LIRA，再打开安装文件夹。若不记得安装位置，可右键点击桌面的
+                LIRA 快捷方式，选择“打开文件所在的位置”。
+              </p>
+              <p>
+                在安装文件夹里找到并双击
+                <code>Uninstall LIRA.exe</code>（卸载程序），按提示完成卸载。例如安装在
+                <code>D:\Apps\LIRA</code>，卸载程序就在这个文件夹中。
+                <img
+                  class="usage-guide-image"
+                  src="/img/usage-guide/uninstall-lira.webp"
+                  width="279"
+                  height="58"
+                  loading="lazy"
+                  decoding="async"
+                  alt="安装文件夹中的卸载程序 Uninstall LIRA.exe"
+                />
+              </p>
+              <p>
+                也可以在 Windows 的“设置 → 应用”中找到 LIRA，选择“卸载”。
               </p>
             </details>
             <details class="usage-guide-faq">

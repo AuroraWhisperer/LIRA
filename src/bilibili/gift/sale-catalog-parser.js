@@ -56,6 +56,7 @@ function parseGiftConfig(payload) {
             .trim()
             .slice(0, 100) || `礼物 ${id}`,
         battery: price / 100,
+        priceRaw: price,
         rmb: price / 1000,
         bagGift: Boolean(entry?.bag_gift),
         coinType: String(entry?.coin_type || ''),
@@ -167,6 +168,9 @@ function buildGiftCatalog(saleIds, configById) {
         id: String(id),
         name: metadata?.name || `礼物 ${id}`,
         battery: finiteNonNegative(metadata?.battery),
+        priceRaw: metadata?.priceRaw ?? null,
+        coinType: metadata?.coinType || '',
+        bagGift: metadata?.bagGift ?? null,
         rmb: finiteNonNegative(metadata?.rmb),
         imagePath: '',
       };

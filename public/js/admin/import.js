@@ -83,11 +83,15 @@
 
   function renderImportResult(result) {
     document.getElementById('importResult').textContent =
-      `总行数 ${result.total}，成功 ${result.inserted}，重复 ${result.duplicate}，失败 ${result.failed}，新增分类 ${result.createdCategories}`;
+      `总行数 ${result.total}，新增 ${result.inserted}，重复跳过 ${result.duplicate}（未更新已有歌曲），失败 ${result.failed}，新增分类 ${result.createdCategories}` +
+      (result.failures?.length
+        ? `。${result.failures.map((failure) => `数据第 ${failure.row} 行：${failure.reason}`).join('；')}`
+        : '');
   }
 
-  function parseTable(text) {
-    const clean = text.replace(/^﻿/, '').trim();
+  function parseTable(text, { preserveMissing = false } = {}) {
+    const withoutBom = text.replace(/^﻿/, '');
+    const clean = preserveMissing ? withoutBom : withoutBom.trim();
     const delimiter = clean.includes('\t') ? '\t' : ',';
     const rows = parseDelimited(clean, delimiter);
     if (rows.length === 0) return [];
@@ -128,6 +132,8 @@
         '点歌价',
         '点歌门槛',
         '点歌要求',
+        '点歌条件',
+        '点歌说明',
         'requestPrice',
         'request_price',
       ],
@@ -160,19 +166,39 @@
       note: hasHeader ? findHeader(header, aliases.note) : 9,
     };
 
+    if (preserveMissing) {
+      const columns = hasHeader ? header : [
+        'name', 'artist', 'categoryName', 'tags', 'isEnabled', 'language',
+        'requestPrice', 'songClip', 'sourcePlatform', 'note',
+      ];
+      return bodyRows.map((row) => {
+        if (!hasHeader && row.length !== columns.length) {
+          throw new Error('无表头更新需要完整十列，请使用带表头的模板。');
+        }
+        return Object.fromEntries(columns.map((column, index) => [column, readCell(row, index)]));
+      });
+    }
+
     return bodyRows
-      .map((row) => ({
-        name: readCell(row, indexes.name),
-        artist: readCell(row, indexes.artist),
-        categoryName: readCell(row, indexes.categoryName) || '默认',
-        tags: readCell(row, indexes.tags),
-        isEnabled: parseEnabledCell(readCell(row, indexes.isEnabled)),
-        language: readCell(row, indexes.language),
-        sourcePlatform: readCell(row, indexes.sourcePlatform),
-        note: readCell(row, indexes.note),
-        requestPrice: readCell(row, indexes.requestPrice),
-        songClip: readCell(row, indexes.songClip),
-      }))
+      .map((row) => {
+        // Keep the original price columns for domain-level conflict reporting.
+        const priceFields = hasHeader ? Object.fromEntries(header
+          .map((name, index) => [name, readCell(row, index)])
+          .filter(([name]) => aliases.requestPrice.includes(name))) : {};
+        return {
+          name: readCell(row, indexes.name),
+          artist: readCell(row, indexes.artist),
+          categoryName: readCell(row, indexes.categoryName) || '默认',
+          tags: readCell(row, indexes.tags),
+          isEnabled: parseEnabledCell(readCell(row, indexes.isEnabled)),
+          language: readCell(row, indexes.language),
+          sourcePlatform: readCell(row, indexes.sourcePlatform),
+          note: readCell(row, indexes.note),
+          ...priceFields,
+          requestPrice: priceFields.requestPrice || Object.values(priceFields).find(Boolean) || readCell(row, indexes.requestPrice),
+          songClip: readCell(row, indexes.songClip),
+        };
+      })
       .filter((row) => row.name.trim());
   }
 

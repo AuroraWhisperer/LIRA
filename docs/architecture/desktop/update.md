@@ -41,6 +41,8 @@ checking ──无新版本──▶ not-available
 
 ## 3. 运行时配置与事件
 
+Windows 更新器沿用 `electron-updater.autoUpdater` 及其 Electron HTTP executor，只在首次创建下载 helper 前将应用适配器的 `baseCachePath` 改为 `<安装目录>/updates`；实际缓存为其下的 `lira-updater/`。安装器成功后也将当前安装包留在此处，并移除 builder 在系统用户缓存中暂存的当前安装包。更新源、应用标识、签名校验和自动下载/退出安装策略保持原有契约。
+
 `configureAutoUpdater({onStateChange, writeLog, updater})`([update-manager.js:31-106](../../../src/electron/update-manager.js#L31-L106)):
 
 | 配置                          | 值    | 说明                       |

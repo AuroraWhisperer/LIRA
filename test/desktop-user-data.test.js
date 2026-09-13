@@ -10,7 +10,7 @@ const {
   resolveDesktopUserDataPaths,
 } = require('../src/electron/desktop-user-data');
 
-test('packaged desktop data uses a stable AppData path', () => {
+test('packaged desktop data stays beside the installed executable', () => {
   const paths = resolveDesktopUserDataPaths({
     isPackaged: true,
     appDataPath: 'C:\\Users\\Tester\\AppData\\Roaming',
@@ -19,7 +19,7 @@ test('packaged desktop data uses a stable AppData path', () => {
   });
 
   assert.equal(
-    paths.dataDir,
+    paths.legacyDataDir,
     path.resolve(
       'C:\\Users\\Tester\\AppData\\Roaming',
       PACKAGED_USER_DATA_DIR_NAME,
@@ -27,9 +27,10 @@ test('packaged desktop data uses a stable AppData path', () => {
     ),
   );
   assert.equal(
-    paths.legacyDataDir,
+    paths.dataDir,
     path.resolve('D:\\Apps\\LIRA\\data'),
   );
+  assert.equal(paths.recoveryDataDir, path.resolve('D:\\Apps\\LIRA.lira-data-backup'));
 });
 
 test('development desktop data remains in the repository data directory', () => {
@@ -48,15 +49,25 @@ test('development desktop data remains in the repository data directory', () => 
   );
 });
 
+test('packaged data follows a selected installation on another drive', () => {
+  const paths = resolveDesktopUserDataPaths({
+    isPackaged: true,
+    appDataPath: 'C:\\Users\\Tester\\AppData\\Roaming',
+    exePath: 'C:\\Apps\\LIRA\\LIRA.exe',
+  });
+  assert.equal(paths.dataDir, path.resolve('C:\\Apps\\LIRA\\data'));
+  assert.equal(paths.recoveryDataDir, path.resolve('C:\\Apps\\LIRA.lira-data-backup'));
+});
+
 test('legacy desktop data is completely published after a successful copy', () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-user-data-'));
-  const sourceDir = path.join(tempDir, 'install', 'data');
-  const targetDir = path.join(
+  const sourceDir = path.join(
     tempDir,
     'appdata',
     PACKAGED_USER_DATA_DIR_NAME,
     'data',
   );
+  const targetDir = path.join(tempDir, 'install', 'data');
 
   try {
     fs.mkdirSync(path.join(sourceDir, 'music-auth'), { recursive: true });
@@ -157,14 +168,21 @@ test(
       path.join(__dirname, '..', 'build', 'installer.nsh'),
       'utf8',
     );
+    const preservation = fs.readFileSync(
+      path.join(__dirname, '..', 'build', 'installer-data.nsh'), 'utf8',
+    );
 
-    assert.match(installer, /\$INSTDIR\\data/);
+    assert.match(preservation, /\$INSTDIR\\data/);
     assert.match(
-      installer,
+      preservation,
       /\$APPDATA\\com\.aurorawhisperer\.lira\\data/,
     );
-    assert.match(installer, /robocopy\.exe/);
-    assert.match(installer, /Abort "LIRA 无法把旧版用户数据迁移/);
+    assert.match(preservation, /robocopy\.exe/);
+    assert.match(installer, /Section "-LIRA Preserve Data"/);
+    assert.match(installer, /!macro customRemoveFiles/);
+    assert.match(preservation, /lira-data-backup/);
+    assert.ok(installer.indexOf('Call liraWaitForAppExit') < installer.indexOf('Call liraPreserveInstallData'));
+    assert.match(installer, /SetShellVarContext current\s+Call liraPreserveInstallData/);
     assert.doesNotMatch(installer, /RMDir \/r "\$APPDATA\\LIRA"/);
   },
 );

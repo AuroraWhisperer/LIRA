@@ -11,6 +11,43 @@ const { closeDatabases, createDatabases } = require('../src/storage/database');
 const { createQueueStore } = require('../src/storage/queue-store');
 const { createSongStore } = require('../src/storage/song-store');
 
+test('previewed song updates run through the API facade and request one complete cloud snapshot', async () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-import-update-runtime-'));
+  const runtime = createServerRuntime({ dataDir, licenseGate: { isAuthorized: () => true } });
+  const snapshots = [];
+  const unsubscribe = runtime.onCloudSyncRequested((scope) => {
+    if (scope === 'songs') snapshots.push(runtime.getCloudSongsSnapshot());
+  });
+  try {
+    const server = await runtime.start({ host: '127.0.0.1', startPort: 0 });
+    const headers = { authorization: `Bearer ${runtime.getApiToken()}`, 'content-type': 'application/json', origin: server.baseUrl };
+    async function call(endpoint, body) {
+      const response = await fetch(`${server.baseUrl}/api/songs/${endpoint}`, { method: 'POST', headers, body: JSON.stringify(body) });
+      return { status: response.status, body: await response.json() };
+    }
+    await call('save', { name: '本地原曲', artist: '甲', requestPrice: '舰长', sourcePlatform: 'QQ音乐' });
+    snapshots.length = 0;
+    const input = { rows: [{ name: '本地原曲', artist: '甲', requestPrice: '30元SC' }, { name: '新曲', requestPrice: '免费' }] };
+    const preview = await call('import-preview', input);
+    assert.equal(preview.status, 200);
+    assert.equal(preview.body.data.counts.updated, 1);
+    assert.equal(snapshots.length, 0);
+    const stale = await call('import-apply', { ...input, previewToken: 'stale' });
+    assert.equal(stale.status, 409);
+    assert.equal(snapshots.length, 0);
+    const applied = await call('import-apply', { ...input, previewToken: preview.body.data.previewToken });
+    assert.equal(applied.status, 200);
+    assert.equal(snapshots.length, 1);
+    assert.equal(snapshots[0].length, 2);
+    assert.equal(snapshots[0].find((song) => song.name === '本地原曲').request_price, '30元SC');
+    assert.equal(snapshots[0].find((song) => song.name === '本地原曲').source_platform, 'QQ音乐');
+  } finally {
+    unsubscribe();
+    await runtime.stop({ exitProcess: false });
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
 const TEST_BLIND_BOX_CONFIG = [
   {
     name: '测试盲盒',

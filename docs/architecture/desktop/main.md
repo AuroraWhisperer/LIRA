@@ -85,18 +85,22 @@
 
 | 事实     | 值                                                                                                          | 出处                                                               |
 | -------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| 打包版   | `%APPDATA%/com.aurorawhisperer.lira/data` — 与可替换的安装目录分离，普通升级和卸载不删除                     | [desktop-user-data.js](../../../src/electron/desktop-user-data.js) |
+| 打包版   | `<安装目录>/data`；首次安装有 D 盘时默认 `D:\LIRA`，无 D 盘时沿用 builder 默认；升级沿用本机原安装目录，用户可选择其他目录 | [desktop-user-data.js](../../../src/electron/desktop-user-data.js)、[installer.nsh](../../../build/installer.nsh) |
 | 开发版   | `ROOT_DIR/data`(仓库根)，保持现有开发数据和脚本行为                                                          | [desktop-user-data.js](../../../src/electron/desktop-user-data.js) |
-| 日志     | `path.dirname(dataDir)/logs`；打包版为 `%APPDATA%/com.aurorawhisperer.lira/logs`                             | [main.js](../../../src/electron/main.js)                           |
+| 日志     | `path.dirname(dataDir)/logs`；打包版为 `<安装目录>/logs`                             | [main.js](../../../src/electron/main.js)                           |
+| 会话与崩溃记录 | `sessionData = userData`，持久登录分区继续位于 `data/Partitions/`，`crashDumps = data/Crashpad` | [main.js](../../../src/electron/main.js) |
+| 更新缓存 | `<安装目录>/updates/lira-updater`，不再使用默认 AppData 更新缓存 | [update-manager.js](../../../src/electron/update-manager.js) |
 | 环境变量 | `process.env.SONG_PLUGIN_DATA_DIR = dataDir`、`process.env.ELECTRON_DESKTOP = '1'`、`HOST` 缺省 `127.0.0.1` | [main.js](../../../src/electron/main.js)                           |
 
 目录树(五库、`music-auth/`、`bilibili-auth/`、`Partitions/`、允许清单)见 [../backend/storage.md](../backend/storage.md) §2 — 本文件不重复成树。
 
 ### 3.2 升级迁移
 
-v1.5.6–v4.0.15 打包版把全部数据放在 `<安装目录>/data`，旧卸载器会在升级时替换该目录。新版 NSIS `customInit` 在旧卸载器运行前把整棵目录复制到稳定路径旁的 `data.migration`，仅当 `robocopy` 返回 0–7 时用同卷 `Rename` 发布；失败会清理临时目录、中止安装并保留旧源。稳定目标已存在时不覆盖。
+旧卸载器可能递归删除安装目录；旧版运行时的 Cookies 也不能安全复制。NSIS 在选定目录后的首个隐藏安装 section 中检查 LIRA 进程，交互安装要求先关闭旧版再重试，静默安装有界等待；确认退出后，才将数据完整复制到 `<新安装目录>.lira-data-backup.partial`，复制返回码 0–7 后重命名为不受旧卸载器删除影响的同级备份。失败中止安装并保留源；已有恢复备份或不同目标数据产生冲突时停止，不覆盖。
 
-`desktop-user-data.js` 在 Electron 使用新目录前提供第二道一次性迁移，覆盖手工替换程序等未经过 NSIS 的场景：复制到唯一同级 staging 目录、成功后原子 `rename`，失败清理本轮 staging 并停止应用启动。旧 `%APPDATA%/LIRA/Partitions/` 的更早期登录分区仍由 `migrateUserDataFromAppData` 在目标缺失时兼容复制。决策与失败模式见 ADR [0013](../adr/0013-persistent-desktop-user-data.md)。
+程序替换完成后、启动新版前，安装器将备份恢复为 `<新安装目录>/data`。新版卸载器保留 `data/`、`logs/`、`updates/`；恢复失败保留备份并报告具体位置。Electron 发现未完成恢复的同级备份时拒绝启动后端，避免生成空库。
+
+只有本地 `data/` 不存在时，安装器和 `desktop-user-data.js` 才把 `%APPDATA%/com.aurorawhisperer.lira/data` 作为兼容来源，完整复制后发布到安装目录；已有本地目录优先，历史 AppData 副本保留，不再作为活动写入目标。启动侧迁移使用唯一 staging 目录，失败停止启动。更早期 `%APPDATA%/LIRA/Partitions/` 仍在目标缺失时兼容读取。授权私钥继续使用 `safeStorage`，文件位置改变不改变机器绑定或加密边界。决策见 ADR [0015](../adr/0015-install-local-desktop-data.md)。Windows 注册表及安装解压使用的系统临时目录不属于客户端持久数据目录。
 
 ## 4. 主窗口
 
