@@ -84,9 +84,9 @@
     {
       "path": "public/css/license.css",
       "kind": "review",
-      "maxLines": 722,
+      "maxLines": 702,
       "owner": "授权页面",
-      "reason": "单一授权页面的布局、控件与状态，暂保留。",
+      "reason": "登录与注册模式切换样式已提取至 license/account-modes.css，剩余授权页面布局、控件与状态暂保留。",
       "removal": "出现独立面板职责时再提取，保持授权 UI 行为。",
       "reviewBy": "2026-12-13",
       "test": "test/license-ui.test.js"

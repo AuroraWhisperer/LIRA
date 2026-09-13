@@ -124,6 +124,8 @@ test('license page replaces the form with an accessible gift initialization card
   assert.match(html, /id="giftCatalogInitializationProgress"[^>]*max="100"/s);
   assert.match(html, /id="giftCatalogInitializationStatus"[^>]*role="status"/s);
   assert.match(html, /id="giftCatalogInitializationRetryBtn"/);
+  assert.match(html, /id="giftCatalogInitializationBackBtn"[^>]*hidden/s);
+  assert.match(html, /返回登录/);
   assert.match(html, /正在为你准备直播工具/);
   assert.match(html, /aria-label="准备进度"/);
   assert.match(html, /id="giftCatalogInitializationPercent">0%/);

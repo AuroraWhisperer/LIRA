@@ -34,8 +34,14 @@
   const initializationRetryButton = document.getElementById(
     'giftCatalogInitializationRetryBtn',
   );
+  const initializationBackButton = document.getElementById(
+    'giftCatalogInitializationBackBtn',
+  );
   let busy = false;
   let registration = false;
+  let licenseState = 'needs_activation';
+  let returnedToLogin = false;
+  let initializationBusy = false;
   let unsubscribe = () => {};
   let unsubscribeGiftCatalog = () => {};
   let unsubscribeWindowMaximized = () => {};
@@ -184,7 +190,9 @@
 
   function render(snapshot = {}) {
     const state = String(snapshot.state || 'needs_activation');
-    if (state === 'authorized') {
+    licenseState = state;
+    if (state !== 'authorized') returnedToLogin = false;
+    if (state === 'authorized' && !returnedToLogin) {
       showGiftCatalogInitialization();
       loadGiftCatalogState();
       return;
@@ -193,9 +201,16 @@
     initializationCard.hidden = true;
     const isAuthorizing = state === 'authorizing' || busy;
     submitButton.disabled = isAuthorizing || !canActivate;
-    retryButton.hidden = !(state === 'needs_connection' || state === 'blocked');
+    retryButton.hidden = !(
+      state === 'needs_connection' ||
+      state === 'blocked' ||
+      state === 'authorized'
+    );
+    retryButton.textContent = state === 'authorized' ? '继续准备' : '重试连接';
     retryButton.disabled = isAuthorizing;
-    if (state === 'checking') setStatus('正在检查本机设备授权…', 'loading');
+    if (state === 'authorized')
+      setStatus('本机授权已通过，可继续准备。', 'good');
+    else if (state === 'checking') setStatus('正在检查本机设备授权…', 'loading');
     else if (state === 'authorizing')
       setStatus('正在验证账号与本机授权，请稍候…', 'loading');
     else if (state === 'needs_connection')
@@ -211,6 +226,7 @@
   }
 
   function renderGiftCatalogState(snapshot = {}) {
+    if (licenseState !== 'authorized' || returnedToLogin) return;
     showGiftCatalogInitialization();
     const catalogStatus =
       snapshot?.ok === false && snapshot?.status !== 'ready'
@@ -221,6 +237,7 @@
     initializationPercent.textContent = `${percent}%`;
     initializationRetryButton.hidden = catalogStatus !== 'error';
     initializationRetryButton.disabled = catalogStatus !== 'error';
+    initializationBackButton.hidden = catalogStatus !== 'error';
     initializationCard.setAttribute(
       'aria-busy',
       catalogStatus === 'ready' || catalogStatus === 'error' ? 'false' : 'true',
@@ -257,7 +274,7 @@
       /^HTTP_(429|5\d\d)$/.test(value)
     )
       return '暂时无法完成准备，请检查网络后重试。';
-    return '准备失败，请重试。';
+    return '准备失败，请重试或返回登录。';
   }
 
   function safeCount(value) {
@@ -332,7 +349,9 @@
   }
 
   async function retry() {
-    if (busy || !api?.retry) return;
+    if (busy) return;
+    if (licenseState === 'authorized') return retryGiftCatalog();
+    if (!api?.retry) return;
     busy = true;
     render({ state: 'checking' });
     try {
@@ -346,7 +365,14 @@
   }
 
   async function retryGiftCatalog() {
-    if (!api?.retryGiftCatalog) return;
+    if (
+      initializationBusy ||
+      licenseState !== 'authorized' ||
+      !api?.retryGiftCatalog
+    )
+      return;
+    initializationBusy = true;
+    returnedToLogin = false;
     initializationRetryButton.disabled = true;
     renderGiftCatalogState({ status: 'running', phase: 'catalog' });
     try {
@@ -357,7 +383,17 @@
         phase: 'error',
         error: 'NETWORK_UNAVAILABLE',
       });
+    } finally {
+      initializationBusy = false;
     }
+  }
+
+  function returnToLogin() {
+    returnedToLogin = true;
+    passwordInput.value = '';
+    codeInput.value = '';
+    setPasswordVisible(false);
+    render({ state: licenseState });
   }
 
   form?.addEventListener('submit', activate);
@@ -368,6 +404,7 @@
   );
   retryButton?.addEventListener('click', retry);
   initializationRetryButton?.addEventListener('click', retryGiftCatalog);
+  initializationBackButton?.addEventListener('click', returnToLogin);
   document
     .getElementById('licenseMinimizeBtn')
     ?.addEventListener('click', () =>

@@ -84,7 +84,7 @@ function createRemoteLicenseClient(options = {}) {
         1024,
         Number(requestOptions.maxResponseBytes) || 1024 * 1024,
       );
-      if (text.length > maxResponseBytes) {
+      if (Buffer.byteLength(text, 'utf8') > maxResponseBytes) {
         throw new RemoteLicenseError(
           'RESPONSE_TOO_LARGE',
           '授权服务器响应过大。',
@@ -187,6 +187,8 @@ function createRemoteLicenseClient(options = {}) {
       // even when a caller has one available for other protected operations.
       undefined,
       {
+        // The full resource catalog grows independently of small auth responses.
+        maxResponseBytes: Infinity,
         allowNotModified: true,
         includeResponseMeta: true,
         headers: normalizedEtag ? { 'If-None-Match': normalizedEtag } : {},

@@ -57,6 +57,8 @@
 
 `license-manager.js` 是设备身份状态、内存 access token、续期和 heartbeat 的唯一所有者。持久化文件只保存公开设备资料;私钥由 Electron `safeStorage` 加密,access token 不写磁盘也不进入 preload/renderer 返回值。
 
+`remote-license-client.js` 的普通 JSON 响应默认限制为 1 MiB（按 UTF-8 字节数计），其他端点沿用已有的独立上限。公共礼物目录包含持续增长的变体和特效元数据，不设固定响应大小上限；仍沿用请求超时、固定来源和目录结构校验。
+
 - 状态为 `CHECKING / NEEDS_ACTIVATION / NEEDS_CONNECTION / AUTHORIZING / AUTHORIZED / BLOCKED`;只有 `AUTHORIZED` 打开本地业务 gate
 - token 续期使用全局单飞 Promise,其他受保护请求和 heartbeat 必须等待该 Promise,避免旧 `token_jti` 与新 token 并发
 - 默认 `10m` token 在到期前 90 秒续期;heartbeat 每 150 秒执行一次

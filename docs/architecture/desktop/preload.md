@@ -18,6 +18,8 @@
 
 目录进度同时供首次登录卡和 Admin 后台更新 toast 消费：首次为 `running`，后续为 `updating`；后续 `images` 阶段的 `total/completed/available/failed` 仅统计本次需下载的图片，`catalog` 阶段和零下载检查不提示。完成进入 `ready`，单图失败保留旧图并报告部分失败。新增脱敏字段 `background`（严格布尔值）和 `completedAt`（规范化 ISO 时间或 null）区分本次后台更新与首次初始化/磁盘恢复状态，让 Admin 加载前已结束的更新也能提示且去重；授权/来源校验不变。
 
+首次准备失败时可在当前页面返回登录表单；此操作保留本机授权，表单的“继续准备”仍调用 `retryGiftCatalog`，无需重新激活。返回后忽略迟到的目录进度，授权失效时按授权状态显示错误，只有用户继续准备才重新显示初始化卡；进入 Admin 的条件仍由 main process 判定。
+
 服务端权威礼物流同样只属于 Electron main：`remote-gift-controller.js` 在 main process 持有 DeviceBearer、SSE reader、cursor 对账；当前 cursor 由本地礼物投影事务持久化到 SQLite 的 `gift_sync_state`；`preload.js` 不新增 remote gift/token/SSE handle 的 IPC。renderer 继续通过本地 HTTP/WS 的 snapshot 与 `gift:frame` 消费已投影的礼物数据，不能直接访问 lira-server 礼物接口。
 
 ## 2. IPC 全量注册表(唯一成表处)

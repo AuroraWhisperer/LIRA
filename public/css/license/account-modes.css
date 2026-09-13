@@ -1,0 +1,26 @@
+.license-account-modes {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.license-account-modes button {
+  padding: 8px 12px;
+  border: 1px solid var(--license-input-border);
+  border-radius: 7px;
+  background: var(--license-bg);
+  color: var(--license-text);
+  font-size: 13px;
+}
+.license-account-modes button:hover {
+  border-color: var(--license-primary);
+}
+.license-account-modes button[aria-pressed='true'] {
+  border-color: var(--license-primary);
+  background: var(--license-primary);
+  color: var(--license-on-primary);
+  font-weight: 600;
+}
+.license-account-modes button:focus-visible {
+  outline: 2px solid var(--license-primary);
+  outline-offset: 4px;
+}
