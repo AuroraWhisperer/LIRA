@@ -10,7 +10,10 @@ function schedulerError(code, message) {
 }
 
 function requireClock(clock) {
-  if (typeof clock?.nowMs !== 'function' || typeof clock?.sleep !== 'function') {
+  if (
+    typeof clock?.nowMs !== 'function' ||
+    typeof clock?.sleep !== 'function'
+  ) {
     throw new TypeError('Request scheduler requires an injectable clock.');
   }
   return clock;
@@ -44,16 +47,19 @@ function createRequestScheduler({ fetchImpl, budgetStore, clock }) {
     typeof budgetStore?.reserve !== 'function' ||
     typeof budgetStore?.finish !== 'function'
   ) {
-    throw new TypeError('Request scheduler requires a persistent budget store.');
+    throw new TypeError(
+      'Request scheduler requires a persistent budget store.',
+    );
   }
   const schedulerClock = requireClock(clock);
   const lifecycle = new AbortController();
   let disposed = false;
   let queue = Promise.resolve();
 
-  async function waitForBudget(scope, kind, signal) {
+  async function waitForBudget(scope, kind, signal, beforeRequest) {
     for (;;) {
       signal.throwIfAborted();
+      await beforeRequest?.();
       const current = now(schedulerClock);
       const decision = budgetStore.reserve({ scope, kind, nowMs: current });
       if (decision.allowed) return;
@@ -65,7 +71,12 @@ function createRequestScheduler({ fetchImpl, budgetStore, clock }) {
       }
       const delay = Math.max(0, Number(decision.waitUntilMs) - current);
       if (delay === 0) continue;
-      await schedulerClock.sleep(delay, signal);
+      // Recheck the dedicated account while waiting; a switched account must
+      // not occupy the old job for an entire hourly budget window.
+      await schedulerClock.sleep(
+        beforeRequest ? Math.min(delay, 4000) : delay,
+        signal,
+      );
     }
   }
 
@@ -89,7 +100,9 @@ function createRequestScheduler({ fetchImpl, budgetStore, clock }) {
     const kind = String(input?.kind || '').trim();
     const url = String(input?.url || '');
     if (!scope || !kind || !url) {
-      throw new TypeError('Scheduled request scope, kind, and URL are required.');
+      throw new TypeError(
+        'Scheduled request scope, kind, and URL are required.',
+      );
     }
     const signal = input.signal
       ? AbortSignal.any([input.signal, lifecycle.signal])
@@ -97,7 +110,9 @@ function createRequestScheduler({ fetchImpl, budgetStore, clock }) {
     signal.throwIfAborted();
 
     for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt += 1) {
-      await waitForBudget(scope, kind, signal);
+      await waitForBudget(scope, kind, signal, input.beforeRequest);
+      await input.beforeRequest?.();
+      signal.throwIfAborted();
       let response;
       const timeoutSignal = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
       const requestSignal = AbortSignal.any([signal, timeoutSignal]);
@@ -136,7 +151,10 @@ function createRequestScheduler({ fetchImpl, budgetStore, clock }) {
         continue;
       }
 
-      if (!shouldRetryResponse(response) || attempt === RETRY_DELAYS_MS.length) {
+      if (
+        !shouldRetryResponse(response) ||
+        attempt === RETRY_DELAYS_MS.length
+      ) {
         return response;
       }
       await discardResponse(response);
@@ -172,8 +190,8 @@ function createRequestScheduler({ fetchImpl, budgetStore, clock }) {
 
   function resume(scope) {
     const nowMs = now(schedulerClock);
-    budgetStore.clearHold({ scope, nowMs });
-    budgetStore.clearHold({ scope: '*', nowMs });
+    budgetStore.clearHold({ scope: '*', nowMs, respectCooldown: true });
+    budgetStore.clearHold({ scope, nowMs, respectCooldown: true });
   }
 
   async function dispose() {

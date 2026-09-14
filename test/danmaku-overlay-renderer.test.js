@@ -171,6 +171,25 @@ test('shared danmaku renderer replaces whole and inline emote triggers with safe
     identityRoot.children.map((item) => item.dataset.identity),
     ['viewer', 'fan', 'captain', 'admiral', 'governor'],
   );
+
+  feed.render([{
+    kind: 'gift', name: '<img src=x onerror=alert(1)>',
+    message: '送出 小花花 × 10', giftName: '<b>小花花</b>', giftCount: 10,
+  }]);
+  const giftBubble = root.children[0];
+  assert.match(giftBubble.className, /\bis-gift\b/);
+  const giftBody = giftBubble.children[1];
+  assert.equal(giftBody.children[0].children[0].textContent, '<img src=x onerror=alert(1)>');
+  const giftMessage = giftBody.children[1];
+  assert.equal(giftMessage.className, 'draw-danmaku-gift');
+  assert.equal(giftMessage.children[1].children[0].textContent, '送出');
+  assert.equal(giftMessage.children[1].children[1].textContent, '<b>小花花</b>');
+  assert.equal(giftMessage.children[2].textContent, '× 10');
+  assert.equal(giftMessage.children[1].children[1].children.length, 0);
+
+  feed.render([{ name: '普通观众', message: '继续聊天' }]);
+  assert.doesNotMatch(root.children[0].className, /\bis-gift\b/);
+  assert.equal(root.children[0].children[1].children[1].textContent, '继续聊天');
 });
 
 test('fixed danmaku feed prunes incremental nodes outside its visible viewport', async () => {

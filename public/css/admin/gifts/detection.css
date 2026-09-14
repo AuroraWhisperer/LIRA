@@ -25,9 +25,9 @@
 
 /* ---- 月底冲刺 ---- */
 .gift-sprint-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .gift-sprint-form-row {
@@ -35,17 +35,27 @@
   align-items: end;
   gap: 12px;
   flex-wrap: wrap;
-  margin-top: 12px;
+  margin-top: auto;
 }
 
 .gift-sprint-form-row label {
-  flex: 1;
-  min-width: 160px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1 1 160px;
+  min-width: 0;
+  font-size: var(--type-size-control);
+  font-weight: var(--type-weight-semibold);
+  line-height: var(--type-leading-control);
 }
 
 .gift-stat {
   display: grid;
+  flex: 1 1 calc(50% - 5px);
+  align-content: start;
   gap: 6px;
+  min-width: min-content;
+  max-width: 100%;
   min-height: 84px;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -60,20 +70,32 @@
   line-height: var(--type-leading-caption);
 }
 
-.gift-stat strong {
+.gift-stat .ui-metric {
   font-size: var(--type-size-metric-md);
   font-weight: var(--type-weight-bold);
   line-height: var(--type-leading-display);
   font-variant-numeric: tabular-nums;
+  overflow-wrap: break-word;
 }
 
 .gift-stat.highlight {
-  border-color: rgba(33, 182, 168, 0.45);
+  border-color: var(--color-border-accent);
   background: var(--color-success-light);
+}
+
+.gift-stat.highlight strong {
+  color: var(--color-success-dark);
 }
 
 .gift-form-actions {
   display: flex;
   align-items: end;
   gap: 8px;
+  margin-left: auto;
+}
+
+@container gift-planning-card (max-width: 379px) {
+  .gift-sprint-form-row label {
+    flex-basis: 100%;
+  }
 }

@@ -20,7 +20,10 @@ function hasOwn(value, key) {
 function normalizeDecimalId(value, field) {
   if (typeof value === 'string') {
     if (/^[1-9]\d{0,63}$/u.test(value)) return value;
-    fail('LOTTERY_UPSTREAM_INVALID', `${field} must be a positive decimal string.`);
+    fail(
+      'LOTTERY_UPSTREAM_INVALID',
+      `${field} must be a positive decimal string.`,
+    );
   }
   if (typeof value === 'number' && Number.isSafeInteger(value) && value > 0) {
     return String(value);
@@ -92,7 +95,7 @@ function parseCursor(cursor) {
   return JSON.stringify({ offset: normalizeCursorOffset(value.offset) });
 }
 
-function pendingCapabilities() {
+function sourceCapabilities() {
   const unavailable = () => ({
     available: false,
     canEnumerate: false,
@@ -101,18 +104,28 @@ function pendingCapabilities() {
   });
   return {
     comment: {
-      available: false,
-      canEnumerate: false,
+      available: true,
+      canEnumerate: true,
       hasEventTime: true,
-      reason: 'PENDING_CONTROLLED_VERIFICATION',
+      reason: 'UNTESTED_ADAPTER',
     },
-    repost: unavailable(),
-    like: unavailable(),
+    repost: {
+      available: true,
+      canEnumerate: true,
+      hasEventTime: false,
+      reason: 'OBSERVED_MEMBERSHIP',
+    },
+    like: {
+      available: true,
+      canEnumerate: true,
+      hasEventTime: false,
+      reason: 'OBSERVED_MEMBERSHIP',
+    },
     relation: {
-      available: false,
+      available: true,
       canEnumerate: false,
-      hasEventTime: true,
-      reason: 'PENDING_CONTROLLED_VERIFICATION',
+      hasEventTime: false,
+      reason: 'UNTESTED_ADAPTER',
     },
     threadReplies: unavailable(),
     level: unavailable(),
@@ -126,7 +139,10 @@ function parseDynamicTarget(payload, expectedDynamicId) {
   }
   const dynamicId = readPreferredId(item, ['id_str', 'id'], 'dynamic ID');
   if (dynamicId !== expectedDynamicId) {
-    fail('LOTTERY_UPSTREAM_INVALID', 'Dynamic detail ID does not match the link.');
+    fail(
+      'LOTTERY_UPSTREAM_INVALID',
+      'Dynamic detail ID does not match the link.',
+    );
   }
   if (!['DYNAMIC_TYPE_WORD', 'DYNAMIC_TYPE_DRAW'].includes(item.type)) {
     fail(
@@ -138,12 +154,9 @@ function parseDynamicTarget(payload, expectedDynamicId) {
   const author = item.modules?.module_author;
   const basic = item.basic;
   return {
+    kind: 'dynamic',
     dynamicId,
-    ownerUid: readPreferredId(
-      author,
-      ['mid_str', 'mid'],
-      'dynamic owner UID',
-    ),
+    ownerUid: readPreferredId(author, ['mid_str', 'mid'], 'dynamic owner UID'),
     commentOid: readPreferredId(
       basic,
       ['comment_id_str', 'comment_id'],
@@ -156,7 +169,50 @@ function parseDynamicTarget(payload, expectedDynamicId) {
       author?.pub_ts,
       'dynamic publication time',
     ),
-    capabilities: pendingCapabilities(),
+    description:
+      typeof item.modules?.module_dynamic?.desc?.text === 'string'
+        ? item.modules.module_dynamic.desc.text.slice(0, 300)
+        : '图文动态',
+    expectedReactions: {
+      like: item.modules?.module_stat?.like?.count ?? null,
+      repost: item.modules?.module_stat?.forward?.count ?? null,
+    },
+    capabilities: sourceCapabilities(),
+  };
+}
+
+function parseVideoTarget(payload, bvid) {
+  const data = payload?.data;
+  if (data?.bvid !== bvid)
+    fail('LOTTERY_UPSTREAM_INVALID', 'Video ID does not match.');
+  const aid = readPreferredId(data, ['aid'], 'video ID');
+  const capabilities = sourceCapabilities();
+  for (const source of ['like', 'repost']) {
+    capabilities[source] = {
+      available: false,
+      canEnumerate: false,
+      hasEventTime: false,
+      reason: 'VIDEO_SOURCE_UNAVAILABLE',
+    };
+  }
+  return {
+    kind: 'video',
+    bvid,
+    dynamicId: aid,
+    commentOid: aid,
+    commentType: 1,
+    ownerUid: readPreferredId(
+      data.owner,
+      ['mid_str', 'mid'],
+      'video owner UID',
+    ),
+    publishedAtMs: secondsToMilliseconds(
+      data.pubdate,
+      'video publication time',
+    ),
+    description:
+      typeof data.title === 'string' ? data.title.slice(0, 300) : '视频',
+    capabilities,
   };
 }
 
@@ -187,7 +243,12 @@ function parseCommentRecord(record) {
 
 function parseCommentPage(payload, previousCursor) {
   const data = payload?.data;
-  if (!data || typeof data !== 'object' || !Array.isArray(data.replies)) {
+  if (
+    !data ||
+    typeof data !== 'object' ||
+    (!Array.isArray(data.replies) &&
+      !(data.replies === null && data.cursor?.is_end === true))
+  ) {
     fail('LOTTERY_UPSTREAM_INVALID', 'Comment page records are missing.');
   }
   if (!data.cursor || typeof data.cursor.is_end !== 'boolean') {
@@ -198,7 +259,10 @@ function parseCommentPage(payload, previousCursor) {
   let nextCursor = null;
   if (!ended) {
     if (data.replies.length === 0) {
-      fail('LOTTERY_UPSTREAM_INVALID', 'Comment page is empty before pagination ended.');
+      fail(
+        'LOTTERY_UPSTREAM_INVALID',
+        'Comment page is empty before pagination ended.',
+      );
     }
     const pagination = data.cursor.pagination_reply;
     if (!pagination || !hasOwn(pagination, 'next_offset')) {
@@ -208,11 +272,14 @@ function parseCommentPage(payload, previousCursor) {
       offset: normalizeCursorOffset(pagination.next_offset),
     });
     if (nextCursor === previousCursor) {
-      fail('LOTTERY_UPSTREAM_INVALID', 'Comment pagination cursor did not advance.');
+      fail(
+        'LOTTERY_UPSTREAM_INVALID',
+        'Comment pagination cursor did not advance.',
+      );
     }
   }
   return {
-    records: data.replies.map(parseCommentRecord),
+    records: (data.replies || []).map(parseCommentRecord),
     nextCursor,
     ended,
   };
@@ -247,6 +314,7 @@ module.exports = {
   parseCommentPage,
   parseCursor,
   parseDynamicTarget,
+  parseVideoTarget,
   readPreferredId,
   relationResult,
 };

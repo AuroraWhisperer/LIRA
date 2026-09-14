@@ -11,6 +11,9 @@ body[data-style='minimal'] .draw-danmaku-feed {
   height: calc(100vh - clamp(20px, 4.4vw, 48px));
   max-height: 100vh;
 }
+body.is-preview[data-style='minimal'] .draw-danmaku-feed {
+  gap: 14px;
+}
 body[data-style='minimal'] .draw-danmaku-item {
   grid-template-columns: minmax(0, 1fr);
   gap: 0;
@@ -81,4 +84,37 @@ body[data-style='minimal'] .draw-danmaku-body p {
   font-size: 18px;
   line-height: 1.5;
   text-shadow: inherit;
+}
+
+/* 礼物花结直接接替原有分隔装饰，继续保持无底板的居中排版。 */
+body[data-style='minimal'] .is-gift .draw-danmaku-identity::after {
+  margin: -2px 0 1px;
+  aspect-ratio: 270 / 64;
+  background-image: url('/img/overlays/danmaku-gifts/minimal.svg');
+}
+body[data-style='minimal'] .is-gift .draw-danmaku-gift {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 10px;
+  width: 100%;
+}
+body[data-style='minimal'] .draw-danmaku-gift-art {
+  display: none;
+}
+body[data-style='minimal'] .draw-danmaku-gift-copy {
+  display: block;
+}
+body[data-style='minimal'] .draw-danmaku-gift-action {
+  margin-right: 6px;
+  color: #f5eaff;
+}
+body[data-style='minimal'] .draw-danmaku-gift-name {
+  color: #ffe5f3;
+  font-size: 20px;
+}
+body[data-style='minimal'] .draw-danmaku-gift-count {
+  align-self: center;
+  color: #fff0c3;
+  font-size: 22px;
 }

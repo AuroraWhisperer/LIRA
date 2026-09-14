@@ -17,6 +17,10 @@ const {
   powerMonitor,
 } = require('electron');
 const { createDesktopAuthController } = require('./desktop-auth-controller');
+const { createDynamicLotteryAuth } = require('./dynamic-lottery-auth');
+const {
+  registerDynamicLotteryAuthIpc,
+} = require('./ipc/dynamic-lottery-auth-ipc');
 const { createCloudSyncController } = require('./cloud-sync-controller');
 const { createRemoteGiftController } = require('./remote-gift-controller');
 const {
@@ -122,6 +126,8 @@ var licenseResumeController = null;
 var cloudSyncController = null;
 var remoteGiftController = null;
 var readinessController = null;
+var dynamicLotteryAuth = null;
+var disposeLotteryAuthIpc = null;
 const remoteGiftCatalogBootstrapBase = resolveConfiguredBaseUrl();
 
 // ---- app lifecycle ----
@@ -263,6 +269,8 @@ function requestDesktopShutdown({ restart = false } = {}) {
       readinessController?.dispose();
       readinessController = null;
       licenseResumeController?.unregister();
+      disposeLotteryAuthIpc?.();
+      dynamicLotteryAuth?.dispose();
       const controllersToDrain = [
         remoteGiftController,
         cloudSyncController,
@@ -270,9 +278,10 @@ function requestDesktopShutdown({ restart = false } = {}) {
       for (const controller of controllersToDrain) controller.dispose();
       remoteGiftController = null;
       cloudSyncController = null;
-      await Promise.all(
-        controllersToDrain.map((controller) => controller.whenIdle()),
-      );
+      await Promise.all([
+        dynamicLotteryAuth?.whenIdle(),
+        ...controllersToDrain.map((controller) => controller.whenIdle()),
+      ]);
       if (finished) return;
       await lifecycleState.shutdown?.({ exitProcess: false });
     } catch (error) {
@@ -402,6 +411,10 @@ async function startDesktopApp() {
     dataDir: pathState.dataDir,
     safeStorage,
     appVersion: app.getVersion(),
+    dynamicLotteryAuth: {
+      getIdentity: () => dynamicLotteryAuth?.getIdentity(),
+      getContext: () => dynamicLotteryAuth?.getContext(),
+    },
     isPackaged: app.isPackaged,
     appPath: app.isPackaged ? path.join(process.resourcesPath, 'app.asar') : '',
     licenseGate: {
@@ -434,6 +447,22 @@ async function startDesktopApp() {
     appVersion: app.getVersion(),
     isPackaged: app.isPackaged,
     appPath: app.isPackaged ? path.join(process.resourcesPath, 'app.asar') : '',
+  });
+  dynamicLotteryAuth = createDynamicLotteryAuth({
+    session,
+    safeStorage,
+    dataDir: pathState.dataDir,
+    licenseManager,
+    BrowserWindow,
+    shell,
+    getMainWindow: () => windowState.main,
+    writeLog,
+  });
+  disposeLotteryAuthIpc = registerDynamicLotteryAuthIpc({
+    ipcMain,
+    auth: dynamicLotteryAuth,
+    getMainWindow: () => windowState.main,
+    getDesktopBaseUrl: () => serverInfo.baseUrl,
   });
   registerLicenseIpc({
     ipcMain,

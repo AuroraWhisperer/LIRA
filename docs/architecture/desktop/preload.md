@@ -6,11 +6,13 @@
 
 ## 1. 安全模型
 
+新增第五个白名单桥 `dynamicLotteryAuth`，原有四个桥保持兼容。该桥的三个 invoke 均要求当前主窗口 webContents、主 frame 对象及精确 desktopBaseUrl origin；其他窗口、子 frame 或外部页面无权调用。它不暴露 Cookie、快照路径、`getContext` 或授权身份参数。
+
 | 项          | 配置                                                                                                                                                                                               | 出处                                                                                                                             |
 | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
 | 上下文隔离  | `contextIsolation: true`(所有窗口)                                                                                                                                                                 | [main.js:324](../../../src/electron/main.js#L324)                                                                                |
 | Node 注入   | `nodeIntegration: false`(所有窗口)                                                                                                                                                                 | [main.js:324](../../../src/electron/main.js#L324)                                                                                |
-| 暴露方式    | `contextBridge.exposeInMainWorld` 四个白名单对象                                                                                                                                                   | [preload.js](../../../src/electron/preload.js)                                                                                   |
+| 暴露方式    | `contextBridge.exposeInMainWorld` 五个白名单对象                                                                                                                                                   | [preload.js](../../../src/electron/preload.js)                                                                                   |
 | ipcRenderer | **不直接暴露**,仅经桥方法间接调用                                                                                                                                                                  | —                                                                                                                                |
 | 来源校验    | `music:resolve-local-media-urls` / `music:select-wesing-cache` 以及全部 `license:*` invoke 校验 `senderFrame.url` 的 origin 与 desktopBaseUrl 一致;授权 IPC 还要求 sender 为当前主窗口 webContents | [local-media-access.js](../../../src/electron/local-media-access.js)、[license-ipc.js](../../../src/electron/ipc/license-ipc.js) |
 
@@ -67,6 +69,16 @@
 | `bilibili:get-profile`                | —                                                                       | `{uid, name, avatarUrl}`                                                                         | 读取当前登录 UID 对应的公开账号昵称与可信头像地址                         | [bilibili-ipc.js](../../../src/electron/ipc/bilibili-ipc.js) |
 | `bilibili:login`                      | —                                                                       | `{snapshot, state}`                                                                              | 打开 B站登录窗并等待关闭([windows.md](windows.md) §3)                      | [bilibili-ipc.js](../../../src/electron/ipc/bilibili-ipc.js)          |
 | `bilibili:logout`                     | —                                                                       | 最新 auth state                                                                                  | 清分区 + 删快照 + 删明文导出                                               | [bilibili-ipc.js](../../../src/electron/ipc/bilibili-ipc.js)          |
+
+抽奖专用登录的新增 invoke（所有载荷均为空，不接收 UID/streamerId/Cookie）：
+
+| 通道 | 返回 | handler |
+| --- | --- | --- |
+| `dynamic-lottery-auth:get-state` | `{ok:true,state:{loggedIn,uid,warning}}` | 按可信 LIRA 主体读取专用账号状态 |
+| `dynamic-lottery-auth:login` | 同上，等待独立窗口关闭 | 专用账号单窗口登录，不切换直播账号 |
+| `dynamic-lottery-auth:logout` | 同上，成功后 loggedIn 为 false | 取消该主体登录窗口并清除其专用登录 |
+
+所有者：[dynamic-lottery-auth-ipc.js](../../../src/electron/ipc/dynamic-lottery-auth-ipc.js)。错误统一 `{ok:false,error}`；公开错误码仅 `IPC_SOURCE_INVALID`、`LOTTERY_IDENTITY_UNAVAILABLE`、`LOTTERY_SESSION_CHANGED`、`LOTTERY_SESSION_DISPOSED`、`LOTTERY_AUTH_BUSY`、`LOTTERY_AUTH_ENCRYPTION_UNAVAILABLE`、`LOTTERY_AUTH_RESTORE_FAILED`、`LOTTERY_AUTH_FAILED`，不回传原始异常。`uid` 是十进制字符串，未登录为空；`warning` 只可为白名单代码或空字符串。调用方是 `public/js/admin/dynamic-lottery.js` 的 `window.dynamicLotteryAuth.getState/login/logout`，普通浏览器无桥时不可登录；不增加 HTTP 免鉴权入口。
 
 ### 2.2 main → renderer(send)
 

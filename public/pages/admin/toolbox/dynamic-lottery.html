@@ -1,0 +1,188 @@
+<section
+  id="otherDynamicLotteryFeature"
+  class="other-feature-panel"
+  role="tabpanel"
+  aria-labelledby="otherDynamicLotteryFeatureTab"
+  data-other-feature-panel
+  hidden
+>
+  <div class="other-feature-panel-body dynamic-lottery-panel">
+    <header>
+      <h2 class="ui-section-title">动态抽奖</h2>
+      <p class="hint">
+        评论参与，条件取交集。名单随机乱序后，再按顺序核验与递补。
+      </p>
+    </header>
+    <section
+      class="dynamic-lottery-account"
+      aria-labelledby="lotteryAccountTitle"
+    >
+      <h3 id="lotteryAccountTitle">抽奖专用账号</h3>
+      <p>
+        请登录发布抽奖动态的 B站账号。这是独立登录，不会切换或退出你的直播账号。
+      </p>
+      <p
+        class="dynamic-lottery-account-state"
+        data-lottery-auth-status
+        role="status"
+        aria-live="polite"
+      >
+        正在读取抽奖账号…
+      </p>
+      <div class="dynamic-lottery-account-actions">
+        <button type="button" class="primary" data-lottery-login disabled>
+          登录抽奖账号
+        </button>
+        <button type="button" class="secondary" data-lottery-logout disabled>
+          退出抽奖账号
+        </button>
+        <button
+          type="button"
+          class="secondary"
+          data-lottery-auth-refresh
+          disabled
+        >
+          刷新状态
+        </button>
+      </div>
+      <p
+        class="hint"
+        data-lottery-auth-message
+        role="status"
+        aria-live="polite"
+      ></p>
+    </section>
+    <section
+      class="dynamic-lottery-activity"
+      aria-labelledby="lotteryRulesTitle"
+    >
+      <div class="dynamic-lottery-section-heading">
+        <h3 id="lotteryRulesTitle">活动与条件</h3>
+        <button type="button" class="secondary" data-lottery-new disabled>
+          新建活动
+        </button>
+      </div>
+      <form data-lottery-form>
+        <fieldset data-lottery-fields disabled>
+          <legend class="hint">评论是必选条件，以下开关要求同时满足</legend>
+          <label for="lotteryContentUrl">动态或视频链接</label>
+          <input
+            id="lotteryContentUrl"
+            name="url"
+            type="url"
+            maxlength="2048"
+            required
+            placeholder="https://www.bilibili.com/opus/…"
+          />
+          <div class="dynamic-lottery-rule-row">
+            <label class="dynamic-lottery-count" for="lotteryWinnerCount">
+              中奖人数
+              <input
+                id="lotteryWinnerCount"
+                name="winnerCount"
+                type="number"
+                min="1"
+                max="100"
+                step="1"
+                value="10"
+                required
+              />
+            </label>
+            <div class="dynamic-lottery-switches">
+              <label
+                ><input name="requireLike" type="checkbox" /> 必须点赞</label
+              >
+              <label
+                ><input name="requireRepost" type="checkbox" /> 必须转发</label
+              >
+              <label
+                ><input name="requireFollow" type="checkbox" checked />
+                必须关注作者</label
+              >
+            </div>
+          </div>
+        </fieldset>
+        <p class="hint">
+          仅统计主评论，不含楼中楼；一人一份抽奖资格，作者本人不参与。评论截止于点击采集时，点赞/转发按采集时的名单核对，关注按核验时的关系判断。
+        </p>
+        <p class="hint">
+          视频目前支持评论与关注条件，暂不支持可靠核验视频点赞和分享名单。动态可选三个条件；缺少所需名单时暂停，不自动降低要求。
+        </p>
+        <button type="submit" class="primary" data-lottery-create disabled>
+          创建并采集名单
+        </button>
+      </form>
+    </section>
+
+    <section
+      class="dynamic-lottery-activity"
+      aria-labelledby="lotteryProgressTitle"
+    >
+      <div class="dynamic-lottery-section-heading">
+        <h3 id="lotteryProgressTitle">采集与开奖</h3>
+        <button
+          type="button"
+          class="secondary"
+          data-lottery-state-refresh
+          disabled
+        >
+          刷新进度
+        </button>
+      </div>
+      <label for="lotteryHistory">本地活动历史（最近 50 条）</label>
+      <select
+        id="lotteryHistory"
+        data-lottery-history
+        disabled
+        aria-label="选择历史活动"
+      ></select>
+      <p
+        class="dynamic-lottery-task-status"
+        data-lottery-task-status
+        role="status"
+        aria-live="polite"
+      >
+        等待创建活动
+      </p>
+      <p class="hint" data-lottery-task-info></p>
+      <ul class="dynamic-lottery-progress" data-lottery-progress></ul>
+      <p class="hint">
+        B站请求会串行限速，分页较多时需要等待。所选来源全部采集结束后才能开奖。
+      </p>
+      <div class="dynamic-lottery-account-actions">
+        <button type="button" class="secondary" data-lottery-pause disabled>
+          暂停
+        </button>
+        <button type="button" class="secondary" data-lottery-resume disabled>
+          继续采集
+        </button>
+        <button type="button" class="primary" data-lottery-draw disabled>
+          开始随机抽奖
+        </button>
+      </div>
+      <p
+        class="dynamic-lottery-message"
+        data-lottery-message
+        role="status"
+        aria-live="polite"
+      ></p>
+    </section>
+
+    <section
+      class="dynamic-lottery-results"
+      aria-labelledby="lotteryResultsTitle"
+    >
+      <h3 id="lotteryResultsTitle">中奖名单</h3>
+      <p class="hint" data-lottery-result-note>完成采集后开始随机抽奖。</p>
+      <ol class="dynamic-lottery-winners" data-lottery-winners></ol>
+      <p class="hint">
+        先保存一次完整随机顺序；不是粉丝的递补，无法确认的暂停原位置。候选人用尽仍不足时显示缺额，不重复抽同一个人。
+      </p>
+      <p class="hint dynamic-lottery-proof" data-lottery-draw-proof></p>
+    </section>
+    <p class="hint">
+      本次接入未运行测试或真实账号验证。作者登录可用于核验关系，但不保证
+      B站接口始终可用。
+    </p>
+  </div>
+</section>

@@ -126,6 +126,42 @@ body:not(.is-connected) .danmaku-signal-count {
   background: var(--signal-berry);
 }
 
+.draw-danmaku-gift {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+.draw-danmaku-gift-art {
+  display: block;
+  width: 52px;
+  height: 52px;
+  background: var(--danmaku-gift-art) center / contain no-repeat;
+}
+.draw-danmaku-gift-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.draw-danmaku-gift-action {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+.draw-danmaku-gift-name {
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.draw-danmaku-gift-count {
+  font-size: 26px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
 .draw-danmaku-feed {
   display: flex;
   flex-direction: column;

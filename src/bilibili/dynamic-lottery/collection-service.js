@@ -58,7 +58,8 @@ function createCollectionService({ store, provider, getContext, clock }) {
   let disposed = false;
 
   function assertTaskReady(task) {
-    if (!task) throw collectionError('LOTTERY_TASK_NOT_FOUND', 'Task not found.');
+    if (!task)
+      throw collectionError('LOTTERY_TASK_NOT_FOUND', 'Task not found.');
     const endsAtMs = Number(task.rules?.endsAtMs);
     if (!Number.isSafeInteger(endsAtMs) || endsAtMs < 0) {
       throw collectionError('LOTTERY_RULES_INVALID', 'Task cutoff is invalid.');
@@ -109,6 +110,11 @@ function createCollectionService({ store, provider, getContext, clock }) {
 
     try {
       for (const source of sources) {
+        // Both reaction sources share the upstream cursor and are committed together.
+        const pageSources =
+          source === 'comment'
+            ? ['comment']
+            : sources.filter((value) => value !== 'comment');
         for (;;) {
           controller.signal.throwIfAborted();
           scan = store.getActiveScan(taskId);
@@ -121,24 +127,51 @@ function createCollectionService({ store, provider, getContext, clock }) {
           }
           if (state.coverage === 'exhausted') break;
 
-          const page = await provider.readPage({
+          const read =
+            source === 'comment' ? provider.readPage : provider.readReactions;
+          const page = await read({
             target: task.target,
             source,
             cursor: state.cursor,
             signal: controller.signal,
           });
           const currentContext = await getContext();
+          controller.signal.throwIfAborted();
           assertSameSession(context, currentContext);
           assertTaskScope(task, currentContext);
-          scan = store.commitPage({
+          const commit = {
             taskId,
             scanId: scan.id,
-            source,
             expectedCursor: state.cursor,
-            page,
             sessionEpoch: context.sessionEpoch,
             committedAtMs: readNow(clock),
-          });
+          };
+          if (source === 'comment') {
+            scan = store.commitPage({ ...commit, source, page });
+          } else {
+            for (const reactionSource of pageSources) {
+              if (
+                (scan.sources[reactionSource].cursor ?? null) !== state.cursor
+              ) {
+                throw collectionError(
+                  'LOTTERY_CURSOR_CONFLICT',
+                  'Reaction cursors differ.',
+                );
+              }
+            }
+            scan = store.commitPages(
+              pageSources.map((reactionSource) => ({
+                ...commit,
+                source: reactionSource,
+                page: {
+                  ...page,
+                  records: page.records.filter(
+                    (record) => record.source === reactionSource,
+                  ),
+                },
+              })),
+            );
+          }
           if (page.ended) break;
         }
       }
@@ -214,7 +247,9 @@ function createCollectionService({ store, provider, getContext, clock }) {
         );
       }
     }
-    await Promise.allSettled([...active.values()].map((entry) => entry.promise));
+    await Promise.allSettled(
+      [...active.values()].map((entry) => entry.promise),
+    );
   }
 
   return { start, pause, resume, dispose };

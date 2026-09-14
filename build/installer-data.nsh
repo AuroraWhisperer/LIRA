@@ -21,18 +21,60 @@ Function liraWaitForAppExit
     StrCpy $R5 "无法确认旧版 LIRA 是否退出，进程检查返回码：$R0。"
     Call liraInstallDataFailure
   liraAppStillRunning:
-    IfSilent liraWaitSilently
-    MessageBox MB_RETRYCANCEL|MB_ICONEXCLAMATION "$R5$\r$\n$\r$\n退出完成后，请点击“重试”。数据尚未移动。" /SD IDCANCEL IDRETRY liraFindRunningApp
+    ; Silent updates already ask Electron to quit and must let it finish cleanup.
+    IfSilent liraWaitForExitPoll
+    StrCmp $R3 0 0 liraWaitForExitPoll
+    MessageBox MB_OKCANCEL|MB_ICONEXCLAMATION "LIRA 正在运行。安装程序将自动关闭 LIRA，然后继续更新。$\r$\n$\r$\n播放和直播互动将暂时中断。点击“确定”继续，或点击“取消”稍后更新。" /SD IDCANCEL IDOK liraCloseRunningApp
+  liraCancelInstall:
     SetErrorLevel 2
     Quit
-  liraWaitSilently:
+  liraCloseRunningApp:
+    Call liraRequestAppExit
+    StrCpy $R3 0
+  liraWaitForExitPoll:
     IntOp $R3 $R3 + 1
-    IntCmp $R3 20 liraAppExitTimeout
+    IntCmp $R3 40 liraAppExitTimeout
     Sleep 250
     Goto liraFindRunningApp
   liraAppExitTimeout:
+    IfSilent liraAppExitFailed
+    MessageBox MB_RETRYCANCEL|MB_ICONEXCLAMATION "安装程序未能自动关闭 LIRA。请关闭它的所有窗口后点击“重试”，或点击“取消”稍后更新。$\r$\n$\r$\n数据尚未移动。" /SD IDCANCEL IDRETRY liraCloseRunningApp
+    Goto liraCancelInstall
+  liraAppExitFailed:
     Call liraInstallDataFailure
   liraAppExited:
+FunctionEnd
+
+Function liraRequestAppExit
+  ; Request normal closure of every owned window, including auxiliary windows.
+  ; Never force termination: preservation still waits for all processes to exit.
+  System::Store "s"
+  GetFullPathName $5 "$liraPreviousInstallDir\${APP_EXECUTABLE_FILENAME}"
+  GetFullPathName $6 "$INSTDIR\${APP_EXECUTABLE_FILENAME}"
+  System::Get '(p.r1, p) iss'
+  Pop $0
+  System::Call 'user32::EnumWindows(k r0, p 0) i.s'
+  liraNextAppWindow:
+    Pop $2
+    StrCpy $3 $2 8
+    StrCmp $3 "callback" 0 liraAppWindowsDone
+    System::Call 'user32::GetWindowThreadProcessId(p r1, *i .r2)'
+    System::Call 'kernel32::OpenProcess(i 0x1000, i 0, i r2) p.r2'
+    StrCmp $2 0 liraContinueAppWindows
+    System::Call 'kernel32::QueryFullProcessImageNameW(p r2, i 0, w.r3, *i ${NSIS_MAX_STRLEN}) i.r4'
+    System::Call 'kernel32::CloseHandle(p r2)'
+    StrCmp $4 0 liraContinueAppWindows
+    StrCmp $3 $5 liraCloseAppWindow
+    StrCmp $3 $6 0 liraContinueAppWindows
+  liraCloseAppWindow:
+    System::Call 'user32::PostMessageW(p r1, i 0x0010, p 0, p 0)'
+  liraContinueAppWindows:
+    Push 1
+    System::Call $0
+    Goto liraNextAppWindow
+  liraAppWindowsDone:
+    System::Free $0
+    System::Store "l"
 FunctionEnd
 
 Function liraPreserveInstallData

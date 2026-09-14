@@ -21,6 +21,7 @@ function createRuntimeApiContextFactory(options = {}) {
         clearRemote: options.clearRemoteGiftHistory,
       },
       domainServices,
+      dynamicLottery: options.getDynamicLottery?.(),
       publishLyricState: musicRuntime.publishLyricState,
       publishLyricTimeline: musicRuntime.publishLyricTimeline,
       weSingCapture: musicRuntime.weSingCapture,

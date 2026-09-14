@@ -6,6 +6,8 @@
 
 ## 1. 分区模型(唯一成表处)
 
+本节及下文原有音乐/直播登录保持兼容；抽奖专用账号的独立分区和持久化合同见 §14，不复用直播登录。
+
 每个平台使用独立 **persist 持久化分区**,Cookie 互不干扰;分区目录落在 Chromium userData 下的 `Partitions/`，与业务 `dataDir` 分离；旧分区在 ready 前整体迁移，认证快照继续保留原业务路径(数据目录树见 [../backend/storage.md](../backend/storage.md) §2):
 
 | 平台       | 分区                    | 出处                                                              |
@@ -171,3 +173,21 @@ desktopRuntime.start({
 云端导入调用 `replaceBilibiliCookieHeader(dataDir, cookieHeader)`：先拒绝空值、超过 12000 字符、CR/LF/NUL、非法 Cookie 名或缺少 `DedeUserID` / `SESSDATA` / `bili_jct` 的 header；再清空 `persist:bilibili` 的 Cookie/localStorage/indexDB/webSQL，把解析出的 Cookie 写到 `.bilibili.com`，最后立即调用 `persistBilibiliCookieSnapshot` 生成 `safeStorage` 加密快照。云端解绑调用既有 `logoutBilibiliAccount`，清除分区、加密快照和兼容明文导出文件。
 
 本地扫码登录完成或本地退出后，main process 将 Bilibili scope 标记 dirty：已登录时读取分区 Cookie header 上传，退出时调用 Device `DELETE`。上传失败保留 dirty 并重试；云端应用不会再次触发本地登录/退出 IPC，因此不会产生同步回声。凭据 wire contract 见 [../backend/api.md](../backend/api.md) §0.3，轮询与生命周期见 [main.md](main.md) §2.2。
+
+## 14. 动态抽奖专用账号
+
+[dynamic-lottery-auth.js](../../../src/electron/dynamic-lottery-auth.js) 是抽奖认证所有者；[dynamic-lottery-auth-store.js](../../../src/electron/dynamic-lottery-auth-store.js) 只管理其 Chromium Cookie 与加密快照。入口在桌面“百宝箱 → 动态抽奖”，由主进程现有授权管理器提供可信 `streamerId` 与 authorization epoch，不接受 renderer 指定账号作用域。
+
+| 项目 | 合同 |
+| --- | --- |
+| 分区 | `persist:bilibili-dynamic-lottery-<sha256(streamerId)>`，不读取 `persist:bilibili` |
+| 登录 URL | `https://passport.bilibili.com/login`，HTTPS Bilibili 域内导航；受限登录窗口无 preload、启用 sandbox/context isolation |
+| 快照 | `dataDir/dynamic-lottery-auth/<hash>/cookies.enc`；`safeStorage` 加密二进制，临时加密文件原子替换，不创建明文导出 |
+| 恢复 | 当前可信主体首次使用时按需恢复；完整 Chromium 登录优先，快照主体必须一致，过滤域名/过期/无效 Cookie；失败在本功能报告，不影响其他启动 |
+| 展示状态 | API origin 下三项有效 Cookie 均非空、UID 是十进制字符串；只供登录展示，不是动态作者或在线有效性证明 |
+| 内部读取 | `getIdentity()` 只返回可信 LIRA scope；`getContext()` 绑定本专用分区与既有 `createLotterySession`。桌面组合根将这两个读取回调注入内嵌抽奖 runtime，不能调用直播 Cookie getter，也不向 preload 导出这两个端口 |
+| 退出/切换 | 等待取消的登录窗口与在途写入，再只清除当前作用域分区/快照；授权变化丢弃旧结果，退出与重新登录使旧 sessionEpoch 失效；不删抽奖历史 |
+| 退出软件 | 注销 IPC、取消窗口、排空认证操作，与已有同步控制器一并排空后，继续原有播放快照/后端停机流程 |
+| 网络与同步 | 状态读取不请求 B站；作者/关注验证仍由 provider 的受控调度执行。专用凭据不注入直播或云同步，也不暴露给 renderer |
+
+IPC/返回字段只在 [preload.md](preload.md) 登记。百宝箱已接入用户主动采集、随机排序和按需关注核验/递补；登录成功仍不构成作者身份或真实接口可用性证明。操作开始、每个出站请求及提交前检查会话；预算等待期间定期重新检查，账号变化使旧工作暂停。新流程本轮按用户要求未测试，限制与后续验收见[实施计划](../../../specs/plans/2026-09-14-bilibili-dynamic-lottery.md)。

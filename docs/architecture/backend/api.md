@@ -8,11 +8,21 @@
 
 ## 0. 路由机制与通用约定
 
+2026-09-14 新增动态抽奖路由模块，使用原管理鉴权，不加入公开白名单。专用账号凭据只经 Electron 注入后端；HTTP 不能提交 `streamerId`、作者 UID、候选顺序或中奖 UID。当前路由为客户端简化流程，不包含独立公示会话。
+
+| 端点 | 输入 | 输出与行为 |
+| --- | --- | --- |
+| `GET /api/bilibili/dynamic-lottery/state` | 可选 `taskId` 查询参数 | `{ok:true,data:{tasks,task,result,job,error}}`；当前授权账号最近 50 个活动，选中活动进度和获奖者；不返回 Cookie、内部游标或随机顺序，不触发上游请求 |
+| `POST /api/bilibili/dynamic-lottery/tasks` | `{url,winnerCount,requireLike,requireRepost,requireFollow,requestId}` | 中奖人数 1–100，三个开关必须为 boolean；作者检查及采集后台执行，返回同一状态结构；同 requestId 同参数不重复建活动，异参冲突 |
+| `POST /api/bilibili/dynamic-lottery/tasks/action` | `{taskId,revision,action:'pause'\|'resume'\|'draw'}` | 受信 scope 归属检查，继续/开奖需匹配 revision；pause 可省 taskId 以取消正在解析链接的当前操作；继续不重新随机；已结束活动重复操作不重新开奖 |
+
+以上端点 `Cache-Control: no-store`。错误为 `{ok:false,error:LOTTERY_*}`，不返回上游正文、SQL 或 Cookie；401 沿用通用 token 拦截，403 `LOTTERY_IDENTITY_UNAVAILABLE`，404 `LOTTERY_TASK_NOT_FOUND`，409 `LOTTERY_BUSY`/`LOTTERY_DRAW_CONFLICT`，其他规则/来源/存储不可用为 400。异步错误保存在同 scope 状态或活动暂停原因，客户端展示后由用户决定继续。新业务本轮未运行测试；不把接口存在视作 B站可用性验证。
+
 路由分发在 [api-routes.js](../../../src/server/api-routes.js) 中完成,无状态、无框架(`node:http` 手写路由):
 
 | 事实            | 值                                                                                                                                  | 出处                                                             |
 | --------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| 模块注册        | `ROUTE_MODULES` 数组按序 require **17 个路由模块**,每个模块导出 `prefixes[]` 与 `routes` 映射(`"METHOD /path"` → handler)           | [api-routes.js:8-26](../../../src/server/api-routes.js#L8-L26)   |
+| 模块注册        | `ROUTE_MODULES` 数组按序 require **18 个路由模块**,每个模块导出 `prefixes[]` 与 `routes` 映射(`"METHOD /path"` → handler)           | [api-routes.js](../../../src/server/api-routes.js)   |
 | 匹配顺序        | 按模块顺序做前缀匹配(`pathName.startsWith(prefix)`);**先注册的模块优先**,因此 `/api/music/wesing/*` 归属 WeSing 模块而非 music 模块 | [api-routes.js:29-39](../../../src/server/api-routes.js#L29-L39) |
 | 405 与 404 区分 | 模块前缀命中但路径没有对应方法时,`findRoute` 置 `pathExists` → **405**;任何模块前缀都不命中 → **404**                               | [api-routes.js:34-38](../../../src/server/api-routes.js#L34-L38) |
 | 请求体惰性读取  | `createBodyReader` 只在 handler 真正调用 `request.body()` 时读一次 JSON(GET 请求不读 body)                                          | [api-routes.js:42-48](../../../src/server/api-routes.js#L42-L48) |

@@ -125,3 +125,23 @@ body[data-style='signal'] .draw-danmaku-medal-level::before {
   font-weight: 600;
   opacity: 0.76;
 }
+
+/* 礼物信号：香槟金读数、切角徽记，沿用信号带结构。 */
+body[data-style='signal'] .draw-danmaku-item.is-gift {
+  --signal-accent: var(--signal-gold);
+  --signal-rank: 'GIFT';
+  --danmaku-gift-art: url('/img/overlays/danmaku-gifts/signal.svg');
+  min-width: min(400px, 100%);
+}
+body[data-style='signal'] .is-gift .draw-danmaku-gift {
+  margin-top: 5px;
+}
+body[data-style='signal'] .draw-danmaku-gift-action {
+  color: #d5c39a;
+}
+body[data-style='signal'] .draw-danmaku-gift-name {
+  color: #fff1cf;
+}
+body[data-style='signal'] .draw-danmaku-gift-count {
+  color: var(--signal-gold);
+}

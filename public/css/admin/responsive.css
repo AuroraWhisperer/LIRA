@@ -25,7 +25,6 @@
   .overlay-address-grid,
   .monitor-grid,
   .hardware-grid,
-  .gift-sprint-grid,
   .gift-cards {
     grid-template-columns: 1fr;
   }
@@ -122,9 +121,8 @@
   .gift-detection-panel,
   .gift-notification-panel,
   .gift-recent-panel,
-  .gift-sprint-panel,
+  .gift-planning-row,
   .gift-blindbox-panel,
-  .gift-blindbox-broadcast-panel,
   .gift-blindbox-mapping-panel {
     grid-column: 1;
     grid-row: auto;

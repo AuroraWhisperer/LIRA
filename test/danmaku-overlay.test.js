@@ -50,6 +50,8 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
   assert.match(script, /guardLevel:\s*2/);
   assert.match(script, /guardLevel:\s*3/);
   assert.equal([...script.matchAll(/\bid:\s*'preview-\d+'/g)].length, 4);
+  assert.match(script, /id: 'preview-gift',\s*kind: 'gift'/);
+  assert.match(script, /giftName: '小花花',\s*giftCount: 10/);
   assert.equal([...script.matchAll(/guardLevel:\s*[123]/g)].length, 3);
   assert.match(
     script,

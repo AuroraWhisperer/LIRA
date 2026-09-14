@@ -8,7 +8,36 @@
 
 **Tech Stack:** Electron 43、Node.js 24+、CommonJS 后端、原生 ESM 前端、原生 CSS、`node:sqlite`、`node:crypto`、`node:test`。
 
-**Status:** Draft，2026-09-14。已开始 M0/M1：合成输入下的链接/会话/provider/WBI 用例及独立库、分页事务、持久预算、串行调度和显式截止后采集核心已实现；专门账号实测、M1 完整恢复矩阵以及 M2–M4 尚未完成，未向 UI 开放任何来源。规则与验收以[设计与实施报告](../bilibili-dynamic-lottery_design.md)为准；未勾选条目仍不得视为已验证。
+**Status:** Draft / 当前简化客户端流程已接入、未测试，2026-09-14。已有独立登录和 M0/M1 基础，本轮接入三个条件、采集、持久随机顺序、按需关注核验/递补及历史结果。按用户要求未运行测试，不声称已经验证真实来源。以下旧 M2–M4 多奖项、领奖、导出、公示网页及全面恢复验收仍未完成；最新范围以本节及[设计与实施报告](../bilibili-dynamic-lottery_design.md)顶部补充为准。
+
+## 2026-09-14 当前实施：客户端评论交集抽奖
+
+最新用户要求直接接入客户端百宝箱，并明确本轮不运行测试。此节优先于下面旧里程碑中的测试和来源预先开放约定；旧 M2–M4 的多奖项、领奖、导出和独立网页展示不在本轮范围。
+
+- 目标：复用已有“动态抽奖”标签及独立登录，提供链接、中奖人数（1–100）和点赞/转发/关注作者三个开关。主评论按 UID 去重；评论截止自动固定为创建采集任务的时刻，点赞/转发是采集时的互动名单，关注是核验时的关系，不声称可还原历史关系或无时间戳的历史互动。
+- 来源：动态评论与 reaction 分页通过专用账号、统一串行预算调用；同时选点赞/转发时一次分页事务保存两种证据。视频解析为视频评论区；视频分享数不充当可枚举转发用户，不能可靠取得视频点赞/转发名单时明确拒绝该组合。
+- 随机与保存：后台完成所选来源采集后才能冻结交集；使用 crypto.randomInt 的 Fisher–Yates 均匀洗牌，先持久化一次顺序，再依序核验。确认为非粉丝才递补；未知/报错暂停原位置；重试和重启不重排。人数不足明确报告，不无限循环。
+- 所有权：领域 rules/draw/service 管理资格及活动；现有 lotteryDb 的 store 加入轮次/顺序/核验事务，不改 v1 表格式。server runtime 负责组装、可信 scope 与关闭排空；固定 HTTP 入口沿用管理鉴权，renderer 不能提交候选人、UID 身份或随机顺序。
+- 兼容：不改变直播登录、安装包、其他工具箱页、云同步和旧数据库清理行为。抽奖历史留在独立本地库；不自动运行真实账号请求，启动只恢复为暂停状态。接口异常保留数据并暂停，不静默降级规则。
+- 实施：① 来源/规则与持久开奖；② runtime、受保护路由及关闭排空；③ 客户端控件、进度、历史和结果；④ 相关合同与最终差异复核。
+- 验证：按用户要求，本轮不运行单测、脚本检查、客户端或 B站实测。仅阅读实现、格式化当前新增源码并执行 `git diff --check`、`git status --short`；交付标明未测试。不使用前一轮通过结果证明本轮可用。
+- 完成标准：上述代码链路和客户端操作完整接入，错误与恢复路径明确，来源限制可见，改动范围审阅完成；真实可用性保留待测，不把整个原报告标为验收完成。
+
+**实施记录：** 已接入 rules/service/draw、独立 draw-store、server runtime 和三个受保护固定路由；共用 reaction 页在一个事务中保存所需来源，冻结成员和顺序先落盘，每个资格结果、授奖及游标同事务推进。随机算法不在 renderer 执行；最近 50 个活动和中断进度可读取，需手动继续。视频点赞/分享明确不可用；评论 10 万证据上限、循环游标、互动数量不足均暂停而非截断开奖。frontend-design 仅用于沿用现有 token 的规则表单、进度和结果布局。本轮未运行任何自动测试、客户端/浏览器验证、B站真实请求或打包。
+
+## 2026-09-14 补充：抽奖专用登录
+
+用户明确要求抽奖账号与现有直播 B站账号互不影响。本次先交付独立登录入口，不把这一项等同于 M2–M4 完成，也不提前开放未经实测的关注来源。
+
+- Electron 新增专用认证所有者，按可信 LIRA `streamerId` 的 SHA-256 隔离 `persist:bilibili-dynamic-lottery-<hash>` 与 `dynamic-lottery-auth/<hash>/cookies.enc`；继续使用 `safeStorage`，不导入直播 Cookie，不导出明文，不参与云同步。
+- 复用受限登录窗口，增加标题和取消生命周期；独立 IPC 仅允许主窗口、主 frame、精确本地 origin 调用，只返回登录状态及十进制 UID。Cookie UID 仅供显示，动态作者与关系仍须 provider 的受控在线验证。
+- 工具箱新增“动态抽奖 / 抽奖专用账号”，支持登录、退出和状态刷新；普通浏览器明确提示需桌面版。退出和授权切换取消旧窗口、隔离在途结果，使旧抽奖会话失效。
+- 实施顺序：1）专用加密存储和会话 → 隔离/恢复/退出/身份切换测试；2）IPC、preload、桌面生命周期和工具箱 → 来源检查/脱敏/交互测试；3）更新合同并检查 diff → 相关测试、`npm run check`、`npm run verify:architecture`、`npm test`、`npm run verify:docs`、`git diff --check`。
+- 不修改直播登录、现有云端同步、安装包或真实账号数据；真实作者扫码与粉丝关系验证另记结果，登录失败不影响其他功能启动。
+- [x] 专用登录及隔离测试完成。
+- [x] 桌面/工具箱接入与合同更新完成，记录实际验证结果。
+
+**本项验证记录：** 98/98 个相关测试通过，包含专用凭据与原直播凭据隔离、加密恢复/损坏恢复、重复登录、取消/退出、跨身份及在途读取失效、IPC 来源/脱敏、工具箱及停机排空。隔离浏览器中以合成账号检查登录/退出/刷新、导航折叠和键盘切换、普通浏览器不可登录提示；1280×720 与 1024×680 下控件及说明无裁切，测试浏览器与临时回环服务已关闭，未操作真实账号。架构检查 22/22；完整测试 1897 项，1892 通过、4 跳过、1 失败（工作区既有 `frontend-admin-layout.test.js:43` 礼物布局预期不匹配，本项未改该布局）。真实 Electron 作者扫码、本人动态和粉丝关系仍未验证；本项不等于完整抽奖交付。
 
 ## Global Constraints
 
@@ -31,7 +60,7 @@
 
 | 所有者 | 本任务的接入方式 |
 | --- | --- |
-| `src/electron/bilibili-auth.js`、`src/electron/main.js` | 复用内部 Cookie 获取；组合根传入可信授权身份和会话变化信息 |
+| `src/electron/dynamic-lottery-auth.js`、`src/electron/main.js` | 抽奖专用 Cookie 与会话；组合根传入可信授权身份，不复用直播凭据 |
 | `src/electron/license/license-manager.js` | 使用已有 `getCloudSyncIdentity()`、`getAuthorizationEpoch()`，不改授权规则 |
 | `src/bilibili/wbi-signer.js` | 将签名计算提取为可复用纯函数；现有带网络调用的导出保持兼容 |
 | `src/server/api-routes.js` | 注册新的固定路径路由模块，不修改路由匹配机制或公开免鉴权列表 |
@@ -104,7 +133,7 @@
 ```js
 normalizeDynamicLink(text); // -> { url, dynamicId, needsRedirect }
 createLotterySession({ getCookieHeader, getIdentity, getAuthorizationEpoch });
-// -> { getContext(), dispose() }
+// -> { getContext(), invalidate(), dispose() }
 createLotteryProvider({ request, getContext, nowMs });
 // -> { inspectDynamic(url, signal), readPage(input), readRelation(uid, signal) }
 // inspectDynamic -> { target: Target, owner: VerifiedOwner }

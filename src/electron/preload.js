@@ -75,6 +75,12 @@ contextBridge.exposeInMainWorld('bilibiliAuth', {
   logout: () => ipcRenderer.invoke('bilibili:logout'),
 });
 
+contextBridge.exposeInMainWorld('dynamicLotteryAuth', {
+  getState: () => ipcRenderer.invoke('dynamic-lottery-auth:get-state'),
+  login: () => ipcRenderer.invoke('dynamic-lottery-auth:login'),
+  logout: () => ipcRenderer.invoke('dynamic-lottery-auth:logout'),
+});
+
 contextBridge.exposeInMainWorld('liraLicense', {
   getState: () => ipcRenderer.invoke('license:get-state'),
   activate: (payload) => ipcRenderer.invoke('license:activate', payload),

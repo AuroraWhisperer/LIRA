@@ -1,38 +1,21 @@
 /* ---- 盲盒投屏 URL 生成器 ---- */
-.gift-blindbox-broadcast-panel {
-  overflow: hidden;
-  border-color: #dce8e6;
-  border-radius: 12px;
-  background: var(--color-bg-primary);
-  box-shadow: 0 8px 24px rgba(23, 57, 53, 0.06);
+.blindbox-broadcast-heading {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
 }
 
-.gift-blindbox-broadcast-panel > .panel-header {
-  align-items: center;
-  padding: 14px 18px;
-  border-bottom-color: #e6efed;
-  background: linear-gradient(90deg, #f3fbf9, var(--color-bg-primary));
-}
-
-.gift-blindbox-broadcast-panel > .panel-header > div {
-  display: grid;
-  gap: 2px;
-}
-
-.gift-blindbox-broadcast-panel .panel-kicker {
-  color: #168f83;
-  font-size: var(--type-size-micro);
-  font-weight: var(--type-weight-bold);
-  line-height: var(--type-leading-micro);
-  letter-spacing: var(--type-tracking-eyebrow);
-}
-
-.gift-blindbox-broadcast-panel .gift-section-title {
-  margin: 0;
+.blindbox-broadcast-caption {
+  color: var(--color-success-dark);
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-regular);
+  line-height: var(--type-leading-caption);
 }
 
 .blindbox-live-link {
-  color: #147e74;
+  margin-left: auto;
+  color: var(--color-success-dark);
   font-size: var(--type-size-control);
   font-weight: var(--type-weight-bold);
   line-height: var(--type-leading-control);
@@ -41,12 +24,6 @@
 
 .blindbox-live-link:hover {
   text-decoration: underline;
-}
-
-.blindbox-builder {
-  display: grid;
-  gap: 14px;
-  padding: 18px;
 }
 
 .blindbox-builder-intro {
@@ -61,22 +38,23 @@
 }
 
 .blindbox-builder-intro strong {
-  color: var(--text);
-  font-size: var(--type-size-card-title);
-  font-weight: var(--type-weight-semibold);
-  line-height: var(--type-leading-card-title);
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-regular);
+  line-height: var(--type-leading-caption);
 }
 
 .blindbox-builder-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) 112px;
   gap: 12px;
 }
 
 .blindbox-builder-row label {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  min-width: 0;
+  gap: 6px;
 }
 
 .blindbox-builder-label {
@@ -87,14 +65,12 @@
 
 .blindbox-builder-switches {
   display: grid;
-  grid-template-columns: repeat(2, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
   gap: 8px;
-  max-width: 888px;
 }
 
 .blindbox-switch {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: 6px 8px;
   padding: 10px 12px;
@@ -109,21 +85,20 @@
 }
 
 .blindbox-switch:hover {
-  border-color: #65bfb6;
+  border-color: var(--color-accent);
   background: var(--color-accent-light);
 }
 
 .blindbox-switch:has(input:checked) {
-  border-color: rgba(33, 182, 168, 0.42);
-  background: #eefaf7;
-  box-shadow: 0 0 0 1px rgba(33, 182, 168, 0.08) inset;
+  border-color: var(--color-border-accent);
+  background: var(--color-success-light);
 }
 
 .blindbox-switch input[type='checkbox'] {
   flex-shrink: 0;
   width: 16px;
   height: 16px;
-  accent-color: var(--accent, #21b6a8);
+  accent-color: var(--accent);
 }
 
 .blindbox-switch span:first-of-type {
@@ -143,13 +118,14 @@
 
 /* 生成的链接栏 */
 .blindbox-url-bar {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  display: flex;
+  flex-wrap: wrap;
   align-items: end;
   gap: 10px;
+  margin-top: auto;
   padding: 12px;
-  background: #f4faf9;
-  border: 1px solid rgba(33, 182, 168, 0.25);
+  background: var(--color-accent-light);
+  border: 1px solid var(--color-border-accent);
   border-radius: 8px;
 }
 
@@ -157,6 +133,7 @@
   display: grid;
   gap: 6px;
   min-width: 0;
+  flex: 1 1 240px;
 }
 
 .blindbox-url-label {
@@ -185,38 +162,12 @@
   display: flex;
   gap: 6px;
   flex-shrink: 0;
+  margin-left: auto;
 }
 
-@media (max-width: 640px) {
+@container gift-planning-card (max-width: 379px) {
   .blindbox-builder-row {
     grid-template-columns: 1fr;
-  }
-
-  .blindbox-url-bar {
-    grid-template-columns: 1fr;
-  }
-
-  .blindbox-url-bar code {
-    width: 100%;
-    min-width: 0;
-  }
-
-  .blindbox-url-actions {
-    width: 100%;
-  }
-
-  .blindbox-url-actions button {
-    flex: 1;
-  }
-}
-
-@media (max-width: 520px) {
-  .blindbox-builder-switches {
-    grid-template-columns: 1fr;
-  }
-
-  .blindbox-builder {
-    padding: 14px;
   }
 }
 

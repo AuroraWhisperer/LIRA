@@ -8,6 +8,8 @@
 
 ## 1. 进程模型与入口
 
+动态抽奖由 [dynamic-lottery-runtime.js](../../../src/server/dynamic-lottery-runtime.js) 组装专用账号端口、已有 `lotteryDb` store、串行预算与领域服务，server 只保存资源句柄及注入窄 API facade。启动将未结束采集/开奖恢复为暂停，不自动请求 B站；库不可用仅禁用此功能。关闭数据库之前先取消并排空抽奖任务。独立 Node 启动没有专用 Electron 账号端口，返回明确的桌面版限制。原播放快照、礼物及数据库生命周期保持不变。
+
 后端是一个**零框架的 Node.js HTTP 服务**:`node:http` + 手写路由,无 Express、无 Koa。同一个进程承载:
 
 - HTTP API(`/api/*`)

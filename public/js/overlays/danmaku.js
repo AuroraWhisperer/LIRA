@@ -254,7 +254,7 @@ function previewItems() {
     {
       id: 'preview-1091',
       name: '金色航线',
-      message: '今晚也一起守到最后！这段副歌听完还想再循环一遍～',
+      message: '今晚也一起守到最后！',
       guardLevel: 1,
       medalName: '粉丝团灯牌',
       medalLevel: 28,
@@ -289,6 +289,14 @@ function previewItems() {
       ],
       medalName: '粉丝团灯牌',
       medalLevel: 9,
+    },
+    {
+      id: 'preview-gift',
+      kind: 'gift',
+      name: '星河来客',
+      message: '送出 小花花 × 10',
+      giftName: '小花花',
+      giftCount: 10,
     },
   ];
 }

@@ -180,6 +180,16 @@ function createShutdownHarness(options = {}) {
         restoreBilibiliCookieSnapshot: () => options.bilibiliRestore?.promise,
       }),
     },
+    './dynamic-lottery-auth': {
+      createDynamicLotteryAuth: () => ({
+        dispose: () => calls.push('lottery:dispose'),
+        whenIdle: () => options.lotteryIdle?.promise,
+      }),
+    },
+    './ipc/dynamic-lottery-auth-ipc': {
+      registerDynamicLotteryAuthIpc: () => () =>
+        calls.push('lottery:remove-ipc'),
+    },
     './desktop-update-controller': {
       createDesktopUpdateController: () => ({
         configureAutoUpdater() {},

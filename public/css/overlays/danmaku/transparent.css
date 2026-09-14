@@ -126,3 +126,32 @@ body[data-style='transparent'] .draw-danmaku-empty {
   clip-path: none;
   text-shadow: 0 2px 3px rgba(0, 0, 0, 0.9);
 }
+
+/* 浮空礼线：仅增加暖金线稿与文字，不增加卡片底色。 */
+body[data-style='transparent'] .draw-danmaku-item.is-gift {
+  --danmaku-gift-art: url('/img/overlays/danmaku-gifts/transparent.svg');
+}
+body[data-style='transparent'] .is-gift .draw-danmaku-gift {
+  grid-template-columns: 38px minmax(0, 1fr) auto;
+  gap: 8px;
+  margin-top: 6px;
+}
+body[data-style='transparent'] .draw-danmaku-gift-art {
+  width: 38px;
+  height: 44px;
+  filter: drop-shadow(0 2px 2px rgba(28, 20, 12, 0.8));
+}
+body[data-style='transparent'] .draw-danmaku-gift-copy {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 6px;
+}
+body[data-style='transparent'] .draw-danmaku-gift-name {
+  color: #ffebbb;
+  font-size: 21px;
+}
+body[data-style='transparent'] .draw-danmaku-gift-count {
+  color: #ffdf91;
+  font-size: 24px;
+}

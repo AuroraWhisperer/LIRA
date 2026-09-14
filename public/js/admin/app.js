@@ -15,6 +15,7 @@ import {
 } from './legacy-admin-bridge.js';
 import { initUsageGuide } from './usage-guide.js';
 import { initGames } from './games.js';
+import { initDynamicLottery } from './dynamic-lottery.js';
 import { initOnboarding } from './onboarding.js';
 import { initInteractiveTour } from './interactive-tour.js';
 import { initStartAnimation } from './start-animation.js';
@@ -82,6 +83,10 @@ async function initApp() {
   initGiftFrame();
   modules.todo?.init?.();
   initGames();
+  const dynamicLottery = initDynamicLottery();
+  window.addEventListener('beforeunload', () => dynamicLottery.dispose(), {
+    once: true,
+  });
   initUsageGuide();
   const onboarding = initOnboarding({
     getAppState: () => stateService.getAppState(),

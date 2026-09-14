@@ -141,7 +141,12 @@ function createLotterySession({
     observedKey = null;
   }
 
-  return { getContext, dispose };
+  function invalidate() {
+    observedKey = null;
+    sessionEpoch += 1;
+  }
+
+  return { getContext, invalidate, dispose };
 }
 
 module.exports = { createLotterySession };

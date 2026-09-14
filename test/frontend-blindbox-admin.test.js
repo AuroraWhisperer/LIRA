@@ -171,10 +171,12 @@ test('admin overlay links always use the IPv4 loopback host and current port', (
   assert.doesNotMatch(settingsSource, /location\.host/);
 });
 
-test('blindbox broadcast controls live below gift profit stats', () => {
+test('sprint and blindbox broadcast follow profit stats in reading order', () => {
   const html = readAdminHtml();
   const giftPageStart = html.indexOf('<section id="giftAssistantPage"');
   const statsStart = html.indexOf('class="panel gift-blindbox-panel"');
+  const planningStart = html.indexOf('class="gift-planning-row"');
+  const sprintStart = html.indexOf('class="panel gift-sprint-panel"');
   const broadcastStart = html.indexOf(
     'class="panel gift-blindbox-broadcast-panel"',
   );
@@ -185,7 +187,9 @@ test('blindbox broadcast controls live below gift profit stats', () => {
 
   assert.ok(giftPageStart > -1);
   assert.ok(statsStart > giftPageStart);
-  assert.ok(broadcastStart > statsStart);
+  assert.ok(planningStart > statsStart);
+  assert.ok(sprintStart > planningStart);
+  assert.ok(broadcastStart > sprintStart);
   assert.ok(mappingStart > broadcastStart);
   assert.ok(html.indexOf('id="blindboxOverlayTitle"') > broadcastStart);
   assert.equal(
@@ -201,7 +205,7 @@ test('blindbox broadcast settings expose audience filters and one open action', 
     'utf8',
   );
 
-  assert.match(html, /<span class="panel-kicker ui-eyebrow">观众画面<\/span>/);
+  assert.match(html, /<span class="blindbox-broadcast-caption">观众画面<\/span>/);
   assert.match(
     html,
     /<h2 class="gift-section-title ui-section-title">盲盒盈亏榜<\/h2>/,

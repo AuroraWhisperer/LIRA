@@ -39,6 +39,8 @@
 
 ## 3. 生命周期与 IPC 语义
 
+抽奖专用登录复用 `openBilibiliLoginWindow`，通过可选 `title` 设置“登录抽奖专用账号”，通过 `signal` 在退出/授权变化/软件关闭时销毁窗口；`onWindowReady` 仅供认证所有者保存窗口句柄并在重复点击时 focus。默认标题和直播登录行为不变，分区/登录 URL 见 [auth.md](auth.md) §14。取消监听与原有计时器、Cookie 监听一并清理，专用认证所有者等待关闭后的写入排空，原始快照不返回 renderer。
+
 两个辅助窗口均由主窗口的 IPC 驱动创建/销毁,通道清单与载荷见 [preload.md](preload.md) §2;窗口事件(`create/open/close`)经 main.js `writeLog` 记入 desktop.log([main.md](main.md) §8)。
 
 - 登录窗生命周期绑定 `music:login` / `bilibili:login`:handler `await` 窗口 `closed` 后 resolve 结果给渲染进程(登录态判定与快照返回见 [auth.md](auth.md) §4/§9)。桌面歌词改为 `/lyrics` 浏览器源,不再创建 Electron 辅助窗口。

@@ -83,3 +83,29 @@ body[data-style='outline'] .draw-danmaku-body p {
   text-align: left;
   text-shadow: none;
 }
+
+/* 漂浮礼物贴纸：沿用浅色卡片和轻量文字。 */
+body[data-style='outline'] .draw-danmaku-item.is-gift {
+  --danmaku-gift-art: url('/img/overlays/danmaku-gifts/outline.svg');
+  border-color: rgba(160, 109, 143, 0.28);
+  background: rgba(255, 248, 252, 0.96);
+}
+body[data-style='outline'] .is-gift .draw-danmaku-gift {
+  grid-template-columns: 48px minmax(0, 1fr) auto;
+  gap: 10px;
+}
+body[data-style='outline'] .draw-danmaku-gift-art {
+  width: 48px;
+  height: 48px;
+}
+body[data-style='outline'] .draw-danmaku-gift-action {
+  color: #765669;
+}
+body[data-style='outline'] .draw-danmaku-gift-name {
+  color: #4d334c;
+  font-size: 19px;
+}
+body[data-style='outline'] .draw-danmaku-gift-count {
+  color: #965275;
+  font-size: 25px;
+}

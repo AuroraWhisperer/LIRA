@@ -99,3 +99,38 @@ test('danmaku feed buffer keeps the latest 50 messages by default', () => {
   assert.equal(snapshot[0].message, '第2条');
   assert.equal(snapshot[49].message, '第51条');
 });
+
+test('finalized gifts share the public feed without exposing ledger fields', () => {
+  const feed = createDanmakuFeedBuffer({ limit: 2 });
+  feed.setRoom('100');
+  feed.push({ name: '观众', message: '好听' });
+  const gift = feed.pushGift({
+    id: 71, detection_status: 'final', uid: '42', user_name: '晚风',
+    gift_name: '小花花', num: 10, total_price: 100,
+    source_event_id: 'private-ledger-id', raw_data: 'private',
+  });
+  assert.equal(gift.id, 2);
+  assert.equal(gift.kind, 'gift');
+  assert.equal(gift.name, '晚风');
+  assert.equal(gift.message, '送出 小花花 × 10');
+  assert.equal(gift.giftName, '小花花');
+  assert.equal(gift.giftCount, 10);
+  for (const field of ['total_price', 'source_event_id', 'raw_data', 'detection_status']) {
+    assert.equal(Object.hasOwn(gift, field), false);
+  }
+  gift.giftName = '篡改';
+  assert.equal(feed.getSnapshot()[1].giftName, '小花花');
+  feed.push({ message: '谢谢' });
+  assert.deepEqual(feed.getSnapshot().map(item => item.id), [2, 3]);
+  feed.setRoom('200');
+  assert.deepEqual(feed.getSnapshot(), []);
+});
+
+test('gift feed projection ignores progress and invalid gift quantities', () => {
+  const feed = createDanmakuFeedBuffer();
+  assert.equal(feed.pushGift({ detection_status: 'progress', num: 5 }), null);
+  for (const num of [0, -1, 1.5, Infinity, 'invalid', Number.MAX_SAFE_INTEGER + 1]) {
+    assert.equal(feed.pushGift({ detection_status: 'final', num }), null);
+  }
+  assert.deepEqual(feed.getSnapshot(), []);
+});

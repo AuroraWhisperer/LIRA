@@ -94,6 +94,25 @@ test('registered restart IPC drains both controllers before stopping and relaunc
   assert.ok(h.calls.indexOf('app:relaunch') < h.calls.indexOf('app:exit'));
 });
 
+test('shutdown closes dedicated lottery auth and waits for its writes before playback and runtime stop', async () => {
+  const lotteryIdle = Promise.withResolvers();
+  const h = createShutdownHarness({ lotteryIdle });
+  await h.start();
+  h.quit();
+  assert.equal(h.count('lottery:dispose'), 1);
+  assert.equal(h.count('lottery:remove-ipc'), 1);
+  h.remoteIdle.resolve();
+  h.cloudIdle.resolve();
+  await h.settle();
+  assert.equal(h.count('runtime:stop'), 0);
+  lotteryIdle.resolve();
+  await h.settle();
+  assert.equal(h.count('runtime:stop'), 1);
+  h.backendStop.resolve();
+  await h.state.lifecycle.shutdownPromise;
+  assertFinalized(h, false);
+});
+
 for (const firstIntent of ['quit', 'restart']) {
   test(`${firstIntent} owns the final action across repeated restart and quit requests`, async () => {
     const h = createShutdownHarness();

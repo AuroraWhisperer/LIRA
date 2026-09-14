@@ -58,4 +58,13 @@ test('danmaku styles keep base, named style, and motion ownership', () => {
   assert.match(owners.motion, /@media \(max-width:\s*480px\)/);
   assert.match(owners.motion, /prefers-reduced-motion:\s*reduce/);
   assert.doesNotMatch(owners.motion, /body\[data-style=/);
+  const giftAssets = new Set();
+  for (const style of ['signal', 'bubble', 'minimal', 'ranked', 'transparent', 'outline']) {
+    assert.ok(owners[style].includes(`/img/overlays/danmaku-gifts/${style}.svg`));
+    const svg = fs.readFileSync(path.join(ROOT_DIR, 'public', 'img', 'overlays', 'danmaku-gifts', `${style}.svg`), 'utf8');
+    assert.match(svg, /<svg[^>]+viewBox=/);
+    assert.doesNotMatch(svg, /<script|<foreignObject/);
+    giftAssets.add(svg);
+  }
+  assert.equal(giftAssets.size, 6, 'each style has its own gift artwork');
 });

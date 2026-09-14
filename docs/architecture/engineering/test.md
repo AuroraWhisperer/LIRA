@@ -20,9 +20,9 @@
 
 ### Windows 安装器集成测试
 
-[安装目录测试](../../../test/installer-directory.test.js)验证默认目录、沿用旧路径、用户指定路径优先和无 D 盘的情况；[数据保护测试](../../../test/installer-migration.test.js)验证升级、换目录、旧数据迁回、备份恢复、冲突、复制/报告失败、文件占用、运行中进程，以及升级清理时保留数据和下载文件。
+[安装目录测试](../../../test/installer-directory.test.js)验证默认目录、沿用旧路径、用户指定路径优先和无 D 盘的情况；[数据保护测试](../../../test/installer-migration.test.js)验证升级、换目录、旧数据迁回、备份恢复、冲突、复制/报告失败、文件占用、运行中进程，以及升级清理时保留数据和下载文件；[自动关闭测试](../../../test/installer-app-exit.test.js)使用隐藏的原生窗口验证确认关闭、取消、拒绝关闭、超时重试、其他安装目录隔离和静默退出，确认退出时的最后一次写入完整进入备份。
 
-两项测试需要 Windows 和 NSIS。`LIRA_TEST_MAKENSIS` 指向 `makensis.exe`，`LIRA_TEST_NSIS_PLUGINS` 指向包含 `StdUtils.dll`、`nsProcess.dll` 的 `x86-unicode` 插件目录；未配置时测试会显式跳过。下面在项目根目录的 PowerShell 中复用 electron-builder 缓存；找不到工具时先报错，避免把跳过误认为验证通过。
+这三项测试需要 Windows 和 NSIS。`LIRA_TEST_MAKENSIS` 指向 `makensis.exe`，`LIRA_TEST_NSIS_PLUGINS` 指向包含 `StdUtils.dll`、`nsProcess.dll` 的 `x86-unicode` 插件目录；未配置时测试会显式跳过。下面在项目根目录的 PowerShell 中复用 electron-builder 缓存；找不到工具时先报错，避免把跳过误认为验证通过。
 
 ```powershell
 $nsisCache = Join-Path $env:LOCALAPPDATA 'electron-builder\Cache'
@@ -37,10 +37,10 @@ if (-not $nsisCompiler -or -not $nsisPlugin) {
 }
 $env:LIRA_TEST_MAKENSIS = $nsisCompiler.FullName
 $env:LIRA_TEST_NSIS_PLUGINS = $nsisPlugin.DirectoryName
-node --test test/installer-directory.test.js test/installer-migration.test.js
+node --test test/installer-directory.test.js test/installer-migration.test.js test/installer-app-exit.test.js
 ```
 
-变量只影响当前 PowerShell 及其子进程；关闭窗口后需重新设置。在同一窗口运行 `npm test`，全量测试也会实际执行安装器场景。当前这两个文件合计应为 **16 项通过、0 项跳过**。
+变量只影响当前 PowerShell 及其子进程；关闭窗口后需重新设置。在同一窗口运行 `npm test`，全量测试也会实际执行安装器场景。当前这三个文件合计应为 **24 项通过、0 项跳过**。
 
 测试会编译并静默执行夹具程序，目录选择测试替换注册表读取，数据保护测试将 AppData、临时目录和安装目录重定向到隔离的临时目录；没有执行真实 LIRA 安装或读写用户数据库。此结果验证的是 NSIS 脚本场景，发布包的人工安装验收仍按 [构建文档](build.md)执行。
 

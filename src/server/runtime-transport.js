@@ -30,9 +30,11 @@ function createRuntimeTransport({
   }
 
   function publishGiftFlushed(item) {
+    const message = getDanmakuFeedBuffer().pushGift(item);
     broadcastSnapshot('bilibili:gift');
     const frameEvent = buildGiftFrameEvent(item, getSettings());
     if (frameEvent) getWebSocketHub()?.broadcast(frameEvent);
+    publishDanmakuItem(message);
   }
 
   function publishGiftCatalogUpdate(snapshot) {
@@ -53,6 +55,10 @@ function createRuntimeTransport({
 
   function publishDanmaku(danmaku) {
     const item = getDanmakuFeedBuffer().push(danmaku);
+    publishDanmakuItem(item);
+  }
+
+  function publishDanmakuItem(item) {
     if (item) {
       getWebSocketHub()?.broadcast(
         { type: 'danmaku:message', item },

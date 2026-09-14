@@ -64,6 +64,7 @@ export function createDanmakuMessageRenderer({
     const metrics = measureDanmakuText(message);
     const bubble = document.createElement('article');
     bubble.className = `${classNames.item} ${classNames.bubble}`;
+    if (item.kind === 'gift') bubble.className += ' is-gift';
     bubble.dataset.tone = String(index % 4);
     bubble.dataset.identity = identityVariant(item.guardLevel, item.medalName);
     if (fullscreen) bubble.style.setProperty('visibility', 'hidden');
@@ -82,11 +83,32 @@ export function createDanmakuMessageRenderer({
     const identity = createIdentity(item, name);
 
     const messageElement = document.createElement('p');
-    appendMessageContent(messageElement, message, item.emotes);
+    if (item.kind === 'gift') appendGiftContent(messageElement, item);
+    else appendMessageContent(messageElement, message, item.emotes);
     body.append(identity, messageElement);
     if (avatar) bubble.append(avatar);
     bubble.append(body);
     return bubble;
+  }
+
+  function appendGiftContent(rootElement, item) {
+    rootElement.className = 'draw-danmaku-gift';
+    const art = document.createElement('span');
+    art.className = 'draw-danmaku-gift-art';
+    art.setAttribute('aria-hidden', 'true');
+    const copy = document.createElement('span');
+    copy.className = 'draw-danmaku-gift-copy';
+    const action = document.createElement('span');
+    action.className = 'draw-danmaku-gift-action';
+    action.textContent = '送出';
+    const name = document.createElement('strong');
+    name.className = 'draw-danmaku-gift-name';
+    name.textContent = String(item.giftName || '礼物');
+    const count = document.createElement('b');
+    count.className = 'draw-danmaku-gift-count';
+    count.textContent = `× ${item.giftCount}`;
+    copy.append(action, name);
+    rootElement.append(art, copy, count);
   }
 
   function createAvatar(item, name) {

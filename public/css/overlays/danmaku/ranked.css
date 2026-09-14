@@ -153,6 +153,9 @@ body[data-style='ranked'] .draw-danmaku-item.is-emote-only .draw-danmaku-emote {
   height: 4.1em;
   margin: 0.05em 0;
 }
+body.is-preview[data-style='ranked'] .draw-danmaku-item.is-emote-only .draw-danmaku-emote {
+  height: 3em;
+}
 body[data-style='ranked'] .draw-danmaku-empty {
   width: var(--ranked-bubble-max-width);
   max-width: 100%;
@@ -161,4 +164,29 @@ body[data-style='ranked'] .draw-danmaku-empty {
   border-radius: 8px 20px 20px 20px;
   background: rgba(110, 214, 220, 0.72);
   clip-path: none;
+}
+
+/* 直播礼章：保留身份色气泡，用缎带奖章和紧凑礼物排版区分消息。 */
+body[data-style='ranked'] .draw-danmaku-item.is-gift {
+  --danmaku-gift-art: url('/img/overlays/danmaku-gifts/ranked.svg');
+}
+body[data-style='ranked'] .is-gift .draw-danmaku-gift {
+  grid-template-columns: 58px minmax(0, 1fr) auto;
+  gap: 12px;
+  min-width: min(350px, 100%);
+  padding: 10px 16px 10px 10px;
+}
+body[data-style='ranked'] .draw-danmaku-gift-art {
+  width: 58px;
+  height: 64px;
+}
+body[data-style='ranked'] .draw-danmaku-gift-action {
+  font-size: 14px;
+}
+body[data-style='ranked'] .draw-danmaku-gift-name {
+  font-size: 28px;
+}
+body[data-style='ranked'] .draw-danmaku-gift-count {
+  color: #fff5ce;
+  font-size: 32px;
 }

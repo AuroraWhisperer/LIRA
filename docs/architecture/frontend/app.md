@@ -6,6 +6,8 @@
 
 ### Admin 业务模块边界
 
+百宝箱“动态抽奖”由 [dynamic-lottery.js](../../../public/js/admin/dynamic-lottery.js) 管理独立登录与授权失效，由 [dynamic-lottery-workflow.js](../../../public/js/admin/dynamic-lottery-workflow.js) 管理规则表单、最近 50 个活动、采集进度、暂停/继续与中奖结果。使用现有工具箱标签、原生 CSS token 和命名 ESM；不增加 AdminApp 全局。只在用户提交时开始采集/开奖，后台忙时通过受保护状态接口读取进度。renderer 不计算资格或随机顺序、不保存 Cookie；授权变化和页面卸载取消页面请求并丢弃旧响应，后台进度持久化后需手动继续。相关端点见 [api.md](../backend/api.md)。本轮按用户要求没有启动客户端或运行测试。
+
 下表记录本轮拆分后仍由门面保留的外部入口。内部模块使用显式 ESM import/export，不新增 `window.AdminApp` 全局；兼容注册只留在既有门面。
 
 | 业务门面                   | 内部模块                                                                                                                                      | 所有权边界                                                                                |

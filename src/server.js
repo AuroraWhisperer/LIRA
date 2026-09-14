@@ -41,6 +41,9 @@ const giftEffectModule = require('./bilibili/gift/effect-config');
 const { createDanmakuFeedBuffer } = require('./bilibili/danmaku/feed-buffer');
 const { createGameSessionService } = require('./games/game-session-service');
 const { createWheelSessionService } = require('./games/wheel-session-service');
+const {
+  createDynamicLotteryRuntime,
+} = require('./server/dynamic-lottery-runtime');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 const PUBLIC_DIR = path.join(ROOT_DIR, 'public');
@@ -83,6 +86,7 @@ function createServerRuntime(runtimeOptions = {}) {
   let aiRuntime = null;
   let gameSessionService = null;
   let wheelSessionService = null;
+  let dynamicLottery = null;
   let applicationInitialized = false;
   let publishOvertimeUpdate = () => {};
   let isShuttingDown = false;
@@ -151,6 +155,10 @@ function createServerRuntime(runtimeOptions = {}) {
       db = createDatabases({
         dataDir: DATA_DIR,
         defaultSettings: DEFAULT_SETTINGS,
+      });
+      dynamicLottery = createDynamicLotteryRuntime({
+        db: db.lotteryDb,
+        auth: runtimeOptions.dynamicLotteryAuth,
       });
       fs.mkdirSync(OPENING_MUSIC_DIR, { recursive: true });
       reportPhase('database-init', Date.now() - phaseStartedAt);
@@ -250,6 +258,7 @@ function createServerRuntime(runtimeOptions = {}) {
   }
 
   const createApiContext = createRuntimeApiContextFactory({
+    getDynamicLottery: () => dynamicLottery,
     maxBodyBytes: MAX_BODY_BYTES,
     defaultSettings: DEFAULT_SETTINGS,
     systemPaths: {
@@ -481,6 +490,8 @@ function createServerRuntime(runtimeOptions = {}) {
     });
     gameSessionService?.dispose();
     wheelSessionService?.dispose();
+    await dynamicLottery?.dispose();
+    dynamicLottery = null;
     if (aiRuntime) {
       try {
         await aiRuntime.shutdown();

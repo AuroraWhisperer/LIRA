@@ -2,7 +2,8 @@
 .gift-workspace {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  grid-template-rows: repeat(7, max-content);
+  grid-auto-rows: max-content;
+  container: gift-workspace / inline-size;
   align-content: start;
   gap: 14px;
   height: calc(100vh - 58px - var(--player-dock-height, 96px));
@@ -38,24 +39,61 @@ body.player-dock-expanded .gift-workspace {
   grid-row: 2;
 }
 
-.gift-sprint-panel {
+.gift-blindbox-panel {
   grid-column: 1 / -1;
   grid-row: 3;
 }
 
-.gift-blindbox-panel {
+.gift-planning-row {
   grid-column: 1 / -1;
   grid-row: 4;
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  align-items: stretch;
+  gap: 14px;
+  min-width: 0;
 }
 
 .gift-blindbox-mapping-panel {
   grid-column: 1 / -1;
-  grid-row: 6;
+  grid-row: 5;
 }
 
-.gift-blindbox-broadcast-panel {
-  grid-column: 1 / -1;
-  grid-row: 5;
+.gift-planning-row > .panel {
+  container: gift-planning-card / inline-size;
+  border-color: var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-primary);
+  box-shadow: var(--shadow-sm);
+  overflow: visible;
+}
+
+.gift-planning-row > .panel > .panel-header {
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  background: var(--color-accent-light);
+}
+
+.gift-planning-row .gift-section-title {
+  margin: 0;
+}
+
+.gift-workspace .gift-planning-row > .panel > .panel-body {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+}
+
+@container gift-workspace (max-width: 1059px) {
+  .gift-planning-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .gift-page .panel-body .gift-cards {

@@ -46,6 +46,31 @@ function createDanmakuFeedBuffer(options = {}) {
       ),
       emotes: normalizeEmotes(danmaku.emotes),
     };
+    return appendItem(item);
+  }
+
+  function pushGift(gift = {}) {
+    const giftCount = Number(gift.num);
+    if (gift.detection_status !== 'final' || !Number.isSafeInteger(giftCount) || giftCount <= 0) return null;
+    const giftName = String(gift.gift_name || '礼物').trim() || '礼物';
+    return appendItem({
+      id: nextId,
+      uid: String(gift.uid || '').trim(),
+      name: String(gift.user_name || '观众').trim() || '观众',
+      message: `送出 ${giftName} × ${giftCount}`,
+      avatarUrl: '',
+      guardLevel: 0,
+      medalName: '',
+      medalLevel: 0,
+      timestamp: normalizeTimestamp(gift.finalized_at_ms),
+      emotes: [],
+      kind: 'gift',
+      giftName,
+      giftCount,
+    });
+  }
+
+  function appendItem(item) {
     nextId += 1;
     items.push(item);
     if (items.length > limit) items = items.slice(-limit);
@@ -60,7 +85,7 @@ function createDanmakuFeedBuffer(options = {}) {
     items = [];
   }
 
-  return { setRoom, push, getSnapshot, clear };
+  return { setRoom, push, pushGift, getSnapshot, clear };
 }
 
 function normalizeEmotes(value) {

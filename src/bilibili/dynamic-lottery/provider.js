@@ -5,6 +5,7 @@ const {
   createBilibiliWbiMixinKey,
 } = require('../wbi-signer');
 const { normalizeDynamicLink } = require('./link');
+const { parseReactionPage } = require('./reaction-parser');
 const {
   LotteryProviderError,
   fail,
@@ -14,6 +15,7 @@ const {
   parseCommentPage,
   parseCursor,
   parseDynamicTarget,
+  parseVideoTarget,
   readPreferredId,
   relationResult,
 } = require('./provider-parsers');
@@ -82,11 +84,10 @@ function throwApiError(response, payload) {
     bilibiliCode === -101 ||
     bilibiliCode === -111
   ) {
-    fail(
-      'LOTTERY_BILIBILI_AUTH_REQUIRED',
-      'Bilibili login is unavailable.',
-      { httpStatus: response.status, bilibiliCode },
-    );
+    fail('LOTTERY_BILIBILI_AUTH_REQUIRED', 'Bilibili login is unavailable.', {
+      httpStatus: response.status,
+      bilibiliCode,
+    });
   }
   if (response.status === 429) {
     fail('LOTTERY_BILIBILI_RATE_LIMITED', 'Bilibili rate limit reached.', {
@@ -115,7 +116,9 @@ function throwApiError(response, payload) {
 
 function createLotteryProvider({ request, getContext, nowMs = Date.now }) {
   if (typeof request !== 'function' || typeof getContext !== 'function') {
-    throw new TypeError('Lottery provider request and session ports are required.');
+    throw new TypeError(
+      'Lottery provider request and session ports are required.',
+    );
   }
   if (typeof nowMs !== 'function') {
     throw new TypeError('Lottery provider clock must be a function.');
@@ -156,6 +159,7 @@ function createLotteryProvider({ request, getContext, nowMs = Date.now }) {
       {
         scope: context.streamerId,
         kind,
+        beforeRequest: () => ensureCurrentContext(context),
         url: parsed.toString(),
         init: {
           method: 'GET',
@@ -237,6 +241,7 @@ function createLotteryProvider({ request, getContext, nowMs = Date.now }) {
         {
           scope: context.streamerId,
           kind: 'dynamic_link_redirect',
+          beforeRequest: () => ensureCurrentContext(context),
           url: link.url,
           init: {
             method: 'GET',
@@ -264,7 +269,10 @@ function createLotteryProvider({ request, getContext, nowMs = Date.now }) {
       try {
         destination = new URL(location, link.url).toString();
       } catch (_) {
-        fail('LOTTERY_DYNAMIC_LINK_INVALID', 'Short link destination is invalid.');
+        fail(
+          'LOTTERY_DYNAMIC_LINK_INVALID',
+          'Short link destination is invalid.',
+        );
       }
       link = normalizeDynamicLink(destination);
       if (!link.needsRedirect) return link;
@@ -282,10 +290,15 @@ function createLotteryProvider({ request, getContext, nowMs = Date.now }) {
     const payload = await requestApiJson(
       context,
       'dynamic_detail',
-      `${API_ORIGIN}/x/polymer/web-dynamic/v1/detail?id=${encodeURIComponent(link.dynamicId)}`,
+      link.bvid
+        ? `${API_ORIGIN}/x/web-interface/view?bvid=${encodeURIComponent(link.bvid)}`
+        : `${API_ORIGIN}/x/polymer/web-dynamic/v1/detail?id=${encodeURIComponent(link.dynamicId)}`,
       signal,
     );
-    const target = parseDynamicTarget(payload, link.dynamicId);
+    const target = link.bvid
+      ? parseVideoTarget(payload, link.bvid)
+      : parseDynamicTarget(payload, link.dynamicId);
+    target.url = link.url;
     if (target.ownerUid !== account.ownerUid) {
       fail(
         'LOTTERY_DYNAMIC_OWNER_MISMATCH',
@@ -302,7 +315,55 @@ function createLotteryProvider({ request, getContext, nowMs = Date.now }) {
     };
   }
 
+  async function verifyOwner(ownerUid, signal) {
+    const context = await getContext();
+    const account = await getVerifiedAccount(context, signal);
+    if (account.ownerUid !== ownerUid)
+      fail('LOTTERY_DYNAMIC_OWNER_MISMATCH', 'Log in as the content author.');
+    await ensureCurrentContext(context);
+  }
+
+  async function readReactions({ target, cursor = null, signal }) {
+    if (target.kind === 'video')
+      fail(
+        'LOTTERY_VIDEO_SOURCE_UNAVAILABLE',
+        'Video reaction lists are unavailable.',
+      );
+    if (
+      cursor !== null &&
+      (typeof cursor !== 'string' || !cursor || cursor.length > 2048)
+    ) {
+      fail('LOTTERY_UPSTREAM_INVALID', 'Invalid reaction cursor.');
+    }
+    const context = await getContext();
+    const account = await getVerifiedAccount(context, signal);
+    if (target.ownerUid !== account.ownerUid)
+      fail('LOTTERY_DYNAMIC_OWNER_MISMATCH', 'Log in as the content author.');
+    const query = buildBilibiliWbiQuery(
+      {
+        id: normalizeDecimalId(target.dynamicId, 'dynamic ID'),
+        ...(cursor ? { offset: cursor } : {}),
+      },
+      account.mixinKey,
+      getNow(nowMs),
+    );
+    const payload = await requestApiJson(
+      context,
+      'reaction_page',
+      `${API_ORIGIN}/x/polymer/web-dynamic/v1/detail/reaction?${query}`,
+      signal,
+    );
+    return parseReactionPage(payload, cursor);
+  }
+
   async function readPage({ target, source, cursor = null, signal } = {}) {
+    if (['like', 'repost'].includes(source)) {
+      const page = await readReactions({ target, cursor, signal });
+      return {
+        ...page,
+        records: page.records.filter((record) => record.source === source),
+      };
+    }
     if (source !== 'comment') {
       fail(
         'LOTTERY_SOURCE_UNAVAILABLE',
@@ -311,7 +372,10 @@ function createLotteryProvider({ request, getContext, nowMs = Date.now }) {
     }
     const context = await getContext();
     const account = await getVerifiedAccount(context, signal);
-    if (normalizeDecimalId(target?.ownerUid, 'target owner UID') !== account.ownerUid) {
+    if (
+      normalizeDecimalId(target?.ownerUid, 'target owner UID') !==
+      account.ownerUid
+    ) {
       fail(
         'LOTTERY_DYNAMIC_OWNER_MISMATCH',
         'The target does not belong to the verified Bilibili account.',
@@ -371,7 +435,7 @@ function createLotteryProvider({ request, getContext, nowMs = Date.now }) {
     });
   }
 
-  return { inspectDynamic, readPage, readRelation };
+  return { inspectDynamic, verifyOwner, readPage, readReactions, readRelation };
 }
 
 module.exports = { LotteryProviderError, createLotteryProvider };

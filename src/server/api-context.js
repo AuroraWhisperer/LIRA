@@ -32,6 +32,7 @@ function createApiContext(options) {
     createUnavailableGiftSaleCatalogService();
 
   return {
+    dynamicLottery: options.dynamicLottery,
     maxBodyBytes,
     sessionToken,
     broadcastSnapshot,

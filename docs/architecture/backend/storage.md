@@ -135,6 +135,8 @@ data/
 
 抽奖库仅保存最小业务证据，不保存 Cookie、认证头或完整上游响应。`dynamic-lottery-store.js` 持有分页证据与游标的 `BEGIN IMMEDIATE` 事务；`dynamic-lottery-budget-store.js` 在请求出站前同时预留本机和账号预算。
 
+2026-09-14 客户端交集流程：`dynamic-lottery-store.js` 的 `commitPages` 同事务提交点赞/转发共用页，source state 增加已见游标以拒绝分页循环；评论按事件时间截止，reaction 保留 `occurred_at_ms = NULL`。新 [dynamic-lottery-draw-store.js](../../../src/storage/dynamic-lottery-draw-store.js) 使用现有 v1 的 rounds/members/orders/awards/events 表，不修改已发布 DDL。冻结规则与全量随机顺序同事务保存；资格确认、授奖和 next_index 同事务推进，未知结果不推进。rules JSON `version:2` 固定单一中奖人数与三个条件，旧版本活动不能套用新流程续抽。启动将 collecting/drawing 恢复为暂停，不自动发请求；历史最近 50 条按可信 streamerId 查询。原数据清理端口仍仅覆盖原五库，不会删除抽奖历史或请求预算。
+
 ## 4. Schema 迁移系统
 
 `runMigrations(db, key, steps)`([schema.js:12-47](../../../src/storage/schema.js#L12-L47)):steps 数组下标+1 即版本号,**只允许末尾追加**;每步一个事务(BEGIN/COMMIT,失败 ROLLBACK 并抛错);版本只升不降(检测到库版本高于代码版本时跳过,防止用户降级损坏数据)。

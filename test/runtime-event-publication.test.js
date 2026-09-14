@@ -18,6 +18,7 @@ test('runtime publication preserves gift snapshot/frame order, danmaku topic and
     getSettings: () => settings,
     getDanmakuFeedBuffer: () => ({
       push: (message) => (message ? item : null),
+      pushGift: () => null,
     }),
     getWebSocketHub: () => ({
       broadcastSnapshot: (context, reason) =>
@@ -62,4 +63,34 @@ test('runtime publication preserves gift snapshot/frame order, danmaku topic and
       undefined,
     ],
   ]);
+});
+
+test('finalized gifts reach the danmaku topic and reconnect snapshot without a gift-frame threshold', () => {
+  const { createDanmakuFeedBuffer } = require('../src/bilibili/danmaku/feed-buffer');
+  const feed = createDanmakuFeedBuffer();
+  const snapshots = [];
+  const events = [];
+  const transport = createRuntimeTransport({
+    defaultPort: 3000,
+    getHost: () => '127.0.0.1',
+    getStartedPort: () => 3000,
+    getSessionToken: () => 'test-session',
+    getState: () => ({ danmakuFeed: feed.getSnapshot() }),
+    getSettings: () => ({ giftFrameEnabled: 'false' }),
+    getDanmakuFeedBuffer: () => feed,
+    getWebSocketHub: () => ({
+      broadcastSnapshot: context => snapshots.push(context.getState()),
+      broadcast: (payload, options) => events.push({ payload, options }),
+    }),
+  });
+  transport.publishGiftFlushed({
+    id: 5, detection_status: 'final', user_name: '阿沐',
+    gift_name: '小花花', num: 2, total_price: 0,
+  });
+  assert.equal(events.length, 1);
+  assert.equal(events[0].payload.type, 'danmaku:message');
+  assert.equal(events[0].payload.item.kind, 'gift');
+  assert.equal(events[0].payload.item.giftCount, 2);
+  assert.deepEqual(events[0].options, { topic: 'danmaku' });
+  assert.deepEqual(snapshots[0].danmakuFeed, [events[0].payload.item]);
 });

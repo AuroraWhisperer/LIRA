@@ -9,7 +9,11 @@ const DEFAULT_RATE_LIMIT_COOLDOWN_MS = 5 * 60 * 1000;
 
 function requiredText(value, field, maximum = 128) {
   const normalized = typeof value === 'string' ? value.trim() : '';
-  if (!normalized || normalized.length > maximum || /[\r\n\0]/u.test(normalized)) {
+  if (
+    !normalized ||
+    normalized.length > maximum ||
+    /[\r\n\0]/u.test(normalized)
+  ) {
     throw new TypeError(`${field} is invalid.`);
   }
   return normalized;
@@ -182,7 +186,12 @@ function createRequestBudgetStore(db) {
     });
   }
 
-  function finish({ scope, finishedAtMs: rawFinishedAtMs, status, retryAfterMs }) {
+  function finish({
+    scope,
+    finishedAtMs: rawFinishedAtMs,
+    status,
+    retryAfterMs,
+  }) {
     const finishedAtMs = normalizeMs(rawFinishedAtMs, 'request finish time');
     const statusCode = Number(status) || 0;
     transaction(db, () => {
@@ -205,7 +214,10 @@ function createRequestBudgetStore(db) {
             row.earliestResumeAtMs = finishedAtMs + cooldown;
             row.rateLimitStrikes = 1;
           }
-        } else if ([403, 412].includes(statusCode) && row.scopeKey !== 'local') {
+        } else if (
+          [403, 412].includes(statusCode) &&
+          row.scopeKey !== 'local'
+        ) {
           row.holdReason = 'VERIFICATION_REQUIRED';
           row.earliestResumeAtMs = 0;
         } else if (statusCode >= 200 && statusCode < 400) {
@@ -234,7 +246,7 @@ function createRequestBudgetStore(db) {
     });
   }
 
-  function clearHold({ scope, nowMs: rawNowMs }) {
+  function clearHold({ scope, nowMs: rawNowMs, respectCooldown = false }) {
     const nowMs = normalizeMs(rawNowMs, 'budget hold time');
     transaction(db, () => {
       const scopeKey =
@@ -242,6 +254,11 @@ function createRequestBudgetStore(db) {
           ? 'local'
           : `account:${requiredText(scope, 'budget scope')}`;
       const row = normalizeRow(ensureRow(scopeKey, nowMs), nowMs);
+      if (respectCooldown && row.earliestResumeAtMs > nowMs) {
+        throw Object.assign(new Error('LOTTERY_COOLING_DOWN'), {
+          code: 'LOTTERY_COOLING_DOWN',
+        });
+      }
       row.holdReason = '';
       row.earliestResumeAtMs = 0;
       row.rateLimitStrikes = 0;

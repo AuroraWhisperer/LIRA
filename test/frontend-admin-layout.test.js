@@ -49,7 +49,7 @@ test('gift workspace rows keep their content height inside the scroll container'
   assert.ok(giftWorkspaceRule, 'gift workspace styles should remain defined');
   assert.match(
     giftWorkspaceRule,
-    /grid-template-rows:\s*repeat\(7, max-content\)/,
+    /grid-auto-rows:\s*max-content/,
   );
 });
 

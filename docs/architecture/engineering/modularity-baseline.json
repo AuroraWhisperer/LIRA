@@ -14,9 +14,9 @@
     {
       "path": "src/electron/main.js",
       "kind": "review",
-      "maxLines": 709,
+      "maxLines": 723,
       "owner": "桌面组合入口",
-      "reason": "批次 C 已提取就绪导航与恢复协调；入口保留资源创建、接线及停机顺序。",
+      "reason": "2026-09-14 抽奖客户端接入复核：入口仅增加独立认证所有者、IPC、关闭排空及传给内嵌 runtime 的两个可信读取回调，存储/会话/抽奖均在专用模块；现有直播/云同步接线不变。electron-shutdown 为既有保护，本轮按用户要求未运行测试。",
       "removal": "继续按真实独立职责整理组合阶段；保留启动失败、授权及停机验证。",
       "reviewBy": "2026-12-13",
       "test": "test/electron-main-modules.test.js"
@@ -44,9 +44,9 @@
     {
       "path": "src/server.js",
       "kind": "review",
-      "maxLines": 779,
+      "maxLines": 790,
       "owner": "服务组合入口",
-      "reason": "2026-09-14 审阅代码指令调整：为 runtime-transport 的 publishGiftEffect 增加现有 domainServices.gifts.resolveEffect 接线，与测试播放共用解析器；入口没有新增领域逻辑或状态。test/gift-effect-danmaku.test.js 覆盖两条入口结果一致。",
+      "reason": "2026-09-14 组合入口复核：保留 publishGiftEffect 的既有 resolveEffect 接线；本次仅新增抽奖 runtime 的创建、窄 facade 注入与数据库关闭前排空，共 11 行。来源、随机、状态机、SQL 均留在独立所有者，不在此扩展业务逻辑。server-lifecycle 为既有保护，本轮按用户要求未运行测试。",
       "removal": "按资源阶段继续评估组合职责，避免领域模块反向依赖 server 入口。",
       "reviewBy": "2026-12-13",
       "test": "test/server-lifecycle.test.js"
@@ -154,9 +154,9 @@
     {
       "path": "public/pages/admin/toolbox/shell-start.html",
       "kind": "review",
-      "maxLines": 697,
+      "maxLines": 734,
       "owner": "百宝箱页面组合",
-      "reason": "刻意保留开标签，侧栏 SVG 占主要篇幅；格式化例外不是行数豁免。",
+      "reason": "2026-09-14 抽奖专用登录复核：仅增加既有导航合同下的一个 tab/SVG，账号面板独立在 dynamic-lottery.html，行为独立为命名 ESM；保留组合器管理开闭标签，未向外壳增加业务逻辑。",
       "removal": "导航改造时提取完整 aside；组合器继续管理外壳开闭标签。",
       "reviewBy": "2026-12-13",
       "test": "test/admin-page-composition.test.js"

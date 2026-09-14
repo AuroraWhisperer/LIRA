@@ -13,6 +13,9 @@ async function openBilibiliLoginWindow(options = {}) {
     mainWindow,
     dataDir,
     writeLog = () => {},
+    title = '登录直播账号',
+    signal,
+    onWindowReady = () => {},
   } = options;
   if (typeof BrowserWindow !== 'function' || !shell || !auth) {
     throw new Error('Bilibili login window dependencies are required.');
@@ -22,7 +25,7 @@ async function openBilibiliLoginWindow(options = {}) {
   const loginWindow = new BrowserWindow({
     width: 1000,
     height: 720,
-    title: '登录直播账号',
+    title,
     parent: mainWindow || undefined,
     modal: false,
     show: true,
@@ -114,6 +117,11 @@ async function openBilibiliLoginWindow(options = {}) {
     clearTimeout(cookieSaveTimer);
     clearInterval(loginCheckTimer);
     loginSession.cookies.removeListener('changed', onCookieChanged);
+    signal?.removeEventListener('abort', cancel);
+  };
+
+  const cancel = () => {
+    if (!loginWindow.isDestroyed()) loginWindow.destroy();
   };
 
   loginWindow.webContents.on(
@@ -148,6 +156,13 @@ async function openBilibiliLoginWindow(options = {}) {
       });
     });
   });
+
+  signal?.addEventListener('abort', cancel, { once: true });
+  onWindowReady(loginWindow);
+  if (signal?.aborted) {
+    cancel();
+    return completion;
+  }
 
   try {
     await loginWindow.loadURL(config.loginUrl);

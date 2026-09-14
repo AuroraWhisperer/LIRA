@@ -39,6 +39,16 @@ function normalizeDynamicLink(text) {
   }
 
   if (host === 'www.bilibili.com') {
+    const video = parsed.pathname.match(
+      /^\/video\/(BV[1-9A-HJ-NP-Za-km-z]{10})\/?$/u,
+    );
+    if (video) {
+      return {
+        url: `https://www.bilibili.com/video/${video[1]}`,
+        bvid: video[1],
+        needsRedirect: false,
+      };
+    }
     const match = parsed.pathname.match(/^\/opus\/([1-9]\d{0,63})\/?$/u);
     if (!match) throw createLinkError('unsupported bilibili.com path.');
     return {
