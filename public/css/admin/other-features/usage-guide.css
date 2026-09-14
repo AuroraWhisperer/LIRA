@@ -1,4 +1,8 @@
 /* ===== 使用文档 ===== */
+#otherUsageGuideFeature {
+  position: relative;
+}
+
 .usage-guide-panel {
   --usage-guide-accent: color-mix(
     in srgb,
@@ -123,80 +127,6 @@
   min-width: 0;
 }
 
-/* 横向目录按阅读目的分组，为较长的章节名称预留空间。 */
-.usage-guide-toc {
-  position: sticky;
-  top: 8px;
-  z-index: 6;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.25fr);
-  gap: 20px;
-  min-width: 0;
-  padding: 14px 6px;
-  border-block: 1px solid var(--usage-guide-rule);
-  background: var(--surface);
-  counter-reset: usage-guide-toc;
-}
-
-.usage-guide-toc-group {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
-  gap: 4px;
-  align-content: start;
-  min-width: 0;
-}
-
-.usage-guide-toc-heading {
-  grid-column: 1 / -1;
-  margin: 0 8px 6px;
-  color: var(--muted);
-  font-size: var(--type-size-caption);
-  font-weight: 500;
-  line-height: 1.5;
-}
-
-.usage-guide-toc a {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  min-width: 0;
-  min-height: 34px;
-  padding: 7px 8px;
-  border-radius: var(--radius-md);
-  color: var(--muted);
-  font-size: var(--type-size-control);
-  font-weight: 500;
-  line-height: 1.4;
-  overflow-wrap: anywhere;
-  text-align: left;
-  text-decoration: none;
-  transition:
-    background 0.15s ease,
-    color 0.15s ease;
-}
-
-.usage-guide-toc a:hover {
-  background: var(--usage-guide-fill);
-  color: var(--text);
-}
-
-.usage-guide-toc a.active {
-  background: var(--usage-guide-accent-soft);
-  color: var(--usage-guide-accent);
-  font-weight: 600;
-}
-
-.usage-guide-toc a:focus-visible {
-  outline: 2px solid var(--usage-guide-accent);
-  outline-offset: 1px;
-}
-
-.usage-guide-toc a::before {
-  content: counter(usage-guide-toc, decimal-leading-zero);
-  counter-increment: usage-guide-toc;
-  display: none;
-}
-
 /* 章节以留白和分隔线组织，避免多层卡片边框。 */
 .usage-guide-section {
   display: grid;
@@ -237,6 +167,14 @@
   color: var(--muted);
   font-size: var(--type-size-body);
   line-height: 1.7;
+}
+
+.usage-guide-subsection-title {
+  margin: 8px 0 0;
+  color: var(--usage-guide-accent);
+  font-size: var(--type-size-section-title);
+  font-weight: 600;
+  line-height: 1.4;
 }
 
 /* 快速上手四个条目 */
@@ -381,14 +319,56 @@
   color: var(--usage-guide-accent);
 }
 
+.usage-guide-pricing {
+  margin-top: 12px;
+}
+
 .usage-guide-image {
   display: block;
-  width: 100%;
+  width: auto;
+  max-width: min(100%, 960px);
   height: auto;
   margin-top: 12px;
   border: 1px solid var(--border);
   border-radius: 10px;
   box-shadow: var(--shadow-sm);
+}
+
+.usage-guide-feature--illustrated {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+}
+
+.usage-guide-feature-copy {
+  min-width: 0;
+  max-width: 68ch;
+}
+
+.usage-guide-feature--illustrated .usage-guide-image {
+  place-self: start;
+  max-width: min(100%, 480px);
+  min-width: 0;
+  margin-top: 0;
+}
+
+.usage-guide-step-pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 400px), 1fr));
+  gap: 16px 28px;
+  padding: 20px 2px;
+}
+
+.usage-guide-step-pair > .usage-guide-feature {
+  grid-row: span 2;
+  grid-template-rows: subgrid;
+  padding: 0;
+  border-top: 0;
+}
+
+.usage-guide-feature + .usage-guide-step-pair,
+.usage-guide-step-pair + .usage-guide-feature {
+  border-top: 1px solid var(--usage-guide-rule);
 }
 
 /* 常见问题（手风琴） */
@@ -671,6 +651,12 @@
 }
 
 @media (max-width: 900px) {
+  .usage-guide-back-to-top {
+    position: fixed;
+    right: 24px;
+    bottom: calc(var(--player-dock-height, 102px) + 16px);
+  }
+
   .other-workspace,
   body.player-dock-expanded .other-workspace {
     grid-template-columns: 1fr;

@@ -164,7 +164,9 @@ test('a current refresh failure reports its error and advances to the next track
   assert.ok(
     app
       .element('toast')
-      .prepended.some((item) => item.textContent === 'current refresh failed'),
+      .prepended.some((item) => item.children[0].children.some(
+        (child) => child.tagName === 'span' && child.textContent === 'current refresh failed',
+      )),
   );
 });
 

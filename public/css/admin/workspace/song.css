@@ -1,6 +1,63 @@
 /* ===== 点歌工作区布局 ===== */
+#songForm {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  gap: 20px 24px;
+  align-items: start;
+}
+
+#songForm .song-form-main {
+  display: grid;
+  gap: 24px;
+  min-width: 0;
+}
+
+#songForm .song-form-section {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+#songForm .song-form-section > legend {
+  margin-bottom: 14px;
+  padding: 0;
+  color: var(--text);
+  font-size: var(--type-size-card-title);
+  font-weight: var(--type-weight-semibold);
+  line-height: var(--type-leading-card-title);
+}
+
+#songForm .song-form-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px 12px;
+}
+
+#songForm .song-form-source {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+#songForm .song-form-source-fields,
+#songForm .song-form-price-fields {
+  display: grid;
+  gap: 14px;
+}
+
+#songForm .song-form-pricing {
+  padding-left: 24px;
+  border-left: 1px solid var(--border);
+}
+
 #songForm label {
+  min-width: 0;
   align-content: start;
+}
+
+#songForm .song-form-clip {
+  grid-template-rows: auto 1fr;
 }
 
 #songRequestPrice,
@@ -8,9 +65,271 @@
   min-height: 72px;
 }
 
+#songForm .song-form-price-meta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+
+#songForm .song-form-price-preview {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+
 #songPricePreview {
+  margin: 6px 0 0;
   max-height: 120px;
   overflow: auto;
+  color: var(--text);
+  font-size: var(--type-size-body);
+  line-height: var(--type-leading-body);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+#songPricePreview:empty::before {
+  content: '暂未填写价格';
+  color: var(--muted);
+}
+
+#songForm .song-form-actions {
+  display: flex;
+  grid-column: 1 / -1;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+#songForm .song-form-actions button {
+  min-width: 108px;
+}
+
+@media (max-width: 1100px) {
+  #songForm {
+    grid-template-columns: 1fr;
+  }
+
+  #songForm .song-form-pricing {
+    padding-left: 0;
+    border-left: 0;
+  }
+}
+
+@media (max-width: 620px) {
+  #songForm .song-form-fields,
+  #songForm .song-form-source {
+    grid-template-columns: 1fr;
+  }
+}
+
+#importPage .song-data-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: var(--type-size-control);
+  font-weight: var(--type-weight-semibold);
+  line-height: var(--type-leading-control);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+#importPage .song-data-action:hover:not(:disabled) {
+  border-color: var(--color-text-secondary);
+  background: var(--color-bg-tertiary);
+}
+
+#importPage .song-data-action.danger {
+  border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
+  color: var(--danger);
+}
+
+#importPage .song-data-action.danger:hover:not(:disabled) {
+  border-color: var(--danger);
+  background: var(--color-danger-light);
+}
+
+#importPage .song-data-action-solid.danger {
+  border-color: var(--danger);
+  background: var(--danger);
+  color: var(--color-text-white);
+}
+
+#importPage .song-data-action-solid.danger:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--danger) 88%, #000);
+  background: color-mix(in srgb, var(--danger) 88%, #000);
+}
+
+#importPage .song-data-action:focus-visible {
+  outline: 2px solid var(--color-control-focus);
+  outline-offset: 2px;
+}
+
+#importPage .song-data-action.primary {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--color-text-white);
+}
+
+#importPage .song-data-action.primary:hover:not(:disabled) {
+  border-color: var(--primary-strong);
+  background: var(--primary-strong);
+}
+
+.song-import-note {
+  margin: 0;
+}
+
+.song-import-help {
+  border-block: 1px solid var(--border);
+  font-size: var(--type-size-control);
+}
+
+.song-import-help summary {
+  padding: 12px 0;
+  color: var(--muted);
+  font-weight: var(--type-weight-semibold);
+  cursor: pointer;
+}
+
+.song-import-help dl {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 14px;
+}
+
+.song-import-help dl > div {
+  display: grid;
+  grid-template-columns: 6em minmax(0, 1fr);
+  gap: 12px;
+}
+
+.song-import-help dt {
+  font-weight: var(--type-weight-medium);
+}
+
+.song-import-help dd {
+  margin: 0;
+  color: var(--muted);
+}
+
+#importResult:not(:empty) {
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+
+#importResult:empty,
+.song-cloud-result:empty {
+  position: absolute;
+}
+
+.song-cloud-settings:not(:has(> :not([hidden]))) {
+  display: none;
+}
+
+.song-cloud-settings {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
+  gap: 16px;
+}
+
+.song-cloud-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  font-size: var(--type-size-control);
+}
+
+.song-cloud-panel :is(h3, p, dl) {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.song-cloud-heading,
+.song-background-guide {
+  display: grid;
+  gap: 6px;
+}
+
+.song-cloud-facts {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+  padding-block: 14px;
+  border-block: 1px solid var(--border);
+}
+
+.song-cloud-facts dt {
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+}
+
+.song-cloud-facts dd {
+  margin: 0;
+  font-size: var(--type-size-card-title);
+  font-weight: var(--type-weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+.song-cloud-notice {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border-left: 2px solid var(--accent);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--surface-2);
+}
+
+.song-cloud-actions {
+  margin-top: auto;
+}
+
+.song-background-content {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+
+.song-background-content .song-bg-preview-wrap {
+  flex: 0 1 180px;
+  width: 180px;
+  max-width: 100%;
+}
+
+.song-background-guide {
+  flex: 1 1 180px;
+}
+
+.song-background-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  aspect-ratio: 16 / 9;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: var(--type-size-caption);
 }
 
 #songImportPreviewRows td {

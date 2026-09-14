@@ -9,6 +9,7 @@ const path = require('node:path');
 const { DatabaseSync } = require('node:sqlite');
 const schema = require('./schema');
 const databaseMigrations = require('./database-migrations');
+const dynamicLotteryMigrations = require('./dynamic-lottery-migrations');
 const databaseMaintenance = require('./database-maintenance');
 
 const DB_FILE_NAMES = {
@@ -17,6 +18,7 @@ const DB_FILE_NAMES = {
   giftDb: 'gift-data.db',
   musicDb: 'music-data.db',
   checkinDb: 'checkin-data.db',
+  lotteryDb: 'lottery-data.db',
 };
 
 // ── 工厂函数：创建并初始化所有数据库 ──
@@ -63,11 +65,44 @@ function createDatabases(options = {}) {
       databases.superChatDb,
     );
 
+    databases.lotteryDb = createLotteryDatabase(dataDir);
+
     return databases;
   } catch (error) {
     databaseMaintenance.closeDatabases(databases);
     throw error;
   }
+}
+
+function createLotteryDatabase(dataDir) {
+  let lotteryDb = null;
+  try {
+    lotteryDb = openSqliteDatabase(
+      path.join(dataDir, DB_FILE_NAMES.lotteryDb),
+      { foreignKeys: true },
+    );
+    dynamicLotteryMigrations.runDynamicLotteryMigrations(lotteryDb);
+    return lotteryDb;
+  } catch (error) {
+    if (lotteryDb) databaseMaintenance.closeDatabases(lotteryDb);
+    const reason =
+      typeof error?.code === 'string' && error.code
+        ? error.code
+        : error?.name || 'initialization failed';
+    console.warn(`[Startup] dynamic lottery database unavailable: ${reason}`);
+    return null;
+  }
+}
+
+function getSchemaVersions(databases) {
+  const versions = databaseMigrations.getSchemaVersions(databases);
+  if (databases.lotteryDb) {
+    versions.lotteryDb =
+      dynamicLotteryMigrations.getDynamicLotterySchemaVersion(
+        databases.lotteryDb,
+      );
+  }
+  return versions;
 }
 
 // ── 底层：打开单个数据库 ──
@@ -95,7 +130,10 @@ function openSqliteDatabase(filePath, options = {}) {
 module.exports = {
   DB_FILE_NAMES,
   createDatabases,
+  createLotteryDatabase,
   openSqliteDatabase,
   ...databaseMigrations,
+  ...dynamicLotteryMigrations,
+  getSchemaVersions,
   ...databaseMaintenance,
 };

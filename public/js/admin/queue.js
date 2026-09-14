@@ -2,6 +2,8 @@
 // 队列和 SuperChat 管理
 'use strict';
 
+import { copyText } from '../shared/utils.js';
+
 (function () {
   const {
     escapeHtml,
@@ -198,12 +200,7 @@
         queueAction(button.dataset.action, button.dataset.id),
       );
     });
-    document.querySelectorAll('[data-copy]').forEach((button) => {
-      button.addEventListener('click', async () => {
-        await navigator.clipboard.writeText(button.dataset.copy);
-        toast('歌名已复制');
-      });
-    });
+    bindQueueCopyButtons(list, '歌名已复制');
   }
 
   function renderSuperChatQueue(items) {
@@ -248,6 +245,20 @@
       button.addEventListener('click', () =>
         superChatAction(button.dataset.scAction, button.dataset.id),
       );
+    });
+    bindQueueCopyButtons(list, 'SC 已复制');
+  }
+
+  function bindQueueCopyButtons(list, successMessage) {
+    list.querySelectorAll('[data-copy]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        try {
+          await copyText(button.dataset.copy);
+          toast(successMessage);
+        } catch (_) {
+          toast('复制失败，请重试');
+        }
+      });
     });
   }
 

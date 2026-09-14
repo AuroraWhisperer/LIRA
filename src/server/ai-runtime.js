@@ -1,5 +1,6 @@
 'use strict';
 
+const path = require('node:path');
 const { createAiConfigStore } = require('../ai/config-store');
 const { createAiApiQuotaStore } = require('../ai/api-quota-store');
 const { createElectronSecretCodec } = require('../ai/secret-codec');
@@ -29,7 +30,7 @@ function buildAiRuntime({
   const deliveryVerifier = createDanmakuDeliveryVerifier();
   const requestLogger =
     runtimeOptions.aiRequestLogger ||
-    createAiRequestLogger({ filePath: aiLogPath });
+    createAiRequestLogger({ logDir: path.dirname(aiLogPath) });
   const service = createAiAssistantService({
     store: configStore,
     quotaStore,

@@ -147,6 +147,8 @@ export function createPlaylistOperations(deps) {
     const platform = playbackState.selectedSource;
     const platformLabel = platform === 'netease' ? '网易云音乐' : 'QQ 音乐';
 
+    const notice = { key: `playlist-remove:${platform}:${action}:${homeService.getCurrentPlaylist()?.id || 'liked'}:${track.sourceTrackId || track.sourceSongId || track.id || track.mid || track.title}`, update: true };
+
     if (action === 'liked') {
       const confirmed = await showConfirmDialog(
         '从我喜欢中删除',
@@ -158,7 +160,7 @@ export function createPlaylistOperations(deps) {
       if (!confirmed) return;
 
       try {
-        toast('正在从我喜欢中删除…');
+        toast('正在从我喜欢中删除…', { ...notice, duration: 0 });
         const response = await fetch('/api/music/playlists/tracks/remove', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -172,14 +174,14 @@ export function createPlaylistOperations(deps) {
         if (!response.ok || !payload.ok)
           throw new Error(payload.error || `从我喜欢删除失败`);
 
-        toast('已从我喜欢中删除');
+        toast('已从我喜欢中删除', { ...notice, type: 'success' });
         await homeService.refreshContent();
         const updatedState = homeService.getHomeState();
         if (deps.renderPlaybackHomeResults) {
           deps.renderPlaybackHomeResults(updatedState.action);
         }
       } catch (error) {
-        showError(error);
+        toast(error.message || String(error), { ...notice, type: 'error' });
       }
       return;
     }
@@ -198,7 +200,7 @@ export function createPlaylistOperations(deps) {
       if (!confirmed) return;
 
       try {
-        toast('正在从歌单中删除…');
+        toast('正在从歌单中删除…', { ...notice, duration: 0 });
         const response = await fetch('/api/music/playlists/tracks/remove', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -215,14 +217,14 @@ export function createPlaylistOperations(deps) {
         if (!response.ok || !payload.ok)
           throw new Error(payload.error || `从${platformLabel}歌单删除失败`);
 
-        toast(`已从「${currentPlaylist.title || '歌单'}」中删除`);
+        toast(`已从「${currentPlaylist.title || '歌单'}」中删除`, { ...notice, type: 'success' });
         await homeService.refreshContent();
         const updatedState = homeService.getHomeState();
         if (deps.renderPlaybackHomeResults) {
           deps.renderPlaybackHomeResults(updatedState.action);
         }
       } catch (error) {
-        showError(error);
+        toast(error.message || String(error), { ...notice, type: 'error' });
       }
     }
   }

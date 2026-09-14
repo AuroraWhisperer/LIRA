@@ -1,3 +1,7 @@
+import { createToastStack } from '../shared/toast.js';
+
+let toastStack;
+
 // Gift audit DOM rendering. Application state stays in the entry module.
 
 export function renderConnBar(state) {
@@ -127,11 +131,17 @@ export function updateStats({ bubbleCount, serverCount, results }) {
 }
 
 export function showToast(msg, type) {
-  const el = document.createElement('div');
-  el.className = 'toast ' + (type || 'ok');
-  el.textContent = msg;
-  document.body.appendChild(el);
-  setTimeout(() => el.remove(), 2500);
+  if (!toastStack) {
+    const container = document.createElement('div');
+    container.className = 'audit-toast-stack';
+    document.body.appendChild(container);
+    toastStack = createToastStack({ container, systemLimit: 1 });
+  }
+  return toastStack.show({
+    key: 'audit-result', update: true, message: msg,
+    type: type === 'warn' ? 'warning' : 'success',
+    className: type === 'warn' ? 'warn' : 'ok',
+  });
 }
 
 function escHtml(s) {

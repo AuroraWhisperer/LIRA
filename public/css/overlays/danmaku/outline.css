@@ -18,19 +18,24 @@ body[data-style='outline'] .draw-danmaku-feed {
 }
 body[data-style='outline'] .draw-danmaku-item {
   position: absolute;
-  --outline-accent: #fff;
   display: block;
   width: max-content;
-  max-width: calc(100% - 32px);
+  max-width: min(calc(100% - 32px), 680px);
   min-height: 0;
-  padding: 13px 18px 8px;
-  border: 1px solid var(--outline-accent);
-  border-radius: 7px;
-  color: #fff;
-  background: rgba(9, 15, 27, 0.72);
-  box-shadow: 0 5px 16px rgba(2, 6, 16, 0.24);
+  padding: 14px 18px;
+  overflow: hidden;
+  border: 1px solid rgba(99, 99, 102, 0.26);
+  border-radius: 16px;
+  color: #1d1d1f;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow:
+    0 4px 18px rgba(0, 0, 0, 0.1),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.85);
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei UI',
+    'Microsoft YaHei', sans-serif;
   clip-path: none;
-  animation: outlineMessageIn 220ms ease-out both;
+  animation: outlineMessageIn 200ms ease-out both;
 }
 body[data-style='outline'] .draw-danmaku-item::after,
 body[data-style='outline'] .draw-danmaku-avatar,
@@ -38,38 +43,31 @@ body[data-style='outline'] .draw-danmaku-guard,
 body[data-style='outline'] .draw-danmaku-medal {
   display: none;
 }
-body[data-style='outline'] .draw-danmaku-item[data-identity='viewer'],
-body[data-style='outline'] .draw-danmaku-item[data-identity='fan'],
-body[data-style='outline'] .draw-danmaku-item[data-identity='captain'],
-body[data-style='outline'] .draw-danmaku-item[data-identity='admiral'],
-body[data-style='outline'] .draw-danmaku-item[data-identity='governor'] {
-  --outline-accent: #fff;
-}
 body[data-style='outline'] .draw-danmaku-body {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  justify-items: center;
+  justify-items: start;
   gap: 6px;
   min-width: 0;
   max-width: 100%;
 }
 body[data-style='outline'] .draw-danmaku-identity {
-  justify-content: center;
+  justify-content: flex-start;
   width: max-content;
   max-width: 100%;
   padding: 0;
-  color: #fff;
+  color: #636366;
   background: transparent;
 }
 body[data-style='outline'] .draw-danmaku-identity strong {
   max-width: 100%;
-  color: #fff;
-  font:
-    700 13px/1.25 'Microsoft YaHei UI',
-    'Microsoft YaHei',
-    sans-serif;
-  letter-spacing: 0.02em;
-  text-align: center;
+  color: inherit;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: 0;
+  text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -77,10 +75,11 @@ body[data-style='outline'] .draw-danmaku-body p {
   width: max-content;
   max-width: 100%;
   margin: 0;
-  color: #fff;
+  color: #1d1d1f;
   font-size: clamp(16px, 2.2vw, 18px);
-  font-weight: 700;
-  line-height: 1.38;
-  text-align: center;
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.52);
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: 0;
+  text-align: left;
+  text-shadow: none;
 }

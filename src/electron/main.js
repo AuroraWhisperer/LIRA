@@ -312,7 +312,6 @@ async function startDesktopApp() {
     installUpdate,
     requestRestart: () => requestDesktopShutdown({ restart: true }),
     getMainWindow: () => windowState.main,
-    normalizeGiftDisplayTrace,
     writeLog,
   });
   registerMusicIpc({
@@ -692,18 +691,4 @@ async function requestPlaybackFlush() {
   var result = await playbackFlush.requestPlaybackFlush(windowState.main);
   writeLog('playback-flush', result);
   return result;
-}
-
-function normalizeGiftDisplayTrace(gift) {
-  var value = gift && typeof gift === 'object' ? gift : {};
-  return {
-    eventId: Number(value.eventId) || 0,
-    giftId: String(value.giftId || ''),
-    giftName: String(value.giftName || '').slice(0, 200),
-    uid: String(value.uid || ''),
-    userName: String(value.userName || '').slice(0, 200),
-    num: Math.max(1, Number(value.num) || 1),
-    totalPrice: Number(value.totalPrice) || 0,
-    toastKey: String(value.toastKey || '').slice(0, 200),
-  };
 }

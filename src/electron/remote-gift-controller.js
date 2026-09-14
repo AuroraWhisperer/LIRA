@@ -408,6 +408,13 @@ function createRemoteGiftController(options = {}) {
           publishContext();
           if (!initializing) requestReconcile(generation);
         },
+        onEffect(input) {
+          const isCurrent = () =>
+            streamController === controller &&
+            !controller.signal.aborted &&
+            ensureFenceCurrent(streamFence);
+          if (isCurrent()) runtime.publishGiftEffect?.(input, isCurrent);
+        },
         onEvent(input) {
           if (!ensureFenceCurrent(streamFence)) return;
           let event;

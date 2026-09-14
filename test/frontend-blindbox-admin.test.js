@@ -132,7 +132,7 @@ test('gift notifications detect delayed records that are not first in the list',
   ]);
 
   assert.equal(toasts.length, 1);
-  assert.equal(toasts[0].key, 'gift:11:1:2');
+  assert.equal(toasts[0].key, 'gift:11');
   assert.match(toasts[0].html, /Delayed Gift/);
   assert.match(toasts[0].html, />¥2\.00<\/span>/);
   assert.doesNotMatch(toasts[0].html, /¥¥/);

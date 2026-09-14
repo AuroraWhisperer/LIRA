@@ -38,8 +38,9 @@
     'giftCatalogInitializationBackBtn',
   );
   let busy = false;
-  let registration = false;
+  let registration = true;
   let licenseState = 'needs_activation';
+  let showSavedAuthorizationNotice = true;
   let returnedToLogin = false;
   let initializationBusy = false;
   let unsubscribe = () => {};
@@ -191,6 +192,8 @@
   function render(snapshot = {}) {
     const state = String(snapshot.state || 'needs_activation');
     licenseState = state;
+    if (state === 'authorizing' || state === 'authorized')
+      showSavedAuthorizationNotice = false;
     if (state !== 'authorized') returnedToLogin = false;
     if (state === 'authorized' && !returnedToLogin) {
       showGiftCatalogInitialization();
@@ -215,6 +218,12 @@
       setStatus('正在验证账号与本机授权，请稍候…', 'loading');
     else if (state === 'needs_connection')
       setStatus(connectionErrorMessage(snapshot.error), 'error');
+    else if (
+      state === 'blocked' &&
+      snapshot.error === 'DEVICE_REVOKED' &&
+      showSavedAuthorizationNotice
+    )
+      setStatus('本机保留的旧设备授权已撤销，请获取新的短效登录码后重新登录。');
     else if (state === 'blocked')
       setStatus(errorMessage(snapshot.error), 'error');
     else if (snapshot.error) setStatus(errorMessage(snapshot.error), 'error');
@@ -352,6 +361,7 @@
     if (busy) return;
     if (licenseState === 'authorized') return retryGiftCatalog();
     if (!api?.retry) return;
+    showSavedAuthorizationNotice = false;
     busy = true;
     render({ state: 'checking' });
     try {

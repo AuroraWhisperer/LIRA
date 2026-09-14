@@ -315,11 +315,7 @@ test('assisted super chat cards keep a single status color on hover', () => {
   assert.match(assistedHoverRule, /opacity:\s*0/);
 });
 
-test('admin queue wheel scrolls overflowing lists and releases the page at their edges', () => {
-  const source = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'queue.js'),
-    'utf8',
-  );
+test('admin queue wheel scrolls overflowing lists and releases the page at their edges', async () => {
   const makeTarget = () => ({
     listeners: new Map(),
     addEventListener(type, listener) {
@@ -367,7 +363,10 @@ test('admin queue wheel scrolls overflowing lists and releases the page at their
     },
   };
 
-  vm.runInNewContext(source, sandbox);
+  await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'queue.js'),
+    sandbox,
+  );
   sandbox.window.AdminApp.queue.initQueueForm();
   const wheel = superChatPanel.listeners.get('wheel');
   const dispatchWheel = (deltaY) => {

@@ -105,7 +105,39 @@
   color: var(--muted);
 }
 
+.license-website-row p {
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+}
+
+.license-website-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  line-height: 1.8;
+}
+
+.license-website-link {
+  flex-shrink: 0;
+  color: var(--primary-strong);
+  font-weight: var(--type-weight-bold);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.license-website-link:hover {
+  color: var(--text);
+}
+
+.license-website-link:focus-visible {
+  outline: 2px solid var(--primary-strong);
+  outline-offset: 4px;
+  border-radius: 2px;
+}
+
 @media (max-width: 560px) {
+  .license-website-row,
   .license-account-header,
   .license-account-card-heading {
     align-items: flex-start;

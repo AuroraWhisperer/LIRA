@@ -26,6 +26,7 @@ const DEFAULT_SETTINGS = {
   enableGiftNotification: 'true',
   giftSprintTargetRmb: '0',
   giftFrameEnabled: 'false',
+  giftEffectDanmakuEnabled: 'false',
   giftFrameThresholdRmb: '20',
   giftFrameTheme: 'woodland-bloom',
   giftFrameMotionMode: 'auto',

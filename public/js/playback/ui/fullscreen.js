@@ -241,10 +241,6 @@ export class FullscreenPlayer {
       '.player-fs-lyric-line',
     ).length;
     if (existingCount !== lines.length) {
-      console.log(
-        '[fullscreen] renderLyrics: re-rendering lyrics, count:',
-        lines.length,
-      );
       this.renderLyricLines(lines);
       this.lastActiveLyricIndex = -1; // 歌词列表变化，重置索引以触发初始滚动
     }
@@ -255,12 +251,6 @@ export class FullscreenPlayer {
     // 只有在当前歌词索引发生变化时才滚动（无论播放还是暂停）
     // 播放时会持续跟随，暂停时只在手动拖动进度条时滚动一次
     if (currentIndex !== this.lastActiveLyricIndex && currentIndex >= 0) {
-      console.log('[fullscreen] renderLyrics: lyric index changed:', {
-        lastIndex: this.lastActiveLyricIndex,
-        currentIndex,
-        currentMs,
-        lineText: lines[currentIndex]?.text,
-      });
       this.scrollToActiveLyric();
       this.lastActiveLyricIndex = currentIndex;
     }
@@ -343,9 +333,6 @@ export class FullscreenPlayer {
    */
   scrollToActiveLyric() {
     if (!this.lyricsContainer) {
-      console.warn(
-        '[fullscreen] scrollToActiveLyric: lyricsContainer not found',
-      );
       return;
     }
 
@@ -353,7 +340,6 @@ export class FullscreenPlayer {
       '.player-fs-lyric-line.active',
     );
     if (!activeLine) {
-      console.warn('[fullscreen] scrollToActiveLyric: no active line found');
       return;
     }
 
@@ -365,14 +351,6 @@ export class FullscreenPlayer {
 
     // 将当前歌词定位在屏幕上方 1/3 位置（中间偏上）
     const targetScroll = lineTop - containerHeight / 3 + lineHeight / 2;
-
-    console.log('[fullscreen] scrollToActiveLyric:', {
-      lineTop,
-      lineHeight,
-      containerHeight,
-      targetScroll,
-      currentScroll: scrollContainer.scrollTop,
-    });
 
     // 直接设置 scrollTop
     scrollContainer.scrollTop = Math.max(0, targetScroll);

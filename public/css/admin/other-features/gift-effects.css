@@ -17,12 +17,32 @@
 }
 
 .gift-effect-control-card,
+.gift-effect-command-card,
 .gift-effect-address-card {
   min-width: 0;
   padding: 20px;
   border: 1px solid var(--border);
   border-radius: 14px;
   background: var(--surface);
+}
+
+.gift-effect-command-card {
+  grid-column: 1 / -1;
+}
+
+.gift-effect-command-card .gift-effect-card-heading {
+  flex-wrap: wrap;
+}
+
+.gift-effect-command-help,
+.gift-effect-command-state {
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+  line-height: 1.7;
+}
+
+.gift-effect-command-help {
+  margin: 12px 0 6px;
 }
 
 .gift-effect-address-card {
@@ -52,13 +72,28 @@
   margin-top: 22px;
 }
 
-.gift-effect-lookup-form > label,
+.gift-effect-field-heading,
 .gift-effect-url-block > span {
   display: block;
   margin-bottom: 8px;
   color: var(--muted);
   font-size: var(--type-size-control);
   font-weight: 700;
+}
+
+.gift-effect-field-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.gift-effect-field-heading a {
+  color: var(--primary-strong);
+  font-size: var(--type-size-caption);
+  font-weight: 500;
+  text-underline-offset: 3px;
 }
 
 .gift-effect-input-row {

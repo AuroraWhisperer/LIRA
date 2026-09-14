@@ -16,12 +16,12 @@
   box-shadow:
     0 18px 46px rgba(8, 18, 22, 0.28),
     0 0 0 1px rgba(255, 255, 255, 0.04) inset;
-  cursor: pointer;
+  cursor: default;
   pointer-events: auto;
 }
 
 .playback-login-toast::before {
-  content: '♫';
+  content: '♫' / '';
   position: absolute;
   left: 16px;
   top: 50%;
@@ -37,20 +37,6 @@
   font-weight: var(--type-weight-bold);
   box-shadow: 0 8px 18px rgba(20, 164, 129, 0.28);
   transform: translateY(-50%);
-}
-
-.playback-login-toast::after {
-  content: '去登录  →';
-  grid-column: 2;
-  grid-row: 1 / span 2;
-  align-self: center;
-  border-radius: 999px;
-  background: rgba(74, 220, 181, 0.13);
-  padding: 6px 10px;
-  color: #73e6c5;
-  font-size: var(--type-size-caption);
-  font-weight: var(--type-weight-bold);
-  white-space: nowrap;
 }
 
 .playback-login-toast strong,
@@ -285,9 +271,9 @@
 }
 
 .playback-health-toast-warn::after {
-  content: '⚠';
+  content: '⚠' / '';
   position: absolute;
-  left: 30px;
+  left: 38px;
   top: 50%;
   transform: translate(-50%, -50%);
   color: #fff;
@@ -363,9 +349,9 @@
 }
 
 .music-cookie-refreshed-toast::after {
-  content: '✓';
+  content: '✓' / '';
   position: absolute;
-  left: 28px;
+  left: 34px;
   top: 50%;
   transform: translate(-50%, -50%);
   color: #fff;

@@ -15,74 +15,26 @@ const TOAST_MODULE = path.join(
   'catalog-update-toast.js',
 );
 
-function createNode(tagName) {
-  const classes = new Set();
-  const node = {
-    tagName,
-    children: [],
-    attributes: new Map(),
-    className: '',
-    parentNode: null,
-    textContent: '',
-    removed: false,
-    classList: {
-      add(...names) {
-        names.forEach((name) => classes.add(name));
-      },
-      remove(...names) {
-        names.forEach((name) => classes.delete(name));
-      },
-      contains(name) {
-        return classes.has(name);
-      },
-    },
-    setAttribute(name, value) {
-      this.attributes.set(name, String(value));
-    },
-    append(...children) {
-      children.forEach((child) => {
-        child.parentNode = this;
-        this.children.push(child);
-      });
-    },
-    prepend(child) {
-      child.parentNode = this;
-      this.children.unshift(child);
-    },
-    remove() {
-      this.removed = true;
-      if (this.parentNode) {
-        this.parentNode.children = this.parentNode.children.filter(
-          (child) => child !== this,
-        );
-        this.parentNode = null;
-      }
-    },
-  };
-  return node;
-}
+const { createDom, createClock } = require('./helpers/toast-dom');
 
-function createDom() {
-  const container = createNode('div');
-  const documentRef = {
-    getElementById(id) {
-      return id === 'toast' ? container : null;
-    },
-    createElement(tagName) {
-      return createNode(tagName);
-    },
-  };
-  const windowListeners = new Map();
-  const windowRef = {
-    addEventListener(type, listener) {
-      windowListeners.set(type, listener);
-    },
-    removeEventListener(type, listener) {
-      if (windowListeners.get(type) === listener) windowListeners.delete(type);
-    },
-  };
-  return { container, documentRef, windowRef, windowListeners };
-}
+test('catalog completion leaves time to fade out and cannot remove the next update', async () => {
+  const { createGiftCatalogUpdateToast } = await loadToastFactory();
+  const { documentRef, windowRef } = createDom();
+  const clock = createClock();
+  const controller = createGiftCatalogUpdateToast({ document: documentRef, window: windowRef, ...clock });
+  controller.handleState({ status: 'ready', phase: 'complete', background: true, total: 1, completed: 1 });
+  const old = controller.getNode();
+  clock.tick(2600);
+  assert.equal(old.isConnected, true);
+  assert.equal(old.classList.contains('show'), false);
+  controller.handleState({ status: 'updating', phase: 'images', total: 2, completed: 1 });
+  const next = controller.getNode();
+  assert.notEqual(old, next);
+  clock.tick(180);
+  assert.equal(old.isConnected, false);
+  assert.equal(next.isConnected, true);
+  controller.dispose();
+});
 
 function createEventBus() {
   const handlers = new Map();
@@ -99,6 +51,8 @@ async function loadToastFactory() {
   return loadModuleExports(TOAST_MODULE, {
     document: {},
     window: {},
+    setTimeout: () => 0,
+    clearTimeout: () => {},
   });
 }
 
@@ -159,7 +113,7 @@ test('gift catalog update toast shows a background completion without prior prog
 
   assert.equal(container.children.length, 1);
   assert.equal(
-    controller.getNode().children[0].textContent,
+    controller.getNode().children[0].children[0].textContent,
     '礼物图片更新完成',
   );
   assert.equal(timers.timers.length, 1);
@@ -186,10 +140,10 @@ test('gift catalog update toast warns instead of reporting success for a fatal b
   });
 
   assert.equal(
-    controller.getNode().children[0].textContent,
+    controller.getNode().children[0].children[0].textContent,
     '礼物图片更新失败',
   );
-  assert.equal(controller.getNode().children[1].textContent, '下次检查时重试');
+  assert.equal(controller.getNode().children[0].children[1].textContent, '下次检查时重试');
 });
 
 test('gift catalog update toast updates one node while image progress advances', async () => {
@@ -210,11 +164,11 @@ test('gift catalog update toast updates one node while image progress advances',
   });
   const node = controller.getNode();
   assert.equal(container.children.length, 1);
-  assert.equal(node.children[0].textContent, '正在更新礼物图片');
-  assert.match(node.children[1].textContent, /已处理 2 \/ 5/);
-  assert.equal(node.children[2].tagName, 'progress');
-  assert.equal(node.children[2].max, 5);
-  assert.equal(node.children[2].value, 2);
+  assert.equal(node.children[0].children[0].textContent, '正在更新礼物图片');
+  assert.match(node.children[0].children[1].textContent, /已处理 2 \/ 5/);
+  assert.equal(node.children[0].children[2].tagName, 'progress');
+  assert.equal(node.children[0].children[2].max, 5);
+  assert.equal(node.children[0].children[2].value, 2);
 
   controller.handleState({
     status: 'updating',
@@ -226,8 +180,8 @@ test('gift catalog update toast updates one node while image progress advances',
   });
   assert.equal(controller.getNode(), node);
   assert.equal(container.children.length, 1);
-  assert.match(node.children[1].textContent, /已处理 3 \/ 5/);
-  assert.equal(node.children[2].value, 3);
+  assert.match(node.children[0].children[1].textContent, /已处理 3 \/ 5/);
+  assert.equal(node.children[0].children[2].value, 3);
 });
 
 test('gift catalog update toast reports success and partial completion', async () => {
@@ -258,7 +212,7 @@ test('gift catalog update toast reports success and partial completion', async (
     failed: 0,
   });
   const node = controller.getNode();
-  assert.equal(node.children[0].textContent, '礼物图片更新完成');
+  assert.equal(node.children[0].children[0].textContent, '礼物图片更新完成');
   assert.equal(timers.timers.length, 1);
 
   controller.handleState({
@@ -278,8 +232,8 @@ test('gift catalog update toast reports success and partial completion', async (
     failed: 1,
   });
   assert.equal(controller.getNode(), node);
-  assert.equal(node.children[0].textContent, '部分图片暂未更新');
-  assert.equal(node.children[1].textContent, '下次检查时重试');
+  assert.equal(node.children[0].children[0].textContent, '部分图片暂未更新');
+  assert.equal(node.children[0].children[1].textContent, '下次检查时重试');
   assert.equal(timers.timers.length, 2);
 });
 
@@ -332,7 +286,7 @@ test('gift catalog update toast subscribes before reading state and ignores a st
   });
   await initPromise;
 
-  assert.match(controller.getNode().children[1].textContent, /已处理 2 \/ 5/);
+  assert.match(controller.getNode().children[0].children[1].textContent, /已处理 2 \/ 5/);
 });
 
 test('gift catalog update toast cleans up bridge, shutdown, pagehide, and completion timers', async () => {
@@ -384,6 +338,8 @@ test('gift catalog update toast cleans up bridge, shutdown, pagehide, and comple
 
   assert.equal(bridgeUnsubscribed, true);
   assert.equal(eventBus.handlers.size, 0);
+  // The shared stack retains its own resize/pagehide cleanup until the page ends.
+  for (const listener of [...windowListeners.get('pagehide') || []]) listener();
   assert.equal(windowListeners.size, 0);
   assert.deepEqual(timers.cleared, [1]);
   assert.equal(container.children.length, 0);

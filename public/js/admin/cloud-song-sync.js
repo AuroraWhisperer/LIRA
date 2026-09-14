@@ -43,8 +43,8 @@ function renderCloudSongCount(cloudCountEl, cloudSongCount) {
   if (!cloudCountEl) return;
   cloudCountEl.textContent =
     cloudSongCount === null
-      ? '云端歌单数量暂时无法读取。'
-      : `云端现有 ${cloudSongCount} 首歌曲。`;
+      ? '暂时无法读取'
+      : `${cloudSongCount} 首`;
 }
 
 function renderLastCloudSync(lastSyncEl) {
@@ -57,7 +57,7 @@ function renderLastCloudSync(lastSyncEl) {
   }
   lastSyncEl.textContent = record?.time
     ? `本机上次同步：${new Date(record.time).toLocaleString()}，共 ${Number(record.count) || 0} 首。`
-    : '本机尚未同步过歌单；如果还有其他设备，先确认哪一边是最新的。';
+    : '本机尚未同步过歌单。';
 }
 
 export async function initCloudSongSync({
@@ -98,7 +98,7 @@ export async function initCloudSongSync({
       const profile = await window.liraLicense.getProfile();
       const streamer = profile?.streamer;
       status.textContent = streamer?.accountName
-        ? `已绑定：${streamer.accountName}`
+        ? streamer.accountName
         : '已授权，但暂时无法读取主播资料。';
       if (streamer?.songPageUrl && /^https:\/\//i.test(streamer.songPageUrl)) {
         link.href = streamer.songPageUrl;

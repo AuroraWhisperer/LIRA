@@ -126,8 +126,8 @@ test('empty playback uses the latest authenticated provider state', async () => 
   await app.emit('playbackPlayPause', 'click');
 
   const prompt = app.element('toast').prepended.at(0);
-  assert.match(prompt.innerHTML, /播放队列为空/);
-  assert.match(prompt.innerHTML, /搜索QQ音乐歌曲并添加到播放队列/);
+  assert.match(prompt.children[0].textContent, /播放队列为空/);
+  assert.match(prompt.children[0].textContent, /搜索QQ音乐歌曲并添加到播放队列/);
 });
 
 test('pagehide beacon includes the injected API token', async () => {

@@ -256,7 +256,7 @@ function previewItems() {
       name: '金色航线',
       message: '今晚也一起守到最后！这段副歌听完还想再循环一遍～',
       guardLevel: 1,
-      medalName: '夜航',
+      medalName: '粉丝团灯牌',
       medalLevel: 28,
     },
     {
@@ -264,7 +264,7 @@ function previewItems() {
       name: '云端来信',
       message: '这一段的情绪太稳了',
       guardLevel: 2,
-      medalName: '星频',
+      medalName: '粉丝团灯牌',
       medalLevel: 23,
     },
     {
@@ -272,7 +272,7 @@ function previewItems() {
       name: '阿沐',
       message: '前奏一响就知道是今晚的歌',
       guardLevel: 3,
-      medalName: '夜航',
+      medalName: '粉丝团灯牌',
       medalLevel: 18,
     },
     {
@@ -287,7 +287,7 @@ function previewItems() {
           height: 96,
         },
       ],
-      medalName: '星频',
+      medalName: '粉丝团灯牌',
       medalLevel: 9,
     },
   ];

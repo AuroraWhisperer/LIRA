@@ -44,11 +44,11 @@ export function createSettingsForm({
     documentRef.getElementById(id).addEventListener('change', async (event) => {
       const enabled = event.target.checked ? 'true' : 'false';
       try {
-        await api('/api/settings', { [settingKey]: enabled });
-        toast(enabled === 'true' ? enabledText : disabledText);
+        await api('/api/settings', { [settingKey]: enabled }, { notifyError: false });
+        toast(enabled === 'true' ? enabledText : disabledText, { type: 'success' });
         await reloadState();
       } catch (error) {
-        toast('保存失败：' + (error.message || String(error)));
+        toast('保存失败：' + (error.message || String(error)), { type: 'error' });
         const settings = getState()?.getAppState?.()?.settings;
         if (settings) event.target.checked = settings[settingKey] === 'true';
       }
@@ -81,7 +81,7 @@ export function createSettingsForm({
         event.preventDefault();
         const result = await api('/api/settings', collectSettings());
         eventBus.emit(Events.STATE_SAVED, { settings: result.data.settings });
-        toast('设置已保存');
+        toast('设置已保存', { type: 'success' });
         await reloadState();
       });
     documentRef

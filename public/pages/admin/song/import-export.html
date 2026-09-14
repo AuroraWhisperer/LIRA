@@ -1,24 +1,24 @@
 <div id="importPage" class="tab-page">
   <div class="panel-body stack">
     <div class="actions">
-      <a href="/api/songs/template.xlsx"
-        ><button type="button">下载导入模板</button></a
+      <a class="song-data-action" href="/api/songs/template.xlsx"
+        >下载导入模板</a
       >
-      <a href="/api/songs/export.xlsx"
-        ><button type="button">导出歌库 Excel</button></a
+      <a class="song-data-action" href="/api/songs/export.xlsx"
+        >导出歌库 Excel</a
       >
-      <button id="clearDatabaseBtn" class="danger" type="button">
+      <button id="clearDatabaseBtn" class="song-data-action danger" type="button">
         清空歌库
       </button>
       <button
         id="clearAllBtn"
-        class="danger"
+        class="song-data-action danger song-data-action-solid"
         type="button"
-        style="border-color: #c0392b; color: #fff; background: #c0392b"
       >
         清空全部数据
       </button>
     </div>
+    <p id="clearAllResult" class="hint" role="status" hidden></p>
     <label>
       选择 Excel / CSV / TSV 文件
       <input
@@ -82,87 +82,158 @@
         确认应用这些变更
       </button>
     </section>
-    <p class="hint">
-      支持 XLSX/CSV/TSV
-      或粘贴表格，兼容常用表头。多歌手、分类、语言和平台用「/」分隔，多个标签用逗号分隔。清空歌库不影响其他设置。
+    <p class="hint song-import-note">
+      默认仅新增，相同歌名和歌手的已有歌曲会跳过，不会更新价格。批量修改请先切换到更新模式并核对预览。
     </p>
-    <p class="hint">
-      默认仅新增：相同歌名和歌手的已有歌曲会跳过，不会更新价格；批量改价请选择更新模式并核对预览。
-      点歌价格是一项自由文本，例如免费、30元SC、舰长、提督或总督，一首歌填一种说明；留空时网页不显示价格。
-      表头也支持「点歌条件」「点歌说明」，同一行多个价格列内容不同时会报告冲突。
-      无表头请保留模板完整十列；核对平台导出保存值，歌切可填链接、BV号、时间点或说明。
-    </p>
+    <details class="song-import-help">
+      <summary>表格填写说明</summary>
+      <dl>
+        <div>
+          <dt>文件与表头</dt>
+          <dd>
+            支持 XLSX、CSV、TSV，也可直接粘贴表格。兼容常用表头；无表头时，请保留模板完整十列。
+          </dd>
+        </div>
+        <div>
+          <dt>多个值</dt>
+          <dd>多个歌手、分类、语言和平台用「/」分隔，多个标签用逗号分隔。</dd>
+        </div>
+        <div>
+          <dt>点歌价格</dt>
+          <dd>
+            每首歌填写一种说明，如免费、30元SC、舰长、提督或总督；留空时网页不显示价格。
+            表头也支持「点歌条件」「点歌说明」，同一行多个价格列内容不同时会提示冲突。
+          </dd>
+        </div>
+        <div>
+          <dt>歌切与平台</dt>
+          <dd>歌切可填链接、BV号、时间点或说明；核对平台会按保存的值导出。</dd>
+        </div>
+        <div>
+          <dt>清空歌库</dt>
+          <dd>清空歌曲和分类，直播间号、主题及其他设置会保留。</dd>
+        </div>
+      </dl>
+    </details>
     <div id="importResult" class="hint" role="status" aria-live="polite"></div>
-    <fieldset id="licenseSongSync" class="theme-section" hidden>
-      <legend>云端歌单</legend>
-      <p id="licenseProfileStatus" class="hint">正在读取授权账号…</p>
-      <p id="licenseCloudCount" class="hint"></p>
-      <p id="licenseLastCloudSync" class="hint"></p>
-      <p class="hint">
-        同步会以当前本地歌库整体覆盖网页歌单，覆盖前会再次确认。
-      </p>
-      <div class="actions">
-        <a
-          id="licenseSongPageLink"
-          href="#"
-          target="_blank"
-          rel="noreferrer"
-          hidden
-          >打开网页歌单</a
-        >
-        <button id="licenseSyncSongsBtn" class="primary" type="button">
-          同步当前歌单到网页
-        </button>
-      </div>
-      <p
-        id="licenseSyncResult"
-        class="hint"
-        role="status"
-        aria-live="polite"
-      ></p>
-    </fieldset>
-    <fieldset id="licenseSongBackground" class="theme-section" hidden>
-      <legend>歌单页背景</legend>
-      <p class="hint">
-        自定义公开歌单网页的背景图，仅保留最新一张，上传即覆盖。
-      </p>
-      <div class="song-bg-preview-wrap">
-        <img
-          id="licenseSongBgPreview"
-          class="song-bg-preview"
-          alt="当前背景预览"
-          hidden
-        />
-        <p id="licenseSongBgEmpty" class="hint">
-          未设置背景，歌单页使用默认水彩背景。
-        </p>
-      </div>
-      <p id="licenseSongBgMeta" class="hint"></p>
-      <div class="actions">
-        <input
-          id="licenseSongBgFile"
-          type="file"
-          accept="image/png,image/jpeg,image/webp,image/gif"
-          hidden
-        />
-        <button id="licenseSongBgPickBtn" class="primary" type="button">
-          选择图片
-        </button>
-        <button
-          id="licenseSongBgDeleteBtn"
-          class="secondary"
-          type="button"
-          hidden
-        >
-          删除背景
-        </button>
-      </div>
-      <p
-        id="licenseSongBgResult"
-        class="hint"
-        role="status"
-        aria-live="polite"
-      ></p>
-    </fieldset>
+    <div class="song-cloud-settings">
+      <section
+        id="licenseSongSync"
+        class="song-cloud-panel"
+        aria-labelledby="songCloudSyncTitle"
+        hidden
+      >
+        <header class="song-cloud-heading">
+          <h3 id="songCloudSyncTitle" class="ui-card-title">网页歌单同步</h3>
+          <p class="hint">将本地歌库同步到观众可访问的歌单页面。</p>
+        </header>
+        <dl class="song-cloud-facts">
+          <div>
+            <dt>绑定账号</dt>
+            <dd id="licenseProfileStatus">正在读取…</dd>
+          </div>
+          <div>
+            <dt>网页歌曲</dt>
+            <dd id="licenseCloudCount">正在读取…</dd>
+          </div>
+        </dl>
+        <p id="licenseLastCloudSync" class="hint"></p>
+        <div class="song-cloud-notice">
+          <p>同步将用本地歌库完整替换网页歌单，操作前会再次确认。</p>
+          <p class="hint">多设备使用时，请先确认本机歌库是最新版本。</p>
+        </div>
+        <div class="actions song-cloud-actions">
+          <button
+            id="licenseSyncSongsBtn"
+            class="song-data-action primary"
+            type="button"
+          >
+            同步到网页
+          </button>
+          <a
+            id="licenseSongPageLink"
+            class="song-data-action"
+            href="#"
+            target="_blank"
+            rel="noreferrer"
+            hidden
+            >查看网页歌单</a
+          >
+        </div>
+        <p
+          id="licenseSyncResult"
+          class="hint song-cloud-result"
+          role="status"
+          aria-live="polite"
+        ></p>
+      </section>
+      <section
+        id="licenseSongBackground"
+        class="song-cloud-panel"
+        aria-labelledby="songCloudBackgroundTitle"
+        hidden
+      >
+        <header class="song-cloud-heading">
+          <h3 id="songCloudBackgroundTitle" class="ui-card-title">歌单背景</h3>
+          <p class="hint">设置观众打开网页歌单时看到的背景。</p>
+        </header>
+        <div class="song-background-content">
+          <div class="song-bg-preview-wrap">
+            <img
+              id="licenseSongBgPreview"
+              class="song-bg-preview"
+              alt="当前歌单背景预览"
+              hidden
+            />
+            <div id="licenseSongBgEmpty" class="song-background-empty">
+              <svg
+                viewBox="0 0 24 24"
+                width="28"
+                height="28"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                aria-hidden="true"
+              >
+                <rect x="3" y="4" width="18" height="16" rx="3" />
+                <circle cx="8" cy="9" r="1.5" />
+                <path d="m3 17 5-5 4 4 4-6 5 7" stroke-linejoin="round" />
+              </svg>
+              <span>使用默认水彩背景</span>
+            </div>
+          </div>
+          <div class="song-background-guide">
+            <p>选择图片后立即上传，替换当前背景。</p>
+            <p class="hint">支持 PNG、JPG、WebP、GIF，最大 5 MB。</p>
+          </div>
+        </div>
+        <p id="licenseSongBgMeta" class="hint song-cloud-result"></p>
+        <div class="actions song-cloud-actions">
+          <input
+            id="licenseSongBgFile"
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/gif"
+            hidden
+          />
+          <button id="licenseSongBgPickBtn" class="song-data-action" type="button">
+            上传背景
+          </button>
+          <button
+            id="licenseSongBgDeleteBtn"
+            class="song-data-action"
+            type="button"
+            hidden
+          >
+            恢复默认背景
+          </button>
+        </div>
+        <p
+          id="licenseSongBgResult"
+          class="hint song-cloud-result"
+          role="status"
+          aria-live="polite"
+        ></p>
+      </section>
+    </div>
   </div>
 </div>

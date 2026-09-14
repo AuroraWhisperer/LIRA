@@ -183,6 +183,7 @@ test('createDatabases upgrades genuine pre-v1 song and gift databases idempotent
         giftDb: 10,
         musicDb: 1,
         checkinDb: 1,
+        lotteryDb: 1,
       });
       assert.deepEqual(getIndexColumns(databases.songDb, 'idx_queue_status'), [
         'status',

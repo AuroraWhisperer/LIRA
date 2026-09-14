@@ -108,6 +108,7 @@ function createServerRuntime(runtimeOptions = {}) {
     broadcastSnapshot,
     publishGiftFlushed,
     publishGiftCatalogUpdate,
+    publishGiftEffect,
     publishDanmaku,
     publishOvertimeUpdate: broadcastOvertimeUpdate,
     servePageOrAsset,
@@ -121,6 +122,7 @@ function createServerRuntime(runtimeOptions = {}) {
     getState,
     getSettings: () => settingsStore.getSettings(),
     getDanmakuFeedBuffer: () => danmakuFeedBuffer,
+    resolveGiftEffect: (giftId) => domainServices.gifts.resolveEffect(giftId),
   });
   const { resumeAuthorizedWork, pauseAuthorizedWork } =
     createAuthorizedWorkController({
@@ -732,6 +734,7 @@ function createServerRuntime(runtimeOptions = {}) {
     resetGiftProjectionForRebuild,
     setActiveGiftSource,
     importProcessedGiftEvent,
+    publishGiftEffect,
     getCloudSettingsSnapshot,
     prepareCloudRoomAccount,
     applyCloudSettingsSnapshot,

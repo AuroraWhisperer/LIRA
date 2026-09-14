@@ -99,12 +99,15 @@ test('DeepSeek reports truncated Responses tool arguments precisely', async () =
   );
 });
 
-test('DeepSeek request logs omit the system preset while retaining request metadata', async () => {
+test('DeepSeek success logs retain metrics without request or response content', async () => {
   const events = [];
   const client = createDeepSeekClient({
     logEvent: async (event) => events.push(event),
     fetchImpl: async () =>
-      jsonResponse({ choices: [{ message: { content: 'ok' } }] }),
+      jsonResponse({
+        choices: [{ message: { content: 'PRIVATE MODEL ANSWER' } }],
+        usage: { prompt_tokens: 7, completion_tokens: 3 },
+      }),
   });
   await client.createResponse({
     config: {
@@ -114,11 +117,24 @@ test('DeepSeek request logs omit the system preset while retaining request metad
       requestTimeoutMs: 3000,
     },
     instructions: 'PRIVATE PRESET SHOULD NOT BE LOGGED',
-    input: 'hello',
+    input: 'PRIVATE USER PROMPT',
     tools: [],
   });
-  assert.equal(events[0].body.instructions, undefined);
-  assert.equal(events[0].body.messages[0].content, '[system prompt omitted]');
+
+  assert.equal(events.length, 1);
+  assert.equal(events[0].type, 'request_succeeded');
+  assert.equal(events[0].provider, 'deepseek');
+  assert.equal(events[0].model, 'deepseek-chat');
+  assert.equal(events[0].protocol, 'chat_completions');
+  assert.equal(events[0].inputTokens, 7);
+  assert.equal(events[0].outputTokens, 3);
+  assert.equal(events[0].functionCallCount, 0);
+  assert.ok(events[0].durationMs >= 0);
+  const serialized = JSON.stringify(events);
+  assert.doesNotMatch(serialized, /PRIVATE PRESET/);
+  assert.doesNotMatch(serialized, /PRIVATE USER PROMPT/);
+  assert.doesNotMatch(serialized, /PRIVATE MODEL ANSWER/);
+  assert.doesNotMatch(serialized, /"(?:body|payload|rawText|result)"/);
 });
 
 test('DeepSeek reports length-truncated tool arguments instead of generic invalid JSON', async () => {
@@ -207,7 +223,7 @@ test('DeepSeek chat adapter exposes web search as a local function tool', async 
   });
 });
 
-test('DeepSeek client traces request, raw response, normalized response, and errors', async () => {
+test('DeepSeek client emits one metadata-only success event', async () => {
   const events = [];
   const client = createDeepSeekClient({
     fetchImpl: async () => jsonResponse({ id: 'resp_1', output_text: 'ok' }),
@@ -228,14 +244,51 @@ test('DeepSeek client traces request, raw response, normalized response, and err
 
   assert.deepEqual(
     events.map(({ event }) => event.type),
-    ['request', 'response', 'normalized_response'],
+    ['request_succeeded'],
   );
   assert.equal(events[0].event.purpose, 'generation');
-  assert.equal(events[0].event.requestId, events[1].event.requestId);
-  assert.equal(events[1].event.status, 200);
-  assert.equal(events[1].event.payload.output_text, 'ok');
-  assert.equal(events[2].event.result.text, 'ok');
+  assert.equal(events[0].event.provider, 'custom');
+  assert.equal(events[0].event.status, 200);
+  assert.equal(events[0].event.model, 'custom-model');
+  assert.equal(events[0].event.protocol, 'responses');
+  assert.equal(events[0].event.functionCallCount, 0);
+  assert.doesNotMatch(JSON.stringify(events), /"(?:body|payload|rawText|result)"/);
   assert.deepEqual(events[0].options.secrets, ['secret-key']);
+});
+
+test('DeepSeek client emits one safe failure event at the owning boundary', async () => {
+  const events = [];
+  const client = createDeepSeekClient({
+    fetchImpl: async () =>
+      jsonResponse(
+        { error: { code: 'UPSTREAM_DOWN', detail: 'PRIVATE RESPONSE BODY' } },
+        502,
+      ),
+    logEvent: async (event) => events.push(event),
+  });
+
+  await assert.rejects(
+    client.createResponse({
+      config: {
+        deepseekResponsesUrl: 'https://gateway.example.test/responses',
+        deepseekApiKey: 'secret-key',
+        model: 'custom-model',
+        requestTimeoutMs: 3000,
+      },
+      purpose: 'generation',
+      input: 'PRIVATE USER PROMPT',
+    }),
+    (error) => error.code === 'UPSTREAM_DOWN',
+  );
+
+  assert.equal(events.length, 1);
+  assert.equal(events[0].type, 'request_failed');
+  assert.equal(events[0].status, 502);
+  assert.equal(events[0].error.code, 'UPSTREAM_DOWN');
+  assert.doesNotMatch(
+    JSON.stringify(events),
+    /PRIVATE RESPONSE BODY|PRIVATE USER PROMPT|"(?:body|payload|rawText|result)"/,
+  );
 });
 
 test('DeepSeek connection test keeps a complete Responses API URL unchanged', async () => {

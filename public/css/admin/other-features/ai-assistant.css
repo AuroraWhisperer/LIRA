@@ -520,3 +520,8 @@
     width: 100%;
   }
 }
+
+.hint[id^="aiTestDetail-"] {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

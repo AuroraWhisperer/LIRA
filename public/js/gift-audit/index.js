@@ -106,9 +106,11 @@ async function fetchServerGifts() {
     status.style.color = 'var(--green)';
     serverGifts = recent;
     renderServerTable(recent);
+    return true;
   } catch (e) {
     status.textContent = '加载失败: ' + e.message;
     status.style.color = 'var(--red)';
+    return false;
   } finally {
     btn.disabled = false;
   }
@@ -122,6 +124,10 @@ async function parseAndCompare() {
     return;
   }
 
+  document.getElementById('comparisonSection').style.display = 'none';
+  document.getElementById('statsRow').style.display = 'none';
+  comparisonResults = [];
+
   // 解析气泡
   bubbleGifts = parseBubbleHtml(html);
   document.getElementById('bubbleCount').textContent =
@@ -129,8 +135,13 @@ async function parseAndCompare() {
   renderBubbleTable(bubbleGifts);
 
   // 确保有服务器数据
-  if (serverGiftCache.length === 0) {
-    await fetchServerGifts();
+  if (!bubbleGifts.length) {
+    showToast('未识别到礼物，请检查粘贴的气泡 HTML', 'warn');
+    return;
+  }
+  if (serverGiftCache.length === 0 && !(await fetchServerGifts())) {
+    showToast('记录获取失败，暂时无法核对', 'warn');
+    return;
   }
 
   // 执行对比

@@ -7,6 +7,7 @@ const {
   throwIfAborted,
 } = require('./http-client');
 const {
+  describeModelEndpoint,
   resolveModelEndpoint,
   resolveModelsEndpoint,
 } = require('./model-endpoint');
@@ -120,20 +121,13 @@ function createDeepSeekClient(options = {}) {
     throwIfAborted(signal);
     const requestId = crypto.randomUUID();
     const secrets = [config.deepseekApiKey];
-    await safeLog(
-      {
-        type: 'request',
-        requestId,
-        purpose: purpose || 'model_request',
-        provider: 'deepseek',
-        protocol,
-        method: 'POST',
-        url,
-        model: config.model,
-        body: sanitizeRequestBodyForLog(body, protocol),
-      },
-      secrets,
-    );
+    const provider = describeModelEndpoint(
+      config.deepseekResponsesUrl,
+      config.modelApiProtocol,
+      config.modelProvider,
+    ).provider;
+    const startedAt = Date.now();
+    let responseStatus = 0;
     throwIfAborted(signal);
     try {
       const payload = await fetchJson(url, {
@@ -148,20 +142,7 @@ function createDeepSeekClient(options = {}) {
         signal,
         onResponse: (response) => {
           throwIfAborted(signal);
-          return safeLog(
-            {
-              type: 'response',
-              requestId,
-              purpose: purpose || 'model_request',
-              provider: 'deepseek',
-              protocol,
-              status: response.status,
-              ok: response.ok,
-              rawText: response.text,
-              payload: response.payload,
-            },
-            secrets,
-          );
+          responseStatus = response.status;
         },
       });
       throwIfAborted(signal);
@@ -184,12 +165,20 @@ function createDeepSeekClient(options = {}) {
       throwIfAborted(signal);
       await safeLog(
         {
-          type: 'normalized_response',
+          type: 'request_succeeded',
           requestId,
           purpose: purpose || 'model_request',
-          provider: 'deepseek',
+          provider,
+          model: config.model,
           protocol,
-          result,
+          status: responseStatus,
+          durationMs: Math.max(0, Date.now() - startedAt),
+          inputTokens: Number(result.usage?.inputTokens) || 0,
+          outputTokens: Number(result.usage?.outputTokens) || 0,
+          functionCallCount: Array.isArray(result.functionCalls)
+            ? result.functionCalls.length
+            : 0,
+          finishReason: String(result.finishReason || ''),
         },
         secrets,
       );
@@ -198,11 +187,14 @@ function createDeepSeekClient(options = {}) {
       if (error?.code === 'AI_SHUTDOWN') throw error;
       await safeLog(
         {
-          type: 'error',
+          type: 'request_failed',
           requestId,
           purpose: purpose || 'model_request',
-          provider: 'deepseek',
+          provider,
+          model: config.model,
           protocol,
+          status: responseStatus,
+          durationMs: Math.max(0, Date.now() - startedAt),
           error: {
             name: String(error?.name || 'Error'),
             code: String(error?.code || ''),
@@ -496,18 +488,6 @@ function normalizeResponse(payload) {
       outputTokens: Number(payload?.usage?.output_tokens) || 0,
     },
   };
-}
-
-function sanitizeRequestBodyForLog(body, protocol) {
-  const result = JSON.parse(JSON.stringify(body || {}));
-  delete result.instructions;
-  if (protocol === 'chat_completions' && Array.isArray(result.messages)) {
-    result.messages = result.messages.map((message) => {
-      if (message?.role !== 'system') return message;
-      return { ...message, content: '[system prompt omitted]' };
-    });
-  }
-  return result;
 }
 
 function parseArguments(value, finishReason = '') {

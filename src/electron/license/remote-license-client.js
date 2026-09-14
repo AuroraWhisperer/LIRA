@@ -1,5 +1,7 @@
 'use strict';
 
+const { normalizeGiftEffectEvent } = require('../../bilibili/gift/effect-event');
+
 const {
   normalizeProcessedGiftEvent,
 } = require('../../shared/processed-gift-contract');
@@ -205,7 +207,7 @@ function createRemoteLicenseClient(options = {}) {
           Accept: 'text/event-stream',
           Authorization: `Bearer ${token}`,
           ...(pathname === '/api/device/gift-events/stream'
-            ? { 'X-Lira-Gift-Identity': '1' }
+            ? { 'X-Lira-Gift-Identity': '1', 'X-Lira-Gift-Effects': '1' }
             : {}),
         },
         signal: options.signal,
@@ -345,7 +347,7 @@ function createRemoteLicenseClient(options = {}) {
         }
         options.onOpen?.({ syncEpoch });
       },
-      (block) => handleGiftEventBlock(block, options.onEvent),
+      (block) => handleGiftEventBlock(block, options.onEvent, options.onEffect),
     );
   }
 
@@ -441,8 +443,15 @@ function parseEventBlock(block) {
   return { eventName, data: dataLines.join('\n') };
 }
 
-function handleGiftEventBlock(block, onEvent) {
+function handleGiftEventBlock(block, onEvent, onEffect) {
   const { eventName, data } = parseEventBlock(block);
+  if (eventName === 'gift-effect' && data) {
+    try {
+      const event = normalizeGiftEffectEvent(JSON.parse(data));
+      if (event) onEffect?.(event);
+    } catch { return; }
+    return;
+  }
   if (eventName !== 'gift-event' || !data) return;
   try {
     const event = normalizeProcessedGiftEvent(JSON.parse(data));

@@ -187,7 +187,6 @@ async function saveWheel() {
 async function spinWheel() {
   const result = await api('/api/wheel/spin');
   renderWheelState(result.data);
-  toast('转盘开始转动');
 }
 
 function wheelOverlayUrl() {

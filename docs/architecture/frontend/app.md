@@ -87,6 +87,10 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 
 加班姬礼物选择器的 `GET /api/overtime/gifts` 与刷新按钮始终使用当前直播间礼物面板、`giftConfig` 和已配置的在售盲盒展开，不读取个人背包。首次授权初始化的付费全局目录通过精确礼物 ID 为这些房间条目提供本地图片；弹窗中的“搜索全部礼物”无需先输入，通过 `GET /api/overtime/gifts/catalog` 加载本机完整快照，随后在前端按名称/ID 筛选，不受搜索接口的 100 条上限影响。输入、回车和清空搜索均保留当前目录模式，清空后恢复全部可选项；“返回在售礼物”切回房间目录，重新打开弹窗默认显示房间目录。加载中、本地缓存未就绪、空目录和无匹配结果分别显示对应状态，礼物图片按需加载。最近礼物模块也通过该全局快照接口取得盲盒和高价值礼物图片映射。两者都只显示 `/overtime-gift-images/<basename>`，同名不同 ID 不共享映射，缺失图片保留礼物并显示占位图。`gift-catalog:update` 按精确 ID 刷新最近礼物、已显示规则和选择器图片，不替换房间成员或规则内容；推送的新图片优先于尚未结束的首次 HTTP 读取，失败不清空已有映射。远程 HTTPS 域名入口的配置说明见 [backend/overtime.md](../backend/overtime.md) §1.5。
 
+共享通知由 `shared/toast.js` 直接拥有，`shared/utils.js` 保持 `toast(message, options?)` / `showStackedToast(options)` 兼容导出。相同 key 默认去重；状态类调用明确传 `update: true`，原位替换内容和语义并重置停留时间。返回的句柄提供 `node`、`update(options)`、`close()`；`duration: 0` 表示进度持续显示。每个节点独立持有计时器，退出幂等，默认退出 180ms；悬停及焦点位于卡片内时暂停计时。动作和关闭使用真实按钮，动作仅触发一次，CSS 排序避免移动 DOM 导致焦点丢失。普通结果最多同时 3 条、礼物最多 6 条，并按窗口实际剩余高度调度：错误/动作优先，未展示系统结果等待空位后计时，超额瞬时礼物淘汰。普通结果通过独立状态区播报，礼物不逐条播报；`urgent: true` 才使用 assertive。成功短提示默认 2600ms，警告/错误至少 6000ms，动作至少 8000ms；系统 reduce 关闭通知位移动画。独立 `gift-audit` 页面复用控制器但保持独立 CSS，以一个固定 key 更新最新结果。
+
+`utils.api(url, body, { notifyError: false })` 允许已有业务 catch 独占错误反馈；省略该选项时保留默认 `showError`，错误对象、HTTP 状态和 payload 仍原样传递。字段就地错误由 `shared/field-feedback.js` 关联 `aria-describedby`/`aria-invalid`，保留原字段说明，输入修改后清理。
+
 `gifts/catalog-update-toast.js` 在 Admin 入口订阅既有授权目录进度桥，以单条 toast 原位显示后续图片下载的开始、已处理数量、完成或失败，完成后自动移除；首次初始化、目录检查和零下载更新不提示。订阅后再读取当前状态，较新的事件优先；本次后台更新在页面加载前已完成时也能显示结果。关闭页面或应用时清理订阅和计时器。进度字段由 [desktop/preload.md](../desktop/preload.md) 定义。
 
 ## 3. 启动时序

@@ -17,6 +17,24 @@ const {
 
 const ROOT_DIR = path.join(__dirname, '..');
 
+test('playback success paths do not emit per-render or per-lyric console output', () => {
+  const rendererSource = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'playback', 'core', 'renderer.js'),
+    'utf8',
+  );
+  const fullscreenSource = fs.readFileSync(
+    path.join(ROOT_DIR, 'public', 'js', 'playback', 'ui', 'fullscreen.js'),
+    'utf8',
+  );
+
+  assert.doesNotMatch(rendererSource, /renderPlayback called/);
+  assert.doesNotMatch(rendererSource, /Calling renderProviderState/);
+  assert.doesNotMatch(fullscreenSource, /renderLyrics: re-rendering lyrics/);
+  assert.doesNotMatch(fullscreenSource, /renderLyrics: lyric index changed/);
+  assert.doesNotMatch(fullscreenSource, /scrollToActiveLyric:/);
+  assert.match(fullscreenSource, /play after seek failed/);
+});
+
 test('fullscreen resets lyric mode before rendering a different track', async () => {
   const { FullscreenPlayer } = await loadModuleExports(
     path.join(ROOT_DIR, 'public', 'js', 'playback', 'ui', 'fullscreen.js'),

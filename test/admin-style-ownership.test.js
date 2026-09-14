@@ -44,6 +44,10 @@ test('admin stylesheet entries load shared and feature-owned styles in order', (
     toolboxEntry,
     /@import url\('\.\/other-features\/performance\.css'\);/,
   );
+  assert.match(
+    toolboxEntry,
+    /@import url\('\.\/other-features\/usage-guide-navigation\.css'\);\s*@import url\('\.\/other-features\/usage-guide\.css'\);/,
+  );
 });
 
 test('toast implementation files contain only shared or transient surface rules', () => {

@@ -80,7 +80,7 @@ export function createSettingsOperations({
     if (!confirmed) return;
 
     try {
-      const response = await api('/api/database/clear-all', { confirm: true });
+      const response = await api('/api/database/clear-all', { confirm: true }, { notifyError: false });
       if (typeof windowRef.musicAPI?.clearCache === 'function') {
         try {
           await windowRef.musicAPI.clearCache();
@@ -107,12 +107,14 @@ export function createSettingsOperations({
 
       const deleted = response.data.deletedCounts;
       const total = response.data.totalDeleted || 0;
-      toast(
-        `全部数据已清空 — ` +
-          `歌曲 ${deleted.songs} · 队列 ${deleted.queue} · 记录 ${deleted.requests} · ` +
+      const resultNode = documentRef.getElementById('clearAllResult');
+      if (resultNode) {
+        resultNode.hidden = false;
+        resultNode.textContent = `歌曲 ${deleted.songs} · 队列 ${deleted.queue} · 记录 ${deleted.requests} · ` +
           `SC ${deleted.sc} · 礼物 ${deleted.gifts} · 播放 ${deleted.playHistory} · ` +
-          `签到 ${deleted.checkins}（共 ${total} 条），配置已保留`,
-      );
+          `签到 ${deleted.checkins}（共 ${total} 条），配置已保留`;
+      }
+      toast(`已清空共 ${total} 条数据，配置已保留`, { type: 'success' });
       await getState()?.reloadAll?.();
     } catch (error) {
       if (
@@ -120,7 +122,7 @@ export function createSettingsOperations({
       ) {
         return;
       }
-      toast('清空失败：' + (error.message || String(error)));
+      toast('清空失败：' + (error.message || String(error)), { type: 'error' });
     }
   }
 

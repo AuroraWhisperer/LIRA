@@ -44,7 +44,8 @@ test('NetEase login closure names the selected music provider', async () => {
 
   await operations.loginSelectedMusicProvider();
 
-  assert.equal(notifications.at(-1).message, '网易云音乐登录窗口已关闭');
+  assert.equal(notifications.at(-1).title, '尚未完成网易云音乐登录');
+  assert.equal(notifications.at(-1).type, 'warning');
   assert.equal(button.disabled, false);
 });
 

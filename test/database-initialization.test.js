@@ -58,19 +58,34 @@ function fixture({ phase, index = 0, closeFails = false } = {}) {
     {},
     warnings,
   );
-  const database = loadModule('src/storage/database.js', {
-    'node:fs': { mkdirSync() {} },
-    'node:sqlite': { DatabaseSync: Database },
-    './database-maintenance': maintenance,
-    './database-migrations': {
-      runAllMigrations() {
-        if (phase === 'migration') throw originalError;
+  const database = loadModule(
+    'src/storage/database.js',
+    {
+      'node:fs': { mkdirSync() {} },
+      'node:sqlite': { DatabaseSync: Database },
+      './database-maintenance': maintenance,
+      './database-migrations': {
+        runAllMigrations() {
+          if (phase === 'migration') throw originalError;
+        },
+        migrateLegacySuperChatsToDedicatedDatabase() {
+          if (phase === 'legacy') throw originalError;
+        },
+        getSchemaVersions() {
+          return {};
+        },
       },
-      migrateLegacySuperChatsToDedicatedDatabase() {
-        if (phase === 'legacy') throw originalError;
+      './dynamic-lottery-migrations': {
+        runDynamicLotteryMigrations() {
+          if (phase === 'lottery-migration') throw originalError;
+        },
+        getDynamicLotterySchemaVersion() {
+          return 1;
+        },
       },
     },
-  });
+    warnings,
+  );
   return { database, originalError, handles, closes, warnings };
 }
 
@@ -111,7 +126,20 @@ test('successful creation transfers every handle without closing it', () => {
   assert.deepEqual(Object.values(db), f.handles);
   assert.deepEqual(f.closes, []);
   f.database.closeDatabases(db);
-  assert.deepEqual(f.closes, [0, 1, 2, 3, 4]);
+  assert.deepEqual(f.closes, [0, 1, 2, 3, 4, 5]);
+});
+
+test('lottery migration failure is isolated from the five existing databases', () => {
+  const f = fixture({ phase: 'lottery-migration' });
+  const db = f.database.createDatabases({ dataDir: 'isolated-fake' });
+
+  assert.equal(db.lotteryDb, null);
+  assert.deepEqual(f.closes, [5]);
+  assert.equal(f.warnings.length, 1);
+  assert.doesNotMatch(f.warnings[0].join(' '), /initialization: lottery-migration/u);
+
+  f.database.closeDatabases(db);
+  assert.deepEqual(f.closes, [5, 0, 1, 2, 3, 4]);
 });
 
 test('real databases close after a PRAGMA failure and reopen with data and migrations intact', () => {

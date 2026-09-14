@@ -56,17 +56,8 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 18px 20px 16px;
-  border-bottom: 1px solid #edf0f4;
   user-select: none;
-  transition:
-    background-color 150ms ease,
-    border-bottom-color 200ms ease;
   pointer-events: none;
-}
-
-.blind-stats-heading:hover {
-  background-color: rgba(0, 0, 0, 0.02);
 }
 
 .blind-stats-heading-icon {
@@ -331,10 +322,6 @@
   transform: translateY(-4px);
 }
 
-.gift-blindbox-panel.is-collapsed .blind-stats-heading {
-  border-bottom-color: transparent;
-}
-
 .gift-blindbox-panel.is-collapsed .section-toggle svg {
   transform: rotate(180deg);
 }
@@ -346,7 +333,6 @@
 }
 
 @media (max-width: 520px) {
-  .blind-stats-heading,
   .gift-blind-stats-summary {
     padding-right: 14px;
     padding-left: 14px;

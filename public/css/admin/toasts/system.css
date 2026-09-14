@@ -18,9 +18,9 @@
 
 .toast {
   width: max-content;
-  max-width: 360px;
+  max-width: min(420px, calc(100vw - 48px));
   border: 1px solid rgba(71, 221, 181, 0.35);
-  border-radius: 12px;
+  border-radius: var(--radius-lg, 14px);
   background: linear-gradient(135deg, #1a2f36 0%, #15242a 100%);
   color: var(--color-bg-primary);
   padding: 12px 16px;
@@ -41,7 +41,7 @@
   transition:
     opacity 150ms ease,
     transform 150ms ease;
-  pointer-events: none;
+  pointer-events: auto;
   backdrop-filter: blur(8px);
 }
 
@@ -49,3 +49,94 @@
   opacity: 1;
   transform: translateY(0);
 }
+
+/* Shared lifecycle and controls, including the rich business variants. */
+.toast-stack .toast {
+  position: relative;
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  padding-right: 44px;
+  border-radius: var(--radius-lg, 14px);
+  box-shadow: 0 10px 26px rgba(8, 18, 22, 0.28);
+  overflow-wrap: anywhere;
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+.toast-stack .toast[hidden],
+.toast-action[hidden] { display: none; }
+.toast-content {
+  grid-column: 1 / -1;
+  min-width: 0;
+  max-height: calc(100dvh - 220px);
+  overflow: auto;
+  scrollbar-width: thin;
+}
+.toast-content > strong,
+.toast-content > span {
+  display: block;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+.toast-content > strong { font-size: var(--type-size-card-title); }
+.toast-content > strong + span { margin-top: 4px; }
+.toast-close,
+.toast-action {
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+}
+.toast-close {
+  position: absolute;
+  right: 7px;
+  top: 7px;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  padding: 6px;
+  border-color: transparent;
+}
+.toast-close svg { width: 16px; height: 16px; }
+.toast-action {
+  grid-column: 1 / -1;
+  justify-self: start;
+  margin-top: 8px;
+  padding: 5px 10px;
+}
+.toast-close:hover, .toast-action:hover { background: rgba(255, 255, 255, 0.12); }
+.toast-close:focus-visible, .toast-action:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+.toast-stack .toast-info:not([class*="-toast"]) { border-color: #7896a8; }
+.toast-stack .toast-success:not([class*="-toast"]) { border-color: #47ddb5; }
+.toast-stack .toast-warning:not([class*="-toast"]) { border-color: #f6b731; }
+.toast-stack .toast-error:not([class*="-toast"]) { border-color: #ff9292; }
+.toast-stack .toast-error:not([class*="-toast"]) { background: #3c2025; }
+.toast-stack .toast-warning:not([class*="-toast"]) { background: #352918; }
+.toast-announcer {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+@media (prefers-reduced-motion: reduce) {
+  .toast-stack .toast, .toast-stack .toast::before, .toast-stack .toast::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  .toast-stack .toast { transform: none !important; }
+}
+
+.toast-content > .toast-kind { display: flex; align-items: center; gap: 6px; }
+.toast-kind svg { width: 16px; height: 16px; flex: 0 0 auto; }
+.toast-error .toast-kind { color: #ffb6b6; }
+.toast-warning .toast-kind { color: #fbd78a; }
+.toast-success .toast-kind { color: #8de9c7; }
+
+.toast-stack .toast-info:not([class*="-toast"]) { background: #20303d; }

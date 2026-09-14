@@ -122,12 +122,12 @@ export function initBilibiliAuth({
             new CustomEvent('app:bilibili-auth-changed'),
           );
           toast(
-            '直播账号登录成功；凭据只属于当前 LIRA 账号。云端凭据保存成功且直播间已配置并启用后，才开始接收弹幕和礼物。',
+            '直播账号已在本机登录', { type: 'success' },
           );
         }
       }
     } catch (error) {
-      toast('登录失败：' + (error.message || String(error)));
+      toast('登录失败：' + (error.message || String(error)), { type: 'error' });
     } finally {
       loginBtn.disabled = false;
       loginBtn.textContent = '📱 扫码登录直播账号';
@@ -152,10 +152,10 @@ export function initBilibiliAuth({
       await refreshAuthState();
       documentRef.dispatchEvent(new CustomEvent('app:bilibili-auth-changed'));
       toast(
-        '直播账号已退出；当前 LIRA 账号的云端状态需在同步成功后生效，不会回退为匿名采集。',
+        '直播账号已在本机退出', { type: 'success' },
       );
     } catch (error) {
-      toast('退出失败：' + (error.message || String(error)));
+      toast('退出失败：' + (error.message || String(error)), { type: 'error' });
     } finally {
       logoutBtn.disabled = false;
       logoutBtn.textContent = '退出登录';

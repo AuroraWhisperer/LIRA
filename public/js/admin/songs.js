@@ -59,7 +59,7 @@ import {
           note: value('songNote'),
         });
         resetSongForm();
-        toast('歌曲已保存到本地；网页更新以云端同步结果为准');
+        toast('歌曲已保存到本地', { type: 'success' });
         if (window.AdminApp.state && window.AdminApp.state.reloadAll) {
           await window.AdminApp.state.reloadAll();
         }
@@ -358,7 +358,7 @@ import {
         updateSongPricePreview();
         setValue('songSourcePlatform', song.source_platform || '');
         setValue('songNote', song.note || '');
-        toast('已加载到编辑表单');
+        document.getElementById('songName')?.focus();
       });
     });
 

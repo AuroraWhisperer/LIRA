@@ -1,10 +1,10 @@
 # 后端核心:HTTP 服务与进程生命周期
 
-> 涉及文件:[src/server.js](../../../src/server.js)、[src/server/runtime-config.js](../../../src/server/runtime-config.js)、[src/server/runtime-transport.js](../../../src/server/runtime-transport.js)、[src/server/authorized-work.js](../../../src/server/authorized-work.js)、[src/server/http-server.js](../../../src/server/http-server.js)、[src/server/runtime-api-context.js](../../../src/server/runtime-api-context.js)、[src/server/startup-retention.js](../../../src/server/startup-retention.js)、[src/server/runtime-reporting.js](../../../src/server/runtime-reporting.js)、[src/server/admin-launcher.js](../../../src/server/admin-launcher.js)、[src/server/api-context.js](../../../src/server/api-context.js)、[src/server/inflight-tracker.js](../../../src/server/inflight-tracker.js)、[src/server/music-runtime.js](../../../src/server/music-runtime.js)、[src/server/ai-runtime.js](../../../src/server/ai-runtime.js)、[src/server/bilibili-runtime.js](../../../src/server/bilibili-runtime.js)、[src/server/lifecycle.js](../../../src/server/lifecycle.js)、[src/server/http-utils.js](../../../src/server/http-utils.js)、[src/server/api-routes.js](../../../src/server/api-routes.js)、[src/server/system-metrics.js](../../../src/server/system-metrics.js)、[src/server/domain-services.js](../../../src/server/domain-services.js)
+> 涉及文件:[src/server.js](../../../src/server.js)、[src/server/runtime-config.js](../../../src/server/runtime-config.js)、[src/server/runtime-transport.js](../../../src/server/runtime-transport.js)、[src/server/authorized-work.js](../../../src/server/authorized-work.js)、[src/server/http-server.js](../../../src/server/http-server.js)、[src/server/runtime-api-context.js](../../../src/server/runtime-api-context.js)、[src/server/startup-retention.js](../../../src/server/startup-retention.js)、[src/server/admin-launcher.js](../../../src/server/admin-launcher.js)、[src/server/api-context.js](../../../src/server/api-context.js)、[src/server/inflight-tracker.js](../../../src/server/inflight-tracker.js)、[src/server/music-runtime.js](../../../src/server/music-runtime.js)、[src/server/ai-runtime.js](../../../src/server/ai-runtime.js)、[src/server/bilibili-runtime.js](../../../src/server/bilibili-runtime.js)、[src/server/lifecycle.js](../../../src/server/lifecycle.js)、[src/server/http-utils.js](../../../src/server/http-utils.js)、[src/server/api-routes.js](../../../src/server/api-routes.js)、[src/server/system-metrics.js](../../../src/server/system-metrics.js)、[src/server/domain-services.js](../../../src/server/domain-services.js)
 
 本文档是后端服务进程的**唯一事实源**:端口、环境变量、启动/关闭时序、请求管线、token 注入机制均只在此成表。HTTP 端点全量注册表见 [api.md](api.md),WebSocket 传输与快照契约见 [ws.md](ws.md),数据库细节见 [storage.md](storage.md)。
 
-**组合根边界:** `server.js` 只保留运行时生命周期、领域装配与启动/关闭次序。`runtime-config.js` 解析路径和限制，`runtime-transport.js` 装配 WebSocket/静态传输，`authorized-work.js` 控制授权后才启动的消费者，`http-server.js` 创建监听器并分发请求，`runtime-api-context.js` 组装每次请求的 API 依赖；启动保留策略、运行时报告和自动打开后台分别由 `startup-retention.js`、`runtime-reporting.js`、`admin-launcher.js` 单独拥有。叶模块不导入 `server.js`，依赖只从组合根向下传递。
+**组合根边界:** `server.js` 只保留运行时生命周期、领域装配与启动/关闭次序。`runtime-config.js` 解析路径和限制，`runtime-transport.js` 装配 WebSocket/静态传输，`authorized-work.js` 控制授权后才启动的消费者，`http-server.js` 创建监听器并分发请求，`runtime-api-context.js` 组装每次请求的 API 依赖；启动保留策略和自动打开后台分别由 `startup-retention.js`、`admin-launcher.js` 单独拥有。叶模块不导入 `server.js`，依赖只从组合根向下传递。
 
 ## 1. 进程模型与入口
 
@@ -52,7 +52,7 @@
 
 ## 4. 请求管线
 
-领域事件发布统一由 [runtime-transport.js](../../../src/server/runtime-transport.js) 适配：`publishGiftFlushed` 保持日志→快照→礼物边框顺序，`publishGiftCatalogUpdate` 发布目录快照，`publishDanmaku` 保留 feed 缓冲及 topic，`publishOvertimeUpdate` 保留可选 adjustment。server 通过 getter 接线，仍按数据库、领域服务、音乐/直播/AI、启动恢复阶段创建资源，并在 initializeApplication 失败时统一 dispose；传输模块不拥有这些资源。
+领域事件发布统一由 [runtime-transport.js](../../../src/server/runtime-transport.js) 适配：`publishGiftFlushed` 保持快照→礼物边框顺序且不逐条输出成功日志，`publishGiftCatalogUpdate` 发布目录快照，`publishDanmaku` 保留 feed 缓冲及 topic，`publishOvertimeUpdate` 保留可选 adjustment。server 通过 getter 接线，仍按数据库、领域服务、音乐/直播/AI、启动恢复阶段创建资源，并在 initializeApplication 失败时统一 dispose；传输模块不拥有这些资源。
 
 [server.js](../../../src/server.js) 的 `http.createServer` 回调先检查 runtime phase，再按序分发:
 

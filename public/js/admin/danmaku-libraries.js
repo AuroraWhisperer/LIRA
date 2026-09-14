@@ -1,5 +1,7 @@
 'use strict';
 
+import { showFieldError } from '../shared/field-feedback.js';
+
 const DELETE_ICON =
   '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13M10 11v5m4-5v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
@@ -66,8 +68,7 @@ export function createBlessingEditor({ document, saveSetting, toast }) {
   const add = () => {
     const text = elements.input.value.trim();
     if (!text) {
-      toast('请输入祝福语');
-      elements.input.focus();
+      showFieldError(elements.input, '请输入祝福语', document);
       return;
     }
     items.push(text);
@@ -217,8 +218,7 @@ export function createFortuneEditor({ document, saveSetting, toast }) {
     const values = addInputs.map((input) => input.value.trim());
     const missingIndex = values.findIndex((value) => !value);
     if (missingIndex >= 0) {
-      toast('请填写完整的签级、签名、签文和建议');
-      addInputs[missingIndex].focus();
+      showFieldError(addInputs[missingIndex], '请填写完整的签级、签名、签文和建议', document);
       return;
     }
     items.push({
@@ -370,8 +370,7 @@ export function createCustomReplyEditor({ document, saveSetting, toast }) {
     const keyword = elements.keywordInput.value.trim();
     const reply = elements.replyInput.value.trim();
     if (!keyword || !reply) {
-      toast('请填写关键词和回复内容');
-      (keyword ? elements.replyInput : elements.keywordInput).focus();
+      showFieldError(keyword ? elements.replyInput : elements.keywordInput, '请填写关键词和回复内容', document);
       return;
     }
     items.push({ keyword, reply, enabled: true });

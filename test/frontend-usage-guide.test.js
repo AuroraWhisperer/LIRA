@@ -80,7 +80,7 @@ test('usage guide defers image loading and avoids sticky backdrop blur', () => {
     true,
   );
   assert.ok(tocRule, 'usage guide table of contents should remain defined');
-  assert.match(tocRule, /background:\s*var\(--surface\)/);
+  assert.match(tocRule, /background:\s*var\(--surface-2\)/);
   assert.match(tocRule, /display:\s*grid/);
   assert.doesNotMatch(
     tocRule,
@@ -109,9 +109,13 @@ function createUsageGuideFixture({
 } = {}) {
   const observers = [];
   const windowListeners = new Map();
+  const timers = new Map();
+  let nextTimerId = 1;
   const createClassList = () => {
     const names = new Set();
     return {
+      add: (name) => names.add(name),
+      remove: (name) => names.delete(name),
       contains: (name) => names.has(name),
       toggle(name, enabled) {
         if (enabled) names.add(name);
@@ -121,13 +125,25 @@ function createUsageGuideFixture({
   };
   const sections = sectionTops.map((_, index) => ({
     id: `usage-section-${index + 1}`,
+    scrollCalls: 0,
+    scrollIntoView() {
+      this.scrollCalls += 1;
+    },
     getBoundingClientRect: () => ({ top: sectionTops[index] }),
   }));
   const links = sections.map((section) => ({
     hash: `#${section.id}`,
     classList: createClassList(),
-    addEventListener() {},
+    addEventListener(name, listener) {
+      this[name] = listener;
+    },
   }));
+  const backToTopButton = {
+    hidden: true,
+    addEventListener(name, listener) {
+      this[name] = listener;
+    },
+  };
   const toc = {
     height: tocHeight,
     reads: 0,
@@ -141,11 +157,15 @@ function createUsageGuideFixture({
     clientHeight: scrollerHeight,
     scrollHeight: scrollerScrollHeight,
     scrollTop: 0,
+    scrollTo({ top }) {
+      this.scrollTop = top;
+    },
     addEventListener: (name, listener) => scrollerListeners.set(name, listener),
     getBoundingClientRect: () => ({ top: scrollerTop }),
   };
   const panel = {
     hidden: false,
+    classList: createClassList(),
     style: {
       setProperty(name, value) {
         this[name] = value;
@@ -154,6 +174,7 @@ function createUsageGuideFixture({
     querySelector(selector) {
       if (selector === '.other-feature-panel-body') return scroller;
       if (selector === '.usage-guide-toc') return toc;
+      if (selector === '.usage-guide-back-to-top') return backToTopButton;
       return null;
     },
     querySelectorAll(selector) {
@@ -164,7 +185,10 @@ function createUsageGuideFixture({
   };
   const document = {
     documentElement: { scrollHeight: 2000 },
-    getElementById: (id) => (id === 'otherUsageGuideFeature' ? panel : null),
+    getElementById: (id) =>
+      id === 'otherUsageGuideFeature'
+        ? panel
+        : sections.find((section) => section.id === id) || null,
   };
   const window = {
     innerHeight: 600,
@@ -175,6 +199,12 @@ function createUsageGuideFixture({
         ? { flexDirection, top: tocTop }
         : { paddingTop: scrollerPaddingTop, overflowY: scrollerOverflowY },
     requestAnimationFrame: (callback) => callback(),
+    setTimeout(callback) {
+      const timerId = nextTimerId++;
+      timers.set(timerId, callback);
+      return timerId;
+    },
+    clearTimeout: (timerId) => timers.delete(timerId),
     addEventListener(name, listener) {
       windowListeners.set(name, listener);
     },
@@ -190,11 +220,18 @@ function createUsageGuideFixture({
   return {
     document,
     panel,
+    scroller,
+    sections,
+    backToTopButton,
     sectionTops,
     links,
     toc,
     window,
     ResizeObserver,
+    flushTimers() {
+      for (const callback of timers.values()) callback();
+      timers.clear();
+    },
     triggerResize: () => observers.at(-1)?.(),
     get scrollOffset() {
       return panel.style['--usage-guide-scroll-offset'];
@@ -319,4 +356,26 @@ test('usage guide narrow-window active section follows a resized toc', async () 
   fixture.sectionTops[1] = 140;
   fixture.triggerWindowScroll();
   assert.equal(fixture.links[0].classList.contains('active'), true);
+});
+
+test('usage guide return to top cancels pending chapter navigation', async () => {
+  const fixture = createUsageGuideFixture();
+  await loadUsageGuide(fixture);
+
+  fixture.triggerResize();
+  assert.equal(fixture.backToTopButton.hidden, true);
+
+  fixture.links[1].click({ preventDefault() {} });
+  fixture.scroller.scrollTop = 600;
+  fixture.triggerScrollerScroll();
+  assert.equal(fixture.backToTopButton.hidden, false);
+  assert.equal(fixture.sections[1].scrollCalls, 1);
+
+  fixture.backToTopButton.click();
+  fixture.flushTimers();
+  fixture.triggerScrollerScroll();
+  assert.equal(fixture.scroller.scrollTop, 0);
+  assert.equal(fixture.backToTopButton.hidden, true);
+  assert.equal(fixture.sections[1].scrollCalls, 1);
+  assert.equal(fixture.panel.classList.contains('usage-guide-render-all'), false);
 });

@@ -335,7 +335,7 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
   );
   assert.match(
     styles,
-    /body\[data-style='outline'\] \.draw-danmaku-item \{[^}]*position:\s*absolute;[^}]*--outline-accent:\s*#fff;[^}]*border:\s*1px solid var\(--outline-accent\);[^}]*background:\s*rgba\(9, 15, 27, 0?\.72\)/s,
+    /body\[data-style='outline'\] \.draw-danmaku-item \{[^}]*position:\s*absolute;[^}]*border:\s*1px solid rgba\(99, 99, 102, 0?\.26\);[^}]*background:\s*rgba\(255, 255, 255, 0?\.94\)/s,
   );
   assert.match(
     styles,
@@ -351,7 +351,7 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
   );
   assert.match(
     styles,
-    /body\[data-style='outline'\] \.draw-danmaku-identity \{[^}]*justify-content:\s*center;[^}]*max-width:/s,
+    /body\[data-style='outline'\] \.draw-danmaku-identity \{[^}]*justify-content:\s*flex-start;[^}]*max-width:/s,
   );
   assert.doesNotMatch(
     styles,
@@ -359,15 +359,11 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
   );
   assert.match(
     styles,
-    /body\[data-style='outline'\] \.draw-danmaku-body p \{[^}]*color:\s*#fff;[^}]*font-size:\s*clamp\(16px, 2\.2vw, 18px\);[^}]*font-weight:\s*700;[^}]*text-align:\s*center;/s,
+    /body\[data-style='outline'\] \.draw-danmaku-body p \{[^}]*color:\s*#1d1d1f;[^}]*font-size:\s*clamp\(16px, 2\.2vw, 18px\);[^}]*font-weight:\s*400;[^}]*text-align:\s*left;/s,
   );
-  assert.match(
+  assert.doesNotMatch(
     styles,
-    /body\[data-style='outline'\] \.draw-danmaku-item\[data-identity='viewer'\],[^}]*body\[data-style='outline'\] \.draw-danmaku-item\[data-identity='fan'\],[^}]*body\[data-style='outline'\] \.draw-danmaku-item\[data-identity='captain'\],[^}]*body\[data-style='outline'\] \.draw-danmaku-item\[data-identity='admiral'\],[^}]*body\[data-style='outline'\] \.draw-danmaku-item\[data-identity='governor'\] \{ --outline-accent:\s*#fff; \}/s,
-  );
-  assert.match(
-    styles,
-    /body\[data-style='outline'\] \.draw-danmaku-item\[data-identity='captain'\],[^}]*body\[data-style='outline'\] \.draw-danmaku-item\[data-identity='admiral'\],[^}]*body\[data-style='outline'\] \.draw-danmaku-item\[data-identity='governor'\] \{ --outline-accent:\s*#fff; \}/s,
+    /body\[data-style='outline'\] \.draw-danmaku-item\[data-(?:identity|tone)=/,
   );
   assert.doesNotMatch(
     styles,
@@ -405,7 +401,6 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
     'bubble',
     'ranked',
     'transparent',
-    'outline',
   ]) {
     for (const identity of [
       'viewer',

@@ -23,12 +23,14 @@ const CLOUD_SETTING_KEYS = Object.freeze([
   'allowDuplicate',
 ]);
 const CLOUD_BOOLEAN_KEYS = new Set([
+  'giftEffectDanmakuEnabled',
   'enableBilibili',
   'paused',
   'onlyFromLibrary',
   'allowDuplicate',
 ]);
 const CLOUD_SYNC_KEYS = new Set([
+  'giftEffectDanmakuEnabled',
   ...CLOUD_SETTING_KEYS,
   'giftBlindBoxConfig',
   'giftBlindBoxCustomConfigV2',
@@ -152,6 +154,11 @@ function normalizeCloudSettingsSnapshot(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input))
     throw new Error('云端同步设置格式无效。');
   const values = {};
+  const effectEnabled = normalizeSettingValue(
+    'giftEffectDanmakuEnabled', input.giftEffectDanmakuEnabled ?? false,
+  );
+  if (effectEnabled === null) throw new Error('云端弹幕礼物特效开关无效。');
+  values.giftEffectDanmakuEnabled = effectEnabled;
   for (const key of CLOUD_SETTING_KEYS) {
     if (!Object.prototype.hasOwnProperty.call(input, key))
       throw new Error(`云端同步设置缺少 ${key}。`);
@@ -182,6 +189,7 @@ function normalizeCloudSettingsSnapshot(input) {
 
 function serializeCloudSettings(settings) {
   const values = {
+    giftEffectDanmakuEnabled: settings.giftEffectDanmakuEnabled === 'true',
     roomId: normalizeRoomInput(settings.roomId),
     enableBilibili: settings.enableBilibili === 'true',
     paused: settings.paused === 'true',

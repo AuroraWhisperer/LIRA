@@ -1,96 +1,106 @@
 <div id="songsPage" class="tab-page active">
   <div class="panel-body stack">
-    <form id="songForm" class="grid-3">
+    <p class="hint">歌曲保存到本地后，网页更新以云端同步结果为准。</p>
+    <form id="songForm">
       <input id="songId" type="hidden" />
-      <label>
-        歌曲名字
-        <input id="songName" required />
-      </label>
-      <label>
-        原唱/首发歌手
-        <input id="songArtist" />
-      </label>
-      <label>
-        歌曲分类
-        <input id="songCategory" value="默认" />
-      </label>
-      <label>
-        歌曲标签
-        <input id="songTags" placeholder="多个标签用逗号隔开" />
-      </label>
-      <label>
-        是否可点
-        <select id="songIsEnabled" data-dropdown-variant="settings">
-          <option value="true">是</option>
-          <option value="false">否</option>
-        </select>
-        <span class="hint">停用后不出现在公开歌单。</span>
-      </label>
-      <label>
-        语言
-        <input id="songLanguage" placeholder="例如：国语" />
-      </label>
-      <label>
-        点歌价格快捷填写
-        <select id="songPricePreset" data-dropdown-variant="settings">
-          <option value="">选择后仍可编辑</option>
-          <option value="免费">免费</option>
-          <option value="舰长">舰长</option>
-          <option value="提督">提督</option>
-          <option value="总督">总督</option>
-          <option value="金额元SC">SC（填写金额）</option>
-        </select>
-      </label>
-      <label>
-        点歌价格
-        <textarea
-          id="songRequestPrice"
-          rows="2"
-          aria-describedby="songPriceHint songPriceLength"
-        ></textarea>
-        <span id="songPriceHint" class="hint"
-          >一个自由文本；留空时网页不显示价格。</span
-        >
-        <span id="songPriceLength" class="hint">0 / 1000</span>
-      </label>
-      <div>
-        <span class="hint">网页价格预览</span>
-        <p
-          id="songPricePreview"
-          class="hint"
-          style="white-space: pre-wrap; overflow-wrap: anywhere"
-        ></p>
+      <div class="song-form-main">
+        <fieldset class="song-form-section">
+          <legend>歌曲信息</legend>
+          <div class="song-form-fields">
+            <label>
+              歌曲名字
+              <input id="songName" required />
+            </label>
+            <label>
+              原唱/首发歌手
+              <input id="songArtist" />
+            </label>
+            <label>
+              歌曲分类
+              <input id="songCategory" value="默认" />
+            </label>
+            <label>
+              歌曲标签
+              <input id="songTags" placeholder="多个标签用逗号隔开" />
+            </label>
+            <label>
+              语言
+              <input id="songLanguage" placeholder="例如：国语" />
+            </label>
+            <label>
+              是否可点
+              <select id="songIsEnabled" data-dropdown-variant="settings">
+                <option value="true">是</option>
+                <option value="false">否</option>
+              </select>
+              <span class="hint">停用后不出现在公开歌单。</span>
+            </label>
+          </div>
+        </fieldset>
+        <fieldset class="song-form-section">
+          <legend>歌切与核对</legend>
+          <div class="song-form-source">
+            <label class="song-form-clip">
+              歌切
+              <textarea
+                id="songClip"
+                rows="4"
+                placeholder="链接 / BV号 / 时间点 / 说明"
+              ></textarea>
+            </label>
+            <div class="song-form-source-fields">
+              <label>
+                核对平台
+                <input
+                  id="songSourcePlatform"
+                  placeholder="例如：QQ音乐 / 网易云音乐"
+                />
+              </label>
+              <label>
+                核对备注
+                <input id="songNote" />
+              </label>
+            </div>
+          </div>
+        </fieldset>
       </div>
-      <label>
-        歌切
-        <textarea
-          id="songClip"
-          rows="2"
-          placeholder="链接 / BV号 / 时间点 / 说明"
-        ></textarea>
-      </label>
-      <label>
-        核对平台
-        <input
-          id="songSourcePlatform"
-          placeholder="例如：QQ音乐 / 网易云音乐"
-        />
-      </label>
-      <label>
-        核对备注
-        <input id="songNote" />
-      </label>
-      <div
-        class="form-actions-row"
-        style="
-          grid-column: 1 / -1;
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 12px;
-        "
-      >
-        <button class="primary" type="submit">保存歌曲</button>
+      <fieldset class="song-form-section song-form-pricing">
+        <legend>价格设置</legend>
+        <div class="song-form-price-fields">
+          <label>
+            点歌价格快捷填写
+            <select id="songPricePreset" data-dropdown-variant="settings">
+              <option value="">选择后仍可编辑</option>
+              <option value="免费">免费</option>
+              <option value="舰长">舰长</option>
+              <option value="提督">提督</option>
+              <option value="总督">总督</option>
+              <option value="金额元SC">SC（填写金额）</option>
+            </select>
+          </label>
+          <label>
+            点歌价格
+            <textarea
+              id="songRequestPrice"
+              rows="3"
+              aria-describedby="songPriceHint songPriceLength"
+            ></textarea>
+            <span class="song-form-price-meta">
+              <span id="songPriceHint" class="hint"
+                >一个自由文本；留空时网页不显示价格。</span
+              >
+              <span id="songPriceLength" class="hint">0 / 1000</span>
+            </span>
+          </label>
+          <div class="song-form-price-preview">
+            <span class="hint">网页价格预览</span>
+            <p id="songPricePreview"></p>
+          </div>
+        </div>
+      </fieldset>
+      <div class="form-actions-row song-form-actions">
         <button id="resetSongForm" type="button">清空表单</button>
+        <button class="primary" type="submit">保存歌曲</button>
       </div>
     </form>
 

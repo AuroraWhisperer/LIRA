@@ -1,5 +1,6 @@
 'use strict';
 
+import { getToastStack } from '../../shared/toast.js';
 import { eventBus as defaultEventBus } from '../../shared/event-bus.js';
 
 const APP_SHUTDOWN_EVENT = 'app:shutdown';
@@ -25,10 +26,7 @@ export function createGiftCatalogUpdateToast(dependencies = {}) {
   let lastCompletedAt = '';
   let latestState = null;
   let toastNode = null;
-  let titleNode = null;
-  let detailNode = null;
-  let progressNode = null;
-  let completionTimer = null;
+  let toastHandle = null;
   let unsubscribeBridge = () => {};
   let unsubscribeShutdown = () => {};
 
@@ -97,37 +95,14 @@ export function createGiftCatalogUpdateToast(dependencies = {}) {
   }
 
   function renderProgress(state) {
-    const nodes = ensureToast();
-    if (!nodes) return;
-    clearCompletionTimer();
-    titleNode.textContent = '正在更新礼物图片';
-    detailNode.textContent = formatProgress(state);
-    setProgress(state);
+    renderToast(state, '正在更新礼物图片', formatProgress(state), 'info', 0);
   }
 
   function renderCompletion(state) {
-    const nodes = ensureToast();
-    if (!nodes) return;
-    titleNode.textContent = state.error
-      ? '礼物图片更新失败'
-      : state.failed
-        ? '部分图片暂未更新'
-        : '礼物图片更新完成';
-    detailNode.textContent =
-      state.error || state.failed ? '下次检查时重试' : formatProgress(state);
-    setProgress(state);
-    clearCompletionTimer();
-    if (typeof setTimeoutRef === 'function')
-      completionTimer = setTimeoutRef(() => {
-        if (disposed) return;
-        toastNode?.classList.remove('show');
-        toastNode?.remove?.();
-        toastNode = null;
-        titleNode = null;
-        detailNode = null;
-        progressNode = null;
-        completionTimer = null;
-      }, COMPLETION_DURATION_MS);
+    renderToast(state, state.error ? '礼物图片更新失败'
+      : state.failed ? '部分图片暂未更新' : '礼物图片更新完成',
+    state.error || state.failed ? '下次检查时重试' : formatProgress(state),
+    state.error ? 'error' : state.failed ? 'warning' : 'success', COMPLETION_DURATION_MS);
   }
 
   function formatProgress(state) {
@@ -137,35 +112,24 @@ export function createGiftCatalogUpdateToast(dependencies = {}) {
       : `${counts} · 可用 ${state.available}`;
   }
 
-  function ensureToast() {
-    if (toastNode) return { toastNode, titleNode, detailNode, progressNode };
+  function renderToast(state, title, message, type, duration) {
     const container = documentRef?.getElementById?.('toast');
-    if (!container || typeof documentRef?.createElement !== 'function')
-      return null;
-
-    toastNode = documentRef.createElement('div');
-    toastNode.className = 'toast gift-catalog-update-toast show';
-    toastNode.setAttribute('role', 'status');
-    titleNode = documentRef.createElement('strong');
-    detailNode = documentRef.createElement('span');
-    progressNode = documentRef.createElement('progress');
-    progressNode.max = 1;
-    progressNode.value = 0;
-    progressNode.setAttribute('aria-label', '礼物图片更新进度');
-    toastNode.append(titleNode, detailNode, progressNode);
-    container.prepend(toastNode);
-    return { toastNode, titleNode, detailNode, progressNode };
-  }
-
-  function setProgress(state) {
-    progressNode.max = state.total;
-    progressNode.value = state.completed;
-  }
-
-  function clearCompletionTimer() {
-    if (completionTimer === null) return;
-    if (typeof clearTimeoutRef === 'function') clearTimeoutRef(completionTimer);
-    completionTimer = null;
+    if (!container) return;
+    const stack = getToastStack({
+      container, document: documentRef, window: windowRef,
+      setTimeout: setTimeoutRef, clearTimeout: clearTimeoutRef,
+    });
+    toastHandle = stack.show({
+      key: 'gift-catalog-update', update: true,
+      title, message, type, duration, className: 'gift-catalog-update-toast',
+    });
+    toastNode = toastHandle.node;
+    const progress = documentRef.createElement('progress');
+    progress.max = state.total;
+    progress.value = state.completed;
+    progress.setAttribute('aria-label', '礼物图片更新进度');
+    toastNode.children[0].append(progress);
+    stack.refresh();
   }
 
   async function init() {
@@ -197,19 +161,16 @@ export function createGiftCatalogUpdateToast(dependencies = {}) {
   function dispose() {
     if (disposed) return;
     disposed = true;
-    clearCompletionTimer();
     unsubscribeBridge();
     unsubscribeShutdown();
     windowRef?.removeEventListener?.('pagehide', dispose);
-    toastNode?.remove?.();
+    toastHandle?.close(true);
+    toastHandle = null;
     toastNode = null;
-    titleNode = null;
-    detailNode = null;
-    progressNode = null;
   }
 
   function getNode() {
-    return toastNode;
+    return toastNode?.isConnected ? toastNode : null;
   }
 
   return { init, handleState, dispose, getNode };

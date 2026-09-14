@@ -91,46 +91,27 @@
     }
 
     // 构建内容
-    let displayName = giftName;
     let subtitle;
 
     if (coinType === 'guard' || giftId.startsWith('guard-')) {
       // 大航海：突出显示
       subtitle = `${userName} 开通${giftName}`;
     } else if (isBlindBox) {
-      displayName = blindBoxName || giftName;
-      subtitle = `${userName} 送出盲盒`;
-      if (blindBoxName) {
-        subtitle += ` · 开出 ${blindBoxName}`;
-      }
+      subtitle = `${userName} · 来自${blindBoxName || '盲盒'}`;
     } else {
       subtitle = `${userName} 送出`;
     }
 
-    const titleHtml = `${displayName} x${num}${priceBadge}`;
+    const titleHtml = `${giftName} x${num}${priceBadge}`;
 
-    const toastKey = `gift:${newestId}:${num}:${sprintPrice}`;
+    const toastKey = `gift:${newestId}`;
     showStackedToast({
       key: toastKey,
+      update: true,
       className: `gift-notify-toast${variantClass}`,
       html: `<strong>${titleHtml}</strong><span>${subtitle}</span>`,
       duration: 3200,
     });
-    const desktop = window.songAssistantDesktop;
-    if (desktop && typeof desktop.reportGiftDisplay === 'function') {
-      desktop
-        .reportGiftDisplay({
-          eventId: newestId,
-          giftId: String(newest.gift_id || ''),
-          giftName: String(newest.gift_name || ''),
-          uid: String(newest.uid || ''),
-          userName: String(newest.user_name || ''),
-          num,
-          totalPrice: sprintPrice,
-          toastKey,
-        })
-        .catch(() => {});
-    }
   }
 
   /**

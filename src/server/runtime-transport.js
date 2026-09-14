@@ -1,9 +1,8 @@
 'use strict';
 
 const httpUtils = require('./http-utils');
-const runtimeReporting = require('./runtime-reporting');
-const { cleanText } = require('../shared/utils');
 const { buildGiftFrameEvent } = require('../bilibili/gift/frame-config');
+const { normalizeGiftEffectEvent } = require('../bilibili/gift/effect-event');
 
 function createRuntimeTransport({
   publicDir,
@@ -15,6 +14,7 @@ function createRuntimeTransport({
   getState,
   getSettings,
   getDanmakuFeedBuffer,
+  resolveGiftEffect,
 }) {
   function getWebSocketContext(baseUrl) {
     return {
@@ -29,12 +29,7 @@ function createRuntimeTransport({
     getWebSocketHub()?.broadcastSnapshot(getWebSocketContext(baseUrl), reason);
   }
 
-  function logGiftDelivery(trigger, item) {
-    runtimeReporting.logGiftDelivery(trigger, item, cleanText);
-  }
-
   function publishGiftFlushed(item) {
-    logGiftDelivery('final', item);
     broadcastSnapshot('bilibili:gift');
     const frameEvent = buildGiftFrameEvent(item, getSettings());
     if (frameEvent) getWebSocketHub()?.broadcast(frameEvent);
@@ -42,6 +37,18 @@ function createRuntimeTransport({
 
   function publishGiftCatalogUpdate(snapshot) {
     getWebSocketHub()?.broadcast({ type: 'gift-catalog:update', snapshot });
+  }
+
+  async function publishGiftEffect(input, isCurrent) {
+    const event = normalizeGiftEffectEvent(input);
+    if (!event || !isCurrent() || getSettings()?.giftEffectDanmakuEnabled !== 'true') return false;
+    let effect;
+    try {
+      effect = await resolveGiftEffect(Number(event.giftId));
+    } catch { return false; }
+    if (!effect || !isCurrent() || getSettings()?.giftEffectDanmakuEnabled !== 'true') return false;
+    getWebSocketHub()?.broadcast({ ...event, giftId: Number(event.giftId), effect });
+    return true;
   }
 
   function publishDanmaku(danmaku) {
@@ -76,9 +83,9 @@ function createRuntimeTransport({
   return {
     getWebSocketContext,
     broadcastSnapshot,
-    logGiftDelivery,
     publishGiftFlushed,
     publishGiftCatalogUpdate,
+    publishGiftEffect,
     publishDanmaku,
     publishOvertimeUpdate,
     servePageOrAsset,

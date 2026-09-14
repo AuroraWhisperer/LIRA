@@ -496,7 +496,6 @@ export function createOnboardingController(deps = {}) {
     });
     getById(document, 'onboardingImportOpen')?.addEventListener('click', () => {
       document.querySelector('[data-tab="importPage"]')?.click();
-      toast('已打开导入导出标签页');
     });
     getById(document, 'onboardingDocsOpen')?.addEventListener('click', () =>
       openUsageGuide?.(),

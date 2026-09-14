@@ -208,45 +208,51 @@
             >电脑上已经安装过 LIRA
           </h3>
           <div class="usage-guide-feature-list">
-            <article class="usage-guide-feature">
-              <div class="usage-guide-feature-head">
-                <strong>1. 直接点击“下一步”</strong
-                ><span class="usage-guide-chip">无需卸载</span>
-              </div>
-              <p>
-                如果安装程序提示当前用户已经安装过
-                LIRA，保持“仅为我安装”选中，直接点击“下一步”。
-              </p>
-              <img
-                class="usage-guide-image"
-                src="/img/usage-guide/install-existing-user.webp"
-                width="747"
-                height="532"
-                loading="lazy"
-                decoding="async"
-                alt="安装程序提示当前用户已经安装过LIRA，下一步按钮位于窗口底部"
-              />
-            </article>
-            <article class="usage-guide-feature">
-              <div class="usage-guide-feature-head">
-                <strong>2. 保持原位置并点击“安装”</strong
-                ><span class="usage-guide-chip">保持默认</span>
-              </div>
-              <p>安装位置不用修改，直接点击“安装”即可重新安装或升级。</p>
-              <img
-                class="usage-guide-image"
-                src="/img/usage-guide/install-existing-location.webp"
-                width="748"
-                height="535"
-                loading="lazy"
-                decoding="async"
-                alt="安装位置保持不变，安装按钮位于窗口底部"
-              />
-              <p>
-                <strong>小提示：</strong
-                >“下一步”和“安装”按钮在窗口底部的同一位置，保持默认选项连续点击即可。
-              </p>
-            </article>
+            <div class="usage-guide-step-pair">
+              <article class="usage-guide-feature usage-guide-feature--illustrated">
+                <div class="usage-guide-feature-copy">
+                  <div class="usage-guide-feature-head">
+                    <strong>1. 直接点击“下一步”</strong
+                    ><span class="usage-guide-chip">无需卸载</span>
+                  </div>
+                  <p>
+                    如果安装程序提示当前用户已经安装过
+                    LIRA，保持“仅为我安装”选中，直接点击“下一步”。
+                  </p>
+                </div>
+                <img
+                  class="usage-guide-image"
+                  src="/img/usage-guide/install-existing-user.webp"
+                  width="747"
+                  height="532"
+                  loading="lazy"
+                  decoding="async"
+                  alt="安装程序提示当前用户已经安装过LIRA，下一步按钮位于窗口底部"
+                />
+              </article>
+              <article class="usage-guide-feature usage-guide-feature--illustrated">
+                <div class="usage-guide-feature-copy">
+                  <div class="usage-guide-feature-head">
+                    <strong>2. 保持原位置并点击“安装”</strong
+                    ><span class="usage-guide-chip">保持默认</span>
+                  </div>
+                  <p>安装位置不用修改，直接点击“安装”即可重新安装或升级。</p>
+                  <p>
+                    <strong>小提示：</strong
+                    >“下一步”和“安装”按钮在窗口底部的同一位置，保持默认选项连续点击即可。
+                  </p>
+                </div>
+                <img
+                  class="usage-guide-image"
+                  src="/img/usage-guide/install-existing-location.webp"
+                  width="748"
+                  height="535"
+                  loading="lazy"
+                  decoding="async"
+                  alt="安装位置保持不变，安装按钮位于窗口底部"
+                />
+              </article>
+            </div>
           </div>
         </section>
 
@@ -560,7 +566,7 @@
                 ><span class="usage-guide-chip">通知</span>
               </div>
               <p>
-                独立于礼物检测的通知开关。开启后，每当收到礼物时右下角弹出桌面通知（Toast），显示送礼人、礼物名和金额。可以单独关闭通知而不影响礼物数据的记录。
+                独立于礼物检测的通知开关。开启后，每当收到礼物时应用右上角显示应用内礼物提示，显示送礼人、礼物名和金额。可以单独关闭通知而不影响礼物数据的记录。
               </p>
             </article>
             <article class="usage-guide-feature">
@@ -865,8 +871,12 @@
             >配置 AI 助手
           </h3>
           <p class="usage-guide-section-intro">
-            AI 互动助手需要模型服务的 API Key。LIRA 支持多个供应商，下面以
-            DeepSeek 官方为例：先在开放平台创建
+            AI 互动助手需要模型服务的 API Key。LIRA
+            支持多个供应商，配置时需要选择供应商、填写 API Key、选择模型并测试连接。
+          </p>
+          <h4 class="usage-guide-subsection-title">1. 推荐配置</h4>
+          <p class="usage-guide-section-intro">
+            推荐使用 DeepSeek 官方服务。先在开放平台创建
             Key，再回到弹幕姬配置、选择模型并测试。截图用于定位操作入口；登录方式、验证要求、模型和计费以当前官网为准。
           </p>
           <div class="usage-guide-feature-list">
@@ -894,14 +904,16 @@
                 alt="DeepSeek开放平台登录页，左侧微信扫码二维码，右侧手机号验证码登录表单"
               />
             </article>
-            <article class="usage-guide-feature">
-              <div class="usage-guide-feature-head">
-                <strong>2. 完成账号验证</strong
-                ><span class="usage-guide-chip">官网</span>
+            <article class="usage-guide-feature usage-guide-feature--illustrated">
+              <div class="usage-guide-feature-copy">
+                <div class="usage-guide-feature-head">
+                  <strong>2. 完成账号验证</strong
+                  ><span class="usage-guide-chip">官网</span>
+                </div>
+                <p>
+                  如果出现邮箱绑定或其他验证要求，按官网提示完成。配图是入口示例，是否允许稍后处理，以你当前账号页面的提示为准。
+                </p>
               </div>
-              <p>
-                如果出现邮箱绑定或其他验证要求，按官网提示完成。下图是入口示例，是否允许稍后处理，以你当前账号页面的提示为准。
-              </p>
               <img
                 class="usage-guide-image"
                 src="/img/usage-guide/deepseek-email-later.webp"
@@ -928,41 +940,47 @@
                 alt="DeepSeek开放平台API keys页面，左下角显示首次充值赠送余额，右侧有创建API key按钮"
               />
             </article>
-            <article class="usage-guide-feature">
-              <div class="usage-guide-feature-head">
-                <strong>4. 命名并创建</strong
-                ><span class="usage-guide-chip">官网</span>
-              </div>
-              <p>给 Key 起一个能认出来的名字（比如 LIRA），点击「创建」。</p>
-              <img
-                class="usage-guide-image"
-                src="/img/usage-guide/deepseek-create-key.webp"
-                width="587"
-                height="317"
-                loading="lazy"
-                decoding="async"
-                alt="创建API key弹窗，名称输入框中填写LIRA，底部有取消和创建按钮"
-              />
-            </article>
-            <article class="usage-guide-feature">
-              <div class="usage-guide-feature-head">
-                <strong>5. 复制并妥善保存 Key</strong
-                ><span class="usage-guide-chip">官网</span>
-              </div>
-              <p>
-                创建成功后会弹出完整的 API Key，点「复制」。Key
-                只会完整显示这一次，关掉弹窗后列表里只能看到首尾几位，请务必先复制保存好。
-              </p>
-              <img
-                class="usage-guide-image"
-                src="/img/usage-guide/deepseek-copy-key.webp"
-                width="583"
-                height="433"
-                loading="lazy"
-                decoding="async"
-                alt="API key创建成功弹窗，显示完整密钥，提示请妥善保存，底部有复制按钮"
-              />
-            </article>
+            <div class="usage-guide-step-pair">
+              <article class="usage-guide-feature usage-guide-feature--illustrated">
+                <div class="usage-guide-feature-copy">
+                  <div class="usage-guide-feature-head">
+                    <strong>4. 命名并创建</strong
+                    ><span class="usage-guide-chip">官网</span>
+                  </div>
+                  <p>给 Key 起一个能认出来的名字（比如 LIRA），点击「创建」。</p>
+                </div>
+                <img
+                  class="usage-guide-image"
+                  src="/img/usage-guide/deepseek-create-key.webp"
+                  width="587"
+                  height="317"
+                  loading="lazy"
+                  decoding="async"
+                  alt="创建API key弹窗，名称输入框中填写LIRA，底部有取消和创建按钮"
+                />
+              </article>
+              <article class="usage-guide-feature usage-guide-feature--illustrated">
+                <div class="usage-guide-feature-copy">
+                  <div class="usage-guide-feature-head">
+                    <strong>5. 复制并妥善保存 Key</strong
+                    ><span class="usage-guide-chip">官网</span>
+                  </div>
+                  <p>
+                    创建成功后会弹出完整的 API Key，点「复制」。Key
+                    只会完整显示这一次，关掉弹窗后列表里只能看到首尾几位，请务必先复制保存好。
+                  </p>
+                </div>
+                <img
+                  class="usage-guide-image"
+                  src="/img/usage-guide/deepseek-copy-key.webp"
+                  width="583"
+                  height="433"
+                  loading="lazy"
+                  decoding="async"
+                  alt="API key创建成功弹窗，显示完整密钥，提示请妥善保存，底部有复制按钮"
+                />
+              </article>
+            </div>
             <article class="usage-guide-feature">
               <div class="usage-guide-feature-head">
                 <strong>6. 选择「DeepSeek 官方」</strong
@@ -1008,10 +1026,72 @@
                 ><span class="usage-guide-chip">官网</span>
               </div>
               <p>
-                在 DeepSeek 开放平台查看 API
-                用量和余额。遇到余额不足时，按官网当前价格和充值规则处理，再回
+                打开
+                <a
+                  href="https://platform.deepseek.com/usage"
+                  target="_blank"
+                  rel="noreferrer"
+                  >DeepSeek 用量与余额</a
+                >，查看 API 用量、剩余余额或前往充值。充值完成后，再回
                 LIRA
                 测试模型服务；用量刷新时间、支付方式和最低充值金额以官网显示为准。
+              </p>
+              <p>
+                <strong>官方产品定价</strong>：以下为 2026-09-14
+                核对的人民币价格，单位为<strong>元 / 百万 tokens</strong>。最新价格请查看
+                <a
+                  href="https://api-docs.deepseek.com/zh-cn/quick_start/pricing/"
+                  target="_blank"
+                  rel="noreferrer"
+                  >DeepSeek 官方产品定价</a
+                >。
+              </p>
+              <div class="table-wrap usage-guide-pricing">
+                <table aria-label="DeepSeek 产品定价，单位：元 / 百万 tokens">
+                  <thead>
+                    <tr>
+                      <th scope="col">模型</th>
+                      <th scope="col">时段</th>
+                      <th scope="col">输入（缓存命中）</th>
+                      <th scope="col">输入（缓存未命中）</th>
+                      <th scope="col">输出</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>deepseek-flash</td>
+                      <td>谷时</td>
+                      <td>0.02</td>
+                      <td>1</td>
+                      <td>4</td>
+                    </tr>
+                    <tr>
+                      <td>deepseek-flash</td>
+                      <td>峰时</td>
+                      <td>0.04</td>
+                      <td>2</td>
+                      <td>8</td>
+                    </tr>
+                    <tr>
+                      <td>deepseek-v4-pro</td>
+                      <td>谷时</td>
+                      <td>0.15</td>
+                      <td>4.5</td>
+                      <td>13.5</td>
+                    </tr>
+                    <tr>
+                      <td>deepseek-v4-pro</td>
+                      <td>峰时</td>
+                      <td>0.30</td>
+                      <td>9</td>
+                      <td>27</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <p>
+                <strong>峰时价格是谷时（空闲时段）的 2 倍</strong>，所有计费项均适用。
+                峰时为北京时间周一至周五 9:00–12:00、14:00–18:00；其余时间（含周末）为谷时。
               </p>
               <img
                 class="usage-guide-image"
@@ -1546,4 +1626,16 @@
       </div>
     </div>
   </div>
+  <button type="button" class="usage-guide-back-to-top" hidden>
+    <svg width="14" height="14" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path
+        d="M4 3h12M10 17V6m-5 5 5-5 5 5"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+    </svg>
+    返回顶部
+  </button>
 </section>

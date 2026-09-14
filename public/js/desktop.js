@@ -71,7 +71,7 @@
         try {
           await U.api('/api/settings', {
             enableAutoUpdate: enabled ? 'true' : 'false',
-          });
+          }, { notifyError: false });
           if (autoUpdateLabel) {
             autoUpdateLabel.textContent = enabled ? '已开启' : '已关闭';
           }
@@ -81,7 +81,7 @@
             desktop.setAutoUpdate(enabled);
           }
         } catch (error) {
-          toast('保存失败：' + (error.message || String(error)));
+          toast('保存失败：' + (error.message || String(error)), { type: 'error' });
           autoUpdateToggle.checked = !enabled;
           if (autoUpdateLabel) {
             autoUpdateLabel.textContent = autoUpdateToggle.checked
@@ -126,7 +126,7 @@
       return;
 
     const updateVersion = state.updateVersion || state.version || '';
-    const noticeKey = updateVersion || state.status;
+    const noticeKey = `${updateVersion}:${state.status}`;
     if (desktopUpdateNoticeKey === noticeKey) return;
 
     desktopUpdateNoticeKey = noticeKey;
@@ -145,11 +145,13 @@
         : '点击前往桌面版更新页面处理更新。';
 
     showStackedToast({
-      key: `desktop-update:${updateVersion || status}`,
+      key: `desktop-update:${updateVersion || 'current'}`,
+      update: true,
+      actionLabel: '前往更新页面',
       title,
       message: body,
       className: 'desktop-update-toast',
-      duration: 3000,
+      duration: 8000,
       onClick: showDesktopUpdatePage,
     });
   }

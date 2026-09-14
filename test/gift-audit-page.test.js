@@ -53,6 +53,7 @@ test('packaged frontend excludes the retired gift debug page and links', () => {
 });
 
 test('gift audit consumes snapshot.state while the WebSocket remains open', async () => {
+  const { documentRef, windowRef } = require('./helpers/toast-dom').createDom();
   const elements = new Map();
   const getElement = (id) => {
     if (!elements.has(id)) {
@@ -84,16 +85,9 @@ test('gift audit consumes snapshot.state while the WebSocket remains open', asyn
     {
       location: { protocol: 'http:', host: 'localhost' },
       WebSocket: FakeWebSocket,
-      document: {
-        getElementById: getElement,
-        createElement: () => ({
-          textContent: '',
-          get innerHTML() {
-            return this.textContent;
-          },
-        }),
-        body: { appendChild() {} },
-      },
+      document: { ...documentRef, getElementById: getElement },
+      window: windowRef,
+      clearTimeout() {},
       setTimeout() {},
       setInterval(callback) {
         poll = callback;
@@ -143,7 +137,7 @@ test('gift audit consumes snapshot.state while the WebSocket remains open', asyn
     }),
   });
   poll();
-  getElement('bubbleHtml').value = '<div class="bubble-list"></div>';
+  getElement('bubbleHtml').value = '<div class="super-gift-item"><div class="user-name">用户A</div><span class="gift-name">小花花</span><div class="gift-frame gift-1-50"></div></div>';
   await getElement('parseAndCompareBtn').click();
   assert.equal(getElement('statServer').textContent, 2);
   assert.match(getElement('comparisonBody').innerHTML, /小花花/);

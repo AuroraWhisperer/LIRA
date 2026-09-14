@@ -72,8 +72,9 @@
 
 .metrics-countdown-copy {
   position: relative;
-  display: grid;
-  justify-items: center;
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
   line-height: 1;
 }
 
@@ -83,7 +84,6 @@
 }
 
 .metrics-countdown-copy small {
-  margin-top: 3px;
   color: var(--muted);
   font-size: var(--type-size-caption);
 }

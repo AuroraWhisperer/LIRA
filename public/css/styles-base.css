@@ -282,3 +282,15 @@ label {
   color: var(--muted);
   font-size: 13px;
 }
+
+.field-error {
+  display: block;
+  color: var(--color-danger, #b42332);
+  font-size: var(--type-size-caption);
+  margin-top: 4px;
+  overflow-wrap: anywhere;
+}
+
+[aria-invalid="true"] {
+  outline: 1px solid var(--color-danger, #b42332);
+}

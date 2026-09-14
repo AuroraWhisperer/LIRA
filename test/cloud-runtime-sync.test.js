@@ -239,6 +239,7 @@ test('runtime applies cloud snapshots without echo and emits dirty scopes after 
       allowDuplicate: false,
     });
     assert.deepEqual(runtime.getCloudSettingsSnapshot(), {
+      giftEffectDanmakuEnabled: false,
       roomId: '1963694209',
       enableBilibili: false,
       paused: true,

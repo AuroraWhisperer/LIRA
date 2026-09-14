@@ -19,7 +19,7 @@ import { initCloudSongBackground } from './song-background.js';
           base64: await readFileAsBase64(file),
         });
         renderImportResult(response.data);
-        toast('Excel 导入完成');
+        showImportSummary(response.data);
         if (window.AdminApp.state && window.AdminApp.state.reloadAll) {
           await window.AdminApp.state.reloadAll();
         }
@@ -35,9 +35,21 @@ import { initCloudSongBackground } from './song-background.js';
     const rows = parseTable(text);
     const response = await api('/api/songs/import', { rows });
     renderImportResult(response.data);
-    toast('导入完成');
+    showImportSummary(response.data);
     if (window.AdminApp.state && window.AdminApp.state.reloadAll) {
       await window.AdminApp.state.reloadAll();
+    }
+  }
+
+  function showImportSummary({ inserted, duplicate, failed }) {
+    if (failed > 0) {
+      toast(inserted > 0
+        ? `新增 ${inserted} 首，${failed} 行失败，请查看导入明细`
+        : '本次未导入歌曲，请查看失败行', { type: 'warning' });
+    } else if (inserted > 0) {
+      toast(`已新增 ${inserted} 首歌曲${duplicate ? `，重复跳过 ${duplicate} 首` : ''}`, { type: 'success' });
+    } else {
+      toast(duplicate > 0 ? `全部为重复歌曲，已跳过 ${duplicate} 首` : '本次没有可导入歌曲');
     }
   }
 

@@ -1,7 +1,8 @@
-// 礼物四方边框 Overlay：只消费本地 gift:frame 事件，不加载礼物官方媒体。
+// 礼物 Overlay：边框与官方全屏特效各由独立播放器负责。
 'use strict';
 
 import { createFrameController } from './gift-effects-frame.js';
+import { createGiftEffectPlayer } from './gift-effect-player.js';
 
 (function () {
   const params = new URLSearchParams(location.search);
@@ -35,6 +36,10 @@ import { createFrameController } from './gift-effects-frame.js';
   const pending = [];
   const seenEventIds = new Set();
   const frameController = createFrameController({ frameRoot, formatAmount });
+  const effectPlayer = createGiftEffectPlayer({
+    stage: document.getElementById('giftEffectStage'),
+    onError: (error) => showStatus(error.message),
+  });
   const particleController = createParticleController(particleCanvas);
   let activeSession = null;
   let currentSettings = {};
@@ -47,6 +52,7 @@ import { createFrameController } from './gift-effects-frame.js';
   else init();
 
   function init() {
+    window.addEventListener('pagehide', () => effectPlayer.dispose(), { once: true });
     initFrameAssets();
     if (PREVIEW_MODE) {
       window.setTimeout(() => handleFrameEvent(createPreviewPayload()), 80);
@@ -100,12 +106,14 @@ import { createFrameController } from './gift-effects-frame.js';
       }
       if (payload.type === 'snapshot') {
         currentSettings = payload.state?.settings || {};
+        effectPlayer.setEnabled(currentSettings.giftEffectDanmakuEnabled === 'true');
         return;
       }
       if (payload.type === 'gift:frame') handleFrameEvent(payload);
-      // payload.type === 'gift:effect' is intentionally ignored by this renderer.
+      if (payload.type === 'gift:effect') effectPlayer.enqueue(payload);
     });
     socket.addEventListener('close', () => {
+      effectPlayer.setEnabled(false);
       const delay = Math.min(30000, 1000 * 2 ** Math.min(reconnectAttempts, 5));
       reconnectAttempts += 1;
       reconnectTimer = setTimeout(connectSocket, delay);

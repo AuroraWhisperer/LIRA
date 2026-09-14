@@ -8,7 +8,7 @@ const vm = require('node:vm');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 
-test('desktop preload exposes a narrow gift display diagnostic bridge', () => {
+test('desktop keeps the gift display bridge as a no-op compatibility channel', () => {
   const source = fs.readFileSync(
     path.join(ROOT_DIR, 'src', 'electron', 'preload.js'),
     'utf8',
@@ -26,14 +26,11 @@ test('desktop preload exposes a narrow gift display diagnostic bridge', () => {
     ),
   ].join('\n');
   assert.match(mainSource, /ipcMain\.handle\('desktop:gift-display'/);
-  assert.match(
-    mainSource,
-    /\[Bilibili\]\[GiftDisplay\] action=toast-requested/,
-  );
-  assert.match(mainSource, /writeLog\('gift-display', trace\)/);
+  assert.doesNotMatch(mainSource, /\[Bilibili\]\[GiftDisplay\]/);
+  assert.doesNotMatch(mainSource, /writeLog\('gift-display'/);
 });
 
-test('server logs and broadcasts finalized server gifts without a raw writer', () => {
+test('server broadcasts finalized gifts without per-gift diagnostic output', () => {
   const source = [
     fs.readFileSync(path.join(ROOT_DIR, 'src', 'server.js'), 'utf8'),
     fs.readFileSync(
@@ -44,17 +41,14 @@ test('server logs and broadcasts finalized server gifts without a raw writer', (
       path.join(ROOT_DIR, 'src', 'server', 'bilibili-client.js'),
       'utf8',
     ),
-    fs.readFileSync(
-      path.join(ROOT_DIR, 'src', 'server', 'runtime-reporting.js'),
-      'utf8',
-    ),
   ].join('\n');
   assert.doesNotMatch(source, /domainServices\.gifts\.add\(/);
-  assert.match(source, /logGiftDelivery\('final', item\)/);
-  assert.match(source, /\[Bilibili\]\[GiftDelivery\] action=broadcast/);
+  assert.match(source, /broadcastSnapshot\('bilibili:gift'\)/);
+  assert.doesNotMatch(source, /logGiftDelivery/);
+  assert.doesNotMatch(source, /\[Bilibili\]\[GiftDelivery\]/);
 });
 
-test('gift notification reports the exact new gift requested for display', () => {
+test('gift notification displays new gifts without per-toast diagnostics', () => {
   const source = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'notification.js'),
     'utf8',
@@ -115,18 +109,6 @@ test('gift notification reports the exact new gift requested for display', () =>
   ]);
 
   assert.equal(toasts.length, 1);
-  assert.equal(reports.length, 1);
-  assert.deepEqual(
-    { ...reports[0] },
-    {
-      eventId: 2,
-      giftId: '1',
-      giftName: 'Rose',
-      uid: '42',
-      userName: 'Alice',
-      num: 1,
-      totalPrice: 1,
-      toastKey: 'gift:2:1:1',
-    },
-  );
+  assert.equal(toasts[0].key, 'gift:2');
+  assert.equal(reports.length, 0);
 });

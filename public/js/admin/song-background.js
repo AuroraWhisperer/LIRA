@@ -145,15 +145,15 @@ export async function initCloudSongBackground() {
   deleteButton.addEventListener('click', async () => {
     if (deleteButton.disabled) return;
     setBusy(true);
-    result.textContent = '正在删除…';
+    result.textContent = '正在恢复默认背景…';
     try {
       const response = assertSongBackgroundResponse(
         await window.liraLicense.deleteSongPageBackground(),
       );
       renderSongBackground(response, elements);
-      result.textContent = '背景已删除，歌单页将使用默认水彩背景。';
+      result.textContent = '已恢复默认水彩背景。';
     } catch (error) {
-      result.textContent = `删除失败：${getSongBackgroundErrorMessage(error)}`;
+      result.textContent = `恢复失败：${getSongBackgroundErrorMessage(error)}`;
     } finally {
       setBusy(false);
     }

@@ -4,7 +4,7 @@
 
 本文档是 Electron 桌面壳的**唯一事实源**:进程入口、启动序列、主窗口规格、`local-media://` 协议、请求头伪装、关闭时序与日志只在此成文。IPC 通道全量注册表见 [preload.md](preload.md),登录会话见 [auth.md](auth.md),辅助窗口见 [windows.md](windows.md),自动更新运行时见 [update.md](update.md);后端服务生命周期见 [../backend/server-core.md](../backend/server-core.md),数据目录树见 [../backend/storage.md](../backend/storage.md)。
 
-**主进程模块边界:** `main.js` 是唯一 Electron 组合根，拥有 app/window/protocol/IPC 的接线与生命周期；`cloud-sync-controller.js` 只协调三个云端 scope 的 revision、dirty、SSE 失效通知、低频兜底和应用，`remote-gift-controller.js` 只负责服务端权威礼物的 DeviceBearer SSE、final cursor 对账、断线重连和本地投影，本地 `gift-sync-store` 在 SQLite 投影事务中保存按来源隔离的恢复状态与 final cursor；`desktop-auth-controller.js` 只管理登录窗口和认证快照，`desktop-update-controller.js` 只适配更新运行时，`desktop-logger.js` 只做有序日志写入，`media-request-headers.js` 只安装媒体请求头规则。授权域由 `license-manager.js` 持有状态和远端流程，`license-runtime-policy.js` 只计算可授权能力与状态映射。辅助模块通过显式回调访问窗口/路径，不反向读取 `main.js` 的可变全局。
+**主进程模块边界:** `main.js` 是唯一 Electron 组合根，拥有 app/window/protocol/IPC 的接线与生命周期；`cloud-sync-controller.js` 只协调三个云端 scope 的 revision、dirty、SSE 失效通知、低频兜底和应用，`remote-gift-controller.js` 只负责服务端权威礼物的 DeviceBearer SSE、final cursor 对账、断线重连和本地投影，本地 `gift-sync-store` 在 SQLite 投影事务中保存按来源隔离的恢复状态与 final cursor；`desktop-auth-controller.js` 只管理登录窗口和认证快照，`desktop-update-controller.js` 只适配更新运行时，`desktop-logger.js` 只做有序日志写入与单条/单文件准入，`media-request-headers.js` 只安装媒体请求头规则。授权域由 `license-manager.js` 持有状态和远端流程，`license-runtime-policy.js` 只计算可授权能力与状态映射。辅助模块通过显式回调访问窗口/路径，不反向读取 `main.js` 的可变全局。
 
 礼物同步进入 `LIVE` 或 `LEGACY_PARTIAL` 后，`remote-gift-controller.js` 每 **10 秒**经现有串行队列补拉 final cursor，覆盖 SSE 保持连接但未送达礼物通知的情况。补拉结束后重新计时，不叠加慢请求；离开上述状态、停止、销毁或切换 generation 时取消定时器，回调仍校验 source/auth/controller/projection fence。SSE 继续负责即时投影，定时补拉不改变历史导入、幂等结算或授权边界。
 
@@ -80,6 +80,12 @@
 歌曲库的新增、编辑、删除和清空由 Electron 客户端本地管理页完成；每次成功 mutation 都立即触发 songs scope 的完整快照上传。Streamer `/manage` 只展示最新同步歌单，不提供歌曲新增、编辑、启用切换、保存或删除控件。服务端既有歌曲 CRUD API 继续保留以兼容既有调用方，云端拉取、revision 和多设备恢复语义不变。
 
 ### 2.3 服务端权威礼物接收生命周期
+
+礼物 SSE 额外声明 `X-Lira-Gift-Effects: 1`，接收独立 `gift-effect` frame。
+`remote-license-client` 校验代码并移除传入媒体后交给 `remote-gift-controller.onEffect`；
+runtime `publishGiftEffect` 共用测试播放的 `domainServices.gifts.resolveEffect`。
+异步解析前后均检查本地开关和原授权/连接 fence，停用或过期结果不广播。
+该临时展示事件不进入导入器、账本或 cursor 恢复。见 [弹幕礼物特效规格](../../../specs/gift-effect-danmaku.md)。
 
 初始化、历史 bootstrap 或增量拉取的可重试错误会按有上限的指数退避重新进入恢复流程；不可重试的契约错误保留错误态。礼物控制器按代际合并尚未完成的 cursor catch-up，同批 final 通知共享一次拉取，拉取期间出现的新通知通过 dirty 标记保留。成功追平后重置退避；停止或切换代际后，旧重试和旧回调均失效。
 
@@ -205,12 +211,12 @@ Main: requestPlaybackFlush(mainWindow, 2000)
 
 | 文件                | 位置                                  | 写入者                                                                                                                      |
 | ------------------- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `logs/terminal.log` | `logDir = path.dirname(dataDir)/logs` | `installTerminalLog` 包裹 console 五方法(log/info/debug/warn/error)                                                         |
-| `logs/desktop.log`  | 同目录                                | main.js `writeLog(scope, value)` — 结构化事件(`lifecycle`/`window`/`ipc`/`update-error`/`gift-display`/`playback-flush` 等) |
+| `logs/terminal.log` | `logDir = path.dirname(dataDir)/logs` | `installTerminalLog` 只包裹 console.warn/error；普通 log/info/debug 仍显示但不镜像落盘                                     |
+| `logs/desktop.log`  | 同目录                                | main.js `writeLog(scope, value)` — 生命周期、窗口、IPC、更新错误和播放状态等低频记录                                      |
 
 出处:[configureDesktopEnvironment:189-214](../../../src/electron/main.js#L189-L214)(目录创建、`logRunId`、`installTerminalLog`)、[writeLog:729-743](../../../src/electron/main.js#L729-L743)。日志目录位于 data 目录**父目录**下(data 目录树见 [storage.md](../backend/storage.md) §2)。
 
-行格式 `formatLogLine`([terminal-log.js:72-81](../../../src/electron/terminal-log.js#L72-L81)):`[ISO 时间] [run=<runId> seq=<n> pid=<pid> type=<processType>] [<source>] <message>`,消息内换行转义为 `\n`;`installTerminalLog` 返回恢复函数([terminal-log.js:9-38](../../../src/electron/terminal-log.js#L9-L38))。所有日志写入失败静默(日志绝不干扰主流程)。
+行格式 `formatLogLine`([terminal-log.js](../../../src/electron/terminal-log.js)):`[ISO 时间] [run=<runId> seq=<n> pid=<pid> type=<processType>] [<source>] <message>`,消息内换行转义为 `\n`;`installTerminalLog` 返回恢复函数。A1 初始化不再清空 terminal.log；普通记录最终 UTF-8 最多 2 KiB、ERROR 最多 16 KiB，desktop.log/terminal.log 各达到 10 MiB 后停止新增。统一分流、轮转与跨重启预算属于后续阶段。所有日志写入失败静默(日志绝不干扰主流程)。
 
 所有日志输出(terminal.log 的 console 包裹与 desktop.log 的 `writeLog`)统一经 `src/shared/log-redaction.js` 的 `redactCredentials` 脱敏。脱敏字段:`password`/`passwd`、`activationcode`、`pairingcode`、`fingerprint`、`hardwareid`(精确键名),`*apikey`/`*secret`/`*token`/`*signature`(键名后缀),包含 `privatekey` 的键名,`authorization`/`cookie` 头,以及 URL 查询参数中的同名键(大小写不敏感)。即日志中不出现密码、完整激活码/授权码、token、签名、私钥和原始硬件标识。
 

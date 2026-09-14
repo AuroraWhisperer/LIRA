@@ -5,10 +5,18 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const { fileURLToPath, pathToFileURL } = require('node:url');
+const { createDom } = require('./toast-dom');
 
 async function createPlaybackApp(initialState, options = {}) {
   const appOptions = options;
-  const elements = new Map();
+  const toastDom = createDom();
+  const prependToast = toastDom.container.prepend.bind(toastDom.container);
+  toastDom.container.prepended = [];
+  toastDom.container.prepend = (node) => {
+    toastDom.container.prepended.unshift(node);
+    prependToast(node);
+  };
+  const elements = new Map([['toast', toastDom.container]]);
   const storage = options.storage || new Map();
   const localState = Object.hasOwn(options, 'localState')
     ? options.localState
@@ -41,8 +49,8 @@ async function createPlaybackApp(initialState, options = {}) {
       }
       return elements.get(id);
     },
-    createElement(_tag) {
-      return new FakeElement();
+    createElement(tag) {
+      return toastDom.documentRef.createElement(tag);
     },
     querySelectorAll(selector) {
       if (selector === '[data-playback-home-action]' && homeActionButton) {

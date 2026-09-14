@@ -1,12 +1,12 @@
-# 存储层:数据目录、SQLite 五库与迁移
+# 存储层:数据目录、SQLite 六库与迁移
 
-> 涉及文件:[src/storage/database.js](../../../src/storage/database.js)、[src/storage/database-migrations.js](../../../src/storage/database-migrations.js)、[src/storage/database-maintenance.js](../../../src/storage/database-maintenance.js)、[src/storage/schema.js](../../../src/storage/schema.js)、[src/storage/retention.js](../../../src/storage/retention.js)、[src/storage/settings-store.js](../../../src/storage/settings-store.js)、[src/storage/settings-defaults.js](../../../src/storage/settings-defaults.js)、[src/storage/settings-migrations.js](../../../src/storage/settings-migrations.js)、[src/storage/theme-store.js](../../../src/storage/theme-store.js)、[src/storage/playback-store.js](../../../src/storage/playback-store.js)、[src/storage/cooldown-store.js](../../../src/storage/cooldown-store.js)、[src/storage/checkin-store.js](../../../src/storage/checkin-store.js)
+> 涉及文件:[src/storage/database.js](../../../src/storage/database.js)、[src/storage/database-migrations.js](../../../src/storage/database-migrations.js)、[src/storage/dynamic-lottery-migrations.js](../../../src/storage/dynamic-lottery-migrations.js)、[src/storage/dynamic-lottery-schema.js](../../../src/storage/dynamic-lottery-schema.js)、[src/storage/dynamic-lottery-store.js](../../../src/storage/dynamic-lottery-store.js)、[src/storage/dynamic-lottery-budget-store.js](../../../src/storage/dynamic-lottery-budget-store.js)、[src/storage/database-maintenance.js](../../../src/storage/database-maintenance.js)、[src/storage/schema.js](../../../src/storage/schema.js)、[src/storage/retention.js](../../../src/storage/retention.js)、[src/storage/settings-store.js](../../../src/storage/settings-store.js)、[src/storage/settings-defaults.js](../../../src/storage/settings-defaults.js)、[src/storage/settings-migrations.js](../../../src/storage/settings-migrations.js)、[src/storage/theme-store.js](../../../src/storage/theme-store.js)、[src/storage/playback-store.js](../../../src/storage/playback-store.js)、[src/storage/cooldown-store.js](../../../src/storage/cooldown-store.js)、[src/storage/checkin-store.js](../../../src/storage/checkin-store.js)
 
 本文档是数据库与数据目录的**唯一事实源**:数据库文件名、表清单、DDL 要点、迁移版本、保留策略只在此成表。其他文档一律链接此处。
 
-**内部模块边界:** `database.js` 只负责五库打开、PRAGMA 装配与对外数据库句柄；`database-migrations.js` 拥有 schema/data migration 执行顺序；`database-maintenance.js` 拥有清理、优化与关闭等维护操作。设置域由 `settings-store.js` 提供 CRUD 门面，`settings-defaults.js` 只声明不可变默认值，`settings-migrations.js` 只执行设置键迁移。上层不得直接调用迁移或维护模块来绕过这些门面。
+**内部模块边界:** `database.js` 只负责六库打开、PRAGMA 装配与对外数据库句柄；`database-migrations.js` 保持原五库 schema/data migration 执行顺序，`dynamic-lottery-migrations.js` 持有抽奖库的独立命名域；动态抽奖 DDL、业务事务和请求预算分别由 `dynamic-lottery-schema.js`、`dynamic-lottery-store.js`、`dynamic-lottery-budget-store.js` 拥有；`database-maintenance.js` 拥有清理、优化与关闭等维护操作。设置域由 `settings-store.js` 提供 CRUD 门面，`settings-defaults.js` 只声明不可变默认值，`settings-migrations.js` 只执行设置键迁移。上层不得直接调用迁移或维护模块来绕过这些门面。
 
-单个数据库在 PRAGMA 初始化完成前由 `openSqliteDatabase` 持有；失败时关闭尚未登记的句柄并保留原错误。`createDatabases` 继续清理此前已登记的数据库，成功返回后才把整组句柄交给服务器生命周期。关闭失败沿用 `closeDatabases` 的逐库警告并继续清理；这不撤销已经提交的初始化或迁移数据。
+单个数据库在 PRAGMA 初始化完成前由 `openSqliteDatabase` 持有；失败时关闭尚未登记的句柄并保留原错误。`createDatabases` 继续清理此前已登记的数据库，成功返回后才把整组句柄交给服务器生命周期。抽奖库在原五库完成初始化后单独打开及迁移；其失败会关闭新连接并返回 `lotteryDb: null`，由抽奖 runtime 禁用本功能，不改变点歌、礼物和播放的既有启动语义。关闭失败沿用 `closeDatabases` 的逐库警告并继续清理；这不撤销已经提交的初始化或迁移数据。
 
 ### 歌库显式更新事务
 
@@ -17,7 +17,7 @@
 ## 1. 技术选型
 
 - **`node:sqlite` 内置模块 `DatabaseSync`**(同步 API),零第三方数据库依赖;要求 Node ≥ 24(见 [engineering/build.md](../engineering/build.md))。
-- 每库统一 PRAGMA([database.js:199-212](../../../src/storage/database.js#L199-L212)):`journal_mode=WAL`、`synchronous=NORMAL`、`cache_size=-8000`、`temp_store=MEMORY`;`songDb`/`musicDb` 额外 `foreign_keys=ON`。
+- 每库统一 PRAGMA([database.js](../../../src/storage/database.js)):`journal_mode=WAL`、`synchronous=NORMAL`、`cache_size=-8000`、`temp_store=MEMORY`;`songDb`/`giftDb`/`musicDb`/`lotteryDb` 额外 `foreign_keys=ON`。
 - **多库拆分**:按域隔离,避免单库写锁竞争与误清数据,详见 ADR [0004-reuse-monolith-and-gift-db](../adr/0004-reuse-monolith-and-gift-db.md)。
 
 ## 2. 数据目录布局(唯一成表处)
@@ -31,6 +31,7 @@ data/
 ├── gift-data.db               # 礼物库(gift_events + 加班机三表)
 ├── music-data.db              # 播放器库(历史/队列态/收藏/歌单)
 ├── checkin-data.db            # 签到库
+├── lottery-data.db            # 动态抽奖任务、证据、冻结轮次、结果与请求预算
 ├── cache/                    # 可重建的业务缓存
 │   ├── overtime-gift-catalog-v2.json      # 官方 gold 礼物与盲盒关系镜像
 │   ├── overtime-gift-assets-state-v2.json # 图片扫描完成状态
@@ -60,9 +61,9 @@ data/
 
 路径由 [data-paths.js](../../../src/shared/data-paths.js) 统一计算；`dataDir` 与数据库/授权/上传路径未改变。桌面持有原数据根的单实例锁后，[data-directory-migration.js](../../../src/storage/data-directory-migration.js) 在 ready 前迁移已知浏览器文件与缓存。独立服务及礼物初始化脚本在使用缓存前执行相同缓存迁移。迁移采用落盘日志与同卷重命名，中断可续作，目标冲突、缺失条目、符号链接及活动服务阻止迁移；未知文件保留原处。`browser` 包含登录和界面资料，不能整目录当缓存清理。具体取舍见 [ADR-0016](../adr/0016-separated-client-data-lifecycles.md)。
 
-## 3. 五库 × 表清单(唯一成表处)
+## 3. 六库 × 表清单(唯一成表处)
 
-共 **27 张业务表 + 每库 1 张 `schema_version`**。文件常量 `DB_FILE_NAMES`([database.js:20-26](../../../src/storage/database.js#L20-L26)),DDL 定义在 [schema.js](../../../src/storage/schema.js)。
+共 **36 张业务表 + 每库 1 张 `schema_version`**。文件常量 `DB_FILE_NAMES`、五个既有库的 DDL 与抽奖库 DDL 分别位于 [database.js](../../../src/storage/database.js)、[schema.js](../../../src/storage/schema.js) 和 [dynamic-lottery-schema.js](../../../src/storage/dynamic-lottery-schema.js)。
 
 ### 3.1 song-request-data.db(点歌库,14 表)
 
@@ -118,6 +119,22 @@ data/
 | --------------- | -------- | ---------------------------------------------------------------------------------- |
 | `checkin_users` | 签到用户 | uid PK、total_days、first/last_checkin_at、last_checkin_date;idx last_checkin_date |
 
+### 3.6 lottery-data.db(动态抽奖库,9 表)
+
+| 表 | 用途 | 关键约束 |
+| --- | --- | --- |
+| `lottery_tasks` | 活动身份、动态目标、规则和状态 | task ID PK；创建 requestId 在 streamer 范围唯一；UID/动态 ID 均为 TEXT |
+| `lottery_scans` | 截止后正式采集批次与来源检查点 | task FK；页游标、覆盖状态和读取数保存在同一 source state |
+| `lottery_evidence` | 最小互动证据 | PK(scan, source, recordId)；与下一游标由 store 同事务提交 |
+| `lottery_rounds` | 冻结规则、名单摘要、算法版本与结果版本 | task/scan FK；revision 单调递增 |
+| `lottery_round_members` | 每轮冻结 UID 与基础资格 | PK(round, uid)；不承载唯一一份领奖状态 |
+| `lottery_orders` | 初抽/补抽的不可变候选顺序和推进位置 | UNIQUE(round, scope, generation)；顺序先落盘再核验 |
+| `lottery_awards` | 独立授奖、领奖和替补关联 | 同奖项 UID 唯一；每个有效名额至多一条 active 记录 |
+| `lottery_events` | 规则、开奖、核验、发布和领奖的追加事件 | streamer 范围 requestId 唯一，保存规范化请求摘要 |
+| `lottery_request_budget` | 本机/账号滚动请求预算和冷却 | scope PK；活动删除不重置 |
+
+抽奖库仅保存最小业务证据，不保存 Cookie、认证头或完整上游响应。`dynamic-lottery-store.js` 持有分页证据与游标的 `BEGIN IMMEDIATE` 事务；`dynamic-lottery-budget-store.js` 在请求出站前同时预留本机和账号预算。
+
 ## 4. Schema 迁移系统
 
 `runMigrations(db, key, steps)`([schema.js:12-47](../../../src/storage/schema.js#L12-L47)):steps 数组下标+1 即版本号,**只允许末尾追加**;每步一个事务(BEGIN/COMMIT,失败 ROLLBACK 并抛错);版本只升不降(检测到库版本高于代码版本时跳过,防止用户降级损坏数据)。
@@ -131,6 +148,7 @@ data/
 | giftDb      | `gift_db`       | v1-v10 | v1 `ensureGiftColumns`(cmd/blind_box/raw_json 等);v2 platform_id 索引;v3 `collapseDuplicateGiftIdentities` + 唯一索引 (platform_id, uid);v4 **检测账本升级**(`ensureGiftDetectionColumns`,历史记录标记 final 且仅归属礼物统计);v5 插入加班机单例行(id=1);v6 扩展加班机倒计时安全上限;v7 放开加班机 `display` 文字展板规则模式;v8 增加来源分区、同步状态、远程来源约束与索引；v9 幂等增加可空 `gift_events.blind_box_id`，旧行保持 `NULL`；v10 增加冻结事件身份列并将规则主键升级为 ID + 身份，旧规则设置原样保留 |
 | musicDb     | `music_db`      | v1    | 基线                                                                                                                                                                                                                                                                                                                          |
 | checkinDb   | `checkin_db`    | v1    | 基线                                                                                                                                                                                                                                                                                                                          |
+| lotteryDb   | `lottery_db`    | v1    | 新建九张抽奖业务表、身份/幂等/顺序唯一约束及查询索引；独立失败边界，不加入原五库迁移事务                                                                                                                                                                                                                                      |
 
 初始化顺序固定为基础表 DDL → 不可变迁移 → 依赖迁移列的索引 DDL → legacy Super Chat 搬迁。song/gift 的组合 schema 导出仅用于兼容；`createDatabases()` 使用拆分后的 table/index schema，避免真正的 pre-v1 库在 `pinned_at` 或 `counted_in_sprint` 补列前创建相关索引。任何初始化步骤失败时，本次已打开的全部数据库句柄都会关闭。版本可由 `/api/state` 的 `schemaVersions` 或 `GET /api/database/stats` 查看(见 [api.md](api.md))。
 
@@ -217,6 +235,10 @@ Phase 1 失败且全部事务已回滚时，只解除本次请求取得的暂停
 部分提交、回滚失败、提交后的领域状态重载失败或写入恢复失败时**保持两个写入器暂停**，返回 HTTP 500 与 `partial: true`，不发成功快照/云同步请求。后两种失败分别标记 `phase: 'runtime-reset'`/`'resume'`、`cleared: false`，并保留实际已提交的库与已重建的默认行信息；跨库提交仍不具备崩溃原子性。
 
 ## 7. 设置存储(settings-store)
+
+`giftEffectDanmakuEnabled` 是默认 `'false'` 的字符串布尔设置，经现有设置同步映射为
+云端可选布尔值。它只控制弹幕指令特效，不控制礼物边框或收礼流水；不增加数据库表或
+迁移。云端旧快照缺少该字段时本地按关闭应用。见 [弹幕礼物特效规格](../../../specs/gift-effect-danmaku.md)。
 
 启动入口 `prepareSettingsBootstrap` 委托存储门面 `bootstrapSettingsStore(db)`：在同一 `BEGIN IMMEDIATE` 事务内读取旧版本、补齐默认值、转换设置并写入版本检查点；全部成功才提交，任何异常回滚整次初始化。新库的默认滚动速度同步保存当前版本，重启不会按旧范围再次转换。故障回归使用独立临时 SQLite 库与版本写入触发器，不读取用户数据。
 

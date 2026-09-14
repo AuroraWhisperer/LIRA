@@ -25,10 +25,6 @@ export function createRenderer(deps) {
   } = deps;
 
   function renderPlayback(playbackAuthState, playbackProviderHealth) {
-    console.log(
-      '[Playback] renderPlayback called, selectedSource:',
-      playbackState.selectedSource,
-    );
     const audio = getPlaybackAudio();
 
     // 使用 UI 渲染器渲染所有界面
@@ -36,10 +32,6 @@ export function createRenderer(deps) {
     renderSourceView();
 
     // 渲染音乐源状态
-    console.log(
-      '[Playback] Calling renderProviderState with:',
-      playbackState.selectedSource,
-    );
     uiRenderer.renderProviderState(
       playbackAuthState,
       playbackProviderHealth,

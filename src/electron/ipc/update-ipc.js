@@ -15,7 +15,6 @@ function registerUpdateIpc({
   installUpdate,
   requestRestart,
   getMainWindow,
-  normalizeGiftDisplayTrace,
   writeLog,
 }) {
   ipcMain.handle('desktop:get-info', function () {
@@ -57,12 +56,7 @@ function registerUpdateIpc({
       'enableAutoUpdate set to: ' + String(Boolean(enabled)),
     );
   });
-  ipcMain.handle('desktop:gift-display', function (_event, gift) {
-    const trace = normalizeGiftDisplayTrace(gift);
-    console.log(
-      `[Bilibili][GiftDisplay] action=toast-requested trace=${JSON.stringify(trace)}`,
-    );
-    writeLog('gift-display', trace);
+  ipcMain.handle('desktop:gift-display', function () {
     return { ok: true };
   });
   ipcMain.handle('desktop:restart', async function () {

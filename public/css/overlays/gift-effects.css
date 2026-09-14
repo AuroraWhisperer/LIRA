@@ -8,6 +8,15 @@
   pointer-events: none;
 }
 
+.gift-official-effect {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
 .gift-effects-overlay-body.is-debug {
   background-color: #11131a;
   background-image:

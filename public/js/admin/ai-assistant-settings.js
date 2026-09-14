@@ -213,14 +213,22 @@ function init() {
   async function runProviderTest(provider, button) {
     const label = providerLabel(provider);
     button.disabled = true;
-    setState(saveState, `正在准备 ${label} 连接测试…`);
+    let testDetail = document.getElementById(`aiTestDetail-${provider}`);
+    if (!testDetail) {
+      testDetail = document.createElement('p');
+      testDetail.id = `aiTestDetail-${provider}`;
+      testDetail.className = 'hint ai-test-detail';
+      testDetail.setAttribute('role', 'status');
+      button.parentElement.after(testDetail);
+    }
+    setState(testDetail, `正在准备 ${label} 连接测试…`);
     try {
       await initialLoadPromise;
       if (!form.reportValidity())
         throw codedClientError('FORM_INVALID', '请先修正表单中的网址或数值。');
       if (!(await flushPendingSave()))
         throw codedClientError('SAVE_FAILED', '配置保存失败，未运行连接测试。');
-      setState(saveState, `正在测试 ${label} 连接…`);
+      setState(testDetail, `正在测试 ${label} 连接…`);
       const result = await readApi(`/api/ai/test/${provider}`, {
         method: 'POST',
         body: '{}',
@@ -229,21 +237,21 @@ function init() {
         provider === 'deepseek' && result.reply
           ? `模型 ${result.model} 回复：${result.reply}`
           : '地址与密钥均可用';
-      setState(saveState, `${label} 连接正常。`, 'good');
+      setState(testDetail, `${label} 连接正常。${detail}`, 'good');
       showProviderToast({
         provider,
         good: true,
         title: `${label} 测试通过`,
-        message: detail,
+        message: '测试详情已保留在测试区域',
       });
     } catch (error) {
       const message = providerErrorMessage(provider, error);
-      setState(saveState, message, 'warn');
+      setState(testDetail, `${label}：${message}`, 'warn');
       showProviderToast({
         provider,
         good: false,
         title: `${label} 测试未通过`,
-        message,
+        message: '请查看测试区域的错误详情',
       });
     } finally {
       button.disabled = false;
@@ -408,7 +416,9 @@ function init() {
 
 function showProviderToast({ provider, good, title, message }) {
   window.AdminApp?.utils?.showStackedToast?.({
-    key: `xiaomi-ai-test:${provider}:${good ? 'good' : 'warn'}:${message}`,
+    key: `xiaomi-ai-test:${provider}`,
+    update: true,
+    type: good ? 'success' : 'warning',
     title,
     message,
     className: `xiaomi-ai-test-toast xiaomi-ai-test-toast-${good ? 'good' : 'warn'}`,

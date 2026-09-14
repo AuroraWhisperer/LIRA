@@ -61,6 +61,10 @@
               <h2 id="licenseWelcomeHeading">让每一次互动，<br />都有回响。</h2>
             </div>
             <div class="license-art" aria-hidden="true">
+              <span class="license-echo"></span>
+              <span class="license-echo"></span>
+              <span class="license-echo"></span>
+              <span class="license-echo"></span>
               <div class="license-record"></div>
             </div>
             <p class="license-intro-caption">
@@ -81,21 +85,21 @@
               role="group"
               aria-label="账号入口"
             >
-              <button id="licenseLoginMode" type="button" aria-pressed="true">
-                登录已有账号
-              </button>
               <button
                 id="licenseRegisterMode"
                 type="button"
-                aria-pressed="false"
+                aria-pressed="true"
               >
                 注册新账号
               </button>
+              <button id="licenseLoginMode" type="button" aria-pressed="false">
+                登录已有账号
+              </button>
             </div>
             <div class="license-card-heading">
-              <h1 id="licenseHeading">登录 LIRA</h1>
+              <h1 id="licenseHeading">注册 LIRA</h1>
               <p id="licenseModeDescription">
-                重装或使用新电脑，请向管理员获取短效登录码
+                创建账号并授权这台电脑
               </p>
             </div>
             <form id="licenseForm" novalidate>
@@ -128,7 +132,7 @@
                     id="licensePassword"
                     name="password"
                     type="password"
-                    autocomplete="current-password"
+                    autocomplete="new-password"
                     autocapitalize="none"
                     spellcheck="false"
                     aria-describedby="licensePasswordRules"
@@ -159,7 +163,7 @@
                 </div>
               </div>
               <label class="license-field" for="licenseActivationCode">
-                <span id="licenseCodeLabel">短效登录码</span>
+                <span id="licenseCodeLabel">注册激活码</span>
                 <input
                   id="licenseActivationCode"
                   name="activationCode"
@@ -172,7 +176,7 @@
                   required
                 />
                 <small id="licenseCodeHelp"
-                  >由管理员下发，仅限本账号使用一次；同机重装保留原授权记录</small
+                  >由管理员下发的一次性注册码，用户名不可重复</small
                 >
               </label>
               <p
@@ -189,7 +193,7 @@
                 type="submit"
                 disabled
               >
-                <span id="licenseSubmitLabel">登录并进入</span>
+                <span id="licenseSubmitLabel">注册并进入</span>
                 <svg
                   width="18"
                   height="18"

@@ -4,8 +4,12 @@ const fs = require('node:fs');
 const path = require('node:path');
 const util = require('node:util');
 const { redactCredentials } = require('../shared/log-redaction');
+const { appendBoundedFileSync } = require('../shared/log-size-limit');
 
-const TERMINAL_LOG_METHODS = ['log', 'info', 'debug', 'warn', 'error'];
+const TERMINAL_LOG_METHODS = ['warn', 'error'];
+const NORMAL_ENTRY_BYTES = 2 * 1024;
+const ERROR_ENTRY_BYTES = 16 * 1024;
+const LEGACY_FILE_BYTES = 10 * 1024 * 1024;
 
 function installTerminalLog(filePath, options = {}) {
   if (!filePath) return () => {};
@@ -13,7 +17,6 @@ function installTerminalLog(filePath, options = {}) {
 
   try {
     fs.mkdirSync(path.dirname(filePath), { recursive: true });
-    fs.writeFileSync(filePath, '', 'utf8');
   } catch (_) {
     // Keep terminal output available even when the log file cannot be opened.
   }
@@ -42,7 +45,7 @@ function appendTerminalLine(filePath, args, method, context) {
   try {
     const message = util.format(...args);
     const redactedMessage = redactCredentials(message);
-    fs.appendFileSync(
+    appendBoundedFileSync(
       filePath,
       formatLogLine({
         timestamp: context.now(),
@@ -53,7 +56,11 @@ function appendTerminalLine(filePath, args, method, context) {
         source: `terminal:${method}`,
         message: redactedMessage,
       }),
-      'utf8',
+      {
+        maxEntryBytes:
+          method === 'error' ? ERROR_ENTRY_BYTES : NORMAL_ENTRY_BYTES,
+        maxFileBytes: context.maxFileBytes,
+      },
     );
   } catch (_) {
     // Logging must never interfere with the application.
@@ -66,6 +73,10 @@ function normalizeLogContext(options) {
     runId: String(options.runId || 'unknown'),
     pid: Number(options.pid) || process.pid,
     processType: String(options.processType || process.type || 'node'),
+    maxFileBytes:
+      Number(options.maxFileBytes) > 0
+        ? Number(options.maxFileBytes)
+        : LEGACY_FILE_BYTES,
     now:
       typeof options.now === 'function'
         ? options.now

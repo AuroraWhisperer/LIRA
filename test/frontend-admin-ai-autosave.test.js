@@ -97,6 +97,9 @@ test('AI assistant autosaves toggles immediately and text after a debounce', asy
         },
       });
   }
+  for (const id of ['xiaomiAiTestBtn', 'xiaomiAiQWeatherTestBtn', 'xiaomiAiAmapTestBtn']) {
+    elements.get(id).parentElement = { after(node) { elements.set(node.id, node); } };
+  }
   elements.set('xiaomiAiModelMenu', {
     hidden: true,
     children: [],
@@ -503,9 +506,8 @@ test('AI assistant autosaves toggles immediately and text after a debounce', asy
     'https://api.deepseek.com',
   );
   assert.equal(
-    fetchCalls.find((call) => call.toast?.message?.includes('你好！'))?.toast
-      .message,
-    '模型 deepseek-chat 回复：你好！有什么可以帮你？',
+    elements.get('aiTestDetail-deepseek').textContent,
+    '模型服务 连接正常。模型 deepseek-chat 回复：你好！有什么可以帮你？',
   );
 
   elements.get('xiaomiAiQWeatherHost').value = 'new-weather.test';

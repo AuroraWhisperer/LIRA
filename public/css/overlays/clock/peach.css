@@ -27,8 +27,8 @@
 
 .clock-card[data-clock-style='peach']::before {
   position: absolute;
-  top: 10px;
-  left: 98px;
+  top: 14px;
+  left: 18px;
   z-index: 4;
   width: 8px;
   height: 8px;

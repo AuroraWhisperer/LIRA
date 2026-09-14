@@ -41,7 +41,7 @@ LIRA 的主要产品形态是 **Electron 桌面客户端**。`public/` 下的管
 | [server-core.md](backend/server-core.md)                       | HTTP 服务核心与进程生命周期:端口、环境变量、请求管线、token 注入、启动/关闭时序           |
 | [ws.md](backend/ws.md)                                         | WebSocket 传输(手写 RFC 6455)、快照 16 字段、消息类型与广播原因全集                       |
 | [api.md](backend/api.md)                                       | **HTTP API 端点全量注册表**:15 路由模块 × 90 端点                                         |
-| [storage.md](backend/storage.md)                               | 存储层:数据目录、SQLite 五库 26 表、迁移系统、保留策略、settings 全表                     |
+| [storage.md](backend/storage.md)                               | 存储层:数据目录、SQLite 六库 36 表、迁移系统、保留策略、settings 全表                     |
 | [ai.md](backend/ai.md)                                         | AI 互动助手:模型服务、6 工具、配额与审计、密钥加密                                        |
 | [overtime.md](backend/overtime.md)                             | 加班机:服务端权威倒计时、礼物结算幂等管线、规则与盲盒                                     |
 | [music/qq-provider.md](backend/music/qq-provider.md)           | QQ 音乐上游 API 逆向工程(13 端点、GTK、zzcSign、QRC)                                      |

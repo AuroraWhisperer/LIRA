@@ -24,9 +24,9 @@
     {
       "path": "src/electron/remote-gift-controller.js",
       "kind": "review",
-      "maxLines": 775,
+      "maxLines": 782,
       "owner": "远端礼物同步",
-      "reason": "批次 C 已提取纯恢复规则；授权/来源代次、串行任务、取消和定时器仍由一个控制器管理。",
+      "reason": "2026-09-14 审阅代码指令调整：展示回调只传递现有授权/来源/连接 fence 谓词，供异步解析前后检查；代码投影独立于 effect-event，解析复用测试播放，未新增恢复状态或定时器。test/gift-effect-danmaku.test.js 覆盖解析期间停用及授权变化。",
       "removal": "文件已降到警告区；725 行工厂债务保留，后续按协议阶段评估，禁止分散可变状态。",
       "reviewBy": "2026-12-13",
       "test": "test/remote-gift-controller.test.js"
@@ -44,9 +44,9 @@
     {
       "path": "src/server.js",
       "kind": "review",
-      "maxLines": 776,
+      "maxLines": 779,
       "owner": "服务组合入口",
-      "reason": "批次 C 将礼物、目录、弹幕和加班机广播转换归入 runtime-transport；入口保留初始化阶段及失败清理。",
+      "reason": "2026-09-14 审阅代码指令调整：为 runtime-transport 的 publishGiftEffect 增加现有 domainServices.gifts.resolveEffect 接线，与测试播放共用解析器；入口没有新增领域逻辑或状态。test/gift-effect-danmaku.test.js 覆盖两条入口结果一致。",
       "removal": "按资源阶段继续评估组合职责，避免领域模块反向依赖 server 入口。",
       "reviewBy": "2026-12-13",
       "test": "test/server-lifecycle.test.js"
@@ -74,9 +74,9 @@
     {
       "path": "public/css/admin/other-features/usage-guide.css",
       "kind": "review",
-      "maxLines": 774,
+      "maxLines": 760,
       "owner": "帮助界面样式",
-      "reason": "目录、正文、FAQ 和响应式保持同一内容表面。",
+      "reason": "2026-09-14 发布前审阅：目录及返回顶部的基础规则已提取至 usage-guide-navigation.css；本文件保留帮助正文、FAQ 和既有工具箱响应式布局，导入顺序保证布局覆盖继续生效。",
       "removal": "新增独立控件时提取；不得继续堆积不相关页面样式。",
       "reviewBy": "2026-12-13",
       "test": "test/frontend-admin-shell.test.js"
@@ -84,12 +84,22 @@
     {
       "path": "public/css/license.css",
       "kind": "review",
-      "maxLines": 702,
+      "maxLines": 735,
       "owner": "授权页面",
-      "reason": "登录与注册模式切换样式已提取至 license/account-modes.css，剩余授权页面布局、控件与状态暂保留。",
+      "reason": "2026-09-14 审阅新增唱片回声装饰、动画及暗色变量，仍为原授权页视觉，没有新增面板或权限行为；登录/注册切换继续独立于 license/account-modes.css，保留减少动态效果规则及授权 UI 测试。",
       "removal": "出现独立面板职责时再提取，保持授权 UI 行为。",
       "reviewBy": "2026-12-13",
       "test": "test/license-ui.test.js"
+    },
+    {
+      "path": "public/css/admin/workspace/song.css",
+      "kind": "review",
+      "maxLines": 781,
+      "owner": "点歌工作区样式",
+      "reason": "2026-09-14 审阅新增歌曲资料/价格表单与导入导出、云歌库状态布局；选择器限制于点歌工作区，同属既有子页，不含其他领域样式。保留共享字体令牌与原页面入口，布局和导入表单测试覆盖现有行为。",
+      "removal": "下次增加表单或数据面板时按歌曲资料、导入导出职责提取，禁止继续超过 800 行。",
+      "reviewBy": "2026-12-13",
+      "test": "test/frontend-admin-layout.test.js"
     },
     {
       "path": "public/css/overlays/opening.css",
@@ -154,9 +164,9 @@
     {
       "path": "public/pages/admin/toolbox/usage-guide.html",
       "kind": "exception",
-      "maxLines": 1549,
+      "maxLines": 1641,
       "owner": "静态帮助正文",
-      "reason": "帮助章节、图片和 FAQ 锚点构成静态内容，不包含业务表单流程。",
+      "reason": "2026-09-14 审阅安装图文分组、AI 配置与定价说明、通知文案和返回顶部导航；仍是帮助章节、图片、表格与锚点，没有内联脚本或业务表单，保留静态 HTML 例外。",
       "removal": "新增脚本或业务表单即撤销例外；需要拆分时按完整帮助章节组织。",
       "reviewBy": "2026-12-13",
       "test": "test/frontend-admin-shell.test.js"

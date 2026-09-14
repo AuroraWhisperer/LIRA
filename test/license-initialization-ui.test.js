@@ -15,6 +15,8 @@ const FAILED = { status: 'error', error: 'NETWORK_UNAVAILABLE', percent: 0 };
 async function createPage({
   getCatalog = async () => FAILED,
   retryCatalog,
+  licenseSnapshot = { state: 'authorized' },
+  authorizationResult = { state: 'authorized' },
 } = {}) {
   const elements = new Map();
   const calls = [];
@@ -41,14 +43,15 @@ async function createPage({
     window: {
       addEventListener() {},
       liraLicense: {
-        getState: async () => ({ state: 'authorized' }),
+        getState: async () => licenseSnapshot,
         getGiftCatalogState: getCatalog,
         async activate() {
           calls.push('activate');
+          return authorizationResult;
         },
         async retry() {
           calls.push('retry-authorization');
-          return { state: 'authorized' };
+          return authorizationResult;
         },
         async retryGiftCatalog() {
           calls.push('retry-catalog');
@@ -70,10 +73,63 @@ async function createPage({
     get,
     calls,
     click: (id) => get(id).listeners.get('click')?.(),
+    submit: () =>
+      get('licenseForm').listeners.get('submit')({ preventDefault() {} }),
     licenseChanged: (snapshot) => licenseListener(snapshot),
     catalogChanged: (snapshot) => catalogListener(snapshot),
   };
 }
+
+test('a revoked saved device opens with a neutral login notice before any user action', async () => {
+  const snapshot = { state: 'blocked', error: 'DEVICE_REVOKED' };
+  const page = await createPage({ licenseSnapshot: snapshot });
+  assert.equal(page.get('licenseLoginCard').hidden, false);
+  assert.equal(page.get('licenseSubmitBtn').disabled, false);
+  assert.equal(page.get('licenseStatus').className, 'license-status');
+  assert.match(page.get('licenseStatus').textContent, /旧设备授权已撤销/);
+  assert.match(page.get('licenseStatus').textContent, /新的短效登录码.*重新登录/);
+  assert.deepEqual(page.calls, []);
+
+  page.licenseChanged(snapshot);
+  assert.equal(page.get('licenseStatus').className, 'license-status');
+});
+
+for (const action of ['login', 'retry']) {
+  test(`revocation after an explicit ${action} attempt is an error`, async () => {
+    const snapshot = { state: 'blocked', error: 'DEVICE_REVOKED' };
+    const page = await createPage({
+      licenseSnapshot: snapshot,
+      authorizationResult: snapshot,
+    });
+    if (action === 'login') {
+      page.get('licenseAccountName').value = 'test-account';
+      page.get('licensePassword').value = 'Test-password-123';
+      page.get('licenseActivationCode').value = 'TEST-CODE';
+      await page.submit();
+    } else {
+      await page.click('licenseRetryBtn');
+    }
+
+    assert.deepEqual(page.calls, [
+      action === 'login' ? 'activate' : 'retry-authorization',
+    ]);
+    assert.equal(page.get('licenseStatus').className, 'license-status error');
+    assert.match(page.get('licenseStatus').textContent, /授权已被管理员撤销/);
+    page.licenseChanged(snapshot);
+    assert.equal(page.get('licenseStatus').className, 'license-status error');
+  });
+}
+
+test('startup connection and client-version failures remain visible errors', async () => {
+  for (const licenseSnapshot of [
+    { state: 'needs_connection', error: 'NETWORK_UNAVAILABLE' },
+    { state: 'blocked', error: 'BUILD_NOT_ALLOWED' },
+  ]) {
+    const page = await createPage({ licenseSnapshot });
+    assert.equal(page.get('licenseStatus').className, 'license-status error');
+    assert.ok(page.get('licenseStatus').textContent);
+  }
+});
 
 test('failed preparation offers return to login and explains network failures', async () => {
   const page = await createPage();
@@ -147,4 +203,5 @@ test('late catalog results cannot replace login after returning or losing author
   assert.equal(page.get('giftCatalogInitializationCard').hidden, true);
   assert.equal(page.get('licenseRetryBtn').textContent, '重试连接');
   assert.match(page.get('licenseStatus').textContent, /授权.*撤销/);
+  assert.equal(page.get('licenseStatus').className, 'license-status error');
 });

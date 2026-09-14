@@ -116,22 +116,7 @@ export function createProviderOperations(deps) {
       });
       if (playbackState.selectedSource !== platform) return healthState;
       playbackProviderHealth = healthState;
-      if (!options.silent) {
-        const healthOk = playbackProviderHealth && playbackProviderHealth.ok;
-        if (typeof U.showStackedToast === 'function') {
-          U.showStackedToast({
-            key: `playback-health:${platform}`,
-            title: healthOk ? '接口检查通过' : '接口状态异常',
-            message: playbackProviderHealth.message || '音乐接口检查完成',
-            className: healthOk
-              ? 'playback-health-toast-good'
-              : 'playback-health-toast-warn',
-            duration: 3800,
-          });
-        } else {
-          toast(playbackProviderHealth.message || '音乐接口检查完成');
-        }
-      }
+      if (!options.silent) showHealthResult(platform, playbackProviderHealth);
     } catch (error) {
       if (playbackState.selectedSource !== platform)
         return providerManager.getProviderHealth(platform);
@@ -141,16 +126,31 @@ export function createProviderOperations(deps) {
         status: 'error',
         message: error.message || String(error),
       };
-      if (!options.silent) showError(error);
+      if (!options.silent) showHealthResult(platform, playbackProviderHealth);
     }
     renderPlayback();
     return playbackProviderHealth;
   }
 
+  function showHealthResult(platform, state) {
+    if (typeof U.showStackedToast !== 'function') {
+      toast(state.message || '音乐接口检查完成', { type: state.ok ? 'success' : 'warning' });
+      return;
+    }
+    U.showStackedToast({
+      key: `playback-health:${platform}`, update: true,
+      type: state.ok ? 'success' : 'warning',
+      title: state.ok ? '接口检查通过' : '接口状态异常',
+      message: state.message || '音乐接口检查完成',
+      className: state.ok ? 'playback-health-toast-good' : 'playback-health-toast-warn',
+      duration: state.ok ? 3800 : 6000,
+    });
+  }
+
   /**
    * 登录选中的音乐源
    */
-  async function loginSelectedMusicProvider() {
+  async function loginSelectedMusicProvider(platform = playbackState.selectedSource) {
     if (!window.musicAPI || typeof window.musicAPI.login !== 'function') {
       toast('扫码登录需要在桌面版里使用');
       return;
@@ -159,16 +159,34 @@ export function createProviderOperations(deps) {
     const button = document.getElementById('playbackLoginBtn');
     if (button) button.disabled = true;
     try {
-      const platform = playbackState.selectedSource;
       await window.musicAPI.login(platform);
       cacheManager?.clearByPrefix(`${platform}:`);
-      await refreshSelectedMusicProviderState();
+      let authState = null;
+      try {
+        authState = platform === 'wesing'
+          ? weSingService.getAuthState()
+          : await providerManager.refreshAuthState({ platform, notify: false });
+      } catch (_) {
+        // A closed login window does not prove authentication succeeded.
+        authState = null;
+      }
+      if (playbackState.selectedSource === platform) {
+        playbackAuthState = authState;
+        renderPlayback();
+        await checkSelectedMusicProviderHealth({ silent: true });
+      }
+      const sourceName = PlaybackUtils.getSourceName(platform);
+      const loggedIn = authState?.loggedIn === true;
       U.showStackedToast({
-        key: 'music-cookie-refreshed',
-        title: 'Cookie 已刷新',
-        message: `${PlaybackUtils.getSourceName(platform)}登录窗口已关闭`,
-        className: 'music-cookie-refreshed-toast',
-        duration: 3600,
+        key: `music-login-result:${platform}`,
+        update: true,
+        type: loggedIn ? 'success' : 'warning',
+        title: loggedIn ? `${sourceName}已登录` : authState
+          ? `尚未完成${sourceName}登录` : `暂时无法确认${sourceName}登录状态`,
+        message: loggedIn ? '现在可以使用该平台账号' : authState
+          ? '登录窗口已关闭，可重新打开完成登录' : '请稍后刷新该平台的登录状态',
+        className: loggedIn ? 'music-cookie-refreshed-toast' : 'playback-health-toast-warn',
+        duration: loggedIn ? 3600 : 6000,
       });
     } catch (error) {
       showError(error);
@@ -181,21 +199,21 @@ export function createProviderOperations(deps) {
    * 显示登录提示
    */
   function showPlaybackLoginPrompt() {
-    const sourceName = PlaybackUtils.getSourceName(
-      playbackState.selectedSource,
-    );
+    const platform = playbackState.selectedSource;
+    const sourceName = PlaybackUtils.getSourceName(platform);
     if (typeof U.showStackedToast !== 'function') {
       toast(`请先登录${sourceName}`);
       return;
     }
 
     U.showStackedToast({
-      key: `playback-login-required:${playbackState.selectedSource}`,
+      key: `playback-login-required:${platform}`,
       title: `请先登录${sourceName}`,
       message: '登录后即可播放在线音乐',
       className: 'playback-login-toast',
       duration: 5200,
-      onClick: loginSelectedMusicProvider,
+      actionLabel: `登录${sourceName}`,
+      onClick: () => loginSelectedMusicProvider(platform),
     });
   }
 

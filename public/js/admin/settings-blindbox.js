@@ -1,5 +1,7 @@
 'use strict';
 
+import { showFieldError } from '../shared/field-feedback.js';
+
 function parseBlindboxConfig(textarea) {
   const raw = (textarea.value || '').trim();
   if (!raw) return [];
@@ -48,6 +50,7 @@ export function createBlindboxSettings({
   getImports,
   localOverlayOrigin,
 }) {
+  const invalid = (id, message) => showFieldError(documentRef.getElementById(id), message, documentRef);
   const checked = (id) => Boolean(documentRef.getElementById(id)?.checked);
 
   function buildOverlayUrl() {
@@ -88,14 +91,14 @@ export function createBlindboxSettings({
         const name = (value('blindBoxName') || '').trim();
         const price = parseFloat(value('blindBoxPrice'));
         const outputsRaw = (value('blindBoxOutputs') || '').trim();
-        if (!name) return toast('请输入盲盒名');
-        if (isNaN(price) || price <= 0) return toast('请输入有效成本');
+        if (!name) return invalid('blindBoxName', '请输入盲盒名');
+        if (isNaN(price) || price <= 0) return invalid('blindBoxPrice', '请输入有效成本');
         if (giftId && !/^[1-9]\d{0,19}$/u.test(giftId))
-          return toast('请输入有效盲盒 ID');
-        if (!outputsRaw) return toast('请输入可能开出的礼物');
+          return invalid('blindBoxGiftId', '请输入有效盲盒 ID');
+        if (!outputsRaw) return invalid('blindBoxOutputs', '请输入可能开出的礼物');
 
         const outputs = parseBlindboxOutputs(outputsRaw);
-        if (!outputs?.length) return toast('请按“产物 ID:名称:价格”填写礼物');
+        if (!outputs?.length) return invalid('blindBoxOutputs', '请按“产物 ID:名称:价格”填写礼物');
 
         const textarea = documentRef.getElementById(
           'giftBlindBoxCustomConfigV2',
@@ -127,14 +130,13 @@ export function createBlindboxSettings({
         );
         const config = parseBlindboxConfig(textarea);
         if (index < 0 || index >= config.length) return;
-        const removed = config[index];
         config.splice(index, 1);
         const newRaw = JSON.stringify(config, null, 2);
         textarea.value = newRaw;
         textarea.dataset.dirty = 'true';
         await saveSettings({ giftBlindBoxCustomConfigV2: newRaw });
         textarea.dataset.dirty = 'false';
-        toast(`已保存移除「${removed.name || '未命名'}」，等待服务器确认`);
+        toast('盲盒移除已保存，等待服务器确认');
         renderBlindboxList();
       });
 
@@ -172,7 +174,7 @@ export function createBlindboxSettings({
           if (!Array.isArray(parsed)) throw new Error('配置必须是 JSON 数组');
           raw = JSON.stringify(parsed);
         } catch (error) {
-          toast('盲盒配置 JSON 格式错误：' + error.message);
+          invalid('giftBlindBoxCustomConfigV2', '盲盒配置 JSON 格式错误：' + error.message);
           return;
         }
         textarea.dataset.dirty = 'true';

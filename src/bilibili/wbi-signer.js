@@ -79,12 +79,10 @@ async function getBilibiliWbiMixinKey(headers) {
     );
   }
 
-  const imgKey = extractBilibiliWbiKey(imageInfo.img_url);
-  const subKey = extractBilibiliWbiKey(imageInfo.sub_url);
-  const rawKey = `${imgKey}${subKey}`;
-  const mixinKey = WBI_MIXIN_KEY_ENC_TAB.map((index) => rawKey[index])
-    .join('')
-    .slice(0, 32);
+  const mixinKey = createBilibiliWbiMixinKey(
+    imageInfo.img_url,
+    imageInfo.sub_url,
+  );
   wbiKeyCache = {
     mixinKey,
     expiresAt: nowMs + 10 * 60 * 1000,
@@ -98,11 +96,32 @@ function extractBilibiliWbiKey(url) {
   return filename.split('.')[0] || '';
 }
 
-async function signBilibiliWbiParams(params, headers) {
-  const mixinKey = await getBilibiliWbiMixinKey(headers);
+function createBilibiliWbiMixinKey(imgUrl, subUrl) {
+  const imgKey = extractBilibiliWbiKey(imgUrl);
+  const subKey = extractBilibiliWbiKey(subUrl);
+  const rawKey = `${imgKey}${subKey}`;
+  if (imgKey.length !== 32 || subKey.length !== 32 || rawKey.length !== 64) {
+    throw new Error('直播平台 WBI key 格式无效。');
+  }
+  return WBI_MIXIN_KEY_ENC_TAB.map((index) => rawKey[index])
+    .join('')
+    .slice(0, 32);
+}
+
+function buildBilibiliWbiQuery(params, mixinKey, nowMs) {
+  if (!params || typeof params !== 'object' || Array.isArray(params)) {
+    throw new TypeError('WBI params must be an object.');
+  }
+  if (typeof mixinKey !== 'string' || mixinKey.length !== 32) {
+    throw new TypeError('WBI mixin key must be a 32-character string.');
+  }
+  if (!Number.isFinite(nowMs) || nowMs < 0) {
+    throw new TypeError('WBI timestamp must be a non-negative millisecond value.');
+  }
+
   const signedParams = {
     ...params,
-    wts: Math.floor(Date.now() / 1000),
+    wts: Math.floor(nowMs / 1000),
   };
   const query = Object.keys(signedParams)
     .sort()
@@ -118,8 +137,15 @@ async function signBilibiliWbiParams(params, headers) {
   return `${query}&w_rid=${wRid}`;
 }
 
+async function signBilibiliWbiParams(params, headers) {
+  const mixinKey = await getBilibiliWbiMixinKey(headers);
+  return buildBilibiliWbiQuery(params, mixinKey, Date.now());
+}
+
 module.exports = {
   WBI_MIXIN_KEY_ENC_TAB,
+  buildBilibiliWbiQuery,
+  createBilibiliWbiMixinKey,
   getBilibiliWbiMixinKey,
   extractBilibiliWbiKey,
   signBilibiliWbiParams,

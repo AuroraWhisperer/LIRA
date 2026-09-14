@@ -100,9 +100,9 @@ AI 弹幕姬是一个由模型服务驱动的通用互动助手；当前默认�
 
 辅助接口:`listModels` 根据配置地址推导同级 `/models`；第三方服务根地址默认使用 `/v1/models`，DeepSeek 官方根地址保持 `/models`，结果去重排序([146-163](../../../src/ai/deepseek-client.js#L146-L163));`testConnection`(发"你好"取 200 字回复,401/403/AUTH 类错误码 → `DEEPSEEK_AUTH_FAILED`,[165-203](../../../src/ai/deepseek-client.js#L165-L203))。
 
-### 4.3 请求日志脱敏
+### 4.3 模型调用诊断
 
-`sendModelRequest` 对每个请求写 `request/response/normalized_response/error` 四类事件([deepseek-client.js:74-123](../../../src/ai/deepseek-client.js#L74-L123));`sanitizeRequestBodyForLog` 删除 `instructions` 字段、Chat Completions 的 system 消息替换为 `[system prompt omitted]`([335-345](../../../src/ai/deepseek-client.js#L335-L345)),落盘前再由 request-logger 做密钥替换(§8)。
+`sendModelRequest` 在成功时只提交一条 `request_succeeded` 元数据，包含 provider/model/purpose/protocol、HTTP 状态、耗时、token 数、finish reason 和工具调用数；不提交 URL、请求体、原始响应或标准化正文。失败在同一拥有上下文的 catch 边界提交一条 `request_failed`，保留相同关联元数据和安全错误核心；`AI_SHUTDOWN` 取消不记普通故障。持久化前由 request-logger 汇总成功事件并再次做密钥替换与最终字节准入(§8)。
 
 ## 5. 工具集
 
@@ -183,11 +183,11 @@ AI 弹幕姬是一个由模型服务驱动的通用互动助手；当前默认�
 
 计数与判定原子化:`INSERT … ON CONFLICT(category, month_key) DO UPDATE … WHERE request_count < limit RETURNING request_count`,返回空行即触顶拒绝([api-quota-store.js:23-43](../../../src/ai/api-quota-store.js#L23-L43))。月份键 `getBeijingMonthKey` = UTC+8 后截取 `YYYY-MM`([82-84](../../../src/ai/api-quota-store.js#L82-L84));工具在每次上游调用前经 `requireApiQuota` 消费配额([68-76](../../../src/ai/api-quota-store.js#L68-L76))。DeepSeek 本身不计入配额(由账户余额管理)。
 
-### 8.2 请求审计日志(request-logger)
+### 8.2 请求诊断摘要(request-logger)
 
-- **文件**:`logs/ai.log`,位于数据目录**父目录**下的 `logs/`(启动时写入会话头 `===== AI 日志会话 <ts> =====`)([server.js:69](../../../src/server.js#L69)、[request-logger.js:9-18](../../../src/ai/request-logger.js#L9-L18));默认路径 `process.cwd()/logs/ai.log`。
-- **脱敏**:敏感键名(含 `authorization/api_key/secret` 等)整值替换 `[redacted]`,已知密钥字符串全文替换;单值截断 4000 字符([request-logger.js:6-7](../../../src/ai/request-logger.js#L6-L7)、[46-71](../../../src/ai/request-logger.js#L46-L71))。
-- **事件类别**:`request / response / normalized_response / error`(DeepSeek 协议层,§4.3)+ 生成/投递结果;落盘为"摘要行 + 缩进 JSON"追加写。
+- **文件**:`buildAiRuntime` 将数据目录父级的 `logs/` 作为根，正常摘要写 `logs/runtime/ai.jsonl`，错误核心写 `logs/errors/ai.jsonl`；旧 `logs/ai.log` 保留只读。A1 不在初始化时生成空文件，只在真实摘要或错误出现时追加单行 JSONL；按日期分片、轮转和保留清理仍由后续阶段补齐。直接构造 logger 并只传 `filePath` 时保留单文件兼容模式，初始化同样不清空既有内容。
+- **正常摘要**:`request_succeeded` 按 provider/model/purpose/protocol 在 15 分钟活动窗口汇总，最多 128 个分组，超出归入 `other`；记录成功/失败数、token、工具调用数、最大耗时和固定耗时桶。退出 `flush()` 保存尚未到期的非空窗口，不输出空摘要。
+- **错误与准入**:`request_failed` 立即保存安全错误核心。已知密钥全文替换；普通 JSONL 最终 UTF-8 最多 2 KiB，错误最多 16 KiB；待写队列最多 2,000 条/4 MiB并给错误预留空间，兼容文件达到 10 MiB 后停止新增并在 `getHealth()` 计数。跨日预算恢复、轮转保留和问题去重属于后续阶段。
 
 **数据库审计**:`ai_request_logs` 表由 `store.logRequest` 写入 `uid/user_name/category/status/latency_ms/input_tokens/output_tokens/tool_calls/error_code`(各字段截断上限见 [config-store.js:80-93](../../../src/ai/config-store.js#L80-L93));`category` 取 `cache/safety/tool/chat/failure`(生成)与 `delivery/generation`(失败),`status` 取 `generated/failed`。该表与 `ai_api_usage` 均可被保留期/清库策略覆盖(见 [storage.md](storage.md) §5–§6)。
 

@@ -7,13 +7,14 @@ import {
   logoutConfirm,
   showConfirmationDialog,
 } from './confirmation-dialog.js';
+import { toast, showStackedToast } from './toast.js';
 
 export { dangerConfirm, logoutConfirm, showConfirmationDialog };
 
 const multilingualFontFallback =
   '"Microsoft YaHei", "Microsoft JhengHei", "PingFang SC", "Hiragino Sans GB", "Yu Gothic", "Meiryo", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans CJK SC", "Noto Sans JP", "Noto Sans KR", "Segoe UI", Arial, sans-serif';
 
-let activeToastKeys = new Set();
+export { toast, showStackedToast };
 
 export function escapeHtml(value) {
   return String(value || '')
@@ -131,75 +132,7 @@ export function withMultilingualFallback(fontFamily) {
   return `${selected}, ${multilingualFontFallback}`;
 }
 
-export function toast(message) {
-  showStackedToast({ key: `toast:${message}`, message, duration: 2600 });
-}
-
-export function showStackedToast(options) {
-  const container = document.getElementById('toast');
-  if (!container) return;
-  const key =
-    options.key || `toast:${options.title || ''}:${options.message || ''}`;
-  if (activeToastKeys.has(key)) return;
-  activeToastKeys.add(key);
-
-  const node = document.createElement('div');
-  node.className = `toast${options.className ? ` ${options.className}` : ''}`;
-  if (options.html) {
-    node.innerHTML = options.html;
-  } else if (options.title) {
-    node.innerHTML = `<strong>${escapeHtml(options.title)}</strong><span>${escapeHtml(options.message || '')}</span>`;
-  } else {
-    node.textContent = options.message || '';
-  }
-  if (typeof options.onClick === 'function') {
-    node.setAttribute('role', 'button');
-    node.setAttribute('tabindex', '0');
-    node.addEventListener('click', options.onClick);
-    node.addEventListener('keydown', (event) => {
-      if (event.key !== 'Enter' && event.key !== ' ') return;
-      event.preventDefault();
-      options.onClick();
-    });
-  }
-  container.prepend(node);
-
-  // 限制礼物通知最多同时显示6个
-  const isGiftNotification =
-    options.className && options.className.includes('gift-notify-toast');
-  if (isGiftNotification) {
-    const giftToasts = container.querySelectorAll('.gift-notify-toast');
-    if (giftToasts.length > 6) {
-      // 移除最旧的礼物通知（最后一个）
-      for (let i = 6; i < giftToasts.length; i++) {
-        const oldToast = giftToasts[i];
-        oldToast.classList.remove('show');
-        setTimeout(() => {
-          const oldKey = Array.from(activeToastKeys).find((k) =>
-            k.startsWith('gift:'),
-          );
-          if (oldKey) activeToastKeys.delete(oldKey);
-          oldToast.remove();
-        }, 180);
-      }
-    }
-  }
-
-  void node.offsetWidth;
-  node.classList.add('show');
-  const duration = Number.isFinite(Number(options.duration))
-    ? Number(options.duration)
-    : 2600;
-  setTimeout(() => {
-    node.classList.remove('show');
-    setTimeout(() => {
-      activeToastKeys.delete(key);
-      node.remove();
-    }, 180);
-  }, duration);
-}
-
-export async function api(url, body) {
+export async function api(url, body, { notifyError = true } = {}) {
   try {
     const headers = { 'Content-Type': 'application/json' };
     const token = window.__API_TOKEN__;
@@ -218,7 +151,7 @@ export async function api(url, body) {
     }
     return payload;
   } catch (error) {
-    showError(error);
+    if (notifyError) showError(error);
     throw error;
   }
 }
@@ -241,7 +174,7 @@ export async function readJsonResponse(response, fallbackMessage) {
 }
 
 export function showError(error) {
-  toast(error.message || String(error));
+  toast(error.message || String(error), { type: 'error' });
 }
 
 export function debounce(fn, wait) {

@@ -85,9 +85,17 @@ test('license page is independent from existing onboarding and exposes only thre
   assert.match(html, /id="licenseAccountName"/);
   assert.match(html, /id="licensePassword"/);
   assert.match(html, /id="licenseActivationCode"/);
-  assert.match(html, /登录并进入/);
+  assert.match(html, /注册并进入/);
   assert.match(html, /登录已有账号/);
   assert.match(html, /注册新账号/);
+  assert.ok(
+    html.indexOf('id="licenseRegisterMode"') <
+      html.indexOf('id="licenseLoginMode"'),
+  );
+  assert.match(html, /id="licenseRegisterMode"[^>]*aria-pressed="true"/);
+  assert.match(html, /id="licenseLoginMode"[^>]*aria-pressed="false"/);
+  assert.match(html, /id="licenseHeading">注册 LIRA/);
+  assert.match(html, /id="licensePassword"[^>]*autocomplete="new-password"/);
   assert.doesNotMatch(html, /跳过/);
 });
 

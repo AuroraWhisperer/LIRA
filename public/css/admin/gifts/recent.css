@@ -58,23 +58,8 @@
   display: flex;
   align-items: center;
   gap: 11px;
-  min-height: 70px;
-  padding: 13px 18px;
-  border-bottom: 1px solid #e8eeee;
-  background: linear-gradient(
-    90deg,
-    rgba(var(--gift-recent-accent-rgb), 0.045),
-    rgba(255, 255, 255, 0) 38%
-  );
   user-select: none;
-  transition:
-    background-color 150ms ease,
-    border-bottom-color 200ms ease;
   pointer-events: none;
-}
-
-.gift-recent-heading:hover {
-  background-color: rgba(var(--gift-recent-accent-rgb), 0.035);
 }
 
 .gift-recent-heading-icon {
@@ -225,10 +210,6 @@
   max-height: 0 !important;
   opacity: 0;
   transform: translateY(-4px);
-}
-
-.gift-recent-panel.is-collapsed .gift-recent-heading {
-  border-bottom-color: transparent;
 }
 
 .gift-recent-panel.is-collapsed .section-toggle svg {
@@ -434,11 +415,6 @@
 }
 
 @media (max-width: 520px) {
-  .gift-recent-heading {
-    padding-right: 14px;
-    padding-left: 14px;
-  }
-
   .gift-recent-collapsible .gift-cards {
     padding-right: 14px;
     padding-left: 14px;

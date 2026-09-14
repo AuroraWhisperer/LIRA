@@ -7,7 +7,7 @@ const path = require('node:path');
 const test = require('node:test');
 const { installTerminalLog } = require('../src/electron/terminal-log');
 
-test('resets the terminal log and mirrors ordinary console output', () => {
+test('preserves prior content and mirrors only warning and error output', () => {
   const directory = fs.mkdtempSync(
     path.join(os.tmpdir(), 'song-plugin-terminal-log-'),
   );
@@ -42,11 +42,9 @@ test('resets the terminal log and mirrors ordinary console output', () => {
 
     assert.equal(
       fs.readFileSync(filePath, 'utf8'),
-      '[2026-08-03T15:07:34.288Z] [run=run-test seq=1 pid=1234 type=browser] [terminal:log] hello world\n' +
-        '[2026-08-03T15:07:34.288Z] [run=run-test seq=2 pid=1234 type=browser] [terminal:info] { ready: true }\n' +
-        '[2026-08-03T15:07:34.288Z] [run=run-test seq=3 pid=1234 type=browser] [terminal:debug] debug line\n' +
-        '[2026-08-03T15:07:34.288Z] [run=run-test seq=4 pid=1234 type=browser] [terminal:warn] warning line\n' +
-        '[2026-08-03T15:07:34.288Z] [run=run-test seq=5 pid=1234 type=browser] [terminal:error] error line\n',
+      'old session\n' +
+        '[2026-08-03T15:07:34.288Z] [run=run-test seq=1 pid=1234 type=browser] [terminal:warn] warning line\n' +
+        '[2026-08-03T15:07:34.288Z] [run=run-test seq=2 pid=1234 type=browser] [terminal:error] error line\n',
     );
   } finally {
     restore?.();
@@ -82,12 +80,12 @@ test('redacts credentials from terminal output', () => {
       })(),
     });
 
-    console.log('Authorization: Bearer secret-token-12345');
-    console.log('Cookie: session=abc123; user=john');
-    console.log(
+    console.warn('Authorization: Bearer secret-token-12345');
+    console.warn('Cookie: session=abc123; user=john');
+    console.error(
       'API URL: https://api.example.com/data?key=secret123&other=value',
     );
-    console.log('Connecting to https://user:password@example.com/resource');
+    console.error('Connecting to https://user:password@example.com/resource');
 
     const content = fs.readFileSync(filePath, 'utf8');
 
@@ -115,6 +113,34 @@ test('redacts credentials from terminal output', () => {
   } finally {
     restore?.();
     console.log = originalLog;
+    fs.rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('bounds multibyte terminal errors after final UTF-8 encoding', () => {
+  const directory = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'song-plugin-terminal-log-'),
+  );
+  const filePath = path.join(directory, 'terminal.log');
+  const originalError = console.error;
+  let restore;
+
+  try {
+    console.error = () => {};
+    restore = installTerminalLog(filePath, {
+      runId: 'run-test',
+      pid: 1234,
+      processType: 'browser',
+      now: () => '2026-08-03T15:07:34.288Z',
+    });
+    console.error('错'.repeat(10000));
+
+    const content = fs.readFileSync(filePath, 'utf8');
+    assert.ok(Buffer.byteLength(content, 'utf8') <= 16 * 1024);
+    assert.match(content, /\[truncated\]/);
+  } finally {
+    restore?.();
+    console.error = originalError;
     fs.rmSync(directory, { recursive: true, force: true });
   }
 });

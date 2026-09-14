@@ -171,8 +171,7 @@ test('Bilibili auth copy keeps local login separate from cloud capture', async (
   await new Promise((resolve) => setImmediate(resolve));
 
   await elements.get('bilibiliLoginBtn').listeners.get('click')();
-  assert.match(toasts[0], /当前 LIRA 账号/);
-  assert.match(toasts[0], /云端凭据保存成功且直播间已配置并启用后/);
+  assert.equal(toasts[0], '直播账号已在本机登录');
   assert.doesNotMatch(toasts[0], /同步成功|同步完成|弹幕姬状态已刷新/);
   assert.deepEqual(authEvents, ['app:bilibili-auth-changed']);
 
@@ -180,7 +179,7 @@ test('Bilibili auth copy keeps local login separate from cloud capture', async (
   assert.match(logoutPrompt.message, /当前 LIRA 账号/);
   assert.match(logoutPrompt.message, /同步成功后停止/);
   assert.match(logoutPrompt.message, /不会回退为匿名采集/);
-  assert.match(toasts[1], /同步成功后生效/);
+  assert.equal(toasts[1], '直播账号已在本机退出');
   assert.doesNotMatch(toasts[1], /同步完成|匿名模式/);
   assert.deepEqual(authEvents, [
     'app:bilibili-auth-changed',
@@ -194,6 +193,11 @@ test('Bilibili settings explain tenant-scoped credentials and no anonymous captu
     'utf8',
   );
 
+  const hint = html.match(/<p[^>]+id="bilibiliAuthHint"[^>]*>(.*?)<\/p>/s)?.[1];
+  assert.match(hint, /凭据只属于当前 LIRA 账号/);
+  assert.match(hint, /云端凭据保存成功且直播间已配置并启用后/);
+  assert.match(hint, /同步成功后生效/);
+  assert.match(hint, /不会回退为匿名采集/);
   assert.match(html, /每个 LIRA 账号使用独立的直播账号凭据/);
   assert.match(html, /仅上传到当前已授权的 LIRA\s+账号/);
   assert.match(html, /云端凭据保存成功且直播间已配置并启用后才接收弹幕和礼物/);

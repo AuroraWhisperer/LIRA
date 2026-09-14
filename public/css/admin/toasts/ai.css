@@ -42,7 +42,7 @@
   box-shadow: 0 18px 42px rgba(7, 44, 32, 0.32);
 }
 .xiaomi-ai-test-toast-good::before {
-  content: '✓';
+  content: '✓' / '';
   background: linear-gradient(145deg, #36d399, #148467);
 }
 .xiaomi-ai-test-toast-warn {
@@ -53,7 +53,7 @@
   box-shadow: 0 18px 42px rgba(56, 31, 7, 0.34);
 }
 .xiaomi-ai-test-toast-warn::before {
-  content: '!';
+  content: '!' / '';
   border-radius: 11px;
   background: linear-gradient(145deg, #f6b731, #c66a0a);
 }

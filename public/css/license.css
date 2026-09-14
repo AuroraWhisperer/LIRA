@@ -18,6 +18,8 @@
   --license-intro-bg: #e9eae3;
   --license-record-bg: #e0e2d8;
   --license-groove: rgba(85, 94, 76, 0.16);
+  --license-echo: rgba(85, 94, 76, 0.34);
+  --license-echo-glow: rgba(127, 145, 106, 0.15);
   --license-record-sheen: rgba(255, 255, 255, 0.55);
   --license-input-bg: #fff;
   --license-input-border: #d8dad2;
@@ -181,6 +183,7 @@ button {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+  overflow: hidden;
   gap: 22px;
   padding: 36px 40px 32px;
   border-right: 1px solid var(--license-border);
@@ -206,8 +209,24 @@ button {
   grid-area: 1 / 1;
   width: 218px;
   aspect-ratio: 1;
-  border: 1px solid var(--license-groove);
   border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    var(--license-echo-glow) 35%,
+    transparent 70%
+  );
+  transform: scale(1.65);
+  pointer-events: none;
+}
+.license-echo {
+  grid-area: 1 / 1;
+  width: 218px;
+  aspect-ratio: 1;
+  border: 1px solid var(--license-echo);
+  border-radius: 50%;
+  box-shadow:
+    0 0 10px var(--license-echo-glow),
+    inset 0 0 10px var(--license-echo-glow);
   opacity: 0;
   pointer-events: none;
 }
@@ -302,8 +321,17 @@ button {
   .license-art {
     animation-delay: 160ms;
   }
-  .license-art::before {
-    animation: license-echo-expand 8s ease-out infinite;
+  .license-echo {
+    animation: license-echo-expand 7.2s linear infinite;
+  }
+  .license-echo:nth-child(2) {
+    animation-delay: -1.8s;
+  }
+  .license-echo:nth-child(3) {
+    animation-delay: -3.6s;
+  }
+  .license-echo:nth-child(4) {
+    animation-delay: -5.4s;
   }
   .license-intro-caption {
     animation-delay: 240ms;
@@ -345,16 +373,19 @@ button {
 @keyframes license-echo-expand {
   0% {
     opacity: 0;
-    transform: scale(1);
+    transform: scale(0.98);
   }
-  18% {
-    opacity: 0.6;
-    transform: scale(1.04);
+  15% {
+    opacity: 0.9;
+    transform: scale(1.08);
   }
-  80%,
+  60% {
+    opacity: 0.5;
+    transform: scale(1.36);
+  }
   100% {
     opacity: 0;
-    transform: scale(1.28);
+    transform: scale(1.64);
   }
 }
 @keyframes license-signal-pulse {
@@ -643,6 +674,8 @@ button {
     --license-intro-bg: #30352c;
     --license-record-bg: #393f33;
     --license-groove: rgba(183, 195, 166, 0.16);
+    --license-echo: rgba(183, 195, 166, 0.38);
+    --license-echo-glow: rgba(151, 174, 125, 0.1);
     --license-record-sheen: rgba(255, 255, 255, 0.08);
     --license-input-bg: #252822;
     --license-input-border: #4c5146;

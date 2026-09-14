@@ -17,7 +17,14 @@
           <span id="giftEffectLookupState" class="pill">待播放</span>
         </div>
         <form id="giftEffectLookupForm" class="gift-effect-lookup-form">
-          <label for="giftEffectGiftId">礼物 ID</label>
+          <div class="gift-effect-field-heading">
+            <label for="giftEffectGiftId">礼物 ID</label>
+            <a
+              href="https://gifts.lirahub.cn/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >查看礼物展示 <span aria-hidden="true">↗</span></a>
+          </div>
           <div class="gift-effect-input-row">
             <input
               id="giftEffectGiftId"
@@ -63,6 +70,21 @@
             </div>
           </div>
         </div>
+      </section>
+      <section class="gift-effect-command-card" aria-labelledby="giftEffectCommandTitle">
+        <div class="gift-effect-card-heading">
+          <h3 id="giftEffectCommandTitle" class="ui-section-title">弹幕触发</h3>
+          <label class="switch-control">
+            <input id="giftEffectDanmakuEnabled" type="checkbox" />
+            <span class="switch-track" aria-hidden="true"></span>
+            <span>启用弹幕礼物特效</span>
+          </label>
+        </div>
+        <p class="gift-effect-command-help">
+          开启后，发送 <code>礼物特效 32132</code> 或 <code>🎁 32132</code> 即可触发。
+          代码填写礼物 ID，播放效果与上方「测试播放」一致；仅支持代码，特效依次播放。
+        </p>
+        <span id="giftEffectCommandState" class="gift-effect-command-state" role="status">未开启</span>
       </section>
     </div>
   </div>

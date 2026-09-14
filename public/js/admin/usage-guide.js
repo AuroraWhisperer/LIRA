@@ -11,6 +11,7 @@ export function initUsageGuide() {
   if (!panel) return;
   const scroller = panel.querySelector('.other-feature-panel-body');
   const toc = panel.querySelector('.usage-guide-toc');
+  const backToTopButton = panel.querySelector('.usage-guide-back-to-top');
   const links = Array.from(panel.querySelectorAll('[data-usage-guide-link]'));
   if (!scroller || !toc || !links.length) return;
 
@@ -54,9 +55,12 @@ export function initUsageGuide() {
 
   function updateActiveOnScroll() {
     if (panel.hidden) return;
+    const scrollerTop = scroller.getBoundingClientRect().top;
+    if (backToTopButton) {
+      backToTopButton.hidden = scroller.scrollTop <= 160 && scrollerTop >= -160;
+    }
     // 吸顶目录下方的判定线：越过该线的最近一个章节视为当前章节
-    const marker =
-      Math.max(0, scroller.getBoundingClientRect().top) + sectionOffset + 1;
+    const marker = Math.max(0, scrollerTop) + sectionOffset + 1;
     let current = sections[0];
     for (const section of sections) {
       if (section.getBoundingClientRect().top <= marker) current = section;
@@ -111,6 +115,17 @@ export function initUsageGuide() {
         );
       });
     });
+  });
+
+  backToTopButton?.addEventListener('click', () => {
+    window.clearTimeout(navigationCorrectionTimer);
+    navigationCorrectionTimer = null;
+    panel.classList.remove('usage-guide-render-all');
+    const behavior = reduceMotionQuery?.matches ? 'auto' : 'smooth';
+    scroller.scrollTo({ top: 0, behavior });
+    if (window.getComputedStyle(scroller).overflowY !== 'auto') {
+      panel.scrollIntoView({ behavior, block: 'start' });
+    }
   });
 
   scroller.addEventListener('scroll', onScroll, { passive: true });
