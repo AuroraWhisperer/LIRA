@@ -3,10 +3,12 @@
 'use strict';
 
 import { createOverlaySocket } from './socket-client.js';
+import { startOverlayPages } from './auto-pages.js';
 
 let state = null;
 let socketController = null;
 let refreshTimer = null;
+let stopPages = null;
 let initialBlindboxViewportWidth = 0;
 let initialBlindboxViewportHeight = 0;
 let blindboxViewportResized = false;
@@ -30,7 +32,7 @@ const REFRESH_SEC = Math.max(
   10,
   parseInt(param('refresh', 'r') || '0', 10) || 0,
 );
-const NO_SCROLL = param('noScroll', 'ns') === '1';
+const NO_SCROLL = param('noScroll', 'ns') !== '0';
 
 document.addEventListener('DOMContentLoaded', () => {
   const panel = document.querySelector('.blindbox-panel');
@@ -40,6 +42,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (COMPACT) panel.classList.add('compact');
   if (WINNERS_ONLY) panel.classList.add('winners-only');
   if (NO_SCROLL) panel.classList.add('no-scroll');
+  if (NO_SCROLL) stopPages = startOverlayPages(panel);
   if (SUMMARY_ONLY) panel.classList.add('summary-only');
 
   if (CUSTOM_TITLE) {
@@ -123,6 +126,10 @@ function connectSocket() {
 }
 
 function disposeSocket() {
+  clearInterval(refreshTimer);
+  stopPages?.();
+  stopPages = null;
+  window.removeEventListener('resize', handleBlindboxViewportResize);
   socketController?.dispose();
   socketController = null;
 }

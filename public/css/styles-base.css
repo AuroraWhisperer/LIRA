@@ -2,6 +2,11 @@
 :root {
   color-scheme: light;
 
+  /* Native scrollbar geometry; desktop theme supplies the colors. */
+  --scrollbar-size: 12px;
+  --scrollbar-inset: 3px;
+  --scrollbar-interactive-inset: 2px;
+
   /* ===== 主色调 ===== */
   --color-primary: #ff6f91;
   --color-primary-strong: #d94b70;

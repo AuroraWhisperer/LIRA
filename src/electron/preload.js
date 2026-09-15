@@ -82,6 +82,18 @@ contextBridge.exposeInMainWorld('dynamicLotteryAuth', {
 });
 
 contextBridge.exposeInMainWorld('liraLicense', {
+  getGiftInteractionState: () =>
+    ipcRenderer.invoke('license:get-gift-interaction-state'),
+  setGiftInteraction: (key, enabled) =>
+    ipcRenderer.invoke('license:set-gift-interaction', { key, enabled }),
+  onGiftInteractionStateChanged: (callback) => {
+    if (typeof callback !== 'function') return () => {};
+    const listener = (_event, state) => callback(state);
+    ipcRenderer.on('license:gift-interaction-state-changed', listener);
+    return () => ipcRenderer.removeListener(
+      'license:gift-interaction-state-changed', listener,
+    );
+  },
   getState: () => ipcRenderer.invoke('license:get-state'),
   activate: (payload) => ipcRenderer.invoke('license:activate', payload),
   retry: () => ipcRenderer.invoke('license:retry'),

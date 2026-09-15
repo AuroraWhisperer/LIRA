@@ -15,6 +15,21 @@
   white-space: nowrap;
 }
 
+/* In short workspaces, read the planner through its main scrolling region. */
+@media (max-height: 700px) {
+  .streamer-planner :is(.planner-note-list, .planner-task-list) {
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+@media (max-height: 800px) {
+  body.player-dock-expanded .streamer-planner :is(.planner-note-list, .planner-task-list) {
+    max-height: none;
+    overflow: visible;
+  }
+}
+
 @media (max-width: 1200px) {
   .streamer-planner {
     padding: 20px;

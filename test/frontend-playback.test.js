@@ -35,6 +35,27 @@ test('playback success paths do not emit per-render or per-lyric console output'
   assert.match(fullscreenSource, /play after seek failed/);
 });
 
+test('fullscreen manual browsing holds position until follow resumes', async () => {
+  const { FullscreenPlayer } = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'playback', 'ui', 'fullscreen.js'),
+  );
+  const player = new FullscreenPlayer();
+  player.lyricsContainer = {
+    scrollTop: 600, clientHeight: 300,
+    classList: { toggle() {} },
+    querySelector: () => ({ offsetTop: 300, clientHeight: 60 }),
+  };
+  player.followBtn = { hidden: true };
+  player.setManualBrowsing(true);
+  player.scrollToActiveLyric();
+  assert.equal(player.lyricsContainer.scrollTop, 600);
+  assert.equal(player.followBtn.hidden, false);
+  player.setManualBrowsing(false);
+  player.scrollToActiveLyric();
+  assert.equal(player.lyricsContainer.scrollTop, 230);
+  assert.equal(player.followBtn.hidden, true);
+});
+
 test('fullscreen resets lyric mode before rendering a different track', async () => {
   const { FullscreenPlayer } = await loadModuleExports(
     path.join(ROOT_DIR, 'public', 'js', 'playback', 'ui', 'fullscreen.js'),

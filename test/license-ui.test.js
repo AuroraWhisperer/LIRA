@@ -8,6 +8,17 @@ const vm = require('node:vm');
 
 const ROOT = path.join(__dirname, '..');
 
+test('license long forms scroll below a stationary titlebar at every height', () => {
+  const styles = fs.readFileSync(path.join(ROOT, 'public', 'css', 'license.css'), 'utf8');
+  const main = styles.match(/\.license-main\s*\{([^}]+)\}/)?.[1];
+  const stage = styles.match(/\.license-stage\s*\{([^}]+)\}/)?.[1];
+  assert.match(main, /height:\s*calc\(100dvh - 52px\)/);
+  assert.match(main, /overflow-y:\s*auto/);
+  assert.match(stage, /flex:\s*0 0 auto/);
+  assert.match(stage, /margin-block:\s*auto/);
+  assert.doesNotMatch(styles, /@media \(max-height: 640px\)[\s\S]*overflow:\s*auto/);
+});
+
 test('license titlebar keeps branding static and uses local window icons', () => {
   const html = fs.readFileSync(
     path.join(ROOT, 'public', 'pages', 'license.html'),

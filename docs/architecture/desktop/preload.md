@@ -1,5 +1,22 @@
 # preload 桥与 IPC 全量注册表
 
+## 礼物互动确认状态
+
+`liraLicense` 增加以下窄桥，由 [gift-interaction-ipc.js](../../../src/electron/ipc/gift-interaction-ipc.js)
+注册，只接受当前主窗口的主 frame 与精确 desktop origin。
+
+| 通道 | 桥方法与参数 | 返回/事件 |
+| --- | --- | --- |
+| `license:get-gift-interaction-state` | `getGiftInteractionState()`，无参数，刷新现有云状态 | 确认状态快照 |
+| `license:set-gift-interaction` | `setGiftInteraction(key, enabled)`，IPC 为 `{key, enabled}`；key 仅 `giftAutoThanksEnabled` / `giftStatsQueryEnabled`，enabled 必须 boolean，拒绝额外字段 | 写入结果和确认状态快照 |
+| `license:gift-interaction-state-changed` | `onGiftInteractionStateChanged(callback)` 返回取消订阅函数 | 确认状态快照 |
+
+快照固定为 `{ok, values: {giftAutoThanksEnabled, giftStatsQueryEnabled}, status, error}`。
+两个 values 均为 boolean，status 为 `confirmed`、`pending` 或 `unconfirmed`；error 只允许受限大写错误码/null。
+无 Cookie、CSRF、Device token、云端账号键或上游原始响应。主进程在已有同步队列中把单个意图并入完整
+Device settings，省略另一开关以保留服务器值；只有返回实际目标值且状态确认才显示成功。
+设置归属、失败提示与验收见 [gift-interaction-controls](../../../specs/gift-interaction-controls.md)。
+
 > 涉及文件:[src/electron/preload.js](../../../src/electron/preload.js)、[src/electron/ipc/](../../../src/electron/ipc/)(handler 注册)、[src/electron/remote-gift-controller.js](../../../src/electron/remote-gift-controller.js)
 
 本文档是 IPC 的**唯一事实源**:所有通道、方向、载荷、handler 摘要只在此成表,其他文档一律链接此处。窗口生命周期见 [main.md](main.md) / [windows.md](windows.md),更新语义见 [update.md](update.md),登录语义见 [auth.md](auth.md)。

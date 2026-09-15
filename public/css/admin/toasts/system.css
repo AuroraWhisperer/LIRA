@@ -62,6 +62,7 @@
   transition: opacity 180ms ease, transform 180ms ease;
 }
 .toast-stack .toast[hidden],
+.toast-close[hidden],
 .toast-action[hidden] { display: none; }
 .toast-content {
   grid-column: 1 / -1;

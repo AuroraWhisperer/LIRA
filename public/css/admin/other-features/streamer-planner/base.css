@@ -1,5 +1,6 @@
 /* Calendar categories share the desktop's semantic palette. */
 .streamer-planner {
+  position: relative;
   --planner-live: var(--color-primary-strong);
   --planner-work: var(--color-success-dark);
   --planner-personal: var(--color-info);
@@ -11,18 +12,6 @@
   background: var(--surface);
   color: var(--text);
   letter-spacing: 0;
-}
-
-.streamer-planner,
-.planner-note-list,
-.planner-task-list {
-  scrollbar-width: none;
-}
-
-.streamer-planner::-webkit-scrollbar,
-.planner-note-list::-webkit-scrollbar,
-.planner-task-list::-webkit-scrollbar {
-  display: none;
 }
 
 .planner-header,

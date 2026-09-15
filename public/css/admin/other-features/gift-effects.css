@@ -173,6 +173,8 @@
 }
 
 .gift-frame-settings-card {
+  container: gift-frame-settings / inline-size;
+  min-width: 0;
   padding: 22px;
   border: 1px solid var(--border);
   border-radius: 16px;
@@ -272,7 +274,7 @@
   gap: 8px;
 }
 
-@media (max-width: 900px) {
+@container gift-frame-settings (max-width: 680px) {
   .gift-frame-settings-grid {
     grid-template-columns: repeat(2, minmax(140px, 1fr));
   }
@@ -285,6 +287,9 @@
   .gift-frame-settings-card {
     padding: 16px;
   }
+}
+
+@container gift-frame-settings (max-width: 480px) {
   .gift-frame-settings-heading,
   .gift-frame-settings-actions,
   .gift-frame-url-row {

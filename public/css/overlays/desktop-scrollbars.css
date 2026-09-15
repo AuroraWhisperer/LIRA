@@ -1,0 +1,91 @@
+/* Keep standard/inherited values from disabling the desktop WebKit skin. */
+body.desktop-shell,
+body.desktop-shell * {
+  scrollbar-width: auto;
+  scrollbar-color: auto;
+}
+
+@media (forced-colors: none) {
+  body.desktop-shell::-webkit-scrollbar,
+  body.desktop-shell ::-webkit-scrollbar {
+    width: var(--scrollbar-size);
+    height: var(--scrollbar-size);
+  }
+
+  body.desktop-shell::-webkit-scrollbar-track,
+  body.desktop-shell ::-webkit-scrollbar-track,
+  body.desktop-shell::-webkit-scrollbar-corner,
+  body.desktop-shell ::-webkit-scrollbar-corner {
+    background: transparent;
+    border: 0;
+  }
+
+  body.desktop-shell::-webkit-scrollbar-button,
+  body.desktop-shell ::-webkit-scrollbar-button {
+    display: none;
+    width: 0;
+    height: 0;
+  }
+
+  body.desktop-shell::-webkit-scrollbar-thumb,
+  body.desktop-shell ::-webkit-scrollbar-thumb {
+    min-width: 36px;
+    min-height: 36px;
+    border: var(--scrollbar-inset) solid transparent;
+    border-radius: 999px;
+    background: var(--scrollbar-thumb);
+    background-clip: padding-box;
+  }
+
+  /* Only the thumb or the directly keyboard-focused scroller is enhanced. */
+  body.desktop-shell::-webkit-scrollbar-thumb:hover,
+  body.desktop-shell ::-webkit-scrollbar-thumb:hover,
+  body.desktop-shell:focus-visible::-webkit-scrollbar-thumb,
+  body.desktop-shell :focus-visible::-webkit-scrollbar-thumb {
+    border-width: var(--scrollbar-interactive-inset);
+    background-color: var(--scrollbar-thumb-hover);
+    background-clip: padding-box;
+  }
+
+  body.desktop-shell::-webkit-scrollbar-thumb:active,
+  body.desktop-shell ::-webkit-scrollbar-thumb:active {
+    border-width: var(--scrollbar-interactive-inset);
+    background-color: var(--scrollbar-thumb-active);
+    background-clip: padding-box;
+  }
+}
+
+/* Reserve lyric geometry while hiding the thumb during automatic follow. */
+body.desktop-shell :is(.player-fs-lyrics, .desktop-lyric-preview-viewport):not(.is-manual-browsing)::-webkit-scrollbar-thumb {
+  background-color: transparent;
+}
+
+body.desktop-shell .lira-help-tooltip {
+  scrollbar-width: none;
+}
+
+body.desktop-shell .lira-help-tooltip::-webkit-scrollbar {
+  display: none;
+}
+
+@media (forced-colors: active) {
+  body.desktop-shell,
+  body.desktop-shell * {
+    scrollbar-color: auto !important;
+    scrollbar-width: auto !important;
+  }
+
+  /* Also release older feature skins and their hover/hidden states. */
+  body.desktop-shell::-webkit-scrollbar,
+  body.desktop-shell ::-webkit-scrollbar,
+  body.desktop-shell::-webkit-scrollbar-track,
+  body.desktop-shell ::-webkit-scrollbar-track,
+  body.desktop-shell::-webkit-scrollbar-thumb,
+  body.desktop-shell ::-webkit-scrollbar-thumb,
+  body.desktop-shell::-webkit-scrollbar-button,
+  body.desktop-shell ::-webkit-scrollbar-button,
+  body.desktop-shell::-webkit-scrollbar-corner,
+  body.desktop-shell ::-webkit-scrollbar-corner {
+    all: revert !important;
+  }
+}

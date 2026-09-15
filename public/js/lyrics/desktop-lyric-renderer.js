@@ -142,6 +142,9 @@ function updateLyricState(state) {
 
 function updateLyricTimeline(timeline) {
   if (!timeline || typeof timeline !== 'object') return;
+  clearTimeout(followResumeTimer);
+  manualFollowUntil = 0;
+  viewport?.classList.remove('is-manual-browsing');
   latestTimeline = {
     ...EMPTY_TIMELINE,
     ...timeline,
@@ -430,13 +433,16 @@ function stopFollowAnimation() {
 }
 
 function pauseAutomaticFollow() {
+  if (!latestTimeline.lines.length) return;
   manualFollowUntil = Date.now() + MANUAL_FOLLOW_PAUSE_MS;
+  viewport?.classList.add('is-manual-browsing');
   stopFollowAnimation();
   followPosition = viewport?.scrollTop || 0;
   followVelocity = 0;
   clearTimeout(followResumeTimer);
   followResumeTimer = setTimeout(() => {
     manualFollowUntil = 0;
+    viewport?.classList.remove('is-manual-browsing');
     followPosition = viewport?.scrollTop || 0;
     followVelocity = 0;
     followActiveLyric();

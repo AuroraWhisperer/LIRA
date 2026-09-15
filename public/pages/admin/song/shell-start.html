@@ -1,5 +1,5 @@
 <div id="songAssistantPage" class="main-page active">
-  <section class="song-workspace">
+  <section class="song-workspace" tabindex="0" aria-label="点歌工作区">
     <div class="queues-row">
       <section class="panel queue-panel sc-queue-panel">
         <div class="panel-header">
@@ -25,7 +25,7 @@
           </div>
         </div>
         <div class="panel-body">
-          <div id="superChatList" class="queue-list sc-list"></div>
+          <div id="superChatList" class="queue-list sc-list" tabindex="0" role="region" aria-label="SC 队列"></div>
         </div>
       </section>
 
@@ -59,7 +59,7 @@
           </div>
         </div>
         <div class="panel-body">
-          <div id="queueList" class="queue-list"></div>
+          <div id="queueList" class="queue-list" tabindex="0" role="region" aria-label="点歌队列"></div>
         </div>
       </section>
     </div>

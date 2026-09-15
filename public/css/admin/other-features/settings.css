@@ -105,6 +105,12 @@
   color: var(--muted);
 }
 
+.license-website-copy {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+}
+
 .license-website-row p {
   color: var(--muted);
   font-size: var(--type-size-caption);

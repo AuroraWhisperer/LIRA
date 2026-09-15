@@ -20,6 +20,7 @@
   width: min(720px, 100%);
   max-height: min(760px, calc(100vh - 48px));
   overflow: auto;
+  overscroll-behavior: contain;
   background: var(--panel-bg, #202433);
   color: var(--text-color, #f4f6fb);
   border: 1px solid rgba(255, 255, 255, 0.16);

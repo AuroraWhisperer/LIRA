@@ -57,6 +57,8 @@ export class FullscreenPlayer {
     this.lastActiveLyricIndex = -1;
     this.lyricMode = 'none'; // 'none' | 'trans' | 'roma'
     this._lastLyricTrackId = null;
+    this.manualBrowsing = false;
+    this.followBtn = null;
   }
 
   /**
@@ -80,6 +82,29 @@ export class FullscreenPlayer {
     }
     this.lyricsContainer = document.getElementById('playerFsLyrics');
     this.lyricsWrap = document.getElementById('playerFsLyricsWrap');
+    this.followBtn = document.getElementById('playerFsFollowBtn');
+    this.followBtn?.addEventListener('click', () => {
+      this.lyricsContainer?.focus({ preventScroll: true });
+      this.setManualBrowsing(false);
+      this.scrollToActiveLyric();
+    });
+    for (const type of ['wheel', 'touchstart', 'pointerdown']) {
+      this.lyricsContainer?.addEventListener(
+        type,
+        () => {
+          if (this._lastLyricLines?.length) this.setManualBrowsing(true);
+        },
+        { passive: true },
+      );
+    }
+    this.lyricsContainer?.addEventListener('keydown', (event) => {
+      if (
+        ['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', 'Tab'].includes(event.key) &&
+        this._lastLyricLines?.length
+      ) {
+        this.setManualBrowsing(true);
+      }
+    });
     this.lyricTogglesEl = document.getElementById('playerFsLyricToggles');
     this.romaToggleBtn = document.getElementById('fsRomaToggleBtn');
     this.translationToggleBtn = document.getElementById(
@@ -117,6 +142,9 @@ export class FullscreenPlayer {
     if (this._lastLyricTrackId !== lyricTrackId) {
       this.lyricMode = 'none';
       this._lastLyricTrackId = lyricTrackId;
+      this.setManualBrowsing(false);
+      if (this.lyricsContainer) this.lyricsContainer.innerHTML = '';
+      this.lastActiveLyricIndex = -1;
     }
 
     // 渲染歌词
@@ -222,6 +250,7 @@ export class FullscreenPlayer {
     this._lastLyricLines = lines;
 
     if (!lines.length) {
+      this.setManualBrowsing(false);
       this.lyricsContainer.innerHTML =
         '<div class="player-fs-lyrics-empty">暂无歌词</div>';
       this.lastActiveLyricIndex = -1;
@@ -332,7 +361,7 @@ export class FullscreenPlayer {
    * 滚动到当前歌词行
    */
   scrollToActiveLyric() {
-    if (!this.lyricsContainer) {
+    if (!this.lyricsContainer || this.manualBrowsing) {
       return;
     }
 
@@ -356,6 +385,12 @@ export class FullscreenPlayer {
     scrollContainer.scrollTop = Math.max(0, targetScroll);
   }
 
+  setManualBrowsing(manual) {
+    this.manualBrowsing = manual;
+    this.lyricsContainer?.classList.toggle('is-manual-browsing', manual);
+    if (this.followBtn) this.followBtn.hidden = !manual;
+  }
+
   /**
    * 处理歌词点击事件
    * @param {Event} event - 点击事件
@@ -371,6 +406,7 @@ export class FullscreenPlayer {
     if (!audio) return;
 
     audio.currentTime = startMs / 1000;
+    this.setManualBrowsing(false);
 
     if (audio.paused) {
       audio.play().catch((error) => {

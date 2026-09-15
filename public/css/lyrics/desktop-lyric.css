@@ -79,8 +79,8 @@
   overflow-x: hidden;
   overflow-y: auto;
   outline: none;
-  scrollbar-color: rgba(255, 207, 74, 0.52) rgba(255, 255, 255, 0.06);
-  scrollbar-width: thin;
+  scrollbar-color: auto;
+  scrollbar-width: auto;
   mask-image: linear-gradient(
     to bottom,
     transparent,
@@ -101,6 +101,21 @@
     saturate(var(--preview-saturation));
   transform-style: preserve-3d;
   transition: opacity 180ms ease;
+}
+
+.desktop-lyric-preview-viewport::-webkit-scrollbar {
+  width: var(--scrollbar-size, 12px);
+}
+
+.desktop-lyric-preview-viewport::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background-color: transparent;
+  background-clip: padding-box;
+}
+
+.desktop-lyric-preview-viewport.is-manual-browsing::-webkit-scrollbar-thumb {
+  background-color: var(--scrollbar-thumb, rgba(255, 255, 255, 0.6));
 }
 
 .desktop-lyric-preview-viewport::before {

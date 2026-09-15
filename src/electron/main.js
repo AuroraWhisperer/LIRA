@@ -54,6 +54,7 @@ const { registerUpdateIpc } = require('./ipc/update-ipc');
 const { registerMusicIpc } = require('./ipc/music-ipc');
 const { registerBilibiliIpc } = require('./ipc/bilibili-ipc');
 const { registerLicenseIpc } = require('./ipc/license-ipc');
+const { registerGiftInteractionIpc } = require('./ipc/gift-interaction-ipc');
 const {
   createLicenseManager,
   LicenseState,
@@ -128,6 +129,7 @@ var remoteGiftController = null;
 var readinessController = null;
 var dynamicLotteryAuth = null;
 var disposeLotteryAuthIpc = null;
+var disposeGiftInteractionIpc = null;
 const remoteGiftCatalogBootstrapBase = resolveConfiguredBaseUrl();
 
 // ---- app lifecycle ----
@@ -270,6 +272,7 @@ function requestDesktopShutdown({ restart = false } = {}) {
       readinessController = null;
       licenseResumeController?.unregister();
       disposeLotteryAuthIpc?.();
+      disposeGiftInteractionIpc?.();
       dynamicLotteryAuth?.dispose();
       const controllersToDrain = [
         remoteGiftController,
@@ -499,6 +502,12 @@ async function startDesktopApp() {
       replaceCookieHeader: replaceBilibiliCookieHeader,
       logout: logoutBilibiliAccount,
     },
+  });
+  disposeGiftInteractionIpc = registerGiftInteractionIpc({
+    ipcMain,
+    controller: cloudSyncController,
+    getMainWindow: () => windowState.main,
+    getDesktopBaseUrl: () => serverInfo.baseUrl,
   });
   remoteGiftController = createRemoteGiftController({
     licenseManager,

@@ -285,7 +285,7 @@ test('blindbox ranking count supports all, summary-only, and one-to-ten modes', 
       document: { addEventListener() {} },
     };
     const executableSource = overlaySource.replace(
-      /^import\s+\{\s*createOverlaySocket\s*\}\s+from\s+['"]\.\/socket-client\.js['"];\s*/m,
+      /^import\s+\{[^}]+\}\s+from\s+['"]\.\/[^'"]+['"];\s*/gm,
       '',
     );
     vm.runInNewContext(

@@ -7,6 +7,7 @@
   --ot-action-add: #6657c7;
   --ot-action-save: #147d73;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
   align-content: start;
   color: var(--text);

@@ -6,7 +6,7 @@
   data-other-feature-panel
   hidden
 >
-  <div id="streamerPlanner" class="other-feature-panel-body streamer-planner">
+  <div id="streamerPlanner" class="other-feature-panel-body streamer-planner" tabindex="0" role="region" aria-label="主播工作台">
     <header class="planner-header">
       <div class="planner-heading">
         <h2 id="plannerTodayLabel"></h2>
@@ -179,6 +179,8 @@
           <div
             id="plannerNoteList"
             class="planner-note-list"
+            tabindex="0"
+            aria-label="备忘列表"
             role="list"
             aria-live="polite"
           ></div>
@@ -242,6 +244,8 @@
           <div
             id="plannerTaskList"
             class="planner-task-list"
+            tabindex="0"
+            aria-label="任务列表"
             role="list"
             aria-live="polite"
           ></div>

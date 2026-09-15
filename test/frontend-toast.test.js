@@ -93,6 +93,18 @@ test('persistent progress starts expiry only on completion, including failure', 
   }
 });
 
+test('closing another toast restores focus past a background notice without a close button', async () => {
+  const { stack, documentRef } = await setup();
+  const trigger = documentRef.createElement('button');
+  documentRef.body.append(trigger);
+  trigger.focus();
+  stack.show({ key: 'background', message: '正在更新礼物图片', duration: 0, dismissible: false });
+  const result = stack.show({ key: 'result', message: '已保存' });
+  result.node.children[2].focus();
+  result.node.children[2].fire('click');
+  assert.equal(documentRef.activeElement, trigger);
+});
+
 test('small windows retain errors, enforce height and queue system results until they can be read', async () => {
   const { stack, clock, container, windowRef } = await setup(400);
   for (let i = 0; i < 6; i++) stack.show({ key: `gift:${i}`, message: '礼物', className: 'gift-notify-toast' });
@@ -136,7 +148,7 @@ test('API errors remain automatic by default and callers can own contextual feed
   assert.match(container.children[0].className, /toast-error/);
 });
 
-test('browser preserves keyboard focus during stack changes and audit replaces notifications without overflow', async (t) => {
+test('browser preserves toast focus, hides the catalog close button and keeps audit results within bounds', async (t) => {
   const fs = require('node:fs');
   const { chromium } = require('playwright');
   const browser = await chromium.launch({ headless: true });
@@ -163,6 +175,24 @@ test('browser preserves keyboard focus during stack changes and audit replaces n
   assert.equal(await page.locator('.toast-action:focus').count(), 1);
   await page.keyboard.press('Enter');
   assert.equal(await page.evaluate(() => window.clicked), true);
+  await page.addStyleTag({ content: fs.readFileSync('public/css/styles-base.css', 'utf8') });
+  await page.addStyleTag({ content: fs.readFileSync('public/css/admin/toasts/gifts.css', 'utf8') });
+  await page.evaluate(async () => {
+    const { createGiftCatalogUpdateToast } = await import('/js/admin/gifts/catalog-update-toast.js');
+    window.catalogToast = createGiftCatalogUpdateToast();
+    catalogToast.handleState({ status: 'updating', phase: 'images', total: 100, completed: 40, available: 40 });
+  });
+  const catalog = await page.locator('.gift-catalog-update-toast').evaluate((node) => ({
+    closeDisplay: getComputedStyle(node.querySelector('.toast-close')).display,
+    paddingRight: getComputedStyle(node).paddingRight,
+    progressHeight: getComputedStyle(node.querySelector('progress')).height,
+    overflow: node.scrollWidth > node.clientWidth,
+  }));
+  assert.equal(catalog.closeDisplay, 'none');
+  assert.equal(catalog.paddingRight, '18px');
+  assert.equal(catalog.progressHeight, '4px');
+  assert.equal(catalog.overflow, false);
+  await page.evaluate(() => catalogToast.dispose());
   await page.evaluate(async () => {
     document.querySelector('link').href = '/css/gift-audit.css';
     document.getElementById('toast').remove();

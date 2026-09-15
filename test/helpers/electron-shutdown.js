@@ -257,6 +257,9 @@ function createShutdownHarness(options = {}) {
     './ipc/music-ipc': { registerMusicIpc() {} },
     './ipc/bilibili-ipc': { registerBilibiliIpc() {} },
     './ipc/license-ipc': { registerLicenseIpc() {} },
+    './ipc/gift-interaction-ipc': {
+      registerGiftInteractionIpc: () => () => calls.push('gift-interaction:remove-ipc'),
+    },
     './license/license-manager': {
       LicenseState: { AUTHORIZED: 'AUTHORIZED' },
       createLicenseManager() {

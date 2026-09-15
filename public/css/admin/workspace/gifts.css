@@ -204,6 +204,15 @@ body.player-dock-expanded .gift-workspace {
   max-width: 48%;
 }
 
+.gift-notification-panel:has(#giftInteractionControls:not([hidden])) > .panel-body {
+  align-items: flex-start;
+  flex-direction: column;
+}
+
+#giftInteractionControls p {
+  margin: 0;
+}
+
 .app-shell .gift-drawer-title .ui-section-title {
   font-family: var(--font-display);
   font-size: var(--type-size-section-title);

@@ -18,6 +18,7 @@
   width: min(460px, calc(100vw - 32px));
   max-height: min(680px, calc(100vh - 32px));
   overflow: auto;
+  overscroll-behavior: contain;
   border: 1px solid var(--color-border-default);
   border-radius: var(--radius-lg);
   background: var(--color-floating-surface, var(--surface));
@@ -140,8 +141,6 @@
 .lira-confirm-details ul {
   display: grid;
   gap: 4px;
-  max-height: 160px;
-  overflow: auto;
   margin: 7px 0 0;
   padding-left: 18px;
 }

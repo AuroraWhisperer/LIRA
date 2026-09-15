@@ -25,6 +25,31 @@
           <span class="switch-track"></span>
           <span id="giftNotificationLabel">显示礼物提示</span>
         </label>
+        <div id="giftInteractionControls" class="stack" hidden>
+          <label class="switch-control">
+            <input
+              id="giftAutoThanksEnabled"
+              type="checkbox"
+              aria-describedby="giftAutoThanksDescription giftInteractionStatus"
+            />
+            <span class="switch-track"></span>
+            <span>自动答谢礼物</span>
+          </label>
+          <p id="giftAutoThanksDescription" class="hint">答谢付费和已确认免费礼物，不含醒目留言。</p>
+          <label class="switch-control">
+            <input
+              id="giftStatsQueryEnabled"
+              type="checkbox"
+              aria-describedby="giftStatsQueryDescription giftInteractionStatus"
+            />
+            <span class="switch-track"></span>
+            <span>弹幕查询礼物统计</span>
+          </label>
+          <p id="giftStatsQueryDescription" class="hint">观众可用“今日礼物”等弹幕查询已记录的付费礼物。</p>
+          <p class="hint">由服务器持续运行，退出软件后仍有效。登录 B 站并同步后可手动开启。</p>
+          <div id="giftInteractionStatus" class="hint" role="status" aria-live="polite">状态未确认，请刷新核对。</div>
+          <button id="giftInteractionRefresh" type="button" class="btn secondary">刷新云端状态</button>
+        </div>
       </div>
     </section>
 

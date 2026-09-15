@@ -160,20 +160,25 @@ button {
 .license-main {
   position: relative;
   z-index: 1;
-  display: grid;
-  place-items: center;
+  display: flex;
+  flex-direction: column;
   align-items: center;
   width: min(100%, 1100px);
   height: calc(100dvh - 52px);
   min-height: 0;
   margin: 0 auto;
   padding: 24px 28px 36px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .license-stage {
   display: grid;
+  flex: 0 0 auto;
   grid-template-columns: 0.94fr 1fr;
   width: 100%;
   min-height: 548px;
+  margin-block: auto;
   border: 1px solid var(--license-border);
   border-radius: 20px;
   background: var(--license-surface);
@@ -719,17 +724,5 @@ button {
   }
   .license-card-heading {
     margin-bottom: 20px;
-  }
-}
-@media (max-height: 640px) {
-  html,
-  body {
-    height: auto;
-    min-height: 100%;
-    overflow: auto;
-  }
-  .license-main {
-    height: auto;
-    min-height: calc(100dvh - 52px);
   }
 }

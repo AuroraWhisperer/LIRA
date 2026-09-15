@@ -1,6 +1,11 @@
+@import url('./desktop-scrollbars.css');
+
 /* 在 html 上设桌面主题变量（内联脚本在 CSS 加载前写入），
    避免页面先用粉色默认主题渲染再切金色的闪烁 */
 html.desktop-shell {
+  --scrollbar-thumb: #8c8279;
+  --scrollbar-thumb-hover: #6f665e;
+  --scrollbar-thumb-active: #514942;
   --page-bg: #f7f3ef;
   --surface: #fffcf8;
   --surface-2: #f5eee4;
@@ -444,12 +449,6 @@ body.desktop-shell .panel {
   box-shadow: 0 5px 18px rgba(87, 58, 28, 0.07);
 }
 
-body.desktop-shell .song-workspace,
-body.desktop-shell .playback-page.active,
-body.desktop-shell .gift-workspace {
-  scrollbar-color: rgba(117, 102, 91, 0.34) transparent;
-}
-
 body.desktop-shell .playback-user,
 body.desktop-shell .playback-home-card {
   background: #f8f1e8;
@@ -496,7 +495,56 @@ body.desktop-shell
 
 @media (max-width: 900px) {
   body.desktop-shell {
+    overflow: hidden;
+  }
+
+  /* Zoomed desktop windows keep a fixed shell and one route scroll owner. */
+  body.desktop-shell .app-shell {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    min-height: 0;
+    padding-bottom: var(--player-dock-height, 102px);
+  }
+
+  body.desktop-shell .topbar {
+    flex: 0 0 auto;
+  }
+
+  body.desktop-shell .main-page.active {
+    flex: 1 1 0;
+    height: auto;
+    min-height: 0;
+  }
+
+  body.desktop-shell :is(.song-workspace, .gift-workspace, .other-workspace) {
+    height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: 12px;
+  }
+
+  body.desktop-shell .playback-page.active {
     overflow: auto;
+    padding: 12px;
+  }
+
+  body.desktop-shell .other-workspace {
+    grid-template-columns: minmax(0, 1fr);
+    grid-auto-rows: max-content;
+    align-content: start;
+  }
+
+  body.desktop-shell .song-management-panel > .tabs {
+    flex-wrap: wrap;
+  }
+
+  body.desktop-shell .song-management-panel > .tabs > .tab {
+    flex: 1 0 auto;
+  }
+
+  body.desktop-shell .queues-row .queue-panel {
+    height: var(--queue-height);
   }
 
   body.desktop-shell .titlebar-brand {

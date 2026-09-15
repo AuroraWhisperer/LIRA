@@ -227,6 +227,8 @@
   background: transparent;
   color: var(--text);
   text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 .xiaomi-ai-model-menu .xiaomi-ai-model-option:hover,
 .xiaomi-ai-model-menu .xiaomi-ai-model-option:focus-visible {

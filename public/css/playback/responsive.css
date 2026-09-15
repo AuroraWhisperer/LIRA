@@ -182,14 +182,15 @@
   }
 
   .player-fs-content {
-    grid-template-columns: 1fr;
-    gap: 32px;
-    padding: 70px 24px 20px;
-    overflow-y: auto;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    gap: 0;
+    padding: 60px 24px 12px;
+    overflow: hidden;
   }
 
   .player-fs-art-wrap {
-    padding: 0;
+    display: none;
   }
 
   .player-fs-vinyl {
@@ -206,7 +207,8 @@
   }
 
   .player-fs-panel {
-    gap: 20px;
+    gap: 12px;
+    padding: 0;
   }
 
   .lyric-text {
@@ -386,6 +388,7 @@
   min-height: 120px;
   padding: 12px;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .playlist-picker-item {
@@ -463,6 +466,19 @@
 
   .playlist-picker-footer span {
     display: none;
+  }
+}
+
+@media (max-width: 900px) and (max-height: 560px) {
+  .player-fs-content {
+    padding: 52px 16px 8px;
+  }
+  .player-fs-title {
+    -webkit-line-clamp: 1;
+    margin-bottom: 4px;
+  }
+  .player-fs-panel {
+    gap: 8px;
   }
 }
 

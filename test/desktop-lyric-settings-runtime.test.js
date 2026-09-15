@@ -287,23 +287,7 @@ test('desktop lyric settings include a live word-timed preview', () => {
   assert.match(workspaceStyles, /\.song-workspace[\s\S]*?overflow-y:\s*auto/);
   assert.match(
     styles,
-    /\.desktop-lyric-settings\s*\{[^}]*max-height:\s*clamp\(580px,\s*calc\(100vh - 145px\),\s*820px\)[^}]*overflow-y:\s*auto/,
-  );
-  assert.match(
-    styles,
-    /\.desktop-lyric-settings\s*\{[^}]*overscroll-behavior-y:\s*auto[^}]*scrollbar-color:\s*rgba\(217, 75, 112, 0\.58\) transparent/,
-  );
-  assert.match(
-    styles,
-    /\.desktop-lyric-settings:hover,[\s\S]*?\.desktop-lyric-settings:focus-within\s*\{[^}]*scrollbar-color:\s*#d94b70 transparent/,
-  );
-  assert.match(
-    styles,
-    /\.desktop-lyric-settings::-webkit-scrollbar-button\s*\{[^}]*display:\s*none/,
-  );
-  assert.match(
-    styles,
-    /\.desktop-lyric-settings::-webkit-scrollbar-thumb\s*\{[^}]*border:\s*4px solid transparent[^}]*background:\s*rgba\(217, 75, 112, 0\.58\)/,
+    /\.desktop-lyric-settings\s*\{[^}]*max-height:\s*none[^}]*overflow:\s*visible/,
   );
   assert.match(
     styles,

@@ -148,6 +148,7 @@
   z-index: 70;
   max-height: min(320px, 45vh);
   overflow: auto;
+  overscroll-behavior: contain;
   padding: 5px;
   border: 1px solid var(--select-border);
   border-radius: 8px;
@@ -184,6 +185,8 @@
   color: inherit;
   font: inherit;
   text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
   cursor: pointer;
   transition:
     background-color 100ms ease,

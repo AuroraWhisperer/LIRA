@@ -536,6 +536,10 @@ body[data-game='draw-guess'] .draw-danmaku-panel {
   body[data-game='draw-guess'] .draw-guess-view {
     grid-column: 1;
     overflow: auto;
+    scrollbar-width: none;
+  }
+  body[data-game='draw-guess'] .draw-guess-view::-webkit-scrollbar {
+    display: none;
   }
   body[data-game='draw-guess'] .draw-layout {
     grid-template-columns: minmax(0, 1fr);

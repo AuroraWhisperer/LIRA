@@ -263,11 +263,43 @@ test('queue panels remain the same height on desktop', () => {
     responsivePanelRule,
     'narrow-layout queue panel sizing should remain defined',
   );
-  assert.match(queueRowRule, /flex:\s*0 0 450px/);
-  assert.match(queueRowRule, /height:\s*450px/);
+  assert.match(queueRowRule, /--queue-height:\s*clamp\(280px,.*var\(--player-dock-height, 96px\).*380px\)/);
+  assert.match(queueRowRule, /flex:\s*0 0 var\(--queue-height\)/);
+  assert.match(queueRowRule, /height:\s*var\(--queue-height\)/);
   assert.match(responsiveQueueRule, /flex:\s*0 0 auto/);
   assert.match(responsiveQueueRule, /height:\s*auto/);
   assert.match(responsivePanelRule, /height:\s*auto/);
+});
+
+test('desktop scrollbar states preserve transparent insets and system fallback', () => {
+  const styles = readCssBundle('public', 'css', 'overlays', 'desktop.css');
+  for (const state of ['hover', 'active']) {
+    const rule = styles.match(new RegExp(
+      `body\\.desktop-shell ::-webkit-scrollbar-thumb:${state}[\\s\\S]*?\\{([^}]+)\\}`,
+    ))?.[1];
+    assert.ok(rule, `${state} styling should remain defined`);
+    assert.match(rule, /border-width:\s*var\(--scrollbar-interactive-inset\)/);
+    assert.match(rule, /background-clip:\s*padding-box/,
+      'legacy background shorthands must not paint across the transparent inset');
+  }
+  assert.doesNotMatch(styles, /body\.desktop-shell[^{}]*:focus-within[^{}]*::-webkit-scrollbar-thumb/);
+  assert.match(styles, /@media \(forced-colors: active\)[\s\S]*scrollbar-width:\s*auto !important/);
+  assert.match(styles, /@media \(forced-colors: active\)[\s\S]*all:\s*revert !important/);
+});
+
+test('zoomed desktop routes keep scrolling below the titlebar and above the dock', () => {
+  const styles = readCssBundle('public', 'css', 'overlays', 'desktop.css');
+  const narrow = styles.slice(styles.lastIndexOf('@media (max-width: 900px)'));
+  assert.match(narrow, /body\.desktop-shell\s*\{[^}]*overflow:\s*hidden/);
+  assert.match(narrow, /\.app-shell\s*\{[^}]*height:\s*100dvh[^}]*padding-bottom:\s*var\(--player-dock-height/);
+  assert.match(narrow, /:is\(\.song-workspace, \.gift-workspace, \.other-workspace\)\s*\{[^}]*height:\s*100%[^}]*overflow-y:\s*auto/);
+  assert.match(narrow, /\.song-management-panel > \.tabs\s*\{[^}]*flex-wrap:\s*wrap/);
+});
+
+test('toolbox navigation and planner lists retain visible scrolling affordances', () => {
+  const styles = readCssBundle('public', 'css', 'admin', 'other-features.css');
+  assert.doesNotMatch(styles, /\.(?:other-feature-sidebar|streamer-planner|planner-note-list|planner-task-list)[^{}]*\{[^}]*scrollbar-width:\s*none/);
+  assert.doesNotMatch(styles, /\.(?:other-feature-sidebar|streamer-planner|planner-note-list|planner-task-list)::-webkit-scrollbar[^{}]*\{[^}]*display:\s*none/);
 });
 
 test('admin queue cards have enough height for their text and metadata', () => {

@@ -193,16 +193,13 @@ test('Bilibili settings explain tenant-scoped credentials and no anonymous captu
     'utf8',
   );
 
-  const hint = html.match(/<p[^>]+id="bilibiliAuthHint"[^>]*>(.*?)<\/p>/s)?.[1];
-  assert.match(hint, /凭据只属于当前 LIRA 账号/);
-  assert.match(hint, /云端凭据保存成功且直播间已配置并启用后/);
-  assert.match(hint, /同步成功后生效/);
-  assert.match(hint, /不会回退为匿名采集/);
-  assert.match(html, /每个 LIRA 账号使用独立的直播账号凭据/);
-  assert.match(html, /仅上传到当前已授权的 LIRA\s+账号/);
-  assert.match(html, /云端凭据保存成功且直播间已配置并启用后才接收弹幕和礼物/);
-  assert.match(html, /未登录不会匿名采集/);
-  assert.match(html, /关闭应用不会停止已配置的云端采集/);
+  const help = html.match(/<lira-help\s*>(.*?)<\/lira-help/s)?.[1];
+  assert.match(help, /登录信息仅用于当前 LIRA 账号/);
+  assert.match(help, /同步到云端、设置直播间并启用弹幕监听后，才会接收弹幕和礼物/);
+  assert.match(help, /云端未登录时不采集/);
+  assert.match(help, /关闭应用不影响云端接收/);
+  assert.match(help, /退出登录并同步成功后才会停止/);
+  assert.doesNotMatch(html, /id="bilibiliAuthHint"/);
 });
 
 test('Bilibili account markup keeps avatar, identity and actions in one aligned row', () => {

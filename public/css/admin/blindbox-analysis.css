@@ -273,6 +273,7 @@ body.blind-analysis-open .playback-player-panel {
   max-width: min(360px, calc(100vw - 32px));
   max-height: min(320px, calc(100vh - 250px));
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 5px;
   border: 1px solid #d8e0e5;
   border-radius: 8px;
@@ -310,6 +311,7 @@ body.blind-analysis-open .playback-player-panel {
   font-size: var(--type-size-control);
   font-weight: var(--type-weight-medium);
   line-height: var(--type-leading-control);
+  overflow-wrap: anywhere;
 }
 
 .blind-analysis-option::before {
@@ -585,5 +587,14 @@ body.blind-analysis-open .playback-player-panel {
 @media (prefers-reduced-motion: reduce) {
   .blind-analysis-workspace * {
     scroll-behavior: auto !important;
+  }
+}
+
+@media (max-height: 600px) {
+  .blind-analysis-content {
+    overflow-y: auto;
+  }
+  .blind-analysis-results {
+    flex: 0 0 320px;
   }
 }

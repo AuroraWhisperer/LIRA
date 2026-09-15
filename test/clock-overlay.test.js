@@ -247,7 +247,8 @@ test('toolbox composes the named clock card with fixed URL and custom controls',
     styles,
     /grid-template-columns:\s*minmax\(360px,\s*1\.15fr\)\s+minmax\(320px,\s*0?\.85fr\)/,
   );
-  assert.match(styles, /@media \(max-width:\s*980px\)/);
+  assert.match(styles, /container: clock-settings \/ inline-size/);
+  assert.match(styles, /@container clock-settings \(max-width:\s*704px\)/);
   assert.match(script, /params\.set\('style'/);
   assert.match(script, /params\.set\('date'/);
   assert.match(script, /params\.set\('seconds'/);

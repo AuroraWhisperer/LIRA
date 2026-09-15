@@ -111,34 +111,15 @@ test('minimum-height desktop reclaims space before the point-song page heading',
   const baseQueueRule = workspaceSource.match(
     /\.queues-row\s*\{[\s\S]*?\n\}/,
   )?.[0];
-  const compactDesktopRule = responsiveSource.match(
-    /@media \(min-width: 901px\) and \(max-height: 700px\) \{\s*(\.queues-row\s*\{[\s\S]*?\n\s*\})\s*\}/,
-  )?.[1];
-  const baseHeight = Number(baseQueueRule?.match(/height:\s*(\d+)px/)?.[1]);
-  const compactHeight = Number(
-    compactDesktopRule?.match(/height:\s*(\d+)px/)?.[1],
-  );
-  const compactBasis = Number(
-    compactDesktopRule?.match(/flex-basis:\s*(\d+)px/)?.[1],
-  );
 
   assert.ok(
     baseQueueRule,
     'default desktop queue sizing should remain defined',
   );
-  assert.ok(
-    compactDesktopRule,
-    'minimum-height desktop queue sizing should be height-scoped',
-  );
-  assert.equal(compactHeight, compactBasis);
-  assert.ok(
-    baseHeight - compactHeight >= 32,
-    'minimum-height desktop should reclaim at least one page-heading row',
-  );
-  assert.doesNotMatch(
-    compactDesktopRule,
-    /panel-header|queue-list|font-|line-height/,
-  );
+  assert.match(baseQueueRule, /--queue-height:\s*clamp\(280px,\s*calc\(\(100vh - 58px - var\(--player-dock-height, 96px\)\) \* 0\.48\),\s*380px\)/);
+  assert.match(baseQueueRule, /height:\s*var\(--queue-height\)/);
+  assert.match(baseQueueRule, /flex:\s*0 0 var\(--queue-height\)/);
+  assert.doesNotMatch(responsiveSource, /height:\s*418px/);
 });
 
 test('point-song subviews rely on tabs instead of repeated page headings', () => {

@@ -49,6 +49,8 @@ implementation, but it cannot redefine an accepted specification.
 
 | `specs/gift-effect-danmaku.md` | Design specification | Implemented | `src/bilibili/gift/effect-event.js`<br>`public/js/overlays/gift-effect-player.js`<br>`test/gift-effect-danmaku.test.js` | 2026-09-14 |
 
+| `specs/gift-interaction-controls.md` | Design specification | Implemented | `src/electron/cloud-sync-controller.js`<br>`src/electron/ipc/gift-interaction-ipc.js`<br>`public/js/admin/gifts/interaction-controls.js`<br>`test/gift-interaction-controls.test.js` | 2026-09-15 |
+
 <!-- SPEC_INDEX_END -->
 
 ## Status Vocabulary

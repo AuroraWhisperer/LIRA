@@ -1,4 +1,6 @@
 .opening-animation-panel {
+  position: relative;
+  container: opening-settings / inline-size;
   --opening-admin-accent: #b84672;
   --opening-admin-accent-strong: #96365e;
   --opening-admin-accent-soft: #fff3f7;
@@ -554,61 +556,4 @@
 }
 .opening-animation-address .button-secondary:active {
   transform: translateY(1px);
-}
-
-@media (max-width: 1120px) {
-  .opening-animation-layout {
-    grid-template-columns: minmax(350px, 0.9fr) minmax(430px, 1.1fr);
-  }
-  .opening-master-toggle {
-    min-width: 270px;
-  }
-}
-
-@media (max-width: 920px) {
-  .opening-animation-toolbar {
-    align-items: stretch;
-    flex-direction: column;
-  }
-  .opening-master-toggle {
-    width: 100%;
-    min-width: 0;
-  }
-  .opening-animation-layout {
-    grid-template-columns: 1fr;
-  }
-  .opening-animation-preview {
-    position: static;
-  }
-}
-
-@media (max-width: 620px) {
-  .opening-animation-panel {
-    padding: 12px;
-  }
-  .opening-animation-toolbar,
-  .opening-animation-editor,
-  .opening-animation-preview {
-    padding: 14px;
-  }
-  .opening-animation-title {
-    align-items: flex-start;
-  }
-  .opening-copy-fields,
-  .opening-select-grid,
-  .opening-editor-checks {
-    grid-template-columns: 1fr;
-  }
-  .opening-field-wide {
-    grid-column: auto;
-  }
-  .opening-section-heading,
-  .opening-music-heading {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-  .opening-animation-address {
-    align-items: stretch;
-    grid-template-columns: 1fr;
-  }
 }

@@ -40,6 +40,8 @@ test('every quit event waits for one sync drain, playback flush and runtime stop
   assert.equal(h.powerMonitor.listenerCount('resume'), 0);
   assert.equal(h.count('remote:dispose'), 1);
   assert.equal(h.count('cloud:dispose'), 1);
+  assert.equal(h.count('gift-interaction:remove-ipc'), 1);
+  assert.ok(h.calls.indexOf('gift-interaction:remove-ipc') < h.calls.indexOf('cloud:dispose'));
   assert.equal(h.count('runtime:stop'), 0);
   assert.equal(h.count('app:exit'), 0);
   assert.deepEqual(h.clock.delays, [5000]);

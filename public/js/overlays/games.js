@@ -1,5 +1,6 @@
 import { createDanmakuFeed } from './danmaku-feed.js';
 import { createDrawController } from './games-drawing.js';
+import { startOverlayPages } from './auto-pages.js';
 
 ('use strict');
 
@@ -17,6 +18,13 @@ const INITIAL_SNAPSHOT_RETRIES = 4;
 const INITIAL_SNAPSHOT_RETRY_DELAY_MS = 350;
 
 document.addEventListener('DOMContentLoaded', () => {
+  const stopPages = [
+    byId('drawScoreboard'), byId('drawCorrectFeed'),
+    byId('drawGuessView'), document.querySelector('.game-result-card'),
+  ].map(startOverlayPages);
+  window.addEventListener('beforeunload', () => {
+    stopPages.forEach((stop) => stop());
+  }, { once: true });
   drawDanmakuFeed = createDanmakuFeed(byId('drawDanmakuFeed'), {
     offscreenViewports: 5,
     resolveAvatarUrl: avatarSource,

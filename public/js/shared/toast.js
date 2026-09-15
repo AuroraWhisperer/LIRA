@@ -106,7 +106,7 @@ export function createToastStack({
     stopTimer(entry);
     if (entries.get(entry.key) === entry) entries.delete(entry.key);
     if (entry.node.contains(documentRef.activeElement)) {
-      const next = [...entries.values()].find((other) => other.visible);
+      const next = [...entries.values()].find((other) => other.visible && !other.closeButton.hidden);
       if (next) next.closeButton.focus();
       else if (entry.returnFocus?.isConnected) entry.returnFocus.focus();
       else documentRef.activeElement?.blur?.();
@@ -163,6 +163,7 @@ export function createToastStack({
     }
     entry.action.hidden = typeof options.onClick !== 'function';
     entry.action.textContent = options.actionLabel || '查看';
+    entry.closeButton.hidden = options.dismissible === false;
     entry.node.setAttribute('aria-label', options.title || TYPE_LABELS[entry.type]);
     entry.needsAnnouncement = true;
     void entry.node.offsetWidth;

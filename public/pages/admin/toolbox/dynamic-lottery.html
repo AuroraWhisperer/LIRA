@@ -6,7 +6,7 @@
   data-other-feature-panel
   hidden
 >
-  <div class="other-feature-panel-body dynamic-lottery-panel">
+  <div class="other-feature-panel-body stack dynamic-lottery-panel">
     <header>
       <h2 class="ui-section-title">动态抽奖</h2>
       <p class="hint">
@@ -17,8 +17,8 @@
       class="dynamic-lottery-account"
       aria-labelledby="lotteryAccountTitle"
     >
-      <h3 id="lotteryAccountTitle">抽奖专用账号</h3>
-      <p>
+      <h3 id="lotteryAccountTitle" class="ui-card-title">抽奖专用账号</h3>
+      <p class="hint">
         请登录发布抽奖动态的 B站账号。这是独立登录，不会切换或退出你的直播账号。
       </p>
       <p
@@ -57,7 +57,7 @@
       aria-labelledby="lotteryRulesTitle"
     >
       <div class="dynamic-lottery-section-heading">
-        <h3 id="lotteryRulesTitle">活动与条件</h3>
+        <h3 id="lotteryRulesTitle" class="ui-card-title">活动与条件</h3>
         <button type="button" class="secondary" data-lottery-new disabled>
           新建活动
         </button>
@@ -89,16 +89,21 @@
               />
             </label>
             <div class="dynamic-lottery-switches">
-              <label
-                ><input name="requireLike" type="checkbox" /> 必须点赞</label
-              >
-              <label
-                ><input name="requireRepost" type="checkbox" /> 必须转发</label
-              >
-              <label
-                ><input name="requireFollow" type="checkbox" checked />
-                必须关注作者</label
-              >
+              <label class="switch-control">
+                <input name="requireLike" type="checkbox" />
+                <span class="switch-track" aria-hidden="true"></span>
+                <span>必须点赞</span>
+              </label>
+              <label class="switch-control">
+                <input name="requireRepost" type="checkbox" />
+                <span class="switch-track" aria-hidden="true"></span>
+                <span>必须转发</span>
+              </label>
+              <label class="switch-control">
+                <input name="requireFollow" type="checkbox" checked />
+                <span class="switch-track" aria-hidden="true"></span>
+                <span>必须关注作者</span>
+              </label>
             </div>
           </div>
         </fieldset>
@@ -119,7 +124,7 @@
       aria-labelledby="lotteryProgressTitle"
     >
       <div class="dynamic-lottery-section-heading">
-        <h3 id="lotteryProgressTitle">采集与开奖</h3>
+        <h3 id="lotteryProgressTitle" class="ui-card-title">采集与开奖</h3>
         <button
           type="button"
           class="secondary"
@@ -172,7 +177,7 @@
       class="dynamic-lottery-results"
       aria-labelledby="lotteryResultsTitle"
     >
-      <h3 id="lotteryResultsTitle">中奖名单</h3>
+      <h3 id="lotteryResultsTitle" class="ui-card-title">中奖名单</h3>
       <p class="hint" data-lottery-result-note>完成采集后开始随机抽奖。</p>
       <ol class="dynamic-lottery-winners" data-lottery-winners></ol>
       <p class="hint">

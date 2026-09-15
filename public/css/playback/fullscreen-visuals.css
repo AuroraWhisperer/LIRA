@@ -273,6 +273,7 @@
 
 .player-fs-vinyl {
   position: relative;
+  max-width: calc(100dvh - var(--player-dock-height, 96px) - 180px);
   width: min(420px, 70vmin);
   height: min(420px, 70vmin);
   display: grid;
