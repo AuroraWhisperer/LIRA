@@ -135,45 +135,6 @@
 .license-signal span:nth-child(3) {
   height: 16px;
 }
-.license-motion-toggle {
-  display: grid;
-  flex: 0 0 28px;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  min-height: 28px;
-  margin-left: auto;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--license-muted);
-}
-.license-motion-toggle:hover {
-  background: var(--license-border);
-  color: var(--license-text);
-}
-.license-motion-toggle:focus-visible {
-  outline: 2px solid var(--license-primary);
-  outline-offset: 2px;
-}
-.license-motion-toggle svg {
-  width: 16px;
-  height: 16px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.5;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-.license-motion-toggle[hidden],
-.license-motion-play,
-.license-motion-toggle[data-paused='true'] .license-motion-pause {
-  display: none;
-}
-.license-motion-toggle[data-paused='true'] .license-motion-play {
-  display: block;
-}
 @media (prefers-reduced-motion: no-preference) {
   .license-intro h2,
   .license-art,
@@ -187,7 +148,7 @@
     animation-delay: 160ms;
   }
   .license-echo {
-    animation: license-echo-expand 6s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+    animation: license-echo-expand 6s linear infinite;
   }
   .license-intro-caption {
     animation-delay: 240ms;
@@ -238,18 +199,12 @@
 }
 @keyframes license-echo-expand {
   0% {
-    opacity: 0;
-    transform: scale(1);
-  }
-  15% {
     opacity: 0.8;
-    transform: scale(1.06);
+    transform: scale(1);
   }
   60% {
     opacity: 0.45;
-    transform: scale(1.18);
   }
-  90%,
   100% {
     opacity: 0;
     transform: scale(1.26);

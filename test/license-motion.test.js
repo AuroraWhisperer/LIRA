@@ -16,13 +16,9 @@ function createPage(reduced = false) {
   const art = {
     style: { setProperty: (name, value) => properties.set(name, value) },
   };
-  const toggle = new EventTarget();
-  const attributes = new Map();
-  toggle.dataset = {};
-  toggle.setAttribute = (name, value) => attributes.set(name, value);
   const document = new EventTarget();
   document.hidden = false;
-  document.getElementById = (id) => (id === 'licenseArt' ? art : toggle);
+  document.getElementById = (id) => (id === 'licenseArt' ? art : null);
   const preference = new EventTarget();
   preference.matches = reduced;
   const window = new EventTarget();
@@ -47,8 +43,6 @@ function createPage(reduced = false) {
   });
 
   return {
-    toggle,
-    attributes,
     document,
     preference,
     window,
@@ -78,7 +72,7 @@ test('license page loads welcome artwork styles and the motion controller', () =
   );
   assert.match(artworkCss, /@media \(prefers-reduced-motion: no-preference\)/);
   assert.match(html, /id="licenseArt"/);
-  assert.match(html, /id="licenseMotionToggle"/);
+  assert.doesNotMatch(html, /licenseMotionToggle|license-motion-toggle/);
   assert.match(html, /<script src="\/js\/license-motion\.js"><\/script>/);
 });
 
@@ -97,35 +91,19 @@ test('license motion runs only while the artwork and document are visible', () =
   assert.equal(page.state(), 'paused');
 });
 
-test('returning to the artwork preserves a user pause until explicitly resumed', () => {
-  const page = createPage();
-  page.intersect(true);
-  page.toggle.dispatchEvent(new Event('click'));
-  assert.equal(page.state(), 'paused');
-  assert.equal(page.attributes.get('aria-label'), '播放动画');
-  page.intersect(false);
-  page.intersect(true);
-  assert.equal(page.state(), 'paused');
-  page.toggle.dispatchEvent(new Event('click'));
-  assert.equal(page.state(), 'running');
-  assert.equal(page.attributes.get('aria-label'), '暂停动画');
-});
-
-test('reduced motion changes take effect without losing the user pause', () => {
+test('reduced motion changes take effect automatically', () => {
   const page = createPage(true);
   page.intersect(true);
   assert.equal(page.state(), 'paused');
-  assert.equal(page.toggle.hidden, true);
   page.preference.matches = false;
   page.preference.dispatchEvent(new Event('change'));
   assert.equal(page.state(), 'running');
-  assert.equal(page.toggle.hidden, false);
-  page.toggle.dispatchEvent(new Event('click'));
   page.preference.matches = true;
   page.preference.dispatchEvent(new Event('change'));
+  assert.equal(page.state(), 'paused');
   page.preference.matches = false;
   page.preference.dispatchEvent(new Event('change'));
-  assert.equal(page.state(), 'paused');
+  assert.equal(page.state(), 'running');
 });
 
 test('leaving the license page stops motion and releases its listeners', () => {
@@ -136,6 +114,5 @@ test('leaving the license page stops motion and releases its listeners', () => {
   assert.equal(page.state(), 'paused');
   page.document.dispatchEvent(new Event('visibilitychange'));
   page.preference.dispatchEvent(new Event('change'));
-  page.toggle.dispatchEvent(new Event('click'));
   assert.equal(page.state(), 'paused');
 });
