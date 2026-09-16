@@ -126,22 +126,45 @@ body[data-style='signal'] .draw-danmaku-medal-level::before {
   opacity: 0.76;
 }
 
-/* 礼物信号：香槟金读数、切角徽记，沿用信号带结构。 */
+/* 礼物信号沿用发送者的信号色与切角徽记。 */
 body[data-style='signal'] .draw-danmaku-item.is-gift {
-  --signal-accent: var(--signal-gold);
   --signal-rank: 'GIFT';
   --danmaku-gift-art: url('/img/overlays/danmaku-gifts/signal.svg');
-  min-width: min(400px, 100%);
+  max-width: min(420px, 100%);
+}
+body[data-style='signal'] .is-gift .draw-danmaku-identity strong {
+  font-size: 15px;
 }
 body[data-style='signal'] .is-gift .draw-danmaku-gift {
+  display: flow-root;
   margin-top: 5px;
+  font-size: 20px;
+  line-height: 1.5;
+}
+body[data-style='signal'] .draw-danmaku-gift-art {
+  float: right;
+  width: 32px;
+  height: 32px;
+  margin-left: 12px;
+  background: color-mix(in srgb, var(--signal-accent) 60%, var(--signal-ice));
+  mask: var(--danmaku-gift-art) center / contain no-repeat;
+}
+body[data-style='signal'] .draw-danmaku-gift-copy {
+  display: inline;
 }
 body[data-style='signal'] .draw-danmaku-gift-action {
-  color: #d5c39a;
+  margin-right: 6px;
+  color: color-mix(in srgb, var(--signal-accent) 30%, var(--signal-ice));
+  font-size: 14px;
 }
 body[data-style='signal'] .draw-danmaku-gift-name {
-  color: #fff1cf;
+  color: inherit;
+  font-size: 20px;
 }
 body[data-style='signal'] .draw-danmaku-gift-count {
-  color: var(--signal-gold);
+  display: inline-block;
+  margin-left: 8px;
+  color: color-mix(in srgb, var(--signal-accent) 40%, var(--signal-ice));
+  font-size: 22px;
+  font-weight: 700;
 }

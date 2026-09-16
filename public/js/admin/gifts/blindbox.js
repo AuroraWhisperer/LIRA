@@ -115,6 +115,7 @@ import {
           <div class="bb-chip-body">
             <div class="bb-chip-head">
               <span class="bb-chip-name">${name}</span>
+              ${item.official ? `<small class="hint">#${escapeHtml(String(item.giftId))}</small>` : ''}
               <span class="bb-chip-price">${price}</span>
             </div>
             <div class="bb-chip-outputs">${outputs}</div>
@@ -143,12 +144,11 @@ import {
     const mapping =
       getLegacyAdminModules().state?.getAppState?.()?.blindBoxMapping;
     if (!mapping) {
+      status.hidden = false;
       status.textContent = '正在读取服务器映射状态';
       return;
     }
-    const parts = [
-      mapping.applied ? '官方映射已启用' : '等待服务器应用官方映射',
-    ];
+    const parts = mapping.applied ? [] : ['等待服务器应用官方映射'];
     if (Number(mapping.customCount) > 0) {
       parts.push(`自定义 ${Number(mapping.customCount)} 项`);
     }
@@ -156,6 +156,7 @@ import {
       parts.push(`官方已接管 ${Number(mapping.takenOverCount)} 项`);
     }
     status.textContent = parts.join(' · ');
+    status.hidden = parts.length === 0;
   }
 
   function applyOfficialCatalogSnapshot(snapshot) {
@@ -185,7 +186,16 @@ import {
       ]),
     );
     officialBlindBoxes = gifts
-      .filter((gift) => gift?.isBlindBox === true)
+      .filter((gift) => {
+        if (gift?.isBlindBox !== true) return false;
+        const relation = relationById.get(
+          String(identityMode ? gift.variantId : gift.id),
+        );
+        // A catalog label alone does not establish a verified prize pool.
+        return identityMode
+          ? relation?.outputVariantIds?.length || relation?.awards?.length
+          : relation?.outputGiftIds?.length;
+      })
       .map((gift) => {
         const giftId = String(gift.id);
         const relation = relationById.get(
@@ -196,18 +206,24 @@ import {
           variantId: gift.variantId,
           name: gift.name,
           price: gift.rmb,
-          outputs: (
-            (identityMode
-              ? relation?.outputVariantIds
-              : relation?.outputGiftIds) || []
-          ).map((outputGiftId) => {
-            const output = giftById.get(String(outputGiftId));
-            return {
-              giftId: String(output?.id || outputGiftId),
-              name: output?.name || `礼物 ${outputGiftId}`,
-              price: output?.rmb ?? null,
-            };
-          }),
+          outputs: [
+            ...(
+              (identityMode
+                ? relation?.outputVariantIds
+                : relation?.outputGiftIds) || []
+            ).map((outputGiftId) => {
+              const output = giftById.get(String(outputGiftId));
+              return {
+                giftId: String(output?.id || outputGiftId),
+                name: output?.name || `礼物 ${outputGiftId}`,
+                price: output?.rmb ?? null,
+              };
+            }),
+            ...(relation?.awards || []).map((award) => ({
+              name: award.name,
+              price: award.valueRmb,
+            })),
+          ],
         };
       });
     renderBlindBoxList();

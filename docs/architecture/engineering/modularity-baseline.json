@@ -2,6 +2,16 @@
   "version": 1,
   "entries": [
     {
+      "path": "public/css/overlays/desktop.css",
+      "kind": "review",
+      "maxLines": 653,
+      "owner": "Electron 桌面壳与更新页样式",
+      "reason": "2026-09-16 审阅更新页差异：新增规则仅完善既有更新状态、下载进度与本地支持区域，继续使用桌面主题 token；未引入其他业务样式，原有标题栏、退出屏及滚动布局保持不变。",
+      "removal": "下次更新页样式扩展时提取独立 desktop-update 样式文件并保持导入顺序；本次保留现有归属，避免在发布验证阶段改动 CSS 加载边界。",
+      "reviewBy": "2026-12-16",
+      "test": "test/frontend-desktop-update.test.js"
+    },
+    {
       "path": "src/electron/license/license-manager.js",
       "kind": "review",
       "maxLines": 618,

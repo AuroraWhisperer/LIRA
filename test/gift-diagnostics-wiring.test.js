@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
-const vm = require('node:vm');
+const { loadModuleExports } = require('./helpers/frontend-modules');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 
@@ -48,14 +48,10 @@ test('server broadcasts finalized gifts without per-gift diagnostic output', () 
   assert.doesNotMatch(source, /\[Bilibili\]\[GiftDelivery\]/);
 });
 
-test('gift notification displays new gifts without per-toast diagnostics', () => {
-  const source = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'notification.js'),
-    'utf8',
-  );
+test('gift notification displays new gifts without per-toast diagnostics', async () => {
   const reports = [];
   const toasts = [];
-  const context = vm.createContext({
+  const context = {
     console,
     document: {
       getElementById(id) {
@@ -81,9 +77,12 @@ test('gift notification displays new gifts without per-toast diagnostics', () =>
         gifts: {},
       },
     },
-  });
+  };
 
-  vm.runInContext(source, context);
+  await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'notification.js'),
+    context,
+  );
   const notify = context.window.AdminApp.gifts.notification.notifyNewGift;
   notify([
     {

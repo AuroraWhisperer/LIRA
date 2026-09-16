@@ -7,62 +7,107 @@
   hidden
 >
   <div class="other-feature-panel-body stack">
-    <div class="desktop-update-grid">
-      <section class="desktop-update-card">
+    <section class="desktop-update-card" aria-labelledby="desktopUpdateTitle">
+      <div class="desktop-update-content">
         <div class="desktop-update-card-heading">
-          <h4 class="ui-section-title">🔄 版本更新</h4>
+          <h4 id="desktopUpdateTitle" class="ui-section-title">版本更新</h4>
           <span class="desktop-current-version">
             <span>当前版本</span>
             <strong id="desktopVersionPill">--</strong>
           </span>
         </div>
-        <p id="desktopUpdateStatus">等待桌面端连接</p>
-
-        <div class="actions">
-          <button id="desktopCheckUpdateBtn" class="primary" type="button">
-            检查更新
-          </button>
-          <button id="desktopDownloadUpdateBtn" type="button" disabled>
-            下载更新
-          </button>
-          <button
-            id="desktopInstallUpdateBtn"
-            class="danger"
-            type="button"
-            disabled
+        <div class="desktop-update-status-row">
+          <div class="desktop-update-status-copy">
+            <p id="desktopUpdateStatus" role="status">等待桌面端连接</p>
+            <p id="desktopUpdateHint" class="hint" hidden></p>
+          </div>
+          <span id="desktopUpdatePercent" hidden></span>
+          <div id="desktopUpdateActions" class="actions desktop-update-actions">
+            <button id="desktopCheckUpdateBtn" class="primary" type="button">
+              检查更新
+            </button>
+            <button
+              id="desktopDownloadUpdateBtn"
+              class="primary"
+              type="button"
+              disabled
+              hidden
+            >
+              下载更新
+            </button>
+            <button
+              id="desktopInstallUpdateBtn"
+              class="primary"
+              type="button"
+              disabled
+              hidden
+            >
+              重启并更新
+            </button>
+          </div>
+        </div>
+        <div id="desktopUpdateDownload" class="desktop-update-download" hidden>
+          <div
+            id="desktopUpdateProgress"
+            class="desktop-update-progress"
+            role="progressbar"
+            aria-label="更新包下载进度"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow="0"
           >
-            安装更新
-          </button>
+            <span id="desktopUpdateProgressBar"></span>
+          </div>
+          <div id="desktopUpdateDownloadDetails" class="desktop-update-download-details" hidden>
+            <span id="desktopUpdateTransferred"></span>
+            <span id="desktopUpdateSpeed"></span>
+          </div>
         </div>
-      </section>
+      </div>
 
-      <section class="desktop-update-card">
-        <h4 class="ui-section-title">📁 本地数据</h4>
-        <p>歌库、设置等数据独立存储，更新不影响已有内容。</p>
-        <div class="actions">
-          <button id="desktopOpenDataBtn" type="button">数据目录</button>
-          <button id="desktopOpenLogBtn" type="button">日志目录</button>
-          <button id="desktopOpenGithubBtn" type="button">项目主页</button>
-        </div>
-      </section>
-    </div>
-
-    <fieldset class="theme-section" style="margin-top: 16px">
-      <legend>⚙️ 自动更新</legend>
-      <div class="gift-detect-head">
+      <div class="desktop-auto-update-row">
+        <span id="desktopAutoUpdateTitle">自动更新</span>
         <label class="switch-control">
-          <input id="autoUpdateToggle" type="checkbox" />
-          <span class="switch-track"></span>
           <span id="autoUpdateLabel">已关闭</span>
+          <input id="autoUpdateToggle" type="checkbox" aria-labelledby="desktopAutoUpdateTitle" />
+          <span class="switch-track"></span>
         </label>
       </div>
-    </fieldset>
+    </section>
 
-    <div class="desktop-update-progress">
-      <span id="desktopUpdateProgressBar"></span>
-    </div>
-    <p id="desktopUpdateHint" class="hint">
-      只有通过安装包安装后的 exe 才会启用自动更新；开发模式会显示为不可检查。
-    </p>
+    <section class="desktop-support-card" aria-labelledby="desktopSupportTitle">
+      <header>
+        <h4 id="desktopSupportTitle" class="ui-card-title">本地数据与支持</h4>
+        <p class="hint">歌库和设置独立存储，版本更新后会保留。</p>
+      </header>
+      <div class="desktop-support-row">
+        <div class="desktop-support-copy">
+          <strong>数据目录</strong>
+          <span>查看歌库与设置的存放位置</span>
+        </div>
+        <button id="desktopOpenDataBtn" class="desktop-support-action" type="button" aria-label="打开数据目录">打开目录</button>
+      </div>
+      <div class="desktop-support-row">
+        <div class="desktop-support-copy">
+          <strong>日志目录</strong>
+          <span>排查运行或更新时遇到的问题</span>
+        </div>
+        <button id="desktopOpenLogBtn" class="desktop-support-action" type="button" aria-label="打开日志目录">打开目录</button>
+      </div>
+      <div class="desktop-support-row">
+        <div class="desktop-support-copy">
+          <strong>项目主页</strong>
+          <span>查看版本说明与下载安装包</span>
+        </div>
+        <button id="desktopOpenGithubBtn" class="desktop-support-action" type="button" aria-label="访问项目主页">访问主页 <span aria-hidden="true">↗</span></button>
+      </div>
+      <div class="desktop-support-row">
+        <div class="desktop-support-copy">
+          <strong>主播登录</strong>
+          <span>前往主播账号登录页面</span>
+        </div>
+        <a class="desktop-support-action" href="https://admin.lirahub.cn/" target="_blank" rel="noopener noreferrer">账号登录 <span aria-hidden="true">↗</span></a>
+      </div>
+    </section>
   </div>
 </section>

@@ -126,7 +126,11 @@ function normalizeEvidence(record, source) {
     record.level === null
       ? null
       : normalizeMs(record.level, 'evidence user level');
-  return { source, recordId, uid, occurredAtMs, text, parentId, level };
+  const displayName =
+    typeof record.displayName === 'string'
+      ? record.displayName.trim().slice(0, 256) || null
+      : null;
+  return { source, recordId, uid, occurredAtMs, text, parentId, level, displayName };
 }
 
 function normalizePage(page, source) {
@@ -317,8 +321,8 @@ function createDynamicLotteryStore(lotteryDb) {
       `
         INSERT OR IGNORE INTO lottery_evidence (
           scan_id, source, record_id, uid, occurred_at_ms, text,
-          parent_id, level, created_at_ms
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          parent_id, level, display_name, created_at_ms
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
     );
     for (const record of page.records) {
@@ -331,6 +335,7 @@ function createDynamicLotteryStore(lotteryDb) {
         record.text,
         record.parentId,
         record.level,
+        record.displayName,
         committedAtMs,
       );
     }
@@ -503,7 +508,7 @@ function createDynamicLotteryStore(lotteryDb) {
       return lotteryDb
         .prepare(
           `
-          SELECT source, record_id, uid, occurred_at_ms, text, parent_id, level
+          SELECT source, record_id, uid, occurred_at_ms, text, parent_id, level, display_name
           FROM lottery_evidence
           WHERE scan_id = ?
           ORDER BY source, length(record_id), record_id
@@ -514,6 +519,7 @@ function createDynamicLotteryStore(lotteryDb) {
           source: row.source,
           recordId: row.record_id,
           uid: row.uid,
+          displayName: row.display_name,
           occurredAtMs:
             row.occurred_at_ms === null ? null : Number(row.occurred_at_ms),
           text: row.text,

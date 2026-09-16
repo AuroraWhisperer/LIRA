@@ -56,6 +56,7 @@ const ERRORS = {
   LOTTERY_TASK_NOT_FOUND: '活动不存在或不属于当前 LIRA 账号。',
 };
 const SOURCE_NAMES = { comment: '评论', like: '点赞', repost: '转发' };
+const WINNERS_PER_PAGE = 5;
 const STATUSES = {
   draft: '待采集',
   collecting: '正在采集',
@@ -63,6 +64,7 @@ const STATUSES = {
   frozen: '顺序已保存',
   drawing: '正在核验',
   paused: '已暂停',
+  failed: '采集失败',
   completed: '开奖完成',
   exhausted: '候选名单已用尽',
 };
@@ -97,6 +99,9 @@ export function initLotteryWorkflow(root) {
   let timer = null;
   let controller = null;
   let generation = 0;
+  let resultPage = 0;
+  let resultRoundId = null;
+  let scanViewKey = '';
 
   function listen(element, type, handler) {
     element.addEventListener(type, handler);
@@ -119,21 +124,32 @@ export function initLotteryWorkflow(root) {
     const task = data.task;
     const result = data.result;
     const working = Boolean(data.job);
+    const hasTask = Boolean(task && !creating);
+    const legacy = hasTask && task.rules.version !== 2;
     const canAct = auth.available && auth.loggedIn && !auth.busy && !busy;
     fields.disabled = !canAct || working || Boolean(task && !creating);
     find('create').disabled = fields.disabled;
     find('new').disabled = !canAct || working;
+    find('new').hidden = !hasTask;
     find('state-refresh').disabled = !auth.available || auth.busy || busy;
     find('pause').disabled = !canAct || !working;
+    find('pause').hidden = !working;
+    find('pause').textContent = result ? '暂停核验' : '暂停采集';
+    const canResume = hasTask && !legacy && ['paused', 'draft', 'frozen'].includes(task.status);
+    const canDraw = hasTask && !legacy && task.status === 'ready';
     find('resume').disabled =
-      !canAct ||
-      working ||
-      !task ||
-      !['paused', 'draft', 'frozen'].includes(task.status);
-    find('draw').disabled =
-      !canAct || working || !task || task.status !== 'ready';
+      !canAct || working || !canResume;
+    find('resume').hidden = working || !canResume;
+    find('draw').disabled = !canAct || working || !canDraw;
+    find('draw').hidden = working || !canDraw;
+    find('task-actions').hidden = !working && !canResume && !canDraw;
     find('resume').textContent = result ? '继续原顺序核验' : '继续采集';
+    find('setup').hidden = hasTask;
+    find('activity').hidden = !hasTask && !working && !data.error;
+    find('task-details').hidden = !hasTask;
     history.disabled = busy || working || data.tasks.length === 0;
+    history.hidden = data.tasks.length === 0;
+    find('history-empty').hidden = data.tasks.length > 0;
     const options = data.tasks.map((entry) => {
       const option = document.createElement('option');
       option.value = entry.id;
@@ -147,49 +163,111 @@ export function initLotteryWorkflow(root) {
     status.textContent =
       working && !data.job.taskId
         ? '正在确认链接与作者账号…'
-        : creating
-          ? '新建抽奖活动'
+        : legacy
+          ? '旧版抽奖记录'
           : task
             ? STATUSES[task.status] || '等待操作'
-            : '等待创建活动';
-    taskInfo.textContent = task
-      ? `${task.target.description || '抽奖内容'} · 作者 UID ${task.ownerUid} · 评论截止 ${new Date(task.rules.endsAtMs).toLocaleString()}`
-      : '';
+            : data.error ? '操作未完成' : '采集与开奖';
+    taskInfo.textContent = task?.target.description || '';
+    if (task) {
+      const conditions = ['评论', ...(task.rules.requiredActions || []).map((source) => SOURCE_NAMES[source])];
+      if (task.rules.requireFollow) conditions.push('关注作者');
+      find('task-summary').textContent = `${conditions.join(' + ')}${task.rules.winnerCount ? ` · 抽取 ${task.rules.winnerCount} 人` : ''}`;
+      const link = find('task-link');
+      link.textContent = task.target.url || '未保存链接';
+      if (task.target.url?.startsWith('https://')) link.href = task.target.url;
+      else link.removeAttribute('href');
+      find('task-author').textContent = `UID ${task.ownerUid}`;
+      find('task-cutoff').textContent = new Date(task.rules.endsAtMs).toLocaleString();
+    }
     progress.replaceChildren();
+    const nextScanViewKey = `${task?.id || ''}:${Boolean(result)}`;
+    if (nextScanViewKey !== scanViewKey) find('scan-details').open = !result;
+    scanViewKey = nextScanViewKey;
+    find('scan-details').hidden = !task?.scan;
+    find('source-table').hidden = !task?.scan;
     if (task?.scan) {
       for (const [source, state] of Object.entries(task.scan.sources)) {
-        const item = document.createElement('li');
-        item.textContent = `${SOURCE_NAMES[source] || source}：${state.readCount} 条记录 · ${state.coverage === 'exhausted' ? '分页结束' : '未采集完'}`;
+        const item = document.createElement('tr');
+        const name = document.createElement('th');
+        name.scope = 'row';
+        name.textContent = SOURCE_NAMES[source] || source;
+        const count = document.createElement('td');
+        count.textContent = `${state.readCount} 条`;
+        const coverage = document.createElement('td');
+        coverage.textContent = state.coverage === 'exhausted' ? '已完成' : '未采集完';
+        item.append(name, count, coverage);
         progress.append(item);
       }
     }
-    if (task?.candidateCount !== null && task?.candidateCount !== undefined) {
-      const item = document.createElement('li');
-      item.textContent = `去重并满足全部互动条件：${task.candidateCount} 人（已排除作者）`;
-      progress.append(item);
-    }
+    find('candidate-info').textContent = task?.candidateCount != null
+      ? `候选名单 ${task.candidateCount} 人 · 已去重并排除作者`
+      : '';
+    find('rate-note').hidden = !working || Boolean(result) || !task?.scan;
     message.textContent = errorText(
-      data.error || result?.reason || task?.scan?.pauseReason,
+      data.error || result?.reason || task?.scan?.pauseReason || (legacy ? 'LOTTERY_LEGACY_TASK' : ''),
     );
+    renderResult(hasTask ? result : null);
+  }
+
+  function renderResult(result) {
+    if (resultRoundId !== result?.roundId) resultPage = 0;
+    resultRoundId = result?.roundId;
+    const entries = result?.winners || [];
+    const pageCount = Math.max(1, Math.ceil(entries.length / WINNERS_PER_PAGE));
+    resultPage = Math.min(resultPage, pageCount - 1);
+    find('result-panel').hidden = !result;
+    find('result-status').textContent = result ? STATUSES[result.status] || '' : '';
+    find('result-empty').hidden = entries.length > 0;
+    find('pager').hidden = pageCount === 1;
+    find('previous').disabled = resultPage === 0;
+    find('next').disabled = resultPage >= pageCount - 1;
+    find('page-info').textContent = `${resultPage + 1} / ${pageCount} 页 · 共 ${entries.length} 人`;
     winners.replaceChildren();
-    for (const winner of result?.winners || []) {
+    const start = resultPage * WINNERS_PER_PAGE;
+    for (const winner of entries.slice(start, start + WINNERS_PER_PAGE)) {
       const item = document.createElement('li');
+      const rank = document.createElement('span');
+      rank.className = 'dynamic-lottery-rank';
+      rank.textContent = String(winner.position);
+      const content = document.createElement('div');
+      const person = document.createElement('div');
+      person.className = 'dynamic-lottery-winner-person';
       const link = document.createElement('a');
       link.href = `https://space.bilibili.com/${winner.uid}`;
       link.target = '_blank';
       link.rel = 'noopener noreferrer';
-      link.textContent = `UID ${winner.uid}`;
+      link.className = 'dynamic-lottery-winner-name';
+      link.textContent = winner.displayName || `UID ${winner.uid}`;
+      person.append(link);
+      if (winner.displayName) {
+        const uid = document.createElement('span');
+        uid.className = 'dynamic-lottery-winner-uid';
+        uid.textContent = `UID ${winner.uid}`;
+        person.append(uid);
+      }
       const verified = document.createElement('span');
+      verified.className = 'dynamic-lottery-verification';
       verified.textContent =
         winner.verification.reason === 'FOLLOW_NOT_REQUIRED'
-          ? '符合互动条件 · 未要求关注'
-          : '已确认关注作者';
-      item.append(link, verified);
+          ? '未要求关注'
+          : '已确认关注';
+      person.append(verified);
+      const comment = document.createElement('p');
+      comment.className = 'dynamic-lottery-comment';
+      const label = document.createElement('span');
+      label.className = 'dynamic-lottery-comment-label';
+      label.textContent = '参与评论';
+      const text = document.createElement('span');
+      text.textContent = winner.commentText ?? '该记录未保存评论内容';
+      comment.append(label, text);
+      content.append(person, comment);
+      item.append(rank, content);
       winners.append(item);
     }
     resultNote.textContent = result
-      ? `已确认 ${result.winners.length} / ${result.requestedCount} 人 · 已处理 ${result.checkedCount} 人 · 不符合 ${result.excludedCount} 人${result.shortage ? ` · 名单已用尽，缺 ${result.shortage} 人` : ''}${result.status === 'paused' ? ' · 暂停在下一位待核验候选人' : ''}`
-      : '完成采集后点击“开始随机抽奖”。结果会保存在当前 LIRA 账号的本地历史中。';
+      ? `已确认 ${entries.length} / ${result.requestedCount} 人 · 已核验 ${result.checkedCount} 人 · 不符合 ${result.excludedCount} 人${result.shortage ? ` · 缺额 ${result.shortage} 人` : ''}`
+      : '';
     find('draw-proof').textContent = result
       ? `名单摘要 SHA-256：${result.digest} · ${result.algorithm} · 顺序已固定，继续不会重排`
       : '';
@@ -298,6 +376,18 @@ export function initLotteryWorkflow(root) {
     creating = false;
     void load();
   });
+  listen(find('history-toggle'), 'click', () => {
+    const panel = find('history-panel');
+    panel.hidden = !panel.hidden;
+    find('history-toggle').setAttribute('aria-expanded', String(!panel.hidden));
+  });
+  for (const [action, change] of [['previous', -1], ['next', 1]]) {
+    listen(find(action), 'click', () => {
+      if (find(action).disabled) return;
+      resultPage += change;
+      renderResult(data.result);
+    });
+  }
 
   function reset() {
     cancelRequest();

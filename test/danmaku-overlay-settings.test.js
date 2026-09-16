@@ -15,6 +15,7 @@ test('danmaku overlay style defaults to signal and accepts only named themes', a
     'minimal',
     'ranked',
     'transparent',
+    'identity',
     'outline',
   ]) {
     const result = await postSettings({ danmakuOverlayStyle: ` ${style} ` });

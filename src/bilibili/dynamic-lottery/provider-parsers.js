@@ -234,6 +234,10 @@ function parseCommentRecord(record) {
     source: 'comment',
     recordId,
     uid,
+    displayName:
+      typeof record.member.uname === 'string'
+        ? record.member.uname.trim().slice(0, 256) || null
+        : null,
     occurredAtMs: secondsToMilliseconds(record.ctime, 'comment time'),
     text: record.content.message,
     parentId: null,

@@ -16,7 +16,9 @@
 | `POST /api/bilibili/dynamic-lottery/tasks` | `{url,winnerCount,requireLike,requireRepost,requireFollow,requestId}` | 中奖人数 1–100，三个开关必须为 boolean；作者检查及采集后台执行，返回同一状态结构；同 requestId 同参数不重复建活动，异参冲突 |
 | `POST /api/bilibili/dynamic-lottery/tasks/action` | `{taskId,revision,action:'pause'\|'resume'\|'draw'}` | 受信 scope 归属检查，继续/开奖需匹配 revision；pause 可省 taskId 以取消正在解析链接的当前操作；继续不重新随机；已结束活动重复操作不重新开奖 |
 
-以上端点 `Cache-Control: no-store`。错误为 `{ok:false,error:LOTTERY_*}`，不返回上游正文、SQL 或 Cookie；401 沿用通用 token 拦截，403 `LOTTERY_IDENTITY_UNAVAILABLE`，404 `LOTTERY_TASK_NOT_FOUND`，409 `LOTTERY_BUSY`/`LOTTERY_DRAW_CONFLICT`，其他规则/来源/存储不可用为 400。异步错误保存在同 scope 状态或活动暂停原因，客户端展示后由用户决定继续。新业务本轮未运行测试；不把接口存在视作 B站可用性验证。
+`result.winners[]` 保留 `uid`、`position`、`verification`、`drawnAtMs`，并增加可空的 `displayName`（最多 256 字符的采集时昵称）与 `commentText`（完整参与评论）。两者来自本轮冻结成员指向的评论证据，按 scan/source/recordId/uid 关联；旧记录缺少元数据时返回 `null`，不额外请求用户资料。昵称与评论均为不可信纯文本，不参与资格判定或名单摘要。
+
+以上端点 `Cache-Control: no-store`。错误为 `{ok:false,error:LOTTERY_*}`，不返回上游正文、SQL 或 Cookie；401 沿用通用 token 拦截，403 `LOTTERY_IDENTITY_UNAVAILABLE`，404 `LOTTERY_TASK_NOT_FOUND`，409 `LOTTERY_BUSY`/`LOTTERY_DRAW_CONFLICT`，其他规则/来源/存储不可用为 400。异步错误保存在同 scope 状态或活动暂停原因，客户端展示后由用户决定继续。隔离测试不代表真实 B站接口可用性验证。
 
 路由分发在 [api-routes.js](../../../src/server/api-routes.js) 中完成,无状态、无框架(`node:http` 手写路由):
 

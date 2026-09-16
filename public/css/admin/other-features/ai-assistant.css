@@ -1,12 +1,7 @@
 .xiaomi-ai-section {
+  --danmaku-heading-color: #766183;
   position: relative;
   overflow: hidden;
-  border-color: color-mix(in srgb, var(--primary) 34%, var(--border));
-  background: linear-gradient(
-    120deg,
-    color-mix(in srgb, var(--primary) 5%, var(--surface)) 0%,
-    var(--surface) 38%
-  );
 }
 
 .xiaomi-ai-section:has(.lira-select.is-open) {
@@ -14,13 +9,6 @@
   overflow: visible;
 }
 
-.xiaomi-ai-section::before {
-  content: '';
-  position: absolute;
-  inset: 0 0 auto;
-  height: 3px;
-  background: linear-gradient(90deg, var(--primary), var(--accent));
-}
 .xiaomi-ai-heading,
 .xiaomi-ai-title-wrap,
 .xiaomi-ai-actions,
@@ -34,71 +22,27 @@
   gap: 16px;
 }
 .xiaomi-ai-title-wrap {
-  gap: 12px;
+  gap: 10px;
   min-width: 0;
 }
 .xiaomi-ai-title-wrap h3 {
   margin: 0;
-  color: var(--text);
+  color: var(--danmaku-heading-color);
   font-size: var(--type-size-section-title);
+  font-weight: 600;
+  line-height: 1.4;
 }
-.xiaomi-ai-cat {
-  position: relative;
+.xiaomi-ai-icon {
+  display: block;
   flex: 0 0 auto;
-  width: 38px;
-  height: 32px;
-  border: 2px solid color-mix(in srgb, var(--primary) 62%, var(--text));
-  border-radius: 12px 12px 14px 14px;
-  background: var(--color-primary-light);
-}
-.xiaomi-ai-cat::before,
-.xiaomi-ai-cat::after {
-  content: '';
-  position: absolute;
-  top: -9px;
-  width: 12px;
-  height: 12px;
-  border: 2px solid color-mix(in srgb, var(--primary) 62%, var(--text));
-  background: var(--color-primary-light);
-  transform: rotate(45deg);
-}
-.xiaomi-ai-cat::before {
-  left: 2px;
-  border-right: 0;
-  border-bottom: 0;
-}
-.xiaomi-ai-cat::after {
-  right: 2px;
-  border-left: 0;
-  border-top: 0;
-}
-.xiaomi-ai-cat i,
-.xiaomi-ai-cat i::before {
-  position: absolute;
-  content: '';
-}
-.xiaomi-ai-cat i {
-  top: 12px;
-  left: 10px;
-  width: 3px;
-  height: 4px;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--primary) 72%, var(--text));
-  box-shadow: 13px 0 0 color-mix(in srgb, var(--primary) 72%, var(--text));
-}
-.xiaomi-ai-cat i::before {
-  top: 7px;
-  left: 6px;
-  width: 6px;
-  height: 3px;
-  border-bottom: 1.5px solid color-mix(in srgb, var(--primary) 72%, var(--text));
-  border-radius: 0 0 50% 50%;
+  width: 20px;
+  height: 20px;
+  color: var(--danmaku-heading-color);
 }
 .xiaomi-ai-status-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   overflow: hidden;
-  border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface-2);
 }

@@ -189,18 +189,18 @@ PNG/JPEG/WebP 和受支持的音频，Overlay 只接受受限的 `/opening-chara
 
 ## 6.1 弹幕姬(/danmaku)
 
-[overlays/danmaku.js](../../../public/js/overlays/danmaku.js) 驱动唯一固定 `/danmaku` 浏览器源，并按 snapshot 的 `settings.danmakuOverlayStyle` 在固定区域的聊天气泡(`bubble`)、直播信号带(`signal`)、蝴蝶结(`minimal`)、直播气泡(`ranked`)、透明简约(`transparent`)和全屏随机(`outline`)之间切换；非法或缺失值回退默认 `signal`。页面以 `topic=danmaku` 连接 WebSocket，从 snapshot 的 `danmakuFeed` 恢复最近消息，并直接消费 `danmaku:message`；按消息 `id` 去重，同一动画帧内的消息批量追加，连接中断时指数退避重连。全屏随机使用 snapshot 中的 `danmakuFullscreenDurationSeconds`，只渲染发送者和正文，在视口边界内定位并按时间移除；固定区域样式继续按顺序排列，其中透明简约统一身份视觉并在正文下方显示粉丝牌名称与等级。状态栏在本地 socket 可用后继续以 snapshot `liveStatus` 为准，不再把本地连接成功等同于 B 站弹幕已连接。Admin 的“网页预览”通过系统浏览器打开 `/danmaku?preview=1&style=bubble|signal|minimal|ranked|transparent|outline`，按当前样式展示非大航海、舰长、提督和总督四条聊天样本及一条“星河来客送出小花花 × 10”的礼物样本，其中非大航海聊天为 B 站“打call”表情；预览模式不连接 WebSocket。
+[overlays/danmaku.js](../../../public/js/overlays/danmaku.js) 驱动唯一固定 `/danmaku` 浏览器源，并按 snapshot 的 `settings.danmakuOverlayStyle` 在固定区域的聊天气泡(`bubble`)、直播信号带(`signal`)、蝴蝶结(`minimal`)、直播气泡(`ranked`)、透明简约(`transparent`)、身份横卡(`identity`)六种样式和全屏随机(`outline`)之间切换；非法或缺失值回退默认 `signal`。页面以 `topic=danmaku` 连接 WebSocket，从 snapshot 的 `danmakuFeed` 恢复最近消息，并直接消费 `danmaku:message`；按消息 `id` 去重，同一动画帧内的消息批量追加，连接中断时指数退避重连。全屏随机使用 snapshot 中的 `danmakuFullscreenDurationSeconds`，只渲染发送者和正文，在视口边界内定位并按时间移除；固定区域样式继续按顺序排列，其中透明简约统一身份视觉并在正文下方显示粉丝牌名称与等级。状态栏在本地 socket 可用后继续以 snapshot `liveStatus` 为准，不再把本地连接成功等同于 B 站弹幕已连接。Admin 的“网页预览”通过系统浏览器打开 `/danmaku?preview=1&style=bubble|signal|minimal|ranked|transparent|identity|outline`，按当前样式展示非大航海、舰长、提督和总督四条聊天样本及一条“星河来客送出小花花 × 10”的礼物样本，其中非大航海聊天为 B 站“打call”表情；预览模式不连接 WebSocket。
 
 页面与 `/games` 的画猜消息共同复用 `danmaku-feed.js` DOM 组件。组件不读取 WebSocket 或领域状态，只接收显式消息数组和图片 URL resolver：
 
 - `measureDanmakuText(message)` 按中英文混合文本的视觉长度估算行数、宽度百分比和最小高度。
-- `kind:'gift'` 使用专用 `is-gift` 节点，以 `textContent` 展示送礼人、礼物名称和数量。六套视觉各自拥有 `public/img/overlays/danmaku-gifts/` 下的 SVG：信号徽记、糖果礼盒、蝴蝶结花结、直播礼章、透明线稿及浅色贴纸；正式消息和默认预览共用 renderer。礼物继续遵循现有排序、快照去重和全屏到期行为；游戏仍只使用自己的聊天消息源。
+- `kind:'gift'` 使用专用 `is-gift` 节点，以 `textContent` 展示送礼人、礼物名称和数量。七套视觉各自拥有 `public/img/overlays/danmaku-gifts/` 下的 SVG：信号徽记、圆角线稿礼盒、蝴蝶结花结、直播礼章、透明线稿、横卡礼物铭牌及浅色贴纸；正式消息和默认预览共用 renderer。六套固定样式将动作、礼物名和数量连续排版；身份横卡复用四档底色和右侧头像，在正文左侧放置暖白线稿礼物铭牌，昵称 18px、动作 16px、礼物名 30px、数量 32px 分层显示；装饰沿用各主题的身份色或文字色；`ranked` 礼物保留身份色底板，使用同色系深色前景提高文字对比度。礼物继续遵循现有排序、快照去重和全屏到期行为；游戏仍只使用自己的聊天消息源。
 - `createDanmakuFeed(root, options).render(items)` 使用 `DocumentFragment`、`textContent` 和受控 `<img>` 创建消息，`append(item)` 只追加新节点，不重建已有 DOM。游戏层继续按估算高度保留当前可见区及上方约 5 个视口并自动滚到底部；固定 `/danmaku` 配置 `offscreenViewports: 0`，按实际布局高度、行间距和容器内边距移除最旧的超限节点，保留完整可见消息。固定区域和全屏模式的 `ResizeObserver` 同时观察容器与消息，图片加载、昵称换行或窗口缩放后在动画帧内合并测量与调整，使用不受入场动画缩放影响的布局尺寸。节点移除或替换时取消观察，销毁时取消布局帧和到期计时器。表情按精确触发文本切分，加载失败回退原触发文本，不使用 `innerHTML`。页面数据和断线恢复快照仍分别硬限制为最近 50 条，共享组件默认上限仍为 120 条。
 - 共享组件按当前房间身份为每条消息输出 `data-identity=viewer|fan|captain|admiral|governor`；大航海身份优先，拥有大航海且佩戴当前房间灯牌时仍同时输出两枚徽标。五套固定弹幕姬只共享该语义，不共享身份视觉：`signal` 使用军衔刻度与分级信号色，`bubble` 使用会员胶囊、身份符号和柔和分级光晕，`minimal` 不绘制左侧色条，普通观众省略身份签，粉丝与大航海身份保留单字身份签和低遮挡分级色；`ranked` 隐藏徽标，以普通/粉丝共用的石墨灰及舰长蓝、提督紫、总督金四档整卡底色表达身份，用户名和正文在左、头像在右；`transparent` 不绘制卡片底色、边框或大航海徽标，所有身份统一为头像右侧的昵称、正文和下方粉丝牌等级。`outline` 虽保留同一 DOM 身份字段以兼容共享组件，但 CSS 统一隐藏头像、徽标和灯牌；卡片使用浅白半透明底、柔和阴影、灰色昵称和深色正文，左对齐排版并轻微淡入，所有消息采用相同的中性样式。
 - `ranked` 使用 624×640 固定设计画布、最大 600px 卡片宽度和 10px 卡片间距，卡片随正文增高；`calculateRankedOverlayScale(width, height)` 取 `min(width / 624, height / 640)` 并投影到 `--ranked-scale`，让窗口 resize 时头像、文字和卡片统一等比缩放。浏览器源比例与设计画布不一致时在未占满的一轴保留透明空白，不拉伸或单独重排内部元素。
 - `/danmaku` 把头像与表情 CDN 地址交给 `/api/bilibili/avatar` 本地代理；未通过 B 站域名白名单的图片不会进入服务端公开流。
 - 固定区域样式的网格行占满可用高度，使消息容器的裁剪预算来自浏览器源视口，而不是当前消息堆叠高度；少量消息仍靠底部排列，追加消息不会在视口尚有空余时过早移除已有消息。
-- 各样式的图片表情受正文宽度约束，行内图片不使用负纵向边距，昵称与粉丝牌必要时分行。聊天气泡保留 12px 消息间距及 6px 尾角空间；直播气泡设计画布内的消息间距为 10px。全屏随机的昵称放在卡片边框内，正文间隔 6px；消息距离视口边缘至少 16px，消息之间至少 10px，已放得下的消息保留位置，空间不足时先移除最旧消息。
+- 各样式的图片表情受正文宽度约束，行内图片不使用负纵向边距，昵称与粉丝牌必要时分行。聊天气泡保留 12px 消息间距及 6px 尾角空间；直播气泡设计画布内的消息间距为 10px。身份横卡(`identity`)独立保留历史右侧渐隐头像和普通观众/舰长/提督/总督四档底色，与直播气泡共用 624×640 等比缩放画布；卡片宽 600px、最小高度 92px、间距 6px，正文换行时向下增长。全屏随机的昵称放在卡片边框内，正文间隔 6px；消息距离视口边缘至少 16px，消息之间至少 10px，已放得下的消息保留位置，空间不足时先移除最旧消息。
 - 信号带的粉丝牌等级跟随昵称信息行排版，不再绝对定位到卡片底边；粉丝牌名称允许收缩并显示省略号，等级不会挤到正文或边框上。
 - 蝴蝶结样式的昵称向下偏移 6px，居中占正文区域宽度的 70%，长昵称保持 14px 字号自动换行，连续英文也可在字符间折行。行内表情不使用负纵向边距，图片占用完整行高，避免最后一条消息的表情底部超出消息容器并被裁切。
 
@@ -213,7 +213,7 @@ PNG/JPEG/WebP 和受支持的音频，Overlay 只接受受限的 `/opening-chara
 ## 6.3 萌时钟(/clock)
 
 [overlays/clock.js](../../../public/js/overlays/clock.js) 驱动固定 `/clock`
-浏览器源，首帧从免认证只读接口 `GET /api/clock/config` 读取已保存设置，并使用
+浏览器源，默认首帧从免认证只读接口 `GET /api/clock/config` 读取已保存设置，并使用
 设备本地时区显示当前时间、日期和星期。页面外层透明；横向样式使用 560×190
 设计画布，竖向时间轴使用 220×380 设计画布，并在浏览器源不足时按可用空间缩小。
 
@@ -229,8 +229,11 @@ PNG/JPEG/WebP 和受支持的音频，Overlay 只接受受限的 `/opening-chara
 - 时钟按下一秒边界使用一次性 timeout 更新；页面隐藏时停止调度，恢复可见后
   立即校时。冒号与星点动效在 `prefers-reduced-motion: reduce` 下停用。
 - Admin 百宝箱的「萌时钟」卡片只展示并复制固定地址；表单修改经受 token 保护的
-  `POST /api/settings` 保存，iframe 仍用参数即时预览。旧带参数地址保持兼容，显式
-  参数逐字段覆盖保存配置；已打开的 OBS 页面在 Browser Source 刷新后读取新设置。
+  `POST /api/settings` 保存。预览 iframe 与管理页同源，首次用完整参数加载，后续
+  通过仅接受同源父窗口的 `lira:clock-preview-config` 消息原位更新；样式切换使用
+  160ms 淡入衔接，减少动态效果时停用，不重载页面或重启计时器。完整参数无需重复
+  读取配置，首帧在配置和当前时间就绪后显示。旧带参数地址保持兼容，显式参数逐字段
+  覆盖保存配置；已打开的 OBS 页面在 Browser Source 刷新后读取新设置。
 
 ## 7. 数据消费一览
 

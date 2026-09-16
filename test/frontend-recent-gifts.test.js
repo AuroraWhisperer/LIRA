@@ -14,7 +14,7 @@ function runnableRecentScript(source) {
 const Events = { GIFT_CATALOG_UPDATED: 'gift:catalog_updated' };
 const getLegacyAdminModules = () => window.AdminApp;
 ${fs.readFileSync(path.join(ROOT_DIR, 'public/js/shared/gift-image-fallback.js'), 'utf8').replace(/^export /gm, '')}
-${source.replace(/^import\s[\s\S]*?;\r?\n/gm, '')}`;
+${source.replace(/^import\s[\s\S]*?;\r?\n/gm, '').replace(/^export /gm, '')}`;
 }
 
 test('recent gift cards keep a wider responsive minimum width', () => {

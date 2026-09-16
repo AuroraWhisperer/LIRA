@@ -309,32 +309,30 @@ tr:hover td {
 /* The auxiliary page shares lifecycle behavior, not Admin styles. */
 .audit-toast-stack { position: fixed; top: 16px; right: 24px; z-index: 999; display: flex; flex-direction: column; }
 .toast {
+  --toast-accent: #454d85;
   position: relative;
   box-sizing: border-box;
   max-width: min(420px, calc(100vw - 48px));
-  padding: 12px 44px 12px 16px;
-  border-radius: 14px;
-  font-size: 0.875rem;
-  font-weight: 600;
+  padding: 12px 16px;
+  border: 1px solid color-mix(in srgb, var(--toast-accent) 23%, transparent);
+  border-radius: 12px;
+  background: linear-gradient(125deg, #e0e4f5 0%, #d3d8ef 45%, #c8cee8 100%);
+  color: #303653;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.55;
+  box-shadow: 0 8px 20px rgb(52 61 92 / 10%);
   opacity: 0;
   transform: translateY(-8px);
   transition: opacity 180ms ease, transform 180ms ease;
 }
 .toast.show { opacity: 1; transform: translateY(0); }
 .toast[hidden], .toast-action[hidden] { display: none; }
-.toast.ok { background: #246b59; color: #fff; }
-.toast.warn { background: var(--yellow); color: #000; }
+.toast.warn { --toast-accent: #754337; }
 .toast-content { overflow-wrap: anywhere; max-height: calc(100dvh - 140px); overflow: auto; }
-.toast-kind { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
-.toast-kind svg { width: 16px; height: 16px; flex: 0 0 auto; }
-.toast-close {
-  position: absolute; right: 7px; top: 7px;
-  width: 30px; height: 30px; padding: 6px;
-  border: 0; border-radius: 6px; background: transparent; color: inherit; cursor: pointer;
-}
-.toast-close svg { width: 16px; height: 16px; }
-.toast-close:hover { background: rgba(0, 0, 0, 0.12); }
-.toast-close:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+.toast-content-compact { display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: start; column-gap: 8px; }
+.toast-symbol { color: var(--toast-accent); margin-top: 2px; line-height: 0; }
+.toast-symbol svg { width: 18px; height: 18px; }
 .toast-announcer {
   position: absolute; width: 1px; height: 1px;
   overflow: hidden; clip-path: inset(50%); white-space: nowrap;

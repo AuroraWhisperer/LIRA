@@ -45,6 +45,7 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
   assert.match(script, /params\.get\('preview'\) === '1'/);
   assert.match(script, /params\.get\('style'\)/);
   assert.match(script, /'transparent'/);
+  assert.match(script, /'identity'/);
   assert.match(script, /'outline'/);
   assert.match(script, /guardLevel:\s*1/);
   assert.match(script, /guardLevel:\s*2/);
@@ -257,7 +258,7 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
   );
   assert.doesNotMatch(
     styles,
-    /body\[data-style='ranked'\][\s\S]*grid-template-areas:\s*'content avatar'/,
+    /body\[data-style='ranked'\] \.draw-danmaku-item \{[^}]*grid-template-areas:\s*'content avatar'/,
   );
   assert.doesNotMatch(
     styles,
@@ -403,6 +404,7 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
     'bubble',
     'ranked',
     'transparent',
+    'identity',
   ]) {
     for (const identity of [
       'viewer',
@@ -419,6 +421,28 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
       );
     }
   }
+});
+
+test('identity cards preserve the historical right avatar and four identity colors independently of ranked bubbles', () => {
+  const styles = fs.readFileSync(
+    path.join(ROOT_DIR, 'public/css/overlays/danmaku/identity.css'),
+    'utf8',
+  );
+  assert.match(styles, /--identity-card-width:\s*600px/);
+  assert.match(styles, /--identity-card-min-height:\s*92px/);
+  assert.match(styles, /grid-template-areas:\s*'content avatar'/);
+  assert.match(styles, /transform:\s*scale\(var\(--ranked-scale\)\)/);
+  for (const [identity, color] of [
+    ['viewer', 'rgba(52, 59, 69, 0.84)'],
+    ['fan', 'rgba(52, 59, 69, 0.84)'],
+    ['captain', 'rgba(24, 105, 171, 0.9)'],
+    ['admiral', 'rgba(104, 48, 156, 0.9)'],
+    ['governor', 'rgba(171, 37, 61, 0.92)'],
+  ]) {
+    const rule = styles.split(`[data-identity='${identity}']`)[1].split('}')[0];
+    assert.ok(rule.includes(`--identity-surface: ${color}`));
+  }
+  assert.doesNotMatch(styles, /body\[data-style='ranked'\]/);
 });
 
 test('fixed danmaku overlay derives its label from Bilibili live status', async () => {

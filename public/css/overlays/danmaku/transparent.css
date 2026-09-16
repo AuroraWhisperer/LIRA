@@ -132,26 +132,36 @@ body[data-style='transparent'] .draw-danmaku-item.is-gift {
   --danmaku-gift-art: url('/img/overlays/danmaku-gifts/transparent.svg');
 }
 body[data-style='transparent'] .is-gift .draw-danmaku-gift {
-  grid-template-columns: 38px minmax(0, 1fr) auto;
-  gap: 8px;
-  margin-top: 6px;
+  display: flow-root;
+  margin-top: 4px;
+  font-size: 20px;
+  line-height: 1.5;
+  -webkit-text-stroke: 0.6px rgba(0, 0, 0, 0.9);
+  paint-order: stroke fill;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
 }
 body[data-style='transparent'] .draw-danmaku-gift-art {
-  width: 38px;
-  height: 44px;
+  float: right;
+  width: 24px;
+  height: 27px;
+  margin-left: 10px;
   filter: drop-shadow(0 2px 2px rgba(28, 20, 12, 0.8));
 }
 body[data-style='transparent'] .draw-danmaku-gift-copy {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 4px 6px;
+  display: inline;
+}
+body[data-style='transparent'] .draw-danmaku-gift-action {
+  margin-right: 6px;
+  font-size: 14px;
 }
 body[data-style='transparent'] .draw-danmaku-gift-name {
-  color: #ffebbb;
-  font-size: 21px;
+  color: var(--transparent-ink);
+  font-size: 20px;
 }
 body[data-style='transparent'] .draw-danmaku-gift-count {
-  color: #ffdf91;
-  font-size: 24px;
+  display: inline-block;
+  margin-left: 8px;
+  color: var(--transparent-medal);
+  font-size: 22px;
+  font-weight: 700;
 }

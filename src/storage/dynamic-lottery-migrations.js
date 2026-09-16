@@ -8,6 +8,7 @@ const {
 function runDynamicLotteryMigrations(lotteryDb) {
   const result = schema.runMigrations(lotteryDb, 'lottery_db', [
     (db) => db.exec(DYNAMIC_LOTTERY_SCHEMA),
+    (db) => db.exec('ALTER TABLE lottery_evidence ADD COLUMN display_name TEXT'),
   ]);
   if (result.applied > 0) {
     console.log(

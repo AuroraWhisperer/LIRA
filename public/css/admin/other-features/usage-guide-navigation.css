@@ -1,5 +1,8 @@
 /* 横向目录按阅读目的分组，为较长的章节名称预留空间。 */
 .usage-guide-toc {
+  --usage-guide-accent: #63289f;
+  --usage-guide-accent-soft: #f0e0ff;
+  --usage-guide-accent-border: #e6d4f5;
   position: sticky;
   top: 8px;
   z-index: 6;
@@ -10,7 +13,7 @@
   padding: 14px 6px;
   border: 1px solid var(--usage-guide-accent-border);
   border-radius: var(--radius-lg);
-  background: var(--surface-2);
+  background: #f5ebff;
   counter-reset: usage-guide-toc;
 }
 
@@ -39,7 +42,7 @@
   min-height: 34px;
   padding: 7px 8px;
   border-radius: var(--radius-md);
-  color: var(--text);
+  color: #4a2370;
   font-size: var(--type-size-control);
   font-weight: 500;
   line-height: 1.4;
@@ -57,7 +60,7 @@
 }
 
 .usage-guide-toc a.active {
-  background: color-mix(in srgb, var(--usage-guide-accent) 12%, var(--surface));
+  background: #e5ccff;
   color: var(--usage-guide-accent);
   font-weight: 600;
 }

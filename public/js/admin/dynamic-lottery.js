@@ -24,6 +24,8 @@ export function initDynamicLottery({
   const loginButton = root.querySelector('[data-lottery-login]');
   const logoutButton = root.querySelector('[data-lottery-logout]');
   const refreshButton = root.querySelector('[data-lottery-auth-refresh]');
+  const accountToggle = root.querySelector('[data-lottery-account-toggle]');
+  const accountPanel = root.querySelector('[data-lottery-account-panel]');
   let busy = false;
   let disposed = false;
   let generation = 0;
@@ -36,6 +38,8 @@ export function initDynamicLottery({
     status.textContent = state.loggedIn
       ? `已登录 · UID ${state.uid}`
       : '未登录抽奖账号';
+    status.setAttribute('data-connected', String(state.loggedIn));
+    loginButton.hidden = state.loggedIn;
     loginButton.disabled = !available || busy || state.loggedIn;
     logoutButton.disabled =
       !available || busy || (!state.loggedIn && !state.warning);
@@ -84,9 +88,14 @@ export function initDynamicLottery({
   const onLogin = () => perform('login');
   const onLogout = () => perform('logout');
   const onRefresh = () => perform('getState');
+  const onToggleAccount = () => {
+    accountPanel.hidden = !accountPanel.hidden;
+    accountToggle.setAttribute('aria-expanded', String(!accountPanel.hidden));
+  };
   loginButton.addEventListener('click', onLogin);
   logoutButton.addEventListener('click', onLogout);
   refreshButton.addEventListener('click', onRefresh);
+  accountToggle.addEventListener('click', onToggleAccount);
   const unsubscribe = license?.onStateChanged?.(() => {
     generation += 1;
     busy = false;
@@ -111,6 +120,7 @@ export function initDynamicLottery({
       loginButton.removeEventListener('click', onLogin);
       logoutButton.removeEventListener('click', onLogout);
       refreshButton.removeEventListener('click', onRefresh);
+      accountToggle.removeEventListener('click', onToggleAccount);
     },
   };
 }

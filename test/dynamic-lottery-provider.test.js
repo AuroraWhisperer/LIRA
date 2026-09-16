@@ -301,6 +301,7 @@ test('comment pages require an explicit cursor and preserve root evidence', asyn
             ctime: 1_700_000_010,
             member: {
               mid: '6000000000000000001',
+              uname: '山间有风',
               level_info: { current_level: 5 },
             },
             content: { message: '<img src=x onerror=alert(1)> 参加抽奖' },
@@ -337,6 +338,7 @@ test('comment pages require an explicit cursor and preserve root evidence', asyn
         source: 'comment',
         recordId: '7000000000000000001',
         uid: '6000000000000000001',
+        displayName: '山间有风',
         occurredAtMs: 1_700_000_010_000,
         text: '<img src=x onerror=alert(1)> 参加抽奖',
         parentId: null,

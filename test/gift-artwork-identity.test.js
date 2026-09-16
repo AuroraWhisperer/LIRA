@@ -52,7 +52,7 @@ test('recent gifts and source-box icons keep reused IDs and repriced identities 
     const Events = { GIFT_CATALOG_UPDATED: 'gift:catalog_updated' };
     const getLegacyAdminModules = () => window.AdminApp;
     ${fs.readFileSync(path.join(__dirname, '../public/js/shared/gift-image-fallback.js'), 'utf8').replace(/^export /gm, '')}
-    ${source.replace(/^import\s[\s\S]*?;\r?\n/gm, '')}`,
+    ${source.replace(/^import\s[\s\S]*?;\r?\n/gm, '').replace(/^export /gm, '')}`,
     sandbox,
   );
   const recent = sandbox.window.AdminApp.gifts.recent;
@@ -89,6 +89,13 @@ test('recent gifts and source-box icons keep reused IDs and repriced identities 
     gift_variant_id: renamed.variantId,
   };
   assert.equal(recent.getHighValueGiftArtwork(record).src, renamed.imagePath);
+  assert.equal(sandbox.getGiftToastArtwork(record), renamed.imagePath);
+  assert.equal(sandbox.getGiftToastArtwork({ ...record, gift_variant_id: null }), '');
+  assert.equal(sandbox.getGiftToastArtwork({ ...record, gift_variant_id: repriced.variantId }), '');
+  assert.equal(
+    sandbox.getGiftToastArtwork({ gift_id: 'guard-3', coin_type: 'guard', gift_name: '舰长' }),
+    '/img/admin/gifts/bilibili-guard-captain.webp',
+  );
   assert.equal(
     recent.getHighValueGiftArtwork({ ...record, gift_variant_id: null }).src,
     '/img/gift-placeholder.png',
@@ -109,6 +116,10 @@ test('recent gifts and source-box icons keep reused IDs and repriced identities 
     },
   });
   assert.equal(recent.getHighValueGiftArtwork(record).src, renamed.imagePath);
+  assert.equal(
+    sandbox.getGiftToastArtwork({ ...record, gift_variant_id: repriced.variantId }),
+    '/overtime-gift-images/repriced.webp',
+  );
   assert.equal(
     recent.getHighValueGiftArtwork({
       ...record,

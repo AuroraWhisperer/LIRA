@@ -131,12 +131,21 @@ function createLotteryDrawStore(db) {
   function winners(roundId) {
     return db
       .prepare(
-        `SELECT uid, slot_index, verification_json, drawn_at_ms FROM lottery_awards
-      WHERE round_id = ? AND active = 1 ORDER BY slot_index`,
+        `SELECT a.uid, a.slot_index, a.verification_json, a.drawn_at_ms,
+          e.display_name, e.text AS comment_text
+        FROM lottery_awards a
+        JOIN lottery_rounds r ON r.id = a.round_id
+        LEFT JOIN lottery_round_members m ON m.round_id = r.id AND m.uid = a.uid
+        LEFT JOIN lottery_evidence e ON e.scan_id = r.scan_id
+          AND e.source = m.evidence_source AND e.source = 'comment'
+          AND e.record_id = m.evidence_record_id AND e.uid = a.uid
+        WHERE a.round_id = ? AND a.active = 1 ORDER BY a.slot_index`,
       )
       .all(roundId)
       .map((row) => ({
         uid: row.uid,
+        displayName: row.display_name,
+        commentText: row.comment_text,
         position: Number(row.slot_index) + 1,
         verification: JSON.parse(row.verification_json),
         drawnAtMs: Number(row.drawn_at_ms),
@@ -181,7 +190,9 @@ function createLotteryDrawStore(db) {
         !['eligible', 'ineligible'].includes(verification.state)
       )
         throw conflict();
-      const accepted = winners(round.id).length;
+      const accepted = db
+        .prepare('SELECT COUNT(*) AS count FROM lottery_awards WHERE round_id = ? AND active = 1')
+        .get(round.id).count;
       if (accepted >= round.rules.winnerCount) throw conflict();
       db.prepare(
         `UPDATE lottery_round_members SET qualification_state = ?,

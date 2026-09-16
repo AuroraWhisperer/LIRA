@@ -48,6 +48,7 @@ const DANMAKU_OVERLAY_STYLES = new Set([
   'minimal',
   'ranked',
   'transparent',
+  'identity',
   'outline',
 ]);
 

@@ -120,7 +120,7 @@ export function createGiftCatalogUpdateToast(dependencies = {}) {
       setTimeout: setTimeoutRef, clearTimeout: clearTimeoutRef,
     });
     toastHandle = stack.show({
-      key: 'gift-catalog-update', update: true, dismissible: false,
+      key: 'gift-catalog-update', update: true,
       title, message, type, duration, className: 'gift-catalog-update-toast',
     });
     toastNode = toastHandle.node;

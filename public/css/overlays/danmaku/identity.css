@@ -1,0 +1,185 @@
+/* 身份横卡：与直播气泡共用 624×640 缩放画布，右侧头像向左渐隐。 */
+body[data-style='identity'] {
+  --identity-card-width: 600px;
+  --identity-card-min-height: 92px;
+}
+body[data-style='identity'] .danmaku-signal-stage {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  grid-template-rows: minmax(0, 1fr);
+  width: var(--ranked-stage-width);
+  height: var(--ranked-stage-height);
+  padding: 6px 12px;
+  transform: scale(var(--ranked-scale));
+  transform-origin: left bottom;
+}
+body[data-style='identity'] .danmaku-signal-header {
+  display: none;
+}
+body[data-style='identity'] .draw-danmaku-feed {
+  gap: 6px;
+  width: 100%;
+  height: 100%;
+  max-height: none;
+}
+body[data-style='identity'] .draw-danmaku-item {
+  --identity-surface: rgba(52, 59, 69, 0.84);
+  grid-template-areas: 'content avatar';
+  grid-template-columns: minmax(0, 1fr) var(--identity-card-min-height);
+  gap: 0;
+  align-items: stretch;
+  width: var(--identity-card-width);
+  min-width: var(--identity-card-width);
+  max-width: var(--identity-card-width);
+  min-height: var(--identity-card-min-height);
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 2px;
+  color: #fff;
+  background: var(--identity-surface);
+  box-shadow: none;
+  clip-path: none;
+  animation-name: rankedMessageIn;
+}
+body[data-style='identity'] .draw-danmaku-item::after {
+  display: none;
+}
+body[data-style='identity'] .draw-danmaku-item[data-identity='viewer'],
+body[data-style='identity'] .draw-danmaku-item[data-identity='fan'] {
+  --identity-surface: rgba(52, 59, 69, 0.84);
+}
+body[data-style='identity'] .draw-danmaku-item[data-identity='captain'] {
+  --identity-surface: rgba(24, 105, 171, 0.9);
+}
+body[data-style='identity'] .draw-danmaku-item[data-identity='admiral'] {
+  --identity-surface: rgba(104, 48, 156, 0.9);
+}
+body[data-style='identity'] .draw-danmaku-item[data-identity='governor'] {
+  --identity-surface: rgba(171, 37, 61, 0.92);
+}
+body[data-style='identity'] .draw-danmaku-avatar {
+  grid-area: avatar;
+  align-self: stretch;
+  justify-self: end;
+  width: 100%;
+  height: auto;
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+  color: transparent;
+  background: var(--danmaku-avatar-art) center / cover no-repeat;
+  box-shadow: none;
+  clip-path: none;
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 55%);
+  mask-image: linear-gradient(to right, transparent 0%, #000 55%);
+  font-size: 0;
+}
+body[data-style='identity'] .draw-danmaku-avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+}
+body[data-style='identity'] .draw-danmaku-body {
+  grid-area: content;
+  display: grid;
+  align-content: center;
+  gap: 1px;
+  min-width: 0;
+  min-height: var(--identity-card-min-height);
+  padding: 10px 12px 10px 16px;
+}
+body[data-style='identity'] .draw-danmaku-identity strong {
+  color: rgba(255, 255, 255, 0.68);
+  font:
+    600 12px/1.2 'Microsoft YaHei UI',
+    'Microsoft YaHei',
+    sans-serif;
+  letter-spacing: 0;
+}
+body[data-style='identity'] .draw-danmaku-badge {
+  display: none;
+}
+body[data-style='identity'] .draw-danmaku-body p {
+  margin: 0;
+  color: #fff;
+  font-size: 38px;
+  font-weight: 600;
+  line-height: 1.34;
+  overflow-wrap: anywhere;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.34);
+}
+body[data-style='identity'] .draw-danmaku-emote {
+  height: 1.75em;
+  margin: 0 0.06em;
+}
+body[data-style='identity'] .draw-danmaku-item.is-emote-only .draw-danmaku-emote {
+  height: 4.1em;
+  margin: 0.05em 0;
+}
+body.is-preview[data-style='identity'] .draw-danmaku-item.is-emote-only .draw-danmaku-emote {
+  height: 3em;
+}
+body[data-style='identity'] .draw-danmaku-empty {
+  width: var(--identity-card-width);
+  padding: 20px 16px;
+  color: rgba(255, 255, 255, 0.62);
+  background: rgba(52, 59, 69, 0.72);
+  clip-path: none;
+}
+
+/* 礼物铭牌：左侧线稿礼章、两行信息，右侧保留身份头像。 */
+body[data-style='identity'] .draw-danmaku-item.is-gift {
+  --danmaku-gift-art: url('/img/overlays/danmaku-gifts/identity.svg');
+  --identity-gift-ink: #fff7e9;
+  box-shadow: inset 0 0 0 1px rgba(255, 247, 233, 0.2);
+}
+body[data-style='identity'] .is-gift .draw-danmaku-body {
+  position: relative;
+  gap: 4px;
+  padding: 10px 16px 10px 78px;
+}
+body[data-style='identity'] .is-gift .draw-danmaku-identity strong {
+  color: var(--identity-gift-ink);
+  font-size: 18px;
+  line-height: 1.3;
+}
+body[data-style='identity'] .is-gift .draw-danmaku-gift {
+  display: block;
+  color: var(--identity-gift-ink);
+  font-size: 30px;
+  line-height: 1.4;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+body[data-style='identity'] .draw-danmaku-gift-art {
+  position: absolute;
+  top: 50%;
+  left: 18px;
+  width: 44px;
+  height: 44px;
+  transform: translateY(-50%);
+  background: var(--identity-gift-ink);
+  mask: var(--danmaku-gift-art) center / contain no-repeat;
+}
+body[data-style='identity'] .draw-danmaku-gift-copy {
+  display: inline;
+}
+body[data-style='identity'] .draw-danmaku-gift-action {
+  margin-right: 8px;
+  color: color-mix(in srgb, var(--identity-gift-ink) 78%, transparent);
+  font-size: 16px;
+}
+body[data-style='identity'] .draw-danmaku-gift-name {
+  color: inherit;
+  font-size: 30px;
+  font-weight: 700;
+}
+body[data-style='identity'] .draw-danmaku-gift-count {
+  display: inline-block;
+  margin-left: 10px;
+  color: inherit;
+  font-size: 32px;
+  font-weight: 700;
+}

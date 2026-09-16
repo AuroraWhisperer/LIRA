@@ -80,7 +80,7 @@ test('usage guide defers image loading and avoids sticky backdrop blur', () => {
     true,
   );
   assert.ok(tocRule, 'usage guide table of contents should remain defined');
-  assert.match(tocRule, /background:\s*var\(--surface-2\)/);
+  assert.match(tocRule, /background:\s*#f5ebff/);
   assert.match(tocRule, /display:\s*grid/);
   assert.doesNotMatch(
     tocRule,

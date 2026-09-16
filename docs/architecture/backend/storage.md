@@ -125,7 +125,7 @@ data/
 | --- | --- | --- |
 | `lottery_tasks` | 活动身份、动态目标、规则和状态 | task ID PK；创建 requestId 在 streamer 范围唯一；UID/动态 ID 均为 TEXT |
 | `lottery_scans` | 截止后正式采集批次与来源检查点 | task FK；页游标、覆盖状态和读取数保存在同一 source state |
-| `lottery_evidence` | 最小互动证据 | PK(scan, source, recordId)；与下一游标由 store 同事务提交 |
+| `lottery_evidence` | 最小互动证据及评论展示信息 | PK(scan, source, recordId)；可空 display_name 保存采集时昵称；与下一游标由 store 同事务提交 |
 | `lottery_rounds` | 冻结规则、名单摘要、算法版本与结果版本 | task/scan FK；revision 单调递增 |
 | `lottery_round_members` | 每轮冻结 UID 与基础资格 | PK(round, uid)；不承载唯一一份领奖状态 |
 | `lottery_orders` | 初抽/补抽的不可变候选顺序和推进位置 | UNIQUE(round, scope, generation)；顺序先落盘再核验 |
@@ -134,6 +134,8 @@ data/
 | `lottery_request_budget` | 本机/账号滚动请求预算和冷却 | scope PK；活动删除不重置 |
 
 抽奖库仅保存最小业务证据，不保存 Cookie、认证头或完整上游响应。`dynamic-lottery-store.js` 持有分页证据与游标的 `BEGIN IMMEDIATE` 事务；`dynamic-lottery-budget-store.js` 在请求出站前同时预留本机和账号预算。
+
+2026-09-16 结果展示：抽奖库 v2 追加迁移 `lottery_evidence.display_name TEXT`，旧行保留且昵称为 NULL，重复启动不重跑迁移。昵称最多保存 256 字符，不影响资格或顺序；中奖结果通过 round 的 scan 与 member 的 source/recordId/uid 读取对应昵称和完整评论，避免同 UID 的其他评论或其他批次串入。缺少旧元数据时保持 NULL，不回源补查。
 
 2026-09-14 客户端交集流程：`dynamic-lottery-store.js` 的 `commitPages` 同事务提交点赞/转发共用页，source state 增加已见游标以拒绝分页循环；评论按事件时间截止，reaction 保留 `occurred_at_ms = NULL`。新 [dynamic-lottery-draw-store.js](../../../src/storage/dynamic-lottery-draw-store.js) 使用现有 v1 的 rounds/members/orders/awards/events 表，不修改已发布 DDL。冻结规则与全量随机顺序同事务保存；资格确认、授奖和 next_index 同事务推进，未知结果不推进。rules JSON `version:2` 固定单一中奖人数与三个条件，旧版本活动不能套用新流程续抽。启动将 collecting/drawing 恢复为暂停，不自动发请求；历史最近 50 条按可信 streamerId 查询。原数据清理端口仍仅覆盖原五库，不会删除抽奖历史或请求预算。
 
@@ -257,7 +259,7 @@ Phase 1 失败且全部事务已回滚时，只解除本次请求取得的暂停
 | 礼物         | `enableGiftSprint`、`giftSprintTargetRmb`、legacy `giftBlindBoxConfig`、云端私有 `giftBlindBoxCustomConfigV2`、`enableGiftNotification`、`giftFrameEnabled`、`giftFrameThresholdRmb`、`giftFrameTheme`、`giftFrameMotionMode`；礼物边框默认关闭、阈值为 20 元、主题为 `woodland-bloom`、动效为 `auto`。官方映射来自只读 v2 目录缓存，不写回设置；缺少 v2 私有字段表示不覆盖，合法 `[]` 只清空自定义层。非空 legacy 配置保持迁移待确认，不按名称猜 ID |
 | 滚动/字号    | `scrollSeconds`、风格 1 的 `queueScrollMode`/`queueScrollSpeed`/`queueSongFontSize`、风格 2 的 `identityQueueScrollMode`/`identityQueueScrollSpeed`/`identityQueueFontSize`、风格 3–6 各自的 `storybook*`/`neonVinyl*`/`cherryRibbon*`/`goldenLily*` 字号与滚动键、`songBoardFontSize` 及各 `*RangeVersion`/`queueStyleSettingsVersion` 迁移版本键；`queueStyleSettingsVersion=1` 首次升级时把旧共享值复制到各风格键 |
 | 主题         | `themePrimary/themeAccent/themeText/themeBackground/themeOpacity/themeRadius/themeFontScale` 等 + `songBoard*` 独立一套                                                                                                                                                                                                                                                                                              |
-| 悬浮层       | `danmakuOverlayStyle`(`bubble`/`signal`/`minimal`/`ranked`/`transparent`/`outline`，默认 `signal`)、`danmakuFullscreenDurationSeconds`(默认 `6`，服务端限制 2–30 的安全整数)、`overlayQueueStyle`(`classic`/`identity`/`storybook`/`neon-vinyl`/`cherry-ribbon`/`golden-lily`,遗留 `festival` 按 identity 使用)、插画风格各自的 `*QueueFontFamily`/`*QueueFontWeight`/`*QueueUseCustomTextColor`/`*QueueTextColor`、`overlayLowPowerMode`、`backdropBlur`、`glowIntensity`、`overlayPin1-3`、`overlayRule1-6` 及颜色/字号       |
+| 悬浮层       | `danmakuOverlayStyle`(`bubble`/`signal`/`minimal`/`ranked`/`transparent`/`identity`/`outline`，默认 `signal`)、`danmakuFullscreenDurationSeconds`(默认 `6`，服务端限制 2–30 的安全整数)、`overlayQueueStyle`(`classic`/`identity`/`storybook`/`neon-vinyl`/`cherry-ribbon`/`golden-lily`,遗留 `festival` 按 identity 使用)、插画风格各自的 `*QueueFontFamily`/`*QueueFontWeight`/`*QueueUseCustomTextColor`/`*QueueTextColor`、`overlayLowPowerMode`、`backdropBlur`、`glowIntensity`、`overlayPin1-3`、`overlayRule1-6` 及颜色/字号       |
 | 桌面歌词     | `desktopLyric*` 全套(字体/描边/大小/透明度/缩放/逐字高亮方式)                                                                                                                                                                                                                                                                                                                                                        |
 | WeSing       | `weSingCachePath`、`weSingLyricOffsetMs`                                                                                                                                                                                                                                                                                                                                                                             |
 | 开播动画     | `openingEnabled`、`openingTitle`、`openingSubtitle`、`openingName`、`openingFooter`、`openingQuality`、`openingTrackMotion`(`heart`/`barber`/`progress`，默认 `heart`)、`openingShowNotes`、`openingShowEq`、`openingAudioFile`、`openingAudioName`、`openingAudioVolume`、`openingCharacterFile`、`openingCharacterName`；上传音频与人物图分别位于 data 目录 `opening-music/`、`opening-character/`                 |

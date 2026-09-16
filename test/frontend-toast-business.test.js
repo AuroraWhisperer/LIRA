@@ -16,7 +16,7 @@ test('blind boxes show the actual output and update the same event identity', as
       window: { AdminApp: { utils: { escapeHtml, formatMoney: String, showStackedToast: (notice) => notices.push(notice) } } },
       document: { getElementById: () => ({ checked: true }) },
     };
-    vm.runInNewContext(fs.readFileSync('public/js/admin/gifts/notification.js', 'utf8'), sandbox);
+    await loadModuleExports(path.resolve('public/js/admin/gifts/notification.js'), sandbox);
     const notify = sandbox.window.AdminApp.gifts.notification.notifyNewGift;
     const gift = { id: 1, is_blind_box: true, gift_name: '测试产物', blind_box_name: box, user_name: '<script>', num: 1 };
     notify([]); notify([gift]); notify([{ ...gift, num: 2 }]);

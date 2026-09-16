@@ -30,6 +30,7 @@ test('transient surfaces use the shared typography hierarchy without orphan decl
   const files = [
     ['public', 'css', 'components', 'confirmation-dialog.css'],
     ['public', 'css', 'admin', 'toasts', 'desktop-update.css'],
+    ['public', 'css', 'admin', 'toasts', 'system.css'],
     ['public', 'css', 'admin', 'other-features', 'interactive-tour.css'],
     ['public', 'css', 'overlays', 'desktop.css'],
   ];
@@ -43,7 +44,7 @@ test('transient surfaces use the shared typography hierarchy without orphan decl
   );
   assert.match(
     styles,
-    /\.desktop-update-toast strong\s*\{[\s\S]*?font-size:\s*var\(--type-size-section-title\)/,
+    /\.toast-content > strong\s*\{[\s\S]*?font-size:\s*var\(--type-size-card-title\)/,
   );
   assert.match(
     styles,

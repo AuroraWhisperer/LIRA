@@ -9,6 +9,86 @@ import {
 
 ('use strict');
 
+let giftArtworkById = null;
+
+function normalizedGiftName(value) {
+  return String(value || '')
+    .normalize('NFKC')
+    .replace(/\s+/gu, ' ')
+    .trim()
+    .replace(/[A-Z]/gu, (letter) => letter.toLowerCase());
+}
+
+function findGiftArtwork(id, name, variantId) {
+  if (variantId) return giftArtworkById?.get(variantId)?.imagePath || '';
+  const normalizedName = normalizedGiftName(name);
+  if (!id || !normalizedName) return '';
+  const matches = [...(giftArtworkById?.values() || [])].filter(
+    (gift) => gift.id === id && gift.name === normalizedName,
+  );
+  return matches.length === 1 ? matches[0].imagePath : '';
+}
+
+/**
+ * 获取大航海徽章信息
+ * @param {Object} item - 礼物项
+ * @returns {Object|null} 徽章信息 {name, src}
+ */
+function getGuardBadge(item) {
+  const giftName = String((item && item.gift_name) || '')
+    .trim()
+    .toLowerCase();
+  const giftId = String((item && item.gift_id) || '')
+    .trim()
+    .toLowerCase();
+
+  if (
+    giftName.includes('总督') ||
+    giftName.includes('governor') ||
+    giftId === 'guard-1'
+  ) {
+    return {
+      name: '总督',
+      level: 1,
+      src: '/img/admin/gifts/bilibili-guard-governor.webp',
+    };
+  }
+  if (
+    giftName.includes('提督') ||
+    giftName.includes('prefect') ||
+    giftName.includes('admiral') ||
+    giftId === 'guard-2'
+  ) {
+    return {
+      name: '提督',
+      level: 2,
+      src: '/img/admin/gifts/bilibili-guard-prefect.webp',
+    };
+  }
+  if (
+    giftName.includes('舰长') ||
+    giftName.includes('captain') ||
+    giftId === 'guard-3'
+  ) {
+    return {
+      name: '舰长',
+      level: 3,
+      src: '/img/admin/gifts/bilibili-guard-captain.webp',
+    };
+  }
+  return null;
+}
+
+export function getGiftToastArtwork(item) {
+  const id = String(item?.gift_id || '').trim();
+  const isGuard = String(item?.coin_type || '').toLowerCase() === 'guard' ||
+    id.toLowerCase().startsWith('guard-');
+  const imagePath = isGuard
+    ? getGuardBadge(item)?.src || ''
+    : findGiftArtwork(id, item?.gift_name, item?.gift_variant_id);
+  return /\.webp$/i.test(imagePath) ? imagePath : '';
+}
+
 (function () {
   const MAX_RECENT_GIFT_ROWS = 6;
   const HIGH_VALUE_GIFT_MIN_RMB = 1000;
@@ -17,7 +97,6 @@ import {
     { name: '幸运盲盒', id: '35206', className: 'blind-box-lucky' },
   ];
   let recentGiftResizeObserver = null;
-  let giftArtworkById = null;
   let giftArtworkLoadPromise = null;
   let giftArtworkRevision = 0;
   let giftArtworkEventsUnsubscribe = null;
@@ -94,14 +173,6 @@ import {
     return imagePath;
   }
 
-  function normalizedGiftName(value) {
-    return String(value || '')
-      .normalize('NFKC')
-      .replace(/\s+/gu, ' ')
-      .trim()
-      .replace(/[A-Z]/gu, (letter) => letter.toLowerCase());
-  }
-
   function addGiftArtwork(index, gift) {
     const id = String(gift?.id ?? '').trim();
     const name = normalizedGiftName(gift?.name);
@@ -121,16 +192,6 @@ import {
       index.get(key)?.imagePath ||
       '';
     index.set(key, { id, name, imagePath });
-  }
-
-  function findGiftArtwork(id, name, variantId) {
-    if (variantId) return giftArtworkById?.get(variantId)?.imagePath || '';
-    const normalizedName = normalizedGiftName(name);
-    if (!id || !normalizedName) return '';
-    const matches = [...(giftArtworkById?.values() || [])].filter(
-      (gift) => gift.id === id && gift.name === normalizedName,
-    );
-    return matches.length === 1 ? matches[0].imagePath : '';
   }
 
   function applyGiftArtworkSnapshot(snapshot) {
@@ -250,56 +311,6 @@ import {
     setGiftImageFallbacks(list);
     limitRecentGiftRows(list);
     observeRecentGiftGrid(list);
-  }
-
-  /**
-   * 获取大航海徽章信息
-   * @param {Object} item - 礼物项
-   * @returns {Object|null} 徽章信息 {name, src}
-   */
-  function getGuardBadge(item) {
-    const giftName = String((item && item.gift_name) || '')
-      .trim()
-      .toLowerCase();
-    const giftId = String((item && item.gift_id) || '')
-      .trim()
-      .toLowerCase();
-
-    if (
-      giftName.includes('总督') ||
-      giftName.includes('governor') ||
-      giftId === 'guard-1'
-    ) {
-      return {
-        name: '总督',
-        level: 1,
-        src: '/img/admin/gifts/bilibili-guard-governor.webp',
-      };
-    }
-    if (
-      giftName.includes('提督') ||
-      giftName.includes('prefect') ||
-      giftName.includes('admiral') ||
-      giftId === 'guard-2'
-    ) {
-      return {
-        name: '提督',
-        level: 2,
-        src: '/img/admin/gifts/bilibili-guard-prefect.webp',
-      };
-    }
-    if (
-      giftName.includes('舰长') ||
-      giftName.includes('captain') ||
-      giftId === 'guard-3'
-    ) {
-      return {
-        name: '舰长',
-        level: 3,
-        src: '/img/admin/gifts/bilibili-guard-captain.webp',
-      };
-    }
-    return null;
   }
 
   /**

@@ -168,9 +168,9 @@ async function parseAndCompare() {
 
   const missed = comparisonResults.filter((r) => r.status === 'miss').length;
   if (missed > 0) {
-    showToast(`⚠️ 发现 ${missed} 条疑似漏记礼物`, 'warn');
+    showToast(`发现 ${missed} 条疑似漏记礼物`, 'warn');
   } else {
-    showToast('✅ 所有气泡礼物均在 WebSocket 中有记录', 'ok');
+    showToast('所有气泡礼物均在 WebSocket 中有记录', 'ok');
   }
 }
 

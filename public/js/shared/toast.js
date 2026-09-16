@@ -106,8 +106,8 @@ export function createToastStack({
     stopTimer(entry);
     if (entries.get(entry.key) === entry) entries.delete(entry.key);
     if (entry.node.contains(documentRef.activeElement)) {
-      const next = [...entries.values()].find((other) => other.visible && !other.closeButton.hidden);
-      if (next) next.closeButton.focus();
+      const next = [...entries.values()].find((other) => other.visible && !other.action.hidden);
+      if (next) next.action.focus();
       else if (entry.returnFocus?.isConnected) entry.returnFocus.focus();
       else documentRef.activeElement?.blur?.();
     }
@@ -139,7 +139,9 @@ export function createToastStack({
       options.onClick ? 8000 : ['error', 'warning'].includes(entry.type) ? 6000 : 0,
     );
     entry.remaining = entry.duration;
-    entry.node.className = `toast toast-${entry.type}${options.className ? ` ${options.className}` : ''}`;
+    const detailed = Boolean(options.title || options.html);
+    entry.node.className = `toast toast-${entry.type}${detailed ? ' toast-detailed' : ''}${options.className ? ` ${options.className}` : ''}`;
+    entry.content.className = `toast-content${detailed ? '' : ' toast-content-compact'}`;
     entry.content.replaceChildren();
     if (options.html) entry.content.innerHTML = options.html;
     else {
@@ -148,22 +150,25 @@ export function createToastStack({
         title.textContent = options.title;
         entry.content.append(title);
       }
-      const message = documentRef.createElement('span');
-      message.textContent = options.message || '';
-      entry.content.append(message);
+      if (options.message || !options.title) {
+        const message = documentRef.createElement('span');
+        message.className = 'toast-message';
+        message.textContent = options.message || '';
+        entry.content.append(message);
+      }
     }
-    if (!options.title && !options.html && entry.type !== 'info') {
-      const label = documentRef.createElement('strong');
-      label.className = 'toast-kind';
-      const paths = entry.type === 'success' ? '<path d="m6 12 4 4 8-8"/>'
-        : entry.type === 'error' ? '<path d="m8 8 8 8m0-8-8 8"/>'
-          : '<path d="M12 6v8m0 3v1"/>';
-      label.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/>${paths}</svg>${TYPE_LABELS[entry.type]}`;
-      entry.content.prepend(label);
+    if (!detailed) {
+      const symbol = documentRef.createElement('span');
+      symbol.className = 'toast-symbol';
+      symbol.setAttribute('aria-hidden', 'true');
+      const paths = entry.type === 'warning' ? '<path d="m12 3 10 18H2L12 3Z"/><path d="M12 9v4m0 4h.01"/>'
+        : `<circle cx="12" cy="12" r="9"/>${entry.type === 'success' ? '<path d="m8 12 3 3 5-6"/>'
+          : entry.type === 'error' ? '<path d="M12 7v6m0 4h.01"/>' : '<path d="M12 11v6m0-10h.01"/>'}`;
+      symbol.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
+      entry.content.prepend(symbol);
     }
     entry.action.hidden = typeof options.onClick !== 'function';
     entry.action.textContent = options.actionLabel || '查看';
-    entry.closeButton.hidden = options.dismissible === false;
     entry.node.setAttribute('aria-label', options.title || TYPE_LABELS[entry.type]);
     entry.needsAnnouncement = true;
     void entry.node.offsetWidth;
@@ -187,14 +192,9 @@ export function createToastStack({
     const action = documentRef.createElement('button');
     action.type = 'button';
     action.className = 'toast-action';
-    const closeButton = documentRef.createElement('button');
-    closeButton.type = 'button';
-    closeButton.className = 'toast-close';
-    closeButton.setAttribute('aria-label', '关闭通知');
-    closeButton.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
-    node.append(content, action, closeButton);
+    node.append(content, action);
     const entry = {
-      key, node, content, action, closeButton, order: ++sequence,
+      key, node, content, action, order: ++sequence,
       returnFocus: documentRef.activeElement, timer: null, visible: false,
       hovered: false, focused: false, closed: false,
     };
@@ -203,7 +203,6 @@ export function createToastStack({
       update: (next) => show({ ...entry.options, ...next, key, update: true }),
       close: (immediate = false) => close(entry, immediate),
     };
-    closeButton.addEventListener('click', () => close(entry));
     action.addEventListener('click', () => {
       if (entry.closed) return;
       const callback = entry.options.onClick;

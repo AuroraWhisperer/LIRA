@@ -92,6 +92,7 @@ function initClockCard() {
   initialized = true;
 
   const fixedUrl = `${localOverlayOrigin(location)}/clock`;
+  const previewBaseUrl = new URL('/clock', location.href).href;
   let persistTimer = 0;
   let hydrated = false;
   let hydrating = true;
@@ -107,9 +108,20 @@ function initClockCard() {
     };
   }
 
+  function updatePreview() {
+    if (hydrating) return;
+    const config = currentConfig();
+    if (!preview.getAttribute('src')) {
+      preview.src = buildClockUrl(previewBaseUrl, config);
+      return;
+    }
+    preview.contentWindow?.postMessage(
+      { type: 'lira:clock-preview-config', config },
+      location.origin,
+    );
+  }
+
   function render() {
-    const previewUrl = buildClockUrl(fixedUrl, currentConfig());
-    if (preview.src !== previewUrl) preview.src = previewUrl;
     const transparent = isTransparentClockStyle(selectedStyle);
     const vertical = selectedStyle === 'timeline-vertical';
     preview.dataset.clockStyle = selectedStyle;
@@ -131,6 +143,7 @@ function initClockCard() {
       button.classList.toggle('active', active);
       button.setAttribute('aria-pressed', String(active));
     });
+    updatePreview();
   }
 
   async function persist() {
@@ -209,6 +222,7 @@ function initClockCard() {
   showSeconds.addEventListener('change', handleConfigChange);
   hourFormat.addEventListener('change', handleConfigChange);
   customLabel.addEventListener('input', handleConfigChange);
+  preview.addEventListener('load', updatePreview);
 
   document
     .getElementById('clockCopyFixed')

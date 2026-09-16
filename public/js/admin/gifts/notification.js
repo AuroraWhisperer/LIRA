@@ -1,5 +1,7 @@
 // 编写人：Aurora
 // 礼物通知模块 - 负责礼物到账的 toast 通知显示
+import { getGiftToastArtwork } from './recent.js';
+
 'use strict';
 
 (function () {
@@ -102,16 +104,41 @@
       subtitle = `${userName} 送出`;
     }
 
-    const titleHtml = `${giftName} x${num}${priceBadge}`;
+    const titleHtml = `<span class="gift-notify-name">${giftName} x${num}</span>${priceBadge}`;
 
     const toastKey = `gift:${newestId}`;
-    showStackedToast({
+    const handle = showStackedToast({
       key: toastKey,
       update: true,
       className: `gift-notify-toast${variantClass}`,
       html: `<strong>${titleHtml}</strong><span>${subtitle}</span>`,
       duration: 3200,
     });
+    if (handle?.node?.isConnected) renderGiftArtwork(handle.node, newest);
+  }
+
+  function renderGiftArtwork(node, item) {
+    const source = getGiftToastArtwork(item);
+    const previous = node.querySelector('.gift-notify-artwork');
+    if (previous?.getAttribute('data-source') === source) return;
+    previous?.remove();
+
+    const artwork = document.createElement('span');
+    artwork.className = 'gift-notify-artwork';
+    artwork.setAttribute('aria-hidden', 'true');
+    artwork.setAttribute('data-source', source);
+    node.append(artwork);
+    if (!source) return;
+
+    const image = document.createElement('img');
+    image.alt = '';
+    image.width = 40;
+    image.height = 40;
+    image.decoding = 'async';
+    image.addEventListener('load', () => artwork.classList.add('is-loaded'), { once: true });
+    image.addEventListener('error', () => image.remove(), { once: true });
+    artwork.append(image);
+    image.src = source;
   }
 
   /**

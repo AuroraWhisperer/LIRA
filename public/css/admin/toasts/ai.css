@@ -1,59 +1,29 @@
 .xiaomi-ai-test-toast {
-  position: relative;
-  display: grid;
-  gap: 4px;
-  width: min(390px, calc(100vw - 48px));
-  min-height: 76px;
-  overflow: hidden;
-  padding: 18px 20px 18px 66px;
-  border-radius: 14px;
-  pointer-events: auto;
+  padding-left: 60px;
 }
 .xiaomi-ai-test-toast::before {
   content: '';
   position: absolute;
-  left: 19px;
-  top: 50%;
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  color: #fff;
-  font-size: var(--type-size-section-title);
-  font-weight: var(--type-weight-bold);
-  transform: translateY(-50%);
+  left: 16px;
+  top: 16px;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--toast-accent) 10%, transparent);
 }
-.xiaomi-ai-test-toast strong {
-  color: #fff;
-  font-size: var(--type-size-card-title);
-  line-height: 1.35;
-}
-.xiaomi-ai-test-toast span {
-  color: rgba(255, 255, 255, 0.72);
-  font-size: var(--type-size-caption);
-  line-height: var(--type-leading-caption);
-}
-.xiaomi-ai-test-toast-good {
-  border-color: rgba(51, 211, 153, 0.32);
-  background:
-    radial-gradient(circle at 0 0, rgba(52, 211, 153, 0.2), transparent 48%),
-    #10251f;
-  box-shadow: 0 18px 42px rgba(7, 44, 32, 0.32);
-}
-.xiaomi-ai-test-toast-good::before {
-  content: '✓' / '';
-  background: linear-gradient(145deg, #36d399, #148467);
+.xiaomi-ai-test-toast::after {
+  content: '';
+  position: absolute;
+  left: 22px;
+  top: 22px;
+  width: 20px;
+  height: 20px;
+  background: var(--toast-accent);
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='m8 12 3 3 5-6'/%3E%3C/svg%3E") center / contain no-repeat;
 }
 .xiaomi-ai-test-toast-warn {
-  border-color: rgba(245, 158, 11, 0.34);
-  background:
-    radial-gradient(circle at 0 0, rgba(245, 158, 11, 0.2), transparent 48%),
-    #2a1d10;
-  box-shadow: 0 18px 42px rgba(56, 31, 7, 0.34);
+  --toast-accent: var(--toast-warning);
 }
-.xiaomi-ai-test-toast-warn::before {
-  content: '!' / '';
-  border-radius: 11px;
-  background: linear-gradient(145deg, #f6b731, #c66a0a);
+.xiaomi-ai-test-toast-warn::after {
+  mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m12 3 10 18H2L12 3Z'/%3E%3Cpath d='M12 9v4m0 4h.01'/%3E%3C/svg%3E");
 }

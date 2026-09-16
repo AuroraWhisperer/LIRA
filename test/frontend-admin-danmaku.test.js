@@ -106,11 +106,15 @@ test('danmaku tool separates the fixed live overlay from the sender and reply gr
     html.match(
       /<section\b[^>]*class="danmaku-feature-section danmaku-connection-section"[^>]*>[\s\S]*?<\/section>/,
     )?.[0] || '';
+  const headingHtml = html.replace(
+    /<svg\b[^>]*aria-hidden="true"[^>]*>[\s\S]*?<\/svg>/g,
+    '',
+  );
 
   assert.doesNotMatch(html, /class="danmaku-tool-heading"/);
   assert.match(connectionSection, /id="danmakuConnectionTitle"/);
   assert.match(connectionSection, /id="danmakuRefreshBtn"/);
-  assert.match(html, /id="danmakuStyleTitle">\s*弹幕姬\s*<lira-help/);
+  assert.match(headingHtml, /id="danmakuStyleTitle">\s*弹幕姬\s*<lira-help/);
   assert.match(html, /id="danmakuOverlayUrl"/);
   assert.match(html, /id="danmakuCopyOverlayUrlBtn"/);
   assert.match(html, /id="danmakuOpenOverlayBtn"/);
@@ -130,6 +134,7 @@ test('danmaku tool separates the fixed live overlay from the sender and reply gr
     ['minimal', '蝴蝶结'],
     ['ranked', '直播气泡'],
     ['transparent', '透明简约'],
+    ['identity', '身份横卡'],
     ['outline', '全屏随机'],
   ]);
   assert.match(html, /data-danmaku-style="signal"[^>]+aria-pressed="true"/);
@@ -168,7 +173,7 @@ test('danmaku tool separates the fixed live overlay from the sender and reply gr
     html.indexOf('id="xiaomiAiSection"') <
       html.indexOf('id="danmakuFixedReplyTitle"'),
   );
-  assert.match(html, /id="danmakuFixedReplyTitle">\s*固定回复\s*<\/h3>/);
+  assert.match(headingHtml, /id="danmakuFixedReplyTitle">\s*固定回复\s*<\/h3>/);
   assert.doesNotMatch(html, /id="danmakuSongReplySectionTitle"/);
   const fixedReplySectionStart = html.indexOf(
     'class="danmaku-feature-section danmaku-fixed-reply-section"',
@@ -188,7 +193,8 @@ test('danmaku tool separates the fixed live overlay from the sender and reply gr
   assert.match(source, /saveSetting\('danmakuOverlayStyle'/);
   assert.match(source, /outline:\s*'全屏随机'/);
   assert.match(source, /transparent:\s*'透明简约'/);
-  assert.match(source, /styleButtons\.length !== 6/);
+  assert.match(source, /identity:\s*'身份横卡'/);
+  assert.match(source, /styleButtons\.length !== 7/);
   assert.match(source, /danmakuFullscreenDurationSeconds/);
   assert.match(source, /Number\.isSafeInteger/);
   assert.match(
@@ -202,13 +208,12 @@ test('danmaku tool separates the fixed live overlay from the sender and reply gr
   );
   assert.match(
     styles,
-    /\.danmaku-style-options-fixed\s*\{[^}]*grid-template-columns:\s*repeat\(5, minmax\(0, 1fr\)\);/s,
+    /\.danmaku-style-options-fixed\s*\{[^}]*grid-template-columns:\s*repeat\(6, minmax\(0, 1fr\)\);/s,
   );
   assert.match(
     styles,
     /@container danmaku-style-picker \(max-width: 600px\)[\s\S]*\.danmaku-style-group\s*\{[^}]*grid-column:\s*1 \/ -1;/,
   );
-  assert.match(styles, /\.danmaku-style-group-random/);
   assert.doesNotMatch(styles, /\.danmaku-style-option-visual/);
   assert.match(
     styles,

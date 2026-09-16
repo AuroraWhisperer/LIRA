@@ -195,61 +195,90 @@
 
     const statusNode = document.getElementById('desktopUpdateStatus');
     const hintNode = document.getElementById('desktopUpdateHint');
+    const downloadNode = document.getElementById('desktopUpdateDownload');
+    const percentNode = document.getElementById('desktopUpdatePercent');
+    const progressNode = document.getElementById('desktopUpdateProgress');
     const progressBar = document.getElementById('desktopUpdateProgressBar');
+    const detailsNode = document.getElementById('desktopUpdateDownloadDetails');
+    const transferredNode = document.getElementById('desktopUpdateTransferred');
+    const speedNode = document.getElementById('desktopUpdateSpeed');
+    const actionsNode = document.getElementById('desktopUpdateActions');
     const checkButton = document.getElementById('desktopCheckUpdateBtn');
     const downloadButton = document.getElementById('desktopDownloadUpdateBtn');
     const installButton = document.getElementById('desktopInstallUpdateBtn');
+    const isDownloading = state.status === 'downloading';
+    const isInstalling = state.status === 'installing';
+    const showInstall = Boolean(state.canInstall) || isInstalling;
+    const showDownload = Boolean(state.canDownload) && !isDownloading && !showInstall;
+    const showCheck = !isDownloading && !showInstall && !showDownload;
     const percent =
       state.progress && Number.isFinite(Number(state.progress.percent))
         ? Math.max(0, Math.min(100, Number(state.progress.percent)))
         : 0;
 
+    const transferred = state.progress?.transferred || 0;
+    const total = state.progress?.total || 0;
+    const speed = state.progress?.speed || 0;
+
     if (statusNode) {
-      let statusText = desktopUpdateStatusText(state);
-
-      // 如果正在下载，添加下载速度和进度信息
-      if (state.status === 'downloading' && state.progress) {
-        const transferred = state.progress.transferred || 0;
-        const total = state.progress.total || 0;
-        const speed = state.progress.speed || 0;
-
-        const transferredMB = (transferred / (1024 * 1024)).toFixed(1);
-        const totalMB = (total / (1024 * 1024)).toFixed(1);
-        const speedText = formatDownloadSpeed(speed);
-
-        statusText = `正在下载更新：${percent.toFixed(1)}%`;
-        if (total > 0) {
-          statusText += `\n${transferredMB} MB / ${totalMB} MB`;
-        }
-        if (speed > 0) {
-          statusText += `  •  ${speedText}`;
-        }
-      }
-
-      statusNode.textContent = statusText;
+      statusNode.textContent = isDownloading && state.progress
+        ? '正在下载更新'
+        : desktopUpdateStatusText(state);
       statusNode.dataset.status = state.status || 'idle';
     }
     if (hintNode) {
       hintNode.textContent = desktopUpdateHintText(state);
+      hintNode.hidden = !hintNode.textContent;
+    }
+    if (downloadNode) {
+      downloadNode.hidden = !isDownloading;
+    }
+    if (percentNode) {
+      percentNode.hidden = !isDownloading || !state.progress;
+      percentNode.textContent = `${percent.toFixed(1)}%`;
+    }
+    if (progressNode) {
+      if (state.progress) {
+        progressNode.setAttribute('aria-valuenow', String(percent));
+      } else {
+        progressNode.removeAttribute('aria-valuenow');
+      }
     }
     if (progressBar) {
       progressBar.style.width = `${percent}%`;
     }
+    if (detailsNode) {
+      detailsNode.hidden = !isDownloading || (total <= 0 && speed <= 0);
+    }
+    if (transferredNode) {
+      transferredNode.textContent = total > 0
+        ? `${(transferred / (1024 * 1024)).toFixed(1)} MB / ${(total / (1024 * 1024)).toFixed(1)} MB`
+        : '';
+    }
+    if (speedNode) {
+      speedNode.textContent = speed > 0 ? formatDownloadSpeed(speed) : '';
+    }
+    if (actionsNode) {
+      actionsNode.hidden = !showCheck && !showDownload && !showInstall;
+    }
     if (checkButton) {
+      checkButton.hidden = !showCheck;
       checkButton.disabled =
         state.status === 'checking' ||
-        state.status === 'downloading' ||
-        state.status === 'installing';
+        state.status === 'dev-disabled' ||
+        isDownloading ||
+        isInstalling;
       checkButton.textContent =
         state.status === 'checking' ? '检查中...' : '检查更新';
     }
     if (downloadButton) {
+      downloadButton.hidden = !showDownload;
       downloadButton.disabled = !state.canDownload;
-      downloadButton.textContent =
-        state.status === 'downloading' ? '下载中...' : '下载更新';
     }
     if (installButton) {
-      installButton.disabled = !state.canInstall;
+      installButton.hidden = !showInstall;
+      installButton.disabled = !state.canInstall || isInstalling;
+      installButton.textContent = isInstalling ? '正在重启...' : '重启并更新';
     }
   }
 
@@ -264,17 +293,13 @@
   }
 
   function desktopUpdateHintText(state) {
-    if (state.status === 'available')
-      return '新版本来自 GitHub Releases。若 blockmap 可用，会优先下载变化的部分。';
     if (state.status === 'downloaded')
-      return '更新已经就绪，建议在直播结束后重启更新。';
+      return '建议在直播结束后重启更新。';
     if (state.status === 'dev-disabled')
-      return '当前是开发模式；打包安装后的 exe 会自动检查 GitHub 更新。';
-    if (state.status === 'not-available')
-      return '发布新版本时，需要把安装包、blockmap 和 latest.yml 上传到 GitHub Releases。';
+      return '开发模式不支持更新，请使用安装版。';
     if (state.status === 'error')
-      return '详细错误已写入本机日志；界面只显示可操作的简短状态。';
-    return '桌面版会保留本地数据目录，更新 exe 不会清空歌库。';
+      return '可重新检查更新，或打开日志目录查看详情。';
+    return '';
   }
 
   function desktopActionErrorMessage(error) {

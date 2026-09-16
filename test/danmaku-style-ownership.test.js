@@ -17,6 +17,7 @@ test('danmaku styles keep base, named style, and motion ownership', () => {
     "@import url('./danmaku/minimal.css');",
     "@import url('./danmaku/ranked.css');",
     "@import url('./danmaku/transparent.css');",
+    "@import url('./danmaku/identity.css');",
     "@import url('./danmaku/outline.css');",
     "@import url('./danmaku/motion.css');",
   ];
@@ -30,6 +31,7 @@ test('danmaku styles keep base, named style, and motion ownership', () => {
       'minimal',
       'ranked',
       'transparent',
+      'identity',
       'outline',
       'motion',
     ].map((name) => [
@@ -53,18 +55,20 @@ test('danmaku styles keep base, named style, and motion ownership', () => {
   assert.match(owners.transparent, /body\[data-style='transparent'\]/);
   assert.doesNotMatch(owners.transparent, /body\[data-style='outline'\]/);
   assert.match(owners.outline, /body\[data-style='outline'\]/);
+  assert.match(owners.identity, /body\[data-style='identity'\]/);
+  assert.doesNotMatch(owners.identity, /body\[data-style='ranked'\]/);
   assert.doesNotMatch(owners.outline, /@keyframes/);
   assert.match(owners.motion, /@keyframes signalMessageIn/);
   assert.match(owners.motion, /@media \(max-width:\s*480px\)/);
   assert.match(owners.motion, /prefers-reduced-motion:\s*reduce/);
   assert.doesNotMatch(owners.motion, /body\[data-style=/);
   const giftAssets = new Set();
-  for (const style of ['signal', 'bubble', 'minimal', 'ranked', 'transparent', 'outline']) {
+  for (const style of ['signal', 'bubble', 'minimal', 'ranked', 'transparent', 'identity', 'outline']) {
     assert.ok(owners[style].includes(`/img/overlays/danmaku-gifts/${style}.svg`));
     const svg = fs.readFileSync(path.join(ROOT_DIR, 'public', 'img', 'overlays', 'danmaku-gifts', `${style}.svg`), 'utf8');
     assert.match(svg, /<svg[^>]+viewBox=/);
     assert.doesNotMatch(svg, /<script|<foreignObject/);
     giftAssets.add(svg);
   }
-  assert.equal(giftAssets.size, 6, 'each style has its own gift artwork');
+  assert.equal(giftAssets.size, 7, 'each style has its own gift artwork');
 });

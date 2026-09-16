@@ -17,6 +17,7 @@ const DANMAKU_OVERLAY_STYLES = Object.freeze({
   minimal: '蝴蝶结',
   ranked: '直播气泡',
   transparent: '透明简约',
+  identity: '身份横卡',
   outline: '全屏随机',
 });
 
@@ -338,7 +339,7 @@ function getElements() {
     document.querySelectorAll('[data-danmaku-style]'),
   );
   return Object.values(elements).some((element) => !element) ||
-    elements.styleButtons.length !== 6
+    elements.styleButtons.length !== 7
     ? null
     : elements;
 }

@@ -1,311 +1,105 @@
 .gift-catalog-update-toast {
-  --catalog-update-accent: var(--dark-accent-glow);
-  display: grid;
-  width: min(360px, calc(100vw - 48px));
-  min-height: 88px;
-  border-color: color-mix(in srgb, var(--catalog-update-accent) 28%, transparent);
-  background:
-    radial-gradient(circle at 0 0, color-mix(in srgb, var(--catalog-update-accent) 16%, transparent), transparent 48%),
-    linear-gradient(135deg, var(--dark-bg-tertiary) 0%, #101820 100%);
-}
-
-.toast-stack .gift-catalog-update-toast {
-  padding: 16px 18px 16px 66px;
+  --gift-toast-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='3' width='18' height='18' rx='3'/%3E%3Ccircle cx='8' cy='8' r='1.5'/%3E%3Cpath d='m21 15-5-5L5 21'/%3E%3C/svg%3E");
+  padding-left: 60px;
 }
 
 .gift-catalog-update-toast::before {
   content: '';
   position: absolute;
   left: 16px;
-  top: 50%;
-  width: 36px;
-  height: 36px;
-  border: 1px solid color-mix(in srgb, var(--catalog-update-accent) 35%, transparent);
-  border-radius: var(--radius-lg);
-  background:
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='3' width='18' height='18' rx='3'/%3E%3Ccircle cx='8' cy='8' r='1.5'/%3E%3Cpath d='m21 15-5-5L5 21'/%3E%3C/svg%3E") center / 22px 22px no-repeat,
-    color-mix(in srgb, var(--catalog-update-accent) 18%, transparent);
-  transform: translateY(-50%);
+  top: 16px;
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--toast-accent) 10%, transparent);
 }
 
-.gift-catalog-update-toast.toast-warning {
-  --catalog-update-accent: #f6b731;
+.gift-catalog-update-toast::after {
+  content: '';
+  position: absolute;
+  left: 22px;
+  top: 22px;
+  width: 20px;
+  height: 20px;
+  background: var(--toast-accent);
+  mask: var(--gift-toast-icon) center / contain no-repeat;
 }
 
-.gift-catalog-update-toast.toast-error {
-  --catalog-update-accent: #ff9292;
+.gift-catalog-update-toast .toast-content > span {
+  font-size: var(--type-size-control);
+  font-variant-numeric: tabular-nums;
 }
-
-.gift-catalog-update-toast strong,
-.gift-catalog-update-toast span {
-  display: block;
-}
-
-.gift-catalog-update-toast strong {
-  color: var(--dark-text-primary);
-  line-height: var(--type-leading-card-title);
-}
-
-.gift-catalog-update-toast span {
-  color: rgba(226, 241, 237, 0.72);
-  font-size: var(--type-size-caption);
-  line-height: var(--type-leading-caption);
-}
-
 .gift-catalog-update-toast progress {
   display: block;
   appearance: none;
   width: 100%;
   height: 4px;
-  margin-top: 10px;
+  margin-top: 8px;
   overflow: hidden;
   border: 0;
-  border-radius: var(--radius-sm);
-  background: rgba(226, 241, 237, 0.12);
-  accent-color: var(--catalog-update-accent);
+  border-radius: 2px;
+  background: #b1b9d8;
+  accent-color: var(--toast-accent);
 }
-
 .gift-catalog-update-toast progress::-webkit-progress-bar {
   background: transparent;
 }
-
 .gift-catalog-update-toast progress::-webkit-progress-value {
-  border-radius: var(--radius-sm);
-  background: var(--catalog-update-accent);
+  border-radius: 2px;
+  background: var(--toast-accent);
 }
 
-/* ===== 礼物通知 Toast ===== */
 .gift-notify-toast {
-  position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  row-gap: 4px;
-  width: min(360px, calc(100vw - 48px));
-  min-height: 72px;
-  overflow: hidden;
-  border: 1px solid rgba(251, 191, 36, 0.22);
-  border-radius: 14px;
-  background:
-    radial-gradient(circle at 0 0, rgba(251, 191, 36, 0.14), transparent 52%),
-    radial-gradient(
-      circle at 100% 100%,
-      rgba(245, 158, 11, 0.08),
-      transparent 48%
-    ),
-    linear-gradient(145deg, #1f1a10 0%, #181611 100%);
-  padding: 16px 22px 16px 66px;
-  box-shadow:
-    0 18px 44px rgba(40, 28, 8, 0.3),
-    0 0 0 1px rgba(255, 255, 255, 0.03) inset;
-  cursor: default;
-  pointer-events: auto;
+  padding-left: 68px;
 }
-
-.gift-notify-toast::before {
-  content: '';
+.gift-notify-artwork {
   position: absolute;
   left: 16px;
-  top: 50%;
-  display: grid;
-  place-items: center;
-  width: 38px;
-  height: 38px;
-  border: 1px solid rgba(251, 191, 36, 0.35);
-  border-radius: 11px;
-  background:
-    radial-gradient(
-      circle at 30% 30%,
-      rgba(255, 255, 255, 0.14),
-      transparent 60%
-    ),
-    linear-gradient(145deg, #f59e0b, #d97706);
-  box-shadow:
-    0 8px 20px rgba(217, 119, 6, 0.32),
-    inset 0 1px 0 rgba(255, 255, 255, 0.25);
-  transform: translateY(-50%);
+  top: 16px;
+  width: 40px;
+  height: 40px;
+  background: url('../../../img/admin/gifts/gift-toast-fallback.svg') center / contain no-repeat;
+  pointer-events: none;
 }
-
-.gift-notify-toast::after {
-  content: '🎁' / '';
-  position: absolute;
-  left: 35px;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  font-size: var(--type-size-metric-sm);
-  line-height: 1;
-}
-
-.gift-notify-toast strong {
+.gift-notify-artwork img {
   display: block;
-  color: #fff;
-  font-size: var(--type-size-card-title);
-  line-height: 1.35;
-  font-weight: var(--type-weight-bold);
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  opacity: 0;
 }
-
-.gift-notify-toast span {
-  display: block;
-  color: rgba(235, 220, 195, 0.65);
-  font-size: var(--type-size-caption);
-  line-height: var(--type-leading-caption);
+.gift-notify-artwork.is-loaded { background-image: none; }
+.gift-notify-artwork.is-loaded img { opacity: 1; }
+.gift-notify-toast .toast-content > strong {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 8px;
 }
-
+.gift-notify-name { min-width: 0; }
+.gift-notify-toast .toast-content > span {
+  font-size: var(--type-size-control);
+}
 .gift-notify-toast .gift-price-badge {
   display: inline-block;
-  margin-left: 6px;
-  border-radius: 999px;
-  background: rgba(251, 191, 36, 0.15);
-  padding: 2px 8px;
-  color: #fbbf24;
-  font-size: var(--type-size-micro);
-  font-weight: var(--type-weight-bold);
-  vertical-align: middle;
+  padding: 1px 7px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--toast-accent) 10%, transparent);
+  color: var(--toast-text);
+  font-size: var(--type-size-control);
+  font-weight: var(--type-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--type-leading-body);
 }
-
-/* 大航海礼物变体 */
 .gift-notify-toast.gift-guard {
-  border-color: rgba(168, 85, 247, 0.28);
-  background:
-    radial-gradient(circle at 0 0, rgba(168, 85, 247, 0.16), transparent 52%),
-    radial-gradient(
-      circle at 100% 100%,
-      rgba(139, 92, 246, 0.1),
-      transparent 48%
-    ),
-    linear-gradient(145deg, #1a1428 0%, #161120 100%);
-  box-shadow:
-    0 18px 44px rgba(30, 10, 55, 0.32),
-    0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+  --toast-accent: #674a86;
 }
-
-.gift-notify-toast.gift-guard::before {
-  border-color: rgba(168, 85, 247, 0.4);
-  background:
-    radial-gradient(
-      circle at 30% 30%,
-      rgba(255, 255, 255, 0.14),
-      transparent 60%
-    ),
-    linear-gradient(145deg, #8b5cf6, #7c3aed);
-  box-shadow:
-    0 8px 20px rgba(124, 58, 237, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.25);
-}
-
-.gift-notify-toast.gift-guard::after {
-  content: '👑' / '';
-}
-
-.gift-notify-toast.gift-guard .gift-price-badge {
-  background: rgba(168, 85, 247, 0.18);
-  color: #c4b5fd;
-}
-
-/* 免费/低价礼物变体 */
 .gift-notify-toast.gift-free {
-  border-color: rgba(148, 163, 184, 0.2);
-  background:
-    radial-gradient(circle at 0 0, rgba(148, 163, 184, 0.1), transparent 52%),
-    linear-gradient(145deg, #181b1f 0%, #14161a 100%);
-  box-shadow:
-    0 18px 44px rgba(8, 10, 14, 0.28),
-    0 0 0 1px rgba(255, 255, 255, 0.02) inset;
+  --toast-accent: #475674;
 }
-
-.gift-notify-toast.gift-free::before {
-  border-color: rgba(148, 163, 184, 0.3);
-  background:
-    radial-gradient(
-      circle at 30% 30%,
-      rgba(255, 255, 255, 0.1),
-      transparent 60%
-    ),
-    linear-gradient(145deg, #64748b, #475569);
-  box-shadow:
-    0 6px 14px rgba(71, 85, 105, 0.25),
-    inset 0 1px 0 rgba(255, 255, 255, 0.15);
-}
-
-.gift-notify-toast.gift-free::after {
-  content: '💝' / '';
-}
-
-.gift-notify-toast.gift-free span {
-  color: rgba(200, 205, 215, 0.55);
-}
-
-/* 盲盒礼物变体 */
 .gift-notify-toast.gift-blind-box {
-  border-color: rgba(236, 72, 153, 0.24);
-  background:
-    radial-gradient(circle at 0 0, rgba(236, 72, 153, 0.12), transparent 52%),
-    radial-gradient(
-      circle at 100% 100%,
-      rgba(244, 114, 182, 0.08),
-      transparent 48%
-    ),
-    linear-gradient(145deg, #1f141c 0%, #1a1318 100%);
-  box-shadow:
-    0 18px 44px rgba(40, 8, 30, 0.3),
-    0 0 0 1px rgba(255, 255, 255, 0.03) inset;
+  --toast-accent: #7e456f;
 }
-
-.gift-notify-toast.gift-blind-box::before {
-  border-color: rgba(236, 72, 153, 0.35);
-  background:
-    radial-gradient(
-      circle at 30% 30%,
-      rgba(255, 255, 255, 0.14),
-      transparent 60%
-    ),
-    linear-gradient(145deg, #ec4899, #db2777);
-  box-shadow:
-    0 8px 20px rgba(219, 39, 119, 0.3),
-    inset 0 1px 0 rgba(255, 255, 255, 0.25);
-}
-
-.gift-notify-toast.gift-blind-box::after {
-  content: '📦' / '';
-}
-
-.gift-notify-toast.gift-blind-box .gift-price-badge {
-  background: rgba(236, 72, 153, 0.15);
-  color: #f9a8d4;
-}
-
-/* 高价值礼物变体（≥100元） */
 .gift-notify-toast.gift-premium {
-  border-color: rgba(251, 191, 36, 0.35);
-  background:
-    radial-gradient(circle at 0 0, rgba(251, 191, 36, 0.2), transparent 48%),
-    radial-gradient(
-      circle at 100% 100%,
-      rgba(245, 158, 11, 0.14),
-      transparent 44%
-    ),
-    radial-gradient(
-      circle at 50% 50%,
-      rgba(255, 215, 0, 0.05),
-      transparent 60%
-    ),
-    linear-gradient(145deg, #221c0c 0%, #1a1608 100%);
-  border-width: 1.5px;
-  box-shadow:
-    0 22px 52px rgba(50, 35, 8, 0.38),
-    0 0 0 1px rgba(255, 255, 255, 0.04) inset,
-    0 0 32px rgba(251, 191, 36, 0.06);
-}
-
-.gift-notify-toast.gift-premium::before {
-  border-color: rgba(251, 191, 36, 0.5);
-  box-shadow:
-    0 8px 24px rgba(245, 158, 11, 0.45),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
-}
-
-.gift-notify-toast.gift-premium .gift-price-badge {
-  background: rgba(251, 191, 36, 0.22);
-  color: #fcd34d;
-  font-size: var(--type-size-caption);
-  padding: 3px 10px;
+  --toast-accent: #654a85;
 }

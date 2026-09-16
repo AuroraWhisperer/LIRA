@@ -122,6 +122,7 @@ test('cute clock overlay exposes six distinct styles and safe time parameters', 
     assert.match(html, new RegExp(`id="${id}"`));
   }
   assert.match(html, /data-clock-style="peach"/);
+  assert.match(html, /id="clockCard"[^>]*\bhidden/);
   assert.match(css, /\[data-clock-style='peach'\]/);
   assert.match(css, /\[data-clock-style='starlight'\]/);
   assert.match(css, /\[data-clock-style='soda'\]/);

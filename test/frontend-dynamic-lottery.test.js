@@ -15,6 +15,8 @@ async function fixture(api) {
     return {
       textContent: '',
       disabled: false,
+      hidden: true,
+      setAttribute() {},
       replaceChildren() {},
       reset() {},
       addEventListener: (event, callback) => listeners.set(event, callback),
@@ -67,7 +69,7 @@ test('toolbox contains the separate account entry and drawing controls with sour
   const html = readAdminHtml();
   assert.match(html, /data-other-feature="otherDynamicLotteryFeature"/);
   assert.match(html, /aria-labelledby="otherDynamicLotteryFeatureTab"/);
-  assert.match(html, /不会切换或退出你的直播账号/);
+  assert.match(html, /独立登录，不影响直播账号/);
   assert.match(html, /data-lottery-create/);
   assert.match(html, /data-lottery-draw/);
   assert.match(html, /暂不支持可靠核验视频点赞和分享名单/);
@@ -103,8 +105,12 @@ test('login is single-flight and updates account state; logout affects only the 
   await first;
   assert.match(f.get('auth-status').textContent, /9007199254740993123/);
   assert.equal(f.get('logout').disabled, false);
+  assert.equal(f.get('login').hidden, true);
+  f.get('account-toggle').click();
+  assert.equal(f.get('account-panel').hidden, false);
   await f.get('logout').click();
   assert.match(f.get('auth-message').textContent, /直播账号不受影响/);
+  assert.equal(f.get('login').hidden, false);
   f.controller.dispose();
 });
 

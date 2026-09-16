@@ -350,10 +350,10 @@ test('representative desktop selectors resolve to semantic role tokens', () => {
       'bold',
     ],
     [
-      'update toast title',
-      /\.desktop-update-toast strong\b/,
+      'shared toast title',
+      /\.toast-content > strong\b/,
       'card-title',
-      'bold',
+      'semibold',
     ],
     ['tour title', /\.lira-tour-title\b/, 'section-title', 'bold'],
     ['shutdown title', /\.shutdown-title\b/, 'page-title', 'bold'],

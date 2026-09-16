@@ -6,6 +6,8 @@ const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 const { DatabaseSync } = require('node:sqlite');
+const { runMigrations } = require('../src/storage/schema');
+const { DYNAMIC_LOTTERY_SCHEMA } = require('../src/storage/dynamic-lottery-schema');
 
 const {
   runDynamicLotteryMigrations,
@@ -56,12 +58,12 @@ function evidence(recordId = '1') {
   };
 }
 
-test('dynamic lottery v1 migration creates nine tables idempotently', () => {
+test('dynamic lottery migrations create nine tables idempotently', () => {
   const db = openDatabase();
   try {
     const first = runDynamicLotteryMigrations(db);
     assert.equal(first.applied, 0);
-    assert.equal(first.to, 1);
+    assert.equal(first.to, 2);
     assert.deepEqual(
       db
         .prepare(
@@ -81,6 +83,33 @@ test('dynamic lottery v1 migration creates nine tables idempotently', () => {
         'lottery_tasks',
       ],
     );
+  } finally {
+    db.close();
+  }
+});
+
+test('v2 upgrades old evidence without losing text or checkpoints and only runs once', () => {
+  const db = new DatabaseSync(':memory:');
+  db.exec('PRAGMA foreign_keys = ON');
+  runMigrations(db, 'lottery_db', [(database) => database.exec(DYNAMIC_LOTTERY_SCHEMA)]);
+  const store = createDynamicLotteryStore(db);
+  try {
+    seedTask(store);
+    store.beginScan({
+      id: 'scan-1', taskId: 'task-1', sessionEpoch: 4,
+      sources: ['comment'], startedAtMs: 2_100,
+    });
+    db.prepare(`INSERT INTO lottery_evidence
+      (scan_id, source, record_id, uid, text, occurred_at_ms, created_at_ms)
+      VALUES ('scan-1', 'comment', '1', '123', ?, 900, 2200)`)
+      .run('旧评论\n<img src=x onerror=alert(1)>');
+    const before = store.getScan('scan-1');
+    assert.equal(runDynamicLotteryMigrations(db).applied, 1);
+    assert.deepEqual(store.getScan('scan-1'), before);
+    assert.equal(store.getEvidence('scan-1')[0].text, '旧评论\n<img src=x onerror=alert(1)>');
+    assert.equal(store.getEvidence('scan-1')[0].displayName, null);
+    assert.equal(runDynamicLotteryMigrations(db).applied, 0);
+    assert.equal(store.getEvidence('scan-1').length, 1);
   } finally {
     db.close();
   }

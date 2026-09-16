@@ -8,6 +8,7 @@ const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
 const { readCssBundle } = require('./helpers/css-bundle');
+const { loadModuleExports } = require('./helpers/frontend-modules');
 
 const ROOT_DIR = path.join(__dirname, '..');
 
@@ -87,11 +88,7 @@ test('blind box analysis refreshes only for gift snapshot reasons', () => {
   assert.doesNotMatch(analysisSource, /Events\.STATE_LOADED/);
 });
 
-test('gift notifications detect delayed records that are not first in the list', () => {
-  const source = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'notification.js'),
-    'utf8',
-  );
+test('gift notifications detect delayed records that are not first in the list', async () => {
   const toasts = [];
   const sandbox = {
     window: {
@@ -107,7 +104,10 @@ test('gift notifications detect delayed records that are not first in the list',
       getElementById: () => ({ checked: true }),
     },
   };
-  vm.runInNewContext(source, sandbox);
+  await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'notification.js'),
+    sandbox,
+  );
   const notify = sandbox.window.AdminApp.gifts.notification.notifyNewGift;
   const newestByTime = {
     id: 10,

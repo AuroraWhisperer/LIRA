@@ -10,6 +10,7 @@ const OVERLAY_STYLES = new Set([
   'minimal',
   'ranked',
   'transparent',
+  'identity',
   'outline',
 ]);
 const RANKED_STAGE_WIDTH = 624;

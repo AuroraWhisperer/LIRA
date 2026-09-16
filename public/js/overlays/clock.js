@@ -138,9 +138,12 @@ function createClockFormatters(config) {
 async function initClock() {
   const params = new URLSearchParams(location.search);
   const queryConfig = readClockConfig(params);
-  const savedConfig = await loadSavedClockConfig();
-  const config = mergeClockConfig(savedConfig, queryConfig, params);
-  const formatters = createClockFormatters(config);
+  const completeQuery = ['style', 'date', 'seconds', 'format'].every((key) =>
+    params.has(key),
+  );
+  const savedConfig = completeQuery ? null : await loadSavedClockConfig();
+  let config = mergeClockConfig(savedConfig, queryConfig, params);
+  let formatters = createClockFormatters(config);
   const card = document.getElementById('clockCard');
   const timeNode = document.getElementById('clockTime');
   const hoursNode = document.getElementById('clockHours');
@@ -154,6 +157,7 @@ async function initClock() {
   const dateNode = document.getElementById('clockDate');
   const weekdayNode = document.getElementById('clockWeekday');
   let timer = 0;
+  let styleTransition = null;
 
   function syncCardScale() {
     card.style.setProperty(
@@ -168,18 +172,44 @@ async function initClock() {
     );
   }
 
-  document.documentElement.dataset.clockStyle = config.style;
-  card.dataset.clockStyle = config.style;
-  labelNode.textContent = config.label;
-  secondsNode.hidden = !config.showSeconds;
-  periodNode.hidden = !config.hour12;
-  yearNode.hidden = !config.showDate;
-  dateRow.hidden = !config.showDate;
-  timeSeparatorNode.textContent = config.style.startsWith('timeline-')
-    ? '—'
-    : ':';
+  function applyConfig(nextConfig) {
+    const styleChanged = nextConfig.style !== config.style;
+    if (styleChanged || nextConfig.hour12 !== config.hour12) {
+      formatters = createClockFormatters(nextConfig);
+    }
+    config = nextConfig;
+    document.documentElement.dataset.clockStyle = config.style;
+    card.dataset.clockStyle = config.style;
+    labelNode.textContent = config.label;
+    secondsNode.hidden = !config.showSeconds;
+    periodNode.hidden = !config.hour12;
+    yearNode.hidden = !config.showDate;
+    dateRow.hidden = !config.showDate;
+    syncCardScale();
+    render();
+    card.hidden = false;
+    if (styleChanged) {
+      styleTransition?.cancel();
+      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        styleTransition = card.animate([{ opacity: 0.6 }, { opacity: 1 }], {
+          duration: 160,
+          easing: 'cubic-bezier(0.16, 1, 0.3, 1)',
+        });
+      }
+    }
+  }
+
   window.addEventListener('resize', syncCardScale);
-  syncCardScale();
+  window.addEventListener('message', (event) => {
+    if (
+      window.parent === window ||
+      event.source !== window.parent ||
+      event.origin !== location.origin ||
+      event.data?.type !== 'lira:clock-preview-config'
+    )
+      return;
+    applyConfig(normalizeSavedClockConfig(event.data.config));
+  });
 
   function render() {
     const now = new Date();
@@ -225,6 +255,7 @@ async function initClock() {
   }
 
   document.addEventListener('visibilitychange', schedule);
+  applyConfig(config);
   schedule();
 }
 
