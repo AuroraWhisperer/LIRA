@@ -276,6 +276,11 @@
   function catalogErrorMessage(code) {
     const value = String(code || '');
     if (
+      value === 'CATALOG_INVALID' ||
+      value === 'REMOTE_CATALOG_SCHEMA_UNSUPPORTED'
+    )
+      return '准备数据与当前客户端不兼容，请联系管理员更新服务端后重试。';
+    if (
       value === 'REMOTE_CATALOG_NOT_READY' ||
       value === 'REMOTE_CATALOG_EMPTY' ||
       value === 'NETWORK_UNAVAILABLE' ||

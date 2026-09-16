@@ -1,0 +1,272 @@
+.license-art {
+  display: grid;
+  flex: 1;
+  place-items: center;
+  min-height: 244px;
+}
+.license-echo {
+  grid-area: 1 / 1;
+  width: 244px;
+  aspect-ratio: 1;
+  border: 1px solid var(--license-echo);
+  border-radius: 50%;
+  opacity: 0;
+  pointer-events: none;
+}
+.license-record {
+  position: relative;
+  display: grid;
+  grid-area: 1 / 1;
+  width: 244px;
+  aspect-ratio: 1;
+  place-items: center;
+  border-radius: 50%;
+  background:
+    radial-gradient(
+      circle at 28% 18%,
+      var(--license-record-light),
+      transparent 68%
+    ),
+    var(--license-record-bg);
+  box-shadow: 0 16px 24px -10px rgba(32, 34, 31, 0.32);
+}
+.license-record::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: conic-gradient(
+    from -35deg,
+    transparent 0deg,
+    var(--license-record-sheen) 50deg,
+    transparent 100deg 180deg,
+    var(--license-record-sheen) 230deg,
+    transparent 280deg 360deg
+  );
+}
+.license-record::after {
+  content: '';
+  position: absolute;
+  inset: 9%;
+  border: 1px solid var(--license-groove);
+  border-radius: 50%;
+  mask-image: conic-gradient(
+    transparent 0deg 25deg,
+    #000 55deg 115deg,
+    transparent 145deg 205deg,
+    #000 235deg 295deg,
+    transparent 325deg
+  );
+}
+.license-record-label {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  width: 36%;
+  aspect-ratio: 1;
+  padding: 16px 0 14px;
+  border-radius: 50%;
+  background: var(--license-record-label);
+  color: var(--license-record-ink);
+}
+.license-record-label::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--license-record-bg);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
+  transform: translate(-50%, -50%);
+}
+.license-record-wordmark {
+  padding-left: 0.18em;
+  font-family: var(--license-display-font);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0.18em;
+}
+.license-record-wave {
+  width: 24px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1;
+  stroke-linecap: round;
+  opacity: 0.7;
+}
+.license-record-wave path {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.license-intro-caption {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 28px;
+  margin: 0;
+  color: var(--license-muted);
+  font-size: 12px;
+  line-height: 1.9;
+}
+.license-signal {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 16px;
+  color: var(--license-muted);
+}
+.license-signal span {
+  width: 2px;
+  height: 8px;
+  border-radius: 1px;
+  background: currentColor;
+}
+.license-signal span:nth-child(2),
+.license-signal span:nth-child(4) {
+  height: 13px;
+}
+.license-signal span:nth-child(3) {
+  height: 16px;
+}
+.license-motion-toggle {
+  display: grid;
+  flex: 0 0 28px;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--license-muted);
+}
+.license-motion-toggle:hover {
+  background: var(--license-border);
+  color: var(--license-text);
+}
+.license-motion-toggle:focus-visible {
+  outline: 2px solid var(--license-primary);
+  outline-offset: 2px;
+}
+.license-motion-toggle svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.license-motion-toggle[hidden],
+.license-motion-play,
+.license-motion-toggle[data-paused='true'] .license-motion-pause {
+  display: none;
+}
+.license-motion-toggle[data-paused='true'] .license-motion-play {
+  display: block;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .license-intro h2,
+  .license-art,
+  .license-intro-caption {
+    animation: license-intro-enter 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .license-intro h2 {
+    animation-delay: 80ms;
+  }
+  .license-art {
+    animation-delay: 160ms;
+  }
+  .license-echo {
+    animation: license-echo-expand 6s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  }
+  .license-intro-caption {
+    animation-delay: 240ms;
+  }
+  .license-record::before,
+  .license-record::after {
+    animation: license-record-turn 24s linear infinite;
+  }
+  .license-record-wave path {
+    animation: license-record-wave 3s ease-in-out infinite;
+  }
+  .license-record-wave path:nth-child(2) {
+    animation-delay: -250ms;
+  }
+  .license-record-wave path:nth-child(3) {
+    animation-delay: -500ms;
+  }
+  .license-record-wave path:nth-child(4) {
+    animation-delay: -750ms;
+  }
+  .license-record-wave path:nth-child(5) {
+    animation-delay: -1000ms;
+  }
+  .license-record-wave path:nth-child(6) {
+    animation-delay: -1250ms;
+  }
+  .license-echo,
+  .license-record::before,
+  .license-record::after,
+  .license-record-wave path {
+    animation-play-state: var(--license-motion-play-state, paused);
+  }
+}
+@keyframes license-intro-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes license-record-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes license-echo-expand {
+  0% {
+    opacity: 0;
+    transform: scale(1);
+  }
+  15% {
+    opacity: 0.8;
+    transform: scale(1.06);
+  }
+  60% {
+    opacity: 0.45;
+    transform: scale(1.18);
+  }
+  90%,
+  100% {
+    opacity: 0;
+    transform: scale(1.26);
+  }
+}
+@keyframes license-record-wave {
+  0%,
+  100% {
+    transform: scaleY(0.45);
+  }
+  25% {
+    transform: scaleY(0.95);
+  }
+  55% {
+    transform: scaleY(0.65);
+  }
+  75% {
+    transform: scaleY(1.05);
+  }
+}

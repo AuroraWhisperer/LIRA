@@ -176,6 +176,22 @@ test('continue preparation reuses authorization and allows returning after anoth
   assert.equal(page.get('licenseLoginCard').hidden, false);
 });
 
+test('incompatible preparation data explains the server update instead of a network retry', async () => {
+  const page = await createPage({
+    getCatalog: async () => ({ ...FAILED, error: 'CATALOG_INVALID' }),
+  });
+  assert.match(
+    page.get('giftCatalogInitializationStatus').textContent,
+    /数据.*不兼容.*管理员.*更新服务端/,
+  );
+  assert.doesNotMatch(
+    page.get('giftCatalogInitializationStatus').textContent,
+    /检查网络/,
+  );
+  assert.equal(page.get('giftCatalogInitializationRetryBtn').hidden, false);
+  assert.equal(page.get('giftCatalogInitializationBackBtn').hidden, false);
+});
+
 test('successful preparation after returning uses the existing ready flow', async () => {
   const page = await createPage({
     retryCatalog: async () => ({ status: 'ready', percent: 100 }),

@@ -58,14 +58,23 @@
         <div class="license-stage">
           <aside class="license-intro" aria-labelledby="licenseWelcomeHeading">
             <div>
-              <h2 id="licenseWelcomeHeading">让每一次互动，<br />都有回响。</h2>
+              <h2 id="licenseWelcomeHeading">欢迎来到 LIRA</h2>
             </div>
-            <div class="license-art" aria-hidden="true">
+            <div id="licenseArt" class="license-art" aria-hidden="true">
               <span class="license-echo"></span>
-              <span class="license-echo"></span>
-              <span class="license-echo"></span>
-              <span class="license-echo"></span>
-              <div class="license-record"></div>
+              <div class="license-record">
+                <div class="license-record-label">
+                  <span class="license-record-wordmark">LIRA</span>
+                  <svg class="license-record-wave" viewBox="0 0 24 12">
+                    <path d="M2 5v2"></path>
+                    <path d="M6 3v6"></path>
+                    <path d="M10 1v10"></path>
+                    <path d="M14 1v10"></path>
+                    <path d="M18 3v6"></path>
+                    <path d="M22 5v2"></path>
+                  </svg>
+                </div>
+              </div>
             </div>
             <p class="license-intro-caption">
               <span class="license-signal" aria-hidden="true">
@@ -73,6 +82,19 @@
                 ><span></span>
               </span>
               点歌 · 弹幕 · 礼物
+              <button
+                id="licenseMotionToggle"
+                class="license-motion-toggle"
+                type="button"
+                aria-label="暂停动画"
+                title="暂停动画"
+                hidden
+              >
+                <svg viewBox="0 0 16 16" aria-hidden="true">
+                  <path class="license-motion-pause" d="M5.5 4v8m5-8v8"></path>
+                  <path class="license-motion-play" d="m6 4 6 4-6 4Z"></path>
+                </svg>
+              </button>
             </p>
           </aside>
           <section
@@ -265,5 +287,6 @@
     </div>
     <script type="module" src="/js/admin/contextual-help.js"></script>
     <script src="/js/license.js"></script>
+    <script src="/js/license-motion.js"></script>
   </body>
 </html>

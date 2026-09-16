@@ -82,16 +82,6 @@
       "test": "test/frontend-admin-shell.test.js"
     },
     {
-      "path": "public/css/license.css",
-      "kind": "review",
-      "maxLines": 735,
-      "owner": "授权页面",
-      "reason": "2026-09-14 审阅新增唱片回声装饰、动画及暗色变量，仍为原授权页视觉，没有新增面板或权限行为；登录/注册切换继续独立于 license/account-modes.css，保留减少动态效果规则及授权 UI 测试。",
-      "removal": "出现独立面板职责时再提取，保持授权 UI 行为。",
-      "reviewBy": "2026-12-13",
-      "test": "test/license-ui.test.js"
-    },
-    {
       "path": "public/css/admin/workspace/song.css",
       "kind": "review",
       "maxLines": 781,

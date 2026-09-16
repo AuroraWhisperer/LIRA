@@ -1,4 +1,5 @@
 @import url('./license/account-modes.css');
+@import url('./license/welcome-art.css');
 
 :root {
   color-scheme: light dark;
@@ -16,11 +17,13 @@
     #85867c
   );
   --license-intro-bg: #e9eae3;
-  --license-record-bg: #e0e2d8;
-  --license-groove: rgba(85, 94, 76, 0.16);
-  --license-echo: rgba(85, 94, 76, 0.34);
-  --license-echo-glow: rgba(127, 145, 106, 0.15);
-  --license-record-sheen: rgba(255, 255, 255, 0.55);
+  --license-record-bg: #30342f;
+  --license-record-light: #535b4e;
+  --license-record-label: #e0e2d8;
+  --license-record-ink: #3e463b;
+  --license-groove: rgba(232, 236, 223, 0.16);
+  --license-echo: rgba(85, 94, 76, 0.5);
+  --license-record-sheen: rgba(232, 236, 223, 0.2);
   --license-input-bg: #fff;
   --license-input-border: #d8dad2;
   --license-placeholder: #74786f;
@@ -168,17 +171,18 @@ button {
   min-height: 0;
   margin: 0 auto;
   padding: 24px 28px 36px;
-  overflow-x: hidden;
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  overflow: hidden;
 }
 .license-stage {
   display: grid;
   flex: 0 0 auto;
   grid-template-columns: 0.94fr 1fr;
+  grid-template-rows: minmax(0, 1fr);
   width: 100%;
-  min-height: 548px;
+  height: min(612px, 100%);
+  min-height: 0;
   margin-block: auto;
+  overflow: hidden;
   border: 1px solid var(--license-border);
   border-radius: 20px;
   background: var(--license-surface);
@@ -203,212 +207,23 @@ button {
   letter-spacing: 0.02em;
   line-height: 1.55;
 }
-.license-art {
-  display: grid;
-  flex: 1;
-  place-items: center;
-  min-height: 218px;
-}
-.license-art::before {
-  content: '';
-  grid-area: 1 / 1;
-  width: 218px;
-  aspect-ratio: 1;
-  border-radius: 50%;
-  background: radial-gradient(
-    circle,
-    var(--license-echo-glow) 35%,
-    transparent 70%
-  );
-  transform: scale(1.65);
-  pointer-events: none;
-}
-.license-echo {
-  grid-area: 1 / 1;
-  width: 218px;
-  aspect-ratio: 1;
-  border: 1px solid var(--license-echo);
-  border-radius: 50%;
-  box-shadow:
-    0 0 10px var(--license-echo-glow),
-    inset 0 0 10px var(--license-echo-glow);
-  opacity: 0;
-  pointer-events: none;
-}
-.license-record {
-  position: relative;
-  display: grid;
-  grid-area: 1 / 1;
-  width: 218px;
-  aspect-ratio: 1;
-  place-items: center;
-  border: 1px solid var(--license-groove);
-  border-radius: 50%;
-  background:
-    repeating-radial-gradient(
-      circle at center,
-      transparent 0 10px,
-      var(--license-groove) 10.5px 11px,
-      transparent 11.5px 12px
-    ),
-    var(--license-record-bg);
-  box-shadow: 0 12px 24px rgba(41, 47, 35, 0.07);
-}
-.license-record::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  background: conic-gradient(
-    from -35deg,
-    transparent 0deg,
-    var(--license-record-sheen) 50deg,
-    transparent 100deg 180deg,
-    var(--license-record-sheen) 230deg,
-    transparent 280deg 360deg
-  );
-}
-.license-record::after {
-  content: '';
-  position: absolute;
-  inset: 34%;
-  z-index: 1;
-  border: 1px solid var(--license-groove);
-  border-radius: 50%;
-  background:
-    radial-gradient(
-      circle at center,
-      var(--license-muted) 0 1.5px,
-      var(--license-record-bg) 2px 3.5px,
-      var(--license-groove) 4px 4.5px,
-      transparent 5px
-    ),
-    var(--license-intro-bg);
-}
-.license-intro-caption {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 0;
-  color: var(--license-muted);
-  font-size: 12px;
-  line-height: 1.9;
-}
-.license-signal {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  height: 16px;
-  color: var(--license-muted);
-}
-.license-signal span {
-  width: 2px;
-  height: 8px;
-  border-radius: 1px;
-  background: currentColor;
-}
-.license-signal span:nth-child(2),
-.license-signal span:nth-child(4) {
-  height: 13px;
-}
-.license-signal span:nth-child(3) {
-  height: 16px;
-}
-@media (prefers-reduced-motion: no-preference) {
-  .license-intro h2,
-  .license-art,
-  .license-intro-caption {
-    animation: license-intro-enter 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  }
-  .license-intro h2 {
-    animation-delay: 80ms;
-  }
-  .license-art {
-    animation-delay: 160ms;
-  }
-  .license-echo {
-    animation: license-echo-expand 7.2s linear infinite;
-  }
-  .license-echo:nth-child(2) {
-    animation-delay: -1.8s;
-  }
-  .license-echo:nth-child(3) {
-    animation-delay: -3.6s;
-  }
-  .license-echo:nth-child(4) {
-    animation-delay: -5.4s;
-  }
-  .license-intro-caption {
-    animation-delay: 240ms;
-  }
-  .license-record::before {
-    animation: license-record-turn 16s linear infinite;
-  }
-  .license-signal span {
-    animation: license-signal-pulse 1800ms ease-in-out infinite alternate;
-  }
-  .license-signal span:nth-child(2) {
-    animation-delay: -1200ms;
-  }
-  .license-signal span:nth-child(3) {
-    animation-delay: -600ms;
-  }
-  .license-signal span:nth-child(4) {
-    animation-delay: -1600ms;
-  }
-  .license-signal span:nth-child(5) {
-    animation-delay: -900ms;
-  }
-}
-@keyframes license-intro-enter {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-@keyframes license-record-turn {
-  to {
-    transform: rotate(360deg);
-  }
-}
-@keyframes license-echo-expand {
-  0% {
-    opacity: 0;
-    transform: scale(0.98);
-  }
-  15% {
-    opacity: 0.9;
-    transform: scale(1.08);
-  }
-  60% {
-    opacity: 0.5;
-    transform: scale(1.36);
-  }
-  100% {
-    opacity: 0;
-    transform: scale(1.64);
-  }
-}
-@keyframes license-signal-pulse {
-  from {
-    transform: scaleY(0.4);
-  }
-  to {
-    transform: scaleY(1);
-  }
-}
 .license-card {
   align-self: center;
   width: 100%;
   min-width: 0;
-  padding: 32px 44px;
+  max-height: 100%;
+  padding: 24px 44px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-padding-block: 24px;
+  scrollbar-width: none;
+}
+.license-card::-webkit-scrollbar {
+  display: none;
 }
 .license-card-heading {
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 .license-kicker {
   display: flex;
@@ -442,7 +257,7 @@ button {
   line-height: 1.6;
 }
 .license-initialization-card {
-  min-height: 274px;
+  min-height: 0;
 }
 .license-progress-heading {
   display: flex;
@@ -677,11 +492,9 @@ button {
     --license-primary-strong: #d6ddce;
     --license-on-primary: #252c22;
     --license-intro-bg: #30352c;
-    --license-record-bg: #393f33;
-    --license-groove: rgba(183, 195, 166, 0.16);
-    --license-echo: rgba(183, 195, 166, 0.38);
-    --license-echo-glow: rgba(151, 174, 125, 0.1);
-    --license-record-sheen: rgba(255, 255, 255, 0.08);
+    --license-record-bg: #20221f;
+    --license-record-label: #c4ccbb;
+    --license-echo: rgba(183, 195, 166, 0.55);
     --license-input-bg: #252822;
     --license-input-border: #4c5146;
     --license-placeholder: #8c9484;
@@ -719,8 +532,8 @@ button {
     padding-bottom: 20px;
   }
   .license-card {
-    padding-top: 26px;
-    padding-bottom: 26px;
+    padding-top: 16px;
+    padding-bottom: 16px;
   }
   .license-card-heading {
     margin-bottom: 20px;

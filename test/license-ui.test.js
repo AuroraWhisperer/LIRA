@@ -8,14 +8,20 @@ const vm = require('node:vm');
 
 const ROOT = path.join(__dirname, '..');
 
-test('license long forms scroll below a stationary titlebar at every height', () => {
+test('license states share a bounded stage and scroll only the right card', () => {
   const styles = fs.readFileSync(path.join(ROOT, 'public', 'css', 'license.css'), 'utf8');
   const main = styles.match(/\.license-main\s*\{([^}]+)\}/)?.[1];
   const stage = styles.match(/\.license-stage\s*\{([^}]+)\}/)?.[1];
+  const card = styles.match(/\.license-card\s*\{([^}]+)\}/)?.[1];
   assert.match(main, /height:\s*calc\(100dvh - 52px\)/);
-  assert.match(main, /overflow-y:\s*auto/);
+  assert.match(main, /overflow:\s*hidden/);
   assert.match(stage, /flex:\s*0 0 auto/);
+  assert.match(stage, /height:\s*min\(612px, 100%\)/);
+  assert.match(stage, /grid-template-rows:\s*minmax\(0, 1fr\)/);
   assert.match(stage, /margin-block:\s*auto/);
+  assert.match(card, /max-height:\s*100%/);
+  assert.match(card, /overflow-y:\s*auto/);
+  assert.match(card, /scrollbar-width:\s*none/);
   assert.doesNotMatch(styles, /@media \(max-height: 640px\)[\s\S]*overflow:\s*auto/);
 });
 
