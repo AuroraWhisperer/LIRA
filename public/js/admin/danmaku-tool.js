@@ -5,23 +5,11 @@ import {
   createCustomReplyEditor,
   createFortuneEditor,
 } from './danmaku-libraries.js';
-import { copyText, localOverlayOrigin } from '../shared/utils.js';
+import { initDanmakuOverlaySettings } from './danmaku-overlay-settings.js';
 
 let initialized = false;
 let refreshState = null;
 let autoBotRunning = false;
-
-const DANMAKU_OVERLAY_STYLES = Object.freeze({
-  bubble: '聊天气泡',
-  signal: '直播信号带',
-  minimal: '蝴蝶结',
-  ranked: '直播气泡',
-  transparent: '透明简约',
-  identity: '身份横卡',
-  outline: '全屏随机',
-});
-
-const DEFAULT_FULLSCREEN_DURATION_SECONDS = 6;
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -49,97 +37,7 @@ function init() {
     toast,
   });
   if (!blessingEditor || !fortuneEditor || !customReplyEditor) return;
-  const overlayUrl = `${localOverlayOrigin()}/danmaku`;
-  elements.overlayUrl.value = overlayUrl;
-  let currentOverlayStyle = renderOverlayStyle(elements, 'signal');
-  let currentFullscreenDurationSeconds = renderFullscreenDuration(
-    elements,
-    DEFAULT_FULLSCREEN_DURATION_SECONDS,
-  );
-  window.addEventListener('app:settings-state', (event) => {
-    const settings = event.detail || {};
-    currentOverlayStyle = renderOverlayStyle(
-      elements,
-      settings.danmakuOverlayStyle,
-    );
-    currentFullscreenDurationSeconds = renderFullscreenDuration(
-      elements,
-      settings.danmakuFullscreenDurationSeconds,
-    );
-  });
-  elements.styleButtons.forEach((button) => {
-    button.addEventListener('click', async () => {
-      const previousStyle = currentOverlayStyle;
-      const nextStyle = normalizeOverlayStyle(button.dataset.danmakuStyle);
-      if (nextStyle === currentOverlayStyle) return;
-      currentOverlayStyle = renderOverlayStyle(elements, nextStyle);
-      elements.styleSaveState.textContent = '正在保存…';
-      elements.styleButtons.forEach((item) => {
-        item.disabled = true;
-      });
-      try {
-        await saveSetting('danmakuOverlayStyle', nextStyle);
-        elements.styleSaveState.textContent = '已保存';
-        toast(`弹幕姬已切换为${DANMAKU_OVERLAY_STYLES[nextStyle]}`);
-      } catch (error) {
-        currentOverlayStyle = renderOverlayStyle(elements, previousStyle);
-        elements.styleSaveState.textContent =
-          error.message || '样式保存失败，请重试。';
-        toast(error.message || '弹幕姬样式保存失败');
-      } finally {
-        elements.styleButtons.forEach((item) => {
-          item.disabled = false;
-        });
-      }
-    });
-  });
-  elements.fullscreenDuration.addEventListener('change', async () => {
-    const previousDuration = currentFullscreenDurationSeconds;
-    const nextDuration = normalizeFullscreenDuration(
-      elements.fullscreenDuration.value,
-    );
-    if (nextDuration === null) {
-      elements.fullscreenDuration.value = String(previousDuration);
-      elements.styleSaveState.textContent = '停留时间请输入 2～30 秒的整数。';
-      return;
-    }
-    elements.fullscreenDuration.value = String(nextDuration);
-    elements.fullscreenDuration.disabled = true;
-    elements.styleSaveState.textContent = '正在保存…';
-    try {
-      await saveSetting(
-        'danmakuFullscreenDurationSeconds',
-        String(nextDuration),
-      );
-      currentFullscreenDurationSeconds = nextDuration;
-      elements.styleSaveState.textContent = '已保存';
-    } catch (error) {
-      elements.fullscreenDuration.value = String(previousDuration);
-      elements.styleSaveState.textContent =
-        error.message || '停留时间保存失败，请重试。';
-      toast(error.message || '全屏随机停留时间保存失败');
-    } finally {
-      elements.fullscreenDuration.disabled = false;
-    }
-  });
-  elements.copyOverlayUrlButton.addEventListener('click', async () => {
-    try {
-      await copyText(overlayUrl);
-      toast('弹幕姬网页链接已复制');
-    } catch (error) {
-      toast(error.message || '复制链接失败');
-    }
-  });
-  elements.openOverlayButton.addEventListener('click', () =>
-    window.open(overlayUrl, '_blank', 'noopener'),
-  );
-  elements.previewOverlayButton.addEventListener('click', () =>
-    window.open(
-      `${overlayUrl}?preview=1&style=${currentOverlayStyle}`,
-      '_blank',
-      'noopener',
-    ),
-  );
+  initDanmakuOverlaySettings(elements, toast);
   initialized = true;
 
   const updateCounter = () => {
@@ -339,45 +237,9 @@ function getElements() {
     document.querySelectorAll('[data-danmaku-style]'),
   );
   return Object.values(elements).some((element) => !element) ||
-    elements.styleButtons.length !== 7
+    elements.styleButtons.length !== 8
     ? null
     : elements;
-}
-
-function normalizeOverlayStyle(value) {
-  return Object.hasOwn(DANMAKU_OVERLAY_STYLES, value) ? value : 'signal';
-}
-
-function normalizeFullscreenDuration(value) {
-  let duration;
-  if (typeof value === 'number') duration = value;
-  else if (typeof value === 'string' && /^\d+$/.test(value.trim()))
-    duration = Number(value.trim());
-  else return null;
-  return Number.isSafeInteger(duration) && duration >= 2 && duration <= 30
-    ? duration
-    : null;
-}
-
-function renderOverlayStyle(elements, value) {
-  const style = normalizeOverlayStyle(value);
-  const label = DANMAKU_OVERLAY_STYLES[style];
-  elements.styleButtons.forEach((button) => {
-    button.setAttribute(
-      'aria-pressed',
-      String(button.dataset.danmakuStyle === style),
-    );
-  });
-  elements.styleChip.textContent = `当前样式 · ${label}`;
-  elements.fullscreenDurationField.hidden = style !== 'outline';
-  return style;
-}
-
-function renderFullscreenDuration(elements, value) {
-  const duration =
-    normalizeFullscreenDuration(value) || DEFAULT_FULLSCREEN_DURATION_SECONDS;
-  elements.fullscreenDuration.value = String(duration);
-  return duration;
 }
 
 function renderState(elements, state, editors) {

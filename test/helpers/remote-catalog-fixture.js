@@ -18,7 +18,9 @@ function v2CatalogResponse(response) {
     ...response,
     gifts: (response.gifts || []).map((gift) => ({
       active: true,
-      isBlindBox: false,
+      giftCategory: (response.blindBoxes || []).some(box => box.giftId === gift.id)
+        ? 'blindBox' : (response.blindBoxes || []).some(box => box.outputGiftIds.includes(gift.id))
+          ? 'blindBoxOutput' : 'directGift',
       ...gift,
     })),
   };

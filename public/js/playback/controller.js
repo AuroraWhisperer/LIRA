@@ -5,7 +5,8 @@
 // ── 基础设施导入 ──
 import * as PlaybackUtils from './utils.js';
 import { UIRenderer } from './ui/index.js';
-import { StateManager } from './state/manager.js';
+import { createInitialState } from './state/manager.js';
+import { createPlaybackStateActions } from './state/actions.js';
 import { StorageManager } from './state/storage.js';
 import { QueueManager } from './queue/manager.js';
 import { ProviderManager } from './provider/manager.js';
@@ -77,15 +78,18 @@ export function createPlaybackController(initialOptions = {}) {
   // ══════════════════════════════════════════════════════════════
   // SECTION 3 — 管理器和服务的创建
   // ══════════════════════════════════════════════════════════════
-  const stateManager = new StateManager();
   const storageManager = new StorageManager();
-  const playbackState = stateManager.getState();
+  const playbackState = createInitialState();
 
   const statePersistence = createStatePersistence({
     playbackState,
     getPlaybackAudio: () => document.getElementById('music-player'),
   });
   const savePlaybackState = statePersistence.savePlaybackState;
+  const stateActions = createPlaybackStateActions(playbackState, {
+    save: savePlaybackState,
+    render: () => renderPlayback(),
+  });
   const flushPlaybackStateOnUnload =
     statePersistence.flushPlaybackStateOnUnload;
 
@@ -147,6 +151,7 @@ export function createPlaybackController(initialOptions = {}) {
 
   const matchService = new MatchService({
     state: playbackState,
+    stateActions,
     onError: (e) => showError(e),
     readJsonResponse: (r, m) => readJsonResponse(r, m),
     toast: (m) => toast(m),
@@ -236,6 +241,7 @@ export function createPlaybackController(initialOptions = {}) {
 
   const homeHandler = createHomeHandler({
     playbackState,
+    stateActions,
     homeService,
     uiRenderer,
     escapeHtml,
@@ -256,6 +262,7 @@ export function createPlaybackController(initialOptions = {}) {
 
   const pendingHandler = createPendingHandler({
     playbackState,
+    stateActions,
     savePlaybackState,
     renderPlayback: () => renderPlayback(),
   });
@@ -265,6 +272,7 @@ export function createPlaybackController(initialOptions = {}) {
   // ══════════════════════════════════════════════════════════════
   const providerOperations = createProviderOperations({
     playbackState,
+    stateActions,
     providerManager,
     cacheManager,
     weSingService,
@@ -322,6 +330,7 @@ export function createPlaybackController(initialOptions = {}) {
   // ══════════════════════════════════════════════════════════════
   const queueCoordinator = createPlaybackQueueCoordinator({
     playbackState,
+    stateActions,
     queueManager,
     savePlaybackState,
     renderPlayback: () => renderPlayback(),
@@ -379,6 +388,8 @@ export function createPlaybackController(initialOptions = {}) {
   // ══════════════════════════════════════════════════════════════
   const playbackControls = createPlaybackControls({
     playbackState,
+    stateActions,
+    queueManager,
     getPlaybackAudio,
     showError,
     toast,
@@ -412,6 +423,7 @@ export function createPlaybackController(initialOptions = {}) {
 
   const radioMode = createRadioMode({
     playbackState,
+    queueManager,
     readJsonResponse,
     playbackRadioRefillThreshold,
     playbackRadioRefillBatchSize,
@@ -441,6 +453,7 @@ export function createPlaybackController(initialOptions = {}) {
   // ══════════════════════════════════════════════════════════════
   const eventHandlersModule = createEventHandlers({
     playbackState,
+    stateActions,
     getPlaybackAudio,
     uiRenderer,
     homeService,
@@ -519,7 +532,7 @@ export function createPlaybackController(initialOptions = {}) {
   async function restorePlaybackState() {
     const restored = await storageManager.restoreState();
     if (restored) {
-      Object.assign(playbackState, restored);
+      stateActions.restore(restored);
       await playbackInitializer.restoreLocalFileUrls();
     }
   }

@@ -139,3 +139,22 @@ test('legacy import entry keeps the parser and cloud initialization APIs wired t
   assert.equal(typeof imports.initCloudSongSync, 'function');
   assert.equal(typeof imports.initCloudSongBackground, 'function');
 });
+
+for (const [code, expected] of [
+  ['PAYLOAD_TOO_LARGE', /减少歌曲或缩短备注/],
+  ['RESPONSE_TOO_LARGE', /缩减歌库或联系管理员/],
+]) {
+  test(`cloud song sync explains how to resolve ${code}`, async () => {
+    const ui = await fixture();
+    ui.finishCount([]);
+    await ui.initialized;
+    ui.bridge.syncSongs = async () => ({ ok: false, error: code });
+    const button = ui.element('licenseSyncSongsBtn');
+    const failed = button.events.click();
+    ui.confirm(true);
+    await failed;
+    assert.match(ui.element('licenseSyncResult').textContent, expected);
+    assert.equal(ui.stored.size, 0);
+    assert.equal(button.disabled, false);
+  });
+}

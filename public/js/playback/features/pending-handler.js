@@ -2,6 +2,8 @@
 // 待确认操作处理模块
 'use strict';
 
+import { createPlaybackStateActions } from '../state/actions.js';
+
 /**
  * 创建待确认操作处理模块
  * @param {Object} deps - 依赖对象
@@ -9,6 +11,12 @@
  */
 export function createPendingHandler(deps) {
   const { playbackState, savePlaybackState, renderPlayback } = deps;
+  const stateActions =
+    deps.stateActions ||
+    createPlaybackStateActions(playbackState, {
+      save: savePlaybackState,
+      render: renderPlayback,
+    });
 
   /**
    * 处理待确认操作（确认/忽略）
@@ -21,7 +29,7 @@ export function createPendingHandler(deps) {
     if (!pending) return;
 
     if (action === 'confirm') {
-      playbackState.pendingRequests.splice(index, 1);
+      stateActions.removePending(index);
       const track = pending.track;
       if (track) {
         playPlaybackTrack(track, {
@@ -30,11 +38,10 @@ export function createPendingHandler(deps) {
         });
       }
     } else if (action === 'ignore') {
-      playbackState.pendingRequests.splice(index, 1);
+      stateActions.removePending(index);
     }
 
-    savePlaybackState();
-    renderPlayback();
+    stateActions.commit();
   }
 
   return {

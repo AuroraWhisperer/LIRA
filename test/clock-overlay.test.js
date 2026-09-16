@@ -196,8 +196,8 @@ test('toolbox composes the named clock card with fixed URL and custom controls',
   assert.match(shell, /<small>日期、星期和当前时间<\/small>/);
   assert.match(composition, /pages\/admin\/toolbox\/clock\.html/);
   assert.match(styleEntry, /other-features\/clock\.css/);
-  assert.match(app, /import \{ initClockCard \} from '\.\/clock-card\.js'/);
-  assert.match(app, /initClockCard\(\)/);
+  assert.match(app, /import\('\.\/clock-card\.js'\)/);
+  assert.match(app, /module\.initClockCard/);
 
   assert.doesNotMatch(
     panel,

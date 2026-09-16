@@ -23,8 +23,6 @@ const LEGACY_ADMIN_GLOBAL_LIMITS = {
   'public/js/admin/import.js': 10,
   'public/js/admin/metrics.js': 4,
   'public/js/admin/other.js': 8,
-  'public/js/admin/overtime.js': 3,
-  'public/js/admin/queue.js': 26,
   'public/js/admin/songs.js': 37,
   'public/js/admin/state.js': 4,
   'public/js/admin/theme.js': 51,
@@ -48,8 +46,6 @@ const DOMAIN_SQL_LIMITS = {
   'src/ai/api-quota-store.js': 3,
   'src/ai/config-store.js': 18,
   'src/bilibili/gift/blind-box-analysis.js': 1,
-  'src/bilibili/gift/projection-service.js': 5,
-  'src/bilibili/gift/statistics-consumer.js': 6,
   'src/overtime/overtime-store.js': 21,
 };
 const EMPTY_CATCH_LIMITS = {
@@ -119,6 +115,14 @@ test('domain services use stores instead of SQLite statements', () => {
   assert.doesNotMatch(superChatService, /context\.db|\bdb\.superChatDb\b/);
   assert.doesNotMatch(songs, /\.(?:prepare|exec)\s*\(/);
   assert.doesNotMatch(songs, /require\([^\n]*storage\//);
+  for (const name of ['projection-service', 'statistics-consumer']) {
+    const source = read(`src/bilibili/gift/${name}.js`);
+    assert.doesNotMatch(
+      source,
+      /\.(?:prepare|exec)\s*\(|\bgiftDb\b|context\.db/,
+    );
+    assert.doesNotMatch(source, /require\([^\n]*storage\//);
+  }
 });
 
 test('internal backend modules do not import composition entrypoints', () => {

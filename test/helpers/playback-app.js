@@ -240,7 +240,7 @@ async function createPlaybackApp(initialState, options = {}) {
   );
   const moduleCache = new Map();
 
-  async function loadModule(filePath) {
+  function loadModule(filePath) {
     const identifier = pathToFileURL(filePath).href;
     if (moduleCache.has(identifier)) return moduleCache.get(identifier);
 
@@ -252,14 +252,14 @@ async function createPlaybackApp(initialState, options = {}) {
       },
     });
     moduleCache.set(identifier, module);
-    await module.link((specifier, referencingModule) => {
-      const dependencyUrl = new URL(specifier, referencingModule.identifier);
-      return loadModule(fileURLToPath(dependencyUrl));
-    });
     return module;
   }
 
-  const playbackModule = await loadModule(playbackEntry);
+  const playbackModule = loadModule(playbackEntry);
+  await playbackModule.link((specifier, referencingModule) => {
+    const dependencyUrl = new URL(specifier, referencingModule.identifier);
+    return loadModule(fileURLToPath(dependencyUrl));
+  });
   await playbackModule.evaluate();
 
   return {

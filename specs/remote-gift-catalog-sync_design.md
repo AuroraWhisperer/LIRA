@@ -2,6 +2,8 @@
 
 2026-09-13 扩展：[礼物身份与加班机](gift-identity-overtime.md) 替代以下“新版请求 v2”和“按 ID 补图/唯一”的假设。当前新版请求 schema 3，完整验证并归档全部身份，按 variantId 补图和配置规则；以下 schema 2 wire 与旧缓存说明保留为兼容参考，不用于推断旧规则缺失的身份。
 
+2026-09-16 类别升级：生产两端同步升级并重新安装客户端，schema 2/3 直接使用 `giftCategory: directGift | blindBox | blindBoxOutput` 替换目录 `isBlindBox`；不再接受旧类别字段。当前规则见 [礼物身份与加班机](gift-identity-overtime.md)，事件/账本标记不变。
+
 ## 目标与范围
 
 加班姬礼物选择器的主目录使用当前配置直播间的礼物面板、`giftConfig`，并只从房间实际出现的盲盒 ID 展开服务器官方关系。服务器维护的 v2 全局目录在首次授权后把 `coinType === "gold" && priceRaw >= 0` 的资料和官方盲盒关系作为同一个版本镜像到本机；正价 active 子集用于本地名称/ID 搜索，完整镜像用于按精确礼物 ID 补图、只读映射展示和关系解析。个人账号背包、本地 Markdown、静态 manifest 和打包图库不再参与目录；礼物检测由服务器负责，客户端继续持久化和消费已处理事件、加班规则、结算与 overlay 投影。
@@ -62,7 +64,7 @@ v1 仍使用服务器同步成功运行的 `id` 作为 `version`。v2 把确定�
       "coinType": "gold",
       "bagGift": false,
       "active": true,
-      "isBlindBox": true,
+      "giftCategory": "blindBox",
       "sourceUrl": "https://i0.hdslb.com/bfs/live/example.webp",
       "imageUrl": "/gift-media/images/sha256.webp"
     },
@@ -75,7 +77,7 @@ v1 仍使用服务器同步成功运行的 `id` 作为 `version`。v2 把确定�
       "coinType": "gold",
       "bagGift": false,
       "active": true,
-      "isBlindBox": false,
+      "giftCategory": "blindBoxOutput",
       "sourceUrl": null,
       "imageUrl": null
     }
@@ -86,7 +88,7 @@ v1 仍使用服务器同步成功运行的 `id` 作为 `version`。v2 把确定�
 }
 ```
 
-v2 要求顶层 `schemaVersion: 2` 和完整 `blindBoxes`，礼物项要求显式 boolean `active/isBlindBox`；所有关系引用必须在同包 gifts 中存在。ID 是 1–20 位正十进制字符串，盒子最多 100、每盒 1–200 个去重输出；重复/缺失/自引用使整包无效。`sourceUrl` 仅在服务端和客户端重新校验为允许的 B 站 HTTPS 图片 URL 时使用，否则为 `null`；`imageUrl` 只允许服务器自身 `/gift-media/images/` 路径并作为兼容回退。响应使用 `Cache-Control: public, max-age=300, stale-while-revalidate=1800` 和稳定 ETag；带匹配 `If-None-Match` 返回 `304`。无成功 catalog 时返回 `503`、`CATALOG_NOT_READY` 和 `Retry-After: 60`；无效 schema 参数返回 `400 INVALID_CATALOG_SCHEMA_VERSION`。省略参数的 v1 和现有按名称组分页 API 不变。
+v2 要求顶层 `schemaVersion: 2` 和完整 `blindBoxes`，礼物项要求显式 boolean `active` 和三值字符串 `giftCategory`；所有关系引用必须在同包 gifts 中存在。ID 是 1–20 位正十进制字符串，盒子最多 100、每盒 1–200 个去重输出；重复/缺失/自引用使整包无效。`sourceUrl` 仅在服务端和客户端重新校验为允许的 B 站 HTTPS 图片 URL 时使用，否则为 `null`；`imageUrl` 只允许服务器自身 `/gift-media/images/` 路径并作为兼容回退。响应使用 `Cache-Control: public, max-age=300, stale-while-revalidate=1800` 和稳定 ETag；带匹配 `If-None-Match` 返回 `304`。无成功 catalog 时返回 `503`、`CATALOG_NOT_READY` 和 `Retry-After: 60`；无效 schema 参数返回 `400 INVALID_CATALOG_SCHEMA_VERSION`。省略参数的 v1 和现有按名称组分页 API 不变。
 
 ## Client cache and lifecycle
 

@@ -83,8 +83,8 @@
             </svg>
             弹幕姬
             <lira-help
-              >独立接收直播消息；将固定链接添加到 OBS
-              或直播姬浏览器源。</lira-help
+              >服务器接收直播消息；先在这里调整并预览，再应用到服务器。
+              将固定链接添加到 OBS 或直播姬浏览器源，关闭客户端后仍可接收。</lira-help
             >
           </h3>
         </div>
@@ -94,17 +94,17 @@
       </div>
       <div class="danmaku-overlay-link">
         <label
-          ><span>固定网页链接</span
+          ><span>服务器网页链接</span
           ><input id="danmakuOverlayUrl" type="text" readonly
         /></label>
         <div class="danmaku-overlay-actions">
-          <button id="danmakuCopyOverlayUrlBtn" class="primary" type="button">
+          <button id="danmakuCopyOverlayUrlBtn" class="primary" type="button" disabled>
             复制链接
           </button>
-          <button id="danmakuOpenOverlayBtn" class="secondary" type="button">
+          <button id="danmakuOpenOverlayBtn" class="secondary" type="button" disabled>
             打开网页
           </button>
-          <button id="danmakuPreviewOverlayBtn" class="secondary" type="button">
+          <button id="danmakuPreviewOverlayBtn" class="secondary" type="button" disabled>
             网页预览
           </button>
         </div>
@@ -192,6 +192,14 @@
             >
               全屏随机
             </button>
+            <button
+              class="danmaku-style-option"
+              type="button"
+              data-danmaku-style="cream"
+              aria-pressed="false"
+            >
+              奶油气泡
+            </button>
           </div>
           <label
             id="danmakuFullscreenDurationField"
@@ -216,6 +224,14 @@
           role="status"
           aria-live="polite"
         ></p>
+      </div>
+      <div class="danmaku-overlay-actions">
+        <button id="danmakuApplyOverlayBtn" class="primary" type="button" disabled>
+          应用到服务器
+        </button>
+        <button id="danmakuReloadOverlayBtn" class="secondary" type="button" disabled>
+          读取服务器配置
+        </button>
       </div>
     </section>
     <section

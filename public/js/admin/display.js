@@ -2,6 +2,8 @@
 // 展示板配置
 'use strict';
 
+import { observeServerOverlayUrl } from './server-overlay-url.js';
+
 (function () {
   const {
     value,
@@ -253,6 +255,7 @@
     document.querySelectorAll('[data-copy-url]').forEach((button) => {
       button.addEventListener('click', async () => {
         const url = document.getElementById(button.dataset.copyUrl).textContent;
+        if (button.disabled || !url) return;
         try {
           await copyText(url);
           toast('直播画面地址已复制');
@@ -269,7 +272,11 @@
     document.getElementById('queueUrl').textContent = `${origin}/queue`;
     document.getElementById('songsUrl').textContent = `${origin}/songlist`;
     document.getElementById('lyricsUrl').textContent = `${origin}/lyrics`;
-    document.getElementById('liveDanmakuUrl').textContent = `${origin}/danmaku`;
+    observeServerOverlayUrl((url) => {
+      document.getElementById('liveDanmakuUrl').textContent =
+        url || '连接已授权账号后显示服务器地址';
+      document.querySelector('[data-copy-url="liveDanmakuUrl"]').disabled = !url;
+    });
     document.getElementById('liveBlindboxUrl').textContent =
       `${origin}/blindbox`;
     document.getElementById('liveGamesUrl').textContent = `${origin}/games`;

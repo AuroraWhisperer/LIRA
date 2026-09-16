@@ -1,5 +1,15 @@
 # preload 桥与 IPC 全量注册表
 
+## 服务器弹幕姬参数
+
+`license-ipc.js` 注册 `license:get-overlay-settings` / `license:update-overlay-settings`，
+由 `liraLicense.getOverlaySettings()` / `updateOverlaySettings({style, fullscreenDurationSeconds})`
+调用。主进程验证当前主窗口与精确 desktop origin、样式白名单以及 2～30 秒整数，
+再使用 DeviceBearer 请求固定 `/api/device/overlay-settings` GET/PUT。
+成功只返回 `{ok:true, style, fullscreenDurationSeconds, overlayUrl}`；URL 必须为无凭据、
+query、fragment 的 HTTPS `/overlay`，错误沿用受限 `{ok:false,state,error}`。
+不传递 token、租户选择器或任意远程调用能力。桌面先编辑草稿并预览，只有显式应用才写服务器。
+
 ## 礼物互动确认状态
 
 `liraLicense` 增加以下窄桥，由 [gift-interaction-ipc.js](../../../src/electron/ipc/gift-interaction-ipc.js)

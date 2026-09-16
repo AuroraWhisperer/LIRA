@@ -4,6 +4,7 @@ import { createQueueOperations } from '../features/queue-operations.js';
 
 export function createPlaybackQueueCoordinator({
   playbackState,
+  stateActions,
   queueManager,
   savePlaybackState,
   renderPlayback,
@@ -16,6 +17,7 @@ export function createPlaybackQueueCoordinator({
 }) {
   const queueOps = createQueueOperations({
     playbackState,
+    stateActions,
     queueManager,
     savePlaybackState,
     renderPlayback,
@@ -26,10 +28,6 @@ export function createPlaybackQueueCoordinator({
 
   function rebuildPlaybackShuffleOrder() {
     return queueOps.rebuildPlaybackShuffleOrder();
-  }
-
-  function takeNextShuffleNormalTrack() {
-    return queueOps.takeNextShuffleNormalTrack();
   }
 
   async function startPlaybackCollection(
@@ -58,14 +56,11 @@ export function createPlaybackQueueCoordinator({
   }
 
   function insertPlaybackTracksNext(tracks) {
-    queueOps.insertPlaybackTracksNext(tracks, rebuildPlaybackShuffleOrder);
+    queueOps.insertPlaybackTracksNext(tracks);
   }
 
   async function insertAndPlayPlaybackTrack(track) {
-    const result = queueOps.insertAndPlayPlaybackTrack(
-      track,
-      rebuildPlaybackShuffleOrder,
-    );
+    const result = queueOps.insertAndPlayPlaybackTrack(track);
     if (!result) return;
     if (result.shouldStartCollection) {
       await startPlaybackCollection(
@@ -81,7 +76,7 @@ export function createPlaybackQueueCoordinator({
   }
 
   function takeNextPlaybackTrack() {
-    const result = queueOps.takeNextPlaybackTrack(takeNextShuffleNormalTrack);
+    const result = queueOps.takeNextPlaybackTrack();
     if (result && playbackState.queueType === 'radio') {
       ensurePlaybackRadioQueueFilled();
     }
@@ -89,11 +84,7 @@ export function createPlaybackQueueCoordinator({
   }
 
   function jumpToPlaylistTrack(index) {
-    queueOps.jumpToPlaylistTrack(
-      index,
-      rebuildPlaybackShuffleOrder,
-      playPlaybackTrack,
-    );
+    queueOps.jumpToPlaylistTrack(index, playPlaybackTrack);
   }
 
   function queuePlaybackTrack(track, action, options = {}) {

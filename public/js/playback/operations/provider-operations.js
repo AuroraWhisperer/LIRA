@@ -2,6 +2,8 @@
 // 音乐源（Provider）操作模块
 'use strict';
 
+import { createPlaybackStateActions } from '../state/actions.js';
+
 import * as PlaybackUtils from '../utils.js';
 
 /**
@@ -22,6 +24,12 @@ export function createProviderOperations(deps) {
     showError,
     U,
   } = deps;
+  const stateActions =
+    deps.stateActions ||
+    createPlaybackStateActions(playbackState, {
+      save: savePlaybackState,
+      render: renderPlayback,
+    });
 
   let playbackAuthState = null;
   let playbackProviderHealth = null;
@@ -257,19 +265,7 @@ export function createProviderOperations(deps) {
   function clearPlaybackPlatformAfterLogout(platform) {
     const source = platform === 'netease' ? 'netease' : 'qq';
     cacheManager?.clearByPrefix(`${source}:`);
-    const clearTrack = (track) => {
-      if (!track || track.source !== source) return;
-      delete track.playUrl;
-      delete track.playUrlExpireAt;
-    };
-    [
-      playbackState.current,
-      ...playbackState.requestedQueue,
-      ...playbackState.normalQueue,
-      ...playbackState.normalQueueTracks,
-      ...playbackState.radioQueue,
-      ...playbackState.history,
-    ].forEach(clearTrack);
+    stateActions.forgetProviderStreams(source);
 
     if (playbackState.current && playbackState.current.source === source) {
       const audio = getPlaybackAudio();
@@ -278,9 +274,7 @@ export function createProviderOperations(deps) {
         audio.removeAttribute('src');
         audio.load();
       }
-      playbackState.current = null;
-      playbackState.currentOrigin = '';
-      playbackState.restoredTime = 0;
+      stateActions.clearCurrent();
       toast('当前播放歌曲所属账号已退出，请重新选择音源');
     }
     savePlaybackState();

@@ -101,9 +101,11 @@ const overtimeStatusView = createOvertimeStatusView({
 });
 const { renderState, syncClockLoop, stopClockLoop } = overtimeStatusView;
 
-function init() {
+export function initOvertime(currentState = {}) {
   if (initialized || !document.getElementById('overtimePanel')) return;
   initialized = true;
+  giftDetection = currentState?.giftDetection || giftDetection;
+  catalogLiveStatus = currentState?.liveStatus || catalogLiveStatus;
   ruleEditor = createOvertimeRuleEditor(byId('overtimeRules'), markRulesDirty, {
     onReselect: (row) => openGiftPicker(row),
   });
@@ -674,6 +676,3 @@ function setValueUnlessFocused(id, value) {
   const input = byId(id);
   if (document.activeElement !== input) input.value = value;
 }
-
-window.AdminApp = window.AdminApp || {};
-window.AdminApp.overtime = { init, refresh };

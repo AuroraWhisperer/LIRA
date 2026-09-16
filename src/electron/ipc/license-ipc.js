@@ -3,6 +3,9 @@
 const { isDnsHostname } = require('../../shared/remote-url-policy');
 const SONG_BACKGROUND_MAX_BYTES = 5 * 1024 * 1024;
 const SAFE_ERROR_CODE_PATTERN = /^[A-Z][A-Z0-9_]{0,63}$/;
+const OVERLAY_STYLES = new Set([
+  'bubble', 'signal', 'minimal', 'ranked', 'transparent', 'identity', 'outline', 'cream',
+]);
 const SAFE_LICENSE_STATES = new Set([
   'checking',
   'needs_activation',
@@ -143,6 +146,15 @@ function registerLicenseIpc(options = {}) {
       .getProfile()
       .then((snapshot) => ({ ok: true, ...sanitizeStateSnapshot(snapshot) })),
   );
+  safeHandle('license:get-overlay-settings', async () =>
+    sanitizeOverlaySettings(await licenseManager.getOverlaySettings()),
+  );
+  safeHandle('license:update-overlay-settings', async (settings) => {
+    const parameters = overlayParameters(settings);
+    return sanitizeOverlaySettings(
+      await licenseManager.updateOverlaySettings(parameters),
+    );
+  });
   safeHandle('license:sync-songs', (songs) => {
     if (!Array.isArray(songs) || songs.length > 5000)
       return {
@@ -294,6 +306,27 @@ function safeErrorIndex(value) {
 function sanitizeOptionalError(value) {
   if (value === undefined || value === null || value === '') return null;
   return safeErrorCode({ code: value });
+}
+
+function overlayParameters(value) {
+  if (!OVERLAY_STYLES.has(value?.style)) {
+    throw Object.assign(new Error('INVALID_OVERLAY_STYLE'), { code: 'INVALID_OVERLAY_STYLE' });
+  }
+  const duration = value?.fullscreenDurationSeconds;
+  if (!Number.isInteger(duration) || duration < 2 || duration > 30) {
+    throw Object.assign(new Error('INVALID_OVERLAY_DURATION'), { code: 'INVALID_OVERLAY_DURATION' });
+  }
+  return { style: value.style, fullscreenDurationSeconds: duration };
+}
+
+function sanitizeOverlaySettings(value) {
+  const parameters = overlayParameters(value);
+  const overlayUrl = sanitizePublicUrl(value?.overlayUrl);
+  if (!overlayUrl || new URL(overlayUrl).pathname !== '/overlay' ||
+      new URL(overlayUrl).search || new URL(overlayUrl).hash) {
+    throw Object.assign(new Error('INVALID_RESPONSE'), { code: 'INVALID_RESPONSE' });
+  }
+  return { ok: true, ...parameters, overlayUrl };
 }
 
 function sanitizeStreamer(value) {

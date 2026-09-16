@@ -13,3 +13,8 @@ export function publishOnboarding(controller) {
   window.AdminApp = window.AdminApp || {};
   window.AdminApp.onboarding = controller;
 }
+
+export function publishQueue(queue) {
+  window.AdminApp = window.AdminApp || {};
+  window.AdminApp.queue = queue;
+}

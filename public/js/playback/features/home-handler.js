@@ -2,6 +2,8 @@
 // 首页/Drawer 处理模块
 'use strict';
 
+import { createPlaybackStateActions } from '../state/actions.js';
+
 import * as PlaybackUtils from '../utils.js';
 import { HomeService } from '../services/home-service.js';
 
@@ -23,6 +25,12 @@ export function createHomeHandler(deps) {
     renderPlayback,
     renderPlaybackHomeResults,
   } = deps;
+  const stateActions =
+    deps.stateActions ||
+    createPlaybackStateActions(playbackState, {
+      save: savePlaybackState,
+      render: renderPlayback,
+    });
 
   // === Drawer 管理 ===
   function openPlaybackDrawer(title, subtitle, loading, loadingHint = '') {
@@ -230,7 +238,7 @@ export function createHomeHandler(deps) {
     let tracks = homeState.items.map(PlaybackUtils.normalizeOnlineTrack);
     if (action === 'shuffle-all') {
       tracks = PlaybackUtils.shuffleTracks(tracks);
-      playbackState.mode = 'shuffle';
+      stateActions.setMode('shuffle');
     }
 
     if (action === 'play-all' || action === 'shuffle-all') {
@@ -251,8 +259,7 @@ export function createHomeHandler(deps) {
     } else {
       queueCallbacks.appendPlaybackTracks(tracks);
       queueCallbacks.rebuildPlaybackShuffleOrder();
-      savePlaybackState();
-      renderPlayback();
+      stateActions.commit();
       toast(`已加入 ${tracks.length} 首到当前队列`);
     }
   }

@@ -12,16 +12,6 @@
       "test": "test/frontend-desktop-update.test.js"
     },
     {
-      "path": "src/electron/license/license-manager.js",
-      "kind": "review",
-      "maxLines": 618,
-      "owner": "桌面授权",
-      "reason": "批次 B 已改授权尝试为具名输入并分离结果接受；token、续期与撤销仍归同一授权管理器。",
-      "removal": "大型工厂继续登记；后续仅提取独立无状态职责，保留代次和撤销保护。",
-      "reviewBy": "2026-12-13",
-      "test": "test/license-manager.test.js"
-    },
-    {
       "path": "src/electron/main.js",
       "kind": "review",
       "maxLines": 732,
@@ -30,6 +20,16 @@
       "removal": "继续按真实独立职责整理组合阶段；保留启动失败、授权及停机验证。",
       "reviewBy": "2026-12-13",
       "test": "test/electron-main-modules.test.js"
+    },
+    {
+      "path": "src/electron/license/license-manager.js",
+      "kind": "review",
+      "maxLines": 647,
+      "owner": "设备授权主体与会话生命周期",
+      "reason": "2026-09-16 B1 修复逐项审阅：新增主体与代际检查只约束现有授权请求、续期、心跳和资料提交；token 轮换仍在同一生命周期。父代理与独立代理复核异步交错，17 项身份回归和相关 326 项测试通过；未新增业务适配或分散可变授权状态。",
+      "removal": "后续出现独立协议或纯转换职责时提取；当前保留请求代际、会话清理、续期和维护任务的单一 owner，不为压行数拆分安全不变量。新增业务操作继续归 license-operations。",
+      "reviewBy": "2026-12-16",
+      "test": "test/license-manager-identity.test.js"
     },
     {
       "path": "src/electron/remote-gift-controller.js",
@@ -54,12 +54,12 @@
     {
       "path": "src/server.js",
       "kind": "review",
-      "maxLines": 790,
+      "maxLines": 791,
       "owner": "服务组合入口",
-      "reason": "2026-09-14 组合入口复核：保留 publishGiftEffect 的既有 resolveEffect 接线；本次仅新增抽奖 runtime 的创建、窄 facade 注入与数据库关闭前排空，共 11 行。来源、随机、状态机、SQL 均留在独立所有者，不在此扩展业务逻辑。server-lifecycle 为既有保护，本轮按用户要求未运行测试。",
+      "reason": "2026-09-16 快照接线复核：getState 通过 domainServices.songs.getMetadata 复用歌曲元数据，只新增一行组合接线；缓存与失效机制位于 song-metadata/SongStore，入口不持有缓存策略。",
       "removal": "按资源阶段继续评估组合职责，避免领域模块反向依赖 server 入口。",
       "reviewBy": "2026-12-13",
-      "test": "test/server-lifecycle.test.js"
+      "test": "test/song-metadata.test.js"
     },
     {
       "path": "src/storage/database-migrations.js",
@@ -124,12 +124,12 @@
     {
       "path": "public/js/admin/overtime.js",
       "kind": "review",
-      "maxLines": 679,
+      "maxLines": 678,
       "owner": "加班机管理控制器",
-      "reason": "批次 B 已拆分选项过滤与节点构造；搜索代次、来源及选中身份仍由原控制器管理。",
+      "reason": "2026-09-16 按需初始化复核：初始化读取已接纳的直播/礼物检测状态并提供具名导出，移除全局注册；只新增延迟激活接线，规则编辑和时钟仍由既有独立模块负责。",
       "removal": "继续按独立职责评估；不另建选择器状态控制器。",
       "reviewBy": "2026-12-13",
-      "test": "test/overtime-gift-picker.test.js"
+      "test": "test/toolbox-lifecycle.test.js"
     },
     {
       "path": "public/pages/admin/playback/page.html",

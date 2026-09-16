@@ -187,9 +187,19 @@ PNG/JPEG/WebP 和受支持的音频，Overlay 只接受受限的 `/opening-chara
 - **滚动与跟随**:歌词视口拥有独立纵向滚动;当前行切换时使用弹簧动画居中跟随。用户滚轮、触摸、指针或键盘滚动后暂停自动跟随 6 秒,再恢复到当前行。
 - **状态防回灌**:客户端只接受更大的 `generation`,或同一 generation 下严格递增的 `sequence`;旧客户端缺字段时保持兼容。`content-visibility:auto` 与 `contain-intrinsic-size` 跳过视口外绘制,不改变完整歌词的滚动结构。
 
-## 6.1 弹幕姬(/danmaku)
+## 6.1 弹幕姬
 
-[overlays/danmaku.js](../../../public/js/overlays/danmaku.js) 驱动唯一固定 `/danmaku` 浏览器源，并按 snapshot 的 `settings.danmakuOverlayStyle` 在固定区域的聊天气泡(`bubble`)、直播信号带(`signal`)、蝴蝶结(`minimal`)、直播气泡(`ranked`)、透明简约(`transparent`)、身份横卡(`identity`)六种样式和全屏随机(`outline`)之间切换；非法或缺失值回退默认 `signal`。页面以 `topic=danmaku` 连接 WebSocket，从 snapshot 的 `danmakuFeed` 恢复最近消息，并直接消费 `danmaku:message`；按消息 `id` 去重，同一动画帧内的消息批量追加，连接中断时指数退避重连。全屏随机使用 snapshot 中的 `danmakuFullscreenDurationSeconds`，只渲染发送者和正文，在视口边界内定位并按时间移除；固定区域样式继续按顺序排列，其中透明简约统一身份视觉并在正文下方显示粉丝牌名称与等级。状态栏在本地 socket 可用后继续以 snapshot `liveStatus` 为准，不再把本地连接成功等同于 B 站弹幕已连接。Admin 的“网页预览”通过系统浏览器打开 `/danmaku?preview=1&style=bubble|signal|minimal|ranked|transparent|identity|outline`，按当前样式展示非大航海、舰长、提督和总督四条聊天样本及一条“星河来客送出小花花 × 10”的礼物样本，其中非大航海聊天为 B 站“打call”表情；预览模式不连接 WebSocket。
+桌面工具与直播画面地址中的弹幕姬链接均由当前已认证资料的公开歌单 origin 生成服务器
+`/overlay`，不回退本机。`server-overlay-url.js` 处理账号与授权状态；
+`danmaku-overlay-settings.js` 通过窄 IPC 读取服务器配置，编辑仅保留在草稿。
+“网页预览”打开同一服务器页面的 `preview=1` 和草稿样式/时长参数，使用示例弹幕且不连接
+直播 SSE；“应用到服务器”才提交，失败保留草稿，迟到回包不能覆盖后续编辑或新账号。
+服务器保存并向 OBS 推送配置，关闭客户端不影响其监听。IPC 契约见
+[preload](../desktop/preload.md)。
+
+### 兼容本地页面 /danmaku
+
+[overlays/danmaku.js](../../../public/js/overlays/danmaku.js) 驱动保留的本地 `/danmaku` 浏览器源，并按 snapshot 的 `settings.danmakuOverlayStyle` 在固定区域的聊天气泡(`bubble`)、直播信号带(`signal`)、蝴蝶结(`minimal`)、直播气泡(`ranked`)、透明简约(`transparent`)、身份横卡(`identity`)六种样式和全屏随机(`outline`)之间切换；非法或缺失值回退默认 `signal`。页面以 `topic=danmaku` 连接 WebSocket，从 snapshot 的 `danmakuFeed` 恢复最近消息，并直接消费 `danmaku:message`；按消息 `id` 去重，同一动画帧内的消息批量追加，连接中断时指数退避重连。全屏随机使用 snapshot 中的 `danmakuFullscreenDurationSeconds`，只渲染发送者和正文，在视口边界内定位并按时间移除；固定区域样式继续按顺序排列，其中透明简约统一身份视觉并在正文下方显示粉丝牌名称与等级。状态栏在本地 socket 可用后继续以 snapshot `liveStatus` 为准，不再把本地连接成功等同于 B 站弹幕已连接。兼容本地预览入口 `/danmaku?preview=1&style=bubble|signal|minimal|ranked|transparent|identity|outline`，按当前样式展示非大航海、舰长、提督和总督四条聊天样本及一条“星河来客送出小花花 × 10”的礼物样本，其中非大航海聊天为 B 站“打call”表情；预览模式不连接 WebSocket。
 
 页面与 `/games` 的画猜消息共同复用 `danmaku-feed.js` DOM 组件。组件不读取 WebSocket 或领域状态，只接收显式消息数组和图片 URL resolver：
 

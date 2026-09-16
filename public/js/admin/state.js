@@ -20,6 +20,9 @@ export class StateService {
     this.categories = [];
     this.songReloadTimer = null;
     this.songReloadVersion = 0;
+    this.stateReloadVersion = 0;
+    this.realtimeVersion = 0;
+    this.realtimeFields = new Map();
     this.shuttingDown = false;
     this.songLanguages = new Set();
     this.songArtists = new Set();
@@ -47,26 +50,15 @@ export class StateService {
     this.ws.addEventListener('message', (event) => {
       const payload = JSON.parse(event.data);
       if (payload.type === 'snapshot') {
-        const previousLyricState = this.appState?.lyricState;
-        this.appState = payload.state;
-        const lyricAccepted = this.acceptLyricState(this.appState?.lyricState);
-        if (!lyricAccepted && previousLyricState) {
-          this.appState.lyricState = previousLyricState;
+        this.realtimeVersion += 1;
+        for (const key of Object.keys(payload.state)) {
+          this.realtimeFields.set(key, this.realtimeVersion);
         }
-        dispatchRealtimeState('app:wesing-state', this.appState?.weSing);
-        if (lyricAccepted) {
-          dispatchRealtimeState('app:lyric-state', this.appState?.lyricState);
-        }
-        dispatchRealtimeState(
-          'app:lyric-timeline',
-          this.appState?.lyricTimeline,
+        this.applySnapshot(
+          payload.state,
+          Infinity,
+          payload.reason === 'connect',
         );
-        dispatchRealtimeState('app:settings-state', this.appState?.settings);
-        // 发布事件而非直接调用其他模块
-        eventBus.emit(Events.STATE_LOADED, {
-          state: this.appState,
-          songs: this.songs,
-        });
         if (isGiftSnapshotReason(payload.reason)) {
           eventBus.emit(Events.GIFT_RECEIVED, { reason: payload.reason });
         }
@@ -77,8 +69,7 @@ export class StateService {
         const currentRevision = Number(this.appState?.overtime?.revision) || 0;
         const nextRevision = Number(payload.state?.revision) || 0;
         if (nextRevision <= currentRevision) return;
-        this.appState = this.appState || {};
-        this.appState.overtime = payload.state;
+        this.applyRealtimeField('overtime', payload.state);
         eventBus.emit(Events.OVERTIME_UPDATED, payload);
       } else if (payload.type === 'gift-catalog:update') {
         const snapshot = payload.snapshot;
@@ -112,17 +103,14 @@ export class StateService {
         this.giftCatalogVersion = signature;
         eventBus.emit(Events.GIFT_CATALOG_UPDATED, { snapshot });
       } else if (payload.type === 'wesing-state') {
-        this.appState = this.appState || {};
-        this.appState.weSing = payload.state;
+        this.applyRealtimeField('weSing', payload.state);
         dispatchRealtimeState('app:wesing-state', payload.state);
       } else if (payload.type === 'lyric-state') {
         if (!this.acceptLyricState(payload.state)) return;
-        this.appState = this.appState || {};
-        this.appState.lyricState = payload.state;
+        this.applyRealtimeField('lyricState', payload.state);
         dispatchRealtimeState('app:lyric-state', payload.state);
       } else if (payload.type === 'lyric-timeline') {
-        this.appState = this.appState || {};
-        this.appState.lyricTimeline = payload.timeline;
+        this.applyRealtimeField('lyricTimeline', payload.timeline);
         dispatchRealtimeState('app:lyric-timeline', payload.timeline);
       } else if (payload.type === 'game:update') {
         dispatchRealtimeState('app:game-update', payload.session, true);
@@ -158,28 +146,66 @@ export class StateService {
    * 重新加载应用状态
    */
   async reloadState() {
+    const requestVersion = ++this.stateReloadVersion;
+    const startedAtVersion = this.realtimeVersion;
     const response = await fetch('/api/state');
     const payload = await response.json();
+    if (requestVersion !== this.stateReloadVersion) return;
     if (!payload.ok) throw new Error(payload.error || '读取状态失败');
+    this.applySnapshot(payload.data, startedAtVersion);
+  }
 
-    const previousLyricState = this.appState?.lyricState;
-    this.appState = payload.data;
-    const lyricAccepted = this.acceptLyricState(this.appState?.lyricState);
-    if (!lyricAccepted && previousLyricState) {
-      this.appState.lyricState = previousLyricState;
-    }
-    dispatchRealtimeState('app:settings-state', this.appState?.settings);
-    if (lyricAccepted) {
-      dispatchRealtimeState('app:lyric-state', this.appState?.lyricState);
-    }
-    dispatchRealtimeState('app:lyric-timeline', this.appState?.lyricTimeline);
-    this.categories = this.appState.categories || [];
-    this.songTags = new Set(this.appState.tags || []);
+  applyRealtimeField(key, state) {
+    this.realtimeFields.set(key, ++this.realtimeVersion);
+    this.appState = this.appState || {};
+    this.appState[key] = state;
+  }
 
-    // 发布状态更新事件
+  applySnapshot(
+    snapshot,
+    startedAtVersion = Infinity,
+    isConnectionSnapshot = false,
+  ) {
+    const previous = this.appState || {};
+    const next = { ...snapshot };
+    // HTTP hydrates untouched fields but cannot undo realtime work received
+    // after that request started, including partial lyric/WeSing updates.
+    for (const [key, version] of this.realtimeFields) {
+      if (version > startedAtVersion) next[key] = previous[key];
+    }
+    if (!this.acceptLyricState(next.lyricState) && previous.lyricState) {
+      next.lyricState = previous.lyricState;
+    }
+    if (
+      !isConnectionSnapshot &&
+      previous.overtime &&
+      Number(next.overtime?.revision) <= Number(previous.overtime.revision)
+    ) {
+      next.overtime = previous.overtime;
+    }
+    const changedKeys = [
+      ...new Set([...Object.keys(previous), ...Object.keys(next)]),
+    ].filter(
+      (key) => JSON.stringify(previous[key]) !== JSON.stringify(next[key]),
+    );
+    this.appState = next;
+    if (changedKeys.includes('categories'))
+      this.categories = next.categories || [];
+    if (changedKeys.includes('tags')) this.songTags = new Set(next.tags || []);
+    for (const [key, eventName] of [
+      ['settings', 'app:settings-state'],
+      ['weSing', 'app:wesing-state'],
+      ['lyricState', 'app:lyric-state'],
+      ['lyricTimeline', 'app:lyric-timeline'],
+    ]) {
+      if (changedKeys.includes(key))
+        dispatchRealtimeState(eventName, next[key]);
+    }
+    if (!changedKeys.length) return;
     eventBus.emit(Events.STATE_LOADED, {
       state: this.appState,
       songs: this.songs,
+      changedKeys,
     });
   }
 

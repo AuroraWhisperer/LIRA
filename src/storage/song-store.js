@@ -6,6 +6,8 @@ function createSongStore(songDb) {
   if (!songDb || typeof songDb.prepare !== 'function') {
     throw new Error('songDb is required to create SongStore.');
   }
+  const changes = songDb.prepare('SELECT total_changes() AS count');
+  const dataVersion = songDb.prepare('PRAGMA data_version');
 
   function withTransaction(callback) {
     songDb.exec('BEGIN');
@@ -93,6 +95,12 @@ function createSongStore(songDb) {
   }
 
   const store = {
+    getChangeToken() {
+      // Include writes through other stores on this connection and commits
+      // from other connections (imports, cleanup and cloud replacement).
+      return `${changes.get().count}:${dataVersion.get().data_version}`;
+    },
+
     saveSong(song) {
       try {
         return withTransaction(() => {

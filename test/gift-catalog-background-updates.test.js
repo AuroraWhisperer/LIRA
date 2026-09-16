@@ -394,7 +394,7 @@ function catalog(version) {
         coinType: 'gold',
         priceRaw: 100,
         active: true,
-        isBlindBox: false,
+        giftCategory: 'directGift',
         sourceUrl: 'https://i0.hdslb.com/bfs/live/one.webp',
         imagePath: 'https://api.example.test/gift-media/images/one.webp',
       },

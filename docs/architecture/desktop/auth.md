@@ -191,3 +191,11 @@ desktopRuntime.start({
 | 网络与同步 | 状态读取不请求 B站；作者/关注验证仍由 provider 的受控调度执行。专用凭据不注入直播或云同步，也不暴露给 renderer |
 
 IPC/返回字段只在 [preload.md](preload.md) 登记。百宝箱已接入用户主动采集、随机排序和按需关注核验/递补；登录成功仍不构成作者身份或真实接口可用性证明。操作开始、每个出站请求及提交前检查会话；预算等待期间定期重新检查，账号变化使旧工作暂停。新流程本轮按用户要求未测试，限制与后续验收见[实施计划](../../../specs/plans/2026-09-14-bilibili-dynamic-lottery.md)。
+
+## 15. DeviceBearer 请求的主体与生命周期
+
+[license-manager.js](../../../src/electron/license/license-manager.js) 在通用 `withAuthorizedToken` 入口捕获可信 `streamerId`、`deviceId`、`licenseId` 与内部生命周期代际；等待授权、首次远端调用、成功提交、失败处理和重试都必须仍属于该上下文。`bootstrap`、`activate` 开始以及会话清理/阻断、`dispose` 使旧代际失效，因此 A → B → A 即使恢复到相同主体和 token，也不会接受第一轮 A 的响应或重发其写入。
+
+同一生命周期内的正常 token 续期保持请求有效，已失效 token 的调用仍可共享一次重新验证，并只向同主体重试一次。公开的 authorization epoch 仍在每次成功认证时更新，供既有消费者使用，不承担这个允许续期的请求代际职责。迟到成功以既有 `LICENSE_NOT_AUTHORIZED` 拒绝；迟到错误可返回原调用方，但不再清空或阻断新会话。`getProfile` 在通用层校验及敏感字段清洗后同步提交，避免后续异步恢复旧资料。
+
+内部凭据读取和 SSE 的完成/失败同样经过该约束；流的取消与事件消费仍由云同步、礼物控制器现有的 `AbortSignal` 和主体检查负责。旧续期、心跳的完成或 `finally` 不得替换新生命周期的共享任务引用或维护计时器。回归场景见 [license-manager-identity.test.js](../../../test/license-manager-identity.test.js)，使用合成身份、可控 Promise 与隔离的 manager，不访问真实服务。

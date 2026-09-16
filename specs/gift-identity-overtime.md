@@ -6,7 +6,7 @@
 
 ## Requirements
 
-1. 新版 main process 请求 `catalog?schemaVersion=3`，验证完整包、身份 SHA-256、业务摘要和关系后原子保存。镜像保留全部 gold 身份，真实 ID 单独保留。旧 schema 2 磁盘缓存仍可读取；其完整资料可用于新规则的精确身份，不能据此猜旧规则的原标价。
+1. 新版 main process 请求 `catalog?schemaVersion=3`，验证完整包、身份 SHA-256、业务摘要和关系后原子保存。镜像保留全部 gold 身份，真实 ID 单独保留。schema 2/3 的礼物项必须含具名 `giftCategory`；生产两端同步升级并重新安装客户端，不兼容旧目录类别标记。
 2. 身份为 `(giftId, normalizedName, priceRaw, coinType, bagGift)`，`variantId` 为该数组 JSON 的 SHA-256 加 `gv_` 前缀。名称按 NFKC、折叠空白和 ASCII 小写规范化。标价不等于实付单价。
 3. Device pull/history/SSE 主动发送 `X-Lira-Gift-Identity: 1`。两个新增可空字段 `giftVariantId`、`blindBoxVariantId` 来自服务端冻结账本；旧服务器仍可提供原字段，规范化身份为 null。身份字段不完整或格式错误拒绝整条 wire 记录。
 4. gift-data.db v10 增加事件身份列，规则改为 `(gift_id, gift_identity_key)` 主键并保存 `gift_identity_json`。已有规则原样迁移为空身份，数字平台 ID 的规则返回 `bindingStatus: needs-selection`，尚不生效。大航海别名保持原有兼容语义。
@@ -16,6 +16,8 @@
 8. 首次捕获的本地身份保持冻结；旧客户端已导入但未保存身份的历史可校验原展示投影后幂等跳过，不补填身份或重放消费者。已有非空身份发生冲突拒绝导入；游标提交继续与导入使用原事务。
 9. 最近收礼和来源盲盒图标优先按冻结身份查图。无身份的旧记录只允许 ID、名称唯一匹配；同名改价存在多个候选时用占位图。换图失败可保留本身份旧图，其他身份和缺图候选不得被合并。特殊盲盒样式也须名称匹配。
 10. 缺少可用图片或浏览器加载失败时，所有礼物图片位置统一回退到随应用打包的 `/img/gift-placeholder.png` 通用礼盒插画，包括加班选择器、规则、OBS 票券、最近收礼及盲盒配置。旧占位路径在展示层映射到新图；图片刷新和重选后继续保留回退能力。默认图本身失败时停止重试并保留周围礼物名称，不能写回目录、身份或图片缓存。
+
+11. 目录类别统一为 `directGift`（直送礼物）、`blindBox`（盲盒）、`blindBoxOutput`（盲盒产物），替换目录 `isBlindBox`。main 校验枚举及关系一致性：关系来源必须是盲盒，非盒子产物必须标为产物，产物必须有来源。类别包含在服务端业务摘要内并原子缓存，renderer 直接使用类别；关系仅补充来源名称。身份未匹配不沿用旧类别。原始 metadata 和收礼事件/账本的 `isBlindBox` 不变，不按目录重新结算；概率可以后补。
 
 ## Acceptance criteria
 
@@ -28,12 +30,14 @@
 - 桌面及 390px 窄屏的规则和选择器完整显示价格、待重选提示；取消不改绑定，保存重选不改原来的数量方式和时间操作。
 - 新增字段与旧字段两种 wire 形状均兼容；非法或矛盾身份被拒绝，历史同步不触发加班。
 
+- 数字 0/1、字符串 0+1、未知/缺失类别、关系与类别冲突均拒绝；失败刷新不替换内存/磁盘快照。三种类别、共享奖池、同 ID 不同身份在重启及选择器中保持一致。
+
 ## Ownership and verification
 
 Owners: `src/shared/gift-identity.js`, `src/bilibili/gift/variant-catalog-contract.js`,
 `src/bilibili/gift/remote-catalog-cache.js`, `src/bilibili/gift/hybrid-catalog.js`,
 `src/storage/gift-identity-migration.js`, `src/overtime`, and Admin overtime modules.
-Verification: `test/gift-identity-catalog.test.js`, `test/overtime-service.test.js`,
+Verification: `test/gift-category.test.js`, `test/gift-identity-catalog.test.js`, `test/overtime-service.test.js`,
 `test/overtime-gift-picker.test.js`, `test/processed-gift-import.test.js`, and
 `test/remote-gift-image-cache.test.js`, `test/gift-artwork-identity.test.js`,
 `test/gift-image-fallback.test.js`. Shared wire/catalog fixtures live in

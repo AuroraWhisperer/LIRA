@@ -5,12 +5,29 @@ import { api, copyText, localOverlayOrigin, toast } from '../shared/utils.js';
 
 let initialized = false;
 let currentSettings = {};
+const draftFields = new Set();
+const settingIds = [
+  'giftFrameEnabled',
+  'giftFrameThresholdRmb',
+  'giftFrameTheme',
+  'giftFrameMotionMode',
+];
 
 export function initGiftFrame() {
   if (initialized) return;
   const root = document.getElementById('otherGiftFeature');
   const enabled = document.getElementById('giftFrameEnabled');
   if (!root || !enabled) return;
+  const markDraft = (event) => {
+    if (settingIds.includes(event.target.id)) {
+      draftFields.add(event.target.id);
+      event.target.dataset.dirty = 'true';
+    }
+  };
+  for (const id of settingIds)
+    document.getElementById(id).dataset.preserveDirty = 'true';
+  root.addEventListener('input', markDraft);
+  root.addEventListener('change', markDraft);
 
   const overlayUrl = `${localOverlayOrigin(location)}/gift-effects`;
   document.getElementById('giftFrameOverlayUrl').textContent = overlayUrl;
@@ -40,13 +57,17 @@ export function renderGiftFrame(settings = {}) {
   currentSettings = settings;
   const enabled = document.getElementById('giftFrameEnabled');
   if (!enabled) return;
-  enabled.checked = settings.giftFrameEnabled === 'true';
-  document.getElementById('giftFrameThresholdRmb').value =
-    settings.giftFrameThresholdRmb || '20';
-  document.getElementById('giftFrameTheme').value =
-    settings.giftFrameTheme || 'woodland-bloom';
-  document.getElementById('giftFrameMotionMode').value =
-    settings.giftFrameMotionMode || 'auto';
+  if (!draftFields.has('giftFrameEnabled')) {
+    enabled.checked = settings.giftFrameEnabled === 'true';
+  }
+  for (const [id, fallback] of [
+    ['giftFrameThresholdRmb', '20'],
+    ['giftFrameTheme', 'woodland-bloom'],
+    ['giftFrameMotionMode', 'auto'],
+  ]) {
+    if (!draftFields.has(id))
+      document.getElementById(id).value = settings[id] || fallback;
+  }
   const state = document.getElementById('giftFrameSettingsState');
   state.textContent = enabled.checked ? '已启用' : '未启用';
   state.dataset.state = enabled.checked ? 'enabled' : 'disabled';
@@ -60,25 +81,32 @@ async function saveSettings() {
     setStatus('金额必须是大于等于 0 的数字。', 'error');
     return;
   }
+  const submitted = Object.fromEntries(
+    settingIds.map((id) => [
+      id,
+      id === 'giftFrameEnabled'
+        ? String(document.getElementById(id).checked)
+        : document.getElementById(id).value,
+    ]),
+  );
+  const values = {
+    ...submitted,
+    giftFrameThresholdRmb: threshold.toFixed(2),
+  };
   try {
-    await api('/api/settings', {
-      giftFrameEnabled: document.getElementById('giftFrameEnabled').checked
-        ? 'true'
-        : 'false',
-      giftFrameThresholdRmb: threshold.toFixed(2),
-      giftFrameTheme: document.getElementById('giftFrameTheme').value,
-      giftFrameMotionMode: document.getElementById('giftFrameMotionMode').value,
-    });
+    await api('/api/settings', values);
+    for (const id of settingIds) {
+      const current =
+        id === 'giftFrameEnabled'
+          ? String(document.getElementById(id).checked)
+          : document.getElementById(id).value;
+      if (current === submitted[id]) {
+        draftFields.delete(id);
+        document.getElementById(id).dataset.dirty = 'false';
+      }
+    }
     setStatus('已保存，下一笔达到金额的最终礼物会触发。', 'success');
-    renderGiftFrame({
-      ...currentSettings,
-      giftFrameEnabled: document.getElementById('giftFrameEnabled').checked
-        ? 'true'
-        : 'false',
-      giftFrameThresholdRmb: threshold.toFixed(2),
-      giftFrameTheme: document.getElementById('giftFrameTheme').value,
-      giftFrameMotionMode: document.getElementById('giftFrameMotionMode').value,
-    });
+    renderGiftFrame({ ...currentSettings, ...values });
   } catch (_) {
     setStatus('保存失败，请稍后重试。', 'error');
   }

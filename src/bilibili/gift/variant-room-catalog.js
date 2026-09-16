@@ -11,6 +11,7 @@ function mergeVariantRoomCatalog(room, server, customBoxes) {
     const {
       variantId: _variantId,
       giftIdentity: _giftIdentity,
+      giftCategory: _giftCategory,
       ...unresolved
     } = gift;
     return { ...unresolved, imagePath: '', sourceUrl: '' };

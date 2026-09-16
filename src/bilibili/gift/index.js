@@ -2,9 +2,19 @@
 // 礼物冲刺服务入口。
 'use strict';
 
-const { createGiftProjectionService } = require('./projection-service');
+const {
+  createGiftProjectionService: buildGiftProjectionService,
+} = require('./projection-service');
 const { createGiftConsumerRegistry } = require('./consumer-registry');
-const { createGiftStatisticsConsumer } = require('./statistics-consumer');
+const {
+  createGiftStatisticsConsumer: buildGiftStatisticsConsumer,
+} = require('./statistics-consumer');
+const {
+  createGiftProjectionStore,
+} = require('../../storage/gift-projection-store');
+const {
+  createGiftStatisticsStore,
+} = require('../../storage/gift-statistics-store');
 const {
   CRYSTAL_BALL_VALUE_RMB,
   resetGiftSprintProgress,
@@ -21,6 +31,25 @@ const {
 } = require('./blind-box-analysis');
 const { normalizeGiftRow } = require('./normalizer');
 
+// Existing callers use this facade's database context. Keep that adaptation
+// here; the projection and consumer implementations only receive narrow stores.
+function createGiftProjectionService(context, options = {}) {
+  return buildGiftProjectionService(
+    {
+      store:
+        context.projectionStore || createGiftProjectionStore(context.db.giftDb),
+      settings: context.settings,
+    },
+    options,
+  );
+}
+
+function createGiftStatisticsConsumer({ store, giftDb }) {
+  return buildGiftStatisticsConsumer({
+    store: store || createGiftStatisticsStore(giftDb),
+  });
+}
+
 function createGiftService(context, options = {}) {
   let activeGiftSource = null;
   const giftContext = {
@@ -30,6 +59,7 @@ function createGiftService(context, options = {}) {
   const statisticsConsumer =
     options.statisticsConsumer ||
     createGiftStatisticsConsumer({
+      store: context.statisticsStore,
       giftDb: context.db.giftDb,
     });
   const consumerRegistry =

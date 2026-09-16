@@ -257,7 +257,7 @@ function validateVariantCatalog(value) {
         'sourceUrl',
         'imageUrl',
         'isProjected',
-        'isBlindBox',
+        'giftCategory',
         'desc',
         'metadata',
         'effect',
@@ -278,7 +278,7 @@ function validateVariantCatalog(value) {
       item.priceRaw < 0 ||
       !['gold', 'silver'].includes(item.coinType) ||
       typeof item.bagGift !== 'boolean' ||
-      typeof item.isBlindBox !== 'boolean' ||
+      !['directGift', 'blindBox', 'blindBoxOutput'].includes(item.giftCategory) ||
       typeof item.isProjected !== 'boolean' ||
       typeof item.desc !== 'string' ||
       !mediaUrl(item.sourceUrl, true) ||
@@ -312,6 +312,7 @@ function validateVariantCatalog(value) {
     if (
       !record(relation, ['variantId', 'outputVariantIds', 'awards']) ||
       boxes.has(relation.variantId) ||
+      byId.get(relation.variantId)?.giftCategory !== 'blindBox' ||
       byId.get(relation.variantId)?.coinType !== 'gold' ||
       !Array.isArray(relation.outputVariantIds) ||
       relation.outputVariantIds.length > 200 ||
@@ -329,6 +330,10 @@ function validateVariantCatalog(value) {
       throw new Error('CATALOG_INVALID');
     boxes.add(relation.variantId);
   }
+  const outputs = new Set(value.blindBoxes.flatMap(box => box.outputVariantIds));
+  if (value.variants.some(item => item.giftCategory !== 'blindBox' &&
+      (item.giftCategory === 'blindBoxOutput') !== outputs.has(item.variantId)))
+    throw new Error('CATALOG_INVALID');
   const identities = value.variants.map((item) =>
     digest([
       item.giftId,

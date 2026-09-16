@@ -144,7 +144,7 @@ test('requires explicit v2 gift state booleans', () => {
     version: 'invalid-blind-box',
     gifts: [{ id: '411', name: '礼物', priceRaw: 100, coinType: 'gold' }],
   });
-  invalidBlindBox.gifts[0].isBlindBox = 1;
+  invalidBlindBox.gifts[0].giftCategory = 1;
   assert.throws(
     () => normalizeRemoteCatalogImpl(invalidBlindBox),
     (error) => error.code === 'REMOTE_CATALOG_GIFT_INVALID',
@@ -171,7 +171,7 @@ test('persists and notifies a relation-only catalog update', async () => {
             name: '盲盒',
             priceRaw: 5000,
             coinType: 'gold',
-            isBlindBox: true,
+            giftCategory: 'blindBox',
           },
           { id: '602', name: '产物 A', priceRaw: 100, coinType: 'gold' },
           { id: '603', name: '产物 B', priceRaw: 200, coinType: 'gold' },
@@ -216,7 +216,7 @@ test('retains the previous snapshot when a relation reference is invalid', async
             name: '盲盒',
             priceRaw: 5000,
             coinType: 'gold',
-            isBlindBox: true,
+            giftCategory: 'blindBox',
           },
           { id: '612', name: '产物', priceRaw: 100, coinType: 'gold' },
         ],
@@ -333,7 +333,7 @@ test('refreshes a persisted snapshot that has no prior check timestamp', async (
             priceRaw: 100,
             coinType: 'gold',
             active: true,
-            isBlindBox: false,
+            giftCategory: 'directGift',
           },
         ],
         blindBoxes: [],

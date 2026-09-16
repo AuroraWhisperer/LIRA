@@ -2,6 +2,8 @@
 // 点歌匹配服务 - 负责点歌请求的自动匹配和待确认管理
 'use strict';
 
+import { createPlaybackStateActions } from '../state/actions.js';
+
 import * as PlaybackUtils from '../utils.js';
 
 /**
@@ -10,6 +12,8 @@ import * as PlaybackUtils from '../utils.js';
 export class MatchService {
   constructor(options = {}) {
     this.state = options.state || null;
+    this.stateActions =
+      options.stateActions || createPlaybackStateActions(this.state);
     this.onError = options.onError || (() => {});
     this.readJsonResponse = options.readJsonResponse || ((r) => r.json());
     this.toast = options.toast || (() => {});
@@ -167,7 +171,7 @@ export class MatchService {
       track: matched.track,
     };
 
-    this.state.pendingRequests.push(pendingRequest);
+    this.stateActions.addPending(pendingRequest);
   }
 
   /**
@@ -185,7 +189,7 @@ export class MatchService {
       return null;
     }
 
-    const [item] = this.state.pendingRequests.splice(index, 1);
+    const item = this.stateActions.removePending(index);
     if (!item || !item.track) return null;
 
     return {
@@ -209,7 +213,7 @@ export class MatchService {
       return false;
     }
 
-    this.state.pendingRequests.splice(index, 1);
+    this.stateActions.removePending(index);
     return true;
   }
 
@@ -227,6 +231,6 @@ export class MatchService {
    */
   clearPendingRequests() {
     if (!this.state) return;
-    this.state.pendingRequests = [];
+    this.stateActions.clearPending();
   }
 }

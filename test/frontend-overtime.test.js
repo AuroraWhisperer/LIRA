@@ -86,7 +86,7 @@ test('overtime styles keep shared, console, rule editor, picker, and responsive 
 test('overtime toolbox panel loads its isolated controller and renders untrusted labels safely', () => {
   const html = readAdminHtml();
   const entrySource = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'index.js'),
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'app.js'),
     'utf8',
   );
   const source = readOvertimeAdminSource();
@@ -106,7 +106,7 @@ test('overtime toolbox panel loads its isolated controller and renders untrusted
   );
   assert.match(html, /id="overtimeGiftCatalogStatus"[^>]+role="status"/);
   assert.match(html, /id="overtimePreview"/);
-  assert.match(entrySource, /import '\.\/overtime\.js';/);
+  assert.match(entrySource, /import\('\.\/overtime\.js'\)/);
   assert.match(styles, /@import url\('\.\/admin\/overtime\.css'\);/);
   assert.match(source, /\.textContent\s*=/);
   assert.doesNotMatch(source, /fetch\('\/img\/bilibili-gifts\.json'/);

@@ -1,5 +1,5 @@
 // 编写人：Aurora
-// “百宝箱”页面仅负责功能导航，各功能模块继续独立初始化和维护。
+// “百宝箱”页面负责功能导航，并向组合入口通知选中的功能。
 'use strict';
 
 (function () {
@@ -8,6 +8,7 @@
   const SELECTED_FEATURE_KEY = 'admin.toolboxSelectedFeature';
   const moduleState = {
     initialized: false,
+    onFeatureSelected: null,
     persistSidebarCollapsed: null,
     persistCollapsedFeatureGroups: null,
     sidebarPreferenceReconciled: false,
@@ -315,6 +316,7 @@
       panel.hidden = !isActive;
     });
     storeSelectedFeature(selectedId);
+    moduleState.onFeatureSelected?.(selectedId);
 
     if (selectedId === 'otherDanmakuFeature') {
       window.AdminApp.danmakuTool?.refresh({ reconnectIfDisconnected: true });
@@ -370,6 +372,8 @@
   function initOtherPage(options = {}) {
     const root = document.getElementById('otherAssistantPage');
     if (!root || moduleState.initialized) return;
+
+    moduleState.onFeatureSelected = options.onFeatureSelected;
 
     moduleState.persistSidebarCollapsed =
       typeof options.persistSidebarCollapsed === 'function'

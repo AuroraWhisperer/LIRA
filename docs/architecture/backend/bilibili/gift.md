@@ -61,13 +61,15 @@ final 分发失败后按 `min(30s, 1000 * 2^attempt)` 退避重投；指数上�
 
 ## 3. 历史导入与存储边界
 
+`projection-service.js` 接收窄 `store`，保留输入校验、progress/final 决策和重试生命周期。SQL 与表字段操作归 `storage/gift-projection-store.js`；`statistics-consumer.js` 委托 `storage/gift-statistics-store.js:deliverOnce` 在单个 `BEGIN IMMEDIATE` 事务内检查 final/资格/投递标记并更新统计标记。组合入口注入两个 store，原 gift 门面为旧 context 调用者提供适配。投影调用仍可加入 gift-sync-store 的现有事务，消费者仍只在提交后扇出，不新增 schema 或改变 cursor 原子性。
+
 `importProcessedHistoryRecord` 独立导入服务器历史 final，校验 source 和重复记录一致性，并把历史行标为不参与统计/加班。历史导入不派发消费者或边框事件。`normalizeGiftRow` 仅整理数据库输出类型；原始礼物输入归一化、近期命令查重、连击合并及 `repairGiftV2Events` 均已删除。数据库 schema 和已有历史记录不因删除代码而被清空。
 
 ## 4. 盲盒：服务器结果与客户端展示
 
-当前远端收礼区分常规直送礼物、盲盒商品和盲盒产物。目录 `isBlindBox` 表示盒子本身，产物由准确 ID 的奖池关系关联；服务器按 REQ-GIFT-006 校验有效关系/活动身份后，可为上游漏标的产物补全事件 `isBlindBox`、来源 `blindBoxId`、名称、成本和盈亏。客户端导入这些权威字段，不根据目录自行改变账本。`public/js/admin/gifts/recent.js` 根据事件标记与冻结来源身份取对应盲盒图片；无身份的旧记录仅允许 ID、名称唯一匹配，资料不足或歧义时用占位图，特殊配色还须名称匹配；有限数字盈亏直接显示符号和盈利/亏损颜色，不依赖可空盒名，未知值显示“盈亏待确认”。心动盲盒单盒 15 元、棉花糖 9 元对应 -6 元，爱心抱枕 16 元对应 +1 元。共享奖品来源仍有歧义时成本/盈亏保留未知，旧记录不自动重算。当前远端流程见 §9。
+目录使用唯一 `giftCategory` 区分 `directGift`（直送礼物）、`blindBox`（盲盒）和 `blindBoxOutput`（盲盒产物），替换原目录 `isBlindBox`；奖池关系按完整活动身份关联。服务器按 REQ-GIFT-006 校验有效关系/活动身份后，可为上游漏标的产物补全事件 `isBlindBox`、来源 `blindBoxId`、名称、成本和盈亏。客户端导入这些权威字段，不根据目录自行改变账本。`public/js/admin/gifts/recent.js` 根据事件标记与冻结来源身份取对应盲盒图片；无身份的旧记录仅允许 ID、名称唯一匹配，资料不足或歧义时用占位图，特殊配色还须名称匹配；有限数字盈亏直接显示符号和盈利/亏损颜色，不依赖可空盒名，未知值显示“盈亏待确认”。心动盲盒单盒 15 元、棉花糖 9 元对应 -6 元，爱心抱枕 16 元对应 +1 元。共享奖品来源仍有歧义时成本/盈亏保留未知，旧记录不自动重算。当前远端流程见 §9。
 
-目录显示与收礼判定分开：`public/js/shared/gift-catalog-roles.js` 根据完整 schema 2 快照生成三类显示标签，`public/js/admin/overtime.js` 在礼物选择器展示标签与对应奖池；服务器网页的 schema 3 标签遵循完整活动身份。索引只随既有目录加载/更新重建，不增加实时传输字段、网络请求或持久化分类，不用于账本判定。共享产物列出全部奖池；身份不符时不显示推测标签，旧请求不得恢复更新后已移除的奖池关系。
+目录显示与收礼判定分开：`public/js/shared/gift-catalog-roles.js` 直接将已校验的 `giftCategory` 显示为“直送礼物 / 盲盒 / 盲盒产物”，奖池关系只提供来源名称。main 校验三值枚举及关系一致性，并通过原有 API/WS 和原子缓存传递；类别参与目录业务摘要，不新增网络请求或数据库列。官方盲盒筛选使用 `giftCategory=blindBox` 且必须有核验奖池。生产两端同步升级、客户端重新安装，不增加旧类别回退。共享产物列出全部奖池；身份不符时不显示推测标签，旧请求不得恢复更新后已移除的奖池关系。
 
 客户端直接保存服务器的盲盒 ID、名称、成本和盈亏，不按礼物名匹配盒子或重新计算价值。[blind-box-config.js](../../../../src/bilibili/gift/blind-box-config.js) 仅验证待同步的盲盒设置格式，实际收礼判定由服务器处理。
 

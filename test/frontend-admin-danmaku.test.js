@@ -136,6 +136,7 @@ test('danmaku tool separates the fixed live overlay from the sender and reply gr
     ['transparent', '透明简约'],
     ['identity', '身份横卡'],
     ['outline', '全屏随机'],
+    ['cream', '奶油气泡'],
   ]);
   assert.match(html, /data-danmaku-style="signal"[^>]+aria-pressed="true"/);
   assert.match(
@@ -185,22 +186,15 @@ test('danmaku tool separates the fixed live overlay from the sender and reply gr
   assert.ok(fixedReplySectionStart < html.indexOf('id="danmakuReplyTitle"'));
   assert.ok(html.indexOf('id="danmakuReplyTitle"') < fixedReplySectionEnd);
   assert.doesNotMatch(source, /createDanmakuFeed/);
-  assert.match(source, /localOverlayOrigin/);
-  assert.match(source, /copyText/);
-  assert.match(source, /`\$\{localOverlayOrigin\(\)\}\/danmaku`/);
-  assert.match(source, /app:settings-state/);
-  assert.match(source, /danmakuOverlayStyle/);
-  assert.match(source, /saveSetting\('danmakuOverlayStyle'/);
-  assert.match(source, /outline:\s*'全屏随机'/);
-  assert.match(source, /transparent:\s*'透明简约'/);
-  assert.match(source, /identity:\s*'身份横卡'/);
-  assert.match(source, /styleButtons\.length !== 7/);
-  assert.match(source, /danmakuFullscreenDurationSeconds/);
-  assert.match(source, /Number\.isSafeInteger/);
-  assert.match(
-    source,
-    /previewOverlayButton\.addEventListener\('click',\s*\(\) =>\s*window\.open\(\s*`\$\{overlayUrl\}\?preview=1&style=\$\{currentOverlayStyle\}`,\s*'_blank',\s*'noopener'/,
-  );
+  assert.match(source, /initDanmakuOverlaySettings/);
+  assert.doesNotMatch(source, /localOverlayOrigin/);
+  assert.doesNotMatch(source, /saveSetting\('danmakuOverlayStyle'/);
+  assert.match(html, /id="danmakuApplyOverlayBtn"/);
+  assert.match(html, /id="danmakuReloadOverlayBtn"/);
+  const overlaySource = fs.readFileSync(path.join(ROOT_DIR, 'public/js/admin/danmaku-overlay-settings.js'), 'utf8');
+  assert.match(overlaySource, /observeServerOverlayUrl/);
+  assert.match(overlaySource, /bridge\.updateOverlaySettings/);
+  assert.match(overlaySource, /preview: '1'/);
   assert.match(styles, /\.danmaku-style-options/);
   assert.match(
     styles,

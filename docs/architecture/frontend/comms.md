@@ -44,6 +44,8 @@ OBS 页面确认会话过期后会自动刷新以恢复当前服务的连接；�
 
 ### 2.3 状态获取与乐观更新
 
+Admin 的 HTTP 与 WS 全量快照统一经过 `StateService.applySnapshot`。HTTP 只接受最新发起请求的结果，并保留请求发起之后被实时消息更新的字段；未被实时更新的字段仍可由 HTTP 补齐。全量快照同时遵守歌词 generation/sequence 与同一连接内加班机 revision 的排序规则；重连的 connect 快照可接纳服务重启后的较低加班机 revision。`STATE_LOADED` 附带变化的顶层字段 `changedKeys`，完全相同的快照不触发视图刷新，设置事件仅在 settings 实际变化时派发。传输快照与 HTTP 响应形状不变。
+
 - 全量状态:`GET /api/state`(快照 17 字段,见 [ws.md](../backend/ws.md) §2),管理页 `StateService.reloadState()`、叠加层 `loadState()` 首屏都用它兜底(WS 未连上时保证可渲染)。
 - 歌库:`GET /api/songs?query=&category=&language=&artist=&tag=&enabledOnly=`([state.js:128-155](../../../public/js/admin/state.js#L128-L155))。
 - **乐观 UI**:管理页所有变更操作(POST 后)立即调用 `reloadState()/reloadAll()` 重取,不等待 WS 广播;快照到达后对歌库相关变更做 **240ms 防抖**重载(`scheduleSongReload`,合并短时间内多次快照,[state.js:160-165](../../../public/js/admin/state.js#L160-L165));播放页则是本地状态先行 + `savePlaybackState()` 落盘(见 [playback.md](playback.md) §6)。
@@ -61,7 +63,7 @@ OBS 页面确认会话过期后会自动刷新以恢复当前服务的连接；�
 | 首帧       | 连接建立即收 `{type:'snapshot', reason:'connect', state}` 全量快照(契约见 [ws.md](../backend/ws.md) §2)                                                                                                                                                     | [ws.md](../backend/ws.md) §2                                                                                               |
 | 协议选择   | `location.protocol === 'https:' ? 'wss:' : 'ws:'`,与页面同源(`location.host`)                                                                                                                                                                               | [state.js:30](../../../public/js/admin/state.js#L30)                                                                       |
 | 只读客户端 | 前端**不发送任何业务消息**给服务端;`shutdown` 消息到达后停止重连                                                                                                                                                                                            | [ws.md](../backend/ws.md) §1                                                                                               |
-| 全量替换   | 每次 snapshot 用 `payload.state` **整体替换**本地状态再重渲染,不做增量合并                                                                                                                                                                                  | [state.js:44-58](../../../public/js/admin/state.js#L44-L58)                                                                |
+| 统一接纳   | HTTP 与 WS 经统一接纳，保留实时更新字段及单调版本；按 changedKeys 分域刷新（见 §2.3）                                                                                                                                                                                  | [state.js:44-58](../../../public/js/admin/state.js#L44-L58)                                                                |
 | 局部消息   | `overtime:update`/`wesing-state`/`lyric-state`/`lyric-timeline` 只更新对应字段并派发 CustomEvent(`app:overtime`、`app:wesing-state`、`app:lyric-state`、`app:lyric-timeline`)；`gift-catalog:update` 不写入全量 state，只派发 `Events.GIFT_CATALOG_UPDATED` | [state.js:59-86](../../../public/js/admin/state.js#L59-L86)                                                                |
 | 礼物触发   | reason ∈ {`bilibili:gift`,`gift:clear-recent`,`database:clear-gifts`,`database:clear-all`} 时额外发 `gift:received` 事件                                                                                                                                    | [state.js:215-220](../../../public/js/admin/state.js#L215-L220)                                                            |
 
@@ -111,7 +113,7 @@ OBS 页面确认会话过期后会自动刷新以恢复当前服务的连接；�
        ↑                                                    │
        └────── fetch POST /api/*(命令) ◀── 用户操作/乐观刷新 ◀─┘
        B站礼物: lira-server detector ──→ main SSE/cursor importer ──→ 本地 gift service ──→ snapshot/WS gift:frame
-       播放页:本地 StateManager 先行,state-persistence 防抖落盘(HTTP + IPC 双通道)
+       播放页:本地 state/actions 先行,state-persistence 防抖落盘(HTTP + IPC 双通道)
 ```
 
 快照提供其 17 个字段的完整恢复状态；游戏画布、转盘、礼物边框和实时弹幕另有专用消息/恢复语义，见 [ws.md](../backend/ws.md)。HTTP 用于命令及状态查询，普通 JSON 响应使用 `{ok}` 信封；WebSocket 按 `{type,...}` 分发，音频、图片与其他二进制响应不使用 JSON 信封。去重和退避由各消费者按其契约执行。

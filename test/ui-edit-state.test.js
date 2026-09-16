@@ -111,7 +111,7 @@ async function fixture(t, kind = 'admin') {
               path.join(publicRoot, 'pages/admin/toolbox/overtime.html'),
               'utf8',
             ) +
-            '<script type="module">import "/js/admin/overtime.js"; window.AdminApp.overtime.init(); window.ready = true;</script>'
+            '<script type="module">import { initOvertime } from "/js/admin/overtime.js"; initOvertime(); window.ready = true;</script>'
           : kind === 'overlay'
             ? fs.readFileSync(
                 path.join(publicRoot, 'pages/overlays/overtime.html'),

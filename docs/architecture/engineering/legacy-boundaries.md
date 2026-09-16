@@ -25,8 +25,18 @@ the named test and test case are the only numeric authority.
 Song service migration is complete: the composition root creates
 `src/storage/song-store.js`, and song domain functions receive that store rather
 than a database. Its old SQL debt budget is removed and a strict no-SQL assertion
-protects the boundary. Gift-domain legacy SQL remains separate, explicitly
-tracked debt; this migration does not silently certify those paths.
+protects the boundary. Gift projection and statistics now receive narrow stores
+from the composition root; SQL and the statistics delivery transaction live in
+`gift-projection-store.js` and `gift-statistics-store.js`. Remaining blind-box
+analysis SQL is still separately tracked debt.
+
+The existing `src/bilibili/gift/index.js` facade adapts database contexts for
+existing constructor callers. This avoids a public facade break while production
+composition explicitly injects stores. Remove the fallback when the remaining
+context-based callers migrate; do not add context/SQLite dependencies to the
+projection or consumer implementations. `test/module-boundaries.test.js`
+protects those implementations, and gift projection/import tests protect
+transaction, retry and idempotency behavior.
 
 - **Current shape:** Selected domain and server files issue SQL through known
   database receivers outside `src/storage/`.

@@ -12,9 +12,16 @@ const { createQueueStore } = require('../storage/queue-store');
 const { createSuperChatStore } = require('../storage/superchat-store');
 const { createSongStore } = require('../storage/song-store');
 const {
+  createGiftProjectionStore,
+} = require('../storage/gift-projection-store');
+const {
+  createGiftStatisticsStore,
+} = require('../storage/gift-statistics-store');
+const {
   createRequesterTargetStore,
 } = require('../music/requester-target-store');
 const songService = require('../music/song-service');
+const { createSongMetadataReader } = require('../music/song-metadata');
 const {
   previewSongImport,
   applySongImport,
@@ -82,6 +89,7 @@ function createDomainServices(options) {
   }
 
   const songs = {
+    getMetadata: createSongMetadataReader(songStore),
     save: (input) => songService.saveSong(songStore, input),
     list: (options) => songService.listSongs(songStore, options),
     find: (songName, artist) =>
@@ -181,6 +189,8 @@ function createDomainServices(options) {
     giftRuntime = giftService.createGiftService(
       {
         db: { giftDb: db.giftDb },
+        projectionStore: createGiftProjectionStore(db.giftDb),
+        statisticsStore: createGiftStatisticsStore(db.giftDb),
         settings: () => settingsStore.getSettings(),
       },
       {

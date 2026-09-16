@@ -18,6 +18,16 @@
 - **单文件运行**:`node --experimental-vm-modules --test test/xxx.test.js`(flag 必须保留)。
 - **测试方式**:以离线单元和集成测试为主,不访问真实外部网络;服务端模块直接 require 真实实现并注入临时 SQLite 目录或 mock,server smoke 类测试会在随机本地端口启动完整服务;浏览器模块用 vm + 假 `window`/`localStorage` 求值。
 
+### 两仓歌库往返回归
+
+[verify-song-roundtrip.cjs](../../../scripts/verify-song-roundtrip.cjs) 使用两个显式的绝对检出路径，在本机随机端口运行真实服务器 JSON parser、歌曲事务、内存 SQLite store 与 DTO，再由真实桌面 HTTP client 上传、回读。设备鉴权与路由接线使用测试 adapter，不能把结果当作生产认证或线上容量验收。两仓需先安装各自锁文件依赖；服务器的 `better-sqlite3` 必须匹配执行测试的 Node ABI。
+
+```powershell
+node scripts/verify-song-roundtrip.cjs D:\Work\Live D:\Work\lira-server
+```
+
+该检查独立于 `npm test`，不会给单仓测试新增隐式相邻目录依赖。现有礼物契约测试仍依赖相邻服务器 fixtures；在服务器当前契约和模块形成可获取的固定提交前，不能宣称干净单仓检出或托管两仓门禁已经可复现。此脚本检查传入工作区的实现，不自行下载、切换或声称固定服务器版本。
+
 ### Windows 安装器集成测试
 
 [安装目录测试](../../../test/installer-directory.test.js)验证默认目录、沿用旧路径、用户指定路径优先和无 D 盘的情况；[数据保护测试](../../../test/installer-migration.test.js)验证升级、换目录、旧数据迁回、备份恢复、冲突、复制/报告失败、文件占用、运行中进程，以及升级清理时保留数据和下载文件；[自动关闭测试](../../../test/installer-app-exit.test.js)使用隐藏的原生窗口验证确认关闭、取消、拒绝关闭、超时重试、其他安装目录隔离和静默退出，确认退出时的最后一次写入完整进入备份。
@@ -154,7 +164,9 @@ node --test test/installer-directory.test.js test/installer-migration.test.js te
 | [license-manager-operations.test.js](../../../test/license-manager-operations.test.js)                       | 歌曲、背景、目录、礼物与渲染器边界的受保护操作                                                  | 同上                                                                                              |
 | [license-manager-renewal.test.js](../../../test/license-manager-renewal.test.js)                             | 续期、撤销、心跳与暂时性受保护失败                                                              | 同上                                                                                              |
 | [license-manager-revalidation.test.js](../../../test/license-manager-revalidation.test.js)                   | 云读取、共享重验证、代次、销毁与挑战竞态                                                        | 同上                                                                                              |
+| [license-manager-identity.test.js](../../../test/license-manager-identity.test.js)                           | 跨账号迟到请求、ABA 切换、续期与心跳生命周期隔离                                                | 同上                                                                                              |
 | [remote-license-client.test.js](../../../test/remote-license-client.test.js)                                 | 远端授权 HTTP 请求、错误与脱敏契约                                                              | [desktop/auth.md](../desktop/auth.md)                                                             |
+| [remote-license-song-budget.test.js](../../../test/remote-license-song-budget.test.js)                       | 歌库 8 MiB 精确字节边界、UTF-8、超限流取消与不可重试错误                                        | 本文 §1 两仓歌库往返回归                                                                          |
 | [remote-license-event-stream.test.js](../../../test/remote-license-event-stream.test.js)                     | 远端授权 SSE 分块、取消与 reader 释放                                                           | 同上                                                                                              |
 | [desktop-state.test.js](../../../test/desktop-state.test.js)                                                 | Electron 主进程运行时状态隔离                                                                   | [desktop/main.md](../desktop/main.md)                                                             |
 | [electron-main-modules.test.js](../../../test/electron-main-modules.test.js)                                 | Electron server runtime 适配与 `local-media://` 协议                                            | [desktop/main.md](../desktop/main.md)                                                             |

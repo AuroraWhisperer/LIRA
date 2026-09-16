@@ -437,11 +437,6 @@ export class ContentLoader {
 
   // ── 公开辅助方法 ──
 
-  /** @deprecated 使用 loadHomeContent('liked') 替代 */
-  async loadLikedTracksAll(title) {
-    return this.loadHomeContent('liked');
-  }
-
   getHomeActionTitle(action) {
     return getHomeActionTitle(action);
   }

@@ -4,7 +4,7 @@
  * Windows 代码签名脚本
  *
  * 用途:为 electron-builder 打包的可执行文件添加 Authenticode 数字签名
- * 调用方:electron-builder(通过 package.json build.win.sign 配置)
+ * 接入方式:electron-builder 的 package.json build.win.sign(当前尚未配置)
  * 依赖:Windows SDK signtool.exe
  *
  * 环境变量:

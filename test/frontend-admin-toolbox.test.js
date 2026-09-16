@@ -233,7 +233,11 @@ test('other feature navigation selects panels without feature-specific dependenc
   assert.equal(panels[0].hidden, true);
   assert.equal(panels[1].hidden, false);
 
-  sandbox.window.AdminApp.other.initOtherPage();
+  const activations = [];
+  sandbox.window.AdminApp.other.initOtherPage({
+    onFeatureSelected: (feature) => activations.push(feature),
+  });
+  assert.deepEqual(activations, ['diagnosticsFeature']);
   let prevented = false;
   buttons[1].dispatch('keydown', {
     key: 'ArrowUp',
@@ -242,6 +246,7 @@ test('other feature navigation selects panels without feature-specific dependenc
     },
   });
   assert.equal(prevented, true);
+  assert.deepEqual(activations, ['diagnosticsFeature', 'performanceFeature']);
   assert.equal(buttons[0].focused, true);
   assert.equal(panels[0].hidden, false);
   assert.equal(panels[1].hidden, true);
@@ -314,7 +319,6 @@ test('browser source tab classifies and exposes every overlay address', () => {
     ['queueUrl', '/queue'],
     ['songsUrl', '/songlist'],
     ['lyricsUrl', '/lyrics'],
-    ['liveDanmakuUrl', '/danmaku'],
     ['liveBlindboxUrl', '/blindbox'],
     ['liveGamesUrl', '/games'],
     ['liveWheelUrl', '/wheel'],
@@ -341,6 +345,16 @@ test('browser source tab classifies and exposes every overlay address', () => {
       `${route} should be initialized in the live screen tab`,
     );
   }
+  assert.match(html, /id="liveDanmakuUrl"/);
+  assert.match(html, /data-copy-url="liveDanmakuUrl"[^>]*disabled/);
+  assert.match(
+    displaySource,
+    /observeServerOverlayUrl\(\(url\) => \{\s*document\.getElementById\('liveDanmakuUrl'\)\.textContent\s*=\s*url \|\|/,
+  );
+  assert.match(
+    displaySource,
+    /document\.querySelector\('\[data-copy-url="liveDanmakuUrl"\]'\)\.disabled = !url;/,
+  );
   assert.match(html, />\s*点歌与音乐\s*<\/h3\s*>/);
   assert.match(html, />\s*直播互动\s*<\/h3\s*>/);
   assert.match(html, />\s*场景与氛围\s*<\/h3\s*>/);

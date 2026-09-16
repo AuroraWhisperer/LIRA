@@ -19,11 +19,11 @@ const OVERTIME_ENTRY = path.join(
 
 test('gift picker derives three role labels from the shared server catalog without extra requests', async () => {
   const gifts = [
-    heart.box,
-    ...heart.outputs,
-    { id: '100', name: '小花花', rmb: 1 },
-    { id: '999', name: '棉花糖', rmb: 9 },
-  ].map((item) => ({ ...item, isBlindBox: item === heart.box }));
+    { ...heart.box, giftCategory: 'blindBox' },
+    ...heart.outputs.map(item => ({ ...item, giftCategory: 'blindBoxOutput' })),
+    { id: '100', name: '小花花', rmb: 1, giftCategory: 'directGift' },
+    { id: '999', name: '棉花糖', rmb: 9, giftCategory: 'directGift' },
+  ];
   const snapshot = {
     schemaVersion: 2,
     source: 'server',
@@ -42,18 +42,18 @@ test('gift picker derives three role labels from the shared server catalog witho
   await openPicker(fixture);
   await fixture.elements.globalSearchButton.dispatchEvent('click');
   const labels = optionNodes(fixture).map(nodeText);
-  assert.match(labels[0], /盲盒本体/);
+  assert.match(labels[0], /盲盒/);
   assert.match(labels[1], /盲盒产物 · 心动盲盒/);
   assert.match(labels[2], /盲盒产物 · 心动盲盒/);
-  assert.match(labels[3], /常规直送礼物/);
-  assert.match(labels[4], /常规直送礼物/);
+  assert.match(labels[3], /直送礼物/);
+  assert.match(labels[4], /直送礼物/);
   assert.equal(fixture.state.fetchCalls.length, 1);
 
   fixture.namespace.applyServerGiftArtwork({
     ...snapshot,
     gifts: [
       ...gifts,
-      { id: '900', name: '另一个盲盒', rmb: 20, isBlindBox: true },
+      { id: '900', name: '另一个盲盒', rmb: 20, giftCategory: 'blindBox' },
     ],
     blindBoxes: [
       ...snapshot.blindBoxes,
@@ -64,8 +64,9 @@ test('gift picker derives three role labels from the shared server catalog witho
     nodeText(optionNodes(fixture)[1]),
     /盲盒产物 · 心动盲盒 \/ 另一个盲盒/,
   );
-  fixture.namespace.applyServerGiftArtwork({ ...snapshot, blindBoxes: [] });
-  assert.match(nodeText(optionNodes(fixture)[1]), /常规直送礼物/);
+  fixture.namespace.applyServerGiftArtwork({ ...snapshot, blindBoxes: [], gifts: gifts.map(gift => ({ ...gift,
+    giftCategory: gift.giftCategory === 'blindBoxOutput' ? 'directGift' : gift.giftCategory })) });
+  assert.match(nodeText(optionNodes(fixture)[1]), /直送礼物/);
   assert.doesNotMatch(nodeText(optionNodes(fixture)[1]), /盲盒产物/);
   fixture.namespace.applyServerGiftArtwork({
     ...snapshot,
@@ -75,15 +76,13 @@ test('gift picker derives three role labels from the shared server catalog witho
   });
   assert.doesNotMatch(
     nodeText(optionNodes(fixture)[1]),
-    /盲盒产物|常规直送礼物/,
+    /盲盒产物|直送礼物/,
   );
 });
 
 test('a slower picker fetch cannot restore removed pool labels after a catalog update', async () => {
-  const gifts = [heart.box, ...heart.outputs].map((item) => ({
-    ...item,
-    isBlindBox: item === heart.box,
-  }));
+  const gifts = [{ ...heart.box, giftCategory: 'blindBox' },
+    ...heart.outputs.map(item => ({ ...item, giftCategory: 'blindBoxOutput' }))];
   const snapshot = {
     schemaVersion: 2,
     gifts,
@@ -102,10 +101,11 @@ test('a slower picker fetch cannot restore removed pool labels after a catalog u
   await openPicker(fixture);
   const activation = fixture.elements.globalSearchButton.dispatchEvent('click');
   await flush();
-  fixture.namespace.applyServerGiftArtwork({ ...snapshot, blindBoxes: [] });
+  fixture.namespace.applyServerGiftArtwork({ ...snapshot, blindBoxes: [], gifts: gifts.map(gift => ({ ...gift,
+    giftCategory: gift.giftCategory === 'blindBoxOutput' ? 'directGift' : gift.giftCategory })) });
   pending.resolve({ ok: true, payload: { ok: true, data: snapshot } });
   await activation;
-  assert.match(nodeText(optionNodes(fixture)[1]), /常规直送礼物/);
+  assert.match(nodeText(optionNodes(fixture)[1]), /直送礼物/);
   assert.doesNotMatch(nodeText(optionNodes(fixture)[1]), /盲盒产物/);
 });
 
@@ -379,7 +379,7 @@ async function createFixture({
     refreshedAt: '2026-09-05T00:00:00.000Z',
     gifts: saleGifts,
   });
-  namespace.init();
+  namespace.initOvertime();
   await flush();
   return {
     namespace,
@@ -439,7 +439,7 @@ async function loadOvertimeModule({ document, window, state, saleGifts }) {
     __testEventBus: { on() {} },
     __testEvents: {},
   });
-  const source = `${fs.readFileSync(OVERTIME_ENTRY, 'utf8')}\nexport { init, applyGiftCatalog, applyServerGiftArtwork, openGiftPicker };`;
+  const source = `${fs.readFileSync(OVERTIME_ENTRY, 'utf8')}\nexport { applyGiftCatalog, applyServerGiftArtwork, openGiftPicker };`;
   const entryUrl = pathToFileURL(OVERTIME_ENTRY).href;
   const module = new vm.SourceTextModule(source, {
     context,

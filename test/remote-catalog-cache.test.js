@@ -277,7 +277,7 @@ test('does not let a future persisted check time suppress refresh', async () => 
             priceRaw: 100,
             coinType: 'gold',
             active: true,
-            isBlindBox: false,
+            giftCategory: 'directGift',
           },
         ],
         blindBoxes: [],

@@ -23,11 +23,11 @@ export function createGiftCatalogRoleLookup(snapshot) {
   const labels = new Map(
     snapshot.gifts.map((gift) => {
       const sources = [...(parents.get(giftKey(gift)) || [])];
-      const label = gift.isBlindBox
-        ? '盲盒本体'
-        : sources.length
-          ? `盲盒产物 · ${sources.join(' / ')}`
-          : '常规直送礼物';
+      const label = gift.giftCategory === 'blindBox'
+        ? '盲盒'
+        : gift.giftCategory === 'blindBoxOutput'
+          ? ['盲盒产物', sources.join(' / ')].filter(Boolean).join(' · ')
+          : gift.giftCategory === 'directGift' ? '直送礼物' : '';
       return [catalogIdentity(gift), label];
     }),
   );

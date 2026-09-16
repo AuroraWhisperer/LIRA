@@ -373,7 +373,7 @@ test('Toolbox opening animation persists configuration and keeps a fixed source 
   assert.match(formsScript, /element\?\.closest\('#openingAnimationForm'\)/);
   assert.match(
     read('public', 'js', 'admin', 'app.js'),
-    /initStartAnimation\(\)/,
+    /module\.initStartAnimation/,
   );
 });
 

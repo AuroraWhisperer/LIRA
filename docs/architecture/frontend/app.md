@@ -6,6 +6,10 @@
 
 ### Admin 业务模块边界
 
+`state-renderer.js` 消费 StateService 的 `changedKeys`，分别调度设置、队列、SC、直播状态、礼物和歌库元数据视图。`queue.js` 以具名 ESM 导出队列操作和渲染，只在 `legacy-admin-bridge.js` 发布既有兼容入口；它不再回填设置或渲染礼物、直播与分类。礼物专属快照不会重建队列或覆盖表单。
+
+`gift-frame.js` 按字段保存未提交草稿，并与通用表单的 `preserveDirty` 标记协作。设置同步不覆盖草稿；保存成功只清理仍等于本次提交内容的字段，保存等待期间的新输入继续保留。
+
 百宝箱“动态抽奖”由 [dynamic-lottery.js](../../../public/js/admin/dynamic-lottery.js) 管理独立登录与授权失效，由 [dynamic-lottery-workflow.js](../../../public/js/admin/dynamic-lottery-workflow.js) 管理规则表单、最近 50 个活动、采集进度、暂停/继续与中奖结果。账号管理与本地抽奖记录使用展开入口；设置使用单列输入和复选条件，创建后保留内容链接、作者与截止时间的摘要。采集明细在结果出现后默认收起，刷新和采集/核验的暂停、继续入口始终按状态保留。独立结果框每页展示 5 人，包含真实昵称（旧记录回退 UID）、主页链接、关注核验和完整参与评论，以 DOM textContent 渲染；同时保留核验/排除/缺额统计及开奖凭证。使用现有工具箱标签、原生 CSS token 和命名 ESM；不增加 AdminApp 全局。只在用户提交时开始采集/开奖，后台忙时通过受保护状态接口读取进度。renderer 不计算资格或随机顺序、不保存 Cookie；授权变化和页面卸载取消页面请求并丢弃旧响应，后台进度持久化后需手动继续。相关端点见 [api.md](../backend/api.md)。
 
 下表记录本轮拆分后仍由门面保留的外部入口。内部模块使用显式 ESM import/export，不新增 `window.AdminApp` 全局；兼容注册只留在既有门面。
@@ -76,14 +80,14 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 
 | 事件                                                                                             | 发布方 → 订阅方                                 | 用途                                                                 |
 | ------------------------------------------------------------------------------------------------ | ----------------------------------------------- | -------------------------------------------------------------------- |
-| `Events.STATE_LOADED`                                                                            | app.js(接 stateService)→ queue.renderState      | 每次快照/`/api/state` 后重渲染队列、SC、状态条、礼物面板             |
+| `Events.STATE_LOADED`                                                                            | app.js(接 stateService)→ state-renderer      | 快照接纳后按 changedKeys 更新相关视图，相同数据跳过             |
 | `Events.SONG_UPDATED`                                                                            | app.js(接 stateService)→ songs.renderSongs      | 歌库列表/筛选器重渲染                                                |
 | `Events.GIFT_RECEIVED`                                                                           | stateService(礼物类 reason)→ 礼物通知模块       | 新礼物 toast 触发                                                    |
 | `Events.OVERTIME_UPDATED`                                                                        | stateService(overtime:update)→ overtime.js      | 加班机面板增量刷新(带 revision 去重)                                 |
 | `Events.GIFT_CATALOG_UPDATED`                                                                    | stateService(gift-catalog:update)→ overtime.js / gifts/recent.js  | 图片扫描完成后按精确 ID 刷新本地图片，去重包含图片路径和 assetsUpdatedAt；不得覆盖当前直播间成员，不触发歌库或礼物事件重载 |
 | CustomEvent `app:lyric-state` / `app:lyric-timeline` / `app:wesing-state` / `app:settings-state` | stateService → 各页面 `window.addEventListener` | WeSing 面板、桌面歌词预览、设置自动保存就绪信号                      |
 
-**迁移期调用示例**:`app.js` 收到 `STATE_LOADED` 后通过 bridge 返回的 `queue.renderState` 渲染;遗留模块内部现有的全局调用保持兼容,新增跨模块调用不得继续扩大该模式。
+**迁移期调用示例**:`app.js` 将 `STATE_LOADED` 交给具名导入的 `createAdminStateRenderer`；协调器直接调用队列和表单 ESM 接口，仅对尚未迁移的礼物和歌曲视图使用 bridge。遗留调用保持兼容，新增跨模块调用不得扩大全局模式。
 
 `StateService` 对 `songs:*` 和 `cloud:songs` 快照原因防抖重载歌库，其他快照不触发额外歌库请求。HTTP `reloadState()` 对歌词版本只接纳一次并复用结果：新版本派发 `app:lyric-state`，重复/旧版本保留已接纳状态且不重复派发，与 WebSocket 路径共享版本检查。
 
@@ -103,15 +107,17 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 
 ### 3.1 模块加载([index.js](../../../public/js/admin/index.js))
 
-[document-end.html](../../../public/pages/admin/document-end.html) 加载 [index.js](../../../public/js/admin/index.js)，入口按序导入共享层与全部 Admin 模块(顺序即依赖顺序):`shared/utils` → `shared/theme` → `desktop.js` → `import` → `queue` → `songs` → `theme` → `display` → `settings` → `gifts/*`(notification/detection/sprint/recent/blindbox/blindbox-analysis/history/index)→ `metrics` → `danmaku-tool` → `ai-assistant-settings` → `todo` → `other` → `overtime` → `gift-effects` → `desktop-lyric-preview` → `desktop-lyric` → `app.js`。同一分片另加载 `<script type="module" src="/js/playback.js">` 播放助手入口。
+[document-end.html](../../../public/pages/admin/document-end.html) 加载 [index.js](../../../public/js/admin/index.js)，入口按序导入共享层与常驻 Admin 模块(顺序即依赖顺序):`shared/utils` → `shared/theme` → `desktop.js` → `import` → `queue` → `songs` → `theme` → `display` → `settings` → `gifts/*`(notification/detection/sprint/recent/blindbox/blindbox-analysis/history/index)→ `metrics` → `danmaku-tool` → `ai-assistant-settings` → `todo` → `other` → `gift-effects` → `desktop-lyric-preview` → `desktop-lyric` → `app.js`。同一分片另加载 `<script type="module" src="/js/playback.js">` 播放助手入口。
 
 ### 3.2 初始化([app.js:18-99](../../../public/js/admin/app.js#L18-L99))
+
+开场动画、时钟、小游戏和加班机管理界面由 `toolbox-lifecycle.js` 在主页面与对应功能同时选中时动态加载。`other.js` 经注入的 `onFeatureSelected` 通知选择，主导航经 `setPage` 通知可见性；同一轮程序导航只激活最终选择。记忆选择也走此路径，重复进入复用已初始化模块，离开或关闭窗口后不执行迟到的初始化。首次进入使用各模块现有 HTTP 读取当前配置/会话，加班机同时从 StateService 取当前礼物检测与直播状态。服务器计时、游戏会话、抽奖授权及必要实时服务保持原生命周期。
 
 1. `await Theme.loadThemeConfig()` 预载主题配置
 2. `initMainPages()` 绑定主页面 Tab(按 hash 选中初始页)
 3. `formsService.initWorkspaceControls()` + `initTabs()`(播放器默认收起、ESC/空格快捷键)
 4. 监听 `playback-module-loaded` 事件(播放助手模块异步加载完成后)调 `initPlaybackAssistant(options)`,把浏览器基础设施能力注入播放控制器
-5. 通过 `legacy-admin-bridge` 取得迁移期模块并逐个初始化(`desktop/queue/songs/settings/theme/display/desktopLyric/metrics/overtime/todo/other/gifts`)
+5. 通过 `legacy-admin-bridge` 初始化迁移期常驻模块；队列通过具名 ESM 初始化，四个可选工具编辑器通过上述激活入口初始化
 6. `stateService.connectSocket()` + `await stateService.reloadAll()`(先 WS 后 HTTP 兜底)
 7. 渲染主题预设卡片
 
@@ -121,7 +127,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 
 - 渲染:点歌队列 = `current + waiting` 拼表,置顶📌、序号、来源标签(`admin/danmaku/superchat/random:<scope>`/history)、SC 列表(价格降序、已处理状态);长歌名分级字号(`data-length="long|very-long"`);管理员队列字体预览(`--admin-queue-font-family`,[queue.js:236-243](../../../public/js/admin/queue.js#L236-L243))。
 - 操作:`/api/queue/action`(next/clear/pin/unpin/delete)、`/api/superchats/action`(assist/unassist/delete),成功后 `reloadState()` 乐观刷新;清空队列走 `dangerConfirm` 二次确认;首行(当前播放)不显示置顶按钮,置顶按钮行为随 `is_pinned` 切换(↧/↑)。
-- 状态条联动:歌库计数 `#songCount`、队列计数 `#queueSize`、`#liveStatus`(连接态/主播名/房间号)都在此渲染;主播名非空且已连接时置顶显示([queue.js:117-136](../../../public/js/admin/queue.js#L117-L136))。
+- 状态条归属：`queue.js` 更新队列计数 `#queueSize`；歌库计数 `#songCount` 与 `#liveStatus` 由 `state-renderer.js` 按对应字段变化更新。
 - 滚轮处理:队列内滚动用 wheel 事件归一化(deltaMode 换算),到达边界后放行页面滚动([queue.js:47-74](../../../public/js/admin/queue.js#L47-L74))。
 
 ### 4.2 songs.js(歌库)
@@ -136,7 +142,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 - 表单收集 `roomId/enableBilibili/paused/queueLimit/userCooldownSeconds/onlyFromLibrary/allowDuplicate` → `POST /api/settings`。
 - 立即生效开关:礼物检测 `enableGiftSprint`、礼物提示 `enableGiftNotification`(失败回滚 checkbox)。
 - Bilibili 扫码登录(仅桌面,`window.bilibiliAuth`,Web 模式禁用);登出走 `logoutConfirm` 弹窗。
-- 盲盒映射:表单添加(chip 展示)/高级 JSON 编辑/逐条删除,保存到 `giftBlindBoxCustomConfigV2` 设置；官方项仅展示 `isBlindBox=true` 且有该完整身份的核验礼物产物或权益奖池的记录，同名或同 ID 的其他活动不继承奖池。官方卡片显示真实 gift ID，权益只显示名称和价值，不伪造礼物编号。服务器标为非盲盒的资料在目录更新后移出官方映射；¥15 七夕盲盒 `35429` 排除，¥25 七夕盲盒 `35141` 保留。默认显示当前直播间可送的盒型，其余通过带数量的按钮展开/收起。状态显示服务器确认的官方映射就绪情况及非零自定义/接管计数，不再显示旧配置迁移提示；当前服务端统一使用官方目录和新版私有配置。高级编辑的空配置显示说明，保留 dirty 草稿，未编辑的空状态不触发保存。
+- 盲盒映射:表单添加(chip 展示)/高级 JSON 编辑/逐条删除,保存到 `giftBlindBoxCustomConfigV2` 设置；官方项仅展示 `giftCategory=blindBox` 且有该完整身份的核验礼物产物或权益奖池的记录，同名或同 ID 的其他活动不继承奖池。官方卡片显示真实 gift ID，权益只显示名称和价值，不伪造礼物编号。服务器标为非盲盒的资料在目录更新后移出官方映射；¥15 七夕盲盒 `35429` 排除，¥25 七夕盲盒 `35141` 保留。默认显示当前直播间可送的盒型，其余通过带数量的按钮展开/收起。状态显示服务器确认的官方映射就绪情况及非零自定义/接管计数，不再显示旧配置迁移提示；当前服务端统一使用官方目录和新版私有配置。高级编辑的空配置显示说明，保留 dirty 草稿，未编辑的空状态不触发保存。
 - 盲盒投屏:由 `blindboxOverlayTitle/Top/WinnersOnly/HeartBoxOnly` 实时生成 `/blindbox?top=&title=&winners=&heartBox=` URL([settings.js:354-380](../../../public/js/admin/settings.js#L354-L380))。
 - 系统操作:清歌库/清 SC/清全部(`dangerConfirm` + `/api/database/*`)、退出(`/api/system/shutdown` 后整页替换为退出屏,桌面版带"重新启动"按钮)、刷新直播(`/api/bilibili/reconnect`)。
 

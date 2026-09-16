@@ -20,7 +20,7 @@ test('admin state events render queue empty states and song data', () => {
   assert.match(source, /eventBus\.on\(Events\.STATE_LOADED/);
   assert.match(
     source,
-    /getLegacyAdminModules\(\)\.queue\?\.renderState\?\.\(state, songs\)/,
+    /eventBus\.on\(Events\.STATE_LOADED, createAdminStateRenderer\(\)\)/,
   );
   assert.match(source, /eventBus\.on\(Events\.SONG_UPDATED/);
   assert.match(

@@ -29,6 +29,10 @@ function normalizeRemoteCatalog(response, options = {}) {
   }
   const gifts = normalizeLegacyGifts(source.gifts, options.imageBaseUrl);
   const blindBoxes = normalizeBlindBoxes(source.blindBoxes, gifts);
+  const outputs = new Set(blindBoxes.flatMap(box => box.outputGiftIds));
+  if (gifts.some(gift => gift.giftCategory !== 'blindBox' &&
+      (gift.giftCategory === 'blindBoxOutput') !== outputs.has(gift.id)))
+    throw catalogError('REMOTE_CATALOG_BLIND_BOXES_INVALID');
   const version = safeText(source.version || source.revision, MAX_TEXT_LENGTH);
   if (!version) throw catalogError('REMOTE_CATALOG_VERSION_MISSING');
   const updatedAt =
@@ -121,7 +125,7 @@ function normalizeRemoteGift(value, imageBaseUrl) {
     coinType,
     bagGift,
     active: value.active,
-    isBlindBox: value.isBlindBox,
+    giftCategory: value.giftCategory,
     sourceUrl: normalizeBilibiliImageUrl(
       value.sourceUrl ?? value.source_url ?? value.imageSourceUrl,
     ),
@@ -150,7 +154,8 @@ function normalizeRemoteGiftIdentity(value) {
     priceRaw === null ||
     !coinType ||
     typeof value.active !== 'boolean' ||
-    typeof value.isBlindBox !== 'boolean'
+    !['directGift', 'blindBox', 'blindBoxOutput'].includes(value.giftCategory) ||
+    Object.hasOwn(value, 'isBlindBox')
   ) {
     return null;
   }
@@ -175,7 +180,7 @@ function normalizeBlindBoxes(value, gifts) {
     if (
       !giftId ||
       seenBoxIds.has(giftId) ||
-      !giftById.get(giftId)?.isBlindBox ||
+      giftById.get(giftId)?.giftCategory !== 'blindBox' ||
       !Array.isArray(entry?.outputGiftIds) ||
       entry.outputGiftIds.length === 0 ||
       entry.outputGiftIds.length > MAX_OUTPUTS_PER_BLIND_BOX

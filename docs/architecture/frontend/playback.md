@@ -18,7 +18,7 @@ js/playback.js          兼容层,仅 import playback/index.js
 | 目录          | 模块                                                                                                                                                                   | 职责                                                                                                                                                |
 | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `core/`       | initializer / renderer / event-handlers / queue-coordinator / action-adapters                                                                                          | 初始化时序、渲染与 DOM 事件；队列/播放委托接线；把控制器依赖收窄为各功能实际需要的动作适配器                                                        |
-| `state/`      | manager / storage                                                                                                                                                      | `StateManager` 响应式状态(createInitialState/validateState/normalizeState);`StorageManager` 状态恢复(服务端优先→localStorage v2→v1 迁移)            |
+| `state/`      | manager / actions / storage                                                                                                                                                      | 初始状态/校验/恢复与显式状态操作;`StorageManager` 状态恢复(服务端优先→localStorage v2→v1 迁移)            |
 | `provider/`   | manager                                                                                                                                                                | 平台选择(QQ/网易云/WeSing)、健康检查、登录态;桌面走 IPC、Web 回退 HTTP(见 [comms.md](comms.md) §4)                                                  |
 | `queue/`      | manager                                                                                                                                                                | `QueueManager`:普通/电台/歌单三种队列、shuffle 顺序、电台自动补量                                                                                   |
 | `services/`   | search / stream / lyric / match / import / home / wesing                                                                                                               | 业务服务(§4)                                                                                                                                        |
@@ -100,9 +100,11 @@ playbackControls → audio.load()/play()
 
 ## 5. 队列、电台与歌单
 
+`state/actions.js` 是当前曲目、历史、播放偏好和待确认请求的写入入口；恢复保持原状态对象身份，完成的同步变更通过 `commit()` 按保存、渲染顺序通知。异步流解析和请求代次仍由 playback-controls 拥有，只在接受结果后提交状态。`queue/manager.js` 独占队列转换、歌单游标和随机顺序；`features/queue-operations.js` 编排音频清理与队列操作，不再维护第二套队列算法。原先未被实际使用的 StateManager 订阅包装已移除，初始状态、规范化及校验仍在 `state/manager.js`。
+
 - **三种队列形态**:`normalQueue`(点歌队列/歌单播放)、`radioQueue`(电台)、`normalQueueTracks`(歌单全量,`playlistIndex` 游标);`queueType` ∈ queue/playlist/radio;`requestedQueue` 承载观众点歌待确认项。`insertTracksNext` 在 playlist 模式从 `playlistIndex+1` 处插入,`removeTrack` 同步从全量列表剔除;`clearQueue` 复位全部队列与 shuffle 游标([queue/manager.js:83-95](../../../public/js/playback/queue/manager.js#L83-L95))。
-- **播放模式**:UI 经 `getNextMode()` 在 sequence/shuffle/repeat-one 间轮换；服务端快照和本地 v2/v1 恢复均接受 repeat-one，旧值 single 归一化为 repeat-one，保留旧值 loop 的兼容接纳。shuffle 用 `shuffleOrder` 索引数组 + `shuffleCursor` 游标(`rebuildShuffleOrder` Fisher–Yates,游标越界回退顺序取队首)。
-- **电台补量**:`ensureRadioQueueFilled` 在电台队列 ≤3 首时按 10 首一批 `POST /api/music/home`(action=radio),过滤最近 30 首历史与队列内重复([queue/manager.js:244-290](../../../public/js/playback/queue/manager.js#L244-L290))。
+- **播放模式**:UI 经 `getNextMode()` 在 sequence/shuffle/repeat-one 间轮换；服务端快照和本地 v2/v1 恢复均接受 repeat-one，旧值 single 归一化为 repeat-one，保留旧值 loop 的兼容接纳。shuffle 用 `shuffleOrder` 曲目 ID 数组 + `shuffleCursor` 游标(`rebuildShuffleOrder` Fisher–Yates,游标越界回退顺序取队首)。
+- **电台补量**:`features/radio-mode.js` 在电台队列 ≤3 首时按 10 首一批 `POST /api/music/home`(action=radio),过滤最近 30 首历史与队列内重复(请求归 radio-mode，去重入队归 QueueManager.refillRadioQueue)。
 - **收藏/歌单**:`playlist-operations.js` 走 `/api/music/playlists/tracks/add|remove`、`/api/music/home`(歌单列表)与 `POST /api/playback/favorites` 系列;收藏/歌单数据经 `CacheManager` 24h 缓存跨启动保留。
 - **缓存统计**:`cache-operations.js` 展示 `GET /api/music/cache` 并支持 `/api/music/cache/clear`。
 

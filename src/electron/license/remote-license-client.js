@@ -8,6 +8,9 @@ const {
 const { isDnsHostname } = require('../../shared/remote-url-policy');
 
 const DEFAULT_BASE_URL = 'https://api.lirahub.cn';
+// Includes canonical song fields, legacy aliases and the complete sync metadata.
+// The server checks this same UTF-8 budget before committing a song mutation.
+const MAX_SONG_SNAPSHOT_BYTES = 8 * 1024 * 1024;
 
 class RemoteLicenseError extends Error {
   constructor(code, message, options = {}) {
@@ -81,7 +84,9 @@ function createRemoteLicenseClient(options = {}) {
           etag: safeHeaderValue(response.headers?.get?.('etag')),
         };
       }
-      const text = await response.text();
+      const text = pathname === '/api/device/songs'
+        ? await readSongSnapshotText(response)
+        : await response.text();
       const maxResponseBytes = Math.max(
         1024,
         Number(requestOptions.maxResponseBytes) || 1024 * 1024,
@@ -92,7 +97,8 @@ function createRemoteLicenseClient(options = {}) {
           '授权服务器响应过大。',
           {
             status: response.status,
-            retryable: response.ok || isRetryableStatus(response.status),
+            retryable: pathname !== '/api/device/songs' &&
+              (response.ok || isRetryableStatus(response.status)),
           },
         );
       }
@@ -358,6 +364,10 @@ function createRemoteLicenseClient(options = {}) {
     verify: (body) => request('POST', '/api/device/verify', body),
     heartbeat: (token) => request('POST', '/api/device/heartbeat', {}, token),
     profile: (token) => request('GET', '/api/device/profile', undefined, token),
+    getOverlaySettings: (token) =>
+      request('GET', '/api/device/overlay-settings', undefined, token),
+    updateOverlaySettings: (settings, token) =>
+      request('PUT', '/api/device/overlay-settings', settings, token),
     getCloudState: (token, requestOptions) =>
       request(
         'GET',
@@ -389,7 +399,7 @@ function createRemoteLicenseClient(options = {}) {
       ),
     getCloudSongs: (token, requestOptions = {}) =>
       request('GET', '/api/device/songs', undefined, token, {
-        maxResponseBytes: 4 * 1024 * 1024,
+        maxResponseBytes: MAX_SONG_SNAPSHOT_BYTES,
         signal: requestOptions.signal,
       }),
     getBilibiliCredentials: (token, requestOptions) =>
@@ -430,6 +440,31 @@ function createRemoteLicenseClient(options = {}) {
     deleteSongPageBackground: (token) =>
       request('DELETE', '/api/device/song-page/background', undefined, token),
   };
+}
+
+async function readSongSnapshotText(response) {
+  if (!response.body?.getReader) return response.text();
+  const reader = response.body.getReader();
+  const chunks = [];
+  let bytes = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      bytes += value.byteLength;
+      if (bytes > MAX_SONG_SNAPSHOT_BYTES) {
+        await reader.cancel().catch(() => {});
+        throw new RemoteLicenseError('RESPONSE_TOO_LARGE', '云端歌库超过读取上限。', {
+          status: response.status,
+          retryable: false,
+        });
+      }
+      chunks.push(Buffer.from(value));
+    }
+    return new TextDecoder().decode(Buffer.concat(chunks, bytes));
+  } finally {
+    reader.releaseLock();
+  }
 }
 
 function parseEventBlock(block) {

@@ -178,6 +178,8 @@ Provider 内部实现见各 Provider 文档 §7.2;这里只记录编排层语义
 
 ### 7.2 分类与标签
 
+快照通过 `domainServices.songs.getMetadata()` 读取分类、标签和歌曲总数。`song-metadata.js` 按 SongStore 的 `getChangeToken()` 缓存这些查询结果；令牌组合本连接 `total_changes()` 与 `PRAGMA data_version`，同时识别其他 store 的写入、批量导入、清库及其他数据库连接提交。失效粒度为整个 songDb，非歌库写入也可能触发一次重读；无库变更的礼物快照复用结果。缓存只用于提交后的快照读取，不保存 SQLite statement 或原始行到跨层接口。
+
 - `listCategories`:`sort_order ASC, name` 排序,`is_enabled` 布尔化(store 查询)
 - `ensureCategory(name)`:`INSERT OR 返回` 语义,新建时 `sort_order=0, is_enabled=1`(store 原子写入)
 - `listTags`:领域层扫描 store 提供的非空 tags，使用共用字段解析器切分去重，`zh-Hans-CN` 排序

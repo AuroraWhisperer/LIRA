@@ -2,6 +2,8 @@
 // 电台模式模块
 'use strict';
 
+import { QueueManager } from '../queue/manager.js';
+
 import * as PlaybackUtils from '../utils.js';
 
 export function createRadioMode(deps) {
@@ -13,6 +15,9 @@ export function createRadioMode(deps) {
     savePlaybackState,
     renderPlayback,
   } = deps;
+
+  const queueManager =
+    deps.queueManager || new QueueManager({ state: playbackState });
 
   let playbackRadioRefillRunning = false;
 
@@ -40,16 +45,7 @@ export function createRadioMode(deps) {
       const tracks = Array.isArray(payload.data && payload.data.tracks)
         ? payload.data.tracks.map(PlaybackUtils.normalizeOnlineTrack)
         : [];
-      const recentIds = new Set(
-        playbackState.history.slice(-30).map((track) => track.id),
-      );
-
-      for (const track of tracks) {
-        if (recentIds.has(track.id)) continue;
-        if (playbackState.radioQueue.some((item) => item.id === track.id))
-          continue;
-        playbackState.radioQueue.push(track);
-      }
+      queueManager.refillRadioQueue(tracks);
 
       savePlaybackState();
       renderPlayback();

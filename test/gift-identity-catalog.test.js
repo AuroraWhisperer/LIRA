@@ -76,7 +76,7 @@ test('room merge and rule artwork never substitute another name or price sharing
   assert.equal(changed.gifts[0].imagePath, '');
   assert.equal(changed.gifts[0].giftIdentity, undefined);
   const withOutputs = mergeRoomCatalog({ gifts: [qixi] }, snapshot);
-  assert.equal(qixi.isBlindBox, false);
+  assert.equal(qixi.giftCategory, 'directGift');
   assert.equal(
     withOutputs.gifts.some(
       (gift) => gift.variantId === fixture.outputVariantId,

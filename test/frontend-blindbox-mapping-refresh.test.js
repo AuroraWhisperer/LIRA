@@ -75,8 +75,8 @@ test('blind-box mapping skips obsolete room requests and retries a wrong-room re
   fixture.textarea.value = '[]';
   fixture.module.applyOfficialCatalogSnapshot({
     gifts: [
-      { id: 'old', name: '旧盒', rmb: 5, isBlindBox: true },
-      { id: 'final', name: '最终盒', rmb: 5, isBlindBox: true },
+      { id: 'old', name: '旧盒', rmb: 5, giftCategory: 'blindBox' },
+      { id: 'final', name: '最终盒', rmb: 5, giftCategory: 'blindBox' },
       { id: 'output', name: '产物', rmb: 1 },
     ],
     blindBoxes: ['old', 'final'].map((giftId) => ({
@@ -137,8 +137,8 @@ test('blind-box mapping stays alphabetical after a failed refresh and can refres
   });
   fixture.module.applyOfficialCatalogSnapshot({
     gifts: [
-      { id: '100', name: '官方盲盒', rmb: 5, isBlindBox: true },
-      { id: '200', name: '在售盲盒', rmb: 5, isBlindBox: true },
+      { id: '100', name: '官方盲盒', rmb: 5, giftCategory: 'blindBox' },
+      { id: '200', name: '在售盲盒', rmb: 5, giftCategory: 'blindBox' },
       { id: '101', name: '产物', rmb: 1 },
     ],
     blindBoxes: ['100', '200'].map((giftId) => ({

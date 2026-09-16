@@ -166,7 +166,7 @@
 
 签名基础设施已就绪:
 
-- [scripts/sign-windows.js](../../../scripts/sign-windows.js):electron-builder 签名脚本(骨架实现,等待证书配置)
+- [scripts/sign-windows.js](../../../scripts/sign-windows.js):electron-builder 签名脚本(已实现,等待证书配置与构建接入)
 - [scripts/verify-windows-release.js](../../../scripts/verify-windows-release.js):PowerShell `Get-AuthenticodeSignature` 验证脚本(完整实现)
 - 发布门禁集成点已设计(在 [scripts/publish-release.js](../../../scripts/publish-release.js) electron-builder 成功后插入验证)
 

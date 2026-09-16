@@ -2,8 +2,10 @@
 // 播放控制模块
 'use strict';
 
+import { createPlaybackStateActions } from '../state/actions.js';
+
 import * as PlaybackUtils from '../utils.js';
-import { PlaybackConfig } from '../config.js';
+import { QueueManager } from '../queue/manager.js';
 
 function isInterruptedMediaPlayError(error) {
   return (
@@ -31,6 +33,14 @@ export function createPlaybackControls(deps) {
     rebuildPlaybackShuffleOrder,
     U,
   } = deps;
+  const stateActions =
+    deps.stateActions ||
+    createPlaybackStateActions(playbackState, {
+      save: savePlaybackState,
+      render: renderPlayback,
+    });
+  const queueManager =
+    deps.queueManager || new QueueManager({ state: playbackState });
   let playRequestGeneration = 0;
   let audioRequestGeneration = 0;
 
@@ -86,8 +96,7 @@ export function createPlaybackControls(deps) {
       if (updated && updated.objectUrl) {
         Object.assign(track, updated);
         track.fileMissing = false;
-        savePlaybackState();
-        renderPlayback();
+        stateActions.commit();
         return true;
       }
     } catch (_) {}
@@ -141,27 +150,7 @@ export function createPlaybackControls(deps) {
     Object.assign(track, streamTrack);
 
     if (!options.isRetry) streamService.resetRetryCount();
-    if (
-      playbackState.current &&
-      playbackState.current.id !== track.id &&
-      !options.fromHistory
-    ) {
-      playbackState.history.push(playbackState.current);
-      playbackState.history = playbackState.history.slice(
-        -PlaybackConfig.HISTORY_MAX_SIZE,
-      );
-    }
-    // 更新展示用播放历史（200首，去重，最新置顶）
-    if (!options.fromHistory) {
-      playbackState.displayHistory = [
-        { ...track, playedAt: Date.now() },
-        ...playbackState.displayHistory.filter((t) => t.id !== track.id),
-      ].slice(0, PlaybackConfig.DISPLAY_HISTORY_MAX_SIZE);
-    }
-
-    playbackState.current = track;
-    playbackState.currentOrigin =
-      options.origin || playbackState.currentOrigin || 'normal';
+    stateActions.beginTrack(track, options);
     audioRequestGeneration = requestGeneration;
     audio.dataset.trackId = track.id;
     audio.src = streamUrl;
@@ -204,19 +193,17 @@ export function createPlaybackControls(deps) {
 
     if (!isCurrentPlaybackRequest(requestGeneration, track)) return;
 
-    playbackState.restoredTime = 0;
+    stateActions.finishTrackStart();
 
     loadPlaybackLyrics(track);
-    savePlaybackState();
-    renderPlayback();
+    stateActions.commit();
     updatePlaybackMediaSession();
   }
 
   async function loadPlaybackLyrics(track) {
     if (!track) return;
     const lyrics = await lyricService.loadLyrics(track);
-    if (playbackState.current && playbackState.current.id === track.id) {
-      playbackState.current.lyrics = lyrics || { lines: [] };
+    if (stateActions.setLyrics(track.id, lyrics)) {
       syncPlaybackLyricWindow(true);
     }
   }
@@ -236,9 +223,8 @@ export function createPlaybackControls(deps) {
     )
       return;
 
-    playbackState.qualityPreferences[source] = normalizedQuality;
-    savePlaybackState();
-    renderPlayback();
+    stateActions.setQuality(source, normalizedQuality);
+    stateActions.commit();
 
     const track = playbackState.current;
     if (!audio || !track || track.source !== source) {
@@ -294,8 +280,7 @@ export function createPlaybackControls(deps) {
           ? `已切换到${actualQuality}音质`
           : `${requestedLabel}不可用，已使用${actualQuality}音质`,
       );
-      savePlaybackState();
-      renderPlayback();
+      stateActions.commit();
     } catch (error) {
       if (!isCurrentPlaybackRequest(requestGeneration, track)) return;
       audioRequestGeneration = requestGeneration;
@@ -314,8 +299,7 @@ export function createPlaybackControls(deps) {
     if (!playbackState.current) {
       const next = takeNextPlaybackTrack();
       if (next) {
-        playbackState.current = next.track;
-        playbackState.currentOrigin = next.origin;
+        stateActions.selectTrack(next.track, next.origin);
       }
     }
 
@@ -371,7 +355,7 @@ export function createPlaybackControls(deps) {
       audio.currentTime = 0;
       return;
     }
-    const previousTrack = playbackState.history.pop();
+    const previousTrack = stateActions.takePrevious();
     if (previousTrack) {
       await playPlaybackTrack(previousTrack, {
         fromHistory: true,
@@ -411,11 +395,7 @@ export function createPlaybackControls(deps) {
         playbackState.mode === 'shuffle'
           ? PlaybackUtils.shuffleTracks(playbackState.normalQueueTracks)
           : playbackState.normalQueueTracks.map((track) => ({ ...track }));
-      const first = tracks[0];
-      playbackState.normalQueue = tracks.slice(1);
-      playbackState.playlistIndex = playbackState.normalQueueTracks.findIndex(
-        (track) => track.id === first.id,
-      );
+      const first = queueManager.restartPlaylist(tracks);
       rebuildPlaybackShuffleOrder();
       savePlaybackState();
       playPlaybackTrack(first, { origin: 'normal' });

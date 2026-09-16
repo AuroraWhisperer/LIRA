@@ -23,17 +23,17 @@ test('blind-box mapping shows room gifts by default and expands the remaining ma
     source: 'server',
     roomId: '',
     gifts: [
-      { id: '100', name: '官方盲盒', rmb: 5, isBlindBox: true, active: true },
-      { id: '101', name: '官方产物', rmb: 3, isBlindBox: false },
-      { id: '103', name: '在售官方盒甲', rmb: 5, isBlindBox: true },
+      { id: '100', name: '官方盲盒', rmb: 5, giftCategory: 'blindBox', active: true },
+      { id: '101', name: '官方产物', rmb: 3, giftCategory: 'directGift' },
+      { id: '103', name: '在售官方盒甲', rmb: 5, giftCategory: 'blindBox' },
       {
         id: '102',
         name: '历史官方盒',
         rmb: 5,
-        isBlindBox: true,
+        giftCategory: 'blindBox',
         active: false,
       },
-      { id: '104', name: '在售官方盒乙', rmb: 10, isBlindBox: true },
+      { id: '104', name: '在售官方盒乙', rmb: 10, giftCategory: 'blindBox' },
     ],
     blindBoxes: ['100', '102', '103', '104'].map((giftId) => ({
       giftId,
@@ -176,7 +176,7 @@ test('official mapping requires a verified pool for each identity and respects n
     variantId: 'unverified',
     name: '大航海盲盒',
     rmb: 50,
-    isBlindBox: true,
+    giftCategory: 'blindBox',
   };
   const verified = { ...unverified, id: '34635', variantId: 'verified' };
   const excluded = [
@@ -189,7 +189,7 @@ test('official mapping requires a verified pool for each identity and respects n
     ['35429', '中秋盲盒'],
     ['35960', '组合测试'],
   ].map(([id, name]) => ({
-    id, name, variantId: `excluded-${id}-${name}`, rmb: 1, isBlindBox: false,
+    id, name, variantId: `excluded-${id}-${name}`, rmb: 1, giftCategory: 'directGift',
   }));
   const output = { id: '100', variantId: 'output', name: '官方产物', rmb: 3 };
   const snapshot = {
@@ -228,7 +228,7 @@ test('official mapping requires a verified pool for each identity and respects n
     /官方产物<small>#100<\/small><small>3<\/small>/,
   );
 
-  verified.isBlindBox = false;
+  verified.giftCategory = 'directGift';
   fixture.module.applyOfficialCatalogSnapshot(snapshot);
   assert.deepEqual(fixture.visibleNames(), ['大航海盲盒']);
   assert.doesNotMatch(fixture.container.innerHTML, /#34635|舰长3天/);
@@ -240,9 +240,9 @@ test('legacy official mapping also excludes boxes without a verified output pool
   fixture.module.applyOfficialCatalogSnapshot({
     schemaVersion: 2,
     gifts: [
-      { id: '100', name: '同名盲盒', rmb: 5, isBlindBox: true },
-      { id: '101', name: '同名盲盒', rmb: 5, isBlindBox: true },
-      { id: '102', name: '产物', rmb: 1, isBlindBox: false },
+      { id: '100', name: '同名盲盒', rmb: 5, giftCategory: 'blindBox' },
+      { id: '101', name: '同名盲盒', rmb: 5, giftCategory: 'blindBox' },
+      { id: '102', name: '产物', rmb: 1, giftCategory: 'directGift' },
     ],
     blindBoxes: [{ giftId: '101', outputGiftIds: ['102'] }],
   });
@@ -255,7 +255,7 @@ test('same-name Zongxia boxes keep the verified box and all seven outputs after 
   const fixture = await createBlindboxFixture({ roomId: '123' });
   const verified = {
     id: '35015', variantId: 'zongxia-verified', name: '粽夏奇趣',
-    rmb: 9, isBlindBox: true,
+    rmb: 9, giftCategory: 'blindBox',
   };
   const unverified = {
     ...verified, id: '35029', variantId: 'zongxia-unverified',
@@ -304,11 +304,11 @@ test('same-name Qixi gifts keep only the verified 25 yuan box in mappings', asyn
     gifts: [
       {
         id: '35429', variantId: 'qixi15', name: '七夕盲盒',
-        rmb: 15, isBlindBox: false,
+        rmb: 15, giftCategory: 'directGift',
       },
       {
         id: '35141', variantId: 'qixi25', name: '七夕盲盒',
-        rmb: 25, isBlindBox: true,
+        rmb: 25, giftCategory: 'blindBox',
       },
       { id: '35142', variantId: 'qixi-output', name: '七夕产物', rmb: 1 },
     ],
@@ -329,7 +329,7 @@ test('blind-box mapping folds historical variants sharing the current gift ID an
     variantId: 'current',
     name: '当季盲盒',
     rmb: 10,
-    isBlindBox: true,
+    giftCategory: 'blindBox',
   };
   fixture.module.applyOfficialCatalogSnapshot({
     schemaVersion: 3,
@@ -367,8 +367,8 @@ test('blind-box mapping refreshes when a room is configured without a desktop au
   ]);
   fixture.module.applyOfficialCatalogSnapshot({
     gifts: [
-      { id: '100', name: '官方盲盒', rmb: 5, isBlindBox: true },
-      { id: '101', name: '历史官方盒', rmb: 5, isBlindBox: true },
+      { id: '100', name: '官方盲盒', rmb: 5, giftCategory: 'blindBox' },
+      { id: '101', name: '历史官方盒', rmb: 5, giftCategory: 'blindBox' },
       { id: '102', name: '产物', rmb: 1 },
     ],
     blindBoxes: ['100', '101'].map((giftId) => ({

@@ -101,6 +101,9 @@ contextBridge.exposeInMainWorld('liraLicense', {
     ipcRenderer.invoke('license:get-gift-catalog-state'),
   retryGiftCatalog: () => ipcRenderer.invoke('license:retry-gift-catalog'),
   getProfile: () => ipcRenderer.invoke('license:get-profile'),
+  getOverlaySettings: () => ipcRenderer.invoke('license:get-overlay-settings'),
+  updateOverlaySettings: (settings) =>
+    ipcRenderer.invoke('license:update-overlay-settings', settings),
   syncSongs: (songs) => ipcRenderer.invoke('license:sync-songs', songs),
   getCloudSongs: () => ipcRenderer.invoke('license:get-cloud-songs'),
   getSongPageBackground: () =>

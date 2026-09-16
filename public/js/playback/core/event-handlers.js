@@ -2,6 +2,8 @@
 // 事件处理模块
 'use strict';
 
+import { createPlaybackStateActions } from '../state/actions.js';
+
 import * as PlaybackUtils from '../utils.js';
 import * as PlaybackComponents from '../ui/components.js';
 
@@ -56,6 +58,12 @@ export function createEventHandlers(deps) {
     escapeHtml,
     value,
   } = deps;
+  const stateActions =
+    deps.stateActions ||
+    createPlaybackStateActions(playbackState, {
+      save: savePlaybackState,
+      render: renderPlayback,
+    });
 
   function setupEventHandlers() {
     setupPlaybackControlButtons();
@@ -271,7 +279,7 @@ export function createEventHandlers(deps) {
         );
         if (!newSource || newSource === playbackState.selectedSource) return;
 
-        playbackState.selectedSource = newSource;
+        stateActions.selectSource(newSource);
         if (newSource === 'wesing') {
           // The WeSing client is the playback clock while this source is selected.
           getPlaybackAudio()?.pause();
@@ -279,8 +287,7 @@ export function createEventHandlers(deps) {
         }
         searchService.clearResults();
         homeService.clearHomeState();
-        savePlaybackState();
-        renderPlayback();
+        stateActions.commit();
         renderPlaybackSearchResults();
         closePlaybackDrawer();
         void refreshSelectedMusicProviderState();
@@ -329,9 +336,8 @@ export function createEventHandlers(deps) {
           '[data-playback-clear-display-history]',
         );
         if (clearHistBtn) {
-          playbackState.displayHistory = [];
-          savePlaybackState();
-          renderPlayback();
+          stateActions.clearDisplayHistory();
+          stateActions.commit();
           return;
         }
 
@@ -374,10 +380,9 @@ export function createEventHandlers(deps) {
     document
       .getElementById('playbackModeBtn')
       ?.addEventListener('click', () => {
-        playbackState.mode = PlaybackUtils.getNextMode(playbackState.mode);
+        stateActions.setMode(PlaybackUtils.getNextMode(playbackState.mode));
         rebuildPlaybackShuffleOrder();
-        savePlaybackState();
-        renderPlayback();
+        stateActions.commit();
       });
   }
 
@@ -397,9 +402,8 @@ export function createEventHandlers(deps) {
     document
       .getElementById('playbackVolume')
       ?.addEventListener('input', (event) => {
-        playbackState.volume = Math.max(
-          0,
-          Math.min(1, Number(event.target.value)),
+        stateActions.setVolume(
+          Math.max(0, Math.min(1, Number(event.target.value))),
         );
         audio.volume = playbackState.volume;
         PlaybackComponents.updateVolumeUI(playbackState.volume);

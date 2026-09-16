@@ -187,7 +187,7 @@ import {
     );
     officialBlindBoxes = gifts
       .filter((gift) => {
-        if (gift?.isBlindBox !== true) return false;
+        if (gift?.giftCategory !== 'blindBox') return false;
         const relation = relationById.get(
           String(identityMode ? gift.variantId : gift.id),
         );

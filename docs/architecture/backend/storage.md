@@ -16,6 +16,8 @@
 
 ## 1. 技术选型
 
+礼物投影读写由 `gift-projection-store.js` 拥有，参与调用者已有的历史/游标事务；统计投递由 `gift-statistics-store.js` 拥有独立的 `BEGIN IMMEDIATE` / COMMIT / ROLLBACK，原子检查并标记已投递。两个适配器保持既有表结构与同步调用，不把数据库句柄或 statement 暴露给领域实现。领域校验、终态决策和提交后扇出见 [gift.md](bilibili/gift.md#3-历史导入与存储边界)。
+
 - **`node:sqlite` 内置模块 `DatabaseSync`**(同步 API),零第三方数据库依赖;要求 Node ≥ 24(见 [engineering/build.md](../engineering/build.md))。
 - 每库统一 PRAGMA([database.js](../../../src/storage/database.js)):`journal_mode=WAL`、`synchronous=NORMAL`、`cache_size=-8000`、`temp_store=MEMORY`;`songDb`/`giftDb`/`musicDb`/`lotteryDb` 额外 `foreign_keys=ON`。
 - **多库拆分**:按域隔离,避免单库写锁竞争与误清数据,详见 ADR [0004-reuse-monolith-and-gift-db](../adr/0004-reuse-monolith-and-gift-db.md)。

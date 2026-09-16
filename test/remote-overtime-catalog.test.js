@@ -89,7 +89,7 @@ test('keeps the current room catalog primary and decorates exact IDs with server
                 coinType: 'gold',
                 bagGift: false,
                 active: true,
-                isBlindBox: true,
+                giftCategory: 'blindBox',
                 imageUrl: '/gift-media/images/box.webp',
               },
               {
@@ -99,7 +99,7 @@ test('keeps the current room catalog primary and decorates exact IDs with server
                 coinType: 'gold',
                 bagGift: false,
                 active: true,
-                isBlindBox: false,
+                giftCategory: 'blindBoxOutput',
                 imageUrl: '/gift-media/images/output.webp',
               },
               {
@@ -109,7 +109,7 @@ test('keeps the current room catalog primary and decorates exact IDs with server
                 coinType: 'gold',
                 bagGift: false,
                 active: true,
-                isBlindBox: false,
+                giftCategory: 'directGift',
                 imageUrl: '/gift-media/images/same-first.webp',
               },
               {
@@ -119,7 +119,7 @@ test('keeps the current room catalog primary and decorates exact IDs with server
                 coinType: 'gold',
                 bagGift: false,
                 active: true,
-                isBlindBox: false,
+                giftCategory: 'directGift',
                 imageUrl: '/gift-media/images/same-second.webp',
               },
               {
@@ -129,7 +129,7 @@ test('keeps the current room catalog primary and decorates exact IDs with server
                 coinType: 'gold',
                 bagGift: false,
                 active: true,
-                isBlindBox: false,
+                giftCategory: 'directGift',
                 imageUrl: '/gift-media/images/server.webp',
               },
             ],
@@ -326,7 +326,7 @@ test('local and legacy server searches never fetch while handling the query', as
                 priceRaw: 100,
                 coinType: 'gold',
                 active: true,
-                isBlindBox: false,
+                giftCategory: 'directGift',
               },
             ],
           };

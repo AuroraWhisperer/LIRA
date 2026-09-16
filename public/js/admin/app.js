@@ -14,18 +14,39 @@ import {
   publishOnboarding,
 } from './legacy-admin-bridge.js';
 import { initUsageGuide } from './usage-guide.js';
-import { initGames } from './games.js';
+import { createToolboxLifecycle } from './toolbox-lifecycle.js';
 import { initDynamicLottery } from './dynamic-lottery.js';
 import { initOnboarding } from './onboarding.js';
 import { initInteractiveTour } from './interactive-tour.js';
-import { initStartAnimation } from './start-animation.js';
 import { initGiftFrame } from './gift-frame.js';
-import { initClockCard } from './clock-card.js';
 import { initGiftHistoryDrawer } from './gifts/history.js';
 import { initSongImportUpdate } from './song-import-update.js';
 
 import { stateService } from './state.js';
 import { formsService } from './forms.js';
+import { initQueueForm } from './queue.js';
+import { createAdminStateRenderer } from './state-renderer.js';
+
+const toolbox = createToolboxLifecycle({
+  loaders: {
+    otherStartAnimationFeature: () =>
+      import('./start-animation.js').then(
+        (module) => module.initStartAnimation,
+      ),
+    otherClockFeature: () =>
+      import('./clock-card.js').then((module) => module.initClockCard),
+    otherGamesFeature: () =>
+      import('./games.js').then((module) => module.initGames),
+    otherOvertimeMachineFeature: () =>
+      import('./overtime.js').then(
+        (module) => () => module.initOvertime(stateService.getAppState()),
+      ),
+  },
+  onError: Utils.showError,
+});
+window.addEventListener('beforeunload', () => toolbox.dispose(), {
+  once: true,
+});
 
 /**
  * 应用初始化
@@ -61,7 +82,7 @@ async function initApp() {
   modules.desktop?.initDesktopShell?.();
 
   // 初始化各模块表单（使用兼容层调用）
-  modules.queue?.initQueueForm?.();
+  initQueueForm();
   modules.songs?.initSongForm?.();
   initSongImportUpdate({
     imports: modules.imports,
@@ -78,11 +99,9 @@ async function initApp() {
   }
   modules.desktopLyric?.initDesktopLyricForm?.();
   modules.metrics?.initPerformanceMonitor?.();
-  modules.overtime?.init?.();
   modules.giftEffects?.init?.();
   initGiftFrame();
   modules.todo?.init?.();
-  initGames();
   const dynamicLottery = initDynamicLottery();
   window.addEventListener('beforeunload', () => dynamicLottery.dispose(), {
     once: true,
@@ -104,6 +123,7 @@ async function initApp() {
 
   // 初始化「百宝箱」页面的通用功能导航
   modules.other?.initOtherPage?.({
+    onFeatureSelected: toolbox.selectFeature,
     persistSidebarCollapsed: (collapsed) =>
       Utils.api('/api/settings', {
         toolboxSidebarCollapsed: String(collapsed),
@@ -113,13 +133,9 @@ async function initApp() {
         toolboxCollapsedFeatureGroups: JSON.stringify(groupIds),
       }),
   });
-  initStartAnimation();
-  initClockCard();
   initGiftHistoryDrawer();
 
-  eventBus.on(Events.STATE_LOADED, ({ state, songs }) => {
-    getLegacyAdminModules().queue?.renderState?.(state, songs);
-  });
+  eventBus.on(Events.STATE_LOADED, createAdminStateRenderer());
   eventBus.on(Events.SONG_UPDATED, ({ songs, languages, artists, tags }) => {
     getLegacyAdminModules().songs?.renderSongs?.(
       songs,
@@ -271,6 +287,7 @@ function setMainPage(pageId) {
   });
 
   document.body.dataset.mainPage = MAIN_PAGE_BODY_MAP[nextPageId] || 'songs';
+  toolbox.setPage(nextPageId);
 
   const targetHash = MAIN_PAGE_HASH_MAP[nextPageId] || '';
   if (location.hash !== targetHash) {

@@ -18,16 +18,44 @@ function createLicenseOperations(options = {}) {
   const withAuthorizedSecret = options.withAuthorizedSecret;
 
   async function getProfile() {
-    const result = await withAuthorizedToken((token) => remote.profile(token));
-    if (options.isDisposed()) throw new Error('LICENSE_NOT_AUTHORIZED');
-    options.setProfile(result);
-    return options.getSnapshot();
+    return withAuthorizedToken(
+      (token) => remote.profile(token),
+      0,
+      true,
+      (result) => {
+        options.setProfile(result);
+        return options.getSnapshot();
+      },
+    );
   }
 
   async function getCloudState(requestOptions = {}) {
     return withAuthorizedToken((token) =>
       remote.getCloudState(token, requestOptions),
     );
+  }
+
+  async function getOverlaySettings() {
+    return overlayOperation((token) => remote.getOverlaySettings(token));
+  }
+
+  async function updateOverlaySettings(settings) {
+    return overlayOperation((token) => remote.updateOverlaySettings(settings, token));
+  }
+
+  function overlayOperation(operation) {
+    const owner = options.getOverlayOwner();
+    const assertOwner = () => {
+      if (options.isDisposed() || owner !== options.getOverlayOwner()) {
+        throw new RemoteLicenseError('LICENSE_NOT_AUTHORIZED', '授权账号已变化，请重新读取配置。');
+      }
+    };
+    return withAuthorizedToken(async (token) => {
+      assertOwner();
+      const result = await operation(token);
+      assertOwner();
+      return result;
+    });
   }
 
   async function watchCloudStateChangesInternal(options = {}) {
@@ -282,6 +310,8 @@ function createLicenseOperations(options = {}) {
     getGiftEventsInternal,
     getGiftHistoryInternal,
     getProfile,
+    getOverlaySettings,
+    updateOverlaySettings,
     getSongPageBackground,
     setBilibiliCredentialsInternal,
     syncSongs,

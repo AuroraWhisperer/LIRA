@@ -415,6 +415,7 @@ function createServerRuntime(runtimeOptions = {}) {
   }
 
   function getState() {
+    const songMetadata = domainServices.songs.getMetadata();
     return {
       queue: domainServices.queue.getSnapshot(),
       superChats: domainServices.superChats.getSnapshot(),
@@ -424,9 +425,9 @@ function createServerRuntime(runtimeOptions = {}) {
       blindBoxMapping: blindBoxMappingState,
       overtime: domainServices.overtime.getSnapshot(),
       settings: settingsStore.getSettings(),
-      categories: domainServices.songs.listCategories(),
-      tags: domainServices.songs.listTags(),
-      songCount: domainServices.songs.count(),
+      categories: songMetadata.categories,
+      tags: songMetadata.tags,
+      songCount: songMetadata.songCount,
       liveStatus,
       bilibiliDiagnostics,
       lyricState: musicRuntime.getLyricState(),

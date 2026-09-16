@@ -4,7 +4,7 @@
  * Windows 代码签名验证脚本
  *
  * 用途:验证构建产物的 Authenticode 签名有效性与发布者身份
- * 调用方:scripts/publish-release.js(发布门禁)
+ * 当前入口:手动 CLI；尚未接入 scripts/publish-release.js 发布门禁
  * 依赖:PowerShell Get-AuthenticodeSignature
  *
  * 使用方式:

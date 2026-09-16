@@ -157,6 +157,8 @@ function createLicenseManager(options = {}) {
   async function bootstrap() {
     if (disposed) return state;
     if (busy) return busy;
+    clearSession();
+    const generation = lifecycleGeneration;
     busy = (async () => {
       setState(LicenseState.CHECKING);
       identity = stateStore.read();
@@ -173,9 +175,10 @@ function createLicenseManager(options = {}) {
             'DEVICE_KEY_UNAVAILABLE',
           );
         }
-        await authenticate({ identity, privateKeyPem });
+        await authenticate({ identity, privateKeyPem, generation });
         return state;
       } catch (error) {
+        if (!isLifecycleActive(generation)) return state;
         return handleAuthError(error);
       }
     })();
@@ -190,6 +193,7 @@ function createLicenseManager(options = {}) {
     if (disposed)
       return { ok: false, state, error: 'LICENSE_MANAGER_DISPOSED' };
     if (busy) return busy;
+    clearSession();
     const generation = lifecycleGeneration;
     busy = (async () => {
       const validated = validateActivationInput(input);
@@ -226,6 +230,8 @@ function createLicenseManager(options = {}) {
           ),
         };
       } catch (error) {
+        if (!isLifecycleActive(generation))
+          return { ok: false, state, error: getErrorCode(error) };
         clearSession();
         const next = handleAuthError(error);
         return { ok: false, state: next, error: getErrorCode(error) };
@@ -243,12 +249,15 @@ function createLicenseManager(options = {}) {
   }
 
   async function ensureAuthorized() {
-    if (disposed) throw new Error('LICENSE_NOT_AUTHORIZED');
+    const context = captureAuthorizationContext();
+    assertAuthorizationContext(context);
     if (renewalPromise) await renewalPromise;
+    assertAuthorizationContext(context);
     if (state !== LicenseState.AUTHORIZED || !accessToken)
       throw new Error('LICENSE_NOT_AUTHORIZED');
     if (tokenExpiresAt && tokenExpiresAt <= Date.now()) {
       const renewed = await renew();
+      assertAuthorizationContext(context);
       if (!renewed || state !== LicenseState.AUTHORIZED || !accessToken)
         throw new Error('LICENSE_NOT_AUTHORIZED');
     }
@@ -265,35 +274,77 @@ function createLicenseManager(options = {}) {
     return remote.baseUrl;
   }
 
-  async function withAuthorizedToken(operation, attempt = 0, sanitize = true) {
-    const token = await ensureAuthorized();
-    try {
-      // Remote JSON is untrusted input.  Keep the device token and other
-      // credentials inside the main process even if a proxy/server echoes
-      // request fields back in a successful response.
-      const result = await operation(token);
-      return sanitize ? sanitizeRemoteResponse(result) : result;
-    } catch (error) {
-      const code = getErrorCode(error);
-      if (
-        attempt < 1 &&
-        REAUTHENTICATE_CODES.has(code) &&
-        state === LicenseState.AUTHORIZED
-      ) {
-        if (token !== accessToken && accessToken) {
-          return withAuthorizedToken(operation, attempt + 1, sanitize);
+  function captureAuthorizationContext() {
+    return {
+      generation: lifecycleGeneration,
+      owner: JSON.stringify([
+        identity?.streamerId,
+        identity?.deviceId,
+        identity?.licenseId,
+      ]),
+    };
+  }
+
+  function isAuthorizationContextActive(context) {
+    return (
+      isLifecycleActive(context.generation) &&
+      context.owner === captureAuthorizationContext().owner
+    );
+  }
+
+  function assertAuthorizationContext(context) {
+    if (!isAuthorizationContextActive(context))
+      throw new RemoteLicenseError(
+        'LICENSE_NOT_AUTHORIZED',
+        'LICENSE_NOT_AUTHORIZED',
+      );
+  }
+
+  async function withAuthorizedToken(
+    operation,
+    attempt = 0,
+    sanitize = true,
+    acceptResult = (result) => result,
+  ) {
+    // Token renewal stays inside one lifecycle; activation, blocking and
+    // disposal invalidate its requests even when the same owner returns later.
+    const context = captureAuthorizationContext();
+    return execute(attempt);
+
+    async function execute(currentAttempt) {
+      assertAuthorizationContext(context);
+      const token = await ensureAuthorized();
+      assertAuthorizationContext(context);
+      try {
+        // Remote JSON is untrusted input. Keep credentials in main even when
+        // the server echoes them, and commit state before yielding again.
+        const result = await operation(token);
+        assertAuthorizationContext(context);
+        return acceptResult(sanitize ? sanitizeRemoteResponse(result) : result);
+      } catch (error) {
+        if (!isAuthorizationContextActive(context)) throw error;
+        const code = getErrorCode(error);
+        if (
+          currentAttempt < 1 &&
+          REAUTHENTICATE_CODES.has(code) &&
+          state === LicenseState.AUTHORIZED
+        ) {
+          if (token !== accessToken && accessToken) {
+            return execute(currentAttempt + 1);
+          }
+          const renewed = await renew({
+            preserveValidSession: false,
+            throwOnFailure: true,
+          });
+          if (!isAuthorizationContextActive(context)) throw error;
+          if (renewed && state === LicenseState.AUTHORIZED && accessToken) {
+            return execute(currentAttempt + 1);
+          }
+          if (state !== LicenseState.AUTHORIZED) throw error;
         }
-        const renewed = await renew({
-          preserveValidSession: false,
-          throwOnFailure: true,
-        });
-        if (renewed && state === LicenseState.AUTHORIZED && accessToken) {
-          return withAuthorizedToken(operation, attempt + 1, sanitize);
-        }
-        if (state !== LicenseState.AUTHORIZED) throw error;
+        handleProtectedRequestError(error);
+        throw error;
       }
-      handleProtectedRequestError(error);
-      throw error;
     }
   }
 
@@ -394,6 +445,7 @@ function createLicenseManager(options = {}) {
   } = {}) {
     if (disposed) return false;
     if (renewalPromise) return renewalPromise;
+    const context = captureAuthorizationContext();
     const operation = (async () => {
       if (!identity || state !== LicenseState.AUTHORIZED) return false;
       const expectedToken = accessToken;
@@ -402,12 +454,16 @@ function createLicenseManager(options = {}) {
         const result = await authenticate({
           identity,
           privateKeyPem,
-          generation: lifecycleGeneration,
+          generation: context.generation,
           expectedState: LicenseState.AUTHORIZED,
           expectedToken,
         });
         return Boolean(result);
       } catch (error) {
+        if (!isAuthorizationContextActive(context)) {
+          if (throwOnFailure) throw error;
+          return false;
+        }
         const code = getErrorCode(error);
         if (isBlockedCode(code)) {
           handleAuthError(error);
@@ -478,11 +534,13 @@ function createLicenseManager(options = {}) {
 
   function scheduleHeartbeat() {
     if (disposed) return;
+    const generation = lifecycleGeneration;
     timers.clearTimeout(heartbeatTimer);
     heartbeatTimer = timers.setTimeout(async () => {
       heartbeatTimer = null;
       await heartbeatNow();
-      if (!disposed && state === LicenseState.AUTHORIZED) scheduleHeartbeat();
+      if (isLifecycleActive(generation) && state === LicenseState.AUTHORIZED)
+        scheduleHeartbeat();
     }, HEARTBEAT_INTERVAL_MS);
     heartbeatTimer.unref?.();
   }
@@ -513,12 +571,15 @@ function createLicenseManager(options = {}) {
     heartbeatTimer = null;
     if (state === LicenseState.NEEDS_CONNECTION) return bootstrap();
     if (state !== LicenseState.AUTHORIZED) return false;
+    const generation = lifecycleGeneration;
     const result = await heartbeatNow();
-    if (state === LicenseState.AUTHORIZED) scheduleHeartbeat();
+    if (isLifecycleActive(generation) && state === LicenseState.AUTHORIZED)
+      scheduleHeartbeat();
     return result;
   }
 
   function clearSession() {
+    lifecycleGeneration += 1;
     if (accessToken || profile) authorizationEpoch += 1;
     accessToken = '';
     tokenExpiresAt = 0;
@@ -527,6 +588,8 @@ function createLicenseManager(options = {}) {
     timers.clearTimeout(heartbeatTimer);
     renewalTimer = null;
     heartbeatTimer = null;
+    renewalPromise = null;
+    heartbeatPromise = null;
   }
 
   function isLifecycleActive(generation) {
@@ -536,35 +599,17 @@ function createLicenseManager(options = {}) {
   function dispose() {
     if (disposed) return;
     disposed = true;
-    lifecycleGeneration += 1;
     clearSession();
     listeners.clear();
   }
 
-  const {
-    clearBilibiliCredentialsInternal,
-    clearGiftHistoryInternal,
-    deleteSongPageBackground,
-    getBilibiliCredentialsInternal,
-    getCloudSongs,
-    getCloudState,
-    getGiftCatalog,
-    getGiftEventsInternal,
-    getGiftHistoryInternal,
-    getProfile,
-    getSongPageBackground,
-    setBilibiliCredentialsInternal,
-    syncSongs,
-    updateCloudSettings,
-    uploadSongPageBackground,
-    watchCloudStateChangesInternal,
-    watchGiftEventsInternal,
-  } = createLicenseOperations({
+  const operations = createLicenseOperations({
     remote,
     withAuthorizedToken,
     withAuthorizedSecret: (operation) =>
       withAuthorizedToken(operation, 0, false),
     isDisposed: () => disposed,
+    getOverlayOwner: () => JSON.stringify([identity?.streamerId, identity?.deviceId]),
     setProfile: (value) => {
       profile = value;
     },
@@ -587,23 +632,7 @@ function createLicenseManager(options = {}) {
     ensureAuthorized,
     getAccessToken,
     getRemoteBaseUrl,
-    getProfile,
-    getCloudState,
-    updateCloudSettings,
-    syncSongs,
-    getCloudSongs,
-    getGiftCatalog,
-    getGiftEventsInternal,
-    getGiftHistoryInternal,
-    clearGiftHistoryInternal,
-    getSongPageBackground,
-    uploadSongPageBackground,
-    deleteSongPageBackground,
-    getBilibiliCredentialsInternal,
-    setBilibiliCredentialsInternal,
-    clearBilibiliCredentialsInternal,
-    watchCloudStateChangesInternal,
-    watchGiftEventsInternal,
+    ...operations,
     resume,
     dispose,
   };
