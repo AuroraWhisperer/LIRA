@@ -2,6 +2,7 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
+const { readServerFixture } = require('../scripts/verify-server-contract');
 const {
   normalizeProcessedGiftEvent,
 } = require('../src/shared/processed-gift-contract');
@@ -24,7 +25,7 @@ test('processed live importer requires an explicit captured source', () => {
 
 test('negotiated identity fixture imports atomically, rejects rebinding, and accepts legacy replay', () => {
   const event = structuredClone(
-    require('../../lira-server/docs/protocol/fixtures/gift-event-identity.json')
+    readServerFixture('docs/protocol/fixtures/gift-event-identity.json')
       .event,
   );
   const fixture = createFixture();

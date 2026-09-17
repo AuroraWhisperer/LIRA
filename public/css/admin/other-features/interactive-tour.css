@@ -170,6 +170,10 @@ html.lira-tour-active .other-feature-panel {
   font-weight: var(--type-weight-semibold);
 }
 
+.lira-tour-body .lira-tour-keyword {
+  color: var(--color-success-dark, #08766c);
+}
+
 .lira-tour-note {
   margin: 12px 0 0;
   padding: 10px 12px;

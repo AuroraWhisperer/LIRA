@@ -71,6 +71,8 @@ function createRemoteGiftController(options = {}) {
   let streamTask = null;
   let reconnectTimer = null;
   let reconnectDelayMs = RECONNECT_MIN_MS;
+  let retryNotBefore = 0;
+  let retrySourceKey = null;
   let reconcileTimer = null;
 
   function isAuthorized() {
@@ -127,7 +129,7 @@ function createRemoteGiftController(options = {}) {
       if (!isGenerationActive(generation) || !isAuthorized()) return false;
       const sourceKey = createRemoteGiftSourceKey(
         licenseManager.getRemoteBaseUrl?.(),
-        licenseManager.getSnapshot?.().streamer,
+        licenseManager.getCloudSyncIdentity?.(),
       );
       const sourceFence = captureFence();
       const source = await runtime.resolveGiftSource(sourceKey);
@@ -135,6 +137,10 @@ function createRemoteGiftController(options = {}) {
       currentSource = normalizeResolvedSource(source, sourceKey);
       currentState = runtime.getGiftSyncState(currentSource.id);
       publishContext();
+      if (retrySourceKey === sourceKey && retryNotBefore > Date.parse(now())) {
+        scheduleReconnect(generation, true, retryNotBefore - Date.parse(now()));
+        return false;
+      }
 
       const discoveryFence = captureFence();
       const discovery = await licenseManager.getGiftEventsInternal({
@@ -232,7 +238,7 @@ function createRemoteGiftController(options = {}) {
       abortEventStream();
       epochValidated = false;
       dirty = true;
-      scheduleReconnect(generation, true);
+      scheduleReconnect(generation, true, failure?.retryAfterMs);
     }
     return false;
   }
@@ -445,8 +451,9 @@ function createRemoteGiftController(options = {}) {
     } catch (error) {
       task = Promise.reject(error);
     }
+    let retryAfterMs = 0;
     streamTask = Promise.resolve(task)
-      .catch(() => {})
+      .catch((error) => { retryAfterMs = error?.retryAfterMs || 0; })
       .finally(() => {
         generationSignal.removeEventListener('abort', abortFromGeneration);
         if (streamController !== controller) return;
@@ -457,7 +464,7 @@ function createRemoteGiftController(options = {}) {
         epochValidated = false;
         dirty = true;
         setSyncState(GiftSyncState.OFFLINE);
-        scheduleReconnect(generation);
+        scheduleReconnect(generation, false, retryAfterMs);
       });
   }
 
@@ -531,6 +538,7 @@ function createRemoteGiftController(options = {}) {
   function requestReconcile(generation) {
     clearReconcileTimer();
     dirty = true;
+    if (reconnectTimer) return Promise.resolve(false);
     if (reconcileTask && reconcileGeneration === generation)
       return reconcileTask;
     const task = enqueue(async () => {
@@ -598,13 +606,21 @@ function createRemoteGiftController(options = {}) {
     reconcileTimer = null;
   }
 
-  function scheduleReconnect(generation, initialize = false) {
+  function scheduleReconnect(generation, initialize = false, retryAfterMs = 0) {
     clearReconnectTimer();
     if (!isGenerationActive(generation) || !isAuthorized()) return;
-    const delay = reconnectDelayMs;
+    const delay = Math.max(reconnectDelayMs, retryAfterMs);
+    retryNotBefore = Date.parse(now()) + delay;
+    retrySourceKey = currentSource?.sourceKey;
     reconnectDelayMs = Math.min(RECONNECT_MAX_MS, reconnectDelayMs * 2);
-    reconnectTimer = timers.setTimeout(() => {
+    const timer = timers.setTimeout(() => {
+      if (reconnectTimer !== timer) return;
       reconnectTimer = null;
+      if (delay > 2 ** 31 - 1) {
+        scheduleReconnect(generation, initialize, delay - (2 ** 31 - 1));
+        return;
+      }
+      retryNotBefore = 0;
       if (
         !ensureFenceCurrent(captureFence()) ||
         !isGenerationActive(generation)
@@ -612,7 +628,8 @@ function createRemoteGiftController(options = {}) {
         return;
       if (initialize) enqueue(() => initializeGeneration(generation));
       else startEventStream(generation);
-    }, delay);
+    }, Math.min(delay, 2 ** 31 - 1));
+    reconnectTimer = timer;
     reconnectTimer.unref?.();
   }
 

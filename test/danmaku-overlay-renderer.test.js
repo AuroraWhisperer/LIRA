@@ -21,7 +21,7 @@ test('ranked danmaku overlay preserves its 624 by 640 design viewport', async ()
   assert.equal(module.calculateRankedOverlayScale(624, 640), 1);
   assert.equal(module.calculateRankedOverlayScale(312, 640), 0.5);
   assert.equal(module.calculateRankedOverlayScale(1248, 640), 1);
-  assert.equal(module.calculateRankedOverlayScale(1248, 1280), 2);
+  assert.equal(module.calculateRankedOverlayScale(1248, 1280), 1);
   assert.equal(module.calculateRankedOverlayScale(0, 0), 1);
 });
 
@@ -186,6 +186,21 @@ test('shared danmaku renderer replaces whole and inline emote triggers with safe
   assert.equal(giftMessage.children[1].children[1].textContent, '<b>小花花</b>');
   assert.equal(giftMessage.children[2].textContent, '× 10');
   assert.equal(giftMessage.children[1].children[1].children.length, 0);
+  assert.equal(giftMessage.children.length, 3, 'gift notifications do not synthesize account replies');
+  feed.render([{ name: '已登录账号', message: '谢谢星河来客送来的 10 朵小花花！' }]);
+  const thanksMessage = root.children[0].children[1].children[1];
+  assert.doesNotMatch(root.children[0].className, /\bis-gift\b/);
+  assert.equal(thanksMessage.textContent, '谢谢星河来客送来的 10 朵小花花！');
+  assert.equal(thanksMessage.children.length, 0, 'account replies use the ordinary text renderer');
+
+  const previewRoot = new FakeNode('div');
+  previewRoot.clientHeight = 1;
+  const previewFeed = module.createDanmakuFeed(previewRoot, {
+    autoScroll: false,
+    offscreenViewports: Number.POSITIVE_INFINITY,
+  });
+  previewFeed.render(Array.from({ length: 6 }, (_, index) => ({ message: `示例 ${index}` })));
+  assert.equal(previewRoot.children.length, 6, 'an initially short preview must retain every example');
 
   feed.render([{ name: '普通观众', message: '继续聊天' }]);
   assert.doesNotMatch(root.children[0].className, /\bis-gift\b/);

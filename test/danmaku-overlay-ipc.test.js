@@ -8,7 +8,7 @@ const { createLicenseOperations } = require('../src/electron/license/license-ope
 test('license manager exposes authenticated overlay operations without leaking bearer data', async () => {
   const { manager, remote } = createHarness({ identity: { deviceId: 'd', streamerId: 1, publicKeyPem: 'public' } });
   const calls = [];
-  const settings = { style: 'identity', fullscreenDurationSeconds: 8, overlayUrl: 'https://test.example/overlay' };
+  const settings = { style: 'identity', fullscreenDurationSeconds: 8, overlayUrl: 'https://test.example/overlay/syntheticKey_123' };
   remote.getOverlaySettings = async (token) => { calls.push(token); return { ...settings, accessToken: token }; };
   remote.updateOverlaySettings = async (value, token) => { calls.push(token); return { ...value, overlayUrl: settings.overlayUrl, accessToken: token }; };
   try {
@@ -40,7 +40,7 @@ test('overlay IPC gates sender, validates parameters and allowlists the server r
   const handlers = new Map(), writes = [];
   const webContents = {};
   const event = { sender: webContents, senderFrame: { url: 'http://127.0.0.1:3000/admin' } };
-  let reply = { style: 'outline', fullscreenDurationSeconds: 12, overlayUrl: 'https://test.example/overlay', token: 'secret', cookie: 'private', streamerId: 33 };
+  let reply = { style: 'outline', fullscreenDurationSeconds: 12, overlayUrl: 'https://test.example/overlay/syntheticKey_123', token: 'secret', cookie: 'private', streamerId: 33 };
   registerLicenseIpc({
     ipcMain: { handle: (name, handler) => handlers.set(name, handler) },
     licenseManager: {
@@ -59,7 +59,7 @@ test('overlay IPC gates sender, validates parameters and allowlists the server r
   }
   assert.equal((await update(event, { style: 'unknown', fullscreenDurationSeconds: 6 })).error, 'INVALID_OVERLAY_STYLE');
   assert.equal(writes.length, 0);
-  const expected = { ok: true, style: 'outline', fullscreenDurationSeconds: 12, overlayUrl: 'https://test.example/overlay' };
+  const expected = { ok: true, style: 'outline', fullscreenDurationSeconds: 12, overlayUrl: 'https://test.example/overlay/syntheticKey_123' };
   assert.deepEqual(await read(event), expected);
   assert.deepEqual(await update(event, reply), expected);
   assert.deepEqual(writes, [{ style: 'outline', fullscreenDurationSeconds: 12 }]);
@@ -67,8 +67,10 @@ test('overlay IPC gates sender, validates parameters and allowlists the server r
   assert.deepEqual(await read(event), { ...expected, style: 'cream' });
   assert.deepEqual(await update(event, reply), { ...expected, style: 'cream' });
   assert.deepEqual(writes.at(-1), { style: 'cream', fullscreenDurationSeconds: 12 });
-  reply = { ...reply, overlayUrl: 'https://test.example/overlay?token=secret' };
-  assert.equal((await read(event)).error, 'INVALID_RESPONSE');
+  for (const overlayUrl of ['https://test.example/overlay', 'https://test.example/overlay/short', 'https://test.example/overlay/syntheticKey_123?token=secret']) {
+    reply = { ...reply, overlayUrl };
+    assert.equal((await read(event)).error, 'INVALID_RESPONSE');
+  }
 });
 
 test('remote overlay settings use the fixed Device endpoints and bearer stays in main', async () => {

@@ -249,7 +249,7 @@ test('admin queue form exposes and persists controls for only the selected style
     'cherryRibbon',
     'goldenLily',
   ]) {
-    assert.match(defaultsSource, new RegExp(`${prefix}QueueFontSize:\\s*'26'`));
+    assert.match(defaultsSource, new RegExp(`${prefix}QueueFontSize:\\s*'28'`));
     assert.match(
       defaultsSource,
       new RegExp(`${prefix}QueueScrollMode:\\s*'bounce'`),
@@ -416,30 +416,30 @@ test('styles 2-6 hydrate the active style content font size setting', () => {
 
   assert.match(
     html,
-    /id="identityQueueFontSize"[^>]*min="9"[^>]*max="78"[^>]*value="26"/,
+    /id="identityQueueFontSize"[^>]*min="9"[^>]*max="78"[^>]*value="28"/,
   );
   assert.match(
     html,
-    /id="identityQueueFontSizeNumber"[^>]*min="9"[^>]*max="78"[^>]*value="26"/,
+    /id="identityQueueFontSizeNumber"[^>]*min="9"[^>]*max="78"[^>]*value="28"/,
   );
   assert.match(formSource, /fontSize:\s*value\('identityQueueFontSize'\)/);
   assert.match(formsSource, /readQueueStyleSettings\(values, overlayStyle\)/);
-  assert.match(defaultsSource, /identityQueueFontSize: '26'/);
+  assert.match(defaultsSource, /identityQueueFontSize: '28'/);
   assert.match(
     overlaySource,
     /--identity-queue-font-size[\s\S]*?identityQueueFontSize\(\s*settings\s*\)/,
   );
   assert.match(
     overlayStyles,
-    /\.identity-row\s*\{[\s\S]*?font-size:\s*var\(--identity-queue-font-size,\s*26px\)/,
+    /\.identity-row\s*\{[\s\S]*?font-size:\s*var\(--identity-queue-font-size,\s*28px\)/,
   );
   assert.match(
     overlayStyles,
-    /\.identity-pin-content\s*\{[\s\S]*?font-size:\s*var\(--identity-queue-font-size,\s*26px\)/,
+    /\.identity-pin-content\s*\{[\s\S]*?font-size:\s*var\(--identity-queue-font-size,\s*28px\)/,
   );
   assert.match(
     overlayStyles,
-    /\.identity-row\.identity-sc \.identity-sc-content\s*\{[\s\S]*?font-size:\s*var\(--identity-queue-font-size,\s*26px\)/,
+    /\.identity-row\.identity-sc \.identity-sc-content\s*\{[\s\S]*?font-size:\s*var\(--identity-queue-font-size,\s*28px\)/,
   );
   assert.match(
     overlayStyles,
@@ -447,7 +447,7 @@ test('styles 2-6 hydrate the active style content font size setting', () => {
   );
   assert.match(
     overlayStyles,
-    /\.identity-pin-label\s*\{[\s\S]*?height:\s*1\.6em[\s\S]*?border-radius:\s*0\.3em[\s\S]*?padding:\s*0\s+0\.4em[\s\S]*?font-size:\s*calc\(var\(--identity-queue-font-size,\s*26px\)\s*\*\s*0\.77\)/,
+    /\.identity-pin-label\s*\{[\s\S]*?height:\s*1\.6em[\s\S]*?border-radius:\s*0\.3em[\s\S]*?padding:\s*0\s+0\.4em[\s\S]*?font-size:\s*calc\(var\(--identity-queue-font-size,\s*28px\)\s*\*\s*0\.77\)/,
   );
   assert.match(
     overlayStyles,

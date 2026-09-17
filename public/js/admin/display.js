@@ -178,7 +178,7 @@ import { observeServerOverlayUrl } from './server-overlay-url.js';
         20,
         0,
       );
-      bindRangePair('songBoardFontSize', 'songBoardFontSizeNumber', 10, 80, 40);
+      bindRangePair('songBoardFontSize', 'songBoardFontSizeNumber', 10, 80, 28);
       bindRangePair(
         'songBoardSongFontSize',
         'songBoardSongFontSizeNumber',

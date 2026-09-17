@@ -2,6 +2,8 @@
 
 - Status: Accepted
 - Date: 2026-09-01
+- Source identity superseded by [ADR-0019](0019-stable-gift-source-owner.md):
+  stable Streamer ID distinguishes same-name recreated owners.
 
 ## Context
 

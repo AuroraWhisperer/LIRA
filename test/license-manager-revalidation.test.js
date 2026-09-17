@@ -97,11 +97,15 @@ test('device auth epoch change blocks without silently reauthorizing', async () 
 });
 
 test('successful renewal does not emit a duplicate authorized transition', async () => {
-  const { manager } = createHarness({
+  const { manager, remote } = createHarness({
     identity: { deviceId: 'd', publicKeyPem: 'public' },
-    verifyExpiresIn: (count) => (count === 1 ? '0s' : '10m'),
   });
   await manager.bootstrap();
+  const syncSongs = remote.syncSongs;
+  remote.syncSongs = async (songs, token) => {
+    if (token === 'token') throw new RemoteLicenseError('DEVICE_SESSION_INVALID');
+    return syncSongs(songs, token);
+  };
   const snapshots = [];
   const unsubscribe = manager.onStateChanged((snapshot) =>
     snapshots.push(snapshot),

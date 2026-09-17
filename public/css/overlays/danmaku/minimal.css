@@ -11,9 +11,6 @@ body[data-style='minimal'] .draw-danmaku-feed {
   height: calc(100vh - clamp(20px, 4.4vw, 48px));
   max-height: 100vh;
 }
-body.is-preview[data-style='minimal'] .draw-danmaku-feed {
-  gap: 14px;
-}
 body[data-style='minimal'] .draw-danmaku-item {
   grid-template-columns: minmax(0, 1fr);
   gap: 0;
@@ -81,7 +78,7 @@ body[data-style='minimal'] .draw-danmaku-body p {
   width: 90%;
   margin: 0;
   color: #f7f9ff;
-  font-size: 18px;
+  font-size: var(--danmaku-font-size);
   line-height: 1.5;
   text-shadow: inherit;
 }
@@ -95,7 +92,7 @@ body[data-style='minimal'] .is-gift .draw-danmaku-identity::after {
 body[data-style='minimal'] .is-gift .draw-danmaku-gift {
   display: block;
   width: 100%;
-  font-size: 20px;
+  font-size: var(--danmaku-font-size);
   line-height: 1.5;
   -webkit-text-stroke: 0.6px rgba(16, 28, 42, 0.9);
   paint-order: stroke fill;
@@ -114,12 +111,12 @@ body[data-style='minimal'] .draw-danmaku-gift-action {
 }
 body[data-style='minimal'] .draw-danmaku-gift-name {
   color: inherit;
-  font-size: 20px;
+  font-size: var(--danmaku-font-size);
 }
 body[data-style='minimal'] .draw-danmaku-gift-count {
   display: inline-block;
   margin-left: 8px;
   color: #dff3ff;
-  font-size: 20px;
+  font-size: var(--danmaku-font-size);
   font-weight: 700;
 }

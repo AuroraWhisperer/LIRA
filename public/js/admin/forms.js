@@ -276,7 +276,7 @@ export class FormsService {
 
     const songFontSize = this.normalizeFontSize(
       values && values.queueSongFontSize,
-      this.scaleToFontSize(values && values.themeFontScale, 40),
+      this.scaleToFontSize(values && values.themeFontScale, 28),
       70,
       10,
     );
@@ -297,7 +297,7 @@ export class FormsService {
     }
     const identityFontSize = this.normalizeFontSize(
       activeQueueSettings.fontSize,
-      26,
+      28,
       78,
       9,
     );

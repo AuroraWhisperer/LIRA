@@ -4,7 +4,8 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const test = require('node:test');
 const { loadModuleExports } = require('./helpers/frontend-modules');
-const heartBox = require('../../lira-server/test/fixtures/heart-blind-box-events.json');
+const { readServerFixture } = require('../scripts/verify-server-contract');
+const heartBox = readServerFixture('test/fixtures/heart-blind-box-events.json');
 
 test('recent blind-box icon names stay escaped at the HTML attribute boundary', async () => {
   const { escapeHtml } = await loadModuleExports(

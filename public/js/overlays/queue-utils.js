@@ -100,14 +100,14 @@ export function normalizeFontSize(value, fallback, max = 20, min = 5) {
 export function queueSongFontSize(settings) {
   return normalizeFontSize(
     (settings || {}).queueSongFontSize,
-    scaleToFontSize((settings || {}).themeFontScale, 40),
+    scaleToFontSize((settings || {}).themeFontScale, 28),
     70,
     10,
   );
 }
 
 export function identityQueueFontSize(settings) {
-  return normalizeFontSize((settings || {}).identityQueueFontSize, 26, 78, 9);
+  return normalizeFontSize((settings || {}).identityQueueFontSize, 28, 78, 9);
 }
 
 export function scaleToFontSize(scale, baseSize) {

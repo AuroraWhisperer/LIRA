@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "repository": "AuroraWhisperer/LIRA-server",
+  "revision": "5ea7b01c8fc7b1cec34a43b01f99c403fd9d1577",
+  "fixtures": {
+    "docs/protocol/fixtures/gift-catalog-variants.json": "12f5fe2e31fdff486b247b100a889050a721c4fef24d1fba7105ea97e6cf5353",
+    "docs/protocol/fixtures/gift-event-identity.json": "a373dff1dae1da96d0ea0c8f856e210d35355c9fb689dde14ae43571b318d037",
+    "docs/protocol/fixtures/gift-sync-v1.json": "4c18826d06730502e8dc68ec1656702d61e0318dd2516f491c81130a56d7182c",
+    "docs/protocol/fixtures/song-snapshot-budget.json": "858c5f0bdb92f2701fbc4d7674b2767b3e6445c521199a61e0ef4857b2be96c0",
+    "test/fixtures/heart-blind-box-events.json": "5dc06d4c64c5958f9f662085407a3dd68a62e54d83afc42f33a7aa3dc77d2623"
+  }
+}

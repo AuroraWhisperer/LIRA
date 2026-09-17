@@ -1,9 +1,9 @@
-import { copyText } from '../shared/utils.js';
+import { copyText, localOverlayOrigin } from '../shared/utils.js';
 import { observeServerOverlayUrl } from './server-overlay-url.js';
 
 const STYLES = {
-  bubble: '聊天气泡', signal: '直播信号带', minimal: '蝴蝶结',
-  ranked: '直播气泡', transparent: '透明简约', identity: '身份横卡', outline: '全屏随机',
+  bubble: '聊天气泡', signal: '深色面板', minimal: '蝴蝶结',
+  ranked: '大头像气泡', transparent: '透明文字', identity: '头像横卡', outline: '简洁白卡',
   cream: '奶油气泡',
 };
 
@@ -36,7 +36,7 @@ export function initDanmakuOverlaySettings(elements, toast) {
     for (const button of [elements.copyOverlayUrlButton, elements.openOverlayButton]) {
       button.disabled = !overlayUrl;
     }
-    elements.previewOverlayButton.disabled = !overlayUrl || !loaded;
+    elements.previewOverlayButton.disabled = false;
     applyButton.disabled = !loaded || !dirty || saving;
     applyButton.textContent = saving ? '正在应用…' : '应用到服务器';
     reloadButton.disabled = !overlayUrl || loading || saving || dirty;
@@ -129,8 +129,7 @@ export function initDanmakuOverlaySettings(elements, toast) {
     if (overlayUrl) window.open(overlayUrl, '_blank', 'noopener');
   });
   elements.previewOverlayButton.addEventListener('click', () => {
-    if (!overlayUrl || !loaded) return;
-    const url = new URL(overlayUrl);
+    const url = new URL('/danmaku', localOverlayOrigin());
     url.search = new URLSearchParams({ preview: '1', ...draft }).toString();
     window.open(url.href, '_blank', 'noopener');
   });

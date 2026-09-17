@@ -69,16 +69,18 @@ function createRemoteGiftCursorStore(options = {}) {
 }
 
 function createRemoteGiftSourceKey(baseUrl, streamer = {}) {
-  const accountName = String(streamer.accountName || '')
+  const accountName = String(streamer?.accountName || '')
     .trim()
     .toLowerCase();
-  if (!accountName) {
+  const streamerId = streamer?.streamerId;
+  if (!accountName || !Number.isSafeInteger(streamerId) || streamerId <= 0) {
     throw new Error('REMOTE_GIFT_SOURCE_UNAVAILABLE');
   }
   const source = [
-    'gift-source-v1',
+    'gift-source-v2',
     canonicalizeGiftSourceOrigin(baseUrl),
     accountName,
+    streamerId,
   ].join('\n');
   return crypto.createHash('sha256').update(source).digest('hex');
 }

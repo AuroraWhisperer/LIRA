@@ -6,7 +6,7 @@ const vm = require('node:vm');
 
 const source = (file) => fs.readFileSync(path.join(__dirname, '../public/js/admin', file), 'utf8');
 const flush = () => new Promise((resolve) => setImmediate(resolve));
-const url = 'https://broadcaster.example.test:9443/overlay';
+const url = 'https://broadcaster.example.test:9443/overlay/syntheticKey_123';
 const saved = (style = 'signal', duration = 6, overlayUrl = url) => ({ ok: true, style, fullscreenDurationSeconds: duration, overlayUrl });
 
 async function fixture() {
@@ -38,9 +38,12 @@ async function fixture() {
   });
   const module = new vm.SourceTextModule(source('danmaku-overlay-settings.js'), { context });
   await module.link((specifier) => new vm.SyntheticModule(
-    specifier.includes('utils') ? ['copyText'] : ['observeServerOverlayUrl'],
+    specifier.includes('utils') ? ['copyText', 'localOverlayOrigin'] : ['observeServerOverlayUrl'],
     function () {
-      if (specifier.includes('utils')) this.setExport('copyText', async (value) => copied.push(value));
+      if (specifier.includes('utils')) {
+        this.setExport('copyText', async (value) => copied.push(value));
+        this.setExport('localOverlayOrigin', () => 'http://127.0.0.1:3000');
+      }
       else this.setExport('observeServerOverlayUrl', (callback) => { observer = callback; callback(url); });
     }, { context },
   ));
@@ -55,17 +58,17 @@ test('server link uses the authorized configured public origin, including its po
   const module = new vm.SourceTextModule(source('server-overlay-url.js'), { context: vm.createContext({ URL }) });
   await module.link(() => {}); await module.evaluate();
   const resolve = module.namespace.serverOverlayUrl;
-  assert.equal(resolve({ state: 'authorized', streamer: { songPageUrl: 'https://broadcaster.example.test:9443/?anything=1' } }), url);
+  assert.equal(resolve({ state: 'authorized', streamer: { songPageUrl: 'https://broadcaster.example.test:9443/?anything=1' } }, saved()), url);
   for (const snapshot of [null, { state: 'blocked' }, { state: 'authorized', streamer: { songPageUrl: 'http://127.0.0.1:3000/' } }, { state: 'authorized', streamer: { songPageUrl: 'https://user:secret@example.test/' } }]) assert.equal(resolve(snapshot), '');
 });
 
-test('edits and server preview stay local until explicit apply; late save preserves newer draft', async () => {
+test('edits and local preview do not write until explicit apply; late save preserves newer draft', async () => {
   const f = await fixture();
   f.reads[0].resolve(saved()); await flush();
   f.click('outline'); f.duration('12');
   f.click('previewOverlayButton');
   const preview = new URL(f.opened[0][0]);
-  assert.equal(preview.origin + preview.pathname, url);
+  assert.equal(preview.origin + preview.pathname, 'http://127.0.0.1:3000/danmaku');
   assert.equal(preview.searchParams.get('style'), 'outline');
   assert.equal(preview.searchParams.get('fullscreenDurationSeconds'), '12');
   assert.equal(preview.searchParams.get('preview'), '1');
@@ -76,7 +79,7 @@ test('edits and server preview stay local until explicit apply; late save preser
   assert.deepEqual(f.writes[0].parameters, { style: 'outline', fullscreenDurationSeconds: 12 });
   f.click('identity');
   f.writes[0].resolve(saved('outline', 12)); await first;
-  assert.match(f.elements.styleChip.textContent, /待应用.*身份横卡/);
+  assert.match(f.elements.styleChip.textContent, /待应用.*头像横卡/);
   assert.equal(f.node('danmakuApplyOverlayBtn').disabled, false);
   const next = f.click('danmakuApplyOverlayBtn');
   f.writes[1].resolve(saved('identity', 12)); await next;
@@ -91,7 +94,7 @@ test('failed apply and invalid durations retain the editable draft', async () =>
   f.writes[0].resolve({ ok: false, error: 'NETWORK_UNAVAILABLE' }); await pending;
   assert.match(f.elements.styleSaveState.textContent, /应用失败.*草稿已保留/);
   assert.equal(f.node('danmakuApplyOverlayBtn').disabled, false);
-  assert.match(f.elements.styleChip.textContent, /全屏随机/);
+  assert.match(f.elements.styleChip.textContent, /简洁白卡/);
 });
 
 test('cream is a random-style draft with duration, read-only preview and explicit apply', async () => {
@@ -120,16 +123,79 @@ test('a late read cannot replace a draft and an old account save cannot affect t
   const reload = f.click('danmakuReloadOverlayBtn');
   f.click('transparent');
   f.reads[1].resolve(saved('bubble')); await reload;
-  assert.match(f.elements.styleChip.textContent, /待应用.*透明简约/);
+  assert.match(f.elements.styleChip.textContent, /待应用.*透明文字/);
   const pending = f.click('danmakuApplyOverlayBtn');
   f.account('');
   assert.equal(f.elements.overlayUrl.value, '');
   assert.equal(f.elements.copyOverlayUrlButton.disabled, true);
-  const nextUrl = 'https://other.example.test/overlay';
+  const nextUrl = 'https://other.example.test/overlay/syntheticKey_123';
   f.account(nextUrl);
   f.reads[2].resolve(saved('ranked', 8, nextUrl)); await flush();
   f.writes[0].resolve(saved('transparent')); await pending;
   assert.equal(f.elements.overlayUrl.value, nextUrl);
-  assert.match(f.elements.styleChip.textContent, /服务器样式.*直播气泡/);
+  assert.match(f.elements.styleChip.textContent, /服务器样式.*大头像气泡/);
   assert.equal(f.elements.fullscreenDuration.value, '8');
+});
+
+test('copy and open use the server; preview is available locally without authorization', async () => {
+  const f = await fixture();
+  await f.click('copyOverlayUrlButton');
+  f.click('openOverlayButton');
+  assert.deepEqual(f.copied, [url]);
+  assert.equal(f.opened[0][0], url);
+  f.account('');
+  assert.equal(f.elements.copyOverlayUrlButton.disabled, true);
+  assert.equal(f.elements.openOverlayButton.disabled, true);
+  assert.equal(f.elements.previewOverlayButton.disabled, false);
+  f.click('previewOverlayButton');
+  assert.equal(new URL(f.opened[1][0]).origin, 'http://127.0.0.1:3000');
+  assert.equal(f.writes.length, 0);
+});
+
+test('both address observers read the server capability and discard late account responses', async () => {
+  const reads = [];
+  let onState;
+  let hide;
+  const a = { state: 'authorized', streamer: { accountName: 'a', songPageUrl: 'https://a.example.test/' } };
+  const b = { state: 'authorized', streamer: { accountName: 'b', songPageUrl: 'https://b.example.test/' } };
+  const bridge = {
+    getProfile: async () => a,
+    onStateChanged: (callback) => { onState = callback; return () => {}; },
+    getOverlaySettings: () => new Promise((resolve) => reads.push(resolve)),
+  };
+  const context = vm.createContext({ URL, window: { liraLicense: bridge, addEventListener: (_event, fn) => { hide = fn; } } });
+  const module = new vm.SourceTextModule(source('server-overlay-url.js'), { context });
+  await module.link(() => {}); await module.evaluate();
+  const first = [], second = [];
+  module.namespace.observeServerOverlayUrl((value) => first.push(value));
+  module.namespace.observeServerOverlayUrl((value) => second.push(value));
+  await flush();
+  assert.equal(reads.length, 1);
+  const aUrl = 'https://a.example.test/overlay/syntheticKey_123';
+  reads.shift()(saved('signal', 6, aUrl)); await flush();
+  assert.equal(first.at(-1), aUrl);
+  assert.deepEqual(second, first);
+  onState(a); // An old account request remains in flight.
+  onState(b);
+  assert.equal(first.at(-1), '');
+  reads.shift()(saved('signal', 6, aUrl)); await flush();
+  assert.equal(first.at(-1), '');
+  const bUrl = 'https://b.example.test/overlay/anotherKey_12345';
+  reads.shift()(saved('signal', 6, bUrl)); await flush();
+  assert.equal(first.at(-1), bUrl);
+  assert.deepEqual(second, first);
+  onState({ state: 'blocked' });
+  assert.equal(first.at(-1), '');
+  hide();
+});
+
+test('URL resolver refuses bare, wrong-origin and malformed server addresses', async () => {
+  const module = new vm.SourceTextModule(source('server-overlay-url.js'), { context: vm.createContext({ URL }) });
+  await module.link(() => {}); await module.evaluate();
+  const snapshot = { state: 'authorized', streamer: { songPageUrl: 'https://a.example.test/' } };
+  for (const value of ['https://a.example.test/overlay', 'https://b.example.test/overlay/syntheticKey_123',
+    'https://a.example.test/overlay/short', 'https://a.example.test/overlay/syntheticKey_123?token=x',
+    'https://a.example.test/overlay/syntheticKey_123#hash']) {
+    assert.equal(module.namespace.serverOverlayUrl(snapshot, saved('signal', 6, value)), '');
+  }
 });

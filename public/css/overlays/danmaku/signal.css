@@ -126,45 +126,32 @@ body[data-style='signal'] .draw-danmaku-medal-level::before {
   opacity: 0.76;
 }
 
-/* 礼物信号沿用发送者的信号色与切角徽记。 */
+/* 礼物信标：独立的青金通知牌和大号礼章。 */
 body[data-style='signal'] .draw-danmaku-item.is-gift {
-  --signal-rank: 'GIFT';
   --danmaku-gift-art: url('/img/overlays/danmaku-gifts/signal.svg');
-  max-width: min(420px, 100%);
+  --gift-ink: #e6fbff;
+  --gift-accent: #ffda83;
+  --gift-surface: #13374a;
+  border: 1px solid #59cbd7;
+  border-radius: 0;
+  clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
+  grid-template-areas: 'content';
+  grid-template-columns: minmax(0, 1fr);
+  padding: 10px 16px;
 }
-body[data-style='signal'] .is-gift .draw-danmaku-identity strong {
-  font-size: 15px;
+body[data-style='signal'] .is-gift .draw-danmaku-avatar {
+  display: none;
 }
-body[data-style='signal'] .is-gift .draw-danmaku-gift {
-  display: flow-root;
-  margin-top: 5px;
-  font-size: 20px;
-  line-height: 1.5;
+body[data-style='signal'] .is-gift .draw-danmaku-body {
+  padding: 0 0 0 68px;
 }
-body[data-style='signal'] .draw-danmaku-gift-art {
-  float: right;
-  width: 32px;
-  height: 32px;
-  margin-left: 12px;
-  background: color-mix(in srgb, var(--signal-accent) 60%, var(--signal-ice));
+body[data-style='signal'] .is-gift .draw-danmaku-gift-art {
+  left: 0;
+  right: auto;
+  background: #73e3e8;
   mask: var(--danmaku-gift-art) center / contain no-repeat;
+  transform: translateY(-50%);
 }
-body[data-style='signal'] .draw-danmaku-gift-copy {
-  display: inline;
-}
-body[data-style='signal'] .draw-danmaku-gift-action {
-  margin-right: 6px;
-  color: color-mix(in srgb, var(--signal-accent) 30%, var(--signal-ice));
-  font-size: 14px;
-}
-body[data-style='signal'] .draw-danmaku-gift-name {
-  color: inherit;
-  font-size: 20px;
-}
-body[data-style='signal'] .draw-danmaku-gift-count {
-  display: inline-block;
-  margin-left: 8px;
-  color: color-mix(in srgb, var(--signal-accent) 40%, var(--signal-ice));
-  font-size: 22px;
-  font-weight: 700;
+body[data-style='signal'] .is-gift .draw-danmaku-gift-count {
+  font-size: var(--danmaku-font-size);
 }

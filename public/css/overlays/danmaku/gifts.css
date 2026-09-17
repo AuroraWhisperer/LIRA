@@ -1,0 +1,115 @@
+/* 礼物有独立的卡片结构，配色、插画和轮廓由各风格文件负责。蝴蝶结保持原样。 */
+body:not([data-style='minimal']) .draw-danmaku-item.is-gift {
+  display: grid;
+  grid-template-areas: 'avatar content';
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  width: min(460px, 100%);
+  min-width: 0;
+  max-width: min(460px, 100%);
+  min-height: 80px;
+  padding: 10px 14px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 16px;
+  color: var(--gift-ink);
+  background: var(--gift-surface);
+  box-shadow: 0 6px 16px rgb(12 18 30 / 18%);
+  clip-path: none;
+}
+body:not([data-style='minimal']) .is-gift::before,
+body:not([data-style='minimal']) .is-gift::after,
+body:not([data-style='minimal']) .is-gift .draw-danmaku-body::before,
+body:not([data-style='minimal']) .is-gift .draw-danmaku-badge {
+  display: none;
+}
+body:not([data-style='minimal']) .is-gift .draw-danmaku-avatar {
+  grid-area: avatar;
+  align-self: center;
+  width: 40px;
+  min-width: 0;
+  height: 40px;
+  margin: 0;
+  border: 2px solid color-mix(in srgb, var(--gift-accent) 40%, white);
+  border-radius: 50%;
+  clip-path: none;
+  mask: none;
+}
+body:not([data-style='minimal']) .is-gift .draw-danmaku-body {
+  grid-area: content;
+  position: relative;
+  display: grid;
+  align-content: center;
+  gap: 4px;
+  width: 100%;
+  min-height: 52px;
+  max-width: none;
+  padding: 0 68px 0 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  text-shadow: none;
+}
+body:not([data-style='minimal']) .is-gift .draw-danmaku-identity {
+  display: flex;
+  width: 100%;
+  min-height: 0;
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+body:not([data-style='minimal']) .is-gift .draw-danmaku-identity strong {
+  color: var(--gift-ink);
+  font: 600 14px/1.4 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif;
+  text-shadow: none;
+}
+body:not([data-style='minimal']) .is-gift .draw-danmaku-gift {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-row: auto;
+  align-items: center;
+  gap: 4px 12px;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  border-radius: 0;
+  color: var(--gift-ink);
+  background: transparent;
+  font-size: var(--danmaku-font-size);
+  line-height: 1.4;
+  text-shadow: none;
+}
+body:not([data-style='minimal']) .is-gift .draw-danmaku-gift-art {
+  position: absolute;
+  top: 50%;
+  right: -4px;
+  width: 60px;
+  height: 66px;
+  transform: translateY(-50%) rotate(-8deg);
+  background: var(--danmaku-gift-art) center / contain no-repeat;
+}
+body:not([data-style='minimal']) .is-gift .draw-danmaku-gift-copy {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+body:not([data-style='minimal']) .is-gift .draw-danmaku-gift-action {
+  flex-shrink: 0;
+  color: var(--gift-accent);
+  font-size: 12px;
+  font-weight: 600;
+}
+body:not([data-style='minimal']) .is-gift .draw-danmaku-gift-name {
+  color: var(--gift-ink);
+  font-size: var(--danmaku-font-size);
+  line-height: 1.3;
+}
+body:not([data-style='minimal']) .is-gift .draw-danmaku-gift-count {
+  color: var(--gift-accent);
+  font-size: var(--danmaku-font-size);
+  font-weight: 800;
+  line-height: 1.15;
+}

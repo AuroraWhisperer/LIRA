@@ -29,7 +29,7 @@ const LEGACY_KEYS = {
 };
 
 const FIELD_DEFAULTS = {
-  fontSize: '26',
+  fontSize: '28',
   fontFamily: 'default',
   fontWeight: 'default',
   useCustomTextColor: 'false',
@@ -81,7 +81,7 @@ export function readQueueStyleSettings(settings, style) {
     ) {
       values[field] = String(source[legacyKey]);
     } else if (normalizedStyle === 'classic' && field === 'fontSize') {
-      values[field] = '40';
+      values[field] = '28';
     } else {
       values[field] = FIELD_DEFAULTS[field];
     }

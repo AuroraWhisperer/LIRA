@@ -155,7 +155,7 @@ test('storybook queue scales complete illustrated rows while identity content st
   assert.doesNotMatch(rowRule, /height:\s*clamp\(/);
   assert.match(
     rowRule,
-    /font-size:\s*var\(--identity-queue-font-size,\s*26px\)/,
+    /font-size:\s*var\(--identity-queue-font-size,\s*28px\)/,
   );
   const entryBuffer = fs.readFileSync(entryPath);
   assert.equal(entryBuffer.subarray(0, 4).toString('ascii'), 'RIFF');
@@ -282,7 +282,7 @@ test('styles 4 and 5 use supplied art, omit queue ranks, and render all four req
   assert.match(neonRowRule, /background-size:\s*100%\s+100%/);
   assert.match(
     neonRowRule,
-    /font-size:\s*var\(--identity-queue-font-size,\s*26px\)/,
+    /font-size:\s*var\(--identity-queue-font-size,\s*28px\)/,
   );
   assert.match(neonInfoRule, /margin-inline:\s*0/);
   assert.match(neonViewportRule, /color:\s*#54152f/);
@@ -304,7 +304,7 @@ test('styles 4 and 5 use supplied art, omit queue ranks, and render all four req
   assert.match(ribbonRowRule, /background-size:\s*100%\s+100%/);
   assert.match(
     ribbonRowRule,
-    /font-size:\s*var\(--identity-queue-font-size,\s*26px\)/,
+    /font-size:\s*var\(--identity-queue-font-size,\s*28px\)/,
   );
   assert.match(ribbonInfoRule, /margin-inline:\s*auto/);
   assert.match(ribbonViewportRule, /top:\s*41%/);
@@ -468,7 +468,7 @@ test('style 6 uses supplied golden lily art, shows queue ranks, and renders all 
   assert.match(goldenRowRule, /margin-inline:\s*auto/);
   assert.match(
     goldenRowRule,
-    /font-size:\s*var\(--identity-queue-font-size,\s*26px\)/,
+    /font-size:\s*var\(--identity-queue-font-size,\s*28px\)/,
   );
   assert.match(goldenRankRule, /top:\s*25%/);
   assert.match(goldenRankRule, /bottom:\s*21%/);

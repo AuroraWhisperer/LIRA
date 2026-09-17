@@ -12,6 +12,7 @@ test('danmaku styles keep base, named style, and motion ownership', () => {
   const entry = fs.readFileSync(path.join(styleRoot, 'danmaku.css'), 'utf8');
   const expectedImports = [
     "@import url('./danmaku/base.css');",
+    "@import url('./danmaku/gifts.css');",
     "@import url('./danmaku/signal.css');",
     "@import url('./danmaku/bubble.css');",
     "@import url('./danmaku/minimal.css');",
@@ -19,7 +20,9 @@ test('danmaku styles keep base, named style, and motion ownership', () => {
     "@import url('./danmaku/transparent.css');",
     "@import url('./danmaku/identity.css');",
     "@import url('./danmaku/outline.css');",
+    "@import url('./danmaku/cream.css');",
     "@import url('./danmaku/motion.css');",
+    "@import url('./danmaku/preview.css');",
   ];
   assert.deepEqual(entry.match(/@import url\('[^']+'\);/g), expectedImports);
 
@@ -33,6 +36,7 @@ test('danmaku styles keep base, named style, and motion ownership', () => {
       'transparent',
       'identity',
       'outline',
+      'cream',
       'motion',
     ].map((name) => [
       name,
@@ -63,12 +67,14 @@ test('danmaku styles keep base, named style, and motion ownership', () => {
   assert.match(owners.motion, /prefers-reduced-motion:\s*reduce/);
   assert.doesNotMatch(owners.motion, /body\[data-style=/);
   const giftAssets = new Set();
-  for (const style of ['signal', 'bubble', 'minimal', 'ranked', 'transparent', 'identity', 'outline']) {
-    assert.ok(owners[style].includes(`/img/overlays/danmaku-gifts/${style}.svg`));
-    const svg = fs.readFileSync(path.join(ROOT_DIR, 'public', 'img', 'overlays', 'danmaku-gifts', `${style}.svg`), 'utf8');
-    assert.match(svg, /<svg[^>]+viewBox=/);
-    assert.doesNotMatch(svg, /<script|<foreignObject/);
-    giftAssets.add(svg);
+  for (const style of ['signal', 'bubble', 'minimal', 'ranked', 'transparent', 'identity', 'outline', 'cream']) {
+    const asset = owners[style].match(/url\('(\/img\/overlays\/danmaku-gifts\/[^']+)'\)/)[1];
+    const bytes = fs.readFileSync(path.join(ROOT_DIR, 'public', asset));
+    if (asset.endsWith('.svg')) {
+      assert.match(bytes.toString(), /<svg[^>]+viewBox=/);
+      assert.doesNotMatch(bytes.toString(), /<script|<foreignObject/);
+    }
+    giftAssets.add(bytes.toString('base64'));
   }
-  assert.equal(giftAssets.size, 7, 'each style has its own gift artwork');
+  assert.equal(giftAssets.size, 8, 'each style has its own gift artwork');
 });

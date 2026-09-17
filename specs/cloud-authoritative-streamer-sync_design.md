@@ -21,6 +21,18 @@ synchronization.
 
 ## Requirements
 
+- A cloud songs response must contain an array-valued `songs` before replacing
+  the local library or advancing its revision. Missing, null or object values
+  are invalid responses; an explicit empty array remains a valid empty snapshot.
+- Transient REST and SSE failures preserve valid identity, dirty writes and
+  revisions. Recovery honors a valid Retry-After delta-seconds or HTTP date as
+  a minimum delay in addition to the bounded local backoff; invalid headers
+  retain the existing retry policy.
+- Numeric settings accept integers or trimmed decimal integer strings
+  (including leading zeroes). Null, arrays, booleans, empty strings, exponent,
+  hexadecimal and fractional string forms are rejected without writing or
+  advancing revisions. Successful responses contain canonical integer and
+  boolean values; existing boolean-string input compatibility is retained.
 - While a Device session is authorized, when the desktop starts or a cloud
   revision changes, the desktop shall apply that streamer's cloud settings,
   Bilibili login state, and song library.
@@ -206,6 +218,16 @@ write. This limitation is visible in the specification and tests.
     pending in-process retry across authorization interruption; saved cloud
     rooms restore normally. A failed owner write rolls back both room and marker
     and permits no cloud writes. No marker appears in settings/Device snapshots.
+11. Invalid song snapshots do not clear the last good library or advance its
+    revision. A subsequent valid response at the same revision is applied,
+    including an explicit `songs: []`.
+12. A `Retry-After: 60` SSE rejection cannot reconnect after only one second;
+    a wait longer than the local backoff cap is retained. A throttled dirty
+    upload remains dirty, and queued sync requests cannot bypass its wait.
+13. Local and server settings validation agree on integer-string compatibility:
+    `" 050 "` is accepted as 50; null, arrays, booleans, `""`, `"1e2"`,
+    `"0x32"` and `"50.0"` are rejected. Input compatibility does not widen the
+    canonical response schema.
 
 ## Done When
 

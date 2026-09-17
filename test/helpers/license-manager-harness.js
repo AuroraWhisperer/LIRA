@@ -11,6 +11,7 @@ function createHarness({
   verifyExpiresIn = () => '10m',
   verifyExpiresInSeconds = () => undefined,
   verifyExpiresAt = () => undefined,
+  timers,
 } = {}) {
   const state = { value: identity };
   const backgroundCalls = [];
@@ -64,6 +65,7 @@ function createHarness({
         calls.verifies === 1 ? 'token' : `token-${calls.verifies}`;
       const result = {
         accessToken,
+        sessionId: 'session-1',
         expiresIn: verifyExpiresIn(calls.verifies),
         deviceId: 'd',
         licenseId: 'l',
@@ -159,6 +161,7 @@ function createHarness({
     keyStore,
     fingerprintProvider,
     remoteClient: remote,
+    timers,
     buildInfoProvider: () => ({
       appVersion: '3.7.11',
       buildId: 'dev',

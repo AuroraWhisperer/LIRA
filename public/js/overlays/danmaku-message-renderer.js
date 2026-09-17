@@ -44,6 +44,7 @@ export function createDanmakuMessageRenderer({
   document,
   classNames,
   fullscreen,
+  showAvatar = !fullscreen,
   ...options
 }) {
   const resolveAvatarUrl =
@@ -112,7 +113,7 @@ export function createDanmakuMessageRenderer({
   }
 
   function createAvatar(item, name) {
-    if (fullscreen) return null;
+    if (!showAvatar) return null;
     const avatar = document.createElement('div');
     avatar.className = classNames.avatar;
     avatar.setAttribute('aria-hidden', 'true');

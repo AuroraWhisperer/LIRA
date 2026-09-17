@@ -2,6 +2,16 @@
   "version": 1,
   "entries": [
     {
+      "path": "public/pages/admin/toolbox/danmaku.html",
+      "kind": "review",
+      "maxLines": 619,
+      "owner": "百宝箱弹幕工具页面组合",
+      "reason": "2026-09-17 发布审阅：增量为既有样式选择增加缩略图和说明、重排配置与链接操作，并提供本地预览入口；页面仍仅组合弹幕连接、样式、发送与自动回复表单，网络和预览行为由独立 JS 模块负责，未内联业务逻辑。",
+      "removal": "后续样式选择或自动回复表单继续扩展时，按既有页面组合机制提取对应片段；本次保留完整工具页面及既有 DOM ID。",
+      "reviewBy": "2026-12-17",
+      "test": "test/toolbox-sidebar-routing.test.js"
+    },
+    {
       "path": "public/css/overlays/desktop.css",
       "kind": "review",
       "maxLines": 653,
@@ -24,22 +34,22 @@
     {
       "path": "src/electron/license/license-manager.js",
       "kind": "review",
-      "maxLines": 647,
+      "maxLines": 721,
       "owner": "设备授权主体与会话生命周期",
-      "reason": "2026-09-16 B1 修复逐项审阅：新增主体与代际检查只约束现有授权请求、续期、心跳和资料提交；token 轮换仍在同一生命周期。父代理与独立代理复核异步交错，17 项身份回归和相关 326 项测试通过；未新增业务适配或分散可变授权状态。",
+      "reason": "2026-09-16 B1 修复逐项审阅：新增主体与代际检查只约束现有授权请求、续期、心跳和资料提交；token 轮换仍在同一生命周期。父代理与独立代理复核异步交错，17 项身份回归和相关 326 项测试通过；未新增业务适配或分散可变授权状态。 2026-09-16 审计修复增量由根代理独立审阅：F02/F07及Retry-After：复核自动续期原Session前提、网络恢复、原子token接受、短TTL门禁和绝对等待期限；仍由既有生命周期持有可变授权状态，未新增业务适配。",
       "removal": "后续出现独立协议或纯转换职责时提取；当前保留请求代际、会话清理、续期和维护任务的单一 owner，不为压行数拆分安全不变量。新增业务操作继续归 license-operations。",
       "reviewBy": "2026-12-16",
-      "test": "test/license-manager-identity.test.js"
+      "test": "test/license-session-boundaries.test.js"
     },
     {
       "path": "src/electron/remote-gift-controller.js",
       "kind": "review",
-      "maxLines": 782,
+      "maxLines": 800,
       "owner": "远端礼物同步",
-      "reason": "2026-09-14 审阅代码指令调整：展示回调只传递现有授权/来源/连接 fence 谓词，供异步解析前后检查；代码投影独立于 effect-event，解析复用测试播放，未新增恢复状态或定时器。test/gift-effect-danmaku.test.js 覆盖解析期间停用及授权变化。",
+      "reason": "2026-09-14 审阅代码指令调整：展示回调只传递现有授权/来源/连接 fence 谓词，供异步解析前后检查；代码投影独立于 effect-event，解析复用测试播放，未新增恢复状态或定时器。test/gift-effect-danmaku.test.js 覆盖解析期间停用及授权变化。 2026-09-16 审计修复增量由根代理独立审阅：F01/F06：复核main-only稳定owner选源、迟到代际栅栏及Retry-After绝对期限；源归属和恢复定时器仍属于单个同步控制器，不分散可变同步状态。",
       "removal": "文件已降到警告区；725 行工厂债务保留，后续按协议阶段评估，禁止分散可变状态。",
-      "reviewBy": "2026-12-13",
-      "test": "test/remote-gift-controller.test.js"
+      "reviewBy": "2026-12-16",
+      "test": "test/remote-gift-owner-isolation.test.js"
     },
     {
       "path": "src/overtime/overtime-service.js",
@@ -174,9 +184,9 @@
     {
       "path": "test/overtime-gift-picker.test.js",
       "kind": "review",
-      "maxLines": 760,
+      "maxLines": 761,
       "owner": "礼物选择器测试",
-      "reason": "搜索代次、来源和身份规则共同约束一个选择器。",
+      "reason": "搜索代次、来源和身份规则共同约束一个选择器。2026-09-16 复审：固定服务器契约仅增加一行校验器导入并替换两处 fixture 读取，未增加场景或职责；保留内聚测试，不为该依赖引入额外夹具层。",
       "removal": "扩展独立控件时分组；DOM 夹具仅按真实复用提取。",
       "reviewBy": "2026-12-13",
       "test": "test/overtime-gift-picker.test.js"
@@ -220,6 +230,26 @@
       "removal": "增加独立采集模式时分组，保留录制状态转换覆盖。",
       "reviewBy": "2026-12-13",
       "test": "test/wesing-capture-recording-mode.test.js"
+    },
+    {
+      "path": "src/electron/cloud-sync-controller.js",
+      "kind": "review",
+      "maxLines": 617,
+      "owner": "云端scope同步与恢复",
+      "reason": "2026-09-16 审计修复增量由根代理独立审阅：F06/F08：复核dirty重试期限、SSE重连、重复触发和失效timer，以及应用songs数组前的契约校验；仅扩展既有同步生命周期，不引入新领域职责。",
+      "removal": "出现独立可分离协议职责时提取；新增业务功能不继续加入本transport/controller。",
+      "reviewBy": "2026-12-16",
+      "test": "test/client-response-boundaries.test.js"
+    },
+    {
+      "path": "src/electron/license/remote-license-client.js",
+      "kind": "review",
+      "maxLines": 604,
+      "owner": "远程授权HTTP与SSE协议适配",
+      "reason": "2026-09-16 审计修复增量由根代理独立审阅：F06/F09：复核Retry-After头解析、错误元数据及SSE畸形响应的HTTP状态保留；这些转换继续属于既有transport边界，不引入恢复策略或业务状态。",
+      "removal": "出现独立可分离协议职责时提取；新增业务功能不继续加入本transport/controller。",
+      "reviewBy": "2026-12-16",
+      "test": "test/client-response-boundaries.test.js"
     }
   ]
 }

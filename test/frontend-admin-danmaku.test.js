@@ -120,22 +120,22 @@ test('danmaku tool separates the fixed live overlay from the sender and reply gr
   assert.match(html, /id="danmakuOpenOverlayBtn"/);
   assert.match(
     html,
-    /id="danmakuPreviewOverlayBtn"[^>]*>\s*网页预览\s*<\/button>/,
+    /id="danmakuPreviewOverlayBtn"[^>]*>\s*本地预览\s*<\/button>/,
   );
   const styleOptions = Array.from(
     html.matchAll(
-      /<button\b[^>]*data-danmaku-style="([^"]+)"[^>]*>\s*([^<]+?)\s*<\/button>/g,
+      /<button\b[^>]*data-danmaku-style="([^"]+)"[^>]*>[\s\S]*?<span class="danmaku-style-name">([^<]+)<\/span>[\s\S]*?<\/button>/g,
     ),
     ([, style, label]) => [style, label.trim()],
   );
   assert.deepEqual(styleOptions, [
     ['bubble', '聊天气泡'],
-    ['signal', '直播信号带'],
+    ['signal', '深色面板'],
     ['minimal', '蝴蝶结'],
-    ['ranked', '直播气泡'],
-    ['transparent', '透明简约'],
-    ['identity', '身份横卡'],
-    ['outline', '全屏随机'],
+    ['ranked', '大头像气泡'],
+    ['transparent', '透明文字'],
+    ['identity', '头像横卡'],
+    ['outline', '简洁白卡'],
     ['cream', '奶油气泡'],
   ]);
   assert.match(html, /data-danmaku-style="signal"[^>]+aria-pressed="true"/);
@@ -145,7 +145,7 @@ test('danmaku tool separates the fixed live overlay from the sender and reply gr
   );
   assert.match(
     html,
-    /class="danmaku-style-group danmaku-style-group-random"[^>]+aria-labelledby="danmakuRandomStyleTitle"[\s\S]*id="danmakuRandomStyleTitle">全直播间随机弹幕<[\s\S]*aria-label="选择全直播间随机弹幕样式"/,
+    /class="danmaku-style-group danmaku-style-group-random"[^>]+aria-labelledby="danmakuRandomStyleTitle"[\s\S]*id="danmakuRandomStyleTitle">全屏随机弹幕<[\s\S]*aria-label="选择全屏随机弹幕样式"/,
   );
   assert.doesNotMatch(html, /danmaku-style-option-(?:visual|copy)/);
   assert.match(
@@ -198,15 +198,15 @@ test('danmaku tool separates the fixed live overlay from the sender and reply gr
   assert.match(styles, /\.danmaku-style-options/);
   assert.match(
     styles,
-    /\.danmaku-style-picker\s*\{[^}]*grid-template-columns:\s*minmax\(0, 2fr\) minmax\(240px, 1fr\);/s,
+    /\.danmaku-style-picker\s*\{[^}]*grid-template-columns:\s*minmax\(0, 3fr\) minmax\(220px, 1fr\);/s,
   );
   assert.match(
     styles,
-    /\.danmaku-style-options-fixed\s*\{[^}]*grid-template-columns:\s*repeat\(6, minmax\(0, 1fr\)\);/s,
+    /\.danmaku-style-options-fixed\s*\{[^}]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\);/s,
   );
   assert.match(
     styles,
-    /@container danmaku-style-picker \(max-width: 600px\)[\s\S]*\.danmaku-style-group\s*\{[^}]*grid-column:\s*1 \/ -1;/,
+    /@container danmaku-style-picker \(max-width: 800px\)[\s\S]*\.danmaku-style-group\s*\{[^}]*grid-column:\s*1 \/ -1;/,
   );
   assert.doesNotMatch(styles, /\.danmaku-style-option-visual/);
   assert.match(

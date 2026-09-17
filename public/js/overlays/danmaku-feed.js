@@ -19,7 +19,7 @@ const FULLSCREEN_LAYOUT = 'fullscreen-random';
  * this component owns message timing, layout, and removal.
  *
  * @param {HTMLElement} root
- * @param {{maxItems?: number, offscreenViewports?: number, autoScroll?: boolean, layout?: string, itemLifetimeMs?: number, expireItems?: boolean, now?: Function, scheduleTimeout?: Function, cancelTimeout?: Function, resolveAvatarUrl?: Function, resolveEmoteUrl?: Function, getGuardLabel?: Function, classNames?: object}} options
+ * @param {{maxItems?: number, offscreenViewports?: number, autoScroll?: boolean, layout?: string, showAvatar?: boolean, itemLifetimeMs?: number, expireItems?: boolean, now?: Function, scheduleTimeout?: Function, cancelTimeout?: Function, resolveAvatarUrl?: Function, resolveEmoteUrl?: Function, getGuardLabel?: Function, classNames?: object}} options
  * @returns {{render: Function, append: Function, destroy: Function}}
  */
 export function createDanmakuFeed(root, options = {}) {
@@ -32,6 +32,7 @@ export function createDanmakuFeed(root, options = {}) {
   );
   const requestedOffscreenViewports = Number(options.offscreenViewports);
   const offscreenViewports = Number.isFinite(requestedOffscreenViewports)
+    || requestedOffscreenViewports === Number.POSITIVE_INFINITY
     ? Math.max(0, requestedOffscreenViewports)
     : DEFAULT_OFFSCREEN_VIEWPORTS;
   const classNames = {
@@ -44,6 +45,7 @@ export function createDanmakuFeed(root, options = {}) {
     document,
     classNames,
     fullscreen,
+    showAvatar: options.showAvatar,
     resolveAvatarUrl: options.resolveAvatarUrl,
     resolveEmoteUrl: options.resolveEmoteUrl,
     getGuardLabel: options.getGuardLabel,

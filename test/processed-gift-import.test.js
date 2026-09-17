@@ -19,7 +19,8 @@ const {
   createOvertimeService,
 } = require('../src/overtime');
 const { closeDatabases, createDatabases } = require('../src/storage/database');
-const heartBox = require('../../lira-server/test/fixtures/heart-blind-box-events.json');
+const { readServerFixture } = require('../scripts/verify-server-contract');
+const heartBox = readServerFixture('test/fixtures/heart-blind-box-events.json');
 const { getGiftSnapshot } = require('../src/bilibili/gift/query-service');
 const {
   createFakeClock,

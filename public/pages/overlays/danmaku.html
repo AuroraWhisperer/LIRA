@@ -7,6 +7,51 @@
     <link rel="stylesheet" href="/css/overlays/danmaku.css?v=20260901-01" />
   </head>
   <body class="danmaku-overlay-body" data-style="signal">
+    <aside id="danmakuPreviewControls" class="danmaku-preview-controls" aria-label="弹幕样式预览" hidden>
+      <h1>弹幕样式预览</h1>
+      <p>本地示例，选一个样式即可查看。</p>
+      <div class="danmaku-preview-choices" role="group" aria-label="固定位置弹幕">
+        <h2>固定位置</h2>
+        <button type="button" data-preview-style="bubble" aria-pressed="false">
+          <img src="/img/overlays/danmaku-previews/bubble.png" alt="" />
+          <span>聊天气泡<small>圆角底色，头像在左</small></span>
+        </button>
+        <button type="button" data-preview-style="signal" aria-pressed="true">
+          <img src="/img/overlays/danmaku-previews/signal.png" alt="" />
+          <span>深色面板<small>深色切角，彩色边线</small></span>
+        </button>
+        <button type="button" data-preview-style="minimal" aria-pressed="false">
+          <img src="/img/overlays/danmaku-previews/minimal.png" alt="" />
+          <span>蝴蝶结<small>居中文字，蝴蝶结装饰</small></span>
+        </button>
+        <button type="button" data-preview-style="ranked" aria-pressed="false">
+          <img src="/img/overlays/danmaku-previews/ranked.png" alt="" />
+          <span>大头像气泡<small>大圆头像，昵称在气泡上方</small></span>
+        </button>
+        <button type="button" data-preview-style="transparent" aria-pressed="false">
+          <img src="/img/overlays/danmaku-previews/transparent.png" alt="" />
+          <span>透明文字<small>无底色，文字直接叠加</small></span>
+        </button>
+        <button type="button" data-preview-style="identity" aria-pressed="false">
+          <img src="/img/overlays/danmaku-previews/identity.png" alt="" />
+          <span>头像横卡<small>横向色块，右侧头像渐隐</small></span>
+        </button>
+      </div>
+      <div class="danmaku-preview-choices" role="group" aria-label="全屏随机弹幕">
+        <h2>全屏随机</h2>
+        <button type="button" data-preview-style="outline" aria-pressed="false">
+          <img src="/img/overlays/danmaku-previews/outline.png" alt="" />
+          <span>简洁白卡<small>白底圆角，只显示昵称和正文</small></span>
+        </button>
+        <button type="button" data-preview-style="cream" aria-pressed="false">
+          <img src="/img/overlays/danmaku-previews/cream.png" alt="" />
+          <span>奶油气泡<small>奶油底色，粉边与外置头像</small></span>
+        </button>
+      </div>
+      <p class="danmaku-preview-note">总督、提督、舰长、普通观众<br />文字、表情包与送礼通知<br />共 6 条示例，可滚动查看全部。<br />账号发送的感谢按普通弹幕显示。<br />随机样式在此静态排布，直播时随机出现。<br />不循环、不影响直播。</p>
+    </aside>
+    <div id="danmakuPreviewViewport" class="danmaku-overlay-viewport">
+      <p id="danmakuPreviewDescription" class="danmaku-preview-description" role="status"></p>
     <main class="danmaku-signal-stage">
       <header class="danmaku-signal-header" aria-label="弹幕接收状态">
         <span class="danmaku-signal-mark" aria-hidden="true"
@@ -26,6 +71,7 @@
         aria-relevant="additions"
       ></section>
     </main>
+    </div>
     <script type="module" src="/js/overlays/danmaku.js?v=20260901-01"></script>
   </body>
 </html>

@@ -37,7 +37,7 @@ export function renderClassicQueue(settings, current, waiting, content) {
     10,
     normalizeFontSize(
       (settings || {}).queueSongFontSize,
-      scaleToFontSize((settings || {}).themeFontScale, 40),
+      scaleToFontSize((settings || {}).themeFontScale, 28),
       70,
       10,
     ),

@@ -19,6 +19,8 @@ class RemoteLicenseError extends Error {
     this.code = code;
     this.status = options.status || 0;
     this.retryable = options.retryable === true;
+    if (Number.isSafeInteger(options.retryAfterMs) && options.retryAfterMs >= 0)
+      this.retryAfterMs = options.retryAfterMs;
     const index = normalizeErrorIndex(options.index);
     if (index !== undefined) this.index = index;
   }
@@ -27,6 +29,7 @@ class RemoteLicenseError extends Error {
 function createRemoteLicenseClient(options = {}) {
   const fetchImpl = options.fetchImpl || globalThis.fetch;
   const timeoutMs = Number(options.timeoutMs) || 10000;
+  const now = options.now || Date.now;
   const baseUrl = resolveConfiguredBaseUrl(options.baseUrl);
   const parsedBase = new URL(baseUrl);
   if (
@@ -97,6 +100,7 @@ function createRemoteLicenseClient(options = {}) {
           '授权服务器响应过大。',
           {
             status: response.status,
+            retryAfterMs: readRetryAfter(response, now()),
             retryable: pathname !== '/api/device/songs' &&
               (response.ok || isRetryableStatus(response.status)),
           },
@@ -111,6 +115,7 @@ function createRemoteLicenseClient(options = {}) {
           '授权服务器返回无效响应。',
           {
             status: response.status,
+            retryAfterMs: readRetryAfter(response, now()),
             retryable: response.ok || isRetryableStatus(response.status),
           },
         );
@@ -125,6 +130,7 @@ function createRemoteLicenseClient(options = {}) {
           '授权服务器返回无效响应。',
           {
             status: response.status,
+            retryAfterMs: readRetryAfter(response, now()),
             retryable: response.ok || isRetryableStatus(response.status),
           },
         );
@@ -136,6 +142,7 @@ function createRemoteLicenseClient(options = {}) {
         );
         throw new RemoteLicenseError(code, code, {
           status: response.status,
+          retryAfterMs: readRetryAfter(response, now()),
           retryable: isRetryableStatus(response.status),
           index: data.index,
         });
@@ -228,7 +235,7 @@ function createRemoteLicenseClient(options = {}) {
       );
     }
 
-    if (!response.ok) throw await readStreamError(response);
+    if (!response.ok) throw await readStreamError(response, now());
     const contentType = String(response.headers?.get?.('content-type') || '');
     if (
       !/^text\/event-stream(?:\s*;|$)/iu.test(contentType) ||
@@ -519,7 +526,7 @@ function handleCloudStateEventBlock(block, onChange) {
   if (Object.keys(scopes).length > 0) onChange?.({ scopes });
 }
 
-async function readStreamError(response) {
+async function readStreamError(response, now) {
   let data = {};
   try {
     const text = await response.text();
@@ -527,15 +534,28 @@ async function readStreamError(response) {
   } catch (error) {
     void error;
   }
+  if (!data || typeof data !== 'object' || Array.isArray(data)) data = {};
   const code = normalizeErrorCode(
     data?.error || data?.code,
     `HTTP_${response.status}`,
   );
   return new RemoteLicenseError(code, code, {
     status: response.status,
+    retryAfterMs: readRetryAfter(response, now),
     retryable: isRetryableStatus(response.status),
     index: data.index,
   });
+}
+
+function readRetryAfter(response, now) {
+  const value = String(response.headers?.get?.('retry-after') || '').trim();
+  if (!value) return undefined;
+  const delay = /^\d+$/.test(value)
+    ? Number(value) * 1000
+    : /^(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)[a-z]*[, ]/.test(value)
+      ? Math.max(0, Date.parse(value) - now)
+      : NaN;
+  return Number.isSafeInteger(delay) && delay >= 0 ? delay : undefined;
 }
 
 function isRetryableStatus(status) {

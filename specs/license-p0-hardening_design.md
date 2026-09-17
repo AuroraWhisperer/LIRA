@@ -1,7 +1,10 @@
 # Feature: License P0 Hardening
 
 > Status: Implemented
-> Requirement source: `D:/Work/lira-server/specs/lira-server_reverse_spec.md` §8 and §11 P0.
+> Requirement source: server `docs/protocol/session-lifecycle.md` and `docs/protocol/device-authentication-v2.md`.
+> Updated 2026-09-16: automatic renewal is conditional on the last Session; the
+> former manual-only cloud-sync clauses are superseded by
+> [Cloud-authoritative Streamer sync](cloud-authoritative-streamer-sync_design.md).
 
 ## Goal
 
@@ -16,13 +19,17 @@ Make the Electron client enforce the server device-license protocol without rene
 - When Windows resumes from suspension, the Electron main process shall immediately recheck the current license session and reschedule heartbeat maintenance.
 - When an already-enrolled device starts and verifies successfully, the Electron main process shall resume license-gated Bilibili work.
 - The activation and challenge canonical payloads shall match server-owned golden vectors byte for byte; activation shall hash the SPKI PEM after removing surrounding whitespace so Node-generated trailing newlines cannot change the proof.
-- When a user explicitly clicks cloud song sync, the client shall send one complete local snapshot; no automatic sync shall be introduced.
+- Automatic renewal, protected-request revalidation and resume recovery shall send the last successful `sessionId` as `renewalSessionId`. Network failure shall retain this prerequisite even when the in-memory token is cleared; only explicit startup, activation or user retry may omit it and take over another runtime.
+- The local business gate shall require an unexpired in-memory token, including when timers have not run and no protected remote request occurs. Short token lifetimes shall schedule maintenance before expiry rather than imposing a 30-second minimum.
+- Retryable startup and renewal shall retain the transport `retryAfterMs` deadline. Resume and expired protected calls cannot bypass it; waits larger than a native timer are split into cancellable chunks. Waiting never extends token validity.
+- Malformed SSE error bodies (including null, arrays and text) shall preserve HTTP 401/403 rejection, clear the token and close the local gate.
+- Song synchronization follows the newer cloud-authoritative specification, including automatic synchronization; its rules supersede this document's former manual-only limitation.
 
 ## Architecture
 
 ### Frontend
 
-- Keep the existing `/license` page, narrow `liraLicense` bridge, and manual cloud-sync button.
+- Keep the existing `/license` page and narrow `liraLicense` bridge; cloud-sync controls follow their current owning specification.
 - Add readable messages for server/session rejection and temporary server-unavailable states.
 - Do not expose a token, private key, fingerprint, or configurable remote URL.
 
@@ -32,7 +39,7 @@ Make the Electron client enforce the server device-license protocol without rene
 - All protected remote methods execute through one authorized-request wrapper.
 - `renewalPromise` and `heartbeatPromise` serialize maintenance and prevent stale-token overlap.
 - `main.js` owns the Electron `powerMonitor` resume listener and removes it during shutdown.
-- The existing server routes and response contracts remain unchanged.
+- Verify adds the optional HTTP-only `renewalSessionId` field. v2 canonical bytes, mandatory request fields and response contracts remain unchanged; deploy the supporting server before this client. Old clients remain compatible but cannot provide the new automatic-renewal guarantee. Never retry a rejected conditional verify without its prerequisite.
 
 ### Security
 
@@ -54,12 +61,16 @@ Make the Electron client enforce the server device-license protocol without rene
 8. An initially authorized startup calls `resumeAuthorizedWork()` once.
 9. Client and server protocol tests assert the same complete activation and challenge canonical strings, including SPKI PEM surrounding-whitespace normalization.
 10. Existing IPC, background-image, song-sync, gate, and license UI tests remain green.
+11. After B takes over A, A's already-scheduled renewal carries A's Session ID and becomes BLOCKED even if no heartbeat observed the takeover. Transient recovery retains that ID; an explicit user retry may omit it.
+12. With a 1-second token and unreachable server, the local business gate closes at expiry without any remote business call or timer callback; renewal scheduling does not delay its first attempt until 30 seconds.
+13. A renewal retry with `Retry-After: 60` waits at least 60 seconds, including resume or expired protected calls during that wait. A token that expires during the wait no longer authorizes local work or appears authorized in snapshots; oversized delays use bounded native timer chunks and disposal cancels them.
+14. Real SSE 401 responses with null, array or text bodies remain authorization rejections and clear the in-memory token.
 
 ## Non-goals
 
 - No offline-license grace period or refresh-token protocol.
-- No server endpoint, database, persisted-state, or IPC contract changes.
-- No automatic cloud song synchronization or multi-device merge algorithm.
+- No new server endpoint, database, persisted-state, or IPC contract changes.
+- Cloud song synchronization and merge behavior belong to the newer cloud-authoritative specification.
 - No unrelated Electron, Bilibili, gift, or UI refactoring.
 
 ## Implementation Evidence

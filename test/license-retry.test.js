@@ -138,6 +138,7 @@ function createManagerHarness({
       calls.verifies += 1;
       return {
         accessToken: `token-${calls.verifies}`,
+        sessionId: 'session-1',
         expiresIn: verifyExpiresIn(calls.verifies),
         deviceId: 'd',
         licenseId: 'l',
@@ -251,8 +252,7 @@ test('renewal retry delay is clamped by the remaining token lifetime', async () 
     'timeout',
     { retryable: true },
   );
-  // renewal timer for a 3s token: max(30000, 3000 - 90000) = 30000
-  timers.runPendingWithDelay(30000);
+  timers.runPendingWithDelay(renewalDelayOf(timers));
   await flushMicrotasks();
 
   const retryDelays = timers.delays().filter((d) => d !== 150000);

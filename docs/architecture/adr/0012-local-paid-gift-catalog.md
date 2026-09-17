@@ -3,6 +3,15 @@
 - Status: Accepted
 - Date: 2026-09-05
 
+The original schema-v2 and server-image compatibility decisions below are
+superseded by the current server catalog protocol and
+[gift identity specification](../../../specs/gift-identity-overtime.md).
+Current clients request schema 3, require `imageUrl: null`, download validated
+Bilibili sources directly and keep schema-2 last-good images by `variantId`.
+The [bootstrap specification](../../../specs/local-gift-catalog-bootstrap_design.md)
+describes the current acceptance rules; this ADR's original fallback text is
+historical rationale, not a requirement to restore server image downloads.
+
 ## Context
 
 The overtime picker previously shipped a static Bilibili artwork tree, then

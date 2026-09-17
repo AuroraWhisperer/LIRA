@@ -165,9 +165,9 @@ test('tour introduces LIRA and the four primary buttons before seven sequential 
   assert.equal(tour.TOUR_STEPS[0].kicker, '第 0 步 · 认识 LIRA');
   assert.match(
     tour.TOUR_STEPS[0].content,
-    /Live Interactive Request Assistant/,
+    /Live Interactive Room Assistant/,
   );
-  assert.match(tour.TOUR_STEPS[0].content, /直播互动点歌助手/);
+  assert.match(tour.TOUR_STEPS[0].content, /直播间互动助手/);
   assert.deepEqual(
     Array.from(actionSteps, (step) => step.kicker),
     [
@@ -351,7 +351,10 @@ test('music setup step targets the real playback source switcher', () => {
   assert.equal(musicStep.position, 'bottom');
   assert.match(playbackPage, /class="source-tabs"/);
   assert.match(musicStep.content, /选择你平时使用的平台/);
-  assert.match(musicStep.content, /点击右上方的「登录」/);
+  assert.match(
+    musicStep.content.replace(/<[^>]+>/g, ''),
+    /点击右上方的「登录」/,
+  );
 });
 
 test('usage guide step opens and points to the real toolbox document button', () => {

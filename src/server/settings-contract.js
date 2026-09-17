@@ -73,7 +73,8 @@ function normalizeSettingValue(key, rawValue) {
   if (key === 'queueLimit' || key === 'userCooldownSeconds') {
     if (typeof rawValue !== 'number' && typeof rawValue !== 'string')
       return null;
-    if (typeof rawValue === 'string' && !rawValue.trim()) return null;
+    if (typeof rawValue === 'string' && !/^\s*[0-9]+\s*$/u.test(rawValue))
+      return null;
     const number = Number(rawValue);
     const min = key === 'queueLimit' ? 1 : 0;
     const max = key === 'queueLimit' ? 300 : 3600;

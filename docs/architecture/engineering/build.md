@@ -16,7 +16,9 @@
 | `verify:docs`         | `node --test test/governance-docs.test.js`                                                                                                                        | 治理文件、路由表、规格索引和范围内 Markdown 链接检查                                                         |
 | `verify:architecture` | `node --experimental-vm-modules --test test/module-boundaries.test.js test/esm-module-boundaries.test.js`                                                         | 模块边界、遗留债务预算和前端 ESM 边界检查                                                                    |
 | `verify:quick`        | `npm run verify:docs && npm run check && npm run verify:architecture`                                                                                             | 日常评审前快速门禁:文档 → 语法 → 架构                                                                        |
-| `verify`              | `npm run verify:quick && npm test`                                                                                                                                | 完整门禁:先快速失败,再运行全量测试                                                                           |
+| `verify:contracts` | `node scripts/verify-server-contract.js` | 核对固定服务器提交和 fixture SHA-256；支持 `LIRA_SERVER_ROOT` |
+| `verify:roundtrip` | `node scripts/verify-song-roundtrip.cjs` | 固定服务器真实 HTTP 歌库往返；两仓需安装依赖 |
+| `verify` | `npm run verify:contracts && npm run verify:quick && npm test` | 完整门禁:契约输入 → 快速检查 → 全量测试 |
 | `diagnose:wesing`     | `node scripts/inspect-wesing-playback.js`                                                                                                                         | 全民 K 歌播放状态交互诊断(见 [test.md](test.md) §4 与 [backend/music/wesing.md](../backend/music/wesing.md)) |
 | `make:icon`           | `node scripts/create-icon.js`                                                                                                                                     | 生成 `build/icon.png` + `build/icon.ico`(见 §5)                                                              |
 | `dist:win`            | `npm run make:icon && electron-builder --win nsis --x64`                                                                                                          | 正式打包:下载 Electron 二进制 + 构建 NSIS 安装包                                                             |
@@ -26,6 +28,20 @@
 - 出处:[package.json](../../../package.json) 的 `scripts` 字段。
 - `dist:win:local` 使用**原生 cmd 语法**(`set VAR=1 && …`,Windows-only),未引入任何跨平台环境变量注入工具；通过 Windows 上的 npm 执行。
 - `test` 的 `--test-concurrency=6` 控制测试文件并发数，保留进程隔离；`--experimental-vm-modules` 必需:多个测试在 vm 中求值前端 ESM 模块(见 [test.md](test.md) §1)。
+
+### 持续集成
+
+[Check 工作流](../../../.github/workflows/check.yml) 使用 Windows 和 Node.js 24。push、PR 和手动运行执行 `verify:quick` 及隔离的契约校验器测试。该 job 不检出私有服务器，也不使用服务器凭据。
+
+完整两仓 job 只在 `main` push 或从 `main` 手动运行时执行，并等待快速检查成功。它将客户端和服务器检出到平级目录，从 [契约锁](../../../server-contract.lock.json) 读取完整服务器 SHA，校验输入后安装两边锁文件依赖，运行 `verify` 和 `verify:roundtrip`。它不构建、签名或发布安装包；未配置 NSIS 的安装器场景仍显式跳过。两个 checkout 均关闭凭据持久化，Actions 固定到完整提交；不缓存或上传私有服务器源码。
+
+首次启用需要在客户端 GitHub 仓库设置中完成：
+
+1. 创建名为 `server-contract` 的 Environment，把 Deployment branches and tags 设为仅允许 `main` 分支。
+2. 在**该环境**添加 `LIRA_SERVER_READ_TOKEN`，使用仅能读取 `AuroraWhisperer/LIRA-server` 的 fine-grained PAT，仓库权限仅需 Contents: Read-only。不要把它设为 repository secret，也不要放进代码、命令参数或日志。
+3. 推送经过审核的工作流和契约锁后，在 `main` 手动触发 Check，确认两个 job 实际通过。缺少 token 会明确失败，不跳过完整检查冒充通过。
+
+环境的分支限制是必要的外部设置：工作流中的 `if` 只约束这份工作流，不能阻止有写权限的人在另一分支修改工作流读取 repository secret。环境管理权限及 `main` 合入权限应只授予可信维护者。配置文件本身不能代替这些 GitHub 设置，也不能证明托管执行已经通过。权限依据见 GitHub 的 [安全使用说明](https://docs.github.com/en/actions/reference/security/secure-use) 和 [checkout 私有仓库说明](https://github.com/actions/checkout#checkout-multiple-repos-private)。
 
 ## 2. 依赖清单(唯一成表处)
 

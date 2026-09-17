@@ -13,20 +13,43 @@
 - **架构门禁**:`npm run verify:architecture` 运行模块边界、遗留债务预算、前端 ESM 边界与源码规模登记测试。
 - **规模门禁**:`npm run verify:modularity` 直接检查物理行数、601–800 行评估、存量上限及逐文件例外；同一检查已接入架构和全量测试，口径见 [modularity-standard.md](modularity-standard.md)。
 - **快速门禁**:`npm run verify:quick` 按文档 → 语法 → 架构顺序运行,用于日常评审前反馈。
-- **完整门禁**:`npm run verify` 先运行快速门禁,再运行 `npm test`;全量测试再次发现定向测试属于可接受的有限重复。
+- **契约输入门禁**:`npm run verify:contracts` 核对固定服务器提交和全部 fixture 的 SHA-256；不下载或切换检出目录。
+- **完整门禁**:`npm run verify` 先校验契约输入，再运行快速门禁和 `npm test`;全量测试再次发现定向测试属于可接受的有限重复。
 - **为什么需要 `--experimental-vm-modules`**:源码以 CJS(`require`)为主,但多个前端测试会通过 `vm.SourceTextModule` 或动态 `import()` 加载 `public/js/` 下的 ESM 模块;去掉该 flag 这些测试会失败。
 - **单文件运行**:`node --experimental-vm-modules --test test/xxx.test.js`(flag 必须保留)。
 - **测试方式**:以离线单元和集成测试为主,不访问真实外部网络;服务端模块直接 require 真实实现并注入临时 SQLite 目录或 mock,server smoke 类测试会在随机本地端口启动完整服务;浏览器模块用 vm + 假 `window`/`localStorage` 求值。
 
+### 固定服务器契约输入
+
+[server-contract.lock.json](../../../server-contract.lock.json) 声明服务器仓库、完整 commit SHA 和 5 份原始 fixture 的 SHA-256。服务器继续拥有协议和样例，客户端不保存副本。[verify-server-contract.js](../../../scripts/verify-server-contract.js) 在消费前核对提交和内容，错误提交、缺失或被改动的样例都会使检查失败，不能用同名目录掩盖版本差异。
+
+目录选择顺序为显式路径、`LIRA_SERVER_ROOT`、客户端相邻的 `lira-server`。下面在一个新的独立目录准备服务器，不切换正在开发的服务器工作区；读取私有仓库需要已有的 Git 只读权限。
+
+```powershell
+$contract = Get-Content -LiteralPath server-contract.lock.json -Raw | ConvertFrom-Json
+git clone --no-checkout "https://github.com/$($contract.repository).git" ..\lira-server-contract
+git -C ..\lira-server-contract checkout --detach $contract.revision
+$env:LIRA_SERVER_ROOT = (Resolve-Path ..\lira-server-contract).Path
+node scripts/verify-server-contract.js --runtime
+npm ci
+npm --prefix "$env:LIRA_SERVER_ROOT" ci
+npm run verify
+npm run verify:roundtrip
+```
+
+`--runtime` 还拒绝服务器 `src/`、`package.json`、`package-lock.json` 中已暂存、未暂存或未跟踪的变更，供加载真实服务器实现的联测使用。仅消费 fixture 的测试不因无关服务器文档修改失败。验证器不会自动拉取、修改或清理服务器文件；目录或版本不匹配时应另建检出或有意识地更新锁。
+
+升级契约时，先确认服务器协议和实现已经提交且该提交可获取，再一起更新锁中的完整 SHA 和 5 个文件的原始字节 SHA-256；服务器 `.gitattributes` 保证这些 JSON 使用 LF。随后运行完整门禁和往返检查，评审两端行为变化。不能只为消除失败而改成浮动分支、跳过哈希或复制工作区样例。
+
 ### 两仓歌库往返回归
 
-[verify-song-roundtrip.cjs](../../../scripts/verify-song-roundtrip.cjs) 使用两个显式的绝对检出路径，在本机随机端口运行真实服务器 JSON parser、歌曲事务、内存 SQLite store 与 DTO，再由真实桌面 HTTP client 上传、回读。设备鉴权与路由接线使用测试 adapter，不能把结果当作生产认证或线上容量验收。两仓需先安装各自锁文件依赖；服务器的 `better-sqlite3` 必须匹配执行测试的 Node ABI。
+[verify-song-roundtrip.cjs](../../../scripts/verify-song-roundtrip.cjs) 使用解析后的两仓绝对检出路径，在本机随机端口运行真实服务器 JSON parser、歌曲事务、内存 SQLite store 与 DTO，再由真实桌面 HTTP client 上传、回读。设备鉴权与路由接线使用测试 adapter，不能把结果当作生产认证或线上容量验收。两仓需先安装各自锁文件依赖；服务器的 `better-sqlite3` 必须匹配执行测试的 Node ABI。
 
 ```powershell
 node scripts/verify-song-roundtrip.cjs D:\Work\Live D:\Work\lira-server
 ```
 
-该检查独立于 `npm test`，不会给单仓测试新增隐式相邻目录依赖。现有礼物契约测试仍依赖相邻服务器 fixtures；在服务器当前契约和模块形成可获取的固定提交前，不能宣称干净单仓检出或托管两仓门禁已经可复现。此脚本检查传入工作区的实现，不自行下载、切换或声称固定服务器版本。
+该检查独立于 `npm test`。`npm run verify:roundtrip` 使用当前客户端和上述服务器目录解析规则；原有两个显式绝对路径的调用方式继续有效。脚本在加载服务器模块前校验锁、fixture 和运行时工作区，再执行往返场景。客户端完整测试也需要锁定的服务器 fixture；单仓的 `verify:quick` 和 `node --test test/server-contract.test.js` 不需要私有服务器检出。托管检查及访问配置见 [构建文档](build.md#持续集成)。
 
 ### Windows 安装器集成测试
 
@@ -60,6 +83,7 @@ node --test test/installer-directory.test.js test/installer-migration.test.js te
 | ------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
 | **治理与架构**                                                                                               |                                                                                                 | [modularity-standard.md](modularity-standard.md) + [ai-workflow.md](ai-workflow.md)               |
 | [check-js.test.js](../../../test/check-js.test.js)                                                           | 语法检查的并发上限、完整扫描、失败退出与原生 CJS/ESM 语法行为                                   | 本文 §3                                                                                           |
+| [server-contract.test.js](../../../test/server-contract.test.js) | 固定服务器版本、fixture 完整性、目录选择和运行时漂移拒绝；使用临时 Git 仓库 | 本文 §1 |
 | [modularity-size.test.js](../../../test/modularity-size.test.js)                                             | `scripts/check-modularity.js`：物理行边界、源码类型、未跟踪文件、增长、过期、无效登记及当前基线 | [modularity-standard.md](modularity-standard.md) + [modularity-debt.md](modularity-debt.md)       |
 | [governance-docs.test.js](../../../test/governance-docs.test.js)                                             | 治理文件、路由表、规格索引与范围内 Markdown 链接                                                | 同上 + [legacy-boundaries.md](legacy-boundaries.md)                                               |
 | **AI 助手**                                                                                                  |                                                                                                 | [backend/ai.md](../backend/ai.md)                                                                 |

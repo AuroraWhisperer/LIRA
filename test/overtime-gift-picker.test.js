@@ -6,7 +6,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const { pathToFileURL } = require('node:url');
-const heart = require('../../lira-server/test/fixtures/heart-blind-box-events.json');
+const { readServerFixture } = require('../scripts/verify-server-contract');
+const heart = readServerFixture('test/fixtures/heart-blind-box-events.json');
 
 const ROOT_DIR = path.join(__dirname, '..');
 const OVERTIME_ENTRY = path.join(
@@ -547,7 +548,7 @@ async function loadOvertimeModule({ document, window, state, saleGifts }) {
 }
 
 test('same-ID gift identities remain separately selectable and keep their own artwork', async () => {
-  const identities = require('../../lira-server/docs/protocol/fixtures/gift-catalog-variants.json');
+  const identities = readServerFixture('docs/protocol/fixtures/gift-catalog-variants.json');
   const globalGifts = identities.response.variants
     .filter((gift) => gift.giftId === '35429')
     .map((gift) => ({

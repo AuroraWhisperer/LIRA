@@ -421,8 +421,7 @@ async function startDesktopApp() {
     isPackaged: app.isPackaged,
     appPath: app.isPackaged ? path.join(process.resourcesPath, 'app.asar') : '',
     licenseGate: {
-      isAuthorized: () =>
-        licenseManager?.getState() === LicenseState.AUTHORIZED,
+      isAuthorized: () => licenseManager?.isAuthorized() === true,
     },
     onPhase: (phase, durationMs, extra) =>
       writeLog('lifecycle', {

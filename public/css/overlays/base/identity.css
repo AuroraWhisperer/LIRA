@@ -87,7 +87,7 @@
   background: #dc143c;
   color: var(--color-bg-primary);
   padding: 0 0.4em;
-  font-size: calc(var(--identity-queue-font-size, 26px) * 0.77);
+  font-size: calc(var(--identity-queue-font-size, 28px) * 0.77);
   font-weight: 900;
   text-shadow: none;
   white-space: nowrap;
@@ -97,7 +97,7 @@
   flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
-  font-size: var(--identity-queue-font-size, 26px);
+  font-size: var(--identity-queue-font-size, 28px);
   white-space: nowrap;
   text-overflow: ellipsis;
 }
@@ -134,7 +134,7 @@
   padding: 4px 8px 4px 5px;
   overflow: hidden;
   color: #f7fbff;
-  font-size: var(--identity-queue-font-size, 26px);
+  font-size: var(--identity-queue-font-size, 28px);
   font-family: var(--overlay-font-family, var(--font));
   font-weight: var(--overlay-font-weight, 840);
   line-height: 1.2;
@@ -173,7 +173,7 @@
   min-width: 0;
   overflow: hidden;
   white-space: nowrap;
-  font-size: var(--identity-queue-font-size, 26px);
+  font-size: var(--identity-queue-font-size, 28px);
 }
 
 .identity-row.identity-sc .identity-sc-text {

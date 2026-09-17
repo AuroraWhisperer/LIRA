@@ -137,7 +137,7 @@ body[data-style='ranked'] .draw-danmaku-body p {
   padding: 8px 15px 10px;
   border-radius: 5px 18px 18px 18px;
   color: #fff;
-  font-size: 38px;
+  font-size: var(--danmaku-font-size);
   font-weight: 600;
   line-height: 1.28;
   background: var(--ranked-accent);
@@ -153,9 +153,6 @@ body[data-style='ranked'] .draw-danmaku-item.is-emote-only .draw-danmaku-emote {
   height: 4.1em;
   margin: 0.05em 0;
 }
-body.is-preview[data-style='ranked'] .draw-danmaku-item.is-emote-only .draw-danmaku-emote {
-  height: 3em;
-}
 body[data-style='ranked'] .draw-danmaku-empty {
   width: var(--ranked-bubble-max-width);
   max-width: 100%;
@@ -166,48 +163,28 @@ body[data-style='ranked'] .draw-danmaku-empty {
   clip-path: none;
 }
 
-/* 礼物保留身份色气泡，深色文字与小礼章共用同色系前景。 */
+/* 礼物票券：紫金飘带与斜放礼章。 */
 body[data-style='ranked'] .draw-danmaku-item.is-gift {
   --danmaku-gift-art: url('/img/overlays/danmaku-gifts/ranked.svg');
-  --ranked-gift-ink: color-mix(in srgb, var(--ranked-accent) 6%, var(--signal-ink));
+  --gift-ink: #5a3569;
+  --gift-accent: #963a89;
+  --gift-surface: #f8eaff;
+  grid-template-areas: 'content';
+  grid-template-columns: minmax(0, 1fr);
+  padding: 12px 22px 12px 82px;
+  border-radius: 0;
+  background: linear-gradient(110deg, #dfb8ed 0 66px, #f8eaff 66px);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 12px) 50%, 100% 100%, 0 100%, 12px 50%);
 }
-body[data-style='ranked'] .is-gift .draw-danmaku-identity,
-body[data-style='ranked'] .is-gift .draw-danmaku-identity strong,
-body[data-style='ranked'] .is-gift .draw-danmaku-medal {
-  color: var(--ranked-gift-ink);
+body[data-style='ranked'] .is-gift .draw-danmaku-avatar {
+  display: none;
 }
-body[data-style='ranked'] .is-gift .draw-danmaku-identity strong {
-  font-size: 18px;
+body[data-style='ranked'] .is-gift .draw-danmaku-body {
+  padding: 0;
 }
-body[data-style='ranked'] .is-gift .draw-danmaku-gift {
-  display: flow-root;
-  padding: 10px 14px;
-  color: var(--ranked-gift-ink);
-  font-size: 30px;
-  line-height: 1.4;
-  text-shadow: none;
-}
-body[data-style='ranked'] .draw-danmaku-gift-art {
-  float: right;
-  width: 40px;
-  height: 44px;
-  margin-left: 14px;
-  background: currentColor;
-  mask: var(--danmaku-gift-art) center / contain no-repeat;
-}
-body[data-style='ranked'] .draw-danmaku-gift-copy {
-  display: inline;
-}
-body[data-style='ranked'] .draw-danmaku-gift-action {
-  margin-right: 8px;
-  font-size: 16px;
-}
-body[data-style='ranked'] .draw-danmaku-gift-name {
-  font-size: 30px;
-}
-body[data-style='ranked'] .draw-danmaku-gift-count {
-  display: inline-block;
-  margin-left: 10px;
-  font-size: 32px;
-  font-weight: 700;
+body[data-style='ranked'] .is-gift .draw-danmaku-gift-art {
+  left: -74px;
+  right: auto;
+  width: 56px;
+  transform: translateY(-50%) rotate(-6deg);
 }

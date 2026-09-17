@@ -210,16 +210,24 @@ function createFakeLicenseServer() {
           status: 403,
         });
       const existing = sessions.get(device.deviceId);
+      if (body.renewalSessionId &&
+          (!existing || existing.runtimeId !== body.runtimeId ||
+           existing.sessionId !== body.renewalSessionId))
+        throw new RemoteLicenseError('SESSION_SUPERSEDED', 'SESSION_SUPERSEDED', { status: 401 });
       if (existing && existing.runtimeId !== body.runtimeId)
         supersededTokens.set(existing.token, device.deviceId);
       const token = `token-${device.deviceId}-${nextTokenId++}`;
+      const sessionId = existing?.runtimeId === body.runtimeId
+        ? existing.sessionId : `session-${token}`;
       if (existing) {
         existing.runtimeId = body.runtimeId;
+        existing.sessionId = sessionId;
         existing.token = token;
         existing.tokenInvalid = false;
       } else {
         sessions.set(device.deviceId, {
           runtimeId: body.runtimeId,
+          sessionId,
           token,
           superseded: false,
           tokenInvalid: false,
@@ -227,6 +235,7 @@ function createFakeLicenseServer() {
       }
       return {
         accessToken: token,
+        sessionId,
         expiresIn,
         deviceId: device.deviceId,
         licenseId: device.licenseId,

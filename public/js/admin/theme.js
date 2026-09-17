@@ -182,7 +182,7 @@ import {
     if (window.AdminApp.forms && window.AdminApp.forms.bindRangePair) {
       const { bindRangePair } = window.AdminApp.forms;
       bindRangePair('themeOpacity', 'themeOpacityNumber', 0, 1, 0.48);
-      bindRangePair('queueSongFontSize', 'queueSongFontSizeNumber', 10, 70, 40);
+      bindRangePair('queueSongFontSize', 'queueSongFontSizeNumber', 10, 70, 28);
       bindRangePair(
         'queueTitleFontSize',
         'queueTitleFontSizeNumber',
@@ -195,7 +195,7 @@ import {
         'identityQueueFontSizeNumber',
         9,
         78,
-        26,
+        28,
       );
       bindRangePair(
         'overlayRuleFontSize',

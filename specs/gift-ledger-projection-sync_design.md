@@ -119,7 +119,7 @@ participate in any active-source query.
 `gift_sources.source_key` stores only a SHA-256 digest. Its exact input is:
 
 ```text
-gift-source-v1\n<canonicalApiOrigin>\n<lowercase immutable accountName>
+gift-source-v2\n<canonicalApiOrigin>\n<lowercase accountName>\n<stable streamerId>
 ```
 
 `canonicalApiOrigin` is produced with the WHATWG URL implementation. Userinfo,
@@ -127,11 +127,22 @@ path other than `/`, query, and fragment are rejected; the scheme and host are
 canonicalized, IDN is converted by URL parsing, the default port and trailing
 slash are removed. Every runtime requires a valid DNS hostname over HTTPS;
 HTTP, localhost, IP literals, and invalid DNS labels are rejected. The key does
-not include subdomain, mutable display name,
-device ID, Device token, or internal streamer ID.
+not include subdomain, mutable display name, device ID, or Device token.
+`streamerId` is the positive safe-integer identity from the verified main-process
+authorization principal. Reusing a deleted account name creates a different owner
+and therefore a different partition, even on the same server origin.
+
+This replaces the earlier account-name-only `gift-source-v1` rule, which conflicts
+with server ADR-0016 and the stable tenant identity contract. Existing v1 sources
+and unpartitioned rows cannot prove the immutable owner and remain retained but
+inaccessible to active-source queries; they are never automatically reassigned.
+Each v2 source bootstraps afresh. Missing stable identity fails closed without
+falling back to the renderer snapshot, account name alone, or a legacy cursor.
 
 Electron main resolves the active source from the verified authorization
 principal. Renderer requests cannot provide or override `sourceId`.
+Discovery failure may expose only that verified owner's own partition as partial;
+it must never revive a same-name predecessor or an unproven v1 partition.
 
 ## Synchronization State And Transactions
 
@@ -228,6 +239,12 @@ If `historyBootstrapVersion` is absent, the controller can retain compatible
 live final delivery but sets `LEGACY_PARTIAL`; it does not mark bootstrap
 complete or report complete statistics.
 
+Retryable HTTP/SSE failures preserve authorization and projection state. Valid
+`Retry-After` delta-seconds or HTTP-date values reach the recovery scheduler, which
+waits at least the greater of its bounded exponential delay and the server's
+requested delay. The local 60-second backoff cap does not shorten a server minimum;
+invalid headers use the ordinary bounded backoff.
+
 ## Server-Linked Clear Contract
 
 The main-process remote client exposes a fixed, DeviceBearer-protected
@@ -317,7 +334,10 @@ New renderer modules use named ESM imports/exports and do not add to `window.Adm
 ## Acceptance Criteria
 
 1. Different authorized streamers sharing an installation always query separate
-   source partitions, including when their public event IDs are equal.
+   source partitions, including when their public event IDs are equal or a deleted
+   account name is recreated with a different stable streamer ID. Discovery
+   failure never exposes the predecessor's or v1 source's rows; the same verified
+   owner retains offline access to its own v2 projection.
 2. Switching principals freezes queries, aborts and drains old work, and never
    briefly exposes or writes the previous source.
 3. A new/missing/untrusted projection bootstraps all canonical paid final active
@@ -332,7 +352,8 @@ New renderer modules use named ESM imports/exports and do not add to `window.Adm
 7. Same-source/event canonical conflicts fail closed. Same event ID in another
    source remains independent.
 8. A late HTTP/SSE callback whose four-field fence is stale cannot write a row
-   or advance token/cursor state.
+   or advance token/cursor state, including old discovery after a same-name owner
+   replacement. Missing stable identity exposes no source.
 9. A capable server reaches LIVE only after epoch/latest-cursor validation. An
    old server reaches `LEGACY_PARTIAL`, never complete.
 10. Local history searches both gift and box names literally, sorts the four
@@ -362,6 +383,9 @@ New renderer modules use named ESM imports/exports and do not add to `window.Adm
     epoch and the next contiguous cursor is projected before the cursor pull it
     triggers resolves; gaps, unvalidated epochs, bootstrap/rebuild, and stale
     fences wait for recovery, and replay does not duplicate side effects.
+18. Valid `Retry-After` seconds/date headers govern recovery scheduling end to end;
+    server delays above 60 seconds are not shortened, and invalid headers retain
+    bounded backoff without clearing the owner or projection.
 
 ## Done When
 

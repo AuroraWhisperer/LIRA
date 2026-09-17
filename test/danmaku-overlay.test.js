@@ -56,7 +56,7 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
   assert.equal([...script.matchAll(/guardLevel:\s*[123]/g)].length, 3);
   assert.match(
     script,
-    /id:\s*'preview-565',[\s\S]*?message:\s*'\[打call\]',\s*emotes:\s*\[\s*\{\s*text:\s*'\[打call\]',\s*url:\s*'https:\/\/i0\.hdslb\.com\/bfs\/emote\/[a-f0-9]+\.png'/,
+    /url:\s*'\/img\/overlays\/danmaku-previews\/dacall\.png'/,
   );
   assert.match(script, /payload\.state\.settings\.danmakuOverlayStyle/);
   assert.match(script, /danmakuFullscreenDurationSeconds/);
@@ -254,7 +254,7 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
   );
   assert.match(
     styles,
-    /body\[data-style='ranked'\] \.draw-danmaku-body p \{[^}]*width:\s*max-content;[^}]*max-width:\s*100%;[^}]*border-radius:\s*5px 18px 18px 18px;[^}]*color:\s*#fff[^}]*font-size:\s*38px[^}]*background:\s*var\(--ranked-accent\)[^}]*overflow-wrap:\s*anywhere;[^}]*word-break:\s*break-word;[^}]*text-shadow:\s*0 1px 3px rgba\(0, 0, 0, 0?\.34\)/s,
+    /body\[data-style='ranked'\] \.draw-danmaku-body p \{[^}]*width:\s*max-content;[^}]*max-width:\s*100%;[^}]*border-radius:\s*5px 18px 18px 18px;[^}]*color:\s*#fff[^}]*font-size:\s*var\(--danmaku-font-size\)[^}]*background:\s*var\(--ranked-accent\)[^}]*overflow-wrap:\s*anywhere;[^}]*word-break:\s*break-word;[^}]*text-shadow:\s*0 1px 3px rgba\(0, 0, 0, 0?\.34\)/s,
   );
   assert.doesNotMatch(
     styles,
@@ -362,12 +362,15 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
   );
   assert.match(
     styles,
-    /body\[data-style='outline'\] \.draw-danmaku-body p \{[^}]*color:\s*#1d1d1f;[^}]*font-size:\s*clamp\(16px, 2\.2vw, 18px\);[^}]*font-weight:\s*400;[^}]*text-align:\s*left;/s,
+    /body\[data-style='outline'\] \.draw-danmaku-body p \{[^}]*color:\s*#1d1d1f;[^}]*font-size:\s*var\(--danmaku-font-size\);[^}]*font-weight:\s*400;[^}]*text-align:\s*left;/s,
   );
   assert.doesNotMatch(
     styles,
-    /body\[data-style='outline'\] \.draw-danmaku-item\[data-(?:identity|tone)=/,
+    /body\[data-style='outline'\] \.draw-danmaku-item\[data-tone=/,
   );
+  for (const identity of ['captain', 'admiral', 'governor']) {
+    assert.ok(styles.includes(`body[data-style='outline'] .draw-danmaku-item[data-identity='${identity}']`));
+  }
   assert.doesNotMatch(
     styles,
     /body\[data-style='outline'\][\s\S]*var\(--guard-/,

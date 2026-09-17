@@ -19,6 +19,7 @@ function createCloudSyncController(options = {}) {
     throw new Error('Cloud sync controller dependencies are required.');
   }
   const suppliedTimers = options.timers || {};
+  const now = options.now || Date.now;
   const timers = {
     setTimeout: suppliedTimers.setTimeout || setTimeout,
     clearTimeout: suppliedTimers.clearTimeout || clearTimeout,
@@ -40,7 +41,10 @@ function createCloudSyncController(options = {}) {
   let streamAbortController = null;
   let streamReconnectTimer = null;
   let streamRetryMs = STREAM_RETRY_MIN_MS;
+  let streamRetryNotBefore = 0;
   let streamConnections = 0;
+  let retryNotBefore = 0;
+  let retryError = null;
   let interactionState = emptyInteractionState();
   let interactionSaving = false;
   const interactionListeners = new Set();
@@ -120,6 +124,7 @@ function createCloudSyncController(options = {}) {
     return enqueue(async () => {
       try {
         if (!isCurrent(work)) throw Object.assign(new Error(), { code: 'CLOUD_SETTINGS_CHANGED' });
+        if (retryNotBefore > now()) throw retryError;
         const dirtyGeneration = dirtyGenerations.settings;
         // Omit the untouched flag: the server preserves its current value.
         const result = await licenseManager.updateCloudSettings(
@@ -148,6 +153,7 @@ function createCloudSyncController(options = {}) {
         };
       } catch (error) {
         interactionSaving = false;
+        if (isCurrent(work) && retryNotBefore <= now()) rememberRetry(error);
         if (isCurrent(work)) publishInteractionState({ status: 'unconfirmed', error: interactionError(error) });
         return { ok: false, ...getGiftInteractionState() };
       } finally {
@@ -222,6 +228,9 @@ function createCloudSyncController(options = {}) {
       dirty.delete('settings');
     }
     accountKey = nextAccountKey;
+    retryNotBefore = 0;
+    retryError = null;
+    streamRetryNotBefore = 0;
     publishInteractionState(emptyInteractionState());
     return true;
   }
@@ -230,6 +239,12 @@ function createCloudSyncController(options = {}) {
     if (!timer) return;
     timers.clearTimeout(timer);
     timer = null;
+  }
+
+  function rememberRetry(error) {
+    if (!(error?.retryAfterMs > 0)) return;
+    retryNotBefore = Math.max(retryNotBefore, now() + error.retryAfterMs);
+    retryError = error;
   }
 
   function clearStreamReconnectTimer() {
@@ -246,7 +261,7 @@ function createCloudSyncController(options = {}) {
       syncNow().catch((error) => {
         void error;
       });
-    }, intervalMs);
+    }, Math.min(2 ** 31 - 1, Math.max(intervalMs, retryNotBefore - now())));
     timer.unref?.();
   }
 
@@ -271,29 +286,43 @@ function createCloudSyncController(options = {}) {
     });
   }
 
-  function scheduleStreamReconnect() {
+  function scheduleStreamReconnect(retryAfterMs = 0) {
     clearStreamReconnectTimer();
     if (!active || !isAuthorized()) return;
-    const delay = streamRetryMs;
+    const delay = Math.max(streamRetryMs, retryAfterMs);
+    streamRetryNotBefore = now() + delay;
     streamRetryMs = Math.min(STREAM_RETRY_MAX_MS, streamRetryMs * 2);
-    streamReconnectTimer = timers.setTimeout(() => {
+    const timer = timers.setTimeout(() => {
+      if (streamReconnectTimer !== timer) return;
       streamReconnectTimer = null;
+      if (delay > 2 ** 31 - 1) {
+        scheduleStreamReconnect(delay - (2 ** 31 - 1));
+        return;
+      }
+      streamRetryNotBefore = 0;
       startEventStream();
-    }, delay);
+    }, Math.min(delay, 2 ** 31 - 1));
+    streamReconnectTimer = timer;
     streamReconnectTimer.unref?.();
   }
 
   function startEventStream() {
     if (
       streamAbortController ||
+      streamReconnectTimer ||
       !active ||
       !isAuthorized() ||
       typeof licenseManager.watchCloudStateChangesInternal !== 'function'
     ) {
       return;
     }
+    if (streamRetryNotBefore > now()) {
+      scheduleStreamReconnect(streamRetryNotBefore - now());
+      return;
+    }
     const controller = new AbortController();
     streamAbortController = controller;
+    let retryAfterMs = 0;
     licenseManager
       .watchCloudStateChangesInternal({
         signal: controller.signal,
@@ -318,12 +347,12 @@ function createCloudSyncController(options = {}) {
         },
       })
       .catch((error) => {
-        void error;
+        retryAfterMs = error?.retryAfterMs || 0;
       })
       .finally(() => {
         if (streamAbortController !== controller) return;
         streamAbortController = null;
-        if (!controller.signal.aborted) scheduleStreamReconnect();
+        if (!controller.signal.aborted) scheduleStreamReconnect(retryAfterMs);
       });
   }
 
@@ -389,6 +418,7 @@ function createCloudSyncController(options = {}) {
         await flushScope(scope, work);
       } catch (error) {
         // Keep the scope dirty. The next scheduled or explicit sync retries it.
+        if (error?.retryAfterMs > 0) throw error;
         void error;
       }
     }
@@ -401,6 +431,7 @@ function createCloudSyncController(options = {}) {
       await flushScope(scope, work);
     } catch (error) {
       // The dirty scope remains protected from cloud pulls until retry succeeds.
+      if (error?.retryAfterMs > 0) throw error;
       void error;
     }
   }
@@ -450,9 +481,12 @@ function createCloudSyncController(options = {}) {
       Number(result?.revision) || 0,
     );
     if (!shouldApply('songs', cloudRevision, work)) return;
-    await runtime.replaceCloudSongsSnapshot(
-      Array.isArray(result?.songs) ? result.songs : [],
-    );
+    if (!Array.isArray(result?.songs)) {
+      throw Object.assign(new Error('Invalid cloud song snapshot.'), {
+        code: 'INVALID_RESPONSE',
+      });
+    }
+    await runtime.replaceCloudSongsSnapshot(result.songs);
     if (!isCurrent(work)) return;
     revisions.songs = cloudRevision;
   }
@@ -485,6 +519,10 @@ function createCloudSyncController(options = {}) {
 
   async function runSync(work) {
     if (!isCurrent(work)) return false;
+    if (retryNotBefore > now()) {
+      schedule();
+      return false;
+    }
     clearTimer();
     try {
       await flushDirty(work);
@@ -495,6 +533,7 @@ function createCloudSyncController(options = {}) {
       await reconcileBilibili(state?.bilibili, work);
       return isCurrent(work);
     } catch (error) {
+      if (isCurrent(work)) rememberRetry(error);
       if (isCurrent(work)) publishInteractionState({ status: 'unconfirmed', error: interactionError(error) });
       throw error;
     } finally {

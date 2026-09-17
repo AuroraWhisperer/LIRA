@@ -39,7 +39,7 @@
 
 ## Proposed Changes
 
-1. Update `TOUR_VERSION` to `6`, label welcome as `第 0 步`, and explain `LIRA = Live Interactive Request Assistant` with the plain-language Chinese meaning `直播互动点歌助手`.
+1. Update `TOUR_VERSION` to `6`, label welcome as `第 0 步`, and explain LIRA's current full name, `Live Interactive Room Assistant`, with the plain-language Chinese meaning `直播间互动助手`.
 2. Insert `main-navigation` as `第 1 步`, target `.main-page-tabs`, and describe `点歌` as song requests/song library, `播放` as music playback, `礼物` as gift data, and `百宝箱` as auxiliary tools/help.
 3. Renumber the existing action kickers to steps 2 through 7 without changing their target pages or completion gates.
 4. Set the refresh step target to `#liveStatus, #reconnectBtn`; resolve all matching elements and merge their rectangles before drawing the spotlight and positioning the tooltip.

@@ -132,7 +132,7 @@
   background-repeat: no-repeat;
   color: #315d7d;
   font-family: YouYuan, 'Microsoft YaHei', 'PingFang SC', sans-serif;
-  font-size: var(--identity-queue-font-size, 26px);
+  font-size: var(--identity-queue-font-size, 28px);
   font-weight: 800;
   line-height: 1;
 }

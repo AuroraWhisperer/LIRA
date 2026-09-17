@@ -130,15 +130,15 @@ test('danmaku detail panel fills the workspace and keeps actions grouped', () =>
   );
   assert.match(
     html,
-    /data-danmaku-style="ranked"[^>]*>\s*直播气泡\s*<\/button>/,
+    /data-danmaku-style="ranked"[^>]*>\s*<img[^>]*>\s*<span class="danmaku-style-name">大头像气泡<\/span>/,
   );
   assert.match(
     html,
-    /data-danmaku-style="transparent"[^>]*>\s*透明简约\s*<\/button>/,
+    /data-danmaku-style="transparent"[^>]*>\s*<img[^>]*>\s*<span class="danmaku-style-name">透明文字<\/span>/,
   );
   assert.match(
     html,
-    /data-danmaku-style="outline"[^>]*>\s*全屏随机\s*<\/button>/,
+    /data-danmaku-style="outline"[^>]*>\s*<img[^>]*>\s*<span class="danmaku-style-name">简洁白卡<\/span>/,
   );
   assert.match(html, /danmaku-style-group-fixed/);
   assert.match(html, /danmaku-style-group-random/);
@@ -146,11 +146,11 @@ test('danmaku detail panel fills the workspace and keeps actions grouped', () =>
   assert.match(html, /id="danmakuFullscreenDurationSeconds"/);
   assert.match(
     html,
-    /id="danmakuStyleTitle"[\s\S]*?class="danmaku-overlay-link"[\s\S]*?class="danmaku-style-options\b/,
+    /id="danmakuStyleTitle"[\s\S]*?class="danmaku-style-options\b[\s\S]*?class="danmaku-overlay-link"/,
   );
   assert.match(
     styles,
-    /\.danmaku-style-picker\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:\s*minmax\(0, 2fr\) minmax\(240px, 1fr\);/s,
+    /\.danmaku-style-picker\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:\s*minmax\(0, 3fr\) minmax\(220px, 1fr\);/s,
   );
   assert.match(
     styles,

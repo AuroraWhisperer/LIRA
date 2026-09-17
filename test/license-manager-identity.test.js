@@ -37,6 +37,7 @@ function createAccountHarness(t) {
     return {
       ...accounts[accountName],
       accessToken: `token-${accountName}`,
+      sessionId: `session-${accountName}`,
       expiresIn: '10m',
       streamer: { accountName, subdomain: accountName },
     };

@@ -1,5 +1,5 @@
 .xiaomi-ai-section {
-  --danmaku-heading-color: #766183;
+  --danmaku-heading-color: #564362;
   position: relative;
   overflow: hidden;
 }
@@ -60,7 +60,8 @@
 }
 .xiaomi-ai-status-grid strong {
   color: var(--text);
-  font-size: var(--type-size-card-title);
+  font-size: var(--type-size-body);
+  font-weight: 400;
   overflow-wrap: anywhere;
 }
 .xiaomi-ai-form {
@@ -103,7 +104,7 @@
   padding: 0 6px;
   color: var(--text);
   font-size: var(--type-size-card-title);
-  font-weight: 700;
+  font-weight: 600;
 }
 .xiaomi-ai-field-grid {
   display: grid;
@@ -114,7 +115,7 @@
   min-width: 0;
   color: var(--muted);
   font-size: var(--type-size-control);
-  font-weight: 600;
+  font-weight: 500;
 }
 .xiaomi-ai-field-grid label.wide {
   grid-column: 1 / -1;

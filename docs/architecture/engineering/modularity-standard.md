@@ -194,7 +194,9 @@ full dependency-graph enforcement.
 [ADR-0017](../adr/0017-incremental-modularity-size-gate.md) adopts the September
 13 reassessment's batch D policy. `npm run verify:modularity` reports the size
 gate directly; `verify:architecture`, `verify:quick`, `verify` and `npm test`
-also run it. No separate hosted CI workflow is currently configured.
+also run it. The [Check workflow](../../../.github/workflows/check.yml) runs the
+quick gate on PRs and main pushes; its full client/server gate needs the
+main-only private-repository environment described in [build.md](build.md).
 
 - Count physical lines, including comments and blanks. Empty files have zero
   lines; a final newline adds no phantom line. CRLF, LF and CR use the same

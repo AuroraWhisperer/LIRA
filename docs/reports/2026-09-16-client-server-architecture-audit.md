@@ -2,12 +2,12 @@
 status: informative
 review_date: 2026-09-16
 scope: LIRA desktop and LIRA Server working trees
-implementation_status: b1-b2-fixed
+implementation_status: b1-b2-a1-fixed-a2-configured
 ---
 
 # LIRA 客户端与服务器架构审查报告
 
-本文第 1—7 节记录原始架构审查，不新增需求、不替代协议或 Accepted ADR，也不表示生产环境已经通过容量或安全验收。原始审查任务只新增审查材料；根据后续用户指令开展的修复单独记录于第 8 节。
+本文第 1—7 节记录原始架构审查，不新增需求、不替代协议或 Accepted ADR，也不表示生产环境已经通过容量或安全验收。原始审查任务只新增审查材料；根据后续用户指令开展的修复单独记录于第 8—9 节。
 
 ## 1. 审查基线与方法
 
@@ -302,3 +302,36 @@ A3 的真实 Electron 沙箱兼容验证、A4/A5 的按功能渐进整理，以�
 完整测试的唯一失败为 [frontend-admin-toolbox.test.js](../../test/frontend-admin-toolbox.test.js) 的 `browser source tab classifies and exposes every overlay address`：断言仍要求 [display.js](../../public/js/admin/display.js) 将地址设为本机 `/danmaku`，而已有未提交代码通过 `observeServerOverlayUrl` 使用服务器地址。这两个文件均未被本轮修改；定向单独重跑得到同一失败，未扩展本轮范围修改旧断言。4 项跳过来自未配置 NSIS 编译器/插件的安装器集成测试。完整运行后最终 BOM 解码兼容调整已用 26 项定向测试和 5 项往返检查重测，未重复完整套件。
 
 所有新增场景使用合成数据、内存或临时数据库及本机监听。未执行 Electron/OBS GUI、生产容量或托管 CI 验收，也未部署服务器或发布客户端。实际命令见归档实施计划。
+
+## 9. 2026-09-16 固定契约与 CI 配置跟进
+
+用户更新两仓后，再次只读核对客户端 `bd248918c79d3618eb619736a649a1bb8a7b4a52`、服务器 `5ea7b01c8fc7b1cec34a43b01f99c403fd9d1577`，两者均与当时远端 `main` 一致。第 8.3 节所述“当前实现尚未形成可获取提交”的前置阻碍已解除。本节记录新的实施结果，不改变原审查时点的事实；计划见 [pinned-server-contract-ci](../../specs/plans/archive/2026-09-16-pinned-server-contract-ci.md)。
+
+### 9.1 A1 已落实
+
+[server-contract.lock.json](../../server-contract.lock.json) 固定服务器仓库、完整提交和 5 个 fixture 的原始字节 SHA-256，包含礼物目录、事件身份、同步、盲盒和歌曲预算。7 个现有客户端测试及歌库往返脚本通过统一校验器读取权威样例，不再盲目消费某个同名相邻目录。
+
+目录支持显式路径和 `LIRA_SERVER_ROOT`；原相邻目录只作为兼容默认值。错误提交、非检出根目录、缺失或变动的样例均明确失败。真实往返还在加载服务器代码前拒绝 `src/` 和依赖清单的工作区漂移，并使用实际被测客户端的锁。校验器不自动下载、切换或恢复用户文件。新增 `verify:contracts`、`verify:roundtrip`，完整 `verify` 在测试前检查契约输入。
+
+规模门禁要求对加班礼物选择器测试的 760 → 761 行增长明确复审。差异仅增加校验器导入并替换两处读取；原有场景、断言和职责未变。主代理与独立复审确认其仍满足 601–800 行内聚测试规则，更新该条 `review` 的上限和日期理由，保留原 owner、移除条件与复审截止日期；没有批量更新基线或放宽 legacy 限制。
+
+### 9.2 A2 配置完成，托管启用待完成
+
+新增 [Check 工作流](../../.github/workflows/check.yml)：Windows / Node 24 的快速检查覆盖 push、PR 和手动运行；完整两仓检查只在 `main` push 或 `main` 手动运行时执行，按锁检出固定服务器，运行客户端完整验证与真实 HTTP 往返。工作流 Actions 固定完整 SHA，使用只读权限，关闭凭据持久化和自动缓存。
+
+只读调查确认客户端仓库公开、服务器仓库私有，客户端当时没有 Actions repository secrets 或 Environments。完整检查绑定 `server-contract` Environment；启用者需将该环境的部署分支限制为 `main`，在环境内配置仅有服务器 Contents 读取权限的 `LIRA_SERVER_READ_TOKEN`，再推送已审工作流并完成实际首跑。普通 PR job 不检出私有服务器。具体步骤见 [构建文档](../architecture/engineering/build.md#持续集成)。本次没有创建凭据、改变 GitHub 设置或声称托管执行已通过。
+
+### 9.3 本地验证
+
+为消除相邻工作区状态的影响，在系统临时目录建立固定提交的独立服务器检出，用 Node 24 执行 `npm ci` 并确认其干净，再通过 `LIRA_SERVER_ROOT` 运行检查。原服务器随后出现的其他任务 UI、文档和输出变更保持原样，未被本任务修改。
+
+| 验证 | 结果 |
+| --- | --- |
+| 新契约校验器隔离 Git 用例 | 15/15 通过，包括显式客户端锁归属 |
+| 7 个迁移后的 fixture 消费测试 | 31/31 通过 |
+| 固定服务器输入及 runtime 校验 | 提交、5 份 SHA-256、源码/依赖状态通过 |
+| 客户端 `npm run verify` | 文档 5/5、语法 785 个 JS、架构 22/22；全量 2,005 通过、0 失败、4 跳过 |
+| `npm run verify:roundtrip` | 5/5 通过，保留原 5,000 首歌曲和字节边界场景 |
+| 工作流 | actionlint 1.7.12、YAML、PowerShell 语法及独立权限审查通过 |
+
+4 项跳过仍为未配置 NSIS 工具的安装器场景。此前工具箱地址用例现已通过，本轮没有修改该用例。未提交、推送、部署或发布；A3—A6 不属于本次 A1/A2 跟进范围。

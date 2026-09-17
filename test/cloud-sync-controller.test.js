@@ -2,170 +2,8 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {
-  createCloudSyncController,
-} = require('../src/electron/cloud-sync-controller');
-
-const LOCAL_BLIND_BOX_CONFIG = [
-  {
-    name: '本地盲盒',
-    price: 10,
-    outputs: [{ name: '本地礼物', price: 20 }],
-  },
-];
-const CLOUD_BLIND_BOX_CONFIG = [
-  {
-    name: '云端盲盒',
-    price: 5,
-    outputs: [{ name: '云端礼物', price: 8 }],
-  },
-];
-
-function createFixture(overrides = {}) {
-  const calls = [];
-  let stateListener = null;
-  let localListener = null;
-  let timerId = 0;
-  let cloudWatch = null;
-  const timers = new Map();
-  const licenseManager = {
-    LicenseState: { AUTHORIZED: 'authorized' },
-    getState: () => 'authorized',
-    getSnapshot: () => ({ streamer: { accountName: 'fixture' } }),
-    getCloudSyncIdentity: () => ({ accountName: 'fixture', streamerId: 1 }),
-    getRemoteBaseUrl: () => 'https://api.example.test',
-    onStateChanged(listener) {
-      stateListener = listener;
-      return () => {
-        stateListener = null;
-      };
-    },
-    getCloudState: async () => ({
-      settings: {
-        initialized: true,
-        revision: 2,
-        values: {
-          roomId: '123',
-          enableBilibili: true,
-          paused: false,
-          queueLimit: 50,
-          userCooldownSeconds: 0,
-          onlyFromLibrary: false,
-          allowDuplicate: true,
-          giftBlindBoxConfig: CLOUD_BLIND_BOX_CONFIG,
-        },
-      },
-      songs: { initialized: true, revision: 3 },
-      bilibili: {
-        initialized: true,
-        revision: 4,
-        loggedIn: true,
-        uid: '288594073',
-      },
-    }),
-    updateCloudSettings: async (settings) => {
-      calls.push(['push-settings', settings]);
-      return { initialized: true, revision: 5, values: settings };
-    },
-    getCloudSongs: async () => ({
-      songs: [{ title: 'Cloud song', artist: 'Singer' }],
-      initialized: true,
-      revision: 3,
-    }),
-    syncSongs: async (songs) => {
-      calls.push(['push-songs', songs]);
-      return { initialized: true, revision: 6 };
-    },
-    getBilibiliCredentialsInternal: async () => ({
-      initialized: true,
-      revision: 4,
-      loggedIn: true,
-      uid: '288594073',
-      cookie: 'DedeUserID=288594073; SESSDATA=cloud; bili_jct=cloud-csrf',
-    }),
-    setBilibiliCredentialsInternal: async (cookie) => {
-      calls.push(['push-bilibili', cookie]);
-      return { initialized: true, revision: 7, loggedIn: true };
-    },
-    clearBilibiliCredentialsInternal: async () => {
-      calls.push(['clear-bilibili']);
-      return { initialized: true, revision: 7, loggedIn: false };
-    },
-    watchCloudStateChangesInternal: async (options = {}) => {
-      cloudWatch = options;
-      options.onOpen?.();
-      await new Promise((resolve) => {
-        if (options.signal?.aborted) return resolve();
-        options.signal?.addEventListener('abort', resolve, { once: true });
-      });
-    },
-    ...overrides.licenseManager,
-  };
-  const runtime = {
-    prepareCloudRoomAccount: () => false,
-    getCloudSettingsSnapshot: () => ({
-      roomId: 'local-room',
-      enableBilibili: true,
-      paused: false,
-      queueLimit: 25,
-      userCooldownSeconds: 5,
-      onlyFromLibrary: false,
-      allowDuplicate: true,
-      giftBlindBoxConfig: LOCAL_BLIND_BOX_CONFIG,
-    }),
-    applyCloudSettingsSnapshot: async (settings) =>
-      calls.push(['apply-settings', settings]),
-    getCloudSongsSnapshot: () => [{ name: 'Local song' }],
-    replaceCloudSongsSnapshot: async (songs) =>
-      calls.push(['apply-songs', songs]),
-    onCloudSyncRequested(listener) {
-      localListener = listener;
-      return () => {
-        localListener = null;
-      };
-    },
-    ...overrides.runtime,
-  };
-  const bilibiliAuth = {
-    getAuthState: async () => ({ loggedIn: false, uid: 0 }),
-    getCookieHeader: async () => '',
-    replaceCookieHeader: async (cookie) =>
-      calls.push(['apply-bilibili', cookie]),
-    logout: async () => calls.push(['apply-bilibili-logout']),
-    ...overrides.bilibiliAuth,
-  };
-  const controller = createCloudSyncController({
-    licenseManager,
-    runtime,
-    bilibiliAuth,
-    timers: {
-      setTimeout(callback, delay) {
-        const timer = {
-          id: ++timerId,
-          callback,
-          delay,
-          unrefCalled: false,
-          unref() {
-            this.unrefCalled = true;
-          },
-        };
-        timers.set(timer.id, timer);
-        return timer;
-      },
-      clearTimeout(timer) {
-        if (timer) timers.delete(timer.id);
-      },
-    },
-  });
-  return {
-    calls,
-    controller,
-    emitLocal: (scope) => localListener?.(scope),
-    emitCloud: (event) => cloudWatch?.onChange?.(event),
-    emitState: (state) => stateListener?.({ state }),
-    timers,
-  };
-}
+const { createRemoteLicenseClient } = require('../src/electron/license/remote-license-client');
+const { createFixture, LOCAL_BLIND_BOX_CONFIG, CLOUD_BLIND_BOX_CONFIG } = require('./helpers/cloud-sync-controller-fixture');
 
 test('authorized bootstrap applies initialized cloud settings, songs, and Bilibili credentials', async () => {
   const fixture = createFixture();
@@ -179,6 +17,157 @@ test('authorized bootstrap applies initialized cloud settings, songs, and Bilibi
   assert.equal(timer.unrefCalled, true);
   fixture.controller.dispose();
   assert.equal(fixture.timers.size, 0);
+});
+
+test('invalid cloud songs preserve the snapshot and revision until a valid retry', async () => {
+  for (const songs of [undefined, null, {}, '[]']) {
+    let response = { initialized: true, revision: 3, songs };
+    let reads = 0;
+    const client = createRemoteLicenseClient({
+      fetchImpl: async () => {
+        reads += 1;
+        return new Response(JSON.stringify(response));
+      },
+    });
+    const fixture = createFixture({
+      licenseManager: {
+        getCloudSongs: () => client.getCloudSongs('token'),
+      },
+    });
+    try {
+      await assert.rejects(fixture.controller.start(), { code: 'INVALID_RESPONSE' });
+      assert.equal(fixture.calls.some((call) => call[0] === 'apply-songs'), false);
+      response = { initialized: true, revision: 3, songs: [] };
+      await fixture.controller.syncNow();
+      assert.equal(reads, 2);
+      assert.deepEqual(fixture.calls.filter((call) => call[0] === 'apply-songs'), [['apply-songs', []]]);
+    } finally {
+      fixture.controller.dispose();
+    }
+  }
+});
+
+test('cloud SSE recovery honors the real Retry-After header beyond the backoff cap', async () => {
+  const client = createRemoteLicenseClient({
+    fetchImpl: async () => new Response('null', { status: 429, headers: { 'Retry-After': '120' } }),
+  });
+  const fixture = createFixture({
+    licenseManager: {
+      watchCloudStateChangesInternal: (options) => client.watchCloudStateChanges('token', options),
+    },
+  });
+  try {
+    await fixture.controller.start();
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.ok([...fixture.timers.values()].some((timer) => timer.delay === 120_000));
+    assert.equal([...fixture.timers.values()].some((timer) => timer.delay === 1000), false);
+  } finally {
+    fixture.controller.dispose();
+  }
+});
+
+test('queued cloud sync cannot bypass a throttled dirty upload', async () => {
+  let uploads = 0;
+  let now = 0;
+  const client = createRemoteLicenseClient({
+    fetchImpl: async () => new Response('busy', { status: 429, headers: { 'Retry-After': '900' } }),
+  });
+  const fixture = createFixture({
+    now: () => now,
+    licenseManager: {
+      syncSongs: async () => {
+        uploads += 1;
+        if (uploads === 1) return client.syncSongs([], 'token');
+        return { initialized: true, revision: 6 };
+      },
+    },
+  });
+  try {
+    await fixture.controller.start();
+    fixture.emitLocal('songs');
+    await fixture.controller.whenIdle();
+    assert.equal(uploads, 1);
+    fixture.emitCloud({ scopes: { songs: 100 } });
+    await fixture.controller.whenIdle();
+    assert.equal(uploads, 1);
+    await fixture.controller.syncNow();
+    assert.equal(uploads, 1);
+    assert.ok([...fixture.timers.values()].some((timer) => timer.delay > 890_000));
+    now = 900_000;
+    await fixture.controller.syncNow();
+    assert.equal(uploads, 2);
+    await fixture.controller.syncNow();
+    assert.equal(uploads, 2);
+  } finally {
+    fixture.controller.dispose();
+  }
+});
+
+test('repeated gift interaction intents preserve the original retry deadline', async () => {
+  let now = 0;
+  let uploads = 0;
+  const client = createRemoteLicenseClient({
+    fetchImpl: async () => new Response('busy', { status: 429, headers: { 'Retry-After': '60' } }),
+  });
+  const fixture = createFixture({
+    now: () => now,
+    licenseManager: {
+      updateCloudSettings: async (values) => {
+        uploads += 1;
+        if (uploads === 1) return client.updateCloudSettings(values, 'token');
+        return { revision: 5, values: { ...values, giftStatsQueryEnabled: false } };
+      },
+    },
+  });
+  try {
+    await fixture.controller.start();
+    const intent = { key: 'giftAutoThanksEnabled', enabled: true };
+    assert.equal((await fixture.controller.setGiftInteraction(intent)).ok, false);
+    now = 30_000;
+    assert.equal((await fixture.controller.setGiftInteraction(intent)).ok, false);
+    assert.equal(uploads, 1);
+    now = 60_000;
+    assert.equal((await fixture.controller.setGiftInteraction(intent)).ok, true);
+    assert.equal(uploads, 2);
+  } finally {
+    fixture.controller.dispose();
+  }
+});
+
+test('cloud SSE start, restart and stale timers cannot bypass Retry-After', async () => {
+  let connections = 0;
+  const client = createRemoteLicenseClient({
+    fetchImpl: async () => {
+      connections += 1;
+      return new Response('busy', { status: 429, headers: { 'Retry-After': '60' } });
+    },
+  });
+  const fixture = createFixture({
+    now: () => 0,
+    licenseManager: {
+      watchCloudStateChangesInternal: (options) => client.watchCloudStateChanges('token', options),
+    },
+  });
+  try {
+    await fixture.controller.start();
+    await new Promise((resolve) => setImmediate(resolve));
+    const oldRetry = [...fixture.timers.values()].find((timer) => timer.delay === 60_000);
+    await fixture.controller.start();
+    assert.equal(connections, 1);
+    fixture.controller.stop();
+    await fixture.controller.start();
+    assert.equal(connections, 1);
+    const currentRetry = [...fixture.timers.values()].find((timer) => timer.delay === 60_000);
+    assert.notEqual(oldRetry, currentRetry);
+    oldRetry.callback();
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(connections, 1);
+    currentRetry.callback();
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(connections, 2);
+  } finally {
+    fixture.controller.dispose();
+  }
 });
 
 test('only non-credential uninitialized scopes are seeded from the authorized desktop', async () => {

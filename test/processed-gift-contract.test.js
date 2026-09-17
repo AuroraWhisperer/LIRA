@@ -1,9 +1,8 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
 const test = require('node:test');
+const { readServerFixture } = require('../scripts/verify-server-contract');
 const {
   canonicalCoinType,
   canonicalGiftId,
@@ -17,15 +16,7 @@ const {
   makeEvent,
 } = require('./helpers/processed-gift-fixture');
 
-const giftSyncFixture = JSON.parse(
-  fs.readFileSync(
-    path.resolve(
-      __dirname,
-      '../../lira-server/docs/protocol/fixtures/gift-sync-v1.json',
-    ),
-    'utf8',
-  ),
-);
+const giftSyncFixture = readServerFixture('docs/protocol/fixtures/gift-sync-v1.json');
 
 test('processed importer rejects malformed or privacy-sensitive transport shapes', () => {
   const fixture = createFixture();

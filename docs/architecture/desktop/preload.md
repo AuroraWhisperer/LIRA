@@ -7,8 +7,8 @@
 调用。主进程验证当前主窗口与精确 desktop origin、样式白名单以及 2～30 秒整数，
 再使用 DeviceBearer 请求固定 `/api/device/overlay-settings` GET/PUT。
 成功只返回 `{ok:true, style, fullscreenDurationSeconds, overlayUrl}`；URL 必须为无凭据、
-query、fragment 的 HTTPS `/overlay`，错误沿用受限 `{ok:false,state,error}`。
-不传递 token、租户选择器或任意远程调用能力。桌面先编辑草稿并预览，只有显式应用才写服务器。
+query、fragment 的 HTTPS `/overlay/<token>`，token 为 16 位 base64url，错误沿用受限 `{ok:false,state,error}`。
+只读 OBS capability 是用户明确要求展示/复制的窄例外；不传递 Device token、租户选择器或任意远程调用能力。服务器持久生成密钥，客户端初次读取授权资料后调用此 GET；共享地址模块验证与资料 origin 相同，两个地址消费者共同使用完整值，账号切换清空并丢弃旧响应。桌面先编辑草稿并预览，只有显式应用才写服务器。
 
 ## 礼物互动确认状态
 

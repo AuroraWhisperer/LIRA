@@ -41,7 +41,7 @@
   margin-inline: auto;
   background-image: url('/img/overlays/song-board-style-5/entry.webp');
   background-size: 100% 100%;
-  font-size: var(--identity-queue-font-size, 26px);
+  font-size: var(--identity-queue-font-size, 28px);
   font-weight: 760;
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.72);
 }

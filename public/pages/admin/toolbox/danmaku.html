@@ -88,24 +88,12 @@
             >
           </h3>
         </div>
-        <span id="danmakuStyleChip" class="danmaku-style-chip"
-          >当前样式 · 直播信号带</span
-        >
-      </div>
-      <div class="danmaku-overlay-link">
-        <label
-          ><span>服务器网页链接</span
-          ><input id="danmakuOverlayUrl" type="text" readonly
-        /></label>
-        <div class="danmaku-overlay-actions">
-          <button id="danmakuCopyOverlayUrlBtn" class="primary" type="button" disabled>
-            复制链接
-          </button>
-          <button id="danmakuOpenOverlayBtn" class="secondary" type="button" disabled>
-            打开网页
-          </button>
-          <button id="danmakuPreviewOverlayBtn" class="secondary" type="button" disabled>
-            网页预览
+        <div class="danmaku-style-tools">
+          <span id="danmakuStyleChip" class="danmaku-style-chip"
+            >当前样式 · 深色面板</span
+          >
+          <button id="danmakuPreviewOverlayBtn" class="secondary" type="button">
+            本地预览
           </button>
         </div>
       </div>
@@ -116,6 +104,7 @@
         >
           <div class="danmaku-style-group-heading">
             <strong id="danmakuFixedStyleTitle">固定位置弹幕</strong>
+            <p>在画面一侧依次排列</p>
           </div>
           <div
             class="danmaku-style-options danmaku-style-options-fixed"
@@ -128,7 +117,9 @@
               data-danmaku-style="bubble"
               aria-pressed="false"
             >
-              聊天气泡
+              <img src="/img/overlays/danmaku-previews/bubble.png" class="danmaku-style-sample" alt="" />
+              <span class="danmaku-style-name">聊天气泡</span>
+              <span class="danmaku-style-description">圆角底色，头像在左</span>
             </button>
             <button
               class="danmaku-style-option"
@@ -136,7 +127,9 @@
               data-danmaku-style="signal"
               aria-pressed="true"
             >
-              直播信号带
+              <img src="/img/overlays/danmaku-previews/signal.png" class="danmaku-style-sample" alt="" />
+              <span class="danmaku-style-name">深色面板</span>
+              <span class="danmaku-style-description">深色切角，彩色边线</span>
             </button>
             <button
               class="danmaku-style-option"
@@ -144,7 +137,9 @@
               data-danmaku-style="minimal"
               aria-pressed="false"
             >
-              蝴蝶结
+              <img src="/img/overlays/danmaku-previews/minimal.png" class="danmaku-style-sample" alt="" />
+              <span class="danmaku-style-name">蝴蝶结</span>
+              <span class="danmaku-style-description">居中文字，蝴蝶结装饰</span>
             </button>
             <button
               class="danmaku-style-option"
@@ -152,7 +147,9 @@
               data-danmaku-style="ranked"
               aria-pressed="false"
             >
-              直播气泡
+              <img src="/img/overlays/danmaku-previews/ranked.png" class="danmaku-style-sample" alt="" />
+              <span class="danmaku-style-name">大头像气泡</span>
+              <span class="danmaku-style-description">大圆头像，昵称在气泡上方</span>
             </button>
             <button
               class="danmaku-style-option"
@@ -160,7 +157,9 @@
               data-danmaku-style="transparent"
               aria-pressed="false"
             >
-              透明简约
+              <img src="/img/overlays/danmaku-previews/transparent.png" class="danmaku-style-sample" alt="" />
+              <span class="danmaku-style-name">透明文字</span>
+              <span class="danmaku-style-description">无底色，文字直接叠加</span>
             </button>
             <button
               class="danmaku-style-option"
@@ -168,7 +167,9 @@
               data-danmaku-style="identity"
               aria-pressed="false"
             >
-              身份横卡
+              <img src="/img/overlays/danmaku-previews/identity.png" class="danmaku-style-sample" alt="" />
+              <span class="danmaku-style-name">头像横卡</span>
+              <span class="danmaku-style-description">横向色块，右侧头像渐隐</span>
             </button>
           </div>
         </section>
@@ -177,12 +178,13 @@
           aria-labelledby="danmakuRandomStyleTitle"
         >
           <div class="danmaku-style-group-heading">
-            <strong id="danmakuRandomStyleTitle">全直播间随机弹幕</strong>
+            <strong id="danmakuRandomStyleTitle">全屏随机弹幕</strong>
+            <p>在整个画面随机出现，停留后消失</p>
           </div>
           <div
             class="danmaku-style-options danmaku-style-options-random"
             role="group"
-            aria-label="选择全直播间随机弹幕样式"
+            aria-label="选择全屏随机弹幕样式"
           >
             <button
               class="danmaku-style-option"
@@ -190,7 +192,9 @@
               data-danmaku-style="outline"
               aria-pressed="false"
             >
-              全屏随机
+              <img src="/img/overlays/danmaku-previews/outline.png" class="danmaku-style-sample" alt="" />
+              <span class="danmaku-style-name">简洁白卡</span>
+              <span class="danmaku-style-description">白底圆角，只显示昵称和正文</span>
             </button>
             <button
               class="danmaku-style-option"
@@ -198,7 +202,9 @@
               data-danmaku-style="cream"
               aria-pressed="false"
             >
-              奶油气泡
+              <img src="/img/overlays/danmaku-previews/cream.png" class="danmaku-style-sample" alt="" />
+              <span class="danmaku-style-name">奶油气泡</span>
+              <span class="danmaku-style-description">奶油底色，粉边与外置头像</span>
             </button>
           </div>
           <label
@@ -218,21 +224,38 @@
             />
           </label>
         </section>
+      </div>
+      <div class="danmaku-style-footer">
         <p
           id="danmakuStyleSaveState"
           class="danmaku-style-save-state"
           role="status"
           aria-live="polite"
         ></p>
+        <div class="danmaku-overlay-actions">
+          <button id="danmakuReloadOverlayBtn" class="secondary" type="button" disabled>
+            读取服务器配置
+          </button>
+          <button id="danmakuApplyOverlayBtn" class="primary" type="button" disabled>
+            应用到服务器
+          </button>
+        </div>
       </div>
-      <div class="danmaku-overlay-actions">
-        <button id="danmakuApplyOverlayBtn" class="primary" type="button" disabled>
-          应用到服务器
-        </button>
-        <button id="danmakuReloadOverlayBtn" class="secondary" type="button" disabled>
-          读取服务器配置
-        </button>
+      <div class="danmaku-overlay-link">
+        <label
+          ><span>服务器网页链接</span
+          ><input id="danmakuOverlayUrl" type="text" readonly
+        /></label>
+        <div class="danmaku-overlay-actions">
+          <button id="danmakuCopyOverlayUrlBtn" class="secondary" type="button" disabled>
+            复制链接
+          </button>
+          <button id="danmakuOpenOverlayBtn" class="secondary" type="button" disabled>
+            打开网页
+          </button>
+        </div>
       </div>
+      <p class="danmaku-preview-hint">「本地预览」在同一页面展示全部样式，示例不循环播放。复制或打开的服务器链接用于 OBS / 直播姬，切换样式后链接不变。</p>
     </section>
     <section
       class="danmaku-feature-section danmaku-compose-section"

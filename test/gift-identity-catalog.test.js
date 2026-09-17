@@ -5,7 +5,8 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
-const fixture = require('../../lira-server/docs/protocol/fixtures/gift-catalog-variants.json');
+const { readServerFixture } = require('../scripts/verify-server-contract');
+const fixture = readServerFixture('docs/protocol/fixtures/gift-catalog-variants.json');
 const {
   createRemoteGiftCatalogCache,
   normalizeRemoteCatalog,

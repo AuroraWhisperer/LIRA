@@ -221,6 +221,7 @@ test('heartbeat waits for an in-flight renewal and uses the replacement token', 
     });
     return {
       accessToken: 'token-2',
+      sessionId: 'session-1',
       expiresIn: '10m',
       deviceId: 'd',
       licenseId: 'l',

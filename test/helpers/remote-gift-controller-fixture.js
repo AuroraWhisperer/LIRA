@@ -56,6 +56,7 @@ function createFixture(options = {}) {
     LicenseState: { AUTHORIZED: 'AUTHORIZED' },
     getState: () => state.value,
     getAuthorizationEpoch: () => authorization.epoch,
+    getCloudSyncIdentity: () => ({ accountName: 'alice', streamerId: 10 }),
     getSnapshot: () => ({
       streamer: { accountName: 'alice', subdomain: 'mutable-subdomain' },
       device: { id: 'mutable-device' },

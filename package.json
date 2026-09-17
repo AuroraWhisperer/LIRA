@@ -1,9 +1,9 @@
 {
   "name": "lira",
-  "version": "4.2.0",
+  "version": "4.2.1",
   "private": true,
   "license": "UNLICENSED",
-  "description": "LIRA - Live Interactive Request Assistant",
+  "description": "LIRA - Live Interactive Room Assistant",
   "author": "Aurora",
   "main": "src/electron/main.js",
   "scripts": {
@@ -15,8 +15,10 @@
     "verify:docs": "node --test test/governance-docs.test.js",
     "verify:modularity": "node scripts/check-modularity.js",
     "verify:architecture": "node --experimental-vm-modules --test test/module-boundaries.test.js test/esm-module-boundaries.test.js test/modularity-size.test.js",
+    "verify:contracts": "node scripts/verify-server-contract.js",
+    "verify:roundtrip": "node scripts/verify-song-roundtrip.cjs",
     "verify:quick": "npm run verify:docs && npm run check && npm run verify:architecture",
-    "verify": "npm run verify:quick && npm test",
+    "verify": "npm run verify:contracts && npm run verify:quick && npm test",
     "refresh:gifts": "node scripts/refresh-bilibili-gift-sale.js",
     "sync:gifts": "node scripts/initialize-gift-catalog.js",
     "diagnose:wesing": "node scripts/inspect-wesing-playback.js",

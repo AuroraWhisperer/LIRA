@@ -1,4 +1,5 @@
 import { createDanmakuFeed } from './danmaku-feed.js';
+import { initDanmakuPreview } from './danmaku-preview.js';
 
 ('use strict');
 
@@ -12,6 +13,7 @@ const OVERLAY_STYLES = new Set([
   'transparent',
   'identity',
   'outline',
+  'cream',
 ]);
 const RANKED_STAGE_WIDTH = 624;
 const RANKED_STAGE_HEIGHT = 640;
@@ -36,8 +38,13 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('resize', syncRankedOverlayScale);
   if (previewMode) {
     document.body.classList.add('is-preview');
-    applyConfiguration(params.get('style'), currentFullscreenDurationSeconds);
-    applyItems(previewItems());
+    initDanmakuPreview({
+      initialStyle: params.get('style'),
+      renderSamples(style) {
+        applyConfiguration(style, params.get('fullscreenDurationSeconds'));
+        applyItems(previewItems());
+      },
+    });
     setConnectionState('样式预览', true);
     return;
   }
@@ -139,14 +146,15 @@ function createOverlayFeed(style, durationSeconds) {
   feed?.destroy();
   const options = {
     maxItems: MAX_ITEMS,
-    offscreenViewports: 0,
+    offscreenViewports: previewMode ? Number.POSITIVE_INFINITY : 0,
     autoScroll: false,
     resolveAvatarUrl: bilibiliImageSource,
     resolveEmoteUrl: bilibiliImageSource,
     getGuardLabel: guardLabel,
+    showAvatar: style !== 'outline',
   };
-  if (style === 'outline') {
-    options.layout = 'fullscreen-random';
+  if (style === 'outline' || style === 'cream') {
+    if (!previewMode) options.layout = 'fullscreen-random';
     options.itemLifetimeMs = durationSeconds * 1000;
     options.expireItems = !previewMode;
   }
@@ -169,7 +177,7 @@ function applyConfiguration(styleValue, durationValue) {
   const duration = normalizeFullscreenDuration(durationValue);
   const changed =
     style !== currentOverlayStyle ||
-    (style === 'outline' && duration !== currentFullscreenDurationSeconds);
+    (['outline', 'cream'].includes(style) && duration !== currentFullscreenDurationSeconds);
   currentOverlayStyle = style;
   currentFullscreenDurationSeconds = duration;
   document.body.dataset.style = style;
@@ -185,10 +193,15 @@ function itemKey(item = {}) {
 }
 
 function syncRankedOverlayScale() {
-  const scale = calculateRankedOverlayScale(
-    window.innerWidth,
-    window.innerHeight,
-  );
+  const viewport = previewMode ? document.getElementById('danmakuPreviewViewport') : null;
+  if (previewMode) {
+    document.documentElement.style.setProperty(
+      '--danmaku-preview-scale',
+      String(Math.min(1, (viewport?.clientWidth || window.innerWidth) / RANKED_STAGE_WIDTH)),
+    );
+    return;
+  }
+  const scale = calculateRankedOverlayScale(window.innerWidth, window.innerHeight);
   document.documentElement.style.setProperty('--ranked-scale', String(scale));
 }
 
@@ -196,10 +209,11 @@ export function calculateRankedOverlayScale(viewportWidth, viewportHeight) {
   const width = Math.max(0, Number(viewportWidth) || 0);
   const height = Math.max(0, Number(viewportHeight) || 0);
   if (!width || !height) return 1;
-  return Math.min(width / RANKED_STAGE_WIDTH, height / RANKED_STAGE_HEIGHT);
+  return Math.min(1, width / RANKED_STAGE_WIDTH, height / RANKED_STAGE_HEIGHT);
 }
 
 function bilibiliImageSource(value) {
+  if (previewMode && value === '/img/overlays/danmaku-previews/dacall.png') return value;
   try {
     const url = new URL(String(value || ''));
     if (url.protocol !== 'https:' || !url.hostname.endsWith('.hdslb.com'))
@@ -251,11 +265,18 @@ export function describeDanmakuConnection(liveStatus, localConnected) {
 }
 
 function previewItems() {
+  const emotes = [{
+    text: '[打call]',
+    url: '/img/overlays/danmaku-previews/dacall.png',
+    width: 96,
+    height: 96,
+  }];
   return [
     {
       id: 'preview-1091',
       name: '金色航线',
-      message: '今晚也一起守到最后！',
+      message: '总督来啦，今晚也一起守到最后！[打call]',
+      emotes,
       guardLevel: 1,
       medalName: '粉丝团灯牌',
       medalLevel: 28,
@@ -263,7 +284,8 @@ function previewItems() {
     {
       id: 'preview-1822',
       name: '云端来信',
-      message: '这一段的情绪太稳了',
+      message: '提督报到，这一段太好听了[打call]',
+      emotes,
       guardLevel: 2,
       medalName: '粉丝团灯牌',
       medalLevel: 23,
@@ -271,7 +293,8 @@ function previewItems() {
     {
       id: 'preview-4714',
       name: '阿沐',
-      message: '前奏一响就知道是今晚的歌',
+      message: '舰长来了，前奏一响就爱上了[打call]',
+      emotes,
       guardLevel: 3,
       medalName: '粉丝团灯牌',
       medalLevel: 18,
@@ -279,17 +302,16 @@ function previewItems() {
     {
       id: 'preview-565',
       name: '晚风信号',
-      message: '[打call]',
-      emotes: [
-        {
-          text: '[打call]',
-          url: 'https://i0.hdslb.com/bfs/emote/431432c43da3ee5aab5b0e4f8931953e649e9975.png',
-          width: 96,
-          height: 96,
-        },
-      ],
+      message: '普通观众也来打 call！[打call]',
+      emotes,
       medalName: '粉丝团灯牌',
       medalLevel: 9,
+    },
+    {
+      id: 'preview-emote',
+      name: '表情包示例',
+      message: '[打call]',
+      emotes,
     },
     {
       id: 'preview-gift',

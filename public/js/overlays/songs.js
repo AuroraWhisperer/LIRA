@@ -368,7 +368,7 @@ function applyTheme(settings) {
   );
   const songBoardFontSize = Math.max(
     10,
-    Math.min(80, Number(settings.songBoardFontSize) || 40),
+    Math.min(80, Number(settings.songBoardFontSize) || 28),
   );
   root.style.setProperty(
     '--overlay-font-scale',

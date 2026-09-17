@@ -40,7 +40,7 @@ test('song list exposes a display board font size control', () => {
   assert.doesNotMatch(themePage, /songBoardFontSize/);
   assert.match(
     html,
-    /id="displayPage"[\s\S]*id="songBoardFontSize"[^>]*min="10"[^>]*max="80"[^>]*value="40"/,
+    /id="displayPage"[\s\S]*id="songBoardFontSize"[^>]*min="10"[^>]*max="80"[^>]*value="28"/,
   );
   assert.match(
     displaySource,
@@ -48,7 +48,7 @@ test('song list exposes a display board font size control', () => {
   );
   assert.match(
     overlaySource,
-    /Math\.max\(\s*10,\s*Math\.min\(\s*80,\s*Number\(settings\.songBoardFontSize\)\s*\|\|\s*40\s*\)\s*,?\s*\)/,
+    /Math\.max\(\s*10,\s*Math\.min\(\s*80,\s*Number\(settings\.songBoardFontSize\)\s*\|\|\s*28\s*\)\s*,?\s*\)/,
   );
   assert.match(
     overlayStyles,
@@ -62,7 +62,7 @@ test('song list exposes a display board font size control', () => {
     overlayStyles,
     /\.song-board \.overlay-title \{[\s\S]*var\(--overlay-title-font-size, 15px\) \* var\(--overlay-font-scale, 1\)/,
   );
-  assert.match(defaultsSource, /songBoardFontSize: '40'/);
+  assert.match(defaultsSource, /songBoardFontSize: '28'/);
 });
 
 test('song board keeps song names readable in narrow browser sources', async () => {

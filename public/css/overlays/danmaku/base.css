@@ -9,6 +9,7 @@
   --guard-captain: #2f9bff;
   --guard-admiral: #a45cff;
   --guard-governor: #f0445a;
+  --danmaku-font-size: 30px;
   --ranked-scale: 1;
   --ranked-stage-width: 624px;
   --ranked-stage-height: 640px;
@@ -149,13 +150,13 @@ body:not(.is-connected) .danmaku-signal-count {
   line-height: 1.4;
 }
 .draw-danmaku-gift-name {
-  font-size: 22px;
+  font-size: var(--danmaku-font-size);
   font-weight: 700;
   line-height: 1.35;
   overflow-wrap: anywhere;
 }
 .draw-danmaku-gift-count {
-  font-size: 26px;
+  font-size: var(--danmaku-font-size);
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   line-height: 1.2;
@@ -317,7 +318,7 @@ body:not(.is-connected) .danmaku-signal-count {
 .draw-danmaku-body p {
   margin: 3px 0 0;
   color: var(--signal-ice);
-  font-size: clamp(13px, 2.4vw, 18px);
+  font-size: var(--danmaku-font-size);
   line-height: 1.38;
   overflow-wrap: anywhere;
   word-break: break-word;
@@ -360,8 +361,4 @@ body.is-preview {
       rgba(229, 239, 248, 0.72) 0 50%
     )
     0 0 / 20px 20px;
-}
-body.is-preview .danmaku-signal-stage {
-  width: 100%;
-  padding: 18px;
 }

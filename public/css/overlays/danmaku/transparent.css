@@ -13,6 +13,7 @@ body[data-style='transparent'] .draw-danmaku-feed {
 body[data-style='transparent'] .draw-danmaku-item {
   --transparent-ink: #fff;
   --transparent-medal: #f3dda0;
+  --transparent-name: #fff;
   --danmaku-avatar-art: url('/img/overlays/danmaku-ranked/viewer.webp');
   grid-template-columns: 58px minmax(0, 1fr);
   gap: 12px;
@@ -65,7 +66,7 @@ body[data-style='transparent'] .draw-danmaku-identity strong {
   grid-row: 1;
   min-width: 0;
   overflow: hidden;
-  color: var(--transparent-ink);
+  color: var(--transparent-name);
   font:
     700 17px/1.25 'Microsoft YaHei UI',
     'Microsoft YaHei',
@@ -109,7 +110,7 @@ body[data-style='transparent'] .draw-danmaku-body p {
   max-width: 100%;
   margin: 2px 0 0;
   color: var(--transparent-ink);
-  font-size: clamp(16px, 3vw, 20px);
+  font-size: var(--danmaku-font-size);
   font-weight: 700;
   line-height: 1.35;
   overflow-wrap: anywhere;
@@ -127,41 +128,40 @@ body[data-style='transparent'] .draw-danmaku-empty {
   text-shadow: 0 2px 3px rgba(0, 0, 0, 0.9);
 }
 
-/* 浮空礼线：仅增加暖金线稿与文字，不增加卡片底色。 */
+body[data-style='transparent'] .draw-danmaku-item[data-identity='captain'] {
+  --transparent-name: #82d0ff;
+}
+body[data-style='transparent'] .draw-danmaku-item[data-identity='admiral'] {
+  --transparent-name: #d6a3ff;
+}
+body[data-style='transparent'] .draw-danmaku-item[data-identity='governor'] {
+  --transparent-name: #ff9dad;
+}
+
+/* 星光礼物卡：实色圆角底板与细金边，普通弹幕仍保持透明。 */
 body[data-style='transparent'] .draw-danmaku-item.is-gift {
   --danmaku-gift-art: url('/img/overlays/danmaku-gifts/transparent.svg');
+  --gift-ink: #fff6df;
+  --gift-accent: #ffd47e;
+  --gift-surface: #263447;
+  grid-template-areas: 'content';
+  grid-template-columns: minmax(0, 1fr);
+  padding: 10px 14px;
+  border: 1px solid #caad78;
+  border-radius: 14px;
+  box-shadow: none;
 }
-body[data-style='transparent'] .is-gift .draw-danmaku-gift {
-  display: flow-root;
-  margin-top: 4px;
-  font-size: 20px;
-  line-height: 1.5;
-  -webkit-text-stroke: 0.6px rgba(0, 0, 0, 0.9);
-  paint-order: stroke fill;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+body[data-style='transparent'] .is-gift .draw-danmaku-avatar {
+  display: none;
 }
-body[data-style='transparent'] .draw-danmaku-gift-art {
-  float: right;
-  width: 24px;
-  height: 27px;
-  margin-left: 10px;
-  filter: drop-shadow(0 2px 2px rgba(28, 20, 12, 0.8));
+body[data-style='transparent'] .is-gift .draw-danmaku-body {
+  padding: 0 0 0 68px;
 }
-body[data-style='transparent'] .draw-danmaku-gift-copy {
-  display: inline;
-}
-body[data-style='transparent'] .draw-danmaku-gift-action {
-  margin-right: 6px;
-  font-size: 14px;
-}
-body[data-style='transparent'] .draw-danmaku-gift-name {
-  color: var(--transparent-ink);
-  font-size: 20px;
-}
-body[data-style='transparent'] .draw-danmaku-gift-count {
-  display: inline-block;
-  margin-left: 8px;
-  color: var(--transparent-medal);
-  font-size: 22px;
-  font-weight: 700;
+body[data-style='transparent'] .is-gift .draw-danmaku-gift-art {
+  left: 0;
+  right: auto;
+  width: 56px;
+  height: 64px;
+  filter: drop-shadow(0 3px 3px rgb(0 0 0 / 30%));
+  transform: translateY(-50%);
 }

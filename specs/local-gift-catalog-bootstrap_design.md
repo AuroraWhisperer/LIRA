@@ -1,5 +1,10 @@
 # Local Paid Gift Catalog Bootstrap
 
+Current catalog identity and image rules follow
+[Gift identity across catalogs and overtime](gift-identity-overtime.md) and the
+server's current public catalog protocol. They supersede this specification's
+original schema-v2, ID-only image index and server-image fallback promises.
+
 ## Goal
 
 After the first successful desktop authorization, keep the login window visible
@@ -21,12 +26,14 @@ outside the current room can remain unresolved.
 
 - The server catalog remains authoritative and is fetched dynamically; no
   catalog snapshot or Bilibili gift artwork is packaged.
-- Local v2 metadata membership is limited to `coinType === "gold"` and known
+- Local metadata membership is limited to `coinType === "gold"` and known
   `priceRaw >= 0`; positive-price active rows form the paid search/settlement
   view. ID `13000` and guard aliases remain excluded.
 - Base room membership still comes from the configured room panel and
   `giftConfig`; official outputs expand only from a box ID present in that room.
-- Images are joined by exact normalized gift ID, never by name.
+- Images are joined by frozen gift identity/`variantId`; a numeric gift ID alone
+  cannot select among multiple identities. Legacy history uses only the unique
+  ID/name match allowed by the identity specification.
 - No Bilibili cookie, device token, activation code, or password reaches the
   renderer, catalog file, image request, or log.
 
@@ -41,10 +48,11 @@ outside the current room can remain unresolved.
 
 ## Architecture
 
-`GET /api/public/gifts/catalog?schemaVersion=2` returns one content-versioned
-package with gold `gifts`, official `blindBoxes`, and nullable `sourceUrl`. The
-server reads it from the already validated catalog image source column while
-retaining `imageUrl` as a compatibility fallback.
+`GET /api/public/gifts/catalog?schemaVersion=3` returns the content-versioned
+gift identity and official relation package. The client validates its identities,
+business digest and relations before retaining the gold mirror. `sourceUrl` is
+nullable and restricted to the validated upstream image source; `imageUrl` is
+always `null`. The current protocol provides no same-origin server-image fallback.
 
 Each authorized desktop launch performs one conditional check even if the
 persisted check time is recent. While the runtime remains open it checks every
@@ -68,11 +76,9 @@ The local runtime exposes two distinct views:
 
 - `sourceUrl` must be HTTPS on `hdslb.com` or a subdomain, without credentials
   or a non-default port. Redirects are rejected.
-- The configured LIRA Server fallback retains its existing exact-origin and
-  `/gift-media/images/<safe-basename>` checks.
-- Network downloads use the validated Bilibili source when present; failures
-  do not automatically fall back to LIRA Server. Rows without a usable source
-  can still download their same-origin server-only image.
+- Network downloads use only the current package's validated Bilibili source.
+  Failures and missing sources retain a same-identity last-good local image or
+  the placeholder; neither triggers a server-only image download.
 - Downloads enforce a 15-second timeout, 5 MiB limit, raster signature check,
   bounded concurrency, safe generated filenames, and atomic writes.
 - Remote JSON remains size-limited and normalized to an explicit field
@@ -82,20 +88,20 @@ The local runtime exposes two distinct views:
 
 ## Compatibility
 
-- A valid completed v2 catalog cache can seed initialization even when the first
-  refresh fails; a legacy cache cannot prove v2 relation completeness. Existing
-  same-origin server image URLs remain downloadable.
+- A valid completed supported catalog cache can seed initialization when refresh
+  fails. Legacy metadata cannot prove schema-3 identity completeness. Existing
+  local files may be retained, but the current package cannot advertise a
+  server-image fallback.
 - A catalog failure with no local snapshot stays on the initialization card and
   offers retry. A completed scan with individual failures enters Admin, uses
   placeholders for missing files, and retries missing assets later.
 - A later catalog version does not re-block a previously initialized launch;
   it synchronizes incrementally in the background.
-- Image identity includes the source URL and validated server image URL. To
-  publish changed artwork, the server must change one of those URLs, even if
-  the gift ID is unchanged. Catalog version/name/price changes alone do not
-  invalidate image files. A server-only correction must have no Bilibili source.
-- `data/overtime-gift-images/index.json` stores schema version 1 and an `images`
-  object mapping exact gift IDs to validated last-good local basenames. It is
+- Image revisions include the source URL and gift identity. Changed artwork
+  requires a changed source URL; catalog version changes alone do not invalidate
+  a same-identity image. Same-ID different identities never share fallback state.
+- `data/overtime-gift-images/index.json` stores schema version 2 and an `images`
+  object mapping `variantId` to validated last-good local basenames. It is
   written atomically after a batch; an invalid or missing index is ignored.
   Old images remain usable until replacement succeeds, including after restart.
 - Local `gift-catalog:update` notifications follow the asset scan and carry
@@ -130,9 +136,12 @@ The local runtime exposes two distinct views:
   downloads and no user notification. Changed/missing images update visible
   artwork without restarting Admin, with incremental progress and old-image
   fallback on failure. Bilibili outages do not cause bulk server downloads.
-- The persisted v2 package contains validated gold metadata including known
+- The persisted package contains validated gold identities including known
   zero-price rows and inactive relation references, and preserves ID, name,
-  price, active/box flags, image URLs, and official relations atomically.
+  price, category, identity, source URL, and official relations atomically.
+- Schema-3 records with non-null `imageUrl` are rejected; missing/unavailable
+  Bilibili sources do not cause same-origin image downloads. Image index schema 2
+  keeps same-ID different identities separate across restart and refresh.
 - All valid cached images are served from `data/overtime-gift-images/`; an
   interrupted run reuses them rather than downloading them again.
 - Global picker search performs no remote fetch. Recent gifts above the existing

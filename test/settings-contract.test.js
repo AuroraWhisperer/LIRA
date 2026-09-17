@@ -77,6 +77,13 @@ test('local settings enforce synchronized integer and boolean contracts', async 
     { queueLimit: 1.5 },
     { userCooldownSeconds: -1 },
     { userCooldownSeconds: 3601 },
+    { queueLimit: [50] },
+    { userCooldownSeconds: null },
+    { userCooldownSeconds: [] },
+    { userCooldownSeconds: false },
+    { queueLimit: '1e2' },
+    { queueLimit: '0x32' },
+    { queueLimit: '50.0' },
     { paused: 'sometimes' },
   ])
     assert.equal((await f.post(body)).status, 400, JSON.stringify(body));
@@ -86,6 +93,7 @@ test('local settings enforce synchronized integer and boolean contracts', async 
     200,
   );
   assert.equal(f.store.getSettings().paused, 'true');
+  assert.equal((await f.post({ queueLimit: ' 050 ', userCooldownSeconds: '00' })).status, 200);
 });
 
 test('settings store rolls back a failed batch without invalidating the cached state', (t) => {

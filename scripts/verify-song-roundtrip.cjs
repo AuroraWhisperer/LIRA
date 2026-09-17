@@ -7,12 +7,17 @@ const http = require('node:http');
 const path = require('node:path');
 const { createRequire } = require('node:module');
 const test = require('node:test');
+const { resolveServerRoot } = require('./verify-server-contract');
 
-const [clientRoot, serverRoot] = process.argv.slice(2);
-if (!clientRoot || !serverRoot || !path.isAbsolute(clientRoot) || !path.isAbsolute(serverRoot)) {
-  throw new Error('Pass absolute client and server checkout paths.');
+const args = process.argv.slice(2);
+if (args.length !== 0 && (args.length !== 2 || args.some((root) => !path.isAbsolute(root)))) {
+  throw new Error('Pass no arguments or two absolute client and server checkout paths.');
 }
+const [clientRoot, serverRoot] = args.length === 2
+  ? args : [path.resolve(__dirname, '..'), resolveServerRoot()];
 const clientRequire = createRequire(path.join(clientRoot, 'package.json'));
+const { verifyServerContract, readServerFixture } = clientRequire('./scripts/verify-server-contract');
+verifyServerContract({ serverRoot, runtime: true });
 const serverRequire = createRequire(path.join(serverRoot, 'package.json'));
 const { createRemoteLicenseClient } = clientRequire('./src/electron/license/remote-license-client');
 const { mapSongForSync } = clientRequire('./src/electron/license/license-response-utils');
@@ -22,7 +27,7 @@ const { createApp } = serverRequire('./src/app');
 const store = serverRequire('./src/storage/song-library-store');
 const { normalizeSong, MAX_SONG_SNAPSHOT_BYTES } = serverRequire('./src/lib/song-library');
 const { createSongLibrarySyncService } = serverRequire('./src/modules/streamer/song-library-sync');
-const budget = serverRequire('./docs/protocol/fixtures/song-snapshot-budget.json');
+const budget = readServerFixture('docs/protocol/fixtures/song-snapshot-budget.json', { serverRoot });
 assert.equal(MAX_SONG_SNAPSHOT_BYTES, budget.snapshotMaxBytes);
 
 async function fixture(t) {

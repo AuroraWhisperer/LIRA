@@ -322,7 +322,7 @@ function overlayParameters(value) {
 function sanitizeOverlaySettings(value) {
   const parameters = overlayParameters(value);
   const overlayUrl = sanitizePublicUrl(value?.overlayUrl);
-  if (!overlayUrl || new URL(overlayUrl).pathname !== '/overlay' ||
+  if (!overlayUrl || !/^\/overlay\/[A-Za-z0-9_-]{16}$/.test(new URL(overlayUrl).pathname) ||
       new URL(overlayUrl).search || new URL(overlayUrl).hash) {
     throw Object.assign(new Error('INVALID_RESPONSE'), { code: 'INVALID_RESPONSE' });
   }
