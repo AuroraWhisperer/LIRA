@@ -292,6 +292,29 @@ test('socket errors use history only during immediate reconnect recovery', async
   }
 });
 
+test('danmaku marks only the current room owner as the streamer', (t) => {
+  const delivered = [];
+  const client = new BilibiliDanmakuClient('123', {
+    onMessage: (message) => delivered.push(message),
+    onStatus() {},
+  });
+  t.after(() => client.stop());
+  client.stopped = false;
+  client.userInfoService.setRoom({ roomId: '123', ownerUid: '456' });
+  client.roomRunContext = client.userInfoService.beginRoomRun();
+  client.messageHandlers.updateRoomRunContext(client.roomRunContext);
+  for (const [uid, ownerUid, expected] of [
+    [456, '456', true], ['456', '456', true], [789, '456', false],
+    [456, '789', false], [789, '789', true], [456, '', false],
+  ]) {
+    client.messageHandlers.updateRoomOwnerUid(ownerUid);
+    client.messageHandlers.handleDanmaku({
+      cmd: 'DANMU_MSG', info: [[], '主播颜色', [uid, '相同昵称', 1]],
+    });
+    assert.equal(delivered.at(-1).isStreamer === true, expected);
+  }
+});
+
 test('onMessage return values do not fetch profiles and explicit ensure reuses the avatar', async () => {
   const delivered = [];
   const client = new BilibiliDanmakuClient('123', {

@@ -1,7 +1,7 @@
 .danmaku-tool-panel {
   --surface: #fffefb;
   --surface-2: #f3f5f6;
-  --border: #e2e5e8;
+  --border: #a4afbd;
   --text: #526071;
   --muted: #626c77;
   --danmaku-heading-color: #34465c;
@@ -10,6 +10,9 @@
   --danmaku-action-text: #443315;
   --color-success-light: #e8f3ec;
   --color-success-dark: #25694f;
+  --type-size-page-title: 26px;
+  --type-size-section-title: 22px;
+  --type-size-card-title: 17px;
   width: 100%;
   max-width: none;
   row-gap: var(--spacing-lg);
@@ -19,6 +22,7 @@
 .danmaku-tool-panel button:is(.primary, .secondary, .ghost) {
   min-height: 32px;
   padding: 5px 12px;
+  border-width: 2px;
   font-size: var(--type-size-control);
   font-weight: 500;
   line-height: var(--type-leading-control);
@@ -39,13 +43,19 @@
   min-height: 32px;
   padding: 5px 10px;
 }
+.danmaku-tool-panel :where(input:not([type='checkbox']), select, textarea, button.icon, .lira-select-trigger, .lira-select-menu) {
+  border-width: 2px;
+}
+.danmaku-tool-panel .lira-select {
+  --select-border: var(--border);
+}
 .danmaku-reply-target {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
   padding: 16px;
-  border: 1px solid var(--border);
+  border: 2px solid var(--border);
   border-radius: 10px;
   background: var(--surface-2);
 }
@@ -53,7 +63,7 @@
   display: grid;
   gap: var(--spacing-md);
   padding: 20px;
-  border: 1px solid var(--border);
+  border: 2px solid var(--border);
   border-radius: 12px;
   background: var(--surface);
 }
@@ -96,8 +106,8 @@
   line-height: 1.4;
 }
 .danmaku-heading-icon {
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   flex: 0 0 auto;
 }
 .danmaku-section-heading p {
@@ -194,7 +204,7 @@
   min-width: 0;
   min-height: 36px;
   padding: 8px;
-  border: 1px solid var(--border);
+  border: 2px solid var(--border);
   border-radius: 6px;
   background: transparent;
   color: var(--muted);
@@ -390,7 +400,7 @@
 .danmaku-reply-target {
   min-height: 72px;
   padding: 12px var(--spacing-md);
-  border: 1px solid var(--border);
+  border: 2px solid var(--border);
   background: var(--surface);
   transition:
     border-color 160ms ease,
@@ -410,7 +420,7 @@
 }
 .danmaku-reply-target strong {
   color: var(--text);
-  font-size: var(--type-size-body);
+  font-size: var(--type-size-card-title);
   font-weight: 500;
   line-height: 1.35;
 }

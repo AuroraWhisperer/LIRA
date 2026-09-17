@@ -1,15 +1,9 @@
-/* 蝴蝶结：昵称、统一装饰和正文居中，消息之间留白。 */
-body[data-style='minimal'] .danmaku-signal-stage {
-  width: min(820px, 100vw);
-  gap: 0;
-}
+/* 蝴蝶结：整列靠左，昵称、统一装饰和正文在列内居中，消息之间留白。 */
 body[data-style='minimal'] .danmaku-signal-header {
   display: none;
 }
 body[data-style='minimal'] .draw-danmaku-feed {
   gap: 24px;
-  height: calc(100vh - clamp(20px, 4.4vw, 48px));
-  max-height: 100vh;
 }
 body[data-style='minimal'] .draw-danmaku-item {
   grid-template-columns: minmax(0, 1fr);
@@ -35,7 +29,7 @@ body[data-style='minimal'] .draw-danmaku-badge {
 body[data-style='minimal'] .draw-danmaku-body {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  justify-self: center;
+  justify-self: start;
   gap: 0;
   width: min(270px, 100%);
   min-width: 0;
@@ -57,7 +51,7 @@ body[data-style='minimal'] .draw-danmaku-identity strong {
   transform: translateY(6px);
   color: #dff3ff;
   font:
-    800 14px/1.4 'Microsoft YaHei UI',
+    800 16px/1.4 'Microsoft YaHei UI',
     sans-serif;
   letter-spacing: 0;
   overflow-wrap: anywhere;
@@ -66,7 +60,7 @@ body[data-style='minimal'] .draw-danmaku-identity strong {
 body[data-style='minimal'] .draw-danmaku-identity::after {
   width: 100%;
   /* 利用原图透明留白，让上下文字靠近图案。 */
-  margin: -20px 0 -16px;
+  margin: -20px 0 -19px;
   aspect-ratio: 3 / 1;
   background: url('/img/overlays/danmaku-guard/bow-divider.webp') center /
     contain no-repeat;

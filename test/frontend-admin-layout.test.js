@@ -233,7 +233,7 @@ test('player dock starts collapsed and toggles open without opening fullscreen',
   assert.equal(dockToggle.getAttribute('aria-label'), '收起播放器');
 });
 
-test('queue panels remain the same height on desktop', () => {
+test('queue panels retain their original 450px height on desktop', () => {
   const workspaceSource = readCssBundle(
     'public',
     'css',
@@ -263,7 +263,7 @@ test('queue panels remain the same height on desktop', () => {
     responsivePanelRule,
     'narrow-layout queue panel sizing should remain defined',
   );
-  assert.match(queueRowRule, /--queue-height:\s*clamp\(280px,.*var\(--player-dock-height, 96px\).*380px\)/);
+  assert.match(queueRowRule, /--queue-height:\s*450px;/);
   assert.match(queueRowRule, /flex:\s*0 0 var\(--queue-height\)/);
   assert.match(queueRowRule, /height:\s*var\(--queue-height\)/);
   assert.match(responsiveQueueRule, /flex:\s*0 0 auto/);
@@ -296,10 +296,14 @@ test('zoomed desktop routes keep scrolling below the titlebar and above the dock
   assert.match(narrow, /\.song-management-panel > \.tabs\s*\{[^}]*flex-wrap:\s*wrap/);
 });
 
-test('toolbox navigation and planner lists retain visible scrolling affordances', () => {
+test('expanded toolbox navigation and planner lists retain visible scrolling affordances', () => {
   const styles = readCssBundle('public', 'css', 'admin', 'other-features.css');
-  assert.doesNotMatch(styles, /\.(?:other-feature-sidebar|streamer-planner|planner-note-list|planner-task-list)[^{}]*\{[^}]*scrollbar-width:\s*none/);
-  assert.doesNotMatch(styles, /\.(?:other-feature-sidebar|streamer-planner|planner-note-list|planner-task-list)::-webkit-scrollbar[^{}]*\{[^}]*display:\s*none/);
+  const expandedStyles = styles.replace(
+    /\.other-page\.sidebar-collapsed \.other-feature-sidebar(?:::-webkit-scrollbar)?\s*\{[^}]*\}/g,
+    '',
+  );
+  assert.doesNotMatch(expandedStyles, /\.(?:other-feature-sidebar|streamer-planner|planner-note-list|planner-task-list)[^{}]*\{[^}]*scrollbar-width:\s*none/);
+  assert.doesNotMatch(expandedStyles, /\.(?:other-feature-sidebar|streamer-planner|planner-note-list|planner-task-list)::-webkit-scrollbar[^{}]*\{[^}]*display:\s*none/);
 });
 
 test('admin queue cards have enough height for their text and metadata', () => {
@@ -369,6 +373,7 @@ test('admin queue wheel scrolls overflowing lists and releases the page at their
     closest: () => queuePanel,
   };
   const elements = {
+    randomSongBtn: makeTarget(),
     nextBtn: makeTarget(),
     clearBtn: makeTarget(),
     superChatList,

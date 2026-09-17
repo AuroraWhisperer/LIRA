@@ -117,8 +117,11 @@ Function liraPreserveInstallData
   liraCheckBackup:
     StrCpy $R5 "发现上次安装保留的数据，请勿删除或覆盖。请把诊断报告发给提供安装包的人。"
     IfFileExists "$liraDataBackup" liraPrepareFailed
+    SetDetailsPrint textonly
+    DetailPrint "正在备份本地数据，请稍候…"
+    SetDetailsPrint lastused
     IfSilent liraPrepareCopy
-    Banner::show /NOUNLOAD "LIRA 正在保留数据，完成后仍存放在安装目录。请稍候。"
+    Banner::show /NOUNLOAD /set 76 "正在更新 LIRA" "正在保留本地数据，请稍候…"
     StrCpy $liraDataBanner "1"
   liraPrepareCopy:
     StrCpy $liraDataStage "保留旧版数据"
@@ -145,6 +148,9 @@ FunctionEnd
 
 Function liraRestoreInstallData
   StrCmp $liraDataBackup "" liraRestoreDone
+  SetDetailsPrint textonly
+  DetailPrint "正在恢复本地数据，请稍候…"
+  SetDetailsPrint lastused
   StrCpy $liraDataStage "把数据恢复到安装目录"
   StrCpy $R4 "未执行"
   StrCpy $R5 "数据仍保留在备份目录，请勿删除。请把诊断报告发给提供安装包的人。"

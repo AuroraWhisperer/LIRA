@@ -43,6 +43,14 @@ function createLicenseOperations(options = {}) {
     return overlayOperation((token) => remote.updateOverlaySettings(settings, token));
   }
 
+  async function getWelcomeSettings() {
+    return overlayOperation((token) => remote.getWelcomeSettings(token));
+  }
+
+  async function updateWelcomeSettings(settings) {
+    return overlayOperation((token) => remote.updateWelcomeSettings(settings, token));
+  }
+
   function overlayOperation(operation) {
     const owner = options.getOverlayOwner();
     const assertOwner = () => {
@@ -312,6 +320,8 @@ function createLicenseOperations(options = {}) {
     getProfile,
     getOverlaySettings,
     updateOverlaySettings,
+    getWelcomeSettings,
+    updateWelcomeSettings,
     getSongPageBackground,
     setBilibiliCredentialsInternal,
     syncSongs,

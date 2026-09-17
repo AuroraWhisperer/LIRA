@@ -6,6 +6,7 @@ import {
   createFortuneEditor,
 } from './danmaku-libraries.js';
 import { initDanmakuOverlaySettings } from './danmaku-overlay-settings.js';
+import { initDanmakuWelcome } from './danmaku-welcome.js';
 
 let initialized = false;
 let refreshState = null;
@@ -38,6 +39,7 @@ function init() {
   });
   if (!blessingEditor || !fortuneEditor || !customReplyEditor) return;
   initDanmakuOverlaySettings(elements, toast);
+  initDanmakuWelcome({ toast });
   initialized = true;
 
   const updateCounter = () => {

@@ -373,6 +373,10 @@ function createRemoteLicenseClient(options = {}) {
     profile: (token) => request('GET', '/api/device/profile', undefined, token),
     getOverlaySettings: (token) =>
       request('GET', '/api/device/overlay-settings', undefined, token),
+    getWelcomeSettings: (token) =>
+      request('GET', '/api/device/welcome-settings', undefined, token),
+    updateWelcomeSettings: (settings, token) =>
+      request('PUT', '/api/device/welcome-settings', settings, token),
     updateOverlaySettings: (settings, token) =>
       request('PUT', '/api/device/overlay-settings', settings, token),
     getCloudState: (token, requestOptions) =>

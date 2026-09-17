@@ -133,7 +133,7 @@ test('a late read cannot replace a draft and an old account save cannot affect t
   f.reads[2].resolve(saved('ranked', 8, nextUrl)); await flush();
   f.writes[0].resolve(saved('transparent')); await pending;
   assert.equal(f.elements.overlayUrl.value, nextUrl);
-  assert.match(f.elements.styleChip.textContent, /服务器样式.*大头像气泡/);
+  assert.match(f.elements.styleChip.textContent, /服务器样式.*经典样式/);
   assert.equal(f.elements.fullscreenDuration.value, '8');
 });
 

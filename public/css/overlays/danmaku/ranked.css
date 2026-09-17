@@ -1,23 +1,10 @@
-/* 直播气泡：固定设计画布等比缩放，头像在左，昵称灯牌与正文上下堆叠。 */
-body[data-style='ranked'] .danmaku-signal-stage {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  grid-template-rows: minmax(0, 1fr);
-  width: var(--ranked-stage-width);
-  height: var(--ranked-stage-height);
-  padding: 6px 12px;
-  transform: scale(var(--ranked-scale));
-  transform-origin: left bottom;
-}
+/* 经典样式：共用外层画布，窄容器内按卡片宽度等比缩小。 */
 body[data-style='ranked'] .danmaku-signal-header {
   display: none;
 }
 body[data-style='ranked'] .draw-danmaku-feed {
   gap: 10px;
-  width: 100%;
-  height: 100%;
-  max-height: none;
+  zoom: var(--ranked-scale);
 }
 body[data-style='ranked'] .draw-danmaku-item {
   --ranked-accent: #6ed6dc;
@@ -52,6 +39,9 @@ body[data-style='ranked'] .draw-danmaku-item[data-identity='admiral'] {
 }
 body[data-style='ranked'] .draw-danmaku-item[data-identity='governor'] {
   --ranked-accent: var(--guard-governor);
+}
+body[data-style='ranked'] .draw-danmaku-item[data-streamer='true'] {
+  --ranked-accent: #67c479;
 }
 body[data-style='ranked'] .draw-danmaku-avatar {
   align-self: start;
@@ -90,10 +80,28 @@ body[data-style='ranked'] .draw-danmaku-identity {
   max-width: 100%;
   min-height: 26px;
   padding: 3px 8px;
-  border-radius: 999px;
+  border-radius: 999px 999px 999px 0;
   color: #fff;
   background: color-mix(in srgb, var(--ranked-accent) 82%, white);
   box-shadow: 0 2px 5px rgba(12, 18, 30, 0.16);
+}
+body[data-style='ranked']
+  .draw-danmaku-item:not([data-streamer='true']):is([data-identity='captain'], [data-identity='admiral'], [data-identity='governor'])
+  .draw-danmaku-identity {
+  position: relative;
+  padding-left: 34px;
+}
+body[data-style='ranked']
+  .draw-danmaku-item:not([data-streamer='true']):is([data-identity='captain'], [data-identity='admiral'], [data-identity='governor'])
+  .draw-danmaku-identity::before {
+  position: absolute;
+  left: 6px;
+  bottom: 2px;
+  width: 24px;
+  height: 30px;
+  background: color-mix(in srgb, var(--ranked-accent) 82%, black);
+  mask: url('/img/overlays/danmaku-ranked/anchor.svg') center / contain no-repeat;
+  content: '';
 }
 body[data-style='ranked'] .draw-danmaku-identity strong {
   min-width: 0;

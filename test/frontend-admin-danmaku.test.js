@@ -132,7 +132,7 @@ test('danmaku tool separates the fixed live overlay from the sender and reply gr
     ['bubble', '聊天气泡'],
     ['signal', '深色面板'],
     ['minimal', '蝴蝶结'],
-    ['ranked', '大头像气泡'],
+    ['ranked', '经典样式'],
     ['transparent', '透明文字'],
     ['identity', '头像横卡'],
     ['outline', '简洁白卡'],

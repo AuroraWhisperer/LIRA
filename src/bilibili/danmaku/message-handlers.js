@@ -125,6 +125,7 @@ class MessageHandlers {
       emotes,
       uid: requester.uid,
       userName: requester.userName,
+      ...(this.roomOwnerUid && String(requester.uid) === this.roomOwnerUid ? { isStreamer: true } : {}),
       requesterGuardLevel: requester.guardLevel,
       requesterMedalName: requester.medalName,
       requesterMedalLevel: requester.medalLevel,

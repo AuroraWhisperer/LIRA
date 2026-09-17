@@ -119,17 +119,10 @@ body.is-preview .danmaku-signal-stage {
 }
 body.is-preview .draw-danmaku-feed {
   display: flex;
-  width: 100%;
   height: auto;
   max-height: none;
   overflow: visible;
   justify-content: flex-start;
-}
-body.is-preview:is([data-style='ranked'], [data-style='identity']) .danmaku-signal-stage {
-  width: var(--ranked-stage-width);
-  max-width: none;
-  padding: 16px 12px 36px;
-  zoom: var(--danmaku-preview-scale, 1);
 }
 body.is-preview:is([data-style='outline'], [data-style='cream']) .draw-danmaku-feed {
   gap: 20px;

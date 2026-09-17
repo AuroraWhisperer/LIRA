@@ -5,10 +5,6 @@ body[data-style='bubble'] {
   --bubble-lilac: #b7adff;
   --bubble-rose: #ff9eb8;
 }
-body[data-style='bubble'] .danmaku-signal-stage {
-  width: min(760px, 100vw);
-  gap: 10px;
-}
 body[data-style='bubble'] .danmaku-signal-header {
   display: none;
   grid-template-columns: 22px minmax(0, 1fr) auto;
@@ -48,7 +44,6 @@ body[data-style='bubble'] .danmaku-signal-count {
 }
 body[data-style='bubble'] .draw-danmaku-feed {
   gap: 12px;
-  padding-bottom: 6px;
 }
 body[data-style='bubble'] .draw-danmaku-item {
   --bubble-accent: var(--bubble-mint);

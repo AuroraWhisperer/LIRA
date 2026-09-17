@@ -68,6 +68,7 @@ export function createDanmakuMessageRenderer({
     if (item.kind === 'gift') bubble.className += ' is-gift';
     bubble.dataset.tone = String(index % 4);
     bubble.dataset.identity = identityVariant(item.guardLevel, item.medalName);
+    if (item.isStreamer === true) bubble.dataset.streamer = 'true';
     if (fullscreen) bubble.style.setProperty('visibility', 'hidden');
     bubble.style.setProperty('--danmaku-width', `${metrics.width}%`);
     bubble.style.setProperty('--danmaku-height', `${metrics.height}px`);
@@ -77,7 +78,7 @@ export function createDanmakuMessageRenderer({
       bubble.className += ' is-emote-only';
 
     const name = String(item.name || '观众').trim() || '观众';
-    const avatar = createAvatar(item, name);
+    const avatar = createAvatar(item, name, bubble);
 
     const body = document.createElement('div');
     body.className = classNames.body;
@@ -112,16 +113,25 @@ export function createDanmakuMessageRenderer({
     rootElement.append(art, copy, count);
   }
 
-  function createAvatar(item, name) {
+  function createAvatar(item, name, bubble) {
     if (!showAvatar) return null;
     const avatar = document.createElement('div');
     avatar.className = classNames.avatar;
     avatar.setAttribute('aria-hidden', 'true');
+    const medalLevel = Number(item.medalLevel);
+    if (Number.isSafeInteger(medalLevel) && medalLevel > 0) {
+      avatar.dataset.medalLevel = String(medalLevel);
+    }
     if (item.avatarUrl) {
       const image = document.createElement('img');
       image.alt = '';
+      image.referrerPolicy = 'no-referrer';
+      image.decoding = 'async';
       const source = String(resolveAvatarUrl(item.avatarUrl) || '');
       if (source) {
+        image.addEventListener('load', () => {
+          bubble.style.setProperty('--danmaku-avatar-image', `url(${JSON.stringify(source)})`);
+        });
         image.src = source;
         image.addEventListener('error', () => {
           image.remove();

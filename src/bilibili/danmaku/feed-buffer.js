@@ -45,6 +45,7 @@ function createDanmakuFeedBuffer(options = {}) {
         danmaku.messageTimestamp ?? danmaku.timestamp,
       ),
       emotes: normalizeEmotes(danmaku.emotes),
+      ...(danmaku.isStreamer === true ? { isStreamer: true } : {}),
     };
     return appendItem(item);
   }

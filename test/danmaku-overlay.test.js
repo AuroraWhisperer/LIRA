@@ -184,11 +184,11 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
   );
   assert.match(
     styles,
-    /body\[data-style='minimal'\] \.draw-danmaku-feed \{[^}]*gap:\s*24px;[^}]*height:\s*calc\(100vh - clamp/,
+    /body\[data-style='minimal'\] \.draw-danmaku-feed \{\s*gap:\s*24px;\s*\}/,
   );
   assert.match(
     styles,
-    /body\[data-style='minimal'\] \.draw-danmaku-body \{[^}]*display:\s*grid;[^}]*justify-self:\s*center;[^}]*gap:\s*0;[^}]*width:\s*min\(270px, 100%\);[^}]*text-align:\s*center;/s,
+    /body\[data-style='minimal'\] \.draw-danmaku-body \{[^}]*display:\s*grid;[^}]*justify-self:\s*start;[^}]*gap:\s*0;[^}]*width:\s*min\(270px, 100%\);[^}]*text-align:\s*center;/s,
   );
   assert.match(
     styles,
@@ -204,7 +204,7 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
   );
   assert.match(
     styles,
-    /body\[data-style='minimal'\] \.draw-danmaku-identity::after \{[^}]*width:\s*100%;[^}]*margin:\s*-20px 0 -16px;[^}]*aspect-ratio:\s*3 \/ 1;[^}]*background:\s*url\('\/img\/overlays\/danmaku-guard\/bow-divider\.webp'\) center \/ contain no-repeat;/s,
+    /body\[data-style='minimal'\] \.draw-danmaku-identity::after \{[^}]*width:\s*100%;[^}]*margin:\s*-20px 0 -19px;[^}]*aspect-ratio:\s*3 \/ 1;[^}]*background:\s*url\('\/img\/overlays\/danmaku-guard\/bow-divider\.webp'\) center \/ contain no-repeat;/s,
   );
   assert.match(
     styles,
@@ -224,13 +224,12 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
   assert.match(feedScript, /FULLSCREEN_LAYOUT\s*=\s*'fullscreen-random'/);
   assert.match(feedScript, /scheduleTimeout/);
   assert.match(feedScript, /cancelTimeout/);
-  assert.match(styles, /--ranked-stage-width:\s*624px/);
-  assert.match(styles, /--ranked-stage-height:\s*640px/);
+  assert.match(styles, /\.danmaku-signal-stage \{[^}]*width:\s*100%;[^}]*height:\s*100%;[^}]*padding:\s*12px;/);
   assert.match(styles, /--ranked-bubble-max-width:\s*600px/);
   assert.match(styles, /--ranked-avatar-size:\s*68px/);
   assert.match(
     styles,
-    /body\[data-style='ranked'\] \.danmaku-signal-stage \{[^}]*transform:\s*scale\(var\(--ranked-scale\)\)[^}]*transform-origin:\s*left bottom/s,
+    /body\[data-style='ranked'\] \.draw-danmaku-feed \{[^}]*zoom:\s*var\(--ranked-scale\);/s,
   );
   assert.match(
     styles,
@@ -246,7 +245,7 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
   );
   assert.match(
     styles,
-    /body\[data-style='ranked'\] \.draw-danmaku-identity \{[^}]*display:\s*flex;[^}]*width:\s*max-content;[^}]*max-width:\s*100%;[^}]*border-radius:\s*999px;[^}]*background:\s*color-mix\(in srgb, var\(--ranked-accent\) 82%, white\)/s,
+    /body\[data-style='ranked'\] \.draw-danmaku-identity \{[^}]*display:\s*flex;[^}]*width:\s*max-content;[^}]*max-width:\s*100%;[^}]*border-radius:\s*999px 999px 999px 0;[^}]*background:\s*color-mix\(in srgb, var\(--ranked-accent\) 82%, white\)/s,
   );
   assert.match(
     styles,
@@ -330,11 +329,11 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
   );
   assert.match(
     styles,
-    /body\[data-style='transparent'\] \.draw-danmaku-medal \{[^}]*grid-row:\s*3;[^}]*border:\s*0;[^}]*background:\s*transparent;/s,
+    /body\[data-style='transparent'\] \.draw-danmaku-avatar\[data-medal-level\]::after \{[^}]*bottom:\s*-7px;[^}]*content:\s*'LV' attr\(data-medal-level\);/s,
   );
   assert.match(
     styles,
-    /body\[data-style='transparent'\] \.draw-danmaku-guard \{ display:\s*none; \}/,
+    /body\[data-style='transparent'\] \.draw-danmaku-guard, body\[data-style='transparent'\] \.draw-danmaku-medal \{ display:\s*none; \}/,
   );
   assert.match(
     styles,
@@ -426,7 +425,7 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
   }
 });
 
-test('identity cards preserve the historical right avatar and four identity colors independently of ranked bubbles', () => {
+test('identity cards preserve their sizing and guard colors beneath ordinary avatar backdrops', () => {
   const styles = fs.readFileSync(
     path.join(ROOT_DIR, 'public/css/overlays/danmaku/identity.css'),
     'utf8',
@@ -434,7 +433,7 @@ test('identity cards preserve the historical right avatar and four identity colo
   assert.match(styles, /--identity-card-width:\s*600px/);
   assert.match(styles, /--identity-card-min-height:\s*92px/);
   assert.match(styles, /grid-template-areas:\s*'content avatar'/);
-  assert.match(styles, /transform:\s*scale\(var\(--ranked-scale\)\)/);
+  assert.match(styles, /zoom:\s*var\(--ranked-scale\)/);
   for (const [identity, color] of [
     ['viewer', 'rgba(52, 59, 69, 0.84)'],
     ['fan', 'rgba(52, 59, 69, 0.84)'],

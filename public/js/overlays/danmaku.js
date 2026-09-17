@@ -15,8 +15,8 @@ const OVERLAY_STYLES = new Set([
   'outline',
   'cream',
 ]);
-const RANKED_STAGE_WIDTH = 624;
-const RANKED_STAGE_HEIGHT = 640;
+const FIXED_STAGE_PADDING = 12;
+const RANKED_CONTENT_WIDTH = 600;
 const params = new URLSearchParams(location.search);
 const previewMode = params.get('preview') === '1';
 
@@ -148,7 +148,7 @@ function createOverlayFeed(style, durationSeconds) {
     maxItems: MAX_ITEMS,
     offscreenViewports: previewMode ? Number.POSITIVE_INFINITY : 0,
     autoScroll: false,
-    resolveAvatarUrl: bilibiliImageSource,
+    resolveAvatarUrl: bilibiliAvatarSource,
     resolveEmoteUrl: bilibiliImageSource,
     getGuardLabel: guardLabel,
     showAvatar: style !== 'outline',
@@ -194,35 +194,33 @@ function itemKey(item = {}) {
 
 function syncRankedOverlayScale() {
   const viewport = previewMode ? document.getElementById('danmakuPreviewViewport') : null;
-  if (previewMode) {
-    document.documentElement.style.setProperty(
-      '--danmaku-preview-scale',
-      String(Math.min(1, (viewport?.clientWidth || window.innerWidth) / RANKED_STAGE_WIDTH)),
-    );
-    return;
-  }
-  const scale = calculateRankedOverlayScale(window.innerWidth, window.innerHeight);
+  const scale = calculateRankedOverlayScale(viewport?.clientWidth || window.innerWidth);
   document.documentElement.style.setProperty('--ranked-scale', String(scale));
 }
 
-export function calculateRankedOverlayScale(viewportWidth, viewportHeight) {
+export function calculateRankedOverlayScale(viewportWidth) {
   const width = Math.max(0, Number(viewportWidth) || 0);
-  const height = Math.max(0, Number(viewportHeight) || 0);
-  if (!width || !height) return 1;
-  return Math.min(1, width / RANKED_STAGE_WIDTH, height / RANKED_STAGE_HEIGHT);
+  if (!width) return 1;
+  return Math.min(1, Math.max(1, width - FIXED_STAGE_PADDING * 2) / RANKED_CONTENT_WIDTH);
+}
+
+function bilibiliAvatarSource(value) {
+  try {
+    const url = new URL(String(value || ''));
+    if (url.protocol !== 'https:' || !url.hostname.endsWith('.hdslb.com') || url.username || url.password)
+      return '';
+    return url.toString();
+  } catch (_) {
+    return '';
+  }
 }
 
 function bilibiliImageSource(value) {
   if (previewMode && value === '/img/overlays/danmaku-previews/dacall.png') return value;
-  try {
-    const url = new URL(String(value || ''));
-    if (url.protocol !== 'https:' || !url.hostname.endsWith('.hdslb.com'))
-      return '';
-    const token = String(window.__API_TOKEN__ || '');
-    return `/api/bilibili/avatar?url=${encodeURIComponent(url.toString())}${token ? `&token=${encodeURIComponent(token)}` : ''}`;
-  } catch (_) {
-    return '';
-  }
+  const source = bilibiliAvatarSource(value);
+  if (!source) return '';
+  const token = String(window.__API_TOKEN__ || '');
+  return `/api/bilibili/avatar?url=${encodeURIComponent(source)}${token ? `&token=${encodeURIComponent(token)}` : ''}`;
 }
 
 function guardLabel(level) {
@@ -309,7 +307,8 @@ function previewItems() {
     },
     {
       id: 'preview-emote',
-      name: '表情包示例',
+      name: '主播示例',
+      isStreamer: true,
       message: '[打call]',
       emotes,
     },

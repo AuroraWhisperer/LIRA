@@ -10,6 +10,7 @@ import {
   formatSuperChatPrice,
   withMultilingualFallback,
   toast,
+  showError,
   api,
   dangerConfirm,
 } from '../shared/utils.js';
@@ -17,6 +18,20 @@ import { stateService } from './state.js';
 import { publishQueue } from './legacy-admin-bridge.js';
 
 function initQueueForm() {
+  const randomButton = document.getElementById('randomSongBtn');
+  randomButton.addEventListener('click', async () => {
+    if (randomButton.disabled) return;
+    randomButton.disabled = true;
+    try {
+      const result = await api('/api/queue/random', {}, { notifyError: false });
+      await stateService.reloadState();
+      toast(`已随机点歌：${result.data.song_name}`);
+    } catch (error) {
+      showError(error);
+    } finally {
+      randomButton.disabled = false;
+    }
+  });
   document
     .getElementById('nextBtn')
     .addEventListener('click', () => queueAction('next'));

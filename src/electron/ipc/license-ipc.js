@@ -149,6 +149,12 @@ function registerLicenseIpc(options = {}) {
   safeHandle('license:get-overlay-settings', async () =>
     sanitizeOverlaySettings(await licenseManager.getOverlaySettings()),
   );
+  safeHandle('license:get-welcome-settings', async () =>
+    sanitizeWelcomeSettings(await licenseManager.getWelcomeSettings()),
+  );
+  safeHandle('license:update-welcome-settings', async (settings) =>
+    sanitizeWelcomeSettings(await licenseManager.updateWelcomeSettings(welcomeParameters(settings))),
+  );
   safeHandle('license:update-overlay-settings', async (settings) => {
     const parameters = overlayParameters(settings);
     return sanitizeOverlaySettings(
@@ -306,6 +312,28 @@ function safeErrorIndex(value) {
 function sanitizeOptionalError(value) {
   if (value === undefined || value === null || value === '') return null;
   return safeErrorCode({ code: value });
+}
+
+function welcomeParameters(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value) ||
+      !Object.keys(value).length || Object.keys(value).some((key) => !['enabled', 'messages'].includes(key)) ||
+      (Object.hasOwn(value, 'enabled') && typeof value.enabled !== 'boolean')) {
+    throw Object.assign(new Error(), { code: 'INVALID_WELCOME_SETTINGS' });
+  }
+  if (Object.hasOwn(value, 'messages') && (!Array.isArray(value.messages) ||
+      value.messages.length < 1 || value.messages.length > 30 ||
+      value.messages.some((item) => typeof item !== 'string' || !item.trim() ||
+        Array.from(item).length > 80 || /[\x00-\x1f\x7f]/u.test(item)))) {
+    throw Object.assign(new Error(), { code: 'INVALID_WELCOME_MESSAGES' });
+  }
+  return { ...(Object.hasOwn(value, 'enabled') ? { enabled: value.enabled } : {}),
+    ...(Object.hasOwn(value, 'messages') ? { messages: value.messages.map((item) => item.trim()) } : {}) };
+}
+
+function sanitizeWelcomeSettings(value) {
+  if (value?.ok === false || typeof value?.enabled !== 'boolean' || !Array.isArray(value?.messages))
+    throw Object.assign(new Error(), { code: 'INVALID_RESPONSE' });
+  return { ok: true, ...welcomeParameters({ enabled: value.enabled, messages: value.messages }) };
 }
 
 function overlayParameters(value) {

@@ -4,9 +4,9 @@
     {
       "path": "public/pages/admin/toolbox/danmaku.html",
       "kind": "review",
-      "maxLines": 619,
+      "maxLines": 621,
       "owner": "百宝箱弹幕工具页面组合",
-      "reason": "2026-09-17 发布审阅：增量为既有样式选择增加缩略图和说明、重排配置与链接操作，并提供本地预览入口；页面仍仅组合弹幕连接、样式、发送与自动回复表单，网络和预览行为由独立 JS 模块负责，未内联业务逻辑。",
+      "reason": "2026-09-17 发布审阅：既有样式选择增加缩略图和说明、重排配置与链接操作，并提供本地预览入口。欢迎功能再次复核：开关与词库完整抽到 danmaku-welcome-switch.html / danmaku-welcome-library.html，父页面仅增加两个片段引用和 aria 标题；交互独立在 danmaku-welcome.js。组合页面唯一 ID、顺序和前端欢迎行为测试保护此边界。",
       "removal": "后续样式选择或自动回复表单继续扩展时，按既有页面组合机制提取对应片段；本次保留完整工具页面及既有 DOM ID。",
       "reviewBy": "2026-12-17",
       "test": "test/toolbox-sidebar-routing.test.js"
@@ -244,9 +244,9 @@
     {
       "path": "src/electron/license/remote-license-client.js",
       "kind": "review",
-      "maxLines": 604,
+      "maxLines": 607,
       "owner": "远程授权HTTP与SSE协议适配",
-      "reason": "2026-09-16 审计修复增量由根代理独立审阅：F06/F09：复核Retry-After头解析、错误元数据及SSE畸形响应的HTTP状态保留；这些转换继续属于既有transport边界，不引入恢复策略或业务状态。",
+      "reason": "2026-09-16 审计修复增量由根代理独立审阅：F06/F09：复核Retry-After头解析、错误元数据及SSE畸形响应的HTTP状态保留。2026-09-17 逐行复核新增欢迎设置两个固定 GET/PUT 方法：仅复用既有 request 与 token 参数，不持有欢迎业务、存储或重试策略；单独提取这两个声明只会增加透传包装，保留同一 transport facade。welcome-settings-ipc 与 remote-license-client 测试覆盖固定路径、参数和认证。",
       "removal": "出现独立可分离协议职责时提取；新增业务功能不继续加入本transport/controller。",
       "reviewBy": "2026-12-16",
       "test": "test/client-response-boundaries.test.js"

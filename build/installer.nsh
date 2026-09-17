@@ -48,9 +48,15 @@ ManifestDPIAware true
         Goto liraPreservationDeferred
       ${EndIf}
       Call liraWaitForAppExit
+      SetDetailsPrint textonly
+      DetailPrint "正在准备安装 LIRA，请稍候…"
+      SetDetailsPrint listonly
       ; Electron profiles are per-user even for an all-users installation.
       SetShellVarContext current
       Call liraPreserveInstallData
+      SetDetailsPrint textonly
+      DetailPrint "正在安装 LIRA，请稍候…"
+      SetDetailsPrint listonly
       ${If} $installMode == "all"
         SetShellVarContext all
       ${EndIf}

@@ -7,7 +7,47 @@ const { loadModuleExports } = require('./helpers/frontend-modules');
 
 const ROOT_DIR = path.join(__dirname, '..');
 
-test('ranked danmaku overlay preserves its 624 by 640 design viewport', async () => {
+test('avatar backdrops follow each successfully loaded, resolved image independently', async () => {
+  const document = {
+    createElement() {
+      return {
+        children: [], dataset: {}, listeners: {},
+        style: { setProperty(name, value) { this[name] = value; } },
+        append(...nodes) { this.children.push(...nodes); },
+        setAttribute() {},
+        addEventListener(type, listener) { this.listeners[type] = listener; },
+        remove() { this.removed = true; },
+      };
+    },
+  };
+  const renderer = await loadModuleExports(
+    path.join(ROOT_DIR, 'public/js/overlays/danmaku-message-renderer.js'),
+  );
+  const render = renderer.createDanmakuMessageRenderer({
+    document,
+    classNames: renderer.DEFAULT_DANMAKU_CLASSES,
+    resolveAvatarUrl: (source) => source === 'rejected' ? '' : `/avatar?url=${encodeURIComponent(source)}`,
+  });
+  const first = render({ name: '晚风', message: '浅色头像', avatarUrl: 'light.webp' });
+  const second = render({ name: '夜色', message: '深色头像', avatarUrl: 'dark.webp' });
+  assert.equal(first.children[0].children[0].referrerPolicy, 'no-referrer');
+  assert.equal(first.children[0].children[0].decoding, 'async');
+  assert.equal(first.style['--danmaku-avatar-image'], undefined);
+  second.children[0].children[0].listeners.load();
+  first.children[0].children[0].listeners.load();
+  assert.equal(first.style['--danmaku-avatar-image'], 'url("/avatar?url=light.webp")');
+  assert.equal(second.style['--danmaku-avatar-image'], 'url("/avatar?url=dark.webp")');
+
+  const failed = render({ name: '失效', avatarUrl: 'missing.webp' });
+  const failedImage = failed.children[0].children[0];
+  failedImage.listeners.error();
+  assert.equal(failedImage.removed, true);
+  assert.equal(failed.children[0].textContent, '失');
+  assert.equal(failed.style['--danmaku-avatar-image'], undefined);
+  assert.equal(render({ avatarUrl: 'rejected' }).children[0].children.length, 0);
+});
+
+test('ranked danmaku fits the shared horizontal inset without shrinking for height', async () => {
   const module = await loadModuleExports(
     path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku.js'),
     {
@@ -19,9 +59,12 @@ test('ranked danmaku overlay preserves its 624 by 640 design viewport', async ()
   );
 
   assert.equal(module.calculateRankedOverlayScale(624, 640), 1);
-  assert.equal(module.calculateRankedOverlayScale(312, 640), 0.5);
+  assert.equal(module.calculateRankedOverlayScale(324, 640), 0.5);
+  assert.equal(module.calculateRankedOverlayScale(312, 640), 0.48);
   assert.equal(module.calculateRankedOverlayScale(1248, 640), 1);
   assert.equal(module.calculateRankedOverlayScale(1248, 1280), 1);
+  assert.equal(module.calculateRankedOverlayScale(624, 320), 1);
+  assert.equal(module.calculateRankedOverlayScale(324, 320), 0.5);
   assert.equal(module.calculateRankedOverlayScale(0, 0), 1);
 });
 
@@ -171,6 +214,36 @@ test('shared danmaku renderer replaces whole and inline emote triggers with safe
     identityRoot.children.map((item) => item.dataset.identity),
     ['viewer', 'fan', 'captain', 'admiral', 'governor'],
   );
+  assert.deepEqual(
+    identityRoot.children.map((item) => item.children[0].dataset.medalLevel),
+    [undefined, '8', undefined, undefined, undefined],
+    'guard ranks and medal names must not supply a made-up fan level',
+  );
+  for (const isStreamer of [true, false, 'true', 'false', undefined]) {
+    feed.render([{ name: '相同昵称', message: '主播身份', guardLevel: 3, isStreamer }]);
+    assert.equal(root.children[0].dataset.streamer === 'true', isStreamer === true);
+    assert.equal(root.children[0].dataset.identity, 'captain', 'other styles retain their guard identity');
+  }
+  for (const [medalLevel, expected] of [
+    [45, '45'],
+    [28, '28'],
+    [4, '4'],
+    [35, '35'],
+    ['12', '12'],
+    [0, undefined],
+    [undefined, undefined],
+    [-1, undefined],
+    [3.5, undefined],
+    [Infinity, undefined],
+    ['unknown', undefined],
+  ]) {
+    feed.render([{ name: '同一观众', message: '等级来自本条弹幕', medalLevel }]);
+    assert.equal(
+      root.children[0].children[0].dataset.medalLevel,
+      expected,
+      'the avatar uses the exact level even without a medal name, and never retains a previous level',
+    );
+  }
 
   feed.render([{
     kind: 'gift', name: '<img src=x onerror=alert(1)>',

@@ -52,6 +52,7 @@ function createApiContext(options) {
     },
     queue: {
       add: domainServices.queue.add,
+      requestRandom: bilibili.requestRandomSong,
       handleAction: domainServices.queue.handleAction,
     },
     superChat: {

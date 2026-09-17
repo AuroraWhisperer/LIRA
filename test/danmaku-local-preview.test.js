@@ -76,6 +76,8 @@ test('all local styles share one address and retain every example without loopin
     assert.deepEqual(Array.from(items.slice(0, 4), (item) => item.guardLevel || 0), [1, 2, 3, 0]);
     assert.ok(items.slice(0, 4).every((item) => item.message.includes('[打call]') && item.emotes.length));
     assert.ok(items.some((item) => item.message === '[打call]'));
+    assert.equal(items.find((item) => item.id === 'preview-emote').isStreamer, true);
+    assert.ok(items.slice(0, 4).every((item) => item.isStreamer !== true));
     assert.ok(items.some((item) => item.kind === 'gift' && item.giftCount === 10));
     assert.equal(items.filter((item) => item.kind === 'gift').length, 1);
     assert.ok(items.every((item) => item.id !== 'preview-thanks'));
@@ -91,4 +93,21 @@ test('all local styles share one address and retain every example without loopin
 test('local preview restores the last style on reload and rejects unknown initial styles', async () => {
   assert.equal((await fixture('?preview=1', 'identity')).document.body.dataset.style, 'identity');
   assert.equal((await fixture('?preview=1&style=unknown')).document.body.dataset.style, 'signal');
+});
+
+test('danmaku avatars load directly from the allowed Bilibili CDN while emotes retain their proxy', async () => {
+  const f = await fixture();
+  const { resolveAvatarUrl, resolveEmoteUrl } = f.options.at(-1);
+  const avatarUrl = 'https://i0.hdslb.com/bfs/face/viewer.webp';
+  assert.equal(resolveAvatarUrl(avatarUrl), avatarUrl);
+  assert.equal(resolveEmoteUrl(avatarUrl), `/api/bilibili/avatar?url=${encodeURIComponent(avatarUrl)}`);
+  for (const invalid of [
+    '', 'http://i0.hdslb.com/avatar.png', '/avatar.png',
+    'https://hdslb.com.example.com/avatar.png', 'https://example.com/avatar.png',
+    'https://user:password@i0.hdslb.com/avatar.png',
+  ]) {
+    assert.equal(resolveAvatarUrl(invalid), '', invalid);
+  }
+  const html = fs.readFileSync(path.join(__dirname, '../public/pages/overlays/danmaku.html'), 'utf8');
+  assert.match(html, /<meta name="referrer" content="no-referrer"\s*\/>/u);
 });

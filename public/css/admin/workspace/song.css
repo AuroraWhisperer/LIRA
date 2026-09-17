@@ -347,7 +347,7 @@ body.player-dock-expanded .song-workspace {
 
 /* ---- 并排双队列 ---- */
 .queues-row {
-  --queue-height: clamp(280px, calc((100vh - 58px - var(--player-dock-height, 96px)) * 0.48), 380px);
+  --queue-height: 450px;
   display: grid;
   flex: 0 0 var(--queue-height);
   grid-template-columns: repeat(2, minmax(0, 1fr));

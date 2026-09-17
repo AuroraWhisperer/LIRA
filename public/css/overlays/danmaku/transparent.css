@@ -1,18 +1,12 @@
 /* 透明简约：头像、昵称、正文与粉丝牌直接叠加在直播画面上。 */
-body[data-style='transparent'] .danmaku-signal-stage {
-  width: min(520px, 100vw);
-  padding: clamp(10px, 2vw, 18px);
-}
 body[data-style='transparent'] .danmaku-signal-header {
   display: none;
 }
 body[data-style='transparent'] .draw-danmaku-feed {
   gap: 14px;
-  max-height: calc(100vh - clamp(20px, 4vw, 36px));
 }
 body[data-style='transparent'] .draw-danmaku-item {
   --transparent-ink: #fff;
-  --transparent-medal: #f3dda0;
   --transparent-name: #fff;
   --danmaku-avatar-art: url('/img/overlays/danmaku-ranked/viewer.webp');
   grid-template-columns: 58px minmax(0, 1fr);
@@ -39,9 +33,11 @@ body[data-style='transparent'] .draw-danmaku-item[data-identity='governor'] {
   --danmaku-avatar-art: url('/img/overlays/danmaku-ranked/viewer.webp');
 }
 body[data-style='transparent'] .draw-danmaku-avatar {
+  position: relative;
   align-self: start;
   width: 58px;
   height: 58px;
+  overflow: visible;
   border: 2px solid rgba(255, 255, 255, 0.92);
   border-radius: 50%;
   background: var(--danmaku-avatar-art) center / cover no-repeat;
@@ -50,6 +46,23 @@ body[data-style='transparent'] .draw-danmaku-avatar {
 }
 body[data-style='transparent'] .draw-danmaku-avatar img {
   border-radius: inherit;
+}
+body[data-style='transparent'] .draw-danmaku-avatar[data-medal-level]::after {
+  position: absolute;
+  bottom: -7px;
+  left: 50%;
+  color: var(--transparent-ink);
+  font:
+    700 14px/1.2 'Microsoft YaHei UI',
+    'Microsoft YaHei',
+    sans-serif;
+  text-shadow:
+    0 2px 3px rgba(0, 0, 0, 0.92),
+    1px 0 1px rgba(0, 0, 0, 0.84),
+    -1px 0 1px rgba(0, 0, 0, 0.84);
+  white-space: nowrap;
+  content: 'LV' attr(data-medal-level);
+  transform: translateX(-50%);
 }
 body[data-style='transparent'] .draw-danmaku-body {
   display: grid;
@@ -79,30 +92,9 @@ body[data-style='transparent'] .draw-danmaku-identity strong {
     -1px 0 1px rgba(0, 0, 0, 0.84);
   white-space: nowrap;
 }
-body[data-style='transparent'] .draw-danmaku-guard {
-  display: none;
-}
+body[data-style='transparent'] .draw-danmaku-guard,
 body[data-style='transparent'] .draw-danmaku-medal {
-  grid-row: 3;
-  justify-self: start;
-  max-width: 100%;
-  margin-top: 8px;
-  padding: 0;
-  border: 0;
-  color: var(--transparent-medal);
-  background: transparent;
-  font:
-    700 13px/1.2 'Microsoft YaHei UI',
-    'Microsoft YaHei',
-    sans-serif;
-  text-shadow:
-    0 2px 3px rgba(0, 0, 0, 0.92),
-    1px 0 1px rgba(0, 0, 0, 0.78),
-    -1px 0 1px rgba(0, 0, 0, 0.78);
-}
-body[data-style='transparent'] .draw-danmaku-medal-level {
-  font-size: 1em;
-  line-height: 1;
+  display: none;
 }
 body[data-style='transparent'] .draw-danmaku-body p {
   grid-row: 2;

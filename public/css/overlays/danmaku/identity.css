@@ -1,32 +1,19 @@
-/* 身份横卡：与直播气泡共用 624×640 缩放画布，右侧头像向左渐隐。 */
+/* 身份横卡：共用外层画布，窄容器内等比缩小，右侧头像向左渐隐。 */
 body[data-style='identity'] {
   --identity-card-width: 600px;
   --identity-card-min-height: 92px;
-}
-body[data-style='identity'] .danmaku-signal-stage {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  grid-template-rows: minmax(0, 1fr);
-  width: var(--ranked-stage-width);
-  height: var(--ranked-stage-height);
-  padding: 6px 12px;
-  transform: scale(var(--ranked-scale));
-  transform-origin: left bottom;
 }
 body[data-style='identity'] .danmaku-signal-header {
   display: none;
 }
 body[data-style='identity'] .draw-danmaku-feed {
   gap: 6px;
-  width: 100%;
-  height: 100%;
-  max-height: none;
+  zoom: var(--ranked-scale);
 }
 body[data-style='identity'] .draw-danmaku-item {
   --identity-surface: rgba(52, 59, 69, 0.84);
   grid-template-areas: 'content avatar';
-  grid-template-columns: minmax(0, 1fr) var(--identity-card-min-height);
+  grid-template-columns: minmax(0, 1fr) 180px;
   gap: 0;
   align-items: stretch;
   width: var(--identity-card-width);
@@ -59,7 +46,24 @@ body[data-style='identity'] .draw-danmaku-item[data-identity='admiral'] {
 body[data-style='identity'] .draw-danmaku-item[data-identity='governor'] {
   --identity-surface: rgba(171, 37, 61, 0.92);
 }
+/* 把头像的色彩延展到普通观众卡片，保留原图的深浅与色彩分布。 */
+body[data-style='identity'] .draw-danmaku-item:is([data-identity='viewer'], [data-identity='fan']):not(.is-gift)::before {
+  position: absolute;
+  inset: -36px;
+  background: var(--danmaku-avatar-image, var(--danmaku-avatar-art)) center / 100% 100% no-repeat;
+  filter: blur(30px);
+  pointer-events: none;
+  content: '';
+}
+body[data-style='identity'] .draw-danmaku-item:is([data-identity='viewer'], [data-identity='fan']):not(.is-gift) .draw-danmaku-identity strong,
+body[data-style='identity'] .draw-danmaku-item:is([data-identity='viewer'], [data-identity='fan']):not(.is-gift) .draw-danmaku-body p {
+  color: #fff;
+  -webkit-text-stroke: 2px rgba(18, 22, 28, 0.88);
+  paint-order: stroke fill;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
 body[data-style='identity'] .draw-danmaku-avatar {
+  position: relative;
   grid-area: avatar;
   align-self: stretch;
   justify-self: end;
@@ -72,17 +76,20 @@ body[data-style='identity'] .draw-danmaku-avatar {
   background: var(--danmaku-avatar-art) center / cover no-repeat;
   box-shadow: none;
   clip-path: none;
-  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 55%);
-  mask-image: linear-gradient(to right, transparent 0%, #000 55%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 30%);
+  mask-image: linear-gradient(to right, transparent 0%, #000 30%);
   font-size: 0;
 }
 body[data-style='identity'] .draw-danmaku-avatar img {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   border-radius: inherit;
   object-fit: cover;
 }
 body[data-style='identity'] .draw-danmaku-body {
+  position: relative;
   grid-area: content;
   display: grid;
   align-content: center;

@@ -115,6 +115,30 @@ function createBilibiliRuntime(options) {
     return getGameApiClient().fetchAvatarImage(value);
   }
 
+  async function requestRandomSong() {
+    const account = await authProvider?.getAuthState();
+    const uid = Number(account?.uid) || 0;
+    if (!account?.loggedIn || !uid) {
+      return { accepted: false, reason: '请先登录直播账号后再随机点歌。' };
+    }
+    await refreshAuthCache();
+    const profile = await userInfoService.ensure(uid, { fields: ['name'] });
+    const identity = userInfoService.peek(uid, {
+      fields: ['guard', 'fansMedal'],
+      roomId: getConfiguredRoomId(),
+    });
+    return domainServices.messages.handleDanmaku({
+      message: '随机点歌',
+      userName: profile?.name || `UID ${uid}`,
+      uid: String(uid),
+      source: 'danmaku',
+      messageTimestamp: Date.now(),
+      requesterGuardLevel: identity?.guard?.level,
+      requesterMedalName: identity?.fansMedal?.value?.name,
+      requesterMedalLevel: identity?.fansMedal?.value?.level,
+    });
+  }
+
   function setAuthProvider(nextAuthProvider) {
     authProvider = nextAuthProvider || null;
   }
@@ -257,6 +281,7 @@ function createBilibiliRuntime(options) {
       client?.refreshViewerCandidates?.() || Promise.resolve(),
     getGameWinnerProfile: resolveGameWinnerProfile,
     fetchAvatarImage,
+    requestRandomSong,
   };
 }
 

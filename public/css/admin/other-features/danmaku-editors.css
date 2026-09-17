@@ -1,6 +1,6 @@
 .danmaku-blessings-section {
   overflow: hidden;
-  border: 1px solid var(--border);
+  border: 2px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
 }
@@ -62,7 +62,7 @@
   display: grid;
   max-height: 360px;
   overflow-y: auto;
-  border: 1px solid var(--border);
+  border: 2px solid var(--border);
   border-radius: 7px;
   background: var(--color-bg-primary);
 }
@@ -140,7 +140,7 @@
   display: grid;
   max-height: 480px;
   overflow-y: auto;
-  border: 1px solid var(--border);
+  border: 2px solid var(--border);
   border-radius: 7px;
   background: var(--color-bg-primary);
 }
@@ -183,7 +183,7 @@
   display: grid;
   max-height: 420px;
   overflow-y: auto;
-  border: 1px solid var(--border);
+  border: 2px solid var(--border);
   border-radius: 7px;
   background: var(--color-bg-primary);
 }

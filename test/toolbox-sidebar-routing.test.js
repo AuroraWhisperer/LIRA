@@ -130,7 +130,7 @@ test('danmaku detail panel fills the workspace and keeps actions grouped', () =>
   );
   assert.match(
     html,
-    /data-danmaku-style="ranked"[^>]*>\s*<img[^>]*>\s*<span class="danmaku-style-name">大头像气泡<\/span>/,
+    /data-danmaku-style="ranked"[^>]*>\s*<img[^>]*>\s*<span class="danmaku-style-name">经典样式<\/span>/,
   );
   assert.match(
     html,
@@ -163,7 +163,7 @@ test('danmaku detail panel fills the workspace and keeps actions grouped', () =>
   );
   assert.match(
     styles,
-    /\.danmaku-feature-section\s*\{[^}]*border:\s*1px solid var\(--border\)/,
+    /\.danmaku-feature-section\s*\{[^}]*border:\s*2px solid var\(--border\)/,
   );
   assert.match(
     styles,

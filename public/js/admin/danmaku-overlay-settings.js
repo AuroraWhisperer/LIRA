@@ -3,7 +3,7 @@ import { observeServerOverlayUrl } from './server-overlay-url.js';
 
 const STYLES = {
   bubble: '聊天气泡', signal: '深色面板', minimal: '蝴蝶结',
-  ranked: '大头像气泡', transparent: '透明文字', identity: '头像横卡', outline: '简洁白卡',
+  ranked: '经典样式', transparent: '透明文字', identity: '头像横卡', outline: '简洁白卡',
   cream: '奶油气泡',
 };
 

@@ -12,6 +12,23 @@
 
 ## 1. 进程形态与入口
 
+### 服务器进场欢迎设置
+
+弹幕姬固定回复区的进场欢迎开关和欢迎词库由服务器拥有；本地不新增欢迎发送器。
+`liraLicense.getWelcomeSettings()` / `updateWelcomeSettings(patch)` 通过
+`license:get-welcome-settings` / `license:update-welcome-settings` 调用固定 Device
+`GET/PUT /api/device/welcome-settings`。patch 仅允许 boolean `enabled` 和 1–30 条、
+每条最多 80 Unicode 字符且非空无控制字符的 `messages`；两者均可单独提交。
+响应只投影 `ok`、`enabled`、`messages`，不向 renderer 暴露凭据或租户身份。
+沿用主窗口同源校验及授权账号变化保护；账号切换丢弃旧响应和草稿，网络失败
+显示未确认并保留当前草稿，不自动重放写入。服务器负责 20 条初始词库、随机
+选择、当前昵称和舰队身份、去重及取消；客户端只在有效服务器响应后报告成功。
+需配套支持 welcome-settings 的服务器版本；旧服务器显示可重试错误，不回退本地发送。
+
+验收：开关不覆盖词库、保存不改变开关、增删改、读取或保存期间继续编辑、关闭失败、
+账号切换、IPC 拒绝非法输入与外部窗口。测试为 `welcome-settings-ipc.test.js` 和
+`frontend-welcome.test.js`，页面入口为 `danmaku-tool.js` / `danmaku-welcome.js`。
+
 | 事实     | 值                                                                                                                    | 出处                                                                                         |
 | -------- | --------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
 | 入口     | `package.json` 的 `main` 指向 `src/electron/main.js`,Electron 启动即执行此文件                                        | [package.json:8](../../../package.json#L8)                                                   |

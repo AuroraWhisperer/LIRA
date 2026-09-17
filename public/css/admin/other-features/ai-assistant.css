@@ -35,8 +35,8 @@
 .xiaomi-ai-icon {
   display: block;
   flex: 0 0 auto;
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   color: var(--danmaku-heading-color);
 }
 .xiaomi-ai-status-grid {
@@ -74,7 +74,7 @@
   min-width: 0;
   margin: 0;
   padding: var(--spacing-md);
-  border: 1px solid var(--border);
+  border: 2px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
 }
@@ -86,7 +86,7 @@
   align-items: center;
   gap: 10px;
   padding: 9px 10px;
-  border: 1px solid color-mix(in srgb, var(--primary) 18%, var(--border));
+  border: 2px solid color-mix(in srgb, var(--primary) 18%, var(--border));
   border-radius: 7px;
   background: color-mix(in srgb, var(--primary) 4%, var(--surface-2));
 }
@@ -157,7 +157,7 @@
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
   padding: 5px;
-  border: 1px solid var(--border);
+  border: 2px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
   box-shadow: 0 12px 30px color-mix(in srgb, var(--text) 14%, transparent);
@@ -194,7 +194,7 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   overflow: hidden;
-  border: 1px solid var(--border);
+  border: 2px solid var(--border);
   border-radius: 7px;
   background: var(--surface-2);
 }
@@ -227,7 +227,7 @@
   min-width: 0;
   min-height: 74px;
   padding: 11px 12px;
-  border: 1px solid var(--border);
+  border: 2px solid var(--border);
   border-radius: 7px;
   background: color-mix(in srgb, var(--surface-2) 62%, var(--surface));
   font-weight: 600;
@@ -293,7 +293,7 @@
 }
 .xiaomi-ai-collapsible {
   overflow: hidden;
-  border: 1px solid var(--border);
+  border: 2px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
 }
@@ -354,7 +354,7 @@
   gap: 11px;
   min-width: 0;
   padding: 12px;
-  border: 1px solid var(--border);
+  border: 2px solid var(--border);
   border-radius: 7px;
   background: var(--surface-2);
 }

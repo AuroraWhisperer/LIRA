@@ -33,6 +33,7 @@ function createRuntimeApiContextFactory(options = {}) {
         auth: bilibiliRuntime.getAuthProvider(),
         danmakuSender: options.getDanmakuSender(),
         fetchAvatarImage: bilibiliRuntime.fetchAvatarImage,
+        requestRandomSong: bilibiliRuntime.requestRandomSong,
       },
       ai: { configStore: aiRuntime.configStore, service: aiRuntime.service },
       games: {

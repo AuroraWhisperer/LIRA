@@ -97,7 +97,7 @@ test('queue headers group counts with titles and keep passive surfaces still', (
   assert.doesNotMatch(styles, /\.queue-panel:hover|\.empty:hover/);
 });
 
-test('minimum-height desktop reclaims space before the point-song page heading', () => {
+test('desktop queue keeps its fixed height without the old short-window override', () => {
   const workspaceSource = readCssBundle(
     'public',
     'css',
@@ -116,7 +116,7 @@ test('minimum-height desktop reclaims space before the point-song page heading',
     baseQueueRule,
     'default desktop queue sizing should remain defined',
   );
-  assert.match(baseQueueRule, /--queue-height:\s*clamp\(280px,\s*calc\(\(100vh - 58px - var\(--player-dock-height, 96px\)\) \* 0\.48\),\s*380px\)/);
+  assert.match(baseQueueRule, /--queue-height:\s*450px;/);
   assert.match(baseQueueRule, /height:\s*var\(--queue-height\)/);
   assert.match(baseQueueRule, /flex:\s*0 0 var\(--queue-height\)/);
   assert.doesNotMatch(responsiveSource, /height:\s*418px/);

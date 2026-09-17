@@ -1,0 +1,28 @@
+      <details id="danmakuWelcomePanel" class="danmaku-blessings-section">
+        <summary>
+          <div>
+            <h3>进场欢迎词库 <lira-help>每次随机发送一条。{username} 会替换成带舰队身份的当前昵称；未写占位符时会自动加在文案前。超长时使用简短欢迎语，保留完整昵称。</lira-help></h3>
+            <p><span id="danmakuWelcomeCount">未读取</span></p>
+          </div>
+          <svg class="danmaku-details-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </summary>
+        <div class="danmaku-blessings-body">
+          <div id="danmakuWelcomeList" class="danmaku-blessing-list" aria-live="polite"></div>
+          <div class="danmaku-blessing-add-row">
+            <input id="danmakuWelcomeInput" type="text" maxlength="80" disabled
+              placeholder="例如：欢迎 {username} 来到直播间～" aria-label="新增进场欢迎语" />
+            <button id="danmakuWelcomeAddBtn" class="icon" type="button" disabled title="添加欢迎语" aria-label="添加欢迎语">
+              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+              </svg>
+            </button>
+          </div>
+          <div class="danmaku-blessing-actions">
+            <span id="danmakuWelcomeStatus" class="hint" role="status" aria-live="polite">正在读取欢迎词库</span>
+            <button id="danmakuWelcomeRefreshBtn" class="secondary" type="button" disabled>刷新</button>
+            <button id="danmakuWelcomeSaveBtn" class="primary" type="button" disabled>保存欢迎词库</button>
+          </div>
+        </div>
+      </details>

@@ -7,6 +7,25 @@ const { sendJson } = require('../http-utils');
 const prefixes = ['/api/queue/'];
 
 const routes = {
+  async 'POST /api/queue/random'(context, _request, res) {
+    let result;
+    try {
+      result = await context.queue.requestRandom();
+    } catch (error) {
+      if (!['点歌队列已达到上限。', '队列里已经有这首歌。'].includes(error.message)) {
+        throw error;
+      }
+      sendJson(res, 400, { ok: false, error: error.message });
+      return;
+    }
+    if (!result.accepted) {
+      sendJson(res, 400, { ok: false, error: result.reason });
+      return;
+    }
+    context.broadcastSnapshot('queue:add');
+    sendJson(res, 200, { ok: true, data: result.queueItem });
+  },
+
   async 'POST /api/queue/add'(context, request, res) {
     const body = await request.body();
     const item = context.queue.add({

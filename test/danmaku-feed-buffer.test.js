@@ -82,6 +82,16 @@ test('danmaku feed buffer clears only when the active room changes', () => {
   );
 });
 
+test('danmaku feed retains only an explicit streamer marker without inheriting it', () => {
+  const feed = createDanmakuFeedBuffer();
+  for (const isStreamer of [true, false, 'true', 'false', undefined]) {
+    const item = feed.push({ userName: '相同昵称', message: '本条身份', isStreamer });
+    assert.equal(item.isStreamer === true, isStreamer === true);
+  }
+  assert.equal(feed.getSnapshot()[0].isStreamer, true);
+  assert.equal(feed.getSnapshot().at(-1).isStreamer, undefined);
+});
+
 test('danmaku feed buffer ignores empty messages', () => {
   const feed = createDanmakuFeedBuffer();
   assert.equal(feed.push({ userName: '甲', message: '   ' }), null);
