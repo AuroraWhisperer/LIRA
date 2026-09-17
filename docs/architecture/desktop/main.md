@@ -1,5 +1,26 @@
 # 桌面壳主进程:窗口、协议与生命周期
 
+## PK 对手信息播报
+
+`liraLicense.getPkReportSettings()` / `updatePkReportSettings({ enabled })`
+通过固定 `license:get-pk-report-settings` / `license:update-pk-report-settings`
+调用 DeviceBearer 的 `GET/PUT /api/device/pk-report-settings`。IPC 只允许唯一的
+boolean enabled 输入，结果只投影 `{ ok: true, enabled }`。main 的账号 owner
+检查覆盖异步结果和认证重试；Renderer 不接触凭据或选择租户/发送房间。
+
+固定回复中的“PK 对手信息播报”默认关闭，服务端持久化独立设置。同步中和失败时
+保持最近确认状态，关闭失败显示“关闭尚未同步，服务器可能仍在播报”；不离线重放。
+账号切换清空旧状态并忽略迟到结果；旧服务器显示暂不可用，允许刷新。退出客户端
+不关闭云端开关。第一版播报大航海/高能榜及榜内身份，受限或跨页标注本次可见；
+金额档位按用户确认的 1 元＝10 贡献值估算，百元/千元/万元档互不重叠，
+只展示正人数；说明中明确贡献值估算。客户端不实现取数、统计或发送。
+
+服务器权威合同：lira-server `docs/protocol/pk-opponent-report.md` 和 Device OpenAPI。
+共享示例 `test/fixtures/pk-report-settings.json`；验收
+`test/pk-report-settings-ipc.test.js` / `test/frontend-pk-report.test.js` 覆盖认证通路、
+非法 IPC、最小响应、切账号、同步失败和页面释放。UI 使用
+`public/js/admin/danmaku-pk-report.js` 和同名 fixed-reply fragment。
+
 > 涉及文件:[src/electron/main.js](../../../src/electron/main.js)、[src/electron/desktop-user-data.js](../../../src/electron/desktop-user-data.js)、[src/electron/cloud-sync-controller.js](../../../src/electron/cloud-sync-controller.js)、[src/electron/remote-gift-controller.js](../../../src/electron/remote-gift-controller.js)、[src/electron/desktop-auth-controller.js](../../../src/electron/desktop-auth-controller.js)、[src/electron/desktop-update-controller.js](../../../src/electron/desktop-update-controller.js)、[src/electron/desktop-logger.js](../../../src/electron/desktop-logger.js)、[src/electron/media-request-headers.js](../../../src/electron/media-request-headers.js)、[src/electron/license/license-manager.js](../../../src/electron/license/license-manager.js)、[src/electron/license/license-runtime-policy.js](../../../src/electron/license/license-runtime-policy.js)、[src/electron/desktop-state.js](../../../src/electron/desktop-state.js)、[src/electron/desktop-permissions.js](../../../src/electron/desktop-permissions.js)、[src/electron/playback-flush.js](../../../src/electron/playback-flush.js)、[src/electron/terminal-log.js](../../../src/electron/terminal-log.js)、[src/electron/local-media-access.js](../../../src/electron/local-media-access.js)、[package.json](../../../package.json)
 
 本文档是 Electron 桌面壳的**唯一事实源**:进程入口、启动序列、主窗口规格、`local-media://` 协议、请求头伪装、关闭时序与日志只在此成文。IPC 通道全量注册表见 [preload.md](preload.md),登录会话见 [auth.md](auth.md),辅助窗口见 [windows.md](windows.md),自动更新运行时见 [update.md](update.md);后端服务生命周期见 [../backend/server-core.md](../backend/server-core.md),数据目录树见 [../backend/storage.md](../backend/storage.md)。

@@ -1,0 +1,6 @@
+{
+  "updates": [{ "enabled": true }, { "enabled": false }],
+  "response": { "ok": true, "enabled": true },
+  "defaultResponse": { "ok": true, "enabled": false },
+  "invalidUpdates": [null, [], {}, { "enabled": 1 }, { "enabled": "true" }, { "enabled": null }, { "enabled": true, "streamerId": 2 }, { "enabled": true, "roomId": "200" }]
+}

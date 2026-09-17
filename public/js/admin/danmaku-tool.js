@@ -7,6 +7,7 @@ import {
 } from './danmaku-libraries.js';
 import { initDanmakuOverlaySettings } from './danmaku-overlay-settings.js';
 import { initDanmakuWelcome } from './danmaku-welcome.js';
+import { initDanmakuPkReport } from './danmaku-pk-report.js';
 
 let initialized = false;
 let refreshState = null;
@@ -40,6 +41,7 @@ function init() {
   if (!blessingEditor || !fortuneEditor || !customReplyEditor) return;
   initDanmakuOverlaySettings(elements, toast);
   initDanmakuWelcome({ toast });
+  initDanmakuPkReport({ toast });
   initialized = true;
 
   const updateCounter = () => {

@@ -103,6 +103,9 @@ contextBridge.exposeInMainWorld('liraLicense', {
   getProfile: () => ipcRenderer.invoke('license:get-profile'),
   getOverlaySettings: () => ipcRenderer.invoke('license:get-overlay-settings'),
   getWelcomeSettings: () => ipcRenderer.invoke('license:get-welcome-settings'),
+  getPkReportSettings: () => ipcRenderer.invoke('license:get-pk-report-settings'),
+  updatePkReportSettings: (settings) =>
+    ipcRenderer.invoke('license:update-pk-report-settings', settings),
   updateWelcomeSettings: (settings) =>
     ipcRenderer.invoke('license:update-welcome-settings', settings),
   updateOverlaySettings: (settings) =>

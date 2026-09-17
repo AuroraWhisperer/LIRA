@@ -47,6 +47,14 @@ function createLicenseOperations(options = {}) {
     return overlayOperation((token) => remote.getWelcomeSettings(token));
   }
 
+  async function getPkReportSettings() {
+    return overlayOperation((token) => remote.getPkReportSettings(token));
+  }
+
+  async function updatePkReportSettings(settings) {
+    return overlayOperation((token) => remote.updatePkReportSettings(settings, token));
+  }
+
   async function updateWelcomeSettings(settings) {
     return overlayOperation((token) => remote.updateWelcomeSettings(settings, token));
   }
@@ -321,6 +329,8 @@ function createLicenseOperations(options = {}) {
     getOverlaySettings,
     updateOverlaySettings,
     getWelcomeSettings,
+    getPkReportSettings,
+    updatePkReportSettings,
     updateWelcomeSettings,
     getSongPageBackground,
     setBilibiliCredentialsInternal,

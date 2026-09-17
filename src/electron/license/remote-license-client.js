@@ -375,6 +375,10 @@ function createRemoteLicenseClient(options = {}) {
       request('GET', '/api/device/overlay-settings', undefined, token),
     getWelcomeSettings: (token) =>
       request('GET', '/api/device/welcome-settings', undefined, token),
+    getPkReportSettings: (token) =>
+      request('GET', '/api/device/pk-report-settings', undefined, token),
+    updatePkReportSettings: (settings, token) =>
+      request('PUT', '/api/device/pk-report-settings', settings, token),
     updateWelcomeSettings: (settings, token) =>
       request('PUT', '/api/device/welcome-settings', settings, token),
     updateOverlaySettings: (settings, token) =>

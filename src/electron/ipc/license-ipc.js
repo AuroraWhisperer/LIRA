@@ -152,6 +152,12 @@ function registerLicenseIpc(options = {}) {
   safeHandle('license:get-welcome-settings', async () =>
     sanitizeWelcomeSettings(await licenseManager.getWelcomeSettings()),
   );
+  safeHandle('license:get-pk-report-settings', async () =>
+    sanitizePkReportSettings(await licenseManager.getPkReportSettings()),
+  );
+  safeHandle('license:update-pk-report-settings', async (settings) =>
+    sanitizePkReportSettings(await licenseManager.updatePkReportSettings(pkReportParameters(settings))),
+  );
   safeHandle('license:update-welcome-settings', async (settings) =>
     sanitizeWelcomeSettings(await licenseManager.updateWelcomeSettings(welcomeParameters(settings))),
   );
@@ -328,6 +334,20 @@ function welcomeParameters(value) {
   }
   return { ...(Object.hasOwn(value, 'enabled') ? { enabled: value.enabled } : {}),
     ...(Object.hasOwn(value, 'messages') ? { messages: value.messages.map((item) => item.trim()) } : {}) };
+}
+
+function pkReportParameters(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value) ||
+      Object.keys(value).length !== 1 || typeof value.enabled !== 'boolean') {
+    throw Object.assign(new Error(), { code: 'INVALID_PK_REPORT_SETTINGS' });
+  }
+  return { enabled: value.enabled };
+}
+
+function sanitizePkReportSettings(value) {
+  if (value?.ok !== true || typeof value.enabled !== 'boolean')
+    throw Object.assign(new Error(), { code: 'INVALID_RESPONSE' });
+  return { ok: true, enabled: value.enabled };
 }
 
 function sanitizeWelcomeSettings(value) {
