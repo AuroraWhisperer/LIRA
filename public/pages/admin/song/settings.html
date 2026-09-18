@@ -1,68 +1,92 @@
 <div id="settingsPage" class="tab-page">
   <div class="panel-body stack">
-    <!-- 直播账号登录 -->
-    <fieldset class="theme-section" style="border-color: #fb7299">
-      <legend>
-        🔐 直播账号登录
-        <lira-help
-          >登录信息仅用于当前 LIRA 账号。同步到云端、设置直播间并启用弹幕监听后，才会接收弹幕和礼物。云端未登录时不采集。关闭应用不影响云端接收；退出登录并同步成功后才会停止。</lira-help
-        >
-      </legend>
-      <div
-        class="bilibili-auth-row"
-        style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap"
-      >
-        <span id="bilibiliAuthStatus" class="pill warn" style="padding: 2px 7px"
-          >本机未登录</span
-        >
-        <span id="bilibiliAuthProfile" class="bilibili-auth-profile" hidden>
-          <img
-            id="bilibiliAuthAvatar"
-            class="bilibili-auth-avatar"
-            alt=""
-            hidden
-          />
-          <span class="bilibili-auth-identity">
-            <strong id="bilibiliAuthName" class="bilibili-auth-name"></strong>
-            <span
-              id="bilibiliAuthUid"
-              class="bilibili-auth-uid ui-caption"
-            ></span>
-          </span>
-        </span>
-        <button
-          id="bilibiliLoginBtn"
-          class="primary"
-          type="button"
-          style="
-            background: #fb7299;
-            border-color: #fb7299;
-            padding: 3px 8px;
-            min-height: 26px;
-          "
-        >
-          📱 扫码登录直播账号
-        </button>
-        <button
-          id="bilibiliLogoutBtn"
-          class="danger"
-          type="button"
-          style="display: none; padding: 3px 8px; min-height: 26px"
-        >
-          退出登录
-        </button>
-      </div>
-    </fieldset>
-
     <form id="settingsForm" class="stack">
+      <div class="grid-2 bilibili-login-grid">
+        <fieldset class="theme-section">
+          <legend>
+            🔐 直播账号登录
+            <lira-help
+              >登录信息仅用于当前 LIRA 账号。同步到云端、设置直播间并启用弹幕监听后，才会接收弹幕和礼物。云端未登录时不采集。关闭应用不影响云端接收；退出登录并同步成功后才会停止。</lira-help
+            >
+          </legend>
+          <div class="bilibili-auth-row">
+            <span id="bilibiliAuthStatus" class="pill warn" style="padding: 2px 7px"
+              >本机未登录</span
+            >
+            <span id="bilibiliAuthProfile" class="bilibili-auth-profile" hidden>
+              <img
+                id="bilibiliAuthAvatar"
+                class="bilibili-auth-avatar"
+                alt=""
+                hidden
+              />
+              <span class="bilibili-auth-identity">
+                <strong id="bilibiliAuthName" class="bilibili-auth-name"></strong>
+                <span
+                  id="bilibiliAuthUid"
+                  class="bilibili-auth-uid ui-caption"
+                ></span>
+              </span>
+            </span>
+            <button
+              id="bilibiliLoginBtn"
+              class="primary"
+              type="button"
+              style="
+                background: #fb7299;
+                border-color: #fb7299;
+                padding: 3px 8px;
+                min-height: 26px;
+              "
+            >
+              📱 扫码登录直播账号
+            </button>
+            <button
+              id="bilibiliLogoutBtn"
+              class="danger"
+              type="button"
+              style="display: none; padding: 3px 8px; min-height: 26px"
+            >
+              退出登录
+            </button>
+          </div>
+        </fieldset>
+
+        <fieldset class="theme-section">
+          <legend>
+            直播间登录
+            <lira-help>请务必填写你自己的直播间房间号或链接，保存设置后显示房主资料。</lira-help>
+          </legend>
+          <div class="bilibili-room-row" aria-live="polite">
+            <span id="bilibiliRoomStatus" class="pill warn" style="padding: 2px 7px"
+              >未设置</span
+            >
+            <span class="bilibili-auth-profile">
+              <img
+                id="bilibiliRoomAvatar"
+                class="bilibili-auth-avatar"
+                alt=""
+                hidden
+              />
+              <span class="bilibili-auth-identity">
+                <strong id="bilibiliRoomName" class="bilibili-auth-name"
+                  >填写直播间号后保存设置</strong
+                >
+                <span
+                  id="bilibiliRoomNumber"
+                  class="bilibili-auth-uid ui-caption"
+                ></span>
+              </span>
+            </span>
+          </div>
+          <label class="bilibili-room-input">
+            直播间号或链接
+            <input id="roomId" placeholder="例如：123456，或粘贴直播间链接" />
+          </label>
+        </fieldset>
+      </div>
+
       <div class="grid-3">
-        <label>
-          <span
-            >直播间号或链接
-            <lira-help>请务必填写你自己的直播间房间号或链接。</lira-help></span
-          >
-          <input id="roomId" placeholder="例如：123456，或粘贴直播间链接" />
-        </label>
         <label>
           启用弹幕监听
           <select id="enableBilibili" data-dropdown-variant="settings">
@@ -77,8 +101,6 @@
             <option value="true">暂停点歌</option>
           </select>
         </label>
-      </div>
-      <div class="grid-3">
         <label>
           队列最大长度
           <input id="queueLimit" type="number" min="1" max="300" />
@@ -87,8 +109,6 @@
           用户冷却秒数
           <input id="userCooldownSeconds" type="number" min="0" max="3600" />
         </label>
-      </div>
-      <div class="grid-2">
         <label>
           只允许点歌库歌曲
           <select id="onlyFromLibrary" data-dropdown-variant="settings">

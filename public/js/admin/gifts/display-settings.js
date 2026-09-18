@@ -1,5 +1,5 @@
 import { copyText, localOverlayOrigin, toast } from '../../shared/utils.js';
-import { createGiftBanner, loadGiftArtworkCatalog } from '../../shared/gift-banner.js';
+import { createGiftBanner, GIFT_PALETTE, loadGiftArtworkCatalog } from '../../shared/gift-banner.js';
 
 export function createGiftDisplaySettings({ showPane }) {
   const get = (id) => document.getElementById(id);
@@ -9,6 +9,11 @@ export function createGiftDisplaySettings({ showPane }) {
   let sequence = 0;
   const fail = (error) => { get('giftDisplayError').textContent = error.message; };
   const run = (fn) => Promise.resolve().then(fn).catch(fail);
+  get('giftDisplayForm')?.querySelectorAll('.gift-tier-swatch').forEach((swatch, index) => {
+    const [start, end] = GIFT_PALETTE[index];
+    swatch.style.setProperty('--gift-start', start);
+    swatch.style.setProperty('--gift-end', end);
+  });
 
   function values() {
     return { palette: 'bilibili-four', thresholds: [1, 2, 3].map((n) => Number(get(`giftTier${n}`).value) * 100),
@@ -19,15 +24,16 @@ export function createGiftDisplaySettings({ showPane }) {
   function preview() {
     const draft = values();
     const thresholds = draft.thresholds.map((n) => Math.round(n));
-    get('giftTierRange0').textContent = `低于 ${thresholds[0] / 100} 元`;
-    get('giftTierRanges').textContent = `紫蓝：${thresholds[0] / 100} 至低于 ${thresholds[1] / 100} 元；粉红：${thresholds[1] / 100} 至低于 ${thresholds[2] / 100} 元；橙金：${thresholds[2] / 100} 元起。`;
     if (thresholds.every((n) => Number.isSafeInteger(n) && n > 0)) {
       get('giftStylePreview').replaceChildren(createGiftBanner(sample, { ...draft, thresholds }, catalog));
     }
   }
 
   function fill(value) {
-    [1, 2, 3].forEach((n) => { get(`giftTier${n}`).value = value.thresholds[n - 1] / 100; });
+    [1, 2, 3].forEach((n) => {
+      get(`giftTier${n}`).value = value.thresholds[n - 1] / 100;
+      get(`giftTierEnd${n - 1}`).value = value.thresholds[n - 1] / 100;
+    });
     get('giftFeedRows').value = value.visibleRows;
     get('giftFeedInterval').value = value.intervalSeconds;
     get('giftFeedPaused').checked = value.paused;
@@ -39,7 +45,15 @@ export function createGiftDisplaySettings({ showPane }) {
   get('giftDisplayBack')?.addEventListener('click', close);
   get('giftDisplayCancel')?.addEventListener('click', close);
   get('giftDisplayDefaults')?.addEventListener('click', () => fill({ thresholds: [10000, 50000, 100000], visibleRows: 3, intervalSeconds: 4, paused: false, lowPower: false }));
-  get('giftDisplayForm')?.addEventListener('input', preview);
+  get('giftDisplayForm')?.addEventListener('input', (event) => {
+    const boundary = event.target.dataset.giftBoundary;
+    if (boundary) {
+      for (const input of get('giftDisplayForm').querySelectorAll('[data-gift-boundary]')) {
+        if (input !== event.target && input.dataset.giftBoundary === boundary) input.value = event.target.value;
+      }
+    }
+    preview();
+  });
   get('giftDisplayForm')?.addEventListener('submit', (event) => {
     event.preventDefault();
     run(async () => {

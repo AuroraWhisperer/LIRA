@@ -1,4 +1,4 @@
-import { createGiftBanner, giftExportPages, readyGiftImages } from '../../shared/gift-banner.js';
+import { BANNER_WIDTH, createGiftBanner, giftExportPages, readyGiftImages } from '../../shared/gift-banner.js';
 
 export function createGiftExportPreview({ showPane }) {
   const get = (id) => document.getElementById(id);
@@ -21,10 +21,11 @@ export function createGiftExportPreview({ showPane }) {
     get('giftExportNext').disabled = page === pages.length - 1;
     get('giftExportMode').value = task.mode;
     get('giftExportBackground').value = task.background;
-    get('giftExportFiles').textContent = `${task.files[page].fileName} · 800 × ${pages[page].length * 192 + (pages[page].length - 1) * 16} 像素${task.mode === 'combined' && pages.length > 1 ? '；超过单图高度，已按每张最多 39 条拆分。' : ''}`;
     const preview = get('giftExportPreview');
     preview.style.background = task.background === 'white' ? '#fff' : 'transparent';
     preview.replaceChildren(...pages[page].map((item) => createGiftBanner(item, task.snapshot.config, task.snapshot.catalog)));
+    const width = Math.max(BANNER_WIDTH * 2, Math.ceil(preview.getBoundingClientRect().width * 2));
+    get('giftExportFiles').textContent = `${task.files[page].fileName} · ${width} × ${pages[page].length * 192 + (pages[page].length - 1) * 16} 像素${task.mode === 'combined' && pages.length > 1 ? '；超过单图高度，已按每张最多 39 条拆分。' : ''}`;
     await readyGiftImages(preview);
   }
 

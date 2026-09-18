@@ -35,7 +35,7 @@ test('admin danmaku input has no fixed character limit', () => {
   assert.match(source, /enableCustomReplyBot/);
   assert.doesNotMatch(source, /mentionRequester: toggle\.checked/);
   assert.match(html, /随机点歌回复/);
-  assert.match(html, /条件不匹配时自动回复点歌人/);
+  assert.match(html, /点歌未匹配时，会自动回复点歌人/);
   assert.match(html, /id="danmakuReplyToggle"[^>]*aria-labelledby="danmakuReplyTitle"/);
   assert.match(html, /签到机器人/);
   assert.match(html, /收到“签到”后回复累计天数/);
@@ -51,7 +51,7 @@ test('admin danmaku input has no fixed character limit', () => {
   assert.match(source, /initDanmakuDailyBots/);
   assert.match(source, /customReplyEditor\.load\(state\.customReplyRules\)/);
   assert.match(libraries, /export function createCustomReplyEditor/);
-  assert.match(html, /id="dailyBotTakeover"/);
+  assert.doesNotMatch(html, /id="dailyBotTakeover"/);
   assert.match(html, /id="dailyBotRefresh"/);
 });
 

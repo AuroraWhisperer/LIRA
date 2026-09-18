@@ -46,68 +46,47 @@ test('cloud daily controls keep confirmed state, disclose failed close and ignor
   assert.equal(await page.locator('#danmakuCheckinToggle').isDisabled(), true);
 });
 
-test('takeover requires explicit confirmations, allows one-time correction and cancellation, and keeps switches off', async (t) => {
-  const page = await fixture(t, 'daily-bots');
-  await page.evaluate(async (html) => {
-    const parsed = new DOMParser().parseFromString(html, 'text/html');
-    const panel = parsed.getElementById('otherDanmakuFeature'); panel.hidden = false; document.body.append(panel);
-    window.dailyRequests = []; let attempts = 0;
-    const data = { executionOwner: 'server', observedAt: '2026-09-18T01:00:00.000Z',
-      takeover: { state: 'pending', revision: 0 },
-      checkin: { enabled: false, revision: 0, reason: 'pending' }, fortune: { enabled: false, revision: 0, reason: 'pending' } };
-    const summary = { count: 1, minDays: 128, maxDays: 128, lastDate: '2026-09-18', customLibraries: true, sourceLabel: 'synthetic source' };
-    const bridge = { async invoke(request) {
-      window.dailyRequests.push(request);
-      const base = { ok: true, contextId: 'one', accountName: '合成测试账号' };
-      if (request.action === 'summary') return { ...base, summary };
-      if (request.action === 'prepare') return { ...base, draftId: 'synthetic-draft', summary,
-        cutoffAt: data.observedAt, blessings: ['旧祝福'], fortunes: [{ level: '吉', name: '晨光', text: '顺心', advice: '前行' }] };
-      if (request.action === 'apply' && attempts++ === 0) {
-        data.takeover = { state: 'importing', revision: 1, importId: 'synthetic-draft' };
-        return { ...base, data: structuredClone(data), preflight: { valid: false, issues: [{ field: 'checkin', index: 0, reason: 'reply-too-long' }] } };
-      }
-      if (request.action === 'cancel') data.takeover = { state: 'pending', revision: 2 };
-      if (request.action === 'apply') data.takeover = { state: 'ready', revision: 3, decision: 'imported' };
-      return { ...base, data: structuredClone(data), imported: request.action === 'apply' };
-    } };
-    const license = { getProfile: async () => ({ state: 'authorized', streamer: { accountName: 'one', songPageUrl: 'https://one.test' } }) };
-    const { initDanmakuDailyBots } = await import('/js/admin/danmaku-daily-bots.js');
-    initDanmakuDailyBots({ bridge, license });
-  }, readAdminHtml());
-  await page.waitForFunction(() => !document.getElementById('dailyBotInspect').disabled);
-  assert.equal(await page.locator('#danmakuCheckinToggle').isDisabled(), true);
-  assert.equal(await page.locator('#dailyBotPrepare').isDisabled(), true);
-  await page.locator('#dailyBotInspect').click();
-  assert.match(await page.locator('#dailyBotLegacySummary').textContent(), /128.*天/);
-  await page.locator('#dailyBotStopped').check();
-  assert.equal(await page.locator('#dailyBotPrepare').isDisabled(), true);
-  await page.locator('#dailyBotTakeover summary').click();
-  await page.locator('#dailyBotOwnership').check();
-  await page.locator('#dailyBotPrepare').click();
-  await page.locator('#dailyBotBlessingChoice').selectOption('corrected');
-  await page.locator('#dailyBotFortuneChoice').selectOption('corrected');
-  assert.equal(await page.locator('#dailyBotApply').isDisabled(), true);
-  await page.locator('#dailyBotBlessingCorrection').fill('新的祝福');
-  await page.locator('[data-field="text"]').fill('修正签文');
-  await page.locator('#dailyBotPrepare').click();
-  const prepared = await page.evaluate(() => window.dailyRequests.filter((item) => item.action === 'prepare').at(-1));
-  assert.deepEqual(prepared.payload.blessings, ['新的祝福']);
-  assert.equal(prepared.payload.fortunes[0].text, '修正签文');
-  await page.locator('#dailyBotApply').click();
-  assert.match(await page.locator('#dailyBotImportFeedback').textContent(), /回复过长.*先取消暂存/);
-  await page.locator('#dailyBotCancel').click();
-  assert.match(await page.locator('#dailyBotImportFeedback').textContent(), /暂存已取消/);
-  await page.locator('#dailyBotBlessingChoice').selectOption('builtin');
-  await page.locator('#dailyBotFortuneChoice').selectOption('builtin');
-  await page.locator('#dailyBotPrepare').click();
-  await page.locator('#dailyBotApply').click();
-  assert.equal(await page.locator('#dailyBotTakeover').isHidden(), true);
-  assert.equal(await page.locator('#danmakuCheckinToggle').isChecked(), false);
-  assert.equal(await page.locator('#danmakuFortuneToggle').isChecked(), false);
-  assert.match(await page.locator('#dailyBotStatus').textContent(), /当天签文可能.*手动开启/);
-  await page.evaluate(() => window.dispatchEvent(new Event('offline')));
-  assert.match(await page.locator('#dailyBotcheckinStatus').textContent(), /状态未知.*最后确认/);
-  assert.equal(await page.locator('#danmakuCheckinToggle').isDisabled(), true);
-  await page.evaluate(() => window.dispatchEvent(new Event('online')));
-  await page.waitForFunction(() => !document.getElementById('danmakuCheckinToggle').disabled);
-});
+for (const [name, takeover] of [
+  ['new account', { state: 'pending', decision: null, revision: 0 }],
+  ['restored account', { state: 'ready', decision: 'imported', revision: 2 }],
+]) {
+  test(`daily controls enable directly without old-data UI for a ${name}`, async (t) => {
+    const page = await fixture(t, 'daily-bots');
+    await page.evaluate(async ({ html, takeover }) => {
+      const parsed = new DOMParser().parseFromString(html, 'text/html');
+      const panel = parsed.getElementById('otherDanmakuFeature'); panel.hidden = false; document.body.append(panel);
+      window.dailyRequests = [];
+      const data = { executionOwner: 'server', observedAt: '2026-09-18T01:00:00.000Z', takeover,
+        checkin: { enabled: false, revision: 0, reason: 'disabled' },
+        fortune: { enabled: false, revision: 0, reason: 'disabled' } };
+      const bridge = { async invoke(request) {
+        window.dailyRequests.push(request);
+        if (request.action === 'update') {
+          const { kind, enabled } = request.payload;
+          data[kind] = { enabled, revision: data[kind].revision + 1, reason: enabled ? 'running' : 'disabled' };
+          if (data.takeover.state === 'pending') data.takeover = { state: 'ready', decision: 'fresh-start', revision: 1 };
+        }
+        return { ok: true, contextId: 'one', data: structuredClone(data) };
+      } };
+      const license = { getProfile: async () => ({ state: 'authorized', streamer: { accountName: 'one', songPageUrl: 'https://one.test' } }) };
+      const { initDanmakuDailyBots } = await import('/js/admin/danmaku-daily-bots.js');
+      initDanmakuDailyBots({ bridge, license });
+    }, { html: readAdminHtml(), takeover });
+    await page.waitForFunction(() => !document.getElementById('danmakuCheckinToggle').disabled);
+    assert.equal(await page.locator('#dailyBotTakeover').count(), 0);
+    assert.doesNotMatch(await page.locator('#otherDanmakuFeature').textContent(), /处理旧数据|读取旧数据|旧累计|从零开始/);
+    assert.equal(await page.locator('#danmakuFortuneToggle').isDisabled(), false);
+    await page.locator('#danmakuCheckinToggle').click();
+    await page.waitForFunction(() => document.getElementById('danmakuCheckinToggle').checked);
+    assert.equal(await page.locator('#danmakuFortuneToggle').isChecked(), false);
+    const requests = await page.evaluate(() => window.dailyRequests);
+    assert.deepEqual(requests.map((item) => item.action), ['open', 'update']);
+    assert.deepEqual(requests[1].payload, { kind: 'checkin', enabled: true, expectedRevision: 0 });
+    assert.equal(await page.locator('#dailyBotStatus').textContent(), '开启后在云端运行，关闭客户端也不影响。');
+    await page.evaluate(() => window.dispatchEvent(new Event('offline')));
+    assert.match(await page.locator('#dailyBotcheckinStatus').textContent(), /状态未知.*最后确认/);
+    assert.equal(await page.locator('#danmakuCheckinToggle').isDisabled(), true);
+    await page.evaluate(() => window.dispatchEvent(new Event('online')));
+    await page.waitForFunction(() => !document.getElementById('danmakuCheckinToggle').disabled);
+  });
+}

@@ -97,11 +97,13 @@ test('native ownership script rejects a different Windows user SID', { skip: pro
   let sameUser = false;
   t.mock.method(childProcess, 'execFileSync', (file, args, options) => {
     const fixture = `
-      function Get-CimInstance { param($ClassName,$Namespace,$Filter,$ErrorAction)
-        if ($ClassName -eq 'MSFT_NetTCPConnection') { [pscustomobject]@{OwningProcess=12345} }
-        else { [pscustomobject]@{ProcessId=12345; ExecutablePath='C:\\Runtime\\node.exe'; CommandLine='node.exe C:\\Apps\\Lira\\src\\server.js'; CreationDate='synthetic-created'} }
+      function Get-WmiObject { param($Class,$Namespace,$Filter,$ErrorAction)
+        if ($Class -eq 'MSFT_NetTCPConnection') { [pscustomobject]@{OwningProcess=12345} }
+        else {
+          [pscustomobject]@{ProcessId=12345; ExecutablePath='C:\\Runtime\\node.exe'; CommandLine='node.exe C:\\Apps\\Lira\\src\\server.js'; CreationDate='synthetic-created'} |
+            Add-Member -MemberType ScriptMethod -Name GetOwnerSid -Value { [pscustomobject]@{Sid=${sameUser ? '[System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value' : "'synthetic-other-user'"}} } -PassThru
+        }
       }
-      function Invoke-CimMethod { param($InputObject,$MethodName,$ErrorAction) [pscustomobject]@{Sid=${sameUser ? '[System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value' : "'synthetic-other-user'"}} }
     `;
     return nativeExec(file, [...args.slice(0, -1), fixture + args.at(-1)], options);
   });

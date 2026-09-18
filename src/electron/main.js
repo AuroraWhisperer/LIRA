@@ -27,6 +27,7 @@ const {
   fanScopeFor,
 } = require('./fan-profile-controller');
 const { registerFanProfileIpc } = require('./ipc/fan-profile-ipc');
+const { fetchGuardRoster } = require('../bilibili/guard-roster');
 const { createDailyBotController } = require('./daily-bot-controller');
 const { registerDailyBotIpc } = require('./ipc/daily-bot-ipc');
 const { createRemoteGiftController } = require('./remote-gift-controller');
@@ -547,6 +548,8 @@ async function startDesktopApp() {
   fanProfileController = createFanProfileController({
     licenseManager,
     getService: () => lifecycleState.runtime.getFanProfiles(),
+    getRoomId: () => lifecycleState.runtime.getSetting('roomId'),
+    fetchGuardRoster,
   });
   disposeFanProfileIpc = registerFanProfileIpc({
     ipcMain,

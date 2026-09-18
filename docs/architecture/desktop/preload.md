@@ -173,3 +173,5 @@ Device settings，省略另一开关以保留服务器值；只有返回实际�
 ## 云端签到与抽签
 
 `dailyBots.invoke({ action, contextId, payload })` → `daily-bots:invoke`，由 `ipc/daily-bot-ipc.js` 限定主窗口、顶层 frame、精确 loopback origin 和管理页面。action 仅 open/summary/update/decide/prepare/apply/cancel；main 的 daily-bot-controller 持有授权代际和最终快照，license operations 只允许固定 Device 路径。renderer 不获取 token、Cookie 或文件选择能力。服务端响应白名单由 shared/daily-bot-contract 校验；错误只返回公开代码。开关显示服务器确认值与 observedAt，失败不回退本地。
+
+当前界面只调用 open/update，首次开启不依赖旧数据确认；其余 action 保留兼容。云端备份整库恢复无需通过这些导入 action，界面也不展示旧数据或接管结果。

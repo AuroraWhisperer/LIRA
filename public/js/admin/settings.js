@@ -18,6 +18,8 @@ import { createBlindboxSettings } from './settings-blindbox.js';
 import { createSettingsForm } from './settings-form.js';
 import { initLicenseAccountDevice as initLicenseAccountDeviceImpl } from './settings-license.js';
 import { createSettingsOperations } from './settings-operations.js';
+import { createBilibiliRoomProfile } from './settings-room-profile.js';
+import { eventBus, Events } from '../shared/event-bus.js';
 
 const documentRef = document;
 const windowRef = window;
@@ -87,6 +89,21 @@ const settingsForm = createSettingsForm({
 });
 
 export function initBilibiliAuth() {
+  const roomProfile = createBilibiliRoomProfile({
+    documentRef,
+    fetchRef,
+    apiToken: windowRef.__API_TOKEN__,
+  });
+  void roomProfile.refresh(getState()?.getAppState?.()?.settings?.roomId);
+  eventBus.on(Events.STATE_LOADED, ({ state }) => {
+    void roomProfile.refresh(state.settings?.roomId);
+  });
+  eventBus.on(Events.STATE_SAVED, ({ settings }) => {
+    void roomProfile.refresh(settings.roomId, true);
+  });
+  documentRef.addEventListener('app:bilibili-auth-changed', () => {
+    void roomProfile.refresh(getState()?.getAppState?.()?.settings?.roomId, true);
+  });
   return initBilibiliAuthImpl({
     documentRef,
     windowRef,

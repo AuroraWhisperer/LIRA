@@ -1,5 +1,5 @@
 <section id="danmakuWelcomePanel" data-fixed-editor="welcome" hidden aria-label="进场欢迎设置">
-  <p id="danmakuWelcomeCapability" class="hint" role="status" hidden>服务器暂不支持新增欢迎设置；可继续使用欢迎开关和原词库。</p>
+  <p id="danmakuWelcomeCapability" class="hint" role="status" hidden>服务器暂不支持新设置，欢迎开关和原词库仍可使用。</p>
   <div id="danmakuWelcomeParameters">
     <div class="danmaku-welcome-rules">
       <div class="danmaku-welcome-rule">
@@ -23,7 +23,7 @@
         <button class="danmaku-text-action" type="button" data-welcome-library="attentionWelcomeMessages">专属词库</button>
       </div>
     </div>
-    <p class="hint danmaku-welcome-rule-help">两次延时均从进场起算；问候依赖首次成功；0 秒立即处理、0 级不限。延时不代表观众仍在房间内。</p>
+    <p class="hint danmaku-fixed-help danmaku-welcome-rule-help"><strong>0 秒立即处理，0 级不限。</strong>两次延时都从进场算起；首次欢迎成功后，才会发送二次问候。发送时，观众可能已离开。</p>
     <p id="danmakuWelcomeDependencyHint" class="hint"></p>
     <p id="danmakuWelcomeEnableHint" class="hint" role="status"></p>
     <details id="danmakuWelcomePreview" class="danmaku-welcome-preview">
@@ -32,9 +32,9 @@
         <label>配置来源 <select id="danmakuWelcomePreviewSource"><option value="draft">编辑草稿</option><option value="confirmed">已确认设置</option></select></label>
         <label>样例荣耀 <select id="danmakuWelcomePreviewLevel"><option value="31">31 级</option><option value="unknown">未知</option><option value="0">0 级</option></select></label>
       </div>
-      <p class="hint">虚构昵称「小曌」 · 首条样例，实际随机选择 · 不发送</p>
+      <p class="hint">示例昵称「小曌」 · 仅预览第一条文案，实际随机选择</p>
       <p id="danmakuWelcomePreviewFirst"></p><p id="danmakuWelcomePreviewSecond"></p>
-      <p class="hint">二次时间假设首次按计划成功；实际受首次完成、排队与限流影响。注音读音会随文案公开发送。</p>
+      <p class="hint">二次问候时间仅作参考，实际受首次欢迎、排队和发送频率限制影响。注音会随弹幕公开发送。</p>
     </details>
     <div class="danmaku-welcome-parameter-actions">
       <span id="danmakuWelcomeParameterStatus" class="hint" role="status">参数尚未确认</span>
@@ -54,7 +54,10 @@
       </select>
       <span id="danmakuWelcomeCount" class="hint">未读取</span>
     </div>
-    <p class="hint">{username} 会替换为当前昵称，舰长、提督、总督会加在昵称前。未写占位符时自动添加；超长时保留完整昵称并使用短句。</p>
+    <div class="danmaku-fixed-notes">
+      <p class="hint danmaku-fixed-help"><strong>{username}</strong> 代表观众昵称，没填也会自动补上。舰长、提督、总督头衔会放在昵称前。</p>
+      <p class="hint">内容太长时，会保留完整昵称，改用短句。</p>
+    </div>
     <div id="danmakuWelcomeLibraryDrafts" class="hint" role="status"></div>
     <div id="danmakuWelcomeList" class="danmaku-blessing-list" aria-live="polite"></div>
     <div class="danmaku-library-pagination">

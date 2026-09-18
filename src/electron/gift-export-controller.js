@@ -5,6 +5,7 @@ const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 
 const MAX_ROWS_PER_IMAGE = 39; // 39 × 192 + 38 × 16 = 8096 pixels.
+const EXPORT_WIDTH = 1120;
 
 function exportLayout(count, mode) {
   if (!Number.isSafeInteger(count) || count < 1 || count > 10000 || !['combined', 'separate'].includes(mode)) {
@@ -101,7 +102,7 @@ function createGiftExportController({ app, BrowserWindow, dialog, shell, runtime
       assertCurrent(current);
       const firstRows = exportLayout(current.snapshot.items.length, current.mode)[0].count;
       renderWindow = new BrowserWindow({
-        width: 800, height: firstRows * 192 + (firstRows - 1) * 16, useContentSize: true, show: false, transparent: true,
+        width: EXPORT_WIDTH, height: firstRows * 192 + (firstRows - 1) * 16, useContentSize: true, show: false, transparent: true,
         frame: false, skipTaskbar: true, backgroundColor: '#00000000',
         webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true,
           webSecurity: true, backgroundThrottling: false, zoomFactor: 1, offscreen: true },
@@ -115,14 +116,18 @@ function createGiftExportController({ app, BrowserWindow, dialog, shell, runtime
         const height = file.count * 192 + (file.count - 1) * 16;
         const payload = { items: current.snapshot.items.slice(file.start, file.start + file.count),
           config: current.snapshot.config, catalog: current.snapshot.catalog, background: current.background };
-        await bounded(win.webContents.executeJavaScript(`window.renderGiftExport(${JSON.stringify(payload)})`));
+        const { width } = await bounded(win.webContents.executeJavaScript(`window.renderGiftExport(${JSON.stringify(payload)})`));
         assertCurrent(current);
-        const image = await bounded(win.webContents.capturePage({ x: 0, y: 0, width: 800, height }, { stayHidden: true, stayAwake: true }));
+        if (!Number.isSafeInteger(width) || width < EXPORT_WIDTH || width > 8192) throw new Error('图片尺寸验证失败。');
+        win.setContentSize(width, height);
+        await bounded(win.webContents.executeJavaScript('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))'));
+        assertCurrent(current);
+        const image = await bounded(win.webContents.capturePage({ x: 0, y: 0, width, height }, { stayHidden: true, stayAwake: true }));
         let png = image.toPNG();
-        if (png.readUInt32BE(16) !== 800 || png.readUInt32BE(20) !== height) {
-          png = image.resize({ width: 800, height, quality: 'best' }).toPNG();
+        if (png.readUInt32BE(16) !== width || png.readUInt32BE(20) !== height) {
+          png = image.resize({ width, height, quality: 'best' }).toPNG();
         }
-        if (png.readUInt32BE(16) !== 800 || png.readUInt32BE(20) !== height) throw new Error('图片尺寸验证失败。');
+        if (png.readUInt32BE(16) !== width || png.readUInt32BE(20) !== height) throw new Error('图片尺寸验证失败。');
         assertCurrent(current);
         await fs.writeFile(path.join(current.directory, file.fileName), png, { flag: 'wx' });
         current.saved += 1;

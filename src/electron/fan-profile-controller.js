@@ -13,11 +13,15 @@ function fanScopeFor(licenseManager) {
 function createFanProfileController({
   licenseManager,
   getService,
+  getRoomId = () => '',
+  fetchGuardRoster,
   timers = globalThis,
 }) {
   let disposed = false;
   let timer = null;
   let abortController = null;
+  let rosterAbortController = null;
+  let rosterOperation = null;
   let operation = Promise.resolve();
   let current = null;
   let syncStatus = 'offline';
@@ -29,6 +33,7 @@ function createFanProfileController({
     if (!scope || disposed) return null;
     if (!current || current.scope !== scope || current.epoch !== epoch) {
       abortController?.abort();
+      rosterAbortController?.abort();
       current = { scope, epoch, id: randomUUID() };
       syncStatus = 'pending';
     }
@@ -88,10 +93,47 @@ function createFanProfileController({
 
   const unsubscribe = licenseManager.onStateChanged(() => {
     abortController?.abort();
+    rosterAbortController?.abort();
     current = null;
     syncStatus = 'offline';
     void run();
   });
+
+  function response(captured, data) {
+    return {
+      contextId: captured.id,
+      data,
+      syncStatus,
+      roomId: String(getRoomId() || ''),
+      accountName: licenseManager.getCloudSyncIdentity()?.accountName || '',
+    };
+  }
+
+  async function syncGuardRoster(captured, service) {
+    const roomId = String(getRoomId() || '');
+    if (!/^[1-9]\d{0,19}$/.test(roomId))
+      throw new Error('请先在连接设置中填写直播间号。');
+    const controller = new AbortController();
+    rosterAbortController = controller;
+    try {
+      const snapshot = await fetchGuardRoster(roomId, {
+        signal: controller.signal,
+      });
+      if (!same(captured) || controller.signal.aborted)
+        throw new Error('主播账号已变化，本次名单没有导入，请重新打开档案。');
+      if (String(getRoomId() || '') !== roomId)
+        throw new Error('直播间已变化，本次名单没有导入，请重新同步。');
+      return response(
+        captured,
+        service.importGuardRoster(captured.scope, snapshot),
+      );
+    } catch (error) {
+      if (/[\u4e00-\u9fff]/.test(error.message || '')) throw error;
+      throw new Error('大航海名单读取失败，本次没有导入，请检查网络后重试。');
+    } finally {
+      rosterAbortController = null;
+    }
+  }
 
   function invoke(request) {
     const captured = context();
@@ -103,29 +145,35 @@ function createFanProfileController({
       throw new Error('主播账号已变化，请重新打开粉丝档案。');
     const service = getService();
     if (!service) throw new Error('档案存储尚未就绪。');
+    if (action === 'sync-guard-roster') {
+      if (rosterAbortController) throw new Error('大航海名单正在同步，请稍候。');
+      if (
+        payload.expectedRoomId !== undefined &&
+        payload.expectedRoomId !== String(getRoomId() || '')
+      )
+        throw new Error('直播间已变化，请重新打开同步窗口。');
+      rosterOperation = syncGuardRoster(captured, service);
+      return rosterOperation;
+    }
     const data = service.execute(
       captured.scope,
       action === 'open' ? 'list' : action,
       payload,
     );
     if (action === 'configure') void run();
-    return {
-      contextId: captured.id,
-      data,
-      syncStatus,
-      accountName: licenseManager.getCloudSyncIdentity()?.accountName || '',
-    };
+    return response(captured, data);
   }
 
   return {
     invoke,
     start: run,
-    whenIdle: () => operation,
+    whenIdle: () => Promise.allSettled([operation, rosterOperation]),
     dispose() {
       if (disposed) return;
       disposed = true;
       timers.clearTimeout(timer);
       abortController?.abort();
+      rosterAbortController?.abort();
       unsubscribe?.();
       current = null;
     },

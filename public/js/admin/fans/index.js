@@ -1,7 +1,13 @@
 import { createFanTransferUi } from './transfer-ui.js';
 import { toast } from '../../shared/utils.js';
 import { html, renderPeople, renderDetail, renderReminders } from './view.js';
-import { profileForm, recordForm, settingsForm, exportForm } from './forms.js';
+import {
+  profileForm,
+  recordForm,
+  settingsForm,
+  exportForm,
+  guardRosterForm,
+} from './forms.js';
 
 let instance;
 
@@ -18,6 +24,7 @@ function createFanUi() {
   document.body.append(editor, quick);
   const state = {
     contextId: null,
+    roomId: '',
     profile: null,
     profiles: [],
     tab: 'overview',
@@ -78,10 +85,12 @@ function createFanUi() {
       state.profile = null;
       state.selection++;
       state.tab = 'overview';
+      get('fanRosterResult').hidden = true;
       detailNode.innerHTML =
         '<p class="fan-empty">账号已切换，请重新选择档案。</p>';
     }
     state.contextId = result.contextId;
+    state.roomId = result.roomId || '';
     state.syncStatus = result.syncStatus;
     get('fanSyncState').textContent =
       {
@@ -250,6 +259,7 @@ function createFanUi() {
 
   async function action(name, element) {
     if (name === 'cancel-edit') {
+      if (get('fanSaveButton').disabled) return;
       editor.close();
       return;
     }
@@ -276,6 +286,22 @@ function createFanUi() {
       return;
     }
     if (!state.contextId) await load(true);
+    if (name === 'guard-roster') {
+      await load(true);
+      if (!state.roomId) throw new Error('请先在连接设置中填写直播间号。');
+      openForm(guardRosterForm(state.roomId), async (payload) => {
+        const result = await request('sync-guard-roster', payload);
+        const message = result.total
+          ? `房间 ${result.roomId}：新增 ${result.created} 份档案，更新 ${result.updated} 份，跳过 ${result.skipped} 位。`
+          : `房间 ${result.roomId} 当前没有大航海成员。`;
+        get('fanRosterResult').textContent = message;
+        get('fanRosterResult').hidden = false;
+        await load();
+        if (state.profile) await select(state.profile.id, false);
+        return { message };
+      });
+      return;
+    }
     if (name === 'new') {
       editProfile();
       return;
@@ -412,6 +438,7 @@ function createFanUi() {
       '[data-fan-action], [data-fan-id], [data-fan-tab], [data-fan-page], [data-fan-filter]',
     );
     if (!element) return;
+    if (get('fanMoreMenu').contains(element)) get('fanMoreMenu').hidePopover();
     void (async () => {
       if (element.dataset.fanAction)
         await action(element.dataset.fanAction, element);
@@ -447,18 +474,27 @@ function createFanUi() {
     const description = state.editor;
     if (!description || get('fanSaveButton').disabled) return;
     get('fanSaveButton').disabled = true;
+    get('fanSaveButton').textContent = description.busyLabel || '正在保存…';
+    form.querySelector('[data-fan-action="cancel-edit"]').disabled = true;
+    form.setAttribute('aria-busy', 'true');
     get('fanEditorError').hidden = true;
     try {
       const result = await description.save(description.read(form));
       if (!result?.keepOpen) {
         editor.close();
-        toast('已保存到本机');
+        toast(result?.message || '已保存到本机');
       }
     } catch (error) {
       showError(error, true);
     } finally {
       get('fanSaveButton').disabled = false;
+      get('fanSaveButton').textContent = state.editor.saveLabel || '保存';
+      form.querySelector('[data-fan-action="cancel-edit"]').disabled = false;
+      form.removeAttribute('aria-busy');
     }
+  });
+  editor.addEventListener('cancel', (event) => {
+    if (get('fanSaveButton').disabled) event.preventDefault();
   });
   get('fanSearch').addEventListener('input', () => {
     clearTimeout(searchTimer);

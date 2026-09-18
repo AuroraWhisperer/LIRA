@@ -37,8 +37,8 @@ function deferred() {
 
 function fixture(t, options = {}) {
   const state = { authorized: true, streamerId: 'streamer-a', accountName: '虚构账号甲',
-    epoch: 1, origin: 'https://lira.example', ...options.state };
-  const calls = { execute: [], consume: [], fetch: [], unsubscribe: 0 };
+    epoch: 1, origin: 'https://lira.example', roomId: '42', ...options.state };
+  const calls = { execute: [], consume: [], fetch: [], roster: [], imports: [], unsubscribe: 0 };
   const settings = new Map();
   const listeners = new Set();
   const timers = new FakeTimers();
@@ -60,6 +60,10 @@ function fixture(t, options = {}) {
     },
   };
   const service = {
+    importGuardRoster(scope, snapshot) {
+      calls.imports.push({ scope, snapshot });
+      return { created: 1, updated: 0, skipped: 0, total: 1 };
+    },
     execute(scope, action, payload) {
       calls.execute.push({ scope, action, payload });
       if (action === 'settings') return getSettings(scope);
@@ -78,7 +82,13 @@ function fixture(t, options = {}) {
       return next;
     },
   };
-  const controller = createFanProfileController({ licenseManager, getService: () => service, timers });
+  const controller = createFanProfileController({ licenseManager, getService: () => service, timers,
+    getRoomId: () => state.roomId,
+    fetchGuardRoster: async (roomId, input) => {
+      calls.roster.push({ roomId, ...input });
+      return options.roster ? options.roster(input) : { roomId: '1234', members: [] };
+    },
+  });
   const handlers = new Map();
   const frame = { url: `${ORIGIN}/admin?desktop=1` };
   const window = { isDestroyed: () => false, webContents: { mainFrame: frame } };
@@ -330,4 +340,83 @@ test('a bounded ten-page pass remains syncing and the scheduled continuation res
   assert.equal(f.calls.fetch.at(-1).after, 10);
   assert.equal(f.calls.consume.at(-1).page.nextCursor, 11);
   assert.equal(f.invoke({ action: 'open' }).syncStatus, 'ready');
+});
+
+test('manual roster IPC uses configured room and authenticated scope, ignoring supplied owner or members', async (t) => {
+  const f = fixture(t);
+  const opened = f.invoke({ action: 'open' });
+  assert.equal(opened.roomId, '42');
+  const result = await f.invoke({ action: 'sync-guard-roster', contextId: opened.contextId,
+    payload: { roomId: 'evil', streamerId: 'streamer-b', members: ['untrusted'] } });
+  assert.equal(result.ok, true);
+  assert.equal(result.data.created, 1);
+  assert.equal(f.calls.roster[0].roomId, '42');
+  assert.equal(f.calls.imports[0].scope, SCOPE_A);
+  assert.deepEqual(f.calls.imports[0].snapshot.members, []);
+  assert.equal(f.calls.fetch.length, 0);
+});
+
+test('manual roster IPC rejects a changed room before starting a request', (t) => {
+  const f = fixture(t);
+  const opened = f.invoke({ action: 'open' });
+  f.state.roomId = '77';
+  const result = f.invoke({ action: 'sync-guard-roster', contextId: opened.contextId,
+    payload: { expectedRoomId: opened.roomId } });
+  assert.equal(result.ok, false);
+  assert.match(result.error, /直播间已变化/);
+  assert.equal(f.calls.roster.length, 0);
+});
+
+test('manual roster IPC prevents overlap and late writes after room/account changes or disposal', async (t) => {
+  for (const change of [
+    (f) => { f.state.roomId = '77'; },
+    (f) => { f.state.streamerId = 'streamer-b'; f.emit(); },
+    (f) => { f.state.epoch++; },
+    (f) => { f.state.authorized = false; },
+    (f) => { f.controller.dispose(); },
+  ]) {
+    const pending = deferred();
+    const f = fixture(t, { roster: () => pending.promise });
+    const contextId = f.invoke({ action: 'open' }).contextId;
+    const first = f.invoke({ action: 'sync-guard-roster', contextId });
+    assert.match((await f.invoke({ action: 'sync-guard-roster', contextId })).error, /正在同步/);
+    change(f);
+    pending.resolve({ roomId: '1234', members: [] });
+    assert.equal((await first).ok, false);
+    assert.equal(f.calls.imports.length, 0);
+    await f.controller.whenIdle();
+  }
+});
+
+test('manual roster IPC reports failures without exposing raw transport details and permits retry', async (t) => {
+  let fail = true;
+  const f = fixture(t, { roster: () => {
+    if (fail) throw new Error('fetch failed token=fictional-secret');
+    return { members: [] };
+  } });
+  const contextId = f.invoke({ action: 'open' }).contextId;
+  const failed = await f.invoke({ action: 'sync-guard-roster', contextId });
+  assert.equal(failed.ok, false);
+  assert.doesNotMatch(failed.error, /fictional-secret/);
+  assert.equal(f.calls.imports.length, 0);
+  fail = false;
+  assert.equal((await f.invoke({ action: 'sync-guard-roster', contextId })).ok, true);
+});
+
+test('shutdown drains an in-flight manual roster request after abort before closing storage', async (t) => {
+  const pending = deferred();
+  const f = fixture(t, { roster: () => pending.promise });
+  const contextId = f.invoke({ action: 'open' }).contextId;
+  const request = f.invoke({ action: 'sync-guard-roster', contextId });
+  assert.equal((await f.invoke({ action: 'sync-guard-roster', contextId })).ok, false);
+  f.controller.dispose();
+  assert.equal(f.calls.roster[0].signal.aborted, true);
+  let drained = false;
+  const idle = f.controller.whenIdle().then(() => { drained = true; });
+  await Promise.resolve();
+  assert.equal(drained, false);
+  pending.resolve({ members: [] });
+  await idle;
+  assert.equal((await request).ok, false);
+  assert.equal(f.calls.imports.length, 0);
 });

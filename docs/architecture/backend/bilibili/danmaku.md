@@ -265,4 +265,4 @@ AI 互动助手回复也经 `aiAssistant` 调用同一个 `danmakuSender.send({w
 
 ## 云端签到与抽签执行权（2026-09-18）
 
-本节替代本文旧的本地签到/抽签生产调用说明。`dailyBotCommand` 在 domain-services 的消息入口首先占用精确“签到/抽签”，返回 cloud-owned，不计算、不写库，不进入点歌、DIY 或 AI 自动回复；bilibili-client 不再发送这两项回复。保留的旧服务文件仅作为历史语义和单元测试参照，没有生产实例。Server 持续 monitor、租户每日结果及受控接管见 [规格](../../../../specs/cloud-daily-bots.md)。
+本节替代本文旧的本地签到/抽签生产调用说明。`dailyBotCommand` 在 domain-services 的消息入口首先占用精确“签到/抽签”，返回 cloud-owned，不计算、不写库，不进入点歌、DIY 或 AI 自动回复；bilibili-client 不再发送这两项回复。保留的旧服务文件仅作为历史语义和单元测试参照，没有生产实例。Server 持续 monitor、租户每日结果、直接启用及整库恢复见 [规格](../../../../specs/cloud-daily-bots.md)。

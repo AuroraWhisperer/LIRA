@@ -24,7 +24,10 @@ export function initFixedReplyEditor({ documentRef = globalThis.document, window
       button.closest('[data-fixed-item]').classList.toggle('is-editing', selected);
     }
   }
-  buttons.forEach((button) => button.addEventListener('click', () => select(button.dataset.fixedOpen)));
+  buttons.forEach((button) => button.addEventListener('click', () => {
+    select(active === button.dataset.fixedOpen ? '' : button.dataset.fixedOpen);
+    if (active) heading.scrollIntoView({ block: 'nearest' });
+  }));
   documentRef.getElementById('danmakuFixedEditorClose').addEventListener('click', () => {
     const previous = active; select('');
     buttons.find((button) => button.dataset.fixedOpen === previous)?.focus();

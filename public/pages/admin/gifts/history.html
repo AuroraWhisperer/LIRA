@@ -142,26 +142,55 @@
     <div class="gift-subview-head"><button id="giftDisplayBack" type="button" class="secondary">返回流水</button><strong>礼物样式与本日展示</strong></div>
     <form id="giftDisplayForm">
       <div class="gift-display-columns">
-        <div>
-          <h3>礼物价格区间</h3><p class="hint">按每条礼物的单价 × 数量分色；金额不进入横幅。</p>
-          <div class="gift-tier-inputs">
-            <div><span class="gift-tier-swatch tier-0"></span><span id="giftTierRange0">低于 100 元</span></div>
-            <label><span class="gift-tier-swatch tier-1"></span>紫蓝起点（元）<input id="giftTier1" type="number" min="0.01" step="0.01" required /></label>
-            <label><span class="gift-tier-swatch tier-2"></span>粉红起点（元）<input id="giftTier2" type="number" min="0.01" step="0.01" required /></label>
-            <label><span class="gift-tier-swatch tier-3"></span>橙金起点（元）<input id="giftTier3" type="number" min="0.01" step="0.01" required /></label>
+        <div class="gift-display-group">
+          <div class="gift-display-group-head">
+            <h3>礼物价格区间</h3><p class="hint">按每条礼物的单价 × 数量分色；金额不进入横幅。</p>
           </div>
-          <p id="giftTierRanges" class="hint"></p><div id="giftStylePreview" class="gift-banner-stage"></div>
-          <p class="hint">示例横幅；达到分界时进入新档。修改只更新草稿，保存后生效。</p>
+          <div class="gift-tier-inputs">
+            <div>
+              <span class="gift-tier-swatch" aria-hidden="true"></span><span>浅蓝</span>
+              <input type="number" value="0" readonly aria-label="浅蓝起始金额（元）" />
+              <span aria-hidden="true">～</span>
+              <input id="giftTierEnd0" data-gift-boundary="1" type="number" min="0.01" step="0.01" required aria-label="浅蓝结束金额（元）" />
+            </div>
+            <div>
+              <span class="gift-tier-swatch" aria-hidden="true"></span><span>紫蓝</span>
+              <input id="giftTier1" data-gift-boundary="1" type="number" min="0.01" step="0.01" required aria-label="紫蓝起始金额（元）" />
+              <span aria-hidden="true">～</span>
+              <input id="giftTierEnd1" data-gift-boundary="2" type="number" min="0.01" step="0.01" required aria-label="紫蓝结束金额（元）" />
+            </div>
+            <div>
+              <span class="gift-tier-swatch" aria-hidden="true"></span><span>粉红</span>
+              <input id="giftTier2" data-gift-boundary="2" type="number" min="0.01" step="0.01" required aria-label="粉红起始金额（元）" />
+              <span aria-hidden="true">～</span>
+              <input id="giftTierEnd2" data-gift-boundary="3" type="number" min="0.01" step="0.01" required aria-label="粉红结束金额（元）" />
+            </div>
+            <div>
+              <span class="gift-tier-swatch" aria-hidden="true"></span><span>橙金</span>
+              <input id="giftTier3" data-gift-boundary="3" type="number" min="0.01" step="0.01" required aria-label="橙金起始金额（元）" />
+              <span aria-hidden="true">～</span>
+              <input type="text" value="不限" readonly aria-label="橙金结束金额（元）" />
+            </div>
+          </div>
+          <p class="hint">金额单位为元。包含起始金额、不含结束金额；相邻区间自动衔接。</p>
+          <div class="gift-display-preview">
+            <div id="giftStylePreview" class="gift-banner-stage"></div>
+            <p class="hint">示例横幅；达到分界时进入新档。修改只更新草稿，保存后生效。</p>
+          </div>
         </div>
-        <div>
-          <h3>本日礼物循环</h3><p class="hint">循环显示本地已同步的今天礼物，北京时间零点换日。</p>
+        <div class="gift-display-group">
+          <div class="gift-display-group-head">
+            <h3>本日礼物循环</h3><p class="hint">循环显示本地已同步的今天礼物，北京时间零点换日。</p>
+          </div>
           <label>显示行数<input id="giftFeedRows" type="number" min="1" max="10" required /></label>
           <label>滚动间隔（秒）<input id="giftFeedInterval" type="number" min="2" max="60" required /></label>
           <label class="gift-check-label"><input id="giftFeedPaused" type="checkbox" />暂停播放</label>
           <label class="gift-check-label"><input id="giftFeedLowPower" type="checkbox" />低功耗（逐页切换）</label>
-          <label>OBS 浏览器源<input id="giftFeedUrl" readonly /></label>
-          <div class="gift-directory-actions"><button id="giftFeedCopy" type="button" class="secondary">复制地址</button><a id="giftFeedPreviewLink" target="_blank" rel="noopener">打开本日预览</a></div>
-          <p class="hint">建议宽度 400；高度随显示行数调整。关闭此面板后仍继续播放。</p>
+          <div class="gift-feed-source">
+            <label>OBS 浏览器源<input id="giftFeedUrl" readonly /></label>
+            <div class="gift-directory-actions"><button id="giftFeedCopy" type="button" class="secondary">复制地址</button><a id="giftFeedPreviewLink" target="_blank" rel="noopener">打开本日预览</a></div>
+            <p class="hint">横幅基础宽度 560，多位数量会向右延长；OBS 建议宽度 900，高度随显示行数调整。关闭此面板后仍继续播放。</p>
+          </div>
         </div>
       </div>
       <p id="giftDisplayError" role="alert"></p>

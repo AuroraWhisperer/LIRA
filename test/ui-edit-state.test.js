@@ -321,10 +321,19 @@ test('danmaku panel initializes every shipped style and keeps existing controls 
     assert.deepEqual(await page.evaluate(() => window.requests.at(-1).body), { [key]: 'true' });
   }
   for (const key of ['random', 'diy', 'welcome', 'pk']) {
-    await page.locator(`[data-fixed-open="${key}"]`).click();
+    const opener = page.locator(`[data-fixed-open="${key}"]`);
+    await opener.click();
     assert.equal(await page.locator('[data-fixed-editor]:visible').count(), 1);
     assert.equal(await page.locator(`[data-fixed-editor="${key}"]`).isVisible(), true);
+    assert.equal(await opener.getAttribute('aria-expanded'), 'true');
+    await opener.click();
+    assert.equal(await page.locator('[data-fixed-editor]:visible').count(), 0);
+    assert.equal(await opener.getAttribute('aria-expanded'), 'false');
+    await opener.click();
   }
+  await page.locator('#danmakuFixedEditorClose').click();
+  assert.equal(await page.locator('[data-fixed-editor]:visible').count(), 0);
+  assert.equal(await page.locator('[data-fixed-open="pk"]').evaluate((button) => button === document.activeElement), true);
   for (const [id, value] of [
     ['danmakuCustomReplyList', '测试关键词'],
   ]) {

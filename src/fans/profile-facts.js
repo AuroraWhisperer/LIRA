@@ -11,9 +11,12 @@ const {
 const { membershipConflicts, cycleForNewRecord } = require('./membership');
 
 function createFanFactConsumer({ store, now, create }) {
-  function observe(scope, observation, newlyCreated = false) {
+  function observe(scope, observation, newlyCreated = false, manual = false) {
     const settings = store.getScope(scope);
-    if (!settings.initialized || (!settings.autoUpdate && !newlyCreated))
+    if (
+      !manual &&
+      (!settings.initialized || (!settings.autoUpdate && !newlyCreated))
+    )
       return null;
     const person = identity(observation.identity);
     if (!person) return null;

@@ -2,7 +2,7 @@
 
 import { GIFT_PLACEHOLDER } from './gift-image-fallback.js';
 
-export const BANNER_WIDTH = 400;
+export const BANNER_WIDTH = 560;
 export const BANNER_HEIGHT = 96;
 export const BANNER_GAP = 8;
 export const MAX_COMPOSITE_ROWS = 39;
@@ -53,10 +53,6 @@ export function createGiftBanner(item, config, catalog = []) {
   root.style.setProperty('--gift-start', colors[0]);
   root.style.setProperty('--gift-end', colors[1]);
   const count = String(gift.num);
-  const countSize = count.length > 10 ? 16 : count.length > 7 ? 22 : count.length > 4 ? 29 : 36;
-  const countWidth = Math.max(70, Math.ceil((count.length + 1) * countSize * 0.75 + 16));
-  root.style.setProperty('--gift-count-width', `${countWidth}px`);
-  root.style.setProperty('--gift-count-size', `${countSize}px`);
   const background = document.createElement('div');
   background.className = 'gift-banner-background';
   root.append(background);
@@ -81,7 +77,10 @@ export function createGiftBanner(item, config, catalog = []) {
   root.append(text, bannerImage(item.artworkPath || resolveGiftArtwork(gift, catalog), 'gift-banner-artwork', GIFT_PLACEHOLDER));
   const quantity = document.createElement('div');
   quantity.className = 'gift-banner-count';
-  quantity.textContent = `×${count}`;
+  const times = document.createElement('span');
+  times.className = 'gift-banner-times';
+  times.textContent = '×';
+  quantity.append(times, count);
   root.append(quantity);
   return root;
 }

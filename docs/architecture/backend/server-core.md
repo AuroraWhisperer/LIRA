@@ -42,7 +42,7 @@
 
 `SERVICE_ID = 'lira'` 仅为公开服务标记，不构成身份证明。旧实例清理由 [lifecycle.js](../../../src/server/lifecycle.js) 编排，[local-instance.js](../../../src/server/local-instance.js) 拥有验证与连接：无凭据 GET health，发送 32 字节随机挑战；ready 实例返回 session token 的 HMAC-SHA256，固定域与实际监听端口绑定。客户端验证后，只有同一条 TCP socket 才能写入 Bearer 并 POST shutdown；断开、重连和重定向不转交令牌，响应上限 16 KiB、每次 HTTP 交换总期限 1 秒。
 
-Windows 兼容旧版本：通过系统 TCP 表的精确两端地址/端口查当前连接的进程，再验证进程与当前 Windows 用户 SID 一致及安装或绝对入口，不能根据对端自报的 PID/dataDir/serviceId 放行。查询拥有者是 [local-process-owner.js](../../../src/server/local-process-owner.js)，直接筛选 `root/StandardCimv2` 的 `MSFT_NetTCPConnection`，避免加载 NetTCPIP cmdlet 的额外耗时；最多等待 5 秒，查询失败不降级为信任 health。进程归属对 Windows 路径统一小写；打包 exe 必须属于本 resources/app(.asar) 安装根，Node 必须直接启动本根 src/server.js 的绝对入口，Electron 必须直接启动本根或 src/electron/main.js；相对入口、其他参数中的根路径及同名可执行文件均不足以授权。
+Windows 兼容旧版本：通过系统 TCP 表的精确两端地址/端口查当前连接的进程，再验证进程与当前 Windows 用户 SID 一致及安装或绝对入口，不能根据对端自报的 PID/dataDir/serviceId 放行。查询拥有者是 [local-process-owner.js](../../../src/server/local-process-owner.js)，通过 Windows PowerShell 的 `Get-WmiObject` 直接筛选 `root/StandardCimv2` 的 `MSFT_NetTCPConnection`，并读取 `Win32_Process` 及其 `GetOwnerSid()`，避免 NetTCPIP cmdlet 加载并减少 CIM 查询开销；最多等待 5 秒，查询失败不降级为信任 health。进程归属对 Windows 路径统一小写；打包 exe 必须属于本 resources/app(.asar) 安装根，Node 必须直接启动本根 src/server.js 的绝对入口，Electron 必须直接启动本根或 src/electron/main.js；相对入口、其他参数中的根路径及同名可执行文件均不足以授权。
 
 发出请求后保留 7.5 秒 / 120ms 端口释放等待，覆盖 Electron 的 renderer flush。若仍占用，必须重新查询实际监听者，PID、创建时间、精确归属与等待前匹配才允许 SIGTERM；health 自报 PID 从不进入终止分支。无 Windows 系统证据时仍可通过挑战完成新版本优雅退出，但不强制终止。无法验证的旧版本或无权限场景保留占用者，精确绑定随后报端口冲突。`.server-runtime.json` 只用于当前进程跳过与本实例元数据清理，不证明网络对端身份。
 

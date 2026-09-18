@@ -16,26 +16,38 @@
         <button type="button" class="primary" data-fan-action="new">
           新建档案
         </button>
-        <details class="fan-more">
-          <summary aria-label="档案更多操作">更多</summary>
-          <div>
-            <button type="button" data-fan-action="settings">
-              自动更新设置
-            </button>
-            <button type="button" data-fan-action="export">导出档案列表</button>
-            <button type="button" data-fan-action="backup">保存完整备份</button>
-            <button type="button" data-fan-action="restore">
-              恢复完整备份
-            </button>
-            <button type="button" data-fan-action="snapshots">
-              本机恢复点
-            </button>
-            <button type="button" data-fan-action="suppressions">
-              自动建档排除名单
-            </button>
-            <button type="button" data-fan-action="archived">查看已归档</button>
-          </div>
-        </details>
+        <button
+          type="button"
+          id="fanMoreButton"
+          popovertarget="fanMoreMenu"
+          aria-label="档案更多操作"
+        >
+          更多
+        </button>
+        <div
+          id="fanMoreMenu"
+          class="fan-more-menu"
+          popover
+          aria-label="档案更多操作"
+        >
+          <button type="button" data-fan-action="guard-roster">
+            同步大航海名单
+          </button>
+          <hr />
+          <button type="button" data-fan-action="settings">
+            自动更新设置
+          </button>
+          <button type="button" data-fan-action="export">导出档案列表</button>
+          <button type="button" data-fan-action="backup">保存完整备份</button>
+          <button type="button" data-fan-action="restore">
+            恢复完整备份
+          </button>
+          <button type="button" data-fan-action="snapshots">本机恢复点</button>
+          <button type="button" data-fan-action="suppressions">
+            自动建档排除名单
+          </button>
+          <button type="button" data-fan-action="archived">查看已归档</button>
+        </div>
       </div>
     </header>
     <div class="fan-nav" role="tablist" aria-label="粉丝档案内容">
@@ -59,6 +71,7 @@
       <button type="button" data-fan-action="refresh">刷新</button>
     </div>
     <p id="fanPageError" class="fan-error" role="alert" hidden></p>
+    <p id="fanRosterResult" class="fan-muted" role="status" hidden></p>
     <div id="fanReminderSummary" class="fan-reminder-summary" hidden></div>
     <div id="fanProfilesPage">
       <div class="fan-searchbar">

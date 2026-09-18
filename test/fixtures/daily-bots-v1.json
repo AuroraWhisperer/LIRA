@@ -36,12 +36,12 @@
     "checkin": {
       "enabled": false,
       "revision": 0,
-      "reason": "pending"
+      "reason": "disabled"
     },
     "fortune": {
       "enabled": false,
       "revision": 0,
-      "reason": "pending"
+      "reason": "disabled"
     },
     "takeover": {
       "state": "pending",

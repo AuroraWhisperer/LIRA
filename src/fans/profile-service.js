@@ -19,6 +19,7 @@ const { buildReminders } = require('./reminders');
 const { createFanBackupService } = require('./profile-transfer');
 const { createFanFactConsumer } = require('./profile-facts');
 const { createFanMergeService } = require('./profile-merge');
+const { createGuardRosterImporter } = require('./guard-roster-import');
 
 function createFanProfileService({
   store,
@@ -466,6 +467,11 @@ function createFanProfileService({
 
   return {
     execute,
+    importGuardRoster: createGuardRosterImporter({
+      store,
+      create,
+      observe: facts.observe,
+    }),
     consumeFacts: facts.consume,
     observeIdentity: facts.observe,
     archiveAccepted: facts.archiveAccepted,

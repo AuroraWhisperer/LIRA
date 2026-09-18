@@ -24,6 +24,24 @@ test('shared snapshot bytes agree with server fixture and settings strip extra f
   assert.deepEqual(sanitizeSettings({ ...fixture.defaultResponse, token: 'private' }), fixture.defaultResponse);
   assert.throws(() => sanitizeSettings({ ...fixture.defaultResponse, checkin: { enabled: true } }), /INVALID_RESPONSE/);
 });
+test('main forwards direct enabling without a legacy decision and accepts automatic readiness', async (t) => {
+  const calls = [], initial = structuredClone(fixture.defaultResponse);
+  const { controller } = setup(t, async (operation, input) => {
+    calls.push({ operation, input });
+    if (operation === 'read') return initial;
+    assert.equal(operation, 'update');
+    return { ...initial, checkin: { enabled: true, revision: 1, reason: 'running' },
+      takeover: { ...initial.takeover, state: 'ready', decision: 'fresh-start', revision: 1 } };
+  });
+  const opened = await controller.invoke({ action: 'open' });
+  const result = await controller.invoke({ action: 'update', contextId: opened.contextId,
+    payload: { kind: 'checkin', enabled: true, expectedRevision: 0 } });
+  assert.equal(result.data.checkin.enabled, true);
+  assert.equal(result.data.takeover.legacyStoppedAt, null);
+  assert.deepEqual(calls.map((item) => item.operation), ['read', 'update']);
+  assert.deepEqual(calls[1].input, { kind: 'checkin', body: { enabled: true, expectedRevision: 0 } });
+});
+
 test('main rejects stale contexts and unconfirmed migration and discards late account responses', async (t) => {
   let resolve;
   const { controller, switchAccount } = setup(t, () => new Promise((done) => { resolve = done; }));

@@ -9,6 +9,20 @@ const {
 const prefixes = ['/api/bilibili/'];
 
 const routes = {
+  async 'GET /api/bilibili/room/profile'(context, _request, res) {
+    try {
+      sendJson(res, 200, {
+        ok: true,
+        data: await context.bilibili.getRoomProfile(),
+      });
+    } catch (_) {
+      sendJson(res, 502, {
+        ok: false,
+        error: '直播间资料读取失败，请检查房间号后重试。',
+      });
+    }
+  },
+
   async 'GET /api/bilibili/avatar'(context, request, res) {
     try {
       const image = await context.bilibili.fetchAvatarImage(

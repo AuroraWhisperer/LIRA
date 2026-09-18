@@ -15,6 +15,8 @@ export function memberLabel(membership) {
     return `在舰 · ${levels[membership.level]}`;
   if (membership.status === 'pending') return '大航海待核实';
   if (membership.status === 'expired') return '已确认区间到期';
+  if (membership.observedLevel)
+    return `曾观察到${levels[membership.observedLevel]} · 当前待核实`;
   return membership.hasHistory ? '曾观察到上舰 · 当前待核实' : '未记录大航海';
 }
 function button(action, label, extra = '') {

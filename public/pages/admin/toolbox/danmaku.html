@@ -353,54 +353,30 @@
       </div>
       <div class="danmaku-fixed-overview">
         <div class="danmaku-fixed-item" data-fixed-item="random">
-          <button class="danmaku-fixed-open" type="button" data-fixed-open="random" aria-controls="danmakuRandomReplyPanel" aria-expanded="false">
-            <span><strong id="danmakuReplyTitle">随机点歌回复</strong><span class="danmaku-fixed-summary">无匹配歌曲时自动回复</span><span class="danmaku-fixed-note" data-fixed-note="random"></span></span>
-            <span class="danmaku-fixed-action">说明</span>
+          <div class="danmaku-fixed-copy"><strong id="danmakuReplyTitle">随机点歌回复</strong><span class="danmaku-fixed-summary">无匹配歌曲时自动回复</span><span class="danmaku-fixed-note" data-fixed-note="random"></span></div>
+          <button class="danmaku-fixed-open" type="button" data-fixed-open="random" aria-label="随机点歌回复说明" aria-controls="danmakuRandomReplyPanel" aria-expanded="false">
+            说明<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m6 8 4 4 4-4" /></svg>
           </button>
           <label class="switch-control"><input id="danmakuReplyToggle" type="checkbox" aria-labelledby="danmakuReplyTitle" /><span class="switch-track"></span><span class="switch-caption" aria-hidden="true"></span></label>
         </div>
         <div class="danmaku-fixed-item" data-fixed-item="checkin">
-          <div class="danmaku-fixed-open"><span><strong id="danmakuCheckinTitle">签到机器人</strong><span class="danmaku-fixed-summary">云端运行 · 收到“签到”后回复累计天数</span><span id="dailyBotcheckinStatus" class="danmaku-fixed-note" role="status">尚未确认云端状态</span></span></div>
+          <div class="danmaku-fixed-copy"><strong id="danmakuCheckinTitle">签到机器人</strong><span class="danmaku-fixed-summary">云端运行 · 收到“签到”后回复累计天数</span><span id="dailyBotcheckinStatus" class="danmaku-fixed-note" role="status">尚未确认云端状态</span></div>
           <label class="switch-control"><input id="danmakuCheckinToggle" type="checkbox" aria-labelledby="danmakuCheckinTitle" disabled /><span class="switch-track"></span><span class="switch-caption" aria-hidden="true"></span></label>
         </div>
         <div class="danmaku-fixed-item" data-fixed-item="fortune">
-          <div class="danmaku-fixed-open"><span><strong id="danmakuFortuneTitle">抽签机器人</strong><span class="danmaku-fixed-summary">云端运行 · 收到“抽签”后回复每日一签</span><span id="dailyBotfortuneStatus" class="danmaku-fixed-note" role="status">尚未确认云端状态</span></span></div>
+          <div class="danmaku-fixed-copy"><strong id="danmakuFortuneTitle">抽签机器人</strong><span class="danmaku-fixed-summary">云端运行 · 收到“抽签”后回复每日一签</span><span id="dailyBotfortuneStatus" class="danmaku-fixed-note" role="status">尚未确认云端状态</span></div>
           <label class="switch-control"><input id="danmakuFortuneToggle" type="checkbox" aria-labelledby="danmakuFortuneTitle" disabled /><span class="switch-track"></span><span class="switch-caption" aria-hidden="true"></span></label>
         </div>
         <div class="danmaku-fixed-item" data-fixed-item="diy">
-          <button class="danmaku-fixed-open" type="button" data-fixed-open="diy" aria-controls="danmakuCustomRepliesPanel" aria-expanded="false">
-            <span><strong id="danmakuCustomReplyTitle">DIY 关键词回复</strong><span class="danmaku-fixed-summary" data-fixed-count="danmakuCustomReplyCount">正在读取规则</span><span class="danmaku-fixed-note" data-fixed-note="diy"></span></span>
-            <span class="danmaku-fixed-action">编辑</span>
+          <div class="danmaku-fixed-copy"><strong id="danmakuCustomReplyTitle">DIY 关键词回复</strong><span class="danmaku-fixed-summary" data-fixed-count="danmakuCustomReplyCount">正在读取规则</span><span class="danmaku-fixed-note" data-fixed-note="diy"></span></div>
+          <button class="danmaku-fixed-open" type="button" data-fixed-open="diy" aria-label="编辑 DIY 关键词回复" aria-controls="danmakuCustomRepliesPanel" aria-expanded="false">
+            编辑<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m6 8 4 4 4-4" /></svg>
           </button>
           <label class="switch-control"><input id="danmakuCustomReplyToggle" type="checkbox" aria-labelledby="danmakuCustomReplyTitle" /><span class="switch-track"></span><span class="switch-caption" aria-hidden="true"></span></label>
         </div>
         <!-- admin-fragment: pages/admin/toolbox/danmaku-welcome-switch.html -->
         <!-- admin-fragment: pages/admin/toolbox/danmaku-pk-report-switch.html -->
       </div>
-      <div class="daily-bot-cloud-status">
-        <p id="dailyBotStatus" class="hint" role="status">连接云端账号后可设置</p>
-        <button id="dailyBotRefresh" type="button" class="danmaku-text-action" disabled>刷新云端状态</button>
-      </div>
-      <section id="dailyBotTakeover" class="daily-bot-takeover" hidden aria-label="签到与抽签的一次性接管">
-        <h4>首次启用：核对旧数据</h4>
-        <p class="hint">两项云端机器人保持关闭，直到旧数据处置完成。请先退出或升级同一房间所有已知旧客户端；服务器无法阻止旧版直接发送弹幕。</p>
-        <button id="dailyBotInspect" type="button" class="secondary">核对本机旧数据和目标账号</button>
-        <p id="dailyBotLegacySummary" class="hint"></p>
-        <label><input id="dailyBotStopped" type="checkbox" /> 已确认同一房间所有已知旧客户端已退出或升级，旧签到和词库已停止写入</label>
-        <div class="daily-bot-takeover-actions"><button id="dailyBotNoLegacy" type="button" class="secondary" disabled>确认此账号没有待迁移旧数据</button></div>
-        <label><input id="dailyBotFreshConfirmed" type="checkbox" /> 明确选择云端从零开始，旧累计不合并，原库保留待核对</label>
-        <div class="daily-bot-takeover-actions"><button id="dailyBotFresh" type="button" class="secondary" disabled>确认从零开始</button></div>
-        <details><summary>保留旧累计并导入</summary>
-          <label><input id="dailyBotOwnership" type="checkbox" /> 已核对来源，整份旧库与词库属于上方目标账号，未混用多个主播</label>
-          <label>祝福语 <select id="dailyBotBlessingChoice"><option value="legacy">保留旧词库</option><option value="builtin">明确替换为内置词库</option><option value="corrected">一次性修正</option></select></label>
-          <label id="dailyBotBlessingCorrectionLabel" hidden>一次性修正祝福语，每行一条<textarea id="dailyBotBlessingCorrection" rows="6" maxlength="200000"></textarea></label>
-          <label>签池 <select id="dailyBotFortuneChoice"><option value="legacy">保留旧签池</option><option value="builtin">明确替换为内置签池</option><option value="corrected">一次性修正</option></select></label>
-          <div id="dailyBotFortuneCorrectionLabel" hidden><p class="hint">读取最终快照后，在此修正签文或删除无效词条。</p><div id="dailyBotFortuneCorrection"></div></div>
-          <p class="hint">先确认停写，再读取最终快照。不能为旧抽签补造历史；词库修正或替换可能改变接管当天的签文。已上传后修改内容须先取消暂存。</p>
-          <div class="daily-bot-takeover-actions"><button id="dailyBotPrepare" type="button" class="secondary" disabled>读取停写后的最终快照</button><button id="dailyBotApply" type="button" class="primary" disabled>提交预检并导入</button><button id="dailyBotCancel" type="button" class="ghost" hidden>取消暂存导入</button></div>
-          <p id="dailyBotImportFeedback" class="hint" role="status"></p>
-        </details>
-      </section>
       <div id="danmakuFixedEditorHeading" class="danmaku-fixed-editor-heading" hidden>
         <h4 id="danmakuFixedEditorTitle"></h4>
         <div id="danmakuWelcomeTabs" class="danmaku-welcome-tabs" role="group" aria-label="欢迎设置视图" hidden>
@@ -411,10 +387,13 @@
         <button id="danmakuFixedEditorClose" class="danmaku-text-action" type="button">收起</button>
       </div>
       <section id="danmakuRandomReplyPanel" data-fixed-editor="random" hidden>
-        <p class="hint">条件不匹配时自动回复点歌人。回复由点歌结果生成，无需配置词库。</p>
+        <p class="hint danmaku-fixed-help">点歌未匹配时，会自动回复点歌人。<strong>回复自动生成，不用设置词库。</strong></p>
       </section>
       <section id="danmakuPkReportPanel" data-fixed-editor="pk" hidden>
-        <p class="hint">PK 开始时，服务器自动在本直播间播报对手大航海与在线榜概况。榜单可能不完整。按当前在线榜贡献值估算，三个金额档位互不重叠（1 元＝10 贡献值）。退出客户端后服务器继续运行。</p>
+        <div class="danmaku-fixed-notes">
+          <p class="hint danmaku-fixed-help">PK 开始时，自动在本直播间播报对手的<strong>大航海和在线榜概况</strong>。关闭客户端也会继续播报。</p>
+          <p class="hint">榜单可能不全；金额按当前贡献值估算（1 元＝10 贡献值），三个档位不重复统计。</p>
+        </div>
         <p id="danmakuPkReportDetail" class="hint" role="status"></p>
         <button id="danmakuPkReportRefreshBtn" type="button" class="secondary" disabled>刷新状态</button>
       </section>
@@ -489,8 +468,12 @@
         </div>
       </details>
       <!-- admin-fragment: pages/admin/toolbox/danmaku-welcome-library.html -->
+      <div class="daily-bot-cloud-status">
+        <p id="dailyBotStatus" class="hint" role="status">连接云端账号后可设置</p>
+        <button id="dailyBotRefresh" type="button" class="danmaku-text-action" disabled>刷新云端状态</button>
+      </div>
       <div class="danmaku-welcome-pinyin">
-        <div><strong id="danmakuWelcomePinyinTitle">昵称生僻字自动注音</strong><span id="danmakuWelcomePinyinStatus" class="hint" role="status">尚未确认</span><p class="hint">读音会随欢迎、问候公开发送。多音字或未知读音保留原字。</p></div>
+        <div><strong id="danmakuWelcomePinyinTitle">昵称生僻字自动注音</strong><span id="danmakuWelcomePinyinStatus" class="hint" role="status">尚未确认</span><p class="hint danmaku-fixed-help"><strong>读音会随欢迎、问候弹幕公开发送。</strong>多音字或读音不确定时，保留原字。</p></div>
         <label class="switch-control"><input id="danmakuWelcomePinyinToggle" type="checkbox" disabled aria-labelledby="danmakuWelcomePinyinTitle" /><span class="switch-track"></span><span class="switch-caption" aria-hidden="true"></span></label>
       </div>
     </section>

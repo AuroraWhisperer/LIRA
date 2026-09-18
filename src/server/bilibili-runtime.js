@@ -119,6 +119,22 @@ function createBilibiliRuntime(options) {
     return getGameApiClient().fetchAvatarImage(value);
   }
 
+  async function getRoomProfile() {
+    const roomId = getConfiguredRoomId();
+    if (!roomId) return { roomId: '', uid: '', name: '', avatarUrl: '' };
+    await refreshAuthCache();
+    const room = await new BilibiliApiClient(roomId, authCache).resolveRoomInfo();
+    const profile = await userInfoService.ensure(room.uid, {
+      fields: ['name', 'avatarUrl'],
+    });
+    return {
+      roomId: String(room.roomId),
+      uid: String(room.uid || ''),
+      name: profile?.name || room.ownerName || '',
+      avatarUrl: profile?.avatarUrl || '',
+    };
+  }
+
   async function requestRandomSong() {
     const fanScope = options.getFanScope?.() || null;
     const account = await authProvider?.getAuthState();
@@ -314,6 +330,7 @@ function createBilibiliRuntime(options) {
     refreshViewerCandidates: () =>
       client?.refreshViewerCandidates?.() || Promise.resolve(),
     getGameWinnerProfile: resolveGameWinnerProfile,
+    getRoomProfile,
     fetchAvatarImage,
     requestRandomSong,
   };

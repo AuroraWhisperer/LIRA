@@ -1,5 +1,5 @@
 html, body { margin: 0; background: transparent; overflow: hidden; }
-#giftFeedViewport { width: 400px; overflow: hidden; }
+#giftFeedViewport { width: max-content; min-width: var(--gift-banner-width); overflow: hidden; }
 #giftFeedStage { transform: translateY(0); }
-body.gift-feed-preview { min-height: 100vh; background: #4b5563; font-family: 'Microsoft YaHei', sans-serif; color: #fff; }
-#giftFeedStatus { margin: 16px; max-width: 380px; font-size: 14px; line-height: 1.6; }
+body.gift-feed-preview { min-height: 100vh; background: #f5f5f5; font-family: 'Microsoft YaHei', sans-serif; color: #3d4450; }
+#giftFeedStatus { margin: 16px; max-width: calc(var(--gift-banner-width) - 32px); font-size: 14px; line-height: 1.6; }

@@ -9,6 +9,14 @@ function registerFanProfileIpc({
   getDesktopBaseUrl,
 }) {
   const channel = 'fan-profiles:invoke';
+  const success = (result) => ({ ok: true, ...result });
+  const failure = (error) => ({
+    ok: false,
+    error: /[\u4e00-\u9fff]/.test(error.message || '')
+      ? error.message
+      : '档案操作失败，输入尚未保存，请重试。',
+    ...(error.existingId ? { existingId: error.existingId } : {}),
+  });
   ipcMain.handle(channel, (event, request) => {
     const win = getMainWindow();
     if (
@@ -24,15 +32,12 @@ function registerFanProfileIpc({
       return { ok: false, error: 'IPC_SOURCE_INVALID' };
     }
     try {
-      return { ok: true, ...controller.invoke(request) };
+      const result = controller.invoke(request);
+      return result instanceof Promise
+        ? result.then(success, failure)
+        : success(result);
     } catch (error) {
-      return {
-        ok: false,
-        error: /[\u4e00-\u9fff]/.test(error.message || '')
-          ? error.message
-          : '档案操作失败，输入尚未保存，请重试。',
-        ...(error.existingId ? { existingId: error.existingId } : {}),
-      };
+      return failure(error);
     }
   });
   return () => ipcMain.removeHandler(channel);

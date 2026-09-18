@@ -335,20 +335,46 @@
   top: calc(100% + 4px);
   z-index: 20;
   min-width: 170px;
+}
+#fanMoreButton {
+  anchor-name: --fan-more-trigger;
+}
+.fan-more-menu {
+  position: fixed;
+  position-anchor: --fan-more-trigger;
+  inset: auto;
+  top: calc(anchor(bottom) + 6px);
+  right: anchor(right);
+  margin: 0;
+  min-width: 190px;
+  color: var(--text);
+}
+.fan-more > div,
+.fan-more-menu {
   padding: 6px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
 }
-.fan-more button {
+.fan-more button,
+.fan-more-menu button {
   display: block;
   border: 0;
   width: 100%;
   text-align: left;
   background: transparent;
 }
-.fan-more button:hover {
+.fan-more-menu button {
+  padding: 9px 12px;
+}
+.fan-more button:hover,
+.fan-more-menu button:hover {
   background: var(--color-bg-tertiary);
+}
+.fan-more-menu hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 5px 6px;
 }
 .fan-back-list {
   display: none;
@@ -502,6 +528,12 @@
 .fan-editor ::selection,
 .fan-quick ::selection {
   background: var(--color-control-accent-light);
+  color: var(--text);
+}
+.fan-profiles button,
+.fan-editor button,
+.fan-quick button {
+  user-select: none;
 }
 .fan-profiles input,
 .fan-editor input,

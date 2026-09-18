@@ -7,7 +7,7 @@ const path = require('node:path');
 function readPortOwner(port, remotePort) {
   if (process.platform !== 'win32' || !validPort(port)) return null;
   if (remotePort !== undefined && !validPort(remotePort)) return null;
-  // Query the same CIM provider directly, avoiding NetTCPIP cmdlet import cost.
+  // Query the provider through WMI to reduce native lookup overhead.
   // MSFT_NetTCPConnection states: Listen = 2, Established = 5.
   const connection = remotePort === undefined
     ? 'State=2'
@@ -15,10 +15,10 @@ function readPortOwner(port, remotePort) {
   try {
     const output = childProcess.execFileSync('powershell.exe', [
       '-NoProfile', '-NonInteractive', '-Command',
-      `$ownerId = Get-CimInstance -Namespace root/StandardCimv2 -ClassName MSFT_NetTCPConnection -Filter "LocalAddress='127.0.0.1' AND LocalPort=${port} AND ${connection}" -ErrorAction Stop | Select-Object -First 1 -ExpandProperty OwningProcess; ` +
+      `$ownerId = Get-WmiObject -Namespace root/StandardCimv2 -Class MSFT_NetTCPConnection -Filter "LocalAddress='127.0.0.1' AND LocalPort=${port} AND ${connection}" -ErrorAction Stop | Select-Object -First 1 -ExpandProperty OwningProcess; ` +
       'if ($ownerId) { ' +
-      '$ownerProcess = Get-CimInstance Win32_Process -Filter "ProcessId=$ownerId" -ErrorAction Stop; ' +
-      '$ownerSid = (Invoke-CimMethod -InputObject $ownerProcess -MethodName GetOwnerSid -ErrorAction Stop).Sid; ' +
+      '$ownerProcess = Get-WmiObject Win32_Process -Filter "ProcessId=$ownerId" -ErrorAction Stop; ' +
+      '$ownerSid = $ownerProcess.GetOwnerSid().Sid; ' +
       'if ($ownerSid -eq [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value) { ' +
       '$ownerProcess | Select-Object ProcessId,ExecutablePath,CommandLine,CreationDate | ConvertTo-Json -Compress } }',
     ], { encoding: 'utf8', windowsHide: true, timeout: 5000, stdio: ['ignore', 'pipe', 'ignore'] });

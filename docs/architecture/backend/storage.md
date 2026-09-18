@@ -312,6 +312,6 @@ ADR [0011-source-partitioned-gift-ledger-projection](../adr/0011-source-partitio
 
 `gift_events` 增加可空 `gift_variant_id`、`blind_box_variant_id`。旧行保持 NULL，新记录随原导入事务写入冻结身份。`overtime_gift_rules` 新增 `gift_identity_key TEXT NOT NULL DEFAULT ''` 和 `gift_identity_json TEXT`，主键改为 `(gift_id, gift_identity_key)`；原九列内容完整复制。迁移可重复检查，不推断旧名称对应的标价。数字平台 ID 的无身份规则保留并等待重新选择；settlements 内容不迁移、不回放。运行时图片 index schema 2 以 variantId 保存最近成功文件，旧 numeric ID 索引不参与回退。详见 [ADR-0014](../adr/0014-gift-identity-bound-overtime.md)。
 
-## 签到旧库与云端接管
+## 签到云端数据与旧库兼容
 
-`checkin-data.db` 原位保留，daily-bot-legacy-reader 是一次性只读适配器，生产 domain-services 不再创建 createCheckinStore/checkin/fortune 执行服务。停写及归属确认后，main 读取受限快照；摘要、批次与接管结果按 Server daily-bots 契约处理，不修改旧累计。关闭云端不清历史，日常旧 settings 不自动上传。普通旧库维护接口语义保持原状。
+签到累计、每日记录和抽签结果保存在云端租户 `streamer.db`，随整库备份恢复后继续使用。客户端直接控制开关，不显示旧数据处理流程，也不自动读取或上传本机旧库；关闭或重启不清空云端历史。`checkin-data.db` 原位保留，daily-bot-legacy-reader 仅作为旧 API/IPC 的一次性只读兼容适配器，显式调用仍要求停写及归属确认。生产 domain-services 不再创建 createCheckinStore/checkin/fortune 执行服务。普通旧库维护接口语义保持原状。

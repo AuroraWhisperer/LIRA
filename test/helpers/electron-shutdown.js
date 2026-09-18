@@ -240,6 +240,7 @@ function createShutdownHarness(options = {}) {
         start() { calls.push('fan:start'); },
       }),
     },
+    '../bilibili/guard-roster': { fetchGuardRoster() {} },
     './ipc/fan-profile-ipc': {
       registerFanProfileIpc: () => () => calls.push('fan:remove-ipc'),
     },
