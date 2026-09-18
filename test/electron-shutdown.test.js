@@ -41,6 +41,8 @@ test('every quit event waits for one sync drain, playback flush and runtime stop
   assert.equal(h.count('remote:dispose'), 1);
   assert.equal(h.count('cloud:dispose'), 1);
   assert.equal(h.count('gift-interaction:remove-ipc'), 1);
+  assert.equal(h.count('daily-bot:remove-ipc'), 1);
+  assert.equal(h.count('daily-bot:dispose'), 1);
   assert.ok(h.calls.indexOf('gift-interaction:remove-ipc') < h.calls.indexOf('cloud:dispose'));
   assert.equal(h.count('runtime:stop'), 0);
   assert.equal(h.count('app:exit'), 0);
@@ -315,4 +317,23 @@ test('update install IPC keeps delegating to the existing updater', async () => 
   assert.equal(h.count('remote:dispose'), 0);
   assert.equal(h.count('runtime:stop'), 0);
   assert.equal(h.count('app:relaunch'), 0);
+});
+
+test('fan synchronization is disposed and drained before database shutdown', async () => {
+  const fanIdle = Promise.withResolvers();
+  const h = createShutdownHarness({ fanIdle });
+  await h.start();
+  h.quit();
+  assert.equal(h.count('fan:remove-ipc'), 1);
+  assert.equal(h.count('fan:dispose'), 1);
+  h.remoteIdle.resolve();
+  h.cloudIdle.resolve();
+  await h.settle();
+  assert.equal(h.count('runtime:stop'), 0);
+  fanIdle.resolve();
+  await h.settle();
+  assert.equal(h.count('runtime:stop'), 1);
+  h.backendStop.resolve();
+  await h.state.lifecycle.shutdownPromise;
+  assertFinalized(h, false);
 });

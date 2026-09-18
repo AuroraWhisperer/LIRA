@@ -86,7 +86,7 @@ test('wheel module entry binds its controls without relying on classic-script gl
   assert.equal(windowRef.spinFromWheel, undefined);
 });
 
-test('wheel overlay page is served without frame protection headers', async () => {
+test('wheel overlay page allows embedding with isolated script origin', async () => {
   let status;
   let headers = {};
   const body = await new Promise((resolve) => {
@@ -114,6 +114,6 @@ test('wheel overlay page is served without frame protection headers', async () =
   assert.match(html, /<!doctype html>/i);
   assert.match(html, /id="wheelSvg"/);
   assert.match(html, /<\/html>\s*$/);
-  assert.equal(headers['Content-Security-Policy'], undefined);
+  assert.equal(headers['Content-Security-Policy'], 'sandbox allow-scripts');
   assert.equal(headers['X-Frame-Options'], undefined);
 });

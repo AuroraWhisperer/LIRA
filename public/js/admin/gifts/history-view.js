@@ -72,7 +72,7 @@ export function renderGiftHistoryView(view) {
 function formatHistoryMoney(value) {
   const number = Number(value);
   if (!Number.isFinite(number) || number <= 0) return '¥0.0';
-  return `¥${number.toFixed(1)}`;
+  return `¥${number.toFixed(Math.round(number * 100) % 10 === 0 ? 1 : 2)}`;
 }
 
 function renderGiftRemarks(gift) {

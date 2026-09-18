@@ -360,18 +360,12 @@
           <label class="switch-control"><input id="danmakuReplyToggle" type="checkbox" aria-labelledby="danmakuReplyTitle" /><span class="switch-track"></span><span class="switch-caption" aria-hidden="true"></span></label>
         </div>
         <div class="danmaku-fixed-item" data-fixed-item="checkin">
-          <button class="danmaku-fixed-open" type="button" data-fixed-open="checkin" aria-controls="danmakuBlessingsPanel" aria-expanded="false">
-            <span><strong id="danmakuCheckinTitle">签到机器人</strong><span class="danmaku-fixed-summary" data-fixed-count="danmakuBlessingCount">正在读取祝福语</span><span class="danmaku-fixed-note" data-fixed-note="checkin"></span></span>
-            <span class="danmaku-fixed-action">编辑</span>
-          </button>
-          <label class="switch-control"><input id="danmakuCheckinToggle" type="checkbox" aria-labelledby="danmakuCheckinTitle" /><span class="switch-track"></span><span class="switch-caption" aria-hidden="true"></span></label>
+          <div class="danmaku-fixed-open"><span><strong id="danmakuCheckinTitle">签到机器人</strong><span class="danmaku-fixed-summary">云端运行 · 收到“签到”后回复累计天数</span><span id="dailyBotcheckinStatus" class="danmaku-fixed-note" role="status">尚未确认云端状态</span></span></div>
+          <label class="switch-control"><input id="danmakuCheckinToggle" type="checkbox" aria-labelledby="danmakuCheckinTitle" disabled /><span class="switch-track"></span><span class="switch-caption" aria-hidden="true"></span></label>
         </div>
         <div class="danmaku-fixed-item" data-fixed-item="fortune">
-          <button class="danmaku-fixed-open" type="button" data-fixed-open="fortune" aria-controls="danmakuFortunesPanel" aria-expanded="false">
-            <span><strong id="danmakuFortuneTitle">抽签机器人</strong><span class="danmaku-fixed-summary" data-fixed-count="danmakuFortuneCount">正在读取签文</span><span class="danmaku-fixed-note" data-fixed-note="fortune"></span></span>
-            <span class="danmaku-fixed-action">编辑</span>
-          </button>
-          <label class="switch-control"><input id="danmakuFortuneToggle" type="checkbox" aria-labelledby="danmakuFortuneTitle" /><span class="switch-track"></span><span class="switch-caption" aria-hidden="true"></span></label>
+          <div class="danmaku-fixed-open"><span><strong id="danmakuFortuneTitle">抽签机器人</strong><span class="danmaku-fixed-summary">云端运行 · 收到“抽签”后回复每日一签</span><span id="dailyBotfortuneStatus" class="danmaku-fixed-note" role="status">尚未确认云端状态</span></span></div>
+          <label class="switch-control"><input id="danmakuFortuneToggle" type="checkbox" aria-labelledby="danmakuFortuneTitle" disabled /><span class="switch-track"></span><span class="switch-caption" aria-hidden="true"></span></label>
         </div>
         <div class="danmaku-fixed-item" data-fixed-item="diy">
           <button class="danmaku-fixed-open" type="button" data-fixed-open="diy" aria-controls="danmakuCustomRepliesPanel" aria-expanded="false">
@@ -383,6 +377,30 @@
         <!-- admin-fragment: pages/admin/toolbox/danmaku-welcome-switch.html -->
         <!-- admin-fragment: pages/admin/toolbox/danmaku-pk-report-switch.html -->
       </div>
+      <div class="daily-bot-cloud-status">
+        <p id="dailyBotStatus" class="hint" role="status">连接云端账号后可设置</p>
+        <button id="dailyBotRefresh" type="button" class="danmaku-text-action" disabled>刷新云端状态</button>
+      </div>
+      <section id="dailyBotTakeover" class="daily-bot-takeover" hidden aria-label="签到与抽签的一次性接管">
+        <h4>首次启用：核对旧数据</h4>
+        <p class="hint">两项云端机器人保持关闭，直到旧数据处置完成。请先退出或升级同一房间所有已知旧客户端；服务器无法阻止旧版直接发送弹幕。</p>
+        <button id="dailyBotInspect" type="button" class="secondary">核对本机旧数据和目标账号</button>
+        <p id="dailyBotLegacySummary" class="hint"></p>
+        <label><input id="dailyBotStopped" type="checkbox" /> 已确认同一房间所有已知旧客户端已退出或升级，旧签到和词库已停止写入</label>
+        <div class="daily-bot-takeover-actions"><button id="dailyBotNoLegacy" type="button" class="secondary" disabled>确认此账号没有待迁移旧数据</button></div>
+        <label><input id="dailyBotFreshConfirmed" type="checkbox" /> 明确选择云端从零开始，旧累计不合并，原库保留待核对</label>
+        <div class="daily-bot-takeover-actions"><button id="dailyBotFresh" type="button" class="secondary" disabled>确认从零开始</button></div>
+        <details><summary>保留旧累计并导入</summary>
+          <label><input id="dailyBotOwnership" type="checkbox" /> 已核对来源，整份旧库与词库属于上方目标账号，未混用多个主播</label>
+          <label>祝福语 <select id="dailyBotBlessingChoice"><option value="legacy">保留旧词库</option><option value="builtin">明确替换为内置词库</option><option value="corrected">一次性修正</option></select></label>
+          <label id="dailyBotBlessingCorrectionLabel" hidden>一次性修正祝福语，每行一条<textarea id="dailyBotBlessingCorrection" rows="6" maxlength="200000"></textarea></label>
+          <label>签池 <select id="dailyBotFortuneChoice"><option value="legacy">保留旧签池</option><option value="builtin">明确替换为内置签池</option><option value="corrected">一次性修正</option></select></label>
+          <div id="dailyBotFortuneCorrectionLabel" hidden><p class="hint">读取最终快照后，在此修正签文或删除无效词条。</p><div id="dailyBotFortuneCorrection"></div></div>
+          <p class="hint">先确认停写，再读取最终快照。不能为旧抽签补造历史；词库修正或替换可能改变接管当天的签文。已上传后修改内容须先取消暂存。</p>
+          <div class="daily-bot-takeover-actions"><button id="dailyBotPrepare" type="button" class="secondary" disabled>读取停写后的最终快照</button><button id="dailyBotApply" type="button" class="primary" disabled>提交预检并导入</button><button id="dailyBotCancel" type="button" class="ghost" hidden>取消暂存导入</button></div>
+          <p id="dailyBotImportFeedback" class="hint" role="status"></p>
+        </details>
+      </section>
       <div id="danmakuFixedEditorHeading" class="danmaku-fixed-editor-heading" hidden>
         <h4 id="danmakuFixedEditorTitle"></h4>
         <div id="danmakuWelcomeTabs" class="danmaku-welcome-tabs" role="group" aria-label="欢迎设置视图" hidden>
@@ -466,149 +484,6 @@
               type="button"
             >
               保存 DIY 回复
-            </button>
-          </div>
-        </div>
-      </details>
-      <details id="danmakuBlessingsPanel" class="danmaku-blessings-section" data-fixed-editor="checkin" hidden>
-        <summary>
-          <div>
-            <h3>签到祝福语 <lira-help>签到时随机发送一条。</lira-help></h3>
-            <p><span id="danmakuBlessingCount">0 条</span></p>
-          </div>
-          <svg
-            class="danmaku-details-chevron"
-            viewBox="0 0 20 20"
-            fill="none"
-            aria-hidden="true"
-          >
-            <path
-              d="m5 8 5 5 5-5"
-              stroke="currentColor"
-              stroke-width="1.8"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
-        </summary>
-        <div class="danmaku-blessings-body">
-          <p id="danmakuCheckinTarget" class="hint">收到“签到”后回复累计天数，随机附上一条祝福语。</p>
-          <div
-            id="danmakuBlessingList"
-            class="danmaku-blessing-list"
-            aria-live="polite"
-          ></div>
-          <div class="danmaku-blessing-add-row">
-            <input
-              id="danmakuBlessingInput"
-              type="text"
-              maxlength="60"
-              placeholder="输入一条祝福语"
-              aria-label="新增签到祝福语"
-            />
-            <button
-              id="danmakuBlessingAddBtn"
-              class="icon"
-              type="button"
-              title="添加祝福语"
-              aria-label="添加祝福语"
-            >
-              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path
-                  d="M12 5v14M5 12h14"
-                  stroke="currentColor"
-                  stroke-width="1.8"
-                  stroke-linecap="round"
-                />
-              </svg>
-            </button>
-          </div>
-          <div class="danmaku-blessing-actions">
-            <span
-              id="danmakuBlessingStatus"
-              class="hint"
-              role="status"
-              aria-live="polite"
-              >正在读取祝福语</span
-            >
-            <button id="danmakuBlessingSaveBtn" class="primary" type="button">
-              保存祝福语
-            </button>
-          </div>
-        </div>
-      </details>
-      <details id="danmakuFortunesPanel" class="danmaku-blessings-section" data-fixed-editor="fortune" hidden>
-        <summary>
-          <div>
-            <h3>
-              抽签机器人词库 <lira-help>收到“抽签”后回复每日一签；同一观众每天固定抽取一条。</lira-help>
-            </h3>
-            <p><span id="danmakuFortuneCount">0 条</span></p>
-          </div>
-          <svg
-            class="danmaku-details-chevron"
-            viewBox="0 0 20 20"
-            fill="none"
-            aria-hidden="true"
-          >
-            <path
-              d="m5 8 5 5 5-5"
-              stroke="currentColor"
-              stroke-width="1.8"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
-        </summary>
-        <div class="danmaku-blessings-body">
-          <div
-            id="danmakuFortuneList"
-            class="danmaku-fortune-list"
-            aria-live="polite"
-          ></div>
-          <div class="danmaku-fortune-add-grid">
-            <label
-              >签级<input
-                id="danmakuFortuneLevelInput"
-                type="text"
-                maxlength="16"
-                placeholder="例如：上上签"
-            /></label>
-            <label
-              >签名<input
-                id="danmakuFortuneNameInput"
-                type="text"
-                maxlength="24"
-                placeholder="例如：云开见日"
-            /></label>
-            <label
-              >签文<input
-                id="danmakuFortuneTextInput"
-                type="text"
-                maxlength="80"
-                placeholder="输入签文"
-            /></label>
-            <label
-              >建议<input
-                id="danmakuFortuneAdviceInput"
-                type="text"
-                maxlength="80"
-                placeholder="例如：宜……，忌……"
-            /></label>
-            <button id="danmakuFortuneAddBtn" class="secondary" type="button">
-              添加一签
-            </button>
-          </div>
-          <div class="danmaku-blessing-actions">
-            <span
-              id="danmakuFortuneStatus"
-              class="hint"
-              role="status"
-              aria-live="polite"
-              >正在读取抽签词库</span
-            >
-            <button id="danmakuFortuneSaveBtn" class="primary" type="button">
-              保存抽签词库
             </button>
           </div>
         </div>

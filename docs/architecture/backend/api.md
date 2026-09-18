@@ -1,5 +1,7 @@
 # HTTP API 端点注册表
 
+粉丝私人档案不进入本地 HTTP/WS API 或公开状态，使用 [受限 IPC](../desktop/preload.md)。主进程通过 DeviceBearer 调用 Server `GET /api/device/fan-facts?after=&epoch=&limit=200` 获取可靠 typed identity 与会员观察；scope 来自已认证账号，离线保留本机编辑，旧服务 404 显示同步不可用。契约见 companion Server `docs/protocol/fan-facts.md`、Device OpenAPI 和 fixture；本地实现需求见 [fan-profiles](../../../specs/fan-profiles.md)。
+
 礼物身份扩展（2026-09-13）：本地 `/api/overtime/gifts`、`/api/overtime/gifts/catalog`、搜索响应中的完整礼物增加 `variantId` 与 `giftIdentity: {variantId, priceRaw, coinType, bagGift}`。全局快照以 `variantBlindBoxes` 提供完整官方关系，`blindBoxes` 保留当前投影的兼容关系；同 ID 资料不合并。`/api/overtime/rules` 保存可空 giftIdentity；规则快照增加 `bindingStatus`（bound/needs-selection），身份摘要与 giftId/giftName 必须一致。同一身份不能重复，旧无身份规则保留但不匹配普通平台事件，重新选择可保留原设置。见[礼物身份规格](../../../specs/gift-identity-overtime.md)。
 
 > 涉及文件:[src/server/api-routes.js](../../../src/server/api-routes.js)、[src/server/http-utils.js](../../../src/server/http-utils.js)、[src/server/routes/system-routes.js](../../../src/server/routes/system-routes.js)、[src/server/routes/settings-routes.js](../../../src/server/routes/settings-routes.js)、[src/server/routes/clock-routes.js](../../../src/server/routes/clock-routes.js)、[src/server/routes/opening-routes.js](../../../src/server/routes/opening-routes.js)、[src/server/routes/wesing-routes.js](../../../src/server/routes/wesing-routes.js)、[src/server/routes/music-routes.js](../../../src/server/routes/music-routes.js)、[src/server/routes/playback-routes.js](../../../src/server/routes/playback-routes.js)、[src/server/routes/theme-routes.js](../../../src/server/routes/theme-routes.js)、[src/server/routes/song-routes.js](../../../src/server/routes/song-routes.js)、[src/server/routes/queue-routes.js](../../../src/server/routes/queue-routes.js)、[src/server/routes/superchat-routes.js](../../../src/server/routes/superchat-routes.js)、[src/server/routes/gift-routes.js](../../../src/server/routes/gift-routes.js)、[src/server/routes/overtime-routes.js](../../../src/server/routes/overtime-routes.js)、[src/server/routes/data-routes.js](../../../src/server/routes/data-routes.js)、[src/server/routes/ai-routes.js](../../../src/server/routes/ai-routes.js)、[src/server/routes/game-routes.js](../../../src/server/routes/game-routes.js)、[src/server/routes/bilibili-routes.js](../../../src/server/routes/bilibili-routes.js)
@@ -29,16 +31,37 @@
 | 405 与 404 区分 | 模块前缀命中但路径没有对应方法时,`findRoute` 置 `pathExists` → **405**;任何模块前缀都不命中 → **404**                               | [api-routes.js:34-38](../../../src/server/api-routes.js#L34-L38) |
 | 请求体惰性读取  | `createBodyReader` 只在 handler 真正调用 `request.body()` 时读一次 JSON(GET 请求不读 body)                                          | [api-routes.js:42-48](../../../src/server/api-routes.js#L42-L48) |
 
-**认证**:**除 `/api/health` 与 Browser Source 只读配置 `/api/clock/config`、`/api/opening/config` 外全部本地端点要求 Bearer 头(`Authorization: Bearer <sessionToken>`)或查询参数 `?token=<sessionToken>`**,校验失败回 401。这里的规则只适用于 Live 本地 Node 服务；独立的 lira-server 公共礼物目录见 §0.2，不把其匿名读取误解为放宽本地 API 鉴权。token 生成/落盘/前端注入的完整机制由 [server-core.md](server-core.md) §4 与 §7 负责,此处只记录契约形态:
+**认证**：仅 `GET /api/health` 匿名可用。本地 API 使用管理身份或独立页面能力；Bearer/query 由同一服务端 owner 验证，显式 Authorization 优先且不回退。管理身份可访问下表各领域接口；overlay 只允许 §0.0 的路径、方法和参数。时钟与开播配置也需要各自页面能力，页面会自动携带。此规则不改变独立 lira-server 的公开目录。凭据生命周期和 Electron 引导见 [server-core.md](server-core.md) §4/§7。
 
-- 401:`{ok:false, error:'未授权访问。请在启动日志中查看 session token。'}`
-- 405:`{ok:false, error:'请求方法不支持', details:'该接口不支持 <METHOD> 请求'}`
-- 404:`{ok:false, error:'API 接口不存在', details:'未找到接口：<pathName>'}`
-- 顶层兜底(handler 未捕获异常):**500** `{ok:false, error: <error.message>}`([server.js:279-282](../../../src/server.js#L279-L282));body 超限/非法 JSON 也经此路径返回(`Request body is too large.` / `Invalid JSON body.`)
+- 401：`{ok:false,error:'未授权访问。请重新打开页面。'}`，缺少或无效凭据。
+- 403：有效页面能力越过 scope、调用管理动作，或来源不被允许。
+- 405/404：管理路由的方法不支持/路径不存在；overlay 未列入能力表的请求均为 403。
+- 顶层异常返回脱敏 500；非法 JSON 返回 400，请求体超预算返回带 `Connection: close` 的 413。
+
 
 **请求体**:JSON,上限 `MAX_BODY_BYTES = 16 MB`([server.js:48](../../../src/server.js#L48));空 body 按 `{}` 处理;非法 JSON 或超限由 [http-utils.js:8-35](../../../src/server/http-utils.js#L8-L35) 的 `readJsonBody` 拒绝。
 
 **响应**:除歌库的 CSV/XLSX 下载端点外,全部为 JSON。成功统一 `{ok:true, data:…}`(`sendJson`,[http-utils.js:37-44](../../../src/server/http-utils.js#L37-L44)),错误统一 `{ok:false, error, details?}`。CSV/XLSX 下载走 `sendCsv`/`sendBuffer`,带 `Content-Disposition: attachment` 与 `Cache-Control: no-store`([http-utils.js:56-73](../../../src/server/http-utils.js#L56-L73))。
+
+### 0.0 Overlay HTTP 能力
+
+[access-policy.js](../../../src/server/access-policy.js) 拥有精确能力表，[overlay-http.js](../../../src/server/overlay-http.js) 限制输入，[overlay-projection.js](../../../src/server/overlay-projection.js) 对每层响应使用字段 allowlist。以下范围外的领域 API 默认仅管理身份可用；匿名打开其他展示 HTML 不等于复用当前页凭据授权其他 scope。
+
+| Scope | 允许的本地 API | 附加限制 |
+| --- | --- | --- |
+| 全部 13 页 | `GET /api/state` | 仅本页最小状态；无 snapshot 消费者返回 `{}`，也用于旧凭据恢复检查 |
+| queue / overtime / lyrics / gift-effects | 无额外 REST | 专用推送见 [ws.md](ws.md) |
+| songlist | `GET /api/songs` | 服务端强制 enabledOnly，仅 category 展示过滤；不返回文件路径、禁用歌或导入元数据 |
+| blindbox | `GET /api/gifts/blind-box-stats` | 可选 boxName，仅公开统计字段 |
+| gift-feed | `GET /api/gifts/display-settings`、`/api/gifts/history`、`/api/overtime/gifts/catalog`、`/api/bilibili/avatar` | history 强制北京时间今日、100 条、created_at 升序；只允许 cursor/viewRevision，禁止客户端选择旧日期、来源或其他用户过滤 |
+| gift-export | `GET /api/bilibili/avatar` | 导出数据由 main 注入冻结快照；没有历史、selection 或导出 IPC 权限 |
+| games | `GET /api/games/session`、`/api/games/winner-profile`、`/api/bilibili/avatar`；`POST /api/games/session`、`/api/games/session/move`、`/api/games/session/draw` | session 仅 stop/restart；move 的 value 仅 number/string，禁止夹带主持动作对象；draw 仅 append/undo/clear。不能新开配置、读取 host-state/词库/观众或揭晓答案 |
+| danmaku | `GET /api/bilibili/avatar` | 保留现有头像/表情 CDN 校验 |
+| wheel | `GET /api/wheel`、`POST /api/wheel/spin` | 只读展示配置与抽取，不允许编辑配置 |
+| opening | `GET /api/opening/config` | 仅文案、展示参数、当前媒体 URL |
+| clock | `GET /api/clock/config` | 仅时钟显示参数 |
+
+HTML sandbox 使展示请求的 Origin 为 `null`。该值本身没有权限：预检仅对上表已知方法/路径开放 Authorization/Content-Type，实际请求再校验有效 scope；管理凭据对此来源一律拒绝。仅上述路径的实际错误响应允许页面读取，以便旧凭据收到 401 后刷新，不返回额外状态。没有 `Access-Control-Allow-Credentials`。
 
 ---
 
@@ -94,8 +117,8 @@ Electron main process 通过 [remote-license-client.js](../../../src/electron/li
 
 | 端点                        | 请求                                                                                                                                                                      | 响应(data)                                                                                                                    | 错误码               |
 | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | -------------------- |
-| `GET /api/health` | 匿名可用；有效 Bearer/query token 可读 ready 诊断详情；可选 `X-Lira-Instance-Challenge` | 匿名 `{serviceId,phase}`；详情与实例证明见 [server-core.md](server-core.md) §2/§7 | 400（Host 不匹配） |
-| `GET /api/state`            | 无                                                                                                                                                                        | 全量状态快照,与 WS 快照 `state` 的 **17 字段一致**(见 [ws.md](ws.md) §2)                                                      | —                    |
+| `GET /api/health` | 匿名可用；有效管理 Bearer/query token 可读 ready 诊断详情；可选 `X-Lira-Instance-Challenge` | 匿名 `{serviceId,phase}`；详情与实例证明见 [server-core.md](server-core.md) §2/§7 | 400（Host 不匹配） |
+| `GET /api/state`            | 无                                                                                                                                                                        | 管理身份返回全量状态，overlay 返回 §0.0 的本页投影；管理数据与 WS 快照 `state` 一致(见 [ws.md](ws.md) §2)                                                      | —                    |
 | `GET /api/system/metrics`   | 查询参数 `windowMs`(可选,默认 5000)                                                                                                                                       | `getSystemMetrics` 采样窗口内 CPU/内存/GPU 指标(见 [server-core.md](server-core.md) §8)                                       | —                    |
 | `GET /api/system/hardware`  | 查询参数 `includeTemperatures=true`(可选)                                                                                                                                 | 本机 CPU/物理 GPU/内存型号与容量（排除虚拟显示适配器）；仅显式传 `true` 时读取支持的 GPU 温度，结果不含序列号                 | —                    |
 | `POST /api/system/shutdown` | body `{confirm: true}`(必须)                                                                                                                                              | `{shuttingDown: true}`,随后延迟 250ms 关闭服务                                                                                | 400 `缺少退出确认。` |
@@ -122,13 +145,13 @@ Electron main process 通过 [remote-license-client.js](../../../src/electron/li
 
 | 端点                            | 请求                                                                                                  | 响应(data)                                                                                                                                                                    | 错误码                                         |
 | ------------------------------- | ----------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| `GET /api/opening/config`       | 无；为 Browser Source 读取当前开播设置，免 session token                                              | 已清洗的文案、画质、开关、音量、轨道动效 `trackMotion`(`heart`/`barber`/`progress`)、当前音频与人物图 URL；未上传或文件缺失时对应 URL/名称为空且 `hasUploaded` 标志为 false，非法轨道值回退 `heart` | —                                              |
+| `GET /api/opening/config`       | 无；管理身份或 opening 页面能力                                              | 已清洗的文案、画质、开关、音量、轨道动效 `trackMotion`(`heart`/`barber`/`progress`)、当前音频与人物图 URL；未上传或文件缺失时对应 URL/名称为空且 `hasUploaded` 标志为 false，非法轨道值回退 `heart` | —                                              |
 | `POST /api/opening/music`       | `multipart/form-data`，字段 `file`；≤ 64 MB，扩展名限 `.mp3/.flac/.wav/.aac/.ogg/.m4a/.wma`           | 保存至 data 目录下 `opening-music/` 并将其设为当前音频                                                                                                                        | 400(缺少/不支持音频文件)、413(超限)            |
 | `DELETE /api/opening/music`     | 无                                                                                                    | 清除当前音乐选择，回到无音乐状态；保留已上传文件                                                                                                                               | —                                              |
 | `POST /api/opening/character`   | `multipart/form-data`，字段 `file`；内容 ≤ 16 MB，扩展名限 `.png/.jpg/.jpeg/.webp` 且必须匹配图片签名 | 保存至 data 目录下 `opening-character/` 并将其设为当前人物图                                                                                                                  | 400(缺少、不支持或签名不匹配)、413(请求体超限) |
 | `DELETE /api/opening/character` | 无                                                                                                    | 清除当前人物图选择，回到无人物图状态；保留已上传文件                                                                                                                           | —                                              |
 
-上传文件使用随机文件名；音频和人物图分别只允许当前设置指向的文件通过 `/opening-media/` 与 `/opening-character/` 读取，原始文件名仅作为界面显示文本。除 `GET /api/opening/config` 外，本节写接口仍需 session token。
+上传文件使用随机文件名；音频和人物图分别只允许当前设置指向的文件通过 `/opening-media/` 与 `/opening-character/` 读取，原始文件名仅作为界面显示文本。本节写接口仅管理身份可用；opening 页面能力只能读取裁剪后的配置。
 
 ### 2.2 normalizeRoomInput 实现细节([shared/utils.js](../../../src/shared/utils.js))
 
@@ -163,7 +186,7 @@ Electron main process 通过 [remote-license-client.js](../../../src/electron/li
 
 | 端点                    | 请求                                                       | 响应(data)                                                                                               | 错误码 |
 | ----------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------ |
-| `GET /api/clock/config` | 无；为 Browser Source 读取当前萌时钟设置，免 session token | 已清洗的 `style`（六套样式）、`showDate`、`showSeconds`、`hourFormat`、`label`；非法存量值回退原默认配置 | —      |
+| `GET /api/clock/config` | 无；管理身份或 clock 页面能力 | 已清洗的 `style`（六套样式）、`showDate`、`showSeconds`、`hourFormat`、`label`；非法存量值回退原默认配置 | —      |
 
 ## 3. WeSing 采集域(wesing)
 
@@ -332,7 +355,7 @@ handler 未包 try/catch:抛错走顶层 **500**。
 | 端点                                | 请求                                                                                                                          | 响应(data)                                          | 错误码                              |
 | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- | ----------------------------------- |
 | `POST /api/gifts/sprint/reset`      | 无                                                                                                                            | 重置礼物冲刺进度;广播 `gift:sprint:reset`           | —                                   |
-| `GET /api/gifts/history`            | 查询参数:`query?`(非空时规范化后 **1–100 个 Unicode code point**)、`range?`(`7d\|30d\|90d\|all\|today`,默认 `30d`)、`limit?`(**1–100**,默认 50)、`cursor?`(opaque keyset)、`sortField?`(`created_at\|gift_name\|price\|remarks`)、`sortDirection?`(`asc\|desc`)；新增 `startDate/endDate`(北京时间 YYYY-MM-DD)、`userQuery/giftQuery`(独立名称交集)、`viewRevision`(来源投影版本)；禁止 `sourceId/source_id` | 当前授权 source 的付费礼物分页、`total/totalPages` 及同步完整性状态 | 400(参数/排序/来源选择器无效)、409(来源未就绪) |
+| `GET /api/gifts/history`            | 查询参数:`query?`(非空时规范化后 **1–100 个 Unicode code point**)、`range?`(`7d\|30d\|90d\|all\|today`,默认 `30d`)、`limit?`(**1–100**,默认 50)、`cursor?`(opaque keyset)、`sortField?`(`created_at\|gift_name\|price\|remarks`)、`sortDirection?`(`asc\|desc`)；`startDate/endDate`(北京时间 YYYY-MM-DD)、`userQuery/giftQuery`(独立名称交集)、`amountAbove?`(人民币元，非负且精确到分；单条总金额严格大于该值，留空不限；与其他条件取交集并绑定游标)、`viewRevision`(来源投影版本)；禁止 `sourceId/source_id` | 当前授权 source 的付费礼物分页、`total/totalPages` 及同步完整性状态 | 400(参数/排序/来源选择器无效)、409(来源未就绪) |
 | `POST /api/gifts/selection` | `viewRevision`、可选 `eventIds`（最多 10000）及与 history 相同的筛选/排序 | 固定记录快照，不合并；无 eventIds 时选择全部筛选结果，保留 partial 状态 | 400(无效参数/超限)、409(来源变化或记录失效) |
 | `GET/POST /api/gifts/display-settings` | POST 固定 palette、三个严格递增正整数分 thresholds、visibleRows(1–10)、intervalSeconds(2–60)、paused/lowPower 布尔 | 读取/保存本地礼物展示配置，保存后广播刷新 | 400(设置无效) |
 | `GET /api/gifts/statistics`         | 查询参数:`query?`、`range?` 同 history;禁止 `sourceId/source_id`                                                          | 当前授权 source 的 8 项整数分 summary、`topGifts`(≤50)、`timeSeries`(≤240)及同步完整性状态 | 400(参数/来源选择器无效)、409(来源未就绪) |
@@ -535,14 +558,14 @@ handler 未包 try/catch:抛错走顶层 **500**。
 `GET /api/games/viewers` 先按需触发一次在线榜拉取，再返回当前在线快照中的直播间观众候选；
 `GET /api/games/draw-guess/categories` 返回固定题库的分类摘要 `[{id,label,count}]`，不返回具体词条；当前内置 9 类、每类 100 词，共 900 个规范化后不重复的可画词条；
 `GET /api/games/session` 返回当前公开游戏状态（数字炸弹不会返回炸弹位置；你画我猜在作画阶段不会返回题词或别名）；胜利后附加临时 `winner:{role:'host'|'viewer',uid,name}`，仅用于胜利展示；
-`GET /api/games/host-state` 返回你画我猜主持状态 `{game,word,category,categoryIds,phase,round,totalRounds}`，供 Admin 私下显示题词并恢复本场所选分类；它沿用 session token，但不得由 `/games` 直播画面渲染；
+`GET /api/games/host-state` 返回你画我猜主持状态 `{game,word,category,categoryIds,phase,round,totalRounds}`，供 Admin 私下显示题词并恢复本场所选分类；它仅接受管理身份，games 页面能力由服务端拒绝访问；
 `GET /api/games/winner-profile` 按当前会话的 `winner` 临时查询 Bilibili 头像，返回 `{avatarUrl,name}`，没有胜者或查询失败时字段为空，不写入存储；`/games` 把该地址和你画我猜弹幕头像统一交给 `GET /api/bilibili/avatar` 代取，因此数字炸弹、五子棋结算与画猜消息不直接加载 CDN HTTPS；
 `POST /api/games/session` 接受 `{game, mode, targetUid, targetName}` 开始会话；`draw-guess` 还可接受整数 `totalRounds`（1–12）、`roundDurationSeconds`（15–300）和分类 ID 数组 `categoryIds`。轮数与时长缺失或越界时分别回退为 5 和 90；`categoryIds` 缺失时使用全部分类，显式空数组、未知分类或非法 ID 返回 400，重复 ID 会去重，只有所选分类进入本场随机题池。`game` 为 `number-bomb|gomoku|draw-guess`；也接受 `{action:"stop"}` 结束会话，或在数字炸弹/五子棋结算后接受 `{action:"restart"}`，按相同游戏、模式和指定观众原子重开下一局。未结算时重开返回 409；已有会话时普通开始请求返回 **409** `{ok:false,error:'已有游戏正在进行，请先结束当前游戏。'}`，不会覆盖旧会话；
-`POST /api/games/session/move` 接受主播的 `{value}` 落子；你画我猜使用 `{value:{action:'finish-round'|'reveal-answer'|'next-round'}}` 结束作画、公布答案或开始下一题。时间到后会进入待公布状态，`reveal-answer` 前公开状态不含答案且弹幕仍会被收集但不计分；
-`POST /api/games/session/draw` 接受 `{action:'append',clientId,strokeId,color,width,points:[{x,y}]}`、`{action:'clear',clientId}` 或 `{action:'undo',clientId}`。撤销由服务端按当前最后一笔决定，并在广播中带回被撤销的 `strokeId`；服务端只允许固定颜色/笔宽、1–32 个归一化坐标、最多 160 笔和每局 6000 个坐标，成功返回 `{revision}` 并广播 `game:draw`。没有可撤销笔画时返回稳定的 400 错误。所有端点沿用现有 session token 与 `{ok,data}` 信封。
+`POST /api/games/session/move` 接受主播的 `{value}` 落子；仅管理身份的你画我猜控制使用 `{value:{action:'finish-round'|'reveal-answer'|'next-round'}}` 结束作画、公布答案或开始下一题。时间到后会进入待公布状态，`reveal-answer` 前公开状态不含答案且弹幕仍会被收集但不计分；
+`POST /api/games/session/draw` 接受 `{action:'append',clientId,strokeId,color,width,points:[{x,y}]}`、`{action:'clear',clientId}` 或 `{action:'undo',clientId}`。撤销由服务端按当前最后一笔决定，并在广播中带回被撤销的 `strokeId`；服务端只允许固定颜色/笔宽、1–32 个归一化坐标、最多 160 笔和每局 6000 个坐标，成功返回 `{revision}` 并广播 `game:draw`。没有可撤销笔画时返回稳定的 400 错误。沿用 `{ok,data}` 信封；管理身份拥有完整操作，展示页能力遵循 §0.0 限制。
 
 你画我猜为内存会话，默认五局、每局 90 秒，允许配置 1–12 局和每局 15–300 秒；固定题库由 `src/games/draw-guess-words.js` 拥有，题目可带 `|` 分隔的等价答案，但分类摘要不会暴露这些词条。服务端单计时器到时结束作画并等待主播公布答案。会话公开状态保留本局开始后收到的弹幕（最多 500 条，含 uid、昵称、内容和可选头像地址），直到会话结束；观众弹幕按完整答案匹配，同一 UID 每局只计分一次，第 1/2/3 位分别得 10/7/5 分，其余答对者得 3 分，时间到后不再计分。
 
 ## 独立转盘 API
 
-`GET /api/wheel` 返回当前内存中的转盘配置、总份数、最近结果、活动抽取动画和服务端 `limits:{minEntries,maxEntries,maxLabelLength,minWeight,maxWeight,maxTotalWeight}`；`POST /api/wheel/config` 接受 `{entries:[{label,weight}]}`，服务端限制 2–12 个不重复内容、每项 1–100 份、总份数不超过 300；`POST /api/wheel/spin` 按服务端权重抽取并广播 `wheel:update`。转盘 service 与 `/api/games/session` 独立，不参与数字炸弹、五子棋或你画我猜的单会话互斥。所有端点沿用现有 session token 与 `{ok,data}` 信封。
+`GET /api/wheel` 返回当前内存中的转盘配置、总份数、最近结果、活动抽取动画和服务端 `limits:{minEntries,maxEntries,maxLabelLength,minWeight,maxWeight,maxTotalWeight}`；`POST /api/wheel/config` 接受 `{entries:[{label,weight}]}`，服务端限制 2–12 个不重复内容、每项 1–100 份、总份数不超过 300；`POST /api/wheel/spin` 按服务端权重抽取并广播 `wheel:update`。转盘 service 与 `/api/games/session` 独立，不参与数字炸弹、五子棋或你画我猜的单会话互斥。沿用 `{ok,data}` 信封；管理身份拥有完整操作，展示页能力遵循 §0.0 限制。

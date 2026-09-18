@@ -2,6 +2,8 @@
 
 状态：Completed（2026-09-18）。本轮 14 项修复完成；HTML-TOKEN 按用户要求跳过，权限决策草案继续保留在 `specs/plans/2026-09-18-overlay-access-decision.md`。
 
+后续：用户已批准每页独立权限，HTML-TOKEN 实施与验证完成，见 [后续修复记录](2026-09-18-overlay-access-isolation.md)。上面的跳过状态仅记录此前阶段，不表示该问题仍被延期。
+
 **Goal:** 分阶段修复当前审计清单中已确认、范围已收窄的问题，保留此前有效修复与工作区改动，并为每个阶段留下可复查的验证结果。
 
 **Architecture:** 在现有领域 owner 修复原因，沿用 Electron + Node 模块化单体。不同 owner 的独立任务由 Astra 最高推理级别子代理协作；跨域接线、契约与最终集成由主代理负责。

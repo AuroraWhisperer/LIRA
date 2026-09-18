@@ -13,16 +13,12 @@ test('overtime overlay has independent layers and responsive container scaling',
   const html = read('public/pages/overlays/overtime.html');
   const css = read('public/css/overlays/overtime.css');
   const adminCss = readCssBundle('public', 'css', 'admin', 'overtime.css');
-  const serverSource = read('src/server/http-utils.js');
 
   assert.match(
     html,
     /<script type="module" src="\/js\/overlays\/overtime\.js\?v=[^"]+"><\/script>/,
   );
-  assert.match(
-    serverSource,
-    /\['\/overtime', 'pages\/overlays\/overtime\.html'\]/,
-  );
+  assert.equal(require('../src/server/access-policy').getOverlayScope('/overtime'), 'overtime');
   assert.match(html, /id="overtimeMachine"/);
   assert.match(html, /id="overtimeBackground"/);
   assert.match(html, /id="overtimeClock"/);

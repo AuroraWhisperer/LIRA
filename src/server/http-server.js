@@ -107,7 +107,8 @@ function createHttpServer(options = {}) {
         req.method !== 'HEAD' &&
         req.method !== 'OPTIONS'
       ) {
-        if (!httpUtils.validateOrigin(req, [baseUrl])) {
+        const opaqueApiRequest = req.headers.origin === 'null' && requestUrl.pathname.startsWith('/api/');
+        if (!opaqueApiRequest && !httpUtils.validateOrigin(req, [baseUrl])) {
           httpUtils.sendJson(res, 403, {
             ok: false,
             error: 'Origin not allowed.',

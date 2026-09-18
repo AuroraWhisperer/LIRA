@@ -16,6 +16,7 @@ import {
 } from '../shared/utils.js';
 import { stateService } from './state.js';
 import { publishQueue } from './legacy-admin-bridge.js';
+import { openFanQuickProfile } from './fans/index.js';
 
 function initQueueForm() {
   const randomButton = document.getElementById('randomSongBtn');
@@ -126,7 +127,7 @@ function renderQueueState(queue = {}) {
           <div class="queue-row">
             <div>
               <div class="song"${lengthAttr}>${songText}</div>
-              <div class="meta">${escapeHtml(requesterLabel(item))} · ${escapeHtml(sourceLabel(item))} · ${formatTime(item.created_at)}</div>
+              <div class="meta">${escapeHtml(requesterLabel(item))}${item.requester_identity_type && item.requester_uid ? ` <button type="button" data-fan-queue-id="${item.id}" aria-label="打开点歌人档案">档案</button>` : ''} · ${escapeHtml(sourceLabel(item))} · ${formatTime(item.created_at)}</div>
             </div>
             <div class="queue-actions">
               ${pinButton}
@@ -145,6 +146,13 @@ function renderQueueState(queue = {}) {
     );
   });
   bindQueueCopyButtons(list, '歌名已复制');
+  list.querySelectorAll('[data-fan-queue-id]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const item = queueItems.find((entry) => String(entry.id) === button.dataset.fanQueueId);
+      if (item) void openFanQuickProfile({ platform: 'bilibili', type: item.requester_identity_type,
+        value: String(item.requester_uid) }, item.requester_name).catch(showError);
+    });
+  });
 }
 
 function renderSuperChatQueue(items) {

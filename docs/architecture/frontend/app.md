@@ -6,6 +6,8 @@
 
 ### Admin 业务模块边界
 
+粉丝档案由 `fans/index.js` 持有选中项、请求上下文、表单和快捷窗口生命周期，`forms.js` 定义字段读取，`view.js` 只做转义后的展示，`transfer-ui.js` 拥有备份、恢复点、认领与合并的多步预览。保存失败保留输入；请求/选择代次拒绝迟到显示。`queue.js` 仅把已知 typed identity 交给同一详情入口；私人资料不并入 StateService 或 legacy globals。
+
 `state-renderer.js` 消费 StateService 的 `changedKeys`，分别调度设置、队列、SC、直播状态、礼物和歌库元数据视图。`queue.js` 以具名 ESM 导出队列操作和渲染，只在 `legacy-admin-bridge.js` 发布既有兼容入口；它不再回填设置或渲染礼物、直播与分类。礼物专属快照不会重建队列或覆盖表单。
 
 `gift-frame.js` 按字段保存未提交草稿，并与通用表单的 `preserveDirty` 标记协作。设置同步不覆盖草稿；保存成功只清理仍等于本次提交内容的字段，保存等待期间的新输入继续保留。
@@ -231,3 +233,5 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 | [gift-audit.html](../../../public/pages/gift-audit.html) | **气泡 × WebSocket 交叉对比审计**:左右两栏分别显示直播间气泡流事件与 WS 收到的事件,逐一核对礼物/SC 是否一致、缺失与多出;支持时间范围过滤、事件详情、手动重放投递(测试通知链路) | WS `/ws` + `GET /api/state`(基线) |
 
 该页面使用独立 HTML、CSS 与 ES Module 脚本,无构建依赖;经 `/pages/gift-audit.html` 文件路径直接访问(不在 pageMap 中,见 [pages.md](pages.md) §2)。
+
+云端签到/抽签由 `public/js/admin/danmaku-daily-bots.js` 独立初始化，开关不读取本地 canSend；`danmaku-daily-bot-takeover.js` 仅在 pending/importing 时提供一次性核对与词库修正。移除两项日常编辑器和 fixed-replies 对其 DOM 的依赖，保留其他固定回复入口。页面打开、显式刷新、恢复网络时读取；账号切换清空草稿并隔离迟到响应。

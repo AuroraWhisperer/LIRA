@@ -117,7 +117,7 @@ function initClockCard() {
     }
     preview.contentWindow?.postMessage(
       { type: 'lira:clock-preview-config', config },
-      location.origin,
+      '*',
     );
   }
 

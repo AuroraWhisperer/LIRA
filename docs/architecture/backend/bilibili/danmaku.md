@@ -262,3 +262,7 @@ AI 互动助手回复也经 `aiAssistant` 调用同一个 `danmakuSender.send({w
 | 发送限速 / 单条上限       | 1.5s / 40 字符                   | [sender-service.js:19](../../../../src/bilibili/danmaku/sender-service.js#L19)、[sender-service.js:5](../../../../src/bilibili/danmaku/sender-service.js#L5)     |
 | 签到/抽签日期             | 北京时间 UTC+8                   | [checkin-service.js:9](../../../../src/bilibili/checkin-service.js#L9)                                                                                           |
 | 自定义回复上限            | 30 条 / 关键词 30 / 文本 120     | [custom-reply-service.js:7-9](../../../../src/bilibili/custom-reply-service.js#L7-L9)                                                                            |
+
+## 云端签到与抽签执行权（2026-09-18）
+
+本节替代本文旧的本地签到/抽签生产调用说明。`dailyBotCommand` 在 domain-services 的消息入口首先占用精确“签到/抽签”，返回 cloud-owned，不计算、不写库，不进入点歌、DIY 或 AI 自动回复；bilibili-client 不再发送这两项回复。保留的旧服务文件仅作为历史语义和单元测试参照，没有生产实例。Server 持续 monitor、租户每日结果及受控接管见 [规格](../../../../specs/cloud-daily-bots.md)。

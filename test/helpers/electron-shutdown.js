@@ -95,6 +95,7 @@ function createShutdownHarness(options = {}) {
       super();
       this.webContents = new EventEmitter();
       this.webContents.setWindowOpenHandler = () => {};
+      this.webContents.isDestroyed = () => false;
     }
     loadURL() {
       return Promise.resolve();
@@ -232,12 +233,32 @@ function createShutdownHarness(options = {}) {
         return controller('remote', remoteIdle);
       },
     },
+    './fan-profile-controller': {
+      fanScopeFor: () => null,
+      createFanProfileController: () => ({
+        ...controller('fan', { promise: options.fanIdle?.promise }),
+        start() { calls.push('fan:start'); },
+      }),
+    },
+    './ipc/fan-profile-ipc': {
+      registerFanProfileIpc: () => () => calls.push('fan:remove-ipc'),
+    },
+    './daily-bot-controller': {
+      createDailyBotController: () => ({ dispose: () => calls.push('daily-bot:dispose') }),
+    },
+    './ipc/daily-bot-ipc': {
+      registerDailyBotIpc: ({ controller }) => () => {
+        calls.push('daily-bot:remove-ipc');
+        controller.dispose();
+      },
+    },
     './desktop-permissions': { registerLocalFontPermissionHandler() {} },
     './local-media-access': { createLocalMediaAccess: () => ({}) },
     './local-media-protocol': { registerLocalMediaProtocol() {} },
     './media-request-headers': {
       configureMediaRequestHeaders() {},
     },
+    './desktop-request-auth': require('../../src/electron/desktop-request-auth'),
     './update-manager': {},
     './playback-flush': {
       async requestPlaybackFlush() {

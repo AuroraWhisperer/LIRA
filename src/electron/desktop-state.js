@@ -10,6 +10,7 @@ function createDesktopState() {
       runtime: null,
       shutdown: null,
       shutdownPromise: null,
+      requestAuth: null,
     },
     media: {
       headersConfigured: false,

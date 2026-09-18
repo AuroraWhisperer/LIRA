@@ -101,6 +101,7 @@ function createGiftQueryStore(giftDb) {
     rangeEnd,
     userQuery,
     giftQuery,
+    amountAbove,
     asOf,
     cursor,
     limit,
@@ -116,6 +117,7 @@ function createGiftQueryStore(giftDb) {
       rangeEnd,
       userQuery,
       giftQuery,
+      amountAbove,
       asOf,
       cursor,
       sortField: sort.field,
@@ -141,6 +143,7 @@ function createGiftQueryStore(giftDb) {
     rangeEnd,
     userQuery,
     giftQuery,
+    amountAbove,
     asOf,
     sortField = 'created_at',
     sortDirection = 'desc',
@@ -153,6 +156,7 @@ function createGiftQueryStore(giftDb) {
       rangeEnd,
       userQuery,
       giftQuery,
+      amountAbove,
       asOf,
       sortField: sort.field,
       sortDirection: sort.direction,
@@ -326,6 +330,7 @@ function buildLedgerFilter({
   rangeEnd,
   userQuery,
   giftQuery,
+  amountAbove,
   asOf,
   cursor = null,
   sortField = 'created_at',
@@ -343,6 +348,10 @@ function buildLedgerFilter({
     'g.created_at < ?',
   ];
   const params = [sourceId, asOf];
+  if (amountAbove !== undefined && amountAbove !== null) {
+    sql.push('giftMoneyCents(g.total_price) > ?');
+    params.push(Math.round(amountAbove * 100));
+  }
   if (eventIds) {
     sql.push("g.platform_id IN (SELECT 'lira-server:' || value FROM json_each(?))");
     params.push(JSON.stringify(eventIds));

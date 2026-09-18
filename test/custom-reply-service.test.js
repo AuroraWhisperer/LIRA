@@ -111,6 +111,7 @@ test('domain services attach a custom reply after built-in commands decline', ()
     JSON.stringify([
       { keyword: '菜单', reply: '点歌格式：点歌 歌名', enabled: true },
       { keyword: '签到', reply: '不会覆盖签到', enabled: true },
+      { keyword: '抽签', reply: '不会覆盖抽签', enabled: true },
       { keyword: '随机点歌', reply: '不会抢占随机点歌', enabled: true },
     ]),
   );
@@ -148,8 +149,18 @@ test('domain services attach a custom reply after built-in commands decline', ()
       uid: '456',
       userName: 'Bob',
     });
-    assert.equal(checkin.checkin.accepted, true);
+    assert.equal(checkin.reason, 'cloud-owned');
     assert.equal(checkin.customReplyReply, undefined);
+    for (const enabled of ['true', 'false']) {
+      settingsStore.setSetting('enableCheckinBot', enabled);
+      settingsStore.setSetting('enableFortuneBot', enabled);
+      for (const message of [' 签到 ', '抽签']) {
+        const result = services.messages.handleDanmaku({ message, uid: '456', userName: 'Bob' });
+        assert.equal(result.reason, 'cloud-owned');
+        assert.equal(result.customReplyReply, undefined);
+      }
+    }
+    assert.equal(databases.checkinDb.prepare('SELECT count(*) AS n FROM checkin_users').get().n, 0);
   } finally {
     closeDatabases(databases);
     fs.rmSync(dataDir, { recursive: true, force: true });

@@ -386,6 +386,13 @@ function createRemoteLicenseClient(options = {}) {
         requestOptions,
       ),
     watchCloudStateChanges,
+    getFanFacts: (after, epoch, token, requestOptions = {}) => {
+      const query = new URLSearchParams({ after: String(after), limit: '200' });
+      if (epoch) query.set('epoch', epoch);
+      return request(
+        'GET', `/api/device/fan-facts?${query}`, undefined, token, requestOptions,
+      );
+    },
     getGiftEvents,
     getGiftHistory,
     clearGiftHistory,

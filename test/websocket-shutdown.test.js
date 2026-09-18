@@ -9,7 +9,7 @@ const { createWebSocketHub } = require('../src/server/ws');
 
 async function openUpgradedConnection(t, { halfOpen = false } = {}) {
   const hub = createWebSocketHub({ closeTimeoutMs: 40 });
-  const context = { state: { sockets: new Set() }, getState: () => ({}) };
+  const context = { sessionToken: 'synthetic-token', state: { sockets: new Set() }, getState: () => ({}) };
   const server = http.createServer();
   let upgraded;
   let client;
@@ -33,7 +33,7 @@ async function openUpgradedConnection(t, { halfOpen = false } = {}) {
   client.on('end', () => { if (!halfOpen) client.end(); });
   await once(client, 'connect');
   const firstData = once(client, 'data');
-  client.write('GET /ws HTTP/1.1\r\nHost: 127.0.0.1\r\n' +
+  client.write('GET /ws?token=synthetic-token HTTP/1.1\r\nHost: 127.0.0.1\r\n' +
     'Connection: Upgrade\r\nUpgrade: websocket\r\n' +
     'Sec-WebSocket-Version: 13\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n');
   await firstData;
@@ -94,11 +94,11 @@ test('standard WebSocket client receives shutdown before a clean going-away clos
   });
   server.on('upgrade', (req, socket) => {
     upgraded = socket;
-    hub.handleUpgrade({ getState: () => ({}) }, req, socket);
+    hub.handleUpgrade({ sessionToken: 'synthetic-token', getState: () => ({}) }, req, socket);
   });
   server.listen(0, '127.0.0.1');
   await once(server, 'listening');
-  client = new WebSocket(`ws://127.0.0.1:${server.address().port}/ws`);
+  client = new WebSocket(`ws://127.0.0.1:${server.address().port}/ws?token=synthetic-token`);
   const messages = [];
   client.addEventListener('message', (event) => messages.push(JSON.parse(event.data)));
   await once(client, 'open');
@@ -122,8 +122,8 @@ test('stop retains the first close deadline and rejects subsequent upgrades', (t
   socket.end = () => {};
   let destroyed = 0;
   socket.destroy = () => { destroyed += 1; socket.destroyed = true; socket.emit('close'); };
-  const context = { getState: () => ({}) };
-  const request = { url: '/ws', headers: { 'sec-websocket-key': 'test' } };
+  const context = { sessionToken: 'synthetic-token', getState: () => ({}) };
+  const request = { url: '/ws', headers: { authorization: 'Bearer synthetic-token', 'sec-websocket-key': 'test' } };
   hub.handleUpgrade(context, request, socket);
   hub.stop({ shutdownPayload: { type: 'shutdown', reason: 'first' } });
   const writes = socket.writes.length;
@@ -146,8 +146,8 @@ test('physical close cancels the reap timer', (t) => {
   socket.end = () => {};
   let destroyed = 0;
   socket.destroy = () => { destroyed += 1; };
-  hub.handleUpgrade({ getState: () => ({}) }, {
-    url: '/ws', headers: { 'sec-websocket-key': 'test' },
+  hub.handleUpgrade({ sessionToken: 'synthetic-token', getState: () => ({}) }, {
+    url: '/ws', headers: { authorization: 'Bearer synthetic-token', 'sec-websocket-key': 'test' },
   }, socket);
   hub.stop();
   socket.emit('close');

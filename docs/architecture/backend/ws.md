@@ -6,7 +6,7 @@
 
 ## 1. 传输层(手写 RFC 6455)
 
-礼物身份扩展沿用既有消息封套：`state.overtime.rules` 和加班机更新中的规则携带 `giftIdentity`、`bindingStatus`；目录更新携带完整身份及 schema 3 关系。最近礼物原始行保留 `gift_variant_id` / `blind_box_variant_id`，供界面取对应图片，不通过当前 ID 回填历史。字段与迁移语义见 [加班机契约](overtime.md) 及 [礼物身份规范](../../../specs/gift-identity-overtime.md)。
+Admin 完整消息的礼物身份扩展沿用既有封套；overlay 仅接收下文允许的展示字段。`state.overtime.rules` 和加班机更新中的完整规则携带 `giftIdentity`、`bindingStatus`；目录更新携带完整身份及 schema 3 关系。最近礼物原始行保留 `gift_variant_id` / `blind_box_variant_id`，供界面取对应图片，不通过当前 ID 回填历史。字段与迁移语义见 [加班机契约](overtime.md) 及 [礼物身份规范](../../../specs/gift-identity-overtime.md)。
 
 零依赖实现,[src/server/ws.js](../../../src/server/ws.js) 的 `createWebSocketHub()`。
 
@@ -14,22 +14,22 @@
 | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
 | 连接路径             | `/ws`,升级请求经 `server.on('upgrade')` 分发(其他路径直接 destroy)；固定弹幕层额外传 `topic=danmaku`                                                                                   | [server.js:285-292](../../../src/server.js#L285-L292) |
 | 握手                 | `Sec-WebSocket-Key` + 魔数 `258EAFA5-E914-47DA-95CA-C5AB0DC85B11` 做 SHA1 → Base64 `Sec-WebSocket-Accept`                                                                              | [ws.js:38-48](../../../src/server/ws.js#L38-L48)      |
-| **Origin 验证**(H06) | **检查 `req.headers.origin` 是否在 `context.allowedOrigins` 白名单内。无 Origin 头(非浏览器客户端)放行。不匹配回写 `403 Forbidden` 后销毁连接**                                        | [ws.js:21-29](../../../src/server/ws.js#L21-L29)      |
-| 鉴权                 | `?token=` 查询参数必须等于会话令牌,否则回写 `401 Unauthorized` 后销毁连接                                                                                                              | [ws.js:31-39](../../../src/server/ws.js#L31-L39)      |
+| **Origin 验证**(H06) | 先验证凭据，再检查 Origin。普通 Origin 必须精确匹配 `context.allowedOrigins`；只有已验证 overlay 额外允许沙箱页面的字面 `null`，Admin 明确拒绝 `null`。已认证的无 Origin 非浏览器客户端保留支持；不匹配返回 403 后销毁连接 | [ws.js](../../../src/server/ws.js) |
+| 鉴权 | 与 HTTP 共用 `resolveRequestPrincipal(context, req, requestUrl)`：Bearer 优先于 `?token=`，显式无效 Authorization 不回退。运行时管理凭据解析为 Admin，服务器签名的页面凭据解析为 overlay(scope)；空运行时密钥或无效凭据返回 401 | [access-policy.js](../../../src/server/access-policy.js) |
 | 帧上限               | 单帧 `MAX_FRAME_BYTES = 256 KB`,跨分片消息 `MAX_MESSAGE_BYTES = 256 KB`,超限回 close code 1009                                                                                         | [ws.js:8-9](../../../src/server/ws.js#L8-L9)          |
 | 待发送上限           | 每个 socket 的 Node 待发送字节数 + 新帧不得超过 `MAX_PENDING_BYTES = 2 MB`；超过时立即销毁并清理该慢客户端，由客户端重连后通过 snapshot 恢复                                           | [ws.js](../../../src/server/ws.js)                    |
 | 心跳                 | 每 `HEARTBEAT_INTERVAL_MS = 30000` 发一次 ping;超过 `SOCKET_TIMEOUT_MS = 90000` 未收到 pong 则销毁连接;心跳定时器 `unref()`                                                            | [ws.js:10-11](../../../src/server/ws.js#L10-L11)      |
-| 客户端消息           | **服务端不消费任何客户端消息**:文本/二进制帧与分片会被正确解析/重组(防止内存泄漏)后丢弃;close 帧回显后关闭;ping 回 pong                                                                | [ws.js:143-193](../../../src/server/ws.js#L143-L193)  |
-| 发送                 | 服务端→客户端全部为文本帧(JSON),长度按 <126 / <65536 / 64 位三档编码；普通 `broadcast(payload)` 发给全部 socket，`broadcast(payload,{topic})` 只发给握手查询参数订阅该 topic 的 socket | [ws.js](../../../src/server/ws.js)                    |
+| 客户端消息 | 服务端不执行业务客户端消息。Admin 文本/二进制消息校验重组后丢弃；overlay 业务数据帧（包括 clear-history、控制消息和分片起始帧）使用 Close(1008) 拒绝。两类连接均允许协议 ping/pong/close | [ws.js](../../../src/server/ws.js) |
+| 发送 | 服务端业务消息为 JSON 文本帧；连接初始、合并快照、普通/主题广播、shutdown 和兼容导出均经统一 `sendWebSocket` 按 socket principal 投影。被 scope 禁止的消息跳过；topic 只增加订阅条件，不扩大权限 | [ws.js](../../../src/server/ws.js)、[overlay-projection.js](../../../src/server/overlay-projection.js) |
 | 停止                 | `webSocketHub.stop({shutdownPayload})` 首次调用停止新升级和心跳，依次发送 shutdown、Close(1001)、FIN；仍未物理关闭的 socket 在 1 秒期限后销毁，重复 stop 不续期或重复发送 | [ws.js](../../../src/server/ws.js) |
 
-入站帧按 [RFC 6455 §5](https://www.rfc-editor.org/rfc/rfc6455.html#section-5) 校验：客户端必须掩码，未协商扩展时 RSV 必须为零；保留 opcode、非最短长度编码、非法分片顺序、被分片或超过 125 字节的控制帧以 1002 关闭。文本消息在完整重组后验证 UTF-8（允许字符跨分片），非法文本或 close reason 使用 1007；帧/消息超限使用 1009。合法 Close 载荷回显，非法/保留状态码不回显。服务端仍不执行业务客户端消息。
+入站帧按 [RFC 6455 §5](https://www.rfc-editor.org/rfc/rfc6455.html#section-5) 校验：客户端必须掩码，未协商扩展时 RSV 必须为零；保留 opcode、非最短长度编码、非法分片顺序、被分片或超过 125 字节的控制帧以 1002 关闭。Admin 文本消息在完整重组后验证 UTF-8（允许字符跨分片），非法文本或两类连接的 close reason 使用 1007；帧/消息超限使用 1009。合法 Close 载荷回显，非法/保留状态码不回显。服务端仍不执行业务客户端消息。
 
 所有 Close 路径立即移出广播集合并释放输入缓冲，但 hub 保留关闭期限直到物理 `close`；正常关闭取消计时器，超时销毁，写入失败/背压则立即销毁。`closeAllConnections()` 不拥有 HTTP 升级后的连接，不能代替这项回收责任。关闭期限不延长 Electron 的总退出期限；测试可用 `closeTimeoutMs` 缩短等待。
 
 文件底部另有一套模块级兼容导出(`handleWebSocketUpgrade`/`broadcastSnapshot` 走模块级 `compatibilityHub`),运行时不使用。
 
-**WebSocket Context**:升级时传入的 `context` 对象包含 `getState`、`sessionToken` 和 **`allowedOrigins`**(当前仅运行时 baseUrl)。`getWebSocketContext()` 在 [server.js](../../../src/server.js) 中构造。
+**WebSocket Context**:升级时传入的 `context` 对象包含 `getState`、`sessionToken` 和 **`allowedOrigins`**(当前仅运行时 baseUrl)。`getWebSocketContext()` 在 [runtime-transport.js](../../../src/server/runtime-transport.js) 中构造。每个已升级 socket 保存服务器验证并冻结的 `_wsPrincipal`，关闭清理时移除；客户端 query、消息体或 topic 不能声明或替换身份。
 
 升级入口的 Host 校验由 [http-server.js](../../../src/server/http-server.js) 拥有：ready 阶段必须精确匹配运行时绑定的 host:port，否则在进入 hub 前返回 400。正确 Host 不豁免许可、Origin 或 token 校验；缺少 Origin 的非浏览器客户端也必须匹配 Host。starting/quiescing 阶段仍返回 503。
 
@@ -37,9 +37,9 @@
 
 ## 2. 快照(Snapshot)17 字段
 
-每次连接建立时发送 `{type:'snapshot', reason:'connect', state}`,之后快照域的业务变更触发全量快照重推；游戏、转盘等独立状态沿 §3 的专用消息与 HTTP 恢复接口传输。`state` 由 [server.js](../../../src/server.js) 的 `getState()` 组装,共 **17 个字段**:
+每次连接建立时发送 `{type:'snapshot', reason:'connect', state}`，之后快照域的业务变更触发当前 principal 的完整投影重推；游戏、转盘等独立状态沿 §3 的专用消息与 HTTP 恢复接口传输。Admin 的 `state` 由 [server.js](../../../src/server.js) 的 `getState()` 组装，共 **17 个字段**；overlay 不接收这个完整对象：
 
-`topic=danmaku` 仅选择高频 `danmaku:message` 增量，不改变全量 snapshot 的接收范围，也不是权限凭据。普通连接和订阅连接均接收初始及后续快照，以恢复各自消费的队列、设置、直播状态等字段；不能按是否订阅弹幕来过滤通用快照。真实 hub/客户端契约验证见 `test/websocket-snapshot-contract.test.js`。
+`topic=danmaku` 仅选择高频 `danmaku:message` 增量，不改变同一 principal 的 snapshot 投影，也不是权限凭据。Admin 与 danmaku scope 可订阅该增量；其他 overlay 即使带该 topic 也不能接收。所有 scope 均接收初始及后续最小 snapshot 封套，无全局快照字段需求的页面收到空 `state`。真实连接契约见 `test/websocket-snapshot-contract.test.js` 和 `test/websocket-access-policy.test.js`。
 
 | 字段                  | 生产者                                     | 内容概述                                                                                                          |
 | --------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
@@ -63,13 +63,33 @@
 
 快照全量替换语义与客户端指纹去重见 [frontend/comms.md](../frontend/comms.md)。
 
+### 2.1 Overlay scope 投影
+
+页面凭据由运行时密钥和固定 scope 签名派生；修改 scope 或更换运行时密钥后无法验证。匿名页面 HTML 仅获得该页的凭据，不能获得管理令牌。所有嵌套 DTO 与设置键使用 [overlay-projection.js](../../../src/server/overlay-projection.js) 的显式白名单，不展开整个设置对象或未来新增字段。REST 页面权限见 [API 契约](api.md)。
+
+| Scope | snapshot 展示字段 | 允许的专用增量 |
+| --- | --- | --- |
+| `queue` | 展示设置、队列歌曲/点歌者展示字段、SC 文本和价格 | 无 |
+| `songlist`、`blindbox` | 各自展示设置 | 无 |
+| `overtime` | 倒计时、背景与展示规则 | `overtime:update` |
+| `gift-effects` | 礼物特效/边框展示设置 | `gift:frame`、`gift:effect` |
+| `gift-feed` | `gifts.viewRevision` | `gift-catalog:update` 仅保留 type，作为刷新通知 |
+| `lyrics` | 歌词展示设置、`lyricState`、`lyricTimeline` | `lyric-state`、`lyric-timeline` |
+| `danmaku` | 弹幕展示设置、公开直播连接状态、`danmakuFeed` | `danmaku:message`，另需 topic 订阅 |
+| `games` | 当前全局快照无游戏字段；兼容专用 `games` 字段时仍投影公开会话 | `game:update`、`game:draw`；不含未公布答案 |
+| `wheel` | 空 state | `wheel:update` |
+| `gift-export`、`opening`、`clock` | 空 state | 无 |
+
+全部已知 overlay scope 允许 `{type:'shutdown', reason}`；未列出的专用消息默认不投递。Admin 保持完整消息能力，包括 `wesing-state` 和完整目录更新。scope 对初始与后续广播始终相同，不能通过连接重建、topic、兼容发送函数或伪造业务入站消息升级。
+
 ## 3. 消息类型全集(唯一成表处)
 
 | 类型                  | 载荷                                                                                                                 | 触发点                                                                                                                                                                                                                                                                                                                                                             |
 | --------------------- | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `snapshot`            | `{type, reason, state}`(17 字段全量)                                                                                 | 连接建立(`reason:'connect'`);业务变更广播                                                                                                                                                                                                                                                                                                                          |
-| `danmaku:message`     | `{type:'danmaku:message', item}`                                                                                     | 实时 B 站弹幕及已结算的礼物提示（公开字段见 [bilibili/danmaku.md](bilibili/danmaku.md) §4.1）；仅投递给以 `topic=danmaku` 连接的固定 `/danmaku` 浏览器源，重连后由 snapshot 中的 `danmakuFeed` 恢复                                                                                                                                                                                                                      |
+| `snapshot`            | `{type, reason, state}`（Admin 完整状态；overlay 按 §2.1 投影）                                                                                 | 连接建立(`reason:'connect'`);业务变更广播                                                                                                                                                                                                                                                                                                                          |
+| `danmaku:message`     | `{type:'danmaku:message', item}`                                                                                     | 实时 B 站弹幕及已结算的礼物提示（公开字段见 [bilibili/danmaku.md](bilibili/danmaku.md) §4.1）；仅投递给订阅 `topic=danmaku` 的 Admin 或 danmaku scope，重连后由 snapshot 中的 `danmakuFeed` 恢复                                                                                                                                                                                                                      |
 | `gift:frame` | `{type,eventId,giftEventId,giftId,giftName,num,totalPriceCents,userName,themeId}`；预览另含 `preview/previewSessionId/motionMode` | final 礼物达到边框配置阈值时广播，或管理页显式预览；由 `gift/frame-config.js` 生成，金额单位为人民币分 |
+| `gift:effect` | `{type,source,eventId,giftId,effect}`；effect 为播放素材和布局展示 DTO | 礼物特效发布；仅 Admin 与 gift-effects scope 接收 |
 | `lyric-state`         | `{type:'lyric-state', state}`;state 兼容携带单调 `generation`/`sequence`                                             | 播放页歌词上报([server.js:348](../../../src/server.js#L348))、WeSing 采集状态变化([server.js:187](../../../src/server.js#L187))                                                                                                                                                                                                                                    |
 | `lyric-timeline`      | `{type:'lyric-timeline', timeline}`                                                                                  | 播放页歌词时间轴上报、WeSing 时间轴([server.js:163](../../../src/server.js#L163))                                                                                                                                                                                                                                                                                  |
 | `wesing-state`        | `{type:'wesing-state', state}`                                                                                       | WeSing 采集状态变化([server.js:184](../../../src/server.js#L184))                                                                                                                                                                                                                                                                                                  |

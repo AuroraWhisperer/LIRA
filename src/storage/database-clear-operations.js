@@ -12,6 +12,12 @@ const CLEAR_ALL_MATRIX = {
     'favorites',
     'playlists',
     'playlist_tracks',
+    'fan_profiles',
+    'fan_records',
+    'fan_reminder_states',
+    'fan_scopes',
+    'fan_suppressions',
+    'fan_restore_snapshots',
   ],
   delete: [
     'songs',

@@ -164,8 +164,8 @@ test('retired gift debug API is not registered', async () => {
   };
 
   await handleApi(
-    { maxBodyBytes: 1024, sessionToken: '' },
-    { method: 'GET', headers: {} },
+    { maxBodyBytes: 1024, sessionToken: 'synthetic-token' },
+    { method: 'GET', headers: { authorization: 'Bearer synthetic-token' } },
     response,
     new URL('http://127.0.0.1/api/debug/gift-messages'),
   );

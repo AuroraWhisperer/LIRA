@@ -2,6 +2,14 @@
 
 const { contextBridge, ipcRenderer } = require('electron');
 
+contextBridge.exposeInMainWorld('dailyBots', {
+  invoke: (request) => ipcRenderer.invoke('daily-bots:invoke', request),
+});
+
+contextBridge.exposeInMainWorld('fanProfiles', {
+  invoke: (request) => ipcRenderer.invoke('fan-profiles:invoke', request),
+});
+
 contextBridge.exposeInMainWorld('giftExport', {
   prepare: (selection) => ipcRenderer.invoke('gift-export:prepare', selection),
   configure: (options) => ipcRenderer.invoke('gift-export:configure', options),

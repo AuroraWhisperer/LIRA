@@ -55,8 +55,10 @@ export function createGiftHistoryTools({ state, reload, resetPagination }) {
   }
 
   function applyFilters() {
+    if (!get('giftHistoryFilters').reportValidity()) return;
     const filters = { startDate: get('giftHistoryStartDate').value, endDate: get('giftHistoryEndDate').value,
-      userQuery: get('giftHistoryUserQuery').value.trim(), giftQuery: get('giftHistoryGiftQuery').value.trim() };
+      userQuery: get('giftHistoryUserQuery').value.trim(), giftQuery: get('giftHistoryGiftQuery').value.trim(),
+      amountAbove: get('giftHistoryAmountAbove').value };
     if (filters.startDate && filters.endDate && filters.startDate > filters.endDate) {
       get('giftHistoryFilterError').textContent = '开始日期不能晚于结束日期。';
       return;

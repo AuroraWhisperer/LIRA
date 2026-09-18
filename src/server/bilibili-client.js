@@ -22,6 +22,7 @@ function createBilibiliClient(roomId, context) {
     games,
     userInfoService,
   } = context;
+  const fanScope = context.getFanScope?.() || null;
   let client = null;
   client = new BilibiliDanmakuClient(
     roomId,
@@ -63,6 +64,8 @@ function createBilibiliClient(roomId, context) {
             message: danmaku.message,
             userName: danmaku.userName,
             uid: String(danmaku.uid || ''),
+            identityType: danmaku.identityType,
+            fanScope,
             source: danmaku.source || 'danmaku',
             messageTimestamp: danmaku.messageTimestamp,
             requesterGuardLevel: danmaku.requesterGuardLevel,
@@ -72,6 +75,7 @@ function createBilibiliClient(roomId, context) {
           });
           domainServices.messages.logDanmaku(danmaku, result);
           stage = 'after-request';
+          if (result.reason === 'cloud-owned') return;
           aiAssistant.handleDanmaku({
             message: danmaku.message,
             userName: danmaku.userName,
@@ -86,30 +90,6 @@ function createBilibiliClient(roomId, context) {
               .catch((error) => {
                 console.warn(
                   `[Bilibili] random scope auto-reply failed: user=${danmaku.userName || ''} uid=${danmaku.uid || ''} error=${error.message}`,
-                );
-              });
-          }
-          if (result.checkinReply) {
-            void danmakuSender
-              .send({
-                message: result.checkinReply.message,
-                mentionTarget: result.checkinReply.target,
-              })
-              .catch((error) => {
-                console.warn(
-                  `[Bilibili] check-in auto-reply failed: user=${danmaku.userName || ''} uid=${danmaku.uid || ''} error=${error.message}`,
-                );
-              });
-          }
-          if (result.fortuneReply) {
-            void danmakuSender
-              .send({
-                message: result.fortuneReply.message,
-                mentionTarget: result.fortuneReply.target,
-              })
-              .catch((error) => {
-                console.warn(
-                  `[Bilibili] fortune auto-reply failed: user=${danmaku.userName || ''} uid=${danmaku.uid || ''} error=${error.message}`,
                 );
               });
           }

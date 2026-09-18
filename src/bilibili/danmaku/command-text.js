@@ -3,18 +3,19 @@
 'use strict';
 
 const { cleanText } = require('../../shared/utils');
-const { isCheckinCommand } = require('../checkin-service');
-const { isFortuneCommand } = require('../fortune-service');
+function dailyBotCommand(message) {
+  const text = cleanText(message);
+  return text === '签到' ? 'checkin' : text === '抽签' ? 'fortune' : null;
+}
 
 function isBilibiliCommandText(message, customMatcher = null) {
   const text = cleanText(message);
   return (
     text.startsWith('点歌') ||
     text.startsWith('随机') ||
-    isCheckinCommand(text) ||
-    isFortuneCommand(text) ||
+    Boolean(dailyBotCommand(text)) ||
     (typeof customMatcher === 'function' && customMatcher(text) === true)
   );
 }
 
-module.exports = { isBilibiliCommandText };
+module.exports = { isBilibiliCommandText, dailyBotCommand };

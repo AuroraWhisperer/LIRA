@@ -33,7 +33,7 @@ test('gift ledger routes pass only allowlisted filters and reject source selecto
   routes['GET /api/gifts/history'](
     context,
     createRequest(
-      'query=%25_&range=90d&limit=25&cursor=opaque&sortField=price&sortDirection=asc',
+      'query=%25_&range=90d&limit=25&cursor=opaque&sortField=price&sortDirection=asc&amountAbove=10.01',
     ),
     history,
   );
@@ -45,6 +45,7 @@ test('gift ledger routes pass only allowlisted filters and reject source selecto
       range: '90d',
       limit: '25',
       cursor: 'opaque',
+      amountAbove: '10.01',
       sortField: 'price',
       sortDirection: 'asc',
     },
@@ -53,7 +54,7 @@ test('gift ledger routes pass only allowlisted filters and reject source selecto
   const statistics = createResponse();
   routes['GET /api/gifts/statistics'](
     context,
-    createRequest('query=box&range=all'),
+    createRequest('query=box&range=all&amountAbove=10.01'),
     statistics,
   );
   assert.equal(statistics.status, 200);
@@ -63,10 +64,11 @@ test('gift ledger routes pass only allowlisted filters and reject source selecto
   ]);
 });
 
-test('gift ledger routes return 400 for invalid sorting parameters', () => {
+test('gift ledger routes return 400 for invalid sorting and filter parameters', () => {
   for (const code of [
     'INVALID_GIFT_SORT_FIELD',
     'INVALID_GIFT_SORT_DIRECTION',
+    'INVALID_GIFT_FILTER',
   ]) {
     const error = new Error('礼物排序参数无效。');
     error.code = code;

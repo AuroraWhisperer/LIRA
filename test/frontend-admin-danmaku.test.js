@@ -30,8 +30,8 @@ test('admin danmaku input has no fixed character limit', () => {
   assert.match(html, /id="danmakuCounter"[^>]*>0 字</);
   assert.match(source, /Array\.from\(elements\.message\.value\)\.length/);
   assert.match(source, /enableRandomTagReply/);
-  assert.match(source, /enableCheckinBot/);
-  assert.match(source, /enableFortuneBot/);
+  assert.doesNotMatch(source, /enableCheckinBot/);
+  assert.doesNotMatch(source, /enableFortuneBot/);
   assert.match(source, /enableCustomReplyBot/);
   assert.doesNotMatch(source, /mentionRequester: toggle\.checked/);
   assert.match(html, /随机点歌回复/);
@@ -46,53 +46,13 @@ test('admin danmaku input has no fixed character limit', () => {
   assert.match(html, /DIY 关键词回复/);
   assert.match(html, /收到自定义关键词后回复固定文案/);
   assert.match(html, /id="danmakuCustomReplyToggle"[^>]*aria-labelledby="danmakuCustomReplyTitle"/);
-  assert.match(
-    html,
-    /<details id="danmakuBlessingsPanel" class="danmaku-blessings-section" data-fixed-editor="checkin" hidden>/,
-  );
-  assert.match(html, /id="danmakuBlessingList"/);
-  assert.match(html, /id="danmakuBlessingAddBtn"/);
-  assert.match(html, /id="danmakuBlessingSaveBtn"/);
-  assert.match(source, /createBlessingEditor/);
-  assert.match(source, /createFortuneEditor/);
-  assert.match(source, /createCustomReplyEditor/);
-  assert.doesNotMatch(source, /items\.splice\(index, 1\)/);
-  assert.match(
-    libraries,
-    /saveSetting\('checkinBlessings', JSON\.stringify\(cleaned\)\)/,
-  );
-  assert.match(libraries, /items\.splice\(index, 1\)/);
-  assert.ok(
-    html.indexOf('id="danmakuComposeTitle"') <
-      html.indexOf('id="danmakuBlessingsPanel"'),
-  );
-  assert.ok(
-    html.indexOf('id="danmakuComposeTitle"') <
-      html.indexOf('id="danmakuCustomRepliesPanel"'),
-  );
-  assert.ok(
-    html.indexOf('id="danmakuCustomRepliesPanel"') <
-      html.indexOf('id="danmakuBlessingsPanel"'),
-  );
-  assert.ok(
-    html.indexOf('id="danmakuBlessingsPanel"') <
-      html.indexOf('id="danmakuFortunesPanel"'),
-  );
-  assert.match(html, /id="danmakuFortuneList"/);
-  assert.match(html, /id="danmakuFortuneAddBtn"/);
-  assert.match(html, /id="danmakuFortuneSaveBtn"/);
-  assert.match(source, /fortuneEditor\.load\(state\.fortunePool\)/);
+  assert.doesNotMatch(html, /id="danmaku(?:Blessings|Fortunes)Panel"/);
+  assert.doesNotMatch(source, /createBlessingEditor|createFortuneEditor|checkinToggle|fortuneToggle/);
+  assert.match(source, /initDanmakuDailyBots/);
   assert.match(source, /customReplyEditor\.load\(state\.customReplyRules\)/);
-  assert.match(
-    libraries,
-    /saveSetting\('fortunePool', JSON\.stringify\(cleaned\)\)/,
-  );
-  assert.match(
-    libraries,
-    /saveSetting\('customReplyRules', JSON\.stringify\(cleaned\)\)/,
-  );
-  assert.match(libraries, /export function createFortuneEditor/);
   assert.match(libraries, /export function createCustomReplyEditor/);
+  assert.match(html, /id="dailyBotTakeover"/);
+  assert.match(html, /id="dailyBotRefresh"/);
 });
 
 test('danmaku tool separates the fixed live overlay from the sender and reply groups', () => {

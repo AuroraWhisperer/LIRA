@@ -1,0 +1,71 @@
+{
+  "snapshot": {
+    "schemaVersion": 1,
+    "sourceId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "cutoffAt": "2026-09-18T12:00:00.000Z",
+    "libraryChoice": {
+      "checkin": "legacy",
+      "fortune": "legacy"
+    },
+    "checkins": [
+      {
+        "uid": "123",
+        "userName": "合成观众",
+        "totalDays": 128,
+        "firstCheckinAt": "2026-01-01T01:00:00.000Z",
+        "lastCheckinAt": "2026-09-18T01:00:00.000Z",
+        "lastCheckinDate": "2026-09-18"
+      }
+    ],
+    "blessings": [
+      "祝你平安喜乐。"
+    ],
+    "fortunes": [
+      {
+        "level": "上签",
+        "name": "顺遂",
+        "text": "好事将近",
+        "advice": "宜从容"
+      }
+    ]
+  },
+  "digest": "0f38871e98e645e5ae78756612c57d88206e58ae687a0c34fe7aa45f3eac3ce8",
+  "defaultResponse": {
+    "executionOwner": "server",
+    "observedAt": "2026-09-18T12:00:00.000Z",
+    "checkin": {
+      "enabled": false,
+      "revision": 0,
+      "reason": "pending"
+    },
+    "fortune": {
+      "enabled": false,
+      "revision": 0,
+      "reason": "pending"
+    },
+    "takeover": {
+      "state": "pending",
+      "decision": null,
+      "revision": 0,
+      "legacyStoppedAt": null,
+      "importId": null,
+      "sourceDigest": null
+    }
+  },
+  "invalidUpdates": [
+    {},
+    {
+      "enabled": "true",
+      "expectedRevision": 0
+    },
+    {
+      "enabled": true,
+      "expectedRevision": -1
+    },
+    {
+      "enabled": true,
+      "expectedRevision": 0,
+      "streamerId": 2
+    }
+  ]
+}

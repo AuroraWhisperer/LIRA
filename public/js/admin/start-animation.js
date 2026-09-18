@@ -220,7 +220,7 @@ function initStartAnimation() {
         type: 'lira:opening-preview-volume',
         volume: config.volume,
       },
-      origin,
+      '*',
     );
   };
 

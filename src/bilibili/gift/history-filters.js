@@ -26,6 +26,15 @@ function normalizeHistoryFilters(options = {}) {
       throw queryError('INVALID_GIFT_FILTER', '名称关键词不能超过 100 个字。');
     }
   }
+  const amount = typeof options.amountAbove === 'string' ? options.amountAbove.trim() : options.amountAbove;
+  if (amount !== undefined && amount !== null && amount !== '') {
+    const value = typeof amount === 'number' || typeof amount === 'string' ? Number(amount) : NaN;
+    const cents = Math.round(value * 100);
+    if (!Number.isFinite(value) || value < 0 || !Number.isSafeInteger(cents) || Math.abs(value * 100 - cents) > 1e-7) {
+      throw queryError('INVALID_GIFT_FILTER', '金额门槛必须是非负金额，最多两位小数。');
+    }
+    filters.amountAbove = cents / 100;
+  }
   return filters;
 }
 

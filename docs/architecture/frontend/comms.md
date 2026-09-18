@@ -4,21 +4,23 @@
 
 本文档描述前端与后端/桌面层的**通信客户端行为**。传输层实现、快照 17 字段、消息类型全集归 [ws.md](../backend/ws.md) 所有;端点清单归 [api.md](../backend/api.md) 所有;IPC 通道注册表归 [desktop/preload.md](../desktop/preload.md) 所有。
 
-## 1. Token 获取与服务端注入
+## 1. 管理身份与展示页能力
 
-服务端在每次返回 HTML 时向 `</head>` 前注入一段脚本([http-utils.js:108-137](../../../src/server/http-utils.js#L108-L137),机制归 [server-core.md](../backend/server-core.md) §4.3),客户端侧表现为:
+管理页面不接收管理 token。Electron main 的 [desktop-request-auth.js](../../../src/electron/desktop-request-auth.js) 为受信任主窗口、当前 mainFrame 与精确本机目标附加认证，覆盖 HTTP、下载导航与 WS；renderer/preload 不持有凭据，URL 不自动追加管理 token。其他窗口与子 frame不能借用；管理页 CSP 禁止 Worker，因为 Chromium 可把部分 Worker 请求归属主 frame。具体边界见 [desktop/auth.md](../desktop/auth.md) §11.1。
 
-| 事实           | 客户端行为                                                                                                                                                                                                                  |
-| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 全局令牌       | 注入脚本写 `window.__API_TOKEN__ = <uuid>`;页面其余脚本直接读取,无需自己请求                                                                                                                                                |
-| fetch 补丁     | 注入脚本包装 `window.fetch`:对以 `/api/` 开头(除 `/api/health`)且未带 Authorization 的请求自动附加 `Authorization: Bearer <token>`                                                                                          |
-| WebSocket 补丁 | 包装 `window.WebSocket`:URL 含 `/ws` 且无 `?token=` 时自动追加 `token=`(encodeURIComponent 编码)                                                                                                                            |
-| 原生链接补丁   | 对同源 `/api/` 的 `<a href>` 补 `?token=`(原生导航带不了 Header)                                                                                                                                                            |
-| 兜底           | 显式使用 token 的代码仍是合法模式:`utils.api()` 手动加 Bearer([utils.js:156](../../../public/js/shared/utils.js#L156))、`state.js` 拼接 `ws://host/ws?token=…`([state.js:31-32](../../../public/js/admin/state.js#L31-L32)) |
+只有已知 overlay HTML 注入各自 `ov1:<scope>:<signature>`，以 `window.__API_TOKEN__` 供本页使用。该值不能操作管理接口或其他 scope。规范页面和 raw HTML 别名同权，页面缓存保持禁用，运行密钥轮换后旧能力失效。
 
-**Token 生命周期**:随服务启动生成、关闭删除(见 [server-core.md](../backend/server-core.md) §7)。页面缓存被禁止(`Cache-Control: no-store`),每次刷新都能拿到新注入的 token。
+| 行为 | Overlay 客户端规则 |
+| --- | --- |
+| fetch | [overlay-bootstrap.js](../../../src/server/overlay-bootstrap.js) 只给精确本机 origin 的 `/api/*`（除 health）添加 Bearer；兼容字符串、Request 和 Headers，保留调用者显式认证 |
+| WebSocket | 只向精确本机 host/协议的 `/ws` 添加本页 query 凭据；外域、异端口、相似路径不添加 |
+| 图片 | avatar 代理等图片请求使用本页 query 凭据，并受服务端 scope 检查 |
+| HTML 隔离 | `sandbox allow-scripts` 产生 opaque origin，禁止访问父管理页面；公开静态资源支持 CORS，API/WS 仅接受实际验证通过的页面能力 |
+| 恢复 | 本机 API 401 或 WS 断开时用旧能力检查本页最小 state，确认 401 后才刷新；单飞/5 秒超时/pagehide 取消，离线与启动阶段不盲目刷新 |
 
-OBS 页面确认会话过期后会自动刷新以恢复当前服务的连接；临时离线继续使用既有重连。触发条件、探测与取消归 [server-core.md](../backend/server-core.md) §4.3 所有。
+身份和生命周期归 [server-core.md](../backend/server-core.md) §4/§7；HTTP 权限表归 [api.md](../backend/api.md) §0.0，WS 投影归 [ws.md](../backend/ws.md)。管理页保留完整管理 state，展示页只消费自身字段。没有以匿名 HTML 发放管理身份的后备路径。
+
+---
 
 ## 2. HTTP 模式(fetch + `{ok}` 信封)
 
@@ -59,7 +61,7 @@ Admin 的 HTTP 与 WS 全量快照统一经过 `StateService.applySnapshot`。HT
 
 | 事实       | 行为                                                                                                                                                                                                                                                        | 出处                                                                                                                       |
 | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| 连接 URL   | `(wss\|ws)://<host>/ws?token=<token>`(token 自动追加或手动拼)；固定 `/danmaku` 追加 `topic=danmaku` 订阅高频弹幕事件                                                                                                                                        | [state.js:30-33](../../../public/js/admin/state.js#L30-L33)、[overlays/danmaku.js](../../../public/js/overlays/danmaku.js) |
+| 连接 URL | 管理页使用本机 `/ws`，认证由 Electron main 加头；overlay 使用本页 query 凭据。`topic=danmaku` 只订阅事件，不扩展 scope | [state.js](../../../public/js/admin/state.js)、[socket-client.js](../../../public/js/overlays/socket-client.js) |
 | 首帧       | 连接建立即收 `{type:'snapshot', reason:'connect', state}` 全量快照(契约见 [ws.md](../backend/ws.md) §2)                                                                                                                                                     | [ws.md](../backend/ws.md) §2                                                                                               |
 | 协议选择   | `location.protocol === 'https:' ? 'wss:' : 'ws:'`,与页面同源(`location.host`)                                                                                                                                                                               | [state.js:30](../../../public/js/admin/state.js#L30)                                                                       |
 | 只读客户端 | 前端**不发送任何业务消息**给服务端;`shutdown` 消息到达后停止重连                                                                                                                                                                                            | [ws.md](../backend/ws.md) §1                                                                                               |
@@ -89,7 +91,7 @@ Admin 的 HTTP 与 WS 全量快照统一经过 `StateService.applySnapshot`。HT
 
 ### 3.4 客户端消费的消息类型(全集在 [ws.md](../backend/ws.md) §3)
 
-`snapshot`(订阅快照的页面；clock/opening 仅 HTTP 获取)、`overtime:update`(管理页 + 加班机层,revision 去重)、`gift-catalog:update`(管理页加班机选择器,version 去重)、`wesing-state`(管理页 WeSing 面板)、`lyric-state`/`lyric-timeline`(管理页歌词预览、歌词窗口)、`shutdown`(管理页)，以及 `gift:frame`、`game:update`/`game:draw`、`wheel:update`、`danmaku:message` 各自的专用消费者。所有页面都不向服务端发送业务消息(服务端丢弃客户端帧,见 [ws.md](../backend/ws.md) §1)。
+`snapshot`(订阅快照的页面；clock/opening 仅 HTTP 获取)、`overtime:update`(管理页 + 加班机层,revision 去重)、`gift-catalog:update`(管理页加班机选择器,version 去重)、`wesing-state`(管理页 WeSing 面板)、`lyric-state`/`lyric-timeline`(管理页歌词预览、歌词窗口)、`shutdown`(管理页)，以及 `gift:frame`、`game:update`/`game:draw`、`wheel:update`、`danmaku:message` 各自的专用消费者。所有页面都不发送 WS 业务消息；overlay 业务入站帧被服务端以 1008 关闭，管理身份沿用校验后丢弃的行为，协议控制帧保持正常（见 [ws.md](../backend/ws.md) §1）。
 
 ## 4. 桌面桥(preload 暴露的四个命名空间)
 
@@ -116,4 +118,4 @@ Admin 的 HTTP 与 WS 全量快照统一经过 `StateService.applySnapshot`。HT
        播放页:本地 state/actions 先行,state-persistence 防抖落盘(HTTP + IPC 双通道)
 ```
 
-快照提供其 17 个字段的完整恢复状态；游戏画布、转盘、礼物边框和实时弹幕另有专用消息/恢复语义，见 [ws.md](../backend/ws.md)。HTTP 用于命令及状态查询，普通 JSON 响应使用 `{ok}` 信封；WebSocket 按 `{type,...}` 分发，音频、图片与其他二进制响应不使用 JSON 信封。去重和退避由各消费者按其契约执行。
+管理快照提供完整恢复状态，overlay 快照按已验证 scope 裁剪；游戏画布、转盘、礼物边框和实时弹幕另有专用消息/恢复语义，见 [ws.md](../backend/ws.md)。HTTP 用于命令及状态查询，普通 JSON 响应使用 `{ok}` 信封；WebSocket 按 `{type,...}` 分发，音频、图片与其他二进制响应不使用 JSON 信封。去重和退避由各消费者按其契约执行。

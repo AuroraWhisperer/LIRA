@@ -1,12 +1,32 @@
 'use strict';
 
+const { randomUUID } = require('node:crypto');
+
 const {
   cleanText,
   normalizeGuardLevel,
   normalizePositiveInteger,
 } = require('../shared/utils');
 
-function createQueueStore(songDb) {
+function createQueueStore(songDb, { getFanScope = () => null, archiveAccepted = () => {}, archiveQueueState = () => {} } = {}) {
+  function updateStatus(where, values, status, updatedAt) {
+    songDb.exec('SAVEPOINT queue_status');
+    try {
+      const requests = songDb.prepare(`SELECT requests.* FROM requests JOIN queue ON queue.id = requests.queue_id WHERE ${where}`).all(...values);
+      const result = songDb.prepare(`UPDATE queue SET status = ?, updated_at = ? WHERE ${where}`).run(status, updatedAt, ...values);
+      for (const request of requests) {
+        if (request.owner_scope === getFanScope() && request.stable_id) {
+          archiveQueueState(request.owner_scope, request.stable_id, status, updatedAt);
+        }
+      }
+      songDb.exec('RELEASE queue_status');
+      return result.changes;
+    } catch (error) {
+      songDb.exec('ROLLBACK TO queue_status');
+      songDb.exec('RELEASE queue_status');
+      throw error;
+    }
+  }
   return {
     countActive() {
       return songDb
@@ -34,6 +54,9 @@ function createQueueStore(songDb) {
     },
 
     insertRequest(input) {
+      const currentScope = getFanScope();
+      const ownerScope = input.fanScope === undefined || input.fanScope === currentScope ? currentScope : null;
+      const stableId = randomUUID();
       songDb.exec('BEGIN');
       try {
         const result = songDb
@@ -67,15 +90,15 @@ function createQueueStore(songDb) {
           );
 
         const queueId = Number(result.lastInsertRowid);
-        songDb
+        const request = songDb
           .prepare(
             `
           INSERT INTO requests (
             queue_id, song_id, song_name, artist, category_name,
             requester_uid, requester_name,
             requester_guard_level, requester_medal_name, requester_medal_level,
-            message, source, created_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            message, source, created_at, stable_id, owner_scope, identity_type
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `,
           )
           .run(
@@ -92,7 +115,12 @@ function createQueueStore(songDb) {
             input.message,
             input.source,
             input.createdAt,
+            stableId,
+            ownerScope,
+            input.identityType || null,
           );
+
+        archiveAccepted(ownerScope, { ...input, stableId, queueId, requestId: Number(request.lastInsertRowid) });
 
         const item = normalizeQueueRow(
           songDb.prepare('SELECT * FROM queue WHERE id = ?').get(queueId),
@@ -117,21 +145,12 @@ function createQueueStore(songDb) {
         )
         .get();
       if (!first) return false;
-      songDb
-        .prepare('UPDATE queue SET status = ?, updated_at = ? WHERE id = ?')
-        .run('done', updatedAt, first.id);
+      updateStatus('queue.id = ?', [first.id], 'done', updatedAt);
       return true;
     },
 
     clearActive(updatedAt) {
-      return songDb
-        .prepare(
-          `
-        UPDATE queue SET status = 'deleted', updated_at = ?
-        WHERE status IN ('current', 'waiting')
-      `,
-        )
-        .run(updatedAt).changes;
+      return updateStatus("queue.status IN ('current', 'waiting')", [], 'deleted', updatedAt);
     },
 
     setPinned(id, pinned, updatedAt) {
@@ -143,16 +162,15 @@ function createQueueStore(songDb) {
     },
 
     setStatus(id, status, updatedAt) {
-      songDb
-        .prepare('UPDATE queue SET status = ?, updated_at = ? WHERE id = ?')
-        .run(status, updatedAt, id);
+      updateStatus('queue.id = ?', [id], status, updatedAt);
     },
 
     listActive() {
       return songDb
         .prepare(
           `
-        SELECT queue.*, requests.message AS request_message
+        SELECT queue.*, requests.message AS request_message,
+          requests.identity_type AS requester_identity_type
         FROM queue
         LEFT JOIN requests ON requests.queue_id = queue.id
         WHERE status IN ('current', 'waiting')

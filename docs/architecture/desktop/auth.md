@@ -158,6 +158,37 @@ desktopRuntime.start({
 
 出处 [main.js:120-132](../../../src/electron/main.js#L120-L132)。独立 Web 模式无 safeStorage/Cookie 注入,降级认证(见 [server-core.md](../backend/server-core.md) §1)。
 
+### 11.1 本地管理凭据与展示页隔离
+
+[desktop-request-auth.js](../../../src/electron/desktop-request-auth.js) 从 main-only
+`runtime.getApiToken()` 取得本地管理 Bearer，并与媒体规则共用唯一的
+`session.defaultSession.webRequest.onBeforeSendHeaders` 监听。凭据不进入 HTML、URL、
+preload 返回值或 renderer storage；默认调试入口为 `npm run desktop`，匿名浏览器不获得管理权限。
+
+附头同时要求当前主窗口的 `webContentsId`、对象和 session 精确匹配，请求 frame 必须非空、
+非 detached、无 parent，且 `processId/frameToken` 与当前 mainFrame 一致。已提交文档必须是
+精确服务 origin 的 `/`、`/admin`、`/settings`、`/songs`，目标仅限同源 `/api/*` 和对应协议的
+`/ws`；初始空文档、`about:blank` 和同源 `/license` 只允许引导上述管理 HTML 的 GET/HEAD。
+登录分区、隐藏导出窗口、子 frame 和旧文档不能借用管理凭据。Electron 会把部分 Worker
+请求归到管理 mainFrame，frame 校验不能区分它们；管理 HTML 因此强制 `worker-src 'none'`，
+禁止 Dedicated/Blob/Shared/Service Worker 启动，不能只依赖缺少 frame 的请求被拒绝。
+
+重定向每一跳重新检查，并按请求 id 剥离先前附加的管理头；完成/失败后清除记录。
+窗口监听由该 owner 绑定和清理；关闭终结阶段撤销附头能力，正常关闭仍先完成播放快照冲刷。
+detached 文档的 beacon 不放宽认证，桌面退出继续使用既有 IPC 冲刷握手。
+
+展示 HTML 使用各页独立 capability，并强制 `CSP: sandbox allow-scripts`，不保留同源身份。
+三个管理预览 iframe 同时声明该 sandbox；时钟配置与开场音量仅向绑定的 contentWindow
+以 `postMessage(..., '*')` 发送展示值，子页面校验 parent 和页面 URL 对应的服务 origin。
+这样展示脚本不能通过 `parent.fetch` 或父 DOM 借用主框架权限；服务端按展示 scope 校验
+`Origin: null` 请求，不能把 opaque origin 本身当作身份。
+
+验证：[desktop-request-auth.test.js](../../../test/desktop-request-auth.test.js) 与
+[desktop-request-auth-electron.test.js](../../../test/desktop-request-auth-electron.test.js)。后者在
+Windows Electron 43.2 使用临时 profile 和本地测试服务，覆盖管理引导/重载/许可恢复、
+HTTP/WS/beacon、重定向、opaque iframe、四类 Worker 被 CSP 阻止、真实时钟预览、开场音频及
+带头像和礼物图片的主进程导出截图；主窗口沿用 `sandbox: false`，不使用真实用户数据。
+
 ## 12. 安全要点
 
 | 项目        | 说明                                                                                                                                              | 出处                                                                                                                                        |

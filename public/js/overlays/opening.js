@@ -216,7 +216,9 @@ function startRuntime(config) {
 
   window.addEventListener('message', (event) => {
     if (
+      window.parent === window ||
       event.source !== window.parent ||
+      event.origin !== new URL(location.href).origin ||
       event.data?.type !== 'lira:opening-preview-volume'
     )
       return;

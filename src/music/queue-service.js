@@ -54,6 +54,9 @@ function addQueueItem(context, input) {
       cleanText(input.categoryName) ||
       (matchedSong ? matchedSong.category_name : ''),
     requesterUid: cleanText(input.requesterUid),
+    fanScope: input.fanScope,
+    identityType: input.requesterIdentityType === 'open_id' ? 'open_id'
+      : input.requesterIdentityType === 'uid' && /^[1-9]\d{0,24}$/.test(cleanText(input.requesterUid)) ? 'uid' : null,
     requesterName: cleanText(input.requesterName) || '观众',
     requesterGuardLevel: normalizeGuardLevel(input.requesterGuardLevel),
     requesterMedalName: cleanText(input.requesterMedalName),

@@ -2,7 +2,9 @@
 // HTTP API 前缀分发。业务状态留在 server.js，通过 context 注入，本模块保持无状态。
 'use strict';
 
-const { readJsonBody, sendJson, verifyToken } = require('./http-utils');
+const { readJsonBody, sendJson } = require('./http-utils');
+const { resolveRequestPrincipal, isOverlayRequestAllowed, isOverlayRoute } = require('./access-policy');
+const { handleOverlayApi } = require('./overlay-http');
 
 // 按前缀顺序匹配；每个模块只关心自己领域的路由表
 const ROUTE_MODULES = [
@@ -25,13 +27,6 @@ const ROUTE_MODULES = [
   require('./routes/dynamic-lottery-routes'),
   require('./routes/bilibili-routes'),
 ];
-
-// 无需 token 即可访问的 API（健康检查与 Browser Source 只读配置）
-const PUBLIC_API_PATHS = new Set([
-  '/api/health',
-  '/api/clock/config',
-  '/api/opening/config',
-]);
 
 function findRoute(pathName, method) {
   let pathExists = false;
@@ -63,17 +58,50 @@ function createBodyReader(req, maxBodyBytes) {
 async function handleApi(context, req, res, requestUrl) {
   const method = req.method || 'GET';
   const pathName = requestUrl.pathname;
-
-  // Token 校验 — 健康检查与只读开播配置豁免
-  if (
-    !PUBLIC_API_PATHS.has(pathName) &&
-    !verifyToken(context, req, requestUrl)
-  ) {
+  const principal = resolveRequestPrincipal(context, req, requestUrl);
+  const origin = req.headers?.origin;
+  if (origin === 'null') {
+    // Opaque origin is not an identity. Preflight exposes no data; every actual
+    // operation below still requires a verified, matching page capability.
+    const requestedMethod = method === 'OPTIONS'
+      ? req.headers['access-control-request-method'] : method;
+    if (!isOverlayRoute(requestedMethod, pathName) || principal?.type === 'admin') {
+      return sendJson(res, 403, { ok: false, error: 'Origin not allowed.' });
+    }
+    res.setHeader('Access-Control-Allow-Origin', 'null');
+    res.setHeader('Vary', 'Origin');
+    if (method === 'OPTIONS') {
+      const headers = String(req.headers['access-control-request-headers'] || '')
+        .toLowerCase().split(',').map((value) => value.trim()).filter(Boolean);
+      if (headers.some((value) => !['authorization', 'content-type'].includes(value))) {
+        return sendJson(res, 403, { ok: false, error: 'Request headers not allowed.' });
+      }
+      res.writeHead(204, {
+        'Access-Control-Allow-Methods': requestedMethod,
+        'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+        'Access-Control-Max-Age': '600',
+      });
+      res.end();
+      return;
+    }
+  }
+  if (!(method === 'GET' && pathName === '/api/health') && !principal) {
     sendJson(res, 401, {
       ok: false,
-      error: '未授权访问。请在启动日志中查看 session token。',
+      error: '未授权访问。请重新打开页面。',
     });
     return;
+  }
+
+  const request = {
+    method, pathName, query: requestUrl.searchParams, req,
+    body: createBodyReader(req, context.maxBodyBytes),
+  };
+  if (principal?.type === 'overlay' && pathName !== '/api/health') {
+    if (!isOverlayRequestAllowed(principal.scope, method, pathName)) {
+      return sendJson(res, 403, { ok: false, error: '该页面无权访问此接口。' });
+    }
+    return handleOverlayApi(context, principal, request, res);
   }
 
   const { handler, pathExists } = findRoute(pathName, method);
@@ -95,17 +123,7 @@ async function handleApi(context, req, res, requestUrl) {
     return;
   }
 
-  await handler(
-    context,
-    {
-      method,
-      pathName,
-      query: requestUrl.searchParams,
-      req,
-      body: createBodyReader(req, context.maxBodyBytes),
-    },
-    res,
-  );
+  await handler(context, request, res);
 }
 
 module.exports = { handleApi };

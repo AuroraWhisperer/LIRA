@@ -46,6 +46,11 @@
 .danmaku-fixed-open > span:first-child { min-width: 0; }
 .danmaku-fixed-open strong, .danmaku-welcome-rule > strong, .danmaku-welcome-pinyin strong { font-size: 14px; font-weight: 500; color: var(--danmaku-heading-color); }
 .danmaku-fixed-open:hover { background: transparent; }
+.daily-bot-cloud-status, .daily-bot-takeover-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.daily-bot-takeover { padding: 16px; border: 1px solid var(--border); border-radius: 8px; margin-block: 12px; }
+.daily-bot-takeover label { display: block; margin-block: 12px; }
+.daily-bot-takeover textarea { display: block; width: 100%; margin-block: 8px; }
+.daily-bot-takeover [hidden] { display: none; }
 .danmaku-fixed-summary, .danmaku-fixed-note { display: block; font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
 .danmaku-fixed-note:empty { display: none; }
 .danmaku-fixed-note { color: var(--text); }

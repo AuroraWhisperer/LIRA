@@ -22,6 +22,13 @@ const {
   registerDynamicLotteryAuthIpc,
 } = require('./ipc/dynamic-lottery-auth-ipc');
 const { createCloudSyncController } = require('./cloud-sync-controller');
+const {
+  createFanProfileController,
+  fanScopeFor,
+} = require('./fan-profile-controller');
+const { registerFanProfileIpc } = require('./ipc/fan-profile-ipc');
+const { createDailyBotController } = require('./daily-bot-controller');
+const { registerDailyBotIpc } = require('./ipc/daily-bot-ipc');
 const { createRemoteGiftController } = require('./remote-gift-controller');
 const {
   createDesktopReadinessController,
@@ -47,6 +54,7 @@ const {
 } = require('./local-media-access');
 const { registerLocalMediaProtocol } = require('./local-media-protocol');
 const { configureMediaRequestHeaders } = require('./media-request-headers');
+const { createDesktopRequestAuth } = require('./desktop-request-auth');
 const updateMgr = require('./update-manager');
 const playbackFlush = require('./playback-flush');
 const { installTerminalLog } = require('./terminal-log');
@@ -64,10 +72,6 @@ const {
 const { resolveConfiguredBaseUrl } = require('./license/remote-license-client');
 const { createLicenseResumeHandler } = require('./license/license-resume');
 const serverRuntimeModule = require('../server');
-const {
-  isAllowedExternal,
-  isAllowedLocalUrl,
-} = require('./external-url-policy');
 
 const ROOT_DIR = path.resolve(__dirname, '..', '..');
 const GITHUB_REPO_URL = 'https://github.com/AuroraWhisperer/LIRA';
@@ -133,6 +137,9 @@ var dynamicLotteryAuth = null;
 var disposeLotteryAuthIpc = null;
 var disposeGiftInteractionIpc = null;
 var disposeGiftExportIpc = null;
+var fanProfileController = null;
+var disposeFanProfileIpc = null;
+var disposeDailyBotIpc = null;
 const remoteGiftCatalogBootstrapBase = resolveConfiguredBaseUrl();
 
 // ---- app lifecycle ----
@@ -251,6 +258,7 @@ function requestDesktopShutdown({ restart = false } = {}) {
     if (finished) return;
     finished = true;
     clearTimeout(forceQuitTimer);
+    lifecycleState.requestAuth?.dispose();
     writeLog('lifecycle', { event });
     try {
       licenseManager?.dispose();
@@ -277,14 +285,18 @@ function requestDesktopShutdown({ restart = false } = {}) {
       disposeLotteryAuthIpc?.();
       disposeGiftInteractionIpc?.();
       disposeGiftExportIpc?.();
+      disposeFanProfileIpc?.();
+      disposeDailyBotIpc?.();
       dynamicLotteryAuth?.dispose();
       const controllersToDrain = [
         remoteGiftController,
         cloudSyncController,
+        fanProfileController,
       ].filter(Boolean);
       for (const controller of controllersToDrain) controller.dispose();
       remoteGiftController = null;
       cloudSyncController = null;
+      fanProfileController = null;
       await Promise.all([
         dynamicLotteryAuth?.whenIdle(),
         ...controllersToDrain.map((controller) => controller.whenIdle()),
@@ -371,7 +383,13 @@ async function startDesktopApp() {
       return result;
     },
   });
-  configureMediaRequestHeaders(session.defaultSession, mediaState);
+  lifecycleState.requestAuth = createDesktopRequestAuth({
+    desktopSession: session.defaultSession,
+    getMainWindow: () => windowState.main,
+    getBaseUrl: () => windowState.baseUrl,
+    getToken: () => lifecycleState.runtime?.getApiToken?.() || '',
+  });
+  configureMediaRequestHeaders(session.defaultSession, mediaState, lifecycleState.requestAuth);
   configureAutoUpdater();
   phaseStartedAt = Date.now();
   await restoreMusicCookieSnapshots();
@@ -427,6 +445,7 @@ async function startDesktopApp() {
     licenseGate: {
       isAuthorized: () => licenseManager?.isAuthorized() === true,
     },
+    getFanScope: () => fanScopeFor(licenseManager),
     onPhase: (phase, durationMs, extra) =>
       writeLog('lifecycle', {
         event: 'PHASE',
@@ -524,6 +543,26 @@ async function startDesktopApp() {
   remoteGiftController = createRemoteGiftController({
     licenseManager,
     runtime: lifecycleState.runtime,
+  });
+  fanProfileController = createFanProfileController({
+    licenseManager,
+    getService: () => lifecycleState.runtime.getFanProfiles(),
+  });
+  disposeFanProfileIpc = registerFanProfileIpc({
+    ipcMain,
+    controller: fanProfileController,
+    getMainWindow: () => windowState.main,
+    getDesktopBaseUrl: () => serverInfo.baseUrl,
+  });
+  void fanProfileController.start();
+  disposeDailyBotIpc = registerDailyBotIpc({
+    ipcMain,
+    controller: createDailyBotController({ licenseManager,
+      getLegacyReader: () => lifecycleState.runtime.getDailyBotLegacy(),
+      sourceLabel: path.join(pathState.dataDir, 'checkin-data.db'),
+    }),
+    getMainWindow: () => windowState.main,
+    getDesktopBaseUrl: () => serverInfo.baseUrl,
   });
   licenseResumeController = createLicenseResumeHandler({
     powerMonitor,
@@ -662,6 +701,7 @@ function createMainWindow(baseUrl, authorized = false) {
   if (fs.existsSync(iconPath)) opts.icon = iconPath;
 
   windowState.main = new BrowserWindow(opts);
+  lifecycleState.requestAuth.bindWindow(windowState.main, shell);
   writeLog('window', { event: 'create', window: 'main' });
   windowState.main.loadURL(
     baseUrl + (authorized ? '/admin?desktop=1' : '/license'),
@@ -678,34 +718,6 @@ function createMainWindow(baseUrl, authorized = false) {
           setUpdateError(e);
         });
       }, 1000);
-    }
-  });
-
-  windowState.main.webContents.setWindowOpenHandler(function (detail) {
-    if (isAllowedExternal(detail.url) || isAllowedLocalUrl(detail.url)) {
-      shell.openExternal(detail.url);
-    }
-    return { action: 'deny' };
-  });
-
-  windowState.main.webContents.on('will-navigate', function (event, url) {
-    var parsed;
-    try {
-      parsed = new URL(url);
-    } catch (_) {
-      parsed = null;
-    }
-    var base = new URL(baseUrl);
-    if (
-      parsed &&
-      parsed.protocol === base.protocol &&
-      parsed.hostname === base.hostname &&
-      parsed.port === base.port
-    )
-      return;
-    event.preventDefault();
-    if (isAllowedExternal(url) || isAllowedLocalUrl(url)) {
-      shell.openExternal(url);
     }
   });
 

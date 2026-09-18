@@ -128,7 +128,7 @@ test('fortune bot uses a saved pool and falls back from invalid settings', () =>
   );
 });
 
-test('fortune command participates in danmaku filtering and domain replies', () => {
+test('fortune command is filtered and reserved for cloud execution', () => {
   assert.equal(isBilibiliCommandText('抽签'), true);
   assert.equal(isBilibiliCommandText('帮我抽签'), false);
 
@@ -151,8 +151,9 @@ test('fortune command participates in danmaku filtering and domain replies', () 
       userName: 'Bob',
     });
     assert.equal(result.accepted, false);
-    assert.equal(result.fortune.accepted, true);
-    assert.deepEqual(result.fortuneReply.target, { uid: '456', name: 'Bob' });
+    assert.equal(result.reason, 'cloud-owned');
+    assert.deepEqual(result.command, { type: 'fortune' });
+    assert.equal(result.fortuneReply, undefined);
   } finally {
     closeDatabases(databases);
     fs.rmSync(dataDir, { recursive: true, force: true });

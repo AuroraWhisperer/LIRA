@@ -1,10 +1,7 @@
 'use strict';
 
-import {
-  createBlessingEditor,
-  createCustomReplyEditor,
-  createFortuneEditor,
-} from './danmaku-libraries.js';
+import { createCustomReplyEditor } from './danmaku-libraries.js';
+import { initDanmakuDailyBots } from './danmaku-daily-bots.js';
 import { initDanmakuOverlaySettings } from './danmaku-overlay-settings.js';
 import { initDanmakuWelcome } from './danmaku-welcome.js';
 import { initDanmakuPkReport } from './danmaku-pk-report.js';
@@ -13,10 +10,12 @@ import { initFixedReplyEditor } from './danmaku-fixed-replies.js';
 let initialized = false;
 let refreshState = null;
 let autoBotRunning = false;
+let dailyBots = null;
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function init() {
+  dailyBots ||= initDanmakuDailyBots();
   const elements = getElements();
   if (initialized || !elements) return;
 
@@ -32,14 +31,12 @@ function init() {
       throw new Error(payload.error || '保存设置失败');
     return payload.data;
   };
-  const blessingEditor = createBlessingEditor({ document, saveSetting, toast });
-  const fortuneEditor = createFortuneEditor({ document, saveSetting, toast });
   const customReplyEditor = createCustomReplyEditor({
     document,
     saveSetting,
     toast,
   });
-  if (!blessingEditor || !fortuneEditor || !customReplyEditor) return;
+  if (!customReplyEditor) return;
   initDanmakuOverlaySettings(elements, toast);
   initDanmakuWelcome({ toast });
   initDanmakuPkReport({ toast });
@@ -72,8 +69,6 @@ function init() {
         state = refreshedPayload.data || {};
       }
       renderState(elements, state, {
-        blessingEditor,
-        fortuneEditor,
         customReplyEditor,
       });
     } catch (error) {
@@ -97,20 +92,6 @@ function init() {
     key: 'enableRandomTagReply',
     onText: '随机点歌自动回复已开启',
     offText: '随机点歌自动回复已关闭',
-    saveSetting,
-    toast,
-  });
-  bindSettingToggle(elements.checkinToggle, {
-    key: 'enableCheckinBot',
-    onText: '签到机器人已开启',
-    offText: '签到机器人已关闭',
-    saveSetting,
-    toast,
-  });
-  bindSettingToggle(elements.fortuneToggle, {
-    key: 'enableFortuneBot',
-    onText: '抽签机器人已开启',
-    offText: '抽签机器人已关闭',
     saveSetting,
     toast,
   });
@@ -218,8 +199,6 @@ function getElements() {
     sendButton: document.getElementById('danmakuSendBtn'),
     autoButton: document.getElementById('danmakuAutoBtn'),
     replyToggle: document.getElementById('danmakuReplyToggle'),
-    checkinToggle: document.getElementById('danmakuCheckinToggle'),
-    fortuneToggle: document.getElementById('danmakuFortuneToggle'),
     customReplyToggle: document.getElementById('danmakuCustomReplyToggle'),
     status: document.getElementById('danmakuToolStatus'),
     accountState: document.getElementById('danmakuAccountState'),
@@ -243,7 +222,7 @@ function getElements() {
     document.querySelectorAll('[data-danmaku-style]'),
   );
   return Object.values(elements).some((element) => !element) ||
-    elements.styleButtons.length !== 8
+    elements.styleButtons.length === 0
     ? null
     : elements;
 }
@@ -260,14 +239,8 @@ function renderState(elements, state, editors) {
   elements.roomState.title = state.roomId ? `房间 ${state.roomId}` : '';
   elements.replyToggle.checked = state.autoReplyEnabled === true;
   elements.replyToggle.disabled = !state.canSend;
-  elements.checkinToggle.checked = state.checkinBotEnabled === true;
-  elements.checkinToggle.disabled = !state.canSend;
-  elements.fortuneToggle.checked = state.fortuneBotEnabled === true;
-  elements.fortuneToggle.disabled = !state.canSend;
   elements.customReplyToggle.checked = state.customReplyBotEnabled === true;
   elements.customReplyToggle.disabled = !state.canSend;
-  editors.blessingEditor.load(state.checkinBlessings);
-  editors.fortuneEditor.load(state.fortunePool);
   editors.customReplyEditor.load(state.customReplyRules);
   elements.status.textContent = state.canSend
     ? state.connected
@@ -297,6 +270,7 @@ function bindSettingToggle(element, options) {
 }
 
 function refresh(options) {
+  void dailyBots?.refresh();
   return refreshState ? refreshState(options) : Promise.resolve();
 }
 

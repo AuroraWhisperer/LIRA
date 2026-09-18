@@ -69,8 +69,8 @@ export function buildGiftHistoryUrl({
   const params = new URLSearchParams();
   params.set('range', 'all');
   params.set('limit', String(limit));
-  for (const key of ['startDate', 'endDate', 'userQuery', 'giftQuery']) {
-    if (filters[key]) params.set(key, filters[key]);
+  for (const key of ['startDate', 'endDate', 'userQuery', 'giftQuery', 'amountAbove']) {
+    if (filters[key] !== undefined && filters[key] !== null && filters[key] !== '') params.set(key, filters[key]);
   }
   if (cursor && viewRevision) params.set('viewRevision', viewRevision);
   if (cursor) params.set('cursor', cursor);
@@ -181,10 +181,6 @@ export function initGiftHistoryDrawer() {
 }
 
 export function openGiftHistoryDrawer() {
-  const topbar = document.querySelector?.('.desktop-shell .topbar');
-  const top = topbar?.getBoundingClientRect?.().bottom || 0;
-  get('giftHistoryDrawer')?.style?.setProperty('--gift-panel-top', `${top}px`);
-  get('giftHistoryBackdrop')?.style?.setProperty('--gift-panel-top', `${top}px`);
   get('giftHistoryDrawer')?.classList.add('open');
   get('giftHistoryBackdrop')?.classList.add('open');
   get('giftHistoryClose')?.focus();

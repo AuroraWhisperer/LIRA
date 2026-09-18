@@ -143,6 +143,7 @@ class MessageHandlers {
       message: text,
       emotes,
       uid: requester.uid,
+      identityType: 'uid',
       userName: requester.userName,
       ...(this.roomOwnerUid && String(requester.uid) === this.roomOwnerUid ? { isStreamer: true } : {}),
       requesterGuardLevel: requester.guardLevel,
@@ -239,6 +240,7 @@ class MessageHandlers {
     this.handlers.onMessage({
       message: text,
       uid: requester.uid,
+      identityType: 'uid',
       userName: requester.userName,
       requesterGuardLevel: requester.guardLevel,
       requesterMedalName: requester.medalName,

@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const childProcess = require('node:child_process');
 const { once } = require('node:events');
 const fs = require('node:fs');
+const net = require('node:net');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
@@ -69,13 +70,37 @@ test('Windows native TCP/process lookup safely shuts down an owned legacy child'
   assert.equal(exitCode, 0);
 });
 
+test('native ownership query matches listeners and exact established endpoints', { skip: process.platform !== 'win32', timeout: 20000 }, async (t) => {
+  const server = net.createServer();
+  let client;
+  let socket;
+  t.after(() => {
+    client?.destroy();
+    socket?.destroy();
+    return new Promise((resolve) => server.close(resolve));
+  });
+  server.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  const port = server.address().port;
+  const accepted = once(server, 'connection');
+  client = net.connect(port, '127.0.0.1');
+  [[socket]] = await Promise.all([accepted, once(client, 'connect')]);
+
+  assert.equal(readPortOwner(port)?.ProcessId, process.pid);
+  assert.equal(readPortOwner(port, client.localPort)?.ProcessId, process.pid);
+  // A listening port cannot also be the connected client's ephemeral port.
+  assert.equal(readPortOwner(port, port), null);
+});
+
 test('native ownership script rejects a different Windows user SID', { skip: process.platform !== 'win32', timeout: 15000 }, (t) => {
   const nativeExec = childProcess.execFileSync;
   let sameUser = false;
   t.mock.method(childProcess, 'execFileSync', (file, args, options) => {
     const fixture = `
-      function Get-NetTCPConnection { param($LocalAddress,$LocalPort,$State,$RemoteAddress,$RemotePort,$ErrorAction) [pscustomobject]@{OwningProcess=12345} }
-      function Get-CimInstance { param($ClassName,$Filter,$ErrorAction) [pscustomobject]@{ProcessId=12345; ExecutablePath='C:\\Runtime\\node.exe'; CommandLine='node.exe C:\\Apps\\Lira\\src\\server.js'; CreationDate='synthetic-created'} }
+      function Get-CimInstance { param($ClassName,$Namespace,$Filter,$ErrorAction)
+        if ($ClassName -eq 'MSFT_NetTCPConnection') { [pscustomobject]@{OwningProcess=12345} }
+        else { [pscustomobject]@{ProcessId=12345; ExecutablePath='C:\\Runtime\\node.exe'; CommandLine='node.exe C:\\Apps\\Lira\\src\\server.js'; CreationDate='synthetic-created'} }
+      }
       function Invoke-CimMethod { param($InputObject,$MethodName,$ErrorAction) [pscustomobject]@{Sid=${sameUser ? '[System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value' : "'synthetic-other-user'"}} }
     `;
     return nativeExec(file, [...args.slice(0, -1), fixture + args.at(-1)], options);

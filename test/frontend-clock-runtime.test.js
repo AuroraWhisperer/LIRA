@@ -152,7 +152,7 @@ test('clock preview loads once and sends the latest controls after iframe load',
     'controls and late load never reload the document',
   );
   const latest = messages.at(-1);
-  assert.equal(latest.origin, 'http://localhost:3000');
+  assert.equal(latest.origin, '*');
   assert.equal(latest.message.type, 'lira:clock-preview-config');
   assert.equal(latest.message.config.style, 'soda');
   assert.equal(latest.message.config.label, '预览文字');
@@ -169,6 +169,7 @@ test('clock applies only same-origin parent previews without restarting its time
   const dom = createClockDom();
   await loadModuleExports(entry('overlays', 'clock.js'), {
     ...dom,
+    URL,
     URLSearchParams,
     location: new URL(
       'http://127.0.0.1:3000/clock?style=peach&date=1&seconds=1&format=24',

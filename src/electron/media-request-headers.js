@@ -1,11 +1,11 @@
 'use strict';
 
-function configureMediaRequestHeaders(desktopSession, state) {
+function configureMediaRequestHeaders(desktopSession, state, requestAuth = null) {
   if (state.headersConfigured) return;
   state.headersConfigured = true;
   desktopSession.webRequest.onBeforeSendHeaders(
     {
-      urls: [
+      urls: requestAuth ? ['<all_urls>'] : [
         '*://*.music.163.com/*',
         '*://*.music.126.net/*',
         '*://*.qqmusic.qq.com/*',
@@ -48,9 +48,14 @@ function configureMediaRequestHeaders(desktopSession, state) {
           headers.Origin = 'https://www.bilibili.com';
         }
       }
+      requestAuth?.applyHeaders(details, headers);
       callback({ requestHeaders: headers });
     },
   );
+  if (requestAuth) {
+    desktopSession.webRequest.onCompleted(requestAuth.completeRequest);
+    desktopSession.webRequest.onErrorOccurred(requestAuth.completeRequest);
+  }
 }
 
 module.exports = {

@@ -7,13 +7,15 @@ const path = require('node:path');
 function readPortOwner(port, remotePort) {
   if (process.platform !== 'win32' || !validPort(port)) return null;
   if (remotePort !== undefined && !validPort(remotePort)) return null;
+  // Query the same CIM provider directly, avoiding NetTCPIP cmdlet import cost.
+  // MSFT_NetTCPConnection states: Listen = 2, Established = 5.
   const connection = remotePort === undefined
-    ? '-State Listen'
-    : `-State Established -RemoteAddress 127.0.0.1 -RemotePort ${remotePort}`;
+    ? 'State=2'
+    : `State=5 AND RemoteAddress='127.0.0.1' AND RemotePort=${remotePort}`;
   try {
     const output = childProcess.execFileSync('powershell.exe', [
       '-NoProfile', '-NonInteractive', '-Command',
-      `$ownerId = Get-NetTCPConnection -LocalAddress 127.0.0.1 -LocalPort ${port} ${connection} -ErrorAction Stop | Select-Object -First 1 -ExpandProperty OwningProcess; ` +
+      `$ownerId = Get-CimInstance -Namespace root/StandardCimv2 -ClassName MSFT_NetTCPConnection -Filter "LocalAddress='127.0.0.1' AND LocalPort=${port} AND ${connection}" -ErrorAction Stop | Select-Object -First 1 -ExpandProperty OwningProcess; ` +
       'if ($ownerId) { ' +
       '$ownerProcess = Get-CimInstance Win32_Process -Filter "ProcessId=$ownerId" -ErrorAction Stop; ' +
       '$ownerSid = (Invoke-CimMethod -InputObject $ownerProcess -MethodName GetOwnerSid -ErrorAction Stop).Sid; ' +

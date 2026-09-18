@@ -7,8 +7,10 @@ const retention = require('../storage/retention');
 const { createPlaybackStore } = require('../storage/playback-store');
 const { createThemeStore } = require('../storage/theme-store');
 const { createCooldownStore } = require('../storage/cooldown-store');
-const { createCheckinStore } = require('../storage/checkin-store');
+const { createDailyBotLegacyReader } = require('../storage/daily-bot-legacy-reader');
 const { createQueueStore } = require('../storage/queue-store');
+const { createFanProfileStore } = require('../storage/fan-profile-store');
+const { createFanProfileService } = require('../fans/profile-service');
 const { createSuperChatStore } = require('../storage/superchat-store');
 const { createSongStore } = require('../storage/song-store');
 const {
@@ -29,8 +31,7 @@ const {
 const queueService = require('../music/queue-service');
 const giftService = require('../bilibili/gift');
 const superChatService = require('../bilibili/superchat-service');
-const { createCheckinService } = require('../bilibili/checkin-service');
-const { createFortuneService } = require('../bilibili/fortune-service');
+const { dailyBotCommand } = require('../bilibili/danmaku/command-text');
 const {
   createCustomReplyService,
 } = require('../bilibili/custom-reply-service');
@@ -60,16 +61,14 @@ function createDomainServices(options) {
   const playbackStore = createPlaybackStore(db.musicDb);
   const themeStore = createThemeStore(db.songDb, settingsStore);
   const requesterTargets = createRequesterTargetStore(db.songDb);
-  const checkinStore = createCheckinStore(db.checkinDb);
-  const queueStore = createQueueStore(db.songDb);
+  const dailyBotLegacy = createDailyBotLegacyReader(db.checkinDb, settingsStore);
+  const fans = createFanProfileService({ store: createFanProfileStore(db.songDb) });
+  const queueStore = createQueueStore(db.songDb, {
+    getFanScope: options.getFanScope,
+    archiveAccepted: fans.archiveAccepted,
+    archiveQueueState: fans.archiveQueueState,
+  });
   const superChatStore = createSuperChatStore(db.superChatDb);
-  const checkins = createCheckinService({
-    store: checkinStore,
-    settings: () => settingsStore.getSettings(),
-  });
-  const fortunes = createFortuneService({
-    settings: () => settingsStore.getSettings(),
-  });
   const customReplies = createCustomReplyService({
     settings: () => settingsStore.getSettings(),
   });
@@ -220,6 +219,8 @@ function createDomainServices(options) {
 
     const messages = {
       handleDanmaku(danmaku) {
+        const reserved = dailyBotCommand(danmaku.message);
+        if (reserved) return { accepted: false, reason: 'cloud-owned', command: { type: reserved } };
         const result = bilibiliMessageHandler.handleDanmakuMessage(
           {
             settings: () => settingsStore.getSettings(),
@@ -238,22 +239,6 @@ function createDomainServices(options) {
           },
           danmaku,
         );
-        const checkin = checkins.handleDanmaku(danmaku);
-        if (checkin.command) {
-          return {
-            ...result,
-            checkin,
-            checkinReply: checkin.autoReply || null,
-          };
-        }
-        const fortune = fortunes.handleDanmaku(danmaku);
-        if (fortune.command) {
-          return {
-            ...result,
-            fortune,
-            fortuneReply: fortune.autoReply || null,
-          };
-        }
         if (result.command) return result;
         const customReply = customReplies.handleDanmaku(danmaku);
         if (!customReply.command) return result;
@@ -334,14 +319,14 @@ function createDomainServices(options) {
       state,
       songs,
       queue,
+      fans,
       gifts,
       overtime,
       overtimeGiftCatalog,
       superChats,
       messages,
       requesterTargets,
-      checkins,
-      fortunes,
+      dailyBotLegacy,
       customReplies,
       data,
       playback: playbackStore,

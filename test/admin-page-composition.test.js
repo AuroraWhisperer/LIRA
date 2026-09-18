@@ -170,7 +170,7 @@ test('composed admin page is complete, ordered, and has unique ids', () => {
   assert.deepEqual([...new Set(duplicateIds)], []);
 });
 
-test('HTTP admin routes compose before token injection without a legacy page mapping', () => {
+test('HTTP admin routes compose after authentication without a legacy page mapping', () => {
   const source = fs.readFileSync(
     path.join(ROOT_DIR, 'src', 'server', 'http-utils.js'),
     'utf8',
@@ -185,7 +185,7 @@ test('HTTP admin routes compose before token injection without a legacy page map
   );
 });
 
-test('HTTP admin routes inject the token into the composed document', () => {
+test('authenticated admin routes never expose credentials to the composed document', () => {
   for (const pathname of ['/', '/admin', '/settings', '/songs']) {
     let status;
     let headers = {};
@@ -205,7 +205,7 @@ test('HTTP admin routes inject the token into the composed document', () => {
 
     servePageOrAsset(
       PUBLIC_DIR,
-      { method: 'GET' },
+      { method: 'GET', headers: { authorization: 'Bearer test-token' } },
       response,
       new URL(`http://127.0.0.1${pathname}`),
       'test-token',
@@ -214,8 +214,7 @@ test('HTTP admin routes inject the token into the composed document', () => {
     const html = body.toString('utf8');
     assert.equal(status, 200);
     assert.equal(headers['Content-Type'], 'text/html; charset=utf-8');
-    assert.ok(html.indexOf('window.__API_TOKEN__') < html.indexOf('</head>'));
-    assert.match(html, /var t="test-token"/);
+    assert.doesNotMatch(html, /window\.__API_TOKEN__|test-token|lira-overlay-bootstrap/);
     assert.match(html, /<script type="module" src="\/js\/admin\/index\.js/);
     assert.match(html, /id="wheelCardResult"/);
   }
@@ -236,18 +235,18 @@ test('admin pages include frame protection headers', () => {
 
     servePageOrAsset(
       PUBLIC_DIR,
-      { method: 'GET' },
+      { method: 'GET', headers: { authorization: 'Bearer test-token' } },
       response,
       new URL(`http://127.0.0.1${pathname}`),
       'test-token',
     );
 
-    assert.equal(headers['Content-Security-Policy'], "frame-ancestors 'none'");
+    assert.equal(headers['Content-Security-Policy'], "frame-ancestors 'none'; worker-src 'none'");
     assert.equal(headers['X-Frame-Options'], 'DENY');
   }
 });
 
-test('overlay pages do not include frame protection headers', async () => {
+test('overlay pages allow embedding while sandboxing their scripts', async () => {
   const overlayPaths = [
     '/queue',
     '/songlist',
@@ -279,7 +278,7 @@ test('overlay pages do not include frame protection headers', async () => {
 
       servePageOrAsset(
         PUBLIC_DIR,
-        { method: 'GET' },
+        { method: 'GET', headers: { authorization: 'Bearer test-token' } },
         response,
         new URL(`http://127.0.0.1${pathname}`),
         'test-token',
@@ -291,7 +290,7 @@ test('overlay pages do not include frame protection headers', async () => {
     const html = body.toString('utf8');
     assert.match(html, /<!doctype html>/i, pathname);
     assert.match(html, /<\/html>\s*$/, pathname);
-    assert.equal(headers['Content-Security-Policy'], undefined, pathname);
+    assert.equal(headers['Content-Security-Policy'], 'sandbox allow-scripts', pathname);
     assert.equal(headers['X-Frame-Options'], undefined, pathname);
   }
 });

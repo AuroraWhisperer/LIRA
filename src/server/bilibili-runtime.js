@@ -120,6 +120,7 @@ function createBilibiliRuntime(options) {
   }
 
   async function requestRandomSong() {
+    const fanScope = options.getFanScope?.() || null;
     const account = await authProvider?.getAuthState();
     const uid = Number(account?.uid) || 0;
     if (!account?.loggedIn || !uid) {
@@ -135,6 +136,8 @@ function createBilibiliRuntime(options) {
       message: '随机点歌',
       userName: profile?.name || `UID ${uid}`,
       uid: String(uid),
+      identityType: 'uid',
+      fanScope,
       source: 'danmaku',
       messageTimestamp: Date.now(),
       requesterGuardLevel: identity?.guard?.level,

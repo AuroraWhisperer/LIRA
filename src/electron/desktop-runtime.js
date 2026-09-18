@@ -17,6 +17,7 @@ function createDesktopRuntime(serverModule, options = {}) {
   return {
     start: (startOptions) => serverModule.startServer(startOptions),
     stop: (stopOptions) => serverModule.shutdownApplication(stopOptions),
+    getApiToken: () => serverModule.getApiToken?.() || '',
     setPreShutdownHook:
       typeof serverModule.setPreShutdownHook === 'function'
         ? (hook) => serverModule.setPreShutdownHook(hook)

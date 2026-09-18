@@ -1,0 +1,137 @@
+<section
+  id="otherFanProfilesFeature"
+  class="other-feature-panel"
+  role="tabpanel"
+  aria-labelledby="otherFanProfilesFeatureTab"
+  data-other-feature-panel
+  hidden
+>
+  <div class="other-feature-panel-body fan-profiles" id="fanProfilesWorkspace">
+    <header class="fan-toolbar">
+      <div>
+        <h2>粉丝档案</h2>
+        <p class="fan-muted">记住每位粉丝的故事与重要日子</p>
+      </div>
+      <div class="fan-actions">
+        <button type="button" class="primary" data-fan-action="new">
+          新建档案
+        </button>
+        <details class="fan-more">
+          <summary aria-label="档案更多操作">更多</summary>
+          <div>
+            <button type="button" data-fan-action="settings">
+              自动更新设置
+            </button>
+            <button type="button" data-fan-action="export">导出档案列表</button>
+            <button type="button" data-fan-action="backup">保存完整备份</button>
+            <button type="button" data-fan-action="restore">
+              恢复完整备份
+            </button>
+            <button type="button" data-fan-action="snapshots">
+              本机恢复点
+            </button>
+            <button type="button" data-fan-action="suppressions">
+              自动建档排除名单
+            </button>
+            <button type="button" data-fan-action="archived">查看已归档</button>
+          </div>
+        </details>
+      </div>
+    </header>
+    <div class="fan-nav" role="tablist" aria-label="粉丝档案内容">
+      <button
+        type="button"
+        role="tab"
+        aria-selected="true"
+        data-fan-page="profiles"
+      >
+        档案
+      </button>
+      <button
+        type="button"
+        role="tab"
+        aria-selected="false"
+        data-fan-page="reminders"
+      >
+        提醒
+      </button>
+      <span class="fan-sync fan-muted" id="fanSyncState" role="status"></span>
+      <button type="button" data-fan-action="refresh">刷新</button>
+    </div>
+    <p id="fanPageError" class="fan-error" role="alert" hidden></p>
+    <div id="fanReminderSummary" class="fan-reminder-summary" hidden></div>
+    <div id="fanProfilesPage">
+      <div class="fan-searchbar">
+        <label class="fan-search"
+          ><span class="sr-only">搜索昵称、备注名或 UID</span
+          ><input
+            id="fanSearch"
+            type="search"
+            placeholder="搜索昵称、备注名或 UID"
+            maxlength="300"
+        /></label>
+        <div class="fan-filters" aria-label="档案筛选">
+          <button type="button" data-fan-filter="" aria-pressed="true">
+            全部
+          </button>
+          <button type="button" data-fan-filter="active" aria-pressed="false">
+            在舰
+          </button>
+          <button type="button" data-fan-filter="past" aria-pressed="false">
+            曾上舰
+          </button>
+          <button type="button" data-fan-filter="favorite" aria-pressed="false">
+            特别关注
+          </button>
+          <button
+            type="button"
+            data-fan-filter="incomplete"
+            aria-pressed="false"
+          >
+            待补资料
+          </button>
+          <button type="button" data-fan-filter="unknown" aria-pressed="false">
+            待核实
+          </button>
+        </div>
+      </div>
+      <div class="fan-split" id="fanSplit">
+        <div class="fan-people" id="fanPeople" aria-label="粉丝列表"></div>
+        <aside class="fan-detail" id="fanDetail" aria-label="粉丝详情">
+          <div class="fan-empty">
+            <h3>从一个人开始</h3>
+            <p>选择一份档案，接上上次的话题。</p>
+          </div>
+        </aside>
+      </div>
+    </div>
+    <div id="fanRemindersPage" hidden></div>
+    <input
+      id="fanRestoreFile"
+      type="file"
+      accept="application/json,.json"
+      hidden
+    />
+  </div>
+</section>
+<dialog id="fanQuickDialog" class="fan-quick" aria-label="快速档案">
+  <div class="fan-quick-top">
+    <button type="button" data-fan-action="back-queue">返回点歌队列</button
+    ><button type="button" data-fan-action="expand">展开档案</button>
+  </div>
+  <div id="fanQuickHost"></div>
+</dialog>
+<dialog id="fanEditor" class="fan-editor" aria-labelledby="fanEditorTitle">
+  <form id="fanEditorForm">
+    <header class="fan-editor-heading">
+      <h2 id="fanEditorTitle"></h2>
+      <button type="button" data-fan-action="cancel-edit">取消</button>
+    </header>
+    <div id="fanEditorFields" class="fan-form-grid"></div>
+    <p id="fanEditorError" class="fan-error" role="alert" hidden></p>
+    <footer class="fan-editor-footer">
+      <span id="fanEditorHint" class="fan-muted"></span
+      ><button type="submit" class="primary" id="fanSaveButton">保存</button>
+    </footer>
+  </form>
+</dialog>

@@ -11,6 +11,7 @@ const schema = require('./schema');
 const { seedThemePresets } = require('./theme-store');
 const { migrateGiftIdentities } = require('./gift-identity-migration');
 const { migrateGiftDisplay } = require('./gift-display-migration');
+const { migrateFanProfiles } = require('./fan-profile-migration');
 
 // ── 迁移注册表 ──
 // 数组下标 + 1 即版本号。只能往末尾追加，不能改动已发布的步骤。
@@ -82,6 +83,8 @@ function runAllMigrations(databases, options = {}) {
       (db) => {
         ensureSongClipColumn(db);
       },
+      // v6：私密粉丝档案与不可复用的点歌来源标识。
+      migrateFanProfiles,
     ]),
   );
 

@@ -17,7 +17,7 @@ function fixture(t) {
   let bootCount = 0;
   const transport = createRuntimeTransport({
     publicDir: path.resolve(__dirname, '../public'),
-    getSessionToken: () => '',
+    getSessionToken: () => 'synthetic-token',
     beginPlaybackSnapshotSession() {
       bootCount += 1;
       return store.beginQueueStateSession();
@@ -31,7 +31,7 @@ function fixture(t) {
         let status;
         let headers = {};
         transport.servePageOrAsset(
-          { method, headers: { 'if-none-match': 'cached-page' } },
+          { method, headers: { 'if-none-match': 'cached-page', authorization: 'Bearer synthetic-token' } },
           {
             setHeader(name, value) { headers[name] = value; },
             writeHead(code, nextHeaders) {

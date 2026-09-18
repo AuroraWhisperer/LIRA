@@ -68,9 +68,9 @@ function maskedFrame(payload, { opcode, fin }) {
 function openTestSocket(t) {
   const hub = createWebSocketHub({ closeTimeoutMs: 100 });
   const socket = new FakeSocket();
-  const context = { state: { sockets: new Set() }, getState: () => ({}) };
+  const context = { sessionToken: 'synthetic-token', state: { sockets: new Set() }, getState: () => ({}) };
   hub.handleUpgrade(context, {
-    url: '/ws', headers: { 'sec-websocket-key': 'test' },
+    url: '/ws', headers: { authorization: 'Bearer synthetic-token', 'sec-websocket-key': 'test' },
   }, socket);
   socket.writes = [];
   t.after(() => { hub.stop(); socket.emit('close'); });
@@ -152,7 +152,7 @@ test('valid close is echoed once and removed from broadcasts before peer FIN', (
 test('fragmented WebSocket messages are capped across frames', () => {
   const socket = new FakeSocket();
   const context = {
-    sessionToken: '',
+    sessionToken: 'synthetic-token',
     state: { sockets: new Set() },
     getState: () => ({ ok: true }),
   };
@@ -163,7 +163,7 @@ test('fragmented WebSocket messages are capped across frames', () => {
       url: '/ws',
       headers: {
         host: '127.0.0.1:3000',
-        'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
+        authorization: 'Bearer synthetic-token', 'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
       },
     },
     socket,
@@ -189,7 +189,7 @@ test('fragmented WebSocket messages are capped across frames', () => {
 test('ignores data events that arrive after WebSocket cleanup', () => {
   const socket = new FakeSocket();
   const context = {
-    sessionToken: '',
+    sessionToken: 'synthetic-token',
     state: { sockets: new Set() },
     getState: () => ({ ok: true }),
   };
@@ -200,7 +200,7 @@ test('ignores data events that arrive after WebSocket cleanup', () => {
       url: '/ws',
       headers: {
         host: '127.0.0.1:3000',
-        'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
+        authorization: 'Bearer synthetic-token', 'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
       },
     },
     socket,
@@ -226,7 +226,7 @@ test('WebSocket hub starts heartbeat on upgrade and releases resources on stop',
   const hub = createWebSocketHub({ heartbeatIntervalMs: 5 });
   const socket = new FakeSocket();
   const context = {
-    sessionToken: '',
+    sessionToken: 'synthetic-token',
     getState: () => ({ ok: true }),
   };
 
@@ -236,7 +236,7 @@ test('WebSocket hub starts heartbeat on upgrade and releases resources on stop',
       url: '/ws',
       headers: {
         host: '127.0.0.1:3000',
-        'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
+        authorization: 'Bearer synthetic-token', 'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
       },
     },
     socket,
@@ -265,7 +265,7 @@ test('coalesces same-turn hub snapshots and keeps the latest reason', async () =
   const socket = new FakeSocket();
   let stateReads = 0;
   const context = {
-    sessionToken: '',
+    sessionToken: 'synthetic-token',
     getState: () => {
       stateReads += 1;
       return { stateReads };
@@ -277,7 +277,7 @@ test('coalesces same-turn hub snapshots and keeps the latest reason', async () =
       url: '/ws',
       headers: {
         host: '127.0.0.1:3000',
-        'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
+        authorization: 'Bearer synthetic-token', 'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
       },
     },
     socket,
@@ -301,13 +301,13 @@ test('WebSocket hub filters topic broadcasts without changing ordinary broadcast
   const topicSocket = new FakeSocket();
   const ordinarySocket = new FakeSocket();
   const context = {
-    sessionToken: '',
+    sessionToken: 'synthetic-token',
     state: { sockets: new Set() },
     getState: () => ({ ok: true }),
   };
   const headers = {
     host: '127.0.0.1:3000',
-    'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
+    authorization: 'Bearer synthetic-token', 'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
   };
 
   hub.handleUpgrade(
@@ -336,7 +336,7 @@ test('WebSocket hub drops a client before its pending write queue exceeds the ce
   const hub = createWebSocketHub({ maxPendingBytes: 128 });
   const socket = new FakeSocket();
   const context = {
-    sessionToken: '',
+    sessionToken: 'synthetic-token',
     state: { sockets: new Set() },
     getState: () => ({ ok: true }),
   };
@@ -347,7 +347,7 @@ test('WebSocket hub drops a client before its pending write queue exceeds the ce
       url: '/ws',
       headers: {
         host: '127.0.0.1:3000',
-        'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
+        authorization: 'Bearer synthetic-token', 'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
       },
     },
     socket,
@@ -368,12 +368,12 @@ test('compatibility broadcasts remain isolated to their context sockets', () => 
   const firstSocket = new FakeSocket();
   const secondSocket = new FakeSocket();
   const firstContext = {
-    sessionToken: '',
+    sessionToken: 'synthetic-token',
     state: { sockets: new Set() },
     getState: () => ({ runtime: 'first' }),
   };
   const secondContext = {
-    sessionToken: '',
+    sessionToken: 'synthetic-token',
     state: { sockets: new Set() },
     getState: () => ({ runtime: 'second' }),
   };
@@ -381,7 +381,7 @@ test('compatibility broadcasts remain isolated to their context sockets', () => 
     url: '/ws',
     headers: {
       host: '127.0.0.1:3000',
-      'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
+      authorization: 'Bearer synthetic-token', 'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
     },
   };
 
@@ -401,7 +401,7 @@ test('compatibility broadcasts remain isolated to their context sockets', () => 
 test('WebSocket upgrade rejects requests with wrong Origin', () => {
   const socket = new FakeSocket();
   const context = {
-    sessionToken: '',
+    sessionToken: 'synthetic-token',
     allowedOrigins: ['http://127.0.0.1:3000'],
     getState: () => ({ ok: true }),
   };
@@ -412,7 +412,7 @@ test('WebSocket upgrade rejects requests with wrong Origin', () => {
       url: '/ws',
       headers: {
         host: '127.0.0.1:3000',
-        'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
+        authorization: 'Bearer synthetic-token', 'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
         origin: 'http://evil.com',
       },
     },
@@ -427,7 +427,7 @@ test('WebSocket upgrade rejects requests with wrong Origin', () => {
 test('WebSocket upgrade accepts requests with correct Origin', () => {
   const socket = new FakeSocket();
   const context = {
-    sessionToken: '',
+    sessionToken: 'synthetic-token',
     allowedOrigins: ['http://127.0.0.1:3000'],
     state: { sockets: new Set() },
     getState: () => ({ ok: true }),
@@ -439,7 +439,7 @@ test('WebSocket upgrade accepts requests with correct Origin', () => {
       url: '/ws',
       headers: {
         host: '127.0.0.1:3000',
-        'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
+        authorization: 'Bearer synthetic-token', 'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
         origin: 'http://127.0.0.1:3000',
       },
     },
@@ -455,7 +455,7 @@ test('WebSocket upgrade accepts requests with correct Origin', () => {
 test('WebSocket upgrade accepts requests without Origin header (non-browser)', () => {
   const socket = new FakeSocket();
   const context = {
-    sessionToken: '',
+    sessionToken: 'synthetic-token',
     allowedOrigins: ['http://127.0.0.1:3000'],
     state: { sockets: new Set() },
     getState: () => ({ ok: true }),
@@ -467,7 +467,7 @@ test('WebSocket upgrade accepts requests without Origin header (non-browser)', (
       url: '/ws',
       headers: {
         host: '127.0.0.1:3000',
-        'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
+        authorization: 'Bearer synthetic-token', 'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
         // No origin header
       },
     },

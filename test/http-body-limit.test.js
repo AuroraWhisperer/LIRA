@@ -15,7 +15,7 @@ test('route error wrappers preserve request-body 413 without calling domain oper
     getPhase: () => 'ready', getStartedPort: () => server.address().port,
     isLicenseAuthorized: () => true,
     inflightTracker: { run: (run) => run() },
-    createApiContext: () => ({ maxBodyBytes: 8, dynamicLottery: {}, songs: {} }),
+    createApiContext: () => ({ sessionToken: 'synthetic-token', maxBodyBytes: 8, dynamicLottery: {}, songs: {} }),
   });
   t.after(() => new Promise((resolve) => {
     server.close(resolve);
@@ -38,7 +38,7 @@ test('route error wrappers preserve request-body 413 without calling domain oper
   ];
   for (const [method, path] of routes) {
     const response = await fetch(origin + path, {
-      method, headers: { Origin: origin, 'Content-Type': 'application/json' },
+      method, headers: { Authorization: 'Bearer synthetic-token', Origin: origin, 'Content-Type': 'application/json' },
       body: JSON.stringify({ oversized: true }),
     });
     assert.equal(response.status, 413, path);

@@ -56,7 +56,7 @@ test('opening samples stay outside public assets and the overlay route remains r
     read('src', 'server.js'),
     read('src', 'server', 'http-server.js'),
   ].join('\n');
-  assert.match(server, /\['\/opening',\s*'pages\/overlays\/opening\.html'\]/);
+  assert.equal(require('../src/server/access-policy').getOverlayScope('/opening'), 'opening');
   assert.match(server, /'\.ogg':\s*'audio\/ogg'/);
   assert.equal(contentType(musicPath), 'audio/ogg');
   assert.match(
@@ -76,7 +76,7 @@ test('opening overlay is frameable and keeps the required character transform la
     },
     '/opening',
   );
-  assert.equal(headers.has('Content-Security-Policy'), false);
+  assert.equal(headers.get('Content-Security-Policy'), 'sandbox allow-scripts');
   assert.equal(headers.has('X-Frame-Options'), false);
 
   const html = read('public', 'pages', 'overlays', 'opening.html');
@@ -300,7 +300,7 @@ test('Toolbox opening animation persists configuration and keeps a fixed source 
   assert.match(script, /preview\?\.contentWindow\?\.postMessage/);
   assert.match(
     overlayScript,
-    /event\.source !== window\.parent\s*\|\|\s*event\.data\?\.type !== 'lira:opening-preview-volume'/,
+    /event\.source !== window\.parent\s*\|\|\s*event\.origin !== new URL\(location\.href\)\.origin\s*\|\|\s*event\.data\?\.type !== 'lira:opening-preview-volume'/,
   );
   assert.match(
     overlayScript,

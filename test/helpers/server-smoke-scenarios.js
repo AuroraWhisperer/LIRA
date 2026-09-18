@@ -2,7 +2,6 @@
 
 const assert = require('node:assert/strict');
 const path = require('node:path');
-const vm = require('node:vm');
 
 async function requestJson(connection, pathname, options = {}) {
   const { baseUrl, token } = connection;
@@ -62,44 +61,6 @@ function readInitialWebSocketSnapshot(connection) {
   });
 }
 
-function readInjectedApiAnchor(html, baseUrl, href) {
-  const match = html.match(
-    /<script>\(function\(\)\{[\s\S]*?\}\)\(\);<\/script>/,
-  );
-  assert.ok(match, 'the page should contain the injected session script');
-  const anchor = {
-    href,
-    getAttribute(name) {
-      return name === 'href' ? this.href : null;
-    },
-    setAttribute(name, value) {
-      if (name === 'href') this.href = value;
-    },
-  };
-  const NativeWebSocket = function NativeWebSocket() {};
-  NativeWebSocket.prototype = {};
-  Object.assign(NativeWebSocket, {
-    CONNECTING: 0,
-    OPEN: 1,
-    CLOSING: 2,
-    CLOSED: 3,
-  });
-  const window = { fetch() {}, WebSocket: NativeWebSocket };
-  vm.runInNewContext(match[0].slice(8, -9), {
-    window,
-    document: {
-      readyState: 'complete',
-      querySelectorAll: () => [anchor],
-      addEventListener() {},
-    },
-    location: new URL(`${baseUrl}/admin`),
-    URL,
-    Headers,
-    encodeURIComponent,
-  });
-  return anchor.href;
-}
-
 async function assertSmokeHealth(connection, dataDir) {
   const health = await requestJson(connection, '/api/health');
   assert.equal(health.serviceId, 'lira');
@@ -116,34 +77,15 @@ async function assertSmokeHealth(connection, dataDir) {
 
 async function assertSmokePagesAndExports(connection) {
   for (const pathname of ['/admin', '/queue', '/songlist', '/lyrics']) {
-    const response = await fetch(`${connection.baseUrl}${pathname}`);
+    const response = await fetch(`${connection.baseUrl}${pathname}`, {
+      headers: pathname === '/admin' ? { Authorization: `Bearer ${connection.token}` } : {},
+    });
     assert.equal(response.status, 200, pathname);
+    const html = await response.text();
+    assert.equal(html.includes(connection.token), false, pathname);
     if (pathname === '/admin') {
-      const html = await response.text();
-      assert.equal(
-        readInjectedApiAnchor(
-          html,
-          connection.baseUrl,
-          '/api/songs/export.xlsx',
-        ),
-        `/api/songs/export.xlsx?token=${encodeURIComponent(connection.token)}`,
-      );
-      assert.equal(
-        readInjectedApiAnchor(
-          html,
-          connection.baseUrl,
-          `${connection.baseUrl}/api/songs/template.xlsx`,
-        ),
-        `${connection.baseUrl}/api/songs/template.xlsx?token=${encodeURIComponent(connection.token)}`,
-      );
-      assert.equal(
-        readInjectedApiAnchor(
-          html,
-          connection.baseUrl,
-          'https://example.com/api/export',
-        ),
-        'https://example.com/api/export',
-      );
+      assert.equal(html.includes('lira-overlay-bootstrap'), false);
+      assert.ok(html.includes('href="/api/songs/export.xlsx"'));
     }
   }
 
@@ -159,12 +101,13 @@ async function assertSmokePagesAndExports(connection) {
     );
 
     const authorized = await fetch(
-      `${connection.baseUrl}${pathname}?token=${encodeURIComponent(connection.token)}`,
+      `${connection.baseUrl}${pathname}`,
+      { headers: { Authorization: `Bearer ${connection.token}` } },
     );
     assert.equal(
       authorized.status,
       200,
-      `${pathname} should accept its tokenized anchor URL`,
+      `${pathname} should accept a management header without a token in the URL`,
     );
     assert.ok(
       (await authorized.arrayBuffer()).byteLength > 0,

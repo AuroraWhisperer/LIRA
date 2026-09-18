@@ -192,6 +192,7 @@ function sendGiftLedgerResponse(context, request, res, operation) {
             ...(query?.has?.('endDate') ? { endDate: query.get('endDate') } : {}),
             ...(query?.has?.('userQuery') ? { userQuery: query.get('userQuery') } : {}),
             ...(query?.has?.('giftQuery') ? { giftQuery: query.get('giftQuery') } : {}),
+            ...(query?.has?.('amountAbove') ? { amountAbove: query.get('amountAbove') } : {}),
             ...(query?.has?.('viewRevision') ? { viewRevision: query.get('viewRevision') } : {}),
             sortField: query?.has?.('sortField')
               ? query.get('sortField')

@@ -19,17 +19,17 @@ app.on('window-all-closed', () => {});
 const publicDir = path.resolve(__dirname, '../public');
 const fixture = createFixture();
 const source = fixture.resolveSource('a'.repeat(64));
-fixture.setActiveSource(source.id, { syncState: 'LIVE', partial: false });
+fixture.setActiveSource(source.id, { syncState: 'LIVE', partial: false, dirty: false, epochValidated: true });
 fixture.context.now = () => new Date().toISOString();
 for (let i = 0; i < 55; i++) fixture.insertGift(source.id, `fixture-${i}`, {
   createdAt: new Date(Date.now() - (55 - i) * 1000).toISOString(),
-  userName: i % 2 ? '小明' : '长昵称测试用户', giftName: i % 2 ? '小花花' : '测试礼物', unitPrice: 100, totalPrice: 100,
+  userName: i % 2 ? '小明' : '长昵称测试用户', giftName: i % 2 ? '小花花' : '测试礼物', unitPrice: i === 54 ? 100.01 : 100, totalPrice: i === 54 ? 100.01 : 100,
 });
 let config = structuredClone(DEFAULT_GIFT_DISPLAY);
 const fragment = fs.readFileSync(path.join(publicDir, 'pages/admin/gifts/history.html'), 'utf8');
-const shell = `<!doctype html><html lang="zh-CN" class="desktop-shell"><head><meta charset="utf-8">
-${['styles-base', 'shared/gift-banner', 'admin/gift-display', 'styles-admin', 'styles-playback', 'overlays/desktop'].map((name) => `<link rel="stylesheet" href="/css/${name}.css">`).join('')}
-</head><body><main class="app-shell"><header class="topbar" style="height:58px">LIRA · 礼物验证</header><button id="giftHistoryOpenBtn">全部礼物流水</button>${fragment}</main>
+const shellStart = fs.readFileSync(path.join(publicDir, 'pages/admin/shell-start.html'), 'utf8');
+const shell = `${shellStart.slice(0, shellStart.indexOf('</header>') + '</header>'.length).replace('<body>', '<body class="desktop-shell">')}
+<button id="giftHistoryOpenBtn">全部礼物流水</button>${fragment}</main>
 <script type="module">import { initGiftHistoryDrawer } from '/js/admin/gifts/history.js'; initGiftHistoryDrawer(); window.fixtureReady = true;</script></body></html>`;
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
@@ -84,7 +84,7 @@ async function screenshot(win, name) {
     runtime: { getSetting: () => '', getGiftViewRevision: () => getGiftViewRevision(fixture.context),
       prepareGiftExport: (selection) => ({ ...getGiftSelection(fixture.context, selection), config: structuredClone(config), catalog: [] }) } });
   unregister = registerGiftExportIpc({ ipcMain, controller, getMainWindow: () => main, getDesktopBaseUrl: () => origin });
-  await main.loadURL(origin);
+  await main.loadURL(origin + '/?desktop=1');
   await wait(main, 'window.fixtureReady');
   await click(main, 'giftHistoryOpenBtn');
   await wait(main, 'document.querySelectorAll("#giftHistoryBody input").length === 50');
@@ -94,8 +94,28 @@ async function screenshot(win, name) {
   await evaluate(main, 'document.querySelector("#giftHistoryBody input").click()');
   assert.equal(await evaluate(main, 'document.getElementById("giftHistorySelectedCount").textContent'), '已选 2 条');
   await screenshot(main, 'history.png');
-  const bounds = await evaluate(main, '({top:document.getElementById("giftHistoryDrawer").getBoundingClientRect().top, bottom:document.querySelector(".gift-drawer-footer").getBoundingClientRect().bottom, height:innerHeight})');
-  assert.equal(bounds.top, 58); assert.ok(bounds.bottom <= bounds.height + 0.1, JSON.stringify(bounds));
+  const bounds = await evaluate(main, `(() => {
+    const drawer = document.getElementById('giftHistoryDrawer').getBoundingClientRect();
+    const controls = document.getElementById('windowControls').getBoundingClientRect();
+    const clear = document.getElementById('giftHistoryClearDatabaseBtn').getBoundingClientRect();
+    return { top: drawer.top, left: drawer.left, width: drawer.width, height: drawer.height,
+      viewportWidth: innerWidth, viewportHeight: innerHeight,
+      footerBottom: document.querySelector('.gift-drawer-footer').getBoundingClientRect().bottom,
+      navigationHidden: document.querySelector('.primary-nav-slot').getClientRects().length === 0,
+      controlsSeparate: clear.right < controls.left,
+      controlsClickable: ['winMinBtn', 'winMaxBtn', 'winCloseBtn'].every((id) => {
+        const button = document.getElementById(id);
+        const rect = button.getBoundingClientRect();
+        return button.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2));
+      }),
+      headerRegion: getComputedStyle(document.querySelector('.gift-drawer-head')).getPropertyValue('-webkit-app-region'),
+      backRegion: getComputedStyle(document.getElementById('giftHistoryClose')).getPropertyValue('-webkit-app-region') };
+  })()`);
+  assert.equal(bounds.top, 0); assert.equal(bounds.left, 0);
+  assert.equal(bounds.width, bounds.viewportWidth); assert.equal(bounds.height, bounds.viewportHeight);
+  assert.ok(bounds.footerBottom <= bounds.viewportHeight + 0.1, JSON.stringify(bounds));
+  assert.ok(bounds.navigationHidden); assert.ok(bounds.controlsSeparate); assert.ok(bounds.controlsClickable);
+  assert.equal(bounds.headerRegion, 'drag'); assert.equal(bounds.backRegion, 'no-drag');
   await click(main, 'giftHistoryExport');
   await wait(main, 'document.getElementById("giftHistoryDrawer").dataset.view === "export"');
   assert.equal(await evaluate(main, 'document.getElementById("giftExportPreview").children.length'), 2);
@@ -105,6 +125,23 @@ async function screenshot(win, name) {
   await click(main, 'giftExportBack');
   assert.equal(await evaluate(main, 'document.getElementById("giftHistoryPageInfo").textContent'), '第 2/2 页');
   assert.equal(await evaluate(main, 'document.getElementById("giftHistorySelectedCount").textContent'), '已选 2 条');
+  await evaluate(main, 'document.getElementById("giftHistoryAmountAbove").value = "100"; document.getElementById("giftHistoryFilters").requestSubmit()');
+  await wait(main, 'document.querySelectorAll("#giftHistoryBody input").length === 1');
+  assert.ok(await evaluate(main, 'document.getElementById("giftHistoryBody").textContent.includes("¥100.01")'));
+  assert.equal(await evaluate(main, 'document.getElementById("giftHistoryPageInfo").textContent'), '第 1/1 页');
+  assert.equal(await evaluate(main, 'document.getElementById("giftHistorySelectedCount").textContent'), '已选 0 条');
+  await click(main, 'giftHistorySelectAll');
+  await wait(main, 'document.getElementById("giftHistorySelectedCount").textContent === "已选 1 条"');
+  await screenshot(main, 'amount-filter.png');
+  await click(main, 'giftHistoryExport');
+  await wait(main, 'document.getElementById("giftHistoryDrawer").dataset.view === "export"');
+  assert.equal(await evaluate(main, 'document.getElementById("giftExportPreview").children.length'), 1);
+  await click(main, 'giftExportBack');
+  await evaluate(main, 'document.getElementById("giftHistoryAmountAbove").value = "100.01"; document.getElementById("giftHistoryFilters").requestSubmit()');
+  await wait(main, 'document.getElementById("giftHistoryState").textContent === "暂无礼物记录"');
+  await click(main, 'giftHistoryReset');
+  await wait(main, 'document.querySelectorAll("#giftHistoryBody input").length === 50');
+  assert.equal(await evaluate(main, 'document.getElementById("giftHistoryAmountAbove").value'), '');
   await evaluate(main, 'document.getElementById("giftHistoryUserQuery").value = "小明"; document.getElementById("giftHistoryGiftQuery").value = "小花";');
   await click(main, 'giftHistoryToday');
   await wait(main, 'document.querySelectorAll("#giftHistoryBody input").length === 27');
@@ -117,6 +154,11 @@ async function screenshot(win, name) {
   await evaluate(main, 'document.getElementById("giftFeedInterval").value = "2"; document.getElementById("giftDisplayForm").requestSubmit()');
   await wait(main, 'document.getElementById("giftHistoryDrawer").dataset.view === "list"');
   assert.equal(config.intervalSeconds, 2);
+  await click(main, 'giftHistoryClose');
+  assert.ok(await evaluate(main, `!document.getElementById('giftHistoryDrawer').classList.contains('open')
+    && document.querySelector('.primary-nav-slot').getClientRects().length > 0
+    && getComputedStyle(document.getElementById('windowControls')).position === 'static'
+    && document.activeElement.id === 'giftHistoryOpenBtn'`));
   const feed = new BrowserWindow({ width: 420, height: 380, show: false, webPreferences: { backgroundThrottling: false } });
   windows.push(feed);
   await feed.loadURL(origin + '/gift-feed?preview=1');
@@ -130,7 +172,7 @@ async function screenshot(win, name) {
   fixture.clearActiveSource();
   broadcast('source:changed');
   await wait(feed, 'document.getElementById("giftFeedStage").children.length === 0');
-  console.log(JSON.stringify({ ok: true, checks: 'cross-page selection, filters, snapshot select-all, native save, return state, titlebar/footer, settings, 55-row OBS loop, source clear', screenshots: root }));
+  console.log(JSON.stringify({ ok: true, checks: 'cross-page selection, amount threshold/precision/reset, filtered export, filters, snapshot select-all, native save, return state, titlebar/footer, settings, 55-row OBS loop, source clear', screenshots: root }));
 })().then(() => finish(0), (error) => { console.error(error); finish(1); });
 function finish(code) {
   unregister?.();

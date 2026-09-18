@@ -31,8 +31,7 @@ const read = (...parts) =>
   fs.readFileSync(path.join(ROOT_DIR, ...parts), 'utf8');
 
 test('cute clock overlay owns a fixed frameable route and complete assets', () => {
-  const server = read('src', 'server', 'http-utils.js');
-  assert.match(server, /\['\/clock',\s*'pages\/overlays\/clock\.html'\]/);
+  assert.equal(require('../src/server/access-policy').getOverlayScope('/clock'), 'clock');
 
   for (const parts of [
     ['public', 'pages', 'overlays', 'clock.html'],
@@ -51,7 +50,7 @@ test('cute clock overlay owns a fixed frameable route and complete assets', () =
     },
     '/clock',
   );
-  assert.equal(headers.has('Content-Security-Policy'), false);
+  assert.equal(headers.get('Content-Security-Policy'), 'sandbox allow-scripts');
   assert.equal(headers.has('X-Frame-Options'), false);
 });
 
@@ -281,7 +280,7 @@ test('toolbox composes the named clock card with fixed URL and custom controls',
   assert.match(styles, /is-timeline-vertical/);
 });
 
-test('clock settings are persisted through validated keys and exposed by a public read-only route', async () => {
+test('clock settings are persisted through validated keys and exposed by the clock page read-only capability', async () => {
   assert.deepEqual(
     [...CLOCK_STYLE_VALUES],
     [
@@ -446,7 +445,7 @@ test('clock settings are persisted through validated keys and exposed by a publi
   };
   await handleApi(
     { ...context, sessionToken: 'required-token' },
-    { method: 'GET', headers: {} },
+    { method: 'GET', headers: { authorization: `Bearer ${require('../src/server/access-policy').createOverlayToken('required-token', 'clock')}` } },
     publicResponse,
     new URL('http://127.0.0.1:3000/api/clock/config'),
   );

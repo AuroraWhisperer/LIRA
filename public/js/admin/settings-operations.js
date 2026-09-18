@@ -74,6 +74,7 @@ export function createSettingsOperations({
         '直播间号、主题与其他设置',
         'AI 配置、主题预设',
         '加班机规则、收藏与歌单',
+        '粉丝档案、互动记录与提醒状态',
       ],
       confirmLabel: '确认清空全部',
     });

@@ -444,6 +444,7 @@ class BilibiliDanmakuClient {
     this.deliverDanmaku({
       message: messageData.message,
       uid: requester.uid,
+      identityType: 'uid',
       userName: requester.userName,
       avatarUrl: requester.avatarUrl,
       requesterGuardLevel: requester.guardLevel,

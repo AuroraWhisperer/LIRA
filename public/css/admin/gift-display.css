@@ -1,6 +1,12 @@
-#giftHistoryDrawer { width: 100%; height: calc(100dvh - var(--gift-panel-top, 0px)); top: var(--gift-panel-top, 0px); border-left: 0; }
-#giftHistoryBackdrop { top: var(--gift-panel-top, 0px); }
+#giftHistoryDrawer { width: 100%; height: 100dvh; top: 0; border-left: 0; }
 #giftHistoryDrawer [hidden] { display: none !important; }
+#giftHistoryClose { display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0; }
+#giftHistoryClose svg { width: 16px; height: 16px; }
+body.desktop-shell:has(#giftHistoryDrawer.open) .topbar { display: contents; }
+body.desktop-shell:has(#giftHistoryDrawer.open) .topbar > :not(.window-controls) { display: none; }
+body.desktop-shell:has(#giftHistoryDrawer.open) .window-controls { position: fixed; top: 0; right: 0; height: 76px; z-index: 62; }
+body.desktop-shell #giftHistoryDrawer .gift-drawer-head { min-height: 76px; padding-right: calc(3 * 46px + 24px); -webkit-app-region: drag; }
+body.desktop-shell #giftHistoryDrawer .gift-drawer-head > button { -webkit-app-region: no-drag; }
 .gift-history-filters { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
 .gift-history-filters label, .gift-export-options > label, .gift-display-columns > div > label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
 .gift-history-filters input { width: 155px; min-height: 34px; }

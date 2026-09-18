@@ -5,6 +5,8 @@
 const crypto = require('node:crypto');
 const { isUtf8 } = require('node:buffer');
 const { URL } = require('node:url');
+const { resolveRequestPrincipal } = require('./access-policy');
+const { projectWebSocketPayload } = require('./overlay-projection');
 
 const MAX_FRAME_BYTES = 256 * 1024; // 256 KB
 const MAX_MESSAGE_BYTES = 256 * 1024; // 256 KB across all fragments
@@ -41,30 +43,25 @@ function createWebSocketHub(options = {}) {
       return;
     }
 
-    // Origin validation: Check Origin header if present (browser requests)
-    const origin = req.headers.origin;
-    if (origin && context.allowedOrigins) {
-      const allowed = context.allowedOrigins.some(
-        (allowed) => origin === allowed,
-      );
-      if (!allowed) {
-        socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
-        socket.destroy();
-        return;
-      }
-    }
-
     const requestUrl = new URL(
       req.url,
       `http://${req.headers.host || '127.0.0.1'}`,
     );
+    const principal = resolveRequestPrincipal(context, req, requestUrl);
+    if (!principal) {
+      socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+      socket.destroy();
+      return;
+    }
 
-    // Token 校验：检查 URL query param 中的 token
-    const token = context.sessionToken;
-    if (token) {
-      const queryToken = requestUrl.searchParams.get('token');
-      if (queryToken !== token) {
-        socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+    // Sandboxed overlays have an opaque origin; only their verified scope may use it.
+    const origin = req.headers.origin;
+    if (origin) {
+      const allowed = origin === 'null'
+        ? principal.type === 'overlay'
+        : context.allowedOrigins?.includes(origin);
+      if (!allowed) {
+        socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
         socket.destroy();
         return;
       }
@@ -90,6 +87,7 @@ function createWebSocketHub(options = {}) {
     socket._wsFragmentBytes = 0;
     socket._lastPongAt = Date.now();
     socket._wsCleanedUp = false;
+    socket._wsPrincipal = principal;
     socket._wsTopics = parseSubscriptionTopics(requestUrl.searchParams);
     socket._wsMaxPendingBytes = maxPendingBytes;
 
@@ -166,6 +164,7 @@ function createWebSocketHub(options = {}) {
       socket._wsContext.state.sockets.delete(socket);
     }
     socket._wsContext = null;
+    socket._wsPrincipal = null;
     socket._wsBuffer = null;
     socket._wsFragment = null;
     socket._wsFragmentOpcode = 0;
@@ -294,6 +293,11 @@ function createWebSocketHub(options = {}) {
         continue;
       }
 
+      if (socket._wsPrincipal.type === 'overlay') {
+        rejectFrame(socket, 1008);
+        return;
+      }
+
       // Text (0x1) / Binary (0x2) / Continuation (0x0)
       // Accumulate fragments but don't act on them (server doesn't consume client messages)
       if (opcode === 0x0) {
@@ -362,9 +366,8 @@ function createWebSocketHub(options = {}) {
         reason: next.reason,
         state: next.context.getState(),
       };
-      const encodedPayload = Buffer.from(JSON.stringify(payload));
       for (const socket of Array.from(sockets)) {
-        if (!sendWebSocketFrame(socket, encodedPayload, 0x1))
+        if (!sendWebSocket(socket, payload))
           dropSocket(socket);
       }
     });
@@ -372,10 +375,9 @@ function createWebSocketHub(options = {}) {
 
   function broadcast(payload, options = {}) {
     const topic = String(options.topic || '');
-    const encodedPayload = Buffer.from(JSON.stringify(payload));
     for (const socket of Array.from(sockets)) {
       if (topic && !socket._wsTopics?.has(topic)) continue;
-      if (!sendWebSocketFrame(socket, encodedPayload, 0x1)) dropSocket(socket);
+      if (!sendWebSocket(socket, payload)) dropSocket(socket);
     }
   }
 
@@ -409,7 +411,10 @@ function createWebSocketHub(options = {}) {
 }
 
 function sendWebSocket(socket, payload) {
-  return sendWebSocketFrame(socket, Buffer.from(JSON.stringify(payload)), 0x1);
+  if (!socket._wsPrincipal) return false;
+  const projected = projectWebSocketPayload(socket._wsPrincipal, payload);
+  if (projected === null) return true;
+  return sendWebSocketFrame(socket, Buffer.from(JSON.stringify(projected)), 0x1);
 }
 
 function sendWebSocketFrame(socket, payload, opcode) {
@@ -463,11 +468,10 @@ function handleWebSocketUpgrade(context, req, socket) {
 
 function broadcastSnapshot(context, reason) {
   const payload = { type: 'snapshot', reason, state: context.getState() };
-  const encodedPayload = Buffer.from(JSON.stringify(payload));
   const sockets = context && context.state && context.state.sockets;
   if (!sockets) return;
   for (const socket of Array.from(sockets)) {
-    sendWebSocketFrame(socket, encodedPayload, 0x1);
+    sendWebSocket(socket, payload);
   }
 }
 

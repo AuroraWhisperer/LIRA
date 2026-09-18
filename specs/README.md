@@ -10,6 +10,7 @@ implementation, but it cannot redefine an accepted specification.
 
 | Document                                         | Type                  | Status      | Runtime Evidence                                                                                                                                                                                                                                                                                                                                                                                             | Last Reviewed |
 | ------------------------------------------------ | --------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------- |
+| `specs/cloud-daily-bots.md` | Design specification | In Progress | `src/electron/daily-bot-controller.js`<br>`src/storage/daily-bot-legacy-reader.js`<br>`public/js/admin/danmaku-daily-bots.js`<br>`test/daily-bot-controller.test.js` | 2026-09-18 |
 | `specs/client-server-logging-design.md` | Design specification | In Progress | `src/electron/desktop-logger.js`<br>`src/electron/terminal-log.js`<br>`src/ai/request-logger.js`<br>`test/terminal-log.test.js`<br>`test/log-redaction.test.js` | 2026-09-14 |
 | `specs/bilibili-dynamic-lottery_design.md` | Design specification | Draft | `src/electron/bilibili-auth.js`<br>`src/electron/main.js`<br>`src/bilibili/wbi-signer.js`<br>`src/server/routes/bilibili-routes.js` | 2026-09-14 |
 | `specs/local-gift-catalog-bootstrap_design.md` | Design specification | Implemented | `src/bilibili/gift/gift-catalog-initializer.js`<br>`src/bilibili/gift/remote-gift-image-cache.js`<br>`src/electron/main.js`<br>`public/js/license.js`<br>`test/gift-catalog-initializer.test.js`<br>`test/license-catalog-bootstrap.test.js` | 2026-09-05 |
@@ -50,6 +51,8 @@ implementation, but it cannot redefine an accepted specification.
 | `specs/gift-effect-danmaku.md` | Design specification | Implemented | `src/bilibili/gift/effect-event.js`<br>`public/js/overlays/gift-effect-player.js`<br>`test/gift-effect-danmaku.test.js` | 2026-09-14 |
 
 | `specs/gift-interaction-controls.md` | Design specification | Implemented | `src/electron/cloud-sync-controller.js`<br>`src/electron/ipc/gift-interaction-ipc.js`<br>`public/js/admin/gifts/interaction-controls.js`<br>`test/gift-interaction-controls.test.js` | 2026-09-15 |
+
+| `specs/fan-profiles.md` | Design specification | In Progress | `src/fans/profile-service.js`<br>`src/storage/fan-profile-store.js`<br>`src/electron/fan-profile-controller.js`<br>`public/js/admin/fans/index.js`<br>`test/fan-profiles-domain.test.js`<br>`test/fan-profiles-ipc.test.js` | 2026-09-18 |
 
 <!-- SPEC_INDEX_END -->
 

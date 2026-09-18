@@ -102,6 +102,18 @@ test('gift history defaults to all dates and never exposes source identity', asy
     ledger.buildGiftHistoryUrl({ sortField: null, sortDirection: null }),
     '/api/gifts/history?range=all&limit=50',
   );
+  assert.equal(
+    ledger.buildGiftHistoryUrl({ filters: { amountAbove: '10.01' } }),
+    '/api/gifts/history?range=all&limit=50&amountAbove=10.01',
+  );
+  assert.equal(
+    ledger.buildGiftHistoryUrl({ filters: { amountAbove: 0 } }),
+    '/api/gifts/history?range=all&limit=50&amountAbove=0',
+  );
+  assert.equal(
+    ledger.buildGiftHistoryUrl({ filters: { amountAbove: '' } }),
+    '/api/gifts/history?range=all&limit=50',
+  );
   assert.deepEqual(
     { ...ledger.describeGiftSyncStatus('LIVE', false) },
     { state: 'live', label: '礼物记录已更新' },
@@ -400,8 +412,8 @@ test('loadGiftHistory requests one history page and renders canonical escaped ro
   assert.match(body, /&lt;script&gt;alert\(&quot;gift&quot;\)&lt;\/script&gt;/);
   assert.match(body, /Alice &amp; &lt;img src=x&gt;/);
   assert.doesNotMatch(body, /<script>alert\("gift"\)<\/script>/);
-  assert.match(body, /2<\/td>\s*<td>¥12\.6<\/td>/);
-  assert.match(body, /盲盒 -¥3\.6/);
+  assert.match(body, /2<\/td>\s*<td>¥12\.56<\/td>/);
+  assert.match(body, /盲盒 -¥3\.56/);
   assert.match(body, /<td>¥0\.0<\/td>/);
   assert.match(body, /Box &lt;one&gt;/);
   assert.match(body, /盲盒 成本未知/);

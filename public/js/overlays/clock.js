@@ -204,7 +204,7 @@ async function initClock() {
     if (
       window.parent === window ||
       event.source !== window.parent ||
-      event.origin !== location.origin ||
+      event.origin !== new URL(location.href).origin ||
       event.data?.type !== 'lira:clock-preview-config'
     )
       return;
@@ -222,7 +222,9 @@ async function initClock() {
     hoursNode.textContent = hours;
     minutesNode.textContent = minutes;
     secondsNode.textContent = seconds;
-    periodNode.textContent = period;
+    periodNode.textContent = config.style === 'digital'
+      ? (now.getHours() < 12 ? 'AM' : 'PM')
+      : period;
     const dateParts = formatters.date.formatToParts(now);
     const month = partValue(dateParts, 'month', '01').padStart(2, '0');
     const day = partValue(dateParts, 'day', '01').padStart(2, '0');

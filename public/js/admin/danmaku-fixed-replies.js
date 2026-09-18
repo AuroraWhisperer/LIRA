@@ -1,4 +1,4 @@
-const TITLES = { random: '随机点歌回复', checkin: '签到机器人', fortune: '抽签机器人',
+const TITLES = { random: '随机点歌回复',
   diy: 'DIY 关键词回复', welcome: '进场欢迎', pk: 'PK 对手信息播报' };
 
 export function initFixedReplyEditor({ documentRef = globalThis.document, windowRef = globalThis.window } = {}) {
@@ -42,7 +42,7 @@ export function initFixedReplyEditor({ documentRef = globalThis.document, window
     const source = documentRef.getElementById(target.dataset.fixedCount);
     mirror(source, () => { target.textContent = source.textContent; });
   }
-  for (const [key, prefix] of [['checkin', 'Blessing'], ['fortune', 'Fortune'], ['diy', 'CustomReply']]) {
+  for (const [key, prefix] of [['diy', 'CustomReply']]) {
     const status = documentRef.getElementById(`danmaku${prefix}Status`);
     const note = root.querySelector(`[data-fixed-note="${key}"]`);
     mirror(status, () => { note.textContent = /未保存|更改|失败|保存中|正在保存/.test(status.textContent) ? status.textContent : ''; });

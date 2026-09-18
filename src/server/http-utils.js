@@ -6,6 +6,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { resolveDataPaths } = require('../shared/data-paths');
 const { composeAdminHtml, isAdminPageRoute } = require('./admin-page');
+const { OVERLAY_PAGES, getOverlayScope, createOverlayToken, resolveRequestPrincipal } = require('./access-policy');
+const { createOverlayBootstrap } = require('./overlay-bootstrap');
 const {
   isSafeBasename,
   MAX_IMAGE_BYTES,
@@ -71,14 +73,8 @@ function sendJson(res, status, payload) {
 }
 
 function verifyToken(context, req, requestUrl) {
-  const token = context.sessionToken;
-  if (!token) return true; // 未启用 token 时不拦截（向后兼容）
-  const authHeader = req.headers.authorization || '';
-  if (authHeader.startsWith('Bearer ') && authHeader.slice(7) === token)
-    return true;
-  const queryToken = requestUrl.searchParams.get('token');
-  if (queryToken === token) return true;
-  return false;
+  return req.headers?.origin !== 'null' &&
+    resolveRequestPrincipal(context, req, requestUrl)?.type === 'admin';
 }
 
 function sendCsv(res, filename, content) {
@@ -100,7 +96,7 @@ function sendBuffer(res, status, contentTypeValue, filename, content) {
   res.end(content);
 }
 
-function servePageOrAsset(publicDir, req, res, requestUrl, injectToken, beginPlaybackSnapshotSession) {
+function servePageOrAsset(publicDir, req, res, requestUrl, sessionToken, beginPlaybackSnapshotSession) {
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     sendJson(res, 405, {
       ok: false,
@@ -113,19 +109,7 @@ function servePageOrAsset(publicDir, req, res, requestUrl, injectToken, beginPla
   const isAdminPage = isAdminPageRoute(requestUrl.pathname);
   const pageMap = new Map([
     ['/license', 'pages/license.html'],
-    ['/queue', 'pages/overlays/queue.html'],
-    ['/songlist', 'pages/overlays/songs.html'],
-    ['/blindbox', 'pages/overlays/blindbox.html'],
-    ['/overtime', 'pages/overlays/overtime.html'],
-    ['/gift-effects', 'pages/overlays/gift-effects.html'],
-    ['/gift-feed', 'pages/overlays/gift-feed.html'],
-    ['/gift-export', 'pages/overlays/gift-export.html'],
-    ['/lyrics', 'pages/overlays/lyric-window.html'],
-    ['/games', 'pages/overlays/games.html'],
-    ['/danmaku', 'pages/overlays/danmaku.html'],
-    ['/wheel', 'pages/overlays/wheel.html'],
-    ['/opening', 'pages/overlays/opening.html'],
-    ['/clock', 'pages/overlays/clock.html'],
+    ...Object.entries(OVERLAY_PAGES).map(([scope, file]) => [`/${scope}`, `pages/overlays/${file}`]),
   ]);
   const assetPath =
     pageMap.get(requestUrl.pathname) || requestUrl.pathname.replace(/^\/+/, '');
@@ -133,11 +117,20 @@ function servePageOrAsset(publicDir, req, res, requestUrl, injectToken, beginPla
     ? path.join(publicDir, 'pages', 'admin', 'shell-start.html')
     : path.resolve(publicDir, assetPath);
   if (
-    !isAdminPage &&
+    assetPath.includes(':') || (!isAdminPage &&
     resolvedPath !== publicDir &&
-    !resolvedPath.startsWith(publicDir + path.sep)
+    !resolvedPath.startsWith(publicDir + path.sep))
   ) {
     sendJson(res, 403, { ok: false, error: 'Forbidden.' });
+    return;
+  }
+
+  const relativePath = path.relative(publicDir, resolvedPath).replaceAll('\\', '/').toLowerCase();
+  const isHtml = path.extname(resolvedPath).toLowerCase() === '.html';
+  const overlayScope = getOverlayScope(`/${relativePath}`);
+  if (isHtml && !overlayScope && relativePath !== 'pages/license.html' &&
+      !verifyToken({ sessionToken }, req, requestUrl)) {
+    sendJson(res, 401, { ok: false, error: '请从桌面应用打开管理页面。' });
     return;
   }
 
@@ -155,73 +148,20 @@ function servePageOrAsset(publicDir, req, res, requestUrl, injectToken, beginPla
       );
       body = Buffer.concat([body.subarray(0, headEnd), bootstrap, body.subarray(headEnd)]);
     }
-    if (
-      injectToken &&
-      typeof injectToken === 'string' &&
-      injectToken.length > 0 &&
-      resolvedPath.endsWith('.html')
-    ) {
-      const recoverOverlaySession = resolvedPath.startsWith(
-        path.join(publicDir, 'pages', 'overlays') + path.sep,
-      );
-      const tokenScript = Buffer.from(
-        `\n<script>(function(){` +
-          `var t=${JSON.stringify(injectToken)};window.__API_TOKEN__=t;` +
-          // Native anchor navigation cannot carry an Authorization header.
-          `var patchApiAnchors=function(){` +
-          `var links=document.querySelectorAll("a[href]");` +
-          `for(var i=0;i<links.length;i++){var a=links[i],h=a.getAttribute("href");` +
-          `if(typeof h!=="string")continue;var u;try{u=new URL(h,location.href);}catch(_){continue;}` +
-          `if(u.origin===location.origin&&u.pathname.startsWith("/api/")&&!u.searchParams.has("token")){` +
-          `u.searchParams.set("token",t);a.setAttribute("href",h.startsWith("/")?u.pathname+u.search+u.hash:u.href);}}};` +
-          `if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",patchApiAnchors,{once:true});` +
-          `else patchApiAnchors();` +
-          // Patch fetch to auto-add Authorization header
-          `var _fetch=window.fetch;` +
-          `var recover=${JSON.stringify(recoverOverlaySession)},checking=null,reloading=false,unloading=false;` +
-          `var isLocal=function(u,socket){try{var v=new URL(typeof u==="string"?u:u.url||u.href,location.href);` +
-          `return v.host===location.host&&v.protocol===(socket?(location.protocol==="https:"?"wss:":"ws:"):location.protocol)` +
-          `&&(socket?v.pathname==="/ws":v.pathname.startsWith("/api/"));}catch(_){return false;}};` +
-          // A failed handshake hides its HTTP status. Confirm token expiry before reloading an OBS source.
-          `var recoverSession=function(){if(!recover||checking||reloading||unloading)return;` +
-          `var c=new AbortController();checking=c;var timer=setTimeout(function(){c.abort();},5000);` +
-          `_fetch.call(window,"/api/state",{headers:{Authorization:"Bearer "+t},cache:"no-store",signal:c.signal})` +
-          `.then(function(r){return r.status===401;}).catch(function(){return false;})` +
-          `.then(function(expired){if(expired&&!unloading){reloading=true;location.reload();}})` +
-          `.finally(function(){clearTimeout(timer);checking=null;});};` +
-          `if(recover)window.addEventListener("pagehide",function(){unloading=true;if(checking)checking.abort();},{once:true});` +
-          `window.fetch=function(u,o){o=o||{};o.headers=o.headers||{};` +
-          `if(typeof u==="string"&&u.startsWith("/api/")&&u!=="/api/health"&&!o.headers.Authorization&&!o.headers.authorization)` +
-          `{o.headers=new Headers(o.headers);o.headers.set("Authorization","Bearer "+t);}` +
-          `var pending=_fetch.call(this,u,o);if(!recover||!isLocal(u,false))return pending;` +
-          `return pending.then(function(r){if(r.status===401)recoverSession();return r;});};` +
-          // Patch WebSocket to append ?token= for /ws connections
-          `var _WS=window.WebSocket;` +
-          `window.WebSocket=function(u,p){` +
-          `if(typeof u==="string"&&u.indexOf("/ws")!==-1&&u.indexOf("?token=")===-1)` +
-          `{u=u+(u.indexOf("?")===-1?"?":"&")+"token="+encodeURIComponent(t);}` +
-          `var s=p?new _WS(u,p):new _WS(u);` +
-          `if(recover&&isLocal(u,true))s.addEventListener("close",recoverSession);return s;};` +
-          `window.WebSocket.prototype=_WS.prototype;` +
-          `window.WebSocket.CONNECTING=_WS.CONNECTING;` +
-          `window.WebSocket.OPEN=_WS.OPEN;` +
-          `window.WebSocket.CLOSING=_WS.CLOSING;` +
-          `window.WebSocket.CLOSED=_WS.CLOSED;` +
-          `})();</script>\n`,
-      );
+    if (overlayScope && sessionToken) {
+      const bootstrap = Buffer.from(createOverlayBootstrap(createOverlayToken(sessionToken, overlayScope)));
       const headEnd = body.indexOf(Buffer.from('</head>'));
       if (headEnd !== -1) {
-        body = Buffer.concat([
-          body.subarray(0, headEnd),
-          tokenScript,
-          body.subarray(headEnd),
-        ]);
+        body = Buffer.concat([body.subarray(0, headEnd), bootstrap, body.subarray(headEnd)]);
       }
     }
 
-    // Add frame protection headers for HTML pages before writeHead
-    if (resolvedPath.endsWith('.html')) {
-      addFrameProtectionHeaders(res, requestUrl.pathname);
+    if (isHtml) {
+      addFrameProtectionHeaders(res, overlayScope ? `/${overlayScope}` : requestUrl.pathname);
+    } else {
+      // Sandboxed overlays have opaque origins. Only public static assets may
+      // be read cross-origin; API data and HTML use their own access policy.
+      res.setHeader('Access-Control-Allow-Origin', '*');
     }
 
     res.writeHead(200, {
@@ -466,25 +406,14 @@ function validateOrigin(req, allowedOrigins) {
 }
 
 function addFrameProtectionHeaders(res, pathname) {
-  // Exclude overlay pages - they need to be frameable for OBS
-  const overlayPaths = [
-    '/queue',
-    '/songlist',
-    '/blindbox',
-    '/overtime',
-    '/gift-effects',
-    '/gift-feed',
-    '/lyrics',
-    '/games',
-    '/wheel',
-    '/opening',
-    '/danmaku',
-    '/clock',
-  ];
-  const isOverlay = overlayPaths.includes(pathname);
-
-  if (!isOverlay) {
-    res.setHeader('Content-Security-Policy', "frame-ancestors 'none'");
+  if (getOverlayScope(pathname)) {
+    // Do not add allow-same-origin: an embedded overlay must not call the
+    // privileged parent frame or inherit its credentials.
+    res.setHeader('Content-Security-Policy', 'sandbox allow-scripts');
+  } else {
+    // Chromium can attribute a dedicated worker's fetch to its owning main
+    // frame. Management pages have no workers; block their creation explicitly.
+    res.setHeader('Content-Security-Policy', "frame-ancestors 'none'; worker-src 'none'");
     res.setHeader('X-Frame-Options', 'DENY');
   }
 }

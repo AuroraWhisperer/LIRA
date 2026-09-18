@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { chromium } = require('playwright');
+const { readAdminHtml } = require('./helpers/admin-html');
 const {
   createDatabases,
   closeDatabases,
@@ -13,144 +13,8 @@ const {
 } = require('../src/storage/database');
 const { createOvertimeService } = require('../src/overtime');
 
-const publicRoot = path.join(__dirname, '..', 'public');
-const limits = {
-  maxEnabledRules: 8,
-  minRandomOutcomes: 2,
-  maxRandomOutcomes: 10,
-  maxDisplayTextLength: 6,
-};
-const initialState = {
-  revision: 10,
-  enabled: true,
-  status: 'paused',
-  initialSeconds: 300,
-  effectiveRemainingMs: 300000,
-  limits,
-  settlements: [],
-  rules: [
-    {
-      giftId: 'synthetic-gift',
-      giftName: '测试礼物',
-      mode: 'random',
-      enabled: true,
-      quantityMode: 'group',
-      sortOrder: 0,
-      outcomes: [60, 120, 180].map((value) => ({
-        operation: 'add',
-        value,
-        weight: 1,
-      })),
-    },
-  ],
-};
-let browser;
-test.before(async () => {
-  browser = await chromium.launch({ headless: true });
-});
-test.after(async () => {
-  await browser?.close();
-});
-
-async function fixture(t, kind = 'admin') {
-  const context = await browser.newContext({ serviceWorkers: 'block' });
-  const page = await context.newPage();
-  const errors = [];
-  page.on('pageerror', (error) => errors.push(error.message));
-  t.after(async () => {
-    await context.close();
-    assert.deepEqual(errors, []);
-  });
-  await page.addInitScript(
-    ({ state }) => {
-      window.initialState = state;
-      window.pendingSaves = [];
-      window.pendingSnapshots = [];
-      window.messages = [];
-      window.saveSetting = (key, value) =>
-        new Promise((resolve, reject) => {
-          window.pendingSaves.push({ key, value, resolve, reject });
-        });
-      window.fetch = (url) => {
-        if (url === '/api/state')
-          return new Promise((resolve, reject) => {
-            window.pendingSnapshots.push({
-              resolve: (overtime) =>
-                resolve({
-                  json: async () => ({ ok: true, data: { overtime } }),
-                }),
-              reject,
-            });
-          });
-        if (url === '/api/overtime')
-          return Promise.resolve({
-            json: async () => ({ ok: true, data: state }),
-          });
-        if (url === '/api/overtime/gifts')
-          return Promise.resolve({
-            json: async () => ({ ok: true, data: { gifts: [] } }),
-          });
-        throw new Error(`Unexpected fixture fetch: ${url}`);
-      };
-    },
-    { state: initialState },
-  );
-  await page.route('**/*', async (route) => {
-    const url = new URL(route.request().url());
-    if (url.hostname !== 'lira-ui.test') {
-      errors.push(`Unexpected external request: ${url.origin}`);
-      return route.abort();
-    }
-    let body;
-    let contentType = 'text/javascript';
-    if (url.pathname === '/') {
-      contentType = 'text/html';
-      body =
-        kind === 'admin'
-          ? fs.readFileSync(
-              path.join(publicRoot, 'pages/admin/toolbox/overtime.html'),
-              'utf8',
-            ) +
-            '<script type="module">import { initOvertime } from "/js/admin/overtime.js"; initOvertime(); window.ready = true;</script>'
-          : kind === 'overlay'
-            ? fs.readFileSync(
-                path.join(publicRoot, 'pages/overlays/overtime.html'),
-                'utf8',
-              )
-            : '<!doctype html><body></body>';
-    } else if (url.pathname === '/js/shared/utils.js') {
-      body = `export const api = (url, body) => new Promise((resolve, reject) => window.pendingSaves.push({ url, body: structuredClone(body), resolve, reject }));
-        export const copyText = async () => {}; export const localOverlayOrigin = () => 'http://lira-ui.test';
-        export const readJsonResponse = (response) => response.json();
-        export const showError = (error) => window.messages.push(error.message);
-        export const toast = (message) => window.messages.push(message);`;
-    } else if (url.pathname === '/js/shared/event-bus.js') {
-      body = `const listeners = new Map(); export const eventBus = { on: (name, callback) => listeners.set(name, callback) };
-        export const Events = { STATE_LOADED: 'state', OVERTIME_UPDATED: 'overtime', GIFT_CATALOG_UPDATED: 'gifts' };
-        window.pushState = (state) => listeners.get('state')({ state: { overtime: state } });`;
-    } else if (url.pathname === '/js/overlays/socket-client.js') {
-      body =
-        'export const createOverlaySocket = (options) => { window.socketOptions = options; return { start() {}, dispose() {} }; };';
-    } else if (/^\/js\/[a-z0-9/-]+\.js$/i.test(url.pathname)) {
-      body = fs.readFileSync(
-        path.join(publicRoot, url.pathname.slice(1)),
-        'utf8',
-      );
-    } else {
-      contentType = 'text/html';
-      body = '';
-    }
-    return route.fulfill({ status: 200, contentType, body });
-  });
-  await page.goto('http://lira-ui.test/');
-  if (kind === 'admin')
-    await page.waitForFunction(() =>
-      document.querySelector('[data-overtime-rule]'),
-    );
-  if (kind === 'overlay')
-    await page.waitForFunction(() => window.socketOptions);
-  return page;
-}
+const { createUiFixture, limits } = require('./helpers/ui-edit-state-fixture');
+const fixture = createUiFixture();
 
 for (const action of ['add', 'remove']) {
   test(`S7-003: a clean saved random rule becomes dirty after outcome ${action}`, async (t) => {
@@ -389,34 +253,96 @@ for (const result of [
   });
 }
 
+test('danmaku panel initializes every shipped style and keeps existing controls working', async (t) => {
+  const page = await fixture(t, 'danmaku');
+  await page.evaluate(async (html) => {
+    const parsed = new DOMParser().parseFromString(html, 'text/html');
+    const panel = parsed.getElementById('otherDanmakuFeature');
+    panel.hidden = false;
+    document.body.append(panel);
+    window.requests = [];
+    window.opened = [];
+    window.open = (url) => window.opened.push(url);
+    window.AdminApp = { utils: { toast: (message) => window.messages.push(message) } };
+    window.liraLicense = {
+      getProfile: async () => ({ state: 'authorized', streamer: {
+        accountName: 'synthetic', songPageUrl: 'https://lira-ui.test/',
+      } }),
+      getOverlaySettings: async () => ({ ok: true, style: 'signal',
+        fullscreenDurationSeconds: 6, overlayUrl: 'https://lira-ui.test/overlay/syntheticKey_123',
+      }),
+    };
+    window.fetch = async (url, options) => {
+      const body = options?.body ? JSON.parse(options.body) : null;
+      window.requests.push({ url, body });
+      let data;
+      if (url === '/api/bilibili/danmaku/state') {
+        data = {
+          loggedIn: true, accountName: '测试账号', accountUid: 123,
+          roomId: 456, roomName: '测试直播间', canSend: true, connected: true,
+          checkinBlessings: JSON.stringify(['测试祝福']),
+          fortunePool: JSON.stringify([{ level: '吉', name: '测试签', text: '测试签文', advice: '测试建议' }]),
+          customReplyRules: JSON.stringify([{ keyword: '测试关键词', reply: '测试回复', enabled: true }]),
+        };
+      } else if (url === '/api/bilibili/danmaku/send') {
+        data = { message: body.message };
+      } else if (url === '/api/settings') {
+        data = body;
+      } else {
+        throw new Error(`Unexpected danmaku fetch: ${url}`);
+      }
+      return { ok: true, json: async () => ({ ok: true, data }) };
+    };
+    await import('/js/admin/danmaku-tool.js');
+    window.AdminApp.danmakuTool.init();
+    await window.AdminApp.danmakuTool.refresh();
+  }, readAdminHtml());
+
+  assert.equal(await page.locator('#danmakuAccountState').textContent(), '测试账号');
+  assert.equal(await page.locator('#danmakuRoomState').textContent(), '测试直播间');
+  assert.equal(await page.locator('#danmakuToolStatus').textContent(), '可发送，监听已连接');
+  await page.locator('#danmakuRefreshBtn').click();
+  assert.equal(await page.evaluate(() => window.requests.length), 2);
+  assert.equal(await page.locator('#danmakuAutoBtn').isEnabled(), true);
+  await page.locator('#danmakuMessage').fill('测试弹幕');
+  assert.equal(await page.locator('#danmakuCounter').textContent(), '4 字');
+  await page.locator('#danmakuSendBtn').click();
+  assert.equal(await page.locator('#danmakuMessage').inputValue(), '');
+  assert.match(await page.locator('#danmakuSendResult').textContent(), /已发送：测试弹幕/);
+  assert.deepEqual(await page.evaluate(() => window.requests.find(
+    (request) => request.url === '/api/bilibili/danmaku/send',
+  ).body), { message: '测试弹幕' });
+
+  for (const [id, key] of [
+    ['danmakuReplyToggle', 'enableRandomTagReply'],
+    ['danmakuCustomReplyToggle', 'enableCustomReplyBot'],
+  ]) {
+    await page.locator(`#${id}`).check();
+    assert.deepEqual(await page.evaluate(() => window.requests.at(-1).body), { [key]: 'true' });
+  }
+  for (const key of ['random', 'diy', 'welcome', 'pk']) {
+    await page.locator(`[data-fixed-open="${key}"]`).click();
+    assert.equal(await page.locator('[data-fixed-editor]:visible').count(), 1);
+    assert.equal(await page.locator(`[data-fixed-editor="${key}"]`).isVisible(), true);
+  }
+  for (const [id, value] of [
+    ['danmakuCustomReplyList', '测试关键词'],
+  ]) {
+    assert.equal(await page.locator(`#${id} input`).first().inputValue(), value);
+  }
+  const styleButtons = page.locator('[data-danmaku-style]');
+  for (let index = 0; index < await styleButtons.count(); index += 1) {
+    const button = styleButtons.nth(index);
+    await button.click();
+    assert.equal(await button.getAttribute('aria-pressed'), 'true');
+    await page.locator('#danmakuPreviewOverlayBtn').click();
+    const preview = new URL(await page.evaluate(() => window.opened.at(-1)));
+    assert.equal(preview.searchParams.get('style'), await button.getAttribute('data-danmaku-style'));
+    assert.equal(preview.searchParams.get('preview'), '1');
+  }
+});
+
 const libraries = [
-  {
-    name: 'Blessing',
-    factory: 'createBlessingEditor',
-    ids: ['List', 'Count', 'Input', 'AddBtn', 'SaveBtn', 'Status'],
-    initial: ['A', 'second'],
-    key: 'checkinBlessings',
-  },
-  {
-    name: 'Fortune',
-    factory: 'createFortuneEditor',
-    ids: [
-      'List',
-      'Count',
-      'LevelInput',
-      'NameInput',
-      'TextInput',
-      'AdviceInput',
-      'AddBtn',
-      'SaveBtn',
-      'Status',
-    ],
-    initial: [
-      { level: 'A', name: 'name', text: 'text', advice: 'advice' },
-      { level: 'second', name: 'name', text: 'text', advice: 'advice' },
-    ],
-    key: 'fortunePool',
-  },
   {
     name: 'CustomReply',
     factory: 'createCustomReplyEditor',

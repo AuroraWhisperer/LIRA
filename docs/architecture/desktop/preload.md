@@ -50,6 +50,8 @@ Device settings，省略另一开关以保留服务器值；只有返回实际�
 
 ## 1. 安全模型
 
+粉丝档案使用 `window.fanProfiles.invoke({action, payload, contextId})` → `fan-profiles:invoke`；`open` 返回上下文 ID，其他操作必须带同代 ID。主窗口 webContents、主 frame、精确本地 origin 和 Admin 页面路径同时校验。controller 从已认证服务器/streamerId 生成 scope，renderer 无权选择。返回 `{ok, contextId, data, syncStatus}` 或可展示错误，不含 token。命令包括档案/记录修订、会员证据选择、提醒状态、备份预览/恢复、旧流水认领、草稿合并、本机恢复点及删除抑制管理；输入由 `src/fans/validation.js` 和领域服务校验，详见 [粉丝档案](../../../specs/fan-profiles.md)。controller 拥有定时器、取消与账号代次，关闭时先 dispose 并等待 whenIdle，再关闭数据库。
+
 新增第五个白名单桥 `dynamicLotteryAuth`，原有四个桥保持兼容。该桥的三个 invoke 均要求当前主窗口 webContents、主 frame 对象及精确 desktopBaseUrl origin；其他窗口、子 frame 或外部页面无权调用。它不暴露 Cookie、快照路径、`getContext` 或授权身份参数。
 
 | 项          | 配置                                                                                                                                                                                               | 出处                                                                                                                             |
@@ -167,3 +169,7 @@ Device settings，省略另一开关以保留服务器值；只有返回实际�
 | `bilibiliAuth`         | getAuthState / getProfile / login / logout                                                                                                            | 管理页 `js/admin/settings.js`(Bilibili 登录区)                                            | 同上                                                                        |
 
 `getRecentLocalFiles` 已由 preload 暴露，并在 `music-ipc.js` 注册；浏览器环境的特性检测保留。
+
+## 云端签到与抽签
+
+`dailyBots.invoke({ action, contextId, payload })` → `daily-bots:invoke`，由 `ipc/daily-bot-ipc.js` 限定主窗口、顶层 frame、精确 loopback origin 和管理页面。action 仅 open/summary/update/decide/prepare/apply/cancel；main 的 daily-bot-controller 持有授权代际和最终快照，license operations 只允许固定 Device 路径。renderer 不获取 token、Cookie 或文件选择能力。服务端响应白名单由 shared/daily-bot-contract 校验；错误只返回公开代码。开关显示服务器确认值与 observedAt，失败不回退本地。

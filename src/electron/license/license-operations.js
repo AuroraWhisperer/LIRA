@@ -48,6 +48,10 @@ function createLicenseOperations(options = {}) {
     return overlayOperation((token) => remote.getWelcomeSettings(token));
   }
 
+  async function dailyBotRequestInternal(operation, input = {}) {
+    return overlayOperation((token) => remote.dailyBotRequest(operation, input, token));
+  }
+
   async function getWelcomeSettingsV2() {
     return overlayOperation(async (token) => {
       try { return sanitizeWelcomeV2(await remote.getWelcomeSettingsV2(token)); }
@@ -331,6 +335,8 @@ function createLicenseOperations(options = {}) {
   }
 
   return {
+    getFanFactsInternal: (input = {}) => withAuthorizedToken((token) =>
+      remote.getFanFacts(input.after || 0, input.epoch, token, { signal: input.signal })),
     clearBilibiliCredentialsInternal,
     clearGiftHistoryInternal,
     deleteSongPageBackground,
@@ -344,6 +350,7 @@ function createLicenseOperations(options = {}) {
     getOverlaySettings,
     updateOverlaySettings,
     getWelcomeSettings,
+    dailyBotRequestInternal,
     getWelcomeSettingsV2,
     updateWelcomeSettingsV2,
     getPkReportSettings,

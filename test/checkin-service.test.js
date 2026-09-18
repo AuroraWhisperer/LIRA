@@ -138,7 +138,7 @@ test('check-in blessings use saved phrases and recover from invalid settings', (
   assert.deepEqual(parseCheckinBlessings('[]'), CHECKIN_BLESSINGS);
 });
 
-test('domain services attach a check-in reply without accepting it as a song request', () => {
+test('domain services reserve cloud check-in without writing or replying locally', () => {
   const dataDir = fs.mkdtempSync(
     path.join(os.tmpdir(), 'song-plugin-checkin-domain-'),
   );
@@ -162,9 +162,10 @@ test('domain services attach a check-in reply without accepting it as a song req
       userName: 'Bob',
     });
     assert.equal(result.accepted, false);
-    assert.equal(result.checkin.accepted, true);
-    assert.equal(result.checkinReply.message, '已签到 1 天。祝你万事顺遂。');
-    assert.deepEqual(result.checkinReply.target, { uid: '456', name: 'Bob' });
+    assert.equal(result.reason, 'cloud-owned');
+    assert.deepEqual(result.command, { type: 'checkin' });
+    assert.equal(result.checkinReply, undefined);
+    assert.equal(databases.checkinDb.prepare('SELECT count(*) AS count FROM checkin_users').get().count, 0);
   } finally {
     closeDatabases(databases);
     fs.rmSync(dataDir, { recursive: true, force: true });

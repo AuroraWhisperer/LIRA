@@ -119,15 +119,11 @@ test('gift effect lookup validates ids and returns only resolved effect data', a
 });
 
 test('gift effects overlay uses official frame metadata without cropping or inverting packed alpha', () => {
-  const serverSource = read('src/server/http-utils.js');
   const html = read('public/pages/overlays/gift-effects.html');
   const css = read('public/css/overlays/gift-effects.css');
   const overlayJs = readOverlayModules();
 
-  assert.match(
-    serverSource,
-    /\[["']\/gift-effects["'], ["']pages\/overlays\/gift-effects\.html["']\]/,
-  );
+  assert.equal(require('../src/server/access-policy').getOverlayScope('/gift-effects'), 'gift-effects');
   assert.match(html, /meta name="referrer" content="no-referrer"/);
   assert.match(html, /id="giftEffectStage"/);
   assert.match(

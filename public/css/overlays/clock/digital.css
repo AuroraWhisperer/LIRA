@@ -13,8 +13,13 @@
 }
 
 .clock-card[data-clock-style='digital'] .clock-content {
-  align-items: flex-start;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: max-content max-content;
+  grid-template-areas: 'date date' 'time period';
+  align-content: center;
+  align-items: baseline;
+  justify-content: start;
+  column-gap: 10px;
   padding: 12px 24px;
 }
 
@@ -28,12 +33,11 @@
 }
 
 .clock-card[data-clock-style='digital'] .clock-kicker-row {
-  position: absolute;
-  top: 20px;
-  right: 24px;
+  display: contents;
 }
 
 .clock-card[data-clock-style='digital'] .clock-period {
+  grid-area: period;
   min-height: 0;
   padding: 0;
   border: 0;
@@ -44,9 +48,9 @@
 }
 
 .clock-card[data-clock-style='digital'] .clock-date-row {
-  order: -1;
+  grid-area: date;
   gap: 12px;
-  margin-top: 0;
+  margin: 0 0 6px;
   font-size: 46px;
   font-weight: inherit;
   letter-spacing: 0;
@@ -55,6 +59,7 @@
 }
 
 .clock-card[data-clock-style='digital'] .clock-time {
+  grid-area: time;
   margin-top: 0;
   font-family: inherit;
   font-size: 122px;

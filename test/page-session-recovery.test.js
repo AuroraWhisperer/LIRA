@@ -7,6 +7,7 @@ const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
 const { servePageOrAsset } = require('../src/server/http-utils');
+const { createOverlayToken } = require('../src/server/access-policy');
 const { loadModuleExports } = require('./helpers/frontend-modules');
 
 test('overlay socket closure confirms an expired session and reloads only once', async () => {
@@ -24,7 +25,7 @@ test('overlay socket closure confirms an expired session and reloads only once',
   second.close();
   assert.equal(requests.length, 1);
   assert.equal(requests[0].url, '/api/state');
-  assert.equal(requests[0].options.headers.Authorization, 'Bearer old-token');
+  assert.equal(requests[0].options.headers.Authorization, `Bearer ${createOverlayToken('old-token', 'queue')}`);
   resolveCheck({ status: 401 });
   await flush();
   assert.equal(page.reloads(), 1);
@@ -95,6 +96,31 @@ test('leaving an overlay aborts a pending session check and suppresses reload', 
   resolveCheck({ status: 401 });
   await flush();
   assert.equal(page.reloads(), 0);
+});
+
+test('overlay bootstrap attaches capabilities only to exact local API and WebSocket URLs', async () => {
+  const requests = [];
+  const page = await createPage('/lyrics', async (url, options) => {
+    requests.push({ url, options });
+    return { status: 200 };
+  });
+  const expected = `Bearer ${createOverlayToken('old-token', 'lyrics')}`;
+  await page.window.fetch(new Request('http://127.0.0.1:3000/api/state', { headers: { Accept: 'application/json' } }));
+  assert.equal(requests[0].options.headers.get('Authorization'), expected);
+  assert.equal(requests[0].options.headers.get('Accept'), 'application/json');
+  await page.window.fetch('/api/state', { headers: new Headers({ Authorization: 'Bearer explicit' }) });
+  assert.equal(requests[1].options.headers.get('Authorization'), 'Bearer explicit');
+  for (const url of ['https://external.test/api/state', 'http://127.0.0.1:3001/api/state', '/js/overlays/clock.js']) {
+    await page.window.fetch(url);
+    assert.equal(requests.at(-1).options, undefined);
+  }
+  for (const url of ['wss://external.test/ws', 'ws://127.0.0.1:3001/ws', 'ws://127.0.0.1:3000/ws-other']) {
+    assert.equal(new page.window.WebSocket(url).url, url);
+  }
+  const socket = new page.window.WebSocket('ws://127.0.0.1:3000/ws?topic=danmaku');
+  assert.equal(new URL(socket.url).searchParams.get('token'), createOverlayToken('old-token', 'lyrics'));
+  const explicit = new page.window.WebSocket('ws://127.0.0.1:3000/ws?topic=danmaku&token=explicit');
+  assert.equal(new URL(explicit.url).searchParams.get('token'), 'explicit');
 });
 
 test('an open overlay recovers after a real runtime restarts with a rotated token', async (t) => {
@@ -204,7 +230,7 @@ test('an open overlay recovers after a real runtime restarts with a rotated toke
     `${app.baseUrl.replace('http:', 'ws:')}/ws`,
   );
   await waitFor(() => freshSocket.readyState === WebSocket.OPEN);
-  assert.equal(refreshedPage.window.__API_TOKEN__, second.getApiToken());
+  assert.equal(refreshedPage.window.__API_TOKEN__, createOverlayToken(second.getApiToken(), 'queue'));
   assert.equal((await refreshedPage.window.fetch('/api/state')).status, 200);
 });
 
@@ -218,7 +244,7 @@ async function createPage(pathname, fetchFn, options = {}) {
     (await new Promise((resolve) => {
       servePageOrAsset(
         path.resolve(__dirname, '..', 'public'),
-        { method: 'GET' },
+        { method: 'GET', headers: { authorization: 'Bearer old-token' } },
         {
           setHeader() {},
           writeHead(status) {
@@ -233,9 +259,10 @@ async function createPage(pathname, fetchFn, options = {}) {
       );
     }));
   const match = html.match(
-    /<script>\(function\(\)\{[\s\S]*?\}\)\(\);<\/script>/,
+    /<script id="lira-overlay-bootstrap">([\s\S]*?)<\/script>/,
   );
-  assert.ok(match, 'expected the real injected session script');
+  if (pathname === '/admin') assert.equal(match, null, 'admin HTML has no credential bootstrap');
+  else assert.ok(match, 'expected the real injected session script');
   let reloads = 0;
   const listeners = new Map();
   location.reload = () => {
@@ -261,7 +288,7 @@ async function createPage(pathname, fetchFn, options = {}) {
     WebSocket: options.WebSocket || FakeWebSocket,
     addEventListener: (name, listener) => listeners.set(name, listener),
   };
-  vm.runInNewContext(match[0].slice(8, -9), {
+  if (match) vm.runInNewContext(match[1], {
     window,
     location,
     URL,

@@ -13,12 +13,12 @@ test('invalid music platform returns a stable 400 through the HTTP transport', a
     getPhase: () => 'ready', getStartedPort: () => server.address().port,
     isLicenseAuthorized: () => true,
     inflightTracker: { run: (fn) => fn() },
-    createApiContext: () => ({ music: { registry: { healthCheck: () => ({ ok: true }) } } }),
+    createApiContext: () => ({ sessionToken: 'synthetic-token', music: { registry: { healthCheck: () => ({ ok: true }) } } }),
   });
   t.after(() => new Promise((resolve) => { server.close(resolve); server.closeAllConnections(); }));
   server.listen(0, '127.0.0.1');
   await once(server, 'listening');
-  const response = await fetch(`http://127.0.0.1:${server.address().port}/api/music/health?platform=constructor`);
+  const response = await fetch(`http://127.0.0.1:${server.address().port}/api/music/health?platform=constructor`, { headers: { Authorization: 'Bearer synthetic-token' } });
   assert.equal(response.status, 400);
   assert.deepEqual(await response.json(), { ok: false, error: 'Invalid request parameters.' });
 });

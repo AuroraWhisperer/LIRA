@@ -25,7 +25,7 @@ boolean enabled 输入，结果只投影 `{ ok: true, enabled }`。main 的账�
 
 本文档是 Electron 桌面壳的**唯一事实源**:进程入口、启动序列、主窗口规格、`local-media://` 协议、请求头伪装、关闭时序与日志只在此成文。IPC 通道全量注册表见 [preload.md](preload.md),登录会话见 [auth.md](auth.md),辅助窗口见 [windows.md](windows.md),自动更新运行时见 [update.md](update.md);后端服务生命周期见 [../backend/server-core.md](../backend/server-core.md),数据目录树见 [../backend/storage.md](../backend/storage.md)。
 
-**主进程模块边界:** `main.js` 是唯一 Electron 组合根，拥有 app/window/protocol/IPC 的接线与生命周期；`cloud-sync-controller.js` 只协调三个云端 scope 的 revision、dirty、SSE 失效通知、低频兜底和应用，`remote-gift-controller.js` 只负责服务端权威礼物的 DeviceBearer SSE、final cursor 对账、断线重连和本地投影，本地 `gift-sync-store` 在 SQLite 投影事务中保存按来源隔离的恢复状态与 final cursor；`desktop-auth-controller.js` 只管理登录窗口和认证快照，`desktop-update-controller.js` 只适配更新运行时，`desktop-logger.js` 只做有序日志写入与单条/单文件准入，`media-request-headers.js` 只安装媒体请求头规则。授权域由 `license-manager.js` 持有状态和远端流程，`license-runtime-policy.js` 只计算可授权能力与状态映射。辅助模块通过显式回调访问窗口/路径，不反向读取 `main.js` 的可变全局。
+**主进程模块边界:** `main.js` 是唯一 Electron 组合根，拥有 app/window/protocol/IPC 的接线与生命周期；`cloud-sync-controller.js` 只协调三个云端 scope 的 revision、dirty、SSE 失效通知、低频兜底和应用，`remote-gift-controller.js` 只负责服务端权威礼物的 DeviceBearer SSE、final cursor 对账、断线重连和本地投影，本地 `gift-sync-store` 在 SQLite 投影事务中保存按来源隔离的恢复状态与 final cursor；`desktop-auth-controller.js` 只管理登录窗口和认证快照，`desktop-update-controller.js` 只适配更新运行时，`desktop-logger.js` 只做有序日志写入与单条/单文件准入，`media-request-headers.js` 安装唯一请求头监听，组合媒体规则与 `desktop-request-auth.js` 的管理主框架认证；后者拥有精确 frame/session 校验、重定向凭据剥离和主窗口导航监听。授权域由 `license-manager.js` 持有状态和远端流程，`license-runtime-policy.js` 只计算可授权能力与状态映射。辅助模块通过显式回调访问窗口/路径，不反向读取 `main.js` 的可变全局。
 
 礼物同步进入 `LIVE` 或 `LEGACY_PARTIAL` 后，`remote-gift-controller.js` 每 **10 秒**经现有串行队列补拉 final cursor，覆盖 SSE 保持连接但未送达礼物通知的情况。补拉结束后重新计时，不叠加慢请求；离开上述状态、停止、销毁或切换 generation 时取消定时器，回调仍校验 source/auth/controller/projection fence。SSE 继续负责即时投影，定时补拉不改变历史导入、幂等结算或授权边界。
 
@@ -189,7 +189,7 @@ runtime `publishGiftEffect` 共用测试播放的 `domainServices.gifts.resolveE
 | webPreferences | `preload: preload.js`、`contextIsolation: true`、`nodeIntegration: false`、`sandbox: false`                        | [main.js:323-326](../../../src/electron/main.js#L323-L326) |
 | 图标           | 打包资源 `build/icon.png` 存在时附加                                                                               | [main.js:328-329](../../../src/electron/main.js#L328-L329) |
 
-导航策略：`setWindowOpenHandler` 拒绝创建窗口，只对 `isAllowedExternal` 或 `isAllowedLocalUrl` 允许的目标调用 `shell.openExternal`；`will-navigate` 放行当前内嵌服务 origin，其余导航被拦截，也只有通过上述允许规则的目标交给系统浏览器。实际规则由 [main.js](../../../src/electron/main.js) 与 [desktop-permissions.js](../../../src/electron/desktop-permissions.js) 共同执行。
+导航与管理认证由 [desktop-request-auth.js](../../../src/electron/desktop-request-auth.js) 在 loadURL 前绑定，实例保存在 `lifecycleState.requestAuth`。`setWindowOpenHandler` 拒绝创建窗口，只对现有外链规则允许的目标调用 `shell.openExternal`；`will-navigate` 仅放行精确服务 origin 的管理 aliases、`/license` 和管理页发起的 `/api/*` 下载，其余允许的外链交系统浏览器。`will-redirect` 对同一范围重新校验，拒绝跳入展示页或外域。管理 Bearer 只由 main 为受信任主 frame 的请求附加，完整契约见 [auth.md](auth.md) §11.1。
 
 最大化状态:窗口 `maximize`/`unmaximize` 事件经 `desktop:window-maximized` 推给渲染进程([main.js:364-374](../../../src/electron/main.js#L364-L374),消费方见 [preload.md](preload.md) §2.2)。
 
@@ -236,7 +236,7 @@ Chromium `session.defaultSession.webRequest.onBeforeSendHeaders` 由一个合并
 | `*://*.qqmusic.qq.com/*`、`*://*.gtimg.cn/*`、`*://*.y.qq.com/*` | 以 `qqmusic.qq.com` / `gtimg.cn` / `y.qq.com` 结尾 | `Referer: https://y.qq.com/` + `Origin: https://y.qq.com`                 |
 | `*://*.bilibili.com/*`、`*://*.hdslb.com/*`                      | 以 `bilibili.com` / `hdslb.com` 结尾               | `Referer: https://www.bilibili.com/` + `Origin: https://www.bilibili.com` |
 
-出处:`configureMusicMediaRequestHeaders` 与 `configureBilibiliMediaRequestHeaders`。音乐组使用 `mediaState.headersConfigured` 幂等标记。
+出处：[media-request-headers.js](../../../src/electron/media-request-headers.js) 的 `configureMediaRequestHeaders`，通过 `mediaState.headersConfigured` 幂等安装。管理认证与这些媒体规则共用同一监听；全 URL 过滤用于清理管理请求的重定向残留头，凭据注入仍按精确主框架与目标白名单限制。
 
 ## 7. 关闭序列与播放状态冲刷
 
@@ -248,7 +248,7 @@ Chromium `session.defaultSession.webRequest.onBeforeSendHeaders` 由一个合并
 4. `remoteGiftController.dispose()` abort 礼物 SSE 并清理重连 timer；`cloudSyncController.dispose()` 停止同步 timer 并移除 listener。两个控制器各自阻止新任务与晚回包的本地提交；客户端退出不表示云端 monitor stop，也不保证撤回已发出的上游请求
 5. `await Promise.all(controller.whenIdle())` 等待两个控制器已排队的 cursor、礼物投影和云同步操作结束；此时 runtime/SQLite 仍保持可用
 6. `lifecycleState.shutdown({ exitProcess: false })` 委托 runtime.stop → 服务器关闭流程([server-core.md](../backend/server-core.md) §6.2)，其中 `preShutdownHook()` 仍为本壳注入的 `requestPlaybackFlush`；正常终结等待后端关闭完成
-7. 完成、清理失败或超时都由同一个幂等终结函数清除兜底 timer、dispose 授权 manager、释放单实例锁，再按首次意图选择是否 `app.relaunch()`，最后 `app.exit(0)`。失败记录 `shutdown-error`；超时记录 `QUIT_TIMEOUT`，其他终结记录 `QUIT_DONE`
+7. 完成、清理失败或超时都由同一个幂等终结函数清除兜底 timer、dispose 管理请求认证与授权 manager、释放单实例锁，再按首次意图选择是否 `app.relaunch()`，最后 `app.exit(0)`。失败记录 `shutdown-error`；超时记录 `QUIT_TIMEOUT`，其他终结记录 `QUIT_DONE`
 
 若同步等待失败，直接进入失败终结，不把失败当作成功排空继续停止后端。超时后的同步晚完成不会再进入后端关闭阶段；已开始的后端关闭不能物理撤回，其晚完成或晚失败也不会再次释放、重启或退出。启动中的 Cookie 恢复、runtime.start 和授权 bootstrap 在 await 后检查关闭状态，避免关闭已开始后继续创建下一阶段资源。
 

@@ -46,10 +46,11 @@ test('welcome uses the compact single-editor layout and retains all six feature 
   const html = readAdminHtml();
   assert.match(html, /id="danmakuWelcomeToggle" type="checkbox" disabled/);
   assert.match(html, /<section id="danmakuWelcomePanel" data-fixed-editor="welcome" hidden/);
-  assert.ok(html.indexOf('id="danmakuWelcomePanel"') > html.indexOf('id="danmakuFortunesPanel"'));
+  assert.ok(html.indexOf('id="danmakuWelcomePanel"') > html.indexOf('id="danmakuCustomRepliesPanel"'));
   assert.match(html, /id="danmakuWelcomeList" class="danmaku-blessing-list"/);
   assert.match(html, /舰长、提督、总督/);
-  assert.equal((html.match(/data-fixed-open=/g) || []).length, 6);
+  assert.equal((html.match(/data-fixed-open=/g) || []).length, 4);
+  assert.equal((html.match(/data-fixed-item=/g) || []).length, 6);
   assert.equal((html.match(/id="danmakuWelcomeToggle"/g) || []).length, 1);
   assert.match(html, /id="danmakuWelcomePinyinToggle"/);
 });

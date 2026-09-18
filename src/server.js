@@ -180,6 +180,7 @@ function createServerRuntime(runtimeOptions = {}) {
       giftEffectResolver = giftEffectModule.createGiftEffectResolver();
       domainServices = createDomainServices({
         db,
+        getFanScope: runtimeOptions.getFanScope,
         settingsStore,
         dataDir: DATA_DIR,
         giftSaleGetRoomId: runtimeOptions.giftSaleGetRoomId,
@@ -221,12 +222,14 @@ function createServerRuntime(runtimeOptions = {}) {
       });
       publishOvertimeUpdate = broadcastOvertimeUpdate;
       bilibiliRuntime = createBilibiliRuntime({
+        getFanScope: runtimeOptions.getFanScope,
         settingsStore,
         domainServices,
         broadcastSnapshot,
         setActiveDanmakuRoom: (roomId) => danmakuFeedBuffer.setRoom(roomId),
         buildClient(roomId, context) {
           return buildBilibiliClient(roomId, {
+            getFanScope: runtimeOptions.getFanScope,
             ...context,
             aiDanmakuDeliveryVerifier: aiRuntime.deliveryVerifier,
             domainServices,
@@ -760,6 +763,8 @@ function createServerRuntime(runtimeOptions = {}) {
     isGiftCatalogInitialized,
     onGiftCatalogInitializationStateChanged,
     getApiToken: () => sessionToken,
+    getFanProfiles: () => domainServices?.fans,
+    getDailyBotLegacy: () => domainServices?.dailyBotLegacy,
     ...createGiftExportRuntime({ getServices: () => domainServices,
       getSettingsStore: () => settingsStore, broadcastSnapshot }),
     getSetting,

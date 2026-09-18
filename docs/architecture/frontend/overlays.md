@@ -16,6 +16,40 @@
 
 ## 1. 悬浮层框架
 
+### 1.0 本地页面权限与数据投影
+
+本地展示页面各有独立的 `overlay` 身份，不能调用其他页面或管理端的接口。固定页面地址仍可作为 OBS 浏览器源打开；服务端只在该页 HTML 中注入本次运行的页面凭据，管理凭据不进入 HTML。`songlist` 对应 `songs.html`，`lyrics` 对应 `lyric-window.html`，其余 scope 与同名 HTML 对应。`/pages/overlays/<文件名>` 原始地址和 `/<scope>` 使用相同权限与响应头；`/songs` 仍是管理入口。
+
+签发及精确路径/方法白名单由 [access-policy.js](../../../src/server/access-policy.js) 拥有，受限操作由 [overlay-http.js](../../../src/server/overlay-http.js) 适配。REST、初始快照、合并快照及所有 WS JSON 出口统一经过 [overlay-projection.js](../../../src/server/overlay-projection.js)。投影逐层选取已列出的标量、对象及数组字段；新增 owner 字段和新增设置不会自动对展示页开放，不能直接展开整个 `state` 或 `settings`。管理请求保留原 DTO。
+
+所有页面允许 `GET /api/state` 作为凭据恢复探测，但只返回下表中的本页投影；无快照消费者的页面得到空对象，不据此向全局快照加入游戏或转盘。表中 GET/POST 路径均省略 `/api` 前缀，头像代理仅开放给实际展示头像的四页。
+
+| Scope | 专用 HTTP 读取与允许操作 | 快照字段与专用 WS 消息 |
+|---|---|---|
+| `queue` | 无 | `queue.current/waiting` 的歌名、请求者显示名、置顶与大航海/灯牌展示字段；`superChats.message/price`；本页主题设置 |
+| `songlist` | GET `/songs`，服务端固定 `enabledOnly: true`，保留分类筛选 | 本页歌单主题设置；歌曲仅 `id/name/artist/category_name/language/name_initial` |
+| `blindbox` | GET `/gifts/blind-box-stats`，保留 `boxName` 筛选 | 本页主题设置；统计仅盒数、总成本、总盈亏及榜单显示名/盒数/盈亏 |
+| `overtime` | 无 | `overtime` 的 revision、状态、服务端时间、有效余时、背景与展示规则；`overtime:update` 的同一状态及结算动画字段 |
+| `gift-effects` | 无 | `giftEffectDanmakuEnabled/giftFrameMotionMode`；`gift:frame` 的礼物铭牌/主题/动效字段，`gift:effect` 的播放 URL 与 RGB/alpha 布局 |
+| `gift-feed` | GET `/gifts/display-settings`、`/gifts/history`、`/overtime/gifts/catalog`、`/bilibili/avatar` | `gifts.viewRevision` 与刷新 reason；`gift-catalog:update` 仅为失效通知，不附完整目录 |
+| `gift-export` | GET `/bilibili/avatar` | 无业务快照或专用消息；导出行、配置和目录由 Electron main 的冻结输入提供，不授予流水选择或导出 IPC 权限 |
+| `lyrics` | 无 | 本页歌词设置、`lyricState/lyricTimeline`；`lyric-state/lyric-timeline` 仅含曲名/艺人、行词文本与时间、播放/排序状态 |
+| `games` | GET `/games/session`、`/games/winner-profile`、`/bilibili/avatar`；POST `/games/session` 仅 `stop/restart`，`/games/session/move` 仅数字/坐标字符串，`/games/session/draw` 仅 `append/undo/clear` | `game:update` 的公开游戏态、`game:draw` 的画笔操作；兼容已存在的 `state.games`，不新增全局字段 |
+| `danmaku` | GET `/bilibili/avatar` | `danmakuFeed`、`liveStatus.enabled/roomId/connected/message`、`danmakuOverlayStyle/danmakuFullscreenDurationSeconds`；`danmaku:message` 仅展示消息、身份、头像与表情字段 |
+| `wheel` | GET `/wheel`；POST `/wheel/spin` | `wheel:update`；仅候选标签/权重、抽取时序/索引及上次结果索引 |
+| `opening` | GET `/opening/config` | 无；配置仅启用、文案、画质/轨道/音符/均衡器、音频开关/音量及当前音频/人物图 URL |
+| `clock` | GET `/clock/config` | 无；仅 `style/showDate/showSeconds/hourFormat/label` |
+
+本日礼物的服务端读取固定北京时间今天、每页 100 条、按创建时间升序；页面只能传分页 cursor 和 viewRevision，不能扩大日期、来源或筛选范围。返回仅保留 `viewRevision/nextCursor/partial`，以及横幅需要的 `eventId/artworkPath` 和礼物显示名、礼物 ID/变体、币种、单价、数量、头像、大航海等级。目录仅保留礼物 ID/名称/变体和本地图片路径，不暴露来源配置、同步状态或完整流水元数据。
+
+游戏投影按游戏类型逐字段选择。数字炸弹的隐藏数字、你画我猜的未揭晓词条/别名和管理态不对展示页开放；只有领域状态已经 `answerRevealed: true` 才传递 `revealedAnswer`。公开弹幕保留观众实际发送的文本。落子不能携带对象形式的主持控制指令，开始/配置游戏和转盘、提前揭晓/切换题目仍属于管理端。
+
+设置字段表以投影模块中的显式键为准，并覆盖共享消费者：队列保留通用主题、序号/置顶/六条规则及各风格字体和滚动键；`storybookQueue`、`neonVinylQueue`、`cherryRibbonQueue`、`goldenLilyQueue` 仅允许 `FontSize/FontFamily/FontWeight/UseCustomTextColor/TextColor/ScrollMode/ScrollSpeed` 七个已消费后缀，旧 `illustratedQueue*` 仅保留现有兼容回退键。歌单保留独立 `songBoard` 设置及共享主题回退键，盲盒保留自身标题与通用主题，歌词保留 `DESKTOP_LYRIC_DEFAULTS` 对应的 51 个展示键。不得将任意同前缀的新键视为已授权。
+
+每个 overlay HTML 响应都使用 `Content-Security-Policy: sandbox allow-scripts`，不允许 `allow-same-origin`；直接打开和嵌入管理预览都处于 opaque origin，不能访问父 frame 的 DOM、fetch 或凭据。预览父页通过 `postMessage(..., '*')` 发送展示配置，子页核对 `event.source === parent` 及管理页服务 origin；当前 overlay 与共享渲染器不依赖 localStorage、sessionStorage 或 IndexedDB。
+
+静态脚本、样式、字体和图片可跨 opaque origin 加载，HTML 不开放 CORS 读取。API 只为允许的页面路径/方法接受 `Origin: null`，实际请求仍验证页面凭据；预检不授予身份或管理权限。引导脚本只给同一服务的 `/api/` 和 `/ws` 附加本页凭据，401 或 WS 关闭后最多合并一次 `/api/state` 探测，确认旧凭据失效才重新加载页面。`topic=danmaku` 只缩小订阅，不能扩展 scope；overlay 的 WS 文本/二进制业务入站帧关闭为 1008，正常 ping/pong/close 保留。`shutdown` 对所有 scope 仅包含类型和原因。
+
 ### 1.1 通用模式
 
 所有叠加层:
@@ -98,7 +132,7 @@ WAAPI 句柄、timer 与 watchdog，正常、异常、超时和主动取消都�
 
 ### 1.5 开播动画(`/opening`)
 
-开播页从免认证只读接口 `GET /api/opening/config` 读取已保存设置；Admin 预览 URL 可用
+开播页使用本页凭据从只读接口 `GET /api/opening/config` 读取已保存设置；Admin 预览 URL 可用
 查询参数临时覆盖设置。`trackMotion` 仅接受 `heart`、`barber`、`progress`，查询参数优先于
 保存值，非法值回退 `heart`。三种模式复用同一条 SVG waveform：心形的位移和显隐使用同一条
 SVG 时间轴，启用画面时统一归零并从首轮立即移动；
@@ -234,14 +268,14 @@ HTTP 初始/重连请求带本页读取代次，较新的完整 WS 状态使旧�
 
 [overlays/games.js](../../../public/js/overlays/games.js) 是游戏入口，只传入会话中的 `session.danmaku`。画我猜的 `#drawDanmakuFeed` 固定声明 `data-style="bubble"`，不读取或跟随弹幕姬的 `danmakuOverlayStyle` 设置；`games.css` 独立实现适合游戏窄栏的五身份气泡视觉，并自动受益于共享组件的安全表情渲染。
 
-游戏和转盘共用 `socket-client.js` 的连接生命周期。每次连接成功分别从 `/api/games/session`、`/api/wheel` 补齐状态；请求失败最多重试四次，收到更新后丢弃较旧的 HTTP 读取/操作响应。转盘通过专用 REST 读取和 `wheel:update` 恢复，不假定普通 snapshot 包含转盘状态。现有互动端点和页面凭据契约保持不变。
+游戏和转盘共用 `socket-client.js` 的连接生命周期。每次连接成功分别从 `/api/games/session`、`/api/wheel` 补齐状态；请求失败最多重试四次，收到更新后丢弃较旧的 HTTP 读取/操作响应。转盘通过专用 REST 读取和 `wheel:update` 恢复，不假定普通 snapshot 包含转盘状态。现有互动端点保留，页面凭据仅允许 §1.0 列出的本页操作。
 
 - `games.css` 将短消息显示为紧凑气泡，长消息按宽度增长并自然换行增高；交错对齐、实时标题栏和 reduced-motion 降级只属于视觉层，不改变弹幕字段或游戏协议。
 
 ## 6.3 萌时钟(/clock)
 
 [overlays/clock.js](../../../public/js/overlays/clock.js) 驱动固定 `/clock`
-浏览器源，默认首帧从免认证只读接口 `GET /api/clock/config` 读取已保存设置，并使用
+浏览器源，默认首帧使用本页凭据从只读接口 `GET /api/clock/config` 读取已保存设置，并使用
 设备本地时区显示当前时间、日期和星期。页面外层透明；横向样式使用 560×190
 设计画布，竖向时间轴使用 220×380 设计画布，并在浏览器源不足时按可用空间缩小。
 
@@ -257,8 +291,8 @@ HTTP 初始/重连请求带本页读取代次，较新的完整 WS 状态使旧�
 - 时钟按下一秒边界使用一次性 timeout 更新；页面隐藏时停止调度，恢复可见后
   立即校时。冒号与星点动效在 `prefers-reduced-motion: reduce` 下停用。
 - Admin 百宝箱的「萌时钟」卡片只展示并复制固定地址；表单修改经受 token 保护的
-  `POST /api/settings` 保存。预览 iframe 与管理页同源，首次用完整参数加载，后续
-  通过仅接受同源父窗口的 `lira:clock-preview-config` 消息原位更新；样式切换使用
+  `POST /api/settings` 保存。预览 iframe 使用独立 opaque origin，首次用完整参数加载，后续
+  通过校验父窗口来源及服务 origin 的 `lira:clock-preview-config` 消息原位更新；样式切换使用
   160ms 淡入衔接，减少动态效果时停用，不重载页面或重启计时器。完整参数无需重复
   读取配置，首帧在配置和当前时间就绪后显示。旧带参数地址保持兼容，显式参数逐字段
   覆盖保存配置；已打开的 OBS 页面在 Browser Source 刷新后读取新设置。

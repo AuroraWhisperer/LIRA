@@ -18,7 +18,7 @@ test('desktop shutdown drains sync controllers before stopping the runtime', () 
   assert.ok(start >= 0 && end > start);
   assert.match(
     shutdown,
-    /const controllersToDrain = \[\s*remoteGiftController,\s*cloudSyncController,?\s*\]/,
+    /const controllersToDrain = \[\s*remoteGiftController,\s*cloudSyncController,\s*fanProfileController,?\s*\]/,
   );
   assert.match(
     shutdown,
@@ -52,6 +52,7 @@ test('desktop runtime adapts the legacy server API without changing calls', asyn
     getSetting(key) {
       return `setting:${key}`;
     },
+    getApiToken: () => 'synthetic-main-token',
     resolveGiftSource(sourceKey) {
       giftSyncCalls.push(['resolve', sourceKey]);
       return { id: 7, sourceKey };
@@ -105,6 +106,7 @@ test('desktop runtime adapts the legacy server API without changing calls', asyn
     },
   );
   assert.equal(runtime.getSetting('theme'), 'setting:theme');
+  assert.equal(runtime.getApiToken(), 'synthetic-main-token');
   const processedEvent = {
     eventId: 'gift-1',
     phase: 'final',

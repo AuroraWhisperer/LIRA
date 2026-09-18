@@ -1,0 +1,60 @@
+{
+  "description": "Synthetic private fan facts v1. Same textual identity belongs to distinct namespaces; membership is an observation only.",
+  "page": {
+    "version": 1,
+    "streamerId": "17",
+    "epoch": "fixture-fan-epoch",
+    "coverageSince": "2026-09-01T00:00:00.000Z",
+    "reset": false,
+    "after": 0,
+    "nextCursor": 2,
+    "hasMore": false,
+    "events": [
+      {
+        "id": "identity:fixture-uid",
+        "kind": "identity",
+        "cursor": 1,
+        "identity": {
+          "platform": "bilibili",
+          "type": "uid",
+          "value": "900017"
+        },
+        "name": "测试观众新名",
+        "nameComplete": true,
+        "observedAt": "2026-09-18T00:00:00.000Z",
+        "source": "INTERACT_WORD"
+      },
+      {
+        "id": "membership:fixture-buy",
+        "kind": "membership",
+        "cursor": 2,
+        "identity": {
+          "platform": "bilibili",
+          "type": "uid",
+          "value": "900017"
+        },
+        "name": "测试观众旧名",
+        "nameComplete": true,
+        "observedAt": "2026-06-18T00:00:00.000Z",
+        "source": "GUARD_BUY",
+        "membership": {
+          "type": "observation",
+          "level": 3,
+          "observedAt": "2026-06-18T00:00:00.000Z",
+          "status": "observed",
+          "reason": "实际生效及到期时间待确认"
+        },
+        "identitySnapshot": {
+          "identity": {
+            "platform": "bilibili",
+            "type": "uid",
+            "value": "900017"
+          },
+          "name": "测试观众新名",
+          "nameComplete": true,
+          "observedAt": "2026-09-18T00:00:00.000Z"
+        }
+      }
+    ]
+  }
+}

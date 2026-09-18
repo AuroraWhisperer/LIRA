@@ -65,9 +65,24 @@ data/
 
 ## 3. 六库 × 表清单(唯一成表处)
 
-共 **36 张业务表 + 每库 1 张 `schema_version`**。文件常量 `DB_FILE_NAMES`、五个既有库的 DDL 与抽奖库 DDL 分别位于 [database.js](../../../src/storage/database.js)、[schema.js](../../../src/storage/schema.js) 和 [dynamic-lottery-schema.js](../../../src/storage/dynamic-lottery-schema.js)。
+### 粉丝档案（songDb v6 新增六表）
 
-### 3.1 song-request-data.db(点歌库,14 表)
+`fan-profile-migration.js` 在现有 songDb 的迁移事务内新增以下六表；`fan-profile-store.js` / `fan-record-store.js` 持有 SQL，`src/fans/` 持有领域规则。
+
+| 表 | 责任与约束 |
+| --- | --- |
+| `fan_profiles` | UUID 主键；scope 是 canonical Server origin + authenticated streamerId；scope + typed identity 唯一；JSON 与乐观 revision |
+| `fan_records` | 档案外键级联；UUID、scope + source_key 唯一；原始事实、当前数据与修订分别保存 |
+| `fan_reminder_states` | scope + profile + item_key 唯一；已处理、忽略、稍后与事项来源 |
+| `fan_scopes` | 自动设置、epoch/cursor；事实与游标同事务提交 |
+| `fan_suppressions` | 停止自动建档的最小 typed identity 标记 |
+| `fan_restore_snapshots` | scope 内恢复/合并之前的完整快照；恢复点操作校验归属 |
+
+requests 追加 stable_id（唯一 UUID）、owner_scope、identity_type；旧流水为空不猜归属。成功点歌事务同步写独立档案歌曲快照，队列状态与对应档案状态同事务更新；done 只表示队列已处理。确认旧流水归属后才认领 UUID。六表不参与普通 retention 或 clear-all；档案专用删除/恢复操作才修改。备份 lira-fan-profiles v1 含原始依据、修订、提醒和抑制，恢复先校验预览摘要并保存快照；见 [需求](../../../specs/fan-profiles.md)。
+
+共 **42 张业务表 + 每库 1 张 `schema_version`**。文件常量 `DB_FILE_NAMES`、五个既有库的 DDL 与抽奖库 DDL 分别位于 [database.js](../../../src/storage/database.js)、[schema.js](../../../src/storage/schema.js) 和 [dynamic-lottery-schema.js](../../../src/storage/dynamic-lottery-schema.js)。
+
+### 3.1 song-request-data.db(点歌库,20 表)
 
 | 表                  | 用途                                                         | 关键列/索引                                                                                                                                                                                                                                                           |
 | ------------------- | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -151,7 +166,7 @@ data/
 
 | 库          | key             | 版本  | 步骤内容                                                                                                                                                                                                                                                                                                                      |
 | ----------- | --------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| songDb      | `song_db`       | v1-v5 | v1 列补全(tags/language/source_platform/original_group、pinned_at、requester_* 元数据);v2 `seedThemePresets`;v3 清理重复 (name, artist) 后建唯一索引;v4 幂等补充 `songs.request_price`;v5 幂等补充 `songs.song_clip`，旧歌曲的新字段均默认空字符串                                                                            |
+| songDb      | `song_db`       | v1-v6 | v1 列补全(tags/language/source_platform/original_group、pinned_at、requester_* 元数据);v2 `seedThemePresets`;v3 清理重复 (name, artist) 后建唯一索引;v4 幂等补充 `songs.request_price`;v5 幂等补充 `songs.song_clip`，旧歌曲的新字段均默认空字符串；v6 新增六张私密粉丝档案表及 requests 的稳定标识、归属和身份类型，旧流水归属保持空值 |
 | superChatDb | `super_chat_db` | v1    | 基线                                                                                                                                                                                                                                                                                                                          |
 | giftDb      | `gift_db`       | v1-v11 | v1 `ensureGiftColumns`(cmd/blind_box/raw_json 等);v2 platform_id 索引;v3 `collapseDuplicateGiftIdentities` + 唯一索引 (platform_id, uid);v4 **检测账本升级**(`ensureGiftDetectionColumns`,历史记录标记 final 且仅归属礼物统计);v5 插入加班机单例行(id=1);v6 扩展加班机倒计时安全上限;v7 放开加班机 `display` 文字展板规则模式;v8 增加来源分区、同步状态、远程来源约束与索引；v9 幂等增加可空 `gift_events.blind_box_id`，旧行保持 `NULL`；v10 增加冻结事件身份列并将规则主键升级为 ID + 身份，旧规则设置原样保留；v11 幂等增加可空 avatar_url/guard_level，旧记录保持 NULL，等级约束为 0–3 |
 | musicDb     | `music_db`      | v1    | 基线                                                                                                                                                                                                                                                                                                                          |
@@ -296,3 +311,7 @@ ADR [0011-source-partitioned-gift-ledger-projection](../adr/0011-source-partitio
 ## 礼物身份迁移 v10
 
 `gift_events` 增加可空 `gift_variant_id`、`blind_box_variant_id`。旧行保持 NULL，新记录随原导入事务写入冻结身份。`overtime_gift_rules` 新增 `gift_identity_key TEXT NOT NULL DEFAULT ''` 和 `gift_identity_json TEXT`，主键改为 `(gift_id, gift_identity_key)`；原九列内容完整复制。迁移可重复检查，不推断旧名称对应的标价。数字平台 ID 的无身份规则保留并等待重新选择；settlements 内容不迁移、不回放。运行时图片 index schema 2 以 variantId 保存最近成功文件，旧 numeric ID 索引不参与回退。详见 [ADR-0014](../adr/0014-gift-identity-bound-overtime.md)。
+
+## 签到旧库与云端接管
+
+`checkin-data.db` 原位保留，daily-bot-legacy-reader 是一次性只读适配器，生产 domain-services 不再创建 createCheckinStore/checkin/fortune 执行服务。停写及归属确认后，main 读取受限快照；摘要、批次与接管结果按 Server daily-bots 契约处理，不修改旧累计。关闭云端不清历史，日常旧 settings 不自动上传。普通旧库维护接口语义保持原状。

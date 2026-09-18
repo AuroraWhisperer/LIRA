@@ -2,7 +2,7 @@
 
 > 涉及文件:[src/server.js](../../../src/server.js)、[src/server/runtime-config.js](../../../src/server/runtime-config.js)、[src/server/runtime-transport.js](../../../src/server/runtime-transport.js)、[src/server/authorized-work.js](../../../src/server/authorized-work.js)、[src/server/http-server.js](../../../src/server/http-server.js)、[src/server/runtime-api-context.js](../../../src/server/runtime-api-context.js)、[src/server/startup-retention.js](../../../src/server/startup-retention.js)、[src/server/admin-launcher.js](../../../src/server/admin-launcher.js)、[src/server/api-context.js](../../../src/server/api-context.js)、[src/server/inflight-tracker.js](../../../src/server/inflight-tracker.js)、[src/server/music-runtime.js](../../../src/server/music-runtime.js)、[src/server/ai-runtime.js](../../../src/server/ai-runtime.js)、[src/server/bilibili-runtime.js](../../../src/server/bilibili-runtime.js)、[src/server/lifecycle.js](../../../src/server/lifecycle.js)、[src/server/http-utils.js](../../../src/server/http-utils.js)、[src/server/api-routes.js](../../../src/server/api-routes.js)、[src/server/system-metrics.js](../../../src/server/system-metrics.js)、[src/server/domain-services.js](../../../src/server/domain-services.js)
 
-本文档是后端服务进程的**唯一事实源**:端口、环境变量、启动/关闭时序、请求管线、token 注入机制均只在此成表。HTTP 端点全量注册表见 [api.md](api.md),WebSocket 传输与快照契约见 [ws.md](ws.md),数据库细节见 [storage.md](storage.md)。
+本文档是后端服务进程的**唯一事实源**:端口、环境变量、启动/关闭时序、请求管线、身份与凭据机制均只在此成表。HTTP 端点全量注册表见 [api.md](api.md),WebSocket 传输与快照契约见 [ws.md](ws.md),数据库细节见 [storage.md](storage.md)。
 
 **组合根边界:** `server.js` 只保留运行时生命周期、领域装配与启动/关闭次序。`runtime-config.js` 解析路径和限制，`runtime-transport.js` 装配 WebSocket/静态传输，`authorized-work.js` 控制授权后才启动的消费者，`http-server.js` 创建监听器并分发请求，`runtime-api-context.js` 组装每次请求的 API 依赖；启动保留策略和自动打开后台分别由 `startup-retention.js`、`admin-launcher.js` 单独拥有。叶模块不导入 `server.js`，依赖只从组合根向下传递。
 
@@ -42,7 +42,7 @@
 
 `SERVICE_ID = 'lira'` 仅为公开服务标记，不构成身份证明。旧实例清理由 [lifecycle.js](../../../src/server/lifecycle.js) 编排，[local-instance.js](../../../src/server/local-instance.js) 拥有验证与连接：无凭据 GET health，发送 32 字节随机挑战；ready 实例返回 session token 的 HMAC-SHA256，固定域与实际监听端口绑定。客户端验证后，只有同一条 TCP socket 才能写入 Bearer 并 POST shutdown；断开、重连和重定向不转交令牌，响应上限 16 KiB、每次 HTTP 交换总期限 1 秒。
 
-Windows 兼容旧版本：通过系统 TCP 表的精确两端地址/端口查当前连接的进程，再验证进程与当前 Windows 用户 SID 一致及安装或绝对入口，不能根据对端自报的 PID/dataDir/serviceId 放行。查询拥有者是 [local-process-owner.js](../../../src/server/local-process-owner.js)，最多等待 5 秒，查询失败不降级为信任 health。进程归属对 Windows 路径统一小写；打包 exe 必须属于本 resources/app(.asar) 安装根，Node 必须直接启动本根 src/server.js 的绝对入口，Electron 必须直接启动本根或 src/electron/main.js；相对入口、其他参数中的根路径及同名可执行文件均不足以授权。
+Windows 兼容旧版本：通过系统 TCP 表的精确两端地址/端口查当前连接的进程，再验证进程与当前 Windows 用户 SID 一致及安装或绝对入口，不能根据对端自报的 PID/dataDir/serviceId 放行。查询拥有者是 [local-process-owner.js](../../../src/server/local-process-owner.js)，直接筛选 `root/StandardCimv2` 的 `MSFT_NetTCPConnection`，避免加载 NetTCPIP cmdlet 的额外耗时；最多等待 5 秒，查询失败不降级为信任 health。进程归属对 Windows 路径统一小写；打包 exe 必须属于本 resources/app(.asar) 安装根，Node 必须直接启动本根 src/server.js 的绝对入口，Electron 必须直接启动本根或 src/electron/main.js；相对入口、其他参数中的根路径及同名可执行文件均不足以授权。
 
 发出请求后保留 7.5 秒 / 120ms 端口释放等待，覆盖 Electron 的 renderer flush。若仍占用，必须重新查询实际监听者，PID、创建时间、精确归属与等待前匹配才允许 SIGTERM；health 自报 PID 从不进入终止分支。无 Windows 系统证据时仍可通过挑战完成新版本优雅退出，但不强制终止。无法验证的旧版本或无权限场景保留占用者，精确绑定随后报端口冲突。`.server-runtime.json` 只用于当前进程跳过与本实例元数据清理，不证明网络对端身份。
 
@@ -68,7 +68,7 @@ Windows 兼容旧版本：通过系统 TCP 表的精确两端地址/端口查当
 
 1. **Host 头验证**(H06):所有 HTTP 生命周期阶段先检查 `req.headers.host` 与运行时 baseUrl，不匹配返回 400。
 2. phase 非 `ready` 时，仅 `/api/health` 返回 `{serviceId,phase}`；其他正确 Host 的 HTTP 请求返回 503，WebSocket upgrade 同样拒绝。
-3. **Origin 验证**(H06):对状态变更请求(`POST`/`PUT`/`DELETE`/`PATCH`)，检查 `req.headers.origin` 是否在允许列表内(当前仅运行时 baseUrl)。无 Origin 头的请求(非浏览器客户端，如 curl)放行。不匹配返回 403。
+3. **Origin 验证**(H06):对状态变更请求(`POST`/`PUT`/`DELETE`/`PATCH`)，检查 `req.headers.origin` 是否在允许列表内(当前仅运行时 baseUrl)。无 Origin 头的请求(非浏览器客户端，如 curl)放行。不匹配返回 403。`Origin: null` 的 API 请求交由下述 scope 鉴权处理，绝不作为普通受信任来源。
 4. `pathname === '/ws'` → 直接 400(提示用 WebSocket 客户端;升级请求走 `server.on('upgrade')`)；升级入口捕获 URL 解析异常，畸形 Host/请求 URL 返回 400 并关闭该连接，不使服务退出。
 5. `pathname.startsWith('/api/')` → 经 [inflight-tracker.js](../../../src/server/inflight-tracker.js) 接纳并跟踪，再调用 [api-routes.js](../../../src/server/api-routes.js) 的 `handleApi(createApiContext(), req, res, requestUrl)`。
 6. 其余 → `httpUtils.servePageOrAsset(PUBLIC_DIR, …)` 静态页面/资源。
@@ -79,7 +79,7 @@ phase 为 `ready` 时，`server.on('upgrade')` 先复用 HTTP 的严格 Host:por
 
 - `validateRequestHost(req, runtimeBaseUrl)`:提取 `req.headers.host` 与运行时 baseUrl 的 host:port 比较,确保请求目标与服务实际绑定地址一致。
 - `validateOrigin(req, allowedOrigins)`:检查 `req.headers.origin` 是否在白名单内。无 Origin 头时返回 `true`(允许非浏览器客户端)。
-- `addFrameProtectionHeaders(res, pathname)`:为管理页面(`/admin`/`/settings`/`/songs`/`/`)添加 `Content-Security-Policy: frame-ancestors 'none'` 与 `X-Frame-Options: DENY`;排除 overlay 页面(`/queue`/`/songlist`/`/blindbox`/`/overtime`/`/gift-effects`/`/lyrics`)，这些页面需要被 OBS 嵌入。
+- `addFrameProtectionHeaders(res, pathname)`：管理 HTML 禁止嵌入和启动 worker；overlay HTML 使用 `sandbox allow-scripts`，可嵌入但不具有父 frame 的同源权限。规范 URL 与 raw HTML 文件别名执行同一规则。
 
 ### 4.1 API 路由分发
 
@@ -90,7 +90,7 @@ phase 为 `ready` 时，`server.on('upgrade')` 先复用 HTTP 的严格 Host:por
 [src/server/api-routes.js](../../../src/server/api-routes.js) 无状态:业务状态全部通过 context 注入。
 
 - **17 个路由模块**按 `ROUTE_MODULES` 数组顺序前缀匹配(完整端点清单见 [api.md](api.md))。
-- **Token 校验**:除 `PUBLIC_API_PATHS = {'/api/health', '/api/clock/config', '/api/opening/config'}` 外全部要求 Bearer 头或 `?token=` 查询参数,失败回 401(`verifyToken`,[http-utils.js:46-54](../../../src/server/http-utils.js#L46-L54))。
+- **身份与权限**：[access-policy.js](../../../src/server/access-policy.js) 由 Bearer/query 凭据解析冻结的 `admin` 或 `overlay(scope)`。显式 Authorization 优先，错误头不能回退 query；空运行密钥拒绝认证。只有 `GET /api/health` 匿名可用；overlay 先检查精确 method/path，再进入 [overlay-http.js](../../../src/server/overlay-http.js) 的受限参数适配与字段投影。无效凭据 401，跨 scope/管理接口 403。时钟和开播配置由各自页面能力读取。
 - **405 与 404 区分**:`findRoute` 在模块前缀命中但方法不匹配时标记 `pathExists` → 405;否则 404。
 - **请求体惰性读取**:`createBodyReader` 只在 handler 真正调用时读一次 JSON([api-routes.js:42-47](../../../src/server/api-routes.js#L42-L47)),上限 `MAX_BODY_BYTES = 16 MB`([server.js:35](../../../src/server.js#L35)),超限/非法 JSON 在 `readJsonBody` 中拒绝。
 - 顶层异常兜底:500 + `{ok:false, error}`。
@@ -99,19 +99,15 @@ phase 为 `ready` 时，`server.on('upgrade')` 先复用 HTTP 的严格 Host:por
 
 `server.js` 内的轻量适配函数 `createApiContext()`([server.js:201](../../../src/server.js#L201))只收集当前运行时依赖,实际的 Context 结构由 [api-context.js:7](../../../src/server/api-context.js#L7) 统一构建。Context **按领域分组**注入,避免退化成平铺 Fat Context:`songs / queue / superChat / gifts / overtime / data / playback / playbackLyrics / weSing / theme / bilibili / ai / settings / system / music / cloudSync / giftSync / games / wheel` 共 19 组,外加 `maxBodyBytes`、`sessionToken`、`broadcastSnapshot`。各组内部函数来自领域服务或显式注入的运行时组件。
 
-### 4.3 静态页面服务与 Token 注入
+### 4.3 静态页面服务与页面能力
 
-`servePageOrAsset`([http-utils.js:75-154](../../../src/server/http-utils.js#L75-L154)):
+[http-utils.js](../../../src/server/http-utils.js) 的 `servePageOrAsset` 按 [access-policy.js](../../../src/server/access-policy.js) 固定页面表解析 scope；raw HTML、规范 URL 同权，大小写与文件路径按实际解析处理，路径必须留在 publicDir 内。禁止冒号文件别名，避免 Windows NTFS `::$DATA` 将 HTML 伪装成普通资源。
 
-- **页面映射**(完整入口 URL 清单见 [frontend/pages.md](../frontend/pages.md)):根路径映射到 `public/pages/` 下对应 HTML,其余按文件路径解析,并防目录穿越(`path.resolve` 后必须仍在 `publicDir` 内,否则 403)。
-- **Session Token 注入**:每个返回的 HTML 在 `</head>` 前插入一段脚本,写入 `window.__API_TOKEN__`,并自动:
-  1. 给指向 `/api/` 的同源 `<a>` 链接补 `?token=`
-  2. 包装 `window.fetch`,对 `/api/*`(除 `/api/health`)自动附加 `Authorization: Bearer <token>`
-  3. 包装 `window.WebSocket`,对 `/ws` 自动追加 `?token=`
-- **OBS 会话恢复**:仅 `public/pages/overlays/` 下的 HTML 启用。当前服务的 `/ws` 断开或同源 `/api/` 返回 401 时，使用页面原 token 请求 `/api/state`；只有探测也返回 401 才刷新页面以重新注入 token。探测单飞、5 秒超时，离线、服务启动中或会话有效均不刷新；`pagehide` 取消探测。现有 WebSocket 退避重连与服务器鉴权保持不变，管理页不会因此刷新。
-- 响应头:`Cache-Control: no-store`;MIME 映射覆盖 html/css/js/json/svg/png/jpg/jpeg/gif/webp/ico。
-- 组合管理页 `/`、`/admin`、`/settings`、`/songs` 的实际 GET 另注入播放快照启动信息，由 playback store 持久分配页面代次；HEAD、独立片段和 overlay 不分配。此字段只用于快照排序，不是权限凭据，既有 token 注入规则不变。
-- 辅助函数:`readJsonBody`、`sendJson`(统一 `{ok,…}` 包装 + no-store)、`sendCsv`、`sendBuffer`。
+- 管理组合页和 raw 管理片段要求管理身份，任何 HTML 都不包含管理 token。管理页 CSP 另设 `worker-src 'none'`：Chromium 可将 dedicated/blob worker 请求归属主 frame，不能只靠请求 frame 元数据排除 worker；当前管理 UI 没有 worker 消费者。Electron main 给受信主窗口请求加头，见 [desktop/auth.md](../desktop/auth.md)；Node 调试脚本须自持 Bearer，匿名浏览器不获得管理入口。
+- 只有 13 个已知 overlay 页面注入 [overlay-bootstrap.js](../../../src/server/overlay-bootstrap.js) 与该 scope 的凭据，`window.__API_TOKEN__` 仅表示本页能力。fetch 包装保留 Request/Headers 语义，仅为精确本机 origin 的 API 加头；WS 只向精确本机 `/ws` 添加 query 凭据，外域、异端口和相似路径不带凭据。
+- overlay HTML 返回 `Content-Security-Policy: sandbox allow-scripts`，不含 allow-same-origin。公开静态 JS/CSS/字体等返回 `Access-Control-Allow-Origin: *`；HTML 不开放跨域读取。API 的 opaque-origin 预检只描述 overlay 已知路径/方法/头，实际请求仍验证 scope；管理凭据的 `Origin: null` 请求拒绝。没有 cookie 或 allow-credentials 例外。
+- OBS 会话恢复：本机 WS 断开或 API 返回 401 后，使用旧页面能力请求其最小 `/api/state`；仅再次 401 才刷新。此错误响应可被 opaque 页面读取，不能借此读取数据。探测单飞、5 秒超时，离线/启动中/凭据有效不刷新，pagehide 取消探测。
+- 页面仍为 `Cache-Control: no-store`。只有已认证管理组合页的实际 GET 分配 `__PLAYBACK_SNAPSHOT_WRITER__`；HEAD、未授权页面、raw 片段和 overlay 都不改变播放代次。该字段用于顺序控制，不是认证凭据。
 
 开播音频和人物图的文件流由 `http-utils.js` 负责收尾：GET 在源文件成功打开后发送 200，打开前文件消失返回 404，其他打开错误返回不含内部路径的 500；发送头部后的读取失败终止响应。客户端提前关闭响应时销毁源流，HEAD 保持只返回元信息。该处理覆盖 stat 后文件消失的竞态，不承诺并发替换文件时的内容快照一致性。验证：`test/opening-media-stream.test.js`。
 
@@ -171,12 +167,12 @@ phase 为 `ready` 时，`server.on('upgrade')` 先复用 HTTP 的严格 Host:por
 
 单飞只合并清理工作，不丢弃后来调用的退出要求。关闭过程中到达的退出要求等待 flush/drain 和资源释放；关闭完成后补到的退出要求立即执行，最多调用一次 process.exit。它不是超时强退，Electron 的 5 秒最终兜底仍由桌面拥有。
 
-## 7. 会话令牌(Session Token)
+## 7. 会话凭据与页面能力
 
-- 每次启动随机生成 UUID,落盘 `data/.session-token`(0600);关闭时删除。
-- 所有 `/api/*`(除 `/api/health` 与只读 `/api/clock/config`、`/api/opening/config`)与 `/ws` 连接要求该令牌(Bearer 头或 `?token=` 查询参数)。
-- 前端页面通过 HTML 注入获得令牌(见 §4.3 与 [frontend/comms.md](../frontend/comms.md))。
-- `/api/health` 与 Browser Source 只读配置 `/api/clock/config`、`/api/opening/config` 公开；匿名健康检查在所有阶段仅返回 `{serviceId,phase}`，不读取私有详情或数据库。ready 阶段有效 Bearer/query token 才能获取原诊断详情（路径、schemaVersions、desktop、pid、liveStatus）。合法 `X-Lira-Instance-Challenge`（64 位小写十六进制）可在 ready 阶段取得 `instanceProof`，证明绑定 token/端口/挑战；证明本身不是任何 API 的管理凭据。starting/quiescing 不返回证明，也不访问未就绪或已关闭的数据库。
+- 每次启动随机生成管理 sessionToken，落盘 `data/.session-token`（0600），关闭时删除；不传给 renderer、HTML、URL 或其他 Electron 窗口。
+- 13 个页面能力为 `ov1:<scope>:<HMAC-SHA256>`，签名绑定本次运行密钥与固定命名空间，scope 来自服务端白名单。验证采用恒定时间比较，重启后全部旧能力失效。持有某页能力不能更改 scope 或调用管理接口。
+- 本机页面 URL 保持匿名可打开，因此能访问相应页面的客户端可取得该页公开展示/互动能力；此机制不声称识别主播本人。游戏停止/重开、落子/绘画和转盘抽取继续可用，权限清单见 [api.md](api.md)，WS 出口见 [ws.md](ws.md)。
+- `GET /api/health` 匿名仅返回 `{serviceId,phase}`；仅有效管理凭据可读取 ready 诊断详情，overlay 凭据不行。合法 `X-Lira-Instance-Challenge`（64 位小写十六进制）可在 ready 阶段取得绑定运行密钥/端口/挑战的 `instanceProof`，证明本身不能授权 API。starting/quiescing 不返回证明，不访问未就绪或关闭的数据库。
 
 ## 8. 系统指标
 
