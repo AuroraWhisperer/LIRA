@@ -31,14 +31,14 @@ function createGiftProjectionStore(giftDb) {
           source_id, platform_id, cmd, gift_id, gift_name,
           uid, user_name, num, unit_price, total_price, coin_type,
           is_blind_box, blind_box_id, blind_box_name, blind_box_price, blind_profit,
-          gift_variant_id, blind_box_variant_id,
+          gift_variant_id, blind_box_variant_id, avatar_url, guard_level,
           counted_in_sprint, detection_status,
           first_detected_at_ms, last_platform_at_ms, finalized_at_ms,
           gift_stats_eligible, gift_stats_delivered, overtime_epoch,
           status, raw_json, created_at, updated_at
         ) VALUES (
           ?, ?, ?, ?, ?, '', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-          ?, ?,
+          ?, ?, ?, ?,
           0, 'final', ?, ?, ?, 0, 1, 0, 'active', '', ?, ?
         )
       `,
@@ -61,6 +61,8 @@ function createGiftProjectionStore(giftDb) {
           gift.blindProfit,
           gift.giftVariantId,
           gift.blindBoxVariantId,
+          gift.display?.avatarUrl ?? null,
+          gift.display?.guardLevel ?? null,
           createdAtMs,
           createdAtMs,
           createdAtMs,
@@ -114,7 +116,9 @@ function updateProcessedGift(giftDb, id, sourceId, gift, detectedAtMs) {
     SET gift_id = ?, gift_name = ?, user_name = ?, num = ?,
         unit_price = ?, total_price = ?, coin_type = ?, is_blind_box = ?,
         blind_box_id = ?, blind_box_name = ?, blind_box_price = ?, blind_profit = ?,
-        last_platform_at_ms = ?, raw_json = '', updated_at = ?
+        last_platform_at_ms = ?, raw_json = '', updated_at = ?,
+        gift_variant_id = ?, blind_box_variant_id = ?,
+        avatar_url = COALESCE(avatar_url, ?), guard_level = COALESCE(guard_level, ?)
     WHERE id = ? AND source_id = ? AND detection_status = 'progress'
   `,
     )
@@ -133,6 +137,10 @@ function updateProcessedGift(giftDb, id, sourceId, gift, detectedAtMs) {
       gift.blindProfit,
       detectedAtMs,
       gift.createdAt,
+      gift.giftVariantId ?? null,
+      gift.blindBoxVariantId ?? null,
+      gift.display?.avatarUrl ?? null,
+      gift.display?.guardLevel ?? null,
       Number(id),
       Number(sourceId),
     );
@@ -146,14 +154,14 @@ function insertProgressGift(giftDb, gift, eligibility) {
       source_id, platform_id, cmd, gift_id, gift_name,
       uid, user_name, num, unit_price, total_price, coin_type,
       is_blind_box, blind_box_id, blind_box_name, blind_box_price, blind_profit,
-      gift_variant_id, blind_box_variant_id,
+      gift_variant_id, blind_box_variant_id, avatar_url, guard_level,
       counted_in_sprint, detection_status,
       first_detected_at_ms, last_platform_at_ms, finalized_at_ms,
       gift_stats_eligible, gift_stats_delivered, overtime_epoch,
       status, raw_json, created_at, updated_at
     ) VALUES (
       ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-      ?, ?,
+      ?, ?, ?, ?,
       0, 'progress', ?, ?, 0, ?, 0, ?, 'active', ?, ?, ?
     )
   `,
@@ -177,6 +185,8 @@ function insertProgressGift(giftDb, gift, eligibility) {
       gift.blindProfit,
       gift.giftVariantId ?? null,
       gift.blindBoxVariantId ?? null,
+      gift.display?.avatarUrl ?? null,
+      gift.display?.guardLevel ?? null,
       eligibility.detectedAtMs,
       eligibility.detectedAtMs,
       eligibility.giftStatisticsEligible ? 1 : 0,

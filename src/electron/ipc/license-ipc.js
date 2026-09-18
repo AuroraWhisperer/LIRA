@@ -1,10 +1,11 @@
 'use strict';
 
 const { isDnsHostname } = require('../../shared/remote-url-policy');
+const { welcomeV2Parameters, sanitizeWelcomeV2, sanitizeWelcomeFieldErrors } = require('../../shared/welcome-settings-contract');
 const SONG_BACKGROUND_MAX_BYTES = 5 * 1024 * 1024;
 const SAFE_ERROR_CODE_PATTERN = /^[A-Z][A-Z0-9_]{0,63}$/;
 const OVERLAY_STYLES = new Set([
-  'bubble', 'signal', 'minimal', 'ranked', 'transparent', 'identity', 'outline', 'cream',
+  'bubble', 'signal', 'minimal', 'ranked', 'transparent', 'identity', 'outline', 'cream', 'glow',
 ]);
 const SAFE_LICENSE_STATES = new Set([
   'checking',
@@ -95,6 +96,8 @@ function registerLicenseIpc(options = {}) {
         };
         const index = safeErrorIndex(error?.index);
         if (index !== undefined) response.index = index;
+        const fieldErrors = sanitizeWelcomeFieldErrors(error?.fieldErrors);
+        if (fieldErrors.length) response.fieldErrors = fieldErrors;
         return response;
       }
     });
@@ -151,6 +154,14 @@ function registerLicenseIpc(options = {}) {
   );
   safeHandle('license:get-welcome-settings', async () =>
     sanitizeWelcomeSettings(await licenseManager.getWelcomeSettings()),
+  );
+  safeHandle('license:get-welcome-settings-v2', async () => {
+    const result = await licenseManager.getWelcomeSettingsV2();
+    return result?.schemaVersion === 1
+      ? { ...sanitizeWelcomeSettings(result), schemaVersion: 1 } : sanitizeWelcomeV2(result);
+  });
+  safeHandle('license:update-welcome-settings-v2', async (settings) =>
+    sanitizeWelcomeV2(await licenseManager.updateWelcomeSettingsV2(welcomeV2Parameters(settings))),
   );
   safeHandle('license:get-pk-report-settings', async () =>
     sanitizePkReportSettings(await licenseManager.getPkReportSettings()),

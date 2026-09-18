@@ -59,6 +59,23 @@ function streamFixture(t, write = (_chunk, _encoding, callback) => callback()) {
   };
 }
 
+test('invalid upstream QQ media URL returns 502 without fetching or exposing the URL', async () => {
+  for (const url of ['invalid-url', 'https://untrusted.example/audio?token=synthetic-secret']) {
+    let fetched = false;
+    const res = {
+      writeHead(status) { this.status = status; },
+      end(body) { this.body = JSON.parse(body); },
+    };
+    await serveQQEncryptedStream({ url, expiresAt: Date.now() + 60000 }, {}, res, {
+      fetchImpl: async () => { fetched = true; },
+    });
+    assert.equal(res.status, 502);
+    assert.equal(fetched, false);
+    assert.equal(res.body.ok, false);
+    assert.doesNotMatch(JSON.stringify(res.body), /synthetic-secret|untrusted/);
+  }
+});
+
 test('QQ stream honors backpressure and cancels a blocked stream on downstream close', async (t) => {
   const f = streamFixture(t, () => {});
   let pulls = 0;

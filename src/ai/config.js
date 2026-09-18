@@ -192,6 +192,21 @@ function validateHttpUrl(key, value) {
   }
 }
 
+function assertSavedModelKeyOrigin(current, next, hasExplicitKey) {
+  if (hasExplicitKey || !current.deepseekApiKey) return;
+  const previousUrl = applyModelProviderPreset(current).deepseekResponsesUrl;
+  const nextUrl = applyModelProviderPreset(next).deepseekResponsesUrl;
+  if (!nextUrl || nextUrl === previousUrl) return;
+  validateHttpUrl('deepseekResponsesUrl', nextUrl);
+  if (previousUrl && new URL(previousUrl).origin === new URL(nextUrl).origin)
+    return;
+  const error = new Error(
+    '更换模型服务地址时，请重新提供 API Key，或先清空已保存密钥。',
+  );
+  error.code = 'AI_KEY_ORIGIN_CHANGED';
+  throw error;
+}
+
 function isAiReady(config) {
   return Boolean(
     config.enabled &&
@@ -209,6 +224,7 @@ module.exports = {
   NUMBER_LIMITS,
   ENUM_VALUES,
   applyModelProviderPreset,
+  assertSavedModelKeyOrigin,
   normalizeAiConfig,
   isAiReady,
 };

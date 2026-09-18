@@ -1,15 +1,15 @@
 import { createDanmakuFeed } from './danmaku-feed.js';
 import { createDrawController } from './games-drawing.js';
 import { startOverlayPages } from './auto-pages.js';
+import { createOverlaySocket } from './socket-client.js';
 
 ('use strict');
 
 let session = null;
-let socket = null;
-let reconnectTimer = null;
-let reconnectAttempts = 0;
+let socketController = null;
 let snapshotRetryTimer = null;
 let initialSnapshotLoaded = false;
+let snapshotRevision = 0;
 let resultProfileRequest = 0;
 let drawDanmakuFeed = null;
 let drawController = null;
@@ -24,6 +24,9 @@ document.addEventListener('DOMContentLoaded', () => {
   ].map(startOverlayPages);
   window.addEventListener('beforeunload', () => {
     stopPages.forEach((stop) => stop());
+    snapshotRevision += 1;
+    clearTimeout(snapshotRetryTimer);
+    socketController?.dispose();
   }, { once: true });
   drawDanmakuFeed = createDanmakuFeed(byId('drawDanmakuFeed'), {
     offscreenViewports: 5,
@@ -57,6 +60,8 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function loadSnapshot(attempt = 0) {
+  const revision = ++snapshotRevision;
+  clearTimeout(snapshotRetryTimer);
   try {
     const token = window.__API_TOKEN__;
     const response = await fetch('/api/games/session', {
@@ -64,8 +69,13 @@ async function loadSnapshot(attempt = 0) {
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     });
     const payload = await response.json();
+    if (revision !== snapshotRevision) return;
     if (!payload.ok) throw new Error(payload.error || '读取游戏状态失败');
-    if (payload.data || attempt >= INITIAL_SNAPSHOT_RETRIES) {
+    if (
+      payload.data ||
+      initialSnapshotLoaded ||
+      attempt >= INITIAL_SNAPSHOT_RETRIES
+    ) {
       initialSnapshotLoaded = true;
       clearTimeout(snapshotRetryTimer);
       renderGame(payload.data);
@@ -73,6 +83,7 @@ async function loadSnapshot(attempt = 0) {
     }
     scheduleSnapshotRetry(attempt + 1);
   } catch (_) {
+    if (revision !== snapshotRevision) return;
     if (attempt >= INITIAL_SNAPSHOT_RETRIES)
       byId('gameTurn').textContent = '等待连接';
     else scheduleSnapshotRetry(attempt + 1);
@@ -88,44 +99,33 @@ function scheduleSnapshotRetry(attempt) {
 }
 
 function connectSocket() {
-  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const token = window.__API_TOKEN__;
-  socket = new WebSocket(
-    `${protocol}//${location.host}/ws${token ? `?token=${encodeURIComponent(token)}` : ''}`,
-  );
-  socket.addEventListener('open', () => {
-    reconnectAttempts = 0;
+  if (socketController) return;
+  socketController = createOverlaySocket({
+    onOpen: () => loadSnapshot(),
+    onMessage: (payload) => {
+      if (payload.type === 'game:update') {
+        snapshotRevision += 1;
+        initialSnapshotLoaded = true;
+        clearTimeout(snapshotRetryTimer);
+        renderGame(payload.session);
+      }
+      if (payload.type === 'game:draw')
+        drawController?.applyBroadcast(payload.operation);
+      if (payload.type === 'snapshot') {
+        if (
+          !payload.state ||
+          typeof payload.state !== 'object' ||
+          !Object.prototype.hasOwnProperty.call(payload.state, 'games')
+        )
+          return;
+        snapshotRevision += 1;
+        initialSnapshotLoaded = true;
+        clearTimeout(snapshotRetryTimer);
+        renderGame(payload.state.games || null);
+      }
+    },
   });
-  socket.addEventListener('message', (event) => {
-    const payload = JSON.parse(event.data);
-    if (payload.type === 'game:update') {
-      initialSnapshotLoaded = true;
-      clearTimeout(snapshotRetryTimer);
-      renderGame(payload.session);
-    }
-    if (payload.type === 'game:draw')
-      drawController?.applyBroadcast(payload.operation);
-    if (payload.type === 'snapshot') {
-      if (
-        !payload.state ||
-        typeof payload.state !== 'object' ||
-        !Object.prototype.hasOwnProperty.call(payload.state, 'games')
-      )
-        return;
-      initialSnapshotLoaded = true;
-      clearTimeout(snapshotRetryTimer);
-      renderGame(payload.state.games || null);
-    }
-  });
-  socket.addEventListener('close', () => {
-    const delay = Math.min(30000, 800 * 2 ** Math.min(reconnectAttempts, 6));
-    reconnectAttempts += 1;
-    clearTimeout(reconnectTimer);
-    reconnectTimer = setTimeout(() => {
-      loadSnapshot();
-      connectSocket();
-    }, delay);
-  });
+  socketController.start();
 }
 
 function renderGame(nextSession) {
@@ -323,6 +323,8 @@ function canDraw() {
 }
 
 async function submitMove(value) {
+  const revision = ++snapshotRevision;
+  clearTimeout(snapshotRetryTimer);
   try {
     const response = await fetch('/api/games/session/move', {
       method: 'POST',
@@ -330,8 +332,9 @@ async function submitMove(value) {
       body: JSON.stringify({ value }),
     });
     const payload = await response.json();
-    if (payload.ok) renderGame(payload.data);
+    if (payload.ok && revision === snapshotRevision) renderGame(payload.data);
   } catch (_) {
+    if (revision !== snapshotRevision) return;
     byId('gameTurn').textContent = '操作失败';
   }
 }
@@ -416,6 +419,8 @@ async function loadWinnerProfile(requestId, winner) {
 async function submitGameResultAction(action) {
   const resultEl = byId('gameResult');
   if (resultEl.hidden || !['stop', 'restart'].includes(action)) return;
+  const revision = ++snapshotRevision;
+  clearTimeout(snapshotRetryTimer);
   setGameResultActionsPending(true, action);
   setGameResultActionStatus('');
   try {
@@ -429,10 +434,12 @@ async function submitGameResultAction(action) {
       body: JSON.stringify({ action }),
     });
     const payload = await response.json();
+    if (revision !== snapshotRevision) return;
     if (!response.ok || !payload.ok)
       throw new Error(payload.error || '操作失败');
     renderGame(payload.data);
   } catch (_) {
+    if (revision !== snapshotRevision) return;
     if (resultEl.hidden) return;
     setGameResultActionsPending(false);
     setGameResultActionStatus('操作失败，请重试');

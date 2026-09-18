@@ -49,6 +49,7 @@ async function readUpdateInput(request) {
 }
 
 function sendImportError(res, error) {
+  if (error.code === 'REQUEST_BODY_TOO_LARGE') throw error;
   sendJson(res, error.statusCode || 500, {
     ok: false,
     error: error.statusCode ? error.code : 'SONG_IMPORT_FAILED',
@@ -142,9 +143,14 @@ const routes = {
 
   async 'POST /api/songs/import'(context, request, res) {
     const body = await request.body();
-    const result = context.songs.import(
-      Array.isArray(body.rows) ? body.rows : [],
-    );
+    let result;
+    try {
+      result = context.songs.import(Array.isArray(body.rows) ? body.rows : []);
+    } catch (error) {
+      if (error.code !== 'SONG_IMPORT_LIMIT_EXCEEDED') throw error;
+      sendImportError(res, error);
+      return;
+    }
     context.broadcastSnapshot('songs:import');
     context.cloudSync.request('songs');
     sendJson(res, 200, { ok: true, data: result });
@@ -153,7 +159,14 @@ const routes = {
   async 'POST /api/songs/import-xlsx'(context, request, res) {
     const body = await request.body();
     const buffer = Buffer.from(String(body.base64 || ''), 'base64');
-    const result = context.songs.import(parseSongsFromXlsx(buffer));
+    let result;
+    try {
+      result = context.songs.import(parseSongsFromXlsx(buffer));
+    } catch (error) {
+      if (error.code !== 'SONG_IMPORT_LIMIT_EXCEEDED') throw error;
+      sendImportError(res, error);
+      return;
+    }
     context.broadcastSnapshot('songs:import-xlsx');
     context.cloudSync.request('songs');
     sendJson(res, 200, { ok: true, data: result });

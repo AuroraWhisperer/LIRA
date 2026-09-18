@@ -140,6 +140,7 @@ function createMockRequest(data) {
   req.destroy = function () {
     this.emit('close');
   };
+  req.pause = function () {};
 
   // Simulate async data flow
   setImmediate(() => {

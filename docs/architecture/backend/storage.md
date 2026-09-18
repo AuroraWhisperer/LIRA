@@ -107,6 +107,8 @@ data/
 
 ### 3.4 music-data.db(播放器库,5 表)
 
+`play_queue_state.payload` 的 `snapshotVersion` 保存最后接受的 writerId/generation/senderGeneration/sequence，另保存已分配页面代次的高水位，无 SQL schema 变更。领取代次与保存检查均在 `BEGIN IMMEDIATE` 事务中完成；领取不改变已接受版本，只有新页面实际保存才推进门槛，避免未执行的 HTML 请求使活动播放器停止保存。重建 store/重启进程不会遗失已分配和已接受的顺序。单独清除队列保留排序元数据，只有元数据时读取仍返回空，避免已接受旧版本重放复活队列。尚未接受版本化快照前保留无版本写入兼容；接受后禁止无版本降级。请求和返回合同见 [api.md](api.md) §5。
+
 | 表                 | 用途                                    | 关键列/索引                                                                             |
 | ------------------ | --------------------------------------- | --------------------------------------------------------------------------------------- |
 | `play_history`     | 播放历史                                | client_id/track_key/source/track_id/play_count/played_at;唯一 idx(client_id, track_key) |
@@ -151,7 +153,7 @@ data/
 | ----------- | --------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | songDb      | `song_db`       | v1-v5 | v1 列补全(tags/language/source_platform/original_group、pinned_at、requester_* 元数据);v2 `seedThemePresets`;v3 清理重复 (name, artist) 后建唯一索引;v4 幂等补充 `songs.request_price`;v5 幂等补充 `songs.song_clip`，旧歌曲的新字段均默认空字符串                                                                            |
 | superChatDb | `super_chat_db` | v1    | 基线                                                                                                                                                                                                                                                                                                                          |
-| giftDb      | `gift_db`       | v1-v10 | v1 `ensureGiftColumns`(cmd/blind_box/raw_json 等);v2 platform_id 索引;v3 `collapseDuplicateGiftIdentities` + 唯一索引 (platform_id, uid);v4 **检测账本升级**(`ensureGiftDetectionColumns`,历史记录标记 final 且仅归属礼物统计);v5 插入加班机单例行(id=1);v6 扩展加班机倒计时安全上限;v7 放开加班机 `display` 文字展板规则模式;v8 增加来源分区、同步状态、远程来源约束与索引；v9 幂等增加可空 `gift_events.blind_box_id`，旧行保持 `NULL`；v10 增加冻结事件身份列并将规则主键升级为 ID + 身份，旧规则设置原样保留 |
+| giftDb      | `gift_db`       | v1-v11 | v1 `ensureGiftColumns`(cmd/blind_box/raw_json 等);v2 platform_id 索引;v3 `collapseDuplicateGiftIdentities` + 唯一索引 (platform_id, uid);v4 **检测账本升级**(`ensureGiftDetectionColumns`,历史记录标记 final 且仅归属礼物统计);v5 插入加班机单例行(id=1);v6 扩展加班机倒计时安全上限;v7 放开加班机 `display` 文字展板规则模式;v8 增加来源分区、同步状态、远程来源约束与索引；v9 幂等增加可空 `gift_events.blind_box_id`，旧行保持 `NULL`；v10 增加冻结事件身份列并将规则主键升级为 ID + 身份，旧规则设置原样保留；v11 幂等增加可空 avatar_url/guard_level，旧记录保持 NULL，等级约束为 0–3 |
 | musicDb     | `music_db`      | v1    | 基线                                                                                                                                                                                                                                                                                                                          |
 | checkinDb   | `checkin_db`    | v1    | 基线                                                                                                                                                                                                                                                                                                                          |
 | lotteryDb   | `lottery_db`    | v1    | 新建九张抽奖业务表、身份/幂等/顺序唯一约束及查询索引；独立失败边界，不加入原五库迁移事务                                                                                                                                                                                                                                      |
@@ -274,6 +276,8 @@ Phase 1 失败且全部事务已回滚时，只解除本次请求取得的暂停
 其他 store 模块:`theme-store`(presets 增删改查/应用/内置播种)、`playback-store`(saveQueueState/loadQueueState/播放历史/收藏/歌单)、`cooldown-store`(`loadInto` 重启恢复 + `COOLDOWN_RETENTION_MS`)、`checkin-store`(签到读写)、`gift-query-store`(当前 source 的历史、统计与 legacy 页面查询)。关闭时统一 `optimizeDatabases`(PRAGMA optimize)→ `closeDatabases`(见 [server-core.md](server-core.md) §6.2)。
 
 ## 8. 云端 scope 的本地落盘
+
+旧导入同样由 SongStore 在事务写入前校验最终完整歌库最多 5000 首：合并计入已有停用歌曲并对新行按 `(name,artist)` 去重；替换检查替换后的数量。超限不改歌曲、分类、历史引用或导入批次；已有超限库不会自动删歌。失败由调用方返回 `SONG_IMPORT_LIMIT_EXCEEDED`，成功路径沿用原有广播和同步。显式替换为上限内的完整快照仍可用于整理历史超量库。
 
 房间归属由 `settings-store.prepareCloudRoomAccount(accountKey)` 保存于现有 `settings` 表的内部 `cloudRoomAccountKey`，值为 `JSON.stringify([origin, accountName, streamerId])`，来自 main process 的设备身份。首次缺失或身份不同（含同名重建的新 streamerId）时，以一个 `BEGIN IMMEDIATE` 事务同时清空 `roomId` 并保存新标记；失败整体回滚，同一 owner 重复调用不写库。标记不进入 `getSettings()`、可编辑 defaults、WS/HTTP settings 或 Device 快照，也不作为服务端授权依据。它不是云端 revision，不新增表或更改 schema 版本。其他设置和歌库的初次播种规则不变；已有云端房间可在随后同步时恢复。
 

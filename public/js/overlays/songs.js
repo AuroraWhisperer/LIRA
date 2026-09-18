@@ -6,6 +6,9 @@ import { createOverlaySocket } from './socket-client.js';
 let state = null;
 let songs = [];
 let songsRevision = 0;
+let loadRevision = 0;
+let stateRevision = 0;
+let liveStatusRevision = 0;
 let reloadTimer = null;
 let socketController = null;
 let resizeTimer = null;
@@ -77,7 +80,9 @@ function handleVisibilityChange() {
 }
 
 async function loadAll() {
-  const anchor = scroller?.captureAnchor() ?? null;
+  const revision = ++loadRevision;
+  const expectedStateRevision = stateRevision;
+  const expectedLiveStatusRevision = liveStatusRevision;
   try {
     const category = new URLSearchParams(location.search).get('category') || '';
     const [stateResponse, songsResponse] = await Promise.all([
@@ -88,15 +93,23 @@ async function loadAll() {
     ]);
     const statePayload = await stateResponse.json();
     const songsPayload = await songsResponse.json();
-    if (statePayload.ok) state = statePayload.data;
-    if (songsPayload.ok) {
+    if (revision !== loadRevision) return;
+    if (statePayload.ok && expectedStateRevision === stateRevision) {
+      if (expectedLiveStatusRevision !== liveStatusRevision)
+        statePayload.data.liveStatus = state.liveStatus;
+      state = statePayload.data;
+    }
+    if (
+      songsPayload.ok &&
+      JSON.stringify(songsPayload.data) !== JSON.stringify(songs)
+    ) {
       songs = songsPayload.data;
       songsRevision += 1;
     }
   } catch (error) {
     console.warn('[overlay-songs] loadAll failed:', error.message || error);
   }
-  render({ forceData: true, anchor });
+  if (revision === loadRevision) render();
 }
 
 function connectSocket() {
@@ -108,17 +121,21 @@ function connectSocket() {
     onMessage: (payload) => {
       if (payload.type !== 'snapshot') return;
       if (payload.reason === 'live:status' && state) {
+        liveStatusRevision += 1;
         state.liveStatus = payload.state.liveStatus;
         return;
       }
 
+      stateRevision += 1;
       state = payload.state;
       if (
         payload.reason &&
         (payload.reason.startsWith('songs:') ||
           payload.reason === 'cloud:songs' ||
-          payload.reason === 'database:clear')
+          payload.reason === 'database:clear' ||
+          payload.reason === 'database:clear-all')
       ) {
+        loadRevision += 1;
         clearTimeout(reloadTimer);
         reloadTimer = setTimeout(loadAll, 220);
         return;
@@ -130,22 +147,22 @@ function connectSocket() {
 }
 
 function disposeSocket() {
+  loadRevision += 1;
+  clearTimeout(reloadTimer);
   socketController?.dispose();
   socketController = null;
 }
 
-function render({
-  forceData = false,
-  anchor = scroller?.captureAnchor() ?? null,
-} = {}) {
+function render() {
   if (!state || !scroller) return;
+  const anchor = scroller.captureAnchor();
   const settings = state.settings || {};
   const category = new URLSearchParams(location.search).get('category') || '';
   const sortMode = settings.songBoardSortMode || 'initial';
   const orderKey = `${songsRevision}:${sortMode}`;
   const layoutKey = computeLayoutKey(settings);
   const motionKey = String(resolveSongScrollSpeed(settings));
-  const orderChanged = forceData || orderKey !== lastOrderKey;
+  const orderChanged = orderKey !== lastOrderKey;
   const layoutChanged = layoutKey !== lastLayoutKey;
 
   if (layoutChanged) scroller.pause();

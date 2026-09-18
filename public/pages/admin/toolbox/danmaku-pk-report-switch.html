@@ -1,13 +1,10 @@
-      <div class="danmaku-reply-target danmaku-bot-switch-card">
-        <div>
-          <strong id="danmakuPkReportTitle">PK 对手信息播报
-            <lira-help>PK 开始时，自动在本直播间播报对手大航海与高能榜概况。榜单可能不完整。按当前高能榜贡献值估算，三个金额档位互不重叠（1 元＝10 贡献值）。退出客户端后服务器继续运行。</lira-help>
-          </strong>
-          <p id="danmakuPkReportStatus" class="hint" role="status" aria-live="polite">正在读取账号信息…</p>
-        </div>
-        <button id="danmakuPkReportRefreshBtn" type="button" class="secondary" disabled>刷新状态</button>
-        <label class="switch-control">
-          <input id="danmakuPkReportToggle" type="checkbox" aria-labelledby="danmakuPkReportTitle" disabled />
-          <span class="switch-track"></span><span>启用播报</span>
-        </label>
-      </div>
+<div class="danmaku-fixed-item" data-fixed-item="pk">
+  <button class="danmaku-fixed-open" type="button" data-fixed-open="pk" aria-controls="danmakuPkReportPanel" aria-expanded="false">
+    <span><strong id="danmakuPkReportTitle">PK 对手信息播报</strong><span id="danmakuPkReportStatus" class="danmaku-fixed-summary hint" role="status" aria-live="polite">正在读取账号信息…</span></span>
+    <span class="danmaku-fixed-action">详情</span>
+  </button>
+  <label class="switch-control">
+    <input id="danmakuPkReportToggle" type="checkbox" aria-labelledby="danmakuPkReportTitle" disabled />
+    <span class="switch-track"></span><span class="switch-caption" aria-hidden="true"></span>
+  </label>
+</div>

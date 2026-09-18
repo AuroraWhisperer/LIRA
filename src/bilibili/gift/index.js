@@ -1,6 +1,7 @@
 // 编写人：Aurora
 // 礼物冲刺服务入口。
 'use strict';
+const { randomUUID } = require('node:crypto');
 
 const {
   createGiftProjectionService: buildGiftProjectionService,
@@ -20,6 +21,8 @@ const {
   resetGiftSprintProgress,
   getGiftSnapshot,
   getGiftHistory,
+  getGiftSelection,
+  getGiftViewRevision,
   getGiftStatistics,
   getGiftSprintSnapshot,
   searchGifts,
@@ -52,6 +55,7 @@ function createGiftStatisticsConsumer({ store, giftDb }) {
 
 function createGiftService(context, options = {}) {
   let activeGiftSource = null;
+  let viewEpoch = randomUUID();
   const giftContext = {
     ...context,
     getActiveGiftSource: () => activeGiftSource,
@@ -76,6 +80,8 @@ function createGiftService(context, options = {}) {
     ...projectionService,
     getSnapshot: () => getGiftSnapshot(giftContext),
     getHistory: (queryOptions) => getGiftHistory(giftContext, queryOptions),
+    getSelection: (queryOptions) => getGiftSelection(giftContext, queryOptions),
+    getViewRevision: () => getGiftViewRevision(giftContext),
     getStatistics: (queryOptions) =>
       getGiftStatistics(giftContext, queryOptions),
     getSprintSnapshot: () => getGiftSprintSnapshot(giftContext),
@@ -87,7 +93,12 @@ function createGiftService(context, options = {}) {
     search: (queryOptions) => searchGifts(giftContext, queryOptions || {}),
     clearRecent: () => clearRecentGifts(giftContext),
     setActiveSource(source) {
+      if (source?.sourceId !== activeGiftSource?.sourceId ||
+        (source?.syncState === 'SOURCE_SWITCHING' && activeGiftSource?.syncState !== 'SOURCE_SWITCHING')) {
+        viewEpoch = randomUUID();
+      }
       activeGiftSource = normalizeActiveGiftSource(source);
+      if (activeGiftSource) activeGiftSource = Object.freeze({ ...activeGiftSource, viewEpoch });
       return activeGiftSource;
     },
     getActiveSource: () => activeGiftSource,

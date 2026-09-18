@@ -121,18 +121,84 @@ test('keeps a connection open when Bilibili answers the heartbeat', async () => 
   }
 });
 
-function operationPacket(operation) {
-  const packet = Buffer.alloc(20);
+function operationPacket(operation, body = Buffer.alloc(4)) {
+  const packet = Buffer.alloc(16 + body.length);
   packet.writeUInt32BE(packet.length, 0);
   packet.writeUInt16BE(16, 4);
   packet.writeUInt16BE(1, 6);
   packet.writeUInt32BE(operation, 8);
   packet.writeUInt32BE(1, 12);
+  body.copy(packet, 16);
   return packet.buffer.slice(
     packet.byteOffset,
     packet.byteOffset + packet.byteLength,
   );
 }
+
+test('observes authentication codes in mixed frames without exposing the payload or changing transport state', async (t) => {
+  t.mock.property(global, 'WebSocket', FakeWebSocket);
+  const connection = new WebSocketConnection();
+  t.after(() => connection.close());
+  const diagnostics = [];
+  const messages = [];
+  connection.on('diagnostic', (entry) => diagnostics.push(entry));
+  connection.on('message', (data) => messages.push(data));
+  await connection.connect('wss://example.test/sub', { key: 'synthetic-token' });
+  const socket = FakeWebSocket.latest;
+  socket.readyState = FakeWebSocket.OPEN;
+  socket.emit('open', {});
+  const packet = Buffer.concat([
+    Buffer.from(operationPacket(3)),
+    Buffer.from(operationPacket(8, Buffer.from(JSON.stringify({ code: -101, token: 'secret-response' })))),
+  ]);
+  socket.emit('message', { data: packet.buffer.slice(packet.byteOffset, packet.byteOffset + packet.byteLength) });
+  socket.emit('message', { data: operationPacket(8, Buffer.from('{"code":0}')) });
+  socket.emit('message', { data: operationPacket(8, Buffer.from('invalid private response')) });
+  socket.emit('message', { data: operationPacket(8, Buffer.from('{"code":null}')) });
+  assert.deepEqual(diagnostics.filter((entry) => entry.event === 'auth-result'), [
+    { event: 'auth-result', status: 'rejected', code: -101 },
+    { event: 'auth-result', status: 'accepted', code: 0 },
+    { event: 'auth-result', status: 'invalid', code: null },
+    { event: 'auth-result', status: 'invalid', code: null },
+  ]);
+  assert.equal(connection.ws, socket);
+  assert.equal(messages.length, 4);
+  assert.equal(connection.awaitingHeartbeatReply, false);
+  assert.doesNotMatch(JSON.stringify(diagnostics), /synthetic-token|secret-response|private response/);
+});
+
+test('missing authentication is recorded once and old socket callbacks cannot contaminate a new connection', async (t) => {
+  t.mock.property(global, 'WebSocket', FakeWebSocket);
+  t.mock.timers.enable({ apis: ['setInterval'] });
+  const connection = new WebSocketConnection();
+  t.after(() => connection.close());
+  const diagnostics = [];
+  connection.on('diagnostic', (entry) => diagnostics.push(entry));
+  await connection.connect('wss://example.test/sub', {});
+  const oldSocket = FakeWebSocket.latest;
+  oldSocket.readyState = FakeWebSocket.OPEN;
+  oldSocket.emit('open', {});
+  t.mock.timers.tick(30000);
+  oldSocket.emit('message', { data: operationPacket(3) });
+  t.mock.timers.tick(30000);
+  assert.equal(diagnostics.filter((entry) => entry.event === 'auth-no-reply').length, 1);
+  await connection.connect('wss://example.test/sub', {});
+  const newSocket = FakeWebSocket.latest;
+  newSocket.readyState = FakeWebSocket.OPEN;
+  newSocket.emit('open', {});
+  const count = diagnostics.length;
+  oldSocket.emit('open', {});
+  oldSocket.emit('message', { data: operationPacket(8, Buffer.from('{"code":-101}')) });
+  assert.equal(diagnostics.length, count);
+  assert.equal(connection.connectionTrace.authStatus, 'pending');
+  newSocket.emit('message', { data: operationPacket(8, Buffer.from('{"code":0}')) });
+  t.mock.timers.tick(30000);
+  assert.equal(diagnostics.filter((entry) => entry.event === 'auth-no-reply').length, 1);
+  connection.close();
+  const closedCount = diagnostics.length;
+  t.mock.timers.tick(90000);
+  assert.equal(diagnostics.length, closedCount);
+});
 
 async function waitFor(predicate, timeoutMs) {
   const deadline = Date.now() + timeoutMs;

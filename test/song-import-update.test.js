@@ -254,7 +254,7 @@ test('stale song, category, source input or clear option rejects before writes',
 });
 
 test('new songs cannot exceed the final 5000-song library boundary while existing updates remain available', (t) => {
-  const { store, preview, apply } = fixture(t);
+  const { db, store, preview, apply } = fixture(t);
   store.importRows(
     Array.from({ length: 5000 }, (_, index) => ({
       name: `歌曲${index}`,
@@ -273,7 +273,9 @@ test('new songs cannot exceed the final 5000-song library boundary while existin
   const update = { rows: [{ name: '歌曲0', requestPrice: '舰长' }] };
   apply(update, preview(update));
   assert.equal(store.countSongs(), 5000);
-  store.importRows([{ name: '历史超限歌曲', isEnabled: true }]);
+  db.prepare(
+    'INSERT INTO songs (name, created_at, updated_at) VALUES (?, ?, ?)',
+  ).run('历史超限歌曲', 'fixture', 'fixture');
   const overLimitUpdate = { rows: [{ name: '歌曲0', requestPrice: '提督' }] };
   const overLimitPlan = preview(overLimitUpdate);
   assert.equal(overLimitPlan.canApply, false);

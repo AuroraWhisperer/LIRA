@@ -4,6 +4,10 @@ const {
   isAllowedLoginNavigation,
   isAllowedExternal,
 } = require('./external-url-policy');
+const {
+  logBilibiliDiagnostic,
+  summarizeAuthState,
+} = require('../bilibili/diagnostics');
 
 async function openBilibiliLoginWindow(options = {}) {
   const {
@@ -22,6 +26,7 @@ async function openBilibiliLoginWindow(options = {}) {
   }
 
   const config = auth.BILIBILI_LOGIN_CONFIG;
+  logBilibiliDiagnostic('login-open');
   const loginWindow = new BrowserWindow({
     width: 1000,
     height: 720,
@@ -127,6 +132,7 @@ async function openBilibiliLoginWindow(options = {}) {
   loginWindow.webContents.on(
     'did-fail-load',
     (_event, errorCode, errorDescription) => {
+      logBilibiliDiagnostic('login-load-failed', { errorCode });
       writeLog('bilibili-login-load-failure', { errorCode, errorDescription });
       cleanup();
       if (!loginWindow.isDestroyed()) {
@@ -150,6 +156,11 @@ async function openBilibiliLoginWindow(options = {}) {
       } catch (error) {
         writeLog('bilibili-auth-state', error);
       }
+      logBilibiliDiagnostic('login-closed', {
+        ...summarizeAuthState(state),
+        autoClosed: loginCloseRequested,
+        snapshotSaved: snapshot !== null,
+      });
       resolve({
         snapshot,
         state,
@@ -167,6 +178,7 @@ async function openBilibiliLoginWindow(options = {}) {
   try {
     await loginWindow.loadURL(config.loginUrl);
   } catch (error) {
+    logBilibiliDiagnostic('login-navigation-failed');
     cleanup();
     if (!loginWindow.isDestroyed()) loginWindow.destroy();
     throw error;

@@ -110,9 +110,11 @@ class BilibiliApiClient {
       error.statusCode = 400;
       throw error;
     }
+    const headers = this.requestHeaders();
+    delete headers.Cookie;
     const response = await fetch(avatarUrl, {
       headers: {
-        ...this.requestHeaders(),
+        ...headers,
         Accept:
           'image/avif,image/webp,image/png,image/jpeg,image/gif,image/*;q=0.8',
       },

@@ -140,9 +140,12 @@ sequence:     发送固定 1
 | 3   | S→C  | 心跳回包 | 复位 `awaitingHeartbeatReply`;不做消息解析 |
 | 5   | S→C  | 推送消息 | 唯一进入消息解析的操作                     |
 | 7   | C→S  | 认证     | 连接后立即发送                             |
-| 8   | S→C  | 认证回包 | 忽略                                       |
+| 8   | S→C  | 认证回包 | WebSocketConnection 记录有效整数 code 的成功/拒绝或无效回包；不进入业务消息解析 |
 
 解析器只处理 `operation === 5` 的包,其余跳过([packet-decoder.js:58](../../../../src/bilibili/parsers/packet-decoder.js#L58))。
+
+认证观察不改变现有 open/重连逻辑；首次心跳仍未收到认证回包时，记录一次
+`auth-no-reply`，默认 30 秒。诊断字段、落盘与复现方式见 [danmaku.md §8.1](danmaku.md#81-登录到点歌的本地日志)。
 
 ### 4.5 帧解析与解压
 
@@ -254,6 +257,8 @@ info[0][15]       → danmakuOptions（对象或 JSON 字符串）,可内含 use
 `isPinned = price >= SUPER_CHAT_PIN_THRESHOLD`(`= 2` RMB,[superchat-service.js:14](../../../../src/bilibili/superchat-service.js#L14)),由分发层计算([message-handlers.js:173](../../../../src/bilibili/danmaku/message-handlers.js#L173))。SC 命令文本会二次触发 `onMessage(source:'superchat')`([message-handlers.js:151-175](../../../../src/bilibili/danmaku/message-handlers.js#L151-L175));入库门槛与状态机见 [gift.md](gift.md) §7。
 
 ### 6.3 礼物类命令路由
+
+`USER_TOAST_MSG_V2` 的重复提示判定先读 `option.source`，仅缺失/null 时回退顶层 `data.source`；显式 0 保留，数值或字符串 2 均识别为附带提示。该判定用于身份解析，不构成礼物结算或去重账本变更。
 
 [gift-command-utils.js](../../../../src/bilibili/parsers/gift-command-utils.js) 识别 SEND_GIFT、BLIND_GIFT、COMBO_SEND、GUARD_BUY、USER_TOAST_MSG 和开放平台 SEND_GIFT/GUARD 前缀。`isBilibiliGiftLikeCommand` 也识别含 GIFT/COMBO/GUARD 的命令，排除 COMBO_END、GIFT_STAR_PROCESS、WIDGET_GIFT_STAR_PROCESS。它只用于路由身份提示及显式诊断抓包，不生成礼物记录；已删除动态检测前缀注册。
 

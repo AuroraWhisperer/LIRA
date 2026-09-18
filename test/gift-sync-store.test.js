@@ -15,7 +15,7 @@ const { createGiftSyncStore } = require('../src/storage/gift-sync-store');
 test('gift migration partitions remote rows and fails closed without a source', () => {
   const fixture = createFixture();
   try {
-    assert.equal(getSchemaVersions(fixture.databases).giftDb, 10);
+    assert.equal(getSchemaVersions(fixture.databases).giftDb, 11);
     assert.equal(
       fixture.giftDb.prepare('PRAGMA foreign_keys').get().foreign_keys,
       1,

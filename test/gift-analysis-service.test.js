@@ -271,7 +271,7 @@ test('gift database v3 identity migration remains intact after later migrations'
     closeDatabases(db);
 
     db = createDatabases({ dataDir });
-    assert.equal(getSchemaVersions(db).giftDb, 10);
+    assert.equal(getSchemaVersions(db).giftDb, 11);
     const rows = db.giftDb
       .prepare(
         `

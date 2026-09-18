@@ -23,7 +23,8 @@ body[data-style='cream'] .draw-danmaku-item {
   display: grid;
   grid-template-columns: 48px minmax(0, 1fr);
   align-items: start;
-  gap: 18px;
+  /* 圆尾外伸 12px，与头像保留 12px 空隙。 */
+  gap: 24px;
   width: max-content;
   min-width: min(248px, calc(100% - 32px));
   max-width: min(560px, calc(100% - 32px));
@@ -43,12 +44,12 @@ body[data-style='cream'] .draw-danmaku-medal {
 body[data-style='cream'] .draw-danmaku-avatar {
   width: 48px;
   height: 48px;
-  margin-top: 12px;
+  margin-top: 24px;
   border: 3px solid #fffaf5;
   border-radius: 50%;
-  color: #a35b6c;
-  background: #f4e4e3;
-  box-shadow: 0 3px 8px rgb(101 62 69 / 18%);
+  color: var(--cream-ink);
+  background: color-mix(in srgb, var(--cream-edge) 18%, #fffaf5);
+  box-shadow: 0 3px 8px rgb(101 62 69 / 14%);
   clip-path: none;
   font-size: 21px;
   font-weight: 500;
@@ -57,29 +58,65 @@ body[data-style='cream'] .draw-danmaku-body {
   position: relative;
   display: grid;
   align-content: start;
-  gap: 4px;
+  gap: 6px;
   min-height: 92px;
-  padding: 13px 24px 17px 23px;
+  padding: 14px 38px 18px 24px;
   border: 2px solid var(--cream-edge);
-  border-radius: 22px;
-  background: linear-gradient(180deg, #fffaf5, #fff2e2);
+  border-radius: 28px;
+  background: linear-gradient(180deg, #fffaf5 80px, #fff2e2);
   box-shadow:
-    0 4px 0 rgb(225 165 182 / 24%),
-    0 7px 16px rgb(101 62 69 / 16%),
+    0 3px 6px rgb(225 165 182 / 18%),
+    0 7px 16px rgb(101 62 69 / 12%),
     inset 0 0 0 2px rgb(255 255 255 / 75%);
 }
-body[data-style='cream'] .draw-danmaku-body::before {
+/* 短圆尾与面板相切；同一路径内缩 2px，保持描边均匀且没有拼接线。 */
+body[data-style='cream'] .draw-danmaku-item:not(.is-gift) .draw-danmaku-body::before,
+body[data-style='cream'] .draw-danmaku-item:not(.is-gift) .draw-danmaku-body::after {
   position: absolute;
-  top: 23px;
-  left: -9px;
+  top: 26px;
+  left: -14px;
+  width: 20px;
+  height: 40px;
+  pointer-events: none;
+  content: '';
+}
+body[data-style='cream'] .draw-danmaku-item:not(.is-gift) .draw-danmaku-body::before {
+  background: var(--cream-edge);
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 40'%3E%3Cpath d='M12-4V0C12 6 12 9 8 12C4 15 0 15 0 20C0 25 4 25 8 28C12 31 12 34 12 40V44H24V-4Z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+}
+body[data-style='cream'] .draw-danmaku-item:not(.is-gift) .draw-danmaku-body::after {
+  background: #fffaf5;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 40'%3E%3Cpath d='M12-4V0C12 6 12 9 8 12C4 15 0 15 0 20C0 25 4 25 8 28C12 31 12 34 12 40V44H24V-4Z' fill='white' stroke='black' stroke-width='4'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  mask-mode: luminance;
+}
+/* 静态装饰只占右侧留白。 */
+body[data-style='cream'] .draw-danmaku-item:not(.is-gift)::before,
+body[data-style='cream'] .draw-danmaku-item:not(.is-gift)::after {
+  position: absolute;
+  z-index: 1;
+  display: block;
+  color: var(--cream-edge);
+  opacity: 0.6;
+  pointer-events: none;
+  content: '';
+}
+body[data-style='cream'] .draw-danmaku-item:not(.is-gift)::before {
+  top: 14px;
+  right: 16px;
+  width: 24px;
+  height: 24px;
+  background:
+    radial-gradient(circle at 7px 8px, transparent 3px, currentColor 3px 4.5px, transparent 4.5px),
+    radial-gradient(circle at 19px 18px, currentColor 2px, transparent 2.5px);
+}
+body[data-style='cream'] .draw-danmaku-item:not(.is-gift)::after {
+  top: auto;
+  right: 17px;
+  bottom: 14px;
   width: 16px;
   height: 16px;
-  border-bottom: 2px solid var(--cream-edge);
-  border-left: 2px solid var(--cream-edge);
-  border-radius: 0 0 0 3px;
-  background: #fff8f0;
-  transform: rotate(45deg);
-  content: '';
+  background: currentColor;
+  clip-path: path('M8 0Q8 8 16 8Q8 8 8 16Q8 8 0 8Q8 8 8 0Z');
 }
 body[data-style='cream'] .draw-danmaku-identity {
   display: block;
@@ -101,6 +138,7 @@ body[data-style='cream'] .draw-danmaku-body p {
   line-height: 1.4;
   letter-spacing: 0;
   text-shadow: none;
+  text-wrap: balance;
 }
 body[data-style='cream'] .draw-danmaku-emote {
   filter: none;

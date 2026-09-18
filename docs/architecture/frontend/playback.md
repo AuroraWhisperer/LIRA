@@ -84,6 +84,8 @@ playbackControls → audio.load()/play()
 | **上报**         | `publishBrowserState`:`POST /api/playback/lyric-state`(100ms 取整 + 180ms 节流 + latest-wins 队列);每条状态兼容携带 `generation`/`sequence`,切歌/seek/时间线变化切 generation;`publishBrowserTimeline`:`POST /api/playback/lyric-timeline`(trackKey+歌词引用去重,只发一次)——服务端收到后转 WS 广播 `lyric-state`/`lyric-timeline`(见 [ws.md](../backend/ws.md) §3) |
 | 桌面歌词浏览器源 | `syncWindow` 仅通过 HTTP 发布状态与完整时间轴;`/lyrics` 经 WebSocket 消费 `lyric-state`/`lyric-timeline`并复用管理页实时预览渲染                                                                                                                                                                                                                                   |
 
+发送者重建时不从零版本持续覆盖服务状态。`lyric-state` HTTP 响应若带 `data.nextGeneration`，表示本次旧版本被拒；发送队列更新代际偏移并至多立即重试一次。偏移在发送时应用于后续排队项，保留切歌/seek 的本地版本顺序；已被成功强制状态超过的旧 pending 直接丢弃，不能因重新升代而回灌。只有有效成功响应才记录发布成功；服务端旧包过滤仍有效，响应恢复信息不进入 WS 状态。
+
 ## 4. 服务层(services/)
 
 | 服务           | 职责与端点(定义见 [api.md](../backend/api.md))                                                                                                                                                                                                   |
@@ -109,6 +111,8 @@ playbackControls → audio.load()/play()
 - **缓存统计**:`cache-operations.js` 展示 `GET /api/music/cache` 并支持 `/api/music/cache/clear`。
 
 ## 6. 状态持久化(play_queue_state)
+
+`state-persistence.js` 在任何 await 之前读取管理页 HTML 的启动代次，并为本次 factory 分配页内 senderGeneration；每次捕获快照递增 sequence。定时 HTTP 和卸载 IPC/beacon 携带相同 `snapshotVersion`，卸载直接发出快照，不等待网络握手。失败请求只可保留当前发送端最新序号的 pending，不能在较新保存后重新排入旧快照。旧发送端不会自动提代夺回写入权；独立调用须显式提供 `deps.snapshotWriter`，缺少启动信息时明确提示重新加载。服务端去重/拒绝及重启语义见 [API 合同](../backend/api.md) §5 和 [存储合同](../backend/storage.md) §3.4。
 
 | 通道                                  | 触发点                                                                       | 说明                                                                                                                                                                                                                                 |
 | ------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |

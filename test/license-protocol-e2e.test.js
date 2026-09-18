@@ -330,7 +330,7 @@ function createKeyStore() {
   };
   return {
     loadPrivateKey: () => keyPair.privateKeyPem,
-    loadOrCreate: () => keyPair,
+    prepareActivation: () => ({ keyPair, stage() {}, commit() {}, complete() {} }),
     keyPair,
   };
 }

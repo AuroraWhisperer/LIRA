@@ -275,6 +275,7 @@ async function createFixture() {
   function element() {
     return {
       ...createLyricToggleButton(),
+      style: { setProperty() {} },
       dataset: {},
       handlers: {},
       hidden: false,

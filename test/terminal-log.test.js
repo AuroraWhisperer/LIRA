@@ -5,9 +5,51 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
+const util = require('node:util');
 const { installTerminalLog } = require('../src/electron/terminal-log');
 
-test('preserves prior content and mirrors only warning and error output', () => {
+test('console and file receive the same redacted formatted message', (t) => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-console-redact-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const output = [];
+  for (const method of ['info', 'warn', 'error']) {
+    t.mock.method(console, method, (...args) => output.push(util.format(...args)));
+  }
+  const restore = installTerminalLog(path.join(directory, 'terminal.log'));
+  t.after(restore);
+  console.warn('Authorization: %s', 'Bearer fake-format-secret');
+  const details = { accessToken: 'fake-object-secret', reason: 'useful diagnosis' };
+  console.error('Request failed %o', details);
+  console.info('[Bilibili][Diagnostic] /api/test?token=fake-info-secret');
+  console.info('ordinary /api/test?token=fake-unpersisted-secret');
+  const error = new Error('/api/test?token=fake-stack-secret');
+  console.error(error);
+  const persisted = fs.readFileSync(path.join(directory, 'terminal.log'), 'utf8');
+  for (const channel of [output.join('\n'), persisted]) {
+    assert.doesNotMatch(channel, /fake-(?:format|object|info|unpersisted|stack)-secret/);
+    assert.match(channel, /\[REDACTED\]/);
+    assert.match(channel, /useful diagnosis/);
+  }
+  assert.doesNotMatch(persisted, /ordinary/);
+  assert.equal(details.accessToken, 'fake-object-secret', 'logging must not mutate caller data');
+});
+
+test('redaction or disk failures never fall back to raw console arguments', (t) => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-log-fallback-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const output = [];
+  t.mock.method(console, 'error', (...args) => output.push(util.format(...args)));
+  const restore = installTerminalLog(directory); // Cannot append a file over a directory.
+  t.after(restore);
+  console.error('Authorization: Bearer fake-disk-secret');
+  const cyclic = { token: 'fake-cycle-secret' };
+  cyclic.self = cyclic;
+  assert.doesNotThrow(() => console.error(cyclic));
+  assert.doesNotMatch(output.join('\n'), /fake-(?:disk|cycle)-secret/);
+  assert.match(output.join('\n'), /\[REDACTED\]/);
+});
+
+test('preserves prior content and excludes ordinary info/debug output', () => {
   const directory = fs.mkdtempSync(
     path.join(os.tmpdir(), 'song-plugin-terminal-log-'),
   );
@@ -55,6 +97,25 @@ test('preserves prior content and mirrors only warning and error output', () => 
     console.error = originalError;
     fs.rmSync(directory, { recursive: true, force: true });
   }
+});
+
+test('persists selected Bilibili diagnostics and restores the info console', (t) => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-diagnostics-'));
+  const filePath = path.join(directory, 'terminal.log');
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  t.mock.method(console, 'info', () => {});
+  const originalInfo = console.info;
+  const restore = installTerminalLog(filePath, { runId: 'diagnostic-test' });
+  t.after(restore);
+  console.info('ordinary info');
+  console.info('[Bilibili][Diagnostic] auth-result code=0');
+  console.info('[Bilibili][Diagnostic] Authorization: Bearer synthetic-secret');
+  const content = fs.readFileSync(filePath, 'utf8');
+  assert.match(content, /terminal:info.*auth-result code=0/);
+  assert.match(content, /\[REDACTED\]/);
+  assert.doesNotMatch(content, /ordinary info|synthetic-secret/);
+  restore();
+  assert.equal(console.info, originalInfo);
 });
 
 test('redacts credentials from terminal output', () => {

@@ -4,7 +4,9 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { createBilibiliRuntime } = require('../src/server/bilibili-runtime');
 
-test('Bilibili runtime owns auth refresh, client replacement, and shutdown', async () => {
+test('Bilibili runtime owns auth refresh, client replacement, and shutdown', async (t) => {
+  const logs = [];
+  t.mock.method(console, 'info', (line) => logs.push(line));
   const settings = {
     roomId: '123',
     enableBilibili: 'true',
@@ -53,6 +55,13 @@ test('Bilibili runtime owns auth refresh, client replacement, and shutdown', asy
     uid: 42,
   });
   assert.deepEqual(activeRooms, ['123']);
+  const events = logs.map((line) => JSON.parse(line.split('[Bilibili][Diagnostic] ')[1]));
+  assert.equal(events[0].event, 'refresh-requested');
+  assert.ok(events.some((event) => event.event === 'auth-cache-changed'));
+  const created = events.find((event) => event.event === 'listener-created');
+  assert.equal(created.hasSessdata, true);
+  assert.equal(created.clientGeneration, clients[0].context.bilibiliClientGeneration);
+  assert.doesNotMatch(logs.join('\n'), /SESSDATA=test/);
 
   settings.enableBilibili = 'false';
   runtime.configure(true);

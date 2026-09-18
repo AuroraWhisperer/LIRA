@@ -1,13 +1,16 @@
 'use strict';
 
-let socket = null;
-let reconnectTimer = null;
-let reconnectAttempts = 0;
+import { createOverlaySocket } from './socket-client.js';
+
+let socketController = null;
+let snapshotRetryTimer = null;
+let stateRevision = 0;
 let currentState = null;
 let renderedSpinId = '';
 let rotation = 0;
 let animationToken = 0;
 let spinRequestPending = false;
+const SNAPSHOT_RETRIES = 4;
 
 document.addEventListener('DOMContentLoaded', () => {
   const centerButton = byId('wheelCenterButton');
@@ -19,9 +22,16 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   loadState();
   connectSocket();
+  window.addEventListener('beforeunload', () => {
+    stateRevision += 1;
+    clearTimeout(snapshotRetryTimer);
+    socketController?.dispose();
+  }, { once: true });
 });
 
-async function loadState() {
+async function loadState(attempt = 0) {
+  const revision = ++stateRevision;
+  clearTimeout(snapshotRetryTimer);
   try {
     const token = window.__API_TOKEN__;
     const response = await fetch('/api/wheel', {
@@ -29,34 +39,29 @@ async function loadState() {
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     });
     const payload = await response.json();
-    if (payload.ok) renderState(payload.data);
+    if (revision !== stateRevision) return;
+    if (!payload.ok) throw new Error(payload.error || '读取转盘状态失败');
+    renderState(payload.data);
   } catch (_) {
+    if (revision !== stateRevision) return;
     setMessage('等待转盘连接');
+    if (attempt < SNAPSHOT_RETRIES)
+      snapshotRetryTimer = setTimeout(() => loadState(attempt + 1), 350);
   }
 }
 
 function connectSocket() {
-  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const token = window.__API_TOKEN__;
-  socket = new WebSocket(
-    `${protocol}//${location.host}/ws${token ? `?token=${encodeURIComponent(token)}` : ''}`,
-  );
-  socket.addEventListener('open', () => {
-    reconnectAttempts = 0;
+  if (socketController) return;
+  socketController = createOverlaySocket({
+    onOpen: () => loadState(),
+    onMessage: (payload) => {
+      if (payload.type !== 'wheel:update') return;
+      stateRevision += 1;
+      clearTimeout(snapshotRetryTimer);
+      renderState(payload.state);
+    },
   });
-  socket.addEventListener('message', (event) => {
-    const payload = JSON.parse(event.data);
-    if (payload.type === 'wheel:update') renderState(payload.state);
-  });
-  socket.addEventListener('close', () => {
-    const delay = Math.min(30000, 800 * 2 ** Math.min(reconnectAttempts, 6));
-    reconnectAttempts += 1;
-    clearTimeout(reconnectTimer);
-    reconnectTimer = setTimeout(() => {
-      loadState();
-      connectSocket();
-    }, delay);
-  });
+  socketController.start();
 }
 
 function renderState(state) {
@@ -202,6 +207,8 @@ async function spinFromWheel() {
     return;
   }
   spinRequestPending = true;
+  const revision = ++stateRevision;
+  clearTimeout(snapshotRetryTimer);
   setCenterBusy(true);
   try {
     const token = window.__API_TOKEN__;
@@ -213,9 +220,11 @@ async function spinFromWheel() {
       body: '{}',
     });
     const payload = await response.json();
+    if (revision !== stateRevision) return;
     if (!payload.ok) throw new Error(payload.error || '转盘暂时无法抽取');
     renderState(payload.data);
   } catch (error) {
+    if (revision !== stateRevision) return;
     setCenterBusy(false);
     setMessage(error.message || '转盘暂时无法抽取');
   } finally {

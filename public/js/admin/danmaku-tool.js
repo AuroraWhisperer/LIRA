@@ -8,6 +8,7 @@ import {
 import { initDanmakuOverlaySettings } from './danmaku-overlay-settings.js';
 import { initDanmakuWelcome } from './danmaku-welcome.js';
 import { initDanmakuPkReport } from './danmaku-pk-report.js';
+import { initFixedReplyEditor } from './danmaku-fixed-replies.js';
 
 let initialized = false;
 let refreshState = null;
@@ -42,6 +43,7 @@ function init() {
   initDanmakuOverlaySettings(elements, toast);
   initDanmakuWelcome({ toast });
   initDanmakuPkReport({ toast });
+  initFixedReplyEditor();
   initialized = true;
 
   const updateCounter = () => {

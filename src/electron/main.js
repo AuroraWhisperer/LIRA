@@ -55,6 +55,8 @@ const { registerMusicIpc } = require('./ipc/music-ipc');
 const { registerBilibiliIpc } = require('./ipc/bilibili-ipc');
 const { registerLicenseIpc } = require('./ipc/license-ipc');
 const { registerGiftInteractionIpc } = require('./ipc/gift-interaction-ipc');
+const { registerGiftExportIpc } = require('./ipc/gift-export-ipc');
+const { createGiftExportController } = require('./gift-export-controller');
 const {
   createLicenseManager,
   LicenseState,
@@ -130,6 +132,7 @@ var readinessController = null;
 var dynamicLotteryAuth = null;
 var disposeLotteryAuthIpc = null;
 var disposeGiftInteractionIpc = null;
+var disposeGiftExportIpc = null;
 const remoteGiftCatalogBootstrapBase = resolveConfiguredBaseUrl();
 
 // ---- app lifecycle ----
@@ -273,6 +276,7 @@ function requestDesktopShutdown({ restart = false } = {}) {
       licenseResumeController?.unregister();
       disposeLotteryAuthIpc?.();
       disposeGiftInteractionIpc?.();
+      disposeGiftExportIpc?.();
       dynamicLotteryAuth?.dispose();
       const controllersToDrain = [
         remoteGiftController,
@@ -505,6 +509,15 @@ async function startDesktopApp() {
   disposeGiftInteractionIpc = registerGiftInteractionIpc({
     ipcMain,
     controller: cloudSyncController,
+    getMainWindow: () => windowState.main,
+    getDesktopBaseUrl: () => serverInfo.baseUrl,
+  });
+  disposeGiftExportIpc = registerGiftExportIpc({
+    ipcMain,
+    controller: createGiftExportController({
+      app, BrowserWindow, dialog, shell, runtime: lifecycleState.runtime,
+      getBaseUrl: () => serverInfo.baseUrl, getMainWindow: () => windowState.main,
+    }),
     getMainWindow: () => windowState.main,
     getDesktopBaseUrl: () => serverInfo.baseUrl,
   });

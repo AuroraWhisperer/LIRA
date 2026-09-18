@@ -3,6 +3,8 @@
 'use strict';
 
 import { dangerConfirm, readJsonResponse, toast } from '../../shared/utils.js';
+import { createGiftHistoryTools } from './history-tools.js';
+import { eventBus, Events } from '../../shared/event-bus.js';
 
 import {
   renderHistoryLoadingView,
@@ -35,9 +37,14 @@ let clearing = false;
 let clearOutcome = null;
 let previousFocus = null;
 const giftLedgerState = createGiftLedgerState();
+let historyTools = null;
 
 export function createGiftLedgerState() {
   return {
+    selected: new Set(),
+    filters: {},
+    viewRevision: null,
+    partial: true,
     cursor: null,
     nextCursor: null,
     cursorHistory: [],
@@ -56,10 +63,16 @@ export function buildGiftHistoryUrl({
   limit = GIFT_HISTORY_LIMIT,
   sortField = DEFAULT_HISTORY_SORT_FIELD,
   sortDirection = DEFAULT_HISTORY_SORT_DIRECTION,
+  filters = {},
+  viewRevision = null,
 } = {}) {
   const params = new URLSearchParams();
   params.set('range', 'all');
   params.set('limit', String(limit));
+  for (const key of ['startDate', 'endDate', 'userQuery', 'giftQuery']) {
+    if (filters[key]) params.set(key, filters[key]);
+  }
+  if (cursor && viewRevision) params.set('viewRevision', viewRevision);
   if (cursor) params.set('cursor', cursor);
   if (
     sortField &&
@@ -75,6 +88,16 @@ export function buildGiftHistoryUrl({
 export function initGiftHistoryDrawer() {
   if (initialized) return;
   initialized = true;
+  historyTools = createGiftHistoryTools({ state: giftLedgerState,
+    reload: () => loadGiftHistory(), resetPagination: () => resetGiftLedgerPagination(giftLedgerState) });
+  eventBus.on(Events.STATE_LOADED, ({ state }) => {
+    const revision = state?.gifts?.viewRevision;
+    if (revision === undefined || !giftLedgerState.viewRevision || revision === giftLedgerState.viewRevision) return;
+    historyTools.clear();
+    giftLedgerState.viewRevision = null;
+    resetGiftLedgerPagination(giftLedgerState);
+    if (isGiftHistoryOpen()) loadGiftHistory();
+  });
 
   const openButton = get('giftHistoryOpenBtn');
   const closeButton = get('giftHistoryClose');
@@ -158,6 +181,10 @@ export function initGiftHistoryDrawer() {
 }
 
 export function openGiftHistoryDrawer() {
+  const topbar = document.querySelector?.('.desktop-shell .topbar');
+  const top = topbar?.getBoundingClientRect?.().bottom || 0;
+  get('giftHistoryDrawer')?.style?.setProperty('--gift-panel-top', `${top}px`);
+  get('giftHistoryBackdrop')?.style?.setProperty('--gift-panel-top', `${top}px`);
   get('giftHistoryDrawer')?.classList.add('open');
   get('giftHistoryBackdrop')?.classList.add('open');
   get('giftHistoryClose')?.focus();
@@ -165,6 +192,7 @@ export function openGiftHistoryDrawer() {
 
 export function closeGiftHistoryDrawer() {
   cancelHistoryLoad();
+  historyTools?.close();
   get('giftHistoryDrawer')?.classList.remove('open');
   get('giftHistoryBackdrop')?.classList.remove('open');
   previousFocus?.focus?.();
@@ -189,6 +217,8 @@ export async function loadGiftHistory({ background = false } = {}) {
         limit: GIFT_HISTORY_LIMIT,
         sortField: giftLedgerState.sortField,
         sortDirection: giftLedgerState.sortDirection,
+        filters: giftLedgerState.filters,
+        viewRevision: giftLedgerState.viewRevision,
       }),
       {
         signal: AbortSignal.any([
@@ -207,6 +237,9 @@ export async function loadGiftHistory({ background = false } = {}) {
     }
 
     const data = payload.data || {};
+    if (giftLedgerState.viewRevision && data.viewRevision !== giftLedgerState.viewRevision) historyTools?.clear();
+    giftLedgerState.viewRevision = data.viewRevision || null;
+    giftLedgerState.partial = data.partial !== false;
     giftLedgerState.items = Array.isArray(data.items) ? data.items : [];
     giftLedgerState.nextCursor = data.nextCursor || null;
     giftLedgerState.hasMore = data.hasMore === true;
@@ -223,9 +256,12 @@ export async function loadGiftHistory({ background = false } = {}) {
         );
     historyLoaded = true;
     renderSyncStatus(data);
+    historyTools?.update();
   } catch (error) {
     if (sequence !== historyRequestSequence) return;
-    if (error.code === 'GIFT_SOURCE_UNAVAILABLE') {
+    if (error.code === 'GIFT_SOURCE_UNAVAILABLE' || error.code === 'GIFT_VIEW_STALE') {
+      historyTools?.clear();
+      giftLedgerState.viewRevision = null;
       historyLoaded = false;
       resetGiftLedgerPagination(giftLedgerState);
       renderHistoryWaiting();
@@ -293,6 +329,7 @@ async function clearGiftDatabase() {
     if (!confirmed) return;
 
     cancelHistoryLoad();
+    historyTools?.clear();
     clearOutcome = null;
     historyLoaded = false;
     resetGiftLedgerPagination(giftLedgerState);

@@ -11,13 +11,8 @@ const {
 const { RemoteLicenseError } = require('./remote-license-client');
 
 async function requestDeviceActivation(options = {}) {
-  let keyPair;
-  try {
-    keyPair = options.keyStore.loadOrCreate();
-  } catch (error) {
-    if (typeof options.keyStore.createNew !== 'function') throw error;
-    keyPair = options.keyStore.createNew();
-  }
+  const pending = options.keyStore.prepareActivation();
+  const { keyPair } = pending;
 
   const fingerprint = normalizeFingerprint(
     await options.fingerprintProvider.collect(),
@@ -44,6 +39,7 @@ async function requestDeviceActivation(options = {}) {
     publicKeyPem: keyPair.publicKeyPem,
     fingerprint,
   });
+  pending.stage();
   const result = await options.remote.activate({
     protocolVersion: PROTOCOL_VERSION,
     code: options.validated.activationCode,
@@ -60,10 +56,18 @@ async function requestDeviceActivation(options = {}) {
     fingerprint,
   });
   if (!options.isActive()) return null;
+  if (!result?.deviceId)
+    throw new RemoteLicenseError(
+      'INVALID_RESPONSE',
+      '授权服务器返回无效响应。',
+      { retryable: true },
+    );
 
+  pending.commit();
   return {
     keyPair,
     result,
+    complete: pending.complete,
     identity: {
       deviceId: result.deviceId,
       licenseId: result.licenseId,

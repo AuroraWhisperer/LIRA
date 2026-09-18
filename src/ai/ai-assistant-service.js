@@ -8,7 +8,11 @@ const {
   buildOutputReviewPrompt,
   parseSafetyReview,
 } = require('./safety');
-const { isAiReady } = require('./config');
+const {
+  isAiReady,
+  applyModelProviderPreset,
+  assertSavedModelKeyOrigin,
+} = require('./config');
 const { createOrderedAsyncCoordinator } = require('./async-coordinator');
 const { getQuotaToolNames } = require('./api-quota-store');
 const assistantHelpers = require('./ai-assistant-helpers');
@@ -457,15 +461,21 @@ function createAiAssistantService(dependencies) {
 
   async function listModels(input = {}) {
     const config = store.getConfig();
-    const apiKey = String(input.apiKey || '').trim() || config.deepseekApiKey;
-    const responsesUrl =
-      String(input.apiUrl || '').trim() || config.deepseekResponsesUrl;
+    const explicitKey = String(input.apiKey || '').trim();
+    const requested = applyModelProviderPreset({
+      ...config,
+      deepseekResponsesUrl:
+        String(input.apiUrl || '').trim() || config.deepseekResponsesUrl,
+      modelProvider: input.modelProvider || config.modelProvider,
+      modelApiProtocol: input.modelApiProtocol || config.modelApiProtocol,
+    });
+    assertSavedModelKeyOrigin(config, requested, Boolean(explicitKey));
     return runDirectOperation(() =>
       deepseek.listModels({
-        apiKey,
-        responsesUrl,
-        modelProvider: input.modelProvider || config.modelProvider,
-        modelApiProtocol: input.modelApiProtocol || config.modelApiProtocol,
+        apiKey: explicitKey || config.deepseekApiKey,
+        responsesUrl: requested.deepseekResponsesUrl,
+        modelProvider: requested.modelProvider,
+        modelApiProtocol: requested.modelApiProtocol,
         requestTimeoutMs: config.requestTimeoutMs,
         signal: shutdownController.signal,
       }),

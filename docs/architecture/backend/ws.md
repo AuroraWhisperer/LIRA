@@ -21,21 +21,31 @@
 | 心跳                 | 每 `HEARTBEAT_INTERVAL_MS = 30000` 发一次 ping;超过 `SOCKET_TIMEOUT_MS = 90000` 未收到 pong 则销毁连接;心跳定时器 `unref()`                                                            | [ws.js:10-11](../../../src/server/ws.js#L10-L11)      |
 | 客户端消息           | **服务端不消费任何客户端消息**:文本/二进制帧与分片会被正确解析/重组(防止内存泄漏)后丢弃;close 帧回显后关闭;ping 回 pong                                                                | [ws.js:143-193](../../../src/server/ws.js#L143-L193)  |
 | 发送                 | 服务端→客户端全部为文本帧(JSON),长度按 <126 / <65536 / 64 位三档编码；普通 `broadcast(payload)` 发给全部 socket，`broadcast(payload,{topic})` 只发给握手查询参数订阅该 topic 的 socket | [ws.js](../../../src/server/ws.js)                    |
-| 停止                 | `webSocketHub.stop({shutdownPayload})` 先广播 shutdown 消息再逐连接 `end()`                                                                                                            | [ws.js:226-240](../../../src/server/ws.js#L226-L240)  |
+| 停止                 | `webSocketHub.stop({shutdownPayload})` 首次调用停止新升级和心跳，依次发送 shutdown、Close(1001)、FIN；仍未物理关闭的 socket 在 1 秒期限后销毁，重复 stop 不续期或重复发送 | [ws.js](../../../src/server/ws.js) |
+
+入站帧按 [RFC 6455 §5](https://www.rfc-editor.org/rfc/rfc6455.html#section-5) 校验：客户端必须掩码，未协商扩展时 RSV 必须为零；保留 opcode、非最短长度编码、非法分片顺序、被分片或超过 125 字节的控制帧以 1002 关闭。文本消息在完整重组后验证 UTF-8（允许字符跨分片），非法文本或 close reason 使用 1007；帧/消息超限使用 1009。合法 Close 载荷回显，非法/保留状态码不回显。服务端仍不执行业务客户端消息。
+
+所有 Close 路径立即移出广播集合并释放输入缓冲，但 hub 保留关闭期限直到物理 `close`；正常关闭取消计时器，超时销毁，写入失败/背压则立即销毁。`closeAllConnections()` 不拥有 HTTP 升级后的连接，不能代替这项回收责任。关闭期限不延长 Electron 的总退出期限；测试可用 `closeTimeoutMs` 缩短等待。
 
 文件底部另有一套模块级兼容导出(`handleWebSocketUpgrade`/`broadcastSnapshot` 走模块级 `compatibilityHub`),运行时不使用。
 
 **WebSocket Context**:升级时传入的 `context` 对象包含 `getState`、`sessionToken` 和 **`allowedOrigins`**(当前仅运行时 baseUrl)。`getWebSocketContext()` 在 [server.js](../../../src/server.js) 中构造。
 
+升级入口的 Host 校验由 [http-server.js](../../../src/server/http-server.js) 拥有：ready 阶段必须精确匹配运行时绑定的 host:port，否则在进入 hub 前返回 400。正确 Host 不豁免许可、Origin 或 token 校验；缺少 Origin 的非浏览器客户端也必须匹配 Host。starting/quiescing 阶段仍返回 503。
+
+尚未交给 hub 的拒绝升级由 HTTP 入口收尾：400/423/503 响应写出后销毁 socket，不等待对方回 FIN。它们不属于 hub 的升级连接集合，不能依赖 hub.stop() 兜底。
+
 ## 2. 快照(Snapshot)17 字段
 
 每次连接建立时发送 `{type:'snapshot', reason:'connect', state}`,之后快照域的业务变更触发全量快照重推；游戏、转盘等独立状态沿 §3 的专用消息与 HTTP 恢复接口传输。`state` 由 [server.js](../../../src/server.js) 的 `getState()` 组装,共 **17 个字段**:
+
+`topic=danmaku` 仅选择高频 `danmaku:message` 增量，不改变全量 snapshot 的接收范围，也不是权限凭据。普通连接和订阅连接均接收初始及后续快照，以恢复各自消费的队列、设置、直播状态等字段；不能按是否订阅弹幕来过滤通用快照。真实 hub/客户端契约验证见 `test/websocket-snapshot-contract.test.js`。
 
 | 字段                  | 生产者                                     | 内容概述                                                                                                          |
 | --------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
 | `queue`               | `domainServices.queue.getSnapshot()`       | 点歌队列快照,见 [music/services.md](music/services.md)                                                            |
 | `superChats`          | `domainServices.superChats.getSnapshot()`  | SC 列表(按价格降序),见 [bilibili/gift.md](bilibili/gift.md)                                                       |
-| `gifts`               | `domainServices.gifts.getSnapshot()`       | 礼物事件列表                                                                                                      |
+| `gifts`               | `domainServices.gifts.getSnapshot()`       | `recent` 近期礼物列表与 `viewRevision` 来源投影版本（未就绪时 null）；版本变化使流水选择与本日展示失效 |
 | `giftSprint`          | `domainServices.gifts.getSprintSnapshot()` | 礼物冲刺状态                                                                                                      |
 | `giftDetection`       | `domainServices.gifts.getStatus()`         | 礼物检测管道状态(`coreActive` 等),见 [bilibili/gift.md](bilibili/gift.md)                                         |
 | `blindBoxMapping` | `blindBoxMappingState` | 当前盲盒映射配置与同步状态 |

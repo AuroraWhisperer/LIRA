@@ -6,6 +6,10 @@ import { createOverlaySocket } from './socket-client.js';
 import { startOverlayPages } from './auto-pages.js';
 
 let state = null;
+let stateRevision = 0;
+let statsRevision = 0;
+let lastStats = null;
+let lastContentKey = null;
 let socketController = null;
 let refreshTimer = null;
 let stopPages = null;
@@ -68,10 +72,11 @@ function handleBlindboxViewportResize() {
 }
 
 async function loadStateThenStats() {
+  const revision = ++stateRevision;
   try {
     const response = await fetch('/api/state');
     const payload = await response.json();
-    if (payload.ok) state = payload.data;
+    if (payload.ok && revision === stateRevision) state = payload.data;
   } catch (error) {
     console.warn(
       '[overlay-blindbox] loadState failed:',
@@ -82,13 +87,14 @@ async function loadStateThenStats() {
 }
 
 async function loadStats() {
+  const revision = ++statsRevision;
   try {
     const boxFilter = HEART_BOX_ONLY
       ? '?boxName=' + encodeURIComponent('心动盲盒')
       : '';
     const response = await fetch('/api/gifts/blind-box-stats' + boxFilter);
     const payload = await response.json();
-    if (payload.ok) {
+    if (payload.ok && revision === statsRevision) {
       render(payload.data);
     }
   } catch (error) {
@@ -107,6 +113,11 @@ function connectSocket() {
     },
     onMessage: (payload) => {
       if (payload.type !== 'snapshot') return;
+      if (payload.state) {
+        stateRevision += 1;
+        state = payload.state;
+        render(lastStats);
+      }
       // 礼物相关更新时刷新统计数据
       const reason = payload.reason || '';
       if (
@@ -114,11 +125,7 @@ function connectSocket() {
         reason === 'gift:sprint:reset' ||
         reason === 'connect'
       ) {
-        state = payload.state;
         loadStats();
-      } else if (!reason || reason === 'live:status') {
-        // 其他更新只缓存 state（主题等）
-        if (payload.state) state = payload.state;
       }
     },
   });
@@ -126,6 +133,8 @@ function connectSocket() {
 }
 
 function disposeSocket() {
+  stateRevision += 1;
+  statsRevision += 1;
   clearInterval(refreshTimer);
   stopPages?.();
   stopPages = null;
@@ -135,9 +144,6 @@ function disposeSocket() {
 }
 
 function render(stats) {
-  if (!stats) return;
-
-  const { summary, perUser } = stats;
   const settings = (state && state.settings) || {};
 
   // 应用主题
@@ -147,8 +153,12 @@ function render(stats) {
   if (!CUSTOM_TITLE) {
     const title = document.getElementById('blindboxTitle');
     const settingsTitle = String(settings.blindboxOverlayTitle || '').trim();
-    if (settingsTitle) title.textContent = settingsTitle;
+    title.textContent = settingsTitle || '今日盲盒盈亏';
   }
+
+  if (!stats) return;
+  lastStats = stats;
+  const { summary, perUser } = stats;
 
   // 过滤和排序
   let users = Array.isArray(perUser) ? [...perUser] : [];
@@ -158,6 +168,9 @@ function render(stats) {
   if (TOP_N > 0) {
     users = users.slice(0, TOP_N);
   }
+  const contentKey = JSON.stringify([summary, users]);
+  if (contentKey === lastContentKey) return;
+  lastContentKey = contentKey;
 
   // ── 汇总 ──
   const summaryEl = document.getElementById('blindboxSummary');

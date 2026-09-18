@@ -118,7 +118,7 @@ function createManagerHarness({
   };
   const keyStore = {
     loadPrivateKey: () => keyPair.privateKeyPem,
-    loadOrCreate: () => keyPair,
+    prepareActivation: () => ({ keyPair, stage() {}, commit() {}, complete() {} }),
   };
   const fingerprintProvider = {
     collect: async () => ({

@@ -1,28 +1,78 @@
-      <details id="danmakuWelcomePanel" class="danmaku-blessings-section">
-        <summary>
-          <div>
-            <h3>进场欢迎词库 <lira-help>每次随机发送一条。{username} 会替换成带舰队身份的当前昵称；未写占位符时会自动加在文案前。超长时使用简短欢迎语，保留完整昵称。</lira-help></h3>
-            <p><span id="danmakuWelcomeCount">未读取</span></p>
-          </div>
-          <svg class="danmaku-details-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-            <path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-          </svg>
-        </summary>
-        <div class="danmaku-blessings-body">
-          <div id="danmakuWelcomeList" class="danmaku-blessing-list" aria-live="polite"></div>
-          <div class="danmaku-blessing-add-row">
-            <input id="danmakuWelcomeInput" type="text" maxlength="80" disabled
-              placeholder="例如：欢迎 {username} 来到直播间～" aria-label="新增进场欢迎语" />
-            <button id="danmakuWelcomeAddBtn" class="icon" type="button" disabled title="添加欢迎语" aria-label="添加欢迎语">
-              <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-              </svg>
-            </button>
-          </div>
-          <div class="danmaku-blessing-actions">
-            <span id="danmakuWelcomeStatus" class="hint" role="status" aria-live="polite">正在读取欢迎词库</span>
-            <button id="danmakuWelcomeRefreshBtn" class="secondary" type="button" disabled>刷新</button>
-            <button id="danmakuWelcomeSaveBtn" class="primary" type="button" disabled>保存欢迎词库</button>
-          </div>
-        </div>
-      </details>
+<section id="danmakuWelcomePanel" data-fixed-editor="welcome" hidden aria-label="进场欢迎设置">
+  <p id="danmakuWelcomeCapability" class="hint" role="status" hidden>服务器暂不支持新增欢迎设置；可继续使用欢迎开关和原词库。</p>
+  <div id="danmakuWelcomeParameters">
+    <div class="danmaku-welcome-rules">
+      <div class="danmaku-welcome-rule">
+        <strong>首次欢迎</strong><span></span>
+        <label class="danmaku-welcome-field"><span>进场后</span><input id="danmakuWelcomewelcomeDelaySeconds" type="number" min="0" max="300" step="1" value="0" aria-describedby="danmakuWelcomewelcomeDelaySecondsError" disabled /><span>秒</span><span id="danmakuWelcomewelcomeDelaySecondsError" class="danmaku-field-error" role="alert" hidden></span></label>
+        <label class="danmaku-welcome-field"><span>荣耀至少</span><input id="danmakuWelcomewelcomeMinHonorLevel" type="number" min="0" max="999" step="1" value="0" aria-describedby="danmakuWelcomewelcomeMinHonorLevelError" disabled /><span>级</span><span id="danmakuWelcomewelcomeMinHonorLevelError" class="danmaku-field-error" role="alert" hidden></span></label>
+        <button class="danmaku-text-action" type="button" data-welcome-library="messages">欢迎词库</button>
+      </div>
+      <div class="danmaku-welcome-rule">
+        <strong id="danmakuWelcomeGreetingTitle">二次问候</strong>
+        <label class="switch-control"><input id="danmakuWelcomeGreetingToggle" type="checkbox" disabled aria-labelledby="danmakuWelcomeGreetingTitle" aria-describedby="danmakuWelcomeEnableHint" /><span class="switch-track"></span></label>
+        <label class="danmaku-welcome-field"><span>进场后</span><input id="danmakuWelcomegreetingDelaySeconds" type="number" min="1" max="600" step="1" value="10" aria-describedby="danmakuWelcomegreetingDelaySecondsError" disabled /><span>秒</span><span id="danmakuWelcomegreetingDelaySecondsError" class="danmaku-field-error" role="alert" hidden></span></label>
+        <label class="danmaku-welcome-field"><span>荣耀至少</span><input id="danmakuWelcomegreetingMinHonorLevel" type="number" min="0" max="999" step="1" value="0" aria-describedby="danmakuWelcomegreetingMinHonorLevelError" disabled /><span>级</span><span id="danmakuWelcomegreetingMinHonorLevelError" class="danmaku-field-error" role="alert" hidden></span></label>
+        <button class="danmaku-text-action" type="button" data-welcome-library="greetingMessages">问候词库</button>
+      </div>
+      <div class="danmaku-welcome-rule">
+        <strong id="danmakuWelcomeAttentionTitle">重点关注</strong>
+        <label class="switch-control"><input id="danmakuWelcomeAttentionToggle" type="checkbox" disabled aria-labelledby="danmakuWelcomeAttentionTitle" aria-describedby="danmakuWelcomeEnableHint" /><span class="switch-track"></span></label>
+        <span class="hint">换用专属文案</span>
+        <label class="danmaku-welcome-field"><span>荣耀至少</span><input id="danmakuWelcomeattentionMinHonorLevel" type="number" min="1" max="999" step="1" value="31" aria-describedby="danmakuWelcomeattentionMinHonorLevelError" disabled /><span>级</span><span id="danmakuWelcomeattentionMinHonorLevelError" class="danmaku-field-error" role="alert" hidden></span></label>
+        <button class="danmaku-text-action" type="button" data-welcome-library="attentionWelcomeMessages">专属词库</button>
+      </div>
+    </div>
+    <p class="hint danmaku-welcome-rule-help">两次延时均从进场起算；问候依赖首次成功；0 秒立即处理、0 级不限。延时不代表观众仍在房间内。</p>
+    <p id="danmakuWelcomeDependencyHint" class="hint"></p>
+    <p id="danmakuWelcomeEnableHint" class="hint" role="status"></p>
+    <details id="danmakuWelcomePreview" class="danmaku-welcome-preview">
+      <summary><span>样例预览</span><span id="danmakuWelcomePreviewSummary" class="hint">样例，不发送</span></summary>
+      <div class="danmaku-welcome-preview-controls">
+        <label>配置来源 <select id="danmakuWelcomePreviewSource"><option value="draft">编辑草稿</option><option value="confirmed">已确认设置</option></select></label>
+        <label>样例荣耀 <select id="danmakuWelcomePreviewLevel"><option value="31">31 级</option><option value="unknown">未知</option><option value="0">0 级</option></select></label>
+      </div>
+      <p class="hint">虚构昵称「小曌」 · 首条样例，实际随机选择 · 不发送</p>
+      <p id="danmakuWelcomePreviewFirst"></p><p id="danmakuWelcomePreviewSecond"></p>
+      <p class="hint">二次时间假设首次按计划成功；实际受首次完成、排队与限流影响。注音读音会随文案公开发送。</p>
+    </details>
+    <div class="danmaku-welcome-parameter-actions">
+      <span id="danmakuWelcomeParameterStatus" class="hint" role="status">参数尚未确认</span>
+      <button id="danmakuWelcomeSuggestBtn" class="danmaku-text-action" type="button" disabled>建议参数</button>
+      <button id="danmakuWelcomeDiscardBtn" class="danmaku-text-action" type="button" disabled>放弃修改</button>
+      <button id="danmakuWelcomeParameterSaveBtn" class="primary" type="button" disabled>保存参数</button>
+    </div>
+  </div>
+  <div id="danmakuWelcomeLibraries" hidden>
+    <div class="danmaku-welcome-library-heading">
+      <label for="danmakuWelcomeLibraryKind">编辑词库</label>
+      <select id="danmakuWelcomeLibraryKind">
+        <option value="messages">欢迎词库</option>
+        <option value="greetingMessages">问候词库</option>
+        <option value="attentionWelcomeMessages">专属欢迎词库</option>
+        <option value="attentionGreetingMessages">专属问候词库</option>
+      </select>
+      <span id="danmakuWelcomeCount" class="hint">未读取</span>
+    </div>
+    <p class="hint">{username} 会替换为当前昵称，舰长、提督、总督会加在昵称前。未写占位符时自动添加；超长时保留完整昵称并使用短句。</p>
+    <div id="danmakuWelcomeLibraryDrafts" class="hint" role="status"></div>
+    <div id="danmakuWelcomeList" class="danmaku-blessing-list" aria-live="polite"></div>
+    <div class="danmaku-library-pagination">
+      <button id="danmakuWelcomePrevPage" class="ghost" type="button">上一页</button>
+      <span id="danmakuWelcomePageLabel" class="hint"></span>
+      <button id="danmakuWelcomeNextPage" class="ghost" type="button">下一页</button>
+    </div>
+    <div class="danmaku-blessing-add-row">
+      <input id="danmakuWelcomeInput" type="text" maxlength="80" disabled placeholder="例如：欢迎 {username} 来到直播间～" aria-label="新增欢迎语" />
+      <button id="danmakuWelcomeAddBtn" class="icon" type="button" disabled title="添加文案" aria-label="添加文案">＋</button>
+    </div>
+    <div class="danmaku-blessing-actions">
+      <span id="danmakuWelcomeLibraryStatus" class="hint" role="status"></span>
+      <button id="danmakuWelcomeSaveBtn" class="primary" type="button" disabled>保存欢迎词库</button>
+    </div>
+  </div>
+  <div id="danmakuWelcomeServerStatus" class="danmaku-welcome-server-status">
+    <span id="danmakuWelcomeStatus" class="hint" role="status" aria-live="polite">正在读取账号信息…</span>
+  </div>
+  <p id="danmakuWelcomeRefreshHint" class="hint" hidden>有未保存修改，刷新会保留草稿。</p>
+</section>

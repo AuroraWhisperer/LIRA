@@ -149,6 +149,38 @@ function createRequest(query) {
   return { query: new URLSearchParams(query) };
 }
 
+test('gift selection rejects invalid bodies and maps stale selection to conflict', async () => {
+  for (const body of [null, [], 'invalid']) {
+    const response = createResponse();
+    await routes['POST /api/gifts/selection']({}, { body: async () => body }, response);
+    assert.equal(response.status, 400);
+  }
+  const response = createResponse();
+  await routes['POST /api/gifts/selection']({ gifts: { getSelection() {
+    throw Object.assign(new Error('来源已变更'), { code: 'GIFT_VIEW_STALE' });
+  } } }, { body: async () => ({ viewRevision: 'old' }) }, response);
+  assert.equal(response.status, 409);
+  assert.equal(response.payload.code, 'GIFT_VIEW_STALE');
+});
+
+test('gift display settings persist valid cents and leave saved configuration unchanged on invalid input', async () => {
+  const settings = {};
+  const broadcasts = [];
+  const context = { settings: { get: () => settings, set: (key, value) => { settings[key] = value; } },
+    broadcastSnapshot: (reason) => broadcasts.push(reason) };
+  const config = { palette: 'bilibili-four', thresholds: [9999, 49999, 99999], visibleRows: 1, intervalSeconds: 4, paused: false, lowPower: true };
+  const saved = createResponse();
+  await routes['POST /api/gifts/display-settings'](context, { body: async () => config }, saved);
+  assert.equal(saved.status, 200);
+  const rejected = createResponse();
+  await routes['POST /api/gifts/display-settings'](context, { body: async () => ({ ...config, thresholds: [100, 100, 100] }) }, rejected);
+  assert.equal(rejected.status, 400);
+  const read = createResponse();
+  routes['GET /api/gifts/display-settings'](context, {}, read);
+  assert.deepEqual(read.payload.data, config);
+  assert.deepEqual(broadcasts, ['settings']);
+});
+
 function createResponse() {
   return {
     status: 0,

@@ -8,6 +8,7 @@ const { SUPER_CHAT_PIN_THRESHOLD } = require('../superchat-service');
 const { extractBilibiliGiftIdentity } = require('../users/gift-identity-hints');
 const { isBilibiliCommandText } = require('./command-text');
 const { cleanText, now, timestampToIso } = require('../../shared/utils');
+const { logBilibiliDiagnostic, logSongRequest } = require('../diagnostics');
 
 class MessageHandlers {
   constructor(
@@ -42,6 +43,7 @@ class MessageHandlers {
 
   updateConnectionAttempt(connectionAttempt) {
     this.connectionAttempt = Number(connectionAttempt) || 0;
+    this.danmakuCount = 0;
   }
 
   updateRoomOwnerUid(roomOwnerUid) {
@@ -89,6 +91,20 @@ class MessageHandlers {
     const messageTimestamp = packetParser.extractBilibiliDanmakuTimestamp(info);
     const avatarUrl = packetParser.extractBilibiliDanmakuAvatarUrl(info);
     const emotes = packetParser.extractBilibiliDanmakuEmotes(info);
+    const diagnosticMessage = {
+      message: text, uid: userInfo[0], userName: userInfo[1], messageTimestamp,
+      source: 'danmaku', connectionGeneration: this.connectionGeneration,
+      connectionAttempt: this.connectionAttempt,
+    };
+    this.danmakuCount = (this.danmakuCount || 0) + 1;
+    if (this.danmakuCount === 1) {
+      logBilibiliDiagnostic('danmaku-first-received', {
+        connectionGeneration: this.connectionGeneration,
+        connectionAttempt: this.connectionAttempt,
+        nameMasked: /\*{2,}/.test(String(userInfo[1] || '')),
+      });
+    }
+    logSongRequest('command-ingress', diagnosticMessage);
 
     if (
       this.isCommandText(text) &&
@@ -97,6 +113,9 @@ class MessageHandlers {
         this.startedAtMs,
       )
     ) {
+      logSongRequest('command-filtered', diagnosticMessage, {
+        reason: 'stale-timestamp', listenerStartedAt: this.startedAtMs,
+      });
       return;
     }
     if (
@@ -159,6 +178,8 @@ class MessageHandlers {
       connectionAttempt: this.connectionAttempt,
       cmd: normalizeBilibiliCommandName(message.cmd),
     };
+    const diagnosticMessage = { ...superChat, source: 'superchat', ...trace };
+    logSongRequest('command-ingress', diagnosticMessage);
 
     console.log(
       formatBilibiliSuperChatLog(
@@ -195,6 +216,10 @@ class MessageHandlers {
         this.startedAtMs,
       )
     ) {
+      logSongRequest('command-filtered', diagnosticMessage, {
+        reason: 'stale-timestamp',
+        listenerStartedAt: this.startedAtMs,
+      });
       return;
     }
     if (

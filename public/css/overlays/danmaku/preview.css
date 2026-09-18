@@ -124,13 +124,20 @@ body.is-preview .draw-danmaku-feed {
   overflow: visible;
   justify-content: flex-start;
 }
-body.is-preview:is([data-style='outline'], [data-style='cream']) .draw-danmaku-feed {
+body.is-preview[data-style='cream'] .danmaku-signal-stage,
+body.is-preview[data-style='glow'] .danmaku-signal-stage {
+  padding: 12px 16px 36px;
+}
+body.is-preview[data-style='cream'] .draw-danmaku-feed {
+  width: 100%;
+}
+body.is-preview:is([data-style='outline'], [data-style='cream'], [data-style='glow']) .draw-danmaku-feed {
   gap: 20px;
 }
-body.is-preview:is([data-style='outline'], [data-style='cream']) .draw-danmaku-item {
+body.is-preview:is([data-style='outline'], [data-style='cream'], [data-style='glow']) .draw-danmaku-item {
   position: relative;
 }
-body.is-preview:is([data-style='outline'], [data-style='cream']) .draw-danmaku-item:nth-child(even) {
+body.is-preview:is([data-style='outline'], [data-style='cream'], [data-style='glow']) .draw-danmaku-item:nth-child(even) {
   align-self: flex-end;
 }
 @media (max-width: 900px) {

@@ -218,11 +218,13 @@ function validateGiftDisplayWire(source, errorFactory) {
         ...GIFT_KEYS,
         'giftVariantId',
         'blindBoxVariantId',
-      ]))
+      ]) && !hasExactKeys(source, [...GIFT_KEYS, 'display']) &&
+      !hasExactKeys(source, [...GIFT_KEYS, 'giftVariantId', 'blindBoxVariantId', 'display']))
   ) {
     throw errorFactory();
   }
   normalizeGiftIdentityFields(source, errorFactory);
+  if (Object.hasOwn(source, 'display')) normalizeGiftDisplayProfile(source.display, errorFactory);
   for (const key of [
     'giftId',
     'giftName',
@@ -345,7 +347,21 @@ function canonicalizeGiftDisplay(source, errorFactory) {
     blindProfitCents,
     createdAt: new Date(createdAtMs).toISOString(),
     ...normalizeGiftIdentityFields(source, errorFactory),
+    ...(source.display ? { display: normalizeGiftDisplayProfile(source.display, errorFactory) } : {}),
   });
+}
+
+function normalizeGiftDisplayProfile(value, errorFactory) {
+  if (!isPlainObject(value) || !hasExactKeys(value, ['version', 'avatarUrl', 'guardLevel']) ||
+    value.version !== 1 || (value.guardLevel !== null && ![0, 1, 2, 3].includes(value.guardLevel))) throw errorFactory();
+  if (value.avatarUrl !== null) {
+    if (typeof value.avatarUrl !== 'string' || value.avatarUrl.length > 2048) throw errorFactory();
+    let url;
+    try { url = new URL(value.avatarUrl); } catch { throw errorFactory(); }
+    if (url.protocol !== 'https:' || url.username || url.password || url.port || url.search || url.hash ||
+      !(url.hostname === 'hdslb.com' || url.hostname.endsWith('.hdslb.com'))) throw errorFactory();
+  }
+  return Object.freeze({ version: 1, avatarUrl: value.avatarUrl, guardLevel: value.guardLevel });
 }
 
 function normalizeGiftIdentityFields(source, errorFactory) {

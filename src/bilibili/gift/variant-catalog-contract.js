@@ -235,7 +235,6 @@ function validateVariantCatalog(value) {
     ) ||
     !Array.isArray(value.variants) ||
     !value.variants.length ||
-    value.variants.length > 10000 ||
     !Array.isArray(value.blindBoxes) ||
     value.variantCount !== value.variants.length ||
     !/^sha256:[a-f0-9]{64}$/u.test(value.version)

@@ -119,3 +119,63 @@ test('WeSing activation creates a missing initial cache directory before detecti
   assert.equal(status.active, true);
   assert.equal(cacheExistedAtMonitorStart, true);
 });
+
+test('unchanged WeSing configuration preserves listeners and does not reset capture state', async (t) => {
+  const fixture = createFixture();
+  let starts = 0;
+  let stops = 0;
+  let watchers = 0;
+  let closed = 0;
+  const capture = createWeSingCapture({
+    cachePath: fixture.cachePath,
+    platform: 'win32',
+    monitorFactory: () => ({ start() { starts += 1; }, stop() { stops += 1; } }),
+    watchFactory: () => { watchers += 1; return { close() { closed += 1; } }; },
+  });
+  t.after(() => {
+    capture.stop();
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  });
+  await capture.setActive(true);
+  const before = capture.getStatus();
+  await capture.setCachePath(fixture.cachePath);
+  await capture.setLyricOffsetMs(0);
+  assert.deepEqual(capture.getStatus(), before);
+  assert.deepEqual({ starts, stops, watchers, closed }, { starts: 1, stops: 0, watchers: 1, closed: 0 });
+});
+
+test('configuring the initial cache directory still refreshes its readiness', async (t) => {
+  const fixture = createFixture();
+  const capture = createWeSingCapture({ cachePath: fixture.cachePath, platform: 'win32' });
+  t.after(() => {
+    capture.stop();
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  });
+  assert.equal(capture.getStatus().cacheReady, false);
+  assert.equal((await capture.setCachePath(fixture.cachePath)).cacheReady, true);
+});
+
+test('a prepared cache directory that disappears is reported unavailable without restarting the monitor', async (t) => {
+  const fixture = createFixture();
+  let starts = 0;
+  let stops = 0;
+  const capture = createWeSingCapture({
+    cachePath: fixture.cachePath,
+    platform: 'win32',
+    monitorFactory: () => ({ start() { starts += 1; }, stop() { stops += 1; } }),
+    watchFactory: () => ({ close() {} }),
+  });
+  t.after(() => {
+    capture.stop();
+    fs.rmSync(fixture.root, { recursive: true, force: true });
+  });
+  await capture.setActive(true);
+  const cachePath = path.join(fixture.root, 'missing', 'WeSingCache');
+  const prepared = await capture.prepareConfiguration({ cachePath });
+  fs.rmdirSync(cachePath);
+  const status = await prepared.apply();
+  assert.equal(status.cachePath, cachePath);
+  assert.equal(status.cacheReady, false);
+  assert.equal(status.active, true);
+  assert.deepEqual({ starts, stops }, { starts: 1, stops: 0 });
+});

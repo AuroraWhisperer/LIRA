@@ -2,6 +2,10 @@
 
 const { BilibiliDanmakuClient } = require('../bilibili/danmaku-client');
 const { isBilibiliCommandText } = require('../bilibili/danmaku/command-text');
+const {
+  logSongRequest,
+  songRequestReason,
+} = require('../bilibili/diagnostics');
 
 function createBilibiliClient(roomId, context) {
   const {
@@ -24,6 +28,7 @@ function createBilibiliClient(roomId, context) {
     {
       onMessage: (danmaku) => {
         if (isShuttingDown()) return false;
+        let stage = 'dispatch';
         try {
           if (
             typeof publishDanmaku === 'function' &&
@@ -53,6 +58,7 @@ function createBilibiliClient(roomId, context) {
                 );
               });
           }
+          stage = 'request';
           const result = domainServices.messages.handleDanmaku({
             message: danmaku.message,
             userName: danmaku.userName,
@@ -65,6 +71,7 @@ function createBilibiliClient(roomId, context) {
             isPinned: danmaku.isPinned,
           });
           domainServices.messages.logDanmaku(danmaku, result);
+          stage = 'after-request';
           aiAssistant.handleDanmaku({
             message: danmaku.message,
             userName: danmaku.userName,
@@ -119,16 +126,23 @@ function createBilibiliClient(roomId, context) {
               });
           }
           if (result.accepted) {
+            stage = 'queue-broadcast';
             broadcastSnapshot(
               danmaku.source === 'superchat'
                 ? 'bilibili:superchat'
                 : 'bilibili:danmaku',
             );
+            logSongRequest('queue-broadcast', danmaku, {
+              queueId: Number(result.queueItem?.id) || 0,
+            });
           }
           return gameResult?.session?.game === 'draw-guess';
         } catch (error) {
+          logSongRequest('command-result', danmaku, {
+            status: 'failed', stage, reason: songRequestReason(error.message),
+          });
           console.warn(
-            `[Bilibili] danmaku command failed: user=${danmaku.userName || ''} uid=${danmaku.uid || ''} message=${JSON.stringify(danmaku.message)} error=${error.message}`,
+            `[Bilibili] danmaku command failed: reason=${songRequestReason(error.message)}`,
           );
           return false;
         }
@@ -160,6 +174,7 @@ function createBilibiliClient(roomId, context) {
     },
     {
       diagnostics: bilibiliDiagnostics,
+      clientGeneration: context.bilibiliClientGeneration,
       bilibiliAuth: {
         cookieHeader: bilibiliAuthCache.cookieHeader,
         uid: bilibiliAuthCache.uid,

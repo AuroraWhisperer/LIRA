@@ -15,7 +15,9 @@ function normalizeMusicPlatform(value) {
     .trim()
     .toLowerCase();
   if (!SUPPORTED_MUSIC_PLATFORMS.has(platform)) {
-    throw new Error('音乐平台只能是 qq 或 netease。');
+    const error = new Error('音乐平台只能是 qq 或 netease。');
+    error.statusCode = 400;
+    throw error;
   }
   return platform;
 }

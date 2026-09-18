@@ -10,6 +10,7 @@ function createRuntimeTransport({
   getHost,
   getStartedPort,
   getSessionToken,
+  beginPlaybackSnapshotSession,
   getWebSocketHub,
   getState,
   getSettings,
@@ -83,6 +84,7 @@ function createRuntimeTransport({
       res,
       requestUrl,
       getSessionToken(),
+      beginPlaybackSnapshotSession,
     );
   }
 

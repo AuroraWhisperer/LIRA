@@ -10,6 +10,7 @@ function overtimeRoute(run) {
       const data = await run(context.overtime, request);
       sendJson(res, 200, { ok: true, data });
     } catch (error) {
+      if (error.code === 'REQUEST_BODY_TOO_LARGE') throw error;
       sendJson(res, 400, {
         ok: false,
         error: error.message || 'Invalid overtime request.',

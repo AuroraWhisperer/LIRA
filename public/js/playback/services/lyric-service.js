@@ -15,7 +15,9 @@ export class LyricService {
     this.pendingState = null;
     this.forcedStateQueue = [];
     this.stateGeneration = 0;
+    this.stateGenerationOffset = 0;
     this.stateSequence = 0;
+    this.lastAcceptedVersion = null;
     this.lastStateTrackKey = null;
     this.lastStateLyrics = null;
     this.lastTimelineTrackKey = null;
@@ -206,7 +208,7 @@ export class LyricService {
     if (!force && serialized === this.lastPublishedState) return;
     if (!force && now - this.lastPublishedAt < 180) return;
     return new Promise((resolve) => {
-      const request = { serialized, resolve };
+      const request = { serialized, state: roundedState, resolve };
       if (force) {
         this.forcedStateQueue.push(request);
       } else {
@@ -222,17 +224,51 @@ export class LyricService {
     const request = this.forcedStateQueue.shift() || this.pendingState;
     if (!request) return null;
     if (request === this.pendingState) this.pendingState = null;
-    this.statePublishInFlight = (async () => {
+    const previous = this.lastAcceptedVersion;
+    if (
+      previous &&
+      (request.state.generation < previous.generation ||
+        (request.state.generation === previous.generation &&
+          request.state.sequence <= previous.sequence))
+    ) {
+      request.resolve();
+      return this.flushStateQueue();
+    }
+    this.statePublishInFlight = Promise.resolve().then(async () => {
       try {
-        const response = await fetch('/api/playback/lyric-state', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: request.serialized,
-        });
-        this.lastPublishedAt = Date.now();
-        this.lastPublishedState = request.serialized;
-        if (!response.ok && this.lastPublishedState === request.serialized)
-          this.lastPublishedState = '';
+        this.lastPublishedState = '';
+        // A rebuilt sender may trail the server. Rebase once, never spin on conflicts.
+        for (let attempt = 0; attempt < 2; attempt += 1) {
+          const state = {
+            ...request.state,
+            generation: request.state.generation + this.stateGenerationOffset,
+          };
+          if (!Number.isSafeInteger(state.generation)) break;
+          const response = await fetch('/api/playback/lyric-state', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(state),
+          });
+          const payload = await this.readJsonResponse(response, '同步歌词失败');
+          if (!response.ok || !payload?.ok || !payload.data) break;
+          const nextGeneration = payload.data?.nextGeneration;
+          if (nextGeneration !== undefined) {
+            if (
+              !Number.isSafeInteger(nextGeneration) ||
+              nextGeneration <= state.generation
+            ) break;
+            this.stateGenerationOffset += nextGeneration - state.generation;
+            continue;
+          }
+          if (
+            payload.data.generation !== state.generation ||
+            payload.data.sequence !== state.sequence
+          ) break;
+          this.lastAcceptedVersion = request.state;
+          this.lastPublishedAt = Date.now();
+          this.lastPublishedState = request.serialized;
+          break;
+        }
       } catch (_) {
         if (this.lastPublishedState === request.serialized)
           this.lastPublishedState = '';
@@ -241,7 +277,7 @@ export class LyricService {
         this.statePublishInFlight = null;
         this.flushStateQueue();
       }
-    })();
+    });
     return this.statePublishInFlight;
   }
 

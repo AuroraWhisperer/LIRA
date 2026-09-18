@@ -6,6 +6,30 @@ const { DatabaseSync } = require('node:sqlite');
 const { createPlaybackStore } = require('../src/storage/playback-store');
 const { MUSIC_SCHEMA } = require('../src/storage/schema');
 
+test('late periodic snapshots cannot replace a newer unload snapshot', () => {
+  const db = new DatabaseSync(':memory:');
+  db.exec(MUSIC_SCHEMA);
+  const store = createPlaybackStore(db);
+  const snapshotVersion = { writerId: 'writer-one', generation: 1, sequence: 0 };
+  db.prepare(
+    'INSERT INTO play_queue_state (client_id, payload, updated_at) VALUES (?, ?, ?)',
+  ).run('default', JSON.stringify({ snapshotVersion }), '2026-09-18');
+
+  try {
+    store.saveQueueState({
+      currentTime: 42,
+      snapshotVersion: { ...snapshotVersion, sequence: 2 },
+    });
+    store.saveQueueState({
+      currentTime: 17,
+      snapshotVersion: { ...snapshotVersion, sequence: 1 },
+    });
+    assert.equal(store.getQueueState().payload.currentTime, 42);
+  } finally {
+    db.close();
+  }
+});
+
 test('partial play-history updates preserve existing non-empty metadata', () => {
   const db = new DatabaseSync(':memory:');
   db.exec(MUSIC_SCHEMA);

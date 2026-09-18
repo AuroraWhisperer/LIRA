@@ -48,6 +48,8 @@ let socketController = null;
 let stateRefreshTimer = null;
 let overlayResizeTimer = null;
 let lastRenderKey = null;
+let stateRevision = 0;
+let liveStatusRevision = 0;
 document.addEventListener('DOMContentLoaded', () => {
   loadState();
   connectSocket();
@@ -64,13 +66,15 @@ function handleQueueViewportResize() {
 }
 
 async function loadState() {
+  const revision = ++stateRevision;
+  const expectedLiveStatusRevision = liveStatusRevision;
   try {
     const response = await fetch('/api/state');
     const payload = await response.json();
-    if (payload.ok) {
-      lastRenderKey = null;
-      state = payload.data;
-      render();
+    if (payload.ok && revision === stateRevision) {
+      if (expectedLiveStatusRevision !== liveStatusRevision)
+        payload.data.liveStatus = state.liveStatus;
+      applyState(payload.data);
     }
   } catch (error) {
     console.warn('[overlay-queue] loadState failed:', error.message || error);
@@ -80,21 +84,20 @@ async function loadState() {
 function connectSocket() {
   if (socketController) return;
   socketController = createOverlaySocket({
-    onOpen: () => {
-      lastRenderKey = null;
-    },
     onReconnect: () => {
       loadState();
     },
     onMessage: (payload) => {
       if (payload.type !== 'snapshot') return;
       if (payload.reason === 'live:status' && state) {
+        liveStatusRevision += 1;
         state.liveStatus = payload.state.liveStatus;
         return;
       }
       if (payload.reason && payload.reason.startsWith('songs:')) {
         return;
       }
+      stateRevision += 1;
       if (queueStyleChanged(state, payload.state)) {
         scheduleStateRefresh();
         return;
@@ -103,22 +106,25 @@ function connectSocket() {
         scheduleStateRefresh();
         return;
       }
-      var newKey = computeStateKey(payload.state);
-      if (newKey === lastRenderKey) {
-        state = payload.state;
-        return;
-      }
-      lastRenderKey = newKey;
-      state = payload.state;
-      render();
+      applyState(payload.state);
     },
   });
   socketController.start();
 }
 
 function disposeSocket() {
+  stateRevision += 1;
+  clearTimeout(stateRefreshTimer);
   socketController?.dispose();
   socketController = null;
+}
+
+function applyState(nextState) {
+  const newKey = computeStateKey(nextState);
+  state = nextState;
+  if (newKey === lastRenderKey) return;
+  lastRenderKey = newKey;
+  render();
 }
 
 function isSongRequestSnapshotReason(reason) {
@@ -130,7 +136,6 @@ function isSongRequestSnapshotReason(reason) {
 function scheduleStateRefresh() {
   clearTimeout(stateRefreshTimer);
   stateRefreshTimer = setTimeout(function () {
-    lastRenderKey = null;
     loadState();
   }, 80);
 }

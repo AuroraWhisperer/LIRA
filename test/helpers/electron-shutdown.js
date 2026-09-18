@@ -260,6 +260,8 @@ function createShutdownHarness(options = {}) {
     './ipc/gift-interaction-ipc': {
       registerGiftInteractionIpc: () => () => calls.push('gift-interaction:remove-ipc'),
     },
+    './ipc/gift-export-ipc': { registerGiftExportIpc: () => () => {} },
+    './gift-export-controller': { createGiftExportController: () => ({}) },
     './license/license-manager': {
       LicenseState: { AUTHORIZED: 'AUTHORIZED' },
       createLicenseManager() {

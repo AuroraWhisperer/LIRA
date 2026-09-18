@@ -16,11 +16,13 @@ test('danmaku styles keep base, named style, and motion ownership', () => {
     "@import url('./danmaku/signal.css');",
     "@import url('./danmaku/bubble.css');",
     "@import url('./danmaku/minimal.css');",
+    "@import url('./danmaku/ranked-palette.css');",
     "@import url('./danmaku/ranked.css');",
     "@import url('./danmaku/transparent.css');",
     "@import url('./danmaku/identity.css');",
     "@import url('./danmaku/outline.css');",
     "@import url('./danmaku/cream.css');",
+    "@import url('./danmaku/glow.css');",
     "@import url('./danmaku/motion.css');",
     "@import url('./danmaku/preview.css');",
   ];
@@ -37,6 +39,7 @@ test('danmaku styles keep base, named style, and motion ownership', () => {
       'identity',
       'outline',
       'cream',
+      'glow',
       'motion',
     ].map((name) => [
       name,

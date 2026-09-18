@@ -122,6 +122,68 @@ test('WeSing routes require auth, persist cache path, and control monitor lifecy
   assert.equal(status.payload.data.supported, true);
   assert.equal('rawLog' in status.payload.data, false);
 
+  const nextCachePath = path.join(root, 'second', 'WeSingCache');
+  fs.mkdirSync(path.join(nextCachePath, 'WeSingDL', 'Res'), { recursive: true });
+  const updated = await requestJson(`${app.baseUrl}/api/settings`, token, {
+    method: 'POST',
+    body: JSON.stringify({ weSingCachePath: nextCachePath, weSingLyricOffsetMs: 125 }),
+  });
+  assert.equal(updated.response.status, 200);
+  assert.equal(runtime.getSetting('weSingCachePath'), nextCachePath);
+  assert.equal(runtime.getSetting('weSingLyricOffsetMs'), '125');
+  const updatedStatus = await requestJson(`${app.baseUrl}/api/music/wesing/status`, token);
+  assert.equal(updatedStatus.payload.data.cachePath, nextCachePath);
+  assert.equal(updatedStatus.payload.data.lyricOffsetMs, 125);
+  assert.equal(updatedStatus.payload.data.cacheReady, true);
+  assert.equal(updatedStatus.payload.data.active, true);
+
+  const unchanged = await requestJson(`${app.baseUrl}/api/settings`, token, {
+    method: 'POST',
+    body: JSON.stringify({ weSingCachePath: nextCachePath, weSingLyricOffsetMs: 125 }),
+  });
+  assert.equal(unchanged.response.status, 200);
+  assert.equal(monitorStarts, 1);
+  assert.equal(monitorStops, 0);
+
+  const invalidBatch = await requestJson(`${app.baseUrl}/api/settings`, token, {
+    method: 'POST',
+    body: JSON.stringify({ paused: true, weSingLyricOffsetMs: 3001 }),
+  });
+  assert.equal(invalidBatch.response.status, 400);
+  assert.equal(runtime.getSetting('paused'), 'false');
+  assert.equal(runtime.getSetting('weSingLyricOffsetMs'), '125');
+
+  const unavailableCachePath = path.join(root, 'unavailable', 'WeSingCache');
+  fs.mkdirSync(path.dirname(unavailableCachePath), { recursive: true });
+  fs.writeFileSync(unavailableCachePath, 'synthetic file blocking the cache directory');
+  const unavailableBatch = await requestJson(`${app.baseUrl}/api/settings`, token, {
+    method: 'POST',
+    body: JSON.stringify({ paused: true, weSingCachePath: unavailableCachePath, weSingLyricOffsetMs: 300 }),
+  });
+  assert.equal(unavailableBatch.response.status, 400);
+  assert.equal(runtime.getSetting('paused'), 'false');
+  assert.equal(runtime.getSetting('weSingCachePath'), nextCachePath);
+  assert.equal(runtime.getSetting('weSingLyricOffsetMs'), '125');
+  const afterFailure = await requestJson(`${app.baseUrl}/api/music/wesing/status`, token);
+  assert.equal(afterFailure.payload.data.cachePath, nextCachePath);
+  assert.equal(afterFailure.payload.data.lyricOffsetMs, 125);
+
+  const restored = await requestJson(`${app.baseUrl}/api/music/wesing/configure`, token, {
+    method: 'POST', body: JSON.stringify({ cachePath }),
+  });
+  assert.equal(restored.response.status, 200);
+  assert.equal(restored.payload.data.cachePath, cachePath);
+  assert.equal(restored.payload.data.lyricOffsetMs, 125);
+  assert.equal(runtime.getSetting('weSingCachePath'), cachePath);
+  const restoredOffset = await requestJson(`${app.baseUrl}/api/music/wesing/offset`, token, {
+    method: 'POST', body: JSON.stringify({ offsetMs: -250 }),
+  });
+  assert.equal(restoredOffset.response.status, 200);
+  assert.equal(restoredOffset.payload.data.lyricOffsetMs, -250);
+  assert.equal(runtime.getSetting('weSingLyricOffsetMs'), '-250');
+  assert.equal(monitorStarts, 1);
+  assert.equal(monitorStops, 0);
+
   const invalid = await requestJson(
     `${app.baseUrl}/api/music/wesing/configure`,
     token,

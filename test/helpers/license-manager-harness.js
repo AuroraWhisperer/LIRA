@@ -43,7 +43,7 @@ function createHarness({
   };
   const keyStore = {
     loadPrivateKey: () => (identity ? keyPair.privateKeyPem : null),
-    loadOrCreate: () => keyPair,
+    prepareActivation: () => ({ keyPair, stage() {}, commit() {}, complete() {} }),
   };
   const fingerprintProvider = {
     collect: async () => ({

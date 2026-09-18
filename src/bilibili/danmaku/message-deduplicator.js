@@ -4,6 +4,7 @@
 
 const bilibiliHelpers = require('../helpers');
 const { cleanText, normalizeTimestampMs } = require('../../shared/utils');
+const { logSongRequest } = require('../diagnostics');
 
 const COMMAND_MATCH_WINDOW_MS = 1500;
 const COMMAND_CACHE_MAX_AGE_MS = 30 * 60 * 1000;
@@ -188,6 +189,10 @@ function logDeduplicationDecision(
   const source = cleanText(options.source);
   if (source && !normalizedSources.includes(source))
     normalizedSources.push(source);
+  logSongRequest('command-filtered', {
+    message, uid, userName: options.userName, source,
+    messageTimestamp: normalizeTimestampMs(timestampMs),
+  }, { reason: `deduplicated:${reason}` });
   console.log(
     `[Bilibili][Command] status=deduplicated reason=${reason}` +
       ` uid=${JSON.stringify(normalizeUid(uid))}` +

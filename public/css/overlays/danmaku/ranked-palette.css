@@ -1,0 +1,23 @@
+/* 经典样式与流光气泡共用身份色，主播色优先于大航海身份。 */
+body[data-style='ranked'] .draw-danmaku-item,
+body[data-style='glow'] .draw-danmaku-item,
+body[data-style='ranked'] .draw-danmaku-item[data-identity='viewer'],
+body[data-style='ranked'] .draw-danmaku-item[data-identity='fan'] {
+  --ranked-accent: #6ed6dc;
+}
+body[data-style='ranked'] .draw-danmaku-item[data-identity='captain'],
+body[data-style='glow'] .draw-danmaku-item[data-identity='captain'] {
+  --ranked-accent: var(--guard-captain);
+}
+body[data-style='ranked'] .draw-danmaku-item[data-identity='admiral'],
+body[data-style='glow'] .draw-danmaku-item[data-identity='admiral'] {
+  --ranked-accent: var(--guard-admiral);
+}
+body[data-style='ranked'] .draw-danmaku-item[data-identity='governor'],
+body[data-style='glow'] .draw-danmaku-item[data-identity='governor'] {
+  --ranked-accent: var(--guard-governor);
+}
+body[data-style='ranked'] .draw-danmaku-item[data-streamer='true'],
+body[data-style='glow'] .draw-danmaku-item[data-streamer='true'] {
+  --ranked-accent: #67c479;
+}

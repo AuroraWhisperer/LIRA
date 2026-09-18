@@ -100,28 +100,52 @@ function createWeSingCapture(options = {}) {
   });
   const { sync: syncQrcWatcher, stop: stopQrcWatcher } = qrcWatcher;
 
+  async function prepareConfiguration(input) {
+    const nextLyricOffsetMs = Object.hasOwn(input, 'lyricOffsetMs')
+      ? normalizeWeSingLyricOffsetMs(input.lyricOffsetMs)
+      : undefined;
+    const nextCachePath = Object.hasOwn(input, 'cachePath')
+      ? await ensureWeSingCacheDirectory(input.cachePath)
+      : undefined;
+    return {
+      cachePath: nextCachePath,
+      lyricOffsetMs: nextLyricOffsetMs,
+      async apply() {
+        const pathChanged = nextCachePath !== undefined && nextCachePath !== cachePath;
+        const offsetChanged = nextLyricOffsetMs !== undefined && nextLyricOffsetMs !== lyricOffsetMs;
+        if (!pathChanged && !offsetChanged) return getStatus();
+        if (offsetChanged) {
+          lyricOffsetMs = nextLyricOffsetMs;
+          state.lyricOffsetMs = lyricOffsetMs;
+        }
+        if (pathChanged) {
+          stopQrcWatcher();
+          cachePath = nextCachePath;
+          state.cachePath = cachePath;
+          resetLyrics();
+          await refresh();
+        } else {
+          updateLyricState();
+          emit();
+        }
+        return getStatus();
+      },
+    };
+  }
+
   async function setCachePath(input) {
-    const nextCachePath = await ensureWeSingCacheDirectory(input);
-    stopQrcWatcher();
-    cachePath = nextCachePath;
-    state.cachePath = cachePath;
+    const prepared = await prepareConfiguration({ cachePath: input });
     if (typeof options.saveCachePath === 'function')
-      await options.saveCachePath(cachePath);
-    resetLyrics();
-    await refresh();
-    return getStatus();
+      await options.saveCachePath(prepared.cachePath);
+    return prepared.cachePath === cachePath ? refresh() : prepared.apply();
   }
 
   async function setLyricOffsetMs(input) {
-    const nextLyricOffsetMs = normalizeWeSingLyricOffsetMs(input);
+    const prepared = await prepareConfiguration({ lyricOffsetMs: input });
     if (typeof options.saveLyricOffsetMs === 'function') {
-      await options.saveLyricOffsetMs(nextLyricOffsetMs);
+      await options.saveLyricOffsetMs(prepared.lyricOffsetMs);
     }
-    lyricOffsetMs = nextLyricOffsetMs;
-    state.lyricOffsetMs = lyricOffsetMs;
-    updateLyricState();
-    emit();
-    return getStatus();
+    return prepared.apply();
   }
 
   async function setActive(active) {
@@ -589,6 +613,7 @@ function createWeSingCapture(options = {}) {
     setActive,
     setCachePath,
     setLyricOffsetMs,
+    prepareConfiguration,
     stop,
     waitForRefresh,
   };

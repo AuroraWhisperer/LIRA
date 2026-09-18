@@ -83,6 +83,7 @@ async function createPlaybackApp(initialState, options = {}) {
 
   const window = {
     __API_TOKEN__: options.apiToken,
+    __PLAYBACK_SNAPSHOT_WRITER__: { writerId: 'playback-test-writer', generation: 1 },
     AdminApp: {
       utils: {
         escapeHtml: escapeText,

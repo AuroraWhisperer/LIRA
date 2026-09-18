@@ -11,7 +11,7 @@ const {
 
 const ROOT_DIR = path.join(__dirname, '..');
 
-test('gift history drawer restores the 3.x table without search or date toolbars', () => {
+test('gift history drawer preserves the six data columns and adds selection and independent filters', () => {
   const html = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'pages', 'admin', 'gifts', 'history.html'),
     'utf8',
@@ -41,9 +41,12 @@ test('gift history drawer restores the 3.x table without search or date toolbars
   assert.match(html, /← 上一页/);
   assert.match(html, /第 1\/1 页/);
   assert.match(html, /下一页 →/);
+  for (const id of ['giftHistorySelectPage', 'giftHistoryUserQuery', 'giftHistoryGiftQuery', 'giftHistoryStartDate', 'giftHistoryEndDate', 'giftHistoryExport']) {
+    assert.ok(html.includes(`id="${id}"`));
+  }
 });
 
-test('gift history always requests all dates and never exposes source identity', async () => {
+test('gift history defaults to all dates and never exposes source identity', async () => {
   const modulePath = path.join(
     ROOT_DIR,
     'public',
@@ -138,6 +141,7 @@ test('gift history headers sort from page one with click and keyboard input', as
   ]) {
     elements.set(id, {
       ...createLyricToggleButton(),
+      style: { setProperty() {} },
       dataset: {},
       hidden: false,
       disabled: false,
@@ -391,7 +395,7 @@ test('loadGiftHistory requests one history page and renders canonical escaped ro
   assert.equal(renderedRows.length, 2);
   assert.deepEqual(
     renderedRows.map(([, row]) => (row.match(/<td\b/g) || []).length),
-    [6, 6],
+    [7, 7],
   );
   assert.match(body, /&lt;script&gt;alert\(&quot;gift&quot;\)&lt;\/script&gt;/);
   assert.match(body, /Alice &amp; &lt;img src=x&gt;/);
@@ -432,6 +436,7 @@ test('gift history keeps cursor navigation, ignores responses after close, and r
   ]) {
     elements.set(id, {
       ...createLyricToggleButton(),
+      style: { setProperty() {} },
       dataset: {},
       handlers: {},
       addEventListener(type, handler) {

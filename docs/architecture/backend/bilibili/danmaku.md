@@ -45,11 +45,13 @@
 
 | 场景                                            | 延迟                                                                        | 出处                                                                              |
 | ----------------------------------------------- | --------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| WS close 时**首次**断开(`reconnecting=false`)   | **0ms 立即重连**                                                            | [danmaku-client.js:250](../../../../src/bilibili/danmaku-client.js#L250)          |
-| 后续重连失败 / 已在重连中再断开                 | 固定 **5000ms**(`scheduleReconnect(generation, delayMs)` 默认值)            | [danmaku-client.js:374-397](../../../../src/bilibili/danmaku-client.js#L374-L397) |
+| WS close 或连接失败后自动恢复                 | **1/2/4/8/16/30 秒**指数退避，达到 30 秒后封顶；同一次失败只保留首个重连 timer | [danmaku-client.js](../../../../src/bilibili/danmaku-client.js) |
+| 退避清零                                     | 显式 start/restart；或断开前已连续连接至少 60 秒且有成功认证及心跳回复证据；仅 open 不清零 | [danmaku-client.js](../../../../src/bilibili/danmaku-client.js) |
 | 开播检测触发的重连(`reconnectAfterLiveStarted`) | 取消既有重连定时器、停历史轮询、重置 `startedAtMs` 后**立即**走完整 connect | [danmaku-client.js:331-372](../../../../src/bilibili/danmaku-client.js#L331-L372) |
 
 重连失败路径:报告状态(`connected: historyFallbackActive`)→ 再次 `scheduleReconnect` 无限循环,直到 `stop()`([danmaku-client.js:376-396](../../../../src/bilibili/danmaku-client.js#L376-L396))。
+
+自动尝试次数不设总上限，但请求频率有上述上限；历史消息回退在等待期间继续工作。start/restart 取消旧恢复 timer；stop 取消 timer 并递增 generation，旧回调不得重新安排任务。连接尝试序号继续用于诊断，与退避失败计数分开。
 
 ## 3. 轮询器与缓存(全部间隔速查)
 
@@ -207,6 +209,44 @@ AI 互动助手回复也经 `aiAssistant` 调用同一个 `danmakuSender.send({w
 
 - `bilibiliDiagnostics` 继续提供 `lastPacketAt`、`lastCommandAt/recentCommands` 等连接诊断。原有礼物检测字段保留快照形状，但不再记录本地解析计数或未识别礼物；礼物处理结果来自服务器。见 [ws.md](../ws.md) §2。
 
+### 8.1 登录到点歌的本地日志
+
+`src/bilibili/diagnostics.js` 按事件选择安全字段，以 `[Bilibili][Diagnostic]`
+输出 INFO。Electron 的 `terminal-log.js` 只额外保存这一前缀的 INFO，继续排除
+普通 log/info/debug，沿用 run/seq、单条 2 KiB、文件 10 MiB 的已有容量保护。
+`desktop.log` 保留窗口、Cookie 保存失败等原有记录。此增量不改变登录结果、
+连接成功判定、重连触发或点歌规则；`socket-open` 不能替代 B 站认证成功。
+
+| 事件 | 排查含义 |
+| --- | --- |
+| `login-open` / `login-closed` | 登录窗口打开、最终登录状态、关键 Cookie 是否存在、是否自动关闭及快照是否保存；`loggedIn` 只是本地凭据完整性，不等于平台验证有效 |
+| `credentials-restore` / `credentials-import-*` / `logout-*` | 启动恢复、云端凭据导入、退出登录的开始/完成/失败；不输出凭据值 |
+| `refresh-requested` / `auth-cache-changed` / `auth-read-failed` / `listener-created` | 手动刷新、运行时读取凭据变化或失败、使用这些凭据创建的监听实例；`clientGeneration` 区分实例 |
+| `socket-connecting` / `socket-open` / `auth-sent` / `auth-result` | 连接与认证阶段；认证 `code=0/status=accepted` 表示收到成功回包，非零为 rejected，缺少合法整数 code 为 invalid |
+| `auth-no-reply` | 首次心跳时仍未收到认证回包，默认等待 30 秒；仅记录一次，不自行重连或改变页面状态 |
+| `socket-first-packet` / `heartbeat-confirmed` / `danmaku-first-received` | 每条连接首次收到数据、心跳回复、可解析弹幕；帮助区分传输存活和实际收到弹幕，不逐条保存普通聊天 |
+| `socket-summary` / `listener-stopped` / `socket-closed` / `socket-error` | 断开/停止时的认证状态、包数、弹幕数、心跳回复数及最后收包时间，或连接错误 |
+| `history-start` / `history-stop` / `history-sample` | 历史补偿启停，以及首次成功拉取/有新命令时的总数、过期数、重复数和处理数；空闲轮询不重复写样本 |
+| `command-ingress` / `command-received` | 上游点歌进入及通过前置过滤；各自的 `nameMasked` 可比较原始昵称与身份缓存合并后的昵称 |
+| `command-filtered` / `command-result` / `queue-broadcast` | 时间或去重过滤、处理结果、入队后的广播调用完成；queue-broadcast 不是 OBS 渲染确认 |
+
+拒绝原因代码：`requests-paused` 暂停接收、`user-cooldown` 用户冷却、
+`no-random-candidate` 无符合条件的随机歌曲、`empty-song-name` 缺少歌名、
+`queue-full` 队列满、`song-already-queued` 已入队、`song-not-in-library` 不在歌库、
+`not-a-song-command` 指令不完整、`stale-timestamp` 超出接收时间窗、
+`deduplicated:*` 去重拒绝、`unexpected-error` 未分类异常。失败的 `stage` 区分
+请求处理、处理后的附属逻辑和广播，避免把已入队后的异常误读为点歌未入队。
+
+点歌只记录类型、长度、时间、掩码标记、队列 ID 和进程内 HMAC `commandRef`，
+不增加正文、用户 UID/昵称、Cookie、token 或原始认证包落盘。
+`commandRef` 的随机密钥不保存，跨进程或历史接口时间精度变化时不能据此合并。
+
+现场复现：安装包含此修改的版本，完成重新登录 → 刷新直播 → 发送一条歌库内且
+尚未入队的点歌，保留发送时间和软件显示结果。即使随后自行恢复，也从
+“工具箱 → 桌面更新 → 本地数据 → 日志目录”取 `terminal.log` 和 `desktop.log`。
+既有容量保护满额后不会再追加，日志缺失不能单独证明平台没有发送；本次未实现
+日志轮转、OBS 回执或自动上报。无需反复重启或清理日志来复现。
+
 ## 9. 关键常数速查
 
 | 参数                      | 值                               | 出处                                                                                                                                                             |
@@ -217,7 +257,7 @@ AI 互动助手回复也经 `aiAssistant` 调用同一个 `danmakuSender.send({w
 | 开播检测                  | 10min(unref)                     | [live-status-monitor.js:5](../../../../src/bilibili/danmaku/live-status-monitor.js#L5)                                                                           |
 | 身份缓存 TTL / 清理       | 10min / 5min                     | [identity-cache.js:7](../../../../src/bilibili/danmaku/identity-cache.js#L7)、[message-handlers.js:31](../../../../src/bilibili/danmaku/message-handlers.js#L31) |
 | 去重:跨源窗 / 保留 / 上限 | 1.5s / 30min / 1000→500          | [message-deduplicator.js:8-10](../../../../src/bilibili/danmaku/message-deduplicator.js#L8-L10)                                                                  |
-| 重连延迟                  | 首次 0ms,其后 5000ms 固定        | [danmaku-client.js:250](../../../../src/bilibili/danmaku-client.js#L250)、[danmaku-client.js:374](../../../../src/bilibili/danmaku-client.js#L374)               |
+| 重连延迟                  | 1/2/4/8/16/30 秒，有上限；稳定认证连接后清零 | [danmaku-client.js](../../../../src/bilibili/danmaku-client.js) |
 | 可捕获窗口                | 启动前 5s ~ 30min 前 ~ 未来 5min | [helpers.js:41-50](../../../../src/bilibili/helpers.js#L41-L50)                                                                                                  |
 | 发送限速 / 单条上限       | 1.5s / 40 字符                   | [sender-service.js:19](../../../../src/bilibili/danmaku/sender-service.js#L19)、[sender-service.js:5](../../../../src/bilibili/danmaku/sender-service.js#L5)     |
 | 签到/抽签日期             | 北京时间 UTC+8                   | [checkin-service.js:9](../../../../src/bilibili/checkin-service.js#L9)                                                                                           |

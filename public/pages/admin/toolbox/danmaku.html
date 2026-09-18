@@ -206,6 +206,16 @@
               <span class="danmaku-style-name">奶油气泡</span>
               <span class="danmaku-style-description">奶油底色，粉边与外置头像</span>
             </button>
+            <button
+              class="danmaku-style-option"
+              type="button"
+              data-danmaku-style="glow"
+              aria-pressed="false"
+            >
+              <img src="/img/overlays/danmaku-previews/glow.png" class="danmaku-style-sample" alt="" />
+              <span class="danmaku-style-name">流光气泡</span>
+              <span class="danmaku-style-description">昵称在框上方，经典身份色柔光</span>
+            </button>
           </div>
           <label
             id="danmakuFullscreenDurationField"
@@ -317,7 +327,7 @@
     <!-- admin-fragment: pages/admin/toolbox/danmaku-ai.html -->
     <section
       class="danmaku-feature-section danmaku-fixed-reply-section"
-      aria-labelledby="danmakuFixedReplyTitle danmakuReplyTitle danmakuCheckinTitle danmakuFortuneTitle danmakuCustomReplyTitle danmakuWelcomeTitle"
+      aria-labelledby="danmakuFixedReplyTitle"
     >
       <div class="danmaku-section-heading">
         <div>
@@ -339,76 +349,62 @@
             固定回复
           </h3>
         </div>
+        <span class="hint">开关即时生效 · 配置单独保存</span>
       </div>
-      <div class="danmaku-bot-switch-grid">
-        <div class="danmaku-reply-target danmaku-bot-switch-card">
-          <div>
-            <strong id="danmakuReplyTitle"
-              >随机点歌回复
-              <lira-help>条件不匹配时自动回复点歌人。</lira-help></strong
-            >
-          </div>
-          <label class="switch-control"
-            ><input id="danmakuReplyToggle" type="checkbox" /><span
-              class="switch-track"
-            ></span
-            ><span>启用回复</span></label
-          >
+      <div class="danmaku-fixed-overview">
+        <div class="danmaku-fixed-item" data-fixed-item="random">
+          <button class="danmaku-fixed-open" type="button" data-fixed-open="random" aria-controls="danmakuRandomReplyPanel" aria-expanded="false">
+            <span><strong id="danmakuReplyTitle">随机点歌回复</strong><span class="danmaku-fixed-summary">无匹配歌曲时自动回复</span><span class="danmaku-fixed-note" data-fixed-note="random"></span></span>
+            <span class="danmaku-fixed-action">说明</span>
+          </button>
+          <label class="switch-control"><input id="danmakuReplyToggle" type="checkbox" aria-labelledby="danmakuReplyTitle" /><span class="switch-track"></span><span class="switch-caption" aria-hidden="true"></span></label>
         </div>
-        <div class="danmaku-reply-target danmaku-bot-switch-card">
-          <div>
-            <strong id="danmakuCheckinTitle"
-              >签到机器人
-              <lira-help
-                ><span id="danmakuCheckinTarget"
-                  >收到“签到”后回复累计天数。</span
-                ></lira-help
-              ></strong
-            >
-          </div>
-          <label class="switch-control"
-            ><input id="danmakuCheckinToggle" type="checkbox" /><span
-              class="switch-track"
-            ></span
-            ><span>启用签到</span></label
-          >
+        <div class="danmaku-fixed-item" data-fixed-item="checkin">
+          <button class="danmaku-fixed-open" type="button" data-fixed-open="checkin" aria-controls="danmakuBlessingsPanel" aria-expanded="false">
+            <span><strong id="danmakuCheckinTitle">签到机器人</strong><span class="danmaku-fixed-summary" data-fixed-count="danmakuBlessingCount">正在读取祝福语</span><span class="danmaku-fixed-note" data-fixed-note="checkin"></span></span>
+            <span class="danmaku-fixed-action">编辑</span>
+          </button>
+          <label class="switch-control"><input id="danmakuCheckinToggle" type="checkbox" aria-labelledby="danmakuCheckinTitle" /><span class="switch-track"></span><span class="switch-caption" aria-hidden="true"></span></label>
         </div>
-        <div class="danmaku-reply-target danmaku-bot-switch-card">
-          <div>
-            <strong id="danmakuFortuneTitle"
-              >抽签机器人
-              <lira-help>收到“抽签”后回复每日一签。</lira-help></strong
-            >
-          </div>
-          <label class="switch-control"
-            ><input id="danmakuFortuneToggle" type="checkbox" /><span
-              class="switch-track"
-            ></span
-            ><span>启用抽签</span></label
-          >
+        <div class="danmaku-fixed-item" data-fixed-item="fortune">
+          <button class="danmaku-fixed-open" type="button" data-fixed-open="fortune" aria-controls="danmakuFortunesPanel" aria-expanded="false">
+            <span><strong id="danmakuFortuneTitle">抽签机器人</strong><span class="danmaku-fixed-summary" data-fixed-count="danmakuFortuneCount">正在读取签文</span><span class="danmaku-fixed-note" data-fixed-note="fortune"></span></span>
+            <span class="danmaku-fixed-action">编辑</span>
+          </button>
+          <label class="switch-control"><input id="danmakuFortuneToggle" type="checkbox" aria-labelledby="danmakuFortuneTitle" /><span class="switch-track"></span><span class="switch-caption" aria-hidden="true"></span></label>
         </div>
-        <div class="danmaku-reply-target danmaku-bot-switch-card">
-          <div>
-            <strong id="danmakuCustomReplyTitle"
-              >DIY 关键词回复
-              <lira-help>收到自定义关键词后回复固定文案。</lira-help></strong
-            >
-          </div>
-          <label class="switch-control"
-            ><input id="danmakuCustomReplyToggle" type="checkbox" /><span
-              class="switch-track"
-            ></span
-            ><span>启用 DIY</span></label
-          >
+        <div class="danmaku-fixed-item" data-fixed-item="diy">
+          <button class="danmaku-fixed-open" type="button" data-fixed-open="diy" aria-controls="danmakuCustomRepliesPanel" aria-expanded="false">
+            <span><strong id="danmakuCustomReplyTitle">DIY 关键词回复</strong><span class="danmaku-fixed-summary" data-fixed-count="danmakuCustomReplyCount">正在读取规则</span><span class="danmaku-fixed-note" data-fixed-note="diy"></span></span>
+            <span class="danmaku-fixed-action">编辑</span>
+          </button>
+          <label class="switch-control"><input id="danmakuCustomReplyToggle" type="checkbox" aria-labelledby="danmakuCustomReplyTitle" /><span class="switch-track"></span><span class="switch-caption" aria-hidden="true"></span></label>
         </div>
+        <!-- admin-fragment: pages/admin/toolbox/danmaku-welcome-switch.html -->
+        <!-- admin-fragment: pages/admin/toolbox/danmaku-pk-report-switch.html -->
       </div>
-      <!-- admin-fragment: pages/admin/toolbox/danmaku-welcome-switch.html -->
-      <!-- admin-fragment: pages/admin/toolbox/danmaku-pk-report-switch.html -->
-      <details id="danmakuCustomRepliesPanel" class="danmaku-blessings-section">
+      <div id="danmakuFixedEditorHeading" class="danmaku-fixed-editor-heading" hidden>
+        <h4 id="danmakuFixedEditorTitle"></h4>
+        <div id="danmakuWelcomeTabs" class="danmaku-welcome-tabs" role="group" aria-label="欢迎设置视图" hidden>
+          <button type="button" data-welcome-view="parameters" aria-pressed="true">参数</button>
+          <button type="button" data-welcome-view="libraries" aria-pressed="false">词库</button>
+          <button id="danmakuWelcomeRefreshBtn" class="danmaku-text-action" type="button" disabled>刷新</button>
+        </div>
+        <button id="danmakuFixedEditorClose" class="danmaku-text-action" type="button">收起</button>
+      </div>
+      <section id="danmakuRandomReplyPanel" data-fixed-editor="random" hidden>
+        <p class="hint">条件不匹配时自动回复点歌人。回复由点歌结果生成，无需配置词库。</p>
+      </section>
+      <section id="danmakuPkReportPanel" data-fixed-editor="pk" hidden>
+        <p class="hint">PK 开始时，服务器自动在本直播间播报对手大航海与在线榜概况。榜单可能不完整。按当前在线榜贡献值估算，三个金额档位互不重叠（1 元＝10 贡献值）。退出客户端后服务器继续运行。</p>
+        <p id="danmakuPkReportDetail" class="hint" role="status"></p>
+        <button id="danmakuPkReportRefreshBtn" type="button" class="secondary" disabled>刷新状态</button>
+      </section>
+      <details id="danmakuCustomRepliesPanel" class="danmaku-blessings-section" data-fixed-editor="diy" hidden>
         <summary>
           <div>
             <h3>
-              DIY 关键词回复 <lira-help>弹幕包含关键词时自动回复。</lira-help>
+              DIY 关键词回复 <lira-help>收到自定义关键词后回复固定文案。</lira-help>
             </h3>
             <p><span id="danmakuCustomReplyCount">0 条</span></p>
           </div>
@@ -474,7 +470,7 @@
           </div>
         </div>
       </details>
-      <details id="danmakuBlessingsPanel" class="danmaku-blessings-section">
+      <details id="danmakuBlessingsPanel" class="danmaku-blessings-section" data-fixed-editor="checkin" hidden>
         <summary>
           <div>
             <h3>签到祝福语 <lira-help>签到时随机发送一条。</lira-help></h3>
@@ -496,6 +492,7 @@
           </svg>
         </summary>
         <div class="danmaku-blessings-body">
+          <p id="danmakuCheckinTarget" class="hint">收到“签到”后回复累计天数，随机附上一条祝福语。</p>
           <div
             id="danmakuBlessingList"
             class="danmaku-blessing-list"
@@ -540,11 +537,11 @@
           </div>
         </div>
       </details>
-      <details id="danmakuFortunesPanel" class="danmaku-blessings-section">
+      <details id="danmakuFortunesPanel" class="danmaku-blessings-section" data-fixed-editor="fortune" hidden>
         <summary>
           <div>
             <h3>
-              抽签机器人词库 <lira-help>同一观众每天固定抽取一条。</lira-help>
+              抽签机器人词库 <lira-help>收到“抽签”后回复每日一签；同一观众每天固定抽取一条。</lira-help>
             </h3>
             <p><span id="danmakuFortuneCount">0 条</span></p>
           </div>
@@ -617,6 +614,10 @@
         </div>
       </details>
       <!-- admin-fragment: pages/admin/toolbox/danmaku-welcome-library.html -->
+      <div class="danmaku-welcome-pinyin">
+        <div><strong id="danmakuWelcomePinyinTitle">昵称生僻字自动注音</strong><span id="danmakuWelcomePinyinStatus" class="hint" role="status">尚未确认</span><p class="hint">读音会随欢迎、问候公开发送。多音字或未知读音保留原字。</p></div>
+        <label class="switch-control"><input id="danmakuWelcomePinyinToggle" type="checkbox" disabled aria-labelledby="danmakuWelcomePinyinTitle" /><span class="switch-track"></span><span class="switch-caption" aria-hidden="true"></span></label>
+      </div>
     </section>
   </div>
 </section>

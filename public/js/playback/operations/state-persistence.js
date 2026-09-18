@@ -4,6 +4,8 @@
 
 import { PlaybackConfig } from '../config.js';
 
+let nextSenderGeneration = 0;
+
 /**
  * 创建状态持久化操作模块
  * @param {Object} deps - 依赖对象
@@ -16,6 +18,17 @@ export function createStatePersistence(deps) {
   const playbackStateSaveDebounceMs = PlaybackConfig.STATE_SAVE_DEBOUNCE_MS;
   let playbackStateSaveTimer = null;
   let playbackStateSavePending = null;
+  let snapshotSequence = 0;
+  const bootWriter = deps.snapshotWriter || window.__PLAYBACK_SNAPSHOT_WRITER__;
+  if (!bootWriter?.writerId || !Number.isSafeInteger(bootWriter.generation) ||
+    bootWriter.generation < 1) {
+    throw new Error('播放快照启动信息缺失，请重新加载管理页。');
+  }
+  const snapshotWriter = {
+    writerId: bootWriter.writerId,
+    generation: bootWriter.generation,
+    senderGeneration: ++nextSenderGeneration,
+  };
 
   /**
    * 序列化轨道对象（过滤掉不需要保存的字段）
@@ -105,7 +118,10 @@ export function createStatePersistence(deps) {
    * 调度状态保存（防抖）
    */
   function schedulePlaybackStateSave(payload) {
-    playbackStateSavePending = payload;
+    playbackStateSavePending = {
+      ...payload,
+      snapshotVersion: { ...snapshotWriter, sequence: ++snapshotSequence },
+    };
     if (playbackStateSaveTimer) clearTimeout(playbackStateSaveTimer);
     playbackStateSaveTimer = setTimeout(() => {
       void flushPlaybackStateSave();
@@ -119,12 +135,23 @@ export function createStatePersistence(deps) {
     const payload = takePendingPayload();
     if (!payload) return;
     try {
-      await fetch('/api/playback/queue-state', {
+      const response = await fetch('/api/playback/queue-state', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ clientId: playbackClientId, payload }),
       });
-    } catch (_) {}
+      if (!response.ok) retainPendingPayload(payload);
+    } catch (_) {
+      retainPendingPayload(payload);
+    }
+  }
+
+  function retainPendingPayload(payload) {
+    if (payload.snapshotVersion.sequence !== snapshotSequence) return;
+    if (!playbackStateSavePending ||
+      playbackStateSavePending.snapshotVersion.sequence < payload.snapshotVersion.sequence) {
+      playbackStateSavePending = payload;
+    }
   }
 
   function takePendingPayload() {
@@ -145,9 +172,11 @@ export function createStatePersistence(deps) {
       savePlaybackState();
     }
     const payload = takePendingPayload();
-    if (!payload) return;
+    if (payload) sendUnloadSnapshot(payload);
+  }
 
-    // 优先使用桌面端的同步保存 API
+  function sendUnloadSnapshot(payload) {
+    // 两条通道复用同一快照版本，store 将第二次到达视为幂等重放。
     if (
       window.musicAPI &&
       typeof window.musicAPI.savePlaybackState === 'function'
@@ -200,13 +229,16 @@ export function createStatePersistence(deps) {
     }
 
     try {
-      await fetch('/api/playback/queue-state', {
+      const response = await fetch('/api/playback/queue-state', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ clientId: playbackClientId, payload }),
         keepalive: true,
       });
-    } catch (_) {}
+      if (!response.ok) retainPendingPayload(payload);
+    } catch (_) {
+      retainPendingPayload(payload);
+    }
   }
 
   return {

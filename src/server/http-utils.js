@@ -34,8 +34,15 @@ function readRawBody(req, maxBodyBytes = 0) {
       total += chunk.length;
       if (maxBytes > 0 && total > maxBytes) {
         settled = true;
-        reject(new Error('Request body is too large.'));
-        req.destroy();
+        chunks.length = 0;
+        req.pause();
+        // Let the error response flush before reclaiming an unfinished upload.
+        const closeTimer = setTimeout(() => req.destroy(), 1000);
+        closeTimer.unref();
+        req.once('close', () => clearTimeout(closeTimer));
+        reject(Object.assign(new Error('Request body is too large.'), {
+          code: 'REQUEST_BODY_TOO_LARGE', statusCode: 413,
+        }));
         return;
       }
       chunks.push(chunk);
@@ -58,6 +65,7 @@ function sendJson(res, status, payload) {
   res.writeHead(status, {
     'Content-Type': 'application/json; charset=utf-8',
     'Cache-Control': 'no-store',
+    ...(status === 413 ? { Connection: 'close' } : {}),
   });
   res.end(body);
 }
@@ -92,7 +100,7 @@ function sendBuffer(res, status, contentTypeValue, filename, content) {
   res.end(content);
 }
 
-function servePageOrAsset(publicDir, req, res, requestUrl, injectToken) {
+function servePageOrAsset(publicDir, req, res, requestUrl, injectToken, beginPlaybackSnapshotSession) {
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     sendJson(res, 405, {
       ok: false,
@@ -110,6 +118,8 @@ function servePageOrAsset(publicDir, req, res, requestUrl, injectToken) {
     ['/blindbox', 'pages/overlays/blindbox.html'],
     ['/overtime', 'pages/overlays/overtime.html'],
     ['/gift-effects', 'pages/overlays/gift-effects.html'],
+    ['/gift-feed', 'pages/overlays/gift-feed.html'],
+    ['/gift-export', 'pages/overlays/gift-export.html'],
     ['/lyrics', 'pages/overlays/lyric-window.html'],
     ['/games', 'pages/overlays/games.html'],
     ['/danmaku', 'pages/overlays/danmaku.html'],
@@ -137,6 +147,14 @@ function servePageOrAsset(publicDir, req, res, requestUrl, injectToken) {
       return;
     }
     let body = content;
+    if (isAdminPage && req.method === 'GET' && beginPlaybackSnapshotSession) {
+      const writer = beginPlaybackSnapshotSession();
+      const headEnd = body.indexOf(Buffer.from('</head>'));
+      const bootstrap = Buffer.from(
+        `<script>window.__PLAYBACK_SNAPSHOT_WRITER__=${JSON.stringify(writer)};</script>\n`,
+      );
+      body = Buffer.concat([body.subarray(0, headEnd), bootstrap, body.subarray(headEnd)]);
+    }
     if (
       injectToken &&
       typeof injectToken === 'string' &&
@@ -267,19 +285,7 @@ function serveOpeningMedia(dataDir, req, res, requestUrl, getCurrentFileName) {
     'opening-music',
     fileName,
   );
-  fs.stat(filePath, (statError, stats) => {
-    if (statError || !stats.isFile()) {
-      sendJson(res, 404, { ok: false, error: 'Not found.' });
-      return;
-    }
-    res.writeHead(200, {
-      'Content-Type': contentType(filePath),
-      'Content-Length': stats.size,
-      'Cache-Control': 'no-store',
-    });
-    if (req.method === 'HEAD') res.end();
-    else fs.createReadStream(filePath).pipe(res);
-  });
+  serveOpeningFile(filePath, req, res);
 }
 
 function serveOpeningCharacter(
@@ -322,18 +328,48 @@ function serveOpeningCharacter(
     'opening-character',
     fileName,
   );
+  serveOpeningFile(filePath, req, res);
+}
+
+function serveOpeningFile(filePath, req, res) {
   fs.stat(filePath, (statError, stats) => {
+    if (res.destroyed) return;
     if (statError || !stats.isFile()) {
       sendJson(res, 404, { ok: false, error: 'Not found.' });
       return;
     }
-    res.writeHead(200, {
+    const headers = {
       'Content-Type': contentType(filePath),
       'Content-Length': stats.size,
       'Cache-Control': 'no-store',
+    };
+    if (req.method === 'HEAD') {
+      res.writeHead(200, headers);
+      res.end();
+      return;
+    }
+    const source = fs.createReadStream(filePath);
+    source.on('error', (error) => {
+      if (res.destroyed) return;
+      if (res.headersSent) {
+        res.destroy();
+        return;
+      }
+      const missing = error.code === 'ENOENT' || error.code === 'ENOTDIR';
+      sendJson(res, missing ? 404 : 500, {
+        ok: false,
+        error: missing ? 'Not found.' : 'Internal server error.',
+      });
     });
-    if (req.method === 'HEAD') res.end();
-    else fs.createReadStream(filePath).pipe(res);
+    res.once('close', () => source.destroy());
+    source.once('open', () => {
+      if (res.destroyed) {
+        source.destroy();
+        return;
+      }
+      res.writeHead(200, headers);
+      source.pipe(res);
+    });
   });
 }
 
@@ -437,6 +473,7 @@ function addFrameProtectionHeaders(res, pathname) {
     '/blindbox',
     '/overtime',
     '/gift-effects',
+    '/gift-feed',
     '/lyrics',
     '/games',
     '/wheel',
@@ -478,6 +515,11 @@ function sendStableError(res, error) {
       ok: false,
       error: 'Request body exceeds size limit.',
     });
+    return;
+  }
+
+  if (error?.statusCode === 400) {
+    sendJson(res, 400, { ok: false, error: 'Invalid request parameters.' });
     return;
   }
 

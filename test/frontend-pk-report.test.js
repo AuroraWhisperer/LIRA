@@ -35,7 +35,7 @@ test('PK report card is composed in fixed replies and starts disabled', () => {
   assert.match(html, /id="danmakuPkReportToggle"[^>]*disabled/);
   assert.match(html, /PK 对手信息播报/);
   assert.match(html, /榜单可能不完整/);
-  assert.match(html, /按当前高能榜贡献值估算，三个金额档位互不重叠/);
+  assert.match(html, /按当前在线榜贡献值估算，三个金额档位互不重叠/);
   assert.match(html, /1 元＝10 贡献值/);
 });
 

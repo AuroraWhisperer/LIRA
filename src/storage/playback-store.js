@@ -3,6 +3,7 @@
 // 对应 music-data.db，替代原先只存在浏览器 localStorage 的播放状态。
 'use strict';
 
+const { randomUUID } = require('node:crypto');
 const { now, cleanText, safeParseJson } = require('../shared/utils');
 
 const DEFAULT_CLIENT_ID = 'default';
@@ -35,6 +36,37 @@ function normalizeTrackFields(track) {
 }
 
 function createPlaybackStore(db) {
+  function queueTransaction(run) {
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      const result = run();
+      db.exec('COMMIT');
+      return result;
+    } catch (error) {
+      db.exec('ROLLBACK');
+      throw error;
+    }
+  }
+
+  function readQueueRow(clientId) {
+    return db
+      .prepare(
+        'SELECT payload, updated_at FROM play_queue_state WHERE client_id = ?',
+      )
+      .get(clientId);
+  }
+
+  function writeQueueRow(clientId, payload, updatedAt = now()) {
+    const text = JSON.stringify(payload);
+    db.prepare(
+      `INSERT INTO play_queue_state (client_id, payload, updated_at)
+       VALUES (?, ?, ?)
+       ON CONFLICT(client_id) DO UPDATE SET
+         payload = excluded.payload, updated_at = excluded.updated_at`,
+    ).run(clientId, text, updatedAt);
+    return { saved: true, bytes: text.length };
+  }
+
   const store = {
     // ── 播放历史 ──
 
@@ -146,37 +178,110 @@ function createPlaybackStore(db) {
 
     // ── 队列快照 ──
 
+    /** HTML 启动领取独立代次；只分配高水位，实际保存后才替换当前发送端。 */
+    beginQueueStateSession(options = {}) {
+      const clientId = normalizeClientId(options.clientId);
+      return queueTransaction(() => {
+        const row = readQueueRow(clientId);
+        const payload = (row && safeParseJson(row.payload)) || {};
+        const generation = Math.max(
+          payload.issuedGeneration || 0,
+          payload.snapshotVersion?.generation || 0,
+        ) + 1;
+        if (!Number.isSafeInteger(generation)) {
+          throw new Error('播放快照代次超出范围。');
+        }
+        const snapshotVersion = {
+          writerId: randomUUID(), generation, senderGeneration: 0, sequence: 0,
+        };
+        writeQueueRow(
+          clientId,
+          { ...payload, issuedGeneration: generation },
+          row?.updated_at || now(),
+        );
+        return snapshotVersion;
+      });
+    },
+
     /** 队列状态整体存为 JSON：结构随前端演进，拆列会频繁改表 */
     saveQueueState(payload, options = {}) {
       const clientId = normalizeClientId(options.clientId);
-      const text = JSON.stringify(
-        payload && typeof payload === 'object' ? payload : {},
-      );
-      db.prepare(
-        `
-        INSERT INTO play_queue_state (client_id, payload, updated_at)
-        VALUES (?, ?, ?)
-        ON CONFLICT(client_id) DO UPDATE SET
-          payload = excluded.payload, updated_at = excluded.updated_at
-      `,
-      ).run(clientId, text, now());
-      return { saved: true, bytes: text.length };
+      const snapshot = payload && typeof payload === 'object' ? payload : {};
+      const version = snapshot.snapshotVersion;
+      if (
+        version !== undefined && (
+          !version || typeof version.writerId !== 'string' || !version.writerId ||
+          !Number.isSafeInteger(version.generation) || version.generation < 1 ||
+          (version.senderGeneration !== undefined && (
+            !Number.isSafeInteger(version.senderGeneration) || version.senderGeneration < 0
+          )) ||
+          !Number.isSafeInteger(version.sequence) || version.sequence < 1
+        )
+      ) {
+        throw new Error('无效播放快照版本。');
+      }
+      return queueTransaction(() => {
+        const row = readQueueRow(clientId);
+        const previousPayload = (row && safeParseJson(row.payload)) || {};
+        const previous = previousPayload.snapshotVersion;
+        const issuedGeneration = Math.max(
+          previousPayload.issuedGeneration || 0, previous?.generation || 0,
+        );
+        const sender = version?.senderGeneration || 0;
+        const previousSender = previous?.senderGeneration || 0;
+        if (previous && !version) {
+          return { saved: false, reason: 'stale-snapshot' };
+        }
+        if (version) {
+          if (
+            version.generation > issuedGeneration ||
+            version.generation < (previous?.generation || 0)
+          ) {
+            return { saved: false, reason: 'stale-snapshot' };
+          }
+          if (version.generation === previous?.generation) {
+            if (
+              previous.writerId !== version.writerId || sender < previousSender ||
+              (sender === previousSender && version.sequence < previous.sequence)
+            ) {
+              return { saved: false, reason: 'stale-snapshot' };
+            }
+            if (sender === previousSender && version.sequence === previous.sequence) {
+              return { saved: true, duplicate: true, bytes: row.payload.length };
+            }
+          }
+        }
+        const next = { ...snapshot };
+        delete next.issuedGeneration;
+        if (issuedGeneration) next.issuedGeneration = issuedGeneration;
+        return writeQueueRow(clientId, next);
+      });
     },
 
     getQueueState(options = {}) {
-      const row = db
-        .prepare(
-          'SELECT payload, updated_at FROM play_queue_state WHERE client_id = ?',
-        )
-        .get(normalizeClientId(options.clientId));
+      const row = readQueueRow(normalizeClientId(options.clientId));
       if (!row) return null;
-      return { payload: safeParseJson(row.payload), updatedAt: row.updated_at };
+      const payload = safeParseJson(row.payload);
+      if (payload && (payload.snapshotVersion || payload.issuedGeneration)) {
+        delete payload.issuedGeneration;
+        if (Object.keys(payload).every((key) => key === 'snapshotVersion'))
+          return null;
+      }
+      return { payload, updatedAt: row.updated_at };
     },
 
     clearQueueState(options = {}) {
-      db.prepare('DELETE FROM play_queue_state WHERE client_id = ?').run(
-        normalizeClientId(options.clientId),
-      );
+      const clientId = normalizeClientId(options.clientId);
+      queueTransaction(() => {
+        const row = readQueueRow(clientId);
+        // 保留已接收序号，防止清除后旧快照重放复活队列。
+        const payload = (row && safeParseJson(row.payload)) || {};
+        const { snapshotVersion, issuedGeneration } = payload;
+        if (snapshotVersion || issuedGeneration)
+          writeQueueRow(clientId, { snapshotVersion, issuedGeneration });
+        else db.prepare('DELETE FROM play_queue_state WHERE client_id = ?')
+          .run(clientId);
+      });
       return { cleared: true };
     },
 

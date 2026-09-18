@@ -233,7 +233,7 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
   );
   assert.match(
     styles,
-    /body\[data-style='ranked'\] \.draw-danmaku-item \{[^}]*--ranked-accent:\s*#6ed6dc;[^}]*grid-template-columns:\s*var\(--ranked-avatar-size\) minmax\(0, 1fr\)[^}]*width:\s*max-content;[^}]*min-width:\s*0;[^}]*max-width:\s*var\(--ranked-bubble-max-width\)[^}]*background:\s*transparent;[^}]*clip-path:\s*none;/s,
+    /body\[data-style='ranked'\] \.draw-danmaku-item \{[^}]*grid-template-columns:\s*var\(--ranked-avatar-size\) minmax\(0, 1fr\)[^}]*width:\s*max-content;[^}]*min-width:\s*0;[^}]*max-width:\s*var\(--ranked-bubble-max-width\)[^}]*background:\s*transparent;[^}]*clip-path:\s*none;/s,
   );
   assert.match(
     styles,
@@ -293,15 +293,15 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
   );
   assert.match(
     styles,
-    /body\[data-style='ranked'\] \.draw-danmaku-item\[data-identity='captain'\] \{ --ranked-accent: var\(--guard-captain\);/,
+    /body\[data-style='ranked'\] \.draw-danmaku-item\[data-identity='captain'\],[^{]*\{ --ranked-accent: var\(--guard-captain\);/,
   );
   assert.match(
     styles,
-    /body\[data-style='ranked'\] \.draw-danmaku-item\[data-identity='admiral'\] \{ --ranked-accent: var\(--guard-admiral\);/,
+    /body\[data-style='ranked'\] \.draw-danmaku-item\[data-identity='admiral'\],[^{]*\{ --ranked-accent: var\(--guard-admiral\);/,
   );
   assert.match(
     styles,
-    /body\[data-style='ranked'\] \.draw-danmaku-item\[data-identity='governor'\] \{ --ranked-accent: var\(--guard-governor\);/,
+    /body\[data-style='ranked'\] \.draw-danmaku-item\[data-identity='governor'\],[^{]*\{ --ranked-accent: var\(--guard-governor\);/,
   );
   assert.match(
     styles,

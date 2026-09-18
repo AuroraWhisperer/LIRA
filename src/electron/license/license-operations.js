@@ -1,6 +1,7 @@
 'use strict';
 
 const { RemoteLicenseError } = require('./remote-license-client');
+const { sanitizeWelcomeV2 } = require('../../shared/welcome-settings-contract');
 const {
   normalizeProcessedGiftHistoryPage,
   normalizeProcessedGiftPage,
@@ -45,6 +46,20 @@ function createLicenseOperations(options = {}) {
 
   async function getWelcomeSettings() {
     return overlayOperation((token) => remote.getWelcomeSettings(token));
+  }
+
+  async function getWelcomeSettingsV2() {
+    return overlayOperation(async (token) => {
+      try { return sanitizeWelcomeV2(await remote.getWelcomeSettingsV2(token)); }
+      catch (error) {
+        if (error.status !== 404) throw error;
+        return { ...await remote.getWelcomeSettings(token), schemaVersion: 1 };
+      }
+    });
+  }
+
+  async function updateWelcomeSettingsV2(settings) {
+    return overlayOperation((token) => remote.updateWelcomeSettingsV2(settings, token));
   }
 
   async function getPkReportSettings() {
@@ -329,6 +344,8 @@ function createLicenseOperations(options = {}) {
     getOverlaySettings,
     updateOverlaySettings,
     getWelcomeSettings,
+    getWelcomeSettingsV2,
+    updateWelcomeSettingsV2,
     getPkReportSettings,
     updatePkReportSettings,
     updateWelcomeSettings,

@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-const styles = ['bubble', 'signal', 'minimal', 'ranked', 'transparent', 'identity', 'outline', 'cream'];
+const styles = ['bubble', 'signal', 'minimal', 'ranked', 'transparent', 'identity', 'outline', 'cream', 'glow'];
 
 async function fixture(search = '?preview=1', savedStyle) {
   const nodes = new Map();
@@ -82,7 +82,7 @@ test('all local styles share one address and retain every example without loopin
     assert.equal(items.filter((item) => item.kind === 'gift').length, 1);
     assert.ok(items.every((item) => item.id !== 'preview-thanks'));
     assert.equal(f.options.at(-1).resolveEmoteUrl(items[0].emotes[0].url), '/img/overlays/danmaku-previews/dacall.png');
-    if (style === 'outline' || style === 'cream') {
+    if (['outline', 'cream', 'glow'].includes(style)) {
       assert.equal(f.options.at(-1).expireItems, false);
       assert.equal(f.options.at(-1).layout, undefined, 'preview keeps all samples in static document flow');
       assert.equal(f.options.at(-1).showAvatar, style === 'cream');

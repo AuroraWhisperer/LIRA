@@ -14,6 +14,7 @@ const { MessageDeduplicator } = require('./danmaku/message-deduplicator');
 const { MessageHandlers } = require('./danmaku/message-handlers');
 const { BilibiliUserProfileProvider } = require('./users/profile-provider');
 const { UserInfoService } = require('./users/user-info-service');
+const { logBilibiliDiagnostic, logSongRequest } = require('./diagnostics');
 
 class BilibiliDanmakuClient {
   constructor(roomId, handlers, options = {}) {
@@ -25,6 +26,7 @@ class BilibiliDanmakuClient {
     this.connectionGeneration = 0;
     this.connectionAttempt = 0;
     this.reconnectTimer = null;
+    this.reconnectFailureCount = 0;
     this.reconnecting = false;
     this.startedAtMs = Date.now();
     this.ownerName = '';
@@ -87,6 +89,9 @@ class BilibiliDanmakuClient {
   }
 
   start() {
+    clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = null;
+    this.reconnectFailureCount = 0;
     this.stopped = false;
     this.reconnecting = false;
     const generation = ++this.connectionGeneration;
@@ -112,6 +117,9 @@ class BilibiliDanmakuClient {
   }
 
   async restart() {
+    clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = null;
+    this.reconnectFailureCount = 0;
     this.stopped = false;
     this.reconnecting = false;
     const generation = ++this.connectionGeneration;
@@ -140,10 +148,21 @@ class BilibiliDanmakuClient {
   }
 
   stop() {
+    if (!this.stopped) {
+      logBilibiliDiagnostic('listener-stopped', {
+        roomId: this.resolvedRoomId || this.roomId,
+        clientGeneration: Number(this.options.clientGeneration) || 0,
+        connectionGeneration: this.connectionGeneration,
+        connectionAttempt: this.connectionAttempt,
+        danmakuCount: this.messageHandlers.danmakuCount || 0,
+        ...this.wsConnection.connectionTrace,
+      });
+    }
     this.stopped = true;
     this.reconnecting = false;
     this.connectionGeneration += 1;
     clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = null;
     this.wsConnection.close();
     this.historyPoller.stop();
     this.onlineRankPoller.stop();
@@ -204,6 +223,10 @@ class BilibiliDanmakuClient {
   }
 
   deliverDanmaku(danmaku) {
+    logSongRequest('command-received', danmaku, {
+      roomId: this.resolvedRoomId || this.roomId,
+      clientGeneration: Number(this.options.clientGeneration) || 0,
+    });
     return this.handlers.onMessage(danmaku);
   }
 
@@ -272,6 +295,13 @@ class BilibiliDanmakuClient {
 
     // 存储解析后的房间号供后续使用
     this.resolvedRoomId = roomInfo.roomId;
+    const trace = {
+      clientGeneration: Number(this.options.clientGeneration) || 0,
+      connectionGeneration: generation,
+      connectionAttempt,
+      roomId: roomInfo.roomId,
+    };
+    logBilibiliDiagnostic('socket-connecting', { ...trace, live: isLive });
     console.log(
       `[Bilibili][Connection] action=connecting trace=${JSON.stringify({
         connectionGeneration: generation,
@@ -284,10 +314,21 @@ class BilibiliDanmakuClient {
 
     // 清理旧的事件处理器，防止重连后消息重复处理
     this.wsConnection.clearHandlers();
+    this.wsConnection.on('diagnostic', ({ event, ...details }) => {
+      if (this.isConnectionCurrent(generation)) {
+        logBilibiliDiagnostic(event, {
+          ...trace, ...details,
+          danmakuCount: this.messageHandlers.danmakuCount || 0,
+        });
+      }
+    });
 
     // 设置 WebSocket 事件处理
+    let openedAt = null;
     this.wsConnection.on('open', () => {
       if (!this.isConnectionCurrent(generation)) return;
+      openedAt = Date.now();
+      logBilibiliDiagnostic('socket-open', trace);
       console.log(
         `[Bilibili][Connection] action=open trace=${JSON.stringify({
           connectionGeneration: generation,
@@ -325,6 +366,9 @@ class BilibiliDanmakuClient {
 
     this.wsConnection.on('close', (event) => {
       if (this.isConnectionCurrent(generation)) {
+        logBilibiliDiagnostic('socket-closed', {
+          ...trace, code: Number(event?.code) || 0,
+        });
         console.log(
           `[Bilibili][Connection] action=close trace=${JSON.stringify({
             connectionGeneration: generation,
@@ -335,7 +379,13 @@ class BilibiliDanmakuClient {
             wasClean: Boolean(event && event.wasClean),
           })}`,
         );
-        const reconnectDelayMs = this.reconnecting ? 5000 : 0;
+        const connectionTrace = this.wsConnection.connectionTrace;
+        if (
+          openedAt !== null && Date.now() - openedAt >= 60000 &&
+          connectionTrace?.authStatus === 'accepted' && connectionTrace.heartbeatReplies > 0
+        ) {
+          this.reconnectFailureCount = 0;
+        }
         this.reconnecting = true;
         this.historyPoller.start(this.roomRunContext);
         this.report({
@@ -348,12 +398,13 @@ class BilibiliDanmakuClient {
             ? '弹幕长连已断开，历史消息监听中'
             : '弹幕连接已断开，等待重连',
         });
-        this.scheduleReconnect(generation, reconnectDelayMs);
+        this.scheduleReconnect(generation);
       }
     });
 
     this.wsConnection.on('error', (event) => {
       if (!this.isConnectionCurrent(generation)) return;
+      logBilibiliDiagnostic('socket-error', trace);
       console.warn(
         `[Bilibili][Connection] action=error trace=${JSON.stringify({
           connectionGeneration: generation,
@@ -382,6 +433,10 @@ class BilibiliDanmakuClient {
 
   handleHistoryMessage(messageData) {
     if (this.stopped) return;
+    logSongRequest('command-ingress', messageData, {
+      connectionGeneration: this.connectionGeneration,
+      connectionAttempt: this.connectionAttempt,
+    });
     const requester = compatibilityRequester(
       messageData.identitySnapshot,
       messageData,
@@ -463,9 +518,12 @@ class BilibiliDanmakuClient {
     }
   }
 
-  scheduleReconnect(generation = this.connectionGeneration, delayMs = 5000) {
-    clearTimeout(this.reconnectTimer);
+  scheduleReconnect(generation = this.connectionGeneration) {
+    if (!this.isConnectionCurrent(generation) || this.reconnectTimer) return;
+    const delayMs = Math.min(30000, 1000 * 2 ** this.reconnectFailureCount);
+    this.reconnectFailureCount = Math.min(5, this.reconnectFailureCount + 1);
     this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
       if (this.isConnectionCurrent(generation)) {
         this.connect({}, generation).catch((error) => {
           if (!this.isConnectionCurrent(generation)) return;

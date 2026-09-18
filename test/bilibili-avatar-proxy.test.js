@@ -15,7 +15,7 @@ test('Bilibili avatar proxy fetches only trusted HTTPS image URLs', async () => 
       headers: { 'Content-Type': 'image/jpeg' },
     });
   };
-  const client = new BilibiliApiClient('123');
+  const client = new BilibiliApiClient('123', { cookieHeader: 'SESSDATA=synthetic-session' });
 
   try {
     const image = await client.fetchAvatarImage(
@@ -25,6 +25,8 @@ test('Bilibili avatar proxy fetches only trusted HTTPS image URLs', async () => 
     assert.deepEqual(image.data, Buffer.from([1, 2, 3]));
     assert.equal(requests[0].url, 'https://i0.hdslb.com/bfs/face/viewer.jpg');
     assert.match(requests[0].options.headers.Referer, /live\.bilibili\.com/);
+    assert.equal(new Headers(requests[0].options.headers).has('cookie'), false);
+    assert.equal(client.requestHeaders().Cookie, 'SESSDATA=synthetic-session');
 
     await assert.rejects(
       client.fetchAvatarImage('http://i0.hdslb.com/bfs/face/viewer.jpg'),

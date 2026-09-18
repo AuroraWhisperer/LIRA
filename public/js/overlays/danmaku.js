@@ -14,6 +14,7 @@ const OVERLAY_STYLES = new Set([
   'identity',
   'outline',
   'cream',
+  'glow',
 ]);
 const FIXED_STAGE_PADDING = 12;
 const RANKED_CONTENT_WIDTH = 600;
@@ -25,6 +26,7 @@ let socket = null;
 let reconnectTimer = null;
 let reconnectAttempts = 0;
 let feed = null;
+let feedNeedsRender = true;
 let localSocketConnected = false;
 let lastLiveStatus = null;
 let pendingItems = [];
@@ -99,11 +101,8 @@ function connectSocket() {
 }
 
 function applyItems(nextItems) {
-  if (renderFrame !== null) cancelAnimationFrame(renderFrame);
-  pendingItems = [];
-  renderFrame = null;
   const seen = new Set();
-  items = (Array.isArray(nextItems) ? nextItems : [])
+  const normalizedItems = (Array.isArray(nextItems) ? nextItems : [])
     .filter((item) => {
       const key = itemKey(item);
       if (seen.has(key)) return false;
@@ -111,6 +110,13 @@ function applyItems(nextItems) {
       return true;
     })
     .slice(-MAX_ITEMS);
+  // items already includes queued increments; leave their animation frame intact.
+  if (!feedNeedsRender && JSON.stringify(normalizedItems) === JSON.stringify(items))
+    return;
+  if (renderFrame !== null) cancelAnimationFrame(renderFrame);
+  pendingItems = [];
+  renderFrame = null;
+  items = normalizedItems;
   render();
 }
 
@@ -133,6 +139,7 @@ function flushPendingItems() {
 
 function render() {
   feed.render(items);
+  feedNeedsRender = false;
   renderMessageCount();
 }
 
@@ -144,6 +151,7 @@ function renderMessageCount() {
 
 function createOverlayFeed(style, durationSeconds) {
   feed?.destroy();
+  feedNeedsRender = true;
   const options = {
     maxItems: MAX_ITEMS,
     offscreenViewports: previewMode ? Number.POSITIVE_INFINITY : 0,
@@ -151,9 +159,9 @@ function createOverlayFeed(style, durationSeconds) {
     resolveAvatarUrl: bilibiliAvatarSource,
     resolveEmoteUrl: bilibiliImageSource,
     getGuardLabel: guardLabel,
-    showAvatar: style !== 'outline',
+    showAvatar: !['outline', 'glow'].includes(style),
   };
-  if (style === 'outline' || style === 'cream') {
+  if (['outline', 'cream', 'glow'].includes(style)) {
     if (!previewMode) options.layout = 'fullscreen-random';
     options.itemLifetimeMs = durationSeconds * 1000;
     options.expireItems = !previewMode;
@@ -177,7 +185,7 @@ function applyConfiguration(styleValue, durationValue) {
   const duration = normalizeFullscreenDuration(durationValue);
   const changed =
     style !== currentOverlayStyle ||
-    (['outline', 'cream'].includes(style) && duration !== currentFullscreenDurationSeconds);
+    (['outline', 'cream', 'glow'].includes(style) && duration !== currentFullscreenDurationSeconds);
   currentOverlayStyle = style;
   currentFullscreenDurationSeconds = duration;
   document.body.dataset.style = style;

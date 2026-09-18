@@ -62,7 +62,7 @@ export function renderGiftHistoryView(view) {
   setText('giftHistoryState', items.length === 0 ? '暂无礼物记录' : '已加载');
   setHistoryBody(
     items.length === 0
-      ? '<tr><td colspan="6" class="empty"><strong>暂无礼物记录</strong><span>收到礼物后，记录会显示在这里。</span></td></tr>'
+      ? '<tr><td colspan="7" class="empty"><strong>暂无礼物记录</strong><span>收到礼物后，记录会显示在这里。</span></td></tr>'
       : items.map(renderGiftHistoryRow).join(''),
   );
   renderGiftHistorySortView(view);
@@ -106,6 +106,7 @@ export function renderGiftHistoryRow(item) {
 
   return `
     <tr data-event-id="${escapeAttr(item?.eventId || '')}">
+      <td><input type="checkbox" data-gift-select="${escapeAttr(item?.eventId || '')}" aria-label="选择这条礼物记录" /></td>
       <td>${formatDateTime(gift.createdAt)}</td>
       <td class="gift-name-cell" title="${escapeAttr(gift.giftName || '')}">${escapeHtml(gift.giftName || '未知礼物')}</td>
       <td>${Number(gift.num || 1)}</td>
@@ -186,7 +187,7 @@ export function renderHistoryNoticeView(
   if (total) total.hidden = !hasRows;
   if (!hasRows) {
     setHistoryBody(
-      `<tr><td colspan="6" class="empty"><strong>${escapeHtml(label)}</strong>${detail ? `<span>${escapeHtml(detail)}</span>` : ''}</td></tr>`,
+      `<tr><td colspan="7" class="empty"><strong>${escapeHtml(label)}</strong>${detail ? `<span>${escapeHtml(detail)}</span>` : ''}</td></tr>`,
     );
   }
   setRetryButtonView(retry, view);

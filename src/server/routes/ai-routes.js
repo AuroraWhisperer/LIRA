@@ -43,6 +43,7 @@ const routes = {
       }
       sendJson(res, 200, { ok: true, data: context.ai.updateConfig(changes) });
     } catch (error) {
+      if (error.code === 'REQUEST_BODY_TOO_LARGE') throw error;
       sendJson(res, 400, {
         ok: false,
         error: error.message || 'AI 配置无效。',
@@ -89,6 +90,7 @@ const routes = {
         data: await context.ai.listModels(input),
       });
     } catch (error) {
+      if (error.code === 'REQUEST_BODY_TOO_LARGE') throw error;
       sendJson(res, 400, {
         ok: false,
         error: error.message || '无法获取模型列表。',

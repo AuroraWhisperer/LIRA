@@ -183,6 +183,38 @@ function createLicenseManager(options = {}) {
         return setState(LicenseState.NEEDS_ACTIVATION);
       }
       try {
+        let pending;
+        try {
+          pending = keyStore.loadPendingActivation?.();
+        } catch (error) {
+          // Retain an unreadable candidate; the installed key may still work.
+          void error;
+        }
+        if (pending) {
+          try {
+            await authenticate({
+              identity,
+              privateKeyPem: pending.keyPair.privateKeyPem,
+              generation,
+              renewalSessionId: sessionId || undefined,
+              beforeAccept(result) {
+                if (result.deviceId !== identity.deviceId)
+                  throw new RemoteLicenseError('INVALID_RESPONSE', '授权服务器返回无效响应。');
+                pending.commit();
+                identity = stateStore.write({
+                  ...identity,
+                  publicKeyPem: pending.keyPair.publicKeyPem,
+                  keyProtection: pending.keyPair.keyProtection,
+                });
+                pending.complete();
+              },
+            });
+            return state;
+          } catch (error) {
+            if (getErrorCode(error) !== 'SIGNATURE_INVALID' || error.status !== 401)
+              throw error;
+          }
+        }
         const privateKeyPem = keyStore.loadPrivateKey();
         if (!privateKeyPem) {
           clearSession();
@@ -239,6 +271,7 @@ function createLicenseManager(options = {}) {
         if (!activation)
           return { ok: false, state, error: 'LICENSE_MANAGER_DISPOSED' };
         identity = stateStore.write(activation.identity);
+        activation.complete();
         const authenticated = await authenticate({
           identity,
           privateKeyPem: activation.keyPair.privateKeyPem,
@@ -382,6 +415,7 @@ function createLicenseManager(options = {}) {
     generation = lifecycleGeneration,
     expectedToken = null,
     renewalSessionId,
+    beforeAccept,
   }) {
     const isAttemptActive = () =>
       isLifecycleActive(generation) &&
@@ -438,26 +472,29 @@ function createLicenseManager(options = {}) {
           generation,
           expectedToken,
           renewalSessionId,
+          beforeAccept,
         });
       }
       throw error;
     }
     if (!isAttemptActive()) return null;
-    return acceptAuthenticationResult(result);
+    return acceptAuthenticationResult(result, beforeAccept);
   }
 
-  function acceptAuthenticationResult(result) {
+  function acceptAuthenticationResult(result, beforeAccept) {
     if (typeof result.sessionId !== 'string' || !result.sessionId.trim())
       throw new RemoteLicenseError(
         'DEVICE_SESSION_INVALID',
         '授权服务器未返回有效会话标识。',
       );
-    accessToken = String(result.accessToken || '');
-    if (!accessToken)
+    const nextAccessToken = String(result.accessToken || '');
+    if (!nextAccessToken)
       throw new RemoteLicenseError(
         'SIGNATURE_INVALID',
         '授权服务器未返回有效会话。',
       );
+    beforeAccept?.(result);
+    accessToken = nextAccessToken;
     tokenExpiresAt = resolveTokenExpiresAt(result, Date.now());
     sessionId = String(result.sessionId || '');
     renewalNotBefore = 0;

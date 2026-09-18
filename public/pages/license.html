@@ -112,8 +112,14 @@
               </p>
             </div>
             <form id="licenseForm" novalidate>
-              <label class="license-field" for="licenseAccountName">
-                <span>用户名</span>
+              <div class="license-field">
+                <div class="license-field-label">
+                  <label for="licenseAccountName">用户名</label>
+                  <lira-help label="用户名说明" tooltip-id="licenseAccountNameRules">
+                    用户名会作为之后网页歌单地址的前缀（子域名）。支持 2–32
+                    个英文字母、数字和中划线（-），不支持中文，中划线不能放在开头或结尾。大写字母会自动转为小写。
+                  </lira-help>
+                </div>
                 <input
                   id="licenseAccountName"
                   name="accountName"
@@ -122,12 +128,13 @@
                   autocomplete="username"
                   autocapitalize="none"
                   spellcheck="false"
+                  aria-describedby="licenseAccountNameRules licenseAccountNameHelp"
                   maxlength="32"
                   placeholder="请输入用户名"
                   required
                 />
-                <small>小写字母、数字或中划线</small>
-              </label>
+                <small id="licenseAccountNameHelp">英文字母、数字或中划线，不支持中文</small>
+              </div>
               <div class="license-field">
                 <div class="license-field-label">
                   <label for="licensePassword">密码</label>

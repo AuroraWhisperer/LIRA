@@ -4,12 +4,12 @@
     {
       "path": "public/pages/admin/toolbox/danmaku.html",
       "kind": "review",
-      "maxLines": 622,
+      "maxLines": 632,
       "owner": "百宝箱弹幕工具页面组合",
-      "reason": "2026-09-17 发布审阅：既有样式选择增加缩略图和说明、重排配置与链接操作，并提供本地预览入口。欢迎功能再次复核：开关与词库完整抽到 danmaku-welcome-switch.html / danmaku-welcome-library.html，父页面仅增加两个片段引用和 aria 标题；交互独立在 danmaku-welcome.js。组合页面唯一 ID、顺序和前端欢迎行为测试保护此边界。 2026-09-17 PK 变更逐行复核：只增加一个独立 PK 开关 fragment 引用；标记、状态机和 IPC 均在各自文件，组合页不接收业务逻辑。拆分已有无关布局不会进一步改善该一行组合职责。admin-page-composition 与 frontend-pk-report 覆盖完整组装及唯一 ID。",
+      "reason": "2026-09-17 发布审阅：既有样式选择增加缩略图和说明、重排配置与链接操作，并提供本地预览入口。欢迎功能再次复核：开关与词库完整抽到 danmaku-welcome-switch.html / danmaku-welcome-library.html，父页面仅增加两个片段引用和 aria 标题；交互独立在 danmaku-welcome.js。组合页面唯一 ID、顺序和前端欢迎行为测试保护此边界。 2026-09-17 PK 变更逐行复核：只增加一个独立 PK 开关 fragment 引用；标记、状态机和 IPC 均在各自文件，组合页不接收业务逻辑。拆分已有无关布局不会进一步改善该一行组合职责。admin-page-composition 与 frontend-pk-report 覆盖完整组装及唯一 ID。 2026-09-18 集成门禁逐块复核：并行样式工作只增加流光气泡的一个样式选择按钮（10 行），仍属于已有样式选择区；业务行为、样式实现和身份色分别由现有 JS/CSS owner 负责。页面组合与 danmaku-style-ownership 验证选择项及样式归属，未新增独立表单职责。",
       "removal": "后续样式选择或自动回复表单继续扩展时，按既有页面组合机制提取对应片段；本次保留完整工具页面及既有 DOM ID。",
-      "reviewBy": "2026-12-17",
-      "test": "test/toolbox-sidebar-routing.test.js"
+      "reviewBy": "2026-12-18",
+      "test": "test/danmaku-style-ownership.test.js"
     },
     {
       "path": "public/css/overlays/desktop.css",
@@ -24,22 +24,22 @@
     {
       "path": "src/electron/main.js",
       "kind": "review",
-      "maxLines": 732,
+      "maxLines": 744,
       "owner": "桌面组合入口",
-      "reason": "2026-09-15 礼物互动接入复核：组合入口仅增加专用 IPC 的注册与关闭清理，设置确认/串行写入仍归云同步控制器，窄 IPC 校验在独立模块；保留 2026-09-14 抽奖认证与 runtime 接线。保护测试为 electron-shutdown 与 gift-interaction-controls。",
+      "reason": "2026-09-15 礼物互动接入复核：组合入口仅增加专用 IPC 的注册与关闭清理，设置确认/串行写入仍归云同步控制器，窄 IPC 校验在独立模块；保留 2026-09-14 抽奖认证与 runtime 接线。保护测试为 electron-shutdown 与 gift-interaction-controls。 2026-09-18 集成门禁逐块复核：礼物导出仅增加 IPC/controller 导入、启动接线和关闭清理，数据选择及文件导出仍在独立 controller；没有将业务逻辑加入入口。补齐既有 shutdown harness 两个依赖桩后，以启动/停机和 gift-export-controller 测试验证组合边界。",
       "removal": "继续按真实独立职责整理组合阶段；保留启动失败、授权及停机验证。",
-      "reviewBy": "2026-12-13",
-      "test": "test/electron-main-modules.test.js"
+      "reviewBy": "2026-12-18",
+      "test": "test/electron-shutdown.test.js"
     },
     {
       "path": "src/electron/license/license-manager.js",
       "kind": "review",
-      "maxLines": 721,
+      "maxLines": 757,
       "owner": "设备授权主体与会话生命周期",
       "reason": "2026-09-16 B1 修复逐项审阅：新增主体与代际检查只约束现有授权请求、续期、心跳和资料提交；token 轮换仍在同一生命周期。父代理与独立代理复核异步交错，17 项身份回归和相关 326 项测试通过；未新增业务适配或分散可变授权状态。 2026-09-16 审计修复增量由根代理独立审阅：F02/F07及Retry-After：复核自动续期原Session前提、网络恢复、原子token接受、短TTL门禁和绝对等待期限；仍由既有生命周期持有可变授权状态，未新增业务适配。",
-      "removal": "后续出现独立协议或纯转换职责时提取；当前保留请求代际、会话清理、续期和维护任务的单一 owner，不为压行数拆分安全不变量。新增业务操作继续归 license-operations。",
-      "reviewBy": "2026-12-16",
-      "test": "test/license-session-boundaries.test.js"
+      "removal": "2026-09-18 审阅候选密钥恢复：bootstrap 选择候选并复用既有 challenge/verify，生命周期仍由 manager 持有；beforeAccept 在发布授权前同步完成 key/identity 提交，磁盘加密与原子写仍归 keyStore。真实签名、持久化失败和 dispose 回归由 license-activation-recovery 保护。后续出现独立协议或纯转换职责时提取；当前不为压行数拆分授权状态不变量，新增业务操作继续归 license-operations。",
+      "reviewBy": "2026-12-18",
+      "test": "test/license-activation-recovery.test.js"
     },
     {
       "path": "src/electron/remote-gift-controller.js",
@@ -64,22 +64,22 @@
     {
       "path": "src/server.js",
       "kind": "review",
-      "maxLines": 791,
+      "maxLines": 794,
       "owner": "服务组合入口",
-      "reason": "2026-09-16 快照接线复核：getState 通过 domainServices.songs.getMetadata 复用歌曲元数据，只新增一行组合接线；缓存与失效机制位于 song-metadata/SongStore，入口不持有缓存策略。",
+      "reason": "2026-09-16 快照接线复核：getState 通过 domainServices.songs.getMetadata 复用歌曲元数据，只新增一行组合接线；缓存与失效机制位于 song-metadata/SongStore，入口不持有缓存策略。 2026-09-18 集成门禁逐块复核：新增一行播放页面代次 callback，版本状态仍归 PlaybackStore；并行礼物导出的查询、配置和来源通知已由 gift-export-runtime 持有，入口只导入并组合，替换原 setActiveGiftSource 透传。没有新增领域状态，模块依赖及播放 bootstrap 回归保护接线。",
       "removal": "按资源阶段继续评估组合职责，避免领域模块反向依赖 server 入口。",
-      "reviewBy": "2026-12-13",
-      "test": "test/song-metadata.test.js"
+      "reviewBy": "2026-12-18",
+      "test": "test/playback-snapshot-bootstrap.test.js"
     },
     {
       "path": "src/storage/database-migrations.js",
       "kind": "review",
-      "maxLines": 662,
+      "maxLines": 665,
       "owner": "存储历史迁移",
-      "reason": "手写迁移执行器，历史 SQL 和版本顺序已被验证；不是 snapshot 例外。",
+      "reason": "手写迁移执行器，历史 SQL 和版本顺序已被验证；不是 snapshot 例外。 2026-09-18 集成门禁逐块复核：并行 v11 迁移已提取为 gift-display-migration，注册表仅追加导入、版本注释和函数引用三行，既有迁移不改写。gift-display-profile 与历史数据库迁移测试保护版本顺序及历史未知字段仍为 NULL。",
       "removal": "下次实质修改对应库迁移时提取注册或转换函数；新增大型迁移独立注册。",
-      "reviewBy": "2026-12-13",
-      "test": "test/database-maintenance.test.js"
+      "reviewBy": "2026-12-18",
+      "test": "test/gift-display-profile.test.js"
     },
     {
       "path": "public/css/admin/other-features/usage-guide.css",
@@ -202,16 +202,6 @@
       "test": "test/qq-provider.test.js"
     },
     {
-      "path": "test/server-lifecycle.test.js",
-      "kind": "review",
-      "maxLines": 639,
-      "owner": "服务生命周期测试",
-      "reason": "启动失败与资源关闭共同验证服务所有权。",
-      "removal": "随批次 C 生命周期变更扩展或分组，保留失败清理场景。",
-      "reviewBy": "2026-12-13",
-      "test": "test/server-lifecycle.test.js"
-    },
-    {
       "path": "test/ui-edit-state.test.js",
       "kind": "review",
       "maxLines": 739,
@@ -244,12 +234,22 @@
     {
       "path": "src/electron/license/remote-license-client.js",
       "kind": "review",
-      "maxLines": 611,
+      "maxLines": 613,
       "owner": "远程授权HTTP与SSE协议适配",
       "reason": "2026-09-16 审计修复增量由根代理独立审阅：F06/F09：复核Retry-After头解析、错误元数据及SSE畸形响应的HTTP状态保留。2026-09-17 逐行复核新增欢迎设置两个固定 GET/PUT 方法：仅复用既有 request 与 token 参数，不持有欢迎业务、存储或重试策略；单独提取这两个声明只会增加透传包装，保留同一 transport facade。welcome-settings-ipc 与 remote-license-client 测试覆盖固定路径、参数和认证。 2026-09-17 PK 变更逐行复核：增加四行固定 GET/PUT request 声明，不新增网络策略、状态、业务判断或凭据处理。保留统一 HTTP facade；为两个声明新增单用途 wrapper 反而扩大边界。pk-report-settings-ipc 验证路径、方法、认证和精确请求。",
-      "removal": "出现独立可分离协议职责时提取；新增业务功能不继续加入本transport/controller。",
-      "reviewBy": "2026-12-16",
-      "test": "test/client-response-boundaries.test.js"
+      "removal": "2026-09-18 审阅流式响应限额：通用 HTTP 和 SSE 错误体复用既有歌曲读取器的字节预算/cancel/releaseLock，不新增业务状态；完整礼物目录保持原契约。response-budget 回归保护超限前停止读取及错误状态保留。出现独立可分离协议职责时提取；新增业务功能不继续加入本 transport/controller。",
+      "reviewBy": "2026-12-18",
+      "test": "test/remote-license-response-budget.test.js"
+    },
+    {
+      "path": "src/music/wesing-capture-engine.js",
+      "kind": "review",
+      "maxLines": 624,
+      "owner": "WeSing 采集生命周期与配置应用",
+      "reason": "2026-09-18 逐块复核 prepareConfiguration：先校验目录/偏移，再由 settings owner 持久化，最后应用已有 cachePath、lyricOffsetMs、watcher 和歌词状态。既有专用 setter 复用同一路径，无新增领域或独立业务状态；真实 SQLite 回滚及监控不重启探针保护批量提交失败边界。",
+      "removal": "目录与偏移校验继续归 wesing-cache；若以后出现独立配置协议再提取适配层，当前保留采集状态的单一 owner，避免把提交后状态应用拆成跨模块可变状态。",
+      "reviewBy": "2026-12-18",
+      "test": "test/wesing-capture.test.js"
     }
   ]
 }

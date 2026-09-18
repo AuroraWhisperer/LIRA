@@ -5,6 +5,10 @@ const bilibiliAuth = require('./bilibili-auth');
 const { openBilibiliLoginWindow } = require('./bilibili-login-window');
 const musicLoginWindow = require('./login-window');
 const { createMusicProviderRegistry } = require('../music/provider-registry');
+const {
+  logBilibiliDiagnostic,
+  summarizeAuthState,
+} = require('../bilibili/diagnostics');
 
 function createDesktopAuthController({
   BrowserWindow,
@@ -76,12 +80,26 @@ function createDesktopAuthController({
     return bilibiliAuth.getBilibiliUid();
   }
 
-  function restoreBilibiliCookieSnapshot() {
-    return bilibiliAuth.restoreBilibiliCookieSnapshot(getDataDir());
+  async function restoreBilibiliCookieSnapshot() {
+    const snapshot = await bilibiliAuth.restoreBilibiliCookieSnapshot(
+      getDataDir(),
+    );
+    logBilibiliDiagnostic('credentials-restore', { restored: Boolean(snapshot) });
+    return snapshot;
   }
 
-  function replaceBilibiliCookieHeader(cookieHeader) {
-    return bilibiliAuth.replaceBilibiliCookieHeader(getDataDir(), cookieHeader);
+  async function replaceBilibiliCookieHeader(cookieHeader) {
+    logBilibiliDiagnostic('credentials-import-start');
+    try {
+      const state = await bilibiliAuth.replaceBilibiliCookieHeader(
+        getDataDir(), cookieHeader,
+      );
+      logBilibiliDiagnostic('credentials-import-complete', summarizeAuthState(state));
+      return state;
+    } catch (error) {
+      logBilibiliDiagnostic('credentials-import-failed');
+      throw error;
+    }
   }
 
   async function loginBilibiliAccount() {
@@ -100,8 +118,16 @@ function createDesktopAuthController({
     }
   }
 
-  function logoutBilibiliAccount() {
-    return bilibiliAuth.logoutBilibiliAccount(getDataDir());
+  async function logoutBilibiliAccount() {
+    logBilibiliDiagnostic('logout-start');
+    try {
+      const state = await bilibiliAuth.logoutBilibiliAccount(getDataDir());
+      logBilibiliDiagnostic('logout-complete', summarizeAuthState(state));
+      return state;
+    } catch (error) {
+      logBilibiliDiagnostic('logout-failed');
+      throw error;
+    }
   }
 
   return {

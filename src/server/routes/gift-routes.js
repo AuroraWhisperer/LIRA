@@ -3,6 +3,7 @@
 'use strict';
 
 const { sendJson } = require('../http-utils');
+const { GIFT_DISPLAY_SETTING, readGiftDisplaySettings, validateGiftDisplaySettings } = require('../../bilibili/gift/display-settings');
 const {
   buildGiftFramePreviewEvent,
 } = require('../../bilibili/gift/frame-config');
@@ -10,6 +11,20 @@ const {
 const prefixes = ['/api/gifts/'];
 
 const routes = {
+  'GET /api/gifts/display-settings'(context, _request, res) {
+    sendJson(res, 200, { ok: true, data: readGiftDisplaySettings(context.settings.get()) });
+  },
+  async 'POST /api/gifts/display-settings'(context, request, res) {
+    let config;
+    try { config = validateGiftDisplaySettings(await request.body()); }
+    catch (error) {
+      if (error.code === 'REQUEST_BODY_TOO_LARGE') throw error;
+      return sendJson(res, 400, { ok: false, error: error.message });
+    }
+    context.settings.set(GIFT_DISPLAY_SETTING, JSON.stringify(config));
+    context.broadcastSnapshot('settings');
+    sendJson(res, 200, { ok: true, data: config });
+  },
   'POST /api/gifts/sprint/reset'(context, request, res) {
     const result = context.gifts.resetSprint();
     context.broadcastSnapshot('gift:sprint:reset');
@@ -18,6 +33,23 @@ const routes = {
 
   'GET /api/gifts/history'(context, request, res) {
     sendGiftLedgerResponse(context, request, res, 'getHistory');
+  },
+
+  async 'POST /api/gifts/selection'(context, request, res) {
+    const body = await request.body();
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      return sendJson(res, 400, { ok: false, error: '礼物选择参数无效。', code: 'INVALID_GIFT_SELECTION' });
+    }
+    try {
+      if (body.sourceId !== undefined || body.source_id !== undefined) {
+        return sendJson(res, 400, { ok: false, error: '礼物来源不能由页面指定。' });
+      }
+      sendJson(res, 200, { ok: true, data: context.gifts.getSelection(body) });
+    } catch (error) {
+      if (!/^(INVALID_GIFT_|GIFT_VIEW_STALE|GIFT_SOURCE_UNAVAILABLE)/.test(error.code || '')) throw error;
+      sendJson(res, error.code.startsWith('INVALID_') ? 400 : 409,
+        { ok: false, error: error.message, code: error.code });
+    }
   },
 
   'GET /api/gifts/statistics'(context, request, res) {
@@ -156,6 +188,11 @@ function sendGiftLedgerResponse(context, request, res, operation) {
       cursor: query?.get?.('cursor') || null,
       ...(operation === 'getHistory'
         ? {
+            ...(query?.has?.('startDate') ? { startDate: query.get('startDate') } : {}),
+            ...(query?.has?.('endDate') ? { endDate: query.get('endDate') } : {}),
+            ...(query?.has?.('userQuery') ? { userQuery: query.get('userQuery') } : {}),
+            ...(query?.has?.('giftQuery') ? { giftQuery: query.get('giftQuery') } : {}),
+            ...(query?.has?.('viewRevision') ? { viewRevision: query.get('viewRevision') } : {}),
             sortField: query?.has?.('sortField')
               ? query.get('sortField')
               : undefined,
@@ -167,7 +204,7 @@ function sendGiftLedgerResponse(context, request, res, operation) {
     });
     sendJson(res, 200, { ok: true, data });
   } catch (error) {
-    if (error?.code === 'GIFT_SOURCE_UNAVAILABLE') {
+    if (error?.code === 'GIFT_SOURCE_UNAVAILABLE' || error?.code === 'GIFT_VIEW_STALE') {
       sendJson(res, 409, {
         ok: false,
         error: error.message,
@@ -177,6 +214,7 @@ function sendGiftLedgerResponse(context, request, res, operation) {
     }
     if (
       error?.code === 'INVALID_GIFT_QUERY' ||
+      error?.code === 'INVALID_GIFT_FILTER' ||
       error?.code === 'INVALID_GIFT_RANGE' ||
       error?.code === 'INVALID_GIFT_LIMIT' ||
       error?.code === 'INVALID_GIFT_CURSOR' ||

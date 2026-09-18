@@ -108,9 +108,17 @@ SVG 时间轴，启用画面时统一归零并从首轮立即移动；
 PNG/JPEG/WebP 和受支持的音频，Overlay 只接受受限的 `/opening-character/`、`/opening-media/`
 当前文件 URL。未上传或清除后隐藏人物图并移除 src，不加载或播放空音频地址。
 
+### 1.6 本日礼物 `/gift-feed`
+
+全部礼物流水的样式面板生成当前本地端口的 `127.0.0.1/gift-feed` 地址，`?preview=1` 只增加预览底色和状态。页面独立于管理面板生命周期，按北京时间遍历今天全部分页，包含未参与冲刺的有效付费历史。`gift-feed-state.js` 用 eventId 去重并保留轮播锚点；默认 3 行、4 秒间隔、400ms 向上移动，DOM 只保留可见行及最多一条动画缓冲。记录不足时静态显示，不复制填满；低功耗逐页切换，暂停停止移动。
+
+WebSocket 通知合并后重读，并每 30 秒对账；新集合在换行边界应用，单条/暂停时立即更新。午夜、来源切换或投影代次变化清空旧集合，迟到请求不得恢复旧来源。保存配置即更新静态行颜色。`shared/gift-banner.js` 和 `css/shared/gift-banner.css` 同时拥有管理预览、PNG 和 OBS 的固定 400×96 横幅：头像占位、可空大航海边框、昵称、黄色礼物名、本地 WebP 和数量。金额/时间/备注不进入横幅。
+
 ## 2. 队列叠加层(/queue)
 
 [overlays/queue.js](../../../public/js/overlays/queue.js) 渲染 `state.queue`(current + waiting)与 `state.superChats`:
+
+HTTP 初始/重连请求带本页读取代次，较新的完整 WS 状态使旧请求失效。HTTP 与 WS 共用内容指纹；延迟补数和重连取得相同内容时保留节点及滚动进度。
 
 - **六种风格**:`classic`(默认,经典卡片列表)、`identity`(身份版,观众名突出,含 SC 置顶区)、`storybook`(奶油蓝插画画框)、`neon-vinyl`(甜粉麦克风舞台)、`cherry-ribbon`(紫金星月梦境)与 `golden-lily`(奶油金唱片铃兰);由设置 `overlayQueueStyle` 决定,遗留 `festival` 归一为 `identity`,未知值回退 `classic`。样式由 `overlays/base.css` 导入的 `.queue-*` 主题类承载。
 - **风格 3**:框体与词条素材位于 `public/img/overlays/song-board-style-3/`;原始框体保留 alpha,`.queue-storybook::before` 在框内开口后叠加不透明白层,框外仍透明。词条黄色端点恒显示队列序号,浅蓝固定宽度区域复用身份版的歌名、点歌人、大航海/灯牌名与灯牌等级格式;没有大航海或灯牌时省略对应字段。内容实际宽度溢出时由 `scheduleIdentityContentScroll` 在该区域内左右往返,不会扩张词条素材。纵向超出画框时复用身份版的循环/往返滚动测量。
@@ -130,7 +138,7 @@ PNG/JPEG/WebP 和受支持的音频，Overlay 只接受受限的 `/opening-chara
 
 - 数据:`GET /api/state` + `GET /api/songs?enabledOnly=true[&category=]`(支持 URL `?category=` 单分类过滤)。
 - 排序:`songBoardSortMode`(默认拼音/字母,`length` 按时长分组),`buildSongRecords` 生成记录,分组模式下加分组头。
-- 指纹:`orderKey(songsRevision:sortMode)`、`layoutKey(字体族/字号组)`、`motionKey(滚动速度)`;歌曲变更(`songs:*`、`cloud:songs` reason 或 database:clear)220ms 防抖重载;`live:status` 不触发重渲染。
+- 指纹:`orderKey(songsRevision:sortMode)`、`layoutKey(字体族/字号组)`、`motionKey(滚动速度)`;歌曲变更(`songs:*`、`cloud:songs`、`database:clear` 或 `database:clear-all`)220ms 防抖重载。过期请求不能回填旧列表或设置；重连内容相同时保留节点和当前滚动锚点，`live:status` 不触发重渲染。
 - 虚拟滚动与 §1.3 一致;字体 `loadingdone` 与 ResizeObserver 触发 `relayout`(等待 `document.fonts.ready`)。
 
 ## 4. 加班机叠加层(/overtime)
@@ -169,7 +177,7 @@ PNG/JPEG/WebP 和受支持的音频，Overlay 只接受受限的 `/opening-chara
 
 [overlays/blindbox.js](../../../public/js/overlays/blindbox.js):
 
-- 数据:汇总 + 排行榜来自 `GET /api/gifts/blind-box-stats`(可选 `?boxName=心动盲盒` 只看心动盒);快照 reason 以 `bilibili:gift`/`gift:sprint:reset`/`connect` 触发重取统计,其余只缓存 state(主题)。
+- 数据:汇总 + 排行榜来自 `GET /api/gifts/blind-box-stats`(可选 `?boxName=心动盲盒` 只看心动盒);快照 reason 以 `bilibili:gift`/`gift:sprint:reset`/`connect` 触发重取统计。所有带 state 的快照立即应用主题及标题；统计与设置独立判断新旧，相同统计内容保留榜单节点和翻页进度。
 - URL 参数(短别名 + 长键):`top/t`(榜单位数,0=仅汇总,-1=全部)、`winners/w`(只看盈利)、`heartBox/hb`、`title/tt`(自定义标题,优先于设置 `blindboxOverlayTitle`)、`compact/c`、`hideLoss/hl`、`refresh/r`(轮询秒数)、`noScroll/ns`;管理页「盲盒投屏」生成器输出该链接(见 [app.md](app.md) §4.3)。
 - 盲盒默认隐藏滚动条；`noScroll=1` / `ns=1` 保持隐藏，显式 `0` 恢复细滚动条和手动浏览。隐藏模式超高内容复用 `auto-pages.js` 每 8 秒翻页，保留 32px 阅读重叠并在尾页停留后回到顶部。该模块也服务画猜积分、正确答案、窄布局和游戏结果卡；不使用连续动画，低功耗或减少动效时仍可阅读全部已选内容。滚轮、指针、触摸或键盘操作暂停 16 秒，焦点留在区域内时持续暂停；页面隐藏不翻页，卸载时清理。
 - 呈现:汇总卡(盒子数/总成本/总盈亏,涨绿跌红)+ 排行榜(冠亚季军👑🥈🥉徽章 + 行内进度条)+ 可选的底部冲刺条;`compact/winners-only/summary-only/no-scroll` 类切换形态;主题从快照 settings 经 `applyTheme` 应用(与队列层同套令牌)。
@@ -180,7 +188,7 @@ PNG/JPEG/WebP 和受支持的音频，Overlay 只接受受限的 `/opening-chara
 [overlays/lyric-window.js](../../../public/js/overlays/lyric-window.js):
 
 - 使用方:管理页「复制桌面歌词」复制规范地址 `/lyrics`,供浏览器或 OBS 浏览器源使用;页面背景透明,实际输出不包含管理页预览使用的网格/纯色辅助背景。
-- 数据:首帧设置来自 `GET /api/settings` 的 `desktopLyric*` 12 键;实时连接 `/ws`,消费 `lyric-state`、`lyric-timeline` 与 snapshot 中的 `lyricState`/`lyricTimeline`/`settings`。
+- 数据:首次连接和重连均从 `/ws` 的 snapshot 取得 `desktopLyric*` 设置、`lyricState` 和 `lyricTimeline`，并消费增量 `lyric-state`、`lyric-timeline`。页面不再请求不存在的 `GET /api/settings`。
 - 渲染:直接复用 `admin/desktop-lyric-preview.js` 的完整时间轴渲染器,显示整首歌词、翻译、罗马音、当前行逐字进度、长间奏三秒倒计时和播放进度;逐字高亮支持连续填充与按时间点亮两种模式,隐藏 `desktopLyricPreviewPlayback` 只提供 aria-live 文本,当前行 `LyricWordAnimator` 是唯一视觉逐字更新源。样式设置通过同一组 `--preview-*` CSS 变量应用,因此浏览器源与管理页实时预览一致。
 - 显示行数:设置 `desktopLyricVisibleLines` 为 `0` 时保持整首可见;正整数仍创建整首时间轴,只将当前行窗口外的行标记为不可见。`1` 仅显示当前行;偶数向下扩展,奇数向上下扩展,整首数据继续保留以保证同步和自动跟随。
 - 性能默认值:新配置默认关闭弹性滚动、非当前行模糊和行缩放,优先保证歌词清晰与浏览器源稳定;用户已保存的显式设置继续生效。对齐方式支持左对齐、居中、右对齐和两端对齐。
@@ -199,9 +207,11 @@ PNG/JPEG/WebP 和受支持的音频，Overlay 只接受受限的 `/opening-chara
 
 ### 兼容本地页面 /danmaku
 
-[overlays/danmaku.js](../../../public/js/overlays/danmaku.js) 驱动本地 `/danmaku`。预览入口为 `/danmaku?preview=1`，由 [danmaku-preview.js](../../../public/js/overlays/danmaku-preview.js) 在同一页面切换聊天气泡(`bubble`)、深色面板(`signal`)、蝴蝶结(`minimal`)、经典样式(`ranked`)、透明文字(`transparent`)、头像横卡(`identity`)、简洁白卡(`outline`)和奶油气泡(`cream`)。前六种固定排列，后两种全屏随机；非法样式回退 `signal`。旧 `style` / `fullscreenDurationSeconds` query 仍可初始化草稿，随后地址统一为 `/danmaku?preview=1`，当前风格保存在该 history entry，刷新保留选择。每种风格一次性渲染 6 条示例：总督、提督、舰长和非大航海观众的文字与行内表情、纯表情、“星河来客送出小花花 × 10”送礼通知。预览不连接 WebSocket、不循环或自动追加、不自动过期，允许滚动查看全部；`打call` 图片内置于 `public/img/overlays/danmaku-previews/dacall.png`，没有外部素材请求。八种风格正文与礼物名称、数量统一为 30px；预览沿用实际卡片宽度及表情比例。六种固定位置样式共用跟随浏览器源宽高的外层画布，四周统一留 12px，消息靠左并从底部排列；各样式保留消息宽度、间距和装饰比例。经典样式与头像横卡只按扣除左右边距后的可用宽度等比缩小，600px 内容宽度时为原始大小，最大为 1 倍；高度只决定完整可见条数，不限制为 640px，也不缩小字号。本地预览沿用相同宽度规则，高度随内容展开并由外层视口滚动。
+[overlays/danmaku.js](../../../public/js/overlays/danmaku.js) 驱动本地 `/danmaku`。预览入口为 `/danmaku?preview=1`，由 [danmaku-preview.js](../../../public/js/overlays/danmaku-preview.js) 在同一页面切换聊天气泡(`bubble`)、深色面板(`signal`)、蝴蝶结(`minimal`)、经典样式(`ranked`)、透明文字(`transparent`)、头像横卡(`identity`)、简洁白卡(`outline`)、奶油气泡(`cream`)和流光气泡(`glow`)。前六种固定排列，后三种全屏随机；非法样式回退 `signal`。旧 `style` / `fullscreenDurationSeconds` query 仍可初始化草稿，随后地址统一为 `/danmaku?preview=1`，当前风格保存在该 history entry，刷新保留选择。每种风格一次性渲染 6 条示例：总督、提督、舰长和非大航海观众的文字与行内表情、纯表情、“星河来客送出小花花 × 10”送礼通知。预览不连接 WebSocket、不循环或自动追加、不自动过期，允许滚动查看全部；`打call` 图片内置于 `public/img/overlays/danmaku-previews/dacall.png`，没有外部素材请求。九种风格正文与礼物名称、数量统一为 30px；预览沿用实际卡片宽度及表情比例。六种固定位置样式共用跟随浏览器源宽高的外层画布，四周统一留 12px，消息靠左并从底部排列；各样式保留消息宽度、间距和装饰比例。经典样式与头像横卡只按扣除左右边距后的可用宽度等比缩小，600px 内容宽度时为原始大小，最大为 1 倍；高度只决定完整可见条数，不限制为 640px，也不缩小字号。本地预览沿用相同宽度规则，高度随内容展开并由外层视口滚动。
 
 保留的非预览本地入口以 `topic=danmaku` 连接 WebSocket，按 snapshot 的 `settings.danmakuOverlayStyle` / `danmakuFullscreenDurationSeconds` 切换样式和停留时间，从 `danmakuFeed` 恢复消息并消费 `danmaku:message`。按消息 `id` 去重，同一帧批量追加；连接中断时指数退避重连，连接状态仍以 `liveStatus` 为准。客户端复制和打开的正式 OBS 地址由服务器提供，本地预览不改变服务器配置。
+
+本地页面对去重、截取最近 50 条后的消息内容做完整比较。内容未变且 feed 无需初始化时，快照保留现有消息节点、到期计时器及尚未绘制的增量帧；仍更新直播连接状态。首次空快照、实际消息修正/清空/重连补数、样式或全屏期限变更导致的 feed 重建仍执行恢复。此优化不改变远端正式 OBS 的 SSE，也不承诺有变化的快照完全免于重建。真实页面模块和共享 feed 的节点/计时器回归见 `test/danmaku-snapshot-stability.test.js`。
 
 页面与 `/games` 的画猜消息共同复用 `danmaku-feed.js` DOM 组件。组件不读取 WebSocket 或领域状态，只接收显式消息数组和图片 URL resolver：
 
@@ -210,18 +220,21 @@ PNG/JPEG/WebP 和受支持的音频，Overlay 只接受受限的 `/opening-chara
 - `kind:'gift'` 使用专用 `is-gift` 节点，以 `textContent` 展示送礼人、“送出”、礼物名称和数量。登录账号发送的感谢按普通弹幕渲染，不转换成礼物卡，不额外生成感谢文案，也不提供单独的感谢示例。除保持原样的蝴蝶结外，礼物采用与普通聊天不同的排版和造型：聊天气泡为猫咪插画卡，信号带为切角通知牌，经典样式为礼章飘带，透明文字的礼物使用带细金边的实色圆角星光卡，身份横卡为纪念卡，简洁白卡为礼物小票，奶油气泡为花束礼物卡。除蝴蝶结外，送礼通知使用紧凑的两行结构：昵称在上，“送出＋礼物名”和数量在下一行，不显示“谢谢支持”。`gifts.css` 仅复用内容结构，各风格文件拥有配色、轮廓和装饰；插画仅用于适合的样式。素材全部内置于 `public/img/overlays/danmaku-gifts/`，各风格不复用同一礼物图。该展示能力不新增公开 SSE 事件或礼物业务处理链路。
 - 本地预览统一深灰背景，由外层视口单独滚动；消息列表按内容自然增高，不裁剪底部。固定设计画布只按可用宽度缩小；随机样式在预览中静态错位排布，正式直播仍使用原随机布局和寿命。预览明确使用无限视口保留范围，避免初始空列表高度导致示例被裁掉；窄窗口把样式选择放到顶部。样式切换回到顶部，地址不变。
 - `createDanmakuFeed(root, options).render(items)` 使用 `DocumentFragment`、`textContent` 和受控 `<img>` 创建消息，`append(item)` 只追加新节点，不重建已有 DOM。游戏层继续按估算高度保留当前可见区及上方约 5 个视口并自动滚到底部；固定 `/danmaku` 配置 `offscreenViewports: 0`，按实际布局高度、行间距和容器内边距移除最旧的超限节点，保留完整可见消息。固定区域和全屏模式的 `ResizeObserver` 同时观察容器与消息，图片加载、昵称换行或窗口缩放后在动画帧内合并测量与调整，使用不受入场动画缩放影响的布局尺寸。节点移除或替换时取消观察，销毁时取消布局帧和到期计时器。表情按精确触发文本切分，加载失败回退原触发文本，不使用 `innerHTML`。页面数据和断线恢复快照仍分别硬限制为最近 50 条，共享组件默认上限仍为 120 条。
+- 流光气泡（`glow`）将发送者昵称居中放在消息框上方，文字或表情在深色半透明圆角框内，边框带柔光，不显示头像/徽章。`ranked-palette.css` 为它和经典样式提供同一份身份色，普通观众/粉丝青蓝、舰长蓝、提督紫、总督红、主播绿色覆盖优先。复用现有随机布局与时长；本地预览静态错位排列，礼物采用同色紧凑双行通知卡。
 - 经典样式（`ranked`）通过独立 `data-streamer` 标记将主播名字标签和正文气泡设为绿色，并隐藏主播船锚；普通观众保持青蓝色。可选 `isStreamer` 只由当前房间主播 UID 与本条发送 UID 比较产生，缺失按 false；本地 B 站消息入口、feed 投影和服务器 SSE 均保留该展示语义，不公开新增 UID，也不改变其他风格的 `data-identity`。本地纯表情示例同时展示主播身份。
 - 共享组件按当前房间身份为每条消息输出 `data-identity=viewer|fan|captain|admiral|governor`；大航海身份优先，拥有大航海且佩戴当前房间灯牌时仍同时输出两枚徽标。五套固定弹幕姬只共享该语义，不共享身份视觉：`signal` 使用军衔刻度与分级信号色，`bubble` 使用会员胶囊、身份符号和柔和分级光晕，`minimal` 不绘制左侧色条，普通观众省略身份签，粉丝与大航海身份保留单字身份签和低遮挡分级色；`ranked` 隐藏徽标，以普通/粉丝共用的石墨灰及舰长蓝、提督紫、总督金四档整卡底色表达身份，用户名和正文在左、头像在右；`transparent` 不绘制卡片底色、边框或大航海徽标，保留头像右侧的昵称、正文和下方粉丝牌等级，并用蓝、紫、红色昵称区分舰长、提督、总督。`outline` 虽保留同一 DOM 身份字段以兼容共享组件，但 CSS 统一隐藏头像、徽标和灯牌；卡片使用浅白半透明底、柔和阴影、普通观众使用灰色昵称、大航海使用蓝紫红识别色，正文为深色，左对齐排版并轻微淡入。
 - `ranked` 使用 624×640 固定设计画布、最大 600px 卡片宽度和 10px 卡片间距，卡片随正文增高；`calculateRankedOverlayScale(width, height)` 取 `min(1, width / 624, height / 640)` 并投影到 `--ranked-scale`，让窗口 resize 时头像、文字和卡片统一等比缩放。浏览器源比例与设计画布不一致时在未占满的一轴保留透明空白，不拉伸或单独重排内部元素。
 - `/danmaku` 的观众头像由浏览器直接读取弹幕中携带的 HTTPS B 站 CDN 地址，保留域名白名单且拒绝带账号密码的 URL；头像和模糊底图共享同一地址，使用 `no-referrer` 并异步解码头像，不逐条查询用户资料或让服务器转发头像。图片缺失或失败沿用各样式的默认展示。表情继续使用 `/api/bilibili/avatar` 本地代理；未通过 B 站域名白名单的图片不会进入服务端公开流。
 - 固定区域样式的网格行占满可用高度，使消息容器的裁剪预算来自浏览器源视口，而不是当前消息堆叠高度；少量消息仍靠底部排列，追加消息不会在视口尚有空余时过早移除已有消息。
-- 各样式的图片表情受正文宽度约束，行内图片不使用负纵向边距，昵称与粉丝牌必要时分行。聊天气泡保留 12px 消息间距及 6px 尾角空间；直播气泡设计画布内的消息间距为 10px。身份横卡(`identity`)的普通观众与粉丝将本条头像放大模糊后铺底，保留头像的深浅和色彩分布，白字加细暗描边；右侧清晰头像宽 180px，左侧 30% 渐隐，图片不撑高卡片。缺失或失败时两层均使用默认插画，舰长/提督/总督继续使用蓝/紫/红身份底色，礼物保持独立样式。背景复用成功加载且经过 URL resolver 的图片，不读取跨域像素；本地和服务器样式一致。卡片宽 600px、最小高度 92px、间距 6px，按可用宽度等比缩小，正文换行时向下增长。全屏随机的昵称放在卡片边框内，正文间隔 6px；消息距离视口边缘至少 16px，消息之间至少 10px，已放得下的消息保留位置，空间不足时先移除最旧消息。
+- 各样式的图片表情受正文宽度约束，行内图片不使用负纵向边距，昵称与粉丝牌必要时分行。聊天气泡保留 12px 消息间距及 6px 尾角空间；直播气泡设计画布内的消息间距为 10px。身份横卡(`identity`)的普通观众与粉丝将本条头像放大模糊后铺底，保留头像的深浅和色彩分布，白字加细暗描边；右侧清晰头像宽 180px，左侧 30% 渐隐，图片不撑高卡片。缺失或失败时两层均使用默认插画，舰长/提督/总督继续使用蓝/紫/红身份底色，礼物保持独立样式。背景复用成功加载且经过 URL resolver 的图片，不读取跨域像素；本地和服务器样式一致。卡片宽 600px、最小高度 92px、间距 6px，按可用宽度等比缩小，正文换行时向下增长。简洁白卡和奶油气泡的昵称放在卡片边框内，正文间隔 6px；消息距离视口边缘至少 16px，消息之间至少 10px，已放得下的消息保留位置，空间不足时先移除最旧消息。
 - 信号带的粉丝牌等级跟随昵称信息行排版，不再绝对定位到卡片底边；粉丝牌名称允许收缩并显示省略号，等级不会挤到正文或边框上。
 - 蝴蝶结样式的昵称向下偏移 6px，居中占正文区域宽度的 70%，长昵称保持 14px 字号自动换行，连续英文也可在字符间折行。行内表情不使用负纵向边距，图片占用完整行高，避免最后一条消息的表情底部超出消息容器并被裁切。
 
 ## 6.2 游戏叠加层(/games)的弹幕组件
 
 [overlays/games.js](../../../public/js/overlays/games.js) 是游戏入口，只传入会话中的 `session.danmaku`。画我猜的 `#drawDanmakuFeed` 固定声明 `data-style="bubble"`，不读取或跟随弹幕姬的 `danmakuOverlayStyle` 设置；`games.css` 独立实现适合游戏窄栏的五身份气泡视觉，并自动受益于共享组件的安全表情渲染。
+
+游戏和转盘共用 `socket-client.js` 的连接生命周期。每次连接成功分别从 `/api/games/session`、`/api/wheel` 补齐状态；请求失败最多重试四次，收到更新后丢弃较旧的 HTTP 读取/操作响应。转盘通过专用 REST 读取和 `wheel:update` 恢复，不假定普通 snapshot 包含转盘状态。现有互动端点和页面凭据契约保持不变。
 
 - `games.css` 将短消息显示为紧凑气泡，长消息按宽度增长并自然换行增高；交错对齐、实时标题栏和 reduced-motion 降级只属于视觉层，不改变弹幕字段或游戏协议。
 
@@ -255,15 +268,16 @@ PNG/JPEG/WebP 和受支持的音频，Overlay 只接受受限的 `/opening-chara
 | 叠加层       | 首帧                                                                 | 实时                                        | 去重指纹                                | 触发重载的 reason                                              |
 | ------------ | -------------------------------------------------------------------- | ------------------------------------------- | --------------------------------------- | -------------------------------------------------------------- |
 | queue        | `/api/state`                                                         | snapshot                                    | current+waiting+SC+全部主题键           | `queue:add`/`bilibili:danmaku`/`bilibili:superchat`(80ms 强刷) |
-| songs        | `/api/state` + `/api/songs`                                          | snapshot                                    | orderKey/layoutKey/motionKey            | `songs:*`/`cloud:songs`/`database:clear`(220ms 重载)                         |
-| blindbox     | `/api/state` + `/api/gifts/blind-box-stats`                          | snapshot(仅缓存)+ 轮询                      | 统计接口每次重取                        | `bilibili:gift`/`gift:sprint:reset`/`connect`                  |
+| songs        | `/api/state` + `/api/songs`                                          | snapshot                                    | orderKey/layoutKey/motionKey            | `songs:*`/`cloud:songs`/`database:clear`/`database:clear-all`(220ms 重载) |
+| blindbox     | `/api/state` + `/api/gifts/blind-box-stats`                          | snapshot(即时设置)+ 轮询                     | 统计内容相同保留节点                    | `bilibili:gift`/`gift:sprint:reset`/`connect`                  |
 | overtime     | `/api/state`(overtime 字段)                                          | snapshot + `overtime:update`                | `revision` 单调比较                     | `overtime:update` 的 adjustment → 动画入队                     |
 | gift-effects | `/gift-effects` 页面加载完整合成 WebP + 三张独立装饰 WebP；保留四方分片资源 | `gift:frame`                                | `eventId` 稳定去重 + 3 条 pending 队列  | 每个合格 final 礼物一次播放                                    |
 | opening      | `/api/opening/config`                                                | 无                                          | 无；首帧配置经枚举/文本清洗             | 页面加载一次；Admin 预览可由 URL 参数覆盖                      |
 | clock        | `/api/clock/config` + 设备本地时间；URL 参数可覆盖                   | 本地秒边界定时器                            | 无；页面恢复可见时立即校时              | 页面加载一次；不消费 WebSocket reason                          |
-| lyrics       | `/api/settings`                                                      | `lyric-state` + `lyric-timeline` + snapshot | 当前行与时间轴内部去重                  | 播放页按状态变化推送                                           |
+| lyrics       | snapshot 中的设置、状态和时间轴                                      | `lyric-state` + `lyric-timeline` + snapshot | 当前行与时间轴内部去重                  | 播放页按状态变化推送                                           |
 | danmaku      | snapshot 中的 `danmakuFeed`                                          | `danmaku:message`                           | 有 id 时按 id；兼容消息按 uid+时间+正文 | 无 reason 重载；断线重连后由 snapshot 恢复                     |
 | games        | `/api/games/session`                                                 | snapshot + `game:update` + `game:draw`      | 游戏入口调度器按更新频率合并渲染        | `game:update` / `game:draw`                                    |
+| wheel        | `/api/wheel`，连接成功后补读并有限重试                               | `wheel:update`                            | 状态/抽取 ID 与读取代次                 | 每次 WebSocket 连接成功                                      |
 
 消息类型与 reason 的全集定义以 [ws.md](../backend/ws.md) §3 为准;本表只描述各叠加层**消费**哪些。
 

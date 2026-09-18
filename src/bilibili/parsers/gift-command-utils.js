@@ -1,6 +1,6 @@
 'use strict';
 
-const { cleanText, readObjectValue } = require('../../shared/utils');
+const { cleanText } = require('../../shared/utils');
 const { readFirstObject } = require('../utils/user-meta-extractor');
 
 function isBilibiliDuplicateGuardToast(packet) {
@@ -9,8 +9,7 @@ function isBilibiliDuplicateGuardToast(packet) {
   const data =
     packet && packet.data && typeof packet.data === 'object' ? packet.data : {};
   const option = readFirstObject(data, ['option']) || {};
-  const source =
-    readObjectValue(option, ['source']) ?? readObjectValue(data, ['source']);
+  const source = option.source ?? data.source;
   return Number(source) === 2;
 }
 

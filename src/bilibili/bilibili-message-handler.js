@@ -5,6 +5,7 @@
 
 const { cleanText, formatLogTimestamp } = require('../shared/utils');
 const { parseRandomSongTerms } = require('../music/random-song-filter');
+const { logSongRequest, songRequestReason } = require('./diagnostics');
 
 // ── 弹幕指令入口 ──
 
@@ -182,6 +183,12 @@ function randomSourceValue(scopeText) {
 function logDanmakuCommand(danmaku, result) {
   const message = cleanText(danmaku.message);
   if (!message.startsWith('点歌') && !message.startsWith('随机')) return;
+  logSongRequest('command-result', danmaku, {
+    status: result?.accepted ? 'accepted' : 'ignored',
+    ...(result?.accepted
+      ? { queueId: Number(result.queueItem?.id) || 0 }
+      : { reason: songRequestReason(result?.reason) }),
+  });
   console.log(formatBilibiliCommandLog(danmaku, result));
 }
 

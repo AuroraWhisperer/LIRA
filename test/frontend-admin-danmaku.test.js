@@ -36,19 +36,19 @@ test('admin danmaku input has no fixed character limit', () => {
   assert.doesNotMatch(source, /mentionRequester: toggle\.checked/);
   assert.match(html, /随机点歌回复/);
   assert.match(html, /条件不匹配时自动回复点歌人/);
-  assert.match(html, /启用回复/);
+  assert.match(html, /id="danmakuReplyToggle"[^>]*aria-labelledby="danmakuReplyTitle"/);
   assert.match(html, /签到机器人/);
   assert.match(html, /收到“签到”后回复累计天数/);
-  assert.match(html, /启用签到/);
+  assert.match(html, /id="danmakuCheckinToggle"[^>]*aria-labelledby="danmakuCheckinTitle"/);
   assert.match(html, /抽签机器人/);
   assert.match(html, /收到“抽签”后回复每日一签/);
-  assert.match(html, /启用抽签/);
+  assert.match(html, /id="danmakuFortuneToggle"[^>]*aria-labelledby="danmakuFortuneTitle"/);
   assert.match(html, /DIY 关键词回复/);
   assert.match(html, /收到自定义关键词后回复固定文案/);
-  assert.match(html, /启用 DIY/);
+  assert.match(html, /id="danmakuCustomReplyToggle"[^>]*aria-labelledby="danmakuCustomReplyTitle"/);
   assert.match(
     html,
-    /<details id="danmakuBlessingsPanel" class="danmaku-blessings-section">/,
+    /<details id="danmakuBlessingsPanel" class="danmaku-blessings-section" data-fixed-editor="checkin" hidden>/,
   );
   assert.match(html, /id="danmakuBlessingList"/);
   assert.match(html, /id="danmakuBlessingAddBtn"/);
@@ -137,6 +137,7 @@ test('danmaku tool separates the fixed live overlay from the sender and reply gr
     ['identity', '头像横卡'],
     ['outline', '简洁白卡'],
     ['cream', '奶油气泡'],
+    ['glow', '流光气泡'],
   ]);
   assert.match(html, /data-danmaku-style="signal"[^>]+aria-pressed="true"/);
   assert.match(

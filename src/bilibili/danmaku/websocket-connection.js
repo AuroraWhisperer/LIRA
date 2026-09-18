@@ -16,6 +16,7 @@ class WebSocketConnection {
       message: [],
       close: [],
       error: [],
+      diagnostic: [],
     };
   }
 
@@ -25,12 +26,24 @@ class WebSocketConnection {
     const ws = new WebSocket(wsUrl);
     ws.binaryType = 'arraybuffer';
     this.ws = ws;
+    const trace = {
+      authStatus: 'pending', packets: 0, heartbeatReplies: 0, lastPacketAt: '',
+    };
+    const report = (event, details = {}) =>
+      this.emit('diagnostic', { event, ...details });
+    this.connectionTrace = trace;
 
     ws.addEventListener('open', () => {
+      if (this.ws !== ws) return;
       this.sendPacket(7, 1, authPayload);
+      report('auth-sent');
       clearInterval(this.heartbeatTimer);
       this.awaitingHeartbeatReply = false;
       this.heartbeatTimer = setInterval(() => {
+        if (trace.authStatus === 'pending') {
+          trace.authStatus = 'no-reply';
+          report('auth-no-reply', { waitedMs: this.heartbeatIntervalMs });
+        }
         if (this.awaitingHeartbeatReply) {
           this.failConnection(ws, {
             code: 0,
@@ -52,14 +65,27 @@ class WebSocketConnection {
         event.data instanceof ArrayBuffer
           ? Buffer.from(event.data)
           : Buffer.from(await event.data.arrayBuffer());
+      if (this.ws !== ws) return;
+      trace.packets += 1;
+      trace.lastPacketAt = new Date().toISOString();
+      if (trace.packets === 1) report('socket-first-packet');
       if (containsOperation(data, 3)) {
         this.awaitingHeartbeatReply = false;
+        trace.heartbeatReplies += 1;
+        if (trace.heartbeatReplies === 1) report('heartbeat-confirmed');
+      }
+      for (const result of authenticationReplies(data)) {
+        trace.authStatus = result.code === null
+          ? 'invalid'
+          : result.code === 0 ? 'accepted' : 'rejected';
+        report('auth-result', { status: trace.authStatus, code: result.code });
       }
       this.emit('message', data);
     });
 
     ws.addEventListener('close', (event) => {
       if (this.ws !== ws) return;
+      report('socket-summary', trace);
       clearInterval(this.heartbeatTimer);
       this.heartbeatTimer = null;
       this.awaitingHeartbeatReply = false;
@@ -103,6 +129,7 @@ class WebSocketConnection {
     clearInterval(this.heartbeatTimer);
     this.heartbeatTimer = null;
     this.awaitingHeartbeatReply = false;
+    this.emit('diagnostic', { event: 'socket-summary', ...this.connectionTrace });
     this.ws = null;
     try {
       ws.close();
@@ -131,7 +158,9 @@ class WebSocketConnection {
   }
 
   clearHandlers() {
-    this.eventHandlers = { open: [], message: [], close: [], error: [] };
+    this.eventHandlers = {
+      open: [], message: [], close: [], error: [], diagnostic: [],
+    };
   }
 
   emit(event, data) {
@@ -175,6 +204,34 @@ class WebSocketConnection {
       ws.addEventListener('close', handleClose);
     });
   }
+}
+
+function authenticationReplies(buffer) {
+  const replies = [];
+  let offset = 0;
+  while (offset + 16 <= buffer.length) {
+    const length = buffer.readUInt32BE(offset);
+    const headerLength = buffer.readUInt16BE(offset + 4);
+    if (
+      length < 16 || headerLength < 16 || headerLength > length ||
+      offset + length > buffer.length
+    ) break;
+    if (buffer.readUInt32BE(offset + 8) === 8) {
+      let code;
+      try {
+        const reply = JSON.parse(
+          buffer.subarray(offset + headerLength, offset + length).toString('utf8'),
+        );
+        code = Number.isInteger(reply?.code) ? reply.code : null;
+      } catch (_) {
+        // The raw authentication response may contain secrets; retain only its validity.
+        code = null;
+      }
+      replies.push({ code });
+    }
+    offset += length;
+  }
+  return replies;
 }
 
 function containsOperation(buffer, expectedOperation) {

@@ -82,6 +82,35 @@ function open(auth, writeLog = () => {}) {
   });
 }
 
+for (const snapshotFailure of [false, true]) {
+  test(`login diagnostics report final state and snapshot save failure=${snapshotFailure} without credentials`, async (t) => {
+    const lines = [];
+    t.mock.method(console, 'info', (line) => lines.push(line));
+    const resultPromise = open(createAuth({
+      persistBilibiliCookieSnapshot: async () => {
+        if (snapshotFailure) throw new Error('save failed');
+        return { savedAt: '2026-09-17T00:00:00Z', cookieCount: 3 };
+      },
+      getBilibiliAuthState: async () => ({
+        loggedIn: true, uid: 912345678, hasSessdata: true,
+        keyCookieNames: ['DedeUserID', 'SESSDATA', 'bili_jct'],
+        cookieHeader: 'synthetic-secret',
+      }),
+    }));
+    await new Promise((resolve) => setImmediate(resolve));
+    FakeBrowserWindow.latest.webContents.session.cookies.emit('changed');
+    await resultPromise;
+    const events = lines.map((line) => JSON.parse(line.split('[Bilibili][Diagnostic] ')[1]));
+    assert.equal(events[0].event, 'login-open');
+    const final = events.find((event) => event.event === 'login-closed');
+    assert.equal(final.loggedIn, true);
+    assert.equal(final.autoClosed, true);
+    assert.equal(final.snapshotSaved, !snapshotFailure);
+    assert.equal(final.hasCsrf, true);
+    assert.doesNotMatch(lines.join('\n'), /912345678|synthetic-secret/);
+  });
+}
+
 test('login window removes its cookie listener when initial navigation fails', async () => {
   FakeBrowserWindow.loadError = new Error('navigation failed');
   try {

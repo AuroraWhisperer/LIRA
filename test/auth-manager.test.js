@@ -33,6 +33,48 @@ function qqCookie(name, value, domain = '.qq.com') {
   return { name, value, domain };
 }
 
+test('music platform normalization rejects inherited configuration keys', () => {
+  const authManager = loadAuthManager([]);
+  for (const platform of ['constructor', '__proto__', 'toString', 'unknown']) {
+    assert.throws(() => authManager.normalizeMusicPlatform(platform), /qq 或 netease/);
+    assert.equal(authManager.isAllowedMusicLoginUrl(platform, 'https://y.qq.com/'), false);
+  }
+  assert.equal(authManager.normalizeMusicPlatform(' QQ '), 'qq');
+  assert.equal(authManager.normalizeMusicPlatform('NETEASE'), 'netease');
+});
+
+test('music login rejects invalid platforms before creating a window or session', async () => {
+  const Module = require('node:module');
+  const originalLoad = Module._load;
+  const modulePath = require.resolve('../src/electron/login-window');
+  const authManager = loadAuthManager([]);
+  let createdWindows = 0;
+  let loginWindow;
+  try {
+    Module._load = function (request, parent, isMain) {
+      if (request === 'electron') return {
+        BrowserWindow: class {
+          constructor() {
+            createdWindows += 1;
+            throw new Error('Unexpected login window');
+          }
+        },
+      };
+      if (request === './auth-manager' && parent.filename === modulePath) return authManager;
+      return originalLoad.call(this, request, parent, isMain);
+    };
+    delete require.cache[modulePath];
+    loginWindow = require(modulePath);
+  } finally {
+    delete require.cache[modulePath];
+    Module._load = originalLoad;
+  }
+  for (const platform of ['constructor', '__proto__', 'unknown']) {
+    await assert.rejects(loginWindow.loginMusicAccount(null, platform, ''), /qq 或 netease/);
+  }
+  assert.equal(createdWindows, 0);
+});
+
 test('QQ auth recognizes every non-empty QQ Music credential', async () => {
   for (const name of ['qqmusic_key', 'qm_keyst']) {
     const authManager = loadAuthManager([qqCookie(name, 'token')]);

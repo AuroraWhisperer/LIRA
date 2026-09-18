@@ -23,7 +23,7 @@ async function fixture() {
     'overlayUrl', 'styleChip', 'styleSaveState', 'fullscreenDurationField', 'fullscreenDuration',
     'copyOverlayUrlButton', 'openOverlayButton', 'previewOverlayButton',
   ].map((key) => [key, node(key)]));
-  elements.styleButtons = ['bubble', 'signal', 'minimal', 'ranked', 'transparent', 'identity', 'outline', 'cream'].map((style) => {
+  elements.styleButtons = ['bubble', 'signal', 'minimal', 'ranked', 'transparent', 'identity', 'outline', 'cream', 'glow'].map((style) => {
     const button = node(style); button.dataset.danmakuStyle = style; return button;
   });
   let observer;
@@ -97,26 +97,28 @@ test('failed apply and invalid durations retain the editable draft', async () =>
   assert.match(f.elements.styleChip.textContent, /简洁白卡/);
 });
 
-test('cream is a random-style draft with duration, read-only preview and explicit apply', async () => {
-  const f = await fixture(); f.reads[0].resolve(saved()); await flush();
-  f.click('cream'); f.duration('9');
-  assert.equal(f.elements.fullscreenDurationField.hidden, false);
-  assert.match(f.elements.styleChip.textContent, /待应用.*奶油气泡/);
-  f.click('previewOverlayButton');
-  const preview = new URL(f.opened[0][0]);
-  assert.equal(preview.searchParams.get('style'), 'cream');
-  assert.equal(preview.searchParams.get('fullscreenDurationSeconds'), '9');
-  assert.equal(f.writes.length, 0);
-  const pending = f.click('danmakuApplyOverlayBtn');
-  assert.deepEqual(f.writes[0].parameters, { style: 'cream', fullscreenDurationSeconds: 9 });
-  f.writes[0].resolve(saved('cream', 9)); await pending;
-  assert.match(f.elements.styleChip.textContent, /服务器样式.*奶油气泡/);
-  assert.equal(f.node('danmakuApplyOverlayBtn').disabled, true);
-  f.click('outline');
-  assert.equal(f.elements.fullscreenDurationField.hidden, false);
-  f.click('signal');
-  assert.equal(f.elements.fullscreenDurationField.hidden, true);
-});
+for (const [style, label] of [['cream', '奶油气泡'], ['glow', '流光气泡']]) {
+  test(`${style} is a random-style draft with duration, read-only preview and explicit apply`, async () => {
+    const f = await fixture(); f.reads[0].resolve(saved()); await flush();
+    f.click(style); f.duration('9');
+    assert.equal(f.elements.fullscreenDurationField.hidden, false);
+    assert.match(f.elements.styleChip.textContent, new RegExp(`待应用.*${label}`));
+    f.click('previewOverlayButton');
+    const preview = new URL(f.opened[0][0]);
+    assert.equal(preview.searchParams.get('style'), style);
+    assert.equal(preview.searchParams.get('fullscreenDurationSeconds'), '9');
+    assert.equal(f.writes.length, 0);
+    const pending = f.click('danmakuApplyOverlayBtn');
+    assert.deepEqual(f.writes[0].parameters, { style, fullscreenDurationSeconds: 9 });
+    f.writes[0].resolve(saved(style, 9)); await pending;
+    assert.match(f.elements.styleChip.textContent, new RegExp(`服务器样式.*${label}`));
+    assert.equal(f.node('danmakuApplyOverlayBtn').disabled, true);
+    f.click('outline');
+    assert.equal(f.elements.fullscreenDurationField.hidden, false);
+    f.click('signal');
+    assert.equal(f.elements.fullscreenDurationField.hidden, true);
+  });
+}
 
 test('a late read cannot replace a draft and an old account save cannot affect the new account', async () => {
   const f = await fixture(); f.reads[0].resolve(saved()); await flush();

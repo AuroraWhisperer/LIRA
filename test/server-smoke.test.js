@@ -357,6 +357,51 @@ test('server runtimes isolate sequential data directories', async () => {
   }
 });
 
+test('server runtime stops once with an upgraded peer that never sends FIN', async () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-ws-stop-'));
+  const { createServerRuntime } = require('../src/server');
+  const runtime = createServerRuntime({ dataDir });
+  let client;
+  let watchdog;
+  let hookCalls = 0;
+  runtime.setPreShutdownHook(async () => { hookCalls += 1; });
+  try {
+    const app = await runtime.start({ host: '127.0.0.1', startPort: await findAvailablePort() });
+    client = net.createConnection({ host: app.host, port: app.port, allowHalfOpen: true });
+    const received = [];
+    client.on('data', (chunk) => received.push(chunk));
+    await new Promise((resolve, reject) => {
+      client.once('error', reject);
+      client.once('data', resolve);
+      client.on('connect', () => client.write(
+        `GET /ws?token=${runtime.getApiToken()} HTTP/1.1\r\nHost: ${app.host}:${app.port}\r\n` +
+        'Connection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Version: 13\r\n' +
+        'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n',
+      ));
+    });
+    assert.match(Buffer.concat(received).toString(), /101 Switching Protocols/);
+    const stop = runtime.stop({ exitProcess: false });
+    assert.equal(runtime.stop({ exitProcess: false }), stop);
+    await Promise.race([
+      stop,
+      new Promise((_, reject) => {
+        watchdog = setTimeout(() => reject(new Error('runtime stop hung on upgraded peer')), 3000);
+      }),
+    ]);
+    assert.equal(hookCalls, 1);
+    assert.equal(runtime.getApiToken(), '');
+    assert.equal(fs.existsSync(path.join(dataDir, '.server-runtime.json')), false);
+    assert.equal(await canConnect(app.port), false);
+    assert.ok(Buffer.concat(received).includes(Buffer.from('"type":"shutdown"')));
+  } finally {
+    clearTimeout(watchdog);
+    client?.destroy();
+    await runtime.stop({ exitProcess: false });
+    assert.equal(path.dirname(fs.realpathSync(dataDir)), fs.realpathSync(os.tmpdir()));
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
 test('server runtime closes cleanly when stop races with start', async () => {
   const dataDir = fs.mkdtempSync(
     path.join(os.tmpdir(), 'song-plugin-runtime-race-'),

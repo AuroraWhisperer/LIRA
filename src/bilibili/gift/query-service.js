@@ -12,6 +12,7 @@ const {
 } = require('../../storage/gift-maintenance-store');
 const { createGiftQueryStore } = require('../../storage/gift-query-store');
 const { resolveGiftSourceScope } = require('./source-scope');
+const { normalizeHistoryFilters, shanghaiDayStart, historyBounds, giftViewRevision, queryError } = require('./history-filters');
 
 const CRYSTAL_BALL_VALUE_RMB = 100;
 const DEFAULT_HISTORY_LIMIT = 50;
@@ -41,6 +42,7 @@ const GIFT_RANGES = Object.freeze({
   '30d': 30,
   '90d': 90,
   all: null,
+  today: 0,
 });
 function resetGiftSprintProgress(context) {
   const sourceScope = resolveGiftSourceScope(context);
@@ -60,11 +62,21 @@ function getGiftSnapshot(context) {
   const recent = createGiftQueryStore(context.db.giftDb)
     .listRecent({ sourceScope, limit: 30 })
     .map(normalizeGiftRow);
-  return { recent };
+  let viewRevision = null;
+  try { viewRevision = getGiftViewRevision(context); } catch (error) {
+    if (error.code !== 'GIFT_SOURCE_UNAVAILABLE') throw error;
+  }
+  return { recent, viewRevision };
 }
 
 function getGiftHistory(context, options = {}) {
   const activeSource = requireActiveGiftSource(context);
+  const queryStore = createGiftQueryStore(context.db.giftDb);
+  const viewRevision = giftViewRevision(activeSource, queryStore.getProjectionGeneration(activeSource.sourceId));
+  if (options.viewRevision && options.viewRevision !== viewRevision) {
+    throw queryError('GIFT_VIEW_STALE', '礼物来源或流水已变更，请重新选择。');
+  }
+  const filters = normalizeHistoryFilters(options);
   const query = normalizeLedgerQuery(options.query);
   const range = normalizeLedgerRange(options.range);
   const limit = normalizeHistoryLimit(options.limit);
@@ -75,13 +87,15 @@ function getGiftHistory(context, options = {}) {
     range,
     sortField,
     sortDirection,
+    filters,
+    viewRevision,
   });
   const asOf = cursor?.asOf || resolveAsOf(context);
-  const queryStore = createGiftQueryStore(context.db.giftDb);
   const historyOptions = {
     sourceId: activeSource.sourceId,
     query,
-    rangeStart: resolveRangeStart(range, asOf),
+    ...filters,
+    ...historyBounds(filters, resolveRangeStart(range, asOf), asOf),
     asOf,
     cursor,
     sortField,
@@ -97,6 +111,8 @@ function getGiftHistory(context, options = {}) {
   const last = pageRows.at(-1);
 
   return {
+    viewRevision,
+    ...filters,
     asOf,
     range,
     items: pageRows.map(mapLedgerHistoryRow),
@@ -110,6 +126,8 @@ function getGiftHistory(context, options = {}) {
             range,
             sortField,
             sortDirection,
+            filters,
+            viewRevision,
           })
         : null,
     hasMore,
@@ -264,6 +282,10 @@ function mapLedgerHistoryRow(row) {
       : platformId,
     gift: {
       giftId: canonicalGiftId(row.gift_id),
+      giftVariantId: row.gift_variant_id || null,
+      blindBoxVariantId: row.blind_box_variant_id || null,
+      avatarUrl: row.avatar_url || null,
+      guardLevel: row.guard_level ?? null,
       giftName: canonicalGiftText(row.gift_name),
       userName: canonicalGiftText(row.user_name) || '观众',
       num: toSafePositiveInteger(row.num),
@@ -344,6 +366,9 @@ function resolveAsOf(context) {
 }
 
 function resolveRangeStart(range, asOf) {
+  if (range === 'today') {
+    return shanghaiDayStart(new Date(Date.parse(asOf) + 28800000).toISOString().slice(0, 10));
+  }
   const days = GIFT_RANGES[range];
   if (days === null) return null;
   return new Date(Date.parse(asOf) - days * 24 * 60 * 60 * 1000).toISOString();
@@ -375,6 +400,8 @@ function encodeHistoryCursor(value) {
         query: value.query,
         range: value.range,
       };
+  payload.filters = value.filters;
+  payload.viewRevision = value.viewRevision;
   return Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
 }
 
@@ -392,6 +419,12 @@ function decodeHistoryCursor(value, expected) {
     const id = Number(parsed?.id);
     const asOf = normalizeIsoTimestamp(parsed?.asOf);
     const version = parsed?.version;
+    if (parsed.viewRevision && parsed.viewRevision !== expected.viewRevision) {
+      throw queryError('GIFT_VIEW_STALE', '礼物来源或流水已变更，请重新加载。');
+    }
+    if (JSON.stringify(parsed.filters || normalizeHistoryFilters()) !== JSON.stringify(expected.filters)) {
+      throw new Error('invalid cursor filters');
+    }
     if (
       !Number.isSafeInteger(id) ||
       id < 1 ||
@@ -426,7 +459,8 @@ function decodeHistoryCursor(value, expected) {
       throw new Error('invalid cursor');
     }
     return Object.freeze({ id, sortValue, asOf });
-  } catch (_) {
+  } catch (error) {
+    if (error.code === 'GIFT_VIEW_STALE') throw error;
     throw createGiftQueryError('INVALID_GIFT_CURSOR', '礼物分页游标无效。');
   }
 }
@@ -495,6 +529,8 @@ function createGiftQueryError(code, message) {
 }
 
 module.exports = {
+  getGiftSelection,
+  getGiftViewRevision,
   CRYSTAL_BALL_VALUE_RMB,
   resetGiftSprintProgress,
   getGiftSnapshot,
@@ -506,3 +542,40 @@ module.exports = {
   normalizeHistorySortField,
   normalizeHistorySortDirection,
 };
+
+function getGiftViewRevision(context) {
+  const source = requireActiveGiftSource(context);
+  return giftViewRevision(source, createGiftQueryStore(context.db.giftDb).getProjectionGeneration(source.sourceId));
+}
+
+function getGiftSelection(context, options = {}) {
+  const viewRevision = getGiftViewRevision(context);
+  if (options.viewRevision !== viewRevision) {
+    throw queryError('GIFT_VIEW_STALE', '礼物来源或流水已变更，请重新选择。');
+  }
+  const filters = normalizeHistoryFilters(options);
+  const source = requireActiveGiftSource(context);
+  const asOf = resolveAsOf(context);
+  const ids = options.eventIds;
+  if (ids !== undefined && (!Array.isArray(ids) || ids.length === 0 || ids.length > 10000 ||
+    ids.some((id) => typeof id !== 'string' || !id || id.length > 64))) {
+    throw queryError('INVALID_GIFT_SELECTION', '请选择 1 至 10000 条礼物记录。');
+  }
+  const rows = createGiftQueryStore(context.db.giftDb).readHistorySnapshot({
+    sourceId: source.sourceId,
+    query: normalizeLedgerQuery(options.query),
+    ...filters,
+    ...historyBounds(filters, resolveRangeStart(normalizeLedgerRange(options.range || 'all'), asOf), asOf),
+    asOf,
+    eventIds: ids,
+    sortField: normalizeHistorySortField(options.sortField),
+    sortDirection: normalizeHistorySortDirection(options.sortDirection),
+    limit: 10001,
+  });
+  if (rows.length > 10000) throw queryError('INVALID_GIFT_SELECTION', '筛选结果超过 10000 条，请缩小日期范围后选择。');
+  const items = rows.map(mapLedgerHistoryRow);
+  if (ids && items.length !== new Set(ids).size) {
+    throw queryError('GIFT_VIEW_STALE', '部分礼物记录已不可用，请重新选择。');
+  }
+  return { viewRevision, asOf, items, ...buildSyncMetadata(source) };
+}

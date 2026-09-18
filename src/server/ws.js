@@ -3,6 +3,7 @@
 'use strict';
 
 const crypto = require('node:crypto');
+const { isUtf8 } = require('node:buffer');
 const { URL } = require('node:url');
 
 const MAX_FRAME_BYTES = 256 * 1024; // 256 KB
@@ -10,10 +11,14 @@ const MAX_MESSAGE_BYTES = 256 * 1024; // 256 KB across all fragments
 const MAX_PENDING_BYTES = 2 * 1024 * 1024; // 2 MB per outbound socket queue
 const HEARTBEAT_INTERVAL_MS = 30000;
 const SOCKET_TIMEOUT_MS = 90000;
+const CLOSE_TIMEOUT_MS = 1000;
 const SUBSCRIPTION_TOPICS = new Set(['danmaku']);
 
 function createWebSocketHub(options = {}) {
   const sockets = new Set();
+  const closingSockets = new Map();
+  const closeTimeoutMs = options.closeTimeoutMs || CLOSE_TIMEOUT_MS;
+  let stopped = false;
   const heartbeatIntervalMs =
     options.heartbeatIntervalMs || HEARTBEAT_INTERVAL_MS;
   const socketTimeoutMs = options.socketTimeoutMs || SOCKET_TIMEOUT_MS;
@@ -26,6 +31,10 @@ function createWebSocketHub(options = {}) {
   let pendingSnapshot = null;
 
   function handleWebSocketUpgrade(context, req, socket) {
+    if (stopped) {
+      socket.destroy();
+      return;
+    }
     const key = req.headers['sec-websocket-key'];
     if (!key) {
       socket.destroy();
@@ -88,8 +97,8 @@ function createWebSocketHub(options = {}) {
     if (context.state && context.state.sockets)
       context.state.sockets.add(socket);
     socket._wsContext = context;
-    socket.on('close', () => cleanupSocket(socket));
-    socket.on('error', () => cleanupSocket(socket));
+    socket.on('close', () => finishSocket(socket));
+    socket.on('error', () => dropSocket(socket));
     socket._wsDataHandler = (chunk) => handleSocketData(socket, chunk);
     socket.on('data', socket._wsDataHandler);
 
@@ -109,7 +118,37 @@ function createWebSocketHub(options = {}) {
     try {
       socket.destroy();
     } catch (_) {}
+    finishSocket(socket);
+  }
+
+  function finishSocket(socket) {
+    clearTimeout(closingSockets.get(socket));
+    closingSockets.delete(socket);
     cleanupSocket(socket);
+  }
+
+  function closeSocket(socket, payload) {
+    if (socket._wsCleanedUp) return;
+    if (!sendWebSocketFrame(socket, payload, 0x8)) {
+      dropSocket(socket);
+      return;
+    }
+    // Remove from broadcasts now, but retain ownership until physical close.
+    cleanupSocket(socket);
+    const timer = setTimeout(() => dropSocket(socket), closeTimeoutMs);
+    timer.unref();
+    closingSockets.set(socket, timer);
+    try {
+      socket.end();
+    } catch (_) {
+      dropSocket(socket);
+    }
+  }
+
+  function rejectFrame(socket, code = 1002) {
+    const payload = Buffer.alloc(2);
+    payload.writeUInt16BE(code);
+    closeSocket(socket, payload);
   }
 
   function cleanupSocket(socket) {
@@ -129,6 +168,7 @@ function createWebSocketHub(options = {}) {
     socket._wsContext = null;
     socket._wsBuffer = null;
     socket._wsFragment = null;
+    socket._wsFragmentOpcode = 0;
     socket._wsFragmentBytes = 0;
     socket._wsTopics = null;
     socket._wsMaxPendingBytes = null;
@@ -155,8 +195,20 @@ function createWebSocketHub(options = {}) {
       const opcode = buffer[0] & 0x0f;
       const fin = Boolean(buffer[0] & 0x80);
       const masked = Boolean(buffer[1] & 0x80);
+      const control = opcode >= 0x8;
+      const lengthCode = buffer[1] & 0x7f;
+      if (
+        !masked ||
+        (buffer[0] & 0x70) ||
+        ![0x0, 0x1, 0x2, 0x8, 0x9, 0xa].includes(opcode) ||
+        (control && (!fin || lengthCode > 125)) ||
+        (!control && ((opcode === 0x0) !== (socket._wsFragment !== null)))
+      ) {
+        rejectFrame(socket);
+        return;
+      }
 
-      let length = buffer[1] & 0x7f;
+      let length = lengthCode;
       let headerSize = 2;
       if (length === 126) {
         if (buffer.length < 4) break;
@@ -164,41 +216,39 @@ function createWebSocketHub(options = {}) {
         headerSize = 4;
       } else if (length === 127) {
         if (buffer.length < 10) break;
+        if (buffer[2] & 0x80) {
+          rejectFrame(socket);
+          return;
+        }
         length = Number(buffer.readBigUInt64BE(2));
         headerSize = 10;
       }
 
-      if (!Number.isFinite(length) || length < 0) {
-        sendWebSocketFrame(socket, Buffer.from([0x03, 0xea]), 0x8); // 1002 protocol error
-        socket.end();
+      if (
+        (lengthCode === 126 && length < 126) ||
+        (lengthCode === 127 && length < 65536)
+      ) {
+        rejectFrame(socket);
         return;
       }
 
       if (length > MAX_FRAME_BYTES) {
-        sendWebSocketFrame(socket, Buffer.from([0x03, 0xf1]), 0x8); // 1009 too large
-        socket.end();
+        rejectFrame(socket, 1009);
         return;
       }
 
-      const maskSize = masked ? 4 : 0;
-      const totalFrameSize = headerSize + maskSize + length;
+      const totalFrameSize = headerSize + 4 + length;
       if (buffer.length < totalFrameSize) break; // Partial frame, wait for more data
 
-      // Extract mask if present
-      let maskKey = null;
-      if (masked) {
-        maskKey = buffer.subarray(headerSize, headerSize + 4);
-      }
+      const maskKey = buffer.subarray(headerSize, headerSize + 4);
 
       // Extract and unmask payload
-      const payloadStart = headerSize + maskSize;
+      const payloadStart = headerSize + 4;
       const payload = Buffer.from(
         buffer.subarray(payloadStart, payloadStart + length),
       );
-      if (masked && maskKey) {
-        for (let i = 0; i < payload.length; i++) {
-          payload[i] ^= maskKey[i % 4];
-        }
+      for (let i = 0; i < payload.length; i++) {
+        payload[i] ^= maskKey[i % 4];
       }
 
       // Advance buffer past this frame
@@ -206,16 +256,34 @@ function createWebSocketHub(options = {}) {
 
       // Dispatch by opcode
       if (opcode === 0x8) {
-        // Close frame: echo client's status code + reason, then end
-        sendWebSocketFrame(socket, payload, 0x8);
-        cleanupSocket(socket);
-        socket.end();
+        if (payload.length === 1) {
+          rejectFrame(socket);
+          return;
+        }
+        if (payload.length >= 2) {
+          const code = payload.readUInt16BE(0);
+          const validCode =
+            (code >= 1000 && code <= 1014 && ![1004, 1005, 1006].includes(code)) ||
+            (code >= 3000 && code <= 4999);
+          if (!validCode) {
+            rejectFrame(socket);
+            return;
+          }
+          if (!isUtf8(payload.subarray(2))) {
+            rejectFrame(socket, 1007);
+            return;
+          }
+        }
+        closeSocket(socket, payload);
         return;
       }
 
       if (opcode === 0x9) {
         // Ping: reply with pong, echoing payload
-        sendWebSocketFrame(socket, payload, 0xa);
+        if (!sendWebSocketFrame(socket, payload, 0xa)) {
+          dropSocket(socket);
+          return;
+        }
         // Continue loop (more frames may follow in same buffer)
         continue;
       }
@@ -230,18 +298,17 @@ function createWebSocketHub(options = {}) {
       // Accumulate fragments but don't act on them (server doesn't consume client messages)
       if (opcode === 0x0) {
         // Continuation frame
-        if (socket._wsFragment !== null) {
-          if (socket._wsFragmentBytes + payload.length > MAX_MESSAGE_BYTES) {
-            sendWebSocketFrame(socket, Buffer.from([0x03, 0xf1]), 0x8); // 1009 too large
-            cleanupSocket(socket);
-            socket.end();
-            return;
-          }
-          socket._wsFragment = Buffer.concat([socket._wsFragment, payload]);
-          socket._wsFragmentBytes += payload.length;
+        if (socket._wsFragmentBytes + payload.length > MAX_MESSAGE_BYTES) {
+          rejectFrame(socket, 1009);
+          return;
         }
+        socket._wsFragment = Buffer.concat([socket._wsFragment, payload]);
+        socket._wsFragmentBytes += payload.length;
       } else if (fin) {
-        // Complete single-frame message — ignore (server doesn't consume)
+        if (opcode === 0x1 && !isUtf8(payload)) {
+          rejectFrame(socket, 1007);
+          return;
+        }
       } else {
         // Start of fragmented message
         socket._wsFragment = payload;
@@ -250,8 +317,13 @@ function createWebSocketHub(options = {}) {
       }
 
       if (fin && socket._wsFragment !== null) {
+        if (socket._wsFragmentOpcode === 0x1 && !isUtf8(socket._wsFragment)) {
+          rejectFrame(socket, 1007);
+          return;
+        }
         // Fragmented message complete — reset
         socket._wsFragment = null;
+        socket._wsFragmentOpcode = 0;
         socket._wsFragmentBytes = 0;
       }
 
@@ -308,6 +380,8 @@ function createWebSocketHub(options = {}) {
   }
 
   function stop(options = {}) {
+    if (stopped) return;
+    stopped = true;
     pendingSnapshot = null;
     snapshotFlushQueued = false;
     if (heartbeatTimer) {
@@ -315,16 +389,14 @@ function createWebSocketHub(options = {}) {
       heartbeatTimer = null;
     }
     for (const socket of Array.from(sockets)) {
-      try {
-        if (options.shutdownPayload)
-          sendWebSocket(socket, options.shutdownPayload);
-        socket.end();
-      } catch (_) {
-        try {
-          socket.destroy();
-        } catch (_) {}
+      if (
+        options.shutdownPayload &&
+        !sendWebSocket(socket, options.shutdownPayload)
+      ) {
+        dropSocket(socket);
+        continue;
       }
-      cleanupSocket(socket);
+      closeSocket(socket, Buffer.from([0x03, 0xe9])); // 1001 going away
     }
   }
 

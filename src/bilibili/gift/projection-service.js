@@ -289,6 +289,10 @@ function requireRemoteSource(store, sourceId) {
 function isMatchingHistoryProjection(row, record) {
   if (row.detection_status !== 'final' || row.status !== 'active') return false;
   try {
+    const { display, ...recordGift } = record.gift;
+    for (const [stored, incoming] of [[row.avatar_url, display?.avatarUrl], [row.guard_level, display?.guardLevel]]) {
+      if (stored !== null && stored !== undefined && incoming !== null && incoming !== undefined && stored !== incoming) return false;
+    }
     const existing = canonicalizeProcessedGiftHistoryRecord({
       eventId: record.eventId,
       gift: {
@@ -323,7 +327,7 @@ function isMatchingHistoryProjection(row, record) {
       JSON.stringify({
         ...record,
         gift: {
-          ...record.gift,
+          ...recordGift,
           giftVariantId: existing.gift.giftVariantId,
           blindBoxVariantId: existing.gift.blindBoxVariantId,
         },

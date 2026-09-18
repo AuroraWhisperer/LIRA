@@ -167,6 +167,8 @@ AI 弹幕姬是一个由模型服务驱动的通用互动助手；当前默认�
 
 管理端编辑经 `/api/ai/config`(`PUT`,密钥传 `''` 跳过、传 `null` 置空,见 [api.md](api.md) §13);连接测试/模型列表端点:`/api/ai/status`、`/api/ai/models`、`/api/ai/test`、`/api/ai/test/{deepseek,qweather,amap}`。
 
+模型密钥的隐式复用受有效 origin（协议、主机、端口）约束。`config-store.updateConfig` 在事务提交前读取将要持久化的有效配置，跨 origin 时要求显式提供或清空 `deepseekApiKey`，否则回滚整次修改；从官方预设切回先前自定义地址也经过此校验。`ai-assistant-service.listModels` 在上游请求前执行同一检查，临时更换目标只能使用明确提供的 Key。同 origin 的路径或协议选择仍可调整；官方预设先确定真实目标，不用被忽略的地址判断。连接测试和正常生成继续读取受校验的配置。此约束不改变和风、高德各自的凭据模型。回归：`test/ai-model-key-origin.test.js`。
+
 ## 8. 月度配额与审计日志
 
 ### 8.1 第三方 API 月度配额(api-quota-store)

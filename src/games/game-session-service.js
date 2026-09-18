@@ -138,17 +138,16 @@ function createGameSessionService(options = {}) {
   }
 
   function handleDanmaku(danmaku = {}) {
-    touchViewer(danmaku);
+    const isStreamer = danmaku.isStreamer === true;
+    if (!isStreamer) touchViewer(danmaku);
     if (session?.game === 'draw-guess') {
       session.danmaku.push(normalizeGameDanmaku(danmaku));
       if (session.danmaku.length > MAX_DANMAKU)
         session.danmaku.splice(0, session.danmaku.length - MAX_DANMAKU);
       materializeDrawGuessDeadline();
-      const result = drawGuess.submitGuess(
-        session.state,
-        danmaku,
-        monotonicNow(),
-      );
+      const result = isStreamer
+        ? { accepted: false }
+        : drawGuess.submitGuess(session.state, danmaku, monotonicNow());
       publish();
       if (!result.accepted) return { ...result, session: publicSessionRaw() };
       session.state = result.state;
@@ -156,7 +155,7 @@ function createGameSessionService(options = {}) {
       return { ...result, session: publicSessionRaw() };
     }
     materializeDrawGuessDeadline();
-    if (!session || session.state.winner || session.state.turn !== 'viewer')
+    if (isStreamer || !session || session.state.winner || session.state.turn !== 'viewer')
       return { accepted: false };
     const uid = String(danmaku.uid || '').trim();
     const isTarget =

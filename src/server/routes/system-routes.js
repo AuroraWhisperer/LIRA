@@ -2,13 +2,25 @@
 // 系统域路由：健康检查、全局状态、运行指标和退出。
 'use strict';
 
-const { sendJson } = require('../http-utils');
+const { sendJson, verifyToken } = require('../http-utils');
+const { CHALLENGE_HEADER, createInstanceProof } = require('../local-instance');
 
 const prefixes = ['/api/health', '/api/state', '/api/system/'];
 
 const routes = {
   'GET /api/health'(context, request, res) {
-    sendJson(res, 200, { ok: true, data: context.system.getHealth() });
+    const detailAllowed = context.sessionToken &&
+      verifyToken(context, request.req, { searchParams: request.query });
+    const data = detailAllowed
+      ? { ...context.system.getHealth(), phase: 'ready' }
+      : { serviceId: 'lira', phase: 'ready' };
+    const proof = createInstanceProof(
+      context.sessionToken,
+      request.req.headers[CHALLENGE_HEADER],
+      request.req.socket.localPort,
+    );
+    if (proof) data.instanceProof = proof;
+    sendJson(res, 200, { ok: true, data });
   },
 
   'GET /api/state'(context, request, res) {

@@ -63,10 +63,12 @@ test('overlay IPC gates sender, validates parameters and allowlists the server r
   assert.deepEqual(await read(event), expected);
   assert.deepEqual(await update(event, reply), expected);
   assert.deepEqual(writes, [{ style: 'outline', fullscreenDurationSeconds: 12 }]);
-  reply = { ...reply, style: 'cream' };
-  assert.deepEqual(await read(event), { ...expected, style: 'cream' });
-  assert.deepEqual(await update(event, reply), { ...expected, style: 'cream' });
-  assert.deepEqual(writes.at(-1), { style: 'cream', fullscreenDurationSeconds: 12 });
+  for (const style of ['cream', 'glow']) {
+    reply = { ...reply, style };
+    assert.deepEqual(await read(event), { ...expected, style });
+    assert.deepEqual(await update(event, reply), { ...expected, style });
+    assert.deepEqual(writes.at(-1), { style, fullscreenDurationSeconds: 12 });
+  }
   for (const overlayUrl of ['https://test.example/overlay', 'https://test.example/overlay/short', 'https://test.example/overlay/syntheticKey_123?token=secret']) {
     reply = { ...reply, overlayUrl };
     assert.equal((await read(event)).error, 'INVALID_RESPONSE');

@@ -49,7 +49,13 @@ async function serveQQEncryptedStream(record, req, res, options = {}) {
     sendError(res, 404, '加密播放会话已过期，请重新解析歌曲。');
     return;
   }
-  const mediaUrl = validateMediaUrl(record.url);
+  let mediaUrl;
+  try {
+    mediaUrl = validateMediaUrl(record.url);
+  } catch (_) {
+    sendError(res, 502, 'QQ 加密媒体返回了不受支持的地址。');
+    return;
+  }
   const range = parseRange(req && req.headers && req.headers.range);
   const headers = { Accept: '*/*' };
   if (range)

@@ -108,6 +108,7 @@ const routes = {
       });
       sendJson(res, 200, { ok: true, data: result });
     } catch (error) {
+      if (error.code === 'REQUEST_BODY_TOO_LARGE') throw error;
       console.warn(`[Bilibili] send danmaku failed: ${error.message}`);
       sendJson(res, 502, {
         ok: false,

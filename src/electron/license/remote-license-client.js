@@ -6,6 +6,8 @@ const {
   normalizeProcessedGiftEvent,
 } = require('../../shared/processed-gift-contract');
 const { isDnsHostname } = require('../../shared/remote-url-policy');
+const { sanitizeWelcomeFieldErrors } = require('../../shared/welcome-settings-contract');
+const { createRemoteDanmakuSettings } = require('./remote-danmaku-settings');
 
 const DEFAULT_BASE_URL = 'https://api.lirahub.cn';
 // Includes canonical song fields, legacy aliases and the complete sync metadata.
@@ -23,6 +25,7 @@ class RemoteLicenseError extends Error {
       this.retryAfterMs = options.retryAfterMs;
     const index = normalizeErrorIndex(options.index);
     if (index !== undefined) this.index = index;
+    this.fieldErrors = sanitizeWelcomeFieldErrors(options.fieldErrors);
   }
 }
 
@@ -87,25 +90,22 @@ function createRemoteLicenseClient(options = {}) {
           etag: safeHeaderValue(response.headers?.get?.('etag')),
         };
       }
-      const text = pathname === '/api/device/songs'
-        ? await readSongSnapshotText(response)
-        : await response.text();
       const maxResponseBytes = Math.max(
         1024,
         Number(requestOptions.maxResponseBytes) || 1024 * 1024,
       );
-      if (Buffer.byteLength(text, 'utf8') > maxResponseBytes) {
-        throw new RemoteLicenseError(
+      const text = await readResponseText(response, maxResponseBytes, () =>
+        new RemoteLicenseError(
           'RESPONSE_TOO_LARGE',
-          '授权服务器响应过大。',
+          pathname === '/api/device/songs' ? '云端歌库超过读取上限。' : '授权服务器响应过大。',
           {
             status: response.status,
             retryAfterMs: readRetryAfter(response, now()),
             retryable: pathname !== '/api/device/songs' &&
               (response.ok || isRetryableStatus(response.status)),
           },
-        );
-      }
+        ),
+      );
       let data = {};
       try {
         data = text ? JSON.parse(text) : {};
@@ -145,6 +145,7 @@ function createRemoteLicenseClient(options = {}) {
           retryAfterMs: readRetryAfter(response, now()),
           retryable: isRetryableStatus(response.status),
           index: data.index,
+          fieldErrors: data.fieldErrors,
         });
       }
       if (requestOptions.includeResponseMeta === true) {
@@ -220,7 +221,7 @@ function createRemoteLicenseClient(options = {}) {
           Accept: 'text/event-stream',
           Authorization: `Bearer ${token}`,
           ...(pathname === '/api/device/gift-events/stream'
-            ? { 'X-Lira-Gift-Identity': '1', 'X-Lira-Gift-Effects': '1' }
+            ? { 'X-Lira-Gift-Identity': '1', 'X-Lira-Gift-Display': '1', 'X-Lira-Gift-Effects': '1' }
             : {}),
         },
         signal: options.signal,
@@ -309,7 +310,7 @@ function createRemoteLicenseClient(options = {}) {
       {
         maxResponseBytes: 512 * 1024,
         signal: options.signal,
-        headers: { 'X-Lira-Gift-Identity': '1' },
+        headers: { 'X-Lira-Gift-Identity': '1', 'X-Lira-Gift-Display': '1' },
       },
     );
   }
@@ -328,7 +329,7 @@ function createRemoteLicenseClient(options = {}) {
       {
         maxResponseBytes: 512 * 1024,
         signal: options.signal,
-        headers: { 'X-Lira-Gift-Identity': '1' },
+        headers: { 'X-Lira-Gift-Identity': '1', 'X-Lira-Gift-Display': '1' },
       },
     );
   }
@@ -373,14 +374,7 @@ function createRemoteLicenseClient(options = {}) {
     profile: (token) => request('GET', '/api/device/profile', undefined, token),
     getOverlaySettings: (token) =>
       request('GET', '/api/device/overlay-settings', undefined, token),
-    getWelcomeSettings: (token) =>
-      request('GET', '/api/device/welcome-settings', undefined, token),
-    getPkReportSettings: (token) =>
-      request('GET', '/api/device/pk-report-settings', undefined, token),
-    updatePkReportSettings: (settings, token) =>
-      request('PUT', '/api/device/pk-report-settings', settings, token),
-    updateWelcomeSettings: (settings, token) =>
-      request('PUT', '/api/device/welcome-settings', settings, token),
+    ...createRemoteDanmakuSettings(request),
     updateOverlaySettings: (settings, token) =>
       request('PUT', '/api/device/overlay-settings', settings, token),
     getCloudState: (token, requestOptions) =>
@@ -457,8 +451,12 @@ function createRemoteLicenseClient(options = {}) {
   };
 }
 
-async function readSongSnapshotText(response) {
-  if (!response.body?.getReader) return response.text();
+async function readResponseText(response, maxBytes, createLimitError) {
+  if (!response.body?.getReader) {
+    const text = await response.text();
+    if (Buffer.byteLength(text, 'utf8') > maxBytes) throw createLimitError();
+    return text;
+  }
   const reader = response.body.getReader();
   const chunks = [];
   let bytes = 0;
@@ -467,16 +465,15 @@ async function readSongSnapshotText(response) {
       const { done, value } = await reader.read();
       if (done) break;
       bytes += value.byteLength;
-      if (bytes > MAX_SONG_SNAPSHOT_BYTES) {
+      if (bytes > maxBytes) {
         await reader.cancel().catch(() => {});
-        throw new RemoteLicenseError('RESPONSE_TOO_LARGE', '云端歌库超过读取上限。', {
-          status: response.status,
-          retryable: false,
-        });
+        throw createLimitError();
       }
       chunks.push(Buffer.from(value));
     }
-    return new TextDecoder().decode(Buffer.concat(chunks, bytes));
+    const text = new TextDecoder().decode(Buffer.concat(chunks, bytes));
+    if (Buffer.byteLength(text, 'utf8') > maxBytes) throw createLimitError();
+    return text;
   } finally {
     reader.releaseLock();
   }
@@ -537,8 +534,10 @@ function handleCloudStateEventBlock(block, onChange) {
 async function readStreamError(response, now) {
   let data = {};
   try {
-    const text = await response.text();
-    if (text.length <= 64 * 1024) data = text ? JSON.parse(text) : {};
+    const text = await readResponseText(response, 64 * 1024, () =>
+      new RemoteLicenseError('RESPONSE_TOO_LARGE', '授权服务器响应过大。'),
+    );
+    data = text ? JSON.parse(text) : {};
   } catch (error) {
     void error;
   }

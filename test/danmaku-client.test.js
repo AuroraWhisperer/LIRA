@@ -215,7 +215,8 @@ test('stopped danmaku client does not resume startup after room lookup resolves'
   });
 });
 
-test('socket errors use history only during immediate reconnect recovery', async () => {
+test('socket errors keep history active throughout bounded reconnect recovery', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
   const originalFetch = global.fetch;
   const originalWebSocket = global.WebSocket;
   const history = { starts: 0, stops: 0 };
@@ -278,7 +279,13 @@ test('socket errors use history only during immediate reconnect recovery', async
 
     const failedSocket = client.ws;
     await failedSocket.emit('error', { message: 'socket failed' });
-    await new Promise((resolve) => setTimeout(resolve, 30));
+    t.mock.timers.tick(999);
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(history.starts, 1);
+    assert.equal(history.stops, 0);
+    assert.ok(client.historyPoller.timer);
+    t.mock.timers.tick(1);
+    await new Promise((resolve) => setImmediate(resolve));
 
     assert.equal(history.starts, 1);
     assert.equal(history.stops, 1);

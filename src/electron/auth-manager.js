@@ -57,7 +57,7 @@ function normalizeMusicPlatform(value) {
   const platform = String(value || '')
     .trim()
     .toLowerCase();
-  if (!MUSIC_LOGIN_CONFIG[platform]) {
+  if (!Object.hasOwn(MUSIC_LOGIN_CONFIG, platform)) {
     throw new Error('音乐平台只能是 qq 或 netease。');
   }
   return platform;
@@ -94,6 +94,7 @@ function isAllowedMusicLoginUrl(platform, rawUrl) {
   }
   if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return false;
   const host = parsed.hostname.toLowerCase();
+  if (!Object.hasOwn(MUSIC_LOGIN_CONFIG, platform)) return false;
   const config = MUSIC_LOGIN_CONFIG[platform];
   if (!config) return false;
   return config.allowedHosts.some((allowed) => {
@@ -103,6 +104,7 @@ function isAllowedMusicLoginUrl(platform, rawUrl) {
 }
 
 async function getAllowedMusicCookies(platform) {
+  platform = normalizeMusicPlatform(platform);
   const loginSession = session.fromPartition(
     MUSIC_LOGIN_CONFIG[platform].partition,
   );
@@ -141,6 +143,7 @@ function toElectronCookieDetails(cookie) {
 }
 
 async function persistMusicCookieSnapshot(platform, dataDir) {
+  platform = normalizeMusicPlatform(platform);
   const cookies = await getAllowedMusicCookies(platform);
   const payload = {
     platform,
@@ -166,6 +169,7 @@ async function persistMusicCookieSnapshot(platform, dataDir) {
 }
 
 async function restoreMusicCookieSnapshot(platform, dataDir) {
+  platform = normalizeMusicPlatform(platform);
   const snapshotPath = getMusicCookieSnapshotPath(dataDir, platform);
   if (!fs.existsSync(snapshotPath)) return null;
   if (!safeStorage.isEncryptionAvailable()) return null;
@@ -194,6 +198,7 @@ async function restoreMusicCookieSnapshot(platform, dataDir) {
 }
 
 async function getMusicAuthState(platform, dataDir) {
+  platform = normalizeMusicPlatform(platform);
   const config = MUSIC_LOGIN_CONFIG[platform];
   const cookies = await getAllowedMusicCookies(platform);
   const cookieNames = new Set(cookies.map((c) => c.name));
@@ -248,6 +253,7 @@ async function getMusicCookieHeader(platform) {
 }
 
 async function logoutMusicAccount(platform, dataDir) {
+  platform = normalizeMusicPlatform(platform);
   const loginSession = session.fromPartition(
     MUSIC_LOGIN_CONFIG[platform].partition,
   );

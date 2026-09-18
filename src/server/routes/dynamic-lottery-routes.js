@@ -13,6 +13,7 @@ async function respond(context, res, operation) {
     const data = await operation(context.dynamicLottery);
     sendJson(res, 200, { ok: true, data });
   } catch (error) {
+    if (error.code === 'REQUEST_BODY_TOO_LARGE') throw error;
     const code = publicCode(error);
     const status =
       code === 'LOTTERY_IDENTITY_UNAVAILABLE'

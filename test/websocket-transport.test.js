@@ -65,6 +65,90 @@ function maskedFrame(payload, { opcode, fin }) {
   return Buffer.concat([header, mask, masked]);
 }
 
+function openTestSocket(t) {
+  const hub = createWebSocketHub({ closeTimeoutMs: 100 });
+  const socket = new FakeSocket();
+  const context = { state: { sockets: new Set() }, getState: () => ({}) };
+  hub.handleUpgrade(context, {
+    url: '/ws', headers: { 'sec-websocket-key': 'test' },
+  }, socket);
+  socket.writes = [];
+  t.after(() => { hub.stop(); socket.emit('close'); });
+  return { hub, socket, context };
+}
+
+const frame = (payload, opcode = 0x1, fin = true) => maskedFrame(payload, { opcode, fin });
+const invalidFrames = [
+  ['unmasked', Buffer.from([0x81, 0]), 1002],
+  ['reserved bits', Buffer.from([0xc1, 0x80]), 1002],
+  ['reserved opcode', frame('', 0x3), 1002],
+  ['reserved control opcode', frame('', 0xb), 1002],
+  ['fragmented ping', frame('', 0x9, false), 1002],
+  ['oversized ping', frame(Buffer.alloc(200), 0x9), 1002],
+  ['oversized pong', frame(Buffer.alloc(126), 0xa), 1002],
+  ['orphan continuation', frame('', 0x0), 1002],
+  ['overlapping fragment', Buffer.concat([frame('a', 0x1, false), frame('b', 0x2)]), 1002],
+  ['nonminimal 16-bit length', Buffer.from([0x81, 0xfe, 0, 1]), 1002],
+  ['nonminimal 64-bit length', Buffer.from([0x81, 0xff, 0, 0, 0, 0, 0, 0, 0xff, 0xff]), 1002],
+  ['64-bit high bit', Buffer.from([0x81, 0xff, 0x80, 0, 0, 0, 0, 0, 0, 0]), 1002],
+  ['frame over limit header', Buffer.from([0x81, 0xff, 0, 0, 0, 0, 0, 4, 0, 1]), 1009],
+  ['one-byte close', frame(Buffer.from([0]), 0x8), 1002],
+  ['reserved close code', frame(Buffer.from([0x03, 0xed]), 0x8), 1002],
+  ['invalid close reason', frame(Buffer.from([0x03, 0xe8, 0xff]), 0x8), 1007],
+  ['invalid text', frame(Buffer.from([0xff])), 1007],
+  ['incomplete fragmented text', Buffer.concat([frame(Buffer.from([0xe4]), 0x1, false), frame('', 0x0)]), 1007],
+];
+for (const [name, input, code] of invalidFrames) {
+  test(`rejects ${name} and reaps the closing socket`, (t) => {
+    t.mock.timers.enable({ apis: ['setTimeout'] });
+    const { hub, socket, context } = openTestSocket(t);
+    socket.emit('data', input);
+    const close = socket.writes.at(-1);
+    assert.ok(Buffer.isBuffer(close), 'must respond with a close frame');
+    assert.equal(close[0], 0x88);
+    assert.equal(close.readUInt16BE(2), code);
+    assert.equal(socket.ended, true);
+    assert.equal(context.state.sockets.size, 0);
+    assert.equal(socket._wsBuffer, null);
+    const writes = socket.writes.length;
+    hub.broadcast({ type: 'late' });
+    socket.emit('data', frame('late'));
+    assert.equal(socket.writes.length, writes);
+    t.mock.timers.tick(100);
+    assert.equal(socket.destroyed, true);
+  });
+}
+
+test('accepts split UTF-8 fragments, interleaved 125-byte ping and arbitrary binary data', (t) => {
+  const { socket, context } = openTestSocket(t);
+  const text = Buffer.from('中');
+  const ping = Buffer.alloc(125, 0x61);
+  const input = Buffer.concat([
+    frame(text.subarray(0, 1), 0x1, false), frame(ping, 0x9),
+    frame(text.subarray(1), 0x0), frame(Buffer.from([0xff]), 0x2),
+    frame(Buffer.alloc(126), 0x2), frame(Buffer.alloc(65536), 0x2),
+  ]);
+  for (let index = 0; index < input.length; index += 37) {
+    socket.emit('data', input.subarray(index, index + 37));
+  }
+  assert.equal(socket.writes.length, 1);
+  assert.deepEqual(socket.writes[0], Buffer.concat([Buffer.from([0x8a, 125]), ping]));
+  assert.equal(socket.ended, false);
+  assert.equal(context.state.sockets.has(socket), true);
+  assert.equal(socket._wsFragment, null);
+});
+
+test('valid close is echoed once and removed from broadcasts before peer FIN', (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const { socket, context } = openTestSocket(t);
+  const closeBody = Buffer.concat([Buffer.from([0x03, 0xe8]), Buffer.from('完成')]);
+  socket.emit('data', frame(closeBody, 0x8));
+  assert.deepEqual(socket.writes, [Buffer.concat([Buffer.from([0x88, closeBody.length]), closeBody])]);
+  assert.equal(context.state.sockets.size, 0);
+  t.mock.timers.tick(100);
+  assert.equal(socket.destroyed, true);
+});
+
 test('fragmented WebSocket messages are capped across frames', () => {
   const socket = new FakeSocket();
   const context = {

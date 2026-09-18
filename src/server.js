@@ -38,6 +38,7 @@ const { migrateCacheData } = require('./storage/data-directory-migration');
 const { DEFAULT_SETTINGS } = require('./storage/settings-defaults');
 const { prepareSettingsBootstrap } = require('./server/settings-bootstrap');
 const giftEffectModule = require('./bilibili/gift/effect-config');
+const { createGiftExportRuntime } = require('./server/gift-export-runtime');
 const { createDanmakuFeedBuffer } = require('./bilibili/danmaku/feed-buffer');
 const { createGameSessionService } = require('./games/game-session-service');
 const { createWheelSessionService } = require('./games/wheel-session-service');
@@ -94,6 +95,8 @@ function createServerRuntime(runtimeOptions = {}) {
   let startedPort = null;
   let startPromise = null;
   let shutdownPromise = null;
+  let exitRequested = false;
+  let exitIssued = false;
   let sessionToken = '';
   let rebuildGiftProjection = () => false;
   let clearRemoteGiftHistory = null;
@@ -122,6 +125,7 @@ function createServerRuntime(runtimeOptions = {}) {
     getHost: () => HOST,
     getStartedPort: () => startedPort,
     getSessionToken: () => sessionToken,
+    beginPlaybackSnapshotSession: () => domainServices.playback.beginQueueStateSession(),
     getWebSocketHub: () => webSocketHub,
     getState,
     getSettings: () => settingsStore.getSettings(),
@@ -438,8 +442,11 @@ function createServerRuntime(runtimeOptions = {}) {
   }
 
   function shutdownApplication(options = {}) {
-    const exitProcess = options.exitProcess === true;
-    if (shutdownPromise) return shutdownPromise;
+    if (options.exitProcess === true) exitRequested = true;
+    if (shutdownPromise) {
+      if (phase === 'stopped') exitIfRequested();
+      return shutdownPromise;
+    }
     if (isShuttingDown) return Promise.resolve();
     isShuttingDown = true;
     phase = 'quiescing';
@@ -478,43 +485,43 @@ function createServerRuntime(runtimeOptions = {}) {
       sessionToken = '';
       startedPort = null;
       phase = 'stopped';
-      if (exitProcess) process.exit(0);
+      exitIfRequested();
     })();
 
     return shutdownPromise;
   }
 
-  async function disposeApplication(options = {}) {
-    bilibiliRuntime?.stop();
-    webSocketHub?.stop({
-      shutdownPayload: { type: 'shutdown', reason: 'manual' },
-    });
-    gameSessionService?.dispose();
-    wheelSessionService?.dispose();
-    await dynamicLottery?.dispose();
-    dynamicLottery = null;
-    if (aiRuntime) {
-      try {
-        await aiRuntime.shutdown();
-      } catch (error) {
-        console.warn('[Shutdown] AI drain failed:', error.message);
-      }
-    }
-    if (domainServices) {
-      try {
-        domainServices.gifts.dispose();
-      } catch (error) {
-        console.warn('[Shutdown] pending gift flush failed:', error.message);
-      }
-      domainServices.overtimeGiftCatalog.stop?.();
-      domainServices.overtime.dispose();
-    }
-    musicRuntime?.weSingCapture.stop();
-    if (db) {
-      if (options.optimize === true) optimizeDatabases(db);
-      closeDatabases(db);
-    }
+  function exitIfRequested() {
+    if (!exitRequested || exitIssued) return;
+    exitIssued = true;
+    process.exit(0);
+  }
 
+  async function disposeApplication(options = {}) {
+    const steps = [
+      ['Bilibili', () => bilibiliRuntime?.stop()],
+      ['WebSocket', () => webSocketHub?.stop({
+        shutdownPayload: { type: 'shutdown', reason: 'manual' },
+      })],
+      ['game', () => gameSessionService?.dispose()],
+      ['wheel', () => wheelSessionService?.dispose()],
+      ['lottery', () => dynamicLottery?.dispose()],
+      ['AI drain', () => aiRuntime?.shutdown()],
+      ['pending gift flush', () => domainServices?.gifts.dispose()],
+      ['gift catalog', () => domainServices?.overtimeGiftCatalog.stop?.()],
+      ['overtime', () => domainServices?.overtime.dispose()],
+      ['WeSing', () => musicRuntime?.weSingCapture.stop()],
+      ['database optimize', () => options.optimize === true && db && optimizeDatabases(db)],
+      ['database close', () => db && closeDatabases(db)],
+    ];
+    for (const [name, dispose] of steps) {
+      try {
+        await dispose();
+      } catch (error) {
+        console.warn(`[Shutdown] ${name} failed:`, error.message);
+      }
+    }
+    dynamicLottery = null;
     db = null;
     settingsStore = null;
     webSocketHub = null;
@@ -611,11 +618,6 @@ function createServerRuntime(runtimeOptions = {}) {
 
   function resetGiftProjectionForRebuild(sourceId) {
     return requireGiftSyncStore().resetProjectionForRebuild(sourceId);
-  }
-
-  function setActiveGiftSource(source) {
-    if (!domainServices?.gifts) throw new Error('Gift service not ready.');
-    return domainServices.gifts.setActiveSource(source);
   }
 
   function importProcessedGiftEvent(event, sourceId) {
@@ -744,7 +746,6 @@ function createServerRuntime(runtimeOptions = {}) {
     commitGiftCatchUpPage,
     commitLegacyGiftPage,
     resetGiftProjectionForRebuild,
-    setActiveGiftSource,
     importProcessedGiftEvent,
     publishGiftEffect,
     getCloudSettingsSnapshot,
@@ -759,6 +760,8 @@ function createServerRuntime(runtimeOptions = {}) {
     isGiftCatalogInitialized,
     onGiftCatalogInitializationStateChanged,
     getApiToken: () => sessionToken,
+    ...createGiftExportRuntime({ getServices: () => domainServices,
+      getSettingsStore: () => settingsStore, broadcastSnapshot }),
     getSetting,
   };
 }

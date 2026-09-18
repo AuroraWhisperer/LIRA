@@ -10,6 +10,23 @@
 query、fragment 的 HTTPS `/overlay/<token>`，token 为 16 位 base64url，错误沿用受限 `{ok:false,state,error}`。
 只读 OBS capability 是用户明确要求展示/复制的窄例外；不传递 Device token、租户选择器或任意远程调用能力。服务器持久生成密钥，客户端初次读取授权资料后调用此 GET；共享地址模块验证与资料 origin 相同，两个地址消费者共同使用完整值，账号切换清空并丢弃旧响应。桌面先编辑草稿并预览，只有显式应用才写服务器。
 
+## 进场欢迎配置桥
+
+由 `license-ipc.js` 注册，只接受现有主窗口与精确 desktop origin。账号选择只在
+主进程完成；无凭据、租户选择器或任意地址调用暴露给 renderer。
+
+| 通道 | 桥方法 | 返回 |
+| --- | --- | --- |
+| `license:get-welcome-settings` | `getWelcomeSettings()` | V1 `{ok:true,enabled,messages}` |
+| `license:update-welcome-settings` | `updateWelcomeSettings(patch)` | V1 确认配置，原有白名单保留 |
+| `license:get-welcome-settings-v2` | `getWelcomeSettingsV2()` | 完整 V2 白名单及 `schemaVersion:2`；仅明确 404 回落为 V1 投影及 `schemaVersion:1` |
+| `license:update-welcome-settings-v2` | `updateWelcomeSettingsV2(patch)` | 完整 V2 确认配置；不降级或重放 |
+
+字段由服务器 Device OpenAPI 定义，主进程验证见 `src/shared/welcome-settings-contract.js`。
+未知 patch 字段拒绝；所有必填字段、数值范围、词库和完整配置依赖均校验。
+错误保留 `{ok:false,state,error}`，可带仅含白名单字段与原因的 `fieldErrors`。
+并发草稿与账号边界见 [main.md](main.md#服务器进场欢迎设置)。
+
 ## 礼物互动确认状态
 
 `liraLicense` 增加以下窄桥，由 [gift-interaction-ipc.js](../../../src/electron/ipc/gift-interaction-ipc.js)

@@ -1,6 +1,9 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
 const { DatabaseSync } = require('node:sqlite');
 const test = require('node:test');
 const {
@@ -8,6 +11,7 @@ const {
   DEFAULT_SETTINGS,
 } = require('../src/storage/settings-store');
 const { routes } = require('../src/server/routes/settings-routes');
+const { createWeSingCapture } = require('../src/music/wesing-capture');
 
 function fixture(t) {
   const db = new DatabaseSync(':memory:');
@@ -45,7 +49,7 @@ function fixture(t) {
     );
     return response;
   }
-  return { db, store, dirtyScopes, post };
+  return { db, store, context, dirtyScopes, post };
 }
 
 test('invalid setting batches do not commit earlier valid fields', async (t) => {
@@ -111,4 +115,46 @@ test('settings store rolls back a failed batch without invalidating the cached s
     f.db.prepare("SELECT value FROM settings WHERE key = 'paused'").get().value,
     'false',
   );
+});
+
+test('invalid WeSing settings do not commit other fields in a batch', async (t) => {
+  const f = fixture(t);
+  for (const values of [
+    { weSingCachePath: 'relative/WeSingCache' },
+    { weSingCachePath: path.join(os.tmpdir(), 'wrong-name') },
+    { weSingLyricOffsetMs: 3001 },
+    { weSingLyricOffsetMs: 'invalid-offset' },
+  ]) {
+    const before = f.store.getSettings();
+    const response = await f.post({ paused: true, ...values });
+    assert.equal(response.status, 400);
+    assert.deepEqual(f.store.getSettings(), before);
+    assert.deepEqual(f.dirtyScopes, []);
+  }
+});
+
+test('failed settings transactions do not apply prepared WeSing configuration', async (t) => {
+  const f = fixture(t);
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-wesing-settings-'));
+  const previousCachePath = path.join(root, 'previous', 'WeSingCache');
+  f.store.setSettings({ weSingCachePath: previousCachePath, weSingLyricOffsetMs: '0' });
+  const capture = createWeSingCapture({ cachePath: previousCachePath, platform: 'win32' });
+  t.after(() => {
+    capture.stop();
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+  f.context.weSing = { prepareConfiguration: capture.prepareConfiguration };
+  f.db.exec(
+    "CREATE TRIGGER fail_wesing BEFORE UPDATE ON settings WHEN NEW.key = 'weSingLyricOffsetMs' BEGIN SELECT RAISE(ABORT, 'fixture setting failure'); END",
+  );
+  const before = f.store.getSettings();
+  await assert.rejects(f.post({
+    weSingCachePath: path.join(root, 'next', 'WeSingCache'),
+    weSingLyricOffsetMs: 250,
+    paused: true,
+  }), /fixture setting failure/);
+  assert.deepEqual(f.store.getSettings(), before);
+  assert.equal(capture.getStatus().cachePath, previousCachePath);
+  assert.equal(capture.getStatus().lyricOffsetMs, 0);
+  assert.deepEqual(f.dirtyScopes, []);
 });

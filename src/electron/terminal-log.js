@@ -6,7 +6,7 @@ const util = require('node:util');
 const { redactCredentials } = require('../shared/log-redaction');
 const { appendBoundedFileSync } = require('../shared/log-size-limit');
 
-const TERMINAL_LOG_METHODS = ['warn', 'error'];
+const TERMINAL_LOG_METHODS = ['info', 'warn', 'error'];
 const NORMAL_ENTRY_BYTES = 2 * 1024;
 const ERROR_ENTRY_BYTES = 16 * 1024;
 const LEGACY_FILE_BYTES = 10 * 1024 * 1024;
@@ -27,8 +27,23 @@ function installTerminalLog(filePath, options = {}) {
     if (typeof original !== 'function') continue;
 
     const wrapped = function (...args) {
-      original.apply(console, args);
-      appendTerminalLine(filePath, args, method, context);
+      let message;
+      try {
+        message = redactCredentials(util.format(...args.map(redactCredentials)));
+      } catch (_) {
+        message = '[Log redaction failed]';
+      }
+      original.call(console, message);
+      if (
+        method === 'info' &&
+        !(
+          typeof args[0] === 'string' &&
+          args[0].startsWith('[Bilibili][Diagnostic] ')
+        )
+      ) {
+        return;
+      }
+      appendTerminalLine(filePath, message, method, context);
     };
     console[method] = wrapped;
     restorers.push(() => {
@@ -41,10 +56,8 @@ function installTerminalLog(filePath, options = {}) {
   };
 }
 
-function appendTerminalLine(filePath, args, method, context) {
+function appendTerminalLine(filePath, message, method, context) {
   try {
-    const message = util.format(...args);
-    const redactedMessage = redactCredentials(message);
     appendBoundedFileSync(
       filePath,
       formatLogLine({
@@ -54,7 +67,7 @@ function appendTerminalLine(filePath, args, method, context) {
         pid: context.pid,
         processType: context.processType,
         source: `terminal:${method}`,
-        message: redactedMessage,
+        message,
       }),
       {
         maxEntryBytes:

@@ -19,7 +19,22 @@ const routes = {
       sendJson(res, 400, { ok: false, error: result.error });
       return;
     }
+    const weSingSettings = {};
+    if (Object.hasOwn(result.values, 'weSingCachePath'))
+      weSingSettings.cachePath = result.values.weSingCachePath;
+    if (Object.hasOwn(result.values, 'weSingLyricOffsetMs'))
+      weSingSettings.lyricOffsetMs = result.values.weSingLyricOffsetMs;
+    let preparedWeSing;
+    if (Object.keys(weSingSettings).length > 0) {
+      try {
+        preparedWeSing = await context.weSing.prepareConfiguration(weSingSettings);
+      } catch (error) {
+        sendJson(res, 400, { ok: false, error: error.message || String(error) });
+        return;
+      }
+    }
     const changedKeys = context.settings.setMany(result.values);
+    if (preparedWeSing) await preparedWeSing.apply();
     context.bilibili.configure();
     context.broadcastSnapshot('settings');
     if (hasCloudSettingChanges(changedKeys))

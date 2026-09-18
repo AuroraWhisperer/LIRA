@@ -59,6 +59,7 @@ function createApiContext(options) {
       handleAction: domainServices.superChats.handleAction,
     },
     gifts: {
+      getSelection: (options) => domainServices.gifts.getSelection(options),
       pauseDetection: domainServices.gifts.pauseDetection,
       resumeDetection: domainServices.gifts.resumeDetection,
       resetSprint: domainServices.gifts.resetSprint,
@@ -118,6 +119,7 @@ function createApiContext(options) {
     },
     weSing: {
       getStatus: weSingCapture.getStatus,
+      prepareConfiguration: weSingCapture.prepareConfiguration,
       configure: weSingCapture.setCachePath,
       setLyricOffsetMs: weSingCapture.setLyricOffsetMs,
       setActive: weSingCapture.setActive,

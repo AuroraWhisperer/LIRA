@@ -2,6 +2,16 @@
 
 const { getInitial, now } = require('../shared/utils');
 
+function assertSongImportLimit(count) {
+  if (count <= 5000) return;
+  throw Object.assign(
+    new Error(
+      '结果歌库超过 5000 首，无法完整同步；请先在歌库整理至 5000 首以内。',
+    ),
+    { code: 'SONG_IMPORT_LIMIT_EXCEEDED', statusCode: 422 },
+  );
+}
+
 function createSongStore(songDb) {
   if (!songDb || typeof songDb.prepare !== 'function') {
     throw new Error('songDb is required to create SongStore.');
@@ -333,22 +343,31 @@ function createSongStore(songDb) {
       return withTransaction(() => {
         let inserted = 0;
         let duplicate = 0;
+        const existingRows = songDb
+          .prepare('SELECT name, artist FROM songs')
+          .all();
+        const knownIdentities = new Set(
+          existingRows.map((row) =>
+            JSON.stringify([row.name, row.artist || '']),
+          ),
+        );
+        const newRows = [];
+        for (const row of rows) {
+          const identity = JSON.stringify([row.name, row.artist || '']);
+          if (knownIdentities.has(identity)) {
+            duplicate += 1;
+          } else {
+            knownIdentities.add(identity);
+            newRows.push(row);
+          }
+        }
+        assertSongImportLimit(existingRows.length + newRows.length);
         let createdCategories = 0;
         const knownCategories = new Set(
           listCategoryRows().map((category) => category.name),
         );
 
-        for (const row of rows) {
-          const existing = songDb
-            .prepare(
-              'SELECT id FROM songs WHERE name = ? AND artist = ? LIMIT 1',
-            )
-            .get(row.name, row.artist || '');
-          if (existing) {
-            duplicate += 1;
-            continue;
-          }
-
+        for (const row of newRows) {
           const categoryName = row.categoryName || '默认';
           if (!knownCategories.has(categoryName)) {
             knownCategories.add(categoryName);
@@ -439,6 +458,7 @@ function createSongStore(songDb) {
 
     replaceAll(rows) {
       return withTransaction(() => {
+        assertSongImportLimit(rows.length);
         songDb
           .prepare('UPDATE queue SET song_id = NULL WHERE song_id IS NOT NULL')
           .run();

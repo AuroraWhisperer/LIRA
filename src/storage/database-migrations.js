@@ -10,6 +10,7 @@ const {
 const schema = require('./schema');
 const { seedThemePresets } = require('./theme-store');
 const { migrateGiftIdentities } = require('./gift-identity-migration');
+const { migrateGiftDisplay } = require('./gift-display-migration');
 
 // ── 迁移注册表 ──
 // 数组下标 + 1 即版本号。只能往末尾追加，不能改动已发布的步骤。
@@ -291,6 +292,8 @@ function runAllMigrations(databases, options = {}) {
       },
       // v10: identity-bound rules and frozen remote event identities.
       migrateGiftIdentities,
+      // v11: sender display profile at gift time. Historical unknown values stay NULL.
+      migrateGiftDisplay,
     ]),
   );
 

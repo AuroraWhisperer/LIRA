@@ -6,6 +6,7 @@ const { BrowserWindow, shell, session } = require('electron');
 const path = require('node:path');
 const {
   MUSIC_LOGIN_CONFIG,
+  normalizeMusicPlatform,
   isAllowedMusicLoginUrl,
   persistMusicCookieSnapshot,
   getMusicAuthState,
@@ -16,6 +17,7 @@ const {
 } = require('./external-url-policy');
 
 async function loginMusicAccount(mainWindow, platform, dataDir) {
+  platform = normalizeMusicPlatform(platform);
   const config = MUSIC_LOGIN_CONFIG[platform];
   const loginWindow = new BrowserWindow({
     width: 1000,

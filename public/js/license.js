@@ -53,7 +53,7 @@
     ACTIVATION_CODE_EXPIRED: '此激活密钥已过期，请联系管理员重新生成。',
     ACCOUNT_NAME_LENGTH: '用户名长度应为 2–32 个字符。',
     ACCOUNT_NAME_INVALID:
-      '用户名只能使用小写字母、数字和中划线，且不能以中划线开头或结尾。',
+      '用户名只能使用英文字母、数字和中划线（-），且不能以中划线开头或结尾，不支持中文。',
     ACCOUNT_NAME_RESERVED: '此用户名为系统保留名称，请更换。',
     ACCOUNT_NAME_ALREADY_EXISTS:
       '此用户名已被使用；已有账号请选择“登录已有账号”。',

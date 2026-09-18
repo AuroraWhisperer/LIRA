@@ -6,6 +6,7 @@ const packetParser = require('../packet-parser');
 const bilibiliHelpers = require('../helpers');
 const { isBilibiliCommandText } = require('./command-text');
 const { cleanText, normalizeTimestampMs } = require('../../shared/utils');
+const { logBilibiliDiagnostic } = require('../diagnostics');
 
 class HistoryPoller {
   constructor(apiClient, onMessage, options = {}) {
@@ -31,6 +32,7 @@ class HistoryPoller {
     this.stop();
     if (!context || !context.roomId || !context.ownerUid) return;
     const localGeneration = ++this.localGeneration;
+    logBilibiliDiagnostic('history-start', { roomId: context.roomId });
     this.pollHistory(context, localGeneration).catch((error) => {
       console.warn(`[Bilibili] history polling failed: ${error.message}`);
     });
@@ -42,6 +44,7 @@ class HistoryPoller {
   }
 
   stop() {
+    if (this.timer) logBilibiliDiagnostic('history-stop');
     clearInterval(this.timer);
     this.timer = null;
     this.localGeneration += 1;
@@ -70,6 +73,8 @@ class HistoryPoller {
       );
 
       let processed = 0;
+      let stale = 0;
+      let duplicates = 0;
       for (const item of messages) {
         if (localGeneration !== this.localGeneration) return;
         const text = cleanText(item.text);
@@ -81,16 +86,20 @@ class HistoryPoller {
             timelineMs,
             this.startedAtMs,
           )
-        )
+        ) {
+          stale += 1;
           continue;
+        }
         if (
           this.deduplicator &&
           !this.deduplicator.remember(item.uid, text, timelineMs, {
             userName: item.nickname || item.uname,
             source: 'history',
           })
-        )
+        ) {
+          duplicates += 1;
           continue;
+        }
 
         processed += 1;
         const userMeta = packetParser.extractBilibiliHistoryUserMeta(
@@ -124,6 +133,15 @@ class HistoryPoller {
         });
       }
 
+      if (processed > 0 || this.reportedGeneration !== localGeneration) {
+        this.reportedGeneration = localGeneration;
+        logBilibiliDiagnostic('history-sample', {
+          roomId: context.roomId,
+          fetched: messages.length,
+          processed, stale, duplicates,
+          listenerStartedAt: this.startedAtMs,
+        });
+      }
       if (processed > 0) {
         console.log(
           `[Bilibili] history polling processed ${processed} command message(s).`,

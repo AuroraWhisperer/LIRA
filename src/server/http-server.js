@@ -5,6 +5,7 @@ const { URL } = require('node:url');
 const httpUtils = require('./http-utils');
 const { SERVICE_ID } = require('./lifecycle');
 const apiRoutes = require('./api-routes');
+const { redactCredentials } = require('../shared/log-redaction');
 
 /**
  * Build the HTTP/upgrade transport for one server runtime.
@@ -14,7 +15,6 @@ function createHttpServer(options = {}) {
   const {
     host,
     startPort,
-    rootDir,
     dataDir,
     getPhase,
     getStartedPort,
@@ -34,22 +34,37 @@ function createHttpServer(options = {}) {
     });
   };
 
+  const rejectUpgrade = (socket, status) => {
+    socket.end(
+      `HTTP/1.1 ${status}\r\nConnection: close\r\n\r\n`,
+      () => socket.destroy(),
+    );
+  };
+
   const server = http.createServer(async (req, res) => {
+    let requestPath = '[invalid-url]';
     try {
       const phase = getPhase();
       const requestUrl = new URL(
         req.url,
         `http://${req.headers.host || `${host}:${startPort}`}`,
       );
+      requestPath = requestUrl.pathname;
+
+      const baseUrl = `http://${host}:${getStartedPort() || startPort}`;
+      if (!httpUtils.validateRequestHost(req, baseUrl)) {
+        httpUtils.sendJson(res, 400, {
+          ok: false,
+          error: 'Invalid Host header.',
+        });
+        return;
+      }
 
       if (requestUrl.pathname === '/api/health' && phase !== 'ready') {
         httpUtils.sendJson(res, 200, {
           ok: true,
           data: {
             serviceId: SERVICE_ID,
-            rootDir,
-            dataDir,
-            pid: process.pid,
             phase,
           },
         });
@@ -58,15 +73,6 @@ function createHttpServer(options = {}) {
 
       if (phase !== 'ready') {
         serviceUnavailable(res);
-        return;
-      }
-
-      const baseUrl = `http://${host}:${getStartedPort() || startPort}`;
-      if (!httpUtils.validateRequestHost(req, baseUrl)) {
-        httpUtils.sendJson(res, 400, {
-          ok: false,
-          error: 'Invalid Host header.',
-        });
         return;
       }
 
@@ -159,12 +165,15 @@ function createHttpServer(options = {}) {
         return;
       }
 
-      console.error('[Server] Request error:', {
-        method: req.method,
-        path: req.url,
-        error: error.message,
-        stack: error.stack,
-      });
+      console.error(
+        '[Server] Request error:',
+        redactCredentials({
+          method: req.method,
+          path: requestPath,
+          error: error.message,
+          stack: error.stack,
+        }),
+      );
 
       if (!res.headersSent) httpUtils.sendStableError(res, error);
     }
@@ -172,9 +181,12 @@ function createHttpServer(options = {}) {
 
   server.on('upgrade', (req, socket) => {
     if (getPhase() !== 'ready') {
-      socket.end(
-        'HTTP/1.1 503 Service Unavailable\r\nConnection: close\r\n\r\n',
-      );
+      rejectUpgrade(socket, '503 Service Unavailable');
+      return;
+    }
+    const baseUrl = `http://${host}:${getStartedPort() || startPort}`;
+    if (!httpUtils.validateRequestHost(req, baseUrl)) {
+      rejectUpgrade(socket, '400 Bad Request');
       return;
     }
     let requestUrl;
@@ -184,7 +196,7 @@ function createHttpServer(options = {}) {
         `http://${req.headers.host || `${host}:${startPort}`}`,
       );
     } catch (_) {
-      socket.end('HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\n');
+      rejectUpgrade(socket, '400 Bad Request');
       return;
     }
     if (requestUrl.pathname !== '/ws') {
@@ -192,10 +204,9 @@ function createHttpServer(options = {}) {
       return;
     }
     if (!isLicenseAuthorized()) {
-      socket.end('HTTP/1.1 423 Locked\r\nConnection: close\r\n\r\n');
+      rejectUpgrade(socket, '423 Locked');
       return;
     }
-    const baseUrl = `http://${host}:${getStartedPort() || startPort}`;
     getWebSocketHub().handleUpgrade(getWebSocketContext(baseUrl), req, socket);
   });
 

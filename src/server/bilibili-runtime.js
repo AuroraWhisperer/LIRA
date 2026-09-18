@@ -12,6 +12,10 @@ const {
 } = require('../bilibili/users/profile-provider');
 const { UserInfoService } = require('../bilibili/users/user-info-service');
 const sharedUtils = require('../shared/utils');
+const {
+  logBilibiliDiagnostic,
+  summarizeConnectionAuth,
+} = require('../bilibili/diagnostics');
 
 function createBilibiliRuntime(options) {
   const {
@@ -182,6 +186,9 @@ function createBilibiliRuntime(options) {
     const settings = settingsStore.getSettings();
     const roomId = sharedUtils.normalizeRoomInput(settings.roomId);
     const enabled = settings.enableBilibili === 'true' && roomId;
+    logBilibiliDiagnostic('refresh-requested', {
+      roomId, enabled: Boolean(enabled),
+    });
     setActiveDanmakuRoom(enabled ? roomId : '');
 
     if (!enabled) {
@@ -201,6 +208,14 @@ function createBilibiliRuntime(options) {
       if (!isCurrent()) return;
       await refreshAuthCache();
       if (!isCurrent()) return;
+      logBilibiliDiagnostic('listener-created', {
+        roomId,
+        clientGeneration: generation,
+        trigger: restart ? 'refresh' : 'configure',
+        ...summarizeConnectionAuth(authCache),
+        requestsPaused: settingsStore.getSettings().paused === 'true',
+        onlyFromLibrary: settingsStore.getSettings().onlyFromLibrary === 'true',
+      });
       const nextClient = buildClient(roomId, {
         isShuttingDown: () => !isCurrent(),
         danmakuSender,
@@ -209,6 +224,7 @@ function createBilibiliRuntime(options) {
         },
         bilibiliDiagnostics: diagnostics,
         bilibiliAuthCache: authCache,
+        bilibiliClientGeneration: generation,
         userInfoService,
       });
       client = nextClient;
@@ -229,9 +245,24 @@ function createBilibiliRuntime(options) {
     if (!authProvider) return;
     try {
       const [cookieHeader, uid] = await Promise.all([
-        authProvider.getCookieHeader().catch(() => ''),
-        authProvider.getUid().catch(() => 0),
+        authProvider.getCookieHeader().catch(() => {
+          logBilibiliDiagnostic('auth-read-failed', { field: 'cookieHeader' });
+          return '';
+        }),
+        authProvider.getUid().catch(() => {
+          logBilibiliDiagnostic('auth-read-failed', { field: 'uid' });
+          return 0;
+        }),
       ]);
+      if (
+        authCache.cookieHeader !== (cookieHeader || '') ||
+        authCache.uid !== (Number(uid) || 0)
+      ) {
+        logBilibiliDiagnostic('auth-cache-changed', {
+          clientGeneration,
+          ...summarizeConnectionAuth({ cookieHeader, uid }),
+        });
+      }
       authCache = { cookieHeader: cookieHeader || '', uid: Number(uid) || 0 };
     } catch (_) {
       // Non-Electron mode can run without a Bilibili auth provider.

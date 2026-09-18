@@ -187,6 +187,8 @@ Provider 内部实现见各 Provider 文档 §7.2;这里只记录编排层语义
 
 ### 7.3 导入(importSongs,[song-service.js](../../../../src/music/song-service.js))
 
+旧 JSON/XLSX 导入现在也遵守最终完整歌库容量约束，去重与超限原子拒绝由 [SongStore](../storage.md) 拥有；失败不广播或请求云同步。旧入口没有额外限制重复原始行数量，显式更新导入的输入行限制仍按其独立契约执行。
+
 - `normalizeImportedSongRow` 与空歌名/云快照校验由领域层负责(§11);`store.importRows` 将有效行与 `import_batches` 写入同一事务,失败 `ROLLBACK`
 - 逐行:价格别名冲突或名空计 failed，`failures` 返回数据行序号与原因 → `(name, artist)` 重复计 duplicate 跳过（不更新已有价格/歌切） → 新分类计数 → INSERT;`store.replaceAll` 负责清空并解除历史引用后原子写入云快照
 - 结束写 `import_batches` 批次记录;返回 `{total, inserted, duplicate, failed, createdCategories, failures}`
@@ -330,6 +332,8 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 `createRequesterTargetStore(songDb).getLatestRandomRequester()`([requester-target-store.js:5-25](../../../../src/music/requester-target-store.js#L5-L25)):查 `requests` 表最近一条 `source='random' 或 'random:%'` 且 uid 或 name 非空的行,返回 `{uid, name, source, createdAt}`;供弹幕机器人把随机点歌结果回复给触发者(见 [bilibili/danmaku.md](../bilibili/danmaku.md))。
 
 ## 13. 歌词状态与时间轴(lyric-state.js / lyric-timeline.js)
+
+`music-runtime` 拥有全局 `generation`/`sequence` 筛选门槛，时间轴变化也会升代。旧版本状态仍不修改或广播当前状态；其 HTTP 发布响应在最后接受状态旁附加 `nextGeneration = 当前门槛 + 1`。该字段仅用于发送端重建后的恢复，不进入状态快照或 WS 广播；不能用最后接受状态的 generation 代替可能已被时间轴推进的门槛。未携带版本的 WeSing/兼容输入仍由服务端递增 sequence。
 
 ### 13.1 归一化规则(共同)
 

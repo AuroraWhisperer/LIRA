@@ -5,6 +5,7 @@ const {
   AI_CONFIG_DEFAULTS,
   AI_SECRET_KEYS,
   MODEL_PROVIDER_PRESETS,
+  assertSavedModelKeyOrigin,
   normalizeAiConfig,
 } = require('./config');
 const { SYSTEM_PROMPT } = require('./prompt');
@@ -95,9 +96,18 @@ function createAiConfigStore(db, secretCodec, options = {}) {
           secret && value ? secretCodec.encrypt(value) : serializeValue(value);
         write.run(key, storedValue, secret ? 1 : 0, updatedAt);
       }
+      // Read the prospective persisted config: leaving a preset may restore
+      // a previously saved custom URL that is hidden by the current preset.
+      cached = null;
+      assertSavedModelKeyOrigin(
+        current,
+        getConfig(),
+        Object.hasOwn(changes, 'deepseekApiKey'),
+      );
       db.exec('COMMIT');
     } catch (error) {
       db.exec('ROLLBACK');
+      cached = null;
       throw error;
     }
     cached = null;

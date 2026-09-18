@@ -9,6 +9,10 @@ const {
 } = require('../bilibili/gift/blind-box-config');
 const { normalizeOpeningTrackMotion } = require('./opening-contract');
 const {
+  normalizeWeSingCachePath,
+  normalizeWeSingLyricOffsetMs,
+} = require('../music/wesing-cache');
+const {
   CLOCK_SETTING_KEYS,
   normalizeClockSettingValue,
 } = require('./clock-contract');
@@ -53,6 +57,15 @@ const DANMAKU_OVERLAY_STYLES = new Set([
 ]);
 
 function normalizeSettingValue(key, rawValue) {
+  if (key === 'weSingCachePath' || key === 'weSingLyricOffsetMs') {
+    try {
+      return key === 'weSingCachePath'
+        ? normalizeWeSingCachePath(rawValue)
+        : String(normalizeWeSingLyricOffsetMs(rawValue));
+    } catch (_) {
+      return null;
+    }
+  }
   if (CLOUD_BOOLEAN_KEYS.has(key)) {
     if (
       rawValue === true ||

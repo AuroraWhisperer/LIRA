@@ -2,6 +2,20 @@
 
 const { contextBridge, ipcRenderer } = require('electron');
 
+contextBridge.exposeInMainWorld('giftExport', {
+  prepare: (selection) => ipcRenderer.invoke('gift-export:prepare', selection),
+  configure: (options) => ipcRenderer.invoke('gift-export:configure', options),
+  save: (id) => ipcRenderer.invoke('gift-export:save', { id }),
+  cancel: (id) => ipcRenderer.invoke('gift-export:cancel', id),
+  openFolder: (id) => ipcRenderer.invoke('gift-export:open-folder', { id }),
+  onProgress: (callback) => {
+    if (typeof callback !== 'function') return () => {};
+    const listener = (_event, value) => callback(value);
+    ipcRenderer.on('gift-export:progress', listener);
+    return () => ipcRenderer.removeListener('gift-export:progress', listener);
+  },
+});
+
 contextBridge.exposeInMainWorld('songAssistantDesktop', {
   getInfo: () => ipcRenderer.invoke('desktop:get-info'),
   checkForUpdates: () => ipcRenderer.invoke('desktop:check-for-updates'),
@@ -103,6 +117,8 @@ contextBridge.exposeInMainWorld('liraLicense', {
   getProfile: () => ipcRenderer.invoke('license:get-profile'),
   getOverlaySettings: () => ipcRenderer.invoke('license:get-overlay-settings'),
   getWelcomeSettings: () => ipcRenderer.invoke('license:get-welcome-settings'),
+  getWelcomeSettingsV2: () => ipcRenderer.invoke('license:get-welcome-settings-v2'),
+  updateWelcomeSettingsV2: (settings) => ipcRenderer.invoke('license:update-welcome-settings-v2', settings),
   getPkReportSettings: () => ipcRenderer.invoke('license:get-pk-report-settings'),
   updatePkReportSettings: (settings) =>
     ipcRenderer.invoke('license:update-pk-report-settings', settings),

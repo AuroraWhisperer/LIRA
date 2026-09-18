@@ -7,7 +7,6 @@ let reconnectAttempts = 0;
 
 document.addEventListener('DOMContentLoaded', () => {
   desktopLyricRenderer.init();
-  void loadSettings();
   connectSocket();
 });
 
@@ -45,16 +44,4 @@ function scheduleReconnect() {
   const delay = Math.min(1000 * 2 ** Math.min(reconnectAttempts - 1, 4), 15000);
   clearTimeout(reconnectTimer);
   reconnectTimer = setTimeout(connectSocket, delay);
-}
-
-async function loadSettings() {
-  try {
-    const response = await fetch('/api/settings');
-    if (!response.ok) return;
-    const payload = await response.json();
-    if (payload.ok && payload.data)
-      desktopLyricRenderer.applySettings(payload.data);
-  } catch (error) {
-    console.warn('[lyrics] settings unavailable:', error);
-  }
 }

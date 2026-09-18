@@ -5,6 +5,7 @@ const STYLES = {
   bubble: '聊天气泡', signal: '深色面板', minimal: '蝴蝶结',
   ranked: '经典样式', transparent: '透明文字', identity: '头像横卡', outline: '简洁白卡',
   cream: '奶油气泡',
+  glow: '流光气泡',
 };
 
 export function initDanmakuOverlaySettings(elements, toast) {
@@ -30,7 +31,7 @@ export function initDanmakuOverlaySettings(elements, toast) {
     elements.styleChip.textContent = loaded
       ? `${dirty ? '待应用' : '服务器样式'} · ${STYLES[draft.style]}`
       : loading ? '正在读取服务器配置' : '服务器配置未读取';
-    elements.fullscreenDurationField.hidden = !['outline', 'cream'].includes(draft.style);
+    elements.fullscreenDurationField.hidden = !['outline', 'cream', 'glow'].includes(draft.style);
     elements.fullscreenDuration.value = String(draft.fullscreenDurationSeconds);
     elements.fullscreenDuration.disabled = !loaded;
     for (const button of [elements.copyOverlayUrlButton, elements.openOverlayButton]) {

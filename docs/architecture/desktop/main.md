@@ -44,11 +44,26 @@ boolean enabled 输入，结果只投影 `{ ok: true, enabled }`。main 的账�
 沿用主窗口同源校验及授权账号变化保护；账号切换丢弃旧响应和草稿，网络失败
 显示未确认并保留当前草稿，不自动重放写入。服务器负责 20 条初始词库、随机
 选择、当前昵称和舰队身份、去重及取消；客户端只在有效服务器响应后报告成功。
-需配套支持 welcome-settings 的服务器版本；旧服务器显示可重试错误，不回退本地发送。
+上述 V1 桥保留。新页面使用 `getWelcomeSettingsV2()` / `updateWelcomeSettingsV2(patch)`，
+读写固定 `/api/device/welcome-settings/v2`。完整字段和依赖由服务器 Device OpenAPI
+维护；主进程以 [welcome-settings-contract.js](../../../src/shared/welcome-settings-contract.js)
+白名单验证参数、四份词库与完整回包，错误只投影字段/原因。仅 GET 明确 HTTP 404
+才回落 V1，并显示新增能力不可用；网络、鉴权、畸形成功及写入均不自动回落。
+
+参数和四库各有草稿代次，写入串行、输入可继续编辑；开启有数值草稿时原子提交
+并明示“开启并保存参数”，词库仍使用已确认值。纯关闭只带开关，失败保持未确认；
+欢迎关闭联动子功能由服务器执行。独立昵称注音也经同一账号配置保存。读取可保留
+草稿，切账号清空所有草稿/未添加输入并忽略旧响应。延时不证明观众仍在房间。
+
+六项总览与单个活动编辑器由 `danmaku-fixed-replies.js` 协调，只隐藏、不卸载
+既有本地机器人/PK 节点。欢迎参数/四库与折叠虚构预览在同一编辑器内，默认收起；
+注音在底部独立显示公开发送范围。IPC 通道定义见 [preload.md](preload.md)。
 
 验收：开关不覆盖词库、保存不改变开关、增删改、读取或保存期间继续编辑、关闭失败、
 账号切换、IPC 拒绝非法输入与外部窗口。测试为 `welcome-settings-ipc.test.js` 和
-`frontend-welcome.test.js`，页面入口为 `danmaku-tool.js` / `danmaku-welcome.js`。
+`frontend-welcome.test.js`，V2 增加 `welcome-v2-ipc.test.js`；实际 Electron 验证为
+`scripts/verify-welcome-settings.cjs`，使用合成账号、真实页面片段/样式及 IPC，
+不连接直播间。页面入口为 `danmaku-tool.js` / `danmaku-welcome.js`。
 
 | 事实     | 值                                                                                                                    | 出处                                                                                         |
 | -------- | --------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
@@ -158,6 +173,12 @@ runtime `publishGiftEffect` 共用测试播放的 `domainServices.gifts.resolveE
 
 ## 4. 主窗口
 
+### 礼物 PNG 导出
+
+`gift-export-ipc.js` 只接受主窗口、主 frame、精确本地 origin 的管理页调用；preload 提供 prepare/configure/save/cancel/openFolder 和进度订阅，不接收任意输出路径或页面 URL。`gift-export-controller.js` 从 runtime 取得冻结记录、配置及目录，默认保存到系统图片目录 `LIRA/礼物导出/日期/时间-随机标识`，替换根目录只能通过原生文件夹对话框。预览不创建目录；任务目录独占创建，PNG 用 wx 防覆盖。
+
+隐藏沙箱窗口固定加载 `/gift-export`，无 Node/preload，拒绝导航及新窗口，顺序 capturePage。每行 800×192、间隔 16px，每图最多 39 条（800×8096），支持透明/白色及合图/逐条。捕获后核验实际 PNG 尺寸并统一 2× 输出。取消、来源失效、导航和应用关闭释放窗口；失败保留成功文件并报告真实数量。截图验证脚本 `scripts/verify-gift-export.cjs`、`scripts/verify-gift-history.cjs` 使用隔离合成数据。
+
 `createMainWindow(baseUrl, authorized)` 创建唯一主窗口；后续 `/license` 与 `/admin?desktop=1` 切换只由 main process 的授权和礼物初始化状态监听器负责：
 
 | 事实           | 值                                                                                                                 | 出处                                                       |
@@ -249,14 +270,14 @@ Main: requestPlaybackFlush(mainWindow, 2000)
 
 | 文件                | 位置                                  | 写入者                                                                                                                      |
 | ------------------- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `logs/terminal.log` | `logDir = path.dirname(dataDir)/logs` | `installTerminalLog` 只包裹 console.warn/error；普通 log/info/debug 仍显示但不镜像落盘                                     |
+| `logs/terminal.log` | `logDir = path.dirname(dataDir)/logs` | `installTerminalLog` 包裹 console.info/warn/error；warn/error 及 `[Bilibili][Diagnostic] ` 前缀 info 镜像落盘，普通 info 不落盘；log/debug 保持原通道 |
 | `logs/desktop.log`  | 同目录                                | main.js `writeLog(scope, value)` — 生命周期、窗口、IPC、更新错误和播放状态等低频记录                                      |
 
 出处:[configureDesktopEnvironment:189-214](../../../src/electron/main.js#L189-L214)(目录创建、`logRunId`、`installTerminalLog`)、[writeLog:729-743](../../../src/electron/main.js#L729-L743)。日志目录位于 data 目录**父目录**下(data 目录树见 [storage.md](../backend/storage.md) §2)。
 
 行格式 `formatLogLine`([terminal-log.js](../../../src/electron/terminal-log.js)):`[ISO 时间] [run=<runId> seq=<n> pid=<pid> type=<processType>] [<source>] <message>`,消息内换行转义为 `\n`;`installTerminalLog` 返回恢复函数。A1 初始化不再清空 terminal.log；普通记录最终 UTF-8 最多 2 KiB、ERROR 最多 16 KiB，desktop.log/terminal.log 各达到 10 MiB 后停止新增。统一分流、轮转与跨重启预算属于后续阶段。所有日志写入失败静默(日志绝不干扰主流程)。
 
-所有日志输出(terminal.log 的 console 包裹与 desktop.log 的 `writeLog`)统一经 `src/shared/log-redaction.js` 的 `redactCredentials` 脱敏。脱敏字段:`password`/`passwd`、`activationcode`、`pairingcode`、`fingerprint`、`hardwareid`(精确键名),`*apikey`/`*secret`/`*token`/`*signature`(键名后缀),包含 `privatekey` 的键名,`authorization`/`cookie` 头,以及 URL 查询参数中的同名键(大小写不敏感)。即日志中不出现密码、完整激活码/授权码、token、签名、私钥和原始硬件标识。
+已接入的日志输出(terminal.log 的 console 包裹与 desktop.log 的 `writeLog`)统一经 `src/shared/log-redaction.js` 的 `redactCredentials` 脱敏。terminal wrapper 在调用原 console **之前**按对象键脱敏参数，格式化后再脱敏拼接出的凭据字符串；同一安全消息用于原 console 与文件。格式化/脱敏失败只输出安全占位，写盘失败不回退原始参数。脱敏字段:`password`/`passwd`、`activationcode`、`pairingcode`、`fingerprint`、`hardwareid`(精确键名),`*apikey`/`*secret`/`*token`/`*signature`(键名后缀),包含 `privatekey` 的键名,`authorization`/`cookie` 头,以及 URL 查询参数中的同名键(大小写不敏感)。未包裹的 log/debug 或独立 Node 源日志仍需由各自 owner 在输出前保护；HTTP 错误路径只记录已解析 pathname，并脱敏 error/stack。
 
 ## 9. Electron 版本与安全配置
 

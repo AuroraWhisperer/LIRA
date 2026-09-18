@@ -2,7 +2,7 @@
 // 在线音源域路由：健康、搜索、首页、歌词、播放地址和缓存。
 'use strict';
 
-const { sendJson } = require('../http-utils');
+const { sendJson, sendStableError } = require('../http-utils');
 const { resolveMusicStream } = require('../../music/stream-resolver');
 const { getMusicProviderHealth } = require('../../music/provider-health');
 
@@ -13,6 +13,10 @@ async function sendProviderResult(res, fallbackMessage, run) {
   try {
     sendJson(res, 200, { ok: true, data: await run() });
   } catch (error) {
+    if (error.statusCode === 400) {
+      sendStableError(res, error);
+      return;
+    }
     sendJson(res, 501, { ok: false, error: error.message || fallbackMessage });
   }
 }

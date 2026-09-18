@@ -124,7 +124,10 @@ function buildMusicRuntime({
     getLyricTimeline: () => lyricTimeline,
     publishLyricState(nextState) {
       const versionedState = versionLyricState(nextState);
-      if (!versionedState) return lyricState;
+      if (!versionedState) {
+        // HTTP acknowledgement only; the last accepted state stays unchanged.
+        return { ...lyricState, nextGeneration: lyricGeneration + 1 };
+      }
       lyricState = versionedState;
       webSocketHub.broadcast({ type: 'lyric-state', state: versionedState });
       return lyricState;

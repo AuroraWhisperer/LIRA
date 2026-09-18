@@ -95,8 +95,12 @@ function createGiftQueryStore(giftDb) {
 
   function listHistory({
     sourceId,
+    eventIds,
     query,
     rangeStart,
+    rangeEnd,
+    userQuery,
+    giftQuery,
     asOf,
     cursor,
     limit,
@@ -106,8 +110,12 @@ function createGiftQueryStore(giftDb) {
     const sort = normalizeHistorySort(sortField, sortDirection);
     const filter = buildLedgerFilter({
       sourceId,
+      eventIds,
       query,
       rangeStart,
+      rangeEnd,
+      userQuery,
+      giftQuery,
       asOf,
       cursor,
       sortField: sort.field,
@@ -130,6 +138,9 @@ function createGiftQueryStore(giftDb) {
     sourceId,
     query,
     rangeStart,
+    rangeEnd,
+    userQuery,
+    giftQuery,
     asOf,
     sortField = 'created_at',
     sortDirection = 'desc',
@@ -139,6 +150,9 @@ function createGiftQueryStore(giftDb) {
       sourceId,
       query,
       rangeStart,
+      rangeEnd,
+      userQuery,
+      giftQuery,
       asOf,
       sortField: sort.field,
       sortDirection: sort.direction,
@@ -256,6 +270,10 @@ function createGiftQueryStore(giftDb) {
   }
 
   return {
+    readHistorySnapshot: (options) => withReadTransaction(giftDb, () => listHistory(options)),
+    getProjectionGeneration: (sourceId) => Number(giftDb.prepare(
+      'SELECT projection_generation FROM gift_sync_state WHERE source_id = ?',
+    ).get(sourceId)?.projection_generation || 0),
     resetSprint,
     listRecent,
     listHistory,
@@ -302,8 +320,12 @@ function normalizeHistorySort(sortField, sortDirection) {
 
 function buildLedgerFilter({
   sourceId,
+  eventIds,
   query,
   rangeStart,
+  rangeEnd,
+  userQuery,
+  giftQuery,
   asOf,
   cursor = null,
   sortField = 'created_at',
@@ -321,6 +343,19 @@ function buildLedgerFilter({
     'g.created_at < ?',
   ];
   const params = [sourceId, asOf];
+  if (eventIds) {
+    sql.push("g.platform_id IN (SELECT 'lira-server:' || value FROM json_each(?))");
+    params.push(JSON.stringify(eventIds));
+  }
+  if (rangeEnd) {
+    sql.push('g.created_at < ?');
+    params.push(rangeEnd);
+  }
+  for (const [column, value] of [['user_name', userQuery], ['gift_name', giftQuery]]) {
+    if (!value) continue;
+    sql.push(`instr(canonicalGiftText(g.${column}), ?) > 0`);
+    params.push(value);
+  }
   if (rangeStart) {
     sql.push('g.created_at >= ?');
     params.push(rangeStart);

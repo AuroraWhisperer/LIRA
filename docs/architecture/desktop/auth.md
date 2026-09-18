@@ -30,6 +30,8 @@
 
 ## 3. 平台配置与 Cookie 过滤
 
+音乐登录和认证 owner 先通过 `normalizeMusicPlatform` 的 own-property 配置枚举校验，仅接受 qq/netease（忽略首尾空格和大小写）。`constructor`、`__proto__` 等继承属性在 BrowserWindow 创建、session 获取和快照路径操作前被拒绝；不允许回落默认 session。
+
 平台配置(来源 [auth-manager.js:9-27](../../../src/electron/auth-manager.js#L9-L27)、[bilibili-auth.js:10-22](../../../src/electron/bilibili-auth.js#L10-L22)),**唯一成表处**:
 
 | 平台     | 允许 Cookie 域名                                                           | 关键 Cookie(keyCookies)                                                                                     | 认证 Cookie(authCookies)            |
@@ -121,6 +123,8 @@ Bilibili 同构,另带 `loginCheckInFlight`/`loginCloseRequested` 防重入(见 
 
 ## 10. Cookie → API 请求头
 
+头像 CDN 代理 `BilibiliApiClient.fetchAvatarImage` 不携带 Bilibili Cookie，保留 HTTPS/hdslb 域名、Referer 和图片响应检查；其他需要认证的 Bilibili API 请求头保持不变。
+
 `getMusicCookieHeader(platform)`([auth-manager.js:155-161](../../../src/electron/auth-manager.js#L155-L161)) / `getBilibiliCookieHeader()`([bilibili-auth.js:165-171](../../../src/electron/bilibili-auth.js#L165-L171)):实时从平台分区读取允许域名内的全部 Cookie,过滤空 name/value 后拼接 `"name1=value1; name2=value2; ..."`。`getBilibiliUid()`([bilibili-auth.js:173-177](../../../src/electron/bilibili-auth.js#L173-L177)):返回 `DedeUserID` 数值。
 
 `getBilibiliAccountProfile(dataDir)` 先复用上述登录态判定，再用当前 UID 和 Cookie 调用 Bilibili 用户卡片接口；只向 renderer 返回 `{uid, name, avatarUrl}`，其中头像地址仍经过 `hdslb.com` HTTPS 白名单归一化，不返回 Cookie。资料查询独立于登录态 IPC，接口失败不会阻塞登录窗口完成或改变登录判定。
@@ -193,6 +197,12 @@ desktopRuntime.start({
 IPC/返回字段只在 [preload.md](preload.md) 登记。百宝箱已接入用户主动采集、随机排序和按需关注核验/递补；登录成功仍不构成作者身份或真实接口可用性证明。操作开始、每个出站请求及提交前检查会话；预算等待期间定期重新检查，账号变化使旧工作暂停。新流程本轮按用户要求未测试，限制与后续验收见[实施计划](../../../specs/plans/2026-09-14-bilibili-dynamic-lottery.md)。
 
 ## 15. DeviceBearer 请求的主体与生命周期
+
+设备激活使用 `device-key-store.prepareActivation()` 复用有效旧密钥，或准备加密候选。指纹检查通过后、远端调用前，将候选用 safeStorage 加密后原子写入 `device-key.pending.bin`，保留原 `device-key.bin`。只有远端绑定成功、响应含 deviceId 且激活生命周期仍有效才提升主密钥；身份保存成功后清除候选。指纹失败、远端失败、响应缺少 deviceId 或任务失效均不覆盖原主文件。
+
+响应丢失时保留并复用候选，不重新生成可能覆盖服务端已绑定私钥的新密钥。已有 deviceId 的启动流程先使用候选完成 challenge/verify；仅明确的 HTTP 401 `SIGNATURE_INVALID` 才回退原密钥。恢复成功后先提升主密钥、保存身份，再发布 AUTHORIZED 和启动会话维护；提升/身份写入失败及 dispose 保留候选。首次激活若尚未取得 deviceId，现有服务端协议无法仅凭候选自动找回该身份；本轮只保证候选保留，不宣称跨系统事务或无条件自动恢复。
+
+远端 HTTP 响应按流累计字节，普通请求 1 MiB、礼物历史/补拉 512 KiB、歌曲 8 MiB、SSE 错误体 64 KiB；超限取消 reader 并释放锁。完整礼物目录保留既有无固定体积/行数上限策略。仅提供 `text()` 的注入响应保留测试兼容回退，仍只能事后检查；生产 fetch 使用流式读取。本机构建摘要的信任语义不变。
 
 [license-manager.js](../../../src/electron/license/license-manager.js) 在通用 `withAuthorizedToken` 入口捕获可信 `streamerId`、`deviceId`、`licenseId` 与内部生命周期代际；等待授权、首次远端调用、成功提交、失败处理和重试都必须仍属于该上下文。`bootstrap`、`activate` 开始以及会话清理/阻断、`dispose` 使旧代际失效，因此 A → B → A 即使恢复到相同主体和 token，也不会接受第一轮 A 的响应或重发其写入。
 

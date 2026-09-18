@@ -1,0 +1,107 @@
+/* 流光气泡：昵称在框外上方，文字与表情置于共用经典身份色的柔光框内。 */
+body[data-style='glow'] .danmaku-signal-stage {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+}
+body[data-style='glow'] .danmaku-signal-header,
+body[data-style='glow'] .draw-danmaku-item::after,
+body[data-style='glow'] .draw-danmaku-avatar,
+body[data-style='glow'] .draw-danmaku-badge,
+body[data-style='glow'] .draw-danmaku-gift-art {
+  display: none;
+}
+body[data-style='glow'] .draw-danmaku-feed {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  overflow: hidden;
+}
+body[data-style='glow'] .draw-danmaku-item {
+  position: absolute;
+  display: block;
+  width: max-content;
+  min-width: min(220px, calc(100% - 32px));
+  max-width: min(560px, calc(100% - 32px));
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: #fff;
+  background: transparent;
+  box-shadow: none;
+  clip-path: none;
+  animation: outlineMessageIn 200ms ease-out both;
+}
+body[data-style='glow'] .draw-danmaku-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  text-align: center;
+}
+body[data-style='glow'] .draw-danmaku-identity {
+  display: flex;
+  justify-content: center;
+  padding: 0 16px;
+}
+body[data-style='glow'] .draw-danmaku-identity strong {
+  color: #fff;
+  font: 600 20px/1.35 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif;
+  letter-spacing: 0.02em;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-shadow: 0 2px 3px rgb(0 0 0 / 85%), 0 0 7px var(--ranked-accent);
+}
+body[data-style='glow'] .draw-danmaku-body p {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 10px 24px;
+  border: 2px solid var(--ranked-accent);
+  border-radius: 28px;
+  color: #fff;
+  background: color-mix(in srgb, var(--ranked-accent) 12%, rgb(12 18 30 / 76%));
+  box-shadow:
+    0 0 9px color-mix(in srgb, var(--ranked-accent) 55%, transparent),
+    inset 0 0 7px color-mix(in srgb, var(--ranked-accent) 22%, transparent);
+  font-size: var(--danmaku-font-size);
+  font-weight: 600;
+  line-height: 1.4;
+  text-shadow: 0 2px 3px rgb(0 0 0 / 65%);
+}
+body[data-style='glow'] .draw-danmaku-emote {
+  filter: none;
+}
+
+/* 礼物用紧凑双行通知卡，与昵称外置的聊天气泡区分。 */
+body[data-style='glow'] .draw-danmaku-item.is-gift {
+  --gift-ink: #fff;
+  --gift-accent: color-mix(in srgb, var(--ranked-accent) 65%, white);
+  display: block;
+  width: max-content;
+  max-width: min(460px, calc(100% - 32px));
+  min-height: 0;
+  padding: 10px 16px;
+  border: 1px solid var(--ranked-accent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--ranked-accent) 18%, #101522);
+  box-shadow: 0 0 9px color-mix(in srgb, var(--ranked-accent) 45%, transparent);
+}
+body[data-style='glow'] .is-gift .draw-danmaku-body {
+  gap: 4px;
+  min-height: 0;
+  padding: 0;
+  text-align: left;
+}
+body[data-style='glow'] .is-gift .draw-danmaku-identity {
+  justify-content: flex-start;
+}
+body[data-style='glow'] .is-gift .draw-danmaku-gift {
+  border: 0;
+  box-shadow: none;
+}
