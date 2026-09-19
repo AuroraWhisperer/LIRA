@@ -7,7 +7,6 @@ export function createBilibiliRoomProfile({ documentRef, fetchRef, apiToken }) {
   const status = documentRef.getElementById('bilibiliRoomStatus');
   const avatar = documentRef.getElementById('bilibiliRoomAvatar');
   const name = documentRef.getElementById('bilibiliRoomName');
-  const number = documentRef.getElementById('bilibiliRoomNumber');
   let savedRoomId;
   let requestVersion = 0;
 
@@ -17,12 +16,11 @@ export function createBilibiliRoomProfile({ documentRef, fetchRef, apiToken }) {
     avatar.removeAttribute('src');
   }
 
-  function render(statusText, statusClass, displayName, roomId = '') {
+  function render(statusText, statusClass, displayName) {
     status.textContent = statusText;
     status.className = `pill ${statusClass}`;
     name.textContent = displayName;
     name.title = displayName;
-    number.textContent = roomId ? `房间号：${roomId}` : '';
     clearAvatar();
   }
 
@@ -35,7 +33,7 @@ export function createBilibiliRoomProfile({ documentRef, fetchRef, apiToken }) {
       render('未设置', 'warn', '填写直播间号后保存设置');
       return;
     }
-    render('已设置', 'good', '正在读取房主资料…', savedRoomId);
+    render('已设置', 'good', '正在读取房主资料…');
     try {
       const response = await fetchRef('/api/bilibili/room/profile', {
         headers: apiToken ? { Authorization: `Bearer ${apiToken}` } : {},
@@ -48,7 +46,6 @@ export function createBilibiliRoomProfile({ documentRef, fetchRef, apiToken }) {
         '已设置',
         'good',
         profile.name || '暂未获取到房主昵称',
-        profile.roomId || savedRoomId,
       );
       const source = bilibiliAvatarSource(profile.avatarUrl, apiToken);
       if (source) {
@@ -58,7 +55,7 @@ export function createBilibiliRoomProfile({ documentRef, fetchRef, apiToken }) {
       }
     } catch (_) {
       if (version !== requestVersion) return;
-      render('读取失败', 'warn', '请检查房间号并重新保存设置', savedRoomId);
+      render('读取失败', 'warn', '请检查房间号并重新保存设置');
     }
   }
 

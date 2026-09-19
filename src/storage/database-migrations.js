@@ -85,6 +85,10 @@ function runAllMigrations(databases, options = {}) {
       },
       // v6：私密粉丝档案与不可复用的点歌来源标识。
       migrateFanProfiles,
+      // v7：队列状态变更按 queue_id 定位关联点歌流水。
+      (db) => {
+        db.exec('CREATE INDEX IF NOT EXISTS idx_requests_queue_id ON requests(queue_id)');
+      },
     ]),
   );
 
@@ -297,6 +301,17 @@ function runAllMigrations(databases, options = {}) {
       migrateGiftIdentities,
       // v11: sender display profile at gift time. Historical unknown values stay NULL.
       migrateGiftDisplay,
+      // v12：保留最近列表时间解释及历史升序的同时间 ID 降序。
+      (db) => {
+        db.exec(`
+          CREATE INDEX IF NOT EXISTS idx_gift_events_source_recent
+            ON gift_events(source_id, datetime(created_at) DESC, id DESC)
+            WHERE status = 'active' AND total_price > 0
+              AND detection_status = 'final' AND gift_stats_eligible = 1;
+          CREATE INDEX IF NOT EXISTS idx_gift_events_source_time_asc
+            ON gift_events(source_id, detection_status, status, created_at ASC, id DESC);
+        `);
+      },
     ]),
   );
 

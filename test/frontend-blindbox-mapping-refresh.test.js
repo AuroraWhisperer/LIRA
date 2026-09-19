@@ -265,7 +265,7 @@ test('blind-box advanced editor replaces saved null with an empty state while pr
   assert.match(page, /id="blindBoxAdvanced"[^>]*\bhidden\b/);
   assert.doesNotMatch(page, /id="blindBoxAddBtn"[^>]*\bhidden\b/);
   assert.match(page, /placeholder="暂无自定义配置/);
-  assert.match(page, /官方盲盒映射自动同步，无需填写/);
+  assert.match(page, /官方盲盒设置自动同步，无需填写/);
   assert.match(
     page,
     /id="blindBoxListToggle"[^>]*aria-expanded="false"[^>]*aria-controls="blindBoxList"/,

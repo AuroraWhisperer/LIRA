@@ -315,6 +315,13 @@
   background: linear-gradient(90deg, #f2fadf 0%, var(--color-bg-primary) 100%);
 }
 
+/* 修仙盲盒 — 墨玉青呼应盒身，与幸运盲盒的嫩叶绿区分 */
+.gift-card.blind-box-card.blind-box-xiuxian {
+  border-color: #a0bfb6;
+  border-left-color: #3d7067;
+  background: linear-gradient(90deg, #d7e8e0 0%, var(--color-bg-primary) 100%);
+}
+
 .gift-card.blind-box-card.blind-box-default {
   border-color: #b89ae8;
   border-left-color: #8459c7;

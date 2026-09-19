@@ -223,7 +223,7 @@ export async function loadGiftHistory({ background = false } = {}) {
         ]),
       },
     );
-    const payload = await readJsonResponse(response, '礼物流水加载失败');
+    const payload = await readJsonResponse(response, '礼物记录加载失败');
     if (sequence !== historyRequestSequence) return;
     if (!response.ok || !payload.ok) {
       throw Object.assign(new Error('GIFT_HISTORY_REQUEST_FAILED'), {

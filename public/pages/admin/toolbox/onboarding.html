@@ -38,14 +38,11 @@
     <div id="onboardingStepContent" class="lira-onboarding-content">
       <section data-onboarding-step="welcome">
         <p class="lira-onboarding-eyebrow ui-eyebrow">
-          先完成基础配置，再开始直播
+          先完成设置，再开始直播
         </p>
         <h3 class="ui-section-title">欢迎使用 LIRA</h3>
         <p>
-          如果是首次安装，请先在桌面端完成「登录
-          LIRA」设备授权；进入管理页后，这份引导会带你确认直播账号
-          登录、直播间号、歌单入口、音乐平台登录位置和可选的 AI
-          弹幕姬。扫码登录需要桌面版；网页模式可以先了解步骤，之后再回到桌面版完成登录。
+          跟着提示连接直播间、添加歌曲，再选择音乐平台。需要自动回复时，还可以设置 AI。
         </p>
         <p class="lira-onboarding-note">
           当前步骤会在本次打开期间保留，只有最后点击完成才会记为已完成。
@@ -86,8 +83,7 @@
         <p class="lira-onboarding-eyebrow ui-eyebrow">必做 · 歌库准备</p>
         <h3 class="ui-section-title">把歌单导入歌库</h3>
         <p>
-          打开「点歌 → 导入导出」，选择 XLSX、CSV、TSV
-          文件，或直接粘贴表格内容，然后点击「导入歌库」。向导不会替你修改歌库。
+          打开「点歌 → 导入导出」，下载模板并填写歌曲，再选择填好的表格，点击「导入歌库」。也可以直接从 Excel 复制表格，粘贴到导入框。
         </p>
         <button id="onboardingImportOpen" class="secondary" type="button">
           打开导入导出
@@ -151,7 +147,7 @@
               placeholder="deepseek-chat"
           /></label>
           <label class="lira-onboarding-field"
-            >API Key<input
+            >密钥（API Key）<input
               id="onboardingAiKey"
               type="password"
               autocomplete="new-password"
@@ -162,7 +158,7 @@
           </button>
         </div>
         <p class="lira-onboarding-note">
-          不启用 AI 可以点击“稍后设置”；API Key 只交给现有 AI 配置接口。
+          暂时不用 AI，可以点击「稍后设置」。
         </p>
       </section>
       <section data-onboarding-step="docs" hidden>
@@ -182,8 +178,8 @@
       </section>
       <section data-onboarding-step="complete" hidden>
         <p class="lira-onboarding-eyebrow ui-eyebrow">最后一步</p>
-        <h3 class="ui-section-title">准备完成</h3>
-        <p>基础配置已检查。你可以随时从使用文档重新打开引导，补充可选设置。</p>
+        <h3 class="ui-section-title">新手引导已看完</h3>
+        <p>请检查下方的完成情况。跳过的设置可以以后再补，需要时从「使用文档」重新打开引导。</p>
         <ul id="onboardingSummary" class="lira-onboarding-summary"></ul>
         <button id="onboardingFinishBtn" class="primary" type="button">
           完成并开始使用

@@ -77,7 +77,7 @@ test('admin page uses one ordered module entrypoint', () => {
   assert.equal(importLines.at(-1), "import './app.js';");
 });
 
-test('parameter ranges use shared semantic variants without changing playback controls', async () => {
+test('parameter ranges share a warm palette and preserve centered values without changing playback controls', async () => {
   const html = readAdminHtml();
   const styles = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'css', 'components', 'parameter-range.css'),
@@ -171,12 +171,6 @@ test('parameter ranges use shared semantic variants without changing playback co
     ],
   };
   for (const [variant, ids] of Object.entries(expectedVariants)) {
-    assert.match(
-      styles,
-      new RegExp(
-        `\\.parameter-range--${variant}\\s*\\[\\s*type\\s*=\\s*['"]range['"]\\s*\\]`,
-      ),
-    );
     for (const id of ids) {
       assert.match(
         html,
@@ -192,15 +186,16 @@ test('parameter ranges use shared semantic variants without changing playback co
     styles,
     /\.parameter-range\s*\[\s*type\s*=\s*['"]range['"]\s*\]/,
   );
-  assert.match(styles, /--parameter-range-thumb-radius: 50%/);
-  assert.match(styles, /--parameter-range-thumb-radius: 999px/);
-  assert.match(styles, /--parameter-range-thumb-height: 16px/);
-  assert.match(styles, /--parameter-range-thumb-height: 18px/);
+  assert.match(styles, /--parameter-range-thumb-size: 18px/);
+  assert.match(styles, /--parameter-range-track-height: 4px/);
+  assert.match(styles, /--parameter-range-accent: #34766a/);
+  assert.match(styles, /:focus-visible\s*\{[^}]*outline: 2px solid/);
+  assert.match(styles, /\.parameter-range--centered\[type='range'\]/);
+  assert.match(styles, /var\(--parameter-range-origin-length\)/);
+  assert.match(styles, /var\(--parameter-range-zero-position\)/);
+  assert.doesNotMatch(styles, /\.parameter-range--(?:tempo|scale|intensity)/);
   assert.doesNotMatch(styles, /repeating-linear-gradient/);
   assert.doesNotMatch(styles, /rotate\(|0 0 0 7px|radial-gradient\(circle at/);
-  for (const color of ['#e77f68', '#6674d5', '#38ad96', '#c97595']) {
-    assert.match(styles, new RegExp(color));
-  }
 });
 
 test('admin form refresh does not overwrite the field currently being edited', () => {

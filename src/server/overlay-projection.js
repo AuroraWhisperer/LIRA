@@ -58,7 +58,7 @@ const SETTING_SCHEMAS = Object.fromEntries(
 const POINT = fields('x y');
 const EFFECT = fields('operation value');
 const DANMAKU_ITEM = {
-  ...fields('id uid timestamp name message guardLevel medalName medalLevel isStreamer avatarUrl kind giftName giftCount'),
+  ...fields('id uid timestamp name message guardLevel medalName medalLevel isStreamer avatarUrl kind giftName giftCount giftTotalPrice'),
   emotes: [fields('text url width height')],
 };
 const QUEUE_ITEM = fields('song_name requester_name is_pinned requester_guard_level requester_medal_level requester_medal_name');

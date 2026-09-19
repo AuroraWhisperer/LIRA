@@ -47,8 +47,8 @@ test('playback page offers a dedicated WeSing source and cache capture workspace
     html,
     /SOURCE \/ LIVE|NOW SINGING|CONTROL DESK|从全民 K 歌客户端读取实时歌词|配置本地歌词缓存/,
   );
-  assert.match(html, />缓存目录<\/label>/);
-  assert.match(html, />时间偏移<\/span>/);
+  assert.match(html, />全民 K 歌缓存文件夹<\/label>/);
+  assert.match(html, />歌词时间调整<\/span>/);
   assert.match(html, />状态<\/div>/);
   assert.match(headerStyles, /source-tab\[data-source=['"]wesing['"]\]/);
   assert.match(panelStyles, /\.playback-wesing-panel/);

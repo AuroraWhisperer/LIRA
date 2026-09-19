@@ -139,7 +139,7 @@ test('source counts, exact activity facts and collection pause/resume/draw stay 
   assert.equal(f.get('task-link').href, current.target.url);
   assert.equal(f.get('task-author').textContent, 'UID 999');
   assert.equal(f.get('task-cutoff').textContent, new Date(current.rules.endsAtMs).toLocaleString());
-  assert.equal(f.get('pause').textContent, '暂停采集');
+  assert.equal(f.get('pause').textContent, '暂停获取');
   assert.equal(f.get('draw').disabled, true);
   const paused = { ...current, status: 'paused', revision: 5 };
   f.setState(state(paused));

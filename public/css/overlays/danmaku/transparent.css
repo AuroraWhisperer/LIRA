@@ -149,6 +149,16 @@ body[data-style='transparent'] .is-gift .draw-danmaku-avatar {
 body[data-style='transparent'] .is-gift .draw-danmaku-body {
   padding: 0 0 0 68px;
 }
+body[data-style='transparent'] .is-gift .draw-danmaku-gift-count {
+  flex-shrink: 0;
+}
+body[data-style='transparent'] .is-gift .draw-danmaku-gift-amount {
+  color: var(--gift-accent);
+  font-size: var(--danmaku-font-size);
+  font-weight: 800;
+  line-height: 1.15;
+  white-space: nowrap;
+}
 body[data-style='transparent'] .is-gift .draw-danmaku-gift-art {
   left: 0;
   right: auto;

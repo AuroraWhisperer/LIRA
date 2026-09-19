@@ -142,14 +142,14 @@ export function createProviderOperations(deps) {
 
   function showHealthResult(platform, state) {
     if (typeof U.showStackedToast !== 'function') {
-      toast(state.message || '音乐接口检查完成', { type: state.ok ? 'success' : 'warning' });
+      toast(state.message || '音乐平台连接检查完成', { type: state.ok ? 'success' : 'warning' });
       return;
     }
     U.showStackedToast({
       key: `playback-health:${platform}`, update: true,
       type: state.ok ? 'success' : 'warning',
-      title: state.ok ? '接口检查通过' : '接口状态异常',
-      message: state.message || '音乐接口检查完成',
+      title: state.ok ? '连接检查通过' : '音乐平台连接异常',
+      message: state.message || '音乐平台连接检查完成',
       className: state.ok ? 'playback-health-toast-good' : 'playback-health-toast-warn',
       duration: state.ok ? 3800 : 6000,
     });

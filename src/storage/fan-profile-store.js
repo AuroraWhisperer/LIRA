@@ -127,6 +127,23 @@ function createFanProfileStore(db) {
     ).run(scope, profileId, key, JSON.stringify(data));
   }
 
+  function statesForProfiles(scope, profileIds) {
+    const grouped = new Map();
+    for (let offset = 0; offset < profileIds.length; offset += 500) {
+      const batch = profileIds.slice(offset, offset + 500);
+      const rows = db.prepare(`
+        SELECT profile_id, item_key, data FROM fan_reminder_states WHERE scope = ?
+          AND profile_id IN (${batch.map(() => '?').join(', ')})
+        ORDER BY profile_id, item_key
+      `).all(scope, ...batch);
+      for (const row of rows) {
+        if (!grouped.has(row.profile_id)) grouped.set(row.profile_id, []);
+        grouped.get(row.profile_id).push({ key: row.item_key, ...JSON.parse(row.data) });
+      }
+    }
+    return grouped;
+  }
+
   function remove(scope, id, suppress) {
     const row = db
       .prepare(
@@ -262,6 +279,7 @@ function createFanProfileStore(db) {
     getScope,
     saveScope,
     states,
+    statesForProfiles,
     saveState,
     remove,
     exportScope,

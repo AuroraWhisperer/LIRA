@@ -3,6 +3,7 @@
 import { createCustomReplyEditor } from './danmaku-libraries.js';
 import { initDanmakuDailyBots } from './danmaku-daily-bots.js';
 import { initDanmakuOverlaySettings } from './danmaku-overlay-settings.js';
+import { initDanmakuOverlayFilters } from './danmaku-overlay-filters.js';
 import { initDanmakuWelcome } from './danmaku-welcome.js';
 import { initDanmakuPkReport } from './danmaku-pk-report.js';
 import { initFixedReplyEditor } from './danmaku-fixed-replies.js';
@@ -38,6 +39,7 @@ function init() {
   });
   if (!customReplyEditor) return;
   initDanmakuOverlaySettings(elements, toast);
+  initDanmakuOverlayFilters();
   initDanmakuWelcome({ toast });
   initDanmakuPkReport({ toast });
   initFixedReplyEditor();
@@ -97,8 +99,8 @@ function init() {
   });
   bindSettingToggle(elements.customReplyToggle, {
     key: 'enableCustomReplyBot',
-    onText: 'DIY 关键词回复已开启',
-    offText: 'DIY 关键词回复已关闭',
+    onText: '自定义关键词回复已开启',
+    offText: '自定义关键词回复已关闭',
     saveSetting,
     toast,
   });

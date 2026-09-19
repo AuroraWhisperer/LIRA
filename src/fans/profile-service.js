@@ -280,34 +280,11 @@ function createFanProfileService({
   function list(scope, input) {
     const query = text(input.query, '搜索', 300).toLocaleLowerCase();
     const filters = Array.isArray(input.filters) ? input.filters : [];
-    return store
+    const at = now();
+    const today = dayOf(at);
+    const candidates = store
       .list(scope)
       .filter((p) => (input.archived ? p.archived : !p.archived))
-      .map((profile) => {
-        const records = store.records.list(scope, profile.id);
-        const membership = summarizeMembership(records, now());
-        const reminders = buildReminders(
-          profile,
-          records,
-          store.states(scope, profile.id),
-          Date.parse(now()),
-        );
-        return {
-          ...profile,
-          membership,
-          lastInteraction:
-            records.filter((r) =>
-              ['note', 'song', 'membership'].includes(r.kind),
-            )[0]?.occurredAt || '',
-          nextReminder:
-            reminders.find(
-              (r) =>
-                r.date >= dayOf(now()) &&
-                r.group !== 'history' &&
-                r.status === 'pending',
-            ) || null,
-        };
-      })
       .filter((profile) => {
         const searchable = [
           profile.alias,
@@ -320,6 +297,50 @@ function createFanProfileService({
           .toLocaleLowerCase();
         return (
           (!query || searchable.includes(query)) &&
+          (!filters.includes('favorite') || profile.favorite) &&
+          (!filters.includes('incomplete') || !profile.birthday || !profile.summary)
+        );
+      });
+    const ids = candidates.map((profile) => profile.id);
+    const recordsByProfile = store.records.listForProfiles(scope, ids);
+    const statesByProfile = store.statesForProfiles(scope, ids);
+    return candidates
+      .map((profile) => {
+        const records = recordsByProfile.get(profile.id) || [];
+        const membership = summarizeMembership(records, at);
+        const medalLevel = records
+          .filter((r) => r.original.evidence === 'guard-roster')
+          .sort((a, b) =>
+            b.original.observedAt.localeCompare(a.original.observedAt),
+          )[0]?.original.medalLevel;
+        const reminders = buildReminders(
+          profile,
+          records,
+          statesByProfile.get(profile.id) || [],
+          Date.parse(at),
+        );
+        return {
+          ...profile,
+          membership,
+          medalLevel:
+            Number.isSafeInteger(medalLevel) && medalLevel >= 0
+              ? medalLevel
+              : null,
+          lastInteraction:
+            records.filter((r) =>
+              ['note', 'song', 'membership'].includes(r.kind),
+            )[0]?.occurredAt || '',
+          nextReminder:
+            reminders.find(
+              (r) =>
+                r.date >= today &&
+                r.group !== 'history' &&
+                r.status === 'pending',
+            ) || null,
+        };
+      })
+      .filter((profile) => {
+        return (
           filters.every((filter) => {
             if (filter === 'active')
               return profile.membership.status === 'active';
@@ -328,19 +349,18 @@ function createFanProfileService({
                 profile.membership.hasHistory &&
                 profile.membership.status !== 'active'
               );
-            if (filter === 'favorite') return profile.favorite;
-            if (filter === 'incomplete')
-              return !profile.birthday || !profile.summary;
             if (filter === 'unknown')
               return ['unknown', 'pending'].includes(profile.membership.status);
             return true;
           })
         );
       })
-      .sort((a, b) =>
-        (b.lastInteraction || b.updatedAt).localeCompare(
-          a.lastInteraction || a.updatedAt,
-        ),
+      .sort(
+        (a, b) =>
+          (b.medalLevel ?? -1) - (a.medalLevel ?? -1) ||
+          (b.lastInteraction || b.updatedAt).localeCompare(
+            a.lastInteraction || a.updatedAt,
+          ),
       );
   }
 

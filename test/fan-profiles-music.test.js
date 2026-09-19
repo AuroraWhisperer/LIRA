@@ -100,12 +100,35 @@ test('A07: manual preferences never increment request statistics or get overwrit
   music(f).add();
   music(f).add({ source: 'random', songName: '随机曲目' });
   const actual = f.detail(p.id);
-  assert.equal(actual.songs.length, 2);
+  assert.equal(actual.songs.length, 1);
   assert.equal(actual.musicStats.count, 1);
   assert.equal(actual.musicStats.categories['粤语'], 1);
   assert.equal(actual.preferences[0].data.reason, '本人确认');
   assert.equal(actual.musicSummary, '喜欢粤语');
 });
+
+for (const source of ['random', 'random:粤语+流行']) {
+  test(`${source} requests stay in the queue without creating fan song records`, (t) => {
+    const f = fanFixture(t);
+    const p = f.create();
+    const queue = music(f);
+    const item = queue.add({ source, songName: '随机曲目' });
+    const snapshot = acceptedSnapshot(f, item.id);
+    assert.equal(getQueueSnapshot(queue.context).waiting[0].id, item.id);
+    assert.equal(item.source, source);
+    const actual = f.detail(p.id);
+    assert.equal(actual.songs.length, 0);
+    assert.equal(actual.records.filter((record) => record.kind === 'song').length, 0);
+    assert.equal(actual.musicStats.count, 0);
+    assert.equal(actual.musicSummary, '');
+
+    f.service.archiveAccepted(SCOPE, snapshot);
+    handleQueueAction(queue.context, 'done', item.id);
+    f.restart();
+    assert.equal(f.detail(p.id).songs.length, 0);
+    assert.equal(f.db.songDb.prepare("SELECT COUNT(*) AS n FROM fan_records WHERE kind = 'song'").get().n, 0);
+  });
+}
 
 test('A23: manual song correction keeps one request, original evidence and an independent revision', (t) => {
   const f = fanFixture(t);

@@ -111,7 +111,7 @@ for (const [style, label] of [['cream', '奶油气泡'], ['glow', '流光气泡'
     const pending = f.click('danmakuApplyOverlayBtn');
     assert.deepEqual(f.writes[0].parameters, { style, fullscreenDurationSeconds: 9 });
     f.writes[0].resolve(saved(style, 9)); await pending;
-    assert.match(f.elements.styleChip.textContent, new RegExp(`服务器样式.*${label}`));
+    assert.match(f.elements.styleChip.textContent, new RegExp(`已应用样式.*${label}`));
     assert.equal(f.node('danmakuApplyOverlayBtn').disabled, true);
     f.click('outline');
     assert.equal(f.elements.fullscreenDurationField.hidden, false);
@@ -135,7 +135,7 @@ test('a late read cannot replace a draft and an old account save cannot affect t
   f.reads[2].resolve(saved('ranked', 8, nextUrl)); await flush();
   f.writes[0].resolve(saved('transparent')); await pending;
   assert.equal(f.elements.overlayUrl.value, nextUrl);
-  assert.match(f.elements.styleChip.textContent, /服务器样式.*经典样式/);
+  assert.match(f.elements.styleChip.textContent, /已应用样式.*经典样式/);
   assert.equal(f.elements.fullscreenDuration.value, '8');
 });
 

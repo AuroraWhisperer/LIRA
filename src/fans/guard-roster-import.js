@@ -41,6 +41,12 @@ function createGuardRosterImporter({ store, create, observe }) {
         const key = identityKey(person);
         if (seen.has(key)) throw new Error('大航海名单存在重复 UID。');
         seen.add(key);
+        const medalLevel = member.medalLevel ?? null;
+        if (
+          medalLevel !== null &&
+          (!Number.isSafeInteger(medalLevel) || medalLevel < 0)
+        )
+          throw new Error('粉丝灯牌等级无效。');
         const data = recordData('membership', {
           type: 'observation',
           level: member.level,
@@ -80,6 +86,7 @@ function createGuardRosterImporter({ store, create, observe }) {
           );
         if (
           previous?.original.level === member.level &&
+          (previous.original.medalLevel ?? null) === medalLevel &&
           dayOf(previous.original.observedAt) === dayOf(observedAt)
         )
           continue;
@@ -88,13 +95,14 @@ function createGuardRosterImporter({ store, create, observe }) {
           kind: 'membership',
           data,
           occurredAt: observedAt,
-          sourceKey: `guard-roster:${snapshot.roomId}:${person.value}:${observedAt}:${member.level}`,
+          sourceKey: `guard-roster:${snapshot.roomId}:${person.value}:${observedAt}:${member.level}:${medalLevel ?? ''}`,
           original: {
             ...data,
             source: 'platform',
             evidence: 'guard-roster',
             roomId: snapshot.roomId,
             ownerUid: snapshot.ownerUid,
+            medalLevel,
             identity: person,
           },
         });

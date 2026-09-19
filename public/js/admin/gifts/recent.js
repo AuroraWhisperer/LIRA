@@ -95,6 +95,7 @@ export function getGiftToastArtwork(item) {
   const SPECIAL_BLIND_BOX_TYPES = [
     { name: '心动盲盒', id: '32251', className: 'blind-box-heart' },
     { name: '幸运盲盒', id: '35206', className: 'blind-box-lucky' },
+    { name: '修仙盲盒', id: '35891', className: 'blind-box-xiuxian' },
   ];
   let recentGiftResizeObserver = null;
   let giftArtworkLoadPromise = null;

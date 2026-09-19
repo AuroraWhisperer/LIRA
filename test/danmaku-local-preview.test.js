@@ -80,6 +80,8 @@ test('all local styles share one address and retain every example without loopin
     assert.ok(items.slice(0, 4).every((item) => item.isStreamer !== true));
     assert.ok(items.some((item) => item.kind === 'gift' && item.giftCount === 10));
     assert.equal(items.filter((item) => item.kind === 'gift').length, 1);
+    assert.equal(items.find((item) => item.kind === 'gift').giftTotalPrice, 1);
+    assert.equal(f.options.at(-1).showGiftTotal, ['transparent', 'cream'].includes(style));
     assert.ok(items.every((item) => item.id !== 'preview-thanks'));
     assert.equal(f.options.at(-1).resolveEmoteUrl(items[0].emotes[0].url), '/img/overlays/danmaku-previews/dacall.png');
     if (['outline', 'cream', 'glow'].includes(style)) {

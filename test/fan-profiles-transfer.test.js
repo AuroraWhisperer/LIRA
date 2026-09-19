@@ -175,5 +175,5 @@ test('fan schema upgrades existing request history without attributing it and re
   assert.equal(f.db.songDb.prepare('SELECT COUNT(*) AS n FROM fan_profiles').get().n, 0);
   f.restart();
   assert.deepEqual(f.db.songDb.prepare('SELECT * FROM requests WHERE id = 1').get(), restored);
-  assert.equal(f.db.songDb.prepare("SELECT version FROM schema_version WHERE key = 'song_db'").get().version, 6);
+  assert.equal(f.db.songDb.prepare("SELECT version FROM schema_version WHERE key = 'song_db'").get().version, 7);
 });

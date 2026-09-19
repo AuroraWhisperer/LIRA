@@ -2,6 +2,17 @@
 
 ## 服务器弹幕姬参数
 
+弹幕显示屏蔽独立于样式：`license:get-overlay-filters` / `license:update-overlay-filters` /
+`license:get-overlay-viewers` 分别由 `liraLicense.getOverlayFilters()`、`updateOverlayFilters(patch)`、
+`getOverlayViewers()` 调用。仅允许当前主窗口主 frame 和精确 desktop origin；字段验证见
+`src/shared/overlay-filters-contract.js`。固定 DeviceBearer `/api/device/overlay-filters` GET/PUT
+返回 `{ok:true,blockedUsers:[{uid,name}],blockedKeywords:[]}`；PUT 只允许非空字段 patch，
+最多 500 人/200 词、UID 为 1–20 位非零开头十进制字符串、name 最长 80 字符、词最长 100 字符。
+`/api/device/overlay-viewers` GET 返回 `{ok:true,roomId,viewers:[{uid,name}]}`（最多 150 人）。
+不接收租户/房间参数，不返回凭据或原始上游错误。复用主进程账号代次检查；新增端点明确 404/405
+映射 `OVERLAY_FILTERS_UNSUPPORTED`，让旧服务器提示更新。其他错误沿用受限错误 DTO。
+列表写入在服务器确认后才反映到界面，失败保留输入；一键清空只提交 `blockedKeywords:[]`。
+
 `license-ipc.js` 注册 `license:get-overlay-settings` / `license:update-overlay-settings`，
 由 `liraLicense.getOverlaySettings()` / `updateOverlaySettings({style, fullscreenDurationSeconds})`
 调用。主进程验证当前主窗口与精确 desktop origin、样式白名单以及 2～30 秒整数，

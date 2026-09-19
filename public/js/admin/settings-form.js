@@ -98,8 +98,8 @@ export function createSettingsForm({
     initImmediateToggle(
       'giftDetectToggle',
       'enableGiftSprint',
-      '礼物检测已开启',
-      '礼物检测已关闭',
+      '礼物统计已开启',
+      '礼物统计已关闭',
     );
     initImmediateToggle(
       'enableGiftNotification',
@@ -114,7 +114,7 @@ export function createSettingsForm({
           variant: 'caution',
           title: '重置本轮礼物进度？',
           description:
-            '本轮已收金额会归零，但礼物流水仍会保留，之后可以继续统计。',
+            '本轮已收金额会归零，但礼物记录仍会保留，之后可以继续统计。',
           confirmLabel: '重置进度',
           initialFocus: 'cancel',
         });

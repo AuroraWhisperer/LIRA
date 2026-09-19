@@ -6,7 +6,7 @@
           <legend>
             🔐 直播账号登录
             <lira-help
-              >登录信息仅用于当前 LIRA 账号。同步到云端、设置直播间并启用弹幕监听后，才会接收弹幕和礼物。云端未登录时不采集。关闭应用不影响云端接收；退出登录并同步成功后才会停止。</lira-help
+              >扫码登录后，填写自己的直播间号，开启接收并保存设置。显示「本机已登录」只说明扫码成功，还要确认连接正常。关闭 LIRA 后仍会接收；需要停止时关闭接收并保存，或退出直播账号，等待保存成功。</lira-help
             >
           </legend>
           <div class="bilibili-auth-row">
@@ -54,7 +54,7 @@
 
         <fieldset class="theme-section">
           <legend>
-            直播间登录
+            连接你的直播间
             <lira-help>请务必填写你自己的直播间房间号或链接，保存设置后显示房主资料。</lira-help>
           </legend>
           <div class="bilibili-room-row" aria-live="polite">
@@ -72,23 +72,21 @@
                 <strong id="bilibiliRoomName" class="bilibili-auth-name"
                   >填写直播间号后保存设置</strong
                 >
-                <span
-                  id="bilibiliRoomNumber"
-                  class="bilibili-auth-uid ui-caption"
-                ></span>
               </span>
             </span>
+            <input
+              id="roomId"
+              class="bilibili-room-input"
+              aria-label="直播间号或链接"
+              placeholder="例如：123456，或粘贴直播间链接"
+            />
           </div>
-          <label class="bilibili-room-input">
-            直播间号或链接
-            <input id="roomId" placeholder="例如：123456，或粘贴直播间链接" />
-          </label>
         </fieldset>
       </div>
 
       <div class="grid-3">
         <label>
-          启用弹幕监听
+          接收弹幕和礼物
           <select id="enableBilibili" data-dropdown-variant="settings">
             <option value="false">暂不启用</option>
             <option value="true">启用</option>
@@ -102,11 +100,11 @@
           </select>
         </label>
         <label>
-          队列最大长度
+          最多排队歌曲数
           <input id="queueLimit" type="number" min="1" max="300" />
         </label>
         <label>
-          用户冷却秒数
+          同一观众点歌间隔（秒）
           <input id="userCooldownSeconds" type="number" min="0" max="3600" />
         </label>
         <label>

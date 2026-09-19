@@ -146,7 +146,7 @@ test('danmaku detail panel fills the workspace and keeps actions grouped', () =>
   assert.match(html, /id="danmakuFullscreenDurationSeconds"/);
   assert.match(
     html,
-    /id="danmakuStyleTitle"[\s\S]*?class="danmaku-style-options\b[\s\S]*?class="danmaku-overlay-link"/,
+    /id="danmakuStyleTitle"[\s\S]*?class="danmaku-overlay-link"[\s\S]*?class="danmaku-style-options\b/,
   );
   assert.match(
     styles,
@@ -326,10 +326,7 @@ test('toolbox tabs rely on sidebar titles instead of repeating page headers', ()
     usageGuideHtml,
     /<h2 id="usageGuideTitle" class="usage-guide-title">使用文档<\/h2>/,
   );
-  assert.match(
-    usageGuideHtml,
-    /class="usage-guide-lead">\s*把直播间的互动交给 LIRA/,
-  );
+  assert.doesNotMatch(usageGuideHtml, /class="usage-guide-lead"/);
   assert.match(usageGuideHtml, /class="usage-guide-hero-actions"/);
   assert.doesNotMatch(usageGuideHtml, /other-feature-page-header/);
   assert.doesNotMatch(styles, /\.other-feature-page-header\b/);

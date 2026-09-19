@@ -1,8 +1,5 @@
 /* 横向目录按阅读目的分组，为较长的章节名称预留空间。 */
 .usage-guide-toc {
-  --usage-guide-accent: #63289f;
-  --usage-guide-accent-soft: #f0e0ff;
-  --usage-guide-accent-border: #e6d4f5;
   position: sticky;
   top: 8px;
   z-index: 6;
@@ -13,7 +10,7 @@
   padding: 14px 6px;
   border: 1px solid var(--usage-guide-accent-border);
   border-radius: var(--radius-lg);
-  background: #f5ebff;
+  background: var(--usage-guide-accent-soft);
   counter-reset: usage-guide-toc;
 }
 
@@ -42,7 +39,7 @@
   min-height: 34px;
   padding: 7px 8px;
   border-radius: var(--radius-md);
-  color: #4a2370;
+  color: var(--usage-guide-accent);
   font-size: var(--type-size-control);
   font-weight: 500;
   line-height: 1.4;
@@ -55,14 +52,15 @@
 }
 
 .usage-guide-toc a:hover {
-  background: var(--usage-guide-accent-soft);
+  background: var(--surface);
   color: var(--usage-guide-accent);
 }
 
 .usage-guide-toc a.active {
-  background: #e5ccff;
+  background: var(--surface);
   color: var(--usage-guide-accent);
   font-weight: 600;
+  box-shadow: inset 0 0 0 1px var(--usage-guide-accent-border);
 }
 
 .usage-guide-toc a:focus-visible {
@@ -93,11 +91,11 @@
 }
 
 .usage-guide-back-to-top:hover {
-  border-color: var(--primary-strong);
+  border-color: var(--usage-guide-accent);
   background: var(--surface);
 }
 
 .usage-guide-back-to-top:focus-visible {
-  outline: 2px solid var(--primary-strong);
+  outline: 2px solid var(--usage-guide-accent);
   outline-offset: 3px;
 }

@@ -319,7 +319,13 @@ import {
         ${showNoteColumn ? `<td>${escapeHtml(song.note || '')}</td>` : ''}
         <td class="song-actions-cell">
           <div class="song-actions-menu">
-            <button class="song-actions-trigger" type="button" data-song-actions-toggle="${song.id}" title="更多操作" aria-label="展开歌曲操作" aria-haspopup="menu" aria-expanded="false" aria-controls="song-actions-${song.id}">…</button>
+            <button class="song-actions-trigger" type="button" data-song-actions-toggle="${song.id}" title="更多操作" aria-label="展开歌曲操作" aria-haspopup="menu" aria-expanded="false" aria-controls="song-actions-${song.id}">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" focusable="false">
+                <circle cx="4" cy="10" r="1.5" />
+                <circle cx="10" cy="10" r="1.5" />
+                <circle cx="16" cy="10" r="1.5" />
+              </svg>
+            </button>
             <div id="song-actions-${song.id}" class="song-actions-list" role="menu" aria-label="歌曲操作" popover="manual" hidden>
               <button type="button" role="menuitem" data-edit-song="${song.id}" title="加载到编辑表单">编辑</button>
               <button type="button" role="menuitem" data-add-song="${song.id}" title="以主播身份加入点歌队列">入队</button>

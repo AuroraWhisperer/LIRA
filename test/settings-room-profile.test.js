@@ -12,7 +12,7 @@ async function fixture(loadProfile) {
   );
   const elements = Object.fromEntries([
     'roomId', 'bilibiliRoomStatus', 'bilibiliRoomAvatar',
-    'bilibiliRoomName', 'bilibiliRoomNumber',
+    'bilibiliRoomName',
   ].map((id) => [id, {
     value: '123', textContent: '', title: '', src: '', alt: '', hidden: true,
     listeners: {},
@@ -45,7 +45,7 @@ test('room card renders owner identity with the existing authenticated avatar pr
   await view.refresh('123');
   assert.equal(elements.bilibiliRoomStatus.textContent, '已设置');
   assert.equal(elements.bilibiliRoomName.textContent, '房主名字');
-  assert.equal(elements.bilibiliRoomNumber.textContent, '房间号：123000');
+  assert.equal(elements.roomId.value, '123');
   const avatar = elements.bilibiliRoomAvatar;
   assert.equal(avatar.hidden, false);
   assert.equal(avatar.alt, '房主名字的头像');
@@ -73,7 +73,6 @@ test('editing a room clears the previous identity and invalidates pending respon
   assert.equal(elements.bilibiliRoomStatus.textContent, '待保存');
   assert.doesNotMatch(elements.bilibiliRoomName.textContent, /旧房主/);
   assert.equal(elements.bilibiliRoomAvatar.hidden, true);
-  assert.equal(elements.bilibiliRoomNumber.textContent, '');
 });
 
 test('a late response cannot replace the newly saved room identity', async () => {
@@ -87,7 +86,6 @@ test('a late response cannot replace the newly saved room identity', async () =>
   pending.reject(new Error('Old lookup failed'));
   await oldRequest;
   assert.equal(elements.bilibiliRoomName.textContent, '新房主');
-  assert.equal(elements.bilibiliRoomNumber.textContent, '房间号：456');
   assert.equal(elements.bilibiliRoomStatus.textContent, '已设置');
 });
 
@@ -102,7 +100,6 @@ test('an empty room skips lookup and a failed lookup can be retried on save', as
   assert.equal(elements.bilibiliRoomStatus.textContent, '未设置');
   await view.refresh('123');
   assert.equal(elements.bilibiliRoomStatus.textContent, '读取失败');
-  assert.equal(elements.bilibiliRoomNumber.textContent, '房间号：123');
   await view.refresh('123', true);
   assert.equal(elements.bilibiliRoomStatus.textContent, '已设置');
   assert.equal(elements.bilibiliRoomName.textContent, '房主');

@@ -6,6 +6,8 @@ const {
 } = require('../shared/processed-gift-contract');
 
 const registeredGiftSqlFunctions = new WeakSet();
+const historyCountCaches = new WeakMap();
+const MAX_HISTORY_COUNTS = 64;
 const MAX_TOP_GIFTS = 50;
 const MAX_TIME_SERIES_POINTS = 240;
 const SHANGHAI_OFFSET_MS = 8 * 60 * 60 * 1000;
@@ -93,7 +95,7 @@ function createGiftQueryStore(giftDb) {
       .all(...scope.params, limit);
   }
 
-  function listHistory({
+  function listHistoryRows({
     sourceId,
     eventIds,
     query,
@@ -109,7 +111,7 @@ function createGiftQueryStore(giftDb) {
     sortDirection = 'desc',
   }) {
     const sort = normalizeHistorySort(sortField, sortDirection);
-    const filter = buildLedgerFilter({
+    const filterOptions = {
       sourceId,
       eventIds,
       query,
@@ -119,10 +121,28 @@ function createGiftQueryStore(giftDb) {
       giftQuery,
       amountAbove,
       asOf,
-      cursor,
+      cursor: sort.field === 'created_at' ? null : cursor,
       sortField: sort.field,
       sortDirection: sort.direction,
-    });
+    };
+    const filter = buildLedgerFilter(filterOptions);
+    if (cursor && sort.field === 'created_at') {
+      const sameTime = giftDb.prepare(`
+        SELECT g.*, g.created_at AS history_sort_value
+        FROM gift_events g
+        WHERE ${filter.sql} AND g.created_at = ? AND g.id < ?
+        ORDER BY g.id DESC LIMIT ?
+      `).all(...filter.params, cursor.sortValue, cursor.id, limit);
+      if (sameTime.length === limit) return sameTime;
+      const nextFilter = buildLedgerFilter({ ...filterOptions, timeCursor: cursor });
+      const remaining = giftDb.prepare(`
+        SELECT g.*, g.created_at AS history_sort_value
+        FROM gift_events g
+        WHERE ${nextFilter.sql}
+        ORDER BY g.created_at ${sort.sqlDirection}, g.id DESC LIMIT ?
+      `).all(...nextFilter.params, limit - sameTime.length);
+      return [...sameTime, ...remaining];
+    }
     return giftDb
       .prepare(
         `
@@ -171,6 +191,32 @@ function createGiftQueryStore(giftDb) {
       )
       .get(...filter.params);
     return Number(row?.count || 0);
+  }
+
+  function readHistoryPage(options) {
+    let nextCache;
+    const page = withReadTransaction(giftDb, () => {
+      // Read the version inside the same snapshot as COUNT and both page segments.
+      // total_changes covers this connection (including rolled-back writes), while
+      // data_version covers commits from other connections. asOf alone is not a snapshot.
+      const schemaVersion = giftDb.prepare('PRAGMA schema_version').get().schema_version;
+      const changes = giftDb.prepare('SELECT total_changes() AS value').get().value;
+      const dataVersion = giftDb.prepare('PRAGMA data_version').get().data_version;
+      const stamp = `${changes}:${dataVersion}:${schemaVersion}`;
+      const previous = historyCountCaches.get(giftDb);
+      const counts = previous?.stamp === stamp ? new Map(previous.counts) : new Map();
+      const filter = buildLedgerFilter({ ...options, cursor: null });
+      const key = JSON.stringify([filter.sql, filter.params]);
+      const total = counts.has(key) ? counts.get(key) : countHistory(options);
+      counts.delete(key);
+      counts.set(key, total);
+      if (counts.size > MAX_HISTORY_COUNTS) counts.delete(counts.keys().next().value);
+      nextCache = { stamp, counts };
+      return { total, rows: listHistoryRows(options) };
+    });
+    // A failed read transaction must never publish a cached count.
+    historyCountCaches.set(giftDb, nextCache);
+    return page;
   }
 
   function readStatistics({ sourceId, query, rangeStart, asOf, range }) {
@@ -274,13 +320,14 @@ function createGiftQueryStore(giftDb) {
   }
 
   return {
-    readHistorySnapshot: (options) => withReadTransaction(giftDb, () => listHistory(options)),
+    readHistorySnapshot: (options) => withReadTransaction(giftDb, () => listHistoryRows(options)),
+    readHistoryPage,
     getProjectionGeneration: (sourceId) => Number(giftDb.prepare(
       'SELECT projection_generation FROM gift_sync_state WHERE source_id = ?',
     ).get(sourceId)?.projection_generation || 0),
     resetSprint,
     listRecent,
-    listHistory,
+    listHistory: (options) => withReadTransaction(giftDb, () => listHistoryRows(options)),
     countHistory,
     readStatistics,
     readSprint,
@@ -333,10 +380,24 @@ function buildLedgerFilter({
   amountAbove,
   asOf,
   cursor = null,
+  timeCursor = null,
   sortField = 'created_at',
   sortDirection = 'desc',
 }) {
   const sort = normalizeHistorySort(sortField, sortDirection);
+  // One bound per direction: duplicate upper bounds can make SQLite start at
+  // asOf instead of the deeper cursor, even when EXPLAIN reports an index search.
+  let upperBound = rangeEnd && rangeEnd < asOf ? rangeEnd : asOf;
+  let lowerBound = rangeStart;
+  let lowerExclusive = false;
+  if (timeCursor) {
+    if (sort.direction === 'desc') {
+      if (timeCursor.sortValue < upperBound) upperBound = timeCursor.sortValue;
+    } else if (!lowerBound || timeCursor.sortValue >= lowerBound) {
+      lowerBound = timeCursor.sortValue;
+      lowerExclusive = true;
+    }
+  }
   const sql = [
     'g.source_id = ?',
     "g.detection_status = 'final'",
@@ -347,7 +408,7 @@ function buildLedgerFilter({
     'datetime(g.created_at) IS NOT NULL',
     'g.created_at < ?',
   ];
-  const params = [sourceId, asOf];
+  const params = [sourceId, upperBound];
   if (amountAbove !== undefined && amountAbove !== null) {
     sql.push('giftMoneyCents(g.total_price) > ?');
     params.push(Math.round(amountAbove * 100));
@@ -356,18 +417,14 @@ function buildLedgerFilter({
     sql.push("g.platform_id IN (SELECT 'lira-server:' || value FROM json_each(?))");
     params.push(JSON.stringify(eventIds));
   }
-  if (rangeEnd) {
-    sql.push('g.created_at < ?');
-    params.push(rangeEnd);
-  }
   for (const [column, value] of [['user_name', userQuery], ['gift_name', giftQuery]]) {
     if (!value) continue;
     sql.push(`instr(canonicalGiftText(g.${column}), ?) > 0`);
     params.push(value);
   }
-  if (rangeStart) {
-    sql.push('g.created_at >= ?');
-    params.push(rangeStart);
+  if (lowerBound) {
+    sql.push(`g.created_at ${lowerExclusive ? '>' : '>='} ?`);
+    params.push(lowerBound);
   }
   if (query) {
     sql.push(

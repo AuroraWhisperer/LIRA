@@ -1,5 +1,5 @@
 const TITLES = { random: '随机点歌回复',
-  diy: 'DIY 关键词回复', welcome: '进场欢迎', pk: 'PK 对手信息播报' };
+  diy: '自定义关键词回复', welcome: '进场欢迎', pk: 'PK 对手信息播报' };
 
 export function initFixedReplyEditor({ documentRef = globalThis.document, windowRef = globalThis.window } = {}) {
   const root = documentRef.querySelector?.('.danmaku-fixed-reply-section');

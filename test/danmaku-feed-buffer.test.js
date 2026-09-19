@@ -125,11 +125,13 @@ test('finalized gifts share the public feed without exposing ledger fields', () 
   assert.equal(gift.message, '送出 小花花 × 10');
   assert.equal(gift.giftName, '小花花');
   assert.equal(gift.giftCount, 10);
+  assert.equal(gift.giftTotalPrice, 100, 'the finalized total is not multiplied by quantity again');
   for (const field of ['total_price', 'source_event_id', 'raw_data', 'detection_status']) {
     assert.equal(Object.hasOwn(gift, field), false);
   }
   gift.giftName = '篡改';
   assert.equal(feed.getSnapshot()[1].giftName, '小花花');
+  assert.equal(feed.getSnapshot()[1].giftTotalPrice, 100);
   feed.push({ message: '谢谢' });
   assert.deepEqual(feed.getSnapshot().map(item => item.id), [2, 3]);
   feed.setRoom('200');
@@ -143,4 +145,14 @@ test('gift feed projection ignores progress and invalid gift quantities', () => 
     assert.equal(feed.pushGift({ detection_status: 'final', num }), null);
   }
   assert.deepEqual(feed.getSnapshot(), []);
+});
+
+test('gift totals preserve RMB decimals and omit unavailable amounts', () => {
+  const feed = createDanmakuFeedBuffer();
+  for (const totalPrice of [0, 0.01, 12.5, 128.88]) {
+    assert.equal(feed.pushGift({ detection_status: 'final', num: 10, total_price: totalPrice }).giftTotalPrice, totalPrice);
+  }
+  for (const totalPrice of [undefined, null, -1, Infinity, NaN, 'invalid']) {
+    assert.equal(Object.hasOwn(feed.pushGift({ detection_status: 'final', num: 1, total_price: totalPrice }), 'giftTotalPrice'), false);
+  }
 });

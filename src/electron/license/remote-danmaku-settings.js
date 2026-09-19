@@ -2,6 +2,9 @@
 
 function createRemoteDanmakuSettings(request) {
   return {
+    getOverlayFilters: (token) => request('GET', '/api/device/overlay-filters', undefined, token),
+    updateOverlayFilters: (settings, token) => request('PUT', '/api/device/overlay-filters', settings, token),
+    getOverlayViewers: (token) => request('GET', '/api/device/overlay-viewers', undefined, token),
     dailyBotRequest: (operation, input, token) => {
       const routes = {
         read: ['GET', '/api/device/daily-bot-settings'],

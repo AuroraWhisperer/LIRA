@@ -347,7 +347,7 @@ export class PlaybackBar {
     const clearCacheBtn = document.getElementById('playbackClearCacheBtn');
     if (clearCacheBtn) clearCacheBtn.style.display = isWeSing ? 'none' : '';
     const healthBtn = document.getElementById('playbackHealthBtn');
-    if (healthBtn) healthBtn.textContent = isWeSing ? '重新检测' : '检查接口';
+    if (healthBtn) healthBtn.textContent = isWeSing ? '重新检测' : '检查音乐平台连接';
 
     // 更新用户名显示
     const userName = document.getElementById('playbackUserName');

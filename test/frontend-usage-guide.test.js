@@ -26,14 +26,12 @@ test('usage guide main-flow steps keep body text out of the number gutter', () =
   assert.match(markerRule, /left:\s*2px/);
 });
 
-test('usage guide keeps expanded sidebar content in one column with a readable intro', () => {
+test('usage guide keeps expanded sidebar content in one column without the removed introduction', () => {
   const source = readCssBundle('public', 'css', 'admin', 'other-features.css');
   const panelRule = source.match(/\.usage-guide-panel\s*\{[\s\S]*?\n\}/)?.[0];
-  const leadRule = source.match(/\.usage-guide-lead\s*\{[\s\S]*?\n\}/)?.[0];
   assert.ok(panelRule, 'usage guide panel sizing should remain defined');
-  assert.ok(leadRule, 'usage guide lead sizing should remain defined');
+  assert.doesNotMatch(readAdminHtml(), /class="usage-guide-lead"/);
   assert.match(panelRule, /max-width:\s*none/);
-  assert.match(leadRule, /max-width:\s*80ch/);
   const collapsedRule = source.match(
     /\.other-page\.sidebar-collapsed \.usage-guide-panel\s*\{[^}]*\}/,
   )?.[0];
@@ -80,7 +78,7 @@ test('usage guide defers image loading and avoids sticky backdrop blur', () => {
     true,
   );
   assert.ok(tocRule, 'usage guide table of contents should remain defined');
-  assert.match(tocRule, /background:\s*#f5ebff/);
+  assert.match(tocRule, /background:\s*var\(--usage-guide-accent-soft\)/);
   assert.match(tocRule, /display:\s*grid/);
   assert.doesNotMatch(
     tocRule,

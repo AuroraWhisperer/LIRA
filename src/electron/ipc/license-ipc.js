@@ -1,6 +1,7 @@
 'use strict';
 
 const { isDnsHostname } = require('../../shared/remote-url-policy');
+const { overlayFilterParameters, sanitizeOverlayFilters, sanitizeOverlayViewers } = require('../../shared/overlay-filters-contract');
 const { welcomeV2Parameters, sanitizeWelcomeV2, sanitizeWelcomeFieldErrors } = require('../../shared/welcome-settings-contract');
 const SONG_BACKGROUND_MAX_BYTES = 5 * 1024 * 1024;
 const SAFE_ERROR_CODE_PATTERN = /^[A-Z][A-Z0-9_]{0,63}$/;
@@ -65,7 +66,7 @@ function registerLicenseIpc(options = {}) {
   if (!ipcMain || !licenseManager)
     throw new Error('License IPC dependencies are required.');
 
-  const safeHandle = (channel, handler) => {
+  const safeHandle = (channel, handler, mainFrameOnly = false) => {
     try {
       ipcMain.removeHandler?.(channel);
     } catch (error) {
@@ -78,6 +79,7 @@ function registerLicenseIpc(options = {}) {
         !window ||
         window.isDestroyed?.() ||
         event?.sender !== window.webContents ||
+        (mainFrameOnly && event?.senderFrame !== window.webContents.mainFrame) ||
         !hasExactOrigin(senderUrl, getDesktopBaseUrl())
       ) {
         return {
@@ -151,6 +153,15 @@ function registerLicenseIpc(options = {}) {
   );
   safeHandle('license:get-overlay-settings', async () =>
     sanitizeOverlaySettings(await licenseManager.getOverlaySettings()),
+  );
+  safeHandle('license:get-overlay-filters', async () =>
+    sanitizeOverlayFilters(await licenseManager.getOverlayFilters()), true,
+  );
+  safeHandle('license:update-overlay-filters', async (settings) =>
+    sanitizeOverlayFilters(await licenseManager.updateOverlayFilters(overlayFilterParameters(settings))), true,
+  );
+  safeHandle('license:get-overlay-viewers', async () =>
+    sanitizeOverlayViewers(await licenseManager.getOverlayViewers()), true,
   );
   safeHandle('license:get-welcome-settings', async () =>
     sanitizeWelcomeSettings(await licenseManager.getWelcomeSettings()),

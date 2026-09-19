@@ -8,7 +8,6 @@
   line-height: var(--type-leading-body);
 }
 
-.dynamic-lottery-panel h2,
 .dynamic-lottery-panel h3,
 .dynamic-lottery-panel p {
   margin: 0;
@@ -73,8 +72,8 @@
 .dynamic-lottery-account {
   display: grid;
   gap: var(--spacing-sm);
-  padding-block: var(--spacing-md);
-  border-block: 1px solid var(--border);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 1px solid var(--border);
 }
 
 .dynamic-lottery-account-state {
@@ -105,7 +104,8 @@
 .dynamic-lottery-setup,
 .dynamic-lottery-panel form,
 .dynamic-lottery-activity,
-.dynamic-lottery-results {
+.dynamic-lottery-results,
+.dynamic-lottery-footer {
   display: grid;
   gap: var(--spacing-md);
   min-width: 0;
@@ -118,6 +118,16 @@
   margin: 0;
   padding: 0;
   border: 0;
+}
+
+.dynamic-lottery-panel [data-lottery-fields] {
+  grid-template-columns: 160px minmax(0, 1fr);
+  align-items: start;
+  gap: var(--spacing-md) var(--spacing-lg);
+}
+
+.dynamic-lottery-content {
+  grid-column: 1 / -1;
 }
 
 .dynamic-lottery-field {
@@ -331,6 +341,10 @@
 }
 
 @media (max-width: 600px) {
+  .dynamic-lottery-panel [data-lottery-fields] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
   .dynamic-lottery-panel,
   .dynamic-lottery-results {
     padding: var(--spacing-md);

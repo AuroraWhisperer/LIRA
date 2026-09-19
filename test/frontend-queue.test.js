@@ -9,12 +9,65 @@ const test = require('node:test');
 const vm = require('node:vm');
 const { DatabaseSync } = require('node:sqlite');
 const { readCssBundle } = require('./helpers/css-bundle');
+const { loadModuleExports } = require('./helpers/frontend-modules');
 const {
   readJsModuleBundle: readRawJsModuleBundle,
 } = require('./helpers/js-module-bundle');
 
 const ROOT_DIR = path.join(__dirname, '..');
 const settingsStoreModule = require('../src/storage/settings-store');
+
+test('queue opacity percentages survive form refresh and preset sync without changing the saved scale', async () => {
+  const fields = new Map(
+    ['themeOpacity', 'themeOpacityNumber'].map((id) => [
+      id,
+      {
+        value: '0.48',
+        dataset: {},
+        closest() {
+          return null;
+        },
+      },
+    ]),
+  );
+  const document = {
+    getElementById: (id) => fields.get(id) || null,
+    querySelectorAll: () => [],
+  };
+  const window = { AdminApp: {} };
+  const { FormsService } = await loadModuleExports(
+    path.join(ROOT_DIR, 'public/js/admin/forms.js'),
+    { document, window },
+  );
+  const service = new FormsService();
+  for (const [stored, displayed] of [
+    ['0.48', 48], ['0.57', 57], ['0', 0], ['1', 100],
+  ]) {
+    service.fillForm({ themeOpacity: stored });
+    assert.equal(fields.get('themeOpacity').value, stored);
+    assert.equal(Number(fields.get('themeOpacityNumber').value), displayed);
+  }
+
+  window.AdminApp.utils = {
+    value: (id) => String(fields.get(id)?.value ?? ''),
+    setValue: (id, value) => {
+      if (fields.has(id)) fields.get(id).value = String(value);
+    },
+  };
+  window.AdminApp.theme = {};
+  await loadModuleExports(
+    path.join(ROOT_DIR, 'public/js/admin/theme.js'),
+    { document, window },
+  );
+  fields.get('themeOpacity').value = '0.85';
+  for (const [stored, displayed] of [[0, '0'], ['0.48', '48'], [1, '100']]) {
+    window.AdminApp.theme.syncAllRangeInputs({ themeOpacity: stored });
+    assert.equal(fields.get('themeOpacityNumber').value, displayed);
+  }
+  window.AdminApp.theme.syncAllRangeInputs();
+  assert.equal(fields.get('themeOpacityNumber').value, '85');
+  assert.equal(window.AdminApp.theme.collectTheme().themeOpacity, '0.85');
+});
 
 function readJsModuleBundle(...relativeSegments) {
   return readRawJsModuleBundle(...relativeSegments).replace(

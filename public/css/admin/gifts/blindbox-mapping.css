@@ -103,6 +103,35 @@
   background: rgba(102, 151, 53, 0.1);
 }
 
+/* 修仙盲盒专属样式 — 墨玉青配色取自盲盒图标的深绿盒身 */
+.blind-box-chip:has(img[alt*='修仙盲盒']) {
+  border-color: #a0bfb6;
+  background: linear-gradient(135deg, #edf6f2 0%, #d7e8e0 100%);
+  box-shadow: 0 1px 3px rgba(61, 112, 103, 0.06);
+}
+
+.blind-box-chip:has(img[alt*='修仙盲盒']):hover {
+  border-color: #3d7067;
+  box-shadow: 0 4px 12px rgba(61, 112, 103, 0.18);
+}
+
+.blind-box-chip:has(img[alt*='修仙盲盒']) .bb-chip-icon {
+  background: linear-gradient(135deg, #e5f1eb 0%, #c5ddd1 100%);
+}
+
+.blind-box-chip:has(img[alt*='修仙盲盒']) .bb-chip-name {
+  color: #315f53;
+}
+
+.blind-box-chip:has(img[alt*='修仙盲盒']) .bb-chip-price {
+  color: #315f53;
+  background: rgba(49, 95, 83, 0.1);
+}
+
+.blind-box-chip:has(img[alt*='修仙盲盒']) .bb-chip-source {
+  color: #315f53;
+}
+
 /* 小熊虫盲盒专属样式 — 配色取自盲盒图标（蜜桃粉 #f5a6cb / 暖金 #fede82 / 深玫瑰 #d1568e）*/
 .blind-box-chip:has(img[alt*='小熊虫']) {
   border-color: #f5a6cb;

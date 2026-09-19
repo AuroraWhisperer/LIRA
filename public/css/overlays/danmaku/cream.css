@@ -183,8 +183,15 @@ body[data-style='cream'] .is-gift .draw-danmaku-gift-art {
   transform: translateY(-50%);
 }
 body[data-style='cream'] .is-gift .draw-danmaku-gift-count {
+  flex-shrink: 0;
+}
+body[data-style='cream'] .is-gift .draw-danmaku-gift-amount {
   padding: 3px 6px;
   border-radius: 8px;
+  color: var(--gift-accent);
   background: #ffdcdf;
   font-size: var(--danmaku-font-size);
+  font-weight: 800;
+  line-height: 1.15;
+  white-space: nowrap;
 }

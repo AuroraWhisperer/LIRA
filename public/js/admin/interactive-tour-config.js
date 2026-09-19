@@ -30,7 +30,7 @@ export const TOUR_CONFIG_STEPS = [
     title: '欢迎使用 LIRA',
     kicker: '第 0 步 · 认识 LIRA',
     content:
-      'LIRA 的全称是 <strong>Live Interactive Room Assistant</strong>，中文可以理解为「直播间互动助手」。首次使用请先在桌面端完成<strong class="lira-tour-keyword">「登录 LIRA」</strong>设备授权；进入管理页后，只要跟着提示依次认识主要功能、登录直播账号、填写直播间、导入歌单和选择音乐平台。<br><strong>页面会自动跳到要操作的位置</strong>，看到高亮区域后照着做即可。',
+      '跟着提示连接直播间、添加歌曲，再选择音乐平台。<br><strong>页面会带你找到要操作的位置</strong>，照着提示做即可。',
     targetPage: null, // 不切换页面
     targetSelector: null, // 不高亮元素
     position: 'center', // 居中显示
@@ -54,7 +54,7 @@ export const TOUR_CONFIG_STEPS = [
     title: '登录你的直播账号',
     kicker: '第 2 步 · 登录账号',
     content:
-      '点击高亮区域里的<strong class="lira-tour-keyword">「扫码登录直播账号」</strong>，再用手机上的直播平台应用扫描弹出的二维码。登录成功后，LIRA 才能稳定收到你直播间里的弹幕和礼物。',
+      '点击高亮区域里的<strong class="lira-tour-keyword">「扫码登录直播账号」</strong>，再用手机上的直播平台应用扫描弹出的二维码。扫码成功后，继续填写直播间号并保存设置。',
     note: '二维码会在新窗口中打开；请在这台电脑上的 LIRA 桌面版完成。',
     targetPage: 'songAssistantPage', // 切换到点歌页
     targetTab: '[data-tab="settingsPage"]', // 切换到设置子标签
@@ -93,8 +93,8 @@ export const TOUR_CONFIG_STEPS = [
     title: '让 LIRA 连接直播间',
     kicker: '第 4 步 · 刷新连接',
     content:
-      '页面右上角一起框选的是<strong class="lira-tour-keyword">直播间状态</strong>和<strong class="lira-tour-keyword">「刷新直播」</strong>按钮。点击「刷新直播」，看到左边的直播间状态变为绿色，说明 LIRA 已经连上你的直播间。',
-    note: '如果没有变绿，请先检查上一步的房间号，再点击一次「刷新直播」。',
+      '先在「点歌 → 设置」开启<strong class="lira-tour-keyword">「接收弹幕和礼物」</strong>并点击<strong class="lira-tour-keyword">「保存设置」</strong>，再查看右上角的直播间连接状态。连接异常时，点击<strong class="lira-tour-keyword">「刷新直播」</strong>。',
+    note: '请按连接状态的文字提示处理。仍未连接时，检查直播账号、直播间号和接收开关是否已保存。',
     targetPage: 'songAssistantPage',
     targetTab: null,
     targetSelector: '#liveStatus, #reconnectBtn',
@@ -138,7 +138,7 @@ export const TOUR_CONFIG_STEPS = [
     kicker: '第 7 步 · 查看帮助',
     content:
       '这里是「百宝箱 → 使用文档」。以后忘记怎么登录、导入歌单或设置其他功能，就点击左侧的<strong class="lira-tour-keyword">「使用文档」</strong>，再按目录查找。',
-    note: '使用文档顶部还有「重新打开交互式引导」按钮，随时可以从头再看一遍。',
+    note: '使用文档顶部还有「重新查看新手引导」按钮，随时可以从头再看一遍。',
     targetPage: 'otherAssistantPage',
     targetTab: '[data-other-feature="otherUsageGuideFeature"]',
     targetSelector: '[data-other-feature="otherUsageGuideFeature"]',
@@ -147,10 +147,10 @@ export const TOUR_CONFIG_STEPS = [
   },
   {
     id: 'complete',
-    title: '新手引导已完成',
+    title: '新手引导已看完',
     kicker: '可以开始使用了',
     content:
-      '你已经看完最常用的设置。现在可以开始接收点歌、播放音乐和查看礼物。<br><br>还有功能不会用时，打开<strong class="lira-tour-keyword">「百宝箱 → 使用文档」</strong>即可。',
+      '你已经看完常用功能。如果刚才跳过了登录、导入等步骤，请在使用对应功能前完成设置。<br><br>还有功能不会用时，打开<strong class="lira-tour-keyword">「百宝箱 → 使用文档」</strong>即可。',
     targetPage: null,
     targetTab: null,
     targetSelector: null,

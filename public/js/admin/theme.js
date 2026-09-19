@@ -181,7 +181,7 @@ import {
     // range ↔ number pairs
     if (window.AdminApp.forms && window.AdminApp.forms.bindRangePair) {
       const { bindRangePair } = window.AdminApp.forms;
-      bindRangePair('themeOpacity', 'themeOpacityNumber', 0, 1, 0.48);
+      bindRangePair('themeOpacity', 'themeOpacityNumber', 0, 1, 0.48, 100);
       bindRangePair('queueSongFontSize', 'queueSongFontSizeNumber', 10, 70, 28);
       bindRangePair(
         'queueTitleFontSize',
@@ -318,7 +318,10 @@ import {
     const v = values || {};
     setValue('backdropBlurNumber', v.backdropBlur || value('backdropBlur'));
     setValue('glowIntensityNumber', v.glowIntensity || value('glowIntensity'));
-    setValue('themeOpacityNumber', v.themeOpacity || value('themeOpacity'));
+    setValue(
+      'themeOpacityNumber',
+      Math.round(Number(v.themeOpacity ?? value('themeOpacity')) * 100),
+    );
     setValue(
       'queueSongFontSizeNumber',
       v.queueSongFontSize || value('queueSongFontSize'),

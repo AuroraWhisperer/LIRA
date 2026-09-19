@@ -88,3 +88,46 @@ test('repeated same-day imports retain an actual level change back to a previous
   assert.equal(p.membership.observedLevel, 3);
   assert.equal(p.records.length, 3);
 });
+
+test('profiles sort by fan medal level before recency and retain ordering after restart and restore', (t) => {
+  const f = fanFixture(t);
+  f.service.importGuardRoster(SCOPE, roster([
+    { uid: IDENTITY.value, name: '低灯牌', level: 1, medalLevel: 12 },
+    { uid: '900000002', name: '高灯牌', level: 3, medalLevel: 32 },
+    { uid: '900000003', name: '旧名单', level: 2 },
+  ]));
+  const low = f.run('find', { identity: IDENTITY });
+  f.setNow('2026-09-18T06:00:00.000Z');
+  f.record(low.id, 'note', { body: '更晚的互动不应改变灯牌排序' });
+  const ordered = () => f.run('list').profiles.map((p) => p.identity.value);
+  assert.deepEqual(ordered(), ['900000002', IDENTITY.value, '900000003']);
+  assert.equal(f.run('list', { query: '低灯牌' }).profiles[0].id, low.id);
+  f.restart();
+  assert.deepEqual(ordered(), ['900000002', IDENTITY.value, '900000003']);
+  const backup = f.run('backup');
+  const preview = f.run('preview-restore', { backup });
+  f.run('restore', { backup, ...preview, conflicts: 'replace' });
+  assert.deepEqual(ordered(), ['900000002', IDENTITY.value, '900000003']);
+});
+
+test('same-day medal changes update ordering without duplicating unchanged evidence or overwriting revisions', (t) => {
+  const f = fanFixture(t);
+  f.service.importGuardRoster(SCOPE, roster());
+  const p = f.run('find', { identity: IDENTITY });
+  const original = p.records[0];
+  f.run('save-record', { profileId: p.id, id: original.id, revision: original.revision,
+    data: { ...original.data, reason: '人工核对' } });
+  const snapshot = roster([{ uid: IDENTITY.value, name: '海边听歌', level: 3, medalLevel: 25 }]);
+  snapshot.observedAt = '2026-09-18T04:30:00.000Z';
+  f.service.importGuardRoster(SCOPE, snapshot);
+  f.service.importGuardRoster(SCOPE, snapshot);
+  assert.equal(f.detail(p.id).records.length, 2);
+  assert.equal(f.detail(p.id).records.find((r) => r.id === original.id).data.reason, '人工核对');
+  f.service.importGuardRoster(SCOPE, { ...snapshot, observedAt: '2026-09-18T05:00:00.000Z',
+    members: [{ ...snapshot.members[0], medalLevel: 26 }] });
+  assert.equal(f.detail(p.id).records.length, 3);
+  const revised = f.detail(p.id).records.find((r) => r.id === original.id);
+  f.run('save-record', { profileId: p.id, id: original.id, revision: revised.revision,
+    occurredAt: '2026-09-18T06:00:00.000Z', data: revised.data });
+  assert.equal(f.run('list').profiles[0].medalLevel, 26);
+});

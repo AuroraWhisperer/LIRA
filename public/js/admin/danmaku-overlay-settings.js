@@ -23,14 +23,14 @@ export function initDanmakuOverlaySettings(elements, toast) {
 
   function render() {
     elements.overlayUrl.value = overlayUrl;
-    elements.overlayUrl.placeholder = '连接已授权账号后显示服务器地址';
+    elements.overlayUrl.placeholder = '登录 LIRA 后显示直播画面链接';
     elements.styleButtons.forEach((button) => {
       button.setAttribute('aria-pressed', String(button.dataset.danmakuStyle === draft.style));
       button.disabled = !loaded;
     });
     elements.styleChip.textContent = loaded
-      ? `${dirty ? '待应用' : '服务器样式'} · ${STYLES[draft.style]}`
-      : loading ? '正在读取服务器配置' : '服务器配置未读取';
+      ? `${dirty ? '待应用' : '已应用样式'} · ${STYLES[draft.style]}`
+      : loading ? '正在读取样式' : '尚未读取样式';
     elements.fullscreenDurationField.hidden = !['outline', 'cream', 'glow'].includes(draft.style);
     elements.fullscreenDuration.value = String(draft.fullscreenDurationSeconds);
     elements.fullscreenDuration.disabled = !loaded;
@@ -39,13 +39,13 @@ export function initDanmakuOverlaySettings(elements, toast) {
     }
     elements.previewOverlayButton.disabled = false;
     applyButton.disabled = !loaded || !dirty || saving;
-    applyButton.textContent = saving ? '正在应用…' : '应用到服务器';
+    applyButton.textContent = saving ? '正在应用…' : '应用到直播画面';
     reloadButton.disabled = !overlayUrl || loading || saving || dirty;
   }
 
   function settingsFrom(response) {
     if (!response?.ok) throw new Error(response?.error === 'NETWORK_UNAVAILABLE'
-      ? '无法连接服务器，请稍后重试。' : '服务器弹幕姬设置暂不可用，请确认服务器已更新后重试。');
+      ? '无法连接服务器，请稍后重试。' : '暂时无法读取弹幕姬设置，请稍后重试；仍有问题时联系管理员。');
     if (!Object.hasOwn(STYLES, response.style) ||
         !Number.isInteger(response.fullscreenDurationSeconds) ||
         response.fullscreenDurationSeconds < 2 || response.fullscreenDurationSeconds > 30 ||
@@ -58,7 +58,7 @@ export function initDanmakuOverlaySettings(elements, toast) {
     const requestedGeneration = generation;
     const requestedRevision = revision;
     loading = true;
-    elements.styleSaveState.textContent = '正在读取服务器配置…';
+    elements.styleSaveState.textContent = '正在读取样式…';
     render();
     try {
       const response = await bridge.getOverlaySettings();
@@ -67,7 +67,7 @@ export function initDanmakuOverlaySettings(elements, toast) {
       if (requestedRevision === revision) {
         draft = settings;
         loaded = true;
-        elements.styleSaveState.textContent = '先调整并预览，确认后应用到服务器。';
+        elements.styleSaveState.textContent = '先调整并预览，确认后应用到直播画面。';
       }
     } catch (error) {
       if (requestedGeneration === generation) elements.styleSaveState.textContent = error.message;
@@ -80,7 +80,7 @@ export function initDanmakuOverlaySettings(elements, toast) {
     draft = nextDraft;
     revision += 1;
     dirty = true;
-    elements.styleSaveState.textContent = '有未应用的参数；预览不会改变直播画面。';
+    elements.styleSaveState.textContent = '有修改尚未应用，预览不会改变直播画面。';
     render();
   }
 
@@ -111,9 +111,9 @@ export function initDanmakuOverlaySettings(elements, toast) {
       const saved = settingsFrom(response);
       if (submittedRevision === revision) { draft = saved; dirty = false; }
       elements.styleSaveState.textContent = dirty
-        ? '本次参数已应用，仍有新修改尚未应用。'
-        : '已应用到服务器，在线弹幕姬将自动更新。';
-      toast('弹幕姬参数已应用到服务器');
+        ? '已应用刚才的修改，还有新的修改尚未应用。'
+        : '已应用到直播画面，在线弹幕姬将自动更新。';
+      toast('弹幕姬样式已应用到直播画面');
     } catch (error) {
       if (submittedGeneration === generation) elements.styleSaveState.textContent = `应用失败，草稿已保留：${error.message}`;
     } finally {
@@ -123,7 +123,7 @@ export function initDanmakuOverlaySettings(elements, toast) {
   reloadButton.addEventListener('click', reload);
   elements.copyOverlayUrlButton.addEventListener('click', async () => {
     if (!overlayUrl) return;
-    try { await copyText(overlayUrl); toast('服务器弹幕姬链接已复制'); }
+    try { await copyText(overlayUrl); toast('弹幕姬直播画面链接已复制'); }
     catch (error) { toast(error.message || '复制链接失败'); }
   });
   elements.openOverlayButton.addEventListener('click', () => {

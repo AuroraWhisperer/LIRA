@@ -28,6 +28,23 @@ function createFanRecordStore(db) {
       .map(decodeRecord);
   }
 
+  function listForProfiles(scope, profileIds) {
+    const grouped = new Map();
+    for (let offset = 0; offset < profileIds.length; offset += 500) {
+      const batch = profileIds.slice(offset, offset + 500);
+      const rows = db.prepare(`
+        SELECT * FROM fan_records WHERE scope = ?
+          AND profile_id IN (${batch.map(() => '?').join(', ')})
+        ORDER BY profile_id, occurred_at DESC, id
+      `).all(scope, ...batch);
+      for (const row of rows) {
+        if (!grouped.has(row.profile_id)) grouped.set(row.profile_id, []);
+        grouped.get(row.profile_id).push(decodeRecord(row));
+      }
+    }
+    return grouped;
+  }
+
   function insert(scope, profileId, record) {
     if (record.sourceKey) {
       const existing = db
@@ -109,6 +126,7 @@ function createFanRecordStore(db) {
 
   return {
     list,
+    listForProfiles,
     insert,
     update,
     decodeRecord,

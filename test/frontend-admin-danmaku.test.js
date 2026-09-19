@@ -43,7 +43,7 @@ test('admin danmaku input has no fixed character limit', () => {
   assert.match(html, /抽签机器人/);
   assert.match(html, /收到“抽签”后回复每日一签/);
   assert.match(html, /id="danmakuFortuneToggle"[^>]*aria-labelledby="danmakuFortuneTitle"/);
-  assert.match(html, /DIY 关键词回复/);
+  assert.match(html, /自定义关键词回复/);
   assert.match(html, /收到自定义关键词后回复固定文案/);
   assert.match(html, /id="danmakuCustomReplyToggle"[^>]*aria-labelledby="danmakuCustomReplyTitle"/);
   assert.doesNotMatch(html, /id="danmaku(?:Blessings|Fortunes)Panel"/);
@@ -80,7 +80,7 @@ test('danmaku tool separates the fixed live overlay from the sender and reply gr
   assert.match(html, /id="danmakuOpenOverlayBtn"/);
   assert.match(
     html,
-    /id="danmakuPreviewOverlayBtn"[^>]*>\s*本地预览\s*<\/button>/,
+    /id="danmakuPreviewOverlayBtn"[^>]*>\s*预览效果\s*<\/button>/,
   );
   const styleOptions = Array.from(
     html.matchAll(
@@ -271,7 +271,7 @@ test('danmaku tool places the AI interaction assistant after the manual sender w
   );
   assert.match(html, /id="xiaomiAiTitle">AI 互动助手<\/h3>/);
   assert.match(html, /id="xiaomiAiProviderBadge">自动识别</);
-  assert.match(html, /可选官方预设/);
+  assert.match(html, /选择你使用的 AI 平台/);
   assert.match(html, /id="xiaomiAiEnabled"[^>]*checked/);
   assert.match(html, /id="xiaomiAiModelState">未配置</);
   assert.match(
@@ -317,7 +317,7 @@ test('danmaku tool places the AI interaction assistant after the manual sender w
   assert.match(html, /id="xiaomiAiReasoningCapability">等待配置</);
   assert.match(
     html,
-    /id="xiaomiAiReasoningEffort"[\s\S]*?value="high">High<[\s\S]*?value="max">Max</,
+    /id="xiaomiAiReasoningEffort"[\s\S]*?value="high">高<[\s\S]*?value="max">最高</,
   );
   assert.match(html, /id="xiaomiAiProviderManagedReasoning"[^>]*hidden/);
   assert.match(html, /id="xiaomiAiDeepSeekKey"[^>]*type="password"/);
@@ -325,7 +325,7 @@ test('danmaku tool places the AI interaction assistant after the manual sender w
   assert.match(html, /id="xiaomiAiAmapKey"[^>]*type="password"/);
   assert.match(html, /id="xiaomiAiTrigger"[^>]*placeholder="例如：小米"/);
   assert.doesNotMatch(html, /id="xiaomiAiTrigger"[^>]*value="小米"/);
-  assert.match(html, /id="xiaomiAiTestBtn"[^>]*>\s*测试模型服务/);
+  assert.match(html, /id="xiaomiAiTestBtn"[^>]*>\s*测试 AI 连接/);
   assert.match(
     html,
     /id="xiaomiAiQWeatherHost"[^>]*type="text"[^>]*placeholder="nn7mdbwku9\.re\.qweatherapi\.com"/,
@@ -335,7 +335,7 @@ test('danmaku tool places the AI interaction assistant after the manual sender w
     html,
     /<details class="xiaomi-ai-collapsible xiaomi-ai-advanced">[\s\S]*?高级设置/,
   );
-  assert.match(html, /id="xiaomiAiSaveBtn"[^>]*type="submit"[^>]*>\s*保存配置/);
+  assert.match(html, /id="xiaomiAiSaveBtn"[^>]*type="submit"[^>]*>\s*保存设置/);
   assert.doesNotMatch(html, /sk-[A-Za-z0-9_-]{8,}/);
   assert.match(indexSource, /import ["']\.\/ai-assistant-settings\.js["'];/);
   assert.match(source, /element\.textContent = text/);
@@ -361,8 +361,8 @@ test('danmaku tool places the AI interaction assistant after the manual sender w
     source,
     /reasoningEffort: \[["']xiaomiAiReasoningEffort["'], ["']value["']\]/,
   );
-  assert.match(source, /provider_managed: ["']供应商管理["']/);
-  assert.match(source, /由 LIRA 执行，需要模型支持 tool_calls/);
+  assert.match(source, /provider_managed: ["']由平台决定["']/);
+  assert.match(source, /由 LIRA 帮助搜索，需要所选模型支持/);
   assert.match(
     source,
     /qweatherApiKey: \[["']xiaomiAiQWeatherKey["'], ["']secret["'], ["']hasQWeatherApiKey["']\]/,

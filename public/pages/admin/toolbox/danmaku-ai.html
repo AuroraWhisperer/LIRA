@@ -60,7 +60,7 @@
           ><span id="xiaomiAiProviderBadge">自动识别</span
           ><lira-help
             ><span id="xiaomiAiProviderNote"
-              >可选官方预设，也可使用自定义 OpenAI 兼容地址。</span
+              >选择你使用的 AI 平台，也可以填写第三方平台地址。</span
             ></lira-help
           ></span
         >
@@ -68,8 +68,8 @@
       <div class="xiaomi-ai-field-grid">
         <label
           ><span
-            >模型供应商
-            <lira-help>官方预设会锁定正确地址和推荐协议。</lira-help></span
+            >AI 平台
+            <lira-help>选择官方平台后，地址会自动填好。</lira-help></span
           >
           <select id="xiaomiAiModelProvider" data-dropdown-variant="toolbox">
             <option value="auto">自动识别（兼容旧设置）</option>
@@ -81,13 +81,13 @@
           </select>
         </label>
         <label
-          >API Key<input
+          >密钥（API Key）<input
             id="xiaomiAiDeepSeekKey"
             type="password"
             autocomplete="off"
             spellcheck="false"
             data-ai-secret
-            placeholder="填写当前模型服务的 API Key"
+            placeholder="粘贴 AI 平台提供的密钥"
           /><small id="xiaomiAiDeepSeekKeyHint">尚未保存</small></label
         >
         <label id="xiaomiAiEndpointControl" class="wide"
@@ -108,7 +108,7 @@
           ><span
             >接口协议
             <lira-help
-              >文档明确指定 wire_api 时手动选择；否则保持自动。</lira-help
+              >不确定时保持「自动识别」；平台有明确要求时再修改。</lira-help
             ></span
           >
           <select id="xiaomiAiModelApiProtocol" data-dropdown-variant="toolbox">
@@ -191,7 +191,7 @@
           ><strong id="xiaomiAiWebSearchCapability">等待配置</strong>
         </div>
         <div>
-          <span>推理</span
+          <span>深度思考</span
           ><strong id="xiaomiAiReasoningCapability">等待配置</strong>
         </div>
       </div>
@@ -206,7 +206,7 @@
               ><b id="xiaomiAiWebSearchLabel">联网搜索</b
               ><lira-help
                 ><span id="xiaomiAiWebSearchHelp"
-                  >根据当前协议选择联网方式。</span
+                  >使用所选平台支持的搜索方式。</span
                 ></lira-help
               ></span
             ><small>使用当前服务支持的方式检索信息。</small></span
@@ -221,7 +221,7 @@
           <span class="switch-track" aria-hidden="true"></span>
           <span class="xiaomi-ai-control-copy"
             ><span
-              ><b id="xiaomiAiReasoningLabel">模型推理</b
+              ><b id="xiaomiAiReasoningLabel">深度思考</b
               ><lira-help
                 ><span id="xiaomiAiReasoningHelp"></span></lira-help></span
             ><small>让模型在回答前进行额外思考。</small></span
@@ -233,16 +233,16 @@
           hidden
         >
           <span class="xiaomi-ai-control-copy"
-            ><b>推理强度</b><small>开启推理后可调整。</small></span
+            ><b>思考强度</b><small>开启深度思考后可调整。</small></span
           >
           <select id="xiaomiAiReasoningEffort" data-dropdown-variant="toolbox">
             <option value="auto">服务默认</option>
-            <option value="minimal">Minimal</option>
-            <option value="low">Low</option>
-            <option value="medium">Medium</option>
-            <option value="high">High</option>
-            <option value="xhigh">XHigh</option>
-            <option value="max">Max</option>
+            <option value="minimal">最低</option>
+            <option value="low">低</option>
+            <option value="medium">中</option>
+            <option value="high">高</option>
+            <option value="xhigh">很高</option>
+            <option value="max">最高</option>
           </select>
         </label>
         <p
@@ -250,8 +250,7 @@
           class="xiaomi-ai-provider-managed"
           hidden
         >
-          当前 Chat Completions 服务的思考能力由模型 ID 或供应商决定，LIRA
-          不发送非标准参数。
+          是否支持深度思考，由所选平台和模型决定。
         </p>
       </div>
     </fieldset>
@@ -285,7 +284,7 @@
                 placeholder="nn7mdbwku9.re.qweatherapi.com"
             /></label>
             <label class="wide"
-              >API Key<input
+              >密钥（API Key）<input
                 id="xiaomiAiQWeatherKey"
                 type="password"
                 autocomplete="off"
@@ -338,7 +337,7 @@
       </summary>
       <div class="xiaomi-ai-collapsible-body xiaomi-ai-field-grid">
         <label
-          >并行查询数<input
+          >同时处理的提问数<input
             id="xiaomiAiConcurrency"
             type="number"
             min="1"
@@ -352,7 +351,7 @@
             readonly
         /></label>
         <label
-          >单用户冷却（秒）<input
+          >同一观众提问间隔（秒）<input
             id="xiaomiAiUserCooldown"
             type="number"
             min="0"
@@ -360,7 +359,7 @@
             value="0"
         /></label>
         <label
-          >全房间每分钟上限<input
+          >每分钟提问上限<input
             id="xiaomiAiRoomLimit"
             type="number"
             min="1"
@@ -368,7 +367,7 @@
             value="20"
         /></label>
         <label class="wide"
-          >小猫人格预设<textarea
+          >AI 的性格和说话方式<textarea
             id="xiaomiAiSystemPrompt"
             rows="10"
             minlength="20"
@@ -379,14 +378,14 @@
     </details>
     <div class="xiaomi-ai-actions">
       <span id="xiaomiAiSaveState" class="hint" role="status" aria-live="polite"
-        >修改后自动保存，也可手动保存；密钥会加密存储且不会显示。</span
+        >修改后自动保存，也可以点击「保存设置」。密钥保存后不会完整显示。</span
       >
       <div class="xiaomi-ai-test-actions" aria-label="API 连接测试">
         <button id="xiaomiAiSaveBtn" class="primary" type="submit">
-          保存配置
+          保存设置
         </button>
         <button id="xiaomiAiTestBtn" class="secondary" type="button">
-          测试模型服务
+          测试 AI 连接
         </button>
         <button id="xiaomiAiQWeatherTestBtn" class="secondary" type="button">
           测试和风天气

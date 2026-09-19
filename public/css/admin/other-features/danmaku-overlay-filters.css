@@ -1,0 +1,105 @@
+.danmaku-overlay-filters {
+  display: grid;
+  gap: 12px;
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid var(--border);
+  container: danmaku-filters / inline-size;
+}
+.danmaku-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--spacing-xl);
+}
+.danmaku-filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.danmaku-filter-toolbar,
+.danmaku-filter-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+.danmaku-filter-heading h4 {
+  margin: 0;
+  font-size: var(--type-size-body);
+  font-weight: 600;
+}
+.danmaku-overlay-filters .hint {
+  margin: 0;
+  line-height: 1.6;
+}
+.danmaku-overlay-filters .hint:empty {
+  display: none;
+}
+.danmaku-filter-form {
+  display: grid;
+  gap: 6px;
+}
+.danmaku-filter-input-row {
+  display: flex;
+  gap: 8px;
+}
+.danmaku-filter-input-row input {
+  flex: 1;
+  min-width: 0;
+}
+.danmaku-filter-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.danmaku-filter-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+.danmaku-filter-list li > span,
+.danmaku-viewer-list label > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.danmaku-filter-list button {
+  flex-shrink: 0;
+}
+.danmaku-viewer-picker {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+}
+.danmaku-viewer-picker[hidden] {
+  display: none;
+}
+.danmaku-viewer-list label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  cursor: pointer;
+}
+.danmaku-viewer-list input[type='checkbox'] {
+  flex: 0 0 18px;
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  accent-color: var(--danmaku-heading-color);
+}
+@container danmaku-filters (max-width: 720px) {
+  .danmaku-filter-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

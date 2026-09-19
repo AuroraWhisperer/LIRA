@@ -190,7 +190,7 @@ function createFanFactConsumer({ store, now, create }) {
   // Called by queue-store inside the request's successful transaction. The
   // snapshot is already durable when the request is acknowledged to its caller.
   function archiveAccepted(scope, request) {
-    if (!scope) return;
+    if (!scope || /^random(?::|$)/.test(request.source)) return;
     const settings = store.getScope(scope);
     if (!settings.initialized || !settings.autoUpdate || !request.identityType)
       return;
@@ -206,7 +206,7 @@ function createFanFactConsumer({ store, now, create }) {
       songName: request.songName,
       artist: request.artist,
       category: request.categoryName,
-      excludeFromStats: /^random/.test(request.source),
+      excludeFromStats: false,
       excluded: false,
       note: '',
       state: '已加入队列',

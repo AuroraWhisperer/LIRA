@@ -101,8 +101,7 @@ function getGiftHistory(context, options = {}) {
     sortField,
     sortDirection,
   };
-  const total = queryStore.countHistory(historyOptions);
-  const rows = queryStore.listHistory({
+  const { total, rows } = queryStore.readHistoryPage({
     ...historyOptions,
     limit: limit + 1,
   });

@@ -19,7 +19,7 @@ const FULLSCREEN_LAYOUT = 'fullscreen-random';
  * this component owns message timing, layout, and removal.
  *
  * @param {HTMLElement} root
- * @param {{maxItems?: number, offscreenViewports?: number, autoScroll?: boolean, layout?: string, showAvatar?: boolean, itemLifetimeMs?: number, expireItems?: boolean, now?: Function, scheduleTimeout?: Function, cancelTimeout?: Function, resolveAvatarUrl?: Function, resolveEmoteUrl?: Function, getGuardLabel?: Function, classNames?: object}} options
+ * @param {{maxItems?: number, offscreenViewports?: number, autoScroll?: boolean, layout?: string, showAvatar?: boolean, showGiftTotal?: boolean, itemLifetimeMs?: number, expireItems?: boolean, now?: Function, scheduleTimeout?: Function, cancelTimeout?: Function, resolveAvatarUrl?: Function, resolveEmoteUrl?: Function, getGuardLabel?: Function, classNames?: object}} options
  * @returns {{render: Function, append: Function, destroy: Function}}
  */
 export function createDanmakuFeed(root, options = {}) {
@@ -46,6 +46,7 @@ export function createDanmakuFeed(root, options = {}) {
     classNames,
     fullscreen,
     showAvatar: options.showAvatar,
+    showGiftTotal: options.showGiftTotal,
     resolveAvatarUrl: options.resolveAvatarUrl,
     resolveEmoteUrl: options.resolveEmoteUrl,
     getGuardLabel: options.getGuardLabel,

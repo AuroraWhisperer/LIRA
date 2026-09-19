@@ -160,6 +160,7 @@ function createOverlayFeed(style, durationSeconds) {
     resolveEmoteUrl: bilibiliImageSource,
     getGuardLabel: guardLabel,
     showAvatar: !['outline', 'glow'].includes(style),
+    showGiftTotal: ['transparent', 'cream'].includes(style),
   };
   if (['outline', 'cream', 'glow'].includes(style)) {
     if (!previewMode) options.layout = 'fullscreen-random';
@@ -327,6 +328,7 @@ function previewItems() {
       message: '送出 小花花 × 10',
       giftName: '小花花',
       giftCount: 10,
+      giftTotalPrice: 1,
     },
   ];
 }

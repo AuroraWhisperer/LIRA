@@ -24,8 +24,8 @@ function button(action, label, extra = '') {
 }
 export function renderPeople(profiles, selected, filtered) {
   if (!profiles.length)
-    return `<div class="fan-empty"><h3>${filtered ? '没有符合条件的档案' : '记住一个名字，也记住他的故事'}</h3>
-    <p>${filtered ? '试试其他昵称，或调整筛选。' : '先填常用称呼，其他资料可以慢慢补充。'}</p>${button(filtered ? 'clear-filter' : 'new', filtered ? '清除筛选' : '新建第一份档案')}</div>`;
+    return `<div class="fan-empty"><h3>${filtered ? '没有符合条件的档案' : '暂无粉丝档案'}</h3>
+    ${button(filtered ? 'clear-filter' : 'new', filtered ? '清除筛选' : '新建档案')}</div>`;
   return profiles
     .map(
       (
@@ -33,8 +33,8 @@ export function renderPeople(profiles, selected, filtered) {
       ) => `<button type="button" class="fan-person ${selected === p.id ? 'is-selected' : ''}" data-fan-id="${attr(p.id)}" aria-pressed="${selected === p.id}">
     <span class="fan-person-line"><strong title="${attr(p.alias || p.platformName)}">${html(p.alias || p.platformName || '未命名档案')}</strong><span class="fan-status ${p.membership.status === 'active' ? 'is-active' : ''}">${html(memberLabel(p.membership))}</span></span>
     ${p.alias && p.platformName ? `<span class="fan-muted">${html(p.platformName)}</span>` : ''}
-    <span class="fan-person-summary">${html(p.summary || p.tags?.slice(0, 2).join('、') || `UID ${p.identity?.value || '待绑定'}`)}</span>
-    <span class="fan-person-date">${p.nextReminder ? `${html(p.nextReminder.title)} · ${html(dateLabel(p.nextReminder.date))}` : p.lastInteraction ? `最近互动 ${html(dateLabel(p.lastInteraction))}` : '还没有互动手记'}</span>
+    ${p.summary || p.tags?.length ? `<span class="fan-person-summary">${html(p.summary || p.tags.slice(0, 2).join('、'))}</span>` : ''}
+    ${p.nextReminder ? `<span class="fan-person-date">${html(p.nextReminder.title)} · ${html(dateLabel(p.nextReminder.date))}</span>` : ''}
   </button>`,
     )
     .join('');

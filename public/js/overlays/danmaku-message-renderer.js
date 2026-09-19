@@ -45,6 +45,7 @@ export function createDanmakuMessageRenderer({
   classNames,
   fullscreen,
   showAvatar = !fullscreen,
+  showGiftTotal = false,
   ...options
 }) {
   const resolveAvatarUrl =
@@ -110,7 +111,14 @@ export function createDanmakuMessageRenderer({
     count.className = 'draw-danmaku-gift-count';
     count.textContent = `× ${item.giftCount}`;
     copy.append(action, name);
-    rootElement.append(art, copy, count);
+    if (showGiftTotal) {
+      const amount = document.createElement('b');
+      amount.className = 'draw-danmaku-gift-amount';
+      amount.textContent = Number.isFinite(item.giftTotalPrice) && item.giftTotalPrice >= 0
+        ? `¥${item.giftTotalPrice.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}` : '—';
+      copy.append(count);
+      rootElement.append(art, copy, amount);
+    } else rootElement.append(art, copy, count);
   }
 
   function createAvatar(item, name, bubble) {

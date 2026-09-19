@@ -17,7 +17,7 @@ const { createFixture } = require('./helpers/overtime-service-fixture');
 test('gift database v10 creates overtime tables and safe singleton defaults', () => {
   const fixture = createFixture();
   try {
-    assert.equal(getSchemaVersions(fixture.db).giftDb, 11);
+    assert.equal(getSchemaVersions(fixture.db).giftDb, 12);
     const tables = new Set(
       fixture.db.giftDb
         .prepare("SELECT name FROM sqlite_master WHERE type = 'table'")
@@ -183,7 +183,7 @@ test('gift database v10 preserves v5 overtime state while widening its bounds', 
     const state = db.giftDb
       .prepare('SELECT * FROM overtime_machine_state WHERE id = 1')
       .get();
-    assert.equal(getSchemaVersions(db).giftDb, 11);
+    assert.equal(getSchemaVersions(db).giftDb, 12);
     assert.equal(state.enabled, 1);
     assert.equal(state.enable_epoch, 7);
     assert.equal(state.remaining_ms, 2_700_000);
@@ -214,7 +214,7 @@ test('gift database v10 adds nullable blind_box_id to an existing v8 database', 
     closeDatabases(db);
 
     db = createDatabases({ dataDir });
-    assert.equal(getSchemaVersions(db).giftDb, 11);
+    assert.equal(getSchemaVersions(db).giftDb, 12);
     const columns = new Set(
       db.giftDb
         .prepare('PRAGMA table_info(gift_events)')

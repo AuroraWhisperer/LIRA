@@ -18,6 +18,15 @@ body:not([data-style='minimal']) .draw-danmaku-item.is-gift {
   box-shadow: 0 6px 16px rgb(12 18 30 / 18%);
   clip-path: none;
 }
+body:is(
+  [data-style='bubble'],
+  [data-style='signal'],
+  [data-style='ranked'],
+  [data-style='transparent'],
+  [data-style='identity']
+) .draw-danmaku-item.is-gift {
+  zoom: 1.5;
+}
 body:not([data-style='minimal']) .is-gift::before,
 body:not([data-style='minimal']) .is-gift::after,
 body:not([data-style='minimal']) .is-gift .draw-danmaku-body::before,

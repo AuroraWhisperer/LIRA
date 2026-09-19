@@ -62,8 +62,8 @@ export function createSettingsOperations({
 
   async function clearAll() {
     const confirmed = await dangerConfirm({
-      title: '清空全部数据',
-      message: '将清除业务数据，并清理 QQ 音乐、网易云音乐的缓存。',
+      title: '清空歌曲和使用记录',
+      message: '将删除下方列出的歌曲和使用记录，并清理 QQ 音乐、网易云音乐缓存。请先核对删除和保留的内容。',
       deletes: [
         '歌曲与点歌数据',
         'SC、礼物与加班机记录',
@@ -76,7 +76,7 @@ export function createSettingsOperations({
         '加班机规则、收藏与歌单',
         '粉丝档案、互动记录与提醒状态',
       ],
-      confirmLabel: '确认清空全部',
+      confirmLabel: '确认清空',
     });
     if (!confirmed) return;
 

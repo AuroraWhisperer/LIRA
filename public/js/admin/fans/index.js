@@ -94,7 +94,7 @@ function createFanUi() {
     state.syncStatus = result.syncStatus;
     get('fanSyncState').textContent =
       {
-        ready: '已同步 · 私人资料保存在本机',
+        ready: '已同步',
         syncing: '资料仍在同步',
         pending: '资料仍在同步',
         offline: '离线 · 可维护本机档案',

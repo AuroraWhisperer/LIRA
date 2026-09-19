@@ -1,7 +1,24 @@
 .fan-profiles {
   container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   color: var(--text);
   font-size: var(--font-size-md, 14px);
+}
+.fan-profiles > :not(#fanProfilesPage, #fanRemindersPage) {
+  flex-shrink: 0;
+}
+#fanProfilesPage {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+#fanRemindersPage {
+  min-height: 0;
+  overflow: auto;
+  scrollbar-color: var(--color-border-default) transparent;
 }
 .fan-profiles [hidden],
 .fan-editor [hidden],
@@ -28,15 +45,13 @@
   gap: 8px;
 }
 .fan-toolbar {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
 }
-.fan-toolbar h2,
 .fan-editor h2 {
   margin: 0;
   font-size: 21px;
-}
-.fan-toolbar p {
-  margin: 6px 0 0;
 }
 .fan-muted {
   color: var(--muted);
@@ -53,10 +68,8 @@
   line-height: 1.7;
 }
 .fan-nav {
+  flex: 1;
   justify-content: flex-start;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 16px;
-  padding-bottom: 10px;
 }
 .fan-nav [role='tab'],
 .fan-detail-tabs button {
@@ -86,6 +99,7 @@
 }
 .fan-searchbar {
   display: flex;
+  flex-shrink: 0;
   flex-wrap: wrap;
   gap: 12px;
   margin-bottom: 16px;
@@ -114,14 +128,14 @@
 }
 .fan-split {
   display: grid;
+  flex: 1;
   grid-template-columns: minmax(240px, 0.8fr) minmax(0, 1.6fr);
-  min-height: 490px;
-  align-items: start;
+  grid-template-rows: minmax(0, 1fr);
+  min-height: 0;
   border-top: 1px solid var(--border);
 }
 .fan-people {
-  max-height: calc(100vh - 300px);
-  min-height: 250px;
+  min-height: 0;
   overflow: auto;
   scrollbar-color: var(--color-border-default) transparent;
 }
@@ -180,10 +194,10 @@
 }
 .fan-detail {
   min-width: 0;
+  min-height: 0;
   border-left: 1px solid var(--border);
   padding: 22px 24px;
   background: var(--surface);
-  max-height: calc(100vh - 300px);
   overflow: auto;
   scrollbar-color: var(--color-border-default) transparent;
 }

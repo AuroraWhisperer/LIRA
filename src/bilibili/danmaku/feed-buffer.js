@@ -68,6 +68,8 @@ function createDanmakuFeedBuffer(options = {}) {
       kind: 'gift',
       giftName,
       giftCount,
+      ...(Number.isFinite(gift.total_price) && gift.total_price >= 0
+        ? { giftTotalPrice: gift.total_price } : {}),
     });
   }
 

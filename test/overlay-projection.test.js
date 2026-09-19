@@ -15,7 +15,7 @@ const {
 const scopes = ['queue', 'songlist', 'blindbox', 'overtime', 'gift-effects',
   'gift-feed', 'gift-export', 'lyrics', 'games', 'danmaku', 'wheel', 'opening', 'clock'];
 const secret = 'PRIVATE_SENTINEL';
-const item = { id: 'message', name: '观众', message: '弹幕', kind: 'gift', giftName: '花', giftCount: 2,
+const item = { id: 'message', name: '观众', message: '弹幕', kind: 'gift', giftName: '花', giftCount: 2, giftTotalPrice: 12.5,
   avatarUrl: 'https://i0.hdslb.com/avatar', emotes: [{ text: '[笑]', url: 'https://i0.hdslb.com/emote', width: 10, height: 10, secret }], secret };
 const state = {
   secret,
@@ -83,6 +83,12 @@ test('WS event scope matrix strips nested extras while preserving display and dr
   assert.deepEqual(draw.operation.points, [{ x: 0.1, y: 0.2 }]);
   assert.equal(draw.operation.clientId, 'one');
   assert.equal(projectWebSocketPayload({ type: 'overlay', scope: 'wheel' }, events[6][1]).state.spin.index, 0);
+});
+
+test('danmaku gift totals survive both live events and reconnect snapshots', () => {
+  const principal = { type: 'overlay', scope: 'danmaku' };
+  assert.equal(projectWebSocketPayload(principal, { type: 'danmaku:message', item }).item.giftTotalPrice, 12.5);
+  assert.equal(projectOverlayState('danmaku', state).danmakuFeed[0].giftTotalPrice, 12.5);
 });
 
 test('game HTTP and WS projections hide unrevealed answers independently of the owner DTO', () => {

@@ -209,11 +209,11 @@
 }
 
 .bilibili-room-input {
-  margin-top: 12px;
+  flex: 1 1 180px;
+  min-width: 0;
 }
 
-.bilibili-room-row .bilibili-auth-name,
-.bilibili-room-row .bilibili-auth-uid {
+.bilibili-room-row .bilibili-auth-name {
   max-width: 100%;
 }
 

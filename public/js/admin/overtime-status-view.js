@@ -67,7 +67,7 @@ export function createOvertimeStatusView({
     const coreActive = giftDetection?.coreActive === true || overtimeEnabled;
     setStatus(
       byId('overtimeCoreStatus'),
-      `共享收礼核心：${coreActive ? '运行中' : '未运行'}`,
+      `礼物处理：${coreActive ? '运行中' : '未运行'}`,
       coreActive,
     );
     setStatus(

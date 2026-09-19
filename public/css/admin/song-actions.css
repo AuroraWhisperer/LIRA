@@ -2,12 +2,13 @@
 .song-actions-cell {
   width: 1%;
   white-space: nowrap;
+  text-align: center;
 }
 
 .song-actions-menu {
   position: relative;
   display: inline-flex;
-  justify-content: flex-end;
+  vertical-align: middle;
 }
 
 .song-actions-trigger {
@@ -15,13 +16,11 @@
   align-items: center;
   justify-content: center;
   width: 44px;
+  height: 44px;
   min-width: 44px;
-  padding: 0 10px;
-  border-radius: 10px;
-  font-size: 20px;
-  font-weight: var(--type-weight-bold);
-  line-height: 1;
-  letter-spacing: 1px;
+  min-height: 44px;
+  padding: 0;
+  border-radius: 50%;
   transition:
     border-color 140ms ease,
     background-color 140ms ease,

@@ -1,19 +1,11 @@
 /* ===== 使用文档 ===== */
 #otherUsageGuideFeature {
+  --usage-guide-accent: #765438;
+  --usage-guide-accent-soft: #f3e9db;
   position: relative;
 }
 
 .usage-guide-panel {
-  --usage-guide-accent: color-mix(
-    in srgb,
-    var(--primary-strong) 75%,
-    var(--text)
-  );
-  --usage-guide-accent-soft: color-mix(
-    in srgb,
-    var(--usage-guide-accent) 7%,
-    var(--surface)
-  );
   --usage-guide-accent-border: color-mix(
     in srgb,
     var(--usage-guide-accent) 25%,
@@ -41,14 +33,6 @@
   font-weight: var(--type-weight-bold);
   line-height: var(--type-leading-page-title);
   letter-spacing: var(--type-tracking-tight);
-}
-
-.usage-guide-lead {
-  max-width: 80ch;
-  margin: 0;
-  color: var(--muted);
-  font-size: var(--type-size-body);
-  line-height: 1.85;
 }
 
 .usage-guide-hero-actions {
@@ -211,7 +195,7 @@
 .usage-guide-feature li,
 .usage-guide-faq p {
   margin: 0;
-  color: var(--muted);
+  color: var(--text);
   font-size: var(--type-size-body);
   line-height: 1.7;
 }
@@ -220,6 +204,26 @@
 .usage-guide-feature p strong,
 .usage-guide-feature li strong {
   color: var(--text);
+}
+
+.usage-guide-panel .usage-guide-keyword {
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: var(--usage-guide-accent-soft);
+  color: var(--usage-guide-accent);
+  font-size: inherit;
+  font-weight: 600;
+  line-height: inherit;
+  box-decoration-break: clone;
+}
+
+.usage-guide-main a {
+  color: var(--usage-guide-accent);
+  text-underline-offset: 3px;
+}
+
+.usage-guide-panel .usage-guide-success {
+  color: var(--color-success-dark);
 }
 
 /* 主流程步骤 */
@@ -317,10 +321,6 @@
 
 .usage-guide-feature li::marker {
   color: var(--usage-guide-accent);
-}
-
-.usage-guide-pricing {
-  margin-top: 12px;
 }
 
 .usage-guide-image {
@@ -757,4 +757,42 @@
   .other-page.sidebar-collapsed .other-feature-label {
     transition: none;
   }
+}
+
+/* 操作步骤与需要先看清的提醒。 */
+.usage-guide-checks {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding-left: 24px;
+  color: var(--text);
+  font-size: var(--type-size-body);
+  line-height: 1.7;
+}
+
+.usage-guide-faq .usage-guide-checks {
+  margin: 0 15px;
+  padding: 12px 0 14px 24px;
+  border-top: 1px dashed var(--usage-guide-rule);
+}
+
+.usage-guide-feature .usage-guide-notice {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--color-warning-light);
+  color: var(--text);
+}
+
+.usage-guide-notice[data-tone='warning'] strong {
+  color: var(--warning);
+}
+
+.usage-guide-feature .usage-guide-notice[data-tone='danger'] {
+  background: var(--color-danger-light);
+}
+
+.usage-guide-notice[data-tone='danger'] strong {
+  color: var(--danger);
 }

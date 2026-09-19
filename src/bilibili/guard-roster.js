@@ -91,7 +91,13 @@ async function fetchGuardRoster(roomInput, { signal, fetchImpl = fetch } = {}) {
         /^https:\/\//.test(user.base.face)
           ? user.base.face
           : '';
-      members.set(uid, { uid, name, avatar, level });
+      const medalLevel =
+        positiveId(user?.medal?.ruid) === ownerUid &&
+        Number.isSafeInteger(user.medal.level) &&
+        user.medal.level >= 0
+          ? user.medal.level
+          : null;
+      members.set(uid, { uid, name, avatar, level, medalLevel });
     }
     if (seen.size === total) {
       signal?.throwIfAborted();

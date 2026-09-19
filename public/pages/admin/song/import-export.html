@@ -15,12 +15,12 @@
         class="song-data-action danger song-data-action-solid"
         type="button"
       >
-        清空全部数据
+        清空歌曲和使用记录
       </button>
     </div>
     <p id="clearAllResult" class="hint" role="status" hidden></p>
     <label>
-      选择 Excel / CSV / TSV 文件
+      选择歌单表格（支持 Excel、CSV、TSV）
       <input
         id="importFile"
         type="file"
@@ -45,10 +45,10 @@
     <div id="songImportUpdateOptions" class="stack" hidden>
       <label class="checkbox-label">
         <input id="songImportAllowEmptyClear" type="checkbox" />
-        允许空单元格清空字段（缺少的列仍保留；空启用状态仍保留）
+        用表格中的空白内容清除原有信息
       </label>
       <p class="hint">
-        按歌名和歌手精确匹配。缺少歌手按空歌手匹配；修改歌名或歌手会视为新歌曲。分类清空归为“默认”。
+        歌名和歌手都相同，才会更新原歌曲；歌手留空时，只匹配同样未填歌手的歌曲。改了歌名或歌手会作为新歌添加。未提供的列不修改；「是否可点」留空时保留原设置。分类清空后归为「默认」。
       </p>
       <button id="songImportPreviewBtn" type="button">预览更新</button>
     </div>
@@ -79,7 +79,7 @@
         <button id="songImportNextPage" type="button">下一页</button>
       </div>
       <button id="songImportApplyBtn" class="primary" type="button" disabled>
-        确认应用这些变更
+        确认更新歌库
       </button>
     </section>
     <p class="hint song-import-note">
@@ -139,8 +139,8 @@
         </dl>
         <p id="licenseLastCloudSync" class="hint"></p>
         <div class="song-cloud-notice">
-          <p>同步将用本地歌库完整替换网页歌单，操作前会再次确认。</p>
-          <p class="hint">多设备使用时，请先确认本机歌库是最新版本。</p>
+          <p>同步会用这台电脑的歌库替换云端歌库，网页歌单和同一账号的其他电脑也会跟着更新。</p>
+          <p class="hint">请先确认这台电脑的歌曲齐全，并避免同时在多台电脑修改歌库。</p>
         </div>
         <div class="actions song-cloud-actions">
           <button

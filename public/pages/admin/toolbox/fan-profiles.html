@@ -8,9 +8,25 @@
 >
   <div class="other-feature-panel-body fan-profiles" id="fanProfilesWorkspace">
     <header class="fan-toolbar">
-      <div>
-        <h2>粉丝档案</h2>
-        <p class="fan-muted">记住每位粉丝的故事与重要日子</p>
+      <div class="fan-nav" role="tablist" aria-label="粉丝档案内容">
+        <button
+          type="button"
+          role="tab"
+          aria-selected="true"
+          data-fan-page="profiles"
+        >
+          档案
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected="false"
+          data-fan-page="reminders"
+        >
+          提醒
+        </button>
+        <span class="fan-sync fan-muted" id="fanSyncState" role="status"></span>
+        <button type="button" data-fan-action="refresh">刷新</button>
       </div>
       <div class="fan-actions">
         <button type="button" class="primary" data-fan-action="new">
@@ -50,26 +66,6 @@
         </div>
       </div>
     </header>
-    <div class="fan-nav" role="tablist" aria-label="粉丝档案内容">
-      <button
-        type="button"
-        role="tab"
-        aria-selected="true"
-        data-fan-page="profiles"
-      >
-        档案
-      </button>
-      <button
-        type="button"
-        role="tab"
-        aria-selected="false"
-        data-fan-page="reminders"
-      >
-        提醒
-      </button>
-      <span class="fan-sync fan-muted" id="fanSyncState" role="status"></span>
-      <button type="button" data-fan-action="refresh">刷新</button>
-    </div>
     <p id="fanPageError" class="fan-error" role="alert" hidden></p>
     <p id="fanRosterResult" class="fan-muted" role="status" hidden></p>
     <div id="fanReminderSummary" class="fan-reminder-summary" hidden></div>
@@ -112,8 +108,7 @@
         <div class="fan-people" id="fanPeople" aria-label="粉丝列表"></div>
         <aside class="fan-detail" id="fanDetail" aria-label="粉丝详情">
           <div class="fan-empty">
-            <h3>从一个人开始</h3>
-            <p>选择一份档案，接上上次的话题。</p>
+            <p>选择一份档案查看详情</p>
           </div>
         </aside>
       </div>

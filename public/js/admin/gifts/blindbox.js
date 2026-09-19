@@ -132,7 +132,7 @@ import {
     if (!expanded && otherCount === entries.length) {
       const message = saleRoomId
         ? '暂未获取到当前直播间可送的盲盒，可展开查看其余映射'
-        : '尚未设置直播间，可展开查看全部盲盒映射';
+        : '尚未设置直播间，可展开查看全部盲盒设置';
       container.innerHTML = `<span class="hint">${message}</span>${container.innerHTML}`;
     }
     setGiftImageFallbacks(container);

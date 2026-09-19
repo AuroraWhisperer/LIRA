@@ -64,9 +64,9 @@
     {
       "path": "src/storage/database-migrations.js",
       "kind": "review",
-      "maxLines": 668,
+      "maxLines": 683,
       "owner": "存储历史迁移",
-      "reason": "手写迁移执行器，历史 SQL 和版本顺序已被验证；不是 snapshot 例外。 2026-09-18 集成门禁逐块复核：并行 v11 迁移已提取为 gift-display-migration，注册表仅追加导入、版本注释和函数引用三行，既有迁移不改写。gift-display-profile 与历史数据库迁移测试保护版本顺序及历史未知字段仍为 NULL。 2026-09-18 粉丝档案逐项复核：v6 的建表/列追加已独立为 fan-profile-migration；注册表仅追加导入、注释与顺序引用，旧迁移不变。database-maintenance 与 fan-profiles-domain 覆盖旧库升级和重入。",
+      "reason": "手写迁移执行器，历史 SQL 和版本顺序已被验证；不是 snapshot 例外。 2026-09-18 集成门禁逐块复核：并行 v11 迁移已提取为 gift-display-migration，注册表仅追加导入、版本注释和函数引用三行，既有迁移不改写。gift-display-profile 与历史数据库迁移测试保护版本顺序及历史未知字段仍为 NULL。 2026-09-18 粉丝档案逐项复核：v6 的建表/列追加已独立为 fan-profile-migration；注册表仅追加导入、注释与顺序引用，旧迁移不变。database-maintenance 与 fan-profiles-domain 覆盖旧库升级和重入。 2026-09-19 查询索引逐行复核：仅在 song v7 / gift v12 追加三个 CREATE INDEX，共 15 行，未改写旧迁移或引入新职责。评估独立迁移文件后保留这两个短 DDL 步骤，避免单次调用的额外模块；query-optimization 验证旧数据保持、重复迁移、查询计划，database-maintenance 覆盖 pre-v1 升级。",
       "removal": "下次实质修改对应库迁移时提取注册或转换函数；新增大型迁移独立注册。",
       "reviewBy": "2026-12-18",
       "test": "test/gift-display-profile.test.js"
@@ -74,11 +74,11 @@
     {
       "path": "public/css/admin/other-features/usage-guide.css",
       "kind": "review",
-      "maxLines": 760,
+      "maxLines": 798,
       "owner": "帮助界面样式",
-      "reason": "2026-09-14 发布前审阅：目录及返回顶部的基础规则已提取至 usage-guide-navigation.css；本文件保留帮助正文、FAQ 和既有工具箱响应式布局，导入顺序保证布局覆盖继续生效。",
+      "reason": "2026-09-14 发布前审阅：目录及返回顶部的基础规则已提取至 usage-guide-navigation.css；本文件保留帮助正文、FAQ 和既有工具箱响应式布局，导入顺序保证布局覆盖继续生效。2026-09-19 逐块复核 38 行净增量：关键词、步骤列表与警告提示均服务同一帮助正文，移除旧介绍/定价规则，既有响应式覆盖顺序未变。新增规则依赖本文件的正文与 FAQ 选择器，拆为独立样式文件会分散同一内容层级；保留现有职责，后续独立控件仍须提取。Prettier 3.7.4 格式检查通过，frontend-usage-guide 与 frontend-admin-shell 覆盖正文、导航、布局和说明契约。",
       "removal": "新增独立控件时提取；不得继续堆积不相关页面样式。",
-      "reviewBy": "2026-12-13",
+      "reviewBy": "2026-12-19",
       "test": "test/frontend-admin-shell.test.js"
     },
     {
@@ -134,11 +134,11 @@
     {
       "path": "public/pages/admin/song/queue-theme.html",
       "kind": "review",
-      "maxLines": 610,
+      "maxLines": 642,
       "owner": "队列主题设置",
-      "reason": "一个完整主题表单；不因刚入警告区机械切分。",
+      "reason": "一个完整主题表单；不因刚入警告区机械切分。2026-09-19 逐项复核 32 行净增量：仅为既有滑块/数字框增加慢快端点、单位和可访问名称，透明度数字显示改为百分比，保存值仍为 0–1；没有新增独立配置区、脚本或权限。按数字框包装拆片段会打断同一表单，保留现有组合边界。Prettier 3.7.4 格式检查通过，frontend-queue 覆盖表单刷新、预设同步及保存量纲，admin-page-composition 保护片段组合。",
       "removal": "新增独立主题控件时复核完整区域边界。",
-      "reviewBy": "2026-12-13",
+      "reviewBy": "2026-12-19",
       "test": "test/frontend-queue.test.js"
     },
     {

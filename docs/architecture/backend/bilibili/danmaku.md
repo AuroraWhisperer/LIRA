@@ -85,7 +85,7 @@ ts <= now + 5*60*1000                              // 不超过未来 5 分钟 (
 
 ### 4.1 实时弹幕流
 
-`createDanmakuFeedBuffer().push()` 接收 `source:'danmaku'` 的实时消息，投影为公开字段 `{id,uid,name,message,avatarUrl,guardLevel,medalName,medalLevel,timestamp,emotes}`；`pushGift()` 接收已结算的 `detection_status:'final'` 礼物行，额外投影 `kind:'gift'`、`giftName`、`giftCount`，并提供 `送出 礼物名 × 数量` 的兼容文本。礼物数量必须为正安全整数，头像和身份未知时使用空值。两类消息共用连续编号和最近 50 条的上限，不暴露金额、原始载荷或账本字段。切换直播间时清空旧房间数据；`getSnapshot()` 返回防御性副本。
+`createDanmakuFeedBuffer().push()` 接收 `source:'danmaku'` 的实时消息，投影为公开字段 `{id,uid,name,message,avatarUrl,guardLevel,medalName,medalLevel,timestamp,emotes}`；`pushGift()` 接收已结算的 `detection_status:'final'` 礼物行，额外投影 `kind:'gift'`、`giftName`、`giftCount`，并提供 `送出 礼物名 × 数量` 的兼容文本。可用的非负有限 `total_price` 原值通过 `giftTotalPrice` 展示，单位为人民币元，已经是本组总额，不再次乘数量；缺失或非法金额省略。礼物数量必须为正安全整数，头像和身份未知时使用空值。两类消息共用连续编号和最近 50 条的上限，不暴露原始载荷、其他账本字段或单价。切换直播间时清空旧房间数据；`getSnapshot()` 返回防御性副本。
 
 每条新消息由 `runtime-transport.js` 广播 `danmaku:message`，完整有界列表同时进入全量快照的 `danmakuFeed` 字段。礼物由现有 final 回调在快照发布前加入缓冲区，再向 `topic=danmaku` 发布同一消息；沿用礼物投影层的单次 final 交付，不依赖礼物特效框开关或金额门槛。头像和表情地址都只保留可信的 B 站 CDN HTTPS 地址，浏览器端统一通过现有 `/api/bilibili/avatar` 本地图片代理加载。
 

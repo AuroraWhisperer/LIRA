@@ -33,7 +33,7 @@
       <div class="playback-account-compact">
         <div class="playback-account-status">
           <span id="playbackSourceStatus" class="pill warn">QQ音乐待登录</span>
-          <button id="playbackHealthBtn" type="button">检查接口</button>
+          <button id="playbackHealthBtn" type="button">检查音乐平台连接</button>
           <button id="playbackClearCacheBtn" type="button">清理缓存</button>
           <button id="playbackLoginBtn" type="button">登录QQ音乐</button>
           <button
@@ -86,7 +86,7 @@
           >
             <strong class="ui-card-title">心动 / 电台</strong>
             <span class="ui-caption"
-              >无限续播，队列低于阈值时自动补充 10 首</span
+              >快放完时自动添加 10 首，继续播放</span
             >
           </button>
           <button
@@ -168,23 +168,23 @@
 
       <aside class="wesing-capture-console">
         <div class="wesing-console-intro">
-          <h3 class="ui-card-title">捕捉设置</h3>
+          <h3 class="ui-card-title">歌词同步设置</h3>
         </div>
         <div class="wesing-path-field">
-          <label for="weSingCachePath">缓存目录</label>
+          <label for="weSingCachePath">全民 K 歌缓存文件夹</label>
           <div class="wesing-path-control">
             <input
               id="weSingCachePath"
               type="text"
               spellcheck="false"
               autocomplete="off"
-              placeholder="WeSingCache 目录路径"
+              placeholder="选择 WeSingCache 文件夹"
             />
             <button
               id="weSingSelectCacheBtn"
               type="button"
-              title="选择缓存目录"
-              aria-label="选择全民 K 歌缓存目录"
+              title="选择全民 K 歌缓存文件夹"
+              aria-label="选择全民 K 歌缓存文件夹"
             >
               <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                 <path
@@ -206,7 +206,7 @@
         </div>
         <div class="wesing-offset-field">
           <div class="wesing-field-heading">
-            <span>时间偏移</span>
+            <span>歌词时间调整</span>
           </div>
           <div class="wesing-offset-control">
             <input
@@ -225,11 +225,11 @@
               max="3000"
               step="50"
               value="0"
-              aria-label="歌词偏移"
+              aria-label="歌词时间调整"
               placeholder="0"
             />
             <button id="weSingResetLyricOffsetBtn" type="button">重置</button>
-            <span>ms</span>
+            <span>毫秒</span>
           </div>
         </div>
         <div class="wesing-signal-heading">状态</div>

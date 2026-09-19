@@ -134,7 +134,7 @@ export function initLotteryWorkflow(root) {
     find('state-refresh').disabled = !auth.available || auth.busy || busy;
     find('pause').disabled = !canAct || !working;
     find('pause').hidden = !working;
-    find('pause').textContent = result ? '暂停核验' : '暂停采集';
+    find('pause').textContent = result ? '暂停核验' : '暂停获取';
     const canResume = hasTask && !legacy && ['paused', 'draft', 'frozen'].includes(task.status);
     const canDraw = hasTask && !legacy && task.status === 'ready';
     find('resume').disabled =
@@ -143,7 +143,7 @@ export function initLotteryWorkflow(root) {
     find('draw').disabled = !canAct || working || !canDraw;
     find('draw').hidden = working || !canDraw;
     find('task-actions').hidden = !working && !canResume && !canDraw;
-    find('resume').textContent = result ? '继续原顺序核验' : '继续采集';
+    find('resume').textContent = result ? '继续原顺序核验' : '继续获取';
     find('setup').hidden = hasTask;
     find('activity').hidden = !hasTask && !working && !data.error;
     find('task-details').hidden = !hasTask;
@@ -167,7 +167,7 @@ export function initLotteryWorkflow(root) {
           ? '旧版抽奖记录'
           : task
             ? STATUSES[task.status] || '等待操作'
-            : data.error ? '操作未完成' : '采集与开奖';
+            : data.error ? '操作未完成' : '获取名单与开奖';
     taskInfo.textContent = task?.target.description || '';
     if (task) {
       const conditions = ['评论', ...(task.rules.requiredActions || []).map((source) => SOURCE_NAMES[source])];

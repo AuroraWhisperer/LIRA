@@ -117,18 +117,18 @@ export function renderProviderSelection(value, options = {}) {
   if (protocolControl) protocolControl.hidden = official;
 
   const labels = {
-    auto: ['自动识别', '兼容旧配置；新配置建议明确选择供应商。'],
+    auto: ['自动识别', '保留原有设置；首次设置时建议选择你使用的 AI 平台。'],
     deepseek: [
       'DeepSeek 官方',
-      '使用官方地址和 Chat Completions，支持思考强度。',
+      '地址会自动填好，可以调整思考强度。',
     ],
-    openai: ['OpenAI 官方', '固定使用 OpenAI 官方 Responses API。'],
+    openai: ['OpenAI 官方', '使用 OpenAI 官方服务，地址会自动填好。'],
     anthropic: [
       'Claude 官方兼容',
-      '使用官方 OpenAI 兼容入口；部分原生能力不可用。',
+      '使用 Claude 官方兼容服务，部分功能不可用。',
     ],
-    gemini: ['Gemini 官方兼容', '使用官方 OpenAI 兼容入口，支持推理强度。'],
-    custom: ['自定义兼容', '填写第三方或其他 OpenAI 兼容服务的地址和协议。'],
+    gemini: ['Gemini 官方兼容', '使用 Gemini 官方兼容服务，可以调整思考强度。'],
+    custom: ['自定义兼容', '按所用平台的说明填写地址，连接方式不确定时保持自动。'],
   };
   const [badge, note] = labels[provider] || labels.auto;
   setText('xiaomiAiProviderBadge', badge);
@@ -156,8 +156,8 @@ function renderModelCapabilities(endpoint = {}) {
   setText(
     'xiaomiAiWebSearchCapability',
     {
-      hosted: '服务端托管',
-      local_function: 'LIRA 工具调用',
+      hosted: 'AI 平台搜索',
+      local_function: 'LIRA 搜索',
       unconfigured: '等待配置',
     }[webSearchMode] || '等待配置',
   );
@@ -167,20 +167,20 @@ function renderModelCapabilities(endpoint = {}) {
       effort: '可设置强度',
       deepseek_effort: 'DeepSeek 强度',
       gemini_effort: 'Gemini 强度',
-      provider_managed: '供应商管理',
+      provider_managed: '由平台决定',
       unconfigured: '等待配置',
     }[reasoningMode] || '等待配置',
   );
 
   if (webSearchMode === 'hosted') {
-    setText('xiaomiAiWebSearchLabel', '服务端联网搜索');
+    setText('xiaomiAiWebSearchLabel', 'AI 平台联网搜索');
     setText(
       'xiaomiAiWebSearchHelp',
-      '由 Responses API 执行，需要上游支持 web_search。',
+      '使用 AI 平台提供的搜索功能，需要所选平台支持。',
     );
   } else if (webSearchMode === 'local_function') {
     setText('xiaomiAiWebSearchLabel', 'LIRA 联网搜索');
-    setText('xiaomiAiWebSearchHelp', '由 LIRA 执行，需要模型支持 tool_calls。');
+    setText('xiaomiAiWebSearchHelp', '由 LIRA 帮助搜索，需要所选模型支持。');
   } else {
     setText('xiaomiAiWebSearchLabel', '联网搜索');
     setText('xiaomiAiWebSearchHelp', '保存地址和协议后显示实际联网方式。');
@@ -203,22 +203,22 @@ function renderModelCapabilities(endpoint = {}) {
   if (providerManaged)
     providerManaged.hidden = reasoningMode !== 'provider_managed';
   if (reasoningMode === 'effort') {
-    setText('xiaomiAiReasoningLabel', '模型推理');
+    setText('xiaomiAiReasoningLabel', '深度思考');
     setText(
       'xiaomiAiReasoningHelp',
-      '可调推理强度；“服务默认”不覆盖上游设置。',
+      '可以调整思考强度；选择「服务默认」时，使用平台的默认设置。',
     );
   } else if (reasoningMode === 'deepseek_effort') {
     setText('xiaomiAiReasoningLabel', 'DeepSeek 思考');
     setText(
       'xiaomiAiReasoningHelp',
-      '支持 low、high、max；其他档位自动就近映射。',
+      '支持「低」「高」「最高」；其他等级会调整为最接近的可用等级。',
     );
   } else if (reasoningMode === 'gemini_effort') {
     setText('xiaomiAiReasoningLabel', 'Gemini 思考');
     setText(
       'xiaomiAiReasoningHelp',
-      '支持 minimal 到 high；能否关闭取决于模型。',
+      '支持「最低」到「高」；能否关闭深度思考取决于所选模型。',
     );
   }
   syncReasoningEffortAvailability();

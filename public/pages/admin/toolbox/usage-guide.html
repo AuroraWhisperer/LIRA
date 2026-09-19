@@ -9,12 +9,6 @@
   <div class="other-feature-panel-body stack usage-guide-panel">
     <section class="usage-guide-intro" aria-labelledby="usageGuideTitle">
       <h2 id="usageGuideTitle" class="usage-guide-title">使用文档</h2>
-      <p class="usage-guide-lead">
-        把直播间的互动交给 LIRA：管理弹幕点歌、歌曲队列和音乐播放，搭配直播姬 /
-        OBS
-        展示直播画面。首次使用先完成账号与设备授权；播放器在本机运行，歌库、直播连接配置和点歌规则会在同一
-        LIRA 账号的授权设备间自动同步。
-      </p>
       <nav class="usage-guide-hero-actions" aria-label="文档快捷操作">
         <a href="#ug-quick" data-usage-guide-link>快速上手</a>
         <a href="#ug-faq" data-usage-guide-link>常见问题</a>
@@ -23,7 +17,7 @@
           class="usage-guide-reopen"
           id="reopenInteractiveTourBtn"
         >
-          重新打开交互式引导
+          重新查看新手引导
         </button>
       </nav>
     </section>
@@ -34,7 +28,7 @@
           <span class="usage-guide-toc-heading">上手准备</span>
           <a href="#ug-quick" data-usage-guide-link>快速上手</a>
           <a href="#ug-accounts" data-usage-guide-link>账号与设备</a>
-          <a href="#ug-reinstall" data-usage-guide-link>覆盖安装</a>
+          <a href="#ug-reinstall" data-usage-guide-link>更新或重新安装</a>
           <a href="#ug-flow" data-usage-guide-link>主流程</a>
         </div>
         <div class="usage-guide-toc-group">
@@ -48,7 +42,7 @@
           <span class="usage-guide-toc-heading">配置与帮助</span>
           <a href="#ug-deepseek" data-usage-guide-link>配置 AI 助手</a>
           <a href="#ug-obs" data-usage-guide-link>直播姬 / OBS 投屏</a>
-          <a href="#ug-cheatsheet" data-usage-guide-link>设置速查</a>
+          <a href="#ug-cheatsheet" data-usage-guide-link>常用设置在哪里</a>
           <a href="#ug-faq" data-usage-guide-link>常见问题</a>
         </div>
       </nav>
@@ -64,50 +58,26 @@
               <strong>安装前：建议使用英文路径</strong
               ><span class="usage-guide-chip">首次安装</span>
             </div>
-            <p>
-              “英文路径”指安装位置的完整地址中，每一级文件夹名称都不含中文或表情，建议使用英文字母、数字、短横线（-）或下划线（_）。
-            </p>
-            <ul>
-              <li>
-                <strong>推荐：</strong><code>D:\Apps\LIRA</code> 或
-                <code>C:\Apps\LIRA</code>。
-              </li>
-              <li>
-                <strong>不推荐：</strong><code>D:\直播工具\LIRA</code> 或
-                <code>C:\Users\小明\Apps\LIRA</code>；即使最后一层叫
-                LIRA，前面的文件夹含中文也不算英文路径。
-              </li>
-            </ul>
-            <p>
-              使用英文路径可以减少部分组件或外部工具处理中文、特殊字符时可能出现的路径兼容性问题，也更方便定位文件和排查故障。首次安装时，可在“安装位置”中选择这样的文件夹；已安装且使用正常时，覆盖更新仍保持原安装位置即可。
-            </p>
+            <p>建议安装到 <code>D:\Apps\LIRA</code> 或 <code>C:\Apps\LIRA</code> 这样的文件夹，完整地址里不要有中文或表情。</p>
+            <p>例如，<code>D:\直播工具\LIRA</code> 和 <code>C:\Users\小明\Apps\LIRA</code> 都含有中文，不建议使用。</p>
+            <p>已经安装且使用正常，可以继续使用原位置；更新时不用改安装位置。</p>
           </article>
           <div class="usage-guide-grid">
             <article class="usage-guide-card">
-              <strong>完成设备授权</strong>
-              <p>
-                首次使用时选择「注册新账号」，填写用户名、密码和管理员提供的注册激活码。已有账号在新电脑或清除数据后重装时选择「登录已有账号」，填写原账号密码和管理员新发的短效登录码。验证通过后等待直播工具准备完成，再进入主界面。
-              </p>
+              <strong>登录 LIRA</strong>
+              <p>第一次使用，选择<strong class="usage-guide-keyword">「注册新账号」</strong>，填写用户名、密码和管理员提供的注册激活码。已有账号，选择<strong class="usage-guide-keyword">「登录已有账号」</strong>。如果换了电脑或清除数据后重装，还需要向管理员领取新的短效登录码。</p>
             </article>
             <article class="usage-guide-card">
               <strong>连接直播间</strong>
-              <p>
-                在「点歌 →
-                设置」扫码登录直播账号，填写直播间号或链接，将「启用弹幕监听」设为「启用」并保存设置。云端凭据和配置保存成功后，才会接收弹幕和礼物。
-              </p>
+              <p>打开<strong class="usage-guide-keyword">「点歌 → 设置」</strong>，扫码登录直播账号，填写自己的直播间号，开启<strong class="usage-guide-keyword">「接收弹幕和礼物」</strong>，再点击<strong class="usage-guide-keyword">「保存设置」</strong>。确认连接正常后，就能接收弹幕和礼物。</p>
             </article>
             <article class="usage-guide-card">
-              <strong>整理歌库与同步</strong>
-              <p>
-                在「点歌」页添加或导入歌曲，联网授权后歌库会自动同步到云端和同账号设备。公开链接在「导入导出
-                → 云端歌单」中获取；点歌队列和播放队列由本机独立管理。
-              </p>
+              <strong>添加歌曲</strong>
+              <p>打开<strong class="usage-guide-keyword">「点歌 → 导入导出」</strong>，下载模板、填写歌曲，再导入歌库。也可以在「歌库」中手动添加。</p>
             </article>
             <article class="usage-guide-card">
-              <strong>找到常用功能</strong>
-              <p>
-                「点歌」管理歌库和队列，「播放」控制音乐，「礼物」查看礼物记录，「百宝箱」提供直播辅助工具。遇到问题时，查看「常见问题」。
-              </p>
+              <strong>选择音乐平台</strong>
+              <p>打开「播放」，选择常用的音乐平台。QQ 音乐和网易云音乐在 LIRA 中登录；全民 K 歌请在它自己的电脑版中登录。</p>
             </article>
           </div>
         </section>
@@ -116,76 +86,47 @@
         <section class="usage-guide-section" id="ug-accounts">
           <h3 class="usage-guide-section-title">
             <span class="usage-guide-section-index" aria-hidden="true">02</span
-            >账号与设备：先授权 LIRA，再连直播间
+            >账号与设备：先登录 LIRA，再连接直播间
           </h3>
-          <p class="usage-guide-section-intro">
-            LIRA 里有三类彼此独立的登录信息：LIRA 主播账号负责软件授权，直播账号
-            负责直播互动，音乐平台账号负责在线播放。先完成 LIRA
-            授权，再按需登录后两类账号。注册使用管理员生成的「注册激活码」；已有账号在新电脑或重装后使用「短效登录码」。两种码都只能由管理员下发、成功使用一次，默认有效期为
-            1 小时，以管理员显示的时长为准。
-          </p>
+          <p class="usage-guide-section-intro">LIRA 账号用于登录软件；直播账号用于接收弹幕和礼物；音乐账号用于播放平台歌曲。它们需要分别登录。</p>
           <div class="usage-guide-feature-list">
             <article class="usage-guide-feature">
               <div class="usage-guide-feature-head">
-                <strong>第一步：激活 LIRA 主播账号并绑定本机</strong
+                <strong>第一步：登录 LIRA</strong
                 ><span class="usage-guide-chip">首次必做</span>
               </div>
-              <p>
-                第一次打开 LIRA 时，在「登录
-                LIRA」页面选择「注册新账号」，填写未使用的用户名、密码和管理员提供的注册激活码，再点击「注册并进入」。用户名为
-                2–32
-                个英文字母、数字或中划线，不支持中文，中划线不能放在开头或结尾，大写自动转小写；用户名会作为之后网页歌单地址的前缀。新密码要求见密码旁的说明。服务器会创建账号并授权这台电脑。
-              </p>
-              <ul>
-                <li>
-                  首次激活密钥由管理员生成，通常为短时一次性密钥；完整密钥只使用一次。
-                </li>
-                <li>激活成功后密码和激活密钥会从输入框清除，不会写入本机。</li>
-                <li>
-                  首次授权后可能显示「正在为你准备直播工具」，此时正在准备礼物目录等资源。等待进度完成即可；失败时检查网络并点击「重试」，无需重新激活。
-                </li>
-              </ul>
+              <p><strong>第一次使用：</strong>选择<strong class="usage-guide-keyword">「注册新账号」</strong>，填写用户名、密码和管理员提供的「注册激活码」，点击<strong class="usage-guide-keyword">「注册并进入」</strong>。</p>
+              <p>用户名为 2–32 个英文字母、数字或短横线，不支持中文；短横线不能放在开头或结尾，大写会转为小写。用户名也会用于网页歌单地址，密码要求见输入框旁的说明。</p>
+              <p><strong>已有账号：</strong>换电脑或清除数据后重装时，选择<strong class="usage-guide-keyword">「登录已有账号」</strong>，填写原用户名、密码和管理员新发的「短效登录码」。</p>
+              <p>注册激活码和短效登录码都只能成功使用一次，请在管理员告知的有效期内使用。</p>
+              <p>如果显示「正在为你准备直播工具」，等待完成即可。失败时检查网络并点击<strong class="usage-guide-keyword">「重试」</strong>，不用重新注册。</p>
             </article>
             <article class="usage-guide-feature">
               <div class="usage-guide-feature-head">
-                <strong>以后启动：自动检查授权</strong
-                ><span class="usage-guide-chip">自动</span>
+                <strong>以后打开：自动登录</strong>
               </div>
-              <p>
-                已经绑定过的电脑再次启动时不需要重新输入用户名、密码或激活密钥，客户端会在线验证本机设备后进入主界面。发布版默认连接
-                <code>https://api.lirahub.cn</code
-                >；定制部署以管理员提供的服务地址为准，普通用户不需要手动配置。授权服务器暂时不可达时会停留在授权页，点击「重试连接」即可；不要删除数据目录里的授权文件。设备被管理员撤销或主播账号停用时，客户端会回到授权页。
-              </p>
+              <p>这台电脑登录过后，下次打开会自动登录。连接失败时，检查网络后点击<strong class="usage-guide-keyword">「重试连接」</strong>。</p>
+              <p>如果提示账号停用或设备授权已撤销，请联系管理员处理，不要自行删除登录文件。</p>
             </article>
             <article class="usage-guide-feature">
               <div class="usage-guide-feature-head">
                 <strong>第二步：登录直播账号，填写本直播间号</strong
                 ><span class="usage-guide-chip">直播必做</span>
               </div>
-              <p>
-                在「点歌 →
-                设置」点「扫码登录直播账号」，填写「直播间号或链接」，将「启用弹幕监听」设为「启用」后点「保存设置」。每个
-                LIRA
-                账号使用独立的直播账号凭据；云端凭据保存成功且直播间已配置并启用后，才开始接收弹幕和礼物，未登录不会匿名采集。
-              </p>
-              <ul>
-                <li>
-                  「本机已登录」表示本机登录成功，不代表云端已保存。登录或更换直播间后，检查连接状态；仍有异常时点击右上角「刷新直播」并查看提示。
-                </li>
-                <li>
-                  关闭 LIRA
-                  不会停止已配置的云端监听。需要停止时，关闭弹幕监听并保存，或点击「退出登录」；这些操作在同步成功后才对云端生效。
-                </li>
-              </ul>
+              <ol class="usage-guide-checks">
+                <li>打开<strong class="usage-guide-keyword">「点歌 → 设置」</strong>，点击<strong class="usage-guide-keyword">「扫码登录直播账号」</strong>。</li>
+                <li>填写自己的「直播间号或链接」，开启<strong class="usage-guide-keyword">「接收弹幕和礼物」</strong>。</li>
+                <li>点击<strong class="usage-guide-keyword">「保存设置」</strong>，等待保存成功，再查看连接状态。连接异常时，点击右上角<strong class="usage-guide-keyword">「刷新直播」</strong>。</li>
+              </ol>
+              <p>显示「本机已登录」只说明扫码成功，还需要保存设置并确认直播间连接正常。</p>
+              <p class="usage-guide-notice" data-tone="warning"><strong>注意：</strong>关闭 LIRA 后，仍会继续接收弹幕和礼物。需要停止时，关闭「接收弹幕和礼物」并保存，或退出直播账号，等待保存成功。</p>
             </article>
             <article class="usage-guide-feature">
               <div class="usage-guide-feature-head">
-                <strong>第三步：登录音乐平台，解锁完整听歌</strong
-                ><span class="usage-guide-chip">按需</span>
+                <strong>第三步：登录你常用的音乐平台</strong
+                ><span class="usage-guide-chip">可选</span>
               </div>
-              <p>
-                想要完整的听歌功能，还要登录音乐平台账号，三个平台的登录位置不一样：
-              </p>
+              <p>选择你要用的音乐平台，再到对应位置登录：</p>
               <ul>
                 <li>
                   <strong>QQ 音乐、网易云音乐</strong>：在 LIRA
@@ -205,15 +146,14 @@
         <section class="usage-guide-section" id="ug-reinstall">
           <h3 class="usage-guide-section-title">
             <span class="usage-guide-section-index" aria-hidden="true">03</span
-            >电脑上已经安装过 LIRA
+            >更新或重新安装
           </h3>
           <div class="usage-guide-feature-list">
             <div class="usage-guide-step-pair">
               <article class="usage-guide-feature usage-guide-feature--illustrated">
                 <div class="usage-guide-feature-copy">
                   <div class="usage-guide-feature-head">
-                    <strong>1. 直接点击“下一步”</strong
-                    ><span class="usage-guide-chip">无需卸载</span>
+                    <strong>1. 直接点击“下一步”</strong>
                   </div>
                   <p>
                     如果安装程序提示当前用户已经安装过
@@ -233,8 +173,7 @@
               <article class="usage-guide-feature usage-guide-feature--illustrated">
                 <div class="usage-guide-feature-copy">
                   <div class="usage-guide-feature-head">
-                    <strong>2. 保持原位置并点击“安装”</strong
-                    ><span class="usage-guide-chip">保持默认</span>
+                    <strong>2. 保持原位置并点击“安装”</strong>
                   </div>
                   <p>安装位置不用修改，直接点击“安装”即可重新安装或升级。</p>
                   <p>
@@ -263,32 +202,11 @@
             >主流程：一次完整的开播操作
           </h3>
           <ol class="usage-guide-steps">
-            <li>
-              <strong>先完成 LIRA 设备授权。</strong> 首次启动在「登录
-              LIRA」页面选择注册新账号或登录已有账号，并使用管理员对应下发的一次性码；已经授权过的电脑会自动在线检查授权。授权服务器暂时不可达时先点击「重试连接」，不要删除本机授权文件。
-            </li>
-            <li>
-              <strong>登录直播账号，确认直播间已连接。</strong> 在「点歌 →
-              设置」扫码登录，填写直播间号并启用弹幕监听后保存。确认云端凭据和配置已保存、连接状态正常；「暂停接收点歌」只控制点歌，不会停止礼物采集。
-            </li>
-            <li>
-              <strong>在「点歌」页管理歌曲库和队列。</strong>
-              导入你的歌曲库后，观众通过弹幕发的点歌会自动排队。你也可以手动加歌、调整顺序、切歌或清空队列。标签页里还有主题美化、展示板设置和直播姬
-              / OBS
-              浏览器源地址。歌库自动同步到同一账号的云端；需要公开网页时，到「导入导出」点击「打开网页歌单」。
-            </li>
-            <li>
-              <strong>在「播放」页控制音乐播放。</strong> 在 QQ
-              音乐、网易云音乐和全民 K
-              歌三个音源之间切换：前两个支持推荐歌单、在线搜索和队列管理；全民 K
-              歌可以直接读取本机客户端的当前歌曲和逐字歌词。底部播放器可以切歌、暂停、调整进度，也可以打开全屏歌词。
-            </li>
-            <li>
-              <strong>在「礼物」页和「百宝箱」监控互动。</strong>
-              礼物页看送礼流水、盲盒盈亏和月底冲刺进度；百宝箱里，弹幕姬发弹幕、管自动回复和
-              AI
-              互动助手，加班机把礼物换算成直播时长，礼物特效投全屏动画，主播工作台集中管理日程、备忘和待办，性能检测看电脑资源占用。
-            </li>
+            <li><strong>打开并登录 LIRA。</strong> 已登录过的电脑会自动登录。连接失败时检查网络，点击<strong class="usage-guide-keyword">「重试连接」</strong>。</li>
+            <li><strong>确认直播间已连接。</strong> 在<strong class="usage-guide-keyword">「点歌 → 设置」</strong>检查直播账号、直播间号和<strong class="usage-guide-keyword">「接收弹幕和礼物」</strong>，修改后点击<strong class="usage-guide-keyword">「保存设置」</strong>。</li>
+            <li><strong>准备好歌库，开始接收点歌。</strong> 观众发送「点歌 歌名」后，歌曲会进入点歌队列。你可以调整顺序或移除歌曲。</li>
+            <li><strong>选择音乐并播放。</strong> 在「播放」页选择平台、搜索歌曲，再加入播放队列。底部播放器可以暂停、切换歌曲和调整进度。</li>
+            <li><strong>按需要打开直播工具。</strong> 「礼物」查看送礼记录；「百宝箱」中可以使用弹幕姬、加班机、小游戏等。需要显示在直播画面上时，复制对应功能的链接，添加到直播姬或 OBS。</li>
           </ol>
         </section>
 
@@ -301,51 +219,25 @@
           <div class="usage-guide-feature-list">
             <article class="usage-guide-feature">
               <div class="usage-guide-feature-head">
-                <strong>SC 队列 + 点歌队列</strong
-                ><span class="usage-guide-chip">核心</span>
+                <strong>SC 队列 + 点歌队列</strong>
               </div>
-              <p>
-                页面顶部并排显示醒目留言（SC）和点歌队列。SC
-                队列显示观众付费发送的醒目留言，点歌队列显示排队中的歌曲。每条歌曲可以置顶（提到下一首）、移除或查看详情。队列人数和歌曲数量在面板标题右侧实时显示。
-              </p>
-              <ul>
-                <li>
-                  「切歌」会立即将队首歌曲标为完成并推进点歌队列。要控制正在播放的音乐，请使用播放页的播放器控制栏。
-                </li>
-                <li>
-                  「清空全部队列」确认后会移除当前点歌队列中的全部歌曲，不会删除歌库。
-                </li>
-                <li>
-                  观众弹幕发「点歌
-                  歌名」即可自动入队，支持模糊匹配自动补全歌名。
-                </li>
-              </ul>
+              <p>页面顶部显示醒目留言（SC）和点歌队列。SC 是观众付费发送的留言；点歌队列是观众点的歌，可以置顶、移除或查看详情。</p>
+              <p>观众发送「点歌 歌名」即可点歌，歌名不完整时也会尝试匹配歌库。</p>
+              <p><strong>点歌队列是观众点的歌，播放队列是播放器准备播放的音乐。</strong> 点歌页的「切歌」会把第一首标为完成；要切换正在播放的音乐，请使用播放页的播放器。</p>
+              <p>「清空全部队列」只移除点歌队列中的歌曲，不会删除歌库。</p>
             </article>
             <article class="usage-guide-feature">
               <div class="usage-guide-feature-head">
-                <strong>歌库管理</strong
-                ><span class="usage-guide-chip">数据库</span>
+                <strong>歌库管理</strong>
               </div>
-              <p>
-                在桌面端添加、编辑、删除歌曲，设置分类、标签、语言和是否可点，并按分类和标签筛选。联网授权后，歌库修改会自动上传，其他同账号设备会拉取云端版本；点歌队列和播放队列不随歌库同步。
-              </p>
-              <ul>
-                <li>
-                  删除歌曲需要确认，删除结果也会同步到同账号设备和公开歌单。
-                </li>
-                <li>设置为「不可点」的歌曲不会进入随机点歌候选范围。</li>
-              </ul>
+              <p>在「歌库」中添加、修改或删除歌曲，也可以设置分类、标签、语言和是否可点。联网后，修改会自动同步到同一账号的其他电脑。点歌队列和播放队列不会同步。</p>
+              <p>删除歌曲也会影响同一账号的其他电脑和网页歌单。设置为「不可点」的歌曲不会被随机点歌选中。</p>
             </article>
             <article class="usage-guide-feature">
               <div class="usage-guide-feature-head">
-                <strong>随机点歌</strong
-                ><span class="usage-guide-chip">弹幕互动</span>
+                <strong>随机点歌</strong>
               </div>
-              <p>
-                观众在直播间发送「随机点歌」或「随机点歌
-                关键词」即可从歌库中随机抽取一首。支持多种筛选方式，用 +
-                号组合多个条件（AND 逻辑）：
-              </p>
+              <p>观众发送「随机点歌」可随机抽一首歌，也可以加上语言、分类、歌手或标签。多个条件用 + 连接，歌曲需要同时满足这些条件：</p>
               <ul>
                 <li><strong>按语言</strong>：日语、韩语、英语、粤语、国语</li>
                 <li>
@@ -364,14 +256,13 @@
             </article>
             <article class="usage-guide-feature">
               <div class="usage-guide-feature-head">
-                <strong>子标签页</strong
-                ><span class="usage-guide-chip">配置</span>
+                <strong>点歌页还有哪些功能</strong>
               </div>
-              <p>通过点歌页的子标签切换歌库、设置和投屏配置：</p>
+              <p>点击点歌页中的对应标签即可打开：</p>
               <ul>
                 <li>
                   <strong>设置</strong
-                  >：直播账号登录、直播间号、弹幕监听开关、暂停接收点歌、队列上限、用户冷却秒数、是否允许重复点歌、是否只允许歌库歌曲。
+                  >：直播账号登录、直播间号、接收弹幕和礼物开关、暂停接收点歌、队列上限、同一观众点歌间隔（秒）、是否允许重复点歌、是否只允许歌库歌曲。
                 </li>
                 <li>
                   <strong>点歌板</strong>：直播姬 / OBS
@@ -383,7 +274,7 @@
                 </li>
                 <li>
                   <strong>浏览器源</strong>：集中复制全部 11 个 OBS /
-                  直播姬浏览器源地址，并按点歌与音乐、直播互动、场景与氛围分类；需要参数的功能仍在对应页面生成详细配置。
+                  直播姬浏览器源地址，并按点歌与音乐、直播互动、场景与氛围分类；需要参数的功能仍在对应页面生成详细设置。
                 </li>
                 <li>
                   <strong>导入导出</strong>：导入 XLSX、CSV、TSV
@@ -391,35 +282,22 @@
                 </li>
                 <li>
                   <strong>桌面歌词设置</strong
-                  >：配置歌词浏览器源的字体、颜色、字号、描边和透明度，并实时预览最终效果。
+                  >：设置歌词浏览器源的字体、颜色、字号、描边和透明度，并实时预览最终效果。
                 </li>
               </ul>
             </article>
             <article class="usage-guide-feature">
               <div class="usage-guide-feature-head">
-                <strong>云端歌单同步</strong
-                ><span class="usage-guide-chip">授权后</span>
+                <strong>云端歌单同步</strong>
               </div>
-              <p>
-                完成设备授权并联网后，歌库会自动与当前 LIRA
-                账号的云端数据同步，无需每次手动上传。云端已有歌库时，授权设备会拉取云端版本；云端尚无歌库时，才由本机歌库初始化。公开页面在「点歌
-                → 导入导出 →
-                云端歌单」点击「打开网页歌单」进入，以按钮提供的地址为准。
-              </p>
-              <ul>
-                <li>
-                  「同步当前歌单到网页」仍可手动上传，但确认后会用<strong>当前本机歌库整体覆盖云端歌库</strong>，并影响公开页面和同账号的其他设备。
-                </li>
-                <li>
-                  当前服务最多接收 5000
-                  首歌曲。多个设备同时修改时，以最后一次成功写入云端的完整歌库为准，不会逐首合并。未上传成功的本机修改会重试，避免在多台设备上同时整理同一歌库。
-                </li>
-              </ul>
+              <p>登录 LIRA 并联网后，歌库会自动同步到同一账号的其他电脑，不用每次手动上传。新电脑会先使用云端已有的歌库；云端没有歌库时，才会上传这台电脑的歌库。</p>
+              <p>打开<strong class="usage-guide-keyword">「点歌 → 导入导出 → 网页歌单同步」</strong>，点击<strong class="usage-guide-keyword">「查看网页歌单」</strong>，就能打开给观众看的歌单。</p>
+              <p class="usage-guide-notice" data-tone="warning"><strong>注意：</strong>点击「同步到网页」并确认后，会用这台电脑的歌库替换云端歌库，网页歌单和同一账号的其他电脑也会跟着更新。请先确认歌曲齐全。</p>
+              <p>最多同步 5000 首歌曲。不要同时在多台电脑修改歌库：最后一次同步成功的歌库会替换之前的版本，不会自动合并。上传失败时会自动重试，请留意同步提示。</p>
             </article>
             <article class="usage-guide-feature">
               <div class="usage-guide-feature-head">
-                <strong>歌单页背景</strong
-                ><span class="usage-guide-chip">授权后</span>
+                <strong>歌单页背景</strong>
               </div>
               <p>
                 同一页面的「歌单页背景」可以自定义公开歌单网页的背景图。支持
@@ -439,31 +317,20 @@
           <div class="usage-guide-feature-list">
             <article class="usage-guide-feature">
               <div class="usage-guide-feature-head">
-                <strong>三平台音源</strong
-                ><span class="usage-guide-chip">平台</span>
+                <strong>三平台音源</strong>
               </div>
-              <p>
-                页面顶部在 QQ 音乐、网易云音乐和全民 K 歌之间切换。QQ
-                音乐和网易云音乐需要分别登录（右上角按钮），并提供「检查接口」和「清理缓存」排查连接问题；全民
-                K 歌在全民自己的客户端登录账号，LIRA
-                内无需登录，直接读取本机客户端的播放状态。
-              </p>
+              <p>在页面顶部选择 QQ 音乐、网易云音乐或全民 K 歌。QQ 音乐和网易云音乐需要分别点击右上角的登录按钮；连接有问题时，可点击<strong class="usage-guide-keyword">「检查音乐平台连接」</strong>。</p>
+              <p>使用全民 K 歌时，请先打开它自己的电脑版并登录，LIRA 会读取当前歌曲和歌词。</p>
             </article>
             <article class="usage-guide-feature">
               <div class="usage-guide-feature-head">
-                <strong>快捷入口</strong
-                ><span class="usage-guide-chip">发现</span>
+                <strong>快捷入口</strong>
               </div>
-              <p>
-                为你推荐、每日推荐、心动 /
-                电台、我喜欢、我的歌单、收藏歌单、最近播放——点击卡片直接浏览对应歌曲列表，找到想放的一键加入队列。「心动
-                / 电台」会在队列低于阈值时自动补充 10 首，适合长时间直播挂着放。
-              </p>
+              <p>点击「为你推荐」「每日推荐」「我喜欢」或歌单入口，选择想听的歌，加入播放队列。「心动 / 电台」会在快放完时自动添加 10 首，继续播放。</p>
             </article>
             <article class="usage-guide-feature">
               <div class="usage-guide-feature-head">
-                <strong>在线搜索</strong
-                ><span class="usage-guide-chip">搜索</span>
+                <strong>在线搜索</strong>
               </div>
               <p>
                 跟随当前选中的平台搜索歌曲，返回数量可在 1–30
@@ -472,29 +339,17 @@
             </article>
             <article class="usage-guide-feature">
               <div class="usage-guide-feature-head">
-                <strong>全民 K 歌歌词现场</strong
-                ><span class="usage-guide-chip">全民K歌</span>
+                <strong>同步全民 K 歌歌词</strong>
               </div>
-              <p>
-                选择本机全民 K 歌的 WeSingCache
-                缓存目录后开始检测，页面实时显示客户端正在播放的歌曲、进度和逐字
-                QRC 歌词。歌词对不上伴奏时，用「歌词时间偏移」滑块（±3
-                秒）微调校准。适合用全民 K 歌开伴奏直播的场景。
-              </p>
+              <ol class="usage-guide-checks">
+                <li>打开全民 K 歌电脑版，登录并播放伴奏。</li>
+                <li>在 LIRA 的<strong class="usage-guide-keyword">「播放 → 全民 K 歌」</strong>中，选择全民 K 歌使用的 <code>WeSingCache</code> 文件夹，点击<strong class="usage-guide-keyword">「保存并检测」</strong>。</li>
+                <li>歌词和伴奏对不上时，用<strong class="usage-guide-keyword">「歌词时间调整」</strong>向前或向后微调，最多调整 3 秒。</li>
+              </ol>
             </article>
             <article class="usage-guide-feature">
               <div class="usage-guide-feature-head">
-                <strong>点歌匹配诊断</strong
-                ><span class="usage-guide-chip">工具</span>
-              </div>
-              <p>
-                这是辅助诊断入口，当前手动测试不会自动查找候选曲目，空结果不能据此判断歌库中没有这首歌。排查点歌时，先在点歌页核对歌曲是否可点及筛选条件；音源不对时，在播放页在线搜索歌名和歌手进行核对。
-              </p>
-            </article>
-            <article class="usage-guide-feature">
-              <div class="usage-guide-feature-head">
-                <strong>播放器控制栏</strong
-                ><span class="usage-guide-chip">停靠栏</span>
+                <strong>播放器控制栏</strong>
               </div>
               <p>
                 播放器固定在页面底部，显示封面、歌名歌手（超长自动跑马灯）和可拖拽的进度条。支持上一首
@@ -504,17 +359,14 @@
             </article>
             <article class="usage-guide-feature">
               <div class="usage-guide-feature-head">
-                <strong>播放队列</strong
-                ><span class="usage-guide-chip">本机播放</span>
+                <strong>播放队列</strong>
               </div>
-              <p>
-                播放队列管理实际要播放的音乐曲目，与点歌页的观众请求队列分开。「清空队列」会停止当前播放并移除待播曲目；即使清空前歌曲还在加载，也不会在加载完成后继续播放。歌库和音乐平台收藏不受影响。
-              </p>
+              <p>这里管理播放器准备播放的音乐，与观众点歌队列分开。</p>
+              <p>「清空队列」会停止播放，并移除所有待播歌曲。歌库和音乐平台收藏不会删除。</p>
             </article>
             <article class="usage-guide-feature">
               <div class="usage-guide-feature-head">
-                <strong>全屏歌词</strong
-                ><span class="usage-guide-chip">歌词</span>
+                <strong>全屏歌词</strong>
               </div>
               <p>
                 播放页面内有全屏歌词视图。歌词支持逐字高亮进度显示，还有独立的「罗」（罗马音）和「译」（中文翻译）按钮各自开关。切歌时歌词模式自动重置。
@@ -522,14 +374,13 @@
             </article>
             <article class="usage-guide-feature">
               <div class="usage-guide-feature-head">
-                <strong>桌面歌词浏览器源</strong
-                ><span class="usage-guide-chip">投屏</span>
+                <strong>桌面歌词浏览器源</strong>
               </div>
               <p>
-                在「点歌 →
-                桌面歌词设置」中调整样式并实时预览，点击「复制桌面歌词」获取浏览器源地址。将地址添加到直播姬的「浏览器」或
+                在<strong class="usage-guide-keyword">「点歌 →
+                桌面歌词设置」</strong>中调整样式并实时预览，点击<strong class="usage-guide-keyword">「复制桌面歌词」</strong>获取浏览器源地址。将地址添加到直播姬的「浏览器」或
                 OBS
-                的「浏览器源」后，会按预览样式显示完整歌词时间轴、翻译、罗马音、逐字高亮和播放进度。
+                的「浏览器源」后，会按预览样式显示完整歌词、翻译、罗马音、逐字高亮和播放进度。
               </p>
               <ul>
                 <li>
@@ -552,61 +403,43 @@
           <div class="usage-guide-feature-list">
             <article class="usage-guide-feature">
               <div class="usage-guide-feature-head">
-                <strong>礼物检测</strong
-                ><span class="usage-guide-chip">开关</span>
+                <strong>礼物统计</strong>
               </div>
-              <p>
-                页面顶部的「礼物检测」控制本机礼物统计功能，与加班机、礼物提示分别控制。关闭它不会停止已经启用的加班机，也不会停止账号的云端采集；要停止云端监听，请在「点歌
-                → 设置」关闭弹幕监听或退出直播账号，并等待同步成功。
-              </p>
+              <p><strong class="usage-guide-keyword">「礼物统计」</strong>控制这台电脑是否统计礼物。「礼物提示」只控制是否弹出通知，它们与加班机分别设置。</p>
+              <p class="usage-guide-notice" data-tone="warning"><strong>注意：</strong>关闭礼物统计，不会关闭加班机，也不会停止云端接收。要停止接收，请到「点歌 → 设置」关闭「接收弹幕和礼物」或退出直播账号，等待保存成功。</p>
             </article>
             <article class="usage-guide-feature">
               <div class="usage-guide-feature-head">
-                <strong>礼物提示</strong
-                ><span class="usage-guide-chip">通知</span>
+                <strong>礼物提示</strong>
               </div>
-              <p>
-                独立于礼物检测的通知开关。开启后，每当收到礼物时应用右上角显示应用内礼物提示，显示送礼人、礼物名和金额。可以单独关闭通知而不影响礼物数据的记录。
-              </p>
+              <p>开启后，收到礼物会在 LIRA 右上角显示送礼人、礼物和金额。只关闭提示，不影响礼物记录。</p>
             </article>
             <article class="usage-guide-feature">
               <div class="usage-guide-feature-head">
-                <strong>最近礼物</strong
-                ><span class="usage-guide-chip">展示</span>
+                <strong>最近礼物</strong>
               </div>
-              <p>
-                以卡片网格展示最近收到的礼物，最多显示 6
-                行，窗口缩放时行数自动调整。卡片包含送礼人头像/名字、礼物图标/名称、金额和赠送时间。盲盒卡片有独立的配色标识。点击「查看全部」打开礼物流水抽屉，可翻看更早的历史记录。
-              </p>
+              <p>查看最近收到的礼物、送礼人、金额和时间。点击「查看全部」，可以查看更早的礼物记录。</p>
             </article>
             <article class="usage-guide-feature">
               <div class="usage-guide-feature-head">
-                <strong>礼物历史同步与清理</strong
-                ><span class="usage-guide-chip">同一账号</span>
+                <strong>礼物历史同步与清理</strong>
               </div>
-              <p>
-                礼物流水会自动更新当前账号的记录。「正在更新礼物记录…」表示仍在获取记录，请稍候；离线时可查看已保存的记录，恢复连接后会自动更新。若提示「当前仅能查看部分历史记录」，当前列表不能当作全部历史。更新较慢或暂时无法加载时，可点击「重新加载」或「重试」。
-              </p>
-              <ul>
-                <li>
-                  「清空全部记录」确认后会<strong>永久删除当前账号在本机和云端的全部礼物记录</strong>，其他设备同步后也会清空，此操作无法撤销。清空后列表会自动更新；若暂时无法确认清空结果，请重新加载记录后检查。
-                </li>
-              </ul>
+              <p>礼物记录会自动更新。显示「正在更新礼物记录…」时请稍等；断网时可以查看已保存的记录，联网后会继续更新。</p>
+              <p>如果提示「当前仅能查看部分历史记录」，说明记录还不完整。加载失败时点击<strong class="usage-guide-keyword">「重新加载」</strong>或<strong class="usage-guide-keyword">「重试」</strong>。</p>
+              <p class="usage-guide-notice" data-tone="danger"><strong>无法恢复：</strong>「清空全部记录」会永久删除这个账号在本机和云端的全部礼物记录，其他设备同步后也会清空。无法恢复，请确认后再操作。</p>
             </article>
             <article class="usage-guide-feature">
               <div class="usage-guide-feature-head">
-                <strong>月底冲刺</strong
-                ><span class="usage-guide-chip">目标</span>
+                <strong>月底冲刺</strong>
               </div>
               <p>
                 设定月度礼物收入目标（金额），页面实时显示已收金额、还差多少、折合多少个水晶球（2333
-                元/个）。可随时重置本轮计数，礼物流水不受影响。
+                元/个）。可随时重置本轮计数，礼物记录不受影响。
               </p>
             </article>
             <article class="usage-guide-feature">
               <div class="usage-guide-feature-head">
-                <strong>今日盲盒盈亏</strong
-                ><span class="usage-guide-chip">统计</span>
+                <strong>今日盲盒盈亏</strong>
               </div>
               <p>
                 按观众汇总展示今日盲盒开盒情况——每位观众的开盒数、盒型种类、总成本和开出价值，净盈亏一目了然。内置盲盒类型使用各自的独立配色。点击某位观众可查看其完整开盒记录，点击「查看全部」进入完整的盲盒分析工作区。
@@ -622,8 +455,7 @@
             </article>
             <article class="usage-guide-feature">
               <div class="usage-guide-feature-head">
-                <strong>盲盒盈亏榜投屏</strong
-                ><span class="usage-guide-chip">OBS</span>
+                <strong>盲盒盈亏榜投屏</strong>
               </div>
               <p>
                 给观众看的盲盒盈亏排行榜画面，在礼物页直接配置：自定义投屏标题、排行人数（-1
@@ -634,12 +466,10 @@
             </article>
             <article class="usage-guide-feature">
               <div class="usage-guide-feature-head">
-                <strong>盲盒映射</strong
-                ><span class="usage-guide-chip">配置</span>
+                <strong>盲盒设置</strong>
               </div>
-              <p>
-                官方盲盒关系由礼物目录提供，无需逐种手动录入。页面底部的「盲盒映射」用于补充当前账号的自定义盒型、成本和产物，也可展开「高级」编辑完整配置；自定义配置会同步到当前账号的云端。已结算记录保留当时的成本依据，后续修改映射不会重算旧记录。
-              </p>
+              <p>常见盲盒的成本和可能开出的礼物会自动获取，不用逐个填写。需要补充时，到「盲盒设置」添加自定义盲盒、成本和可能开出的礼物。</p>
+              <p>这些设置会同步到同一账号。修改只影响之后的记录，不会重新计算旧记录。</p>
             </article>
           </div>
         </section>
@@ -650,57 +480,29 @@
             <span class="usage-guide-section-index" aria-hidden="true">08</span
             >百宝箱详解
           </h3>
-          <p class="usage-guide-section-intro">
-            百宝箱按使用场景分成四组：直播互动放弹幕姬、礼物姬和小游戏，直播画面放加班机、礼物特效、开播动画和萌时钟，主播工作放日历、备忘和待办，软件与帮助放设置、性能、使用文档和桌面更新。侧边栏展开时，这份文档使用顶部横向目录，正文占满右侧空间。点左侧顶部的折叠按钮可以收起侧边栏，只留图标；窗口足够宽时，文档会切换为左侧目录和右侧正文的双栏布局。
-          </p>
+          <p class="usage-guide-section-intro">在左侧选择需要的工具：用弹幕姬显示消息和自动回复，用加班机管理直播时长，用小游戏与观众互动。日历、备忘和待办可以帮你安排直播；设置、性能检测和桌面更新也在这里。</p>
           <div class="usage-guide-feature-list">
             <article class="usage-guide-feature">
               <div class="usage-guide-feature-head">
-                <strong>账户与安全</strong
-                ><span class="usage-guide-chip">账号中心</span>
+                <strong>账号与安全</strong>
               </div>
-              <p>
-                在「百宝箱 → 设置」查看当前 LIRA
-                登录账户和本机设备信息。忘记密码或需要新增、撤销设备时联系管理员；客户端不会显示密码或激活密钥，也不能创建、查看或撤销新设备授权码。
-              </p>
-              <ul>
-                <li>
-                  新电脑安装 LIRA
-                  后，选择「登录已有账号」，用同一用户名、原密码和服务器管理员新发的「短效登录码」登录。不同电脑独立授权，台数不限且可同时使用；同一电脑清除数据后重装，识别成功会恢复原设备和首次授权记录。首次注册码不能再次使用。
-                </li>
-                <li>
-                  授权后会自动同步同账号的歌库、直播账号登录状态、直播间号和点歌规则，以及自定义盲盒映射。云端已有数据时，新设备会使用云端版本。
-                </li>
-                <li>
-                  音乐平台登录、点歌与播放队列、界面和投屏样式、本地文件、主播工作台内容仍由各台电脑独立管理，需要分别配置。
-                </li>
-                <li>
-                  不要复制旧电脑的
-                  <code>data</code
-                  >、<code>userData</code>、设备私钥或登录令牌。新增或撤销设备、重置密码等操作请联系服务器管理员。
-                </li>
-              </ul>
+              <p>在<strong class="usage-guide-keyword">「百宝箱 → 设置」</strong>查看当前 LIRA 账号和这台电脑的信息。忘记密码、添加或移除设备，请联系管理员。</p>
+              <p><strong>换电脑：</strong>安装 LIRA 后选择<strong class="usage-guide-keyword">「登录已有账号」</strong>，填写原用户名、密码和管理员新发的「短效登录码」。注册激活码不能重复使用。</p>
+              <p><strong>会自动同步：</strong>歌库、直播账号登录状态、直播间号、点歌规则和自定义盲盒设置。新电脑会使用云端已有的数据。</p>
+              <p><strong>需要重新设置：</strong>音乐平台登录、点歌和播放队列、界面和直播画面样式。本地文件、日历、备忘和待办也分别保存在各台电脑上。</p>
+              <p class="usage-guide-notice" data-tone="warning"><strong>注意：</strong>不要直接复制旧电脑的数据文件夹，请在新电脑登录原账号。</p>
             </article>
             <article class="usage-guide-feature">
               <div class="usage-guide-feature-head">
-                <strong>弹幕姬</strong
-                ><span class="usage-guide-chip">弹幕</span>
+                <strong>弹幕姬</strong>
               </div>
-              <p>
-                弹幕展示和手动发送已拆成两个区域。面板按连接状态、弹幕姬、发送弹幕、点歌回复、AI
-                回复和固定回复归类：
-              </p>
+              <p>在弹幕姬中，可以显示观众消息、发送弹幕和设置自动回复：</p>
               <ul>
                 <li>
                   <strong>连接状态</strong
                   >：显示当前发送账号（含昵称）、目标直播间（含房间名）和发送状态（是否可发送）；右侧按钮可刷新状态。
                 </li>
-                <li>
-                  <strong>弹幕姬</strong>：复制服务器网页链接后添加到 OBS
-                  或直播姬浏览器源。固定位置提供聊天气泡、深色面板、蝴蝶结、经典样式、透明文字和头像横卡；全屏随机提供简洁白卡和奶油气泡。
-                  「本地预览」可在同一页面切换全部样式，查看三个大航海等级与普通观众、文字、表情包、礼物通知和感谢回复的静态示例，不循环播放。
-                  确认后点击「应用到服务器」，已打开的浏览器源会更新，链接无需更换。
-                </li>
+                <li><strong>弹幕姬</strong>：选择喜欢的样式，点击<strong class="usage-guide-keyword">「预览效果」</strong>查看示例。确认后点击<strong class="usage-guide-keyword">「应用到直播画面」</strong>，再把<strong class="usage-guide-keyword">「直播画面链接」</strong>添加到 OBS 或直播姬。只预览不会改变直播画面，应用后不用重新复制链接。</li>
                 <li>
                   <strong>发送弹幕</strong
                   >：在面板中手动输入、设置自动钓鱼/打劫并查看发送结果，不另设网页地址。
@@ -710,50 +512,28 @@
                   >：单独控制「随机点歌回复」，在观众点歌条件无匹配时自动 @
                   提醒。
                 </li>
-                <li>
-                  <strong>AI 回复</strong
-                  >：配置模型服务、触发关键词、回复长度、联网搜索、推理和外部查询工具。
-                </li>
-                <li>
-                  <strong>固定回复</strong
-                  >：集中管理「签到机器人」「抽签机器人」和「DIY
-                  关键词回复」；对应的祝福语、抽签词库和 DIY
-                  规则都可以在折叠面板中添加、删除、修改。
-                </li>
+                <li><strong>AI 回复</strong>：选择 AI 平台，填写密钥，设置触发关键词、回复长度和是否联网搜索。</li>
+                <li><strong>固定回复</strong>：设置签到、抽签和自定义关键词回复。在对应面板中添加或修改回复内容。</li>
               </ul>
             </article>
             <article class="usage-guide-feature">
               <div class="usage-guide-feature-head">
-                <strong>AI 互动助手</strong
-                ><span class="usage-guide-chip">AI</span>
+                <strong>AI 互动助手</strong>
               </div>
-              <p>
-                弹幕姬面板里的智能回复区域。观众弹幕包含触发关键词（默认「小米」）时，助手调用你配置的模型服务生成回复并发送到直播间。
-              </p>
+              <p>观众发送的弹幕包含触发关键词（默认「小米」）时，AI 会生成回复并发送到直播间。</p>
               <ul>
-                <li>
-                  <strong>模型服务</strong>：供应商预设支持
-                  DeepSeek、OpenAI、Claude、Gemini 或自定义 OpenAI
-                  兼容地址；接口协议可自动识别。API Key 加密保存、不会回显。
-                </li>
-                <li>
-                  <strong>回复规则</strong
-                  >：触发关键词、回复长度偏好、联网搜索和模型推理（支持的服务可调推理强度）。
-                </li>
+                <li><strong>AI 平台</strong>：选择你使用的平台，填写它提供的密钥（API Key），再获取并选择模型。密钥保存后不会完整显示。</li>
+                <li><strong>回复规则</strong>：设置触发关键词、回复长度、联网搜索和深度思考。是否支持这些功能，以所选平台和模型为准。</li>
                 <li>
                   <strong>扩展能力</strong
                   >：按需接入和风天气、高德地图，让助手能回答天气、地点和路线问题。
                 </li>
-                <li>
-                  <strong>高级设置</strong
-                  >：并行查询数、单用户冷却、全房间每分钟上限和小猫人格预设。配置完先点「测试模型服务」确认可用。
-                </li>
+                <li><strong>高级设置</strong>：调整同时处理的提问数、同一观众提问间隔、每分钟提问上限，以及 AI 的性格和说话方式。设置好后，点击<strong class="usage-guide-keyword">「测试 AI 连接」</strong>。</li>
               </ul>
             </article>
             <article class="usage-guide-feature">
               <div class="usage-guide-feature-head">
-                <strong>礼物姬</strong
-                ><span class="usage-guide-chip">礼物</span>
+                <strong>礼物姬</strong>
               </div>
               <p>
                 配置「礼物边框」：启用后，达到触发金额的付费礼物会在投屏画面四周显示边框，0
@@ -763,8 +543,7 @@
             </article>
             <article class="usage-guide-feature">
               <div class="usage-guide-feature-head">
-                <strong>小游戏</strong
-                ><span class="usage-guide-chip">互动</span>
+                <strong>小游戏</strong>
               </div>
               <p>
                 数字炸弹、五子棋和你画我猜共用「游戏网页」地址，按各游戏面板设置参与观众或回合后开始；你画我猜的题词只在主播面板查看。转转盘使用单独的链接，可编辑选项和份数，再保存并抽取。
@@ -772,12 +551,9 @@
             </article>
             <article class="usage-guide-feature">
               <div class="usage-guide-feature-head">
-                <strong>加班机</strong
-                ><span class="usage-guide-chip">倒计时</span>
+                <strong>加班机</strong>
               </div>
-              <p>
-                按礼物规则调整直播时长，支持按连击组或具体数量结算。先设置初始时长和礼物时间规则，点「启用加班机」接收结算，再点「开始」启动倒计时。「暂停」只暂停倒计时，礼物规则仍会生效；要停止礼物改时，请关闭加班机。
-              </p>
+              <p>先设置初始时长和礼物规则，再点<strong class="usage-guide-keyword">「启用加班机」</strong>，最后点「开始」启动倒计时。收到符合规则的礼物时，剩余时间会按规则调整。</p>
               <ul>
                 <li>
                   规则可选「直接改时间」「随机抽结果」或「文字展板」。时间操作支持增加、减少、乘除倍数和清零；文字展板只展示文字，不改变剩余时间。
@@ -794,16 +570,12 @@
                   「直播画面」区域可复制投屏地址、打开实时预览；背景可透明或选内置样式，透明背景适合直接叠加到直播姬或
                   OBS。
                 </li>
-                <li>
-                  顶部状态灯显示共享收礼核心、礼物统计和加班机的运行情况；「待结算」计数不为
-                  0 说明有礼物正在等待结算。
-                </li>
+                <li><strong>注意：</strong>「暂停」只会停下倒计时，收到礼物仍可能改变时间。要停止礼物改时，请关闭加班机。「待结算」表示还在等待处理的礼物。</li>
               </ul>
             </article>
             <article class="usage-guide-feature">
               <div class="usage-guide-feature-head">
-                <strong>礼物特效</strong
-                ><span class="usage-guide-chip">特效</span>
+                <strong>礼物特效</strong>
               </div>
               <p>
                 收到指定礼物时在直播画面上播放全屏动画。输入礼物 ID
@@ -814,8 +586,7 @@
             </article>
             <article class="usage-guide-feature">
               <div class="usage-guide-feature-head">
-                <strong>开播动画与萌时钟</strong
-                ><span class="usage-guide-chip">直播画面</span>
+                <strong>开播动画与萌时钟</strong>
               </div>
               <p>
                 「开播动画」设置开场文案、动效和音乐，用「显示整套特效」开关控制预览与固定浏览器源。「萌时钟」选择时钟风格并实时预览，按面板推荐尺寸添加浏览器源。两个功能分别使用各自面板提供的链接。
@@ -823,43 +594,27 @@
             </article>
             <article class="usage-guide-feature">
               <div class="usage-guide-feature-head">
-                <strong>主播工作台</strong
-                ><span class="usage-guide-chip">日历 + 备忘</span>
+                <strong>主播工作台</strong>
               </div>
-              <p>
-                在日历中安排直播、工作和个人日程，按天查看具体时间与备注。备忘支持编辑、置顶和转为待办，待办可勾选完成。所有内容保存在本机；旧版自定义记录会保留，已填写的直播场次会转入日历。
-              </p>
+              <p>用日历安排直播和其他日程，用备忘记下事情，或转为待办后勾选完成。这些内容保存在当前电脑上。</p>
             </article>
             <article class="usage-guide-feature">
               <div class="usage-guide-feature-head">
-                <strong>性能检测</strong
-                ><span class="usage-guide-chip">诊断</span>
+                <strong>性能检测</strong>
               </div>
-              <p>查看电脑的资源占用情况，帮助判断直播软件是否带得动：</p>
-              <ul>
-                <li>
-                  <strong>整机监控</strong
-                  >：CPU、GPU、内存的总体使用率（所有程序合计）。
-                </li>
-                <li>
-                  <strong>本软件监控</strong>：LIRA自身占用的 CPU、GPU、内存。
-                </li>
-                <li>
-                  支持单次检测（5
-                  秒采样）和持续检测两种模式。底部显示采样窗口、检测时间和当前服务进程
-                  PID。
-                </li>
-              </ul>
+              <p>查看电脑和 LIRA 的处理器、显卡、内存占用情况。直播卡顿时，可以来这里检查。</p>
+              <p>「电脑」显示所有程序的占用；「LIRA」只显示本软件的占用。点击<strong class="usage-guide-keyword">「开始检测」</strong>，等待检测完成后查看结果。</p>
             </article>
             <article class="usage-guide-feature">
               <div class="usage-guide-feature-head">
-                <strong>桌面更新</strong
-                ><span class="usage-guide-chip">桌面版</span>
+                <strong>桌面更新</strong>
               </div>
-              <p>
-                在「百宝箱 →
-                桌面更新」查看当前版本，点击「检查更新」后会自动下载可用更新；若显示「下载更新」，可点击继续下载。下载进度显示在更新状态下方，完成后点击「重启并更新」。也可开启自动更新，或从同页打开数据目录、日志目录、项目主页和主播登录页面。自动更新需要使用安装包安装的桌面版；开发模式不可检查更新。
-              </p>
+              <ol class="usage-guide-checks">
+                <li>打开<strong class="usage-guide-keyword">「百宝箱 → 桌面更新」</strong>，点击<strong class="usage-guide-keyword">「检查更新」</strong>。</li>
+                <li>有新版本时会开始下载；如果显示<strong class="usage-guide-keyword">「下载更新」</strong>，点击后继续下载。</li>
+                <li>下载完成后，点击<strong class="usage-guide-keyword">「重启并更新」</strong>。</li>
+              </ol>
+              <p>更新失败时，可从「项目主页」下载安装包，按本页「更新或重新安装」操作。需要反馈问题时，可以在「日志目录」找到错误记录。</p>
             </article>
           </div>
         </section>
@@ -870,20 +625,13 @@
             <span class="usage-guide-section-index" aria-hidden="true">09</span
             >配置 AI 助手
           </h3>
-          <p class="usage-guide-section-intro">
-            AI 互动助手需要模型服务的 API Key。LIRA
-            支持多个供应商，配置时需要选择供应商、填写 API Key、选择模型并测试连接。
-          </p>
+          <p class="usage-guide-section-intro">先在 AI 平台获取密钥（API Key），再回到 LIRA 选择平台、粘贴密钥、选择模型并测试连接。下面以 DeepSeek 为例。</p>
           <h4 class="usage-guide-subsection-title">1. 推荐配置</h4>
-          <p class="usage-guide-section-intro">
-            推荐使用 DeepSeek 官方服务。先在开放平台创建
-            Key，再回到弹幕姬配置、选择模型并测试。截图用于定位操作入口；登录方式、验证要求、模型和计费以当前官网为准。
-          </p>
+          <p class="usage-guide-section-intro">先在 DeepSeek 开放平台创建密钥，再回到 LIRA 设置。截图帮助你找到入口；如果官网页面有变化，请按当前页面提示操作。</p>
           <div class="usage-guide-feature-list">
             <article class="usage-guide-feature">
               <div class="usage-guide-feature-head">
-                <strong>1. 登录 DeepSeek 开放平台</strong
-                ><span class="usage-guide-chip">官网</span>
+                <strong>1. 登录 DeepSeek 开放平台</strong>
               </div>
               <p>
                 打开
@@ -907,12 +655,9 @@
             <article class="usage-guide-feature usage-guide-feature--illustrated">
               <div class="usage-guide-feature-copy">
                 <div class="usage-guide-feature-head">
-                  <strong>2. 完成账号验证</strong
-                  ><span class="usage-guide-chip">官网</span>
+                  <strong>2. 完成账号验证</strong>
                 </div>
-                <p>
-                  如果出现邮箱绑定或其他验证要求，按官网提示完成。配图是入口示例，是否允许稍后处理，以你当前账号页面的提示为准。
-                </p>
+                <p>如果页面要求绑定邮箱或验证账号，按提示完成后继续。</p>
               </div>
               <img
                 class="usage-guide-image"
@@ -926,10 +671,9 @@
             </article>
             <article class="usage-guide-feature">
               <div class="usage-guide-feature-head">
-                <strong>3. 进入 API keys 页面</strong
-                ><span class="usage-guide-chip">官网</span>
+                <strong>3. 进入 API keys 页面</strong>
               </div>
-              <p>在左侧菜单点击「API keys」，然后点击「创建 API key」按钮。</p>
+              <p>在左侧菜单点击<strong class="usage-guide-keyword">「API keys」</strong>，然后点击<strong class="usage-guide-keyword">「创建 API key」</strong>按钮。</p>
               <img
                 class="usage-guide-image"
                 src="/img/usage-guide/deepseek-api-keys.webp"
@@ -944,10 +688,9 @@
               <article class="usage-guide-feature usage-guide-feature--illustrated">
                 <div class="usage-guide-feature-copy">
                   <div class="usage-guide-feature-head">
-                    <strong>4. 命名并创建</strong
-                    ><span class="usage-guide-chip">官网</span>
+                    <strong>4. 命名并创建</strong>
                   </div>
-                  <p>给 Key 起一个能认出来的名字（比如 LIRA），点击「创建」。</p>
+                  <p>给密钥起一个能认出来的名字（比如 LIRA），点击<strong class="usage-guide-keyword">「创建」</strong>。</p>
                 </div>
                 <img
                   class="usage-guide-image"
@@ -962,13 +705,9 @@
               <article class="usage-guide-feature usage-guide-feature--illustrated">
                 <div class="usage-guide-feature-copy">
                   <div class="usage-guide-feature-head">
-                    <strong>5. 复制并妥善保存 Key</strong
-                    ><span class="usage-guide-chip">官网</span>
+                    <strong>5. 复制并保存密钥</strong>
                   </div>
-                  <p>
-                    创建成功后会弹出完整的 API Key，点「复制」。Key
-                    只会完整显示这一次，关掉弹窗后列表里只能看到首尾几位，请务必先复制保存好。
-                  </p>
+                  <p>创建后点击<strong class="usage-guide-keyword">「复制」</strong>。完整密钥只显示这一次，请先保存好，不要发给别人。</p>
                 </div>
                 <img
                   class="usage-guide-image"
@@ -983,116 +722,28 @@
             </div>
             <article class="usage-guide-feature">
               <div class="usage-guide-feature-head">
-                <strong>6. 选择「DeepSeek 官方」</strong
-                ><span class="usage-guide-chip">LIRA</span>
+                <strong>6. 选择「DeepSeek 官方」</strong>
               </div>
-              <p>
-                回到 LIRA，打开「百宝箱 → 弹幕姬」，找到「AI
-                互动助手」区域。模型供应商下拉框选择「DeepSeek 官方」，API
-                请求地址会自动锁定为官方地址，不用手动填写。
-              </p>
+              <p>回到<strong class="usage-guide-keyword">「百宝箱 → 弹幕姬 → AI 互动助手」</strong>，在<strong class="usage-guide-keyword">「AI 平台」</strong>中选择「DeepSeek 官方」，地址会自动填好。</p>
             </article>
             <article class="usage-guide-feature">
               <div class="usage-guide-feature-head">
-                <strong>7. 粘贴 API Key</strong
-                ><span class="usage-guide-chip">LIRA</span>
+                <strong>7. 粘贴密钥（API Key）</strong>
               </div>
-              <p>
-                把刚复制的 Key 粘贴到「API
-                Key」输入框。内容会自动保存（状态栏会提示「等待自动保存 /
-                已保存」），也可以点保存按钮立即保存。Key
-                加密存储，界面上只显示掩码，不会明文回显。
-              </p>
+              <p>将复制的密钥粘贴到<strong class="usage-guide-keyword">「密钥（API Key）」</strong>输入框，等待显示<strong class="usage-guide-success">「已保存」</strong>，也可以点击<strong class="usage-guide-keyword">「保存设置」</strong>。保存后不会完整显示密钥。</p>
             </article>
             <article class="usage-guide-feature">
               <div class="usage-guide-feature-head">
-                <strong>8. 获取并选择模型</strong
-                ><span class="usage-guide-chip">LIRA</span>
+                <strong>8. 获取并选择模型</strong>
               </div>
-              <p>
-                点击「获取模型」，从当前账号返回的列表中选择模型，再点「测试模型服务」。模型名称和可用能力会更新，可查阅
-                <a
-                  href="https://api-docs.deepseek.com/zh-cn/"
-                  target="_blank"
-                  rel="noreferrer"
-                  >DeepSeek 官方文档</a
-                >。测试通过后打开「启用
-                AI」，用包含触发关键词的弹幕验证回复；默认触发词为「小米」。
-              </p>
+              <p>点击<strong class="usage-guide-keyword">「获取模型」</strong>，选择一个可用模型，再点击<strong class="usage-guide-keyword">「测试 AI 连接」</strong>。测试通过后打开<strong class="usage-guide-keyword">「启用 AI」</strong>，发送一条包含「小米」的弹幕，试试是否收到回复。模型说明可查看 <a href="https://api-docs.deepseek.com/zh-cn/" target="_blank" rel="noreferrer">DeepSeek 官方文档</a>。</p>
             </article>
             <article class="usage-guide-feature">
               <div class="usage-guide-feature-head">
-                <strong>9. 查看用量、余额不足时充值</strong
-                ><span class="usage-guide-chip">官网</span>
+                <strong>9. 查看用量、余额不足时充值</strong>
               </div>
-              <p>
-                打开
-                <a
-                  href="https://platform.deepseek.com/usage"
-                  target="_blank"
-                  rel="noreferrer"
-                  >DeepSeek 用量与余额</a
-                >，查看 API 用量、剩余余额或前往充值。充值完成后，再回
-                LIRA
-                测试模型服务；用量刷新时间、支付方式和最低充值金额以官网显示为准。
-              </p>
-              <p>
-                <strong>官方产品定价</strong>：以下为 2026-09-14
-                核对的人民币价格，单位为<strong>元 / 百万 tokens</strong>。最新价格请查看
-                <a
-                  href="https://api-docs.deepseek.com/zh-cn/quick_start/pricing/"
-                  target="_blank"
-                  rel="noreferrer"
-                  >DeepSeek 官方产品定价</a
-                >。
-              </p>
-              <div class="table-wrap usage-guide-pricing">
-                <table aria-label="DeepSeek 产品定价，单位：元 / 百万 tokens">
-                  <thead>
-                    <tr>
-                      <th scope="col">模型</th>
-                      <th scope="col">时段</th>
-                      <th scope="col">输入（缓存命中）</th>
-                      <th scope="col">输入（缓存未命中）</th>
-                      <th scope="col">输出</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td>deepseek-flash</td>
-                      <td>谷时</td>
-                      <td>0.02</td>
-                      <td>1</td>
-                      <td>4</td>
-                    </tr>
-                    <tr>
-                      <td>deepseek-flash</td>
-                      <td>峰时</td>
-                      <td>0.04</td>
-                      <td>2</td>
-                      <td>8</td>
-                    </tr>
-                    <tr>
-                      <td>deepseek-v4-pro</td>
-                      <td>谷时</td>
-                      <td>0.15</td>
-                      <td>4.5</td>
-                      <td>13.5</td>
-                    </tr>
-                    <tr>
-                      <td>deepseek-v4-pro</td>
-                      <td>峰时</td>
-                      <td>0.30</td>
-                      <td>9</td>
-                      <td>27</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <p>
-                <strong>峰时价格是谷时（空闲时段）的 2 倍</strong>，所有计费项均适用。
-                峰时为北京时间周一至周五 9:00–12:00、14:00–18:00；其余时间（含周末）为谷时。
-              </p>
+              <p>打开 <a href="https://platform.deepseek.com/usage" target="_blank" rel="noreferrer">DeepSeek 用量与余额</a>，查看使用量和余额，需要时再充值。充值后回到 LIRA 点击<strong class="usage-guide-keyword">「测试 AI 连接」</strong>。</p>
+              <p>使用前请查看 <a href="https://api-docs.deepseek.com/zh-cn/quick_start/pricing/" target="_blank" rel="noreferrer">DeepSeek 官方价格</a>，费用和余额以平台显示为准。</p>
               <img
                 class="usage-guide-image"
                 src="/img/usage-guide/deepseek-usage.webp"
@@ -1121,12 +772,7 @@
             <span class="usage-guide-section-index" aria-hidden="true">10</span
             >直播姬 / OBS 投屏设置
           </h3>
-          <p class="usage-guide-section-intro">
-            LIRA 提供了多个本地直播画面链接，添加到直播姬的「浏览器」或 OBS
-            的「浏览器源」中即可在直播画面上显示。使用这些
-            <code>127.0.0.1</code> 地址时，OBS / 直播姬和 LIRA
-            需要运行在同一台电脑；公开歌单网页则是单独的远程 HTTPS 地址：
-          </p>
+          <p class="usage-guide-section-intro">复制需要的画面链接，添加到直播姬的「浏览器」或 OBS 的「浏览器源」，就能显示歌词、点歌队列等内容。弹幕姬使用在线链接；点歌队列、歌词等本机画面，需要让 LIRA 和直播软件在同一台电脑运行，并保持 LIRA 开启。网页歌单是给观众看歌曲的页面，与这些直播画面分别使用各自的链接。</p>
           <div class="usage-guide-grid">
             <article class="usage-guide-card">
               <strong>点歌队列画面</strong>
@@ -1149,36 +795,36 @@
             <article class="usage-guide-card">
               <strong>盲盒盈亏榜</strong>
               <p>
-                实时展示观众的盲盒开盒盈亏排名。标题、排行人数、仅显示盈利和仅显示心动盲盒都在礼物页的「盲盒盈亏榜」卡片配置。
+                实时展示观众的盲盒开盒盈亏排名。标题、排行人数、仅显示盈利和仅显示心动盲盒都在礼物页的「盲盒盈亏榜」卡片设置。
               </p>
             </article>
             <article class="usage-guide-card">
               <strong>加班机画面</strong>
               <p>
-                显示直播加时倒计时。地址在「百宝箱 → 加班机 →
-                直播画面」复制；背景可透明或选内置样式，透明背景适合直接叠加在直播画面上。
+                显示直播加时倒计时。地址在<strong class="usage-guide-keyword">「百宝箱 → 加班机 →
+                直播画面」</strong>复制；背景可透明或选内置样式，透明背景适合直接叠加在直播画面上。
               </p>
             </article>
             <article class="usage-guide-card">
               <strong>礼物特效画面</strong>
               <p>
-                全屏礼物动画的固定地址，在「百宝箱 →
-                礼物特效」复制。加入直播姬或 OBS
+                全屏礼物动画的固定地址，在<strong class="usage-guide-keyword">「百宝箱 →
+                礼物特效」</strong>复制。加入直播姬或 OBS
                 后，收到对应礼物会自动播放特效，无内容时画面透明。
               </p>
             </article>
             <article class="usage-guide-card">
               <strong>弹幕与礼物边框</strong>
               <p>
-                弹幕姬显示观众消息，礼物姬提供达到金额门槛时触发的边框。分别从「百宝箱
-                → 弹幕姬」和「礼物姬」复制链接，按对应面板预览效果。
+                弹幕姬显示观众消息，礼物姬提供达到金额门槛时触发的边框。分别从<strong class="usage-guide-keyword">「百宝箱
+                → 弹幕姬」</strong>和「礼物姬」复制链接，按对应面板预览效果。
               </p>
             </article>
             <article class="usage-guide-card">
               <strong>游戏与场景画面</strong>
               <p>
-                小游戏网页、转转盘、开播动画和萌时钟各有对应链接，可在「点歌 →
-                浏览器源」集中复制；详细参数和推荐尺寸在各自功能面板设置。
+                小游戏网页、转转盘、开播动画和萌时钟各有对应链接，可在<strong class="usage-guide-keyword">「点歌 →
+                浏览器源」</strong>集中复制；详细参数和推荐尺寸在各自功能面板设置。
               </p>
             </article>
           </div>
@@ -1188,15 +834,15 @@
         <section class="usage-guide-section" id="ug-cheatsheet">
           <h3 class="usage-guide-section-title">
             <span class="usage-guide-section-index" aria-hidden="true">11</span
-            >常用设置速查
+            >常用设置在哪里
           </h3>
           <div class="usage-guide-grid">
             <article class="usage-guide-card">
               <strong>点歌规则</strong>
               <p>
-                直播间号、弹幕监听、暂停点歌、队列上限、用户冷却、允许重复和只允许歌库歌曲，都在「点歌
+                直播间号、接收弹幕和礼物、暂停点歌、排队歌曲数、同一观众点歌间隔、允许重复和只允许歌库歌曲，都在<strong class="usage-guide-keyword">「点歌
                 →
-                设置」调整并保存，会同步到同账号设备。暂停点歌不会停止礼物采集。
+                设置」</strong>调整并保存，会同步到同账号设备。暂停点歌不会停止接收礼物。
               </p>
             </article>
             <article class="usage-guide-card">
@@ -1214,23 +860,22 @@
             <article class="usage-guide-card">
               <strong>礼物与盲盒</strong>
               <p>
-                礼物检测、提示和冲刺目标在礼物页操作。官方盲盒关系自动获取，自定义成本和产物在「盲盒映射」补充；历史同步状态在礼物流水中查看，投屏在「盲盒盈亏榜」配置。
+                礼物统计、提示和冲刺目标在礼物页操作。官方盲盒关系自动获取，自定义盲盒的成本和可能开出的礼物在「盲盒设置」补充；历史同步状态在礼物记录中查看，投屏在「盲盒盈亏榜」设置。
               </p>
             </article>
             <article class="usage-guide-card">
               <strong>签到与回复</strong>
               <p>
-                签到机器人、抽签机器人、随机点歌回复和 DIY
-                关键词回复的开关都在百宝箱 →
+                签到机器人、抽签机器人、随机点歌回复和 自定义关键词回复的开关都在百宝箱 →
                 弹幕姬面板，规则和词库在同一面板的折叠区域编辑；AI
-                互动助手的触发词、模型和密钥也在弹幕姬面板配置。
+                互动助手的触发词、模型和密钥也在弹幕姬面板设置。
               </p>
             </article>
             <article class="usage-guide-card">
               <strong>歌单展示板</strong>
               <p>
                 滚动速率（1 最慢、100
-                最快）、歌曲排序方式、字号以及是否同步点歌板主题——在「展示板」标签页配置。
+                最快）、歌曲排序方式、字号以及是否同步点歌板主题——在「展示板」标签页设置。
               </p>
             </article>
           </div>
@@ -1245,7 +890,7 @@
           <div class="usage-guide-faq-grid">
             <details class="usage-guide-faq">
               <summary>
-                <strong>启动时要求激活，或提示无法连接授权服务器</strong>
+                <strong>打开软件时无法登录</strong>
                 <svg
                   class="usage-guide-faq-chevron"
                   viewBox="0 0 20 20"
@@ -1261,17 +906,15 @@
                   />
                 </svg>
               </summary>
-              <p>
-                首次使用必须在「登录
-                LIRA」页面选择「注册新账号」并使用注册激活码；已有账号在新电脑或重装后选择「登录已有账号」，使用原账号密码和管理员新发的短效登录码。已经授权过的电脑每次启动会自动在线检查授权；发布版默认连接
-                <code>https://api.lirahub.cn</code
-                >，网络断开或超时时点击「重试连接」并确认能访问授权服务。若提示设备已撤销、授权已撤销、设备不匹配或账号停用，请联系管理员重新授权；若提示客户端协议不兼容或构建校验失败，请更新到管理员提供的版本。不要删除或复制
-                <code>data/license</code> 中的文件。
-              </p>
+              <ol class="usage-guide-checks">
+                <li>第一次使用，选择<strong class="usage-guide-keyword">「注册新账号」</strong>，填写注册激活码；换电脑或清除数据后重装，选择<strong class="usage-guide-keyword">「登录已有账号」</strong>，填写原账号密码和新的短效登录码。</li>
+                <li>连接失败时，检查网络后点击<strong class="usage-guide-keyword">「重试连接」</strong>。</li>
+                <li>提示账号停用或设备授权异常时，联系管理员；提示「客户端协议不兼容」或「构建校验失败」时，安装管理员提供的新版 LIRA。不要自行删除登录文件。</li>
+              </ol>
             </details>
             <details class="usage-guide-faq">
               <summary>
-                <strong>如何让另一台电脑使用同一主播账号</strong>
+                <strong>换电脑后怎么登录</strong>
                 <svg
                   class="usage-guide-faq-chevron"
                   viewBox="0 0 20 20"
@@ -1287,14 +930,15 @@
                   />
                 </svg>
               </summary>
-              <p>
-                联系服务器管理员生成新设备授权码（配对码）。新电脑安装 LIRA
-                后选择「登录已有账号」，输入同一用户名、原密码，在「短效登录码」框填入新码。授权后自动同步云端歌库、直播账号登录状态、直播间配置、点歌规则和自定义盲盒映射。音乐平台账号、播放队列、样式和工作台内容仍需在新电脑分别配置；不要直接拷贝旧电脑的整个数据目录、私钥或令牌。
-              </p>
+              <ol class="usage-guide-checks">
+                <li>向管理员领取新的「短效登录码」。</li>
+                <li>在新电脑安装 LIRA，选择<strong class="usage-guide-keyword">「登录已有账号」</strong>，填写原用户名、密码和短效登录码。</li>
+                <li>歌库、直播账号和点歌规则等会自动同步；音乐平台需要重新登录，直播画面样式等需要重新设置。详细清单见「账号与安全」，不要直接复制旧电脑的数据文件夹。</li>
+              </ol>
             </details>
             <details class="usage-guide-faq">
               <summary>
-                <strong>云端歌单和本地歌库有什么区别</strong>
+                <strong>换电脑后，歌库会同步吗</strong>
                 <svg
                   class="usage-guide-faq-chevron"
                   viewBox="0 0 20 20"
@@ -1310,11 +954,11 @@
                   />
                 </svg>
               </summary>
-              <p>
-                桌面端用于编辑歌库，云端保存同一账号的共享版本，并供公开网页展示。联网授权后会自动上传本机修改、拉取云端更新，最多同步
-                5000
-                首；点歌和播放队列不在同步范围内。多台设备同时修改时，以最后一次成功写入的完整歌库为准，不会逐首合并；手动「同步当前歌单到网页」同样会整体覆盖云端，请先核对本机内容。
-              </p>
+              <ol class="usage-guide-checks">
+                <li>会。登录同一 LIRA 账号并联网后，歌库会自动同步，最多 5000 首。点歌队列和播放队列不会同步。</li>
+                <li>不要同时在多台电脑修改：最后同步成功的歌库会替换之前的版本，不会自动合并。</li>
+                <li>手动点击「同步到网页」也会替换云端歌库，请先确认这台电脑的歌曲齐全。</li>
+              </ol>
             </details>
             <details class="usage-guide-faq">
               <summary>
@@ -1334,11 +978,10 @@
                   />
                 </svg>
               </summary>
-              <p>
-                同一台电脑同时启动多个 LIRA
-                进程时，后登录的进程会让先前会话失效。关闭多余的 LIRA
-                窗口，只保留一个进程后回到授权页点击「重试连接」；这不是云端歌单冲突，也不需要重新复制设备私钥。
-              </p>
+              <ol class="usage-guide-checks">
+                <li>同一台电脑重复打开 LIRA，可能出现这个提示。</li>
+                <li>退出重复打开的 LIRA，只保留一个，再点击<strong class="usage-guide-keyword">「重试连接」</strong>。不用重新注册。</li>
+              </ol>
             </details>
             <details class="usage-guide-faq">
               <summary>
@@ -1358,11 +1001,11 @@
                   />
                 </svg>
               </summary>
-              <p>
-                先查看是否有尚未处理的弹窗或加载提示，切回对应功能页再试。仍无响应时退出并重新打开
-                LIRA；若能稳定复现，记录操作步骤和错误提示，可从「百宝箱 →
-                桌面更新 → 日志目录」获取日志供排查。
-              </p>
+              <ol class="usage-guide-checks">
+                <li>先检查有没有未关闭的弹窗，或正在加载的提示，再切回需要的页面重试。</li>
+                <li>仍无响应时，退出并重新打开 LIRA。</li>
+                <li>再次出现时，记下操作步骤和错误提示，并从<strong class="usage-guide-keyword">「百宝箱 → 桌面更新 → 日志目录」</strong>获取日志，交给管理员排查。</li>
+              </ol>
             </details>
             <details class="usage-guide-faq">
               <summary>
@@ -1382,12 +1025,11 @@
                   />
                 </svg>
               </summary>
-              <p>
-                在「百宝箱 →
-                弹幕姬」检查发送账号、目标直播间和发送状态，再按发送结果提示处理。登录过期时到「点歌
-                →
-                设置」重新扫码；账号和房间正确但连接异常时，点击「刷新直播」后重试。仅看到「本机已登录」不能确认云端监听或弹幕发送均正常。
-              </p>
+              <ol class="usage-guide-checks">
+                <li>打开<strong class="usage-guide-keyword">「百宝箱 → 弹幕姬」</strong>，检查发送账号、目标直播间和发送状态。</li>
+                <li>登录过期时，到<strong class="usage-guide-keyword">「点歌 → 设置」</strong>重新扫码登录并保存设置。</li>
+                <li>账号和直播间正确但仍连接异常时，点击<strong class="usage-guide-keyword">「刷新直播」</strong>后重试。只显示「本机已登录」还不代表可以正常发送。</li>
+              </ol>
             </details>
             <details class="usage-guide-faq">
               <summary>
@@ -1407,10 +1049,10 @@
                   />
                 </svg>
               </summary>
-              <p>
-                去百宝箱 →
-                弹幕姬面板，检查「签到机器人」开关是否打开。开关关闭时观众发「签到」弹幕不会触发回复。也确认一下祝福语列表是否为空。
-              </p>
+              <ol class="usage-guide-checks">
+                <li>打开<strong class="usage-guide-keyword">「百宝箱 → 弹幕姬」</strong>，开启「签到机器人」。</li>
+                <li>检查祝福语列表是否有内容，再让观众发送「签到」试试。</li>
+              </ol>
             </details>
             <details class="usage-guide-faq">
               <summary>
@@ -1430,17 +1072,16 @@
                   />
                 </svg>
               </summary>
-              <p>
-                按顺序排查：① 弹幕姬面板里「启用 AI」开关已打开；②
-                模型供应商、API Key 和模型 ID
-                已填写，点「测试模型服务」能通过；③
-                观众弹幕里包含触发关键词（默认「小米」）；④
-                没有触发单用户冷却或全房间每分钟上限。状态区的「等待队列」可以看到排队中的回复数。
-              </p>
+              <ol class="usage-guide-checks">
+                <li>打开<strong class="usage-guide-keyword">「百宝箱 → 弹幕姬」</strong>，检查<strong class="usage-guide-keyword">「启用 AI」</strong>是否已开启。</li>
+                <li>检查 AI 平台、密钥和模型，点击<strong class="usage-guide-keyword">「测试 AI 连接」</strong>。</li>
+                <li>发送的弹幕需要包含触发关键词，默认是「小米」。</li>
+                <li>如果提问太快或达到每分钟上限，稍等再试。「等待队列」显示正在排队的回复数。</li>
+              </ol>
             </details>
             <details class="usage-guide-faq">
               <summary>
-                <strong>随机点歌条件没反应或匹配不到歌</strong>
+                <strong>随机点歌没有反应或找不到歌曲</strong>
                 <svg
                   class="usage-guide-faq-chevron"
                   viewBox="0 0 20 20"
@@ -1456,11 +1097,12 @@
                   />
                 </svg>
               </summary>
-              <p>
-                在点歌页核对歌曲是否可点，以及语言、分类、标签是否符合弹幕条件；组合条件需要同时满足。可在「百宝箱
-                →
-                弹幕姬」开启「随机点歌回复」，让无匹配时自动提醒。若歌曲已入队但音源不对，在播放页在线搜索歌名和歌手，核对平台登录状态及可播放权限。
-              </p>
+              <ol class="usage-guide-checks">
+                <li>在歌库中检查歌曲是否可点，语言、分类和标签是否符合点歌条件。多个条件需要同时满足。</li>
+                <li>可以在<strong class="usage-guide-keyword">「百宝箱 → 弹幕姬」</strong>打开「随机点歌回复」，没有符合条件的歌曲时会提醒观众。</li>
+                <li>歌曲已排队但播放版本不对时，在「播放」页搜索歌名和歌手，检查平台登录状态及歌曲是否可播放。</li>
+                <li>「点歌匹配诊断」没有结果，不代表歌库没有这首歌，请以歌库中的实际歌曲为准。</li>
+              </ol>
             </details>
             <details class="usage-guide-faq">
               <summary>
@@ -1480,10 +1122,11 @@
                   />
                 </svg>
               </summary>
-              <p>
-                先确认 LIRA
-                授权有效、直播账号凭据已保存到云端、直播间已配置并启用，再检查礼物检测开关和流水中的同步状态。正在补齐历史时等待完成；离线时恢复网络；凭据过期时重新扫码。需要重建直播连接时可点「刷新直播」，同步异常则按页面错误提示排查。
-              </p>
+              <ol class="usage-guide-checks">
+                <li>到<strong class="usage-guide-keyword">「点歌 → 设置」</strong>确认直播账号已登录、直播间号正确，<strong class="usage-guide-keyword">「接收弹幕和礼物」</strong>已开启并保存成功。</li>
+                <li>到礼物页开启<strong class="usage-guide-keyword">「礼物统计」</strong>。如果正在更新历史记录，请稍等；断网后请先恢复网络。</li>
+                <li>提示登录过期时重新扫码。连接异常时点击<strong class="usage-guide-keyword">「刷新直播」</strong>；记录加载失败时点击<strong class="usage-guide-keyword">「重新加载」</strong>或<strong class="usage-guide-keyword">「重试」</strong>。</li>
+              </ol>
             </details>
             <details class="usage-guide-faq">
               <summary>
@@ -1503,9 +1146,12 @@
                   />
                 </svg>
               </summary>
-              <p>
-                确认已「启用加班机」，收到的礼物有对应且启用的时间规则，再查看「最近结算」和待结算数量。「暂停」只停止倒计时，不会停止礼物改时；礼物统计开关也不需要同时开启。检查规则是否为减少、清零或文字展板等不增加时长的效果；礼物仍在连击时，需等待结算完成。
-              </p>
+              <ol class="usage-guide-checks">
+                <li>确认<strong class="usage-guide-keyword">「启用加班机」</strong>已打开，收到的礼物有对应且已开启的规则。</li>
+                <li>检查规则效果：减少、清零或文字展板不会增加时间。</li>
+                <li>礼物还在连击时，请等待处理完成，再查看「最近结算」。</li>
+                <li>「暂停」只停倒计时，不停止礼物改时；使用加班机不需要同时开启礼物统计。</li>
+              </ol>
             </details>
             <details class="usage-guide-faq">
               <summary>
@@ -1525,18 +1171,15 @@
                   />
                 </svg>
               </summary>
-              <p>
-                先确认投屏地址是从「点歌页 →
-                浏览器源」标签页复制的正确本地链接（以 127.0.0.1 开头），并确认
-                OBS / 直播姬和 LIRA 在同一台电脑运行。公开歌单网页的 HTTPS
-                地址不能替代这些本地浏览器源。保持 LIRA
-                运行，并在浏览器源属性中按功能面板的推荐尺寸设置宽高。更新后仍打开着的旧浏览器源可手动刷新一次；LIRA
-                重启后若画面未恢复，也可刷新浏览器源重新连接。
-              </p>
+              <ol class="usage-guide-checks">
+                <li>重新从对应功能页或<strong class="usage-guide-keyword">「点歌 → 浏览器源」</strong>复制链接，添加到直播姬的「浏览器」或 OBS 的「浏览器源」。不要用网页歌单链接代替。</li>
+                <li>点歌队列、歌词等本机画面，需要让 LIRA 和直播软件在同一台电脑运行，并保持 LIRA 开启。弹幕姬使用在线链接，请检查网络和直播间连接。</li>
+                <li>按功能页推荐的尺寸设置宽高。更新或重启 LIRA 后，画面仍未恢复时，刷新一次浏览器源。</li>
+              </ol>
             </details>
             <details class="usage-guide-faq">
               <summary>
-                <strong>桌面版更新卡住</strong>
+                <strong>更新卡住了</strong>
                 <svg
                   class="usage-guide-faq-chevron"
                   viewBox="0 0 20 20"
@@ -1552,10 +1195,11 @@
                   />
                 </svg>
               </summary>
-              <p>
-                查看「百宝箱 →
-                桌面更新」中的状态和错误提示，确认网络正常后重新检查或下载；下载完成后才能安装。持续失败时可从「项目主页」获取安装包，按本页「覆盖安装」操作，并通过「日志目录」提供错误记录。开发模式不支持自动更新。
-              </p>
+              <ol class="usage-guide-checks">
+                <li>打开<strong class="usage-guide-keyword">「百宝箱 → 桌面更新」</strong>，查看提示。确认网络正常后，重新检查或下载更新。</li>
+                <li>下载完成后才能点击<strong class="usage-guide-keyword">「重启并更新」</strong>。</li>
+                <li>反复失败时，从「项目主页」下载安装包，按本页「更新或重新安装」操作；也可以通过「日志目录」提供错误记录。</li>
+              </ol>
             </details>
             <details class="usage-guide-faq">
               <summary>
@@ -1599,7 +1243,7 @@
             </details>
             <details class="usage-guide-faq">
               <summary>
-                <strong>歌曲导入失败（XLSX 格式）</strong>
+                <strong>歌单表格导入失败</strong>
                 <svg
                   class="usage-guide-faq-chevron"
                   viewBox="0 0 20 20"
@@ -1615,11 +1259,11 @@
                   />
                 </svg>
               </summary>
-              <p>
-                先下载「导入导出」中的导入模板，对照「歌曲名字」等表头填写，避免只修改文件扩展名。仍无法读取时，用
-                Excel 重新保存为 .xlsx，或改用
-                CSV、TSV、直接粘贴表格；导入后检查结果提示和歌曲数量。
-              </p>
+              <ol class="usage-guide-checks">
+                <li>先下载「导入导出」中的导入模板，按「歌曲名字」等列名填写。不要只改文件后缀。</li>
+                <li>仍无法读取时，用 Excel 重新另存为 .xlsx，或复制表格内容，粘贴到导入框。也支持 CSV、TSV 文件。</li>
+                <li>导入后查看结果提示，并核对歌曲数量。</li>
+              </ol>
             </details>
           </div>
         </section>

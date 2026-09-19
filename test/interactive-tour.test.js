@@ -165,9 +165,9 @@ test('tour introduces LIRA and the four primary buttons before seven sequential 
   assert.equal(tour.TOUR_STEPS[0].kicker, '第 0 步 · 认识 LIRA');
   assert.match(
     tour.TOUR_STEPS[0].content,
-    /Live Interactive Room Assistant/,
+    /跟着提示连接直播间/,
   );
-  assert.match(tour.TOUR_STEPS[0].content, /直播间互动助手/);
+  assert.match(tour.TOUR_STEPS[0].content, /页面会带你找到要操作的位置/);
   assert.deepEqual(
     Array.from(actionSteps, (step) => step.kicker),
     [
@@ -187,10 +187,10 @@ test('tour introduces LIRA and the four primary buttons before seven sequential 
   assert.equal(actionSteps[0].targetSelector, '.main-page-tabs');
   assert.match(actionSteps[1].content, /用手机上的直播平台应用扫描/);
   assert.match(actionSteps[2].note, /房间号「123456」.*粘贴直播间链接/);
-  assert.match(actionSteps[3].content, /页面右上角/);
+  assert.match(actionSteps[3].content, /右上角/);
   assert.match(actionSteps[4].note, /暂时没有歌单也没关系/);
   assert.match(actionSteps[5].content, /全民 K 歌客户端/);
-  assert.match(actionSteps[6].note, /重新打开交互式引导/);
+  assert.match(actionSteps[6].note, /重新查看新手引导/);
 });
 
 test('refresh step spotlights the live-room status together with the refresh button', () => {
@@ -203,7 +203,7 @@ test('refresh step spotlights the live-room status together with the refresh but
   );
 
   assert.equal(refreshStep.targetSelector, '#liveStatus, #reconnectBtn');
-  assert.match(refreshStep.content, /一起框选/);
+  assert.match(refreshStep.content, /保存设置/);
   assert.match(js, /document\.querySelectorAll\(selector\)/);
 });
 
@@ -382,5 +382,5 @@ test('usage guide step opens and points to the real toolbox document button', ()
   );
   assert.match(toolboxShell, /data-other-feature="otherUsageGuideFeature"/);
   assert.match(usageStep.content, /忘记怎么登录、导入歌单或设置其他功能/);
-  assert.match(usageStep.note, /重新打开交互式引导/);
+  assert.match(usageStep.note, /重新查看新手引导/);
 });

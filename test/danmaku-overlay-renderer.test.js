@@ -260,6 +260,19 @@ test('shared danmaku renderer replaces whole and inline emote triggers with safe
   assert.equal(giftMessage.children[2].textContent, '× 10');
   assert.equal(giftMessage.children[1].children[1].children.length, 0);
   assert.equal(giftMessage.children.length, 3, 'gift notifications do not synthesize account replies');
+  const transparentRoot = new FakeNode('div');
+  const transparentFeed = module.createDanmakuFeed(transparentRoot, { autoScroll: false, showGiftTotal: true });
+  for (const [giftTotalPrice, expected] of [[12.5, '¥12.5'], [0.01, '¥0.01'], [0, '¥0'], [undefined, '—'], [null, '—'], [-1, '—'], [Infinity, '—']]) {
+    transparentFeed.render([{ kind: 'gift', name: '观众', message: '送出 小花花 × 10', giftName: '<b>小花花</b>', giftCount: 10, giftTotalPrice }]);
+    const content = transparentRoot.children[0].children[1].children[1];
+    assert.equal(content.children[1].children[1].textContent, '<b>小花花</b>');
+    assert.equal(content.children[1].children[1].children.length, 0);
+    assert.equal(content.children[1].children[2].textContent, '× 10');
+    assert.equal(content.children[2].className, 'draw-danmaku-gift-amount');
+    assert.equal(content.children[2].textContent, expected);
+  }
+  feed.render([{ kind: 'gift', message: '送出 小花花 × 10', giftName: '小花花', giftCount: 10, giftTotalPrice: 12.5 }]);
+  assert.equal(root.children[0].children[1].children[1].children[2].textContent, '× 10', 'other styles retain the quantity in the right column');
   feed.render([{ name: '已登录账号', message: '谢谢星河来客送来的 10 朵小花花！' }]);
   const thanksMessage = root.children[0].children[1].children[1];
   assert.doesNotMatch(root.children[0].className, /\bis-gift\b/);

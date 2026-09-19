@@ -41,7 +41,7 @@ export function createCustomReplyEditor({ document, saveSetting, toast }) {
     input.value = rule[field];
     input.setAttribute(
       'aria-label',
-      `第 ${index + 1} 条 DIY 回复的${labelText}`,
+      `第 ${index + 1} 条自定义回复的${labelText}`,
     );
     input.addEventListener('input', () => {
       items[index][field] = input.value;
@@ -54,7 +54,7 @@ export function createCustomReplyEditor({ document, saveSetting, toast }) {
     elements.list.replaceChildren();
     elements.count.textContent = `${items.length} 条`;
     if (items.length === 0) {
-      appendEmptyState(document, elements.list, '还没有 DIY 回复规则');
+      appendEmptyState(document, elements.list, '还没有自定义回复规则');
       return;
     }
 
@@ -69,7 +69,7 @@ export function createCustomReplyEditor({ document, saveSetting, toast }) {
       );
       const deleteButton = createDeleteButton(
         document,
-        `删除第 ${index + 1} 条 DIY 回复`,
+        `删除第 ${index + 1} 条自定义回复`,
         () => {
           items.splice(index, 1);
           render();
@@ -122,10 +122,10 @@ export function createCustomReplyEditor({ document, saveSetting, toast }) {
       } else {
         setStatus('本次已保存，仍有未保存的更改', 'warn');
       }
-      toast('DIY 关键词回复已保存');
+      toast('自定义关键词回复已保存');
     } catch (error) {
       setStatus('保存失败', 'warn');
-      toast(error.message || '保存 DIY 关键词回复失败');
+      toast(error.message || '保存自定义关键词回复失败');
     } finally {
       saving = false;
       elements.saveButton.disabled = !dirty;

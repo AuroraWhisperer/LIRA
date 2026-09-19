@@ -44,6 +44,30 @@ function createLicenseOperations(options = {}) {
     return overlayOperation((token) => remote.updateOverlaySettings(settings, token));
   }
 
+  function overlayFilterOperation(operation) {
+    return overlayOperation(async (token) => {
+      try { return await operation(token); }
+      catch (error) {
+        if (error.status === 404 || error.status === 405) {
+          throw new RemoteLicenseError('OVERLAY_FILTERS_UNSUPPORTED', '请更新服务器后使用弹幕屏蔽。');
+        }
+        throw error;
+      }
+    });
+  }
+
+  async function getOverlayFilters() {
+    return overlayFilterOperation((token) => remote.getOverlayFilters(token));
+  }
+
+  async function updateOverlayFilters(settings) {
+    return overlayFilterOperation((token) => remote.updateOverlayFilters(settings, token));
+  }
+
+  async function getOverlayViewers() {
+    return overlayFilterOperation((token) => remote.getOverlayViewers(token));
+  }
+
   async function getWelcomeSettings() {
     return overlayOperation((token) => remote.getWelcomeSettings(token));
   }
@@ -349,6 +373,9 @@ function createLicenseOperations(options = {}) {
     getProfile,
     getOverlaySettings,
     updateOverlaySettings,
+    getOverlayFilters,
+    updateOverlayFilters,
+    getOverlayViewers,
     getWelcomeSettings,
     dailyBotRequestInternal,
     getWelcomeSettingsV2,

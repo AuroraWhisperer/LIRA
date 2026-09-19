@@ -327,7 +327,10 @@ export class FormsService {
       setValue('overlayRuleFontSizeNumber', ruleFontSize);
     }
     if (document.getElementById('themeOpacityNumber')) {
-      setValue('themeOpacityNumber', value('themeOpacity'));
+      setValue(
+        'themeOpacityNumber',
+        Math.round(Number(value('themeOpacity')) * 100),
+      );
     }
     if (document.getElementById('songBoardFontSizeNumber')) {
       setValue('songBoardFontSizeNumber', value('songBoardFontSize'));

@@ -187,18 +187,18 @@ test('Bilibili auth copy keeps local login separate from cloud capture', async (
   ]);
 });
 
-test('Bilibili settings explain tenant-scoped credentials and no anonymous capture', () => {
+test('Bilibili settings explain connection setup and confirmed stop actions', () => {
   const html = fs.readFileSync(
     path.join(ROOT, 'public', 'pages', 'admin', 'song', 'settings.html'),
     'utf8',
   );
 
   const help = html.match(/<lira-help\s*>(.*?)<\/lira-help/s)?.[1];
-  assert.match(help, /登录信息仅用于当前 LIRA 账号/);
-  assert.match(help, /同步到云端、设置直播间并启用弹幕监听后，才会接收弹幕和礼物/);
-  assert.match(help, /云端未登录时不采集/);
-  assert.match(help, /关闭应用不影响云端接收/);
-  assert.match(help, /退出登录并同步成功后才会停止/);
+  assert.match(help, /扫码登录后，填写自己的直播间号，开启接收并保存设置/);
+  assert.match(help, /「本机已登录」只说明扫码成功/);
+  assert.match(help, /还要确认连接正常/);
+  assert.match(help, /关闭 LIRA 后仍会接收/);
+  assert.match(help, /需要停止时关闭接收并保存，或退出直播账号，等待保存成功/);
   assert.doesNotMatch(html, /id="bilibiliAuthHint"/);
 });
 

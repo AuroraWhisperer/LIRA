@@ -47,6 +47,24 @@ test('guard roster handles zero members and skips hidden identities', async () =
   assert.deepEqual(result.members.map((m) => m.uid), ['2']);
 });
 
+test('guard roster reads only valid fan medal levels belonging to the room owner', async () => {
+  const rows = [
+    { ruid: 99, level: 32 },
+    { ruid: 88, level: 60 },
+    { ruid: 99, level: -1 },
+    { ruid: 99, level: '40' },
+    null,
+  ].map((medal, index) => {
+    const row = member(index + 1);
+    row.uinfo.medal = medal;
+    return row;
+  });
+  const result = await fetchGuardRoster('42', fixture([
+    { info: { num: rows.length }, top3: [], list: rows },
+  ]));
+  assert.deepEqual(result.members.map((m) => m.medalLevel), [32, null, null, null, null]);
+});
+
 test('guard roster rejects partial pages, changing totals, and another room owner', async () => {
   for (const pages of [
     [{ info: { num: 2 }, top3: [], list: [member(1)] }, { info: { num: 2 }, list: [] }],

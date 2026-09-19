@@ -309,7 +309,7 @@ test('AI assistant autosaves toggles immediately and text after a debounce', asy
   );
   assert.equal(
     elements.get('xiaomiAiWebSearchCapability').textContent,
-    '服务端托管',
+    'AI 平台搜索',
   );
   assert.equal(
     elements.get('xiaomiAiReasoningCapability').textContent,
@@ -336,7 +336,7 @@ test('AI assistant autosaves toggles immediately and text after a debounce', asy
   );
   assert.equal(
     elements.get('xiaomiAiWebSearchCapability').textContent,
-    'LIRA 工具调用',
+    'LIRA 搜索',
   );
   assert.equal(
     elements.get('xiaomiAiReasoningCapability').textContent,
@@ -366,7 +366,7 @@ test('AI assistant autosaves toggles immediately and text after a debounce', asy
   await sandbox.window.AdminApp.aiAssistantSettings.refresh();
   assert.equal(
     elements.get('xiaomiAiReasoningCapability').textContent,
-    '供应商管理',
+    '由平台决定',
   );
   assert.equal(elements.get('xiaomiAiReasoningControl').hidden, true);
   assert.equal(elements.get('xiaomiAiProviderManagedReasoning').hidden, false);
