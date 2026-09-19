@@ -2,8 +2,8 @@
 
 import { GIFT_PLACEHOLDER } from './gift-image-fallback.js';
 
-export const BANNER_WIDTH = 560;
-export const BANNER_HEIGHT = 96;
+export const BANNER_WIDTH = 504;
+export const BANNER_HEIGHT = 72;
 export const BANNER_GAP = 8;
 export const MAX_COMPOSITE_ROWS = 39;
 export const GIFT_PALETTE = [
@@ -85,6 +85,21 @@ export function createGiftBanner(item, config, catalog = []) {
   return root;
 }
 
+export function fitGiftBannerNames(root) {
+  for (const name of root.querySelectorAll('.gift-banner-name, .gift-banner-gift')) {
+    name.style.fontSize = '';
+    const availableWidth = name.getBoundingClientRect().width;
+    if (!availableWidth) continue;
+    const range = document.createRange();
+    range.selectNodeContents(name);
+    const textWidth = range.getBoundingClientRect().width;
+    if (textWidth > availableWidth) {
+      const fontSize = parseFloat(getComputedStyle(name).fontSize);
+      name.style.fontSize = `${Math.floor(fontSize * availableWidth / textWidth * 10) / 10}px`;
+    }
+  }
+}
+
 function bannerImage(source, className, fallback) {
   const image = document.createElement('img');
   image.className = className;
@@ -119,5 +134,6 @@ export async function readyGiftImages(root) {
     }
   }));
   await document.fonts.ready;
+  fitGiftBannerNames(root);
   await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 }

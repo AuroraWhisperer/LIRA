@@ -1,5 +1,21 @@
 # preload 桥与 IPC 全量注册表
 
+## 礼物图片导出设置
+
+`giftExport.settings(options?)` 调用 `gift-export:settings`，由
+[gift-export-ipc.js](../../../src/electron/ipc/gift-export-ipc.js) 注册，并复用导出接口的
+当前主窗口、主 frame、精确 desktop origin 和管理页路径检查。
+
+- 不传参数时读取默认设置。
+- 写入仅接受 `mode`（`combined` / `separate`）、`background`（`transparent` / `white`）、
+  `directoryAction`（`choose` / `default`）的可选字段；拒绝未知字段和非法值。
+- 返回 `{ok:true,data:{mode,background,directory,custom}}` 或 `{ok:false,error}`。
+  renderer 不传保存路径；目录来自原生对话框或系统图片目录。取消目录选择不写入，
+  主窗口导航、导出代次变化或销毁后丢弃待返回的目录选择。
+- [gift-export-controller.js](../../../src/electron/gift-export-controller.js) 创建任务时冻结默认配置；
+  之后修改默认值只影响新任务。既有 `prepare` / `configure` / `save` / `cancel` /
+  `openFolder` / `onProgress` 接口保持兼容。持久化键见 [设置存储](../backend/storage.md#7-设置存储settings-store)。
+
 ## 服务器弹幕姬参数
 
 弹幕显示屏蔽独立于样式：`license:get-overlay-filters` / `license:update-overlay-filters` /

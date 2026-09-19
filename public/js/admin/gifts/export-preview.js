@@ -1,4 +1,4 @@
-import { BANNER_WIDTH, createGiftBanner, giftExportPages, readyGiftImages } from '../../shared/gift-banner.js';
+import { BANNER_WIDTH, BANNER_HEIGHT, BANNER_GAP, createGiftBanner, giftExportPages, readyGiftImages } from '../../shared/gift-banner.js';
 
 export function createGiftExportPreview({ showPane }) {
   const get = (id) => document.getElementById(id);
@@ -19,32 +19,17 @@ export function createGiftExportPreview({ showPane }) {
     get('giftExportPage').textContent = `${page + 1} / ${pages.length}`;
     get('giftExportPrev').disabled = page === 0;
     get('giftExportNext').disabled = page === pages.length - 1;
-    get('giftExportMode').value = task.mode;
-    get('giftExportBackground').value = task.background;
+    get('giftExportFormat').textContent = `${task.mode === 'combined' ? '拼成一张（超长自动分图）' : '每条一张'} · ${task.background === 'white' ? '白色背景' : '透明背景'}`;
     const preview = get('giftExportPreview');
     preview.style.background = task.background === 'white' ? '#fff' : 'transparent';
     preview.replaceChildren(...pages[page].map((item) => createGiftBanner(item, task.snapshot.config, task.snapshot.catalog)));
     const width = Math.max(BANNER_WIDTH * 2, Math.ceil(preview.getBoundingClientRect().width * 2));
-    get('giftExportFiles').textContent = `${task.files[page].fileName} · ${width} × ${pages[page].length * 192 + (pages[page].length - 1) * 16} 像素${task.mode === 'combined' && pages.length > 1 ? '；超过单图高度，已按每张最多 39 条拆分。' : ''}`;
+    get('giftExportFiles').textContent = `${task.files[page].fileName} · ${width} × ${(pages[page].length * BANNER_HEIGHT + (pages[page].length - 1) * BANNER_GAP) * 2} 像素${task.mode === 'combined' && pages.length > 1 ? '；超过单图高度，已按每张最多 39 条拆分。' : ''}`;
     await readyGiftImages(preview);
   }
 
-  async function configure(directoryAction) {
-    if (!task || running) return;
-    const current = task;
-    const next = unwrap(await window.giftExport.configure({ id: current.id,
-      mode: get('giftExportMode').value, background: get('giftExportBackground').value,
-      directoryAction, remember: get('giftExportRemember').checked }));
-    if (task !== current) return;
-    task = next;
-    await render();
-    controls();
-  }
-
   function controls() {
-    for (const id of ['giftExportSave', 'giftExportMode', 'giftExportBackground', 'giftExportChoose', 'giftExportDefault', 'giftExportRemember']) {
-      get(id).disabled = running;
-    }
+    get('giftExportSave').disabled = running;
     get('giftExportCancel').hidden = !running;
   }
 
@@ -58,11 +43,6 @@ export function createGiftExportPreview({ showPane }) {
 
   get('giftExportBack')?.addEventListener('click', close);
   get('giftExportCancel')?.addEventListener('click', () => window.giftExport?.cancel(task?.id));
-  get('giftExportMode')?.addEventListener('change', () => run(() => configure()));
-  get('giftExportBackground')?.addEventListener('change', () => run(() => configure()));
-  get('giftExportChoose')?.addEventListener('click', () => run(() => configure('choose')));
-  get('giftExportDefault')?.addEventListener('click', () => run(() => configure('default')));
-  get('giftExportRemember')?.addEventListener('change', () => run(() => configure()));
   get('giftExportPrev')?.addEventListener('click', () => { page -= 1; run(render); });
   get('giftExportNext')?.addEventListener('click', () => { page += 1; run(render); });
   get('giftExportOpenFolder')?.addEventListener('click', () => run(async () => unwrap(await window.giftExport.openFolder(task.id))));
@@ -99,7 +79,6 @@ export function createGiftExportPreview({ showPane }) {
       if (request !== sequence) { window.giftExport.cancel(next.id); return; }
       task = next;
       page = 0;
-      get('giftExportRemember').checked = false;
       get('giftExportOpenFolder').hidden = true;
       status(task.snapshot.partial ? '当前预览仅包含已同步记录，内容和样式已冻结。' : '记录和样式已冻结，可确认后导出。');
       showPane('export');

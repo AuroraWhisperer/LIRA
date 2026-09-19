@@ -2,13 +2,22 @@
   id="otherGiftFeature"
   class="other-feature-panel"
   role="tabpanel"
+  aria-labelledby="otherGiftFeatureTab"
   data-other-feature-panel
   hidden
 >
-  <div class="other-feature-panel-body stack">
+  <div class="other-feature-panel-body stack gift-assistant">
+    <div class="gift-assistant-tabs" role="tablist" aria-label="礼物姬功能">
+      <button id="giftAssistantFrameTab" type="button" role="tab" aria-selected="true" aria-controls="giftFramePanel" data-gift-tab="frame">礼物边框</button>
+      <button id="giftAssistantDisplayTab" type="button" role="tab" aria-selected="false" aria-controls="giftDisplaySettings" tabindex="-1" data-gift-tab="display">滚动礼物</button>
+      <button id="giftAssistantExportTab" type="button" role="tab" aria-selected="false" aria-controls="giftExportSettings" tabindex="-1" data-gift-tab="export">图片导出</button>
+    </div>
     <section
+      id="giftFramePanel"
       class="gift-frame-settings-card"
-      aria-labelledby="giftFrameSettingsTitle"
+      data-gift-feature="frame"
+      role="tabpanel"
+      aria-labelledby="giftAssistantFrameTab"
     >
       <header class="gift-frame-settings-heading">
         <div>
@@ -19,6 +28,7 @@
               >礼物金额达到门槛后，在投屏画面四周显示林间花信边框。</lira-help
             >
           </h3>
+          <p>收到达到触发金额的礼物时，在投屏画面四周播放边框。</p>
         </div>
         <span id="giftFrameSettingsState" class="pill">未启用</span>
       </header>
@@ -121,6 +131,87 @@
           </button>
         </div>
       </div>
+    </section>
+    <section id="giftDisplaySettings" class="gift-display-settings" data-gift-feature="display" role="tabpanel" aria-labelledby="giftAssistantDisplayTab" hidden>
+      <header class="gift-assistant-heading"><h3 class="ui-section-title">滚动礼物词条</h3><p class="hint">循环展示今天收到的礼物；词条样式同时用于图片导出。</p></header>
+      <form id="giftDisplayForm">
+        <fieldset id="giftDisplayFields" disabled>
+          <div class="gift-display-columns">
+            <div class="gift-display-group">
+              <div class="gift-display-group-head">
+                <h4>词条样式 · 价格分色</h4><p class="hint">按每条礼物的单价 × 数量分色；金额不进入横幅。</p>
+              </div>
+              <div class="gift-tier-inputs">
+                <div>
+                  <span class="gift-tier-swatch" aria-hidden="true"></span><span>浅蓝</span>
+                  <input type="number" value="0" readonly aria-label="浅蓝起始金额（元）" />
+                  <span aria-hidden="true">～</span>
+                  <input id="giftTierEnd0" data-gift-boundary="1" type="number" min="0.01" step="0.01" required aria-label="浅蓝结束金额（元）" />
+                </div>
+                <div>
+                  <span class="gift-tier-swatch" aria-hidden="true"></span><span>紫蓝</span>
+                  <input id="giftTier1" data-gift-boundary="1" type="number" min="0.01" step="0.01" required aria-label="紫蓝起始金额（元）" />
+                  <span aria-hidden="true">～</span>
+                  <input id="giftTierEnd1" data-gift-boundary="2" type="number" min="0.01" step="0.01" required aria-label="紫蓝结束金额（元）" />
+                </div>
+                <div>
+                  <span class="gift-tier-swatch" aria-hidden="true"></span><span>粉红</span>
+                  <input id="giftTier2" data-gift-boundary="2" type="number" min="0.01" step="0.01" required aria-label="粉红起始金额（元）" />
+                  <span aria-hidden="true">～</span>
+                  <input id="giftTierEnd2" data-gift-boundary="3" type="number" min="0.01" step="0.01" required aria-label="粉红结束金额（元）" />
+                </div>
+                <div>
+                  <span class="gift-tier-swatch" aria-hidden="true"></span><span>橙金</span>
+                  <input id="giftTier3" data-gift-boundary="3" type="number" min="0.01" step="0.01" required aria-label="橙金起始金额（元）" />
+                  <span aria-hidden="true">～</span>
+                  <input type="text" value="不限" readonly aria-label="橙金结束金额（元）" />
+                </div>
+              </div>
+              <p class="hint">金额单位为元。包含起始金额、不含结束金额；相邻区间自动衔接。</p>
+              <div class="gift-display-preview">
+                <div id="giftStylePreview" class="gift-banner-stage"></div>
+                <p class="hint">示例横幅；达到分界时进入新档。修改只更新草稿，保存后应用于滚动展示和之后的图片导出。</p>
+              </div>
+            </div>
+            <div class="gift-display-group">
+              <div class="gift-display-group-head">
+                <h4>本日礼物循环</h4><p class="hint">循环显示本地已同步的今天礼物，北京时间零点换日。</p>
+              </div>
+              <label>显示行数<input id="giftFeedRows" type="number" min="1" max="10" required /></label>
+              <label>滚动间隔（秒）<input id="giftFeedInterval" type="number" min="2" max="60" required /></label>
+              <label class="gift-check-label"><input id="giftFeedPaused" type="checkbox" />暂停播放</label>
+              <label class="gift-check-label"><input id="giftFeedLowPower" type="checkbox" />低功耗（逐页切换）</label>
+              <div class="gift-feed-source">
+                <label>OBS 浏览器源<input id="giftFeedUrl" readonly /></label>
+                <div class="gift-directory-actions"><button id="giftFeedCopy" type="button" class="secondary">复制地址</button><a id="giftFeedPreviewLink" target="_blank" rel="noopener">打开本日预览</a></div>
+                <p class="hint">OBS 建议宽度 900，高度随显示行数调整；多位数量会向右延长。关闭此面板后仍继续播放。</p>
+              </div>
+            </div>
+          </div>
+          <p id="giftDisplayError" role="alert"></p>
+          <div class="gift-display-actions"><button class="primary" type="submit">保存滚动与样式设置</button><button id="giftDisplayDefaults" class="secondary" type="button">恢复默认</button><button id="giftDisplayCancel" class="secondary" type="button">取消修改</button></div>
+        </fieldset>
+      </form>
+    </section>
+    <section id="giftExportSettings" class="gift-export-settings" data-gift-feature="export" role="tabpanel" aria-labelledby="giftAssistantExportTab" hidden>
+      <header class="gift-assistant-heading">
+        <h3 class="ui-section-title">图片导出设置</h3>
+        <p class="hint">在「礼物 → 最近礼物 → 查看全部」选择记录并导出。这里的设置自动保存，应用于下一次导出。</p>
+      </header>
+      <fieldset id="giftExportSettingsFields" disabled>
+        <div class="gift-export-settings-grid">
+          <label>输出方式<select id="giftExportMode"><option value="combined">拼成一张（超长自动分图）</option><option value="separate">每条一张</option></select></label>
+          <label>图片背景<select id="giftExportBackground"><option value="transparent">透明</option><option value="white">白色</option></select></label>
+        </div>
+        <div class="gift-export-settings-directory">
+          <label>保存文件夹<output id="giftExportSettingsDirectory"></output></label>
+          <div class="gift-directory-actions"><button id="giftExportChoose" class="secondary" type="button">选择文件夹</button><button id="giftExportDefault" class="secondary" type="button">系统默认</button></div>
+          <p class="hint">每次导出会在此文件夹下新建日期和批次目录。</p>
+        </div>
+      </fieldset>
+      <p class="hint">导出的词条配色与滚动展示共用，可在「滚动礼物」中调整。</p>
+      <p id="giftExportSettingsStatus" class="hint" role="status" aria-live="polite"></p>
+      <button id="giftExportSettingsReload" class="secondary" type="button" hidden>重新加载设置</button>
     </section>
   </div>
 </section>

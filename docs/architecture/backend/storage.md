@@ -259,6 +259,12 @@ Phase 1 失败且全部事务已回滚时，只解除本次请求取得的暂停
 
 ## 7. 设置存储(settings-store)
 
+礼物图片导出默认值由 Electron 控制器经 `gift-export-runtime.js` 调用既有 `setSettings`
+原子写入本地设置：`giftExportMode`（缺省 `combined`，另可 `separate`）、
+`giftExportBackground`（缺省 `transparent`，另可 `white`）、`giftExportDirectory`
+（沿用原键，空值使用系统图片目录下的 `LIRA/礼物导出`）。不新增表或迁移，
+目录只允许由原生对话框或系统默认取得，不同步为云端配置。旧版已记住的文件夹继续生效。
+
 `giftEffectDanmakuEnabled` 是默认 `'false'` 的字符串布尔设置，经现有设置同步映射为
 云端可选布尔值。它只控制弹幕指令特效，不控制礼物边框或收礼流水；不增加数据库表或
 迁移。云端旧快照缺少该字段时本地按关闭应用。见 [弹幕礼物特效规格](../../../specs/gift-effect-danmaku.md)。

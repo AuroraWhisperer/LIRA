@@ -29,6 +29,8 @@ import { createAdminStateRenderer } from './state-renderer.js';
 
 const toolbox = createToolboxLifecycle({
   loaders: {
+    otherGiftFeature: () =>
+      import('./gift-assistant.js').then((module) => module.initGiftAssistant),
     otherStartAnimationFeature: () =>
       import('./start-animation.js').then(
         (module) => module.initStartAnimation,

@@ -190,6 +190,8 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 
 ## 6. 百宝箱(otherAssistantPage)
 
+礼物姬由 [gift-assistant.js](../../../public/js/admin/gift-assistant.js) 在首次打开时初始化，按「礼物边框」「滚动礼物」「图片导出」三个分区呈现。滚动礼物分区拥有显示行数、间隔、暂停、低功耗、OBS 地址和共用词条价格配色；草稿切换分区时保留，保存后生效，取消修改恢复已保存值。图片导出分区独立读取和保存桌面导出默认设置，不依赖已选礼物。最近礼物与全部礼物记录仅负责查看、筛选、选择、预览和执行导出；已打开的预览保留本次输出设置与记录快照。桌面接口见 [preload 桥](../desktop/preload.md#礼物图片导出设置)。
+
 `other.js` 只负责**功能导航**(侧边栏整体可折叠、四个功能分组可独立折叠、方向键/WAI-ARIA tab 模式、localStorage 记住整栏折叠与选中项);[shell-start.html](../../../public/pages/admin/toolbox/shell-start.html)将不变的功能 ID 按直播互动、直播画面、主播工作、软件与帮助四组呈现,各面板仍由独立模块初始化:
 
 | 功能                | 模块                                                                                                                                                                                                                                                                                                      | 内容与数据源                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |

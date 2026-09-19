@@ -11,7 +11,7 @@ function registerGiftExportIpc({ ipcMain, controller, getMainWindow, getDesktopB
     owner?.removeListener('destroyed', cancel);
     owner = null;
   }
-  const methods = { prepare: 'prepare', configure: 'configure', save: 'save', cancel: 'cancel', 'open-folder': 'openFolder' };
+  const methods = { settings: 'settings', prepare: 'prepare', configure: 'configure', save: 'save', cancel: 'cancel', 'open-folder': 'openFolder' };
   for (const [channel, method] of Object.entries(methods)) {
     ipcMain.handle(`gift-export:${channel}`, async (event, input) => {
       const win = getMainWindow();

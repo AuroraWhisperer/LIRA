@@ -1,6 +1,5 @@
 import { toast } from '../../shared/utils.js';
 import { createGiftExportPreview } from './export-preview.js';
-import { createGiftDisplaySettings } from './display-settings.js';
 
 export function createGiftHistoryTools({ state, reload, resetPagination }) {
   const get = (id) => document.getElementById(id);
@@ -13,7 +12,6 @@ export function createGiftHistoryTools({ state, reload, resetPagination }) {
     get('giftHistoryDrawer').dataset.view = pane;
   }
   const exporter = createGiftExportPreview({ showPane });
-  const settings = createGiftDisplaySettings({ showPane });
   const run = (fn) => Promise.resolve().then(fn).catch((error) => toast(error.message));
   const options = () => ({ ...state.filters, range: 'all', viewRevision: state.viewRevision,
     sortField: state.sortField || 'created_at', sortDirection: state.sortDirection || 'desc' });
@@ -29,7 +27,6 @@ export function createGiftHistoryTools({ state, reload, resetPagination }) {
     cancelSelection();
     state.selected.clear();
     exporter.close();
-    settings.close();
     if (get('giftHistorySelectionNotice')) get('giftHistorySelectionNotice').textContent = '';
     update();
   }
@@ -113,6 +110,5 @@ export function createGiftHistoryTools({ state, reload, resetPagination }) {
     finally { if (current === operation) cancelSelection(); }
   }));
   get('giftHistoryExport')?.addEventListener('click', () => run(() => exporter.open({ ...options(), eventIds: [...state.selected] })));
-  get('giftDisplaySettingsOpen')?.addEventListener('click', () => run(() => settings.open(state.items)));
-  return { clear, update, showPane, close: () => { cancelSelection(); exporter.close(); settings.close(); } };
+  return { clear, update, showPane, close: () => { cancelSelection(); exporter.close(); } };
 }

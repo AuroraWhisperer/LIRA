@@ -1,4 +1,4 @@
-import { createGiftBanner, loadGiftArtworkCatalog } from '../shared/gift-banner.js';
+import { BANNER_HEIGHT, BANNER_GAP, createGiftBanner, fitGiftBannerNames, loadGiftArtworkCatalog } from '../shared/gift-banner.js';
 import { createGiftFeedState, scanTodayGifts, shanghaiToday } from '../shared/gift-feed-state.js';
 import { createOverlaySocket } from './socket-client.js';
 
@@ -31,8 +31,9 @@ async function request(url, signal) {
 }
 
 function render() {
-  viewport.style.height = `${config.visibleRows * 96 + (config.visibleRows - 1) * 8}px`;
+  viewport.style.height = `${config.visibleRows * BANNER_HEIGHT + (config.visibleRows - 1) * BANNER_GAP}px`;
   stage.replaceChildren(...state.visible(config.visibleRows, !config.lowPower).map((item) => createGiftBanner(item, config, catalog)));
+  fitGiftBannerNames(stage);
 }
 
 function reset() {
@@ -94,7 +95,7 @@ async function advance() {
   try {
     if (!config.paused && state.count > config.visibleRows) {
       if (!config.lowPower) {
-        animation = stage.animate([{ transform: 'translateY(0)' }, { transform: 'translateY(-104px)' }], { duration: 400, easing: 'ease-in-out' });
+        animation = stage.animate([{ transform: 'translateY(0)' }, { transform: `translateY(-${BANNER_HEIGHT + BANNER_GAP}px)` }], { duration: 400, easing: 'ease-in-out' });
         await animation.finished.catch(() => {});
         if (!animation || disposed) return;
         animation = null;

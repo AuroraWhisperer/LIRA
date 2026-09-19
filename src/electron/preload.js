@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('fanProfiles', {
 });
 
 contextBridge.exposeInMainWorld('giftExport', {
+  settings: (options) => ipcRenderer.invoke('gift-export:settings', options),
   prepare: (selection) => ipcRenderer.invoke('gift-export:prepare', selection),
   configure: (options) => ipcRenderer.invoke('gift-export:configure', options),
   save: (id) => ipcRenderer.invoke('gift-export:save', { id }),

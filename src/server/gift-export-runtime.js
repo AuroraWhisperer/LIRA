@@ -22,6 +22,9 @@ function createGiftExportRuntime({ getServices, getSettingsStore, broadcastSnaps
       };
     },
     setGiftExportDirectory: (directory) => getSettingsStore().setSetting('giftExportDirectory', directory),
+    setGiftExportSettings: ({ mode, background, directory }) => getSettingsStore().setSettings({
+      giftExportMode: mode, giftExportBackground: background, giftExportDirectory: directory,
+    }),
   };
 }
 

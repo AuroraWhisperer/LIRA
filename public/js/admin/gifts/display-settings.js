@@ -1,12 +1,13 @@
 import { copyText, localOverlayOrigin, toast } from '../../shared/utils.js';
-import { createGiftBanner, GIFT_PALETTE, loadGiftArtworkCatalog } from '../../shared/gift-banner.js';
+import { createGiftBanner, fitGiftBannerNames, GIFT_PALETTE, loadGiftArtworkCatalog } from '../../shared/gift-banner.js';
 
-export function createGiftDisplaySettings({ showPane }) {
+export function createGiftDisplaySettings() {
   const get = (id) => document.getElementById(id);
   let config;
-  let sample;
+  const sample = { eventId: 'sample', gift: { giftId: '', giftName: '礼物', userName: '礼物样式预览', unitPrice: 1000, num: 1, guardLevel: null } };
   let catalog = [];
   let sequence = 0;
+  let saving = false;
   const fail = (error) => { get('giftDisplayError').textContent = error.message; };
   const run = (fn) => Promise.resolve().then(fn).catch(fail);
   get('giftDisplayForm')?.querySelectorAll('.gift-tier-swatch').forEach((swatch, index) => {
@@ -26,6 +27,7 @@ export function createGiftDisplaySettings({ showPane }) {
     const thresholds = draft.thresholds.map((n) => Math.round(n));
     if (thresholds.every((n) => Number.isSafeInteger(n) && n > 0)) {
       get('giftStylePreview').replaceChildren(createGiftBanner(sample, { ...draft, thresholds }, catalog));
+      fitGiftBannerNames(get('giftStylePreview'));
     }
   }
 
@@ -41,9 +43,7 @@ export function createGiftDisplaySettings({ showPane }) {
     preview();
   }
 
-  const close = () => { sequence += 1; showPane('list'); };
-  get('giftDisplayBack')?.addEventListener('click', close);
-  get('giftDisplayCancel')?.addEventListener('click', close);
+  get('giftDisplayCancel')?.addEventListener('click', () => { fill(config); get('giftDisplayError').textContent = ''; });
   get('giftDisplayDefaults')?.addEventListener('click', () => fill({ thresholds: [10000, 50000, 100000], visibleRows: 3, intervalSeconds: 4, paused: false, lowPower: false }));
   get('giftDisplayForm')?.addEventListener('input', (event) => {
     const boundary = event.target.dataset.giftBoundary;
@@ -57,23 +57,32 @@ export function createGiftDisplaySettings({ showPane }) {
   get('giftDisplayForm')?.addEventListener('submit', (event) => {
     event.preventDefault();
     run(async () => {
+      if (saving) return;
+      saving = true;
       const current = sequence;
       const draft = values();
       // Decimal input precision is checked by the native form; remove floating point noise in cents.
       draft.thresholds = draft.thresholds.map(Math.round);
-      const response = await fetch('/api/gifts/display-settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(draft), signal: AbortSignal.timeout(10000) });
-      const result = await response.json();
-      if (current !== sequence) return;
-      if (!result.ok) throw new Error(result.error);
-      config = result.data;
-      get('giftDisplayError').textContent = '';
-      toast('礼物展示设置已保存');
-      close();
+      get('giftDisplayFields').disabled = true;
+      try {
+        const response = await fetch('/api/gifts/display-settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(draft), signal: AbortSignal.timeout(10000) });
+        const result = await response.json();
+        if (current !== sequence) return;
+        if (!result.ok) throw new Error(result.error);
+        config = result.data;
+        fill(config);
+        get('giftDisplayError').textContent = '';
+        toast('滚动礼物与词条样式已保存');
+      } finally {
+        saving = false;
+        get('giftDisplayFields').disabled = false;
+      }
     });
   });
   get('giftFeedCopy')?.addEventListener('click', () => run(async () => { await copyText(get('giftFeedUrl').value); toast('本日礼物地址已复制'); }));
 
-  return { close, async open(items) {
+  return { async open() {
+    if (config) return;
     const current = ++sequence;
     const response = await fetch('/api/gifts/display-settings', { signal: AbortSignal.timeout(10000) });
     const result = await response.json();
@@ -82,12 +91,11 @@ export function createGiftDisplaySettings({ showPane }) {
     if (current !== sequence) return;
     config = result.data;
     catalog = nextCatalog;
-    sample = items[0] || { eventId: 'sample', gift: { giftId: '', giftName: '礼物', userName: '礼物样式预览', unitPrice: 1000, num: 1, guardLevel: null } };
     const url = `${localOverlayOrigin(location)}/gift-feed`;
     get('giftFeedUrl').value = url;
     get('giftFeedPreviewLink').href = `${url}?preview=1`;
     get('giftDisplayError').textContent = '';
     fill(config);
-    showPane('settings');
+    get('giftDisplayFields').disabled = false;
   } };
 }
