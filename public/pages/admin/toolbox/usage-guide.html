@@ -520,10 +520,10 @@
               <div class="usage-guide-feature-head">
                 <strong>AI 互动助手</strong>
               </div>
-              <p>观众发送的弹幕包含触发关键词（默认「小米」）时，AI 会生成回复并发送到直播间。</p>
+              <p>触发关键词没有默认值，需要主播自定义并保存。观众发送的弹幕包含已保存的触发关键词时，AI 会生成回复并发送到直播间；未设置关键词时不会触发回复。</p>
               <ul>
                 <li><strong>AI 平台</strong>：选择你使用的平台，填写它提供的密钥（API Key），再获取并选择模型。密钥保存后不会完整显示。</li>
-                <li><strong>回复规则</strong>：设置触发关键词、回复长度、联网搜索和深度思考。是否支持这些功能，以所选平台和模型为准。</li>
+                <li><strong>回复规则</strong>：填写自定义触发关键词，等待显示「已保存」，再设置回复长度、联网搜索和深度思考。是否支持这些功能，以所选平台和模型为准。</li>
                 <li>
                   <strong>扩展能力</strong
                   >：按需接入和风天气、高德地图，让助手能回答天气、地点和路线问题。
@@ -735,7 +735,7 @@
               <div class="usage-guide-feature-head">
                 <strong>8. 获取并选择模型</strong>
               </div>
-              <p>点击<strong class="usage-guide-keyword">「获取模型」</strong>，选择一个可用模型，再点击<strong class="usage-guide-keyword">「测试 AI 连接」</strong>。测试通过后打开<strong class="usage-guide-keyword">「启用 AI」</strong>，发送一条包含「小米」的弹幕，试试是否收到回复。模型说明可查看 <a href="https://api-docs.deepseek.com/zh-cn/" target="_blank" rel="noreferrer">DeepSeek 官方文档</a>。</p>
+              <p>点击<strong class="usage-guide-keyword">「获取模型」</strong>，选择一个可用模型，再点击<strong class="usage-guide-keyword">「测试 AI 连接」</strong>。在「回复规则」中填写自定义触发关键词，等待显示<strong class="usage-guide-success">「已保存」</strong>。测试通过后打开<strong class="usage-guide-keyword">「启用 AI」</strong>，发送一条包含该关键词的弹幕，试试是否收到回复。模型说明可查看 <a href="https://api-docs.deepseek.com/zh-cn/" target="_blank" rel="noreferrer">DeepSeek 官方文档</a>。</p>
             </article>
             <article class="usage-guide-feature">
               <div class="usage-guide-feature-head">
@@ -1074,7 +1074,7 @@
               <ol class="usage-guide-checks">
                 <li>打开<strong class="usage-guide-keyword">「百宝箱 → 弹幕姬」</strong>，检查<strong class="usage-guide-keyword">「启用 AI」</strong>是否已开启。</li>
                 <li>检查 AI 平台、密钥和模型，点击<strong class="usage-guide-keyword">「测试 AI 连接」</strong>。</li>
-                <li>发送的弹幕需要包含触发关键词，默认是「小米」。</li>
+                <li>确认已填写并保存自定义触发关键词，发送的弹幕需要包含该关键词；关键词为空时不会触发回复。</li>
                 <li>如果提问太快或达到每分钟上限，稍等再试。「等待队列」显示正在排队的回复数。</li>
               </ol>
             </details>

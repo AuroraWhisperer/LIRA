@@ -121,7 +121,7 @@ module.exports = async function verifyRealOverlays({ directory, createWindow, se
 
   const exportWindow = createWindow(undefined, { sandbox: true, webSecurity: true,
     backgroundThrottling: false, zoomFactor: 1, offscreen: true });
-  exportWindow.setContentSize(1008, 144);
+  exportWindow.setContentSize(856, 144);
   await exportWindow.loadURL(`${origin}/gift-export`);
   await waitFor(async () => await exportWindow.webContents.executeJavaScript("typeof window.renderGiftExport==='function'"));
   assert.equal(await exportWindow.webContents.executeJavaScript('window.origin'), 'null');
@@ -130,7 +130,7 @@ module.exports = async function verifyRealOverlays({ directory, createWindow, se
       coinType:'guard',giftName:'Synthetic gift',userName:'Synthetic sender',unitPrice:1,num:2,
       avatarUrl:'https://synthetic.test/avatar'}}],config:{thresholds:[1000,2000,3000]},catalog:[],background:'white'})`,
   );
-  assert.equal(exported.width, 1008);
+  assert.equal(exported.width, 856);
   assert.equal(exported.height, 144);
   const images = await exportWindow.webContents.executeJavaScript(
     "[...document.querySelectorAll('#stage img')].map(img=>({width:img.naturalWidth,height:img.naturalHeight,source:img.getAttribute('src'),fallback:img.dataset.fallback,hidden:img.style.visibility==='hidden'}))",
@@ -143,7 +143,7 @@ module.exports = async function verifyRealOverlays({ directory, createWindow, se
   }
   assert.deepEqual(avatarRequests, ['https://synthetic.test/avatar']);
   const capture = await exportWindow.webContents.capturePage(
-    { x: 0, y: 0, width: 1008, height: 144 }, { stayHidden: true, stayAwake: true },
+    { x: 0, y: 0, width: 856, height: 144 }, { stayHidden: true, stayAwake: true },
   );
   assert.equal(capture.isEmpty(), false);
   assert.ok(capture.getSize().width > 0 && capture.getSize().height > 0);

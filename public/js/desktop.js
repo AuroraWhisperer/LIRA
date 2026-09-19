@@ -21,7 +21,6 @@
     const installButton = document.getElementById('desktopInstallUpdateBtn');
     const dataButton = document.getElementById('desktopOpenDataBtn');
     const logButton = document.getElementById('desktopOpenLogBtn');
-    const githubButton = document.getElementById('desktopOpenGithubBtn');
 
     if (checkButton) {
       checkButton.addEventListener('click', () => {
@@ -54,11 +53,6 @@
     if (logButton) {
       logButton.addEventListener('click', () =>
         runDesktopAction(() => desktop.openLogDir(), false),
-      );
-    }
-    if (githubButton) {
-      githubButton.addEventListener('click', () =>
-        runDesktopAction(() => desktop.openGithub(), false),
       );
     }
 

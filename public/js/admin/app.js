@@ -54,13 +54,26 @@ window.addEventListener('beforeunload', () => toolbox.dispose(), {
  * 应用初始化
  */
 async function initApp() {
+  try {
+    await initializeApp();
+  } catch (error) {
+    logger.error('初始化失败', error);
+    Utils.showError(error);
+  } finally {
+    document.documentElement.classList.remove('admin-starting');
+  }
+}
+
+async function initializeApp() {
   logger.debug('正在初始化...');
+
+  const modules = getLegacyAdminModules();
+  modules.desktop?.initDesktopShell?.();
+  modules.settings?.initSettingsForm?.();
 
   enhanceSelects();
 
   initParameterRanges();
-
-  await Theme.loadThemeConfig();
 
   // 初始化导航
   initMainPages();
@@ -69,19 +82,17 @@ async function initApp() {
   formsService.initWorkspaceControls();
   formsService.initTabs();
 
+  await Theme.loadThemeConfig();
+
   // 初始化播放助手（监听模块加载完成事件）
   window.addEventListener('playback-module-loaded', initPlaybackAssistant, {
     once: true,
   });
 
   // 如果模块已经加载完成（DOMContentLoaded 晚于模块加载），立即初始化
-  const modules = getLegacyAdminModules();
   if (modules.playback?.initPlaybackAssistant) {
     initPlaybackAssistant();
   }
-
-  // 初始化桌面环境
-  modules.desktop?.initDesktopShell?.();
 
   // 初始化各模块表单（使用兼容层调用）
   initQueueForm();
@@ -91,7 +102,6 @@ async function initApp() {
     reloadSongs: () => stateService.reloadAll(),
   });
   if (modules.settings) {
-    modules.settings.initSettingsForm();
     modules.settings.initBilibiliAuth();
   }
   modules.theme?.initThemeForm?.();

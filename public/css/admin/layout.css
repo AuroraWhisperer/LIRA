@@ -354,3 +354,25 @@ hr.section-divider {
   line-height: var(--type-leading-body);
   letter-spacing: var(--type-tracking-normal);
 }
+
+.admin-startup-status {
+  display: none;
+}
+
+html.admin-starting body {
+  overflow: hidden;
+}
+
+html.admin-starting .app-shell > :not(.topbar),
+html.admin-starting .primary-nav-slot,
+html.admin-starting .status-strip {
+  visibility: hidden;
+}
+
+html.admin-starting .admin-startup-status {
+  position: fixed;
+  inset: 58px 0 0;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}

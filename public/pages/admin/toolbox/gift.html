@@ -133,13 +133,13 @@
       </div>
     </section>
     <section id="giftDisplaySettings" class="gift-display-settings" data-gift-feature="display" role="tabpanel" aria-labelledby="giftAssistantDisplayTab" hidden>
-      <header class="gift-assistant-heading"><h3 class="ui-section-title">滚动礼物词条</h3><p class="hint">循环展示今天收到的礼物；词条样式同时用于图片导出。</p></header>
+      <header class="gift-assistant-heading"><h3 class="ui-section-title">礼物词条样式与滚动设置</h3><p class="hint">词条样式与颜色区间共用于滚动展示、导出预览和导出图片。</p></header>
       <form id="giftDisplayForm">
         <fieldset id="giftDisplayFields" disabled>
           <div class="gift-display-columns">
             <div class="gift-display-group">
               <div class="gift-display-group-head">
-                <h4>词条样式 · 价格分色</h4><p class="hint">按每条礼物的单价 × 数量分色；金额不进入横幅。</p>
+                <h4>共用词条样式 · 价格分色</h4><p class="hint">滚动展示与图片导出均按卡片内礼物的累计金额分色；金额不进入横幅。</p>
               </div>
               <div class="gift-tier-inputs">
                 <div>
@@ -175,12 +175,11 @@
             </div>
             <div class="gift-display-group">
               <div class="gift-display-group-head">
-                <h4>本日礼物循环</h4><p class="hint">循环显示本地已同步的今天礼物，北京时间零点换日。</p>
+                <h4>本日礼物循环</h4><p class="hint">今天同一人送的同款礼物合并展示。卡片超过显示行数时首尾连续滚动，北京时间零点换日。</p>
               </div>
               <label>显示行数<input id="giftFeedRows" type="number" min="1" max="10" required /></label>
-              <label>滚动间隔（秒）<input id="giftFeedInterval" type="number" min="2" max="60" required /></label>
-              <label class="gift-check-label"><input id="giftFeedPaused" type="checkbox" />暂停播放</label>
-              <label class="gift-check-label"><input id="giftFeedLowPower" type="checkbox" />低功耗（逐页切换）</label>
+              <label>滚动速率（1–50）<input id="giftFeedSpeed" type="number" min="1" max="50" step="1" aria-describedby="giftFeedSpeedHint" required /></label>
+              <p id="giftFeedSpeedHint" class="hint">数字越大滚动越快。1：每行 2 秒；50：每行 0.1 秒，中间线性变化。</p>
               <div class="gift-feed-source">
                 <label>OBS 浏览器源<input id="giftFeedUrl" readonly /></label>
                 <div class="gift-directory-actions"><button id="giftFeedCopy" type="button" class="secondary">复制地址</button><a id="giftFeedPreviewLink" target="_blank" rel="noopener">打开本日预览</a></div>
@@ -209,7 +208,7 @@
           <p class="hint">每次导出会在此文件夹下新建日期和批次目录。</p>
         </div>
       </fieldset>
-      <p class="hint">导出的词条配色与滚动展示共用，可在「滚动礼物」中调整。</p>
+      <p class="hint">所选的今日记录中，同一人送的同款礼物合并为一张卡片，按累计金额使用「滚动礼物」中已保存的颜色区间。</p>
       <p id="giftExportSettingsStatus" class="hint" role="status" aria-live="polite"></p>
       <button id="giftExportSettingsReload" class="secondary" type="button" hidden>重新加载设置</button>
     </section>

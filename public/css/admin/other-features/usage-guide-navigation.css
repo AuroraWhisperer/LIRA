@@ -99,3 +99,15 @@
   outline: 2px solid var(--usage-guide-accent);
   outline-offset: 3px;
 }
+
+@media (max-width: 640px) {
+  .usage-guide-toc {
+    top: 4px;
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .usage-guide-toc-group {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}

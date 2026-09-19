@@ -143,6 +143,31 @@ test('internal gift operations use the current authorized token and bypass publi
   manager.dispose();
 });
 
+test('gift card profiles retain sender evidence and reject replies after authorization disposal', async () => {
+  const { manager, remote } = createHarness({
+    identity: { deviceId: 'd', publicKeyPem: 'public' },
+  });
+  await manager.bootstrap();
+  const signal = new AbortController().signal;
+  const result = { ok: true, items: [{ senderId: '123', userName: '新昵称', guardLevel: 2 }] };
+  remote.getGiftCardProfiles = async (cursor, token, options) => {
+    assert.equal(cursor, 'event:1');
+    assert.equal(token, 'token');
+    assert.equal(options.signal, signal);
+    return result;
+  };
+  assert.deepEqual(await manager.getGiftCardProfilesInternal({ cursor: 'event:1', signal }), result);
+  let resolve;
+  let started;
+  const ready = new Promise((done) => { started = done; });
+  remote.getGiftCardProfiles = () => new Promise((done) => { resolve = done; started(); });
+  const pending = manager.getGiftCardProfilesInternal();
+  await ready;
+  manager.dispose();
+  resolve(result);
+  await assert.rejects(pending, { code: 'LICENSE_NOT_AUTHORIZED' });
+});
+
 test('internal gift operations reject coerced and oversized cursors before remote I/O', async () => {
   const { manager, calls } = createHarness({
     identity: { deviceId: 'd', publicKeyPem: 'public' },

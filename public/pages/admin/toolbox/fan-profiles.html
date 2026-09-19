@@ -11,65 +11,55 @@
       <div class="fan-nav" role="tablist" aria-label="粉丝档案内容">
         <button
           type="button"
+          id="fanProfilesTab"
           role="tab"
           aria-selected="true"
+          aria-controls="fanProfilesPage"
           data-fan-page="profiles"
         >
           档案
         </button>
         <button
           type="button"
+          id="fanRemindersTab"
           role="tab"
           aria-selected="false"
+          aria-controls="fanRemindersPage"
           data-fan-page="reminders"
         >
           提醒
         </button>
-        <span class="fan-sync fan-muted" id="fanSyncState" role="status"></span>
-        <button type="button" data-fan-action="refresh">刷新</button>
-      </div>
-      <div class="fan-actions">
-        <button type="button" class="primary" data-fan-action="new">
-          新建档案
-        </button>
         <button
           type="button"
-          id="fanMoreButton"
-          popovertarget="fanMoreMenu"
-          aria-label="档案更多操作"
+          id="fanSettingsTab"
+          role="tab"
+          aria-selected="false"
+          aria-controls="fanSettingsPage"
+          data-fan-page="settings"
         >
-          更多
+          设置
         </button>
-        <div
-          id="fanMoreMenu"
-          class="fan-more-menu"
-          popover
-          aria-label="档案更多操作"
+        <span class="fan-sync fan-muted" id="fanSyncState" role="status"></span>
+      </div>
+      <div class="fan-actions">
+        <button
+          type="button"
+          id="fanNewProfileButton"
+          class="primary"
+          data-fan-action="new"
         >
-          <button type="button" data-fan-action="guard-roster">
-            同步大航海名单
-          </button>
-          <hr />
-          <button type="button" data-fan-action="settings">
-            自动更新设置
-          </button>
-          <button type="button" data-fan-action="export">导出档案列表</button>
-          <button type="button" data-fan-action="backup">保存完整备份</button>
-          <button type="button" data-fan-action="restore">
-            恢复完整备份
-          </button>
-          <button type="button" data-fan-action="snapshots">本机恢复点</button>
-          <button type="button" data-fan-action="suppressions">
-            自动建档排除名单
-          </button>
-          <button type="button" data-fan-action="archived">查看已归档</button>
-        </div>
+          新建档案
+        </button>
       </div>
     </header>
     <p id="fanPageError" class="fan-error" role="alert" hidden></p>
     <p id="fanRosterResult" class="fan-muted" role="status" hidden></p>
-    <div id="fanReminderSummary" class="fan-reminder-summary" hidden></div>
-    <div id="fanProfilesPage">
+    <div id="fanProfilesPage" role="tabpanel" aria-labelledby="fanProfilesTab">
+      <div id="fanReminderSummary" class="fan-reminder-summary" hidden></div>
+      <div id="fanArchivedNotice" class="fan-archived-notice" hidden>
+        <span class="fan-muted">正在查看已归档的档案，资料仍然保留。</span>
+        <button type="button" data-fan-action="back-profiles">返回档案列表</button>
+      </div>
       <div class="fan-searchbar">
         <label class="fan-search"
           ><span class="sr-only">搜索昵称、备注名或 UID</span
@@ -113,7 +103,81 @@
         </aside>
       </div>
     </div>
-    <div id="fanRemindersPage" hidden></div>
+    <div id="fanRemindersPage" role="tabpanel" aria-labelledby="fanRemindersTab" hidden></div>
+    <div id="fanSettingsPage" role="tabpanel" aria-labelledby="fanSettingsTab" hidden>
+      <section class="fan-settings-group" aria-labelledby="fanSettingsUpdatesTitle">
+        <h3 id="fanSettingsUpdatesTitle">同步与更新</h3>
+        <div class="fan-setting-row">
+          <div>
+            <h4>同步大航海名单</h4>
+            <p class="fan-muted">读取当前直播间的大航海成员，为新成员建立档案，并更新已有成员的昵称、头像和等级。</p>
+          </div>
+          <button type="button" data-fan-action="guard-roster">同步名单</button>
+        </div>
+        <div class="fan-setting-row">
+          <div>
+            <h4>自动更新</h4>
+            <p class="fan-muted">自动补充已建档粉丝的昵称、点歌和上舰记录，也可设置遇到新上舰粉丝时自动建档。</p>
+          </div>
+          <button type="button" data-fan-action="settings">设置自动更新</button>
+        </div>
+        <div class="fan-setting-row">
+          <div>
+            <h4>重新加载档案</h4>
+            <p class="fan-muted">页面每 30 秒自动更新。资料未及时显示时，可重新读取本机档案和提醒；不会同步大航海名单。</p>
+          </div>
+          <button type="button" data-fan-action="refresh">重新加载</button>
+        </div>
+      </section>
+      <section class="fan-settings-group" aria-labelledby="fanSettingsBackupTitle">
+        <h3 id="fanSettingsBackupTitle">导出与备份</h3>
+        <div class="fan-setting-row">
+          <div>
+            <h4>导出档案表格</h4>
+            <p class="fan-muted">选择昵称、UID、生日或备注等资料，导出为 Excel 可打开的表格。表格不能用于恢复完整档案。</p>
+          </div>
+          <button type="button" data-fan-action="export">导出表格</button>
+        </div>
+        <div class="fan-setting-row">
+          <div>
+            <h4>保存完整备份</h4>
+            <p class="fan-muted">将当前账号的档案、记录和提醒设置保存成文件，方便换电脑或找回资料。</p>
+          </div>
+          <button type="button" data-fan-action="backup">保存备份</button>
+        </div>
+        <div class="fan-setting-row">
+          <div>
+            <h4>从备份文件恢复</h4>
+            <p class="fan-muted">选择之前保存的完整备份，先预览再恢复。已有资料发生冲突时，需要你选择如何处理。</p>
+          </div>
+          <button type="button" data-fan-action="restore">选择备份文件</button>
+        </div>
+        <div class="fan-setting-row">
+          <div>
+            <h4>恢复到之前的状态</h4>
+            <p class="fan-muted">合并档案或恢复备份前，会在本机保存恢复点。恢复时会将当前账号的全部档案退回那个时间点。</p>
+          </div>
+          <button type="button" data-fan-action="snapshots">查看恢复点</button>
+        </div>
+      </section>
+      <section class="fan-settings-group" aria-labelledby="fanSettingsProfilesTitle">
+        <h3 id="fanSettingsProfilesTitle">档案管理</h3>
+        <div class="fan-setting-row">
+          <div>
+            <h4>不再自动建档的粉丝</h4>
+            <p class="fan-muted">删除档案时选择停止自动建档的粉丝会列在这里。移出排除名单后，可再次为他们自动建档。</p>
+          </div>
+          <button type="button" data-fan-action="suppressions">管理排除名单</button>
+        </div>
+        <div class="fan-setting-row">
+          <div>
+            <h4>已归档的档案</h4>
+            <p class="fan-muted">查看暂时从主列表收起的档案。资料仍然保留，可以在档案的“管理”中恢复到主列表。</p>
+          </div>
+          <button type="button" data-fan-action="archived">查看已归档</button>
+        </div>
+      </section>
+    </div>
     <input
       id="fanRestoreFile"
       type="file"
@@ -133,13 +197,15 @@
   <form id="fanEditorForm">
     <header class="fan-editor-heading">
       <h2 id="fanEditorTitle"></h2>
-      <button type="button" data-fan-action="cancel-edit">取消</button>
     </header>
     <div id="fanEditorFields" class="fan-form-grid"></div>
     <p id="fanEditorError" class="fan-error" role="alert" hidden></p>
     <footer class="fan-editor-footer">
-      <span id="fanEditorHint" class="fan-muted"></span
-      ><button type="submit" class="primary" id="fanSaveButton">保存</button>
+      <span id="fanEditorHint" class="fan-muted"></span>
+      <div class="fan-editor-actions">
+        <button type="button" data-fan-action="cancel-edit">取消</button>
+        <button type="submit" class="primary" id="fanSaveButton">保存</button>
+      </div>
     </footer>
   </form>
 </dialog>

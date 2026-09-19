@@ -2,7 +2,7 @@
 
 import { GIFT_PLACEHOLDER } from './gift-image-fallback.js';
 
-export const BANNER_WIDTH = 504;
+export const BANNER_WIDTH = 428;
 export const BANNER_HEIGHT = 72;
 export const BANNER_GAP = 8;
 export const MAX_COMPOSITE_ROWS = 39;
@@ -13,8 +13,9 @@ export const GIFT_PALETTE = [
 const FRAMES = { 1: 'governor', 2: 'admiral', 3: 'captain' };
 const AVATAR_PLACEHOLDER = '/img/gift-avatar-placeholder.svg';
 
-export function giftTier(gift, thresholds) {
-  const total = BigInt(Math.round(gift.unitPrice * 100)) * BigInt(gift.num);
+export function giftTier(gift, thresholds, cardTotalCents) {
+  const total = cardTotalCents === undefined
+    ? BigInt(Math.round(gift.unitPrice * 100)) * BigInt(gift.num) : BigInt(cardTotalCents);
   return thresholds.filter((value) => total >= BigInt(value)).length;
 }
 
@@ -49,7 +50,7 @@ export function createGiftBanner(item, config, catalog = []) {
   const root = document.createElement('div');
   root.className = 'gift-banner';
   root.dataset.eventId = item.eventId;
-  const colors = GIFT_PALETTE[giftTier(gift, config.thresholds)];
+  const colors = GIFT_PALETTE[giftTier(gift, config.thresholds, item.cardTotalCents)];
   root.style.setProperty('--gift-start', colors[0]);
   root.style.setProperty('--gift-end', colors[1]);
   const count = String(gift.num);

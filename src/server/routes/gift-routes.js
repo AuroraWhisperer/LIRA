@@ -11,6 +11,15 @@ const {
 const prefixes = ['/api/gifts/'];
 
 const routes = {
+  async 'GET /api/gifts/card-profiles'(context, request, res) {
+    try {
+      const data = await context.giftCards.getProfiles(request.query.get('viewRevision'));
+      sendJson(res, 200, { ok: true, data });
+    } catch (error) {
+      if (!['GIFT_VIEW_STALE', 'GIFT_SOURCE_UNAVAILABLE'].includes(error.code)) throw error;
+      sendJson(res, 409, { ok: false, error: error.message, code: error.code });
+    }
+  },
   'GET /api/gifts/display-settings'(context, _request, res) {
     sendJson(res, 200, { ok: true, data: readGiftDisplaySettings(context.settings.get()) });
   },

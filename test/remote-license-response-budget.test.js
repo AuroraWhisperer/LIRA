@@ -8,6 +8,7 @@ for (const { label, request, maxBytes } of [
   { label: 'activation', request: (client) => client.activate({}), maxBytes: 1024 * 1024 },
   { label: 'gift recovery', request: (client) => client.getGiftEvents(0, 200, 'fixture'), maxBytes: 512 * 1024 },
   { label: 'gift history', request: (client) => client.getGiftHistory(null, 'fixture'), maxBytes: 512 * 1024 },
+  { label: 'gift card profiles', request: (client) => client.getGiftCardProfiles(null, 'fixture'), maxBytes: 512 * 1024 },
 ]) {
   test(`${label} stops reading and cancels a stream as soon as its existing byte budget is exceeded`, async () => {
     let readCalls = 0;

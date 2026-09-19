@@ -8,6 +8,23 @@ const {
 } = require('./validation');
 const { dayOf } = require('./dates');
 
+function getGuardRoster(profile, records) {
+  if (profile.guardRoster) return profile.guardRoster;
+  const latest = records
+    .filter((record) => record.original.evidence === 'guard-roster')
+    .sort((a, b) =>
+      b.original.observedAt.localeCompare(a.original.observedAt),
+    )[0]?.original;
+  return latest
+    ? {
+        roomId: latest.roomId,
+        ownerUid: latest.ownerUid,
+        observedAt: latest.observedAt,
+        level: latest.status === 'inactive' ? null : latest.level,
+      }
+    : null;
+}
+
 function createGuardRosterImporter({ store, create, observe }) {
   return function importGuardRoster(scope, snapshot) {
     if (
@@ -22,6 +39,24 @@ function createGuardRosterImporter({ store, create, observe }) {
       throw new Error('大航海名单格式无效。');
     const observedAt = timestamp(snapshot.observedAt);
     return store.transaction(() => {
+      function saveRoster(profile, records, level) {
+        const previous = getGuardRoster(profile, records);
+        if (previous && previous.observedAt > observedAt) return;
+        store.save(
+          scope,
+          {
+            ...profile,
+            guardRoster: {
+              roomId: snapshot.roomId,
+              ownerUid: snapshot.ownerUid,
+              observedAt,
+              level,
+            },
+          },
+          identityKey(profile.identity),
+          observedAt,
+        );
+      }
       const result = {
         roomId: snapshot.roomId,
         ownerUid: snapshot.ownerUid,
@@ -76,14 +111,14 @@ function createGuardRosterImporter({ store, create, observe }) {
           false,
           true,
         );
-        const previous = store.records
-          .list(scope, profile.id)
-          .find(
-            (record) =>
-              record.original.evidence === 'guard-roster' &&
-              record.original.roomId === snapshot.roomId &&
-              identityKey(record.original.identity) === key,
-          );
+        const records = store.records.list(scope, profile.id);
+        saveRoster(store.get(scope, profile.id), records, member.level);
+        const previous = records.find(
+          (record) =>
+            record.original.evidence === 'guard-roster' &&
+            record.original.roomId === snapshot.roomId &&
+            identityKey(record.original.identity) === key,
+        );
         if (
           previous?.original.level === member.level &&
           (previous.original.medalLevel ?? null) === medalLevel &&
@@ -107,9 +142,28 @@ function createGuardRosterImporter({ store, create, observe }) {
           },
         });
       }
+      // Hidden identities cannot be matched to existing profiles, so their
+      // absence from the visible members does not prove they left the roster.
+      if (snapshot.skipped === 0) {
+        for (const profile of store.list(scope)) {
+          const key = identityKey(profile.identity);
+          if (
+            profile.archived ||
+            profile.identity?.platform !== 'bilibili' ||
+            profile.identity.type !== 'uid' ||
+            seen.has(key) ||
+            store.suppressed(scope, key)
+          )
+            continue;
+          const records = store.records.list(scope, profile.id);
+          const previous = getGuardRoster(profile, records);
+          if (previous && previous.roomId !== snapshot.roomId) continue;
+          saveRoster(profile, records, null);
+        }
+      }
       return result;
     });
   };
 }
 
-module.exports = { createGuardRosterImporter };
+module.exports = { createGuardRosterImporter, getGuardRoster };

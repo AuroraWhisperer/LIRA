@@ -10,7 +10,11 @@ export function dateLabel(value) {
       ).toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai' })
     : '待补充';
 }
-export function memberLabel(membership) {
+export function memberLabel(membership, guardRoster) {
+  if (guardRoster)
+    return guardRoster.level
+      ? `在舰 · ${levels[guardRoster.level]}`
+      : '最近同步时未在舰';
   if (membership.status === 'active')
     return `在舰 · ${levels[membership.level]}`;
   if (membership.status === 'pending') return '大航海待核实';
@@ -18,6 +22,12 @@ export function memberLabel(membership) {
   if (membership.observedLevel)
     return `曾观察到${levels[membership.observedLevel]} · 当前待核实`;
   return membership.hasHistory ? '曾观察到上舰 · 当前待核实' : '未记录大航海';
+}
+function guardIcon(level) {
+  const icon = { 1: 'governor', 2: 'prefect', 3: 'captain' }[level];
+  return icon
+    ? `<img class="fan-status" src="/img/admin/gifts/bilibili-guard-${icon}.webp" alt="${levels[level]}" title="${levels[level]}" width="32" height="32" draggable="false">`
+    : '';
 }
 function button(action, label, extra = '') {
   return `<button type="button" data-fan-action="${action}" ${extra}>${label}</button>`;
@@ -31,7 +41,7 @@ export function renderPeople(profiles, selected, filtered) {
       (
         p,
       ) => `<button type="button" class="fan-person ${selected === p.id ? 'is-selected' : ''}" data-fan-id="${attr(p.id)}" aria-pressed="${selected === p.id}">
-    <span class="fan-person-line"><strong title="${attr(p.alias || p.platformName)}">${html(p.alias || p.platformName || '未命名档案')}</strong><span class="fan-status ${p.membership.status === 'active' ? 'is-active' : ''}">${html(memberLabel(p.membership))}</span></span>
+    <span class="fan-person-line"><strong class="fan-name" data-guard-level="${attr(p.currentGuardLevel || '')}" title="${attr(p.alias || p.platformName)}">${html(p.alias || p.platformName || '未命名档案')}</strong>${guardIcon(p.currentGuardLevel)}</span>
     ${p.alias && p.platformName ? `<span class="fan-muted">${html(p.platformName)}</span>` : ''}
     ${p.summary || p.tags?.length ? `<span class="fan-person-summary">${html(p.summary || p.tags.slice(0, 2).join('、'))}</span>` : ''}
     ${p.nextReminder ? `<span class="fan-person-date">${html(p.nextReminder.title)} · ${html(dateLabel(p.nextReminder.date))}</span>` : ''}
@@ -113,12 +123,12 @@ function membershipRecord(record, p) {
 
 function membership(p) {
   const m = p.membership;
-  return `<section class="fan-section"><div class="fan-section-title"><h4>${html(memberLabel(m))}</h4>${button('new-membership', '编辑大航海')}</div>
+  return `<section class="fan-section"><div class="fan-section-title"><h4>${html(memberLabel(m, p.guardRoster))}</h4>${button('new-membership', '编辑大航海')}</div>
     <dl class="fan-facts"><div><dt>${m.status === 'pending' ? '上次确认到期' : '有效至'}</dt><dd>${m.expiry ? `${html(m.expiry.date)} · ${m.expiry.source === 'platform' ? '平台确认' : '手动确认'}` : '待补到期时间'}</dd></div>
     <div><dt>累计在舰${m.status === 'pending' ? '（待核实）' : ''}</dt><dd>${m.totalDays ?? '未知'}${m.totalDays !== null ? ` 天 · ${html(m.totalBasis)}，截至 ${html(m.totalAsOf)}` : ''}</dd></div>
     <div><dt>连续在舰${m.status === 'pending' ? '（待核实）' : ''}</dt><dd>${m.continuousDays ?? '未知'}${m.continuousDays !== null ? ` 天 · 截至 ${html(m.continuousAsOf)}` : ''}</dd></div>
     <div><dt>首次上舰</dt><dd>${html(m.firstDate || '待确认')}</dd></div></dl>
-    ${m.observedAt ? `<p class="fan-muted">最近上舰观察：${html(dateLabel(m.observedAt))}。观察记录不代表当前仍在舰。</p>` : ''}
+    ${p.guardRoster ? `<p class="fan-muted">大航海名单同步于 ${html(dateLabel(p.guardRoster.observedAt))}，身份按这次同步显示。</p>` : m.observedAt ? `<p class="fan-muted">最近上舰观察：${html(dateLabel(m.observedAt))}。观察记录不代表当前仍在舰。</p>` : ''}
     <p class="fan-muted">按 Asia/Shanghai 计算已发生的有效日，当天生效计一天；未来有效期仅用于预测提醒。</p></section>
     ${
       p.records
@@ -154,7 +164,7 @@ export function renderDetail(p, tab = 'overview', timelineFilter = '') {
         .join(
           '',
         )}</select></label></div>${timeline.map((r) => (r.kind === 'membership' ? membershipRecord(r, p) : recordRow(r))).join('') || '<div class="fan-empty"><p>还没有互动记录，记下今天聊过的事吧。</p></div>'}`;
-  return `<header class="fan-person-header"><div class="fan-detail-title"><div><h3>${html(p.alias || p.platformName || '未命名档案')}</h3><p class="fan-muted">${html(p.platformName || '尚未获取平台昵称')} · ${p.identity ? `${p.identity.type === 'uid' ? 'UID' : 'open_id'} ${html(p.identity.value)}` : '身份待关联'}</p></div>
+  return `<header class="fan-person-header"><div class="fan-detail-title"><div><div class="fan-detail-name"><h3 class="fan-name" data-guard-level="${attr(p.currentGuardLevel || '')}">${html(p.alias || p.platformName || '未命名档案')}</h3>${guardIcon(p.currentGuardLevel)}</div><p class="fan-muted">${html(p.platformName || '尚未获取平台昵称')} · ${p.identity ? `${p.identity.type === 'uid' ? 'UID' : 'open_id'} ${html(p.identity.value)}` : '身份待关联'}</p></div>
     ${button('favorite', p.favorite ? '已关注' : '特别关注', `aria-pressed="${p.favorite}"`)}</div>
     ${p.summary ? `<p class="fan-prose">${html(p.summary)}</p>` : ''}<p class="fan-muted fan-small">平台信息更新于 ${html(p.platformObservedAt ? dateLabel(p.platformObservedAt) : '尚未获取')}</p>
     <div class="fan-actions">${button('new-note', '记一笔', 'class="primary"')}${button('expand', '展开 / 收起')}${button('back-list', '返回列表', 'class="fan-back-list"')}<details class="fan-more"><summary>管理</summary><div>${button('edit-profile', '编辑资料')}${button('archive', p.archived ? '恢复档案' : '归档')}${button('delete', '永久删除')}</div></details></div></header>

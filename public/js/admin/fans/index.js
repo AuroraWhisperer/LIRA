@@ -76,7 +76,7 @@ function createFanUi() {
       throw error;
     }
     if (action !== 'open' && state.contextId !== contextId)
-      throw new Error('账号上下文已变化，请重新打开。');
+      throw new Error('登录状态已变化，请重新打开粉丝档案。');
     if (
       action === 'open' &&
       state.contextId &&
@@ -87,7 +87,7 @@ function createFanUi() {
       state.tab = 'overview';
       get('fanRosterResult').hidden = true;
       detailNode.innerHTML =
-        '<p class="fan-empty">账号已切换，请重新选择档案。</p>';
+        '<p class="fan-empty">登录状态已变化，请重新选择档案。</p>';
     }
     state.contextId = result.contextId;
     state.roomId = result.roomId || '';
@@ -187,15 +187,20 @@ function createFanUi() {
     const profile = await request('detail', { id });
     if (selection !== state.selection) return;
     state.profile = profile;
-    if (resetTab) state.tab = 'overview';
-    state.page = 'profiles';
-    showPage();
+    if (resetTab) {
+      state.tab = 'overview';
+      state.page = 'profiles';
+      showPage();
+    }
     renderSelected();
   }
 
   function showPage() {
     get('fanProfilesPage').hidden = state.page !== 'profiles';
     get('fanRemindersPage').hidden = state.page !== 'reminders';
+    get('fanSettingsPage').hidden = state.page !== 'settings';
+    get('fanNewProfileButton').hidden = state.page !== 'profiles';
+    get('fanArchivedNotice').hidden = !state.archived;
     for (const node of root.querySelectorAll('[data-fan-page][role="tab"]'))
       node.setAttribute(
         'aria-selected',
@@ -205,6 +210,7 @@ function createFanUi() {
 
   function openForm(description, save) {
     state.editor = { ...description, save };
+    editor.classList.toggle('fan-profile-editor', !!description.profileEditor);
     get('fanEditorTitle').textContent = description.title;
     get('fanEditorFields').innerHTML = description.fields;
     get('fanEditorHint').textContent = description.hint || '';
@@ -323,9 +329,14 @@ function createFanUi() {
       await load();
       return;
     }
-    if (name === 'archived') {
-      state.archived = !state.archived;
-      element.textContent = state.archived ? '返回未归档' : '查看已归档';
+    if (name === 'archived' || name === 'back-profiles') {
+      state.archived = name === 'archived';
+      state.page = 'profiles';
+      state.profile = null;
+      state.selection++;
+      state.expanded = false;
+      detailNode.innerHTML = '<p class="fan-empty">选择一份档案查看详情</p>';
+      showPage();
       await load();
       return;
     }
@@ -438,7 +449,6 @@ function createFanUi() {
       '[data-fan-action], [data-fan-id], [data-fan-tab], [data-fan-page], [data-fan-filter]',
     );
     if (!element) return;
-    if (get('fanMoreMenu').contains(element)) get('fanMoreMenu').hidePopover();
     void (async () => {
       if (element.dataset.fanAction)
         await action(element.dataset.fanAction, element);

@@ -22,7 +22,7 @@ const OVERLAY_ROUTES = {
   songlist: ['GET /api/songs'],
   blindbox: ['GET /api/gifts/blind-box-stats'],
   'gift-feed': [
-    'GET /api/gifts/display-settings', 'GET /api/gifts/history',
+    'GET /api/gifts/display-settings', 'GET /api/gifts/history', 'GET /api/gifts/card-profiles',
     'GET /api/overtime/gifts/catalog', 'GET /api/bilibili/avatar',
   ],
   'gift-export': ['GET /api/bilibili/avatar'],

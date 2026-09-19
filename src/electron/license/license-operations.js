@@ -359,6 +359,8 @@ function createLicenseOperations(options = {}) {
   }
 
   return {
+    getGiftCardProfilesInternal: (input = {}) => withAuthorizedToken((token) =>
+      remote.getGiftCardProfiles(input.cursor, token, { signal: input.signal })),
     getFanFactsInternal: (input = {}) => withAuthorizedToken((token) =>
       remote.getFanFacts(input.after || 0, input.epoch, token, { signal: input.signal })),
     clearBilibiliCredentialsInternal,

@@ -45,6 +45,21 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
         throw new Error('备份中有重复或无效档案。');
       ids.add(profile.id);
       const patch = profilePatch(profile);
+      if (profile.guardRoster !== undefined && profile.guardRoster !== null) {
+        const roster = profile.guardRoster;
+        if (
+          !roster ||
+          typeof roster !== 'object' ||
+          Array.isArray(roster) ||
+          typeof roster.roomId !== 'string' ||
+          !/^[1-9]\d{0,19}$/.test(roster.roomId) ||
+          typeof roster.ownerUid !== 'string' ||
+          !/^[1-9]\d{0,19}$/.test(roster.ownerUid) ||
+          ![null, 1, 2, 3].includes(roster.level)
+        )
+          throw new Error('备份中的大航海名单状态无效。');
+        timestamp(roster.observedAt, '大航海名单同步时间');
+      }
       const key = identityKey(patch.identity);
       if (key && keys.has(key)) throw new Error('备份中同一身份重复。');
       if (key) keys.add(key);

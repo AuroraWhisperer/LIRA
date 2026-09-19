@@ -98,8 +98,6 @@ function createServerRuntime(runtimeOptions = {}) {
   let exitRequested = false;
   let exitIssued = false;
   let sessionToken = '';
-  let rebuildGiftProjection = () => false;
-  let clearRemoteGiftHistory = null;
   let blindBoxMappingState = null;
   const cloudSyncListeners = new Set();
   const inflightTracker = createInflightTracker();
@@ -142,14 +140,7 @@ function createServerRuntime(runtimeOptions = {}) {
   async function initializeApplication(options = {}) {
     if (applicationInitialized) return;
     try {
-      rebuildGiftProjection =
-        typeof options.giftSync?.rebuild === 'function'
-          ? options.giftSync.rebuild
-          : () => false;
-      clearRemoteGiftHistory =
-        typeof options.giftSync?.clearRemote === 'function'
-          ? options.giftSync.clearRemote
-          : null;
+      giftRuntime.configureGiftSync(options.giftSync);
       const reportPhase =
         typeof runtimeOptions.onPhase === 'function'
           ? runtimeOptions.onPhase
@@ -264,7 +255,10 @@ function createServerRuntime(runtimeOptions = {}) {
     }
   }
 
+  const giftRuntime = createGiftExportRuntime({ getServices: () => domainServices,
+    getSettingsStore: () => settingsStore, broadcastSnapshot });
   const createApiContext = createRuntimeApiContextFactory({
+    giftCards: giftRuntime.giftCards,
     getDynamicLottery: () => dynamicLottery,
     maxBodyBytes: MAX_BODY_BYTES,
     defaultSettings: DEFAULT_SETTINGS,
@@ -283,13 +277,8 @@ function createServerRuntime(runtimeOptions = {}) {
     broadcastSnapshot,
     broadcastGiftEffectPreview: (payload) => webSocketHub.broadcast(payload),
     requestCloudSync,
-    rebuildGiftProjection: () => rebuildGiftProjection(),
-    clearRemoteGiftHistory: () => {
-      if (typeof clearRemoteGiftHistory !== 'function') {
-        throw new Error('REMOTE_GIFT_CLEAR_UNAVAILABLE');
-      }
-      return clearRemoteGiftHistory();
-    },
+    rebuildGiftProjection: giftRuntime.rebuildGiftProjection,
+    clearRemoteGiftHistory: giftRuntime.clearRemoteGiftHistory,
     getDomainServices: () => domainServices,
     getMusicRuntime: () => musicRuntime,
     getBilibiliRuntime: () => bilibiliRuntime,
@@ -542,8 +531,7 @@ function createServerRuntime(runtimeOptions = {}) {
     wheelSessionService = null;
     applicationInitialized = false;
     publishOvertimeUpdate = () => {};
-    rebuildGiftProjection = () => false;
-    clearRemoteGiftHistory = null;
+    giftRuntime.configureGiftSync(null);
   }
 
   function closeHttpServer() {
@@ -765,8 +753,7 @@ function createServerRuntime(runtimeOptions = {}) {
     getApiToken: () => sessionToken,
     getFanProfiles: () => domainServices?.fans,
     getDailyBotLegacy: () => domainServices?.dailyBotLegacy,
-    ...createGiftExportRuntime({ getServices: () => domainServices,
-      getSettingsStore: () => settingsStore, broadcastSnapshot }),
+    ...giftRuntime,
     getSetting,
   };
 }

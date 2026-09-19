@@ -503,6 +503,29 @@ test('gift history, clear, and epoch-aware recovery use fixed abortable Device e
   );
 });
 
+test('gift card profiles use a fixed authenticated endpoint and encode only the cursor', async () => {
+  const requests = [];
+  const client = createRemoteLicenseClient({
+    baseUrl: 'https://review.example.test',
+    fetchImpl: async (url, init) => {
+      requests.push({ url, init });
+      return new Response(JSON.stringify({ ok: true }), { status: 200 });
+    },
+  });
+  await client.getGiftCardProfiles(null, 'device-token');
+  await client.getGiftCardProfiles('event:1&streamerId=other', 'device-token');
+  assert.equal(new URL(requests[0].url).search, '');
+  const url = new URL(requests[1].url);
+  assert.equal(url.pathname, '/api/device/gift-card-profiles');
+  assert.deepEqual([...url.searchParams], [['cursor', 'event:1&streamerId=other']]);
+  for (const { url: address, init } of requests) {
+    assert.equal(init.method, 'GET');
+    assert.equal(init.headers.Authorization, 'Bearer device-token');
+    assert.equal(init.body, undefined);
+    assert.equal(address.includes('device-token'), false);
+  }
+});
+
 test('external abort is not misreported as a request timeout', async () => {
   const client = createRemoteLicenseClient({
     baseUrl: 'https://api.lirahub.cn',

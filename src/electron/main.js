@@ -414,6 +414,10 @@ async function startDesktopApp() {
       getUid: getBilibiliUid,
     },
     giftSync: {
+      cardProfiles: (request) => {
+        if (!licenseManager?.isAuthorized()) throw new Error('LICENSE_NOT_AUTHORIZED');
+        return licenseManager.getGiftCardProfilesInternal(request);
+      },
       rebuild: () => remoteGiftController?.start() ?? false,
       clearRemote: () => {
         if (!licenseManager?.clearGiftHistoryInternal) {

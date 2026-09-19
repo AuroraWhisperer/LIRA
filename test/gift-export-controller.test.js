@@ -7,7 +7,7 @@ const path = require('node:path');
 const { createGiftExportController, exportLayout } = require('../src/electron/gift-export-controller');
 const { registerGiftExportIpc } = require('../src/electron/ipc/gift-export-ipc');
 
-function fixture(t, renderWidths = [1008], storedSettings = {}) {
+function fixture(t, renderWidths = [856], storedSettings = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-export-unit-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   let revision = 'a';
@@ -100,9 +100,9 @@ test('cancelling a batch keeps exactly saved files and destroys its sandboxed re
   assert.equal(result.cancelled, true); assert.equal(result.saved, 1);
   assert.deepEqual(fs.readdirSync(task.directory), ['礼物_001.png']);
   const png = fs.readFileSync(path.join(task.directory, '礼物_001.png'));
-  assert.equal(png.readUInt32BE(16), 1008);
+  assert.equal(png.readUInt32BE(16), 856);
   assert.equal(png.readUInt32BE(20), 144);
-  assert.equal(windows[0].options.width, 1008);
+  assert.equal(windows[0].options.width, 856);
   assert.equal(windows[0].destroyed, true);
   assert.equal(windows[0].options.webPreferences.sandbox, true);
   assert.equal(windows[0].options.webPreferences.nodeIntegration, false);
@@ -110,17 +110,17 @@ test('cancelling a batch keeps exactly saved files and destroys its sandboxed re
 });
 
 test('export resizes each PNG to its rendered quantity width and rejects invalid dimensions', async (t) => {
-  const { controller, windows } = fixture(t, [1400, 1008]);
+  const { controller, windows } = fixture(t, [1400, 856]);
   const task = await controller.prepare({});
   await controller.configure({ id: task.id, mode: 'separate', background: 'transparent' });
   const result = await controller.save({ id: task.id });
   assert.equal(result.ok, true);
   assert.equal(result.saved, 2);
-  assert.deepEqual(windows[0].sizes, [{ width: 1400, height: 144 }, { width: 1008, height: 144 }]);
+  assert.deepEqual(windows[0].sizes, [{ width: 1400, height: 144 }, { width: 856, height: 144 }]);
   assert.equal(fs.readFileSync(path.join(task.directory, '礼物_001.png')).readUInt32BE(16), 1400);
-  assert.equal(fs.readFileSync(path.join(task.directory, '礼物_002.png')).readUInt32BE(16), 1008);
+  assert.equal(fs.readFileSync(path.join(task.directory, '礼物_002.png')).readUInt32BE(16), 856);
   assert.equal(windows[0].destroyed, true);
-  for (const width of [1000, 1008.5, 9000]) {
+  for (const width of [855, 856.5, 9000]) {
     const invalid = fixture(t, [width]);
     const next = await invalid.controller.prepare({});
     const failed = await invalid.controller.save({ id: next.id });

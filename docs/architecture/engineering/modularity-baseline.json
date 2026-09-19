@@ -2,6 +2,16 @@
   "version": 1,
   "entries": [
     {
+      "path": "public/css/admin/other-features/fan-profiles.css",
+      "kind": "review",
+      "maxLines": 774,
+      "owner": "粉丝档案前端",
+      "reason": "2026-09-19 逐块复核：列表、详情、设置、提醒与既有编辑表单共用粉丝档案专属布局和主题 token；本次身份颜色只应用于姓名与身份文字，不扩展全局样式或引入领域判定。保留同一 CSS 入口及工作区已有编辑表单改动，避免在身份展示变更中改动不相关的样式加载。同步复核编辑表单新增的下拉菜单定位规则，均限定在 fan-profile-panel 内，未扩展其他业务样式。",
+      "removal": "下次扩展档案设置或编辑器样式时按独立面板拆出对应 CSS，并验证入口顺序；降至 600 行以内后移除此登记。",
+      "reviewBy": "2026-12-19",
+      "test": "test/frontend-fan-profiles.test.js"
+    },
+    {
       "path": "public/css/overlays/desktop.css",
       "kind": "review",
       "maxLines": 653,
@@ -220,16 +230,6 @@
       "removal": "出现独立可分离协议职责时提取；新增业务功能不继续加入本transport/controller。",
       "reviewBy": "2026-12-16",
       "test": "test/client-response-boundaries.test.js"
-    },
-    {
-      "path": "src/electron/license/remote-license-client.js",
-      "kind": "review",
-      "maxLines": 617,
-      "owner": "远程授权HTTP与SSE协议适配",
-      "reason": "2026-09-16 审计修复增量由根代理独立审阅：F06/F09：复核Retry-After头解析、错误元数据及SSE畸形响应的HTTP状态保留。2026-09-17 逐行复核新增欢迎设置两个固定 GET/PUT 方法：仅复用既有 request 与 token 参数，不持有欢迎业务、存储或重试策略；单独提取这两个声明只会增加透传包装，保留同一 transport facade。welcome-settings-ipc 与 remote-license-client 测试覆盖固定路径、参数和认证。 2026-09-17 PK 变更逐行复核：增加四行固定 GET/PUT request 声明，不新增网络策略、状态、业务判断或凭据处理。保留统一 HTTP facade；为两个声明新增单用途 wrapper 反而扩大边界。pk-report-settings-ipc 验证路径、方法、认证和精确请求。 2026-09-18 粉丝档案逐项复核：仅增加固定 getFanFacts 认证 GET 映射；游标、取消、代次与重试归独立 fan-profile-controller。保持统一传输 facade，避免为单个固定端点新增透传层。fan-profiles-ipc 保护同步生命周期。",
-      "removal": "2026-09-18 审阅流式响应限额：通用 HTTP 和 SSE 错误体复用既有歌曲读取器的字节预算/cancel/releaseLock，不新增业务状态；完整礼物目录保持原契约。response-budget 回归保护超限前停止读取及错误状态保留。出现独立可分离协议职责时提取；新增业务功能不继续加入本 transport/controller。",
-      "reviewBy": "2026-12-18",
-      "test": "test/remote-license-response-budget.test.js"
     },
     {
       "path": "src/music/wesing-capture-engine.js",

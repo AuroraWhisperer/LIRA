@@ -29,8 +29,8 @@
 
 .clock-card[data-clock-style='timeline-horizontal'] .clock-content {
   display: grid;
-  grid-template-columns: max-content auto max-content max-content;
-  grid-template-areas: 'year time period date';
+  grid-template-columns: max-content auto max-content;
+  grid-template-areas: 'year time date';
   align-content: center;
   align-items: center;
   justify-content: center;
@@ -39,38 +39,7 @@
 
 .clock-card[data-clock-style='timeline-horizontal'] .clock-kicker-row,
 .clock-card[data-clock-style='timeline-vertical'] .clock-kicker-row {
-  display: contents;
-}
-
-.clock-card[data-clock-style='timeline-horizontal'] .clock-label,
-.clock-card[data-clock-style='timeline-vertical'] .clock-label {
   display: none;
-}
-
-.clock-card[data-clock-style='timeline-horizontal'] .clock-period,
-.clock-card[data-clock-style='timeline-vertical'] .clock-period {
-  grid-area: period;
-  min-height: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  color: currentColor;
-  background: transparent;
-  box-shadow: none;
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.16em;
-}
-
-.clock-card[data-clock-style='timeline-horizontal'] .clock-period {
-  align-self: baseline;
-  margin-left: 8px;
-}
-
-.clock-card[data-clock-style='timeline-vertical'] .clock-period {
-  align-self: start;
-  justify-self: start;
-  margin: 8px 0 0 8px;
 }
 
 .clock-card[data-clock-style='timeline-horizontal'] .clock-year {
@@ -159,7 +128,7 @@
 .clock-card[data-clock-style='timeline-vertical'] .clock-content {
   display: grid;
   grid-template-columns: 1fr max-content 1fr;
-  grid-template-areas: '. year .' '. time period' '. date .';
+  grid-template-areas: '. year .' '. time .' '. date .';
   align-content: center;
   align-items: center;
   justify-items: center;

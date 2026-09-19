@@ -58,6 +58,7 @@ function createApiContext(options) {
     superChat: {
       handleAction: domainServices.superChats.handleAction,
     },
+    giftCards: options.giftCards,
     gifts: {
       getSelection: (options) => domainServices.gifts.getSelection(options),
       pauseDetection: domainServices.gifts.pauseDetection,

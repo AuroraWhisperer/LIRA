@@ -29,19 +29,29 @@ function createFanProfileController({
 
   function context() {
     const scope = fanScopeFor(licenseManager);
+    if (!scope || disposed) {
+      abortController?.abort();
+      rosterAbortController?.abort();
+      current = null;
+      syncStatus = 'offline';
+      return null;
+    }
     const epoch = licenseManager.getAuthorizationEpoch();
-    if (!scope || disposed) return null;
     if (!current || current.scope !== scope || current.epoch !== epoch) {
       abortController?.abort();
       rosterAbortController?.abort();
-      current = { scope, epoch, id: randomUUID() };
+      // Renewal preserves the page context while replacing the authorization
+      // generation used to fence in-flight work.
+      const id = current?.scope === scope ? current.id : randomUUID();
+      current = { scope, epoch, id };
       syncStatus = 'pending';
     }
     return current;
   }
 
   function same(captured) {
-    return context()?.id === captured.id;
+    const active = context();
+    return active?.id === captured.id && active.epoch === captured.epoch;
   }
 
   async function sync() {
@@ -92,10 +102,7 @@ function createFanProfileController({
   }
 
   const unsubscribe = licenseManager.onStateChanged(() => {
-    abortController?.abort();
-    rosterAbortController?.abort();
-    current = null;
-    syncStatus = 'offline';
+    context();
     void run();
   });
 
@@ -120,7 +127,7 @@ function createFanProfileController({
         signal: controller.signal,
       });
       if (!same(captured) || controller.signal.aborted)
-        throw new Error('主播账号已变化，本次名单没有导入，请重新打开档案。');
+        throw new Error('登录状态已变化，本次名单没有导入，请重新打开档案。');
       if (String(getRoomId() || '') !== roomId)
         throw new Error('直播间已变化，本次名单没有导入，请重新同步。');
       return response(
@@ -142,7 +149,7 @@ function createFanProfileController({
       throw new Error('档案请求无效。');
     const { action, payload = {}, contextId } = request;
     if (action !== 'open' && contextId !== captured.id)
-      throw new Error('主播账号已变化，请重新打开粉丝档案。');
+      throw new Error('登录状态已变化，请重新打开粉丝档案。');
     const service = getService();
     if (!service) throw new Error('档案存储尚未就绪。');
     if (action === 'sync-guard-roster') {

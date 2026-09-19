@@ -159,7 +159,7 @@ test('fan IPC rejects overlays, origin lookalikes, other ports and non-admin nav
   assert.equal(f.calls.execute.length, 0);
 });
 
-test('fan IPC rejects unauthenticated access and old contexts after streamer, origin or auth epoch changes', async (t) => {
+test('fan IPC rejects unauthenticated access and old contexts after streamer or origin changes', async (t) => {
   const f = fixture(t);
   let opened = f.invoke({ action: 'open' });
   f.state.authorized = false;
@@ -171,15 +171,77 @@ test('fan IPC rejects unauthenticated access and old contexts after streamer, or
   f.state.authorized = true;
   f.state.streamerId = 'streamer-b';
   f.state.epoch++;
-  assert.match(f.invoke({ action: 'save', contextId: opened.contextId, payload: { notes: '不得串档' } }).error, /账号已变化/);
+  assert.match(f.invoke({ action: 'save', contextId: opened.contextId, payload: { notes: '不得串档' } }).error, /登录状态已变化/);
   opened = f.invoke({ action: 'open' });
   assert.equal(f.calls.execute.at(-1).scope, SCOPE_B);
   f.state.origin = 'https://other.example';
-  assert.match(f.invoke({ action: 'save', contextId: opened.contextId }).error, /账号已变化/);
-  opened = f.invoke({ action: 'open' });
-  f.state.epoch++;
-  assert.match(f.invoke({ action: 'save', contextId: opened.contextId }).error, /账号已变化/);
+  assert.match(f.invoke({ action: 'save', contextId: opened.contextId }).error, /登录状态已变化/);
   assert.equal(f.calls.execute.some((call) => call.action === 'save'), false);
+});
+
+test('same-account renewal keeps the profile context and permits saving an already open editor', async (t) => {
+  for (const notify of [false, true]) {
+    const f = fixture(t, { initialized: false });
+    const opened = f.invoke({ action: 'open' });
+    f.state.epoch++;
+    if (notify) f.emit();
+    const saved = f.invoke({ action: 'save', contextId: opened.contextId,
+      payload: { id: 'fictional-profile', notes: '续期前已经输入的备注' } });
+    assert.equal(saved.ok, true);
+    assert.equal(saved.contextId, opened.contextId);
+    assert.equal(f.calls.execute.at(-1).scope, SCOPE_A);
+    assert.equal(f.calls.execute.at(-1).payload.notes, '续期前已经输入的备注');
+    assert.equal(f.invoke({ action: 'open' }).contextId, opened.contextId);
+    await f.controller.whenIdle();
+  }
+});
+
+test('an unchanged authorization notification preserves the context and an in-flight roster read', async (t) => {
+  const pending = deferred();
+  const f = fixture(t, { initialized: false, roster: () => pending.promise });
+  const opened = f.invoke({ action: 'open' });
+  const request = f.invoke({ action: 'sync-guard-roster', contextId: opened.contextId });
+  f.emit();
+  const aborted = f.calls.roster[0].signal.aborted;
+  pending.resolve({ roomId: '42', members: [] });
+  const result = await request;
+  await f.controller.whenIdle();
+  assert.equal(aborted, false);
+  assert.equal(result.ok, true);
+  assert.equal(f.calls.imports.length, 1);
+  assert.equal(f.invoke({ action: 'open' }).contextId, opened.contextId);
+});
+
+test('losing authorization invalidates the old context even when the same account logs back in', async (t) => {
+  for (const notify of [false, true]) {
+    const f = fixture(t, { initialized: false });
+    const opened = f.invoke({ action: 'open' });
+    f.state.authorized = false;
+    if (notify) f.emit();
+    else assert.match(f.invoke({ action: 'list', contextId: opened.contextId }).error, /先登录/);
+    f.state.authorized = true;
+    f.state.epoch++;
+    const saved = f.invoke({ action: 'save', contextId: opened.contextId });
+    assert.equal(saved.ok, false);
+    assert.match(saved.error, /登录状态已变化/);
+    assert.equal(f.calls.execute.some((call) => call.action === 'save'), false);
+    assert.notEqual(f.invoke({ action: 'open' }).contextId, opened.contextId);
+    await f.controller.whenIdle();
+  }
+});
+
+test('switching back to a previous streamer or server never revives its old context', (t) => {
+  for (const [key, value] of [['streamerId', 'streamer-b'], ['origin', 'https://other.example']]) {
+    const f = fixture(t);
+    const originalValue = f.state[key];
+    const opened = f.invoke({ action: 'open' });
+    f.state[key] = value;
+    assert.notEqual(f.invoke({ action: 'open' }).contextId, opened.contextId);
+    f.state[key] = originalValue;
+    assert.equal(f.invoke({ action: 'save', contextId: opened.contextId }).ok, false);
+    assert.equal(f.calls.execute.some((call) => call.action === 'save'), false);
+    assert.notEqual(f.invoke({ action: 'open' }).contextId, opened.contextId);
+  }
 });
 
 test('fan IPC uses main-process scope despite renderer-supplied owner fields and redacts raw storage errors', (t) => {
@@ -211,7 +273,7 @@ test('late remote responses cannot write after a streamer switch, even when tran
   f.state.epoch++;
   f.emit();
   assert.equal(oldSignal.aborted, true);
-  assert.match(f.invoke({ action: 'list', contextId: oldContext }).error, /账号已变化/);
+  assert.match(f.invoke({ action: 'list', contextId: oldContext }).error, /登录状态已变化/);
   delayed.resolve(f.page('streamer-a'));
   await oldOperation;
   await f.controller.whenIdle();

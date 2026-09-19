@@ -23,6 +23,15 @@ async function handleOverlayApi(context, principal, request, res) {
         return reply(context.gifts.getBlindBoxStats({ boxName: query.get('boxName') || '' }));
       case '/api/gifts/display-settings':
         return reply(readGiftDisplaySettings(context.settings.get()));
+      case '/api/gifts/card-profiles':
+        try {
+          return reply(await context.giftCards.getProfiles(query.get('viewRevision')));
+        } catch (error) {
+          if (['GIFT_VIEW_STALE', 'GIFT_SOURCE_UNAVAILABLE'].includes(error.code)) {
+            return sendJson(res, 409, { ok: false, error: error.message, code: error.code });
+          }
+          throw error;
+        }
       case '/api/gifts/history': {
         const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai' }).format(new Date());
         try {

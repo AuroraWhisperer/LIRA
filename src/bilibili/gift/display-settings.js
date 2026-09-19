@@ -2,8 +2,8 @@
 
 const GIFT_DISPLAY_SETTING = 'giftDisplayConfig';
 const DEFAULT_GIFT_DISPLAY = Object.freeze({
-  palette: 'bilibili-four', thresholds: [10000, 50000, 100000],
-  visibleRows: 3, intervalSeconds: 4, paused: false, lowPower: false,
+  palette: 'bilibili-four', thresholds: [3000, 10000, 100000],
+  visibleRows: 3, scrollSpeed: 1,
 });
 
 function validateGiftDisplaySettings(value) {
@@ -12,13 +12,17 @@ function validateGiftDisplaySettings(value) {
       !Number.isSafeInteger(v) || v <= 0 || (i > 0 && v <= a[i - 1]))) {
     throw new Error('三个分界金额必须大于 0、严格递增，且最多保留两位小数。');
   }
+  // Legacy intervals are all at least two seconds; retain their slowest supported speed.
+  const legacy = value.scrollSpeed === undefined && Number.isInteger(value.intervalSeconds) &&
+    value.intervalSeconds >= 2 && value.intervalSeconds <= 60 &&
+    typeof value.paused === 'boolean' && typeof value.lowPower === 'boolean';
+  const scrollSpeed = legacy ? 1 : value.scrollSpeed;
   if (!Number.isInteger(value.visibleRows) || value.visibleRows < 1 || value.visibleRows > 10 ||
-    !Number.isInteger(value.intervalSeconds) || value.intervalSeconds < 2 || value.intervalSeconds > 60 ||
-    typeof value.paused !== 'boolean' || typeof value.lowPower !== 'boolean') {
-    throw new Error('显示行数须为 1–10，间隔须为 2–60 秒。');
+    !Number.isInteger(scrollSpeed) || scrollSpeed < 1 || scrollSpeed > 50) {
+    throw new Error('显示行数须为 1–10 的整数，滚动速率须为 1–50 的整数。');
   }
   return { palette: 'bilibili-four', thresholds: [...value.thresholds], visibleRows: value.visibleRows,
-    intervalSeconds: value.intervalSeconds, paused: value.paused, lowPower: value.lowPower };
+    scrollSpeed };
 }
 
 function readGiftDisplaySettings(settings) {

@@ -19,7 +19,10 @@ const { buildReminders } = require('./reminders');
 const { createFanBackupService } = require('./profile-transfer');
 const { createFanFactConsumer } = require('./profile-facts');
 const { createFanMergeService } = require('./profile-merge');
-const { createGuardRosterImporter } = require('./guard-roster-import');
+const {
+  createGuardRosterImporter,
+  getGuardRoster,
+} = require('./guard-roster-import');
 
 function createFanProfileService({
   store,
@@ -65,6 +68,7 @@ function createFanProfileService({
     const profile = requireProfile(scope, id);
     const records = store.records.list(scope, id);
     const membership = summarizeMembership(records, now());
+    const guardRoster = getGuardRoster(profile, records);
     const songs = records.filter(
       (record) => record.kind === 'song' && !record.data.excluded,
     );
@@ -89,6 +93,8 @@ function createFanProfileService({
       songs,
       preferences,
       membership,
+      guardRoster,
+      currentGuardLevel: guardRoster ? guardRoster.level : membership.level,
       musicSummary: preferences.length
         ? preferences
             .map(
@@ -308,6 +314,7 @@ function createFanProfileService({
       .map((profile) => {
         const records = recordsByProfile.get(profile.id) || [];
         const membership = summarizeMembership(records, at);
+        const guardRoster = getGuardRoster(profile, records);
         const medalLevel = records
           .filter((r) => r.original.evidence === 'guard-roster')
           .sort((a, b) =>
@@ -322,6 +329,8 @@ function createFanProfileService({
         return {
           ...profile,
           membership,
+          guardRoster,
+          currentGuardLevel: guardRoster ? guardRoster.level : membership.level,
           medalLevel:
             Number.isSafeInteger(medalLevel) && medalLevel >= 0
               ? medalLevel
@@ -343,14 +352,17 @@ function createFanProfileService({
         return (
           filters.every((filter) => {
             if (filter === 'active')
-              return profile.membership.status === 'active';
+              return Boolean(profile.currentGuardLevel);
             if (filter === 'past')
               return (
                 profile.membership.hasHistory &&
-                profile.membership.status !== 'active'
+                !profile.currentGuardLevel
               );
             if (filter === 'unknown')
-              return ['unknown', 'pending'].includes(profile.membership.status);
+              return (
+                profile.membership.status === 'pending' ||
+                (!profile.guardRoster && profile.membership.status === 'unknown')
+              );
             return true;
           })
         );

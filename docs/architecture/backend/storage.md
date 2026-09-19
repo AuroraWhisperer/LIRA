@@ -80,6 +80,8 @@ data/
 
 requests 追加 stable_id（唯一 UUID）、owner_scope、identity_type；旧流水为空不猜归属。成功点歌事务同步写独立档案歌曲快照，队列状态与对应档案状态同事务更新；done 只表示队列已处理。确认旧流水归属后才认领 UUID。六表不参与普通 retention 或 clear-all；档案专用删除/恢复操作才修改。备份 lira-fan-profiles v1 含原始依据、修订、提醒和抑制，恢复先校验预览摘要并保存快照；见 [需求](../../../specs/fan-profiles.md)。
 
+档案 JSON 可选 `guardRoster: { roomId, ownerUid, observedAt, level }` 保存最近完整名单确认的身份，`level` 为 1/2/3 或明确缺席时的 null。导入与原始观察在同一事务提交，缺席不删除记录或修改有效期；未知身份、跨房间缺席和迟到快照不能清除较新的已知身份。旧档案无需 schema 迁移，缺字段时从原有名单观察兼容读取；完整备份保留并验证该可选字段。
+
 共 **42 张业务表 + 每库 1 张 `schema_version`**。文件常量 `DB_FILE_NAMES`、五个既有库的 DDL 与抽奖库 DDL 分别位于 [database.js](../../../src/storage/database.js)、[schema.js](../../../src/storage/schema.js) 和 [dynamic-lottery-schema.js](../../../src/storage/dynamic-lottery-schema.js)。
 
 ### 3.1 song-request-data.db(点歌库,20 表)

@@ -115,10 +115,12 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 
 开场动画、时钟、小游戏和加班机管理界面由 `toolbox-lifecycle.js` 在主页面与对应功能同时选中时动态加载。`other.js` 经注入的 `onFeatureSelected` 通知选择，主导航经 `setPage` 通知可见性；同一轮程序导航只激活最终选择。记忆选择也走此路径，重复进入复用已初始化模块，离开或关闭窗口后不执行迟到的初始化。首次进入使用各模块现有 HTTP 读取当前配置/会话，加班机同时从 StateService 取当前礼物检测与直播状态。服务器计时、游戏会话、抽奖授权及必要实时服务保持原生命周期。
 
-1. `await Theme.loadThemeConfig()` 预载主题配置
+桌面入口在解析正文前同时设置 `html` 和 `body` 的桌面样式。初始化期间保留标题栏与窗口按钮，显示启动提示；工作区使用 `visibility` 暂时隐藏以保留导航测量尺寸，在初始状态和歌库读取、主题预设渲染完成后显示。初始化失败也会解除隐藏并显示错误提示。
+
+1. 初始化桌面外壳与设置表单入口；窗口按钮在账号信息读取前绑定
 2. `initMainPages()` 绑定主页面 Tab(按 hash 选中初始页)
 3. `formsService.initWorkspaceControls()` + `initTabs()`(播放器默认收起、ESC/空格快捷键)
-4. 监听 `playback-module-loaded` 事件(播放助手模块异步加载完成后)调 `initPlaybackAssistant(options)`,把浏览器基础设施能力注入播放控制器
+4. `await Theme.loadThemeConfig()` 预载主题配置，再监听 `playback-module-loaded` 事件(播放助手模块异步加载完成后)调 `initPlaybackAssistant(options)`,把浏览器基础设施能力注入播放控制器
 5. 通过 `legacy-admin-bridge` 初始化迁移期常驻模块；队列通过具名 ESM 初始化，四个可选工具编辑器通过上述激活入口初始化
 6. `stateService.connectSocket()` + `await stateService.reloadAll()`(先 WS 后 HTTP 兜底)
 7. 渲染主题预设卡片
@@ -190,7 +192,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 
 ## 6. 百宝箱(otherAssistantPage)
 
-礼物姬由 [gift-assistant.js](../../../public/js/admin/gift-assistant.js) 在首次打开时初始化，按「礼物边框」「滚动礼物」「图片导出」三个分区呈现。滚动礼物分区拥有显示行数、间隔、暂停、低功耗、OBS 地址和共用词条价格配色；草稿切换分区时保留，保存后生效，取消修改恢复已保存值。图片导出分区独立读取和保存桌面导出默认设置，不依赖已选礼物。最近礼物与全部礼物记录仅负责查看、筛选、选择、预览和执行导出；已打开的预览保留本次输出设置与记录快照。桌面接口见 [preload 桥](../desktop/preload.md#礼物图片导出设置)。
+礼物姬由 [gift-assistant.js](../../../public/js/admin/gift-assistant.js) 在首次打开时初始化，按「礼物边框」「滚动礼物」「图片导出」三个分区呈现。滚动礼物分区拥有显示行数、滚动速率（1–50，线性对应每行 2–0.1 秒）、OBS 地址和共用词条价格配色，移除暂停和低功耗选项；草稿切换分区时保留，保存后生效，取消修改恢复已保存值。图片导出分区独立读取和保存桌面导出默认设置，不依赖已选礼物。最近礼物与全部礼物记录仅负责查看、筛选、选择、预览和执行导出；已打开的预览保留本次输出设置与记录快照。滚动与导出共用今日卡片合并规则，导出在分页前按 UID、礼物 ID 和礼物名合并所选今日记录，并采用该用户今日最新已知昵称/等级、累计数量和金额配色；预览区同时显示原始选择条数、卡片数和 PNG 数。历史日期、原始流水及统计不合并，身份资料未就绪时说明部分礼物尚未合并。桌面接口见 [preload 桥](../desktop/preload.md#礼物图片导出设置)。
 
 `other.js` 只负责**功能导航**(侧边栏整体可折叠、四个功能分组可独立折叠、方向键/WAI-ARIA tab 模式、localStorage 记住整栏折叠与选中项);[shell-start.html](../../../public/pages/admin/toolbox/shell-start.html)将不变的功能 ID 按直播互动、直播画面、主播工作、软件与帮助四组呈现,各面板仍由独立模块初始化:
 

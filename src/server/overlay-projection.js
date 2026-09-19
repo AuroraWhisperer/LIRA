@@ -113,11 +113,15 @@ const RESPONSE_SCHEMAS = {
   },
   'gift-feed': {
     '/api/gifts/display-settings': {
-      ...fields('palette visibleRows intervalSeconds paused lowPower'), thresholds: [true],
+      ...fields('palette visibleRows scrollSpeed'), thresholds: [true],
     },
     '/api/gifts/history': {
       ...fields('viewRevision nextCursor partial'),
-      items: [{ ...fields('eventId artworkPath'), gift: fields('userName giftName giftId giftVariantId coinType unitPrice num avatarUrl guardLevel') }],
+      items: [{ ...fields('eventId artworkPath'), gift: fields('userName giftName giftId giftVariantId coinType unitPrice num avatarUrl guardLevel createdAt') }],
+    },
+    '/api/gifts/card-profiles': {
+      ...fields('viewRevision day partial'),
+      items: [fields('eventId senderId userName avatarUrl guardLevel createdAt')],
     },
     '/api/overtime/gifts/catalog': {
       gifts: [{ ...fields('id name variantId imagePath'), giftIdentity: fields('variantId') }],

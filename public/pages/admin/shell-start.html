@@ -5,10 +5,10 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>LIRA</title>
-    <!-- 在 CSS 加载前立即设置桌面主题，避免粉色闪烁 -->
+    <!-- 首屏先应用桌面主题，内容在初始化完成后显示。 -->
     <script>
       if (new URLSearchParams(location.search).get('desktop') === '1') {
-        document.documentElement.classList.add('desktop-shell');
+        document.documentElement.classList.add('desktop-shell', 'admin-starting');
       }
     </script>
     <link rel="stylesheet" href="/css/styles-base.css?v=20260728-01" />
@@ -23,6 +23,12 @@
     />
   </head>
   <body>
+    <script>
+      if (document.documentElement.classList.contains('desktop-shell')) {
+        document.body.classList.add('desktop-shell');
+      }
+    </script>
+    <div class="admin-startup-status" role="status">正在启动 LIRA…</div>
     <main class="app-shell">
       <header class="topbar">
         <div class="titlebar-brand">

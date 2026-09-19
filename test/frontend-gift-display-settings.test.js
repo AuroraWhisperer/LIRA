@@ -17,7 +17,7 @@ async function openSettings(t) {
     document.getElementById('otherGiftFeature').hidden = false;
     window.savedDisplay = {
       palette: 'bilibili-four', thresholds: [10000, 50000, 100000],
-      visibleRows: 3, intervalSeconds: 4, paused: false, lowPower: false,
+      visibleRows: 3, scrollSpeed: 26,
     };
     window.displaySaves = [];
     window.fetch = async (url, options = {}) => {
@@ -38,6 +38,27 @@ async function openSettings(t) {
   await page.waitForFunction(() => !document.getElementById('giftDisplayFields').disabled);
   return page;
 }
+
+test('gift feed settings save speed and remove the pause and low-power options', async (t) => {
+  const page = await openSettings(t);
+  const speed = page.getByRole('spinbutton', { name: '滚动速率（1–50）', exact: true });
+  assert.equal(await speed.inputValue(), '26');
+  assert.equal(await page.locator('#giftFeedPaused, #giftFeedLowPower, #giftFeedInterval').count(), 0);
+  for (const invalid of ['0', '51', '1.5']) {
+    await speed.fill(invalid);
+    assert.equal(await speed.evaluate((input) => input.checkValidity()), false);
+  }
+  await speed.fill('50');
+  await page.getByRole('button', { name: '保存滚动与样式设置', exact: true }).click();
+  await page.waitForFunction(() => window.displaySaves.length === 1);
+  assert.deepEqual(await page.evaluate(() => window.savedDisplay), {
+    palette: 'bilibili-four', thresholds: [10000, 50000, 100000], visibleRows: 3, scrollSpeed: 50,
+  });
+  await page.getByRole('button', { name: '恢复默认', exact: true }).click();
+  assert.equal(await speed.inputValue(), '1');
+  await page.getByRole('button', { name: '取消修改', exact: true }).click();
+  assert.equal(await speed.inputValue(), '50');
+});
 
 test('gift range endpoints synchronize both ways and save exact cent boundaries', async (t) => {
   const page = await openSettings(t);
@@ -64,7 +85,7 @@ test('defaults reset both range endpoints and cancelling discards the draft', as
   await page.locator('#giftTierEnd0').fill('25');
   await page.getByRole('button', { name: '恢复默认', exact: true }).click();
   assert.deepEqual(await page.locator('[data-gift-boundary]').evaluateAll((inputs) =>
-    inputs.map((input) => input.value)), ['100', '100', '500', '500', '1000', '1000']);
+    inputs.map((input) => input.value)), ['30', '30', '100', '100', '1000', '1000']);
   await page.locator('#giftTierEnd0').fill('');
   assert.equal(await page.locator('#giftTier1').inputValue(), '');
   assert.equal(await page.locator('#giftDisplayForm').evaluate((form) => form.checkValidity()), false);
@@ -122,6 +143,33 @@ test('export defaults can be edited without selecting gifts and remain available
   assert.deepEqual(await page.evaluate(() => window.exportCalls), [null, { mode: 'separate' }, { background: 'white' }, { directoryAction: 'choose' }, { directoryAction: 'default' }]);
 });
 
+test('gift banners use the sender avatar proxy and distinguish captain from unknown identity', async (t) => {
+  const page = await fixture(t, 'gift-display');
+  const banners = await page.evaluate(async () => {
+    const { createGiftBanner } = await import('/js/shared/gift-banner.js');
+    window.__API_TOKEN__ = 'synthetic-overlay-token';
+    return [3, 2, 1, 0, null].map((guardLevel) => {
+      const banner = createGiftBanner({ eventId: String(guardLevel), gift: {
+        giftId: 'sample', giftName: '舰长', userName: '测试观众', unitPrice: 2, num: 1,
+        avatarUrl: 'https://i0.hdslb.com/bfs/face/synthetic.webp', guardLevel,
+      } }, { thresholds: [3000, 10000, 100000] });
+      const avatar = new URL(banner.querySelector('.gift-banner-avatar').src);
+      return { path: avatar.pathname, source: avatar.searchParams.get('url'), token: avatar.searchParams.get('token'),
+        frame: banner.querySelector('.gift-banner-frame')?.getAttribute('src') || null };
+    });
+  });
+  for (const banner of banners) {
+    assert.equal(banner.path, '/api/bilibili/avatar');
+    assert.equal(banner.source, 'https://i0.hdslb.com/bfs/face/synthetic.webp');
+    assert.equal(banner.token, 'synthetic-overlay-token');
+  }
+  assert.deepEqual(banners.map((banner) => banner.frame), [
+    '/img/overlays/danmaku-guard/bubble-captain-frame.webp',
+    '/img/overlays/danmaku-guard/bubble-admiral-frame.webp',
+    '/img/overlays/danmaku-guard/bubble-governor-frame.webp', null, null,
+  ]);
+});
+
 test('gift banners fit long names and inset the avatar inside the rounded color bar', async (t) => {
   const page = await fixture(t, 'gift-display');
   await page.setContent('<div id="giftStylePreview" class="gift-banner-stage"></div>');
@@ -153,7 +201,7 @@ test('gift banners fit long names and inset the avatar inside the rounded color 
     };
   });
   assert.deepEqual(layout, {
-    width: 504, height: 72, avatarWidth: 52, avatarInsets: [6, 6, 6],
+    width: 428, height: 72, avatarWidth: 52, avatarInsets: [6, 6, 6],
     nameFits: true, nameShrinks: true, giftFits: true, textClearsArtwork: true, quantityFits: true,
   });
 });
@@ -165,7 +213,7 @@ test('gift names fit their full text at normal and PNG scale while short names k
   const result = await page.evaluate(async () => {
     const { createGiftBanner, fitGiftBannerNames } = await import('/js/shared/gift-banner.js');
     await import('/js/overlays/gift-export.js');
-    const names = ['短昵称', '中'.repeat(15), '很长的中文昵称'.repeat(6), 'WideW_1234567890'.repeat(4), '观众🎉🚀_Viewer'.repeat(5)];
+    const names = ['短昵称', '中'.repeat(10), '很长的中文昵称'.repeat(6), 'WideW_1234567890'.repeat(4), '观众🎉🚀_Viewer'.repeat(5)];
     const items = names.map((userName, index) => ({
       eventId: String(index), gift: { giftId: 'sample', giftName: '礼物', userName, unitPrice: 2, num: 1 },
     }));
@@ -191,7 +239,7 @@ test('gift names fit their full text at normal and PNG scale while short names k
   assert.equal(result.normal[0].fontSize, 18);
   assert.equal(result.normal[1].fontSize, 18);
   assert.ok(result.normal.slice(2).every((name) => name.fontSize > 0 && name.fontSize < 18));
-  assert.equal(result.output.width, 1008);
+  assert.equal(result.output.width, 856);
 });
 
 test('long gift counts expand PNG and OBS canvases without moving artwork or squeezing text', async (t) => {
@@ -231,8 +279,8 @@ test('long gift counts expand PNG and OBS canvases without moving artwork or squ
       }),
     };
   });
-  assert.deepEqual(result.singles[0], { width: 1008, height: 144 });
-  assert.equal(result.rows[0].width, 504);
+  assert.deepEqual(result.singles[0], { width: 856, height: 144 });
+  assert.equal(result.rows[0].width, 428);
   for (let index = 0; index < result.rows.length; index += 1) {
     const row = result.rows[index];
     assert.equal(result.singles[index].width, Math.ceil(row.width * 2));

@@ -19,6 +19,9 @@ test('manual roster import creates basic profiles even with automatic updates di
   assert.equal(p.alias, '');
   assert.ok(p.avatar);
   assert.equal(p.membership.observedLevel, 3);
+  assert.equal(p.currentGuardLevel, 3);
+  assert.equal(f.run('list', { filters: ['active'] }).profiles.length, 1);
+  assert.equal(f.run('list', { filters: ['unknown'] }).profiles.length, 0);
   assert.equal(p.membership.expiry, null);
   assert.equal(p.membership.totalDays, null);
   assert.equal(p.membership.continuousDays, null);
@@ -73,8 +76,81 @@ test('manual roster import is atomic and does not infer absence as an expired me
   ])));
   assert.equal(f.run('list').profiles.length, 0);
   f.service.importGuardRoster(SCOPE, roster());
-  f.service.importGuardRoster(SCOPE, roster([]));
-  assert.equal(f.run('find', { identity: IDENTITY }).records.length, 1);
+  f.service.importGuardRoster(SCOPE, { ...roster([]), observedAt: '2026-09-18T05:00:00.000Z' });
+  const missing = f.run('find', { identity: IDENTITY });
+  assert.equal(missing.records.length, 1);
+  assert.equal(missing.currentGuardLevel, null);
+  assert.equal(missing.membership.expiry, null);
+  assert.equal(missing.membership.totalDays, null);
+  assert.equal(f.run('list', { filters: ['active'] }).profiles.length, 0);
+  assert.equal(f.run('list', { filters: ['past'] }).profiles.length, 1);
+  assert.equal(f.run('list', { filters: ['unknown'] }).profiles.length, 0);
+});
+
+test('current roster roles survive absence, rejoining, restart and backup without changing private history', (t) => {
+  const f = fanFixture(t);
+  const complete = f.create({ summary: '常听民谣', notes: '保留备注', birthday: { monthDay: '09-19' } });
+  f.record(complete.id, 'note', { body: '一起聊过旅行' });
+  const members = [3, 2, 1].map((level, index) => ({ uid: `90000000${index + 1}`, name: `虚构粉丝${index + 1}`, level }));
+  f.service.importGuardRoster(SCOPE, roster(members));
+  for (const member of members) {
+    const p = f.run('find', { identity: { ...IDENTITY, value: member.uid } });
+    assert.equal(p.currentGuardLevel, member.level);
+    assert.equal(p.membership.expiry, null);
+  }
+  const at = '2026-09-18T05:00:00.000Z';
+  f.setNow(at);
+  f.service.importGuardRoster(SCOPE, { ...roster(members.slice(2)), observedAt: at });
+  const remaining = f.run('list', { filters: ['active'] }).profiles;
+  assert.equal(remaining.length, 1);
+  assert.equal(remaining[0].currentGuardLevel, 1);
+  assert.equal(f.detail(complete.id).notes, '保留备注');
+  assert.equal(f.detail(complete.id).records.length, 2);
+  assert.equal(f.run('find', { identity: { ...IDENTITY, value: '900000002' } }).currentGuardLevel, null);
+  f.restart();
+  assert.equal(f.detail(complete.id).currentGuardLevel, null);
+  const backup = f.run('backup');
+  const later = '2026-09-18T06:00:00.000Z';
+  f.setNow(later);
+  f.service.importGuardRoster(SCOPE, { ...roster(members), observedAt: later });
+  assert.equal(f.detail(complete.id).currentGuardLevel, 3);
+  assert.equal(f.detail(complete.id).records.length, 2, 'same-day rejoining does not duplicate unchanged historical evidence');
+  const preview = f.run('preview-restore', { backup });
+  f.run('restore', { backup, ...preview, conflicts: 'replace' });
+  assert.equal(f.detail(complete.id).currentGuardLevel, null);
+  assert.equal(f.run('list', { filters: ['active'] }).profiles[0].currentGuardLevel, 1);
+});
+
+test('unidentified roster members, other rooms and stale imports do not clear newer current roles', (t) => {
+  const f = fanFixture(t);
+  f.service.importGuardRoster(SCOPE, roster());
+  const p = f.run('find', { identity: IDENTITY });
+  f.service.importGuardRoster(SCOPE, { ...roster([]), skipped: 1, observedAt: '2026-09-18T05:00:00.000Z' });
+  assert.equal(f.detail(p.id).currentGuardLevel, 3);
+  f.service.importGuardRoster(SCOPE, { ...roster([]), roomId: '5678', ownerUid: '88', observedAt: '2026-09-18T06:00:00.000Z' });
+  assert.equal(f.detail(p.id).currentGuardLevel, 3);
+  f.service.importGuardRoster(SCOPE, { ...roster([{ uid: IDENTITY.value, level: 2 }]), observedAt: '2026-09-18T07:00:00.000Z' });
+  f.service.importGuardRoster(SCOPE, { ...roster([]), observedAt: '2026-09-18T06:00:00.000Z' });
+  assert.equal(f.detail(p.id).currentGuardLevel, 2);
+  const before = f.detail(p.id);
+  assert.throws(() => f.service.importGuardRoster(SCOPE, { ...roster([
+    { uid: IDENTITY.value, level: 1 }, { uid: '900000002', level: 4 },
+  ]), observedAt: '2026-09-18T08:00:00.000Z' }));
+  assert.deepEqual(f.detail(p.id), before);
+});
+
+test('old backups derive roster roles without requiring new fields and reject invalid new snapshots', (t) => {
+  const f = fanFixture(t);
+  f.service.importGuardRoster(SCOPE, roster());
+  const backup = f.run('backup');
+  for (const p of backup.profiles) delete p.guardRoster;
+  const preview = f.run('preview-restore', { backup });
+  f.run('restore', { backup, ...preview, conflicts: 'replace' });
+  assert.equal(f.run('find', { identity: IDENTITY }).currentGuardLevel, 3);
+  assert.equal(f.run('list', { filters: ['active'] }).profiles.length, 1);
+  const invalid = f.run('backup');
+  invalid.profiles[0].guardRoster = { roomId: '1234', ownerUid: '99', observedAt: NOW, level: 4 };
+  assert.throws(() => f.run('preview-restore', { backup: invalid }), /大航海名单/);
 });
 
 test('repeated same-day imports retain an actual level change back to a previously observed level', (t) => {

@@ -1,6 +1,7 @@
 import { BANNER_HEIGHT, BANNER_GAP, createGiftBanner, fitGiftBannerNames, loadGiftArtworkCatalog } from '../shared/gift-banner.js';
-import { createGiftFeedState, scanTodayGifts, shanghaiToday } from '../shared/gift-feed-state.js';
+import { createGiftFeedState, giftFeedRowDurationMs, scanTodayGifts, shanghaiToday } from '../shared/gift-feed-state.js';
 import { createOverlaySocket } from './socket-client.js';
+import { buildGiftCards } from '../shared/gift-card-model.js';
 
 const state = createGiftFeedState();
 const stage = document.getElementById('giftFeedStage');
@@ -9,8 +10,10 @@ const status = document.getElementById('giftFeedStatus');
 const preview = new URLSearchParams(location.search).get('preview') === '1';
 document.body.classList.toggle('gift-feed-preview', preview);
 status.hidden = !preview;
-let config = { thresholds: [10000, 50000, 100000], visibleRows: 3, intervalSeconds: 4, paused: false, lowPower: false };
+let config = { thresholds: [3000, 10000, 100000], visibleRows: 3, scrollSpeed: 1 };
 let catalog = [];
+let catalogVersion = 0;
+let rendered = new Map();
 let day = shanghaiToday();
 let revision = null;
 let pending = null;
@@ -20,8 +23,9 @@ let disposed = false;
 let generation = 0;
 let controller = null;
 let refreshTimer;
-let playTimer;
-let animation;
+let frame = null;
+let previousTime = null;
+let progress = 0;
 
 async function request(url, signal) {
   const response = await fetch(url, { signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]) });
@@ -32,15 +36,43 @@ async function request(url, signal) {
 
 function render() {
   viewport.style.height = `${config.visibleRows * BANNER_HEIGHT + (config.visibleRows - 1) * BANNER_GAP}px`;
-  stage.replaceChildren(...state.visible(config.visibleRows, !config.lowPower).map((item) => createGiftBanner(item, config, catalog)));
-  fitGiftBannerNames(stage);
+  const next = new Map();
+  const added = [];
+  for (const [index, item] of state.visible(config.visibleRows, true).entries()) {
+    const signature = JSON.stringify([item, config.thresholds, catalogVersion]);
+    let row = rendered.get(item.eventId);
+    if (row?.signature !== signature) {
+      row = { signature, node: createGiftBanner(item, config, catalog) };
+      added.push(row.node);
+    }
+    next.set(item.eventId, row);
+    if (stage.children[index] !== row.node) stage.insertBefore(row.node, stage.children[index] || null);
+  }
+  for (const [id, row] of rendered) {
+    if (next.get(id)?.node !== row.node) row.node.remove();
+  }
+  rendered = next;
+  for (const node of added) fitGiftBannerNames(node);
+  const scrolling = state.count > config.visibleRows;
+  stage.style.willChange = scrolling ? 'transform' : '';
+  if (!scrolling) {
+    stopScrolling();
+    progress = 0;
+    stage.style.transform = 'translateY(0)';
+  } else if (frame === null && !disposed && !document.hidden) {
+    frame = requestAnimationFrame(advance);
+  }
+}
+
+function stopScrolling() {
+  cancelAnimationFrame(frame);
+  frame = null;
+  previousTime = null;
 }
 
 function reset() {
   generation += 1;
   controller?.abort();
-  animation?.cancel();
-  animation = null;
   pending = null;
   revision = null;
   state.replace([]);
@@ -67,9 +99,8 @@ async function refresh() {
     ]);
     if (current !== generation) return;
     config = nextConfig;
+    if (JSON.stringify(catalog) !== JSON.stringify(nextCatalog)) catalogVersion += 1;
     catalog = nextCatalog;
-    animation?.cancel();
-    animation = null;
     render(); // Saved colors also update a single static row.
     const result = await scanTodayGifts({ request, signal: controller.signal, day,
       onRevision(next) {
@@ -78,9 +109,15 @@ async function refresh() {
         revision = next;
       } });
     if (current !== generation) return;
-    pending = result.items;
-    if (state.count <= config.visibleRows || config.paused) { state.replace(pending); pending = null; render(); }
-    status.textContent = `${day}（北京时间）· ${result.items.length ? `${result.items.length} 条${result.partial ? '已同步礼物，仍可能补齐' : '礼物'}` : '今天暂无礼物'}`;
+    const profiles = await request(`/api/gifts/card-profiles?${new URLSearchParams({ viewRevision: revision })}`, controller.signal);
+    if (current !== generation) return;
+    if (profiles.day !== day || profiles.viewRevision !== revision) {
+      throw Object.assign(new Error('礼物来源或日期已变更'), { code: 'GIFT_VIEW_STALE' });
+    }
+    const cards = buildGiftCards(result.items, { day, profiles: profiles.items });
+    pending = cards;
+    if (state.count <= config.visibleRows || document.hidden) { state.replace(pending); pending = null; render(); }
+    status.textContent = `${day}（北京时间）· ${cards.length ? `${cards.length} 张卡片（${result.items.length} 条${result.partial ? '已同步礼物，仍可能补齐' : '礼物'}）` : '今天暂无礼物'}${profiles.partial ? '；身份资料暂不可用，部分礼物尚未合并。' : ''}`;
   } catch (error) {
     if (current !== generation || disposed) return;
     if (['GIFT_SOURCE_UNAVAILABLE', 'GIFT_VIEW_STALE'].includes(error.code)) reset();
@@ -91,20 +128,21 @@ async function refresh() {
   }
 }
 
-async function advance() {
-  try {
-    if (!config.paused && state.count > config.visibleRows) {
-      if (!config.lowPower) {
-        animation = stage.animate([{ transform: 'translateY(0)' }, { transform: `translateY(-${BANNER_HEIGHT + BANNER_GAP}px)` }], { duration: 400, easing: 'ease-in-out' });
-        await animation.finished.catch(() => {});
-        if (!animation || disposed) return;
-        animation = null;
-      }
-      state.advance(config.lowPower ? config.visibleRows : 1);
-    }
+function advance(time) {
+  if (disposed || document.hidden) { stopScrolling(); return; }
+  if (previousTime !== null) progress += (time - previousTime) / giftFeedRowDurationMs(config.scrollSpeed);
+  previousTime = time;
+  const steps = Math.floor(progress);
+  if (steps > 0) {
+    progress -= steps;
+    state.advance(steps);
     if (pending) { state.replace(pending); pending = null; }
     render();
-  } finally { if (!disposed) playTimer = setTimeout(advance, config.intervalSeconds * 1000); }
+  }
+  if (frame !== null) {
+    stage.style.transform = `translate3d(0, -${progress * (BANNER_HEIGHT + BANNER_GAP)}px, 0)`;
+    frame = requestAnimationFrame(advance);
+  }
 }
 
 const socket = createOverlaySocket({
@@ -119,17 +157,19 @@ const socket = createOverlaySocket({
 });
 socket.start();
 scheduleRefresh();
-playTimer = setTimeout(advance, config.intervalSeconds * 1000);
 const reconcileTimer = setInterval(scheduleRefresh, 30000);
 const dayTimer = setInterval(() => {
   const nextDay = shanghaiToday();
   if (day !== nextDay) { day = nextDay; reset(); scheduleRefresh(); }
 }, 1000);
-document.addEventListener('visibilitychange', () => { if (!document.hidden) scheduleRefresh(); });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) stopScrolling();
+  else { render(); scheduleRefresh(); }
+});
 window.addEventListener('pagehide', () => {
   disposed = true;
   reset();
   socket.dispose();
   clearInterval(dayTimer); clearInterval(reconcileTimer);
-  clearTimeout(refreshTimer); clearTimeout(playTimer);
+  clearTimeout(refreshTimer);
 }, { once: true });

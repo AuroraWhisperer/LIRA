@@ -74,6 +74,7 @@ export function createSettingsForm({
   }
 
   async function init() {
+    initDesktopControls();
     await initLicenseAccountDevice();
     documentRef
       .getElementById('settingsForm')
@@ -126,7 +127,6 @@ export function createSettingsForm({
 
     blindboxSettings.init();
     initWindowActions();
-    initDesktopControls();
   }
 
   function collectSettings() {

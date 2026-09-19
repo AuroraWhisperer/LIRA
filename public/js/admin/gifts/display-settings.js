@@ -18,8 +18,7 @@ export function createGiftDisplaySettings() {
 
   function values() {
     return { palette: 'bilibili-four', thresholds: [1, 2, 3].map((n) => Number(get(`giftTier${n}`).value) * 100),
-      visibleRows: Number(get('giftFeedRows').value), intervalSeconds: Number(get('giftFeedInterval').value),
-      paused: get('giftFeedPaused').checked, lowPower: get('giftFeedLowPower').checked };
+      visibleRows: Number(get('giftFeedRows').value), scrollSpeed: Number(get('giftFeedSpeed').value) };
   }
 
   function preview() {
@@ -37,14 +36,12 @@ export function createGiftDisplaySettings() {
       get(`giftTierEnd${n - 1}`).value = value.thresholds[n - 1] / 100;
     });
     get('giftFeedRows').value = value.visibleRows;
-    get('giftFeedInterval').value = value.intervalSeconds;
-    get('giftFeedPaused').checked = value.paused;
-    get('giftFeedLowPower').checked = value.lowPower;
+    get('giftFeedSpeed').value = value.scrollSpeed;
     preview();
   }
 
   get('giftDisplayCancel')?.addEventListener('click', () => { fill(config); get('giftDisplayError').textContent = ''; });
-  get('giftDisplayDefaults')?.addEventListener('click', () => fill({ thresholds: [10000, 50000, 100000], visibleRows: 3, intervalSeconds: 4, paused: false, lowPower: false }));
+  get('giftDisplayDefaults')?.addEventListener('click', () => fill({ thresholds: [3000, 10000, 100000], visibleRows: 3, scrollSpeed: 1 }));
   get('giftDisplayForm')?.addEventListener('input', (event) => {
     const boundary = event.target.dataset.giftBoundary;
     if (boundary) {

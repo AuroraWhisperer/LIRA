@@ -53,7 +53,7 @@
 | queue / overtime / lyrics / gift-effects | 无额外 REST | 专用推送见 [ws.md](ws.md) |
 | songlist | `GET /api/songs` | 服务端强制 enabledOnly，仅 category 展示过滤；不返回文件路径、禁用歌或导入元数据 |
 | blindbox | `GET /api/gifts/blind-box-stats` | 可选 boxName，仅公开统计字段 |
-| gift-feed | `GET /api/gifts/display-settings`、`/api/gifts/history`、`/api/overtime/gifts/catalog`、`/api/bilibili/avatar` | history 强制北京时间今日、100 条、created_at 升序；只允许 cursor/viewRevision，禁止客户端选择旧日期、来源或其他用户过滤 |
+| gift-feed | `GET /api/gifts/display-settings`、`/api/gifts/history`、`/api/gifts/card-profiles`、`/api/overtime/gifts/catalog`、`/api/bilibili/avatar` | history 强制北京时间今日、100 条、created_at 升序；只允许 cursor/viewRevision；card-profiles 只转发 viewRevision，返回当日 eventId、senderId 与昵称/头像/等级证据，禁止客户端选择旧日期、来源或其他用户过滤 |
 | gift-export | `GET /api/bilibili/avatar` | 导出数据由 main 注入冻结快照；没有历史、selection 或导出 IPC 权限 |
 | games | `GET /api/games/session`、`/api/games/winner-profile`、`/api/bilibili/avatar`；`POST /api/games/session`、`/api/games/session/move`、`/api/games/session/draw` | session 仅 stop/restart；move 的 value 仅 number/string，禁止夹带主持动作对象；draw 仅 append/undo/clear。不能新开配置、读取 host-state/词库/观众或揭晓答案 |
 | danmaku | `GET /api/bilibili/avatar` | 保留现有头像/表情 CDN 校验 |
@@ -104,6 +104,7 @@ Electron main process 通过 [remote-license-client.js](../../../src/electron/li
 | `PUT /api/device/songs/sync` | 上传本地完整歌库并推进云端 song revision。 |
 | `GET/PUT/DELETE /api/device/bilibili-credentials` | 在 Electron main 与云端间读取、上传或清除 Bilibili 登录凭据；这些方法不进入本地 HTTP、preload 或 renderer。 |
 | `GET /api/device/gift-history`、`GET /api/device/gift-events`、`GET /api/device/gift-events/stream` | 构建当前认证主播的本地礼物投影，并以 epoch/cursor 对账和 SSE 在线加速保持连续。 |
+| `GET /api/device/gift-card-profiles` | 只读获取当前认证主播北京时间今日的送礼人 UID 与展示证据，用于滚动卡片和 PNG 导出；每页最多 200 条，仅接受公开 eventId cursor，不修改礼物同步 DTO 或流水。 |
 | `POST /api/device/gift-history/clear` | 以固定 `{confirm:true}` 清空当前认证主播的服务端礼物 ledger/outbox；只由 Electron main 调用，不接收租户选择字段。 |
 
 本地 renderer 仍只调用既有 `/api/settings`、`/api/songs/*` 与 `/api/database/*`，不持有远端凭据。云端 scope 写入成功后通过运行时内部 `requestCloudSync(scope)` 通知 [cloud-sync-controller.js](../../../src/electron/cloud-sync-controller.js) 标记 dirty；云端应用使用 `applyCloudSettingsSnapshot` / `replaceCloudSongsSnapshot` 直接写本地 owner，不再发出 dirty 回声。授权后立即同步、SSE 失效通知、10 分钟自动兜底、resume/重连同步和冲突规则见 [../desktop/main.md](../desktop/main.md) §2.2。
@@ -357,7 +358,8 @@ handler 未包 try/catch:抛错走顶层 **500**。
 | `POST /api/gifts/sprint/reset`      | 无                                                                                                                            | 重置礼物冲刺进度;广播 `gift:sprint:reset`           | —                                   |
 | `GET /api/gifts/history`            | 查询参数:`query?`(非空时规范化后 **1–100 个 Unicode code point**)、`range?`(`7d\|30d\|90d\|all\|today`,默认 `30d`)、`limit?`(**1–100**,默认 50)、`cursor?`(opaque keyset)、`sortField?`(`created_at\|gift_name\|price\|remarks`)、`sortDirection?`(`asc\|desc`)；`startDate/endDate`(北京时间 YYYY-MM-DD)、`userQuery/giftQuery`(独立名称交集)、`amountAbove?`(人民币元，非负且精确到分；单条总金额严格大于该值，留空不限；与其他条件取交集并绑定游标)、`viewRevision`(来源投影版本)；禁止 `sourceId/source_id` | 当前授权 source 的付费礼物分页、`total/totalPages` 及同步完整性状态 | 400(参数/排序/来源选择器无效)、409(来源未就绪) |
 | `POST /api/gifts/selection` | `viewRevision`、可选 `eventIds`（最多 10000）及与 history 相同的筛选/排序 | 固定记录快照，不合并；无 eventIds 时选择全部筛选结果，保留 partial 状态 | 400(无效参数/超限)、409(来源变化或记录失效) |
-| `GET/POST /api/gifts/display-settings` | POST 固定 palette、三个严格递增正整数分 thresholds、visibleRows(1–10)、intervalSeconds(2–60)、paused/lowPower 布尔 | 读取/保存本地礼物展示配置，保存后广播刷新 | 400(设置无效) |
+| `GET /api/gifts/card-profiles` | 可选 `viewRevision`；来源由当前授权决定，日期固定北京时间今日 | 返回 `viewRevision/day/items/partial`；items 仅含 eventId、senderId、userName、avatarUrl、guardLevel、createdAt。运行时遍历服务端分页并验证来源、日期和同步代次；离线或旧服务器只复用同来源/日期缓存，否则返回空资料及 partial，不猜测身份 | 409(来源或日期变化/来源未就绪) |
+| `GET/POST /api/gifts/display-settings` | POST 固定 palette、三个严格递增正整数分 thresholds、visibleRows(1–10)、scrollSpeed(1–50)，后两者须为整数 | 读取/保存本地礼物展示配置，保存后广播刷新；速率线性对应每行 2–0.1 秒。旧配置/请求的合法 intervalSeconds、paused/lowPower 兼容读入为速率 1，保留配色和行数，返回与保存仅使用新字段 | 400(设置无效) |
 | `GET /api/gifts/statistics`         | 查询参数:`query?`、`range?` 同 history;禁止 `sourceId/source_id`                                                          | 当前授权 source 的 8 项整数分 summary、`topGifts`(≤50)、`timeSeries`(≤240)及同步完整性状态 | 400(参数/来源选择器无效)、409(来源未就绪) |
 | `GET /api/gifts/blind-box-stats`    | 查询参数 `boxName?`                                                                                                           | 盲盒统计                                            | —                                   |
 | `GET /api/gifts/blind-box-analysis` | 查询参数:`viewer?`、`box?`、`view?`(默认 `users`)、`page?`(默认 `1`)、`limit?`(默认 `25`)、`sort?`、`direction?`(默认 `desc`) | 盲盒开盒分析                                        | —                                   |

@@ -77,7 +77,7 @@ Device settings，省略另一开关以保留服务器值；只有返回实际�
 
 ## 1. 安全模型
 
-粉丝档案使用 `window.fanProfiles.invoke({action, payload, contextId})` → `fan-profiles:invoke`；`open` 返回上下文 ID，其他操作必须带同代 ID。主窗口 webContents、主 frame、精确本地 origin 和 Admin 页面路径同时校验。controller 从已认证服务器/streamerId 生成 scope，renderer 无权选择。返回 `{ok, contextId, data, syncStatus}` 或可展示错误，不含 token。命令包括档案/记录修订、会员证据选择、提醒状态、备份预览/恢复、旧流水认领、草稿合并、本机恢复点及删除抑制管理；输入由 `src/fans/validation.js` 和领域服务校验，详见 [粉丝档案](../../../specs/fan-profiles.md)。controller 拥有定时器、取消与账号代次，关闭时先 dispose 并等待 whenIdle，再关闭数据库。
+粉丝档案使用 `window.fanProfiles.invoke({action, payload, contextId})` → `fan-profiles:invoke`；`open` 返回页面上下文 ID，其他操作必须带当前 ID。同一归属持续授权时续期保留 ID；换归属或失去授权后 ID 失效。异步操作另外捕获授权代次，完成时同时检查 ID 和代次。主窗口 webContents、主 frame、精确本地 origin 和 Admin 页面路径同时校验。controller 从已认证服务器/streamerId 生成 scope，renderer 无权选择。返回 `{ok, contextId, data, syncStatus}` 或可展示错误，不含 token。命令包括档案/记录修订、会员证据选择、提醒状态、备份预览/恢复、旧流水认领、草稿合并、本机恢复点及删除抑制管理；输入由 `src/fans/validation.js` 和领域服务校验，详见 [粉丝档案](../../../specs/fan-profiles.md)。controller 拥有定时器、取消与账号代次，关闭时先 dispose 并等待 whenIdle，再关闭数据库。
 
 新增第五个白名单桥 `dynamicLotteryAuth`，原有四个桥保持兼容。该桥的三个 invoke 均要求当前主窗口 webContents、主 frame 对象及精确 desktopBaseUrl origin；其他窗口、子 frame 或外部页面无权调用。它不暴露 Cookie、快照路径、`getContext` 或授权身份参数。
 

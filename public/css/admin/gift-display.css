@@ -25,8 +25,6 @@ body.desktop-shell #giftHistoryDrawer .gift-drawer-head > button { -webkit-app-r
 .gift-export-options { min-height: 0; display: flex; flex-direction: column; align-items: stretch; gap: 14px; overflow-y: auto; }
 .gift-export-options output { overflow-wrap: anywhere; padding: 8px; background: var(--surface-2); border-radius: 6px; font-size: 12px; line-height: 1.6; }
 .gift-directory-actions, .gift-preview-pagination, .gift-display-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.gift-check-label { flex-direction: row !important; align-items: center; gap: 8px; }
-.gift-check-label input { width: auto; }
 .gift-assistant [hidden] { display: none !important; }
 .gift-assistant-tabs { display: flex; flex-wrap: wrap; gap: var(--spacing-sm); border-bottom: 1px solid var(--border); padding-bottom: var(--spacing-md); }
 .gift-assistant-tabs [role='tab'] { background: transparent; color: var(--muted); box-shadow: none; }

@@ -14,7 +14,7 @@ export function createGiftExportPreview({ showPane }) {
     if (!task) return;
     const pages = giftExportPages(task.snapshot.items, task.mode);
     page = Math.min(page, pages.length - 1);
-    get('giftExportSummary').textContent = `已选 ${task.snapshot.items.length} 条 · 输出 ${pages.length} 张 PNG`;
+    get('giftExportSummary').textContent = `已选 ${task.snapshot.selectedCount ?? task.snapshot.items.length} 条 · ${task.snapshot.items.length} 张卡片 · 输出 ${pages.length} 张 PNG`;
     get('giftExportDirectory').textContent = task.directory;
     get('giftExportPage').textContent = `${page + 1} / ${pages.length}`;
     get('giftExportPrev').disabled = page === 0;
@@ -80,7 +80,8 @@ export function createGiftExportPreview({ showPane }) {
       task = next;
       page = 0;
       get('giftExportOpenFolder').hidden = true;
-      status(task.snapshot.partial ? '当前预览仅包含已同步记录，内容和样式已冻结。' : '记录和样式已冻结，可确认后导出。');
+      status(task.snapshot.cardsPartial ? '身份资料暂不可用，部分礼物尚未合并；内容和样式已冻结。'
+        : task.snapshot.partial ? '当前预览仅包含已同步记录，内容和样式已冻结。' : '记录和样式已冻结，可确认后导出。');
       showPane('export');
       controls();
       await render();

@@ -8,6 +8,7 @@ const {
 const { isDnsHostname } = require('../../shared/remote-url-policy');
 const { sanitizeWelcomeFieldErrors } = require('../../shared/welcome-settings-contract');
 const { createRemoteDanmakuSettings } = require('./remote-danmaku-settings');
+const { createRemoteGiftReads } = require('./remote-gift-reads');
 
 const DEFAULT_BASE_URL = 'https://api.lirahub.cn';
 // Includes canonical song fields, legacy aliases and the complete sync metadata.
@@ -295,45 +296,6 @@ function createRemoteLicenseClient(options = {}) {
     );
   }
 
-  async function getGiftEvents(after, limit, token, options = {}) {
-    const query = new URLSearchParams();
-    if (after !== null && after !== undefined) {
-      query.set('after', String(after));
-    }
-    query.set('limit', String(limit));
-    if (options.syncEpoch) query.set('syncEpoch', String(options.syncEpoch));
-    return request(
-      'GET',
-      `/api/device/gift-events?${query.toString()}`,
-      undefined,
-      token,
-      {
-        maxResponseBytes: 512 * 1024,
-        signal: options.signal,
-        headers: { 'X-Lira-Gift-Identity': '1', 'X-Lira-Gift-Display': '1' },
-      },
-    );
-  }
-
-  async function getGiftHistory(pageToken, token, options = {}) {
-    const query = new URLSearchParams();
-    if (pageToken !== null && pageToken !== undefined) {
-      query.set('pageToken', String(pageToken));
-    }
-    const suffix = query.size > 0 ? `?${query.toString()}` : '';
-    return request(
-      'GET',
-      `/api/device/gift-history${suffix}`,
-      undefined,
-      token,
-      {
-        maxResponseBytes: 512 * 1024,
-        signal: options.signal,
-        headers: { 'X-Lira-Gift-Identity': '1', 'X-Lira-Gift-Display': '1' },
-      },
-    );
-  }
-
   function clearGiftHistory(token, options = {}) {
     return request(
       'POST',
@@ -393,8 +355,7 @@ function createRemoteLicenseClient(options = {}) {
         'GET', `/api/device/fan-facts?${query}`, undefined, token, requestOptions,
       );
     },
-    getGiftEvents,
-    getGiftHistory,
+    ...createRemoteGiftReads(request),
     clearGiftHistory,
     watchGiftEvents,
     updateCloudSettings: (settings, token, requestOptions) =>

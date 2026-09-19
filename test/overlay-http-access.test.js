@@ -54,6 +54,11 @@ async function fixture(t) {
       getBlindBoxStats: () => ({ summary: { boxCount: 1 }, secret: SECRET }),
       getHistory: (input) => { calls.push(['history', input]); return { items: [], viewRevision: 'revision', sourceId: SECRET }; },
     },
+    giftCards: { getProfiles: async (viewRevision) => {
+      calls.push(['card-profiles', viewRevision]);
+      return { viewRevision: 'revision', day: '2026-09-19', partial: false, secret: SECRET,
+        items: [{ eventId: 'one', senderId: '123', userName: '观众', guardLevel: 2, avatarUrl: null, createdAt: '2026-09-19T01:00:00Z', private: SECRET }] };
+    } },
     overtime: { getGlobalGiftCatalog: () => ({ gifts: [{ id: 1, name: 'Gift', private: SECRET }] }) },
     bilibili: { fetchAvatarImage: async () => ({ data: Buffer.from('image'), contentType: 'image/png' }) },
     games: {
@@ -165,6 +170,7 @@ test('allowed read APIs project data and force song visibility and today-only gi
     ['blindbox', '/api/gifts/blind-box-stats'],
     ['gift-feed', '/api/gifts/history?range=all&startDate=2000-01-01&sourceId=other&limit=999&userQuery=private&sortDirection=desc'],
     ['gift-feed', '/api/gifts/display-settings'], ['gift-feed', '/api/overtime/gifts/catalog'],
+    ['gift-feed', '/api/gifts/card-profiles?viewRevision=revision&sourceId=other&day=2000-01-01'],
     ['games', '/api/games/session'], ['games', '/api/games/winner-profile'],
     ['wheel', '/api/wheel'], ['clock', '/api/clock/config'], ['opening', '/api/opening/config'],
   ]) {
@@ -176,6 +182,11 @@ test('allowed read APIs project data and force song visibility and today-only gi
   const history = f.calls.find(([name]) => name === 'history')[1];
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Shanghai' }).format(new Date());
   assert.deepEqual(history, { range: 'today', startDate: today, endDate: today, limit: 100, sortField: 'created_at', sortDirection: 'asc', cursor: null });
+  assert.deepEqual(f.calls.find(([name]) => name === 'card-profiles'), ['card-profiles', 'revision']);
+  const config = await (await f.request('/api/gifts/display-settings', createOverlayToken(ADMIN, 'gift-feed'))).json();
+  assert.equal(config.data.scrollSpeed, 1);
+  assert.equal(Object.hasOwn(config.data, 'paused'), false);
+  assert.equal((await f.request('/api/gifts/card-profiles', createOverlayToken(ADMIN, 'gift-export'))).status, 403);
   const avatar = await f.request('/api/bilibili/avatar?url=https://example.test/image', createOverlayToken(ADMIN, 'gift-export'));
   assert.equal(avatar.status, 200);
   assert.equal(await avatar.text(), 'image');

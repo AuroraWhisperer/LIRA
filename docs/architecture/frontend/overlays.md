@@ -31,7 +31,7 @@
 | `blindbox` | GET `/gifts/blind-box-stats`，保留 `boxName` 筛选 | 本页主题设置；统计仅盒数、总成本、总盈亏及榜单显示名/盒数/盈亏 |
 | `overtime` | 无 | `overtime` 的 revision、状态、服务端时间、有效余时、背景与展示规则；`overtime:update` 的同一状态及结算动画字段 |
 | `gift-effects` | 无 | `giftEffectDanmakuEnabled/giftFrameMotionMode`；`gift:frame` 的礼物铭牌/主题/动效字段，`gift:effect` 的播放 URL 与 RGB/alpha 布局 |
-| `gift-feed` | GET `/gifts/display-settings`、`/gifts/history`、`/overtime/gifts/catalog`、`/bilibili/avatar` | `gifts.viewRevision` 与刷新 reason；`gift-catalog:update` 仅为失效通知，不附完整目录 |
+| `gift-feed` | GET `/gifts/display-settings`、`/gifts/history`、`/gifts/card-profiles`、`/overtime/gifts/catalog`、`/bilibili/avatar` | `gifts.viewRevision` 与刷新 reason；`gift-catalog:update` 仅为失效通知，不附完整目录 |
 | `gift-export` | GET `/bilibili/avatar` | 无业务快照或专用消息；导出行、配置和目录由 Electron main 的冻结输入提供，不授予流水选择或导出 IPC 权限 |
 | `lyrics` | 无 | 本页歌词设置、`lyricState/lyricTimeline`；`lyric-state/lyric-timeline` 仅含曲名/艺人、行词文本与时间、播放/排序状态 |
 | `games` | GET `/games/session`、`/games/winner-profile`、`/bilibili/avatar`；POST `/games/session` 仅 `stop/restart`，`/games/session/move` 仅数字/坐标字符串，`/games/session/draw` 仅 `append/undo/clear` | `game:update` 的公开游戏态、`game:draw` 的画笔操作；兼容已存在的 `state.games`，不新增全局字段 |
@@ -144,9 +144,11 @@ PNG/JPEG/WebP 和受支持的音频，Overlay 只接受受限的 `/opening-chara
 
 ### 1.6 本日礼物 `/gift-feed`
 
-全部礼物流水的样式面板生成当前本地端口的 `127.0.0.1/gift-feed` 地址，`?preview=1` 只增加预览底色和状态。页面独立于管理面板生命周期，按北京时间遍历今天全部分页，包含未参与冲刺的有效付费历史。`gift-feed-state.js` 用 eventId 去重并保留轮播锚点；默认 3 行、4 秒间隔、400ms 向上移动，DOM 只保留可见行及最多一条动画缓冲。记录不足时静态显示，不复制填满；低功耗逐页切换，暂停停止移动。
+`shared/gift-card-model.js` 同时供滚动展示和导出运行时派生卡片：仅对北京时间今天的记录，按送礼人 UID、相同礼物 ID 和礼物名合并，累加数量及各条历史单价乘数量的整数分金额，颜色按合计金额计算。身份来自 `/api/gifts/card-profiles`，对同人今日全部卡片使用最新已知昵称、头像及大航海等级；null 不覆盖已知等级，0 明确移除头像框，同等级续费保留未变化的卡片节点。未知 UID 不按昵称合并，旧日期和原始流水保持独立。导出只合并所选记录，资料更新可使用今日未选记录的证据。滚动阈值按合并后的卡片数计算，稳定分组键保留滚动锚点；资料暂不可用时预览说明未完成身份合并。
 
-WebSocket 通知合并后重读，并每 30 秒对账；新集合在换行边界应用，单条/暂停时立即更新。午夜、来源切换或投影代次变化清空旧集合，迟到请求不得恢复旧来源。保存配置即更新静态行颜色。`shared/gift-banner.js` 和 `css/shared/gift-banner.css` 同时拥有管理预览、PNG 和 OBS 的横幅：基础尺寸 560×96，包含头像占位、可空大航海边框、昵称、黄色礼物名、本地 WebP 和数量。颜色条的圆弧左端与头像同心，头像四周留 10 像素内距；昵称区、颜色条和 WebP 位置固定，数量保持字号并只向右扩展画布。PNG 按实际画布的 2 倍尺寸导出，基础宽度 1120 像素，合并时取本页最宽横幅；OBS 浏览器源建议宽度 900，以容纳多位数量。金额/时间/备注不进入横幅。
+礼物助手的滚动礼物面板生成当前本地端口的 `127.0.0.1/gift-feed` 地址，`?preview=1` 只增加预览底色和状态。页面独立于管理面板生命周期，按北京时间遍历今天全部分页，包含未参与冲刺的有效付费历史。`gift-feed-state.js` 用 eventId 去重并保留轮播锚点；默认 3 行、速率 1，速率 1–50 线性对应每行 `2000 - (scrollSpeed - 1) * 1900 / 49` 毫秒。条目超过显示行数时连续匀速向上滚动，最后一条紧接第一条；不足或刚好填满时静态显示，不复制填满。动画按帧时间累计位移，换行保留余量，无间隔等待，DOM 只保留可见行及最多一条动画缓冲，并复用未变化的节点。页面隐藏时释放动画帧，恢复后接着当前位置移动。暂停和低功耗选项已移除。
+
+WebSocket 通知合并后重读，并每 30 秒对账；刷新保留滚动进度，新集合在换行边界应用，静态或隐藏时立即更新。午夜、来源切换或投影代次变化清空旧集合，迟到请求不得恢复旧来源。保存配置即更新静态行颜色。`shared/gift-banner.js` 和 `css/shared/gift-banner.css` 同时拥有管理预览、PNG 和 OBS 的横幅：基础尺寸 560×96，包含头像占位、可空大航海边框、昵称、黄色礼物名、本地 WebP 和数量。颜色条的圆弧左端与头像同心，头像四周留 10 像素内距；昵称区、颜色条和 WebP 位置固定，数量保持字号并只向右扩展画布。PNG 按实际画布的 2 倍尺寸导出，基础宽度 1120 像素，合并时取本页最宽横幅；OBS 浏览器源建议宽度 900，以容纳多位数量。金额/时间/备注不进入横幅。
 
 ## 2. 队列叠加层(/queue)
 

@@ -170,13 +170,18 @@ test('gift display settings persist valid cents and leave saved configuration un
   const broadcasts = [];
   const context = { settings: { get: () => settings, set: (key, value) => { settings[key] = value; } },
     broadcastSnapshot: (reason) => broadcasts.push(reason) };
-  const config = { palette: 'bilibili-four', thresholds: [9999, 49999, 99999], visibleRows: 1, intervalSeconds: 4, paused: false, lowPower: true };
+  const config = { palette: 'bilibili-four', thresholds: [9999, 49999, 99999], visibleRows: 1, scrollSpeed: 26 };
   const saved = createResponse();
   await routes['POST /api/gifts/display-settings'](context, { body: async () => config }, saved);
   assert.equal(saved.status, 200);
   const rejected = createResponse();
   await routes['POST /api/gifts/display-settings'](context, { body: async () => ({ ...config, thresholds: [100, 100, 100] }) }, rejected);
   assert.equal(rejected.status, 400);
+  for (const scrollSpeed of [0, 51, 1.5, '25']) {
+    const invalid = createResponse();
+    await routes['POST /api/gifts/display-settings'](context, { body: async () => ({ ...config, scrollSpeed }) }, invalid);
+    assert.equal(invalid.status, 400);
+  }
   const read = createResponse();
   routes['GET /api/gifts/display-settings'](context, {}, read);
   assert.deepEqual(read.payload.data, config);

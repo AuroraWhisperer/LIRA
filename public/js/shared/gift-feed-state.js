@@ -2,6 +2,10 @@ export function shanghaiToday(time = Date.now()) {
   return new Date(time + 28800000).toISOString().slice(0, 10);
 }
 
+export function giftFeedRowDurationMs(speed) {
+  return 2000 - (speed - 1) * 1900 / 49;
+}
+
 export function createGiftFeedState() {
   let items = [];
   let index = 0;

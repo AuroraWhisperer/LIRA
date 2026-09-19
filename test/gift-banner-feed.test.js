@@ -3,11 +3,37 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const { loadModuleExports } = require('./helpers/frontend-modules');
-const { validateGiftDisplaySettings, DEFAULT_GIFT_DISPLAY } = require('../src/bilibili/gift/display-settings');
+const { validateGiftDisplaySettings, readGiftDisplaySettings, DEFAULT_GIFT_DISPLAY } = require('../src/bilibili/gift/display-settings');
+
+test('feed speed maps linearly from two seconds to a tenth of a second per row', async () => {
+  const { giftFeedRowDurationMs } = await loadModuleExports(path.resolve('public/js/shared/gift-feed-state.js'));
+  assert.equal(giftFeedRowDurationMs(1), 2000);
+  assert.equal(giftFeedRowDurationMs(50), 100);
+  for (let speed = 2; speed <= 50; speed += 1) {
+    assert.ok(Math.abs(giftFeedRowDurationMs(speed - 1) - giftFeedRowDurationMs(speed) - 1900 / 49) < 1e-9);
+  }
+});
+
+test('display settings validate speed and preserve saved colors and rows from legacy settings', () => {
+  for (const scrollSpeed of [1, 26, 50]) {
+    const config = { ...DEFAULT_GIFT_DISPLAY, scrollSpeed };
+    assert.deepEqual(validateGiftDisplaySettings(config), config);
+    assert.deepEqual(readGiftDisplaySettings({ giftDisplayConfig: JSON.stringify(config) }), config);
+  }
+  for (const scrollSpeed of [0, 51, 1.5, '25', null, undefined, NaN, Infinity]) {
+    assert.throws(() => validateGiftDisplaySettings({ ...DEFAULT_GIFT_DISPLAY, scrollSpeed }));
+  }
+  const legacy = { palette: 'bilibili-four', thresholds: [100, 1000, 10000], visibleRows: 7,
+    intervalSeconds: 4, paused: true, lowPower: true };
+  const expected = { palette: legacy.palette, thresholds: legacy.thresholds, visibleRows: 7, scrollSpeed: 1 };
+  assert.deepEqual(readGiftDisplaySettings({ giftDisplayConfig: JSON.stringify(legacy) }), expected);
+  assert.deepEqual(validateGiftDisplaySettings(legacy), expected);
+  assert.deepEqual(readGiftDisplaySettings({ giftDisplayConfig: 'broken' }), DEFAULT_GIFT_DISPLAY);
+});
 
 test('price bands use each historical unit price times quantity, with exact boundaries', async () => {
   const { giftTier, giftExportPages, resolveGiftArtwork } = await loadModuleExports(path.resolve('public/js/shared/gift-banner.js'));
-  for (const [amount, expected] of [[99.99, 0], [100, 1], [499.99, 1], [500, 2], [999.99, 2], [1000, 3], [9999999, 3]]) {
+  for (const [amount, expected] of [[29.99, 0], [30, 1], [99.99, 1], [100, 2], [999.99, 2], [1000, 3], [9999999, 3]]) {
     assert.equal(giftTier({ unitPrice: amount, num: 1 }, DEFAULT_GIFT_DISPLAY.thresholds), expected);
   }
   assert.equal(giftTier({ unitPrice: 10, num: 100, totalPrice: 10 }, DEFAULT_GIFT_DISPLAY.thresholds), 3);

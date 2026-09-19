@@ -525,4 +525,5 @@ module.exports = {
   normalizeProcessedGiftHistoryPage,
   normalizeProcessedGiftHistoryRecord,
   normalizeProcessedGiftPage,
+  normalizeGiftDisplayProfile,
 };

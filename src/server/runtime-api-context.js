@@ -11,6 +11,7 @@ function createRuntimeApiContextFactory(options = {}) {
     const settingsStore = options.getSettingsStore();
 
     return createApiContext({
+      giftCards: options.giftCards,
       maxBodyBytes: options.maxBodyBytes,
       sessionToken: options.getSessionToken(),
       broadcastSnapshot: options.broadcastSnapshot,

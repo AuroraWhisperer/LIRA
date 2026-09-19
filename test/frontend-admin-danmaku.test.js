@@ -323,7 +323,7 @@ test('danmaku tool places the AI interaction assistant after the manual sender w
   assert.match(html, /id="xiaomiAiDeepSeekKey"[^>]*type="password"/);
   assert.match(html, /id="xiaomiAiQWeatherKey"[^>]*type="password"/);
   assert.match(html, /id="xiaomiAiAmapKey"[^>]*type="password"/);
-  assert.match(html, /id="xiaomiAiTrigger"[^>]*placeholder="例如：小米"/);
+  assert.match(html, /id="xiaomiAiTrigger"[^>]*placeholder="请自定义触发关键词"/);
   assert.doesNotMatch(html, /id="xiaomiAiTrigger"[^>]*value="小米"/);
   assert.match(html, /id="xiaomiAiTestBtn"[^>]*>\s*测试 AI 连接/);
   assert.match(

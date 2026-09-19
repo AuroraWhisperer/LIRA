@@ -6,7 +6,7 @@
   color: var(--text);
   font-size: var(--font-size-md, 14px);
 }
-.fan-profiles > :not(#fanProfilesPage, #fanRemindersPage) {
+.fan-profiles > :not(#fanProfilesPage, #fanRemindersPage, #fanSettingsPage) {
   flex-shrink: 0;
 }
 #fanProfilesPage {
@@ -15,7 +15,8 @@
   flex: 1;
   min-height: 0;
 }
-#fanRemindersPage {
+#fanRemindersPage,
+#fanSettingsPage {
   min-height: 0;
   overflow: auto;
   scrollbar-color: var(--color-border-default) transparent;
@@ -89,6 +90,7 @@
 }
 .fan-reminder-summary {
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
@@ -96,6 +98,52 @@
   margin-bottom: 16px;
   background: var(--color-primary-light);
   border-radius: var(--radius-md);
+}
+.fan-archived-notice {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+#fanSettingsPage {
+  flex: 1;
+  padding: 4px 16px 24px 0;
+}
+.fan-settings-group + .fan-settings-group {
+  margin-top: 28px;
+}
+.fan-settings-group h3 {
+  margin: 0 0 4px;
+  font-size: 16px;
+}
+.fan-setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--color-border-light);
+}
+.fan-setting-row:last-child {
+  border-bottom: 0;
+}
+.fan-setting-row > div {
+  min-width: 0;
+  max-width: 65ch;
+}
+.fan-setting-row h4 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+}
+.fan-setting-row p {
+  margin: 6px 0 0;
+}
+.fan-setting-row > button {
+  flex-shrink: 0;
 }
 .fan-searchbar {
   display: flex;
@@ -160,7 +208,7 @@
 }
 .fan-person-line {
   display: flex;
-  align-items: start;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
   width: 100%;
@@ -174,12 +222,21 @@
 }
 .fan-status {
   flex-shrink: 0;
-  max-width: 160px;
-  color: var(--muted);
-  font-size: 12px;
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
 }
-.fan-status.is-active {
-  color: var(--color-success-dark);
+.fan-name {
+  color: var(--text);
+}
+.fan-name[data-guard-level='3'] {
+  color: #276ab3;
+}
+.fan-name[data-guard-level='2'] {
+  color: #7c49bc;
+}
+.fan-name[data-guard-level='1'] {
+  color: #c13e52;
 }
 .fan-person-summary {
   line-height: 1.6;
@@ -215,6 +272,12 @@
 }
 .fan-detail-title {
   align-items: start;
+}
+.fan-detail-name {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
 }
 .fan-detail-title > div {
   min-width: 0;
@@ -350,45 +413,21 @@
   z-index: 20;
   min-width: 170px;
 }
-#fanMoreButton {
-  anchor-name: --fan-more-trigger;
-}
-.fan-more-menu {
-  position: fixed;
-  position-anchor: --fan-more-trigger;
-  inset: auto;
-  top: calc(anchor(bottom) + 6px);
-  right: anchor(right);
-  margin: 0;
-  min-width: 190px;
-  color: var(--text);
-}
-.fan-more > div,
-.fan-more-menu {
+.fan-more > div {
   padding: 6px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
 }
-.fan-more button,
-.fan-more-menu button {
+.fan-more button {
   display: block;
   border: 0;
   width: 100%;
   text-align: left;
   background: transparent;
 }
-.fan-more-menu button {
-  padding: 9px 12px;
-}
-.fan-more button:hover,
-.fan-more-menu button:hover {
+.fan-more button:hover {
   background: var(--color-bg-tertiary);
-}
-.fan-more-menu hr {
-  border: 0;
-  border-top: 1px solid var(--border);
-  margin: 5px 6px;
 }
 .fan-back-list {
   display: none;
@@ -509,7 +548,144 @@
   border-top: 1px solid var(--border);
 }
 .fan-editor-footer .fan-muted {
-  max-width: 75%;
+  flex: 1;
+  font-size: var(--type-size-caption);
+}
+.fan-editor-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+}
+.fan-editor-actions button {
+  padding: 7px 16px;
+  font-size: var(--type-size-control);
+}
+.fan-profile-editor {
+  width: min(680px, calc(100vw - 48px));
+  height: min(640px, calc(100dvh - 48px));
+  max-height: none;
+  overflow: hidden;
+}
+.fan-profile-editor form,
+.fan-profile-form {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+.fan-profile-editor .fan-editor-heading {
+  flex-shrink: 0;
+  margin-bottom: 8px;
+}
+.fan-profile-editor h2 {
+  font-size: var(--type-size-section-title);
+  font-weight: var(--type-weight-semibold);
+  line-height: var(--type-leading-section-title);
+}
+.fan-profile-editor #fanEditorFields {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+.fan-profile-form {
+  flex: 1;
+}
+.fan-profile-intro {
+  flex-shrink: 0;
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: var(--type-size-control);
+  line-height: var(--type-leading-body);
+}
+.fan-profile-tabs {
+  display: flex;
+  flex-shrink: 0;
+  gap: 24px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+.fan-profile-tabs [role='tab'] {
+  padding: 8px 0 12px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--type-size-control);
+}
+.fan-profile-tabs [role='tab']:hover {
+  color: var(--text);
+}
+.fan-profile-tabs [aria-selected='true'] {
+  color: var(--text);
+  box-shadow: inset 0 -2px var(--accent);
+  font-weight: var(--type-weight-semibold);
+}
+.fan-profile-editor .fan-profile-panel {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+  flex: 1;
+  min-height: 0;
+  gap: 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+.fan-profile-editor .fan-profile-panel::-webkit-scrollbar {
+  display: none;
+}
+.fan-profile-panel .fan-field {
+  gap: 6px;
+  color: var(--text);
+  font-size: var(--type-size-control);
+  line-height: var(--type-leading-control);
+}
+.fan-profile-panel input,
+.fan-profile-panel select,
+.fan-profile-panel textarea,
+.fan-profile-panel .lira-select-trigger {
+  font-size: var(--type-size-body);
+}
+.fan-profile-panel .lira-select {
+  --select-border: var(--border);
+  anchor-scope: --fan-profile-select;
+}
+.fan-profile-panel .lira-select-trigger {
+  anchor-name: --fan-profile-select;
+}
+.fan-profile-panel .lira-select-menu {
+  position: fixed;
+  position-anchor: --fan-profile-select;
+  top: calc(anchor(bottom) + 6px);
+  right: auto;
+  left: anchor(left);
+  width: anchor-size(width);
+}
+.fan-profile-panel .lira-select.is-above .lira-select-menu {
+  top: auto;
+  bottom: calc(anchor(top) + 6px);
+}
+.fan-profile-panel .fan-check {
+  align-self: end;
+  min-height: 36px;
+  color: var(--text);
+}
+.fan-profile-panel .fan-check input {
+  min-height: 16px;
+  margin: 0;
+}
+.fan-profile-divider {
+  border-top: 1px solid var(--border);
+}
+.fan-profile-section-title {
+  margin: 4px 0 0;
+  font-size: var(--type-size-control);
+  font-weight: var(--type-weight-semibold);
+}
+.fan-profile-editor .fan-editor-footer {
+  flex-shrink: 0;
+  margin-top: 16px;
+  padding-top: 16px;
 }
 .fan-timeline-filter {
   padding-top: 16px;
@@ -572,7 +748,8 @@
     display: inline-flex;
   }
   .fan-toolbar,
-  .fan-reminder-row {
+  .fan-reminder-row,
+  .fan-setting-row {
     align-items: flex-start;
     flex-wrap: wrap;
   }
@@ -583,7 +760,8 @@
 }
 @media (max-width: 600px) {
   .fan-form-grid,
-  .fan-membership-fields {
+  .fan-membership-fields,
+  .fan-profile-editor .fan-profile-panel {
     grid-template-columns: 1fr;
   }
   .fan-editor,
