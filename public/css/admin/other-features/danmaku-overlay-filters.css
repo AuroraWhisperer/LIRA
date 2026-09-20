@@ -2,7 +2,7 @@
   display: grid;
   gap: 12px;
   padding-top: var(--spacing-lg);
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--danmaku-section-border);
   container: danmaku-filters / inline-size;
 }
 .danmaku-filter-grid {
@@ -26,6 +26,7 @@
 }
 .danmaku-filter-heading h4 {
   margin: 0;
+  color: var(--danmaku-heading-color);
   font-size: var(--type-size-body);
   font-weight: 600;
 }

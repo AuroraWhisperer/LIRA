@@ -2,13 +2,13 @@
   "version": 1,
   "entries": [
     {
-      "path": "public/css/admin/other-features/fan-profiles.css",
+      "path": "public/js/admin/fans/index.js",
       "kind": "review",
-      "maxLines": 774,
+      "maxLines": 620,
       "owner": "粉丝档案前端",
-      "reason": "2026-09-19 逐块复核：列表、详情、设置、提醒与既有编辑表单共用粉丝档案专属布局和主题 token；本次身份颜色只应用于姓名与身份文字，不扩展全局样式或引入领域判定。保留同一 CSS 入口及工作区已有编辑表单改动，避免在身份展示变更中改动不相关的样式加载。同步复核编辑表单新增的下拉菜单定位规则，均限定在 fan-profile-panel 内，未扩展其他业务样式。",
-      "removal": "下次扩展档案设置或编辑器样式时按独立面板拆出对应 CSS，并验证入口顺序；降至 600 行以内后移除此登记。",
-      "reviewBy": "2026-12-19",
+      "reason": "2026-09-20 发布差异复核：新增清除全部操作仅负责危险确认、调用既有 request 通道和清空当前选择后重读；账号上下文检查仍由 request 统一执行，删除范围及持久化由 service/store 拥有。现有页面状态、表单与选择生命周期集中于同一闭包，本次保留操作编排以避免拆分状态所有权；未在 UI 实现存储或领域判定。",
+      "removal": "下次增加独立操作组时提取显式依赖的操作控制器，保留上下文失效与选择恢复测试；降至 600 行以内移除此登记。原 fan-profiles.css 已按工作区与编辑器拆分并保持加载顺序，两文件均低于 600 行。",
+      "reviewBy": "2026-12-20",
       "test": "test/frontend-fan-profiles.test.js"
     },
     {

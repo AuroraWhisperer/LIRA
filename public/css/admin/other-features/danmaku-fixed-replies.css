@@ -7,7 +7,7 @@
   --surface-2: light-dark(#f3f5f6, var(--dark-bg-secondary));
   --text: light-dark(#526071, var(--dark-text-primary));
   --muted: light-dark(#626c77, var(--dark-text-secondary));
-  --danmaku-heading-color: light-dark(#34465c, var(--dark-text-primary));
+  --danmaku-heading-color: light-dark(#246b63, var(--dark-text-primary));
   --fixed-divider: color-mix(in srgb, var(--border) 46%, var(--surface));
   font-size: 14px;
   line-height: 1.5;

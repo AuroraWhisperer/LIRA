@@ -3,7 +3,7 @@
 const GIFT_DISPLAY_SETTING = 'giftDisplayConfig';
 const DEFAULT_GIFT_DISPLAY = Object.freeze({
   palette: 'bilibili-four', thresholds: [3000, 10000, 100000],
-  visibleRows: 3, scrollSpeed: 1,
+  visibleRows: 3, scrollSpeed: 25,
 });
 
 function validateGiftDisplaySettings(value) {

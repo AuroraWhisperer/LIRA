@@ -163,6 +163,13 @@ function createFanProfileStore(db) {
     );
   }
 
+  function removeAll(scope) {
+    const result = db
+      .prepare('DELETE FROM fan_profiles WHERE scope = ?')
+      .run(scope);
+    return Number(result.changes) || 0;
+  }
+
   function exportScope(scope) {
     return {
       profiles: list(scope).map((profile) => ({
@@ -282,6 +289,7 @@ function createFanProfileStore(db) {
     statesForProfiles,
     saveState,
     remove,
+    removeAll,
     exportScope,
     snapshot,
     restoreProfile,

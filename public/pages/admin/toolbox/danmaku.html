@@ -299,21 +299,31 @@
           <label class="danmaku-parameter-field" for="danmakuFontFamily">
             <span>字体</span>
             <select id="danmakuFontFamily" disabled>
-              <option value="default">样式默认</option>
-              <option value="sans">微软雅黑</option>
-              <option value="serif">宋体</option>
-              <option value="kai">楷体</option>
+              <optgroup label="推荐字体">
+                <option value="&quot;Microsoft YaHei UI&quot;">微软雅黑</option>
+                <option value="&quot;SimHei&quot;">黑体</option>
+                <option value="&quot;SimSun&quot;">宋体</option>
+                <option value="&quot;KaiTi&quot;">楷体</option>
+                <option value="&quot;YouYuan&quot;">幼圆</option>
+                <option value="&quot;Noto Sans SC&quot;">思源黑体</option>
+                <option value="&quot;PingFang SC&quot;">苹方</option>
+              </optgroup>
             </select>
-            <small class="hint">使用浏览器源所在电脑的字体，缺失时自动回退。</small>
+            <small class="hint">推荐字体置顶，下方列出本机已安装字体。直播画面使用 OBS 所在电脑的字体，缺失时自动回退。</small>
           </label>
           <label class="danmaku-parameter-field" for="danmakuFontSize">
             <span>正文字号</span>
             <input id="danmakuFontSize" type="number" min="18" max="48" step="1" value="30" inputmode="numeric" aria-describedby="danmakuFontSizeHint" disabled />
             <small id="danmakuFontSizeHint" class="hint">18～48 px</small>
           </label>
+          <label class="danmaku-parameter-field" for="danmakuTextColor">
+            <span>弹幕文字颜色 <output id="danmakuTextColorValue" for="danmakuTextColor">#EAF2FF</output></span>
+            <input id="danmakuTextColor" type="color" value="#eaf2ff" disabled />
+            <small class="hint">调整弹幕正文颜色，昵称、身份标识和礼物通知保留原配色。</small>
+          </label>
           <label id="danmakuBackgroundOpacityField" class="danmaku-parameter-field" for="danmakuBackgroundOpacity">
             <span>背景不透明度 <output id="danmakuBackgroundOpacityValue" for="danmakuBackgroundOpacity">100%</output></span>
-            <input id="danmakuBackgroundOpacity" type="range" min="0" max="100" step="1" value="100" disabled />
+            <input id="danmakuBackgroundOpacity" class="parameter-range" type="range" min="0" max="100" step="1" value="100" disabled />
             <small class="hint">0% 隐去底色，100% 为原样式；文字和图片保持清晰。</small>
           </label>
           <label id="danmakuGiftImageField" class="danmaku-parameter-field" for="danmakuGiftImage">

@@ -37,8 +37,8 @@ async function fixture() {
     window: { liraLicense: bridge, open: (...args) => opened.push(args) },
   });
   const module = new vm.SourceTextModule(source('danmaku-overlay-settings.js'), { context });
-  await module.link((specifier) => specifier.includes('danmaku-style-options')
-    ? new vm.SourceTextModule(source('../shared/danmaku-style-options.js'), { context })
+  await module.link((specifier) => ['danmaku-style-options', 'local-font-library', 'parameter-range'].some((name) => specifier.includes(name))
+    ? new vm.SourceTextModule(source(specifier), { context })
     : new vm.SyntheticModule(
     specifier.includes('utils') ? ['copyText', 'localOverlayOrigin'] : ['observeServerOverlayUrl'],
     function () {
@@ -104,12 +104,14 @@ test('appearance drafts belong to each style and apply together without leaking 
   f.reads[0].resolve({ ...saved(), styleOptions: {} }); await flush();
   const change = (id, value, event = 'change') => { f.node(id).value = value; f.node(id).events[event](); };
   change('danmakuFontSize', '42');
-  change('danmakuFontFamily', 'serif');
+  change('danmakuFontFamily', '"Cascadia Code"');
+  change('danmakuTextColor', '#aabbcc', 'input');
   f.node('danmakuBackgroundOpacity').min = '0';
   f.node('danmakuBackgroundOpacity').max = '100';
   change('danmakuBackgroundOpacity', '35', 'input');
   change('danmakuGiftImage', 'gift');
   f.click('minimal');
+  assert.equal(f.node('danmakuTextColor').value, '#f7f9ff');
   assert.equal(f.node('danmakuFontSize').max, '40');
   assert.equal(f.node('danmakuBackgroundOpacityField').hidden, true);
   assert.equal(f.node('danmakuGiftImageField').hidden, true);
@@ -118,10 +120,11 @@ test('appearance drafts belong to each style and apply together without leaking 
   assert.equal(f.node('danmakuFontSize').value, '30');
   change('danmakuFontSize', '24');
   f.click('signal');
+  assert.equal(f.node('danmakuTextColor').value, '#aabbcc');
   assert.equal(f.node('danmakuFontSize').value, '42');
   assert.equal(f.node('danmakuGiftImage').value, 'gift');
   f.click('previewOverlayButton');
-  const expected = { signal: { fontSize: 42, fontFamily: 'serif', backgroundOpacity: 35, giftImage: 'gift' }, minimal: { fontSize: 24 } };
+  const expected = { signal: { fontSize: 42, fontFamily: '"Cascadia Code"', textColor: '#aabbcc', backgroundOpacity: 35, giftImage: 'gift' }, minimal: { fontSize: 24 } };
   assert.deepEqual(JSON.parse(new URL(f.opened.at(-1)[0]).searchParams.get('styleOptions')), expected);
   assert.equal(f.writes.length, 0);
   const pending = f.click('danmakuApplyOverlayBtn');
@@ -129,12 +132,13 @@ test('appearance drafts belong to each style and apply together without leaking 
   f.writes[0].resolve({ ...saved(), styleOptions: expected }); await pending;
   assert.equal(f.node('danmakuApplyOverlayBtn').disabled, true);
   f.click('danmakuResetParameters');
+  assert.equal(f.node('danmakuTextColor').value, '#eaf2ff');
   assert.equal(f.node('danmakuFontSize').value, '30');
   f.click('minimal');
   assert.equal(f.node('danmakuFontSize').value, '24');
   f.account('');
   assert.equal(f.node('danmakuFontSize').disabled, true);
-  assert.equal(f.node('danmakuFontFamily').value, 'default');
+  assert.equal(f.node('danmakuFontFamily').value, '"Microsoft YaHei UI"');
 });
 
 test('older servers keep style editing available and explain unsupported appearance controls', async () => {

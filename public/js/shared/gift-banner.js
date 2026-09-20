@@ -7,7 +7,7 @@ export const BANNER_HEIGHT = 72;
 export const BANNER_GAP = 8;
 export const MAX_COMPOSITE_ROWS = 39;
 export const GIFT_PALETTE = [
-  ['#408AE8F2', '#559AF0E6'], ['#8F58EDF2', '#776CE9E6'],
+  ['#4DACE6F2', '#74C4F0E6'], ['#8F58EDF2', '#776CE9E6'],
   ['#F25361F2', '#F47765E6'], ['#E99400F2', '#F0BC00E6'],
 ];
 const FRAMES = { 1: 'governor', 2: 'admiral', 3: 'captain' };
@@ -27,8 +27,10 @@ export function giftExportPages(items, mode) {
 }
 
 export function resolveGiftArtwork(gift, catalog) {
-  if (gift.coinType === 'guard' && /^guard-[123]$/.test(gift.giftId)) {
-    return `/img/admin/gifts/bilibili-guard-${{ 1: 'governor', 2: 'prefect', 3: 'captain' }[gift.giftId.slice(-1)]}.webp`;
+  const purchasedGuardLevel = /^guard-([123])$/.exec(gift.giftId)?.[1]
+    || (gift.coinType === 'guard' ? ['总督', '提督', '舰长'].indexOf(gift.giftName) + 1 : 0);
+  if (purchasedGuardLevel) {
+    return `/img/admin/gifts/bilibili-guard-${{ 1: 'governor', 2: 'prefect', 3: 'captain' }[purchasedGuardLevel]}.webp`;
   }
   const normalize = (value) => String(value || '').normalize('NFKC').replace(/\s+/gu, ' ').trim().toLowerCase();
   const matches = catalog.filter((entry) => gift.giftVariantId

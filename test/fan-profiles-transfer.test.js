@@ -103,6 +103,59 @@ test('A19: archived profiles can restore, and deletion suppression survives back
   assert.equal(f.run('backup').suppressions[0], backup.suppressions[0]);
 });
 
+test('clearing all profiles requires confirmation and stays within the current account', (t) => {
+  const f = fanFixture(t);
+  const active = f.create({ birthday: { monthDay: '09-18' } });
+  f.record(active.id, 'note', { body: '当前账号手记' });
+  f.run('reminder-state', {
+    profileId: active.id,
+    key: active.reminders[0].key,
+    status: 'handled',
+  });
+  let archived = f.create({
+    alias: '已归档粉丝',
+    identity: { ...IDENTITY, value: '900000002' },
+  });
+  archived = f.run('save', {
+    id: archived.id,
+    revision: archived.revision,
+    archived: true,
+  });
+  const otherScope = JSON.stringify(['https://lira.example', 'streamer-b']);
+  const other = f.create({ alias: '其他账号档案' }, otherScope);
+  f.run(
+    'save-record',
+    { profileId: other.id, kind: 'note', data: { body: '不得删除' } },
+    otherScope,
+  );
+  f.store.suppress(SCOPE, '["bilibili","uid","900000099"]');
+
+  assert.throws(() => f.run('delete-all'), /确认清除全部档案/);
+  assert.equal(f.run('list').profiles.length, 1);
+  assert.equal(f.run('list', { archived: true }).profiles.length, 1);
+
+  assert.deepEqual(f.run('delete-all', { confirm: true }), {
+    deletedCount: 2,
+  });
+  assert.equal(f.run('list').profiles.length, 0);
+  assert.equal(f.run('list', { archived: true }).profiles.length, 0);
+  assert.equal(
+    f.db.songDb
+      .prepare('SELECT COUNT(*) AS count FROM fan_records WHERE scope = ?')
+      .get(SCOPE).count,
+    0,
+  );
+  assert.equal(
+    f.db.songDb
+      .prepare('SELECT COUNT(*) AS count FROM fan_reminder_states WHERE scope = ?')
+      .get(SCOPE).count,
+    0,
+  );
+  assert.equal(f.run('suppression-list').length, 1);
+  assert.equal(f.run('settings').autoCreate, true);
+  assert.equal(f.detail(other.id, otherScope).records.length, 1);
+});
+
 test('A29: legacy request import previews scope/range, requires confirmation and deduplicates assigned UUIDs', (t) => {
   const f = fanFixture(t);
   const p = f.create();

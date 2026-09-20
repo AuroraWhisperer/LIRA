@@ -1,6 +1,8 @@
 import { copyText, localOverlayOrigin } from '../shared/utils.js';
 import { observeServerOverlayUrl } from './server-overlay-url.js';
 import { DANMAKU_STYLE_OPTIONS, styleOptionsFor } from '../shared/danmaku-style-options.js';
+import { ensureSavedFontOption, registerLocalFontSelect } from './local-font-library.js';
+import { initParameterRanges, refreshParameterRange } from '../shared/parameter-range.js';
 
 const STYLES = {
   bubble: '聊天气泡', signal: '深色面板', minimal: '蝴蝶结',
@@ -26,8 +28,11 @@ export function initDanmakuOverlaySettings(elements, toast) {
   const resetButton = document.getElementById('danmakuResetParameters');
   const fontFamily = document.getElementById('danmakuFontFamily');
   const fontSize = document.getElementById('danmakuFontSize');
+  const textColor = document.getElementById('danmakuTextColor');
   const backgroundOpacity = document.getElementById('danmakuBackgroundOpacity');
   const giftImage = document.getElementById('danmakuGiftImage');
+  registerLocalFontSelect(fontFamily);
+  initParameterRanges(backgroundOpacity);
 
   function render() {
     elements.overlayUrl.value = overlayUrl;
@@ -49,17 +54,23 @@ export function initDanmakuOverlaySettings(elements, toast) {
     parameterHint.textContent = !loaded ? '登录并读取配置后可调节参数。'
       : !supported ? '当前服务器尚不支持参数调节，请更新服务器。'
         : '各样式分别记住参数。先预览效果，再应用到直播画面。';
-    fontFamily.value = options.fontFamily;
+    const selectedFont = ({ default: draft.style === 'outline' ? '"Segoe UI"' : '"Microsoft YaHei UI"',
+      sans: '"Microsoft YaHei UI"', serif: '"SimSun"', kai: '"KaiTi"' })[options.fontFamily] || options.fontFamily;
+    ensureSavedFontOption(fontFamily, selectedFont);
+    fontFamily.value = selectedFont;
     fontSize.min = String(limits.minFontSize);
     fontSize.max = String(limits.maxFontSize);
     fontSize.value = String(options.fontSize);
+    textColor.value = options.textColor;
+    document.getElementById('danmakuTextColorValue').textContent = options.textColor.toUpperCase();
     document.getElementById('danmakuFontSizeHint').textContent = `${limits.minFontSize}～${limits.maxFontSize} px`;
     document.getElementById('danmakuBackgroundOpacityField').hidden = !limits.background;
     backgroundOpacity.value = String(options.backgroundOpacity);
+    refreshParameterRange(backgroundOpacity);
     document.getElementById('danmakuBackgroundOpacityValue').textContent = `${options.backgroundOpacity}%`;
     document.getElementById('danmakuGiftImageField').hidden = !limits.giftImage;
     giftImage.value = options.giftImage;
-    for (const control of [fontFamily, fontSize, backgroundOpacity, giftImage]) control.disabled = !loaded || !supported;
+    for (const control of [fontFamily, fontSize, textColor, backgroundOpacity, giftImage]) control.disabled = !loaded || !supported;
     resetButton.disabled = !loaded || !supported || !Object.keys(draft.styleOptions?.[draft.style] || {}).length;
     for (const button of [elements.copyOverlayUrlButton, elements.openOverlayButton]) {
       button.disabled = !overlayUrl;
@@ -117,8 +128,8 @@ export function initDanmakuOverlaySettings(elements, toast) {
       edit({ ...draft, style: button.dataset.danmakuStyle });
     }
   }));
-  for (const [key, control] of Object.entries({ fontFamily, fontSize, backgroundOpacity, giftImage })) {
-    control.addEventListener(key === 'backgroundOpacity' ? 'input' : 'change', () => {
+  for (const [key, control] of Object.entries({ fontFamily, fontSize, textColor, backgroundOpacity, giftImage })) {
+    control.addEventListener(['backgroundOpacity', 'textColor'].includes(key) ? 'input' : 'change', () => {
       if (!loaded || !Object.hasOwn(draft, 'styleOptions')) return;
       const value = ['fontSize', 'backgroundOpacity'].includes(key) ? Number(control.value) : control.value;
       if (typeof value === 'number' && (!Number.isInteger(value) || value < Number(control.min) || value > Number(control.max))) {

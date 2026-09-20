@@ -6,7 +6,8 @@
   --border: #a4afbd;
   --text: #526071;
   --muted: #626c77;
-  --danmaku-heading-color: #34465c;
+  --danmaku-heading-color: #246b63;
+  --danmaku-section-border: #b9d5cf;
   --danmaku-action: #e7bd67;
   --danmaku-action-hover: #d7a950;
   --danmaku-action-text: #443315;
@@ -65,7 +66,7 @@
   display: grid;
   gap: var(--spacing-md);
   padding: 20px;
-  border: 2px solid var(--border);
+  border: 2px solid var(--danmaku-section-border);
   border-radius: 12px;
   background: var(--surface);
 }
@@ -316,7 +317,7 @@
   display: grid;
   gap: 12px;
   padding-top: var(--spacing-lg);
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--danmaku-section-border);
 }
 .danmaku-parameters .hint {
   margin: 0;
@@ -350,9 +351,14 @@
   min-width: 0;
 }
 .danmaku-parameter-field input[type='range'] {
+  --parameter-range-accent: var(--danmaku-action);
+  --parameter-range-accent-hover: var(--danmaku-action);
   height: 40px;
   padding: 0;
-  accent-color: var(--danmaku-action);
+}
+.danmaku-parameter-field input[type='color'] {
+  height: 40px;
+  padding: 4px;
 }
 .danmaku-overlay-link {
   display: grid;
@@ -392,7 +398,7 @@
   padding-left: 0;
 }
 .danmaku-status-grid > div + div {
-  border-left: 1px solid var(--border);
+  border-left: 1px solid var(--danmaku-section-border);
 }
 .danmaku-status-grid span {
   color: var(--muted);

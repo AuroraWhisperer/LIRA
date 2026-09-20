@@ -1,5 +1,5 @@
 import { createFanTransferUi } from './transfer-ui.js';
-import { toast } from '../../shared/utils.js';
+import { dangerConfirm, toast } from '../../shared/utils.js';
 import { html, renderPeople, renderDetail, renderReminders } from './view.js';
 import { getBilibiliRoomProfileSnapshot } from '../settings-room-profile.js';
 import {
@@ -366,6 +366,26 @@ function createFanUi() {
     }
     if (name === 'suppressions') {
       await transfer.suppressions();
+      return;
+    }
+    if (name === 'delete-all') {
+      const confirmed = await dangerConfirm({
+        title: '清除全部档案',
+        message:
+          '当前账号的主列表与已归档档案都会永久删除。建议先保存完整备份；清除后，后续同步仍可重新自动建档。',
+        deletes: ['全部粉丝档案', '档案内的手记与互动记录', '档案提醒状态'],
+        keeps: ['原始礼物账本', '排除名单与档案设置', '现有恢复点'],
+        confirmLabel: '确认清除全部档案',
+      });
+      if (!confirmed) return;
+      const result = await request('delete-all', { confirm: true });
+      state.profile = null;
+      state.archived = false;
+      state.expanded = false;
+      state.selection++;
+      detailNode.innerHTML = '<p class="fan-empty">档案已全部清除。</p>';
+      await load();
+      toast(`已清除 ${result.deletedCount} 份档案`);
       return;
     }
     if (name === 'export') {

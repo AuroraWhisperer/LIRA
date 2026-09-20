@@ -43,6 +43,7 @@ test('gift feed settings save speed and remove the pause and low-power options',
   const page = await openSettings(t);
   const speed = page.getByRole('spinbutton', { name: '滚动速率（1–50）', exact: true });
   assert.equal(await speed.inputValue(), '26');
+  assert.equal(await page.locator('#giftFeedSpeedHint').count(), 0);
   assert.equal(await page.locator('#giftFeedPaused, #giftFeedLowPower, #giftFeedInterval').count(), 0);
   for (const invalid of ['0', '51', '1.5']) {
     await speed.fill(invalid);
@@ -55,7 +56,7 @@ test('gift feed settings save speed and remove the pause and low-power options',
     palette: 'bilibili-four', thresholds: [10000, 50000, 100000], visibleRows: 3, scrollSpeed: 50,
   });
   await page.getByRole('button', { name: '恢复默认', exact: true }).click();
-  assert.equal(await speed.inputValue(), '1');
+  assert.equal(await speed.inputValue(), '25');
   await page.getByRole('button', { name: '取消修改', exact: true }).click();
   assert.equal(await speed.inputValue(), '50');
 });
@@ -98,7 +99,7 @@ test('defaults reset both range endpoints and cancelling discards the draft', as
   assert.equal(await page.locator('#giftTierEnd0').inputValue(), '100');
 });
 
-test('gift assistant separates frame, display and export settings from gift history', async (t) => {
+test('gift assistant keeps frame and display settings while export settings live in history', async (t) => {
   const page = await openSettings(t);
   await page.locator('#giftFeedRows').fill('5');
   await page.getByRole('tab', { name: '礼物边框', exact: true }).click();
@@ -110,37 +111,106 @@ test('gift assistant separates frame, display and export settings from gift hist
   await page.getByRole('button', { name: '保存滚动与样式设置', exact: true }).click();
   await page.waitForFunction(() => window.displaySaves.length === 1);
   assert.equal(await page.evaluate(() => window.savedDisplay.visibleRows), 5);
-  assert.doesNotMatch(historyHtml, /giftDisplaySettings|giftExportMode|giftExportBackground|giftExportChoose|giftExportRemember/);
+  assert.doesNotMatch(historyHtml, /giftDisplaySettings|giftExportRemember/);
+  assert.doesNotMatch(html, /giftAssistantExportTab|giftExportSettings/);
+  for (const id of ['giftExportMode', 'giftExportBackground', 'giftExportChoose', 'giftExportDefault']) {
+    assert.ok(historyHtml.includes(`id="${id}"`));
+  }
   assert.match(historyHtml, /giftHistoryExport/);
   assert.match(historyHtml, /giftExportPreview/);
   assert.match(historyHtml, /giftExportSave/);
 });
 
-test('export defaults can be edited without selecting gifts and remain available after returning', async (t) => {
-  const page = await openSettings(t);
-  await page.evaluate(() => {
+async function openExport(t) {
+  const page = await fixture(t, 'gift-display');
+  await page.setContent(historyHtml);
+  await page.evaluate(async () => {
+    const items = [1, 2].map((num) => ({ eventId: String(num), gift: {
+      giftId: 'sample', giftName: '礼物', userName: '测试观众', unitPrice: 2, num,
+    } }));
     window.exportCalls = [];
-    const settings = { mode: 'combined', background: 'transparent', directory: 'Pictures/LIRA', custom: false };
-    window.giftExport = { async settings(options) {
-      window.exportCalls.push(options || null);
-      if (options?.mode) settings.mode = options.mode;
-      if (options?.background) settings.background = options.background;
-      if (options?.directoryAction) settings.directory = options.directoryAction === 'choose' ? 'Chosen/Gifts' : 'Pictures/LIRA';
-      return { ok: true, data: structuredClone(settings) };
-    } };
+    window.exportDefaults = { mode: 'combined', background: 'transparent', root: 'Pictures/LIRA' };
+    let task;
+    let batch = 0;
+    const describe = () => ({ ...task, files: Array.from({ length: task.mode === 'combined' ? 1 : 2 },
+      (_, index) => ({ fileName: '礼物_' + (index + 1) + '.png' })) });
+    window.giftExport = {
+      async prepare() {
+        task = { ...window.exportDefaults, id: String(++batch), directory: window.exportDefaults.root + '/batch',
+          snapshot: { items, config: { thresholds: [3000, 10000, 100000] }, catalog: [] } };
+        return { ok: true, data: describe() };
+      },
+      async configure(options) {
+        window.exportCalls.push(options);
+        if (window.failConfigure) return { ok: false, error: '导出预览已失效，请重新打开。' };
+        if (window.delayConfigure) await new Promise((resolve) => { window.finishConfigure = resolve; });
+        task.mode = options.mode;
+        task.background = options.background;
+        if (options.directoryAction) task.root = options.directoryAction === 'choose' ? 'Chosen/Gifts' : 'Pictures/LIRA';
+        if (options.remember) window.exportDefaults.root = task.root;
+        task.directory = task.root + '/batch';
+        return { ok: true, data: describe() };
+      },
+      async settings(options) { Object.assign(window.exportDefaults, options); return { ok: true, data: window.exportDefaults }; },
+      async save(id) { window.savedExportId = id; return { ok: true, saved: describe().files.length }; },
+      onProgress() { return () => {}; },
+      cancel() {},
+    };
+    const { createGiftExportPreview } = await import('/js/admin/gifts/export-preview.js');
+    window.preview = createGiftExportPreview({ showPane(pane) {
+      document.querySelectorAll('[data-gift-pane]').forEach((node) => { node.hidden = node.dataset.giftPane !== pane; });
+    } });
+    await window.preview.open({ eventIds: ['1', '2'] });
   });
-  await page.getByRole('tab', { name: '图片导出', exact: true }).click();
+  return page;
+}
+
+test('history export settings update the current preview and remember the next export', async (t) => {
+  const page = await openExport(t);
+  assert.equal(await page.locator('#giftExportPreview .gift-banner').count(), 2);
   await page.locator('#giftExportMode').selectOption('separate');
+  await page.waitForFunction(() => !document.getElementById('giftExportSettingsFields').disabled);
+  assert.equal(await page.locator('#giftExportPreview .gift-banner').count(), 1);
+  assert.equal(await page.locator('#giftExportPage').textContent(), '1 / 2');
+  await page.locator('#giftExportNext').click();
+  assert.equal(await page.locator('#giftExportPage').textContent(), '2 / 2');
   await page.locator('#giftExportBackground').selectOption('white');
-  await page.getByRole('button', { name: '选择文件夹', exact: true }).click();
+  await page.waitForFunction(() => !document.getElementById('giftExportSettingsFields').disabled);
+  assert.equal(await page.locator('#giftExportPreview').evaluate((node) => node.style.background), 'rgb(255, 255, 255)');
+  await page.locator('#giftExportChoose').click();
+  await page.waitForFunction(() => !document.getElementById('giftExportSettingsFields').disabled);
   assert.equal(await page.locator('#giftExportSettingsDirectory').textContent(), 'Chosen/Gifts');
-  await page.getByRole('tab', { name: '滚动礼物', exact: true }).click();
-  await page.getByRole('tab', { name: '图片导出', exact: true }).click();
+  assert.equal(await page.locator('#giftExportDirectory').textContent(), 'Chosen/Gifts/batch');
+  await page.locator('#giftExportSave').click();
+  assert.equal(await page.locator('#giftExportSave').isDisabled(), true);
+  assert.equal(await page.evaluate(() => window.savedExportId), '1');
+  await page.locator('#giftExportBack').click();
+  await page.evaluate(() => window.preview.open({ eventIds: ['1', '2'] }));
   assert.equal(await page.locator('#giftExportMode').inputValue(), 'separate');
   assert.equal(await page.locator('#giftExportBackground').inputValue(), 'white');
-  await page.getByRole('button', { name: '系统默认', exact: true }).click();
+  assert.equal(await page.locator('#giftExportSettingsDirectory').textContent(), 'Chosen/Gifts');
+  await page.locator('#giftExportDefault').click();
+  await page.waitForFunction(() => !document.getElementById('giftExportSettingsFields').disabled);
   assert.equal(await page.locator('#giftExportSettingsDirectory').textContent(), 'Pictures/LIRA');
-  assert.deepEqual(await page.evaluate(() => window.exportCalls), [null, { mode: 'separate' }, { background: 'white' }, { directoryAction: 'choose' }, { directoryAction: 'default' }]);
+  assert.equal(await page.locator('#giftExportSave').isEnabled(), true);
+});
+
+test('failed settings restore the current format and pending settings cannot export or reopen a closed preview', async (t) => {
+  const page = await openExport(t);
+  await page.evaluate(() => { window.failConfigure = true; });
+  await page.locator('#giftExportMode').selectOption('separate');
+  await page.waitForFunction(() => !document.getElementById('giftExportSettingsFields').disabled);
+  assert.equal(await page.locator('#giftExportMode').inputValue(), 'combined');
+  assert.equal(await page.locator('#giftExportPreview .gift-banner').count(), 2);
+  assert.match(await page.locator('#giftExportStatus').textContent(), /已失效/);
+  await page.evaluate(() => { window.failConfigure = false; window.delayConfigure = true; });
+  await page.locator('#giftExportMode').selectOption('separate');
+  assert.equal(await page.locator('#giftExportMode').isDisabled(), true);
+  assert.equal(await page.locator('#giftExportSave').isDisabled(), true);
+  await page.locator('#giftExportBack').click();
+  await page.evaluate(() => window.finishConfigure());
+  assert.equal(await page.locator('#giftExportPanel').isHidden(), true);
+  assert.equal(await page.evaluate(() => window.exportDefaults.mode), 'combined');
 });
 
 test('gift banners use the sender avatar proxy and distinguish captain from unknown identity', async (t) => {
@@ -198,11 +268,12 @@ test('gift banners fit long names and inset the avatar inside the rounded color 
       giftFits: banner.querySelector('.gift-banner-gift').scrollWidth <= banner.querySelector('.gift-banner-gift').clientWidth,
       textClearsArtwork: text.right <= artwork.left,
       quantityFits: banner.querySelector('.gift-banner-count').getBoundingClientRect().right <= bounds.right,
+      quantityBottomGap: bounds.bottom - banner.querySelector('.gift-banner-count').getBoundingClientRect().bottom,
     };
   });
   assert.deepEqual(layout, {
     width: 428, height: 72, avatarWidth: 52, avatarInsets: [6, 6, 6],
-    nameFits: true, nameShrinks: true, giftFits: true, textClearsArtwork: true, quantityFits: true,
+    nameFits: true, nameShrinks: true, giftFits: true, textClearsArtwork: true, quantityFits: true, quantityBottomGap: 4,
   });
 });
 

@@ -41,7 +41,7 @@ export function createGiftDisplaySettings() {
   }
 
   get('giftDisplayCancel')?.addEventListener('click', () => { fill(config); get('giftDisplayError').textContent = ''; });
-  get('giftDisplayDefaults')?.addEventListener('click', () => fill({ thresholds: [3000, 10000, 100000], visibleRows: 3, scrollSpeed: 1 }));
+  get('giftDisplayDefaults')?.addEventListener('click', () => fill({ thresholds: [3000, 10000, 100000], visibleRows: 3, scrollSpeed: 25 }));
   get('giftDisplayForm')?.addEventListener('input', (event) => {
     const boundary = event.target.dataset.giftBoundary;
     if (boundary) {

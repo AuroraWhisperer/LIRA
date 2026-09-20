@@ -1,10 +1,36 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const { loadModuleExports } = require('./helpers/frontend-modules');
 const { fanFixture, SCOPE, IDENTITY, NOW } = require('./helpers/fan-profile-fixture');
+
+const ROOT = path.join(__dirname, '..');
+
+test('profile settings put bulk deletion last and require destructive confirmation', () => {
+  const html = fs.readFileSync(
+    path.join(ROOT, 'public/pages/admin/toolbox/fan-profiles.html'),
+    'utf8',
+  );
+  const source = fs.readFileSync(
+    path.join(ROOT, 'public/js/admin/fans/index.js'),
+    'utf8',
+  );
+  assert.match(
+    html,
+    /class="danger" data-fan-action="delete-all">\u6e05\u9664\u5168\u90e8\u6863\u6848<\/button>[\s\S]*?<\/div>\s*<\/section>/,
+  );
+  const start = source.indexOf("if (name === 'delete-all')");
+  const end = source.indexOf("if (name === 'export')", start);
+  const handler = source.slice(start, end);
+  assert.ok(start >= 0 && end > start);
+  assert.match(handler, /await dangerConfirm\(/);
+  assert.match(handler, /if \(!confirmed\) return;/);
+  assert.ok(handler.indexOf('dangerConfirm') < handler.indexOf("request('delete-all'"));
+  assert.match(handler, /request\('delete-all', \{ confirm: true \}\)/);
+});
 
 test('guard roster confirmation reuses the room identity without showing its number', async () => {
   const forms = await loadModuleExports(

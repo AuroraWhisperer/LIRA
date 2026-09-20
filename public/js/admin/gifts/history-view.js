@@ -2,6 +2,8 @@
 
 import { escapeAttr, escapeHtml, formatDateTime } from '../../shared/utils.js';
 
+const renderedBodies = new WeakMap();
+
 // View snapshots are read-only; request, pagination and clearing state belong to history.js.
 export function renderHistoryLoadingView(view) {
   renderHistoryNoticeView(
@@ -217,7 +219,11 @@ export function setRetryButtonView(visible, view) {
 
 function setHistoryBody(html) {
   const body = get('giftHistoryBody');
-  if (body) body.innerHTML = html;
+  // Background polling must not replace unchanged rows during a selection gesture.
+  if (body && renderedBodies.get(body) !== html) {
+    body.innerHTML = html;
+    renderedBodies.set(body, html);
+  }
 }
 
 function setText(id, value) {

@@ -5,9 +5,14 @@ export function createGiftExportPreview({ showPane }) {
   let task = null;
   let page = 0;
   let running = false;
+  let configuring = false;
+  let attempted = false;
   let sequence = 0;
-  const status = (text) => { get('giftExportStatus').textContent = text; };
-  const run = (operation) => Promise.resolve().then(operation).catch((error) => status(error.message));
+  const status = (text, state = '') => {
+    get('giftExportStatus').textContent = text;
+    get('giftExportStatus').dataset.state = state;
+  };
+  const run = (operation) => Promise.resolve().then(operation).catch((error) => status(error.message, 'error'));
   const unwrap = (result) => { if (!result.ok) throw new Error(result.error); return result.data; };
 
   async function render() {
@@ -19,7 +24,9 @@ export function createGiftExportPreview({ showPane }) {
     get('giftExportPage').textContent = `${page + 1} / ${pages.length}`;
     get('giftExportPrev').disabled = page === 0;
     get('giftExportNext').disabled = page === pages.length - 1;
-    get('giftExportFormat').textContent = `${task.mode === 'combined' ? '拼成一张（超长自动分图）' : '每条一张'} · ${task.background === 'white' ? '白色背景' : '透明背景'}`;
+    get('giftExportMode').value = task.mode;
+    get('giftExportBackground').value = task.background;
+    get('giftExportSettingsDirectory').textContent = task.root;
     const preview = get('giftExportPreview');
     preview.style.background = task.background === 'white' ? '#fff' : 'transparent';
     preview.replaceChildren(...pages[page].map((item) => createGiftBanner(item, task.snapshot.config, task.snapshot.catalog)));
@@ -29,7 +36,9 @@ export function createGiftExportPreview({ showPane }) {
   }
 
   function controls() {
-    get('giftExportSave').disabled = running;
+    get('giftExportSave').disabled = running || configuring || attempted;
+    get('giftExportSave').textContent = running ? '正在导出…' : '导出 PNG';
+    get('giftExportSettingsFields').disabled = running || configuring;
     get('giftExportCancel').hidden = !running;
   }
 
@@ -38,18 +47,57 @@ export function createGiftExportPreview({ showPane }) {
     if (task) window.giftExport?.cancel(task.id);
     task = null;
     running = false;
+    configuring = false;
     showPane('list');
   }
 
+  async function configure(options) {
+    if (!task || running || configuring) return;
+    const request = sequence;
+    configuring = true;
+    controls();
+    status('正在更新导出设置…');
+    try {
+      const next = unwrap(await window.giftExport.configure({
+        id: task.id, mode: task.mode, background: task.background, ...options, remember: true,
+      }));
+      if (request !== sequence) return;
+      task = next;
+      attempted = false;
+      page = 0;
+      get('giftExportOpenFolder').hidden = true;
+      await render();
+      if (request !== sequence) return;
+      unwrap(await window.giftExport.settings({ mode: next.mode, background: next.background }));
+      if (request === sequence) status('设置已保存，已应用于本次导出。');
+    } catch (error) {
+      if (request === sequence) {
+        get('giftExportMode').value = task.mode;
+        get('giftExportBackground').value = task.background;
+        status(error.message, 'error');
+      }
+    } finally {
+      if (request === sequence) {
+        configuring = false;
+        controls();
+      }
+    }
+  }
+
+  get('giftExportMode')?.addEventListener('change', (event) => configure({ mode: event.target.value }));
+  get('giftExportBackground')?.addEventListener('change', (event) => configure({ background: event.target.value }));
+  get('giftExportChoose')?.addEventListener('click', () => configure({ directoryAction: 'choose' }));
+  get('giftExportDefault')?.addEventListener('click', () => configure({ directoryAction: 'default' }));
   get('giftExportBack')?.addEventListener('click', close);
   get('giftExportCancel')?.addEventListener('click', () => window.giftExport?.cancel(task?.id));
   get('giftExportPrev')?.addEventListener('click', () => { page -= 1; run(render); });
   get('giftExportNext')?.addEventListener('click', () => { page += 1; run(render); });
   get('giftExportOpenFolder')?.addEventListener('click', () => run(async () => unwrap(await window.giftExport.openFolder(task.id))));
   get('giftExportSave')?.addEventListener('click', () => run(async () => {
-    if (!task || running) return;
+    if (!task || running || configuring || attempted) return;
     const current = task;
     running = true;
+    attempted = true;
     controls();
     status('正在生成图片…');
     const unsubscribe = window.giftExport.onProgress((progress) => {
@@ -58,14 +106,13 @@ export function createGiftExportPreview({ showPane }) {
     try {
       const result = await window.giftExport.save(current.id);
       if (task !== current) return;
-      status(result.ok ? `已保存 ${result.saved} 张` : `${result.error}。已保存 ${result.saved || 0} 张，文件已保留。`);
+      status(result.ok ? `已保存 ${result.saved} 张 PNG` : `${result.error}。已保存 ${result.saved || 0} 张，文件已保留。`, result.ok ? 'success' : 'error');
       get('giftExportOpenFolder').hidden = !(result.saved > 0);
     } finally {
       unsubscribe();
       if (task === current) {
         running = false;
         controls();
-        get('giftExportSave').disabled = true;
       }
     }
   }));
@@ -78,10 +125,13 @@ export function createGiftExportPreview({ showPane }) {
       const next = unwrap(await window.giftExport.prepare(selection));
       if (request !== sequence) { window.giftExport.cancel(next.id); return; }
       task = next;
+      configuring = false;
+      attempted = false;
       page = 0;
       get('giftExportOpenFolder').hidden = true;
-      status(task.snapshot.cardsPartial ? '身份资料暂不可用，部分礼物尚未合并；内容和样式已冻结。'
-        : task.snapshot.partial ? '当前预览仅包含已同步记录，内容和样式已冻结。' : '记录和样式已冻结，可确认后导出。');
+      status(task.snapshot.cardsPartial ? '身份资料暂不可用，部分礼物尚未合并。'
+        : task.snapshot.partial ? '当前预览仅包含已同步的礼物记录。' : '请确认左侧预览效果后导出。',
+        task.snapshot.cardsPartial || task.snapshot.partial ? 'warning' : '');
       showPane('export');
       controls();
       await render();

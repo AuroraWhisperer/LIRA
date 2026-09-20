@@ -10,7 +10,7 @@ const status = document.getElementById('giftFeedStatus');
 const preview = new URLSearchParams(location.search).get('preview') === '1';
 document.body.classList.toggle('gift-feed-preview', preview);
 status.hidden = !preview;
-let config = { thresholds: [3000, 10000, 100000], visibleRows: 3, scrollSpeed: 1 };
+let config = { thresholds: [3000, 10000, 100000], visibleRows: 3, scrollSpeed: 25 };
 let catalog = [];
 let catalogVersion = 0;
 let rendered = new Map();
@@ -117,7 +117,7 @@ async function refresh() {
     const cards = buildGiftCards(result.items, { day, profiles: profiles.items });
     pending = cards;
     if (state.count <= config.visibleRows || document.hidden) { state.replace(pending); pending = null; render(); }
-    status.textContent = `${day}（北京时间）· ${cards.length ? `${cards.length} 张卡片（${result.items.length} 条${result.partial ? '已同步礼物，仍可能补齐' : '礼物'}）` : '今天暂无礼物'}${profiles.partial ? '；身份资料暂不可用，部分礼物尚未合并。' : ''}`;
+    status.textContent = '';
   } catch (error) {
     if (current !== generation || disposed) return;
     if (['GIFT_SOURCE_UNAVAILABLE', 'GIFT_VIEW_STALE'].includes(error.code)) reset();

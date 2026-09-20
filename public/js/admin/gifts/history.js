@@ -20,7 +20,7 @@ import {
 
 export { describeGiftSyncStatus };
 
-const GIFT_HISTORY_LIMIT = 50;
+const GIFT_HISTORY_LIMIT = 100;
 const DEFAULT_HISTORY_SORT_FIELD = 'created_at';
 const DEFAULT_HISTORY_SORT_DIRECTION = 'desc';
 const HISTORY_RETRY_INTERVAL_MS = 2000;

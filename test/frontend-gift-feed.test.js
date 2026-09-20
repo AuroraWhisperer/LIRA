@@ -8,7 +8,8 @@ const { createUiFixture } = require('./helpers/ui-edit-state-fixture');
 
 const fixture = createUiFixture();
 
-async function openFeed(t, { count = 5, scrollSpeed = 1 } = {}) {
+// Speed 31 advances one row in two seconds on the 5–0.1 second scale.
+async function openFeed(t, { count = 5, scrollSpeed = 31 } = {}) {
   const page = await fixture(t, 'gift-feed');
   await page.setContent('<main id="giftFeedViewport"><div id="giftFeedStage" class="gift-banner-stage"></div></main><p id="giftFeedStatus"></p>');
   for (const file of ['shared/gift-banner.css', 'overlays/gift-feed.css']) {

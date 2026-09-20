@@ -5,16 +5,17 @@ const path = require('node:path');
 const { loadModuleExports } = require('./helpers/frontend-modules');
 const { validateGiftDisplaySettings, readGiftDisplaySettings, DEFAULT_GIFT_DISPLAY } = require('../src/bilibili/gift/display-settings');
 
-test('feed speed maps linearly from two seconds to a tenth of a second per row', async () => {
+test('feed speed maps linearly from five seconds to a tenth of a second per row', async () => {
   const { giftFeedRowDurationMs } = await loadModuleExports(path.resolve('public/js/shared/gift-feed-state.js'));
-  assert.equal(giftFeedRowDurationMs(1), 2000);
+  assert.equal(giftFeedRowDurationMs(1), 5000);
   assert.equal(giftFeedRowDurationMs(50), 100);
   for (let speed = 2; speed <= 50; speed += 1) {
-    assert.ok(Math.abs(giftFeedRowDurationMs(speed - 1) - giftFeedRowDurationMs(speed) - 1900 / 49) < 1e-9);
+    assert.ok(Math.abs(giftFeedRowDurationMs(speed - 1) - giftFeedRowDurationMs(speed) - 4900 / 49) < 1e-9);
   }
 });
 
 test('display settings validate speed and preserve saved colors and rows from legacy settings', () => {
+  assert.equal(DEFAULT_GIFT_DISPLAY.scrollSpeed, 25);
   for (const scrollSpeed of [1, 26, 50]) {
     const config = { ...DEFAULT_GIFT_DISPLAY, scrollSpeed };
     assert.deepEqual(validateGiftDisplaySettings(config), config);
@@ -44,6 +45,28 @@ test('price bands use each historical unit price times quantity, with exact boun
   for (const thresholds of [[0, 100, 200], [100, 100, 200], [200, 100, 300], [1.5, 200, 300]]) {
     assert.throws(() => validateGiftDisplaySettings({ ...DEFAULT_GIFT_DISPLAY, thresholds }));
   }
+});
+
+test('guard purchases use bundled artwork for upstream IDs and never borrow the sender rank', async () => {
+  const { resolveGiftArtwork } = await loadModuleExports(path.resolve('public/js/shared/gift-banner.js'));
+  const guards = [
+    { giftName: '总督', role: 'governor', ids: ['guard-1', '10001', '33909', '34639'] },
+    { giftName: '提督', role: 'prefect', ids: ['guard-2', '10002', '33908', '34638'] },
+    { giftName: '舰长', role: 'captain', ids: ['guard-3', '10003', '34637', '33972', '33978', '34636'] },
+  ];
+  for (const { giftName, role, ids } of guards) {
+    for (const giftId of ids) {
+      assert.equal(resolveGiftArtwork({ giftId, giftName, coinType: 'guard', guardLevel: 1 }, []),
+        `/img/admin/gifts/bilibili-guard-${role}.webp`);
+    }
+  }
+  assert.equal(resolveGiftArtwork({ giftId: 'guard-3', giftName: '大航海' }, []),
+    '/img/admin/gifts/bilibili-guard-captain.webp');
+  assert.equal(resolveGiftArtwork({ giftId: 'unknown', giftName: '大航海', coinType: 'guard', guardLevel: 3 }, []),
+    '/img/gift-placeholder.png');
+  const ordinary = { giftId: '1', giftName: '舰长', coinType: 'gold', guardLevel: 3 };
+  assert.equal(resolveGiftArtwork(ordinary, [{ id: '1', name: '舰长', imagePath: '/overtime-gift-images/ordinary.webp' }]),
+    '/overtime-gift-images/ordinary.webp');
 });
 
 test('feed scans every page, loops all events and keeps its current position on refresh', async () => {

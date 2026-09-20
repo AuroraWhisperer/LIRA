@@ -492,6 +492,10 @@ function createFanProfileService({
             throw new Error('请确认删除和自动建档选项。');
           store.remove(scope, input.id, input.suppress);
           return true;
+        case 'delete-all':
+          if (input.confirm !== true)
+            throw new Error('请确认清除全部档案。');
+          return { deletedCount: store.removeAll(scope) };
         default:
           return transfer.execute(scope, action, input);
       }

@@ -67,3 +67,46 @@ test('browser and privileged display contracts stay identical', async () => {
   assert.equal(browser.normalizeStyleOptions.toString(), contract.normalizeStyleOptions.toString());
   assert.equal(browser.styleOptionsFor.toString(), contract.styleOptionsFor.toString());
 });
+
+test('local font families round-trip safely and render as a single quoted family', async () => {
+  const source = fs.readFileSync(path.join(__dirname, '../public/js/shared/danmaku-style-options.js'), 'utf8');
+  const browser = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
+  for (const fontFamily of ['default', 'sans', 'serif', 'kai', '"Cascadia Code"', '"本机字体"', '"Font \\"Quoted\\""', '"Font \\\\ Name"']) {
+    const input = { signal: { fontFamily } };
+    assert.deepEqual(contract.normalizeStyleOptions(input), input);
+    assert.deepEqual(browser.normalizeStyleOptions(input), input);
+    const document = { documentElement: { style: { setProperty(key, value) { this[key] = value; } } }, body: { dataset: {} } };
+    browser.applyStyleOptions(document, 'signal', input);
+    assert.equal(document.documentElement.style['--danmaku-custom-font'],
+      Object.hasOwn(contract.DANMAKU_FONTS, fontFamily)
+        ? contract.DANMAKU_FONTS[fontFamily] || 'inherit'
+        : `${fontFamily}, ${contract.DANMAKU_FONTS.sans}`);
+  }
+  for (const fontFamily of ['""', '"   "', 'Cascadia Code', '"Font"; color:red', '"Font", serif', '"Font\\a"', '"Font\nName"', '"Font"\n', '"' + 'x'.repeat(401) + '"']) {
+    for (const normalize of [contract.normalizeStyleOptions, browser.normalizeStyleOptions]) {
+      assert.throws(() => normalize({ signal: { fontFamily } }), { code: 'INVALID_OVERLAY_OPTIONS' });
+    }
+  }
+});
+
+
+test('all styles validate text colors and restore their theme defaults', async () => {
+  const source = fs.readFileSync(path.join(__dirname, '../public/js/shared/danmaku-style-options.js'), 'utf8');
+  const browser = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
+  for (const [style, limits] of Object.entries(contract.DANMAKU_STYLE_OPTIONS)) {
+    assert.equal(contract.styleOptionsFor(style).textColor, limits.defaultTextColor);
+    assert.deepEqual(contract.normalizeStyleOptions({ [style]: { textColor: '#AaBbCc' } }), { [style]: { textColor: '#aabbcc' } });
+    const document = { documentElement: { style: { setProperty(key, value) { this[key] = value; } } }, body: { dataset: {} } };
+    browser.applyStyleOptions(document, style, { [style]: { textColor: '#aabbcc' } });
+    assert.equal(document.documentElement.style['--danmaku-text-color'], '#aabbcc');
+    assert.equal(document.body.dataset.customTextColor, 'true');
+    browser.applyStyleOptions(document, style, {});
+    assert.equal(document.documentElement.style['--danmaku-text-color'], limits.defaultTextColor);
+    assert.equal(document.body.dataset.customTextColor, 'false');
+    for (const textColor of ['red', '#abc', '#aabbccdd', 'transparent', 'url(x)', '#aabbcc\n', '#zzzzzz', '', null, 123456]) {
+      for (const normalize of [contract.normalizeStyleOptions, browser.normalizeStyleOptions]) {
+        assert.throws(() => normalize({ [style]: { textColor } }), { code: 'INVALID_OVERLAY_OPTIONS' });
+      }
+    }
+  }
+});

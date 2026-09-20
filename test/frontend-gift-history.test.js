@@ -11,6 +11,23 @@ const {
 
 const ROOT_DIR = path.join(__dirname, '..');
 
+test('unchanged background history refreshes preserve row nodes during selection', async () => {
+  let renders = 0;
+  const body = { set innerHTML(value) { renders += 1; } };
+  const { renderGiftHistoryView } = await loadModuleExports(
+    path.join(ROOT_DIR, 'public/js/admin/gifts/history-view.js'),
+    { document: { getElementById: (id) => id === 'giftHistoryBody' ? body : null, querySelectorAll: () => [] } },
+  );
+  const ledger = { items: [{ eventId: 'synthetic-gift', gift: { giftName: '小花花', num: 1 } }],
+    total: 1, page: 1, totalPages: 1, cursorHistory: [] };
+  renderGiftHistoryView({ ledger });
+  renderGiftHistoryView({ ledger });
+  assert.equal(renders, 1);
+  ledger.items[0].gift.num = 2;
+  renderGiftHistoryView({ ledger });
+  assert.equal(renders, 2);
+});
+
 test('gift history drawer preserves the six data columns and adds selection and independent filters', () => {
   const html = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'pages', 'admin', 'gifts', 'history.html'),
@@ -81,7 +98,7 @@ test('gift history defaults to all dates and never exposes source identity', asy
   assert.doesNotMatch(source, /重新同步当前账号的历史记录/);
   assert.equal(
     ledger.buildGiftHistoryUrl(),
-    '/api/gifts/history?range=all&limit=50',
+    '/api/gifts/history?range=all&limit=100',
   );
   assert.equal(
     ledger.buildGiftHistoryUrl({
@@ -100,19 +117,19 @@ test('gift history defaults to all dates and never exposes source identity', asy
   );
   assert.equal(
     ledger.buildGiftHistoryUrl({ sortField: null, sortDirection: null }),
-    '/api/gifts/history?range=all&limit=50',
+    '/api/gifts/history?range=all&limit=100',
   );
   assert.equal(
     ledger.buildGiftHistoryUrl({ filters: { amountAbove: '10.01' } }),
-    '/api/gifts/history?range=all&limit=50&amountAbove=10.01',
+    '/api/gifts/history?range=all&limit=100&amountAbove=10.01',
   );
   assert.equal(
     ledger.buildGiftHistoryUrl({ filters: { amountAbove: 0 } }),
-    '/api/gifts/history?range=all&limit=50&amountAbove=0',
+    '/api/gifts/history?range=all&limit=100&amountAbove=0',
   );
   assert.equal(
     ledger.buildGiftHistoryUrl({ filters: { amountAbove: '' } }),
-    '/api/gifts/history?range=all&limit=50',
+    '/api/gifts/history?range=all&limit=100',
   );
   assert.deepEqual(
     { ...ledger.describeGiftSyncStatus('LIVE', false) },
@@ -238,7 +255,7 @@ test('gift history headers sort from page one with click and keyboard input', as
   await new Promise(setImmediate);
   assert.equal(
     requests.at(-1),
-    '/api/gifts/history?range=all&limit=50&sortField=gift_name&sortDirection=asc',
+    '/api/gifts/history?range=all&limit=100&sortField=gift_name&sortDirection=asc',
   );
   assert.equal(headers[1].attributes.get('aria-sort'), 'ascending');
   assert.equal(headers[1].arrow.textContent, ' ▲');
@@ -247,11 +264,11 @@ test('gift history headers sort from page one with click and keyboard input', as
   await new Promise(setImmediate);
   assert.equal(
     requests.at(-1),
-    '/api/gifts/history?range=all&limit=50&sortField=gift_name&sortDirection=desc',
+    '/api/gifts/history?range=all&limit=100&sortField=gift_name&sortDirection=desc',
   );
   headers[1].handlers.click();
   await new Promise(setImmediate);
-  assert.equal(requests.at(-1), '/api/gifts/history?range=all&limit=50');
+  assert.equal(requests.at(-1), '/api/gifts/history?range=all&limit=100');
   assert.equal(
     headers.every((header) => header.attributes.get('aria-sort') === 'none'),
     true,
@@ -267,7 +284,7 @@ test('gift history headers sort from page one with click and keyboard input', as
   await new Promise(setImmediate);
   assert.equal(
     requests.at(-1),
-    '/api/gifts/history?range=all&limit=50&sortField=price&sortDirection=asc',
+    '/api/gifts/history?range=all&limit=100&sortField=price&sortDirection=asc',
   );
   headers[2].handlers.keydown({
     key: ' ',
@@ -276,11 +293,11 @@ test('gift history headers sort from page one with click and keyboard input', as
   await new Promise(setImmediate);
   assert.equal(
     requests.at(-1),
-    '/api/gifts/history?range=all&limit=50&sortField=price&sortDirection=desc',
+    '/api/gifts/history?range=all&limit=100&sortField=price&sortDirection=desc',
   );
   headers[2].handlers.keydown({ key: 'Enter', preventDefault() {} });
   await new Promise(setImmediate);
-  assert.equal(requests.at(-1), '/api/gifts/history?range=all&limit=50');
+  assert.equal(requests.at(-1), '/api/gifts/history?range=all&limit=100');
   assert.equal(headers[2].attributes.get('aria-sort'), 'none');
   for (const header of [headers[0], headers[3]]) {
     for (const direction of ['asc', 'desc', null]) {
@@ -399,7 +416,7 @@ test('loadGiftHistory requests one history page and renders canonical escaped ro
 
   await ledger.loadGiftHistory();
 
-  assert.deepEqual(requests, ['/api/gifts/history?range=all&limit=50']);
+  assert.deepEqual(requests, ['/api/gifts/history?range=all&limit=100']);
   const body = elements.get('giftHistoryBody').innerHTML;
   const renderedRows = [
     ...body.matchAll(/<tr data-event-id="[^"]*">([\s\S]*?)<\/tr>/g),
@@ -514,7 +531,7 @@ test('gift history keeps cursor navigation, ignores responses after close, and r
   });
   assert.equal(
     requests.at(-1),
-    '/api/gifts/history?range=all&limit=50&cursor=page-2',
+    '/api/gifts/history?range=all&limit=100&cursor=page-2',
   );
   assert.equal(elements.get('giftHistoryPageInfo').textContent, '第 2/2 页');
   assert.equal(elements.get('giftLedgerSyncStatus').hidden, false);
@@ -524,7 +541,7 @@ test('gift history keeps cursor navigation, ignores responses after close, and r
   );
   click('giftHistoryPrev');
   await finishRequest(firstPage);
-  assert.equal(requests.at(-1), '/api/gifts/history?range=all&limit=50');
+  assert.equal(requests.at(-1), '/api/gifts/history?range=all&limit=100');
   assert.equal(elements.get('giftHistoryPageInfo').textContent, '第 1/2 页');
 
   click('giftHistoryNext');
@@ -542,6 +559,6 @@ test('gift history keeps cursor navigation, ignores responses after close, and r
   assert.equal(elements.get('giftHistoryOpenBtn').focused, true);
   click('giftHistoryOpenBtn');
   await finishRequest(firstPage);
-  assert.equal(requests.at(-1), '/api/gifts/history?range=all&limit=50');
+  assert.equal(requests.at(-1), '/api/gifts/history?range=all&limit=100');
   assert.match(elements.get('giftHistoryBody').innerHTML, /测试礼物/);
 });

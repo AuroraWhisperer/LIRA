@@ -368,3 +368,7 @@ body[data-custom-font='true'] .draw-danmaku-feed .draw-danmaku-body,
 body[data-custom-font='true'] .draw-danmaku-feed .draw-danmaku-body * {
   font-family: var(--danmaku-custom-font);
 }
+
+body[data-custom-text-color='true'][data-style] .draw-danmaku-feed .draw-danmaku-item:not(.is-gift) .draw-danmaku-body p {
+  color: var(--danmaku-text-color);
+}

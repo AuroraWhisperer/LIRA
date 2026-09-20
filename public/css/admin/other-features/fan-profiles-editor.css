@@ -1,0 +1,293 @@
+.fan-quick,
+.fan-editor {
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  max-height: 88vh;
+  overflow: auto;
+}
+.fan-quick {
+  width: min(620px, calc(100vw - 48px));
+}
+.fan-editor {
+  width: min(720px, calc(100vw - 48px));
+}
+.fan-quick::backdrop,
+.fan-editor::backdrop {
+  background: var(--color-bg-overlay-light);
+}
+.fan-quick .fan-detail {
+  border: 0;
+  padding: 20px 0 0;
+  max-height: none;
+}
+.fan-quick .fan-back-list {
+  display: none;
+}
+.fan-editor-heading {
+  margin-bottom: 24px;
+}
+.fan-form-grid,
+.fan-membership-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+.fan-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  font-size: 13px;
+}
+.fan-field input,
+.fan-field select,
+.fan-field textarea {
+  width: 100%;
+  font: inherit;
+}
+.fan-field textarea {
+  resize: vertical;
+  min-height: 75px;
+  line-height: 1.6;
+}
+.fan-field-wide {
+  grid-column: 1 / -1;
+}
+.fan-check {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+}
+.fan-check input {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  accent-color: var(--accent);
+}
+.fan-editor-footer {
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+.fan-editor-footer .fan-muted {
+  flex: 1;
+  font-size: var(--type-size-caption);
+}
+.fan-editor-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+}
+.fan-editor-actions button {
+  padding: 7px 16px;
+  font-size: var(--type-size-control);
+}
+.fan-profile-editor {
+  width: min(680px, calc(100vw - 48px));
+  height: min(640px, calc(100dvh - 48px));
+  max-height: none;
+  overflow: hidden;
+}
+.fan-profile-editor form,
+.fan-profile-form {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+}
+.fan-profile-editor .fan-editor-heading {
+  flex-shrink: 0;
+  margin-bottom: 8px;
+}
+.fan-profile-editor h2 {
+  font-size: var(--type-size-section-title);
+  font-weight: var(--type-weight-semibold);
+  line-height: var(--type-leading-section-title);
+}
+.fan-profile-editor #fanEditorFields {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+.fan-profile-form {
+  flex: 1;
+}
+.fan-profile-intro {
+  flex-shrink: 0;
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: var(--type-size-control);
+  line-height: var(--type-leading-body);
+}
+.fan-profile-tabs {
+  display: flex;
+  flex-shrink: 0;
+  gap: 24px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+.fan-profile-tabs [role='tab'] {
+  padding: 8px 0 12px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--type-size-control);
+}
+.fan-profile-tabs [role='tab']:hover {
+  color: var(--text);
+}
+.fan-profile-tabs [aria-selected='true'] {
+  color: var(--text);
+  box-shadow: inset 0 -2px var(--accent);
+  font-weight: var(--type-weight-semibold);
+}
+.fan-profile-editor .fan-profile-panel {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+  flex: 1;
+  min-height: 0;
+  gap: 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+.fan-profile-editor .fan-profile-panel::-webkit-scrollbar {
+  display: none;
+}
+.fan-profile-panel .fan-field {
+  gap: 6px;
+  color: var(--text);
+  font-size: var(--type-size-control);
+  line-height: var(--type-leading-control);
+}
+.fan-profile-panel input,
+.fan-profile-panel select,
+.fan-profile-panel textarea,
+.fan-profile-panel .lira-select-trigger {
+  font-size: var(--type-size-body);
+}
+.fan-profile-panel .lira-select {
+  --select-border: var(--border);
+  anchor-scope: --fan-profile-select;
+}
+.fan-profile-panel .lira-select-trigger {
+  anchor-name: --fan-profile-select;
+}
+.fan-profile-panel .lira-select-menu {
+  position: fixed;
+  position-anchor: --fan-profile-select;
+  top: calc(anchor(bottom) + 6px);
+  right: auto;
+  left: anchor(left);
+  width: anchor-size(width);
+}
+.fan-profile-panel .lira-select.is-above .lira-select-menu {
+  top: auto;
+  bottom: calc(anchor(top) + 6px);
+}
+.fan-profile-panel .fan-check {
+  align-self: end;
+  min-height: 36px;
+  color: var(--text);
+}
+.fan-profile-panel .fan-check input {
+  min-height: 16px;
+  margin: 0;
+}
+.fan-profile-divider {
+  border-top: 1px solid var(--border);
+}
+.fan-profile-section-title {
+  margin: 4px 0 0;
+  font-size: var(--type-size-control);
+  font-weight: var(--type-weight-semibold);
+}
+.fan-profile-editor .fan-editor-footer {
+  flex-shrink: 0;
+  margin-top: 16px;
+  padding-top: 16px;
+}
+.fan-timeline-filter {
+  padding-top: 16px;
+}
+.fan-reminder-person {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
+}
+.fan-reminder-person h4 {
+  margin: 0;
+}
+.fan-editor pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+  font-size: 13px;
+}
+.fan-timeline-filter select {
+  width: auto;
+  margin-left: 8px;
+}
+.fan-profiles button:focus-visible,
+.fan-quick button:focus-visible,
+.fan-editor button:focus-visible,
+.fan-more summary:focus-visible {
+  outline: 2px solid var(--color-control-focus);
+  outline-offset: 3px;
+}
+.fan-profiles button,
+.fan-editor button,
+.fan-quick button {
+  user-select: none;
+}
+.fan-profiles input,
+.fan-editor input,
+.fan-editor textarea {
+  caret-color: var(--color-control-accent);
+}
+@container (max-width: 690px) {
+  .fan-split {
+    grid-template-columns: 1fr;
+  }
+  .fan-split:not(.fan-has-selection) .fan-detail {
+    display: none;
+  }
+  .fan-has-selection .fan-people {
+    display: none;
+  }
+  .fan-detail {
+    border-left: 0;
+    padding: 20px 12px;
+  }
+  .fan-back-list {
+    display: inline-flex;
+  }
+  .fan-toolbar,
+  .fan-reminder-row,
+  .fan-setting-row {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .fan-sync {
+    max-width: 190px;
+    font-size: 12px;
+  }
+}
+@media (max-width: 600px) {
+  .fan-form-grid,
+  .fan-membership-fields,
+  .fan-profile-editor .fan-profile-panel {
+    grid-template-columns: 1fr;
+  }
+  .fan-editor,
+  .fan-quick {
+    padding: 18px;
+  }
+}

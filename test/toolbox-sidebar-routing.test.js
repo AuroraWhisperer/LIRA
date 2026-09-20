@@ -163,7 +163,7 @@ test('danmaku detail panel fills the workspace and keeps actions grouped', () =>
   );
   assert.match(
     styles,
-    /\.danmaku-feature-section\s*\{[^}]*border:\s*2px solid var\(--border\)/,
+    /\.danmaku-feature-section\s*\{[^}]*border:\s*2px solid var\(--danmaku-section-border\)/,
   );
   assert.match(
     styles,

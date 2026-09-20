@@ -3,7 +3,7 @@ export function shanghaiToday(time = Date.now()) {
 }
 
 export function giftFeedRowDurationMs(speed) {
-  return 2000 - (speed - 1) * 1900 / 49;
+  return 5000 - (speed - 1) * 4900 / 49;
 }
 
 export function createGiftFeedState() {

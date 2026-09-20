@@ -1,5 +1,4 @@
 import { createGiftDisplaySettings } from './gifts/display-settings.js';
-import { createGiftExportSettings } from './gifts/export-settings.js';
 
 let initialized = false;
 
@@ -8,7 +7,6 @@ export function initGiftAssistant() {
   if (initialized || !root) return;
   initialized = true;
   const display = createGiftDisplaySettings();
-  const exporter = createGiftExportSettings();
   const tabs = [...root.querySelectorAll('[data-gift-tab]')];
 
   function select(tab) {
@@ -22,7 +20,7 @@ export function initGiftAssistant() {
       display.open().catch((error) => {
         document.getElementById('giftDisplayError').textContent = `${error.message}。点击「滚动礼物」重试。`;
       });
-    } else if (tab.dataset.giftTab === 'export') exporter.open();
+    }
   }
 
   tabs.forEach((tab, index) => {

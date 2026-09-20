@@ -184,7 +184,7 @@ test('allowed read APIs project data and force song visibility and today-only gi
   assert.deepEqual(history, { range: 'today', startDate: today, endDate: today, limit: 100, sortField: 'created_at', sortDirection: 'asc', cursor: null });
   assert.deepEqual(f.calls.find(([name]) => name === 'card-profiles'), ['card-profiles', 'revision']);
   const config = await (await f.request('/api/gifts/display-settings', createOverlayToken(ADMIN, 'gift-feed'))).json();
-  assert.equal(config.data.scrollSpeed, 1);
+  assert.equal(config.data.scrollSpeed, 25);
   assert.equal(Object.hasOwn(config.data, 'paused'), false);
   assert.equal((await f.request('/api/gifts/card-profiles', createOverlayToken(ADMIN, 'gift-export'))).status, 403);
   const avatar = await f.request('/api/bilibili/avatar?url=https://example.test/image', createOverlayToken(ADMIN, 'gift-export'));

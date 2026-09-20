@@ -1,11 +1,17 @@
 import { toast } from '../../shared/utils.js';
 import { createGiftExportPreview } from './export-preview.js';
+import { createGiftHistorySelection } from './history-selection.js';
 
 export function createGiftHistoryTools({ state, reload, resetPagination }) {
   const get = (id) => document.getElementById(id);
   let selectionController = null;
   let operation = 0;
+  const rowSelection = createGiftHistorySelection({ state, update, onManualSelection: () => {
+    cancelSelection();
+    if (get('giftHistorySelectionNotice')) get('giftHistorySelectionNotice').textContent = '';
+  } });
   function showPane(pane) {
+    rowSelection.cancel();
     document.querySelectorAll?.('#giftHistoryDrawer [data-gift-pane]').forEach((node) => {
       node.hidden = node.dataset.giftPane !== pane;
     });
@@ -24,6 +30,7 @@ export function createGiftHistoryTools({ state, reload, resetPagination }) {
   }
 
   function clear() {
+    rowSelection.cancel();
     cancelSelection();
     state.selected.clear();
     exporter.close();
@@ -32,7 +39,9 @@ export function createGiftHistoryTools({ state, reload, resetPagination }) {
   }
 
   function update() {
+    rowSelection.refresh();
     const count = state.selected.size;
+    if (get('giftHistoryDeselect')) get('giftHistoryDeselect').disabled = count === 0;
     if (get('giftHistorySelectedCount')) get('giftHistorySelectedCount').textContent = `已选 ${count} 条`;
     if (get('giftHistoryExport')) {
       get('giftHistoryExport').disabled = count === 0;
@@ -83,10 +92,14 @@ export function createGiftHistoryTools({ state, reload, resetPagination }) {
   get('giftHistoryBody')?.addEventListener('change', (event) => {
     const id = event.target.dataset.giftSelect;
     if (!id) return;
+    cancelSelection();
+    if (get('giftHistorySelectionNotice')) get('giftHistorySelectionNotice').textContent = '';
     if (event.target.checked) state.selected.add(id); else state.selected.delete(id);
     update();
   });
   get('giftHistorySelectPage')?.addEventListener('change', (event) => {
+    cancelSelection();
+    if (get('giftHistorySelectionNotice')) get('giftHistorySelectionNotice').textContent = '';
     for (const item of state.items) {
       if (event.target.checked) state.selected.add(item.eventId); else state.selected.delete(item.eventId);
     }
@@ -110,5 +123,5 @@ export function createGiftHistoryTools({ state, reload, resetPagination }) {
     finally { if (current === operation) cancelSelection(); }
   }));
   get('giftHistoryExport')?.addEventListener('click', () => run(() => exporter.open({ ...options(), eventIds: [...state.selected] })));
-  return { clear, update, showPane, close: () => { cancelSelection(); exporter.close(); } };
+  return { clear, update, showPane, close: () => { rowSelection.cancel(); cancelSelection(); exporter.close(); } };
 }

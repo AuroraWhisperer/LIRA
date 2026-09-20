@@ -56,8 +56,8 @@ function recordRow(record) {
     record.kind === 'song'
       ? `点歌《${data.songName}》${data.artist ? ` · ${data.artist}` : ''}`
       : data.body || data.name || data.label;
-  return `<article class="fan-record"><div class="fan-record-top"><span class="fan-muted">${html(dateLabel(record.occurredAt))} · ${record.original.source === 'manual' ? '手动记录' : '已记录事实'}${record.revisions.some((r) => r.source !== 'queue') ? ' · 人工修订' : ''}${data.excluded ? ' · 已解除关联' : ''}${data.archived ? ' · 已归档' : ''}${data.pinned ? ' · 置顶' : ''}${data.state ? ` · ${html(data.state)}` : ''}</span>${button('edit-record', '编辑', `data-record-id="${attr(record.id)}"`)}</div>
-    <p>${html(title || '')}</p>${data.note || data.reason ? `<p class="fan-muted">${html(data.note || data.reason)}</p>` : ''}
+  return `<article class="fan-record"><div class="fan-record-top"><div class="fan-record-copy"><p class="fan-record-body">${html(title || '')}</p><span class="fan-muted fan-record-meta">${html(dateLabel(record.occurredAt))} · ${record.original.source === 'manual' ? '手动记录' : '已记录事实'}${record.revisions.some((r) => r.source !== 'queue') ? ' · 人工修订' : ''}${data.excluded ? ' · 已解除关联' : ''}${data.archived ? ' · 已归档' : ''}${data.pinned ? ' · 置顶' : ''}${data.state ? ` · ${html(data.state)}` : ''}</span></div>${button('edit-record', '编辑', `data-record-id="${attr(record.id)}"`)}</div>
+    ${data.note || data.reason ? `<p class="fan-muted">${html(data.note || data.reason)}</p>` : ''}
     ${record.original.source !== 'manual' || record.revisions.length ? `<details class="fan-original"><summary>查看原始记录与修订</summary><pre>${html(JSON.stringify({ original: record.original, revisions: record.revisions }, null, 2))}</pre></details>` : ''}</article>`;
 }
 
@@ -76,14 +76,14 @@ function overview(p) {
     (r) => r.kind === 'followup' && !r.data.archived && !r.data.completed,
   );
   return `<section class="fan-section"><div class="fan-section-title"><h4>基本资料</h4>${button('edit-profile', '编辑资料')}</div>
-    <dl class="fan-facts"><div><dt>生日</dt><dd>${html(p.birthday ? `${p.birthday.monthDay}${p.birthday.calendar === 'lunar' ? '（农历，手动设置本年提醒）' : '（公历）'}` : '待补充')}</dd></div>
+    <dl class="fan-facts fan-basic-facts"><div><dt>生日</dt><dd>${html(p.birthday ? `${p.birthday.monthDay}${p.birthday.calendar === 'lunar' ? '（农历，手动设置本年提醒）' : '（公历）'}` : '待补充')}</dd></div>
     <div><dt>星座</dt><dd>${html(p.zodiacHint || '未知')}${p.zodiac ? '' : p.zodiacHint ? '（公历提示）' : ''}</dd></div><div><dt>MBTI</dt><dd>${html(p.mbti || '未知')}${p.mbtiNote ? ` · ${html(p.mbtiNote)}` : ''}</dd></div></dl></section>
-    <section class="fan-section"><div class="fan-section-title"><h4>可以聊的话题</h4>${button('new-topic', '添加话题')}</div>${topics.length ? topics.map(recordRow).join('') : '<p class="fan-muted">从一次聊天开始记录。</p>'}
-    ${p.nextTopic ? `<p>下次想聊：${html(p.nextTopic)}</p>` : ''}${followups.map(recordRow).join('')}${button('new-followup', '记一个约定')}</section>
-    <section class="fan-section"><details><summary>相处提醒${cautions.length ? ` · ${cautions.length} 条` : ''}</summary><p class="fan-muted">哪些话题不适合提起，仅自己可见。</p>${cautions.map(recordRow).join('')}${button('new-caution', '添加相处提醒')}</details></section>
+    <section class="fan-section"><div class="fan-section-title"><h4>可以聊的话题</h4><div class="fan-actions">${button('new-topic', '添加话题')}${button('new-followup', '记一个约定')}</div></div>${topics.length ? topics.map(recordRow).join('') : '<p class="fan-muted">从一次聊天开始记录。</p>'}
+    ${p.nextTopic ? `<p>下次想聊：${html(p.nextTopic)}</p>` : ''}${followups.length ? `<div class="fan-followups"><h5>待办约定</h5>${followups.map(recordRow).join('')}</div>` : ''}</section>
+    <section class="fan-section fan-cautions"><details><summary>相处提醒${cautions.length ? ` · ${cautions.length} 条` : ''}</summary><p class="fan-muted">哪些话题不适合提起，仅自己可见。</p>${cautions.map(recordRow).join('')}${button('new-caution', '添加相处提醒')}</details></section>
     ${latest ? `<section class="fan-section"><h4>最近的一段记忆</h4>${recordRow(latest)}</section>` : ''}
     ${p.musicSummary ? `<button type="button" class="fan-music-summary" data-fan-tab="music">音乐：${html(p.musicSummary)}<span>查看音乐</span></button>` : ''}
-    <section class="fan-section"><h4>个人备注</h4><p class="fan-prose">${html(p.notes || '还没有备注。')}</p></section>
+    <section class="fan-section"><h4>个人备注</h4><p class="fan-prose${p.notes ? '' : ' fan-muted'}">${html(p.notes || '还没有备注。')}</p></section>
     <section class="fan-section"><div class="fan-section-title"><h4>纪念日</h4>${button('new-anniversary', '添加纪念日')}</div>${p.records
       .filter((r) => r.kind === 'anniversary')
       .map(recordRow)
