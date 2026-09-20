@@ -95,8 +95,10 @@ class BilibiliApiClient {
     const { payload } = await this.fetchJson(
       'user_card',
       `https://api.bilibili.com/x/web-interface/card?mid=${encodeURIComponent(userId)}`,
+      { signal: AbortSignal.timeout(8000) },
     );
     const card = payload && payload.data && payload.data.card;
+    if (payload?.code !== 0 || !card) throw new Error('B站用户资料读取失败。');
     return {
       avatarUrl: normalizeBilibiliAvatarUrl(card && card.face),
       name: cleanText(card && card.name),
@@ -277,7 +279,7 @@ class BilibiliApiClient {
     };
   }
 
-  async fetchJson(endpointName, url) {
+  async fetchJson(endpointName, url, options = {}) {
     const quiet =
       endpointName === 'gethistory' ||
       endpointName === 'online_gold_rank' ||
@@ -287,6 +289,7 @@ class BilibiliApiClient {
     }
     const response = await fetch(url, {
       headers: this.requestHeaders(),
+      signal: options.signal,
     });
     const text = await response.text();
     let payload;

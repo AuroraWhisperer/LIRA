@@ -24,14 +24,20 @@ body.player-dock-expanded .gift-workspace {
   height: calc(100vh - 58px - var(--player-dock-height, 218px));
 }
 
-.gift-detection-panel {
-  grid-column: 1;
+.gift-controls-grid {
+  grid-column: 1 / -1;
   grid-row: 1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
 }
 
-.gift-notification-panel {
-  grid-column: 2;
-  grid-row: 1;
+#giftInteractionControls:not([hidden]) {
+  display: contents;
+}
+
+.gift-interaction-summary {
+  grid-column: 1 / -1;
 }
 
 .gift-recent-panel {
@@ -126,9 +132,8 @@ body.player-dock-expanded .gift-workspace {
   min-height: auto;
 }
 
-/* Compact controls: keep the two switches visible without making them compete with the data panels. */
-.gift-detection-panel,
-.gift-notification-panel {
+/* Compact controls: keep the switches visible without making them compete with the data panels. */
+.gift-control-panel {
   position: relative;
   overflow: hidden;
   min-height: 112px;
@@ -138,8 +143,7 @@ body.player-dock-expanded .gift-workspace {
   box-shadow: 0 8px 24px rgba(27, 72, 67, 0.07);
 }
 
-.gift-detection-panel::before,
-.gift-notification-panel::before {
+.gift-control-panel::before {
   position: absolute;
   top: 0;
   left: 0;
@@ -153,23 +157,20 @@ body.player-dock-expanded .gift-workspace {
   background: linear-gradient(180deg, #ef9b72, #f6c6ad);
 }
 
-.gift-detection-panel .panel-header,
-.gift-notification-panel .panel-header {
+.gift-control-panel .panel-header {
   min-height: 0;
   padding: 15px 18px 3px 21px;
   border-bottom: 0;
 }
 
-.gift-detection-panel .gift-section-title,
-.gift-notification-panel .gift-section-title {
+.gift-control-panel .gift-section-title {
   color: #253a3a;
   font-size: var(--type-size-section-title);
   line-height: var(--type-leading-section-title);
   letter-spacing: var(--type-tracking-tight);
 }
 
-.gift-detection-panel > .panel-body,
-.gift-notification-panel > .panel-body {
+.gift-control-panel > .panel-body {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -178,8 +179,7 @@ body.player-dock-expanded .gift-workspace {
   overflow: visible;
 }
 
-.gift-detection-panel .switch-control,
-.gift-notification-panel .switch-control {
+.gift-control-panel .switch-control {
   flex: 0 0 auto;
   min-height: 34px;
   gap: 10px;
@@ -204,7 +204,7 @@ body.player-dock-expanded .gift-workspace {
   max-width: 48%;
 }
 
-.gift-notification-panel:has(#giftInteractionControls:not([hidden])) > .panel-body {
+.gift-interaction-panel > .panel-body {
   align-items: flex-start;
   flex-direction: column;
 }

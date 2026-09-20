@@ -74,7 +74,7 @@ data/
 | `fan_profiles` | UUID 主键；scope 是 canonical Server origin + authenticated streamerId；scope + typed identity 唯一；JSON 与乐观 revision |
 | `fan_records` | 档案外键级联；UUID、scope + source_key 唯一；原始事实、当前数据与修订分别保存 |
 | `fan_reminder_states` | scope + profile + item_key 唯一；已处理、忽略、稍后与事项来源 |
-| `fan_scopes` | 自动设置、epoch/cursor；事实与游标同事务提交 |
+| `fan_scopes` | 自动设置、epoch/cursor；事实与游标同事务提交；可选 `autoSyncGuardRoster` 默认 false，`lastGuardRosterAutoUpdate: {date, roomId}` 与自动名单导入同事务保存，按归属/房间/北京时间日期去重 |
 | `fan_suppressions` | 停止自动建档的最小 typed identity 标记 |
 | `fan_restore_snapshots` | scope 内恢复/合并之前的完整快照；恢复点操作校验归属 |
 

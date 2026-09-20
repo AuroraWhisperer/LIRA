@@ -161,6 +161,7 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
       initialized: value.settings?.initialized === true || existing.initialized,
       autoUpdate: value.settings?.autoUpdate !== false,
       autoCreate: value.settings?.autoCreate !== false,
+      autoSyncGuardRoster: value.settings?.autoSyncGuardRoster === true,
     });
     return {
       snapshotId,

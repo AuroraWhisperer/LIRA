@@ -1,8 +1,7 @@
 .dynamic-lottery-panel {
   width: 100%;
-  max-width: 808px;
   margin-inline: 0;
-  gap: var(--spacing-md);
+  gap: var(--spacing-lg);
   padding: var(--spacing-lg);
   container: dynamic-lottery / inline-size;
   font-size: var(--type-size-body);
@@ -112,12 +111,20 @@
 }
 
 .dynamic-lottery-setup,
+.dynamic-lottery-main,
 .dynamic-lottery-panel form,
 .dynamic-lottery-activity,
 .dynamic-lottery-results {
   display: grid;
   gap: var(--spacing-md);
   min-width: 0;
+}
+
+.dynamic-lottery-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+  align-items: start;
+  gap: var(--spacing-xl);
 }
 
 .dynamic-lottery-panel fieldset {
@@ -130,9 +137,9 @@
 }
 
 .dynamic-lottery-panel [data-lottery-fields] {
-  grid-template-columns: 120px minmax(0, 1fr);
+  grid-template-columns: minmax(120px, 1fr) minmax(0, 2fr);
   align-items: start;
-  gap: var(--spacing-md);
+  gap: var(--spacing-md) var(--spacing-xl);
 }
 
 .dynamic-lottery-content {
@@ -187,6 +194,7 @@
 
 .dynamic-lottery-checks {
   display: flex;
+  justify-content: space-between;
   flex-wrap: wrap;
   gap: var(--spacing-sm) var(--spacing-lg);
 }
@@ -268,6 +276,21 @@
   font-size: var(--type-size-control);
 }
 
+.dynamic-lottery-guide {
+  padding-left: var(--spacing-lg);
+  border-left: 1px solid var(--border);
+}
+
+.dynamic-lottery-guide > summary {
+  color: var(--text);
+  font-size: var(--type-size-card-title);
+  font-weight: var(--type-weight-semibold);
+}
+
+.dynamic-lottery-guide li + li {
+  margin-top: var(--spacing-sm);
+}
+
 .dynamic-lottery-rules ul {
   max-width: 75ch;
   margin: var(--spacing-sm) 0 0;
@@ -346,6 +369,19 @@
 
 .dynamic-lottery-panel :is(input, .hint, table, .dynamic-lottery-account-state, .dynamic-lottery-rank, .dynamic-lottery-winner-uid) {
   font-variant-numeric: tabular-nums;
+}
+
+@container dynamic-lottery (max-width: 800px) {
+  .dynamic-lottery-workspace {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--spacing-lg);
+  }
+
+  .dynamic-lottery-guide {
+    padding: var(--spacing-md) 0 0;
+    border-left: 0;
+    border-top: 1px solid var(--border);
+  }
 }
 
 @container dynamic-lottery (max-width: 420px) {

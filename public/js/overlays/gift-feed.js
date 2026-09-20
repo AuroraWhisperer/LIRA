@@ -1,4 +1,4 @@
-import { BANNER_HEIGHT, BANNER_GAP, createGiftBanner, fitGiftBannerNames, loadGiftArtworkCatalog } from '../shared/gift-banner.js';
+import { BANNER_HEIGHT, BANNER_GAP, createGiftBanner, updateGiftBanner, fitGiftBannerNames, loadGiftArtworkCatalog } from '../shared/gift-banner.js';
 import { createGiftFeedState, giftFeedRowDurationMs, scanTodayGifts, shanghaiToday } from '../shared/gift-feed-state.js';
 import { createOverlaySocket } from './socket-client.js';
 import { buildGiftCards } from '../shared/gift-card-model.js';
@@ -19,6 +19,8 @@ let revision = null;
 let pending = null;
 let scanning = false;
 let dirty = false;
+let settingsDirty = true;
+let catalogDirty = true;
 let disposed = false;
 let generation = 0;
 let controller = null;
@@ -34,31 +36,40 @@ async function request(url, signal) {
   return result.data;
 }
 
-function render() {
-  viewport.style.height = `${config.visibleRows * BANNER_HEIGHT + (config.visibleRows - 1) * BANNER_GAP}px`;
+function render(retryAvatars = false) {
+  const height = `${config.visibleRows * BANNER_HEIGHT + (config.visibleRows - 1) * BANNER_GAP}px`;
+  if (viewport.style.height !== height) viewport.style.height = height;
   const next = new Map();
-  const added = [];
-  for (const [index, item] of state.visible(config.visibleRows, true).entries()) {
+  const fit = [];
+  for (const item of state.visible(config.visibleRows, true)) {
     const signature = JSON.stringify([item, config.thresholds, catalogVersion]);
     let row = rendered.get(item.eventId);
-    if (row?.signature !== signature) {
+    const avatar = retryAvatars ? row?.node.querySelector('.gift-banner-avatar') : null;
+    const retryAvatar = Boolean(avatar && item.gift.avatarUrl && avatar.getAttribute('src') !== avatar.dataset.source);
+    if (!row) {
       row = { signature, node: createGiftBanner(item, config, catalog) };
-      added.push(row.node);
+      fit.push(row.node);
+    } else if (row.signature !== signature || retryAvatar) {
+      if (updateGiftBanner(row.node, item, config, catalog, retryAvatar)) fit.push(row.node);
+      row.signature = signature;
     }
     next.set(item.eventId, row);
-    if (stage.children[index] !== row.node) stage.insertBefore(row.node, stage.children[index] || null);
   }
   for (const [id, row] of rendered) {
-    if (next.get(id)?.node !== row.node) row.node.remove();
+    if (!next.has(id)) row.node.remove();
+  }
+  for (const [index, row] of [...next.values()].entries()) {
+    if (stage.children[index] !== row.node) stage.insertBefore(row.node, stage.children[index] || null);
   }
   rendered = next;
-  for (const node of added) fitGiftBannerNames(node);
+  for (const node of fit) fitGiftBannerNames(node);
   const scrolling = state.count > config.visibleRows;
-  stage.style.willChange = scrolling ? 'transform' : '';
+  const willChange = scrolling ? 'transform' : '';
+  if (stage.style.willChange !== willChange) stage.style.willChange = willChange;
   if (!scrolling) {
     stopScrolling();
     progress = 0;
-    stage.style.transform = 'translateY(0)';
+    if (stage.style.transform !== 'translateY(0)') stage.style.transform = 'translateY(0)';
   } else if (frame === null && !disposed && !document.hidden) {
     frame = requestAnimationFrame(advance);
   }
@@ -75,12 +86,16 @@ function reset() {
   controller?.abort();
   pending = null;
   revision = null;
+  settingsDirty = true;
+  catalogDirty = true;
   state.replace([]);
   render();
 }
 
-function scheduleRefresh() {
+function scheduleRefresh({ settings = false, catalog = false } = {}) {
   if (disposed) return;
+  settingsDirty ||= settings;
+  catalogDirty ||= catalog;
   if (scanning) { dirty = true; return; }
   if (refreshTimer) return;
   refreshTimer = setTimeout(() => { refreshTimer = null; refresh(); }, 500);
@@ -90,18 +105,22 @@ async function refresh() {
   if (disposed || scanning) return;
   scanning = true;
   dirty = false;
+  const readSettings = settingsDirty;
+  const readCatalog = catalogDirty;
+  settingsDirty = false;
+  catalogDirty = false;
   const current = generation;
   controller = new AbortController();
   try {
     const [nextConfig, nextCatalog] = await Promise.all([
-      request('/api/gifts/display-settings', controller.signal),
-      loadGiftArtworkCatalog(controller.signal).catch(() => catalog),
+      readSettings ? request('/api/gifts/display-settings', controller.signal) : config,
+      readCatalog ? loadGiftArtworkCatalog(controller.signal).catch(() => { catalogDirty = true; return catalog; }) : catalog,
     ]);
     if (current !== generation) return;
     config = nextConfig;
-    if (JSON.stringify(catalog) !== JSON.stringify(nextCatalog)) catalogVersion += 1;
+    if (catalog !== nextCatalog && JSON.stringify(catalog) !== JSON.stringify(nextCatalog)) catalogVersion += 1;
     catalog = nextCatalog;
-    render(); // Saved colors also update a single static row.
+    render(true); // Refresh failed avatars as well as saved colors on static rows.
     const result = await scanTodayGifts({ request, signal: controller.signal, day,
       onRevision(next) {
         if (current !== generation) return;
@@ -117,9 +136,11 @@ async function refresh() {
     const cards = buildGiftCards(result.items, { day, profiles: profiles.items });
     pending = cards;
     if (state.count <= config.visibleRows || document.hidden) { state.replace(pending); pending = null; render(); }
-    status.textContent = '';
+    if (status.textContent) status.textContent = '';
   } catch (error) {
     if (current !== generation || disposed) return;
+    settingsDirty ||= readSettings;
+    catalogDirty ||= readCatalog;
     if (['GIFT_SOURCE_UNAVAILABLE', 'GIFT_VIEW_STALE'].includes(error.code)) reset();
     status.textContent = `${error.message}；稍后自动重试。`;
   } finally {
@@ -146,25 +167,29 @@ function advance(time) {
 }
 
 const socket = createOverlaySocket({
-  onOpen: scheduleRefresh,
+  onOpen: () => scheduleRefresh({ settings: true, catalog: true }),
   onMessage(payload) {
     if (payload.type !== 'snapshot' && payload.type !== 'gift-catalog:update') return;
     const next = payload.state?.gifts?.viewRevision;
     const sourceChanged = next !== undefined && next !== revision;
     if (sourceChanged) reset();
-    if (sourceChanged || payload.type === 'gift-catalog:update' || /gift|settings|connect/.test(payload.reason || '')) scheduleRefresh();
+    const reason = payload.reason || '';
+    if (sourceChanged || payload.type === 'gift-catalog:update' || /gift|settings|connect/.test(reason)) {
+      scheduleRefresh({ settings: sourceChanged || /settings|connect/.test(reason),
+        catalog: sourceChanged || payload.type === 'gift-catalog:update' || /connect/.test(reason) });
+    }
   },
 });
 socket.start();
 scheduleRefresh();
-const reconcileTimer = setInterval(scheduleRefresh, 30000);
+const reconcileTimer = setInterval(() => scheduleRefresh({ settings: true, catalog: true }), 30000);
 const dayTimer = setInterval(() => {
   const nextDay = shanghaiToday();
   if (day !== nextDay) { day = nextDay; reset(); scheduleRefresh(); }
 }, 1000);
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) stopScrolling();
-  else { render(); scheduleRefresh(); }
+  else { render(); scheduleRefresh({ settings: true, catalog: true }); }
 });
 window.addEventListener('pagehide', () => {
   disposed = true;

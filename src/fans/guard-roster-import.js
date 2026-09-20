@@ -26,7 +26,7 @@ function getGuardRoster(profile, records) {
 }
 
 function createGuardRosterImporter({ store, create, observe }) {
-  return function importGuardRoster(scope, snapshot) {
+  return function importGuardRoster(scope, snapshot, automaticDate) {
     if (
       !snapshot ||
       !/^[1-9]\d{0,19}$/.test(snapshot.roomId) ||
@@ -86,7 +86,7 @@ function createGuardRosterImporter({ store, create, observe }) {
           type: 'observation',
           level: member.level,
           observedAt,
-          reason: `手动同步房间 ${snapshot.roomId} 的大航海名单；仅确认同步时的等级，起止日期待补充。`,
+          reason: `${automaticDate ? '自动' : '手动'}同步房间 ${snapshot.roomId} 的大航海名单；仅确认同步时的等级，起止日期待补充。`,
         });
         let profile = store.byIdentity(scope, key);
         if (profile?.archived || store.suppressed(scope, key)) {
@@ -160,6 +160,15 @@ function createGuardRosterImporter({ store, create, observe }) {
           if (previous && previous.roomId !== snapshot.roomId) continue;
           saveRoster(profile, records, null);
         }
+      }
+      if (automaticDate) {
+        store.saveScope(scope, {
+          ...store.getScope(scope),
+          lastGuardRosterAutoUpdate: {
+            date: automaticDate,
+            roomId: snapshot.roomId,
+          },
+        });
       }
       return result;
     });

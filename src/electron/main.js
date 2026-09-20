@@ -554,6 +554,7 @@ async function startDesktopApp() {
     getService: () => lifecycleState.runtime.getFanProfiles(),
     getRoomId: () => lifecycleState.runtime.getSetting('roomId'),
     fetchGuardRoster,
+    isWindowOpen: () => Boolean(windowState.main && !windowState.main.isDestroyed()),
   });
   disposeFanProfileIpc = registerFanProfileIpc({
     ipcMain,

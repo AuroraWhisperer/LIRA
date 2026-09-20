@@ -324,3 +324,20 @@ test('begin/end/dispose own room-run and service lifecycle', async () => {
   assert.equal(await pending, null);
   assert.equal(service.peek('456'), null);
 });
+
+test('an incomplete profile keeps useful fields and retries the missing avatar after the negative-cache interval', async () => {
+  let calls = 0;
+  const avatarUrl = 'https://i0.hdslb.com/bfs/face/recovered.jpg';
+  const { service, advance } = createService({ profileProvider: { async fetchProfile() {
+    calls += 1;
+    return { name: 'Alice', avatarUrl: calls === 1 ? '' : avatarUrl };
+  } } });
+  assert.deepEqual(await service.ensure('123', { fields: ['avatarUrl'] }), { uid: '123' });
+  assert.deepEqual(await service.ensure('123', { fields: ['name'] }), { uid: '123', name: 'Alice' });
+  await service.ensure('123', { fields: ['avatarUrl'] });
+  assert.equal(calls, 1);
+  advance(30001);
+  assert.deepEqual(await service.ensure('123', { fields: ['avatarUrl'] }), { uid: '123', avatarUrl });
+  assert.equal(calls, 2);
+  service.dispose();
+});

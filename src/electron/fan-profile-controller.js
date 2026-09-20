@@ -1,6 +1,7 @@
 'use strict';
 
 const { randomUUID } = require('node:crypto');
+const { dayOf } = require('../fans/dates');
 
 function fanScopeFor(licenseManager) {
   if (!licenseManager?.isAuthorized()) return null;
@@ -16,6 +17,8 @@ function createFanProfileController({
   getRoomId = () => '',
   fetchGuardRoster,
   timers = globalThis,
+  now = Date.now,
+  isWindowOpen = () => false,
 }) {
   let disposed = false;
   let timer = null;
@@ -26,6 +29,9 @@ function createFanProfileController({
   let current = null;
   let syncStatus = 'offline';
   let delay = 15000;
+  const startedAt = now();
+  let automaticTimer = null;
+  let automaticOperation = null;
 
   function context() {
     const scope = fanScopeFor(licenseManager);
@@ -43,7 +49,8 @@ function createFanProfileController({
       // Renewal preserves the page context while replacing the authorization
       // generation used to fence in-flight work.
       const id = current?.scope === scope ? current.id : randomUUID();
-      current = { scope, epoch, id };
+      current = { ...(current?.id === id ? current : {}), scope, epoch, id };
+      if (automaticOperation) current.automaticAttempt = null;
       syncStatus = 'pending';
     }
     return current;
@@ -116,7 +123,7 @@ function createFanProfileController({
     };
   }
 
-  async function syncGuardRoster(captured, service) {
+  async function syncGuardRoster(captured, service, automaticDate) {
     const roomId = String(getRoomId() || '');
     if (!/^[1-9]\d{0,19}$/.test(roomId))
       throw new Error('请先在连接设置中填写直播间号。');
@@ -130,9 +137,12 @@ function createFanProfileController({
         throw new Error('登录状态已变化，本次名单没有导入，请重新打开档案。');
       if (String(getRoomId() || '') !== roomId)
         throw new Error('直播间已变化，本次名单没有导入，请重新同步。');
+      if (automaticDate &&
+          service.execute(captured.scope, 'settings').autoSyncGuardRoster !== true)
+        return null;
       return response(
         captured,
-        service.importGuardRoster(captured.scope, snapshot),
+        service.importGuardRoster(captured.scope, snapshot, automaticDate),
       );
     } catch (error) {
       if (/[\u4e00-\u9fff]/.test(error.message || '')) throw error;
@@ -142,16 +152,76 @@ function createFanProfileController({
     }
   }
 
+  async function updateAutomatically() {
+    const captured = context();
+    if (!captured || !isWindowOpen() || rosterAbortController) return;
+    const service = getService();
+    const settings = service?.execute(captured.scope, 'settings');
+    if (settings?.autoSyncGuardRoster !== true) return;
+    const date = dayOf(now());
+    const scheduledAt = Date.parse(`${date}T12:10:00+08:00`);
+    if (now() < scheduledAt) return;
+    const roomId = String(getRoomId() || '');
+    if (!/^[1-9]\d{0,19}$/.test(roomId)) return;
+    const key = `${date}:${roomId}`;
+    if (captured.automaticAttempt === key ||
+        (settings.lastGuardRosterAutoUpdate?.date === date &&
+         settings.lastGuardRosterAutoUpdate.roomId === roomId)) return;
+    captured.automaticAttempt = key;
+    const reason = startedAt >= scheduledAt ? 'startup' : 'scheduled';
+    try {
+      rosterOperation = syncGuardRoster(captured, service, date);
+      const result = await rosterOperation;
+      if (result && same(captured))
+        current.notification = { reason, status: 'success', ...result.data };
+    } catch (error) {
+      if (same(captured) && current.automaticAttempt === key &&
+          String(getRoomId() || '') === roomId)
+        current.notification = { reason, status: 'error', error: error.message };
+    }
+  }
+
+  function runAutomaticUpdate() {
+    if (disposed) return Promise.resolve();
+    if (!automaticOperation)
+      automaticOperation = updateAutomatically().finally(() => {
+        automaticOperation = null;
+      });
+    return automaticOperation;
+  }
+
+  function scheduleAutomaticUpdate() {
+    if (disposed || !isWindowOpen()) return;
+    timers.clearTimeout(automaticTimer);
+    const at = now();
+    const scheduledAt = Date.parse(`${dayOf(at)}T12:10:00+08:00`);
+    const wait = at < scheduledAt ? Math.min(30000, scheduledAt - at) : 30000;
+    automaticTimer = timers.setTimeout(() => {
+      automaticTimer = null;
+      void runAutomaticUpdate().catch(() => null).finally(scheduleAutomaticUpdate);
+    }, wait);
+    automaticTimer?.unref?.();
+  }
+
   function invoke(request) {
     const captured = context();
     if (!captured) throw new Error('请先登录主播账号。');
     if (!request || typeof request !== 'object')
       throw new Error('档案请求无效。');
     const { action, payload = {}, contextId } = request;
-    if (action !== 'open' && contextId !== captured.id)
+    if (action !== 'open' && action !== 'auto-update-status' && contextId !== captured.id)
       throw new Error('登录状态已变化，请重新打开粉丝档案。');
     const service = getService();
     if (!service) throw new Error('档案存储尚未就绪。');
+    if (action === 'auto-update-status') {
+      if (!automaticTimer) scheduleAutomaticUpdate();
+      return runAutomaticUpdate().then(() => {
+        if (!same(captured)) return response(captured, null);
+        const notification = current.notification || null;
+        current.notification = null;
+        return response(captured, notification);
+      });
+    }
     if (action === 'sync-guard-roster') {
       if (rosterAbortController) throw new Error('大航海名单正在同步，请稍候。');
       if (
@@ -167,18 +237,28 @@ function createFanProfileController({
       action === 'open' ? 'list' : action,
       payload,
     );
-    if (action === 'configure') void run();
+    if (action === 'configure') {
+      if (data.autoSyncGuardRoster !== true) {
+        captured.automaticAttempt = null;
+        captured.notification = null;
+      }
+      void run();
+    }
     return response(captured, data);
   }
 
   return {
     invoke,
-    start: run,
-    whenIdle: () => Promise.allSettled([operation, rosterOperation]),
+    start() {
+      scheduleAutomaticUpdate();
+      return Promise.all([run(), runAutomaticUpdate().catch(() => null)]);
+    },
+    whenIdle: () => Promise.allSettled([operation, rosterOperation, automaticOperation]),
     dispose() {
       if (disposed) return;
       disposed = true;
       timers.clearTimeout(timer);
+      timers.clearTimeout(automaticTimer);
       abortController?.abort();
       rosterAbortController?.abort();
       unsubscribe?.();

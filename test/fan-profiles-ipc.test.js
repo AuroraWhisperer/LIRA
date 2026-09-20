@@ -39,10 +39,11 @@ function fixture(t, options = {}) {
   const state = { authorized: true, streamerId: 'streamer-a', accountName: '虚构账号甲',
     epoch: 1, origin: 'https://lira.example', roomId: '42', ...options.state };
   const calls = { execute: [], consume: [], fetch: [], roster: [], imports: [], unsubscribe: 0 };
-  const settings = new Map();
+  const settings = options.settings || new Map();
   const listeners = new Set();
   const timers = new FakeTimers();
-  const getSettings = (scope) => settings.get(scope) || { initialized: options.initialized !== false, cursor: 0, epoch: null };
+  const getSettings = (scope) => settings.get(scope) || { initialized: options.initialized !== false, cursor: 0, epoch: null,
+    autoSyncGuardRoster: options.autoSyncGuardRoster === true };
   const page = (streamerId = state.streamerId, nextCursor = 1) => ({ version: 1, streamerId,
     epoch: 'remote-epoch', after: 0, nextCursor, events: [], hasMore: false });
   const licenseManager = {
@@ -60,8 +61,10 @@ function fixture(t, options = {}) {
     },
   };
   const service = {
-    importGuardRoster(scope, snapshot) {
+    importGuardRoster(scope, snapshot, automaticDate) {
       calls.imports.push({ scope, snapshot });
+      if (automaticDate) settings.set(scope, { ...getSettings(scope),
+        lastGuardRosterAutoUpdate: { date: automaticDate, roomId: state.roomId } });
       return { created: 1, updated: 0, skipped: 0, total: 1 };
     },
     execute(scope, action, payload) {
@@ -83,6 +86,8 @@ function fixture(t, options = {}) {
     },
   };
   const controller = createFanProfileController({ licenseManager, getService: () => service, timers,
+    now: options.now,
+    isWindowOpen: () => state.windowOpen === true,
     getRoomId: () => state.roomId,
     fetchGuardRoster: async (roomId, input) => {
       calls.roster.push({ roomId, ...input });
@@ -117,6 +122,111 @@ test('fan scope uses authenticated origin and stable streamer identity only', (t
   f.state.streamerId = 'streamer-a';
   f.state.origin = '';
   assert.equal(fanScopeFor(f.licenseManager), null);
+});
+
+test('daily roster waits until 12:10 Shanghai time and delivers one scheduled notification', async (t) => {
+  let now = Date.parse('2026-09-20T12:09:55+08:00');
+  const f = fixture(t, { now: () => now, state: { windowOpen: true }, autoSyncGuardRoster: true });
+  await f.controller.start();
+  assert.equal(f.calls.roster.length, 0);
+  const timer = [...f.timers.pending.values()].find((entry) => entry.delay === 5000);
+  assert.ok(timer, 'main-process timer targets 12:10 even while the fan page is hidden');
+  now += 5000;
+  f.timers.pending.delete(timer);
+  timer.callback();
+  await f.controller.whenIdle();
+  assert.equal(f.calls.imports.length, 1);
+  const notice = await f.invoke({ action: 'auto-update-status' });
+  assert.equal(notice.data.reason, 'scheduled');
+  assert.equal(notice.data.status, 'success');
+  assert.equal((await f.invoke({ action: 'auto-update-status' })).data, null);
+  assert.equal(f.calls.roster.length, 1);
+  now = Date.parse('2026-09-21T12:10:00+08:00');
+  assert.equal((await f.invoke({ action: 'auto-update-status' })).data.reason, 'scheduled');
+  assert.equal(f.calls.roster.length, 2);
+  f.controller.dispose();
+  assert.equal(f.timers.pending.size, 0);
+});
+
+test('first launch after 12:10 catches up once and a restart preserves the daily success marker', async (t) => {
+  const options = { now: () => Date.parse('2026-09-20T14:00:00+08:00'),
+    state: { windowOpen: true }, autoSyncGuardRoster: true, settings: new Map() };
+  const f = fixture(t, options);
+  const notice = await f.invoke({ action: 'auto-update-status' });
+  assert.equal(notice.data.reason, 'startup');
+  assert.equal(notice.data.status, 'success');
+  f.controller.dispose();
+  const reopened = fixture(t, options);
+  assert.equal((await reopened.invoke({ action: 'auto-update-status' })).data, null);
+  assert.equal(reopened.calls.roster.length, 0);
+});
+
+test('automatic roster requires its opt-in setting, an open window and a configured room', async (t) => {
+  for (const options of [
+    { state: { windowOpen: true } },
+    { autoSyncGuardRoster: true },
+    { autoSyncGuardRoster: true, state: { windowOpen: true, roomId: '' } },
+  ]) {
+    const f = fixture(t, { now: () => Date.parse('2026-09-20T14:00:00+08:00'), ...options });
+    assert.equal((await f.invoke({ action: 'auto-update-status' })).data, null);
+    assert.equal(f.calls.roster.length, 0);
+  }
+});
+
+test('automatic roster is independent of unavailable remote facts and does not spam failed retries', async (t) => {
+  const f = fixture(t, { now: () => Date.parse('2026-09-20T14:00:00+08:00'),
+    state: { windowOpen: true }, autoSyncGuardRoster: true,
+    fetch: () => { throw new Error('offline'); },
+    roster: () => { throw new Error('raw transport secret'); } });
+  await f.controller.start();
+  const notice = await f.invoke({ action: 'auto-update-status' });
+  assert.equal(notice.data.reason, 'startup');
+  assert.equal(notice.data.status, 'error');
+  assert.doesNotMatch(notice.data.error, /raw transport secret/);
+  assert.equal(f.settings.get(SCOPE_A)?.lastGuardRosterAutoUpdate, undefined);
+  assert.equal((await f.invoke({ action: 'auto-update-status' })).data, null);
+  assert.equal(f.calls.roster.length, 1);
+  const reopened = fixture(t, { now: () => Date.parse('2026-09-20T15:00:00+08:00'),
+    state: { windowOpen: true }, autoSyncGuardRoster: true, settings: f.settings });
+  assert.equal((await reopened.invoke({ action: 'auto-update-status' })).data.status, 'success');
+});
+
+test('automatic roster shares manual import exclusion and cancels on shutdown or account changes', async (t) => {
+  for (const change of ['dispose', 'account', 'room', 'disable']) {
+    const pending = deferred();
+    const f = fixture(t, { now: () => Date.parse('2026-09-20T14:00:00+08:00'),
+      state: { windowOpen: true }, autoSyncGuardRoster: true, roster: () => pending.promise });
+    const automatic = f.invoke({ action: 'auto-update-status' });
+    const opened = f.invoke({ action: 'open' });
+    assert.match(f.invoke({ action: 'sync-guard-roster', contextId: opened.contextId }).error, /正在同步/);
+    if (change === 'dispose') f.controller.dispose();
+    if (change === 'account') { f.state.streamerId = 'streamer-b'; f.emit(); }
+    if (change === 'room') f.state.roomId = '99';
+    if (change === 'disable') f.invoke({ action: 'configure', contextId: opened.contextId,
+      payload: { autoCreate: true, autoUpdate: true, autoSyncGuardRoster: false } });
+    pending.resolve({ roomId: '42', members: [] });
+    assert.equal((await automatic).data, null);
+    await f.controller.whenIdle();
+    assert.equal(f.calls.imports.length, 0);
+    assert.equal(f.settings.get(SCOPE_A)?.lastGuardRosterAutoUpdate, undefined);
+  }
+});
+
+test('renewal cancels the old automatic import and allows the current authorization to complete it', async (t) => {
+  const pending = deferred();
+  let reads = 0;
+  const f = fixture(t, { now: () => Date.parse('2026-09-20T14:00:00+08:00'),
+    state: { windowOpen: true }, autoSyncGuardRoster: true,
+    roster: () => ++reads === 1 ? pending.promise : { roomId: '42', members: [] } });
+  const automatic = f.invoke({ action: 'auto-update-status' });
+  f.state.epoch++;
+  f.emit();
+  assert.equal(f.calls.roster[0].signal.aborted, true);
+  pending.resolve({ roomId: '42', members: [] });
+  assert.equal((await automatic).data, null);
+  assert.equal(f.calls.imports.length, 0);
+  assert.equal((await f.invoke({ action: 'auto-update-status' })).data.status, 'success');
+  assert.equal(f.calls.imports.length, 1);
 });
 
 test('fan IPC admits only the actual main frame at the exact desktop origin and allowed admin paths', (t) => {

@@ -9,6 +9,63 @@ function roster(members = [{ uid: IDENTITY.value, name: '海边听歌',
   return { roomId: '1234', ownerUid: '99', observedAt: NOW, members, skipped: 0 };
 }
 
+test('daily roster setting is opt-in, validates input and survives restart and backup restore', (t) => {
+  const f = fanFixture(t);
+  assert.equal(f.run('settings').autoSyncGuardRoster, false);
+  assert.throws(() => f.run('configure', {
+    autoCreate: true, autoUpdate: true, autoSyncGuardRoster: 'true',
+  }), /自动更新/);
+  f.run('configure', { autoCreate: false, autoUpdate: false, autoSyncGuardRoster: true });
+  f.run('configure', { autoCreate: false, autoUpdate: false });
+  f.restart();
+  assert.equal(f.run('settings').autoSyncGuardRoster, true);
+  const backup = f.run('backup');
+  f.run('configure', { autoCreate: false, autoUpdate: false, autoSyncGuardRoster: false });
+  const preview = f.run('preview-restore', { backup });
+  f.run('restore', { backup, ...preview, conflicts: 'keep' });
+  assert.equal(f.run('settings').autoSyncGuardRoster, true);
+});
+
+test('automatic roster atomically saves a scoped success date and retains it across restarts', (t) => {
+  const f = fanFixture(t);
+  const profile = f.create({ notes: '保留私人资料' });
+  f.service.importGuardRoster(SCOPE, roster(), '2026-09-18');
+  assert.deepEqual(f.run('settings').lastGuardRosterAutoUpdate, { date: '2026-09-18', roomId: '1234' });
+  assert.match(f.detail(profile.id).records[0].data.reason, /自动同步/);
+  assert.equal(f.detail(profile.id).notes, '保留私人资料');
+  f.restart();
+  assert.equal(f.run('settings').lastGuardRosterAutoUpdate.date, '2026-09-18');
+  const before = f.detail(profile.id);
+  assert.throws(() => f.service.importGuardRoster(SCOPE, { ...roster([
+    { uid: IDENTITY.value, name: '不应保存的新名字', level: 1 },
+    { uid: '900000002', level: 4 },
+  ]), observedAt: '2026-09-19T04:10:00.000Z' }, '2026-09-19'));
+  assert.deepEqual(f.detail(profile.id), before);
+  assert.equal(f.run('settings').lastGuardRosterAutoUpdate.date, '2026-09-18');
+  f.service.importGuardRoster(SCOPE, roster());
+  assert.equal(f.run('settings').lastGuardRosterAutoUpdate.date, '2026-09-18');
+  const otherScope = JSON.stringify(['https://lira.example', 'streamer-b']);
+  assert.equal(f.run('settings', {}, otherScope).lastGuardRosterAutoUpdate, undefined);
+});
+
+test('daily roster refresh changes guard ranks and removes current identity for former guards without erasing history', (t) => {
+  const f = fanFixture(t);
+  const p = f.create({ notes: '私人备注' });
+  f.service.importGuardRoster(SCOPE, roster(), '2026-09-18');
+  assert.equal(f.detail(p.id).currentGuardLevel, 3);
+  f.service.importGuardRoster(SCOPE, { ...roster([{ uid: IDENTITY.value, name: '海边听歌', level: 2 }]),
+    observedAt: '2026-09-19T04:10:00.000Z' }, '2026-09-19');
+  assert.equal(f.detail(p.id).currentGuardLevel, 2);
+  const records = f.detail(p.id).records;
+  f.service.importGuardRoster(SCOPE, { ...roster([]), observedAt: '2026-09-20T04:10:00.000Z' }, '2026-09-20');
+  f.restart();
+  assert.equal(f.detail(p.id).currentGuardLevel, null);
+  assert.equal(f.detail(p.id).notes, '私人备注');
+  assert.deepEqual(f.detail(p.id).records, records);
+  assert.equal(f.run('list', { filters: ['active'] }).profiles.length, 0);
+  assert.equal(f.detail(p.id).membership.expiry, null);
+});
+
 test('manual roster import creates basic profiles even with automatic updates disabled', (t) => {
   const f = fanFixture(t);
   f.run('configure', { autoCreate: false, autoUpdate: false });

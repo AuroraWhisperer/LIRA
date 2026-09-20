@@ -123,5 +123,5 @@ export function createGiftHistoryTools({ state, reload, resetPagination }) {
     finally { if (current === operation) cancelSelection(); }
   }));
   get('giftHistoryExport')?.addEventListener('click', () => run(() => exporter.open({ ...options(), eventIds: [...state.selected] })));
-  return { clear, update, showPane, close: () => { rowSelection.cancel(); cancelSelection(); exporter.close(); } };
+  return { clear, update, showPane, close: clear };
 }

@@ -19,6 +19,8 @@ const OVERLAY_STYLES = new Set([
 ]);
 const FIXED_STAGE_PADDING = 12;
 const RANKED_CONTENT_WIDTH = 600;
+const GIFT_CARD_WIDTH = 460;
+const MAX_GIFT_SCALE = 1.8;
 const params = new URLSearchParams(location.search);
 const previewMode = params.get('preview') === '1';
 const previewOptions = previewMode ? (params.has('styleOptions')
@@ -214,8 +216,11 @@ function itemKey(item = {}) {
 
 function syncRankedOverlayScale() {
   const viewport = previewMode ? document.getElementById('danmakuPreviewViewport') : null;
-  const scale = calculateRankedOverlayScale(viewport?.clientWidth || window.innerWidth);
+  const width = viewport?.clientWidth || window.innerWidth;
+  const scale = calculateRankedOverlayScale(width);
+  const giftScale = Math.min(MAX_GIFT_SCALE, Math.max(1, width - FIXED_STAGE_PADDING * 2) / GIFT_CARD_WIDTH);
   document.documentElement.style.setProperty('--ranked-scale', String(scale));
+  document.documentElement.style.setProperty('--danmaku-gift-scale', String(giftScale));
 }
 
 export function calculateRankedOverlayScale(viewportWidth) {

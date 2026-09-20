@@ -119,6 +119,12 @@ function createBilibiliRuntime(options) {
     return getGameApiClient().fetchAvatarImage(value);
   }
 
+  async function getUserAvatar(uid) {
+    await refreshAuthCache();
+    const profile = await userInfoService.ensure(uid, { fields: ['avatarUrl'] });
+    return profile?.avatarUrl || '';
+  }
+
   async function getRoomProfile() {
     const roomId = getConfiguredRoomId();
     if (!roomId) return { roomId: '', uid: '', name: '', avatarUrl: '' };
@@ -331,6 +337,7 @@ function createBilibiliRuntime(options) {
       client?.refreshViewerCandidates?.() || Promise.resolve(),
     getGameWinnerProfile: resolveGameWinnerProfile,
     getRoomProfile,
+    getUserAvatar,
     fetchAvatarImage,
     requestRandomSong,
   };

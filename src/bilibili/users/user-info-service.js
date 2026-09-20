@@ -169,8 +169,7 @@ class UserInfoService {
         .then((profile) => {
           if (this.disposed || lifecycleToken !== this.lifecycleToken)
             return null;
-          this.profileFailures.delete(uidKey);
-          return this.ingestHint(
+          const snapshot = this.ingestHint(
             {
               uid: uidKey,
               name: profile && profile.name,
@@ -178,6 +177,12 @@ class UserInfoService {
             },
             { source: 'profile' },
           ).snapshot;
+          if (PROFILE_FIELDS.some((field) => !snapshot?.[field])) {
+            this.profileFailures.set(uidKey, this.now() + PROFILE_FAILURE_TTL_MS);
+          } else {
+            this.profileFailures.delete(uidKey);
+          }
+          return snapshot;
         })
         .catch((error) => {
           this.profileFailures.set(uidKey, this.now() + PROFILE_FAILURE_TTL_MS);

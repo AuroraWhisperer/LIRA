@@ -547,10 +547,17 @@ export function settingsForm(settings) {
         'autoCreate',
         '收到可验证的大航海记录时自动建档',
         settings.autoCreate !== false,
-      ),
+      ) +
+      check(
+        'autoSyncGuardRoster',
+        '每天自动更新大航海身份',
+        settings.autoSyncGuardRoster === true,
+      ) +
+      '<p class="fan-field-wide fan-muted">北京时间每天 12:10，客户端开着时核对最新名单，更新舰长、提督、总督身份，已不在大航海的粉丝取消当前身份显示；错过后，当天首次打开软件时补更新。保留备注与历史记录，更新后显示提示。</p>',
     read: (form) => ({
       autoUpdate: form.elements.autoUpdate.checked,
       autoCreate: form.elements.autoCreate.checked,
+      autoSyncGuardRoster: form.elements.autoSyncGuardRoster.checked,
     }),
   };
 }

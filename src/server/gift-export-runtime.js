@@ -4,10 +4,10 @@ const { readGiftDisplaySettings } = require('../bilibili/gift/display-settings')
 const { buildGiftCards } = require('../../public/js/shared/gift-card-model.js');
 const { createGiftCardRuntime } = require('./gift-card-runtime');
 
-function createGiftExportRuntime({ getServices, getSettingsStore, broadcastSnapshot, giftCards }) {
+function createGiftExportRuntime({ getServices, getSettingsStore, broadcastSnapshot, giftCards, getUserAvatar }) {
   let sync = {};
   const cards = giftCards || createGiftCardRuntime({ getGifts: () => getServices().gifts,
-    fetchPage: (request) => sync.cardProfiles?.(request) });
+    fetchPage: (request) => sync.cardProfiles?.(request), ensureAvatar: getUserAvatar });
   return {
     giftCards: cards,
     configureGiftSync(options) { sync = options || {}; cards.reset?.(); },

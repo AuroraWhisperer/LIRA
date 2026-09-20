@@ -10,6 +10,119 @@ const day = '2026-09-19';
 const time = Date.parse(`${day}T01:00:00Z`);
 const profile = { eventId: 'one', senderId: '123', userName: '新名字', avatarUrl: null, guardLevel: 2, createdAt: new Date(time).toISOString() };
 const page = (overrides = {}) => ({ ok: true, day, syncEpoch: 'epoch', items: [profile], nextCursor: null, ...overrides });
+const avatar = 'https://i0.hdslb.com/bfs/face/synthetic.webp';
+
+test('missing gift avatars resolve by unique sender UID and reach the export snapshot', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: time });
+  const calls = [];
+  const profiles = [profile, { ...profile, eventId: 'two' },
+    { ...profile, eventId: 'same-name', senderId: '456' }, { ...profile, eventId: 'unknown', senderId: null }];
+  const original = structuredClone(profiles);
+  const items = profiles.map((item) => ({ eventId: item.eventId, gift: { userName: item.userName,
+    giftId: '1', giftName: '礼物', num: 1, unitPrice: 1, createdAt: item.createdAt } }));
+  const runtime = createGiftExportRuntime({
+    getServices: () => ({ gifts: { getViewRevision: () => 'a', getSelection: () => ({ viewRevision: 'a', items }) },
+      overtimeGiftCatalog: { getGlobalSnapshot: () => ({ gifts: [] }) } }),
+    getUserAvatar: async (uid) => { calls.push(uid); return uid === '123' ? avatar : ''; },
+    getSettingsStore: () => ({ getSettings: () => ({}) }),
+  });
+  runtime.configureGiftSync({ cardProfiles: async () => page({ items: profiles }) });
+  const result = await runtime.prepareGiftExport({});
+  assert.deepEqual(calls.sort(), ['123', '456']);
+  assert.deepEqual(result.items.map((item) => item.gift.avatarUrl || null), [avatar, null, null]);
+  assert.equal(result.items[0].gift.num, 2);
+  assert.deepEqual(profiles, original);
+});
+
+test('avatar lookups have bounded concurrency and waiting, without mutating an already returned snapshot', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const pending = [];
+  const calls = [];
+  let started;
+  const fourStarted = new Promise((resolve) => { started = resolve; });
+  const runtime = createGiftCardRuntime({ getGifts: () => ({ getViewRevision: () => 'a' }), now: () => time,
+    fetchPage: async () => page({ items: Array.from({ length: 8 }, (_, index) => ({ ...profile,
+      eventId: `event-${index}`, senderId: String(index + 1) })) }),
+    ensureAvatar: (uid) => {
+      calls.push(uid);
+      const promise = new Promise((resolve) => { pending.push({ resolve }); });
+      if (calls.length === 4) started();
+      return promise;
+    } });
+  const resultPromise = runtime.getProfiles();
+  await fourStarted;
+  assert.equal(calls.length, 4);
+  t.mock.timers.tick(4000);
+  const result = await resultPromise;
+  assert.equal(result.items.length, 8);
+  pending.forEach(({ resolve }) => resolve(avatar));
+  await Promise.resolve();
+  await Promise.resolve();
+  assert.equal(calls.length, 4);
+  assert.ok(result.items.every((item) => item.avatarUrl === null));
+});
+
+test('same-day avatars survive empty packets and temporary lookup failures then recover', async () => {
+  let fail = true;
+  let calls = 0;
+  let revision = 'a';
+  const runtime = createGiftCardRuntime({ getGifts: () => ({ getViewRevision: () => revision }), now: () => time,
+    fetchPage: async () => page(), ensureAvatar: async () => {
+      calls += 1;
+      if (fail) throw new Error('upstream unavailable');
+      return avatar;
+    } });
+  assert.equal((await runtime.getProfiles()).items[0].avatarUrl, null);
+  fail = false;
+  assert.equal((await runtime.getProfiles()).items[0].avatarUrl, avatar);
+  fail = true;
+  assert.equal((await runtime.getProfiles()).items[0].avatarUrl, avatar);
+  assert.equal(calls, 2);
+  revision = 'b';
+  assert.equal((await runtime.getProfiles()).items[0].avatarUrl, null);
+});
+
+test('known sender avatars avoid lookups and unsafe fetched avatars are discarded', async () => {
+  const calls = [];
+  const runtime = createGiftCardRuntime({ getGifts: () => ({ getViewRevision: () => 'a' }), now: () => time,
+    fetchPage: async () => page({ items: [profile, { ...profile, eventId: 'known', avatarUrl: avatar },
+      { ...profile, eventId: 'unsafe', senderId: '456' }] }),
+    ensureAvatar: async (uid) => { calls.push(uid); return 'https://evil.invalid/avatar.png'; } });
+  const result = await runtime.getProfiles();
+  assert.deepEqual(calls, ['456']);
+  assert.deepEqual(result.items.map((item) => item.avatarUrl), [avatar, avatar, null]);
+});
+
+test('refresh can repair cached missing avatars while gift metadata is temporarily unavailable', async () => {
+  let metadataAvailable = true;
+  let avatarAvailable = false;
+  const runtime = createGiftCardRuntime({ getGifts: () => ({ getViewRevision: () => 'a' }), now: () => time,
+    fetchPage: async () => { if (!metadataAvailable) throw new Error('offline'); return page(); },
+    ensureAvatar: async () => avatarAvailable ? avatar : '' });
+  assert.equal((await runtime.getProfiles()).items[0].avatarUrl, null);
+  metadataAvailable = false;
+  avatarAvailable = true;
+  const result = await runtime.getProfiles();
+  assert.equal(result.partial, true);
+  assert.equal(result.items[0].avatarUrl, avatar);
+});
+
+test('a late avatar lookup cannot cross a gift-source or runtime-reset boundary', async () => {
+  for (const change of ['source', 'reset']) {
+    let revision = 'a';
+    let resolve;
+    let started;
+    const called = new Promise((done) => { started = done; });
+    const runtime = createGiftCardRuntime({ getGifts: () => ({ getViewRevision: () => revision }), now: () => time,
+      fetchPage: async () => page(), ensureAvatar: () => new Promise((done) => { resolve = done; started(); }) });
+    const pending = runtime.getProfiles();
+    await called;
+    if (change === 'source') revision = 'b';
+    else runtime.reset();
+    resolve(avatar);
+    await assert.rejects(pending, { code: 'GIFT_VIEW_STALE' });
+  }
+});
 
 test('card metadata validates identities and images and never accepts injected profile fields', () => {
   assert.deepEqual(normalizeGiftCardProfilePage(page({ items: [{ ...profile, secret: 'private' }] })).items, [profile]);

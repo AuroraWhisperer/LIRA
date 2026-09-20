@@ -181,7 +181,8 @@ export function createDanmakuFeed(root, options = {}) {
       (Number.parseFloat(styles?.paddingTop) || 0) +
       (Number.parseFloat(styles?.paddingBottom) || 0);
     renderedContentHeight = renderedEntries.reduce((total, entry) => {
-      const measured = Number(entry.node.offsetHeight);
+      const zoom = Number.parseFloat(globalThis.getComputedStyle?.(entry.node)?.zoom) || 1;
+      const measured = Number(entry.node.offsetHeight) * zoom;
       entry.height =
         measured > 0 ? measured + 1 : estimateItemHeight(entry.item);
       return total + entry.height;

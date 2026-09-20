@@ -7,8 +7,8 @@ export const BANNER_HEIGHT = 72;
 export const BANNER_GAP = 8;
 export const MAX_COMPOSITE_ROWS = 39;
 export const GIFT_PALETTE = [
-  ['#4DACE6F2', '#74C4F0E6'], ['#8F58EDF2', '#776CE9E6'],
-  ['#F25361F2', '#F47765E6'], ['#E99400F2', '#F0BC00E6'],
+  ['#1675C4CC', '#2C91D6B8'], ['#8F58EDF2', '#776CE9E6'],
+  ['#F6606DF2', '#F88573E6'], ['#F3A20AF2', '#F8C914E6'],
 ];
 const FRAMES = { 1: 'governor', 2: 'admiral', 3: 'captain' };
 const AVATAR_PLACEHOLDER = '/img/gift-avatar-placeholder.svg';
@@ -59,9 +59,7 @@ export function createGiftBanner(item, config, catalog = []) {
   const background = document.createElement('div');
   background.className = 'gift-banner-background';
   root.append(background);
-  const token = globalThis.window?.__API_TOKEN__ || '';
-  const avatarUrl = gift.avatarUrl ? `/api/bilibili/avatar?url=${encodeURIComponent(gift.avatarUrl)}${token ? `&token=${encodeURIComponent(token)}` : ''}` : AVATAR_PLACEHOLDER;
-  root.append(bannerImage(avatarUrl, 'gift-banner-avatar', AVATAR_PLACEHOLDER));
+  root.append(bannerImage(giftAvatarSource(gift), 'gift-banner-avatar', AVATAR_PLACEHOLDER));
   if (FRAMES[gift.guardLevel]) {
     root.append(bannerImage(`/img/overlays/danmaku-guard/bubble-${FRAMES[gift.guardLevel]}-frame.webp`, 'gift-banner-frame', ''));
   }
@@ -88,6 +86,44 @@ export function createGiftBanner(item, config, catalog = []) {
   return root;
 }
 
+/** Patch changed display fields in place; return whether the text needs refitting. */
+export function updateGiftBanner(root, item, config, catalog = [], retryAvatar = false) {
+  const gift = item.gift;
+  const colors = GIFT_PALETTE[giftTier(gift, config.thresholds, item.cardTotalCents)];
+  for (const [index, key] of ['--gift-start', '--gift-end'].entries()) {
+    if (root.style.getPropertyValue(key) !== colors[index]) root.style.setProperty(key, colors[index]);
+  }
+  let textChanged = false;
+  for (const [selector, value] of [['.gift-banner-name', gift.userName], ['.gift-banner-gift span', gift.giftName]]) {
+    const node = root.querySelector(selector);
+    if (node.textContent !== value) { node.textContent = value; textChanged = true; }
+  }
+  const count = root.querySelector('.gift-banner-count').lastChild;
+  if (count.nodeValue !== String(gift.num)) count.nodeValue = String(gift.num);
+  updateBannerImage(root.querySelector('.gift-banner-avatar'), giftAvatarSource(gift), retryAvatar);
+  updateBannerImage(root.querySelector('.gift-banner-artwork'), item.artworkPath || resolveGiftArtwork(gift, catalog));
+  const frame = root.querySelector('.gift-banner-frame');
+  if (FRAMES[gift.guardLevel]) {
+    const source = `/img/overlays/danmaku-guard/bubble-${FRAMES[gift.guardLevel]}-frame.webp`;
+    if (frame) updateBannerImage(frame, source);
+    else root.insertBefore(bannerImage(source, 'gift-banner-frame', ''), root.querySelector('.gift-banner-text'));
+  } else frame?.remove();
+  return textChanged;
+}
+
+function giftAvatarSource(gift) {
+  const token = globalThis.window?.__API_TOKEN__ || '';
+  return gift.avatarUrl ? `/api/bilibili/avatar?url=${encodeURIComponent(gift.avatarUrl)}${token ? `&token=${encodeURIComponent(token)}` : ''}` : AVATAR_PLACEHOLDER;
+}
+
+function updateBannerImage(image, source, retry = false) {
+  if (image.dataset.source !== source || (retry && image.getAttribute('src') !== source)) {
+    image.dataset.source = source;
+    image.style.visibility = '';
+    image.src = source;
+  }
+}
+
 export function fitGiftBannerNames(root) {
   for (const name of root.querySelectorAll('.gift-banner-name, .gift-banner-gift')) {
     name.style.fontSize = '';
@@ -109,6 +145,7 @@ function bannerImage(source, className, fallback) {
   image.alt = '';
   image.draggable = false;
   image.src = source;
+  image.dataset.source = source;
   image.dataset.fallback = fallback;
   image.addEventListener('error', () => {
     if (fallback && image.getAttribute('src') !== fallback) image.src = fallback;
@@ -120,9 +157,10 @@ function bannerImage(source, className, fallback) {
 export async function readyGiftImages(root) {
   await Promise.all([...root.querySelectorAll('img')].map(async (image) => {
     let timer;
+    const timeout = image.classList.contains('gift-banner-avatar') ? 9000 : 5000;
     const decoded = await Promise.race([
       image.decode().then(() => true, () => false),
-      new Promise((resolve) => { timer = setTimeout(() => resolve(false), 5000); }),
+      new Promise((resolve) => { timer = setTimeout(() => resolve(false), timeout); }),
     ]);
     clearTimeout(timer);
     if (!decoded) {

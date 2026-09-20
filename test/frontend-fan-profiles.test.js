@@ -9,6 +9,63 @@ const { fanFixture, SCOPE, IDENTITY, NOW } = require('./helpers/fan-profile-fixt
 
 const ROOT = path.join(__dirname, '..');
 
+test('daily update settings default off and return the selected value with the timing explanation', async () => {
+  const forms = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/forms.js'));
+  const description = forms.settingsForm({});
+  assert.match(description.fields, /12:10/);
+  assert.match(description.fields, /当天首次打开/);
+  assert.match(description.fields, /已不在大航海的粉丝取消当前身份显示/);
+  assert.doesNotMatch(description.fields, /name="autoSyncGuardRoster"[^>]*checked/);
+  assert.match(forms.settingsForm({ autoSyncGuardRoster: true }).fields,
+    /name="autoSyncGuardRoster"[^>]*checked/);
+  const values = description.read({ elements: {
+    autoUpdate: { checked: true }, autoCreate: { checked: false }, autoSyncGuardRoster: { checked: true },
+  } });
+  assert.equal(values.autoSyncGuardRoster, true);
+  assert.equal(values.autoCreate, false);
+});
+
+test('global fan update polling shows scheduled and startup toasts, errors, and stops after pagehide', async () => {
+  const { initFanProfileAutoUpdate } = await loadModuleExports(
+    path.join(ROOT, 'public/js/admin/fans/automatic-update.js'));
+  let result = { ok: true, data: { reason: 'scheduled', status: 'success', created: 1, updated: 2, skipped: 0 } };
+  const notices = [];
+  const listeners = new Map();
+  let cleared = false;
+  const windowRef = {
+    fanProfiles: { invoke: async (request) => {
+      assert.equal(request.action, 'auto-update-status');
+      return result;
+    } },
+    setInterval: () => 1,
+    clearInterval: () => { cleared = true; },
+    addEventListener: (event, callback) => listeners.set(event, callback),
+    removeEventListener: (event) => listeners.delete(event),
+  };
+  const ui = initFanProfileAutoUpdate({ windowRef, notify: (message, options) => notices.push({ message, options }) });
+  await new Promise(setImmediate);
+  assert.match(notices[0].message, /12:10 定时更新完成，已同步最新大航海身份/);
+  result = { ok: true, data: null };
+  await ui.poll();
+  assert.equal(notices.length, 1);
+  result = { ok: true, data: { reason: 'startup', status: 'success', created: 0, updated: 3, skipped: 1 } };
+  await ui.poll();
+  assert.match(notices[1].message, /启动补更新完成/);
+  result = { ok: true, data: { reason: 'startup', status: 'error', error: '请检查网络' } };
+  await ui.poll();
+  assert.match(notices[2].message, /启动补更新失败：请检查网络/);
+  assert.equal(notices[2].options.type, 'error');
+  let complete;
+  windowRef.fanProfiles.invoke = () => new Promise((resolve) => { complete = resolve; });
+  const pending = ui.poll();
+  listeners.get('pagehide')();
+  complete(result);
+  await pending;
+  assert.equal(notices.length, 3);
+  assert.equal(cleared, true);
+  assert.equal(listeners.size, 0);
+});
+
 test('profile settings put bulk deletion last and require destructive confirmation', () => {
   const html = fs.readFileSync(
     path.join(ROOT, 'public/pages/admin/toolbox/fan-profiles.html'),

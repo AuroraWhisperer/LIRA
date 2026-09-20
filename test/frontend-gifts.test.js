@@ -11,7 +11,7 @@ const { loadModuleExports, response } = require('./helpers/frontend-modules');
 
 const ROOT_DIR = path.join(__dirname, '..');
 
-test('gift workspace exposes one page heading and seven semantic panel titles', () => {
+test('gift workspace avoids a redundant page heading and exposes nine semantic panel titles', () => {
   const page = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'pages', 'admin', 'gifts', 'page.html'),
     'utf8',
@@ -24,7 +24,7 @@ test('gift workspace exposes one page heading and seven semantic panel titles', 
   assert.doesNotMatch(page, /<h1 class="ui-page-title">礼物<\/h1>/);
   assert.equal(
     (page.match(/class="gift-section-title ui-section-title"/g) || []).length,
-    7,
+    9,
   );
   assert.match(styles, /\.gift-recent-heading \.gift-section-title\s*\{/);
   assert.match(styles, /\.blind-stats-heading \.gift-section-title\s*\{/);

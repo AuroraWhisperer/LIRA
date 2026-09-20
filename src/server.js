@@ -256,7 +256,8 @@ function createServerRuntime(runtimeOptions = {}) {
   }
 
   const giftRuntime = createGiftExportRuntime({ getServices: () => domainServices,
-    getSettingsStore: () => settingsStore, broadcastSnapshot });
+    getSettingsStore: () => settingsStore, broadcastSnapshot,
+    getUserAvatar: (uid) => bilibiliRuntime.getUserAvatar(uid) });
   const createApiContext = createRuntimeApiContextFactory({
     giftCards: giftRuntime.giftCards,
     getDynamicLottery: () => dynamicLottery,

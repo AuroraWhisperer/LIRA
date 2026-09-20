@@ -240,6 +240,39 @@ test('gift banners use the sender avatar proxy and distinguish captain from unkn
   ]);
 });
 
+test('gift banner updates retain images, patch rank and refit only changed text', async (t) => {
+  const page = await fixture(t, 'gift-display');
+  await page.setContent('<div id="stage"></div>');
+  await page.addStyleTag({ content: fs.readFileSync(path.resolve('public/css/shared/gift-banner.css'), 'utf8') });
+  const result = await page.evaluate(async () => {
+    const { createGiftBanner, updateGiftBanner, fitGiftBannerNames } = await import('/js/shared/gift-banner.js');
+    const config = { thresholds: [3000, 10000, 100000] };
+    const item = { eventId: 'same', gift: { giftId: 'sample', giftName: '花', userName: '短昵称',
+      unitPrice: 2, num: 1, guardLevel: 3, avatarUrl: 'https://i0.hdslb.com/bfs/face/old.webp' } };
+    const row = createGiftBanner(item, config);
+    document.getElementById('stage').append(row);
+    const avatar = row.querySelector('.gift-banner-avatar');
+    const artwork = row.querySelector('.gift-banner-artwork');
+    const frame = row.querySelector('.gift-banner-frame');
+    const next = { ...item, gift: { ...item.gift, userName: '较长的昵称'.repeat(15), giftName: '较长的礼物名'.repeat(15),
+      num: 5, guardLevel: 2, avatarUrl: 'https://i0.hdslb.com/bfs/face/new.webp' } };
+    const needsFit = updateGiftBanner(row, next, config);
+    if (needsFit) fitGiftBannerNames(row);
+    const changed = { needsFit, frameReused: frame === row.querySelector('.gift-banner-frame'),
+      frameSource: frame.getAttribute('src'), avatarSource: new URL(avatar.src).searchParams.get('url'),
+      textShrunk: parseFloat(getComputedStyle(row.querySelector('.gift-banner-name')).fontSize) < 18,
+      count: row.querySelector('.gift-banner-count').textContent };
+    const short = { ...next, gift: { ...next.gift, userName: '短', giftName: '花', guardLevel: 0 } };
+    if (updateGiftBanner(row, short, config)) fitGiftBannerNames(row);
+    return { ...changed, frameRemoved: !row.querySelector('.gift-banner-frame'),
+      imagesReused: avatar === row.querySelector('.gift-banner-avatar') && artwork === row.querySelector('.gift-banner-artwork'),
+      shortNameSize: parseFloat(getComputedStyle(row.querySelector('.gift-banner-name')).fontSize) };
+  });
+  assert.deepEqual(result, { needsFit: true, frameReused: true,
+    frameSource: '/img/overlays/danmaku-guard/bubble-admiral-frame.webp', avatarSource: 'https://i0.hdslb.com/bfs/face/new.webp',
+    textShrunk: true, count: '×5', frameRemoved: true, imagesReused: true, shortNameSize: 18 });
+});
+
 test('gift banners fit long names and inset the avatar inside the rounded color bar', async (t) => {
   const page = await fixture(t, 'gift-display');
   await page.setContent('<div id="giftStylePreview" class="gift-banner-stage"></div>');
@@ -272,7 +305,7 @@ test('gift banners fit long names and inset the avatar inside the rounded color 
     };
   });
   assert.deepEqual(layout, {
-    width: 428, height: 72, avatarWidth: 52, avatarInsets: [6, 6, 6],
+    width: 428, height: 72, avatarWidth: 56, avatarInsets: [4, 4, 4],
     nameFits: true, nameShrinks: true, giftFits: true, textClearsArtwork: true, quantityFits: true, quantityBottomGap: 4,
   });
 });

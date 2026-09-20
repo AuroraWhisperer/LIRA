@@ -1,57 +1,78 @@
 <section id="giftAssistantPage" class="main-page gift-page">
   <div class="gift-workspace">
-    <section class="panel gift-detection-panel">
-      <div class="panel-header">
-        <h2 class="gift-section-title ui-section-title">礼物统计</h2>
-        <span id="giftSprintStatus" class="pill warn">未开启</span>
-      </div>
-      <div class="panel-body stack">
-        <label class="switch-control">
-          <input id="giftDetectToggle" type="checkbox" checked />
-          <span class="switch-track"></span>
-          <span id="giftDetectLabel">已开启</span>
-        </label>
-        <div id="giftStatusLine" class="hint">等待直播消息…</div>
-      </div>
-    </section>
+    <div class="gift-controls-grid">
+      <section class="panel gift-control-panel gift-detection-panel">
+        <div class="panel-header">
+          <h2 class="gift-section-title ui-section-title">礼物统计</h2>
+          <span id="giftSprintStatus" class="pill warn">未开启</span>
+        </div>
+        <div class="panel-body stack">
+          <label class="switch-control">
+            <input id="giftDetectToggle" type="checkbox" checked />
+            <span class="switch-track"></span>
+            <span id="giftDetectLabel">已开启</span>
+          </label>
+          <div id="giftStatusLine" class="hint">等待直播消息…</div>
+        </div>
+      </section>
 
-    <section class="panel gift-notification-panel">
-      <div class="panel-header">
-        <h2 class="gift-section-title ui-section-title">礼物提示</h2>
-      </div>
-      <div class="panel-body stack">
-        <label class="switch-control">
-          <input id="enableGiftNotification" type="checkbox" checked />
-          <span class="switch-track"></span>
-          <span id="giftNotificationLabel">显示礼物提示</span>
-        </label>
-        <div id="giftInteractionControls" class="stack" hidden>
+      <section class="panel gift-control-panel gift-notification-panel">
+        <div class="panel-header">
+          <h2 class="gift-section-title ui-section-title">礼物提示</h2>
+        </div>
+        <div class="panel-body stack">
           <label class="switch-control">
-            <input
-              id="giftAutoThanksEnabled"
-              type="checkbox"
-              aria-describedby="giftAutoThanksDescription giftInteractionStatus"
-            />
+            <input id="enableGiftNotification" type="checkbox" checked />
             <span class="switch-track"></span>
-            <span>自动答谢礼物</span>
+            <span id="giftNotificationLabel">显示礼物提示</span>
           </label>
-          <p id="giftAutoThanksDescription" class="hint">答谢付费和已确认免费礼物，不含醒目留言。</p>
-          <label class="switch-control">
-            <input
-              id="giftStatsQueryEnabled"
-              type="checkbox"
-              aria-describedby="giftStatsQueryDescription giftInteractionStatus"
-            />
-            <span class="switch-track"></span>
-            <span>弹幕查询礼物统计</span>
-          </label>
-          <p id="giftStatsQueryDescription" class="hint">观众可用“今日礼物”等弹幕查询已记录的付费礼物。</p>
+        </div>
+      </section>
+
+      <div id="giftInteractionControls" hidden>
+        <section class="panel gift-control-panel gift-interaction-panel">
+          <div class="panel-header">
+            <h2 class="gift-section-title ui-section-title">自动答谢礼物</h2>
+          </div>
+          <div class="panel-body stack">
+            <label class="switch-control">
+              <input
+                id="giftAutoThanksEnabled"
+                type="checkbox"
+                aria-describedby="giftAutoThanksDescription giftInteractionStatus"
+              />
+              <span class="switch-track"></span>
+              <span>开启自动答谢</span>
+            </label>
+            <p id="giftAutoThanksDescription" class="hint">答谢付费和已确认免费礼物，不含醒目留言。</p>
+          </div>
+        </section>
+
+        <section class="panel gift-control-panel gift-interaction-panel">
+          <div class="panel-header">
+            <h2 class="gift-section-title ui-section-title">弹幕查询礼物统计</h2>
+          </div>
+          <div class="panel-body stack">
+            <label class="switch-control">
+              <input
+                id="giftStatsQueryEnabled"
+                type="checkbox"
+                aria-describedby="giftStatsQueryDescription giftInteractionStatus"
+              />
+              <span class="switch-track"></span>
+              <span>开启弹幕查询</span>
+            </label>
+            <p id="giftStatsQueryDescription" class="hint">观众可用“今日礼物”等弹幕查询已记录的付费礼物。</p>
+          </div>
+        </section>
+
+        <div class="gift-interaction-summary stack">
           <p class="hint">由服务器持续运行，退出软件后仍有效。登录 B 站并同步后可手动开启。</p>
           <div id="giftInteractionStatus" class="hint" role="status" aria-live="polite">状态未确认，请刷新核对。</div>
           <button id="giftInteractionRefresh" type="button" class="btn secondary">刷新云端状态</button>
         </div>
       </div>
-    </section>
+    </div>
 
     <section class="panel gift-recent-panel" data-state="ready">
       <div class="panel-header">

@@ -394,7 +394,9 @@ function createFanProfileService({
         case 'configure': {
           if (
             typeof input.autoCreate !== 'boolean' ||
-            typeof input.autoUpdate !== 'boolean'
+            typeof input.autoUpdate !== 'boolean' ||
+            (input.autoSyncGuardRoster !== undefined &&
+              typeof input.autoSyncGuardRoster !== 'boolean')
           )
             throw new Error('请选择自动更新方式。');
           const settings = {
@@ -402,6 +404,9 @@ function createFanProfileService({
             initialized: true,
             autoCreate: input.autoCreate,
             autoUpdate: input.autoUpdate,
+            autoSyncGuardRoster:
+              input.autoSyncGuardRoster ??
+              (store.getScope(scope).autoSyncGuardRoster === true),
           };
           store.saveScope(scope, settings);
           return settings;
