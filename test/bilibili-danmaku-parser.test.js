@@ -82,8 +82,25 @@ test('danmaku emote parser reads inline emotes from JSON encoded extra metadata'
       url: 'https://i0.hdslb.com/bfs/emote/miao.png',
       width: 64,
       height: 64,
+      kind: 'inline',
     },
   ]);
+});
+
+test('danmaku emote kind follows its source even when the message contains only one small emote', () => {
+  const image = { url: 'https://i0.hdslb.com/bfs/emote/cheer.png', width: 192, height: 192 };
+  for (const extra of [false, true]) {
+    for (const [field, value, kind] of [
+      ['emots', { '[喝彩]': image }, 'inline'],
+      ['emoticon', image, 'sticker'],
+    ]) {
+      const info = createInfo({});
+      info[1] = '[喝彩]';
+      const options = { [field]: value };
+      info[0][15] = extra ? { extra: JSON.stringify(options) } : options;
+      assert.equal(extractBilibiliDanmakuEmotes(info)[0].kind, kind);
+    }
+  }
 });
 
 test('danmaku emote parser reads whole-message emoticons and upgrades trusted HTTP images', () => {
@@ -102,6 +119,7 @@ test('danmaku emote parser reads whole-message emoticons and upgrades trusted HT
       url: 'https://i1.hdslb.com/bfs/emote/call.gif',
       width: 180,
       height: 90,
+      kind: 'sticker',
     },
   ]);
 });
@@ -121,6 +139,7 @@ test('danmaku emote parser reads whole-message images from metadata slot 13', ()
         url: 'https://i0.hdslb.com/bfs/emote/whole.gif',
         width: 180,
         height: 90,
+        kind: 'sticker',
       },
     ]);
   }
@@ -147,6 +166,7 @@ test('metadata slot 13 preserves existing emote precedence and image restriction
       url: 'https://i1.hdslb.com/bfs/emote/preferred.webp',
       width: 64,
       height: 32,
+      kind: 'sticker',
     },
   ]);
 
@@ -185,6 +205,7 @@ test('danmaku emote parser rejects untrusted images and deduplicates trigger tex
       url: 'https://i0.hdslb.com/bfs/emote/safe.webp',
       width: 40,
       height: 40,
+      kind: 'inline',
     },
   ]);
 });

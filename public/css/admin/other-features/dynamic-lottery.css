@@ -1,13 +1,15 @@
 .dynamic-lottery-panel {
   width: 100%;
-  max-width: 928px;
-  margin-inline: auto;
-  gap: var(--spacing-lg);
+  max-width: 808px;
+  margin-inline: 0;
+  gap: var(--spacing-md);
   padding: var(--spacing-lg);
+  container: dynamic-lottery / inline-size;
   font-size: var(--type-size-body);
   line-height: var(--type-leading-body);
 }
 
+.dynamic-lottery-panel h2,
 .dynamic-lottery-panel h3,
 .dynamic-lottery-panel p {
   margin: 0;
@@ -72,8 +74,16 @@
 .dynamic-lottery-account {
   display: grid;
   gap: var(--spacing-sm);
-  padding-bottom: var(--spacing-md);
-  border-bottom: 1px solid var(--border);
+  padding: var(--spacing-md);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+}
+
+.dynamic-lottery-account-copy {
+  display: grid;
+  flex: 1 1 280px;
+  gap: var(--spacing-xs);
+  min-width: 0;
 }
 
 .dynamic-lottery-account-state {
@@ -104,8 +114,7 @@
 .dynamic-lottery-setup,
 .dynamic-lottery-panel form,
 .dynamic-lottery-activity,
-.dynamic-lottery-results,
-.dynamic-lottery-footer {
+.dynamic-lottery-results {
   display: grid;
   gap: var(--spacing-md);
   min-width: 0;
@@ -121,9 +130,9 @@
 }
 
 .dynamic-lottery-panel [data-lottery-fields] {
-  grid-template-columns: 160px minmax(0, 1fr);
+  grid-template-columns: 120px minmax(0, 1fr);
   align-items: start;
-  gap: var(--spacing-md) var(--spacing-lg);
+  gap: var(--spacing-md);
 }
 
 .dynamic-lottery-content {
@@ -158,7 +167,7 @@
 }
 
 .dynamic-lottery-count input {
-  width: 104px;
+  width: 88px;
   min-width: 0;
 }
 
@@ -197,9 +206,8 @@
   accent-color: var(--primary-strong);
 }
 
-.dynamic-lottery-submit {
-  padding-top: var(--spacing-md);
-  border-top: 1px solid var(--border);
+.dynamic-lottery-submit > .hint {
+  flex: 1 1 260px;
 }
 
 .dynamic-lottery-facts {
@@ -340,11 +348,13 @@
   font-variant-numeric: tabular-nums;
 }
 
-@media (max-width: 600px) {
+@container dynamic-lottery (max-width: 420px) {
   .dynamic-lottery-panel [data-lottery-fields] {
     grid-template-columns: minmax(0, 1fr);
   }
+}
 
+@media (max-width: 600px) {
   .dynamic-lottery-panel,
   .dynamic-lottery-results {
     padding: var(--spacing-md);

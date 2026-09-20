@@ -8,7 +8,10 @@
 >
   <div class="other-feature-panel-body stack usage-guide-panel">
     <section class="usage-guide-intro" aria-labelledby="usageGuideTitle">
-      <h2 id="usageGuideTitle" class="usage-guide-title">使用文档</h2>
+      <div class="usage-guide-heading">
+        <h2 id="usageGuideTitle" class="usage-guide-title">使用文档</h2>
+        <!-- admin-fragment: pages/admin/toolbox/usage-guide-search.html -->
+      </div>
       <nav class="usage-guide-hero-actions" aria-label="文档快捷操作">
         <a href="#ug-quick" data-usage-guide-link>快速上手</a>
         <a href="#ug-faq" data-usage-guide-link>常见问题</a>
@@ -20,6 +23,10 @@
           重新查看新手引导
         </button>
       </nav>
+      <div id="usageGuideSearchResults" class="usage-guide-search-results" hidden>
+        <p class="usage-guide-search-status" role="status" aria-live="polite" aria-atomic="true"></p>
+        <ul class="usage-guide-search-list" aria-label="文档搜索结果"></ul>
+      </div>
     </section>
 
     <div class="usage-guide-layout">

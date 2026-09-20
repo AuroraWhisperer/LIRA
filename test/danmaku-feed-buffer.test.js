@@ -82,6 +82,18 @@ test('danmaku feed buffer clears only when the active room changes', () => {
   );
 });
 
+test('danmaku feed preserves known emote kinds and omits unknown or absent kinds', () => {
+  const feed = createDanmakuFeedBuffer();
+  for (const kind of ['inline', 'sticker', 'unknown', undefined]) {
+    const item = feed.push({ message: '[喝彩]', emotes: [{
+      text: '[喝彩]', url: 'https://i0.hdslb.com/cheer.png', kind,
+    }] });
+    const expected = kind === 'inline' || kind === 'sticker' ? kind : undefined;
+    assert.equal(item.emotes[0].kind, expected);
+    assert.equal(feed.getSnapshot().at(-1).emotes[0].kind, expected);
+  }
+});
+
 test('danmaku feed retains only an explicit streamer marker without inheriting it', () => {
   const feed = createDanmakuFeedBuffer();
   for (const isStreamer of [true, false, 'true', 'false', undefined]) {

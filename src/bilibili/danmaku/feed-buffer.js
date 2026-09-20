@@ -103,6 +103,7 @@ function normalizeEmotes(value) {
     result.push({
       text,
       url,
+      ...(emote.kind === 'inline' || emote.kind === 'sticker' ? { kind: emote.kind } : {}),
       width: normalizeNonNegativeInteger(emote.width),
       height: normalizeNonNegativeInteger(emote.height),
     });

@@ -2,7 +2,7 @@
 .gift-effect-tool-panel {
   width: 100%;
   max-width: none;
-  padding: 22px;
+  padding: 24px;
 }
 
 #giftEffectLookupState {
@@ -13,21 +13,22 @@
 .gift-effect-tool-grid {
   display: grid;
   grid-template-columns: minmax(280px, 0.85fr) minmax(360px, 1.15fr);
-  gap: 16px;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
 }
 
 .gift-effect-control-card,
 .gift-effect-command-card,
 .gift-effect-address-card {
   min-width: 0;
-  padding: 20px;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: var(--surface);
+  padding: 24px;
 }
 
 .gift-effect-command-card {
   grid-column: 1 / -1;
+  border-top: 1px solid var(--border);
 }
 
 .gift-effect-command-card .gift-effect-card-heading {
@@ -42,17 +43,35 @@
 }
 
 .gift-effect-command-help {
-  margin: 12px 0 6px;
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.gift-effect-command-help p {
+  margin: 0;
+}
+
+.gift-effect-command-examples {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.gift-effect-command-examples code {
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+.gift-effect-command-card .switch-control {
+  margin: 0;
 }
 
 .gift-effect-address-card {
-  background:
-    radial-gradient(
-      circle at 88% 12%,
-      rgba(217, 75, 112, 0.11),
-      transparent 34%
-    ),
-    var(--surface);
+  border-left: 1px solid var(--border);
 }
 
 .gift-effect-card-heading {
@@ -60,6 +79,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  min-height: 32px;
 }
 
 .gift-effect-card-heading h3 {
@@ -69,7 +89,7 @@
 }
 
 .gift-effect-lookup-form {
-  margin-top: 22px;
+  margin-top: 20px;
 }
 
 .gift-effect-field-heading,
@@ -78,7 +98,7 @@
   margin-bottom: 8px;
   color: var(--muted);
   font-size: var(--type-size-control);
-  font-weight: 700;
+  font-weight: 500;
 }
 
 .gift-effect-field-heading {
@@ -90,10 +110,24 @@
 }
 
 .gift-effect-field-heading a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   color: var(--primary-strong);
   font-size: var(--type-size-caption);
   font-weight: 500;
   text-underline-offset: 3px;
+  text-decoration: none;
+}
+
+.gift-effect-field-heading a:hover {
+  text-decoration: underline;
+}
+
+.gift-effect-field-heading a:focus-visible {
+  outline: 2px solid var(--primary-strong);
+  outline-offset: 4px;
+  border-radius: 2px;
 }
 
 .gift-effect-input-row {
@@ -105,7 +139,6 @@
 .gift-effect-input-row input {
   min-width: 0;
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.04em;
 }
 
 .gift-effect-match-summary {
@@ -143,17 +176,19 @@
 }
 
 .gift-effect-url-block {
-  margin-top: 22px;
+  margin-top: 20px;
 }
 
 .gift-effect-url-block code {
-  display: block;
+  display: flex;
+  align-items: center;
+  min-width: 0;
   min-height: 36px;
   padding: 7px 10px;
   overflow-wrap: anywhere;
-  border: 1px solid rgba(217, 75, 112, 0.2);
+  border: 1px solid var(--border);
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.72);
+  background: var(--surface-2);
   color: var(--text);
   font-size: var(--type-size-caption);
   line-height: 1.55;
@@ -312,10 +347,21 @@
   .gift-effect-tool-grid {
     grid-template-columns: 1fr;
   }
+
+  .gift-effect-address-card {
+    border-left: 0;
+    border-top: 1px solid var(--border);
+  }
 }
 
 @media (max-width: 560px) {
   .gift-effect-tool-panel {
+    padding: 16px;
+  }
+
+  .gift-effect-control-card,
+  .gift-effect-address-card,
+  .gift-effect-command-card {
     padding: 16px;
   }
 

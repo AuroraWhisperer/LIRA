@@ -140,11 +140,11 @@ body[data-style='ranked'] .draw-danmaku-body p {
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.34);
 }
 body[data-style='ranked'] .draw-danmaku-emote {
-  height: 1.75em;
+  height: 1em;
   margin: 0 0.06em;
 }
 body[data-style='ranked'] .draw-danmaku-item.is-emote-only .draw-danmaku-emote {
-  height: 4.1em;
+  height: 5.74em;
   margin: 0.05em 0;
 }
 body[data-style='ranked'] .draw-danmaku-empty {

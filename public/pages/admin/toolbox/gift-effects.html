@@ -23,7 +23,19 @@
               href="https://gifts.lirahub.cn/"
               target="_blank"
               rel="noopener noreferrer"
-            >查看礼物展示 <span aria-hidden="true">↗</span></a>
+            >查找礼物 ID
+              <svg
+                aria-hidden="true"
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              ><path d="M7 17 17 7M7 7h10v10" /></svg>
+            </a>
           </div>
           <div class="gift-effect-input-row">
             <input
@@ -57,15 +69,15 @@
           <h3 id="giftEffectAddressTitle" class="ui-section-title">直播投屏</h3>
         </div>
         <div class="gift-effect-url-block">
-          <span>OBS / 预览地址</span>
+          <span>OBS 浏览器源地址</span>
           <div class="gift-effect-url-row">
             <code id="giftEffectOverlayUrl"></code>
             <div class="gift-effect-url-actions">
               <button id="giftEffectCopyBtn" class="secondary" type="button">
                 复制地址
               </button>
-              <button id="giftEffectOpenBtn" class="primary" type="button">
-                打开预览
+              <button id="giftEffectOpenBtn" class="secondary" type="button">
+                预览
               </button>
             </div>
           </div>
@@ -75,16 +87,23 @@
         <div class="gift-effect-card-heading">
           <h3 id="giftEffectCommandTitle" class="ui-section-title">弹幕触发</h3>
           <label class="switch-control">
-            <input id="giftEffectDanmakuEnabled" type="checkbox" />
+            <input
+              id="giftEffectDanmakuEnabled"
+              type="checkbox"
+              aria-labelledby="giftEffectCommandTitle"
+              aria-describedby="giftEffectCommandHelp"
+            />
             <span class="switch-track" aria-hidden="true"></span>
-            <span>启用弹幕礼物特效</span>
+            <span id="giftEffectCommandState" class="gift-effect-command-state" role="status">未开启</span>
           </label>
         </div>
-        <p class="gift-effect-command-help">
-          开启后，发送 <code>礼物特效 32132</code> 或 <code>🎁 32132</code> 即可触发。
-          代码填写礼物 ID，播放效果与上方「测试播放」一致；仅支持代码，特效依次播放。
-        </p>
-        <span id="giftEffectCommandState" class="gift-effect-command-state" role="status">未开启</span>
+        <div id="giftEffectCommandHelp" class="gift-effect-command-help">
+          <p>开启后，观众发送以下任一弹幕即可播放。</p>
+          <div class="gift-effect-command-examples">
+            <code>礼物特效 32132</code><span>或</span><code>🎁 32132</code>
+          </div>
+          <p>将 32132 替换为礼物 ID，特效按顺序播放。</p>
+        </div>
       </section>
     </div>
   </div>

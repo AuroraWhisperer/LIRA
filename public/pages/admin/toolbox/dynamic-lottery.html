@@ -7,18 +7,32 @@
   hidden
 >
   <div class="other-feature-panel-body stack dynamic-lottery-panel">
+    <header class="dynamic-lottery-section-heading">
+      <h2 class="ui-page-title">动态抽奖</h2>
+      <div class="dynamic-lottery-actions">
+        <button type="button" class="dynamic-lottery-text-button" data-lottery-history-toggle aria-expanded="false" aria-controls="lotteryHistoryPanel">查看抽奖记录</button>
+        <button type="button" class="dynamic-lottery-text-button" data-lottery-new disabled hidden>新建抽奖</button>
+      </div>
+    </header>
+    <div id="lotteryHistoryPanel" class="dynamic-lottery-history" data-lottery-history-panel hidden>
+      <label for="lotteryHistory">本地记录 · 最近 50 场</label>
+      <select id="lotteryHistory" data-lottery-history disabled aria-label="选择抽奖记录"></select>
+      <p class="hint" data-lottery-history-empty>暂无抽奖记录</p>
+    </div>
     <section class="dynamic-lottery-account" aria-label="抽奖账号">
       <div class="dynamic-lottery-section-heading">
-        <div class="dynamic-lottery-identity">
-          <span class="hint">抽奖账号</span>
-          <p class="dynamic-lottery-account-state" data-lottery-auth-status role="status" aria-live="polite">正在读取抽奖账号…</p>
+        <div class="dynamic-lottery-account-copy">
+          <div class="dynamic-lottery-identity">
+            <span class="hint">抽奖账号</span>
+            <p class="dynamic-lottery-account-state" data-lottery-auth-status role="status" aria-live="polite">正在读取抽奖账号…</p>
+          </div>
+          <p class="hint">请使用内容作者账号；独立登录，不影响直播账号。</p>
         </div>
         <div class="dynamic-lottery-actions">
           <button type="button" class="primary" data-lottery-login disabled>登录账号</button>
           <button type="button" class="dynamic-lottery-text-button" data-lottery-account-toggle aria-expanded="false" aria-controls="lotteryAccountPanel">管理账号</button>
         </div>
       </div>
-      <p class="hint">请使用内容作者账号；独立登录，不影响直播账号。</p>
       <div id="lotteryAccountPanel" class="dynamic-lottery-actions" data-lottery-account-panel hidden>
         <button type="button" class="secondary" data-lottery-auth-refresh disabled>刷新状态</button>
         <button type="button" class="secondary" data-lottery-logout disabled>退出账号</button>
@@ -123,16 +137,5 @@
         <p class="hint dynamic-lottery-proof" data-lottery-draw-proof></p>
       </details>
     </section>
-    <footer class="dynamic-lottery-footer">
-      <div class="dynamic-lottery-actions">
-        <button type="button" class="dynamic-lottery-text-button" data-lottery-history-toggle aria-expanded="false" aria-controls="lotteryHistoryPanel">抽奖记录</button>
-        <button type="button" class="dynamic-lottery-text-button" data-lottery-new disabled hidden>新建抽奖</button>
-      </div>
-      <div id="lotteryHistoryPanel" class="dynamic-lottery-history" data-lottery-history-panel hidden>
-        <label for="lotteryHistory">本地记录 · 最近 50 场</label>
-        <select id="lotteryHistory" data-lottery-history disabled aria-label="选择抽奖记录"></select>
-        <p class="hint" data-lottery-history-empty>暂无抽奖记录</p>
-      </div>
-    </footer>
   </div>
 </section>

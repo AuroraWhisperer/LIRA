@@ -2,6 +2,8 @@
 // 使用文档：目录与快捷链接平滑滚动，随滚动高亮当前章节。
 'use strict';
 
+import { initUsageGuideSearch } from './usage-guide-search.js';
+
 let initialized = false;
 let navigationCorrectionTimer = null;
 
@@ -91,31 +93,38 @@ export function initUsageGuide() {
     });
   }
 
+  function navigateToTarget(target, sectionId, focusTarget = false) {
+    setActiveLink(sectionId);
+    panel.classList.add('usage-guide-render-all');
+    window.requestAnimationFrame(() => {
+      if (focusTarget) {
+        target.classList.add('usage-guide-search-target');
+        target.setAttribute('tabindex', '-1');
+        target.focus({ preventScroll: true });
+      }
+      const behavior = reduceMotionQuery?.matches ? 'auto' : 'smooth';
+      target.scrollIntoView({ behavior, block: 'start' });
+      window.clearTimeout(navigationCorrectionTimer);
+      navigationCorrectionTimer = window.setTimeout(
+        () => {
+          target.scrollIntoView({ behavior: 'auto', block: 'start' });
+          panel.classList.remove('usage-guide-render-all');
+          navigationCorrectionTimer = null;
+        },
+        behavior === 'smooth' ? 700 : 0,
+      );
+    });
+  }
+
   links.forEach((link) => {
     link.addEventListener('click', (event) => {
       event.preventDefault();
       const target = document.getElementById(link.hash.slice(1));
-      if (!target) return;
-      setActiveLink(target.id);
-      panel.classList.add('usage-guide-render-all');
-      window.requestAnimationFrame(() => {
-        const behavior = reduceMotionQuery?.matches ? 'auto' : 'smooth';
-        target.scrollIntoView({
-          behavior,
-          block: 'start',
-        });
-        window.clearTimeout(navigationCorrectionTimer);
-        navigationCorrectionTimer = window.setTimeout(
-          () => {
-            target.scrollIntoView({ behavior: 'auto', block: 'start' });
-            panel.classList.remove('usage-guide-render-all');
-            navigationCorrectionTimer = null;
-          },
-          behavior === 'smooth' ? 700 : 0,
-        );
-      });
+      if (target) navigateToTarget(target, target.id);
     });
   });
+
+  initUsageGuideSearch(panel, navigateToTarget);
 
   backToTopButton?.addEventListener('click', () => {
     window.clearTimeout(navigationCorrectionTimer);

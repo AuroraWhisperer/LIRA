@@ -76,8 +76,10 @@ test('all local styles share one address and retain every example without loopin
     assert.equal(items.length, 6);
     assert.deepEqual(Array.from(items.slice(0, 4), (item) => item.guardLevel || 0), [1, 2, 3, 0]);
     assert.ok(items.slice(0, 4).every((item) => item.message.includes('[打call]') && item.emotes.length));
+    assert.ok(items.slice(0, 4).every((item) => item.emotes[0].kind === 'inline'));
     assert.ok(items.some((item) => item.message === '[打call]'));
     assert.equal(items.find((item) => item.id === 'preview-emote').isStreamer, true);
+    assert.equal(items.find((item) => item.id === 'preview-emote').emotes[0].kind, 'sticker');
     assert.ok(items.slice(0, 4).every((item) => item.isStreamer !== true));
     assert.ok(items.some((item) => item.kind === 'gift' && item.giftCount === 10));
     assert.equal(items.filter((item) => item.kind === 'gift').length, 1);

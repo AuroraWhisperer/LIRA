@@ -49,7 +49,7 @@ function extractBilibiliDanmakuEmotes(info) {
 
 function appendEmoticon(records, seen, value, fallbackText) {
   if (!value || typeof value !== 'object') return;
-  appendEmote(records, seen, value.text || fallbackText, value);
+  appendEmote(records, seen, value.text || fallbackText, value, 'sticker');
 }
 
 function appendEmoteMap(records, seen, value) {
@@ -61,11 +61,12 @@ function appendEmoteMap(records, seen, value) {
       seen,
       key || emote.text || emote.emoji || emote.descript,
       emote,
+      'inline',
     );
   }
 }
 
-function appendEmote(records, seen, textValue, value) {
+function appendEmote(records, seen, textValue, value, kind) {
   const text = String(textValue || '').trim();
   const url = normalizeBilibiliImageUrl(value && value.url);
   if (!text || !url || seen.has(text)) return;
@@ -73,6 +74,7 @@ function appendEmote(records, seen, textValue, value) {
   records.push({
     text,
     url,
+    kind,
     width: normalizeEmoteDimension(value.width),
     height: normalizeEmoteDimension(value.height),
   });

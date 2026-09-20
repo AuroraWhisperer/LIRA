@@ -226,7 +226,7 @@ info[0][15]       → danmakuOptions（对象或 JSON 字符串）,可内含 use
 
 发送者头像由 `danmakuOptions.user.face` 或 `danmakuOptions.user.base.face` 提取，并只接受 HTTPS 的 B 站 `*.hdslb.com` 地址；在线榜和历史消息里的头像字段经 `UserInfoService` 按 uid 合并。解析器只产出 hint，不访问 cache、profile provider 或头像代理。
 
-弹幕表情由 `extractBilibiliDanmakuEmotes(info)` 从 `danmakuOptions` 及其 JSON `extra` 中归一化：`emoticon` 表示整条表情，`emots` 表示正文中的行内表情映射；随后补读 `info[0][13]` 的整条图片表情，即使 `info[0][15]` 缺失也必须保留该图片。输出为 `{text,url,width,height}` 数组，触发文本去重；同一触发文本在多个来源重复出现时保持既有 `danmakuOptions` / `extra` 的优先级。图片地址只接受 B 站 `*.hdslb.com`，并把可信的 HTTP 地址升级为 HTTPS。两种输入编码、缺少 options、来源重复及非法图片回退由 `test/bilibili-danmaku-parser.test.js` 验证；此输出沿既有弹幕流交给全部六种 `/danmaku` 样式，不增加新的设置或 WebSocket 字段。
+弹幕表情由 `extractBilibiliDanmakuEmotes(info)` 从 `danmakuOptions` 及其 JSON `extra` 中归一化：`emoticon` 表示整条表情，`emots` 表示正文中的行内表情映射；随后补读 `info[0][13]` 的整条图片表情，即使 `info[0][15]` 缺失也必须保留该图片。输出为 `{text,url,kind,width,height}` 数组，其中 `emots` 固定标记 `kind:inline`，`emoticon` 和 slot 13 固定标记 `kind:sticker`；按来源分类，不按正文是否仅有一个表情或图片像素大小猜测，触发文本去重；同一触发文本在多个来源重复出现时保持既有 `danmakuOptions` / `extra` 的优先级。图片地址只接受 B 站 `*.hdslb.com`，并把可信的 HTTP 地址升级为 HTTPS。两种输入编码、缺少 options、来源重复及非法图片回退由 `test/bilibili-danmaku-parser.test.js` 验证；此输出沿既有弹幕流传递，feed buffer 和公开投影保留可选的 `emotes[].kind`；不增加设置、端点或事件类型。
 
 用户元数据(勋章/大航海)由 `extractBilibiliDanmakuUserMeta`([user-meta-extractor.js:38-60](../../../../src/bilibili/utils/user-meta-extractor.js#L38-L60))提取:
 

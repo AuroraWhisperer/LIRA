@@ -283,6 +283,7 @@ function normalizeRenderableEmotes(value) {
     tokens.push({
       text,
       url,
+      kind: item.kind === 'inline' || item.kind === 'sticker' ? item.kind : undefined,
       width: Math.max(0, Math.trunc(Number(item.width)) || 0),
       height: Math.max(0, Math.trunc(Number(item.height)) || 0),
     });
@@ -308,7 +309,7 @@ function findNextEmote(message, cursor, emotes) {
 
 function isEmoteOnlyMessage(message, emotes) {
   const tokens = normalizeRenderableEmotes(emotes);
-  return tokens.length === 1 && tokens[0].text === message;
+  return tokens.length === 1 && tokens[0].kind !== 'inline' && tokens[0].text === message;
 }
 
 function identityVariant(guardLevel, medalName) {

@@ -192,6 +192,20 @@ test('shared danmaku renderer replaces whole and inline emote triggers with safe
   emoteImage.listeners.error();
   assert.equal(emoteImage.replacement.textContent, '[打call]');
 
+  for (const [kind, text, enlarged] of [
+    ['inline', '[喝彩]', false],
+    ['inline', '好听[喝彩]', false],
+    ['inline', '[喝彩][喝彩]', false],
+    ['sticker', '[喝彩]', true],
+    [undefined, '[喝彩]', true],
+  ]) {
+    feed.render([{ message: text, emotes: [{
+      text: '[喝彩]', url: 'https://i0.hdslb.com/cheer.png', kind,
+      width: 192, height: 192,
+    }] }]);
+    assert.equal(root.children[0].className.includes('is-emote-only'), enlarged, `${kind}: ${text}`);
+  }
+
   const identityRoot = new FakeNode('div');
   identityRoot.clientHeight = 40;
   const emptyState = new FakeNode('div');

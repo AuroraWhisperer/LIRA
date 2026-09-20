@@ -327,7 +327,7 @@ body:not(.is-connected) .danmaku-signal-count {
 .draw-danmaku-emote {
   display: inline-block;
   width: auto;
-  height: 1.85em;
+  height: 1em;
   max-width: calc(100% - 0.16em);
   margin: 0 0.08em;
   aspect-ratio: var(--danmaku-emote-ratio, auto);
@@ -336,7 +336,7 @@ body:not(.is-connected) .danmaku-signal-count {
   filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.28));
 }
 .draw-danmaku-item.is-emote-only .draw-danmaku-emote {
-  height: 3.2em;
+  height: 4.48em;
   max-width: 100%;
   margin: 0;
 }

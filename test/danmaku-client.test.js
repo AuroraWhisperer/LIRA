@@ -374,6 +374,7 @@ test('onMessage return values do not fetch profiles and explicit ensure reuses t
         url: 'https://i0.hdslb.com/bfs/emote/miao.png',
         width: 64,
         height: 64,
+        kind: 'inline',
       },
     ]);
     assert.equal(profileRequests, 0);

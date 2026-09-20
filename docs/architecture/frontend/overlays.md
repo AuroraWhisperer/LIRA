@@ -253,6 +253,8 @@ HTTP 初始/重连请求带本页读取代次，较新的完整 WS 状态使旧�
 
 [overlays/danmaku.js](../../../public/js/overlays/danmaku.js) 驱动本地 `/danmaku`。预览入口为 `/danmaku?preview=1`，由 [danmaku-preview.js](../../../public/js/overlays/danmaku-preview.js) 在同一页面切换聊天气泡(`bubble`)、深色面板(`signal`)、蝴蝶结(`minimal`)、经典样式(`ranked`)、透明文字(`transparent`)、头像横卡(`identity`)、简洁白卡(`outline`)、奶油气泡(`cream`)和流光气泡(`glow`)。前六种固定排列，后三种全屏随机；非法样式回退 `signal`。旧 `style` / `fullscreenDurationSeconds` query 仍可初始化草稿，随后地址统一为 `/danmaku?preview=1`，当前风格保存在该 history entry，刷新保留选择。每种风格一次性渲染 6 条示例：总督、提督、舰长和非大航海观众的文字与行内表情、纯表情、“星河来客送出小花花 × 10”送礼通知。预览不连接 WebSocket、不循环或自动追加、不自动过期，允许滚动查看全部；`打call` 图片内置于 `public/img/overlays/danmaku-previews/dacall.png`，没有外部素材请求。九种风格正文与礼物名称、数量统一为 30px；预览沿用实际卡片宽度及表情比例。六种固定位置样式共用跟随浏览器源宽高的外层画布，四周统一留 12px，消息靠左并从底部排列；各样式保留消息宽度、间距和装饰比例。经典样式与头像横卡只按扣除左右边距后的可用宽度等比缩小，600px 内容宽度时为原始大小，最大为 1 倍；高度只决定完整可见条数，不限制为 640px，也不缩小字号。本地预览沿用相同宽度规则，高度随内容展开并由外层视口滚动。
 
+小表情 `kind:inline` 无论夹在文字里、重复发送或单独发送，图片高度均为正文的 `1em`；整张表情包 `kind:sticker` 使用原尺寸的 1.4 倍，即普通样式 `4.48em`、经典样式与头像横卡 `5.74em`，宽度按原比例并受现有画布限制。缺少 kind 的旧载荷仍沿用整条匹配时放大的兼容分类。预览文字示例显式标记 inline，纯图片示例标记 sticker。
+
 保留的非预览本地入口以 `topic=danmaku` 连接 WebSocket，按 snapshot 的 `settings.danmakuOverlayStyle` / `danmakuFullscreenDurationSeconds` 切换样式和停留时间，从 `danmakuFeed` 恢复消息并消费 `danmaku:message`。按消息 `id` 去重，同一帧批量追加；连接中断时指数退避重连，连接状态仍以 `liveStatus` 为准。客户端复制和打开的正式 OBS 地址由服务器提供，本地预览不改变服务器配置。
 
 本地页面对去重、截取最近 50 条后的消息内容做完整比较。内容未变且 feed 无需初始化时，快照保留现有消息节点、到期计时器及尚未绘制的增量帧；仍更新直播连接状态。首次空快照、实际消息修正/清空/重连补数、样式或全屏期限变更导致的 feed 重建仍执行恢复。此优化不改变远端正式 OBS 的 SSE，也不承诺有变化的快照完全免于重建。真实页面模块和共享 feed 的节点/计时器回归见 `test/danmaku-snapshot-stability.test.js`。

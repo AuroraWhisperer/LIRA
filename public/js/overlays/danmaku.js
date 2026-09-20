@@ -286,6 +286,7 @@ function previewItems() {
   const emotes = [{
     text: '[打call]',
     url: '/img/overlays/danmaku-previews/dacall.png',
+    kind: 'inline',
     width: 96,
     height: 96,
   }];
@@ -330,7 +331,7 @@ function previewItems() {
       name: '主播示例',
       isStreamer: true,
       message: '[打call]',
-      emotes,
+      emotes: [{ ...emotes[0], kind: 'sticker' }],
     },
     {
       id: 'preview-gift',
