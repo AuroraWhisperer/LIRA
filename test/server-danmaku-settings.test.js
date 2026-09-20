@@ -37,7 +37,9 @@ async function fixture() {
     window: { liraLicense: bridge, open: (...args) => opened.push(args) },
   });
   const module = new vm.SourceTextModule(source('danmaku-overlay-settings.js'), { context });
-  await module.link((specifier) => new vm.SyntheticModule(
+  await module.link((specifier) => specifier.includes('danmaku-style-options')
+    ? new vm.SourceTextModule(source('../shared/danmaku-style-options.js'), { context })
+    : new vm.SyntheticModule(
     specifier.includes('utils') ? ['copyText', 'localOverlayOrigin'] : ['observeServerOverlayUrl'],
     function () {
       if (specifier.includes('utils')) {
@@ -95,6 +97,52 @@ test('failed apply and invalid durations retain the editable draft', async () =>
   assert.match(f.elements.styleSaveState.textContent, /应用失败.*草稿已保留/);
   assert.equal(f.node('danmakuApplyOverlayBtn').disabled, false);
   assert.match(f.elements.styleChip.textContent, /简洁白卡/);
+});
+
+test('appearance drafts belong to each style and apply together without leaking to the old server', async () => {
+  const f = await fixture();
+  f.reads[0].resolve({ ...saved(), styleOptions: {} }); await flush();
+  const change = (id, value, event = 'change') => { f.node(id).value = value; f.node(id).events[event](); };
+  change('danmakuFontSize', '42');
+  change('danmakuFontFamily', 'serif');
+  f.node('danmakuBackgroundOpacity').min = '0';
+  f.node('danmakuBackgroundOpacity').max = '100';
+  change('danmakuBackgroundOpacity', '35', 'input');
+  change('danmakuGiftImage', 'gift');
+  f.click('minimal');
+  assert.equal(f.node('danmakuFontSize').max, '40');
+  assert.equal(f.node('danmakuBackgroundOpacityField').hidden, true);
+  assert.equal(f.node('danmakuGiftImageField').hidden, true);
+  assert.equal(f.node('danmakuFontSize').value, '30');
+  change('danmakuFontSize', '41');
+  assert.equal(f.node('danmakuFontSize').value, '30');
+  change('danmakuFontSize', '24');
+  f.click('signal');
+  assert.equal(f.node('danmakuFontSize').value, '42');
+  assert.equal(f.node('danmakuGiftImage').value, 'gift');
+  f.click('previewOverlayButton');
+  const expected = { signal: { fontSize: 42, fontFamily: 'serif', backgroundOpacity: 35, giftImage: 'gift' }, minimal: { fontSize: 24 } };
+  assert.deepEqual(JSON.parse(new URL(f.opened.at(-1)[0]).searchParams.get('styleOptions')), expected);
+  assert.equal(f.writes.length, 0);
+  const pending = f.click('danmakuApplyOverlayBtn');
+  assert.deepEqual(f.writes[0].parameters.styleOptions, expected);
+  f.writes[0].resolve({ ...saved(), styleOptions: expected }); await pending;
+  assert.equal(f.node('danmakuApplyOverlayBtn').disabled, true);
+  f.click('danmakuResetParameters');
+  assert.equal(f.node('danmakuFontSize').value, '30');
+  f.click('minimal');
+  assert.equal(f.node('danmakuFontSize').value, '24');
+  f.account('');
+  assert.equal(f.node('danmakuFontSize').disabled, true);
+  assert.equal(f.node('danmakuFontFamily').value, 'default');
+});
+
+test('older servers keep style editing available and explain unsupported appearance controls', async () => {
+  const f = await fixture(); f.reads[0].resolve(saved()); await flush();
+  assert.equal(f.node('danmakuFontSize').disabled, true);
+  assert.match(f.node('danmakuParametersHint').textContent, /更新服务器/);
+  f.click('outline');
+  assert.equal(f.elements.fullscreenDuration.disabled, false);
 });
 
 for (const [style, label] of [['cream', '奶油气泡'], ['glow', '流光气泡']]) {

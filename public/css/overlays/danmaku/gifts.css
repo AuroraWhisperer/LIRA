@@ -122,3 +122,25 @@ body:not([data-style='minimal']) .is-gift .draw-danmaku-gift-count {
   font-weight: 800;
   line-height: 1.15;
 }
+
+/* Custom background strength leaves text and images opaque. */
+body[data-custom-background='true']:not([data-style='minimal']) .draw-danmaku-item.is-gift {
+  background: color-mix(in srgb, var(--gift-surface) var(--danmaku-background-weight), transparent);
+}
+
+.draw-danmaku-gift-art > img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Large gift text can wrap the amount onto a second row in a narrow card. */
+body[data-custom-size='true']:is([data-style='transparent'], [data-style='cream']) .is-gift .draw-danmaku-gift {
+  display: flex;
+  flex-wrap: wrap;
+}
+body[data-custom-size='true']:is([data-style='transparent'], [data-style='cream']) .is-gift .draw-danmaku-gift-copy {
+  flex: 1 1 6em;
+  min-width: 0;
+  flex-wrap: wrap;
+}

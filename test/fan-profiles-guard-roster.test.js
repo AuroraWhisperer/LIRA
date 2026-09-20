@@ -165,25 +165,27 @@ test('repeated same-day imports retain an actual level change back to a previous
   assert.equal(p.records.length, 3);
 });
 
-test('profiles sort by fan medal level before recency and retain ordering after restart and restore', (t) => {
+test('profiles sort by guard rank, then fan medal level and recency, and retain ordering', (t) => {
   const f = fanFixture(t);
   f.service.importGuardRoster(SCOPE, roster([
     { uid: IDENTITY.value, name: '低灯牌', level: 1, medalLevel: 12 },
-    { uid: '900000002', name: '高灯牌', level: 3, medalLevel: 32 },
-    { uid: '900000003', name: '旧名单', level: 2 },
+    { uid: '900000002', name: '高灯牌舰长', level: 3, medalLevel: 32 },
+    { uid: '900000003', name: '无灯牌提督', level: 2 },
+    { uid: '900000004', name: '高灯牌总督', level: 1, medalLevel: 28 },
   ]));
   const low = f.run('find', { identity: IDENTITY });
   f.setNow('2026-09-18T06:00:00.000Z');
   f.record(low.id, 'note', { body: '更晚的互动不应改变灯牌排序' });
   const ordered = () => f.run('list').profiles.map((p) => p.identity.value);
-  assert.deepEqual(ordered(), ['900000002', IDENTITY.value, '900000003']);
+  const expected = ['900000004', IDENTITY.value, '900000003', '900000002'];
+  assert.deepEqual(ordered(), expected);
   assert.equal(f.run('list', { query: '低灯牌' }).profiles[0].id, low.id);
   f.restart();
-  assert.deepEqual(ordered(), ['900000002', IDENTITY.value, '900000003']);
+  assert.deepEqual(ordered(), expected);
   const backup = f.run('backup');
   const preview = f.run('preview-restore', { backup });
   f.run('restore', { backup, ...preview, conflicts: 'replace' });
-  assert.deepEqual(ordered(), ['900000002', IDENTITY.value, '900000003']);
+  assert.deepEqual(ordered(), expected);
 });
 
 test('same-day medal changes update ordering without duplicating unchanged evidence or overwriting revisions', (t) => {

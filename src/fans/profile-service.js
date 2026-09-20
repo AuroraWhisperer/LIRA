@@ -369,6 +369,7 @@ function createFanProfileService({
       })
       .sort(
         (a, b) =>
+          (a.currentGuardLevel ?? 4) - (b.currentGuardLevel ?? 4) ||
           (b.medalLevel ?? -1) - (a.medalLevel ?? -1) ||
           (b.lastInteraction || b.updatedAt).localeCompare(
             a.lastInteraction || a.updatedAt,

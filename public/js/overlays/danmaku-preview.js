@@ -1,4 +1,4 @@
-export function initDanmakuPreview({ initialStyle, renderSamples }) {
+export function initDanmakuPreview({ initialStyle, styleOptions, duration, renderSamples }) {
   const controls = document.getElementById('danmakuPreviewControls');
   const buttons = Array.from(controls.querySelectorAll('[data-preview-style]'));
   const description = document.getElementById('danmakuPreviewDescription');
@@ -13,7 +13,8 @@ export function initDanmakuPreview({ initialStyle, renderSamples }) {
     }
     description.textContent = `${selected.querySelector('small').textContent} · 6 条静态示例，可向下滚动`;
     window.history.replaceState(
-      { ...window.history.state, danmakuPreviewStyle: style },
+      { ...window.history.state, danmakuPreviewStyle: style,
+        danmakuStyleOptions: styleOptions, danmakuDuration: duration },
       '',
       `${window.location.pathname}?preview=1`,
     );

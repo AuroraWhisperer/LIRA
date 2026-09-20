@@ -65,7 +65,7 @@ body[data-style='ranked'] .draw-danmaku-identity {
   padding: 3px 8px;
   border-radius: 999px 999px 999px 0;
   color: #fff;
-  background: color-mix(in srgb, var(--ranked-accent) 82%, white);
+  background: color-mix(in srgb, var(--ranked-accent) 55%, black);
   box-shadow: 0 2px 5px rgba(12, 18, 30, 0.16);
 }
 body[data-style='ranked']
@@ -82,7 +82,8 @@ body[data-style='ranked']
   bottom: 2px;
   width: 24px;
   height: 30px;
-  background: color-mix(in srgb, var(--ranked-accent) 82%, black);
+  background: color-mix(in srgb, var(--ranked-accent) 82%, white);
+  -webkit-mask: url('/img/overlays/danmaku-ranked/anchor.svg') center / contain no-repeat;
   mask: url('/img/overlays/danmaku-ranked/anchor.svg') center / contain no-repeat;
   content: '';
 }
@@ -131,7 +132,9 @@ body[data-style='ranked'] .draw-danmaku-body p {
   font-size: var(--danmaku-font-size);
   font-weight: 600;
   line-height: 1.28;
-  background: var(--ranked-accent);
+  background:
+    linear-gradient(rgba(0, 0, 0, 0.28), rgba(0, 0, 0, 0.28)),
+    var(--ranked-accent);
   overflow-wrap: anywhere;
   word-break: break-word;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.34);
@@ -152,6 +155,25 @@ body[data-style='ranked'] .draw-danmaku-empty {
   border-radius: 8px 20px 20px 20px;
   background: rgba(110, 214, 220, 0.72);
   clip-path: none;
+}
+
+/* 旧版 OBS 内核不支持 color-mix，用特性检测避免变量求值后底色变透明。 */
+@supports not (color: color-mix(in srgb, black, white)) {
+  body[data-style='ranked'] .draw-danmaku-avatar {
+    border: 3px solid var(--ranked-accent);
+  }
+  body[data-style='ranked'] .draw-danmaku-identity {
+    background:
+      linear-gradient(rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.45)),
+      var(--ranked-accent);
+  }
+  body[data-style='ranked']
+    .draw-danmaku-item:not([data-streamer='true']):is([data-identity='captain'], [data-identity='admiral'], [data-identity='governor'])
+    .draw-danmaku-identity::before {
+    background:
+      linear-gradient(rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.18)),
+      var(--ranked-accent);
+  }
 }
 
 /* 礼物票券：紫金飘带与斜放礼章。 */
@@ -178,4 +200,13 @@ body[data-style='ranked'] .is-gift .draw-danmaku-gift-art {
   right: auto;
   width: 56px;
   transform: translateY(-50%) rotate(-6deg);
+}
+
+/* Custom background strength leaves text and images opaque. */
+body[data-custom-background='true'][data-style='ranked'] .draw-danmaku-item:not(.is-gift) .draw-danmaku-body p {
+  background: linear-gradient(color-mix(in srgb, rgba(0, 0, 0, 0.28) var(--danmaku-background-weight), transparent), color-mix(in srgb, rgba(0, 0, 0, 0.28) var(--danmaku-background-weight), transparent)),
+    color-mix(in srgb, var(--ranked-accent) var(--danmaku-background-weight), transparent);
+}
+body[data-custom-background='true'][data-style='ranked'] .draw-danmaku-item.is-gift {
+  background: linear-gradient(110deg, color-mix(in srgb, #dfb8ed var(--danmaku-background-weight), transparent) 0 66px, color-mix(in srgb, #f8eaff var(--danmaku-background-weight), transparent) 66px);
 }

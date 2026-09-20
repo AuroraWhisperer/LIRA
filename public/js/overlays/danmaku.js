@@ -1,5 +1,6 @@
 import { createDanmakuFeed } from './danmaku-feed.js';
 import { initDanmakuPreview } from './danmaku-preview.js';
+import { applyStyleOptions, parseStyleOptions } from '../shared/danmaku-style-options.js';
 
 ('use strict');
 
@@ -20,6 +21,8 @@ const FIXED_STAGE_PADDING = 12;
 const RANKED_CONTENT_WIDTH = 600;
 const params = new URLSearchParams(location.search);
 const previewMode = params.get('preview') === '1';
+const previewOptions = previewMode ? (params.has('styleOptions')
+  ? parseStyleOptions(params.get('styleOptions')) : window.history.state?.danmakuStyleOptions || {}) : {};
 
 let items = [];
 let socket = null;
@@ -33,6 +36,7 @@ let pendingItems = [];
 let renderFrame = null;
 let currentOverlayStyle = 'signal';
 let currentFullscreenDurationSeconds = DEFAULT_FULLSCREEN_DURATION_SECONDS;
+let currentGiftImage = 'theme';
 
 document.addEventListener('DOMContentLoaded', () => {
   createOverlayFeed(currentOverlayStyle, currentFullscreenDurationSeconds);
@@ -42,8 +46,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.classList.add('is-preview');
     initDanmakuPreview({
       initialStyle: params.get('style'),
+      styleOptions: previewOptions,
+      duration: params.get('fullscreenDurationSeconds') || window.history.state?.danmakuDuration,
       renderSamples(style) {
-        applyConfiguration(style, params.get('fullscreenDurationSeconds'));
+        applyConfiguration(style, params.get('fullscreenDurationSeconds') || window.history.state?.danmakuDuration, previewOptions);
         applyItems(previewItems());
       },
     });
@@ -158,6 +164,8 @@ function createOverlayFeed(style, durationSeconds) {
     autoScroll: false,
     resolveAvatarUrl: bilibiliAvatarSource,
     resolveEmoteUrl: bilibiliImageSource,
+    resolveGiftImageUrl: (value) => currentGiftImage === 'gift'
+      ? (previewMode && value === '/img/gift-placeholder.png' ? value : bilibiliAvatarSource(value)) : '',
     getGuardLabel: guardLabel,
     showAvatar: !['outline', 'glow'].includes(style),
     showGiftTotal: ['transparent', 'cream'].includes(style),
@@ -181,14 +189,17 @@ function normalizeFullscreenDuration(value) {
     : DEFAULT_FULLSCREEN_DURATION_SECONDS;
 }
 
-function applyConfiguration(styleValue, durationValue) {
+function applyConfiguration(styleValue, durationValue, styleOptions = {}) {
   const style = OVERLAY_STYLES.has(styleValue) ? styleValue : 'signal';
   const duration = normalizeFullscreenDuration(durationValue);
+  const appearance = applyStyleOptions(document, style, styleOptions);
   const changed =
     style !== currentOverlayStyle ||
+    appearance.giftImage !== currentGiftImage ||
     (['outline', 'cream', 'glow'].includes(style) && duration !== currentFullscreenDurationSeconds);
   currentOverlayStyle = style;
   currentFullscreenDurationSeconds = duration;
+  currentGiftImage = appearance.giftImage;
   document.body.dataset.style = style;
   if (changed) createOverlayFeed(style, duration);
   syncRankedOverlayScale();
@@ -329,6 +340,7 @@ function previewItems() {
       giftName: '小花花',
       giftCount: 10,
       giftTotalPrice: 1,
+      giftImageUrl: '/img/gift-placeholder.png',
     },
   ];
 }

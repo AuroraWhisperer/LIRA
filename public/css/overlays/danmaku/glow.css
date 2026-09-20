@@ -105,3 +105,11 @@ body[data-style='glow'] .is-gift .draw-danmaku-gift {
   border: 0;
   box-shadow: none;
 }
+
+/* Custom background strength leaves text and images opaque. */
+body[data-custom-background='true'][data-style='glow'] .draw-danmaku-item:not(.is-gift) .draw-danmaku-body p {
+  background: color-mix(in srgb, color-mix(in srgb, var(--ranked-accent) 12%, rgb(12 18 30 / 76%)) var(--danmaku-background-weight), transparent);
+}
+body[data-custom-background='true'][data-style='glow'] .draw-danmaku-item.is-gift {
+  background: color-mix(in srgb, color-mix(in srgb, var(--ranked-accent) 18%, #101522) var(--danmaku-background-weight), transparent);
+}

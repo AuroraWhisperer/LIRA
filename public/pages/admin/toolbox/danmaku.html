@@ -112,6 +112,61 @@
         </div>
       </div>
       <p class="danmaku-preview-hint">将链接添加到 OBS 或直播姬浏览器源。切换样式后，链接保持不变。</p>
+      <section id="danmakuOverlayFilters" class="danmaku-overlay-filters" aria-label="弹幕屏蔽设置">
+        <div class="danmaku-filter-toolbar">
+          <p class="hint">添加、移除后自动保存，对之后收到的弹幕生效。仅影响弹幕姬显示。</p>
+          <button id="danmakuFiltersReload" class="secondary" type="button">重新读取</button>
+        </div>
+        <p id="danmakuFiltersState" class="hint" role="status" aria-live="polite"></p>
+        <div class="danmaku-filter-grid">
+          <section class="danmaku-filter-group" aria-labelledby="danmakuBlacklistTitle">
+            <div class="danmaku-filter-heading">
+              <h4 id="danmakuBlacklistTitle">用户黑名单</h4>
+              <span id="danmakuBlacklistCount" class="hint">0 人</span>
+            </div>
+            <p class="hint">按 UID 屏蔽该用户发送的所有弹幕，昵称变化也有效。</p>
+            <form id="danmakuBlacklistForm" class="danmaku-filter-form">
+              <label for="danmakuBlacklistUid">用户 UID</label>
+              <div class="danmaku-filter-input-row">
+                <input id="danmakuBlacklistUid" type="text" inputmode="numeric" pattern="[1-9][0-9]{0,19}" maxlength="20" placeholder="输入 B 站 UID" required disabled />
+                <button class="primary" type="submit" disabled>添加</button>
+              </div>
+            </form>
+            <div><button id="danmakuReadViewers" class="secondary" type="button" disabled>读取当前直播间观众</button></div>
+            <div id="danmakuViewerPicker" class="danmaku-viewer-picker" hidden>
+              <div class="danmaku-filter-toolbar">
+                <strong id="danmakuViewerTitle">选择观众</strong>
+                <button id="danmakuCloseViewers" class="secondary" type="button">收起</button>
+              </div>
+              <p class="hint">来自当前直播间的 B 站在线榜，仅包含接口返回的观众；找不到时可手动输入 UID。</p>
+              <label for="danmakuViewerSearch">查找观众</label>
+              <input id="danmakuViewerSearch" type="search" placeholder="搜索昵称或 UID" />
+              <p id="danmakuViewerState" class="hint" role="status" aria-live="polite"></p>
+              <ul id="danmakuViewerList" class="danmaku-filter-list danmaku-viewer-list" aria-label="可选择的观众"></ul>
+              <button id="danmakuAddViewers" class="primary" type="button" disabled>加入黑名单</button>
+            </div>
+            <ul id="danmakuBlacklist" class="danmaku-filter-list" aria-label="已屏蔽的用户"></ul>
+            <p id="danmakuBlacklistEmpty" class="hint">尚未添加黑名单用户。</p>
+          </section>
+          <section class="danmaku-filter-group" aria-labelledby="danmakuKeywordTitle">
+            <div class="danmaku-filter-heading">
+              <h4 id="danmakuKeywordTitle">敏感词屏蔽</h4>
+              <span id="danmakuKeywordCount" class="hint">0 个词</span>
+            </div>
+            <p class="hint">正文包含任一屏蔽词就不显示，英文不区分大小写。</p>
+            <form id="danmakuKeywordForm" class="danmaku-filter-form">
+              <label for="danmakuKeywordInput">屏蔽词</label>
+              <div class="danmaku-filter-input-row">
+                <input id="danmakuKeywordInput" type="text" maxlength="100" placeholder="输入要屏蔽的文字" required disabled />
+                <button class="primary" type="submit" disabled>添加</button>
+              </div>
+            </form>
+            <div><button id="danmakuClearKeywords" class="secondary" type="button" disabled>一键清空屏蔽词</button></div>
+            <ul id="danmakuKeywords" class="danmaku-filter-list" aria-label="已添加的屏蔽词"></ul>
+            <p id="danmakuKeywordsEmpty" class="hint">尚未添加屏蔽词。</p>
+          </section>
+        </div>
+      </section>
       <div class="danmaku-style-picker">
         <section
           class="danmaku-style-group danmaku-style-group-fixed"
@@ -232,9 +287,46 @@
               <span class="danmaku-style-description">昵称在框上方，经典身份色柔光</span>
             </button>
           </div>
+        </section>
+      </div>
+      <section class="danmaku-parameters" aria-labelledby="danmakuParametersTitle">
+        <div class="danmaku-filter-heading">
+          <h4 id="danmakuParametersTitle">参数调节 · 深色面板</h4>
+          <button id="danmakuResetParameters" class="secondary" type="button" disabled>恢复当前样式默认值</button>
+        </div>
+        <p id="danmakuParametersHint" class="hint">各样式分别记住参数。先预览效果，再应用到直播画面。</p>
+        <div class="danmaku-parameter-grid">
+          <label class="danmaku-parameter-field" for="danmakuFontFamily">
+            <span>字体</span>
+            <select id="danmakuFontFamily" disabled>
+              <option value="default">样式默认</option>
+              <option value="sans">微软雅黑</option>
+              <option value="serif">宋体</option>
+              <option value="kai">楷体</option>
+            </select>
+            <small class="hint">使用浏览器源所在电脑的字体，缺失时自动回退。</small>
+          </label>
+          <label class="danmaku-parameter-field" for="danmakuFontSize">
+            <span>正文字号</span>
+            <input id="danmakuFontSize" type="number" min="18" max="48" step="1" value="30" inputmode="numeric" aria-describedby="danmakuFontSizeHint" disabled />
+            <small id="danmakuFontSizeHint" class="hint">18～48 px</small>
+          </label>
+          <label id="danmakuBackgroundOpacityField" class="danmaku-parameter-field" for="danmakuBackgroundOpacity">
+            <span>背景不透明度 <output id="danmakuBackgroundOpacityValue" for="danmakuBackgroundOpacity">100%</output></span>
+            <input id="danmakuBackgroundOpacity" type="range" min="0" max="100" step="1" value="100" disabled />
+            <small class="hint">0% 隐去底色，100% 为原样式；文字和图片保持清晰。</small>
+          </label>
+          <label id="danmakuGiftImageField" class="danmaku-parameter-field" for="danmakuGiftImage">
+            <span>礼物通知图片</span>
+            <select id="danmakuGiftImage" disabled>
+              <option value="theme">使用样式插画</option>
+              <option value="gift">使用对应礼物原图</option>
+            </select>
+            <small class="hint">原图由浏览器直接从 B 站加载；不可用时显示样式插画。</small>
+          </label>
           <label
             id="danmakuFullscreenDurationField"
-            class="danmaku-fullscreen-duration"
+            class="danmaku-fullscreen-duration danmaku-parameter-field"
             hidden
           >
             <span>停留（秒）</span>
@@ -248,8 +340,8 @@
               inputmode="numeric"
             />
           </label>
-        </section>
-      </div>
+        </div>
+      </section>
       <div class="danmaku-style-footer">
         <p
           id="danmakuStyleSaveState"
@@ -266,61 +358,6 @@
           </button>
         </div>
       </div>
-      <section id="danmakuOverlayFilters" class="danmaku-overlay-filters" aria-label="弹幕屏蔽设置">
-        <div class="danmaku-filter-toolbar">
-          <p class="hint">添加、移除后自动保存，对之后收到的弹幕生效。仅影响弹幕姬显示。</p>
-          <button id="danmakuFiltersReload" class="secondary" type="button">重新读取</button>
-        </div>
-        <p id="danmakuFiltersState" class="hint" role="status" aria-live="polite"></p>
-        <div class="danmaku-filter-grid">
-          <section class="danmaku-filter-group" aria-labelledby="danmakuBlacklistTitle">
-            <div class="danmaku-filter-heading">
-              <h4 id="danmakuBlacklistTitle">用户黑名单</h4>
-              <span id="danmakuBlacklistCount" class="hint">0 人</span>
-            </div>
-            <p class="hint">按 UID 屏蔽该用户发送的所有弹幕，昵称变化也有效。</p>
-            <form id="danmakuBlacklistForm" class="danmaku-filter-form">
-              <label for="danmakuBlacklistUid">用户 UID</label>
-              <div class="danmaku-filter-input-row">
-                <input id="danmakuBlacklistUid" type="text" inputmode="numeric" pattern="[1-9][0-9]{0,19}" maxlength="20" placeholder="输入 B 站 UID" required disabled />
-                <button class="primary" type="submit" disabled>添加</button>
-              </div>
-            </form>
-            <div><button id="danmakuReadViewers" class="secondary" type="button" disabled>读取当前直播间观众</button></div>
-            <div id="danmakuViewerPicker" class="danmaku-viewer-picker" hidden>
-              <div class="danmaku-filter-toolbar">
-                <strong id="danmakuViewerTitle">选择观众</strong>
-                <button id="danmakuCloseViewers" class="secondary" type="button">收起</button>
-              </div>
-              <p class="hint">来自当前直播间的 B 站在线榜，仅包含接口返回的观众；找不到时可手动输入 UID。</p>
-              <label for="danmakuViewerSearch">查找观众</label>
-              <input id="danmakuViewerSearch" type="search" placeholder="搜索昵称或 UID" />
-              <p id="danmakuViewerState" class="hint" role="status" aria-live="polite"></p>
-              <ul id="danmakuViewerList" class="danmaku-filter-list danmaku-viewer-list" aria-label="可选择的观众"></ul>
-              <button id="danmakuAddViewers" class="primary" type="button" disabled>加入黑名单</button>
-            </div>
-            <ul id="danmakuBlacklist" class="danmaku-filter-list" aria-label="已屏蔽的用户"></ul>
-            <p id="danmakuBlacklistEmpty" class="hint">尚未添加黑名单用户。</p>
-          </section>
-          <section class="danmaku-filter-group" aria-labelledby="danmakuKeywordTitle">
-            <div class="danmaku-filter-heading">
-              <h4 id="danmakuKeywordTitle">敏感词屏蔽</h4>
-              <span id="danmakuKeywordCount" class="hint">0 个词</span>
-            </div>
-            <p class="hint">正文包含任一屏蔽词就不显示，英文不区分大小写。</p>
-            <form id="danmakuKeywordForm" class="danmaku-filter-form">
-              <label for="danmakuKeywordInput">屏蔽词</label>
-              <div class="danmaku-filter-input-row">
-                <input id="danmakuKeywordInput" type="text" maxlength="100" placeholder="输入要屏蔽的文字" required disabled />
-                <button class="primary" type="submit" disabled>添加</button>
-              </div>
-            </form>
-            <div><button id="danmakuClearKeywords" class="secondary" type="button" disabled>一键清空屏蔽词</button></div>
-            <ul id="danmakuKeywords" class="danmaku-filter-list" aria-label="已添加的屏蔽词"></ul>
-            <p id="danmakuKeywordsEmpty" class="hint">尚未添加屏蔽词。</p>
-          </section>
-        </div>
-      </section>
     </section>
     <section
       class="danmaku-feature-section danmaku-compose-section"

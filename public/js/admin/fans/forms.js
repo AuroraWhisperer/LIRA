@@ -514,13 +514,18 @@ export function recordForm(kind, record) {
   };
 }
 
-export function guardRosterForm(roomId) {
+export function guardRosterForm(roomId, roomProfile = null) {
+  const roomName = String(roomProfile?.name || '').trim() || '当前直播间';
+  const avatarSource = String(roomProfile?.avatarSource || '').trim();
+  const avatar = avatarSource
+    ? `<img class="bilibili-auth-avatar" src="${attr(avatarSource)}" alt="${attr(`${roomName}的头像`)}" />`
+    : '';
   return {
     title: '同步大航海名单',
     saveLabel: '同步并预建档',
     busyLabel: '正在读取名单…',
     hint: '仅本次同步；完成后可在档案中补充生日、备注和相处故事。',
-    fields: `<div class="fan-field-wide"><dl class="fan-facts"><div><dt>同步房间</dt><dd>${html(roomId || '尚未设置')}</dd></div></dl>
+    fields: `<div class="fan-field-wide"><dl class="fan-facts"><div><dt>同步房间</dt><dd class="bilibili-room-row"><span class="bilibili-auth-profile">${avatar}<span class="bilibili-auth-identity"><strong class="bilibili-auth-name" title="${attr(roomName)}">${html(roomName)}</strong></span></span></dd></div></dl>
       <p>读取这个房间主人的当前大航海名单，按 UID 预存昵称、头像和等级。</p>
       <p class="fan-muted">已有备注与私人资料会保留；已归档、排除名单或无法确认身份的粉丝会跳过。名单未提供起止日期时，先记录本次观察，日期和天数可之后补充。</p></div>`,
     read: () => ({ expectedRoomId: roomId }),

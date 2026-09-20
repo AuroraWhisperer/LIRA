@@ -73,6 +73,15 @@ test('overlay IPC gates sender, validates parameters and allowlists the server r
     reply = { ...reply, overlayUrl };
     assert.equal((await read(event)).error, 'INVALID_RESPONSE');
   }
+  const styleOptions = { cream: { fontSize: 24, fontFamily: 'kai', backgroundOpacity: 0, giftImage: 'gift' } };
+  reply = { ...expected, style: 'cream', styleOptions, token: 'private' };
+  assert.deepEqual(await update(event, reply), { ...expected, style: 'cream', styleOptions });
+  assert.deepEqual(writes.at(-1), { style: 'cream', fullscreenDurationSeconds: 12, styleOptions });
+  const count = writes.length;
+  assert.equal((await update(event, { ...reply, styleOptions: { cream: { fontSize: 41 } } })).error, 'INVALID_OVERLAY_OPTIONS');
+  assert.equal(writes.length, count);
+  reply = { ...reply, styleOptions: { cream: { cookie: 'private' } } };
+  assert.equal((await read(event)).error, 'INVALID_OVERLAY_OPTIONS');
 });
 
 test('remote overlay settings use the fixed Device endpoints and bearer stays in main', async () => {

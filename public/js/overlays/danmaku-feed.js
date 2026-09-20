@@ -49,6 +49,7 @@ export function createDanmakuFeed(root, options = {}) {
     showGiftTotal: options.showGiftTotal,
     resolveAvatarUrl: options.resolveAvatarUrl,
     resolveEmoteUrl: options.resolveEmoteUrl,
+    resolveGiftImageUrl: options.resolveGiftImageUrl,
     getGuardLabel: options.getGuardLabel,
   });
   const fitViewport = !fullscreen && offscreenViewports === 0;

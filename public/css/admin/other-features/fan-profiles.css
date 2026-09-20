@@ -131,13 +131,14 @@
   border-bottom: 0;
 }
 .fan-setting-row > div {
+  flex: 1 1 auto;
   min-width: 0;
-  max-width: 65ch;
 }
 .fan-setting-row h4 {
   margin: 0;
-  font-size: 14px;
-  font-weight: 500;
+  font-size: var(--type-size-card-title);
+  font-weight: var(--type-weight-semibold);
+  line-height: var(--type-leading-card-title);
 }
 .fan-setting-row p {
   margin: 6px 0 0;

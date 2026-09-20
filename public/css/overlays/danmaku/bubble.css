@@ -268,3 +268,31 @@ body[data-style='bubble'] .is-gift .draw-danmaku-gift-art {
   right: -8px;
   transform: translateY(-50%);
 }
+
+/* Custom background strength leaves text and images opaque. */
+body[data-custom-background='true'][data-style='bubble'] .draw-danmaku-item:not(.is-gift) {
+  background: linear-gradient(
+      135deg,
+      color-mix(in srgb, color-mix(in srgb, var(--bubble-accent) 17%, transparent) var(--danmaku-background-weight), transparent),
+      transparent 52%
+    ),
+    color-mix(in srgb, rgba(30, 33, 49, 0.93) var(--danmaku-background-weight), transparent);
+}
+body[data-custom-background='true'][data-style='bubble'] .draw-danmaku-item:not(.is-gift)::after {
+  background: color-mix(in srgb, rgba(30, 33, 49, 0.93) var(--danmaku-background-weight), transparent);
+}
+body[data-custom-background='true'][data-style='bubble'] .draw-danmaku-item:not(.is-gift)[data-identity='captain'],
+body[data-custom-background='true'][data-style='bubble'] .draw-danmaku-item:not(.is-gift)[data-identity='admiral'],
+body[data-custom-background='true'][data-style='bubble'] .draw-danmaku-item:not(.is-gift)[data-identity='governor'] {
+  background: radial-gradient(
+      circle at 8% 50%,
+      color-mix(in srgb, color-mix(in srgb, var(--bubble-accent) 32%, transparent) var(--danmaku-background-weight), transparent),
+      transparent 28%
+    ),
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, color-mix(in srgb, var(--bubble-accent) 18%, transparent) var(--danmaku-background-weight), transparent),
+      transparent 58%
+    ),
+    color-mix(in srgb, rgba(30, 33, 49, 0.94) var(--danmaku-background-weight), transparent);
+}

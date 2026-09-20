@@ -363,3 +363,8 @@ body.is-preview {
     )
     0 0 / 20px 20px;
 }
+
+body[data-custom-font='true'] .draw-danmaku-feed .draw-danmaku-body,
+body[data-custom-font='true'] .draw-danmaku-feed .draw-danmaku-body * {
+  font-family: var(--danmaku-custom-font);
+}

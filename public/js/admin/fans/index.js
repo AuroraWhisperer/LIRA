@@ -1,6 +1,7 @@
 import { createFanTransferUi } from './transfer-ui.js';
 import { toast } from '../../shared/utils.js';
 import { html, renderPeople, renderDetail, renderReminders } from './view.js';
+import { getBilibiliRoomProfileSnapshot } from '../settings-room-profile.js';
 import {
   profileForm,
   recordForm,
@@ -295,17 +296,23 @@ function createFanUi() {
     if (name === 'guard-roster') {
       await load(true);
       if (!state.roomId) throw new Error('请先在连接设置中填写直播间号。');
-      openForm(guardRosterForm(state.roomId), async (payload) => {
-        const result = await request('sync-guard-roster', payload);
-        const message = result.total
-          ? `房间 ${result.roomId}：新增 ${result.created} 份档案，更新 ${result.updated} 份，跳过 ${result.skipped} 位。`
-          : `房间 ${result.roomId} 当前没有大航海成员。`;
-        get('fanRosterResult').textContent = message;
-        get('fanRosterResult').hidden = false;
-        await load();
-        if (state.profile) await select(state.profile.id, false);
-        return { message };
-      });
+      openForm(
+        guardRosterForm(
+          state.roomId,
+          getBilibiliRoomProfileSnapshot(state.roomId),
+        ),
+        async (payload) => {
+          const result = await request('sync-guard-roster', payload);
+          const message = result.total
+            ? `房间 ${result.roomId}：新增 ${result.created} 份档案，更新 ${result.updated} 份，跳过 ${result.skipped} 位。`
+            : `房间 ${result.roomId} 当前没有大航海成员。`;
+          get('fanRosterResult').textContent = message;
+          get('fanRosterResult').hidden = false;
+          await load();
+          if (state.profile) await select(state.profile.id, false);
+          return { message };
+        },
+      );
       return;
     }
     if (name === 'new') {

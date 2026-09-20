@@ -118,3 +118,8 @@ body[data-style='outline'] .is-gift .draw-danmaku-gift-art {
   height: 56px;
   transform: translateY(-50%) rotate(-8deg);
 }
+
+/* Custom background strength leaves text and images opaque. */
+body[data-custom-background='true'][data-style='outline'] .draw-danmaku-item:not(.is-gift) {
+  background: color-mix(in srgb, rgba(255, 255, 255, 0.94) var(--danmaku-background-weight), transparent);
+}

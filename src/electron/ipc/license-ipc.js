@@ -1,4 +1,5 @@
 'use strict';
+const { normalizeStyleOptions } = require('../../shared/danmaku-style-options');
 
 const { isDnsHostname } = require('../../shared/remote-url-policy');
 const { overlayFilterParameters, sanitizeOverlayFilters, sanitizeOverlayViewers } = require('../../shared/overlay-filters-contract');
@@ -386,7 +387,10 @@ function overlayParameters(value) {
   if (!Number.isInteger(duration) || duration < 2 || duration > 30) {
     throw Object.assign(new Error('INVALID_OVERLAY_DURATION'), { code: 'INVALID_OVERLAY_DURATION' });
   }
-  return { style: value.style, fullscreenDurationSeconds: duration };
+  return { style: value.style, fullscreenDurationSeconds: duration,
+    ...(value.styleOptions === undefined ? {} : {
+      styleOptions: normalizeStyleOptions(value.styleOptions),
+    }) };
 }
 
 function sanitizeOverlaySettings(value) {

@@ -27,12 +27,12 @@ async function fixture(loadProfile) {
     }),
     apiToken: 'synthetic-token',
   });
-  return { view, elements };
+  return { module, view, elements };
 }
 
 test('room card renders owner identity with the existing authenticated avatar proxy', async () => {
   let requests = 0;
-  const { view, elements } = await fixture(async (url, options) => {
+  const { module, view, elements } = await fixture(async (url, options) => {
     requests += 1;
     assert.equal(url, '/api/bilibili/room/profile');
     assert.equal(options.method, undefined, 'Room profile requests use GET');
@@ -53,6 +53,10 @@ test('room card renders owner identity with the existing authenticated avatar pr
   assert.equal(source.pathname, '/api/bilibili/avatar');
   assert.equal(source.searchParams.get('token'), 'synthetic-token');
   assert.equal(source.searchParams.get('url'), 'https://i0.hdslb.com/bfs/face/owner.jpg');
+  const snapshot = module.getBilibiliRoomProfileSnapshot('123');
+  assert.equal(snapshot.name, '房主名字');
+  assert.equal(snapshot.avatarSource, avatar.src);
+  assert.equal(module.getBilibiliRoomProfileSnapshot('456'), null);
   await view.refresh('123');
   assert.equal(requests, 1, 'Unrelated snapshots must not repeat the profile lookup');
   avatar.listeners.error();
@@ -62,7 +66,7 @@ test('room card renders owner identity with the existing authenticated avatar pr
 
 test('editing a room clears the previous identity and invalidates pending responses', async () => {
   const pending = Promise.withResolvers();
-  const { view, elements } = await fixture(() => pending.promise);
+  const { module, view, elements } = await fixture(() => pending.promise);
   const loading = view.refresh('123');
   elements.roomId.value = '456';
   elements.roomId.listeners.input();
@@ -73,6 +77,7 @@ test('editing a room clears the previous identity and invalidates pending respon
   assert.equal(elements.bilibiliRoomStatus.textContent, '待保存');
   assert.doesNotMatch(elements.bilibiliRoomName.textContent, /旧房主/);
   assert.equal(elements.bilibiliRoomAvatar.hidden, true);
+  assert.equal(module.getBilibiliRoomProfileSnapshot('123'), null);
 });
 
 test('a late response cannot replace the newly saved room identity', async () => {

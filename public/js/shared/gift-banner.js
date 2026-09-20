@@ -7,8 +7,8 @@ export const BANNER_HEIGHT = 72;
 export const BANNER_GAP = 8;
 export const MAX_COMPOSITE_ROWS = 39;
 export const GIFT_PALETTE = [
-  ['#62A6FF66', '#6FADFE33'], ['#9F66FFCC', '#6FACFE4D'],
-  ['#FF49A1CC', '#FF66994D'], ['#FF9D00CC', '#FFD4004D'],
+  ['#408AE8F2', '#559AF0E6'], ['#8F58EDF2', '#776CE9E6'],
+  ['#F25361F2', '#F47765E6'], ['#E99400F2', '#F0BC00E6'],
 ];
 const FRAMES = { 1: 'governor', 2: 'admiral', 3: 'captain' };
 const AVATAR_PLACEHOLDER = '/img/gift-avatar-placeholder.svg';

@@ -245,7 +245,7 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
   );
   assert.match(
     styles,
-    /body\[data-style='ranked'\] \.draw-danmaku-identity \{[^}]*display:\s*flex;[^}]*width:\s*max-content;[^}]*max-width:\s*100%;[^}]*border-radius:\s*999px 999px 999px 0;[^}]*background:\s*color-mix\(in srgb, var\(--ranked-accent\) 82%, white\)/s,
+    /body\[data-style='ranked'\] \.draw-danmaku-identity \{[^}]*display:\s*flex;[^}]*width:\s*max-content;[^}]*max-width:\s*100%;[^}]*border-radius:\s*999px 999px 999px 0;[^}]*background:\s*color-mix\(in srgb, var\(--ranked-accent\) 55%, black\)/s,
   );
   assert.match(
     styles,
@@ -253,7 +253,7 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
   );
   assert.match(
     styles,
-    /body\[data-style='ranked'\] \.draw-danmaku-body p \{[^}]*width:\s*max-content;[^}]*max-width:\s*100%;[^}]*border-radius:\s*5px 18px 18px 18px;[^}]*color:\s*#fff[^}]*font-size:\s*var\(--danmaku-font-size\)[^}]*background:\s*var\(--ranked-accent\)[^}]*overflow-wrap:\s*anywhere;[^}]*word-break:\s*break-word;[^}]*text-shadow:\s*0 1px 3px rgba\(0, 0, 0, 0?\.34\)/s,
+    /body\[data-style='ranked'\] \.draw-danmaku-body p \{[^}]*width:\s*max-content;[^}]*max-width:\s*100%;[^}]*border-radius:\s*5px 18px 18px 18px;[^}]*color:\s*#fff[^}]*font-size:\s*var\(--danmaku-font-size\)[^}]*background:[^;]*var\(--ranked-accent\)[^}]*overflow-wrap:\s*anywhere;[^}]*word-break:\s*break-word;[^}]*text-shadow:\s*0 1px 3px rgba\(0, 0, 0, 0?\.34\)/s,
   );
   assert.doesNotMatch(
     styles,

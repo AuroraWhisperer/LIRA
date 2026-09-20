@@ -143,7 +143,7 @@ test('merged cards control the row threshold and update every sender card withou
   assert.deepEqual(await page.locator('#giftFeedStage .gift-banner-count').allTextContents(), ['×3', '×1', '×1']);
   assert.deepEqual(await page.locator('#giftFeedStage .gift-banner-name').allTextContents(), ['新昵称', '新昵称', '重名']);
   assert.deepEqual(await page.locator('#giftFeedStage .gift-banner-frame').evaluateAll((images) => images.map((image) => image.getAttribute('src').match(/bubble-(.*)-frame/)[1])), ['admiral', 'admiral', 'captain']);
-  assert.equal(await page.locator('#giftFeedStage .gift-banner').first().evaluate((row) => row.style.getPropertyValue('--gift-start')), '#9F66FFCC');
+  assert.equal(await page.locator('#giftFeedStage .gift-banner').first().evaluate((row) => row.style.getPropertyValue('--gift-start')), '#8F58EDF2');
   await page.evaluate(() => {
     window.unchangedCard = document.getElementById('giftFeedStage').firstElementChild;
     window.feedProfiles.push({ ...window.feedProfiles.at(-1), eventId: 'renewal', createdAt: window.feedProfiles.at(-1).createdAt.replace('02:00', '03:00') });

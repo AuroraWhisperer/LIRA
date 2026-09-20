@@ -6,6 +6,22 @@ const test = require('node:test');
 const { loadModuleExports } = require('./helpers/frontend-modules');
 const { fanFixture, SCOPE, IDENTITY, NOW } = require('./helpers/fan-profile-fixture');
 
+test('guard roster confirmation reuses the room identity without showing its number', async () => {
+  const forms = await loadModuleExports(
+    path.resolve(__dirname, '../public/js/admin/fans/forms.js'),
+  );
+  const description = forms.guardRosterForm('1743356673', {
+    name: '海边直播间 <测试>',
+    avatarSource: '/api/bilibili/avatar?token=synthetic&url=avatar',
+  });
+  assert.match(description.fields, /class="bilibili-auth-profile"/);
+  assert.match(description.fields, /class="bilibili-auth-avatar"/);
+  assert.match(description.fields, /海边直播间 &lt;测试&gt;/);
+  assert.match(description.fields, /token=synthetic&amp;url=avatar/);
+  assert.doesNotMatch(description.fields, /1743356673/);
+  assert.equal(description.read().expectedRoomId, '1743356673');
+});
+
 test('list and detail show each synced guard icon without requiring membership dates', async (t) => {
   const f = fanFixture(t);
   const view = await loadModuleExports(path.resolve(__dirname, '../public/js/admin/fans/view.js'));

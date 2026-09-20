@@ -2,6 +2,15 @@
 
 import { bilibiliAvatarSource } from './settings-auth.js';
 
+let currentRoomProfile = null;
+
+export function getBilibiliRoomProfileSnapshot(roomId) {
+  const expectedRoomId = String(roomId || '').trim();
+  if (!currentRoomProfile || currentRoomProfile.roomId !== expectedRoomId)
+    return null;
+  return { ...currentRoomProfile };
+}
+
 export function createBilibiliRoomProfile({ documentRef, fetchRef, apiToken }) {
   const input = documentRef.getElementById('roomId');
   const status = documentRef.getElementById('bilibiliRoomStatus');
@@ -16,12 +25,13 @@ export function createBilibiliRoomProfile({ documentRef, fetchRef, apiToken }) {
     avatar.removeAttribute('src');
   }
 
-  function render(statusText, statusClass, displayName) {
+  function render(statusText, statusClass, displayName, profile = null) {
     status.textContent = statusText;
     status.className = `pill ${statusClass}`;
     name.textContent = displayName;
     name.title = displayName;
     clearAvatar();
+    currentRoomProfile = profile;
   }
 
   async function refresh(roomId, force = false) {
@@ -42,12 +52,14 @@ export function createBilibiliRoomProfile({ documentRef, fetchRef, apiToken }) {
       if (!response.ok || !result.ok) throw new Error('Room profile unavailable');
       if (version !== requestVersion) return;
       const profile = result.data;
+      const displayName = profile.name || '暂未获取到房主昵称';
+      const source = bilibiliAvatarSource(profile.avatarUrl, apiToken);
       render(
         '已设置',
         'good',
-        profile.name || '暂未获取到房主昵称',
+        displayName,
+        { roomId: savedRoomId, name: displayName, avatarSource: source },
       );
-      const source = bilibiliAvatarSource(profile.avatarUrl, apiToken);
       if (source) {
         avatar.src = source;
         avatar.alt = profile.name ? `${profile.name}的头像` : '房主头像';
@@ -67,7 +79,11 @@ export function createBilibiliRoomProfile({ documentRef, fetchRef, apiToken }) {
     requestVersion += 1;
     render('待保存', 'warn', '保存设置后显示房主资料');
   });
-  avatar.addEventListener('error', clearAvatar);
+  avatar.addEventListener('error', () => {
+    clearAvatar();
+    if (currentRoomProfile)
+      currentRoomProfile = { ...currentRoomProfile, avatarSource: '' };
+  });
 
   return { refresh };
 }

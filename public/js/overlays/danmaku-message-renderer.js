@@ -99,6 +99,24 @@ export function createDanmakuMessageRenderer({
     const art = document.createElement('span');
     art.className = 'draw-danmaku-gift-art';
     art.setAttribute('aria-hidden', 'true');
+    const giftSource = options.resolveGiftImageUrl?.(item.giftImageUrl);
+    if (giftSource) {
+      const image = document.createElement('img');
+      image.alt = '';
+      image.referrerPolicy = 'no-referrer';
+      image.decoding = 'async';
+      image.hidden = true;
+      image.addEventListener('load', () => {
+        image.hidden = false;
+        art.style.setProperty('background-image', 'none');
+      });
+      image.addEventListener('error', () => {
+        image.remove();
+        art.style.setProperty('background-image', '');
+      });
+      image.src = giftSource;
+      art.append(image);
+    }
     const copy = document.createElement('span');
     copy.className = 'draw-danmaku-gift-copy';
     const action = document.createElement('span');

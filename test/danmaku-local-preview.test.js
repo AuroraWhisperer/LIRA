@@ -11,7 +11,7 @@ async function fixture(search = '?preview=1', savedStyle) {
   const node = (id) => {
     if (!nodes.has(id)) nodes.set(id, {
       textContent: '', hidden: true, dataset: {}, events: {}, clientWidth: 1000, clientHeight: 800,
-      style: { setProperty() {} },
+      style: { setProperty(name, value) { this[name] = value; } },
       setAttribute(name, value) { this[name] = value; },
       addEventListener(name, handler) { this.events[name] = handler; },
     });
@@ -47,6 +47,7 @@ async function fixture(search = '?preview=1', savedStyle) {
   const read = (file) => fs.readFileSync(path.join(__dirname, '../public/js/overlays', file), 'utf8');
   const module = new vm.SourceTextModule(read('danmaku.js'), { context });
   await module.link((specifier) => {
+    if (specifier.includes('danmaku-style-options')) return new vm.SourceTextModule(read('../shared/danmaku-style-options.js'), { context });
     if (specifier === './danmaku-preview.js') return new vm.SourceTextModule(read('danmaku-preview.js'), { context });
     return new vm.SyntheticModule(['createDanmakuFeed'], function () {
       this.setExport('createDanmakuFeed', (_root, config) => {
@@ -90,6 +91,19 @@ test('all local styles share one address and retain every example without loopin
       assert.equal(f.options.at(-1).showAvatar, style === 'cream');
     }
   }
+});
+
+test('local preview applies per-style parameters without external image requests', async () => {
+  const options = { signal: { fontSize: 42, fontFamily: 'serif', backgroundOpacity: 35, giftImage: 'gift' }, minimal: { fontSize: 24 } };
+  const f = await fixture(`?preview=1&style=signal&styleOptions=${encodeURIComponent(JSON.stringify(options))}`);
+  assert.equal(f.node('root').style['--danmaku-font-size'], '42px');
+  assert.equal(f.node('root').style['--danmaku-background-opacity'], '0.35');
+  assert.deepEqual(JSON.parse(JSON.stringify(f.history.state.danmakuStyleOptions)), options);
+  assert.equal(f.options.at(-1).resolveGiftImageUrl('/img/gift-placeholder.png'), '/img/gift-placeholder.png');
+  f.node('minimal').events.click();
+  assert.equal(f.node('root').style['--danmaku-font-size'], '24px');
+  assert.equal(f.document.body.dataset.customBackground, 'false');
+  assert.equal(f.options.at(-1).resolveGiftImageUrl('/img/gift-placeholder.png'), '');
 });
 
 test('local preview restores the last style on reload and rejects unknown initial styles', async () => {

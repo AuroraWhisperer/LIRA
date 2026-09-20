@@ -195,3 +195,21 @@ body[data-style='cream'] .is-gift .draw-danmaku-gift-amount {
   line-height: 1.15;
   white-space: nowrap;
 }
+
+/* Custom background strength leaves text and images opaque. */
+body[data-custom-background='true'][data-style='cream'] .draw-danmaku-item:not(.is-gift) .draw-danmaku-body {
+  background: linear-gradient(180deg, color-mix(in srgb, #fffaf5 var(--danmaku-background-weight), transparent) 80px, color-mix(in srgb, #fff2e2 var(--danmaku-background-weight), transparent));
+}
+body[data-custom-background='true'][data-style='cream'] .draw-danmaku-item:not(.is-gift) .draw-danmaku-body::before {
+  background: color-mix(in srgb, var(--cream-edge) var(--danmaku-background-weight), transparent);
+}
+body[data-custom-background='true'][data-style='cream'] .draw-danmaku-item:not(.is-gift) .draw-danmaku-body::after {
+  background: color-mix(in srgb, #fffaf5 var(--danmaku-background-weight), transparent);
+}
+body[data-custom-background='true'][data-style='cream'] .draw-danmaku-item:not(.is-gift)::before {
+  background: radial-gradient(circle at 7px 8px, transparent 3px, color-mix(in srgb, currentColor var(--danmaku-background-weight), transparent) 3px 4.5px, transparent 4.5px),
+    radial-gradient(circle at 19px 18px, color-mix(in srgb, currentColor var(--danmaku-background-weight), transparent) 2px, transparent 2.5px);
+}
+body[data-custom-background='true'][data-style='cream'] .draw-danmaku-item:not(.is-gift)::after {
+  background: color-mix(in srgb, currentColor var(--danmaku-background-weight), transparent);
+}
