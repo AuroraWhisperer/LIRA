@@ -390,7 +390,7 @@ test('fixed danmaku feed prunes incremental nodes outside its visible viewport',
 
   root.clientHeight = 150;
   root.children[0].offsetHeight = 80;
-  root.children[0].zoom = 1.8;
+  root.children[0].zoom = 1.5;
   feed.append({ name: '第五位', message: '放大卡片占用实际高度' });
   assert.equal(root.children.length, 1, 'scaled cards must not leave a clipped older message');
   assert.equal(root.children[0].children[1].children[0].children[0].textContent, '第五位');

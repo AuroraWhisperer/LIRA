@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>LIRA · 投票与评分</title>
+    <link rel="stylesheet" href="/css/styles-base.css" />
+    <link rel="stylesheet" href="/css/shared/interaction-results.css" />
+    <link rel="stylesheet" href="/css/overlays/interactions.css" />
+  </head>
+  <body>
+    <main id="interactionStage" class="interaction-stage" hidden>
+      <header><h1 id="interactionTitle"></h1><span id="interactionStatus"></span></header>
+      <p id="interactionRule" class="interaction-rule"></p>
+      <div id="interactionRows" class="interaction-rows"></div>
+      <section id="interactionScore" class="interaction-score" hidden>
+        <strong id="interactionAverage"></strong><span id="interactionScoreLabel"></span>
+      </section>
+      <footer><span id="interactionParticipants"></span><span id="interactionWarning"></span></footer>
+    </main>
+    <script type="module" src="/js/overlays/interactions.js"></script>
+  </body>
+</html>

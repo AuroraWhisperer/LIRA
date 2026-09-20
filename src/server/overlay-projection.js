@@ -45,7 +45,7 @@ const SETTING_KEYS = {
     desktopLyricTranslateY desktopLyricTranslationOpacity desktopLyricTranslationScale desktopLyricVisibleLines`,
   danmaku: 'danmakuOverlayStyle danmakuFullscreenDurationSeconds',
   'gift-effects': 'giftEffectDanmakuEnabled giftFrameMotionMode',
-  overtime: '', games: '', wheel: '', 'gift-feed': '', 'gift-export': '', opening: '', clock: '',
+  overtime: '', interactions: '', games: '', wheel: '', 'gift-feed': '', 'gift-wishes': '', 'gift-export': '', opening: '', clock: '',
 };
 
 function fields(names) {
@@ -98,12 +98,28 @@ const STATE_SCHEMAS = {
   queue: { queue: { current: QUEUE_ITEM, waiting: [QUEUE_ITEM] }, superChats: [fields('message price')] },
   songlist: {}, blindbox: {}, 'gift-effects': {},
   'gift-feed': { gifts: fields('viewRevision') },
+  'gift-wishes': { gifts: fields('viewRevision') },
   overtime: { overtime: OVERTIME },
   lyrics: { lyricState: LYRIC_STATE, lyricTimeline: LYRIC_TIMELINE },
   danmaku: { danmakuFeed: [DANMAKU_ITEM], liveStatus: fields('enabled roomId connected message') },
-  games: {}, wheel: {}, opening: {}, clock: {}, 'gift-export': {},
+  interactions: {}, games: {}, wheel: {}, opening: {}, clock: {}, 'gift-export': {},
+};
+const INTERACTION = {
+  ...fields('runtimeId revision'),
+  session: {
+    ...fields('sessionId kind title phase rule startedAt endsAt finishedAt finishReason receptionInterrupted connected participants average'),
+    options: [fields('text votes percentage')],
+  },
 };
 const RESPONSE_SCHEMAS = {
+  interactions: { '/api/interactions/session': INTERACTION },
+  'gift-wishes': {
+    '/api/gifts/wishes': {
+      ...fields('viewRevision asOf day partial'),
+      session: fields('state stale startedAt endedAt'),
+      items: [fields('id period giftId giftName giftCategory imagePath target label count remaining completed progress startAt')],
+    },
+  },
   songlist: { '/api/songs': [fields('id name artist category_name language name_initial')] },
   blindbox: {
     '/api/gifts/blind-box-stats': {
@@ -136,6 +152,7 @@ const RESPONSE_SCHEMAS = {
   opening: { '/api/opening/config': fields('enabled title subtitle name footer quality trackMotion showNotes showEq audio volume audioUrl characterUrl') },
 };
 const EVENT_SCHEMAS = {
+  'interaction:update': { scope: 'interactions', schema: { state: INTERACTION } },
   'danmaku:message': { scope: 'danmaku', schema: { item: DANMAKU_ITEM } },
   'gift-catalog:update': { scope: 'gift-feed', schema: {} },
   'gift:frame': { scope: 'gift-effects', schema: fields('eventId giftName userName num totalPriceCents themeId motionMode preview') },
@@ -187,7 +204,7 @@ function select(value, schema) {
 
 function projectGameSession(session) {
   if (!session || !Object.hasOwn(GAME_STATES, session.game)) return null;
-  const result = select(session, { ...fields('game'), winner: fields('uid'), danmaku: [DANMAKU_ITEM] });
+  const result = select(session, { ...fields('game restartBlocked'), winner: fields('uid'), danmaku: [DANMAKU_ITEM] });
   result.state = select(session.state, GAME_STATES[session.game]);
   if (session.game === 'draw-guess' && result.state) {
     if (result.state.answerRevealed !== true) result.state.revealedAnswer = '';
@@ -206,11 +223,22 @@ function projectOverlayState(scope, state) {
   return result;
 }
 
+function projectInteraction(data) {
+  const result = select(data, INTERACTION);
+  if (result?.session?.kind === 'rating' && result.session.phase !== 'finished') {
+    result.session.average = null;
+    delete result.session.participants;
+    delete result.session.options;
+  }
+  return result;
+}
+
 function projectOverlayResponse(scope, pathName, data) {
   if (!Object.hasOwn(STATE_SCHEMAS, scope)) return null;
   if (pathName === '/api/state') return projectOverlayState(scope, data);
   if (scope === 'games' && ['/api/games/session', '/api/games/session/move'].includes(pathName))
     return projectGameSession(data);
+  if (scope === 'interactions' && pathName === '/api/interactions/session') return projectInteraction(data);
   const schema = RESPONSE_SCHEMAS[scope]?.[pathName];
   return schema ? select(data, schema) : null;
 }
@@ -227,6 +255,8 @@ function projectWebSocketPayload(principal, payload) {
   if (payload.type === 'game:update') {
     return scope === 'games' ? { type: 'game:update', session: projectGameSession(payload.session) } : null;
   }
+  if (payload.type === 'interaction:update') return scope === 'interactions'
+    ? { type: payload.type, state: projectInteraction(payload.state) } : null;
   const event = EVENT_SCHEMAS[payload.type];
   return event?.scope === scope ? { type: payload.type, ...select(payload, event.schema) } : null;
 }

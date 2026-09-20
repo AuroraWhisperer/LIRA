@@ -266,3 +266,12 @@ AI 互动助手回复也经 `aiAssistant` 调用同一个 `danmakuSender.send({w
 ## 云端签到与抽签执行权（2026-09-18）
 
 本节替代本文旧的本地签到/抽签生产调用说明。`dailyBotCommand` 在 domain-services 的消息入口首先占用精确“签到/抽签”，返回 cloud-owned，不计算、不写库，不进入点歌、DIY 或 AI 自动回复；bilibili-client 不再发送这两项回复。保留的旧服务文件仅作为历史语义和单元测试参照，没有生产实例。Server 持续 monitor、租户每日结果、直接启用及整库恢复见 [规格](../../../../specs/cloud-daily-bots.md)。
+
+
+## 类别 3 实时统计入口
+
+`WebSocketConnection` 在帧回调开始记录单调 receivedAt 与 frameSeq，异步二进制读取按帧串行；替换 socket 后丢弃旧回调。`BilibiliDanmakuClient` 在建立连接时固定 accountUid、解析后的 roomId、client/connection/attempt 合成的 connectionKey，随帧传入 `MessageHandlers`。统计钩子位于命令过滤和去重之前，只处理 DANMU_MSG；通过 `bilibili-runtime.subscribeRealtime()` 通知当前场，不复用 onMessage 的第二条路径，也不接受历史/SC/礼物。
+
+就绪由 `danmaku/realtime-state.js` 判定：当前 socket 打开、authStatus=accepted、账号及解析房间/主播已知，历史 connected 不能替代。服务开始才订阅，结束立即退订；断连保留计数与原截止，同房间新连接可续收；更换配置房间/账号后旧场永久 interrupted，投票仍按原截止结束，评分等待手动结算。
+
+平台时间只读取 info[0][4] 的可用秒/毫秒值，缺失为 null，不把 Date.now 回退当平台时间；eventId 当前为 null，尚无经真实受控验证的稳定 ID。评分有可比较时间时拒绝较旧值，时间相同或缺失时按本地帧/包顺序，不使用 UID+文本去重。此降级无法识别所有跨报文重放；按用户 2026-09-20 指示，普通弹幕 UID/时间/事件 ID 的真实直播间复核安排在实现后，当前自动化证据不是该实测结论。

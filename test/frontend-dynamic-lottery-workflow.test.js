@@ -127,6 +127,38 @@ test('setup submits the original rule fields and history remains accessible', as
   assert.match(f.get('task-status').textContent, /确认链接/);
 });
 
+test('logged-out users can prepare settings and new drafts but cannot fetch participants', async (t) => {
+  const f = await fixture(state(task('completed'), result()));
+  t.after(() => f.controller.dispose());
+  f.controller.setAuth({ available: true, loggedIn: false, busy: false });
+  await settle();
+  assert.equal(f.get('new').disabled, false);
+  await f.click('new');
+  assert.equal(f.get('setup').hidden, false);
+  assert.equal(f.get('fields').disabled, false);
+  assert.equal(f.get('create').disabled, true);
+  const inputs = f.get('form').elements;
+  inputs.url.value = 'https://t.bilibili.com/123';
+  inputs.winnerCount.value = '5';
+  inputs.requireFollow.checked = false;
+  inputs.requireLike.checked = true;
+  inputs.requireRepost.checked = true;
+  const callCount = f.calls.length;
+  f.get('form').dispatch('submit');
+  await settle();
+  assert.equal(f.calls.length, callCount);
+  f.setState(state());
+  f.controller.setAuth({ available: true, loggedIn: true, busy: false });
+  await settle();
+  assert.equal(f.get('create').disabled, false);
+  f.get('form').dispatch('submit');
+  await settle();
+  assert.deepEqual(JSON.parse(f.calls.at(-1).body), {
+    url: 'https://t.bilibili.com/123', winnerCount: 5,
+    requireLike: true, requireRepost: true, requireFollow: false, requestId: 'request-1',
+  });
+});
+
 test('source counts, exact activity facts and collection pause/resume/draw stay available', async (t) => {
   const current = task();
   const f = await fixture(state(current, null, { kind: 'collect', taskId: current.id }));

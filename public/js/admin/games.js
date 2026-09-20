@@ -9,9 +9,11 @@ import {
   showError,
   toast,
 } from '../shared/utils.js';
+import { initInteractions } from './interactions.js';
 import { initWheelAdmin } from './games-wheel.js';
 
 let initialized = false;
+let interactionCollecting = false;
 let activeGameSession = null;
 let drawClock = null;
 let drawClockTimer = null;
@@ -79,6 +81,13 @@ export function initGames() {
     }
   });
   const wheelRefresh = initWheelAdmin();
+  initInteractions({ onCollecting(collecting) {
+    interactionCollecting = collecting;
+    renderSession(activeGameSession);
+    document.querySelectorAll('[data-start-game]').forEach((button) => {
+      button.title = collecting ? '请先结束类别 3 的投票或评分' : '';
+    });
+  } });
   syncViewerMode();
   window.addEventListener('app:shutdown', stopDrawClockTimer, { once: true });
   Promise.all([
@@ -236,7 +245,7 @@ function syncDrawStartAvailability() {
   const button = document.querySelector('[data-start-game="draw-guess"]');
   if (!button) return;
   const disabled =
-    Boolean(activeGameSession) ||
+    Boolean(activeGameSession) || interactionCollecting ||
     !drawWordCategories.length ||
     !readSelectedDrawCategoryIds().length;
   button.disabled = disabled;
@@ -312,8 +321,8 @@ function renderSession(session) {
   const stop = byId('gamesStopBtn');
   stop.disabled = !session;
   document.querySelectorAll('[data-start-game]').forEach((button) => {
-    button.disabled = Boolean(session);
-    button.setAttribute('aria-disabled', String(Boolean(session)));
+    button.disabled = Boolean(session) || interactionCollecting;
+    button.setAttribute('aria-disabled', String(button.disabled));
   });
   document.querySelectorAll('[data-draw-setting]').forEach((label) => {
     label.classList.toggle('is-disabled', Boolean(session));

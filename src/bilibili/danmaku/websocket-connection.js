@@ -2,6 +2,8 @@
 // WebSocket 连接管理器 — 负责 Bilibili 弹幕长连的连接、心跳和数据包收发。
 'use strict';
 
+const { performance } = require('node:perf_hooks');
+
 const HEARTBEAT_INTERVAL_MS = 30000;
 
 class WebSocketConnection {
@@ -59,12 +61,10 @@ class WebSocketConnection {
       this.emit('open');
     });
 
-    ws.addEventListener('message', async (event) => {
-      if (this.ws !== ws) return;
-      const data =
-        event.data instanceof ArrayBuffer
-          ? Buffer.from(event.data)
-          : Buffer.from(await event.data.arrayBuffer());
+    let frameSeq = 0;
+    let reading = false;
+    const frames = [];
+    const deliver = (data, metadata) => {
       if (this.ws !== ws) return;
       trace.packets += 1;
       trace.lastPacketAt = new Date().toISOString();
@@ -80,7 +80,31 @@ class WebSocketConnection {
           : result.code === 0 ? 'accepted' : 'rejected';
         report('auth-result', { status: trace.authStatus, code: result.code });
       }
-      this.emit('message', data);
+      this.emit('message', data, metadata);
+    };
+    const drain = () => {
+      while (!reading && frames.length && this.ws === ws) {
+        const { data, metadata } = frames.shift();
+        if (data instanceof ArrayBuffer) {
+          deliver(Buffer.from(data), metadata);
+        } else {
+          reading = true;
+          Promise.resolve().then(() => data.arrayBuffer()).then((buffer) => {
+            deliver(Buffer.from(buffer), metadata);
+          }).catch((error) => {
+            if (this.ws === ws) this.emit('error', error);
+          }).finally(() => {
+            reading = false;
+            if (this.ws !== ws) frames.length = 0;
+            else drain();
+          });
+        }
+      }
+    };
+    ws.addEventListener('message', (event) => {
+      if (this.ws !== ws) return;
+      frames.push({ data: event.data, metadata: { receivedAt: performance.now(), frameSeq: ++frameSeq } });
+      drain();
     });
 
     ws.addEventListener('close', (event) => {
@@ -163,10 +187,10 @@ class WebSocketConnection {
     };
   }
 
-  emit(event, data) {
+  emit(event, data, metadata) {
     const handlers = this.eventHandlers[event] || [];
     for (const handler of handlers) {
-      handler(data);
+      handler(data, metadata);
     }
   }
 

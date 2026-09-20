@@ -30,6 +30,8 @@ const {
 } = require('../music/song-import-update');
 const queueService = require('../music/queue-service');
 const giftService = require('../bilibili/gift');
+const { createGiftWishService } = require('../bilibili/gift/wish-service');
+const { createGiftWishStore } = require('../storage/gift-wish-store');
 const superChatService = require('../bilibili/superchat-service');
 const { dailyBotCommand } = require('../bilibili/danmaku/command-text');
 const {
@@ -207,6 +209,11 @@ function createDomainServices(options) {
       },
     };
 
+    const giftWishes = createGiftWishService({
+      store: createGiftWishStore(db.giftDb), gifts, catalog: overtimeGiftCatalog,
+      getRoomId: options.giftSaleGetRoomId || (() => settingsStore.getSettings().roomId),
+    });
+
     const superChatContext = { store: superChatStore };
     const superChats = {
       getSnapshot: () =>
@@ -321,6 +328,7 @@ function createDomainServices(options) {
       queue,
       fans,
       gifts,
+      giftWishes,
       overtime,
       overtimeGiftCatalog,
       superChats,

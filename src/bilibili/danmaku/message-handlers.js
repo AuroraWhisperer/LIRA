@@ -59,7 +59,8 @@ class MessageHandlers {
     this.roomRunContext = null;
   }
 
-  async handlePackets(buffer) {
+  async handlePackets(buffer, ingress) {
+    let packetSeq = 0;
     this.diagnostics.lastPacketAt = now();
     for (const message of packetParser.parseBilibiliPackets(buffer)) {
       bilibiliHelpers.recordBilibiliCommandDiagnostic(
@@ -68,7 +69,7 @@ class MessageHandlers {
       );
 
       if (message.cmd && String(message.cmd).startsWith('DANMU_MSG')) {
-        this.handleDanmaku(message);
+        this.handleDanmaku(message, ingress && { ...ingress, packetSeq: packetSeq++ });
       } else if (
         message.cmd &&
         String(message.cmd).startsWith('SUPER_CHAT_MESSAGE')
@@ -80,7 +81,7 @@ class MessageHandlers {
     }
   }
 
-  handleDanmaku(message) {
+  handleDanmaku(message, ingress) {
     const info = message.info || [];
     const userInfo = info[2] || [];
     const userMeta = packetParser.extractBilibiliDanmakuUserMeta(
@@ -89,6 +90,16 @@ class MessageHandlers {
     );
     const text = String(info[1] || '');
     const messageTimestamp = packetParser.extractBilibiliDanmakuTimestamp(info);
+    if (ingress) {
+      const rawTime = Number(info[0]?.[4]);
+      const platformTime = rawTime > 1e12 ? rawTime : rawTime > 1e9 ? rawTime * 1000 : null;
+      this.handlers.onRealtimeDanmaku?.({
+        ...ingress, source: 'danmaku', message: text, uid: userInfo[0],
+        platformTime: Number.isFinite(platformTime) ? platformTime : null,
+        // No stable platform event ID has been verified; do not fabricate one.
+        eventId: null,
+      });
+    }
     const avatarUrl = packetParser.extractBilibiliDanmakuAvatarUrl(info);
     const emotes = packetParser.extractBilibiliDanmakuEmotes(info);
     const diagnosticMessage = {

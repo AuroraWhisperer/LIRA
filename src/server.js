@@ -40,7 +40,7 @@ const { prepareSettingsBootstrap } = require('./server/settings-bootstrap');
 const giftEffectModule = require('./bilibili/gift/effect-config');
 const { createGiftExportRuntime } = require('./server/gift-export-runtime');
 const { createDanmakuFeedBuffer } = require('./bilibili/danmaku/feed-buffer');
-const { createGameSessionService } = require('./games/game-session-service');
+const { createGameRuntime } = require('./server/game-runtime');
 const { createWheelSessionService } = require('./games/wheel-session-service');
 const {
   createDynamicLotteryRuntime,
@@ -87,6 +87,7 @@ function createServerRuntime(runtimeOptions = {}) {
   let aiRuntime = null;
   let gameSessionService = null;
   let wheelSessionService = null;
+  let interactionSessionService = null;
   let dynamicLottery = null;
   let applicationInitialized = false;
   let publishOvertimeUpdate = () => {};
@@ -162,9 +163,11 @@ function createServerRuntime(runtimeOptions = {}) {
       settingsStore = settingsBootstrap.settingsStore;
       webSocketHub = wsTransport.createWebSocketHub();
       danmakuFeedBuffer = createDanmakuFeedBuffer();
-      gameSessionService = createGameSessionService({
+      ({ games: gameSessionService, interactions: interactionSessionService } = createGameRuntime({
         broadcast: (payload) => webSocketHub.broadcast(payload),
-      });
+        getSourceState: () => bilibiliRuntime.getRealtimeState(),
+        subscribe: (listener) => bilibiliRuntime.subscribeRealtime(listener),
+      }));
       wheelSessionService = createWheelSessionService({
         broadcast: (payload) => webSocketHub.broadcast(payload),
       });
@@ -213,6 +216,7 @@ function createServerRuntime(runtimeOptions = {}) {
       });
       publishOvertimeUpdate = broadcastOvertimeUpdate;
       bilibiliRuntime = createBilibiliRuntime({
+        onRealtimeStatus: () => interactionSessionService?.sourceChanged(),
         getFanScope: runtimeOptions.getFanScope,
         settingsStore,
         domainServices,
@@ -288,6 +292,7 @@ function createServerRuntime(runtimeOptions = {}) {
     getAiRuntime: () => aiRuntime,
     getGameSessionService: () => gameSessionService,
     getWheelSessionService: () => wheelSessionService,
+    getInteractionSessionService: () => interactionSessionService,
     getSettingsStore: () => settingsStore,
     getState,
     shutdown: () => shutdownApplication({ exitProcess: true }),
@@ -497,6 +502,7 @@ function createServerRuntime(runtimeOptions = {}) {
         shutdownPayload: { type: 'shutdown', reason: 'manual' },
       })],
       ['game', () => gameSessionService?.dispose()],
+      ['interactions', () => interactionSessionService?.dispose()],
       ['wheel', () => wheelSessionService?.dispose()],
       ['lottery', () => dynamicLottery?.dispose()],
       ['AI drain', () => aiRuntime?.shutdown()],
@@ -529,6 +535,7 @@ function createServerRuntime(runtimeOptions = {}) {
     danmakuFeedBuffer = null;
     aiRuntime = null;
     gameSessionService = null;
+    interactionSessionService = null;
     wheelSessionService = null;
     applicationInitialized = false;
     publishOvertimeUpdate = () => {};

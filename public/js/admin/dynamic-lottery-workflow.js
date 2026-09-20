@@ -127,9 +127,9 @@ export function initLotteryWorkflow(root) {
     const hasTask = Boolean(task && !creating);
     const legacy = hasTask && task.rules.version !== 2;
     const canAct = auth.available && auth.loggedIn && !auth.busy && !busy;
-    fields.disabled = !canAct || working || Boolean(task && !creating);
-    find('create').disabled = fields.disabled;
-    find('new').disabled = !canAct || working;
+    fields.disabled = busy || working || hasTask;
+    find('create').disabled = !canAct || fields.disabled;
+    find('new').disabled = busy || working;
     find('new').hidden = !hasTask;
     find('state-refresh').disabled = !auth.available || auth.busy || busy;
     find('pause').disabled = !canAct || !working;

@@ -206,3 +206,30 @@ async function waitFor(predicate, timeoutMs) {
     await new Promise((resolve) => setTimeout(resolve, 5));
   }
 }
+
+
+test('async binary reads preserve ingress order and drop callbacks from replaced sockets', async (t) => {
+  t.mock.property(global, 'WebSocket', FakeWebSocket);
+  const connection = new WebSocketConnection();
+  t.after(() => connection.close());
+  await connection.connect('wss://example.test/sub', {});
+  const received = [];
+  connection.on('message', (data, metadata) => received.push({ data, ...metadata }));
+  let resolveFirst;
+  const first = new Promise((resolve) => { resolveFirst = resolve; });
+  FakeWebSocket.latest.emit('message', { data: { arrayBuffer: () => first } });
+  FakeWebSocket.latest.emit('message', { data: operationPacket(3) });
+  assert.equal(received.length, 0);
+  resolveFirst(operationPacket(8, Buffer.from('{"code":0}')));
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(received.map((event) => event.frameSeq), [1, 2]);
+  assert.ok(received[0].receivedAt <= received[1].receivedAt);
+  let resolveOld;
+  const old = new Promise((resolve) => { resolveOld = resolve; });
+  FakeWebSocket.latest.emit('message', { data: { arrayBuffer: () => old } });
+  await connection.connect('wss://example.test/sub', {});
+  resolveOld(operationPacket(8, Buffer.from('{"code":-101}')));
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(received.length, 2);
+  assert.equal(connection.connectionTrace.authStatus, 'pending');
+});

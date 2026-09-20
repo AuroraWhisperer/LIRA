@@ -5,6 +5,7 @@
 
 const { cleanText, publicBilibiliErrorMessage } = require('../shared/utils');
 const { BilibiliApiClient } = require('./danmaku/api-client');
+const { getRealtimeState } = require('./danmaku/realtime-state');
 const { WebSocketConnection } = require('./danmaku/websocket-connection');
 const { HistoryPoller } = require('./danmaku/history-poller');
 const { OnlineRankPoller } = require('./danmaku/online-rank-poller');
@@ -295,6 +296,8 @@ class BilibiliDanmakuClient {
 
     // 存储解析后的房间号供后续使用
     this.resolvedRoomId = roomInfo.roomId;
+    const accountUid = String(this.apiClient.uid || '');
+    const connectionKey = `${this.options.clientGeneration || 0}:${generation}:${connectionAttempt}`;
     const trace = {
       clientGeneration: Number(this.options.clientGeneration) || 0,
       connectionGeneration: generation,
@@ -316,6 +319,7 @@ class BilibiliDanmakuClient {
     this.wsConnection.clearHandlers();
     this.wsConnection.on('diagnostic', ({ event, ...details }) => {
       if (this.isConnectionCurrent(generation)) {
+        this.handlers.onRealtimeStatus?.();
         logBilibiliDiagnostic(event, {
           ...trace, ...details,
           danmakuCount: this.messageHandlers.danmakuCount || 0,
@@ -355,10 +359,10 @@ class BilibiliDanmakuClient {
       }
     });
 
-    this.wsConnection.on('message', async (data) => {
-      if (!this.isConnectionCurrent(generation)) return;
+    this.wsConnection.on('message', async (data, metadata) => {
+      if (!this.isConnectionCurrent(generation) || this.connectionAttempt !== connectionAttempt) return;
       try {
-        await this.messageHandlers.handlePackets(data);
+        await this.messageHandlers.handlePackets(data, { ...metadata, accountUid, roomId: String(roomInfo.roomId), connectionKey });
       } catch (error) {
         console.warn('[Bilibili] message handler error:', error.message);
       }
@@ -547,6 +551,7 @@ class BilibiliDanmakuClient {
     }, delayMs);
   }
 
+  getRealtimeState() { return getRealtimeState(this); }
   isConnectionCurrent(generation) {
     return !this.stopped && generation === this.connectionGeneration;
   }

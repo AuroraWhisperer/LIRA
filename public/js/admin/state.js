@@ -40,6 +40,7 @@ export class StateService {
     const token = window.__API_TOKEN__;
     const wsUrl = `${protocol}//${location.host}/ws${token ? '?token=' + encodeURIComponent(token) : ''}`;
     this.ws = new WebSocket(wsUrl);
+    const connection = this.ws;
     const status = document.getElementById('wsStatus');
 
     this.ws.addEventListener('open', () => {
@@ -48,6 +49,7 @@ export class StateService {
     });
 
     this.ws.addEventListener('message', (event) => {
+      if (this.ws !== connection) return;
       const payload = JSON.parse(event.data);
       if (payload.type === 'snapshot') {
         this.realtimeVersion += 1;
@@ -114,6 +116,8 @@ export class StateService {
         dispatchRealtimeState('app:lyric-timeline', payload.timeline);
       } else if (payload.type === 'game:update') {
         dispatchRealtimeState('app:game-update', payload.session, true);
+      } else if (payload.type === 'interaction:update') {
+        dispatchRealtimeState('app:interaction-update', payload.state, true);
       } else if (payload.type === 'wheel:update') {
         dispatchRealtimeState('app:wheel-update', payload.state, true);
       }

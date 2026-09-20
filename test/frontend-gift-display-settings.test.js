@@ -7,7 +7,9 @@ const path = require('node:path');
 const { createUiFixture } = require('./helpers/ui-edit-state-fixture');
 
 const fixture = createUiFixture();
-const html = fs.readFileSync(path.resolve('public/pages/admin/toolbox/gift.html'), 'utf8');
+const html = fs.readFileSync(path.resolve('public/pages/admin/toolbox/gift.html'), 'utf8')
+  .replace('<!-- admin-fragment: pages/admin/toolbox/gift-wishes.html -->',
+    fs.readFileSync(path.resolve('public/pages/admin/toolbox/gift-wishes.html'), 'utf8'));
 const historyHtml = fs.readFileSync(path.resolve('public/pages/admin/gifts/history.html'), 'utf8');
 
 async function openSettings(t) {

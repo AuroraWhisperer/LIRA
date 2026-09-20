@@ -1,0 +1,26 @@
+html,
+body {
+  margin: 0;
+  background: transparent;
+}
+body {
+  padding: 12px;
+  box-sizing: border-box;
+  font-family: 'Microsoft YaHei', sans-serif;
+}
+#giftWishStage {
+  display: grid;
+  gap: 20px;
+  width: 416px;
+  max-width: 100%;
+}
+body.wish-preview {
+  min-height: 100vh;
+  background: #f0eae2;
+}
+#giftWishOverlayStatus {
+  max-width: 416px;
+  color: #704451;
+  font-size: 13px;
+  line-height: 1.7;
+}

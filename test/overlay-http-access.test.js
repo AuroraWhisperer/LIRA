@@ -26,7 +26,7 @@ test('page credentials are independent, revocable and fail closed', () => {
     const forged = token.replace(`:${scope}:`, ':settings:');
     assert.equal(resolveRequestPrincipal({ sessionToken: ADMIN }, { headers: { authorization: `Bearer ${forged}` } }, url), null);
   }
-  assert.equal(tokens.size, 13);
+  assert.equal(tokens.size, 15);
   assert.throws(() => createOverlayToken(ADMIN, 'admin'));
   assert.throws(() => createOverlayToken('', 'lyrics'));
   url.searchParams.set('token', ADMIN);
@@ -59,6 +59,8 @@ async function fixture(t) {
       return { viewRevision: 'revision', day: '2026-09-19', partial: false, secret: SECRET,
         items: [{ eventId: 'one', senderId: '123', userName: '观众', guardLevel: 2, avatarUrl: null, createdAt: '2026-09-19T01:00:00Z', private: SECRET }] };
     } },
+    giftWishes: { getSnapshot: async () => ({ sourceId: SECRET, guards: [{ private: SECRET }],
+      viewRevision: 'revision', items: [{ id: 'wish', giftName: '花', count: 3, target: 10, private: SECRET }] }) },
     overtime: { getGlobalGiftCatalog: () => ({ gifts: [{ id: 1, name: 'Gift', private: SECRET }] }) },
     bilibili: { fetchAvatarImage: async () => ({ data: Buffer.from('image'), contentType: 'image/png' }) },
     games: {
@@ -88,6 +90,22 @@ async function fixture(t) {
   });
   return { request, calls, boots: () => boots, state, context };
 }
+
+test('wish overlay HTTP reads projected counts and rejects writes and source selection', async (t) => {
+  const f = await fixture(t);
+  const token = createOverlayToken(ADMIN, 'gift-wishes');
+  const response = await f.request('/api/gifts/wishes', token, { headers: { Origin: 'null' } });
+  assert.equal(response.status, 200);
+  const payload = await response.json();
+  assert.equal(payload.data.items[0].count, 3);
+  assert.doesNotMatch(JSON.stringify(payload), /PRIVATE-SENTINEL/);
+  assert.equal((await f.request('/api/gifts/wishes?sourceId=1', token)).status, 400);
+  for (const path of ['/api/gifts/wishes/save', '/api/gifts/wishes/delete']) {
+    assert.equal((await f.request(path, token, { method: 'POST', body: '{}' })).status, 403);
+  }
+  f.context.giftWishes.getSnapshot = async () => { throw Object.assign(new Error('source changed'), { code: 'GIFT_VIEW_STALE' }); };
+  assert.equal((await f.request('/api/gifts/wishes', token)).status, 409);
+});
 
 test('anonymous canonical and raw overlay HTML contains only its own capability and is isolated', async (t) => {
   const f = await fixture(t);

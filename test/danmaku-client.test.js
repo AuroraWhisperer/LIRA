@@ -420,3 +420,42 @@ test('manual viewer refresh delegates to the active online-rank poller', async (
     client.stop();
   }
 });
+
+
+test('realtime statistics ingress precedes command deduplication and never fabricates platform time', (t) => {
+  const ingress = [];
+  const client = new BilibiliDanmakuClient('123', { onMessage() {}, onStatus() {}, onRealtimeDanmaku: (event) => ingress.push(event) }, { isCommandText: () => true });
+  t.after(() => client.stop());
+  client.stopped = false;
+  client.deduplicator.remember = () => false;
+  const origin = { roomId: '123', accountUid: '456', connectionKey: '1:1:1', receivedAt: 10, frameSeq: 1 };
+  const packet = { cmd: 'DANMU_MSG', info: [[], '1', ['789', 'viewer']] };
+  client.messageHandlers.handleDanmaku(packet, origin);
+  client.messageHandlers.handleDanmaku(packet, { ...origin, frameSeq: 2 });
+  assert.equal(ingress.length, 2);
+  assert.equal(ingress[0].uid, '789');
+  assert.equal(ingress[0].platformTime, null);
+  assert.equal(ingress[0].eventId, null);
+  assert.equal(ingress[0].roomId, '123');
+  client.messageHandlers.handleDanmaku(packet);
+  assert.equal(ingress.length, 2);
+});
+
+test('realtime readiness requires accepted authentication and resolved room owner', (t) => {
+  const client = new BilibiliDanmakuClient('123', { onMessage() {}, onStatus() {} });
+  t.after(() => client.stop());
+  client.stopped = false;
+  client.apiClient.uid = 456;
+  client.resolvedRoomId = 123;
+  client.ownerUid = '789';
+  client.wsConnection.ws = { readyState: 1, close() {} };
+  client.wsConnection.connectionTrace = { authStatus: 'pending' };
+  assert.equal(client.getRealtimeState().ready, false);
+  client.wsConnection.connectionTrace.authStatus = 'accepted';
+  assert.equal(client.getRealtimeState().ready, true);
+  client.ownerUid = '';
+  assert.equal(client.getRealtimeState().ready, false);
+  client.ownerUid = '789';
+  client.wsConnection.ws.readyState = 3;
+  assert.equal(client.getRealtimeState().ready, false);
+});

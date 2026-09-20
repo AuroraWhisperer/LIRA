@@ -74,6 +74,7 @@ Admin 完整消息的礼物身份扩展沿用既有封套；overlay 仅接收下
 | `overtime` | 倒计时、背景与展示规则 | `overtime:update` |
 | `gift-effects` | 礼物特效/边框展示设置 | `gift:frame`、`gift:effect` |
 | `gift-feed` | `gifts.viewRevision` | `gift-catalog:update` 仅保留 type，作为刷新通知 |
+| `gift-wishes` | `gifts.viewRevision` | 无专用事件；`gift:wishes` 快照 reason 通知重新读取整数进度 |
 | `lyrics` | 歌词展示设置、`lyricState`、`lyricTimeline` | `lyric-state`、`lyric-timeline` |
 | `danmaku` | 弹幕展示设置、公开直播连接状态、`danmakuFeed` | `danmaku:message`，另需 topic 订阅 |
 | `games` | 当前全局快照无游戏字段；兼容专用 `games` 字段时仍投影公开会话 | `game:update`、`game:draw`；不含未公布答案 |
@@ -121,3 +122,10 @@ Admin 完整消息的礼物身份扩展沿用既有封套；overlay 仅接收下
 | `finished` | 倒计时归零                             | overtime-service.js:377                                                   |
 
 详见 [overtime.md](overtime.md)。
+
+
+## 类别 3 互动结果
+
+`interaction:update` 使用 `{type:'interaction:update',state:{runtimeId,revision,session}}`，仅管理端及 interactions scope 可见；HTTP 与 WS 使用同一公开状态。revision 在同一 runtime 内跨场次递增；clear 保留 envelope 并令 session=null。投票计数立即落内存，推送约 200ms 合并；finish/clear 取消合并任务并立即推送。评分收集中不推送分数变化，主持界面可见时每秒读取 host-state 人数。
+
+`public/js/shared/interaction-client.js` 用连接代次、请求代次和 runtimeId/revision 丢弃迟到响应；每个重连从专用 GET 建立新 runtime。全局 snapshot 不含 interactions，字段缺失不代表清空；game:update 不影响本类。跨类收集资格变化同时刷新 game:update 的可选 restartBlocked，转盘独立。

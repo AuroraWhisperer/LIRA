@@ -27,6 +27,12 @@ function createBilibiliClient(roomId, context) {
   client = new BilibiliDanmakuClient(
     roomId,
     {
+      onRealtimeDanmaku: (event) => {
+        if (!isShuttingDown()) context.onRealtimeDanmaku?.(event);
+      },
+      onRealtimeStatus: () => {
+        if (!isShuttingDown()) context.onRealtimeStatus?.();
+      },
       onMessage: (danmaku) => {
         if (isShuttingDown()) return false;
         let stage = 'dispatch';

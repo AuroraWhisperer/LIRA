@@ -13,7 +13,7 @@ const {
 } = require('../src/server/overlay-projection');
 
 const scopes = ['queue', 'songlist', 'blindbox', 'overtime', 'gift-effects',
-  'gift-feed', 'gift-export', 'lyrics', 'games', 'danmaku', 'wheel', 'opening', 'clock'];
+  'gift-feed', 'gift-wishes', 'gift-export', 'lyrics', 'games', 'danmaku', 'wheel', 'opening', 'clock'];
 const secret = 'PRIVATE_SENTINEL';
 const item = { id: 'message', name: '观众', message: '弹幕', kind: 'gift', giftName: '花', giftCount: 2, giftTotalPrice: 12.5,
   avatarUrl: 'https://i0.hdslb.com/avatar', emotes: [{ text: '[笑]', url: 'https://i0.hdslb.com/emote', kind: 'inline', width: 10, height: 10, secret }], secret };
@@ -37,7 +37,7 @@ const state = {
 test('every scope receives only its own snapshot fields and unknown principals fail closed', () => {
   const allowed = {
     queue: ['settings', 'queue', 'superChats'], songlist: ['settings'], blindbox: ['settings'],
-    overtime: ['overtime'], 'gift-effects': ['settings'], 'gift-feed': ['gifts'],
+    overtime: ['overtime'], 'gift-effects': ['settings'], 'gift-feed': ['gifts'], 'gift-wishes': ['gifts'],
     lyrics: ['settings', 'lyricState', 'lyricTimeline'], danmaku: ['settings', 'liveStatus', 'danmakuFeed'],
   };
   for (const scope of scopes) {

@@ -1,0 +1,50 @@
+<section id="giftWishesPanel" class="gift-wishes-panel" role="tabpanel" aria-labelledby="giftAssistantWishesTab" hidden>
+  <header class="gift-wishes-heading">
+    <div><h3 class="ui-section-title">礼物许愿</h3><p class="hint">选一份喜欢的礼物，把小小心愿一点点攒满。</p></div>
+    <button id="giftWishesRefresh" type="button" class="secondary">刷新进度</button>
+  </header>
+  <div class="gift-wish-periods" role="group" aria-label="许愿统计周期">
+    <button type="button" data-wish-period="long" aria-pressed="true">长效许愿<span>从创建时开始累计</span></button>
+    <button type="button" data-wish-period="day" aria-pressed="false">本日许愿<span>北京时间零点换日</span></button>
+    <button type="button" data-wish-period="session" aria-pressed="false">本场直播许愿<span>下次开播重新计数</span></button>
+  </div>
+  <p id="giftWishPeriodHint" class="hint">每条许愿从创建时开始，跨天、跨直播持续累计。</p>
+  <p id="giftWishStatus" class="hint" role="status">正在读取许愿…</p>
+  <p id="giftWishError" class="gift-wish-error" role="alert"></p>
+  <div class="gift-wishes-workspace">
+    <form id="giftWishForm" class="gift-wish-editor">
+      <fieldset id="giftWishFields" disabled>
+        <h4 id="giftWishEditorTitle">许一个小心愿</h4>
+        <label>心愿礼物</label>
+        <button id="giftWishPick" type="button" class="gift-wish-pick secondary"><img id="giftWishSelectedImage" src="/img/admin/nav-icons/nav-gift.webp" alt="" hidden><span id="giftWishSelectedName">选择心愿礼物</span><span class="gift-wish-pick-action">选择</span></button>
+        <p id="giftWishSelectedRole" class="hint">可选直播间在售礼物、盲盒本体及产出，或全部缓存礼物。</p>
+        <label for="giftWishTarget">目标数量<span class="hint">只支持整数</span></label>
+        <input id="giftWishTarget" name="target" type="number" inputmode="numeric" min="1" max="999999999" step="1" value="10" required>
+        <label for="giftWishLabel">许愿说明<span class="hint">选填</span></label>
+        <input id="giftWishLabel" name="label" type="text" maxlength="40" placeholder="例如：集满一起唱首歌">
+        <div class="gift-wish-editor-actions"><button id="giftWishSave" type="submit" class="primary">添加许愿</button><button id="giftWishCancel" type="button" class="secondary" hidden>取消编辑</button></div>
+        <p class="hint">修改目标会保留已收进度。</p>
+      </fieldset>
+    </form>
+    <div class="gift-wishes-preview">
+      <div class="gift-wishes-preview-heading"><h4>我的心愿单</h4><span id="giftWishesSummary" class="hint"></span></div>
+      <div id="giftWishCards" class="gift-wish-cards"></div>
+      <div id="giftWishEmpty" class="gift-wish-empty" hidden><img src="/img/admin/nav-icons/nav-gift.webp" alt=""><h4>第一份心愿，想留给谁？</h4><p>选好礼物和目标后，心愿卡就会出现在这里。</p></div>
+      <p class="hint gift-wish-preview-note">这里就是直播展示的样子。收到礼物后，整数进度自动更新。</p>
+    </div>
+  </div>
+  <div class="gift-wish-source">
+    <h4>放进直播画面</h4><p id="giftWishSourceHint" class="hint">OBS 浏览器源 · 长效许愿</p>
+    <div class="gift-wish-source-actions"><input id="giftWishUrl" readonly aria-label="许愿 OBS 浏览器源地址"><button id="giftWishCopy" type="button" class="secondary">复制地址</button><a id="giftWishPreview" target="_blank" rel="noopener">打开预览</a></div>
+    <p class="hint">OBS 建议宽度 440；每张卡片约 250 高，背景透明。三个周期可以分别添加。</p>
+  </div>
+  <dialog id="giftWishPicker" class="gift-wish-picker" aria-labelledby="giftWishPickerTitle">
+    <header><h3 id="giftWishPickerTitle">选择心愿礼物</h3><button id="giftWishPickerClose" type="button" class="secondary">关闭</button></header>
+    <div class="gift-wish-picker-toolbar">
+      <div role="group" aria-label="礼物范围"><button type="button" data-wish-source="room" aria-pressed="true">本直播间</button><button type="button" data-wish-source="all" aria-pressed="false">全部缓存礼物</button></div>
+      <input id="giftWishSearch" type="search" placeholder="搜索礼物名称或 ID" aria-label="搜索礼物名称或 ID">
+    </div>
+    <p id="giftWishPickerStatus" class="hint" role="status"></p>
+    <div id="giftWishResults" class="gift-wish-results"></div>
+  </dialog>
+</section>

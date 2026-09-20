@@ -1,0 +1,18 @@
+@import url('../../shared/interaction-results.css');
+.interactions-catalog { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 20px; }
+.interaction-config { padding: 20px; border: 1px solid var(--color-border-default); border-radius: 16px; background: var(--color-bg-primary); min-width: 0; }
+.interaction-config h3 { margin: 0 0 8px; }
+.interaction-config fieldset { border: 0; padding: 0; margin: 0; min-width: 0; display: grid; gap: 12px; }
+.interaction-config label { display: grid; gap: 6px; }
+.interaction-config p, #pollPageHint { color: var(--color-text-secondary); font-size: 13px; line-height: 1.6; }
+.interaction-input-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 8px; margin-bottom: 8px; }
+.interaction-input-row input { grid-column: 1; grid-row: 1; min-width: 0; }
+.interaction-input-row button { grid-column: 2; grid-row: 1; }
+.interaction-input-row small { grid-column: 1 / -1; color: var(--color-text-secondary); }
+.interaction-input-row input[aria-invalid='true'] { border-color: var(--color-danger); }
+.interaction-input-row input[aria-invalid='true'] + small { color: var(--color-danger); }
+.interaction-presets { display: flex; gap: 8px; }
+#interactionHostRows { max-height: 352px; margin-top: 16px; }
+#interactionHostAverage { display: block; font-size: 32px; font-variant-numeric: tabular-nums; margin: 12px 0; }
+.interaction-result-actions { display: flex; gap: 10px; margin-top: 12px; }
+@media (max-width: 1100px) { .interactions-catalog { grid-template-columns: 1fr; } }

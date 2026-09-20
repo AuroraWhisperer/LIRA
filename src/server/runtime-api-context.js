@@ -45,6 +45,7 @@ function createRuntimeApiContextFactory(options = {}) {
         getWinnerProfile: bilibiliRuntime.getGameWinnerProfile,
       },
       wheel: { service: options.getWheelSessionService() },
+      interactions: options.getInteractionSessionService?.(),
       settings: { defaults: options.defaultSettings, store: settingsStore },
       system: {
         ...options.systemPaths,

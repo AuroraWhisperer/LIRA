@@ -46,6 +46,9 @@ function createBilibiliRuntime(options) {
   let authProvider = null;
   let authCache = { cookieHeader: '', uid: 0 };
   let client = null;
+  let lastRealtimeRoom = '';
+  let lastRealtimeInput = '';
+  const realtimeListeners = new Set();
   const userInfoService = new UserInfoService({
     profileProvider: {
       async fetchProfile(uid) {
@@ -177,6 +180,7 @@ function createBilibiliRuntime(options) {
     const settings = settingsStore.getSettings();
     const roomId = sharedUtils.normalizeRoomInput(settings.roomId);
     const enabled = settings.enableBilibili === 'true' && roomId;
+    options.onRealtimeStatus?.();
     setActiveDanmakuRoom(enabled ? roomId : '');
 
     if (!enabled) {
@@ -214,6 +218,7 @@ function createBilibiliRuntime(options) {
     logBilibiliDiagnostic('refresh-requested', {
       roomId, enabled: Boolean(enabled),
     });
+    options.onRealtimeStatus?.();
     setActiveDanmakuRoom(enabled ? roomId : '');
 
     if (!enabled) {
@@ -247,12 +252,17 @@ function createBilibiliRuntime(options) {
         updateLiveStatus: (status) => {
           if (isCurrent()) updateStatus(status);
         },
+        onRealtimeStatus: () => { if (isCurrent()) options.onRealtimeStatus?.(); },
+        onRealtimeDanmaku: (event) => {
+          if (isCurrent()) for (const listener of realtimeListeners) listener(event);
+        },
         bilibiliDiagnostics: diagnostics,
         bilibiliAuthCache: authCache,
         bilibiliClientGeneration: generation,
         userInfoService,
       });
       client = nextClient;
+      lastRealtimeInput = roomId;
       if (restart) {
         await nextClient.restart();
       } else {
@@ -289,6 +299,7 @@ function createBilibiliRuntime(options) {
         });
       }
       authCache = { cookieHeader: cookieHeader || '', uid: Number(uid) || 0 };
+      options.onRealtimeStatus?.();
     } catch (_) {
       // Non-Electron mode can run without a Bilibili auth provider.
     }
@@ -300,11 +311,13 @@ function createBilibiliRuntime(options) {
       ...nextStatus,
       updatedAt: sharedUtils.now(),
     });
+    options.onRealtimeStatus?.();
     broadcastSnapshot('live:status');
   }
 
   function stopClient() {
     if (!client) return;
+    lastRealtimeRoom = client.getRealtimeState?.().roomId || lastRealtimeRoom;
     client.stop();
     client = null;
   }
@@ -312,16 +325,33 @@ function createBilibiliRuntime(options) {
   function disconnect() {
     clientGeneration += 1;
     stopClient();
+    options.onRealtimeStatus?.();
   }
 
   function stop() {
     if (stopped) return;
     stopped = true;
     disconnect();
+    realtimeListeners.clear();
     userInfoService.dispose();
   }
 
+  function getRealtimeState() {
+    const state = client?.getRealtimeState?.();
+    if (client && !lastRealtimeInput) lastRealtimeInput = client.roomId;
+    if (state?.roomId) lastRealtimeRoom = state.roomId;
+    return { ready: false, roomId: lastRealtimeRoom, reason: '实时弹幕尚未就绪', ...state,
+      accountUid: String(authCache.uid || ''),
+      configuredRoomChanged: Boolean(lastRealtimeInput && lastRealtimeInput !== getConfiguredRoomId()),
+    };
+  }
+
   return {
+    getRealtimeState,
+    subscribeRealtime(listener) {
+      realtimeListeners.add(listener);
+      return () => realtimeListeners.delete(listener);
+    },
     configure,
     disconnect,
     reconnect,

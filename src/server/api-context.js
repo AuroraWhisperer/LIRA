@@ -23,6 +23,7 @@ function createApiContext(options) {
     ai,
     games,
     wheel,
+    interactions,
     settings,
     system,
     music,
@@ -59,6 +60,7 @@ function createApiContext(options) {
       handleAction: domainServices.superChats.handleAction,
     },
     giftCards: options.giftCards,
+    giftWishes: domainServices.giftWishes,
     gifts: {
       getSelection: (options) => domainServices.gifts.getSelection(options),
       pauseDetection: domainServices.gifts.pauseDetection,
@@ -148,6 +150,7 @@ function createApiContext(options) {
     },
     games: createGamesContext(games),
     wheel: createWheelContext(wheel),
+    interactions,
     settings: {
       defaults: settings.defaults,
       get: settings.store.getSettings,

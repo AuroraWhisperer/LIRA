@@ -1,4 +1,5 @@
 import { createGiftDisplaySettings } from './gifts/display-settings.js';
+import { createGiftWishes } from './gifts/wishes.js';
 
 let initialized = false;
 
@@ -7,9 +8,12 @@ export function initGiftAssistant() {
   if (initialized || !root) return;
   initialized = true;
   const display = createGiftDisplaySettings();
+  const wishes = createGiftWishes();
   const tabs = [...root.querySelectorAll('[data-gift-tab]')];
 
   function select(tab) {
+    if (tab.dataset.giftTab === 'wishes') wishes.open();
+    else wishes.close();
     for (const button of tabs) {
       const active = button === tab;
       button.setAttribute('aria-selected', String(active));
@@ -37,4 +41,12 @@ export function initGiftAssistant() {
       select(tabs[next]);
     });
   });
+  const page = document.getElementById('otherAssistantPage');
+  const visibility = new MutationObserver(() => {
+    if (!root.hidden && (!page || page.classList.contains('active')) && root.querySelector('[data-gift-tab="wishes"]')?.getAttribute('aria-selected') === 'true') wishes.open();
+    else wishes.close();
+  });
+  visibility.observe(root, { attributes: true, attributeFilter: ['hidden'] });
+  if (page) visibility.observe(page, { attributes: true, attributeFilter: ['class'] });
+  window.addEventListener('pagehide', () => { visibility.disconnect(); wishes.close(); });
 }

@@ -24,6 +24,7 @@ const ROUTE_MODULES = [
   require('./routes/data-routes'),
   require('./routes/ai-routes'),
   require('./routes/game-routes'),
+  require('./routes/interaction-routes'),
   require('./routes/dynamic-lottery-routes'),
   require('./routes/bilibili-routes'),
 ];
@@ -95,7 +96,7 @@ async function handleApi(context, req, res, requestUrl) {
 
   const request = {
     method, pathName, query: requestUrl.searchParams, req,
-    body: createBodyReader(req, context.maxBodyBytes),
+    body: createBodyReader(req, pathName.startsWith('/api/interactions/') ? 16 * 1024 : context.maxBodyBytes),
   };
   if (principal?.type === 'overlay' && pathName !== '/api/health') {
     if (!isOverlayRequestAllowed(principal.scope, method, pathName)) {

@@ -1,0 +1,141 @@
+.wish-card {
+  --wish-ink: #704451;
+  --wish-muted: #855965;
+  --wish-pink: #e790a6;
+  box-sizing: border-box;
+  position: relative;
+  width: 100%;
+  padding: 25px 22px 22px;
+  border: 1px solid #ead3ce;
+  border-radius: 16px;
+  color: var(--wish-ink);
+  background: #fffcf6;
+  font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+}
+.wish-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 12px;
+  line-height: 20px;
+}
+.wish-card-period {
+  color: var(--wish-muted);
+}
+.wish-card-state {
+  position: relative;
+  flex-shrink: 0;
+  color: #8c4b60;
+  background: #f9e6eb;
+  padding: 2px 11px;
+  border-radius: 20px;
+  font-weight: 500;
+}
+.wish-card-state::before {
+  content: '';
+  position: absolute;
+  top: -38px;
+  left: 50%;
+  width: 56px;
+  height: 36px;
+  background: url('/img/shared/gift-wish-bow.svg') center / contain no-repeat;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.wish-card-main {
+  display: flex;
+  gap: 17px;
+  align-items: center;
+  margin: 17px 0;
+}
+.wish-card-art {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  flex: 0 0 72px;
+  border-radius: 16px;
+  background: #faede5;
+}
+.wish-card-image {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+}
+.wish-card-detail {
+  min-width: 0;
+}
+.wish-card .wish-card-name {
+  margin: 0;
+  color: var(--wish-ink);
+  font-size: 21px;
+  line-height: 1.4;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.wish-card .wish-card-label {
+  margin: 5px 0 0;
+  color: var(--wish-muted);
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.wish-card-counts {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-bottom: 11px;
+}
+.wish-card-total {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.wish-card-count {
+  font-size: 30px;
+  line-height: 1.25;
+  font-weight: 800;
+  color: #9b435f;
+}
+.wish-card-target {
+  font-size: 17px;
+  color: var(--wish-muted);
+}
+.wish-card-remaining {
+  font-size: 12px;
+  color: var(--wish-muted);
+}
+.wish-card-track {
+  height: 12px;
+  border-radius: 10px;
+  background: #f3e2df;
+  overflow: hidden;
+}
+.wish-card-fill {
+  height: 100%;
+  background: var(--wish-pink);
+  border-radius: inherit;
+  transform-origin: left;
+  transition: transform 400ms ease-out;
+}
+.wish-card.is-complete {
+  --wish-pink: #78ad97;
+}
+.wish-card.is-complete .wish-card-state {
+  background: #e5f0e8;
+  color: #38654f;
+}
+.wish-card.is-complete .wish-card-count {
+  color: #38654f;
+}
+.wish-card ::selection {
+  color: #704451;
+  background: #f7d9df;
+}
+@media (prefers-reduced-motion: reduce) {
+  .wish-card-fill {
+    transition: none;
+  }
+}

@@ -1,0 +1,10 @@
+.interaction-rows { overflow-y: auto; scroll-behavior: smooth; scrollbar-width: none; }
+.interaction-row { box-sizing: border-box; height: 88px; padding: 8px 0; }
+.interaction-option { height: 28px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-weight: 600; }
+.interaction-track { position: relative; height: 36px; overflow: hidden; border-radius: 8px; background: var(--color-bg-secondary); }
+.interaction-fill { display: block; height: 100%; width: 0; background: color-mix(in srgb, var(--color-accent) 40%, white); transition: width 180ms ease-out; }
+.interaction-value { position: absolute; inset: 0 12px; display: flex; align-items: center; justify-content: flex-end; color: var(--color-text-primary); font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: reduce) {
+  .interaction-fill { transition: none; }
+  .interaction-rows { scroll-behavior: auto; }
+}

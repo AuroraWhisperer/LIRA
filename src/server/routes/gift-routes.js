@@ -11,6 +11,7 @@ const {
 const prefixes = ['/api/gifts/'];
 
 const routes = {
+  ...require('./gift-wish-routes').routes,
   async 'GET /api/gifts/card-profiles'(context, request, res) {
     try {
       const data = await context.giftCards.getProfiles(request.query.get('viewRevision'));

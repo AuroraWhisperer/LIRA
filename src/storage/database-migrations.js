@@ -11,6 +11,7 @@ const schema = require('./schema');
 const { seedThemePresets } = require('./theme-store');
 const { migrateGiftIdentities } = require('./gift-identity-migration');
 const { migrateGiftDisplay } = require('./gift-display-migration');
+const { migrateGiftWishes } = require('./gift-wish-migration');
 const { migrateFanProfiles } = require('./fan-profile-migration');
 
 // ── 迁移注册表 ──
@@ -312,6 +313,8 @@ function runAllMigrations(databases, options = {}) {
             ON gift_events(source_id, detection_status, status, created_at ASC, id DESC);
         `);
       },
+      // v13: source-scoped wishes and confirmed livestream windows.
+      migrateGiftWishes,
     ]),
   );
 

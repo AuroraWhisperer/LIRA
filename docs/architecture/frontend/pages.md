@@ -59,6 +59,12 @@
 | `/opening`         | [overlays/opening.html](../../../public/pages/overlays/opening.html)                                               | OBS 浏览器源、管理页预览                                     | 固定开播画面地址,读取已保存的文案、动画、画质与音乐设置                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `/clock`           | [overlays/clock.html](../../../public/pages/overlays/clock.html)                                                   | OBS/直播姬浏览器源、管理页预览 `<iframe>`                    | 固定萌时钟地址；默认读取已保存设置，兼容 `style=peach                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | starlight | soda | timeline-horizontal | timeline-vertical`、`date=0 | 1`、`seconds=0 | 1`、`format=12 | 24`、`label=` 逐字段覆盖 |
 
+礼物姬在「礼物边框」「滚动礼物」后增加「礼物许愿」。管理片段 `toolbox/gift-wishes.html` 由原礼物片段组合；`admin/gifts/wishes.js` 管理三周期与增改删，`wish-picker.js` 复用在售/全库目录，`shared/gift-wish-card.js` / CSS 与 OBS 共用实际心愿卡。空、加载、同步不完整、直播状态未知均有对应提示，离开面板暂停轮询。
+
+| 入口 URL | 实际 HTML | 打开者 | 行为说明 |
+| --- | --- | --- | --- |
+| `/gift-wishes?period=long` | [overlays/gift-wishes.html](../../../public/pages/overlays/gift-wishes.html) | OBS 浏览器源、管理页预览 | `period=long/day/session` 分别展示长效/本日/本场，默认 long；`preview=1` 显示预览底色与状态提示。正式源透明底，建议宽度 440；每 3 秒读取服务端整数进度，来源变更即时清空旧展示。 |
+
 排查页面(无 URL 映射,只能按文件路径访问):
 
 | 路径                     | 页面                                                     | 打开者          | 说明                                                       |
@@ -224,3 +230,10 @@
 客户端“最近礼物 → 查看全部”使用逐行礼物流水表：标题与操作按钮、时间/礼物/数量/金额/用户/备注六列表格、底部翻页。不显示名称搜索、日期范围控件或独立同步信息栏，固定以 `range=all` 读取全部历史并保留复合 keyset 翻页。数量位置只显示已读取的数量；未完成同步的空列表显示等待提示，确认同步完成后才显示“暂无礼物记录”。已有记录时更新提示位于标题下，加载失败保留当前列表；无记录时提示位于表格内，不重复展示底层错误。统计摘要、排行和趋势由服务器网页界面承载，不放进客户端流水抽屉。抽屉移除仅清理显示的操作；“清空全部记录”明确提示不可撤销，并先通过 Electron main 的 DeviceBearer 清空当前认证主播的服务器礼物 ledger/outbox，只有服务器成功后才清当前本地 source。清空结果与后续列表更新分别显示；无法确认远端结果时不承诺记录未删除。抽屉打开期间对来源未就绪、同步未完成、离线和读取失败自动重读，15 秒后降低重读频率并提供手动重试；手动重试只读取，不重复删除。关闭抽屉取消读取和定时器，失效响应不能覆盖新状态。抽屉只调用当前 source 的本地 `/api/gifts/history`，不接收或提交 `sourceId`、Device token、bootstrap token 或远端 cursor。新增模块使用具名 ESM import/export，不扩大 `window.AdminApp` 兼容层；详细契约见 [gift-ledger-projection-sync_design.md](../../../specs/gift-ledger-projection-sync_design.md)。
 
 弹幕工具页面现有签到/抽签位置保留两个云端开关和最后确认时间；一次性旧数据面板完成接管后隐藏，两项不再有日常词库编辑按钮。入口仍为现有 admin 弹幕工具，未增加页面 URL。
+
+
+## 投票与评分页面
+
+`/interactions` → `public/pages/overlays/interactions.html` → `public/js/overlays/interactions.js`，只读 OBS 浏览器源，推荐 800×600。类别 3 主持表单位于小游戏片段，由 `public/js/admin/interactions.js` 初始化，独立链接使用实际本地端口。投票首次有效、评分末次有效；支持开始、提前结束/公布平均分、取消与关闭结果。类别 1/3 进行中互斥，保留结果可同时展示。
+
+共同文本验证、布局估算在 `public/js/shared/interaction-rules.js`，同步代次在 `interaction-client.js`，安全文本结果行在 `interaction-view.js`。后台人数轮询随面板可见性启停；新场清掉旧结果，未结算均分留空。

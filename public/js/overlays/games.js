@@ -450,7 +450,8 @@ function setGameResultActionsPending(pending, action = '') {
   const exitButton = byId('gameResultExit');
   const nextButton = byId('gameResultNext');
   exitButton.disabled = pending;
-  nextButton.disabled = pending;
+  nextButton.disabled = pending || session?.restartBlocked === true;
+  nextButton.title = session?.restartBlocked ? '请先结束投票或评分' : '';
   exitButton.textContent = pending && action === 'stop' ? '退出中…' : '退出';
   nextButton.textContent =
     pending && action === 'restart' ? '开局中…' : '下一局';

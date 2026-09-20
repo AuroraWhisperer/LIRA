@@ -16,6 +16,7 @@ async function handleOverlayApi(context, principal, request, res) {
   });
   if (method === 'GET') {
     switch (pathName) {
+      case '/api/interactions/session': return reply(context.interactions.getState());
       case '/api/state': return reply(context.system.getState());
       case '/api/songs':
         return reply(context.songs.list({ enabledOnly: true, categories: query.getAll('category') }));
@@ -23,6 +24,18 @@ async function handleOverlayApi(context, principal, request, res) {
         return reply(context.gifts.getBlindBoxStats({ boxName: query.get('boxName') || '' }));
       case '/api/gifts/display-settings':
         return reply(readGiftDisplaySettings(context.settings.get()));
+      case '/api/gifts/wishes':
+        if (query.has('sourceId') || query.has('source_id')) {
+          return sendJson(res, 400, { ok: false, error: '礼物来源不能由页面指定。' });
+        }
+        try {
+          return reply(await context.giftWishes.getSnapshot());
+        } catch (error) {
+          if (['GIFT_VIEW_STALE', 'GIFT_SOURCE_UNAVAILABLE'].includes(error.code)) {
+            return sendJson(res, 409, { ok: false, error: error.message, code: error.code });
+          }
+          throw error;
+        }
       case '/api/gifts/card-profiles':
         try {
           return reply(await context.giftCards.getProfiles(query.get('viewRevision')));

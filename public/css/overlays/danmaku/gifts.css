@@ -27,11 +27,11 @@ body:is(
 ) .draw-danmaku-item.is-gift {
   width: 460px;
   max-width: 460px;
-  zoom: var(--danmaku-gift-scale, 1.8);
+  zoom: var(--danmaku-gift-scale, 1.5);
 }
 /* These feeds already scale their children; apply the gift scale only once. */
 body:is([data-style='ranked'], [data-style='identity']) .draw-danmaku-item.is-gift {
-  zoom: calc(var(--danmaku-gift-scale, 1.8) / var(--ranked-scale));
+  zoom: calc(var(--danmaku-gift-scale, 1.5) / var(--ranked-scale));
 }
 body:not([data-style='minimal']) .is-gift::before,
 body:not([data-style='minimal']) .is-gift::after,

@@ -14,6 +14,15 @@ Schema 3 按服务器协议接收完整历史活动目录，不额外设置 10,0
 
 ## 1. 架构总览
 
+### 礼物许愿
+
+`wish-service.js` 拥有三周期许愿；`wish-session.js` 按需读取 B 站 `room_init.live_time` / `live_status`，30 秒缓存并合并请求。直播间来自组合根的当前账号房间 getter。`gift-wish-store.js` 保存来源隔离的定义与最近直播窗口，按当前授权来源查询最终 active 流水；历史导入也参与计数，不依赖实时通知资格，不另设会被重放重复累加的计数器。
+
+- 长效从每条许愿的服务端创建时间开始。本日从北京时间当天 00:00 起算，包含本日创建前流水。本场从确认的开播时间起算，重新连接和软件重启不会重置；下一场开始自动切换窗口。确认离线时本场归零并等待开播，不把再次打开页面的时间当成下播时间；上游不可用时暂停本场计数，冻结到最后确认仍在直播的时间，恢复后重新按窗口统计。直播状态最多延迟一个 30 秒缓存周期。
+- 目标必须是正整数，实际数量只累计正整数 `num`，可以超过目标；进度条封顶 100%。修改目标/文案不重置创建时间，删除只删除许愿定义。计数反映当前账本，用户主动清除流水也会影响许愿。
+- 目录复用加班机当前房间和全库缓存。新建普通礼物或盲盒许愿必须有已同步的 variant 身份；房间中尚未匹配身份的候选显示待同步且不可选，服务端也拒绝保存。完整 variant 身份精确匹配，未知历史身份不猜测；既有无 variant 的许愿仍按 ID 兼容。盲盒本体匹配 `blind_box_variant_id` / `blind_box_id`，产出匹配 `gift_variant_id` / `gift_id` 且要求 `is_blind_box=1`，一份产出事件可分别推动盒子与产出两条独立目标。
+- 普通礼物使用已校验的 B 站 WebP 本地缓存，舰长/提督/总督使用内置 WebP。OBS 只读投影不含内部来源或送礼人信息。验证见 `test/gift-wishes.test.js`、`test/gift-wish-routes.test.js` 与 `test/frontend-gift-wishes.test.js`。
+
 ```
 Electron remote gift controller (服务器 SSE / cursor / history)
   │ importProcessedEvent / importProcessedHistoryRecord

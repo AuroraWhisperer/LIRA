@@ -49,12 +49,14 @@
 
 | Scope | 允许的本地 API | 附加限制 |
 | --- | --- | --- |
-| 全部 13 页 | `GET /api/state` | 仅本页最小状态；无 snapshot 消费者返回 `{}`，也用于旧凭据恢复检查 |
+| 全部 15 页 | `GET /api/state` | 仅本页最小状态；无 snapshot 消费者返回 `{}`，也用于旧凭据恢复检查 |
 | queue / overtime / lyrics / gift-effects | 无额外 REST | 专用推送见 [ws.md](ws.md) |
 | songlist | `GET /api/songs` | 服务端强制 enabledOnly，仅 category 展示过滤；不返回文件路径、禁用歌或导入元数据 |
 | blindbox | `GET /api/gifts/blind-box-stats` | 可选 boxName，仅公开统计字段 |
 | gift-feed | `GET /api/gifts/display-settings`、`/api/gifts/history`、`/api/gifts/card-profiles`、`/api/overtime/gifts/catalog`、`/api/bilibili/avatar` | history 强制北京时间今日、100 条、created_at 升序；只允许 cursor/viewRevision；card-profiles 只转发 viewRevision，返回当日 eventId、senderId 与昵称/头像/等级证据，禁止客户端选择旧日期、来源或其他用户过滤 |
 | gift-export | `GET /api/bilibili/avatar` | 导出数据由 main 注入冻结快照；没有历史、selection 或导出 IPC 权限 |
+| gift-wishes | `GET /api/gifts/wishes` | 仅心愿展示字段、整数计数、进度及直播窗口；无来源 ID、送礼人或管理写权限 |
+| interactions | `GET /api/interactions/session` | 只读投票/评分公开结果；禁止写入与 host-state |
 | games | `GET /api/games/session`、`/api/games/winner-profile`、`/api/bilibili/avatar`；`POST /api/games/session`、`/api/games/session/move`、`/api/games/session/draw` | session 仅 stop/restart；move 的 value 仅 number/string，禁止夹带主持动作对象；draw 仅 append/undo/clear。不能新开配置、读取 host-state/词库/观众或揭晓答案 |
 | danmaku | `GET /api/bilibili/avatar` | 保留现有头像/表情 CDN 校验 |
 | wheel | `GET /api/wheel`、`POST /api/wheel/spin` | 只读展示配置与抽取，不允许编辑配置 |
@@ -353,6 +355,8 @@ handler 未包 try/catch:抛错走顶层 **500**。
 > 模块文件:[src/server/routes/gift-routes.js](../../../src/server/routes/gift-routes.js)
 > 前缀:`/api/gifts/`
 
+礼物许愿接口由 `routes/gift-wish-routes.js` 合并到礼物路由。`GET /api/gifts/wishes` 返回当前授权来源的 `viewRevision/asOf/day/partial/session/items`；管理页额外取得内置舰队选择项。`POST /api/gifts/wishes/save` 接收 `viewRevision`、整数 `target`（1–999999999）、`label`（最多 40 字）；新建另需 `period`（`long/day/session`）及目录 `giftKey`（variantId 优先，舰队使用 guard ID），编辑只需 `id`，不改变礼物和起算时间。每个来源最多 30 条。`POST /api/gifts/wishes/delete` 接收 `viewRevision/id`。非法参数返回 400，来源未就绪或版本变化返回 409，客户端禁止选择 sourceId。保存/删除广播 `gift:wishes` 快照刷新通知。计数与时间窗口合同见 [礼物许愿](bilibili/gift.md#礼物许愿)。
+
 | 端点                                | 请求                                                                                                                          | 响应(data)                                          | 错误码                              |
 | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- | ----------------------------------- |
 | `POST /api/gifts/sprint/reset`      | 无                                                                                                                            | 重置礼物冲刺进度;广播 `gift:sprint:reset`           | —                                   |
@@ -572,3 +576,20 @@ handler 未包 try/catch:抛错走顶层 **500**。
 ## 独立转盘 API
 
 `GET /api/wheel` 返回当前内存中的转盘配置、总份数、最近结果、活动抽取动画和服务端 `limits:{minEntries,maxEntries,maxLabelLength,minWeight,maxWeight,maxTotalWeight}`；`POST /api/wheel/config` 接受 `{entries:[{label,weight}]}`，服务端限制 2–12 个不重复内容、每项 1–100 份、总份数不超过 300；`POST /api/wheel/spin` 按服务端权重抽取并广播 `wheel:update`。转盘 service 与 `/api/games/session` 独立，不参与数字炸弹、五子棋或你画我猜的单会话互斥。沿用 `{ok,data}` 信封；管理身份拥有完整操作，展示页能力遵循 §0.0 限制。
+
+
+## 投票与评分（类别 3）
+
+拥有者：`src/games/interaction-session-service.js`；路由：`src/server/routes/interaction-routes.js`；组合：`src/server/game-runtime.js`。全部状态仅在本地内存中。
+
+| 方法 / 路径 | 调用者 | 合同 |
+| --- | --- | --- |
+| `GET /api/interactions/session` | 管理端、interactions scope | `{ok:true,data:{runtimeId,revision,session}}`，空场 session=null，不启动收集 |
+| `GET /api/interactions/host-state` | 管理端 | 公开 envelope 加 ready、blockedReason、participants；无 UID/未公布总分 |
+| `POST /api/interactions/session` | 管理端 | `{kind:'poll'|'rating',title?,options?,durationSeconds?}`；poll 至少两项，每项 1–10 字素，时长 1–3600 秒 |
+| `POST /api/interactions/session/finish` | 管理端 | `{sessionId}`；立即退订、冻结保留结果，同一已完成场次幂等 |
+| `POST /api/interactions/session/clear` | 管理端 | `{sessionId}`；取消或关闭结果，推送带新 revision 的 null |
+
+配置 16 KiB、最坏公开快照 64 KiB；主题最多 60 字素。配置错误 400，body 超限沿用 HTTP 解析器错误；未就绪、活动冲突、过期 sessionId 返回 409。配置规范化为 trim+NFC，前后端共享 `public/js/shared/interaction-rules.js`；隐藏字符拒绝，完整 RGI emoji 的 ZWJ/变体选择符保留。类别 1 未结束时不能开始类别 3，类别 3 collecting 时不能开始/重开类别 1；finished/interrupted 不占跨类收集资格，本类结果需先 clear。
+
+`interactions` 凭据只能 GET 本类公开 session（通用 `/api/state` 为空领域投影），不能写入、读 host-state 或其他领域；games 凭据不能读取本类。评分未结束只发 average=null，不发人数/分布/总分，主持人数由 host-state 提供；结束才公开均分与人数。数字炸弹/五子棋结果新增可选 restartBlocked，供旧游戏展示页禁用下一局。

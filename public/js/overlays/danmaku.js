@@ -20,7 +20,7 @@ const OVERLAY_STYLES = new Set([
 const FIXED_STAGE_PADDING = 12;
 const RANKED_CONTENT_WIDTH = 600;
 const GIFT_CARD_WIDTH = 460;
-const MAX_GIFT_SCALE = 1.8;
+const MAX_GIFT_SCALE = 1.5;
 const params = new URLSearchParams(location.search);
 const previewMode = params.get('preview') === '1';
 const previewOptions = previewMode ? (params.has('styleOptions')

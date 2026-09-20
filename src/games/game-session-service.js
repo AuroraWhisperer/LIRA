@@ -43,7 +43,19 @@ function createGameSessionService(options = {}) {
     return [...viewers.values()].sort((a, b) => b.lastSeenAt - a.lastSeenAt);
   }
 
+  function assertCanCollect() {
+    if (options.isInteractionCollecting?.()) {
+      throw Object.assign(new Error('请先结束类别 3 的投票或评分。'), { statusCode: 409 });
+    }
+  }
+
+  function isActive() {
+    materializeDrawGuessDeadline();
+    return Boolean(session && (session.game === 'draw-guess' ? session.state.phase !== 'finished' : !session.state.winner));
+  }
+
   function start(input = {}) {
+    assertCanCollect();
     if (session) {
       const error = new Error('已有游戏正在进行，请先结束当前游戏。');
       error.statusCode = 409;
@@ -97,6 +109,7 @@ function createGameSessionService(options = {}) {
   }
 
   function restart() {
+    assertCanCollect();
     if (!session || session.game === 'draw-guess' || !session.state.winner) {
       const error = new Error('当前游戏尚未结算。');
       error.statusCode = 409;
@@ -224,6 +237,7 @@ function createGameSessionService(options = {}) {
     if (!session) return null;
     return {
       game: session.game,
+      ...(options.isInteractionCollecting?.() ? { restartBlocked: true } : {}),
       mode: session.mode,
       targetUid: session.targetUid,
       targetName: session.targetName,
@@ -358,6 +372,8 @@ function createGameSessionService(options = {}) {
 
   return {
     start,
+    isActive,
+    refreshAvailability: publish,
     stop,
     restart,
     move,
