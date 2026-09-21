@@ -7,6 +7,16 @@ const { createBilibiliRuntime } = require('../src/server/bilibili-runtime');
 
 const avatarUrl = 'https://i0.hdslb.com/bfs/face/synthetic.jpg';
 
+test('profile requests normalize protocol-relative collection avatars to HTTPS', async (t) => {
+  const face = '//i0.hdslb.com/bfs/garb/collection.png@152w_152h_1c_1s.webp';
+  t.mock.method(BilibiliApiClient.prototype, 'fetchJson', async () => ({
+    payload: { code: 0, data: { card: { name: '收藏集观众', face } } },
+  }));
+  assert.deepEqual(await new BilibiliApiClient('').fetchUserProfile('123'), {
+    name: '收藏集观众', avatarUrl: `https:${face}`,
+  });
+});
+
 test('profile requests forward a finite timeout and reject upstream business failures', async (t) => {
   t.mock.method(console, 'log', () => {});
   const controller = new AbortController();

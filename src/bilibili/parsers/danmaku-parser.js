@@ -97,7 +97,8 @@ function parseDanmakuOptions(value) {
 }
 
 function normalizeBilibiliAvatarUrl(value) {
-  return normalizeBilibiliImageUrl(value);
+  const source = String(value || '').trim();
+  return normalizeBilibiliImageUrl(source.startsWith('//') ? `https:${source}` : source);
 }
 
 function normalizeBilibiliImageUrl(value) {

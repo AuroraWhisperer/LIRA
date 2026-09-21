@@ -113,9 +113,14 @@ class BilibiliApiClient {
       error.statusCode = 400;
       throw error;
     }
+    const imageUrl = new URL(avatarUrl);
+    // Collection originals can exceed the byte limit; use the CDN's avatar thumbnail.
+    if (imageUrl.pathname.startsWith('/bfs/garb/') && !imageUrl.pathname.includes('@')) {
+      imageUrl.pathname += '@256w_256h_1c_1s.webp';
+    }
     const headers = this.requestHeaders();
     delete headers.Cookie;
-    const response = await fetch(avatarUrl, {
+    const response = await fetch(imageUrl.toString(), {
       headers: {
         ...headers,
         Accept:
@@ -348,7 +353,8 @@ function redactUrl(url) {
 
 function normalizeBilibiliAvatarUrl(value) {
   try {
-    const url = new URL(String(value || ''));
+    const source = String(value || '').trim();
+    const url = new URL(source.startsWith('//') ? `https:${source}` : source);
     if (url.protocol !== 'https:' || !url.hostname.endsWith('.hdslb.com'))
       return '';
     return url.toString();

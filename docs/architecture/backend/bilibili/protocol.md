@@ -64,6 +64,8 @@ Cookie 的来源与加密存储(login 分区/`bilibili-auth/cookies.enc`)见 [de
 
 `send_danmaku` 细节:`bili_jct` 从 Cookie 提取([api-client.js:107-108](../../../../src/bilibili/danmaku/api-client.js#L107-L108)),消息上限 **1000 字符**([api-client.js:109](../../../../src/bilibili/danmaku/api-client.js#L109)),回复目标经 `normalizeMentionTarget` 校验(见 [danmaku.md](danmaku.md) §6)。
 
+头像资料、身份 hint 和图片代理支持 `//*.hdslb.com/...` 地址并规范化为 HTTPS。图片代理对没有 `@` 缩略参数的 `/bfs/garb/` 收藏集原图追加 `@256w_256h_1c_1s.webp`，避免数 MiB 的原图超过头像大小限制；已有缩略参数及普通头像保持原地址。CDN 请求不携带登录 Cookie，仍校验域名、图片类型和 2 MiB 上限。
+
 ## 3. WBI 签名算法
 
 `wbi-signer.js` 为 `getDanmuInfo` 等需要签名的端点生成 `wts` + `w_rid`。平台侧背景见 [`docs/bilibili-live-api/info.md`](../../../bilibili-live-api/info.md)。

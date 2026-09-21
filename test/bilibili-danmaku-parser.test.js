@@ -42,6 +42,12 @@ test('danmaku avatar parser supports JSON encoded user metadata', () => {
   assert.equal(extractBilibiliDanmakuAvatarUrl(info), avatarUrl);
 });
 
+test('danmaku avatar parser accepts protocol-relative collection avatars without changing image transforms', () => {
+  const face = '//i0.hdslb.com/bfs/garb/collection.png@152w_152h_1c_1s.webp';
+  assert.equal(extractBilibiliDanmakuAvatarUrl(createInfo({ base: { face } })), `https:${face}`);
+  assert.equal(extractBilibiliDanmakuAvatarUrl(createInfo({ face: '//hdslb.com.attacker.test/avatar.webp' })), '');
+});
+
 test('danmaku avatar parser upgrades official HTTP avatars and rejects other hosts', () => {
   assert.equal(
     extractBilibiliDanmakuAvatarUrl(

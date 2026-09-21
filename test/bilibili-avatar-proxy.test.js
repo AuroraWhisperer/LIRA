@@ -5,6 +5,57 @@ const test = require('node:test');
 const { BilibiliApiClient } = require('../src/bilibili/danmaku/api-client');
 const { routes } = require('../src/server/routes/bilibili-routes');
 
+test('avatar proxy requests a bounded CDN thumbnail for original collection artwork', async (t) => {
+  t.mock.method(global, 'fetch', async (url) => {
+    assert.equal(url, 'https://i0.hdslb.com/bfs/garb/collection.png@256w_256h_1c_1s.webp');
+    return new Response(Buffer.from([1, 2, 3]), { headers: { 'Content-Type': 'image/webp' } });
+  });
+  const image = await new BilibiliApiClient('').fetchAvatarImage('https://i0.hdslb.com/bfs/garb/collection.png');
+  assert.equal(image.contentType, 'image/webp');
+  assert.deepEqual(image.data, Buffer.from([1, 2, 3]));
+});
+
+test('collection thumbnails still obey the avatar byte limit', async (t) => {
+  t.mock.method(global, 'fetch', async () => new Response('', {
+    headers: { 'Content-Type': 'image/webp', 'Content-Length': String(2 * 1024 * 1024 + 1) },
+  }));
+  await assert.rejects(new BilibiliApiClient('').fetchAvatarImage(
+    'https://i0.hdslb.com/bfs/garb/collection.png',
+  ), /头像文件过大/);
+});
+
+test('ordinary avatars preserve their URLs and supported image formats', async (t) => {
+  let contentType;
+  let source;
+  t.mock.method(global, 'fetch', async (url) => {
+    assert.equal(url, source);
+    return new Response(Buffer.from([1, 2, 3]), { headers: { 'Content-Type': contentType } });
+  });
+  const client = new BilibiliApiClient('');
+  for (const extension of ['jpeg', 'png', 'webp', 'gif', 'avif']) {
+    source = `https://i0.hdslb.com/bfs/face/viewer.${extension}`;
+    contentType = `image/${extension}`;
+    assert.equal((await client.fetchAvatarImage(source)).contentType, contentType);
+  }
+});
+
+test('avatar proxy accepts collection WebP URLs and upgrades protocol-relative URLs before fetching', async (t) => {
+  const source = '//i0.hdslb.com/bfs/garb/collection.png@152w_152h_1c_1s.webp';
+  const fetch = t.mock.method(global, 'fetch', async (url, options) => {
+    assert.equal(url, `https:${source}`);
+    assert.equal(new Headers(options.headers).has('cookie'), false);
+    return new Response(Buffer.from([1, 2, 3]), { headers: { 'Content-Type': 'image/webp' } });
+  });
+  const client = new BilibiliApiClient('', { cookieHeader: 'SESSDATA=synthetic-session' });
+  for (const url of [source, `https:${source}`]) {
+    const image = await client.fetchAvatarImage(url);
+    assert.equal(image.contentType, 'image/webp');
+    assert.deepEqual(image.data, Buffer.from([1, 2, 3]));
+  }
+  await assert.rejects(client.fetchAvatarImage('//hdslb.com.attacker.test/avatar.webp'), /头像地址无效/);
+  assert.equal(fetch.mock.callCount(), 2);
+});
+
 test('Bilibili avatar proxy fetches only trusted HTTPS image URLs', async () => {
   const originalFetch = global.fetch;
   const requests = [];

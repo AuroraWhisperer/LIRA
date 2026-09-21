@@ -7,7 +7,7 @@ export const BANNER_HEIGHT = 72;
 export const BANNER_GAP = 8;
 export const MAX_COMPOSITE_ROWS = 39;
 export const GIFT_PALETTE = [
-  ['#95C4FF', '#BDD9FF'], ['#8F58EDF2', '#776CE9E6'],
+  ['#38B6FF', '#65C8FF'], ['#8F58EDF2', '#776CE9E6'],
   ['#F6606DF2', '#F88573E6'], ['#F3A20AF2', '#F8C914E6'],
 ];
 const FRAMES = { 1: 'governor', 2: 'admiral', 3: 'captain' };
