@@ -32,7 +32,7 @@ export function profileForm(profile = {}) {
     saveLabel: profile.id ? '保存修改' : '创建档案',
     fields:
       `<div class="fan-profile-form fan-field-wide">
-        <p class="fan-profile-intro">${profile.id ? '除常用称呼外，其余信息均为选填。' : '填写常用称呼即可创建，其余信息可稍后补充。'}</p>
+        <p class="fan-profile-intro">${profile.platformName ? '卡片显示最新平台昵称，常用称呼与其他资料可按需填写。' : profile.id ? '除常用称呼外，其余信息均为选填。' : '填写常用称呼即可创建，其余信息可稍后补充。'}</p>
         <div class="fan-profile-tabs" role="tablist" aria-label="档案信息">
           <button type="button" id="fanProfileBasicTab" role="tab" aria-controls="fanProfileBasic" aria-selected="true">基本信息</button>
           <button type="button" id="fanProfilePersonalTab" role="tab" aria-controls="fanProfilePersonal" aria-selected="false" tabindex="-1">生日与偏好</button>
@@ -42,12 +42,13 @@ export function profileForm(profile = {}) {
         <div class="fan-field-wide">` +
       field(
         'alias',
-        '常用称呼（必填）',
+        profile.platformName ? '常用称呼' : '常用称呼（必填）',
         profile.alias,
         'text',
-        'required maxlength="100" autofocus placeholder="你平时怎么称呼这位粉丝"',
+        `${profile.platformName ? '' : 'required '}maxlength="100" autofocus placeholder="你平时怎么称呼这位粉丝"`,
       ) +
       '</div>' +
+      area('formerNames', '曾用名（最多 3 个，每行一个，由近到远）', profile.formerNames?.join('\n'), 3) +
       choice(
         'identityType',
         'B 站账号类型',
@@ -240,6 +241,7 @@ export function profileForm(profile = {}) {
         id: profile.id,
         revision: profile.revision,
         alias: data.alias,
+        formerNames: data.formerNames.split(/\r?\n/).map((name) => name.trim()).filter(Boolean),
         summary: data.summary,
         identity: data.identityValue
           ? {

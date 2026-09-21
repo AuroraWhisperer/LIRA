@@ -4,6 +4,51 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { fanFixture, interval, SCOPE, IDENTITY, NOW } = require('./helpers/fan-profile-fixture');
 
+test('former names keep the latest three distinct names, support edits and survive restart and restore', (t) => {
+  const f = fanFixture(t);
+  const p = f.create();
+  const observe = (name, day) => f.consume([{ name, observedAt: `2026-09-${day}T04:00:00Z` }]);
+  for (const [index, name] of ['a', 'b', 'c', 'd', 'e', 'e'].entries()) observe(name, 10 + index);
+  assert.deepEqual(f.detail(p.id).formerNames, ['d', 'c', 'b']);
+  observe('c', 16);
+  assert.deepEqual(f.detail(p.id).formerNames, ['e', 'd', 'b']);
+  observe('stale', 11);
+  assert.equal(f.detail(p.id).platformName, 'c');
+  const before = f.detail(p.id);
+  const saved = f.run('save', { id: p.id, revision: before.revision, formerNames: ['手动昵称', 'c', '手动昵称'] });
+  assert.deepEqual(saved.formerNames, ['手动昵称']);
+  assert.equal(f.run('list', { query: '手动昵称' }).profiles[0].id, p.id);
+  observe('f', 17);
+  assert.deepEqual(f.detail(p.id).formerNames, ['c', '手动昵称']);
+  assert.equal(f.detail(p.id).alias, '小海');
+  f.restart();
+  assert.deepEqual(f.detail(p.id).formerNames, ['c', '手动昵称']);
+  const backup = f.run('backup');
+  const current = f.detail(p.id);
+  f.run('save', { id: p.id, revision: current.revision, formerNames: [] });
+  assert.deepEqual(f.detail(p.id).formerNames, []);
+  const preview = f.run('preview-restore', { backup });
+  f.run('restore', { backup, ...preview, conflicts: 'replace' });
+  assert.deepEqual(f.detail(p.id).formerNames, ['c', '手动昵称']);
+  const revision = f.detail(p.id).revision;
+  for (const formerNames of [['a', 'b', 'c', 'd'], [123], ['x'.repeat(201)], 'wrong']) {
+    assert.throws(() => f.run('save', { id: p.id, revision, formerNames }), /曾用名/);
+  }
+  assert.equal(f.detail(p.id).revision, revision);
+});
+
+test('old backups with long name history retain compatibility and project only recent distinct names', (t) => {
+  const f = fanFixture(t);
+  const p = f.create();
+  const backup = f.run('backup');
+  backup.profiles[0].platformName = 'e';
+  backup.profiles[0].nameHistory = ['a', 'b', 'c', 'b', 'd', 'e'].map((name) => ({ name, observedAt: NOW }));
+  const preview = f.run('preview-restore', { backup });
+  f.run('restore', { backup, ...preview, conflicts: 'replace' });
+  assert.deepEqual(f.detail(p.id).formerNames, ['d', 'b', 'c']);
+  assert.equal(f.detail(p.id).nameHistory.length, 6);
+});
+
 test('a new baseline does not invent dates for smaller historical milestones', (t) => {
   const f = fanFixture(t);
   const p = f.create();

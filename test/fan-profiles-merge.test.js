@@ -20,6 +20,17 @@ function sortedExport(f, scope = SCOPE) {
   return result;
 }
 
+test('draft former names follow the merge preference and omit the current platform name', (t) => {
+  const f = fanFixture(t);
+  const { source, target } = pair(f, { formerNames: ['草稿旧名'] }, { formerNames: ['目标旧名'] });
+  f.consume([{ name: '当前名字' }]);
+  const result = f.run('merge', mergeInput(source, f.detail(target.id), {
+    prefer: 'source', patch: { formerNames: ['修订旧名', '当前名字'] },
+  }));
+  assert.deepEqual(result.profile.formerNames, ['修订旧名']);
+  assert.equal(result.profile.platformName, '当前名字');
+});
+
 test('merge preview is read-only and permits only an unbound draft into an existing bound profile', (t) => {
   const f = fanFixture(t);
   const { source, target } = pair(f);

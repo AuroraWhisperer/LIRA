@@ -41,8 +41,8 @@ export function renderPeople(profiles, selected, filtered) {
       (
         p,
       ) => `<button type="button" class="fan-person ${selected === p.id ? 'is-selected' : ''}" data-fan-id="${attr(p.id)}" aria-pressed="${selected === p.id}">
-    <span class="fan-person-line"><strong class="fan-name" data-guard-level="${attr(p.currentGuardLevel || '')}" title="${attr(p.alias || p.platformName)}">${html(p.alias || p.platformName || '未命名档案')}</strong>${guardIcon(p.currentGuardLevel)}</span>
-    ${p.alias && p.platformName ? `<span class="fan-muted">${html(p.platformName)}</span>` : ''}
+    <span class="fan-person-line"><span class="fan-person-name"><strong class="fan-name" data-guard-level="${attr(p.currentGuardLevel || '')}" title="${attr(p.platformName || p.alias)}">${html(p.platformName || p.alias || '未命名档案')}</strong>${p.favorite ? '<span class="fan-favorite-star" role="img" aria-label="特别关注" title="特别关注">★</span>' : ''}</span>${guardIcon(p.currentGuardLevel)}</span>
+    ${p.alias && p.platformName && p.alias !== p.platformName ? `<span class="fan-muted">常用称呼：${html(p.alias)}</span>` : ''}
     ${p.summary || p.tags?.length ? `<span class="fan-person-summary">${html(p.summary || p.tags.slice(0, 2).join('、'))}</span>` : ''}
     ${p.nextReminder ? `<span class="fan-person-date">${html(p.nextReminder.title)} · ${html(dateLabel(p.nextReminder.date))}</span>` : ''}
   </button>`,
@@ -77,7 +77,8 @@ function overview(p) {
   );
   return `<section class="fan-section"><div class="fan-section-title"><h4>基本资料</h4>${button('edit-profile', '编辑资料')}</div>
     <dl class="fan-facts fan-basic-facts"><div><dt>生日</dt><dd>${html(p.birthday ? `${p.birthday.monthDay}${p.birthday.calendar === 'lunar' ? '（农历，手动设置本年提醒）' : '（公历）'}` : '待补充')}</dd></div>
-    <div><dt>星座</dt><dd>${html(p.zodiacHint || '未知')}${p.zodiac ? '' : p.zodiacHint ? '（公历提示）' : ''}</dd></div><div><dt>MBTI</dt><dd>${html(p.mbti || '未知')}${p.mbtiNote ? ` · ${html(p.mbtiNote)}` : ''}</dd></div></dl></section>
+    <div><dt>星座</dt><dd>${html(p.zodiacHint || '未知')}${p.zodiac ? '' : p.zodiacHint ? '（公历提示）' : ''}</dd></div><div><dt>MBTI</dt><dd>${html(p.mbti || '未知')}${p.mbtiNote ? ` · ${html(p.mbtiNote)}` : ''}</dd></div>
+    <div class="fan-former-names"><dt>曾用名</dt><dd>${p.formerNames?.length ? p.formerNames.map(html).join('、') : '暂无'}</dd></div></dl></section>
     <section class="fan-section"><div class="fan-section-title"><h4>可以聊的话题</h4><div class="fan-actions">${button('new-topic', '添加话题')}${button('new-followup', '记一个约定')}</div></div>${topics.length ? topics.map(recordRow).join('') : '<p class="fan-muted">从一次聊天开始记录。</p>'}
     ${p.nextTopic ? `<p>下次想聊：${html(p.nextTopic)}</p>` : ''}${followups.length ? `<div class="fan-followups"><h5>待办约定</h5>${followups.map(recordRow).join('')}</div>` : ''}</section>
     <section class="fan-section fan-cautions"><details><summary>相处提醒${cautions.length ? ` · ${cautions.length} 条` : ''}</summary><p class="fan-muted">哪些话题不适合提起，仅自己可见。</p>${cautions.map(recordRow).join('')}${button('new-caution', '添加相处提醒')}</details></section>
@@ -164,7 +165,7 @@ export function renderDetail(p, tab = 'overview', timelineFilter = '') {
         .join(
           '',
         )}</select></label></div>${timeline.map((r) => (r.kind === 'membership' ? membershipRecord(r, p) : recordRow(r))).join('') || '<div class="fan-empty"><p>还没有互动记录，记下今天聊过的事吧。</p></div>'}`;
-  return `<header class="fan-person-header"><div class="fan-detail-title"><div><div class="fan-detail-name"><h3 class="fan-name" data-guard-level="${attr(p.currentGuardLevel || '')}">${html(p.alias || p.platformName || '未命名档案')}</h3>${guardIcon(p.currentGuardLevel)}</div><p class="fan-muted">${html(p.platformName || '尚未获取平台昵称')} · ${p.identity ? `${p.identity.type === 'uid' ? 'UID' : 'open_id'} ${html(p.identity.value)}` : '身份待关联'}</p></div>
+  return `<header class="fan-person-header"><div class="fan-detail-title"><div><div class="fan-detail-name"><h3 class="fan-name" data-guard-level="${attr(p.currentGuardLevel || '')}">${html(p.platformName || p.alias || '未命名档案')}</h3>${guardIcon(p.currentGuardLevel)}</div><p class="fan-muted">${html(p.platformName || '尚未获取平台昵称')} · ${p.identity ? `${p.identity.type === 'uid' ? 'UID' : 'open_id'} ${html(p.identity.value)}` : '身份待关联'}</p>${p.alias && p.platformName && p.alias !== p.platformName ? `<p class="fan-muted">常用称呼：${html(p.alias)}</p>` : ''}</div>
     ${button('favorite', p.favorite ? '已关注' : '特别关注', `aria-pressed="${p.favorite}"`)}</div>
     ${p.summary ? `<p class="fan-prose">${html(p.summary)}</p>` : ''}<p class="fan-muted fan-small">平台信息更新于 ${html(p.platformObservedAt ? dateLabel(p.platformObservedAt) : '尚未获取')}</p>
     <div class="fan-actions">${button('new-note', '记一笔', 'class="primary"')}${button('expand', '展开 / 收起')}${button('back-list', '返回列表', 'class="fan-back-list"')}<details class="fan-more"><summary>管理</summary><div>${button('edit-profile', '编辑资料')}${button('archive', p.archived ? '恢复档案' : '归档')}${button('delete', '永久删除')}</div></details></div></header>

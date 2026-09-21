@@ -9,6 +9,33 @@ const { fanFixture, SCOPE, IDENTITY, NOW } = require('./helpers/fan-profile-fixt
 
 const ROOT = path.join(__dirname, '..');
 
+test('favorite stars follow the current name and editable former names appear in basic details', async (t) => {
+  const f = fanFixture(t);
+  const p = f.create({ favorite: true, formerNames: ['<旧昵称>', '较早昵称'] });
+  f.consume([{ name: '<新昵称>' }]);
+  const profile = f.detail(p.id);
+  const view = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/view.js'));
+  const rendered = view.renderPeople([profile], p.id, false);
+  assert.match(rendered, /&lt;新昵称&gt;<\/strong><span class="fan-favorite-star"[^>]*aria-label="特别关注"[^>]*>★/);
+  assert.match(rendered, /常用称呼：小海/);
+  assert.doesNotMatch(view.renderPeople([{ ...profile, favorite: false }], p.id, false), /fan-favorite-star/);
+  const detail = view.renderDetail(profile);
+  assert.match(detail, /&lt;新昵称&gt;<\/h3>/);
+  assert.match(detail, /<dt>曾用名<\/dt><dd>&lt;旧昵称&gt;、较早昵称<\/dd>/);
+  assert.doesNotMatch(detail, /<旧昵称>|<新昵称>/);
+  const forms = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/forms.js'), {
+    FormData: class { constructor(form) { return Object.entries(form); } },
+  });
+  const description = forms.profileForm(profile);
+  assert.match(description.fields, /name="formerNames"[^>]*>&lt;旧昵称&gt;\n较早昵称/);
+  assert.doesNotMatch(description.fields, /name="alias"[^>]*required/);
+  const payload = description.read({ alias: '', tags: '', formerNames: ' 修订名字\n较早昵称\n' });
+  assert.deepEqual(Array.from(payload.formerNames), ['修订名字', '较早昵称']);
+  const saved = f.run('save', payload);
+  assert.deepEqual(saved.formerNames, ['修订名字', '较早昵称']);
+  assert.equal(saved.platformName, '<新昵称>');
+});
+
 test('daily update settings default off and return the selected value with the timing explanation', async () => {
   const forms = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/forms.js'));
   const description = forms.settingsForm({});

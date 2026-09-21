@@ -31,7 +31,7 @@ function buildSearchIndex(panel) {
   );
 }
 
-function appendHighlightedText(element, text, terms) {
+function appendHighlightedText(element, text, terms, markClass = '') {
   const lowerText = text.toLowerCase();
   let cursor = 0;
   while (cursor < text.length) {
@@ -44,6 +44,7 @@ function appendHighlightedText(element, text, terms) {
     }
     element.append(text.slice(cursor, next.index));
     const mark = document.createElement('mark');
+    if (markClass) mark.className = markClass;
     mark.textContent = text.slice(next.index, next.index + next.term.length);
     element.append(mark);
     cursor = next.index + next.term.length;
@@ -58,8 +59,34 @@ export function initUsageGuideSearch(panel, navigateToTarget) {
   const list = panel.querySelector('.usage-guide-search-list');
   const clearButton = panel.querySelector('.usage-guide-search-clear');
   let entries;
+  let highlightedTarget;
+
+  function clearTargetHighlight() {
+    if (!highlightedTarget) return;
+    highlightedTarget.querySelectorAll('.usage-guide-search-match').forEach((mark) => {
+      mark.replaceWith(...mark.childNodes);
+    });
+    highlightedTarget.normalize();
+    highlightedTarget = null;
+  }
+
+  function highlightTarget(target, terms) {
+    clearTargetHighlight();
+    const walker = document.createTreeWalker(target, window.NodeFilter.SHOW_TEXT);
+    const textNodes = [];
+    while (walker.nextNode()) textNodes.push(walker.currentNode);
+    for (const node of textNodes) {
+      if (!terms.some((term) => node.textContent.toLowerCase().includes(term))) continue;
+      const fragment = document.createDocumentFragment();
+      appendHighlightedText(fragment, node.textContent, terms, 'usage-guide-search-match');
+      node.replaceWith(fragment);
+    }
+    highlightedTarget = target;
+    return target.querySelectorAll('.usage-guide-search-match');
+  }
 
   function updateResults() {
+    clearTargetHighlight();
     const query = normalizeText(input.value).toLowerCase();
     clearButton.hidden = !input.value;
     results.hidden = !query;
@@ -112,7 +139,10 @@ export function initUsageGuideSearch(panel, navigateToTarget) {
       }
       button.addEventListener('click', () => {
         if (entry.target.matches('details')) entry.target.open = true;
-        navigateToTarget(entry.target, entry.sectionId, true);
+        const highlights = highlightTarget(entry.target, terms);
+        navigateToTarget(entry.target, entry.sectionId, true, () => {
+          highlights.forEach((mark) => mark.classList.add('is-locating'));
+        });
       });
       item.append(button);
       list.append(item);

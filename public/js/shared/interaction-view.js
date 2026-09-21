@@ -13,10 +13,15 @@ export function renderPollRows(container, session) {
       track.className = 'interaction-track';
       const bar = document.createElement('span');
       bar.className = 'interaction-fill';
-      const value = document.createElement('span');
+      const value = document.createElement('div');
       value.className = 'interaction-value';
-      track.append(bar, value);
-      row.append(label, track);
+      const votes = document.createElement('span');
+      votes.className = 'interaction-votes';
+      const percentage = document.createElement('strong');
+      percentage.className = 'interaction-percentage';
+      value.append(votes, percentage);
+      track.append(bar, label, value);
+      row.append(track);
       container.append(row);
     }
     container.scrollTop = 0;
@@ -26,9 +31,11 @@ export function renderPollRows(container, session) {
   session.options.forEach((option, index) => {
     const row = container.children[index];
     const winner = session.phase === 'finished' && maximum > 0 && option.votes === maximum;
-    row.children[0].textContent = option.text + (winner ? tied ? ' · 并列最高' : ' · 最高票' : '');
-    row.children[1].children[0].style.width = `${option.percentage}%`;
-    row.children[1].children[1].textContent = `${option.votes} 票 · ${option.percentage.toFixed(1)}%`;
+    const [bar, label, value] = row.children[0].children;
+    label.textContent = option.text + (winner ? tied ? ' · 并列最高' : ' · 最高票' : '');
+    bar.style.width = `${option.percentage}%`;
+    value.children[0].textContent = `${option.votes} 票`;
+    value.children[1].textContent = `${option.percentage.toFixed(1)}%`;
   });
   return changed;
 }

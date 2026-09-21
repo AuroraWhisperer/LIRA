@@ -12,6 +12,19 @@ const DEFAULT_WESING_CACHE_PATH =
     : '';
 
 const DEFAULT_SETTINGS = {
+  interactionOverlayTitle: '',
+  interactionOverlayHint: '',
+  interactionRatingRules: '发弹幕评分：1–10 分\n只发整数，不带其他内容\n多次评分，以最后一次为准',
+  interactionTextColor: '#172b3a',
+  interactionBackgroundColor: '#ffffff',
+  interactionBackgroundOpacity: '100',
+  interactionOverallOpacity: '100',
+  interactionBarColor: '#bee9e2',
+  interactionTrackColor: '#f0f3f6',
+  interactionFontSize: '20',
+  interactionCornerRadius: '20',
+  interactionShowStatus: 'true',
+  interactionShowParticipants: 'true',
   roomId: '',
   onboardingVersion: '',
   onboardingCompletedAt: '',

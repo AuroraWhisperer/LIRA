@@ -55,41 +55,33 @@
   <form id="xiaomiAiForm" class="xiaomi-ai-form">
     <fieldset class="xiaomi-ai-primary-config">
       <legend>模型服务</legend>
-      <div class="xiaomi-ai-provider-note">
-        <span class="xiaomi-ai-provider-label"
-          ><span id="xiaomiAiProviderBadge">自动识别</span
-          ><lira-help
-            ><span id="xiaomiAiProviderNote"
-              >选择你使用的 AI 平台，也可以填写第三方平台地址。</span
-            ></lira-help
-          ></span
-        >
-      </div>
       <div class="xiaomi-ai-field-grid">
-        <label
-          ><span
-            >AI 平台
-            <lira-help>选择官方平台后，地址会自动填好。</lira-help></span
-          >
-          <select id="xiaomiAiModelProvider" data-dropdown-variant="toolbox">
-            <option value="auto">自动识别（兼容旧设置）</option>
-            <option value="deepseek">DeepSeek 官方</option>
-            <option value="openai">OpenAI 官方</option>
-            <option value="anthropic">Claude 官方兼容</option>
-            <option value="gemini">Gemini 官方兼容</option>
-            <option value="custom">自定义 / 第三方兼容</option>
-          </select>
-        </label>
-        <label
-          >密钥（API Key）<input
-            id="xiaomiAiDeepSeekKey"
-            type="password"
-            autocomplete="off"
-            spellcheck="false"
-            data-ai-secret
-            placeholder="粘贴 AI 平台提供的密钥"
-          /><small id="xiaomiAiDeepSeekKeyHint">尚未保存</small></label
-        >
+        <div class="xiaomi-ai-provider-row">
+          <label
+            ><span
+              >AI 平台
+              <lira-help>选择官方平台后，地址会自动填好。</lira-help></span
+            >
+            <select id="xiaomiAiModelProvider" data-dropdown-variant="toolbox">
+              <option value="auto">自动识别（兼容旧设置）</option>
+              <option value="deepseek">DeepSeek 官方</option>
+              <option value="openai">OpenAI 官方</option>
+              <option value="anthropic">Claude 官方兼容</option>
+              <option value="gemini">Gemini 官方兼容</option>
+              <option value="custom">自定义 / 第三方兼容</option>
+            </select>
+          </label>
+          <div class="xiaomi-ai-provider-note">
+            <span class="xiaomi-ai-provider-label"
+              ><span id="xiaomiAiProviderBadge">自动识别</span
+              ><lira-help
+                ><span id="xiaomiAiProviderNote"
+                  >选择你使用的 AI 平台，也可以填写第三方平台地址。</span
+                ></lira-help
+              ></span
+            >
+          </div>
+        </div>
         <label id="xiaomiAiEndpointControl" class="wide"
           ><span
             >API 请求地址
@@ -104,6 +96,16 @@
             autocomplete="off"
             placeholder="例如：https://gcli.ggchan.dev/ 或 https://api.openai.com/v1"
         /></label>
+        <label class="wide"
+          >密钥（API Key）<input
+            id="xiaomiAiDeepSeekKey"
+            type="password"
+            autocomplete="off"
+            spellcheck="false"
+            data-ai-secret
+            placeholder="粘贴 AI 平台提供的密钥"
+          /><small id="xiaomiAiDeepSeekKeyHint">尚未保存</small></label
+        >
         <label id="xiaomiAiProtocolControl"
           ><span
             >接口协议
@@ -117,7 +119,7 @@
             <option value="chat_completions">Chat Completions</option>
           </select>
         </label>
-        <label class="wide"
+        <label class="xiaomi-ai-model-control"
           >模型
           <span class="xiaomi-ai-model-picker">
             <span class="xiaomi-ai-model-input-wrap">

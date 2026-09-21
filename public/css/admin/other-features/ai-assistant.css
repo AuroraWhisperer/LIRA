@@ -110,6 +110,22 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--spacing-md);
 }
+.xiaomi-ai-primary-config > .xiaomi-ai-field-grid {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 3fr);
+}
+.xiaomi-ai-provider-row {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+}
+.xiaomi-ai-provider-row > label {
+  flex: 1 1 240px;
+}
+#xiaomiAiProtocolControl[hidden] + .xiaomi-ai-model-control {
+  grid-column: 1 / -1;
+}
 .xiaomi-ai-field-grid label {
   min-width: 0;
   color: var(--muted);
@@ -413,7 +429,8 @@
   .xiaomi-ai-test-actions {
     justify-content: flex-start;
   }
-  .xiaomi-ai-field-grid {
+  .xiaomi-ai-field-grid,
+  .xiaomi-ai-primary-config > .xiaomi-ai-field-grid {
     grid-template-columns: 1fr;
   }
   .xiaomi-ai-field-grid label.wide {

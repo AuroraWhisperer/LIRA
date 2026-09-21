@@ -1,6 +1,6 @@
 'use strict';
 
-const { profilePatch, identityKey } = require('./validation');
+const { profilePatch, identityKey, recentNameHistory } = require('./validation');
 
 function createFanMergeService({ store, now, detail, requireProfile }) {
   function preview(scope, input) {
@@ -48,6 +48,10 @@ function createFanMergeService({ store, now, detail, requireProfile }) {
       at,
     );
     const patch = profilePatch(plan.source);
+    patch.nameHistory = recentNameHistory(
+      plan.source.nameHistory,
+      plan.target.platformName,
+    );
     delete patch.identity;
     const value = { ...plan.target };
     for (const [key, incoming] of Object.entries(patch)) {

@@ -7,6 +7,7 @@ const {
   timestamp,
   text,
   recordData,
+  recentNameHistory,
 } = require('./validation');
 const { membershipConflicts, cycleForNewRecord } = require('./membership');
 
@@ -51,7 +52,7 @@ function createFanFactConsumer({ store, now, create }) {
         avatar,
         firstObservedAt: profile.firstObservedAt || at,
         lastObservedAt: at,
-        nameHistory: history,
+        nameHistory: recentNameHistory(history, name),
       },
       identityKey(person),
       now(),

@@ -63,6 +63,39 @@ test('invalid setting batches do not commit earlier valid fields', async (t) => 
   assert.deepEqual(f.dirtyScopes, []);
 });
 
+test('interaction appearance persists, preserves saved values on reinitialization and rejects invalid batches atomically', async (t) => {
+  const f = fixture(t);
+  assert.equal(f.store.getSettings().interactionBackgroundOpacity, '100');
+  const result = await f.post({
+    interactionOverlayTitle: '  今晚唱什么  ', interactionBarColor: '#CDEFEA', interactionBackgroundOpacity: 0,
+    interactionRatingRules: '弹幕评分\r\n仅发整数\n\n取最后一次', interactionOverallOpacity: 65,
+    interactionFontSize: 24, interactionCornerRadius: 0, interactionShowStatus: false, interactionShowParticipants: 'false',
+  });
+  assert.equal(result.status, 200);
+  const reloaded = createSettingsStore(f.db).getSettings();
+  assert.equal(reloaded.interactionOverlayTitle, '今晚唱什么');
+  assert.equal(reloaded.interactionBarColor, '#cdefea');
+  assert.equal(reloaded.interactionBackgroundOpacity, '0');
+  assert.equal(reloaded.interactionRatingRules, '弹幕评分\n仅发整数\n\n取最后一次');
+  assert.equal(reloaded.interactionOverallOpacity, '65');
+  assert.equal(reloaded.interactionFontSize, '24');
+  assert.equal(reloaded.interactionCornerRadius, '0');
+  assert.equal(reloaded.interactionShowStatus, 'false');
+  assert.equal(reloaded.interactionShowParticipants, 'false');
+  for (const invalid of [
+    { interactionBarColor: 'red' }, { interactionBackgroundOpacity: 101 }, { interactionOverlayHint: '长'.repeat(81) },
+    { interactionRatingRules: ['非法类型'] }, { interactionOverallOpacity: -1 }, { interactionFontSize: 25 },
+    { interactionCornerRadius: 33 }, { interactionShowStatus: 'yes' }, { interactionShowParticipants: 1 },
+  ]) {
+    assert.equal((await f.post({ interactionOverlayTitle: '不得保存', ...invalid })).status, 400);
+    assert.equal(f.store.getSettings().interactionOverlayTitle, '今晚唱什么');
+  }
+  assert.deepEqual(f.dirtyScopes, []);
+  assert.equal((await f.post({ interactionOverlayTitle: '', interactionRatingRules: '' })).status, 200);
+  assert.equal(createSettingsStore(f.db).getSettings().interactionOverlayTitle, '');
+  assert.equal(createSettingsStore(f.db).getSettings().interactionRatingRules, '');
+});
+
 test('only changed synchronized settings request a cloud upload', async (t) => {
   const f = fixture(t);
   assert.equal((await f.post({ themeOpacity: '0.8' })).status, 200);

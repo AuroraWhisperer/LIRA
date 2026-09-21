@@ -193,6 +193,7 @@
 }
 .fan-people {
   min-height: 0;
+  padding: 6px;
   overflow: auto;
 }
 .fan-profiles :is(.fan-people, .fan-detail) {
@@ -202,23 +203,55 @@
   display: none;
 }
 .fan-person {
+  position: relative;
   display: flex;
   flex-direction: column;
   text-align: left;
   gap: 6px;
   width: 100%;
-  padding: 18px 16px;
+  margin: 2px 0;
+  padding: 16px;
   border: 0;
-  border-bottom: 1px solid var(--color-border-light);
-  border-radius: 0;
+  border-radius: var(--radius-md);
   background: transparent;
   min-width: 0;
+  font-weight: var(--type-weight-regular);
+  transition: background-color 140ms ease-out;
 }
 .fan-person:hover {
-  background: var(--color-bg-tertiary);
+  background: color-mix(in srgb, var(--surface-2) 65%, var(--surface));
+}
+.fan-person:active {
+  background: var(--surface-2);
 }
 .fan-person.is-selected {
-  background: var(--color-control-accent-light);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+}
+.fan-person.is-selected:hover {
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface));
+}
+.fan-person.is-selected:active {
+  background: color-mix(in srgb, var(--accent) 24%, var(--surface));
+}
+.fan-person.is-selected::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 3px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--accent) 70%, var(--text));
+  transform: translateY(-50%);
+}
+.fan-person:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 70%, var(--text));
+  outline-offset: -2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fan-person {
+    transition: none;
+  }
 }
 .fan-person-line {
   display: flex;
@@ -233,6 +266,17 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 15px;
+  font-weight: var(--type-weight-semibold);
+}
+.fan-person-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.fan-favorite-star {
+  flex-shrink: 0;
+  color: var(--color-warning-medium);
 }
 .fan-status {
   flex-shrink: 0;
@@ -368,6 +412,9 @@
 }
 .fan-basic-facts > div {
   display: block;
+}
+.fan-basic-facts > .fan-former-names {
+  grid-column: 1 / -1;
 }
 .fan-basic-facts dt {
   font-size: var(--type-size-caption);

@@ -45,7 +45,10 @@ const SETTING_KEYS = {
     desktopLyricTranslateY desktopLyricTranslationOpacity desktopLyricTranslationScale desktopLyricVisibleLines`,
   danmaku: 'danmakuOverlayStyle danmakuFullscreenDurationSeconds',
   'gift-effects': 'giftEffectDanmakuEnabled giftFrameMotionMode',
-  overtime: '', interactions: '', games: '', wheel: '', 'gift-feed': '', 'gift-wishes': '', 'gift-export': '', opening: '', clock: '',
+  interactions: `interactionOverlayTitle interactionOverlayHint interactionRatingRules interactionTextColor
+    interactionBackgroundColor interactionBackgroundOpacity interactionOverallOpacity interactionBarColor interactionTrackColor
+    interactionFontSize interactionCornerRadius interactionShowStatus interactionShowParticipants`,
+  overtime: '', games: '', wheel: '', 'gift-feed': '', 'gift-wishes': '', 'gift-export': '', opening: '', clock: '',
 };
 
 function fields(names) {

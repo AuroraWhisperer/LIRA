@@ -3,6 +3,7 @@ import { eventBus } from '../shared/event-bus.js';
 import { inspectInteractionText, validateInteractionConfig, pollPageDuration, POLL_RULE, RATING_RULE } from '../shared/interaction-rules.js';
 import { createInteractionClient } from '../shared/interaction-client.js';
 import { renderPollRows, interactionStatus } from '../shared/interaction-view.js';
+import { initInteractionAppearance } from './interaction-appearance.js';
 
 export function initInteractions({ onCollecting = () => {} } = {}) {
   const root = document.getElementById('interactionsAdmin');
@@ -31,6 +32,7 @@ export function initInteractions({ onCollecting = () => {} } = {}) {
   get('ratingRule').textContent = RATING_RULE;
 
   function inputs() { return [...get('pollOptions').querySelectorAll('input')]; }
+  function durationSeconds() { return get('pollDurationMinutes').valueAsNumber * 60 + get('pollDurationSeconds').valueAsNumber; }
   function validateOptions() {
     const seen = new Set();
     for (const [index, input] of inputs().entries()) {
@@ -44,7 +46,7 @@ export function initInteractions({ onCollecting = () => {} } = {}) {
     }
     const { pages, seconds } = pollPageDuration(inputs().length);
     get('pollPageHint').textContent = pages > 1
-      ? `推荐尺寸下约 ${pages} 屏，每 8 秒翻页，一轮至少 ${seconds} 秒。${Number(get('pollDuration').value) < seconds ? '当前时长较短，后面的选项可能来不及完整展示。' : ''}`
+      ? `推荐尺寸下约 ${pages} 屏，每 8 秒翻页，一轮至少 ${seconds} 秒。${durationSeconds() < seconds ? '当前时长较短，后面的选项可能来不及完整展示。' : ''}`
       : '推荐尺寸下单屏展示。';
     for (const button of get('pollOptions').querySelectorAll('button')) button.disabled = Boolean(session) || busy || inputs().length <= 2;
   }
@@ -68,10 +70,14 @@ export function initInteractions({ onCollecting = () => {} } = {}) {
   }
   addOption('1');
   addOption('2');
+  initInteractionAppearance();
   get('pollAddOption').addEventListener('click', () => addOption());
-  get('pollDuration').addEventListener('input', validateOptions);
+  get('pollDurationMinutes').addEventListener('input', validateOptions);
+  get('pollDurationSeconds').addEventListener('input', validateOptions);
   root.querySelectorAll('[data-poll-seconds]').forEach((button) => button.addEventListener('click', () => {
-    get('pollDuration').value = button.dataset.pollSeconds;
+    const seconds = Number(button.dataset.pollSeconds);
+    get('pollDurationMinutes').value = Math.floor(seconds / 60);
+    get('pollDurationSeconds').value = seconds % 60;
     validateOptions();
   }));
   async function mutate(path, input) {
@@ -91,7 +97,7 @@ export function initInteractions({ onCollecting = () => {} } = {}) {
     get(`${kind}Form`).addEventListener('submit', (event) => {
       event.preventDefault();
       const input = { kind, title: get(`${kind}Title`).value };
-      if (kind === 'poll') Object.assign(input, { options: inputs().map((item) => item.value), durationSeconds: Number(get('pollDuration').value) });
+      if (kind === 'poll') Object.assign(input, { options: inputs().map((item) => item.value), durationSeconds: durationSeconds() });
       try { validateInteractionConfig(input); } catch (error) { showError(error); return; }
       mutate('/api/interactions/session', input).catch(showError);
     });

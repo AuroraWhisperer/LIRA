@@ -237,7 +237,16 @@ test('profiles sort by guard rank, then fan medal level and recency, and retain 
   const expected = ['900000004', IDENTITY.value, '900000003', '900000002'];
   assert.deepEqual(ordered(), expected);
   assert.equal(f.run('list', { query: '低灯牌' }).profiles[0].id, low.id);
+  const captain = f.run('find', { identity: { ...IDENTITY, value: '900000002' } });
+  let starred = f.run('save', { id: captain.id, revision: captain.revision, favorite: true });
+  assert.deepEqual(ordered(), ['900000002', ...expected.slice(0, 3)]);
+  const other = f.run('save', { id: low.id, revision: f.detail(low.id).revision, favorite: true });
+  assert.deepEqual(ordered(), [IDENTITY.value, '900000002', '900000004', '900000003']);
+  f.run('save', { id: other.id, revision: other.revision, favorite: false });
   f.restart();
+  assert.deepEqual(ordered(), ['900000002', ...expected.slice(0, 3)]);
+  starred = f.detail(starred.id);
+  f.run('save', { id: starred.id, revision: starred.revision, favorite: false });
   assert.deepEqual(ordered(), expected);
   const backup = f.run('backup');
   const preview = f.run('preview-restore', { backup });

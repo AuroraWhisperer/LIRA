@@ -8,6 +8,7 @@ const {
   identityKey,
   profilePatch,
   recordData,
+  recentNameHistory,
 } = require('./validation');
 const { dayOf, zodiacFor } = require('./dates');
 const {
@@ -88,6 +89,9 @@ function createFanProfileService({
     }
     return {
       ...profile,
+      formerNames: recentNameHistory(profile.nameHistory, profile.platformName)
+        .reverse()
+        .map((item) => item.name),
       zodiacHint: profile.zodiac || zodiacFor(profile.birthday),
       records,
       songs,
@@ -297,6 +301,8 @@ function createFanProfileService({
           profile.platformName,
           profile.identity?.value,
           profile.summary,
+          ...recentNameHistory(profile.nameHistory, profile.platformName)
+            .map((item) => item.name),
           ...(profile.tags || []),
         ]
           .join(' ')
@@ -328,6 +334,9 @@ function createFanProfileService({
         );
         return {
           ...profile,
+          formerNames: recentNameHistory(profile.nameHistory, profile.platformName)
+            .reverse()
+            .map((item) => item.name),
           membership,
           guardRoster,
           currentGuardLevel: guardRoster ? guardRoster.level : membership.level,
@@ -369,6 +378,7 @@ function createFanProfileService({
       })
       .sort(
         (a, b) =>
+          Number(Boolean(b.favorite)) - Number(Boolean(a.favorite)) ||
           (a.currentGuardLevel ?? 4) - (b.currentGuardLevel ?? 4) ||
           (b.medalLevel ?? -1) - (a.medalLevel ?? -1) ||
           (b.lastInteraction || b.updatedAt).localeCompare(
@@ -437,6 +447,14 @@ function createFanProfileService({
           if (!patch.alias && !previous.alias && !previous.platformName)
             throw new Error('请填写常用称呼。');
           const profile = { ...previous, ...patch };
+          if (patch.nameHistory) {
+            profile.nameHistory = recentNameHistory(
+              patch.nameHistory,
+              profile.platformName,
+            ).map((item) =>
+              previous.nameHistory?.findLast((old) => old.name === item.name) || item,
+            );
+          }
           const saved = store.save(
             scope,
             profile,

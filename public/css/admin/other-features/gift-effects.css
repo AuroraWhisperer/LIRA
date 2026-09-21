@@ -10,6 +10,57 @@
   white-space: nowrap;
 }
 
+.gift-effect-find-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 16px;
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface-2);
+}
+
+.gift-effect-find-card h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--type-size-section-title);
+}
+
+.gift-effect-find-card p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+  line-height: 1.7;
+}
+
+.gift-effect-find-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 8px 14px;
+  border-radius: 7px;
+  background: var(--primary);
+  color: var(--color-text-white);
+  font-size: var(--type-size-control);
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.gift-effect-find-link:hover {
+  background: var(--primary-strong);
+}
+
+.gift-effect-find-link:focus-visible {
+  outline: 2px solid var(--primary-strong);
+  outline-offset: 4px;
+}
+
 .gift-effect-tool-grid {
   display: grid;
   grid-template-columns: minmax(280px, 0.85fr) minmax(360px, 1.15fr);
@@ -99,35 +150,6 @@
   color: var(--muted);
   font-size: var(--type-size-control);
   font-weight: 500;
-}
-
-.gift-effect-field-heading {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.gift-effect-field-heading a {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  color: var(--primary-strong);
-  font-size: var(--type-size-caption);
-  font-weight: 500;
-  text-underline-offset: 3px;
-  text-decoration: none;
-}
-
-.gift-effect-field-heading a:hover {
-  text-decoration: underline;
-}
-
-.gift-effect-field-heading a:focus-visible {
-  outline: 2px solid var(--primary-strong);
-  outline-offset: 4px;
-  border-radius: 2px;
 }
 
 .gift-effect-input-row {
@@ -359,6 +381,7 @@
     padding: 16px;
   }
 
+  .gift-effect-find-card,
   .gift-effect-control-card,
   .gift-effect-address-card,
   .gift-effect-command-card {

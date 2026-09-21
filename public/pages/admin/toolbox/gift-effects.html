@@ -7,6 +7,30 @@
   hidden
 >
   <div class="other-feature-panel-body gift-effect-tool-panel">
+    <section class="gift-effect-find-card" aria-labelledby="giftEffectFindTitle">
+      <div>
+        <h3 id="giftEffectFindTitle" class="ui-section-title">查找礼物 ID</h3>
+        <p>前往礼物特效档案查找礼物 ID，用于测试播放或弹幕触发。</p>
+      </div>
+      <a
+        class="gift-effect-find-link"
+        href="https://gifts.lirahub.cn/"
+        target="_blank"
+        rel="noopener noreferrer"
+      >查找礼物 ID
+        <svg
+          aria-hidden="true"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        ><path d="M7 17 17 7M7 7h10v10" /></svg>
+      </a>
+    </section>
     <div class="gift-effect-tool-grid">
       <section
         class="gift-effect-control-card"
@@ -19,23 +43,6 @@
         <form id="giftEffectLookupForm" class="gift-effect-lookup-form">
           <div class="gift-effect-field-heading">
             <label for="giftEffectGiftId">礼物 ID</label>
-            <a
-              href="https://gifts.lirahub.cn/"
-              target="_blank"
-              rel="noopener noreferrer"
-            >查找礼物 ID
-              <svg
-                aria-hidden="true"
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.8"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              ><path d="M7 17 17 7M7 7h10v10" /></svg>
-            </a>
           </div>
           <div class="gift-effect-input-row">
             <input
@@ -98,9 +105,10 @@
           </label>
         </div>
         <div id="giftEffectCommandHelp" class="gift-effect-command-help">
-          <p>开启后，观众发送以下任一弹幕即可播放。</p>
+          <p>开启后，观众发送以下任一弹幕即可播放，礼物 ID 前有无空格均可。</p>
           <div class="gift-effect-command-examples">
-            <code>礼物特效 32132</code><span>或</span><code>🎁 32132</code>
+            <code>礼物特效 32132</code><code>礼物特效32132</code>
+            <code>🎁 32132</code><code>🎁32132</code>
           </div>
           <p>将 32132 替换为礼物 ID，特效按顺序播放。</p>
         </div>

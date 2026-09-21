@@ -422,11 +422,17 @@
         <form id="pollForm" class="interaction-config">
           <h3>弹幕投票</h3><p id="pollRule"></p>
           <fieldset id="pollFields">
-            <label>投票主题（选填，最多 60 字符）<input id="pollTitle" type="text" placeholder="今晚先做什么？" /></label>
+            <label>投票主题（选填，最多 60 字符）<input id="pollTitle" type="text" placeholder="输入投票主题" /></label>
             <div id="pollOptions" aria-label="投票选项"></div>
             <button id="pollAddOption" type="button" class="secondary">添加选项</button>
-            <label>投票时间（秒）<input id="pollDuration" type="number" min="1" max="3600" step="1" value="60" required /></label>
-            <div class="interaction-presets"><button type="button" class="secondary" data-poll-seconds="30">30 秒</button><button type="button" class="secondary" data-poll-seconds="60">1 分钟</button><button type="button" class="secondary" data-poll-seconds="120">2 分钟</button></div>
+            <div role="group" aria-labelledby="pollDurationLabel">
+              <div id="pollDurationLabel">投票时间</div>
+              <div class="interaction-duration">
+                <label><input id="pollDurationMinutes" type="number" min="0" max="60" step="1" value="1" required />分钟</label>
+                <label><input id="pollDurationSeconds" type="number" min="0" max="59" step="1" value="0" required />秒</label>
+              </div>
+            </div>
+            <div class="interaction-presets"><button type="button" class="secondary" data-poll-seconds="60">1 分钟</button><button type="button" class="secondary" data-poll-seconds="120">2 分钟</button><button type="button" class="secondary" data-poll-seconds="300">5 分钟</button></div>
             <p id="pollPageHint"></p><button id="pollStart" type="submit" class="primary" disabled>开始投票</button>
           </fieldset>
         </form>
@@ -442,6 +448,77 @@
       <section id="interactionResults" hidden aria-label="本场互动结果">
         <div id="interactionHostRows" class="interaction-rows"></div><strong id="interactionHostAverage"></strong>
         <div class="interaction-result-actions"><button id="interactionFinish" class="primary" type="button">结束本场</button><button id="interactionClear" class="secondary" type="button">取消本场</button></div>
+      </section>
+      <section class="interaction-appearance" aria-labelledby="interactionAppearanceTitle">
+        <h3 id="interactionAppearanceTitle" class="ui-section-title">直播画面</h3>
+        <div class="interaction-appearance-layout">
+          <form id="interactionAppearanceForm" class="interaction-config interaction-appearance-form">
+            <fieldset id="interactionAppearanceFields" disabled>
+              <section class="interaction-setting-group" aria-labelledby="interactionContentHeading">
+                <h4 id="interactionContentHeading">内容</h4>
+                <label>标题<input id="interactionOverlayTitle" type="text" placeholder="留空不显示标题" /></label>
+                <label>提示<input id="interactionOverlayHint" type="text" placeholder="留空不显示" /></label>
+                <label>评分规则<textarea id="interactionRatingRules" rows="3" placeholder="支持换行，留空不显示"></textarea></label>
+              </section>
+              <section class="interaction-setting-group" aria-labelledby="interactionColorHeading">
+                <h4 id="interactionColorHeading">颜色</h4>
+                <div class="interaction-color-fields">
+                  <label>文字<input id="interactionTextColor" type="color" value="#172b3a" /></label>
+                  <label>背景<input id="interactionBackgroundColor" type="color" value="#ffffff" /></label>
+                  <label>进度 / 得分<input id="interactionBarColor" type="color" value="#bee9e2" /></label>
+                  <label>轨道底色<input id="interactionTrackColor" type="color" value="#f0f3f6" /></label>
+                </div>
+                <div class="interaction-range-field">
+                  <label for="interactionBackgroundOpacity">背景不透明度<output id="interactionBackgroundOpacityValue" for="interactionBackgroundOpacity">100%</output></label>
+                  <input id="interactionBackgroundOpacity" type="range" min="0" max="100" step="1" value="100" />
+                </div>
+                <div class="interaction-range-field">
+                  <label for="interactionOverallOpacity">整体不透明度<output id="interactionOverallOpacityValue" for="interactionOverallOpacity">100%</output></label>
+                  <input id="interactionOverallOpacity" type="range" min="0" max="100" step="1" value="100" />
+                </div>
+              </section>
+              <section class="interaction-setting-group" aria-labelledby="interactionLayoutHeading">
+                <h4 id="interactionLayoutHeading">布局与显示</h4>
+                <div class="interaction-range-field">
+                  <label for="interactionFontSize">文字大小<output id="interactionFontSizeValue" for="interactionFontSize">20px</output></label>
+                  <input id="interactionFontSize" type="range" min="16" max="24" step="1" value="20" />
+                </div>
+                <div class="interaction-range-field">
+                  <label for="interactionCornerRadius">卡片圆角<output id="interactionCornerRadiusValue" for="interactionCornerRadius">20px</output></label>
+                  <input id="interactionCornerRadius" type="range" min="0" max="32" step="1" value="20" />
+                </div>
+                <div class="interaction-visibility-fields">
+                  <label><input id="interactionShowStatus" type="checkbox" checked />显示状态</label>
+                  <label><input id="interactionShowParticipants" type="checkbox" checked />显示人数</label>
+                </div>
+              </section>
+              <div class="interaction-appearance-actions">
+                <button id="interactionAppearanceApply" class="primary" type="submit" disabled>应用到直播画面</button>
+                <button id="interactionAppearanceReset" class="secondary" type="button">恢复默认</button>
+              </div>
+            </fieldset>
+            <p id="interactionAppearanceStatus" role="status" aria-live="polite"></p>
+            <button id="interactionAppearanceRetry" class="secondary" type="button" hidden>重新读取</button>
+          </form>
+          <div class="interaction-preview-area">
+            <div class="interaction-preview-toolbar">
+              <label for="interactionPreviewKind" class="interaction-preview-label">效果预览 · 示例数据</label>
+              <select id="interactionPreviewKind"><option value="poll">投票</option><option value="rating">评分</option></select>
+            </div>
+            <div class="interaction-preview-canvas">
+              <article id="interactionPreview" class="interaction-stage" aria-label="互动样式预览">
+                <header class="interaction-header"><h4 id="interactionPreviewTitle" class="interaction-heading" hidden></h4><span id="interactionPreviewStatus" class="interaction-status">剩余 00:52</span></header>
+                <p id="interactionPreviewHint" class="interaction-hint"></p>
+                <div id="interactionPreviewRows" class="interaction-rows"></div>
+                <div id="interactionPreviewRatingRules" class="interaction-rating-rules" hidden></div>
+                <section id="interactionPreviewScore" class="interaction-score is-revealed" hidden>
+                  <span>最终均分</span><div class="interaction-score-value"><strong>8.60</strong><span class="interaction-score-scale">/ 10</span></div>
+                </section>
+                <footer class="interaction-footer"><span id="interactionPreviewParticipants">100 人参与</span></footer>
+              </article>
+            </div>
+          </div>
+        </div>
       </section>
     </section>
   </div>

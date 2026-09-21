@@ -93,7 +93,7 @@ export function initUsageGuide() {
     });
   }
 
-  function navigateToTarget(target, sectionId, focusTarget = false) {
+  function navigateToTarget(target, sectionId, focusTarget = false, onArrive) {
     setActiveLink(sectionId);
     panel.classList.add('usage-guide-render-all');
     window.requestAnimationFrame(() => {
@@ -110,6 +110,7 @@ export function initUsageGuide() {
           target.scrollIntoView({ behavior: 'auto', block: 'start' });
           panel.classList.remove('usage-guide-render-all');
           navigationCorrectionTimer = null;
+          onArrive?.();
         },
         behavior === 'smooth' ? 700 : 0,
       );

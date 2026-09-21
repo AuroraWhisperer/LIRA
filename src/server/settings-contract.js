@@ -1,6 +1,7 @@
 'use strict';
 
 const { normalizeRoomInput } = require('../shared/utils');
+const { INTERACTION_APPEARANCE_DEFAULTS, normalizeInteractionAppearanceValue } = require('../../public/js/shared/interaction-appearance.js');
 const { parseCustomReplyRules } = require('../bilibili/custom-reply-service');
 const { normalizeFrameSettingValue } = require('../bilibili/gift/frame-config');
 const {
@@ -57,6 +58,8 @@ const DANMAKU_OVERLAY_STYLES = new Set([
 ]);
 
 function normalizeSettingValue(key, rawValue) {
+  if (Object.hasOwn(INTERACTION_APPEARANCE_DEFAULTS, key))
+    return normalizeInteractionAppearanceValue(key, rawValue);
   if (key === 'weSingCachePath' || key === 'weSingLyricOffsetMs') {
     try {
       return key === 'weSingCachePath'

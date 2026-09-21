@@ -592,4 +592,4 @@ handler 未包 try/catch:抛错走顶层 **500**。
 
 配置 16 KiB、最坏公开快照 64 KiB；主题最多 60 字素。配置错误 400，body 超限沿用 HTTP 解析器错误；未就绪、活动冲突、过期 sessionId 返回 409。配置规范化为 trim+NFC，前后端共享 `public/js/shared/interaction-rules.js`；隐藏字符拒绝，完整 RGI emoji 的 ZWJ/变体选择符保留。类别 1 未结束时不能开始类别 3，类别 3 collecting 时不能开始/重开类别 1；finished/interrupted 不占跨类收集资格，本类结果需先 clear。
 
-`interactions` 凭据只能 GET 本类公开 session（通用 `/api/state` 为空领域投影），不能写入、读 host-state 或其他领域；games 凭据不能读取本类。评分未结束只发 average=null，不发人数/分布/总分，主持人数由 host-state 提供；结束才公开均分与人数。数字炸弹/五子棋结果新增可选 restartBlocked，供旧游戏展示页禁用下一局。
+`interactions` 凭据只能 GET 本类公开 session；通用 `/api/state` 与 WS snapshot 只投影本页外观设置（键与默认值见 [storage.md](storage.md)），不含其他领域。不能写入、读 host-state 或其他领域；games 凭据不能读取本类。外观由管理身份通过 `POST /api/settings` 更新：标题/提示分别最多 60/80 个可见字符，可为空（留空隐藏）；`interactionRatingRules` 接受多行纯文本及空字符串，统一 CRLF/CR 为 LF 并进行 NFC 规范化，保留空行与手动换行，仅修改展示文案；四个颜色仅接受 `#RRGGBB`；背景/整体不透明度为 0–100 整数，文字大小为 16–24 整数，圆角为 0–32 整数；状态/人数显示接受布尔值或字符串 `true`/`false`。数值和布尔设置均保存为字符串；非法值使整批设置返回 400 且不写入。评分未结束只发 average=null，不发人数/分布/总分，主持人数由 host-state 提供；结束才公开均分与人数。数字炸弹/五子棋结果新增可选 restartBlocked，供旧游戏展示页禁用下一局。

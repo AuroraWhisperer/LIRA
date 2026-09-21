@@ -68,6 +68,19 @@ function birthday(value) {
   };
 }
 
+function recentNameHistory(history = [], currentName = '') {
+  const seen = new Set([currentName]);
+  return [...history]
+    .reverse()
+    .filter((item) => {
+      if (!item.name || seen.has(item.name)) return false;
+      seen.add(item.name);
+      return true;
+    })
+    .slice(0, 3)
+    .reverse();
+}
+
 function profilePatch(input) {
   const result = {};
   const fields = {
@@ -112,6 +125,16 @@ function profilePatch(input) {
         input.tags.map((tag) => text(tag, '标签', 50)).filter(Boolean),
       ),
     ];
+  }
+  if (Object.hasOwn(input, 'formerNames')) {
+    if (!Array.isArray(input.formerNames) || input.formerNames.length > 3)
+      throw new Error('最多填写 3 个曾用名。');
+    result.nameHistory = recentNameHistory(
+      input.formerNames.map((name) => ({
+        name: text(name, '曾用名', 200),
+        observedAt: '',
+      })).reverse(),
+    );
   }
   return result;
 }
@@ -234,5 +257,6 @@ module.exports = {
   identityKey,
   birthday,
   profilePatch,
+  recentNameHistory,
   recordData,
 };
