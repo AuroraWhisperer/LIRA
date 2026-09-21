@@ -8,7 +8,10 @@ the named test and test case are the only numeric authority.
 
 - **Current shape:** Legacy browser modules read or write `window.AdminApp`
   across `public/js/`. `public/js/admin/legacy-admin-bridge.js` is the intentional
-  compatibility boundary for new Admin ESM consumers.
+  compatibility boundary for new Admin ESM consumers. Admin feature modules
+  now use explicit imports or injected capabilities; app composition retains
+  bridge access for external desktop/playback lifecycle producers. Legacy
+  publication is confined to the bridge within `public/js/admin/`.
 - **New-code rule:** Do not add a `window.AdminApp` dependency outside the bridge.
   Use named ESM imports and explicit narrow interfaces.
 - **Task-scoped migration:** A touched module may move calls behind the bridge or
@@ -27,14 +30,17 @@ Song service migration is complete: the composition root creates
 than a database. Its old SQL debt budget is removed and a strict no-SQL assertion
 protects the boundary. Gift projection and statistics now receive narrow stores
 from the composition root; SQL and the statistics delivery transaction live in
-`gift-projection-store.js` and `gift-statistics-store.js`. Remaining blind-box
-analysis SQL is still separately tracked debt.
+`gift-projection-store.js` and `gift-statistics-store.js`. Gift queries and
+blind-box analysis now receive `queryStore`; recent clearing receives
+`maintenanceStore`. Structured local/source/unavailable scopes are translated
+to SQL only inside `gift-query-store.js`.
 
 The existing `src/bilibili/gift/index.js` facade adapts database contexts for
-existing constructor callers. This avoids a public facade break while production
-composition explicitly injects stores. Remove the fallback when the remaining
-context-based callers migrate; do not add context/SQLite dependencies to the
-projection or consumer implementations. `test/module-boundaries.test.js`
+existing constructor and exported query callers. This avoids a public facade
+break while production composition explicitly injects stores. Remove the fallback
+when the remaining context-based callers migrate; do not add context/SQLite
+dependencies to projection, consumer, query or analysis implementations.
+`test/module-boundaries.test.js`
 protects those implementations, and gift projection/import tests protect
 transaction, retry and idempotency behavior.
 

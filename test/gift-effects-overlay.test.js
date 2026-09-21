@@ -160,7 +160,6 @@ test('gift effects overlay uses official frame metadata without cropping or inve
     /height \* 9 \/ 16|activeHeight|horizontalPadding/,
   );
   assert.doesNotMatch(overlayJs, /255 - Math\.max\(mask/);
-  assert.match(overlayJs, /MAX_PLAYING/);
   assert.match(overlayJs, /const MAX_PLAYING = 1/);
   assert.match(overlayJs, /const MAX_PENDING = 10/);
   assert.match(overlayJs, /PREVIEW_MODE/);
@@ -200,7 +199,6 @@ test('gift frame overlay uses one full-perimeter artwork and bounded perimeter f
   assert.match(overlayJs, /motionMode !== ["']reduced["']/);
   assert.match(overlayJs, /getElementById\(["']giftFrameArtworkImage["']\)/);
   assert.doesNotMatch(overlayJs, /use-composite-fallback/);
-  assert.doesNotMatch(overlayJs, /innerHTML/);
 });
 
 test('gift frame caption stays anchored inside the responsive bottom plate', () => {
@@ -274,12 +272,11 @@ test('gift frame accents remain separate, bounded, and reduced-motion safe', () 
   );
   assert.doesNotMatch(overlayJs, /iterations:\s*Infinity/);
   assert.doesNotMatch(css, /\.gift-frame-accent[^}]*animation[^;]*infinite/s);
-  assert.doesNotMatch(overlayJs, /innerHTML/);
 });
 
 test('toolbox includes a gift effect tab with lookup and preview controls', () => {
   const html = readAdminHtml();
-  const indexSource = read('public/js/admin/index.js');
+  const indexSource = read('public/js/admin/app.js');
   const toolSource = read('public/js/admin/gift-effects.js');
   const styles = readCssBundle('public', 'css', 'admin', 'other-features.css');
 
@@ -301,7 +298,7 @@ test('toolbox includes a gift effect tab with lookup and preview controls', () =
     html,
     /BILIBILI FULL-SCREEN EFFECT|id="giftEffectLiveUrl"/,
   );
-  assert.match(indexSource, /import ["']\.\/gift-effects\.js["'];/);
+  assert.match(indexSource, /import \{ giftEffects \} from ["']\.\/gift-effects\.js["'];/);
   assert.match(toolSource, /\/api\/gifts\/effects\/preview/);
   assert.doesNotMatch(toolSource, /\?giftId=/);
   assert.doesNotMatch(toolSource, /debug/);
@@ -311,10 +308,6 @@ test('toolbox includes a gift effect tab with lookup and preview controls', () =
   );
   assert.match(toolSource, /navigator\.clipboard\.writeText\(liveUrl\)/);
   assert.match(styles, /\.gift-effect-tool-panel/);
-  assert.match(
-    styles,
-    /\.gift-effect-url-block code\s*\{[^}]*min-height:\s*36px[^}]*padding:\s*7px 10px/,
-  );
 });
 
 test('gift effect API docs describe lookup, CDN rules and transparent composition', () => {

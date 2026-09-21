@@ -12,214 +12,79 @@ const {
 
 describe('external-url-policy', () => {
   describe('isAllowedExternal', () => {
-    it('allows https:// URLs', () => {
-      assert.strictEqual(isAllowedExternal('https://example.com'), true);
-      assert.strictEqual(
-        isAllowedExternal('https://github.com/user/repo'),
-        true,
-      );
-      assert.strictEqual(
-        isAllowedExternal('https://sub.domain.example.com/path?query=1'),
-        true,
-      );
-    });
+    const cases = [
+      ['https://example.com', true],
+      ['https://github.com/user/repo', true],
+      ['https://sub.domain.example.com/path?query=1', true],
+      ['http://example.com', false],
+      ['file:///C:/Windows/System32/calc.exe', false],
+      ['file:///etc/passwd', false],
+      ['javascript:alert(1)', false],
+      ['data:text/html,<script>alert(1)</script>', false],
+      ['ms-settings:network-proxy', false],
+      ['customapp://open', false],
+      ['spotify:track:123', false],
+      ['not a url', false],
+      ['', false],
+      ['://invalid', false],
+    ];
 
-    it('rejects http:// URLs', () => {
-      assert.strictEqual(isAllowedExternal('http://example.com'), false);
-    });
-
-    it('rejects file:// URLs', () => {
-      assert.strictEqual(
-        isAllowedExternal('file:///C:/Windows/System32/calc.exe'),
-        false,
-      );
-      assert.strictEqual(isAllowedExternal('file:///etc/passwd'), false);
-    });
-
-    it('rejects javascript: URLs', () => {
-      assert.strictEqual(isAllowedExternal('javascript:alert(1)'), false);
-    });
-
-    it('rejects data: URLs', () => {
-      assert.strictEqual(
-        isAllowedExternal('data:text/html,<script>alert(1)</script>'),
-        false,
-      );
-    });
-
-    it('rejects ms-settings: URLs', () => {
-      assert.strictEqual(isAllowedExternal('ms-settings:network-proxy'), false);
-    });
-
-    it('rejects custom protocol URLs', () => {
-      assert.strictEqual(isAllowedExternal('customapp://open'), false);
-      assert.strictEqual(isAllowedExternal('spotify:track:123'), false);
-    });
-
-    it('rejects invalid URLs', () => {
-      assert.strictEqual(isAllowedExternal('not a url'), false);
-      assert.strictEqual(isAllowedExternal(''), false);
-      assert.strictEqual(isAllowedExternal('://invalid'), false);
-    });
+    for (const [url, expected] of cases) {
+      it(`${expected ? 'allows' : 'rejects'} ${url || '(empty URL)'}`, () => {
+        assert.strictEqual(isAllowedExternal(url), expected);
+      });
+    }
   });
-
   describe('isAllowedLoginNavigation', () => {
     const testDomains = ['example.com', 'login.example.com', 'bilibili.com'];
+    const cases = [
+      ['https://example.com', true],
+      ['https://example.com/login', true],
+      ['https://bilibili.com', true],
+      ['https://api.example.com', true],
+      ['https://www.example.com', true],
+      ['https://passport.bilibili.com', true],
+      ['http://example.com', false],
+      ['http://bilibili.com', false],
+      ['https://evil.com', false],
+      ['https://notexample.com', false],
+      ['https://fakeexample.com', false],
+      ['https://example.com.evil.com', false],
+      ['file:///example.com/path', false],
+      ['javascript:alert(1)', false],
+      ['data:text/html,<h1>Test</h1>', false],
+      ['not a url', false],
+      ['', false],
+      ['https://EXAMPLE.COM', true],
+      ['https://Example.Com', true],
+      ['https://API.EXAMPLE.COM', true],
+      ['https://example.com', false, []],
+      ['https://any.com', false, []],
+      ['https://a.b.c.example.com', true],
+      ['https://deep.sub.bilibili.com', true],
+    ];
 
-    it('allows https:// URLs with exact hostname match', () => {
-      assert.strictEqual(
-        isAllowedLoginNavigation('https://example.com', testDomains),
-        true,
-      );
-      assert.strictEqual(
-        isAllowedLoginNavigation('https://example.com/login', testDomains),
-        true,
-      );
-      assert.strictEqual(
-        isAllowedLoginNavigation('https://bilibili.com', testDomains),
-        true,
-      );
-    });
-
-    it('allows https:// URLs with subdomain match', () => {
-      assert.strictEqual(
-        isAllowedLoginNavigation('https://api.example.com', testDomains),
-        true,
-      );
-      assert.strictEqual(
-        isAllowedLoginNavigation('https://www.example.com', testDomains),
-        true,
-      );
-      assert.strictEqual(
-        isAllowedLoginNavigation('https://passport.bilibili.com', testDomains),
-        true,
-      );
-    });
-
-    it('rejects http:// URLs even with allowed domains', () => {
-      assert.strictEqual(
-        isAllowedLoginNavigation('http://example.com', testDomains),
-        false,
-      );
-      assert.strictEqual(
-        isAllowedLoginNavigation('http://bilibili.com', testDomains),
-        false,
-      );
-    });
-
-    it('rejects URLs with disallowed hostnames', () => {
-      assert.strictEqual(
-        isAllowedLoginNavigation('https://evil.com', testDomains),
-        false,
-      );
-      assert.strictEqual(
-        isAllowedLoginNavigation('https://notexample.com', testDomains),
-        false,
-      );
-    });
-
-    it('rejects URLs that only partially match allowed domains', () => {
-      assert.strictEqual(
-        isAllowedLoginNavigation('https://fakeexample.com', testDomains),
-        false,
-      );
-      assert.strictEqual(
-        isAllowedLoginNavigation('https://example.com.evil.com', testDomains),
-        false,
-      );
-    });
-
-    it('rejects file:// URLs even if hostname matches', () => {
-      assert.strictEqual(
-        isAllowedLoginNavigation('file:///example.com/path', testDomains),
-        false,
-      );
-    });
-
-    it('rejects javascript: URLs', () => {
-      assert.strictEqual(
-        isAllowedLoginNavigation('javascript:alert(1)', testDomains),
-        false,
-      );
-    });
-
-    it('rejects data: URLs', () => {
-      assert.strictEqual(
-        isAllowedLoginNavigation('data:text/html,<h1>Test</h1>', testDomains),
-        false,
-      );
-    });
-
-    it('rejects invalid URLs', () => {
-      assert.strictEqual(
-        isAllowedLoginNavigation('not a url', testDomains),
-        false,
-      );
-      assert.strictEqual(isAllowedLoginNavigation('', testDomains), false);
-    });
-
-    it('handles case-insensitive hostname matching', () => {
-      assert.strictEqual(
-        isAllowedLoginNavigation('https://EXAMPLE.COM', testDomains),
-        true,
-      );
-      assert.strictEqual(
-        isAllowedLoginNavigation('https://Example.Com', testDomains),
-        true,
-      );
-      assert.strictEqual(
-        isAllowedLoginNavigation('https://API.EXAMPLE.COM', testDomains),
-        true,
-      );
-    });
-
-    it('handles empty domain list', () => {
-      assert.strictEqual(
-        isAllowedLoginNavigation('https://example.com', []),
-        false,
-      );
-      assert.strictEqual(
-        isAllowedLoginNavigation('https://any.com', []),
-        false,
-      );
-    });
-
-    it('allows nested subdomains', () => {
-      assert.strictEqual(
-        isAllowedLoginNavigation('https://a.b.c.example.com', testDomains),
-        true,
-      );
-      assert.strictEqual(
-        isAllowedLoginNavigation('https://deep.sub.bilibili.com', testDomains),
-        true,
-      );
-    });
+    for (const [url, expected, domains = testDomains] of cases) {
+      it(`${expected ? 'allows' : 'rejects'} ${url || '(empty URL)'}` + (domains.length ? '' : ' with no allowed domains'), () => {
+        assert.strictEqual(isAllowedLoginNavigation(url, domains), expected);
+      });
+    }
   });
-
   describe('isAllowedLocalUrl', () => {
-    it('allows local HTTP overlay URLs', () => {
-      assert.strictEqual(isAllowedLocalUrl('http://127.0.0.1/overtime'), true);
-      assert.strictEqual(
-        isAllowedLocalUrl('http://127.0.0.1:4312/overtime?quality=low'),
-        true,
-      );
-    });
+    const cases = [
+      ['http://127.0.0.1/overtime', true],
+      ['http://127.0.0.1:4312/overtime?quality=low', true],
+      ['http://localhost/overtime', false],
+      ['http://127.0.0.2/overtime', false],
+      ['http://127.0.0.1.evil.example/overtime', false],
+      ['http://user:pass@127.0.0.1/overtime', false],
+      ['https://127.0.0.1/overtime', false],
+    ];
 
-    it('rejects non-loopback or credential-bearing URLs', () => {
-      assert.strictEqual(isAllowedLocalUrl('http://localhost/overtime'), false);
-      assert.strictEqual(isAllowedLocalUrl('http://127.0.0.2/overtime'), false);
-      assert.strictEqual(
-        isAllowedLocalUrl('http://127.0.0.1.evil.example/overtime'),
-        false,
-      );
-      assert.strictEqual(
-        isAllowedLocalUrl('http://user:pass@127.0.0.1/overtime'),
-        false,
-      );
-      assert.strictEqual(
-        isAllowedLocalUrl('https://127.0.0.1/overtime'),
-        false,
-      );
-    });
+    for (const [url, expected] of cases) {
+      it(`${expected ? 'allows' : 'rejects'} ${url || '(empty URL)'}`, () => {
+        assert.strictEqual(isAllowedLocalUrl(url), expected);
+      });
+    }
   });
 });

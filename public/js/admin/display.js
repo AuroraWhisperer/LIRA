@@ -2,24 +2,21 @@
 // 展示板配置
 'use strict';
 
+import { formsService } from './forms.js';
+import { stateService } from './state.js';
+import { theme } from '../shared/theme.js';
+import { value, setValue, localOverlayOrigin, copyText, toast, api, debounce, normalizeRangeValue } from '../shared/utils.js';
+import { renderPresetCards } from './theme-preset-cards.js';
+import { updateBlindboxOverlayUrl } from './settings.js';
+import { publishDisplay } from './legacy-admin-bridge.js';
 import { observeServerOverlayUrl } from './server-overlay-url.js';
 
-(function () {
-  const {
-    value,
-    setValue,
-    localOverlayOrigin,
-    copyText,
-    toast,
-    api,
-    debounce,
-  } = window.AdminApp.utils;
-
+export const display = (() => {
   const {
     songBoardThemePresets,
     songBoardPresetLabels,
     songBoardPresetSwatches,
-  } = window.AdminApp.theme;
+  } = theme;
 
   function initDisplayForm() {
     const displayForm = document.getElementById('displayForm');
@@ -40,8 +37,8 @@ import { observeServerOverlayUrl } from './server-overlay-url.js';
       event.preventDefault();
       await saveDisplay();
       toast('展示板已保存');
-      if (window.AdminApp.state && window.AdminApp.state.reloadState) {
-        await window.AdminApp.state.reloadState();
+      if (stateService && stateService.reloadState) {
+        await stateService.reloadState();
       }
     });
 
@@ -51,7 +48,6 @@ import { observeServerOverlayUrl } from './server-overlay-url.js';
         setValue('scrollSeconds', value('scrollSecondsRange'));
       });
     document.getElementById('scrollSeconds').addEventListener('input', () => {
-      const { normalizeRangeValue } = window.AdminApp.utils;
       setValue(
         'scrollSecondsRange',
         String(
@@ -60,7 +56,7 @@ import { observeServerOverlayUrl } from './server-overlay-url.js';
           ),
         ),
       );
-      window.AdminApp.forms?.refreshParameterRanges?.(
+      formsService?.refreshParameterRanges?.(
         document.getElementById('scrollSecondsRange'),
       );
     });
@@ -71,7 +67,7 @@ import { observeServerOverlayUrl } from './server-overlay-url.js';
     songBoardSync.addEventListener('change', () => {
       songBoardArea.hidden = songBoardSync.checked;
       if (!songBoardSync.checked) {
-        const appState = window.AdminApp.state.getAppState();
+        const appState = stateService.getAppState();
         if (appState) {
           const s = appState.settings || {};
           setValue(
@@ -149,44 +145,43 @@ import { observeServerOverlayUrl } from './server-overlay-url.js';
             'songBoardTitleFontSizeNumber',
             s.songBoardTitleFontSize || '15',
           );
-          window.AdminApp.forms?.refreshParameterRanges?.();
+          formsService?.refreshParameterRanges?.();
         }
       }
     });
 
     // Song board range ↔ number pairs
-    if (window.AdminApp.forms && window.AdminApp.forms.bindRangePair) {
-      const { bindRangePair } = window.AdminApp.forms;
-      bindRangePair(
+    if (formsService && formsService.bindRangePair) {
+      formsService.bindRangePair(
         'songBoardThemeOpacity',
         'songBoardThemeOpacityNumber',
         0,
         1,
         0.35,
       );
-      bindRangePair(
+      formsService.bindRangePair(
         'songBoardBackdropBlur',
         'songBoardBackdropBlurNumber',
         0,
         30,
         0,
       );
-      bindRangePair(
+      formsService.bindRangePair(
         'songBoardGlowIntensity',
         'songBoardGlowIntensityNumber',
         0,
         20,
         0,
       );
-      bindRangePair('songBoardFontSize', 'songBoardFontSizeNumber', 10, 80, 28);
-      bindRangePair(
+      formsService.bindRangePair('songBoardFontSize', 'songBoardFontSizeNumber', 10, 80, 28);
+      formsService.bindRangePair(
         'songBoardSongFontSize',
         'songBoardSongFontSizeNumber',
         10,
         40,
         16,
       );
-      bindRangePair(
+      formsService.bindRangePair(
         'songBoardTitleFontSize',
         'songBoardTitleFontSizeNumber',
         10,
@@ -204,18 +199,16 @@ import { observeServerOverlayUrl } from './server-overlay-url.js';
         if (songBoardSync.checked) return;
         const preset = songBoardThemePresets[card.dataset.theme];
         if (!preset) return;
-        if (window.AdminApp.forms && window.AdminApp.forms.fillForm) {
-          window.AdminApp.forms.fillForm(preset);
+        if (formsService && formsService.fillForm) {
+          formsService.fillForm(preset);
         }
         songBoardSyncAllRangeInputs(preset);
-        if (window.AdminApp.theme && window.AdminApp.theme.renderPresetCards) {
-          window.AdminApp.theme.renderPresetCards(
-            'songBoardPresets',
-            songBoardThemePresets,
-            songBoardPresetLabels,
-            songBoardPresetSwatches,
-          );
-        }
+        renderPresetCards(
+          'songBoardPresets',
+          songBoardThemePresets,
+          songBoardPresetLabels,
+          songBoardPresetSwatches,
+        );
         await saveDisplay();
         toast(
           `已套用「${songBoardPresetLabels[card.dataset.theme]}」歌单展示板预设`,
@@ -244,8 +237,8 @@ import { observeServerOverlayUrl } from './server-overlay-url.js';
           songBoardSongFontSize: '16',
           songBoardTitleFontSize: '15',
         };
-        if (window.AdminApp.forms && window.AdminApp.forms.fillForm) {
-          window.AdminApp.forms.fillForm(defaults);
+        if (formsService && formsService.fillForm) {
+          formsService.fillForm(defaults);
         }
         songBoardSyncAllRangeInputs(defaults);
         await saveDisplay();
@@ -287,12 +280,7 @@ import { observeServerOverlayUrl } from './server-overlay-url.js';
       `${origin}/gift-effects`;
     document.getElementById('liveOpeningUrl').textContent = `${origin}/opening`;
     document.getElementById('liveClockUrl').textContent = `${origin}/clock`;
-    if (
-      window.AdminApp.settings &&
-      window.AdminApp.settings.updateBlindboxOverlayUrl
-    ) {
-      window.AdminApp.settings.updateBlindboxOverlayUrl();
-    }
+    updateBlindboxOverlayUrl();
   }
 
   function collectDisplay() {
@@ -350,11 +338,11 @@ import { observeServerOverlayUrl } from './server-overlay-url.js';
     );
   }
 
-  window.AdminApp = window.AdminApp || {};
-  window.AdminApp.display = {
+  return {
     initDisplayForm,
     initOverlayUrls,
     collectDisplay,
     songBoardSyncAllRangeInputs,
   };
 })();
+publishDisplay(display);

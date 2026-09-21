@@ -1,10 +1,7 @@
 'use strict';
 
-const fs = require('node:fs');
-const path = require('node:path');
 const vm = require('node:vm');
-
-const ROOT_DIR = path.resolve(__dirname, '..', '..');
+const { readJsModuleBundle } = require('./js-module-bundle');
 
 function createToolboxRuntime({ initialStorage = {} } = {}) {
   function createNode({ dataset = {}, id = '', textContent = '' } = {}) {
@@ -168,14 +165,12 @@ function createToolboxRuntime({ initialStorage = {} } = {}) {
       },
     },
   };
-  vm.runInNewContext(
-    fs.readFileSync(
-      path.join(ROOT_DIR, 'public', 'js', 'admin', 'other.js'),
-      'utf8',
-    ),
+  const other = vm.runInNewContext(
+    `${readJsModuleBundle('public', 'js', 'admin', 'other.js')}\nother;`,
     sandbox,
   );
   return {
+    other,
     sandbox,
     root,
     headings,

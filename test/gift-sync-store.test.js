@@ -392,3 +392,66 @@ function hasColumn(db, tableName, columnName) {
     .all()
     .some((column) => column.name === columnName);
 }
+
+test('clear and rebuild reset the same metadata but preserve their different deletion scopes', () => {
+  for (const mode of ['clear', 'rebuild']) {
+    const fixture = createFixture();
+    try {
+      const source = fixture.store.resolveSource('a'.repeat(64));
+      const other = fixture.store.resolveSource('b'.repeat(64));
+      seedResetState(fixture.giftDb, source.id);
+      insertRemoteGift(fixture.giftDb, source.id, 'remote');
+      insertRemoteGift(fixture.giftDb, source.id, 'other-command');
+      fixture.giftDb.prepare("UPDATE gift_events SET cmd = 'SEND_GIFT' WHERE platform_id = 'lira-server:other-command'").run();
+      insertRemoteGift(fixture.giftDb, other.id, 'other-source');
+      const otherState = fixture.store.getState(other.id);
+      if (mode === 'clear') {
+        require('../src/storage/database').clearGiftData(fixture.giftDb, { sourceId: source.id });
+      } else {
+        fixture.store.resetProjectionForRebuild(source.id);
+      }
+      const reset = fixture.store.getState(source.id);
+      for (const field of ['syncEpoch', 'finalCursor', 'bootstrapPageToken', 'bootstrapRecoveryCursor', 'bootstrapSyncEpoch', 'lastValidatedAt']) {
+        assert.equal(reset[field], null, `${mode}: ${field}`);
+      }
+      assert.equal(reset.bootstrapComplete, false);
+      assert.equal(reset.projectionGeneration, 2);
+      assert.equal(countEvent(fixture.giftDb, source.id, 'remote'), 0);
+      assert.equal(fixture.giftDb.prepare("SELECT count(*) AS count FROM gift_events WHERE source_id = ? AND cmd = 'SEND_GIFT'").get(source.id).count, mode === 'clear' ? 0 : 1);
+      assert.equal(countEvent(fixture.giftDb, other.id, 'other-source'), 1);
+      assert.deepEqual(fixture.store.getState(other.id), otherState);
+    } finally {
+      fixture.close();
+    }
+  }
+});
+
+test('reset metadata and row deletion roll back together in each owning transaction', () => {
+  for (const mode of ['clear', 'rebuild']) {
+    const fixture = createFixture();
+    try {
+      const source = fixture.store.resolveSource('a'.repeat(64));
+      seedResetState(fixture.giftDb, source.id);
+      insertRemoteGift(fixture.giftDb, source.id, 'retained');
+      const before = fixture.store.getState(source.id);
+      // Fail after metadata changed in clear; fail after deletion in rebuild.
+      fixture.giftDb.exec(mode === 'clear'
+        ? "CREATE TRIGGER fail_reset BEFORE DELETE ON gift_events BEGIN SELECT RAISE(ABORT, 'reset failure'); END"
+        : "CREATE TRIGGER fail_reset BEFORE UPDATE ON gift_sync_state BEGIN SELECT RAISE(ABORT, 'reset failure'); END");
+      assert.throws(() => mode === 'clear'
+        ? require('../src/storage/database').clearGiftData(fixture.giftDb, { sourceId: source.id })
+        : fixture.store.resetProjectionForRebuild(source.id), /reset failure/);
+      assert.deepEqual(fixture.store.getState(source.id), before);
+      assert.equal(countEvent(fixture.giftDb, source.id, 'retained'), 1);
+    } finally {
+      fixture.close();
+    }
+  }
+});
+
+function seedResetState(db, sourceId) {
+  db.prepare(`UPDATE gift_sync_state SET sync_epoch = 'old', final_cursor = 12,
+    bootstrap_complete = 0, bootstrap_page_token = 'page',
+    bootstrap_recovery_cursor = 8, bootstrap_sync_epoch = 'bootstrap',
+    last_validated_at = ? WHERE source_id = ?`).run(NOW, sourceId);
+}

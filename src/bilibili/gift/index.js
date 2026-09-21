@@ -16,6 +16,8 @@ const {
 const {
   createGiftStatisticsStore,
 } = require('../../storage/gift-statistics-store');
+const { createGiftQueryStore } = require('../../storage/gift-query-store');
+const { createGiftMaintenanceStore } = require('../../storage/gift-maintenance-store');
 const {
   CRYSTAL_BALL_VALUE_RMB,
   resetGiftSprintProgress,
@@ -53,18 +55,29 @@ function createGiftStatisticsConsumer({ store, giftDb }) {
   });
 }
 
+function createQueryContext(context) {
+  return {
+    queryStore: context.queryStore || createGiftQueryStore(context.db.giftDb),
+    maintenanceStore: context.maintenanceStore || createGiftMaintenanceStore(context.db.giftDb),
+    settings: context.settings,
+    now: context.now,
+    getActiveGiftSource: context.getActiveGiftSource,
+    activeGiftSource: context.activeGiftSource,
+  };
+}
+
 function createGiftService(context, options = {}) {
   let activeGiftSource = null;
   let viewEpoch = randomUUID();
   const giftContext = {
-    ...context,
+    ...createQueryContext(context),
     getActiveGiftSource: () => activeGiftSource,
   };
   const statisticsConsumer =
     options.statisticsConsumer ||
     createGiftStatisticsConsumer({
       store: context.statisticsStore,
-      giftDb: context.db.giftDb,
+      giftDb: context.db?.giftDb,
     });
   const consumerRegistry =
     options.consumerRegistry ||
@@ -72,7 +85,7 @@ function createGiftService(context, options = {}) {
       consumers: [statisticsConsumer, ...(options.consumers || [])],
       onError: options.onConsumerError,
     });
-  const projectionService = createGiftProjectionService(giftContext, {
+  const projectionService = createGiftProjectionService(context, {
     ...options,
     consumerRegistry,
   });
@@ -133,14 +146,14 @@ module.exports = {
   createGiftProjectionService,
   createGiftConsumerRegistry,
   createGiftStatisticsConsumer,
-  resetGiftSprintProgress,
-  getGiftSnapshot,
-  getGiftHistory,
-  getGiftStatistics,
-  getGiftSprintSnapshot,
-  getBlindBoxAnalysis,
-  getBlindBoxStats,
-  searchGifts,
+  resetGiftSprintProgress: (context) => resetGiftSprintProgress(createQueryContext(context)),
+  getGiftSnapshot: (context) => getGiftSnapshot(createQueryContext(context)),
+  getGiftHistory: (context, options) => getGiftHistory(createQueryContext(context), options),
+  getGiftStatistics: (context, options) => getGiftStatistics(createQueryContext(context), options),
+  getGiftSprintSnapshot: (context) => getGiftSprintSnapshot(createQueryContext(context)),
+  getBlindBoxAnalysis: (context, options) => getBlindBoxAnalysis(createQueryContext(context), options),
+  getBlindBoxStats: (context, options) => getBlindBoxStats(createQueryContext(context), options),
+  searchGifts: (context, options) => searchGifts(createQueryContext(context), options),
   normalizeGiftRow,
-  clearRecentGifts,
+  clearRecentGifts: (context) => clearRecentGifts(createQueryContext(context)),
 };

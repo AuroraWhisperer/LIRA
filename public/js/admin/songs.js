@@ -1,3 +1,6 @@
+import * as songUtils from '../shared/utils.js';
+import { stateService } from './state.js';
+import { publishSongs } from './legacy-admin-bridge.js';
 // 编写人：Aurora
 // 歌曲库管理
 'use strict';
@@ -9,7 +12,7 @@ import {
   splitCategoryNames,
 } from './song-category-filter.js';
 
-(function () {
+export function createSongs({ state = stateService, utils = songUtils } = {}) {
   const {
     escapeHtml,
     escapeAttr,
@@ -20,7 +23,7 @@ import {
     api,
     debounce,
     dangerConfirm,
-  } = window.AdminApp.utils;
+  } = utils;
 
   function initSongForm() {
     document
@@ -60,9 +63,7 @@ import {
         });
         resetSongForm();
         toast('歌曲已保存到本地', { type: 'success' });
-        if (window.AdminApp.state && window.AdminApp.state.reloadAll) {
-          await window.AdminApp.state.reloadAll();
-        }
+        await state.reloadAll();
       });
 
     document
@@ -71,9 +72,7 @@ import {
     document.getElementById('songSearch').addEventListener(
       'input',
       debounce(() => {
-        if (window.AdminApp.state && window.AdminApp.state.reloadSongs) {
-          window.AdminApp.state.reloadSongs();
-        }
+        state.reloadSongs();
       }, 180),
     );
     document
@@ -81,9 +80,7 @@ import {
       .addEventListener('change', (event) => {
         if (!event.target.matches('[data-category-filter]')) return;
         updateCategoryFilterSummary();
-        if (window.AdminApp.state && window.AdminApp.state.reloadSongs) {
-          window.AdminApp.state.reloadSongs();
-        }
+        state.reloadSongs();
       });
     document
       .getElementById('clearCategoryFilter')
@@ -94,28 +91,20 @@ import {
           input.checked = false;
         }
         updateCategoryFilterSummary();
-        if (window.AdminApp.state && window.AdminApp.state.reloadSongs) {
-          window.AdminApp.state.reloadSongs();
-        }
+        state.reloadSongs();
       });
     document.getElementById('languageFilter').addEventListener('change', () => {
-      if (window.AdminApp.state && window.AdminApp.state.reloadSongs) {
-        window.AdminApp.state.reloadSongs();
-      }
+      state.reloadSongs();
     });
     document.getElementById('artistFilter').addEventListener('change', () => {
-      if (window.AdminApp.state && window.AdminApp.state.reloadSongs) {
-        window.AdminApp.state.reloadSongs();
-      }
+      state.reloadSongs();
     });
     document
       .getElementById('tagFilterOptions')
       .addEventListener('change', (event) => {
         if (!event.target.matches('[data-tag-filter]')) return;
         updateTagFilterSummary();
-        if (window.AdminApp.state && window.AdminApp.state.reloadSongs) {
-          window.AdminApp.state.reloadSongs();
-        }
+        state.reloadSongs();
       });
     document.getElementById('clearTagFilter').addEventListener('click', () => {
       for (const input of document.querySelectorAll(
@@ -124,14 +113,10 @@ import {
         input.checked = false;
       }
       updateTagFilterSummary();
-      if (window.AdminApp.state && window.AdminApp.state.reloadSongs) {
-        window.AdminApp.state.reloadSongs();
-      }
+      state.reloadSongs();
     });
     document.getElementById('enabledFilter').addEventListener('change', () => {
-      if (window.AdminApp.state && window.AdminApp.state.reloadSongs) {
-        window.AdminApp.state.reloadSongs();
-      }
+      state.reloadSongs();
     });
     const filterMenus = document.querySelectorAll(
       'details[name="songLibraryFilter"]',
@@ -383,9 +368,7 @@ import {
           source: 'admin',
         });
         toast('已从歌库入队');
-        if (window.AdminApp.state && window.AdminApp.state.reloadState) {
-          await window.AdminApp.state.reloadState();
-        }
+        await state.reloadState();
       });
     });
 
@@ -401,9 +384,7 @@ import {
         if (!confirmed) return;
         await api('/api/songs/delete', { id: button.dataset.deleteSong });
         toast('歌曲已删除');
-        if (window.AdminApp.state && window.AdminApp.state.reloadAll) {
-          await window.AdminApp.state.reloadAll();
-        }
+        await state.reloadAll();
       });
     });
   }
@@ -522,8 +503,7 @@ import {
     document.getElementById('clearTagFilter').disabled = selected.length === 0;
   }
 
-  window.AdminApp = window.AdminApp || {};
-  window.AdminApp.songs = {
+  return {
     initSongForm,
     resetSongForm,
     renderSongs,
@@ -532,4 +512,7 @@ import {
     renderArtistFilter,
     renderTagFilter,
   };
-})();
+}
+
+export const songs = createSongs();
+publishSongs(songs);

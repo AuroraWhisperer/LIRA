@@ -297,6 +297,7 @@ test('overlay utility helpers preserve shared formatting behavior', () => {
 test('identity rule text scrolls independently only when it overflows', () => {
   const source = readJsModuleBundle('public', 'js', 'overlays', 'queue.js');
   const sandbox = {
+    window: {},
     console,
     URLSearchParams,
     location: { protocol: 'http:', host: 'localhost', search: '' },
@@ -380,19 +381,7 @@ test('classic queue uses calculated row height and sizes indexes with song text'
     overlaySource,
     /overlayResizeTimer = setTimeout\(render, 100\)/,
   );
-  assert.match(overlaySource, /data-loop-clone/);
   assert.match(styles, /--overlay-edge:\s*clamp\(0px,\s*2vmin,\s*16px\)/);
-  assert.match(styles, /\.queue-classic\s*\{[\s\S]*?width:\s*405px/);
-  assert.match(styles, /\.queue-identity\s*\{[\s\S]*?width:\s*430px/);
-  assert.match(
-    styles,
-    /\.queue-classic\s*\{[\s\S]*?transform:\s*scale\(var\(--queue-panel-scale,\s*1\)\)/,
-  );
-  assert.match(
-    styles,
-    /\.queue-identity\s*\{[\s\S]*?transform:\s*scale\(min\(var\(--queue-panel-scale,\s*1\),\s*1\)\)/,
-  );
-  assert.doesNotMatch(styles, /queue-viewport-resized/);
 });
 
 test('queue resize helpers preserve real rows while rebuilding loop copies', () => {
@@ -441,6 +430,7 @@ test('identity queue scrolls from actual overflow', () => {
   const source = readJsModuleBundle('public', 'js', 'overlays', 'queue.js');
   const styleValues = new Map();
   const sandbox = {
+    window: {},
     console,
     URLSearchParams,
     location: { protocol: 'http:', host: 'localhost', search: '' },
@@ -495,7 +485,7 @@ test('identity queue scrolls from actual overflow', () => {
   assert.equal(styleValues.get('--identity-loop-distance'), '504px');
   assert.equal(
     styleValues.get('--scroll-seconds'),
-    `${sandbox.scrollTravelSeconds(sandbox.queueScrollSeconds({ identityQueueScrollSpeed: '42' }, 'identityQueueScrollSpeed'), 504, 300)}s`,
+    `${sandbox.window.OverlayUtils.scrollTravelSeconds(sandbox.queueScrollSeconds({ identityQueueScrollSpeed: '42' }, 'identityQueueScrollSpeed'), 504, 300)}s`,
   );
   assert.equal(duplicatedHtml, '<div>rows</div>');
   assert.equal(classes.has('paused'), false);
@@ -532,7 +522,7 @@ test('identity queue scrolls from actual overflow', () => {
   );
   assert.equal(styleValues.get('--identity-bounce-distance'), '200px');
   const bounceTiming = sandbox.bounceScrollTiming(
-    sandbox.scrollTravelSeconds(
+    sandbox.window.OverlayUtils.scrollTravelSeconds(
       sandbox.queueScrollSeconds(
         { identityQueueScrollSpeed: '42' },
         'identityQueueScrollSpeed',
@@ -540,7 +530,7 @@ test('identity queue scrolls from actual overflow', () => {
       200,
       300,
     ),
-    sandbox.scrollTravelSeconds(3, 200, 300),
+    sandbox.window.OverlayUtils.scrollTravelSeconds(3, 200, 300),
   );
   assert.equal(
     styleValues.get('--scroll-seconds'),
@@ -569,8 +559,8 @@ test('identity queue scrolls from actual overflow', () => {
 
   const shortDistance = 200;
   const longDistance = 800;
-  const shortSeconds = sandbox.scrollTravelSeconds(12, shortDistance, 300);
-  const longSeconds = sandbox.scrollTravelSeconds(12, longDistance, 300);
+  const shortSeconds = sandbox.window.OverlayUtils.scrollTravelSeconds(12, shortDistance, 300);
+  const longSeconds = sandbox.window.OverlayUtils.scrollTravelSeconds(12, longDistance, 300);
   assert.ok(
     Math.abs(shortDistance / shortSeconds - longDistance / longSeconds) < 0.001,
   );

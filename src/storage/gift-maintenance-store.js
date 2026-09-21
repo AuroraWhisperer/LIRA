@@ -106,7 +106,27 @@ function createGiftMaintenanceStore(giftDb) {
     return Number(result?.count) || 0;
   }
 
+  function clearRecent({ updatedAt }) {
+    return deleteGiftsByPredicate(
+      `source_id IS NULL
+        AND status = 'active' AND total_price > 0
+        AND detection_status = 'final' AND gift_stats_eligible = 1
+        AND id IN (
+          SELECT id FROM gift_events
+          WHERE source_id IS NULL
+            AND status = 'active' AND total_price > 0
+            AND detection_status = 'final' AND gift_stats_eligible = 1
+          ORDER BY datetime(created_at) DESC, id DESC
+          LIMIT 3000
+        )`,
+      [],
+      'manual:clear-recent',
+      updatedAt,
+    );
+  }
+
   return {
+    clearRecent,
     deleteGiftsWithSettlements,
     deleteGiftsByPredicate,
     countGiftsByPredicate,

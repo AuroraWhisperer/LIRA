@@ -18,7 +18,8 @@ export function createGiftDisplaySettings() {
 
   function values() {
     return { palette: 'bilibili-four', thresholds: [1, 2, 3].map((n) => Number(get(`giftTier${n}`).value) * 100),
-      visibleRows: Number(get('giftFeedRows').value), scrollSpeed: Number(get('giftFeedSpeed').value) };
+      visibleRows: Number(get('giftFeedRows').value), scrollSpeed: Number(get('giftFeedSpeed').value),
+      minGiftAmountCents: Number(get('giftFeedMinAmount').value) * 100 };
   }
 
   function preview() {
@@ -37,11 +38,12 @@ export function createGiftDisplaySettings() {
     });
     get('giftFeedRows').value = value.visibleRows;
     get('giftFeedSpeed').value = value.scrollSpeed;
+    get('giftFeedMinAmount').value = (value.minGiftAmountCents ?? 0) / 100;
     preview();
   }
 
   get('giftDisplayCancel')?.addEventListener('click', () => { fill(config); get('giftDisplayError').textContent = ''; });
-  get('giftDisplayDefaults')?.addEventListener('click', () => fill({ thresholds: [3000, 10000, 100000], visibleRows: 3, scrollSpeed: 25 }));
+  get('giftDisplayDefaults')?.addEventListener('click', () => fill({ thresholds: [3000, 10000, 100000], visibleRows: 3, scrollSpeed: 25, minGiftAmountCents: 0 }));
   get('giftDisplayForm')?.addEventListener('input', (event) => {
     const boundary = event.target.dataset.giftBoundary;
     if (boundary) {
@@ -60,6 +62,7 @@ export function createGiftDisplaySettings() {
       const draft = values();
       // Decimal input precision is checked by the native form; remove floating point noise in cents.
       draft.thresholds = draft.thresholds.map(Math.round);
+      draft.minGiftAmountCents = Math.round(draft.minGiftAmountCents);
       get('giftDisplayFields').disabled = true;
       try {
         const response = await fetch('/api/gifts/display-settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(draft), signal: AbortSignal.timeout(10000) });

@@ -10,6 +10,24 @@ const { loadModuleExports } = require('./helpers/frontend-modules');
 const ROOT_DIR = path.join(__dirname, '..');
 const noop = () => {};
 
+test('legacy danmaku initialization preserves reconnect defaults and explicit injection', async () => {
+  const calls = [];
+  const window = { AdminApp: { settings: {
+    reconnectBilibili: () => calls.push('legacy'),
+  } } };
+  const { publishDanmakuTool } = await loadModuleExports(
+    path.join(ROOT_DIR, 'public/js/admin/legacy-admin-bridge.js'), { window },
+  );
+  publishDanmakuTool({
+    init: ({ reconnectBilibili }) => reconnectBilibili(),
+    refresh: noop,
+  });
+  window.AdminApp.danmakuTool.init();
+  window.AdminApp.danmakuTool.init({ reconnectBilibili: undefined });
+  window.AdminApp.danmakuTool.init({ reconnectBilibili: () => calls.push('explicit') });
+  assert.deepEqual(calls, ['legacy', 'legacy', 'explicit']);
+});
+
 async function createStartupFixture() {
   const theme = Promise.withResolvers();
   const data = Promise.withResolvers();
@@ -20,10 +38,6 @@ async function createStartupFixture() {
   let start;
   const modules = {
     desktop: { initDesktopShell: () => calls.push('desktop') },
-    settings: {
-      initSettingsForm: () => calls.push('settings'),
-      initBilibiliAuth: noop,
-    },
   };
   const context = vm.createContext({
     window: { addEventListener: noop },
@@ -41,6 +55,7 @@ async function createStartupFixture() {
     '../shared/logger.js': { logger: { debug: noop, error: noop } },
     '../shared/utils.js': { showError: (error) => errors.push(error) },
     '../shared/theme.js': {
+      theme: {},
       loadThemeConfig: () => { calls.push('theme'); return theme.promise; },
     },
     '../shared/parameter-range.js': { initParameterRanges: noop },
@@ -57,6 +72,7 @@ async function createStartupFixture() {
     './interactive-tour.js': { initInteractiveTour: () => ({ claimAutoOpen: () => false }) },
     './gift-frame.js': { initGiftFrame: noop },
     './gifts/history.js': { initGiftHistoryDrawer: noop },
+    './gifts/index.js': { renderGiftPanel: noop },
     './song-import-update.js': { initSongImportUpdate: noop },
     './state.js': {
       stateService: {
@@ -71,6 +87,21 @@ async function createStartupFixture() {
       },
     },
     './queue.js': { initQueueForm: noop },
+    './songs.js': { songs: { initSongForm: noop, renderSongs: noop } },
+    './metrics.js': { metrics: { initPerformanceMonitor: noop } },
+    './todo.js': { todo: { init: noop } },
+    './gift-effects.js': { giftEffects: { init: noop } },
+    './other.js': { other: { initOtherPage: noop, selectFeatureById: noop } },
+    './danmaku-tool.js': { danmakuTool: {} },
+    './ai-assistant-settings.js': { aiAssistantSettings: {} },
+    './desktop-lyric.js': { desktopLyric: { initDesktopLyricForm: noop } },
+    './import.js': { songImports: {} },
+    './settings.js': { settings: {
+      initSettingsForm: () => calls.push('settings'),
+      initBilibiliAuth: noop,
+    } },
+    './theme.js': { theme: { initThemeForm: noop, renderPresetCards: noop } },
+    './display.js': { display: { initDisplayForm: noop, initOverlayUrls: noop } },
     './state-renderer.js': { createAdminStateRenderer: noop },
   };
   const entry = new vm.SourceTextModule(

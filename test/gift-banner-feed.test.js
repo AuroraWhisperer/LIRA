@@ -26,10 +26,26 @@ test('display settings validate speed and preserve saved colors and rows from le
   }
   const legacy = { palette: 'bilibili-four', thresholds: [100, 1000, 10000], visibleRows: 7,
     intervalSeconds: 4, paused: true, lowPower: true };
-  const expected = { palette: legacy.palette, thresholds: legacy.thresholds, visibleRows: 7, scrollSpeed: 1 };
+  const expected = { palette: legacy.palette, thresholds: legacy.thresholds, visibleRows: 7, scrollSpeed: 1, minGiftAmountCents: 0 };
   assert.deepEqual(readGiftDisplaySettings({ giftDisplayConfig: JSON.stringify(legacy) }), expected);
   assert.deepEqual(validateGiftDisplaySettings(legacy), expected);
   assert.deepEqual(readGiftDisplaySettings({ giftDisplayConfig: 'broken' }), DEFAULT_GIFT_DISPLAY);
+});
+
+test('feed minimum defaults to zero for old settings and accepts only nonnegative tenths of a yuan', () => {
+  assert.equal(DEFAULT_GIFT_DISPLAY.minGiftAmountCents, 0);
+  const legacy = { palette: 'bilibili-four', thresholds: [100, 1000, 10000], visibleRows: 7, scrollSpeed: 31 };
+  const normalized = { ...legacy, minGiftAmountCents: 0 };
+  assert.deepEqual(validateGiftDisplaySettings(legacy), normalized);
+  assert.deepEqual(readGiftDisplaySettings({ giftDisplayConfig: JSON.stringify(legacy) }), normalized);
+  for (const minGiftAmountCents of [0, 10, 110, 1250, 100000]) {
+    const config = { ...legacy, minGiftAmountCents };
+    assert.deepEqual(validateGiftDisplaySettings(config), config);
+    assert.deepEqual(readGiftDisplaySettings({ giftDisplayConfig: JSON.stringify(config) }), config);
+  }
+  for (const minGiftAmountCents of [-10, 1, 11, 1.5, '100', null, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1]) {
+    assert.throws(() => validateGiftDisplaySettings({ ...legacy, minGiftAmountCents }), /最小礼物金额/);
+  }
 });
 
 test('price bands use each historical unit price times quantity, with exact boundaries', async () => {

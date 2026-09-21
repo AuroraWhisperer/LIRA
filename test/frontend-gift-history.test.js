@@ -4,10 +4,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
-const {
-  createLyricToggleButton,
-  loadModuleExports,
-} = require('./helpers/frontend-modules');
+const { loadModuleExports } = require('./helpers/frontend-modules');
+const { createGiftHistoryFixture } = require('./helpers/gift-history-fixture');
 
 const ROOT_DIR = path.join(__dirname, '..');
 
@@ -145,42 +143,6 @@ test('gift history defaults to all dates and never exposes source identity', asy
 });
 
 test('gift history headers sort from page one with click and keyboard input', async () => {
-  const modulePath = path.join(
-    ROOT_DIR,
-    'public',
-    'js',
-    'admin',
-    'gifts',
-    'history.js',
-  );
-  const elements = new Map();
-  for (const id of [
-    'giftHistoryOpenBtn',
-    'giftHistoryClose',
-    'giftHistoryBackdrop',
-    'giftHistoryDrawer',
-    'giftHistoryClearDatabaseBtn',
-    'giftHistoryPrev',
-    'giftHistoryNext',
-    'giftHistoryState',
-    'giftHistoryTotal',
-    'giftHistoryBody',
-    'giftHistoryPageInfo',
-    'giftLedgerSyncStatus',
-  ]) {
-    elements.set(id, {
-      ...createLyricToggleButton(),
-      style: { setProperty() {} },
-      dataset: {},
-      hidden: false,
-      disabled: false,
-      handlers: {},
-      addEventListener(type, handler) {
-        this.handlers[type] = handler;
-      },
-      focus() {},
-    });
-  }
   const headers = ['created_at', 'gift_name', 'price', 'remarks'].map(
     (sort) => {
       const arrow = { textContent: '' };
@@ -203,26 +165,8 @@ test('gift history headers sort from page one with click and keyboard input', as
     },
   );
   const requests = [];
-  const document = {
-    getElementById(id) {
-      return elements.get(id) || null;
-    },
-    querySelectorAll(selector) {
-      return selector === '#giftHistoryDrawer th[data-sort]' ? headers : [];
-    },
-    querySelector() {
-      return null;
-    },
-    addEventListener() {},
-  };
-  const ledger = await loadModuleExports(modulePath, {
-    document,
-    location: {},
-    URLSearchParams,
-    AbortController,
-    AbortSignal,
-    clearTimeout() {},
-    setTimeout() {},
+  const { elements } = await createGiftHistoryFixture({
+    headers,
     fetch: async (url) => {
       requests.push(url);
       return {
@@ -244,7 +188,6 @@ test('gift history headers sort from page one with click and keyboard input', as
     },
   });
 
-  ledger.initGiftHistoryDrawer();
   assert.equal(
     headers.every((header) => header.attributes.get('aria-sort') === 'none'),
     true,
@@ -329,42 +272,8 @@ test('gift history headers sort from page one with click and keyboard input', as
 });
 
 test('loadGiftHistory requests one history page and renders canonical escaped rows', async () => {
-  const modulePath = path.join(
-    ROOT_DIR,
-    'public',
-    'js',
-    'admin',
-    'gifts',
-    'history.js',
-  );
-  const elements = new Map(
-    [
-      'giftHistoryState',
-      'giftHistoryTotal',
-      'giftHistoryBody',
-      'giftHistoryPrev',
-      'giftHistoryNext',
-      'giftHistoryPageInfo',
-      'giftLedgerSyncStatus',
-    ].map((id) => [
-      id,
-      { dataset: {}, disabled: false, innerHTML: '', textContent: '' },
-    ]),
-  );
-  const document = {
-    getElementById(id) {
-      return elements.get(id) || null;
-    },
-  };
   const requests = [];
-  const ledger = await loadModuleExports(modulePath, {
-    document,
-    location: {},
-    URLSearchParams,
-    AbortController,
-    AbortSignal,
-    clearTimeout() {},
-    setTimeout() {},
+  const { ledger, elements } = await createGiftHistoryFixture({
     fetch: async (url) => {
       requests.push(url);
       return {
@@ -449,63 +358,9 @@ test('loadGiftHistory requests one history page and renders canonical escaped ro
 });
 
 test('gift history keeps cursor navigation, ignores responses after close, and reloads on reopen', async () => {
-  const elements = new Map();
-  for (const id of [
-    'giftHistoryOpenBtn',
-    'giftHistoryClose',
-    'giftHistoryBackdrop',
-    'giftHistoryDrawer',
-    'giftHistoryPrev',
-    'giftHistoryNext',
-    'giftHistoryState',
-    'giftHistoryTotal',
-    'giftHistoryBody',
-    'giftHistoryPageInfo',
-    'giftLedgerSyncStatus',
-  ]) {
-    elements.set(id, {
-      ...createLyricToggleButton(),
-      style: { setProperty() {} },
-      dataset: {},
-      handlers: {},
-      addEventListener(type, handler) {
-        this.handlers[type] = handler;
-      },
-      focus() {
-        this.focused = true;
-      },
-    });
-  }
-  const requests = [];
-  const pending = [];
-  const ledger = await loadModuleExports(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'history.js'),
-    {
-      document: {
-        getElementById: (id) => elements.get(id) || null,
-        querySelector: () => null,
-        addEventListener() {},
-      },
-      location: {},
-      URLSearchParams,
-      AbortController,
-      AbortSignal,
-      clearTimeout() {},
-      setTimeout() {},
-      fetch: (url) => {
-        requests.push(url);
-        return new Promise((resolve) => pending.push(resolve));
-      },
-    },
-  );
-  const click = (id) => elements.get(id).handlers.click();
-  const finishRequest = async (data) => {
-    pending.shift()({
-      ok: true,
-      text: async () => JSON.stringify({ ok: true, data }),
-    });
-    await new Promise((resolve) => setImmediate(resolve));
-  };
+  const ui = await createGiftHistoryFixture();
+  const { elements, requests, click } = ui;
+  const finishRequest = (data) => ui.reply({ ok: true, data });
   const firstPage = {
     items: [{ eventId: 'first', gift: { giftName: '测试礼物' } }],
     hasMore: true,
@@ -516,7 +371,6 @@ test('gift history keeps cursor navigation, ignores responses after close, and r
     partial: false,
   };
 
-  ledger.initGiftHistoryDrawer();
   click('giftHistoryOpenBtn');
   await finishRequest(firstPage);
   assert.equal(elements.get('giftHistoryClose').focused, true);
@@ -530,7 +384,7 @@ test('gift history keeps cursor navigation, ignores responses after close, and r
     partial: true,
   });
   assert.equal(
-    requests.at(-1),
+    requests.at(-1).url,
     '/api/gifts/history?range=all&limit=100&cursor=page-2',
   );
   assert.equal(elements.get('giftHistoryPageInfo').textContent, '第 2/2 页');
@@ -541,7 +395,7 @@ test('gift history keeps cursor navigation, ignores responses after close, and r
   );
   click('giftHistoryPrev');
   await finishRequest(firstPage);
-  assert.equal(requests.at(-1), '/api/gifts/history?range=all&limit=100');
+  assert.equal(requests.at(-1).url, '/api/gifts/history?range=all&limit=100');
   assert.equal(elements.get('giftHistoryPageInfo').textContent, '第 1/2 页');
 
   click('giftHistoryNext');
@@ -559,6 +413,6 @@ test('gift history keeps cursor navigation, ignores responses after close, and r
   assert.equal(elements.get('giftHistoryOpenBtn').focused, true);
   click('giftHistoryOpenBtn');
   await finishRequest(firstPage);
-  assert.equal(requests.at(-1), '/api/gifts/history?range=all&limit=100');
+  assert.equal(requests.at(-1).url, '/api/gifts/history?range=all&limit=100');
   assert.match(elements.get('giftHistoryBody').innerHTML, /测试礼物/);
 });

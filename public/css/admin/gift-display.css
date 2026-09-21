@@ -99,6 +99,7 @@ body.desktop-shell #giftHistoryDrawer .gift-drawer-head > button { -webkit-app-r
 .gift-display-group-head h4 { margin: 0; font-size: var(--type-size-card-title); }
 .gift-display-group .hint { margin: var(--spacing-sm) 0 0; }
 .gift-display-group > label { margin: var(--spacing-md) 0; }
+.gift-feed-amount-help { display: inline-flex; margin-left: 6px; vertical-align: middle; color: var(--muted); cursor: help; }
 .gift-tier-inputs > div { display: grid; grid-template-columns: 26px 40px minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 12px; margin: 0; padding: 12px 0; border-bottom: 1px solid var(--border); }
 .gift-tier-inputs > :first-child { padding-top: 0; }
 .gift-tier-inputs > :last-child { border-bottom: 0; }

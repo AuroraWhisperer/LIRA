@@ -1,6 +1,6 @@
 {
   "name": "lira",
-  "version": "4.2.15",
+  "version": "5.0.0",
   "private": true,
   "license": "UNLICENSED",
   "description": "LIRA - Live Interactive Room Assistant",
@@ -10,7 +10,7 @@
     "start": "node src/server.js",
     "desktop": "electron .",
     "check": "node scripts/check-js.js",
-    "test": "node --experimental-vm-modules --test --test-concurrency=6",
+    "test": "node scripts/run-tests.js",
     "test:admin": "node --experimental-vm-modules --test --test-concurrency=4 test/admin-page-composition.test.js test/admin-style-ownership.test.js test/frontend-admin-shell.test.js test/frontend-admin-toolbox.test.js test/frontend-usage-guide.test.js test/frontend-admin-layout.test.js test/frontend-admin-runtime.test.js test/frontend-admin-ai.test.js test/frontend-admin-danmaku.test.js test/frontend-admin-ai-autosave.test.js test/frontend-admin-ai-secrets.test.js test/frontend-overtime.test.js",
     "verify:docs": "node --test test/governance-docs.test.js",
     "verify:modularity": "node scripts/check-modularity.js",
@@ -25,7 +25,12 @@
     "make:icon": "node scripts/create-icon.js",
     "dist:win": "npm run make:icon && electron-builder --win nsis --x64",
     "dist:win:local": "npm run make:icon && set ELECTRON_SKIP_BINARY_DOWNLOAD=1 && electron-builder --win nsis --x64 --config.electronDist=node_modules/electron/dist",
-    "release:win": "node scripts/publish-release.js"
+    "release:win": "node scripts/publish-release.js",
+    "test:offline": "node scripts/run-tests.js offline",
+    "test:browser": "node scripts/run-tests.js browser",
+    "test:desktop": "node scripts/run-tests.js desktop",
+    "test:installer": "node scripts/run-tests.js installer",
+    "test:contracts": "node scripts/run-tests.js contracts"
   },
   "engines": {
     "node": ">=24"

@@ -1,5 +1,7 @@
 'use strict';
 
+const { createCloudSongSyncController } = require('./cloud-song-sync-controller');
+
 const DEFAULT_INTERVAL_MS = 600_000;
 const STREAM_RETRY_MIN_MS = 1_000;
 const STREAM_RETRY_MAX_MS = 60_000;
@@ -31,6 +33,9 @@ function createCloudSyncController(options = {}) {
   const revisions = { settings: null, songs: null, bilibili: null };
   const dirty = new Set();
   const dirtyGenerations = { settings: 0, songs: 0, bilibili: 0 };
+  const songSync = createCloudSongSyncController({
+    runtime, licenseManager, isCurrent, shouldApply, seedScope,
+  });
   let timer = null;
   let disposed = false;
   let active = false;
@@ -227,6 +232,7 @@ function createCloudSyncController(options = {}) {
     } else if (roomChanged) {
       dirty.delete('settings');
     }
+    if (songSync.restorePending(nextAccountKey)) markScopeDirty('songs');
     accountKey = nextAccountKey;
     retryNotBefore = 0;
     retryError = null;
@@ -375,10 +381,7 @@ function createCloudSyncController(options = {}) {
         requestOptions,
       );
     } else if (scope === 'songs') {
-      result = await licenseManager.syncSongs(
-        runtime.getCloudSongsSnapshot(),
-        requestOptions,
-      );
+      result = await songSync.upload(work);
     } else {
       const state = await bilibiliAuth.getAuthState();
       if (!isCurrent(work)) return false;
@@ -406,7 +409,10 @@ function createCloudSyncController(options = {}) {
       runtime.setBlindBoxMappingState?.(result?.blindBoxMapping || null);
     }
     revisions[scope] = Number(result?.revision) || revisions[scope];
-    if (dirtyGenerations[scope] === dirtyGeneration) dirty.delete(scope);
+    if (
+      dirtyGenerations[scope] === dirtyGeneration &&
+      (scope !== 'songs' || !songSync.hasPending(work.accountKey))
+    ) dirty.delete(scope);
     return true;
   }
 
@@ -438,6 +444,7 @@ function createCloudSyncController(options = {}) {
 
   function shouldApply(scope, cloudRevision, work) {
     if (!isCurrent(work) || dirty.has(scope)) return false;
+    if (scope === 'songs' && songSync.hasPending(work.accountKey)) return false;
     const incoming = Number(cloudRevision) || 0;
     const current = revisions[scope];
     return current === null || incoming > current;
@@ -466,29 +473,6 @@ function createCloudSyncController(options = {}) {
     runtime.setBlindBoxMappingState?.(state.blindBoxMapping || null);
     revisions.settings = Number(state.revision) || 0;
     if (isMissingBlindBoxConfig) await seedScope('settings', work);
-  }
-
-  async function reconcileSongs(state, work) {
-    if (!isCurrent(work)) return;
-    if (!state?.initialized) {
-      await seedScope('songs', work);
-      return;
-    }
-    if (!shouldApply('songs', state.revision, work)) return;
-    const result = await licenseManager.getCloudSongs({ signal: work.signal });
-    const cloudRevision = Math.max(
-      Number(state.revision) || 0,
-      Number(result?.revision) || 0,
-    );
-    if (!shouldApply('songs', cloudRevision, work)) return;
-    if (!Array.isArray(result?.songs)) {
-      throw Object.assign(new Error('Invalid cloud song snapshot.'), {
-        code: 'INVALID_RESPONSE',
-      });
-    }
-    await runtime.replaceCloudSongsSnapshot(result.songs);
-    if (!isCurrent(work)) return;
-    revisions.songs = cloudRevision;
   }
 
   async function reconcileBilibili(state, work) {
@@ -525,11 +509,13 @@ function createCloudSyncController(options = {}) {
     }
     clearTimer();
     try {
+      if (songSync.hasPending(work.accountKey) && !dirty.has('songs')) markScopeDirty('songs');
       await flushDirty(work);
       if (!isCurrent(work)) return false;
       const state = await licenseManager.getCloudState({ signal: work.signal });
       await reconcileSettings(state?.settings, work);
-      await reconcileSongs(state?.songs, work);
+      const songsRevision = await songSync.reconcile(state?.songs, work);
+      if (songsRevision !== null) revisions.songs = songsRevision;
       await reconcileBilibili(state?.bilibili, work);
       return isCurrent(work);
     } catch (error) {

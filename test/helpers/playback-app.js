@@ -102,6 +102,9 @@ async function createPlaybackApp(initialState, options = {}) {
       },
     },
     musicAPI: {
+      async logout() {
+        return { ok: true };
+      },
       async getAuthState(platform) {
         return options.authState ?? { platform, loggedIn: false };
       },
@@ -262,6 +265,7 @@ async function createPlaybackApp(initialState, options = {}) {
     return loadModule(fileURLToPath(dependencyUrl));
   });
   await playbackModule.evaluate();
+  window.AdminApp.utils.logoutConfirm = async () => true;
 
   return {
     init() {

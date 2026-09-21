@@ -1,5 +1,7 @@
 'use strict';
 
+const { resetGiftProjectionMetadataInTransaction } = require('./gift-projection-reset');
+
 const MAX_PAGE_SIZE = 200;
 const MAX_EPOCH_LENGTH = 128;
 const MAX_PAGE_TOKEN_LENGTH = 4096;
@@ -246,20 +248,9 @@ function createGiftSyncStore(options = {}) {
         `,
         )
         .run(id);
-      giftDb
-        .prepare(
-          `
-          UPDATE gift_sync_state
-          SET sync_epoch = NULL, final_cursor = NULL,
-              bootstrap_complete = 0, bootstrap_page_token = NULL,
-              bootstrap_recovery_cursor = NULL,
-              bootstrap_sync_epoch = NULL,
-              projection_generation = projection_generation + 1,
-              last_validated_at = NULL, updated_at = ?
-          WHERE source_id = ?
-        `,
-        )
-        .run(normalizeTimestamp(now()), id);
+      resetGiftProjectionMetadataInTransaction(
+        giftDb, id, normalizeTimestamp(now()),
+      );
       return readStateRow(giftDb, id);
     });
   }

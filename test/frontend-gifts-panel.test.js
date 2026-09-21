@@ -71,15 +71,13 @@ test('gift panel renders empty and populated recent gifts without legacy history
     classList: { toggle: t.mock.fn() },
     querySelectorAll: () => [],
   };
-  const gifts = {
-    notification: { notifyNewGift: t.mock.fn() },
-    detection: { renderDetectionStatus() {}, renderGiftStatusLine() {} },
-    sprint: { renderSprintStats() {} },
-    blindbox: { renderBlindBoxList() {} },
-  };
+  const gifts = {};
+  const sprintNodes = new Map(['giftSprintTarget', 'giftSprintReceived',
+    'giftSprintRemaining', 'giftSprintCrystalBalls'].map((id) => [id, {}]));
   const globals = {
     console: { error: t.mock.fn() },
     window: {
+      addEventListener() {},
       AdminApp: {
         gifts,
         utils: {
@@ -91,8 +89,11 @@ test('gift panel renders empty and populated recent gifts without legacy history
       getComputedStyle: () => ({ gridTemplateColumns: '270px 270px' }),
     },
     document: {
-      getElementById: (id) => (id === 'giftRecentList' ? list : null),
+      readyState: 'loading',
+      addEventListener() {},
+      getElementById: (id) => (id === 'giftRecentList' ? list : sprintNodes.get(id) || null),
     },
+    fetch: async () => ({ ok: true, text: async () => JSON.stringify({ ok: true, data: { gifts: [] } }) }),
   };
   const moduleDir = path.join(
     __dirname,
@@ -102,8 +103,8 @@ test('gift panel renders empty and populated recent gifts without legacy history
     'admin',
     'gifts',
   );
-  await loadModuleExports(path.join(moduleDir, 'recent.js'), globals);
   await loadModuleExports(path.join(moduleDir, 'index.js'), globals);
+  t.mock.method(gifts.notification, 'notifyNewGift');
 
   assert.equal(gifts.history, undefined);
   gifts.renderGiftPanel({ recent: [] }, {}, {}, {});

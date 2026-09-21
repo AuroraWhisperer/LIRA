@@ -17,6 +17,32 @@ const {
 
 const ROOT_DIR = path.join(__dirname, '..');
 
+test('display overlay URLs use explicit settings capabilities without the legacy registry', async () => {
+  const nodes = new Map([
+    'queueUrl', 'songsUrl', 'lyricsUrl', 'liveDanmakuUrl', 'liveBlindboxUrl',
+    'liveGamesUrl', 'liveWheelUrl', 'liveOvertimeUrl', 'liveGiftEffectsUrl',
+    'liveOpeningUrl', 'liveClockUrl', 'blindboxOverlayUrl', 'blindboxLiveLink',
+  ].map((id) => [id, {}]));
+  const copyButton = {};
+  const window = { addEventListener() {} };
+  const { display } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/display.js'), {
+    window,
+    location: { protocol: 'http:', hostname: 'localhost', port: '3012' },
+    document: {
+      readyState: 'loading', addEventListener() {},
+      getElementById: (id) => nodes.get(id) || null,
+      querySelectorAll: () => [], querySelector: () => copyButton,
+    },
+    fetch: async () => ({ ok: true, text: async () => JSON.stringify({ ok: true, data: { gifts: [] } }) }),
+  });
+  window.AdminApp = {};
+  display.initOverlayUrls();
+  assert.equal(nodes.get('songsUrl').textContent, 'http://127.0.0.1:3012/songlist');
+  assert.equal(nodes.get('blindboxOverlayUrl').textContent, 'http://127.0.0.1:3012/blindbox');
+  assert.equal(nodes.get('blindboxLiveLink').href, 'http://127.0.0.1:3012/blindbox');
+  assert.equal(copyButton.disabled, true);
+});
+
 test('song list exposes a display board font size control', () => {
   const html = readAdminHtml();
   const displaySource = fs.readFileSync(

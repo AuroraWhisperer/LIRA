@@ -7,11 +7,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const { readCssBundle } = require('./helpers/css-bundle');
-const { readJsModuleBundle } = require('./helpers/js-module-bundle');
-const {
-  MIN_CHUNK_INTERVAL_MS,
-  MAX_CHUNK_INTERVAL_MS,
-} = require('../src/ai/ai-assistant-helpers');
+const { createUiFixture } = require('./helpers/ui-edit-state-fixture');
+
+const browserFixture = createUiFixture();
 
 const ROOT_DIR = path.join(__dirname, '..');
 
@@ -21,18 +19,11 @@ test('admin danmaku input has no fixed character limit', () => {
     path.join(ROOT_DIR, 'public', 'js', 'admin', 'danmaku-tool.js'),
     'utf8',
   );
-  const libraries = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'danmaku-libraries.js'),
-    'utf8',
-  );
 
   assert.doesNotMatch(html, /id="danmakuMessage"[^>]*maxlength=/);
   assert.match(html, /id="danmakuCounter"[^>]*>0 字</);
-  assert.match(source, /Array\.from\(elements\.message\.value\)\.length/);
-  assert.match(source, /enableRandomTagReply/);
   assert.doesNotMatch(source, /enableCheckinBot/);
   assert.doesNotMatch(source, /enableFortuneBot/);
-  assert.match(source, /enableCustomReplyBot/);
   assert.doesNotMatch(source, /mentionRequester: toggle\.checked/);
   assert.match(html, /随机点歌回复/);
   assert.match(html, /点歌未匹配时，会自动回复点歌人/);
@@ -49,8 +40,6 @@ test('admin danmaku input has no fixed character limit', () => {
   assert.doesNotMatch(html, /id="danmaku(?:Blessings|Fortunes)Panel"/);
   assert.doesNotMatch(source, /createBlessingEditor|createFortuneEditor|checkinToggle|fortuneToggle/);
   assert.match(source, /initDanmakuDailyBots/);
-  assert.match(source, /customReplyEditor\.load\(state\.customReplyRules\)/);
-  assert.match(libraries, /export function createCustomReplyEditor/);
   assert.doesNotMatch(html, /id="dailyBotTakeover"/);
   assert.match(html, /id="dailyBotRefresh"/);
 });
@@ -159,7 +148,7 @@ test('danmaku tool separates the fixed live overlay from the sender and reply gr
   assert.match(styles, /\.danmaku-style-options/);
   assert.match(
     styles,
-    /\.danmaku-style-picker\s*\{[^}]*grid-template-columns:\s*minmax\(0, 3fr\) minmax\(220px, 1fr\);/s,
+    /\.danmaku-style-picker\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:\s*minmax\(0, 3fr\) minmax\(220px, 1fr\);/s,
   );
   assert.match(
     styles,
@@ -176,92 +165,231 @@ test('danmaku tool separates the fixed live overlay from the sender and reply gr
   );
   assert.match(styles, /\.danmaku-style-option\[aria-pressed='true'\]/);
   assert.doesNotMatch(styles, /\.danmaku-style-preview/);
-});
-
-test('admin danmaku status prefers account and room display names', () => {
-  const source = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'danmaku-tool.js'),
-    'utf8',
-  );
-
   assert.match(
-    source,
-    /state\.accountName \|\| `UID \$\{state\.accountUid \|\| '-'\}`/,
-  );
-  assert.match(source, /state\.roomName \|\| `房间 \$\{state\.roomId\}`/);
-  assert.match(
-    source,
-    /accountState\.title\s*=\s*state\.loggedIn && state\.accountUid\s*\?\s*`UID \$\{state\.accountUid\}`\s*:\s*''\s*;/,
+    html,
+    /class="danmaku-feature-section danmaku-connection-section"[\s\S]*?id="danmakuAccountState"[\s\S]*?id="danmakuRoomState"[\s\S]*?id="danmakuToolStatus"/,
   );
   assert.match(
-    source,
-    /roomState\.title\s*=\s*state\.roomId\s*\?\s*`房间 \$\{state\.roomId\}`\s*:\s*''\s*;/,
-  );
-});
-
-test('successful Bilibili login refreshes the danmaku tool automatically', () => {
-  const settingsSource = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'settings-auth.js'),
-    'utf8',
-  );
-  const toolSource = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'danmaku-tool.js'),
-    'utf8',
-  );
-
-  assert.match(
-    settingsSource,
-    /if \(result\.state\.loggedIn\) \{[\s\S]*?documentRef\.dispatchEvent\([\s\S]*?app:bilibili-auth-changed/,
+    html,
+    /class="danmaku-feature-section danmaku-compose-section"[\s\S]*?id="danmakuSendForm"[\s\S]*?id="danmakuSendResult"/,
   );
   assert.match(
-    toolSource,
-    /document\.addEventListener\(['"]app:bilibili-auth-changed['"],\s*\(\)\s*=>\s*refreshState\(\)\)/,
+    html,
+    /id="danmakuCounter"[\s\S]*?id="danmakuAutoBtn"[\s\S]*?id="danmakuSendBtn"/,
+  );
+  assert.match(
+    styles,
+    /\.danmaku-tool-panel\s*\{[^}]*width:\s*100%[^}]*max-width:\s*none/,
+  );
+  assert.match(
+    styles,
+    /\.danmaku-bot-switch-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/,
+  );
+  assert.match(
+    styles,
+    /#danmakuSendForm \.form-actions-row > \.hint\s*\{[^}]*margin-right:\s*auto/,
+  );
+  assert.match(
+    styles,
+    /@media \(max-width: 600px\)[\s\S]*?\.danmaku-bot-switch-grid\s*\{\s*grid-template-columns:\s*1fr;/,
   );
 });
 
-test('opening disconnected danmaku tool refreshes live once and distinguishes connection states', () => {
-  const toolSource = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'danmaku-tool.js'),
-    'utf8',
+async function createDanmakuPage(t, state = {}) {
+  const page = await browserFixture(t, 'danmaku');
+  await page.evaluate(
+    async ({ html, state }) => {
+      const parsed = new DOMParser().parseFromString(html, 'text/html');
+      document.body.append(parsed.getElementById('otherAssistantPage'));
+      for (const id of [
+        'bilibiliAuthStatus',
+        'bilibiliAuthProfile',
+        'bilibiliAuthAvatar',
+        'bilibiliAuthName',
+        'bilibiliAuthUid',
+        'bilibiliLoginBtn',
+        'bilibiliLogoutBtn',
+      ]) {
+        document.body.append(parsed.getElementById(id));
+      }
+      document.getElementById('otherDanmakuFeature').hidden = false;
+      window.danmakuState = {
+        loggedIn: true,
+        accountUid: 123,
+        accountName: '测试账号',
+        roomId: 456,
+        roomName: '测试直播间',
+        canSend: true,
+        connected: true,
+        ...state,
+      };
+      window.danmakuRequests = [];
+      window.reconnects = 0;
+      window.AdminApp = {
+        utils: { toast() {} },
+        settings: {
+          async reconnectBilibili() {
+            window.reconnects++;
+            window.danmakuState.connected = true;
+          },
+        },
+      };
+      window.fetch = async (url) => {
+        if (url !== '/api/bilibili/danmaku/state')
+          throw new Error(`Unexpected danmaku request: ${url}`);
+        window.danmakuRequests.push(url);
+        return {
+          ok: true,
+          json: async () => ({ ok: true, data: window.danmakuState }),
+        };
+      };
+      await import('/js/admin/danmaku-tool.js');
+      window.AdminApp.danmakuTool.init({
+        reconnectBilibili: window.AdminApp.settings.reconnectBilibili,
+        toast() {},
+      });
+      await window.AdminApp.danmakuTool.refresh();
+    },
+    { html: readAdminHtml(), state },
   );
-  const navigationSource = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'other.js'),
-    'utf8',
-  );
-  const styles = readCssBundle('public', 'css', 'admin', 'other-features.css');
+  return page;
+}
 
-  assert.match(
-    navigationSource,
-    /refresh\(\{ reconnectIfDisconnected: true \}\)/,
-  );
-  assert.match(
-    toolSource,
-    /if \(reconnectIfDisconnected && !state\.connected\) \{[\s\S]*?reconnectBilibili/,
-  );
-  assert.match(
-    toolSource,
-    /state\.connected\s*\?\s*['"]connection-good['"]\s*:\s*['"]connection-bad['"]/,
-  );
-  assert.match(styles, /strong\.connection-good\s*\{/);
-  assert.match(styles, /strong\.connection-bad\s*\{/);
-  assert.match(styles, /strong\.connection-good::before/);
-  assert.match(styles, /strong\.connection-bad::before/);
+test('danmaku character counter counts Chinese and emoji as code points', async (t) => {
+  const page = await createDanmakuPage(t);
+  await page.locator('#danmakuMessage').fill('中文🙂');
+  assert.equal(await page.locator('#danmakuCounter').textContent(), '3 字');
 });
 
-test('danmaku tool places the AI interaction assistant after the manual sender with safe defaults', () => {
+for (const scenario of [
+  {
+    name: 'display names',
+    state: {},
+    account: '测试账号',
+    room: '测试直播间',
+    accountTitle: 'UID 123',
+    roomTitle: '房间 456',
+  },
+  {
+    name: 'identity fallbacks',
+    state: { accountName: '', roomName: '' },
+    account: 'UID 123',
+    room: '房间 456',
+    accountTitle: 'UID 123',
+    roomTitle: '房间 456',
+  },
+  {
+    name: 'missing login and room',
+    state: { loggedIn: false, roomId: null },
+    account: '未登录',
+    room: '未设置',
+    accountTitle: '',
+    roomTitle: '',
+  },
+]) {
+  test(`danmaku status renders ${scenario.name}`, async (t) => {
+    const page = await createDanmakuPage(t, scenario.state);
+    assert.equal(
+      await page.locator('#danmakuAccountState').textContent(),
+      scenario.account,
+    );
+    assert.equal(
+      await page.locator('#danmakuRoomState').textContent(),
+      scenario.room,
+    );
+    assert.equal(
+      await page.locator('#danmakuAccountState').getAttribute('title'),
+      scenario.accountTitle,
+    );
+    assert.equal(
+      await page.locator('#danmakuRoomState').getAttribute('title'),
+      scenario.roomTitle,
+    );
+  });
+}
+
+test('successful Bilibili login refreshes danmaku once and enables sending', async (t) => {
+  const page = await createDanmakuPage(t, { loggedIn: false, canSend: false });
+  assert.equal(await page.locator('#danmakuSendBtn').isEnabled(), false);
+  await page.evaluate(async () => {
+    const { initBilibiliAuth } = await import('/js/admin/settings-auth.js');
+    window.bilibiliAuth = {
+      getAuthState: async () => ({
+        loggedIn: window.danmakuState.loggedIn,
+        uid: 123,
+      }),
+      async login() {
+        Object.assign(window.danmakuState, { loggedIn: true, canSend: true });
+        return { state: { loggedIn: true } };
+      },
+    };
+    initBilibiliAuth({
+      documentRef: document,
+      windowRef: window,
+      toast() {},
+      logoutConfirm: async () => false,
+    });
+  });
+  await page.locator('#bilibiliLoginBtn').click();
+  await page.waitForFunction(
+    () => !document.getElementById('danmakuSendBtn').disabled,
+    null,
+    { timeout: 2000 },
+  );
+  assert.equal(
+    await page.locator('#danmakuAccountState').textContent(),
+    '测试账号',
+  );
+  assert.equal(await page.evaluate(() => window.danmakuRequests.length), 2);
+});
+
+test('opening a disconnected danmaku panel reconnects once and renders the refreshed state', async (t) => {
+  const page = await createDanmakuPage(t, { connected: false });
+  assert.equal(
+    await page.locator('#danmakuToolStatus').textContent(),
+    '可发送，监听未连接',
+  );
+  assert.equal(
+    await page.locator('#danmakuToolStatus').getAttribute('class'),
+    'connection-bad',
+  );
+  await page.evaluate(async () => {
+    window.localStorage.setItem(
+      'admin.toolboxSelectedFeature',
+      'otherPerformanceFeature',
+    );
+    await import('/js/admin/other.js');
+    window.AdminApp.other.initOtherPage();
+    window.AdminApp.other.selectFeatureById('otherDanmakuFeature');
+  });
+  await page.waitForFunction(
+    () =>
+      document.getElementById('danmakuToolStatus').className ===
+      'connection-good',
+    null,
+    { timeout: 2000 },
+  );
+  assert.equal(
+    await page.locator('#danmakuToolStatus').textContent(),
+    '可发送，监听已连接',
+  );
+  assert.equal(await page.evaluate(() => window.reconnects), 1);
+  assert.equal(await page.evaluate(() => window.danmakuRequests.length), 3);
+  await page.evaluate(() =>
+    window.AdminApp.other.selectFeatureById('otherDanmakuFeature'),
+  );
+  await page.waitForFunction(() => window.danmakuRequests.length === 4, null, {
+    timeout: 2000,
+  });
+  assert.equal(await page.evaluate(() => window.reconnects), 1);
+});
+
+test('danmaku tool mounts the AI assistant after the sender and before fixed replies', () => {
   const html = readAdminHtml();
-  const source = readJsModuleBundle(
-    'public',
-    'js',
-    'admin',
-    'ai-assistant-settings.js',
-  );
   const indexSource = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'index.js'),
+    path.join(ROOT_DIR, 'public/js/admin/app.js'),
     'utf8',
   );
-  const styles = readCssBundle('public', 'css', 'admin', 'other-features.css');
-
   assert.ok(
     html.indexOf('id="xiaomiAiSection"') > html.indexOf('id="danmakuSendForm"'),
   );
@@ -269,122 +397,5 @@ test('danmaku tool places the AI interaction assistant after the manual sender w
     html.indexOf('id="xiaomiAiSection"') <
       html.indexOf('id="danmakuCustomRepliesPanel"'),
   );
-  assert.match(html, /id="xiaomiAiTitle">AI 互动助手<\/h3>/);
-  assert.match(html, /id="xiaomiAiProviderBadge">自动识别</);
-  assert.match(html, /选择你使用的 AI 平台/);
-  assert.match(html, /id="xiaomiAiEnabled"[^>]*checked/);
-  assert.match(html, /id="xiaomiAiModelState">未配置</);
-  assert.match(
-    html,
-    /id="xiaomiAiModel"[^>]*placeholder="填写模型 ID"[^>]*aria-controls="xiaomiAiModelMenu"/,
-  );
-  assert.doesNotMatch(html, /id="xiaomiAiModel"[^>]*\blist=/);
-  assert.doesNotMatch(html, /id="xiaomiAiModel"[^>]*value=/);
-  assert.match(html, /id="xiaomiAiFetchModelsBtn"[^>]*type="button"/);
-  assert.match(html, /id="xiaomiAiQWeatherTestBtn"[^>]*type="button"/);
-  assert.match(html, /id="xiaomiAiAmapTestBtn"[^>]*type="button"/);
-  assert.doesNotMatch(html, /<datalist\b/);
-  assert.match(html, /id="xiaomiAiWebSearch"[^>]*checked/);
-  assert.match(
-    html,
-    /id="xiaomiAiReasoning"[^>]*type="checkbox"(?![^>]*checked)/,
-  );
-  assert.match(html, /id="xiaomiAiReplyMaxChars"[^>]*value="50"/);
-  assert.match(html, /id="xiaomiAiReplyMaxChars"[^>]*min="10"[^>]*max="50"/);
-  assert.match(html, /回复长度偏好/);
-  assert.match(html, /优先一条；内容较多时两条，必要时三条/);
-  assert.equal(
-    html.match(/value="(不同回复随机[^"]+)"\s+readonly/)?.[1],
-    `不同回复随机 500–2000 毫秒；同一回复分段随机 ${MIN_CHUNK_INTERVAL_MS}–${MAX_CHUNK_INTERVAL_MS} 毫秒`,
-  );
-  assert.match(html, /id="xiaomiAiUserCooldown"[^>]*min="0"[^>]*value="0"/);
-  assert.doesNotMatch(html, /id="xiaomiAiSendInterval"/);
-  assert.doesNotMatch(source, /sendIntervalMs: \['xiaomiAiSendInterval'/);
-  assert.match(
-    html,
-    /id="xiaomiAiDeepSeekUrl"[^>]*placeholder="例如：https:\/\/gcli\.ggchan\.dev\/ 或 https:\/\/api\.openai\.com\/v1"/,
-  );
-  assert.match(
-    html,
-    /id="xiaomiAiModelProvider"[\s\S]*?value="deepseek"[\s\S]*?value="openai"[\s\S]*?value="anthropic"[\s\S]*?value="gemini"[\s\S]*?value="custom"/,
-  );
-  assert.match(
-    html,
-    /id="xiaomiAiModelApiProtocol"[\s\S]*?value="auto"[\s\S]*?value="responses"[\s\S]*?value="chat_completions"/,
-  );
-  assert.match(html, /id="xiaomiAiProtocolCapability">等待配置</);
-  assert.match(html, /id="xiaomiAiWebSearchCapability">等待配置</);
-  assert.match(html, /id="xiaomiAiReasoningCapability">等待配置</);
-  assert.match(
-    html,
-    /id="xiaomiAiReasoningEffort"[\s\S]*?value="high">高<[\s\S]*?value="max">最高</,
-  );
-  assert.match(html, /id="xiaomiAiProviderManagedReasoning"[^>]*hidden/);
-  assert.match(html, /id="xiaomiAiDeepSeekKey"[^>]*type="password"/);
-  assert.match(html, /id="xiaomiAiQWeatherKey"[^>]*type="password"/);
-  assert.match(html, /id="xiaomiAiAmapKey"[^>]*type="password"/);
-  assert.match(html, /id="xiaomiAiTrigger"[^>]*placeholder="请自定义触发关键词"/);
-  assert.doesNotMatch(html, /id="xiaomiAiTrigger"[^>]*value="小米"/);
-  assert.match(html, /id="xiaomiAiTestBtn"[^>]*>\s*测试 AI 连接/);
-  assert.match(
-    html,
-    /id="xiaomiAiQWeatherHost"[^>]*type="text"[^>]*placeholder="nn7mdbwku9\.re\.qweatherapi\.com"/,
-  );
-  assert.match(html, /<details class="xiaomi-ai-collapsible">[\s\S]*?扩展能力/);
-  assert.match(
-    html,
-    /<details class="xiaomi-ai-collapsible xiaomi-ai-advanced">[\s\S]*?高级设置/,
-  );
-  assert.match(html, /id="xiaomiAiSaveBtn"[^>]*type="submit"[^>]*>\s*保存设置/);
-  assert.doesNotMatch(html, /sk-[A-Za-z0-9_-]{8,}/);
-  assert.match(indexSource, /import ["']\.\/ai-assistant-settings\.js["'];/);
-  assert.match(source, /element\.textContent = text/);
-  assert.match(source, /const AUTOSAVE_DELAY_MS = 700/);
-  assert.match(source, /form\.addEventListener\(["']input["']/);
-  assert.match(source, /form\.addEventListener\(["']change["']/);
-  assert.match(source, /enabledInput\.addEventListener\(["']change["']/);
-  assert.match(
-    source,
-    /deepseekApiKey: \[["']xiaomiAiDeepSeekKey["'], ["']secret["'], ["']hasDeepSeekApiKey["']\]/,
-  );
-  assert.match(
-    source,
-    /modelProvider: \[["']xiaomiAiModelProvider["'], ["']value["']\]/,
-  );
-  assert.match(source, /Claude 官方兼容/);
-  assert.match(source, /Gemini 官方兼容/);
-  assert.match(
-    source,
-    /modelApiProtocol: \[["']xiaomiAiModelApiProtocol["'], ["']value["']\]/,
-  );
-  assert.match(
-    source,
-    /reasoningEffort: \[["']xiaomiAiReasoningEffort["'], ["']value["']\]/,
-  );
-  assert.match(source, /provider_managed: ["']由平台决定["']/);
-  assert.match(source, /由 LIRA 帮助搜索，需要所选模型支持/);
-  assert.match(
-    source,
-    /qweatherApiKey: \[["']xiaomiAiQWeatherKey["'], ["']secret["'], ["']hasQWeatherApiKey["']\]/,
-  );
-  assert.match(
-    source,
-    /amapApiKey: \[["']xiaomiAiAmapKey["'], ["']secret["'], ["']hasAmapApiKey["']\]/,
-  );
-  assert.doesNotMatch(source, /const secretFields/);
-  assert.match(source, /config\.model \|\| ["']未配置["']/);
-  assert.match(source, /if \(saving\) \{[\s\S]*?pendingSave = true/);
-  assert.match(
-    source,
-    /value !== ["']\*\*\*\*\*\*\*\*["'] && \(value \|\| kind !== ["']secret["']\)/,
-  );
-  assert.match(source, /element\.type = ["']password["']/);
-  assert.doesNotMatch(source, /innerHTML\s*=/);
-  assert.doesNotMatch(source, /modelOptions/);
-  assert.match(styles, /\.xiaomi-ai-section\s*\{/);
-  assert.match(styles, /\.xiaomi-ai-integration-grid\s*\{/);
-  assert.match(styles, /\.xiaomi-ai-test-actions\s*\{/);
-  assert.match(styles, /\.xiaomi-ai-capability-rail\s*\{/);
-  assert.match(styles, /overscroll-behavior:\s*contain/);
-  assert.match(styles, /@media \(max-width: 520px\)/);
+  assert.match(indexSource, /import \{ aiAssistantSettings \} from ["']\.\/ai-assistant-settings\.js["'];/);
 });

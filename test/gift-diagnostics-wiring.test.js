@@ -79,11 +79,13 @@ test('gift notification displays new gifts without per-toast diagnostics', async
     },
   };
 
-  await loadModuleExports(
+  const { createGiftNotification } = await loadModuleExports(
     path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'notification.js'),
     context,
   );
-  const notify = context.window.AdminApp.gifts.notification.notifyNewGift;
+  const { notifyNewGift: notify } = createGiftNotification({
+    notify: (options) => toasts.push(options),
+  });
   notify([
     {
       id: 1,

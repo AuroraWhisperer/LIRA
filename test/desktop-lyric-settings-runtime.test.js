@@ -110,11 +110,18 @@ test('desktop lyric settings automatically list local font families and preserve
     },
   };
 
-  await loadModuleExports(
+  const dependencies = { ...sandbox.window.AdminApp };
+  const { createDesktopLyric } = await loadModuleExports(
     path.join(ROOT_DIR, 'public', 'js', 'admin', 'desktop-lyric.js'),
     sandbox,
   );
-  sandbox.window.AdminApp.desktopLyric.initDesktopLyricForm();
+  const desktopLyric = createDesktopLyric({
+    utils: dependencies.utils,
+    forms: dependencies.forms,
+    preview: dependencies.desktopLyricPreview,
+  });
+  sandbox.window.AdminApp = {};
+  desktopLyric.initDesktopLyricForm();
   await new Promise((resolve) => setImmediate(resolve));
 
   assert.equal(queryCount, 1);
@@ -181,11 +188,18 @@ test('desktop lyric local font detection keeps built-ins when permission is deni
     },
   };
 
-  await loadModuleExports(
+  const dependencies = { ...sandbox.window.AdminApp };
+  const { createDesktopLyric } = await loadModuleExports(
     path.join(ROOT_DIR, 'public', 'js', 'admin', 'desktop-lyric.js'),
     sandbox,
   );
-  sandbox.window.AdminApp.desktopLyric.initDesktopLyricForm();
+  const desktopLyric = createDesktopLyric({
+    utils: dependencies.utils,
+    forms: dependencies.forms,
+    preview: dependencies.desktopLyricPreview,
+  });
+  sandbox.window.AdminApp = {};
+  desktopLyric.initDesktopLyricForm();
   await new Promise((resolve) => setImmediate(resolve));
 
   assert.equal(queryCount, 1);
@@ -258,7 +272,7 @@ test('desktop lyric settings include a live word-timed preview', () => {
   assert.doesNotMatch(rendererSource, /innerHTML\s*=/);
   assert.match(
     source,
-    /import \{ copyText, localOverlayOrigin \} from ["']\.\.\/shared\/utils\.js["'];/,
+    /import \{ copyText, localOverlayOrigin, toast \} from ["']\.\.\/shared\/utils\.js["'];/,
   );
   assert.match(source, /await copyText\(desktopLyricUrl\)/);
   assert.doesNotMatch(
@@ -310,7 +324,6 @@ test('desktop lyric settings include a live word-timed preview', () => {
   assert.match(styles, /:focus-visible/);
   assert.match(styles, /prefers-reduced-motion:\s*reduce/);
   assert.match(rendererSource, /requestAnimationFrame\(animateLyricFollow\)/);
-  assert.match(rendererSource, /stepSpringScroll/);
   assert.match(rendererSource, /MANUAL_FOLLOW_PAUSE_MS = 6000/);
   assert.match(
     rendererSource,
@@ -326,26 +339,11 @@ test('desktop lyric settings include a live word-timed preview', () => {
   assert.match(styles, /\.desktop-lyric-preview-card\.is-background-enabled/);
   assert.match(styles, /--preview-global-opacity/);
   assert.match(styles, /scale\(1\.02\)/);
-  assert.match(
-    styles,
-    /grid-template-columns:\s*minmax\(460px, 1fr\) minmax\(320px, 648px\)/,
-  );
-  assert.match(
-    styles,
-    /\.desktop-lyric-preview-card\s*\{[^}]*max-width:\s*648px/,
-  );
   assert.match(styles, /container-name:\s*admin-lyric-preview/);
-  assert.match(
-    styles,
-    /font-size:\s*min\(calc\(var\(--preview-size\) \* 0\.9\), 8\.5cqi\)/,
-  );
   assert.match(
     styles,
     /\.desktop-lyric-settings-fields\s*\{[\s\S]*?grid-template-columns:\s*1fr/,
   );
-  assert.match(settingsSource, /AUTOSAVE_DELAY_MS/);
-  assert.match(settingsSource, /form\.addEventListener\(["']input["']/);
-  assert.match(settingsSource, /form\.addEventListener\(["']change["']/);
   assert.doesNotMatch(settingsSource, /form\.addEventListener\('submit'/);
   assert.doesNotMatch(settingsSource, /reloadState\(\)/);
 });
@@ -456,11 +454,18 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
     },
   };
 
-  await loadModuleExports(
+  const dependencies = { ...sandbox.window.AdminApp };
+  const { createDesktopLyric } = await loadModuleExports(
     path.join(ROOT_DIR, 'public', 'js', 'admin', 'desktop-lyric.js'),
     sandbox,
   );
-  sandbox.window.AdminApp.desktopLyric.initDesktopLyricForm();
+  const desktopLyric = createDesktopLyric({
+    utils: dependencies.utils,
+    forms: dependencies.forms,
+    preview: dependencies.desktopLyricPreview,
+  });
+  sandbox.window.AdminApp = {};
+  desktopLyric.initDesktopLyricForm();
 
   listeners.get('input')();
   assert.equal(apiCalls.length, 0);

@@ -8,7 +8,7 @@ const {
   createBlindboxFixture,
   flushBlindboxTasks,
 } = require('./helpers/frontend-blindbox-fixture');
-const { loadModuleExports, response } = require('./helpers/frontend-modules');
+const { loadModuleExports } = require('./helpers/frontend-modules');
 
 const ROOT_DIR = path.join(__dirname, '..');
 
@@ -159,7 +159,7 @@ test('blind-box mapping stays alphabetical after a failed refresh and can refres
   await flushBlindboxTasks();
   fixture.refreshRequests
     .shift()
-    .resolve(response({ ok: false, error: 'offline' }));
+    .resolve({ ok: false, text: async () => JSON.stringify({ ok: false, error: 'offline' }) });
   await flushBlindboxTasks();
   assert.deepEqual(names(), ['官方盲盒', '在售盲盒']);
   assert.deepEqual(fixture.visibleNames(), []);
@@ -285,6 +285,7 @@ test('blind-box JSON draft survives state refresh and a failed save', async () =
     getElementById: (id) =>
       id === 'giftBlindBoxCustomConfigV2' ? textarea : null,
     querySelectorAll: () => [],
+    querySelector: () => null,
   };
   const window = { AdminApp: {} };
   const { FormsService } = await loadModuleExports(

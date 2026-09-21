@@ -40,7 +40,7 @@ test('Admin optional explanations use one contextual help component', () => {
     .join('\n');
 
   const helpImport = entrySource.indexOf("import './contextual-help.js';");
-  const featureImport = entrySource.indexOf("import './settings.js';");
+  const featureImport = entrySource.indexOf("import './app.js';");
   assert.ok(helpImport > -1 && helpImport < featureImport);
   assert.match(componentSource, /const HELP_ELEMENT_NAME = ['"]lira-help['"]/);
   assert.match(componentSource, /customElements\.define\(HELP_ELEMENT_NAME/);

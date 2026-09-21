@@ -6,6 +6,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { safeStorage, session } = require('electron');
+const { toSerializableCookie, toElectronCookieDetails } = require('./cookie-details');
 const { BilibiliApiClient } = require('../bilibili/danmaku/api-client');
 
 const BILIBILI_LOGIN_CONFIG = {
@@ -78,36 +79,6 @@ async function getAllowedBilibiliCookies() {
   const loginSession = session.fromPartition(BILIBILI_LOGIN_CONFIG.partition);
   const cookies = await loginSession.cookies.get({});
   return cookies.filter((cookie) => isAllowedBilibiliCookie(cookie));
-}
-
-function toSerializableCookie(cookie) {
-  return {
-    name: cookie.name,
-    value: cookie.value,
-    domain: cookie.domain,
-    path: cookie.path || '/',
-    secure: cookie.secure === true,
-    httpOnly: cookie.httpOnly === true,
-    expirationDate: cookie.expirationDate,
-  };
-}
-
-function toElectronCookieDetails(cookie) {
-  const domain = String(cookie.domain || '').replace(/^\./, '');
-  const protocol = cookie.secure === false ? 'http' : 'https';
-  const details = {
-    url: `${protocol}://${domain}${cookie.path || '/'}`,
-    name: cookie.name,
-    value: cookie.value,
-    domain: cookie.domain,
-    path: cookie.path || '/',
-    secure: cookie.secure === true,
-    httpOnly: cookie.httpOnly === true,
-  };
-  if (Number.isFinite(Number(cookie.expirationDate))) {
-    details.expirationDate = Number(cookie.expirationDate);
-  }
-  return details;
 }
 
 async function persistBilibiliCookieSnapshot(dataDir) {

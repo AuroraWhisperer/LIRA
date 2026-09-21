@@ -1,16 +1,13 @@
+import { publishGiftModule } from '../legacy-admin-bridge.js';
+import {
+  escapeHtml, escapeAttr, formatDateTime, formatMoney, readJsonResponse,
+} from '../../shared/utils.js';
 // 盲盒分析工作区：独立管理筛选、视图、分页和请求生命周期。
 'use strict';
 
 import { eventBus, Events } from '../../shared/event-bus.js';
 
-(function () {
-  const {
-    escapeHtml,
-    escapeAttr,
-    formatDateTime,
-    formatMoney,
-    readJsonResponse,
-  } = window.AdminApp.utils;
+export const giftAnalysis = (() => {
   const PAGE_SIZE = 25;
   const REFRESH_DELAY_MS = 500;
   const VIEW_META = {
@@ -469,6 +466,7 @@ import { eventBus, Events } from '../../shared/event-bus.js';
     document.addEventListener('DOMContentLoaded', init);
   else init();
 
-  window.AdminApp.gifts = window.AdminApp.gifts || {};
-  window.AdminApp.gifts.analysis = { open, close, refreshIfOpen };
+  const module = { open, close, refreshIfOpen };
+  return module;
 })();
+publishGiftModule('analysis', giftAnalysis);

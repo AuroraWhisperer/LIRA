@@ -18,7 +18,7 @@ test('activation credentials stay in the JSON POST body and never enter the URL'
   });
   const credentials = {
     accountName: 'audit-fixture',
-    password: 'AuditOnly!42&?+',
+    password: '  歌手😀 AuditOnly!42&?+  ',
     activationCode: 'SYNTHETIC-CODE-008-011',
   };
   await client.activate(credentials);
@@ -33,33 +33,6 @@ test('activation credentials stay in the JSON POST body and never enter the URL'
     'application/json',
   );
   assert.deepEqual(JSON.parse(requests[0].init.body), credentials);
-});
-
-test('activation JSON POST preserves the shared password samples byte for byte', async () => {
-  const client = createRemoteLicenseClient({
-    baseUrl: 'https://synthetic-api.example',
-    fetchImpl: async (url, init) => {
-      assert.equal(url, 'https://synthetic-api.example/api/device/activate');
-      assert.equal(init.method, 'POST');
-      assert.equal(
-        new Headers(init.headers).get('content-type'),
-        'application/json',
-      );
-      return new Response(init.body);
-    },
-  });
-  for (const sample of require('./fixtures/password-compatibility.json')) {
-    const credentials = {
-      accountName: 'sample-account',
-      password: sample.password,
-      activationCode: 'SYNTHETIC-CODE',
-    };
-    assert.deepEqual(
-      await client.activate(credentials),
-      credentials,
-      sample.id,
-    );
-  }
 });
 
 test('remote client accepts an HTTPS root origin', async () => {

@@ -6,8 +6,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
-const vm = require('node:vm');
-const { fileURLToPath, pathToFileURL } = require('node:url');
+const { loadModuleExports } = require('./helpers/frontend-modules');
 const { readCssBundle } = require('./helpers/css-bundle');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
@@ -149,28 +148,3 @@ test('Electron exposes a directory-only WeSing cache picker', () => {
     /selectWeSingCacheDirectory:\s*\(\)\s*=>\s*ipcRenderer\.invoke\('music:select-wesing-cache'\)/,
   );
 });
-
-async function loadModuleExports(entryPath, globals = {}) {
-  const context = vm.createContext({ console, window: {}, ...globals });
-  const modules = new Map();
-
-  async function load(filePath) {
-    const identifier = pathToFileURL(filePath).href;
-    if (modules.has(identifier)) return modules.get(identifier);
-    const module = new vm.SourceTextModule(fs.readFileSync(filePath, 'utf8'), {
-      context,
-      identifier,
-    });
-    modules.set(identifier, module);
-    await module.link((specifier, referencingModule) => {
-      return load(
-        fileURLToPath(new URL(specifier, referencingModule.identifier)),
-      );
-    });
-    return module;
-  }
-
-  const module = await load(entryPath);
-  await module.evaluate();
-  return module.namespace;
-}

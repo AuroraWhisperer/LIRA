@@ -9,15 +9,14 @@ const { loadModuleExports } = require('./helpers/frontend-modules');
 const { createDom, createClock } = require('./helpers/toast-dom');
 
 test('blind boxes show the actual output and update the same event identity', async () => {
-  const { escapeHtml } = await loadModuleExports(path.resolve('public/js/shared/utils.js'));
   for (const box of ['测试盲盒', '测试产物', '']) {
     const notices = [];
     const sandbox = {
-      window: { AdminApp: { utils: { escapeHtml, formatMoney: String, showStackedToast: (notice) => notices.push(notice) } } },
+      window: {},
       document: { getElementById: () => ({ checked: true }) },
     };
-    await loadModuleExports(path.resolve('public/js/admin/gifts/notification.js'), sandbox);
-    const notify = sandbox.window.AdminApp.gifts.notification.notifyNewGift;
+    const { createGiftNotification } = await loadModuleExports(path.resolve('public/js/admin/gifts/notification.js'), sandbox);
+    const { notifyNewGift: notify } = createGiftNotification({ notify: (notice) => notices.push(notice) });
     const gift = { id: 1, is_blind_box: true, gift_name: '测试产物', blind_box_name: box, user_name: '<script>', num: 1 };
     notify([]); notify([gift]); notify([{ ...gift, num: 2 }]);
     assert.match(notices[0].html, /测试产物 x1/);
@@ -109,13 +108,17 @@ test('import summaries distinguish success, partial failure, no success and all 
   ]) {
     const notices = [];
     const result = {};
+    let reloads = 0;
+    const utils = { value: () => 'song', toast: (message, options) => notices.push({ message, ...options }), api: async () => ({ data }) };
     const sandbox = {
-      window: { AdminApp: { utils: { value: () => 'song', toast: (message, options) => notices.push({ message, ...options }), api: async () => ({ data }) } } },
-      document: { getElementById: (id) => id === 'importFile' ? { files: [] } : result },
-      initializeCloudSongSync() {}, initCloudSongBackground() {}, parseTable: () => [], parseDelimited() {},
+      window: {},
+      document: { getElementById: (id) => id === 'importFile' ? { files: [] } : id === 'importResult' ? result : null },
     };
-    vm.runInNewContext(fs.readFileSync('public/js/admin/import.js', 'utf8').replace(/^import .*;\r?$/gm, ''), sandbox);
-    await sandbox.window.AdminApp.imports.importSongs();
+    const { createSongImports } = await loadModuleExports(path.resolve('public/js/admin/import.js'), sandbox);
+    const imports = createSongImports({ utils, state: { reloadAll: async () => { reloads++; } } });
+    sandbox.window.AdminApp = {};
+    await imports.importSongs();
+    assert.equal(reloads, 1);
     assert.equal(notices[0].type, type);
     assert.match(notices[0].message, text);
     assert.match(result.textContent, new RegExp(`失败 ${data.failed}`));

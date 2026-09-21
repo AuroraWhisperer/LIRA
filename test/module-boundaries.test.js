@@ -7,27 +7,6 @@ const test = require('node:test');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 const LEGACY_ADMIN_GLOBAL_LIMITS = {
-  'public/js/admin/danmaku-tool.js': 5,
-  'public/js/admin/desktop-lyric-preview.js': 5,
-  'public/js/admin/desktop-lyric.js': 11,
-  'public/js/admin/display.js': 27,
-  'public/js/admin/forms.js': 8,
-  'public/js/admin/gift-effects.js': 4,
-  'public/js/admin/gifts/blindbox-analysis.js': 4,
-  'public/js/admin/gifts/blindbox.js': 10,
-  'public/js/admin/gifts/detection.js': 6,
-  'public/js/admin/gifts/index.js': 18,
-  'public/js/admin/gifts/notification.js': 6,
-  'public/js/admin/gifts/recent.js': 6,
-  'public/js/admin/gifts/sprint.js': 6,
-  'public/js/admin/import.js': 10,
-  'public/js/admin/metrics.js': 4,
-  'public/js/admin/other.js': 8,
-  'public/js/admin/songs.js': 37,
-  'public/js/admin/state.js': 4,
-  'public/js/admin/theme.js': 51,
-  'public/js/admin/todo.js': 3,
-  'public/js/admin/ai-assistant-settings.js': 4,
   'public/js/desktop.js': 7,
   'public/js/playback/index.js': 3,
   'public/js/playback/operations/provider-operations.js': 1,
@@ -45,7 +24,6 @@ const LEGACY_ADMIN_GLOBAL_LIMITS = {
 const DOMAIN_SQL_LIMITS = {
   'src/ai/api-quota-store.js': 3,
   'src/ai/config-store.js': 18,
-  'src/bilibili/gift/blind-box-analysis.js': 1,
   'src/overtime/overtime-store.js': 21,
 };
 const EMPTY_CATCH_LIMITS = {
@@ -115,13 +93,14 @@ test('domain services use stores instead of SQLite statements', () => {
   assert.doesNotMatch(superChatService, /context\.db|\bdb\.superChatDb\b/);
   assert.doesNotMatch(songs, /\.(?:prepare|exec)\s*\(/);
   assert.doesNotMatch(songs, /require\([^\n]*storage\//);
-  for (const name of ['projection-service', 'statistics-consumer']) {
+  for (const name of ['projection-service', 'statistics-consumer', 'query-service', 'blind-box-analysis', 'source-scope']) {
     const source = read(`src/bilibili/gift/${name}.js`);
     assert.doesNotMatch(
       source,
       /\.(?:prepare|exec)\s*\(|\bgiftDb\b|context\.db/,
     );
     assert.doesNotMatch(source, /require\([^\n]*storage\//);
+    assert.doesNotMatch(source, /\b(?:SELECT|UPDATE|DELETE FROM)\b|source_id/);
   }
 });
 
@@ -198,6 +177,29 @@ test('Admin application accesses legacy globals only through its bridge', () => 
   assert.doesNotMatch(app, /window\.AdminApp/);
   assert.doesNotMatch(app, /shared\/container\.js|\bcontainer\./);
   assert.match(bridge, /window\.AdminApp/);
+  for (const relativePath of [
+    'public/js/admin/songs.js',
+    'public/js/admin/state-renderer.js',
+    'public/js/admin/state.js',
+    'public/js/admin/metrics.js',
+    'public/js/admin/todo.js',
+    'public/js/admin/gift-effects.js',
+    'public/js/admin/danmaku-tool.js',
+    'public/js/admin/ai-assistant-settings.js',
+    'public/js/admin/other.js',
+    'public/js/admin/desktop-lyric.js',
+    'public/js/admin/desktop-lyric-preview.js',
+    'public/js/admin/import.js',
+    'public/js/admin/settings.js',
+    'public/js/admin/display.js',
+    'public/js/admin/forms.js',
+    'public/js/admin/theme.js',
+    'public/js/admin/theme-style-view.js',
+    ...listJavaScriptFiles('public/js/admin/gifts'),
+  ]) {
+    assert.doesNotMatch(read(relativePath), /\bAdminApp\b|getLegacyAdminModules/,
+      `${relativePath} must use explicit dependencies, not legacy registry reads`);
+  }
 });
 
 test('Admin legacy global usage is frozen and can only decrease', () => {

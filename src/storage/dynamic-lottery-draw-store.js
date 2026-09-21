@@ -1,27 +1,13 @@
 'use strict';
 
+const { transaction } = require('./dynamic-lottery-transaction');
+
 const { randomUUID } = require('node:crypto');
 
 function conflict() {
   return Object.assign(new Error('LOTTERY_DRAW_CONFLICT'), {
     code: 'LOTTERY_DRAW_CONFLICT',
   });
-}
-
-function transaction(db, operation) {
-  db.exec('BEGIN IMMEDIATE');
-  try {
-    const result = operation();
-    db.exec('COMMIT');
-    return result;
-  } catch (error) {
-    try {
-      db.exec('ROLLBACK');
-    } catch (rollbackError) {
-      error.cause = rollbackError;
-    }
-    throw error;
-  }
 }
 
 function createLotteryDrawStore(db) {

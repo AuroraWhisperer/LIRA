@@ -3,7 +3,7 @@
 const GIFT_DISPLAY_SETTING = 'giftDisplayConfig';
 const DEFAULT_GIFT_DISPLAY = Object.freeze({
   palette: 'bilibili-four', thresholds: [3000, 10000, 100000],
-  visibleRows: 3, scrollSpeed: 25,
+  visibleRows: 3, scrollSpeed: 25, minGiftAmountCents: 0,
 });
 
 function validateGiftDisplaySettings(value) {
@@ -21,8 +21,12 @@ function validateGiftDisplaySettings(value) {
     !Number.isInteger(scrollSpeed) || scrollSpeed < 1 || scrollSpeed > 50) {
     throw new Error('显示行数须为 1–10 的整数，滚动速率须为 1–50 的整数。');
   }
+  const minGiftAmountCents = value.minGiftAmountCents === undefined ? 0 : value.minGiftAmountCents;
+  if (!Number.isSafeInteger(minGiftAmountCents) || minGiftAmountCents < 0 || minGiftAmountCents % 10 !== 0) {
+    throw new Error('最小礼物金额须大于或等于 0，且最多保留一位小数。');
+  }
   return { palette: 'bilibili-four', thresholds: [...value.thresholds], visibleRows: value.visibleRows,
-    scrollSpeed };
+    scrollSpeed, minGiftAmountCents };
 }
 
 function readGiftDisplaySettings(settings) {

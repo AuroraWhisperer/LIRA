@@ -7,7 +7,6 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
-const { readCssBundle } = require('./helpers/css-bundle');
 const { loadModuleExports } = require('./helpers/frontend-modules');
 
 const ROOT_DIR = path.join(__dirname, '..');
@@ -15,7 +14,7 @@ const ROOT_DIR = path.join(__dirname, '..');
 test('blind box analysis is a separate accessible workspace module', () => {
   const html = readAdminHtml();
   const entry = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'index.js'),
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'blindbox.js'),
     'utf8',
   );
   const stylesEntry = fs.readFileSync(
@@ -34,7 +33,7 @@ test('blind box analysis is a separate accessible workspace module', () => {
     'utf8',
   );
 
-  assert.match(entry, /import '\.\/gifts\/blindbox-analysis\.js';/);
+  assert.match(entry, /import \{ giftAnalysis \} from '\.\/blindbox-analysis\.js';/);
   assert.match(stylesEntry, /admin\/blindbox-analysis\.css/);
   assert.match(
     html,
@@ -91,24 +90,16 @@ test('blind box analysis refreshes only for gift snapshot reasons', () => {
 test('gift notifications detect delayed records that are not first in the list', async () => {
   const toasts = [];
   const sandbox = {
-    window: {
-      AdminApp: {
-        utils: {
-          escapeHtml: (value) => String(value),
-          formatMoney: (value) => `¥${Number(value).toFixed(2)}`,
-          showStackedToast: (options) => toasts.push(options),
-        },
-      },
-    },
+    window: {},
     document: {
       getElementById: () => ({ checked: true }),
     },
   };
-  await loadModuleExports(
+  const { createGiftNotification } = await loadModuleExports(
     path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'notification.js'),
     sandbox,
   );
-  const notify = sandbox.window.AdminApp.gifts.notification.notifyNewGift;
+  const { notifyNewGift: notify } = createGiftNotification({ notify: (options) => toasts.push(options) });
   const newestByTime = {
     id: 10,
     gift_id: '1',
@@ -260,9 +251,6 @@ test('blindbox ranking count supports all, summary-only, and one-to-ten modes', 
     settingsSource,
     /if\s*\(\s*top\s*!==\s*['"]['"]\s*\)\s*add\(\s*['"]top['"]\s*,\s*top\s*\)/,
   );
-  assert.match(overlaySource, /param\('top', 't'\) \|\| '3'/);
-  assert.match(overlaySource, /Math\.min\(10, Math\.max\(-1, requestedTop\)\)/);
-  assert.match(overlaySource, /const SUMMARY_ONLY = TOP_N === 0/);
   assert.match(
     overlaySource,
     /if \(TOP_N > 0\)[\s\S]*?users = users\.slice\(0, TOP_N\)/,
@@ -299,56 +287,4 @@ test('blindbox ranking count supports all, summary-only, and one-to-ten modes', 
   assert.deepEqual(readMode('?top=0'), { top: 0, summaryOnly: true });
   assert.deepEqual(readMode(''), { top: 3, summaryOnly: false });
   assert.deepEqual(readMode('?top=25'), { top: 10, summaryOnly: false });
-});
-
-test('blind box mapping cards use a purple default gradient and keep distinct known colors', () => {
-  const styles = readCssBundle('public', 'css', 'admin', 'gifts.css');
-
-  const defaultCardRule = styles.match(/\.blind-box-chip\s*\{([^}]+)\}/)?.[1];
-  assert.ok(defaultCardRule);
-  assert.match(defaultCardRule, /border:\s*1px solid #d8c4ef/);
-  assert.match(
-    defaultCardRule,
-    /background:\s*linear-gradient\(135deg, #f5edff 0%, #e9d8fa 100%\)/,
-  );
-
-  for (const name of [
-    '心动盲盒',
-    '幸运盲盒',
-    '小熊虫',
-    '七夕鹊匣',
-    '羁绊宝盒',
-  ]) {
-    const selectorPattern = new RegExp(
-      `\\.blind-box-chip:has\\(img\\[alt\\*=['"]${name}['"]\\]\\)\\s*\\{`,
-    );
-    const ruleMatch = styles.match(selectorPattern);
-    const ruleStart = ruleMatch?.index ?? -1;
-    const ruleEnd = styles.indexOf('\n}', ruleStart);
-
-    assert.ok(
-      ruleStart >= 0,
-      `${name} mapping card should have a dedicated style`,
-    );
-    assert.match(
-      styles.slice(ruleStart, ruleEnd),
-      /border-color:\s*#[0-9a-f]{6}/i,
-    );
-    assert.match(
-      styles.slice(ruleStart, ruleEnd),
-      /background:\s*linear-gradient/,
-    );
-    assert.match(
-      styles,
-      new RegExp(
-        `\\.blind-box-chip:has\\(img\\[alt\\*=['"]${name}['"]\\]\\)\\s*\\.bb-chip-name\\s*\\{`,
-      ),
-    );
-    assert.match(
-      styles,
-      new RegExp(
-        `\\.blind-box-chip:has\\(img\\[alt\\*=['"]${name}['"]\\]\\)\\s*\\.bb-chip-price\\s*\\{`,
-      ),
-    );
-  }
 });

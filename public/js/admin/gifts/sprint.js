@@ -1,10 +1,10 @@
+import { publishGiftModule } from '../legacy-admin-bridge.js';
+import { formatMoney } from '../../shared/utils.js';
 // 编写人：Aurora
 // 月底冲刺模块 - 负责月底冲刺目标和水晶球统计显示
 'use strict';
 
-(function () {
-  const { formatMoney } = window.AdminApp.utils;
-
+export const giftSprint = (() => {
   /**
    * 渲染月底冲刺统计
    * @param {Object} sprint - 冲刺数据
@@ -24,9 +24,9 @@
   }
 
   // 导出
-  window.AdminApp = window.AdminApp || {};
-  window.AdminApp.gifts = window.AdminApp.gifts || {};
-  window.AdminApp.gifts.sprint = {
+  const module = {
     renderSprintStats,
   };
+  return module;
 })();
+publishGiftModule('sprint', giftSprint);

@@ -67,7 +67,7 @@ test('admin app persists toolbox sidebar changes through the settings API', () =
 
   assert.match(
     source,
-    /initOtherPage\?\.\(\{[\s\S]*?persistSidebarCollapsed:[\s\S]*?Utils\.api\('\/api\/settings',\s*\{\s*toolboxSidebarCollapsed:/,
+    /other\.initOtherPage\(\{[\s\S]*?persistSidebarCollapsed:[\s\S]*?Utils\.api\('\/api\/settings',\s*\{\s*toolboxSidebarCollapsed:/,
   );
   assert.match(
     source,

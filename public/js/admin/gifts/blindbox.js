@@ -1,17 +1,21 @@
+import { giftRecent } from './recent.js';
+import { giftAnalysis } from './blindbox-analysis.js';
 // 编写人：Aurora
 // 盲盒统计模块 - 负责盲盒映射配置和统计数据显示
 'use strict';
 
-import { getLegacyAdminModules } from '../legacy-admin-bridge.js';
+import { publishGiftModule } from '../legacy-admin-bridge.js';
+import { stateService } from '../state.js';
 import { eventBus, Events } from '../../shared/event-bus.js';
+import {
+  escapeHtml, escapeAttr, formatTime, formatMoney, readJsonResponse,
+} from '../../shared/utils.js';
 import {
   GIFT_PLACEHOLDER,
   setGiftImageFallbacks,
 } from '../../shared/gift-image-fallback.js';
 
-(function () {
-  const { escapeHtml, escapeAttr, formatTime, formatMoney, readJsonResponse } =
-    window.AdminApp.utils;
+export const giftBlindbox = (() => {
   let statsInitialized = false;
   let officialBlindBoxes = [];
   let officialCatalogLoadPromise = null;
@@ -82,7 +86,7 @@ import {
     }
 
     // 使用 recent 模块的工具函数
-    const getBlindBoxIcon = window.AdminApp.gifts.recent.getBlindBoxIcon;
+    const getBlindBoxIcon = giftRecent.getBlindBoxIcon;
 
     container.innerHTML = entries
       .map((item) => {
@@ -142,7 +146,7 @@ import {
     const status = document.getElementById('blindBoxMappingStatus');
     if (!status) return;
     const mapping =
-      getLegacyAdminModules().state?.getAppState?.()?.blindBoxMapping;
+      stateService.getAppState()?.blindBoxMapping;
     if (!mapping) {
       status.hidden = false;
       status.textContent = '正在读取服务器映射状态';
@@ -467,7 +471,7 @@ import {
     document
       .getElementById('blindBoxAnalysisOpenBtn')
       ?.addEventListener('click', () => {
-        window.AdminApp.gifts.analysis?.open({ view: 'users' });
+        giftAnalysis.open({ view: 'users' });
       });
 
     document
@@ -475,7 +479,7 @@ import {
       ?.addEventListener('click', (event) => {
         const row = event.target.closest('[data-viewer]');
         if (row)
-          window.AdminApp.gifts.analysis?.open({
+          giftAnalysis.open({
             viewer: row.dataset.viewer,
             view: 'records',
           });
@@ -488,7 +492,7 @@ import {
         const row = event.target.closest('[data-viewer]');
         if (!row) return;
         event.preventDefault();
-        window.AdminApp.gifts.analysis?.open({
+        giftAnalysis.open({
           viewer: row.dataset.viewer,
           view: 'records',
         });
@@ -509,9 +513,7 @@ import {
   }
 
   // 导出
-  window.AdminApp = window.AdminApp || {};
-  window.AdminApp.gifts = window.AdminApp.gifts || {};
-  window.AdminApp.gifts.blindbox = {
+  const module = {
     renderBlindBoxList,
     applyOfficialCatalogSnapshot,
     loadBlindBoxStats,
@@ -519,6 +521,9 @@ import {
     initBlindBoxStatsToggle,
   };
   loadOfficialCatalog();
+  eventBus.on(Events.GIFT_CATALOG_UPDATED, ({ snapshot } = {}) => {
+    if (Array.isArray(snapshot?.gifts)) applyOfficialCatalogSnapshot(snapshot);
+  });
   window.addEventListener('app:settings-state', (event) =>
     updateSaleRoom(event.detail),
   );
@@ -526,5 +531,7 @@ import {
     updateSaleRoom(settings, { force: true }),
   );
   document.addEventListener('app:bilibili-auth-changed', loadSaleCatalog);
-  updateSaleRoom(getLegacyAdminModules().state?.getAppState?.()?.settings);
+  updateSaleRoom(stateService.getAppState()?.settings);
+  return module;
 })();
+publishGiftModule('blindbox', giftBlindbox);

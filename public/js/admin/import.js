@@ -2,13 +2,15 @@
 // 数据导入导出解析
 'use strict';
 
-import { getLegacyAdminModules } from './legacy-admin-bridge.js';
+import { publishImports } from './legacy-admin-bridge.js';
+import { stateService } from './state.js';
+import * as sharedUtils from '../shared/utils.js';
 import { parseTable, parseDelimited } from './song-import-parser.js';
 import { initCloudSongSync as initializeCloudSongSync } from './cloud-song-sync.js';
 import { initCloudSongBackground } from './song-background.js';
 
-(function () {
-  const { value, toast, api, showConfirmationDialog } = window.AdminApp.utils;
+export function createSongImports({ state = stateService, utils = sharedUtils } = {}) {
+  const { value, toast, api, showConfirmationDialog } = utils;
   async function importSongs() {
     let text = value('importText');
     const file = document.getElementById('importFile').files[0];
@@ -20,9 +22,7 @@ import { initCloudSongBackground } from './song-background.js';
         });
         renderImportResult(response.data);
         showImportSummary(response.data);
-        if (window.AdminApp.state && window.AdminApp.state.reloadAll) {
-          await window.AdminApp.state.reloadAll();
-        }
+        await state.reloadAll();
         return;
       }
       text = await readTextFile(file);
@@ -36,9 +36,7 @@ import { initCloudSongBackground } from './song-background.js';
     const response = await api('/api/songs/import', { rows });
     renderImportResult(response.data);
     showImportSummary(response.data);
-    if (window.AdminApp.state && window.AdminApp.state.reloadAll) {
-      await window.AdminApp.state.reloadAll();
-    }
+    await state.reloadAll();
   }
 
   function showImportSummary({ inserted, duplicate, failed }) {
@@ -88,14 +86,13 @@ import { initCloudSongBackground } from './song-background.js';
 
   function initCloudSongSync() {
     return initializeCloudSongSync({
-      getSongs: () => getLegacyAdminModules().state?.getSongs?.() || [],
+      getSongs: () => state.getSongs(),
       toast,
       showConfirmationDialog,
     });
   }
 
-  window.AdminApp = window.AdminApp || {};
-  window.AdminApp.imports = {
+  return {
     importSongs,
     renderImportResult,
     parseTable,
@@ -105,8 +102,11 @@ import { initCloudSongBackground } from './song-background.js';
     initCloudSongSync,
     initCloudSongBackground,
   };
-  if (typeof document !== 'undefined') {
-    initCloudSongSync();
-    initCloudSongBackground();
-  }
-})();
+}
+
+export const songImports = createSongImports();
+publishImports(songImports);
+if (typeof document !== 'undefined') {
+  songImports.initCloudSongSync();
+  songImports.initCloudSongBackground();
+}

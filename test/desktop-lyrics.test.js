@@ -9,6 +9,19 @@ const { normalizeLyricTimeline } = require('../src/music/lyric-timeline');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 
+test('lyric lines share bounds while word spacing remains significant', () => {
+  const input = { text: ' \u0000word\t ', startMs: '12.5', endMs: Infinity };
+  const state = normalizeLyricState({ lineText: input.text, words: [input] });
+  const timeline = normalizeLyricTimeline({ lines: [input] });
+  assert.equal(state.lineText, 'word');
+  assert.equal(timeline.lines[0].text, 'word');
+  assert.equal(state.words[0].text, '  word  ');
+  for (const item of [state.words[0], timeline.lines[0]]) {
+    assert.equal(item.startMs, 12.5);
+    assert.equal(item.endMs, 12.5);
+  }
+});
+
 test('lyric state normalization limits browser-source payloads', () => {
   const state = normalizeLyricState({
     trackTitle: ` Song\u0000${'x'.repeat(200)} `,

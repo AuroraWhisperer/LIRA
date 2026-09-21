@@ -1,5 +1,7 @@
 'use strict';
 
+const { isSensitiveFieldName: isSensitiveResponseKey } = require('../../shared/sensitive-field-name');
+
 const {
   RemoteLicenseError,
   normalizeErrorCode,
@@ -31,26 +33,6 @@ function isRetryableAuthError(error) {
     Number(error?.status) === 408 ||
     Number(error?.status) === 429 ||
     Number(error?.status) >= 500
-  );
-}
-
-function isSensitiveResponseKey(key) {
-  const normalizedKey = String(key).toLowerCase().replace(/[_-]/g, '');
-  return (
-    normalizedKey === 'password' ||
-    normalizedKey === 'passwd' ||
-    normalizedKey === 'key' ||
-    normalizedKey === 'activationcode' ||
-    normalizedKey === 'pairingcode' ||
-    normalizedKey === 'fingerprint' ||
-    normalizedKey === 'hardwareid' ||
-    normalizedKey === 'authorization' ||
-    normalizedKey === 'cookie' ||
-    normalizedKey.endsWith('apikey') ||
-    normalizedKey.endsWith('secret') ||
-    normalizedKey.endsWith('token') ||
-    normalizedKey.endsWith('signature') ||
-    normalizedKey.includes('privatekey')
   );
 }
 

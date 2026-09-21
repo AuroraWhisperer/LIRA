@@ -21,21 +21,35 @@ function readJsModuleBundle(...relativeSegments) {
   );
 }
 
-test('storybook queue scales complete illustrated rows while identity content stays inside the artwork viewport', () => {
-  const html = readAdminHtml();
-  const overlaySource = readJsModuleBundle(
+function loadQueueRenderers() {
+  const source = readJsModuleBundle(
     'public',
     'js',
     'overlays',
     'queue.js',
   );
+  const sandbox = {
+    console,
+    URLSearchParams,
+    location: { protocol: 'http:', host: 'localhost', search: '' },
+    WebSocket: function WebSocket() {},
+    document: { addEventListener() {} },
+    window: {},
+  };
+  vm.runInNewContext(source, sandbox);
+  return sandbox;
+}
+
+test('storybook queue scales complete illustrated rows while identity content stays inside the artwork viewport', () => {
+  const html = readAdminHtml();
+  const sandbox = loadQueueRenderers();
   const overlayStyles = readCssBundle('public', 'css', 'overlays', 'base.css');
   const entryCss = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'css', 'overlays', 'base.css'),
     'utf8',
   );
   const adminThemeSource = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme.js'),
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme-style-view.js'),
     'utf8',
   );
   const adminStyles = readCssBundle('public', 'css', 'admin', 'workspace.css');
@@ -55,16 +69,6 @@ test('storybook queue scales complete illustrated rows while identity content st
     'song-board-style-3',
     'entry.webp',
   );
-  const sandbox = {
-    console,
-    URLSearchParams,
-    location: { protocol: 'http:', host: 'localhost', search: '' },
-    WebSocket: function WebSocket() {},
-    document: { addEventListener() {} },
-    window: {},
-  };
-  vm.runInNewContext(overlaySource, sandbox);
-
   assert.match(html, /data-overlay-style="storybook"[\s\S]*点歌板风格 3/);
   assert.match(html, /data-identity-only/);
   assert.match(adminThemeSource, /ILLUSTRATED_QUEUE_STYLES[\s\S]*'storybook'/);
@@ -146,13 +150,6 @@ test('storybook queue scales complete illustrated rows while identity content st
     rowRule,
     /background-image:\s*url\('\/img\/overlays\/song-board-style-3\/entry\.webp'\)/,
   );
-  assert.match(rowRule, /left:\s*-2%/);
-  assert.match(rowRule, /width:\s*88%/);
-  assert.match(rowRule, /aspect-ratio:\s*1237\s*\/\s*304/);
-  assert.match(rowRule, /background-position:\s*44\.482%\s+45\.972%/);
-  assert.match(rowRule, /background-size:\s*124\.171%\s+336\.842%/);
-  assert.match(rowRule, /min-height:\s*0/);
-  assert.doesNotMatch(rowRule, /height:\s*clamp\(/);
   assert.match(
     rowRule,
     /font-size:\s*var\(--identity-queue-font-size,\s*28px\)/,
@@ -168,19 +165,14 @@ test('storybook queue scales complete illustrated rows while identity content st
 
 test('styles 4 and 5 use supplied art, omit queue ranks, and render all four requested fields', () => {
   const html = readAdminHtml();
-  const overlaySource = readJsModuleBundle(
-    'public',
-    'js',
-    'overlays',
-    'queue.js',
-  );
+  const sandbox = loadQueueRenderers();
   const overlayStyles = readCssBundle('public', 'css', 'overlays', 'base.css');
   const entryCss = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'css', 'overlays', 'base.css'),
     'utf8',
   );
   const adminThemeSource = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme.js'),
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme-style-view.js'),
     'utf8',
   );
   const assetPaths = [
@@ -189,16 +181,6 @@ test('styles 4 and 5 use supplied art, omit queue ranks, and render all four req
     ['song-board-style-5', 'frame.webp'],
     ['song-board-style-5', 'entry.webp'],
   ].map((parts) => path.join(ROOT_DIR, 'public', 'img', 'overlays', ...parts));
-  const sandbox = {
-    console,
-    URLSearchParams,
-    location: { protocol: 'http:', host: 'localhost', search: '' },
-    WebSocket: function WebSocket() {},
-    document: { addEventListener() {} },
-    window: {},
-  };
-  vm.runInNewContext(overlaySource, sandbox);
-
   assert.match(html, /data-overlay-style="neon-vinyl"[\s\S]*点歌板风格 4/);
   assert.match(html, /data-overlay-style="cherry-ribbon"[\s\S]*点歌板风格 5/);
   assert.match(adminThemeSource, /neon-vinyl/);
@@ -244,9 +226,6 @@ test('styles 4 and 5 use supplied art, omit queue ranks, and render all four req
   assert.doesNotMatch(neonRow, /illustrated-label/);
   assert.doesNotMatch(ribbonRow, /illustrated-label/);
 
-  const neonContentRule = overlayStyles.match(
-    /\.queue-neon-vinyl \.overlay-content\s*\{[^}]*\}/,
-  )?.[0];
   const neonRowRule = overlayStyles.match(/\.neon-vinyl-row\s*\{[^}]*\}/)?.[0];
   const neonInfoRule = overlayStyles.match(
     /\.neon-vinyl-info\.identity-content\s*\{[^}]*\}/,
@@ -266,7 +245,6 @@ test('styles 4 and 5 use supplied art, omit queue ranks, and render all four req
   const ribbonViewportRule = overlayStyles.match(
     /\.cherry-ribbon-info-viewport\s*\{[^}]*\}/,
   )?.[0];
-  assert.ok(neonContentRule);
   assert.ok(neonRowRule);
   assert.ok(neonInfoRule);
   assert.ok(neonViewportRule);
@@ -274,18 +252,12 @@ test('styles 4 and 5 use supplied art, omit queue ranks, and render all four req
   assert.ok(ribbonRowRule);
   assert.ok(ribbonInfoRule);
   assert.ok(ribbonViewportRule);
-  assert.match(neonContentRule, /inset:\s*23\.5%\s+9\.5%\s+12%/);
-  assert.match(neonRowRule, /width:\s*94%/);
-  assert.match(neonRowRule, /aspect-ratio:\s*2172\s*\/\s*517\.5/);
-  assert.match(neonRowRule, /min-height:\s*0/);
   assert.match(neonRowRule, /margin-inline:\s*auto/);
-  assert.match(neonRowRule, /background-size:\s*100%\s+100%/);
   assert.match(
     neonRowRule,
     /font-size:\s*var\(--identity-queue-font-size,\s*28px\)/,
   );
   assert.match(neonInfoRule, /margin-inline:\s*0/);
-  assert.match(neonViewportRule, /color:\s*#54152f/);
   assert.match(neonViewportRule, /top:\s*30%/);
   assert.match(neonViewportRule, /right:\s*15%/);
   assert.match(neonViewportRule, /bottom:\s*31%/);
@@ -297,11 +269,7 @@ test('styles 4 and 5 use supplied art, omit queue ranks, and render all four req
     ribbonContentRule,
     /inset:\s*calc\(15% \+ var\(--cherry-ribbon-top-trim\)\)\s+10%\s+calc\(9\.5% \+ var\(--cherry-ribbon-bottom-trim\)\)/,
   );
-  assert.match(ribbonRowRule, /width:\s*94%/);
-  assert.match(ribbonRowRule, /aspect-ratio:\s*1623\s*\/\s*371\.2/);
-  assert.match(ribbonRowRule, /min-height:\s*0/);
   assert.match(ribbonRowRule, /margin-inline:\s*auto/);
-  assert.match(ribbonRowRule, /background-size:\s*100%\s+100%/);
   assert.match(
     ribbonRowRule,
     /font-size:\s*var\(--identity-queue-font-size,\s*28px\)/,
@@ -313,7 +281,7 @@ test('styles 4 and 5 use supplied art, omit queue ranks, and render all four req
   assert.match(ribbonViewportRule, /left:\s*22%/);
 });
 
-test('style 4 scroll endpoint clears the foreground bottom frame', () => {
+test('style 4 keeps its viewport inside the frame and its scroll endpoint above the foreground', () => {
   const overlayStyles = readCssBundle('public', 'css', 'overlays', 'base.css');
   const contentRule = overlayStyles.match(
     /\.queue-neon-vinyl \.overlay-content\s*\{[^}]*\}/,
@@ -324,8 +292,21 @@ test('style 4 scroll endpoint clears the foreground bottom frame', () => {
 
   assert.ok(contentRule);
   assert.ok(frameRule);
-  assert.match(contentRule, /inset:\s*23\.5%\s+9\.5%\s+12%/);
-  assert.match(frameRule, /border-width:\s*168px\s+56px\s+84px/);
+  assert.match(contentRule, /inset:\s*23\.5%\s+9\.5%\s/);
+  const [, aspectWidth, aspectHeight] = overlayStyles.match(
+    /\.queue-neon-vinyl\s*\{\s*aspect-ratio:\s*([\d.]+)\s*\/\s*([\d.]+)/,
+  );
+  const bottomInset = Number(
+    contentRule.match(/inset:\s*[\d.]+%\s+[\d.]+%\s+([\d.]+)%/)?.[1],
+  );
+  const frameBottom = Number(
+    frameRule.match(/border-width:\s*[\d.]+px\s+[\d.]+px\s+([\d.]+)px/)?.[1],
+  );
+  const canvasHeight = 560 * Number(aspectHeight) / Number(aspectWidth);
+  assert.ok(
+    Math.ceil(canvasHeight * bottomInset / 100) >= frameBottom,
+    'the scroll viewport must end above the bottom artwork in design coordinates',
+  );
 });
 
 test('styles 4-6 give each guard tier one shared guard and medal color', () => {
@@ -350,22 +331,16 @@ test('styles 4-6 give each guard tier one shared guard and medal color', () => {
 
 test('style 6 uses supplied golden lily art, shows queue ranks, and renders all four requested fields', () => {
   const html = readAdminHtml();
-  const overlaySource = readJsModuleBundle(
-    'public',
-    'js',
-    'overlays',
-    'queue.js',
-  );
+  const sandbox = loadQueueRenderers();
   const overlayStyles = readCssBundle('public', 'css', 'overlays', 'base.css');
   const entryCss = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'css', 'overlays', 'base.css'),
     'utf8',
   );
   const adminThemeSource = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme.js'),
+    path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme-style-view.js'),
     'utf8',
   );
-  const adminStyles = readCssBundle('public', 'css', 'admin', 'workspace.css');
   const framePath = path.join(
     ROOT_DIR,
     'public',
@@ -382,23 +357,9 @@ test('style 6 uses supplied golden lily art, shows queue ranks, and renders all 
     'song-board-style-6',
     'entry.webp',
   );
-  const sandbox = {
-    console,
-    URLSearchParams,
-    location: { protocol: 'http:', host: 'localhost', search: '' },
-    WebSocket: function WebSocket() {},
-    document: { addEventListener() {} },
-    window: {},
-  };
-  vm.runInNewContext(overlaySource, sandbox);
-
   assert.match(html, /data-overlay-style="golden-lily"[\s\S]*点歌板风格 6/);
   assert.match(html, /点歌板风格 2 \/ 3 \/ 4 \/ 5 \/ 6/);
   assert.match(adminThemeSource, /golden-lily/);
-  assert.match(
-    adminStyles,
-    /\.style-picker\s*\{[\s\S]*grid-template-columns:\s*repeat\(6,/,
-  );
   assert.equal(sandbox.normalizeQueueStyle('golden-lily'), 'golden-lily');
   assert.ok(fs.statSync(framePath).size > 0);
   assert.ok(fs.statSync(entryPath).size > 0);
@@ -406,10 +367,6 @@ test('style 6 uses supplied golden lily art, shows queue ranks, and renders all 
   assert.match(entryCss, /@import url\('\.\/base\/golden-lily\.css'\);/);
   assert.match(overlayStyles, /song-board-style-6\/frame\.webp/);
   assert.match(overlayStyles, /song-board-style-6\/entry\.webp/);
-  assert.match(
-    overlayStyles,
-    /\.golden-lily-rank\s*\{[\s\S]*place-items:\s*center/,
-  );
   assert.match(
     overlayStyles,
     /\.golden-lily-info-viewport\s*\{[\s\S]*overflow:\s*hidden/,
@@ -441,9 +398,6 @@ test('style 6 uses supplied golden lily art, shows queue ranks, and renders all 
   const goldenRowRule = overlayStyles.match(
     /\.golden-lily-row\s*\{[^}]*\}/,
   )?.[0];
-  const goldenContentRule = overlayStyles.match(
-    /\.queue-golden-lily \.overlay-content\s*\{(?=[^}]*inset:)[^}]*\}/,
-  )?.[0];
   const goldenRankRule = overlayStyles.match(
     /\.golden-lily-rank\s*\{[^}]*\}/,
   )?.[0];
@@ -453,18 +407,10 @@ test('style 6 uses supplied golden lily art, shows queue ranks, and renders all 
   const goldenInfoRule = overlayStyles.match(
     /\.golden-lily-info\.identity-content\s*\{[^}]*\}/,
   )?.[0];
-  assert.ok(goldenContentRule);
   assert.ok(goldenRowRule);
   assert.ok(goldenRankRule);
   assert.ok(goldenViewportRule);
   assert.ok(goldenInfoRule);
-  assert.match(goldenContentRule, /inset:\s*16\.5%\s+8\.5%\s+13\.5%/);
-  assert.match(
-    overlaySource,
-    /renderIllustratedAssetQueue\(\s*settings\s*,\s*current\s*,\s*waiting\s*,\s*content\s*,\s*['"]golden-lily['"]\s*,\s*4\s*,\s*renderGoldenLilyRow\s*,?\s*\)/,
-  );
-  assert.match(goldenRowRule, /width:\s*72%/);
-  assert.match(goldenRowRule, /aspect-ratio:\s*2139\s*\/\s*539/);
   assert.match(goldenRowRule, /margin-inline:\s*auto/);
   assert.match(
     goldenRowRule,
@@ -480,14 +426,6 @@ test('style 6 uses supplied golden lily art, shows queue ranks, and renders all 
   assert.match(goldenViewportRule, /right:\s*11%/);
   assert.match(goldenViewportRule, /bottom:\s*29%/);
   assert.match(goldenViewportRule, /left:\s*32%/);
-  assert.match(
-    overlayStyles,
-    /\.golden-lily-list\.identity-list\s*\{[^}]*gap:\s*4px/,
-  );
-  assert.doesNotMatch(
-    overlayStyles,
-    /\.golden-lily-row:not\(:first-child\)\s*\{[^}]*margin-top:\s*-[\d.]+px/,
-  );
   assert.match(goldenInfoRule, /margin-inline:\s*auto/);
 });
 

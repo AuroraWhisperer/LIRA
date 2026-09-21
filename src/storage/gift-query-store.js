@@ -11,11 +11,6 @@ const MAX_HISTORY_COUNTS = 64;
 const MAX_TOP_GIFTS = 50;
 const MAX_TIME_SERIES_POINTS = 240;
 const SHANGHAI_OFFSET_MS = 8 * 60 * 60 * 1000;
-const ALLOWED_SOURCE_SCOPES = new Set([
-  'source_id IS NULL',
-  'source_id = ?',
-  '1 = 0',
-]);
 const GIFT_METRICS_SQL = `
   COUNT(*) AS eventCount,
   COALESCE(SUM(giftQuantity(g.num)), 0) AS itemCount,
@@ -319,7 +314,32 @@ function createGiftQueryStore(giftDb) {
     return giftDb.prepare(sql).all(...params);
   }
 
+  function listBlindBoxRows({ sourceScope, from, to, boxName }) {
+    const scope = normalizeSourceScope(sourceScope);
+    const params = [from, to, ...scope.params];
+    let sql = `
+      SELECT id, gift_name, user_name, uid, blind_box_name, blind_box_price,
+             total_price, blind_profit, num, created_at
+      FROM gift_events
+      WHERE status = 'active'
+        AND detection_status = 'final'
+        AND gift_stats_eligible = 1
+        AND is_blind_box = 1
+        AND blind_profit IS NOT NULL
+        AND created_at >= ?
+        AND created_at < ?
+        AND ${scope.sql}
+    `;
+    if (boxName) {
+      sql += ' AND blind_box_name = ?';
+      params.push(boxName);
+    }
+    sql += ' ORDER BY datetime(created_at) DESC, id DESC';
+    return giftDb.prepare(sql).all(...params);
+  }
+
   return {
+    listBlindBoxRows,
     readHistorySnapshot: (options) => withReadTransaction(giftDb, () => listHistoryRows(options)),
     readHistoryPage,
     getProjectionGeneration: (sourceId) => Number(giftDb.prepare(
@@ -336,20 +356,16 @@ function createGiftQueryStore(giftDb) {
 }
 
 function normalizeSourceScope(sourceScope) {
-  const sql = String(sourceScope?.sql || '1 = 0');
-  const params = Array.isArray(sourceScope?.params)
-    ? [...sourceScope.params]
-    : [];
-  if (!ALLOWED_SOURCE_SCOPES.has(sql)) {
-    throw new Error('INVALID_GIFT_SOURCE_SCOPE');
+  if (sourceScope?.kind === 'local') {
+    return { sql: 'source_id IS NULL', params: [] };
   }
   if (
-    (sql === 'source_id = ?' && params.length !== 1) ||
-    (sql !== 'source_id = ?' && params.length !== 0)
+    sourceScope?.kind === 'source' &&
+    Number.isSafeInteger(sourceScope.sourceId) && sourceScope.sourceId >= 1
   ) {
-    throw new Error('INVALID_GIFT_SOURCE_SCOPE');
+    return { sql: 'source_id = ?', params: [sourceScope.sourceId] };
   }
-  return { sql, params };
+  return { sql: '1 = 0', params: [] };
 }
 
 function normalizeHistorySort(sortField, sortDirection) {

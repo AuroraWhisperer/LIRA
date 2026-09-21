@@ -1,7 +1,8 @@
 // 编写人：Aurora
 // 最近礼物模块 - 负责最近礼物列表渲染和图标工具函数
 import { eventBus, Events } from '../../shared/event-bus.js';
-import { getLegacyAdminModules } from '../legacy-admin-bridge.js';
+import { publishGiftModule } from '../legacy-admin-bridge.js';
+import { escapeHtml, formatTime, formatMoney } from '../../shared/utils.js';
 import {
   GIFT_PLACEHOLDER,
   setGiftImageFallbacks,
@@ -89,7 +90,7 @@ export function getGiftToastArtwork(item) {
   return /\.webp$/i.test(imagePath) ? imagePath : '';
 }
 
-(function () {
+export const giftRecent = (() => {
   const MAX_RECENT_GIFT_ROWS = 6;
   const HIGH_VALUE_GIFT_MIN_RMB = 1000;
   const SPECIAL_BLIND_BOX_TYPES = [
@@ -102,8 +103,6 @@ export function getGiftToastArtwork(item) {
   let giftArtworkRevision = 0;
   let giftArtworkEventsUnsubscribe = null;
   let latestRecentGiftItems = [];
-
-  const { escapeHtml, formatTime, formatMoney } = window.AdminApp.utils;
 
   function limitRecentGiftRows(list) {
     const columns =
@@ -205,9 +204,6 @@ export function getGiftToastArtwork(item) {
       addGiftArtwork(artworkById, gift);
     }
     giftArtworkById = artworkById;
-    getLegacyAdminModules().gifts?.blindbox?.applyOfficialCatalogSnapshot?.(
-      snapshot,
-    );
     if (latestRecentGiftItems.length > 0)
       renderGiftRecentList(latestRecentGiftItems);
   }
@@ -364,9 +360,7 @@ export function getGiftToastArtwork(item) {
   }
 
   // 导出
-  window.AdminApp = window.AdminApp || {};
-  window.AdminApp.gifts = window.AdminApp.gifts || {};
-  window.AdminApp.gifts.recent = {
+  const module = {
     renderGiftRecentList,
     getGuardBadge,
     getBlindBoxIcon,
@@ -375,4 +369,6 @@ export function getGiftToastArtwork(item) {
   };
 
   initGiftArtworkCatalog(eventBus, Events);
+  return module;
 })();
+publishGiftModule('recent', giftRecent);

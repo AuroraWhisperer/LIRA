@@ -3,6 +3,7 @@
 'use strict';
 
 import { showError, value } from '../shared/utils.js';
+import { publishState } from './legacy-admin-bridge.js';
 import { eventBus, Events } from '../shared/event-bus.js';
 import {
   readSelectedCategories,
@@ -360,21 +361,4 @@ function isSongsSnapshotReason(reason) {
 // 创建单例实例
 export const stateService = new StateService();
 
-// 【过渡期兼容层】- 保持window.AdminApp.state可用
-// 阶段5时删除
-if (typeof window !== 'undefined') {
-  window.AdminApp = window.AdminApp || {};
-  window.AdminApp.state = {
-    connectSocket: () => stateService.connectSocket(),
-    reloadAll: () => stateService.reloadAll(),
-    reloadState: () => stateService.reloadState(),
-    reloadSongs: () => stateService.reloadSongs(),
-    scheduleSongReload: () => stateService.scheduleSongReload(),
-    getAppState: () => stateService.getAppState(),
-    getSongs: () => stateService.getSongs(),
-    getCategories: () => stateService.getCategories(),
-    getSongLanguages: () => stateService.getSongLanguages(),
-    getSongArtists: () => stateService.getSongArtists(),
-    setShuttingDown: (v) => stateService.setShuttingDown(v),
-  };
-}
+publishState(stateService);

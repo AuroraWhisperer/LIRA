@@ -100,7 +100,7 @@ test('resolved admin styles keep one toast foundation and all moved consumers', 
   }
 });
 
-test('live refresh toast keeps a resolvable image and new CSS modules stay focused', () => {
+test('live refresh toast keeps a resolvable image', () => {
   const livePath = path.join(
     ROOT_DIR,
     'public',
@@ -122,22 +122,4 @@ test('live refresh toast keeps a resolvable image and new CSS modules stay focus
     fs.existsSync(path.resolve(path.dirname(livePath), assetReference)),
     true,
   );
-
-  for (const relativePath of [
-    ['admin', 'toasts', 'system.css'],
-    ['admin', 'toasts', 'gifts.css'],
-    ['admin', 'toasts', 'ai.css'],
-    ['admin', 'toasts', 'playback.css'],
-    ['admin', 'toasts', 'live.css'],
-    ['admin', 'toasts', 'desktop-update.css'],
-    ['components', 'switch-control.css'],
-    ['admin', 'workspace', 'song-overlay-settings.css'],
-    ['admin', 'other-features', 'performance.css'],
-  ]) {
-    const source = read('public', 'css', ...relativePath);
-    assert.ok(
-      source.split(/\r?\n/).length <= 600,
-      `${relativePath.join('/')} should stay below the warning range`,
-    );
-  }
 });

@@ -2,9 +2,13 @@
 
 const assert = require('node:assert/strict');
 const path = require('node:path');
-const { loadModuleExports, response } = require('./frontend-modules');
+const { loadModuleExports } = require('./frontend-modules');
 
 const ROOT_DIR = path.join(__dirname, '..', '..');
+
+function response(payload) {
+  return { ok: payload.ok !== false, text: async () => JSON.stringify(payload) };
+}
 
 async function flushBlindboxTasks() {
   await new Promise((resolve) => setImmediate(resolve));
@@ -61,22 +65,6 @@ async function createBlindboxFixture({
     dispatchEvent(event) {
       windowListeners.get(event.type)?.(event);
     },
-    AdminApp: {
-      utils: {
-        escapeHtml: (value) => String(value),
-        escapeAttr: (value) => String(value),
-        formatTime: (value) => String(value),
-        formatMoney: (value) => String(value),
-        readJsonResponse: async (result) => result.payload,
-      },
-      state: {
-        getAppState: () => ({
-          settings: { roomId: currentRoomId },
-          blindBoxMapping: mappingState,
-        }),
-      },
-      gifts: { recent: { getBlindBoxIcon: () => null } },
-    },
     bilibiliAuth: {
       getAuthState: async () => ({ loggedIn }),
     },
@@ -86,6 +74,11 @@ async function createBlindboxFixture({
   const fetchCalls = [];
   const fetch = (url, options = {}) => {
     fetchCalls.push({ url, options });
+    if (url === '/api/state') {
+      return Promise.resolve({ ok: true, json: async () => ({ ok: true, data: {
+        settings: { roomId: currentRoomId }, blindBoxMapping: mappingState,
+      } }) });
+    }
     if (url === '/api/overtime/gifts/catalog') {
       return Promise.resolve(
         response({
@@ -104,9 +97,13 @@ async function createBlindboxFixture({
 
   await loadModuleExports(
     path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'blindbox.js'),
-    { document, window, fetch },
+    { document, window, fetch, CustomEvent: class {
+      constructor(type, { detail }) { this.type = type; this.detail = detail; }
+    } },
   );
+  await window.AdminApp.state.reloadState();
   await flushBlindboxTasks();
+  window.AdminApp.gifts.blindbox.renderBlindBoxList();
 
   return {
     container,

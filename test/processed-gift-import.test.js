@@ -22,6 +22,7 @@ const { closeDatabases, createDatabases } = require('../src/storage/database');
 const { readServerFixture } = require('../scripts/verify-server-contract');
 const heartBox = readServerFixture('test/fixtures/heart-blind-box-events.json');
 const { getGiftSnapshot } = require('../src/bilibili/gift/query-service');
+const { createGiftQueryStore } = require('../src/storage/gift-query-store');
 const {
   createFakeClock,
   createFixture,
@@ -51,7 +52,7 @@ test('heart-box output metadata survives remote import and recent snapshot proje
       fixture.importProcessedEvent(event);
     }
     const snapshot = getGiftSnapshot({
-      db: fixture.db,
+      queryStore: createGiftQueryStore(fixture.db.giftDb),
       getActiveGiftSource: () => ({ sourceId: fixture.sourceId }),
     });
     assert.equal(snapshot.recent.length, 2);

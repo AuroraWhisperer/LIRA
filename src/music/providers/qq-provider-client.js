@@ -15,6 +15,16 @@ const QQ_MUSICU_URL = 'https://u.y.qq.com/cgi-bin/musicu.fcg';
 const QQ_MUSICS_URL = 'https://u6.y.qq.com/cgi-bin/musics.fcg';
 const REQUEST_TIMEOUT_MS = 10000;
 
+async function readQQJsonResponse(response) {
+  const text = await response.text();
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  try {
+    return JSON.parse(stripJsonp(text));
+  } catch (error) {
+    throw new Error(`QQ 音乐返回了非 JSON 响应：${error.message}`);
+  }
+}
+
 class QQMusicClient {
   constructor(options = {}) {
     this.source = 'qq';
@@ -91,14 +101,7 @@ class QQMusicClient {
       redirect: 'follow',
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
-    const text = await response.text();
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    let data;
-    try {
-      data = JSON.parse(stripJsonp(text));
-    } catch (error) {
-      throw new Error(`QQ 音乐返回了非 JSON 响应：${error.message}`);
-    }
+    const data = await readQQJsonResponse(response);
     const inner = data && data[callKey];
     const retCode = inner && inner.data && inner.data.retCode;
     if (
@@ -149,13 +152,7 @@ class QQMusicClient {
       redirect: 'follow',
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
-    const text = await response.text();
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    try {
-      return JSON.parse(stripJsonp(text));
-    } catch (error) {
-      throw new Error(`QQ 音乐返回了非 JSON 响应：${error.message}`);
-    }
+    return readQQJsonResponse(response);
   }
 
   async requestMusicsClient(modules = {}) {
@@ -205,13 +202,7 @@ class QQMusicClient {
       redirect: 'follow',
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
-    const text = await response.text();
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    try {
-      return JSON.parse(stripJsonp(text));
-    } catch (error) {
-      throw new Error(`QQ 音乐返回了非 JSON 响应：${error.message}`);
-    }
+    return readQQJsonResponse(response);
   }
 
   async requestQQEncryptedVkey(modules = {}, requestGuid = '') {
@@ -256,13 +247,7 @@ class QQMusicClient {
       redirect: 'follow',
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
-    const text = await response.text();
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    try {
-      return JSON.parse(stripJsonp(text));
-    } catch (error) {
-      throw new Error(`QQ 音乐返回了非 JSON 响应：${error.message}`);
-    }
+    return readQQJsonResponse(response);
   }
 
   async requestText(rawUrl, params = {}) {
@@ -293,13 +278,7 @@ class QQMusicClient {
       redirect: 'follow',
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
-    const text = await response.text();
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    try {
-      return JSON.parse(stripJsonp(text));
-    } catch (error) {
-      throw new Error(`QQ 音乐返回了非 JSON 响应：${error.message}`);
-    }
+    return readQQJsonResponse(response);
   }
 
   async buildHeaders() {

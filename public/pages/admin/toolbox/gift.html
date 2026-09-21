@@ -179,6 +179,11 @@
               </div>
               <label>显示行数<input id="giftFeedRows" type="number" min="1" max="10" required /></label>
               <label>滚动速率（1–50）<input id="giftFeedSpeed" type="number" min="1" max="50" step="1" required /></label>
+              <label>
+                <span>最小礼物金额（元）<span class="gift-feed-amount-help" title="按同一人当天同款礼物的累计金额筛选，不包含输入的金额，只显示大于该金额的礼物。例如输入 1 元，累计 1 元不显示。0 表示不限制。" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" /><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3m.1 4h.01" /></svg></span></span>
+                <input id="giftFeedMinAmount" type="number" min="0" step="0.1" required aria-describedby="giftFeedMinAmountHint" />
+              </label>
+              <p id="giftFeedMinAmountHint" class="hint">0 表示不限制，最多 1 位小数；累计金额须大于输入金额，不包含等于该金额的礼物。</p>
               <div class="gift-feed-source">
                 <label>OBS 浏览器源<input id="giftFeedUrl" readonly /></label>
                 <div class="gift-directory-actions"><button id="giftFeedCopy" type="button" class="secondary">复制地址</button><a id="giftFeedPreviewLink" target="_blank" rel="noopener">打开本日预览</a></div>

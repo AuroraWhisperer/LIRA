@@ -45,6 +45,15 @@ createGiftService (gift/index.js)                    ← domainServices.gifts
 
 装配点：`domainServices` 创建 `createGiftService`，注入 final 回调、加班消费者及 `getOvertimeEpoch`；`index.js` 注册礼物统计消费者并创建 `createGiftProjectionService`。原始检测、金额换算、连击定时器、盲盒匹配及旧记录修复实现已删除，没有本地检测模式或回退入口。本地 B 站连接通过独立的 `extractBilibiliGiftIdentity` 读取姓名、头像及舰队身份，不生成礼物记账事件。服务器事件经 `importProcessedGiftEvent` 进入投影器（见 §6.1）。
 
+查询装配由 `domainServices` 一次性创建并注入 `queryStore`、`maintenanceStore`。
+`query-service.js` 与 `blind-box-analysis.js` 不访问数据库；来源仅表达
+`{kind: 'local'}`、`{kind: 'source', sourceId}`、`{kind: 'unavailable'}`，由
+`gift-query-store.js` 翻译成 SQL。切换中或无效来源继续返回空查询且不重置冲刺。
+盲盒行筛选和排序由 query store 执行，领域层保留日期边界、聚合及展示投影。
+`gift-maintenance-store.js` 的 `clearRecent({updatedAt})` 保留最近 3000 条本地
+合格记录及 pending settlement 协调语义；不删除远端来源记录。
+旧导出函数及数据库构造参数仅由 `gift/index.js` 兼容适配。
+
 ## 2. 服务器结果投影（GiftProjectionService）
 
 ### 2.1 实时事件导入

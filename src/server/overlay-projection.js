@@ -132,7 +132,7 @@ const RESPONSE_SCHEMAS = {
   },
   'gift-feed': {
     '/api/gifts/display-settings': {
-      ...fields('palette visibleRows scrollSpeed'), thresholds: [true],
+      ...fields('palette visibleRows scrollSpeed minGiftAmountCents'), thresholds: [true],
     },
     '/api/gifts/history': {
       ...fields('viewRevision nextCursor partial'),

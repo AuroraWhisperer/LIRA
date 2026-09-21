@@ -55,12 +55,40 @@ test('gift feed settings save speed and remove the pause and low-power options',
   await page.getByRole('button', { name: '保存滚动与样式设置', exact: true }).click();
   await page.waitForFunction(() => window.displaySaves.length === 1);
   assert.deepEqual(await page.evaluate(() => window.savedDisplay), {
-    palette: 'bilibili-four', thresholds: [10000, 50000, 100000], visibleRows: 3, scrollSpeed: 50,
+    palette: 'bilibili-four', thresholds: [10000, 50000, 100000], visibleRows: 3, scrollSpeed: 50, minGiftAmountCents: 0,
   });
   await page.getByRole('button', { name: '恢复默认', exact: true }).click();
   assert.equal(await speed.inputValue(), '25');
   await page.getByRole('button', { name: '取消修改', exact: true }).click();
   assert.equal(await speed.inputValue(), '50');
+});
+
+test('feed minimum accepts one decimal place, saves cents and restores saved or default amounts', async (t) => {
+  const page = await openSettings(t);
+  const amount = page.getByRole('spinbutton', { name: '最小礼物金额（元）', exact: true });
+  assert.equal(await amount.inputValue(), '0');
+  for (const invalid of ['', '-1', '0.01', '10.15']) {
+    await amount.fill(invalid);
+    assert.equal(await amount.evaluate((input) => input.checkValidity()), false);
+  }
+  for (const valid of ['0', '10', '10.5']) {
+    await amount.fill(valid);
+    assert.equal(await amount.evaluate((input) => input.checkValidity()), true);
+  }
+  await amount.fill('1.1');
+  await page.getByRole('button', { name: '保存滚动与样式设置', exact: true }).click();
+  await page.waitForFunction(() => window.displaySaves.length === 1);
+  assert.equal(await page.evaluate(() => window.savedDisplay.minGiftAmountCents), 110);
+  assert.equal(await amount.inputValue(), '1.1');
+  await amount.fill('10.5');
+  await page.getByRole('button', { name: '取消修改', exact: true }).click();
+  assert.equal(await amount.inputValue(), '1.1');
+  await page.getByRole('button', { name: '恢复默认', exact: true }).click();
+  assert.equal(await amount.inputValue(), '0');
+  assert.equal(await page.evaluate(() => window.savedDisplay.minGiftAmountCents), 110);
+  await page.getByRole('button', { name: '保存滚动与样式设置', exact: true }).click();
+  await page.waitForFunction(() => window.displaySaves.length === 2);
+  assert.equal(await page.evaluate(() => window.savedDisplay.minGiftAmountCents), 0);
 });
 
 test('gift range endpoints synchronize both ways and save exact cent boundaries', async (t) => {

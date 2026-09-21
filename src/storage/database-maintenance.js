@@ -1,6 +1,7 @@
 'use strict';
 
 const { now } = require('../shared/utils');
+const { createCloudSongSyncStore } = require('./cloud-song-sync-store');
 
 const {
   CLEAR_ALL_MATRIX,
@@ -29,6 +30,7 @@ function clearSongLibraryData(db) {
       WHERE name IN ('songs', 'song_categories', 'import_batches')
     `,
     ).run();
+    createCloudSongSyncStore(db).capturePending();
     db.exec('COMMIT');
   } catch (error) {
     db.exec('ROLLBACK');

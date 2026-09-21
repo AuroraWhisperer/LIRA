@@ -89,7 +89,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 | `Events.GIFT_CATALOG_UPDATED`                                                                    | stateService(gift-catalog:update)→ overtime.js / gifts/recent.js  | 图片扫描完成后按精确 ID 刷新本地图片，去重包含图片路径和 assetsUpdatedAt；不得覆盖当前直播间成员，不触发歌库或礼物事件重载 |
 | CustomEvent `app:lyric-state` / `app:lyric-timeline` / `app:wesing-state` / `app:settings-state` | stateService → 各页面 `window.addEventListener` | WeSing 面板、桌面歌词预览、设置自动保存就绪信号                      |
 
-**迁移期调用示例**:`app.js` 将 `STATE_LOADED` 交给具名导入的 `createAdminStateRenderer`；协调器直接调用队列和表单 ESM 接口，仅对尚未迁移的礼物和歌曲视图使用 bridge。遗留调用保持兼容，新增跨模块调用不得扩大全局模式。
+**迁移期调用示例**:`app.js` 将 `STATE_LOADED` 交给具名导入的 `createAdminStateRenderer`，并显式注入礼物渲染函数；协调器直接调用队列、歌曲和表单 ESM 接口。歌曲模块通过 `createSongs({state, utils})` 显式依赖状态服务和工具。礼物入口通过具名 import 组装通知、检测、冲刺、最近礼物、盲盒和历史模块；工具函数和状态服务直接导入，通知工厂可注入 toast 能力。盲盒直接导入最近礼物图标及分析能力，并独立订阅 `GIFT_CATALOG_UPDATED`，不依赖全局注册顺序或最近礼物模块的转发；旧调用的发布集中在 bridge。遗留调用保持兼容，新增跨模块调用不得扩大全局模式。
 
 `StateService` 对 `songs:*` 和 `cloud:songs` 快照原因防抖重载歌库，其他快照不触发额外歌库请求。HTTP `reloadState()` 对歌词版本只接纳一次并复用结果：新版本派发 `app:lyric-state`，重复/旧版本保留已接纳状态且不重复派发，与 WebSocket 路径共享版本检查。
 

@@ -170,7 +170,7 @@ test('gift display settings persist valid cents and leave saved configuration un
   const broadcasts = [];
   const context = { settings: { get: () => settings, set: (key, value) => { settings[key] = value; } },
     broadcastSnapshot: (reason) => broadcasts.push(reason) };
-  const config = { palette: 'bilibili-four', thresholds: [9999, 49999, 99999], visibleRows: 1, scrollSpeed: 26 };
+  const config = { palette: 'bilibili-four', thresholds: [9999, 49999, 99999], visibleRows: 1, scrollSpeed: 26, minGiftAmountCents: 1250 };
   const saved = createResponse();
   await routes['POST /api/gifts/display-settings'](context, { body: async () => config }, saved);
   assert.equal(saved.status, 200);
@@ -180,6 +180,11 @@ test('gift display settings persist valid cents and leave saved configuration un
   for (const scrollSpeed of [0, 51, 1.5, '25']) {
     const invalid = createResponse();
     await routes['POST /api/gifts/display-settings'](context, { body: async () => ({ ...config, scrollSpeed }) }, invalid);
+    assert.equal(invalid.status, 400);
+  }
+  for (const minGiftAmountCents of [-10, 1, 1251, 0.5, '1250', null, Number.MAX_SAFE_INTEGER + 1]) {
+    const invalid = createResponse();
+    await routes['POST /api/gifts/display-settings'](context, { body: async () => ({ ...config, minGiftAmountCents }) }, invalid);
     assert.equal(invalid.status, 400);
   }
   const read = createResponse();

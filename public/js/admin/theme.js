@@ -1,35 +1,28 @@
+import { value, setValue, toast, api, debounce } from '../shared/utils.js';
+import { theme as sharedTheme } from '../shared/theme.js';
+import { formsService } from './forms.js';
+import { stateService } from './state.js';
+import { applyAdminQueueFontPreview } from './queue.js';
+import { setOverlayStyle } from './theme-style-view.js';
+import { publishTheme } from './legacy-admin-bridge.js';
 // 编写人：Aurora
 // 点歌板主题配置
 'use strict';
 
+import { renderPresetCards } from './theme-preset-cards.js';
 import { registerLocalFontSelect } from './local-font-library.js';
 import {
   normalizePersistedQueueStyle,
   queueStyleSettingsPayload,
 } from '../shared/queue-style-settings.js';
 
-(function () {
-  const ILLUSTRATED_QUEUE_STYLES = new Set([
-    'storybook',
-    'neon-vinyl',
-    'cherry-ribbon',
-    'golden-lily',
-  ]);
-  const ILLUSTRATED_DEFAULT_LABELS = {
-    storybook: { fontFamily: '幼圆', fontWeight: '粗体' },
-    'neon-vinyl': { fontFamily: '微软雅黑', fontWeight: '较粗' },
-    'cherry-ribbon': { fontFamily: '微软雅黑', fontWeight: '较粗' },
-    'golden-lily': { fontFamily: '微软雅黑', fontWeight: '较粗' },
-  };
-
-  const { value, setValue, toast, api, debounce } = window.AdminApp.utils;
-
+export const theme = (() => {
   const {
     defaultThemeLook,
     classicThemePresets,
     classicPresetLabels,
     classicPresetSwatches,
-  } = window.AdminApp.theme;
+  } = sharedTheme;
 
   function initThemeForm() {
     const themeForm = document.getElementById('themeForm');
@@ -60,8 +53,8 @@ import {
       event.preventDefault();
       await saveTheme();
       toast('点歌板主题已保存');
-      if (window.AdminApp.state && window.AdminApp.state.reloadState) {
-        await window.AdminApp.state.reloadState();
+      if (stateService && stateService.reloadState) {
+        await stateService.reloadState();
       }
     });
 
@@ -73,8 +66,8 @@ import {
         if (value('overlayQueueStyle') !== 'classic') return;
         const preset = classicThemePresets[card.dataset.theme];
         if (!preset) return;
-        if (window.AdminApp.forms && window.AdminApp.forms.fillForm) {
-          window.AdminApp.forms.fillForm(preset);
+        if (formsService && formsService.fillForm) {
+          formsService.fillForm(preset);
         }
         syncAllRangeInputs(preset);
         await saveTheme();
@@ -99,8 +92,8 @@ import {
           themeOpacity: '0.30',
           themeRadius: '14',
         };
-        if (window.AdminApp.forms && window.AdminApp.forms.fillForm) {
-          window.AdminApp.forms.fillForm(beautified);
+        if (formsService && formsService.fillForm) {
+          formsService.fillForm(beautified);
         }
         syncAllRangeInputs(beautified);
         await saveTheme();
@@ -126,14 +119,14 @@ import {
           response.data.settings.overlayQueueStyle !== nextStyle
         ) {
           toast('请先重启程序，再切换点歌板样式');
-          if (window.AdminApp.state && window.AdminApp.state.reloadState) {
-            await window.AdminApp.state.reloadState();
+          if (stateService && stateService.reloadState) {
+            await stateService.reloadState();
           }
           return;
         }
         toast('点歌板样式已切换');
-        if (window.AdminApp.state && window.AdminApp.state.reloadState) {
-          await window.AdminApp.state.reloadState();
+        if (stateService && stateService.reloadState) {
+          await stateService.reloadState();
         }
       });
     });
@@ -142,20 +135,18 @@ import {
       .getElementById('overlayFontFamily')
       .addEventListener('change', () => {
         if (
-          window.AdminApp.queue &&
-          window.AdminApp.queue.applyAdminQueueFontPreview
+          applyAdminQueueFontPreview
         ) {
-          window.AdminApp.queue.applyAdminQueueFontPreview();
+          applyAdminQueueFontPreview();
         }
       });
     document
       .getElementById('overlayFontWeight')
       .addEventListener('change', () => {
         if (
-          window.AdminApp.queue &&
-          window.AdminApp.queue.applyAdminQueueFontPreview
+          applyAdminQueueFontPreview
         ) {
-          window.AdminApp.queue.applyAdminQueueFontPreview();
+          applyAdminQueueFontPreview();
         }
       });
 
@@ -167,20 +158,20 @@ import {
           return;
         }
         const resetValues = { ...defaultThemeLook };
-        if (window.AdminApp.forms && window.AdminApp.forms.fillForm) {
-          window.AdminApp.forms.fillForm(resetValues);
+        if (formsService && formsService.fillForm) {
+          formsService.fillForm(resetValues);
         }
         syncAllRangeInputs(resetValues);
         await saveTheme();
         toast('已恢复风格1默认设置');
-        if (window.AdminApp.state && window.AdminApp.state.reloadState) {
-          await window.AdminApp.state.reloadState();
+        if (stateService && stateService.reloadState) {
+          await stateService.reloadState();
         }
       });
 
     // range ↔ number pairs
-    if (window.AdminApp.forms && window.AdminApp.forms.bindRangePair) {
-      const { bindRangePair } = window.AdminApp.forms;
+    if (formsService && formsService.bindRangePair) {
+      const bindRangePair = formsService.bindRangePair.bind(formsService);
       bindRangePair('themeOpacity', 'themeOpacityNumber', 0, 1, 0.48, 100);
       bindRangePair('queueSongFontSize', 'queueSongFontSizeNumber', 10, 70, 28);
       bindRangePair(
@@ -224,16 +215,16 @@ import {
       .getElementById('queueScrollSpeed')
       .addEventListener('input', () => {
         if (
-          window.AdminApp.forms &&
-          window.AdminApp.forms.normalizeQueueScrollSpeedForDisplay
+          formsService &&
+          formsService.normalizeQueueScrollSpeedForDisplay
         ) {
           setValue(
             'queueScrollSpeedRange',
-            window.AdminApp.forms.normalizeQueueScrollSpeedForDisplay(
+            formsService.normalizeQueueScrollSpeedForDisplay(
               value('queueScrollSpeed'),
             ),
           );
-          window.AdminApp.forms.refreshParameterRanges?.(
+          formsService.refreshParameterRanges?.(
             document.getElementById('queueScrollSpeedRange'),
           );
         }
@@ -270,7 +261,7 @@ import {
         ...queueStyleSettingsPayload(style, {
           scrollMode: value('queueScrollMode'),
           scrollSpeed:
-            window.AdminApp.forms.normalizeQueueScrollSpeedForDisplay(
+            formsService.normalizeQueueScrollSpeedForDisplay(
               value('queueScrollSpeed'),
             ),
         }),
@@ -286,7 +277,7 @@ import {
         useCustomTextColor: value('illustratedQueueUseCustomTextColor'),
         textColor: value('illustratedQueueTextColor'),
         scrollMode: value('identityQueueScrollMode'),
-        scrollSpeed: window.AdminApp.forms.normalizeQueueScrollSpeedForDisplay(
+        scrollSpeed: formsService.normalizeQueueScrollSpeedForDisplay(
           value('identityQueueScrollSpeed'),
         ),
       }),
@@ -339,114 +330,43 @@ import {
       v.overlayRuleFontSize || value('overlayRuleFontSize'),
     );
     if (
-      window.AdminApp.forms &&
-      window.AdminApp.forms.normalizeQueueScrollSpeedForDisplay
+      formsService &&
+      formsService.normalizeQueueScrollSpeedForDisplay
     ) {
       const queueScrollSpeed =
-        window.AdminApp.forms.normalizeQueueScrollSpeedForDisplay(
+        formsService.normalizeQueueScrollSpeedForDisplay(
           v.queueScrollSpeed || value('queueScrollSpeed'),
         );
       setValue('queueScrollSpeed', queueScrollSpeed);
       setValue('queueScrollSpeedRange', queueScrollSpeed);
       const identityScrollSpeed =
-        window.AdminApp.forms.normalizeQueueScrollSpeedForDisplay(
+        formsService.normalizeQueueScrollSpeedForDisplay(
           v.identityQueueScrollSpeed || value('identityQueueScrollSpeed'),
         );
       setValue('identityQueueScrollSpeed', identityScrollSpeed);
       setValue('identityQueueScrollSpeedRange', identityScrollSpeed);
     }
     if (
-      window.AdminApp.forms &&
-      window.AdminApp.forms.normalizeSongScrollSpeedForDisplay
+      formsService &&
+      formsService.normalizeSongScrollSpeedForDisplay
     ) {
       const songScrollSpeed =
-        window.AdminApp.forms.normalizeSongScrollSpeedForDisplay(
+        formsService.normalizeSongScrollSpeedForDisplay(
           v.scrollSeconds || value('scrollSeconds'),
         );
       setValue('scrollSeconds', songScrollSpeed);
       setValue('scrollSecondsRange', songScrollSpeed);
     }
-    window.AdminApp.forms?.refreshParameterRanges?.();
+    formsService?.refreshParameterRanges?.();
   }
 
-  function setOverlayStyle(style) {
-    const nextStyle = normalizePersistedQueueStyle(style);
-    setValue('overlayQueueStyle', nextStyle);
-    const illustratedDefaults =
-      ILLUSTRATED_DEFAULT_LABELS[nextStyle] ||
-      ILLUSTRATED_DEFAULT_LABELS.storybook;
-    const fontFamilyDefault = document.querySelector(
-      '#illustratedQueueFontFamily option[value="default"]',
-    );
-    const fontWeightDefault = document.querySelector(
-      '#illustratedQueueFontWeight option[value="default"]',
-    );
-    if (fontFamilyDefault)
-      fontFamilyDefault.textContent = illustratedDefaults.fontFamily;
-    if (fontWeightDefault)
-      fontWeightDefault.textContent = illustratedDefaults.fontWeight;
-    document.querySelectorAll('[data-overlay-style]').forEach((button) => {
-      button.classList.toggle(
-        'active',
-        button.dataset.overlayStyle === nextStyle,
-      );
-    });
-    const classicArea = document.getElementById('classicThemeArea');
-    const identityArea = document.getElementById('identityThemeArea');
-    if (nextStyle !== 'classic') {
-      if (classicArea) classicArea.hidden = true;
-      if (identityArea) identityArea.hidden = false;
-      identityArea
-        ?.querySelectorAll('[data-identity-only]')
-        .forEach((section) => {
-          section.hidden = nextStyle !== 'identity';
-        });
-      identityArea
-        ?.querySelectorAll('[data-illustrated-only]')
-        .forEach((section) => {
-          section.hidden = !ILLUSTRATED_QUEUE_STYLES.has(nextStyle);
-        });
-    } else {
-      if (classicArea) classicArea.hidden = false;
-      if (identityArea) identityArea.hidden = true;
-      renderPresetCards(
-        'classicPresets',
-        classicThemePresets,
-        classicPresetLabels,
-        classicPresetSwatches,
-      );
-    }
-  }
-
-  function renderPresetCards(containerId, presets, labels, swatches) {
-    const container = document.getElementById(containerId);
-    if (!container) return;
-    container.innerHTML = Object.entries(presets)
-      .map(([key]) => {
-        const sw = swatches[key] || ['#181823', '#ccc', '#ccc', '#fff'];
-        const label = labels[key] || key;
-        return `
-        <div class="preset-card" data-theme="${key}">
-          <div class="swatch-preview">
-            <span style="background:${sw[0]}"></span>
-            <span style="background:${sw[1]}"></span>
-            <span style="background:${sw[2]}"></span>
-            <span style="background:${sw[3]}"></span>
-          </div>
-          <strong>${label}</strong>
-        </div>
-      `;
-      })
-      .join('');
-  }
-
-  window.AdminApp = window.AdminApp || {};
-  window.AdminApp.theme = window.AdminApp.theme || {};
-  Object.assign(window.AdminApp.theme, {
+  return {
     initThemeForm,
     collectTheme,
     syncAllRangeInputs,
     setOverlayStyle,
     renderPresetCards,
-  });
+  };
 })();
+
+publishTheme(theme);

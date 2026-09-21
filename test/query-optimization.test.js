@@ -46,7 +46,7 @@ test('query indexes upgrade without changing rows and migrate idempotently', (t)
   assert.match(songDb.prepare('EXPLAIN QUERY PLAN SELECT * FROM requests WHERE queue_id = ?').all(1).map((r) => r.detail).join('\n'), /idx_requests_queue_id/u);
   const { queries, prepare } = observe(f.giftDb);
   const store = createGiftQueryStore(f.giftDb);
-  for (const sourceScope of [{ sql: 'source_id = ?', params: [source.id] }, { sql: 'source_id IS NULL', params: [] }]) {
+  for (const sourceScope of [{ kind: 'source', sourceId: source.id }, { kind: 'local' }]) {
     queries.length = 0;
     store.listRecent({ sourceScope, limit: 30 });
     const { sql, params } = queries[0];
@@ -195,7 +195,7 @@ test('recent expression index preserves legacy timestamp, zone and same-second I
     '2026-09-01T12:00:00+08:00', '2026-09-01T04:00:01.000Z',
   ].entries()) f.insertGift(source.id, `time-${i}`, { createdAt });
   const rows = createGiftQueryStore(f.giftDb).listRecent({
-    sourceScope: { sql: 'source_id = ?', params: [source.id] }, limit: 30,
+    sourceScope: { kind: 'source', sourceId: source.id }, limit: 30,
   });
   assert.deepEqual(rows.map((row) => row.platform_id), ['time-3', 'time-2', 'time-1', 'time-0'].map((id) => `lira-server:${id}`));
 });

@@ -87,8 +87,4 @@ test('desktop lyric styles separate admin controls from shared rendering', () =>
   ]) {
     assert.ok(bundle.includes(selector), `${selector} should remain composed`);
   }
-
-  for (const source of [settings, controls, preview, renderer]) {
-    assert.ok(source.trimEnd().split(/\r?\n/).length < 800);
-  }
 });

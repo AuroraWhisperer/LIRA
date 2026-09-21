@@ -288,8 +288,8 @@ test('failed writes keep the latest records in memory', () => {
 test('workbench remains initialized through the existing admin entry', () => {
   const read = (file) => fs.readFileSync(path.join(ROOT_DIR, file), 'utf8');
   assert.match(
-    read('public/js/admin/index.js'),
-    /import ["']\.\/todo\.js["'];/,
+    read('public/js/admin/app.js'),
+    /import \{ todo \} from ["']\.\/todo\.js["'];/,
   );
-  assert.match(read('public/js/admin/app.js'), /modules\.todo\?\.init\?\.\(\)/);
+  assert.match(read('public/js/admin/app.js'), /todo\.init\(\)/);
 });

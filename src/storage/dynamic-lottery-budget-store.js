@@ -1,5 +1,7 @@
 'use strict';
 
+const { transaction } = require('./dynamic-lottery-transaction');
+
 const HOUR_MS = 60 * 60 * 1000;
 const MIN_REQUEST_INTERVAL_MS = 4_000;
 const BATCH_REST_MS = 60_000;
@@ -39,27 +41,6 @@ function parseTimes(value) {
   const error = new Error('Request budget contains invalid JSON.');
   error.code = 'LOTTERY_DATA_CORRUPT';
   throw error;
-}
-
-function tryRollback(db) {
-  try {
-    db.exec('ROLLBACK');
-    return true;
-  } catch (_) {
-    return false;
-  }
-}
-
-function transaction(db, operation) {
-  db.exec('BEGIN IMMEDIATE');
-  try {
-    const result = operation();
-    db.exec('COMMIT');
-    return result;
-  } catch (error) {
-    tryRollback(db);
-    throw error;
-  }
 }
 
 function createRequestBudgetStore(db) {

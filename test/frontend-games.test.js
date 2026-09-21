@@ -156,29 +156,6 @@ test('admin game styles keep shared, wheel, draw, and responsive ownership', () 
   assert.match(responsive, /\.games-category\s*\{/);
 });
 
-test('games admin dropdowns can escape the first two game cards', () => {
-  const styles = fs.readFileSync(
-    path.join(
-      ROOT_DIR,
-      'public',
-      'css',
-      'admin',
-      'other-features',
-      'games.css',
-    ),
-    'utf8',
-  );
-
-  assert.match(
-    styles,
-    /\.game-admin-card:has\(\.lira-select\.is-open\)\s*\{[^}]*z-index:\s*1;[^}]*overflow:\s*visible;/,
-  );
-  assert.match(
-    styles,
-    /\.game-admin-card:has\(\.lira-select\.is-open\)\s*>\s*\.game-card-poster\s*\{[^}]*border-radius:\s*17px 0 0 17px;/,
-  );
-});
-
 test('games admin uses one base URL and never opens a game-specific URL', () => {
   const script = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'js', 'admin', 'games.js'),

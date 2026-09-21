@@ -15,6 +15,7 @@ const { createGiftSyncStore } = require('../src/storage/gift-sync-store');
 const { createSettingsStore } = require('../src/storage/settings-store');
 const { applyRetentionPolicies } = require('../src/storage/retention');
 const { clearRecentGifts } = require('../src/bilibili/gift/query-service');
+const { createGiftMaintenanceStore } = require('../src/storage/gift-maintenance-store');
 const { createDomainServices } = require('../src/server/domain-services');
 
 const NOW = '2026-09-02T00:00:00.000Z';
@@ -260,7 +261,7 @@ test('retention and legacy clear-recent never delete remote-source rows', () => 
       createdAt: NOW,
     });
     const cleared = clearRecentGifts({
-      db: fixture.databases,
+      maintenanceStore: createGiftMaintenanceStore(fixture.databases.giftDb),
       getActiveGiftSource: () => ({
         sourceId: sourceA.id,
         syncState: 'LIVE',

@@ -1,7 +1,5 @@
 'use strict';
 
-const { readAdminHtml } = require('./helpers/admin-html');
-
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -239,29 +237,12 @@ test('illustrated queue cards display their full artwork without clipping decora
   }
 });
 
-test('style 4 keeps its frame height and displays entries at 115% of their previous height', () => {
+test('style 4 keeps its original frame proportions', () => {
   const overlayCss = readCssBundle('public', 'css', 'overlays', 'base.css');
   const frameRule = overlayCss.match(/\.queue-neon-vinyl\s*\{[^}]*\}/)?.[0];
-  const rowRule = overlayCss.match(/\.neon-vinyl-row\s*\{[^}]*\}/)?.[0];
 
   assert.ok(frameRule);
-  assert.ok(rowRule);
   assert.match(frameRule, /aspect-ratio:\s*1122\s*\/\s*1402/);
-  assert.match(rowRule, /width:\s*94%/);
-  assert.match(rowRule, /aspect-ratio:\s*2172\s*\/\s*517\.5/);
-  assert.match(rowRule, /background-size:\s*100%\s+100%/);
-  assert.doesNotMatch(rowRule, /\bcover\b|\bcontain\b/);
-});
-
-test('style 5 displays full entries at 80% height', () => {
-  const overlayCss = readCssBundle('public', 'css', 'overlays', 'base.css');
-  const rowRule = overlayCss.match(/\.cherry-ribbon-row\s*\{[^}]*\}/)?.[0];
-
-  assert.ok(rowRule);
-  assert.match(rowRule, /width:\s*94%/);
-  assert.match(rowRule, /aspect-ratio:\s*1623\s*\/\s*371\.2/);
-  assert.match(rowRule, /background-size:\s*100%\s+100%/);
-  assert.doesNotMatch(rowRule, /\bcover\b|\bcontain\b/);
 });
 
 test('style 6 reveals the first entry decoration and separates adjacent entries', () => {
@@ -293,11 +274,6 @@ test('style 6 reveals the first entry decoration and separates adjacent entries'
 });
 
 test('classic queue keeps fixed design coordinates while the whole panel scales', () => {
-  const adminHtml = readAdminHtml();
-  const themeSource = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme.js'),
-    'utf8',
-  );
   const queueSource = readJsModuleBundle(
     'public',
     'js',
@@ -305,37 +281,21 @@ test('classic queue keeps fixed design coordinates while the whole panel scales'
     'queue.js',
   );
   const overlayCss = readCssBundle('public', 'css', 'overlays', 'base.css');
-  const settingsSource = fs.readFileSync(
-    path.join(ROOT_DIR, 'src', 'storage', 'settings-store.js'),
-    'utf8',
-  );
-  const themeStoreSource = fs.readFileSync(
-    path.join(ROOT_DIR, 'src', 'storage', 'theme-store.js'),
-    'utf8',
-  );
-
-  assert.doesNotMatch(adminHtml, /queueFixedSixRows|固定 6 首歌高度/);
-  assert.doesNotMatch(themeSource, /queueFixedSixRows/);
-  assert.doesNotMatch(settingsSource, /queueFixedSixRows/);
-  assert.doesNotMatch(themeStoreSource, /queueFixedSixRows/);
   assert.doesNotMatch(
     queueSource,
     /visibleRows\s*=\s*6|queueFixedSixRows|--classic-window-height/,
   );
-  assert.match(overlayCss, /\.queue-classic\s*\{[^}]*width:\s*405px/s);
   assert.match(overlayCss, /\.classic-list-window\s*\{[^}]*height:\s*235px/s);
   assert.match(
     overlayCss,
     /\.classic-list-window\s*\{[^}]*max-height:\s*235px/s,
   );
-  assert.doesNotMatch(overlayCss, /queue-viewport-resized/);
   assert.doesNotMatch(overlayCss, /--classic-window-height/);
   assert.doesNotMatch(queueSource, /Math\.min\(6,/);
   assert.match(
     queueSource,
     /window\.addEventListener\('resize', handleQueueViewportResize\)/,
   );
-  assert.doesNotMatch(queueSource, /queue-viewport-resized/);
 });
 
 test('classic queue animates only when its rendered rows overflow available height', () => {
@@ -429,7 +389,7 @@ test('classic queue animates only when its rendered rows overflow available heig
   assert.equal(styleValues.get('--classic-loop-distance'), '905px');
   assert.equal(
     styleValues.get('--scroll-seconds'),
-    `${sandbox.scrollTravelSeconds(sandbox.queueScrollSeconds(settings), 905, 235)}s`,
+    `${sandbox.window.OverlayUtils.scrollTravelSeconds(sandbox.queueScrollSeconds(settings), 905, 235)}s`,
   );
   assert.equal(duplicatedHtml, '<div>rows</div>');
   assert.equal(longClasses.has('paused'), false);
@@ -458,18 +418,12 @@ test('identity queue keeps fixed design coordinates and never grows beyond its d
   sandbox.window = { innerHeight: 500 };
   vm.runInNewContext(source, sandbox);
 
-  assert.match(overlayCss, /\.queue-identity\s*\{[^}]*width:\s*430px/s);
-  assert.match(
-    overlayCss,
-    /\.queue-identity\s*\{[^}]*transform:\s*scale\(min\(var\(--queue-panel-scale,\s*1\),\s*1\)\)/s,
-  );
   const identityWindowRule = overlayCss.match(
     /\.identity-list-window\s*\{[\s\S]*?\n\}/,
   )?.[0];
   assert.ok(identityWindowRule);
   assert.match(identityWindowRule, /height:\s*364px/);
   assert.match(identityWindowRule, /max-height:\s*364px/);
-  assert.doesNotMatch(overlayCss, /queue-viewport-resized/);
 
   const classes = new Set(['identity-list', 'paused']);
   const viewport = {

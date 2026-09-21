@@ -2,9 +2,10 @@
 // 百宝箱礼物特效工具：查询礼物 ID，并通知固定 overlay 网址播放。
 'use strict';
 
-import { api } from '../shared/utils.js';
+import { api, localOverlayOrigin, readJsonResponse, toast } from '../shared/utils.js';
+import { publishGiftEffects } from './legacy-admin-bridge.js';
 
-(function () {
+export const giftEffects = (() => {
   let initialized = false;
 
   function init() {
@@ -12,8 +13,6 @@ import { api } from '../shared/utils.js';
     const form = document.getElementById('giftEffectLookupForm');
     if (!form) return;
 
-    const { localOverlayOrigin, readJsonResponse, toast } =
-      window.AdminApp.utils;
     const input = document.getElementById('giftEffectGiftId');
     const urlNode = document.getElementById('giftEffectOverlayUrl');
     const stateNode = document.getElementById('giftEffectLookupState');
@@ -130,6 +129,6 @@ import { api } from '../shared/utils.js';
     summaryNode.dataset.state = state;
   }
 
-  window.AdminApp = window.AdminApp || {};
-  window.AdminApp.giftEffects = { init };
+  return { init };
 })();
+publishGiftEffects(giftEffects);

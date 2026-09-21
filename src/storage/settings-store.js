@@ -6,6 +6,7 @@
 const { now } = require('../shared/utils');
 const { DEFAULT_SETTINGS } = require('./settings-defaults');
 const settingsMigrations = require('./settings-migrations');
+const { CLOUD_SONG_SYNC_PENDING_PREFIX } = require('./cloud-song-sync-store');
 const CLOUD_ROOM_ACCOUNT_KEY = 'cloudRoomAccountKey';
 
 function bootstrapSettingsStore(db) {
@@ -79,7 +80,8 @@ function createSettingsStore(db) {
     const rows = db.prepare('SELECT key, value FROM settings').all();
     cache = { ...DEFAULT_SETTINGS };
     for (const row of rows) {
-      if (row.key !== CLOUD_ROOM_ACCOUNT_KEY) cache[row.key] = row.value;
+      if (row.key === CLOUD_ROOM_ACCOUNT_KEY || row.key.startsWith(CLOUD_SONG_SYNC_PENDING_PREFIX)) continue;
+      cache[row.key] = row.value;
     }
     return { ...cache };
   }

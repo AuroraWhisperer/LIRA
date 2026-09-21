@@ -13,6 +13,9 @@ const { createFanProfileStore } = require('../storage/fan-profile-store');
 const { createFanProfileService } = require('../fans/profile-service');
 const { createSuperChatStore } = require('../storage/superchat-store');
 const { createSongStore } = require('../storage/song-store');
+const { createCloudSongSyncStore } = require('../storage/cloud-song-sync-store');
+const { createGiftQueryStore } = require('../storage/gift-query-store');
+const { createGiftMaintenanceStore } = require('../storage/gift-maintenance-store');
 const {
   createGiftProjectionStore,
 } = require('../storage/gift-projection-store');
@@ -59,6 +62,7 @@ function createDomainServices(options) {
     onOvertimeUpdate,
   } = options;
   const songStore = createSongStore(db.songDb);
+  const cloudSongSync = createCloudSongSyncStore(db.songDb);
   const cooldownStore = createCooldownStore(db.songDb);
   const playbackStore = createPlaybackStore(db.musicDb);
   const themeStore = createThemeStore(db.songDb, settingsStore);
@@ -90,6 +94,8 @@ function createDomainServices(options) {
   }
 
   const songs = {
+    getPendingCloudSongs: cloudSongSync.readPending,
+    acknowledgePendingCloudSongs: cloudSongSync.acknowledge,
     getMetadata: createSongMetadataReader(songStore),
     save: (input) => songService.saveSong(songStore, input),
     list: (options) => songService.listSongs(songStore, options),
@@ -189,7 +195,8 @@ function createDomainServices(options) {
     const overtimeConsumer = createOvertimeConsumer({ service: overtime });
     giftRuntime = giftService.createGiftService(
       {
-        db: { giftDb: db.giftDb },
+        queryStore: createGiftQueryStore(db.giftDb),
+        maintenanceStore: createGiftMaintenanceStore(db.giftDb),
         projectionStore: createGiftProjectionStore(db.giftDb),
         statisticsStore: createGiftStatisticsStore(db.giftDb),
         settings: () => settingsStore.getSettings(),

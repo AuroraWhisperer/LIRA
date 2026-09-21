@@ -186,31 +186,15 @@ function loadTodayBlindBoxRows(context, { boxName = '' } = {}) {
     nowDate.getMonth(),
     nowDate.getDate() + 1,
   ).toISOString();
-  const sourceScope = resolveGiftSourceScope(context);
-  let sql = `
-    SELECT id, gift_name, user_name, uid, blind_box_name, blind_box_price,
-           total_price, blind_profit, num, created_at
-    FROM gift_events
-    WHERE status = 'active'
-      AND detection_status = 'final'
-      AND gift_stats_eligible = 1
-      AND is_blind_box = 1
-      AND blind_profit IS NOT NULL
-      AND created_at >= ?
-      AND created_at < ?
-      AND ${sourceScope.sql}
-  `;
-  const params = [todayStart, tomorrowStart, ...sourceScope.params];
-  const normalizedBoxName = cleanText(boxName);
-  if (normalizedBoxName) {
-    sql += ` AND blind_box_name = ?`;
-    params.push(normalizedBoxName);
-  }
-  sql += ' ORDER BY datetime(created_at) DESC, id DESC';
   return {
     todayStart,
     tomorrowStart,
-    rows: context.db.giftDb.prepare(sql).all(...params),
+    rows: context.queryStore.listBlindBoxRows({
+      sourceScope: resolveGiftSourceScope(context),
+      from: todayStart,
+      to: tomorrowStart,
+      boxName: cleanText(boxName),
+    }),
   };
 }
 

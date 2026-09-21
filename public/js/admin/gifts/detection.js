@@ -1,10 +1,10 @@
+import { publishGiftModule } from '../legacy-admin-bridge.js';
+import { formatTime } from '../../shared/utils.js';
 // 编写人：Aurora
 // 礼物检测模块 - 负责礼物检测状态管理和显示
 'use strict';
 
-(function () {
-  const { formatTime } = window.AdminApp.utils;
-
+export const giftDetection = (() => {
   /**
    * 渲染礼物检测状态（toggle 和状态指示）
    * @param {Object} sprint - 冲刺配置
@@ -67,10 +67,10 @@
   }
 
   // 导出
-  window.AdminApp = window.AdminApp || {};
-  window.AdminApp.gifts = window.AdminApp.gifts || {};
-  window.AdminApp.gifts.detection = {
+  const module = {
     renderDetectionStatus,
     renderGiftStatusLine,
   };
+  return module;
 })();
+publishGiftModule('detection', giftDetection);

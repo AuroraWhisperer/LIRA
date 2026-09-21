@@ -1,6 +1,7 @@
 'use strict';
 
 const { getInitial, now } = require('../shared/utils');
+const { createCloudSongSyncStore } = require('./cloud-song-sync-store');
 
 function assertSongImportLimit(count) {
   if (count <= 5000) return;
@@ -18,11 +19,13 @@ function createSongStore(songDb) {
   }
   const changes = songDb.prepare('SELECT total_changes() AS count');
   const dataVersion = songDb.prepare('PRAGMA data_version');
+  const cloudSync = createCloudSongSyncStore(songDb);
 
-  function withTransaction(callback) {
+  function withTransaction(callback, { syncPending = false } = {}) {
     songDb.exec('BEGIN');
     try {
       const result = callback();
+      if (syncPending) cloudSync.capturePending();
       songDb.exec('COMMIT');
       return result;
     } catch (error) {
@@ -194,7 +197,7 @@ function createSongStore(songDb) {
             updatedAt,
             category.id,
           );
-        });
+        }, { syncPending: true });
       } catch (error) {
         if (String(error.message || '').includes('UNIQUE constraint')) {
           throw new Error('歌曲名称和艺术家与已有歌曲重复。');
@@ -308,7 +311,7 @@ function createSongStore(songDb) {
           .prepare('UPDATE requests SET song_id = NULL WHERE song_id = ?')
           .run(songId);
         songDb.prepare('DELETE FROM songs WHERE id = ?').run(songId);
-      });
+      }, { syncPending: true });
     },
 
     toggleSong(id, updatedAt = now()) {
@@ -316,10 +319,12 @@ function createSongStore(songDb) {
         .prepare('SELECT is_enabled FROM songs WHERE id = ?')
         .get(Number(id));
       if (!song) return { ok: false };
-      songDb
-        .prepare('UPDATE songs SET is_enabled = ?, updated_at = ? WHERE id = ?')
-        .run(song.is_enabled ? 0 : 1, updatedAt, Number(id));
-      return { ok: true };
+      return withTransaction(() => {
+        songDb
+          .prepare('UPDATE songs SET is_enabled = ?, updated_at = ? WHERE id = ?')
+          .run(song.is_enabled ? 0 : 1, updatedAt, Number(id));
+        return { ok: true };
+      }, { syncPending: true });
     },
 
     countSongs() {
@@ -396,7 +401,7 @@ function createSongStore(songDb) {
           );
 
         return { inserted, duplicate, createdCategories };
-      });
+      }, { syncPending: true });
     },
 
     applyImportUpdate(buildPlan) {
@@ -453,7 +458,7 @@ function createSongStore(songDb) {
             now(),
           );
         return { total: plan.rows.length, ...plan.counts, createdCategories };
-      });
+      }, { syncPending: true });
     },
 
     replaceAll(rows) {

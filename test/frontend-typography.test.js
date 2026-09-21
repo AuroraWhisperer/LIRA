@@ -402,6 +402,7 @@ test('OBS and configurable preview typography stay outside Admin roles', () => {
   const queue = [
     read('public', 'js', 'overlays', 'queue-render.js'),
     read('public', 'js', 'overlays', 'queue-theme.js'),
+    read('public', 'js', 'overlays', 'overlay-theme.js'),
   ].join('\n');
   assert.match(queue, /--overlay-font-family/);
   assert.match(queue, /settings\.overlayFontFamily/);

@@ -1,9 +1,7 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const path = require('node:path');
-const vm = require('node:vm');
 const test = require('node:test');
 
 async function createForm() {
@@ -58,25 +56,12 @@ async function createForm() {
       selector === '[data-edit-song]' ? [edit] : [],
     addEventListener() {},
   };
-  const context = vm.createContext({ window, document });
-  const modules = new Map();
-  async function load(file) {
-    if (modules.has(file)) return modules.get(file);
-    const module = new vm.SourceTextModule(fs.readFileSync(file, 'utf8'), {
-      context,
-      identifier: file,
-    });
-    modules.set(file, module);
-    await module.link((specifier) =>
-      load(path.resolve(path.dirname(file), specifier)),
-    );
-    return module;
-  }
-  const module = await load(
-    path.resolve(__dirname, '../public/js/admin/songs.js'),
+  const utils = window.AdminApp.utils;
+  const { loadModuleExports } = require('./helpers/frontend-modules');
+  const { createSongs } = await loadModuleExports(
+    path.resolve(__dirname, '../public/js/admin/songs.js'), { window, document },
   );
-  await module.evaluate();
-  const songs = window.AdminApp.songs;
+  const songs = createSongs({ utils, state: { reloadAll: async () => {} } });
   songs.initSongForm();
   const submit = () =>
     element('songForm').events.submit({ preventDefault() {} });

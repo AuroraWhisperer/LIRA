@@ -1,14 +1,17 @@
 // 编写人：Aurora
 // “百宝箱”页面负责功能导航，并向组合入口通知选中的功能。
 'use strict';
+import { publishOther } from './legacy-admin-bridge.js';
 
-(function () {
+export const other = (() => {
   const SIDEBAR_COLLAPSED_KEY = 'admin.toolboxSidebarCollapsed';
   const COLLAPSED_FEATURE_GROUPS_KEY = 'admin.toolboxCollapsedFeatureGroups';
   const SELECTED_FEATURE_KEY = 'admin.toolboxSelectedFeature';
   const moduleState = {
     initialized: false,
     onFeatureSelected: null,
+    danmakuTool: null,
+    aiAssistantSettings: null,
     persistSidebarCollapsed: null,
     persistCollapsedFeatureGroups: null,
     sidebarPreferenceReconciled: false,
@@ -319,8 +322,8 @@
     moduleState.onFeatureSelected?.(selectedId);
 
     if (selectedId === 'otherDanmakuFeature') {
-      window.AdminApp.danmakuTool?.refresh({ reconnectIfDisconnected: true });
-      window.AdminApp.aiAssistantSettings?.refresh();
+      moduleState.danmakuTool?.refresh({ reconnectIfDisconnected: true });
+      moduleState.aiAssistantSettings?.refresh();
     }
 
     return true;
@@ -374,6 +377,8 @@
     if (!root || moduleState.initialized) return;
 
     moduleState.onFeatureSelected = options.onFeatureSelected;
+    moduleState.danmakuTool = options.danmakuTool;
+    moduleState.aiAssistantSettings = options.aiAssistantSettings;
 
     moduleState.persistSidebarCollapsed =
       typeof options.persistSidebarCollapsed === 'function'
@@ -409,7 +414,7 @@
     });
     navigationLinks.forEach((link) =>
       link.addEventListener('click', () => {
-        window.AdminApp.navigation?.setMainPage(link.dataset.mainPageLink);
+        options.onNavigate?.(link.dataset.mainPageLink);
         const targetFeature = link.dataset.otherFeatureTarget;
         if (targetFeature) {
           // The main page switch is synchronous; select the requested toolbox panel after it becomes visible.
@@ -437,8 +442,8 @@
       });
     });
 
-    window.AdminApp.danmakuTool?.init();
-    window.AdminApp.aiAssistantSettings?.init();
+    moduleState.danmakuTool?.init({ reconnectBilibili: options.reconnectBilibili });
+    moduleState.aiAssistantSettings?.init();
 
     const storedFeature = readSelectedFeature();
     const storedButton = buttons.find(
@@ -457,11 +462,11 @@
     moduleState.initialized = true;
   }
 
-  window.AdminApp = window.AdminApp || {};
-  window.AdminApp.other = {
+  return {
     initOtherPage,
     selectFeature,
     selectFeatureById,
     setSidebarCollapsed,
   };
 })();
+publishOther(other);

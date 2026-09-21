@@ -18,6 +18,7 @@ test('blindbox overlay renders signed summary and per-user profit text', async (
   };
   const panel = { classList: { toggle() {} }, style: {} };
   const sandbox = {
+    window: {},
     URLSearchParams,
     location: { search: '' },
     document: {

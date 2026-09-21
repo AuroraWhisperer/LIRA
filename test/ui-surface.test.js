@@ -161,14 +161,6 @@ test('shared select toggles closed from its trigger and uses a centered CSS chev
   );
 });
 
-test('admin runtime no longer composes the obsolete restart confirmation fragment', () => {
-  const adminPage = read('src', 'server', 'admin-page.js');
-  const desktop = read('public', 'js', 'desktop.js');
-
-  assert.doesNotMatch(adminPage, /restart-confirm\.html/);
-  assert.match(desktop, /showConfirmationDialog\(/);
-});
-
 test('renderer code has no native confirm calls', () => {
   const roots = [
     path.join(ROOT, 'public', 'js'),

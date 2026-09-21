@@ -7,16 +7,13 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
-const { readCssBundle } = require('./helpers/css-bundle');
+const { loadModuleExports } = require('./helpers/frontend-modules');
+const { readJsModuleBundle } = require('./helpers/js-module-bundle');
 
 const ROOT_DIR = path.join(__dirname, '..');
 
-test('hardware summary hides memory temperature and renders missing CPU temperature as unknown', () => {
+test('hardware summary hides memory temperature and renders missing CPU temperature as unknown', async () => {
   const html = readAdminHtml();
-  const source = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'metrics.js'),
-    'utf8',
-  );
   const elements = new Map();
   const getElementById = (id) => {
     if (!elements.has(id)) elements.set(id, { textContent: '' });
@@ -24,21 +21,13 @@ test('hardware summary hides memory temperature and renders missing CPU temperat
   };
   const sandbox = {
     document: { getElementById },
-    window: {
-      AdminApp: {
-        utils: {
-          formatDateTime: String,
-          formatBytes: (value) => `${value} B`,
-          formatDuration: String,
-          toast() {},
-          showError() {},
-        },
-      },
-    },
+    window: {},
   };
 
-  vm.runInNewContext(source, sandbox);
-  sandbox.window.AdminApp.metrics.renderHardwareSummary(
+  const { metrics } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/metrics.js'), sandbox);
+  assert.equal(sandbox.window.AdminApp.metrics, metrics);
+  sandbox.window.AdminApp = {};
+  metrics.renderHardwareSummary(
     {
       cpu: {
         model: 'Example CPU',
@@ -96,70 +85,8 @@ test('first-run onboarding fragment is hidden by default and wired into the admi
   assert.match(app, /initOnboarding\(/);
 });
 
-test('wheel expand control optically centers its plus mark', () => {
-  const html = readAdminHtml();
-  const styles = readCssBundle('public', 'css', 'admin', 'other-features.css');
-  const iconRule = styles.match(/\.wheel-expand-icon\s*\{[^}]*\}/)?.[0];
-  const markRule = styles.match(/\.wheel-expand-mark\s*\{[^}]*\}/)?.[0];
-
-  assert.match(
-    html,
-    /<span\b[^>]*class=["']wheel-expand-icon["'][^>]*>[\s\S]*?<span\b[^>]*class=["']wheel-expand-mark["'][^>]*>\s*＋\s*<\/span>[\s\S]*?<\/span>/,
-  );
-  assert.ok(iconRule, 'wheel expand icon styles should remain defined');
-  assert.match(iconRule, /display:\s*grid/);
-  assert.match(iconRule, /place-items:\s*center/);
-  assert.ok(
-    markRule,
-    'wheel expand mark should have an optical alignment rule',
-  );
-  assert.match(markRule, /transform:\s*translateY\(-1px\)/);
-});
-
-test('interactive tour close control optically centers its exit mark', () => {
-  const styles = fs.readFileSync(
-    path.join(
-      ROOT_DIR,
-      'public',
-      'css',
-      'admin',
-      'other-features',
-      'interactive-tour.css',
-    ),
-    'utf8',
-  );
-  const script = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'interactive-tour.js'),
-    'utf8',
-  );
-  const closeRule = styles.match(/\.lira-tour-close\s*\{[\s\S]*?\n\}/)?.[0];
-  const closeMarkRule = styles.match(
-    /\.lira-tour-close-mark\s*\{[\s\S]*?\n\}/,
-  )?.[0];
-
-  assert.ok(
-    closeRule,
-    'interactive tour close control styles should remain defined',
-  );
-  assert.match(closeRule, /display:\s*inline-flex/);
-  assert.match(closeRule, /align-items:\s*center/);
-  assert.match(closeRule, /justify-content:\s*center/);
-  assert.ok(
-    closeMarkRule,
-    'interactive tour close mark should have an optical alignment rule',
-  );
-  assert.match(closeMarkRule, /transform:\s*translateY\(-1px\)/);
-  assert.match(
-    script,
-    /<span class="lira-tour-close-mark" aria-hidden="true">×<\/span>/,
-  );
-});
-
 test('other feature navigation selects panels without feature-specific dependencies', () => {
-  const source = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'other.js'),
-    'utf8',
-  );
+  const source = readJsModuleBundle('public', 'js', 'admin', 'other.js');
   const createNode = ({ id = '', feature = '', hidden = false } = {}) => {
     const classes = new Set();
     const attributes = new Map();

@@ -2,7 +2,7 @@
 
 import { escapeHtml } from '../shared/utils.js';
 import { formsService } from './forms.js';
-import { getLegacyAdminModules } from './legacy-admin-bridge.js';
+import { songs } from './songs.js';
 import {
   renderQueueState,
   renderSuperChatQueue,
@@ -14,10 +14,9 @@ export function createAdminStateRenderer({
   renderSuperChats = renderSuperChatQueue,
   renderSettings = fillSettings,
   renderQueueStyle = applyAdminQueueFontPreview,
-  renderGifts = renderGiftPanel,
+  renderGifts,
   renderLive = renderLiveStatus,
-  renderCategories = (categories) =>
-    getLegacyAdminModules().songs?.renderCategoryFilter?.(categories),
+  renderCategories = songs.renderCategoryFilter,
   renderSongCount = (count) => {
     document.getElementById('songCount').textContent =
       `歌库共 ${count || 0} 首`;
@@ -65,16 +64,6 @@ function fillSettings(settings) {
         ? '已开启'
         : '已关闭';
   }
-}
-
-function renderGiftPanel(state) {
-  getLegacyAdminModules().gifts?.renderGiftPanel?.(
-    state.gifts || {},
-    state.giftSprint || {},
-    state.liveStatus || {},
-    state.bilibiliDiagnostics || {},
-    state.settings || {},
-  );
 }
 
 function renderLiveStatus(live) {

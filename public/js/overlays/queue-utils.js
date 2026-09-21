@@ -1,25 +1,15 @@
 // Queue overlay stateless formatting and timing helpers.
 'use strict';
 
-const multilingualFontFallback =
-  '"Microsoft YaHei", "Microsoft JhengHei", "PingFang SC", "Hiragino Sans GB", "Yu Gothic", "Meiryo", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans CJK SC", "Noto Sans JP", "Noto Sans KR", "Segoe UI", Arial, sans-serif';
+import {
+  escapeHtml, hexToRgb, hexToRgba, withMultilingualFallback,
+  scrollTravelSeconds, overlayLowPowerEnabled,
+} from './overlay-utils-module.js';
 
-export function hexToRgb(hex) {
-  const normalized = String(hex || '#181823').replace('#', '');
-  const value =
-    normalized.length === 3
-      ? normalized
-          .split('')
-          .map((char) => char + char)
-          .join('')
-      : normalized;
-  const number = Number.parseInt(value, 16);
-  return {
-    r: (number >> 16) & 255,
-    g: (number >> 8) & 255,
-    b: number & 255,
-  };
-}
+export {
+  escapeHtml, hexToRgb, hexToRgba, withMultilingualFallback,
+  scrollTravelSeconds, overlayLowPowerEnabled,
+};
 
 export function queueScrollSeconds(settings, settingKey = 'queueScrollSpeed') {
   const urlSpeed = new URLSearchParams(location.search).get('speed');
@@ -42,28 +32,6 @@ export function normalizeQueueScrollSpeed(speed) {
   return Math.max(1, Math.min(100, speed));
 }
 
-export function overlayLowPowerEnabled(settings) {
-  const quality = new URLSearchParams(location.search).get('quality');
-  if (quality === 'pretty' || quality === 'smooth') return false;
-  if (quality === 'low') return true;
-  return (settings.overlayLowPowerMode || 'false') === 'true';
-}
-
-export function scrollTravelSeconds(
-  secondsPerViewport,
-  distance,
-  viewportDistance,
-) {
-  const safeSeconds = Math.max(0.01, Number(secondsPerViewport) || 0.01);
-  const safeDistance = Math.max(0, Number(distance) || 0);
-  const safeViewportDistance = Math.max(1, Number(viewportDistance) || 1);
-  return Number(
-    Math.max(0.05, (safeSeconds * safeDistance) / safeViewportDistance).toFixed(
-      3,
-    ),
-  );
-}
-
 export function bounceScrollTiming(downSeconds, upSeconds = 3) {
   const pauseSeconds = 1.5;
   const totalSeconds = pauseSeconds + downSeconds + pauseSeconds + upSeconds;
@@ -74,15 +42,6 @@ export function bounceScrollTiming(downSeconds, upSeconds = 3) {
     pauseEndPercent:
       ((pauseSeconds + downSeconds + pauseSeconds) / totalSeconds) * 100,
   };
-}
-
-export function hexToRgba(hex, opacity) {
-  const { r, g, b } = hexToRgb(hex);
-  const alpha = Number(opacity);
-  const safeAlpha = Number.isFinite(alpha)
-    ? Math.max(0, Math.min(1, alpha))
-    : 0.76;
-  return `rgba(${r}, ${g}, ${b}, ${safeAlpha})`;
 }
 
 export function normalizeGuardLevel(value) {
@@ -163,19 +122,4 @@ export function superChatPriceClass(value) {
   if (Number.isFinite(number) && number >= 100)
     return 'identity-sc-price-yellow';
   return 'identity-sc-price-blue';
-}
-
-export function escapeHtml(value) {
-  return String(value || '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-export function withMultilingualFallback(fontFamily) {
-  const selected = String(fontFamily || '').trim();
-  if (!selected) return multilingualFontFallback;
-  return `${selected}, ${multilingualFontFallback}`;
 }

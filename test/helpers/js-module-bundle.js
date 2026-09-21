@@ -5,7 +5,7 @@ const path = require('node:path');
 
 const ROOT_DIR = path.resolve(__dirname, '..', '..');
 const LOCAL_IMPORT_PATTERN =
-  /^import\s+[\s\S]*?\s+from\s+['"]([^'"]+)['"];\s*$/gm;
+  /^import\s+(?:['"]([^'"]+)['"]|[\s\S]*?\s+from\s+['"]([^'"]+)['"]);\s*$/gm;
 
 function readJsModuleBundle(...relativeSegments) {
   const visited = new Set();
@@ -19,7 +19,8 @@ function readJsModuleBundle(...relativeSegments) {
     const dependencies = [];
     const body = source.replace(
       LOCAL_IMPORT_PATTERN,
-      (_statement, importPath) => {
+      (_statement, sideEffectPath, namedImportPath) => {
+        const importPath = sideEffectPath || namedImportPath;
         if (!importPath.startsWith('.')) {
           throw new Error(
             `Only local JavaScript imports can be bundled: ${importPath}`,
@@ -31,7 +32,7 @@ function readJsModuleBundle(...relativeSegments) {
         return '';
       },
     );
-    return `${dependencies.join('\n')}\n${body.replace(/^export\s+/gm, '')}`;
+    return `${dependencies.join('\n')}\n${body.replace(/^export\s*\{[^}]*\};?\s*$/gm, '').replace(/^export\s+/gm, '')}`;
   }
 
   return read(path.join(ROOT_DIR, ...relativeSegments));

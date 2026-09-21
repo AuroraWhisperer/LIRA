@@ -1,4 +1,6 @@
 'use strict';
+import { toast as defaultToast } from '../shared/utils.js';
+import { publishDanmakuTool } from './legacy-admin-bridge.js';
 
 import { createCustomReplyEditor } from './danmaku-libraries.js';
 import { initDanmakuDailyBots } from './danmaku-daily-bots.js';
@@ -15,12 +17,11 @@ let dailyBots = null;
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-function init() {
+function init({ toast = defaultToast, reconnectBilibili } = {}) {
   dailyBots ||= initDanmakuDailyBots();
   const elements = getElements();
   if (initialized || !elements) return;
 
-  const toast = window.AdminApp?.utils?.toast || (() => {});
   const saveSetting = async (key, value) => {
     const response = await fetch('/api/settings', {
       method: 'POST',
@@ -62,7 +63,7 @@ function init() {
         throw new Error(payload.error || '获取发送状态失败');
       let state = payload.data || {};
       if (reconnectIfDisconnected && !state.connected) {
-        await window.AdminApp.settings?.reconnectBilibili?.();
+        await reconnectBilibili?.();
         const refreshedResponse = await fetch('/api/bilibili/danmaku/state');
         const refreshedPayload = await refreshedResponse.json();
         if (!refreshedResponse.ok || !refreshedPayload.ok) {
@@ -276,5 +277,5 @@ function refresh(options) {
   return refreshState ? refreshState(options) : Promise.resolve();
 }
 
-window.AdminApp = window.AdminApp || {};
-window.AdminApp.danmakuTool = { init, refresh };
+export const danmakuTool = { init, refresh };
+publishDanmakuTool(danmakuTool);

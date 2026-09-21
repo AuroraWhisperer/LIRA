@@ -1,3 +1,15 @@
+import { theme } from './theme.js';
+import { songs as songPanel } from './songs.js';
+import { metrics } from './metrics.js';
+import { todo } from './todo.js';
+import { giftEffects } from './gift-effects.js';
+import { other } from './other.js';
+import { danmakuTool } from './danmaku-tool.js';
+import { aiAssistantSettings } from './ai-assistant-settings.js';
+import { desktopLyric } from './desktop-lyric.js';
+import { songImports } from './import.js';
+import { settings } from './settings.js';
+import { display } from './display.js';
 // 编写人：Aurora
 // Admin应用统一入口 - ES6模块化版本
 'use strict';
@@ -20,6 +32,7 @@ import { initOnboarding } from './onboarding.js';
 import { initInteractiveTour } from './interactive-tour.js';
 import { initGiftFrame } from './gift-frame.js';
 import { initGiftHistoryDrawer } from './gifts/history.js';
+import { renderGiftPanel } from './gifts/index.js';
 import { initSongImportUpdate } from './song-import-update.js';
 
 import { stateService } from './state.js';
@@ -69,7 +82,7 @@ async function initializeApp() {
 
   const modules = getLegacyAdminModules();
   modules.desktop?.initDesktopShell?.();
-  modules.settings?.initSettingsForm?.();
+  settings.initSettingsForm();
 
   enhanceSelects();
 
@@ -79,7 +92,9 @@ async function initializeApp() {
   initMainPages();
 
   // 初始化表单和工作区
-  formsService.initWorkspaceControls();
+  formsService.initWorkspaceControls({
+    getCloseQueuePopup: () => getLegacyAdminModules().playback?.closeQueuePopup,
+  });
   formsService.initTabs();
 
   await Theme.loadThemeConfig();
@@ -96,24 +111,20 @@ async function initializeApp() {
 
   // 初始化各模块表单（使用兼容层调用）
   initQueueForm();
-  modules.songs?.initSongForm?.();
+  songPanel.initSongForm();
   initSongImportUpdate({
-    imports: modules.imports,
+    imports: songImports,
     reloadSongs: () => stateService.reloadAll(),
   });
-  if (modules.settings) {
-    modules.settings.initBilibiliAuth();
-  }
-  modules.theme?.initThemeForm?.();
-  if (modules.display) {
-    modules.display.initDisplayForm();
-    modules.display.initOverlayUrls();
-  }
-  modules.desktopLyric?.initDesktopLyricForm?.();
-  modules.metrics?.initPerformanceMonitor?.();
-  modules.giftEffects?.init?.();
+  settings.initBilibiliAuth();
+  theme.initThemeForm();
+  display.initDisplayForm();
+  display.initOverlayUrls();
+  desktopLyric.initDesktopLyricForm();
+  metrics.initPerformanceMonitor();
+  giftEffects.init();
   initGiftFrame();
-  modules.todo?.init?.();
+  todo.init();
   const dynamicLottery = initDynamicLottery();
   window.addEventListener('beforeunload', () => dynamicLottery.dispose(), {
     once: true,
@@ -121,10 +132,10 @@ async function initializeApp() {
   initUsageGuide();
   const onboarding = initOnboarding({
     getAppState: () => stateService.getAppState(),
-    reconnectBilibili: () => modules.settings?.reconnectBilibili?.(),
+    reconnectBilibili: settings.reconnectBilibili,
     openUsageGuide: () => {
-      modules.navigation?.setMainPage?.('otherAssistantPage');
-      modules.other?.selectFeatureById?.('otherUsageGuideFeature');
+      setMainPage('otherAssistantPage');
+      other.selectFeatureById('otherUsageGuideFeature');
     },
   });
   publishOnboarding(onboarding);
@@ -134,8 +145,12 @@ async function initializeApp() {
   window.liraTour = interactiveTour;
 
   // 初始化「百宝箱」页面的通用功能导航
-  modules.other?.initOtherPage?.({
+  other.initOtherPage({
     onFeatureSelected: toolbox.selectFeature,
+    onNavigate: setMainPage,
+    danmakuTool,
+    aiAssistantSettings,
+    reconnectBilibili: settings.reconnectBilibili,
     persistSidebarCollapsed: (collapsed) =>
       Utils.api('/api/settings', {
         toolboxSidebarCollapsed: String(collapsed),
@@ -147,9 +162,17 @@ async function initializeApp() {
   });
   initGiftHistoryDrawer();
 
-  eventBus.on(Events.STATE_LOADED, createAdminStateRenderer());
+  eventBus.on(Events.STATE_LOADED, createAdminStateRenderer({
+    renderGifts: (state) => renderGiftPanel(
+      state.gifts || {},
+      state.giftSprint || {},
+      state.liveStatus || {},
+      state.bilibiliDiagnostics || {},
+      state.settings || {},
+    ),
+  }));
   eventBus.on(Events.SONG_UPDATED, ({ songs, languages, artists, tags }) => {
-    getLegacyAdminModules().songs?.renderSongs?.(
+    songPanel.renderSongs(
       songs,
       languages,
       artists,
@@ -167,7 +190,7 @@ async function initializeApp() {
   }
 
   // 渲染主题预设
-  if (modules.theme?.renderPresetCards) {
+  {
     const {
       classicThemePresets,
       classicPresetLabels,
@@ -175,14 +198,14 @@ async function initializeApp() {
       songBoardThemePresets,
       songBoardPresetLabels,
       songBoardPresetSwatches,
-    } = modules.theme;
-    modules.theme.renderPresetCards(
+    } = Theme.theme;
+    theme.renderPresetCards(
       'classicPresets',
       classicThemePresets,
       classicPresetLabels,
       classicPresetSwatches,
     );
-    modules.theme.renderPresetCards(
+    theme.renderPresetCards(
       'songBoardPresets',
       songBoardThemePresets,
       songBoardPresetLabels,

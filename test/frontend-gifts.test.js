@@ -7,7 +7,11 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const { readCssBundle } = require('./helpers/css-bundle');
-const { loadModuleExports, response } = require('./helpers/frontend-modules');
+const { loadModuleExports } = require('./helpers/frontend-modules');
+
+function response(payload) {
+  return { ok: payload.ok !== false, text: async () => JSON.stringify(payload) };
+}
 
 const ROOT_DIR = path.join(__dirname, '..');
 
@@ -55,7 +59,7 @@ test('admin blind box summary shows one row per viewer and opens analysis', () =
   assert.doesNotMatch(html, /id="blindBoxStatsTable"[\s\S]*?<th>时间<\/th>/);
   assert.match(source, /const users = Array\.isArray\(perUser\)/);
   assert.match(source, /data-viewer=/);
-  assert.match(source, /analysis\?\.open/);
+  assert.match(source, /giftAnalysis\.open/);
   assert.match(source, /closest\('#blindBoxAnalysisOpenBtn'/);
 });
 
@@ -141,9 +145,9 @@ test('blind box summary refreshes on gift events and coalesces in-flight updates
     ],
   });
   assert.equal(section.dataset.state, 'ready');
-  assert.match(summary.innerHTML, /<strong>48\.00<\/strong>/);
-  assert.match(summary.innerHTML, /<strong>49\.00<\/strong>/);
-  assert.match(summary.innerHTML, /<strong>\+1\.00<\/strong>/);
+  assert.match(summary.innerHTML, /<strong>¥48\.00<\/strong>/);
+  assert.match(summary.innerHTML, /<strong>¥49\.00<\/strong>/);
+  assert.match(summary.innerHTML, /<strong>\+¥1\.00<\/strong>/);
   assert.match(body.innerHTML, /Test viewer/);
   assert.match(body.innerHTML, /<td>2<\/td>/);
 

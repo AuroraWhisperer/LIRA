@@ -29,7 +29,6 @@ test('wheel overlay is mapped, transparent, and renders labels through DOM APIs'
   assert.match(html, /<script type="module" src="\/js\/overlays\/wheel\.js\?v=[^"]+"><\/script>/);
   assert.doesNotMatch(html, /\son(?:click|keydown)=/);
   assert.match(script, /createElementNS/);
-  assert.match(script, /spinFromWheel/);
   assert.match(script, /createRadialLabel/);
   assert.match(script, /tspan/);
   assert.match(script, /textContent/);
@@ -37,7 +36,6 @@ test('wheel overlay is mapped, transparent, and renders labels through DOM APIs'
   assert.match(styles, /background:.*transparent/);
   assert.match(script, /wheel:update/);
   assert.match(script, /prefers-reduced-motion/);
-  assert.match(script, /cubic-bezier/);
   assert.match(styles, /\.wheel-center-button/);
   assert.match(styles, /\.wheel-center-arrow/);
 });

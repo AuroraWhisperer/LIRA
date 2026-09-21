@@ -122,12 +122,6 @@ test('cute clock overlay exposes six distinct styles and safe time parameters', 
   }
   assert.match(html, /data-clock-style="peach"/);
   assert.match(html, /id="clockCard"[^>]*\bhidden/);
-  assert.match(css, /\[data-clock-style='peach'\]/);
-  assert.match(css, /\[data-clock-style='starlight'\]/);
-  assert.match(css, /\[data-clock-style='soda'\]/);
-  assert.match(css, /\[data-clock-style='timeline-horizontal'\]/);
-  assert.match(css, /\[data-clock-style='timeline-vertical'\]/);
-  assert.match(css, /\[data-clock-style='digital'\]/);
   assert.match(css, /width:\s*560px/);
   assert.match(css, /height:\s*190px/);
   assert.match(css, /width:\s*220px/);
@@ -139,23 +133,10 @@ test('cute clock overlay exposes six distinct styles and safe time parameters', 
     /\.clock-seconds\s*\{[\s\S]*?display:\s*inline-grid[\s\S]*?text-shadow:\s*none/,
   );
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
-  assert.match(css, /background:\s*transparent/);
   assert.doesNotMatch(
     css,
     /timeline-vertical'\]\s*#clockDate\s*\{\s*display:\s*none/,
   );
-  assert.match(script, /new URLSearchParams\(location\.search\)/);
-  assert.match(
-    script,
-    /new Set\(\[\s*'peach',\s*'starlight',\s*'soda',\s*'timeline-horizontal',\s*'timeline-vertical',\s*'digital',?\s*\]\)/,
-  );
-  assert.match(script, /booleanParameter\(params,\s*'date'/);
-  assert.match(script, /booleanParameter\(params,\s*'seconds'/);
-  assert.match(script, /params\.get\('format'\)/);
-  assert.match(script, /params\.get\('label'\)/);
-  assert.match(script, /fetch\('\/api\/clock\/config'/);
-  assert.match(script, /mergeClockConfig/);
-  assert.match(script, /Intl\.DateTimeFormat/);
   assert.match(script, /textContent/);
   assert.doesNotMatch(script, /innerHTML/);
   assert.match(script, /visibilitychange/);

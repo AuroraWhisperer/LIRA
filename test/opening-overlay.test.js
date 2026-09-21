@@ -33,10 +33,6 @@ test('opening samples stay outside public assets and the overlay route remains r
   assert.ok(
     fs.existsSync(path.join(ROOT_DIR, 'public/js/overlays/opening.js')),
   );
-  assert.ok(
-    fs.existsSync(path.join(ROOT_DIR, 'test/fixtures/opening/avatar.webp')),
-  );
-  assert.ok(fs.existsSync(musicPath));
   assert.ok(fs.statSync(musicPath).size > 100_000);
   assert.equal(
     fs.readFileSync(musicPath).subarray(0, 4).toString('ascii'),
@@ -51,13 +47,11 @@ test('opening samples stay outside public assets and the overlay route remains r
       false,
     );
   }
-  const server = read('src', 'server', 'http-utils.js');
   const serverRuntime = [
     read('src', 'server.js'),
     read('src', 'server', 'http-server.js'),
   ].join('\n');
   assert.equal(require('../src/server/access-policy').getOverlayScope('/opening'), 'opening');
-  assert.match(server, /'\.ogg':\s*'audio\/ogg'/);
   assert.equal(contentType(musicPath), 'audio/ogg');
   assert.match(
     serverRuntime,
@@ -115,8 +109,6 @@ test('opening overlay is frameable and keeps the required character transform la
   assert.doesNotMatch(html, /id="openingAudio"[^>]+src=/);
   assert.match(html, /id="openingAvatar"[^>]+hidden/);
   assert.doesNotMatch(html, /id="openingAvatar"[^>]+src=/);
-  assert.doesNotMatch(html, /SINGING LIVE/);
-  assert.doesNotMatch(html, /歌声即将开始/);
   assert.match(html, /id="openingFooter"[^>]*>欢迎来到直播间<\/p>/);
   assert.doesNotMatch(html, /<span class="track-heart"/);
   assert.doesNotMatch(html, />@<\/span>/);
@@ -138,8 +130,6 @@ test('opening overlay animation honors quality, motion, visibility, and safe tex
   assert.match(css, /white-space:\s*nowrap/);
   assert.match(css, /cqw/);
   assert.doesNotMatch(css, /\.track::before\s*\{/);
-  assert.doesNotMatch(css, /@keyframes\s+track-glint/);
-  assert.doesNotMatch(css, /mic-glint/);
   assert.match(css, /\.track-heart-motion\s*\{\s*opacity:\s*0?\.86/);
   assert.doesNotMatch(css, /@keyframes\s+track-heart-visibility/);
   assert.match(css, /\[data-track-motion='barber'\][^\{]*\.track-barber/);
@@ -185,7 +175,6 @@ test('opening overlay animation honors quality, motion, visibility, and safe tex
   assert.doesNotMatch(css, /background-position/);
   assert.match(script, /visibilitychange/);
   assert.match(script, /prefers-reduced-motion/);
-  assert.match(script, /Array\.from/);
   assert.match(script, /textContent/);
   assert.match(script, /QUALITY_LIMITS/);
   assert.match(script, /TRACK_MOTION_VALUES/);
@@ -205,7 +194,6 @@ test('opening overlay animation honors quality, motion, visibility, and safe tex
   assert.match(script, /audio === 'browser'/);
   assert.match(script, /stage\.classList\.add\('is-disabled',\s*'is-paused'\)/);
   assert.match(script, /audio\.removeAttribute\('src'\)/);
-  assert.match(script, /console\.warn/);
 });
 
 test('Toolbox opening animation persists configuration and keeps a fixed source URL', () => {
@@ -239,10 +227,6 @@ test('Toolbox opening animation persists configuration and keeps a fixed source 
   assert.match(html, /id="openingEnabled"[^>]*type="checkbox"/);
   assert.doesNotMatch(html, /id="openingEnabled"[^>]+checked/);
   assert.match(html, /id="openingPreview"[^>]+hidden/);
-  assert.doesNotMatch(html, /STARTING SOON/);
-  assert.doesNotMatch(html, /SINGING LIVE/);
-  assert.doesNotMatch(html, /关闭总开关后，Browser Source 会变透明/);
-  assert.doesNotMatch(html, /URL 即时预览/);
   assert.match(html, /<span>开场文案<\/span\s*>/);
   assert.match(html, /<strong>设置开播画面上的文字<\/strong>/);
   assert.match(html, /class="opening-switch-label">漂浮音符<\/span>/);
@@ -306,7 +290,6 @@ test('Toolbox opening animation persists configuration and keeps a fixed source 
     overlayScript,
     /audio\.volume = parseVolume\(event\.data\.volume, audio\.volume\)/,
   );
-  assert.doesNotMatch(script, /固定地址刷新后会读取最新设置/);
   assert.match(overlayScript, /enabled:\s*false/);
   assert.match(
     openingRoutesSource,

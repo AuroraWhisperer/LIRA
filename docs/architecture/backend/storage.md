@@ -146,6 +146,9 @@ v13 由 `gift-wish-migration.js` 幂等建表，原事件不变；许愿进度�
 
 ### 3.6 lottery-data.db(动态抽奖库,9 表)
 
+三个抽奖 store 通过 `dynamic-lottery-transaction.js` 复用同步事务包装，各自仍拥有连接和事务范围。BEGIN 失败直接抛出；操作或 COMMIT 失败尝试一次 ROLLBACK，并重新抛出原错误对象，保留原 code/cause。ROLLBACK 也失败时附加 `rollbackError`，不覆盖原 cause；不添加异步事务、自动重试或跨库事务。
+
+
 | 表 | 用途 | 关键约束 |
 | --- | --- | --- |
 | `lottery_tasks` | 活动身份、动态目标、规则和状态 | task ID PK；创建 requestId 在 streamer 范围唯一；UID/动态 ID 均为 TEXT |
@@ -313,9 +316,14 @@ Phase 1 失败且全部事务已回滚时，只解除本次请求取得的暂停
 
 应用云端歌库时，`song-service.replaceCloudSongs` 先完成规范化、校验和最后一项获胜的身份去重，再调用 [song-store.js](../../../src/storage/song-store.js) 的 `replaceAll`。Store 拥有一个 `BEGIN` / `COMMIT` 事务：先把 `queue.song_id` 与 `requests.song_id` 全部置空，保留 `song_name`、artist、requester、message 等文字历史；再删除旧歌曲和分类、重建默认分类并插入新快照。任何一步失败都会 `ROLLBACK`，不会暴露半替换歌库。单曲保存/删除与批量导入的事务同样归 SongStore，领域层不再接收 SQLite 句柄。
 
-本地 settings、歌曲保存/删除/启停/导入和清空歌库成功后才请求对应 scope 上传。云端应用路径不发 dirty 通知，避免写回回声；网络失败时 dirty 内容留在本地数据库，并由下一次同步继续上传。
+歌曲待上传状态由 [cloud-song-sync-store.js](../../../src/storage/cloud-song-sync-store.js) 持久化在现有 `settings` 表的私有 `cloudSongSyncPending:<accountKey SHA-256>` 行；值包含唯一 `mutationId` 与完整歌曲快照。归属沿用已保存的 `cloudRoomAccountKey`，尚无 owner 时保留原初次播种规则。保存、删除、启停、两类导入和两类清空路径在歌曲事务提交前捕获快照，写入失败整体回滚；空数组表示明确清空。其他账号的待上传快照不随当前歌库替换或清空而删除。这些行不进入普通设置、可编辑 defaults、HTTP/WS 或 Device 设置快照，不新增表或 schema 版本。
+
+本地 settings、歌曲保存/删除/启停/导入和清空歌库成功后才请求对应 scope 上传。歌曲上传确认只删除同账号、同 `mutationId` 的记录；上传期间的新修改、过期生命周期的响应和网络失败均保留待上传内容。重启或切回账号时优先恢复并上传该账号的待传快照，当前歌库内容一致时不重复替换，以保留队列和历史的歌曲引用。每轮同步及拉取落盘前也检查持久记录，保护通知遗漏的提交。云端应用和待传恢复路径均不捕获新待传记录或发 dirty 通知，避免写回回声；settings/Bilibili 仍使用进程内 dirty 重试机制。
 
 ## 9. 礼物账本完整投影（Implemented）
+
+`gift-projection-reset.js` 集中维护同步元数据重置字段，在调用方已有事务内清空 epoch/cursor/bootstrap/验证时间并递增 generation。手动清理与重建复用该操作，但前者仍清除当前来源全部事件，后者仍只清除 `cmd = 'LIRA_SERVER_GIFT'`；删除范围、事务次序和过期 generation 拒绝策略由原 store 保持。
+
 
 ADR [0011-source-partitioned-gift-ledger-projection](../adr/0011-source-partitioned-gift-ledger-projection.md) 接受在现有 `gift-data.db` 内增加 `gift_sources`、nullable `gift_events.source_id` 与 `gift_sync_state`。迁移前的行保留 `source_id=NULL`；新 `LIRA_SERVER_GIFT` 行必须由触发器保证引用有效 source。v9 追加可空 `gift_events.blind_box_id`，已有行不重判并保持 `NULL`；新远端投影保存服务器 DTO 中已验证的盒子 ID。source/time 索引服务完整历史查询，远程幂等唯一键改为 `(source_id, platform_id, cmd)`。
 

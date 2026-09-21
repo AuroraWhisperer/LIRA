@@ -66,6 +66,15 @@ test('previewed song updates run through the API facade and request one complete
   });
   try {
     const server = await runtime.start({ host: '127.0.0.1', startPort: 0 });
+    const accountKey = JSON.stringify(['https://api.example.test', 'fixture', 1]);
+    runtime.prepareCloudRoomAccount(accountKey);
+    const adapter = createDesktopRuntime({
+      startServer() {},
+      shutdownApplication() {},
+      getPendingCloudSongs: runtime.getPendingCloudSongs,
+      acknowledgePendingCloudSongs: runtime.acknowledgePendingCloudSongs,
+    });
+    assert.equal(adapter.getPendingCloudSongs(accountKey), null);
     const headers = {
       authorization: `Bearer ${runtime.getApiToken()}`,
       'content-type': 'application/json',
@@ -117,6 +126,16 @@ test('previewed song updates run through the API facade and request one complete
       snapshots[0].find((song) => song.name === '本地原曲').source_platform,
       'QQ音乐',
     );
+    const pending = adapter.getPendingCloudSongs(accountKey);
+    assert.equal(pending.songs.length, 2);
+    assert.equal(pending.songs.find((song) => song.name === '本地原曲').request_price, '30元SC');
+    const response = await fetch(`${server.baseUrl}/api/state`, { headers });
+    assert.equal(response.status, 200);
+    const settings = (await response.json()).data.settings;
+    assert.equal(Object.keys(settings).some((key) => key.startsWith('cloudSongSyncPending:')), false);
+    assert.equal(adapter.acknowledgePendingCloudSongs(accountKey, pending.mutationId), true);
+    assert.equal(adapter.getPendingCloudSongs(accountKey), null);
+    assert.equal(snapshots.length, 1, 'acknowledgement does not emit a dirty echo');
   } finally {
     unsubscribe();
     await runtime.stop({ exitProcess: false });

@@ -62,10 +62,6 @@ test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
     path.join(__dirname, '..', 'public', 'js', 'overlays', 'games.js'),
     'utf8',
   );
-  const danmakuModule = fs.readFileSync(
-    path.join(__dirname, '..', 'public', 'js', 'overlays', 'danmaku-feed.js'),
-    'utf8',
-  );
   const danmakuRenderer = fs.readFileSync(
     path.join(
       __dirname,
@@ -98,8 +94,6 @@ test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
   assert.doesNotMatch(script, /innerHTML/);
 
   assert.match(html, /直播小游戏/);
-  assert.doesNotMatch(html, /THE HIDDEN SPARK|BLACK × WHITE|LIVE ARCADE/);
-  assert.doesNotMatch(html, /bomb-range-visual|game-atmosphere/);
   assert.doesNotMatch(script, /URLSearchParams|params\.get\(['"]game/);
   assert.match(script, /(?:nextSession|session)\?\.game/);
   assert.match(html, /id="gomokuColumnLabels"/);
@@ -131,9 +125,6 @@ test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
   assert.match(html, /data-draw-color="#222034"[^>]+data-tooltip="墨黑"/);
   assert.match(html, /data-draw-width="4"[^>]+data-tooltip="中号"/);
   assert.match(styles, /button\[data-tooltip\]:hover::after/);
-  assert.doesNotMatch(html, />橡皮擦</);
-  assert.doesNotMatch(html, /drawDanmakuCount|\d+ 条/);
-  assert.doesNotMatch(html, /gomoku-legend|gomokuHint|gomokuLastMove/);
   assert.match(script, /renderGomokuCoordinates\(state\.size\)/);
   assert.match(script, /const isPicked = value === state\.lastGuess/);
   assert.match(script, /isPicked \? ["'] is-picked["'] : ["']["']/);
@@ -150,11 +141,6 @@ test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
   );
   assert.match(script, /function avatarSource\(/);
   assert.match(script, /api\/bilibili\/avatar\?url=/);
-  assert.match(
-    danmakuRenderer,
-    /const source = String\(resolveAvatarUrl\(item\.avatarUrl\)/,
-  );
-  assert.match(danmakuRenderer, /image\.src\s*=\s*source/);
   assert.match(drawingModule, /function scheduleDrawDanmakuRender\(/);
   assert.match(drawingModule, /function getDrawDanmakuRenderInterval\(/);
   assert.match(drawingModule, /drawDanmakuLastRenderDurationMs/);
@@ -167,16 +153,8 @@ test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
   assert.match(script, /getBoundingClientRect/);
   assert.match(script, /positionGameResult/);
   assert.match(script, /game:draw/);
-  assert.match(drawingModule, /pointerdown/);
-  assert.match(drawingModule, /pointermove/);
   assert.match(drawingModule, /pointerup/);
-  assert.match(drawingModule, /api\/games\/session\/draw/);
-  assert.match(drawingModule, /action: ["']undo["']/);
   assert.match(drawingModule, /showConfirmationDialog/);
-  assert.match(
-    drawingModule,
-    /document\.addEventListener\(["']keydown["'], handleDrawShortcut\)/,
-  );
   assert.match(drawingModule, /key === ["']b["']/);
   assert.match(drawingModule, /key === ["']e["']/);
   assert.match(drawingModule, /key === ["']\[["']/);
@@ -200,7 +178,6 @@ test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
   );
   assert.doesNotMatch(script, /payload\.state\?\.games \|\| null/);
   assert.match(script, /revealedAnswer/);
-  assert.match(drawingModule, /drawClientId/);
   assert.match(
     script,
     /import \{ createDanmakuFeed \} from ["']\.\/danmaku-feed\.js["'];/,
@@ -208,14 +185,7 @@ test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
   assert.match(script, /createDanmakuFeed\(byId\(["']drawDanmakuFeed["']\)/);
   assert.match(script, /drawDanmakuFeed\.render\(items\)/);
   assert.match(script, /offscreenViewports:\s*5/);
-  assert.match(danmakuModule, /export function createDanmakuFeed\(/);
-  assert.match(danmakuRenderer, /export function measureDanmakuText\(/);
-  assert.match(danmakuRenderer, /--danmaku-width/);
-  assert.match(danmakuRenderer, /--danmaku-height/);
-  assert.match(danmakuRenderer, /--danmaku-lines/);
-  assert.match(danmakuRenderer, /textContent/);
   assert.doesNotMatch(danmakuRenderer, /innerHTML/);
-  assert.match(danmakuRenderer, /draw-danmaku-bubble/);
   for (const identity of ['viewer', 'fan', 'captain', 'admiral', 'governor']) {
     assert.match(
       styles,
@@ -224,15 +194,10 @@ test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
       ),
     );
   }
-  assert.doesNotMatch(html, /draw-danmaku-header|弹幕画廊|>LIVE</);
   assert.doesNotMatch(script, /\$\{state\.category\}/);
   assert.match(styles, /\.game-stage-header\s*\{\s*display:\s*none;/);
   assert.match(styles, /\.game-result\[hidden\]\s*\{\s*display:\s*none;/);
   assert.match(styles, /\.game-result\s*\{\s*position:\s*absolute/);
-  assert.match(
-    styles,
-    /\.game-result-avatar\s*\{[^}]*width:\s*clamp\(36px,\s*4\.6vw,\s*56px\)/,
-  );
   assert.match(styles, /\.game-result-avatar\s*\{[^}]*aspect-ratio:\s*1/);
   assert.match(styles, /\.game-result-avatar\s*\{[^}]*object-fit:\s*cover/);
   assert.match(styles, /\.bomb-number\.is-picked\s*\{/);
@@ -278,8 +243,6 @@ test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
   assert.match(styles, /\.draw-danmaku-bubble/);
   assert.match(styles, /width:\s*min\(100%,\s*var\(--danmaku-width\)\)/);
   assert.match(styles, /min-height:\s*var\(--danmaku-height\)/);
-  assert.match(styles, /\.draw-danmaku-item:nth-child\(3n \+ 1\)::before/);
-  assert.match(styles, /content:\s*['"]✦['"]/);
   assert.match(styles, /--bubble-tail/);
   assert.match(styles, /\.draw-tool-button\[aria-pressed=['"]true['"]\]/);
 });

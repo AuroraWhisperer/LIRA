@@ -4,18 +4,10 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
-const vm = require('node:vm');
+const { loadModuleExports } = require('./helpers/frontend-modules');
 const { readCssBundle } = require('./helpers/css-bundle');
 
 const ROOT_DIR = path.join(__dirname, '..');
-
-function runnableRecentScript(source) {
-  return `const eventBus = window.AdminApp.eventBus || { on: () => () => {} };
-const Events = { GIFT_CATALOG_UPDATED: 'gift:catalog_updated' };
-const getLegacyAdminModules = () => window.AdminApp;
-${fs.readFileSync(path.join(ROOT_DIR, 'public/js/shared/gift-image-fallback.js'), 'utf8').replace(/^export /gm, '')}
-${source.replace(/^import\s[\s\S]*?;\r?\n/gm, '').replace(/^export /gm, '')}`;
-}
 
 test('recent gift cards keep a wider responsive minimum width', () => {
   const source = readCssBundle('public', 'css', 'admin', 'workspace.css');
@@ -39,11 +31,7 @@ test('admin gift styles load feature-owned stylesheets in order', () => {
   assert.match(giftEntry, /@import url\('\.\/gifts\/recent\.css'\);/);
 });
 
-test('recent gift cards stay within six rows as the grid width changes', () => {
-  const source = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'recent.js'),
-    'utf8',
-  );
+test('recent gift cards stay within six rows as the grid width changes', async () => {
   const cards = [];
   let gridTemplateColumns = '270px 270px 270px';
   let resizeCallback;
@@ -82,7 +70,7 @@ test('recent gift cards stay within six rows as the grid width changes', () => {
     created_at: index,
   }));
 
-  vm.runInNewContext(runnableRecentScript(source), sandbox);
+  await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/gifts/recent.js'), sandbox);
   sandbox.window.AdminApp.gifts.recent.renderGiftRecentList(items);
 
   assert.equal(cards.filter((card) => !card.hidden).length, 18);
@@ -198,10 +186,6 @@ test('recent blind box cards keep heart and lucky colors and default all others 
 });
 
 test('same-name 七夕鹊匣 gift card uses server artwork for its exact ID', async () => {
-  const script = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'recent.js'),
-    'utf8',
-  );
   const list = {
     classList: { toggle() {} },
     querySelectorAll: () => [],
@@ -244,7 +228,7 @@ test('same-name 七夕鹊匣 gift card uses server artwork for its exact ID', as
     document: { getElementById: () => list },
   };
 
-  vm.runInNewContext(runnableRecentScript(script), sandbox);
+  await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/gifts/recent.js'), sandbox);
   await sandbox.window.AdminApp.gifts.recent.loadGiftArtworkCatalog();
   sandbox.window.AdminApp.gifts.recent.renderGiftRecentList([
     {
@@ -310,10 +294,6 @@ test('same-name 七夕鹊匣 gift card uses server artwork for its exact ID', as
 });
 
 test('recent gift artwork refreshes from live catalog events without a slow fetch rollback', async () => {
-  const script = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'recent.js'),
-    'utf8',
-  );
   const list = {
     classList: { toggle() {} },
     querySelectorAll: () => [],
@@ -323,16 +303,6 @@ test('recent gift artwork refreshes from live catalog events without a slow fetc
   const fetchPromise = new Promise((resolve) => {
     resolveFetch = resolve;
   });
-  let eventHandler;
-  const eventBus = {
-    on(event, handler) {
-      assert.equal(event, 'gift:catalog_updated');
-      eventHandler = handler;
-      return () => {
-        eventHandler = null;
-      };
-    },
-  };
   const sandbox = {
     window: {
       AdminApp: {
@@ -341,7 +311,6 @@ test('recent gift artwork refreshes from live catalog events without a slow fetc
           formatTime: (value) => String(value),
           formatMoney: (value) => String(value),
         },
-        eventBus,
       },
       fetch: () => fetchPromise,
       getComputedStyle: () => ({ gridTemplateColumns: '270px' }),
@@ -349,7 +318,7 @@ test('recent gift artwork refreshes from live catalog events without a slow fetc
     document: { getElementById: () => list },
   };
 
-  vm.runInNewContext(runnableRecentScript(script), sandbox);
+  await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/gifts/recent.js'), sandbox);
   const recent = sandbox.window.AdminApp.gifts.recent;
   recent.renderGiftRecentList([
     {
@@ -363,7 +332,7 @@ test('recent gift artwork refreshes from live catalog events without a slow fetc
   ]);
   const initialPromise = recent.loadGiftArtworkCatalog();
 
-  eventHandler({
+  sandbox.window.AdminApp.eventBus.emit('gift:catalog_updated', {
     snapshot: {
       source: 'server',
       version: 'v2',
@@ -401,7 +370,7 @@ test('recent gift artwork refreshes from live catalog events without a slow fetc
     /\/overtime-gift-images\/35792-old\.webp/,
   );
 
-  eventHandler({
+  sandbox.window.AdminApp.eventBus.emit('gift:catalog_updated', {
     snapshot: {
       source: 'server',
       version: 'v3',
@@ -460,7 +429,7 @@ test('recent gift totals worth at least 1000 RMB use gold while unit-value artwo
     document: { getElementById: () => list },
   };
 
-  vm.runInNewContext(runnableRecentScript(script), sandbox);
+  await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/gifts/recent.js'), sandbox);
   await sandbox.window.AdminApp.gifts.recent.loadGiftArtworkCatalog();
   sandbox.window.AdminApp.gifts.recent.renderGiftRecentList([
     {

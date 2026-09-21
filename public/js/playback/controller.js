@@ -279,6 +279,7 @@ export function createPlaybackController(initialOptions = {}) {
     savePlaybackState,
     renderPlayback: () => renderPlayback(),
     getPlaybackAudio,
+    invalidatePlaybackRequests: (source) => playbackControls.invalidatePlaybackRequests(source),
     toast,
     showError,
     U,

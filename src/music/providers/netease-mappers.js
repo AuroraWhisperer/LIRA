@@ -1,5 +1,7 @@
 'use strict';
 
+const { sanitizeAuthState } = require('../auth-state');
+
 function mapNeteaseSong(song, searchCoverUrl) {
   if (!song || !song.id || !song.name) return null;
   const album = song.album || song.al || {};
@@ -107,18 +109,6 @@ function sliceByPage(list, limit, page) {
   const window = items.slice(start, start + limit);
   if (window.length >= limit) return window;
   return window.concat(items.slice(0, limit - window.length));
-}
-
-function sanitizeAuthState(auth) {
-  return {
-    loggedIn: Boolean(auth && auth.loggedIn),
-    cookieCount: Number(auth && auth.cookieCount) || 0,
-    keyCookieNames: Array.isArray(auth && auth.keyCookieNames)
-      ? auth.keyCookieNames
-      : [],
-    encryptedSnapshotExists: Boolean(auth && auth.encryptedSnapshotExists),
-    lastSavedAt: auth && auth.lastSavedAt ? auth.lastSavedAt : '',
-  };
 }
 
 module.exports = {

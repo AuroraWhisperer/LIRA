@@ -15,6 +15,24 @@ const {
 } = require('../src/bilibili/gift/blind-box-analysis');
 const { createFixture } = require('./helpers/gift-query-fixture');
 
+test('gift query stores fail closed for missing or invalid structured source scopes', (t) => {
+  const fixture = createFixture();
+  t.after(() => fixture.close());
+  const source = fixture.resolveSource('a'.repeat(64));
+  fixture.insertGift(null, 'local', { cmd: 'SEND_GIFT', countedInSprint: 1 });
+  fixture.insertGift(source.id, 'remote', { countedInSprint: 1 });
+  for (const sourceScope of [undefined, {}, { kind: 'unavailable' },
+    { kind: 'source', sourceId: 0 }, { kind: 'source', sourceId: '1 OR 1=1' },
+    { sql: 'source_id IS NULL', params: [] }]) {
+    const store = fixture.context.queryStore;
+    assert.deepEqual(store.listRecent({ sourceScope, limit: 30 }), []);
+    assert.equal(store.resetSprint({ sourceScope, updatedAt: new Date().toISOString() }), 0);
+  }
+  assert.equal(fixture.giftDb.prepare(
+    'SELECT count(*) AS count FROM gift_events WHERE counted_in_sprint = 1',
+  ).get().count, 2);
+});
+
 test('history query accepts only 1-100 normalized Unicode code points', () => {
   const fixture = createFixture();
   try {

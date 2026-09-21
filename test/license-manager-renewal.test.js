@@ -23,27 +23,58 @@ test('concurrent protected calls share one token renewal', async () => {
   manager.dispose();
 });
 
-test('protected revocation immediately blocks the manager and clears the token', async () => {
-  const { manager, remote } = createHarness({
-    identity: { deviceId: 'd', publicKeyPem: 'public' },
-  });
-  await manager.bootstrap();
-  remote.profile = async () => {
-    throw new RemoteLicenseError('DEVICE_REVOKED', 'revoked', {
+for (const scenario of [
+  {
+    name: 'protected revocation immediately blocks the manager and clears the token',
+    createError: () => new RemoteLicenseError('DEVICE_REVOKED', 'revoked', {
       status: 503,
       retryable: true,
+    }),
+  },
+  {
+    name: 'missing streamer blocks the manager and clears the token',
+    createError: () => new RemoteLicenseError('STREAMER_NOT_FOUND', 'missing', {
+      status: 404,
+    }),
+  },
+  {
+    name: 'non-JSON authorization rejection remains fail-closed',
+    createError: () => new RemoteLicenseError('INVALID_RESPONSE', 'proxy rejection', {
+      status: 401,
+    }),
+  },
+  {
+    name: 'plain unauthorized protected failures also clear the session',
+    createError: () => Object.assign(new Error('accessToken=secret-value'), {
+      status: 401,
+    }),
+  },
+  {
+    name: 'HTTP authorization status fails closed even when a wrapper marks it retryable',
+    createError: () => Object.assign(new Error('temporary proxy error'), {
+      status: 403,
+      retryable: true,
+    }),
+  },
+]) {
+  test(scenario.name, async (t) => {
+    const { manager, remote } = createHarness({
+      identity: { deviceId: 'd', publicKeyPem: 'public' },
     });
-  };
+    t.after(() => manager.dispose());
+    await manager.bootstrap();
+    const failure = scenario.createError();
+    remote.profile = async () => {
+      throw failure;
+    };
 
-  await assert.rejects(
-    manager.getProfile(),
-    (error) => error.code === 'DEVICE_REVOKED',
-  );
-
-  assert.equal(manager.getState(), LicenseState.BLOCKED);
-  assert.equal(manager.getAccessToken(), '');
-  manager.dispose();
-});
+    await assert.rejects(manager.getProfile(), (error) =>
+      failure.code ? error.code === failure.code : true,
+    );
+    assert.equal(manager.getState(), LicenseState.BLOCKED);
+    assert.equal(manager.getAccessToken(), '');
+  });
+}
 
 test('terminal renewal rejection stays blocked even when wrapped as retryable', async () => {
   const { manager, remote, calls } = createHarness({
@@ -69,83 +100,6 @@ test('terminal renewal rejection stays blocked even when wrapped as retryable', 
   );
 
   assert.equal(calls.verifies, 2);
-  assert.equal(manager.getState(), LicenseState.BLOCKED);
-  assert.equal(manager.getAccessToken(), '');
-  manager.dispose();
-});
-
-test('missing streamer blocks the manager and clears the token', async () => {
-  const { manager, remote } = createHarness({
-    identity: { deviceId: 'd', publicKeyPem: 'public' },
-  });
-  await manager.bootstrap();
-  remote.profile = async () => {
-    throw new RemoteLicenseError('STREAMER_NOT_FOUND', 'missing', {
-      status: 404,
-    });
-  };
-
-  await assert.rejects(
-    manager.getProfile(),
-    (error) => error.code === 'STREAMER_NOT_FOUND',
-  );
-
-  assert.equal(manager.getState(), LicenseState.BLOCKED);
-  assert.equal(manager.getAccessToken(), '');
-  manager.dispose();
-});
-
-test('non-JSON authorization rejection remains fail-closed', async () => {
-  const { manager, remote } = createHarness({
-    identity: { deviceId: 'd', publicKeyPem: 'public' },
-  });
-  await manager.bootstrap();
-  remote.profile = async () => {
-    throw new RemoteLicenseError('INVALID_RESPONSE', 'proxy rejection', {
-      status: 401,
-    });
-  };
-
-  await assert.rejects(
-    manager.getProfile(),
-    (error) => error.code === 'INVALID_RESPONSE',
-  );
-
-  assert.equal(manager.getState(), LicenseState.BLOCKED);
-  assert.equal(manager.getAccessToken(), '');
-  manager.dispose();
-});
-
-test('plain unauthorized protected failures also clear the session', async () => {
-  const { manager, remote } = createHarness({
-    identity: { deviceId: 'd', publicKeyPem: 'public' },
-  });
-  await manager.bootstrap();
-  remote.profile = async () => {
-    throw Object.assign(new Error('accessToken=secret-value'), { status: 401 });
-  };
-
-  await assert.rejects(manager.getProfile());
-
-  assert.equal(manager.getState(), LicenseState.BLOCKED);
-  assert.equal(manager.getAccessToken(), '');
-  manager.dispose();
-});
-
-test('HTTP authorization status fails closed even when a wrapper marks it retryable', async () => {
-  const { manager, remote } = createHarness({
-    identity: { deviceId: 'd', publicKeyPem: 'public' },
-  });
-  await manager.bootstrap();
-  remote.profile = async () => {
-    throw Object.assign(new Error('temporary proxy error'), {
-      status: 403,
-      retryable: true,
-    });
-  };
-
-  await assert.rejects(manager.getProfile());
-
   assert.equal(manager.getState(), LicenseState.BLOCKED);
   assert.equal(manager.getAccessToken(), '');
   manager.dispose();

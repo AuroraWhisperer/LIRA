@@ -22,7 +22,9 @@ test('queue opacity percentages survive form refresh and preset sync without cha
     ['themeOpacity', 'themeOpacityNumber'].map((id) => [
       id,
       {
-        value: '0.48',
+        _value: '0.48',
+        get value() { return this._value; },
+        set value(next) { this._value = String(next); },
         dataset: {},
         closest() {
           return null;
@@ -33,6 +35,7 @@ test('queue opacity percentages survive form refresh and preset sync without cha
   const document = {
     getElementById: (id) => fields.get(id) || null,
     querySelectorAll: () => [],
+    querySelector: () => null,
   };
   const window = { AdminApp: {} };
   const { FormsService } = await loadModuleExports(
@@ -48,25 +51,19 @@ test('queue opacity percentages survive form refresh and preset sync without cha
     assert.equal(Number(fields.get('themeOpacityNumber').value), displayed);
   }
 
-  window.AdminApp.utils = {
-    value: (id) => String(fields.get(id)?.value ?? ''),
-    setValue: (id, value) => {
-      if (fields.has(id)) fields.get(id).value = String(value);
-    },
-  };
-  window.AdminApp.theme = {};
-  await loadModuleExports(
+  const { theme } = await loadModuleExports(
     path.join(ROOT_DIR, 'public/js/admin/theme.js'),
     { document, window },
   );
+  window.AdminApp = {};
   fields.get('themeOpacity').value = '0.85';
   for (const [stored, displayed] of [[0, '0'], ['0.48', '48'], [1, '100']]) {
-    window.AdminApp.theme.syncAllRangeInputs({ themeOpacity: stored });
+    theme.syncAllRangeInputs({ themeOpacity: stored });
     assert.equal(fields.get('themeOpacityNumber').value, displayed);
   }
-  window.AdminApp.theme.syncAllRangeInputs();
+  theme.syncAllRangeInputs();
   assert.equal(fields.get('themeOpacityNumber').value, '85');
-  assert.equal(window.AdminApp.theme.collectTheme().themeOpacity, '0.85');
+  assert.equal(theme.collectTheme().themeOpacity, '0.85');
 });
 
 function readJsModuleBundle(...relativeSegments) {
@@ -151,7 +148,7 @@ test('illustrated queue styles expose persisted typography controls', () => {
     'queue.js',
   );
   const overlayUtilsSource = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'overlays', 'queue-utils.js'),
+    path.join(ROOT_DIR, 'public', 'js', 'overlays', 'overlay-utils.js'),
     'utf8',
   );
   const overlayStyles = readCssBundle('public', 'css', 'overlays', 'base.css');
@@ -183,7 +180,7 @@ test('illustrated queue styles expose persisted typography controls', () => {
     /fontWeight:\s*value\('illustratedQueueFontWeight'\)/,
   );
   assert.match(
-    formSource,
+    fs.readFileSync(path.join(ROOT_DIR, 'public/js/admin/theme-style-view.js'), 'utf8'),
     /ILLUSTRATED_DEFAULT_LABELS[\s\S]*'neon-vinyl'[\s\S]*fontFamily:\s*'微软雅黑'[\s\S]*fontWeight:\s*'较粗'/,
   );
   assert.match(
@@ -320,6 +317,7 @@ test('queue overlay applies rule sizing and scrolls only overflowing super chats
   const source = readJsModuleBundle('public', 'js', 'overlays', 'queue.js');
   const styleValues = new Map();
   const sandbox = {
+    window: {},
     console,
     URLSearchParams,
     location: { protocol: 'http:', host: 'localhost', search: '' },
@@ -389,7 +387,7 @@ test('identity queue colors Super Chats by price tier', () => {
     'overlays',
     'queue-render.js',
   );
-  const sandbox = {};
+  const sandbox = { window: {} };
   vm.runInNewContext(
     `${source}\nthis.renderIdentitySuperChatRow = renderIdentitySuperChatRow;`,
     sandbox,
@@ -439,7 +437,7 @@ test('identity queue has an independent scroll speed setting', () => {
   assert.match(html, /id="identityQueueScrollSpeed"/);
   assert.match(
     formSource,
-    /scrollSpeed:\s*window\.AdminApp\.forms\.normalizeQueueScrollSpeedForDisplay\(\s*value\(\s*['"]identityQueueScrollSpeed['"]\s*,?\s*\)\s*,?\s*\)/,
+    /scrollSpeed:\s*formsService\.normalizeQueueScrollSpeedForDisplay\(\s*value\(\s*['"]identityQueueScrollSpeed['"]\s*,?\s*\)\s*,?\s*\)/,
   );
   assert.match(defaultsSource, /identityQueueScrollSpeed: '80'/);
   assert.match(defaultsSource, /identityQueueScrollMode: 'bounce'/);

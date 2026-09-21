@@ -3,7 +3,9 @@
 
 import { desktopLyricRenderer } from '../lyrics/desktop-lyric-renderer.js';
 import { DESKTOP_LYRIC_DEFAULTS } from '../lyrics/desktop-lyric-defaults.js';
-import { copyText, localOverlayOrigin } from '../shared/utils.js';
+import { copyText, localOverlayOrigin, toast } from '../shared/utils.js';
+import { stateService } from './state.js';
+import { publishDesktopLyricPreview } from './legacy-admin-bridge.js';
 import {
   readDesktopLyricFormSettings,
   setDesktopLyricBackground,
@@ -38,7 +40,7 @@ function init(form) {
     desktopLyricRenderer.applySettings(event.detail),
   );
 
-  const appState = window.AdminApp.state?.getAppState?.();
+  const appState = stateService.getAppState();
   if (appState?.lyricTimeline) {
     desktopLyricRenderer.updateLyricTimeline(appState.lyricTimeline);
   }
@@ -58,7 +60,7 @@ async function copyDesktopLyricUrl() {
   const desktopLyricUrl = `${localOverlayOrigin(location)}/lyrics`;
   try {
     await copyText(desktopLyricUrl);
-    window.AdminApp.utils?.toast?.('桌面歌词地址已复制');
+    toast('桌面歌词地址已复制');
   } catch (error) {
     prompt('复制以下桌面歌词地址：', desktopLyricUrl);
   }
@@ -69,5 +71,4 @@ export const desktopLyricPreview = {
   init,
 };
 
-window.AdminApp = window.AdminApp || {};
-window.AdminApp.desktopLyricPreview = desktopLyricPreview;
+publishDesktopLyricPreview(desktopLyricPreview);

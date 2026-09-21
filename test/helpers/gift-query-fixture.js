@@ -8,6 +8,10 @@ const {
   createDatabases,
 } = require('../../src/storage/database');
 const { createGiftSyncStore } = require('../../src/storage/gift-sync-store');
+const { createGiftQueryStore } = require('../../src/storage/gift-query-store');
+const { createGiftMaintenanceStore } = require('../../src/storage/gift-maintenance-store');
+const { createGiftProjectionStore } = require('../../src/storage/gift-projection-store');
+const { createGiftStatisticsStore } = require('../../src/storage/gift-statistics-store');
 
 const AS_OF = '2026-09-02T00:00:00.000Z';
 
@@ -30,7 +34,10 @@ function createFixture() {
     databases,
     giftDb,
     context: {
-      db: databases,
+      projectionStore: createGiftProjectionStore(giftDb),
+      statisticsStore: createGiftStatisticsStore(giftDb),
+      queryStore: createGiftQueryStore(giftDb),
+      maintenanceStore: createGiftMaintenanceStore(giftDb),
       now: () => AS_OF,
       settings: () => ({
         enableGiftSprint: 'true',

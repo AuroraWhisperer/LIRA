@@ -1,3 +1,5 @@
+import { setOverlayStyle } from './theme-style-view.js';
+import { publishForms } from './legacy-admin-bridge.js';
 // 编写人：Aurora
 // 表单工具和通用组件
 'use strict';
@@ -63,7 +65,8 @@ export class FormsService {
   /**
    * 初始化工作区控制
    */
-  initWorkspaceControls() {
+  initWorkspaceControls({ getCloseQueuePopup = () => undefined } = {}) {
+    this.getCloseQueuePopup = getCloseQueuePopup;
     // 全屏播放器
     const playerPanel = document.querySelector('.playback-player-panel');
     const fsEl = document.getElementById('playerFullscreen');
@@ -163,7 +166,7 @@ export class FormsService {
   closeDockDependentPlaybackUi() {
     this.closeFullscreenPlayer();
 
-    const closeQueuePopup = window.AdminApp?.playback?.closeQueuePopup;
+    const closeQueuePopup = this.getCloseQueuePopup?.();
     if (typeof closeQueuePopup === 'function') {
       closeQueuePopup();
     } else {
@@ -203,9 +206,7 @@ export class FormsService {
       if (element && element !== document.activeElement)
         element.value = inputValue;
     }
-    if (window.AdminApp.theme && window.AdminApp.theme.setOverlayStyle) {
-      window.AdminApp.theme.setOverlayStyle(overlayStyle);
-    }
+    setOverlayStyle(overlayStyle);
 
     // Song board sync toggle
     const syncCheckbox = document.getElementById('songBoardSyncTheme');
@@ -423,26 +424,4 @@ export class FormsService {
 // 创建单例实例
 export const formsService = new FormsService();
 
-// 【过渡期兼容层】- 保持window.AdminApp.forms可用
-// 阶段5时删除
-if (typeof window !== 'undefined') {
-  window.AdminApp = window.AdminApp || {};
-  window.AdminApp.forms = {
-    bindRangePair: (...args) => formsService.bindRangePair(...args),
-    initTabs: () => formsService.initTabs(),
-    initWorkspaceControls: () => formsService.initWorkspaceControls(),
-    refreshParameterRanges: (root) => formsService.refreshParameterRanges(root),
-    fillForm: (values) => formsService.fillForm(values),
-    normalizeQueueScrollSpeedForDisplay: (input) =>
-      formsService.normalizeQueueScrollSpeedForDisplay(input),
-    normalizeSongScrollSpeedForDisplay: (input) =>
-      formsService.normalizeSongScrollSpeedForDisplay(input),
-    normalizeFontSize: (...args) => formsService.normalizeFontSize(...args),
-    scaleToFontSize: (...args) => formsService.scaleToFontSize(...args),
-    reconnectErrorMessage: (error) => formsService.reconnectErrorMessage(error),
-  };
-
-  // 全局函数（为了兼容现有代码）
-  window.openFullscreenPlayer = () => formsService.openFullscreenPlayer();
-  window.closeFullscreenPlayer = () => formsService.closeFullscreenPlayer();
-}
+publishForms(formsService);

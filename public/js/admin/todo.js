@@ -1,6 +1,7 @@
 // 编写人：Aurora
 // 本机工作台：日历、备忘与待办。
 'use strict';
+import { publishTodo } from './legacy-admin-bridge.js';
 
 import {
   STORAGE_KEY,
@@ -31,7 +32,7 @@ import {
   readTodoAction,
 } from './todo-view.js';
 
-(function () {
+export const todo = (() => {
   let readFailed = false;
 
   function readStoredJson(key) {
@@ -504,8 +505,7 @@ import {
     moduleState.initialized = true;
   }
 
-  window.AdminApp = window.AdminApp || {};
-  window.AdminApp.todo = {
+  return {
     init,
     updateSession,
     addTask,
@@ -522,3 +522,4 @@ import {
     getState,
   };
 })();
+publishTodo(todo);

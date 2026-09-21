@@ -2,10 +2,10 @@
 // 性能监控
 'use strict';
 
-(function () {
-  const { formatDateTime, formatBytes, formatDuration, toast, showError } =
-    window.AdminApp.utils;
+import { formatDateTime, formatBytes, formatDuration, toast, showError } from '../shared/utils.js';
+import { publishMetrics } from './legacy-admin-bridge.js';
 
+export const metrics = (() => {
   const METRICS_SAMPLE_SECONDS = 5;
   let metricsRunning = false;
   let metricsCountdownTimer = null;
@@ -290,8 +290,7 @@
     return 'good-level';
   }
 
-  window.AdminApp = window.AdminApp || {};
-  window.AdminApp.metrics = {
+  return {
     initPerformanceMonitor,
     runMetricsSample,
     setMetricsBusy,
@@ -303,3 +302,4 @@
     metricLevel,
   };
 })();
+publishMetrics(metrics);

@@ -752,6 +752,9 @@ function createServerRuntime(runtimeOptions = {}) {
     applyCloudSettingsSnapshot,
     setBlindBoxMappingState,
     getCloudSongsSnapshot,
+    getPendingCloudSongs: (key) => domainServices.songs.getPendingCloudSongs(key),
+    acknowledgePendingCloudSongs: (key, mutationId) =>
+      domainServices.songs.acknowledgePendingCloudSongs(key, mutationId),
     replaceCloudSongsSnapshot,
     onCloudSyncRequested,
     getGiftCatalogInitializationState,

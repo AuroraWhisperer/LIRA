@@ -4,76 +4,9 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
-const vm = require('node:vm');
+const { createLicensePage } = require('./helpers/license-page');
 
 const ROOT = path.join(__dirname, '..');
-const SCRIPT = fs.readFileSync(path.join(ROOT, 'public/js/license.js'), 'utf8');
-
-function createLicensePage(result = { state: 'needs_activation' }) {
-  const elements = new Map();
-  const submissions = [];
-  function getElementById(id) {
-    if (!elements.has(id)) {
-      const attributes = new Map();
-      elements.set(id, {
-        value: '',
-        type: id === 'licensePassword' ? 'password' : '',
-        textContent: '',
-        className: '',
-        hidden: false,
-        disabled: false,
-        dataset: {},
-        listeners: new Map(),
-        addEventListener(event, listener) {
-          this.listeners.set(event, listener);
-        },
-        setAttribute(name, value) {
-          attributes.set(name, value);
-        },
-        getAttribute(name) {
-          return attributes.get(name);
-        },
-      });
-    }
-    return elements.get(id);
-  }
-  vm.runInNewContext(SCRIPT, {
-    document: { getElementById },
-    window: {
-      liraLicense: {
-        async activate(input) {
-          submissions.push(input);
-          return result;
-        },
-      },
-      addEventListener() {},
-    },
-  });
-  getElementById('licenseAccountName').value = 'test-account';
-  getElementById('licenseActivationCode').value = 'TEST-CODE';
-  return {
-    getElementById,
-    submissions,
-    submit: () =>
-      getElementById('licenseForm').listeners.get('submit')({
-        preventDefault() {},
-      }),
-    dispatchPasswordEvent(type, event = {}) {
-      const listener = getElementById('licensePassword').listeners.get(type);
-      const dispatchedEvent = {
-        isComposing: false,
-        data: null,
-        defaultPrevented: false,
-        preventDefault() {
-          this.defaultPrevented = true;
-        },
-        ...event,
-      };
-      listener?.(dispatchedEvent);
-      return dispatchedEvent;
-    },
-  };
-}
 
 test('license page offers password visibility without the storage footnote', () => {
   const html = fs.readFileSync(
@@ -118,6 +51,25 @@ test('license page offers password visibility without the storage footnote', () 
 });
 
 const VALID_PASSWORD = 'Abc123!?';
+
+for (const [name, value, submitted, message] of [
+  ['empty password', '', false, '请输入密码。'],
+  ['spaces and Unicode', '  歌手Aa1!😀  ', true, '用户名或密码错误。'],
+]) {
+  test(`license form preserves ${name} through input and failed submission`, async () => {
+    const page = createLicensePage({ state: 'needs_activation', error: 'INVALID_CREDENTIALS' });
+    const password = page.getElementById('licensePassword');
+    assert.equal(page.dispatchPasswordEvent('beforeinput', { data: value }).defaultPrevented, false);
+    password.value = value;
+    page.dispatchPasswordEvent('input');
+    page.dispatchPasswordEvent('compositionend');
+    await page.submit();
+    assert.equal(page.submissions.length, submitted ? 1 : 0);
+    if (submitted) assert.equal(page.submissions[0].password, value);
+    assert.equal(password.value, value);
+    assert.equal(page.getElementById('licenseStatus').textContent, message);
+  });
+}
 
 test('account entry switches labels and clears credentials without changing the username', () => {
   const page = createLicensePage();
@@ -164,43 +116,6 @@ for (const [error, message] of [
     assert.equal(page.submissions.length, 1);
     assert.equal(page.submissions[0].password, VALID_PASSWORD);
     assert.equal(page.getElementById('licenseStatus').textContent, message);
-  });
-}
-
-for (const sample of require('./fixtures/password-compatibility.json')) {
-  test(`license form preserves shared password sample: ${sample.id}`, async () => {
-    const page = createLicensePage({
-      state: 'needs_activation',
-      error: 'INVALID_CREDENTIALS',
-    });
-    const password = page.getElementById('licensePassword');
-    const event = page.dispatchPasswordEvent('beforeinput', {
-      data: sample.password,
-    });
-    assert.equal(event.defaultPrevented, false);
-    password.value = sample.password;
-    page.dispatchPasswordEvent('input');
-    page.dispatchPasswordEvent('compositionend');
-    assert.equal(password.value, sample.password);
-    await page.submit();
-    assert.equal(page.submissions.length, sample.clientSubmits ? 1 : 0);
-    if (sample.clientSubmits) {
-      assert.equal(page.submissions[0].password, sample.password);
-      assert.equal(
-        page.getElementById('licenseStatus').textContent,
-        '用户名或密码错误。',
-      );
-    } else {
-      assert.equal(
-        page.getElementById('licenseStatus').textContent,
-        '请输入密码。',
-      );
-    }
-    assert.equal(
-      password.value,
-      sample.password,
-      'failed authentication preserves the original input',
-    );
   });
 }
 

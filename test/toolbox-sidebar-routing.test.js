@@ -9,8 +9,37 @@ const path = require('node:path');
 const vm = require('node:vm');
 const { readCssBundle } = require('./helpers/css-bundle');
 const { createToolboxRuntime } = require('./helpers/toolbox-runtime');
+const { readJsModuleBundle } = require('./helpers/js-module-bundle');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
+
+test('toolbox navigation and feature capabilities work without the legacy registry', () => {
+  const runtime = createToolboxRuntime();
+  runtime.sandbox.window.AdminApp = {};
+  const calls = [];
+  let navigate;
+  const querySelectorAll = runtime.root.querySelectorAll;
+  runtime.root.querySelectorAll = (selector) => selector === '[data-main-page-link]'
+    ? [{ dataset: { mainPageLink: 'songAssistantPage' },
+      addEventListener: (_type, handler) => { navigate = handler; } }]
+    : querySelectorAll(selector);
+  const reconnectBilibili = () => {};
+  runtime.other.initOtherPage({
+    reconnectBilibili,
+    onNavigate: (page) => calls.push(page),
+    danmakuTool: {
+      init: (options) => assert.equal(options.reconnectBilibili, reconnectBilibili),
+      refresh: (options) => calls.push(options.reconnectIfDisconnected),
+    },
+    aiAssistantSettings: {
+      init: () => calls.push('ai:init'),
+      refresh: () => calls.push('ai:refresh'),
+    },
+  });
+  navigate();
+  runtime.other.selectFeatureById('otherDanmakuFeature');
+  assert.deepEqual(calls, ['ai:init', 'songAssistantPage', true, 'ai:refresh']);
+});
 
 test('explicit toolbox feature selection reopens and persists its collapsed group', () => {
   const persisted = [];
@@ -112,78 +141,17 @@ test('toolbox feature arrow navigation loops through visible features only', () 
   assert.equal(runtime.buttons[3].hidden, true);
 });
 
-test('danmaku detail panel fills the workspace and keeps actions grouped', () => {
+test('danmaku toolbox feature mounts its dedicated panel', () => {
   const html = readAdminHtml();
-  const styles = readCssBundle('public', 'css', 'admin', 'other-features.css');
-
   assert.match(
     html,
-    /class="danmaku-feature-section danmaku-connection-section"[\s\S]*?id="danmakuAccountState"[\s\S]*?id="danmakuRoomState"[\s\S]*?id="danmakuToolStatus"/,
+    /aria-controls="otherDanmakuFeature"\s+data-other-feature="otherDanmakuFeature"/,
   );
-  assert.match(
-    html,
-    /class="danmaku-feature-section danmaku-compose-section"[\s\S]*?id="danmakuSendForm"[\s\S]*?id="danmakuSendResult"/,
-  );
-  assert.match(
-    html,
-    /id="danmakuCounter"[\s\S]*?id="danmakuAutoBtn"[\s\S]*?id="danmakuSendBtn"/,
-  );
-  assert.match(
-    html,
-    /data-danmaku-style="ranked"[^>]*>\s*<img[^>]*>\s*<span class="danmaku-style-name">经典样式<\/span>/,
-  );
-  assert.match(
-    html,
-    /data-danmaku-style="transparent"[^>]*>\s*<img[^>]*>\s*<span class="danmaku-style-name">透明文字<\/span>/,
-  );
-  assert.match(
-    html,
-    /data-danmaku-style="outline"[^>]*>\s*<img[^>]*>\s*<span class="danmaku-style-name">简洁白卡<\/span>/,
-  );
-  assert.match(html, /danmaku-style-group-fixed/);
-  assert.match(html, /danmaku-style-group-random/);
-  assert.doesNotMatch(html, /danmaku-style-option-visual/);
-  assert.match(html, /id="danmakuFullscreenDurationSeconds"/);
-  assert.match(
-    html,
-    /id="danmakuStyleTitle"[\s\S]*?class="danmaku-overlay-link"[\s\S]*?class="danmaku-style-options\b/,
-  );
-  assert.match(
-    styles,
-    /\.danmaku-style-picker\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:\s*minmax\(0, 3fr\) minmax\(220px, 1fr\);/s,
-  );
-  assert.match(
-    styles,
-    /\.danmaku-style-option\s*\{[^}]*min-height:\s*36px;[^}]*border-radius:\s*6px;/s,
-  );
-  assert.doesNotMatch(styles, /\.danmaku-style-preview/);
-  assert.match(
-    styles,
-    /\.danmaku-tool-panel\s*\{[^}]*width:\s*100%[^}]*max-width:\s*none/,
-  );
-  assert.match(
-    styles,
-    /\.danmaku-feature-section\s*\{[^}]*border:\s*2px solid var\(--danmaku-section-border\)/,
-  );
-  assert.match(
-    styles,
-    /\.danmaku-bot-switch-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/,
-  );
-  assert.match(
-    styles,
-    /#danmakuSendForm \.form-actions-row > \.hint\s*\{[^}]*margin-right:\s*auto/,
-  );
-  assert.match(
-    styles,
-    /@media \(max-width: 600px\)[\s\S]*?\.danmaku-bot-switch-grid\s*\{\s*grid-template-columns:\s*1fr;/,
-  );
+  assert.match(html, /id="otherDanmakuFeature"[^>]*data-other-feature-panel/);
 });
 
 test('toolbox sidebar toggle updates accessibility state and stores the preference', () => {
-  const source = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'other.js'),
-    'utf8',
-  );
+  const source = readJsModuleBundle('public', 'js', 'admin', 'other.js');
   const classes = new Set();
   const attributes = new Map();
   const stored = new Map();

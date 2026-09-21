@@ -20,6 +20,7 @@ export function createProviderOperations(deps) {
     savePlaybackState,
     renderPlayback,
     getPlaybackAudio,
+    invalidatePlaybackRequests,
     toast,
     showError,
     U,
@@ -264,6 +265,7 @@ export function createProviderOperations(deps) {
    */
   function clearPlaybackPlatformAfterLogout(platform) {
     const source = platform === 'netease' ? 'netease' : 'qq';
+    invalidatePlaybackRequests(source);
     cacheManager?.clearByPrefix(`${source}:`);
     stateActions.forgetProviderStreams(source);
 

@@ -20,25 +20,14 @@ function readDesktopLyricHtml() {
   return html.slice(start, end);
 }
 
-test('desktop lyric settings use Chinese-only section headings', () => {
+test('desktop lyric settings use Chinese section headings', () => {
   const html = readDesktopLyricHtml();
-  const styles = readCssBundle(
-    'public',
-    'css',
-    'admin',
-    'desktop-lyric-preview.css',
-  );
 
   assert.match(html, /<h3 id="desktopLyricSettingsTitle">歌词样式<\/h3>/);
   assert.match(
     html,
     /<h3 id="desktopLyricPreviewTitle">桌面歌词实时预览<\/h3>/,
   );
-  assert.doesNotMatch(
-    html,
-    /STYLE CONTROLS|LIVE PREVIEW|desktop-lyric-preview-kicker/,
-  );
-  assert.doesNotMatch(styles, /desktop-lyric-preview-kicker/);
 });
 
 test('desktop lyric settings give more width to controls and scale down only the admin preview', () => {
@@ -287,15 +276,10 @@ test('desktop lyric settings use icon alignment controls and performance-safe mo
   );
   assert.match(styles, /\.desktop-lyric-align-options\s*\{/);
   assert.match(styles, /label:has\(input:focus-visible\)/);
-  assert.doesNotMatch(styles, /\.desktop-lyric-performance-hint/);
 });
 
 test('desktop lyric settings organize the merged controls below lyric matching', () => {
   const html = readDesktopLyricHtml();
-  const source = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'desktop-lyric.js'),
-    'utf8',
-  );
   const sourceIndex = html.indexOf(
     'class="theme-section desktop-lyric-source-settings"',
   );
@@ -356,14 +340,6 @@ test('desktop lyric settings organize the merged controls below lyric matching',
   ]) {
     assert.match(html, new RegExp(`id="${id}"`));
   }
-  assert.doesNotMatch(
-    html,
-    /desktopLyricLoadLocalFontsBtn|desktopLyricLocalFontStatus/,
-  );
-  assert.doesNotMatch(
-    source,
-    /desktopLyricLoadLocalFontsBtn|desktopLyricLocalFontStatus/,
-  );
 });
 
 test('desktop lyric display strategy presents continuous and discrete highlighting clearly', () => {

@@ -9,13 +9,14 @@ const { createUiFixture } = require('./helpers/ui-edit-state-fixture');
 const fixture = createUiFixture();
 
 // Speed 31 advances one row in two seconds on the 5–0.1 second scale.
-async function openFeed(t, { count = 5, scrollSpeed = 31 } = {}) {
+async function openFeed(t, { count = 5, scrollSpeed = 31, missingAbortMethods = [] } = {}) {
   const page = await fixture(t, 'gift-feed');
   await page.setContent('<main id="giftFeedViewport"><div id="giftFeedStage" class="gift-banner-stage"></div></main><p id="giftFeedStatus"></p>');
   for (const file of ['shared/gift-banner.css', 'overlays/gift-feed.css']) {
     await page.addStyleTag({ content: fs.readFileSync(path.resolve('public/css', file), 'utf8') });
   }
-  await page.evaluate(async ({ count, scrollSpeed }) => {
+  await page.evaluate(async ({ count, scrollSpeed, missingAbortMethods }) => {
+    for (const method of missingAbortMethods) delete AbortSignal[method];
     window.feedConfig = { palette: 'bilibili-four', thresholds: [3000, 10000, 100000], visibleRows: 3, scrollSpeed };
     window.feedItems = Array.from({ length: count }, (_, index) => ({ eventId: String(index),
       gift: { giftId: 'sample', giftName: '礼物', userName: `观众${index}`, unitPrice: 2, num: 1 } }));
@@ -47,8 +48,9 @@ async function openFeed(t, { count = 5, scrollSpeed = 31 } = {}) {
       return { ok: true, json: async () => ({ ok: true, data: structuredClone(data) }) };
     };
     await import('/js/overlays/gift-feed.js');
-  }, { count, scrollSpeed });
-  await page.waitForFunction(() => window.feedScans === 1, {}, { polling: 20 });
+  }, { count, scrollSpeed, missingAbortMethods });
+  await page.waitForFunction(() => window.feedScans === 1 || document.getElementById('giftFeedStatus').textContent, {}, { polling: 20 });
+  assert.equal(await page.locator('#giftFeedStatus').textContent(), '');
   return page;
 }
 
@@ -79,6 +81,52 @@ async function observeFeed(page) {
     window.feedObserver = new MutationObserver((records) => window.feedMutations.push(...records));
     window.feedObserver.observe(stage, { childList: true, subtree: true, attributes: true, characterData: true });
     window.feedRequests = [];
+  });
+}
+
+for (const missingAbortMethods of [['any'], ['any', 'timeout']]) {
+  test(`feed loads and scrolls without AbortSignal ${missingAbortMethods.join(' or ')}`, async (t) => {
+    const page = await openFeed(t, { missingAbortMethods });
+    assert.deepEqual(await frame(page, 0), { ids: ['0', '1', '2', '3'], offset: 0, frames: 1 });
+    assert.equal((await frame(page, 1000)).offset, -40);
+    assert.deepEqual(await frame(page, 2000), { ids: ['1', '2', '3', '4'], offset: 0, frames: 1 });
+  });
+}
+
+for (const cancellation of ['timeout', 'pagehide']) {
+  test(`feed ${cancellation} aborts a pending response body without modern AbortSignal methods`, async (t) => {
+    const page = await openFeed(t, { count: 1, missingAbortMethods: ['any', 'timeout'] });
+    await page.clock.install();
+    await page.evaluate(() => {
+      const read = window.fetch;
+      window.fetch = async (url, options) => {
+        const response = await read(url);
+        if (url.startsWith('/api/gifts/history?') && !window.pendingFeedSignal) {
+          window.pendingFeedSignal = options.signal;
+          response.json = () => new Promise((resolve, reject) => {
+            window.pendingFeedBody = true;
+            options.signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true });
+          });
+        }
+        return response;
+      };
+      window.socketOptions.onMessage({ type: 'snapshot', reason: 'bilibili:gift' });
+    });
+    await page.clock.runFor(500);
+    assert.equal(await page.evaluate(() => window.pendingFeedBody && !window.pendingFeedSignal.aborted), true);
+    if (cancellation === 'timeout') {
+      await page.clock.runFor(10000);
+      assert.match(await page.locator('#giftFeedStatus').textContent(), /稍后自动重试/);
+      assert.deepEqual((await frame(page, 0)).ids, ['0']);
+      await page.evaluate(() => window.socketOptions.onMessage({ type: 'snapshot', reason: 'bilibili:gift' }));
+      await page.clock.runFor(500);
+      assert.equal(await page.locator('#giftFeedStatus').textContent(), '');
+      assert.equal(await page.evaluate(() => window.feedScans), 3);
+    } else {
+      await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));
+      assert.deepEqual((await frame(page, 0)).ids, []);
+    }
+    assert.equal(await page.evaluate(() => window.pendingFeedSignal.aborted), true);
   });
 }
 
@@ -260,6 +308,52 @@ test('feed stays static at capacity, starts above it and stops when refreshed be
   await page.evaluate(() => { window.feedItems = []; });
   await refreshFeed(page);
   assert.deepEqual(await frame(page, 3000), { ids: [], offset: 0, frames: 0 });
+});
+
+test('feed minimum filters accumulated historical prices after merging and uses strict cent boundaries', async (t) => {
+  const page = await openFeed(t, { count: 0 });
+  await page.evaluate(() => {
+    const day = new Date(Date.now() + 28800000).toISOString().slice(0, 10);
+    const createdAt = `${day}T01:00:00Z`;
+    const records = [
+      ['merged-equal-a', '100', 6, 1], ['merged-equal-b', '100', 4, 1],
+      ['merged-above-a', '200', 4, 1], ['merged-above-b', '200', 6.01, 1],
+      ['below', null, 9.99, 1], ['equal', null, 10, 1], ['above', null, 10.01, 1],
+      ['batch', null, 1, 11], ['free', null, 0, 1],
+    ];
+    window.feedConfig.minGiftAmountCents = 1000;
+    window.feedItems = records.map(([eventId, , unitPrice, num]) => ({ eventId,
+      gift: { giftId: 'sample', giftName: '礼物', userName: eventId, unitPrice, num, createdAt } }));
+    window.feedProfiles = records.filter(([, senderId]) => senderId).map(([eventId, senderId]) => ({
+      eventId, senderId, userName: senderId, avatarUrl: null, guardLevel: null, createdAt,
+    }));
+    window.expectedMergedId = `card:${JSON.stringify([day, '200', 'sample', '礼物'])}`;
+  });
+  await refreshFeed(page);
+  assert.deepEqual(await frame(page, 0), {
+    ids: [await page.evaluate(() => window.expectedMergedId), 'above', 'batch'], offset: 0, frames: 0,
+  });
+  assert.deepEqual(await page.locator('#giftFeedStage .gift-banner-count').allTextContents(), ['×2', '×1', '×11']);
+  assert.equal(await page.evaluate(() => window.feedItems.length), 9);
+});
+
+test('minimum changes filter at the scrolling boundary and zero restores every amount', async (t) => {
+  const page = await openFeed(t);
+  await frame(page, 0);
+  await page.evaluate(() => {
+    window.feedItems.forEach((item, index) => { item.gift.unitPrice = [0, 5, 10, 10.01, 20][index]; });
+    window.feedConfig.minGiftAmountCents = 1000;
+  });
+  await refreshFeed(page);
+  assert.deepEqual((await frame(page, 1000)).ids, ['0', '1', '2', '3']);
+  assert.deepEqual(await frame(page, 2000), { ids: ['3', '4'], offset: 0, frames: 0 });
+  await page.evaluate(() => { window.feedConfig.minGiftAmountCents = 2000; });
+  await refreshFeed(page);
+  assert.deepEqual(await frame(page, 3000), { ids: [], offset: 0, frames: 0 });
+  await page.evaluate(() => { window.feedConfig.minGiftAmountCents = 0; });
+  await refreshFeed(page);
+  assert.deepEqual(await frame(page, 4000), { ids: ['0', '1', '2', '3'], offset: 0, frames: 1 });
+  assert.deepEqual(await frame(page, 6000), { ids: ['1', '2', '3', '4'], offset: 0, frames: 1 });
 });
 
 test('merged cards control the row threshold and update every sender card without replacing unchanged renewal frames', async (t) => {

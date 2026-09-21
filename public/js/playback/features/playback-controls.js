@@ -43,9 +43,16 @@ export function createPlaybackControls(deps) {
     deps.queueManager || new QueueManager({ state: playbackState });
   let playRequestGeneration = 0;
   let audioRequestGeneration = 0;
+  let playRequestSource = null;
 
-  function invalidatePlaybackRequests() {
+  function invalidatePlaybackRequests(source) {
+    if (source && source !== playRequestSource) return playRequestGeneration;
     playRequestGeneration += 1;
+    if (source) {
+      // Cancelling a pending provider leaves another provider's audio usable.
+      audioRequestGeneration = playRequestGeneration;
+      playRequestSource = playbackState.current?.source || null;
+    }
     return playRequestGeneration;
   }
 
@@ -110,6 +117,7 @@ export function createPlaybackControls(deps) {
     const audio = getPlaybackAudio();
     if (!audio || !track) return;
     const requestGeneration = invalidatePlaybackRequests();
+    playRequestSource = track.source;
 
     // For local tracks, ensure the file is accessible before trying to play
     if (PlaybackUtils.isLocalTrack(track)) {
@@ -237,6 +245,7 @@ export function createPlaybackControls(deps) {
     const resumeAt = Number.isFinite(audio.currentTime) ? audio.currentTime : 0;
     const shouldResume = !audio.paused;
     const requestGeneration = invalidatePlaybackRequests();
+    playRequestSource = track.source;
     try {
       const streamTrack = { ...track };
       const streamUrl = await streamService.getTrackUrl(streamTrack, {
@@ -372,7 +381,7 @@ export function createPlaybackControls(deps) {
     const audio = getPlaybackAudio();
     if (!audio) return;
 
-    if (playbackState.mode === 'repeat-one' && playbackState.current) {
+    if (fromEnded && playbackState.mode === 'repeat-one' && playbackState.current) {
       playPlaybackTrack(playbackState.current, {
         origin: playbackState.currentOrigin,
       });

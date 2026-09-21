@@ -1,4 +1,6 @@
 'use strict';
+import { showStackedToast } from '../shared/utils.js';
+import { publishAiAssistantSettings } from './legacy-admin-bridge.js';
 
 import {
   readApi,
@@ -18,7 +20,7 @@ let initialized = false;
 let refreshConfig = null;
 const AUTOSAVE_DELAY_MS = 700;
 
-function init() {
+function init({ notify = showStackedToast } = {}) {
   if (initialized) return;
   const form = document.getElementById('xiaomiAiForm');
   if (!form) return;
@@ -238,7 +240,7 @@ function init() {
           ? `模型 ${result.model} 回复：${result.reply}`
           : '地址与密钥均可用';
       setState(testDetail, `${label} 连接正常。${detail}`, 'good');
-      showProviderToast({
+      showProviderToast(notify, {
         provider,
         good: true,
         title: `${label} 测试通过`,
@@ -247,7 +249,7 @@ function init() {
     } catch (error) {
       const message = providerErrorMessage(provider, error);
       setState(testDetail, `${label}：${message}`, 'warn');
-      showProviderToast({
+      showProviderToast(notify, {
         provider,
         good: false,
         title: `${label} 测试未通过`,
@@ -414,8 +416,8 @@ function init() {
   initialLoadPromise = refreshConfig();
 }
 
-function showProviderToast({ provider, good, title, message }) {
-  window.AdminApp?.utils?.showStackedToast?.({
+function showProviderToast(notify, { provider, good, title, message }) {
+  notify({
     key: `xiaomi-ai-test:${provider}`,
     update: true,
     type: good ? 'success' : 'warning',
@@ -430,5 +432,5 @@ function refresh() {
   return refreshConfig ? refreshConfig() : Promise.resolve();
 }
 
-window.AdminApp = window.AdminApp || {};
-window.AdminApp.aiAssistantSettings = { init, refresh };
+export const aiAssistantSettings = { init, refresh };
+publishAiAssistantSettings(aiAssistantSettings);

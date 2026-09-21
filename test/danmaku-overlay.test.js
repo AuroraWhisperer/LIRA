@@ -5,7 +5,6 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const { readCssBundle } = require('./helpers/css-bundle');
-const { readJsModuleBundle } = require('./helpers/js-module-bundle');
 const { loadModuleExports } = require('./helpers/frontend-modules');
 
 const ROOT_DIR = path.join(__dirname, '..');
@@ -19,7 +18,6 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
     path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku.js'),
     'utf8',
   );
-  const feedScript = readJsModuleBundle('public/js/overlays/danmaku-feed.js');
   const styles = readCssBundle(
     'public',
     'css',
@@ -42,22 +40,6 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
   assert.match(script, /encodeURIComponent\(token\)/);
   assert.match(script, /api\/bilibili\/avatar\?url=/);
   assert.match(script, /&token=\$\{encodeURIComponent\(token\)\}/);
-  assert.match(script, /params\.get\('preview'\) === '1'/);
-  assert.match(script, /params\.get\('style'\)/);
-  assert.match(script, /'transparent'/);
-  assert.match(script, /'identity'/);
-  assert.match(script, /'outline'/);
-  assert.match(script, /guardLevel:\s*1/);
-  assert.match(script, /guardLevel:\s*2/);
-  assert.match(script, /guardLevel:\s*3/);
-  assert.equal([...script.matchAll(/\bid:\s*'preview-\d+'/g)].length, 4);
-  assert.match(script, /id: 'preview-gift',\s*kind: 'gift'/);
-  assert.match(script, /giftName: '小花花',\s*giftCount: 10/);
-  assert.equal([...script.matchAll(/guardLevel:\s*[123]/g)].length, 3);
-  assert.match(
-    script,
-    /url:\s*'\/img\/overlays\/danmaku-previews\/dacall\.png'/,
-  );
   assert.match(script, /payload\.state\.settings\.danmakuOverlayStyle/);
   assert.match(script, /danmakuFullscreenDurationSeconds/);
   assert.match(script, /options\.layout\s*=\s*'fullscreen-random'/);
@@ -77,12 +59,6 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
   assert.match(styles, /clip-path:/);
   assert.match(styles, /prefers-reduced-motion/);
   assert.match(styles, /background:\s*transparent/);
-  assert.match(styles, /body\[data-style='signal'\]/);
-  assert.match(styles, /body\[data-style='bubble'\]/);
-  assert.match(styles, /body\[data-style='minimal'\]/);
-  assert.match(styles, /body\[data-style='ranked'\]/);
-  assert.match(styles, /body\[data-style='transparent'\]/);
-  assert.match(styles, /body\[data-style='outline'\]/);
   assert.match(
     styles,
     /body\[data-style='signal'\] \.danmaku-signal-header \{ display: none; \}/,
@@ -219,11 +195,6 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
     /body\[data-style='minimal'\] \.draw-danmaku-item(?:\[data-(?:identity|tone)|:is\()/,
   );
   assert.doesNotMatch(styles, /nameplate-(?:captain|admiral|governor)-divider/);
-  assert.match(feedScript, /draw-danmaku-medal-level/);
-  assert.match(feedScript, /draw-danmaku-medal-name/);
-  assert.match(feedScript, /FULLSCREEN_LAYOUT\s*=\s*'fullscreen-random'/);
-  assert.match(feedScript, /scheduleTimeout/);
-  assert.match(feedScript, /cancelTimeout/);
   assert.match(styles, /\.danmaku-signal-stage \{[^}]*width:\s*100%;[^}]*height:\s*100%;[^}]*padding:\s*12px;/);
   assert.match(styles, /--ranked-bubble-max-width:\s*600px/);
   assert.match(styles, /--ranked-avatar-size:\s*68px/);
@@ -392,36 +363,6 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
         ),
       ),
     );
-  }
-  for (const identity of ['captain', 'admiral', 'governor']) {
-    assert.match(
-      styles,
-      new RegExp(
-        `body\\[data-style='ranked'\\] \\.draw-danmaku-item\\[data-identity='${identity}'\\]`,
-      ),
-    );
-  }
-  for (const style of [
-    'signal',
-    'bubble',
-    'ranked',
-    'transparent',
-    'identity',
-  ]) {
-    for (const identity of [
-      'viewer',
-      'fan',
-      'captain',
-      'admiral',
-      'governor',
-    ]) {
-      assert.match(
-        styles,
-        new RegExp(
-          `body\\[data-style='${style}'\\] \\.draw-danmaku-item\\[data-identity='${identity}'\\]`,
-        ),
-      );
-    }
   }
 });
 

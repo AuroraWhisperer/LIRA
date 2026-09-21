@@ -7,21 +7,33 @@
 ## 1. 框架与命令
 
 - **框架**:Node 内置 `node:test` + `node:assert/strict`,**零第三方测试依赖**([package.json](../../../package.json));测试文件全部基于 `node:test`。
-- **全量运行**:`npm test` = `node --experimental-vm-modules --test --test-concurrency=6` — **测试文件并发数 6**，保留进程隔离；同一文件内顺序执行的场景不会因此自动并行。
+- **全量运行**:`npm test` 通过 [run-tests.js](../../../scripts/run-tests.js) 枚举 `test/*.test.js`，再运行 `node --experimental-vm-modules --test --test-concurrency=6`。helper 和探针不作为独立测试收集，仍由拥有者导入或显式启动；保留进程隔离。
 - **管理页回归**:`npm run test:admin` 固定运行 Admin 页面组合、外壳和 AI 测试并显式启用 ESM VM 模块;测试辅助加载器在未启用该 flag 时自动回退到静态 bundle,因此直接执行管理页测试也不会跳过 ESM 用例。
 - **文档门禁**:`npm run verify:docs` 检查治理文件、相对链接、AI 路由表和规格索引。
 - **架构门禁**:`npm run verify:architecture` 运行模块边界、遗留债务预算、前端 ESM 边界与源码规模登记测试。
 - **规模门禁**:`npm run verify:modularity` 直接检查物理行数、601–800 行评估、存量上限及逐文件例外；同一检查已接入架构和全量测试，口径见 [modularity-standard.md](modularity-standard.md)。
 - **快速门禁**:`npm run verify:quick` 按文档 → 语法 → 架构顺序运行,用于日常评审前反馈。
 - **契约输入门禁**:`npm run verify:contracts` 核对固定服务器提交和全部 fixture 的 SHA-256；不下载或切换检出目录。
-- **完整门禁**:`npm run verify` 先校验契约输入，再运行快速门禁和 `npm test`;全量测试再次发现定向测试属于可接受的有限重复。
+- **完整门禁**:`npm run verify` 先校验契约输入，再运行快速门禁和 `npm test`，保留独立调用的完整语义。CI 的 quick job 执行快速门禁和离线行为；依赖它的 main full job 只补浏览器、桌面、安装器、契约及 HTTP 往返，避免在同一提交重跑 quick 和离线组。全量入口内少量文档/架构重复仍可接受。
 - **为什么需要 `--experimental-vm-modules`**:源码以 CJS(`require`)为主,但多个前端测试会通过 `vm.SourceTextModule` 或动态 `import()` 加载 `public/js/` 下的 ESM 模块;去掉该 flag 这些测试会失败。
 - **单文件运行**:`node --experimental-vm-modules --test test/xxx.test.js`(flag 必须保留)。
 - **测试方式**:以离线单元和集成测试为主,不访问真实外部网络;服务端模块直接 require 真实实现并注入临时 SQLite 目录或 mock,server smoke 类测试会在随机本地端口启动完整服务;浏览器模块用 vm + 假 `window`/`localStorage` 求值。
 
+### 按运行依赖选择
+
+| 命令 | 实际依赖与边界 |
+| --- | --- |
+| `npm run test:offline` | Node/VM、临时 SQLite/HTTP；含使用合成 Git 仓库的契约校验器测试，无私有服务器读取依赖 |
+| `npm run test:browser` | Chromium 组件测试及模拟 bridge；不替代 Electron 权限测试 |
+| `npm run test:desktop` | Electron、原生 Windows TCP/进程查询及其显式子进程探针 |
+| `npm run test:installer` | Windows/NSIS 安装器；保留已有工具检测，缺失导致的 skip 必须单列 |
+| `npm run test:contracts` | 从锁定服务器检出读取 fixture 的消费者；包括完整密码兼容样例，UI/协议/HTTP 本地测试另留自主输入 |
+
+五组互不重叠且合计等于 `npm test`。用 `node scripts/run-tests.js <组名或all> --list` 查看实际文件；新增使用浏览器、桌面或服务器 fixture 的测试需在执行器中登记，普通 Node 测试自动进入离线组。日常运行所属组和直接消费者；完整验证仍用 `npm run verify`。管理页定向入口包含浏览器组件，须先安装 Chromium：`npx playwright install chromium`。
+
 ### 固定服务器契约输入
 
-[server-contract.lock.json](../../../server-contract.lock.json) 声明服务器仓库、完整 commit SHA 和 5 份原始 fixture 的 SHA-256。服务器继续拥有协议和样例，客户端不保存副本。[verify-server-contract.js](../../../scripts/verify-server-contract.js) 在消费前核对提交和内容，错误提交、缺失或被改动的样例都会使检查失败，不能用同名目录掩盖版本差异。
+[server-contract.lock.json](../../../server-contract.lock.json) 声明服务器仓库、完整 commit SHA 和 6 份原始 fixture 的 SHA-256。服务器继续拥有协议和样例，客户端不保存副本。[verify-server-contract.js](../../../scripts/verify-server-contract.js) 在消费前核对提交和内容，错误提交、缺失或被改动的样例都会使检查失败，不能用同名目录掩盖版本差异。
 
 目录选择顺序为显式路径、`LIRA_SERVER_ROOT`、客户端相邻的 `lira-server`。下面在一个新的独立目录准备服务器，不切换正在开发的服务器工作区；读取私有仓库需要已有的 Git 只读权限。
 
@@ -39,7 +51,7 @@ npm run verify:roundtrip
 
 `--runtime` 还拒绝服务器 `src/`、`package.json`、`package-lock.json` 中已暂存、未暂存或未跟踪的变更，供加载真实服务器实现的联测使用。仅消费 fixture 的测试不因无关服务器文档修改失败。验证器不会自动拉取、修改或清理服务器文件；目录或版本不匹配时应另建检出或有意识地更新锁。
 
-升级契约时，先确认服务器协议和实现已经提交且该提交可获取，再一起更新锁中的完整 SHA 和 5 个文件的原始字节 SHA-256；服务器 `.gitattributes` 保证这些 JSON 使用 LF。随后运行完整门禁和往返检查，评审两端行为变化。不能只为消除失败而改成浮动分支、跳过哈希或复制工作区样例。
+升级契约时，先确认服务器协议和实现已经提交且该提交可获取，再一起更新锁中的完整 SHA 和全部登记 fixture 的原始字节 SHA-256；服务器 `.gitattributes` 保证这些 JSON 使用 LF。随后运行完整门禁和往返检查，评审两端行为变化。不能只为消除失败而改成浮动分支、跳过哈希或复制工作区样例。
 
 ### 两仓歌库往返回归
 

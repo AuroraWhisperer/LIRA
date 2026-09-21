@@ -299,6 +299,7 @@ publishQueue({
 
 export {
   initQueueForm,
+  renderState,
   renderQueueState,
   renderSuperChatQueue,
   applyAdminQueueFontPreview,

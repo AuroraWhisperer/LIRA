@@ -323,20 +323,19 @@ test('browser keeps toast variants free of close controls, aligns content and pr
   }
   await page.evaluate(async () => {
     const { createToastStack } = await import('/js/shared/toast.js');
-    const utils = await import('/js/shared/utils.js');
     const container = document.createElement('div');
     container.id = 'gift-notice-test';
     container.className = 'toast-stack';
     document.body.append(container);
     window.giftStack = createToastStack({ container });
-    window.AdminApp = { utils: { ...utils, showStackedToast: (options) => {
+    const { createGiftNotification } = await import('/js/admin/gifts/notification.js');
+    const notification = createGiftNotification({ notify: (options) => {
       window.currentGiftNotice = giftStack.show({ ...options, duration: 0 });
       return currentGiftNotice;
-    } } };
-    await import('/js/admin/gifts/notification.js');
+    } });
     await AdminApp.gifts.recent.loadGiftArtworkCatalog();
     window.giftRecord = { id: 1, gift_id: '100', gift_variant_id: 'output', gift_name: '实际礼物', num: 1, is_blind_box: true, blind_box_id: '200', blind_box_variant_id: 'box', blind_box_name: '心动盲盒' };
-    window.notifyGift = AdminApp.gifts.notification.notifyNewGift;
+    window.notifyGift = notification.notifyNewGift;
     notifyGift([]);
     notifyGift([giftRecord]);
   });

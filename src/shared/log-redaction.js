@@ -1,5 +1,7 @@
 'use strict';
 
+const { isSensitiveFieldName } = require('./sensitive-field-name');
+
 const REDACTED_PLACEHOLDER = '[REDACTED]';
 
 /**
@@ -81,23 +83,7 @@ function isSensitiveKey(key) {
     // Malformed percent-encoding should not prevent logging; retain the raw key.
     decodedKey = String(key);
   }
-  const normalizedKey = decodedKey.toLowerCase().replace(/[_-]/g, '');
-  return (
-    normalizedKey === 'password' ||
-    normalizedKey === 'passwd' ||
-    normalizedKey === 'key' ||
-    normalizedKey === 'activationcode' ||
-    normalizedKey === 'pairingcode' ||
-    normalizedKey === 'fingerprint' ||
-    normalizedKey === 'hardwareid' ||
-    normalizedKey === 'authorization' ||
-    normalizedKey === 'cookie' ||
-    normalizedKey.endsWith('apikey') ||
-    normalizedKey.endsWith('secret') ||
-    normalizedKey.endsWith('token') ||
-    normalizedKey.endsWith('signature') ||
-    normalizedKey.includes('privatekey')
-  );
+  return isSensitiveFieldName(decodedKey);
 }
 
 /**

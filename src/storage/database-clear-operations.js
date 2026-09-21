@@ -1,5 +1,9 @@
 'use strict';
 
+const { resetGiftProjectionMetadataInTransaction } = require('./gift-projection-reset');
+
+const { createCloudSongSyncStore } = require('./cloud-song-sync-store');
+
 // All operations run inside transactions owned by the clear coordinator.
 // counts records attempted deletions, including progress before a SQL failure.
 const CLEAR_ALL_MATRIX = {
@@ -93,6 +97,7 @@ function clearSongDataInTransaction(songDb, counts) {
 `,
     )
     .run();
+  createCloudSongSyncStore(songDb).capturePending();
 }
 
 function clearSuperChatInTransaction(superChatDb, counts) {
@@ -149,33 +154,12 @@ function clearGiftScopeInTransaction(giftDb, sourceId, timestamp) {
   }
   const targetSql = 'source_id = ?';
   const targetParams = [sourceId];
-  const reset = giftDb
-    .prepare(
-      `
-        UPDATE gift_sync_state
-        SET sync_epoch = NULL, final_cursor = NULL,
-            bootstrap_complete = 0, bootstrap_page_token = NULL,
-            bootstrap_recovery_cursor = NULL,
-            bootstrap_sync_epoch = NULL,
-            projection_generation = projection_generation + 1,
-            last_validated_at = NULL, updated_at = ?
-        WHERE source_id = ?
-      `,
-    )
-    .run(timestamp, sourceId);
-  if (Number(reset.changes) !== 1) throw new Error('GIFT_SOURCE_NOT_FOUND');
-  const state = giftDb
-    .prepare(
-      `
-        SELECT projection_generation
-        FROM gift_sync_state
-        WHERE source_id = ?
-      `,
-    )
-    .get(sourceId);
+  const projectionGeneration = resetGiftProjectionMetadataInTransaction(
+    giftDb, sourceId, timestamp,
+  );
   const projectionReset = Object.freeze({
     sourceId,
-    projectionGeneration: Number(state.projection_generation),
+    projectionGeneration,
   });
   const giftCount = Number(
     giftDb

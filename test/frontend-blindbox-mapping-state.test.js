@@ -7,6 +7,21 @@ const {
   flushBlindboxTasks,
 } = require('./helpers/frontend-blindbox-fixture');
 
+test('blind-box catalog events do not depend on the legacy gift registry', async () => {
+  const fixture = await createBlindboxFixture();
+  fixture.window.AdminApp.gifts = {};
+  fixture.listToggle.setAttribute('aria-expanded', 'true');
+  fixture.window.AdminApp.eventBus.emit('gift:catalog_updated', {
+    snapshot: {
+      schemaVersion: 2,
+      gifts: [{ id: '100', name: '事件盲盒', rmb: 5, giftCategory: 'blindBox' }],
+      blindBoxes: [{ giftId: '100', outputGiftIds: ['101'] }],
+    },
+  });
+  fixture.module.renderBlindBoxList();
+  assert.ok(fixture.visibleNames().includes('事件盲盒'));
+});
+
 test('blind-box mapping shows room gifts by default and expands the remaining mappings without changing config', async () => {
   const fixture = await createBlindboxFixture({ roomId: '123' });
   fixture.textarea.value = JSON.stringify([
@@ -108,7 +123,7 @@ test('blind-box mapping shows room gifts by default and expands the remaining ma
   assert.match(fixture.container.innerHTML, /官方盲盒/);
   assert.match(
     fixture.container.innerHTML,
-    /官方产物<small>#101<\/small><small>3<\/small>/,
+    /官方产物<small>#101<\/small><small>¥3\.00<\/small>/,
   );
   assert.match(
     fixture.container.innerHTML,
@@ -207,7 +222,7 @@ test('official mapping requires a verified pool for each identity and respects n
   assert.deepEqual(fixture.visibleNames(), ['大航海盲盒']);
   assert.match(fixture.container.innerHTML, /#34635/);
   assert.doesNotMatch(fixture.container.innerHTML, /#33925/);
-  assert.match(fixture.container.innerHTML, /舰长3天<small>19\.8<\/small>/);
+  assert.match(fixture.container.innerHTML, /舰长3天<small>¥19\.80<\/small>/);
 
   // A newly sampled same-name identity cannot inherit another identity's pool.
   snapshot.gifts.push({ ...verified, variantId: 'new-activity', rmb: 60 });
@@ -225,7 +240,7 @@ test('official mapping requires a verified pool for each identity and respects n
   assert.match(fixture.container.innerHTML, /#34635/);
   assert.match(
     fixture.container.innerHTML,
-    /官方产物<small>#100<\/small><small>3<\/small>/,
+    /官方产物<small>#100<\/small><small>¥3\.00<\/small>/,
   );
 
   verified.giftCategory = 'directGift';
@@ -291,7 +306,7 @@ test('same-name Zongxia boxes keep the verified box and all seven outputs after 
   assert.doesNotMatch(fixture.container.innerHTML, /#35029/);
   for (const { id, name } of outputs) {
     assert.ok(fixture.container.innerHTML.includes(
-      `${name}<small>#${id}</small><small>9</small>`,
+      `${name}<small>#${id}</small><small>¥9.00</small>`,
     ));
   }
 });

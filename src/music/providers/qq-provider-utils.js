@@ -1,5 +1,7 @@
 'use strict';
 
+const { sanitizeAuthState } = require('../auth-state');
+
 const { decryptQrc } = require('qrc-decoder');
 
 function mapQQSong(song) {
@@ -470,18 +472,6 @@ function clampInteger(value, min, max, fallback) {
   const number = Number(value);
   if (!Number.isFinite(number)) return fallback;
   return Math.max(min, Math.min(max, Math.trunc(number)));
-}
-
-function sanitizeAuthState(auth) {
-  return {
-    loggedIn: Boolean(auth && auth.loggedIn),
-    cookieCount: Number(auth && auth.cookieCount) || 0,
-    keyCookieNames: Array.isArray(auth && auth.keyCookieNames)
-      ? auth.keyCookieNames
-      : [],
-    encryptedSnapshotExists: Boolean(auth && auth.encryptedSnapshotExists),
-    lastSavedAt: auth && auth.lastSavedAt ? auth.lastSavedAt : '',
-  };
 }
 
 module.exports = {

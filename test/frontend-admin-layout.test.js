@@ -12,34 +12,6 @@ const { loadModuleExports } = require('./helpers/frontend-modules');
 
 const ROOT_DIR = path.join(__dirname, '..');
 
-test('song board defaults to a clear frosted glass theme', () => {
-  const themeSource = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme.js'),
-    'utf8',
-  );
-  const defaultsSource = fs.readFileSync(
-    path.join(ROOT_DIR, 'src', 'storage', 'settings-defaults.js'),
-    'utf8',
-  );
-
-  assert.match(defaultsSource, /themeOpacity: '0\.48'/);
-  assert.match(defaultsSource, /backdropBlur: '14'/);
-  assert.match(defaultsSource, /glowIntensity: '2'/);
-  assert.match(themeSource, /if \(!Object\.keys\(defaultThemeLook\)\.length\)/);
-  assert.match(
-    themeSource,
-    /const resetValues = \{\s*\.\.\.defaultThemeLook\s*\};/,
-  );
-  assert.match(
-    themeSource,
-    /bindRangePair\(\s*'backdropBlur',\s*'backdropBlurNumber',\s*0,\s*30,\s*14\s*\)/,
-  );
-  assert.match(
-    themeSource,
-    /bindRangePair\(\s*'glowIntensity',\s*'glowIntensityNumber',\s*0,\s*20,\s*2\s*\)/,
-  );
-});
-
 test('gift workspace rows keep their content height inside the scroll container', () => {
   const source = readCssBundle('public', 'css', 'admin', 'workspace.css');
   const giftWorkspaceRule = source.match(
@@ -207,7 +179,10 @@ test('player dock starts collapsed and toggles open without opening fullscreen',
     fullscreenOpened = true;
   };
 
-  service.initWorkspaceControls();
+  let closeQueuePopup;
+  let popupCloses = 0;
+  service.initWorkspaceControls({ getCloseQueuePopup: () => closeQueuePopup });
+  window.AdminApp = {};
   assert.equal(body.classList.contains('player-dock-collapsed'), true);
   assert.equal(playerPanel.classList.contains('is-collapsed'), true);
   assert.equal(playerBody.getAttribute('aria-hidden'), 'true');
@@ -229,8 +204,13 @@ test('player dock starts collapsed and toggles open without opening fullscreen',
   assert.equal(body.classList.contains('player-dock-collapsed'), false);
   assert.equal(playerPanel.classList.contains('is-collapsed'), false);
   assert.equal(playerBody.getAttribute('aria-hidden'), 'false');
+
   assert.equal(dockToggle.getAttribute('aria-expanded'), 'true');
   assert.equal(dockToggle.getAttribute('aria-label'), '收起播放器');
+  // Playback may load after the workspace; resolve its current capability.
+  closeQueuePopup = () => { popupCloses += 1; };
+  dockClick({ stopPropagation() {} });
+  assert.equal(popupCloses, 1);
 });
 
 test('queue panels retain their original 450px height on desktop', () => {

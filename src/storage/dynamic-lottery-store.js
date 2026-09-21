@@ -1,5 +1,7 @@
 'use strict';
 
+const { transaction } = require('./dynamic-lottery-transaction');
+
 const { createRequestBudgetStore } = require('./dynamic-lottery-budget-store');
 
 function storeError(code, message) {
@@ -41,27 +43,6 @@ function parseJson(value, field) {
     return JSON.parse(value);
   } catch (_) {
     throw storeError('LOTTERY_DATA_CORRUPT', `${field} contains invalid JSON.`);
-  }
-}
-
-function tryRollback(db) {
-  try {
-    db.exec('ROLLBACK');
-    return true;
-  } catch (_) {
-    return false;
-  }
-}
-
-function transaction(db, operation) {
-  db.exec('BEGIN IMMEDIATE');
-  try {
-    const result = operation();
-    db.exec('COMMIT');
-    return result;
-  } catch (error) {
-    tryRollback(db);
-    throw error;
   }
 }
 

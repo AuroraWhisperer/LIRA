@@ -8,7 +8,7 @@ const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
-const { fileURLToPath, pathToFileURL } = require('node:url');
+const { pathToFileURL } = require('node:url');
 const { createDatabases, closeDatabases } = require('../src/storage/database');
 const { createSongStore } = require('../src/storage/song-store');
 const songService = require('../src/music/song-service');
@@ -38,30 +38,12 @@ async function loadCategoryFilterModule() {
 }
 
 async function loadSongsModule(globals) {
-  const modules = new Map();
-  const context = vm.createContext({ console, ...globals });
-  const filePath = path.join(ROOT_DIR, 'public', 'js', 'admin', 'songs.js');
-
-  async function load(modulePath) {
-    const identifier = pathToFileURL(modulePath).href;
-    if (modules.has(identifier)) return modules.get(identifier);
-    const module = new vm.SourceTextModule(
-      fs.readFileSync(modulePath, 'utf8'),
-      {
-        context,
-        identifier,
-      },
-    );
-    modules.set(identifier, module);
-    await module.link((specifier, referencingModule) =>
-      load(fileURLToPath(new URL(specifier, referencingModule.identifier))),
-    );
-    return module;
-  }
-
-  const module = await load(filePath);
-  await module.evaluate();
-  return globals.window.AdminApp.songs;
+  const { utils, state = {} } = globals.window.AdminApp;
+  const { loadModuleExports } = require('./helpers/frontend-modules');
+  const { createSongs } = await loadModuleExports(
+    path.join(ROOT_DIR, 'public/js/admin/songs.js'), globals,
+  );
+  return createSongs({ utils, state });
 }
 
 test('category filter presents each slash-separated category on its own row', async () => {

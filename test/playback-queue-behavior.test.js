@@ -10,6 +10,42 @@ const {
   track,
 } = require('./helpers/playback-app');
 
+for (const action of ['ended', 'next', 'error']) {
+  test(`repeat-one only repeats on natural completion (${action})`, async () => {
+    const current = track('repeat-a', '循环歌曲');
+    const next = track('repeat-b', '下一首');
+    const app = await createPlaybackApp({
+      current,
+      currentOrigin: 'normal',
+      normalQueue: [next],
+      normalQueueTracks: [current, next],
+      mode: 'repeat-one',
+      volume: 0.75,
+      selectedSource: 'qq',
+      queueType: 'queue',
+    });
+    await app.init();
+    await flushAsyncWork();
+    await app.emit('playbackPlayPause', 'click');
+    await flushAsyncWork();
+    if (action === 'next') {
+      await app.emit('playbackNext', 'click');
+    } else {
+      await app.emit('music-player', action);
+      if (action === 'error') {
+        await flushAsyncWork();
+        await app.emit('music-player', 'error');
+      }
+    }
+    await flushAsyncWork();
+    assert.equal(app.savedState().current.id, action === 'ended' ? current.id : next.id);
+    assert.deepEqual(
+      app.savedState().normalQueue.map((item) => item.id),
+      action === 'ended' ? [next.id] : [],
+    );
+  });
+}
+
 test('playlist playback keeps one queue and loops with directly played search tracks', async () => {
   const savedState = {
     current: track('playlist-1', '歌单第一首'),

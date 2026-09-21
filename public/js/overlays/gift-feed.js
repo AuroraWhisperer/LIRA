@@ -10,7 +10,7 @@ const status = document.getElementById('giftFeedStatus');
 const preview = new URLSearchParams(location.search).get('preview') === '1';
 document.body.classList.toggle('gift-feed-preview', preview);
 status.hidden = !preview;
-let config = { thresholds: [3000, 10000, 100000], visibleRows: 3, scrollSpeed: 25 };
+let config = { thresholds: [3000, 10000, 100000], visibleRows: 3, scrollSpeed: 25, minGiftAmountCents: 0 };
 let catalog = [];
 let catalogVersion = 0;
 let rendered = new Map();
@@ -30,10 +30,21 @@ let previousTime = null;
 let progress = 0;
 
 async function request(url, signal) {
-  const response = await fetch(url, { signal: AbortSignal.any([signal, AbortSignal.timeout(10000)]) });
-  const result = await response.json();
-  if (!response.ok || !result.ok) throw Object.assign(new Error(result.error || '本日礼物暂未更新'), { code: result.code });
-  return result.data;
+  // Browser sources may use a Chromium version without AbortSignal.any/timeout.
+  const requestController = new AbortController();
+  const abort = () => requestController.abort();
+  if (signal.aborted) abort();
+  else signal.addEventListener('abort', abort, { once: true });
+  const timeout = setTimeout(abort, 10000);
+  try {
+    const response = await fetch(url, { signal: requestController.signal });
+    const result = await response.json();
+    if (!response.ok || !result.ok) throw Object.assign(new Error(result.error || '本日礼物暂未更新'), { code: result.code });
+    return result.data;
+  } finally {
+    clearTimeout(timeout);
+    signal.removeEventListener('abort', abort);
+  }
 }
 
 function render(retryAvatars = false) {
@@ -134,7 +145,12 @@ async function refresh() {
       throw Object.assign(new Error('礼物来源或日期已变更'), { code: 'GIFT_VIEW_STALE' });
     }
     const cards = buildGiftCards(result.items, { day, profiles: profiles.items });
-    pending = cards;
+    const minimumCents = BigInt(config.minGiftAmountCents ?? 0);
+    pending = minimumCents === 0n ? cards : cards.filter((item) => {
+      const totalCents = item.cardTotalCents === undefined
+        ? BigInt(Math.round(item.gift.unitPrice * 100)) * BigInt(item.gift.num) : BigInt(item.cardTotalCents);
+      return totalCents > minimumCents;
+    });
     if (state.count <= config.visibleRows || document.hidden) { state.replace(pending); pending = null; render(); }
     if (status.textContent) status.textContent = '';
   } catch (error) {

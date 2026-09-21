@@ -477,7 +477,7 @@ function isGiftHistoryOpen() {
   return get('giftHistoryDrawer')?.classList.contains('open') === true;
 }
 
-function initGiftRecentToggle() {
+export function initGiftRecentToggle() {
   const section = document.querySelector('.gift-recent-panel');
   const toggle = get('giftRecentToggle');
   const panelHeader = section?.querySelector('.panel-header');

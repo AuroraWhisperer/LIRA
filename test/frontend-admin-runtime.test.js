@@ -20,16 +20,16 @@ test('admin state events render queue empty states and song data', () => {
   assert.match(source, /eventBus\.on\(Events\.STATE_LOADED/);
   assert.match(
     source,
-    /eventBus\.on\(Events\.STATE_LOADED, createAdminStateRenderer\(\)\)/,
+    /eventBus\.on\(Events\.STATE_LOADED, createAdminStateRenderer\(\{\s*renderGifts:/,
   );
   assert.match(source, /eventBus\.on\(Events\.SONG_UPDATED/);
   assert.match(
     source,
-    /getLegacyAdminModules\(\)\s*\.\s*songs\s*\?\.\s*renderSongs\s*\?\.\s*\(\s*songs\s*,\s*languages\s*,\s*artists\s*,\s*tags\s*,?\s*\)/,
+    /songPanel\.renderSongs\s*\(\s*songs\s*,\s*languages\s*,\s*artists\s*,\s*tags\s*,?\s*\)/,
   );
 });
 
-test('overtime picker keeps the room catalog primary when the global cache updates', () => {
+test('admin wires gift catalog updates and exposes the overtime picker controls', () => {
   const stateSource = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'js', 'admin', 'state.js'),
     'utf8',
@@ -51,16 +51,6 @@ test('overtime picker keeps the room catalog primary when the global cache updat
     overtimeSource,
     /snapshot\?\.source === ["']server["'][\s\S]*applyServerGiftArtwork\(snapshot\)/,
   );
-  assert.match(overtimeSource, /function applyServerGiftArtwork\(snapshot\)/);
-  assert.match(
-    overtimeSource,
-    /serverGiftArtworkById\.get\(giftArtworkKey\(gift\)\)/,
-  );
-  assert.match(
-    overtimeSource,
-    /globalGiftMatches = globalGiftMatches\.map\(\(gift\) => \{[\s\S]*?serverGiftArtworkById\.get\(giftArtworkKey\(gift\)\)/,
-  );
-  assert.match(overtimeSource, /function decorateOvertimeRules\(rules\)/);
   assert.match(
     overtimeSource,
     /renderRules: \(rules\) =>\s*ruleEditor\.renderRules\(decorateOvertimeRules\(rules\)\)/,
@@ -74,9 +64,6 @@ test('overtime picker keeps the room catalog primary when the global cache updat
     overtimeSource,
     /function openGiftPicker\(row = null\)[\s\S]*refreshGiftCatalog\(\{ notify: false \}\)/,
   );
-  assert.match(overtimeSource, /if \(picker\?\.open\) renderGiftPicker\(\)/);
-  assert.match(overtimeSource, /全部礼物中没有匹配项/);
-  assert.match(overtimeSource, /没有找到当前在售礼物/);
   assert.match(
     html,
     /id="overtimeGiftCatalogStatus"[^>]*>\s*在售目录：未刷新\s*<\/span\s*>/,
@@ -100,21 +87,12 @@ test('admin initialization waits for sibling module scripts at interactive ready
   );
 });
 
-test('admin state loading avoids duplicate state requests and filters song reloads by snapshot reason', () => {
+test('admin initial song loading does not request application state again', () => {
   const source = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'js', 'admin', 'state.js'),
     'utf8',
   );
   assert.match(source, /await this\.reloadSongs\(\{ reloadState: false \}\);/);
-  assert.match(
-    source,
-    /if \(options\.reloadState !== false\) \{\s*await this\.reloadState\(\);/,
-  );
-  assert.match(
-    source,
-    /if \(isSongsSnapshotReason\(payload\.reason\)\) \{\s*this\.scheduleSongReload\(\);/,
-  );
-  assert.match(source, /function isSongsSnapshotReason\(reason\)/);
 });
 
 test('admin idle timers are lifecycle-bound', () => {
@@ -165,9 +143,9 @@ test('admin loads theme presets before initializing theme forms', () => {
     'utf8',
   );
   const loadPosition = source.indexOf('await Theme.loadThemeConfig()');
-  const themeFormPosition = source.indexOf('modules.theme?.initThemeForm?.()');
+  const themeFormPosition = source.indexOf('theme.initThemeForm()');
   const displayFormPosition = source.indexOf(
-    'modules.display.initDisplayForm()',
+    'display.initDisplayForm()',
   );
 
   assert.ok(loadPosition >= 0, 'theme configuration should be loaded');

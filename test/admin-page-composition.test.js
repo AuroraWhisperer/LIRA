@@ -170,21 +170,6 @@ test('composed admin page is complete, ordered, and has unique ids', () => {
   assert.deepEqual([...new Set(duplicateIds)], []);
 });
 
-test('HTTP admin routes compose after authentication without a legacy page mapping', () => {
-  const source = fs.readFileSync(
-    path.join(ROOT_DIR, 'src', 'server', 'http-utils.js'),
-    'utf8',
-  );
-
-  assert.match(source, /require\('\.\/admin-page'\)/);
-  assert.match(source, /isAdminPageRoute\(requestUrl\.pathname\)/);
-  assert.match(source, /composeAdminHtml\(publicDir\)/);
-  assert.doesNotMatch(
-    source,
-    /\[['"]\/(?:admin|settings|songs)?['"],\s*['"]pages\/admin\.html['"]\]/,
-  );
-});
-
 test('authenticated admin routes never expose credentials to the composed document', () => {
   for (const pathname of ['/', '/admin', '/settings', '/songs']) {
     let status;

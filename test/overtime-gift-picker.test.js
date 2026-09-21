@@ -425,20 +425,6 @@ async function loadOvertimeModule({ document, window, state, saleGifts }) {
     performance: { now: () => 0 },
     requestAnimationFrame: () => 1,
     cancelAnimationFrame() {},
-    __testDocument: document,
-    __testApi: async (url, body) => {
-      state.apiCalls.push({ url, body });
-      return {
-        data: { gifts: saleGifts, refreshedAt: '2026-09-05T00:00:00.000Z' },
-      };
-    },
-    __testReadJsonResponse: async (response) => response.payload,
-    __testShowError: (error) => {
-      state.lastError = error;
-    },
-    __testAddedGifts: state.addedGifts,
-    __testEventBus: { on() {} },
-    __testEvents: {},
   });
   const source = `${fs.readFileSync(OVERTIME_ENTRY, 'utf8')}\nexport { applyGiftCatalog, applyServerGiftArtwork, openGiftPicker };`;
   const entryUrl = pathToFileURL(OVERTIME_ENTRY).href;
@@ -446,99 +432,90 @@ async function loadOvertimeModule({ document, window, state, saleGifts }) {
     context,
     identifier: entryUrl,
   });
-  const stubs = {
-    '../shared/gift-image-fallback.js': new vm.SourceTextModule(
-      fs.readFileSync(
-        path.join(ROOT_DIR, 'public/js/shared/gift-image-fallback.js'),
-        'utf8',
-      ),
-      { context, identifier: `${entryUrl}?gift-image-fallback` },
-    ),
-    '../shared/gift-catalog-roles.js': new vm.SourceTextModule(
-      fs.readFileSync(
-        path.join(ROOT_DIR, 'public/js/shared/gift-catalog-roles.js'),
-        'utf8',
-      ),
-      { context, identifier: `${entryUrl}?gift-catalog-roles` },
-    ),
-    '../shared/event-bus.js': new vm.SourceTextModule(
-      'export const eventBus = globalThis.__testEventBus; export const Events = globalThis.__testEvents;',
-      { context, identifier: `${entryUrl}?event-bus` },
-    ),
-    '../shared/utils.js': new vm.SourceTextModule(
-      [
-        'export const api = (...args) => globalThis.__testApi(...args);',
-        'export const copyText = async () => {};',
-        'export const localOverlayOrigin = () => "http://127.0.0.1";',
-        'export const readJsonResponse = (...args) => globalThis.__testReadJsonResponse(...args);',
-        'export const showError = (error) => globalThis.__testShowError(error);',
-        'export const toast = () => {};',
-      ].join('\n'),
-      { context, identifier: `${entryUrl}?utils` },
-    ),
-    './overtime-rule-editor.js': new vm.SourceTextModule(
-      [
-        'export function createOvertimeRuleEditor(root) {',
-        '  return {',
-        '    setLimits() {},',
-        '    renderRules() {},',
-        '    readRules() { return []; },',
-        '    createRule(gift) {',
-        '      globalThis.__testAddedGifts.push({ ...gift });',
-        '      const row = globalThis.__testDocument.createElement("article");',
-        '      row.dataset.overtimeRule = "true";',
-        '      row.dataset.giftId = String(gift.id);',
-        '      row.dataset.giftIdentity = JSON.stringify(gift.giftIdentity || null);',
-        '      row.scrollIntoView = () => {};',
-        '      root.append(row);',
-        '      return row;',
-        '    },',
-        '  };',
-        '}',
-      ].join('\n'),
-      { context, identifier: `${entryUrl}?rule-editor` },
-    ),
-    './overtime-time-view.js': new vm.SourceTextModule(
-      [
-        'export function createOvertimeTimeView() {',
-        '  return {',
-        '    renderSettlements() {},',
-        '    populateInitialDurationSelectors() {},',
-        '    syncDurationSelectorsFromInput() {},',
-        '    syncDurationInputFromSelectors() {},',
-        '    renderInitialDuration() {},',
-        '    parseInitialDuration() { return 0; },',
-        '    formatClockDisplay() { return ""; },',
-        '  };',
-        '}',
-      ].join('\n'),
-      { context, identifier: `${entryUrl}?time-view` },
-    ),
-    './overtime-status-view.js': new vm.SourceTextModule(
-      [
-        'export function createOvertimeStatusView() {',
-        '  return {',
-        '    renderState() {},',
-        '    syncClockLoop() {},',
-        '    stopClockLoop() {},',
-        '    getState() { return null; },',
-        '  };',
-        '}',
-      ].join('\n'),
-      { context, identifier: `${entryUrl}?status-view` },
-    ),
+  function stub(exports) {
+    return new vm.SyntheticModule(
+      Object.keys(exports),
+      function () {
+        for (const [name, value] of Object.entries(exports))
+          this.setExport(name, value);
+      },
+      { context },
+    );
+  }
+  const dependencies = {
+    '../shared/event-bus.js': stub({ eventBus: { on() {} }, Events: {} }),
+    '../shared/utils.js': stub({
+      async api(url, body) {
+        state.apiCalls.push({ url, body });
+        return {
+          data: { gifts: saleGifts, refreshedAt: '2026-09-05T00:00:00.000Z' },
+        };
+      },
+      copyText: async () => {},
+      localOverlayOrigin: () => 'http://127.0.0.1',
+      readJsonResponse: async (response) => response.payload,
+      showError(error) {
+        state.lastError = error;
+      },
+      toast() {},
+    }),
+    './overtime-rule-editor.js': stub({
+      createOvertimeRuleEditor(root) {
+        return {
+          setLimits() {},
+          renderRules() {},
+          readRules: () => [],
+          createRule(gift) {
+            state.addedGifts.push({ ...gift });
+            const row = document.createElement('article');
+            row.dataset.overtimeRule = 'true';
+            row.dataset.giftId = String(gift.id);
+            row.dataset.giftIdentity = JSON.stringify(
+              gift.giftIdentity || null,
+            );
+            row.scrollIntoView = () => {};
+            root.append(row);
+            return row;
+          },
+        };
+      },
+    }),
+    './overtime-time-view.js': stub({
+      createOvertimeTimeView: () => ({
+        renderSettlements() {},
+        populateInitialDurationSelectors() {},
+        syncDurationSelectorsFromInput() {},
+        syncDurationInputFromSelectors() {},
+        renderInitialDuration() {},
+        parseInitialDuration: () => 0,
+        formatClockDisplay: () => '',
+      }),
+    }),
+    './overtime-status-view.js': stub({
+      createOvertimeStatusView: () => ({
+        renderState() {},
+        syncClockLoop() {},
+        stopClockLoop() {},
+        getState: () => null,
+      }),
+    }),
   };
-
+  for (const specifier of [
+    '../shared/gift-image-fallback.js',
+    '../shared/gift-catalog-roles.js',
+    './overtime-gift-identity.js',
+  ]) {
+    const file = path.resolve(path.dirname(OVERTIME_ENTRY), specifier);
+    dependencies[specifier] = new vm.SourceTextModule(
+      fs.readFileSync(file, 'utf8'),
+      {
+        context,
+        identifier: pathToFileURL(file).href,
+      },
+    );
+  }
   await module.link((specifier) => {
-    if (specifier === './overtime-gift-identity.js')
-      return new vm.SourceTextModule(
-        fs.readFileSync(
-          path.join(path.dirname(OVERTIME_ENTRY), 'overtime-gift-identity.js'),
-          'utf8',
-        ),
-        { context, identifier: `${entryUrl}?gift-identity` },
-      );
-    const dependency = stubs[specifier];
+    const dependency = dependencies[specifier];
     if (!dependency)
       throw new Error(`Unexpected overtime dependency: ${specifier}`);
     return dependency;

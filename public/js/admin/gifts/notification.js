@@ -1,12 +1,12 @@
+import { publishGiftModule } from '../legacy-admin-bridge.js';
+import { escapeHtml, formatMoney, showStackedToast } from '../../shared/utils.js';
 // 编写人：Aurora
 // 礼物通知模块 - 负责礼物到账的 toast 通知显示
 import { getGiftToastArtwork } from './recent.js';
 
 'use strict';
 
-(function () {
-  const { escapeHtml, formatMoney, showStackedToast } = window.AdminApp.utils;
-
+export function createGiftNotification({ notify = showStackedToast } = {}) {
   let giftNoticeKeys = null;
 
   /**
@@ -107,7 +107,7 @@ import { getGiftToastArtwork } from './recent.js';
     const titleHtml = `<span class="gift-notify-name">${giftName} x${num}</span>${priceBadge}`;
 
     const toastKey = `gift:${newestId}`;
-    const handle = showStackedToast({
+    const handle = notify({
       key: toastKey,
       update: true,
       className: `gift-notify-toast${variantClass}`,
@@ -149,10 +149,11 @@ import { getGiftToastArtwork } from './recent.js';
   }
 
   // 导出
-  window.AdminApp = window.AdminApp || {};
-  window.AdminApp.gifts = window.AdminApp.gifts || {};
-  window.AdminApp.gifts.notification = {
+  const module = {
     notifyNewGift,
     resetNotificationState,
   };
-})();
+  return module;
+}
+export const giftNotification = createGiftNotification();
+publishGiftModule('notification', giftNotification);

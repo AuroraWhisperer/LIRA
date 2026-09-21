@@ -130,38 +130,26 @@ test('overtime overlay explains configured gift effects to viewers', () => {
   );
 });
 
-test('overtime clock uses bounded calendar tiers for large durations', () => {
-  const source = read('public/js/overlays/overtime.js');
-  const helperStart = source.indexOf(
-    'function formatClockDisplay(milliseconds, status)',
-  );
-  const helperEnd = source.indexOf(
-    '\nfunction describeRuleEffect',
-    helperStart,
-  );
-  const sandbox = {};
-  vm.runInNewContext(
-    `${source.slice(helperStart, helperEnd)}\n` +
-      'this.helpers = { formatClockDisplay, formatClock };',
-    sandbox,
-  );
+test('overtime clock uses bounded calendar tiers for large durations', async () => {
+  const source = read('public/js/shared/overtime-time-format.js');
+  const helpers = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
 
   assert.equal(
-    sandbox.helpers.formatClock(23 * 60 * 60 * 1000 + 59_000),
+    helpers.formatClock(23 * 60 * 60 * 1000 + 59_000),
     '23:00:59',
   );
-  assert.equal(sandbox.helpers.formatClock(24 * 60 * 60 * 1000), '1天 00:00');
+  assert.equal(helpers.formatClock(24 * 60 * 60 * 1000), '1天 00:00');
   assert.equal(
-    sandbox.helpers.formatClock(365 * 24 * 60 * 60 * 1000),
+    helpers.formatClock(365 * 24 * 60 * 60 * 1000),
     '1年 0天 0小时',
   );
   assert.equal(
-    sandbox.helpers.formatClock(9_999 * 365 * 24 * 60 * 60 * 1000),
+    helpers.formatClock(9_999 * 365 * 24 * 60 * 60 * 1000),
     '9999年 0天 0小时',
   );
-  assert.equal(sandbox.helpers.formatClockDisplay(0, 'paused'), '00:00:00');
-  assert.equal(sandbox.helpers.formatClockDisplay(0, 'running'), '该下播了');
-  assert.equal(sandbox.helpers.formatClockDisplay(0, 'finished'), '该下播了');
+  assert.equal(helpers.formatClockDisplay(0, 'paused'), '00:00:00');
+  assert.equal(helpers.formatClockDisplay(0, 'running'), '该下播了');
+  assert.equal(helpers.formatClockDisplay(0, 'finished'), '该下播了');
 });
 
 test('overtime clock updates on display boundaries only while active and visible', () => {
@@ -184,7 +172,7 @@ test('overtime clock updates on display boundaries only while active and visible
 
   const helperStart = source.indexOf('function nextClockDelay(remainingMs)');
   const helperEnd = source.indexOf(
-    '\nfunction formatClockDisplay',
+    '\nfunction describeRuleEffect',
     helperStart,
   );
   const sandbox = {};

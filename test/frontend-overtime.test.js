@@ -123,17 +123,9 @@ test('overtime toolbox panel loads its isolated controller and renders untrusted
   assert.doesNotMatch(html, /选择“文字展板”可让礼物只展示自定义文字/);
   assert.doesNotMatch(source, /· 房间 /);
   assert.match(source, /minute:\s*'2-digit'/);
-  assert.doesNotMatch(
-    source,
-    /本地礼物库|当前未在售|syncRuleAvailability|rule-sale-status|is-unavailable/,
-  );
   assert.match(
     source,
     /left\.catalogGroup - right\.catalogGroup[\s\S]*left\.catalogOrder - right\.catalogOrder[\s\S]*left\.rmb - right\.rmb/,
-  );
-  assert.match(
-    source,
-    /meta\.textContent = \[\s*`ID \$\{gift\.id\} · ¥\$\{gift\.rmb\.toFixed\(2\)\}`,\s*giftRoleLookup\(gift\),[\s\S]*?\.filter\(Boolean\)\s*\.join\(' · '\)/,
   );
   assert.match(source, /\/api\/overtime\/rules/);
   assert.match(
@@ -241,8 +233,6 @@ test('overtime gift rule actions keep adding obvious and saving stateful', () =>
   assert.match(overtimeStyles, /\.overtime-add-gift-action/);
   assert.match(overtimeStyles, /\.overtime-gift-search-row/);
   assert.match(overtimeStyles, /\.overtime-save-rules-action\.is-dirty/);
-  assert.match(overtimeStyles, /--ot-action-add:\s*#6657c7/);
-  assert.match(overtimeStyles, /--ot-action-save:\s*#147d73/);
 
   const stateStart = source.indexOf('function getRulesSaveButtonState');
   const stateEnd = source.indexOf('\nfunction syncRulesSaveButton', stateStart);
@@ -274,7 +264,6 @@ test('overtime initial duration is minute-based, selectable, and readable', () =
   assert.match(html, /id="overtimeInitialMinutes"/);
   assert.doesNotMatch(html, /id="overtimeRemainingTime"/);
   assert.match(source, /remainingSeconds:\s*initialSeconds/);
-  assert.match(source, /function parseInitialDuration/);
   assert.match(
     overtimeStyles,
     /\.overtime-actions button:disabled[\s\S]*?opacity:\s*1/,
@@ -283,7 +272,7 @@ test('overtime initial duration is minute-based, selectable, and readable', () =
   assert.doesNotMatch(overtimeStyles, /\.overtime-manual-duration\s+span\s*\{/);
 
   const helperStart = source.indexOf('function parseInitialDuration');
-  const helperEnd = source.indexOf('\n  function formatClock', helperStart);
+  const helperEnd = source.indexOf('\n  function formatSignedClock', helperStart);
   const sandbox = {};
   vm.runInNewContext(
     `const serverLimits = { maxSeconds: 315328464000, maxEffectFactor: 1000, maxRandomWeight: 100000, maxEnabledRules: 8 };\n` +

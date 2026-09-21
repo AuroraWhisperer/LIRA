@@ -7,10 +7,6 @@ const {
   canonicalGiftText,
   canonicalCoinType,
 } = require('../../shared/processed-gift-contract');
-const {
-  createGiftMaintenanceStore,
-} = require('../../storage/gift-maintenance-store');
-const { createGiftQueryStore } = require('../../storage/gift-query-store');
 const { resolveGiftSourceScope } = require('./source-scope');
 const { normalizeHistoryFilters, shanghaiDayStart, historyBounds, giftViewRevision, queryError } = require('./history-filters');
 
@@ -46,7 +42,7 @@ const GIFT_RANGES = Object.freeze({
 });
 function resetGiftSprintProgress(context) {
   const sourceScope = resolveGiftSourceScope(context);
-  const changedCount = createGiftQueryStore(context.db.giftDb).resetSprint({
+  const changedCount = context.queryStore.resetSprint({
     sourceScope,
     updatedAt: now(),
   });
@@ -59,7 +55,7 @@ function resetGiftSprintProgress(context) {
 
 function getGiftSnapshot(context) {
   const sourceScope = resolveGiftSourceScope(context);
-  const recent = createGiftQueryStore(context.db.giftDb)
+  const recent = context.queryStore
     .listRecent({ sourceScope, limit: 30 })
     .map(normalizeGiftRow);
   let viewRevision = null;
@@ -71,7 +67,7 @@ function getGiftSnapshot(context) {
 
 function getGiftHistory(context, options = {}) {
   const activeSource = requireActiveGiftSource(context);
-  const queryStore = createGiftQueryStore(context.db.giftDb);
+  const queryStore = context.queryStore;
   const viewRevision = giftViewRevision(activeSource, queryStore.getProjectionGeneration(activeSource.sourceId));
   if (options.viewRevision && options.viewRevision !== viewRevision) {
     throw queryError('GIFT_VIEW_STALE', '礼物来源或流水已变更，请重新选择。');
@@ -143,9 +139,7 @@ function getGiftStatistics(context, options = {}) {
   const query = normalizeLedgerQuery(options.query);
   const range = normalizeLedgerRange(options.range);
   const asOf = resolveAsOf(context);
-  const { summaryRow, topRows, bucketRows } = createGiftQueryStore(
-    context.db.giftDb,
-  ).readStatistics({
+  const { summaryRow, topRows, bucketRows } = context.queryStore.readStatistics({
     sourceId: activeSource.sourceId,
     query,
     rangeStart: resolveRangeStart(range, asOf),
@@ -175,7 +169,7 @@ function getGiftSprintSnapshot(context) {
   const settings = context.settings();
   const targetRmb = normalizeMoney(settings.giftSprintTargetRmb);
   const sourceScope = resolveGiftSourceScope(context);
-  const row = createGiftQueryStore(context.db.giftDb).readSprint(sourceScope);
+  const row = context.queryStore.readSprint(sourceScope);
   const receivedRmb = normalizeMoney(row.receivedRmb);
   const remainingRmb = Math.max(0, normalizeMoney(targetRmb - receivedRmb));
 
@@ -192,37 +186,13 @@ function getGiftSprintSnapshot(context) {
 
 function searchGifts(context, { from, to, limit = 100 }) {
   const sourceScope = resolveGiftSourceScope(context);
-  return createGiftQueryStore(context.db.giftDb)
+  return context.queryStore
     .search({ sourceScope, from, to, limit: Math.min(limit, 500) })
     .map(normalizeGiftRow);
 }
 
 function clearRecentGifts(context) {
-  const giftDb = context.db.giftDb;
-  const maintenance = createGiftMaintenanceStore(giftDb);
-  const timestamp = now();
-
-  // 使用维护存储协调删除，确保 pending settlements 被标记为 ignored
-  const whereClause = `
-    source_id IS NULL
-    AND status = 'active' AND total_price > 0
-    AND detection_status = 'final' AND gift_stats_eligible = 1
-    AND id IN (
-      SELECT id FROM gift_events
-      WHERE source_id IS NULL
-        AND status = 'active' AND total_price > 0
-        AND detection_status = 'final' AND gift_stats_eligible = 1
-      ORDER BY datetime(created_at) DESC, id DESC
-      LIMIT 3000
-    )
-  `.trim();
-
-  const result = maintenance.deleteGiftsByPredicate(
-    whereClause,
-    [],
-    'manual:clear-recent',
-    timestamp,
-  );
+  const result = context.maintenanceStore.clearRecent({ updatedAt: now() });
 
   return {
     cleared: true,
@@ -544,7 +514,7 @@ module.exports = {
 
 function getGiftViewRevision(context) {
   const source = requireActiveGiftSource(context);
-  return giftViewRevision(source, createGiftQueryStore(context.db.giftDb).getProjectionGeneration(source.sourceId));
+  return giftViewRevision(source, context.queryStore.getProjectionGeneration(source.sourceId));
 }
 
 function getGiftSelection(context, options = {}) {
@@ -560,7 +530,7 @@ function getGiftSelection(context, options = {}) {
     ids.some((id) => typeof id !== 'string' || !id || id.length > 64))) {
     throw queryError('INVALID_GIFT_SELECTION', '请选择 1 至 10000 条礼物记录。');
   }
-  const rows = createGiftQueryStore(context.db.giftDb).readHistorySnapshot({
+  const rows = context.queryStore.readHistorySnapshot({
     sourceId: source.sourceId,
     query: normalizeLedgerQuery(options.query),
     ...filters,

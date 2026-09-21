@@ -3,14 +3,24 @@
 'use strict';
 
 import { DESKTOP_LYRIC_DEFAULTS } from '../lyrics/desktop-lyric-defaults.js';
+import * as sharedUtils from '../shared/utils.js';
+import { formsService } from './forms.js';
+import { stateService } from './state.js';
+import { desktopLyricPreview } from './desktop-lyric-preview.js';
+import { publishDesktopLyric } from './legacy-admin-bridge.js';
 import {
   ensureSavedFontOption,
   registerLocalFontSelect,
 } from './local-font-library.js';
 
-(function () {
+export function createDesktopLyric({
+  utils = sharedUtils,
+  forms = formsService,
+  state = stateService,
+  preview = desktopLyricPreview,
+} = {}) {
   const AUTOSAVE_DELAY_MS = 500;
-  const { setValue, api } = window.AdminApp.utils;
+  const { setValue, api } = utils;
   const CHECKBOX_KEYS = new Set([
     'desktopLyricStrokeEnabled',
     'desktopLyricShadowEnabled',
@@ -59,14 +69,13 @@ import {
     const form = document.getElementById('desktopLyricForm');
     if (!form) return;
     registerLocalFontSelect(document.getElementById('desktopLyricFontFamily'));
-    window.AdminApp.desktopLyricPreview?.init(form);
+    preview.init(form);
 
     // Range ↔ Number 双向绑定
-    if (window.AdminApp.forms && window.AdminApp.forms.bindRangePair) {
-      const { bindRangePair } = window.AdminApp.forms;
+    if (forms.bindRangePair) {
       RANGE_PAIRS.forEach(
         ([key, minimum, maximum, fallback, displayScale = 1]) => {
-          bindRangePair(
+          forms.bindRangePair(
             key,
             `${key}Number`,
             minimum,
@@ -83,7 +92,7 @@ import {
     let dirty = false;
     let saving = false;
     let pendingSave = false;
-    const currentSettings = window.AdminApp.state?.getAppState?.()?.settings;
+    const currentSettings = state.getAppState()?.settings;
     let settingsLoaded = Boolean(currentSettings);
     if (currentSettings) loadDesktopLyricSettings(currentSettings);
 
@@ -274,8 +283,8 @@ import {
         setValue(`${key}Number`, String(Number(displayValue.toFixed(6))));
       }
     });
-    window.AdminApp.forms?.refreshParameterRanges?.();
-    window.AdminApp.desktopLyricPreview?.applySettings(settings);
+    forms.refreshParameterRanges?.();
+    preview.applySettings(settings);
   }
 
   function loadWeSingLyricSettings(settings) {
@@ -293,10 +302,11 @@ import {
       smartLyricMatch.checked = settings.weSingSmartLyricMatch !== 'false';
   }
 
-  window.AdminApp = window.AdminApp || {};
-  window.AdminApp.desktopLyric = {
+  return {
     initDesktopLyricForm,
     collectDesktopLyric,
     loadDesktopLyricSettings,
   };
-})();
+}
+export const desktopLyric = createDesktopLyric();
+publishDesktopLyric(desktopLyric);

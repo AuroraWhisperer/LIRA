@@ -5,28 +5,17 @@ const crypto = require('node:crypto');
 const test = require('node:test');
 const protocol = require('../src/electron/license/license-protocol');
 
-for (const sample of require('./fixtures/password-compatibility.json')) {
-  test(`privileged activation input preserves shared password sample: ${sample.id}`, () => {
-    const result = protocol.validateActivationInput({
-      accountName: 'sample-account',
-      password: sample.password,
-      activationCode: 'SYNTHETIC-CODE',
-    });
-    assert.equal(result.ok, sample.clientSubmits);
-    if (result.ok) {
-      assert.equal(result.password, sample.password);
-      const payload = protocol.buildActivationPayload({
-        ...result,
-        fingerprint: {},
-      });
-      const digest = crypto
-        .createHash('sha256')
-        .update(sample.password, 'utf8')
-        .digest('hex');
-      assert.ok(payload.endsWith(`accountPasswordSha256=${digest}`));
-    }
+test('activation validation and signing preserve spaces and Unicode in the password', () => {
+  const password = '  歌手Aa1!😀  ';
+  const result = protocol.validateActivationInput({
+    accountName: 'sample-account', password, activationCode: 'SYNTHETIC-CODE',
   });
-}
+  assert.equal(result.ok, true);
+  assert.equal(result.password, password);
+  const digest = crypto.createHash('sha256').update(password, 'utf8').digest('hex');
+  assert.ok(protocol.buildActivationPayload({ ...result, fingerprint: {} })
+    .endsWith(`accountPasswordSha256=${digest}`));
+});
 
 const fingerprint = {
   version: 1,

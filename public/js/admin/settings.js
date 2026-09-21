@@ -20,6 +20,12 @@ import { initLicenseAccountDevice as initLicenseAccountDeviceImpl } from './sett
 import { createSettingsOperations } from './settings-operations.js';
 import { createBilibiliRoomProfile } from './settings-room-profile.js';
 import { eventBus, Events } from '../shared/event-bus.js';
+import { songImports } from './import.js';
+import { stateService } from './state.js';
+import { formsService } from './forms.js';
+import { renderState } from './queue.js';
+import { giftBlindbox } from './gifts/blindbox.js';
+import { publishSettings } from './legacy-admin-bridge.js';
 
 const documentRef = document;
 const windowRef = window;
@@ -34,11 +40,11 @@ const alertRef =
   typeof alert === 'undefined' ? () => {} : (...args) => alert(...args);
 const fetchRef = typeof fetch === 'undefined' ? null : fetch;
 
-const getState = () => windowRef.AdminApp?.state;
-const getQueue = () => windowRef.AdminApp?.queue;
-const getForms = () => windowRef.AdminApp?.forms;
-const getGifts = () => windowRef.AdminApp?.gifts;
-const getImports = () => windowRef.AdminApp?.imports;
+const getState = () => stateService;
+const getQueue = () => ({ renderState });
+const getForms = () => formsService;
+const getGifts = () => giftBlindbox;
+const getImports = () => songImports;
 const saveSettings = (updates) => api('/api/settings', updates);
 
 const operations = createSettingsOperations({
@@ -129,8 +135,7 @@ export const {
 } = operations;
 export const updateBlindboxOverlayUrl = blindboxSettings.updateOverlayUrl;
 
-windowRef.AdminApp = windowRef.AdminApp || {};
-windowRef.AdminApp.settings = {
+export const settings = {
   initBilibiliAuth,
   initSettingsForm,
   initLicenseAccountDevice,
@@ -143,3 +148,4 @@ windowRef.AdminApp.settings = {
   renderShutdownScreen,
   updateBlindboxOverlayUrl,
 };
+publishSettings(settings);

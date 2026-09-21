@@ -1,5 +1,7 @@
 'use strict';
 
+const { sanitizeAuthState } = require('./auth-state');
+
 const { NeteaseMusicProvider } = require('./providers/netease-provider');
 const { QQMusicProvider } = require('./providers/qq-provider');
 
@@ -124,18 +126,6 @@ class PlaceholderMusicProvider {
   async resolvePlayableUrl() {
     throw new Error(`${this.name} 在线播放 Provider 尚未接入。`);
   }
-}
-
-function sanitizeAuthState(auth) {
-  return {
-    loggedIn: Boolean(auth && auth.loggedIn),
-    cookieCount: Number(auth && auth.cookieCount) || 0,
-    keyCookieNames: Array.isArray(auth && auth.keyCookieNames)
-      ? auth.keyCookieNames
-      : [],
-    encryptedSnapshotExists: Boolean(auth && auth.encryptedSnapshotExists),
-    lastSavedAt: auth && auth.lastSavedAt ? auth.lastSavedAt : '',
-  };
 }
 
 module.exports = {
