@@ -10,13 +10,12 @@ body {
 }
 #giftWishStage {
   display: grid;
-  gap: 20px;
+  gap: 12px;
   width: 416px;
   max-width: 100%;
 }
 body.wish-preview {
   min-height: 100vh;
-  background: #f0eae2;
 }
 #giftWishOverlayStatus {
   max-width: 416px;

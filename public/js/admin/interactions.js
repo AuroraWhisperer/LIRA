@@ -14,6 +14,9 @@ export function initInteractions({ onCollecting = () => {} } = {}) {
   let busy = false;
   let polling = null;
   let disposed = false;
+  let selectedKind = 'poll';
+  let appearanceOpen = false;
+  const tabs = [...root.querySelectorAll('[data-interaction-kind]')];
   const client = createInteractionClient({
     onState(state) { session = state.session; render(); },
     onHost(state) { host = state; render(); },
@@ -28,6 +31,11 @@ export function initInteractions({ onCollecting = () => {} } = {}) {
   get('interactionsUrl').value = url;
   get('interactionsCopy').addEventListener('click', () => copyText(url));
   get('interactionsOpen').addEventListener('click', () => window.open(url, '_blank', 'noopener'));
+  get('interactionsSourceToggle').addEventListener('click', () => {
+    const source = get('interactionsSource');
+    source.hidden = !source.hidden;
+    get('interactionsSourceToggle').setAttribute('aria-expanded', String(!source.hidden));
+  });
   get('pollRule').textContent = POLL_RULE;
   get('ratingRule').textContent = RATING_RULE;
 
@@ -48,7 +56,14 @@ export function initInteractions({ onCollecting = () => {} } = {}) {
     get('pollPageHint').textContent = pages > 1
       ? `推荐尺寸下约 ${pages} 屏，每 8 秒翻页，一轮至少 ${seconds} 秒。${durationSeconds() < seconds ? '当前时长较短，后面的选项可能来不及完整展示。' : ''}`
       : '推荐尺寸下单屏展示。';
-    for (const button of get('pollOptions').querySelectorAll('button')) button.disabled = Boolean(session) || busy || inputs().length <= 2;
+    get('pollPageHint').hidden = pages <= 1;
+    root.querySelectorAll('[data-poll-seconds]').forEach((button) => {
+      button.setAttribute('aria-pressed', String(Number(button.dataset.pollSeconds) === durationSeconds()));
+    });
+    for (const [index, button] of [...get('pollOptions').querySelectorAll('button')].entries()) {
+      button.disabled = Boolean(session) || busy || inputs().length <= 2;
+      button.setAttribute('aria-label', `删除选项 ${index + 1}`);
+    }
   }
   function addOption(value = '') {
     const row = document.createElement('div');
@@ -59,7 +74,7 @@ export function initInteractions({ onCollecting = () => {} } = {}) {
     const hint = document.createElement('small');
     const remove = document.createElement('button');
     remove.type = 'button';
-    remove.className = 'secondary';
+    remove.className = 'secondary interaction-quiet';
     remove.textContent = '删除';
     remove.addEventListener('click', () => { row.remove(); validateOptions(); });
     input.addEventListener('input', (event) => { if (!event.isComposing) validateOptions(); });
@@ -70,7 +85,50 @@ export function initInteractions({ onCollecting = () => {} } = {}) {
   }
   addOption('1');
   addOption('2');
-  initInteractionAppearance();
+  const appearance = initInteractionAppearance();
+  function renderWorkspace() {
+    if (session) selectedKind = session.kind;
+    for (const tab of tabs) {
+      const active = tab.dataset.interactionKind === selectedKind;
+      tab.setAttribute('aria-selected', String(active));
+      tab.tabIndex = active ? 0 : -1;
+      tab.disabled = busy || Boolean(session && !active);
+      if (active) get('interactionWorkspace').setAttribute('aria-labelledby', tab.id);
+    }
+    get('interactionActivityView').hidden = appearanceOpen;
+    get('interactionAppearanceView').hidden = !appearanceOpen;
+    get('interactionAppearanceToggle').setAttribute('aria-expanded', String(appearanceOpen));
+    get('pollForm').hidden = Boolean(session) || selectedKind !== 'poll';
+    get('ratingForm').hidden = Boolean(session) || selectedKind !== 'rating';
+    get('interactionActivityTitle').textContent = session ? '本场互动' : '本场设置';
+    get('interactionModeNote').textContent = selectedKind === 'rating' ? '手动公布均分' : '限时收票';
+    get('interactionRatingRulesField').hidden = selectedKind !== 'rating';
+    appearance.setKind(selectedKind);
+  }
+  tabs.forEach((tab) => tab.addEventListener('click', () => {
+    selectedKind = tab.dataset.interactionKind;
+    renderWorkspace();
+  }));
+  root.querySelector('.interaction-tabs').addEventListener('keydown', (event) => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    const available = tabs.filter((tab) => !tab.disabled);
+    if (!available.length) return;
+    event.preventDefault();
+    const current = available.indexOf(document.activeElement);
+    const direction = event.key === 'ArrowLeft' ? -1 : 1;
+    const index = event.key === 'Home' ? 0 : event.key === 'End' ? available.length - 1 : (current + direction + available.length) % available.length;
+    available[index].focus();
+    available[index].click();
+  });
+  get('interactionAppearanceToggle').addEventListener('click', () => {
+    appearanceOpen = !appearanceOpen;
+    renderWorkspace();
+  });
+  get('interactionAppearanceBack').addEventListener('click', () => {
+    appearanceOpen = false;
+    renderWorkspace();
+    get('interactionAppearanceToggle').focus();
+  });
   get('pollAddOption').addEventListener('click', () => addOption());
   get('pollDurationMinutes').addEventListener('input', validateOptions);
   get('pollDurationSeconds').addEventListener('input', validateOptions);
@@ -106,6 +164,7 @@ export function initInteractions({ onCollecting = () => {} } = {}) {
   get('interactionClear').addEventListener('click', () => mutate('/api/interactions/session/clear', { sessionId: session?.sessionId }).catch(showError));
 
   function render() {
+    renderWorkspace();
     const collecting = session?.phase === 'collecting';
     onCollecting(collecting);
     for (const kind of ['poll', 'rating']) {
@@ -116,6 +175,9 @@ export function initInteractions({ onCollecting = () => {} } = {}) {
       ? `${interactionStatus(session)} · 已收到 ${host?.session?.sessionId === session.sessionId ? host.participants : session.participants || 0} 人${session.receptionInterrupted ? ' · 接收曾中断，可能漏收' : ''}`
       : host?.blockedReason || '准备开始';
     get('interactionResults').hidden = !session;
+    get('interactionSessionTitle').textContent = session?.title || '';
+    get('interactionSessionTitle').hidden = !session?.title;
+    get('interactionRatingPending').hidden = session?.kind !== 'rating' || session.phase === 'finished';
     get('interactionFinish').hidden = !session || session.phase === 'finished';
     get('interactionFinish').textContent = session?.kind === 'rating' ? '停止并公布平均分' : '提前结束投票';
     get('interactionFinish').disabled = busy;

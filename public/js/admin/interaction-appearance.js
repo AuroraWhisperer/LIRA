@@ -1,6 +1,7 @@
 import { api } from '../shared/utils.js';
 import { INTERACTION_APPEARANCE_DEFAULTS, readInteractionAppearance, applyInteractionAppearance } from '../shared/interaction-appearance.js';
 import { renderPollRows } from '../shared/interaction-view.js';
+import { initParameterRanges, refreshParameterRange } from '../shared/parameter-range.js';
 
 export function initInteractionAppearance() {
   const get = (id) => document.getElementById(id);
@@ -9,11 +10,15 @@ export function initInteractionAppearance() {
   const status = get('interactionAppearanceStatus');
   const apply = get('interactionAppearanceApply');
   const retry = get('interactionAppearanceRetry');
-  const controls = Object.fromEntries(Object.keys(INTERACTION_APPEARANCE_DEFAULTS).map((key) => [key, get(key)]));
+  const controls = Object.fromEntries(Object.keys(INTERACTION_APPEARANCE_DEFAULTS)
+    .filter((key) => key !== 'interactionBackgroundColor' && key !== 'interactionBackgroundOpacity')
+    .map((key) => [key, get(key)]));
+  initParameterRanges(form);
   let loaded = false;
   let saving = false;
   let dirty = false;
   let disposed = false;
+  let kind = 'poll';
 
   function draft() {
     return Object.fromEntries(Object.entries(controls).map(([key, input]) => [
@@ -21,14 +26,14 @@ export function initInteractionAppearance() {
     ]));
   }
   function fill(settings) {
-    for (const [key, value] of Object.entries(readInteractionAppearance(settings))) {
-      if (controls[key].type === 'checkbox') controls[key].checked = value === 'true';
-      else controls[key].value = value;
+    const appearance = readInteractionAppearance(settings);
+    for (const [key, input] of Object.entries(controls)) {
+      if (input.type === 'checkbox') input.checked = appearance[key] === 'true';
+      else input.value = appearance[key];
     }
     preview();
   }
   function preview() {
-    const kind = get('interactionPreviewKind').value;
     const appearance = applyInteractionAppearance(get('interactionPreview'), draft());
     const title = appearance.interactionOverlayTitle;
     get('interactionPreview').dataset.kind = kind;
@@ -47,12 +52,13 @@ export function initInteractionAppearance() {
     get('interactionPreviewRatingRules').textContent = appearance.interactionRatingRules;
     get('interactionPreviewScore').hidden = kind !== 'rating';
     for (const [key, unit] of [
-      ['interactionBackgroundOpacity', '%'], ['interactionOverallOpacity', '%'],
+      ['interactionOverallOpacity', '%'],
       ['interactionFontSize', 'px'], ['interactionCornerRadius', 'px'],
     ]) {
       const value = `${appearance[key]}${unit}`;
       get(`${key}Value`).textContent = value;
       controls[key].setAttribute('aria-valuetext', value);
+      refreshParameterRange(controls[key]);
     }
     const options = [...get('pollOptions').querySelectorAll('input')].map((input, index) => ({
       text: input.value.trim() || `选项 ${index + 1}`, votes: index === 0 ? 68 : index === 1 ? 32 : 0,
@@ -60,9 +66,8 @@ export function initInteractionAppearance() {
     }));
     renderPollRows(get('interactionPreviewRows'), { sessionId: `preview-${options.length}`, phase: 'collecting', options });
   }
-  function edit(event) {
+  function edit() {
     if (!loaded || saving) return;
-    if (event?.target === controls.interactionRatingRules) get('interactionPreviewKind').value = 'rating';
     dirty = true;
     apply.disabled = false;
     status.textContent = '未应用';
@@ -117,10 +122,16 @@ export function initInteractionAppearance() {
   });
   get('pollForm').addEventListener('input', preview);
   get('ratingForm').addEventListener('input', preview);
-  get('interactionPreviewKind').addEventListener('change', preview);
   const observer = new MutationObserver(preview);
   observer.observe(get('pollOptions'), { childList: true });
   fill(INTERACTION_APPEARANCE_DEFAULTS);
   void load();
   window.addEventListener('app:shutdown', () => { disposed = true; observer.disconnect(); }, { once: true });
+  return {
+    setKind(nextKind) {
+      if (nextKind === kind) return;
+      kind = nextKind;
+      preview();
+    },
+  };
 }

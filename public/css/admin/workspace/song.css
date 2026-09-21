@@ -635,7 +635,8 @@ body.player-dock-expanded .song-workspace {
 }
 
 /* 颜色选择器：用色片和展开提示表达可点击性，避免输入框套色块的视觉。 */
-.song-workspace input[type='color'] {
+.song-workspace input[type='color'],
+.interaction-color-fields input[type='color'] {
   -webkit-appearance: none;
   appearance: none;
   width: 64px;
@@ -658,11 +659,13 @@ body.player-dock-expanded .song-workspace {
     transform 160ms ease;
 }
 
-.song-workspace input[type='color']::-webkit-color-swatch-wrapper {
+.song-workspace input[type='color']::-webkit-color-swatch-wrapper,
+.interaction-color-fields input[type='color']::-webkit-color-swatch-wrapper {
   padding: 0;
 }
 
-.song-workspace input[type='color']::-webkit-color-swatch {
+.song-workspace input[type='color']::-webkit-color-swatch,
+.interaction-color-fields input[type='color']::-webkit-color-swatch {
   border: 0;
   border-radius: 7px;
   box-shadow:
@@ -670,7 +673,8 @@ body.player-dock-expanded .song-workspace {
     0 1px 3px rgba(31, 43, 68, 0.12);
 }
 
-.song-workspace input[type='color']::-moz-color-swatch {
+.song-workspace input[type='color']::-moz-color-swatch,
+.interaction-color-fields input[type='color']::-moz-color-swatch {
   border: 0;
   border-radius: 7px;
   box-shadow:
@@ -678,23 +682,27 @@ body.player-dock-expanded .song-workspace {
     0 1px 3px rgba(31, 43, 68, 0.12);
 }
 
-.song-workspace input[type='color']:hover {
+.song-workspace input[type='color']:hover,
+.interaction-color-fields input[type='color']:hover {
   background-color: color-mix(in srgb, var(--primary) 7%, transparent);
   box-shadow: 0 3px 10px rgba(31, 43, 68, 0.09);
   transform: translateY(-1px);
 }
 
-.song-workspace input[type='color']:active {
+.song-workspace input[type='color']:active,
+.interaction-color-fields input[type='color']:active {
   transform: translateY(0) scale(0.97);
 }
 
-.song-workspace input[type='color']:focus-visible {
+.song-workspace input[type='color']:focus-visible,
+.interaction-color-fields input[type='color']:focus-visible {
   outline: 2px solid var(--color-control-focus);
   outline-offset: 2px;
   background-color: var(--color-control-accent-light);
 }
 
-.song-workspace input[type='color']:disabled {
+.song-workspace input[type='color']:disabled,
+.interaction-color-fields input[type='color']:disabled {
   cursor: not-allowed;
   opacity: 0.55;
   transform: none;

@@ -91,10 +91,10 @@ test('choose room or cached gifts, enforce integer targets, edit without resetti
   await page.locator('#giftWishSave').click();
   await page.locator('.wish-card').waitFor();
   assert.equal(
-    await page.locator('.wish-card-label').textContent(),
-    '<img src=x>',
+    await page.locator('.wish-card').getAttribute('aria-label'),
+    '长效许愿 · 小花花 · <img src=x>',
   );
-  assert.equal(await page.locator('.wish-card-label img').count(), 0);
+  assert.equal(await page.locator('.wish-card img').count(), 1);
   assert.equal(await page.locator('.wish-card-count').textContent(), '3');
   assert.equal(
     await page.locator('[role=progressbar]').getAttribute('aria-valuenow'),
@@ -197,11 +197,11 @@ test('consecutive source changes cancel pending reads and never restore the prev
     };
     window.resolveWishRead(1, 'three');
   });
-  await page.waitForFunction(() => document.querySelector('.wish-card-name')?.textContent === 'three');
+  await page.waitForFunction(() => document.querySelector('.wish-card-image')?.alt === 'three');
   await page.evaluate(async () => {
     window.resolveWishRead(0, 'two');
     await new Promise((resolve) => setTimeout(resolve, 0));
   });
-  assert.equal(await page.locator('.wish-card-name').textContent(), 'three');
+  assert.equal(await page.locator('.wish-card-image').getAttribute('alt'), 'three');
   assert.equal(await page.locator('#giftWishSave').isDisabled(), false);
 });

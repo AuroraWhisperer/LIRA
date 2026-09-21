@@ -20,8 +20,8 @@
         <p id="giftWishSelectedRole" class="hint">可选直播间在售礼物、盲盒本体及产出，或全部缓存礼物。</p>
         <label for="giftWishTarget">目标数量<span class="hint">只支持整数</span></label>
         <input id="giftWishTarget" name="target" type="number" inputmode="numeric" min="1" max="999999999" step="1" value="10" required>
-        <label for="giftWishLabel">许愿说明<span class="hint">选填</span></label>
-        <input id="giftWishLabel" name="label" type="text" maxlength="40" placeholder="例如：集满一起唱首歌">
+        <label for="giftWishLabel">许愿备注<span class="hint">选填，不在直播画面显示</span></label>
+        <input id="giftWishLabel" name="label" type="text" maxlength="40" placeholder="例如：达成后唱首歌">
         <div class="gift-wish-editor-actions"><button id="giftWishSave" type="submit" class="primary">添加许愿</button><button id="giftWishCancel" type="button" class="secondary" hidden>取消编辑</button></div>
         <p class="hint">修改目标会保留已收进度。</p>
       </fieldset>
@@ -36,7 +36,7 @@
   <div class="gift-wish-source">
     <h4>放进直播画面</h4><p id="giftWishSourceHint" class="hint">OBS 浏览器源 · 长效许愿</p>
     <div class="gift-wish-source-actions"><input id="giftWishUrl" readonly aria-label="许愿 OBS 浏览器源地址"><button id="giftWishCopy" type="button" class="secondary">复制地址</button><a id="giftWishPreview" target="_blank" rel="noopener">打开预览</a></div>
-    <p class="hint">OBS 建议宽度 440；每张卡片约 250 高，背景透明。三个周期可以分别添加。</p>
+    <p class="hint">OBS 建议宽度 440；每份心愿约 96 高，仅显示礼物、数量和进度条，背景透明。三个周期可以分别添加。</p>
   </div>
   <dialog id="giftWishPicker" class="gift-wish-picker" aria-labelledby="giftWishPickerTitle">
     <header><h3 id="giftWishPickerTitle">选择心愿礼物</h3><button id="giftWishPickerClose" type="button" class="secondary">关闭</button></header>

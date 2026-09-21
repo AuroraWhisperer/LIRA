@@ -24,41 +24,19 @@ export function createGiftWishCard(wish, documentRef = document) {
     `wish-card${wish.completed ? ' is-complete' : ''}`,
   );
   card.dataset.wishId = wish.id;
-  const top = element('div', 'wish-card-top');
-  const type = element('span', 'wish-card-period', WISH_PERIODS[wish.period]);
-  const state = element(
-    'span',
-    'wish-card-state',
-    wish.completed ? '心愿达成' : '收集中',
+  card.setAttribute(
+    'aria-label',
+    [WISH_PERIODS[wish.period], wish.giftName, wish.label].filter(Boolean).join(' · '),
   );
-  top.append(type, state);
-  const main = element('div', 'wish-card-main');
-  const art = element('div', 'wish-card-art');
   const image = element('img', 'wish-card-image');
-  image.alt = '';
+  image.alt = wish.giftName;
   setGiftImage(image, wish.imagePath);
-  art.append(image);
-  const detail = element('div', 'wish-card-detail');
-  const name = element('h4', 'wish-card-name', wish.giftName);
-  const label = element(
-    'p',
-    'wish-card-label',
-    wish.label || '一起攒满这份小心愿',
-  );
-  detail.append(name, label);
-  main.append(art, detail);
-  const counts = element('div', 'wish-card-counts');
+  const progress = element('div', 'wish-card-progress');
   const total = element('div', 'wish-card-total');
   total.append(
     element('strong', 'wish-card-count', String(wish.count)),
     element('span', 'wish-card-target', ` / ${wish.target}`),
   );
-  const remaining = element(
-    'span',
-    'wish-card-remaining',
-    wish.completed ? '谢谢每一份心意' : `还差 ${wish.remaining} 个`,
-  );
-  counts.append(total, remaining);
   const track = element('div', 'wish-card-track');
   track.setAttribute('role', 'progressbar');
   track.setAttribute('aria-label', `${wish.giftName}收集进度`);
@@ -75,6 +53,7 @@ export function createGiftWishCard(wish, documentRef = document) {
   const fill = element('div', 'wish-card-fill');
   fill.style.transform = `scaleX(${wish.progress / 100})`;
   track.append(fill);
-  card.append(top, main, counts, track);
+  progress.append(total, track);
+  card.append(image, progress);
   return card;
 }
