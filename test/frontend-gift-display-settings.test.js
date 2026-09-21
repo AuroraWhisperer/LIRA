@@ -290,7 +290,7 @@ test('gift banner updates retain images, patch rank and refit only changed text'
     if (needsFit) fitGiftBannerNames(row);
     const changed = { needsFit, frameReused: frame === row.querySelector('.gift-banner-frame'),
       frameSource: frame.getAttribute('src'), avatarSource: new URL(avatar.src).searchParams.get('url'),
-      textShrunk: parseFloat(getComputedStyle(row.querySelector('.gift-banner-name')).fontSize) < 18,
+      textShrunk: parseFloat(getComputedStyle(row.querySelector('.gift-banner-name')).fontSize) < 24,
       count: row.querySelector('.gift-banner-count').textContent };
     const short = { ...next, gift: { ...next.gift, userName: '短', giftName: '花', guardLevel: 0 } };
     if (updateGiftBanner(row, short, config)) fitGiftBannerNames(row);
@@ -300,7 +300,7 @@ test('gift banner updates retain images, patch rank and refit only changed text'
   });
   assert.deepEqual(result, { needsFit: true, frameReused: true,
     frameSource: '/img/overlays/danmaku-guard/bubble-admiral-frame.webp', avatarSource: 'https://i0.hdslb.com/bfs/face/new.webp',
-    textShrunk: true, count: '×5', frameRemoved: true, imagesReused: true, shortNameSize: 18 });
+    textShrunk: true, count: '×5', frameRemoved: true, imagesReused: true, shortNameSize: 24 });
 });
 
 test('gift banners fit long names and inset the avatar inside the rounded color bar', async (t) => {
@@ -327,7 +327,7 @@ test('gift banners fit long names and inset the avatar inside the rounded color 
       avatarWidth: avatar.width,
       avatarInsets: [avatar.left - bar.left, avatar.top - bar.top, bar.bottom - avatar.bottom],
       nameFits: banner.querySelector('.gift-banner-name').scrollWidth <= banner.querySelector('.gift-banner-name').clientWidth,
-      nameShrinks: parseFloat(getComputedStyle(banner.querySelector('.gift-banner-name')).fontSize) < 18,
+      nameShrinks: parseFloat(getComputedStyle(banner.querySelector('.gift-banner-name')).fontSize) < 24,
       giftFits: banner.querySelector('.gift-banner-gift').scrollWidth <= banner.querySelector('.gift-banner-gift').clientWidth,
       textClearsArtwork: text.right <= artwork.left,
       quantityFits: banner.querySelector('.gift-banner-count').getBoundingClientRect().right <= bounds.right,
@@ -370,9 +370,8 @@ test('gift names fit their full text at normal and PNG scale while short names k
   assert.deepEqual(result.normal, result.scaled);
   assert.deepEqual(result.normal.map((name) => name.text), result.names);
   assert.ok(result.normal.every((name) => name.fits));
-  assert.equal(result.normal[0].fontSize, 18);
-  assert.equal(result.normal[1].fontSize, 18);
-  assert.ok(result.normal.slice(2).every((name) => name.fontSize > 0 && name.fontSize < 18));
+  assert.equal(result.normal[0].fontSize, 24);
+  assert.ok(result.normal.slice(1).every((name) => name.fontSize > 0 && name.fontSize < 24));
   assert.equal(result.output.width, 856);
 });
 
@@ -422,7 +421,7 @@ test('long gift counts expand PNG and OBS canvases without moving artwork or squ
     assert.equal(row.textWidth, result.rows[0].textWidth);
     assert.equal(row.barWidth, result.rows[0].barWidth);
     assert.equal(row.countLeft, result.rows[0].countLeft);
-    assert.equal(row.countSize, '40px');
+    assert.equal(row.countSize, '28px');
     assert.ok(row.rightPadding >= 20);
     assert.ok(row.artworkClear);
     if (index) assert.ok(row.width > result.rows[index - 1].width);

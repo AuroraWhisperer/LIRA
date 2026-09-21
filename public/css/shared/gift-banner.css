@@ -22,11 +22,11 @@
 .gift-banner-avatar { position: absolute; box-sizing: border-box; left: 8px; top: 8px; width: 56px; height: 56px; object-fit: cover; border-radius: 50%; }
 .gift-banner-frame { position: absolute; left: 0; top: 0; width: 72px; height: 72px; object-fit: contain; }
 .gift-banner-frame[src$="/bubble-captain-frame.webp"] { left: -2px; top: -2px; width: 76px; height: 76px; }
-.gift-banner-text { position: absolute; left: 80px; top: 12px; width: calc(var(--gift-banner-width) - 236px); }
-.gift-banner-name { font-size: 18px; line-height: 26px; font-weight: 400; white-space: nowrap; overflow: hidden; }
-.gift-banner-gift { font-size: 14px; line-height: 22px; white-space: nowrap; overflow: hidden; }
-.gift-banner-gift span { color: #ffeb2b; }
+.gift-banner-text { position: absolute; left: 80px; top: 10px; width: calc(var(--gift-banner-width) - 236px); }
+.gift-banner-name { font-size: 24px; line-height: 28px; font-weight: 400; white-space: nowrap; overflow: hidden; }
+.gift-banner-gift { font-size: 18px; line-height: 24px; white-space: nowrap; overflow: hidden; }
+.gift-banner-gift span { color: #ffeb2b; font-size: 1.1em; }
 .gift-banner-artwork { position: absolute; left: calc(var(--gift-banner-width) - 150px); top: 3px; width: 66px; height: 66px; object-fit: contain; }
-.gift-banner-count { position: relative; top: 20px; margin-left: calc(var(--gift-banner-width) - 70px); margin-right: 20px; display: flex; align-items: baseline; gap: 2px; width: max-content; color: #ffe646; font-family: Arial, sans-serif; font-size: 40px; line-height: 48px; font-weight: 700; font-style: italic; -webkit-text-stroke: 1px #c87524; paint-order: stroke fill; }
+.gift-banner-count { position: relative; top: 20px; margin-left: calc(var(--gift-banner-width) - 70px); margin-right: 20px; display: flex; align-items: baseline; gap: 2px; width: max-content; color: #ffe646; font-family: Arial, sans-serif; font-size: 28px; line-height: 48px; font-weight: 700; font-style: italic; -webkit-text-stroke: 1px #c87524; paint-order: stroke fill; }
 .gift-banner-times { font-size: 0.55em; line-height: 1; }
 .gift-banner-stage { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; width: max-content; min-width: var(--gift-banner-width); }
