@@ -16,51 +16,29 @@ const { createSongStore } = require('../storage/song-store');
 const { createCloudSongSyncStore } = require('../storage/cloud-song-sync-store');
 const { createGiftQueryStore } = require('../storage/gift-query-store');
 const { createGiftMaintenanceStore } = require('../storage/gift-maintenance-store');
-const {
-  createGiftProjectionStore,
-} = require('../storage/gift-projection-store');
-const {
-  createGiftStatisticsStore,
-} = require('../storage/gift-statistics-store');
-const {
-  createRequesterTargetStore,
-} = require('../music/requester-target-store');
+const { createGiftProjectionStore } = require('../storage/gift-projection-store');
+const { createGiftStatisticsStore } = require('../storage/gift-statistics-store');
+const { createRequesterTargetStore } = require('../music/requester-target-store');
 const songService = require('../music/song-service');
 const { createSongMetadataReader } = require('../music/song-metadata');
-const {
-  previewSongImport,
-  applySongImport,
-} = require('../music/song-import-update');
+const { previewSongImport, applySongImport } = require('../music/song-import-update');
 const queueService = require('../music/queue-service');
 const giftService = require('../bilibili/gift');
 const { createGiftWishService } = require('../bilibili/gift/wish-service');
 const { createGiftWishStore } = require('../storage/gift-wish-store');
 const superChatService = require('../bilibili/superchat-service');
 const { dailyBotCommand } = require('../bilibili/danmaku/command-text');
-const {
-  createCustomReplyService,
-} = require('../bilibili/custom-reply-service');
+const { createCustomReplyService } = require('../bilibili/custom-reply-service');
 const bilibiliMessageHandler = require('../bilibili/bilibili-message-handler');
-const {
-  createOvertimeConsumer,
-  createOvertimeService,
-} = require('../overtime');
+const { createOvertimeConsumer, createOvertimeService } = require('../overtime');
 const {
   createGiftSaleCatalogService,
   createUnavailableGiftSaleCatalogService,
 } = require('../bilibili/gift/sale-catalog');
-const {
-  createHybridGiftSaleCatalogService,
-} = require('../bilibili/gift/hybrid-catalog');
+const { createHybridGiftSaleCatalogService } = require('../bilibili/gift/hybrid-catalog');
 
 function createDomainServices(options) {
-  const {
-    db,
-    settingsStore,
-    giftEffectResolver,
-    onGiftFlushed,
-    onOvertimeUpdate,
-  } = options;
+  const { db, settingsStore, giftEffectResolver, onGiftFlushed, onOvertimeUpdate } = options;
   const songStore = createSongStore(db.songDb);
   const cloudSongSync = createCloudSongSyncStore(db.songDb);
   const cooldownStore = createCooldownStore(db.songDb);
@@ -88,9 +66,7 @@ function createDomainServices(options) {
   // 冷却记录重启后从 DB 恢复，避免观众靠重启绕过冷却
   const restoredCooldowns = cooldownStore.loadInto(state.cooldownByUser);
   if (restoredCooldowns > 0) {
-    console.log(
-      `[Startup] restored ${restoredCooldowns} user cooldown record(s).`,
-    );
+    console.log(`[Startup] restored ${restoredCooldowns} user cooldown record(s).`);
   }
 
   const songs = {
@@ -99,10 +75,8 @@ function createDomainServices(options) {
     getMetadata: createSongMetadataReader(songStore),
     save: (input) => songService.saveSong(songStore, input),
     list: (options) => songService.listSongs(songStore, options),
-    find: (songName, artist) =>
-      songService.findSong(songStore, songName, artist),
-    findUniqueNameMatch: (songName) =>
-      songService.findUniqueSongNameMatch(songStore, songName),
+    find: (songName, artist) => songService.findSong(songStore, songName, artist),
+    findUniqueNameMatch: (songName) => songService.findUniqueSongNameMatch(songStore, songName),
     listCategories: () => songService.listCategories(songStore),
     listTags: () => songService.listTags(songStore),
     ensureCategory: (name) => songService.ensureCategory(songStore, name),
@@ -114,8 +88,7 @@ function createDomainServices(options) {
     delete: (id) => songService.deleteSong(songStore, id),
     toggle: (id) => songService.toggleSong(songStore, id),
     pickRandom: (scopeText) => songService.pickRandomSong(songStore, scopeText),
-    describeRandomScope: (scopeText) =>
-      songService.describeRandomSongScope(songStore, scopeText),
+    describeRandomScope: (scopeText) => songService.describeRandomSongScope(songStore, scopeText),
   };
 
   const queueContext = {
@@ -127,8 +100,7 @@ function createDomainServices(options) {
   const queue = {
     getSnapshot: () => queueService.getQueueSnapshot(queueContext),
     add: (input) => queueService.addQueueItem(queueContext, input),
-    handleAction: (action, id) =>
-      queueService.handleQueueAction(queueContext, action, id),
+    handleAction: (action, id) => queueService.handleQueueAction(queueContext, action, id),
     clearOnStartup: () => queueService.clearActiveQueueOnStartup(queueContext),
     ensureUnified: () => queueService.ensureUnifiedQueue(queueContext),
   };
@@ -152,12 +124,9 @@ function createDomainServices(options) {
     localOvertimeGiftCatalog = options.dataDir
       ? createGiftSaleCatalogService({
           dataDir: options.dataDir,
-          getRoomId:
-            options.giftSaleGetRoomId ||
-            (() => settingsStore.getSettings().roomId),
+          getRoomId: options.giftSaleGetRoomId || (() => settingsStore.getSettings().roomId),
           getBlindBoxConfig:
-            options.giftSaleGetBlindBoxConfig ||
-            (() => settingsStore.getSettings().giftBlindBoxConfig),
+            options.giftSaleGetBlindBoxConfig || (() => settingsStore.getSettings().giftBlindBoxConfig),
           fetchJson: options.giftSaleFetchJson,
         })
       : createUnavailableGiftSaleCatalogService();
@@ -175,10 +144,7 @@ function createDomainServices(options) {
             imageBaseUrl: options.remoteGiftCatalog.imageBaseUrl,
             getBlindBoxCustomConfigV2: () => {
               try {
-                const value = JSON.parse(
-                  settingsStore.getSettings().giftBlindBoxCustomConfigV2 ||
-                    'null',
-                );
+                const value = JSON.parse(settingsStore.getSettings().giftBlindBoxCustomConfigV2 || 'null');
                 return Array.isArray(value) ? value : [];
               } catch (_) {
                 return [];
@@ -186,8 +152,7 @@ function createDomainServices(options) {
             },
             remoteCatalog: options.remoteGiftCatalog.remoteCatalog,
             remoteImageCache: options.remoteGiftCatalog.remoteImageCache,
-            giftCatalogInitializer:
-              options.remoteGiftCatalog.giftCatalogInitializer,
+            giftCatalogInitializer: options.remoteGiftCatalog.giftCatalogInitializer,
             fetchImage: options.remoteGiftCatalog.fetchImage,
             imageConcurrency: options.remoteGiftCatalog.imageConcurrency,
           })
@@ -217,18 +182,17 @@ function createDomainServices(options) {
     };
 
     const giftWishes = createGiftWishService({
-      store: createGiftWishStore(db.giftDb), gifts, catalog: overtimeGiftCatalog,
+      store: createGiftWishStore(db.giftDb),
+      gifts,
+      catalog: overtimeGiftCatalog,
       getRoomId: options.giftSaleGetRoomId || (() => settingsStore.getSettings().roomId),
     });
 
     const superChatContext = { store: superChatStore };
     const superChats = {
-      getSnapshot: () =>
-        superChatService.getSuperChatSnapshot(superChatContext),
-      add: (input) =>
-        superChatService.addSuperChatItem(superChatContext, input),
-      handleAction: (action, id) =>
-        superChatService.handleSuperChatAction(superChatContext, action, id),
+      getSnapshot: () => superChatService.getSuperChatSnapshot(superChatContext),
+      add: (input) => superChatService.addSuperChatItem(superChatContext, input),
+      handleAction: (action, id) => superChatService.handleSuperChatAction(superChatContext, action, id),
     };
 
     const messages = {
@@ -281,14 +245,9 @@ function createDomainServices(options) {
         return result;
       },
       clearAll() {
-        const result = database.clearAllData(
-          db.songDb,
-          db.superChatDb,
-          db.giftDb,
-          db.musicDb,
-          db.checkinDb,
-          { sourceId: getActiveGiftSourceId(gifts) },
-        );
+        const result = database.clearAllData(db.songDb, db.superChatDb, db.giftDb, db.musicDb, db.checkinDb, {
+          sourceId: getActiveGiftSourceId(gifts),
+        });
 
         // 只有完全成功时才重置内存状态
         if (result.cleared === true && !result.partial) {
@@ -313,15 +272,12 @@ function createDomainServices(options) {
         return result;
       },
       getSchemaVersions: () => {
-        if (!schemaVersionsCache)
-          schemaVersionsCache = database.getSchemaVersions(db);
+        if (!schemaVersionsCache) schemaVersionsCache = database.getSchemaVersions(db);
         return schemaVersionsCache;
       },
       getRetentionStats: () => retention.getRetentionStats(db),
       runRetention(options = {}) {
-        const policy =
-          options.policy ||
-          retention.readRetentionPolicy(settingsStore.getSettings());
+        const policy = options.policy || retention.readRetentionPolicy(settingsStore.getSettings());
         return retention.applyRetentionPolicies(db, {
           policy,
           dryRun: options.dryRun === true,

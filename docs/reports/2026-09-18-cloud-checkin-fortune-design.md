@@ -2,11 +2,13 @@
 
 日期：2026-09-18
 
-状态：**设计建议，待评审；不是已实施功能或已接受协议。**
+状态：**设计来源；执行要求以 [已接受规格](../../specs/cloud-daily-bots.md) 为准，不代表线上部署状态。**
+
+2026-09-22 替代边界：后续用户要求已取消强制首次接管和旧数据处理界面。第 8 节及其他章节中“确认旧数据后才能开启”“pending 阻止启用”和旧数据摘要界面的描述已被直接启用流程替代；客户端不自动读取或上传旧库。旧导入 API/IPC 及进行中导入的 commit/cancel/expiry 契约仍保留，显式导入仍要求停写和归属确认。其余租户隔离、每日持久化、回复调度与整库恢复要求继续由规格承接。第 2 节是设计时的实现快照，其中本地签到/抽签源码已退役。
 
 范围：LIRA 桌面客户端与 LIRA Server。本文依据两个仓库当前工作区核查，不代表线上服务器已部署同样的代码。
 
-实施前提：**当前服务器仍为开发环境，本次不安排备份及备份恢复演练。** 下文切换和验收均针对开发环境；旧本地数据是否迁移仍按第 8 节确认，原库保留原位供核对，不额外复制备份。
+实施前提：**当前服务器仍为开发环境，本次不安排备份及备份恢复演练。** 下文切换和验收均针对开发环境；旧库原位保留兼容，首次启用不要求第 8 节的旧数据确认，不额外复制备份。
 
 ## 1. 推荐结论
 
@@ -41,9 +43,9 @@
 
 | 已核实事实 | 对设计的影响 | 依据 |
 | --- | --- | --- |
-| 签到在本地 `createCheckinService` 执行，按北京时间判断日期 | 可复用命令和回复语义，执行位置需要迁移 | [checkin-service.js](../../src/bilibili/checkin-service.js) |
-| 本地签到保存于 `checkin-data.db` 的 `checkin_users`，只有累计、首次和最近签到信息 | 能迁移累计，不能还原全部历史签到日期；该表也没有主播账号／房间归属字段 | [checkin-store.js](../../src/storage/checkin-store.js)、[database.js](../../src/storage/database.js) |
-| 本地抽签以 `dateKey:uid` 的哈希对当前签池取模，没有每日结果表 | 旧实现依赖签池保持不变；云端应保存选中的完整签文 | [fortune-service.js](../../src/bilibili/fortune-service.js) |
+| 签到在本地 `createCheckinService` 执行，按北京时间判断日期 | 可复用命令和回复语义，执行位置需要迁移 | `checkin-service.js`（已退役） |
+| 本地签到保存于 `checkin-data.db` 的 `checkin_users`，只有累计、首次和最近签到信息 | 能迁移累计，不能还原全部历史签到日期；该表也没有主播账号／房间归属字段 | `checkin-store.js`（已退役）、[database.js](../../src/storage/database.js) |
+| 本地抽签以 `dateKey:uid` 的哈希对当前签池取模，没有每日结果表 | 旧实现依赖签池保持不变；云端应保存选中的完整签文 | `fortune-service.js`（已退役） |
 | 两个开关、祝福语与签池目前经本地设置接口读写，不在通用云同步键集合中 | 不能只改页面提示或把本地开关复制到服务器，就宣称完成迁移 | [danmaku-tool.js](../../public/js/admin/danmaku-tool.js)、[settings-contract.js](../../src/server/settings-contract.js) |
 | 服务器 `MonitorManager` 启动符合条件的主播监听；监听活动生命周期独立于 overlay 开播场次 | 签到／抽签绑定 monitor source，不依赖 `liveSessionId` | [monitor-manager.js](../../../lira-server/src/modules/bilibili/monitor-manager.js)、[ADR-0060](../../../lira-server/docs/architecture/decisions/0060-continuous-room-monitoring.md) |
 | `RoomMonitor` 已在 `DANMU_MSG` 分支取得 UID、昵称与完整命令文本；现有服务端未发现签到／抽签处理器 | 应从这个已认证入口接入，而非由客户端转发命令 | [room-monitor.js](../../../lira-server/src/modules/bilibili/room-monitor.js) |

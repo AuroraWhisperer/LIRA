@@ -28,9 +28,7 @@ function createGiftSyncStore(options = {}) {
         `,
         )
         .run(key, timestamp, timestamp);
-      const source = giftDb
-        .prepare('SELECT id, source_key FROM gift_sources WHERE source_key = ?')
-        .get(key);
+      const source = giftDb.prepare('SELECT id, source_key FROM gift_sources WHERE source_key = ?').get(key);
       giftDb
         .prepare(
           `
@@ -48,9 +46,7 @@ function createGiftSyncStore(options = {}) {
 
   function getState(sourceId) {
     const id = normalizeSourceId(sourceId);
-    const row = giftDb
-      .prepare('SELECT * FROM gift_sync_state WHERE source_id = ?')
-      .get(id);
+    const row = giftDb.prepare('SELECT * FROM gift_sync_state WHERE source_id = ?').get(id);
     if (!row) throw new Error('GIFT_SOURCE_NOT_FOUND');
     return mapState(row);
   }
@@ -61,11 +57,7 @@ function createGiftSyncStore(options = {}) {
     }
     const page = normalizeHistoryPageCommit(input);
     return withImmediateTransaction(giftDb, () => {
-      const state = assertProjectionFence(
-        giftDb,
-        page.sourceId,
-        page.projectionGeneration,
-      );
+      const state = assertProjectionFence(giftDb, page.sourceId, page.projectionGeneration);
       if (Number(state.bootstrap_complete) === 1) {
         throw new Error('GIFT_BOOTSTRAP_ALREADY_COMPLETE');
       }
@@ -110,13 +102,7 @@ function createGiftSyncStore(options = {}) {
             WHERE source_id = ? AND projection_generation = ?
           `,
           )
-          .run(
-            page.syncEpoch,
-            page.recoveryCursor,
-            timestamp,
-            page.sourceId,
-            page.projectionGeneration,
-          );
+          .run(page.syncEpoch, page.recoveryCursor, timestamp, page.sourceId, page.projectionGeneration);
       }
       return readStateRow(giftDb, page.sourceId);
     });
@@ -128,15 +114,8 @@ function createGiftSyncStore(options = {}) {
     }
     const page = normalizeCatchUpPageCommit(input);
     return withImmediateTransactionAndEffects(giftDb, (registerAfterCommit) => {
-      const state = assertProjectionFence(
-        giftDb,
-        page.sourceId,
-        page.projectionGeneration,
-      );
-      if (
-        Number(state.bootstrap_complete) !== 1 ||
-        state.sync_epoch !== page.syncEpoch
-      ) {
+      const state = assertProjectionFence(giftDb, page.sourceId, page.projectionGeneration);
+      if (Number(state.bootstrap_complete) !== 1 || state.sync_epoch !== page.syncEpoch) {
         throw new Error('GIFT_SYNC_STATE_MISMATCH');
       }
       const currentCursor = Number(state.final_cursor);
@@ -164,13 +143,7 @@ function createGiftSyncStore(options = {}) {
           WHERE source_id = ? AND projection_generation = ?
         `,
         )
-        .run(
-          page.nextCursor,
-          validatedAt,
-          timestamp,
-          page.sourceId,
-          page.projectionGeneration,
-        );
+        .run(page.nextCursor, validatedAt, timestamp, page.sourceId, page.projectionGeneration);
       return readStateRow(giftDb, page.sourceId);
     });
   }
@@ -181,13 +154,8 @@ function createGiftSyncStore(options = {}) {
     }
     const page = normalizeLegacyPageCommit(input);
     return withImmediateTransactionAndEffects(giftDb, (registerAfterCommit) => {
-      const state = assertProjectionFence(
-        giftDb,
-        page.sourceId,
-        page.projectionGeneration,
-      );
-      const currentCursor =
-        state.final_cursor === null ? null : Number(state.final_cursor);
+      const state = assertProjectionFence(giftDb, page.sourceId, page.projectionGeneration);
+      const currentCursor = state.final_cursor === null ? null : Number(state.final_cursor);
       if (currentCursor !== null && page.nextCursor < currentCursor) {
         throw new Error('GIFT_CURSOR_REGRESSION');
       }
@@ -212,12 +180,7 @@ function createGiftSyncStore(options = {}) {
           WHERE source_id = ? AND projection_generation = ?
         `,
         )
-        .run(
-          page.nextCursor,
-          normalizeTimestamp(now()),
-          page.sourceId,
-          page.projectionGeneration,
-        );
+        .run(page.nextCursor, normalizeTimestamp(now()), page.sourceId, page.projectionGeneration);
       return readStateRow(giftDb, page.sourceId);
     });
   }
@@ -225,9 +188,7 @@ function createGiftSyncStore(options = {}) {
   function resetProjectionForRebuild(sourceId) {
     const id = normalizeSourceId(sourceId);
     return withImmediateTransaction(giftDb, () => {
-      const state = giftDb
-        .prepare('SELECT * FROM gift_sync_state WHERE source_id = ?')
-        .get(id);
+      const state = giftDb.prepare('SELECT * FROM gift_sync_state WHERE source_id = ?').get(id);
       if (!state) throw new Error('GIFT_SOURCE_NOT_FOUND');
       giftDb
         .prepare(
@@ -248,9 +209,7 @@ function createGiftSyncStore(options = {}) {
         `,
         )
         .run(id);
-      resetGiftProjectionMetadataInTransaction(
-        giftDb, id, normalizeTimestamp(now()),
-      );
+      resetGiftProjectionMetadataInTransaction(giftDb, id, normalizeTimestamp(now()));
       return readStateRow(giftDb, id);
     });
   }
@@ -294,11 +253,7 @@ function normalizeHistoryPageCommit(input) {
   const records = normalizePageRecords(input.records);
   const hasMore = input.hasMore;
   const nextPageToken = normalizePageToken(input.nextPageToken);
-  if (
-    typeof hasMore !== 'boolean' ||
-    (hasMore && !nextPageToken) ||
-    (!hasMore && nextPageToken !== null)
-  ) {
+  if (typeof hasMore !== 'boolean' || (hasMore && !nextPageToken) || (!hasMore && nextPageToken !== null)) {
     throw new Error('INVALID_GIFT_HISTORY_COMMIT');
   }
   return Object.freeze({
@@ -321,9 +276,7 @@ function normalizeCatchUpPageCommit(input) {
     nextCursor: normalizeCursor(input.nextCursor),
     syncEpoch: normalizeEpoch(input.syncEpoch),
     validatedAt:
-      input.validatedAt === null || input.validatedAt === undefined
-        ? null
-        : normalizeTimestamp(input.validatedAt),
+      input.validatedAt === null || input.validatedAt === undefined ? null : normalizeTimestamp(input.validatedAt),
   });
 }
 
@@ -337,9 +290,7 @@ function normalizeLegacyPageCommit(input) {
 }
 
 function assertProjectionFence(giftDb, sourceId, generation) {
-  const state = giftDb
-    .prepare('SELECT * FROM gift_sync_state WHERE source_id = ?')
-    .get(sourceId);
+  const state = giftDb.prepare('SELECT * FROM gift_sync_state WHERE source_id = ?').get(sourceId);
   if (!state) throw new Error('GIFT_SOURCE_NOT_FOUND');
   if (Number(state.projection_generation) !== generation) {
     throw new Error('STALE_GIFT_PROJECTION');
@@ -349,10 +300,8 @@ function assertProjectionFence(giftDb, sourceId, generation) {
 
 function assertBootstrapSnapshot(state, page) {
   if (
-    (state.bootstrap_sync_epoch !== null &&
-      state.bootstrap_sync_epoch !== page.syncEpoch) ||
-    (state.bootstrap_recovery_cursor !== null &&
-      Number(state.bootstrap_recovery_cursor) !== page.recoveryCursor)
+    (state.bootstrap_sync_epoch !== null && state.bootstrap_sync_epoch !== page.syncEpoch) ||
+    (state.bootstrap_recovery_cursor !== null && Number(state.bootstrap_recovery_cursor) !== page.recoveryCursor)
   ) {
     throw new Error('GIFT_BOOTSTRAP_SNAPSHOT_MISMATCH');
   }
@@ -362,9 +311,7 @@ function validateEventCursors(events, currentCursor, nextCursor, options = {}) {
   let previous = currentCursor;
   for (const event of events) {
     const cursor = normalizeCursor(event?.cursor);
-    const valid = options.contiguous
-      ? cursor === previous + 1
-      : cursor > previous;
+    const valid = options.contiguous ? cursor === previous + 1 : cursor > previous;
     if (!valid) throw new Error('INVALID_GIFT_CATCH_UP_PAGE');
     previous = cursor;
   }
@@ -372,11 +319,7 @@ function validateEventCursors(events, currentCursor, nextCursor, options = {}) {
 }
 
 function readStateRow(giftDb, sourceId) {
-  return mapState(
-    giftDb
-      .prepare('SELECT * FROM gift_sync_state WHERE source_id = ?')
-      .get(sourceId),
-  );
+  return mapState(giftDb.prepare('SELECT * FROM gift_sync_state WHERE source_id = ?').get(sourceId));
 }
 
 function mapState(row) {
@@ -387,10 +330,7 @@ function mapState(row) {
     finalCursor: row.final_cursor === null ? null : Number(row.final_cursor),
     bootstrapComplete: Number(row.bootstrap_complete) === 1,
     bootstrapPageToken: row.bootstrap_page_token,
-    bootstrapRecoveryCursor:
-      row.bootstrap_recovery_cursor === null
-        ? null
-        : Number(row.bootstrap_recovery_cursor),
+    bootstrapRecoveryCursor: row.bootstrap_recovery_cursor === null ? null : Number(row.bootstrap_recovery_cursor),
     bootstrapSyncEpoch: row.bootstrap_sync_epoch,
     projectionGeneration: Number(row.projection_generation),
     lastValidatedAt: row.last_validated_at,

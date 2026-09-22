@@ -3,7 +3,11 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createRemoteLicenseClient } = require('../src/electron/license/remote-license-client');
-const { createFixture, LOCAL_BLIND_BOX_CONFIG, CLOUD_BLIND_BOX_CONFIG } = require('./helpers/cloud-sync-controller-fixture');
+const {
+  createFixture,
+  LOCAL_BLIND_BOX_CONFIG,
+  CLOUD_BLIND_BOX_CONFIG,
+} = require('./helpers/cloud-sync-controller-fixture');
 
 test('authorized bootstrap applies initialized cloud settings, songs, and Bilibili credentials', async () => {
   const fixture = createFixture();
@@ -36,11 +40,17 @@ test('invalid cloud songs preserve the snapshot and revision until a valid retry
     });
     try {
       await assert.rejects(fixture.controller.start(), { code: 'INVALID_RESPONSE' });
-      assert.equal(fixture.calls.some((call) => call[0] === 'apply-songs'), false);
+      assert.equal(
+        fixture.calls.some((call) => call[0] === 'apply-songs'),
+        false,
+      );
       response = { initialized: true, revision: 3, songs: [] };
       await fixture.controller.syncNow();
       assert.equal(reads, 2);
-      assert.deepEqual(fixture.calls.filter((call) => call[0] === 'apply-songs'), [['apply-songs', []]]);
+      assert.deepEqual(
+        fixture.calls.filter((call) => call[0] === 'apply-songs'),
+        [['apply-songs', []]],
+      );
     } finally {
       fixture.controller.dispose();
     }
@@ -60,7 +70,10 @@ test('cloud SSE recovery honors the real Retry-After header beyond the backoff c
     await fixture.controller.start();
     await new Promise((resolve) => setImmediate(resolve));
     assert.ok([...fixture.timers.values()].some((timer) => timer.delay === 120_000));
-    assert.equal([...fixture.timers.values()].some((timer) => timer.delay === 1000), false);
+    assert.equal(
+      [...fixture.timers.values()].some((timer) => timer.delay === 1000),
+      false,
+    );
   } finally {
     fixture.controller.dispose();
   }
@@ -181,8 +194,7 @@ test('only non-credential uninitialized scopes are seeded from the authorized de
     },
     bilibiliAuth: {
       getAuthState: async () => ({ loggedIn: true, uid: 42 }),
-      getCookieHeader: async () =>
-        'DedeUserID=42; SESSDATA=local; bili_jct=local-csrf',
+      getCookieHeader: async () => 'DedeUserID=42; SESSDATA=local; bili_jct=local-csrf',
     },
   });
   await fixture.controller.start();
@@ -202,9 +214,7 @@ test('a settings upload applies the server-assigned custom id and mapping state'
       outputs: [{ giftId: '35207', name: '幸运泡泡', price: 1.5 }],
     },
   ];
-  const assigned = [
-    { ...submitted[0], customId: '11111111-1111-4111-8111-111111111111' },
-  ];
+  const assigned = [{ ...submitted[0], customId: '11111111-1111-4111-8111-111111111111' }];
   const mappingState = {
     mode: 'v2',
     catalogVersion: 'sha256:catalog',
@@ -238,8 +248,7 @@ test('a settings upload applies the server-assigned custom id and mapping state'
         giftBlindBoxConfig: LOCAL_BLIND_BOX_CONFIG,
         giftBlindBoxCustomConfigV2: submitted,
       }),
-      setBlindBoxMappingState: (state) =>
-        fixture.calls.push(['mapping-state', state]),
+      setBlindBoxMappingState: (state) => fixture.calls.push(['mapping-state', state]),
     },
   });
 
@@ -248,10 +257,7 @@ test('a settings upload applies the server-assigned custom id and mapping state'
 
   const applied = fixture.calls.find((call) => call[0] === 'apply-settings');
   assert.deepEqual(applied[1].giftBlindBoxCustomConfigV2, assigned);
-  assert.deepEqual(
-    fixture.calls.find((call) => call[0] === 'mapping-state')[1],
-    mappingState,
-  );
+  assert.deepEqual(fixture.calls.find((call) => call[0] === 'mapping-state')[1], mappingState);
   fixture.controller.dispose();
 });
 
@@ -281,10 +287,7 @@ test('an older initialized cloud state preserves and seeds the local blind-box c
   await fixture.controller.start();
 
   const applied = fixture.calls.find((call) => call[0] === 'apply-settings');
-  assert.equal(
-    Object.prototype.hasOwnProperty.call(applied[1], 'giftBlindBoxConfig'),
-    false,
-  );
+  assert.equal(Object.prototype.hasOwnProperty.call(applied[1], 'giftBlindBoxConfig'), false);
   const seeded = fixture.calls.find((call) => call[0] === 'push-settings');
   assert.deepEqual(seeded[1].giftBlindBoxConfig, LOCAL_BLIND_BOX_CONFIG);
   fixture.controller.dispose();
@@ -316,11 +319,7 @@ test('an explicit empty cloud blind-box config is applied without reseeding', as
 
   await fixture.controller.start();
 
-  assert.deepEqual(
-    fixture.calls.find((call) => call[0] === 'apply-settings')[1]
-      .giftBlindBoxConfig,
-    [],
-  );
+  assert.deepEqual(fixture.calls.find((call) => call[0] === 'apply-settings')[1].giftBlindBoxConfig, []);
   assert.equal(
     fixture.calls.some((call) => call[0] === 'push-settings'),
     false,
@@ -420,9 +419,7 @@ test('a mutation during upload remains dirty and uploads the newer snapshot', as
   await fixture.controller.whenIdle();
 
   assert.deepEqual(
-    fixture.calls
-      .filter((call) => call[0] === 'push-songs')
-      .map((call) => call[1]),
+    fixture.calls.filter((call) => call[0] === 'push-songs').map((call) => call[1]),
     [[{ name: 'First local song' }], [{ name: 'Newer local song' }]],
   );
   fixture.controller.dispose();
@@ -467,10 +464,7 @@ test('a local song mutation during a cloud pull blocks the stale replacement', a
     fixture.calls.some((call) => call[0] === 'apply-songs'),
     false,
   );
-  assert.deepEqual(
-    fixture.calls.find((call) => call[0] === 'push-songs')?.[1],
-    [{ name: 'New local song' }],
-  );
+  assert.deepEqual(fixture.calls.find((call) => call[0] === 'push-songs')?.[1], [{ name: 'New local song' }]);
   fixture.controller.dispose();
 });
 
@@ -631,19 +625,14 @@ test('an online cloud revision event immediately reconciles without waiting for 
   });
   await fixture.controller.start();
   const readsAfterStart = cloudReads;
-  const appliesAfterStart = fixture.calls.filter(
-    (call) => call[0] === 'apply-settings',
-  ).length;
+  const appliesAfterStart = fixture.calls.filter((call) => call[0] === 'apply-settings').length;
 
   settingsRevision = 9;
   fixture.emitCloud({ scopes: { settings: 9 } });
   await fixture.controller.whenIdle();
 
   assert.equal(cloudReads, readsAfterStart + 1);
-  assert.equal(
-    fixture.calls.filter((call) => call[0] === 'apply-settings').length,
-    appliesAfterStart + 1,
-  );
+  assert.equal(fixture.calls.filter((call) => call[0] === 'apply-settings').length, appliesAfterStart + 1);
   assert.equal(
     [...fixture.timers.values()].some((timer) => timer.delay === 600_000),
     true,
@@ -679,9 +668,7 @@ test('a closed event stream reconnects with bounded backoff and reconciles on re
 
   await fixture.controller.start();
   await new Promise((resolve) => setImmediate(resolve));
-  const reconnect = [...fixture.timers.values()].find(
-    (timer) => timer.delay === 1_000,
-  );
+  const reconnect = [...fixture.timers.values()].find((timer) => timer.delay === 1_000);
   assert.ok(reconnect);
   reconnect.callback();
   await new Promise((resolve) => setImmediate(resolve));

@@ -3,9 +3,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const { LicenseState } = require('../src/electron/license/license-manager');
-const {
-  RemoteLicenseError,
-} = require('../src/electron/license/remote-license-client');
+const { RemoteLicenseError } = require('../src/electron/license/remote-license-client');
 const { createHarness } = require('./helpers/license-manager-harness');
 
 function deferred() {
@@ -77,12 +75,17 @@ test('late invalid-token writes never retry under the next account', async (t) =
   const rejected = assert.rejects(pending, { code: 'DEVICE_TOKEN_INVALID' });
   await entered.promise;
   await activateAccount(harness);
-  delayed.reject(new RemoteLicenseError('DEVICE_TOKEN_INVALID', 'invalid', {
-    status: 401,
-  }));
+  delayed.reject(
+    new RemoteLicenseError('DEVICE_TOKEN_INVALID', 'invalid', {
+      status: 401,
+    }),
+  );
   await rejected;
 
-  assert.deepEqual(calls.map(({ token }) => token), ['token-alpha']);
+  assert.deepEqual(
+    calls.map(({ token }) => token),
+    ['token-alpha'],
+  );
   assert.equal(calls[0].songs[0].name, 'Alpha song');
   assertCurrentAccount(manager);
 });
@@ -200,7 +203,7 @@ test('a delayed invalid-token write can retry after renewal of the same owner', 
   const tokens = [];
   const verify = remote.verify;
   remote.verify = async (input) => ({
-    ...await verify(input),
+    ...(await verify(input)),
     accessToken: 'token-alpha-renewed',
   });
   remote.syncSongs = (_songs, token) => {
@@ -251,13 +254,13 @@ for (const outcome of ['success', 'revoked', 'unavailable']) {
     await activateAccount(harness);
     await manager.syncSongs([]);
     if (outcome === 'success') {
-      delayed.resolve({ ...await verify({ deviceId: 'device-a' }), accessToken: 'stale' });
+      delayed.resolve({ ...(await verify({ deviceId: 'device-a' })), accessToken: 'stale' });
     } else {
-      delayed.reject(new RemoteLicenseError(
-        outcome === 'revoked' ? 'DEVICE_REVOKED' : 'NETWORK_UNAVAILABLE',
-        'old renewal failed',
-        { retryable: outcome === 'unavailable' },
-      ));
+      delayed.reject(
+        new RemoteLicenseError(outcome === 'revoked' ? 'DEVICE_REVOKED' : 'NETWORK_UNAVAILABLE', 'old renewal failed', {
+          retryable: outcome === 'unavailable',
+        }),
+      );
     }
     await Promise.all([writeRejected, readRejected]);
 
@@ -282,7 +285,9 @@ for (const endSession of ['dispose', 'block']) {
     await entered.promise;
     if (endSession === 'dispose') manager.dispose();
     else {
-      remote.getCloudSongs = async () => { throw new RemoteLicenseError('DEVICE_REVOKED'); };
+      remote.getCloudSongs = async () => {
+        throw new RemoteLicenseError('DEVICE_REVOKED');
+      };
       await assert.rejects(manager.getCloudSongs(), { code: 'DEVICE_REVOKED' });
     }
     const snapshot = manager.getSnapshot();
@@ -333,7 +338,7 @@ test('old renewal cleanup cannot detach the next account shared renewal', async 
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(calls.cloudSongsTokens, undefined);
   betaReply.resolve({
-    ...await verify({ deviceId: 'device-b' }),
+    ...(await verify({ deviceId: 'device-b' })),
     accessToken: 'token-beta-renewed',
   });
   await Promise.all([newWrite, pendingRead]);

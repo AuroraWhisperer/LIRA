@@ -1,19 +1,8 @@
 <!-- 全部礼物记录抽屉 -->
 <div class="gift-drawer-backdrop" id="giftHistoryBackdrop"></div>
-<aside
-  class="gift-drawer"
-  id="giftHistoryDrawer"
-  role="dialog"
-  aria-modal="true"
-  aria-labelledby="giftHistoryTitle"
->
+<aside class="gift-drawer" id="giftHistoryDrawer" role="dialog" aria-modal="true" aria-labelledby="giftHistoryTitle">
   <div class="gift-drawer-head">
-    <button
-      id="giftHistoryClose"
-      class="secondary sm"
-      type="button"
-      title="返回礼物（Esc）"
-    >
+    <button id="giftHistoryClose" class="secondary sm" type="button" title="返回礼物（Esc）">
       <svg
         viewBox="0 0 24 24"
         fill="none"
@@ -28,21 +17,11 @@
       返回礼物
     </button>
     <div class="gift-drawer-title">
-      <strong id="giftHistoryTitle" class="ui-section-title"
-        >全部礼物记录</strong
-      >
+      <strong id="giftHistoryTitle" class="ui-section-title">全部礼物记录</strong>
       <span id="giftHistoryTotal" class="ui-caption" hidden></span>
-      <span
-        id="giftLedgerSyncStatus"
-        class="ui-caption"
-        role="status"
-        aria-live="polite"
-        hidden
-      ></span>
+      <span id="giftLedgerSyncStatus" class="ui-caption" role="status" aria-live="polite" hidden></span>
     </div>
-    <button id="giftHistoryRetryBtn" class="secondary sm" type="button" hidden>
-      重新加载
-    </button>
+    <button id="giftHistoryRetryBtn" class="secondary sm" type="button" hidden>重新加载</button>
     <button
       id="giftHistoryClearDatabaseBtn"
       class="danger sm"
@@ -56,7 +35,16 @@
   <form id="giftHistoryFilters" class="gift-history-filters" data-gift-pane="list">
     <label>用户<input id="giftHistoryUserQuery" type="search" maxlength="100" placeholder="名称关键词" /></label>
     <label>礼物<input id="giftHistoryGiftQuery" type="search" maxlength="100" placeholder="礼物名称" /></label>
-    <label>金额大于（元）<input id="giftHistoryAmountAbove" type="number" min="0" step="0.01" inputmode="decimal" placeholder="不限" title="按单条礼物记录的总金额筛选，不包含等于门槛的记录" /></label>
+    <label
+      >金额大于（元）<input
+        id="giftHistoryAmountAbove"
+        type="number"
+        min="0"
+        step="0.01"
+        inputmode="decimal"
+        placeholder="不限"
+        title="按单条礼物记录的总金额筛选，不包含等于门槛的记录"
+    /></label>
     <label>开始日期<input id="giftHistoryStartDate" type="date" /></label>
     <label>结束日期<input id="giftHistoryEndDate" type="date" /></label>
     <div class="gift-history-filter-actions">
@@ -75,9 +63,7 @@
     <button id="giftHistoryExport" type="button" class="primary sm" disabled>导出所选</button>
   </div>
   <div id="giftHistoryScroll" class="gift-drawer-body" data-gift-pane="list">
-    <span id="giftHistoryState" class="sr-only" role="status" aria-live="polite"
-      >正在加载礼物记录…</span
-    >
+    <span id="giftHistoryState" class="sr-only" role="status" aria-live="polite">正在加载礼物记录…</span>
     <table class="gift-history-table" aria-label="礼物记录" aria-describedby="giftHistorySelectionHelp">
       <colgroup>
         <col class="gift-history-select-col" />
@@ -122,12 +108,18 @@
     <button id="giftHistoryNext" type="button" class="secondary" disabled>下一页 →</button>
   </div>
   <section id="giftExportPanel" class="gift-export-panel" data-gift-pane="export" hidden>
-    <div class="gift-subview-head"><button id="giftExportBack" type="button" class="secondary">返回选择</button><span id="giftExportSummary"></span></div>
+    <div class="gift-subview-head">
+      <button id="giftExportBack" type="button" class="secondary">返回选择</button><span id="giftExportSummary"></span>
+    </div>
     <div class="gift-export-layout">
       <div class="gift-export-preview">
         <div class="gift-export-preview-scroll"><div id="giftExportPreview" class="gift-banner-stage"></div></div>
         <div class="gift-export-preview-footer">
-          <div class="gift-preview-pagination"><button id="giftExportPrev" type="button" class="secondary">上一张</button><span id="giftExportPage" aria-label="预览页码"></span><button id="giftExportNext" type="button" class="secondary">下一张</button></div>
+          <div class="gift-preview-pagination">
+            <button id="giftExportPrev" type="button" class="secondary">上一张</button
+            ><span id="giftExportPage" aria-label="预览页码"></span
+            ><button id="giftExportNext" type="button" class="secondary">下一张</button>
+          </div>
           <p id="giftExportFiles" class="hint"></p>
         </div>
       </div>
@@ -137,14 +129,27 @@
             <legend class="gift-export-section-title">导出设置</legend>
             <p class="gift-export-autosave hint">修改自动保存，并应用于本次导出。</p>
             <div class="gift-export-settings-grid">
-              <label>输出方式<select id="giftExportMode" aria-describedby="giftExportModeHint"><option value="combined">拼成一张</option><option value="separate">每条一张</option></select></label>
-              <label>图片背景<select id="giftExportBackground"><option value="transparent">透明</option><option value="white">白色</option></select></label>
+              <label
+                >输出方式<select id="giftExportMode" aria-describedby="giftExportModeHint">
+                  <option value="combined">拼成一张</option>
+                  <option value="separate">每条一张</option>
+                </select></label
+              >
+              <label
+                >图片背景<select id="giftExportBackground">
+                  <option value="transparent">透明</option>
+                  <option value="white">白色</option>
+                </select></label
+              >
             </div>
             <p id="giftExportModeHint" class="hint">拼图超长时会自动分成多张。</p>
             <div class="gift-export-settings-directory">
               <div class="gift-export-directory-head">
                 <label for="giftExportSettingsDirectory">保存文件夹</label>
-                <div class="gift-directory-actions"><button id="giftExportChoose" class="secondary" type="button">选择文件夹</button><button id="giftExportDefault" class="secondary" type="button">系统默认</button></div>
+                <div class="gift-directory-actions">
+                  <button id="giftExportChoose" class="secondary" type="button">选择文件夹</button
+                  ><button id="giftExportDefault" class="secondary" type="button">系统默认</button>
+                </div>
               </div>
               <output id="giftExportSettingsDirectory"></output>
               <p class="hint">每次导出会在此文件夹下新建日期和批次目录。</p>

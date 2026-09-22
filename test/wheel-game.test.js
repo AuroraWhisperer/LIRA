@@ -7,19 +7,11 @@ const {
   createWheelSessionService,
   normalizeWheelEntries,
 } = require('../src/games/wheel-session-service');
-const {
-  createGameSessionService,
-} = require('../src/games/game-session-service');
-const {
-  normalizeWheelConfigInput,
-  routes,
-} = require('../src/server/routes/game-routes');
+const { createGameSessionService } = require('../src/games/game-session-service');
+const { normalizeWheelConfigInput, routes } = require('../src/server/routes/game-routes');
 
 test('wheel validates entries and selects an entry by its configured share count', () => {
-  assert.throws(
-    () => normalizeWheelEntries([{ label: '仅一个选项', weight: 1 }]),
-    /2-12/,
-  );
+  assert.throws(() => normalizeWheelEntries([{ label: '仅一个选项', weight: 1 }]), /2-12/);
   assert.throws(
     () =>
       normalizeWheelEntries([
@@ -86,10 +78,9 @@ test('wheel configuration and drawing are independent from the two-game session 
 });
 
 test('wheel routes normalize config and return the service state in the standard envelope', async () => {
-  assert.deepEqual(
-    normalizeWheelConfigInput({ entries: [{ label: '  A  ', weight: 2 }] }),
-    [{ label: 'A', weight: 2 }],
-  );
+  assert.deepEqual(normalizeWheelConfigInput({ entries: [{ label: '  A  ', weight: 2 }] }), [
+    { label: 'A', weight: 2 },
+  ]);
   let status;
   let payload;
   const wheel = createWheelSessionService({ random: () => 0 });

@@ -10,15 +10,23 @@
   </head>
   <body>
     <main id="interactionStage" class="interaction-stage" hidden>
-      <header class="interaction-header"><h1 id="interactionTitle" class="interaction-heading"></h1><span id="interactionStatus" class="interaction-status"></span></header>
+      <header class="interaction-header">
+        <h1 id="interactionTitle" class="interaction-heading"></h1>
+        <span id="interactionStatus" class="interaction-status"></span>
+      </header>
       <p id="interactionHint" class="interaction-hint"></p>
       <div id="interactionRows" class="interaction-rows"></div>
       <div id="interactionRatingRules" class="interaction-rating-rules" hidden></div>
       <section id="interactionScore" class="interaction-score" hidden>
         <span id="interactionScoreLabel">最终均分</span>
-        <div class="interaction-score-value"><strong id="interactionAverage">—</strong><span id="interactionScoreScale" class="interaction-score-scale">/ 10</span></div>
+        <div class="interaction-score-value">
+          <strong id="interactionAverage">—</strong
+          ><span id="interactionScoreScale" class="interaction-score-scale">/ 10</span>
+        </div>
       </section>
-      <footer class="interaction-footer"><span id="interactionParticipants"></span><span id="interactionWarning" class="interaction-warning"></span></footer>
+      <footer class="interaction-footer">
+        <span id="interactionParticipants"></span><span id="interactionWarning" class="interaction-warning"></span>
+      </footer>
     </main>
     <script type="module" src="/js/overlays/interactions.js"></script>
   </body>

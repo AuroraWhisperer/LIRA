@@ -21,23 +21,12 @@ export class LyricClock {
   setState(nextState = {}, options = {}) {
     const now = this.now();
     const previous = this.getPosition(now);
-    const incomingCurrentMs = numberValue(
-      nextState.currentMs,
-      previous.currentMs,
-    );
-    const durationMs = Math.max(
-      0,
-      numberValue(nextState.durationMs, this.anchor.durationMs),
-    );
+    const incomingCurrentMs = numberValue(nextState.currentMs, previous.currentMs);
+    const durationMs = Math.max(0, numberValue(nextState.durationMs, this.anchor.durationMs));
     const playing = nextState.playing === true;
-    const discontinuity =
-      options.force === true || options.discontinuity === true;
+    const discontinuity = options.force === true || options.discontinuity === true;
     const drift = incomingCurrentMs - previous.currentMs;
-    const shouldAnchor =
-      !this.hasState ||
-      discontinuity ||
-      !playing ||
-      Math.abs(drift) > this.driftThresholdMs;
+    const shouldAnchor = !this.hasState || discontinuity || !playing || Math.abs(drift) > this.driftThresholdMs;
     const currentMs = shouldAnchor ? incomingCurrentMs : previous.currentMs;
 
     this.state = {
@@ -50,14 +39,7 @@ export class LyricClock {
     this.anchor = {
       currentMs: clampDuration(currentMs, durationMs),
       durationMs,
-      progress: clamp(
-        numberValue(
-          nextState.progress,
-          durationMs > 0 ? currentMs / durationMs : 0,
-        ),
-        0,
-        1,
-      ),
+      progress: clamp(numberValue(nextState.progress, durationMs > 0 ? currentMs / durationMs : 0), 0, 1),
       updatedAt: now,
     };
     this.hasState = true;
@@ -66,17 +48,9 @@ export class LyricClock {
 
   getPosition(now = this.now()) {
     const timestamp = numberValue(now, this.now());
-    const elapsed = this.state.playing
-      ? Math.max(0, timestamp - this.anchor.updatedAt)
-      : 0;
-    const currentMs = clampDuration(
-      this.anchor.currentMs + elapsed,
-      this.anchor.durationMs,
-    );
-    const progress =
-      this.anchor.durationMs > 0
-        ? currentMs / this.anchor.durationMs
-        : this.anchor.progress;
+    const elapsed = this.state.playing ? Math.max(0, timestamp - this.anchor.updatedAt) : 0;
+    const currentMs = clampDuration(this.anchor.currentMs + elapsed, this.anchor.durationMs);
+    const progress = this.anchor.durationMs > 0 ? currentMs / this.anchor.durationMs : this.anchor.progress;
     return { currentMs, progress: clamp(progress, 0, 1) };
   }
 
@@ -94,10 +68,7 @@ export class LyricClock {
 }
 
 function clockNow() {
-  return typeof performance !== 'undefined' &&
-    typeof performance.now === 'function'
-    ? performance.now()
-    : Date.now();
+  return typeof performance !== 'undefined' && typeof performance.now === 'function' ? performance.now() : Date.now();
 }
 
 function numberValue(value, fallback) {

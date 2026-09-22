@@ -16,11 +16,7 @@ export function createOvertimeRuleEffectEditor({
     fixedPanel.dataset.effectMode = 'fixed';
     const sentence = documentRef.createElement('div');
     sentence.className = 'overtime-effect-sentence';
-    sentence.append(
-      createEffectControls(
-        normalizeEffect(rule.fixedEffect, rule.fixedSeconds),
-      ),
-    );
+    sentence.append(createEffectControls(normalizeEffect(rule.fixedEffect, rule.fixedSeconds)));
     fixedPanel.append(sentence);
 
     const randomPanel = documentRef.createElement('section');
@@ -30,9 +26,7 @@ export function createOvertimeRuleEffectEditor({
     randomHint.className = 'overtime-random-hint';
     const randomHintTitle = documentRef.createElement('strong');
     randomHintTitle.textContent = '机会值';
-    randomHintTitle.append(
-      createHelp('数值越大越容易抽中；系统会自动换算百分比。'),
-    );
+    randomHintTitle.append(createHelp('数值越大越容易抽中；系统会自动换算百分比。'));
     randomHint.append(randomHintTitle);
     randomPanel.append(randomHint);
 
@@ -43,9 +37,7 @@ export function createOvertimeRuleEffectEditor({
       Array.isArray(rule.outcomes) && rule.outcomes.length >= minRandomOutcomes
         ? rule.outcomes
         : createDefaultOutcomes(minRandomOutcomes);
-    outcomes.forEach((outcome, outcomeIndex) =>
-      outcomeList.append(createOutcomeCard(outcome, outcomeIndex)),
-    );
+    outcomes.forEach((outcome, outcomeIndex) => outcomeList.append(createOutcomeCard(outcome, outcomeIndex)));
     randomPanel.append(outcomeList);
 
     const randomFooter = documentRef.createElement('div');
@@ -59,12 +51,7 @@ export function createOvertimeRuleEffectEditor({
     addOutcome.textContent = '＋ 添加结果';
     addOutcome.addEventListener('click', () => {
       if (outcomeList.children.length >= maxRandomOutcomes) return;
-      outcomeList.append(
-        createOutcomeCard(
-          { operation: 'add', value: 60, weight: 10 },
-          outcomeList.children.length,
-        ),
-      );
+      outcomeList.append(createOutcomeCard({ operation: 'add', value: 60, weight: 10 }, outcomeList.children.length));
       refreshOutcomeCards(randomPanel);
       updateRuleSummary(randomPanel.closest('[data-overtime-rule]'));
       markDirty();
@@ -73,8 +60,7 @@ export function createOvertimeRuleEffectEditor({
     randomFooter.append(outcomeCount, addOutcome);
     randomPanel.append(randomFooter);
     randomPanel.addEventListener('input', (event) => {
-      if (event.target.matches('[data-outcome-weight]'))
-        updateOutcomeProbabilities(randomPanel);
+      if (event.target.matches('[data-outcome-weight]')) updateOutcomeProbabilities(randomPanel);
     });
 
     const displayPanel = documentRef.createElement('section');
@@ -93,19 +79,13 @@ export function createOvertimeRuleEffectEditor({
     displayInput.placeholder = `最多 ${maxDisplayTextLength} 个字符`;
     displayInput.autocomplete = 'off';
     displayInput.dataset.displayText = 'true';
-    displayInput.setAttribute(
-      'aria-label',
-      `文字展板内容，最多 ${maxDisplayTextLength} 个字符`,
-    );
+    displayInput.setAttribute('aria-label', `文字展板内容，最多 ${maxDisplayTextLength} 个字符`);
     displayLabel.append(displayCaption, displayInput);
     displayPanel.append(displayLabel);
 
     root.append(fixedPanel, randomPanel, displayPanel);
     refreshOutcomeCards(randomPanel);
-    setEffectMode(
-      root,
-      ['random', 'display'].includes(rule.mode) ? rule.mode : 'fixed',
-    );
+    setEffectMode(root, ['random', 'display'].includes(rule.mode) ? rule.mode : 'fixed');
   }
 
   function createEffectControls(effect) {
@@ -114,9 +94,7 @@ export function createOvertimeRuleEffectEditor({
     const operation = createOperationControl(effect.operation);
     const duration = createDurationControl(effect.value);
     duration.dataset.effectDuration = 'true';
-    const factor = createFactorControl(
-      ['multiply', 'divide'].includes(effect.operation) ? effect.value : 2,
-    );
+    const factor = createFactorControl(['multiply', 'divide'].includes(effect.operation) ? effect.value : 2);
     const clearHint = documentRef.createElement('strong');
     clearHint.className = 'overtime-clear-hint';
     clearHint.dataset.effectClear = 'true';
@@ -136,27 +114,9 @@ export function createOvertimeRuleEffectEditor({
     const name = nextControlId('operation');
     fieldset.append(
       createOperationOption(name, 'add', '增加', '＋', selected === 'add'),
-      createOperationOption(
-        name,
-        'subtract',
-        '减少',
-        '－',
-        selected === 'subtract',
-      ),
-      createOperationOption(
-        name,
-        'multiply',
-        '乘倍数',
-        '×',
-        selected === 'multiply',
-      ),
-      createOperationOption(
-        name,
-        'divide',
-        '除倍数',
-        '÷',
-        selected === 'divide',
-      ),
+      createOperationOption(name, 'subtract', '减少', '－', selected === 'subtract'),
+      createOperationOption(name, 'multiply', '乘倍数', '×', selected === 'multiply'),
+      createOperationOption(name, 'divide', '除倍数', '÷', selected === 'divide'),
       createOperationOption(name, 'clear', '清零', '0', selected === 'clear'),
     );
     return fieldset;
@@ -199,17 +159,9 @@ export function createOvertimeRuleEffectEditor({
   }
 
   function syncEffectControls(root) {
-    const operation = root.querySelector(
-      '[data-rule-operation]:checked',
-    )?.value;
-    root.querySelector('[data-effect-duration]').hidden = ![
-      'add',
-      'subtract',
-    ].includes(operation);
-    root.querySelector('[data-effect-factor-control]').hidden = ![
-      'multiply',
-      'divide',
-    ].includes(operation);
+    const operation = root.querySelector('[data-rule-operation]:checked')?.value;
+    root.querySelector('[data-effect-duration]').hidden = !['add', 'subtract'].includes(operation);
+    root.querySelector('[data-effect-factor-control]').hidden = !['multiply', 'divide'].includes(operation);
     root.querySelector('[data-effect-clear]').hidden = operation !== 'clear';
   }
 
@@ -266,9 +218,7 @@ export function createOvertimeRuleEffectEditor({
 
     const result = documentRef.createElement('div');
     result.className = 'overtime-outcome-result';
-    result.append(
-      createEffectControls(normalizeEffect(outcome, outcome?.seconds)),
-    );
+    result.append(createEffectControls(normalizeEffect(outcome, outcome?.seconds)));
 
     const chance = documentRef.createElement('label');
     chance.className = 'overtime-outcome-weight';
@@ -293,12 +243,7 @@ export function createOvertimeRuleEffectEditor({
     remove.textContent = '删除结果';
     remove.addEventListener('click', () => {
       const editor = card.closest('.overtime-random-editor');
-      if (
-        !editor ||
-        editor.querySelectorAll('[data-random-outcome]').length <=
-          getLimits().minRandomOutcomes
-      )
-        return;
+      if (!editor || editor.querySelectorAll('[data-random-outcome]').length <= getLimits().minRandomOutcomes) return;
       const row = card.closest('[data-overtime-rule]');
       card.remove();
       refreshOutcomeCards(editor);
@@ -314,8 +259,7 @@ export function createOvertimeRuleEffectEditor({
       { operation: 'add', value: 300, weight: 50 },
       { operation: 'subtract', value: 180, weight: 50 },
     ];
-    while (outcomes.length < count)
-      outcomes.push({ operation: 'add', value: 60, weight: 10 });
+    while (outcomes.length < count) outcomes.push({ operation: 'add', value: 60, weight: 10 });
     return outcomes.slice(0, count);
   }
 
@@ -323,20 +267,14 @@ export function createOvertimeRuleEffectEditor({
     const { minRandomOutcomes, maxRandomOutcomes } = getLimits();
     const cards = Array.from(root.querySelectorAll('[data-random-outcome]'));
     cards.forEach((card, index) => {
-      card.querySelector('[data-outcome-title]').textContent =
-        `可能结果 ${index + 1}`;
-      card
-        .querySelector('[data-outcome-weight]')
-        .setAttribute('aria-label', `可能结果 ${index + 1} 的抽中机会`);
+      card.querySelector('[data-outcome-title]').textContent = `可能结果 ${index + 1}`;
+      card.querySelector('[data-outcome-weight]').setAttribute('aria-label', `可能结果 ${index + 1} 的抽中机会`);
       const remove = card.querySelector('[data-remove-outcome]');
       remove.disabled = cards.length <= minRandomOutcomes;
-      remove.textContent = remove.disabled
-        ? `至少保留 ${minRandomOutcomes} 个结果`
-        : '删除结果';
+      remove.textContent = remove.disabled ? `至少保留 ${minRandomOutcomes} 个结果` : '删除结果';
     });
     const count = root.querySelector('[data-outcome-count]');
-    if (count)
-      count.textContent = `${cards.length} 个结果（最多 ${maxRandomOutcomes} 个）`;
+    if (count) count.textContent = `${cards.length} 个结果（最多 ${maxRandomOutcomes} 个）`;
     const add = root.querySelector('[data-add-outcome]');
     if (add) add.disabled = cards.length >= maxRandomOutcomes;
     updateOutcomeProbabilities(root);
@@ -344,12 +282,8 @@ export function createOvertimeRuleEffectEditor({
 
   function updateOutcomeProbabilities(root) {
     const cards = Array.from(root.querySelectorAll('[data-random-outcome]'));
-    const weights = cards.map((card) =>
-      Number(card.querySelector('[data-outcome-weight]').value),
-    );
-    const valid = weights.every(
-      (weight) => Number.isSafeInteger(weight) && weight > 0,
-    );
+    const weights = cards.map((card) => Number(card.querySelector('[data-outcome-weight]').value));
+    const valid = weights.every((weight) => Number.isSafeInteger(weight) && weight > 0);
     const total = valid ? weights.reduce((sum, weight) => sum + weight, 0) : 0;
     cards.forEach((card, index) => {
       const badge = card.querySelector('[data-outcome-probability]');
@@ -359,9 +293,7 @@ export function createOvertimeRuleEffectEditor({
         return;
       }
       const percentage = (weights[index] / total) * 100;
-      const formatted = Number.isInteger(percentage)
-        ? percentage.toFixed(0)
-        : percentage.toFixed(1);
+      const formatted = Number.isInteger(percentage) ? percentage.toFixed(0) : percentage.toFixed(1);
       badge.textContent = `约 ${formatted}%`;
       badge.title = `${weights[index]} ÷ ${total}，自动换算`;
     });

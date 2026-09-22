@@ -13,21 +13,18 @@ function read(...segments) {
 }
 
 function cssImports(source) {
-  return [...source.matchAll(/@import url\('([^']+)'\);/g)].map(
-    ([, importPath]) => importPath,
-  );
+  return [...source.matchAll(/@import url\('([^']+)'\);/g)].map(([, importPath]) => importPath);
 }
 
 test('admin stylesheet entries load shared and feature-owned styles in order', () => {
   const adminEntry = read('public', 'css', 'styles-admin.css');
   const toastEntry = read('public', 'css', 'admin', 'toasts.css');
   const workspaceEntry = read('public', 'css', 'admin', 'workspace.css');
+  const songEntry = read('public', 'css', 'admin', 'workspace', 'song.css');
+  const desktopEntry = read('public', 'css', 'overlays', 'desktop.css');
   const toolboxEntry = read('public', 'css', 'admin', 'other-features.css');
 
-  assert.match(
-    adminEntry,
-    /@import url\('\.\/components\/switch-control\.css'\);/,
-  );
+  assert.match(adminEntry, /@import url\('\.\/components\/switch-control\.css'\);/);
   assert.deepEqual(cssImports(toastEntry), [
     './toasts/system.css',
     './toasts/ai.css',
@@ -36,14 +33,15 @@ test('admin stylesheet entries load shared and feature-owned styles in order', (
     './toasts/desktop-update.css',
     './toasts/gifts.css',
   ]);
-  assert.match(
-    workspaceEntry,
-    /@import url\('\.\/workspace\/song-overlay-settings\.css'\);/,
-  );
-  assert.match(
-    toolboxEntry,
-    /@import url\('\.\/other-features\/performance\.css'\);/,
-  );
+  assert.match(workspaceEntry, /@import url\('\.\/workspace\/song-overlay-settings\.css'\);/);
+  assert.deepEqual(cssImports(songEntry), ['./song-management.css', './song-layout.css']);
+  assert.deepEqual(cssImports(desktopEntry), [
+    './desktop-scrollbars.css',
+    '../desktop/theme.css',
+    '../desktop/update.css',
+    '../desktop/shell.css',
+  ]);
+  assert.match(toolboxEntry, /@import url\('\.\/other-features\/performance\.css'\);/);
   assert.match(
     toolboxEntry,
     /@import url\('\.\/other-features\/usage-guide-navigation\.css'\);\s*@import url\('\.\/other-features\/usage-guide\.css'\);/,
@@ -66,10 +64,7 @@ test('toast implementation files contain only shared or transient surface rules'
     giftStyles,
     /\.(?:overlay-address|identity-rule|style-picker|monitor-|metrics-countdown|hardware-|switch-control)/,
   );
-  assert.doesNotMatch(
-    tabStyles,
-    /\.(?:toast-stack|toast|playback-login-toast)/,
-  );
+  assert.doesNotMatch(tabStyles, /\.(?:toast-stack|toast|playback-login-toast)/);
 });
 
 test('resolved admin styles keep one toast foundation and all moved consumers', () => {
@@ -80,8 +75,7 @@ test('resolved admin styles keep one toast foundation and all moved consumers', 
     readCssBundle('public', 'css', 'admin', 'workspace.css'),
     readCssBundle('public', 'css', 'admin', 'other-features.css'),
   ].join('\n');
-  const countRules = (selector) =>
-    [...styles.matchAll(new RegExp(`${selector}\\s*\\{`, 'g'))].length;
+  const countRules = (selector) => [...styles.matchAll(new RegExp(`${selector}\\s*\\{`, 'g'))].length;
 
   assert.equal(countRules('\\.toast-stack'), 1);
   assert.equal(countRules('\\.playback-login-toast'), 1);
@@ -101,25 +95,10 @@ test('resolved admin styles keep one toast foundation and all moved consumers', 
 });
 
 test('live refresh toast keeps a resolvable image', () => {
-  const livePath = path.join(
-    ROOT_DIR,
-    'public',
-    'css',
-    'admin',
-    'toasts',
-    'live.css',
-  );
+  const livePath = path.join(ROOT_DIR, 'public', 'css', 'admin', 'toasts', 'live.css');
   const liveStyles = fs.readFileSync(livePath, 'utf8');
-  const assetReference = liveStyles.match(
-    /url\(['"]([^'"]*live-refresh-icon\.webp)['"]\)/,
-  )?.[1];
+  const assetReference = liveStyles.match(/url\(['"]([^'"]*live-refresh-icon\.webp)['"]\)/)?.[1];
 
-  assert.ok(
-    assetReference,
-    'live refresh image reference should remain defined',
-  );
-  assert.equal(
-    fs.existsSync(path.resolve(path.dirname(livePath), assetReference)),
-    true,
-  );
+  assert.ok(assetReference, 'live refresh image reference should remain defined');
+  assert.equal(fs.existsSync(path.resolve(path.dirname(livePath), assetReference)), true);
 });

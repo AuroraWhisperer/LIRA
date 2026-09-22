@@ -11,23 +11,11 @@ export function createToolboxLifecycle({ loaders, onError }) {
 
   async function activate() {
     const selected = featureId;
-    if (
-      disposed ||
-      pageId !== 'otherAssistantPage' ||
-      !loaders[selected] ||
-      initialized.has(selected)
-    )
-      return;
+    if (disposed || pageId !== 'otherAssistantPage' || !loaders[selected] || initialized.has(selected)) return;
     try {
       if (!loaded.has(selected)) loaded.set(selected, loaders[selected]());
       const init = await loaded.get(selected);
-      if (
-        disposed ||
-        pageId !== 'otherAssistantPage' ||
-        featureId !== selected ||
-        initialized.has(selected)
-      )
-        return;
+      if (disposed || pageId !== 'otherAssistantPage' || featureId !== selected || initialized.has(selected)) return;
       initialized.add(selected);
       init();
     } catch (error) {

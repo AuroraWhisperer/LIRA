@@ -6,19 +6,13 @@ const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 const { run } = require('../scripts/initialize-gift-catalog');
-const {
-  CACHE_FILE_NAME,
-} = require('../src/bilibili/gift/remote-catalog-cache');
-const {
-  STATE_FILE_NAME,
-} = require('../src/bilibili/gift/gift-catalog-initializer');
+const { CACHE_FILE_NAME } = require('../src/bilibili/gift/remote-catalog-cache');
+const { STATE_FILE_NAME } = require('../src/bilibili/gift/gift-catalog-initializer');
 
 const QUIET_LOGGER = { debug() {}, warn() {} };
 
 test('gift catalog CLI persists the versioned gold catalog and downloads its images', async (t) => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'lira-gift-catalog-cli-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-gift-catalog-cli-'));
   t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
   const requests = [];
   const progress = [];
@@ -32,10 +26,7 @@ test('gift catalog CLI persists the versioned gold catalog and downloads its ima
     onProgress: (state) => progress.push(state),
     fetchImpl: async (url, options = {}) => {
       requests.push({ url: String(url), options });
-      if (
-        url ===
-        'https://api.example.test/api/public/gifts/catalog?schemaVersion=3'
-      ) {
+      if (url === 'https://api.example.test/api/public/gifts/catalog?schemaVersion=3') {
         assert.equal(options.headers.Authorization, undefined);
         return new Response(
           JSON.stringify({
@@ -100,33 +91,21 @@ test('gift catalog CLI persists the versioned gold catalog and downloads its ima
     ],
   );
 
-  const catalog = JSON.parse(
-    fs.readFileSync(path.join(dataDir, 'cache', CACHE_FILE_NAME), 'utf8'),
-  );
+  const catalog = JSON.parse(fs.readFileSync(path.join(dataDir, 'cache', CACHE_FILE_NAME), 'utf8'));
   assert.equal(catalog.schemaVersion, 2);
   assert.deepEqual(catalog.blindBoxes, []);
   assert.deepEqual(
     catalog.gifts.map((gift) => gift.id),
     ['7001'],
   );
-  assert.equal(
-    catalog.gifts[0].sourceUrl,
-    'https://i0.hdslb.com/bfs/live/cli-paid.webp',
-  );
+  assert.equal(catalog.gifts[0].sourceUrl, 'https://i0.hdslb.com/bfs/live/cli-paid.webp');
   const imageDir = path.join(dataDir, 'cache', 'overtime-gift-images');
-  const index = JSON.parse(
-    fs.readFileSync(path.join(imageDir, 'index.json'), 'utf8'),
-  );
+  const index = JSON.parse(fs.readFileSync(path.join(imageDir, 'index.json'), 'utf8'));
   assert.equal(index.schemaVersion, 2);
   assert.deepEqual(Object.keys(index.images), [catalog.gifts[0].variantId]);
-  assert.deepEqual(
-    fs.readdirSync(imageDir).sort(),
-    [index.images[catalog.gifts[0].variantId], 'index.json'].sort(),
-  );
+  assert.deepEqual(fs.readdirSync(imageDir).sort(), [index.images[catalog.gifts[0].variantId], 'index.json'].sort());
 
-  const completion = JSON.parse(
-    fs.readFileSync(path.join(dataDir, 'cache', STATE_FILE_NAME), 'utf8'),
-  );
+  const completion = JSON.parse(fs.readFileSync(path.join(dataDir, 'cache', STATE_FILE_NAME), 'utf8'));
   assert.equal(completion.catalogVersion, 'cli-v1');
   assert.equal(completion.total, 1);
   assert.equal(completion.available, 1);

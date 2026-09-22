@@ -114,14 +114,8 @@ test('fans snapshot does not override identity captured from the point-song danm
 
 test('online viewer candidates only include the latest online snapshot', () => {
   const cache = new IdentityCache();
-  cache.remember(
-    { uid: '1', userName: 'Online', currentRoom: true },
-    { currentRoom: true, source: 'online_rank' },
-  );
-  cache.remember(
-    { uid: '2', userName: 'Recent', currentRoom: true },
-    { currentRoom: true, source: 'danmaku' },
-  );
+  cache.remember({ uid: '1', userName: 'Online', currentRoom: true }, { currentRoom: true, source: 'online_rank' });
+  cache.remember({ uid: '2', userName: 'Recent', currentRoom: true }, { currentRoom: true, source: 'danmaku' });
   cache.markOnlineSnapshot(['1']);
   assert.deepEqual(
     cache.listOnline().map((viewer) => viewer.uid),
@@ -142,10 +136,7 @@ test('cached online viewer avatar is reused by a later danmaku identity', () => 
     { currentRoom: true, source: 'online_rank' },
   );
 
-  assert.equal(
-    cache.resolve({ uid: '1', userName: 'Online' }).avatarUrl,
-    'https://i0.hdslb.com/bfs/face/online.jpg',
-  );
+  assert.equal(cache.resolve({ uid: '1', userName: 'Online' }).avatarUrl, 'https://i0.hdslb.com/bfs/face/online.jpg');
 });
 
 test('recent users do not let a masked name overwrite a cached full name', () => {

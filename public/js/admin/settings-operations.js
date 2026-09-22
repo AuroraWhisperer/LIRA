@@ -64,12 +64,7 @@ export function createSettingsOperations({
     const confirmed = await dangerConfirm({
       title: '清空歌曲和使用记录',
       message: '将删除下方列出的歌曲和使用记录，并清理 QQ 音乐、网易云音乐缓存。请先核对删除和保留的内容。',
-      deletes: [
-        '歌曲与点歌数据',
-        'SC、礼物与加班机记录',
-        '播放、签到与 AI 运行数据',
-        'QQ 音乐、网易云音乐缓存',
-      ],
+      deletes: ['歌曲与点歌数据', 'SC、礼物与加班机记录', '播放、签到与 AI 运行数据', 'QQ 音乐、网易云音乐缓存'],
       keeps: [
         '直播间号、主题与其他设置',
         'AI 配置、主题预设',
@@ -90,37 +85,30 @@ export function createSettingsOperations({
         }
       }
       try {
-        for (
-          let index = (localStorageRef?.length || 0) - 1;
-          index >= 0;
-          index--
-        ) {
+        for (let index = (localStorageRef?.length || 0) - 1; index >= 0; index--) {
           const key = localStorageRef.key(index);
-          if (key?.startsWith('playbackCache:'))
-            localStorageRef.removeItem(key);
+          if (key?.startsWith('playbackCache:')) localStorageRef.removeItem(key);
         }
       } catch (error) {
         void error;
       }
 
-      if (reloadAfterPartialClearAll(response, { alertRef, locationRef }))
-        return;
+      if (reloadAfterPartialClearAll(response, { alertRef, locationRef })) return;
 
       const deleted = response.data.deletedCounts;
       const total = response.data.totalDeleted || 0;
       const resultNode = documentRef.getElementById('clearAllResult');
       if (resultNode) {
         resultNode.hidden = false;
-        resultNode.textContent = `歌曲 ${deleted.songs} · 队列 ${deleted.queue} · 记录 ${deleted.requests} · ` +
+        resultNode.textContent =
+          `歌曲 ${deleted.songs} · 队列 ${deleted.queue} · 记录 ${deleted.requests} · ` +
           `SC ${deleted.sc} · 礼物 ${deleted.gifts} · 播放 ${deleted.playHistory} · ` +
           `签到 ${deleted.checkins}（共 ${total} 条），配置已保留`;
       }
       toast(`已清空共 ${total} 条数据，配置已保留`, { type: 'success' });
       await getState()?.reloadAll?.();
     } catch (error) {
-      if (
-        reloadAfterPartialClearAll(error.payload, { alertRef, locationRef })
-      ) {
+      if (reloadAfterPartialClearAll(error.payload, { alertRef, locationRef })) {
         return;
       }
       toast('清空失败：' + (error.message || String(error)), { type: 'error' });
@@ -164,8 +152,7 @@ export function createSettingsOperations({
     const confirmed = await showConfirmationDialog({
       variant: 'caution',
       title: '退出 LIRA？',
-      description:
-        '应用会关闭本地服务、断开弹幕连接并释放端口。已保存的数据不会受到影响。',
+      description: '应用会关闭本地服务、断开弹幕连接并释放端口。已保存的数据不会受到影响。',
       confirmLabel: '退出 LIRA',
       initialFocus: 'cancel',
     });
@@ -187,26 +174,22 @@ export function createSettingsOperations({
     const isDesktop = Boolean(windowRef.songAssistantDesktop);
     documentRef.body.innerHTML = renderShutdownScreen(isDesktop);
     if (isDesktop) {
-      documentRef
-        .getElementById('restartAppBtn')
-        .addEventListener('click', async () => {
-          const button = documentRef.getElementById('restartAppBtn');
-          button.disabled = true;
-          button.textContent = '正在重新启动…';
-          try {
-            await windowRef.songAssistantDesktop.restart();
-          } catch (error) {
-            void error;
-            button.textContent = '重启失败，请手动启动';
-          }
-        });
-    }
-    documentRef
-      .getElementById('closeWindowBtn')
-      .addEventListener('click', () => {
-        if (isDesktop) windowRef.songAssistantDesktop.closeWindow();
-        else windowRef.close();
+      documentRef.getElementById('restartAppBtn').addEventListener('click', async () => {
+        const button = documentRef.getElementById('restartAppBtn');
+        button.disabled = true;
+        button.textContent = '正在重新启动…';
+        try {
+          await windowRef.songAssistantDesktop.restart();
+        } catch (error) {
+          void error;
+          button.textContent = '重启失败，请手动启动';
+        }
       });
+    }
+    documentRef.getElementById('closeWindowBtn').addEventListener('click', () => {
+      if (isDesktop) windowRef.songAssistantDesktop.closeWindow();
+      else windowRef.close();
+    });
   }
 
   async function reconnectBilibili() {
@@ -226,9 +209,7 @@ export function createSettingsOperations({
         getQueue()?.renderState?.(appState, getState()?.getSongs?.());
       }
       if (!response.ok || !payload.ok) {
-        throw new Error(
-          payload.error || `刷新直播失败（HTTP ${response.status}）`,
-        );
+        throw new Error(payload.error || `刷新直播失败（HTTP ${response.status}）`);
       }
       if (payload.data?.liveStatus) {
         showStackedToast({

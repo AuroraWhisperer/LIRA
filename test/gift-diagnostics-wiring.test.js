@@ -9,21 +9,12 @@ const { loadModuleExports } = require('./helpers/frontend-modules');
 const ROOT_DIR = path.resolve(__dirname, '..');
 
 test('desktop keeps the gift display bridge as a no-op compatibility channel', () => {
-  const source = fs.readFileSync(
-    path.join(ROOT_DIR, 'src', 'electron', 'preload.js'),
-    'utf8',
-  );
-  assert.match(
-    source,
-    /reportGiftDisplay:\s*\(gift\)\s*=>\s*ipcRenderer\.invoke\('desktop:gift-display', gift\)/,
-  );
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'src', 'electron', 'preload.js'), 'utf8');
+  assert.match(source, /reportGiftDisplay:\s*\(gift\)\s*=>\s*ipcRenderer\.invoke\('desktop:gift-display', gift\)/);
 
   const mainSource = [
     fs.readFileSync(path.join(ROOT_DIR, 'src', 'electron', 'main.js'), 'utf8'),
-    fs.readFileSync(
-      path.join(ROOT_DIR, 'src', 'electron', 'ipc', 'update-ipc.js'),
-      'utf8',
-    ),
+    fs.readFileSync(path.join(ROOT_DIR, 'src', 'electron', 'ipc', 'update-ipc.js'), 'utf8'),
   ].join('\n');
   assert.match(mainSource, /ipcMain\.handle\('desktop:gift-display'/);
   assert.doesNotMatch(mainSource, /\[Bilibili\]\[GiftDisplay\]/);
@@ -33,14 +24,8 @@ test('desktop keeps the gift display bridge as a no-op compatibility channel', (
 test('server broadcasts finalized gifts without per-gift diagnostic output', () => {
   const source = [
     fs.readFileSync(path.join(ROOT_DIR, 'src', 'server.js'), 'utf8'),
-    fs.readFileSync(
-      path.join(ROOT_DIR, 'src', 'server', 'runtime-transport.js'),
-      'utf8',
-    ),
-    fs.readFileSync(
-      path.join(ROOT_DIR, 'src', 'server', 'bilibili-client.js'),
-      'utf8',
-    ),
+    fs.readFileSync(path.join(ROOT_DIR, 'src', 'server', 'runtime-transport.js'), 'utf8'),
+    fs.readFileSync(path.join(ROOT_DIR, 'src', 'server', 'bilibili-client.js'), 'utf8'),
   ].join('\n');
   assert.doesNotMatch(source, /domainServices\.gifts\.add\(/);
   assert.match(source, /broadcastSnapshot\('bilibili:gift'\)/);

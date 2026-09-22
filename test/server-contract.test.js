@@ -8,18 +8,13 @@ const path = require('node:path');
 const { execFileSync, spawnSync } = require('node:child_process');
 const test = require('node:test');
 
-const VERIFIER_PATH = path.resolve(
-  __dirname,
-  '../scripts/verify-server-contract.js',
-);
+const VERIFIER_PATH = path.resolve(__dirname, '../scripts/verify-server-contract.js');
 const FIRST_FIXTURE = 'docs/protocol/fixtures/synthetic.json';
 const SECOND_FIXTURE = 'test/fixtures/synthetic.json';
 
 function fixture(t) {
   const temporaryParent = fs.realpathSync(os.tmpdir());
-  const root = fs.realpathSync(
-    fs.mkdtempSync(path.join(temporaryParent, 'lira server contract-')),
-  );
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(temporaryParent, 'lira server contract-')));
   t.after(() => {
     assert.equal(path.dirname(root), temporaryParent);
     assert.equal(fs.realpathSync(root), root);
@@ -34,10 +29,7 @@ function fixture(t) {
     fs.mkdirSync(path.dirname(filename), { recursive: true });
     fs.writeFileSync(filename, value);
   };
-  write(
-    FIRST_FIXTURE,
-    JSON.stringify({ synthetic: true, title: '歌曲😀' }) + '\n',
-  );
+  write(FIRST_FIXTURE, JSON.stringify({ synthetic: true, title: '歌曲😀' }) + '\n');
   write(SECOND_FIXTURE, JSON.stringify({ synthetic: true, value: 2 }) + '\n');
   write('src/index.js', "module.exports = 'synthetic';\n");
   write('package.json', '{"name":"synthetic-server"}\n');
@@ -47,9 +39,7 @@ function fixture(t) {
   const emptyGitConfig = path.join(root, 'empty-git-config');
   fs.writeFileSync(emptyGitConfig, '');
   const gitEnv = {
-    ...Object.fromEntries(
-      Object.entries(process.env).filter(([key]) => !/^GIT_/i.test(key)),
-    ),
+    ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^GIT_/i.test(key))),
     GIT_CONFIG_NOSYSTEM: '1',
     GIT_CONFIG_GLOBAL: emptyGitConfig,
   };
@@ -118,10 +108,10 @@ test('a clean pinned checkout validates original fixture bytes and parses JSON',
   assert.equal(result.revision, f.lock.revision);
   assert.equal(result.serverRoot, f.serverRoot);
   assert.equal(result.fixtures.size, 2);
-  assert.deepEqual(
-    f.verifier.readServerFixture(FIRST_FIXTURE, { serverRoot: f.serverRoot }),
-    { synthetic: true, title: '歌曲😀' },
-  );
+  assert.deepEqual(f.verifier.readServerFixture(FIRST_FIXTURE, { serverRoot: f.serverRoot }), {
+    synthetic: true,
+    title: '歌曲😀',
+  });
   assert.equal(f.git('status', '--porcelain'), '');
 });
 
@@ -135,10 +125,7 @@ test('explicit roots override LIRA_SERVER_ROOT and the sibling default', (t) => 
     process.env.LIRA_SERVER_ROOT = unrelated;
     assert.equal(f.verifier.resolveServerRoot(), unrelated);
     assert.equal(f.verifier.resolveServerRoot(f.serverRoot), f.serverRoot);
-    assert.equal(
-      f.verifier.verifyServerContract({ serverRoot: f.serverRoot }).revision,
-      f.lock.revision,
-    );
+    assert.equal(f.verifier.verifyServerContract({ serverRoot: f.serverRoot }).revision, f.lock.revision);
   } finally {
     if (previous === undefined) delete process.env.LIRA_SERVER_ROOT;
     else process.env.LIRA_SERVER_ROOT = previous;
@@ -148,12 +135,9 @@ test('explicit roots override LIRA_SERVER_ROOT and the sibling default', (t) => 
 test('an unavailable checkout fails without creating or replacing it', (t) => {
   const f = fixture(t);
   const missing = path.join(f.root, 'missing server');
-  assert.throws(
-    () => f.verifier.verifyServerContract({ serverRoot: missing }),
-    {
-      code: 'SERVER_CONTRACT_CHECKOUT_REQUIRED',
-    },
-  );
+  assert.throws(() => f.verifier.verifyServerContract({ serverRoot: missing }), {
+    code: 'SERVER_CONTRACT_CHECKOUT_REQUIRED',
+  });
   assert.equal(fs.existsSync(missing), false);
 });
 
@@ -173,12 +157,9 @@ test('a different commit fails even when all fixture contents still match', (t) 
   f.write('src/index.js', "module.exports = 'next synthetic revision';\n");
   const actualRevision = f.commit();
   assert.notEqual(actualRevision, f.lock.revision);
-  assert.throws(
-    () => f.verifier.verifyServerContract({ serverRoot: f.serverRoot }),
-    {
-      code: 'SERVER_CONTRACT_REVISION_MISMATCH',
-    },
-  );
+  assert.throws(() => f.verifier.verifyServerContract({ serverRoot: f.serverRoot }), {
+    code: 'SERVER_CONTRACT_REVISION_MISMATCH',
+  });
   assert.equal(f.git('rev-parse', 'HEAD'), actualRevision);
 });
 
@@ -197,10 +178,7 @@ for (const staged of [false, true]) {
         code: 'SERVER_CONTRACT_FIXTURE_MISMATCH',
       },
     );
-    assert.equal(
-      fs.readFileSync(path.join(f.serverRoot, SECOND_FIXTURE), 'utf8'),
-      changed,
-    );
+    assert.equal(fs.readFileSync(path.join(f.serverRoot, SECOND_FIXTURE), 'utf8'), changed);
     assert.equal(f.git('rev-parse', 'HEAD'), f.lock.revision);
   });
 }
@@ -217,12 +195,9 @@ test('missing and undeclared fixture paths fail explicitly', (t) => {
     },
   );
   fs.unlinkSync(path.join(f.serverRoot, SECOND_FIXTURE));
-  assert.throws(
-    () => f.verifier.verifyServerContract({ serverRoot: f.serverRoot }),
-    {
-      code: 'SERVER_CONTRACT_FIXTURE_MISSING',
-    },
-  );
+  assert.throws(() => f.verifier.verifyServerContract({ serverRoot: f.serverRoot }), {
+    code: 'SERVER_CONTRACT_FIXTURE_MISSING',
+  });
 });
 
 for (const [kind, relativePath] of [
@@ -235,9 +210,7 @@ for (const [kind, relativePath] of [
     const f = fixture(t);
     f.write(relativePath, 'synthetic runtime drift\n');
     if (kind === 'staged') f.git('add', '--', relativePath);
-    assert.doesNotThrow(() =>
-      f.verifier.verifyServerContract({ serverRoot: f.serverRoot }),
-    );
+    assert.doesNotThrow(() => f.verifier.verifyServerContract({ serverRoot: f.serverRoot }));
     assert.throws(
       () =>
         f.verifier.verifyServerContract({
@@ -248,10 +221,7 @@ for (const [kind, relativePath] of [
         code: 'SERVER_CONTRACT_RUNTIME_DIRTY',
       },
     );
-    assert.equal(
-      fs.readFileSync(path.join(f.serverRoot, relativePath), 'utf8'),
-      'synthetic runtime drift\n',
-    );
+    assert.equal(fs.readFileSync(path.join(f.serverRoot, relativePath), 'utf8'), 'synthetic runtime drift\n');
   });
 }
 
@@ -275,28 +245,18 @@ test('CLI uses an explicit environment checkout and fails runtime drift before i
 test('the lock requires an immutable full commit instead of a branch name', (t) => {
   const f = fixture(t);
   fs.writeFileSync(f.lockPath, JSON.stringify({ ...f.lock, revision: 'main' }));
-  assert.throws(
-    () => f.verifier.verifyServerContract({ serverRoot: f.serverRoot }),
-    {
-      code: 'SERVER_CONTRACT_LOCK_INVALID',
-    },
-  );
+  assert.throws(() => f.verifier.verifyServerContract({ serverRoot: f.serverRoot }), {
+    code: 'SERVER_CONTRACT_LOCK_INVALID',
+  });
 });
 
 test('roundtrip validates the explicitly selected client checkout lock before server imports', (t) => {
   const f = fixture(t);
   const selectedRevision = '0'.repeat(40);
-  fs.writeFileSync(
-    f.lockPath,
-    JSON.stringify({ ...f.lock, revision: selectedRevision }),
-  );
+  fs.writeFileSync(f.lockPath, JSON.stringify({ ...f.lock, revision: selectedRevision }));
   const result = spawnSync(
     process.execPath,
-    [
-      path.resolve(__dirname, '../scripts/verify-song-roundtrip.cjs'),
-      f.clientRoot,
-      f.serverRoot,
-    ],
+    [path.resolve(__dirname, '../scripts/verify-song-roundtrip.cjs'), f.clientRoot, f.serverRoot],
     { encoding: 'utf8', env: f.gitEnv, windowsHide: true },
   );
   assert.equal(result.status, 1);

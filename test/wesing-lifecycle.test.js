@@ -29,11 +29,7 @@ function load(file, replacements) {
   return module.exports;
 }
 
-const cachePath = path.join(
-  os.tmpdir(),
-  'lira-wesing-lifecycle-synthetic',
-  'WeSingCache',
-);
+const cachePath = path.join(os.tmpdir(), 'lira-wesing-lifecycle-synthetic', 'WeSingCache');
 const cache = {
   ...require('../src/music/wesing-cache'),
   ensureWeSingCacheDirectory: async () => cachePath,
@@ -73,8 +69,7 @@ for (const fails of [false, true]) {
     const f = captureFixture(t, {
       './wesing-cache': {
         ...cache,
-        ensureWeSingCacheDirectory: () =>
-          ++calls === 1 ? pending.promise : cachePath,
+        ensureWeSingCacheDirectory: () => (++calls === 1 ? pending.promise : cachePath),
       },
     });
     const oldStart = f.capture.setActive(true);
@@ -99,8 +94,7 @@ for (const stop of ['disable', 'stop']) {
     let calls = 0;
     const f = captureFixture(t, {
       './wesing-lyric-resolver': {
-        resolveWeSingLyrics: () =>
-          ++calls === 1 ? pending.promise : Promise.resolve({ result: null }),
+        resolveWeSingLyrics: () => (++calls === 1 ? pending.promise : Promise.resolve({ result: null })),
       },
     });
     await f.capture.setActive(true);
@@ -138,8 +132,7 @@ test('WeSing watcher cancels pending directory checks and keeps same-path listen
   const timers = [];
   const { createWeSingQrcWatcher } = load('wesing-qrc-watcher', {
     './wesing-cache': {
-      isDirectory: () =>
-        ++calls === 1 ? pending.promise : Promise.resolve(true),
+      isDirectory: () => (++calls === 1 ? pending.promise : Promise.resolve(true)),
     },
   });
   const watcher = createWeSingQrcWatcher({

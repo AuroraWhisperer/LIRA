@@ -6,8 +6,7 @@ let currentRoomProfile = null;
 
 export function getBilibiliRoomProfileSnapshot(roomId) {
   const expectedRoomId = String(roomId || '').trim();
-  if (!currentRoomProfile || currentRoomProfile.roomId !== expectedRoomId)
-    return null;
+  if (!currentRoomProfile || currentRoomProfile.roomId !== expectedRoomId) return null;
   return { ...currentRoomProfile };
 }
 
@@ -54,12 +53,7 @@ export function createBilibiliRoomProfile({ documentRef, fetchRef, apiToken }) {
       const profile = result.data;
       const displayName = profile.name || '暂未获取到房主昵称';
       const source = bilibiliAvatarSource(profile.avatarUrl, apiToken);
-      render(
-        '已设置',
-        'good',
-        displayName,
-        { roomId: savedRoomId, name: displayName, avatarSource: source },
-      );
+      render('已设置', 'good', displayName, { roomId: savedRoomId, name: displayName, avatarSource: source });
       if (source) {
         avatar.src = source;
         avatar.alt = profile.name ? `${profile.name}的头像` : '房主头像';
@@ -81,8 +75,7 @@ export function createBilibiliRoomProfile({ documentRef, fetchRef, apiToken }) {
   });
   avatar.addEventListener('error', () => {
     clearAvatar();
-    if (currentRoomProfile)
-      currentRoomProfile = { ...currentRoomProfile, avatarSource: '' };
+    if (currentRoomProfile) currentRoomProfile = { ...currentRoomProfile, avatarSource: '' };
   });
 
   return { refresh };

@@ -12,7 +12,7 @@ import { settings } from './settings.js';
 import { display } from './display.js';
 // 编写人：Aurora
 // Admin应用统一入口 - ES6模块化版本
-'use strict';
+('use strict');
 
 import { eventBus, Events } from '../shared/event-bus.js';
 import { logger } from '../shared/logger.js';
@@ -20,15 +20,10 @@ import * as Utils from '../shared/utils.js';
 import * as Theme from '../shared/theme.js';
 import { initParameterRanges } from '../shared/parameter-range.js';
 import { enhanceSelects } from '../shared/select-menu.js';
-import {
-  getLegacyAdminModules,
-  publishNavigation,
-  publishOnboarding,
-} from './legacy-admin-bridge.js';
+import { getLegacyAdminModules, publishNavigation } from './legacy-admin-bridge.js';
 import { initUsageGuide } from './usage-guide.js';
 import { createToolboxLifecycle } from './toolbox-lifecycle.js';
 import { initDynamicLottery } from './dynamic-lottery.js';
-import { initOnboarding } from './onboarding.js';
 import { initInteractiveTour } from './interactive-tour.js';
 import { initGiftFrame } from './gift-frame.js';
 import { initGiftHistoryDrawer } from './gifts/history.js';
@@ -42,20 +37,12 @@ import { createAdminStateRenderer } from './state-renderer.js';
 
 const toolbox = createToolboxLifecycle({
   loaders: {
-    otherGiftFeature: () =>
-      import('./gift-assistant.js').then((module) => module.initGiftAssistant),
-    otherStartAnimationFeature: () =>
-      import('./start-animation.js').then(
-        (module) => module.initStartAnimation,
-      ),
-    otherClockFeature: () =>
-      import('./clock-card.js').then((module) => module.initClockCard),
-    otherGamesFeature: () =>
-      import('./games.js').then((module) => module.initGames),
+    otherGiftFeature: () => import('./gift-assistant.js').then((module) => module.initGiftAssistant),
+    otherStartAnimationFeature: () => import('./start-animation.js').then((module) => module.initStartAnimation),
+    otherClockFeature: () => import('./clock-card.js').then((module) => module.initClockCard),
+    otherGamesFeature: () => import('./games.js').then((module) => module.initGames),
     otherOvertimeMachineFeature: () =>
-      import('./overtime.js').then(
-        (module) => () => module.initOvertime(stateService.getAppState()),
-      ),
+      import('./overtime.js').then((module) => () => module.initOvertime(stateService.getAppState())),
   },
   onError: Utils.showError,
 });
@@ -130,15 +117,6 @@ async function initializeApp() {
     once: true,
   });
   initUsageGuide();
-  const onboarding = initOnboarding({
-    getAppState: () => stateService.getAppState(),
-    reconnectBilibili: settings.reconnectBilibili,
-    openUsageGuide: () => {
-      setMainPage('otherAssistantPage');
-      other.selectFeatureById('otherUsageGuideFeature');
-    },
-  });
-  publishOnboarding(onboarding);
 
   // 初始化交互式引导（替代旧的对话框引导）
   const interactiveTour = initInteractiveTour({ toast: Utils.toast });
@@ -162,22 +140,21 @@ async function initializeApp() {
   });
   initGiftHistoryDrawer();
 
-  eventBus.on(Events.STATE_LOADED, createAdminStateRenderer({
-    renderGifts: (state) => renderGiftPanel(
-      state.gifts || {},
-      state.giftSprint || {},
-      state.liveStatus || {},
-      state.bilibiliDiagnostics || {},
-      state.settings || {},
-    ),
-  }));
+  eventBus.on(
+    Events.STATE_LOADED,
+    createAdminStateRenderer({
+      renderGifts: (state) =>
+        renderGiftPanel(
+          state.gifts || {},
+          state.giftSprint || {},
+          state.liveStatus || {},
+          state.bilibiliDiagnostics || {},
+          state.settings || {},
+        ),
+    }),
+  );
   eventBus.on(Events.SONG_UPDATED, ({ songs, languages, artists, tags }) => {
-    songPanel.renderSongs(
-      songs,
-      languages,
-      artists,
-      tags,
-    );
+    songPanel.renderSongs(songs, languages, artists, tags);
   });
 
   // 连接WebSocket和加载数据
@@ -199,18 +176,8 @@ async function initializeApp() {
       songBoardPresetLabels,
       songBoardPresetSwatches,
     } = Theme.theme;
-    theme.renderPresetCards(
-      'classicPresets',
-      classicThemePresets,
-      classicPresetLabels,
-      classicPresetSwatches,
-    );
-    theme.renderPresetCards(
-      'songBoardPresets',
-      songBoardThemePresets,
-      songBoardPresetLabels,
-      songBoardPresetSwatches,
-    );
+    theme.renderPresetCards('classicPresets', classicThemePresets, classicPresetLabels, classicPresetSwatches);
+    theme.renderPresetCards('songBoardPresets', songBoardThemePresets, songBoardPresetLabels, songBoardPresetSwatches);
   }
 
   logger.debug('初始化完成');
@@ -267,12 +234,7 @@ function initMainPages() {
 }
 
 // 有效的主页面 ID 列表 — 新增页面时在此注册即可
-const VALID_MAIN_PAGES = [
-  'songAssistantPage',
-  'playbackAssistantPage',
-  'giftAssistantPage',
-  'otherAssistantPage',
-];
+const VALID_MAIN_PAGES = ['songAssistantPage', 'playbackAssistantPage', 'giftAssistantPage', 'otherAssistantPage'];
 // 主页面 → URL hash 映射（songAssistantPage 为默认页，无需 hash）
 const MAIN_PAGE_HASH_MAP = {
   playbackAssistantPage: '#playback',
@@ -295,10 +257,7 @@ function syncMainPageIndicator(activeButton) {
   const buttonRect = activeButton.getBoundingClientRect();
   const indicatorX = buttonRect.left - tabsRect.left;
   tabs.style.setProperty('--main-page-indicator-x', `${indicatorX}px`);
-  tabs.style.setProperty(
-    '--main-page-indicator-width',
-    `${buttonRect.width}px`,
-  );
+  tabs.style.setProperty('--main-page-indicator-width', `${buttonRect.width}px`);
   tabs.classList.add('indicator-ready');
 }
 
@@ -306,9 +265,7 @@ function syncMainPageIndicator(activeButton) {
  * 设置主页面
  */
 function setMainPage(pageId) {
-  const nextPageId = VALID_MAIN_PAGES.includes(pageId)
-    ? pageId
-    : 'songAssistantPage';
+  const nextPageId = VALID_MAIN_PAGES.includes(pageId) ? pageId : 'songAssistantPage';
 
   document.querySelectorAll('.main-page').forEach((page) => {
     page.classList.toggle('active', page.id === nextPageId);
@@ -326,11 +283,7 @@ function setMainPage(pageId) {
 
   const targetHash = MAIN_PAGE_HASH_MAP[nextPageId] || '';
   if (location.hash !== targetHash) {
-    history.replaceState(
-      null,
-      '',
-      targetHash || location.pathname + location.search,
-    );
+    history.replaceState(null, '', targetHash || location.pathname + location.search);
   }
 }
 

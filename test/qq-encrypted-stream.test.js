@@ -6,11 +6,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const { EventEmitter } = require('node:events');
 const { Writable } = require('node:stream');
-const {
-  parseRange,
-  validateMediaUrl,
-  serveQQEncryptedStream,
-} = require('../src/music/qq-encrypted-stream');
+const { parseRange, validateMediaUrl, serveQQEncryptedStream } = require('../src/music/qq-encrypted-stream');
 
 function streamFixture(t, write = (_chunk, _encoding, callback) => callback()) {
   const ciphers = [];
@@ -54,8 +50,7 @@ function streamFixture(t, write = (_chunk, _encoding, callback) => callback()) {
     req,
     res,
     ciphers,
-    run: (fetchImpl) =>
-      module.exports.serveQQEncryptedStream(record, req, res, { fetchImpl }),
+    run: (fetchImpl) => module.exports.serveQQEncryptedStream(record, req, res, { fetchImpl }),
   };
 }
 
@@ -63,11 +58,17 @@ test('invalid upstream QQ media URL returns 502 without fetching or exposing the
   for (const url of ['invalid-url', 'https://untrusted.example/audio?token=synthetic-secret']) {
     let fetched = false;
     const res = {
-      writeHead(status) { this.status = status; },
-      end(body) { this.body = JSON.parse(body); },
+      writeHead(status) {
+        this.status = status;
+      },
+      end(body) {
+        this.body = JSON.parse(body);
+      },
     };
     await serveQQEncryptedStream({ url, expiresAt: Date.now() + 60000 }, {}, res, {
-      fetchImpl: async () => { fetched = true; },
+      fetchImpl: async () => {
+        fetched = true;
+      },
     });
     assert.equal(res.status, 502);
     assert.equal(fetched, false);
@@ -203,14 +204,8 @@ test('QQ encrypted stream validates byte ranges and CDN hosts', () => {
   });
   assert.deepEqual(parseRange('bytes=10-'), { start: 10, end: null });
   assert.equal(parseRange('items=0-1'), null);
-  assert.equal(
-    validateMediaUrl('https://isure.stream.qqmusic.qq.com/a.mflac').hostname,
-    'isure.stream.qqmusic.qq.com',
-  );
-  assert.throws(
-    () => validateMediaUrl('https://example.test/a.mflac'),
-    /不在允许的 CDN/,
-  );
+  assert.equal(validateMediaUrl('https://isure.stream.qqmusic.qq.com/a.mflac').hostname, 'isure.stream.qqmusic.qq.com');
+  assert.throws(() => validateMediaUrl('https://example.test/a.mflac'), /不在允许的 CDN/);
 });
 
 test('QQ encrypted stream rejects expired sessions before contacting upstream', async () => {

@@ -5,10 +5,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
-const {
-  createGiftSource,
-  makeProcessedGiftEvent,
-} = require('./helpers/processed-gifts');
+const { createGiftSource, makeProcessedGiftEvent } = require('./helpers/processed-gifts');
 const {
   createGiftConsumerRegistry,
   createGiftProjectionService,
@@ -23,13 +20,11 @@ const {
 } = require('../src/storage/database');
 
 test('gift database v4 exposes the shared projection ledger columns', () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'song-plugin-gift-ledger-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-gift-ledger-'));
   const db = createDatabases({ dataDir });
 
   try {
-    assert.equal(getSchemaVersions(db).giftDb, 13);
+    assert.equal(getSchemaVersions(db).giftDb, 14);
     const columns = new Set(
       db.giftDb
         .prepare('PRAGMA table_info(gift_events)')
@@ -65,9 +60,7 @@ test('gift database v4 exposes the shared projection ledger columns', () => {
 });
 
 test('gift database v3 upgrades before creating indexes that depend on v4 columns', () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'song-plugin-gift-v3-upgrade-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-gift-v3-upgrade-'));
   let db = createDatabases({ dataDir });
 
   try {
@@ -91,7 +84,7 @@ test('gift database v3 upgrades before creating indexes that depend on v4 column
     giftDb.close();
 
     db = createDatabases({ dataDir });
-    assert.equal(getSchemaVersions(db).giftDb, 13);
+    assert.equal(getSchemaVersions(db).giftDb, 14);
     const indexes = new Set(
       db.giftDb
         .prepare("SELECT name FROM sqlite_master WHERE type = 'index'")
@@ -132,16 +125,12 @@ test('consumer registry isolates a failing consumer from the remaining consumers
   const result = registry.dispatch({ phase: 'final', giftEventId: 17 });
 
   assert.deepEqual(delivered, [17]);
-  assert.deepEqual(errors, [
-    { message: 'consumer failed', consumerName: 'broken' },
-  ]);
+  assert.deepEqual(errors, [{ message: 'consumer failed', consumerName: 'broken' }]);
   assert.deepEqual(result, { delivered: ['healthy'], failed: ['broken'] });
 });
 
 test('final delivery retries after one second without another platform packet', () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'song-plugin-gift-delivery-retry-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-gift-delivery-retry-'));
   const db = createDatabases({ dataDir });
   const clock = createFakeClock(1_800_000_000_000);
   let attempts = 0;
@@ -190,9 +179,7 @@ test('final delivery retries after one second without another platform packet', 
 });
 
 test('consumer eligibility is frozen by the first server phase', () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'song-plugin-gift-eligibility-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-gift-eligibility-'));
   const db = createDatabases({ dataDir });
   const clock = createFakeClock(1_800_000_000_000);
   let giftStatisticsEnabled = false;
@@ -216,17 +203,11 @@ test('consumer eligibility is frozen by the first server phase', () => {
 
   try {
     overtimeEpoch = 3;
-    const first = projection.importProcessedEvent(
-      makeProcessedGiftEvent({}, { phase: 'progress' }),
-      sourceId,
-    );
+    const first = projection.importProcessedEvent(makeProcessedGiftEvent({}, { phase: 'progress' }), sourceId);
     giftStatisticsEnabled = true;
     overtimeEpoch = 4;
     clock.advance(1_000);
-    const second = projection.importProcessedEvent(
-      makeProcessedGiftEvent({ num: 2, totalPrice: 0.2 }),
-      sourceId,
-    );
+    const second = projection.importProcessedEvent(makeProcessedGiftEvent({ num: 2, totalPrice: 0.2 }), sourceId);
 
     assert.equal(first.gift_stats_eligible, 0);
     assert.equal(first.overtime_epoch, 3);
@@ -240,9 +221,7 @@ test('consumer eligibility is frozen by the first server phase', () => {
 });
 
 test('pause cancels consumer retries and resume retains failed non-statistics deliveries', () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'lira-gift-retry-pause-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-gift-retry-pause-'));
   const db = createDatabases({ dataDir });
   const clock = createFakeClock(1_800_000_000_000);
   let attempts = 0;
@@ -270,10 +249,7 @@ test('pause cancels consumer retries and resume retains failed non-statistics de
     },
   );
   try {
-    const row = projection.importProcessedEvent(
-      makeProcessedGiftEvent(),
-      sourceId,
-    );
+    const row = projection.importProcessedEvent(makeProcessedGiftEvent(), sourceId);
     assert.equal(attempts, 1);
     assert.equal(readGift(db, row.id).gift_stats_delivered, 1);
     projection.pauseDetection();

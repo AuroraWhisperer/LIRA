@@ -2,16 +2,8 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {
-  createNumberBombState,
-  guessNumber,
-  publicNumberBombState,
-} = require('../src/games/number-bomb');
-const {
-  createGomokuState,
-  parseCoordinate,
-  placeStone,
-} = require('../src/games/gomoku');
+const { createNumberBombState, guessNumber, publicNumberBombState } = require('../src/games/number-bomb');
+const { createGomokuState, parseCoordinate, placeStone } = require('../src/games/gomoku');
 const {
   applyDrawOperation,
   createDrawGuessState,
@@ -21,22 +13,14 @@ const {
   startNextRound,
   submitGuess,
 } = require('../src/games/draw-guess');
-const {
-  createGameSessionService,
-} = require('../src/games/game-session-service');
+const { createGameSessionService } = require('../src/games/game-session-service');
 
 test('number bomb narrows range and alternates players without exposing bomb', () => {
   const state = createNumberBombState(() => 0.69);
   const first = guessNumber(state, 50, 'host');
   assert.equal(first.accepted, true);
-  assert.deepEqual(
-    [first.state.min, first.state.max, first.state.turn],
-    [51, 100, 'viewer'],
-  );
-  assert.equal(
-    Object.hasOwn(publicNumberBombState(first.state), 'bomb'),
-    false,
-  );
+  assert.deepEqual([first.state.min, first.state.max, first.state.turn], [51, 100, 'viewer']);
+  assert.equal(Object.hasOwn(publicNumberBombState(first.state), 'bomb'), false);
 });
 
 test('number bomb ends when a player hits the bomb', () => {
@@ -88,8 +72,7 @@ test('finished game can restart with the same player configuration', () => {
 
   for (let index = 1; index <= 5; index += 1) {
     service.move({ value: `A${index}` }, 'host');
-    if (index < 5)
-      service.move({ value: `${String.fromCharCode(66 + index)}1` }, 'viewer');
+    if (index < 5) service.move({ value: `${String.fromCharCode(66 + index)}1` }, 'viewer');
   }
   assert.deepEqual(service.getSession().winner, {
     role: 'host',
@@ -181,18 +164,9 @@ test('draw guess only selects words from requested categories and rejects invali
 
   assert.deepEqual(state.categoryIds, ['animals', 'food-drink']);
   assert.equal(state.words.length, 200);
-  assert.deepEqual(
-    [...new Set(state.words.map((entry) => entry.categoryId))].sort(),
-    ['animals', 'food-drink'],
-  );
-  assert.throws(
-    () => createDrawGuessState({ categoryIds: [] }),
-    /至少选择一个词库分类/,
-  );
-  assert.throws(
-    () => createDrawGuessState({ categoryIds: ['unknown'] }),
-    /词库分类无效/,
-  );
+  assert.deepEqual([...new Set(state.words.map((entry) => entry.categoryId))].sort(), ['animals', 'food-drink']);
+  assert.throws(() => createDrawGuessState({ categoryIds: [] }), /至少选择一个词库分类/);
+  assert.throws(() => createDrawGuessState({ categoryIds: ['unknown'] }), /词库分类无效/);
 });
 
 test('draw guess awards 10, 7, 5, then 3 points and scores each uid once per round', () => {
@@ -218,11 +192,7 @@ test('draw guess awards 10, 7, 5, then 3 points and scores each uid once per rou
     state = result.state;
   });
 
-  const duplicate = submitGuess(
-    state,
-    { uid: '1', userName: '观众1', message: '冰淇淋' },
-    10,
-  );
+  const duplicate = submitGuess(state, { uid: '1', userName: '观众1', message: '冰淇淋' }, 10);
   assert.equal(duplicate.accepted, false);
   assert.deepEqual(
     state.scores.map((item) => item.score),
@@ -241,23 +211,11 @@ test('draw guess completes after the configured number of rounds and ranks total
     random: () => 0,
     nowMs: 0,
   });
-  state = submitGuess(
-    state,
-    { uid: '1', userName: 'Alice', message: '苹果' },
-    1,
-  ).state;
+  state = submitGuess(state, { uid: '1', userName: 'Alice', message: '苹果' }, 1).state;
   state = finishRound(state, 2);
   state = startNextRound(state, { random: () => 0, nowMs: 3 });
-  state = submitGuess(
-    state,
-    { uid: '2', userName: 'Bob', message: '月亮' },
-    4,
-  ).state;
-  state = submitGuess(
-    state,
-    { uid: '1', userName: 'Alice', message: '月亮' },
-    5,
-  ).state;
+  state = submitGuess(state, { uid: '2', userName: 'Bob', message: '月亮' }, 4).state;
+  state = submitGuess(state, { uid: '1', userName: 'Alice', message: '月亮' }, 5).state;
   state = finishRound(state, 6);
 
   assert.equal(state.phase, 'finished');
@@ -394,10 +352,7 @@ test('game session keeps draw guess secret, scores danmaku and publishes drawing
   });
   assert.equal(guess.accepted, true);
   assert.equal(service.getSession().state.scores[0].score, 10);
-  assert.equal(
-    service.getSession().danmaku[0].avatarUrl,
-    'https://i0.hdslb.com/bfs/face/alice.jpg',
-  );
+  assert.equal(service.getSession().danmaku[0].avatarUrl, 'https://i0.hdslb.com/bfs/face/alice.jpg');
   assert.deepEqual(
     {
       guardLevel: service.getSession().danmaku[0].guardLevel,
@@ -494,10 +449,7 @@ test('game session hydrates missing avatars for existing draw guess messages', (
     }),
     true,
   );
-  assert.equal(
-    service.getSession().danmaku[0].avatarUrl,
-    'https://i0.hdslb.com/bfs/face/alice.jpg',
-  );
+  assert.equal(service.getSession().danmaku[0].avatarUrl, 'https://i0.hdslb.com/bfs/face/alice.jpg');
   assert.equal(published.length, publishedBeforeHydration + 1);
   assert.equal(
     service.updateDanmakuAvatar({

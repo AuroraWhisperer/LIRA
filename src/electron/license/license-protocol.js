@@ -5,10 +5,7 @@ const crypto = require('node:crypto');
 const PROTOCOL_VERSION = 2;
 
 function sha256(value) {
-  return crypto
-    .createHash('sha256')
-    .update(String(value), 'utf8')
-    .digest('hex');
+  return crypto.createHash('sha256').update(String(value), 'utf8').digest('hex');
 }
 
 function normalizeActivationCode(code) {
@@ -33,10 +30,8 @@ function validateActivationInput(input = {}) {
   const password = String(input.password || '');
   const activationCode = String(input.activationCode || '').trim();
 
-  if (accountName.length < 2 || accountName.length > 32)
-    return { ok: false, error: 'ACCOUNT_NAME_LENGTH' };
-  if (!/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(accountName))
-    return { ok: false, error: 'ACCOUNT_NAME_INVALID' };
+  if (accountName.length < 2 || accountName.length > 32) return { ok: false, error: 'ACCOUNT_NAME_LENGTH' };
+  if (!/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(accountName)) return { ok: false, error: 'ACCOUNT_NAME_INVALID' };
   // The server distinguishes a new password from an existing account credential.
   if (!password) return { ok: false, error: 'PASSWORD_TOO_SHORT' };
   if (!activationCode || normalizeActivationCode(activationCode).length < 4)
@@ -63,9 +58,7 @@ function normalizeHash(value) {
 
 function countFingerprintValues(fingerprint) {
   const value = normalizeFingerprint(fingerprint);
-  return ['machineGuidHash', 'smbiosUuidHash', 'systemDriveHash'].filter(
-    (key) => Boolean(value[key]),
-  ).length;
+  return ['machineGuidHash', 'smbiosUuidHash', 'systemDriveHash'].filter((key) => Boolean(value[key])).length;
 }
 
 function buildFingerprintDigest(fingerprint) {
@@ -143,9 +136,7 @@ function buildAuthPayload(input = {}) {
 }
 
 function signPayload(payload, privateKeyPem) {
-  return crypto
-    .sign('sha256', Buffer.from(String(payload), 'utf8'), privateKeyPem)
-    .toString('base64');
+  return crypto.sign('sha256', Buffer.from(String(payload), 'utf8'), privateKeyPem).toString('base64');
 }
 
 module.exports = {

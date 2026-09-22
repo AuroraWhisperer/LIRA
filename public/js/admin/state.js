@@ -5,10 +5,7 @@
 import { showError, value } from '../shared/utils.js';
 import { publishState } from './legacy-admin-bridge.js';
 import { eventBus, Events } from '../shared/event-bus.js';
-import {
-  readSelectedCategories,
-  readSelectedTags,
-} from './song-category-filter.js';
+import { readSelectedCategories, readSelectedTags } from './song-category-filter.js';
 
 /**
  * 状态管理服务
@@ -57,11 +54,7 @@ export class StateService {
         for (const key of Object.keys(payload.state)) {
           this.realtimeFields.set(key, this.realtimeVersion);
         }
-        this.applySnapshot(
-          payload.state,
-          Infinity,
-          payload.reason === 'connect',
-        );
+        this.applySnapshot(payload.state, Infinity, payload.reason === 'connect');
         if (isGiftSnapshotReason(payload.reason)) {
           eventBus.emit(Events.GIFT_RECEIVED, { reason: payload.reason });
         }
@@ -76,12 +69,7 @@ export class StateService {
         eventBus.emit(Events.OVERTIME_UPDATED, payload);
       } else if (payload.type === 'gift-catalog:update') {
         const snapshot = payload.snapshot;
-        if (
-          !snapshot ||
-          typeof snapshot !== 'object' ||
-          !Array.isArray(snapshot.gifts)
-        )
-          return;
+        if (!snapshot || typeof snapshot !== 'object' || !Array.isArray(snapshot.gifts)) return;
         const version = String(snapshot.version || '').trim();
         // A catalog update without a revision cannot be safely ordered or
         // deduplicated. Ignore malformed wire messages instead of replacing a
@@ -97,10 +85,7 @@ export class StateService {
           assetsUpdatedAt: String(snapshot.assetsUpdatedAt || ''),
           stale: parseBooleanLike(snapshot.stale),
           sources: snapshot.sources || null,
-          gifts: snapshot.gifts.map((gift) => [
-            String(gift?.id ?? '').trim(),
-            String(gift?.imagePath ?? '').trim(),
-          ]),
+          gifts: snapshot.gifts.map((gift) => [String(gift?.id ?? '').trim(), String(gift?.imagePath ?? '').trim()]),
         });
         if (signature === this.giftCatalogVersion) return;
         this.giftCatalogVersion = signature;
@@ -166,11 +151,7 @@ export class StateService {
     this.appState[key] = state;
   }
 
-  applySnapshot(
-    snapshot,
-    startedAtVersion = Infinity,
-    isConnectionSnapshot = false,
-  ) {
+  applySnapshot(snapshot, startedAtVersion = Infinity, isConnectionSnapshot = false) {
     const previous = this.appState || {};
     const next = { ...snapshot };
     // HTTP hydrates untouched fields but cannot undo realtime work received
@@ -188,14 +169,11 @@ export class StateService {
     ) {
       next.overtime = previous.overtime;
     }
-    const changedKeys = [
-      ...new Set([...Object.keys(previous), ...Object.keys(next)]),
-    ].filter(
+    const changedKeys = [...new Set([...Object.keys(previous), ...Object.keys(next)])].filter(
       (key) => JSON.stringify(previous[key]) !== JSON.stringify(next[key]),
     );
     this.appState = next;
-    if (changedKeys.includes('categories'))
-      this.categories = next.categories || [];
+    if (changedKeys.includes('categories')) this.categories = next.categories || [];
     if (changedKeys.includes('tags')) this.songTags = new Set(next.tags || []);
     for (const [key, eventName] of [
       ['settings', 'app:settings-state'],
@@ -203,8 +181,7 @@ export class StateService {
       ['lyricState', 'app:lyric-state'],
       ['lyricTimeline', 'app:lyric-timeline'],
     ]) {
-      if (changedKeys.includes(key))
-        dispatchRealtimeState(eventName, next[key]);
+      if (changedKeys.includes(key)) dispatchRealtimeState(eventName, next[key]);
     }
     if (!changedKeys.length) return;
     eventBus.emit(Events.STATE_LOADED, {
@@ -224,8 +201,7 @@ export class StateService {
     for (const category of readSelectedCategories()) {
       params.append('category', category);
     }
-    if (value('languageFilter'))
-      params.set('language', value('languageFilter'));
+    if (value('languageFilter')) params.set('language', value('languageFilter'));
     if (value('artistFilter')) params.set('artist', value('artistFilter'));
     for (const tag of readSelectedTags()) {
       params.append('tag', tag);
@@ -312,18 +288,11 @@ export class StateService {
     if (!Number.isFinite(generation) || !Number.isFinite(sequence)) {
       return this.lyricVersion.generation === null;
     }
-    if (
-      this.lyricVersion.generation === null ||
-      generation > this.lyricVersion.generation
-    ) {
+    if (this.lyricVersion.generation === null || generation > this.lyricVersion.generation) {
       this.lyricVersion = { generation, sequence };
       return true;
     }
-    if (
-      generation < this.lyricVersion.generation ||
-      sequence <= this.lyricVersion.sequence
-    )
-      return false;
+    if (generation < this.lyricVersion.generation || sequence <= this.lyricVersion.sequence) return false;
     this.lyricVersion.sequence = sequence;
     return true;
   }
@@ -331,8 +300,7 @@ export class StateService {
 
 function parseBooleanLike(value) {
   if (value === true || value === 1) return true;
-  if (value === false || value === 0 || value === null || value === undefined)
-    return false;
+  if (value === false || value === 0 || value === null || value === undefined) return false;
   const text = String(value).trim().toLowerCase();
   return text === 'true' || text === '1' || text === 'yes';
 }
@@ -353,9 +321,7 @@ function isGiftSnapshotReason(reason) {
 
 function isSongsSnapshotReason(reason) {
   const snapshotReason = String(reason || '');
-  return (
-    snapshotReason === 'cloud:songs' || snapshotReason.startsWith('songs:')
-  );
+  return snapshotReason === 'cloud:songs' || snapshotReason.startsWith('songs:');
 }
 
 // 创建单例实例

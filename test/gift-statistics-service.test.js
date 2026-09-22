@@ -2,10 +2,7 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const {
-  getGiftHistory,
-  getGiftStatistics,
-} = require('../src/bilibili/gift/query-service');
+const { getGiftHistory, getGiftStatistics } = require('../src/bilibili/gift/query-service');
 const { createFixture } = require('./helpers/gift-query-fixture');
 
 test('statistics use cents, canonical rows, active source and completeness state', () => {
@@ -86,10 +83,7 @@ test('statistics use cents, canonical rows, active source and completeness state
       dirty: false,
       epochValidated: false,
     });
-    assert.equal(
-      getGiftStatistics(fixture.context, { range: 'all' }).partial,
-      true,
-    );
+    assert.equal(getGiftStatistics(fixture.context, { range: 'all' }).partial, true);
     fixture.setActiveSource(null, { syncState: 'SOURCE_SWITCHING' });
     assert.throws(
       () => getGiftHistory(fixture.context, { range: 'all' }),
@@ -183,10 +177,7 @@ test('all-time statistics retain only the latest 240 Shanghai month buckets', ()
     const result = getGiftStatistics(fixture.context, { range: 'all' });
     assert.equal(result.timeSeries.length, 240);
     assert.equal(result.timeSeries[0].bucketStart, '2006-08-31T16:00:00.000Z');
-    assert.equal(
-      result.timeSeries.at(-1).bucketStart,
-      '2026-07-31T16:00:00.000Z',
-    );
+    assert.equal(result.timeSeries.at(-1).bucketStart, '2026-07-31T16:00:00.000Z');
     assert.deepEqual(
       Object.keys(result.timeSeries[0]).sort(),
       [
@@ -231,10 +222,7 @@ test('statistics fail closed on corrupt money, quantity, and aggregate overflow'
 
     update.run(1, Number.MAX_SAFE_INTEGER, source.id);
     fixture.insertGift(source.id, 'overflow');
-    assert.throws(
-      () => getGiftStatistics(fixture.context, { range: 'all' }),
-      /INVALID_GIFT_STATISTICS_AGGREGATE/,
-    );
+    assert.throws(() => getGiftStatistics(fixture.context, { range: 'all' }), /INVALID_GIFT_STATISTICS_AGGREGATE/);
   } finally {
     fixture.close();
   }

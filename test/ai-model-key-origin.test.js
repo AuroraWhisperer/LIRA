@@ -31,14 +31,20 @@ function fixture(t, config = {}) {
     deepseek: createDeepSeekClient({
       fetchImpl: async (url, options) => {
         requests.push({ url: String(url), headers: options.headers });
-        return new Response(JSON.stringify({
-          id: 'fixture-response',
-          data: [{ id: 'fixture-model' }],
-          output: [{
-            type: 'message', role: 'assistant',
-            content: [{ type: 'output_text', text: 'ok' }],
-          }],
-        }), { headers: { 'Content-Type': 'application/json' } });
+        return new Response(
+          JSON.stringify({
+            id: 'fixture-response',
+            data: [{ id: 'fixture-model' }],
+            output: [
+              {
+                type: 'message',
+                role: 'assistant',
+                content: [{ type: 'output_text', text: 'ok' }],
+              },
+            ],
+          }),
+          { headers: { 'Content-Type': 'application/json' } },
+        );
       },
     }),
     tools: {},
@@ -53,11 +59,7 @@ function fixture(t, config = {}) {
 
 test('model listing rejects saved-key reuse across scheme, host or port before fetching', async (t) => {
   const { service, requests, store } = fixture(t);
-  for (const apiUrl of [
-    'https://different.example/v1',
-    'http://saved.example/v1',
-    'https://saved.example:444/v1',
-  ]) {
+  for (const apiUrl of ['https://different.example/v1', 'http://saved.example/v1', 'https://saved.example:444/v1']) {
     await assert.rejects(service.listModels({ apiUrl }), /API Key/);
   }
   assert.equal(requests.length, 0);
@@ -87,10 +89,14 @@ test('model key checks use the effective preset destination', async (t) => {
 test('configuration changes cannot rebind a saved model key or leave partial writes', (t) => {
   const { store, db } = fixture(t);
   const original = store.getConfig();
-  assert.throws(() => store.updateConfig({
-    deepseekResponsesUrl: 'https://different.example/v1',
-    model: 'changed-model',
-  }), /API Key/);
+  assert.throws(
+    () =>
+      store.updateConfig({
+        deepseekResponsesUrl: 'https://different.example/v1',
+        model: 'changed-model',
+      }),
+    /API Key/,
+  );
   assert.deepEqual(store.getConfig(), original);
   assert.equal(db.prepare("SELECT value FROM ai_configuration WHERE key = 'model'").get().value, 'fixture-model');
   assert.throws(() => store.updateConfig({ modelProvider: 'deepseek' }), /API Key/);
@@ -111,34 +117,57 @@ test('preset-to-custom restoration validates the stored custom origin before com
 
 test('config and models routes reject implicit rebinding while connection tests retain the saved origin', async (t) => {
   const { store, service, requests } = fixture(t);
-  const context = { ai: {
-    updateConfig: store.updateConfig,
-    listModels: service.listModels,
-    test: service.testConfiguration,
-    testProvider: service.testProvider,
-  } };
+  const context = {
+    ai: {
+      updateConfig: store.updateConfig,
+      listModels: service.listModels,
+      test: service.testConfiguration,
+      testProvider: service.testProvider,
+    },
+  };
   async function invoke(name, body) {
     const response = {
-      writeHead(status) { this.status = status; },
-      end(value) { this.body = JSON.parse(value); },
+      writeHead(status) {
+        this.status = status;
+      },
+      end(value) {
+        this.body = JSON.parse(value);
+      },
     };
     await routes[name](context, { body: async () => body }, response);
     return response;
   }
-  assert.equal((await invoke('PUT /api/ai/config', {
-    deepseekResponsesUrl: 'https://different.example/v1', deepseekApiKey: '',
-  })).status, 400);
-  assert.equal((await invoke('POST /api/ai/models', {
-    apiUrl: 'https://different.example/v1',
-  })).status, 400);
+  assert.equal(
+    (
+      await invoke('PUT /api/ai/config', {
+        deepseekResponsesUrl: 'https://different.example/v1',
+        deepseekApiKey: '',
+      })
+    ).status,
+    400,
+  );
+  assert.equal(
+    (
+      await invoke('POST /api/ai/models', {
+        apiUrl: 'https://different.example/v1',
+      })
+    ).status,
+    400,
+  );
   assert.equal(requests.length, 0);
   for (const name of ['POST /api/ai/test', 'POST /api/ai/test/deepseek']) {
     assert.equal((await invoke(name)).status, 200);
   }
   assert.ok(requests.length >= 2);
   assert.ok(requests.every((request) => new URL(request.url).origin === 'https://saved.example'));
-  assert.equal((await invoke('PUT /api/ai/config', {
-    deepseekResponsesUrl: 'https://different.example/v1', deepseekApiKey: null,
-  })).status, 200);
+  assert.equal(
+    (
+      await invoke('PUT /api/ai/config', {
+        deepseekResponsesUrl: 'https://different.example/v1',
+        deepseekApiKey: null,
+      })
+    ).status,
+    200,
+  );
   assert.equal(store.getConfig().deepseekApiKey, '');
 });

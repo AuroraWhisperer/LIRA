@@ -1,34 +1,16 @@
 'use strict';
 
 const { randomUUID } = require('node:crypto');
-const {
-  text,
-  timestamp,
-  identity,
-  identityKey,
-  profilePatch,
-  recordData,
-  recentNameHistory,
-} = require('./validation');
+const { text, timestamp, identity, identityKey, profilePatch, recordData, recentNameHistory } = require('./validation');
 const { dayOf, zodiacFor } = require('./dates');
-const {
-  summarizeMembership,
-  membershipConflicts,
-  cycleForNewRecord,
-} = require('./membership');
+const { summarizeMembership, membershipConflicts, cycleForNewRecord } = require('./membership');
 const { buildReminders } = require('./reminders');
 const { createFanBackupService } = require('./profile-transfer');
 const { createFanFactConsumer } = require('./profile-facts');
 const { createFanMergeService } = require('./profile-merge');
-const {
-  createGuardRosterImporter,
-  getGuardRoster,
-} = require('./guard-roster-import');
+const { createGuardRosterImporter, getGuardRoster } = require('./guard-roster-import');
 
-function createFanProfileService({
-  store,
-  now = () => new Date().toISOString(),
-}) {
+function createFanProfileService({ store, now = () => new Date().toISOString() }) {
   function requireProfile(scope, id) {
     const profile = store.get(scope, text(id, '档案 ID', 100));
     if (!profile) throw new Error('档案不存在或不属于当前账号。');
@@ -70,20 +52,11 @@ function createFanProfileService({
     const records = store.records.list(scope, id);
     const membership = summarizeMembership(records, now());
     const guardRoster = getGuardRoster(profile, records);
-    const songs = records.filter(
-      (record) => record.kind === 'song' && !record.data.excluded,
-    );
-    const preferences = records.filter(
-      (record) => record.kind === 'preference' && !record.data.archived,
-    );
-    const recentSongs = songs.filter(
-      (record) =>
-        Date.parse(record.occurredAt) >= Date.parse(now()) - 90 * 86400000,
-    );
+    const songs = records.filter((record) => record.kind === 'song' && !record.data.excluded);
+    const preferences = records.filter((record) => record.kind === 'preference' && !record.data.archived);
+    const recentSongs = songs.filter((record) => Date.parse(record.occurredAt) >= Date.parse(now()) - 90 * 86400000);
     const categories = {};
-    for (const song of recentSongs.filter(
-      (record) => !record.data.excludeFromStats,
-    )) {
+    for (const song of recentSongs.filter((record) => !record.data.excludeFromStats)) {
       const key = song.data.category || '未分类';
       categories[key] = (categories[key] || 0) + 1;
     }
@@ -101,10 +74,7 @@ function createFanProfileService({
       currentGuardLevel: guardRoster ? guardRoster.level : membership.level,
       musicSummary: preferences.length
         ? preferences
-            .map(
-              (r) =>
-                `${r.data.sentiment === 'like' ? '喜欢' : '不喜欢'}${r.data.label}`,
-            )
+            .map((r) => `${r.data.sentiment === 'like' ? '喜欢' : '不喜欢'}${r.data.label}`)
             .slice(0, 2)
             .join('；')
         : songs.length
@@ -115,12 +85,7 @@ function createFanProfileService({
         count: recentSongs.filter((r) => !r.data.excludeFromStats).length,
         categories,
       },
-      reminders: buildReminders(
-        profile,
-        records,
-        store.states(scope, id),
-        Date.parse(now()),
-      ),
+      reminders: buildReminders(profile, records, store.states(scope, id), Date.parse(now())),
     };
   }
 
@@ -129,8 +94,7 @@ function createFanProfileService({
     const records = store.records.list(scope, profile.id);
     const previous = input.id ? records.find((r) => r.id === input.id) : null;
     if (input.id && !previous) throw new Error('记录不存在。');
-    if (previous && previous.revision !== input.revision)
-      throw new Error('记录已更新，请重新打开后核对。');
+    if (previous && previous.revision !== input.revision) throw new Error('记录已更新，请重新打开后核对。');
     const kind = previous?.kind || input.kind;
     const data = recordData(kind, input.data || {});
     if (kind === 'song') data.state = previous?.data.state || '已点歌';
@@ -153,18 +117,10 @@ function createFanProfileService({
             r.data.decision === 'adopted' &&
             r.data.asOf === data.asOf,
         );
-        const confirmedTotal =
-          data.totalDays ??
-          sameDate.find((r) => r.data.totalDays !== null)?.data.totalDays;
+        const confirmedTotal = data.totalDays ?? sameDate.find((r) => r.data.totalDays !== null)?.data.totalDays;
         const confirmedContinuous =
-          data.continuousDays ??
-          sameDate.find((r) => r.data.continuousDays !== null)?.data
-            .continuousDays;
-        if (
-          confirmedTotal != null &&
-          confirmedContinuous != null &&
-          confirmedTotal < confirmedContinuous
-        ) {
+          data.continuousDays ?? sameDate.find((r) => r.data.continuousDays !== null)?.data.continuousDays;
+        if (confirmedTotal != null && confirmedContinuous != null && confirmedTotal < confirmedContinuous) {
           throw new Error('同一截至日期的累计天数不能少于连续天数。');
         }
         if (!previous) {
@@ -172,10 +128,7 @@ function createFanProfileService({
           data.continuousDays = confirmedContinuous ?? null;
         }
       }
-      data.cycleId =
-        previous?.data.cycleId ||
-        cycleForNewRecord(profile, records, data) ||
-        randomUUID();
+      data.cycleId = previous?.data.cycleId || cycleForNewRecord(profile, records, data) || randomUUID();
       data.conflicts = membershipConflicts(record, records, previous?.id);
       if (data.conflicts.length) {
         data.decision = 'pending';
@@ -195,11 +148,7 @@ function createFanProfileService({
         }
       }
       // A new baseline supersedes only the same human baseline after explicit adoption.
-      if (
-        !previous &&
-        data.type === 'baseline' &&
-        data.decision === 'adopted'
-      ) {
+      if (!previous && data.type === 'baseline' && data.decision === 'adopted') {
         for (const old of records.filter(
           (r) =>
             r.kind === 'membership' &&
@@ -207,21 +156,11 @@ function createFanProfileService({
             r.data.asOf === data.asOf &&
             r.data.decision === 'adopted',
         )) {
-          store.records.update(
-            scope,
-            profile.id,
-            { ...old, data: { ...old.data, decision: 'superseded' } },
-            now(),
-          );
+          store.records.update(scope, profile.id, { ...old, data: { ...old.data, decision: 'superseded' } }, now());
         }
       }
       if (data.decision === 'adopted' && data.cycleId !== profile.cycleId) {
-        profile = store.save(
-          scope,
-          { ...profile, cycleId: data.cycleId },
-          identityKey(profile.identity),
-          now(),
-        );
+        profile = store.save(scope, { ...profile, cycleId: data.cycleId }, identityKey(profile.identity), now());
       }
     }
     const saved = record.id
@@ -233,24 +172,11 @@ function createFanProfileService({
   function resolveMembership(scope, input) {
     const profile = requireProfile(scope, input.profileId);
     const records = store.records.list(scope, profile.id);
-    const pending = records.find(
-      (r) =>
-        r.id === input.id &&
-        r.kind === 'membership' &&
-        r.data.decision === 'pending',
-    );
-    if (!pending || !['adopt', 'keep'].includes(input.choice))
-      throw new Error('请选择待核实的依据和采用方式。');
+    const pending = records.find((r) => r.id === input.id && r.kind === 'membership' && r.data.decision === 'pending');
+    if (!pending || !['adopt', 'keep'].includes(input.choice)) throw new Error('请选择待核实的依据和采用方式。');
     if (input.choice === 'adopt') {
-      for (const old of records.filter((r) =>
-        pending.data.conflicts.includes(r.id),
-      )) {
-        store.records.update(
-          scope,
-          profile.id,
-          { ...old, data: { ...old.data, decision: 'superseded' } },
-          now(),
-        );
+      for (const old of records.filter((r) => pending.data.conflicts.includes(r.id))) {
+        store.records.update(scope, profile.id, { ...old, data: { ...old.data, decision: 'superseded' } }, now());
       }
     }
     store.records.update(
@@ -267,12 +193,7 @@ function createFanProfileService({
       now(),
     );
     if (input.choice === 'adopt' && pending.data.cycleId) {
-      store.save(
-        scope,
-        { ...profile, cycleId: pending.data.cycleId },
-        identityKey(profile.identity),
-        now(),
-      );
+      store.save(scope, { ...profile, cycleId: pending.data.cycleId }, identityKey(profile.identity), now());
     }
     return detail(scope, profile.id);
   }
@@ -301,8 +222,7 @@ function createFanProfileService({
           profile.platformName,
           profile.identity?.value,
           profile.summary,
-          ...recentNameHistory(profile.nameHistory, profile.platformName)
-            .map((item) => item.name),
+          ...recentNameHistory(profile.nameHistory, profile.platformName).map((item) => item.name),
           ...(profile.tags || []),
         ]
           .join(' ')
@@ -323,15 +243,8 @@ function createFanProfileService({
         const guardRoster = getGuardRoster(profile, records);
         const medalLevel = records
           .filter((r) => r.original.evidence === 'guard-roster')
-          .sort((a, b) =>
-            b.original.observedAt.localeCompare(a.original.observedAt),
-          )[0]?.original.medalLevel;
-        const reminders = buildReminders(
-          profile,
-          records,
-          statesByProfile.get(profile.id) || [],
-          Date.parse(at),
-        );
+          .sort((a, b) => b.original.observedAt.localeCompare(a.original.observedAt))[0]?.original.medalLevel;
+        const reminders = buildReminders(profile, records, statesByProfile.get(profile.id) || [], Date.parse(at));
         return {
           ...profile,
           formerNames: recentNameHistory(profile.nameHistory, profile.platformName)
@@ -340,62 +253,36 @@ function createFanProfileService({
           membership,
           guardRoster,
           currentGuardLevel: guardRoster ? guardRoster.level : membership.level,
-          medalLevel:
-            Number.isSafeInteger(medalLevel) && medalLevel >= 0
-              ? medalLevel
-              : null,
-          lastInteraction:
-            records.filter((r) =>
-              ['note', 'song', 'membership'].includes(r.kind),
-            )[0]?.occurredAt || '',
+          medalLevel: Number.isSafeInteger(medalLevel) && medalLevel >= 0 ? medalLevel : null,
+          lastInteraction: records.filter((r) => ['note', 'song', 'membership'].includes(r.kind))[0]?.occurredAt || '',
           nextReminder:
-            reminders.find(
-              (r) =>
-                r.date >= today &&
-                r.group !== 'history' &&
-                r.status === 'pending',
-            ) || null,
+            reminders.find((r) => r.date >= today && r.group !== 'history' && r.status === 'pending') || null,
         };
       })
       .filter((profile) => {
-        return (
-          filters.every((filter) => {
-            if (filter === 'active')
-              return Boolean(profile.currentGuardLevel);
-            if (filter === 'past')
-              return (
-                profile.membership.hasHistory &&
-                !profile.currentGuardLevel
-              );
-            if (filter === 'unknown')
-              return (
-                profile.membership.status === 'pending' ||
-                (!profile.guardRoster && profile.membership.status === 'unknown')
-              );
-            return true;
-          })
-        );
+        return filters.every((filter) => {
+          if (filter === 'active') return Boolean(profile.currentGuardLevel);
+          if (filter === 'past') return profile.membership.hasHistory && !profile.currentGuardLevel;
+          if (filter === 'unknown')
+            return (
+              profile.membership.status === 'pending' ||
+              (!profile.guardRoster && profile.membership.status === 'unknown')
+            );
+          return true;
+        });
       })
       .sort(
         (a, b) =>
           Number(Boolean(b.favorite)) - Number(Boolean(a.favorite)) ||
           (a.currentGuardLevel ?? 4) - (b.currentGuardLevel ?? 4) ||
           (b.medalLevel ?? -1) - (a.medalLevel ?? -1) ||
-          (b.lastInteraction || b.updatedAt).localeCompare(
-            a.lastInteraction || a.updatedAt,
-          ),
+          (b.lastInteraction || b.updatedAt).localeCompare(a.lastInteraction || a.updatedAt),
       );
   }
 
   function execute(scope, action, input = {}) {
-    if (typeof scope !== 'string' || !scope)
-      throw new Error('请先登录主播账号。');
-    if (
-      !input ||
-      typeof input !== 'object' ||
-      Array.isArray(input) ||
-      JSON.stringify(input).length > 16 * 1024 * 1024
-    )
+    if (typeof scope !== 'string' || !scope) throw new Error('请先登录主播账号。');
+    if (!input || typeof input !== 'object' || Array.isArray(input) || JSON.stringify(input).length > 16 * 1024 * 1024)
       throw new Error('档案请求格式无效或过大。');
     return store.transaction(() => {
       switch (action) {
@@ -405,8 +292,7 @@ function createFanProfileService({
           if (
             typeof input.autoCreate !== 'boolean' ||
             typeof input.autoUpdate !== 'boolean' ||
-            (input.autoSyncGuardRoster !== undefined &&
-              typeof input.autoSyncGuardRoster !== 'boolean')
+            (input.autoSyncGuardRoster !== undefined && typeof input.autoSyncGuardRoster !== 'boolean')
           )
             throw new Error('请选择自动更新方式。');
           const settings = {
@@ -414,9 +300,7 @@ function createFanProfileService({
             initialized: true,
             autoCreate: input.autoCreate,
             autoUpdate: input.autoUpdate,
-            autoSyncGuardRoster:
-              input.autoSyncGuardRoster ??
-              (store.getScope(scope).autoSyncGuardRoster === true),
+            autoSyncGuardRoster: input.autoSyncGuardRoster ?? store.getScope(scope).autoSyncGuardRoster === true,
           };
           store.saveScope(scope, settings);
           return settings;
@@ -430,9 +314,7 @@ function createFanProfileService({
           return detail(scope, input.id);
         case 'find': {
           const value = identity(input.identity);
-          const found = value
-            ? store.byIdentity(scope, identityKey(value))
-            : null;
+          const found = value ? store.byIdentity(scope, identityKey(value)) : null;
           return found ? detail(scope, found.id) : null;
         }
         case 'create':
@@ -440,27 +322,16 @@ function createFanProfileService({
         case 'save': {
           const previous = requireProfile(scope, input.id);
           if (previous.revision !== input.revision)
-            throw new Error(
-              '档案已更新，请重新打开后核对；未保存的输入仍保留。',
-            );
+            throw new Error('档案已更新，请重新打开后核对；未保存的输入仍保留。');
           const patch = profilePatch(input);
-          if (!patch.alias && !previous.alias && !previous.platformName)
-            throw new Error('请填写常用称呼。');
+          if (!patch.alias && !previous.alias && !previous.platformName) throw new Error('请填写常用称呼。');
           const profile = { ...previous, ...patch };
           if (patch.nameHistory) {
-            profile.nameHistory = recentNameHistory(
-              patch.nameHistory,
-              profile.platformName,
-            ).map((item) =>
-              previous.nameHistory?.findLast((old) => old.name === item.name) || item,
+            profile.nameHistory = recentNameHistory(patch.nameHistory, profile.platformName).map(
+              (item) => previous.nameHistory?.findLast((old) => old.name === item.name) || item,
             );
           }
-          const saved = store.save(
-            scope,
-            profile,
-            identityKey(profile.identity),
-            now(),
-          );
+          const saved = store.save(scope, profile, identityKey(profile.identity), now());
           return detail(scope, saved.id);
         }
         case 'save-record':
@@ -470,12 +341,9 @@ function createFanProfileService({
         case 'merge':
           return merge.merge(scope, input);
         case 'suppression-list':
-          return store
-            .exportScope(scope)
-            .suppressions.map((key) => ({ key, identity: JSON.parse(key) }));
+          return store.exportScope(scope).suppressions.map((key) => ({ key, identity: JSON.parse(key) }));
         case 'unsuppress':
-          if (input.confirm !== true)
-            throw new Error('请确认允许该身份再次自动建档。');
+          if (input.confirm !== true) throw new Error('请确认允许该身份再次自动建档。');
           store.unsuppress(scope, identityKey(identity(input.identity)));
           return true;
         case 'resolve-membership':
@@ -484,29 +352,18 @@ function createFanProfileService({
           return store
             .list(scope)
             .flatMap((p) =>
-              buildReminders(
-                p,
-                store.records.list(scope, p.id),
-                store.states(scope, p.id),
-                Date.parse(now()),
-              ),
+              buildReminders(p, store.records.list(scope, p.id), store.states(scope, p.id), Date.parse(now())),
             );
         case 'reminder-state': {
           const profile = detail(scope, input.profileId);
           const item = profile.reminders.find((r) => r.key === input.key);
-          if (
-            !item ||
-            !['handled', 'ignored', 'snoozed'].includes(input.status)
-          )
+          if (!item || !['handled', 'ignored', 'snoozed'].includes(input.status))
             throw new Error('提醒事项或处理方式无效。');
           store.saveState(scope, profile.id, item.key, {
             ...item,
             status: input.status,
             handledAt: now(),
-            until:
-              input.status === 'snoozed'
-                ? dayOf(Date.parse(now()) + 86400000)
-                : '',
+            until: input.status === 'snoozed' ? dayOf(Date.parse(now()) + 86400000) : '',
           });
           return true;
         }
@@ -516,8 +373,7 @@ function createFanProfileService({
           store.remove(scope, input.id, input.suppress);
           return true;
         case 'delete-all':
-          if (input.confirm !== true)
-            throw new Error('请确认清除全部档案。');
+          if (input.confirm !== true) throw new Error('请确认清除全部档案。');
           return { deletedCount: store.removeAll(scope) };
         default:
           return transfer.execute(scope, action, input);

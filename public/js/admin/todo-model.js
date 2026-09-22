@@ -59,11 +59,7 @@ function isValidDateValue(value) {
   const date = new Date(0);
   date.setHours(0, 0, 0, 0);
   date.setFullYear(year, month - 1, day);
-  return (
-    date.getFullYear() === year &&
-    date.getMonth() === month - 1 &&
-    date.getDate() === day
-  );
+  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day;
 }
 
 function isValidTimeValue(value) {
@@ -128,20 +124,12 @@ export function normalizeTask(value, fallbackId = '') {
   };
 }
 
-export function normalizeTasks(
-  values,
-  fallbackPrefix = 'restored-task',
-  removeStarters = false,
-) {
+export function normalizeTasks(values, fallbackPrefix = 'restored-task', removeStarters = false) {
   if (!Array.isArray(values)) return [];
   return values
     .map((task, index) => normalizeTask(task, `${fallbackPrefix}-${index}`))
     .filter(Boolean)
-    .filter(
-      (task) =>
-        !removeStarters ||
-        !HISTORICAL_STARTER_KEYS.has(`${task.id}\u0000${task.title}`),
-    );
+    .filter((task) => !removeStarters || !HISTORICAL_STARTER_KEYS.has(`${task.id}\u0000${task.title}`));
 }
 
 export function normalizeNote(value, fallbackId = '') {
@@ -161,8 +149,7 @@ export function normalizeNote(value, fallbackId = '') {
 }
 
 export function toDateValue(date = new Date()) {
-  const value =
-    date instanceof Date ? new Date(date.getTime()) : new Date(date);
+  const value = date instanceof Date ? new Date(date.getTime()) : new Date(date);
   if (Number.isNaN(value.getTime())) return '';
   const year = String(value.getFullYear()).padStart(4, '0');
   const month = String(value.getMonth() + 1).padStart(2, '0');
@@ -177,16 +164,10 @@ export function getCalendarDays(monthValue) {
   const mondayOffset = (firstDay.getDay() + 6) % 7;
   const start = createCalendarDate(parsed.year, parsed.month, 1 - mondayOffset);
   return Array.from({ length: 42 }, (_unused, index) => {
-    const date = createCalendarDate(
-      start.getFullYear(),
-      start.getMonth() + 1,
-      start.getDate() + index,
-    );
+    const date = createCalendarDate(start.getFullYear(), start.getMonth() + 1, start.getDate() + index);
     return {
       date: toDateValue(date),
-      isCurrentMonth:
-        date.getFullYear() === parsed.year &&
-        date.getMonth() === parsed.month - 1,
+      isCurrentMonth: date.getFullYear() === parsed.year && date.getMonth() === parsed.month - 1,
     };
   });
 }
@@ -196,9 +177,7 @@ export function shiftMonth(monthValue, offset) {
   if (!parsed) return '';
   const date = createCalendarDate(parsed.year, parsed.month);
   date.setMonth(date.getMonth() + Number(offset || 0));
-  return `${String(date.getFullYear()).padStart(4, '0')}-${String(
-    date.getMonth() + 1,
-  ).padStart(2, '0')}`;
+  return `${String(date.getFullYear()).padStart(4, '0')}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
 
 export function normalizeEvent(value, fallbackId = '') {
@@ -236,16 +215,12 @@ export function createDefaultState() {
 
 function normalizeNotes(values) {
   if (!Array.isArray(values)) return [];
-  return values
-    .map((note, index) => normalizeNote(note, `restored-note-${index}`))
-    .filter(Boolean);
+  return values.map((note, index) => normalizeNote(note, `restored-note-${index}`)).filter(Boolean);
 }
 
 function normalizeEvents(values) {
   if (!Array.isArray(values)) return [];
-  return values
-    .map((event, index) => normalizeEvent(event, `restored-event-${index}`))
-    .filter(Boolean);
+  return values.map((event, index) => normalizeEvent(event, `restored-event-${index}`)).filter(Boolean);
 }
 
 function migrateSessionEvent(session) {
@@ -277,8 +252,6 @@ export function normalizeState(value) {
     session,
     tasks: normalizeTasks(value.tasks, 'restored-task', !isCurrentState),
     notes: normalizeNotes(value.notes),
-    events: isCurrentState
-      ? normalizeEvents(value.events)
-      : [migrateSessionEvent(session)].filter(Boolean),
+    events: isCurrentState ? normalizeEvents(value.events) : [migrateSessionEvent(session)].filter(Boolean),
   };
 }

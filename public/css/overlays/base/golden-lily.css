@@ -5,8 +5,7 @@
 }
 
 .queue-golden-lily::before {
-  background: url('/img/overlays/song-board-style-6/frame.webp') center / 100%
-    100% no-repeat;
+  background: url('/img/overlays/song-board-style-6/frame.webp') center / 100% 100% no-repeat;
 }
 
 .queue-golden-lily::after {

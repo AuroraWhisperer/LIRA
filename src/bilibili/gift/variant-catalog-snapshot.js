@@ -22,12 +22,7 @@ function normalizeVariantSnapshot(source, normalizeGift, imageBaseUrl) {
   );
   validateVariantCatalog(rawCatalog);
   const gifts = source.variants
-    .filter(
-      (gift) =>
-        gift.coinType === 'gold' &&
-        gift.giftId !== '13000' &&
-        !isGuardGiftAliasId(gift.giftId),
-    )
+    .filter((gift) => gift.coinType === 'gold' && gift.giftId !== '13000' && !isGuardGiftAliasId(gift.giftId))
     .map((gift) => ({
       ...normalizeGift({ ...gift, active: gift.isProjected }, imageBaseUrl),
       variantId: gift.variantId,
@@ -45,9 +40,7 @@ function normalizeVariantSnapshot(source, normalizeGift, imageBaseUrl) {
     .filter((box) => byVariant.get(box.variantId)?.active)
     .map((box) => ({
       giftId: byVariant.get(box.variantId).id,
-      outputGiftIds: box.outputVariantIds
-        .filter((id) => byVariant.get(id)?.active)
-        .map((id) => byVariant.get(id).id),
+      outputGiftIds: box.outputVariantIds.filter((id) => byVariant.get(id)?.active).map((id) => byVariant.get(id).id),
     }))
     .filter((box) => box.outputGiftIds.length);
   return {

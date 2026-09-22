@@ -46,7 +46,8 @@
   min-height: 32px;
   padding: 5px 10px;
 }
-.danmaku-tool-panel :where(input:not([type='checkbox']), select, textarea, button.icon, .lira-select-trigger, .lira-select-menu) {
+.danmaku-tool-panel
+  :where(input:not([type='checkbox']), select, textarea, button.icon, .lira-select-trigger, .lira-select-menu) {
   border-width: 2px;
 }
 .danmaku-tool-panel .lira-select {

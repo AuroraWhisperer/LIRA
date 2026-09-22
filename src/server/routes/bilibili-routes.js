@@ -1,10 +1,7 @@
 'use strict';
 
 const { sendJson } = require('../http-utils');
-const {
-  normalizeRoomInput,
-  publicBilibiliErrorMessage,
-} = require('../../shared/utils');
+const { normalizeRoomInput, publicBilibiliErrorMessage } = require('../../shared/utils');
 
 const prefixes = ['/api/bilibili/'];
 
@@ -25,9 +22,7 @@ const routes = {
 
   async 'GET /api/bilibili/avatar'(context, request, res) {
     try {
-      const image = await context.bilibili.fetchAvatarImage(
-        request.query.get('url'),
-      );
+      const image = await context.bilibili.fetchAvatarImage(request.query.get('url'));
       res.writeHead(200, {
         'Content-Type': image.contentType,
         'Content-Length': image.data.length,
@@ -148,11 +143,7 @@ function publicDanmakuSendErrorMessage(error) {
     friendly = '发送失败：直播平台拦截了这次请求，稍后再试或换网络看看。';
   } else if (/code=-400|参数/i.test(message)) {
     friendly = '发送失败：直播平台认为这条弹幕的内容或房间参数不正确。';
-  } else if (
-    /ENOTFOUND|ECONNRESET|ETIMEDOUT|EAI_AGAIN|fetch failed|network|timeout/i.test(
-      message,
-    )
-  ) {
+  } else if (/ENOTFOUND|ECONNRESET|ETIMEDOUT|EAI_AGAIN|fetch failed|network|timeout/i.test(message)) {
     friendly = '发送失败：现在连不上直播平台服务，请检查网络后重试。';
   } else if (/non-JSON|Unexpected token|Unexpected end/i.test(message)) {
     friendly = '发送失败：直播平台接口返回了异常内容，请稍后再试。';

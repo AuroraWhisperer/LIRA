@@ -40,14 +40,7 @@ function createLotteryDrawStore(db) {
       `INSERT INTO lottery_events
       (streamer_id, task_id, round_id, event_type, payload_json, created_at_ms)
       VALUES (?, ?, ?, ?, ?, ?)`,
-    ).run(
-      task.streamerId,
-      task.id,
-      roundId,
-      type,
-      JSON.stringify(payload),
-      nowMs,
-    );
+    ).run(task.streamerId, task.id, roundId, type, JSON.stringify(payload), nowMs);
   }
 
   function freeze({ task, members, order, digest, nowMs }) {
@@ -60,56 +53,27 @@ function createLotteryDrawStore(db) {
         JOIN lottery_scans s ON s.id = t.active_scan_id WHERE t.id = ? AND t.streamer_id = ?`,
         )
         .get(task.id, task.streamerId);
-      if (
-        !current ||
-        current.revision !== task.revision ||
-        current.status !== 'completed'
-      )
-        throw conflict();
+      if (!current || current.revision !== task.revision || current.status !== 'completed') throw conflict();
       const roundId = randomUUID();
       const orderId = randomUUID();
       db.prepare(
         `INSERT INTO lottery_rounds (id, task_id, scan_id, rules_json,
         member_digest, algorithm_version, status, created_at_ms, updated_at_ms)
         VALUES (?, ?, ?, ?, ?, 'fisher-yates-crypto-v1', 'frozen', ?, ?)`,
-      ).run(
-        roundId,
-        task.id,
-        task.activeScanId,
-        JSON.stringify(task.rules),
-        digest,
-        nowMs,
-        nowMs,
-      );
+      ).run(roundId, task.id, task.activeScanId, JSON.stringify(task.rules), digest, nowMs, nowMs);
       const insert = db.prepare(`INSERT INTO lottery_round_members
         (round_id, uid, evidence_source, evidence_record_id) VALUES (?, ?, ?, ?)`);
-      for (const member of members)
-        insert.run(roundId, member.uid, member.source, member.recordId);
+      for (const member of members) insert.run(roundId, member.uid, member.source, member.recordId);
       db.prepare(
         `INSERT INTO lottery_orders (id, round_id, scope, generation, kind,
         request_id, order_json, status, created_at_ms, updated_at_ms)
         VALUES (?, ?, 'main', 0, 'initial', ?, ?, 'frozen', ?, ?)`,
-      ).run(
-        orderId,
-        roundId,
-        `initial:${task.id}`,
-        JSON.stringify(order),
-        nowMs,
-        nowMs,
-      );
-      db.prepare(
-        'UPDATE lottery_rounds SET current_order_id = ? WHERE id = ?',
-      ).run(orderId, roundId);
+      ).run(orderId, roundId, `initial:${task.id}`, JSON.stringify(order), nowMs, nowMs);
+      db.prepare('UPDATE lottery_rounds SET current_order_id = ? WHERE id = ?').run(orderId, roundId);
       db.prepare(
         "UPDATE lottery_tasks SET status = 'frozen', revision = revision + 1, updated_at_ms = ? WHERE id = ?",
       ).run(nowMs, task.id);
-      event(
-        task,
-        roundId,
-        'frozen',
-        { count: order.length, digest, algorithm: 'fisher-yates-crypto-v1' },
-        nowMs,
-      );
+      event(task, roundId, 'frozen', { count: order.length, digest, algorithm: 'fisher-yates-crypto-v1' }, nowMs);
       return getRound(task.id);
     });
   }
@@ -141,25 +105,23 @@ function createLotteryDrawStore(db) {
   function setStatus(task, status, reason, nowMs) {
     return transaction(db, () => {
       const round = getRound(task.id);
-      if (!round || ['completed', 'exhausted'].includes(round.status))
-        return round;
-      db.prepare(
-        'UPDATE lottery_rounds SET status = ?, revision = revision + 1, updated_at_ms = ? WHERE id = ?',
-      ).run(status, nowMs, round.id);
-      db.prepare(
-        'UPDATE lottery_orders SET status = ?, updated_at_ms = ? WHERE id = ?',
-      ).run(status, nowMs, round.orderId);
-      db.prepare(
-        'UPDATE lottery_tasks SET status = ?, revision = revision + 1, updated_at_ms = ? WHERE id = ?',
-      ).run(status, nowMs, task.id);
-      if (status === 'paused')
-        event(
-          task,
-          round.id,
-          'paused',
-          { reason, nextIndex: round.nextIndex },
-          nowMs,
-        );
+      if (!round || ['completed', 'exhausted'].includes(round.status)) return round;
+      db.prepare('UPDATE lottery_rounds SET status = ?, revision = revision + 1, updated_at_ms = ? WHERE id = ?').run(
+        status,
+        nowMs,
+        round.id,
+      );
+      db.prepare('UPDATE lottery_orders SET status = ?, updated_at_ms = ? WHERE id = ?').run(
+        status,
+        nowMs,
+        round.orderId,
+      );
+      db.prepare('UPDATE lottery_tasks SET status = ?, revision = revision + 1, updated_at_ms = ? WHERE id = ?').run(
+        status,
+        nowMs,
+        task.id,
+      );
+      if (status === 'paused') event(task, round.id, 'paused', { reason, nextIndex: round.nextIndex }, nowMs);
       return getRound(task.id);
     });
   }
@@ -189,35 +151,26 @@ function createLotteryDrawStore(db) {
           `INSERT INTO lottery_awards (id, round_id, order_id, prize_id,
           prize_label, slot_index, uid, status, verification_json, drawn_at_ms,
           created_at_ms, updated_at_ms) VALUES (?, ?, ?, 'main', '中奖名额', ?, ?, 'selected', ?, ?, ?, ?)`,
-        ).run(
-          randomUUID(),
-          round.id,
-          round.orderId,
-          accepted,
-          uid,
-          JSON.stringify(verification),
-          nowMs,
-          nowMs,
-          nowMs,
-        );
+        ).run(randomUUID(), round.id, round.orderId, accepted, uid, JSON.stringify(verification), nowMs, nowMs, nowMs);
       }
       const filled = accepted + (verification.state === 'eligible' ? 1 : 0);
       const status =
-        filled >= round.rules.winnerCount
-          ? 'completed'
-          : index + 1 >= round.order.length
-            ? 'exhausted'
-            : 'drawing';
-      db.prepare(
-        'UPDATE lottery_orders SET next_index = ?, status = ?, updated_at_ms = ? WHERE id = ?',
-      ).run(index + 1, status, nowMs, round.orderId);
+        filled >= round.rules.winnerCount ? 'completed' : index + 1 >= round.order.length ? 'exhausted' : 'drawing';
+      db.prepare('UPDATE lottery_orders SET next_index = ?, status = ?, updated_at_ms = ? WHERE id = ?').run(
+        index + 1,
+        status,
+        nowMs,
+        round.orderId,
+      );
       db.prepare(
         `UPDATE lottery_rounds SET status = ?, revision = revision + 1,
         result_version = result_version + 1, updated_at_ms = ? WHERE id = ?`,
       ).run(status, nowMs, round.id);
-      db.prepare(
-        'UPDATE lottery_tasks SET status = ?, revision = revision + 1, updated_at_ms = ? WHERE id = ?',
-      ).run(status, nowMs, task.id);
+      db.prepare('UPDATE lottery_tasks SET status = ?, revision = revision + 1, updated_at_ms = ? WHERE id = ?').run(
+        status,
+        nowMs,
+        task.id,
+      );
       event(
         task,
         round.id,
@@ -246,10 +199,7 @@ function createLotteryDrawStore(db) {
       checkedCount: round.nextIndex,
       excludedCount: round.nextIndex - awards.length,
       requestedCount: round.rules.winnerCount,
-      shortage:
-        round.status === 'exhausted'
-          ? round.rules.winnerCount - awards.length
-          : 0,
+      shortage: round.status === 'exhausted' ? round.rules.winnerCount - awards.length : 0,
       reason:
         round.status === 'paused'
           ? lastPause
@@ -267,9 +217,7 @@ function createLotteryDrawStore(db) {
       db.prepare(
         "UPDATE lottery_rounds SET status = 'paused', revision = revision + 1, updated_at_ms = ? WHERE status = 'drawing'",
       ).run(nowMs);
-      db.prepare(
-        "UPDATE lottery_orders SET status = 'paused', updated_at_ms = ? WHERE status = 'drawing'",
-      ).run(nowMs);
+      db.prepare("UPDATE lottery_orders SET status = 'paused', updated_at_ms = ? WHERE status = 'drawing'").run(nowMs);
       db.prepare(
         "UPDATE lottery_tasks SET status = 'paused', revision = revision + 1, updated_at_ms = ? WHERE status = 'drawing'",
       ).run(nowMs);

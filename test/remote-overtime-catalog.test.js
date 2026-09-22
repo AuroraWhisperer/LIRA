@@ -9,9 +9,7 @@ const test = require('node:test');
 const { createServerRuntime } = require('../src/server');
 
 test('keeps the current room catalog primary and decorates exact IDs with server artwork', async () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'lira-remote-overtime-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-remote-overtime-'));
   let remoteCalls = 0;
   let receivedEtag = '';
   const runtime = createServerRuntime({
@@ -30,11 +28,7 @@ test('keeps the current room catalog primary and decorates exact IDs with server
           code: 0,
           data: {
             room_gift_list: {
-              gold_list: [
-                { gift_id: 400 },
-                { gift_id: 35793 },
-                { gift_id: 35794 },
-              ],
+              gold_list: [{ gift_id: 400 }, { gift_id: 35793 }, { gift_id: 35794 }],
             },
           },
         };
@@ -149,12 +143,7 @@ test('keeps the current room catalog primary and decorates exact IDs with server
     assert.deepEqual(payload.data.gifts, []);
     assert.equal(remoteCalls, 0);
 
-    const refreshed = await postJson(
-      app.baseUrl,
-      token,
-      '/api/overtime/gifts/refresh',
-      {},
-    );
+    const refreshed = await postJson(app.baseUrl, token, '/api/overtime/gifts/refresh', {});
     assert.equal(refreshed.response.status, 200);
     assert.deepEqual(
       refreshed.payload.data.gifts.map((gift) => [gift.id, gift.imagePath]),
@@ -167,12 +156,7 @@ test('keeps the current room catalog primary and decorates exact IDs with server
     );
     assert.equal(remoteCalls, 1);
 
-    const cachedSearch = await postJson(
-      app.baseUrl,
-      token,
-      '/api/overtime/gifts/local/search',
-      { query: '987654321' },
-    );
+    const cachedSearch = await postJson(app.baseUrl, token, '/api/overtime/gifts/local/search', { query: '987654321' });
     assert.equal(cachedSearch.response.status, 200);
     assert.deepEqual(
       cachedSearch.payload.data.gifts.map((gift) => gift.id),
@@ -180,46 +164,30 @@ test('keeps the current room catalog primary and decorates exact IDs with server
     );
     assert.equal(remoteCalls, 1);
 
-    const searched = await postJson(
-      app.baseUrl,
-      token,
-      '/api/overtime/gifts/server/search',
-      { query: '987654321' },
-    );
+    const searched = await postJson(app.baseUrl, token, '/api/overtime/gifts/server/search', { query: '987654321' });
     assert.equal(searched.response.status, 200);
     assert.deepEqual(
       searched.payload.data.gifts.map((gift) => gift.id),
       ['987654321'],
     );
-    assert.equal(
-      searched.payload.data.gifts[0].imagePath,
-      '/overtime-gift-images/server.webp',
-    );
+    assert.equal(searched.payload.data.gifts[0].imagePath, '/overtime-gift-images/server.webp');
     assert.equal(remoteCalls, 1);
     assert.equal(receivedEtag, '');
 
-    const savedRemoteRule = await postJson(
-      app.baseUrl,
-      token,
-      '/api/overtime/rules',
-      {
-        rules: [
-          {
-            giftId: '987654321',
-            giftName: '同名礼物',
-            imagePath: '/overtime-gift-images/server.webp',
-            mode: 'fixed',
-            fixedSeconds: 60,
-            quantityMode: 'item',
-          },
-        ],
-      },
-    );
+    const savedRemoteRule = await postJson(app.baseUrl, token, '/api/overtime/rules', {
+      rules: [
+        {
+          giftId: '987654321',
+          giftName: '同名礼物',
+          imagePath: '/overtime-gift-images/server.webp',
+          mode: 'fixed',
+          fixedSeconds: 60,
+          quantityMode: 'item',
+        },
+      ],
+    });
     assert.equal(savedRemoteRule.response.status, 200);
-    assert.equal(
-      savedRemoteRule.payload.data.rules[0].imagePath,
-      '/overtime-gift-images/server.webp',
-    );
+    assert.equal(savedRemoteRule.payload.data.rules[0].imagePath, '/overtime-gift-images/server.webp');
   } finally {
     await runtime.stop({ exitProcess: false });
     fs.rmSync(dataDir, { recursive: true, force: true });
@@ -227,9 +195,7 @@ test('keeps the current room catalog primary and decorates exact IDs with server
 });
 
 test('room refresh keeps its gifts when server artwork is unavailable', async () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'lira-remote-overtime-offline-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-remote-overtime-offline-'));
   const runtime = createServerRuntime({
     dataDir,
     giftSaleGetRoomId: () => '22637261',
@@ -267,12 +233,7 @@ test('room refresh keeps its gifts when server artwork is unavailable', async ()
         logger: { warn() {}, debug() {} },
       },
     });
-    const refreshed = await postJson(
-      app.baseUrl,
-      runtime.getApiToken(),
-      '/api/overtime/gifts/refresh',
-      {},
-    );
+    const refreshed = await postJson(app.baseUrl, runtime.getApiToken(), '/api/overtime/gifts/refresh', {});
 
     assert.equal(refreshed.response.status, 200);
     assert.deepEqual(refreshed.payload.data.gifts, [
@@ -294,9 +255,7 @@ test('room refresh keeps its gifts when server artwork is unavailable', async ()
 });
 
 test('local and legacy server searches never fetch while handling the query', async () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'lira-remote-overtime-force-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-remote-overtime-force-'));
   let remoteCalls = 0;
   let offline = false;
   const runtime = createServerRuntime({
@@ -338,12 +297,7 @@ test('local and legacy server searches never fetch while handling the query', as
     await runtime.initializeGiftCatalog({ force: true, reason: 'test' });
     assert.equal(remoteCalls, 1);
 
-    const first = await postJson(
-      app.baseUrl,
-      token,
-      '/api/overtime/gifts/local/search',
-      { query: '手动同步' },
-    );
+    const first = await postJson(app.baseUrl, token, '/api/overtime/gifts/local/search', { query: '手动同步' });
     assert.equal(first.response.status, 200);
     assert.deepEqual(
       first.payload.data.gifts.map((gift) => gift.id),
@@ -352,12 +306,7 @@ test('local and legacy server searches never fetch while handling the query', as
     assert.equal(remoteCalls, 1);
 
     offline = true;
-    const legacyAlias = await postJson(
-      app.baseUrl,
-      token,
-      '/api/overtime/gifts/server/search',
-      { query: '手动同步' },
-    );
+    const legacyAlias = await postJson(app.baseUrl, token, '/api/overtime/gifts/server/search', { query: '手动同步' });
     assert.equal(legacyAlias.response.status, 200);
     assert.deepEqual(
       legacyAlias.payload.data.gifts.map((gift) => gift.id),

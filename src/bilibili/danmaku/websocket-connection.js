@@ -10,8 +10,7 @@ class WebSocketConnection {
   constructor(options = {}) {
     this.ws = null;
     this.heartbeatTimer = null;
-    this.heartbeatIntervalMs =
-      options.heartbeatIntervalMs || HEARTBEAT_INTERVAL_MS;
+    this.heartbeatIntervalMs = options.heartbeatIntervalMs || HEARTBEAT_INTERVAL_MS;
     this.awaitingHeartbeatReply = false;
     this.eventHandlers = {
       open: [],
@@ -29,10 +28,12 @@ class WebSocketConnection {
     ws.binaryType = 'arraybuffer';
     this.ws = ws;
     const trace = {
-      authStatus: 'pending', packets: 0, heartbeatReplies: 0, lastPacketAt: '',
+      authStatus: 'pending',
+      packets: 0,
+      heartbeatReplies: 0,
+      lastPacketAt: '',
     };
-    const report = (event, details = {}) =>
-      this.emit('diagnostic', { event, ...details });
+    const report = (event, details = {}) => this.emit('diagnostic', { event, ...details });
     this.connectionTrace = trace;
 
     ws.addEventListener('open', () => {
@@ -75,9 +76,7 @@ class WebSocketConnection {
         if (trace.heartbeatReplies === 1) report('heartbeat-confirmed');
       }
       for (const result of authenticationReplies(data)) {
-        trace.authStatus = result.code === null
-          ? 'invalid'
-          : result.code === 0 ? 'accepted' : 'rejected';
+        trace.authStatus = result.code === null ? 'invalid' : result.code === 0 ? 'accepted' : 'rejected';
         report('auth-result', { status: trace.authStatus, code: result.code });
       }
       this.emit('message', data, metadata);
@@ -89,15 +88,19 @@ class WebSocketConnection {
           deliver(Buffer.from(data), metadata);
         } else {
           reading = true;
-          Promise.resolve().then(() => data.arrayBuffer()).then((buffer) => {
-            deliver(Buffer.from(buffer), metadata);
-          }).catch((error) => {
-            if (this.ws === ws) this.emit('error', error);
-          }).finally(() => {
-            reading = false;
-            if (this.ws !== ws) frames.length = 0;
-            else drain();
-          });
+          Promise.resolve()
+            .then(() => data.arrayBuffer())
+            .then((buffer) => {
+              deliver(Buffer.from(buffer), metadata);
+            })
+            .catch((error) => {
+              if (this.ws === ws) this.emit('error', error);
+            })
+            .finally(() => {
+              reading = false;
+              if (this.ws !== ws) frames.length = 0;
+              else drain();
+            });
         }
       }
     };
@@ -163,9 +166,7 @@ class WebSocketConnection {
 
   sendPacket(operation, version, body) {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
-    const payload = Buffer.from(
-      typeof body === 'string' ? body : JSON.stringify(body),
-    );
+    const payload = Buffer.from(typeof body === 'string' ? body : JSON.stringify(body));
     const header = Buffer.alloc(16);
     header.writeUInt32BE(16 + payload.length, 0);
     header.writeUInt16BE(16, 4);
@@ -183,7 +184,11 @@ class WebSocketConnection {
 
   clearHandlers() {
     this.eventHandlers = {
-      open: [], message: [], close: [], error: [], diagnostic: [],
+      open: [],
+      message: [],
+      close: [],
+      error: [],
+      diagnostic: [],
     };
   }
 
@@ -236,16 +241,11 @@ function authenticationReplies(buffer) {
   while (offset + 16 <= buffer.length) {
     const length = buffer.readUInt32BE(offset);
     const headerLength = buffer.readUInt16BE(offset + 4);
-    if (
-      length < 16 || headerLength < 16 || headerLength > length ||
-      offset + length > buffer.length
-    ) break;
+    if (length < 16 || headerLength < 16 || headerLength > length || offset + length > buffer.length) break;
     if (buffer.readUInt32BE(offset + 8) === 8) {
       let code;
       try {
-        const reply = JSON.parse(
-          buffer.subarray(offset + headerLength, offset + length).toString('utf8'),
-        );
+        const reply = JSON.parse(buffer.subarray(offset + headerLength, offset + length).toString('utf8'));
         code = Number.isInteger(reply?.code) ? reply.code : null;
       } catch (_) {
         // The raw authentication response may contain secrets; retain only its validity.
@@ -262,8 +262,7 @@ function containsOperation(buffer, expectedOperation) {
   let offset = 0;
   while (offset + 16 <= buffer.length) {
     const packetLength = buffer.readUInt32BE(offset);
-    if (packetLength < 16 || offset + packetLength > buffer.length)
-      return false;
+    if (packetLength < 16 || offset + packetLength > buffer.length) return false;
     if (buffer.readUInt32BE(offset + 8) === expectedOperation) return true;
     offset += packetLength;
   }

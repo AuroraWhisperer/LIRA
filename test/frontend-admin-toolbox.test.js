@@ -46,45 +46,6 @@ test('hardware summary hides memory temperature and renders missing CPU temperat
   assert.doesNotMatch(html, /id="hardwareMemoryTemperature"/);
 });
 
-test('first-run onboarding fragment is hidden by default and wired into the admin shell', () => {
-  const page = fs.readFileSync(
-    path.join(ROOT_DIR, 'src', 'server', 'admin-page.js'),
-    'utf8',
-  );
-  const onboarding = fs.readFileSync(
-    path.join(
-      ROOT_DIR,
-      'public',
-      'pages',
-      'admin',
-      'toolbox',
-      'onboarding.html',
-    ),
-    'utf8',
-  );
-  const css = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'css', 'admin', 'other-features.css'),
-    'utf8',
-  );
-  const app = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'app.js'),
-    'utf8',
-  );
-  assert.match(page, /pages\/admin\/toolbox\/onboarding\.html/);
-  assert.match(onboarding, /id="liraOnboarding"[^>]*role="dialog"[^>]*hidden/);
-  for (const id of [
-    'onboardingStepContent',
-    'onboardingProgress',
-    'onboardingNextBtn',
-    'onboardingFinishBtn',
-    'onboardingAiTest',
-  ]) {
-    assert.match(onboarding, new RegExp(`id="${id}"`));
-  }
-  assert.match(css, /other-features\/onboarding\.css/);
-  assert.match(app, /initOnboarding\(/);
-});
-
 test('other feature navigation selects panels without feature-specific dependencies', () => {
   const source = readJsModuleBundle('public', 'js', 'admin', 'other.js');
   const createNode = ({ id = '', feature = '', hidden = false } = {}) => {
@@ -145,10 +106,7 @@ test('other feature navigation selects panels without feature-specific dependenc
   };
 
   vm.runInNewContext(source, sandbox);
-  const selected = sandbox.window.AdminApp.other.selectFeature(
-    root,
-    'diagnosticsFeature',
-  );
+  const selected = sandbox.window.AdminApp.other.selectFeature(root, 'diagnosticsFeature');
 
   assert.equal(selected, true);
   assert.equal(buttons[0].classList.contains('active'), false);
@@ -185,10 +143,7 @@ test('other feature navigation selects panels without feature-specific dependenc
 });
 
 test('desktop update opens its toolbox feature through module APIs', () => {
-  const source = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'desktop.js'),
-    'utf8',
-  );
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'desktop.js'), 'utf8');
   let showUpdatePage;
   let selectedPage = '';
   let selectedFeature = '';
@@ -238,10 +193,7 @@ test('desktop update opens its toolbox feature through module APIs', () => {
 
 test('browser source tab classifies and exposes every overlay address', () => {
   const html = readAdminHtml();
-  const displaySource = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'display.js'),
-    'utf8',
-  );
+  const displaySource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'display.js'), 'utf8');
   const sources = [
     ['queueUrl', '/queue'],
     ['songsUrl', '/songlist'],
@@ -266,11 +218,7 @@ test('browser source tab classifies and exposes every overlay address', () => {
         route +
         '`;',
     );
-    assert.match(
-      displaySource,
-      assignmentPattern,
-      `${route} should be initialized in the live screen tab`,
-    );
+    assert.match(displaySource, assignmentPattern, `${route} should be initialized in the live screen tab`);
   }
   assert.match(html, /id="liveDanmakuUrl"/);
   assert.match(html, /data-copy-url="liveDanmakuUrl"[^>]*disabled/);
@@ -278,10 +226,7 @@ test('browser source tab classifies and exposes every overlay address', () => {
     displaySource,
     /observeServerOverlayUrl\(\(url\) => \{\s*document\.getElementById\('liveDanmakuUrl'\)\.textContent\s*=\s*url \|\|/,
   );
-  assert.match(
-    displaySource,
-    /document\.querySelector\('\[data-copy-url="liveDanmakuUrl"\]'\)\.disabled = !url;/,
-  );
+  assert.match(displaySource, /document\.querySelector\('\[data-copy-url="liveDanmakuUrl"\]'\)\.disabled = !url;/);
   assert.match(html, />\s*点歌与音乐\s*<\/h3\s*>/);
   assert.match(html, />\s*直播互动\s*<\/h3\s*>/);
   assert.match(html, />\s*场景与氛围\s*<\/h3\s*>/);

@@ -13,8 +13,7 @@ const args = process.argv.slice(2);
 if (args.length !== 0 && (args.length !== 2 || args.some((root) => !path.isAbsolute(root)))) {
   throw new Error('Pass no arguments or two absolute client and server checkout paths.');
 }
-const [clientRoot, serverRoot] = args.length === 2
-  ? args : [path.resolve(__dirname, '..'), resolveServerRoot()];
+const [clientRoot, serverRoot] = args.length === 2 ? args : [path.resolve(__dirname, '..'), resolveServerRoot()];
 const clientRequire = createRequire(path.join(clientRoot, 'package.json'));
 const { verifyServerContract, readServerFixture } = clientRequire('./scripts/verify-server-contract');
 verifyServerContract({ serverRoot, runtime: true });
@@ -53,8 +52,10 @@ async function fixture(t) {
   const events = [];
   const service = createSongLibrarySyncService({ events: { publish: (...args) => events.push(args) } });
   const routes = Object.fromEntries(
-    ['adminAuth', 'admin', 'auth', 'device', 'streamerAuth', 'streamer', 'public']
-      .map((name) => [name, express.Router()]),
+    ['adminAuth', 'admin', 'auth', 'device', 'streamerAuth', 'streamer', 'public'].map((name) => [
+      name,
+      express.Router(),
+    ]),
   );
   // Authentication and route wiring are adapters here. Parser, domain service,
   // transaction, SQLite, DTO and desktop HTTP transport are production code.
@@ -73,11 +74,19 @@ async function fixture(t) {
   const snapshot = () => ({ songs: store.listSongs(db, true), ...store.getSongSyncState(db) });
   routes.device.get('/songs', (req, res) => res.json(snapshot()));
   const app = createApp({
-    config: { env: 'test', trustProxy: false, baseDomain: 'example.test',
-      adminHost: 'admin.example.test', apiHost: 'api.example.test', gamesBaseDomain: 'games.example.test' },
-    logger: { error: (...args) => assert.fail(JSON.stringify(args)) }, routes,
+    config: {
+      env: 'test',
+      trustProxy: false,
+      baseDomain: 'example.test',
+      adminHost: 'admin.example.test',
+      apiHost: 'api.example.test',
+      gamesBaseDomain: 'games.example.test',
+    },
+    logger: { error: (...args) => assert.fail(JSON.stringify(args)) },
+    routes,
     monitorManager: { getHealthSummary: () => ({ total: 0, wsConnected: 0, reconnects: 0 }) },
-    resolveConsoleSession: () => ({ kind: 'anonymous' }), findStreamerBySubdomain: () => null,
+    resolveConsoleSession: () => ({ kind: 'anonymous' }),
+    findStreamerBySubdomain: () => null,
     managementUrl: (pathname) => `https://admin.example.test${pathname}`,
   });
   listener = http.createServer(app);
@@ -95,9 +104,14 @@ async function fixture(t) {
 }
 
 const aliases = {
-  name: 'title', category_name: 'categoryName', source_platform: 'sourcePlatform',
-  request_price: 'requestPrice', song_clip: 'songClip', isEnabled: 'enabled',
-  is_enabled: 'enabled', sort_order: 'sortOrder',
+  name: 'title',
+  category_name: 'categoryName',
+  source_platform: 'sourcePlatform',
+  request_price: 'requestPrice',
+  song_clip: 'songClip',
+  isEnabled: 'enabled',
+  is_enabled: 'enabled',
+  sort_order: 'sortOrder',
 };
 
 async function assertRoundtrip(fixture, input) {
@@ -111,11 +125,22 @@ async function assertRoundtrip(fixture, input) {
   assert.equal(result.revision, written.revision);
   assert.equal(result.initialized, true);
   assert.deepEqual(result, snapshot());
-  const expected = input.map((song, index) => normalizeSong(song, index))
+  const expected = input
+    .map((song, index) => normalizeSong(song, index))
     .sort((left, right) => left.sortOrder - right.sortOrder);
   result.songs.forEach((song, index) => {
-    for (const field of ['title', 'artist', 'categoryName', 'tags', 'language',
-      'sourcePlatform', 'note', 'requestPrice', 'songClip', 'sortOrder']) {
+    for (const field of [
+      'title',
+      'artist',
+      'categoryName',
+      'tags',
+      'language',
+      'sourcePlatform',
+      'note',
+      'requestPrice',
+      'songClip',
+      'sortOrder',
+    ]) {
       assert.equal(song[field], expected[index][field], `${index}: ${field}`);
     }
     assert.equal(song.enabled, Boolean(expected[index].enabled));
@@ -130,10 +155,14 @@ async function assertRoundtrip(fixture, input) {
 
 function auditSongs() {
   const sample = budget.cases.find((item) => item.id === 'audit-ascii-roundtrip');
-  return Array.from({ length: sample.count }, (_, index) => mapSongForSync({
-    name: `Song ${index}`, artist: 'Synthetic', requestPrice: 'Text price',
-    songClip: sample.songClip.repeat(sample.songClipRepeat),
-  }));
+  return Array.from({ length: sample.count }, (_, index) =>
+    mapSongForSync({
+      name: `Song ${index}`,
+      artist: 'Synthetic',
+      requestPrice: 'Text price',
+      songClip: sample.songClip.repeat(sample.songClipRepeat),
+    }),
+  );
 }
 
 test('the historical 5000-song ASCII upload can now be read back with every legacy alias', async (t) => {
@@ -159,7 +188,9 @@ test('exactly 2 MiB uploads roundtrip; one additional byte leaves the prior snap
   const eventsBefore = f.events.length;
   input.at(-1).songClip += 'x';
   await assert.rejects(f.remote.syncSongs(input, 'synthetic-token'), {
-    code: budget.rejection.error, status: budget.rejection.status, retryable: false,
+    code: budget.rejection.error,
+    status: budget.rejection.status,
+    retryable: false,
   });
   assert.deepEqual(f.snapshot(), before);
   assert.equal(f.events.length, eventsBefore);
@@ -170,9 +201,15 @@ test('UTF-8, escaped controls, legacy input aliases and every text field boundar
   const sample = budget.cases.find((item) => item.id === 'utf8-json-escaping').text;
   const atLimit = (length) => `😀${'曲"\\\u0000'.repeat(length)}`.slice(0, length);
   const input = Array.from({ length: 64 }, (_, index) => ({
-    name: atLimit(200), artist: atLimit(200), category_name: atLimit(120),
-    tags: atLimit(500), language: atLimit(80), source_platform: atLimit(80),
-    note: atLimit(1000), request_price: atLimit(1000), song_clip: atLimit(1000),
+    name: atLimit(200),
+    artist: atLimit(200),
+    category_name: atLimit(120),
+    tags: atLimit(500),
+    language: atLimit(80),
+    source_platform: atLimit(80),
+    note: atLimit(1000),
+    request_price: atLimit(1000),
+    song_clip: atLimit(1000),
     is_enabled: index % 2 === 0,
     sort_order: index === 0 ? Number.MIN_SAFE_INTEGER : Number.MAX_SAFE_INTEGER,
   }));
@@ -190,11 +227,15 @@ test('normalizer expansion exceeding the response budget is rejected before comm
   // never circumvent the complete response budget or overwrite the last snapshot.
   const repeatedObjects = Array.from({ length: 63 }, () => ({}));
   const input = Array.from({ length: 3000 }, () => ({
-    title: 'Synthetic', songClip: repeatedObjects, note: repeatedObjects,
+    title: 'Synthetic',
+    songClip: repeatedObjects,
+    note: repeatedObjects,
   }));
   assert.ok(Buffer.byteLength(JSON.stringify({ songs: input })) < budget.requestMaxBytes);
   await assert.rejects(f.remote.syncSongs(input, 'synthetic-token'), {
-    code: budget.rejection.error, status: budget.rejection.status, retryable: false,
+    code: budget.rejection.error,
+    status: budget.rejection.status,
+    retryable: false,
   });
   assert.deepEqual(f.snapshot(), before);
   assert.deepEqual(f.db.prepare('SELECT * FROM song_page_settings ORDER BY key').all(), metadataBefore);
@@ -206,9 +247,17 @@ test('5001-song rejection and an empty replacement retain their transactional se
   const f = await fixture(t);
   await assertRoundtrip(f, [{ name: 'Original' }]);
   const before = f.snapshot();
-  await assert.rejects(f.remote.syncSongs(Array.from({ length: budget.maxSongs + 1 }, () => ({ name: 'Song' })), 'synthetic-token'), {
-    code: 'TOO_MANY_SONGS', status: 400, retryable: false,
-  });
+  await assert.rejects(
+    f.remote.syncSongs(
+      Array.from({ length: budget.maxSongs + 1 }, () => ({ name: 'Song' })),
+      'synthetic-token',
+    ),
+    {
+      code: 'TOO_MANY_SONGS',
+      status: 400,
+      retryable: false,
+    },
+  );
   assert.deepEqual(f.snapshot(), before);
   await assertRoundtrip(f, []);
 });

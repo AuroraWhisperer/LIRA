@@ -85,17 +85,14 @@ function renderGiftRemarks(gift) {
       remarks.push('<span class="gift-remark-tag blind">盲盒 成本未知</span>');
     } else {
       const profitSign = blindProfit > 0 ? '+' : blindProfit < 0 ? '-' : '';
-      const profitClass =
-        blindProfit > 0 ? 'profit-up' : blindProfit < 0 ? 'profit-down' : '';
+      const profitClass = blindProfit > 0 ? 'profit-up' : blindProfit < 0 ? 'profit-down' : '';
       remarks.push(
         `<span class="gift-remark-tag blind ${profitClass}">盲盒 ${profitSign}${formatHistoryMoney(Math.abs(Number(blindProfit) || 0))}</span>`,
       );
     }
   }
   if (gift.blindBoxName) {
-    remarks.push(
-      `<span class="gift-remark-tag">${escapeHtml(gift.blindBoxName)}</span>`,
-    );
+    remarks.push(`<span class="gift-remark-tag">${escapeHtml(gift.blindBoxName)}</span>`);
   }
 
   return remarks;
@@ -126,13 +123,9 @@ export function updatePaginationView(loading, view) {
     previousButton.disabled = loading || view.ledger.cursorHistory.length === 0;
   }
   if (nextButton) {
-    nextButton.disabled =
-      loading || !view.ledger.hasMore || !view.ledger.nextCursor;
+    nextButton.disabled = loading || !view.ledger.hasMore || !view.ledger.nextCursor;
   }
-  setText(
-    'giftHistoryPageInfo',
-    `第 ${view.ledger.page}/${view.ledger.totalPages} 页`,
-  );
+  setText('giftHistoryPageInfo', `第 ${view.ledger.page}/${view.ledger.totalPages} 页`);
 }
 
 export function renderGiftHistorySortView(view) {
@@ -142,19 +135,11 @@ export function renderGiftHistorySortView(view) {
     const active = sort === view.ledger.sortField;
     header.setAttribute?.(
       'aria-sort',
-      active
-        ? view.ledger.sortDirection === 'asc'
-          ? 'ascending'
-          : 'descending'
-        : 'none',
+      active ? (view.ledger.sortDirection === 'asc' ? 'ascending' : 'descending') : 'none',
     );
     const arrow = header.querySelector?.('.sort-arrow');
     if (arrow) {
-      arrow.textContent = active
-        ? view.ledger.sortDirection === 'asc'
-          ? ' ▲'
-          : ' ▼'
-        : '';
+      arrow.textContent = active ? (view.ledger.sortDirection === 'asc' ? ' ▲' : ' ▼') : '';
     }
   });
 }
@@ -171,17 +156,11 @@ export function describeGiftSyncStatus(syncState, partial) {
   }
   return {
     state: 'partial',
-    label:
-      syncState === 'LEGACY_PARTIAL'
-        ? '当前仅能查看部分历史记录。'
-        : '正在更新礼物记录…',
+    label: syncState === 'LEGACY_PARTIAL' ? '当前仅能查看部分历史记录。' : '正在更新礼物记录…',
   };
 }
 
-export function renderHistoryNoticeView(
-  { state = 'partial', label, detail = '', retry = false },
-  view,
-) {
+export function renderHistoryNoticeView({ state = 'partial', label, detail = '', retry = false }, view) {
   const hasRows = view.hasRows;
   setText('giftHistoryState', label);
   setSyncNotice({ state, label }, !hasRows);
@@ -209,12 +188,7 @@ export function setRetryButtonView(visible, view) {
   const button = get('giftHistoryRetryBtn');
   if (!button) return;
   button.hidden = !visible;
-  button.textContent =
-    view.clearOutcome === 'remote-cleared'
-      ? '重试更新'
-      : view.hasRows
-        ? '重试'
-        : '重新加载';
+  button.textContent = view.clearOutcome === 'remote-cleared' ? '重试更新' : view.hasRows ? '重试' : '重新加载';
 }
 
 function setHistoryBody(html) {

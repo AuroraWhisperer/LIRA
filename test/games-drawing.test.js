@@ -4,9 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const { loadModuleExports } = require('./helpers/frontend-modules');
-const {
-  createGameSessionService,
-} = require('../src/games/game-session-service');
+const { createGameSessionService } = require('../src/games/game-session-service');
 const { routes } = require('../src/server/routes/game-routes');
 
 async function createDrawingFixture(t) {
@@ -86,44 +84,34 @@ async function createDrawingFixture(t) {
         });
       return nodes.get(id);
     }
-    const module = await loadModuleExports(
-      path.join(
-        __dirname,
-        '..',
-        'public',
-        'js',
-        'overlays',
-        'games-drawing.js',
-      ),
-      {
-        document: {
-          querySelectorAll: () => [],
-          addEventListener: (type, listener) => keyboard.set(type, listener),
-        },
-        crypto: { randomUUID: () => clientId },
-        setTimeout,
-        clearTimeout,
-        fetch: async (url, options) => {
-          assert.equal(url, '/api/games/session/draw');
-          assert.equal(options.method, 'POST');
-          const operation = JSON.parse(options.body);
-          requests.push(operation);
-          let payload;
-          await routes['POST /api/games/session/draw'](
-            { games },
-            { body: async () => operation },
-            {
-              writeHead() {},
-              end: (body) => {
-                payload = JSON.parse(body);
-              },
-            },
-          );
-          responses.push(payload);
-          return { json: async () => payload };
-        },
+    const module = await loadModuleExports(path.join(__dirname, '..', 'public', 'js', 'overlays', 'games-drawing.js'), {
+      document: {
+        querySelectorAll: () => [],
+        addEventListener: (type, listener) => keyboard.set(type, listener),
       },
-    );
+      crypto: { randomUUID: () => clientId },
+      setTimeout,
+      clearTimeout,
+      fetch: async (url, options) => {
+        assert.equal(url, '/api/games/session/draw');
+        assert.equal(options.method, 'POST');
+        const operation = JSON.parse(options.body);
+        requests.push(operation);
+        let payload;
+        await routes['POST /api/games/session/draw'](
+          { games },
+          { body: async () => operation },
+          {
+            writeHead() {},
+            end: (body) => {
+              payload = JSON.parse(body);
+            },
+          },
+        );
+        responses.push(payload);
+        return { json: async () => payload };
+      },
+    });
     const loadSnapshot = t.mock.fn(() => {
       session = structuredClone(games.getSession());
       controller.redrawCanvas(session.state.canvas);
@@ -185,10 +173,7 @@ async function createDrawingFixture(t) {
           page.painted,
           expected.strokes.map((stroke) => stroke.color),
         );
-        assert.equal(
-          page.byId('drawUndoBtn').disabled,
-          expected.strokes.length === 0,
-        );
+        assert.equal(page.byId('drawUndoBtn').disabled, expected.strokes.length === 0);
       }
     },
   };
@@ -198,9 +183,7 @@ test('draw undo confirmation redraws the initiating canvas and other subscribers
   const fixture = await createDrawingFixture(t);
   fixture.host.undo();
   await fixture.flushRequests();
-  assert.deepEqual(fixture.requests, [
-    { action: 'undo', clientId: 'draw-host' },
-  ]);
+  assert.deepEqual(fixture.requests, [{ action: 'undo', clientId: 'draw-host' }]);
   assert.deepEqual(fixture.responses, [{ ok: true, data: { revision: 3 } }]);
   assert.equal(fixture.host.canvas().strokes.length, 2);
 
@@ -289,10 +272,7 @@ test('a rejected undo recovers the initiating canvas from the existing snapshot 
   assert.equal(fixture.responses[0].ok, false);
   assert.equal(fixture.broadcasts.length, 0);
   assert.equal(fixture.host.loadSnapshot.mock.callCount(), 1);
-  assert.deepEqual(
-    fixture.host.canvas(),
-    fixture.games.getSession().state.canvas,
-  );
+  assert.deepEqual(fixture.host.canvas(), fixture.games.getSession().state.canvas);
   assert.deepEqual(fixture.host.painted, []);
   assert.equal(fixture.host.byId('drawUndoBtn').disabled, true);
 });

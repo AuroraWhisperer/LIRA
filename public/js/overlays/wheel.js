@@ -22,11 +22,15 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   loadState();
   connectSocket();
-  window.addEventListener('beforeunload', () => {
-    stateRevision += 1;
-    clearTimeout(snapshotRetryTimer);
-    socketController?.dispose();
-  }, { once: true });
+  window.addEventListener(
+    'beforeunload',
+    () => {
+      stateRevision += 1;
+      clearTimeout(snapshotRetryTimer);
+      socketController?.dispose();
+    },
+    { once: true },
+  );
 });
 
 async function loadState(attempt = 0) {
@@ -45,8 +49,7 @@ async function loadState(attempt = 0) {
   } catch (_) {
     if (revision !== stateRevision) return;
     setMessage('等待转盘连接');
-    if (attempt < SNAPSHOT_RETRIES)
-      snapshotRetryTimer = setTimeout(() => loadState(attempt + 1), 350);
+    if (attempt < SNAPSHOT_RETRIES) snapshotRetryTimer = setTimeout(() => loadState(attempt + 1), 350);
   }
 }
 
@@ -79,8 +82,7 @@ function renderState(state) {
     animateSpin(spin, currentState.entries || []);
     return;
   }
-  if (!spin && currentState.lastResult)
-    highlightResult(currentState.lastResult.index);
+  if (!spin && currentState.lastResult) highlightResult(currentState.lastResult.index);
   if (!(currentState.entries || []).length) setMessage('等待主播配置转盘');
   else if (!spin && !currentState.lastResult) setMessage('点击中心 GO 开始');
 }
@@ -88,10 +90,7 @@ function renderState(state) {
 function drawSegments(entries) {
   const root = byId('wheelSegments');
   root.replaceChildren();
-  const total = entries.reduce(
-    (sum, entry) => sum + Number(entry.weight || 0),
-    0,
-  );
+  const total = entries.reduce((sum, entry) => sum + Number(entry.weight || 0), 0);
   if (!total) return;
   let cursor = -Math.PI / 2;
   entries.forEach((entry, index) => {
@@ -118,20 +117,11 @@ function createRadialLabel(value, index, middle) {
   label.setAttribute('x', String(point.x));
   label.setAttribute('y', String(point.y));
   label.style.fontSize = `${fontSize}px`;
-  label.setAttribute(
-    'transform',
-    `rotate(${(middle * 180) / Math.PI + 90} ${point.x} ${point.y})`,
-  );
+  label.setAttribute('transform', `rotate(${(middle * 180) / Math.PI + 90} ${point.x} ${point.y})`);
   chars.forEach((char, charIndex) => {
-    const tspan = document.createElementNS(
-      'http://www.w3.org/2000/svg',
-      'tspan',
-    );
+    const tspan = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
     tspan.setAttribute('x', String(point.x));
-    tspan.setAttribute(
-      'dy',
-      String(charIndex === 0 ? -((chars.length - 1) * fontSize) / 2 : fontSize),
-    );
+    tspan.setAttribute('dy', String(charIndex === 0 ? -((chars.length - 1) * fontSize) / 2 : fontSize));
     tspan.textContent = char === ' ' ? '·' : char;
     label.append(tspan);
   });
@@ -142,20 +132,11 @@ function animateSpin(spin, entries) {
   if (!entries.length) return;
   const elapsed = Math.max(0, Date.now() - Number(spin.startedAt));
   const remaining = Math.max(0, Number(spin.durationMs) - elapsed);
-  const total = entries.reduce(
-    (sum, entry) => sum + Number(entry.weight || 0),
-    0,
-  );
-  const before = entries
-    .slice(0, spin.index)
-    .reduce((sum, entry) => sum + Number(entry.weight || 0), 0);
-  const selectedAngle =
-    ((before + Number(entries[spin.index].weight || 0) / 2) / total) * 360 - 90;
+  const total = entries.reduce((sum, entry) => sum + Number(entry.weight || 0), 0);
+  const before = entries.slice(0, spin.index).reduce((sum, entry) => sum + Number(entry.weight || 0), 0);
+  const selectedAngle = ((before + Number(entries[spin.index].weight || 0) / 2) / total) * 360 - 90;
   const targetAngle = -90 - selectedAngle;
-  const target =
-    rotation +
-    Number(spin.turns || 5) * 360 +
-    ((((targetAngle - rotation) % 360) + 360) % 360);
+  const target = rotation + Number(spin.turns || 5) * 360 + ((((targetAngle - rotation) % 360) + 360) % 360);
   const group = byId('wheelGroup');
   group.style.transition =
     remaining && !window.matchMedia('(prefers-reduced-motion: reduce)').matches
@@ -172,13 +153,11 @@ function animateSpin(spin, entries) {
 }
 
 function highlightResult(index) {
-  document
-    .querySelectorAll('.wheel-segment, .wheel-label')
-    .forEach((element) => {
-      const selected = Number(element.dataset.index) === Number(index);
-      element.classList.toggle('is-selected', selected);
-      element.classList.toggle('is-dim', !selected);
-    });
+  document.querySelectorAll('.wheel-segment, .wheel-label').forEach((element) => {
+    const selected = Number(element.dataset.index) === Number(index);
+    element.classList.toggle('is-selected', selected);
+    element.classList.toggle('is-dim', !selected);
+  });
   const label = currentState?.entries?.[index]?.label || '已抽取';
   setMessage(`抽中：${label}`);
 }

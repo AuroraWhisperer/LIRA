@@ -24,9 +24,7 @@
   function hexToRgba(hex, opacity) {
     const { r, g, b } = hexToRgb(hex);
     const alpha = Number(opacity);
-    const safeAlpha = Number.isFinite(alpha)
-      ? Math.max(0, Math.min(1, alpha))
-      : 0.76;
+    const safeAlpha = Number.isFinite(alpha) ? Math.max(0, Math.min(1, alpha)) : 0.76;
     return 'rgba(' + r + ', ' + g + ', ' + b + ', ' + safeAlpha + ')';
   }
 
@@ -49,12 +47,7 @@
     const safeSeconds = Math.max(0.01, Number(secondsPerViewport) || 0.01);
     const safeDistance = Math.max(0, Number(distance) || 0);
     const safeViewportDistance = Math.max(1, Number(viewportDistance) || 1);
-    return Number(
-      Math.max(
-        0.05,
-        (safeSeconds * safeDistance) / safeViewportDistance,
-      ).toFixed(3),
-    );
+    return Number(Math.max(0.05, (safeSeconds * safeDistance) / safeViewportDistance).toFixed(3));
   }
 
   function overlayLowPowerEnabled(settings) {

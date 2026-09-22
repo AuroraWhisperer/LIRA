@@ -5,9 +5,7 @@ const { EventEmitter } = require('node:events');
 const http = require('node:http');
 const path = require('node:path');
 const test = require('node:test');
-const {
-  broadcastSnapshot, createWebSocketHub, handleWebSocketUpgrade, sendWebSocket,
-} = require('../src/server/ws');
+const { broadcastSnapshot, createWebSocketHub, handleWebSocketUpgrade, sendWebSocket } = require('../src/server/ws');
 const { createRuntimeTransport } = require('../src/server/runtime-transport');
 
 const ADMIN_TOKEN = 'synthetic-admin-token';
@@ -19,24 +17,40 @@ class FakeSocket extends EventEmitter {
     this.writableLength = 0;
     this.destroyed = false;
   }
-  write(data) { this.writes.push(data); return true; }
-  end() { this.ended = true; }
-  destroy() { this.destroyed = true; this.emit('close'); }
+  write(data) {
+    this.writes.push(data);
+    return true;
+  }
+  end() {
+    this.ended = true;
+  }
+  destroy() {
+    this.destroyed = true;
+    this.emit('close');
+  }
 }
 
 function connect(t, { context = {}, headers = {}, query = '' } = {}) {
   const hub = createWebSocketHub({ closeTimeoutMs: 20 });
   const socket = new FakeSocket();
-  hub.handleUpgrade({ getState: () => ({ secret: 'admin-only' }), ...context }, {
-    url: `/ws${query}`,
-    headers: { 'sec-websocket-key': 'synthetic-key', ...headers },
-  }, socket);
-  t.after(() => { hub.stop(); socket.destroy(); });
+  hub.handleUpgrade(
+    { getState: () => ({ secret: 'admin-only' }), ...context },
+    {
+      url: `/ws${query}`,
+      headers: { 'sec-websocket-key': 'synthetic-key', ...headers },
+    },
+    socket,
+  );
+  t.after(() => {
+    hub.stop();
+    socket.destroy();
+  });
   return { hub, socket };
 }
 
 function messages(socket) {
-  return socket.writes.filter((chunk) => Buffer.isBuffer(chunk) && (chunk[0] & 0x0f) === 1)
+  return socket.writes
+    .filter((chunk) => Buffer.isBuffer(chunk) && (chunk[0] & 0x0f) === 1)
     .map((chunk) => {
       const length = chunk[1] & 0x7f;
       return JSON.parse(chunk.subarray(length < 126 ? 2 : length === 126 ? 4 : 10));
@@ -48,7 +62,8 @@ function frame(payload, opcode = 1, fin = true) {
   const mask = Buffer.from([1, 2, 3, 4]);
   assert.ok(data.length < 126);
   return Buffer.concat([
-    Buffer.from([(fin ? 0x80 : 0) | opcode, 0x80 | data.length]), mask,
+    Buffer.from([(fin ? 0x80 : 0) | opcode, 0x80 | data.length]),
+    mask,
     Buffer.from(data.map((value, index) => value ^ mask[index % 4])),
   ]);
 }
@@ -119,7 +134,9 @@ test('overlay authentication rejects forged and previous-runtime credentials', (
   const { createOverlayToken } = require('../src/server/access-policy');
   const valid = createOverlayToken(ADMIN_TOKEN, 'queue');
   for (const token of [
-    '', `x${valid.slice(1)}`, valid.replace(':queue:', ':danmaku:'),
+    '',
+    `x${valid.slice(1)}`,
+    valid.replace(':queue:', ':danmaku:'),
     createOverlayToken('expired-runtime', 'queue'),
   ]) {
     const { socket } = connect(t, {
@@ -152,8 +169,19 @@ test('verified overlay credentials do not waive foreign-Origin validation', (t) 
 });
 
 for (const scope of [
-  'queue', 'songlist', 'blindbox', 'overtime', 'gift-effects', 'gift-feed',
-  'gift-export', 'lyrics', 'games', 'danmaku', 'wheel', 'opening', 'clock',
+  'queue',
+  'songlist',
+  'blindbox',
+  'overtime',
+  'gift-effects',
+  'gift-feed',
+  'gift-export',
+  'lyrics',
+  'games',
+  'danmaku',
+  'wheel',
+  'opening',
+  'clock',
 ]) {
   test(`${scope} initial and subsequent snapshots exclude unrelated private state`, async (t) => {
     const { hub, socket } = overlayConnection(t, scope);
@@ -235,10 +263,14 @@ test('compatibility broadcasts use the same per-socket projection', (t) => {
   const { createOverlayToken } = require('../src/server/access-policy');
   const socket = new FakeSocket();
   const context = { sessionToken: ADMIN_TOKEN, state: { sockets: new Set() }, getState: () => fullState };
-  handleWebSocketUpgrade(context, {
-    url: `/ws?token=${createOverlayToken(ADMIN_TOKEN, 'lyrics')}`,
-    headers: { 'sec-websocket-key': 'synthetic-key', origin: 'null' },
-  }, socket);
+  handleWebSocketUpgrade(
+    context,
+    {
+      url: `/ws?token=${createOverlayToken(ADMIN_TOKEN, 'lyrics')}`,
+      headers: { 'sec-websocket-key': 'synthetic-key', origin: 'null' },
+    },
+    socket,
+  );
   t.after(() => socket.destroy());
   broadcastSnapshot(context, 'lyric:update');
   assert.equal(messages(socket).length, 2);
@@ -246,60 +278,78 @@ test('compatibility broadcasts use the same per-socket projection', (t) => {
   assert.equal(JSON.stringify(messages(socket)).includes('private-'), false);
 });
 
-test('anonymous overlay HTML credentials keep real admin, queue and danmaku sockets isolated', { timeout: 5000 }, async (t) => {
-  const hub = createWebSocketHub({ closeTimeoutMs: 30 });
-  const transport = createRuntimeTransport({
-    publicDir: path.resolve(__dirname, '../public'), getSessionToken: () => ADMIN_TOKEN,
-  });
-  const server = http.createServer((req, res) => {
-    transport.servePageOrAsset(req, res, new URL(req.url, `http://${req.headers.host}`));
-  });
-  const context = { sessionToken: ADMIN_TOKEN, getState: () => fullState };
-  server.on('upgrade', (req, socket) => hub.handleUpgrade(context, req, socket));
-  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
-  const clients = [];
-  t.after(async () => {
-    for (const client of clients) client.socket.close();
-    hub.stop();
-    await new Promise((resolve) => server.close(resolve));
-  });
-  const credentials = [ADMIN_TOKEN];
-  for (const scope of ['queue', 'danmaku']) {
-    const response = await fetch(`http://127.0.0.1:${server.address().port}/${scope}`);
-    assert.equal(response.status, 200);
-    const html = await response.text();
-    assert.equal(html.includes(ADMIN_TOKEN), false);
-    const match = html.match(/\)\(("ov1:[^"]+")\);<\/script>/);
-    assert.ok(match, 'anonymous overlay HTML must bootstrap only its scoped credential');
-    const token = JSON.parse(match[1]);
-    assert.ok(token.startsWith(`ov1:${scope}:`));
-    credentials.push(token);
-  }
-  for (const credential of credentials) {
-    const socket = new WebSocket(
-      `ws://127.0.0.1:${server.address().port}/ws?token=${encodeURIComponent(credential)}&topic=danmaku`,
-    );
-    const received = [];
-    let nextSnapshot;
-    const client = { socket, received, next: () => new Promise((resolve) => { nextSnapshot = resolve; }) };
-    socket.addEventListener('message', ({ data }) => {
-      const payload = JSON.parse(data);
-      received.push(payload);
-      if (payload.type === 'snapshot') nextSnapshot?.(payload);
+test(
+  'anonymous overlay HTML credentials keep real admin, queue and danmaku sockets isolated',
+  { timeout: 5000 },
+  async (t) => {
+    const hub = createWebSocketHub({ closeTimeoutMs: 30 });
+    const transport = createRuntimeTransport({
+      publicDir: path.resolve(__dirname, '../public'),
+      getSessionToken: () => ADMIN_TOKEN,
     });
-    clients.push(client);
-    await client.next();
-  }
-  const barrier = clients.map((client) => client.next());
-  hub.broadcast({ type: 'wesing-state', state: { privateValue: 'private-increment' } });
-  hub.broadcast({ type: 'danmaku:message', item: { id: 'two', message: 'Live public message' } }, { topic: 'danmaku' });
-  hub.broadcastSnapshot(context, 'bilibili:gift');
-  await Promise.all(barrier);
-  assert.ok(JSON.stringify(clients[0].received).includes('private-root'));
-  assert.ok(JSON.stringify(clients[0].received).includes('private-increment'));
-  assert.equal(clients[1].received.some((payload) => payload.type === 'danmaku:message'), false);
-  assert.equal(clients[2].received.filter((payload) => payload.type === 'danmaku:message').length, 1);
-  for (const client of clients.slice(1)) {
-    assert.equal(JSON.stringify(client.received).includes('private-'), false);
-  }
-});
+    const server = http.createServer((req, res) => {
+      transport.servePageOrAsset(req, res, new URL(req.url, `http://${req.headers.host}`));
+    });
+    const context = { sessionToken: ADMIN_TOKEN, getState: () => fullState };
+    server.on('upgrade', (req, socket) => hub.handleUpgrade(context, req, socket));
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const clients = [];
+    t.after(async () => {
+      for (const client of clients) client.socket.close();
+      hub.stop();
+      await new Promise((resolve) => server.close(resolve));
+    });
+    const credentials = [ADMIN_TOKEN];
+    for (const scope of ['queue', 'danmaku']) {
+      const response = await fetch(`http://127.0.0.1:${server.address().port}/${scope}`);
+      assert.equal(response.status, 200);
+      const html = await response.text();
+      assert.equal(html.includes(ADMIN_TOKEN), false);
+      const match = html.match(/\)\(("ov1:[^"]+")\);<\/script>/);
+      assert.ok(match, 'anonymous overlay HTML must bootstrap only its scoped credential');
+      const token = JSON.parse(match[1]);
+      assert.ok(token.startsWith(`ov1:${scope}:`));
+      credentials.push(token);
+    }
+    for (const credential of credentials) {
+      const socket = new WebSocket(
+        `ws://127.0.0.1:${server.address().port}/ws?token=${encodeURIComponent(credential)}&topic=danmaku`,
+      );
+      const received = [];
+      let nextSnapshot;
+      const client = {
+        socket,
+        received,
+        next: () =>
+          new Promise((resolve) => {
+            nextSnapshot = resolve;
+          }),
+      };
+      socket.addEventListener('message', ({ data }) => {
+        const payload = JSON.parse(data);
+        received.push(payload);
+        if (payload.type === 'snapshot') nextSnapshot?.(payload);
+      });
+      clients.push(client);
+      await client.next();
+    }
+    const barrier = clients.map((client) => client.next());
+    hub.broadcast({ type: 'wesing-state', state: { privateValue: 'private-increment' } });
+    hub.broadcast(
+      { type: 'danmaku:message', item: { id: 'two', message: 'Live public message' } },
+      { topic: 'danmaku' },
+    );
+    hub.broadcastSnapshot(context, 'bilibili:gift');
+    await Promise.all(barrier);
+    assert.ok(JSON.stringify(clients[0].received).includes('private-root'));
+    assert.ok(JSON.stringify(clients[0].received).includes('private-increment'));
+    assert.equal(
+      clients[1].received.some((payload) => payload.type === 'danmaku:message'),
+      false,
+    );
+    assert.equal(clients[2].received.filter((payload) => payload.type === 'danmaku:message').length, 1);
+    for (const client of clients.slice(1)) {
+      assert.equal(JSON.stringify(client.received).includes('private-'), false);
+    }
+  },
+);

@@ -9,19 +9,24 @@ function readPortOwner(port, remotePort) {
   if (remotePort !== undefined && !validPort(remotePort)) return null;
   // Query the provider through WMI to reduce native lookup overhead.
   // MSFT_NetTCPConnection states: Listen = 2, Established = 5.
-  const connection = remotePort === undefined
-    ? 'State=2'
-    : `State=5 AND RemoteAddress='127.0.0.1' AND RemotePort=${remotePort}`;
+  const connection =
+    remotePort === undefined ? 'State=2' : `State=5 AND RemoteAddress='127.0.0.1' AND RemotePort=${remotePort}`;
   try {
-    const output = childProcess.execFileSync('powershell.exe', [
-      '-NoProfile', '-NonInteractive', '-Command',
-      `$ownerId = Get-WmiObject -Namespace root/StandardCimv2 -Class MSFT_NetTCPConnection -Filter "LocalAddress='127.0.0.1' AND LocalPort=${port} AND ${connection}" -ErrorAction Stop | Select-Object -First 1 -ExpandProperty OwningProcess; ` +
-      'if ($ownerId) { ' +
-      '$ownerProcess = Get-WmiObject Win32_Process -Filter "ProcessId=$ownerId" -ErrorAction Stop; ' +
-      '$ownerSid = $ownerProcess.GetOwnerSid().Sid; ' +
-      'if ($ownerSid -eq [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value) { ' +
-      '$ownerProcess | Select-Object ProcessId,ExecutablePath,CommandLine,CreationDate | ConvertTo-Json -Compress } }',
-    ], { encoding: 'utf8', windowsHide: true, timeout: 5000, stdio: ['ignore', 'pipe', 'ignore'] });
+    const output = childProcess.execFileSync(
+      'powershell.exe',
+      [
+        '-NoProfile',
+        '-NonInteractive',
+        '-Command',
+        `$ownerId = Get-WmiObject -Namespace root/StandardCimv2 -Class MSFT_NetTCPConnection -Filter "LocalAddress='127.0.0.1' AND LocalPort=${port} AND ${connection}" -ErrorAction Stop | Select-Object -First 1 -ExpandProperty OwningProcess; ` +
+          'if ($ownerId) { ' +
+          '$ownerProcess = Get-WmiObject Win32_Process -Filter "ProcessId=$ownerId" -ErrorAction Stop; ' +
+          '$ownerSid = $ownerProcess.GetOwnerSid().Sid; ' +
+          'if ($ownerSid -eq [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value) { ' +
+          '$ownerProcess | Select-Object ProcessId,ExecutablePath,CommandLine,CreationDate | ConvertTo-Json -Compress } }',
+      ],
+      { encoding: 'utf8', windowsHide: true, timeout: 5000, stdio: ['ignore', 'pipe', 'ignore'] },
+    );
     const info = output.trim() ? JSON.parse(output) : null;
     return Number.isInteger(info?.ProcessId) && info.ProcessId > 0 && info.CreationDate ? info : null;
   } catch (_) {
@@ -49,16 +54,18 @@ function isOwnProcess(info, rootDir) {
   return Boolean(
     (executable.endsWith('\\lira.exe') && executable === packagedExecutable) ||
     (executable.endsWith('\\node.exe') && entryPath === `${root}\\src\\server.js`) ||
-    (executable.endsWith('\\electron.exe') &&
-      (entryPath === root || entryPath === `${root}\\src\\electron\\main.js`)),
+    (executable.endsWith('\\electron.exe') && (entryPath === root || entryPath === `${root}\\src\\electron\\main.js`)),
   );
 }
 
 function isSameProcess(previous, current, rootDir) {
-  return Boolean(previous && current &&
+  return Boolean(
+    previous &&
+    current &&
     previous.ProcessId === current.ProcessId &&
     previous.CreationDate === current.CreationDate &&
-    isOwnProcess(current, rootDir));
+    isOwnProcess(current, rootDir),
+  );
 }
 
 module.exports = { readPortOwner, isOwnProcess, isSameProcess };

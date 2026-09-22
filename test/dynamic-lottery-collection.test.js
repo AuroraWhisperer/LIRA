@@ -4,15 +4,9 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { DatabaseSync } = require('node:sqlite');
 
-const {
-  createCollectionService,
-} = require('../src/bilibili/dynamic-lottery/collection-service');
-const {
-  runDynamicLotteryMigrations,
-} = require('../src/storage/dynamic-lottery-migrations');
-const {
-  createDynamicLotteryStore,
-} = require('../src/storage/dynamic-lottery-store');
+const { createCollectionService } = require('../src/bilibili/dynamic-lottery/collection-service');
+const { runDynamicLotteryMigrations } = require('../src/storage/dynamic-lottery-migrations');
+const { createDynamicLotteryStore } = require('../src/storage/dynamic-lottery-store');
 
 function record(recordId, uid, occurredAtMs) {
   return {
@@ -139,10 +133,7 @@ test('collection rejects a response from a changed session before commit', async
     const task = await fixture.service.start({ taskId: 'task-1' });
     assert.equal(task.status, 'paused');
     assert.equal(fixture.store.getEvidence(task.activeScanId).length, 0);
-    assert.equal(
-      fixture.store.getScan(task.activeScanId).pauseReason,
-      'LOTTERY_SESSION_CHANGED',
-    );
+    assert.equal(fixture.store.getScan(task.activeScanId).pauseReason, 'LOTTERY_SESSION_CHANGED');
   } finally {
     await fixture.service.dispose();
     fixture.db.close();

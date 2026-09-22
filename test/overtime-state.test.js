@@ -3,12 +3,7 @@
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const test = require('node:test');
-const {
-  MAX_OVERTIME_SECONDS,
-  validateBackground,
-  validateRules,
-  validateTimeInput,
-} = require('../src/overtime');
+const { MAX_OVERTIME_SECONDS, validateBackground, validateRules, validateTimeInput } = require('../src/overtime');
 const { createFixture } = require('./helpers/overtime-service-fixture');
 
 test('running time uses a monotonic anchor and pauses without further drift', () => {
@@ -57,16 +52,10 @@ test('natural zero persists finished once and increments the revision', () => {
     assert.equal(snapshot.effectiveRemainingMs, 0);
     assert.equal(snapshot.status, 'finished');
     assert.equal(snapshot.revision, before + 1);
-    assert.equal(
-      updates.filter((update) => update.reason === 'finished').length,
-      1,
-    );
+    assert.equal(updates.filter((update) => update.reason === 'finished').length, 1);
 
     fixture.clock.advance(10_000);
-    assert.equal(
-      updates.filter((update) => update.reason === 'finished').length,
-      1,
-    );
+    assert.equal(updates.filter((update) => update.reason === 'finished').length, 1);
   } finally {
     service.dispose();
     fixture.close();
@@ -102,16 +91,10 @@ test('restart deducts offline elapsed time and never gains time after wall-clock
 
 test('time, background, and rules validation enforce server limits', () => {
   assert.equal(MAX_OVERTIME_SECONDS, 9_999 * 365 * 24 * 60 * 60);
-  assert.deepEqual(
-    validateTimeInput({ remainingSeconds: MAX_OVERTIME_SECONDS }),
-    {
-      remainingSeconds: MAX_OVERTIME_SECONDS,
-    },
-  );
-  assert.throws(
-    () => validateTimeInput({ remainingSeconds: MAX_OVERTIME_SECONDS + 1 }),
-    /remainingSeconds/,
-  );
+  assert.deepEqual(validateTimeInput({ remainingSeconds: MAX_OVERTIME_SECONDS }), {
+    remainingSeconds: MAX_OVERTIME_SECONDS,
+  });
+  assert.throws(() => validateTimeInput({ remainingSeconds: MAX_OVERTIME_SECONDS + 1 }), /remainingSeconds/);
   assert.deepEqual(validateBackground({ path: '', fit: 'contain' }), {
     path: '',
     fit: 'contain',
@@ -123,15 +106,8 @@ test('time, background, and rules validation enforce server limits', () => {
     }),
     { path: '/img/overtime-machine/night.webp', fit: 'cover' },
   );
-  assert.throws(
-    () => validateBackground({ path: '../secret', fit: 'cover' }),
-    /path/,
-  );
-  assert.throws(
-    () =>
-      validateBackground({ path: 'https://example.test/a.png', fit: 'cover' }),
-    /path/,
-  );
+  assert.throws(() => validateBackground({ path: '../secret', fit: 'cover' }), /path/);
+  assert.throws(() => validateBackground({ path: 'https://example.test/a.png', fit: 'cover' }), /path/);
   assert.throws(
     () =>
       validateBackground({
@@ -190,10 +166,7 @@ test('time, background, and rules validation enforce server limits', () => {
       fixedSeconds: 1,
     },
   ]);
-  assert.equal(
-    cachedImageRule[0].imagePath,
-    '/overtime-gift-images/server.webp',
-  );
+  assert.equal(cachedImageRule[0].imagePath, '/overtime-gift-images/server.webp');
   assert.throws(
     () =>
       validateRules([
@@ -218,10 +191,7 @@ test('time, background, and rules validation enforce server limits', () => {
       fixedSeconds: 300,
     },
   ]);
-  assert.equal(
-    guardRule[0].imagePath,
-    '/img/admin/gifts/bilibili-guard-governor.webp',
-  );
+  assert.equal(guardRule[0].imagePath, '/img/admin/gifts/bilibili-guard-governor.webp');
   const itemRule = validateRules([
     {
       giftId: 'quantity-item',
@@ -241,19 +211,10 @@ test('time, background, and rules validation enforce server limits', () => {
   ]);
   assert.equal(displayRule[0].displayText, '谢谢支持');
   assert.throws(
-    () =>
-      validateRules([
-        { giftId: 'too-long', mode: 'display', displayText: '七个文字超长度' },
-      ]),
+    () => validateRules([{ giftId: 'too-long', mode: 'display', displayText: '七个文字超长度' }]),
     /displayText/,
   );
-  assert.throws(
-    () =>
-      validateRules([
-        { giftId: 'control', mode: 'display', displayText: '好\n' },
-      ]),
-    /displayText/,
-  );
+  assert.throws(() => validateRules([{ giftId: 'control', mode: 'display', displayText: '好\n' }]), /displayText/);
   assert.throws(
     () =>
       validateRules([

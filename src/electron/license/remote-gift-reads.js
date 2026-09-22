@@ -1,8 +1,8 @@
 'use strict';
 
 function createRemoteGiftReads(request) {
-  const read = (path, token, signal, headers) => request('GET', path, undefined, token,
-    { maxResponseBytes: 512 * 1024, signal, ...(headers ? { headers } : {}) });
+  const read = (path, token, signal, headers) =>
+    request('GET', path, undefined, token, { maxResponseBytes: 512 * 1024, signal, ...(headers ? { headers } : {}) });
   const headers = { 'X-Lira-Gift-Identity': '1', 'X-Lira-Gift-Display': '1' };
   return {
     getGiftEvents(after, limit, token, options = {}) {
@@ -18,7 +18,11 @@ function createRemoteGiftReads(request) {
       return read(`/api/device/gift-history${query.size ? `?${query}` : ''}`, token, options.signal, headers);
     },
     getGiftCardProfiles(cursor, token, options = {}) {
-      return read(`/api/device/gift-card-profiles${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`, token, options.signal);
+      return read(
+        `/api/device/gift-card-profiles${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`,
+        token,
+        options.signal,
+      );
     },
   };
 }

@@ -2,11 +2,7 @@
 // 用户身份缓存 — 缓存和合并用户身份信息（勋章、舰长等）。
 'use strict';
 
-const {
-  cleanText,
-  normalizeGuardLevel,
-  normalizePositiveInteger,
-} = require('../../shared/utils');
+const { cleanText, normalizeGuardLevel, normalizePositiveInteger } = require('../../shared/utils');
 const { normalizeBilibiliAvatarUrl } = require('../parsers/danmaku-parser');
 
 const BILIBILI_IDENTITY_CACHE_MAX_AGE_MS = 10 * 60 * 1000;
@@ -37,9 +33,7 @@ class IdentityCache {
         avatarUrl: normalizeBilibiliAvatarUrl(input && input.avatarUrl),
         guardLevel: normalizeGuardLevel(input && input.requesterGuardLevel),
         medalName: cleanText(input && input.requesterMedalName),
-        medalLevel: normalizePositiveInteger(
-          input && input.requesterMedalLevel,
-        ),
+        medalLevel: normalizePositiveInteger(input && input.requesterMedalLevel),
         currentRoom: Boolean(input && input.currentRoomVerified),
         source: input && input.identitySource,
       },
@@ -61,19 +55,13 @@ class IdentityCache {
     const nowMs = Date.now();
     const uidKey = cleanText(uid);
     const uidIdentity = uidKey ? this.identityByUid.get(uidKey) : null;
-    if (
-      uidIdentity &&
-      nowMs - uidIdentity.seenAt <= BILIBILI_IDENTITY_CACHE_MAX_AGE_MS
-    ) {
+    if (uidIdentity && nowMs - uidIdentity.seenAt <= BILIBILI_IDENTITY_CACHE_MAX_AGE_MS) {
       return uidIdentity;
     }
 
     const nameKey = requesterNameKey(userName);
     const nameIdentity = nameKey ? this.identityByName.get(nameKey) : null;
-    if (
-      nameIdentity &&
-      nowMs - nameIdentity.seenAt <= BILIBILI_IDENTITY_CACHE_MAX_AGE_MS
-    ) {
+    if (nameIdentity && nowMs - nameIdentity.seenAt <= BILIBILI_IDENTITY_CACHE_MAX_AGE_MS) {
       return nameIdentity;
     }
     return null;
@@ -82,10 +70,8 @@ class IdentityCache {
   remember(input, options = {}) {
     const identity = normalizeRequesterIdentity({
       ...input,
-      currentRoom:
-        options.currentRoom === true || Boolean(input && input.currentRoom),
-      source:
-        options.source || (input && (input.source || input.identitySource)),
+      currentRoom: options.currentRoom === true || Boolean(input && input.currentRoom),
+      source: options.source || (input && (input.source || input.identitySource)),
     });
     if (!identity.uid && !identity.userName) return false;
     if (
@@ -116,8 +102,7 @@ class IdentityCache {
       if (!identity || identity.seenAt < cutoff) this.identityByUid.delete(uid);
     }
     for (const [name, identity] of this.identityByName) {
-      if (!identity || identity.seenAt < cutoff)
-        this.identityByName.delete(name);
+      if (!identity || identity.seenAt < cutoff) this.identityByName.delete(name);
     }
     for (const [uid, identity] of this.recentByUid) {
       if (!identity || identity.seenAt < cutoff) this.recentByUid.delete(uid);
@@ -129,8 +114,7 @@ class IdentityCache {
     const seen = new Set();
     const candidates = new Map(this.recentByUid);
     for (const [uid, identity] of this.identityByUid) {
-      if (!candidates.has(uid))
-        candidates.set(uid, publicRequesterIdentity(identity));
+      if (!candidates.has(uid)) candidates.set(uid, publicRequesterIdentity(identity));
     }
     return [...candidates.values()]
       .filter((identity) => {
@@ -143,9 +127,7 @@ class IdentityCache {
   }
 
   markOnlineSnapshot(uids = []) {
-    this.onlineUids = new Set(
-      uids.map((uid) => cleanText(uid)).filter(Boolean),
-    );
+    this.onlineUids = new Set(uids.map((uid) => cleanText(uid)).filter(Boolean));
   }
 
   listOnline() {
@@ -153,9 +135,7 @@ class IdentityCache {
       .map((uid) => this.identityByUid.get(uid) || this.recentByUid.get(uid))
       .filter(Boolean)
       .map(publicRequesterIdentity)
-      .sort((left, right) =>
-        left.userName.localeCompare(right.userName, 'zh-CN'),
-      );
+      .sort((left, right) => left.userName.localeCompare(right.userName, 'zh-CN'));
   }
 
   storeMerged(input, options = {}) {
@@ -186,10 +166,7 @@ class IdentityCache {
   listRecentUids() {
     this.cleanup();
     return [...this.recentByUid.entries()]
-      .sort(
-        (left, right) =>
-          Number(right[1]?.seenAt || 0) - Number(left[1]?.seenAt || 0),
-      )
+      .sort((left, right) => Number(right[1]?.seenAt || 0) - Number(left[1]?.seenAt || 0))
       .map(([uid]) => uid);
   }
 
@@ -259,10 +236,7 @@ function mergeCurrentRoomIdentity(currentRoom, fallback) {
   return addAvatarUrl(
     {
       uid: selected.uid || fallback.uid || currentRoom.uid,
-      userName: chooseRequesterUserName(
-        selected.userName,
-        fallback.userName || currentRoom.userName,
-      ),
+      userName: chooseRequesterUserName(selected.userName, fallback.userName || currentRoom.userName),
       guardLevel: selected.guardLevel,
       medalName: selected.medalName,
       medalLevel: selected.medalLevel,
@@ -277,8 +251,7 @@ function mergeCurrentRoomIdentity(currentRoom, fallback) {
 function chooseCurrentRoomEvidence(primary, fallback) {
   const primaryPriority = identitySourcePriority(primary.source);
   const fallbackPriority = identitySourcePriority(fallback.source);
-  if (fallback.currentRoom && fallbackPriority > primaryPriority)
-    return fallback;
+  if (fallback.currentRoom && fallbackPriority > primaryPriority) return fallback;
   return primary;
 }
 

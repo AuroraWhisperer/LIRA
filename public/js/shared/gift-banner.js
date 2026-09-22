@@ -7,15 +7,17 @@ export const BANNER_HEIGHT = 72;
 export const BANNER_GAP = 8;
 export const MAX_COMPOSITE_ROWS = 39;
 export const GIFT_PALETTE = [
-  ['#38B6FF', '#65C8FF'], ['#8F58EDF2', '#776CE9E6'],
-  ['#F6606DF2', '#F88573E6'], ['#F3A20AF2', '#F8C914E6'],
+  ['#38B6FF', '#65C8FF'],
+  ['#8F58EDF2', '#776CE9E6'],
+  ['#F6606DF2', '#F88573E6'],
+  ['#F3A20AF2', '#F8C914E6'],
 ];
 const FRAMES = { 1: 'governor', 2: 'admiral', 3: 'captain' };
 const AVATAR_PLACEHOLDER = '/img/gift-avatar-placeholder.svg';
 
 export function giftTier(gift, thresholds, cardTotalCents) {
-  const total = cardTotalCents === undefined
-    ? BigInt(Math.round(gift.unitPrice * 100)) * BigInt(gift.num) : BigInt(cardTotalCents);
+  const total =
+    cardTotalCents === undefined ? BigInt(Math.round(gift.unitPrice * 100)) * BigInt(gift.num) : BigInt(cardTotalCents);
   return thresholds.filter((value) => total >= BigInt(value)).length;
 }
 
@@ -27,18 +29,27 @@ export function giftExportPages(items, mode) {
 }
 
 export function resolveGiftArtwork(gift, catalog) {
-  const purchasedGuardLevel = /^guard-([123])$/.exec(gift.giftId)?.[1]
-    || (gift.coinType === 'guard' ? ['总督', '提督', '舰长'].indexOf(gift.giftName) + 1 : 0);
+  const purchasedGuardLevel =
+    /^guard-([123])$/.exec(gift.giftId)?.[1] ||
+    (gift.coinType === 'guard' ? ['总督', '提督', '舰长'].indexOf(gift.giftName) + 1 : 0);
   if (purchasedGuardLevel) {
     return `/img/admin/gifts/bilibili-guard-${{ 1: 'governor', 2: 'prefect', 3: 'captain' }[purchasedGuardLevel]}.webp`;
   }
-  const normalize = (value) => String(value || '').normalize('NFKC').replace(/\s+/gu, ' ').trim().toLowerCase();
-  const matches = catalog.filter((entry) => gift.giftVariantId
-    ? (entry.variantId || entry.giftIdentity?.variantId) === gift.giftVariantId
-    : String(entry.id) === gift.giftId && normalize(entry.name) === normalize(gift.giftName));
+  const normalize = (value) =>
+    String(value || '')
+      .normalize('NFKC')
+      .replace(/\s+/gu, ' ')
+      .trim()
+      .toLowerCase();
+  const matches = catalog.filter((entry) =>
+    gift.giftVariantId
+      ? (entry.variantId || entry.giftIdentity?.variantId) === gift.giftVariantId
+      : String(entry.id) === gift.giftId && normalize(entry.name) === normalize(gift.giftName),
+  );
   const path = matches.length === 1 ? matches[0].imagePath : '';
   return /^\/overtime-gift-images\/[a-z0-9_-][a-z0-9._-]*\.webp$/i.test(path || '') && !path.includes('..')
-    ? path : GIFT_PLACEHOLDER;
+    ? path
+    : GIFT_PLACEHOLDER;
 }
 
 export async function loadGiftArtworkCatalog(signal) {
@@ -61,7 +72,9 @@ export function createGiftBanner(item, config, catalog = []) {
   root.append(background);
   root.append(bannerImage(giftAvatarSource(gift), 'gift-banner-avatar', AVATAR_PLACEHOLDER));
   if (FRAMES[gift.guardLevel]) {
-    root.append(bannerImage(`/img/overlays/danmaku-guard/bubble-${FRAMES[gift.guardLevel]}-frame.webp`, 'gift-banner-frame', ''));
+    root.append(
+      bannerImage(`/img/overlays/danmaku-guard/bubble-${FRAMES[gift.guardLevel]}-frame.webp`, 'gift-banner-frame', ''),
+    );
   }
   const text = document.createElement('div');
   text.className = 'gift-banner-text';
@@ -75,7 +88,10 @@ export function createGiftBanner(item, config, catalog = []) {
   giftName.textContent = gift.giftName;
   line.append(giftName);
   text.append(name, line);
-  root.append(text, bannerImage(item.artworkPath || resolveGiftArtwork(gift, catalog), 'gift-banner-artwork', GIFT_PLACEHOLDER));
+  root.append(
+    text,
+    bannerImage(item.artworkPath || resolveGiftArtwork(gift, catalog), 'gift-banner-artwork', GIFT_PLACEHOLDER),
+  );
   const quantity = document.createElement('div');
   quantity.className = 'gift-banner-count';
   const times = document.createElement('span');
@@ -94,9 +110,15 @@ export function updateGiftBanner(root, item, config, catalog = [], retryAvatar =
     if (root.style.getPropertyValue(key) !== colors[index]) root.style.setProperty(key, colors[index]);
   }
   let textChanged = false;
-  for (const [selector, value] of [['.gift-banner-name', gift.userName], ['.gift-banner-gift span', gift.giftName]]) {
+  for (const [selector, value] of [
+    ['.gift-banner-name', gift.userName],
+    ['.gift-banner-gift span', gift.giftName],
+  ]) {
     const node = root.querySelector(selector);
-    if (node.textContent !== value) { node.textContent = value; textChanged = true; }
+    if (node.textContent !== value) {
+      node.textContent = value;
+      textChanged = true;
+    }
   }
   const count = root.querySelector('.gift-banner-count').lastChild;
   if (count.nodeValue !== String(gift.num)) count.nodeValue = String(gift.num);
@@ -113,7 +135,9 @@ export function updateGiftBanner(root, item, config, catalog = [], retryAvatar =
 
 function giftAvatarSource(gift) {
   const token = globalThis.window?.__API_TOKEN__ || '';
-  return gift.avatarUrl ? `/api/bilibili/avatar?url=${encodeURIComponent(gift.avatarUrl)}${token ? `&token=${encodeURIComponent(token)}` : ''}` : AVATAR_PLACEHOLDER;
+  return gift.avatarUrl
+    ? `/api/bilibili/avatar?url=${encodeURIComponent(gift.avatarUrl)}${token ? `&token=${encodeURIComponent(token)}` : ''}`
+    : AVATAR_PLACEHOLDER;
 }
 
 function updateBannerImage(image, source, retry = false) {
@@ -134,7 +158,7 @@ export function fitGiftBannerNames(root) {
     const textWidth = range.getBoundingClientRect().width;
     if (textWidth > availableWidth) {
       const fontSize = parseFloat(getComputedStyle(name).fontSize);
-      name.style.fontSize = `${Math.floor(fontSize * availableWidth / textWidth * 10) / 10}px`;
+      name.style.fontSize = `${Math.floor(((fontSize * availableWidth) / textWidth) * 10) / 10}px`;
     }
   }
 }
@@ -155,25 +179,35 @@ function bannerImage(source, className, fallback) {
 }
 
 export async function readyGiftImages(root) {
-  await Promise.all([...root.querySelectorAll('img')].map(async (image) => {
-    let timer;
-    const timeout = image.classList.contains('gift-banner-avatar') ? 9000 : 5000;
-    const decoded = await Promise.race([
-      image.decode().then(() => true, () => false),
-      new Promise((resolve) => { timer = setTimeout(() => resolve(false), timeout); }),
-    ]);
-    clearTimeout(timer);
-    if (!decoded) {
-      if (image.dataset.fallback) {
-        image.src = image.dataset.fallback;
-        let fallbackTimer;
-        await Promise.race([image.decode().catch(() => {}), new Promise((resolve) => {
-          fallbackTimer = setTimeout(resolve, 1000);
-        })]);
-        clearTimeout(fallbackTimer);
-      } else image.style.visibility = 'hidden';
-    }
-  }));
+  await Promise.all(
+    [...root.querySelectorAll('img')].map(async (image) => {
+      let timer;
+      const timeout = image.classList.contains('gift-banner-avatar') ? 9000 : 5000;
+      const decoded = await Promise.race([
+        image.decode().then(
+          () => true,
+          () => false,
+        ),
+        new Promise((resolve) => {
+          timer = setTimeout(() => resolve(false), timeout);
+        }),
+      ]);
+      clearTimeout(timer);
+      if (!decoded) {
+        if (image.dataset.fallback) {
+          image.src = image.dataset.fallback;
+          let fallbackTimer;
+          await Promise.race([
+            image.decode().catch(() => {}),
+            new Promise((resolve) => {
+              fallbackTimer = setTimeout(resolve, 1000);
+            }),
+          ]);
+          clearTimeout(fallbackTimer);
+        } else image.style.visibility = 'hidden';
+      }
+    }),
+  );
   await document.fonts.ready;
   fitGiftBannerNames(root);
   await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));

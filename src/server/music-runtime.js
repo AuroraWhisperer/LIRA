@@ -5,16 +5,9 @@ const { createLyricsService } = require('../music/lyrics-service');
 const { normalizeLyricTimeline } = require('../music/lyric-timeline');
 const { normalizeLyricState } = require('../music/lyric-state');
 const { createWeSingCapture } = require('../music/wesing-capture');
-const {
-  createWeSingOnlineLyricResolver,
-} = require('../music/wesing-online-lyrics');
+const { createWeSingOnlineLyricResolver } = require('../music/wesing-online-lyrics');
 
-function buildMusicRuntime({
-  dataDir,
-  runtimeOptions = {},
-  settingsStore,
-  webSocketHub,
-}) {
+function buildMusicRuntime({ dataDir, runtimeOptions = {}, settingsStore, webSocketHub }) {
   const lyricsService = createLyricsService({
     apiCacheDir: dataDir.apiCacheDir,
     lyricCacheDir: dataDir.lyricCacheDir,
@@ -52,8 +45,7 @@ function buildMusicRuntime({
     if (hasClientVersion) {
       if (
         incomingGeneration < lyricGeneration ||
-        (incomingGeneration === lyricGeneration &&
-          incomingSequence <= lyricSequence)
+        (incomingGeneration === lyricGeneration && incomingSequence <= lyricSequence)
       ) {
         return null;
       }
@@ -92,8 +84,7 @@ function buildMusicRuntime({
     lyricOffsetMs: settingsStore.getSettings().weSingLyricOffsetMs,
     platform: runtimeOptions.weSingPlatform || process.platform,
     monitorFactory: runtimeOptions.weSingMonitorFactory,
-    resolveFallbackLyrics:
-      runtimeOptions.weSingLyricResolver || resolveWeSingOnlineLyrics,
+    resolveFallbackLyrics: runtimeOptions.weSingLyricResolver || resolveWeSingOnlineLyrics,
     saveCachePath(cachePath) {
       settingsStore.setSetting('weSingCachePath', cachePath);
     },

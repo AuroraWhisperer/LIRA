@@ -25,24 +25,12 @@ export function createQueueOperations(deps) {
     audio.removeAttribute('src');
     audio.load();
   }
-  function startPlaybackCollection(
-    tracks,
-    index,
-    type,
-    title = '',
-    sourceKey = '',
-  ) {
+  function startPlaybackCollection(tracks, index, type, title = '', sourceKey = '') {
     if (!Array.isArray(tracks) || !tracks.some(Boolean)) return;
     resetAudio();
     stateActions.clearCurrent();
     stateActions.clearPending();
-    const track = queueManager.startCollection(
-      tracks,
-      index,
-      type,
-      title,
-      sourceKey,
-    );
+    const track = queueManager.startCollection(tracks, index, type, title, sourceKey);
     return { track, origin: type === 'radio' ? 'radio' : 'normal' };
   }
   function clearPlaybackQueue() {
@@ -71,11 +59,9 @@ export function createQueueOperations(deps) {
       queueManager.insertTracksNext(tracks);
       queueManager.rebuildShuffleOrder();
     },
-    insertAndPlayPlaybackTrack: (track) =>
-      queueManager.insertAndPlayTrack(track),
+    insertAndPlayPlaybackTrack: (track) => queueManager.insertAndPlayTrack(track),
     takeNextPlaybackTrack: () => queueManager.takeNext(),
-    takePlaybackQueueTrack: (origin, index) =>
-      queueManager.takeQueueTrack(origin, index),
+    takePlaybackQueueTrack: (origin, index) => queueManager.takeQueueTrack(origin, index),
     rebuildPlaybackShuffleOrder: () => queueManager.rebuildShuffleOrder(),
   };
 }

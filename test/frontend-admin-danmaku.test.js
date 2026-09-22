@@ -15,10 +15,7 @@ const ROOT_DIR = path.join(__dirname, '..');
 
 test('admin danmaku input has no fixed character limit', () => {
   const html = readAdminHtml();
-  const source = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'danmaku-tool.js'),
-    'utf8',
-  );
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'danmaku-tool.js'), 'utf8');
 
   assert.doesNotMatch(html, /id="danmakuMessage"[^>]*maxlength=/);
   assert.match(html, /id="danmakuCounter"[^>]*>0 字</);
@@ -46,19 +43,13 @@ test('admin danmaku input has no fixed character limit', () => {
 
 test('danmaku tool separates the fixed live overlay from the sender and reply groups', () => {
   const html = readAdminHtml();
-  const source = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'danmaku-tool.js'),
-    'utf8',
-  );
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'danmaku-tool.js'), 'utf8');
   const styles = readCssBundle('public', 'css', 'admin', 'other-features.css');
   const connectionSection =
     html.match(
       /<section\b[^>]*class="danmaku-feature-section danmaku-connection-section"[^>]*>[\s\S]*?<\/section>/,
     )?.[0] || '';
-  const headingHtml = html.replace(
-    /<svg\b[^>]*aria-hidden="true"[^>]*>[\s\S]*?<\/svg>/g,
-    '',
-  );
+  const headingHtml = html.replace(/<svg\b[^>]*aria-hidden="true"[^>]*>[\s\S]*?<\/svg>/g, '');
 
   assert.doesNotMatch(html, /class="danmaku-tool-heading"/);
   assert.match(connectionSection, /id="danmakuConnectionTitle"/);
@@ -67,10 +58,7 @@ test('danmaku tool separates the fixed live overlay from the sender and reply gr
   assert.match(html, /id="danmakuOverlayUrl"/);
   assert.match(html, /id="danmakuCopyOverlayUrlBtn"/);
   assert.match(html, /id="danmakuOpenOverlayBtn"/);
-  assert.match(
-    html,
-    /id="danmakuPreviewOverlayBtn"[^>]*>\s*预览效果\s*<\/button>/,
-  );
+  assert.match(html, /id="danmakuPreviewOverlayBtn"[^>]*>\s*预览效果\s*<\/button>/);
   const styleOptions = Array.from(
     html.matchAll(
       /<button\b[^>]*data-danmaku-style="([^"]+)"[^>]*>[\s\S]*?<span class="danmaku-style-name">([^<]+)<\/span>[\s\S]*?<\/button>/g,
@@ -98,41 +86,20 @@ test('danmaku tool separates the fixed live overlay from the sender and reply gr
     /class="danmaku-style-group danmaku-style-group-random"[^>]+aria-labelledby="danmakuRandomStyleTitle"[\s\S]*id="danmakuRandomStyleTitle">全屏随机弹幕<[\s\S]*aria-label="选择全屏随机弹幕样式"/,
   );
   assert.doesNotMatch(html, /danmaku-style-option-(?:visual|copy)/);
-  assert.match(
-    html,
-    /id="danmakuStyleSaveState"[^>]+role="status"[^>]+aria-live="polite"[^>]*><\/p>/,
-  );
-  assert.match(
-    html,
-    /id="danmakuFullscreenDurationSeconds"[^>]+type="number"[^>]+min="2"[^>]+max="30"[^>]+step="1"/,
-  );
+  assert.match(html, /id="danmakuStyleSaveState"[^>]+role="status"[^>]+aria-live="polite"[^>]*><\/p>/);
+  assert.match(html, /id="danmakuFullscreenDurationSeconds"[^>]+type="number"[^>]+min="2"[^>]+max="30"[^>]+step="1"/);
   assert.match(html, /id="danmakuFullscreenDurationField"[^>]+hidden/);
   assert.doesNotMatch(html, /id="danmakuStylePreview(?:Frame)?"/);
-  const styleSectionStart = html.indexOf(
-    'class="danmaku-feature-section danmaku-style-section"',
-  );
-  const composeSectionStart = html.indexOf(
-    'class="danmaku-feature-section danmaku-compose-section"',
-  );
+  const styleSectionStart = html.indexOf('class="danmaku-feature-section danmaku-style-section"');
+  const composeSectionStart = html.indexOf('class="danmaku-feature-section danmaku-compose-section"');
   const styleSectionEnd = html.indexOf('</section>', styleSectionStart);
   assert.ok(styleSectionStart >= 0 && styleSectionEnd < composeSectionStart);
-  assert.ok(
-    html.indexOf('id="danmakuStyleTitle"') <
-      html.indexOf('id="xiaomiAiSection"'),
-  );
-  assert.ok(
-    html.indexOf('id="xiaomiAiSection"') <
-      html.indexOf('id="danmakuFixedReplyTitle"'),
-  );
+  assert.ok(html.indexOf('id="danmakuStyleTitle"') < html.indexOf('id="xiaomiAiSection"'));
+  assert.ok(html.indexOf('id="xiaomiAiSection"') < html.indexOf('id="danmakuFixedReplyTitle"'));
   assert.match(headingHtml, /id="danmakuFixedReplyTitle">\s*固定回复\s*<\/h3>/);
   assert.doesNotMatch(html, /id="danmakuSongReplySectionTitle"/);
-  const fixedReplySectionStart = html.indexOf(
-    'class="danmaku-feature-section danmaku-fixed-reply-section"',
-  );
-  const fixedReplySectionEnd = html.indexOf(
-    '</section>',
-    fixedReplySectionStart,
-  );
+  const fixedReplySectionStart = html.indexOf('class="danmaku-feature-section danmaku-fixed-reply-section"');
+  const fixedReplySectionEnd = html.indexOf('</section>', fixedReplySectionStart);
   assert.ok(fixedReplySectionStart < html.indexOf('id="danmakuReplyTitle"'));
   assert.ok(html.indexOf('id="danmakuReplyTitle"') < fixedReplySectionEnd);
   assert.doesNotMatch(source, /createDanmakuFeed/);
@@ -159,10 +126,7 @@ test('danmaku tool separates the fixed live overlay from the sender and reply gr
     /@container danmaku-style-picker \(max-width: 800px\)[\s\S]*\.danmaku-style-group\s*\{[^}]*grid-column:\s*1 \/ -1;/,
   );
   assert.doesNotMatch(styles, /\.danmaku-style-option-visual/);
-  assert.match(
-    styles,
-    /\.danmaku-style-save-state:empty\s*\{\s*display:\s*none;/,
-  );
+  assert.match(styles, /\.danmaku-style-save-state:empty\s*\{\s*display:\s*none;/);
   assert.match(styles, /\.danmaku-style-option\[aria-pressed='true'\]/);
   assert.doesNotMatch(styles, /\.danmaku-style-preview/);
   assert.match(
@@ -173,22 +137,10 @@ test('danmaku tool separates the fixed live overlay from the sender and reply gr
     html,
     /class="danmaku-feature-section danmaku-compose-section"[\s\S]*?id="danmakuSendForm"[\s\S]*?id="danmakuSendResult"/,
   );
-  assert.match(
-    html,
-    /id="danmakuCounter"[\s\S]*?id="danmakuAutoBtn"[\s\S]*?id="danmakuSendBtn"/,
-  );
-  assert.match(
-    styles,
-    /\.danmaku-tool-panel\s*\{[^}]*width:\s*100%[^}]*max-width:\s*none/,
-  );
-  assert.match(
-    styles,
-    /\.danmaku-bot-switch-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/,
-  );
-  assert.match(
-    styles,
-    /#danmakuSendForm \.form-actions-row > \.hint\s*\{[^}]*margin-right:\s*auto/,
-  );
+  assert.match(html, /id="danmakuCounter"[\s\S]*?id="danmakuAutoBtn"[\s\S]*?id="danmakuSendBtn"/);
+  assert.match(styles, /\.danmaku-tool-panel\s*\{[^}]*width:\s*100%[^}]*max-width:\s*none/);
+  assert.match(styles, /\.danmaku-bot-switch-grid\s*\{[^}]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(styles, /#danmakuSendForm \.form-actions-row > \.hint\s*\{[^}]*margin-right:\s*auto/);
   assert.match(
     styles,
     /@media \(max-width: 600px\)[\s\S]*?\.danmaku-bot-switch-grid\s*\{\s*grid-template-columns:\s*1fr;/,
@@ -235,8 +187,7 @@ async function createDanmakuPage(t, state = {}) {
         },
       };
       window.fetch = async (url) => {
-        if (url !== '/api/bilibili/danmaku/state')
-          throw new Error(`Unexpected danmaku request: ${url}`);
+        if (url !== '/api/bilibili/danmaku/state') throw new Error(`Unexpected danmaku request: ${url}`);
         window.danmakuRequests.push(url);
         return {
           ok: true,
@@ -289,22 +240,10 @@ for (const scenario of [
 ]) {
   test(`danmaku status renders ${scenario.name}`, async (t) => {
     const page = await createDanmakuPage(t, scenario.state);
-    assert.equal(
-      await page.locator('#danmakuAccountState').textContent(),
-      scenario.account,
-    );
-    assert.equal(
-      await page.locator('#danmakuRoomState').textContent(),
-      scenario.room,
-    );
-    assert.equal(
-      await page.locator('#danmakuAccountState').getAttribute('title'),
-      scenario.accountTitle,
-    );
-    assert.equal(
-      await page.locator('#danmakuRoomState').getAttribute('title'),
-      scenario.roomTitle,
-    );
+    assert.equal(await page.locator('#danmakuAccountState').textContent(), scenario.account);
+    assert.equal(await page.locator('#danmakuRoomState').textContent(), scenario.room);
+    assert.equal(await page.locator('#danmakuAccountState').getAttribute('title'), scenario.accountTitle);
+    assert.equal(await page.locator('#danmakuRoomState').getAttribute('title'), scenario.roomTitle);
   });
 }
 
@@ -331,53 +270,28 @@ test('successful Bilibili login refreshes danmaku once and enables sending', asy
     });
   });
   await page.locator('#bilibiliLoginBtn').click();
-  await page.waitForFunction(
-    () => !document.getElementById('danmakuSendBtn').disabled,
-    null,
-    { timeout: 2000 },
-  );
-  assert.equal(
-    await page.locator('#danmakuAccountState').textContent(),
-    '测试账号',
-  );
+  await page.waitForFunction(() => !document.getElementById('danmakuSendBtn').disabled, null, { timeout: 2000 });
+  assert.equal(await page.locator('#danmakuAccountState').textContent(), '测试账号');
   assert.equal(await page.evaluate(() => window.danmakuRequests.length), 2);
 });
 
 test('opening a disconnected danmaku panel reconnects once and renders the refreshed state', async (t) => {
   const page = await createDanmakuPage(t, { connected: false });
-  assert.equal(
-    await page.locator('#danmakuToolStatus').textContent(),
-    '可发送，监听未连接',
-  );
-  assert.equal(
-    await page.locator('#danmakuToolStatus').getAttribute('class'),
-    'connection-bad',
-  );
+  assert.equal(await page.locator('#danmakuToolStatus').textContent(), '可发送，监听未连接');
+  assert.equal(await page.locator('#danmakuToolStatus').getAttribute('class'), 'connection-bad');
   await page.evaluate(async () => {
-    window.localStorage.setItem(
-      'admin.toolboxSelectedFeature',
-      'otherPerformanceFeature',
-    );
+    window.localStorage.setItem('admin.toolboxSelectedFeature', 'otherPerformanceFeature');
     await import('/js/admin/other.js');
     window.AdminApp.other.initOtherPage();
     window.AdminApp.other.selectFeatureById('otherDanmakuFeature');
   });
-  await page.waitForFunction(
-    () =>
-      document.getElementById('danmakuToolStatus').className ===
-      'connection-good',
-    null,
-    { timeout: 2000 },
-  );
-  assert.equal(
-    await page.locator('#danmakuToolStatus').textContent(),
-    '可发送，监听已连接',
-  );
+  await page.waitForFunction(() => document.getElementById('danmakuToolStatus').className === 'connection-good', null, {
+    timeout: 2000,
+  });
+  assert.equal(await page.locator('#danmakuToolStatus').textContent(), '可发送，监听已连接');
   assert.equal(await page.evaluate(() => window.reconnects), 1);
   assert.equal(await page.evaluate(() => window.danmakuRequests.length), 3);
-  await page.evaluate(() =>
-    window.AdminApp.other.selectFeatureById('otherDanmakuFeature'),
-  );
+  await page.evaluate(() => window.AdminApp.other.selectFeatureById('otherDanmakuFeature'));
   await page.waitForFunction(() => window.danmakuRequests.length === 4, null, {
     timeout: 2000,
   });
@@ -386,16 +300,8 @@ test('opening a disconnected danmaku panel reconnects once and renders the refre
 
 test('danmaku tool mounts the AI assistant after the sender and before fixed replies', () => {
   const html = readAdminHtml();
-  const indexSource = fs.readFileSync(
-    path.join(ROOT_DIR, 'public/js/admin/app.js'),
-    'utf8',
-  );
-  assert.ok(
-    html.indexOf('id="xiaomiAiSection"') > html.indexOf('id="danmakuSendForm"'),
-  );
-  assert.ok(
-    html.indexOf('id="xiaomiAiSection"') <
-      html.indexOf('id="danmakuCustomRepliesPanel"'),
-  );
+  const indexSource = fs.readFileSync(path.join(ROOT_DIR, 'public/js/admin/app.js'), 'utf8');
+  assert.ok(html.indexOf('id="xiaomiAiSection"') > html.indexOf('id="danmakuSendForm"'));
+  assert.ok(html.indexOf('id="xiaomiAiSection"') < html.indexOf('id="danmakuCustomRepliesPanel"'));
   assert.match(indexSource, /import \{ aiAssistantSettings \} from ["']\.\/ai-assistant-settings\.js["'];/);
 });

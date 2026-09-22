@@ -5,15 +5,13 @@
   border-radius: var(--radius-lg);
   background: var(--surface);
 }
-.gift-wishes-heading,
-.gift-wishes-preview-heading {
+.gift-wishes-heading {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 16px;
 }
-.gift-wishes-heading h3,
-.gift-wishes-preview-heading h4 {
+.gift-wishes-heading h3 {
   margin: 0;
 }
 .gift-wishes-heading p {
@@ -73,9 +71,36 @@
   font-size: 13px;
   font-weight: 600;
 }
-.gift-wish-editor input {
+.gift-wish-editor input,
+.gift-wish-editor select,
+.gift-wish-editor textarea {
   width: 100%;
   min-width: 0;
+}
+.gift-wish-editor textarea {
+  min-height: 84px;
+  line-height: 1.5;
+  resize: vertical;
+}
+.gift-wish-text-tokens {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-sm);
+}
+.gift-wish-text-tokens button {
+  padding: 4px 8px;
+  font-size: 12px;
+  color: var(--text);
+}
+.gift-wish-text-preview {
+  display: block;
+  margin-top: var(--spacing-md);
+  color: var(--text);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 .gift-wish-editor .hint {
   font-weight: 400;
@@ -112,9 +137,6 @@
   padding: 22px;
   background: var(--surface-2);
   border-radius: var(--radius-lg);
-}
-.gift-wishes-preview-heading {
-  margin-bottom: 24px;
 }
 .gift-wish-cards {
   display: grid;
@@ -161,9 +183,6 @@
   line-height: 1.8;
   color: var(--muted);
   margin: 0;
-}
-.gift-wish-preview-note {
-  margin: 20px 0 0;
 }
 .gift-wish-source {
   margin-top: 30px;

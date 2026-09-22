@@ -19,8 +19,7 @@ const SAFE_REFUSAL = '这个不适合直播间回答，换个轻松问题吧喵�
 function checkLocalInput(text) {
   const value = String(text || '').trim();
   for (const rule of LOCAL_BLOCK_RULES) {
-    if (rule.pattern.test(value))
-      return { allowed: false, riskType: rule.type, safeText: SAFE_REFUSAL };
+    if (rule.pattern.test(value)) return { allowed: false, riskType: rule.type, safeText: SAFE_REFUSAL };
   }
   return { allowed: true, riskType: '', safeText: '' };
 }
@@ -42,9 +41,7 @@ function parseSafetyReview(text, fallbackText = SAFE_REFUSAL) {
     return {
       allowed: parsed.allowed === true,
       riskType: String(parsed.riskType || '').slice(0, 40),
-      safeText: String(
-        parsed.safeText || (parsed.allowed ? '' : fallbackText),
-      ).trim(),
+      safeText: String(parsed.safeText || (parsed.allowed ? '' : fallbackText)).trim(),
     };
   } catch {
     return {

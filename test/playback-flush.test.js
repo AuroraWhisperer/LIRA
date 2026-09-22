@@ -2,10 +2,7 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const {
-  acknowledgePlaybackFlush,
-  requestPlaybackFlush,
-} = require('../src/electron/playback-flush');
+const { acknowledgePlaybackFlush, requestPlaybackFlush } = require('../src/electron/playback-flush');
 
 test('reports skipped when the renderer window is unavailable', async () => {
   assert.deepEqual(await requestPlaybackFlush(null, 5), { status: 'skipped' });

@@ -26,8 +26,7 @@ function sanitizeSource(source) {
 
   function blankTo(end) {
     while (cursor < end) {
-      if (source[cursor] !== '\n' && source[cursor] !== '\r')
-        output[cursor] = ' ';
+      if (source[cursor] !== '\n' && source[cursor] !== '\r') output[cursor] = ' ';
       cursor += 1;
     }
   }
@@ -49,11 +48,7 @@ function sanitizeSource(source) {
   function scanString() {
     const quote = source[cursor];
     let end = cursor + 1;
-    while (
-      end < source.length &&
-      source[end] !== quote &&
-      source[end] !== '\n'
-    ) {
+    while (end < source.length && source[end] !== quote && source[end] !== '\n') {
       if (source[end] === '\\') end += 1;
       end += 1;
     }
@@ -132,8 +127,7 @@ function sanitizeSource(source) {
       }
       if ('([{'.includes(character)) depth += 1;
       else if (')]}'.includes(character)) depth = Math.max(0, depth - 1);
-      if (!/\s/.test(character))
-        regexAllowed = '([{:;,=!&|?+-*%/^~<>'.includes(character);
+      if (!/\s/.test(character)) regexAllowed = '([{:;,=!&|?+-*%/^~<>'.includes(character);
       cursor += 1;
     }
   }

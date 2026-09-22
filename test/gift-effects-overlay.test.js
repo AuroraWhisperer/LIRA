@@ -14,10 +14,7 @@ function read(relativePath) {
 }
 
 function readOverlayModules() {
-  return [
-    read('public/js/overlays/gift-effects.js'),
-    read('public/js/overlays/gift-effects-frame.js'),
-  ].join('\n');
+  return [read('public/js/overlays/gift-effects.js'), read('public/js/overlays/gift-effects-frame.js')].join('\n');
 }
 
 test('server exposes gift effect lookup and broadcasts finalized gift effects', () => {
@@ -27,14 +24,8 @@ test('server exposes gift effect lookup and broadcasts finalized gift effects', 
   const giftRoutesSource = read('src/server/routes/gift-routes.js');
 
   assert.match(serverSource, /giftEffectModule\.createGiftEffectResolver\(/);
-  assert.match(
-    transportSource,
-    /buildGiftFrameEvent\([\s\S]*?item,[\s\S]*?getSettings\(\)/,
-  );
-  assert.match(
-    transportSource,
-    /getWebSocketHub\(\)\?\.broadcast\(frameEvent\)/,
-  );
+  assert.match(transportSource, /buildGiftFrameEvent\([\s\S]*?item,[\s\S]*?getSettings\(\)/);
+  assert.match(transportSource, /getWebSocketHub\(\)\?\.broadcast\(frameEvent\)/);
   assert.match(apiContextSource, /resolveEffect/);
   assert.match(apiContextSource, /previewEffect/);
   assert.match(giftRoutesSource, /GET \/api\/gifts\/effects\/resolve/);
@@ -126,10 +117,7 @@ test('gift effects overlay uses official frame metadata without cropping or inve
   assert.equal(require('../src/server/access-policy').getOverlayScope('/gift-effects'), 'gift-effects');
   assert.match(html, /meta name="referrer" content="no-referrer"/);
   assert.match(html, /id="giftEffectStage"/);
-  assert.match(
-    css,
-    /\.gift-effects-overlay-body\s*\{[^}]*background:\s*transparent/,
-  );
+  assert.match(css, /\.gift-effects-overlay-body\s*\{[^}]*background:\s*transparent/);
   assert.match(overlayJs, /payload\.type === ["']gift:effect["']/);
   assert.match(overlayJs, /referrerPolicy\s*=\s*["']no-referrer["']/);
   assert.match(overlayJs, /crossOrigin\s*=\s*["']anonymous["']/);
@@ -142,23 +130,11 @@ test('gift effects overlay uses official frame metadata without cropping or inve
     overlayJs,
     /source\.colorX,[\s\S]*?source\.colorY,[\s\S]*?source\.colorWidth,[\s\S]*?source\.colorHeight/,
   );
-  assert.match(
-    overlayJs,
-    /source\.maskX,[\s\S]*?source\.maskY,[\s\S]*?source\.maskWidth,[\s\S]*?source\.maskHeight/,
-  );
-  assert.match(
-    overlayJs,
-    /videoWidth !== width \|\|[\s\S]*?layout\.videoHeight !== height/,
-  );
+  assert.match(overlayJs, /source\.maskX,[\s\S]*?source\.maskY,[\s\S]*?source\.maskWidth,[\s\S]*?source\.maskHeight/);
+  assert.match(overlayJs, /videoWidth !== width \|\|[\s\S]*?layout\.videoHeight !== height/);
   assert.match(overlayJs, /containRect/);
-  assert.match(
-    overlayJs,
-    /Math\.max\(data\[i\], data\[i \+ 1\], data\[i \+ 2\]\)/,
-  );
-  assert.doesNotMatch(
-    overlayJs,
-    /height \* 9 \/ 16|activeHeight|horizontalPadding/,
-  );
+  assert.match(overlayJs, /Math\.max\(data\[i\], data\[i \+ 1\], data\[i \+ 2\]\)/);
+  assert.doesNotMatch(overlayJs, /height \* 9 \/ 16|activeHeight|horizontalPadding/);
   assert.doesNotMatch(overlayJs, /255 - Math\.max\(mask/);
   assert.match(overlayJs, /const MAX_PLAYING = 1/);
   assert.match(overlayJs, /const MAX_PENDING = 10/);
@@ -174,23 +150,10 @@ test('gift frame overlay uses one full-perimeter artwork and bounded perimeter f
   const html = read('public/pages/overlays/gift-effects.html');
   const css = read('public/css/overlays/gift-effects.css');
   const overlayJs = readOverlayModules();
-  const assetDir = path.join(
-    ROOT_DIR,
-    'public',
-    'img',
-    'overlays',
-    'gift-frame',
-    'woodland-bloom',
-  );
+  const assetDir = path.join(ROOT_DIR, 'public', 'img', 'overlays', 'gift-frame', 'woodland-bloom');
 
-  assert.equal(
-    fs.statSync(path.join(assetDir, 'frame-composite.webp')).isFile(),
-    true,
-  );
-  assert.match(
-    html,
-    /id="giftFrameArtworkImage"[^>]+data-frame-part="composite"[^>]+frame-composite\.webp/,
-  );
+  assert.equal(fs.statSync(path.join(assetDir, 'frame-composite.webp')).isFile(), true);
+  assert.match(html, /id="giftFrameArtworkImage"[^>]+data-frame-part="composite"[^>]+frame-composite\.webp/);
   assert.doesNotMatch(html, /data-frame-part="(?:top|right|bottom|left)"/);
   assert.doesNotMatch(html, /id="giftFrameSvg"/);
   assert.match(css, /\.gift-frame-composite\s*\{[^}]*object-fit:\s*fill/s);
@@ -205,37 +168,18 @@ test('gift frame caption stays anchored inside the responsive bottom plate', () 
   const css = read('public/css/overlays/gift-effects.css');
   const overlayJs = readOverlayModules();
 
-  assert.match(
-    css,
-    /\.gift-info\s*\{[^}]*top:\s*89\.7%[^}]*width:\s*31vw[^}]*height:\s*7\.6vh/s,
-  );
-  assert.match(
-    css,
-    /\.gift-info-primary\s*\{[^}]*font-size:\s*min\(1\.34vw, 2\.38vh\)/s,
-  );
-  assert.match(
-    css,
-    /\.gift-info-secondary\s*\{[^}]*font-size:\s*min\(0?\.75vw, 1\.33vh\)/s,
-  );
+  assert.match(css, /\.gift-info\s*\{[^}]*top:\s*89\.7%[^}]*width:\s*31vw[^}]*height:\s*7\.6vh/s);
+  assert.match(css, /\.gift-info-primary\s*\{[^}]*font-size:\s*min\(1\.34vw, 2\.38vh\)/s);
+  assert.match(css, /\.gift-info-secondary\s*\{[^}]*font-size:\s*min\(0?\.75vw, 1\.33vh\)/s);
   assert.doesNotMatch(css, /\.gift-info\s*\{[^}]*min-width/s);
-  assert.doesNotMatch(
-    overlayJs,
-    /translate\(-50%, calc\(-50% \+ (?:10|12)px\)\)/,
-  );
+  assert.doesNotMatch(overlayJs, /translate\(-50%, calc\(-50% \+ (?:10|12)px\)\)/);
 });
 
 test('gift frame accents remain separate, bounded, and reduced-motion safe', () => {
   const html = read('public/pages/overlays/gift-effects.html');
   const css = read('public/css/overlays/gift-effects.css');
   const overlayJs = readOverlayModules();
-  const assetDir = path.join(
-    ROOT_DIR,
-    'public',
-    'img',
-    'overlays',
-    'gift-frame',
-    'woodland-bloom',
-  );
+  const assetDir = path.join(ROOT_DIR, 'public', 'img', 'overlays', 'gift-frame', 'woodland-bloom');
   const accents = {
     branch: 'accent-branch-sprig.webp',
     crystal: 'accent-crystal-charm.webp',
@@ -249,16 +193,8 @@ test('gift frame accents remain separate, bounded, and reduced-motion safe', () 
     assert.equal(header.subarray(0, 4).toString('ascii'), 'RIFF');
     assert.equal(header.subarray(8, 12).toString('ascii'), 'WEBP');
     assert.equal(header.subarray(12, 16).toString('ascii'), 'VP8L');
-    assert.ok(
-      header.readUInt32LE(21) & (1 << 28),
-      `${fileName} must retain alpha`,
-    );
-    assert.match(
-      html,
-      new RegExp(
-        `data-frame-accent="${accent}"[^>]+${fileName.replace('.', '\\.')}`,
-      ),
-    );
+    assert.ok(header.readUInt32LE(21) & (1 << 28), `${fileName} must retain alpha`);
+    assert.match(html, new RegExp(`data-frame-accent="${accent}"[^>]+${fileName.replace('.', '\\.')}`));
   }
 
   assert.match(css, /\.gift-frame-accents/);
@@ -266,10 +202,7 @@ test('gift frame accents remain separate, bounded, and reduced-motion safe', () 
   assert.match(css, /\.gift-frame-accent-crystal/);
   assert.match(css, /\.gift-frame-accent-floral/);
   assert.match(overlayJs, /playHoldingAccents\(session, motionMode\)/);
-  assert.match(
-    overlayJs,
-    /playHoldingAccents[\s\S]{0,500}motionMode === ["']reduced["']/,
-  );
+  assert.match(overlayJs, /playHoldingAccents[\s\S]{0,500}motionMode === ["']reduced["']/);
   assert.doesNotMatch(overlayJs, /iterations:\s*Infinity/);
   assert.doesNotMatch(css, /\.gift-frame-accent[^}]*animation[^;]*infinite/s);
 });
@@ -280,32 +213,20 @@ test('toolbox includes a gift effect tab with lookup and preview controls', () =
   const toolSource = read('public/js/admin/gift-effects.js');
   const styles = readCssBundle('public', 'css', 'admin', 'other-features.css');
 
-  assert.match(
-    html,
-    /data-other-feature="otherGiftEffectsFeature"[\s\S]*?<strong>礼物特效<\/strong>/,
-  );
-  assert.match(
-    html,
-    /id="otherGiftEffectsFeature"[^>]+data-other-feature-panel/,
-  );
+  assert.match(html, /data-other-feature="otherGiftEffectsFeature"[\s\S]*?<strong>礼物特效<\/strong>/);
+  assert.match(html, /id="otherGiftEffectsFeature"[^>]+data-other-feature-panel/);
   assert.match(html, /id="giftEffectGiftId"[^>]+inputmode="numeric"/);
   assert.match(html, /id="giftEffectOverlayUrl"/);
   assert.match(html, /id="giftEffectLookupBtn"/);
   assert.match(html, /id="giftEffectOpenBtn"/);
   assert.match(html, />测试播放</);
   assert.match(html, />直播投屏</);
-  assert.doesNotMatch(
-    html,
-    /BILIBILI FULL-SCREEN EFFECT|id="giftEffectLiveUrl"/,
-  );
+  assert.doesNotMatch(html, /BILIBILI FULL-SCREEN EFFECT|id="giftEffectLiveUrl"/);
   assert.match(indexSource, /import \{ giftEffects \} from ["']\.\/gift-effects\.js["'];/);
   assert.match(toolSource, /\/api\/gifts\/effects\/preview/);
   assert.doesNotMatch(toolSource, /\?giftId=/);
   assert.doesNotMatch(toolSource, /debug/);
-  assert.match(
-    toolSource,
-    /window\.open\(`\$\{liveUrl\}\?preview=1`, ["']liraGiftEffectPreview["']\)/,
-  );
+  assert.match(toolSource, /window\.open\(`\$\{liveUrl\}\?preview=1`, ["']liraGiftEffectPreview["']\)/);
   assert.match(toolSource, /navigator\.clipboard\.writeText\(liveUrl\)/);
   assert.match(styles, /\.gift-effect-tool-panel/);
 });

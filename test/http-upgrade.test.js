@@ -41,10 +41,6 @@ test('malformed upgrade URLs are rejected without escaping the transport handler
     assert.match(response, /^HTTP\/1\.1 400 /);
   }
   assert.equal(upgrades, 0);
-  server.emit(
-    'upgrade',
-    { url: '/ws', headers: { host: '127.0.0.1:3000' } },
-    {},
-  );
+  server.emit('upgrade', { url: '/ws', headers: { host: '127.0.0.1:3000' } }, {});
   assert.equal(upgrades, 1);
 });

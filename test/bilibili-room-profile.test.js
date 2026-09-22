@@ -16,7 +16,9 @@ function createRuntime(t, roomId = '123') {
     settingsStore: { getSettings: () => ({ roomId, enableBilibili: 'false' }) },
     domainServices: { requesterTargets: { getLatestRandomRequester: () => null } },
     broadcastSnapshot() {},
-    buildClient() { assert.fail('Reading room identity must not start a listener'); },
+    buildClient() {
+      assert.fail('Reading room identity must not start a listener');
+    },
   });
   t.after(() => runtime.stop());
   return runtime;
@@ -53,35 +55,49 @@ test('an unset room does not trigger an upstream lookup', async (t) => {
     assert.fail('An unset room must not be resolved');
   });
   assert.deepEqual(await runtime.getRoomProfile(), {
-    roomId: '', uid: '', name: '', avatarUrl: '',
+    roomId: '',
+    uid: '',
+    name: '',
+    avatarUrl: '',
   });
 });
 
 test('room identity remains available when optional avatar lookup fails', async (t) => {
   const runtime = createRuntime(t);
   t.mock.method(BilibiliApiClient.prototype, 'resolveRoomInfo', async () => ({
-    roomId: 123000, uid: 456, ownerName: '直播间主人',
+    roomId: 123000,
+    uid: 456,
+    ownerName: '直播间主人',
   }));
   t.mock.method(BilibiliApiClient.prototype, 'fetchUserProfile', async () => {
     throw new Error('Upstream unavailable');
   });
   assert.deepEqual(await runtime.getRoomProfile(), {
-    roomId: '123000', uid: '456', name: '直播间主人', avatarUrl: '',
+    roomId: '123000',
+    uid: '456',
+    name: '直播间主人',
+    avatarUrl: '',
   });
 });
 
 test('room profile route returns the projection and hides upstream error details', async () => {
   const profile = { roomId: '123', uid: '456', name: '房主', avatarUrl: '' };
   const response = {
-    writeHead(status) { this.status = status; },
-    end(body) { this.payload = JSON.parse(body); },
+    writeHead(status) {
+      this.status = status;
+    },
+    end(body) {
+      this.payload = JSON.parse(body);
+    },
   };
   const context = { bilibili: { getRoomProfile: async () => profile } };
   await routes['GET /api/bilibili/room/profile'](context, {}, response);
   assert.equal(response.status, 200);
   assert.deepEqual(response.payload, { ok: true, data: profile });
 
-  context.bilibili.getRoomProfile = async () => { throw new Error('private-detail'); };
+  context.bilibili.getRoomProfile = async () => {
+    throw new Error('private-detail');
+  };
   await routes['GET /api/bilibili/room/profile'](context, {}, response);
   assert.equal(response.status, 502);
   assert.equal(response.payload.ok, false);

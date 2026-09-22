@@ -53,11 +53,7 @@ function fixture({ phase, index = 0, closeFails = false } = {}) {
       if (closeFails) throw new Error(`close: ${this.index}`);
     }
   }
-  const maintenance = loadModule(
-    'src/storage/database-maintenance.js',
-    {},
-    warnings,
-  );
+  const maintenance = loadModule('src/storage/database-maintenance.js', {}, warnings);
   const database = loadModule(
     'src/storage/database.js',
     {
@@ -157,11 +153,7 @@ test('real databases close after a PRAGMA failure and reopen with data and migra
     }
     exec(sql) {
       super.exec(sql);
-      if (
-        fail &&
-        this.filePath.endsWith('gift-data.db') &&
-        sql.startsWith('PRAGMA')
-      ) {
+      if (fail && this.filePath.endsWith('gift-data.db') && sql.startsWith('PRAGMA')) {
         fail = false;
         throw originalError;
       }
@@ -188,24 +180,13 @@ test('real databases close after a PRAGMA failure and reopen with data and migra
     const versions = database.getSchemaVersions(db);
     for (const handle of Object.values(db)) {
       assert.equal(handle.closeCount, 0);
-      assert.equal(
-        handle.prepare('PRAGMA journal_mode').get().journal_mode,
-        'wal',
-      );
+      assert.equal(handle.prepare('PRAGMA journal_mode').get().journal_mode, 'wal');
     }
-    assert.equal(
-      db.giftDb.prepare('PRAGMA foreign_keys').get().foreign_keys,
-      1,
-    );
-    db.songDb.exec(
-      "CREATE TABLE init_probe (value TEXT); INSERT INTO init_probe VALUES ('kept');",
-    );
+    assert.equal(db.giftDb.prepare('PRAGMA foreign_keys').get().foreign_keys, 1);
+    db.songDb.exec("CREATE TABLE init_probe (value TEXT); INSERT INTO init_probe VALUES ('kept');");
     database.closeDatabases(db);
     const reopened = database.createDatabases({ dataDir: root });
-    assert.equal(
-      reopened.songDb.prepare('SELECT value FROM init_probe').get().value,
-      'kept',
-    );
+    assert.equal(reopened.songDb.prepare('SELECT value FROM init_probe').get().value, 'kept');
     assert.deepEqual(database.getSchemaVersions(reopened), versions);
     database.closeDatabases(reopened);
     assert.ok(handles.every((handle) => handle.closeCount === 1));

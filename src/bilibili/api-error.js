@@ -20,10 +20,7 @@ function formatBilibiliApiError(endpointName, response, payload, extraHint) {
   const code = payload && payload.code;
   const message = (payload && (payload.message || payload.msg)) || '未知错误';
   const hint = bilibiliErrorHint(code);
-  const data =
-    payload && payload.data
-      ? ` data=${JSON.stringify(payload.data).slice(0, 220)}`
-      : '';
+  const data = payload && payload.data ? ` data=${JSON.stringify(payload.data).slice(0, 220)}` : '';
   return `直播平台 API ${endpointName} failed: http=${response.status} code=${code} message=${message}. ${hint}${extraHint ? ` ${extraHint}` : ''}${data}`;
 }
 

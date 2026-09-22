@@ -15,17 +15,29 @@ async function fixture(t) {
       this.listeners = new Map();
       this.readyState = 0;
       sockets.push(this);
-      queueMicrotask(() => { this.readyState = 1; this.emit('open', {}); });
+      queueMicrotask(() => {
+        this.readyState = 1;
+        this.emit('open', {});
+      });
     }
     addEventListener(name, handler) {
       if (!this.listeners.has(name)) this.listeners.set(name, new Set());
       this.listeners.get(name).add(handler);
     }
-    removeEventListener(name, handler) { this.listeners.get(name)?.delete(handler); }
-    emit(name, value) { for (const handler of this.listeners.get(name) || []) handler(value); }
+    removeEventListener(name, handler) {
+      this.listeners.get(name)?.delete(handler);
+    }
+    emit(name, value) {
+      for (const handler of this.listeners.get(name) || []) handler(value);
+    }
     send() {}
-    close() { this.readyState = 3; }
-    disconnect() { this.close(); this.emit('close', { code: 1006 }); }
+    close() {
+      this.readyState = 3;
+    }
+    disconnect() {
+      this.close();
+      this.emit('close', { code: 1006 });
+    }
     packet(operation, body) {
       const payload = Buffer.from(JSON.stringify(body));
       const data = Buffer.alloc(16 + payload.length);
@@ -40,15 +52,22 @@ async function fixture(t) {
   const original = global.WebSocket;
   global.WebSocket = Socket;
   const client = new BilibiliDanmakuClient('123', { onStatus() {} });
-  t.after(() => { client.stop(); global.WebSocket = original; });
+  t.after(() => {
+    client.stop();
+    global.WebSocket = original;
+  });
   for (const method of ['info', 'warn', 'log']) t.mock.method(console, method, () => {});
   client.apiClient.resolveRoomInfo = async () => ({ roomId: 123, uid: 456, liveStatus: 1 });
   client.apiClient.resolveDanmuInfo = async () => ({ token: 'synthetic', host_list: [{ host: 'synthetic.invalid' }] });
   for (const poller of [client.onlineRankPoller, client.fansMedalPoller, client.liveStatusMonitor]) {
     poller.start = () => {};
   }
-  client.historyPoller.start = () => { client.historyPoller.timer = {}; };
-  client.historyPoller.stop = () => { client.historyPoller.timer = null; };
+  client.historyPoller.start = () => {
+    client.historyPoller.timer = {};
+  };
+  client.historyPoller.stop = () => {
+    client.historyPoller.timer = null;
+  };
   client.start();
   await flush();
   return { client, sockets };

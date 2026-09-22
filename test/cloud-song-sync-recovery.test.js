@@ -67,30 +67,62 @@ function fixture(t) {
     return active.controller;
   }
   restart();
-  t.after(() => { active.controller.dispose(); db.close(); });
+  t.after(() => {
+    active.controller.dispose();
+    db.close();
+  });
   return {
-    db, songs, pending, cloud, key, uploads, restart,
-    get controller() { return active.controller; },
-    get replacements() { return replacements; },
-    setAccount(accountName, streamerId = 2) { identity = { accountName, streamerId }; },
-    setOrigin(value) { origin = value; },
-    setUpload(fn) { upload = fn; },
-    setPull(fn) { pull = fn; },
+    db,
+    songs,
+    pending,
+    cloud,
+    key,
+    uploads,
+    restart,
+    get controller() {
+      return active.controller;
+    },
+    get replacements() {
+      return replacements;
+    },
+    setAccount(accountName, streamerId = 2) {
+      identity = { accountName, streamerId };
+    },
+    setOrigin(value) {
+      origin = value;
+    },
+    setUpload(fn) {
+      upload = fn;
+    },
+    setPull(fn) {
+      pull = fn;
+    },
     edit(name, notify = true) {
       songService.saveSong(songs, {
-        name, categoryName: 'Local category', sourcePlatform: 'QQ音乐',
-        isEnabled: false, requestPrice: '舰长', songClip: 'BV1',
+        name,
+        categoryName: 'Local category',
+        sourcePlatform: 'QQ音乐',
+        isEnabled: false,
+        requestPrice: '舰长',
+        songClip: 'BV1',
       });
       if (notify) active.emitLocal('songs');
     },
-    names() { return songs.listRows().map((song) => song.name).sort(); },
+    names() {
+      return songs
+        .listRows()
+        .map((song) => song.name)
+        .sort();
+    },
   };
 }
 
 test('failed uploads retain song edits across controller restarts until upload succeeds', async (t) => {
   const f = fixture(t);
   await f.controller.start();
-  f.setUpload(async () => { throw new Error('OFFLINE'); });
+  f.setUpload(async () => {
+    throw new Error('OFFLINE');
+  });
   f.edit('Offline edit');
   await f.controller.whenIdle();
   const id = f.songs.listRows().find((song) => song.name === 'Offline edit').id;
@@ -100,7 +132,13 @@ test('failed uploads retain song edits across controller restarts until upload s
   assert.equal(f.songs.listRows().find((song) => song.name === 'Offline edit').id, id);
   f.setUpload(async () => {});
   await f.controller.syncNow();
-  assert.deepEqual(f.cloud.get(f.key()).songs.map((song) => song.name).sort(), f.names());
+  assert.deepEqual(
+    f.cloud
+      .get(f.key())
+      .songs.map((song) => song.name)
+      .sort(),
+    f.names(),
+  );
   assert.equal(f.pending.readPending(f.key()), null);
 });
 
@@ -109,7 +147,9 @@ for (const change of ['account', 'origin', 'recreated account']) {
     const f = fixture(t);
     await f.controller.start();
     const firstKey = f.key();
-    f.setUpload(async () => { throw new Error('OFFLINE'); });
+    f.setUpload(async () => {
+      throw new Error('OFFLINE');
+    });
     f.edit('Private first edit');
     await f.controller.whenIdle();
     if (change === 'account') f.setAccount('second');
@@ -144,7 +184,10 @@ test('a committed edit without a dirty notification is recovered and cannot be o
   const f = fixture(t);
   const waiting = Promise.withResolvers();
   const started = Promise.withResolvers();
-  f.setPull(() => { started.resolve(); return waiting.promise; });
+  f.setPull(() => {
+    started.resolve();
+    return waiting.promise;
+  });
   const initial = f.controller.start();
   await started.promise;
   f.edit('Missed notification', false);
@@ -161,7 +204,10 @@ test('an older successful upload cannot acknowledge newer edits without a dirty 
   await f.controller.start();
   const waiting = Promise.withResolvers();
   const started = Promise.withResolvers();
-  f.setUpload(() => { started.resolve(); return waiting.promise; });
+  f.setUpload(() => {
+    started.resolve();
+    return waiting.promise;
+  });
   f.edit('First edit');
   await started.promise;
   f.edit('Newer edit', false);
@@ -179,7 +225,10 @@ test('disposal during upload retains its pending snapshot for a later controller
   await f.controller.start();
   const waiting = Promise.withResolvers();
   const started = Promise.withResolvers();
-  f.setUpload(() => { started.resolve(); return waiting.promise; });
+  f.setUpload(() => {
+    started.resolve();
+    return waiting.promise;
+  });
   f.edit('Interrupted edit');
   await started.promise;
   const old = f.controller;
@@ -196,7 +245,9 @@ test('disposal during upload retains its pending snapshot for a later controller
 test('an intentional empty library remains empty after an offline clear and restart', async (t) => {
   const f = fixture(t);
   await f.controller.start();
-  f.setUpload(async () => { throw new Error('OFFLINE'); });
+  f.setUpload(async () => {
+    throw new Error('OFFLINE');
+  });
   clearSongLibraryData(f.db);
   await f.restart().start();
   assert.deepEqual(f.names(), []);

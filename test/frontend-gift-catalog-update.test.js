@@ -6,14 +6,7 @@ const test = require('node:test');
 const { loadModuleExports } = require('./helpers/frontend-modules');
 
 const ROOT_DIR = path.join(__dirname, '..');
-const TOAST_MODULE = path.join(
-  ROOT_DIR,
-  'public',
-  'js',
-  'admin',
-  'gifts',
-  'catalog-update-toast.js',
-);
+const TOAST_MODULE = path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'catalog-update-toast.js');
 
 const { createDom, createClock } = require('./helpers/toast-dom');
 
@@ -112,10 +105,7 @@ test('gift catalog update toast shows a background completion without prior prog
   controller.handleState(state);
 
   assert.equal(container.children.length, 1);
-  assert.equal(
-    controller.getNode().children[0].children[0].textContent,
-    '礼物图片更新完成',
-  );
+  assert.equal(controller.getNode().children[0].children[0].textContent, '礼物图片更新完成');
   assert.equal(timers.timers.length, 1);
 });
 
@@ -139,10 +129,7 @@ test('gift catalog update toast warns instead of reporting success for a fatal b
     error: 'CATALOG_ASSET_STATE_WRITE_FAILED',
   });
 
-  assert.equal(
-    controller.getNode().children[0].children[0].textContent,
-    '礼物图片更新失败',
-  );
+  assert.equal(controller.getNode().children[0].children[0].textContent, '礼物图片更新失败');
   assert.equal(controller.getNode().children[0].children[1].textContent, '下次检查时重试');
 });
 
@@ -339,7 +326,7 @@ test('gift catalog update toast cleans up bridge, shutdown, pagehide, and comple
   assert.equal(bridgeUnsubscribed, true);
   assert.equal(eventBus.handlers.size, 0);
   // The shared stack retains its own resize/pagehide cleanup until the page ends.
-  for (const listener of [...windowListeners.get('pagehide') || []]) listener();
+  for (const listener of [...(windowListeners.get('pagehide') || [])]) listener();
   assert.equal(windowListeners.size, 0);
   assert.deepEqual(timers.cleared, [1]);
   assert.equal(container.children.length, 0);

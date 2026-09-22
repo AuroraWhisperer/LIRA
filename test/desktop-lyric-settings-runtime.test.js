@@ -35,16 +35,10 @@ test('desktop lyric settings automatically list local font families and preserve
     },
     querySelector(selector) {
       if (selector !== 'optgroup[data-local-fonts="true"]') return null;
-      return (
-        this.children.find((child) => child.dataset?.localFonts === 'true') ||
-        null
-      );
+      return this.children.find((child) => child.dataset?.localFonts === 'true') || null;
     },
     get options() {
-      return [
-        builtInOption,
-        ...this.children.flatMap((child) => child.children || []),
-      ];
+      return [builtInOption, ...this.children.flatMap((child) => child.children || [])];
     },
   };
   const elements = new Map([
@@ -65,9 +59,7 @@ test('desktop lyric settings automatically list local font families and preserve
       },
       remove() {
         if (!this.parentNode) return;
-        this.parentNode.children = this.parentNode.children.filter(
-          (child) => child !== this,
-        );
+        this.parentNode.children = this.parentNode.children.filter((child) => child !== this);
         this.parentNode = null;
       },
     };
@@ -209,14 +201,8 @@ test('desktop lyric local font detection keeps built-ins when permission is deni
 
 test('desktop lyric settings include a live word-timed preview', () => {
   const html = readDesktopLyricHtml();
-  const settingsSource = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'desktop-lyric.js'),
-    'utf8',
-  );
-  const source = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'desktop-lyric-preview.js'),
-    'utf8',
-  );
+  const settingsSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'desktop-lyric.js'), 'utf8');
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'desktop-lyric-preview.js'), 'utf8');
   const rendererSource = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'js', 'lyrics', 'desktop-lyric-renderer.js'),
     'utf8',
@@ -233,34 +219,20 @@ test('desktop lyric settings include a live word-timed preview', () => {
     path.join(ROOT_DIR, 'public', 'js', 'shared', 'lyric-word-renderer.js'),
     'utf8',
   );
-  const styles = readCssBundle(
-    'public',
-    'css',
-    'admin',
-    'desktop-lyric-preview.css',
-  );
-  const workspaceStyles = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'css', 'admin', 'workspace', 'song.css'),
-    'utf8',
-  );
+  const styles = readCssBundle('public', 'css', 'admin', 'desktop-lyric-preview.css');
+  const workspaceStyles = readCssBundle('public', 'css', 'admin', 'workspace', 'song.css');
 
   assert.match(html, /class="desktop-lyric-workspace"/);
   assert.match(html, /class="[^"]*desktop-lyric-settings-fields[^"]*"/);
   assert.match(html, /id="desktopLyricAutosaveState"/);
-  assert.ok(
-    html.indexOf('id="desktopLyricForm"') <
-      html.indexOf('id="desktopLyricLivePreview"'),
-  );
+  assert.ok(html.indexOf('id="desktopLyricForm"') < html.indexOf('id="desktopLyricLivePreview"'));
   assert.doesNotMatch(html, /保存桌面歌词设置/);
   assert.match(html, /id="desktopLyricLivePreview"/);
   assert.match(html, /id="desktopLyricPreviewViewport"[^>]*tabindex="0"/);
   assert.match(html, /id="desktopLyricPreviewTimeline"/);
   assert.match(html, /id="desktopLyricPreviewPlayback"[^>]*aria-live="polite"/);
   assert.match(html, /id="desktopLyricPreviewProgress"/);
-  assert.match(
-    html,
-    /id="desktopLyricCopyUrlBtn"[\s\S]*?>[\s\S]*?复制桌面歌词[\s\S]*?<\//,
-  );
+  assert.match(html, /id="desktopLyricCopyUrlBtn"[\s\S]*?>[\s\S]*?复制桌面歌词[\s\S]*?<\//);
   assert.match(html, /data-lyric-preview-background="grid"/);
   assert.match(rendererSource, /new LyricWordRenderer/);
   assert.match(source, /app:lyric-state/);
@@ -270,21 +242,12 @@ test('desktop lyric settings include a live word-timed preview', () => {
   assert.match(rendererSource, /`歌词已载入 · \$\{lineCount\} 行`/);
   assert.match(rendererSource, /textContent\s*=/);
   assert.doesNotMatch(rendererSource, /innerHTML\s*=/);
-  assert.match(
-    source,
-    /import \{ copyText, localOverlayOrigin, toast \} from ["']\.\.\/shared\/utils\.js["'];/,
-  );
+  assert.match(source, /import \{ copyText, localOverlayOrigin, toast \} from ["']\.\.\/shared\/utils\.js["'];/);
   assert.match(source, /await copyText\(desktopLyricUrl\)/);
-  assert.doesNotMatch(
-    source,
-    /navigator\.clipboard\.writeText\(desktopLyricUrl\)/,
-  );
+  assert.doesNotMatch(source, /navigator\.clipboard\.writeText\(desktopLyricUrl\)/);
   assert.match(source, /`\$\{localOverlayOrigin\(location\)\}\/lyrics`/);
   assert.match(source, /桌面歌词地址已复制/);
-  assert.doesNotMatch(
-    source,
-    /musicAPI\.openLyricWindow|desktopLyricOpenWindowBtn/,
-  );
+  assert.doesNotMatch(source, /musicAPI\.openLyricWindow|desktopLyricOpenWindowBtn/);
   assert.match(previewSettingsSource, /desktopLyricFontFamily/);
   assert.match(previewStylesSource, /style\.setProperty/);
   assert.match(previewSettingsSource, /desktopLyricTimeOffsetMs/);
@@ -294,23 +257,11 @@ test('desktop lyric settings include a live word-timed preview', () => {
   assert.match(sharedRenderer, /requestAnimationFrame/);
   assert.match(styles, /--preview-word-progress/);
   assert.match(styles, /\.desktop-lyric-preview-stage\.is-solid/);
-  assert.match(
-    styles,
-    /height:\s*clamp\(520px,\s*calc\(100vh - 210px\),\s*760px\)/,
-  );
+  assert.match(styles, /height:\s*clamp\(520px,\s*calc\(100vh - 210px\),\s*760px\)/);
   assert.match(workspaceStyles, /\.song-workspace[\s\S]*?overflow-y:\s*auto/);
-  assert.match(
-    styles,
-    /\.desktop-lyric-settings\s*\{[^}]*max-height:\s*none[^}]*overflow:\s*visible/,
-  );
-  assert.match(
-    styles,
-    /\.desktop-lyric-preview-viewport[\s\S]*?overflow-y:\s*auto/,
-  );
-  assert.match(
-    styles,
-    /\.desktop-lyric-preview-viewport[\s\S]*?overscroll-behavior-y:\s*auto/,
-  );
+  assert.match(styles, /\.desktop-lyric-settings\s*\{[^}]*max-height:\s*none[^}]*overflow:\s*visible/);
+  assert.match(styles, /\.desktop-lyric-preview-viewport[\s\S]*?overflow-y:\s*auto/);
+  assert.match(styles, /\.desktop-lyric-preview-viewport[\s\S]*?overscroll-behavior-y:\s*auto/);
   assert.match(
     styles,
     /\.desktop-lyric-workspace\s+\.desktop-lyric-preview-viewport:has\(\.desktop-lyric-preview-empty\)\s*\{[^}]*overflow-y:\s*hidden/,
@@ -325,10 +276,7 @@ test('desktop lyric settings include a live word-timed preview', () => {
   assert.match(styles, /prefers-reduced-motion:\s*reduce/);
   assert.match(rendererSource, /requestAnimationFrame\(animateLyricFollow\)/);
   assert.match(rendererSource, /MANUAL_FOLLOW_PAUSE_MS = 6000/);
-  assert.match(
-    rendererSource,
-    /addEventListener\(["']pointerdown["'], pauseAutomaticFollow/,
-  );
+  assert.match(rendererSource, /addEventListener\(["']pointerdown["'], pauseAutomaticFollow/);
   assert.doesNotMatch(rendererSource, /behavior:\s*['"]smooth['"]/);
   assert.doesNotMatch(rendererSource, /scrollIntoView/);
   assert.match(styles, /mask-image:\s*linear-gradient\(\s*to bottom/);
@@ -340,10 +288,7 @@ test('desktop lyric settings include a live word-timed preview', () => {
   assert.match(styles, /--preview-global-opacity/);
   assert.match(styles, /scale\(1\.02\)/);
   assert.match(styles, /container-name:\s*admin-lyric-preview/);
-  assert.match(
-    styles,
-    /\.desktop-lyric-settings-fields\s*\{[\s\S]*?grid-template-columns:\s*1fr/,
-  );
+  assert.match(styles, /\.desktop-lyric-settings-fields\s*\{[\s\S]*?grid-template-columns:\s*1fr/);
   assert.doesNotMatch(settingsSource, /form\.addEventListener\('submit'/);
   assert.doesNotMatch(settingsSource, /reloadState\(\)/);
 });
@@ -374,9 +319,7 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
     desktopLyricTranslationScale: '0.65',
     desktopLyricTextAlign: 'justify',
   };
-  const elements = new Map(
-    Object.entries(values).map(([id, value]) => [id, { value }]),
-  );
+  const elements = new Map(Object.entries(values).map(([id, value]) => [id, { value }]));
   const lyricSourceInputs = [
     { value: 'netease', checked: true },
     { value: 'qq', checked: false },
@@ -413,10 +356,8 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
         return null;
       },
       querySelectorAll(selector) {
-        if (selector === 'input[name="weSingLyricSource"]')
-          return lyricSourceInputs;
-        if (selector === 'input[name="desktopLyricTextAlign"]')
-          return textAlignInputs;
+        if (selector === 'input[name="weSingLyricSource"]') return lyricSourceInputs;
+        if (selector === 'input[name="desktopLyricTextAlign"]') return textAlignInputs;
         return [];
       },
     },
@@ -498,11 +439,7 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
 
   elements.get('desktopLyricFontSize').value = '64';
   listeners.get('change')();
-  assert.equal(
-    apiCalls.length,
-    1,
-    'a second write waits for the in-flight request',
-  );
+  assert.equal(apiCalls.length, 1, 'a second write waits for the in-flight request');
   resolveFirstSave({ ok: true });
   await new Promise((resolve) => setImmediate(resolve));
 

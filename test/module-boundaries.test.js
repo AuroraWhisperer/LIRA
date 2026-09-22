@@ -61,10 +61,8 @@ const EMPTY_CATCH_LIMITS = {
   'public/js/playback/services/lyric-service.js': 1,
   'public/js/playback/ui/components.js': 2,
 };
-const DOMAIN_SQL_PATTERN =
-  /\b(?:db|songDb|superChatDb|giftDb|musicDb|checkinDb)\.(?:prepare|exec)\s*\(/g;
-const EMPTY_CATCH_PATTERN =
-  /\bcatch(?:\s*\([^)]*\))?\s*\{(?:\s|\/\*[\s\S]*?\*\/|\/\/[^\r\n]*(?:\r?\n|$))*\}/g;
+const DOMAIN_SQL_PATTERN = /\b(?:db|songDb|superChatDb|giftDb|musicDb|checkinDb)\.(?:prepare|exec)\s*\(/g;
+const EMPTY_CATCH_PATTERN = /\bcatch(?:\s*\([^)]*\))?\s*\{(?:\s|\/\*[\s\S]*?\*\/|\/\/[^\r\n]*(?:\r?\n|$))*\}/g;
 
 function read(relativePath) {
   return fs.readFileSync(path.join(ROOT_DIR, relativePath), 'utf8');
@@ -76,8 +74,7 @@ function listJavaScriptFiles(relativeDirectory) {
   for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
     const relativePath = path.join(relativeDirectory, entry.name);
     if (entry.isDirectory()) files.push(...listJavaScriptFiles(relativePath));
-    else if (entry.name.endsWith('.js'))
-      files.push(relativePath.replaceAll('\\', '/'));
+    else if (entry.name.endsWith('.js')) files.push(relativePath.replaceAll('\\', '/'));
   }
   return files;
 }
@@ -93,12 +90,15 @@ test('domain services use stores instead of SQLite statements', () => {
   assert.doesNotMatch(superChatService, /context\.db|\bdb\.superChatDb\b/);
   assert.doesNotMatch(songs, /\.(?:prepare|exec)\s*\(/);
   assert.doesNotMatch(songs, /require\([^\n]*storage\//);
-  for (const name of ['projection-service', 'statistics-consumer', 'query-service', 'blind-box-analysis', 'source-scope']) {
+  for (const name of [
+    'projection-service',
+    'statistics-consumer',
+    'query-service',
+    'blind-box-analysis',
+    'source-scope',
+  ]) {
     const source = read(`src/bilibili/gift/${name}.js`);
-    assert.doesNotMatch(
-      source,
-      /\.(?:prepare|exec)\s*\(|\bgiftDb\b|context\.db/,
-    );
+    assert.doesNotMatch(source, /\.(?:prepare|exec)\s*\(|\bgiftDb\b|context\.db/);
     assert.doesNotMatch(source, /require\([^\n]*storage\//);
     assert.doesNotMatch(source, /\b(?:SELECT|UPDATE|DELETE FROM)\b|source_id/);
   }
@@ -108,35 +108,19 @@ test('internal backend modules do not import composition entrypoints', () => {
   const entrypoints = new Set(['src/server.js', 'src/electron/main.js']);
   for (const file of listJavaScriptFiles('src')) {
     if (entrypoints.has(file)) continue;
-    for (const match of read(file).matchAll(
-      /\brequire\(\s*['"](\.[^'"]+)['"]\s*\)/g,
-    )) {
-      let target = path.posix.normalize(
-        path.posix.join(path.posix.dirname(file), match[1]),
-      );
+    for (const match of read(file).matchAll(/\brequire\(\s*['"](\.[^'"]+)['"]\s*\)/g)) {
+      let target = path.posix.normalize(path.posix.join(path.posix.dirname(file), match[1]));
       if (!path.posix.extname(target)) target += '.js';
-      assert.equal(
-        entrypoints.has(target),
-        false,
-        `${file} imports composition entry ${target}`,
-      );
+      assert.equal(entrypoints.has(target), false, `${file} imports composition entry ${target}`);
     }
   }
 });
 
 test('storage adapters do not depend on server, desktop, or browser modules', () => {
   for (const file of listJavaScriptFiles('src/storage')) {
-    for (const match of read(file).matchAll(
-      /\brequire\(\s*['"](\.[^'"]+)['"]\s*\)/g,
-    )) {
-      const target = path.posix.normalize(
-        path.posix.join(path.posix.dirname(file), match[1]),
-      );
-      assert.doesNotMatch(
-        target,
-        /^(?:src\/(?:server(?:\.js|\/|$)|electron\/)|public\/)/,
-        file,
-      );
+    for (const match of read(file).matchAll(/\brequire\(\s*['"](\.[^'"]+)['"]\s*\)/g)) {
+      const target = path.posix.normalize(path.posix.join(path.posix.dirname(file), match[1]));
+      assert.doesNotMatch(target, /^(?:src\/(?:server(?:\.js|\/|$)|electron\/)|public\/)/, file);
     }
   }
 });
@@ -147,26 +131,14 @@ test('reviewed overlay pages share one owned connection adapter', () => {
     assert.match(source, /from ['"]\.\/socket-client\.js['"]/);
     assert.doesNotMatch(source, /new WebSocket\s*\(/);
   }
-  assert.equal(
-    fs.existsSync(path.join(ROOT_DIR, 'public/js/shared/overlay-socket.js')),
-    false,
-  );
+  assert.equal(fs.existsSync(path.join(ROOT_DIR, 'public/js/shared/overlay-socket.js')), false);
 });
 
 test('composition owns wheel cleanup and does not revive the obsolete player', () => {
   assert.match(read('src/server.js'), /wheelSessionService\?\.dispose\(\)/);
-  assert.equal(
-    fs.existsSync(
-      path.join(ROOT_DIR, 'public/js/playback/player/controller.js'),
-    ),
-    false,
-  );
+  assert.equal(fs.existsSync(path.join(ROOT_DIR, 'public/js/playback/player/controller.js')), false);
   for (const file of listJavaScriptFiles('public/js/playback')) {
-    assert.doesNotMatch(
-      read(file),
-      /PlayerController|player\/controller\.js/,
-      file,
-    );
+    assert.doesNotMatch(read(file), /PlayerController|player\/controller\.js/, file);
   }
 });
 
@@ -197,8 +169,11 @@ test('Admin application accesses legacy globals only through its bridge', () => 
     'public/js/admin/theme-style-view.js',
     ...listJavaScriptFiles('public/js/admin/gifts'),
   ]) {
-    assert.doesNotMatch(read(relativePath), /\bAdminApp\b|getLegacyAdminModules/,
-      `${relativePath} must use explicit dependencies, not legacy registry reads`);
+    assert.doesNotMatch(
+      read(relativePath),
+      /\bAdminApp\b|getLegacyAdminModules/,
+      `${relativePath} must use explicit dependencies, not legacy registry reads`,
+    );
   }
 });
 
@@ -213,31 +188,18 @@ test('Admin legacy global usage is frozen and can only decrease', () => {
       Object.hasOwn(LEGACY_ADMIN_GLOBAL_LIMITS, relativePath),
       `${relativePath} introduces a new legacy Admin global dependency`,
     );
-    assert.ok(
-      count <= LEGACY_ADMIN_GLOBAL_LIMITS[relativePath],
-      `${relativePath} increases legacy Admin global usage`,
-    );
+    assert.ok(count <= LEGACY_ADMIN_GLOBAL_LIMITS[relativePath], `${relativePath} increases legacy Admin global usage`);
   }
 
-  for (const [relativePath, limit] of Object.entries(
-    LEGACY_ADMIN_GLOBAL_LIMITS,
-  )) {
+  for (const [relativePath, limit] of Object.entries(LEGACY_ADMIN_GLOBAL_LIMITS)) {
     const count = read(relativePath).match(/window\.AdminApp/g)?.length || 0;
-    assert.ok(
-      count > 0,
-      `${relativePath} has no legacy Admin global usage; remove its baseline`,
-    );
-    assert.ok(
-      count <= limit,
-      `${relativePath} increases legacy Admin global usage`,
-    );
+    assert.ok(count > 0, `${relativePath} has no legacy Admin global usage; remove its baseline`);
+    assert.ok(count <= limit, `${relativePath} increases legacy Admin global usage`);
   }
 });
 
 test('receiver-aware domain SQL usage is frozen and can only decrease', () => {
-  const candidates = listJavaScriptFiles('src').filter(
-    (relativePath) => !relativePath.startsWith('src/storage/'),
-  );
+  const candidates = listJavaScriptFiles('src').filter((relativePath) => !relativePath.startsWith('src/storage/'));
 
   for (const relativePath of candidates) {
     const count = read(relativePath).match(DOMAIN_SQL_PATTERN)?.length || 0;
@@ -254,22 +216,13 @@ test('receiver-aware domain SQL usage is frozen and can only decrease', () => {
 
   for (const [relativePath, limit] of Object.entries(DOMAIN_SQL_LIMITS)) {
     const count = read(relativePath).match(DOMAIN_SQL_PATTERN)?.length || 0;
-    assert.ok(
-      count > 0,
-      `${relativePath} has no receiver-aware SQL usage; remove its baseline`,
-    );
-    assert.ok(
-      count <= limit,
-      `${relativePath} increases receiver-aware SQL usage outside storage`,
-    );
+    assert.ok(count > 0, `${relativePath} has no receiver-aware SQL usage; remove its baseline`);
+    assert.ok(count <= limit, `${relativePath} increases receiver-aware SQL usage outside storage`);
   }
 });
 
 test('empty catch text debt is frozen and can only decrease', () => {
-  const candidates = [
-    ...listJavaScriptFiles('src'),
-    ...listJavaScriptFiles('public/js'),
-  ];
+  const candidates = [...listJavaScriptFiles('src'), ...listJavaScriptFiles('public/js')];
 
   for (const relativePath of candidates) {
     const count = read(relativePath).match(EMPTY_CATCH_PATTERN)?.length || 0;
@@ -286,14 +239,8 @@ test('empty catch text debt is frozen and can only decrease', () => {
 
   for (const [relativePath, limit] of Object.entries(EMPTY_CATCH_LIMITS)) {
     const count = read(relativePath).match(EMPTY_CATCH_PATTERN)?.length || 0;
-    assert.ok(
-      count > 0,
-      `${relativePath} has no empty catch text debt; remove its baseline`,
-    );
-    assert.ok(
-      count <= limit,
-      `${relativePath} increases empty or comment-only catch text debt`,
-    );
+    assert.ok(count > 0, `${relativePath} has no empty catch text debt; remove its baseline`);
+    assert.ok(count <= limit, `${relativePath} increases empty or comment-only catch text debt`);
   }
 });
 
@@ -307,10 +254,7 @@ test('playback composition uses explicit factory dependencies', () => {
 test('generic shared utilities exclude spreadsheet and ZIP codecs', () => {
   const utilities = read('src/shared/utils.js');
 
-  assert.doesNotMatch(
-    utilities,
-    /\b(?:createZip|readZipFiles|parseSharedStrings|parseWorksheetXml)\b/,
-  );
+  assert.doesNotMatch(utilities, /\b(?:createZip|readZipFiles|parseSharedStrings|parseWorksheetXml)\b/);
 });
 
 test('composition roots delegate mutable subsystem state to runtimes', () => {
@@ -318,10 +262,7 @@ test('composition roots delegate mutable subsystem state to runtimes', () => {
   const desktop = read('src/electron/main.js');
 
   assert.match(server, /createBilibiliRuntime/);
-  assert.doesNotMatch(
-    server,
-    /function (?:configure|reconnect|replace)Bilibili/,
-  );
+  assert.doesNotMatch(server, /function (?:configure|reconnect|replace)Bilibili/);
   assert.match(desktop, /createDesktopState/);
   assert.doesNotMatch(desktop, /^let\s+/m);
 });

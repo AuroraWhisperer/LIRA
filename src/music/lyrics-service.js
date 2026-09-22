@@ -48,12 +48,8 @@ function initLyricsService(apiDir, lyricDir) {
 
 async function searchMusicTracks(registry, body) {
   const input = body && typeof body === 'object' ? body : {};
-  const platform = normalizeMusicPlatform(
-    input.platform || input.source || 'netease',
-  );
-  const keyword = cleanText(
-    input.keyword || input.query || input.songName,
-  ).slice(0, 120);
+  const platform = normalizeMusicPlatform(input.platform || input.source || 'netease');
+  const keyword = cleanText(input.keyword || input.query || input.songName).slice(0, 120);
   if (!keyword) throw new Error('缺少搜索关键词。');
 
   const limit = Math.max(1, Math.min(30, Number(input.limit) || 20));
@@ -71,9 +67,7 @@ function getMusicHomeContent(registry, body) {
 
 async function getMusicHomeContentWithCache(registry, body, apiCacheDir) {
   const input = body && typeof body === 'object' ? body : {};
-  const platform = normalizeMusicPlatform(
-    input.platform || input.source || 'netease',
-  );
+  const platform = normalizeMusicPlatform(input.platform || input.source || 'netease');
   const action = cleanText(input.action || 'personalized');
   const limit = Math.max(1, Math.min(5000, Number(input.limit) || 100));
   const offset = Math.max(0, Number(input.offset) || 0);
@@ -92,11 +86,7 @@ async function getMusicHomeContentWithCache(registry, body, apiCacheDir) {
         })
       : '';
   if (cacheKey) {
-    const cached = readMusicJsonCache(
-      apiCacheDir,
-      cacheKey,
-      MUSIC_API_CACHE_TTL_MS,
-    );
+    const cached = readMusicJsonCache(apiCacheDir, cacheKey, MUSIC_API_CACHE_TTL_MS);
     if (cached) return { ...cached, cached: true };
   }
 
@@ -110,13 +100,7 @@ async function getMusicHomeContentWithCache(registry, body, apiCacheDir) {
         page,
       }),
     };
-    if (cacheKey)
-      writeMusicJsonCache(
-        apiCacheDir,
-        cacheKey,
-        result,
-        MUSIC_API_CACHE_MAX_BYTES,
-      );
+    if (cacheKey) writeMusicJsonCache(apiCacheDir, cacheKey, result, MUSIC_API_CACHE_MAX_BYTES);
     return result;
   }
   if (action === 'playlist-tracks') {
@@ -129,12 +113,7 @@ async function getMusicHomeContentWithCache(registry, body, apiCacheDir) {
       tracks: await provider.getPlaylistTracks(playlistId, { limit }),
     };
     if (cacheKey && result.tracks && result.tracks.length > 0) {
-      writeMusicJsonCache(
-        apiCacheDir,
-        cacheKey,
-        result,
-        MUSIC_API_CACHE_MAX_BYTES,
-      );
+      writeMusicJsonCache(apiCacheDir, cacheKey, result, MUSIC_API_CACHE_MAX_BYTES);
     }
     return result;
   }
@@ -161,14 +140,7 @@ async function getMusicHomeContentWithCache(registry, body, apiCacheDir) {
     return {
       source: platform,
       action,
-      playlists: input.track
-        ? await annotatePlaylistMembership(
-            provider,
-            platform,
-            playlists,
-            input.track,
-          )
-        : playlists,
+      playlists: input.track ? await annotatePlaylistMembership(provider, platform, playlists, input.track) : playlists,
     };
   }
   if (action === 'collected-playlists')
@@ -198,64 +170,41 @@ async function getMusicTrackLyricsWithCache(registry, body, lyricCacheDir) {
     source: normalizedTrack.source,
     sourceTrackId: normalizedTrack.sourceTrackId,
   });
-  const cached = readMusicJsonCache(
-    lyricCacheDir,
-    cacheKey,
-    MUSIC_LYRIC_CACHE_TTL_MS,
-  );
+  const cached = readMusicJsonCache(lyricCacheDir, cacheKey, MUSIC_LYRIC_CACHE_TTL_MS);
   if (cached) return { ...cached, cached: true };
   const provider = registry.get(normalizedTrack.source);
   const result = await provider.getLyrics(normalizedTrack);
   // 空歌词结果不缓存：否则会压制 30 天内的重试（例如登录后才可获取的歌词）。
   const lines = Array.isArray(result && result.lines) ? result.lines : [];
   if (lines.length > 0) {
-    writeMusicJsonCache(
-      lyricCacheDir,
-      cacheKey,
-      result,
-      MUSIC_LYRIC_CACHE_MAX_BYTES,
-    );
+    writeMusicJsonCache(lyricCacheDir, cacheKey, result, MUSIC_LYRIC_CACHE_MAX_BYTES);
   }
   return result;
 }
 
 async function writeMusicPlaylistTracks(registry, body, operation) {
   const input = body && typeof body === 'object' ? body : {};
-  const platform = normalizeMusicPlatform(
-    input.platform || input.source || 'qq',
-  );
+  const platform = normalizeMusicPlatform(input.platform || input.source || 'qq');
   const provider = registry.get(platform);
-  const playlistInput =
-    input.playlist && typeof input.playlist === 'object' ? input.playlist : {};
+  const playlistInput = input.playlist && typeof input.playlist === 'object' ? input.playlist : {};
   const playlist = {
     id: cleanText(playlistInput.id || playlistInput.tid),
     tid: cleanText(playlistInput.tid || playlistInput.id),
     dirId: cleanText(playlistInput.dirId),
-    title: cleanText(playlistInput.title || playlistInput.dirName).slice(
-      0,
-      200,
-    ),
+    title: cleanText(playlistInput.title || playlistInput.dirName).slice(0, 200),
   };
   const tracks = Array.isArray(input.tracks) ? input.tracks.slice(0, 100) : [];
   if (tracks.length === 0) throw new Error('缺少要修改的音乐歌曲。');
-  const method =
-    operation === 'remove' ? 'removeTracksFromPlaylist' : 'addTracksToPlaylist';
-  if (typeof provider[method] !== 'function')
-    throw new Error('当前音乐 Provider 不支持修改歌单。');
+  const method = operation === 'remove' ? 'removeTracksFromPlaylist' : 'addTracksToPlaylist';
+  if (typeof provider[method] !== 'function') throw new Error('当前音乐 Provider 不支持修改歌单。');
   const result = await provider[method](playlist, tracks);
   return { source: platform, operation, playlist, result };
 }
 
 function parseLyricPayload(body) {
   const lyric = cleanTextPreserveLines(body.lyric).slice(0, 512 * 1024);
-  const translation = cleanTextPreserveLines(body.translation).slice(
-    0,
-    512 * 1024,
-  );
-  const wordLyric = cleanTextPreserveLines(body.wordLyric || body.yrc).slice(
-    0,
-    512 * 1024,
-  );
+  const translation = cleanTextPreserveLines(body.translation).slice(0, 512 * 1024);
+  const wordLyric = cleanTextPreserveLines(body.wordLyric || body.yrc).slice(0, 512 * 1024);
   const roma = cleanTextPreserveLines(body.roma || '').slice(0, 512 * 1024);
   return { lines: parseLyricResult(lyric, translation, wordLyric, roma) };
 }
@@ -268,10 +217,7 @@ function matchMusicTrackCandidates(body) {
   };
   if (!request.songName) throw new Error('缺少要匹配的歌名。');
 
-  const candidates =
-    Array.isArray(body.candidates) && body.candidates.length > 0
-      ? body.candidates.slice(0, 50)
-      : []; // local candidates need db access — pass from caller
+  const candidates = Array.isArray(body.candidates) && body.candidates.length > 0 ? body.candidates.slice(0, 50) : []; // local candidates need db access — pass from caller
 
   return {
     request,
@@ -280,42 +226,32 @@ function matchMusicTrackCandidates(body) {
   };
 }
 
-async function annotatePlaylistMembership(
-  provider,
-  platform,
-  playlists,
-  track,
-) {
+async function annotatePlaylistMembership(provider, platform, playlists, track) {
   const trackId = getProviderTrackId(platform, track);
   if (!trackId) throw new Error('缺少要检查的歌曲 ID。');
-  return mapWithConcurrency(
-    Array.isArray(playlists) ? playlists : [],
-    6,
-    async (playlist) => {
-      try {
-        const containsTrack =
-          typeof provider.playlistContainsTrack === 'function'
-            ? await provider.playlistContainsTrack(playlist.id, track)
-            : (
-                await provider.getPlaylistTracks(playlist.id, { limit: 5000 })
-              ).some((item) => getProviderTrackId(platform, item) === trackId);
-        return {
-          ...playlist,
-          containsTrack,
-        };
-      } catch (_) {
-        return { ...playlist, containsTrack: null };
-      }
-    },
-  );
+  return mapWithConcurrency(Array.isArray(playlists) ? playlists : [], 6, async (playlist) => {
+    try {
+      const containsTrack =
+        typeof provider.playlistContainsTrack === 'function'
+          ? await provider.playlistContainsTrack(playlist.id, track)
+          : (await provider.getPlaylistTracks(playlist.id, { limit: 5000 })).some(
+              (item) => getProviderTrackId(platform, item) === trackId,
+            );
+      return {
+        ...playlist,
+        containsTrack,
+      };
+    } catch (_) {
+      return { ...playlist, containsTrack: null };
+    }
+  });
 }
 
 function getProviderTrackId(platform, track) {
   if (!track || typeof track !== 'object') return '';
   if (platform === 'qq') {
     const sourceSongId = Number(track.sourceSongId);
-    if (Number.isSafeInteger(sourceSongId) && sourceSongId > 0)
-      return String(sourceSongId);
+    if (Number.isSafeInteger(sourceSongId) && sourceSongId > 0) return String(sourceSongId);
     return cleanText(track.sourceTrackId || track.id).replace(/^qq:/, '');
   }
   return cleanText(track.sourceTrackId || track.id).replace(/^netease:/, '');
@@ -324,16 +260,13 @@ function getProviderTrackId(platform, track) {
 async function mapWithConcurrency(items, concurrency, mapper) {
   const results = new Array(items.length);
   let nextIndex = 0;
-  const workers = Array.from(
-    { length: Math.min(concurrency, items.length) },
-    async () => {
-      while (nextIndex < items.length) {
-        const index = nextIndex;
-        nextIndex += 1;
-        results[index] = await mapper(items[index], index);
-      }
-    },
-  );
+  const workers = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+    while (nextIndex < items.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await mapper(items[index], index);
+    }
+  });
   await Promise.all(workers);
   return results;
 }

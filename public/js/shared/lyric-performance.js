@@ -7,8 +7,7 @@ const RECOVER_AFTER = 30;
 export function createLyricPerformanceProfile(options = {}) {
   const onChange = options.onChange || (() => {});
   const reducedMotion =
-    typeof window !== 'undefined' &&
-    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   const profile = {
     targetFps: 30,
     wordAnimation: reducedMotion ? 'static' : 'waapi',
@@ -33,21 +32,14 @@ export function createLyricPerformanceProfile(options = {}) {
         if (longFrames >= DEGRADE_AFTER && profile.wordAnimation === 'waapi') {
           longFrames = 0;
           publish({ wordAnimation: 'manual', effects: 'low' });
-        } else if (
-          longFrames >= DEGRADE_AFTER &&
-          profile.wordAnimation === 'manual'
-        ) {
+        } else if (longFrames >= DEGRADE_AFTER && profile.wordAnimation === 'manual') {
           longFrames = 0;
           publish({ wordAnimation: 'static', effects: 'low' });
         }
       } else {
         longFrames = 0;
         healthyFrames += 1;
-        if (
-          healthyFrames >= RECOVER_AFTER &&
-          profile.wordAnimation === 'manual' &&
-          !reducedMotion
-        ) {
+        if (healthyFrames >= RECOVER_AFTER && profile.wordAnimation === 'manual' && !reducedMotion) {
           publish({ wordAnimation: 'waapi', effects: 'full' });
         }
       }

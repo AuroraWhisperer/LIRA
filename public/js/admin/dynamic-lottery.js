@@ -7,8 +7,7 @@ const ERROR_MESSAGES = {
   LOTTERY_SESSION_CHANGED: '账号或授权已变化，请刷新状态后重试。',
   LOTTERY_SESSION_DISPOSED: '软件正在退出，请重新打开后操作。',
   LOTTERY_AUTH_BUSY: '账号操作正在进行，请稍后重试。',
-  LOTTERY_AUTH_ENCRYPTION_UNAVAILABLE:
-    '系统加密存储不可用，无法保存登录。请重启软件后重试。',
+  LOTTERY_AUTH_ENCRYPTION_UNAVAILABLE: '系统加密存储不可用，无法保存登录。请重启软件后重试。',
   LOTTERY_AUTH_RESTORE_FAILED: '未能恢复抽奖登录，请退出此账号后重新登录。',
 };
 
@@ -30,19 +29,14 @@ export function initDynamicLottery({
   let disposed = false;
   let generation = 0;
   let state = { loggedIn: false, uid: '', warning: '' };
-  const available = ['getState', 'login', 'logout'].every(
-    (name) => typeof api?.[name] === 'function',
-  );
+  const available = ['getState', 'login', 'logout'].every((name) => typeof api?.[name] === 'function');
 
   function render() {
-    status.textContent = state.loggedIn
-      ? `已登录 · UID ${state.uid}`
-      : '未登录抽奖账号';
+    status.textContent = state.loggedIn ? `已登录 · UID ${state.uid}` : '未登录抽奖账号';
     status.setAttribute('data-connected', String(state.loggedIn));
     loginButton.hidden = state.loggedIn;
     loginButton.disabled = !available || busy || state.loggedIn;
-    logoutButton.disabled =
-      !available || busy || (!state.loggedIn && !state.warning);
+    logoutButton.disabled = !available || busy || (!state.loggedIn && !state.warning);
     refreshButton.disabled = !available || busy;
     root.setAttribute('aria-busy', String(busy));
     workflow.setAuth({ available, busy, loggedIn: state.loggedIn });
@@ -52,18 +46,14 @@ export function initDynamicLottery({
     if (!available || busy || disposed) return;
     const request = ++generation;
     busy = true;
-    message.textContent =
-      action === 'login'
-        ? '请在独立窗口登录动态作者账号；完成后窗口会自动关闭。'
-        : '';
+    message.textContent = action === 'login' ? '请在独立窗口登录动态作者账号；完成后窗口会自动关闭。' : '';
     render();
     try {
       const response = await api[action]();
       if (disposed || request !== generation) return;
       if (!response?.ok) {
         state = { loggedIn: false, uid: '', warning: '' };
-        message.textContent =
-          ERROR_MESSAGES[response?.error] || '操作未完成，请刷新状态后重试。';
+        message.textContent = ERROR_MESSAGES[response?.error] || '操作未完成，请刷新状态后重试。';
       } else {
         state = response.state;
         message.textContent =
@@ -106,9 +96,7 @@ export function initDynamicLottery({
   });
   render();
   if (available) void perform('getState');
-  else
-    message.textContent =
-      '请在 LIRA 桌面版中登录抽奖账号，浏览器页面不提供账号登录。';
+  else message.textContent = '请在 LIRA 桌面版中登录抽奖账号，浏览器页面不提供账号登录。';
 
   return {
     dispose() {

@@ -8,10 +8,7 @@ import { formsService } from './forms.js';
 import { stateService } from './state.js';
 import { desktopLyricPreview } from './desktop-lyric-preview.js';
 import { publishDesktopLyric } from './legacy-admin-bridge.js';
-import {
-  ensureSavedFontOption,
-  registerLocalFontSelect,
-} from './local-font-library.js';
+import { ensureSavedFontOption, registerLocalFontSelect } from './local-font-library.js';
 
 export function createDesktopLyric({
   utils = sharedUtils,
@@ -73,18 +70,9 @@ export function createDesktopLyric({
 
     // Range ↔ Number 双向绑定
     if (forms.bindRangePair) {
-      RANGE_PAIRS.forEach(
-        ([key, minimum, maximum, fallback, displayScale = 1]) => {
-          forms.bindRangePair(
-            key,
-            `${key}Number`,
-            minimum,
-            maximum,
-            fallback,
-            displayScale,
-          );
-        },
-      );
+      RANGE_PAIRS.forEach(([key, minimum, maximum, fallback, displayScale = 1]) => {
+        forms.bindRangePair(key, `${key}Number`, minimum, maximum, fallback, displayScale);
+      });
     }
 
     const autosaveState = document.getElementById('desktopLyricAutosaveState');
@@ -134,16 +122,9 @@ export function createDesktopLyric({
         setAutosaveState('正在读取设置…', 'is-saving');
         return;
       }
-      setAutosaveState(
-        immediate ? '正在自动保存…' : '等待自动保存…',
-        'is-saving',
-      );
+      setAutosaveState(immediate ? '正在自动保存…' : '等待自动保存…', 'is-saving');
       if (immediate) void saveDesktopLyric();
-      else
-        autosaveTimer = setTimeout(
-          () => void saveDesktopLyric(),
-          AUTOSAVE_DELAY_MS,
-        );
+      else autosaveTimer = setTimeout(() => void saveDesktopLyric(), AUTOSAVE_DELAY_MS);
     };
 
     window.addEventListener('app:settings-state', (event) => {
@@ -156,29 +137,21 @@ export function createDesktopLyric({
       }
       if (!dirty) return;
       setAutosaveState('等待自动保存…', 'is-saving');
-      autosaveTimer = setTimeout(
-        () => void saveDesktopLyric(),
-        AUTOSAVE_DELAY_MS,
-      );
+      autosaveTimer = setTimeout(() => void saveDesktopLyric(), AUTOSAVE_DELAY_MS);
     });
 
     form.addEventListener('input', () => scheduleAutosave());
     form.addEventListener('change', () => scheduleAutosave(true));
-    document
-      .getElementById('desktopLyricResetBtn')
-      ?.addEventListener('click', () => {
-        loadDesktopLyricSettings(DESKTOP_LYRIC_DEFAULTS, {
-          includeWeSing: false,
-        });
-        scheduleAutosave(true);
+    document.getElementById('desktopLyricResetBtn')?.addEventListener('click', () => {
+      loadDesktopLyricSettings(DESKTOP_LYRIC_DEFAULTS, {
+        includeWeSing: false,
       });
+      scheduleAutosave(true);
+    });
   }
 
   function selectedWeSingLyricSource() {
-    return (
-      document.querySelector('input[name="weSingLyricSource"]:checked')
-        ?.value || 'netease'
-    );
+    return document.querySelector('input[name="weSingLyricSource"]:checked')?.value || 'netease';
   }
 
   function checkedValue(id) {
@@ -204,26 +177,19 @@ export function createDesktopLyric({
         return;
       }
       const input = document.getElementById(key);
-      settings[key] = input
-        ? CHECKBOX_KEYS.has(key)
-          ? String(input.checked)
-          : input.value
-        : fallback;
+      settings[key] = input ? (CHECKBOX_KEYS.has(key) ? String(input.checked) : input.value) : fallback;
     });
     return settings;
   }
 
   function selectedTextAlign() {
-    return (
-      document.querySelector('input[name="desktopLyricTextAlign"]:checked')
-        ?.value || 'left'
-    );
+    return document.querySelector('input[name="desktopLyricTextAlign"]:checked')?.value || 'left';
   }
 
   function selectedKaraokeMode() {
     return (
-      document.querySelector('input[name="desktopLyricKaraokeMode"]:checked')
-        ?.value || DESKTOP_LYRIC_DEFAULTS.desktopLyricKaraokeMode
+      document.querySelector('input[name="desktopLyricKaraokeMode"]:checked')?.value ||
+      DESKTOP_LYRIC_DEFAULTS.desktopLyricKaraokeMode
     );
   }
 
@@ -231,9 +197,7 @@ export function createDesktopLyric({
     if (!settings) return;
 
     if (options.includeWeSing !== false) loadWeSingLyricSettings(settings);
-    const karaokeMode = ['off', 'continuous', 'discrete'].includes(
-      settings.desktopLyricKaraokeMode,
-    )
+    const karaokeMode = ['off', 'continuous', 'discrete'].includes(settings.desktopLyricKaraokeMode)
       ? settings.desktopLyricKaraokeMode
       : settings.desktopLyricKaraokeEnabled === 'false'
         ? 'off'
@@ -241,24 +205,16 @@ export function createDesktopLyric({
     Object.entries(DESKTOP_LYRIC_DEFAULTS).forEach(([key, fallback]) => {
       const nextValue = settings[key] ?? fallback;
       if (key === 'desktopLyricTextAlign') {
-        const textAlign = ['left', 'center', 'right', 'justify'].includes(
-          nextValue,
-        )
-          ? nextValue
-          : fallback;
-        document
-          .querySelectorAll('input[name="desktopLyricTextAlign"]')
-          .forEach((input) => {
-            input.checked = input.value === textAlign;
-          });
+        const textAlign = ['left', 'center', 'right', 'justify'].includes(nextValue) ? nextValue : fallback;
+        document.querySelectorAll('input[name="desktopLyricTextAlign"]').forEach((input) => {
+          input.checked = input.value === textAlign;
+        });
         return;
       }
       if (key === 'desktopLyricKaraokeMode') {
-        document
-          .querySelectorAll('input[name="desktopLyricKaraokeMode"]')
-          .forEach((input) => {
-            input.checked = input.value === karaokeMode;
-          });
+        document.querySelectorAll('input[name="desktopLyricKaraokeMode"]').forEach((input) => {
+          input.checked = input.value === karaokeMode;
+        });
         return;
       }
       const input = document.getElementById(key);
@@ -271,10 +227,7 @@ export function createDesktopLyric({
         return;
       }
       if (key === 'desktopLyricFontFamily') {
-        ensureSavedFontOption(
-          document.getElementById('desktopLyricFontFamily'),
-          nextValue,
-        );
+        ensureSavedFontOption(document.getElementById('desktopLyricFontFamily'), nextValue);
       }
       setValue(key, nextValue);
       const rangePair = RANGE_PAIRS.find(([rangeKey]) => rangeKey === key);
@@ -290,16 +243,12 @@ export function createDesktopLyric({
   function loadWeSingLyricSettings(settings) {
     if (!settings) return;
 
-    const selectedSource =
-      settings.weSingLyricSource === 'qq' ? 'qq' : 'netease';
-    document
-      .querySelectorAll('input[name="weSingLyricSource"]')
-      .forEach((input) => {
-        input.checked = input.value === selectedSource;
-      });
+    const selectedSource = settings.weSingLyricSource === 'qq' ? 'qq' : 'netease';
+    document.querySelectorAll('input[name="weSingLyricSource"]').forEach((input) => {
+      input.checked = input.value === selectedSource;
+    });
     const smartLyricMatch = document.getElementById('weSingSmartLyricMatch');
-    if (smartLyricMatch)
-      smartLyricMatch.checked = settings.weSingSmartLyricMatch !== 'false';
+    if (smartLyricMatch) smartLyricMatch.checked = settings.weSingSmartLyricMatch !== 'false';
   }
 
   return {

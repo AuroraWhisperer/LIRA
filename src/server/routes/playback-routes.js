@@ -91,14 +91,12 @@ const routes = {
     });
   }),
 
-  'POST /api/playback/queue-state/clear': storeRoute(
-    async (context, request) => {
-      const body = await request.body();
-      return context.playback.clearQueueState({
-        clientId: clientIdOf(request, body),
-      });
-    },
-  ),
+  'POST /api/playback/queue-state/clear': storeRoute(async (context, request) => {
+    const body = await request.body();
+    return context.playback.clearQueueState({
+      clientId: clientIdOf(request, body),
+    });
+  }),
 
   // ── 收藏 ──
 
@@ -111,12 +109,10 @@ const routes = {
     return context.playback.addFavorite(body.track);
   }),
 
-  'POST /api/playback/favorites/remove': storeRoute(
-    async (context, request) => {
-      const body = await request.body();
-      return context.playback.removeFavorite(body.trackKey);
-    },
-  ),
+  'POST /api/playback/favorites/remove': storeRoute(async (context, request) => {
+    const body = await request.body();
+    return context.playback.removeFavorite(body.trackKey);
+  }),
 
   // ── 自建歌单 ──
 
@@ -136,29 +132,20 @@ const routes = {
     return context.playback.createPlaylist(body);
   }),
 
-  'POST /api/playback/playlists/delete': storeRoute(
-    async (context, request) => {
-      const body = await request.body();
-      return context.playback.deletePlaylist(body.id);
-    },
-  ),
+  'POST /api/playback/playlists/delete': storeRoute(async (context, request) => {
+    const body = await request.body();
+    return context.playback.deletePlaylist(body.id);
+  }),
 
-  'POST /api/playback/playlists/tracks': storeRoute(
-    async (context, request) => {
-      const body = await request.body();
-      return context.playback.addPlaylistTracks(
-        body.id,
-        body.tracks || body.track,
-      );
-    },
-  ),
+  'POST /api/playback/playlists/tracks': storeRoute(async (context, request) => {
+    const body = await request.body();
+    return context.playback.addPlaylistTracks(body.id, body.tracks || body.track);
+  }),
 
-  'POST /api/playback/playlists/tracks/remove': storeRoute(
-    async (context, request) => {
-      const body = await request.body();
-      return context.playback.removePlaylistTrack(body.id, body.trackKey);
-    },
-  ),
+  'POST /api/playback/playlists/tracks/remove': storeRoute(async (context, request) => {
+    const body = await request.body();
+    return context.playback.removePlaylistTrack(body.id, body.trackKey);
+  }),
 };
 
 module.exports = { prefixes, routes };

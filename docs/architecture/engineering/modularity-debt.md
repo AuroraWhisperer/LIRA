@@ -32,7 +32,7 @@
 | `src/server.js:createServerRuntime`；`initializeApplication`                                        |       702 / 143 | 服务入口；统一启停与失败清理仍需单一所有者                       | 批次 C 已迁移广播适配；当前工厂/初始化 694 / 117 行，保留统一启停与失败清理                     | `test/server-lifecycle.test.js`、`test/server-smoke.test.js`               |
 | `src/electron/remote-gift-controller.js:createRemoteGiftController`                                 |             725 | 远端礼物同步；授权/来源代次、串行任务和取消共用状态              | 批次 C 已提取纯恢复规则；工厂仍为 725 行，后续按真实协议阶段评估；代次/取消保持单一所有者       | `test/remote-gift-controller.test.js`                                      |
 | `src/storage/database-maintenance.js:clearAllData`                                                  |             295 | 存储协调；多库部分提交不是全局原子事务                           | 批次 C 已完成：具名输入 coordinateClearAll 为 80 行，事务内操作及结果独立；公开位置参数保留兼容 | `test/database-clear-all.test.js`                                          |
-| `src/storage/database-migrations.js:runAllMigrations`；`migrateLegacySuperChatsToDedicatedDatabase` |        305 / 81 | 手写历史迁移；版本、SQL 和数据转换语义须稳定，不是 snapshot 例外 | 下一次实质修改对应库迁移时提取注册/转换；新增大型迁移独立注册，保持旧版本执行顺序与幂等         | `test/database-maintenance.test.js`、`test/superchat-store.test.js`        |
+| `src/storage/database-migrations.js:runAllMigrations`；`src/storage/legacy-superchat-migration.js:migrateLegacySuperChatsToDedicatedDatabase` |        305 / 81 | 手写历史迁移；版本、SQL 和数据转换语义须稳定，不是 snapshot 例外 | 2026-09-22 已提取完整醒目留言跨库迁移，旧入口转发保持兼容；函数跨度债务仍保留，后续实质修改时复核，注册版本和事务顺序不变 | `test/database-maintenance.test.js`、`test/superchat-store.test.js`        |
 
 ## 已知复杂度与嵌套风险
 

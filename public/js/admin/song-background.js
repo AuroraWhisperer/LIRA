@@ -32,9 +32,7 @@ function assertSongBackgroundResponse(response) {
 function resolveSongBackgroundUrl(previewUrl) {
   try {
     const url = new URL(String(previewUrl || ''));
-    const allowed =
-      url.protocol === 'https:' ||
-      (url.protocol === 'http:' && url.hostname === '127.0.0.1');
+    const allowed = url.protocol === 'https:' || (url.protocol === 'http:' && url.hostname === '127.0.0.1');
     return allowed && !url.username && !url.password ? url.href : '';
   } catch (_) {
     return '';
@@ -65,13 +63,8 @@ function renderSongBackground(response, elements) {
   deleteButton.hidden = false;
   const bytes = Number(background.bytes);
   const size = Number.isFinite(bytes) ? `${(bytes / 1024).toFixed(0)} KB` : '';
-  const updatedAt = background.updatedAt
-    ? new Date(background.updatedAt)
-    : null;
-  const updated =
-    updatedAt && !Number.isNaN(updatedAt.getTime())
-      ? `更新于 ${updatedAt.toLocaleString('zh-CN')}`
-      : '';
+  const updatedAt = background.updatedAt ? new Date(background.updatedAt) : null;
+  const updated = updatedAt && !Number.isNaN(updatedAt.getTime()) ? `更新于 ${updatedAt.toLocaleString('zh-CN')}` : '';
   meta.textContent = [updated, size].filter(Boolean).join(' · ');
 }
 
@@ -85,25 +78,13 @@ export async function initCloudSongBackground() {
   const pickButton = document.getElementById('licenseSongBgPickBtn');
   const deleteButton = document.getElementById('licenseSongBgDeleteBtn');
   const result = document.getElementById('licenseSongBgResult');
-  if (
-    !section ||
-    !preview ||
-    !empty ||
-    !meta ||
-    !fileInput ||
-    !pickButton ||
-    !deleteButton ||
-    !result
-  )
-    return;
+  if (!section || !preview || !empty || !meta || !fileInput || !pickButton || !deleteButton || !result) return;
 
   const elements = { preview, empty, meta, deleteButton };
   section.hidden = false;
 
   async function refreshSongBackground() {
-    const response = assertSongBackgroundResponse(
-      await window.liraLicense.getSongPageBackground(),
-    );
+    const response = assertSongBackgroundResponse(await window.liraLicense.getSongPageBackground());
     renderSongBackground(response, elements);
     return response;
   }
@@ -147,9 +128,7 @@ export async function initCloudSongBackground() {
     setBusy(true);
     result.textContent = '正在恢复默认背景…';
     try {
-      const response = assertSongBackgroundResponse(
-        await window.liraLicense.deleteSongPageBackground(),
-      );
+      const response = assertSongBackgroundResponse(await window.liraLicense.deleteSongPageBackground());
       renderSongBackground(response, elements);
       result.textContent = '已恢复默认水彩背景。';
     } catch (error) {

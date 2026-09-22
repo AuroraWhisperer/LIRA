@@ -2,31 +2,28 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const {
-  closestTarget,
-  createPlaybackApp,
-  flushAsyncWork,
-  track,
-} = require('./helpers/playback-app');
+const { closestTarget, createPlaybackApp, flushAsyncWork, track } = require('./helpers/playback-app');
 
 async function createPlayingApp(pending, { currentSource = 'qq', nextSource = 'qq' } = {}) {
   const current = { ...track('a', '歌曲 A'), source: currentSource };
   const next = { ...track('b', '歌曲 B'), source: nextSource };
-  const app = await createPlaybackApp({
-    current,
-    currentOrigin: 'normal',
-    normalQueue: [next],
-    normalQueueTracks: [current, next],
-    mode: 'sequence',
-    volume: 0.75,
-    selectedSource: 'qq',
-    queueType: 'queue',
-  }, {
-    authState: { platform: 'qq', loggedIn: true },
-    resolveStream: (count, request) => count === 1
-      ? { url: 'https://example.test/a.mp3', quality: request.quality }
-      : pending.promise,
-  });
+  const app = await createPlaybackApp(
+    {
+      current,
+      currentOrigin: 'normal',
+      normalQueue: [next],
+      normalQueueTracks: [current, next],
+      mode: 'sequence',
+      volume: 0.75,
+      selectedSource: 'qq',
+      queueType: 'queue',
+    },
+    {
+      authState: { platform: 'qq', loggedIn: true },
+      resolveStream: (count, request) =>
+        count === 1 ? { url: 'https://example.test/a.mp3', quality: request.quality } : pending.promise,
+    },
+  );
   await app.init();
   await flushAsyncWork();
   await app.emit('playbackPlayPause', 'click');
@@ -68,7 +65,10 @@ for (const action of ['next', 'quality', 'recovery']) {
       assert.equal(audio.src, '');
       assert.equal(audio.paused, true);
       assert.equal(app.audioPlayCalls(), 1);
-      assert.deepEqual(app.element('toast').prepended.map((item) => item.textContent), toasts);
+      assert.deepEqual(
+        app.element('toast').prepended.map((item) => item.textContent),
+        toasts,
+      );
     });
   }
 }

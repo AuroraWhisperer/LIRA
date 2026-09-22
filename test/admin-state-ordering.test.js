@@ -24,29 +24,21 @@ async function createFixture() {
       events.push(event);
     },
   };
-  const { StateService } = await loadModuleExports(
-    path.resolve('public/js/admin/state.js'),
-    {
-      window,
-      document: { getElementById: () => ({}), querySelectorAll: () => [] },
-      location: { protocol: 'http:', host: '127.0.0.1:3000' },
-      WebSocket: Socket,
-      CustomEvent: class {
-        constructor(type, options) {
-          this.type = type;
-          this.detail = options.detail;
-        }
-      },
-      fetch: () =>
-        new Promise((resolve) =>
-          requests.push((data) =>
-            resolve({ json: async () => ({ ok: true, data }) }),
-          ),
-        ),
-      setTimeout,
-      clearTimeout,
+  const { StateService } = await loadModuleExports(path.resolve('public/js/admin/state.js'), {
+    window,
+    document: { getElementById: () => ({}), querySelectorAll: () => [] },
+    location: { protocol: 'http:', host: '127.0.0.1:3000' },
+    WebSocket: Socket,
+    CustomEvent: class {
+      constructor(type, options) {
+        this.type = type;
+        this.detail = options.detail;
+      }
     },
-  );
+    fetch: () => new Promise((resolve) => requests.push((data) => resolve({ json: async () => ({ ok: true, data }) }))),
+    setTimeout,
+    clearTimeout,
+  });
   const service = new StateService();
   service.connectSocket();
   return { service, requests, events, eventBus: window.AdminApp.eventBus };
@@ -132,10 +124,7 @@ test('gift-only snapshots do not redispatch unchanged settings', async () => {
     type: 'snapshot',
     state: { ...state, gifts: { recent: [{ id: 1 }] } },
   });
-  assert.equal(
-    events.filter((event) => event.type === 'app:settings-state').length,
-    1,
-  );
+  assert.equal(events.filter((event) => event.type === 'app:settings-state').length, 1);
   assert.deepEqual(Array.from(changes[1]), ['gifts']);
 });
 

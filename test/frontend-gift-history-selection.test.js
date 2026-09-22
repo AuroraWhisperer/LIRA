@@ -20,14 +20,27 @@ async function openHistory(t) {
     .gift-history-marquee { position: absolute; pointer-events: none; }
   </style>${html}`);
   await page.evaluate(async () => {
-    window.historyState = { items: Array.from({ length: 100 }, (_, index) => ({ eventId: `gift-${index}` })),
-      selected: new Set(), filters: {}, total: 100, partial: false, viewRevision: 'synthetic' };
+    window.historyState = {
+      items: Array.from({ length: 100 }, (_, index) => ({ eventId: `gift-${index}` })),
+      selected: new Set(),
+      filters: {},
+      total: 100,
+      partial: false,
+      viewRevision: 'synthetic',
+    };
     window.renderRows = () => {
-      document.getElementById('giftHistoryBody').innerHTML = historyState.items.map(({ eventId }) =>
-        `<tr data-event-id="${eventId}"><td><input type="checkbox" data-gift-select="${eventId}"></td><td colspan="6">${eventId}</td></tr>`).join('');
+      document.getElementById('giftHistoryBody').innerHTML = historyState.items
+        .map(
+          ({ eventId }) =>
+            `<tr data-event-id="${eventId}"><td><input type="checkbox" data-gift-select="${eventId}"></td><td colspan="6">${eventId}</td></tr>`,
+        )
+        .join('');
     };
     renderRows();
-    window.fetch = () => new Promise((resolve) => { window.finishSelection = resolve; });
+    window.fetch = () =>
+      new Promise((resolve) => {
+        window.finishSelection = resolve;
+      });
     const { createGiftHistoryTools } = await import('/js/admin/gifts/history-tools.js');
     window.historyTools = createGiftHistoryTools({ state: historyState, reload() {}, resetPagination() {} });
     historyTools.update();
@@ -68,7 +81,11 @@ test('whole rows toggle once, slight movement stays a click, and checkboxes reta
 
 test('marquee replaces the page selection, preserves other pages, supports reverse and additive dragging', async (t) => {
   const page = await openHistory(t);
-  await page.evaluate(() => { historyState.selected.add('other-page'); historyState.selected.add('gift-4'); historyTools.update(); });
+  await page.evaluate(() => {
+    historyState.selected.add('other-page');
+    historyState.selected.add('gift-4');
+    historyTools.update();
+  });
   await dragRows(page, 1, 3);
   assert.equal(await page.locator('#giftHistoryMarquee').isVisible(), true);
   await page.mouse.up();
@@ -85,7 +102,10 @@ test('marquee replaces the page selection, preserves other pages, supports rever
 
 test('drag scrolls at the edge and cancellation or row replacement restores the initial selection', async (t) => {
   const page = await openHistory(t);
-  await page.evaluate(() => { historyState.selected.add('gift-0'); historyTools.update(); });
+  await page.evaluate(() => {
+    historyState.selected.add('gift-0');
+    historyTools.update();
+  });
   await dragRows(page, 1, 3);
   const scroll = await page.locator('#giftHistoryScroll').boundingBox();
   await page.mouse.move(scroll.x + 300, scroll.y + scroll.height - 2);
@@ -95,9 +115,14 @@ test('drag scrolls at the edge and cancellation or row replacement restores the 
   await page.mouse.up();
   assert.deepEqual(await selected(page), ['gift-0']);
   assert.equal(await page.locator('#giftHistoryMarquee').isVisible(), false);
-  await page.locator('#giftHistoryScroll').evaluate((node) => { node.scrollTop = 0; });
+  await page.locator('#giftHistoryScroll').evaluate((node) => {
+    node.scrollTop = 0;
+  });
   await dragRows(page, 1, 3);
-  await page.evaluate(() => { renderRows(); historyTools.update(); });
+  await page.evaluate(() => {
+    renderRows();
+    historyTools.update();
+  });
   await page.mouse.up();
   assert.deepEqual(await selected(page), ['gift-0']);
   assert.equal(await page.locator('#giftHistoryMarquee').isVisible(), false);
@@ -108,17 +133,32 @@ test('100-row marquee batches rapid movement, stops idle updates and flushes the
   await page.evaluate(() => {
     window.pendingFrames = new Map();
     let id = 0;
-    window.requestAnimationFrame = (callback) => { pendingFrames.set(++id, callback); return id; };
+    window.requestAnimationFrame = (callback) => {
+      pendingFrames.set(++id, callback);
+      return id;
+    };
     window.cancelAnimationFrame = (frame) => pendingFrames.delete(frame);
-    document.addEventListener('pointerdown', (event) => { window.dragPointerId = event.pointerId; }, { once: true });
+    document.addEventListener(
+      'pointerdown',
+      (event) => {
+        window.dragPointerId = event.pointerId;
+      },
+      { once: true },
+    );
   });
   await dragRows(page, 0, 2);
   await page.evaluate(() => {
     const rows = document.querySelectorAll('#giftHistoryBody tr');
     for (let i = 0; i < 120; i += 1) {
-      const rect = rows[1 + i % 3].getBoundingClientRect();
-      document.dispatchEvent(new PointerEvent('pointermove', { pointerId: dragPointerId,
-        buttons: 1, clientX: rect.left + 200, clientY: rect.top + rect.height / 2 }));
+      const rect = rows[1 + (i % 3)].getBoundingClientRect();
+      document.dispatchEvent(
+        new PointerEvent('pointermove', {
+          pointerId: dragPointerId,
+          buttons: 1,
+          clientX: rect.left + 200,
+          clientY: rect.top + rect.height / 2,
+        }),
+      );
     }
   });
   assert.equal(await page.evaluate(() => pendingFrames.size), 1);
@@ -145,7 +185,12 @@ test('manual selection supersedes pending select-all and exports the same select
   await page.evaluate(async () => {
     finishSelection({ json: async () => ({ ok: true, data: { items: historyState.items } }) });
     await new Promise((resolve) => setTimeout(resolve, 0));
-    window.giftExport = { prepare: (selection) => { window.exportedSelection = selection; return new Promise(() => {}); } };
+    window.giftExport = {
+      prepare: (selection) => {
+        window.exportedSelection = selection;
+        return new Promise(() => {});
+      },
+    };
   });
   assert.deepEqual(await selected(page), ['gift-0']);
   await page.locator('#giftHistoryExport').click();

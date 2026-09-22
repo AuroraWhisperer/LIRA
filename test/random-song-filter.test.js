@@ -11,13 +11,8 @@ const {
   parseRandomSongTerms,
 } = require('../src/music/random-song-filter');
 const songService = require('../src/music/song-service');
-const {
-  handleDanmakuMessage,
-  parseDanmakuCommand,
-} = require('../src/bilibili/bilibili-message-handler');
-const {
-  createRequesterTargetStore,
-} = require('../src/music/requester-target-store');
+const { handleDanmakuMessage, parseDanmakuCommand } = require('../src/bilibili/bilibili-message-handler');
+const { createRequesterTargetStore } = require('../src/music/requester-target-store');
 const { closeDatabases, createDatabases } = require('../src/storage/database');
 const { createSongStore } = require('../src/storage/song-store');
 
@@ -53,11 +48,7 @@ const SONGS = [
 ];
 
 test('parses random song terms separated by half-width or full-width plus signs', () => {
-  assert.deepEqual(parseRandomSongTerms(' 国语 + 周杰伦＋抒情 '), [
-    '国语',
-    '周杰伦',
-    '抒情',
-  ]);
+  assert.deepEqual(parseRandomSongTerms(' 国语 + 周杰伦＋抒情 '), ['国语', '周杰伦', '抒情']);
 });
 
 test('requires every random song term to match the same song', () => {
@@ -127,11 +118,7 @@ test('preserves artist names containing punctuation', () => {
 });
 
 test('random matching shares full-width field separators with the library', () => {
-  const {
-    splitSongLanguages,
-    splitSongArtists,
-    splitSongTags,
-  } = require('../src/music/song-field-utils');
+  const { splitSongLanguages, splitSongArtists, splitSongTags } = require('../src/music/song-field-utils');
   const song = {
     name: 'fixture',
     artist: 'Alice／Bob',
@@ -141,14 +128,7 @@ test('random matching shares full-width field separators with the library', () =
   assert.deepEqual(splitSongLanguages(song.language), ['English', 'Japanese']);
   assert.deepEqual(splitSongArtists(song.artist), ['Alice', 'Bob']);
   assert.deepEqual(splitSongTags(song.tags), ['first', 'second']);
-  for (const query of [
-    'Alice',
-    'Bob',
-    'English',
-    'Japanese',
-    'first',
-    'second',
-  ]) {
+  for (const query of ['Alice', 'Bob', 'English', 'Japanese', 'first', 'second']) {
     assert.equal(filterRandomSongCandidates([song], query).length, 1, query);
   }
 });
@@ -201,9 +181,7 @@ test('does not reverse a library alias into the standard tag', () => {
 });
 
 test('song service only returns enabled library songs satisfying every term', () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'song-plugin-random-filter-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-random-filter-'));
   const databases = createDatabases({ dataDir });
   const songStore = createSongStore(databases.songDb);
 
@@ -231,32 +209,18 @@ test('song service only returns enabled library songs satisfying every term', ()
       isEnabled: false,
     });
 
-    const matches = songService.listRandomSongCandidates(
-      songStore,
-      '国语+周杰伦+抒情',
-    );
+    const matches = songService.listRandomSongCandidates(songStore, '国语+周杰伦+抒情');
     assert.deepEqual(
       matches.map((song) => song.name),
       ['完整匹配'],
     );
-    const aliasMatches = songService.listRandomSongCandidates(
-      songStore,
-      '国语+周杰伦+情歌',
-    );
+    const aliasMatches = songService.listRandomSongCandidates(songStore, '国语+周杰伦+情歌');
     assert.deepEqual(
       aliasMatches.map((song) => song.name),
       ['完整匹配'],
     );
-    assert.equal(
-      databases.songDb
-        .prepare('SELECT tags FROM songs WHERE name = ?')
-        .get('完整匹配').tags,
-      '抒情',
-    );
-    assert.deepEqual(
-      songService.listRandomSongCandidates(songStore, '国语+周杰伦+摇滚'),
-      [],
-    );
+    assert.equal(databases.songDb.prepare('SELECT tags FROM songs WHERE name = ?').get('完整匹配').tags, '抒情');
+    assert.deepEqual(songService.listRandomSongCandidates(songStore, '国语+周杰伦+摇滚'), []);
   } finally {
     closeDatabases(databases);
     fs.rmSync(dataDir, { recursive: true, force: true });
@@ -387,16 +351,13 @@ test('builds a combination mention auto-reply and keeps it disabled by the switc
     uid: '123',
   });
   assert.deepEqual(enabledResult.autoReply, {
-    message:
-      '你输入的组合条件「国语+摇滚」暂时没有匹配歌曲，请调整组合条件后再试。',
+    message: '你输入的组合条件「国语+摇滚」暂时没有匹配歌曲，请调整组合条件后再试。',
     target: { uid: '123', name: 'Alice' },
   });
 });
 
 test('failed random filters do not replace the latest mention target', () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'song-plugin-requester-target-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-requester-target-'));
   const databases = createDatabases({ dataDir });
 
   try {
@@ -408,13 +369,7 @@ test('failed random filters do not replace the latest mention target', () => {
       ) VALUES (?, ?, ?, ?, ?)
     `,
       )
-      .run(
-        'Matched Song',
-        '456',
-        'Alice',
-        'random:pop',
-        '2026-08-05T10:00:00.000Z',
-      );
+      .run('Matched Song', '456', 'Alice', 'random:pop', '2026-08-05T10:00:00.000Z');
     const requesterTargets = createRequesterTargetStore(databases.songDb);
     const before = requesterTargets.getLatestRandomRequester();
     const result = handleDanmakuMessage(
@@ -437,11 +392,7 @@ test('failed random filters do not replace the latest mention target', () => {
     );
 
     assert.equal(result.accepted, false);
-    assert.equal(
-      databases.songDb.prepare('SELECT COUNT(*) AS count FROM requests').get()
-        .count,
-      1,
-    );
+    assert.equal(databases.songDb.prepare('SELECT COUNT(*) AS count FROM requests').get().count, 1);
     assert.deepEqual(requesterTargets.getLatestRandomRequester(), before);
     assert.equal(before.uid, '456');
     assert.equal(before.name, 'Alice');

@@ -259,11 +259,7 @@ test('DeepSeek client emits one metadata-only success event', async () => {
 test('DeepSeek client emits one safe failure event at the owning boundary', async () => {
   const events = [];
   const client = createDeepSeekClient({
-    fetchImpl: async () =>
-      jsonResponse(
-        { error: { code: 'UPSTREAM_DOWN', detail: 'PRIVATE RESPONSE BODY' } },
-        502,
-      ),
+    fetchImpl: async () => jsonResponse({ error: { code: 'UPSTREAM_DOWN', detail: 'PRIVATE RESPONSE BODY' } }, 502),
     logEvent: async (event) => events.push(event),
   });
 
@@ -336,16 +332,12 @@ test('model client derives and sanitizes model listings from the configured API'
 
   const result = await client.listModels({
     apiKey: 'temporary-secret',
-    responsesUrl:
-      'https://gateway.example.test/openai/v1/responses?ignored=true',
+    responsesUrl: 'https://gateway.example.test/openai/v1/responses?ignored=true',
     requestTimeoutMs: 3000,
   });
 
   assert.equal(captured.url, 'https://gateway.example.test/openai/v1/models');
-  assert.equal(
-    captured.options.headers.Authorization,
-    'Bearer temporary-secret',
-  );
+  assert.equal(captured.options.headers.Authorization, 'Bearer temporary-secret');
   assert.doesNotMatch(captured.url, /temporary-secret/);
   assert.deepEqual(result.models, ['deepseek-v4-flash', 'deepseek-v4-pro']);
 });
@@ -369,8 +361,7 @@ test('provider connection tests validate successful responses', async () => {
   );
 
   const amap = createAmapTool({
-    fetchImpl: async () =>
-      jsonResponse({ status: '1', geocodes: [{ location: '116.397,39.908' }] }),
+    fetchImpl: async () => jsonResponse({ status: '1', geocodes: [{ location: '116.397,39.908' }] }),
     quotaStore: { consume: () => ({ allowed: true }) },
   });
   assert.deepEqual(
@@ -388,10 +379,7 @@ test('provider connection tests distinguish missing fields and rejected keys', a
     fetchImpl: async () => jsonResponse({ code: '401' }),
     quotaStore: { consume: () => ({ allowed: true }) },
   });
-  await assert.rejects(
-    qweather.testConnection({}),
-    (error) => error.code === 'QWEATHER_HOST_MISSING',
-  );
+  await assert.rejects(qweather.testConnection({}), (error) => error.code === 'QWEATHER_HOST_MISSING');
   await assert.rejects(
     qweather.testConnection({ qweatherApiHost: 'https://weather.test' }),
     (error) => error.code === 'QWEATHER_KEY_MISSING',
@@ -408,10 +396,7 @@ test('provider connection tests distinguish missing fields and rejected keys', a
     fetchImpl: async () => jsonResponse({ status: '0', infocode: '10001' }),
     quotaStore: { consume: () => ({ allowed: true }) },
   });
-  await assert.rejects(
-    amap.testConnection({}),
-    (error) => error.code === 'AMAP_HOST_MISSING',
-  );
+  await assert.rejects(amap.testConnection({}), (error) => error.code === 'AMAP_HOST_MISSING');
   await assert.rejects(
     amap.testConnection({ amapApiHost: 'https://amap.test' }),
     (error) => error.code === 'AMAP_KEY_MISSING',

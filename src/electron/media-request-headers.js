@@ -5,15 +5,17 @@ function configureMediaRequestHeaders(desktopSession, state, requestAuth = null)
   state.headersConfigured = true;
   desktopSession.webRequest.onBeforeSendHeaders(
     {
-      urls: requestAuth ? ['<all_urls>'] : [
-        '*://*.music.163.com/*',
-        '*://*.music.126.net/*',
-        '*://*.qqmusic.qq.com/*',
-        '*://*.gtimg.cn/*',
-        '*://*.y.qq.com/*',
-        '*://*.bilibili.com/*',
-        '*://*.hdslb.com/*',
-      ],
+      urls: requestAuth
+        ? ['<all_urls>']
+        : [
+            '*://*.music.163.com/*',
+            '*://*.music.126.net/*',
+            '*://*.qqmusic.qq.com/*',
+            '*://*.gtimg.cn/*',
+            '*://*.y.qq.com/*',
+            '*://*.bilibili.com/*',
+            '*://*.hdslb.com/*',
+          ],
     },
     function (details, callback) {
       const headers = { ...details.requestHeaders };
@@ -23,17 +25,12 @@ function configureMediaRequestHeaders(desktopSession, state, requestAuth = null)
       } catch (_) {
         host = '';
       }
-      const matches = (domain) =>
-        host === domain || host.endsWith(`.${domain}`);
+      const matches = (domain) => host === domain || host.endsWith(`.${domain}`);
       if (matches('music.163.com') || matches('music.126.net')) {
         if (!headers.Referer && !headers.referer) {
           headers.Referer = 'https://music.163.com/';
         }
-      } else if (
-        matches('qqmusic.qq.com') ||
-        matches('gtimg.cn') ||
-        matches('y.qq.com')
-      ) {
+      } else if (matches('qqmusic.qq.com') || matches('gtimg.cn') || matches('y.qq.com')) {
         if (!headers.Referer && !headers.referer) {
           headers.Referer = 'https://y.qq.com/';
         }

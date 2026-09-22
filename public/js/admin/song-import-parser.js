@@ -3,44 +3,14 @@
 const aliases = {
   name: ['歌曲名字', '歌曲名称', '歌名', '曲名', 'name', 'songName'],
   artist: ['原唱/首发歌手', '歌手', '演唱者', '原唱', 'artist', 'singer'],
-  categoryName: [
-    '歌曲分类',
-    '类别',
-    '分类',
-    '分组',
-    'category',
-    'categoryName',
-  ],
+  categoryName: ['歌曲分类', '类别', '分类', '分组', 'category', 'categoryName'],
   tags: ['歌曲标签', '标签', 'tags', 'tag'],
   isEnabled: ['是否可点', '可点', '是否启用', '启用', 'isEnabled', 'enabled'],
   language: ['语言', '语种', 'language'],
-  sourcePlatform: [
-    '核对平台',
-    '来源平台',
-    '平台',
-    '来源',
-    'sourcePlatform',
-    'source',
-  ],
+  sourcePlatform: ['核对平台', '来源平台', '平台', '来源', 'sourcePlatform', 'source'],
   note: ['核对备注', '备注', '说明', 'note'],
-  requestPrice: [
-    '点歌价格',
-    '点歌价',
-    '点歌门槛',
-    '点歌要求',
-    '点歌条件',
-    '点歌说明',
-    'requestPrice',
-    'request_price',
-  ],
-  songClip: [
-    '歌切',
-    '歌切链接',
-    '歌曲切片',
-    '切片链接',
-    'songClip',
-    'song_clip',
-  ],
+  requestPrice: ['点歌价格', '点歌价', '点歌门槛', '点歌要求', '点歌条件', '点歌说明', 'requestPrice', 'request_price'],
+  songClip: ['歌切', '歌切链接', '歌曲切片', '切片链接', 'songClip', 'song_clip'],
 };
 
 export function parseTable(text, { preserveMissing = false } = {}) {
@@ -88,9 +58,7 @@ export function parseTable(text, { preserveMissing = false } = {}) {
       if (!hasHeader && row.length !== columns.length) {
         throw new Error('无表头更新需要完整十列，请使用带表头的模板。');
       }
-      return Object.fromEntries(
-        columns.map((column, index) => [column, readCell(row, index)]),
-      );
+      return Object.fromEntries(columns.map((column, index) => [column, readCell(row, index)]));
     });
   }
 
@@ -115,9 +83,7 @@ export function parseTable(text, { preserveMissing = false } = {}) {
         note: readCell(row, indexes.note),
         ...priceFields,
         requestPrice:
-          priceFields.requestPrice ||
-          Object.values(priceFields).find(Boolean) ||
-          readCell(row, indexes.requestPrice),
+          priceFields.requestPrice || Object.values(priceFields).find(Boolean) || readCell(row, indexes.requestPrice),
         songClip: readCell(row, indexes.songClip),
       };
     })
@@ -178,9 +144,7 @@ function parseEnabledCell(val) {
     .trim()
     .toLowerCase();
   if (!text) return true;
-  if (['是', '可点', '启用', 'true', 'yes', 'y', '1'].includes(text))
-    return true;
-  if (['否', '不可点', '停用', 'false', 'no', 'n', '0'].includes(text))
-    return false;
+  if (['是', '可点', '启用', 'true', 'yes', 'y', '1'].includes(text)) return true;
+  if (['否', '不可点', '停用', 'false', 'no', 'n', '0'].includes(text)) return false;
   return true;
 }

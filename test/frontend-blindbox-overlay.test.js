@@ -49,14 +49,10 @@ test('blindbox overlay renders signed summary and per-user profit text', async (
       });
 
       const summaryText = [
-        ...elements.blindboxSummary.innerHTML.matchAll(
-          /<span class="stat-value">([^<]*)<\/span>/g,
-        ),
+        ...elements.blindboxSummary.innerHTML.matchAll(/<span class="stat-value">([^<]*)<\/span>/g),
       ].map((match) => match[1]);
       const userText = [
-        ...elements.blindboxLeaderboard.innerHTML.matchAll(
-          /<span class="profit-value [^"]*">([^<]*)<\/span>/g,
-        ),
+        ...elements.blindboxLeaderboard.innerHTML.matchAll(/<span class="profit-value [^"]*">([^<]*)<\/span>/g),
       ].map((match) => match[1]);
 
       assert.deepEqual(
@@ -71,24 +67,12 @@ test('blindbox overlay renders signed summary and per-user profit text', async (
 });
 
 test('blindbox overlay fills the capture width and reflows without hiding data', () => {
-  const html = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'pages', 'overlays', 'blindbox.html'),
-    'utf8',
-  );
-  const styles = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'css', 'overlays', 'blindbox.css'),
-    'utf8',
-  );
-  const source = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'overlays', 'blindbox.js'),
-    'utf8',
-  );
+  const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'overlays', 'blindbox.html'), 'utf8');
+  const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'overlays', 'blindbox.css'), 'utf8');
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'blindbox.js'), 'utf8');
   const panelRule = styles.match(/\.blindbox-panel\s*\{[\s\S]*?\n\}/)?.[0];
 
-  assert.match(
-    html,
-    /<script type="module" src="\/js\/overlays\/blindbox\.js\?v=[^"]+"><\/script>/,
-  );
+  assert.match(html, /<script type="module" src="\/js\/overlays\/blindbox\.js\?v=[^"]+"><\/script>/);
   assert.ok(panelRule, 'blindbox panel styles should remain defined');
   assert.doesNotMatch(html, /blindbox-live-status|>实时</);
   assert.doesNotMatch(styles, /blindbox-live-status/);

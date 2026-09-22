@@ -18,11 +18,7 @@ function parseRange(value) {
   if (!match) return null;
   const start = Number(match[1]);
   const end = match[2] ? Number(match[2]) : null;
-  if (
-    !Number.isSafeInteger(start) ||
-    start < 0 ||
-    (end != null && (!Number.isSafeInteger(end) || end < start))
-  ) {
+  if (!Number.isSafeInteger(start) || start < 0 || (end != null && (!Number.isSafeInteger(end) || end < start))) {
     return null;
   }
   return { start, end };
@@ -35,10 +31,7 @@ function validateMediaUrl(rawUrl) {
   } catch (_) {
     throw new Error('QQ 加密媒体地址无效。');
   }
-  if (
-    url.protocol !== 'https:' ||
-    !QQ_MEDIA_HOSTS.has(url.hostname.toLowerCase())
-  ) {
+  if (url.protocol !== 'https:' || !QQ_MEDIA_HOSTS.has(url.hostname.toLowerCase())) {
     throw new Error('QQ 加密媒体地址不在允许的 CDN 范围内。');
   }
   return url;
@@ -58,8 +51,7 @@ async function serveQQEncryptedStream(record, req, res, options = {}) {
   }
   const range = parseRange(req && req.headers && req.headers.range);
   const headers = { Accept: '*/*' };
-  if (range)
-    headers.Range = `bytes=${range.start}-${range.end == null ? '' : range.end}`;
+  if (range) headers.Range = `bytes=${range.start}-${range.end == null ? '' : range.end}`;
 
   const controller = new AbortController();
   const cancel = () => controller.abort();
@@ -86,11 +78,7 @@ async function serveQQEncryptedStream(record, req, res, options = {}) {
       return;
     }
     if (!upstream.ok && upstream.status !== 206) {
-      sendError(
-        res,
-        upstream.status === 416 ? 416 : 502,
-        'QQ 加密媒体暂时不可用。',
-      );
+      sendError(res, upstream.status === 416 ? 416 : 502, 'QQ 加密媒体暂时不可用。');
       return;
     }
     const contentLength = Number(upstream.headers.get('content-length') || 0);
@@ -102,9 +90,7 @@ async function serveQQEncryptedStream(record, req, res, options = {}) {
     if (controller.signal.aborted) return;
     cipher = new QMC2(String(record.ekey || ''));
     const responseHeaders = {
-      'Content-Type':
-        record.contentType ||
-        (record.family === 'Q0' ? 'audio/flac' : 'audio/ogg'),
+      'Content-Type': record.contentType || (record.family === 'Q0' ? 'audio/flac' : 'audio/ogg'),
       'Accept-Ranges': 'bytes',
       'Cache-Control': 'no-store',
     };

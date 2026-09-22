@@ -11,15 +11,7 @@ import * as PlaybackComponents from '../ui/components.js';
  * @returns {Object} 歌单操作函数集合
  */
 export function createPlaylistOperations(deps) {
-  const {
-    playbackState,
-    homeService,
-    toast,
-    showError,
-    readJsonResponse,
-    renderPlayback,
-    escapeHtml,
-  } = deps;
+  const { playbackState, homeService, toast, showError, readJsonResponse, renderPlayback, escapeHtml } = deps;
 
   /**
    * 检查轨道是否可以添加到歌单
@@ -27,23 +19,14 @@ export function createPlaylistOperations(deps) {
   function canAddTrackToPlaylist(track) {
     if (!track) return false;
     if (track.source === 'qq') return Number(track.sourceSongId) > 0;
-    if (track.source === 'netease')
-      return /^\d+$/.test(
-        String(track.sourceTrackId || '').replace(/^netease:/, ''),
-      );
+    if (track.source === 'netease') return /^\d+$/.test(String(track.sourceTrackId || '').replace(/^netease:/, ''));
     return false;
   }
 
   /**
    * 显示确认对话框
    */
-  function showConfirmDialog(
-    title,
-    message,
-    trackName,
-    confirmText = '确认',
-    cancelText = '取消',
-  ) {
+  function showConfirmDialog(title, message, trackName, confirmText = '确认', cancelText = '取消') {
     return PlaybackComponents.showConfirmDialog({
       title,
       message,
@@ -63,9 +46,7 @@ export function createPlaylistOperations(deps) {
       backdrop.className = 'playlist-picker-backdrop';
       backdrop.setAttribute('role', 'dialog');
       backdrop.setAttribute('aria-modal', 'true');
-      const availableCount = playlists.filter(
-        (item) => item.containsTrack === false,
-      ).length;
+      const availableCount = playlists.filter((item) => item.containsTrack === false).length;
       backdrop.innerHTML = `
         <div class="playlist-picker-dialog">
           <div class="playlist-picker-header">
@@ -80,11 +61,7 @@ export function createPlaylistOperations(deps) {
               .map((item, index) => {
                 const isAdded = item.containsTrack === true;
                 const checkFailed = item.containsTrack == null;
-                const status = isAdded
-                  ? '已添加'
-                  : checkFailed
-                    ? '检查失败'
-                    : '可添加';
+                const status = isAdded ? '已添加' : checkFailed ? '检查失败' : '可添加';
                 return `
                 <button type="button" class="playlist-picker-item${isAdded ? ' is-added' : ''}" data-playlist-picker-index="${index}" ${isAdded || checkFailed ? 'disabled' : ''}>
                   ${PlaybackUtils.renderArtwork(item, { fallback: '单' })}
@@ -114,12 +91,7 @@ export function createPlaylistOperations(deps) {
         if (event.key === 'Escape') close();
       };
       backdrop.addEventListener('click', (event) => {
-        if (
-          event.target === backdrop ||
-          event.target.closest(
-            '.playlist-picker-close, .playlist-picker-cancel',
-          )
-        ) {
+        if (event.target === backdrop || event.target.closest('.playlist-picker-close, .playlist-picker-cancel')) {
           close();
           return;
         }
@@ -129,11 +101,7 @@ export function createPlaylistOperations(deps) {
       });
       document.addEventListener('keydown', handleKeydown);
       document.body.appendChild(backdrop);
-      backdrop
-        .querySelector(
-          '.playlist-picker-item:not(:disabled), .playlist-picker-close',
-        )
-        ?.focus();
+      backdrop.querySelector('.playlist-picker-item:not(:disabled), .playlist-picker-close')?.focus();
     });
   }
 
@@ -147,7 +115,10 @@ export function createPlaylistOperations(deps) {
     const platform = playbackState.selectedSource;
     const platformLabel = platform === 'netease' ? '网易云音乐' : 'QQ 音乐';
 
-    const notice = { key: `playlist-remove:${platform}:${action}:${homeService.getCurrentPlaylist()?.id || 'liked'}:${track.sourceTrackId || track.sourceSongId || track.id || track.mid || track.title}`, update: true };
+    const notice = {
+      key: `playlist-remove:${platform}:${action}:${homeService.getCurrentPlaylist()?.id || 'liked'}:${track.sourceTrackId || track.sourceSongId || track.id || track.mid || track.title}`,
+      update: true,
+    };
 
     if (action === 'liked') {
       const confirmed = await showConfirmDialog(
@@ -171,8 +142,7 @@ export function createPlaylistOperations(deps) {
           }),
         });
         const payload = await readJsonResponse(response, `从我喜欢删除失败`);
-        if (!response.ok || !payload.ok)
-          throw new Error(payload.error || `从我喜欢删除失败`);
+        if (!response.ok || !payload.ok) throw new Error(payload.error || `从我喜欢删除失败`);
 
         toast('已从我喜欢中删除', { ...notice, type: 'success' });
         await homeService.refreshContent();
@@ -210,12 +180,8 @@ export function createPlaylistOperations(deps) {
             tracks: [track],
           }),
         });
-        const payload = await readJsonResponse(
-          response,
-          `从${platformLabel}歌单删除失败`,
-        );
-        if (!response.ok || !payload.ok)
-          throw new Error(payload.error || `从${platformLabel}歌单删除失败`);
+        const payload = await readJsonResponse(response, `从${platformLabel}歌单删除失败`);
+        if (!response.ok || !payload.ok) throw new Error(payload.error || `从${platformLabel}歌单删除失败`);
 
         toast(`已从「${currentPlaylist.title || '歌单'}」中删除`, { ...notice, type: 'success' });
         await homeService.refreshContent();
@@ -252,30 +218,15 @@ export function createPlaylistOperations(deps) {
           track,
         }),
       });
-      const listPayload = await readJsonResponse(
-        listResponse,
-        `加载${platformLabel}歌单失败`,
-      );
-      if (!listResponse.ok || !listPayload.ok)
-        throw new Error(listPayload.error || `加载${platformLabel}歌单失败`);
-      const playlists = Array.isArray(
-        listPayload.data && listPayload.data.playlists,
-      )
+      const listPayload = await readJsonResponse(listResponse, `加载${platformLabel}歌单失败`);
+      if (!listResponse.ok || !listPayload.ok) throw new Error(listPayload.error || `加载${platformLabel}歌单失败`);
+      const playlists = Array.isArray(listPayload.data && listPayload.data.playlists)
         ? listPayload.data.playlists.filter(
-            (item) =>
-              item &&
-              (platform === 'qq'
-                ? item.dirId && (item.tid || item.id)
-                : item.id),
+            (item) => item && (platform === 'qq' ? item.dirId && (item.tid || item.id) : item.id),
           )
         : [];
-      if (playlists.length === 0)
-        throw new Error(`没有找到可写入的${platformLabel}歌单`);
-      const playlist = await choosePlaylistForTrack(
-        platformLabel,
-        playlists,
-        track,
-      );
+      if (playlists.length === 0) throw new Error(`没有找到可写入的${platformLabel}歌单`);
+      const playlist = await choosePlaylistForTrack(platformLabel, playlists, track);
       if (!playlist) return;
       const confirmed = await PlaybackComponents.showConfirmDialog({
         title: `添加到${platformLabel}歌单`,
@@ -290,23 +241,14 @@ export function createPlaylistOperations(deps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ platform, playlist, tracks: [track] }),
       });
-      const writePayload = await readJsonResponse(
-        writeResponse,
-        `添加到${platformLabel}歌单失败`,
-      );
+      const writePayload = await readJsonResponse(writeResponse, `添加到${platformLabel}歌单失败`);
       if (!writeResponse.ok || !writePayload.ok)
         throw new Error(writePayload.error || `添加到${platformLabel}歌单失败`);
       const song =
-        writePayload.data &&
-        writePayload.data.result &&
-        Array.isArray(writePayload.data.result.songlist)
+        writePayload.data && writePayload.data.result && Array.isArray(writePayload.data.result.songlist)
           ? writePayload.data.result.songlist[0]
           : null;
-      toast(
-        song && Number(song.existed) === 1
-          ? `歌曲已在「${playlist.title}」中`
-          : `已添加到「${playlist.title}」`,
-      );
+      toast(song && Number(song.existed) === 1 ? `歌曲已在「${playlist.title}」中` : `已添加到「${playlist.title}」`);
     } catch (error) {
       showError(error);
     }

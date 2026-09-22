@@ -75,7 +75,9 @@ test('HTTP upgrade enforces the runtime Host before independent WS authorization
       if (scenario.origin) headers.Origin = scenario.origin;
       const status = await new Promise((resolve, reject) => {
         const req = http.request({
-          hostname: '127.0.0.1', port, headers,
+          hostname: '127.0.0.1',
+          port,
+          headers,
           path: `/ws?token=${scenario.token || token}`,
         });
         req.on('error', reject);
@@ -117,16 +119,21 @@ test('HTTP upgrade enforces the runtime Host before independent WS authorization
       let deadline;
       t.after(() => clearTimeout(deadline));
       let response = '';
-      client.on('data', (chunk) => { response += chunk.toString(); });
-      client.write([
-        `GET ${scenario.path || `/ws?token=${token}`} HTTP/1.1`,
-        `Host: ${scenario.host || host}`,
-        'Connection: Upgrade',
-        'Upgrade: websocket',
-        'Sec-WebSocket-Version: 13',
-        'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==',
-        '', '',
-      ].join('\r\n'));
+      client.on('data', (chunk) => {
+        response += chunk.toString();
+      });
+      client.write(
+        [
+          `GET ${scenario.path || `/ws?token=${token}`} HTTP/1.1`,
+          `Host: ${scenario.host || host}`,
+          'Connection: Upgrade',
+          'Upgrade: websocket',
+          'Sec-WebSocket-Version: 13',
+          'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==',
+          '',
+          '',
+        ].join('\r\n'),
+      );
       await once(client, 'end');
       assert.ok(response.startsWith(`HTTP/1.1 ${scenario.status} `));
       assert.equal(client.writable, true, 'the client deliberately does not send FIN');

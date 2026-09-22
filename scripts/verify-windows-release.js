@@ -22,21 +22,15 @@ const path = require('node:path');
 
 const args = process.argv.slice(2);
 if (args.length < 2) {
-  console.error(
-    'Usage: node verify-windows-release.js <exe-path> <expected-publisher>',
-  );
-  console.error(
-    'Example: node verify-windows-release.js release/lira-setup-3.4.14.exe "Aurora"',
-  );
+  console.error('Usage: node verify-windows-release.js <exe-path> <expected-publisher>');
+  console.error('Example: node verify-windows-release.js release/lira-setup-3.4.14.exe "Aurora"');
   process.exit(1);
 }
 
 const [exePath, expectedPublisher] = args;
 
 if (!expectedPublisher.trim()) {
-  console.error(
-    '[verify-signature] Expected publisher must not be empty or blank.',
-  );
+  console.error('[verify-signature] Expected publisher must not be empty or blank.');
   process.exit(1);
 }
 
@@ -67,43 +61,32 @@ try {
     } | ConvertTo-Json -Compress
   `;
 
-  const result = execFileSync(
-    'powershell',
-    ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', psScript],
-    { encoding: 'utf8', shell: false },
-  );
+  const result = execFileSync('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', psScript], {
+    encoding: 'utf8',
+    shell: false,
+  });
 
   const sigInfo = JSON.parse(result.trim());
 
   console.log(`[verify-signature] Signature status: ${sigInfo.Status}`);
   if (sigInfo.SignerCertificateSubject) {
-    console.log(
-      `[verify-signature] Signer: ${sigInfo.SignerCertificateSubject}`,
-    );
+    console.log(`[verify-signature] Signer: ${sigInfo.SignerCertificateSubject}`);
   }
   if (sigInfo.TimeStamperCertificateSubject) {
-    console.log(
-      `[verify-signature] Timestamp: ${sigInfo.TimeStamperCertificateSubject}`,
-    );
+    console.log(`[verify-signature] Timestamp: ${sigInfo.TimeStamperCertificateSubject}`);
   }
 
   // 检查签名状态
   if (sigInfo.Status !== 'Valid') {
-    console.error(
-      `[verify-signature] ❌ Signature status is not Valid: ${sigInfo.Status}`,
-    );
+    console.error(`[verify-signature] ❌ Signature status is not Valid: ${sigInfo.Status}`);
     if (sigInfo.StatusMessage) {
       console.error(`[verify-signature] Details: ${sigInfo.StatusMessage}`);
     }
 
     if (sigInfo.Status === 'NotSigned') {
-      console.error(
-        '[verify-signature] The executable is not signed. Configure build.win.sign in package.json.',
-      );
+      console.error('[verify-signature] The executable is not signed. Configure build.win.sign in package.json.');
     } else if (sigInfo.Status === 'HashMismatch') {
-      console.error(
-        '[verify-signature] The file has been modified after signing.',
-      );
+      console.error('[verify-signature] The file has been modified after signing.');
     }
 
     process.exit(1);
@@ -116,17 +99,12 @@ try {
   }
 
   // Decode CN from the certificate, not its escaped/quoted Subject display text.
-  const certificate = new X509Certificate(
-    Buffer.from(sigInfo.SignerCertificateRawData, 'base64'),
-  );
+  const certificate = new X509Certificate(Buffer.from(sigInfo.SignerCertificateRawData, 'base64'));
   const commonName = certificate.toLegacyObject().subject.CN;
   const expectedLower = expectedPublisher.toLowerCase();
 
   // Multiple CN attributes are ambiguous and are returned as an array.
-  if (
-    typeof commonName !== 'string' ||
-    commonName.toLowerCase() !== expectedLower
-  ) {
+  if (typeof commonName !== 'string' || commonName.toLowerCase() !== expectedLower) {
     console.error(`[verify-signature] ❌ Publisher mismatch:`);
     console.error(`  Expected: ${expectedPublisher}`);
     console.error(`  Actual: ${sigInfo.SignerCertificateSubject}`);
@@ -139,9 +117,7 @@ try {
   if (sigInfo.SignerCertificateNotAfter) {
     const expiryDate = new Date(sigInfo.SignerCertificateNotAfter);
     const now = new Date();
-    const daysUntilExpiry = Math.floor(
-      (expiryDate - now) / (1000 * 60 * 60 * 24),
-    );
+    const daysUntilExpiry = Math.floor((expiryDate - now) / (1000 * 60 * 60 * 24));
 
     if (daysUntilExpiry < 30) {
       console.warn(
@@ -155,10 +131,7 @@ try {
   console.error(`[verify-signature] ❌ Verification failed: ${error.message}`);
 
   if (error.stderr) {
-    console.error(
-      '[verify-signature] PowerShell stderr:',
-      error.stderr.toString(),
-    );
+    console.error('[verify-signature] PowerShell stderr:', error.stderr.toString());
   }
 
   process.exit(1);

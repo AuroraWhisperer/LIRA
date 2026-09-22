@@ -49,9 +49,7 @@ function registerLocalMediaProtocol(protocol, isPathAllowedForLocalMedia) {
 
     // Enforce audio extension whitelist at protocol boundary
     const ext = path.extname(canonicalPath).toLowerCase();
-    if (
-      !['.mp3', '.flac', '.wav', '.aac', '.ogg', '.m4a', '.wma'].includes(ext)
-    ) {
+    if (!['.mp3', '.flac', '.wav', '.aac', '.ogg', '.m4a', '.wma'].includes(ext)) {
       return new Response('Forbidden', { status: 403 });
     }
 
@@ -66,9 +64,7 @@ function registerLocalMediaProtocol(protocol, isPathAllowedForLocalMedia) {
     }
     if (!stat.isFile()) return new Response('Not a file', { status: 404 });
     const fileSize = stat.size;
-    const contentType =
-      MIME_TYPES[path.extname(filePath).toLowerCase()] ||
-      'application/octet-stream';
+    const contentType = MIME_TYPES[path.extname(filePath).toLowerCase()] || 'application/octet-stream';
 
     // 用流式读取替代 readFileSync/readSync，避免大媒体文件卡住主进程。
     const range = parseRange(request.headers.get('range'), fileSize);

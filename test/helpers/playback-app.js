@@ -18,15 +18,11 @@ async function createPlaybackApp(initialState, options = {}) {
   };
   const elements = new Map([['toast', toastDom.container]]);
   const storage = options.storage || new Map();
-  const localState = Object.hasOwn(options, 'localState')
-    ? options.localState
-    : initialState;
+  const localState = Object.hasOwn(options, 'localState') ? options.localState : initialState;
   if (localState) {
     storage.set('songAssistantPlaybackState:v1', JSON.stringify(localState));
   }
-  let serverState = JSON.parse(
-    JSON.stringify(options.serverState ?? initialState),
-  );
+  let serverState = JSON.parse(JSON.stringify(options.serverState ?? initialState));
   let prepareShutdownListener = null;
   let ipcSavedState = null;
   let shutdownAcknowledged = false;
@@ -36,16 +32,12 @@ async function createPlaybackApp(initialState, options = {}) {
   const windowListeners = new Map();
   const homeTracks = options.homeTracks;
   const homeActionButton = options.homeAction ? new FakeElement() : null;
-  if (homeActionButton)
-    homeActionButton.dataset.playbackHomeAction = options.homeAction;
+  if (homeActionButton) homeActionButton.dataset.playbackHomeAction = options.homeAction;
 
   const document = {
     getElementById(id) {
       if (!elements.has(id)) {
-        elements.set(
-          id,
-          id === 'music-player' ? new FakeAudioElement() : new FakeElement(),
-        );
+        elements.set(id, id === 'music-player' ? new FakeAudioElement() : new FakeElement());
       }
       return elements.get(id);
     },
@@ -137,10 +129,7 @@ async function createPlaybackApp(initialState, options = {}) {
     fetchCalls.push({ url: String(url), options });
     if (url.startsWith('/api/playback/queue-state')) {
       if (options.method === 'POST') {
-        const body =
-          options.body instanceof sandbox.Blob
-            ? options.body.parts.join('')
-            : options.body;
+        const body = options.body instanceof sandbox.Blob ? options.body.parts.join('') : options.body;
         const parsed = JSON.parse(body);
         if (parsed.payload) {
           serverState = JSON.parse(JSON.stringify(parsed.payload));
@@ -168,10 +157,7 @@ async function createPlaybackApp(initialState, options = {}) {
       const requestBody = options.body ? JSON.parse(options.body) : {};
       const stream =
         typeof appOptions.resolveStream === 'function'
-          ? await appOptions.resolveStream(
-              resolveStreamRequestCount,
-              requestBody,
-            )
+          ? await appOptions.resolveStream(resolveStreamRequestCount, requestBody)
           : { url: 'https://example.test/audio.mp3' };
       return response({
         ok: true,
@@ -234,14 +220,7 @@ async function createPlaybackApp(initialState, options = {}) {
     window,
   };
   const context = vm.createContext(sandbox);
-  const playbackEntry = path.join(
-    __dirname,
-    '..',
-    '..',
-    'public',
-    'js',
-    'playback.js',
-  );
+  const playbackEntry = path.join(__dirname, '..', '..', 'public', 'js', 'playback.js');
   const moduleCache = new Map();
 
   function loadModule(filePath) {
@@ -297,10 +276,7 @@ async function createPlaybackApp(initialState, options = {}) {
     },
     beaconUrls() {
       return fetchCalls
-        .filter(
-          ({ options: callOptions }) =>
-            callOptions.body instanceof sandbox.Blob,
-        )
+        .filter(({ options: callOptions }) => callOptions.body instanceof sandbox.Blob)
         .map(({ url }) => url);
     },
     hasStorageKey(key) {
@@ -323,9 +299,7 @@ async function createPlaybackApp(initialState, options = {}) {
 
       if (serverState) return JSON.parse(JSON.stringify(serverState));
       const serverSaveCall = fetchCalls.findLast(
-        ({ url, options }) =>
-          url.startsWith('/api/playback/queue-state') &&
-          options.method === 'POST',
+        ({ url, options }) => url.startsWith('/api/playback/queue-state') && options.method === 'POST',
       );
       if (!serverSaveCall || !serverSaveCall.options.body) {
         throw new Error('No saved state found in localStorage or fetch calls');

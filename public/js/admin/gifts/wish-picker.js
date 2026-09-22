@@ -32,13 +32,10 @@ export function createWishPicker(onSelect) {
       const name = document.createElement('span');
       name.textContent = gift.name;
       const category = document.createElement('small');
-      category.textContent =
-        role(gift) || WISH_CATEGORIES[gift.giftCategory] || '礼物';
+      category.textContent = role(gift) || WISH_CATEGORIES[gift.giftCategory] || '礼物';
       const identity = document.createElement('small');
       identity.textContent =
-        gift.giftCategory === 'guard'
-          ? '按购买数量统计'
-          : `ID ${gift.id} · ¥${Number(gift.rmb || 0).toFixed(2)}`;
+        gift.giftCategory === 'guard' ? '按购买数量统计' : `ID ${gift.id} · ¥${Number(gift.rmb || 0).toFixed(2)}`;
       if (button.disabled) identity.textContent += ' · 资料待同步，请刷新礼物库';
       button.append(image, name, category, identity);
       button.addEventListener('click', () => {
@@ -61,9 +58,7 @@ export function createWishPicker(onSelect) {
     if (!gifts.length) {
       const empty = document.createElement('p');
       empty.className = 'hint';
-      empty.textContent = query
-        ? '没有匹配的礼物，试试其他名称或 ID。'
-        : '这里还没有缓存礼物，可切换礼物范围重试。';
+      empty.textContent = query ? '没有匹配的礼物，试试其他名称或 ID。' : '这里还没有缓存礼物，可切换礼物范围重试。';
       root.append(empty);
     }
   }
@@ -75,60 +70,36 @@ export function createWishPicker(onSelect) {
     controller?.abort();
     controller = new AbortController();
     snapshot = null;
-    get('giftWishPickerStatus').textContent =
-      source === 'room' ? '正在刷新本直播间在售礼物…' : '正在读取全部缓存礼物…';
+    get('giftWishPickerStatus').textContent = source === 'room' ? '正在刷新本直播间在售礼物…' : '正在读取全部缓存礼物…';
     dialog
       .querySelectorAll('[data-wish-source]')
-      .forEach((button) =>
-        button.setAttribute(
-          'aria-pressed',
-          String(button.dataset.wishSource === source),
-        ),
-      );
+      .forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.wishSource === source)));
     render();
     try {
       let data;
-      if (source === 'all')
-        data = await requestGiftWish(
-          '/api/overtime/gifts/catalog',
-          undefined,
-          controller.signal,
-        );
+      if (source === 'all') data = await requestGiftWish('/api/overtime/gifts/catalog', undefined, controller.signal);
       else {
         try {
-          data = await requestGiftWish(
-            '/api/overtime/gifts/refresh',
-            {},
-            controller.signal,
-          );
+          data = await requestGiftWish('/api/overtime/gifts/refresh', {}, controller.signal);
         } catch (error) {
           if (controller.signal.aborted || current !== generation) return;
-          data = await requestGiftWish(
-            '/api/overtime/gifts',
-            undefined,
-            controller.signal,
-          );
+          data = await requestGiftWish('/api/overtime/gifts', undefined, controller.signal);
           if (current === generation)
-            get('giftWishPickerStatus').textContent =
-              '在售列表暂未刷新，正在显示上次成功缓存。';
+            get('giftWishPickerStatus').textContent = '在售列表暂未刷新，正在显示上次成功缓存。';
         }
       }
       if (current !== generation) return;
       snapshot = data;
       if (!data?.gifts?.length)
-        get('giftWishPickerStatus').textContent =
-          '礼物目录尚未缓存，连接直播间后重新打开即可。';
-      else if (
-        !get('giftWishPickerStatus').textContent.includes('上次成功缓存')
-      ) {
+        get('giftWishPickerStatus').textContent = '礼物目录尚未缓存，连接直播间后重新打开即可。';
+      else if (!get('giftWishPickerStatus').textContent.includes('上次成功缓存')) {
         get('giftWishPickerStatus').textContent =
           `${source === 'room' ? '本直播间在售及盲盒产出' : '本地缓存的全部礼物'} · ${data.gifts.length} 款`;
       }
       render();
     } catch (error) {
       if (current !== generation) return;
-      get('giftWishPickerStatus').textContent =
-        `${error.message} 点击礼物范围可重试。`;
+      get('giftWishPickerStatus').textContent = `${error.message} 点击礼物范围可重试。`;
     }
   }
 
@@ -139,9 +110,7 @@ export function createWishPicker(onSelect) {
   get('giftWishPickerClose').addEventListener('click', () => dialog.close());
   dialog
     .querySelectorAll('[data-wish-source]')
-    .forEach((button) =>
-      button.addEventListener('click', () => load(button.dataset.wishSource)),
-    );
+    .forEach((button) => button.addEventListener('click', () => load(button.dataset.wishSource)));
   dialog.addEventListener('close', () => {
     generation++;
     controller?.abort();

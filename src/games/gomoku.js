@@ -27,8 +27,7 @@ function placeStone(state, input, player) {
   if (!state || state.winner || !['host', 'viewer'].includes(player)) {
     return { accepted: false, reason: '游戏未在接受落子。', state };
   }
-  if (state.turn !== player)
-    return { accepted: false, reason: '还没轮到该玩家。', state };
+  if (state.turn !== player) return { accepted: false, reason: '还没轮到该玩家。', state };
   const coordinate = typeof input === 'string' ? parseCoordinate(input) : input;
   if (
     !coordinate ||
@@ -39,8 +38,7 @@ function placeStone(state, input, player) {
   ) {
     return { accepted: false, reason: '坐标格式应为 A1-O15。', state };
   }
-  if (state.board[coordinate.row][coordinate.column])
-    return { accepted: false, reason: '这个位置已经有棋子。', state };
+  if (state.board[coordinate.row][coordinate.column]) return { accepted: false, reason: '这个位置已经有棋子。', state };
 
   const board = state.board.map((row) => [...row]);
   const mark = player === 'host' ? 'black' : 'white';

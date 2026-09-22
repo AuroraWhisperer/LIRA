@@ -1,35 +1,18 @@
 'use strict';
 
-import {
-  api,
-  copyText,
-  localOverlayOrigin,
-  readJsonResponse,
-  showError,
-  toast,
-} from '../shared/utils.js';
+import { api, copyText, localOverlayOrigin, readJsonResponse, showError, toast } from '../shared/utils.js';
 
 let wheelState = null;
 let wheelLimits = null;
 
 export function initWheelAdmin() {
   byId('wheelCardTrigger').addEventListener('click', toggleWheelDetails);
-  byId('wheelCopyUrlBtn').addEventListener('click', () =>
-    copyWheelUrl(wheelOverlayUrl()),
-  );
-  byId('wheelOpenUrlBtn').addEventListener('click', () =>
-    window.open(wheelOverlayUrl(), '_blank', 'noopener'),
-  );
+  byId('wheelCopyUrlBtn').addEventListener('click', () => copyWheelUrl(wheelOverlayUrl()));
+  byId('wheelOpenUrlBtn').addEventListener('click', () => window.open(wheelOverlayUrl(), '_blank', 'noopener'));
   byId('wheelAddEntryBtn').addEventListener('click', addWheelEntry);
-  byId('wheelSaveBtn').addEventListener('click', () =>
-    saveWheel().catch(showError),
-  );
-  byId('wheelSpinBtn').addEventListener('click', () =>
-    spinWheel().catch(showError),
-  );
-  window.addEventListener('app:wheel-update', (event) =>
-    renderWheelState(event.detail),
-  );
+  byId('wheelSaveBtn').addEventListener('click', () => saveWheel().catch(showError));
+  byId('wheelSpinBtn').addEventListener('click', () => spinWheel().catch(showError));
+  window.addEventListener('app:wheel-update', (event) => renderWheelState(event.detail));
   byId('wheelOverlayUrl').value = wheelOverlayUrl();
   return refreshWheel();
 }
@@ -52,12 +35,10 @@ export function renderWheelState(state, options = {}) {
   if (options.syncEntries) renderWheelEntries(wheelState.entries || []);
   const spinning = Boolean(wheelState.spin);
   const entryCount = (wheelState.entries || []).length;
-  const canSpin =
-    Boolean(wheelLimits) && entryCount >= wheelLimits.minEntries && !spinning;
+  const canSpin = Boolean(wheelLimits) && entryCount >= wheelLimits.minEntries && !spinning;
   byId('wheelSpinBtn').disabled = !canSpin;
   byId('wheelSaveBtn').disabled = spinning;
-  byId('wheelAddEntryBtn').disabled =
-    spinning || !wheelLimits || entryCount >= wheelLimits.maxEntries;
+  byId('wheelAddEntryBtn').disabled = spinning || !wheelLimits || entryCount >= wheelLimits.maxEntries;
   byId('wheelStatus').textContent = spinning
     ? '转盘正在转动…'
     : wheelState.lastResult?.label
@@ -70,11 +51,8 @@ export function renderWheelState(state, options = {}) {
     : wheelState.lastResult?.label
       ? `抽中：${wheelState.lastResult.label}`
       : '尚未抽取';
-  byId('wheelTotalWeight').textContent =
-    `总份数 ${Number(wheelState.totalWeight) || 0}`;
-  document
-    .querySelector('[data-wheel-card]')
-    .classList.toggle('is-running', spinning);
+  byId('wheelTotalWeight').textContent = `总份数 ${Number(wheelState.totalWeight) || 0}`;
+  document.querySelector('[data-wheel-card]').classList.toggle('is-running', spinning);
 }
 
 function toggleWheelDetails() {
@@ -153,8 +131,7 @@ function renumberWheelEntries() {
   [...byId('wheelEntries').children].forEach((row, index) => {
     row.querySelector('label').firstChild.textContent = `内容 ${index + 1}`;
     row.querySelectorAll('button').forEach((button) => {
-      button.disabled =
-        byId('wheelEntries').children.length <= wheelLimits.minEntries;
+      button.disabled = byId('wheelEntries').children.length <= wheelLimits.minEntries;
     });
   });
 }
@@ -168,9 +145,7 @@ function readWheelEntries() {
 
 function updateWheelTotal() {
   const total = readWheelEntries().reduce(
-    (sum, entry) =>
-      sum +
-      (Number.isInteger(entry.weight) && entry.weight > 0 ? entry.weight : 0),
+    (sum, entry) => sum + (Number.isInteger(entry.weight) && entry.weight > 0 ? entry.weight : 0),
     0,
   );
   byId('wheelTotalWeight').textContent = `总份数 ${total}`;

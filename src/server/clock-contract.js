@@ -8,16 +8,8 @@ const CLOCK_STYLE_VALUES = new Set([
   'timeline-vertical',
   'digital',
 ]);
-const CLOCK_BOOLEAN_SETTING_KEYS = new Set([
-  'clockShowDate',
-  'clockShowSeconds',
-]);
-const CLOCK_SETTING_KEYS = new Set([
-  'clockStyle',
-  ...CLOCK_BOOLEAN_SETTING_KEYS,
-  'clockHourFormat',
-  'clockLabel',
-]);
+const CLOCK_BOOLEAN_SETTING_KEYS = new Set(['clockShowDate', 'clockShowSeconds']);
+const CLOCK_SETTING_KEYS = new Set(['clockStyle', ...CLOCK_BOOLEAN_SETTING_KEYS, 'clockHourFormat', 'clockLabel']);
 const DEFAULT_LABELS = Object.freeze({
   peach: '今天也要闪闪发光',
   starlight: '今晚与星星一起值班',
@@ -50,8 +42,7 @@ function normalizeClockSettingValue(key, rawValue) {
     const value = String(rawValue ?? '').trim();
     return CLOCK_STYLE_VALUES.has(value) ? value : null;
   }
-  if (CLOCK_BOOLEAN_SETTING_KEYS.has(key))
-    return normalizeBooleanSetting(rawValue);
+  if (CLOCK_BOOLEAN_SETTING_KEYS.has(key)) return normalizeBooleanSetting(rawValue);
   if (key === 'clockHourFormat') {
     const value = String(rawValue ?? '').trim();
     return value === '12' || value === '24' ? value : null;
@@ -61,21 +52,12 @@ function normalizeClockSettingValue(key, rawValue) {
 }
 
 function getClockConfig(settings = {}) {
-  const style =
-    normalizeClockSettingValue('clockStyle', settings.clockStyle) || 'peach';
+  const style = normalizeClockSettingValue('clockStyle', settings.clockStyle) || 'peach';
   return {
     style,
-    showDate:
-      normalizeClockSettingValue('clockShowDate', settings.clockShowDate) !==
-      'false',
-    showSeconds:
-      normalizeClockSettingValue(
-        'clockShowSeconds',
-        settings.clockShowSeconds,
-      ) !== 'false',
-    hourFormat:
-      normalizeClockSettingValue('clockHourFormat', settings.clockHourFormat) ||
-      '24',
+    showDate: normalizeClockSettingValue('clockShowDate', settings.clockShowDate) !== 'false',
+    showSeconds: normalizeClockSettingValue('clockShowSeconds', settings.clockShowSeconds) !== 'false',
+    hourFormat: normalizeClockSettingValue('clockHourFormat', settings.clockHourFormat) || '24',
     label: cleanClockLabel(settings.clockLabel) || DEFAULT_LABELS[style],
   };
 }

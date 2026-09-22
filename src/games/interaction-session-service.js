@@ -4,7 +4,12 @@ const { randomUUID } = require('node:crypto');
 const { performance } = require('node:perf_hooks');
 const { createPoll } = require('./poll');
 const { createRating } = require('./rating');
-const { validateInteractionConfig, inspectInteractionText, POLL_RULE, RATING_RULE } = require('../../public/js/shared/interaction-rules.js');
+const {
+  validateInteractionConfig,
+  inspectInteractionText,
+  POLL_RULE,
+  RATING_RULE,
+} = require('../../public/js/shared/interaction-rules.js');
 
 function createInteractionSessionService(options = {}) {
   const now = options.now || (() => performance.now());
@@ -88,7 +93,11 @@ function createInteractionSessionService(options = {}) {
     if (session) fail('请先关闭当前互动结果');
     if (options.isGameActive?.()) fail('请先结束类别 1 的游戏');
     let config;
-    try { config = validateInteractionConfig(input); } catch (error) { fail(error.message, 400); }
+    try {
+      config = validateInteractionConfig(input);
+    } catch (error) {
+      fail(error.message, 400);
+    }
     const source = options.getSourceState();
     if (!source.ready) fail(source.reason || '实时弹幕尚未就绪');
     binding = { accountUid: source.accountUid, roomId: source.roomId, ownerUid: source.ownerUid };
@@ -96,10 +105,15 @@ function createInteractionSessionService(options = {}) {
     deadline = config.kind === 'poll' ? started + config.durationSeconds * 1000 : Infinity;
     counter = config.kind === 'poll' ? createPoll(config.options) : createRating();
     session = {
-      sessionId: randomUUID(), kind: config.kind, title: config.title, phase: 'collecting',
-      rule: config.kind === 'poll' ? POLL_RULE : RATING_RULE, startedAt: wallNow(),
+      sessionId: randomUUID(),
+      kind: config.kind,
+      title: config.title,
+      phase: 'collecting',
+      rule: config.kind === 'poll' ? POLL_RULE : RATING_RULE,
+      startedAt: wallNow(),
       endsAt: config.kind === 'poll' ? wallNow() + config.durationSeconds * 1000 : null,
-      receptionInterrupted: false, connected: true,
+      receptionInterrupted: false,
+      connected: true,
     };
     const id = session.sessionId;
     unsubscribe = options.subscribe((event) => {
@@ -120,7 +134,11 @@ function createInteractionSessionService(options = {}) {
     expire();
     if (!session || session.phase !== 'collecting') return;
     const source = options.getSourceState();
-    if (source.accountUid !== binding.accountUid || source.configuredRoomChanged || (source.roomId && source.roomId !== binding.roomId)) {
+    if (
+      source.accountUid !== binding.accountUid ||
+      source.configuredRoomChanged ||
+      (source.roomId && source.roomId !== binding.roomId)
+    ) {
       session.phase = 'interrupted';
       session.receptionInterrupted = true;
       session.connected = false;
@@ -136,8 +154,16 @@ function createInteractionSessionService(options = {}) {
     sourceChanged();
     if (!session || session.phase !== 'collecting' || !session.connected) return false;
     const source = options.getSourceState();
-    if (event.source !== 'danmaku' || event.accountUid !== binding.accountUid || event.roomId !== binding.roomId ||
-      event.connectionKey !== source.connectionKey || !Number.isFinite(event.receivedAt) || event.receivedAt < started || now() >= deadline) return false;
+    if (
+      event.source !== 'danmaku' ||
+      event.accountUid !== binding.accountUid ||
+      event.roomId !== binding.roomId ||
+      event.connectionKey !== source.connectionKey ||
+      !Number.isFinite(event.receivedAt) ||
+      event.receivedAt < started ||
+      now() >= deadline
+    )
+      return false;
     const uid = typeof event.uid === 'number' && !Number.isSafeInteger(event.uid) ? '' : String(event.uid || '');
     if (!/^[1-9]\d*$/.test(uid) || uid === binding.ownerUid || event.isStreamer) return false;
     const text = inspectInteractionText(event.message);
@@ -175,8 +201,16 @@ function createInteractionSessionService(options = {}) {
   function getHostState() {
     sourceChanged();
     const source = options.getSourceState();
-    return { ...state(), participants: counter?.count() || 0, ready: source.ready,
-      blockedReason: session ? '请先关闭当前互动结果' : options.isGameActive?.() ? '请先结束类别 1 的游戏' : source.reason || '' };
+    return {
+      ...state(),
+      participants: counter?.count() || 0,
+      ready: source.ready,
+      blockedReason: session
+        ? '请先关闭当前互动结果'
+        : options.isGameActive?.()
+          ? '请先结束类别 1 的游戏'
+          : source.reason || '',
+    };
   }
   function dispose() {
     disposed = true;

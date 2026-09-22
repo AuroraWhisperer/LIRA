@@ -4,9 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
-const {
-  createRemoteLicenseClient,
-} = require('../src/electron/license/remote-license-client');
+const { createRemoteLicenseClient } = require('../src/electron/license/remote-license-client');
 const { registerLicenseIpc } = require('../src/electron/ipc/license-ipc');
 
 const ROOT = path.join(__dirname, '..');
@@ -34,10 +32,7 @@ test('remote license client sends song background bytes without JSON encoding', 
   await client.uploadSongPageBackground(bytes, 'image/png', 'device-token');
 
   assert.equal(calls.length, 1);
-  assert.equal(
-    calls[0].url,
-    'https://api.example.test/api/device/song-page/background',
-  );
+  assert.equal(calls[0].url, 'https://api.example.test/api/device/song-page/background');
   assert.equal(calls[0].init.method, 'PUT');
   assert.equal(calls[0].init.body, bytes);
   assert.equal(calls[0].init.headers['Content-Type'], 'image/png');
@@ -75,30 +70,23 @@ test('license IPC validates song background payloads at the process boundary', a
     licenseManager,
     getMainWindow: () => mainWindow,
     getDesktopBaseUrl: () => desktopBaseUrl,
-    hasExactOrigin: (candidate, expected) =>
-      new URL(candidate).origin === new URL(expected).origin,
+    hasExactOrigin: (candidate, expected) => new URL(candidate).origin === new URL(expected).origin,
   });
 
   const handler = handlers.get('license:upload-song-page-background');
   const bytes = new Uint8Array([1, 2, 3]);
-  assert.deepEqual(
-    await handler(trustedEvent, { bytes, fileName: 'cover.png' }),
-    {
-      ok: true,
-      background: { url: '/background.png' },
-    },
-  );
+  assert.deepEqual(await handler(trustedEvent, { bytes, fileName: 'cover.png' }), {
+    ok: true,
+    background: { url: '/background.png' },
+  });
   assert.equal(uploadCalls[0][0], bytes);
   assert.equal(uploadCalls[0][1], 'cover.png');
 
-  assert.deepEqual(
-    await handler(trustedEvent, { bytes: [1, 2, 3], fileName: 'cover.png' }),
-    {
-      ok: false,
-      state: 'authorized',
-      error: 'BACKGROUND_IMAGE_REQUIRED',
-    },
-  );
+  assert.deepEqual(await handler(trustedEvent, { bytes: [1, 2, 3], fileName: 'cover.png' }), {
+    ok: false,
+    state: 'authorized',
+    error: 'BACKGROUND_IMAGE_REQUIRED',
+  });
   assert.deepEqual(
     await handler(trustedEvent, {
       bytes: new Uint8Array(5 * 1024 * 1024 + 1),
@@ -195,8 +183,7 @@ test('license IPC allowlists remote responses before crossing into the renderer'
         url: '/background.png?token=drop',
         bytes: 12,
         updatedAt: '2026-08-29T00:00:00.000Z',
-        previewUrl:
-          'https://api.example.test/background.png?private_key_pem=drop',
+        previewUrl: 'https://api.example.test/background.png?private_key_pem=drop',
       },
       accessToken: 'drop',
     }),
@@ -229,8 +216,7 @@ test('license IPC allowlists remote responses before crossing into the renderer'
     licenseManager,
     getMainWindow: () => mainWindow,
     getDesktopBaseUrl: () => desktopBaseUrl,
-    hasExactOrigin: (candidate, expected) =>
-      new URL(candidate).origin === new URL(expected).origin,
+    hasExactOrigin: (candidate, expected) => new URL(candidate).origin === new URL(expected).origin,
   });
 
   assert.equal(handlers.has('license:create-pairing-code'), false);
@@ -260,19 +246,13 @@ test('license IPC allowlists remote responses before crossing into the renderer'
     streamer: { accountName: 'mlbb', displayName: 'mlbb', subdomain: '' },
     device: { id: 'd', name: '', status: '', licenseId: '' },
   });
-  assert.deepEqual(
-    await handlers.get('license:get-cloud-songs')(trustedEvent),
-    {
-      songs: [{ title: 'Song', artist: 'Artist' }],
-    },
-  );
-  assert.deepEqual(
-    await handlers.get('license:get-song-page-background')(trustedEvent),
-    {
-      ok: true,
-      background: { bytes: 12, updatedAt: '2026-08-29T00:00:00.000Z' },
-    },
-  );
+  assert.deepEqual(await handlers.get('license:get-cloud-songs')(trustedEvent), {
+    songs: [{ title: 'Song', artist: 'Artist' }],
+  });
+  assert.deepEqual(await handlers.get('license:get-song-page-background')(trustedEvent), {
+    ok: true,
+    background: { bytes: 12, updatedAt: '2026-08-29T00:00:00.000Z' },
+  });
   assert.deepEqual(
     await handlers.get('license:upload-song-page-background')(trustedEvent, {
       bytes: new Uint8Array([1]),
@@ -288,13 +268,10 @@ test('license IPC allowlists remote responses before crossing into the renderer'
       },
     },
   );
-  assert.deepEqual(
-    await handlers.get('license:delete-song-page-background')(trustedEvent),
-    {
-      ok: true,
-      background: null,
-    },
-  );
+  assert.deepEqual(await handlers.get('license:delete-song-page-background')(trustedEvent), {
+    ok: true,
+    background: null,
+  });
 
   licenseManager.syncSongs = async () => ({ ok: false, count: 0, index: 2 });
   assert.deepEqual(await handlers.get('license:sync-songs')(trustedEvent, []), {
@@ -323,24 +300,16 @@ test('license IPC allowlists remote responses before crossing into the renderer'
     error: 'INVALID_SONG',
     index: 2,
   });
-  licenseManager.getCloudSongs = async () => [
-    { title: 'Array song', token: 'drop' },
-  ];
-  assert.deepEqual(
-    await handlers.get('license:get-cloud-songs')(trustedEvent),
-    {
-      songs: [{ title: 'Array song' }],
-    },
-  );
+  licenseManager.getCloudSongs = async () => [{ title: 'Array song', token: 'drop' }];
+  assert.deepEqual(await handlers.get('license:get-cloud-songs')(trustedEvent), {
+    songs: [{ title: 'Array song' }],
+  });
   licenseManager.getCloudSongs = async () => ({
     items: [{ title: 'Items song', token: 'drop' }],
   });
-  assert.deepEqual(
-    await handlers.get('license:get-cloud-songs')(trustedEvent),
-    {
-      songs: [{ title: 'Items song' }],
-    },
-  );
+  assert.deepEqual(await handlers.get('license:get-cloud-songs')(trustedEvent), {
+    songs: [{ title: 'Items song' }],
+  });
 
   const snapshot = await handlers.get('license:get-state')(trustedEvent);
   assert.deepEqual(snapshot, {
@@ -439,18 +408,9 @@ test('license IPC does not forward arbitrary exception messages as error codes',
 });
 
 test('song background panel is wired into the admin import page and preload bridge', () => {
-  const html = fs.readFileSync(
-    path.join(ROOT, 'public', 'pages', 'admin', 'song', 'import-export.html'),
-    'utf8',
-  );
-  const importScript = fs.readFileSync(
-    path.join(ROOT, 'public', 'js', 'admin', 'song-background.js'),
-    'utf8',
-  );
-  const preload = fs.readFileSync(
-    path.join(ROOT, 'src', 'electron', 'preload.js'),
-    'utf8',
-  );
+  const html = fs.readFileSync(path.join(ROOT, 'public', 'pages', 'admin', 'song', 'import-export.html'), 'utf8');
+  const importScript = fs.readFileSync(path.join(ROOT, 'public', 'js', 'admin', 'song-background.js'), 'utf8');
+  const preload = fs.readFileSync(path.join(ROOT, 'src', 'electron', 'preload.js'), 'utf8');
 
   assert.match(html, /id="licenseSongBackground"/);
   assert.match(html, /id="licenseSongBgPreview"/);

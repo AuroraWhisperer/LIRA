@@ -11,13 +11,7 @@ const { cleanText, now, timestampToIso } = require('../../shared/utils');
 const { logBilibiliDiagnostic, logSongRequest } = require('../diagnostics');
 
 class MessageHandlers {
-  constructor(
-    handlers,
-    userInfoService,
-    deduplicator,
-    diagnostics,
-    options = {},
-  ) {
+  constructor(handlers, userInfoService, deduplicator, diagnostics, options = {}) {
     this.handlers = handlers;
     this.userInfoService = userInfoService;
     this.deduplicator = deduplicator;
@@ -27,10 +21,7 @@ class MessageHandlers {
     this.connectionAttempt = Number(options.connectionAttempt) || 0;
     this.roomOwnerUid = cleanText(options.roomOwnerUid);
     this.roomRunContext = null;
-    this.isCommandText =
-      typeof options.isCommandText === 'function'
-        ? options.isCommandText
-        : isBilibiliCommandText;
+    this.isCommandText = typeof options.isCommandText === 'function' ? options.isCommandText : isBilibiliCommandText;
   }
 
   updateStartTime(startedAtMs) {
@@ -63,17 +54,11 @@ class MessageHandlers {
     let packetSeq = 0;
     this.diagnostics.lastPacketAt = now();
     for (const message of packetParser.parseBilibiliPackets(buffer)) {
-      bilibiliHelpers.recordBilibiliCommandDiagnostic(
-        this.diagnostics,
-        message && message.cmd,
-      );
+      bilibiliHelpers.recordBilibiliCommandDiagnostic(this.diagnostics, message && message.cmd);
 
       if (message.cmd && String(message.cmd).startsWith('DANMU_MSG')) {
         this.handleDanmaku(message, ingress && { ...ingress, packetSeq: packetSeq++ });
-      } else if (
-        message.cmd &&
-        String(message.cmd).startsWith('SUPER_CHAT_MESSAGE')
-      ) {
+      } else if (message.cmd && String(message.cmd).startsWith('SUPER_CHAT_MESSAGE')) {
         this.handleSuperChat(message);
       } else if (packetParser.isBilibiliGiftLikeCommand(message.cmd)) {
         this.handleIdentityMessage(message);
@@ -84,17 +69,17 @@ class MessageHandlers {
   handleDanmaku(message, ingress) {
     const info = message.info || [];
     const userInfo = info[2] || [];
-    const userMeta = packetParser.extractBilibiliDanmakuUserMeta(
-      info,
-      this.roomOwnerUid,
-    );
+    const userMeta = packetParser.extractBilibiliDanmakuUserMeta(info, this.roomOwnerUid);
     const text = String(info[1] || '');
     const messageTimestamp = packetParser.extractBilibiliDanmakuTimestamp(info);
     if (ingress) {
       const rawTime = Number(info[0]?.[4]);
       const platformTime = rawTime > 1e12 ? rawTime : rawTime > 1e9 ? rawTime * 1000 : null;
       this.handlers.onRealtimeDanmaku?.({
-        ...ingress, source: 'danmaku', message: text, uid: userInfo[0],
+        ...ingress,
+        source: 'danmaku',
+        message: text,
+        uid: userInfo[0],
         platformTime: Number.isFinite(platformTime) ? platformTime : null,
         // No stable platform event ID has been verified; do not fabricate one.
         eventId: null,
@@ -103,8 +88,12 @@ class MessageHandlers {
     const avatarUrl = packetParser.extractBilibiliDanmakuAvatarUrl(info);
     const emotes = packetParser.extractBilibiliDanmakuEmotes(info);
     const diagnosticMessage = {
-      message: text, uid: userInfo[0], userName: userInfo[1], messageTimestamp,
-      source: 'danmaku', connectionGeneration: this.connectionGeneration,
+      message: text,
+      uid: userInfo[0],
+      userName: userInfo[1],
+      messageTimestamp,
+      source: 'danmaku',
+      connectionGeneration: this.connectionGeneration,
       connectionAttempt: this.connectionAttempt,
     };
     this.danmakuCount = (this.danmakuCount || 0) + 1;
@@ -119,13 +108,11 @@ class MessageHandlers {
 
     if (
       this.isCommandText(text) &&
-      !bilibiliHelpers.isCapturableBilibiliTimestamp(
-        messageTimestamp,
-        this.startedAtMs,
-      )
+      !bilibiliHelpers.isCapturableBilibiliTimestamp(messageTimestamp, this.startedAtMs)
     ) {
       logSongRequest('command-filtered', diagnosticMessage, {
-        reason: 'stale-timestamp', listenerStartedAt: this.startedAtMs,
+        reason: 'stale-timestamp',
+        listenerStartedAt: this.startedAtMs,
       });
       return;
     }
@@ -170,10 +157,7 @@ class MessageHandlers {
   }
 
   handleSuperChat(message) {
-    const superChat = packetParser.extractBilibiliSuperChatMessage(
-      message,
-      this.roomOwnerUid,
-    );
+    const superChat = packetParser.extractBilibiliSuperChatMessage(message, this.roomOwnerUid);
     const text = superChat.message;
     const requester = this.ingestIdentity(
       {
@@ -222,12 +206,7 @@ class MessageHandlers {
     if (!this.isCommandText(text)) {
       return;
     }
-    if (
-      !bilibiliHelpers.isCapturableBilibiliTimestamp(
-        superChat.messageTimestamp,
-        this.startedAtMs,
-      )
-    ) {
+    if (!bilibiliHelpers.isCapturableBilibiliTimestamp(superChat.messageTimestamp, this.startedAtMs)) {
       logSongRequest('command-filtered', diagnosticMessage, {
         reason: 'stale-timestamp',
         listenerStartedAt: this.startedAtMs,
@@ -235,15 +214,10 @@ class MessageHandlers {
       return;
     }
     if (
-      !this.deduplicator.remember(
-        superChat.uid || superChat.id,
-        text,
-        superChat.messageTimestamp,
-        {
-          userName: superChat.userName,
-          source: 'superchat',
-        },
-      )
+      !this.deduplicator.remember(superChat.uid || superChat.id, text, superChat.messageTimestamp, {
+        userName: superChat.userName,
+        source: 'superchat',
+      })
     ) {
       return;
     }
@@ -308,16 +282,12 @@ function roomIdentityFromMeta(meta = {}) {
 
 function compatibilityRequester(snapshot, fallback) {
   if (!snapshot) return fallback;
-  const medal =
-    snapshot.fansMedal && snapshot.fansMedal.known
-      ? snapshot.fansMedal.value
-      : null;
+  const medal = snapshot.fansMedal && snapshot.fansMedal.known ? snapshot.fansMedal.value : null;
   return {
     uid: snapshot.uid,
     userName: snapshot.name || fallback.userName,
     avatarUrl: snapshot.avatarUrl || fallback.avatarUrl,
-    guardLevel:
-      snapshot.guard && snapshot.guard.known ? snapshot.guard.level : 0,
+    guardLevel: snapshot.guard && snapshot.guard.known ? snapshot.guard.level : 0,
     medalName: medal ? medal.name : '',
     medalLevel: medal ? medal.level : 0,
   };

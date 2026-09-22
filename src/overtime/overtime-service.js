@@ -45,22 +45,13 @@ const OVERTIME_LIMITS = Object.freeze({
 
 function createOvertimeService(options = {}) {
   const now = typeof options.now === 'function' ? options.now : Date.now;
-  const monotonicNow =
-    typeof options.monotonicNow === 'function'
-      ? options.monotonicNow
-      : () => performance.now();
+  const monotonicNow = typeof options.monotonicNow === 'function' ? options.monotonicNow : () => performance.now();
   const scheduleTimeout = options.setTimeout || setTimeout;
   const cancelTimeout = options.clearTimeout || clearTimeout;
-  const randomInt =
-    typeof options.randomInt === 'function'
-      ? options.randomInt
-      : cryptoRandomInt;
-  const onUpdate =
-    typeof options.onUpdate === 'function' ? options.onUpdate : () => {};
+  const randomInt = typeof options.randomInt === 'function' ? options.randomInt : cryptoRandomInt;
+  const onUpdate = typeof options.onUpdate === 'function' ? options.onUpdate : () => {};
   const store = options.store || createOvertimeStore(options.giftDb);
-  let state = normalizeState(
-    store.getState() || store.ensureState(toIso(now())),
-  );
+  let state = normalizeState(store.getState() || store.ensureState(toIso(now())));
   let monotonicAnchorMs = monotonicNow();
   let zeroTimer = null;
   let retryTimer = null;
@@ -107,14 +98,10 @@ function createOvertimeService(options = {}) {
   function setTime(input) {
     const value = validateTimeInput(input);
     const nextState = materialize();
-    if (Object.hasOwn(value, 'initialSeconds'))
-      nextState.initialSeconds = value.initialSeconds;
+    if (Object.hasOwn(value, 'initialSeconds')) nextState.initialSeconds = value.initialSeconds;
     if (Object.hasOwn(value, 'remainingSeconds')) {
       nextState.remainingMs = value.remainingSeconds * 1000;
-      nextState.status =
-        nextState.enabled && nextState.remainingMs === 0
-          ? 'finished'
-          : 'paused';
+      nextState.status = nextState.enabled && nextState.remainingMs === 0 ? 'finished' : 'paused';
     }
     commit('manual', nextState);
     return getSnapshot();
@@ -149,8 +136,7 @@ function createOvertimeService(options = {}) {
   }
 
   function start() {
-    if (!state.enabled)
-      throw new Error('overtime must be enabled before start.');
+    if (!state.enabled) throw new Error('overtime must be enabled before start.');
     const nextState = materialize();
     if (nextState.remainingMs <= 0) nextState.status = 'finished';
     else nextState.status = 'running';
@@ -169,8 +155,7 @@ function createOvertimeService(options = {}) {
   function reset() {
     const nextState = materialize();
     nextState.remainingMs = nextState.initialSeconds * 1000;
-    nextState.status =
-      nextState.enabled && nextState.remainingMs === 0 ? 'finished' : 'paused';
+    nextState.status = nextState.enabled && nextState.remainingMs === 0 ? 'finished' : 'paused';
     commit('manual', nextState);
     return getSnapshot();
   }
@@ -194,25 +179,15 @@ function createOvertimeService(options = {}) {
   }
 
   function migrateRuleImages(input) {
-    if (
-      !Array.isArray(input) ||
-      typeof options.resolveGiftImagePath !== 'function'
-    )
-      return input;
+    if (!Array.isArray(input) || typeof options.resolveGiftImagePath !== 'function') return input;
     return input.map((rule) => {
       if (!rule || typeof rule !== 'object' || Array.isArray(rule)) return rule;
       const imagePath = String(rule.imagePath ?? rule.image_path ?? '').trim();
       const giftId = String(rule.giftId ?? rule.gift_id ?? '').trim();
-      if (
-        !giftId ||
-        (!isRemoteGiftImagePath(imagePath) && !isLegacyGiftImagePath(imagePath))
-      )
-        return rule;
+      if (!giftId || (!isRemoteGiftImagePath(imagePath) && !isLegacyGiftImagePath(imagePath))) return rule;
       let replacement = '';
       try {
-        replacement = String(
-          options.resolveGiftImagePath(giftId, imagePath, rule) || '',
-        ).trim();
+        replacement = String(options.resolveGiftImagePath(giftId, imagePath, rule) || '').trim();
       } catch (_) {
         replacement = '';
       }
@@ -241,29 +216,21 @@ function createOvertimeService(options = {}) {
 
     try {
       const observed = store.observeGift(giftEventId, toIso(now()));
-      if (
-        observed.kind === 'complete' ||
-        observed.kind === 'ineligible' ||
-        observed.kind === 'missing'
-      ) {
+      if (observed.kind === 'complete' || observed.kind === 'ineligible' || observed.kind === 'missing') {
         scheduleNextRecovery();
         return false;
       }
 
       const materializedState = materialize();
       const updatedAt = toIso(now());
-      const result = store.settleFinal(
-        giftEventId,
-        materializedState,
-        updatedAt,
-        ({ gift, rule }) =>
-          resolveGiftSettlement({
-            giftEventId,
-            gift,
-            rule,
-            currentState: materializedState,
-            updatedAt,
-          }),
+      const result = store.settleFinal(giftEventId, materializedState, updatedAt, ({ gift, rule }) =>
+        resolveGiftSettlement({
+          giftEventId,
+          gift,
+          rule,
+          currentState: materializedState,
+          updatedAt,
+        }),
       );
       if (result.kind !== 'applied') {
         scheduleNextRecovery();
@@ -284,12 +251,7 @@ function createOvertimeService(options = {}) {
       const currentMs = Math.floor(now());
       let retry = null;
       try {
-        retry = store.recordFailure(
-          giftEventId,
-          error,
-          currentMs,
-          toIso(currentMs),
-        );
+        retry = store.recordFailure(giftEventId, error, currentMs, toIso(currentMs));
       } catch (_) {
         retry = null;
       }
@@ -298,13 +260,7 @@ function createOvertimeService(options = {}) {
     }
   }
 
-  function resolveGiftSettlement({
-    giftEventId,
-    gift,
-    rule,
-    currentState,
-    updatedAt,
-  }) {
+  function resolveGiftSettlement({ giftEventId, gift, rule, currentState, updatedAt }) {
     const quantity = normalizeQuantity(gift.num);
     const applicationCount = rule.quantityMode === 'item' ? quantity : 1;
     const beforeMs = clampMs(currentState.remainingMs);
@@ -314,8 +270,7 @@ function createOvertimeService(options = {}) {
     const nextState = { ...currentState, remainingMs: afterMs };
 
     if (afterMs === 0) nextState.status = 'finished';
-    else if (afterMs > beforeMs && currentState.status === 'finished')
-      nextState.status = 'running';
+    else if (afterMs > beforeMs && currentState.status === 'finished') nextState.status = 'running';
     nextState.revision += 1;
     nextState.updatedAt = updatedAt;
 
@@ -357,9 +312,7 @@ function createOvertimeService(options = {}) {
       ruleSnapshotJson: JSON.stringify(ruleSnapshot),
       requestedDeltaSeconds: resolution.requestedDeltaSeconds,
       appliedDeltaSeconds,
-      outcomesJson: resolution.outcome
-        ? JSON.stringify(resolution.outcome)
-        : '',
+      outcomesJson: resolution.outcome ? JSON.stringify(resolution.outcome) : '',
       adjustment,
     };
   }
@@ -374,19 +327,11 @@ function createOvertimeService(options = {}) {
       };
     }
     if (rule.mode === 'fixed') {
-      const afterMs = applyFixedEffectRepeatedly(
-        beforeMs,
-        rule.fixedEffect,
-        applicationCount,
-      );
+      const afterMs = applyFixedEffectRepeatedly(beforeMs, rule.fixedEffect, applicationCount);
       const appliedDeltaSeconds = Math.trunc((afterMs - beforeMs) / 1000);
       return {
         afterMs,
-        requestedDeltaSeconds: requestedRepeatedDelta(
-          rule.fixedEffect,
-          applicationCount,
-          appliedDeltaSeconds,
-        ),
+        requestedDeltaSeconds: requestedRepeatedDelta(rule.fixedEffect, applicationCount, appliedDeltaSeconds),
         effect: rule.fixedEffect,
         outcome: null,
       };
@@ -399,10 +344,7 @@ function createOvertimeService(options = {}) {
       const selection = selectRuleResult(rule);
       const nextMs = applyEffect(afterMs, selection.effect);
       const appliedDeltaSeconds = Math.trunc((nextMs - afterMs) / 1000);
-      requestedDeltaSeconds += requestedDelta(
-        selection.effect,
-        appliedDeltaSeconds,
-      );
+      requestedDeltaSeconds += requestedDelta(selection.effect, appliedDeltaSeconds);
       afterMs = nextMs;
       outcomes.push(selection.outcome);
     }
@@ -415,12 +357,8 @@ function createOvertimeService(options = {}) {
   }
 
   function selectRuleResult(rule) {
-    if (rule.mode === 'fixed')
-      return { effect: rule.fixedEffect, outcome: null };
-    const totalWeight = rule.outcomes.reduce(
-      (sum, outcome) => sum + Number(outcome.weight),
-      0,
-    );
+    if (rule.mode === 'fixed') return { effect: rule.fixedEffect, outcome: null };
+    const totalWeight = rule.outcomes.reduce((sum, outcome) => sum + Number(outcome.weight), 0);
     const draw = randomInt(totalWeight);
     let cumulative = 0;
     for (let index = 0; index < rule.outcomes.length; index += 1) {
@@ -474,10 +412,7 @@ function createOvertimeService(options = {}) {
 
   function getEffectiveRemainingMs() {
     if (state.status !== 'running') return clampMs(state.remainingMs);
-    const elapsedMs = Math.max(
-      0,
-      Math.floor(monotonicNow() - monotonicAnchorMs),
-    );
+    const elapsedMs = Math.max(0, Math.floor(monotonicNow() - monotonicAnchorMs));
     return clampMs(state.remainingMs - elapsedMs);
   }
 
@@ -488,8 +423,7 @@ function createOvertimeService(options = {}) {
       remainingMs: getEffectiveRemainingMs(),
       anchorAtMs: Math.max(0, currentWallMs),
     };
-    if (nextState.status === 'running' && nextState.remainingMs === 0)
-      nextState.status = 'finished';
+    if (nextState.status === 'running' && nextState.remainingMs === 0) nextState.status = 'finished';
     return nextState;
   }
 
@@ -514,10 +448,7 @@ function createOvertimeService(options = {}) {
     if (disposed || recoveryPaused || recovering || !state.enabled) return;
     recovering = true;
     try {
-      const giftEventIds = store.listRecoverableFinal(
-        state.enableEpoch,
-        Math.floor(now()),
-      );
+      const giftEventIds = store.listRecoverableFinal(state.enableEpoch, Math.floor(now()));
       for (const giftEventId of giftEventIds) {
         try {
           finalizeGift({ giftEventId, phase: 'final' });
@@ -545,8 +476,7 @@ function createOvertimeService(options = {}) {
       retryTimer = null;
       recoverSettlements();
     }, delay);
-    if (retryTimer && typeof retryTimer.unref === 'function')
-      retryTimer.unref();
+    if (retryTimer && typeof retryTimer.unref === 'function') retryTimer.unref();
   }
 
   function clearRetryTimer() {
@@ -559,13 +489,7 @@ function createOvertimeService(options = {}) {
       cancelTimeout(zeroTimer);
       zeroTimer = null;
     }
-    if (
-      disposed ||
-      recoveryPaused ||
-      !state.enabled ||
-      state.status !== 'running'
-    )
-      return;
+    if (disposed || recoveryPaused || !state.enabled || state.status !== 'running') return;
     const remainingMs = getEffectiveRemainingMs();
     const delay = Math.min(MAX_TIMER_CHUNK_MS, Math.max(0, remainingMs));
     zeroTimer = scheduleTimeout(handleZeroTimer, delay);
@@ -574,13 +498,7 @@ function createOvertimeService(options = {}) {
 
   function handleZeroTimer() {
     zeroTimer = null;
-    if (
-      disposed ||
-      recoveryPaused ||
-      !state.enabled ||
-      state.status !== 'running'
-    )
-      return;
+    if (disposed || recoveryPaused || !state.enabled || state.status !== 'running') return;
     if (getEffectiveRemainingMs() > 0) {
       scheduleZeroTimer();
       return;

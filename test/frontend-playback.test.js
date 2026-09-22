@@ -9,11 +9,7 @@ const test = require('node:test');
 const vm = require('node:vm');
 const { readCssBundle } = require('./helpers/css-bundle');
 const { readJsModuleBundle } = require('./helpers/js-module-bundle');
-const {
-  createLyricToggleButton,
-  loadModuleExports,
-  response,
-} = require('./helpers/frontend-modules');
+const { createLyricToggleButton, loadModuleExports, response } = require('./helpers/frontend-modules');
 
 const ROOT_DIR = path.join(__dirname, '..');
 
@@ -41,7 +37,8 @@ test('fullscreen manual browsing holds position until follow resumes', async () 
   );
   const player = new FullscreenPlayer();
   player.lyricsContainer = {
-    scrollTop: 600, clientHeight: 300,
+    scrollTop: 600,
+    clientHeight: 300,
     classList: { toggle() {} },
     querySelector: () => ({ offsetTop: 300, clientHeight: 60 }),
   };
@@ -89,10 +86,7 @@ test('fullscreen lyric buttons follow available track data in romanization-first
 
   assert.ok(romaButtonPosition >= 0, 'romanization button should exist');
   assert.ok(translationButtonPosition >= 0, 'translation button should exist');
-  assert.ok(
-    romaButtonPosition < translationButtonPosition,
-    'romanization button should be above translation',
-  );
+  assert.ok(romaButtonPosition < translationButtonPosition, 'romanization button should be above translation');
 
   const { FullscreenPlayer } = await loadModuleExports(
     path.join(ROOT_DIR, 'public', 'js', 'playback', 'ui', 'fullscreen.js'),
@@ -142,26 +136,17 @@ test('fullscreen lyric buttons switch mutually exclusively and close the active 
   player._toggleLyricMode('roma');
   assert.equal(player.lyricMode, 'roma');
   assert.equal(player.romaToggleBtn.classList.contains('mode-roma'), true);
-  assert.equal(
-    player.translationToggleBtn.classList.contains('mode-trans'),
-    false,
-  );
+  assert.equal(player.translationToggleBtn.classList.contains('mode-trans'), false);
 
   player._toggleLyricMode('trans');
   assert.equal(player.lyricMode, 'trans');
   assert.equal(player.romaToggleBtn.classList.contains('mode-roma'), false);
-  assert.equal(
-    player.translationToggleBtn.classList.contains('mode-trans'),
-    true,
-  );
+  assert.equal(player.translationToggleBtn.classList.contains('mode-trans'), true);
 
   player._toggleLyricMode('trans');
   assert.equal(player.lyricMode, 'none');
   assert.equal(player.romaToggleBtn.classList.contains('mode-roma'), false);
-  assert.equal(
-    player.translationToggleBtn.classList.contains('mode-trans'),
-    false,
-  );
+  assert.equal(player.translationToggleBtn.classList.contains('mode-trans'), false);
   assert.equal(renderCount, 3);
 });
 
@@ -229,14 +214,7 @@ test('only the latest playback search updates state and renders', async () => {
     },
   };
   const { SearchService } = await loadModuleExports(
-    path.join(
-      ROOT_DIR,
-      'public',
-      'js',
-      'playback',
-      'services',
-      'search-service.js',
-    ),
+    path.join(ROOT_DIR, 'public', 'js', 'playback', 'services', 'search-service.js'),
     {
       fetch(_url, options) {
         const request = JSON.parse(options.body);
@@ -249,14 +227,7 @@ test('only the latest playback search updates state and renders', async () => {
     readJsonResponse: async (searchResponse) => searchResponse.payload,
   });
   const { createSearchHandler } = await loadModuleExports(
-    path.join(
-      ROOT_DIR,
-      'public',
-      'js',
-      'playback',
-      'features',
-      'search-handler.js',
-    ),
+    path.join(ROOT_DIR, 'public', 'js', 'playback', 'features', 'search-handler.js'),
     { document },
   );
   const handler = createSearchHandler({
@@ -274,13 +245,9 @@ test('only the latest playback search updates state and renders', async () => {
   const oldSearch = handler.runPlaybackSearch();
   keyword = 'new';
   const newSearch = handler.runPlaybackSearch();
-  pending.get('new')(
-    response({ ok: true, data: { tracks: [{ id: 'new-result' }] } }),
-  );
+  pending.get('new')(response({ ok: true, data: { tracks: [{ id: 'new-result' }] } }));
   await newSearch;
-  pending.get('old')(
-    response({ ok: true, data: { tracks: [{ id: 'old-result' }] } }),
-  );
+  pending.get('old')(response({ ok: true, data: { tracks: [{ id: 'old-result' }] } }));
   await oldSearch;
 
   assert.equal(searchService.getResults()[0]?.id, 'new-result');
@@ -290,14 +257,8 @@ test('only the latest playback search updates state and renders', async () => {
 test('playback workspace keeps semantic hierarchy and presentation typography', () => {
   const html = readAdminHtml();
   const playbackCss = readCssBundle('public', 'css', 'styles-playback.css');
-  const drawerSource = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'playback', 'ui', 'drawer.js'),
-    'utf8',
-  );
-  const queueSource = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'playback', 'ui', 'queue-popup.js'),
-    'utf8',
-  );
+  const drawerSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'playback', 'ui', 'drawer.js'), 'utf8');
+  const queueSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'playback', 'ui', 'queue-popup.js'), 'utf8');
 
   assert.doesNotMatch(html, /class="ui-page-title playback-workspace-title"/);
   assert.match(html, /id="playbackDrawerTitle" class="ui-section-title"/);
@@ -306,23 +267,11 @@ test('playback workspace keeps semantic hierarchy and presentation typography', 
 
   assert.match(playbackCss, /\.player-fs-title\s*\{[\s\S]*?font-size:\s*42px;/);
   assert.match(playbackCss, /\.lyric-text\s*\{[\s\S]*?font-size:\s*32px;/);
-  assert.match(
-    playbackCss,
-    /\.playback-quality-btn\s*\{[\s\S]*?font-size:\s*var\(--type-size-control\);/,
-  );
-  assert.match(
-    playbackCss,
-    /\.queue-popup-head strong\s*\{[\s\S]*?font-size:\s*var\(--type-size-section-title\);/,
-  );
+  assert.match(playbackCss, /\.playback-quality-btn\s*\{[\s\S]*?font-size:\s*var\(--type-size-control\);/);
+  assert.match(playbackCss, /\.queue-popup-head strong\s*\{[\s\S]*?font-size:\s*var\(--type-size-section-title\);/);
 
   assert.match(drawerSource, /playback-drawer-loading ui-body/);
-  assert.match(
-    drawerSource,
-    /playback-drawer-state playback-drawer-error ui-caption/,
-  );
-  assert.match(
-    drawerSource,
-    /playback-drawer-state playback-drawer-empty ui-caption/,
-  );
+  assert.match(drawerSource, /playback-drawer-state playback-drawer-error ui-caption/);
+  assert.match(drawerSource, /playback-drawer-state playback-drawer-empty ui-caption/);
   assert.match(queueSource, /<h3 class="ui-card-title">/);
 });

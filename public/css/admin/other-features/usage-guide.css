@@ -6,11 +6,7 @@
 }
 
 .usage-guide-panel {
-  --usage-guide-accent-border: color-mix(
-    in srgb,
-    var(--usage-guide-accent) 25%,
-    var(--surface)
-  );
+  --usage-guide-accent-border: color-mix(in srgb, var(--usage-guide-accent) 25%, var(--surface));
   --usage-guide-fill: color-mix(in srgb, var(--surface-2) 40%, var(--surface));
   --usage-guide-rule: color-mix(in srgb, var(--border) 65%, var(--surface));
   width: 100%;
@@ -284,6 +280,10 @@
   padding: 20px 2px;
 }
 
+.usage-guide-feature[id] {
+  scroll-margin-top: var(--usage-guide-scroll-offset, 110px);
+}
+
 .usage-guide-feature:first-child {
   padding-top: 2px;
 }
@@ -329,17 +329,6 @@
 
 .usage-guide-feature li::marker {
   color: var(--usage-guide-accent);
-}
-
-.usage-guide-image {
-  display: block;
-  width: auto;
-  max-width: min(100%, 960px);
-  height: auto;
-  margin-top: 12px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  box-shadow: var(--shadow-sm);
 }
 
 .usage-guide-feature--illustrated {

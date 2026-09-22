@@ -8,11 +8,22 @@ const { fanFixture, interval, SCOPE, IDENTITY, NOW } = require('./helpers/fan-pr
 
 function oldRequest(f, input = {}, scope = null) {
   const defaults = { queueLimit: '50', allowDuplicate: 'true', onlyFromLibrary: 'false' };
-  return addQueueItem({ store: createQueueStore(f.db.songDb, { getFanScope: () => scope }),
-    settings: () => defaults, defaults: () => defaults }, {
-    songName: '旧点歌曲目', artist: '旧歌手', requesterUid: IDENTITY.value,
-    requesterIdentityType: 'uid', requesterName: '旧昵称', createdAt: NOW, ...input,
-  });
+  return addQueueItem(
+    {
+      store: createQueueStore(f.db.songDb, { getFanScope: () => scope }),
+      settings: () => defaults,
+      defaults: () => defaults,
+    },
+    {
+      songName: '旧点歌曲目',
+      artist: '旧歌手',
+      requesterUid: IDENTITY.value,
+      requesterIdentityType: 'uid',
+      requesterName: '旧昵称',
+      createdAt: NOW,
+      ...input,
+    },
+  );
 }
 
 test('A29: complete restore preserves identity, original evidence, revision and handled reminder state', (t) => {
@@ -21,9 +32,19 @@ test('A29: complete restore preserves identity, original evidence, revision and 
   const note = f.record(p.id, 'note', { body: '原始内容' });
   f.record(p.id, 'note', { body: '修订后内容' }, { id: note.id, revision: note.revision });
   f.record(p.id, 'membership', interval('2026-09-01', '2026-12-31'));
-  f.service.archiveAccepted(SCOPE, { stableId: 'permanent-request-id', requestId: 1, queueId: 1,
-    requesterUid: IDENTITY.value, identityType: 'uid', requesterName: '海边听歌',
-    songName: '备份曲目', artist: '备份歌手', categoryName: '粤语', createdAt: NOW, source: 'danmaku' });
+  f.service.archiveAccepted(SCOPE, {
+    stableId: 'permanent-request-id',
+    requestId: 1,
+    queueId: 1,
+    requesterUid: IDENTITY.value,
+    identityType: 'uid',
+    requesterName: '海边听歌',
+    songName: '备份曲目',
+    artist: '备份歌手',
+    categoryName: '粤语',
+    createdAt: NOW,
+    source: 'danmaku',
+  });
   f.run('reminder-state', { profileId: p.id, key: 'birthday:2026', status: 'handled' });
   const backup = f.run('backup');
   f.run('delete', { id: p.id, confirm: true, suppress: false });
@@ -31,9 +52,16 @@ test('A29: complete restore preserves identity, original evidence, revision and 
   const plan = f.run('preview-restore', { backup });
   assert.equal(plan.added, 1);
   assert.equal(plan.updated, 0);
-  const result = f.run('restore', { backup, digest: plan.digest, currentDigest: plan.currentDigest, conflicts: 'keep' });
+  const result = f.run('restore', {
+    backup,
+    digest: plan.digest,
+    currentDigest: plan.currentDigest,
+    conflicts: 'keep',
+  });
   assert.ok(result.snapshotId);
-  const savedSnapshot = f.db.songDb.prepare('SELECT data FROM fan_restore_snapshots WHERE id = ?').get(result.snapshotId);
+  const savedSnapshot = f.db.songDb
+    .prepare('SELECT data FROM fan_restore_snapshots WHERE id = ?')
+    .get(result.snapshotId);
   assert.equal(JSON.parse(savedSnapshot.data).profiles.length, 0);
   assert.equal(f.run('settings').cursor, 5, 'restore must not claim the backup cursor as current coverage');
   f.restart();
@@ -53,16 +81,28 @@ test('A29: restore requires matching origin/account, complete format and unchang
   const f = fanFixture(t);
   const p = f.create({ notes: '仍要保留' });
   const backup = f.run('backup');
-  assert.throws(() => f.run('preview-restore', { backup: { ...backup,
-    scope: JSON.stringify(['https://other.example', 'streamer-a']) } }), /归属不匹配/);
-  assert.throws(() => f.run('preview-restore', { backup: { ...backup,
-    scope: JSON.stringify(['https://lira.example', 'streamer-b']) } }), /归属不匹配/);
+  assert.throws(
+    () =>
+      f.run('preview-restore', {
+        backup: { ...backup, scope: JSON.stringify(['https://other.example', 'streamer-a']) },
+      }),
+    /归属不匹配/,
+  );
+  assert.throws(
+    () =>
+      f.run('preview-restore', {
+        backup: { ...backup, scope: JSON.stringify(['https://lira.example', 'streamer-b']) },
+      }),
+    /归属不匹配/,
+  );
   assert.throws(() => f.run('preview-restore', { backup: f.run('export-list') }), /备份格式无效/);
   const plan = f.run('preview-restore', { backup });
   assert.equal(plan.conflicts[0].existingId, p.id);
   f.run('save', { id: p.id, revision: p.revision, notes: '预览后有了新内容' });
-  assert.throws(() => f.run('restore', { backup, digest: plan.digest,
-    currentDigest: plan.currentDigest, conflicts: 'replace' }), /预览已变化/);
+  assert.throws(
+    () => f.run('restore', { backup, digest: plan.digest, currentDigest: plan.currentDigest, conflicts: 'replace' }),
+    /预览已变化/,
+  );
   assert.equal(f.detail(p.id).notes, '预览后有了新内容');
   const currentPlan = f.run('preview-restore', { backup });
   f.run('restore', { backup, ...currentPlan, conflicts: 'keep' });
@@ -123,11 +163,7 @@ test('clearing all profiles requires confirmation and stays within the current a
   });
   const otherScope = JSON.stringify(['https://lira.example', 'streamer-b']);
   const other = f.create({ alias: '其他账号档案' }, otherScope);
-  f.run(
-    'save-record',
-    { profileId: other.id, kind: 'note', data: { body: '不得删除' } },
-    otherScope,
-  );
+  f.run('save-record', { profileId: other.id, kind: 'note', data: { body: '不得删除' } }, otherScope);
   f.store.suppress(SCOPE, '["bilibili","uid","900000099"]');
 
   assert.throws(() => f.run('delete-all'), /确认清除全部档案/);
@@ -139,16 +175,9 @@ test('clearing all profiles requires confirmation and stays within the current a
   });
   assert.equal(f.run('list').profiles.length, 0);
   assert.equal(f.run('list', { archived: true }).profiles.length, 0);
+  assert.equal(f.db.songDb.prepare('SELECT COUNT(*) AS count FROM fan_records WHERE scope = ?').get(SCOPE).count, 0);
   assert.equal(
-    f.db.songDb
-      .prepare('SELECT COUNT(*) AS count FROM fan_records WHERE scope = ?')
-      .get(SCOPE).count,
-    0,
-  );
-  assert.equal(
-    f.db.songDb
-      .prepare('SELECT COUNT(*) AS count FROM fan_reminder_states WHERE scope = ?')
-      .get(SCOPE).count,
+    f.db.songDb.prepare('SELECT COUNT(*) AS count FROM fan_reminder_states WHERE scope = ?').get(SCOPE).count,
     0,
   );
   assert.equal(f.run('suppression-list').length, 1);
@@ -201,7 +230,10 @@ test('A29: legacy date ranges use Shanghai business dates at both UTC midnight b
   oldRequest(f, { songName: '业务日最后一笔', createdAt: '2026-09-18T15:59:59Z' });
   oldRequest(f, { songName: '已经是次日', createdAt: '2026-09-18T16:00:00Z' });
   const result = f.run('preview-legacy', { profileId: p.id, from: '2026-09-18', to: '2026-09-18' });
-  assert.deepEqual(result.records.map((r) => r.songName), ['业务日最早一笔', '业务日最后一笔']);
+  assert.deepEqual(
+    result.records.map((r) => r.songName),
+    ['业务日最早一笔', '业务日最后一笔'],
+  );
 });
 
 test('fan schema upgrades existing request history without attributing it and reopens idempotently', (t) => {

@@ -37,9 +37,7 @@ function handleDanmakuMessage(
   }
 
   const defaults = context.settingsStore.getDefaultSettings();
-  const cooldownSeconds = Number(
-    settings.userCooldownSeconds || defaults.userCooldownSeconds,
-  );
+  const cooldownSeconds = Number(settings.userCooldownSeconds || defaults.userCooldownSeconds);
   const cooldownKey = cleanText(uid) || cleanText(userName) || 'anonymous';
   if (context.cooldownStore?.pruneMap) {
     context.cooldownStore.pruneMap(context.state.cooldownByUser);
@@ -67,9 +65,7 @@ function handleDanmakuMessage(
           ? buildRandomScopeAutoReply(
               command.scopeText,
               {
-                ...(context.describeRandomSongScope
-                  ? context.describeRandomSongScope(command.scopeText)
-                  : {}),
+                ...(context.describeRandomSongScope ? context.describeRandomSongScope(command.scopeText) : {}),
               },
               { uid, name: userName },
             )
@@ -93,9 +89,7 @@ function handleDanmakuMessage(
       isPinned,
     });
   } else {
-    const matchedSong = context.resolveSongRequest
-      ? context.resolveSongRequest(command.songName)
-      : null;
+    const matchedSong = context.resolveSongRequest ? context.resolveSongRequest(command.songName) : null;
     queueItem = context.addQueueItem({
       songName: matchedSong ? matchedSong.name : command.songName,
       requesterName: userName,
@@ -125,9 +119,7 @@ function handleDanmakuMessage(
         at: acceptedAt,
       });
     } catch (error) {
-      console.warn(
-        `[Cooldown] persist failed: key=${cooldownKey} error=${error.message}`,
-      );
+      console.warn(`[Cooldown] persist failed: key=${cooldownKey} error=${error.message}`);
     }
   }
   return { accepted: true, command, queueItem };
@@ -200,9 +192,7 @@ function logDanmakuCommand(danmaku, result) {
 
 function buildRandomScopeAutoReply(scopeText, details = {}, target = {}) {
   const terms =
-    Array.isArray(details.terms) && details.terms.length > 0
-      ? details.terms
-      : parseRandomSongTerms(scopeText);
+    Array.isArray(details.terms) && details.terms.length > 0 ? details.terms : parseRandomSongTerms(scopeText);
   if (terms.length === 0 || !cleanText(target.name)) return null;
 
   const scope = cleanText(scopeText);

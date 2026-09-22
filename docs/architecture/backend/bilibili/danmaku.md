@@ -1,8 +1,8 @@
 # 弹幕监听管线:BilibiliDanmakuClient 与弹幕机器人
 
-> 涉及文件:[danmaku-client.js](../../../../src/bilibili/danmaku-client.js)、[danmaku/message-handlers.js](../../../../src/bilibili/danmaku/message-handlers.js)、[danmaku/feed-buffer.js](../../../../src/bilibili/danmaku/feed-buffer.js)、[danmaku/history-poller.js](../../../../src/bilibili/danmaku/history-poller.js)、[danmaku/online-rank-poller.js](../../../../src/bilibili/danmaku/online-rank-poller.js)、[danmaku/fans-medal-poller.js](../../../../src/bilibili/danmaku/fans-medal-poller.js)、[danmaku/live-status-monitor.js](../../../../src/bilibili/danmaku/live-status-monitor.js)、[danmaku/identity-cache.js](../../../../src/bilibili/danmaku/identity-cache.js)、[users/user-info-service.js](../../../../src/bilibili/users/user-info-service.js)、[users/profile-provider.js](../../../../src/bilibili/users/profile-provider.js)、[danmaku/message-deduplicator.js](../../../../src/bilibili/danmaku/message-deduplicator.js)、[danmaku/sender-service.js](../../../../src/bilibili/danmaku/sender-service.js)、[danmaku/mention-policy.js](../../../../src/bilibili/danmaku/mention-policy.js)、[danmaku/command-text.js](../../../../src/bilibili/danmaku/command-text.js)、[bilibili-message-handler.js](../../../../src/bilibili/bilibili-message-handler.js)、[checkin-service.js](../../../../src/bilibili/checkin-service.js)、[checkin-blessings.js](../../../../src/bilibili/checkin-blessings.js)、[fortune-service.js](../../../../src/bilibili/fortune-service.js)、[custom-reply-service.js](../../../../src/bilibili/custom-reply-service.js)、[server.js](../../../../src/server.js) 的装配段、[domain-services.js](../../../../src/server/domain-services.js) 的 messages 段
+> 涉及文件:[danmaku-client.js](../../../../src/bilibili/danmaku-client.js)、[danmaku/message-handlers.js](../../../../src/bilibili/danmaku/message-handlers.js)、[danmaku/feed-buffer.js](../../../../src/bilibili/danmaku/feed-buffer.js)、[danmaku/history-poller.js](../../../../src/bilibili/danmaku/history-poller.js)、[danmaku/online-rank-poller.js](../../../../src/bilibili/danmaku/online-rank-poller.js)、[danmaku/fans-medal-poller.js](../../../../src/bilibili/danmaku/fans-medal-poller.js)、[danmaku/live-status-monitor.js](../../../../src/bilibili/danmaku/live-status-monitor.js)、[danmaku/identity-cache.js](../../../../src/bilibili/danmaku/identity-cache.js)、[users/user-info-service.js](../../../../src/bilibili/users/user-info-service.js)、[users/profile-provider.js](../../../../src/bilibili/users/profile-provider.js)、[danmaku/message-deduplicator.js](../../../../src/bilibili/danmaku/message-deduplicator.js)、[danmaku/sender-service.js](../../../../src/bilibili/danmaku/sender-service.js)、[danmaku/mention-policy.js](../../../../src/bilibili/danmaku/mention-policy.js)、[danmaku/command-text.js](../../../../src/bilibili/danmaku/command-text.js)、[bilibili-message-handler.js](../../../../src/bilibili/bilibili-message-handler.js)、[custom-reply-service.js](../../../../src/bilibili/custom-reply-service.js)、[server.js](../../../../src/server.js) 的装配段、[domain-services.js](../../../../src/server/domain-services.js) 的 messages 段
 
-本文档是 **Bilibili 弹幕监听管线与机器人行为**的唯一事实源:客户端回调契约、轮询器/缓存间隔、命令解析、签到/抽签/自定义回复、弹幕发送与诊断快照只在此成表。**服务端侧**的客户端生命周期(configure/reconnect/_replaceClientChain)归 [server-core.md](../server-core.md) §6 所有,本文只描述客户端内部行为。线协议(HTTP/WBI/WS/解析)见 [protocol.md](protocol.md),礼物入库见 [gift.md](gift.md)。
+本文档是 **Bilibili 弹幕监听管线与机器人行为**的唯一事实源:客户端回调契约、轮询器/缓存间隔、命令解析、云端签到/抽签边界、自定义回复、弹幕发送与诊断快照在此说明；云端业务契约见 [云端签到与抽签规格](../../../../specs/cloud-daily-bots.md)。**服务端侧**的客户端生命周期(configure/reconnect/_replaceClientChain)归 [server-core.md](../server-core.md) §6 所有,本文只描述客户端内部行为。线协议(HTTP/WBI/WS/解析)见 [protocol.md](protocol.md),礼物入库见 [gift.md](gift.md)。
 
 ## 1. 客户端回调契约
 
@@ -127,34 +127,17 @@ text.startsWith('点歌') || text.startsWith('随机')
 5. request:`resolveSongRequest(songName)` 唯一名匹配后 `addQueueItem`([bilibili-message-handler.js:72-88](../../../../src/bilibili/bilibili-message-handler.js#L72-L88))
 6. 队列项携带 `requesterName/requesterUid/requesterGuardLevel/requesterMedalName/requesterMedalLevel/isPinned/messageTimestamp`(消费方 queue-service 见 [services.md](../music/services.md))
 
-## 6. 弹幕机器人四件套
+## 6. 弹幕机器人职责
 
-domain-services 的 messages 域按序组装点歌 → 签到 → 抽签 → 自定义回复([domain-services.js:103-139](../../../../src/server/domain-services.js#L103-L139));机器人产生的 `autoReply` 由 server.js 的 `onMessage` 发送(§7)。开关设置键归属 [storage.md](../storage.md) §7。
+客户端 [domain-services.js](../../../../src/server/domain-services.js) 优先占用精确“签到”和“抽签”命令，返回 `cloud-owned`，不计算、不落库、不回复，也不交给点歌、DIY 或 AI。其余命令沿用本地点歌和自定义回复链。云端执行和验收以 [云端签到与抽签规格](../../../../specs/cloud-daily-bots.md) 为准。
 
-### 6.1 签到(checkin-service)
+### 6.1 云端签到
 
-| 事实     | 值                                                                                                              | 出处                                                                                                                                                    |
-| -------- | --------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 命令     | 精确 `签到`(`CHECKIN_COMMAND`)                                                                                  | [checkin-service.js:8](../../../../src/bilibili/checkin-service.js#L8)                                                                                  |
-| 开关     | `enableCheckinBot === 'true'`,否则 `checkin-disabled`                                                           | [checkin-service.js:30-32](../../../../src/bilibili/checkin-service.js#L30-L32)                                                                         |
-| uid 要求 | 缺失或 `'0'` → `missing-uid`                                                                                    | [checkin-service.js:34-37](../../../../src/bilibili/checkin-service.js#L34-L37)                                                                         |
-| 日期键   | **北京时间**(UTC+8)日期 `YYYY-MM-DD`(`CHINA_OFFSET_MS = 8h`)                                                    | [checkin-service.js:9](../../../../src/bilibili/checkin-service.js#L9)、[checkin-service.js:69-72](../../../../src/bilibili/checkin-service.js#L69-L72) |
-| 累计     | `total_days` 按天累加,同日重复签到不加天数、标记 `alreadyCheckedToday`(库表见 [storage.md](../storage.md) §3.5) | [checkin-store.js:40-41](../../../../src/storage/checkin-store.js#L40-L41)                                                                              |
-| 回复     | `今天已经签到过啦，已累计 N 天。` / `已签到 N 天。` + 祝福语                                                    | [checkin-service.js:61-67](../../../../src/bilibili/checkin-service.js#L61-L67)                                                                         |
+Server 的 `monitor-manager → daily-bot-service → daily-bot-store` 在认证后的主播作用域中处理签到。北京时间判日，每个 UID 每天至多累计一次；重复签到读取已保存的当日结果，提交业务记录后再发送回复。客户端只控制云端开关并展示状态。
 
-祝福语池 `CHECKIN_BLESSINGS` 共 **30 句**([checkin-blessings.js:5-36](../../../../src/bilibili/checkin-blessings.js#L5-L36));`checkinBlessings` 设置可覆盖(JSON 数组,无效时回退内置池),每次**随机**取一句([checkin-blessings.js:38-59](../../../../src/bilibili/checkin-blessings.js#L38-L59))。
+### 6.2 云端抽签与默认词库
 
-### 6.2 抽签(fortune-service)
-
-| 事实     | 值                                                                           | 出处                                                                                |
-| -------- | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| 命令     | 精确 `抽签`(`FORTUNE_COMMAND`)                                               | [fortune-service.js:8](../../../../src/bilibili/fortune-service.js#L8)              |
-| 开关     | `enableFortuneBot === 'true'`                                                | [fortune-service.js:46-49](../../../../src/bilibili/fortune-service.js#L46-L49)     |
-| 签池     | `FORTUNES` 内置 **20 签**(上上/上吉/中吉/小吉/平)                            | [fortune-service.js:10-31](../../../../src/bilibili/fortune-service.js#L10-L31)     |
-| 抽签规则 | **确定性**:FNV-1a 哈希 `dateKey:uid` 对签池取模 —— 同一观众当天同签,跨天变化 | [fortune-service.js:93-106](../../../../src/bilibili/fortune-service.js#L93-L106)   |
-| 回复     | `{level}·{name}｜{text}。{advice}。`                                         | [fortune-service.js:108-110](../../../../src/bilibili/fortune-service.js#L108-L110) |
-
-`fortunePool` 设置可覆盖签池(每项须含 level/name/text/advice,[fortune-service.js:73-91](../../../../src/bilibili/fortune-service.js#L73-L91))。
+Server 保存每日抽签结果快照，同日重复命令、重启和词库更新均读取该快照。客户端 [bot-defaults.js](../../../../src/shared/bot-defaults.js) 保留 30 条祝福和 20 条签文，供设置默认值及旧数据兼容读取使用；本地签到、抽签服务及签到写入 store 已退役。旧库读取边界见 [storage.md](../storage.md)。
 
 ### 6.3 自定义回复(custom-reply-service)
 
@@ -260,12 +243,12 @@ AI 互动助手回复也经 `aiAssistant` 调用同一个 `danmakuSender.send({w
 | 重连延迟                  | 1/2/4/8/16/30 秒，有上限；稳定认证连接后清零 | [danmaku-client.js](../../../../src/bilibili/danmaku-client.js) |
 | 可捕获窗口                | 启动前 5s ~ 30min 前 ~ 未来 5min | [helpers.js:41-50](../../../../src/bilibili/helpers.js#L41-L50)                                                                                                  |
 | 发送限速 / 单条上限       | 1.5s / 40 字符                   | [sender-service.js:19](../../../../src/bilibili/danmaku/sender-service.js#L19)、[sender-service.js:5](../../../../src/bilibili/danmaku/sender-service.js#L5)     |
-| 签到/抽签日期             | 北京时间 UTC+8                   | [checkin-service.js:9](../../../../src/bilibili/checkin-service.js#L9)                                                                                           |
+| 签到/抽签日期             | 北京时间 UTC+8                   | [云端规格](../../../../specs/cloud-daily-bots.md)                                                                                           |
 | 自定义回复上限            | 30 条 / 关键词 30 / 文本 120     | [custom-reply-service.js:7-9](../../../../src/bilibili/custom-reply-service.js#L7-L9)                                                                            |
 
 ## 云端签到与抽签执行权（2026-09-18）
 
-本节替代本文旧的本地签到/抽签生产调用说明。`dailyBotCommand` 在 domain-services 的消息入口首先占用精确“签到/抽签”，返回 cloud-owned，不计算、不写库，不进入点歌、DIY 或 AI 自动回复；bilibili-client 不再发送这两项回复。保留的旧服务文件仅作为历史语义和单元测试参照，没有生产实例。Server 持续 monitor、租户每日结果、直接启用及整库恢复见 [规格](../../../../specs/cloud-daily-bots.md)。
+本节替代本文旧的本地签到/抽签生产调用说明。`dailyBotCommand` 在 domain-services 的消息入口首先占用精确“签到/抽签”，返回 cloud-owned，不计算、不写库，不进入点歌、DIY 或 AI 自动回复；bilibili-client 不再发送这两项回复。旧本地执行文件已删除，保留命令过滤、默认词库和云端独占行为测试。Server 持续 monitor、租户每日结果、直接启用及整库恢复见 [规格](../../../../specs/cloud-daily-bots.md)。
 
 
 ## 类别 3 实时统计入口

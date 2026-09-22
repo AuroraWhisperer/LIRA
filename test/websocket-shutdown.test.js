@@ -26,16 +26,22 @@ async function openUpgradedConnection(t, { halfOpen = false } = {}) {
   server.listen(0, '127.0.0.1');
   await once(server, 'listening');
   client = net.createConnection({
-    host: '127.0.0.1', port: server.address().port, allowHalfOpen: true,
+    host: '127.0.0.1',
+    port: server.address().port,
+    allowHalfOpen: true,
   });
   const chunks = [];
   client.on('data', (chunk) => chunks.push(chunk));
-  client.on('end', () => { if (!halfOpen) client.end(); });
+  client.on('end', () => {
+    if (!halfOpen) client.end();
+  });
   await once(client, 'connect');
   const firstData = once(client, 'data');
-  client.write('GET /ws?token=synthetic-token HTTP/1.1\r\nHost: 127.0.0.1\r\n' +
-    'Connection: Upgrade\r\nUpgrade: websocket\r\n' +
-    'Sec-WebSocket-Version: 13\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n');
+  client.write(
+    'GET /ws?token=synthetic-token HTTP/1.1\r\nHost: 127.0.0.1\r\n' +
+      'Connection: Upgrade\r\nUpgrade: websocket\r\n' +
+      'Sec-WebSocket-Version: 13\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n',
+  );
   await firstData;
   assert.match(Buffer.concat(chunks).toString(), /101 Switching Protocols/);
   return { hub, context, server, client, upgraded, chunks };
@@ -45,7 +51,10 @@ async function closeHttpServer(server) {
   let timeout;
   try {
     await Promise.race([
-      new Promise((resolve) => { server.close(resolve); server.closeAllConnections(); }),
+      new Promise((resolve) => {
+        server.close(resolve);
+        server.closeAllConnections();
+      }),
       new Promise((_, reject) => {
         timeout = setTimeout(() => reject(new Error('upgraded connection prevented HTTP close')), 500);
       }),
@@ -118,10 +127,17 @@ test('stop retains the first close deadline and rejects subsequent upgrades', (t
   t.after(() => hub.stop());
   const socket = new EventEmitter();
   socket.writes = [];
-  socket.write = (data) => { socket.writes.push(data); return true; };
+  socket.write = (data) => {
+    socket.writes.push(data);
+    return true;
+  };
   socket.end = () => {};
   let destroyed = 0;
-  socket.destroy = () => { destroyed += 1; socket.destroyed = true; socket.emit('close'); };
+  socket.destroy = () => {
+    destroyed += 1;
+    socket.destroyed = true;
+    socket.emit('close');
+  };
   const context = { sessionToken: 'synthetic-token', getState: () => ({}) };
   const request = { url: '/ws', headers: { authorization: 'Bearer synthetic-token', 'sec-websocket-key': 'test' } };
   hub.handleUpgrade(context, request, socket);
@@ -133,7 +149,11 @@ test('stop retains the first close deadline and rejects subsequent upgrades', (t
   assert.equal(destroyed, 0);
   t.mock.timers.tick(10);
   assert.equal(destroyed, 1);
-  const lateSocket = { destroy() { this.destroyed = true; } };
+  const lateSocket = {
+    destroy() {
+      this.destroyed = true;
+    },
+  };
   hub.handleUpgrade(context, request, lateSocket);
   assert.equal(lateSocket.destroyed, true);
 });
@@ -145,10 +165,17 @@ test('physical close cancels the reap timer', (t) => {
   socket.write = () => true;
   socket.end = () => {};
   let destroyed = 0;
-  socket.destroy = () => { destroyed += 1; };
-  hub.handleUpgrade({ sessionToken: 'synthetic-token', getState: () => ({}) }, {
-    url: '/ws', headers: { authorization: 'Bearer synthetic-token', 'sec-websocket-key': 'test' },
-  }, socket);
+  socket.destroy = () => {
+    destroyed += 1;
+  };
+  hub.handleUpgrade(
+    { sessionToken: 'synthetic-token', getState: () => ({}) },
+    {
+      url: '/ws',
+      headers: { authorization: 'Bearer synthetic-token', 'sec-websocket-key': 'test' },
+    },
+    socket,
+  );
   hub.stop();
   socket.emit('close');
   t.mock.timers.tick(1000);

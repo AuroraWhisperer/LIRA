@@ -69,21 +69,13 @@ export function createOverlaySocket(options = {}) {
   }
 
   function isCurrentConnection(candidate, generation) {
-    return (
-      !disposed &&
-      started &&
-      socket === candidate &&
-      connectionGeneration === generation
-    );
+    return !disposed && started && socket === candidate && connectionGeneration === generation;
   }
 
   function scheduleReconnect() {
     if (disposed || !started || reconnectTimer !== null) return;
     const exponent = Math.min(reconnectAttempts, reconnectExponentMax);
-    const delay = Math.min(
-      reconnectMaxDelayMs,
-      reconnectBaseDelayMs * 2 ** exponent,
-    );
+    const delay = Math.min(reconnectMaxDelayMs, reconnectBaseDelayMs * 2 ** exponent);
     reconnectAttempts += 1;
     reconnectTimer = setTimeoutFn(() => {
       reconnectTimer = null;
@@ -134,27 +126,19 @@ export function createOverlaySocket(options = {}) {
     const generation = ++connectionGeneration;
     let candidate;
     try {
-      candidate = new WebSocketClass(
-        buildOverlaySocketUrl({ locationRef, token }),
-      );
+      candidate = new WebSocketClass(buildOverlaySocketUrl({ locationRef, token }));
     } catch (error) {
       onError?.(error);
       scheduleReconnect();
       return null;
     }
     socket = candidate;
-    candidate.addEventListener('open', (event) =>
-      handleOpen(candidate, generation, event),
-    );
-    candidate.addEventListener('message', (event) =>
-      handleMessage(candidate, generation, event),
-    );
+    candidate.addEventListener('open', (event) => handleOpen(candidate, generation, event));
+    candidate.addEventListener('message', (event) => handleMessage(candidate, generation, event));
     candidate.addEventListener('error', (event) => {
       if (isCurrentConnection(candidate, generation)) onError?.(event);
     });
-    candidate.addEventListener('close', (event) =>
-      handleClose(candidate, generation, event),
-    );
+    candidate.addEventListener('close', (event) => handleClose(candidate, generation, event));
     return candidate;
   }
 

@@ -1,5 +1,7 @@
 # LIRA 启动性能与运行卡顿测评报告
 
+> 历史基线：本文仅描述 2026-08-21 的测评。后续优化已记录在 [启动性能改进计划](superpowers/plans/2026-08-21-startup-performance-hardening.md)，本文问题清单与评分不代表当前版本现状。
+
 > 测评日期：2026-08-21<br>
 > 测评对象：LIRA Electron 桌面客户端及其同进程 Node.js 后端、Admin renderer<br>
 > 测评性质：代码审计 + 本机隔离基线 + 现有生命周期日志复核<br>

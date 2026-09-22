@@ -41,10 +41,7 @@ test('danmaku styles keep base, named style, and motion ownership', () => {
       'cream',
       'glow',
       'motion',
-    ].map((name) => [
-      name,
-      fs.readFileSync(path.join(styleRoot, 'danmaku', `${name}.css`), 'utf8'),
-    ]),
+    ].map((name) => [name, fs.readFileSync(path.join(styleRoot, 'danmaku', `${name}.css`), 'utf8')]),
   );
 
   assert.match(owners.base, /\.draw-danmaku-identity\s*\{/);

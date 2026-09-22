@@ -3,15 +3,9 @@
 'use strict';
 
 const { sendJson, sendCsv, sendBuffer } = require('../http-utils');
-const {
-  buildSongsCsv,
-  buildSongsWorkbook,
-  parseSongsFromXlsx,
-  templateSongs,
-} = require('../../music/song-file-codec');
+const { buildSongsCsv, buildSongsWorkbook, parseSongsFromXlsx, templateSongs } = require('../../music/song-file-codec');
 
-const XLSX_CONTENT_TYPE =
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+const XLSX_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 const prefixes = ['/api/songs', '/api/categories'];
 
 async function readUpdateInput(request) {
@@ -20,8 +14,7 @@ async function readUpdateInput(request) {
     !body ||
     typeof body !== 'object' ||
     Array.isArray(body) ||
-    (body.base64 !== undefined &&
-      (typeof body.base64 !== 'string' || body.rows !== undefined))
+    (body.base64 !== undefined && (typeof body.base64 !== 'string' || body.rows !== undefined))
   ) {
     throw Object.assign(new Error('请提供歌曲行对象或一个 Excel 文件。'), {
       statusCode: 400,
@@ -70,48 +63,26 @@ const routes = {
         categories: request.query.getAll('category'),
         language: request.query.get('language') || '',
         artist: request.query.get('artist') || '',
-        tags: request.query.getAll('tag').length
-          ? request.query.getAll('tag')
-          : request.query.get('tags') || '',
+        tags: request.query.getAll('tag').length ? request.query.getAll('tag') : request.query.get('tags') || '',
         enabledOnly: request.query.get('enabledOnly') === 'true',
       }),
     });
   },
 
   'GET /api/songs/template.csv'(context, request, res) {
-    sendCsv(
-      res,
-      'song-import-template.csv',
-      `\uFEFF${buildSongsCsv(templateSongs())}\n`,
-    );
+    sendCsv(res, 'song-import-template.csv', `\uFEFF${buildSongsCsv(templateSongs())}\n`);
   },
 
   'GET /api/songs/template.xlsx'(context, request, res) {
-    sendBuffer(
-      res,
-      200,
-      XLSX_CONTENT_TYPE,
-      'song-import-template.xlsx',
-      buildSongsWorkbook(templateSongs()),
-    );
+    sendBuffer(res, 200, XLSX_CONTENT_TYPE, 'song-import-template.xlsx', buildSongsWorkbook(templateSongs()));
   },
 
   'GET /api/songs/export.csv'(context, request, res) {
-    sendCsv(
-      res,
-      'songs-export.csv',
-      `\uFEFF${buildSongsCsv(context.songs.list({}))}\n`,
-    );
+    sendCsv(res, 'songs-export.csv', `\uFEFF${buildSongsCsv(context.songs.list({}))}\n`);
   },
 
   'GET /api/songs/export.xlsx'(context, request, res) {
-    sendBuffer(
-      res,
-      200,
-      XLSX_CONTENT_TYPE,
-      'songs-export.xlsx',
-      buildSongsWorkbook(context.songs.list({})),
-    );
+    sendBuffer(res, 200, XLSX_CONTENT_TYPE, 'songs-export.xlsx', buildSongsWorkbook(context.songs.list({})));
   },
 
   async 'POST /api/songs/save'(context, request, res) {
@@ -174,9 +145,7 @@ const routes = {
 
   async 'POST /api/songs/import-preview'(context, request, res) {
     try {
-      const result = context.songs.previewImport(
-        await readUpdateInput(request),
-      );
+      const result = context.songs.previewImport(await readUpdateInput(request));
       sendJson(res, 200, { ok: true, data: result });
     } catch (error) {
       sendImportError(res, error);

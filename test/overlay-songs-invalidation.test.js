@@ -50,10 +50,7 @@ test('OBS song overlay reloads for cloud and local song invalidations only', asy
     URLSearchParams,
     WebSocket: FakeWebSocket,
     fetch: async (url) => ({
-      json: async () =>
-        url === '/api/state'
-          ? { ok: true, data: { settings: {} } }
-          : { ok: true, data: [] },
+      json: async () => (url === '/api/state' ? { ok: true, data: { settings: {} } } : { ok: true, data: [] }),
     }),
     setTimeout(callback) {
       timers.push(callback);

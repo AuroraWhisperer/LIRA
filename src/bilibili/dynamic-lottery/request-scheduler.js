@@ -10,10 +10,7 @@ function schedulerError(code, message) {
 }
 
 function requireClock(clock) {
-  if (
-    typeof clock?.nowMs !== 'function' ||
-    typeof clock?.sleep !== 'function'
-  ) {
+  if (typeof clock?.nowMs !== 'function' || typeof clock?.sleep !== 'function') {
     throw new TypeError('Request scheduler requires an injectable clock.');
   }
   return clock;
@@ -43,13 +40,8 @@ function createRequestScheduler({ fetchImpl, budgetStore, clock }) {
   if (typeof fetchImpl !== 'function') {
     throw new TypeError('Request scheduler requires fetchImpl.');
   }
-  if (
-    typeof budgetStore?.reserve !== 'function' ||
-    typeof budgetStore?.finish !== 'function'
-  ) {
-    throw new TypeError(
-      'Request scheduler requires a persistent budget store.',
-    );
+  if (typeof budgetStore?.reserve !== 'function' || typeof budgetStore?.finish !== 'function') {
+    throw new TypeError('Request scheduler requires a persistent budget store.');
   }
   const schedulerClock = requireClock(clock);
   const lifecycle = new AbortController();
@@ -64,19 +56,13 @@ function createRequestScheduler({ fetchImpl, budgetStore, clock }) {
       const decision = budgetStore.reserve({ scope, kind, nowMs: current });
       if (decision.allowed) return;
       if (decision.holdReason || decision.waitUntilMs === null) {
-        throw schedulerError(
-          'LOTTERY_REQUEST_PAUSED',
-          decision.holdReason || 'Dynamic lottery requests are paused.',
-        );
+        throw schedulerError('LOTTERY_REQUEST_PAUSED', decision.holdReason || 'Dynamic lottery requests are paused.');
       }
       const delay = Math.max(0, Number(decision.waitUntilMs) - current);
       if (delay === 0) continue;
       // Recheck the dedicated account while waiting; a switched account must
       // not occupy the old job for an entire hourly budget window.
-      await schedulerClock.sleep(
-        beforeRequest ? Math.min(delay, 4000) : delay,
-        signal,
-      );
+      await schedulerClock.sleep(beforeRequest ? Math.min(delay, 4000) : delay, signal);
     }
   }
 
@@ -91,22 +77,15 @@ function createRequestScheduler({ fetchImpl, budgetStore, clock }) {
 
   async function runRequest(input) {
     if (disposed) {
-      throw schedulerError(
-        'LOTTERY_SCHEDULER_DISPOSED',
-        'Dynamic lottery request scheduler has been disposed.',
-      );
+      throw schedulerError('LOTTERY_SCHEDULER_DISPOSED', 'Dynamic lottery request scheduler has been disposed.');
     }
     const scope = String(input?.scope || '').trim();
     const kind = String(input?.kind || '').trim();
     const url = String(input?.url || '');
     if (!scope || !kind || !url) {
-      throw new TypeError(
-        'Scheduled request scope, kind, and URL are required.',
-      );
+      throw new TypeError('Scheduled request scope, kind, and URL are required.');
     }
-    const signal = input.signal
-      ? AbortSignal.any([input.signal, lifecycle.signal])
-      : lifecycle.signal;
+    const signal = input.signal ? AbortSignal.any([input.signal, lifecycle.signal]) : lifecycle.signal;
     signal.throwIfAborted();
 
     for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt += 1) {
@@ -140,10 +119,7 @@ function createRequestScheduler({ fetchImpl, budgetStore, clock }) {
         }
         if (attempt === RETRY_DELAYS_MS.length) {
           if (timedOut) {
-            throw schedulerError(
-              'LOTTERY_REQUEST_TIMEOUT',
-              'Bilibili request timed out.',
-            );
+            throw schedulerError('LOTTERY_REQUEST_TIMEOUT', 'Bilibili request timed out.');
           }
           throw error;
         }
@@ -151,28 +127,19 @@ function createRequestScheduler({ fetchImpl, budgetStore, clock }) {
         continue;
       }
 
-      if (
-        !shouldRetryResponse(response) ||
-        attempt === RETRY_DELAYS_MS.length
-      ) {
+      if (!shouldRetryResponse(response) || attempt === RETRY_DELAYS_MS.length) {
         return response;
       }
       await discardResponse(response);
       await schedulerClock.sleep(RETRY_DELAYS_MS[attempt], signal);
     }
-    throw schedulerError(
-      'LOTTERY_REQUEST_FAILED',
-      'Dynamic lottery request exhausted its retry policy.',
-    );
+    throw schedulerError('LOTTERY_REQUEST_FAILED', 'Dynamic lottery request exhausted its retry policy.');
   }
 
   function request(input) {
     if (disposed) {
       return Promise.reject(
-        schedulerError(
-          'LOTTERY_SCHEDULER_DISPOSED',
-          'Dynamic lottery request scheduler has been disposed.',
-        ),
+        schedulerError('LOTTERY_SCHEDULER_DISPOSED', 'Dynamic lottery request scheduler has been disposed.'),
       );
     }
     const operation = queue.then(() => runRequest(input));
@@ -198,10 +165,7 @@ function createRequestScheduler({ fetchImpl, budgetStore, clock }) {
     if (!disposed) {
       disposed = true;
       lifecycle.abort(
-        schedulerError(
-          'LOTTERY_SCHEDULER_DISPOSED',
-          'Dynamic lottery request scheduler has been disposed.',
-        ),
+        schedulerError('LOTTERY_SCHEDULER_DISPOSED', 'Dynamic lottery request scheduler has been disposed.'),
       );
     }
     await queue;

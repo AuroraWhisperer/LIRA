@@ -2,11 +2,7 @@
 // 流媒体服务 - 负责播放 URL 解析、刷新和错误重试
 'use strict';
 
-import {
-  isLocalTrack,
-  hasUsableUrl,
-  serializeTrackForProvider,
-} from '../utils.js';
+import { isLocalTrack, hasUsableUrl, serializeTrackForProvider } from '../utils.js';
 
 /**
  * 流媒体服务类
@@ -64,15 +60,9 @@ export class StreamService {
 
     // 更新曲目的播放信息
     track.playUrl = stream.url;
-    track.playUrlExpireAt = Number(
-      stream.expireAt || stream.playUrlExpireAt || 0,
-    );
-    track.requestedPlaybackQuality = String(
-      stream.requestedQuality || requestedQuality,
-    );
-    track.playbackQuality = String(
-      stream.quality || stream.level || requestedQuality,
-    );
+    track.playUrlExpireAt = Number(stream.expireAt || stream.playUrlExpireAt || 0);
+    track.requestedPlaybackQuality = String(stream.requestedQuality || requestedQuality);
+    track.playbackQuality = String(stream.quality || stream.level || requestedQuality);
     track.playbackTrial = stream.trial === true;
     track.playbackTrialStartMs = Math.max(0, Number(stream.trialStartMs || 0));
     track.playbackTrialEndMs = Math.max(0, Number(stream.trialEndMs || 0));
@@ -106,9 +96,7 @@ export class StreamService {
     const payload = await this.readJsonResponse(response, '解析播放地址失败');
 
     if (!response.ok || !payload.ok) {
-      throw new Error(
-        payload.error || `解析播放地址失败（HTTP ${response.status}）`,
-      );
+      throw new Error(payload.error || `解析播放地址失败（HTTP ${response.status}）`);
     }
 
     return payload.data;
@@ -123,13 +111,7 @@ export class StreamService {
    * @param {Function} isCurrent - 错误任务是否仍拥有当前音频的播放权
    * @returns {Promise<void>}
    */
-  async handlePlaybackError(
-    track,
-    audio,
-    onRetrySuccess,
-    onRetryFailed,
-    isCurrent = () => true,
-  ) {
+  async handlePlaybackError(track, audio, onRetrySuccess, onRetryFailed, isCurrent = () => true) {
     if (!track || !isCurrent()) return;
 
     // 本地音频播放失败
@@ -148,8 +130,7 @@ export class StreamService {
 
     // 尝试刷新播放地址
     this.retryCount++;
-    const resumeAt =
-      audio && Number.isFinite(audio.currentTime) ? audio.currentTime : 0;
+    const resumeAt = audio && Number.isFinite(audio.currentTime) ? audio.currentTime : 0;
 
     try {
       const newUrl = await this.getTrackUrl(track, {

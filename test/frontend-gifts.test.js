@@ -16,26 +16,17 @@ function response(payload) {
 const ROOT_DIR = path.join(__dirname, '..');
 
 test('gift workspace avoids a redundant page heading and exposes nine semantic panel titles', () => {
-  const page = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'pages', 'admin', 'gifts', 'page.html'),
-    'utf8',
-  );
+  const page = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin', 'gifts', 'page.html'), 'utf8');
   const styles = [
     readCssBundle('public', 'css', 'admin', 'gifts.css'),
     readCssBundle('public', 'css', 'admin', 'workspace.css'),
   ].join('\n');
 
   assert.doesNotMatch(page, /<h1 class="ui-page-title">礼物<\/h1>/);
-  assert.equal(
-    (page.match(/class="gift-section-title ui-section-title"/g) || []).length,
-    9,
-  );
+  assert.equal((page.match(/class="gift-section-title ui-section-title"/g) || []).length, 9);
   assert.match(styles, /\.gift-recent-heading \.gift-section-title\s*\{/);
   assert.match(styles, /\.blind-stats-heading \.gift-section-title\s*\{/);
-  assert.doesNotMatch(
-    styles,
-    /\.(?:gift-recent-heading|blind-stats-heading) h3\s*\{/,
-  );
+  assert.doesNotMatch(styles, /\.(?:gift-recent-heading|blind-stats-heading) h3\s*\{/);
   assert.match(
     styles,
     /\.app-shell \.gift-page \.panel-header h2\s*\{[\s\S]*?font-size:\s*var\(--type-size-section-title\)/,
@@ -44,18 +35,12 @@ test('gift workspace avoids a redundant page heading and exposes nine semantic p
 
 test('admin blind box summary shows one row per viewer and opens analysis', () => {
   const html = readAdminHtml();
-  const source = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'blindbox.js'),
-    'utf8',
-  );
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'blindbox.js'), 'utf8');
 
   assert.match(html, /id="blindBoxAnalysisOpenBtn"/);
   assert.match(html, /title="查看完整盲盒分析"/);
   assert.match(html, /<th>观众<\/th>\s*<th>盒数<\/th>\s*<th>盒型<\/th>/);
-  assert.match(
-    html,
-    /<th>总成本<\/th>\s*<th>开出价值<\/th>\s*<th>观众盈亏<\/th>/,
-  );
+  assert.match(html, /<th>总成本<\/th>\s*<th>开出价值<\/th>\s*<th>观众盈亏<\/th>/);
   assert.doesNotMatch(html, /id="blindBoxStatsTable"[\s\S]*?<th>时间<\/th>/);
   assert.match(source, /const users = Array\.isArray\(perUser\)/);
   assert.match(source, /data-viewer=/);
@@ -64,9 +49,7 @@ test('admin blind box summary shows one row per viewer and opens analysis', () =
 });
 
 test('blind box summary refreshes on gift events and coalesces in-flight updates', async () => {
-  const { EventBus } = await loadModuleExports(
-    path.join(ROOT_DIR, 'public', 'js', 'shared', 'event-bus.js'),
-  );
+  const { EventBus } = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'shared', 'event-bus.js'));
   const section = { dataset: {}, querySelector: () => null };
   const summary = { innerHTML: '', closest: () => section };
   const body = { innerHTML: '', addEventListener() {} };
@@ -84,29 +67,26 @@ test('blind box summary refreshes on gift events and coalesces in-flight updates
       },
     },
   };
-  await loadModuleExports(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'blindbox.js'),
-    {
-      window,
-      document: {
-        readyState: 'complete',
-        addEventListener() {},
-        querySelector: () => section,
-        getElementById: (id) =>
-          ({
-            blindBoxStatsSummary: summary,
-            blindBoxStatsBody: body,
-          })[id] || null,
-      },
-      fetch: (url) => {
-        if (url !== '/api/gifts/blind-box-stats') {
-          return Promise.resolve(response({ ok: true, data: { gifts: [] } }));
-        }
-        statsRequests += 1;
-        return new Promise((resolve) => pending.push(resolve));
-      },
+  await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'blindbox.js'), {
+    window,
+    document: {
+      readyState: 'complete',
+      addEventListener() {},
+      querySelector: () => section,
+      getElementById: (id) =>
+        ({
+          blindBoxStatsSummary: summary,
+          blindBoxStatsBody: body,
+        })[id] || null,
     },
-  );
+    fetch: (url) => {
+      if (url !== '/api/gifts/blind-box-stats') {
+        return Promise.resolve(response({ ok: true, data: { gifts: [] } }));
+      }
+      statsRequests += 1;
+      return new Promise((resolve) => pending.push(resolve));
+    },
+  });
   const empty = {
     summary: { boxCount: 0, totalCost: 0, totalValue: 0, totalProfit: 0 },
     perUser: [],

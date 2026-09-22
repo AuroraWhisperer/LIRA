@@ -6,12 +6,7 @@ import { api, copyText, localOverlayOrigin, toast } from '../shared/utils.js';
 let initialized = false;
 let currentSettings = {};
 const draftFields = new Set();
-const settingIds = [
-  'giftFrameEnabled',
-  'giftFrameThresholdRmb',
-  'giftFrameTheme',
-  'giftFrameMotionMode',
-];
+const settingIds = ['giftFrameEnabled', 'giftFrameThresholdRmb', 'giftFrameTheme', 'giftFrameMotionMode'];
 
 export function initGiftFrame() {
   if (initialized) return;
@@ -24,31 +19,22 @@ export function initGiftFrame() {
       event.target.dataset.dirty = 'true';
     }
   };
-  for (const id of settingIds)
-    document.getElementById(id).dataset.preserveDirty = 'true';
+  for (const id of settingIds) document.getElementById(id).dataset.preserveDirty = 'true';
   root.addEventListener('input', markDraft);
   root.addEventListener('change', markDraft);
 
   const overlayUrl = `${localOverlayOrigin(location)}/gift-effects`;
   document.getElementById('giftFrameOverlayUrl').textContent = overlayUrl;
-  document
-    .getElementById('giftFrameSaveBtn')
-    .addEventListener('click', saveSettings);
-  document
-    .getElementById('giftFramePreviewBtn')
-    .addEventListener('click', playPreview);
-  document
-    .getElementById('giftFrameCopyBtn')
-    .addEventListener('click', async () => {
-      await copyText(overlayUrl);
-      toast('礼物边框地址已复制');
-    });
+  document.getElementById('giftFrameSaveBtn').addEventListener('click', saveSettings);
+  document.getElementById('giftFramePreviewBtn').addEventListener('click', playPreview);
+  document.getElementById('giftFrameCopyBtn').addEventListener('click', async () => {
+    await copyText(overlayUrl);
+    toast('礼物边框地址已复制');
+  });
   document.getElementById('giftFrameOpenBtn').addEventListener('click', () => {
     window.open(`${overlayUrl}?preview=1&debug=1`, 'liraGiftFramePreview');
   });
-  window.addEventListener('app:settings-state', (event) =>
-    renderGiftFrame(event.detail || {}),
-  );
+  window.addEventListener('app:settings-state', (event) => renderGiftFrame(event.detail || {}));
   initialized = true;
   renderGiftFrame(currentSettings);
 }
@@ -65,8 +51,7 @@ export function renderGiftFrame(settings = {}) {
     ['giftFrameTheme', 'woodland-bloom'],
     ['giftFrameMotionMode', 'auto'],
   ]) {
-    if (!draftFields.has(id))
-      document.getElementById(id).value = settings[id] || fallback;
+    if (!draftFields.has(id)) document.getElementById(id).value = settings[id] || fallback;
   }
   const state = document.getElementById('giftFrameSettingsState');
   state.textContent = enabled.checked ? '已启用' : '未启用';
@@ -74,9 +59,7 @@ export function renderGiftFrame(settings = {}) {
 }
 
 async function saveSettings() {
-  const threshold = Number(
-    document.getElementById('giftFrameThresholdRmb').value,
-  );
+  const threshold = Number(document.getElementById('giftFrameThresholdRmb').value);
   if (!Number.isFinite(threshold) || threshold < 0) {
     setStatus('金额必须是大于等于 0 的数字。', 'error');
     return;
@@ -84,9 +67,7 @@ async function saveSettings() {
   const submitted = Object.fromEntries(
     settingIds.map((id) => [
       id,
-      id === 'giftFrameEnabled'
-        ? String(document.getElementById(id).checked)
-        : document.getElementById(id).value,
+      id === 'giftFrameEnabled' ? String(document.getElementById(id).checked) : document.getElementById(id).value,
     ]),
   );
   const values = {
@@ -97,9 +78,7 @@ async function saveSettings() {
     await api('/api/settings', values);
     for (const id of settingIds) {
       const current =
-        id === 'giftFrameEnabled'
-          ? String(document.getElementById(id).checked)
-          : document.getElementById(id).value;
+        id === 'giftFrameEnabled' ? String(document.getElementById(id).checked) : document.getElementById(id).value;
       if (current === submitted[id]) {
         draftFields.delete(id);
         document.getElementById(id).dataset.dirty = 'false';
@@ -113,16 +92,9 @@ async function saveSettings() {
 }
 
 async function playPreview() {
-  const amount = Number(
-    document.getElementById('giftFramePreviewAmount').value,
-  );
+  const amount = Number(document.getElementById('giftFramePreviewAmount').value);
   const num = Number(document.getElementById('giftFramePreviewNum').value);
-  if (
-    !Number.isFinite(amount) ||
-    amount <= 0 ||
-    !Number.isSafeInteger(num) ||
-    num <= 0
-  ) {
+  if (!Number.isFinite(amount) || amount <= 0 || !Number.isSafeInteger(num) || num <= 0) {
     setStatus('预览金额和数量需要填写有效值。', 'error');
     return;
   }

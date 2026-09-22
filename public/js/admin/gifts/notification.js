@@ -4,7 +4,7 @@ import { escapeHtml, formatMoney, showStackedToast } from '../../shared/utils.js
 // 礼物通知模块 - 负责礼物到账的 toast 通知显示
 import { getGiftToastArtwork } from './recent.js';
 
-'use strict';
+('use strict');
 
 export function createGiftNotification({ notify = showStackedToast } = {}) {
   let giftNoticeKeys = null;
@@ -39,23 +39,17 @@ export function createGiftNotification({ notify = showStackedToast } = {}) {
   }
 
   function giftNoticeKey(item) {
-    return [
-      Number(item.id || 0),
-      Number(item.num || 1),
-      Number(item.sprint_count_price ?? item.total_price ?? 0),
-    ].join(':');
+    return [Number(item.id || 0), Number(item.num || 1), Number(item.sprint_count_price ?? item.total_price ?? 0)].join(
+      ':',
+    );
   }
 
   function showGiftNotice(newest) {
     const newestId = Number(newest.id || 0);
-    const sprintPrice = Number(
-      newest.sprint_count_price ?? newest.total_price ?? 0,
-    );
+    const sprintPrice = Number(newest.sprint_count_price ?? newest.total_price ?? 0);
 
     // 检查是否启用礼物提示
-    const enableGiftNotification = document.getElementById(
-      'enableGiftNotification',
-    );
+    const enableGiftNotification = document.getElementById('enableGiftNotification');
     if (enableGiftNotification && !enableGiftNotification.checked) {
       return;
     }
@@ -66,9 +60,7 @@ export function createGiftNotification({ notify = showStackedToast } = {}) {
     const coinType = String(newest.coin_type || '').toLowerCase();
     const giftId = String(newest.gift_id || '').toLowerCase();
     const isBlindBox = !!newest.is_blind_box;
-    const blindBoxName = newest.blind_box_name
-      ? escapeHtml(newest.blind_box_name)
-      : '';
+    const blindBoxName = newest.blind_box_name ? escapeHtml(newest.blind_box_name) : '';
 
     // 判断礼物类型变体
     let variantClass = '';
@@ -78,11 +70,7 @@ export function createGiftNotification({ notify = showStackedToast } = {}) {
       variantClass = ' gift-blind-box';
     } else if (sprintPrice >= 100) {
       variantClass = ' gift-premium';
-    } else if (
-      sprintPrice <= 0 ||
-      coinType === 'free' ||
-      coinType === 'silver'
-    ) {
+    } else if (sprintPrice <= 0 || coinType === 'free' || coinType === 'silver') {
       variantClass = ' gift-free';
     }
 

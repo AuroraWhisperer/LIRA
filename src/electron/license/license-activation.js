@@ -14,15 +14,10 @@ async function requestDeviceActivation(options = {}) {
   const pending = options.keyStore.prepareActivation();
   const { keyPair } = pending;
 
-  const fingerprint = normalizeFingerprint(
-    await options.fingerprintProvider.collect(),
-  );
+  const fingerprint = normalizeFingerprint(await options.fingerprintProvider.collect());
   if (!options.isActive()) return null;
   if (countFingerprintValues(fingerprint) < 2)
-    throw new RemoteLicenseError(
-      'FINGERPRINT_UNAVAILABLE',
-      '无法读取足够的设备标识，暂时无法完成绑定。',
-    );
+    throw new RemoteLicenseError('FINGERPRINT_UNAVAILABLE', '无法读取足够的设备标识，暂时无法完成绑定。');
 
   const build = options.buildInfoProvider();
   const deviceName = String(options.deviceName || os.hostname())
@@ -57,11 +52,7 @@ async function requestDeviceActivation(options = {}) {
   });
   if (!options.isActive()) return null;
   if (!result?.deviceId)
-    throw new RemoteLicenseError(
-      'INVALID_RESPONSE',
-      '授权服务器返回无效响应。',
-      { retryable: true },
-    );
+    throw new RemoteLicenseError('INVALID_RESPONSE', '授权服务器返回无效响应。', { retryable: true });
 
   pending.commit();
   return {

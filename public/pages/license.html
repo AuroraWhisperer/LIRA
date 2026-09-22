@@ -17,22 +17,12 @@
           <span>LIRA</span>
         </div>
         <div class="license-window-controls" aria-label="窗口控制">
-          <button
-            id="licenseMinimizeBtn"
-            type="button"
-            aria-label="最小化"
-            title="最小化"
-          >
+          <button id="licenseMinimizeBtn" type="button" aria-label="最小化" title="最小化">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <use href="/img/shared/window-controls.svg#minus"></use>
             </svg>
           </button>
-          <button
-            id="licenseMaximizeBtn"
-            type="button"
-            aria-label="最大化"
-            title="最大化"
-          >
+          <button id="licenseMaximizeBtn" type="button" aria-label="最大化" title="最大化">
             <svg class="maximize-icon" viewBox="0 0 24 24" aria-hidden="true">
               <use href="/img/shared/window-controls.svg#square"></use>
             </svg>
@@ -40,13 +30,7 @@
               <use href="/img/shared/window-controls.svg#copy"></use>
             </svg>
           </button>
-          <button
-            id="licenseCloseBtn"
-            class="close"
-            type="button"
-            aria-label="退出 LIRA"
-            title="退出 LIRA"
-          >
+          <button id="licenseCloseBtn" class="close" type="button" aria-label="退出 LIRA" title="退出 LIRA">
             <svg viewBox="0 0 24 24" aria-hidden="true">
               <use href="/img/shared/window-controls.svg#x"></use>
             </svg>
@@ -78,38 +62,19 @@
             </div>
             <p class="license-intro-caption">
               <span class="license-signal" aria-hidden="true">
-                <span></span><span></span><span></span><span></span
-                ><span></span>
+                <span></span><span></span><span></span><span></span><span></span>
               </span>
               点歌 · 弹幕 · 礼物
             </p>
           </aside>
-          <section
-            id="licenseLoginCard"
-            class="license-card"
-            aria-labelledby="licenseHeading"
-          >
-            <div
-              class="license-account-modes"
-              role="group"
-              aria-label="账号入口"
-            >
-              <button
-                id="licenseRegisterMode"
-                type="button"
-                aria-pressed="true"
-              >
-                注册新账号
-              </button>
-              <button id="licenseLoginMode" type="button" aria-pressed="false">
-                登录已有账号
-              </button>
+          <section id="licenseLoginCard" class="license-card" aria-labelledby="licenseHeading">
+            <div class="license-account-modes" role="group" aria-label="账号入口">
+              <button id="licenseRegisterMode" type="button" aria-pressed="true">注册新账号</button>
+              <button id="licenseLoginMode" type="button" aria-pressed="false">登录已有账号</button>
             </div>
             <div class="license-card-heading">
               <h1 id="licenseHeading">注册 LIRA</h1>
-              <p id="licenseModeDescription">
-                创建账号并授权这台电脑
-              </p>
+              <p id="licenseModeDescription">创建账号并授权这台电脑</p>
             </div>
             <form id="licenseForm" novalidate>
               <div class="license-field">
@@ -164,16 +129,8 @@
                     aria-controls="licensePassword"
                     title="显示密码"
                   >
-                    <svg
-                      width="18"
-                      height="18"
-                      viewBox="0 0 24 24"
-                      aria-hidden="true"
-                    >
-                      <use
-                        id="licensePasswordIcon"
-                        href="/img/shared/password-visibility.svg#eye"
-                      />
+                    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                      <use id="licensePasswordIcon" href="/img/shared/password-visibility.svg#eye" />
                     </svg>
                   </button>
                 </div>
@@ -191,42 +148,18 @@
                   placeholder="XXXX-XXXX-XXXX-XXXX"
                   required
                 />
-                <small id="licenseCodeHelp"
-                  >由管理员下发的一次性注册码，用户名不可重复</small
-                >
+                <small id="licenseCodeHelp">由管理员下发的一次性注册码，用户名不可重复</small>
               </label>
-              <p
-                id="licenseStatus"
-                class="license-status"
-                role="status"
-                aria-live="polite"
-              >
+              <p id="licenseStatus" class="license-status" role="status" aria-live="polite">
                 激活功能正在加载；若长时间无响应，请重启 LIRA。
               </p>
-              <button
-                id="licenseSubmitBtn"
-                class="license-submit"
-                type="submit"
-                disabled
-              >
+              <button id="licenseSubmitBtn" class="license-submit" type="submit" disabled>
                 <span id="licenseSubmitLabel">注册并进入</span>
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                >
+                <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M5 12h14m-5-5 5 5-5 5" />
                 </svg>
               </button>
-              <button
-                id="licenseRetryBtn"
-                class="license-retry"
-                type="button"
-                hidden
-              >
-                重试连接
-              </button>
+              <button id="licenseRetryBtn" class="license-retry" type="button" hidden>重试连接</button>
             </form>
           </section>
           <section
@@ -238,9 +171,7 @@
           >
             <div class="license-card-heading">
               <p class="license-kicker">首次使用准备</p>
-              <h1 id="giftCatalogInitializationHeading">
-                正在为你准备直播工具
-              </h1>
+              <h1 id="giftCatalogInitializationHeading">正在为你准备直播工具</h1>
             </div>
             <div class="license-progress-heading">
               <strong id="giftCatalogInitializationPercent">0%</strong>
@@ -259,22 +190,8 @@
               aria-live="polite"
               hidden
             ></p>
-            <button
-              id="giftCatalogInitializationRetryBtn"
-              class="license-retry"
-              type="button"
-              hidden
-            >
-              重试
-            </button>
-            <button
-              id="giftCatalogInitializationBackBtn"
-              class="license-retry"
-              type="button"
-              hidden
-            >
-              返回登录
-            </button>
+            <button id="giftCatalogInitializationRetryBtn" class="license-retry" type="button" hidden>重试</button>
+            <button id="giftCatalogInitializationBackBtn" class="license-retry" type="button" hidden>返回登录</button>
           </section>
         </div>
       </main>

@@ -37,10 +37,15 @@ function fixture(t, { existingIdentity = true } = {}) {
   const original = fs.readFileSync(keyStore.keyPath);
   const pendingKeyPath = path.join(dataDir, 'license', 'device-key.pending.bin');
   const stateStore = createLicenseStateStore({ dataDir });
-  if (existingIdentity) stateStore.write({
-    deviceId: 'fixture-device', licenseId: 'fixture-license', streamerId: 1,
-    accountName: 'fixture', publicKeyPem: oldKey.publicKeyPem, keyProtection: 'dpapi',
-  });
+  if (existingIdentity)
+    stateStore.write({
+      deviceId: 'fixture-device',
+      licenseId: 'fixture-license',
+      streamerId: 1,
+      accountName: 'fixture',
+      publicKeyPem: oldKey.publicKeyPem,
+      keyProtection: 'dpapi',
+    });
   const calls = { activate: [], verify: 0 };
   let boundPublicKey = oldKey.publicKeyPem;
   const remote = {
@@ -62,22 +67,41 @@ function fixture(t, { existingIdentity = true } = {}) {
       if (!crypto.verify('sha256', Buffer.from(canonical), boundPublicKey, Buffer.from(body.signature, 'base64')))
         throw new RemoteLicenseError('SIGNATURE_INVALID', 'wrong key', { status: 401 });
       return {
-        deviceId: 'fixture-device', licenseId: 'fixture-license', sessionId: 'fixture-session',
-        accessToken: 'fixture-token', expiresIn: '10m', streamer: { accountName: 'fixture', subdomain: 'fixture' },
+        deviceId: 'fixture-device',
+        licenseId: 'fixture-license',
+        sessionId: 'fixture-session',
+        accessToken: 'fixture-token',
+        expiresIn: '10m',
+        streamer: { accountName: 'fixture', subdomain: 'fixture' },
       };
     },
   };
   function createManager(extra = {}) {
     const manager = createLicenseManager({
-      keyStore: createStore(), stateStore, remoteClient: remote,
-      fingerprintProvider: { collect: async () => ({ version: 1, machineGuidHash: 'a'.repeat(64), smbiosUuidHash: 'b'.repeat(64) }) },
+      keyStore: createStore(),
+      stateStore,
+      remoteClient: remote,
+      fingerprintProvider: {
+        collect: async () => ({ version: 1, machineGuidHash: 'a'.repeat(64), smbiosUuidHash: 'b'.repeat(64) }),
+      },
       buildInfoProvider: () => ({ appVersion: '4.2.3', buildId: 'fixture', integrityStatus: 'unverified' }),
       ...extra,
     });
     managers.push(manager);
     return manager;
   }
-  return { createManager, createStore, keyStore, stateStore, safeStorage, remote, calls, original, originalCipher, pendingKeyPath };
+  return {
+    createManager,
+    createStore,
+    keyStore,
+    stateStore,
+    safeStorage,
+    remote,
+    calls,
+    original,
+    originalCipher,
+    pendingKeyPath,
+  };
 }
 
 test('lost reinstall responses retain the encrypted candidate and recover after manager reconstruction without reusing the code', async (t) => {
@@ -91,9 +115,11 @@ test('lost reinstall responses retain the encrypted candidate and recover after 
   const recovered = f.createManager();
   const observed = [];
   recovered.onStateChanged((snapshot) => {
-    if (snapshot.state === LicenseState.AUTHORIZED) observed.push({
-      publicKey: f.createStore().getPublicKey(), identityKey: f.stateStore.read().publicKeyPem,
-    });
+    if (snapshot.state === LicenseState.AUTHORIZED)
+      observed.push({
+        publicKey: f.createStore().getPublicKey(),
+        identityKey: f.stateStore.read().publicKeyPem,
+      });
   });
   await recovered.bootstrap();
   assert.equal(recovered.getState(), LicenseState.AUTHORIZED);
@@ -167,9 +193,13 @@ test('disposing during candidate verification preserves both files without publi
   await f.createManager().activate(input);
   const verify = f.remote.verify;
   let finish;
-  const waiting = new Promise((resolve) => { finish = resolve; });
+  const waiting = new Promise((resolve) => {
+    finish = resolve;
+  });
   let entered;
-  const started = new Promise((resolve) => { entered = resolve; });
+  const started = new Promise((resolve) => {
+    entered = resolve;
+  });
   f.remote.verify = async (body) => {
     entered();
     await waiting;
@@ -218,7 +248,9 @@ for (const failure of ['promotion', 'identity']) {
         return renameSync(source, target);
       });
     } else {
-      stateStore.write = () => { throw Object.assign(new Error('synthetic identity failure'), { code: 'EIO' }); };
+      stateStore.write = () => {
+        throw Object.assign(new Error('synthetic identity failure'), { code: 'EIO' });
+      };
     }
     const manager = f.createManager({ stateStore });
     const states = [];

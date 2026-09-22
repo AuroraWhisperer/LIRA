@@ -29,10 +29,7 @@ test('toolbox sidebar restores the durable preference when the legacy cache is a
       toolboxSidebarCollapsed: setting,
     });
 
-    assert.equal(
-      runtime.root.classList.contains('sidebar-collapsed'),
-      expected,
-    );
+    assert.equal(runtime.root.classList.contains('sidebar-collapsed'), expected);
     assert.equal(runtime.stored.get('admin.toolboxSidebarCollapsed'), setting);
     assert.deepEqual(persisted, []);
   }
@@ -60,10 +57,7 @@ test('toolbox sidebar migrates the legacy preference and saves explicit toggles'
 });
 
 test('admin app persists toolbox sidebar changes through the settings API', () => {
-  const source = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'app.js'),
-    'utf8',
-  );
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'app.js'), 'utf8');
 
   assert.match(
     source,
@@ -97,22 +91,13 @@ test('toolbox feature groups restore after a full application restart', () => {
     toolboxCollapsedFeatureGroups: durableGroups,
   });
 
-  assert.equal(
-    secondRuntime.headings[0].getAttribute('aria-expanded'),
-    'false',
-  );
-  assert.equal(
-    secondRuntime.headings[1].getAttribute('aria-expanded'),
-    'false',
-  );
+  assert.equal(secondRuntime.headings[0].getAttribute('aria-expanded'), 'false');
+  assert.equal(secondRuntime.headings[1].getAttribute('aria-expanded'), 'false');
   assert.equal(
     secondRuntime.buttons.slice(0, 7).every((button) => button.hidden),
     true,
   );
-  assert.equal(
-    secondRuntime.stored.get('admin.toolboxCollapsedFeatureGroups'),
-    '["live-interaction","live-scene"]',
-  );
+  assert.equal(secondRuntime.stored.get('admin.toolboxCollapsedFeatureGroups'), '["live-interaction","live-scene"]');
 });
 
 test('toolbox feature groups migrate cached state and ignore malformed or stale IDs', () => {
@@ -130,10 +115,7 @@ test('toolbox feature groups migrate cached state and ignore malformed or stale 
     toolboxCollapsedFeatureGroups: '',
   });
 
-  assert.equal(
-    cachedRuntime.headings[0].getAttribute('aria-expanded'),
-    'false',
-  );
+  assert.equal(cachedRuntime.headings[0].getAttribute('aria-expanded'), 'false');
   assert.equal(
     cachedRuntime.buttons.slice(0, 3).every((button) => button.hidden),
     true,
@@ -149,16 +131,7 @@ test('toolbox feature groups migrate cached state and ignore malformed or stale 
     toolboxCollapsedFeatureGroups: '["live-scene","removed-group"]',
   });
 
-  assert.equal(
-    durableRuntime.headings[0].getAttribute('aria-expanded'),
-    'true',
-  );
-  assert.equal(
-    durableRuntime.headings[1].getAttribute('aria-expanded'),
-    'false',
-  );
-  assert.equal(
-    durableRuntime.stored.get('admin.toolboxCollapsedFeatureGroups'),
-    '["live-scene"]',
-  );
+  assert.equal(durableRuntime.headings[0].getAttribute('aria-expanded'), 'true');
+  assert.equal(durableRuntime.headings[1].getAttribute('aria-expanded'), 'false');
+  assert.equal(durableRuntime.stored.get('admin.toolboxCollapsedFeatureGroups'), '["live-scene"]');
 });

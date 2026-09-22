@@ -44,13 +44,9 @@ function createSettingsStore(db) {
   // Initialize defaults into DB on first call
   for (const [key, value] of Object.entries(DEFAULT_SETTINGS)) {
     if (key === 'desktopLyricKaraokeMode') {
-      const existingMode = db
-        .prepare('SELECT value FROM settings WHERE key = ?')
-        .get(key);
+      const existingMode = db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
       if (!existingMode) {
-        const legacyEnabled = db
-          .prepare('SELECT value FROM settings WHERE key = ?')
-          .get('desktopLyricKaraokeEnabled');
+        const legacyEnabled = db.prepare('SELECT value FROM settings WHERE key = ?').get('desktopLyricKaraokeEnabled');
         const initialMode = legacyEnabled?.value === 'false' ? 'off' : value;
         db.prepare(
           `
@@ -94,9 +90,7 @@ function createSettingsStore(db) {
     getSettings,
 
     prepareCloudRoomAccount(accountKey) {
-      const owner = db
-        .prepare('SELECT value FROM settings WHERE key = ?')
-        .get(CLOUD_ROOM_ACCOUNT_KEY)?.value;
+      const owner = db.prepare('SELECT value FROM settings WHERE key = ?').get(CLOUD_ROOM_ACCOUNT_KEY)?.value;
       if (owner === accountKey) return false;
       // Ownership and detachment must survive a crash as one change.
       db.exec('BEGIN IMMEDIATE');
@@ -119,9 +113,7 @@ function createSettingsStore(db) {
 
     setSettings(values) {
       const previous = getSettings();
-      const changes = Object.entries(values).filter(
-        ([key, value]) => previous[key] !== value,
-      );
+      const changes = Object.entries(values).filter(([key, value]) => previous[key] !== value);
       if (changes.length === 0) return [];
       db.exec('BEGIN IMMEDIATE');
       try {

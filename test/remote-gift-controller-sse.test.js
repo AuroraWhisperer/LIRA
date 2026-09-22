@@ -2,13 +2,8 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const {
-  GiftSyncState,
-  createRemoteGiftController,
-} = require('../src/electron/remote-gift-controller');
-const {
-  createRemoteLicenseClient,
-} = require('../src/electron/license/remote-license-client');
+const { GiftSyncState, createRemoteGiftController } = require('../src/electron/remote-gift-controller');
+const { createRemoteLicenseClient } = require('../src/electron/license/remote-license-client');
 const {
   capabilityPage,
   createDeferred,
@@ -41,9 +36,7 @@ test('SSE epoch mismatch triggers a generation-safe rebuild', async () => {
       finalCursor: 10,
     },
     streamEpochs: ['epoch-2', 'epoch-1'],
-    historyPages: new Map([
-      [null, historyPage({ eventIds: ['rebuilt'], recoveryCursor: 10 })],
-    ]),
+    historyPages: new Map([[null, historyPage({ eventIds: ['rebuilt'], recoveryCursor: 10 })]]),
   });
   const controller = createRemoteGiftController(fixture.options);
 
@@ -61,8 +54,7 @@ test('transient discovery failure retries initialization and reaches LIVE', asyn
   const fixture = createFixture({
     getGiftEventsPage() {
       attempts += 1;
-      if (attempts === 1)
-        throw Object.assign(new Error('REQUEST_TIMEOUT'), { retryable: true });
+      if (attempts === 1) throw Object.assign(new Error('REQUEST_TIMEOUT'), { retryable: true });
       return capabilityPage();
     },
   });
@@ -87,16 +79,10 @@ test('a final event burst shares one cursor catch-up task', async () => {
     return capabilityPage({
       nextCursor: 30,
       latestCursor: 30,
-      events:
-        pulls === 1
-          ? Array.from({ length: 20 }, (_, i) =>
-              makeEvent(`burst-${i}`, i + 11),
-            )
-          : [],
+      events: pulls === 1 ? Array.from({ length: 20 }, (_, i) => makeEvent(`burst-${i}`, i + 11)) : [],
     });
   };
-  for (let i = 0; i < 20; i += 1)
-    fixture.stream.onEvent(makeEvent(`burst-${i}`, i + 11));
+  for (let i = 0; i < 20; i += 1) fixture.stream.onEvent(makeEvent(`burst-${i}`, i + 11));
   await controller.whenIdle();
   assert.equal(controller.getCursor(), 30);
   assert.equal(pulls, 1);
@@ -191,34 +177,20 @@ test('validated SSE canonical events reach progress and immediate final handoff'
     assert.equal(controller.getStatus().state, GiftSyncState.LIVE);
 
     const progress = { ...makeEvent('sse-progress', null), phase: 'progress' };
-    streamController.enqueue(
-      encoder.encode(
-        `event: gift-event\ndata: ${JSON.stringify(progress)}\n\n`,
-      ),
-    );
-    await waitFor(() =>
-      receivedEvents.some((event) => event.eventId === 'sse-progress'),
-    );
-    const progressEvent = receivedEvents.find(
-      (event) => event.eventId === 'sse-progress',
-    );
+    streamController.enqueue(encoder.encode(`event: gift-event\ndata: ${JSON.stringify(progress)}\n\n`));
+    await waitFor(() => receivedEvents.some((event) => event.eventId === 'sse-progress'));
+    const progressEvent = receivedEvents.find((event) => event.eventId === 'sse-progress');
     assert.equal(progressEvent.cursor, null);
     assert.equal(progressEvent.gift.unitPriceCents, 10);
     assert.equal(progressEvent.gift.totalPriceCents, 10);
 
     streamController.enqueue(
-      encoder.encode(
-        `event: gift-event\ndata: ${JSON.stringify(makeEvent('sse-final', 11))}\n\n`,
-      ),
+      encoder.encode(`event: gift-event\ndata: ${JSON.stringify(makeEvent('sse-final', 11))}\n\n`),
     );
     await waitFor(() => recoveryCalls === 2);
-    await waitFor(() =>
-      receivedEvents.some((event) => event.eventId === 'sse-final'),
-    );
+    await waitFor(() => receivedEvents.some((event) => event.eventId === 'sse-final'));
 
-    const finalEvent = receivedEvents.find(
-      (event) => event.eventId === 'sse-final',
-    );
+    const finalEvent = receivedEvents.find((event) => event.eventId === 'sse-final');
     assert.equal(finalEvent.phase, 'final');
     assert.equal(finalEvent.gift.totalPriceCents, 10);
     assert.equal(controller.getCursor(), 10);
@@ -229,9 +201,7 @@ test('validated SSE canonical events reach progress and immediate final handoff'
     );
   } finally {
     controller.dispose();
-    delayedRecovery?.resolve(
-      capabilityPage({ nextCursor: 10, latestCursor: 10 }),
-    );
+    delayedRecovery?.resolve(capabilityPage({ nextCursor: 10, latestCursor: 10 }));
     await controller.whenIdle();
   }
 });
@@ -297,9 +267,7 @@ test('gift SSE wire boundary rejects malformed and privacy-sensitive extra field
         ].join(''),
       ),
     );
-    await waitFor(() =>
-      receivedEvents.some((event) => event.eventId === 'valid-progress'),
-    );
+    await waitFor(() => receivedEvents.some((event) => event.eventId === 'valid-progress'));
 
     assert.deepEqual(
       receivedEvents.map((event) => event.eventId),
@@ -376,11 +344,7 @@ test('a final SSE cursor gap waits for ordered catch-up', async () => {
 
   deferred.resolve(
     capabilityPage({
-      events: [
-        makeEvent('recovered-11', 11),
-        makeEvent('recovered-12', 12),
-        event,
-      ],
+      events: [makeEvent('recovered-11', 11), makeEvent('recovered-12', 12), event],
       nextCursor: 13,
       latestCursor: 13,
     }),

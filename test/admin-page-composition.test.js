@@ -4,29 +4,19 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
-const {
-  ADMIN_FRAGMENT_PATHS,
-  composeAdminHtml,
-  isAdminPageRoute,
-} = require('../src/server/admin-page');
+const { ADMIN_FRAGMENT_PATHS, composeAdminHtml, isAdminPageRoute } = require('../src/server/admin-page');
 const { servePageOrAsset } = require('../src/server/http-utils');
 
 const ROOT_DIR = path.join(__dirname, '..');
 const PUBLIC_DIR = path.join(ROOT_DIR, 'public');
 
 test('admin routes use one explicit ordered fragment composition', () => {
-  assert.deepEqual(
-    ['/', '/admin', '/settings', '/songs'].map(isAdminPageRoute),
-    [true, true, true, true],
-  );
+  assert.deepEqual(['/', '/admin', '/settings', '/songs'].map(isAdminPageRoute), [true, true, true, true]);
   assert.equal(isAdminPageRoute('/queue'), false);
   assert.ok(Object.isFrozen(ADMIN_FRAGMENT_PATHS));
   assert.equal(ADMIN_FRAGMENT_PATHS[0], 'pages/admin/shell-start.html');
   assert.equal(ADMIN_FRAGMENT_PATHS.at(-1), 'pages/admin/document-end.html');
-  assert.equal(
-    fs.existsSync(path.join(PUBLIC_DIR, 'pages', 'admin.html')),
-    false,
-  );
+  assert.equal(fs.existsSync(path.join(PUBLIC_DIR, 'pages', 'admin.html')), false);
 });
 
 test('admin composition expands the complete danmaku AI subfragment in place', () => {
@@ -34,10 +24,7 @@ test('admin composition expands the complete danmaku AI subfragment in place', (
   const aiPath = 'pages/admin/toolbox/danmaku-ai.html';
   const parent = fs.readFileSync(path.join(PUBLIC_DIR, parentPath), 'utf8');
 
-  assert.match(
-    parent,
-    /<!-- admin-fragment: pages\/admin\/toolbox\/danmaku-ai\.html -->/,
-  );
+  assert.match(parent, /<!-- admin-fragment: pages\/admin\/toolbox\/danmaku-ai\.html -->/);
   assert.doesNotMatch(parent, /id="xiaomiAiSection"/);
   assert.equal(ADMIN_FRAGMENT_PATHS.includes(aiPath), false);
 
@@ -49,9 +36,7 @@ test('admin composition expands the complete danmaku AI subfragment in place', (
   const html = composeAdminHtml(PUBLIC_DIR);
   assert.doesNotMatch(html, /<!-- admin-fragment:/);
   assert.ok(html.indexOf('id="danmakuSendForm"') < html.indexOf(ai.trim()));
-  assert.ok(
-    html.indexOf(ai.trim()) < html.indexOf('id="danmakuFixedReplyTitle"'),
-  );
+  assert.ok(html.indexOf(ai.trim()) < html.indexOf('id="danmakuFixedReplyTitle"'));
 });
 
 test('admin composition expands complete desktop lyric regions in order', () => {
@@ -64,10 +49,7 @@ test('admin composition expands complete desktop lyric regions in order', () => 
     'pages/admin/song/desktop-lyric-preview.html',
   ];
   const parent = fs.readFileSync(path.join(PUBLIC_DIR, parentPath), 'utf8');
-  const markers = Array.from(
-    parent.matchAll(/<!-- admin-fragment: ([^ ]+\.html) -->/g),
-    (match) => match[1],
-  );
+  const markers = Array.from(parent.matchAll(/<!-- admin-fragment: ([^ ]+\.html) -->/g), (match) => match[1]);
 
   assert.deepEqual(markers, fragmentPaths);
   assert.match(parent, /^\s*<div id="desktopLyricPage"[\s\S]*<\/div>\s*$/);
@@ -79,35 +61,16 @@ test('admin composition expands complete desktop lyric regions in order', () => 
     assert.equal(ADMIN_FRAGMENT_PATHS.includes(fragmentPath), false);
   }
 
-  const fragments = fragmentPaths.map((fragmentPath) =>
-    fs.readFileSync(path.join(PUBLIC_DIR, fragmentPath), 'utf8'),
-  );
-  assert.match(
-    fragments[0],
-    /^\s*<details\b[^>]*is-basic[\s\S]*is-effect[\s\S]*<\/details>\s*$/,
-  );
-  assert.match(
-    fragments[1],
-    /^\s*<details\b[^>]*is-content[\s\S]*is-visibility[\s\S]*<\/details>\s*$/,
-  );
-  assert.match(
-    fragments[2],
-    /^\s*<details\b[^>]*is-layout[\s\S]*<\/details>\s*$/,
-  );
-  assert.match(
-    fragments[3],
-    /^\s*<details\b[^>]*is-render[\s\S]*desktopLyricResetBtn[\s\S]*<\/section>\s*$/,
-  );
-  assert.match(
-    fragments[4],
-    /^\s*<section\b[^>]*id="desktopLyricLivePreview"[\s\S]*<\/section>\s*$/,
-  );
+  const fragments = fragmentPaths.map((fragmentPath) => fs.readFileSync(path.join(PUBLIC_DIR, fragmentPath), 'utf8'));
+  assert.match(fragments[0], /^\s*<details\b[^>]*is-basic[\s\S]*is-effect[\s\S]*<\/details>\s*$/);
+  assert.match(fragments[1], /^\s*<details\b[^>]*is-content[\s\S]*is-visibility[\s\S]*<\/details>\s*$/);
+  assert.match(fragments[2], /^\s*<details\b[^>]*is-layout[\s\S]*<\/details>\s*$/);
+  assert.match(fragments[3], /^\s*<details\b[^>]*is-render[\s\S]*desktopLyricResetBtn[\s\S]*<\/section>\s*$/);
+  assert.match(fragments[4], /^\s*<section\b[^>]*id="desktopLyricLivePreview"[\s\S]*<\/section>\s*$/);
 
   const html = composeAdminHtml(PUBLIC_DIR);
   assert.doesNotMatch(html, /<!-- admin-fragment:/);
-  let previousIndex = html.indexOf(
-    'class="theme-section desktop-lyric-source-settings"',
-  );
+  let previousIndex = html.indexOf('class="theme-section desktop-lyric-source-settings"');
   for (const fragment of fragments) {
     const index = html.indexOf(fragment.trim());
     assert.ok(index > previousIndex);
@@ -118,52 +81,58 @@ test('admin composition expands complete desktop lyric regions in order', () => 
   }
 });
 
+test('admin composition keeps every help chapter in its table-of-contents order', () => {
+  const html = composeAdminHtml(PUBLIC_DIR);
+  const chapterIds = Array.from(
+    html.matchAll(/<section class="usage-guide-section" id="([^"]+)"/g),
+    (match) => match[1],
+  );
+
+  assert.deepEqual(chapterIds, [
+    'ug-quick',
+    'ug-accounts',
+    'ug-reinstall',
+    'ug-flow',
+    'ug-song',
+    'ug-playback',
+    'ug-gifts',
+    'ug-toolbox',
+    'ug-deepseek',
+    'ug-obs',
+    'ug-cheatsheet',
+    'ug-web-songlist',
+    'ug-data',
+    'ug-appearance',
+    'ug-glossary',
+    'ug-faq',
+  ]);
+  assert.doesNotMatch(html, /<!-- admin-fragment:/);
+  for (const id of chapterIds) {
+    assert.match(html, new RegExp(`href="#${id}" data-usage-guide-link`));
+  }
+});
+
 test('composed admin page is complete, ordered, and has unique ids', () => {
   const html = composeAdminHtml(PUBLIC_DIR);
-  const shellStart = fs.readFileSync(
-    path.join(PUBLIC_DIR, 'pages/admin/shell-start.html'),
-    'utf8',
-  );
-  const songShellStart = fs.readFileSync(
-    path.join(PUBLIC_DIR, 'pages/admin/song/shell-start.html'),
-    'utf8',
-  );
-  const toolboxShellStart = fs.readFileSync(
-    path.join(PUBLIC_DIR, 'pages/admin/toolbox/shell-start.html'),
-    'utf8',
-  );
+  const shellStart = fs.readFileSync(path.join(PUBLIC_DIR, 'pages/admin/shell-start.html'), 'utf8');
+  const songShellStart = fs.readFileSync(path.join(PUBLIC_DIR, 'pages/admin/song/shell-start.html'), 'utf8');
+  const toolboxShellStart = fs.readFileSync(path.join(PUBLIC_DIR, 'pages/admin/toolbox/shell-start.html'), 'utf8');
 
   assert.match(html, /<!doctype html>/);
   assert.match(html, /<\/html>\s*$/);
   assert.match(shellStart, /<\/header>\s*$/);
   assert.match(songShellStart, /<\/button>\s*<\/div>\s*$/);
   assert.match(toolboxShellStart, /<div class="other-feature-content">\s*$/);
-  assert.ok(
-    html.indexOf('id="songAssistantPage"') <
-      html.indexOf('id="giftAssistantPage"'),
-  );
-  assert.ok(
-    html.indexOf('id="giftAssistantPage"') <
-      html.indexOf('id="otherAssistantPage"'),
-  );
-  assert.ok(
-    html.indexOf('id="otherAssistantPage"') <
-      html.indexOf('id="playbackAssistantPage"'),
-  );
-  for (const pageId of [
-    'songAssistantPage',
-    'giftAssistantPage',
-    'otherAssistantPage',
-    'playbackAssistantPage',
-  ]) {
+  assert.ok(html.indexOf('id="songAssistantPage"') < html.indexOf('id="giftAssistantPage"'));
+  assert.ok(html.indexOf('id="giftAssistantPage"') < html.indexOf('id="otherAssistantPage"'));
+  assert.ok(html.indexOf('id="otherAssistantPage"') < html.indexOf('id="playbackAssistantPage"'));
+  for (const pageId of ['songAssistantPage', 'giftAssistantPage', 'otherAssistantPage', 'playbackAssistantPage']) {
     assert.ok(html.indexOf(`id="${pageId}"`) < html.indexOf('</main>'));
   }
   assert.equal((html.match(/<\/main>/g) || []).length, 1);
   assert.equal((html.match(/<\/body>/g) || []).length, 1);
   assert.equal((html.match(/<\/html>/g) || []).length, 1);
-  assert.ok(
-    html.indexOf('/js/admin/index.js') < html.indexOf('/js/playback.js'),
-  );
+  assert.ok(html.indexOf('/js/admin/index.js') < html.indexOf('/js/playback.js'));
 
   const ids = Array.from(html.matchAll(/\sid="([^"]+)"/g), (match) => match[1]);
   const duplicateIds = ids.filter((id, index) => ids.indexOf(id) !== index);

@@ -25,11 +25,7 @@ test('lyric lines share bounds while word spacing remains significant', () => {
 test('lyric state normalization limits browser-source payloads', () => {
   const state = normalizeLyricState({
     trackTitle: ` Song\u0000${'x'.repeat(200)} `,
-    artists: [
-      'Artist',
-      '',
-      ...Array.from({ length: 10 }, (_, index) => `Guest ${index}`),
-    ],
+    artists: ['Artist', '', ...Array.from({ length: 10 }, (_, index) => `Guest ${index}`)],
     lineText: '<b>lyric</b>',
     words: [
       { text: 'first ', startMs: -20, endMs: 100 },
@@ -59,50 +55,22 @@ test('lyric state normalization limits browser-source payloads', () => {
 });
 
 test('obsolete Electron lyric window path is removed', () => {
-  const mainSource = fs.readFileSync(
-    path.join(ROOT_DIR, 'src', 'electron', 'main.js'),
-    'utf8',
-  );
-  const ipcSource = fs.readFileSync(
-    path.join(ROOT_DIR, 'src', 'electron', 'ipc', 'music-ipc.js'),
-    'utf8',
-  );
-  const preloadSource = fs.readFileSync(
-    path.join(ROOT_DIR, 'src', 'electron', 'preload.js'),
-    'utf8',
-  );
+  const mainSource = fs.readFileSync(path.join(ROOT_DIR, 'src', 'electron', 'main.js'), 'utf8');
+  const ipcSource = fs.readFileSync(path.join(ROOT_DIR, 'src', 'electron', 'ipc', 'music-ipc.js'), 'utf8');
+  const preloadSource = fs.readFileSync(path.join(ROOT_DIR, 'src', 'electron', 'preload.js'), 'utf8');
   const serviceSource = fs.readFileSync(
-    path.join(
-      ROOT_DIR,
-      'public',
-      'js',
-      'playback',
-      'services',
-      'lyric-service.js',
-    ),
+    path.join(ROOT_DIR, 'public', 'js', 'playback', 'services', 'lyric-service.js'),
     'utf8',
   );
 
-  assert.equal(
-    fs.existsSync(path.join(ROOT_DIR, 'src', 'electron', 'lyric-window.js')),
-    false,
-  );
-  assert.doesNotMatch(
-    mainSource,
-    /lyricWin|openLyricWindow|closeLyricWindow|updateLyricWindow|setLyricWindowLocked/,
-  );
-  assert.doesNotMatch(
-    ipcSource,
-    /music:(?:open|close|update|set)-lyric-window|LyricWindow/,
-  );
+  assert.equal(fs.existsSync(path.join(ROOT_DIR, 'src', 'electron', 'lyric-window.js')), false);
+  assert.doesNotMatch(mainSource, /lyricWin|openLyricWindow|closeLyricWindow|updateLyricWindow|setLyricWindowLocked/);
+  assert.doesNotMatch(ipcSource, /music:(?:open|close|update|set)-lyric-window|LyricWindow/);
   assert.doesNotMatch(
     preloadSource,
     /openLyricWindow|closeLyricWindow|updateLyricWindow|setLyricWindowLocked|onLyricState/,
   );
-  assert.doesNotMatch(
-    serviceSource,
-    /windowOpen|windowLocked|musicAPI\.(?:open|close|update|set)LyricWindow/,
-  );
+  assert.doesNotMatch(serviceSource, /windowOpen|windowLocked|musicAPI\.(?:open|close|update|set)LyricWindow/);
   assert.match(serviceSource, /fetch\(["']\/api\/playback\/lyric-state["']/);
   assert.match(serviceSource, /fetch\(["']\/api\/playback\/lyric-timeline["']/);
 });
@@ -110,11 +78,7 @@ test('obsolete Electron lyric window path is removed', () => {
 test('lyric timeline normalization bounds complete browser lyric payloads', () => {
   const timeline = normalizeLyricTimeline({
     trackTitle: ` Song\u0000${'x'.repeat(200)} `,
-    artists: [
-      'Artist',
-      '',
-      ...Array.from({ length: 10 }, (_, index) => `Guest ${index}`),
-    ],
+    artists: ['Artist', '', ...Array.from({ length: 10 }, (_, index) => `Guest ${index}`)],
     status: 'ready',
     lines: Array.from({ length: 600 }, (_, index) => ({
       startMs: 600000 - index * 1000,
@@ -131,12 +95,7 @@ test('lyric timeline normalization bounds complete browser lyric payloads', () =
   assert.equal(timeline.status, 'ready');
   assert.ok(timeline.lines.length > 0);
   assert.ok(timeline.lines.length <= 500);
-  assert.ok(
-    timeline.lines.every(
-      (line, index) =>
-        index === 0 || timeline.lines[index - 1].startMs <= line.startMs,
-    ),
-  );
+  assert.ok(timeline.lines.every((line, index) => index === 0 || timeline.lines[index - 1].startMs <= line.startMs));
   assert.ok(timeline.lines.every((line) => !line.text.includes('\u0000')));
   assert.ok(Buffer.byteLength(JSON.stringify(timeline), 'utf8') < 220 * 1024);
 });
@@ -149,12 +108,7 @@ test('lyric timeline normalization preserves all 64 renderable lines from 失控
     lines: Array.from({ length: 64 }, (_, index) => ({
       startMs: index === 63 ? 247519 : index * 3900,
       endMs: index === 63 ? 248500 : index * 3900 + 3000,
-      text:
-        index === 0
-          ? '井迪儿 - 失控'
-          : index === 63
-            ? '多嘲讽'
-            : `第 ${index + 1} 行`,
+      text: index === 0 ? '井迪儿 - 失控' : index === 63 ? '多嘲讽' : `第 ${index + 1} 行`,
     })),
   });
 

@@ -93,28 +93,17 @@ export function refreshParameterRange(input) {
   const width = getFiniteNumber(input.getBoundingClientRect?.().width, 0);
   const trackLength = Math.max(0, width - thumbSize);
   const fillLength = trackLength * (progress / 100);
-  const originStart =
-    thumbSize / 2 + trackLength * (origin.startProgress / 100);
+  const originStart = thumbSize / 2 + trackLength * (origin.startProgress / 100);
   const originLength = trackLength * (origin.lengthProgress / 100);
-  const zeroPosition =
-    thumbSize / 2 + trackLength * (origin.zeroProgress / 100);
+  const zeroPosition = thumbSize / 2 + trackLength * (origin.zeroProgress / 100);
 
   input.style.setProperty('--parameter-range-progress', `${progress}%`);
-  input.style.setProperty(
-    '--parameter-range-track-inset',
-    `${thumbSize / 2}px`,
-  );
+  input.style.setProperty('--parameter-range-track-inset', `${thumbSize / 2}px`);
   input.style.setProperty('--parameter-range-track-length', `${trackLength}px`);
   input.style.setProperty('--parameter-range-fill-length', `${fillLength}px`);
   input.style.setProperty('--parameter-range-origin-start', `${originStart}px`);
-  input.style.setProperty(
-    '--parameter-range-origin-length',
-    `${originLength}px`,
-  );
-  input.style.setProperty(
-    '--parameter-range-zero-position',
-    `${zeroPosition}px`,
-  );
+  input.style.setProperty('--parameter-range-origin-length', `${originLength}px`);
+  input.style.setProperty('--parameter-range-zero-position', `${zeroPosition}px`);
   if (input.dataset) input.dataset.rangePolarity = origin.polarity;
 }
 

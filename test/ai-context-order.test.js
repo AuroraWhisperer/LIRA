@@ -42,8 +42,7 @@ function fixture(t, overrides = {}) {
     },
     deepseek: {
       async createResponse(request) {
-        if (request.purpose !== 'generation')
-          return { text: '{"allowed":true}', usage: {}, functionCalls: [] };
+        if (request.purpose !== 'generation') return { text: '{"allowed":true}', usage: {}, functionCalls: [] };
         return new Promise((resolve) =>
           pending.push({
             request,
@@ -91,10 +90,7 @@ for (const cached of [false, true]) {
   test(`AI commits same-viewer answers in delivered order (${cached ? 'cached B' : 'fast B'})`, async (t) => {
     const f = fixture(t, {
       getCache: cached
-        ? (key) =>
-            JSON.parse(key)[4] === '第二问'
-              ? { text: '第二答', category: 'chat' }
-              : null
+        ? (key) => (JSON.parse(key)[4] === '第二问' ? { text: '第二答', category: 'chat' } : null)
         : undefined,
     });
     f.ask('第一问');
@@ -138,15 +134,10 @@ for (const delivered of [true, false]) {
       await until(() => f.pending.length === 3);
       f.pending[2].resolve('最终未送达');
     }
-    await until(
-      () =>
-        !f.service.getStatus().delivering && f.service.getStatus().queued === 0,
-    );
+    await until(() => !f.service.getStatus().delivering && f.service.getStatus().queued === 0);
     assert.deepEqual(
       f.context(),
-      delivered
-        ? { question: '第一问', answer: '重试回答' }
-        : { question: '旧问', answer: '旧答' },
+      delivered ? { question: '第一问', answer: '重试回答' } : { question: '旧问', answer: '旧答' },
     );
     assert.equal(f.commits.length, delivered ? 1 : 0);
   });

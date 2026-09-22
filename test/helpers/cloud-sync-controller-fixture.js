@@ -1,8 +1,6 @@
 'use strict';
 
-const {
-  createCloudSyncController,
-} = require('../../src/electron/cloud-sync-controller');
+const { createCloudSyncController } = require('../../src/electron/cloud-sync-controller');
 
 const LOCAL_BLIND_BOX_CONFIG = [
   {
@@ -111,11 +109,9 @@ function createFixture(overrides = {}) {
       allowDuplicate: true,
       giftBlindBoxConfig: LOCAL_BLIND_BOX_CONFIG,
     }),
-    applyCloudSettingsSnapshot: async (settings) =>
-      calls.push(['apply-settings', settings]),
+    applyCloudSettingsSnapshot: async (settings) => calls.push(['apply-settings', settings]),
     getCloudSongsSnapshot: () => [{ name: 'Local song' }],
-    replaceCloudSongsSnapshot: async (songs) =>
-      calls.push(['apply-songs', songs]),
+    replaceCloudSongsSnapshot: async (songs) => calls.push(['apply-songs', songs]),
     onCloudSyncRequested(listener) {
       localListener = listener;
       return () => {
@@ -127,8 +123,7 @@ function createFixture(overrides = {}) {
   const bilibiliAuth = {
     getAuthState: async () => ({ loggedIn: false, uid: 0 }),
     getCookieHeader: async () => '',
-    replaceCookieHeader: async (cookie) =>
-      calls.push(['apply-bilibili', cookie]),
+    replaceCookieHeader: async (cookie) => calls.push(['apply-bilibili', cookie]),
     logout: async () => calls.push(['apply-bilibili-logout']),
     ...overrides.bilibiliAuth,
   };

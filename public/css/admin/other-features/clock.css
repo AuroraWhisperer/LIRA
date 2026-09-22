@@ -55,10 +55,8 @@
   border-radius: var(--radius-md);
   background-color: #ececf3;
   background-image:
-    linear-gradient(45deg, #dedee8 25%, transparent 25%),
-    linear-gradient(-45deg, #dedee8 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #dedee8 75%),
-    linear-gradient(-45deg, transparent 75%, #dedee8 75%);
+    linear-gradient(45deg, #dedee8 25%, transparent 25%), linear-gradient(-45deg, #dedee8 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #dedee8 75%), linear-gradient(-45deg, transparent 75%, #dedee8 75%);
   background-position:
     0 0,
     0 10px,
@@ -247,10 +245,8 @@
   color: #30483e;
   background-color: #f8faf6;
   background-image:
-    linear-gradient(45deg, #e5eae4 25%, transparent 25%),
-    linear-gradient(-45deg, #e5eae4 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #e5eae4 75%),
-    linear-gradient(-45deg, transparent 75%, #e5eae4 75%);
+    linear-gradient(45deg, #e5eae4 25%, transparent 25%), linear-gradient(-45deg, #e5eae4 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #e5eae4 75%), linear-gradient(-45deg, transparent 75%, #e5eae4 75%);
   background-position:
     0 0,
     0 6px,

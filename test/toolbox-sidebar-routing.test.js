@@ -19,10 +19,17 @@ test('toolbox navigation and feature capabilities work without the legacy regist
   const calls = [];
   let navigate;
   const querySelectorAll = runtime.root.querySelectorAll;
-  runtime.root.querySelectorAll = (selector) => selector === '[data-main-page-link]'
-    ? [{ dataset: { mainPageLink: 'songAssistantPage' },
-      addEventListener: (_type, handler) => { navigate = handler; } }]
-    : querySelectorAll(selector);
+  runtime.root.querySelectorAll = (selector) =>
+    selector === '[data-main-page-link]'
+      ? [
+          {
+            dataset: { mainPageLink: 'songAssistantPage' },
+            addEventListener: (_type, handler) => {
+              navigate = handler;
+            },
+          },
+        ]
+      : querySelectorAll(selector);
   const reconnectBilibili = () => {};
   runtime.other.initOtherPage({
     reconnectBilibili,
@@ -53,10 +60,7 @@ test('explicit toolbox feature selection reopens and persists its collapsed grou
     toolboxCollapsedFeatureGroups: '["live-scene"]',
   });
 
-  runtime.sandbox.window.AdminApp.other.selectFeature(
-    runtime.root,
-    'otherClockFeature',
-  );
+  runtime.sandbox.window.AdminApp.other.selectFeature(runtime.root, 'otherClockFeature');
 
   assert.equal(runtime.headings[1].getAttribute('aria-expanded'), 'true');
   assert.deepEqual(persisted, [[]]);
@@ -70,11 +74,7 @@ test('toolbox groups hide and restore only their own features and deep links reo
   const clockButton = runtime.buttons[6];
   const clockPanel = runtime.panels[6];
 
-  runtime.sandbox.window.AdminApp.other.setSidebarCollapsed(
-    runtime.root,
-    true,
-    false,
-  );
+  runtime.sandbox.window.AdminApp.other.setSidebarCollapsed(runtime.root, true, false);
   assert.equal(
     runtime.headings.every((heading) => heading.disabled),
     true,
@@ -83,11 +83,7 @@ test('toolbox groups hide and restore only their own features and deep links reo
     runtime.headings.every((heading) => heading.tabIndex === -1),
     true,
   );
-  runtime.sandbox.window.AdminApp.other.setSidebarCollapsed(
-    runtime.root,
-    false,
-    false,
-  );
+  runtime.sandbox.window.AdminApp.other.setSidebarCollapsed(runtime.root, false, false);
   assert.equal(
     runtime.headings.every((heading) => !heading.disabled),
     true,
@@ -109,22 +105,12 @@ test('toolbox groups hide and restore only their own features and deep links reo
   );
   assert.equal(clockButton.hidden, false);
 
-  runtime.sandbox.window.AdminApp.other.selectFeature(
-    runtime.root,
-    'otherClockFeature',
-  );
+  runtime.sandbox.window.AdminApp.other.selectFeature(runtime.root, 'otherClockFeature');
   liveSceneHeading.dispatch('click');
   assert.equal(clockButton.hidden, true);
-  assert.equal(
-    clockPanel.hidden,
-    false,
-    'collapsing a group should keep its current panel visible',
-  );
+  assert.equal(clockPanel.hidden, false, 'collapsing a group should keep its current panel visible');
 
-  runtime.sandbox.window.AdminApp.other.selectFeature(
-    runtime.root,
-    'otherClockFeature',
-  );
+  runtime.sandbox.window.AdminApp.other.selectFeature(runtime.root, 'otherClockFeature');
   assert.equal(liveSceneHeading.getAttribute('aria-expanded'), 'true');
   assert.equal(clockButton.hidden, false);
   assert.equal(clockButton.getAttribute('aria-selected'), 'true');
@@ -143,10 +129,7 @@ test('toolbox feature arrow navigation loops through visible features only', () 
 
 test('danmaku toolbox feature mounts its dedicated panel', () => {
   const html = readAdminHtml();
-  assert.match(
-    html,
-    /aria-controls="otherDanmakuFeature"\s+data-other-feature="otherDanmakuFeature"/,
-  );
+  assert.match(html, /aria-controls="otherDanmakuFeature"\s+data-other-feature="otherDanmakuFeature"/);
   assert.match(html, /id="otherDanmakuFeature"[^>]*data-other-feature-panel/);
 });
 
@@ -200,10 +183,7 @@ test('toolbox sidebar toggle updates accessibility state and stores the preferen
 });
 
 test('desktop shell reveals the desktop update toolbox feature', () => {
-  const source = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'desktop.js'),
-    'utf8',
-  );
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'desktop.js'), 'utf8');
   const desktopOnlyNodes = [{ hidden: true }, { hidden: true }];
   const sandbox = {
     console,
@@ -242,14 +222,8 @@ test('desktop shell reveals the desktop update toolbox feature', () => {
 
 test('desktop update feature keeps its tab and panel mapping', () => {
   const html = readAdminHtml();
-  assert.match(
-    html,
-    /id="otherDesktopUpdateFeatureTab"[\s\S]*data-other-feature="otherDesktopUpdateFeature"/,
-  );
-  assert.match(
-    html,
-    /id="otherDesktopUpdateFeature"[\s\S]*data-other-feature-panel/,
-  );
+  assert.match(html, /id="otherDesktopUpdateFeatureTab"[\s\S]*data-other-feature="otherDesktopUpdateFeature"/);
+  assert.match(html, /id="otherDesktopUpdateFeature"[\s\S]*data-other-feature-panel/);
   assert.match(html, /aria-labelledby="otherDesktopUpdateFeatureTab"/);
 });
 
@@ -269,31 +243,15 @@ test('toolbox tabs rely on sidebar titles instead of repeating page headers', ()
   ];
 
   for (const file of featureFiles) {
-    const featureHtml = fs.readFileSync(
-      path.join(ROOT_DIR, 'public', 'pages', 'admin', 'toolbox', file),
-      'utf8',
-    );
-    assert.doesNotMatch(
-      featureHtml,
-      /ui-page-(?:title|subtitle)|other-feature-page-header/,
-    );
+    const featureHtml = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin', 'toolbox', file), 'utf8');
+    assert.doesNotMatch(featureHtml, /ui-page-(?:title|subtitle)|other-feature-page-header/);
   }
 
   const usageGuideHtml = fs.readFileSync(
-    path.join(
-      ROOT_DIR,
-      'public',
-      'pages',
-      'admin',
-      'toolbox',
-      'usage-guide.html',
-    ),
+    path.join(ROOT_DIR, 'public', 'pages', 'admin', 'toolbox', 'usage-guide.html'),
     'utf8',
   );
-  assert.match(
-    usageGuideHtml,
-    /<h2 id="usageGuideTitle" class="usage-guide-title">使用文档<\/h2>/,
-  );
+  assert.match(usageGuideHtml, /<h2 id="usageGuideTitle" class="usage-guide-title">使用文档<\/h2>/);
   assert.doesNotMatch(usageGuideHtml, /class="usage-guide-lead"/);
   assert.match(usageGuideHtml, /class="usage-guide-hero-actions"/);
   assert.doesNotMatch(usageGuideHtml, /other-feature-page-header/);

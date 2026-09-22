@@ -41,9 +41,7 @@ test('gift history recovers an empty ledger without receiving a gift', async () 
   assert.equal(ui.get('giftHistoryRetryBtn').hidden, true);
   assert.equal([...ui.timers.values()][0].delay, 10000);
   assert.equal(
-    ui.requests.every((request) =>
-      request.url.startsWith('/api/gifts/history?'),
-    ),
+    ui.requests.every((request) => request.url.startsWith('/api/gifts/history?')),
     true,
   );
   ui.runTimer();
@@ -107,20 +105,14 @@ test('gift history preserves loaded rows on update failures and reconnects offli
   await ui.reply({ ok: false, error: 'SQLITE_INTERNAL: private detail' }, 500);
   assert.equal(ui.body(), rows);
   assert.equal(ui.get('giftHistoryTotal').textContent, '共 1 条');
-  assert.equal(
-    ui.get('giftLedgerSyncStatus').textContent,
-    '记录暂未更新，请稍后重试。',
-  );
+  assert.equal(ui.get('giftLedgerSyncStatus').textContent, '记录暂未更新，请稍后重试。');
   assert.equal(ui.get('giftHistoryRetryBtn').hidden, false);
   assert.doesNotMatch(ui.get('giftLedgerSyncStatus').title, /SQLITE|private/);
 
   ui.runTimer();
   await ui.reply({ ok: true, data: { ...data, syncState: 'OFFLINE' } });
   assert.equal(ui.body(), rows);
-  assert.equal(
-    ui.get('giftLedgerSyncStatus').textContent,
-    '当前离线，显示已保存的记录',
-  );
+  assert.equal(ui.get('giftLedgerSyncStatus').textContent, '当前离线，显示已保存的记录');
   ui.runTimer();
   await ui.reply({
     ok: true,
@@ -189,10 +181,7 @@ test('clearing gifts submits once, rejects stale reads, and recovers without gif
   await ui.reply({ ok: true, data: LIVE_EMPTY });
   assert.equal(ui.get('giftHistoryTotal').textContent, '共 0 条');
   assert.equal(ui.get('giftHistoryClearDatabaseBtn').disabled, false);
-  assert.equal(
-    ui.requests.filter((request) => request.options.method === 'POST').length,
-    1,
-  );
+  assert.equal(ui.requests.filter((request) => request.options.method === 'POST').length, 1);
   ui.close();
 });
 
@@ -222,10 +211,7 @@ test('a partially completed clear retries only the gift history read', async () 
   assert.match(ui.body(), /云端记录已清空，本机记录尚未更新/);
   assert.equal(ui.get('giftHistoryRetryBtn').textContent, '重试更新');
   ui.click('giftHistoryRetryBtn');
-  assert.equal(
-    ui.requests.filter((request) => request.options.method === 'POST').length,
-    1,
-  );
+  assert.equal(ui.requests.filter((request) => request.options.method === 'POST').length, 1);
   await ui.reply({ ok: true, data: LIVE_EMPTY });
   assert.match(ui.body(), /暂无礼物记录/);
   ui.close();
@@ -242,10 +228,7 @@ test('an uncertain gift clear never claims records were preserved or repeats del
   assert.match(ui.body(), /暂时无法确认清空结果/);
   assert.doesNotMatch(ui.body(), /未删除|network disconnected/);
   ui.click('giftHistoryRetryBtn');
-  assert.equal(
-    ui.requests.filter((request) => request.options.method === 'POST').length,
-    1,
-  );
+  assert.equal(ui.requests.filter((request) => request.options.method === 'POST').length, 1);
   await ui.reply({ ok: true, data: LIVE_EMPTY });
   ui.close();
 });

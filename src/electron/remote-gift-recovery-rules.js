@@ -11,11 +11,7 @@ const BOOTSTRAP_RESTART_CODES = new Set(['BOOTSTRAP_TOKEN_EXPIRED']);
 
 function normalizeResolvedSource(source, expectedKey) {
   const id = Number(source?.id);
-  if (
-    !Number.isSafeInteger(id) ||
-    id < 1 ||
-    source?.sourceKey !== expectedKey
-  ) {
+  if (!Number.isSafeInteger(id) || id < 1 || source?.sourceKey !== expectedKey) {
     throw new Error('INVALID_GIFT_SOURCE');
   }
   return Object.freeze({ id, sourceKey: expectedKey });
@@ -45,8 +41,7 @@ function requiresProjectionReplacement(state, discovery) {
   return (
     (hasPageToken && (!hasRecoveryCursor || !hasBootstrapEpoch)) ||
     (!hasPageToken && (hasRecoveryCursor || hasBootstrapEpoch)) ||
-    (state.bootstrapSyncEpoch !== null &&
-      state.bootstrapSyncEpoch !== discovery.syncEpoch) ||
+    (state.bootstrapSyncEpoch !== null && state.bootstrapSyncEpoch !== discovery.syncEpoch) ||
     (state.finalCursor !== null && !Number.isSafeInteger(state.finalCursor))
   );
 }

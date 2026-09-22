@@ -1,8 +1,7 @@
 'use strict';
 
 function resolveGiftSourceScope(context) {
-  const source =
-    context.getActiveGiftSource?.() || context.activeGiftSource || null;
+  const source = context.getActiveGiftSource?.() || context.activeGiftSource || null;
   if (source === null) {
     return { kind: 'local' };
   }

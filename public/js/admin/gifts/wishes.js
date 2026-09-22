@@ -3,11 +3,10 @@ import {
   createGiftWishCard,
   WISH_PERIODS,
   WISH_CATEGORIES,
+  DEFAULT_WISH_TEXT,
+  formatGiftWishText,
 } from '../../shared/gift-wish-card.js';
-import {
-  createGiftWishFeed,
-  requestGiftWish,
-} from '../../shared/gift-wish-client.js';
+import { createGiftWishFeed, requestGiftWish } from '../../shared/gift-wish-client.js';
 import { setGiftImage } from '../../shared/gift-image-fallback.js';
 import { createWishPicker } from './wish-picker.js';
 import { eventBus, Events } from '../../shared/event-bus.js';
@@ -42,8 +41,7 @@ export function createGiftWishes() {
         get('giftWishError').textContent = '';
         feedError = false;
       }
-      if (snapshot && data.viewRevision !== snapshot.viewRevision)
-        resetEditor();
+      if (snapshot && data.viewRevision !== snapshot.viewRevision) resetEditor();
       snapshot = data;
       revision = data.viewRevision;
       get('giftWishFields').disabled = busy;
@@ -72,6 +70,17 @@ export function createGiftWishes() {
     get('giftWishSelectedRole').textContent = selected
       ? `${WISH_CATEGORIES[selected.giftCategory] || '礼物'} · ${selected.id}`
       : '可选直播间在售礼物、盲盒本体及产出，或全部缓存礼物。';
+    updateTextPreview();
+  }
+
+  function updateTextPreview() {
+    get('giftWishTextFields').hidden = get('giftWishDisplayStyle').value !== 'text';
+    get('giftWishTextPreview').textContent = formatGiftWishText({
+      giftName: selected?.name || '礼物',
+      count: snapshot?.items.find((wish) => wish.id === editing)?.count || 0,
+      target: get('giftWishTarget').value || 10,
+      textTemplate: get('giftWishTextTemplate').value,
+    });
   }
 
   function resetEditor() {
@@ -79,6 +88,7 @@ export function createGiftWishes() {
     selected = null;
     picker.close();
     get('giftWishForm').reset();
+    get('giftWishTextTemplate').value = DEFAULT_WISH_TEXT;
     get('giftWishPick').disabled = false;
     get('giftWishCancel').hidden = true;
     get('giftWishEditorTitle').textContent = '许一个小心愿';
@@ -98,6 +108,9 @@ export function createGiftWishes() {
     get('giftWishPick').disabled = true;
     get('giftWishTarget').value = wish.target;
     get('giftWishLabel').value = wish.label;
+    get('giftWishDisplayStyle').value = wish.displayStyle || 'card';
+    get('giftWishTextTemplate').value = wish.textTemplate || DEFAULT_WISH_TEXT;
+    updateTextPreview();
     get('giftWishCancel').hidden = false;
     get('giftWishEditorTitle').textContent = '编辑这份心愿';
     get('giftWishSave').textContent = '保存修改';
@@ -112,18 +125,15 @@ export function createGiftWishes() {
     if (snapshot.partial) status.push('礼物流水正在同步，进度可能尚未完整。');
     if (period === 'session') {
       const session = snapshot.session;
-      if (session.stale)
-        status.push('开播状态暂未确认，已暂停本场计数，稍后自动重试。');
-      else if (session.state === 'offline')
-        status.push('还未开播，心愿会在开播后开始计数。');
+      if (session.stale) status.push('开播状态暂未确认，已暂停本场计数，稍后自动重试。');
+      else if (session.state === 'offline') status.push('还未开播，心愿会在开播后开始计数。');
       else if (session.startedAt)
         status.push(
           `本场开播于 ${new Date(session.startedAt).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai', hour12: false })}`,
         );
     }
     get('giftWishStatus').textContent = status.join(' ');
-    get('giftWishesSummary').textContent =
-      `${items.filter((item) => item.completed).length} / ${items.length} 已达成`;
+    updateTextPreview();
     get('giftWishEmpty').hidden = items.length > 0;
     const nextSignature = JSON.stringify(items);
     if (signature === nextSignature) return;
@@ -136,7 +146,7 @@ export function createGiftWishes() {
       actions.className = 'gift-wish-item-actions';
       const modify = document.createElement('button');
       modify.type = 'button';
-      modify.textContent = '编辑目标';
+      modify.textContent = '编辑';
       modify.addEventListener('click', () => {
         if (!busy) edit(wish);
       });
@@ -165,18 +175,12 @@ export function createGiftWishes() {
     resetEditor();
     get('giftWishesPanel')
       .querySelectorAll('[data-wish-period]')
-      .forEach((button) =>
-        button.setAttribute(
-          'aria-pressed',
-          String(button.dataset.wishPeriod === period),
-        ),
-      );
+      .forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.wishPeriod === period)));
     get('giftWishPeriodHint').textContent = PERIOD_HINTS[period];
     const url = `${localOverlayOrigin(location)}/gift-wishes?period=${period}`;
     get('giftWishUrl').value = url;
     get('giftWishPreview').href = `${url}&preview=1`;
-    get('giftWishSourceHint').textContent =
-      `OBS 浏览器源 · ${WISH_PERIODS[period]}`;
+    get('giftWishSourceHint').textContent = `OBS 浏览器源 · ${WISH_PERIODS[period]}`;
     get('giftWishError').textContent = '';
     signature = '';
     render();
@@ -217,19 +221,30 @@ export function createGiftWishes() {
     mutate(
       '/api/gifts/wishes/save',
       {
-        ...(editing
-          ? { id: editing }
-          : { period, giftKey: selected.variantId || String(selected.id) }),
+        ...(editing ? { id: editing } : { period, giftKey: selected.variantId || String(selected.id) }),
         target,
         label: get('giftWishLabel').value,
+        displayStyle: get('giftWishDisplayStyle').value,
+        textTemplate: get('giftWishTextTemplate').value,
       },
       editing ? '许愿已更新' : '小心愿已加入，开始收集吧',
     );
   });
-  get('giftWishPick').addEventListener('click', () =>
-    picker.open(snapshot?.guards || []),
-  );
+  get('giftWishPick').addEventListener('click', () => picker.open(snapshot?.guards || []));
   get('giftWishCancel').addEventListener('click', resetEditor);
+  get('giftWishDisplayStyle').addEventListener('change', updateTextPreview);
+  get('giftWishTextTemplate').addEventListener('input', updateTextPreview);
+  get('giftWishTarget').addEventListener('input', updateTextPreview);
+  get('giftWishTextFields')
+    .querySelectorAll('[data-wish-token]')
+    .forEach((button) => {
+      button.addEventListener('click', () => {
+        const input = get('giftWishTextTemplate');
+        input.setRangeText(button.dataset.wishToken, input.selectionStart, input.selectionEnd, 'end');
+        input.focus();
+        updateTextPreview();
+      });
+    });
   get('giftWishesRefresh').addEventListener('click', () => {
     get('giftWishError').textContent = '';
     feed.refresh();
@@ -241,18 +256,10 @@ export function createGiftWishes() {
   );
   get('giftWishesPanel')
     .querySelectorAll('[data-wish-period]')
-    .forEach((button) =>
-      button.addEventListener('click', () =>
-        selectPeriod(button.dataset.wishPeriod),
-      ),
-    );
+    .forEach((button) => button.addEventListener('click', () => selectPeriod(button.dataset.wishPeriod)));
   selectPeriod(period);
   const unsubscribe = eventBus.on(Events.STATE_LOADED, ({ state }) => {
-    if (
-      !state?.gifts ||
-      state.gifts.viewRevision === revision
-    )
-      return;
+    if (!state?.gifts || state.gifts.viewRevision === revision) return;
     revision = state.gifts.viewRevision;
     snapshot = null;
     resetEditor();

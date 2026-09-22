@@ -1,10 +1,6 @@
 'use strict';
 
-function createAuthorizedWorkController({
-  isLicenseAuthorized,
-  getBilibiliRuntime,
-  getOvertimeGiftCatalog,
-}) {
+function createAuthorizedWorkController({ isLicenseAuthorized, getBilibiliRuntime, getOvertimeGiftCatalog }) {
   function resumeAuthorizedWork() {
     const bilibiliRuntime = getBilibiliRuntime();
     if (!isLicenseAuthorized() || !bilibiliRuntime) {
@@ -17,9 +13,7 @@ function createAuthorizedWorkController({
     });
     if (catalogRefresh?.catch) {
       catalogRefresh.catch((error) => {
-        console.warn(
-          `[GiftCatalog] authorization refresh failed: ${error.message}`,
-        );
+        console.warn(`[GiftCatalog] authorization refresh failed: ${error.message}`);
       });
     }
     return bilibiliRuntime.reconnect().then(() => true);

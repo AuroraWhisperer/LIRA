@@ -65,9 +65,13 @@ describe('external-url-policy', () => {
     ];
 
     for (const [url, expected, domains = testDomains] of cases) {
-      it(`${expected ? 'allows' : 'rejects'} ${url || '(empty URL)'}` + (domains.length ? '' : ' with no allowed domains'), () => {
-        assert.strictEqual(isAllowedLoginNavigation(url, domains), expected);
-      });
+      it(
+        `${expected ? 'allows' : 'rejects'} ${url || '(empty URL)'}` +
+          (domains.length ? '' : ' with no allowed domains'),
+        () => {
+          assert.strictEqual(isAllowedLoginNavigation(url, domains), expected);
+        },
+      );
     }
   });
   describe('isAllowedLocalUrl', () => {

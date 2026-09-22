@@ -24,16 +24,22 @@ const OVERLAY_ROUTES = {
   songlist: ['GET /api/songs'],
   blindbox: ['GET /api/gifts/blind-box-stats'],
   'gift-feed': [
-    'GET /api/gifts/display-settings', 'GET /api/gifts/history', 'GET /api/gifts/card-profiles',
-    'GET /api/overtime/gifts/catalog', 'GET /api/bilibili/avatar',
+    'GET /api/gifts/display-settings',
+    'GET /api/gifts/history',
+    'GET /api/gifts/card-profiles',
+    'GET /api/overtime/gifts/catalog',
+    'GET /api/bilibili/avatar',
   ],
   'gift-export': ['GET /api/bilibili/avatar'],
   'gift-wishes': ['GET /api/gifts/wishes'],
   interactions: ['GET /api/interactions/session'],
   games: [
-    'GET /api/games/session', 'GET /api/games/winner-profile',
-    'GET /api/bilibili/avatar', 'POST /api/games/session',
-    'POST /api/games/session/move', 'POST /api/games/session/draw',
+    'GET /api/games/session',
+    'GET /api/games/winner-profile',
+    'GET /api/bilibili/avatar',
+    'POST /api/games/session',
+    'POST /api/games/session/move',
+    'POST /api/games/session/draw',
   ],
   danmaku: ['GET /api/bilibili/avatar'],
   wheel: ['GET /api/wheel', 'POST /api/wheel/spin'],
@@ -56,8 +62,7 @@ function createOverlayToken(sessionToken, scope) {
   if (typeof sessionToken !== 'string' || !sessionToken || !hasScope(scope)) {
     throw new Error('Overlay credentials require a runtime key and known scope.');
   }
-  const signature = createHmac('sha256', sessionToken)
-    .update(`lira-overlay:v1:${scope}`).digest('hex');
+  const signature = createHmac('sha256', sessionToken).update(`lira-overlay:v1:${scope}`).digest('hex');
   return `ov1:${scope}:${signature}`;
 }
 
@@ -72,17 +77,18 @@ function resolveRequestPrincipal(context, req, requestUrl) {
   if (typeof sessionToken !== 'string' || !sessionToken) return null;
   const authorization = req.headers?.authorization;
   // An explicit invalid credential must not fall back to a query credential.
-  const token = authorization !== undefined
-    ? (typeof authorization === 'string' && authorization.startsWith('Bearer ')
-      ? authorization.slice(7) : '')
-    : requestUrl.searchParams.get('token');
+  const token =
+    authorization !== undefined
+      ? typeof authorization === 'string' && authorization.startsWith('Bearer ')
+        ? authorization.slice(7)
+        : ''
+      : requestUrl.searchParams.get('token');
   if (typeof token !== 'string' || !token) return null;
   if (equalToken(token, sessionToken)) return Object.freeze({ type: 'admin' });
   const match = /^ov1:([a-z-]+):[a-f0-9]{64}$/.exec(token);
   if (!match || !hasScope(match[1])) return null;
   const scope = match[1];
-  return equalToken(token, createOverlayToken(sessionToken, scope))
-    ? Object.freeze({ type: 'overlay', scope }) : null;
+  return equalToken(token, createOverlayToken(sessionToken, scope)) ? Object.freeze({ type: 'overlay', scope }) : null;
 }
 
 function isOverlayRequestAllowed(scope, method, pathname) {

@@ -2,9 +2,7 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const {
-  MessageDeduplicator,
-} = require('../src/bilibili/danmaku/message-deduplicator');
+const { MessageDeduplicator } = require('../src/bilibili/danmaku/message-deduplicator');
 
 test('deduplicates one command across masked danmaku and full history identities', () => {
   const deduplicator = new MessageDeduplicator();
@@ -80,18 +78,9 @@ test('matches repeated cross-source commands one to one', () => {
   const history = { userName: '哈极光dd_', source: 'history' };
 
   assert.equal(deduplicator.remember(0, '点歌1', timestamp, danmaku), true);
-  assert.equal(
-    deduplicator.remember(0, '点歌1', timestamp + 1000, danmaku),
-    true,
-  );
-  assert.equal(
-    deduplicator.remember(12345, '点歌1', timestamp, history),
-    false,
-  );
-  assert.equal(
-    deduplicator.remember(12345, '点歌1', timestamp + 1000, history),
-    false,
-  );
+  assert.equal(deduplicator.remember(0, '点歌1', timestamp + 1000, danmaku), true);
+  assert.equal(deduplicator.remember(12345, '点歌1', timestamp, history), false);
+  assert.equal(deduplicator.remember(12345, '点歌1', timestamp + 1000, history), false);
 });
 
 test('logs the first same-source rejection with its deduplication evidence', () => {
@@ -115,10 +104,7 @@ test('logs the first same-source rejection with its deduplication evidence', () 
   });
 
   assert.equal(logs.length, 1);
-  assert.match(
-    logs[0],
-    /^\[Bilibili\]\[Command\] status=deduplicated reason=seen-key /,
-  );
+  assert.match(logs[0], /^\[Bilibili\]\[Command\] status=deduplicated reason=seen-key /);
   assert.match(logs[0], /uid="12345" user="Alice" message="点歌 日落"/);
   assert.match(logs[0], new RegExp(`timestampMs=${timestamp}`));
   assert.match(logs[0], /sources=\["danmaku"\]$/);
@@ -152,10 +138,7 @@ test('logs one cross-source rejection without repeating on every history poll', 
   });
 
   assert.equal(logs.length, 1);
-  assert.match(
-    logs[0],
-    /^\[Bilibili\]\[Command\] status=deduplicated reason=cross-source /,
-  );
+  assert.match(logs[0], /^\[Bilibili\]\[Command\] status=deduplicated reason=cross-source /);
   assert.match(logs[0], /sources=\["danmaku","history"\]$/);
 });
 

@@ -9,10 +9,7 @@ import { QueueManager } from '../queue/manager.js';
 
 function isInterruptedMediaPlayError(error) {
   return (
-    error?.name === 'AbortError' ||
-    /play\(\) request was interrupted/i.test(
-      String(error?.message || error || ''),
-    )
+    error?.name === 'AbortError' || /play\(\) request was interrupted/i.test(String(error?.message || error || ''))
   );
 }
 
@@ -39,8 +36,7 @@ export function createPlaybackControls(deps) {
       save: savePlaybackState,
       render: renderPlayback,
     });
-  const queueManager =
-    deps.queueManager || new QueueManager({ state: playbackState });
+  const queueManager = deps.queueManager || new QueueManager({ state: playbackState });
   let playRequestGeneration = 0;
   let audioRequestGeneration = 0;
   let playRequestSource = null;
@@ -57,10 +53,7 @@ export function createPlaybackControls(deps) {
   }
 
   function isCurrentPlaybackRequest(requestGeneration, track) {
-    return (
-      requestGeneration === playRequestGeneration &&
-      playbackState.current?.id === track.id
-    );
+    return requestGeneration === playRequestGeneration && playbackState.current?.id === track.id;
   }
 
   function createPlaybackRequestGuard(track) {
@@ -77,15 +70,9 @@ export function createPlaybackControls(deps) {
     }
 
     // Try IPC restore from saved filePath
-    if (
-      track.filePath &&
-      window.musicAPI &&
-      typeof window.musicAPI.resolveLocalMediaUrls === 'function'
-    ) {
+    if (track.filePath && window.musicAPI && typeof window.musicAPI.resolveLocalMediaUrls === 'function') {
       try {
-        const res = await window.musicAPI.resolveLocalMediaUrls([
-          track.filePath,
-        ]);
+        const res = await window.musicAPI.resolveLocalMediaUrls([track.filePath]);
         const entry = res && res.results && res.results[track.filePath];
         if (entry && entry.ok) {
           track.objectUrl = entry.url;
@@ -137,10 +124,7 @@ export function createPlaybackControls(deps) {
     try {
       streamUrl = await streamService.getTrackUrl(streamTrack, {
         forceRefresh: options.forceRefresh === true,
-        quality: PlaybackUtils.normalizeQuality(
-          track.source,
-          playbackState.qualityPreferences?.[track.source],
-        ),
+        quality: PlaybackUtils.normalizeQuality(track.source, playbackState.qualityPreferences?.[track.source]),
       });
     } catch (error) {
       if (requestGeneration !== playRequestGeneration) return;
@@ -171,10 +155,7 @@ export function createPlaybackControls(deps) {
         () => {
           if (!isCurrentPlaybackRequest(requestGeneration, track)) return;
           if (Number.isFinite(audio.duration) && audio.duration > 0) {
-            audio.currentTime = Math.min(
-              startAt,
-              Math.max(0, audio.duration - 1),
-            );
+            audio.currentTime = Math.min(startAt, Math.max(0, audio.duration - 1));
           }
         },
         { once: true },
@@ -191,10 +172,7 @@ export function createPlaybackControls(deps) {
         }
       }
     } catch (error) {
-      if (
-        requestGeneration === playRequestGeneration &&
-        !isInterruptedMediaPlayError(error)
-      ) {
+      if (requestGeneration === playRequestGeneration && !isInterruptedMediaPlayError(error)) {
         showError(error);
       }
     }
@@ -219,17 +197,9 @@ export function createPlaybackControls(deps) {
   async function changePlaybackQuality(quality) {
     const audio = getPlaybackAudio();
     const currentSource = playbackState.current?.source;
-    const source =
-      currentSource === 'qq' || currentSource === 'netease'
-        ? currentSource
-        : playbackState.selectedSource;
+    const source = currentSource === 'qq' || currentSource === 'netease' ? currentSource : playbackState.selectedSource;
     const normalizedQuality = PlaybackUtils.normalizeQuality(source, quality);
-    if (
-      !PlaybackUtils.getQualityOptions(source).some(
-        (item) => item.id === quality,
-      )
-    )
-      return;
+    if (!PlaybackUtils.getQualityOptions(source).some((item) => item.id === quality)) return;
 
     stateActions.setQuality(source, normalizedQuality);
     stateActions.commit();
@@ -264,10 +234,7 @@ export function createPlaybackControls(deps) {
         () => {
           if (!isCurrentPlaybackRequest(requestGeneration, track)) return;
           if (Number.isFinite(audio.duration) && audio.duration > 0) {
-            audio.currentTime = Math.min(
-              resumeAt,
-              Math.max(0, audio.duration - 1),
-            );
+            audio.currentTime = Math.min(resumeAt, Math.max(0, audio.duration - 1));
           }
         },
         { once: true },
@@ -276,14 +243,8 @@ export function createPlaybackControls(deps) {
 
       if (!isCurrentPlaybackRequest(requestGeneration, track)) return;
 
-      const actualQuality = PlaybackUtils.getQualityLabel(
-        source,
-        track.playbackQuality,
-      );
-      const requestedLabel = PlaybackUtils.getQualityLabel(
-        source,
-        normalizedQuality,
-      );
+      const actualQuality = PlaybackUtils.getQualityLabel(source, track.playbackQuality);
+      const requestedLabel = PlaybackUtils.getQualityLabel(source, normalizedQuality);
       toast(
         actualQuality === requestedLabel
           ? `已切换到${actualQuality}音质`
@@ -298,10 +259,7 @@ export function createPlaybackControls(deps) {
     }
   }
 
-  async function togglePlayback(
-    takeNextPlaybackTrack,
-    showPlaybackLoginPrompt,
-  ) {
+  async function togglePlayback(takeNextPlaybackTrack, showPlaybackLoginPrompt) {
     const audio = getPlaybackAudio();
     if (!audio) return;
 
@@ -319,9 +277,7 @@ export function createPlaybackControls(deps) {
         showPlaybackLoginPrompt();
       } else {
         if (typeof U.showStackedToast === 'function') {
-          const sourceName = PlaybackUtils.getSourceName(
-            playbackState.selectedSource,
-          );
+          const sourceName = PlaybackUtils.getSourceName(playbackState.selectedSource);
           U.showStackedToast({
             key: 'playback-queue-empty',
             title: '播放队列为空',
@@ -373,11 +329,7 @@ export function createPlaybackControls(deps) {
     }
   }
 
-  function playbackNext(
-    fromEnded,
-    takeNextPlaybackTrack,
-    ensurePlaybackRadioQueueFilled,
-  ) {
+  function playbackNext(fromEnded, takeNextPlaybackTrack, ensurePlaybackRadioQueueFilled) {
     const audio = getPlaybackAudio();
     if (!audio) return;
 
@@ -396,10 +348,7 @@ export function createPlaybackControls(deps) {
     }
 
     // 固定歌单按当前模式循环
-    if (
-      playbackState.queueType === 'playlist' &&
-      playbackState.normalQueueTracks.length > 0
-    ) {
+    if (playbackState.queueType === 'playlist' && playbackState.normalQueueTracks.length > 0) {
       const tracks =
         playbackState.mode === 'shuffle'
           ? PlaybackUtils.shuffleTracks(playbackState.normalQueueTracks)

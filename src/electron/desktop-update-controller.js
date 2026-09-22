@@ -1,13 +1,6 @@
 'use strict';
 
-function createDesktopUpdateController({
-  app,
-  updateManager,
-  updateRuntime,
-  getRuntime,
-  getMainWindow,
-  writeLog,
-}) {
+function createDesktopUpdateController({ app, updateManager, updateRuntime, getRuntime, getMainWindow, writeLog }) {
   function sendUpdateState() {
     const mainWindow = getMainWindow();
     if (!mainWindow || mainWindow.isDestroyed()) return;
@@ -16,10 +9,7 @@ function createDesktopUpdateController({
     if (updateRuntime.value.status === updateRuntime.lastStatus) return;
 
     updateRuntime.lastStatus = updateRuntime.value.status;
-    if (
-      updateRuntime.value.status === 'available' ||
-      updateRuntime.value.status === 'downloaded'
-    ) {
+    if (updateRuntime.value.status === 'available' || updateRuntime.value.status === 'downloaded') {
       mainWindow.webContents.send('desktop:show-update-page');
     }
   }
@@ -42,9 +32,7 @@ function createDesktopUpdateController({
     try {
       const runtime = getRuntime();
       return Boolean(
-        runtime &&
-        typeof runtime.getSetting === 'function' &&
-        runtime.getSetting('enableAutoUpdate') === 'true',
+        runtime && typeof runtime.getSetting === 'function' && runtime.getSetting('enableAutoUpdate') === 'true',
       );
     } catch (_) {
       return false;

@@ -3,14 +3,9 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { performance } = require('node:perf_hooks');
-const {
-  createPowerShellWeSingMonitor,
-} = require('../src/music/wesing-capture');
+const { createPowerShellWeSingMonitor } = require('../src/music/wesing-capture');
 
-const {
-  createWeSingLogProbe,
-  parseStartKSongLine,
-} = require('./wesing-log-probe');
+const { createWeSingLogProbe, parseStartKSongLine } = require('./wesing-log-probe');
 const { createDiagnosticTerminal } = require('./wesing-diagnostic-terminal');
 
 const PROJECT_ROOT = path.resolve(__dirname, '..');
@@ -24,18 +19,12 @@ const MARKERS = Object.freeze({
 });
 
 function defaultCachePath(environment = process.env) {
-  return environment.APPDATA
-    ? path.join(environment.APPDATA, 'Tencent', 'WeSing', 'WeSingCache')
-    : '';
+  return environment.APPDATA ? path.join(environment.APPDATA, 'Tencent', 'WeSing', 'WeSingCache') : '';
 }
 
 function defaultOutputPath(projectRoot = PROJECT_ROOT, date = new Date()) {
   const timestamp = date.toISOString().replace(/[:.]/g, '-');
-  return path.join(
-    projectRoot,
-    'logs',
-    `wesing-playback-diagnostic-${timestamp}.jsonl`,
-  );
+  return path.join(projectRoot, 'logs', `wesing-playback-diagnostic-${timestamp}.jsonl`);
 }
 
 /**
@@ -61,14 +50,9 @@ function parseArguments(argv, context = {}) {
       help = true;
       continue;
     }
-    if (
-      argument === '--cache' ||
-      argument === '--output' ||
-      argument === '--duration'
-    ) {
+    if (argument === '--cache' || argument === '--output' || argument === '--duration') {
       const value = argv[index + 1];
-      if (!value || value.startsWith('--'))
-        throw new Error(`${argument} 缺少参数。`);
+      if (!value || value.startsWith('--')) throw new Error(`${argument} 缺少参数。`);
       index += 1;
       if (argument === '--cache') {
         cachePath = path.resolve(value);
@@ -77,11 +61,7 @@ function parseArguments(argv, context = {}) {
       if (argument === '--output') outputPath = path.resolve(value);
       if (argument === '--duration') {
         const durationSeconds = Number(value);
-        if (
-          !Number.isFinite(durationSeconds) ||
-          durationSeconds <= 0 ||
-          durationSeconds > 3600
-        ) {
+        if (!Number.isFinite(durationSeconds) || durationSeconds <= 0 || durationSeconds > 3600) {
           throw new Error('--duration 必须是 1 到 3600 之间的秒数。');
         }
         durationMs = Math.round(durationSeconds * 1000);
@@ -130,26 +110,15 @@ async function readRunningCachePath(options = {}) {
     const host = String(runtime.host || '127.0.0.1').toLowerCase();
     const allowedHosts = new Set(['127.0.0.1', 'localhost', '::1']);
     const port = Number(runtime.port);
-    if (
-      !allowedHosts.has(host) ||
-      !Number.isInteger(port) ||
-      port < 1 ||
-      port > 65535
-    )
-      return '';
+    if (!allowedHosts.has(host) || !Number.isInteger(port) || port < 1 || port > 65535) return '';
     const requestHost = host === '::1' ? '[::1]' : host;
-    const response = await fetchImpl(
-      `http://${requestHost}:${port}/api/music/wesing/status`,
-      {
-        headers: { Authorization: `Bearer ${String(token).trim()}` },
-        signal: AbortSignal.timeout(1500),
-      },
-    );
+    const response = await fetchImpl(`http://${requestHost}:${port}/api/music/wesing/status`, {
+      headers: { Authorization: `Bearer ${String(token).trim()}` },
+      signal: AbortSignal.timeout(1500),
+    });
     if (!response.ok) return '';
     const payload = await response.json();
-    return typeof payload?.data?.cachePath === 'string'
-      ? payload.data.cachePath
-      : '';
+    return typeof payload?.data?.cachePath === 'string' ? payload.data.cachePath : '';
   } catch (_) {
     return '';
   }
@@ -334,9 +303,7 @@ async function runDiagnostic(configuration) {
     logProbe = createWeSingLogProbe(configuration.cachePath, (event) => {
       recordEvent(event);
       if (event.startKSong) {
-        console.log(
-          `[全民日志] StartKSong：${event.startKSong.songName || '-'} (${event.startKSong.mid || '-'})`,
-        );
+        console.log(`[全民日志] StartKSong：${event.startKSong.songName || '-'} (${event.startKSong.mid || '-'})`);
       }
     });
 
@@ -374,10 +341,7 @@ WeSingCache：${configuration.cachePath}
     sigintHandler = () => finish('sigint');
     process.on('SIGINT', sigintHandler);
     if (configuration.durationMs > 0) {
-      durationTimer = setTimeout(
-        () => finish('duration'),
-        configuration.durationMs,
-      );
+      durationTimer = setTimeout(() => finish('duration'), configuration.durationMs);
     }
   }
 
@@ -392,9 +356,7 @@ WeSingCache：${configuration.cachePath}
 
 async function main() {
   const parsed = parseArguments(process.argv.slice(2));
-  const configuredCachePath = parsed.cachePathFromArgument
-    ? ''
-    : await readRunningCachePath();
+  const configuredCachePath = parsed.cachePathFromArgument ? '' : await readRunningCachePath();
   const configuration = {
     ...parsed,
     cachePath: configuredCachePath || parsed.cachePath,
@@ -408,9 +370,7 @@ async function main() {
 
 if (require.main === module) {
   main().catch((error) => {
-    console.error(
-      `诊断脚本运行失败：${error.stack || error.message || String(error)}`,
-    );
+    console.error(`诊断脚本运行失败：${error.stack || error.message || String(error)}`);
     process.exitCode = 1;
   });
 }

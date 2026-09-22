@@ -11,11 +11,7 @@ const DEFAULT_RATE_LIMIT_COOLDOWN_MS = 5 * 60 * 1000;
 
 function requiredText(value, field, maximum = 128) {
   const normalized = typeof value === 'string' ? value.trim() : '';
-  if (
-    !normalized ||
-    normalized.length > maximum ||
-    /[\r\n\0]/u.test(normalized)
-  ) {
+  if (!normalized || normalized.length > maximum || /[\r\n\0]/u.test(normalized)) {
     throw new TypeError(`${field} is invalid.`);
   }
   return normalized;
@@ -55,9 +51,7 @@ function createRequestBudgetStore(db) {
       VALUES (?, ?)
     `,
     ).run(scopeKey, nowMs);
-    return db
-      .prepare('SELECT * FROM lottery_request_budget WHERE scope_key = ?')
-      .get(scopeKey);
+    return db.prepare('SELECT * FROM lottery_request_budget WHERE scope_key = ?').get(scopeKey);
   }
 
   function normalizeRow(row, nowMs) {
@@ -115,10 +109,7 @@ function createRequestBudgetStore(db) {
       else row.consecutiveCount = 0;
     }
     if (row.lastFinishedAtMs > 0) {
-      waitUntilMs = Math.max(
-        waitUntilMs,
-        row.lastFinishedAtMs + MIN_REQUEST_INTERVAL_MS,
-      );
+      waitUntilMs = Math.max(waitUntilMs, row.lastFinishedAtMs + MIN_REQUEST_INTERVAL_MS);
     }
     return { reason: '', waitUntilMs: waitUntilMs > nowMs ? waitUntilMs : 0 };
   }
@@ -127,9 +118,7 @@ function createRequestBudgetStore(db) {
     requiredText(kind, 'request kind');
     const nowMs = normalizeMs(rawNowMs, 'request reservation time');
     return transaction(db, () => {
-      const rows = scopeKeys(scope).map((key) =>
-        normalizeRow(ensureRow(key, nowMs), nowMs),
-      );
+      const rows = scopeKeys(scope).map((key) => normalizeRow(ensureRow(key, nowMs), nowMs));
       const decisions = rows.map((row) => evaluate(row, nowMs));
       for (const row of rows) saveRow(row, nowMs);
       const manual = decisions.find((decision) => decision.reason);
@@ -141,10 +130,7 @@ function createRequestBudgetStore(db) {
           requestCount: rows[1].times.length,
         };
       }
-      const waitUntilMs = Math.max(
-        0,
-        ...decisions.map((decision) => decision.waitUntilMs || 0),
-      );
+      const waitUntilMs = Math.max(0, ...decisions.map((decision) => decision.waitUntilMs || 0));
       if (waitUntilMs > nowMs) {
         return {
           allowed: false,
@@ -167,18 +153,11 @@ function createRequestBudgetStore(db) {
     });
   }
 
-  function finish({
-    scope,
-    finishedAtMs: rawFinishedAtMs,
-    status,
-    retryAfterMs,
-  }) {
+  function finish({ scope, finishedAtMs: rawFinishedAtMs, status, retryAfterMs }) {
     const finishedAtMs = normalizeMs(rawFinishedAtMs, 'request finish time');
     const statusCode = Number(status) || 0;
     transaction(db, () => {
-      const rows = scopeKeys(scope).map((key) =>
-        normalizeRow(ensureRow(key, finishedAtMs), finishedAtMs),
-      );
+      const rows = scopeKeys(scope).map((key) => normalizeRow(ensureRow(key, finishedAtMs), finishedAtMs));
       for (const row of rows) {
         row.lastFinishedAtMs = finishedAtMs;
         if (statusCode === 429) {
@@ -187,18 +166,12 @@ function createRequestBudgetStore(db) {
             row.earliestResumeAtMs = 0;
             row.rateLimitStrikes += 1;
           } else {
-            const cooldown = Math.max(
-              DEFAULT_RATE_LIMIT_COOLDOWN_MS,
-              Number(retryAfterMs) || 0,
-            );
+            const cooldown = Math.max(DEFAULT_RATE_LIMIT_COOLDOWN_MS, Number(retryAfterMs) || 0);
             row.holdReason = 'RATE_LIMIT_COOLDOWN';
             row.earliestResumeAtMs = finishedAtMs + cooldown;
             row.rateLimitStrikes = 1;
           }
-        } else if (
-          [403, 412].includes(statusCode) &&
-          row.scopeKey !== 'local'
-        ) {
+        } else if ([403, 412].includes(statusCode) && row.scopeKey !== 'local') {
           row.holdReason = 'VERIFICATION_REQUIRED';
           row.earliestResumeAtMs = 0;
         } else if (statusCode >= 200 && statusCode < 400) {
@@ -216,10 +189,7 @@ function createRequestBudgetStore(db) {
     const resumeAtMs = normalizeMs(untilMs, 'budget resume time');
     const holdReason = requiredText(reason, 'budget hold reason');
     transaction(db, () => {
-      const scopeKey =
-        scope === '*'
-          ? 'local'
-          : `account:${requiredText(scope, 'budget scope')}`;
+      const scopeKey = scope === '*' ? 'local' : `account:${requiredText(scope, 'budget scope')}`;
       const row = normalizeRow(ensureRow(scopeKey, nowMs), nowMs);
       row.holdReason = holdReason;
       row.earliestResumeAtMs = resumeAtMs;
@@ -230,10 +200,7 @@ function createRequestBudgetStore(db) {
   function clearHold({ scope, nowMs: rawNowMs, respectCooldown = false }) {
     const nowMs = normalizeMs(rawNowMs, 'budget hold time');
     transaction(db, () => {
-      const scopeKey =
-        scope === '*'
-          ? 'local'
-          : `account:${requiredText(scope, 'budget scope')}`;
+      const scopeKey = scope === '*' ? 'local' : `account:${requiredText(scope, 'budget scope')}`;
       const row = normalizeRow(ensureRow(scopeKey, nowMs), nowMs);
       if (respectCooldown && row.earliestResumeAtMs > nowMs) {
         throw Object.assign(new Error('LOTTERY_COOLING_DOWN'), {
@@ -249,20 +216,14 @@ function createRequestBudgetStore(db) {
 
   function get({ scope, nowMs: rawNowMs }) {
     const nowMs = normalizeMs(rawNowMs, 'budget read time');
-    const rows = scopeKeys(scope).map((key) =>
-      normalizeRow(ensureRow(key, nowMs), nowMs),
-    );
+    const rows = scopeKeys(scope).map((key) => normalizeRow(ensureRow(key, nowMs), nowMs));
     const decisions = rows.map((row) => evaluate(row, nowMs));
     const manual = decisions.find((decision) => decision.reason);
     return {
       requestCount: rows[1].times.length,
       consecutiveCount: rows[1].consecutiveCount,
-      holdReason:
-        manual?.reason || rows.find((row) => row.holdReason)?.holdReason || '',
-      waitUntilMs: Math.max(
-        0,
-        ...decisions.map((decision) => decision.waitUntilMs || 0),
-      ),
+      holdReason: manual?.reason || rows.find((row) => row.holdReason)?.holdReason || '',
+      waitUntilMs: Math.max(0, ...decisions.map((decision) => decision.waitUntilMs || 0)),
     };
   }
 

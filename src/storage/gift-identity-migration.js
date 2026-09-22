@@ -8,8 +8,7 @@ function migrateGiftIdentities(db) {
       .map((column) => column.name),
   );
   for (const column of ['gift_variant_id', 'blind_box_variant_id']) {
-    if (!columns.has(column))
-      db.exec(`ALTER TABLE gift_events ADD COLUMN ${column} TEXT`);
+    if (!columns.has(column)) db.exec(`ALTER TABLE gift_events ADD COLUMN ${column} TEXT`);
   }
   if (
     db

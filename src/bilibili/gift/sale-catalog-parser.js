@@ -19,8 +19,7 @@ function collectPanelGiftIds(payload) {
 }
 
 function addGiftEntries(ids, entries) {
-  for (const entry of Array.isArray(entries) ? entries : [])
-    addGiftEntry(ids, entry);
+  for (const entry of Array.isArray(entries) ? entries : []) addGiftEntry(ids, entry);
 }
 
 function addGiftEntry(ids, entry) {
@@ -80,27 +79,18 @@ function expandBlindBoxSaleIds(panelSaleIds, configById, rawConfig) {
     giftsByName.get(name).push(gift);
   }
   for (const candidates of giftsByName.values()) {
-    candidates.sort(
-      (left, right) =>
-        Number(left.bagGift) - Number(right.bagGift) || left.id - right.id,
-    );
+    candidates.sort((left, right) => Number(left.bagGift) - Number(right.bagGift) || left.id - right.id);
   }
 
   const panelGiftNames = new Set(
-    [...panelSaleIds]
-      .map((id) => normalizeGiftName(configById.get(id)?.name))
-      .filter(Boolean),
+    [...panelSaleIds].map((id) => normalizeGiftName(configById.get(id)?.name)).filter(Boolean),
   );
   for (const box of blindBoxes) {
     if (!panelGiftNames.has(box.name)) continue;
     for (const output of box.outputs) {
       const candidates = giftsByName.get(output.name) || [];
       const priceMatches =
-        output.rmb === null
-          ? candidates
-          : candidates.filter(
-              (gift) => Math.abs(gift.rmb - output.rmb) < 0.001,
-            );
+        output.rmb === null ? candidates : candidates.filter((gift) => Math.abs(gift.rmb - output.rmb) < 0.001);
       const gift = priceMatches[0] || candidates[0];
       if (gift && !isExcludedGiftId(gift.id)) saleIds.add(gift.id);
     }
@@ -147,11 +137,7 @@ function normalizeBilibiliImageUrl(value) {
   try {
     const url = new URL(String(value || '').trim());
     const hostname = url.hostname.toLowerCase();
-    if (
-      url.protocol !== 'https:' ||
-      !(hostname === 'hdslb.com' || hostname.endsWith('.hdslb.com'))
-    )
-      return '';
+    if (url.protocol !== 'https:' || !(hostname === 'hdslb.com' || hostname.endsWith('.hdslb.com'))) return '';
     return url.href;
   } catch (_) {
     return '';
@@ -177,9 +163,7 @@ function buildGiftCatalog(saleIds, configById) {
     })
     .sort(
       (left, right) =>
-        Number(right.known) - Number(left.known) ||
-        left.rmb - right.rmb ||
-        Number(left.id) - Number(right.id),
+        Number(right.known) - Number(left.known) || left.rmb - right.rmb || Number(left.id) - Number(right.id),
     )
     .map(({ known: _known, ...gift }) => gift);
 }

@@ -13,8 +13,7 @@ function createLicenseResumeHandler({
   writeLog = () => {},
 } = {}) {
   if (!powerMonitor) throw new Error('powerMonitor is required');
-  if (typeof getLicenseManager !== 'function')
-    throw new Error('getLicenseManager must be a function');
+  if (typeof getLicenseManager !== 'function') throw new Error('getLicenseManager must be a function');
 
   let resumeHandler = null;
 

@@ -1,12 +1,7 @@
 'use strict';
 
 const { createHash } = require('node:crypto');
-const {
-  profilePatch,
-  identityKey,
-  timestamp,
-  recordData,
-} = require('./validation');
+const { profilePatch, identityKey, timestamp, recordData } = require('./validation');
 const { dateValue, dayStart } = require('./dates');
 
 function digest(value) {
@@ -34,15 +29,12 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
       input.profiles.length > 10000 ||
       !Array.isArray(input.suppressions)
     ) {
-      throw new Error(
-        '备份格式无效或归属不匹配。请切换到备份所属服务器和主播账号后恢复。',
-      );
+      throw new Error('备份格式无效或归属不匹配。请切换到备份所属服务器和主播账号后恢复。');
     }
     const ids = new Set();
     const keys = new Set();
     for (const profile of input.profiles) {
-      if (typeof profile.id !== 'string' || ids.has(profile.id))
-        throw new Error('备份中有重复或无效档案。');
+      if (typeof profile.id !== 'string' || ids.has(profile.id)) throw new Error('备份中有重复或无效档案。');
       ids.add(profile.id);
       const patch = profilePatch(profile);
       if (profile.guardRoster !== undefined && profile.guardRoster !== null) {
@@ -63,31 +55,19 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
       const key = identityKey(patch.identity);
       if (key && keys.has(key)) throw new Error('备份中同一身份重复。');
       if (key) keys.add(key);
-      if (!Array.isArray(profile.records) || !Array.isArray(profile.reminders))
-        throw new Error('备份缺少完整记录。');
+      if (!Array.isArray(profile.records) || !Array.isArray(profile.reminders)) throw new Error('备份缺少完整记录。');
       for (const record of profile.records) {
         recordData(record.kind, record.data);
         timestamp(record.occurredAt);
-        if (
-          !record.original ||
-          !Array.isArray(record.revisions) ||
-          typeof record.id !== 'string'
-        )
+        if (!record.original || !Array.isArray(record.revisions) || typeof record.id !== 'string')
           throw new Error('备份缺少原始依据或修订。');
       }
       for (const state of profile.reminders) {
-        if (
-          typeof state.key !== 'string' ||
-          !['pending', 'handled', 'ignored', 'snoozed'].includes(state.status)
-        )
+        if (typeof state.key !== 'string' || !['pending', 'handled', 'ignored', 'snoozed'].includes(state.status))
           throw new Error('备份提醒状态无效。');
       }
     }
-    if (
-      input.suppressions.some(
-        (key) => typeof key !== 'string' || key.length > 300,
-      )
-    )
+    if (input.suppressions.some((key) => typeof key !== 'string' || key.length > 300))
       throw new Error('备份抑制标记无效。');
     return input;
   }
@@ -98,9 +78,7 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
     let added = 0;
     for (const profile of value.profiles) {
       const current =
-        store.get(scope, profile.id) ||
-        (profile.identity &&
-          store.byIdentity(scope, identityKey(profile.identity)));
+        store.get(scope, profile.id) || (profile.identity && store.byIdentity(scope, identityKey(profile.identity)));
       if (current)
         conflicts.push({
           incomingId: profile.id,
@@ -132,19 +110,12 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
     const snapshotId = store.snapshot(scope, backup(scope), now());
     const value = input.backup;
     for (const profile of value.profiles) {
-      const conflict = plan.conflicts.find(
-        (item) => item.incomingId === profile.id,
-      );
+      const conflict = plan.conflicts.find((item) => item.incomingId === profile.id);
       if (conflict && input.conflicts === 'keep') continue;
       const prior = conflict && store.get(scope, conflict.existingId);
       if (prior) store.remove(scope, prior.id, false);
       const { records, reminders, ...data } = profile;
-      const restored = store.restoreProfile(
-        scope,
-        data,
-        identityKey(data.identity),
-        now(),
-      );
+      const restored = store.restoreProfile(scope, data, identityKey(data.identity), now());
       for (const record of records) {
         store.records.insert(scope, restored.id, record);
       }
@@ -172,8 +143,7 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
 
   function legacyPreview(scope, input) {
     const profile = requireProfile(scope, input.profileId);
-    if (profile.identity?.type !== 'uid')
-      throw new Error('旧点歌补录需要明确的 B 站 UID。');
+    if (profile.identity?.type !== 'uid') throw new Error('旧点歌补录需要明确的 B 站 UID。');
     const from = dateValue(input.from, '开始日期', false);
     const to = dateValue(input.to, '结束日期', false);
     if (from > to) throw new Error('补录开始日期不能晚于结束日期。');
@@ -226,21 +196,9 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
   }
 
   function exportList(scope, input) {
-    const allowed = [
-      'alias',
-      'platformName',
-      'uid',
-      'summary',
-      'birthday',
-      'mbti',
-      'notes',
-    ];
+    const allowed = ['alias', 'platformName', 'uid', 'summary', 'birthday', 'mbti', 'notes'];
     const fields = input.fields || ['alias', 'platformName', 'uid'];
-    if (
-      !Array.isArray(fields) ||
-      !fields.length ||
-      fields.some((field) => !allowed.includes(field))
-    )
+    if (!Array.isArray(fields) || !fields.length || fields.some((field) => !allowed.includes(field)))
       throw new Error('导出字段无效。');
     const escape = (value) => {
       const cell = String(value ?? '');
@@ -254,45 +212,22 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
         uid: p.identity?.value || '',
         birthday: p.birthday?.monthDay || '',
       }));
-    return (
-      '\uFEFF' +
-      [
-        fields.join(','),
-        ...rows.map((p) => fields.map((f) => escape(p[f])).join(',')),
-      ].join('\r\n')
-    );
+    return '\uFEFF' + [fields.join(','), ...rows.map((p) => fields.map((f) => escape(p[f])).join(','))].join('\r\n');
   }
 
   function restoreSnapshot(scope, input) {
     const value = store.getSnapshot(scope, input.snapshotId);
     const plan = preview(scope, { backup: value });
-    if (
-      input.confirm !== true ||
-      input.digest !== plan.digest ||
-      input.currentDigest !== plan.currentDigest
-    ) {
+    if (input.confirm !== true || input.digest !== plan.digest || input.currentDigest !== plan.currentDigest) {
       throw new Error('恢复点预览已变化，请重新确认。');
     }
-    const snapshotId = store.snapshot(
-      scope,
-      { ...backup(scope), reason: '恢复本机恢复点之前' },
-      now(),
-    );
-    for (const profile of store.list(scope))
-      store.remove(scope, profile.id, false);
-    for (const key of store.exportScope(scope).suppressions)
-      store.unsuppress(scope, key);
+    const snapshotId = store.snapshot(scope, { ...backup(scope), reason: '恢复本机恢复点之前' }, now());
+    for (const profile of store.list(scope)) store.remove(scope, profile.id, false);
+    for (const key of store.exportScope(scope).suppressions) store.unsuppress(scope, key);
     for (const { records, reminders, ...profile } of value.profiles) {
-      store.restoreProfile(
-        scope,
-        profile,
-        identityKey(profile.identity),
-        now(),
-      );
-      for (const record of records)
-        store.records.insert(scope, profile.id, record);
-      for (const state of reminders)
-        store.saveState(scope, profile.id, state.key, state);
+      store.restoreProfile(scope, profile, identityKey(profile.identity), now());
+      for (const record of records) store.records.insert(scope, profile.id, record);
+      for (const state of reminders) store.saveState(scope, profile.id, state.key, state);
     }
     for (const key of value.suppressions) store.suppress(scope, key);
     store.saveScope(scope, { ...value.settings, cursor: 0, epoch: null });

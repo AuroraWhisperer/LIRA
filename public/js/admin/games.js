@@ -1,14 +1,7 @@
 'use strict';
 
 import { eventBus, Events } from '../shared/event-bus.js';
-import {
-  api,
-  copyText,
-  localOverlayOrigin,
-  readJsonResponse,
-  showError,
-  toast,
-} from '../shared/utils.js';
+import { api, copyText, localOverlayOrigin, readJsonResponse, showError, toast } from '../shared/utils.js';
 import { initInteractions } from './interactions.js';
 import { initWheelAdmin } from './games-wheel.js';
 
@@ -28,34 +21,18 @@ export function initGames() {
   if (initialized || !document.getElementById('gamesAdminPanel')) return;
   initialized = true;
   byId('gamesOverlayUrl').value = overlayBaseUrl();
-  byId('gamesCopyBaseUrlBtn').addEventListener('click', () =>
-    copyUrl(overlayBaseUrl()),
-  );
-  byId('gamesOpenOverlayBtn').addEventListener('click', () =>
-    window.open(overlayBaseUrl(), '_blank', 'noopener'),
-  );
+  byId('gamesCopyBaseUrlBtn').addEventListener('click', () => copyUrl(overlayBaseUrl()));
+  byId('gamesOpenOverlayBtn').addEventListener('click', () => window.open(overlayBaseUrl(), '_blank', 'noopener'));
   byId('gamesRefreshViewersBtn').addEventListener('click', () => {
     requestViewerRefresh({ notify: true }).catch(showError);
   });
-  byId('gamesStopBtn').addEventListener('click', () =>
-    stopGame().catch(showError),
-  );
+  byId('gamesStopBtn').addEventListener('click', () => stopGame().catch(showError));
   byId('drawCardTrigger').addEventListener('click', toggleDrawDetails);
-  byId('drawFinishRoundBtn').addEventListener('click', () =>
-    controlDrawRound('finish-round').catch(showError),
-  );
-  byId('drawRevealAnswerBtn').addEventListener('click', () =>
-    controlDrawRound('reveal-answer').catch(showError),
-  );
-  byId('drawNextRoundBtn').addEventListener('click', () =>
-    controlDrawRound('next-round').catch(showError),
-  );
-  byId('drawSelectAllCategoriesBtn').addEventListener('click', () =>
-    setAllDrawCategories(true),
-  );
-  byId('drawClearCategoriesBtn').addEventListener('click', () =>
-    setAllDrawCategories(false),
-  );
+  byId('drawFinishRoundBtn').addEventListener('click', () => controlDrawRound('finish-round').catch(showError));
+  byId('drawRevealAnswerBtn').addEventListener('click', () => controlDrawRound('reveal-answer').catch(showError));
+  byId('drawNextRoundBtn').addEventListener('click', () => controlDrawRound('next-round').catch(showError));
+  byId('drawSelectAllCategoriesBtn').addEventListener('click', () => setAllDrawCategories(true));
+  byId('drawClearCategoriesBtn').addEventListener('click', () => setAllDrawCategories(false));
   byId('numberBombMode').addEventListener('change', syncViewerMode);
   document.querySelectorAll('[data-start-game]').forEach((button) =>
     button.addEventListener('click', () => {
@@ -70,10 +47,7 @@ export function initGames() {
   });
   eventBus.on(Events.STATE_LOADED, ({ state }) => {
     const liveStatus = state?.liveStatus || {};
-    const connectionKey =
-      liveStatus.connected === true && liveStatus.roomId
-        ? `${liveStatus.roomId}`
-        : '';
+    const connectionKey = liveStatus.connected === true && liveStatus.roomId ? `${liveStatus.roomId}` : '';
     const connectionChanged = connectionKey !== lastLiveConnectionKey;
     lastLiveConnectionKey = connectionKey;
     if (connectionChanged && connectionKey) {
@@ -81,13 +55,15 @@ export function initGames() {
     }
   });
   const wheelRefresh = initWheelAdmin();
-  initInteractions({ onCollecting(collecting) {
-    interactionCollecting = collecting;
-    renderSession(activeGameSession);
-    document.querySelectorAll('[data-start-game]').forEach((button) => {
-      button.title = collecting ? '请先结束类别 3 的投票或评分' : '';
-    });
-  } });
+  initInteractions({
+    onCollecting(collecting) {
+      interactionCollecting = collecting;
+      renderSession(activeGameSession);
+      document.querySelectorAll('[data-start-game]').forEach((button) => {
+        button.title = collecting ? '请先结束类别 3 的投票或评分' : '';
+      });
+    },
+  });
   syncViewerMode();
   window.addEventListener('app:shutdown', stopDrawClockTimer, { once: true });
   Promise.all([
@@ -110,21 +86,15 @@ function requestViewerRefresh(options = {}) {
 async function refreshViewers(options = {}) {
   const notify = options.notify === true;
   let viewers = [];
-  for (
-    let attempt = 0;
-    attempt <= VIEWER_REFRESH_RETRY_DELAYS_MS.length;
-    attempt += 1
-  ) {
+  for (let attempt = 0; attempt <= VIEWER_REFRESH_RETRY_DELAYS_MS.length; attempt += 1) {
     if (attempt > 0) await wait(VIEWER_REFRESH_RETRY_DELAYS_MS[attempt - 1]);
     const response = await fetch('/api/games/viewers');
     const payload = await readJsonResponse(response, '读取在线观众失败');
     if (!payload.ok) throw new Error(payload.error || '读取在线观众失败');
     viewers = payload.data || [];
-    if (viewers.length > 0 || attempt === VIEWER_REFRESH_RETRY_DELAYS_MS.length)
-      break;
+    if (viewers.length > 0 || attempt === VIEWER_REFRESH_RETRY_DELAYS_MS.length) break;
   }
-  for (const id of ['numberBombViewer', 'gomokuViewer'])
-    renderViewerOptions(byId(id), viewers);
+  for (const id of ['numberBombViewer', 'gomokuViewer']) renderViewerOptions(byId(id), viewers);
   if (notify) toast(`已找到 ${viewers.length} 位当前在线观众`);
 }
 
@@ -146,8 +116,7 @@ function renderViewerOptions(select, viewers) {
     option.textContent = viewer.name;
     select.append(option);
   }
-  if ([...select.options].some((option) => option.value === previous))
-    select.value = previous;
+  if ([...select.options].some((option) => option.value === previous)) select.value = previous;
 }
 
 async function refreshSession() {
@@ -174,14 +143,10 @@ async function refreshDrawCategories() {
 }
 
 function renderDrawCategories(categories) {
-  drawWordCategories = categories.filter(
-    (category) => category?.id && category?.label && Number(category.count) > 0,
-  );
+  drawWordCategories = categories.filter((category) => category?.id && category?.label && Number(category.count) > 0);
   const root = byId('drawWordCategories');
   root.replaceChildren();
-  const selected = activeDrawCategoryIds
-    ? new Set(activeDrawCategoryIds)
-    : null;
+  const selected = activeDrawCategoryIds ? new Set(activeDrawCategoryIds) : null;
   for (const category of drawWordCategories) {
     const label = document.createElement('label');
     label.className = 'draw-word-category';
@@ -203,9 +168,7 @@ function renderDrawCategories(categories) {
 }
 
 function readSelectedDrawCategoryIds() {
-  return [...document.querySelectorAll('[data-draw-category]:checked')].map(
-    (input) => input.value,
-  );
+  return [...document.querySelectorAll('[data-draw-category]:checked')].map((input) => input.value);
 }
 
 function setAllDrawCategories(selected) {
@@ -218,10 +181,7 @@ function setAllDrawCategories(selected) {
 function updateDrawCategoryStatus() {
   const selectedIds = new Set(readSelectedDrawCategoryIds());
   const wordCount = drawWordCategories.reduce(
-    (total, category) =>
-      selectedIds.has(String(category.id))
-        ? total + Number(category.count)
-        : total,
+    (total, category) => (selectedIds.has(String(category.id)) ? total + Number(category.count) : total),
     0,
   );
   byId('drawWordCategoryStatus').textContent = drawWordCategories.length
@@ -233,9 +193,7 @@ function updateDrawCategoryStatus() {
 function setDrawCategoryControlsDisabled(disabled) {
   document.querySelectorAll('[data-draw-category]').forEach((input) => {
     input.disabled = disabled;
-    input
-      .closest('.draw-word-category')
-      ?.classList.toggle('is-disabled', disabled);
+    input.closest('.draw-word-category')?.classList.toggle('is-disabled', disabled);
   });
   byId('drawSelectAllCategoriesBtn').disabled = disabled;
   byId('drawClearCategoriesBtn').disabled = disabled;
@@ -245,7 +203,8 @@ function syncDrawStartAvailability() {
   const button = document.querySelector('[data-start-game="draw-guess"]');
   if (!button) return;
   const disabled =
-    Boolean(activeGameSession) || interactionCollecting ||
+    Boolean(activeGameSession) ||
+    interactionCollecting ||
     !drawWordCategories.length ||
     !readSelectedDrawCategoryIds().length;
   button.disabled = disabled;
@@ -294,11 +253,7 @@ async function controlDrawRound(action) {
   renderSession(result.data);
   await refreshHostState();
   toast(
-    action === 'finish-round'
-      ? '作画已结束，请公布答案'
-      : action === 'reveal-answer'
-        ? '答案已公布'
-        : '下一题已开始',
+    action === 'finish-round' ? '作画已结束，请公布答案' : action === 'reveal-answer' ? '答案已公布' : '下一题已开始',
   );
 }
 
@@ -330,10 +285,7 @@ function renderSession(session) {
   });
   setDrawCategoryControlsDisabled(Boolean(session));
   document.querySelectorAll('[data-game-card]').forEach((card) => {
-    card.classList.toggle(
-      'is-running',
-      card.dataset.gameCard === session?.game,
-    );
+    card.classList.toggle('is-running', card.dataset.gameCard === session?.game);
   });
   syncDrawStartAvailability();
   renderDrawSession(session);
@@ -341,14 +293,8 @@ function renderSession(session) {
     status.textContent = '当前没有进行中的游戏';
     return;
   }
-  const gameName =
-    session.game === 'gomoku'
-      ? '五子棋'
-      : session.game === 'draw-guess'
-        ? '你画我猜'
-        : '数字炸弹';
-  const opponent =
-    session.mode === 'multi' ? '不限观众' : session.targetName || '指定观众';
+  const gameName = session.game === 'gomoku' ? '五子棋' : session.game === 'draw-guess' ? '你画我猜' : '数字炸弹';
+  const opponent = session.mode === 'multi' ? '不限观众' : session.targetName || '指定观众';
   status.textContent = `${gameName}进行中 · ${opponent}`;
 }
 
@@ -356,10 +302,8 @@ function renderDrawSession(session) {
   const drawSession = session?.game === 'draw-guess' ? session : null;
   const state = drawSession?.state;
   byId('drawFinishRoundBtn').disabled = state?.phase !== 'drawing';
-  byId('drawRevealAnswerBtn').disabled =
-    state?.phase !== 'round-result' || Boolean(state.answerRevealed);
-  byId('drawNextRoundBtn').disabled =
-    state?.phase !== 'round-result' || !state.answerRevealed;
+  byId('drawRevealAnswerBtn').disabled = state?.phase !== 'round-result' || Boolean(state.answerRevealed);
+  byId('drawNextRoundBtn').disabled = state?.phase !== 'round-result' || !state.answerRevealed;
   if (!state) {
     drawClock = null;
     byId('drawCardStatus').textContent = '自定义赛制 · 1–12 局 · 15–300 秒';
@@ -370,9 +314,7 @@ function renderDrawSession(session) {
   }
   setDrawDetails(true);
   byId('drawTotalRounds').value = String(state.totalRounds);
-  byId('drawRoundDuration').value = String(
-    Math.round(state.roundDurationMs / 1000),
-  );
+  byId('drawRoundDuration').value = String(Math.round(state.roundDurationMs / 1000));
   drawClock = {
     remainingMs: Number(state.remainingMs) || 0,
     receivedAt: performance.now(),
@@ -380,32 +322,27 @@ function renderDrawSession(session) {
   byId('drawHostRound').textContent =
     `第 ${state.round} / ${state.totalRounds} 局 · ${state.category} · ${state.wordLength} 个字`;
   if (state.phase === 'drawing') {
-    byId('drawCardStatus').textContent =
-      `第 ${state.round} 局进行中 · ${state.correct.length} 人答对`;
+    byId('drawCardStatus').textContent = `第 ${state.round} 局进行中 · ${state.correct.length} 人答对`;
     byId('drawHostStatus').textContent = '请在游戏网页作画，题词仅在这里显示';
   } else if (state.phase === 'round-result') {
     byId('drawHostClock').textContent = '--:--';
     byId('drawCardStatus').textContent = state.answerRevealed
       ? `第 ${state.round} 局结束 · 答案已公布：${state.revealedAnswer}`
       : `第 ${state.round} 局结束 · 等待主播公布答案`;
-    byId('drawHostStatus').textContent = state.answerRevealed
-      ? '可以开始下一题'
-      : '时间到，弹幕仍在收集且不计分';
+    byId('drawHostStatus').textContent = state.answerRevealed ? '可以开始下一题' : '时间到，弹幕仍在收集且不计分';
   } else {
     byId('drawHostClock').textContent = '--:--';
     const champion = state.scores[0];
     byId('drawCardStatus').textContent = champion
       ? `比赛结束 · ${champion.name} ${champion.score} 分`
       : '比赛结束 · 本场无人得分';
-    byId('drawHostStatus').textContent =
-      '最终排行已显示在游戏网页，可结束当前游戏';
+    byId('drawHostStatus').textContent = '最终排行已显示在游戏网页，可结束当前游戏';
   }
   updateDrawClock();
 }
 
 function renderHostState(state) {
-  const visible =
-    state?.game === 'draw-guess' && activeGameSession?.game === 'draw-guess';
+  const visible = state?.game === 'draw-guess' && activeGameSession?.game === 'draw-guess';
   if (visible && Array.isArray(state.categoryIds) && state.categoryIds.length) {
     activeDrawCategoryIds = state.categoryIds.map(String);
     document.querySelectorAll('[data-draw-category]').forEach((input) => {
@@ -413,18 +350,11 @@ function renderHostState(state) {
     });
     updateDrawCategoryStatus();
   }
-  byId('drawHostWord').textContent = visible
-    ? state.word
-    : '开始游戏后显示题词';
+  byId('drawHostWord').textContent = visible ? state.word : '开始游戏后显示题词';
 }
 
 function updateDrawClock() {
-  if (
-    activeGameSession?.game !== 'draw-guess' ||
-    activeGameSession.state?.phase !== 'drawing' ||
-    !drawClock
-  )
-    return;
+  if (activeGameSession?.game !== 'draw-guess' || activeGameSession.state?.phase !== 'drawing' || !drawClock) return;
   const elapsed = performance.now() - drawClock.receivedAt;
   const remaining = Math.max(0, drawClock.remainingMs - elapsed);
   const totalSeconds = Math.ceil(remaining / 1000);
@@ -433,9 +363,7 @@ function updateDrawClock() {
 }
 
 function syncDrawClockTimer() {
-  const active =
-    activeGameSession?.game === 'draw-guess' &&
-    activeGameSession.state?.phase === 'drawing';
+  const active = activeGameSession?.game === 'draw-guess' && activeGameSession.state?.phase === 'drawing';
   if (!active) {
     stopDrawClockTimer();
     return;

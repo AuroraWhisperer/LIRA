@@ -19,15 +19,21 @@ const INITIAL_SNAPSHOT_RETRY_DELAY_MS = 350;
 
 document.addEventListener('DOMContentLoaded', () => {
   const stopPages = [
-    byId('drawScoreboard'), byId('drawCorrectFeed'),
-    byId('drawGuessView'), document.querySelector('.game-result-card'),
+    byId('drawScoreboard'),
+    byId('drawCorrectFeed'),
+    byId('drawGuessView'),
+    document.querySelector('.game-result-card'),
   ].map(startOverlayPages);
-  window.addEventListener('beforeunload', () => {
-    stopPages.forEach((stop) => stop());
-    snapshotRevision += 1;
-    clearTimeout(snapshotRetryTimer);
-    socketController?.dispose();
-  }, { once: true });
+  window.addEventListener(
+    'beforeunload',
+    () => {
+      stopPages.forEach((stop) => stop());
+      snapshotRevision += 1;
+      clearTimeout(snapshotRetryTimer);
+      socketController?.dispose();
+    },
+    { once: true },
+  );
   drawDanmakuFeed = createDanmakuFeed(byId('drawDanmakuFeed'), {
     offscreenViewports: 5,
     resolveAvatarUrl: avatarSource,
@@ -49,12 +55,8 @@ document.addEventListener('DOMContentLoaded', () => {
   loadSnapshot();
   connectSocket();
   byId('gameResultAvatar').addEventListener('error', hideGameResultAvatar);
-  byId('gameResultExit').addEventListener('click', () =>
-    submitGameResultAction('stop'),
-  );
-  byId('gameResultNext').addEventListener('click', () =>
-    submitGameResultAction('restart'),
-  );
+  byId('gameResultExit').addEventListener('click', () => submitGameResultAction('stop'));
+  byId('gameResultNext').addEventListener('click', () => submitGameResultAction('restart'));
   window.addEventListener('resize', positionGameResult);
   setInterval(() => drawController?.updateCountdown(), 250);
 });
@@ -71,11 +73,7 @@ async function loadSnapshot(attempt = 0) {
     const payload = await response.json();
     if (revision !== snapshotRevision) return;
     if (!payload.ok) throw new Error(payload.error || '读取游戏状态失败');
-    if (
-      payload.data ||
-      initialSnapshotLoaded ||
-      attempt >= INITIAL_SNAPSHOT_RETRIES
-    ) {
+    if (payload.data || initialSnapshotLoaded || attempt >= INITIAL_SNAPSHOT_RETRIES) {
       initialSnapshotLoaded = true;
       clearTimeout(snapshotRetryTimer);
       renderGame(payload.data);
@@ -84,18 +82,14 @@ async function loadSnapshot(attempt = 0) {
     scheduleSnapshotRetry(attempt + 1);
   } catch (_) {
     if (revision !== snapshotRevision) return;
-    if (attempt >= INITIAL_SNAPSHOT_RETRIES)
-      byId('gameTurn').textContent = '等待连接';
+    if (attempt >= INITIAL_SNAPSHOT_RETRIES) byId('gameTurn').textContent = '等待连接';
     else scheduleSnapshotRetry(attempt + 1);
   }
 }
 
 function scheduleSnapshotRetry(attempt) {
   clearTimeout(snapshotRetryTimer);
-  snapshotRetryTimer = setTimeout(
-    () => loadSnapshot(attempt),
-    INITIAL_SNAPSHOT_RETRY_DELAY_MS,
-  );
+  snapshotRetryTimer = setTimeout(() => loadSnapshot(attempt), INITIAL_SNAPSHOT_RETRY_DELAY_MS);
 }
 
 function connectSocket() {
@@ -109,8 +103,7 @@ function connectSocket() {
         clearTimeout(snapshotRetryTimer);
         renderGame(payload.session);
       }
-      if (payload.type === 'game:draw')
-        drawController?.applyBroadcast(payload.operation);
+      if (payload.type === 'game:draw') drawController?.applyBroadcast(payload.operation);
       if (payload.type === 'snapshot') {
         if (
           !payload.state ||
@@ -132,8 +125,7 @@ function renderGame(nextSession) {
   session = nextSession || null;
   const game = nextSession?.game || '';
   document.body.dataset.game = game;
-  if (!session || game !== 'draw-guess')
-    drawController?.resetDanmakuRenderScheduler();
+  if (!session || game !== 'draw-guess') drawController?.resetDanmakuRenderScheduler();
   byId('gameEmptyView').hidden = Boolean(session);
   byId('numberBombView').hidden = game !== 'number-bomb' || !session;
   byId('gomokuView').hidden = game !== 'gomoku' || !session;
@@ -150,9 +142,7 @@ function renderGame(nextSession) {
     hideGameResult();
     return;
   }
-  byId('gameTurn').textContent = state.winner
-    ? winnerLabel(state.winner)
-    : `${turnLabel(state.turn)}的回合`;
+  byId('gameTurn').textContent = state.winner ? winnerLabel(state.winner) : `${turnLabel(state.turn)}的回合`;
   if (game === 'number-bomb') renderBomb(state);
   else renderGomoku(state);
   if (state.winner) showGameResult(state.winner, session.winner);
@@ -160,12 +150,8 @@ function renderGame(nextSession) {
 }
 
 function renderBomb(state) {
-  byId('bombHint').textContent = state.winner
-    ? winnerLabel(state.winner)
-    : `${turnLabel(state.turn)}先选一个数字`;
-  byId('bombHistory').textContent = state.lastGuess
-    ? `上次：${state.lastGuess}`
-    : '尚未落子';
+  byId('bombHint').textContent = state.winner ? winnerLabel(state.winner) : `${turnLabel(state.turn)}先选一个数字`;
+  byId('bombHistory').textContent = state.lastGuess ? `上次：${state.lastGuess}` : '尚未落子';
   const root = byId('bombNumbers');
   root.replaceChildren();
   for (let value = 1; value <= 100; value += 1) {
@@ -175,11 +161,7 @@ function renderBomb(state) {
     const isPicked = value === state.lastGuess;
     button.className = `bomb-number ${isSafe ? 'is-safe' : 'is-unsafe'}${isPicked ? ' is-picked' : ''}`;
     button.textContent = String(value);
-    button.disabled =
-      value < state.min ||
-      value > state.max ||
-      Boolean(state.winner) ||
-      state.turn !== 'host';
+    button.disabled = value < state.min || value > state.max || Boolean(state.winner) || state.turn !== 'host';
     if (isPicked) button.classList.add('last');
     button.addEventListener('click', () => submitMove(value));
     root.append(button);
@@ -196,13 +178,8 @@ function renderGomoku(state) {
       button.type = 'button';
       button.className = `gomoku-cell${state.board[row][column] ? ` has-${state.board[row][column]}` : ''}`;
       button.setAttribute('aria-label', coordinateLabel({ row, column }));
-      button.disabled =
-        Boolean(state.board[row][column]) ||
-        Boolean(state.winner) ||
-        state.turn !== 'host';
-      button.addEventListener('click', () =>
-        submitMove(coordinateLabel({ row, column })),
-      );
+      button.disabled = Boolean(state.board[row][column]) || Boolean(state.winner) || state.turn !== 'host';
+      button.addEventListener('click', () => submitMove(coordinateLabel({ row, column })));
       root.append(button);
     }
   }
@@ -233,13 +210,10 @@ function renderDrawGuess(state) {
       : null,
   );
   byId('drawMeta').textContent = '';
-  byId('drawRoundLabel').textContent =
-    `第 ${state.round} / ${state.totalRounds} 局`;
+  byId('drawRoundLabel').textContent = `第 ${state.round} / ${state.totalRounds} 局`;
   if (state.phase !== 'drawing') byId('drawCountdown').textContent = '00:00';
   byId('drawClue').textContent =
-    state.phase === 'drawing'
-      ? `${state.wordLength} 个字`
-      : `答案 · ${state.revealedAnswer || '等待揭晓'}`;
+    state.phase === 'drawing' ? `${state.wordLength} 个字` : `答案 · ${state.revealedAnswer || '等待揭晓'}`;
   drawController?.scheduleDrawDanmakuRender(session.danmaku || []);
   byId('drawCorrectCount').textContent = `${state.correct.length} 人答对`;
   renderDrawScoreboard(state.scores || []);
@@ -250,11 +224,8 @@ function renderDrawGuess(state) {
   byId('drawRevealedAnswer').textContent = state.revealedAnswer || '';
   drawController?.setToolsEnabled(state.phase === 'drawing');
   if (state.phase === 'round-result')
-    byId('gameTurn').textContent = state.answerRevealed
-      ? '答案已公布 · 等待下一题'
-      : '时间到 · 等待主播公布答案';
-  else if (state.phase === 'finished')
-    byId('gameTurn').textContent = '五局结束 · 最终排行';
+    byId('gameTurn').textContent = state.answerRevealed ? '答案已公布 · 等待下一题' : '时间到 · 等待主播公布答案';
+  else if (state.phase === 'finished') byId('gameTurn').textContent = '五局结束 · 最终排行';
   else drawController?.updateCountdown();
 }
 
@@ -278,9 +249,7 @@ function renderDrawScoreboard(scores) {
     return;
   }
   scores.slice(0, 6).forEach((player, index) => {
-    root.append(
-      createDrawListItem(index + 1, player.name, `${player.score} 分`),
-    );
+    root.append(createDrawListItem(index + 1, player.name, `${player.score} 分`));
   });
 }
 
@@ -346,9 +315,7 @@ function turnLabel(turn) {
   return turn === 'viewer' ? '观众' : '主播';
 }
 function winnerLabel(winner) {
-  return winner === 'draw'
-    ? '和棋'
-    : `${winner === 'viewer' ? '观众' : '主播'}获胜`;
+  return winner === 'draw' ? '和棋' : `${winner === 'viewer' ? '观众' : '主播'}获胜`;
 }
 function byId(id) {
   return document.getElementById(id);
@@ -358,12 +325,7 @@ function showGameResult(winner, winnerIdentity = {}) {
   const resultEl = byId('gameResult');
   const textEl = byId('gameResultText');
   const winnerUid = String(winnerIdentity.uid || '').trim();
-  if (
-    !resultEl.hidden &&
-    resultEl.dataset.winner === winner &&
-    resultEl.dataset.winnerUid === winnerUid
-  )
-    return;
+  if (!resultEl.hidden && resultEl.dataset.winner === winner && resultEl.dataset.winnerUid === winnerUid) return;
   const requestId = ++resultProfileRequest;
   resultEl.dataset.winner = winner;
   resultEl.dataset.winnerUid = winnerUid;
@@ -379,10 +341,7 @@ function showGameResult(winner, winnerIdentity = {}) {
 function positionGameResult() {
   const resultEl = byId('gameResult');
   if (!resultEl || resultEl.hidden) return;
-  const target =
-    document.body.dataset.game === 'gomoku'
-      ? byId('gomokuBoard')
-      : byId('bombNumbers');
+  const target = document.body.dataset.game === 'gomoku' ? byId('gomokuBoard') : byId('bombNumbers');
   const stage = byId('gameStage');
   if (!target || !stage) return;
   const targetRect = target.getBoundingClientRect();
@@ -435,8 +394,7 @@ async function submitGameResultAction(action) {
     });
     const payload = await response.json();
     if (revision !== snapshotRevision) return;
-    if (!response.ok || !payload.ok)
-      throw new Error(payload.error || '操作失败');
+    if (!response.ok || !payload.ok) throw new Error(payload.error || '操作失败');
     renderGame(payload.data);
   } catch (_) {
     if (revision !== snapshotRevision) return;
@@ -453,8 +411,7 @@ function setGameResultActionsPending(pending, action = '') {
   nextButton.disabled = pending || session?.restartBlocked === true;
   nextButton.title = session?.restartBlocked ? '请先结束投票或评分' : '';
   exitButton.textContent = pending && action === 'stop' ? '退出中…' : '退出';
-  nextButton.textContent =
-    pending && action === 'restart' ? '开局中…' : '下一局';
+  nextButton.textContent = pending && action === 'restart' ? '开局中…' : '下一局';
 }
 
 function setGameResultActionStatus(message) {

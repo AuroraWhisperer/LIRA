@@ -6,8 +6,7 @@ const { readFirstObject } = require('../utils/user-meta-extractor');
 function isBilibiliDuplicateGuardToast(packet) {
   const cmd = cleanText(packet && packet.cmd);
   if (!cmd.startsWith('USER_TOAST_MSG_V2')) return false;
-  const data =
-    packet && packet.data && typeof packet.data === 'object' ? packet.data : {};
+  const data = packet && packet.data && typeof packet.data === 'object' ? packet.data : {};
   const option = readFirstObject(data, ['option']) || {};
   const source = option.source ?? data.source;
   return Number(source) === 2;
@@ -35,12 +34,7 @@ function isBilibiliGiftLikeCommand(cmd) {
   ) {
     return false;
   }
-  return (
-    isBilibiliGiftCommand(text) ||
-    text.includes('GIFT') ||
-    text.includes('COMBO') ||
-    text.includes('GUARD')
-  );
+  return isBilibiliGiftCommand(text) || text.includes('GIFT') || text.includes('COMBO') || text.includes('GUARD');
 }
 
 module.exports = {

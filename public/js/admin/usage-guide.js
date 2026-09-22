@@ -17,12 +17,8 @@ export function initUsageGuide() {
   const links = Array.from(panel.querySelectorAll('[data-usage-guide-link]'));
   if (!scroller || !toc || !links.length) return;
 
-  const reduceMotionQuery = window.matchMedia?.(
-    '(prefers-reduced-motion: reduce)',
-  );
-  const sections = Array.from(
-    panel.querySelectorAll('.usage-guide-section[id]'),
-  );
+  const reduceMotionQuery = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+  const sections = Array.from(panel.querySelectorAll('.usage-guide-section[id]'));
   if (!sections.length) return;
 
   let sectionOffset = 110;
@@ -31,21 +27,12 @@ export function initUsageGuide() {
     if (panel.hidden) return;
     const tocStyle = window.getComputedStyle(toc);
     const scrollerStyle = window.getComputedStyle(scroller);
-    const scrollerPadding =
-      scrollerStyle.overflowY === 'auto'
-        ? parseFloat(scrollerStyle.paddingTop)
-        : 0;
+    const scrollerPadding = scrollerStyle.overflowY === 'auto' ? parseFloat(scrollerStyle.paddingTop) : 0;
     sectionOffset =
       tocStyle.flexDirection === 'column'
         ? 24
-        : toc.getBoundingClientRect().height +
-          parseFloat(tocStyle.top) +
-          scrollerPadding +
-          12;
-    panel.style.setProperty(
-      '--usage-guide-scroll-offset',
-      `${sectionOffset}px`,
-    );
+        : toc.getBoundingClientRect().height + parseFloat(tocStyle.top) + scrollerPadding + 12;
+    panel.style.setProperty('--usage-guide-scroll-offset', `${sectionOffset}px`);
     updateActiveOnScroll();
   }
 
@@ -76,10 +63,8 @@ export function initUsageGuide() {
     // 桌面布局里窗口本身不可滚动（scrollHeight == innerHeight），此时跳过窗口判底，
     // 否则任何滚动都会被误判为「到底」，把高亮锁死在最后一节
     const windowAtBottom =
-      doc.scrollHeight > window.innerHeight + 4 &&
-      window.innerHeight + window.scrollY >= doc.scrollHeight - 4;
-    if (scrollerAtBottom || windowAtBottom)
-      current = sections[sections.length - 1];
+      doc.scrollHeight > window.innerHeight + 4 && window.innerHeight + window.scrollY >= doc.scrollHeight - 4;
+    if (scrollerAtBottom || windowAtBottom) current = sections[sections.length - 1];
     setActiveLink(current.id);
   }
 

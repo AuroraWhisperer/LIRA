@@ -31,10 +31,7 @@ export function measureDanmakuText(message) {
     }, 0),
   );
   const lines = Math.max(1, Math.ceil(visualLength / DANMAKU_LINE_CAPACITY));
-  const width = Math.min(
-    100,
-    Math.max(52, Math.round(44 + visualLength * 3.8)),
-  );
+  const width = Math.min(100, Math.max(52, Math.round(44 + visualLength * 3.8)));
   const height = 52 + (lines - 1) * 17;
   return { visualLength, lines, width, height };
 }
@@ -48,18 +45,9 @@ export function createDanmakuMessageRenderer({
   showGiftTotal = false,
   ...options
 }) {
-  const resolveAvatarUrl =
-    typeof options.resolveAvatarUrl === 'function'
-      ? options.resolveAvatarUrl
-      : (value) => value;
-  const resolveEmoteUrl =
-    typeof options.resolveEmoteUrl === 'function'
-      ? options.resolveEmoteUrl
-      : (value) => value;
-  const getGuardLabel =
-    typeof options.getGuardLabel === 'function'
-      ? options.getGuardLabel
-      : () => '';
+  const resolveAvatarUrl = typeof options.resolveAvatarUrl === 'function' ? options.resolveAvatarUrl : (value) => value;
+  const resolveEmoteUrl = typeof options.resolveEmoteUrl === 'function' ? options.resolveEmoteUrl : (value) => value;
+  const getGuardLabel = typeof options.getGuardLabel === 'function' ? options.getGuardLabel : () => '';
 
   function createBubble(item = {}, index = 0) {
     const message = String(item.message || '').trim();
@@ -75,8 +63,7 @@ export function createDanmakuMessageRenderer({
     bubble.style.setProperty('--danmaku-height', `${metrics.height}px`);
     bubble.style.setProperty('--danmaku-lines', String(metrics.lines));
     bubble.style.setProperty('--danmaku-delay', `${Math.min(index, 8) * 24}ms`);
-    if (isEmoteOnlyMessage(message, item.emotes))
-      bubble.className += ' is-emote-only';
+    if (isEmoteOnlyMessage(message, item.emotes)) bubble.className += ' is-emote-only';
 
     const name = String(item.name || '观众').trim() || '观众';
     const avatar = createAvatar(item, name, bubble);
@@ -132,8 +119,10 @@ export function createDanmakuMessageRenderer({
     if (showGiftTotal) {
       const amount = document.createElement('b');
       amount.className = 'draw-danmaku-gift-amount';
-      amount.textContent = Number.isFinite(item.giftTotalPrice) && item.giftTotalPrice >= 0
-        ? `¥${item.giftTotalPrice.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}` : '—';
+      amount.textContent =
+        Number.isFinite(item.giftTotalPrice) && item.giftTotalPrice >= 0
+          ? `¥${item.giftTotalPrice.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}`
+          : '—';
       copy.append(count);
       rootElement.append(art, copy, amount);
     } else rootElement.append(art, copy, count);
@@ -182,15 +171,11 @@ export function createDanmakuMessageRenderer({
       if (guard) identity.append(createBadge(guard, classNames.guard));
       const medalName = String(item.medalName || '').trim();
       if (medalName) {
-        const medalLevel = Math.max(
-          0,
-          Math.trunc(Number(item.medalLevel)) || 0,
-        );
+        const medalLevel = Math.max(0, Math.trunc(Number(item.medalLevel)) || 0);
         const medal = createBadge('', classNames.medal);
         const medalNameElement = document.createElement('span');
         medalNameElement.className = 'draw-danmaku-medal-name';
-        medalNameElement.textContent =
-          medalLevel > 0 ? `${medalName} ` : medalName;
+        medalNameElement.textContent = medalLevel > 0 ? `${medalName} ` : medalName;
         medal.append(medalNameElement);
         if (medalLevel > 0) {
           const medalLevelElement = document.createElement('b');
@@ -218,8 +203,7 @@ export function createDanmakuMessageRenderer({
         appendText(rootElement, message.slice(cursor));
         break;
       }
-      if (match.index > cursor)
-        appendText(rootElement, message.slice(cursor, match.index));
+      if (match.index > cursor) appendText(rootElement, message.slice(cursor, match.index));
       rootElement.append(createEmoteImage(match.emote));
       cursor = match.index + match.emote.text.length;
     }
@@ -243,10 +227,7 @@ export function createDanmakuMessageRenderer({
     image.loading = 'eager';
     image.decoding = 'async';
     if (emote.width > 0 && emote.height > 0) {
-      image.style.setProperty(
-        '--danmaku-emote-ratio',
-        `${emote.width} / ${emote.height}`,
-      );
+      image.style.setProperty('--danmaku-emote-ratio', `${emote.width} / ${emote.height}`);
     }
     image.addEventListener('error', () => {
       image.replaceWith(createTextNode(emote.text));
@@ -296,11 +277,7 @@ function findNextEmote(message, cursor, emotes) {
   for (const emote of emotes) {
     const index = message.indexOf(emote.text, cursor);
     if (index < 0) continue;
-    if (
-      !next ||
-      index < next.index ||
-      (index === next.index && emote.text.length > next.emote.text.length)
-    ) {
+    if (!next || index < next.index || (index === next.index && emote.text.length > next.emote.text.length)) {
       next = { index, emote };
     }
   }

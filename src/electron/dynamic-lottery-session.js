@@ -40,21 +40,11 @@ function fingerprintAuthCookies(cookieHeader) {
   }
   if (REQUIRED_COOKIE_NAMES.some((name) => !selected.has(name))) return '';
 
-  const normalized = REQUIRED_COOKIE_NAMES.map((name) => [
-    name,
-    [...selected.get(name)].sort(),
-  ]);
-  return crypto
-    .createHash('sha256')
-    .update(JSON.stringify(normalized))
-    .digest('hex');
+  const normalized = REQUIRED_COOKIE_NAMES.map((name) => [name, [...selected.get(name)].sort()]);
+  return crypto.createHash('sha256').update(JSON.stringify(normalized)).digest('hex');
 }
 
-function createLotterySession({
-  getCookieHeader,
-  getIdentity,
-  getAuthorizationEpoch,
-}) {
+function createLotterySession({ getCookieHeader, getIdentity, getAuthorizationEpoch }) {
   if (
     typeof getCookieHeader !== 'function' ||
     typeof getIdentity !== 'function' ||
@@ -76,10 +66,7 @@ function createLotterySession({
 
   async function readContext() {
     if (disposed) {
-      throw createSessionError(
-        'LOTTERY_SESSION_DISPOSED',
-        'Dynamic lottery session has been disposed.',
-      );
+      throw createSessionError('LOTTERY_SESSION_DISPOSED', 'Dynamic lottery session has been disposed.');
     }
 
     const identity = await getIdentity();
@@ -87,16 +74,13 @@ function createLotterySession({
     const authorizationEpoch = Number(await getAuthorizationEpoch());
     const cookieHeader = await getCookieHeader();
     const cookieFingerprint = fingerprintAuthCookies(cookieHeader);
-    const validAuthorizationEpoch =
-      Number.isSafeInteger(authorizationEpoch) && authorizationEpoch >= 0;
+    const validAuthorizationEpoch = Number.isSafeInteger(authorizationEpoch) && authorizationEpoch >= 0;
     const key = crypto
       .createHash('sha256')
       .update(
         JSON.stringify({
           streamerId,
-          authorizationEpoch: validAuthorizationEpoch
-            ? authorizationEpoch
-            : null,
+          authorizationEpoch: validAuthorizationEpoch ? authorizationEpoch : null,
           cookieFingerprint,
         }),
       )
@@ -104,22 +88,13 @@ function createLotterySession({
     observe(key);
 
     if (!streamerId || !validAuthorizationEpoch) {
-      throw createSessionError(
-        'LOTTERY_IDENTITY_UNAVAILABLE',
-        'A trusted LIRA streamer identity is required.',
-      );
+      throw createSessionError('LOTTERY_IDENTITY_UNAVAILABLE', 'A trusted LIRA streamer identity is required.');
     }
     if (!cookieFingerprint) {
-      throw createSessionError(
-        'LOTTERY_SESSION_UNAVAILABLE',
-        'A complete Bilibili login session is required.',
-      );
+      throw createSessionError('LOTTERY_SESSION_UNAVAILABLE', 'A complete Bilibili login session is required.');
     }
     if (disposed) {
-      throw createSessionError(
-        'LOTTERY_SESSION_DISPOSED',
-        'Dynamic lottery session has been disposed.',
-      );
+      throw createSessionError('LOTTERY_SESSION_DISPOSED', 'Dynamic lottery session has been disposed.');
     }
 
     return {

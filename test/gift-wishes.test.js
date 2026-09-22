@@ -4,7 +4,8 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { createFixture } = require('./helpers/gift-query-fixture');
 const { createGiftWishStore } = require('../src/storage/gift-wish-store');
-const { migrateGiftWishes } = require('../src/storage/gift-wish-migration');
+const { migrateGiftWishes, migrateGiftWishDisplay } = require('../src/storage/gift-wish-migration');
+const { runAllMigrations } = require('../src/storage/database-migrations');
 const { createGiftWishService } = require('../src/bilibili/gift/wish-service');
 const { giftVariantId } = require('../src/shared/gift-identity');
 const { mergeVariantRoomCatalog } = require('../src/bilibili/gift/variant-room-catalog');
@@ -26,8 +27,7 @@ function setup(t) {
     store,
     gifts: {
       getActiveSource: fixture.context.getActiveGiftSource,
-      getViewRevision: () =>
-        `source-${fixture.context.getActiveGiftSource()?.sourceId}`,
+      getViewRevision: () => `source-${fixture.context.getActiveGiftSource()?.sourceId}`,
     },
     catalog: {
       getSnapshot: () => ({
@@ -74,12 +74,7 @@ function setup(t) {
     }).id;
   }
   function event(id, date, quantity, overrides = {}) {
-    const {
-      variant = 'flower-v1',
-      boxVariant = null,
-      boxId = null,
-      ...rest
-    } = overrides;
+    const { variant = 'flower-v1', boxVariant = null, boxId = null, ...rest } = overrides;
     const result = fixture.insertGift(source, id, {
       giftId: '1',
       giftName: '小花花',
@@ -88,9 +83,7 @@ function setup(t) {
       ...rest,
     });
     fixture.giftDb
-      .prepare(
-        'UPDATE gift_events SET gift_variant_id = ?, blind_box_variant_id = ?, blind_box_id = ? WHERE id = ?',
-      )
+      .prepare('UPDATE gift_events SET gift_variant_id = ?, blind_box_variant_id = ?, blind_box_id = ? WHERE id = ?')
       .run(variant, boxVariant, boxId, result.lastInsertRowid);
   }
   return {
@@ -137,17 +130,14 @@ test('three periods count final integer quantities in their own windows and surv
   });
   f.time('2026-09-20T04:02:00Z');
   const snapshot = await f.service.getSnapshot();
-  assert.deepEqual(
-    Object.fromEntries(snapshot.items.map((item) => [item.period, item.count])),
-    { long: 4, day: 9, session: 7 },
-  );
+  assert.deepEqual(Object.fromEntries(snapshot.items.map((item) => [item.period, item.count])), {
+    long: 4,
+    day: 9,
+    session: 7,
+  });
   const restarted = await createGiftWishService(f.options).getSnapshot();
   assert.deepEqual(restarted.items, snapshot.items);
-  assert.deepEqual(
-    (await f.service.getSnapshot()).items,
-    snapshot.items,
-    'reads do not accumulate twice',
-  );
+  assert.deepEqual((await f.service.getSnapshot()).items, snapshot.items, 'reads do not accumulate twice');
   const row = snapshot.items.find((item) => item.period === 'long');
   f.service.save({
     viewRevision: snapshot.viewRevision,
@@ -155,9 +145,7 @@ test('three periods count final integer quantities in their own windows and surv
     target: 3,
     label: '小目标',
   });
-  const edited = (await f.service.getSnapshot()).items.find(
-    (item) => item.id === row.id,
-  );
+  const edited = (await f.service.getSnapshot()).items.find((item) => item.id === row.id);
   assert.equal(edited.startAt, row.startAt);
   assert.equal(edited.count, 4);
   assert.equal(edited.progress, 100);
@@ -208,34 +196,21 @@ test('Beijing midnight and a new broadcast reset only their matching periods', a
   f.time('2026-09-20T16:00:00Z');
   const midnight = await f.service.getSnapshot();
   assert.equal(midnight.items.find((item) => item.period === 'day').count, 0);
-  assert.equal(
-    midnight.items.find((item) => item.period === 'session').count,
-    4,
-  );
+  assert.equal(midnight.items.find((item) => item.period === 'session').count, 4);
   f.time('2026-09-20T17:00:00Z');
   f.room({ live_status: 0 });
   f.event('offline-before-reopen', '2026-09-20T16:30:00Z', 2);
   const offline = await f.service.getSnapshot();
   assert.equal(offline.session.state, 'offline');
-  assert.equal(
-    offline.items.find((item) => item.period === 'session').count,
-    0,
-  );
+  assert.equal(offline.items.find((item) => item.period === 'session').count, 0);
   assert.equal(offline.session.endedAt, '2026-09-20T15:59:59.000Z');
   f.event('offline-gift', '2026-09-20T17:01:00Z', 3);
   f.time('2026-09-20T17:02:00Z');
-  assert.equal(
-    (await f.service.getSnapshot()).items.find(
-      (item) => item.period === 'session',
-    ).count,
-    0,
-  );
+  assert.equal((await f.service.getSnapshot()).items.find((item) => item.period === 'session').count, 0);
   f.room(new Error('network unavailable after offline'));
   f.time('2026-09-20T17:03:00Z');
   assert.equal(
-    (await createGiftWishService(f.options).getSnapshot()).items.find(
-      (item) => item.period === 'session',
-    ).count,
+    (await createGiftWishService(f.options).getSnapshot()).items.find((item) => item.period === 'session').count,
     0,
   );
   f.room({
@@ -243,27 +218,15 @@ test('Beijing midnight and a new broadcast reset only their matching periods', a
     live_time: Date.parse('2026-09-20T18:00:00Z') / 1000,
   });
   f.time('2026-09-20T18:01:00Z');
-  assert.equal(
-    (await f.service.getSnapshot()).items.find(
-      (item) => item.period === 'session',
-    ).count,
-    0,
-  );
-  assert.equal(
-    (await f.service.getSnapshot()).items.find((item) => item.period === 'long')
-      .count,
-    9,
-  );
+  assert.equal((await f.service.getSnapshot()).items.find((item) => item.period === 'session').count, 0);
+  assert.equal((await f.service.getSnapshot()).items.find((item) => item.period === 'long').count, 9);
 });
 
 test('session failures preserve known boundaries and concurrent reads share one request', async (t) => {
   const f = setup(t);
   f.add('session');
   f.event('confirmed-live', '2026-09-20T03:59:00Z', 2);
-  const [first, second] = await Promise.all([
-    f.service.getSnapshot(),
-    f.service.getSnapshot(),
-  ]);
+  const [first, second] = await Promise.all([f.service.getSnapshot(), f.service.getSnapshot()]);
   assert.equal(f.reads(), 1);
   assert.deepEqual(first.session, second.session);
   f.room(new Error('offline network'));
@@ -274,10 +237,7 @@ test('session failures preserve known boundaries and concurrent reads share one 
   assert.equal(failed.session.startedAt, first.session.startedAt);
   assert.equal(failed.session.endedAt, null);
   assert.equal(failed.items[0].count, 2);
-  assert.equal(
-    (await createGiftWishService(f.options).getSnapshot()).items[0].count,
-    2,
-  );
+  assert.equal((await createGiftWishService(f.options).getSnapshot()).items[0].count, 2);
   f.room({
     live_status: 1,
     live_time: Date.parse(first.session.startedAt) / 1000,
@@ -297,14 +257,8 @@ test('reject fractional targets, stale edits and cross-source access without cha
   assert.throws(() => f.add('day', 'unknown'), { code: 'INVALID_GIFT_WISH' });
   f.fixture.setActiveSource(f.other);
   assert.equal((await f.service.getSnapshot()).items.length, 0);
-  assert.throws(
-    () => f.service.remove({ id, viewRevision: `source-${f.source}` }),
-    { code: 'GIFT_VIEW_STALE' },
-  );
-  assert.throws(
-    () => f.service.remove({ id, viewRevision: `source-${f.other}` }),
-    { code: 'INVALID_GIFT_WISH' },
-  );
+  assert.throws(() => f.service.remove({ id, viewRevision: `source-${f.source}` }), { code: 'GIFT_VIEW_STALE' });
+  assert.throws(() => f.service.remove({ id, viewRevision: `source-${f.other}` }), { code: 'INVALID_GIFT_WISH' });
   assert.equal(f.store.list(f.source).length, 1);
   f.fixture.setActiveSource(f.source, { syncState: 'SOURCE_SWITCHING' });
   await assert.rejects(f.service.getSnapshot(), {
@@ -315,14 +269,16 @@ test('reject fractional targets, stale edits and cross-source access without cha
 test('unresolved room gifts cannot create wishes that count another variant sharing their ID', async (t) => {
   const f = setup(t);
   const archived = {
-    id: '1', name: '小花花', priceRaw: 1000, coinType: 'gold', bagGift: false,
+    id: '1',
+    name: '小花花',
+    priceRaw: 1000,
+    coinType: 'gold',
+    bagGift: false,
     giftCategory: 'directGift',
   };
   archived.variantId = giftVariantId(archived);
   const catalog = { schemaVersion: 3, gifts: [archived] };
-  const room = mergeVariantRoomCatalog(
-    { gifts: [{ ...archived, priceRaw: 2000 }] }, catalog, [],
-  );
+  const room = mergeVariantRoomCatalog({ gifts: [{ ...archived, priceRaw: 2000 }] }, catalog, []);
   f.options.catalog.getGlobalSnapshot = () => catalog;
   f.options.catalog.getSnapshot = () => room;
   f.event('old-price', '2026-09-20T03:00:00Z', 9, { variant: archived.variantId });
@@ -331,4 +287,99 @@ test('unresolved room gifts cannot create wishes that count another variant shar
   assert.equal(f.store.list(f.source).length, 0);
   f.add('day', archived.variantId);
   assert.equal((await f.service.getSnapshot()).items[0].count, 9);
+});
+
+test('v13 wishes upgrade to card display without losing identity, progress or creation time', async (t) => {
+  const f = setup(t);
+  const id = f.add('long');
+  f.event('received', '2026-09-20T04:01:00Z', 4);
+  f.time('2026-09-20T04:02:00Z');
+  const before = (await f.service.getSnapshot()).items[0];
+  f.fixture.giftDb.exec(`
+    ALTER TABLE gift_wishes DROP COLUMN display_style;
+    ALTER TABLE gift_wishes DROP COLUMN text_template;
+    UPDATE schema_version SET version = 13 WHERE key = 'gift_db';
+  `);
+  runAllMigrations(f.fixture.databases);
+  migrateGiftWishDisplay(f.fixture.giftDb);
+  runAllMigrations(f.fixture.databases);
+  const service = createGiftWishService({ ...f.options, store: createGiftWishStore(f.fixture.giftDb) });
+  const wish = (await service.getSnapshot()).items[0];
+  assert.deepEqual(wish, { ...before, id, displayStyle: 'card', textTemplate: '' });
+  assert.equal(wish.count, 4);
+});
+
+test('display choices persist across restart and edits preserve counts and omitted display fields', async (t) => {
+  const f = setup(t);
+  const textTemplate = '今天想要{礼物}：{已收}/{目标}';
+  const id = f.add('long', 'flower-v1', { displayStyle: 'text', textTemplate });
+  f.event('received', '2026-09-20T04:01:00Z', 4);
+  f.time('2026-09-20T04:02:00Z');
+  const service = createGiftWishService({ ...f.options, store: createGiftWishStore(f.fixture.giftDb) });
+  const first = (await service.getSnapshot()).items[0];
+  assert.equal(first.displayStyle, 'text');
+  assert.equal(first.textTemplate, textTemplate);
+  service.save({ id, viewRevision: `source-${f.source}`, target: 20, label: '仅备注' });
+  const updated = (await service.getSnapshot()).items[0];
+  assert.equal(updated.displayStyle, 'text');
+  assert.equal(updated.textTemplate, textTemplate);
+  assert.equal(updated.createdAt, first.createdAt);
+  assert.equal(updated.count, 4);
+  service.save({ id, viewRevision: `source-${f.source}`, target: 20, label: '', displayStyle: 'card' });
+  assert.equal((await service.getSnapshot()).items[0].textTemplate, textTemplate);
+  f.fixture.setActiveSource(f.other);
+  assert.throws(
+    () => service.save({ id, viewRevision: `source-${f.other}`, target: 20, label: '', displayStyle: 'text' }),
+    {
+      code: 'INVALID_GIFT_WISH',
+    },
+  );
+  assert.equal(f.store.list(f.source)[0].display_style, 'card');
+});
+
+test('circle wishes persist and switching display styles preserves the gift and collected progress', async (t) => {
+  const f = setup(t);
+  const id = f.add('long', 'flower-v1', { displayStyle: 'circle', target: 20 });
+  f.event('received', '2026-09-20T04:01:00Z', 3);
+  f.time('2026-09-20T04:02:00Z');
+  const service = createGiftWishService({ ...f.options, store: createGiftWishStore(f.fixture.giftDb) });
+  const first = (await service.getSnapshot()).items[0];
+  assert.equal(first.displayStyle, 'circle');
+  assert.equal(first.imagePath, '/overtime-gift-images/flower.webp');
+  assert.equal(first.count, 3);
+  for (const displayStyle of ['card', 'text', 'circle']) {
+    service.save({ id, viewRevision: `source-${f.source}`, target: 20, label: '', displayStyle });
+    assert.deepEqual((await service.getSnapshot()).items[0], { ...first, displayStyle });
+  }
+});
+
+test('display validation rejects unsupported styles and invalid text without changing existing wishes', async (t) => {
+  const f = setup(t);
+  const id = f.add('day');
+  for (const values of [
+    { displayStyle: 'unknown' },
+    { displayStyle: null },
+    { displayStyle: 1 },
+    { textTemplate: null },
+    { textTemplate: {} },
+    { textTemplate: '字'.repeat(201) },
+  ]) {
+    assert.throws(() => f.add('long', 'flower-v1', values), { code: 'INVALID_GIFT_WISH' });
+    assert.throws(() => f.service.save({ id, viewRevision: `source-${f.source}`, target: 10, label: '', ...values }), {
+      code: 'INVALID_GIFT_WISH',
+    });
+  }
+  assert.equal(f.store.list(f.source).length, 1);
+  const wish = (await f.service.getSnapshot()).items[0];
+  assert.equal(wish.displayStyle, 'card');
+  assert.equal(wish.textTemplate, '');
+  f.service.save({
+    id,
+    viewRevision: `source-${f.source}`,
+    target: 10,
+    label: '',
+    displayStyle: 'text',
+    textTemplate: '  ',
+  });
+  assert.equal((await f.service.getSnapshot()).items[0].textTemplate, '');
 });

@@ -9,11 +9,8 @@
   <body>
     <h1>🔍 礼物审计 · 气泡 × WebSocket 交叉对比</h1>
     <p class="subtitle">
-      粘贴直播间的 <code>.bubble-list</code> HTML → 解析气泡礼物 → 与 WebSocket
-      捕获记录交叉对比
-      <span id="connInfo" style="margin-left: 12px; color: var(--text2)"
-        >连接中...</span
-      >
+      粘贴直播间的 <code>.bubble-list</code> HTML → 解析气泡礼物 → 与 WebSocket 捕获记录交叉对比
+      <span id="connInfo" style="margin-left: 12px; color: var(--text2)">连接中...</span>
     </p>
 
     <div class="conn-bar" id="connBar">
@@ -24,16 +21,11 @@
     <div class="panel" style="margin-bottom: 14px">
       <div class="panel-header">
         <span>📋 气泡 HTML 输入</span>
-        <span class="hint"
-          >从直播间 DevTools 复制 <code>.bubble-list</code> 元素的
-          outerHTML</span
-        >
+        <span class="hint">从直播间 DevTools 复制 <code>.bubble-list</code> 元素的 outerHTML</span>
       </div>
       <div class="panel-body">
         <div class="quick-actions">
-          <button id="setTimeNowBtn" title="将下方时间设为当前时间">
-            🕐 设为当前时间
-          </button>
+          <button id="setTimeNowBtn" title="将下方时间设为当前时间">🕐 设为当前时间</button>
           <button id="setTime1MinAgoBtn">⏪ 1分钟前</button>
           <button id="setTime5MinAgoBtn">⏪ 5分钟前</button>
           <button id="loadExampleBtn">📝 加载示例</button>
@@ -130,9 +122,7 @@
             </thead>
             <tbody id="serverTableBody">
               <tr>
-                <td colspan="7" class="empty-state">
-                  点击「拉取服务器记录」获取 WebSocket 捕获数据
-                </td>
+                <td colspan="7" class="empty-state">点击「拉取服务器记录」获取 WebSocket 捕获数据</td>
               </tr>
             </tbody>
           </table>
@@ -141,11 +131,7 @@
     </div>
 
     <!-- 详细对比结果 -->
-    <div
-      class="comparison-section"
-      id="comparisonSection"
-      style="display: none"
-    >
+    <div class="comparison-section" id="comparisonSection" style="display: none">
       <div class="panel">
         <div class="panel-header">
           <span>🔬 逐条对比详情</span>
@@ -175,16 +161,16 @@
     <div class="help-section">
       <strong>🛠️ 使用说明</strong><br />
       1. 在直播间页面按 <code>F12</code> 打开 DevTools<br />
-      2. 用 Elements 面板找到 <code>.bubble-list</code> 元素（通常在
-      <code>#player-section</code> 内）<br />
+      2. 用 Elements 面板找到 <code>.bubble-list</code> 元素（通常在 <code>#player-section</code> 内）<br />
       3. 右键 → <code>Copy → Copy outerHTML</code><br />
       4. 粘贴到上方文本框，设置捕获时间，点击 <strong>解析并对比</strong><br />
-      5. <strong style="color: var(--red)">⚠️ 仅气泡</strong> = WebSocket
-      可能漏记的礼物；<strong style="color: var(--green)">✅ 双边匹配</strong> =
-      正常捕获<br />
+      5. <strong style="color: var(--red)">⚠️ 仅气泡</strong> = WebSocket 可能漏记的礼物；<strong
+        style="color: var(--green)"
+        >✅ 双边匹配</strong
+      >
+      = 正常捕获<br />
       <br />
-      <strong>💡 技巧：</strong>可以多次（每隔几分钟）复制气泡 HTML
-      并解析，观察漏记规律。
+      <strong>💡 技巧：</strong>可以多次（每隔几分钟）复制气泡 HTML 并解析，观察漏记规律。
     </div>
 
     <script type="module" src="/js/gift-audit/index.js?v=20260814"></script>

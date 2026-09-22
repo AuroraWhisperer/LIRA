@@ -103,9 +103,7 @@ function clearSongDataInTransaction(songDb, counts) {
 function clearSuperChatInTransaction(superChatDb, counts) {
   counts.sc = countRows(superChatDb, 'super_chats');
   superChatDb.prepare('DELETE FROM super_chats').run();
-  superChatDb
-    .prepare("DELETE FROM sqlite_sequence WHERE name = 'super_chats'")
-    .run();
+  superChatDb.prepare("DELETE FROM sqlite_sequence WHERE name = 'super_chats'").run();
 }
 
 function clearMusicInTransaction(musicDb, counts) {
@@ -113,9 +111,7 @@ function clearMusicInTransaction(musicDb, counts) {
   counts.playQueueState = countRows(musicDb, 'play_queue_state');
   musicDb.prepare('DELETE FROM play_history').run();
   musicDb.prepare('DELETE FROM play_queue_state').run();
-  musicDb
-    .prepare("DELETE FROM sqlite_sequence WHERE name = 'play_history'")
-    .run();
+  musicDb.prepare("DELETE FROM sqlite_sequence WHERE name = 'play_history'").run();
 }
 
 function clearCheckinInTransaction(checkinDb, counts) {
@@ -154,17 +150,13 @@ function clearGiftScopeInTransaction(giftDb, sourceId, timestamp) {
   }
   const targetSql = 'source_id = ?';
   const targetParams = [sourceId];
-  const projectionGeneration = resetGiftProjectionMetadataInTransaction(
-    giftDb, sourceId, timestamp,
-  );
+  const projectionGeneration = resetGiftProjectionMetadataInTransaction(giftDb, sourceId, timestamp);
   const projectionReset = Object.freeze({
     sourceId,
     projectionGeneration,
   });
   const giftCount = Number(
-    giftDb
-      .prepare(`SELECT COUNT(*) AS count FROM gift_events WHERE ${targetSql}`)
-      .get(...targetParams)?.count || 0,
+    giftDb.prepare(`SELECT COUNT(*) AS count FROM gift_events WHERE ${targetSql}`).get(...targetParams)?.count || 0,
   );
   const settlementCount = Number(
     giftDb
@@ -190,21 +182,13 @@ function clearGiftScopeInTransaction(giftDb, sourceId, timestamp) {
     `,
     )
     .run(...targetParams);
-  giftDb
-    .prepare(`DELETE FROM gift_events WHERE ${targetSql}`)
-    .run(...targetParams);
+  giftDb.prepare(`DELETE FROM gift_events WHERE ${targetSql}`).run(...targetParams);
 
   if (countRows(giftDb, 'gift_events') === 0) {
-    giftDb
-      .prepare("DELETE FROM sqlite_sequence WHERE name = 'gift_events'")
-      .run();
+    giftDb.prepare("DELETE FROM sqlite_sequence WHERE name = 'gift_events'").run();
   }
   if (countRows(giftDb, 'overtime_settlements') === 0) {
-    giftDb
-      .prepare(
-        "DELETE FROM sqlite_sequence WHERE name = 'overtime_settlements'",
-      )
-      .run();
+    giftDb.prepare("DELETE FROM sqlite_sequence WHERE name = 'overtime_settlements'").run();
   }
 
   return {
@@ -215,10 +199,7 @@ function clearGiftScopeInTransaction(giftDb, sourceId, timestamp) {
 }
 
 function countRows(db, tableName) {
-  return (
-    (db.prepare(`SELECT COUNT(*) AS count FROM ${tableName}`).get() || {})
-      .count || 0
-  );
+  return (db.prepare(`SELECT COUNT(*) AS count FROM ${tableName}`).get() || {}).count || 0;
 }
 
 module.exports = {

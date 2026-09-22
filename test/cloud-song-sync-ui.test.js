@@ -92,10 +92,7 @@ test('cloud sync waits for the initial count and uploads only the post-confirmat
   assert.equal(ui.uploads.length, 1);
   assert.equal(ui.uploads[0][0].name, 'after');
   assert.match(ui.element('licenseSyncResult').textContent, /已同步 2 首/);
-  assert.equal(
-    JSON.parse(ui.stored.get('lira:license:lastCloudSync')).count,
-    2,
-  );
+  assert.equal(JSON.parse(ui.stored.get('lira:license:lastCloudSync')).count, 2);
   assert.equal(button.disabled, false);
 });
 
@@ -124,15 +121,9 @@ test('cancelled cloud confirmation sends nothing and validation errors keep the 
 
 test('legacy import entry keeps the parser and cloud initialization APIs wired through ESM', async () => {
   const window = { AdminApp: { utils: {} } };
-  await loadModuleExports(
-    path.resolve(__dirname, '../public/js/admin/import.js'),
-    { window },
-  );
+  await loadModuleExports(path.resolve(__dirname, '../public/js/admin/import.js'), { window });
   const imports = window.AdminApp.imports;
-  assert.equal(
-    imports.parseTable('name\trequestPrice\n歌曲\t舰长')[0].requestPrice,
-    '舰长',
-  );
+  assert.equal(imports.parseTable('name\trequestPrice\n歌曲\t舰长')[0].requestPrice, '舰长');
   assert.equal(typeof imports.parseDelimited, 'function');
   assert.equal(typeof imports.readTextFile, 'function');
   assert.equal(typeof imports.readFileAsBase64, 'function');

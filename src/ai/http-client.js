@@ -37,16 +37,11 @@ async function fetchJson(url, options = {}) {
     payload = text ? JSON.parse(text) : {};
   } catch {
     await notifyResponse(options, response, text, null);
-    throw createPublicError(
-      'UPSTREAM_INVALID_RESPONSE',
-      '查询服务返回了无法识别的数据。',
-    );
+    throw createPublicError('UPSTREAM_INVALID_RESPONSE', '查询服务返回了无法识别的数据。');
   }
   await notifyResponse(options, response, text, payload);
   if (!response.ok) {
-    const code = String(
-      payload?.error?.code || payload?.code || `HTTP_${response.status}`,
-    ).slice(0, 80);
+    const code = String(payload?.error?.code || payload?.code || `HTTP_${response.status}`).slice(0, 80);
     throw createPublicError(code, '查询服务返回错误，请检查配置或稍后再试。');
   }
   return payload;

@@ -56,21 +56,15 @@ export class WeSingService {
   init() {
     if (this.initialized) return;
     this.initialized = true;
-    document
-      .getElementById('weSingSaveCacheBtn')
-      ?.addEventListener('click', () => {
-        void this.saveCachePath();
-      });
-    document
-      .getElementById('weSingSelectCacheBtn')
-      ?.addEventListener('click', () => {
-        void this.selectCachePath();
-      });
-    document
-      .getElementById('weSingRefreshBtn')
-      ?.addEventListener('click', () => {
-        void this.refresh({ notify: true });
-      });
+    document.getElementById('weSingSaveCacheBtn')?.addEventListener('click', () => {
+      void this.saveCachePath();
+    });
+    document.getElementById('weSingSelectCacheBtn')?.addEventListener('click', () => {
+      void this.selectCachePath();
+    });
+    document.getElementById('weSingRefreshBtn')?.addEventListener('click', () => {
+      void this.refresh({ notify: true });
+    });
     const offsetRange = document.getElementById('weSingLyricOffsetMs');
     const offsetNumber = document.getElementById('weSingLyricOffsetMsNumber');
     offsetRange?.addEventListener('input', () => {
@@ -91,25 +85,18 @@ export class WeSingService {
     offsetNumber?.addEventListener('change', () => {
       void this.saveLyricOffset(offsetNumber.value);
     });
-    document
-      .getElementById('weSingResetLyricOffsetBtn')
-      ?.addEventListener('click', () => {
-        void this.saveLyricOffset(0);
-      });
-    document
-      .getElementById('weSingCachePath')
-      ?.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter') {
-          event.preventDefault();
-          void this.saveCachePath();
-        }
-      });
-    window.addEventListener('app:wesing-state', (event) =>
-      this.applyStatus(event.detail),
-    );
+    document.getElementById('weSingResetLyricOffsetBtn')?.addEventListener('click', () => {
+      void this.saveLyricOffset(0);
+    });
+    document.getElementById('weSingCachePath')?.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        void this.saveCachePath();
+      }
+    });
+    window.addEventListener('app:wesing-state', (event) => this.applyStatus(event.detail));
     window.addEventListener('app:lyric-state', (event) => {
-      if (this.playbackState?.selectedSource === 'wesing')
-        this.applyLyricState(event.detail);
+      if (this.playbackState?.selectedSource === 'wesing') this.applyLyricState(event.detail);
     });
     this.lyricRenderer = new LyricWordRenderer({
       lineElement: document.getElementById('weSingLyricLine'),
@@ -117,8 +104,7 @@ export class WeSingService {
       wordClass: 'wesing-lyric-word',
       progressProperty: '--wesing-word-progress',
       fallbackText: lyricFallback,
-      onFrame: (position) =>
-        setText('weSingCurrentTime', formatTime(position.currentMs)),
+      onFrame: (position) => setText('weSingCurrentTime', formatTime(position.currentMs)),
     });
     this.render();
   }
@@ -203,10 +189,7 @@ export class WeSingService {
   }
 
   async selectCachePath() {
-    if (
-      !window.musicAPI ||
-      typeof window.musicAPI.selectWeSingCacheDirectory !== 'function'
-    ) {
+    if (!window.musicAPI || typeof window.musicAPI.selectWeSingCacheDirectory !== 'function') {
       this.toast('目录选择器需要在桌面版里使用，也可以直接粘贴路径');
       return;
     }
@@ -266,23 +249,12 @@ export class WeSingService {
     setText(
       'weSingTrackMeta',
       status.trackTitle
-        ? (status.lyricState.artists || []).join(' / ') ||
-            formatLyricSource(status.lyricSource)
+        ? (status.lyricState.artists || []).join(' / ') || formatLyricSource(status.lyricSource)
         : '等待播放',
     );
-    setText(
-      'weSingPlaybackState',
-      status.playing
-        ? '正在播放'
-        : status.waitingForPlayback
-          ? '等待播放'
-          : '已暂停',
-    );
+    setText('weSingPlaybackState', status.playing ? '正在播放' : status.waitingForPlayback ? '等待播放' : '已暂停');
     setText('weSingStatusMessage', getCompactStatusMessage(status));
-    setText(
-      'weSingClientStatus',
-      status.platformDetected ? '已检测' : '未检测',
-    );
+    setText('weSingClientStatus', status.platformDetected ? '已检测' : '未检测');
     setText('weSingCacheStatus', status.cacheReady ? '已就绪' : '待生成');
     setText(
       'weSingLyricStatus',
@@ -292,14 +264,8 @@ export class WeSingService {
           ? '匹配中'
           : '等待歌曲',
     );
-    setText(
-      'weSingCurrentTime',
-      formatTime(numberValue(status.lyricState.currentMs, status.currentMs)),
-    );
-    setText(
-      'weSingDuration',
-      formatTime(status.lyricState.durationMs || status.durationMs),
-    );
+    setText('weSingCurrentTime', formatTime(numberValue(status.lyricState.currentMs, status.currentMs)));
+    setText('weSingDuration', formatTime(status.lyricState.durationMs || status.durationMs));
 
     const pathInput = document.getElementById('weSingCachePath');
     if (pathInput && pathInput !== document.activeElement && status.cachePath) {
@@ -312,11 +278,7 @@ export class WeSingService {
 
     const badge = document.getElementById('weSingCaptureStatus');
     if (badge) {
-      badge.textContent = status.qrcReady
-        ? '歌词捕捉中'
-        : status.platformDetected
-          ? '已检测客户端'
-          : '等待检测';
+      badge.textContent = status.qrcReady ? '歌词捕捉中' : status.platformDetected ? '已检测客户端' : '等待检测';
       badge.className = `pill ${status.qrcReady ? 'good' : 'warn'}`;
     }
     this.renderLyricContent();
@@ -326,45 +288,34 @@ export class WeSingService {
     const lyricState = this.status.lyricState || EMPTY_STATUS.lyricState;
     setText(
       'weSingLyricHint',
-      this.status.qrcReady
-        ? '同步中'
-        : this.status.status === 'loading'
-          ? '读取中'
-          : '等待歌词',
+      this.status.qrcReady ? '同步中' : this.status.status === 'loading' ? '读取中' : '等待歌词',
     );
     this.lyricRenderer?.setState(lyricState);
   }
 
   renderOffsetInputs(force = false) {
-    const value = String(
-      this.pendingLyricOffsetMs ?? numberValue(this.status.lyricOffsetMs, 0),
-    );
+    const value = String(this.pendingLyricOffsetMs ?? numberValue(this.status.lyricOffsetMs, 0));
     const range = document.getElementById('weSingLyricOffsetMs');
     const number = document.getElementById('weSingLyricOffsetMsNumber');
     if (range && (force || range !== document.activeElement)) {
       range.value = value;
       refreshParameterRange(range);
     }
-    if (number && (force || number !== document.activeElement))
-      number.value = value;
+    if (number && (force || number !== document.activeElement)) number.value = value;
   }
 
   async request(url, options = {}) {
     const headers = { 'Content-Type': 'application/json' };
-    if (window.__API_TOKEN__)
-      headers.Authorization = `Bearer ${window.__API_TOKEN__}`;
+    if (window.__API_TOKEN__) headers.Authorization = `Bearer ${window.__API_TOKEN__}`;
     const response = await fetch(url, {
       method: options.method || 'GET',
       headers,
-      ...(options.body === undefined
-        ? {}
-        : { body: JSON.stringify(options.body) }),
+      ...(options.body === undefined ? {} : { body: JSON.stringify(options.body) }),
     });
     const payload = this.readJsonResponse
       ? await this.readJsonResponse(response, '全民 K 歌请求失败')
       : await response.json();
-    if (!response.ok || !payload.ok)
-      throw new Error(payload.error || '全民 K 歌请求失败');
+    if (!response.ok || !payload.ok) throw new Error(payload.error || '全民 K 歌请求失败');
     return payload.data || {};
   }
 
@@ -389,10 +340,7 @@ function setSignal(id, active) {
 }
 
 function formatTime(milliseconds) {
-  const totalSeconds = Math.max(
-    0,
-    Math.floor(numberValue(milliseconds, 0) / 1000),
-  );
+  const totalSeconds = Math.max(0, Math.floor(numberValue(milliseconds, 0) / 1000));
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;

@@ -21,12 +21,10 @@ test('games overlay styles keep shared, board, drawing, result, responsive, and 
   assert.deepEqual(entry.match(/@import url\('[^']+'\);/g), expectedImports);
 
   const owners = Object.fromEntries(
-    ['shared', 'board', 'drawing', 'result', 'responsive', 'drawing-live'].map(
-      (name) => [
-        name,
-        fs.readFileSync(path.join(styleRoot, 'games', `${name}.css`), 'utf8'),
-      ],
-    ),
+    ['shared', 'board', 'drawing', 'result', 'responsive', 'drawing-live'].map((name) => [
+      name,
+      fs.readFileSync(path.join(styleRoot, 'games', `${name}.css`), 'utf8'),
+    ]),
   );
 
   assert.match(owners.shared, /\.game-stage\s*\{/);
@@ -45,32 +43,16 @@ test('games overlay styles keep shared, board, drawing, result, responsive, and 
   assert.match(owners.responsive, /\.bomb-number\s*\{/);
   assert.match(owners.responsive, /prefers-reduced-motion:\s*reduce/);
   assert.doesNotMatch(owners.responsive, /\.draw-danmaku-feed\s*\{/);
-  assert.match(
-    owners['drawing-live'],
-    /body\[data-game='draw-guess'\] \.draw-layout\s*\{/,
-  );
+  assert.match(owners['drawing-live'], /body\[data-game='draw-guess'\] \.draw-layout\s*\{/);
   assert.match(owners['drawing-live'], /\.draw-danmaku-feed\s*\{/);
   assert.match(owners['drawing-live'], /@keyframes danmakuBubbleIn/);
 });
 
 test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
-  const html = fs.readFileSync(
-    path.join(__dirname, '..', 'public', 'pages', 'overlays', 'games.html'),
-    'utf8',
-  );
-  const script = fs.readFileSync(
-    path.join(__dirname, '..', 'public', 'js', 'overlays', 'games.js'),
-    'utf8',
-  );
+  const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'pages', 'overlays', 'games.html'), 'utf8');
+  const script = fs.readFileSync(path.join(__dirname, '..', 'public', 'js', 'overlays', 'games.js'), 'utf8');
   const danmakuRenderer = fs.readFileSync(
-    path.join(
-      __dirname,
-      '..',
-      'public',
-      'js',
-      'overlays',
-      'danmaku-message-renderer.js',
-    ),
+    path.join(__dirname, '..', 'public', 'js', 'overlays', 'danmaku-message-renderer.js'),
     'utf8',
   );
   const drawingModule = fs.readFileSync(
@@ -78,14 +60,7 @@ test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
     'utf8',
   );
   const drawingGeometryModule = fs.readFileSync(
-    path.join(
-      __dirname,
-      '..',
-      'public',
-      'js',
-      'overlays',
-      'games-drawing-geometry.js',
-    ),
+    path.join(__dirname, '..', 'public', 'js', 'overlays', 'games-drawing-geometry.js'),
     'utf8',
   );
   const styles = readCssBundle('public', 'css', 'overlays', 'games.css');
@@ -135,10 +110,7 @@ test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
   assert.match(script, /api\/games\/winner-profile/);
   assert.match(script, /submitGameResultAction\(["']stop["']\)/);
   assert.match(script, /submitGameResultAction\(["']restart["']\)/);
-  assert.match(
-    script,
-    /loadWinnerProfile[\s\S]+Authorization:\s*`Bearer \$\{token\}`/,
-  );
+  assert.match(script, /loadWinnerProfile[\s\S]+Authorization:\s*`Bearer \$\{token\}`/);
   assert.match(script, /function avatarSource\(/);
   assert.match(script, /api\/bilibili\/avatar\?url=/);
   assert.match(drawingModule, /function scheduleDrawDanmakuRender\(/);
@@ -168,20 +140,11 @@ test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
   assert.match(drawingModule, /data-draw-color/);
   assert.match(drawingModule, /getContext\(["']2d["']\)/);
   assert.match(script, /renderDrawGuess/);
-  assert.match(
-    drawingModule,
-    /byId\(["']drawCountdown["']\)\.textContent = countdown/,
-  );
-  assert.match(
-    script,
-    /Object\.prototype\.hasOwnProperty\.call\(payload\.state, ['"]games['"]\)/,
-  );
+  assert.match(drawingModule, /byId\(["']drawCountdown["']\)\.textContent = countdown/);
+  assert.match(script, /Object\.prototype\.hasOwnProperty\.call\(payload\.state, ['"]games['"]\)/);
   assert.doesNotMatch(script, /payload\.state\?\.games \|\| null/);
   assert.match(script, /revealedAnswer/);
-  assert.match(
-    script,
-    /import \{ createDanmakuFeed \} from ["']\.\/danmaku-feed\.js["'];/,
-  );
+  assert.match(script, /import \{ createDanmakuFeed \} from ["']\.\/danmaku-feed\.js["'];/);
   assert.match(script, /createDanmakuFeed\(byId\(["']drawDanmakuFeed["']\)/);
   assert.match(script, /drawDanmakuFeed\.render\(items\)/);
   assert.match(script, /offscreenViewports:\s*5/);
@@ -206,38 +169,20 @@ test('games overlay is mapped and uses DOM-safe rendering hooks', () => {
   assert.match(styles, /\.gomoku-cell::before/);
   assert.match(styles, /\.gomoku-cell:nth-child\(15n \+ 1\)/);
   assert.match(styles, /\.draw-canvas/);
-  assert.match(
-    styles,
-    /cursor:\s*url\(['"]\/img\/overlays\/draw-pen-cursor\.svg/,
-  );
-  assert.match(
-    styles,
-    /\.draw-canvas\.is-eraser\s*\{[^}]*cursor:\s*url\(['"]\/img\/overlays\/draw-eraser-cursor\.svg/,
-  );
-  assert.match(
-    drawingModule,
-    /classList\.toggle\(["']is-eraser["'],\s*drawTool === ["']eraser["']\)/,
-  );
+  assert.match(styles, /cursor:\s*url\(['"]\/img\/overlays\/draw-pen-cursor\.svg/);
+  assert.match(styles, /\.draw-canvas\.is-eraser\s*\{[^}]*cursor:\s*url\(['"]\/img\/overlays\/draw-eraser-cursor\.svg/);
+  assert.match(drawingModule, /classList\.toggle\(["']is-eraser["'],\s*drawTool === ["']eraser["']\)/);
   assert.match(styles, /\.draw-canvas\.is-shape\s*\{[^}]*cursor:\s*crosshair/);
   assert.match(
     styles,
     /grid-template-columns:\s*clamp\(\s*260px,\s*21vw,\s*340px\s*\)\s+minmax\(0,\s*1fr\)\s+clamp\(\s*308px,\s*28vw,\s*420px\s*\)/,
   );
-  assert.match(
-    styles,
-    /body\[data-game=["']draw-guess["']\]\s+\.draw-canvas-wrap\s*\{[^}]*height:\s*100%/,
-  );
-  assert.match(
-    styles,
-    /body\[data-game=["']draw-guess["']\]\s+\.draw-canvas\s*\{[^}]*aspect-ratio:\s*auto/,
-  );
+  assert.match(styles, /body\[data-game=["']draw-guess["']\]\s+\.draw-canvas-wrap\s*\{[^}]*height:\s*100%/);
+  assert.match(styles, /body\[data-game=["']draw-guess["']\]\s+\.draw-canvas\s*\{[^}]*aspect-ratio:\s*auto/);
   assert.match(styles, /\.draw-scoreboard/);
   assert.match(styles, /\.draw-danmaku-identity/);
   assert.match(styles, /\.draw-danmaku-avatar\s*\{[^}]*overflow:\s*hidden/);
-  assert.match(
-    styles,
-    /\.draw-danmaku-avatar img\s*\{[^}]*object-fit:\s*cover/,
-  );
+  assert.match(styles, /\.draw-danmaku-avatar img\s*\{[^}]*object-fit:\s*cover/);
   assert.match(styles, /\.draw-danmaku-guard/);
   assert.match(styles, /\.draw-danmaku-medal/);
   assert.match(styles, /\.draw-danmaku-bubble/);
@@ -284,38 +229,24 @@ test('draw guess danmaku feed keeps the visible viewport plus five buffered view
     setAttribute() {}
 
     get scrollHeight() {
-      const heights = this.children.map(
-        (child) =>
-          Number.parseFloat(child.style.values.get('--danmaku-height')) || 0,
-      );
-      return heights.reduce(
-        (total, height) => total + height,
-        22 + Math.max(0, heights.length - 1) * 11,
-      );
+      const heights = this.children.map((child) => Number.parseFloat(child.style.values.get('--danmaku-height')) || 0);
+      return heights.reduce((total, height) => total + height, 22 + Math.max(0, heights.length - 1) * 11);
     }
   }
 
   const root = new FakeNode();
   root.clientHeight = 100;
-  const module = await loadModuleExports(
-    path.join(__dirname, '..', 'public', 'js', 'overlays', 'danmaku-feed.js'),
-    {
-      document: {
-        createElement: () => new FakeNode(),
-        createDocumentFragment: () => new FakeNode(true),
-      },
+  const module = await loadModuleExports(path.join(__dirname, '..', 'public', 'js', 'overlays', 'danmaku-feed.js'), {
+    document: {
+      createElement: () => new FakeNode(),
+      createDocumentFragment: () => new FakeNode(true),
     },
-  );
+  });
   const feed = module.createDanmakuFeed(root);
 
-  feed.render(
-    Array.from({ length: 30 }, (_, index) => ({ message: `消息 ${index}` })),
-  );
+  feed.render(Array.from({ length: 30 }, (_, index) => ({ message: `消息 ${index}` })));
 
   assert.ok(root.children.length < 30);
-  assert.ok(
-    root.children.length <= 10,
-    `expected at most ten bubbles, got ${root.children.length}`,
-  );
+  assert.ok(root.children.length <= 10, `expected at most ten bubbles, got ${root.children.length}`);
   assert.equal(root.scrollTop, root.scrollHeight);
 });

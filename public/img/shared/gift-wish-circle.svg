@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <path id="arc" d="M27.5 88.971 A45 45 0 1 1 72.5 88.971" />
+  </defs>
+  <path d="M50 50 L27.5 88.971 A45 45 0 1 1 72.5 88.971 Z" fill="#fffdf5" />
+  <g fill="none" stroke-linecap="round">
+    <use href="#arc" stroke="#725335" stroke-width="10" />
+    <use href="#arc" stroke="#dfc07c" stroke-width="6" />
+    <use href="#arc" stroke="#fff1c7" stroke-width="2" stroke-dasharray="0 5" stroke-dashoffset="-2.5" />
+  </g>
+</svg>

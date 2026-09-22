@@ -14,19 +14,34 @@ const deferred = () => Promise.withResolvers();
 
 function fixture(t) {
   let account = 'first';
-  let local = { roomId: '123', enableBilibili: true, paused: false, queueLimit: 25,
-    userCooldownSeconds: 5, onlyFromLibrary: false, allowDuplicate: true, giftBlindBoxConfig: [] };
+  let local = {
+    roomId: '123',
+    enableBilibili: true,
+    paused: false,
+    queueLimit: 25,
+    userCooldownSeconds: 5,
+    onlyFromLibrary: false,
+    allowDuplicate: true,
+    giftBlindBoxConfig: [],
+  };
   let cloud = { ...local, ...flags() };
   let revision = 1;
   let stateListener;
   const calls = [];
   const manager = {
-    LicenseState: { AUTHORIZED: 'authorized' }, getState: () => 'authorized',
+    LicenseState: { AUTHORIZED: 'authorized' },
+    getState: () => 'authorized',
     getCloudSyncIdentity: () => ({ accountName: account, streamerId: account === 'first' ? 1 : 2 }),
     getRemoteBaseUrl: () => 'https://api.example.test',
-    onStateChanged: (listener) => { stateListener = listener; return () => {}; },
-    getCloudState: async () => ({ settings: { initialized: true, revision, values: { ...cloud } },
-      songs: { initialized: true, revision: 1 }, bilibili: { initialized: false } }),
+    onStateChanged: (listener) => {
+      stateListener = listener;
+      return () => {};
+    },
+    getCloudState: async () => ({
+      settings: { initialized: true, revision, values: { ...cloud } },
+      songs: { initialized: true, revision: 1 },
+      bilibili: { initialized: false },
+    }),
     getCloudSongs: async () => ({ songs: [], revision: 1 }),
     updateCloudSettings: async (values) => {
       calls.push(values);
@@ -34,18 +49,37 @@ function fixture(t) {
       return { revision: ++revision, values: { ...cloud } };
     },
   };
-  const controller = createCloudSyncController({ licenseManager: manager,
-    runtime: { prepareCloudRoomAccount: () => false, getCloudSettingsSnapshot: () => ({ ...local }),
-      applyCloudSettingsSnapshot: (values) => { local = Object.fromEntries(Object.entries(values).filter(([key]) => !KEYS.includes(key))); },
-      replaceCloudSongsSnapshot() {} },
+  const controller = createCloudSyncController({
+    licenseManager: manager,
+    runtime: {
+      prepareCloudRoomAccount: () => false,
+      getCloudSettingsSnapshot: () => ({ ...local }),
+      applyCloudSettingsSnapshot: (values) => {
+        local = Object.fromEntries(Object.entries(values).filter(([key]) => !KEYS.includes(key)));
+      },
+      replaceCloudSongsSnapshot() {},
+    },
     bilibiliAuth: { logout: async () => {} },
     timers: { setTimeout: () => ({ unref() {} }), clearTimeout() {} },
   });
   t.after(() => controller.dispose());
-  return { controller, manager, calls,
-    changeLocal: (values) => { local = { ...local, ...values }; controller.markDirty('settings'); },
-    setCloud: (values) => { cloud = { ...cloud, ...values }; revision += 1; },
-    switchAccount: () => { account = 'second'; cloud = { ...local, ...flags() }; stateListener({ state: 'authorized' }); },
+  return {
+    controller,
+    manager,
+    calls,
+    changeLocal: (values) => {
+      local = { ...local, ...values };
+      controller.markDirty('settings');
+    },
+    setCloud: (values) => {
+      cloud = { ...cloud, ...values };
+      revision += 1;
+    },
+    switchAccount: () => {
+      account = 'second';
+      cloud = { ...local, ...flags() };
+      stateListener({ state: 'authorized' });
+    },
   };
 }
 
@@ -54,8 +88,10 @@ test('initially off; four combinations are independent complete settings writes 
   assert.deepEqual(f.controller.getGiftInteractionState().values, flags());
   await f.controller.start();
   for (const [key, enabled, expected] of [
-    [KEYS[0], true, flags(true, false)], [KEYS[1], true, flags(true, true)],
-    [KEYS[0], false, flags(false, true)], [KEYS[1], false, flags()],
+    [KEYS[0], true, flags(true, false)],
+    [KEYS[1], true, flags(true, true)],
+    [KEYS[0], false, flags(false, true)],
+    [KEYS[1], false, flags()],
   ]) {
     const result = await f.controller.setGiftInteraction({ key, enabled });
     assert.equal(result.ok, true);
@@ -63,10 +99,20 @@ test('initially off; four combinations are independent complete settings writes 
     assert.deepEqual(result.values, expected);
     assert.equal(f.calls.at(-1).roomId, '123');
     assert.equal(f.calls.at(-1).queueLimit, 25);
-    assert.equal(Object.hasOwn(f.calls.at(-1), KEYS.find((peer) => peer !== key)), false);
+    assert.equal(
+      Object.hasOwn(
+        f.calls.at(-1),
+        KEYS.find((peer) => peer !== key),
+      ),
+      false,
+    );
   }
-  await assert.rejects(f.controller.setGiftInteraction({ key: KEYS[0], enabled: 'true' }), { code: 'INVALID_GIFT_INTERACTION' });
-  await assert.rejects(f.controller.setGiftInteraction({ key: KEYS[0], enabled: true, token: 'secret' }), { code: 'INVALID_GIFT_INTERACTION' });
+  await assert.rejects(f.controller.setGiftInteraction({ key: KEYS[0], enabled: 'true' }), {
+    code: 'INVALID_GIFT_INTERACTION',
+  });
+  await assert.rejects(f.controller.setGiftInteraction({ key: KEYS[0], enabled: true, token: 'secret' }), {
+    code: 'INVALID_GIFT_INTERACTION',
+  });
 });
 
 test('pending request preserves confirmed display, rejects repeat and response loss reconciles remotely', async (t) => {
@@ -77,7 +123,9 @@ test('pending request preserves confirmed display, rejects repeat and response l
   const resultPromise = f.controller.setGiftInteraction({ key: KEYS[0], enabled: true });
   assert.equal(f.controller.getGiftInteractionState().status, 'pending');
   assert.deepEqual(f.controller.getGiftInteractionState().values, flags());
-  await assert.rejects(f.controller.setGiftInteraction({ key: KEYS[1], enabled: true }), { code: 'GIFT_INTERACTION_PENDING' });
+  await assert.rejects(f.controller.setGiftInteraction({ key: KEYS[1], enabled: true }), {
+    code: 'GIFT_INTERACTION_PENDING',
+  });
   f.setCloud(flags(true));
   pending.reject(Object.assign(new Error('Cookie=secret'), { code: 'NETWORK_UNAVAILABLE' }));
   const result = await resultPromise;
@@ -95,7 +143,9 @@ test('peer changes survive a narrow write; offline off and malformed acknowledge
   await f.controller.start();
   f.setCloud(flags(false, true)); // Another device wrote after this client's last read.
   assert.deepEqual((await f.controller.setGiftInteraction({ key: KEYS[0], enabled: true })).values, flags(true, true));
-  f.manager.updateCloudSettings = async () => { throw new Error('offline'); };
+  f.manager.updateCloudSettings = async () => {
+    throw new Error('offline');
+  };
   const failed = await f.controller.setGiftInteraction({ key: KEYS[0], enabled: false });
   assert.equal(failed.ok, false);
   assert.equal(failed.status, 'unconfirmed');
@@ -114,7 +164,10 @@ test('local settings changed during the intent upload remain dirty and send afte
   let first = true;
   f.manager.updateCloudSettings = async (values) => {
     const result = await upload(values);
-    if (first) { first = false; await release.promise; }
+    if (first) {
+      first = false;
+      await release.promise;
+    }
     return result;
   };
   const pending = f.controller.setGiftInteraction({ key: KEYS[0], enabled: true });
@@ -133,7 +186,9 @@ test('gate errors do not enable; remote logout/room change resets; new account r
   const f = fixture(t);
   await f.controller.start();
   for (const code of ['BILIBILI_LOGIN_REQUIRED', 'BILIBILI_CREDENTIALS_INVALID', 'BILIBILI_ACCOUNT_CHECK_FAILED']) {
-    f.manager.updateCloudSettings = async () => { throw Object.assign(new Error(), { code }); };
+    f.manager.updateCloudSettings = async () => {
+      throw Object.assign(new Error(), { code });
+    };
     const result = await f.controller.setGiftInteraction({ key: KEYS[0], enabled: true });
     assert.equal(result.error, code);
     assert.deepEqual(result.values, flags());
@@ -164,9 +219,18 @@ test('IPC checks exact frame and origin, sanitizes responses/events and removes 
   let changed;
   const dispose = registerGiftInteractionIpc({
     ipcMain: { handle: (key, value) => handlers.set(key, value), removeHandler: (key) => handlers.delete(key) },
-    controller: { refreshGiftInteractionState: async () => state, setGiftInteraction: async () => state,
-      onGiftInteractionStateChanged: (listener) => { changed = listener; return () => { changed = null; }; } },
-    getMainWindow: () => window, getDesktopBaseUrl: () => 'http://127.0.0.1:3000',
+    controller: {
+      refreshGiftInteractionState: async () => state,
+      setGiftInteraction: async () => state,
+      onGiftInteractionStateChanged: (listener) => {
+        changed = listener;
+        return () => {
+          changed = null;
+        };
+      },
+    },
+    getMainWindow: () => window,
+    getDesktopBaseUrl: () => 'http://127.0.0.1:3000',
   });
   const event = { sender: window.webContents, senderFrame: frame };
   for (const handler of handlers.values()) {
@@ -190,13 +254,21 @@ test('preload exposes explicit boolean intents and removable state subscription 
   const calls = [];
   const listeners = new Map();
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../src/electron/preload.js'), 'utf8'), {
-    require: () => ({ contextBridge: { exposeInMainWorld: (key, value) => exposed.set(key, value) },
-      ipcRenderer: { invoke: (...args) => calls.push(args), on: (name, handler) => listeners.set(name, handler),
-        removeListener: (name) => listeners.delete(name) } }),
+    require: () => ({
+      contextBridge: { exposeInMainWorld: (key, value) => exposed.set(key, value) },
+      ipcRenderer: {
+        invoke: (...args) => calls.push(args),
+        on: (name, handler) => listeners.set(name, handler),
+        removeListener: (name) => listeners.delete(name),
+      },
+    }),
   });
   const bridge = exposed.get('liraLicense');
   bridge.setGiftInteraction(KEYS[1], true);
-  assert.equal(JSON.stringify(calls[0]), JSON.stringify(['license:set-gift-interaction', { key: KEYS[1], enabled: true }]));
+  assert.equal(
+    JSON.stringify(calls[0]),
+    JSON.stringify(['license:set-gift-interaction', { key: KEYS[1], enabled: true }]),
+  );
   const unsubscribe = bridge.onGiftInteractionStateChanged(() => {});
   assert.equal(listeners.size, 1);
   unsubscribe();
@@ -206,26 +278,71 @@ test('preload exposes explicit boolean intents and removable state subscription 
 async function uiFixture() {
   function element() {
     const listeners = new Map();
-    return { checked: false, disabled: false, hidden: true, textContent: '', listeners,
+    return {
+      checked: false,
+      disabled: false,
+      hidden: true,
+      textContent: '',
+      listeners,
       addEventListener: (name, callback) => listeners.set(name, callback),
-      removeEventListener: (name) => listeners.delete(name) };
+      removeEventListener: (name) => listeners.delete(name),
+    };
   }
   const ids = [...KEYS, 'giftInteractionControls', 'giftInteractionStatus', 'giftInteractionRefresh'];
   const elements = Object.fromEntries(ids.map((id) => [id, element()]));
   const windowRef = element();
   const toasts = [];
   let listener;
-  const bridge = { getGiftInteractionState: async () => ({ status: 'confirmed', values: flags() }),
-    onGiftInteractionStateChanged: (callback) => { listener = callback; return () => { listener = null; }; },
-    setGiftInteraction: async () => ({ ok: false, status: 'unconfirmed', values: flags(), error: 'BILIBILI_LOGIN_REQUIRED' }) };
+  const bridge = {
+    getGiftInteractionState: async () => ({ status: 'confirmed', values: flags() }),
+    onGiftInteractionStateChanged: (callback) => {
+      listener = callback;
+      return () => {
+        listener = null;
+      };
+    },
+    setGiftInteraction: async () => ({
+      ok: false,
+      status: 'unconfirmed',
+      values: flags(),
+      error: 'BILIBILI_LOGIN_REQUIRED',
+    }),
+  };
   const context = vm.createContext({});
-  const module = new vm.SourceTextModule(fs.readFileSync(path.join(__dirname, '../public/js/admin/gifts/interaction-controls.js'), 'utf8'), { context });
-  await module.link(() => new vm.SyntheticModule(['toast'], function () { this.setExport('toast', () => {}); }, { context }));
+  const module = new vm.SourceTextModule(
+    fs.readFileSync(path.join(__dirname, '../public/js/admin/gifts/interaction-controls.js'), 'utf8'),
+    { context },
+  );
+  await module.link(
+    () =>
+      new vm.SyntheticModule(
+        ['toast'],
+        function () {
+          this.setExport('toast', () => {});
+        },
+        { context },
+      ),
+  );
   await module.evaluate();
-  const dispose = module.namespace.initGiftInteractionControls({ documentRef: { getElementById: (id) => elements[id] }, windowRef, bridge, notify: (text) => toasts.push(text) });
+  const dispose = module.namespace.initGiftInteractionControls({
+    documentRef: { getElementById: (id) => elements[id] },
+    windowRef,
+    bridge,
+    notify: (text) => toasts.push(text),
+  });
   await new Promise(setImmediate);
-  return { elements, toasts, bridge, dispose, emit: (state) => listener?.(state),
-    async click(key, enabled) { elements[key].checked = enabled; elements[key].listeners.get('change')(); await new Promise(setImmediate); } };
+  return {
+    elements,
+    toasts,
+    bridge,
+    dispose,
+    emit: (state) => listener?.(state),
+    async click(key, enabled) {
+      elements[key].checked = enabled;
+      elements[key].listeners.get('change')();
+      await new Promise(setImmediate);
+    },
+  };
 }
 
 test('renderer keeps logged-out control clickable, distinct errors, pending rollback and offline-off warning', async () => {
@@ -234,7 +351,10 @@ test('renderer keeps logged-out control clickable, distinct errors, pending roll
   await ui.click(KEYS[0], true);
   assert.equal(ui.toasts.at(-1), '请先登录 B 站，再同步到服务器。');
   assert.equal(ui.elements[KEYS[0]].checked, false);
-  for (const [error, message] of [['BILIBILI_CREDENTIALS_INVALID', 'B 站登录已失效，请重新登录并同步。'], ['BILIBILI_ACCOUNT_CHECK_FAILED', 'B 站登录验证超时，请稍后再试。']]) {
+  for (const [error, message] of [
+    ['BILIBILI_CREDENTIALS_INVALID', 'B 站登录已失效，请重新登录并同步。'],
+    ['BILIBILI_ACCOUNT_CHECK_FAILED', 'B 站登录验证超时，请稍后再试。'],
+  ]) {
     ui.bridge.setGiftInteraction = async () => ({ ok: false, status: 'unconfirmed', values: flags(), error });
     await ui.click(KEYS[0], true);
     assert.equal(ui.toasts.at(-1), message);

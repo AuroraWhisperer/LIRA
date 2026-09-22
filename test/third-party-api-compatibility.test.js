@@ -76,17 +76,13 @@ test('complete third-party Chat Completions URL remains unchanged', async () => 
   });
 
   const result = await client.testConnection({
-    deepseekResponsesUrl:
-      'https://gateway.example.test/openai/v1/chat/completions',
+    deepseekResponsesUrl: 'https://gateway.example.test/openai/v1/chat/completions',
     deepseekApiKey: 'temporary-test-key',
     model: 'custom-model',
     requestTimeoutMs: 3000,
   });
 
-  assert.equal(
-    capturedUrl,
-    'https://gateway.example.test/openai/v1/chat/completions',
-  );
+  assert.equal(capturedUrl, 'https://gateway.example.test/openai/v1/chat/completions');
   assert.equal(result.reply, 'ok');
   assert.equal(result.endpointAdapted, true);
 });
@@ -162,10 +158,7 @@ test('explicit Chat Completions protocol adapts a third-party root without reaso
     tools: [],
   });
 
-  assert.equal(
-    captured.url,
-    'https://gateway.example.test/v1/chat/completions',
-  );
+  assert.equal(captured.url, 'https://gateway.example.test/v1/chat/completions');
   assert.equal(captured.body.reasoning, undefined);
   assert.equal(captured.body.thinking, undefined);
 });

@@ -4,8 +4,7 @@ const readline = require('node:readline');
 
 function createDiagnosticTerminal(onKeypress, options = {}) {
   const input = options.input ?? process.stdin;
-  const emitKeypressEvents =
-    options.emitKeypressEvents ?? readline.emitKeypressEvents;
+  const emitKeypressEvents = options.emitKeypressEvents ?? readline.emitKeypressEvents;
   const previousRawMode = input.isRaw === true;
   const inputWasPaused = input.isPaused();
   const readlineListeners = [];
@@ -14,12 +13,7 @@ function createDiagnosticTerminal(onKeypress, options = {}) {
 
   function setup() {
     if (!input.isTTY) return false;
-    const previousListeners = new Map(
-      ['data', 'newListener'].map((event) => [
-        event,
-        new Set(input.listeners(event)),
-      ]),
-    );
+    const previousListeners = new Map(['data', 'newListener'].map((event) => [event, new Set(input.listeners(event))]));
     try {
       emitKeypressEvents(input);
       input.setRawMode(true);
@@ -30,8 +24,7 @@ function createDiagnosticTerminal(onKeypress, options = {}) {
     } finally {
       for (const [event, previous] of previousListeners) {
         for (const listener of input.listeners(event)) {
-          if (!previous.has(listener))
-            readlineListeners.push([event, listener]);
+          if (!previous.has(listener)) readlineListeners.push([event, listener]);
         }
       }
     }

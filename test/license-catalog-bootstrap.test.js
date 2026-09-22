@@ -66,34 +66,29 @@ test('gift catalog initialization IPC is authorized, sanitized, and retryable', 
     giftCatalog,
     getMainWindow: () => mainWindow,
     getDesktopBaseUrl: () => desktopBaseUrl,
-    hasExactOrigin: (candidate, expected) =>
-      new URL(candidate).origin === new URL(expected).origin,
+    hasExactOrigin: (candidate, expected) => new URL(candidate).origin === new URL(expected).origin,
   });
 
-  assert.deepEqual(
-    await handlers.get('license:get-gift-catalog-state')(trustedEvent),
-    {
-      ok: true,
-      status: 'running',
-      background: false,
-      phase: 'images',
-      completed: 3,
-      total: 10,
-      available: 2,
-      failed: 1,
-      percent: 35,
-      currentGiftId: '123',
-      currentGiftName: '测试礼物',
-      completedAt: null,
-      error: null,
-      warning: null,
-    },
-  );
+  assert.deepEqual(await handlers.get('license:get-gift-catalog-state')(trustedEvent), {
+    ok: true,
+    status: 'running',
+    background: false,
+    phase: 'images',
+    completed: 3,
+    total: 10,
+    available: 2,
+    failed: 1,
+    percent: 35,
+    currentGiftId: '123',
+    currentGiftName: '测试礼物',
+    completedAt: null,
+    error: null,
+    warning: null,
+  });
 
-  const retried = await handlers.get('license:retry-gift-catalog')(
-    trustedEvent,
-    { sourceUrl: 'https://attacker.example/image.webp' },
-  );
+  const retried = await handlers.get('license:retry-gift-catalog')(trustedEvent, {
+    sourceUrl: 'https://attacker.example/image.webp',
+  });
   assert.equal(retried.ok, true);
   assert.equal(retried.status, 'ready');
   assert.equal(retried.background, true);
@@ -134,9 +129,7 @@ test('gift catalog initialization IPC is authorized, sanitized, and retryable', 
   ]);
 
   licenseState = 'needs_activation';
-  const rejected = await handlers.get('license:retry-gift-catalog')(
-    trustedEvent,
-  );
+  const rejected = await handlers.get('license:retry-gift-catalog')(trustedEvent);
   assert.equal(rejected.ok, false);
   assert.equal(rejected.error, 'LICENSE_REQUIRED');
   assert.equal(initializationCalls, 1);

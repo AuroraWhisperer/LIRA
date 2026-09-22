@@ -8,11 +8,7 @@ const { resolveDataPaths } = require('../shared/data-paths');
 const { composeAdminHtml, isAdminPageRoute } = require('./admin-page');
 const { OVERLAY_PAGES, getOverlayScope, createOverlayToken, resolveRequestPrincipal } = require('./access-policy');
 const { createOverlayBootstrap } = require('./overlay-bootstrap');
-const {
-  isSafeBasename,
-  MAX_IMAGE_BYTES,
-  validateImageBytes,
-} = require('../bilibili/gift/remote-gift-image-cache');
+const { isSafeBasename, MAX_IMAGE_BYTES, validateImageBytes } = require('../bilibili/gift/remote-gift-image-cache');
 
 function readJsonBody(req, maxBodyBytes = 0) {
   return readRawBody(req, maxBodyBytes).then((body) => {
@@ -42,9 +38,12 @@ function readRawBody(req, maxBodyBytes = 0) {
         const closeTimer = setTimeout(() => req.destroy(), 1000);
         closeTimer.unref();
         req.once('close', () => clearTimeout(closeTimer));
-        reject(Object.assign(new Error('Request body is too large.'), {
-          code: 'REQUEST_BODY_TOO_LARGE', statusCode: 413,
-        }));
+        reject(
+          Object.assign(new Error('Request body is too large.'), {
+            code: 'REQUEST_BODY_TOO_LARGE',
+            statusCode: 413,
+          }),
+        );
         return;
       }
       chunks.push(chunk);
@@ -73,8 +72,7 @@ function sendJson(res, status, payload) {
 }
 
 function verifyToken(context, req, requestUrl) {
-  return req.headers?.origin !== 'null' &&
-    resolveRequestPrincipal(context, req, requestUrl)?.type === 'admin';
+  return req.headers?.origin !== 'null' && resolveRequestPrincipal(context, req, requestUrl)?.type === 'admin';
 }
 
 function sendCsv(res, filename, content) {
@@ -111,15 +109,13 @@ function servePageOrAsset(publicDir, req, res, requestUrl, sessionToken, beginPl
     ['/license', 'pages/license.html'],
     ...Object.entries(OVERLAY_PAGES).map(([scope, file]) => [`/${scope}`, `pages/overlays/${file}`]),
   ]);
-  const assetPath =
-    pageMap.get(requestUrl.pathname) || requestUrl.pathname.replace(/^\/+/, '');
+  const assetPath = pageMap.get(requestUrl.pathname) || requestUrl.pathname.replace(/^\/+/, '');
   const resolvedPath = isAdminPage
     ? path.join(publicDir, 'pages', 'admin', 'shell-start.html')
     : path.resolve(publicDir, assetPath);
   if (
-    assetPath.includes(':') || (!isAdminPage &&
-    resolvedPath !== publicDir &&
-    !resolvedPath.startsWith(publicDir + path.sep))
+    assetPath.includes(':') ||
+    (!isAdminPage && resolvedPath !== publicDir && !resolvedPath.startsWith(publicDir + path.sep))
   ) {
     sendJson(res, 403, { ok: false, error: 'Forbidden.' });
     return;
@@ -128,8 +124,12 @@ function servePageOrAsset(publicDir, req, res, requestUrl, sessionToken, beginPl
   const relativePath = path.relative(publicDir, resolvedPath).replaceAll('\\', '/').toLowerCase();
   const isHtml = path.extname(resolvedPath).toLowerCase() === '.html';
   const overlayScope = getOverlayScope(`/${relativePath}`);
-  if (isHtml && !overlayScope && relativePath !== 'pages/license.html' &&
-      !verifyToken({ sessionToken }, req, requestUrl)) {
+  if (
+    isHtml &&
+    !overlayScope &&
+    relativePath !== 'pages/license.html' &&
+    !verifyToken({ sessionToken }, req, requestUrl)
+  ) {
     sendJson(res, 401, { ok: false, error: '请从桌面应用打开管理页面。' });
     return;
   }
@@ -203,38 +203,20 @@ function serveOpeningMedia(dataDir, req, res, requestUrl, getCurrentFileName) {
   } catch (_) {
     fileName = '';
   }
-  if (
-    !fileName ||
-    path.basename(fileName) !== fileName ||
-    fileName !== String(getCurrentFileName?.() || '')
-  ) {
+  if (!fileName || path.basename(fileName) !== fileName || fileName !== String(getCurrentFileName?.() || '')) {
     sendJson(res, 404, { ok: false, error: 'Not found.' });
     return;
   }
   const extension = path.extname(fileName).toLowerCase();
-  if (
-    !new Set(['.mp3', '.flac', '.wav', '.aac', '.ogg', '.m4a', '.wma']).has(
-      extension,
-    )
-  ) {
+  if (!new Set(['.mp3', '.flac', '.wav', '.aac', '.ogg', '.m4a', '.wma']).has(extension)) {
     sendJson(res, 404, { ok: false, error: 'Not found.' });
     return;
   }
-  const filePath = path.join(
-    path.resolve(String(dataDir || '')),
-    'opening-music',
-    fileName,
-  );
+  const filePath = path.join(path.resolve(String(dataDir || '')), 'opening-music', fileName);
   serveOpeningFile(filePath, req, res);
 }
 
-function serveOpeningCharacter(
-  dataDir,
-  req,
-  res,
-  requestUrl,
-  getCurrentFileName,
-) {
+function serveOpeningCharacter(dataDir, req, res, requestUrl, getCurrentFileName) {
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     sendJson(res, 405, {
       ok: false,
@@ -250,11 +232,7 @@ function serveOpeningCharacter(
   } catch (_) {
     fileName = '';
   }
-  if (
-    !fileName ||
-    path.basename(fileName) !== fileName ||
-    fileName !== String(getCurrentFileName?.() || '')
-  ) {
+  if (!fileName || path.basename(fileName) !== fileName || fileName !== String(getCurrentFileName?.() || '')) {
     sendJson(res, 404, { ok: false, error: 'Not found.' });
     return;
   }
@@ -263,11 +241,7 @@ function serveOpeningCharacter(
     sendJson(res, 404, { ok: false, error: 'Not found.' });
     return;
   }
-  const filePath = path.join(
-    path.resolve(String(dataDir || '')),
-    'opening-character',
-    fileName,
-  );
+  const filePath = path.join(path.resolve(String(dataDir || '')), 'opening-character', fileName);
   serveOpeningFile(filePath, req, res);
 }
 
@@ -322,17 +296,12 @@ function serveOvertimeGiftImage(dataDir, req, res, requestUrl) {
     });
     return;
   }
-  const encodedName = requestUrl.pathname.slice(
-    '/overtime-gift-images/'.length,
-  );
+  const encodedName = requestUrl.pathname.slice('/overtime-gift-images/'.length);
   if (!isSafeBasename(encodedName)) {
     sendJson(res, 404, { ok: false, error: 'Not found.' });
     return;
   }
-  const filePath = path.join(
-    resolveDataPaths(String(dataDir || '')).giftImagesDir,
-    encodedName,
-  );
+  const filePath = path.join(resolveDataPaths(String(dataDir || '')).giftImagesDir, encodedName);
   fs.lstat(filePath, (statError, stats) => {
     if (statError || !stats.isFile()) {
       sendJson(res, 404, { ok: false, error: 'Not found.' });
@@ -436,10 +405,7 @@ function sendStableError(res, error) {
     return;
   }
 
-  if (
-    message === 'Request body is too large.' ||
-    message.includes('too large')
-  ) {
+  if (message === 'Request body is too large.' || message.includes('too large')) {
     sendJson(res, 413, {
       ok: false,
       error: 'Request body exceeds size limit.',

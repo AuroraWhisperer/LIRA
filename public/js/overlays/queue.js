@@ -21,10 +21,7 @@ import {
   scheduleScrollAnimationRestore,
 } from './queue-scroll.js';
 import { syncQueuePanelViewport } from './queue-viewport.js';
-import {
-  normalizePersistedQueueStyle,
-  resolveQueueStyleSettings,
-} from '../shared/queue-style-settings.js';
+import { normalizePersistedQueueStyle, resolveQueueStyleSettings } from '../shared/queue-style-settings.js';
 import { createOverlaySocket } from './socket-client.js';
 
 const ILLUSTRATED_QUEUE_RENDERERS = {
@@ -33,9 +30,7 @@ const ILLUSTRATED_QUEUE_RENDERERS = {
   'cherry-ribbon': renderCherryRibbonQueue,
   'golden-lily': renderGoldenLilyQueue,
 };
-const ILLUSTRATED_QUEUE_STYLES = new Set(
-  Object.keys(ILLUSTRATED_QUEUE_RENDERERS),
-);
+const ILLUSTRATED_QUEUE_STYLES = new Set(Object.keys(ILLUSTRATED_QUEUE_RENDERERS));
 const ILLUSTRATED_QUEUE_ROW_GAPS = {
   storybook: 7,
   'neon-vinyl': 8,
@@ -72,8 +67,7 @@ async function loadState() {
     const response = await fetch('/api/state');
     const payload = await response.json();
     if (payload.ok && revision === stateRevision) {
-      if (expectedLiveStatusRevision !== liveStatusRevision)
-        payload.data.liveStatus = state.liveStatus;
+      if (expectedLiveStatusRevision !== liveStatusRevision) payload.data.liveStatus = state.liveStatus;
       applyState(payload.data);
     }
   } catch (error) {
@@ -128,9 +122,7 @@ function applyState(nextState) {
 }
 
 function isSongRequestSnapshotReason(reason) {
-  return ['queue:add', 'bilibili:danmaku', 'bilibili:superchat'].includes(
-    reason,
-  );
+  return ['queue:add', 'bilibili:danmaku', 'bilibili:superchat'].includes(reason);
 }
 
 function scheduleStateRefresh() {
@@ -143,29 +135,14 @@ function scheduleStateRefresh() {
 function computeStateKey(nextState) {
   var queue = nextState.queue || {};
   var rawSettings = nextState.settings || {};
-  var settings = resolveQueueStyleSettings(
-    rawSettings,
-    normalizeQueueStyle(rawSettings.overlayQueueStyle),
-  );
+  var settings = resolveQueueStyleSettings(rawSettings, normalizeQueueStyle(rawSettings.overlayQueueStyle));
   var current = queue.current;
   var waiting = queue.waiting || [];
   var superChats = nextState.superChats || [];
   return JSON.stringify([
-    current
-      ? current.song_name +
-        '|' +
-        (current.requester_name || '') +
-        '|' +
-        (current.is_pinned ? '1' : '0')
-      : '',
+    current ? current.song_name + '|' + (current.requester_name || '') + '|' + (current.is_pinned ? '1' : '0') : '',
     waiting.map(function (item) {
-      return (
-        item.song_name +
-        '|' +
-        (item.requester_name || '') +
-        '|' +
-        (item.is_pinned ? '1' : '0')
-      );
+      return item.song_name + '|' + (item.requester_name || '') + '|' + (item.is_pinned ? '1' : '0');
     }),
     superChats.map(function (item) {
       return (item.price || 0) + '|' + (item.message || '');
@@ -237,13 +214,7 @@ function render() {
   if (illustratedRenderer) {
     illustratedRenderer(settings, current, waiting, content);
   } else if (style === 'identity') {
-    renderIdentityQueue(
-      settings,
-      current,
-      waiting,
-      content,
-      state.superChats || [],
-    );
+    renderIdentityQueue(settings, current, waiting, content, state.superChats || []);
   } else {
     renderClassicQueue(settings, current, waiting, content);
   }
@@ -270,35 +241,15 @@ function relayoutQueue() {
     const list = viewport && viewport.querySelector(`.${style}-list`);
     const rowGap = ILLUSTRATED_QUEUE_ROW_GAPS[style] ?? 8;
     if (viewport && list)
-      configureIdentityVerticalScroll(
-        viewport,
-        list,
-        settings,
-        originalQueueRowsHtml(list),
-        rowGap,
-      );
+      configureIdentityVerticalScroll(viewport, list, settings, originalQueueRowsHtml(list), rowGap);
   } else if (style === 'identity') {
     const viewport = content.querySelector('.identity-list-window');
     const list = viewport && viewport.querySelector('.identity-list');
-    if (viewport && list)
-      configureIdentityVerticalScroll(
-        viewport,
-        list,
-        settings,
-        originalQueueRowsHtml(list),
-        4,
-      );
+    if (viewport && list) configureIdentityVerticalScroll(viewport, list, settings, originalQueueRowsHtml(list), 4);
   } else {
     const viewport = content.querySelector('.classic-list-window');
     const list = viewport && viewport.querySelector('.classic-list');
-    if (viewport && list)
-      configureClassicVerticalScroll(
-        viewport,
-        list,
-        settings,
-        originalQueueRowsHtml(list),
-        5,
-      );
+    if (viewport && list) configureClassicVerticalScroll(viewport, list, settings, originalQueueRowsHtml(list), 5);
   }
 
   scheduleIdentityContentScroll(content);

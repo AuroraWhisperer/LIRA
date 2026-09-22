@@ -10,16 +10,10 @@ const {
   failureReply,
 } = require('../src/ai/ai-assistant-service');
 const { SYSTEM_PROMPT } = require('../src/ai/prompt');
-const {
-  createTestService,
-  waitUntil,
-} = require('./helpers/ai-assistant-service-fixture');
+const { createTestService, waitUntil } = require('./helpers/ai-assistant-service-fixture');
 
 test('trigger extraction removes 小米 and preserves the question', () => {
-  assert.equal(
-    extractTriggeredQuestion('小米 苏州天气怎么样？', '小米'),
-    '苏州天气怎么样？',
-  );
+  assert.equal(extractTriggeredQuestion('小米 苏州天气怎么样？', '小米'), '苏州天气怎么样？');
   assert.equal(extractTriggeredQuestion('你好', '小米'), null);
   assert.equal(extractTriggeredQuestion('小米', '小米'), '和大家打个招呼');
   assert.equal(Array.from(truncateReply('猫'.repeat(70), 50)).length, 50);
@@ -28,10 +22,7 @@ test('trigger extraction removes 小米 and preserves the question', () => {
 test('failure replies identify search failures separately from route failures', () => {
   assert.match(failureReply({ code: 'WEB_SEARCH_UNAVAILABLE' }), /联网搜索/);
   assert.match(failureReply({ code: 'AMAP_ROUTE_NOT_FOUND' }), /路线数据/);
-  assert.match(
-    failureReply({ code: 'QWEATHER_NOT_CONFIGURED' }),
-    /天气服务还没配置/,
-  );
+  assert.match(failureReply({ code: 'QWEATHER_NOT_CONFIGURED' }), /天气服务还没配置/);
   assert.match(failureReply({ code: 'AI_NOT_CONFIGURED' }), /AI 服务/);
 });
 
@@ -42,13 +33,7 @@ test('food and drink questions are required to use a search tool', () => {
 
 test('reply instructions prefer one message and allow up to three based on the mention length', () => {
   const budget = getReplyLengthBudget('哈极光dd_', 50);
-  const instructions = buildReplyInstructions(
-    '固定人格',
-    50,
-    new Set(),
-    true,
-    '哈极光dd_',
-  );
+  const instructions = buildReplyInstructions('固定人格', 50, new Set(), true, '哈极光dd_');
 
   assert.deepEqual(budget, {
     oneMessage: 32,
@@ -67,10 +52,7 @@ test('reply instructions prefer one message and allow up to three based on the m
   assert.match(instructions, /按语气自然轮换/);
   assert.match(instructions, /不要连续回复重复同一个颜文字/);
   assert.match(instructions, /不要为了接近长度偏好/);
-  assert.match(
-    buildReplyInstructions('固定人格', 50, new Set(['get_weather']), true),
-    /必须改用 web_search/,
-  );
+  assert.match(buildReplyInstructions('固定人格', 50, new Set(['get_weather']), true), /必须改用 web_search/);
 });
 
 test('runtime policy keeps persona separate from intent and avoids unnecessary interrogation', () => {

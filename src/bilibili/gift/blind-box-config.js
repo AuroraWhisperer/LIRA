@@ -34,11 +34,7 @@ function normalizeGiftBlindBoxConfig(input) {
     if (!box || typeof box !== 'object' || Array.isArray(box)) {
       throw invalidConfig();
     }
-    if (
-      !Array.isArray(box.outputs) ||
-      box.outputs.length === 0 ||
-      box.outputs.length > MAX_OUTPUTS_PER_BOX
-    ) {
+    if (!Array.isArray(box.outputs) || box.outputs.length === 0 || box.outputs.length > MAX_OUTPUTS_PER_BOX) {
       throw invalidConfig();
     }
     const outputs = box.outputs.map((output) => {
@@ -82,11 +78,7 @@ function normalizeGiftBlindBoxCustomConfigV2(input) {
     const giftId = normalizeGiftId(box.giftId, { nullable: true });
     if (giftId && seenGiftIds.has(giftId)) throw invalidConfig();
     if (giftId) seenGiftIds.add(giftId);
-    if (
-      !Array.isArray(box.outputs) ||
-      box.outputs.length === 0 ||
-      box.outputs.length > MAX_OUTPUTS_PER_BOX
-    ) {
+    if (!Array.isArray(box.outputs) || box.outputs.length === 0 || box.outputs.length > MAX_OUTPUTS_PER_BOX) {
       throw invalidConfig();
     }
     const outputIds = new Set();
@@ -142,11 +134,7 @@ function normalizeGiftId(value, { nullable = false } = {}) {
 function normalizeOptionalCustomId(value) {
   if (value === null || value === undefined || value === '') return null;
   const id = String(value).trim().toLowerCase();
-  if (
-    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u.test(
-      id,
-    )
-  ) {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u.test(id)) {
     throw invalidConfig();
   }
   return id;

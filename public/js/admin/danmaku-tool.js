@@ -29,8 +29,7 @@ function init({ toast = defaultToast, reconnectBilibili } = {}) {
       body: JSON.stringify({ [key]: value }),
     });
     const payload = await response.json();
-    if (!response.ok || !payload.ok)
-      throw new Error(payload.error || '保存设置失败');
+    if (!response.ok || !payload.ok) throw new Error(payload.error || '保存设置失败');
     return payload.data;
   };
   const customReplyEditor = createCustomReplyEditor({
@@ -59,8 +58,7 @@ function init({ toast = defaultToast, reconnectBilibili } = {}) {
     try {
       const response = await fetch('/api/bilibili/danmaku/state');
       const payload = await response.json();
-      if (!response.ok || !payload.ok)
-        throw new Error(payload.error || '获取发送状态失败');
+      if (!response.ok || !payload.ok) throw new Error(payload.error || '获取发送状态失败');
       let state = payload.data || {};
       if (reconnectIfDisconnected && !state.connected) {
         await reconnectBilibili?.();
@@ -118,17 +116,11 @@ function init({ toast = defaultToast, reconnectBilibili } = {}) {
         body: JSON.stringify({ message: text }),
       });
       const payload = await response.json();
-      if (!response.ok || !payload.ok)
-        throw new Error(payload.error || '发送弹幕失败');
+      if (!response.ok || !payload.ok) throw new Error(payload.error || '发送弹幕失败');
       elements.message.value = '';
       updateCounter();
       const count = Number(payload.data?.count) || 1;
-      setResult(
-        count > 1
-          ? `已拆成 ${count} 条弹幕发送。`
-          : `已发送：${payload.data?.message || text}`,
-        'good',
-      );
+      setResult(count > 1 ? `已拆成 ${count} 条弹幕发送。` : `已发送：${payload.data?.message || text}`, 'good');
       toast(
         count > 1
           ? `弹幕已拆成 ${count} 条发送`
@@ -150,8 +142,7 @@ function init({ toast = defaultToast, reconnectBilibili } = {}) {
     try {
       const response = await fetch('/api/bilibili/danmaku/state');
       const payload = await response.json();
-      if (!response.ok || !payload.ok)
-        throw new Error(payload.error || '获取发送状态失败');
+      if (!response.ok || !payload.ok) throw new Error(payload.error || '获取发送状态失败');
       const state = payload.data || {};
       if (!state.loggedIn) {
         toast('未登录账号，请先登录后再使用自动发送');
@@ -166,9 +157,7 @@ function init({ toast = defaultToast, reconnectBilibili } = {}) {
         return;
       }
       const queue = [...Array(10).fill('钓鱼'), ...Array(5).fill('打劫')];
-      toast(
-        `开始自动发送：钓鱼 ×10、打劫 ×5，每 5 秒一条（共 ${queue.length} 条）`,
-      );
+      toast(`开始自动发送：钓鱼 ×10、打劫 ×5，每 5 秒一条（共 ${queue.length} 条）`);
       for (let index = 0; index < queue.length; index += 1) {
         const message = queue[index];
         setResult(`自动发送中 ${index + 1}/${queue.length}：${message}`);
@@ -178,8 +167,7 @@ function init({ toast = defaultToast, reconnectBilibili } = {}) {
           body: JSON.stringify({ message }),
         });
         const sendPayload = await sendResponse.json();
-        if (!sendResponse.ok || !sendPayload.ok)
-          throw new Error(sendPayload.error || '发送弹幕失败');
+        if (!sendResponse.ok || !sendPayload.ok) throw new Error(sendPayload.error || '发送弹幕失败');
         if (index < queue.length - 1) await wait(5000);
       }
       setResult('自动发送完成：钓鱼 ×10、打劫 ×5', 'good');
@@ -213,32 +201,18 @@ function getElements() {
     previewOverlayButton: document.getElementById('danmakuPreviewOverlayBtn'),
     styleChip: document.getElementById('danmakuStyleChip'),
     styleSaveState: document.getElementById('danmakuStyleSaveState'),
-    fullscreenDurationField: document.getElementById(
-      'danmakuFullscreenDurationField',
-    ),
-    fullscreenDuration: document.getElementById(
-      'danmakuFullscreenDurationSeconds',
-    ),
+    fullscreenDurationField: document.getElementById('danmakuFullscreenDurationField'),
+    fullscreenDuration: document.getElementById('danmakuFullscreenDurationSeconds'),
     resultState: document.getElementById('danmakuSendResult'),
   };
-  elements.styleButtons = Array.from(
-    document.querySelectorAll('[data-danmaku-style]'),
-  );
-  return Object.values(elements).some((element) => !element) ||
-    elements.styleButtons.length === 0
-    ? null
-    : elements;
+  elements.styleButtons = Array.from(document.querySelectorAll('[data-danmaku-style]'));
+  return Object.values(elements).some((element) => !element) || elements.styleButtons.length === 0 ? null : elements;
 }
 
 function renderState(elements, state, editors) {
-  elements.accountState.textContent = state.loggedIn
-    ? state.accountName || `UID ${state.accountUid || '-'}`
-    : '未登录';
-  elements.accountState.title =
-    state.loggedIn && state.accountUid ? `UID ${state.accountUid}` : '';
-  elements.roomState.textContent = state.roomId
-    ? state.roomName || `房间 ${state.roomId}`
-    : '未设置';
+  elements.accountState.textContent = state.loggedIn ? state.accountName || `UID ${state.accountUid || '-'}` : '未登录';
+  elements.accountState.title = state.loggedIn && state.accountUid ? `UID ${state.accountUid}` : '';
+  elements.roomState.textContent = state.roomId ? state.roomName || `房间 ${state.roomId}` : '未设置';
   elements.roomState.title = state.roomId ? `房间 ${state.roomId}` : '';
   elements.replyToggle.checked = state.autoReplyEnabled === true;
   elements.replyToggle.disabled = !state.canSend;
@@ -250,11 +224,7 @@ function renderState(elements, state, editors) {
       ? '可发送，监听已连接'
       : '可发送，监听未连接'
     : state.unavailableReason;
-  elements.status.className = state.canSend
-    ? state.connected
-      ? 'connection-good'
-      : 'connection-bad'
-    : 'warn';
+  elements.status.className = state.canSend ? (state.connected ? 'connection-good' : 'connection-bad') : 'warn';
   elements.sendButton.disabled = !state.canSend;
   elements.autoButton.disabled = autoBotRunning || !state.canSend;
 }

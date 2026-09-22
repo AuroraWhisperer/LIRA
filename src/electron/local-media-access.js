@@ -4,15 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const ACCESS_FILE_NAME = 'local-media-access.json';
-const ALLOWED_AUDIO_EXTENSIONS = new Set([
-  '.mp3',
-  '.flac',
-  '.wav',
-  '.aac',
-  '.ogg',
-  '.m4a',
-  '.wma',
-]);
+const ALLOWED_AUDIO_EXTENSIONS = new Set(['.mp3', '.flac', '.wav', '.aac', '.ogg', '.m4a', '.wma']);
 
 function createLocalMediaAccess(dataDir) {
   const dataRoot = path.resolve(dataDir);
@@ -77,11 +69,7 @@ function loadAllowedPaths(accessFilePath) {
   try {
     const values = JSON.parse(fs.readFileSync(accessFilePath, 'utf8'));
     if (!Array.isArray(values)) return new Set();
-    return new Set(
-      values
-        .filter((value) => typeof value === 'string')
-        .map((value) => path.resolve(value)),
-    );
+    return new Set(values.filter((value) => typeof value === 'string').map((value) => path.resolve(value)));
   } catch (_) {
     return new Set();
   }
@@ -89,11 +77,7 @@ function loadAllowedPaths(accessFilePath) {
 
 function persistAllowedPaths(accessFilePath, allowedPaths) {
   fs.mkdirSync(path.dirname(accessFilePath), { recursive: true });
-  fs.writeFileSync(
-    accessFilePath,
-    JSON.stringify([...allowedPaths], null, 2),
-    'utf8',
-  );
+  fs.writeFileSync(accessFilePath, JSON.stringify([...allowedPaths], null, 2), 'utf8');
 }
 
 module.exports = { createLocalMediaAccess, hasExactOrigin };

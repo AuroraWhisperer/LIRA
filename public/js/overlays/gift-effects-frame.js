@@ -33,15 +33,7 @@ export function createFrameController({ frameRoot, formatAmount }) {
     },
     async playEnterTimeline(session, motionMode) {
       const reduced = motionMode === 'reduced';
-      const animations = [
-        animateNode(
-          artwork,
-          frameEnterKeyframes(artwork, reduced),
-          reduced ? 180 : 620,
-          0,
-          session,
-        ),
-      ];
+      const animations = [animateNode(artwork, frameEnterKeyframes(artwork, reduced), reduced ? 180 : 620, 0, session)];
       accents
         .filter((accent) => !accent.hidden)
         .forEach((accent) =>
@@ -56,41 +48,11 @@ export function createFrameController({ frameRoot, formatAmount }) {
           ),
         );
       animations.push(
-        animateNode(
-          info.plate,
-          [{ opacity: 0 }, { opacity: 1 }],
-          reduced ? 180 : 250,
-          reduced ? 0 : 558,
-          session,
-        ),
-        animateNode(
-          info.name,
-          [{ opacity: 0 }, { opacity: 1 }],
-          180,
-          reduced ? 0 : 738,
-          session,
-        ),
-        animateNode(
-          info.amount,
-          [{ opacity: 0 }, { opacity: 1 }],
-          180,
-          reduced ? 0 : 738,
-          session,
-        ),
-        animateNode(
-          info.user,
-          [{ opacity: 0 }, { opacity: 1 }],
-          reduced ? 180 : 160,
-          reduced ? 0 : 810,
-          session,
-        ),
-        animateNode(
-          info.num,
-          [{ opacity: 0 }, { opacity: 1 }],
-          reduced ? 180 : 160,
-          reduced ? 0 : 810,
-          session,
-        ),
+        animateNode(info.plate, [{ opacity: 0 }, { opacity: 1 }], reduced ? 180 : 250, reduced ? 0 : 558, session),
+        animateNode(info.name, [{ opacity: 0 }, { opacity: 1 }], 180, reduced ? 0 : 738, session),
+        animateNode(info.amount, [{ opacity: 0 }, { opacity: 1 }], 180, reduced ? 0 : 738, session),
+        animateNode(info.user, [{ opacity: 0 }, { opacity: 1 }], reduced ? 180 : 160, reduced ? 0 : 810, session),
+        animateNode(info.num, [{ opacity: 0 }, { opacity: 1 }], reduced ? 180 : 160, reduced ? 0 : 810, session),
       );
       await Promise.all(animations);
       session.throwIfAborted();
@@ -101,33 +63,15 @@ export function createFrameController({ frameRoot, formatAmount }) {
         .filter((accent) => !accent.hidden)
         .forEach((accent) => {
           const motion = accentHoldingMotion(accent);
-          void animateNode(
-            accent,
-            motion.keyframes,
-            motion.duration,
-            motion.delay,
-            session,
-          );
+          void animateNode(accent, motion.keyframes, motion.duration, motion.delay, session);
         });
       session.throwIfAborted();
     },
     async playExitTimeline(session, motionMode) {
       const reduced = motionMode === 'reduced';
       const animations = [
-        animateNode(
-          info.plate,
-          [{ opacity: 1 }, { opacity: 0 }],
-          reduced ? 180 : 260,
-          0,
-          session,
-        ),
-        animateNode(
-          artwork,
-          frameExitKeyframes(artwork, reduced),
-          reduced ? 180 : 440,
-          0,
-          session,
-        ),
+        animateNode(info.plate, [{ opacity: 1 }, { opacity: 0 }], reduced ? 180 : 260, 0, session),
+        animateNode(artwork, frameExitKeyframes(artwork, reduced), reduced ? 180 : 440, 0, session),
       ];
       accents
         .filter((accent) => !accent.hidden)

@@ -10,20 +10,9 @@ const {
   restoreSongDefaults,
   restoreGiftDefaults,
 } = require('./database-clear-operations');
-const {
-  createDeletedCounts,
-  preCommitFailure,
-  committedResult,
-} = require('./database-clear-result');
+const { createDeletedCounts, preCommitFailure, committedResult } = require('./database-clear-result');
 
-function coordinateClearAll({
-  songDb,
-  superChatDb,
-  giftDb,
-  musicDb,
-  checkinDb,
-  giftSourceId,
-}) {
+function coordinateClearAll({ songDb, superChatDb, giftDb, musicDb, checkinDb, giftSourceId }) {
   const counts = createDeletedCounts();
   let giftProjectionReset = null;
   const databases = [
@@ -106,8 +95,7 @@ function rollbackDatabases(databases, warn = false) {
       rolledBack.push(name);
     } catch (error) {
       rollbackFailed.push(name);
-      if (warn)
-        console.warn(`[Database] Failed to rollback ${name}:`, error.message);
+      if (warn) console.warn(`[Database] Failed to rollback ${name}:`, error.message);
     }
   }
   return { rolledBack, rollbackFailed };
@@ -129,9 +117,7 @@ function commitDatabases(databases) {
     }
   }
   const rollback =
-    failed.length > 0
-      ? rollbackDatabases(databases.slice(committed.length))
-      : { rolledBack: [], rollbackFailed: [] };
+    failed.length > 0 ? rollbackDatabases(databases.slice(committed.length)) : { rolledBack: [], rollbackFailed: [] };
   return { committed, failed, results, ...rollback };
 }
 

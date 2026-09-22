@@ -3,9 +3,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const { LicenseState } = require('../src/electron/license/license-manager');
-const {
-  RemoteLicenseError,
-} = require('../src/electron/license/remote-license-client');
+const { RemoteLicenseError } = require('../src/electron/license/remote-license-client');
 const { createHarness } = require('./helpers/license-manager-harness');
 
 test('concurrent protected calls share one token renewal', async () => {
@@ -26,35 +24,40 @@ test('concurrent protected calls share one token renewal', async () => {
 for (const scenario of [
   {
     name: 'protected revocation immediately blocks the manager and clears the token',
-    createError: () => new RemoteLicenseError('DEVICE_REVOKED', 'revoked', {
-      status: 503,
-      retryable: true,
-    }),
+    createError: () =>
+      new RemoteLicenseError('DEVICE_REVOKED', 'revoked', {
+        status: 503,
+        retryable: true,
+      }),
   },
   {
     name: 'missing streamer blocks the manager and clears the token',
-    createError: () => new RemoteLicenseError('STREAMER_NOT_FOUND', 'missing', {
-      status: 404,
-    }),
+    createError: () =>
+      new RemoteLicenseError('STREAMER_NOT_FOUND', 'missing', {
+        status: 404,
+      }),
   },
   {
     name: 'non-JSON authorization rejection remains fail-closed',
-    createError: () => new RemoteLicenseError('INVALID_RESPONSE', 'proxy rejection', {
-      status: 401,
-    }),
+    createError: () =>
+      new RemoteLicenseError('INVALID_RESPONSE', 'proxy rejection', {
+        status: 401,
+      }),
   },
   {
     name: 'plain unauthorized protected failures also clear the session',
-    createError: () => Object.assign(new Error('accessToken=secret-value'), {
-      status: 401,
-    }),
+    createError: () =>
+      Object.assign(new Error('accessToken=secret-value'), {
+        status: 401,
+      }),
   },
   {
     name: 'HTTP authorization status fails closed even when a wrapper marks it retryable',
-    createError: () => Object.assign(new Error('temporary proxy error'), {
-      status: 403,
-      retryable: true,
-    }),
+    createError: () =>
+      Object.assign(new Error('temporary proxy error'), {
+        status: 403,
+        retryable: true,
+      }),
   },
 ]) {
   test(scenario.name, async (t) => {
@@ -68,9 +71,7 @@ for (const scenario of [
       throw failure;
     };
 
-    await assert.rejects(manager.getProfile(), (error) =>
-      failure.code ? error.code === failure.code : true,
-    );
+    await assert.rejects(manager.getProfile(), (error) => (failure.code ? error.code === failure.code : true));
     assert.equal(manager.getState(), LicenseState.BLOCKED);
     assert.equal(manager.getAccessToken(), '');
   });
@@ -94,10 +95,7 @@ test('terminal renewal rejection stays blocked even when wrapped as retryable', 
     });
   };
 
-  await assert.rejects(
-    manager.syncSongs([]),
-    (error) => error.code === 'DEVICE_REVOKED',
-  );
+  await assert.rejects(manager.syncSongs([]), (error) => error.code === 'DEVICE_REVOKED');
 
   assert.equal(calls.verifies, 2);
   assert.equal(manager.getState(), LicenseState.BLOCKED);
@@ -135,10 +133,7 @@ test('transient protected failure keeps a still-valid session authorized', async
     });
   };
 
-  await assert.rejects(
-    manager.syncSongs([]),
-    (error) => error.code === 'HTTP_503',
-  );
+  await assert.rejects(manager.syncSongs([]), (error) => error.code === 'HTTP_503');
 
   assert.equal(manager.getState(), LicenseState.AUTHORIZED);
   assert.equal(manager.getAccessToken(), 'token');

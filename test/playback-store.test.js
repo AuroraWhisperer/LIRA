@@ -11,9 +11,11 @@ test('late periodic snapshots cannot replace a newer unload snapshot', () => {
   db.exec(MUSIC_SCHEMA);
   const store = createPlaybackStore(db);
   const snapshotVersion = { writerId: 'writer-one', generation: 1, sequence: 0 };
-  db.prepare(
-    'INSERT INTO play_queue_state (client_id, payload, updated_at) VALUES (?, ?, ?)',
-  ).run('default', JSON.stringify({ snapshotVersion }), '2026-09-18');
+  db.prepare('INSERT INTO play_queue_state (client_id, payload, updated_at) VALUES (?, ?, ?)').run(
+    'default',
+    JSON.stringify({ snapshotVersion }),
+    '2026-09-18',
+  );
 
   try {
     store.saveQueueState({

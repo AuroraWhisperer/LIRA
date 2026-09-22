@@ -28,14 +28,8 @@ async function readQQJsonResponse(response) {
 class QQMusicClient {
   constructor(options = {}) {
     this.source = 'qq';
-    this.getAuthState =
-      typeof options.getAuthState === 'function'
-        ? options.getAuthState
-        : () => null;
-    this.getCookieHeader =
-      typeof options.getCookieHeader === 'function'
-        ? options.getCookieHeader
-        : () => '';
+    this.getAuthState = typeof options.getAuthState === 'function' ? options.getAuthState : () => null;
+    this.getCookieHeader = typeof options.getCookieHeader === 'function' ? options.getCookieHeader : () => '';
   }
 
   async requestPlaylistWrite(method, target, songInfo) {
@@ -47,12 +41,8 @@ class QQMusicClient {
         .map((pair) => pair.trim().split('=')[0])
         .filter((name) => name)
         .join(', ');
-      const debugInfo = cookieNames
-        ? `找到的 Cookie: ${cookieNames}`
-        : '未找到任何 Cookie';
-      throw new Error(
-        `没有从 QQ 音乐 Cookie 中读取到 QQ 号，请重新登录。\n调试信息：${debugInfo}`,
-      );
+      const debugInfo = cookieNames ? `找到的 Cookie: ${cookieNames}` : '未找到任何 Cookie';
+      throw new Error(`没有从 QQ 音乐 Cookie 中读取到 QQ 号，请重新登录。\n调试信息：${debugInfo}`);
     }
     const gtkSource = extractQQGtkSource(cookieHeader);
     if (!gtkSource) throw new Error('QQ 音乐登录 Cookie 不完整，请重新登录。');
@@ -104,14 +94,9 @@ class QQMusicClient {
     const data = await readQQJsonResponse(response);
     const inner = data && data[callKey];
     const retCode = inner && inner.data && inner.data.retCode;
-    if (
-      Number(data && data.code) !== 0 ||
-      Number(inner && inner.code) !== 0 ||
-      Number(retCode) !== 0
-    ) {
+    if (Number(data && data.code) !== 0 || Number(inner && inner.code) !== 0 || Number(retCode) !== 0) {
       const code = inner && inner.code != null ? inner.code : data && data.code;
-      const message =
-        inner && inner.data && (inner.data.msg || inner.data.message);
+      const message = inner && inner.data && (inner.data.msg || inner.data.message);
       throw new Error(
         `QQ 音乐歌单写入失败（code=${code == null ? 'unknown' : code}${message ? `，${message}` : ''}）。`,
       );
@@ -158,11 +143,8 @@ class QQMusicClient {
   async requestMusicsClient(modules = {}) {
     const cookieHeader = await this.getSafeCookieHeader();
     const uin = extractUin(cookieHeader);
-    const authst =
-      extractCookieValue(cookieHeader, 'qm_keyst') ||
-      extractCookieValue(cookieHeader, 'qqmusic_key');
-    if (!uin || !authst)
-      throw new Error('QQ 音乐登录 Cookie 不完整，请重新登录。');
+    const authst = extractCookieValue(cookieHeader, 'qm_keyst') || extractCookieValue(cookieHeader, 'qqmusic_key');
+    if (!uin || !authst) throw new Error('QQ 音乐登录 Cookie 不完整，请重新登录。');
 
     const comm = {
       _channelid: '20',
@@ -173,8 +155,7 @@ class QQMusicClient {
       guid: extractCookieValue(cookieHeader, 'qqmusic_guid') || buildGuid(),
       patch: '118',
       tmeAppID: 'qqmusic',
-      tmeLoginType:
-        Number(extractCookieValue(cookieHeader, 'tmeLoginType')) || 2,
+      tmeLoginType: Number(extractCookieValue(cookieHeader, 'tmeLoginType')) || 2,
       uin,
     };
     for (const [field, cookieName] of [
@@ -213,15 +194,10 @@ class QQMusicClient {
       _os_version: '6.2.9200-2',
       ct: '19',
       cv: '2241',
-      guid: String(
-        requestGuid ||
-          extractCookieValue(cookieHeader, 'qqmusic_guid') ||
-          buildGuid(),
-      ),
+      guid: String(requestGuid || extractCookieValue(cookieHeader, 'qqmusic_guid') || buildGuid()),
       patch: '118',
       tmeAppID: 'qqmusic',
-      tmeLoginType:
-        Number(extractCookieValue(cookieHeader, 'tmeLoginType')) || 2,
+      tmeLoginType: Number(extractCookieValue(cookieHeader, 'tmeLoginType')) || 2,
       uin,
     };
     for (const [field, cookieName] of [
@@ -234,8 +210,7 @@ class QQMusicClient {
       const value = extractCookieValue(cookieHeader, cookieName);
       if (value) comm[field] = value;
     }
-    if (!comm.authst)
-      comm.authst = extractCookieValue(cookieHeader, 'qqmusic_key');
+    if (!comm.authst) comm.authst = extractCookieValue(cookieHeader, 'qqmusic_key');
     const url = new URL(QQ_MUSICS_URL);
     url.searchParams.set('pcachetime', String(Math.floor(Date.now() / 1000)));
     const headers = await this.buildHeaders();
@@ -328,12 +303,8 @@ class QQMusicClient {
         .map((pair) => pair.trim().split('=')[0])
         .filter((name) => name)
         .join(', ');
-      const debugInfo = cookieNames
-        ? `找到的 Cookie: ${cookieNames}`
-        : '未找到任何 Cookie';
-      throw new Error(
-        `没有从 QQ 音乐 Cookie 中读取到 QQ 号，请重新登录。\n调试信息：${debugInfo}`,
-      );
+      const debugInfo = cookieNames ? `找到的 Cookie: ${cookieNames}` : '未找到任何 Cookie';
+      throw new Error(`没有从 QQ 音乐 Cookie 中读取到 QQ 号，请重新登录。\n调试信息：${debugInfo}`);
     }
     return uin;
   }

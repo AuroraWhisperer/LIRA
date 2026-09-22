@@ -35,9 +35,7 @@
       });
     }
     if (downloadButton) {
-      downloadButton.addEventListener('click', () =>
-        runDesktopAction(() => desktop.downloadUpdate()),
-      );
+      downloadButton.addEventListener('click', () => runDesktopAction(() => desktop.downloadUpdate()));
     }
     if (installButton) {
       installButton.addEventListener('click', async () => {
@@ -46,14 +44,10 @@
       });
     }
     if (dataButton) {
-      dataButton.addEventListener('click', () =>
-        runDesktopAction(() => desktop.openDataDir(), false),
-      );
+      dataButton.addEventListener('click', () => runDesktopAction(() => desktop.openDataDir(), false));
     }
     if (logButton) {
-      logButton.addEventListener('click', () =>
-        runDesktopAction(() => desktop.openLogDir(), false),
-      );
+      logButton.addEventListener('click', () => runDesktopAction(() => desktop.openLogDir(), false));
     }
 
     // 自动更新 toggle
@@ -63,9 +57,13 @@
       autoUpdateToggle.addEventListener('change', async () => {
         const enabled = autoUpdateToggle.checked;
         try {
-          await U.api('/api/settings', {
-            enableAutoUpdate: enabled ? 'true' : 'false',
-          }, { notifyError: false });
+          await U.api(
+            '/api/settings',
+            {
+              enableAutoUpdate: enabled ? 'true' : 'false',
+            },
+            { notifyError: false },
+          );
           if (autoUpdateLabel) {
             autoUpdateLabel.textContent = enabled ? '已开启' : '已关闭';
           }
@@ -78,9 +76,7 @@
           toast('保存失败：' + (error.message || String(error)), { type: 'error' });
           autoUpdateToggle.checked = !enabled;
           if (autoUpdateLabel) {
-            autoUpdateLabel.textContent = autoUpdateToggle.checked
-              ? '已开启'
-              : '已关闭';
+            autoUpdateLabel.textContent = autoUpdateToggle.checked ? '已开启' : '已关闭';
           }
         }
       });
@@ -113,11 +109,7 @@
   }
 
   function maybeShowDesktopUpdateNotice(state) {
-    if (
-      !state ||
-      (state.status !== 'available' && state.status !== 'downloaded')
-    )
-      return;
+    if (!state || (state.status !== 'available' && state.status !== 'downloaded')) return;
 
     const updateVersion = state.updateVersion || state.version || '';
     const noticeKey = `${updateVersion}:${state.status}`;
@@ -129,14 +121,9 @@
 
   function showDesktopUpdateNotice(updateVersion, status) {
     const versionText = updateVersion ? ` v${updateVersion}` : '';
-    const title =
-      status === 'downloaded'
-        ? `更新${versionText}已下载`
-        : `发现新版本${versionText}`;
+    const title = status === 'downloaded' ? `更新${versionText}已下载` : `发现新版本${versionText}`;
     const body =
-      status === 'downloaded'
-        ? '点击前往桌面版更新页面，重启后完成安装。'
-        : '点击前往桌面版更新页面处理更新。';
+      status === 'downloaded' ? '点击前往桌面版更新页面，重启后完成安装。' : '点击前往桌面版更新页面处理更新。';
 
     showStackedToast({
       key: `desktop-update:${updateVersion || 'current'}`,
@@ -166,8 +153,7 @@
       const state = await action();
       if (shouldRender) {
         renderDesktopUpdateState(state);
-        if (state && state.status === 'not-available')
-          showDesktopNoUpdateNotice(desktopUpdateStatusText(state));
+        if (state && state.status === 'not-available') showDesktopNoUpdateNotice(desktopUpdateStatusText(state));
       }
     } catch (error) {
       if (shouldRender) {
@@ -215,9 +201,7 @@
     const speed = state.progress?.speed || 0;
 
     if (statusNode) {
-      statusNode.textContent = isDownloading && state.progress
-        ? '正在下载更新'
-        : desktopUpdateStatusText(state);
+      statusNode.textContent = isDownloading && state.progress ? '正在下载更新' : desktopUpdateStatusText(state);
       statusNode.dataset.status = state.status || 'idle';
     }
     if (hintNode) {
@@ -245,9 +229,8 @@
       detailsNode.hidden = !isDownloading || (total <= 0 && speed <= 0);
     }
     if (transferredNode) {
-      transferredNode.textContent = total > 0
-        ? `${(transferred / (1024 * 1024)).toFixed(1)} MB / ${(total / (1024 * 1024)).toFixed(1)} MB`
-        : '';
+      transferredNode.textContent =
+        total > 0 ? `${(transferred / (1024 * 1024)).toFixed(1)} MB / ${(total / (1024 * 1024)).toFixed(1)} MB` : '';
     }
     if (speedNode) {
       speedNode.textContent = speed > 0 ? formatDownloadSpeed(speed) : '';
@@ -258,12 +241,8 @@
     if (checkButton) {
       checkButton.hidden = !showCheck;
       checkButton.disabled =
-        state.status === 'checking' ||
-        state.status === 'dev-disabled' ||
-        isDownloading ||
-        isInstalling;
-      checkButton.textContent =
-        state.status === 'checking' ? '检查中...' : '检查更新';
+        state.status === 'checking' || state.status === 'dev-disabled' || isDownloading || isInstalling;
+      checkButton.textContent = state.status === 'checking' ? '检查中...' : '检查更新';
     }
     if (downloadButton) {
       downloadButton.hidden = !showDownload;
@@ -287,26 +266,18 @@
   }
 
   function desktopUpdateHintText(state) {
-    if (state.status === 'downloaded')
-      return '建议在直播结束后重启更新。';
-    if (state.status === 'dev-disabled')
-      return '开发模式不支持更新，请使用安装版。';
-    if (state.status === 'error')
-      return '可重新检查更新，或打开日志目录查看详情。';
+    if (state.status === 'downloaded') return '建议在直播结束后重启更新。';
+    if (state.status === 'dev-disabled') return '开发模式不支持更新，请使用安装版。';
+    if (state.status === 'error') return '可重新检查更新，或打开日志目录查看详情。';
     return '';
   }
 
   function desktopActionErrorMessage(error) {
     const text = String((error && error.message) || error || '');
-    if (
-      /\b404\b/.test(text) &&
-      /releases\.atom|latest\.yml|github/i.test(text)
-    ) {
+    if (/\b404\b/.test(text) && /releases\.atom|latest\.yml|github/i.test(text)) {
       return '当前 GitHub Releases 里还没有可用更新包。';
     }
-    if (
-      /ENOTFOUND|ECONNRESET|ETIMEDOUT|EAI_AGAIN|network|timeout/i.test(text)
-    ) {
+    if (/ENOTFOUND|ECONNRESET|ETIMEDOUT|EAI_AGAIN|network|timeout/i.test(text)) {
       return '暂时无法连接 GitHub 更新服务，请稍后再试。';
     }
     return '操作失败，详细原因已写入日志。';
@@ -325,8 +296,7 @@
     return U.showConfirmationDialog({
       variant: 'caution',
       title: '现在重启并安装更新？',
-      description:
-        '应用会退出并安装已下载的新版本。建议确认直播间暂时不需要操作后再继续。',
+      description: '应用会退出并安装已下载的新版本。建议确认直播间暂时不需要操作后再继续。',
       confirmLabel: '重启并更新',
       initialFocus: 'cancel',
     });

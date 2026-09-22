@@ -42,14 +42,7 @@ const REQUIRED_ROUTE_IDS = [
   'ROUTE-ADMIN',
   'ROUTE-OVERLAYS',
 ];
-const ALLOWED_SPEC_STATUSES = new Set([
-  'Draft',
-  'Accepted',
-  'In Progress',
-  'Implemented',
-  'Reference',
-  'Superseded',
-]);
+const ALLOWED_SPEC_STATUSES = new Set(['Draft', 'Accepted', 'In Progress', 'Implemented', 'Reference', 'Superseded']);
 
 function absolutePath(relativePath) {
   return path.resolve(ROOT_DIR, ...relativePath.split('/'));
@@ -57,25 +50,14 @@ function absolutePath(relativePath) {
 
 function isInsideRepository(resolvedPath) {
   const relative = path.relative(ROOT_DIR, resolvedPath);
-  return (
-    relative === '' ||
-    (relative !== '..' &&
-      !relative.startsWith(`..${path.sep}`) &&
-      !path.isAbsolute(relative))
-  );
+  return relative === '' || (relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative));
 }
 
 function read(relativePath) {
   const target = absolutePath(relativePath);
   assert.ok(
     fs.existsSync(target),
-    report(
-      relativePath,
-      1,
-      'GOV-FILES-001',
-      'required checked file is missing',
-      `restore ${relativePath}`,
-    ),
+    report(relativePath, 1, 'GOV-FILES-001', 'required checked file is missing', `restore ${relativePath}`),
   );
   return fs.readFileSync(target, 'utf8');
 }
@@ -127,16 +109,8 @@ function pathExists(relativePath) {
 }
 
 test('required governance files exist', () => {
-  const findings = REQUIRED_GOVERNANCE_FILES.filter(
-    (relativePath) => !pathExists(relativePath),
-  ).map((relativePath) =>
-    report(
-      relativePath,
-      1,
-      'GOV-FILES-001',
-      'required governance file is missing',
-      `create ${relativePath}`,
-    ),
+  const findings = REQUIRED_GOVERNANCE_FILES.filter((relativePath) => !pathExists(relativePath)).map((relativePath) =>
+    report(relativePath, 1, 'GOV-FILES-001', 'required governance file is missing', `create ${relativePath}`),
   );
 
   assertNoFindings(findings);
@@ -144,11 +118,7 @@ test('required governance files exist', () => {
 
 test('root constitution references each scoped constitution', () => {
   const root = read('AGENTS.md');
-  const scopedFiles = [
-    'src/storage/AGENTS.md',
-    'src/electron/AGENTS.md',
-    'public/js/admin/AGENTS.md',
-  ];
+  const scopedFiles = ['src/storage/AGENTS.md', 'src/electron/AGENTS.md', 'public/js/admin/AGENTS.md'];
   const findings = scopedFiles
     .filter((relativePath) => !root.includes(relativePath))
     .map((relativePath) =>
@@ -174,24 +144,21 @@ test('relative Markdown links in governance and architecture index files resolve
         target: match[1],
         index: match.index,
       })),
-      ...[...source.matchAll(/^[ \t]{0,3}\[[^\]]+\]:[ \t]+(\S+)/gm)].map(
-        (match) => ({ target: match[1], index: match.index }),
-      ),
+      ...[...source.matchAll(/^[ \t]{0,3}\[[^\]]+\]:[ \t]+(\S+)/gm)].map((match) => ({
+        target: match[1],
+        index: match.index,
+      })),
     ];
 
     for (const link of links) {
       let target = link.target.trim();
-      if (target.startsWith('<') && target.endsWith('>'))
-        target = target.slice(1, -1);
+      if (target.startsWith('<') && target.endsWith('>')) target = target.slice(1, -1);
       if (/^(?:https?:|mailto:|data:|#|\/)/i.test(target)) continue;
       target = target.split('#', 1)[0];
       if (!target) continue;
 
       const line = source.slice(0, link.index).split(/\r?\n/).length;
-      const resolved = path.resolve(
-        path.dirname(absolutePath(relativePath)),
-        target,
-      );
+      const resolved = path.resolve(path.dirname(absolutePath(relativePath)), target);
       if (!isInsideRepository(resolved)) {
         findings.push(
           report(
@@ -221,23 +188,13 @@ test('relative Markdown links in governance and architecture index files resolve
 
 test('AI route table has stable unique IDs and existing literal paths', () => {
   const relativePath = 'docs/architecture/engineering/ai-workflow.md';
-  const rows = markedTable(
-    relativePath,
-    '<!-- ROUTE_TABLE_START -->',
-    '<!-- ROUTE_TABLE_END -->',
-    'GOV-ROUTE-001',
-  );
+  const rows = markedTable(relativePath, '<!-- ROUTE_TABLE_START -->', '<!-- ROUTE_TABLE_END -->', 'GOV-ROUTE-001');
   const findings = [];
   const idLines = new Map();
 
   for (const { line, lineNumber } of rows) {
     const cells = tableCells(line);
-    if (
-      !cells ||
-      cells[0] === 'Route ID' ||
-      cells.every((cell) => /^:?-+:?$/.test(cell))
-    )
-      continue;
+    if (!cells || cells[0] === 'Route ID' || cells.every((cell) => /^:?-+:?$/.test(cell))) continue;
     if (cells.length !== 6) {
       findings.push(
         report(
@@ -350,23 +307,13 @@ test('AI route table has stable unique IDs and existing literal paths', () => {
 
 test('spec index covers every top-level specification with evidence', () => {
   const relativePath = 'specs/README.md';
-  const rows = markedTable(
-    relativePath,
-    '<!-- SPEC_INDEX_START -->',
-    '<!-- SPEC_INDEX_END -->',
-    'GOV-SPEC-001',
-  );
+  const rows = markedTable(relativePath, '<!-- SPEC_INDEX_START -->', '<!-- SPEC_INDEX_END -->', 'GOV-SPEC-001');
   const findings = [];
   const indexed = new Map();
 
   for (const { line, lineNumber } of rows) {
     const cells = tableCells(line);
-    if (
-      !cells ||
-      cells[0] === 'Document' ||
-      cells.every((cell) => /^:?-+:?$/.test(cell))
-    )
-      continue;
+    if (!cells || cells[0] === 'Document' || cells.every((cell) => /^:?-+:?$/.test(cell))) continue;
     if (cells.length !== 5) {
       findings.push(
         report(
@@ -465,12 +412,7 @@ test('spec index covers every top-level specification with evidence', () => {
 
   const topLevelSpecifications = fs
     .readdirSync(absolutePath('specs'), { withFileTypes: true })
-    .filter(
-      (entry) =>
-        entry.isFile() &&
-        entry.name.endsWith('.md') &&
-        entry.name !== 'README.md',
-    )
+    .filter((entry) => entry.isFile() && entry.name.endsWith('.md') && entry.name !== 'README.md')
     .map((entry) => `specs/${entry.name}`)
     .sort();
 

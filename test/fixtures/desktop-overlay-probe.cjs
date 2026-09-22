@@ -11,40 +11,66 @@ const { configureMediaRequestHeaders } = require('../../src/electron/media-reque
 module.exports = async function verifyRealOverlays({ directory, createWindow, servers, waitFor }) {
   const { nativeImage, session } = require('electron');
   const token = 'synthetic-overlay-parent-secret';
-  const settings = { clockStyle: 'digital', clockLabel: 'Sandbox clock', openingEnabled: 'true',
-    openingAudioFile: 'fixture.wav', openingAudioName: 'fixture.wav', openingVolume: '0.2' };
+  const settings = {
+    clockStyle: 'digital',
+    clockLabel: 'Sandbox clock',
+    openingEnabled: 'true',
+    openingAudioFile: 'fixture.wav',
+    openingAudioName: 'fixture.wav',
+    openingVolume: '0.2',
+  };
   const audioDirectory = path.join(directory, 'opening-music');
   fs.mkdirSync(audioDirectory);
   const audio = Buffer.alloc(44 + 1600);
-  audio.write('RIFF'); audio.writeUInt32LE(audio.length - 8, 4); audio.write('WAVEfmt ', 8);
-  audio.writeUInt32LE(16, 16); audio.writeUInt16LE(1, 20); audio.writeUInt16LE(1, 22);
-  audio.writeUInt32LE(8000, 24); audio.writeUInt32LE(16000, 28);
-  audio.writeUInt16LE(2, 32); audio.writeUInt16LE(16, 34); audio.write('data', 36);
+  audio.write('RIFF');
+  audio.writeUInt32LE(audio.length - 8, 4);
+  audio.write('WAVEfmt ', 8);
+  audio.writeUInt32LE(16, 16);
+  audio.writeUInt16LE(1, 20);
+  audio.writeUInt16LE(1, 22);
+  audio.writeUInt32LE(8000, 24);
+  audio.writeUInt32LE(16000, 28);
+  audio.writeUInt16LE(2, 32);
+  audio.writeUInt16LE(16, 34);
+  audio.write('data', 36);
   audio.writeUInt32LE(1600, 40);
   fs.writeFileSync(path.join(audioDirectory, 'fixture.wav'), audio);
   const avatar = nativeImage.createFromBitmap(Buffer.alloc(16, 255), { width: 2, height: 2 }).toPNG();
   const avatarRequests = [];
   let workerScriptRequests = 0;
   const context = {
-    sessionToken: token, settings: { get: () => settings }, system: { dataDir: directory },
-    bilibili: { fetchAvatarImage: async (url) => {
-      avatarRequests.push(url);
-      return { data: avatar, contentType: 'image/png' };
-    } },
+    sessionToken: token,
+    settings: { get: () => settings },
+    system: { dataDir: directory },
+    bilibili: {
+      fetchAvatarImage: async (url) => {
+        avatarRequests.push(url);
+        return { data: avatar, contentType: 'image/png' };
+      },
+    },
   };
   const server = createHttpServer({
-    host: '127.0.0.1', startPort: 0, dataDir: directory,
-    getPhase: () => 'ready', getStartedPort: () => server.address().port,
-    isLicenseAuthorized: () => true, inflightTracker: { run: (run) => run() },
-    createApiContext: () => context, getSettings: () => settings,
+    host: '127.0.0.1',
+    startPort: 0,
+    dataDir: directory,
+    getPhase: () => 'ready',
+    getStartedPort: () => server.address().port,
+    isLicenseAuthorized: () => true,
+    inflightTracker: { run: (run) => run() },
+    createApiContext: () => context,
+    getSettings: () => settings,
     servePageOrAsset(req, res, url) {
       // Keep the real management HTML/CSP without starting unrelated app domains.
       if (['/js/admin/index.js', '/js/playback.js'].includes(url.pathname)) {
-        res.setHeader('Content-Type', 'application/javascript'); res.end(''); return;
+        res.setHeader('Content-Type', 'application/javascript');
+        res.end('');
+        return;
       }
       if (url.pathname === '/worker-probe.js') {
         workerScriptRequests += 1;
-        res.setHeader('Content-Type', 'application/javascript'); res.end(''); return;
+        res.setHeader('Content-Type', 'application/javascript');
+        res.end('');
+        return;
       }
       if (url.pathname === '/preview-host') {
         res.setHeader('Content-Type', 'text/html');
@@ -58,10 +84,18 @@ module.exports = async function verifyRealOverlays({ directory, createWindow, se
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const origin = `http://127.0.0.1:${server.address().port}`;
   const admin = createWindow();
-  const auth = createDesktopRequestAuth({ desktopSession: session.defaultSession,
-    getMainWindow: () => admin, getBaseUrl: () => origin, getToken: () => token });
+  const auth = createDesktopRequestAuth({
+    desktopSession: session.defaultSession,
+    getMainWindow: () => admin,
+    getBaseUrl: () => origin,
+    getToken: () => token,
+  });
   configureMediaRequestHeaders(session.defaultSession, {}, auth);
-  auth.bindWindow(admin, { openExternal() { assert.fail('probe must not open external browsers'); } });
+  auth.bindWindow(admin, {
+    openExternal() {
+      assert.fail('probe must not open external browsers');
+    },
+  });
   await admin.loadURL(`${origin}/admin`);
   const workers = await admin.webContents.executeJavaScript(`(async () => {
     const violations = [];
@@ -105,25 +139,44 @@ module.exports = async function verifyRealOverlays({ directory, createWindow, se
   assert.equal(await frame.executeJavaScript('window.origin'), 'null');
   assert.equal(await frame.executeJavaScript("window.__API_TOKEN__.startsWith('ov1:clock:')"), true);
   assert.equal(await frame.executeJavaScript("fetch('/api/clock/config').then(r=>r.status)"), 200);
-  assert.equal(await frame.executeJavaScript("fetch('/api/settings').then(r=>r.status).catch(()=> 'blocked')"), 'blocked');
-  assert.equal(await frame.executeJavaScript("(()=>{try{void parent.document.body;return false;}catch(e){return e.name==='SecurityError';}})()"), true);
+  assert.equal(
+    await frame.executeJavaScript("fetch('/api/settings').then(r=>r.status).catch(()=> 'blocked')"),
+    'blocked',
+  );
+  assert.equal(
+    await frame.executeJavaScript(
+      "(()=>{try{void parent.document.body;return false;}catch(e){return e.name==='SecurityError';}})()",
+    ),
+    true,
+  );
   await preview.webContents.executeJavaScript(`document.querySelector('iframe').contentWindow.postMessage({
     type:'lira:clock-preview-config',config:{style:'peach',label:'Updated preview',showDate:true,showSeconds:true,hourFormat:'24'}
   },'*')`);
-  await waitFor(async () => await frame.executeJavaScript("document.getElementById('clockLabel').textContent==='Updated preview'"));
+  await waitFor(
+    async () => await frame.executeJavaScript("document.getElementById('clockLabel').textContent==='Updated preview'"),
+  );
 
   const opening = createWindow();
   await opening.loadURL(`${origin}/opening`);
-  await waitFor(async () => await opening.webContents.executeJavaScript("document.getElementById('openingAudio')?.readyState>=1"));
+  await waitFor(
+    async () => await opening.webContents.executeJavaScript("document.getElementById('openingAudio')?.readyState>=1"),
+  );
   assert.equal(await opening.webContents.executeJavaScript('window.origin'), 'null');
   assert.equal(await opening.webContents.executeJavaScript("window.__API_TOKEN__.startsWith('ov1:opening:')"), true);
   assert.equal(await opening.webContents.executeJavaScript("fetch('/api/opening/config').then(r=>r.status)"), 200);
 
-  const exportWindow = createWindow(undefined, { sandbox: true, webSecurity: true,
-    backgroundThrottling: false, zoomFactor: 1, offscreen: true });
+  const exportWindow = createWindow(undefined, {
+    sandbox: true,
+    webSecurity: true,
+    backgroundThrottling: false,
+    zoomFactor: 1,
+    offscreen: true,
+  });
   exportWindow.setContentSize(856, 144);
   await exportWindow.loadURL(`${origin}/gift-export`);
-  await waitFor(async () => await exportWindow.webContents.executeJavaScript("typeof window.renderGiftExport==='function'"));
+  await waitFor(
+    async () => await exportWindow.webContents.executeJavaScript("typeof window.renderGiftExport==='function'"),
+  );
   assert.equal(await exportWindow.webContents.executeJavaScript('window.origin'), 'null');
   const exported = await exportWindow.webContents.executeJavaScript(
     `window.renderGiftExport({items:[{eventId:'synthetic-gift',gift:{giftId:'guard-3',
@@ -143,7 +196,8 @@ module.exports = async function verifyRealOverlays({ directory, createWindow, se
   }
   assert.deepEqual(avatarRequests, ['https://synthetic.test/avatar']);
   const capture = await exportWindow.webContents.capturePage(
-    { x: 0, y: 0, width: 856, height: 144 }, { stayHidden: true, stayAwake: true },
+    { x: 0, y: 0, width: 856, height: 144 },
+    { stayHidden: true, stayAwake: true },
   );
   assert.equal(capture.isEmpty(), false);
   assert.ok(capture.getSize().width > 0 && capture.getSize().height > 0);

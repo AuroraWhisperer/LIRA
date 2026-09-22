@@ -3,18 +3,9 @@
 const PROFILE_FIELDS = Object.freeze(['name', 'avatarUrl']);
 
 function createGameWinnerProfileResolver(options = {}) {
-  const getHostIdentity =
-    typeof options.getHostIdentity === 'function'
-      ? options.getHostIdentity
-      : () => null;
-  const resolveRoomInfo =
-    typeof options.resolveRoomInfo === 'function'
-      ? options.resolveRoomInfo
-      : async () => null;
-  const ensureProfile =
-    typeof options.ensureProfile === 'function'
-      ? options.ensureProfile
-      : async () => null;
+  const getHostIdentity = typeof options.getHostIdentity === 'function' ? options.getHostIdentity : () => null;
+  const resolveRoomInfo = typeof options.resolveRoomInfo === 'function' ? options.resolveRoomInfo : async () => null;
+  const ensureProfile = typeof options.ensureProfile === 'function' ? options.ensureProfile : async () => null;
 
   return async function resolveGameWinnerProfile(winner = {}) {
     const role = normalizeWinnerRole(winner && winner.role);

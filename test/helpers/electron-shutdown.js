@@ -79,10 +79,7 @@ function createShutdownHarness(options = {}) {
     releaseSingleInstanceLock: () => calls.push('app:release-lock'),
     relaunch: () => calls.push('app:relaunch'),
     exit(code) {
-      assert.equal(
-        code,
-        options.recoveryDataDir || options.migrationError ? 1 : 0,
-      );
+      assert.equal(code, options.recoveryDataDir || options.migrationError ? 1 : 0);
       calls.push('app:exit');
     },
     quit() {
@@ -109,11 +106,9 @@ function createShutdownHarness(options = {}) {
     start() {
       calls.push('runtime:start');
       runtimeOpen = true;
-      startPromise = Promise.resolve(options.runtimeStart?.promise).then(
-        () => ({
-          baseUrl: 'http://127.0.0.1:3000',
-        }),
-      );
+      startPromise = Promise.resolve(options.runtimeStart?.promise).then(() => ({
+        baseUrl: 'http://127.0.0.1:3000',
+      }));
       return startPromise;
     },
     async stop(stopOptions) {
@@ -154,8 +149,7 @@ function createShutdownHarness(options = {}) {
   const modules = {
     'node:fs': {
       mkdirSync() {},
-      existsSync: (value) =>
-        Boolean(options.recoveryDataDir && value === options.recoveryDataDir),
+      existsSync: (value) => Boolean(options.recoveryDataDir && value === options.recoveryDataDir),
     },
     'node:path': path,
     'node:crypto': { randomUUID: () => 'shutdown-test' },
@@ -188,8 +182,7 @@ function createShutdownHarness(options = {}) {
       }),
     },
     './ipc/dynamic-lottery-auth-ipc': {
-      registerDynamicLotteryAuthIpc: () => () =>
-        calls.push('lottery:remove-ipc'),
+      registerDynamicLotteryAuthIpc: () => () => calls.push('lottery:remove-ipc'),
     },
     './desktop-update-controller': {
       createDesktopUpdateController: () => ({
@@ -205,9 +198,7 @@ function createShutdownHarness(options = {}) {
     },
     './desktop-user-data': {
       resolveDesktopUserDataPaths: () => ({
-        ...require('../../src/shared/data-paths').resolveDataPaths(
-          app.getPath(),
-        ),
+        ...require('../../src/shared/data-paths').resolveDataPaths(app.getPath()),
         recoveryDataDir: options.recoveryDataDir,
       }),
       migrateLegacyUserData() {},
@@ -237,7 +228,9 @@ function createShutdownHarness(options = {}) {
       fanScopeFor: () => null,
       createFanProfileController: () => ({
         ...controller('fan', { promise: options.fanIdle?.promise }),
-        start() { calls.push('fan:start'); },
+        start() {
+          calls.push('fan:start');
+        },
       }),
     },
     '../bilibili/guard-roster': { fetchGuardRoster() {} },
@@ -248,10 +241,12 @@ function createShutdownHarness(options = {}) {
       createDailyBotController: () => ({ dispose: () => calls.push('daily-bot:dispose') }),
     },
     './ipc/daily-bot-ipc': {
-      registerDailyBotIpc: ({ controller }) => () => {
-        calls.push('daily-bot:remove-ipc');
-        controller.dispose();
-      },
+      registerDailyBotIpc:
+        ({ controller }) =>
+        () => {
+          calls.push('daily-bot:remove-ipc');
+          controller.dispose();
+        },
     },
     './desktop-permissions': { registerLocalFontPermissionHandler() {} },
     './local-media-access': { createLocalMediaAccess: () => ({}) },
@@ -263,11 +258,7 @@ function createShutdownHarness(options = {}) {
     './update-manager': {},
     './playback-flush': {
       async requestPlaybackFlush() {
-        assert.equal(
-          runtimeOpen,
-          true,
-          'playback flush precedes resource close',
-        );
+        assert.equal(runtimeOpen, true, 'playback flush precedes resource close');
         calls.push('playback:flush');
         await options.playbackFlush?.promise;
         calls.push('playback:flushed');
@@ -301,10 +292,7 @@ function createShutdownHarness(options = {}) {
     MAIN_SOURCE,
     {
       require(id) {
-        assert.ok(
-          Object.hasOwn(modules, id),
-          `Unexpected main dependency: ${id}`,
-        );
+        assert.ok(Object.hasOwn(modules, id), `Unexpected main dependency: ${id}`);
         return modules[id];
       },
       __dirname: path.dirname(MAIN_PATH),

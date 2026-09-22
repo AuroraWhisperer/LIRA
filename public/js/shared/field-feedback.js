@@ -15,13 +15,17 @@ export function showFieldError(input, message, documentRef = input?.ownerDocumen
     input.setAttribute('aria-describedby', [describedBy, node.id].filter(Boolean).join(' '));
     feedback = { node };
     errors.set(input, feedback);
-    input.addEventListener('input', () => {
-      node.remove();
-      input.removeAttribute('aria-invalid');
-      if (describedBy) input.setAttribute('aria-describedby', describedBy);
-      else input.removeAttribute('aria-describedby');
-      errors.delete(input);
-    }, { once: true });
+    input.addEventListener(
+      'input',
+      () => {
+        node.remove();
+        input.removeAttribute('aria-invalid');
+        if (describedBy) input.setAttribute('aria-describedby', describedBy);
+        else input.removeAttribute('aria-describedby');
+        errors.delete(input);
+      },
+      { once: true },
+    );
   }
   feedback.node.textContent = message;
   input.setAttribute('aria-invalid', 'true');

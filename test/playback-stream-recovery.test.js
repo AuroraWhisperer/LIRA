@@ -2,12 +2,7 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const {
-  closestTarget,
-  createPlaybackApp,
-  flushAsyncWork,
-  track,
-} = require('./helpers/playback-app');
+const { closestTarget, createPlaybackApp, flushAsyncWork, track } = require('./helpers/playback-app');
 
 function streamFor(request) {
   return {
@@ -51,8 +46,7 @@ for (const action of ['next', 'clear', 'quality']) {
     test(`obsolete stream recovery cannot affect playback after ${action} (${result})`, async () => {
       const refresh = Promise.withResolvers();
       const { app, audio } = await createPlayingApp((_count, request) => {
-        if (request.forceRefresh && request.quality === 'standard')
-          return refresh.promise;
+        if (request.forceRefresh && request.quality === 'standard') return refresh.promise;
         return streamFor(request);
       });
       const recovery = app.emit('music-player', 'error');
@@ -60,16 +54,10 @@ for (const action of ['next', 'clear', 'quality']) {
       if (action === 'quality') {
         await app.emit('playbackQualityPanel', 'click', {
           stopPropagation() {},
-          target: closestTarget(
-            { playbackQuality: 'high' },
-            'data-playback-quality',
-          ),
+          target: closestTarget({ playbackQuality: 'high' }, 'data-playback-quality'),
         });
       } else {
-        await app.emit(
-          action === 'next' ? 'playbackNext' : 'playbackClearQueue',
-          'click',
-        );
+        await app.emit(action === 'next' ? 'playbackNext' : 'playbackClearQueue', 'click');
       }
       await flushAsyncWork();
       const expected = app.savedState();
@@ -82,12 +70,8 @@ for (const action of ['next', 'clear', 'quality']) {
       const expectedPlays = app.audioPlayCalls();
       const expectedToasts = app.element('toast').prepended.slice();
 
-      if (result === 'failure')
-        refresh.reject(new Error('obsolete refresh failure'));
-      else
-        refresh.resolve(
-          result === 'empty' ? {} : { url: 'https://example.test/a-retry.mp3' },
-        );
+      if (result === 'failure') refresh.reject(new Error('obsolete refresh failure'));
+      else refresh.resolve(result === 'empty' ? {} : { url: 'https://example.test/a-retry.mp3' });
       await recovery;
       await flushAsyncWork();
 
@@ -111,9 +95,7 @@ for (const action of ['next', 'clear', 'quality']) {
 test('an error from the old audio cannot cancel a newer track still resolving its URL', async () => {
   const nextStream = Promise.withResolvers();
   const { app, audio } = await createPlayingApp((_count, request) =>
-    request.track.sourceTrackId === 'b'
-      ? nextStream.promise
-      : streamFor(request),
+    request.track.sourceTrackId === 'b' ? nextStream.promise : streamFor(request),
   );
   await app.emit('playbackNext', 'click');
   await flushAsyncWork();
@@ -130,9 +112,7 @@ test('an error from the old audio cannot cancel a newer track still resolving it
 
 test('current stream recovery resumes the track and still skips after its retry is exhausted', async () => {
   const { app, audio } = await createPlayingApp((_count, request) =>
-    request.forceRefresh
-      ? { url: 'https://example.test/a-refreshed.mp3' }
-      : streamFor(request),
+    request.forceRefresh ? { url: 'https://example.test/a-refreshed.mp3' } : streamFor(request),
   );
   await app.emit('music-player', 'error');
   await flushAsyncWork();
@@ -164,9 +144,11 @@ test('a current refresh failure reports its error and advances to the next track
   assert.ok(
     app
       .element('toast')
-      .prepended.some((item) => item.children[0].children.some(
-        (child) => child.tagName === 'span' && child.textContent === 'current refresh failed',
-      )),
+      .prepended.some((item) =>
+        item.children[0].children.some(
+          (child) => child.tagName === 'span' && child.textContent === 'current refresh failed',
+        ),
+      ),
   );
 });
 
@@ -175,10 +157,7 @@ for (const action of ['next', 'quality']) {
     test(`retained audio can recover from a new error after ${action} fails (${failure})`, async () => {
       let selectionFailed = true;
       const { app, audio } = await createPlayingApp((_count, request) => {
-        if (
-          selectionFailed &&
-          (request.track.sourceTrackId === 'b' || request.quality === 'high')
-        ) {
+        if (selectionFailed && (request.track.sourceTrackId === 'b' || request.quality === 'high')) {
           if (failure === 'error') throw new Error('new selection failed');
           return {};
         }
@@ -187,10 +166,7 @@ for (const action of ['next', 'quality']) {
       if (action === 'quality') {
         await app.emit('playbackQualityPanel', 'click', {
           stopPropagation() {},
-          target: closestTarget(
-            { playbackQuality: 'high' },
-            'data-playback-quality',
-          ),
+          target: closestTarget({ playbackQuality: 'high' }, 'data-playback-quality'),
         });
       } else {
         await app.emit('playbackNext', 'click');

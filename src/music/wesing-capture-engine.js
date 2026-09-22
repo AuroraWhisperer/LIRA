@@ -23,26 +23,15 @@ const PROGRESS_COMPENSATION_MS = 130;
 const PLAYBACK_REFRESH_DELAY_MS = 1000;
 
 function createWeSingCapture(options = {}) {
-  const now =
-    typeof options.now === 'function' ? options.now : () => performance.now();
+  const now = typeof options.now === 'function' ? options.now : () => performance.now();
   const platform = options.platform || process.platform;
-  const onState =
-    typeof options.onState === 'function' ? options.onState : () => {};
-  const onTimeline =
-    typeof options.onTimeline === 'function' ? options.onTimeline : () => {};
-  const monitorFactory =
-    options.monitorFactory ||
-    ((callback) => createPowerShellWeSingMonitor(callback));
-  const setTimer =
-    typeof options.setTimer === 'function' ? options.setTimer : setTimeout;
-  const clearTimer =
-    typeof options.clearTimer === 'function'
-      ? options.clearTimer
-      : clearTimeout;
+  const onState = typeof options.onState === 'function' ? options.onState : () => {};
+  const onTimeline = typeof options.onTimeline === 'function' ? options.onTimeline : () => {};
+  const monitorFactory = options.monitorFactory || ((callback) => createPowerShellWeSingMonitor(callback));
+  const setTimer = typeof options.setTimer === 'function' ? options.setTimer : setTimeout;
+  const clearTimer = typeof options.clearTimer === 'function' ? options.clearTimer : clearTimeout;
   const resolveFallbackLyrics =
-    typeof options.resolveFallbackLyrics === 'function'
-      ? options.resolveFallbackLyrics
-      : null;
+    typeof options.resolveFallbackLyrics === 'function' ? options.resolveFallbackLyrics : null;
   let cachePath = safeInitialCachePath(options.cachePath);
   let lyricOffsetMs = safeInitialLyricOffsetMs(options.lyricOffsetMs);
   let monitor = null;
@@ -78,9 +67,7 @@ function createWeSingCapture(options = {}) {
     message: '全民 K 歌捕捉未启用。',
     lyricState: normalizeLyricState({ status: 'idle' }),
   };
-  const playbackClock = createWeSingPlaybackClock(
-    () => state.durationMs || lyricDurationMs,
-  );
+  const playbackClock = createWeSingPlaybackClock(() => state.durationMs || lyricDurationMs);
   const {
     read: readPlaybackClock,
     set: setPlaybackClock,
@@ -135,8 +122,7 @@ function createWeSingCapture(options = {}) {
 
   async function setCachePath(input) {
     const prepared = await prepareConfiguration({ cachePath: input });
-    if (typeof options.saveCachePath === 'function')
-      await options.saveCachePath(prepared.cachePath);
+    if (typeof options.saveCachePath === 'function') await options.saveCachePath(prepared.cachePath);
     return prepared.cachePath === cachePath ? refresh() : prepared.apply();
   }
 
@@ -210,15 +196,11 @@ function createWeSingCapture(options = {}) {
   async function refresh() {
     const version = lifecycleVersion;
     const requestedCachePath = cachePath;
-    const cacheReady = await isDirectory(
-      path.join(requestedCachePath, 'WeSingDL', 'Res'),
-    );
-    if (version !== lifecycleVersion || requestedCachePath !== cachePath)
-      return getStatus();
+    const cacheReady = await isDirectory(path.join(requestedCachePath, 'WeSingDL', 'Res'));
+    if (version !== lifecycleVersion || requestedCachePath !== cachePath) return getStatus();
     state.cacheReady = cacheReady;
     await syncQrcWatcher();
-    if (version !== lifecycleVersion || requestedCachePath !== cachePath)
-      return getStatus();
+    if (version !== lifecycleVersion || requestedCachePath !== cachePath) return getStatus();
     if (!state.active) {
       emit();
       return getStatus();
@@ -257,22 +239,12 @@ function createWeSingCapture(options = {}) {
     state.platformDetected = sample.detected === true;
     const title = stripWeSingWindowTitle(sample.title);
     const sampledCurrentSec = Number(sample.currentSec);
-    const hasSampledProgress =
-      Number.isFinite(sampledCurrentSec) && sampledCurrentSec >= 0;
-    const sampledCurrentMs = hasSampledProgress
-      ? sampledCurrentSec * 1000
-      : null;
+    const hasSampledProgress = Number.isFinite(sampledCurrentSec) && sampledCurrentSec >= 0;
+    const sampledCurrentMs = hasSampledProgress ? sampledCurrentSec * 1000 : null;
     const sampledDurationSec = Number(sample.totalSec);
     const sampledDurationMs =
-      Number.isFinite(sampledDurationSec) && sampledDurationSec > 0
-        ? sampledDurationSec * 1000
-        : 0;
-    const audioActive =
-      sample.audioActive === true
-        ? true
-        : sample.audioActive === false
-          ? false
-          : null;
+      Number.isFinite(sampledDurationSec) && sampledDurationSec > 0 ? sampledDurationSec * 1000 : 0;
+    const audioActive = sample.audioActive === true ? true : sample.audioActive === false ? false : null;
 
     if (!state.platformDetected) {
       cancelPlaybackRefresh();
@@ -345,10 +317,7 @@ function createWeSingCapture(options = {}) {
       if (hasSampledProgress) {
         lastProgressMs = sampledCurrentMs;
         lastProgressChangeAt = timestamp;
-        setPlaybackClock(
-          sampledCurrentMs + PROGRESS_COMPENSATION_MS,
-          timestamp,
-        );
+        setPlaybackClock(sampledCurrentMs + PROGRESS_COMPENSATION_MS, timestamp);
       }
       state.currentMs = readPlaybackClock(timestamp);
       state.playing = false;
@@ -359,22 +328,16 @@ function createWeSingCapture(options = {}) {
     }
 
     if (hasSampledProgress) {
-      const progressChanged =
-        lastProgressMs >= 0 && sampledCurrentMs !== lastProgressMs;
+      const progressChanged = lastProgressMs >= 0 && sampledCurrentMs !== lastProgressMs;
       const isFirstProgress = lastProgressMs < 0;
       const replayedFromStart =
-        lastProgressMs > 3000 &&
-        sampledCurrentMs <= 2000 &&
-        sampledCurrentMs < lastProgressMs - 2000;
+        lastProgressMs > 3000 && sampledCurrentMs <= 2000 && sampledCurrentMs < lastProgressMs - 2000;
 
       if (replayedFromStart) {
         pausePlaybackClock(timestamp);
         lastProgressMs = sampledCurrentMs;
         lastProgressChangeAt = timestamp;
-        setPlaybackClock(
-          sampledCurrentMs + PROGRESS_COMPENSATION_MS,
-          timestamp,
-        );
+        setPlaybackClock(sampledCurrentMs + PROGRESS_COMPENSATION_MS, timestamp);
         hasStartedCurrentTrack = sampledCurrentMs > 0;
         state.playing = sampledCurrentMs > 0;
         state.waitingForPlayback = sampledCurrentMs === 0;
@@ -383,10 +346,7 @@ function createWeSingCapture(options = {}) {
       } else if (progressChanged) {
         lastProgressMs = sampledCurrentMs;
         lastProgressChangeAt = timestamp;
-        setPlaybackClock(
-          sampledCurrentMs + PROGRESS_COMPENSATION_MS,
-          timestamp,
-        );
+        setPlaybackClock(sampledCurrentMs + PROGRESS_COMPENSATION_MS, timestamp);
         startPlaybackClock(timestamp);
         state.playing = true;
         hasStartedCurrentTrack = true;
@@ -395,10 +355,7 @@ function createWeSingCapture(options = {}) {
       } else if (isFirstProgress) {
         lastProgressMs = sampledCurrentMs;
         lastProgressChangeAt = timestamp;
-        setPlaybackClock(
-          sampledCurrentMs + PROGRESS_COMPENSATION_MS,
-          timestamp,
-        );
+        setPlaybackClock(sampledCurrentMs + PROGRESS_COMPENSATION_MS, timestamp);
         if (sampledCurrentMs > 0) {
           startPlaybackClock(timestamp);
           state.playing = true;
@@ -453,12 +410,7 @@ function createWeSingCapture(options = {}) {
       durationMs: state.durationMs,
       resolveFallbackLyrics,
     });
-    if (
-      !state.active ||
-      version !== refreshVersion ||
-      title !== state.trackTitle
-    )
-      return;
+    if (!state.active || version !== refreshVersion || title !== state.trackTitle) return;
     if (!result) {
       lyrics = [];
       lyricArtists = [];
@@ -479,8 +431,7 @@ function createWeSingCapture(options = {}) {
     state.lyricSource = result.source || 'wesing';
     state.songMid = result.songMid;
     state.qrcReady = lyrics.length > 0;
-    if (!state.durationMs && lyricDurationMs)
-      state.durationMs = lyricDurationMs;
+    if (!state.durationMs && lyricDurationMs) state.durationMs = lyricDurationMs;
     state.status = state.qrcReady ? 'ready' : 'empty';
     state.message = state.qrcReady
       ? state.lyricSource === 'wesing'
@@ -554,12 +505,7 @@ function createWeSingCapture(options = {}) {
     playbackRefreshTimer = setTimer(() => {
       if (version !== lifecycleVersion) return;
       playbackRefreshTimer = null;
-      if (
-        !state.active ||
-        !state.platformDetected ||
-        state.trackTitle !== title
-      )
-        return;
+      if (!state.active || !state.platformDetected || state.trackTitle !== title) return;
       pendingRefresh = refreshLyrics(title);
     }, PLAYBACK_REFRESH_DELAY_MS);
     playbackRefreshTimer?.unref?.();

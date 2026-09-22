@@ -21,13 +21,9 @@ const BILIBILI_IMAGE_HEADERS = {
 
 function createRemoteGiftImageCache(options = {}) {
   const dataDir = path.resolve(String(options.dataDir || '').trim());
-  if (!dataDir || !String(options.dataDir || '').trim())
-    throw new Error('dataDir is required.');
+  if (!dataDir || !String(options.dataDir || '').trim()) throw new Error('dataDir is required.');
   const getImageBaseUrl = () => {
-    const value =
-      typeof options.imageBaseUrl === 'function'
-        ? options.imageBaseUrl()
-        : options.imageBaseUrl;
+    const value = typeof options.imageBaseUrl === 'function' ? options.imageBaseUrl() : options.imageBaseUrl;
     const imageBaseUrl = normalizeCacheImageBaseUrl(value);
     if (!imageBaseUrl) throw new Error('imageBaseUrl is required.');
     return imageBaseUrl;
@@ -66,10 +62,7 @@ function createRemoteGiftImageCache(options = {}) {
             giftName: String(gift?.name || ''),
           });
         } catch (error) {
-          logger.debug?.(
-            '[GiftImageCache] progress listener failed:',
-            error?.message || error,
-          );
+          logger.debug?.('[GiftImageCache] progress listener failed:', error?.message || error);
         }
         return { ...gift, imagePath };
       }),
@@ -94,14 +87,8 @@ function createRemoteGiftImageCache(options = {}) {
       const imagePath = getCachedCandidatePath(candidate);
       if (imagePath) return imagePath;
     }
-    const previousBasename = lastGoodImages.get(
-      gift?.variantId || giftVariantId(gift),
-    );
-    return getCachedCandidatePath(
-      previousBasename
-        ? { basename: previousBasename }
-        : bilibiliImageCandidate(gift),
-    );
+    const previousBasename = lastGoodImages.get(gift?.variantId || giftVariantId(gift));
+    return getCachedCandidatePath(previousBasename ? { basename: previousBasename } : bilibiliImageCandidate(gift));
   }
 
   function isGiftImageCurrent(gift) {
@@ -117,9 +104,7 @@ function createRemoteGiftImageCache(options = {}) {
     const filePath = candidate ? path.join(cacheDir, candidate.basename) : '';
     if (!filePath) return '';
     const basename = path.basename(filePath);
-    return isValidImageFileSync(filePath, basename)
-      ? `${LOCAL_IMAGE_PREFIX}${basename}`
-      : '';
+    return isValidImageFileSync(filePath, basename) ? `${LOCAL_IMAGE_PREFIX}${basename}` : '';
   }
 
   async function cacheGiftImage(gift, persist = true) {
@@ -165,26 +150,19 @@ function createRemoteGiftImageCache(options = {}) {
     if (!candidate) return '';
     const { url, basename, headers } = candidate;
     const targetPath = path.join(cacheDir, basename);
-    if (await isValidImageFile(targetPath, basename))
-      return `${LOCAL_IMAGE_PREFIX}${basename}`;
+    if (await isValidImageFile(targetPath, basename)) return `${LOCAL_IMAGE_PREFIX}${basename}`;
 
     if (pending.has(basename)) return pending.get(basename);
     const task = runWithLimit(async () => {
-      if (await isValidImageFile(targetPath, basename))
-        return `${LOCAL_IMAGE_PREFIX}${basename}`;
+      if (await isValidImageFile(targetPath, basename)) return `${LOCAL_IMAGE_PREFIX}${basename}`;
       try {
         const bytes = await downloadImage(url, fetchImage, timeoutMs, headers);
         if (!validateImageBytes(bytes, basename))
-          throw new Error(
-            'downloaded image signature does not match extension',
-          );
+          throw new Error('downloaded image signature does not match extension');
         writeAtomic(targetPath, bytes);
         return `${LOCAL_IMAGE_PREFIX}${basename}`;
       } catch (error) {
-        logger.debug?.(
-          `[GiftImageCache] image unavailable (${basename}):`,
-          error?.message || error,
-        );
+        logger.debug?.(`[GiftImageCache] image unavailable (${basename}):`, error?.message || error);
         return '';
       }
     }).finally(() => pending.delete(basename));
@@ -193,8 +171,7 @@ function createRemoteGiftImageCache(options = {}) {
   }
 
   async function runWithLimit(task) {
-    if (active >= concurrency)
-      await new Promise((resolve) => waiting.push(resolve));
+    if (active >= concurrency) await new Promise((resolve) => waiting.push(resolve));
     active += 1;
     try {
       return await task();
@@ -225,13 +202,10 @@ async function downloadImage(url, fetchImage, timeoutMs, extraHeaders = {}) {
       ...extraHeaders,
     },
   });
-  if (!response || response.ok !== true)
-    throw new Error(`image request failed: HTTP ${response?.status || 0}`);
-  if (response.redirected === true)
-    throw new Error('image redirects are not allowed');
+  if (!response || response.ok !== true) throw new Error(`image request failed: HTTP ${response?.status || 0}`);
+  if (response.redirected === true) throw new Error('image redirects are not allowed');
   const bytes = await readResponseBytes(response);
-  if (bytes.length > MAX_IMAGE_BYTES)
-    throw new Error('image exceeds size limit');
+  if (bytes.length > MAX_IMAGE_BYTES) throw new Error('image exceeds size limit');
   return bytes;
 }
 
@@ -253,15 +227,7 @@ function bilibiliImageCandidate(gift, serverCandidate = null) {
   if (!extension) return null;
   const sourceHash = crypto
     .createHash('sha256')
-    .update(
-      [
-        parsed.href,
-        serverCandidate?.url,
-        gift?.variantId || giftVariantId(gift),
-      ]
-        .filter(Boolean)
-        .join('\n'),
-    )
+    .update([parsed.href, serverCandidate?.url, gift?.variantId || giftVariantId(gift)].filter(Boolean).join('\n'))
     .digest('hex')
     .slice(0, 16);
   return {
@@ -275,18 +241,9 @@ function readImageIndex(filePath) {
   const images = new Map();
   try {
     const value = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-    if (
-      value?.schemaVersion !== 2 ||
-      !value.images ||
-      typeof value.images !== 'object'
-    )
-      return images;
+    if (value?.schemaVersion !== 2 || !value.images || typeof value.images !== 'object') return images;
     for (const [id, basename] of Object.entries(value.images)) {
-      if (
-        /^gv_[a-f0-9]{64}$/u.test(id) &&
-        typeof basename === 'string' &&
-        isSafeBasename(basename)
-      )
+      if (/^gv_[a-f0-9]{64}$/u.test(id) && typeof basename === 'string' && isSafeBasename(basename))
         images.set(id, basename);
     }
   } catch (_) {
@@ -318,8 +275,7 @@ function parseAllowedBilibiliImageUrl(value) {
   const hostname = parsed.hostname.toLowerCase();
   if (
     parsed.protocol !== 'https:' ||
-    (hostname !== BILIBILI_IMAGE_HOST &&
-      !hostname.endsWith(`.${BILIBILI_IMAGE_HOST}`)) ||
+    (hostname !== BILIBILI_IMAGE_HOST && !hostname.endsWith(`.${BILIBILI_IMAGE_HOST}`)) ||
     parsed.username ||
     parsed.password ||
     (parsed.port && parsed.port !== '443') ||
@@ -337,10 +293,7 @@ function imageExtension(pathname) {
 }
 
 async function readResponseBytes(response) {
-  if (
-    response.body &&
-    typeof response.body[Symbol.asyncIterator] === 'function'
-  ) {
+  if (response.body && typeof response.body[Symbol.asyncIterator] === 'function') {
     const chunks = [];
     let total = 0;
     for await (const chunk of response.body) {
@@ -351,11 +304,9 @@ async function readResponseBytes(response) {
     }
     return Buffer.concat(chunks, total);
   }
-  if (typeof response.arrayBuffer !== 'function')
-    throw new Error('image response body is unavailable');
+  if (typeof response.arrayBuffer !== 'function') throw new Error('image response body is unavailable');
   const bytes = Buffer.from(await response.arrayBuffer());
-  if (bytes.length > MAX_IMAGE_BYTES)
-    throw new Error('image exceeds size limit');
+  if (bytes.length > MAX_IMAGE_BYTES) throw new Error('image exceeds size limit');
   return bytes;
 }
 
@@ -415,8 +366,7 @@ function normalizeCacheImageBaseUrl(value) {
 async function isValidImageFile(filePath, basename) {
   try {
     const stats = await fs.promises.stat(filePath);
-    if (!stats.isFile() || stats.size <= 0 || stats.size > MAX_IMAGE_BYTES)
-      return false;
+    if (!stats.isFile() || stats.size <= 0 || stats.size > MAX_IMAGE_BYTES) return false;
     const bytes = await fs.promises.readFile(filePath);
     return validateImageBytes(bytes, basename);
   } catch (_) {
@@ -427,8 +377,7 @@ async function isValidImageFile(filePath, basename) {
 function isValidImageFileSync(filePath, basename) {
   try {
     const stats = fs.statSync(filePath);
-    if (!stats.isFile() || stats.size <= 0 || stats.size > MAX_IMAGE_BYTES)
-      return false;
+    if (!stats.isFile() || stats.size <= 0 || stats.size > MAX_IMAGE_BYTES) return false;
     const bytes = Buffer.alloc(Math.min(stats.size, 12));
     const descriptor = fs.openSync(filePath, 'r');
     try {
@@ -446,24 +395,13 @@ function validateImageBytes(bytes, basename) {
   if (!Buffer.isBuffer(bytes) || bytes.length === 0) return false;
   const extension = path.posix.extname(String(basename || '')).toLowerCase();
   if (extension === '.png')
-    return (
-      bytes.length >= 8 &&
-      bytes
-        .subarray(0, 8)
-        .equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
-    );
+    return bytes.length >= 8 && bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
   if (extension === '.jpg' || extension === '.jpeg')
-    return (
-      bytes.length >= 3 &&
-      bytes[0] === 0xff &&
-      bytes[1] === 0xd8 &&
-      bytes[2] === 0xff
-    );
+    return bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
   if (extension === '.gif')
     return (
       bytes.length >= 6 &&
-      (bytes.subarray(0, 6).toString('ascii') === 'GIF87a' ||
-        bytes.subarray(0, 6).toString('ascii') === 'GIF89a')
+      (bytes.subarray(0, 6).toString('ascii') === 'GIF87a' || bytes.subarray(0, 6).toString('ascii') === 'GIF89a')
     );
   if (extension === '.webp')
     return (

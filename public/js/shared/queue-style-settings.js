@@ -38,12 +38,7 @@ const FIELD_DEFAULTS = {
   scrollSpeed: '80',
 };
 
-export const QUEUE_ILLUSTRATED_STYLES = new Set([
-  'storybook',
-  'neon-vinyl',
-  'cherry-ribbon',
-  'golden-lily',
-]);
+export const QUEUE_ILLUSTRATED_STYLES = new Set(['storybook', 'neon-vinyl', 'cherry-ribbon', 'golden-lily']);
 
 function illustratedStyleKeys(prefix) {
   return {
@@ -74,11 +69,7 @@ export function readQueueStyleSettings(settings, style) {
     const legacyKey = normalizedStyle === 'classic' ? null : LEGACY_KEYS[field];
     if (key && source[key] !== undefined && source[key] !== null) {
       values[field] = String(source[key]);
-    } else if (
-      legacyKey &&
-      source[legacyKey] !== undefined &&
-      source[legacyKey] !== null
-    ) {
+    } else if (legacyKey && source[legacyKey] !== undefined && source[legacyKey] !== null) {
       values[field] = String(source[legacyKey]);
     } else if (normalizedStyle === 'classic' && field === 'fontSize') {
       values[field] = '28';

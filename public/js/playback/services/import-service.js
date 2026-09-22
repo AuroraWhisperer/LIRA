@@ -54,10 +54,7 @@ export class ImportService {
           skipped++;
         }
       } catch (error) {
-        console.warn(
-          '[ImportService] process item failed:',
-          error.message || error,
-        );
+        console.warn('[ImportService] process item failed:', error.message || error);
         skipped++;
       }
     }
@@ -84,9 +81,7 @@ export class ImportService {
     }
 
     const queue = payload.data && payload.data.queue ? payload.data.queue : {};
-    const items = [queue.current]
-      .concat(Array.isArray(queue.waiting) ? queue.waiting : [])
-      .filter(Boolean);
+    const items = [queue.current].concat(Array.isArray(queue.waiting) ? queue.waiting : []).filter(Boolean);
 
     return { items };
   }
@@ -159,10 +154,7 @@ export class ImportService {
           skipped++;
         }
       } catch (error) {
-        console.warn(
-          '[ImportService] import item failed:',
-          error.message || error,
-        );
+        console.warn('[ImportService] import item failed:', error.message || error);
         skipped++;
       }
     }

@@ -3,11 +3,7 @@
 import { escapeHtml } from '../shared/utils.js';
 import { formsService } from './forms.js';
 import { songs } from './songs.js';
-import {
-  renderQueueState,
-  renderSuperChatQueue,
-  applyAdminQueueFontPreview,
-} from './queue.js';
+import { renderQueueState, renderSuperChatQueue, applyAdminQueueFontPreview } from './queue.js';
 
 export function createAdminStateRenderer({
   renderQueue = renderQueueState,
@@ -18,14 +14,10 @@ export function createAdminStateRenderer({
   renderLive = renderLiveStatus,
   renderCategories = songs.renderCategoryFilter,
   renderSongCount = (count) => {
-    document.getElementById('songCount').textContent =
-      `歌库共 ${count || 0} 首`;
+    document.getElementById('songCount').textContent = `歌库共 ${count || 0} 首`;
   },
 } = {}) {
-  return function renderAdminState({
-    state,
-    changedKeys = Object.keys(state),
-  }) {
+  return function renderAdminState({ state, changedKeys = Object.keys(state) }) {
     const changed = new Set(changedKeys);
     // Settings must hydrate before the gift view reads its form controls.
     if (changed.has('settings')) {
@@ -37,15 +29,7 @@ export function createAdminStateRenderer({
     if (changed.has('liveStatus')) renderLive(state.liveStatus || {});
     if (changed.has('categories')) renderCategories(state.categories || []);
     if (changed.has('songCount')) renderSongCount(state.songCount);
-    if (
-      [
-        'gifts',
-        'giftSprint',
-        'liveStatus',
-        'bilibiliDiagnostics',
-        'settings',
-      ].some((key) => changed.has(key))
-    ) {
+    if (['gifts', 'giftSprint', 'liveStatus', 'bilibiliDiagnostics', 'settings'].some((key) => changed.has(key))) {
       renderGifts(state);
     }
   };
@@ -59,29 +43,16 @@ function fillSettings(settings) {
   const autoUpdateLabel = document.getElementById('autoUpdateLabel');
   if (autoUpdateToggle) {
     autoUpdateToggle.checked = settings.enableAutoUpdate === 'true';
-    if (autoUpdateLabel)
-      autoUpdateLabel.textContent = autoUpdateToggle.checked
-        ? '已开启'
-        : '已关闭';
+    if (autoUpdateLabel) autoUpdateLabel.textContent = autoUpdateToggle.checked ? '已开启' : '已关闭';
   }
 }
 
 function renderLiveStatus(live) {
   const node = document.getElementById('liveStatus');
-  const owner = live.ownerName
-    ? `<span class="owner-name">${escapeHtml(live.ownerName)}</span>`
-    : '';
+  const owner = live.ownerName ? `<span class="owner-name">${escapeHtml(live.ownerName)}</span>` : '';
   const status = escapeHtml(live.message || '弹幕监听未启用');
-  let html =
-    live.connected && owner
-      ? `${owner} ${status}`
-      : `${status}${owner ? ` ${owner}` : ''}`;
-  if (!live.connected && live.roomId)
-    html += ` <span class="room-id-hint">· ${escapeHtml(live.roomId)}</span>`;
+  let html = live.connected && owner ? `${owner} ${status}` : `${status}${owner ? ` ${owner}` : ''}`;
+  if (!live.connected && live.roomId) html += ` <span class="room-id-hint">· ${escapeHtml(live.roomId)}</span>`;
   node.innerHTML = html;
-  node.className = live.connected
-    ? 'pill good'
-    : live.enabled
-      ? 'pill warn'
-      : 'pill';
+  node.className = live.connected ? 'pill good' : live.enabled ? 'pill warn' : 'pill';
 }

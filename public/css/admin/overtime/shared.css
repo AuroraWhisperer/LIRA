@@ -125,8 +125,7 @@
   min-height: 280px;
   border: 1px solid var(--border);
   border-radius: 10px;
-  background: repeating-conic-gradient(#d9dbe2 0 25%, #f4f5f8 0 50%) 0 / 20px
-    20px;
+  background: repeating-conic-gradient(#d9dbe2 0 25%, #f4f5f8 0 50%) 0 / 20px 20px;
 }
 .overtime-settlement-row {
   display: grid;

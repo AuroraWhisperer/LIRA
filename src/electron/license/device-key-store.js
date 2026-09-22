@@ -12,22 +12,16 @@ function createDeviceKeyStore(options = {}) {
   const storage = options.safeStorage || null;
 
   function canEncrypt() {
-    return Boolean(
-      storage &&
-      typeof storage.isEncryptionAvailable === 'function' &&
-      storage.isEncryptionAvailable(),
-    );
+    return Boolean(storage && typeof storage.isEncryptionAvailable === 'function' && storage.isEncryptionAvailable());
   }
 
   function readStoredKey(filePath) {
     if (!fs.existsSync(filePath)) return null;
     const encrypted = fs.readFileSync(filePath);
-    if (!encrypted.length || !canEncrypt())
-      throw new Error('DEVICE_KEY_UNAVAILABLE');
+    if (!encrypted.length || !canEncrypt()) throw new Error('DEVICE_KEY_UNAVAILABLE');
     try {
       const pem = storage.decryptString(encrypted);
-      if (!pem || !pem.includes('BEGIN PRIVATE KEY'))
-        throw new Error('DEVICE_KEY_CORRUPT');
+      if (!pem || !pem.includes('BEGIN PRIVATE KEY')) throw new Error('DEVICE_KEY_CORRUPT');
       return { privateKeyPem: pem, encrypted };
     } catch (error) {
       const wrapped = new Error('DEVICE_KEY_CORRUPT');
@@ -86,9 +80,7 @@ function createDeviceKeyStore(options = {}) {
 
   function toKeyPair(existing) {
     if (existing) {
-      const publicKeyPem = crypto
-        .createPublicKey(existing)
-        .export({ type: 'spki', format: 'pem' });
+      const publicKeyPem = crypto.createPublicKey(existing).export({ type: 'spki', format: 'pem' });
       return { privateKeyPem: existing, publicKeyPem, keyProtection: 'dpapi' };
     }
     return null;
@@ -100,9 +92,7 @@ function createDeviceKeyStore(options = {}) {
 
   function loadPendingActivation() {
     const stored = readStoredKey(pendingKeyPath);
-    return stored
-      ? prepareKey(toKeyPair(stored.privateKeyPem), stored.encrypted)
-      : null;
+    return stored ? prepareKey(toKeyPair(stored.privateKeyPem), stored.encrypted) : null;
   }
 
   function prepareActivation() {
@@ -130,11 +120,7 @@ function createDeviceKeyStore(options = {}) {
     loadPendingActivation,
     getPublicKey() {
       const privateKeyPem = loadPrivateKey();
-      return privateKeyPem
-        ? crypto
-            .createPublicKey(privateKeyPem)
-            .export({ type: 'spki', format: 'pem' })
-        : null;
+      return privateKeyPem ? crypto.createPublicKey(privateKeyPem).export({ type: 'spki', format: 'pem' }) : null;
     },
   };
 }

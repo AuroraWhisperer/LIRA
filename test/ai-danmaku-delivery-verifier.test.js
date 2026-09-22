@@ -2,9 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {
-  createDanmakuDeliveryVerifier,
-} = require('../src/ai/danmaku-delivery-verifier');
+const { createDanmakuDeliveryVerifier } = require('../src/ai/danmaku-delivery-verifier');
 
 test('delivery verifier requires every AI reply chunk from the sending account', async () => {
   let currentTime = 1000;

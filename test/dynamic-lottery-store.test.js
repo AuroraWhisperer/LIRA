@@ -9,12 +9,8 @@ const { DatabaseSync } = require('node:sqlite');
 const { runMigrations } = require('../src/storage/schema');
 const { DYNAMIC_LOTTERY_SCHEMA } = require('../src/storage/dynamic-lottery-schema');
 
-const {
-  runDynamicLotteryMigrations,
-} = require('../src/storage/dynamic-lottery-migrations');
-const {
-  createDynamicLotteryStore,
-} = require('../src/storage/dynamic-lottery-store');
+const { runDynamicLotteryMigrations } = require('../src/storage/dynamic-lottery-migrations');
+const { createDynamicLotteryStore } = require('../src/storage/dynamic-lottery-store');
 
 function openDatabase(filePath = ':memory:') {
   const db = new DatabaseSync(filePath);
@@ -66,9 +62,7 @@ test('dynamic lottery migrations create nine tables idempotently', () => {
     assert.equal(first.to, 2);
     assert.deepEqual(
       db
-        .prepare(
-          "SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'lottery_%' ORDER BY name",
-        )
+        .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name LIKE 'lottery_%' ORDER BY name")
         .all()
         .map((row) => row.name),
       [
@@ -96,13 +90,17 @@ test('v2 upgrades old evidence without losing text or checkpoints and only runs 
   try {
     seedTask(store);
     store.beginScan({
-      id: 'scan-1', taskId: 'task-1', sessionEpoch: 4,
-      sources: ['comment'], startedAtMs: 2_100,
+      id: 'scan-1',
+      taskId: 'task-1',
+      sessionEpoch: 4,
+      sources: ['comment'],
+      startedAtMs: 2_100,
     });
-    db.prepare(`INSERT INTO lottery_evidence
+    db.prepare(
+      `INSERT INTO lottery_evidence
       (scan_id, source, record_id, uid, text, occurred_at_ms, created_at_ms)
-      VALUES ('scan-1', 'comment', '1', '123', ?, 900, 2200)`)
-      .run('旧评论\n<img src=x onerror=alert(1)>');
+      VALUES ('scan-1', 'comment', '1', '123', ?, 900, 2200)`,
+    ).run('旧评论\n<img src=x onerror=alert(1)>');
     const before = store.getScan('scan-1');
     assert.equal(runDynamicLotteryMigrations(db).applied, 1);
     assert.deepEqual(store.getScan('scan-1'), before);
@@ -228,9 +226,7 @@ test('repeating the same scan pause is idempotent', () => {
 });
 
 test('request budget cooldown survives database reopen', () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'lira-lottery-budget-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-lottery-budget-'));
   const filePath = path.join(dataDir, 'lottery.db');
   let db = openDatabase(filePath);
   try {
@@ -265,11 +261,7 @@ test('request budget cooldown survives database reopen', () => {
       reason: 'VERIFICATION_REQUIRED',
       nowMs: 2_000,
     });
-    assert.equal(
-      store.requestBudget.get({ scope: 'streamer-1', nowMs: 2_000 })
-        .holdReason,
-      'VERIFICATION_REQUIRED',
-    );
+    assert.equal(store.requestBudget.get({ scope: 'streamer-1', nowMs: 2_000 }).holdReason, 'VERIFICATION_REQUIRED');
   } finally {
     db.close();
     fs.rmSync(dataDir, { recursive: true, force: true });

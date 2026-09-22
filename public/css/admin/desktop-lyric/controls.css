@@ -6,12 +6,7 @@
   border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--border));
   border-radius: 12px;
   background:
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--accent) 7%, transparent),
-      transparent 58%
-    ),
-    var(--surface-2);
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 7%, transparent), transparent 58%), var(--surface-2);
 }
 
 .desktop-lyric-karaoke-heading {
@@ -97,18 +92,14 @@
   box-shadow: 0 3px 10px color-mix(in srgb, var(--primary) 13%, transparent);
 }
 
-.desktop-lyric-karaoke-option:last-child
-  input:checked
-  + .desktop-lyric-karaoke-choice {
+.desktop-lyric-karaoke-option:last-child input:checked + .desktop-lyric-karaoke-choice {
   border-color: color-mix(in srgb, #d2921d 62%, var(--border));
   background: color-mix(in srgb, #d2921d 11%, var(--surface));
   color: #a66b00;
   box-shadow: 0 3px 10px rgba(210, 146, 29, 0.13);
 }
 
-.desktop-lyric-karaoke-option
-  input:focus-visible
-  + .desktop-lyric-karaoke-choice {
+.desktop-lyric-karaoke-option input:focus-visible + .desktop-lyric-karaoke-choice {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
 }
@@ -323,12 +314,8 @@
   text-align: right;
 }
 
-.desktop-lyric-control
-  .range-row
-  input[type='number']::-webkit-inner-spin-button,
-.desktop-lyric-control
-  .range-row
-  input[type='number']::-webkit-outer-spin-button {
+.desktop-lyric-control .range-row input[type='number']::-webkit-inner-spin-button,
+.desktop-lyric-control .range-row input[type='number']::-webkit-outer-spin-button {
   margin: 0;
   appearance: none;
 }

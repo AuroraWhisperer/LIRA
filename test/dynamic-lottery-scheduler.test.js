@@ -4,15 +4,9 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { DatabaseSync } = require('node:sqlite');
 
-const {
-  createRequestScheduler,
-} = require('../src/bilibili/dynamic-lottery/request-scheduler');
-const {
-  runDynamicLotteryMigrations,
-} = require('../src/storage/dynamic-lottery-migrations');
-const {
-  createDynamicLotteryStore,
-} = require('../src/storage/dynamic-lottery-store');
+const { createRequestScheduler } = require('../src/bilibili/dynamic-lottery/request-scheduler');
+const { runDynamicLotteryMigrations } = require('../src/storage/dynamic-lottery-migrations');
+const { createDynamicLotteryStore } = require('../src/storage/dynamic-lottery-store');
 
 function createFixture(fetchImpl) {
   const db = new DatabaseSync(':memory:');
@@ -33,7 +27,15 @@ function createFixture(fetchImpl) {
       },
     },
   });
-  return { db, scheduler, sleeps, store, get now() { return now; } };
+  return {
+    db,
+    scheduler,
+    sleeps,
+    store,
+    get now() {
+      return now;
+    },
+  };
 }
 
 test('scheduler retries transient network failures through one persistent budget', async () => {

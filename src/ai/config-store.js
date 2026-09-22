@@ -20,18 +20,14 @@ function createAiConfigStore(db, secretCodec, options = {}) {
   function getConfig() {
     if (cached) return { ...cached };
     const stored = {};
-    const rows = db
-      .prepare('SELECT key, value, is_secret FROM ai_configuration')
-      .all();
+    const rows = db.prepare('SELECT key, value, is_secret FROM ai_configuration').all();
     for (const row of rows) {
       if (!(row.key in AI_CONFIG_DEFAULTS)) continue;
       try {
         const raw = row.is_secret ? secretCodec.decrypt(row.value) : row.value;
         stored[row.key] = parseStoredValue(row.key, raw);
       } catch (error) {
-        console.warn(
-          `[AI][Config] unable to read ${row.key}: ${redactError(error.message)}`,
-        );
+        console.warn(`[AI][Config] unable to read ${row.key}: ${redactError(error.message)}`);
         stored[row.key] = '';
       }
     }
@@ -92,18 +88,13 @@ function createAiConfigStore(db, secretCodec, options = {}) {
           continue;
         const secret = SECRET_SET.has(key);
         const value = normalized[key];
-        const storedValue =
-          secret && value ? secretCodec.encrypt(value) : serializeValue(value);
+        const storedValue = secret && value ? secretCodec.encrypt(value) : serializeValue(value);
         write.run(key, storedValue, secret ? 1 : 0, updatedAt);
       }
       // Read the prospective persisted config: leaving a preset may restore
       // a previously saved custom URL that is hidden by the current preset.
       cached = null;
-      assertSavedModelKeyOrigin(
-        current,
-        getConfig(),
-        Object.hasOwn(changes, 'deepseekApiKey'),
-      );
+      assertSavedModelKeyOrigin(current, getConfig(), Object.hasOwn(changes, 'deepseekApiKey'));
       db.exec('COMMIT');
     } catch (error) {
       db.exec('ROLLBACK');
@@ -138,9 +129,7 @@ function createAiConfigStore(db, secretCodec, options = {}) {
 
   function isBlacklisted(uid) {
     if (!uid) return false;
-    return Boolean(
-      db.prepare('SELECT 1 FROM ai_blacklist WHERE uid = ?').get(String(uid)),
-    );
+    return Boolean(db.prepare('SELECT 1 FROM ai_blacklist WHERE uid = ?').get(String(uid)));
   }
 
   function setBlacklist(uid, blocked, details = {}) {
@@ -165,16 +154,9 @@ function createAiConfigStore(db, secretCodec, options = {}) {
   }
 
   function getContext(uid) {
-    const row = db
-      .prepare(
-        'SELECT payload, expires_at FROM ai_viewer_context WHERE uid = ?',
-      )
-      .get(String(uid || ''));
+    const row = db.prepare('SELECT payload, expires_at FROM ai_viewer_context WHERE uid = ?').get(String(uid || ''));
     if (!row || Number(row.expires_at) <= now()) {
-      if (row)
-        db.prepare('DELETE FROM ai_viewer_context WHERE uid = ?').run(
-          String(uid || ''),
-        );
+      if (row) db.prepare('DELETE FROM ai_viewer_context WHERE uid = ?').run(String(uid || ''));
       return null;
     }
     return safeJsonParse(row.payload);
@@ -187,25 +169,14 @@ function createAiConfigStore(db, secretCodec, options = {}) {
       INSERT INTO ai_viewer_context (uid, payload, expires_at) VALUES (?, ?, ?)
       ON CONFLICT(uid) DO UPDATE SET payload = excluded.payload, expires_at = excluded.expires_at
     `,
-    ).run(
-      String(uid),
-      JSON.stringify(payload),
-      now() + Math.max(1, Number(ttlSeconds) || 1) * 1000,
-    );
+    ).run(String(uid), JSON.stringify(payload), now() + Math.max(1, Number(ttlSeconds) || 1) * 1000);
   }
 
   function getCache(key) {
     const cacheKey = hashCacheKey(key);
-    const row = db
-      .prepare(
-        'SELECT payload, expires_at FROM ai_query_cache WHERE cache_key = ?',
-      )
-      .get(cacheKey);
+    const row = db.prepare('SELECT payload, expires_at FROM ai_query_cache WHERE cache_key = ?').get(cacheKey);
     if (!row || Number(row.expires_at) <= now()) {
-      if (row)
-        db.prepare('DELETE FROM ai_query_cache WHERE cache_key = ?').run(
-          cacheKey,
-        );
+      if (row) db.prepare('DELETE FROM ai_query_cache WHERE cache_key = ?').run(cacheKey);
       return null;
     }
     return safeJsonParse(row.payload);
@@ -223,9 +194,7 @@ function createAiConfigStore(db, secretCodec, options = {}) {
   }
 
   function pruneExpired() {
-    db.prepare('DELETE FROM ai_viewer_context WHERE expires_at <= ?').run(
-      now(),
-    );
+    db.prepare('DELETE FROM ai_viewer_context WHERE expires_at <= ?').run(now());
     db.prepare('DELETE FROM ai_query_cache WHERE expires_at <= ?').run(now());
   }
 
@@ -272,10 +241,7 @@ function toNonNegativeInteger(value) {
 }
 
 function redactError(value) {
-  return String(value || '').replace(
-    /(?:sk-|key[=: ]+)[\w-]{8,}/gi,
-    '[redacted]',
-  );
+  return String(value || '').replace(/(?:sk-|key[=: ]+)[\w-]{8,}/gi, '[redacted]');
 }
 
 function isLegacyBuiltInPrompt(value) {

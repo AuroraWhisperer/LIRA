@@ -13,7 +13,8 @@ function exportLayout(count, mode) {
   }
   const rows = mode === 'separate' ? 1 : MAX_ROWS_PER_IMAGE;
   return Array.from({ length: Math.ceil(count / rows) }, (_, index) => ({
-    start: index * rows, count: Math.min(rows, count - index * rows),
+    start: index * rows,
+    count: Math.min(rows, count - index * rows),
     fileName: `礼物_${String(index + 1).padStart(3, '0')}.png`,
   }));
 }
@@ -26,34 +27,44 @@ function createGiftExportController({ app, BrowserWindow, dialog, shell, runtime
   const defaultRoot = () => path.join(app.getPath('pictures'), 'LIRA', '礼物导出');
   const assertCurrent = (current) => {
     if (disposed || task !== current || current.cancelled) throw new Error('导出已取消。');
-    if (runtime.getGiftViewRevision() !== current.snapshot.viewRevision) throw new Error('礼物来源或流水已变更，请重新选择。');
+    if (runtime.getGiftViewRevision() !== current.snapshot.viewRevision)
+      throw new Error('礼物来源或流水已变更，请重新选择。');
   };
 
   function readSettings() {
     const mode = runtime.getSetting('giftExportMode');
     const background = runtime.getSetting('giftExportBackground');
     const directory = runtime.getSetting('giftExportDirectory') || defaultRoot();
-    return { mode: mode === 'separate' ? mode : 'combined',
+    return {
+      mode: mode === 'separate' ? mode : 'combined',
       background: background === 'white' ? background : 'transparent',
-      directory, custom: directory !== defaultRoot() };
+      directory,
+      custom: directory !== defaultRoot(),
+    };
   }
 
   async function settings(input) {
     if (disposed) throw new Error('导出设置已关闭。');
     if (input === undefined) return readSettings();
-    if (!input || typeof input !== 'object' || Array.isArray(input) ||
-      Object.keys(input).some((key) => !['mode', 'background', 'directoryAction'].includes(key))) {
+    if (
+      !input ||
+      typeof input !== 'object' ||
+      Array.isArray(input) ||
+      Object.keys(input).some((key) => !['mode', 'background', 'directoryAction'].includes(key))
+    ) {
       throw new Error('导出设置参数无效。');
     }
     const { mode, background, directoryAction } = input;
     if (mode !== undefined && !['combined', 'separate'].includes(mode)) throw new Error('输出方式无效。');
     if (background !== undefined && !['transparent', 'white'].includes(background)) throw new Error('背景参数无效。');
-    if (directoryAction !== undefined && !['default', 'choose'].includes(directoryAction)) throw new Error('保存位置参数无效。');
+    if (directoryAction !== undefined && !['default', 'choose'].includes(directoryAction))
+      throw new Error('保存位置参数无效。');
     let directory;
     if (directoryAction === 'choose') {
       const request = preparation;
       const result = await dialog.showOpenDialog(getMainWindow(), {
-        title: '选择礼物图片保存文件夹', defaultPath: readSettings().directory,
+        title: '选择礼物图片保存文件夹',
+        defaultPath: readSettings().directory,
         properties: ['openDirectory', 'createDirectory'],
       });
       if (disposed || request !== preparation) throw new Error('导出设置已取消，请重新打开。');
@@ -64,8 +75,11 @@ function createGiftExportController({ app, BrowserWindow, dialog, shell, runtime
     if (mode !== undefined) next.mode = mode;
     if (background !== undefined) next.background = background;
     if (directory !== undefined) next.directory = directory;
-    runtime.setGiftExportSettings({ mode: next.mode, background: next.background,
-      directory: next.directory === defaultRoot() ? '' : next.directory });
+    runtime.setGiftExportSettings({
+      mode: next.mode,
+      background: next.background,
+      directory: next.directory === defaultRoot() ? '' : next.directory,
+    });
     return readSettings();
   }
 
@@ -77,21 +91,40 @@ function createGiftExportController({ app, BrowserWindow, dialog, shell, runtime
     if (disposed || request !== preparation) throw new Error('导出预览已取消。');
     if (!snapshot.items.length) throw new Error('请选择礼物记录。');
     const defaults = readSettings();
-    task = { id: randomUUID(), snapshot, root: defaults.directory, saved: 0, running: false, cancelled: false,
-      mode: defaults.mode, background: defaults.background };
+    task = {
+      id: randomUUID(),
+      snapshot,
+      root: defaults.directory,
+      saved: 0,
+      running: false,
+      cancelled: false,
+      mode: defaults.mode,
+      background: defaults.background,
+    };
     setDirectory(task);
     return describe(task);
   }
 
   function setDirectory(current) {
     const local = new Date(Date.now() + 28800000).toISOString();
-    current.directory = path.join(current.root, local.slice(0, 10), `${local.slice(11, 19).replaceAll(':', '-')}-${randomUUID().slice(0, 8)}`);
+    current.directory = path.join(
+      current.root,
+      local.slice(0, 10),
+      `${local.slice(11, 19).replaceAll(':', '-')}-${randomUUID().slice(0, 8)}`,
+    );
   }
 
   function describe(current) {
-    return { id: current.id, snapshot: current.snapshot, root: current.root, directory: current.directory,
-      mode: current.mode, background: current.background, files: exportLayout(current.snapshot.items.length, current.mode),
-      custom: current.root !== defaultRoot() };
+    return {
+      id: current.id,
+      snapshot: current.snapshot,
+      root: current.root,
+      directory: current.directory,
+      mode: current.mode,
+      background: current.background,
+      files: exportLayout(current.snapshot.items.length, current.mode),
+      custom: current.root !== defaultRoot(),
+    };
   }
 
   function requireTask(id) {
@@ -108,7 +141,8 @@ function createGiftExportController({ app, BrowserWindow, dialog, shell, runtime
     if (directoryAction && !['default', 'choose'].includes(directoryAction)) throw new Error('保存位置参数无效。');
     if (directoryAction === 'choose') {
       const result = await dialog.showOpenDialog(getMainWindow(), {
-        title: '选择礼物图片保存文件夹', defaultPath: current.root,
+        title: '选择礼物图片保存文件夹',
+        defaultPath: current.root,
         properties: ['openDirectory', 'createDirectory'],
       });
       assertCurrent(current);
@@ -143,10 +177,23 @@ function createGiftExportController({ app, BrowserWindow, dialog, shell, runtime
       assertCurrent(current);
       const firstRows = exportLayout(current.snapshot.items.length, current.mode)[0].count;
       renderWindow = new BrowserWindow({
-        width: EXPORT_WIDTH, height: firstRows * 144 + (firstRows - 1) * 16, useContentSize: true, show: false, transparent: true,
-        frame: false, skipTaskbar: true, backgroundColor: '#00000000',
-        webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true,
-          webSecurity: true, backgroundThrottling: false, zoomFactor: 1, offscreen: true },
+        width: EXPORT_WIDTH,
+        height: firstRows * 144 + (firstRows - 1) * 16,
+        useContentSize: true,
+        show: false,
+        transparent: true,
+        frame: false,
+        skipTaskbar: true,
+        backgroundColor: '#00000000',
+        webPreferences: {
+          nodeIntegration: false,
+          contextIsolation: true,
+          sandbox: true,
+          webSecurity: true,
+          backgroundThrottling: false,
+          zoomFactor: 1,
+          offscreen: true,
+        },
       });
       const win = renderWindow;
       win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
@@ -155,15 +202,27 @@ function createGiftExportController({ app, BrowserWindow, dialog, shell, runtime
       for (const file of exportLayout(current.snapshot.items.length, current.mode)) {
         assertCurrent(current);
         const height = file.count * 144 + (file.count - 1) * 16;
-        const payload = { items: current.snapshot.items.slice(file.start, file.start + file.count),
-          config: current.snapshot.config, catalog: current.snapshot.catalog, background: current.background };
-        const { width } = await bounded(win.webContents.executeJavaScript(`window.renderGiftExport(${JSON.stringify(payload)})`));
+        const payload = {
+          items: current.snapshot.items.slice(file.start, file.start + file.count),
+          config: current.snapshot.config,
+          catalog: current.snapshot.catalog,
+          background: current.background,
+        };
+        const { width } = await bounded(
+          win.webContents.executeJavaScript(`window.renderGiftExport(${JSON.stringify(payload)})`),
+        );
         assertCurrent(current);
         if (!Number.isSafeInteger(width) || width < EXPORT_WIDTH || width > 8192) throw new Error('图片尺寸验证失败。');
         win.setContentSize(width, height);
-        await bounded(win.webContents.executeJavaScript('new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))'));
+        await bounded(
+          win.webContents.executeJavaScript(
+            'new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))',
+          ),
+        );
         assertCurrent(current);
-        const image = await bounded(win.webContents.capturePage({ x: 0, y: 0, width, height }, { stayHidden: true, stayAwake: true }));
+        const image = await bounded(
+          win.webContents.capturePage({ x: 0, y: 0, width, height }, { stayHidden: true, stayAwake: true }),
+        );
         let png = image.toPNG();
         if (png.readUInt32BE(16) !== width || png.readUInt32BE(20) !== height) {
           png = image.resize({ width, height, quality: 'best' }).toPNG();
@@ -172,13 +231,22 @@ function createGiftExportController({ app, BrowserWindow, dialog, shell, runtime
         assertCurrent(current);
         await fs.writeFile(path.join(current.directory, file.fileName), png, { flag: 'wx' });
         current.saved += 1;
-        onProgress({ id: current.id, saved: current.saved, total: exportLayout(current.snapshot.items.length, current.mode).length });
+        onProgress({
+          id: current.id,
+          saved: current.saved,
+          total: exportLayout(current.snapshot.items.length, current.mode).length,
+        });
       }
       current.completed = true;
       return { ok: true, saved: current.saved, directory: current.directory };
     } catch (error) {
-      return { ok: false, cancelled: current.cancelled, saved: current.saved, directory: current.directory,
-        error: current.cancelled ? '导出已取消' : publicExportError(error) };
+      return {
+        ok: false,
+        cancelled: current.cancelled,
+        saved: current.saved,
+        directory: current.directory,
+        error: current.cancelled ? '导出已取消' : publicExportError(error),
+      };
     } finally {
       current.running = false;
       if (renderWindow && !renderWindow.isDestroyed()) renderWindow.destroy();
@@ -201,18 +269,37 @@ function createGiftExportController({ app, BrowserWindow, dialog, shell, runtime
     return { ok: true };
   }
 
-  return { settings, prepare, configure, save, cancel, openFolder, dispose() { disposed = true; cancel(); } };
+  return {
+    settings,
+    prepare,
+    configure,
+    save,
+    cancel,
+    openFolder,
+    dispose() {
+      disposed = true;
+      cancel();
+    },
+  };
 }
 
 async function bounded(promise) {
   let timer;
-  try { return await Promise.race([promise, new Promise((_, reject) => {
-    timer = setTimeout(() => reject(new Error('图片渲染超时，请重试。')), 20000);
-  })]); } finally { clearTimeout(timer); }
+  try {
+    return await Promise.race([
+      promise,
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error('图片渲染超时，请重试。')), 20000);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function publicExportError(error) {
-  if (['EACCES', 'EPERM', 'ENOENT', 'ENOSPC', 'EEXIST', 'EROFS'].includes(error.code)) return '保存位置不可用或磁盘空间不足，请重新选择文件夹。';
+  if (['EACCES', 'EPERM', 'ENOENT', 'ENOSPC', 'EEXIST', 'EROFS'].includes(error.code))
+    return '保存位置不可用或磁盘空间不足，请重新选择文件夹。';
   return /[\u4e00-\u9fff]/.test(error.message || '') ? error.message : '图片导出失败，请重试。';
 }
 

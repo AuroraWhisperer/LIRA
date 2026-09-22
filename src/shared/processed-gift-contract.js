@@ -31,12 +31,7 @@ const HISTORY_PAGE_KEYS = Object.freeze([
   'syncEpoch',
   'historyBootstrapVersion',
 ]);
-const LEGACY_PAGE_KEYS = Object.freeze([
-  'ok',
-  'events',
-  'nextCursor',
-  'hasMore',
-]);
+const LEGACY_PAGE_KEYS = Object.freeze(['ok', 'events', 'nextCursor', 'hasMore']);
 const EVENT_PAGE_KEYS = Object.freeze([
   ...LEGACY_PAGE_KEYS,
   'historyBootstrapVersion',
@@ -71,10 +66,8 @@ function canonicalizeProcessedGiftEvent(input) {
 }
 
 function normalizeProcessedGiftPage(input) {
-  const isLegacyPage =
-    isPlainObject(input) && hasExactKeys(input, LEGACY_PAGE_KEYS);
-  const isVersionedPage =
-    isPlainObject(input) && hasExactKeys(input, EVENT_PAGE_KEYS);
+  const isLegacyPage = isPlainObject(input) && hasExactKeys(input, LEGACY_PAGE_KEYS);
+  const isVersionedPage = isPlainObject(input) && hasExactKeys(input, EVENT_PAGE_KEYS);
   if ((!isLegacyPage && !isVersionedPage) || input.ok !== true) {
     throw invalidPage();
   }
@@ -103,15 +96,10 @@ function normalizeProcessedGiftPage(input) {
       throw invalidPage();
     }
   }
-  if (
-    normalized.length > 0 &&
-    normalized[normalized.length - 1].cursor !== nextCursor
-  ) {
+  if (normalized.length > 0 && normalized[normalized.length - 1].cursor !== nextCursor) {
     throw invalidPage();
   }
-  const syncMetadata = isVersionedPage
-    ? normalizeRequiredSyncMetadata(input, invalidPage)
-    : {};
+  const syncMetadata = isVersionedPage ? normalizeRequiredSyncMetadata(input, invalidPage) : {};
   return Object.freeze({
     ok: true,
     events: Object.freeze(normalized),
@@ -153,11 +141,7 @@ function normalizeProcessedGiftHistoryPage(input) {
     throw invalidHistoryPage();
   }
   const nextPageToken = normalizePageToken(input.nextPageToken);
-  if (
-    nextPageToken === undefined ||
-    (input.hasMore && !nextPageToken) ||
-    (!input.hasMore && nextPageToken !== null)
-  ) {
+  if (nextPageToken === undefined || (input.hasMore && !nextPageToken) || (!input.hasMore && nextPageToken !== null)) {
     throw invalidHistoryPage();
   }
   const recoveryCursor = input.recoveryCursor;
@@ -200,11 +184,7 @@ function validateProcessedGiftEventWire(input, errorFactory) {
 }
 
 function validateProcessedGiftHistoryRecordWire(input, errorFactory) {
-  if (
-    !isPlainObject(input) ||
-    !hasExactKeys(input, HISTORY_RECORD_KEYS) ||
-    typeof input.eventId !== 'string'
-  ) {
+  if (!isPlainObject(input) || !hasExactKeys(input, HISTORY_RECORD_KEYS) || typeof input.eventId !== 'string') {
     throw errorFactory();
   }
   validateGiftDisplayWire(input.gift, errorFactory);
@@ -214,25 +194,15 @@ function validateGiftDisplayWire(source, errorFactory) {
   if (
     !isPlainObject(source) ||
     (!hasExactKeys(source, GIFT_KEYS) &&
-      !hasExactKeys(source, [
-        ...GIFT_KEYS,
-        'giftVariantId',
-        'blindBoxVariantId',
-      ]) && !hasExactKeys(source, [...GIFT_KEYS, 'display']) &&
+      !hasExactKeys(source, [...GIFT_KEYS, 'giftVariantId', 'blindBoxVariantId']) &&
+      !hasExactKeys(source, [...GIFT_KEYS, 'display']) &&
       !hasExactKeys(source, [...GIFT_KEYS, 'giftVariantId', 'blindBoxVariantId', 'display']))
   ) {
     throw errorFactory();
   }
   normalizeGiftIdentityFields(source, errorFactory);
   if (Object.hasOwn(source, 'display')) normalizeGiftDisplayProfile(source.display, errorFactory);
-  for (const key of [
-    'giftId',
-    'giftName',
-    'userName',
-    'coinType',
-    'blindBoxName',
-    'createdAt',
-  ]) {
+  for (const key of ['giftId', 'giftName', 'userName', 'coinType', 'blindBoxName', 'createdAt']) {
     if (typeof source[key] !== 'string') throw errorFactory();
   }
   if (
@@ -241,16 +211,14 @@ function validateGiftDisplayWire(source, errorFactory) {
     typeof source.unitPrice !== 'number' ||
     typeof source.totalPrice !== 'number' ||
     typeof source.isBlindBox !== 'boolean' ||
-    (source.blindBoxPrice !== null &&
-      typeof source.blindBoxPrice !== 'number') ||
+    (source.blindBoxPrice !== null && typeof source.blindBoxPrice !== 'number') ||
     (source.blindProfit !== null && typeof source.blindProfit !== 'number')
   ) {
     throw errorFactory();
   }
   if (
     source.blindBoxId !== null &&
-    (typeof source.blindBoxId !== 'string' ||
-      !/^[1-9]\d{0,19}$/u.test(source.blindBoxId))
+    (typeof source.blindBoxId !== 'string' || !/^[1-9]\d{0,19}$/u.test(source.blindBoxId))
   ) {
     throw errorFactory();
   }
@@ -258,27 +226,10 @@ function validateGiftDisplayWire(source, errorFactory) {
 
 function canonicalizeGiftDisplay(source, errorFactory) {
   if (!isPlainObject(source)) throw errorFactory();
-  const giftId = boundedCanonicalText(
-    canonicalGiftId(source.giftId),
-    128,
-    errorFactory,
-  );
-  const giftName = boundedCanonicalText(
-    canonicalGiftText(source.giftName),
-    100,
-    errorFactory,
-  );
-  const userName =
-    boundedCanonicalText(
-      canonicalGiftText(source.userName),
-      100,
-      errorFactory,
-    ) || '观众';
-  const coinType = boundedCanonicalText(
-    canonicalCoinType(source.coinType),
-    32,
-    errorFactory,
-  );
+  const giftId = boundedCanonicalText(canonicalGiftId(source.giftId), 128, errorFactory);
+  const giftName = boundedCanonicalText(canonicalGiftText(source.giftName), 100, errorFactory);
+  const userName = boundedCanonicalText(canonicalGiftText(source.userName), 100, errorFactory) || '观众';
+  const coinType = boundedCanonicalText(canonicalCoinType(source.coinType), 32, errorFactory);
   const num = source.num;
   const unitPriceCents = moneyToCents(source.unitPrice, false, errorFactory);
   const totalPriceCents = moneyToCents(source.totalPrice, false, errorFactory);
@@ -300,23 +251,10 @@ function canonicalizeGiftDisplay(source, errorFactory) {
   let blindProfitCents = null;
   if (isBlindBox) {
     blindBoxId = normalizeOptionalBlindBoxId(source.blindBoxId, errorFactory);
-    blindBoxName = boundedCanonicalText(
-      canonicalGiftText(source.blindBoxName),
-      100,
-      errorFactory,
-    );
-    blindBoxPriceCents = nullableMoneyToCents(
-      source.blindBoxPrice,
-      false,
-      errorFactory,
-    );
-    const suppliedProfitCents = nullableMoneyToCents(
-      source.blindProfit,
-      true,
-      errorFactory,
-    );
-    blindProfitCents =
-      blindBoxPriceCents === null ? null : totalPriceCents - blindBoxPriceCents;
+    blindBoxName = boundedCanonicalText(canonicalGiftText(source.blindBoxName), 100, errorFactory);
+    blindBoxPriceCents = nullableMoneyToCents(source.blindBoxPrice, false, errorFactory);
+    const suppliedProfitCents = nullableMoneyToCents(source.blindProfit, true, errorFactory);
+    blindProfitCents = blindBoxPriceCents === null ? null : totalPriceCents - blindBoxPriceCents;
     if (suppliedProfitCents !== blindProfitCents) throw errorFactory();
   } else if (
     source.blindBoxId !== null ||
@@ -340,8 +278,7 @@ function canonicalizeGiftDisplay(source, errorFactory) {
     isBlindBox,
     blindBoxId,
     blindBoxName,
-    blindBoxPrice:
-      blindBoxPriceCents === null ? null : blindBoxPriceCents / 100,
+    blindBoxPrice: blindBoxPriceCents === null ? null : blindBoxPriceCents / 100,
     blindBoxPriceCents,
     blindProfit: blindProfitCents === null ? null : blindProfitCents / 100,
     blindProfitCents,
@@ -352,14 +289,31 @@ function canonicalizeGiftDisplay(source, errorFactory) {
 }
 
 function normalizeGiftDisplayProfile(value, errorFactory) {
-  if (!isPlainObject(value) || !hasExactKeys(value, ['version', 'avatarUrl', 'guardLevel']) ||
-    value.version !== 1 || (value.guardLevel !== null && ![0, 1, 2, 3].includes(value.guardLevel))) throw errorFactory();
+  if (
+    !isPlainObject(value) ||
+    !hasExactKeys(value, ['version', 'avatarUrl', 'guardLevel']) ||
+    value.version !== 1 ||
+    (value.guardLevel !== null && ![0, 1, 2, 3].includes(value.guardLevel))
+  )
+    throw errorFactory();
   if (value.avatarUrl !== null) {
     if (typeof value.avatarUrl !== 'string' || value.avatarUrl.length > 2048) throw errorFactory();
     let url;
-    try { url = new URL(value.avatarUrl); } catch { throw errorFactory(); }
-    if (url.protocol !== 'https:' || url.username || url.password || url.port || url.search || url.hash ||
-      !(url.hostname === 'hdslb.com' || url.hostname.endsWith('.hdslb.com'))) throw errorFactory();
+    try {
+      url = new URL(value.avatarUrl);
+    } catch {
+      throw errorFactory();
+    }
+    if (
+      url.protocol !== 'https:' ||
+      url.username ||
+      url.password ||
+      url.port ||
+      url.search ||
+      url.hash ||
+      !(url.hostname === 'hdslb.com' || url.hostname.endsWith('.hdslb.com'))
+    )
+      throw errorFactory();
   }
   return Object.freeze({ version: 1, avatarUrl: value.avatarUrl, guardLevel: value.guardLevel });
 }
@@ -368,16 +322,11 @@ function normalizeGiftIdentityFields(source, errorFactory) {
   const result = {};
   for (const key of ['giftVariantId', 'blindBoxVariantId']) {
     const value = source[key];
-    if (
-      value !== undefined &&
-      value !== null &&
-      (typeof value !== 'string' || !/^gv_[a-f0-9]{64}$/u.test(value))
-    )
+    if (value !== undefined && value !== null && (typeof value !== 'string' || !/^gv_[a-f0-9]{64}$/u.test(value)))
       throw errorFactory();
     result[key] = value ?? null;
   }
-  if (source.isBlindBox !== true && result.blindBoxVariantId !== null)
-    throw errorFactory();
+  if (source.isBlindBox !== true && result.blindBoxVariantId !== null) throw errorFactory();
   return result;
 }
 
@@ -470,11 +419,7 @@ function normalizeEpoch(value, errorFactory) {
 
 function normalizePageToken(value) {
   if (value === null) return null;
-  if (
-    typeof value !== 'string' ||
-    !value ||
-    value.length > MAX_PAGE_TOKEN_LENGTH
-  ) {
+  if (typeof value !== 'string' || !value || value.length > MAX_PAGE_TOKEN_LENGTH) {
     return undefined;
   }
   return value;

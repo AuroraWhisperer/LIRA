@@ -4,15 +4,10 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { createOvertimeService } = require('../../src/overtime');
-const {
-  closeDatabases,
-  createDatabases,
-} = require('../../src/storage/database');
+const { closeDatabases, createDatabases } = require('../../src/storage/database');
 
 function createFixture() {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'song-plugin-overtime-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-overtime-'));
   const db = createDatabases({ dataDir });
   const clock = createFakeClock(1_800_000_000_000);
   return {
@@ -47,20 +42,13 @@ function createFixture() {
         .run(clock.now(), id);
     },
     getSettlement(id) {
-      return (
-        db.giftDb
-          .prepare('SELECT * FROM overtime_settlements WHERE gift_event_id = ?')
-          .get(id) || null
-      );
+      return db.giftDb.prepare('SELECT * FROM overtime_settlements WHERE gift_event_id = ?').get(id) || null;
     },
     countSettlements(id) {
       return (
         Number(
-          db.giftDb
-            .prepare(
-              'SELECT COUNT(*) AS count FROM overtime_settlements WHERE gift_event_id = ?',
-            )
-            .get(id)?.count,
+          db.giftDb.prepare('SELECT COUNT(*) AS count FROM overtime_settlements WHERE gift_event_id = ?').get(id)
+            ?.count,
         ) || 0
       );
     },
@@ -70,12 +58,7 @@ function createFixture() {
     },
   };
 }
-function fixedRule(
-  giftId,
-  fixedSeconds,
-  sortOrder = 0,
-  quantityMode = 'group',
-) {
+function fixedRule(giftId, fixedSeconds, sortOrder = 0, quantityMode = 'group') {
   return {
     giftId,
     giftName: giftId,
@@ -134,9 +117,7 @@ function insertGift(giftDb, nowMs, options) {
     );
   const id = Number(result.lastInsertRowid);
   if (options.giftVariantId)
-    giftDb
-      .prepare('UPDATE gift_events SET gift_variant_id = ? WHERE id = ?')
-      .run(options.giftVariantId, id);
+    giftDb.prepare('UPDATE gift_events SET gift_variant_id = ? WHERE id = ?').run(options.giftVariantId, id);
   return {
     phase,
     giftEventId: id,

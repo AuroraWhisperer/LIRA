@@ -5,17 +5,9 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
-const {
-  CACHE_FILE_NAME,
-} = require('../src/bilibili/gift/remote-catalog-cache');
-const {
-  createHybridGiftSaleCatalogService,
-} = require('../src/bilibili/gift/hybrid-catalog');
-const {
-  QUIET_LOGGER,
-  UPDATED_AT,
-  createRemoteGiftCatalogCache,
-} = require('./helpers/remote-catalog-fixture');
+const { CACHE_FILE_NAME } = require('../src/bilibili/gift/remote-catalog-cache');
+const { createHybridGiftSaleCatalogService } = require('../src/bilibili/gift/hybrid-catalog');
+const { QUIET_LOGGER, UPDATED_AT, createRemoteGiftCatalogCache } = require('./helpers/remote-catalog-fixture');
 
 test('point gift lookup follows catalog replacements and does not expose mutable rows', async (t) => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-gift-index-'));
@@ -86,9 +78,7 @@ test('rule artwork lookup checks only the requested gift, not all catalog images
 });
 
 test('persists and coalesces remote catalog refreshes', async () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'lira-remote-catalog-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-remote-catalog-'));
   try {
     let calls = 0;
     const updates = [];
@@ -127,19 +117,13 @@ test('persists and coalesces remote catalog refreshes', async () => {
       onUpdated: (snapshot) => updates.push(snapshot),
     });
 
-    const [first, second] = await Promise.all([
-      cache.refresh({ force: true }),
-      cache.refresh({ force: true }),
-    ]);
+    const [first, second] = await Promise.all([cache.refresh({ force: true }), cache.refresh({ force: true })]);
     assert.equal(calls, 1);
     assert.strictEqual(first, second);
     assert.equal(first.cached, false);
     assert.equal(first.source, 'server');
     assert.equal(first.gifts[0].id, '100');
-    assert.equal(
-      first.gifts[0].imagePath,
-      'https://api.lirahub.cn/gift-media/images/hash.webp',
-    );
+    assert.equal(first.gifts[0].imagePath, 'https://api.lirahub.cn/gift-media/images/hash.webp');
     assert.equal(first.gifts[0].battery, 10);
     assert.equal(first.gifts[0].rmb, 1);
     assert.equal(updates.length, 1);
@@ -159,19 +143,14 @@ test('persists and coalesces remote catalog refreshes', async () => {
     const restoredSnapshot = restored.getSnapshot();
     assert.equal(restoredSnapshot.cached, true);
     assert.equal(restoredSnapshot.version, '7');
-    assert.equal(
-      restoredSnapshot.gifts[0].imagePath,
-      'https://api.lirahub.cn/gift-media/images/hash.webp',
-    );
+    assert.equal(restoredSnapshot.gifts[0].imagePath, 'https://api.lirahub.cn/gift-media/images/hash.webp');
   } finally {
     fs.rmSync(dataDir, { recursive: true, force: true });
   }
 });
 
 test('uses the persisted etag for 304 and keeps the previous gifts', async () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'lira-remote-catalog-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-remote-catalog-'));
   try {
     let calls = 0;
     let receivedEtag = '';
@@ -185,9 +164,7 @@ test('uses the persisted etag for 304 and keeps the previous gifts', async () =>
           updatedAt: UPDATED_AT,
           imageBaseUrl: 'https://api.lirahub.cn',
           etag: '"catalog-9"',
-          gifts: [
-            { id: '200', name: '保留礼物', priceRaw: 2000, coinType: 'gold' },
-          ],
+          gifts: [{ id: '200', name: '保留礼物', priceRaw: 2000, coinType: 'gold' }],
         };
       }
       return { notModified: true, etag: '"catalog-9"' };
@@ -207,9 +184,7 @@ test('uses the persisted etag for 304 and keeps the previous gifts', async () =>
     assert.equal(second.gifts[0].id, '200');
     assert.equal(receivedEtag, '"catalog-9"');
     assert.equal(calls, 2);
-    const persisted = JSON.parse(
-      fs.readFileSync(path.join(dataDir, 'cache', CACHE_FILE_NAME), 'utf8'),
-    );
+    const persisted = JSON.parse(fs.readFileSync(path.join(dataDir, 'cache', CACHE_FILE_NAME), 'utf8'));
     assert.equal(persisted.etag, '"catalog-9"');
   } finally {
     fs.rmSync(dataDir, { recursive: true, force: true });
@@ -217,9 +192,7 @@ test('uses the persisted etag for 304 and keeps the previous gifts', async () =>
 });
 
 test('keeps a usable persisted snapshot when a refresh fails', async () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'lira-remote-catalog-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-remote-catalog-'));
   try {
     let shouldFail = false;
     const cache = createRemoteGiftCatalogCache({
@@ -232,9 +205,7 @@ test('keeps a usable persisted snapshot when a refresh fails', async () => {
           version: '11',
           updatedAt: UPDATED_AT,
           imageBaseUrl: 'https://api.lirahub.cn',
-          gifts: [
-            { id: '300', name: '离线可用', priceRaw: 100, coinType: 'gold' },
-          ],
+          gifts: [{ id: '300', name: '离线可用', priceRaw: 100, coinType: 'gold' }],
         };
       },
     });
@@ -256,9 +227,7 @@ test('keeps a usable persisted snapshot when a refresh fails', async () => {
 });
 
 test('does not let a future persisted check time suppress refresh', async () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'lira-remote-catalog-future-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-remote-catalog-future-'));
   try {
     const nowMs = Date.parse('2026-08-29T08:00:00.000Z');
     fs.mkdirSync(path.join(dataDir, 'cache'), { recursive: true });
@@ -296,9 +265,7 @@ test('does not let a future persisted check time suppress refresh', async () => 
           ok: true,
           version: 'new',
           updatedAt: UPDATED_AT,
-          gifts: [
-            { id: '302', name: '新礼物', priceRaw: 200, coinType: 'gold' },
-          ],
+          gifts: [{ id: '302', name: '新礼物', priceRaw: 200, coinType: 'gold' }],
         };
       },
     });
@@ -312,9 +279,7 @@ test('does not let a future persisted check time suppress refresh', async () => 
 });
 
 test('stopping the cache suppresses late writes and update notifications', async () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'lira-remote-catalog-stop-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-remote-catalog-stop-'));
   try {
     let resolveFetch;
     const updates = [];
@@ -339,10 +304,7 @@ test('stopping the cache suppresses late writes and update notifications', async
     const snapshot = await pending;
     assert.equal(snapshot, null);
     assert.deepEqual(updates, []);
-    assert.equal(
-      fs.existsSync(path.join(dataDir, 'cache', CACHE_FILE_NAME)),
-      false,
-    );
+    assert.equal(fs.existsSync(path.join(dataDir, 'cache', CACHE_FILE_NAME)), false);
   } finally {
     fs.rmSync(dataDir, { recursive: true, force: true });
   }

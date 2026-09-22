@@ -13,9 +13,7 @@ function check(name, label, checked = false) {
   return `<label class="fan-check"><input name="${name}" type="checkbox" ${checked ? 'checked' : ''} />${label}</label>`;
 }
 function localTime(value) {
-  return new Date(Date.parse(value || new Date().toISOString()) + 8 * 3600000)
-    .toISOString()
-    .slice(0, 16);
+  return new Date(Date.parse(value || new Date().toISOString()) + 8 * 3600000).toISOString().slice(0, 16);
 }
 function isoTime(value) {
   return new Date(`${value}:00+08:00`).toISOString();
@@ -74,13 +72,7 @@ export function profileForm(profile = {}) {
         'maxlength="300" placeholder="例如：喜欢听民谣，经常在周末来"',
       ) +
       '</div>' +
-      field(
-        'tags',
-        '标签',
-        profile.tags?.join('，'),
-        'text',
-        'placeholder="用逗号分隔，例如：老朋友，民谣"',
-      ) +
+      field('tags', '标签', profile.tags?.join('，'), 'text', 'placeholder="用逗号分隔，例如：老朋友，民谣"') +
       check('favorite', '特别关注', profile.favorite) +
       '</section><section id="fanProfilePersonal" class="fan-profile-panel" role="tabpanel" aria-labelledby="fanProfilePersonalTab" hidden>' +
       choice(
@@ -92,20 +84,8 @@ export function profileForm(profile = {}) {
         ],
         birthday.calendar || 'solar',
       ) +
-      field(
-        'monthDay',
-        '生日（月-日）',
-        birthday.monthDay,
-        'text',
-        'placeholder="例如：09-18" maxlength="5"',
-      ) +
-      field(
-        'year',
-        '出生年份',
-        birthday.year,
-        'number',
-        'min="1900" step="1" placeholder="不清楚可以留空"',
-      ) +
+      field('monthDay', '生日（月-日）', birthday.monthDay, 'text', 'placeholder="例如：09-18" maxlength="5"') +
+      field('year', '出生年份', birthday.year, 'number', 'min="1900" step="1" placeholder="不清楚可以留空"') +
       check('advance', '提前 7 天提醒生日', birthday.advance) +
       choice(
         'leapDay',
@@ -116,21 +96,10 @@ export function profileForm(profile = {}) {
         ],
         birthday.leapDay || 'feb28',
       ) +
-      field(
-        'thisYearDate',
-        '今年的公历生日（用于农历提醒）',
-        birthday.thisYearDate,
-        'date',
-      ) +
+      field('thisYearDate', '今年的公历生日（用于农历提醒）', birthday.thisYearDate, 'date') +
       check('leapMonth', '农历闰月', birthday.leapMonth) +
       '<div class="fan-profile-divider fan-field-wide"></div>' +
-      field(
-        'zodiac',
-        '星座',
-        profile.zodiac,
-        'text',
-        'maxlength="30" placeholder="留空时按公历生日提示"',
-      ) +
+      field('zodiac', '星座', profile.zodiac, 'text', 'maxlength="30" placeholder="留空时按公历生日提示"') +
       choice(
         'mbti',
         'MBTI（本人自述）',
@@ -157,12 +126,7 @@ export function profileForm(profile = {}) {
         ],
         profile.mbti,
       ) +
-      field(
-        'mbtiConfirmedAt',
-        '确认日期',
-        profile.mbtiConfirmedAt,
-        'date',
-      ) +
+      field('mbtiConfirmedAt', '确认日期', profile.mbtiConfirmedAt, 'date') +
       field(
         'mbtiNote',
         'MBTI 补充说明',
@@ -174,11 +138,7 @@ export function profileForm(profile = {}) {
       area('nextTopic', '下次想聊什么', profile.nextTopic, 2) +
       area('notes', '个人备注', profile.notes, 4) +
       '<h3 class="fan-profile-section-title fan-field-wide">大航海提醒</h3>' +
-      check(
-        'milestoneReminders',
-        '在舰里程碑提醒',
-        profile.milestoneReminders !== false,
-      ) +
+      check('milestoneReminders', '在舰里程碑提醒', profile.milestoneReminders !== false) +
       check('expiryReminders', '到期提醒（已确认日期）', profile.expiryReminders) +
       '</section></div>',
     bind(form) {
@@ -190,16 +150,14 @@ export function profileForm(profile = {}) {
           item.setAttribute('aria-selected', String(item === tab));
           item.tabIndex = item === tab ? 0 : -1;
         }
-        for (const panel of panels)
-          panel.hidden = panel.id !== tab.getAttribute('aria-controls');
+        for (const panel of panels) panel.hidden = panel.id !== tab.getAttribute('aria-controls');
       }
       for (const tab of tabs) {
         tab.addEventListener('click', () => selectTab(tab));
         tab.addEventListener('keydown', (event) => {
           let index = tabs.indexOf(tab);
           if (event.key === 'ArrowRight') index = (index + 1) % tabs.length;
-          else if (event.key === 'ArrowLeft')
-            index = (index + tabs.length - 1) % tabs.length;
+          else if (event.key === 'ArrowLeft') index = (index + tabs.length - 1) % tabs.length;
           else if (event.key === 'Home') index = 0;
           else if (event.key === 'End') index = tabs.length - 1;
           else return;
@@ -214,21 +172,16 @@ export function profileForm(profile = {}) {
           if (event.target !== root.querySelector(':invalid')) return;
           const panel = event.target.closest('[role="tabpanel"]');
           event.target.closest('label').hidden = false;
-          selectTab(
-            tabs.find((tab) => tab.getAttribute('aria-controls') === panel.id),
-          );
+          selectTab(tabs.find((tab) => tab.getAttribute('aria-controls') === panel.id));
         },
         true,
       );
       function updateFields() {
         const lunar = form.elements.calendar.value === 'lunar';
         const hasMbti = !!form.elements.mbti.value;
-        for (const name of ['thisYearDate', 'leapMonth'])
-          form.elements[name].closest('label').hidden = !lunar;
-        form.elements.leapDay.closest('label').hidden =
-          lunar || form.elements.monthDay.value !== '02-29';
-        for (const name of ['mbtiConfirmedAt', 'mbtiNote'])
-          form.elements[name].closest('label').hidden = !hasMbti;
+        for (const name of ['thisYearDate', 'leapMonth']) form.elements[name].closest('label').hidden = !lunar;
+        form.elements.leapDay.closest('label').hidden = lunar || form.elements.monthDay.value !== '02-29';
+        for (const name of ['mbtiConfirmedAt', 'mbtiNote']) form.elements[name].closest('label').hidden = !hasMbti;
       }
       form.elements.monthDay.addEventListener('input', updateFields);
       form.elements.calendar.addEventListener('change', updateFields);
@@ -241,7 +194,10 @@ export function profileForm(profile = {}) {
         id: profile.id,
         revision: profile.revision,
         alias: data.alias,
-        formerNames: data.formerNames.split(/\r?\n/).map((name) => name.trim()).filter(Boolean),
+        formerNames: data.formerNames
+          .split(/\r?\n/)
+          .map((name) => name.trim())
+          .filter(Boolean),
         summary: data.summary,
         identity: data.identityValue
           ? {
@@ -295,49 +251,21 @@ function membershipFields(data) {
     ) +
     '<p class="fan-muted fan-field-wide">修改会重算天数、筛选和未处理提醒，已处理事项不会重复。已知证据冲突时保留上次确认值，先保存为待核实。</p>' +
     `<div class="fan-membership-fields fan-field-wide" data-membership-type="interval" ${type === 'interval' ? '' : 'hidden'}>` +
-    field(
-      'start',
-      '开始日期',
-      data.start || (data.startAt ? localTime(data.startAt).slice(0, 10) : ''),
-      'date',
-    ) +
+    field('start', '开始日期', data.start || (data.startAt ? localTime(data.startAt).slice(0, 10) : ''), 'date') +
     field(
       'end',
       '有效至（包含当天）',
-      data.end ||
-        (data.endAt
-          ? localTime(new Date(Date.parse(data.endAt) - 1).toISOString()).slice(
-              0,
-              10,
-            )
-          : ''),
+      data.end || (data.endAt ? localTime(new Date(Date.parse(data.endAt) - 1).toISOString()).slice(0, 10) : ''),
       'date',
     ) +
     '</div>' +
     `<div class="fan-membership-fields fan-field-wide" data-membership-type="baseline" ${type === 'baseline' ? '' : 'hidden'}>` +
-    field(
-      'totalDays',
-      '累计天数（留空为未知）',
-      data.totalDays,
-      'number',
-      'min="0" step="1"',
-    ) +
-    field(
-      'continuousDays',
-      '本轮连续天数（留空为未知）',
-      data.continuousDays,
-      'number',
-      'min="0" step="1"',
-    ) +
+    field('totalDays', '累计天数（留空为未知）', data.totalDays, 'number', 'min="0" step="1"') +
+    field('continuousDays', '本轮连续天数（留空为未知）', data.continuousDays, 'number', 'min="0" step="1"') +
     field('asOf', '天数截至日期（含当日）', data.asOf || day(), 'date') +
     '</div>' +
     `<div class="fan-membership-fields fan-field-wide" data-membership-type="observation" ${type === 'observation' ? '' : 'hidden'}>` +
-    field(
-      'observedAt',
-      '观察时间（北京时间）',
-      localTime(data.observedAt),
-      'datetime-local',
-    ) +
+    field('observedAt', '观察时间（北京时间）', localTime(data.observedAt), 'datetime-local') +
     choice(
       'status',
       '观察状态',
@@ -381,24 +309,12 @@ export function recordForm(kind, record) {
   if (kind === 'membership') fields = membershipFields(data);
   else if (kind === 'song')
     fields =
-      field(
-        'songName',
-        '歌名',
-        data.songName,
-        'text',
-        'required maxlength="300"',
-      ) +
+      field('songName', '歌名', data.songName, 'text', 'required maxlength="300"') +
       field('artist', '歌手', data.artist) +
       field('category', '当时曲库分类', data.category) +
       area('note', '说明', data.note) +
-      check(
-        'excludeFromStats',
-        '排除在偏好统计外（如替别人点歌）',
-        data.excludeFromStats,
-      ) +
-      (record
-        ? check('excluded', '解除这条错误关联（保留原始记录）', data.excluded)
-        : '');
+      check('excludeFromStats', '排除在偏好统计外（如替别人点歌）', data.excludeFromStats) +
+      (record ? check('excluded', '解除这条错误关联（保留原始记录）', data.excluded) : '');
   else if (kind === 'preference')
     fields =
       choice(
@@ -410,92 +326,37 @@ export function recordForm(kind, record) {
         ],
         data.sentiment || 'like',
       ) +
-      field(
-        'label',
-        '歌曲、歌手、风格或类别',
-        data.label,
-        'text',
-        'required maxlength="300"',
-      ) +
+      field('label', '歌曲、歌手、风格或类别', data.label, 'text', 'required maxlength="300"') +
       area('reason', '根据哪次交流确认', data.reason);
   else if (kind === 'anniversary')
     fields =
-      field(
-        'name',
-        '纪念日名称',
-        data.name,
-        'text',
-        'required maxlength="100"',
-      ) +
+      field('name', '纪念日名称', data.name, 'text', 'required maxlength="100"') +
       field('date', '日期', data.date, 'date', 'required') +
       check('annual', '每年重复', data.annual) +
-      field(
-        'advanceDays',
-        '提前提醒天数',
-        data.advanceDays || 0,
-        'number',
-        'min="0" max="30" step="1"',
-      ) +
+      field('advanceDays', '提前提醒天数', data.advanceDays || 0, 'number', 'min="0" max="30" step="1"') +
       area('note', '说明', data.note);
   else
     fields =
-      area(
-        'body',
-        kind === 'caution' ? '哪些话题不适合提起' : '内容',
-        data.body,
-        5,
-      ) +
-      (kind !== 'note'
-        ? field('tag', '标签（选填）', data.tag, 'text', 'maxlength="50"')
-        : '') +
+      area('body', kind === 'caution' ? '哪些话题不适合提起' : '内容', data.body, 5) +
+      (kind !== 'note' ? field('tag', '标签（选填）', data.tag, 'text', 'maxlength="50"') : '') +
       (['caution', 'followup'].includes(kind)
-        ? field(
-            'reviewDate',
-            kind === 'caution' ? '复查日期（选填）' : '提醒日期（选填）',
-            data.reviewDate,
-            'date',
-          )
+        ? field('reviewDate', kind === 'caution' ? '复查日期（选填）' : '提醒日期（选填）', data.reviewDate, 'date')
         : '') +
-      (kind === 'followup'
-        ? check('completed', '已经完成', data.completed)
-        : '') +
+      (kind === 'followup' ? check('completed', '已经完成', data.completed) : '') +
       check('pinned', '置顶', data.pinned);
-  fields += field(
-    'occurredAt',
-    '发生时间（北京时间）',
-    localTime(record?.occurredAt),
-    'datetime-local',
-    'required',
-  );
-  if (record && !['song', 'membership'].includes(kind))
-    fields += check('archived', '归档这条资料', data.archived);
+  fields += field('occurredAt', '发生时间（北京时间）', localTime(record?.occurredAt), 'datetime-local', 'required');
+  if (record && !['song', 'membership'].includes(kind)) fields += check('archived', '归档这条资料', data.archived);
   return {
     title: record ? `修订${titles[kind]}` : titles[kind],
     fields,
-    hint:
-      kind === 'preference'
-        ? '记录偏好不会增加点歌次数。'
-        : '取消不保存；自动记录的原始身份、事件与来源始终保留。',
+    hint: kind === 'preference' ? '记录偏好不会增加点歌次数。' : '取消不保存；自动记录的原始身份、事件与来源始终保留。',
     read(form) {
       const values = Object.fromEntries(new FormData(form));
       const result = { ...values };
-      for (const key of [
-        'pinned',
-        'archived',
-        'completed',
-        'annual',
-        'excludeFromStats',
-        'excluded',
-      ])
+      for (const key of ['pinned', 'archived', 'completed', 'annual', 'excludeFromStats', 'excluded'])
         result[key] = !!values[key];
-      for (const key of [
-        'level',
-        'advanceDays',
-        'totalDays',
-        'continuousDays',
-      ]) {
-        if (key in values)
-          result[key] = values[key] === '' ? null : Number(values[key]);
+      for (const key of ['level', 'advanceDays', 'totalDays', 'continuousDays']) {
+        if (key in values) result[key] = values[key] === '' ? null : Number(values[key]);
       }
       if (values.observedAt) result.observedAt = isoTime(values.observedAt);
       return {
@@ -509,8 +370,7 @@ export function recordForm(kind, record) {
     bind(form) {
       form.elements.type?.addEventListener('change', () => {
         for (const panel of form.querySelectorAll('[data-membership-type]'))
-          panel.hidden =
-            panel.dataset.membershipType !== form.elements.type.value;
+          panel.hidden = panel.dataset.membershipType !== form.elements.type.value;
       });
     },
   };
@@ -540,21 +400,9 @@ export function settingsForm(settings) {
     hint: '普通观众和普通点歌不会自动批量建档。',
     fields:
       '<p class="fan-field-wide">推荐让已建档粉丝自动更新；收到可靠大航海记录时为新粉丝建档。生日、备注与话题仍只保存在本机。</p>' +
-      check(
-        'autoUpdate',
-        '自动更新已建档粉丝的昵称与点歌、上舰事实',
-        settings.autoUpdate !== false,
-      ) +
-      check(
-        'autoCreate',
-        '收到可验证的大航海记录时自动建档',
-        settings.autoCreate !== false,
-      ) +
-      check(
-        'autoSyncGuardRoster',
-        '每天自动更新大航海身份',
-        settings.autoSyncGuardRoster === true,
-      ) +
+      check('autoUpdate', '自动更新已建档粉丝的昵称与点歌、上舰事实', settings.autoUpdate !== false) +
+      check('autoCreate', '收到可验证的大航海记录时自动建档', settings.autoCreate !== false) +
+      check('autoSyncGuardRoster', '每天自动更新大航海身份', settings.autoSyncGuardRoster === true) +
       '<p class="fan-field-wide fan-muted">北京时间每天 12:10，客户端开着时核对最新名单，更新舰长、提督、总督身份，已不在大航海的粉丝取消当前身份显示；错过后，当天首次打开软件时补更新。保留备注与历史记录，更新后显示提示。</p>',
     read: (form) => ({
       autoUpdate: form.elements.autoUpdate.checked,

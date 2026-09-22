@@ -5,12 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const { handleApi } = require('../src/server/api-routes');
-const {
-  CLOCK_STYLE_VALUES,
-  DEFAULT_LABELS,
-  cleanClockLabel,
-  getClockConfig,
-} = require('../src/server/clock-contract');
+const { CLOCK_STYLE_VALUES, DEFAULT_LABELS, cleanClockLabel, getClockConfig } = require('../src/server/clock-contract');
 const { addFrameProtectionHeaders } = require('../src/server/http-utils');
 const clockRoutes = require('../src/server/routes/clock-routes');
 const settingsRoutes = require('../src/server/routes/settings-routes');
@@ -20,15 +15,8 @@ const { loadModuleExports } = require('./helpers/frontend-modules');
 
 const ROOT_DIR = path.join(__dirname, '..');
 const CLOCK_ENTRY = path.join(ROOT_DIR, 'public', 'js', 'overlays', 'clock.js');
-const CLOCK_CARD_ENTRY = path.join(
-  ROOT_DIR,
-  'public',
-  'js',
-  'admin',
-  'clock-card.js',
-);
-const read = (...parts) =>
-  fs.readFileSync(path.join(ROOT_DIR, ...parts), 'utf8');
+const CLOCK_CARD_ENTRY = path.join(ROOT_DIR, 'public', 'js', 'admin', 'clock-card.js');
+const read = (...parts) => fs.readFileSync(path.join(ROOT_DIR, ...parts), 'utf8');
 
 test('cute clock overlay owns a fixed frameable route and complete assets', () => {
   assert.equal(require('../src/server/access-policy').getOverlayScope('/clock'), 'clock');
@@ -69,15 +57,7 @@ test('clock styles keep fixed base, named theme, and animation ownership', () =>
   assert.deepEqual(entry.match(/@import url\('[^']+'\);/g), expectedImports);
 
   const owners = Object.fromEntries(
-    [
-      'base',
-      'peach',
-      'starlight',
-      'soda',
-      'timeline',
-      'digital',
-      'animations',
-    ].map((name) => [
+    ['base', 'peach', 'starlight', 'soda', 'timeline', 'digital', 'animations'].map((name) => [
       name,
       fs.readFileSync(path.join(styleRoot, 'clock', `${name}.css`), 'utf8'),
     ]),
@@ -128,15 +108,9 @@ test('cute clock overlay exposes six distinct styles and safe time parameters', 
   assert.match(css, /height:\s*380px/);
   assert.match(css, /background:\s*transparent/);
   assert.match(css, /transform:\s*scale\(var\(--clock-scale,\s*1\)\)/);
-  assert.match(
-    css,
-    /\.clock-seconds\s*\{[\s\S]*?display:\s*inline-grid[\s\S]*?text-shadow:\s*none/,
-  );
+  assert.match(css, /\.clock-seconds\s*\{[\s\S]*?display:\s*inline-grid[\s\S]*?text-shadow:\s*none/);
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
-  assert.doesNotMatch(
-    css,
-    /timeline-vertical'\]\s*#clockDate\s*\{\s*display:\s*none/,
-  );
+  assert.doesNotMatch(css, /timeline-vertical'\]\s*#clockDate\s*\{\s*display:\s*none/);
   assert.match(script, /textContent/);
   assert.doesNotMatch(script, /innerHTML/);
   assert.match(script, /visibilitychange/);
@@ -155,10 +129,7 @@ test('clock overlay scales its complete design canvas without moving style artwo
   assert.equal(module.clockLayoutForStyle('timeline-vertical').height, 380);
   assert.equal(module.clockLayoutForStyle('digital').width, 560);
   assert.equal(module.clockLayoutForStyle('digital').height, 190);
-  assert.equal(
-    module.clockScaleForViewport(580, 210, 'timeline-horizontal'),
-    1,
-  );
+  assert.equal(module.clockScaleForViewport(580, 210, 'timeline-horizontal'), 1);
   assert.equal(module.clockScaleForViewport(240, 400, 'timeline-vertical'), 1);
 });
 
@@ -179,10 +150,7 @@ test('toolbox composes the named clock card with fixed URL and custom controls',
   assert.match(app, /import\('\.\/clock-card\.js'\)/);
   assert.match(app, /module\.initClockCard/);
 
-  assert.doesNotMatch(
-    panel,
-    /ui-page-(?:title|subtitle)|other-feature-page-header/,
-  );
+  assert.doesNotMatch(panel, /ui-page-(?:title|subtitle)|other-feature-page-header/);
   for (const id of [
     'clockPreview',
     'clockRecommendedSize',
@@ -201,10 +169,7 @@ test('toolbox composes the named clock card with fixed URL and custom controls',
   assert.match(panel, /id="clockPreviewTitle"[^>]*>实时预览<\/h3>/);
   assert.match(panel, /id="clockFixedTitle"[^>]*>萌时钟网址<\/h3>/);
   assert.match(panel, /id="clockParametersTitle"[^>]*>自定义设置<\/h3>/);
-  assert.doesNotMatch(
-    panel,
-    /画面里的实际大小|设置变化，网址不变|选一套今天的心情|clock-preview-note/,
-  );
+  assert.doesNotMatch(panel, /画面里的实际大小|设置变化，网址不变|选一套今天的心情|clock-preview-note/);
   assert.match(panel, /data-clock-style-option="peach"/);
   assert.match(panel, /data-clock-style-option="starlight"/);
   assert.match(panel, /data-clock-style-option="soda"/);
@@ -217,17 +182,11 @@ test('toolbox composes the named clock card with fixed URL and custom controls',
   assert.match(panel, />横向刻度</);
   assert.match(panel, />竖向刻度</);
   assert.match(panel, />白字数显</);
-  assert.equal(
-    panel.match(/data-clock-style-option="[^"]+"/g)?.length,
-    CLOCK_STYLE_VALUES.size,
-  );
+  assert.equal(panel.match(/data-clock-style-option="[^"]+"/g)?.length, CLOCK_STYLE_VALUES.size);
   assert.match(panel, /is-timeline-horizontal/);
   assert.match(panel, /is-timeline-vertical/);
   assert.match(panel, /clockCustomLabelHelp/);
-  assert.match(
-    styles,
-    /grid-template-columns:\s*minmax\(360px,\s*1\.15fr\)\s+minmax\(320px,\s*0?\.85fr\)/,
-  );
+  assert.match(styles, /grid-template-columns:\s*minmax\(360px,\s*1\.15fr\)\s+minmax\(320px,\s*0?\.85fr\)/);
   assert.match(styles, /container: clock-settings \/ inline-size/);
   assert.match(styles, /@container clock-settings \(max-width:\s*704px\)/);
   assert.match(script, /params\.set\('style'/);
@@ -249,10 +208,7 @@ test('toolbox composes the named clock card with fixed URL and custom controls',
   assert.match(script, /window\.open/);
   assert.match(script, /let hydrating = true/);
   assert.match(script, /button\.disabled = hydrating/);
-  assert.match(
-    script,
-    /customLabel\.disabled\s*=\s*hydrating\s*\|\|\s*transparent/,
-  );
+  assert.match(script, /customLabel\.disabled\s*=\s*hydrating\s*\|\|\s*transparent/);
   assert.match(script, /label:\s*customLabel\.value/);
   assert.doesNotMatch(script, /customLabel\.value\s*=\s*''/);
   assert.match(script, /此样式不显示/);
@@ -264,28 +220,16 @@ test('toolbox composes the named clock card with fixed URL and custom controls',
 test('clock settings are persisted through validated keys and exposed by the clock page read-only capability', async () => {
   assert.deepEqual(
     [...CLOCK_STYLE_VALUES],
-    [
-      'peach',
-      'starlight',
-      'soda',
-      'timeline-horizontal',
-      'timeline-vertical',
-      'digital',
-    ],
+    ['peach', 'starlight', 'soda', 'timeline-horizontal', 'timeline-vertical', 'digital'],
   );
-  assert.deepEqual(
-    Object.fromEntries(
-      [...CLOCK_STYLE_VALUES].map((style) => [style, DEFAULT_LABELS[style]]),
-    ),
-    {
-      peach: '今天也要闪闪发光',
-      starlight: '今晚与星星一起值班',
-      soda: '今天也要元气满满',
-      'timeline-horizontal': '',
-      'timeline-vertical': '',
-      digital: '',
-    },
-  );
+  assert.deepEqual(Object.fromEntries([...CLOCK_STYLE_VALUES].map((style) => [style, DEFAULT_LABELS[style]])), {
+    peach: '今天也要闪闪发光',
+    starlight: '今晚与星星一起值班',
+    soda: '今天也要元气满满',
+    'timeline-horizontal': '',
+    'timeline-vertical': '',
+    digital: '',
+  });
   assert.equal(DEFAULT_SETTINGS.clockStyle, 'peach');
   assert.equal(DEFAULT_SETTINGS.clockShowDate, 'true');
   assert.equal(DEFAULT_SETTINGS.clockShowSeconds, 'true');
@@ -411,10 +355,7 @@ test('clock settings are persisted through validated keys and exposed by the clo
 
   await clockRoutes.routes['GET /api/clock/config'](context, {}, response);
   assert.equal(response.status, 200);
-  assert.deepEqual(
-    response.payload.data,
-    getClockConfig(Object.fromEntries(writes)),
-  );
+  assert.deepEqual(response.payload.data, getClockConfig(Object.fromEntries(writes)));
 
   const publicResponse = {
     writeHead(status) {
@@ -426,7 +367,12 @@ test('clock settings are persisted through validated keys and exposed by the clo
   };
   await handleApi(
     { ...context, sessionToken: 'required-token' },
-    { method: 'GET', headers: { authorization: `Bearer ${require('../src/server/access-policy').createOverlayToken('required-token', 'clock')}` } },
+    {
+      method: 'GET',
+      headers: {
+        authorization: `Bearer ${require('../src/server/access-policy').createOverlayToken('required-token', 'clock')}`,
+      },
+    },
     publicResponse,
     new URL('http://127.0.0.1:3000/api/clock/config'),
   );
@@ -493,11 +439,7 @@ test('clock overlay loads saved settings while explicit legacy parameters still 
   };
 
   let params = new URLSearchParams('');
-  let merged = module.mergeClockConfig(
-    saved,
-    module.readClockConfig(params),
-    params,
-  );
+  let merged = module.mergeClockConfig(saved, module.readClockConfig(params), params);
   assert.deepEqual(
     { ...merged },
     {
@@ -510,11 +452,7 @@ test('clock overlay loads saved settings while explicit legacy parameters still 
   );
 
   params = new URLSearchParams('style=peach&seconds=1');
-  merged = module.mergeClockConfig(
-    saved,
-    module.readClockConfig(params),
-    params,
-  );
+  merged = module.mergeClockConfig(saved, module.readClockConfig(params), params);
   assert.deepEqual(
     { ...merged },
     {
@@ -527,11 +465,7 @@ test('clock overlay loads saved settings while explicit legacy parameters still 
   );
 
   params = new URLSearchParams('label=');
-  merged = module.mergeClockConfig(
-    saved,
-    module.readClockConfig(params),
-    params,
-  );
+  merged = module.mergeClockConfig(saved, module.readClockConfig(params), params);
   assert.equal(merged.style, 'starlight');
   assert.equal(merged.label, '今晚与星星一起值班');
 });
@@ -539,14 +473,8 @@ test('clock overlay loads saved settings while explicit legacy parameters still 
 test('clock card keeps custom text that matches another style default', async () => {
   const module = await loadModuleExports(CLOCK_CARD_ENTRY);
   assert.equal(module.usesDefaultClockLabel('peach', '今天也要闪闪发光'), true);
-  assert.equal(
-    module.usesDefaultClockLabel('peach', '今晚与星星一起值班'),
-    false,
-  );
-  assert.equal(
-    module.usesDefaultClockLabel('starlight', '今晚与星星一起值班'),
-    true,
-  );
+  assert.equal(module.usesDefaultClockLabel('peach', '今晚与星星一起值班'), false);
+  assert.equal(module.usesDefaultClockLabel('starlight', '今晚与星星一起值班'), true);
   assert.equal(module.usesDefaultClockLabel('timeline-horizontal', ''), true);
   assert.equal(module.usesDefaultClockLabel('digital', ''), true);
 });

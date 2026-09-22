@@ -11,16 +11,21 @@ const { createHttpServer } = require('../src/server/http-server');
 test('route error wrappers preserve request-body 413 without calling domain operations', async (t) => {
   t.mock.method(console, 'error', () => {});
   const server = createHttpServer({
-    host: '127.0.0.1', startPort: 0,
-    getPhase: () => 'ready', getStartedPort: () => server.address().port,
+    host: '127.0.0.1',
+    startPort: 0,
+    getPhase: () => 'ready',
+    getStartedPort: () => server.address().port,
     isLicenseAuthorized: () => true,
     inflightTracker: { run: (run) => run() },
     createApiContext: () => ({ sessionToken: 'synthetic-token', maxBodyBytes: 8, dynamicLottery: {}, songs: {} }),
   });
-  t.after(() => new Promise((resolve) => {
-    server.close(resolve);
-    server.closeAllConnections();
-  }));
+  t.after(
+    () =>
+      new Promise((resolve) => {
+        server.close(resolve);
+        server.closeAllConnections();
+      }),
+  );
   server.listen(0, '127.0.0.1');
   await once(server, 'listening');
   const origin = `http://127.0.0.1:${server.address().port}`;
@@ -38,7 +43,8 @@ test('route error wrappers preserve request-body 413 without calling domain oper
   ];
   for (const [method, path] of routes) {
     const response = await fetch(origin + path, {
-      method, headers: { Authorization: 'Bearer synthetic-token', Origin: origin, 'Content-Type': 'application/json' },
+      method,
+      headers: { Authorization: 'Bearer synthetic-token', Origin: origin, 'Content-Type': 'application/json' },
       body: JSON.stringify({ oversized: true }),
     });
     assert.equal(response.status, 413, path);
@@ -57,17 +63,22 @@ for (const mode of ['complete', 'drip', 'continue']) {
         sendStableError(res, error);
       }
     });
-    t.after(() => new Promise((resolve) => {
-      server.close(resolve);
-      server.closeAllConnections();
-    }));
+    t.after(
+      () =>
+        new Promise((resolve) => {
+          server.close(resolve);
+          server.closeAllConnections();
+        }),
+    );
     server.listen(0, '127.0.0.1');
     await once(server, 'listening');
     const socket = net.createConnection(server.address().port, '127.0.0.1');
     t.after(() => socket.destroy());
     await once(socket, 'connect');
     let response = '';
-    socket.on('data', (chunk) => { response += chunk.toString(); });
+    socket.on('data', (chunk) => {
+      response += chunk.toString();
+    });
     const closed = new Promise((resolve, reject) => {
       socket.once('close', resolve);
       socket.once('error', reject);

@@ -26,11 +26,7 @@ export function createInitializer(deps) {
 
   let playbackInitialized = false;
 
-  async function init(
-    setupEventHandlers,
-    restorePlaybackState,
-    refreshPlaybackMusicCacheStats,
-  ) {
+  async function init(setupEventHandlers, restorePlaybackState, refreshPlaybackMusicCacheStats) {
     if (playbackInitialized) return;
     playbackInitialized = true;
 
@@ -114,18 +110,12 @@ export function createInitializer(deps) {
     window.addEventListener('pagehide', flushPlaybackStateOnUnload);
 
     // Electron prepare-shutdown: flush playback state via IPC before server closes
-    if (
-      window.musicAPI &&
-      typeof window.musicAPI.onPrepareShutdown === 'function'
-    ) {
+    if (window.musicAPI && typeof window.musicAPI.onPrepareShutdown === 'function') {
       window.musicAPI.onPrepareShutdown(async () => {
         try {
           await flushPlaybackStateForShutdown();
         } catch (error) {
-          console.warn(
-            '[Playback] Shutdown state flush failed:',
-            error.message || error,
-          );
+          console.warn('[Playback] Shutdown state flush failed:', error.message || error);
         } finally {
           try {
             await window.musicAPI.confirmShutdownFlush();
@@ -138,8 +128,7 @@ export function createInitializer(deps) {
   async function restoreLocalFileUrls() {
     const localTracks = [];
     const collect = function (t) {
-      if (t && t.source === 'local' && !t.objectUrl && t.filePath)
-        localTracks.push(t);
+      if (t && t.source === 'local' && !t.objectUrl && t.filePath) localTracks.push(t);
     };
     collect(playbackState.current);
     (playbackState.requestedQueue || []).forEach(collect);
@@ -158,11 +147,7 @@ export function createInitializer(deps) {
       }
     }
     if (!paths.length) return;
-    if (
-      !window.musicAPI ||
-      typeof window.musicAPI.resolveLocalMediaUrls !== 'function'
-    )
-      return;
+    if (!window.musicAPI || typeof window.musicAPI.resolveLocalMediaUrls !== 'function') return;
 
     try {
       const result = await window.musicAPI.resolveLocalMediaUrls(paths);

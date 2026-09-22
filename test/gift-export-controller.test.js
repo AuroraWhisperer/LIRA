@@ -15,35 +15,89 @@ function fixture(t, renderWidths = [856], storedSettings = {}) {
   const dialog = { showOpenDialog: async () => ({ canceled: true, filePaths: [] }) };
   class Window {
     constructor(options) {
-      this.options = options; this.destroyed = false; this.sizes = []; windows.push(this);
+      this.options = options;
+      this.destroyed = false;
+      this.sizes = [];
+      windows.push(this);
       let render = 0;
-      this.webContents = { setWindowOpenHandler() {}, on() {},
-        executeJavaScript: async (script) => script.startsWith('window.renderGiftExport(')
-          ? { width: renderWidths[Math.min(render++, renderWidths.length - 1)] } : undefined,
-        capturePage: async (rect) => ({ toPNG() { const bytes = Buffer.alloc(24); bytes.writeUInt32BE(rect.width, 16); bytes.writeUInt32BE(rect.height, 20); return bytes; } }) };
+      this.webContents = {
+        setWindowOpenHandler() {},
+        on() {},
+        executeJavaScript: async (script) =>
+          script.startsWith('window.renderGiftExport(')
+            ? { width: renderWidths[Math.min(render++, renderWidths.length - 1)] }
+            : undefined,
+        capturePage: async (rect) => ({
+          toPNG() {
+            const bytes = Buffer.alloc(24);
+            bytes.writeUInt32BE(rect.width, 16);
+            bytes.writeUInt32BE(rect.height, 20);
+            return bytes;
+          },
+        }),
+      };
     }
-    loadURL(url) { this.url = url; return Promise.resolve(); }
-    setContentSize(width, height) { this.sizes.push({ width, height }); }
-    destroy() { this.destroyed = true; }
-    isDestroyed() { return this.destroyed; }
+    loadURL(url) {
+      this.url = url;
+      return Promise.resolve();
+    }
+    setContentSize(width, height) {
+      this.sizes.push({ width, height });
+    }
+    destroy() {
+      this.destroyed = true;
+    }
+    isDestroyed() {
+      return this.destroyed;
+    }
   }
-  const controller = createGiftExportController({ app: { getPath: () => root }, BrowserWindow: Window,
-    dialog, shell: { openPath: async () => '' },
-    runtime: { getSetting: (key) => storedSettings[key] || '',
-      setGiftExportDirectory: (directory) => { storedSettings.giftExportDirectory = directory; },
-      setGiftExportSettings: ({ mode, background, directory }) => Object.assign(storedSettings, {
-        giftExportMode: mode, giftExportBackground: background, giftExportDirectory: directory,
-      }), getGiftViewRevision: () => revision,
-      prepareGiftExport: () => ({ viewRevision: revision, items: [{ eventId: 'one' }, { eventId: 'two' }], config: {}, catalog: [] }) },
-    getBaseUrl: () => 'http://127.0.0.1:3000', getMainWindow: () => null });
+  const controller = createGiftExportController({
+    app: { getPath: () => root },
+    BrowserWindow: Window,
+    dialog,
+    shell: { openPath: async () => '' },
+    runtime: {
+      getSetting: (key) => storedSettings[key] || '',
+      setGiftExportDirectory: (directory) => {
+        storedSettings.giftExportDirectory = directory;
+      },
+      setGiftExportSettings: ({ mode, background, directory }) =>
+        Object.assign(storedSettings, {
+          giftExportMode: mode,
+          giftExportBackground: background,
+          giftExportDirectory: directory,
+        }),
+      getGiftViewRevision: () => revision,
+      prepareGiftExport: () => ({
+        viewRevision: revision,
+        items: [{ eventId: 'one' }, { eventId: 'two' }],
+        config: {},
+        catalog: [],
+      }),
+    },
+    getBaseUrl: () => 'http://127.0.0.1:3000',
+    getMainWindow: () => null,
+  });
   t.after(() => controller.dispose());
-  return { root, controller, windows, dialog, storedSettings, stale: () => { revision = 'b'; } };
+  return {
+    root,
+    controller,
+    windows,
+    dialog,
+    storedSettings,
+    stale: () => {
+      revision = 'b';
+    },
+  };
 }
 
 test('export settings work without a selection, persist and only affect new tasks', async (t) => {
   const { root, controller, storedSettings, dialog } = fixture(t);
   assert.deepEqual(await controller.settings(), {
-    mode: 'combined', background: 'transparent', directory: path.join(root, 'LIRA', '礼物导出'), custom: false,
+    mode: 'combined',
+    background: 'transparent',
+    directory: path.join(root, 'LIRA', '礼物导出'),
+    custom: false,
   });
   const directory = path.join(root, 'chosen');
   dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [directory] });
@@ -65,14 +119,24 @@ test('export settings work without a selection, persist and only affect new task
 
 test('export settings reject unsafe values and discard cancelled or stale directory dialogs', async (t) => {
   const { controller, dialog, storedSettings } = fixture(t);
-  for (const input of [null, [], { root: 'C:/arbitrary' }, { directory: 'C:/arbitrary' },
-    { mode: 'huge' }, { background: 'red' }, { directoryAction: 'write' }]) {
+  for (const input of [
+    null,
+    [],
+    { root: 'C:/arbitrary' },
+    { directory: 'C:/arbitrary' },
+    { mode: 'huge' },
+    { background: 'red' },
+    { directoryAction: 'write' },
+  ]) {
     await assert.rejects(() => controller.settings(input));
   }
   await controller.settings({ directoryAction: 'choose', mode: 'separate' });
   assert.deepEqual(storedSettings, {});
   let finish;
-  dialog.showOpenDialog = () => new Promise((resolve) => { finish = resolve; });
+  dialog.showOpenDialog = () =>
+    new Promise((resolve) => {
+      finish = resolve;
+    });
   const pending = controller.settings({ directoryAction: 'choose' });
   controller.cancel();
   finish({ canceled: false, filePaths: ['C:/discarded'] });
@@ -84,7 +148,13 @@ test('export preview creates no files and accepts only dialog/system directories
   const { root, controller } = fixture(t);
   const task = await controller.prepare({});
   assert.equal(fs.existsSync(task.directory), false);
-  const configured = await controller.configure({ id: task.id, mode: 'separate', background: 'transparent', directoryAction: 'choose', root: 'C:/arbitrary' });
+  const configured = await controller.configure({
+    id: task.id,
+    mode: 'separate',
+    background: 'transparent',
+    directoryAction: 'choose',
+    root: 'C:/arbitrary',
+  });
   assert.equal(configured.root, path.join(root, 'LIRA', '礼物导出'));
   assert.equal(configured.directory, task.directory);
   await assert.rejects(() => controller.configure({ id: task.id, mode: 'huge', background: 'white' }));
@@ -97,7 +167,8 @@ test('cancelling a batch keeps exactly saved files and destroys its sandboxed re
   const task = await controller.prepare({});
   await controller.configure({ id: task.id, mode: 'separate', background: 'transparent' });
   const result = await controller.save({ id: task.id }, () => controller.cancel(task.id));
-  assert.equal(result.cancelled, true); assert.equal(result.saved, 1);
+  assert.equal(result.cancelled, true);
+  assert.equal(result.saved, 1);
   assert.deepEqual(fs.readdirSync(task.directory), ['礼物_001.png']);
   const png = fs.readFileSync(path.join(task.directory, '礼物_001.png'));
   assert.equal(png.readUInt32BE(16), 856);
@@ -116,7 +187,10 @@ test('export resizes each PNG to its rendered quantity width and rejects invalid
   const result = await controller.save({ id: task.id });
   assert.equal(result.ok, true);
   assert.equal(result.saved, 2);
-  assert.deepEqual(windows[0].sizes, [{ width: 1400, height: 144 }, { width: 856, height: 144 }]);
+  assert.deepEqual(windows[0].sizes, [
+    { width: 1400, height: 144 },
+    { width: 856, height: 144 },
+  ]);
   assert.equal(fs.readFileSync(path.join(task.directory, '礼物_001.png')).readUInt32BE(16), 1400);
   assert.equal(fs.readFileSync(path.join(task.directory, '礼物_002.png')).readUInt32BE(16), 856);
   assert.equal(windows[0].destroyed, true);
@@ -137,7 +211,8 @@ test('a source change prevents any subsequent file being written', async (t) => 
   const task = await controller.prepare({});
   await controller.configure({ id: task.id, mode: 'separate', background: 'white' });
   const result = await controller.save({ id: task.id }, stale);
-  assert.equal(result.ok, false); assert.equal(result.saved, 1);
+  assert.equal(result.ok, false);
+  assert.equal(result.saved, 1);
   assert.match(result.error, /来源/);
 });
 
@@ -168,13 +243,34 @@ test('export IPC rejects remote pages, secondary windows and child frames', asyn
   const window = { isDestroyed: () => false, webContents: contents };
   let called = 0;
   let cancelled = 0;
-  const dispose = registerGiftExportIpc({ ipcMain: { handle: (name, fn) => handlers.set(name, fn), removeHandler: (name) => handlers.delete(name) },
-    controller: { prepare: async () => { called += 1; return {}; }, settings: async () => { called += 1; return {}; }, cancel() { cancelled += 1; }, dispose() {} }, getMainWindow: () => window, getDesktopBaseUrl: () => 'http://127.0.0.1:3000' });
+  const dispose = registerGiftExportIpc({
+    ipcMain: { handle: (name, fn) => handlers.set(name, fn), removeHandler: (name) => handlers.delete(name) },
+    controller: {
+      prepare: async () => {
+        called += 1;
+        return {};
+      },
+      settings: async () => {
+        called += 1;
+        return {};
+      },
+      cancel() {
+        cancelled += 1;
+      },
+      dispose() {},
+    },
+    getMainWindow: () => window,
+    getDesktopBaseUrl: () => 'http://127.0.0.1:3000',
+  });
   for (const channel of ['prepare', 'settings']) {
     const invoke = handlers.get(`gift-export:${channel}`);
     frame.url = 'http://127.0.0.1:3000/admin';
     assert.equal((await invoke({ sender: contents, senderFrame: frame }, {})).ok, true);
-    for (const event of [{ sender: {}, senderFrame: frame }, { sender: contents, senderFrame: { ...frame } }]) assert.equal((await invoke(event, {})).error, 'IPC_SOURCE_INVALID');
+    for (const event of [
+      { sender: {}, senderFrame: frame },
+      { sender: contents, senderFrame: { ...frame } },
+    ])
+      assert.equal((await invoke(event, {})).error, 'IPC_SOURCE_INVALID');
     frame.url = 'https://evil.invalid/admin';
     assert.equal((await invoke({ sender: contents, senderFrame: frame }, {})).error, 'IPC_SOURCE_INVALID');
     frame.url = 'http://127.0.0.1:3000/gift-export';
@@ -185,6 +281,7 @@ test('export IPC rejects remote pages, secondary windows and child frames', asyn
   assert.equal(cancelled, 0);
   contents.emit('did-start-navigation', {}, '/', false, true);
   assert.equal(cancelled, 1);
-  dispose(); assert.equal(handlers.size, 0);
+  dispose();
+  assert.equal(handlers.size, 0);
   assert.equal(contents.listenerCount('did-start-navigation'), 0);
 });

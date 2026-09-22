@@ -8,10 +8,7 @@ const fixture = require('./fixtures/fan-facts-v1.json');
 
 test('the published Server fan facts fixture creates one unknown-term profile with its latest name', (t) => {
   const f = fanFixture(t);
-  const scope = JSON.stringify([
-    'https://lira.example',
-    fixture.page.streamerId,
-  ]);
+  const scope = JSON.stringify(['https://lira.example', fixture.page.streamerId]);
   f.run('configure', { autoUpdate: true, autoCreate: true }, scope);
   f.service.consumeFacts(scope, fixture.page);
   const list = f.run('list', {}, scope).profiles;

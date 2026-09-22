@@ -13,10 +13,12 @@ export function initFanProfileAutoUpdate({ windowRef = window, notify = toast } 
       if (disposed || !result.ok || !result.data) return;
       const update = result.data;
       const label = update.reason === 'startup' ? '启动补更新' : '12:10 定时更新';
-      notify(update.status === 'error'
-        ? `粉丝档案${label}失败：${update.error}`
-        : `粉丝档案${label}完成，已同步最新大航海身份`,
-      { type: update.status === 'error' ? 'error' : 'success', duration: 5000 });
+      notify(
+        update.status === 'error'
+          ? `粉丝档案${label}失败：${update.error}`
+          : `粉丝档案${label}完成，已同步最新大航海身份`,
+        { type: update.status === 'error' ? 'error' : 'success', duration: 5000 },
+      );
     } catch (_) {
       // Login/navigation may temporarily make the desktop bridge unavailable.
       return;

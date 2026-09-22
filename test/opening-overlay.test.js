@@ -5,13 +5,8 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
-const {
-  addFrameProtectionHeaders,
-  contentType,
-} = require('../src/server/http-utils');
-const {
-  prepareSettingsBootstrap,
-} = require('../src/server/settings-bootstrap');
+const { addFrameProtectionHeaders, contentType } = require('../src/server/http-utils');
+const { prepareSettingsBootstrap } = require('../src/server/settings-bootstrap');
 const openingRoutes = require('../src/server/routes/opening-routes');
 const settingsRoutes = require('../src/server/routes/settings-routes');
 const { closeDatabases, createDatabases } = require('../src/storage/database');
@@ -19,44 +14,23 @@ const settingsStoreModule = require('../src/storage/settings-store');
 const { DEFAULT_SETTINGS } = settingsStoreModule;
 
 const ROOT_DIR = path.join(__dirname, '..');
-const read = (...parts) =>
-  fs.readFileSync(path.join(ROOT_DIR, ...parts), 'utf8');
+const read = (...parts) => fs.readFileSync(path.join(ROOT_DIR, ...parts), 'utf8');
 
 test('opening samples stay outside public assets and the overlay route remains registered', () => {
   const musicPath = path.join(ROOT_DIR, 'test/fixtures/opening/music.ogg');
-  assert.ok(
-    fs.existsSync(path.join(ROOT_DIR, 'public/pages/overlays/opening.html')),
-  );
-  assert.ok(
-    fs.existsSync(path.join(ROOT_DIR, 'public/css/overlays/opening.css')),
-  );
-  assert.ok(
-    fs.existsSync(path.join(ROOT_DIR, 'public/js/overlays/opening.js')),
-  );
+  assert.ok(fs.existsSync(path.join(ROOT_DIR, 'public/pages/overlays/opening.html')));
+  assert.ok(fs.existsSync(path.join(ROOT_DIR, 'public/css/overlays/opening.css')));
+  assert.ok(fs.existsSync(path.join(ROOT_DIR, 'public/js/overlays/opening.js')));
   assert.ok(fs.statSync(musicPath).size > 100_000);
-  assert.equal(
-    fs.readFileSync(musicPath).subarray(0, 4).toString('ascii'),
-    'OggS',
-  );
+  assert.equal(fs.readFileSync(musicPath).subarray(0, 4).toString('ascii'), 'OggS');
   for (const name of ['music.ogg', 'avatar.webp', 'opening-character.png']) {
-    assert.ok(
-      fs.existsSync(path.join(ROOT_DIR, 'test/fixtures/opening', name)),
-    );
-    assert.equal(
-      fs.existsSync(path.join(ROOT_DIR, 'public/img/overlays/opening', name)),
-      false,
-    );
+    assert.ok(fs.existsSync(path.join(ROOT_DIR, 'test/fixtures/opening', name)));
+    assert.equal(fs.existsSync(path.join(ROOT_DIR, 'public/img/overlays/opening', name)), false);
   }
-  const serverRuntime = [
-    read('src', 'server.js'),
-    read('src', 'server', 'http-server.js'),
-  ].join('\n');
+  const serverRuntime = [read('src', 'server.js'), read('src', 'server', 'http-server.js')].join('\n');
   assert.equal(require('../src/server/access-policy').getOverlayScope('/opening'), 'opening');
   assert.equal(contentType(musicPath), 'audio/ogg');
-  assert.match(
-    serverRuntime,
-    /requestUrl\.pathname\.startsWith\('\/opening-character\/'\)/,
-  );
+  assert.match(serverRuntime, /requestUrl\.pathname\.startsWith\('\/opening-character\/'\)/);
   assert.match(serverRuntime, /serveOpeningCharacter/);
 });
 
@@ -95,16 +69,10 @@ test('opening overlay is frameable and keeps the required character transform la
     assert.match(html, new RegExp(`class="[^"]*${className}[^"]*"`));
   }
   assert.match(html, /<animateMotion[^>]+repeatCount="indefinite"/);
-  assert.match(
-    html,
-    /<animate[^>]+class="track-heart-visibility"[^>]+attributeName="opacity"/,
-  );
+  assert.match(html, /<animate[^>]+class="track-heart-visibility"[^>]+attributeName="opacity"/);
   assert.doesNotMatch(html, /<animateMotion[^>]+keyPoints=/);
   assert.match(html, /<mpath href="#openingTrackPath"/);
-  assert.match(
-    html,
-    /<audio id="openingAudio" loop preload="metadata"><\/audio>/,
-  );
+  assert.match(html, /<audio id="openingAudio" loop preload="metadata"><\/audio>/);
   assert.doesNotMatch(html, /id="openingAudio"[^>]+autoplay/);
   assert.doesNotMatch(html, /id="openingAudio"[^>]+src=/);
   assert.match(html, /id="openingAvatar"[^>]+hidden/);
@@ -142,28 +110,13 @@ test('opening overlay animation honors quality, motion, visibility, and safe tex
   assert.match(css, /@keyframes\s+eq-smooth/);
   assert.match(css, /@keyframes\s+character-float[\s\S]*?-0?\.45cqw/);
   assert.match(css, /@keyframes\s+character-breathe[\s\S]*?scale\(1\.008\)/);
-  assert.match(
-    css,
-    /@keyframes\s+note-drift[\s\S]*?0%,\s*100%\s*\{\s*opacity:\s*0/,
-  );
+  assert.match(css, /@keyframes\s+note-drift[\s\S]*?0%,\s*100%\s*\{\s*opacity:\s*0/);
   assert.match(css, /\.opening-stage\.is-paused\s+\*::before/);
-  assert.match(
-    css,
-    /\.opening-stage\.is-reduced-motion\s+\.character-float[^\{]*\{[^}]*transform:\s*none/,
-  );
-  assert.match(
-    css,
-    /\.opening-stage\.is-reduced-motion\s+\.opening-glow[^\{]*\{[^}]*animation:\s*none/,
-  );
-  assert.match(
-    css,
-    /\.opening-stage\.is-reduced-motion\s+\.opening-glow\s*\{[^}]*opacity:\s*0?\.74/,
-  );
+  assert.match(css, /\.opening-stage\.is-reduced-motion\s+\.character-float[^\{]*\{[^}]*transform:\s*none/);
+  assert.match(css, /\.opening-stage\.is-reduced-motion\s+\.opening-glow[^\{]*\{[^}]*animation:\s*none/);
+  assert.match(css, /\.opening-stage\.is-reduced-motion\s+\.opening-glow\s*\{[^}]*opacity:\s*0?\.74/);
   assert.match(html, /<animateMotion\b[^>]*\bdur="7\.2s"/);
-  assert.match(
-    html,
-    /<animate\b(?=[^>]*\bvalues="\.86;\.86;0;0")(?=[^>]*\bkeyTimes="0;\.88;\.96;1")[^>]*>/,
-  );
+  assert.match(html, /<animate\b(?=[^>]*\bvalues="\.86;\.86;0;0")(?=[^>]*\bkeyTimes="0;\.88;\.96;1")[^>]*>/);
   assert.match(css, /translate3d\(/);
   assert.match(css, /\.opening-stage\.is-disabled\s*\{[^}]*display:\s*none/);
   assert.match(css, /\.opening-stage\.is-disabled\s*\{[^}]*animation:\s*none/);
@@ -197,33 +150,13 @@ test('opening overlay animation honors quality, motion, visibility, and safe tex
 });
 
 test('Toolbox opening animation persists configuration and keeps a fixed source URL', () => {
-  const html = read(
-    'public',
-    'pages',
-    'admin',
-    'toolbox',
-    'start-animation.html',
-  );
+  const html = read('public', 'pages', 'admin', 'toolbox', 'start-animation.html');
   const script = read('public', 'js', 'admin', 'start-animation.js');
   const overlayScript = read('public', 'js', 'overlays', 'opening.js');
-  const openingRoutesSource = read(
-    'src',
-    'server',
-    'routes',
-    'opening-routes.js',
-  );
+  const openingRoutesSource = read('src', 'server', 'routes', 'opening-routes.js');
   const formsScript = read('public', 'js', 'admin', 'forms.js');
-  const styles = read(
-    'public',
-    'css',
-    'admin',
-    'other-features',
-    'start-animation.css',
-  );
-  assert.match(
-    html,
-    /class="[^"]*other-feature-panel-body[^"]*opening-animation-panel/,
-  );
+  const styles = read('public', 'css', 'admin', 'other-features', 'start-animation.css');
+  assert.match(html, /class="[^"]*other-feature-panel-body[^"]*opening-animation-panel/);
   assert.match(html, /id="openingEnabled"[^>]*type="checkbox"/);
   assert.doesNotMatch(html, /id="openingEnabled"[^>]+checked/);
   assert.match(html, /id="openingPreview"[^>]+hidden/);
@@ -251,10 +184,7 @@ test('Toolbox opening animation persists configuration and keeps a fixed source 
   ]) {
     assert.match(html, new RegExp(`id="${id}"`));
   }
-  assert.match(
-    html,
-    /id="openingTrackMotion"[^>]*>[\s\S]*value="heart"[^>]*selected[^>]*>心形巡航/,
-  );
+  assert.match(html, /id="openingTrackMotion"[^>]*>[\s\S]*value="heart"[^>]*selected[^>]*>心形巡航/);
   assert.match(html, /value="barber"[^>]*>灯带循环/);
   assert.match(html, /value="progress"[^>]*>流光进度/);
   assert.match(html, /id="openingTitle"[^>]+value="唱一首，在一首，给你的歌"/);
@@ -274,10 +204,7 @@ test('Toolbox opening animation persists configuration and keeps a fixed source 
   assert.match(script, /openingTrackMotion:\s*config\.trackMotion/);
   assert.match(script, /about:blank/);
   assert.match(script, /enabled:\s*false/);
-  assert.match(
-    script,
-    /getElementById\('openingEnabled'\)\?\.addEventListener\('change'/,
-  );
+  assert.match(script, /getElementById\('openingEnabled'\)\?\.addEventListener\('change'/);
   assert.match(script, /volumePercent/);
   assert.match(script, /event\.target\?\.id === 'openingAudioVolume'/);
   assert.match(script, /type: 'lira:opening-preview-volume'/);
@@ -286,15 +213,9 @@ test('Toolbox opening animation persists configuration and keeps a fixed source 
     overlayScript,
     /event\.source !== window\.parent\s*\|\|\s*event\.origin !== new URL\(location\.href\)\.origin\s*\|\|\s*event\.data\?\.type !== 'lira:opening-preview-volume'/,
   );
-  assert.match(
-    overlayScript,
-    /audio\.volume = parseVolume\(event\.data\.volume, audio\.volume\)/,
-  );
+  assert.match(overlayScript, /audio\.volume = parseVolume\(event\.data\.volume, audio\.volume\)/);
   assert.match(overlayScript, /enabled:\s*false/);
-  assert.match(
-    openingRoutesSource,
-    /parseBoolean\(settings\.openingEnabled,\s*false\)/,
-  );
+  assert.match(openingRoutesSource, /parseBoolean\(settings\.openingEnabled,\s*false\)/);
   assert.equal(DEFAULT_SETTINGS.openingEnabled, 'false');
   assert.equal(DEFAULT_SETTINGS.openingFooter, '欢迎来到直播间');
   assert.equal(DEFAULT_SETTINGS.openingTrackMotion, 'heart');
@@ -349,15 +270,9 @@ test('Toolbox opening animation persists configuration and keeps a fixed source 
   assert.doesNotMatch(script, /localStorage/);
   assert.match(styles, /aspect-ratio:\s*16 \/ 9/);
   assert.match(styles, /overflow-y:\s*auto/);
-  assert.match(
-    styles,
-    /opening-editor-checks input:checked \+ \.opening-switch-ui/,
-  );
+  assert.match(styles, /opening-editor-checks input:checked \+ \.opening-switch-ui/);
   assert.match(formsScript, /element\?\.closest\('#openingAnimationForm'\)/);
-  assert.match(
-    read('public', 'js', 'admin', 'app.js'),
-    /module\.initStartAnimation/,
-  );
+  assert.match(read('public', 'js', 'admin', 'app.js'), /module\.initStartAnimation/);
 });
 
 test('opening media defaults and missing uploads have no bundled fallback', async () => {
@@ -390,18 +305,9 @@ test('opening media defaults and missing uploads have no bundled fallback', asyn
   assert.equal(overlay.DEFAULTS.audioUrl, '');
   assert.equal(overlay.DEFAULTS.characterUrl, '');
   assert.equal(overlay.safeAudioUrl('/img/overlays/opening/music.ogg'), '');
-  assert.equal(
-    overlay.safeCharacterUrl('/img/overlays/opening/avatar.webp'),
-    '',
-  );
-  assert.equal(
-    overlay.safeAudioUrl('/opening-media/custom.mp3'),
-    '/opening-media/custom.mp3',
-  );
-  assert.equal(
-    overlay.safeCharacterUrl('/opening-character/custom.webp'),
-    '/opening-character/custom.webp',
-  );
+  assert.equal(overlay.safeCharacterUrl('/img/overlays/opening/avatar.webp'), '');
+  assert.equal(overlay.safeAudioUrl('/opening-media/custom.mp3'), '/opening-media/custom.mp3');
+  assert.equal(overlay.safeCharacterUrl('/opening-character/custom.webp'), '/opening-character/custom.webp');
   assert.equal(overlay.safeAudioUrl('https://example.com/music.mp3'), '');
   assert.equal(overlay.safeCharacterUrl('https://example.com/image.png'), '');
 });
@@ -477,25 +383,17 @@ test('opening track motion settings reject values outside the public enum', asyn
 });
 
 test('opening animation starts disabled for every application session', () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'lira-opening-startup-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-opening-startup-'));
   const databases = createDatabases({
     dataDir,
     defaultSettings: DEFAULT_SETTINGS,
   });
 
   try {
-    const firstSession = prepareSettingsBootstrap(
-      databases.songDb,
-      settingsStoreModule,
-    ).settingsStore;
+    const firstSession = prepareSettingsBootstrap(databases.songDb, settingsStoreModule).settingsStore;
     firstSession.setSetting('openingEnabled', 'true');
 
-    const nextSession = prepareSettingsBootstrap(
-      databases.songDb,
-      settingsStoreModule,
-    ).settingsStore;
+    const nextSession = prepareSettingsBootstrap(databases.songDb, settingsStoreModule).settingsStore;
     assert.equal(nextSession.getSettings().openingEnabled, 'false');
   } finally {
     closeDatabases(databases);

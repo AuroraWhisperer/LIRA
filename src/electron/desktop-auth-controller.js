@@ -5,18 +5,9 @@ const bilibiliAuth = require('./bilibili-auth');
 const { openBilibiliLoginWindow } = require('./bilibili-login-window');
 const musicLoginWindow = require('./login-window');
 const { createMusicProviderRegistry } = require('../music/provider-registry');
-const {
-  logBilibiliDiagnostic,
-  summarizeAuthState,
-} = require('../bilibili/diagnostics');
+const { logBilibiliDiagnostic, summarizeAuthState } = require('../bilibili/diagnostics');
 
-function createDesktopAuthController({
-  BrowserWindow,
-  shell,
-  getMainWindow,
-  getDataDir,
-  writeLog,
-}) {
+function createDesktopAuthController({ BrowserWindow, shell, getMainWindow, getDataDir, writeLog }) {
   let providerRegistry = null;
 
   function getMusicAuthState(platform) {
@@ -54,11 +45,7 @@ function createDesktopAuthController({
   async function loginMusicAccount(platform) {
     writeLog('window', { event: 'create', window: 'music-login', platform });
     try {
-      return await musicLoginWindow.loginMusicAccount(
-        getMainWindow(),
-        platform,
-        getDataDir(),
-      );
+      return await musicLoginWindow.loginMusicAccount(getMainWindow(), platform, getDataDir());
     } finally {
       writeLog('window', { event: 'closed', window: 'music-login', platform });
     }
@@ -81,9 +68,7 @@ function createDesktopAuthController({
   }
 
   async function restoreBilibiliCookieSnapshot() {
-    const snapshot = await bilibiliAuth.restoreBilibiliCookieSnapshot(
-      getDataDir(),
-    );
+    const snapshot = await bilibiliAuth.restoreBilibiliCookieSnapshot(getDataDir());
     logBilibiliDiagnostic('credentials-restore', { restored: Boolean(snapshot) });
     return snapshot;
   }
@@ -91,9 +76,7 @@ function createDesktopAuthController({
   async function replaceBilibiliCookieHeader(cookieHeader) {
     logBilibiliDiagnostic('credentials-import-start');
     try {
-      const state = await bilibiliAuth.replaceBilibiliCookieHeader(
-        getDataDir(), cookieHeader,
-      );
+      const state = await bilibiliAuth.replaceBilibiliCookieHeader(getDataDir(), cookieHeader);
       logBilibiliDiagnostic('credentials-import-complete', summarizeAuthState(state));
       return state;
     } catch (error) {

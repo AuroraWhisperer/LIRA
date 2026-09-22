@@ -2,7 +2,9 @@
 
 ## Status
 
-Proposed
+Superseded（旧七步弹窗方案）
+
+2026-09-22 按清理要求退役旧弹窗和 `window.AdminApp.onboarding`。现行行为见 [交互式引导说明](../../interactive-tour-demo.md)：在真实控件上引导操作，首次展示标记使用 localStorage；下文三个 settings 键仅保留兼容，不再由旧 UI 写入。下文为原方案。
 
 ## Context
 

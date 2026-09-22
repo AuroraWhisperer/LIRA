@@ -54,11 +54,7 @@ body {
   isolation: isolate;
   background-color: var(--opening-night);
   background-image:
-    radial-gradient(
-      circle at 73% 20%,
-      rgba(255, 111, 165, 0.16),
-      transparent 30%
-    ),
+    radial-gradient(circle at 73% 20%, rgba(255, 111, 165, 0.16), transparent 30%),
     linear-gradient(135deg, #1d151c 0%, #35252e 52%, #20171f 100%);
   animation: opening-stage-in 0.9s ease both;
 }
@@ -83,11 +79,7 @@ body {
   width: 62%;
   height: 80%;
   border-radius: 50% 50% 0 0;
-  background: radial-gradient(
-    ellipse at 50% 100%,
-    rgba(255, 111, 165, 0.33),
-    transparent 66%
-  );
+  background: radial-gradient(ellipse at 50% 100%, rgba(255, 111, 165, 0.33), transparent 66%);
   filter: blur(1.15cqw);
   transform-origin: 50% 100%;
   animation: opening-glow 20s ease-in-out infinite;
@@ -100,18 +92,8 @@ body {
   border-radius: 50%;
   opacity: 0.23;
   background:
-    radial-gradient(
-      circle,
-      var(--opening-cocoa) 0 9%,
-      var(--opening-pink-soft) 9.5% 10%,
-      transparent 10.5%
-    ),
-    repeating-radial-gradient(
-      circle,
-      rgba(255, 248, 251, 0.2) 0 1px,
-      transparent 2px 11px
-    ),
-    #211820;
+    radial-gradient(circle, var(--opening-cocoa) 0 9%, var(--opening-pink-soft) 9.5% 10%, transparent 10.5%),
+    repeating-radial-gradient(circle, rgba(255, 248, 251, 0.2) 0 1px, transparent 2px 11px), #211820;
   box-shadow:
     0 0 4.17cqw rgba(255, 111, 165, 0.16),
     inset 0 0 0 0.47cqw rgba(255, 195, 216, 0.14);
@@ -142,18 +124,9 @@ body {
 
 .opening-speckles {
   opacity: 0.32;
-  background-image: radial-gradient(
-    circle,
-    rgba(255, 195, 216, 0.6) 0 1px,
-    transparent 1.5px
-  );
+  background-image: radial-gradient(circle, rgba(255, 195, 216, 0.6) 0 1px, transparent 1.5px);
   background-size: 3.85cqw 4.58cqw;
-  mask-image: linear-gradient(
-    120deg,
-    transparent 15%,
-    black 42%,
-    transparent 80%
-  );
+  mask-image: linear-gradient(120deg, transparent 15%, black 42%, transparent 80%);
 }
 
 .opening-copy {
@@ -306,11 +279,7 @@ body {
   width: 66%;
   height: 58%;
   border-radius: 50%;
-  background: radial-gradient(
-    ellipse,
-    rgba(255, 111, 165, 0.18),
-    transparent 68%
-  );
+  background: radial-gradient(ellipse, rgba(255, 111, 165, 0.18), transparent 68%);
   content: '';
   opacity: 0.34;
   pointer-events: none;
@@ -362,8 +331,7 @@ body {
   color: var(--opening-pink-soft);
   font-size: 1.77cqw;
   opacity: 0.42;
-  animation: note-drift var(--note-duration) ease-in-out var(--note-delay)
-    infinite;
+  animation: note-drift var(--note-duration) ease-in-out var(--note-delay) infinite;
 }
 .opening-particles span {
   left: var(--particle-x);
@@ -373,8 +341,7 @@ body {
   border-radius: 50%;
   background: var(--opening-pink-soft);
   opacity: 0.22;
-  animation: particle-drift var(--particle-duration) ease-in-out
-    var(--particle-delay) infinite;
+  animation: particle-drift var(--particle-duration) ease-in-out var(--particle-delay) infinite;
 }
 .opening-eq {
   z-index: 2;
@@ -395,8 +362,7 @@ body {
   border-radius: 99px 99px 0 0;
   background: var(--opening-pink);
   transform-origin: 50% 100%;
-  animation: eq-smooth var(--eq-duration, 3s) ease-in-out var(--eq-delay, 0s)
-    infinite alternate;
+  animation: eq-smooth var(--eq-duration, 3s) ease-in-out var(--eq-delay, 0s) infinite alternate;
   will-change: transform, opacity;
 }
 .opening-footer {
@@ -609,8 +575,7 @@ body.opening-disabled,
   }
   82% {
     opacity: 0;
-    transform: translate3d(var(--note-drift), -1.98cqw, 0)
-      rotate(calc(var(--note-rotation) + 8deg));
+    transform: translate3d(var(--note-drift), -1.98cqw, 0) rotate(calc(var(--note-rotation) + 8deg));
   }
 }
 @keyframes particle-drift {

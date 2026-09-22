@@ -15,10 +15,7 @@ async function run() {
   const { pathToFileURL } = require('node:url');
   const { app, BrowserWindow, session, safeStorage } = require('electron');
   app.on('window-all-closed', () => {});
-  const {
-    migrateBrowserData,
-    migrateCacheData,
-  } = require('../../../src/storage/data-directory-migration');
+  const { migrateBrowserData, migrateCacheData } = require('../../../src/storage/data-directory-migration');
   const [mode, root, output] = process.argv.slice(2);
   fs.mkdirSync(root, { recursive: true });
   app.setPath('userData', root);
@@ -60,9 +57,7 @@ async function run() {
   });
   await window.loadURL(pathToFileURL(htmlPath).href);
   if (mode === 'seed') {
-    await window.webContents.executeJavaScript(
-      "localStorage.setItem('fixture', 'retained-storage')",
-    );
+    await window.webContents.executeJavaScript("localStorage.setItem('fixture', 'retained-storage')");
   } else {
     for (const current of [session.defaultSession, partition]) {
       const cookies = await current.cookies.get({
@@ -71,24 +66,13 @@ async function run() {
       });
       assert.equal(cookies[0]?.value, 'retained');
     }
-    assert.equal(
-      safeStorage.decryptString(fs.readFileSync(secretPath)),
-      'retained-secret',
-    );
-    assert.equal(
-      await window.webContents.executeJavaScript(
-        "localStorage.getItem('fixture')",
-      ),
-      'retained-storage',
-    );
+    assert.equal(safeStorage.decryptString(fs.readFileSync(secretPath)), 'retained-secret');
+    assert.equal(await window.webContents.executeJavaScript("localStorage.getItem('fixture')"), 'retained-storage');
   }
   session.defaultSession.flushStorageData();
   partition.flushStorageData();
   window.destroy();
-  fs.writeFileSync(
-    output,
-    JSON.stringify({ locked, mode, userData: app.getPath('userData') }),
-  );
+  fs.writeFileSync(output, JSON.stringify({ locked, mode, userData: app.getPath('userData') }));
   if (mode === 'hold') {
     const timer = setInterval(() => {
       if (!fs.existsSync(`${output}.stop`)) return;

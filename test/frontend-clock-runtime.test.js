@@ -6,8 +6,7 @@ const test = require('node:test');
 const { CLOCK_STYLE_VALUES } = require('../src/server/clock-contract');
 const { loadModuleExports } = require('./helpers/frontend-modules');
 
-const entry = (area, name) =>
-  path.join(__dirname, '..', 'public', 'js', area, name);
+const entry = (area, name) => path.join(__dirname, '..', 'public', 'js', area, name);
 const flush = () => new Promise(setImmediate);
 
 function createClockDom() {
@@ -128,15 +127,10 @@ test('clock preview loads once and sends the latest controls after iframe load',
   assert.equal(navigations, 1);
   assert.equal(new URL(source).origin, 'http://localhost:3000');
   assert.equal(new URL(source).searchParams.get('style'), 'digital');
-  assert.equal(
-    dom.document.getElementById('clockFixedUrl').textContent,
-    'http://127.0.0.1:3000/clock',
-  );
+  assert.equal(dom.document.getElementById('clockFixedUrl').textContent, 'http://127.0.0.1:3000/clock');
 
   for (const style of ['timeline-vertical', 'soda']) {
-    const button = dom.options.find(
-      (option) => option.dataset.clockStyleOption === style,
-    );
+    const button = dom.options.find((option) => option.dataset.clockStyleOption === style);
     button.listeners.get('click')();
   }
   const label = dom.document.getElementById('clockCustomLabel');
@@ -146,11 +140,7 @@ test('clock preview loads once and sends the latest controls after iframe load',
   seconds.checked = false;
   seconds.listeners.get('change')();
   preview.listeners.get('load')();
-  assert.equal(
-    navigations,
-    1,
-    'controls and late load never reload the document',
-  );
+  assert.equal(navigations, 1, 'controls and late load never reload the document');
   const latest = messages.at(-1);
   assert.equal(latest.origin, '*');
   assert.equal(latest.message.type, 'lira:clock-preview-config');
@@ -171,9 +161,7 @@ test('clock applies only same-origin parent previews without restarting its time
     ...dom,
     URL,
     URLSearchParams,
-    location: new URL(
-      'http://127.0.0.1:3000/clock?style=peach&date=1&seconds=1&format=24',
-    ),
+    location: new URL('http://127.0.0.1:3000/clock?style=peach&date=1&seconds=1&format=24'),
     fetch: () => {
       assert.fail('complete preview parameters need no fetch');
     },
@@ -202,10 +190,7 @@ test('clock applies only same-origin parent previews without restarting its time
   assert.equal(card.dataset.clockStyle, 'peach');
   receive(message);
   assert.equal(card.dataset.clockStyle, 'starlight');
-  assert.equal(
-    dom.document.getElementById('clockLabel').textContent,
-    '新的 角标',
-  );
+  assert.equal(dom.document.getElementById('clockLabel').textContent, '新的 角标');
   assert.equal(dom.document.getElementById('clockSeconds').hidden, true);
   assert.equal(dom.document.getElementById('clockDateRow').hidden, true);
   assert.equal(dom.document.getElementById('clockPeriod').hidden, false);
@@ -241,9 +226,10 @@ test('browser source reveals saved settings and current time together, retaining
     ...dom,
     URLSearchParams,
     location: new URL('http://127.0.0.1:3000/clock?seconds=0'),
-    fetch: () => new Promise((resolve) => {
-      resolveConfig = resolve;
-    }),
+    fetch: () =>
+      new Promise((resolve) => {
+        resolveConfig = resolve;
+      }),
   });
   const card = dom.document.getElementById('clockCard');
   assert.equal(card.hidden, true);
@@ -265,9 +251,6 @@ test('browser source reveals saved settings and current time together, retaining
   assert.equal(card.dataset.clockStyle, 'digital');
   assert.equal(dom.document.getElementById('clockSeconds').hidden, true);
   assert.match(dom.document.getElementById('clockTime').dateTime, /^\d{4}-/);
-  assert.match(
-    dom.document.getElementById('clockDate').textContent,
-    /^\d{4}-\d{2}-\d{2}$/,
-  );
+  assert.match(dom.document.getElementById('clockDate').textContent, /^\d{4}-\d{2}-\d{2}$/);
   assert.equal(dom.timers.size, 1);
 });

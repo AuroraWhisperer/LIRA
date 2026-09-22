@@ -49,9 +49,7 @@ function findCustomReplyRule(message, settings = {}) {
   const normalizedText = text.toLocaleLowerCase();
   return (
     parseCustomReplyRules(settings.customReplyRules).find(
-      (rule) =>
-        rule.enabled !== false &&
-        normalizedText.includes(rule.keyword.toLocaleLowerCase()),
+      (rule) => rule.enabled !== false && normalizedText.includes(rule.keyword.toLocaleLowerCase()),
     ) || null
   );
 }
@@ -77,10 +75,7 @@ function normalizeCustomReplyRule(item = {}) {
   return {
     keyword: truncateText(cleanText(item.keyword), CUSTOM_REPLY_KEYWORD_LIMIT),
     reply: truncateText(cleanText(item.reply), CUSTOM_REPLY_TEXT_LIMIT),
-    enabled:
-      item.enabled === false || String(item.enabled).toLowerCase() === 'false'
-        ? false
-        : true,
+    enabled: item.enabled === false || String(item.enabled).toLowerCase() === 'false' ? false : true,
   };
 }
 

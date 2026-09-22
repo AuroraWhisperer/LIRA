@@ -8,8 +8,7 @@ import { createPlaybackController } from './controller.js';
   let playbackController = null;
 
   function initPlaybackAssistant(options = {}) {
-    if (!playbackController)
-      playbackController = createPlaybackController(options);
+    if (!playbackController) playbackController = createPlaybackController(options);
     playbackController.init(options);
   }
 

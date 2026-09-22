@@ -44,11 +44,7 @@ test('AI config masks secrets in public projection while storing them encrypted'
   assert.equal(defaults.amapApiKey, undefined);
 
   store.updateConfig({ deepseekApiKey: 'sk-secret-value', enabled: true });
-  const row = db
-    .prepare(
-      "SELECT value, is_secret FROM ai_configuration WHERE key = 'deepseekApiKey'",
-    )
-    .get();
+  const row = db.prepare("SELECT value, is_secret FROM ai_configuration WHERE key = 'deepseekApiKey'").get();
   assert.equal(row.is_secret, 1);
   assert.doesNotMatch(row.value, /sk-secret-value/);
   assert.equal(store.getConfig().deepseekApiKey, 'sk-secret-value');
@@ -70,25 +66,16 @@ test('AI config masks secrets in public projection while storing them encrypted'
 
 test('AI config normalizes the legacy DeepSeek model to its official name', () => {
   const { store } = createStore();
-  assert.equal(
-    store.updateConfig({ model: 'ds-v4-flash' }).model,
-    'deepseek-v4-flash',
-  );
+  assert.equal(store.updateConfig({ model: 'ds-v4-flash' }).model, 'deepseek-v4-flash');
   assert.equal(store.getConfig().model, 'deepseek-v4-flash');
-  assert.equal(
-    store.updateConfig({ model: 'custom-model' }).model,
-    'custom-model',
-  );
+  assert.equal(store.updateConfig({ model: 'custom-model' }).model, 'custom-model');
 });
 
 test('AI config allows an empty trigger and model while the assistant is being configured', () => {
   const { store } = createStore();
   assert.equal(store.updateConfig({ trigger: '' }).trigger, '');
   assert.equal(store.updateConfig({ model: '' }).model, '');
-  assert.throws(
-    () => store.updateConfig({ trigger: '昵称'.repeat(7) }),
-    /不能超过 12/,
-  );
+  assert.throws(() => store.updateConfig({ trigger: '昵称'.repeat(7) }), /不能超过 12/);
 });
 
 test('AI config migrates the previous built-in Xiaomi prompt without replacing custom text', () => {
@@ -106,15 +93,15 @@ test('AI config migrates the previous built-in Xiaomi prompt without replacing c
     '9. 即使调用工具，最终回复仍简短自然。',
     '10. 不要在正文添加 @用户名；程序会为每条弹幕统一添加。',
   ].join('\n');
-  db.prepare(
-    'INSERT INTO ai_configuration (key, value, is_secret, updated_at) VALUES (?, ?, 0, ?)',
-  ).run('systemPrompt', legacyPrompt, new Date().toISOString());
+  db.prepare('INSERT INTO ai_configuration (key, value, is_secret, updated_at) VALUES (?, ?, 0, ?)').run(
+    'systemPrompt',
+    legacyPrompt,
+    new Date().toISOString(),
+  );
   const migrated = store.getConfig();
   assert.match(migrated.systemPrompt, /<identity>/);
   assert.equal(
-    db
-      .prepare("SELECT value FROM ai_configuration WHERE key = 'systemPrompt'")
-      .get().value,
+    db.prepare("SELECT value FROM ai_configuration WHERE key = 'systemPrompt'").get().value,
     migrated.systemPrompt,
   );
 
@@ -125,33 +112,15 @@ test('AI config migrates the previous built-in Xiaomi prompt without replacing c
 
 test('AI config validates URLs and numeric stability limits', () => {
   const { store } = createStore();
-  assert.throws(
-    () => store.updateConfig({ deepseekResponsesUrl: 'javascript:alert(1)' }),
-    /HTTP/,
-  );
-  assert.throws(
-    () => store.updateConfig({ generationConcurrency: 9 }),
-    /1 到 5/,
-  );
+  assert.throws(() => store.updateConfig({ deepseekResponsesUrl: 'javascript:alert(1)' }), /HTTP/);
+  assert.throws(() => store.updateConfig({ generationConcurrency: 9 }), /1 到 5/);
   assert.throws(() => store.updateConfig({ sendIntervalMs: 10 }), /1500/);
-  assert.equal(
-    store.updateConfig({ userCooldownSeconds: 0 }).userCooldownSeconds,
-    0,
-  );
+  assert.equal(store.updateConfig({ userCooldownSeconds: 0 }).userCooldownSeconds, 0);
   assert.throws(() => store.updateConfig({ userCooldownSeconds: -1 }), /0/);
   assert.throws(() => store.updateConfig({ replyMaxChars: 51 }), /10 到 50/);
-  assert.throws(
-    () => store.updateConfig({ modelApiProtocol: 'messages' }),
-    /modelApiProtocol/,
-  );
-  assert.throws(
-    () => store.updateConfig({ modelProvider: 'unknown' }),
-    /modelProvider/,
-  );
-  assert.throws(
-    () => store.updateConfig({ reasoningEffort: 'extreme' }),
-    /reasoningEffort/,
-  );
+  assert.throws(() => store.updateConfig({ modelApiProtocol: 'messages' }), /modelApiProtocol/);
+  assert.throws(() => store.updateConfig({ modelProvider: 'unknown' }), /modelProvider/);
+  assert.throws(() => store.updateConfig({ reasoningEffort: 'extreme' }), /reasoningEffort/);
 });
 
 test('AI config applies server-owned official provider presets', () => {
@@ -162,21 +131,9 @@ test('AI config applies server-owned official provider presets', () => {
     modelApiProtocol: 'responses',
   });
   const cases = [
-    [
-      'deepseek',
-      'https://api.deepseek.com',
-      'chat_completions',
-      'deepseek',
-      'deepseek_effort',
-    ],
+    ['deepseek', 'https://api.deepseek.com', 'chat_completions', 'deepseek', 'deepseek_effort'],
     ['openai', 'https://api.openai.com/v1', 'responses', 'openai', 'effort'],
-    [
-      'anthropic',
-      'https://api.anthropic.com/v1',
-      'chat_completions',
-      'anthropic',
-      'provider_managed',
-    ],
+    ['anthropic', 'https://api.anthropic.com/v1', 'chat_completions', 'anthropic', 'provider_managed'],
     [
       'gemini',
       'https://generativelanguage.googleapis.com/v1beta/openai',
@@ -185,13 +142,7 @@ test('AI config applies server-owned official provider presets', () => {
       'gemini_effort',
     ],
   ];
-  for (const [
-    provider,
-    url,
-    protocol,
-    projectedProvider,
-    reasoningMode,
-  ] of cases) {
+  for (const [provider, url, protocol, projectedProvider, reasoningMode] of cases) {
     const config = store.updateConfig({
       modelProvider: provider,
       deepseekResponsesUrl: 'javascript:ignored',
@@ -204,10 +155,7 @@ test('AI config applies server-owned official provider presets', () => {
     assert.equal(config.modelEndpoint.reasoningMode, reasoningMode);
   }
   const restored = store.updateConfig({ modelProvider: 'custom' });
-  assert.equal(
-    restored.deepseekResponsesUrl,
-    'https://saved-custom.example/v1',
-  );
+  assert.equal(restored.deepseekResponsesUrl, 'https://saved-custom.example/v1');
   assert.equal(restored.modelApiProtocol, 'responses');
 });
 
@@ -227,21 +175,10 @@ test('AI config persists protocol choices and projects secret-free endpoint capa
     reasoningMode: 'effort',
   });
   assert.equal(
-    db
-      .prepare(
-        "SELECT value FROM ai_configuration WHERE key = 'modelApiProtocol'",
-      )
-      .get().value,
+    db.prepare("SELECT value FROM ai_configuration WHERE key = 'modelApiProtocol'").get().value,
     'responses',
   );
-  assert.equal(
-    db
-      .prepare(
-        "SELECT value FROM ai_configuration WHERE key = 'reasoningEffort'",
-      )
-      .get().value,
-    'high',
-  );
+  assert.equal(db.prepare("SELECT value FROM ai_configuration WHERE key = 'reasoningEffort'").get().value, 'high');
   assert.equal(publicConfig.deepseekApiKey, undefined);
 
   const chatConfig = store.updateConfig({
@@ -261,19 +198,10 @@ test('AI config persists protocol choices and projects secret-free endpoint capa
 test('AI config accepts a QWeather host without an HTTPS scheme', () => {
   const { store } = createStore();
   store.updateConfig({ qweatherApiHost: 'nn7mdbwku9.re.qweatherapi.com' });
-  assert.equal(
-    store.getConfig().qweatherApiHost,
-    'https://nn7mdbwku9.re.qweatherapi.com',
-  );
+  assert.equal(store.getConfig().qweatherApiHost, 'https://nn7mdbwku9.re.qweatherapi.com');
   store.updateConfig({ qweatherApiHost: 'https://example.re.qweatherapi.com' });
-  assert.equal(
-    store.getConfig().qweatherApiHost,
-    'https://example.re.qweatherapi.com',
-  );
-  assert.throws(
-    () => store.updateConfig({ qweatherApiHost: 'javascript://alert' }),
-    /HTTP/,
-  );
+  assert.equal(store.getConfig().qweatherApiHost, 'https://example.re.qweatherapi.com');
+  assert.throws(() => store.updateConfig({ qweatherApiHost: 'javascript://alert' }), /HTTP/);
 });
 
 test('AI context, cache and blacklist use TTL and bound keys', () => {

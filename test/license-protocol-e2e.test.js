@@ -3,13 +3,8 @@
 const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
 const test = require('node:test');
-const {
-  createLicenseManager,
-  LicenseState,
-} = require('../src/electron/license/license-manager');
-const {
-  RemoteLicenseError,
-} = require('../src/electron/license/remote-license-client');
+const { createLicenseManager, LicenseState } = require('../src/electron/license/license-manager');
+const { RemoteLicenseError } = require('../src/electron/license/remote-license-client');
 const protocol = require('../src/electron/license/license-protocol');
 
 /**
@@ -90,18 +85,10 @@ function createFakeLicenseServer() {
           status: 403,
         });
       if (session.tokenInvalid)
-        throw new RemoteLicenseError(
-          'DEVICE_SESSION_INVALID',
-          'DEVICE_SESSION_INVALID',
-          { status: 401 },
-        );
+        throw new RemoteLicenseError('DEVICE_SESSION_INVALID', 'DEVICE_SESSION_INVALID', { status: 401 });
       return { deviceId, session };
     }
-    throw new RemoteLicenseError(
-      'DEVICE_TOKEN_INVALID',
-      'DEVICE_TOKEN_INVALID',
-      { status: 401 },
-    );
+    throw new RemoteLicenseError('DEVICE_TOKEN_INVALID', 'DEVICE_TOKEN_INVALID', { status: 401 });
   }
 
   const remoteClient = {
@@ -109,11 +96,7 @@ function createFakeLicenseServer() {
       ensureNetwork();
       calls.activate += 1;
       if (!body?.accountName || !body?.password)
-        throw new RemoteLicenseError(
-          'ACTIVATION_INPUT_INVALID',
-          'ACTIVATION_INPUT_INVALID',
-          { status: 400 },
-        );
+        throw new RemoteLicenseError('ACTIVATION_INPUT_INVALID', 'ACTIVATION_INPUT_INVALID', { status: 400 });
       const activationPayload = protocol.buildActivationPayload({
         accountName: body.accountName,
         password: body.password,
@@ -133,25 +116,15 @@ function createFakeLicenseServer() {
         Buffer.from(String(body.activationSignature || ''), 'base64'),
       );
       if (!activationProofValid)
-        throw new RemoteLicenseError(
-          'ACTIVATION_PROOF_INVALID',
-          'ACTIVATION_PROOF_INVALID',
-          { status: 403 },
-        );
+        throw new RemoteLicenseError('ACTIVATION_PROOF_INVALID', 'ACTIVATION_PROOF_INVALID', { status: 403 });
       const pairing = findPairingCode(String(body.code || ''));
       if (body.code !== 'VALID-CODE') {
         if (!pairing)
-          throw new RemoteLicenseError(
-            'ACTIVATION_CODE_INVALID',
-            'ACTIVATION_CODE_INVALID',
-            { status: 403 },
-          );
+          throw new RemoteLicenseError('ACTIVATION_CODE_INVALID', 'ACTIVATION_CODE_INVALID', { status: 403 });
         if (pairing.status !== 'active')
-          throw new RemoteLicenseError(
-            'PAIRING_CODE_ALREADY_CONSUMED',
-            'PAIRING_CODE_ALREADY_CONSUMED',
-            { status: 409 },
-          );
+          throw new RemoteLicenseError('PAIRING_CODE_ALREADY_CONSUMED', 'PAIRING_CODE_ALREADY_CONSUMED', {
+            status: 409,
+          });
       }
       if (pairing) {
         pairing.status = 'used';
@@ -210,15 +183,14 @@ function createFakeLicenseServer() {
           status: 403,
         });
       const existing = sessions.get(device.deviceId);
-      if (body.renewalSessionId &&
-          (!existing || existing.runtimeId !== body.runtimeId ||
-           existing.sessionId !== body.renewalSessionId))
+      if (
+        body.renewalSessionId &&
+        (!existing || existing.runtimeId !== body.runtimeId || existing.sessionId !== body.renewalSessionId)
+      )
         throw new RemoteLicenseError('SESSION_SUPERSEDED', 'SESSION_SUPERSEDED', { status: 401 });
-      if (existing && existing.runtimeId !== body.runtimeId)
-        supersededTokens.set(existing.token, device.deviceId);
+      if (existing && existing.runtimeId !== body.runtimeId) supersededTokens.set(existing.token, device.deviceId);
       const token = `token-${device.deviceId}-${nextTokenId++}`;
-      const sessionId = existing?.runtimeId === body.runtimeId
-        ? existing.sessionId : `session-${token}`;
+      const sessionId = existing?.runtimeId === body.runtimeId ? existing.sessionId : `session-${token}`;
       if (existing) {
         existing.runtimeId = body.runtimeId;
         existing.sessionId = sessionId;
@@ -383,10 +355,7 @@ test('first activation runs the full activate → challenge → verify chain', a
     [1, 1, 1],
     'activation itself must not issue a token; challenge/verify must follow',
   );
-  assert.ok(
-    server.getLastVerifyBody().signature,
-    'verify must carry a device signature',
-  );
+  assert.ok(server.getLastVerifyBody().signature, 'verify must carry a device signature');
   assert.ok(manager.getAccessToken().startsWith('token-device-1-'));
   manager.dispose();
 });
@@ -425,17 +394,9 @@ test('proactive renewal stays single-flight across concurrent business calls', a
   server.setExpiresIn('10m');
   assert.equal(server.calls.verify, 1);
 
-  await Promise.all([
-    manager.syncSongs([{ name: '歌A' }]),
-    manager.getProfile(),
-    manager.getCloudSongs(),
-  ]);
+  await Promise.all([manager.syncSongs([{ name: '歌A' }]), manager.getProfile(), manager.getCloudSongs()]);
 
-  assert.equal(
-    server.calls.verify,
-    2,
-    'three concurrent expired calls must share exactly one renewal',
-  );
+  assert.equal(server.calls.verify, 2, 'three concurrent expired calls must share exactly one renewal');
   assert.equal(manager.getState(), LicenseState.AUTHORIZED);
   manager.dispose();
 });
@@ -497,10 +458,7 @@ test('network outage degrades to needs_connection and recovers with the preserve
   server.setNetworkDown(true);
   await offline.manager.bootstrap();
   assert.equal(offline.manager.getState(), LicenseState.NEEDS_CONNECTION);
-  assert.ok(
-    offline.stateStore.read(),
-    'device identity must survive a network outage',
-  );
+  assert.ok(offline.stateStore.read(), 'device identity must survive a network outage');
 
   server.setNetworkDown(false);
   await offline.manager.resume();
@@ -559,11 +517,7 @@ test('a concurrent 401 storm performs exactly one reverify', async () => {
   ]);
 
   assert.ok(results.every((result) => result && result.ok !== false));
-  assert.equal(
-    server.calls.verify,
-    2,
-    'the 401 storm must converge on a single reverify',
-  );
+  assert.equal(server.calls.verify, 2, 'the 401 storm must converge on a single reverify');
   assert.equal(manager.getState(), LicenseState.AUTHORIZED);
   manager.dispose();
 });

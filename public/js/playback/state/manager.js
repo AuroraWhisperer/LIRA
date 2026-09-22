@@ -64,8 +64,7 @@ export function validateState(state) {
   if (!validModes.includes(state.mode)) return false;
 
   // 验证音量范围
-  if (typeof state.volume !== 'number' || state.volume < 0 || state.volume > 1)
-    return false;
+  if (typeof state.volume !== 'number' || state.volume < 0 || state.volume > 1) return false;
 
   // 验证音乐源
   const validSources = ['qq', 'netease', 'wesing'];
@@ -110,11 +109,7 @@ export function normalizeState(state) {
   });
 
   // 确保音量在合法范围
-  if (
-    typeof normalized.volume !== 'number' ||
-    normalized.volume < 0 ||
-    normalized.volume > 1
-  ) {
+  if (typeof normalized.volume !== 'number' || normalized.volume < 0 || normalized.volume > 1) {
     normalized.volume = 0.3;
   }
 
@@ -132,19 +127,14 @@ export function normalizeState(state) {
   }
 
   const qualityPreferences =
-    normalized.qualityPreferences &&
-    typeof normalized.qualityPreferences === 'object'
+    normalized.qualityPreferences && typeof normalized.qualityPreferences === 'object'
       ? normalized.qualityPreferences
       : {};
   normalized.qualityPreferences = {
-    qq: ['standard', 'high', 'lossless', 'premium', 'immersive'].includes(
-      qualityPreferences.qq,
-    )
+    qq: ['standard', 'high', 'lossless', 'premium', 'immersive'].includes(qualityPreferences.qq)
       ? qualityPreferences.qq
       : 'standard',
-    netease: ['standard', 'higher', 'exhigh', 'lossless', 'hires'].includes(
-      qualityPreferences.netease,
-    )
+    netease: ['standard', 'higher', 'exhigh', 'lossless', 'hires'].includes(qualityPreferences.netease)
       ? qualityPreferences.netease
       : 'standard',
   };
@@ -166,10 +156,7 @@ export function normalizeState(state) {
   }
 
   // 确保 restoredTime 是数字
-  if (
-    typeof normalized.restoredTime !== 'number' ||
-    !Number.isFinite(normalized.restoredTime)
-  ) {
+  if (typeof normalized.restoredTime !== 'number' || !Number.isFinite(normalized.restoredTime)) {
     normalized.restoredTime = 0;
   }
 

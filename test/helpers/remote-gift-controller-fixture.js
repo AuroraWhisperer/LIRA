@@ -33,9 +33,7 @@ function createFixture(options = {}) {
   };
   const runtimeState = { ...baseState };
   const discovery = options.discovery || capabilityPage({ latestCursor: 10 });
-  const historyPages =
-    options.historyPages ||
-    new Map([[null, historyPage({ eventIds: [], recoveryCursor: 10 })]]);
+  const historyPages = options.historyPages || new Map([[null, historyPage({ eventIds: [], recoveryCursor: 10 })]]);
   const catchUpPages =
     options.catchUpPages ||
     new Map([
@@ -90,16 +88,11 @@ function createFixture(options = {}) {
       stream = streamOptions;
       streamSignals.push(streamOptions.signal);
       const configuredEpoch = Array.isArray(options.streamEpochs)
-        ? options.streamEpochs[
-            Math.min(streamOpenCount, options.streamEpochs.length - 1)
-          ]
+        ? options.streamEpochs[Math.min(streamOpenCount, options.streamEpochs.length - 1)]
         : options.streamEpoch;
       streamOpenCount += 1;
       streamOptions.onOpen({
-        syncEpoch:
-          configuredEpoch === undefined
-            ? discovery.syncEpoch || null
-            : configuredEpoch,
+        syncEpoch: configuredEpoch === undefined ? discovery.syncEpoch || null : configuredEpoch,
       });
       if (options.closeStreamImmediately) return Promise.resolve();
       return new Promise((resolve) => {
@@ -121,12 +114,8 @@ function createFixture(options = {}) {
     commitGiftHistoryPage(input) {
       assertFence(input);
       for (const record of input.records) historyImports.push(record.eventId);
-      runtimeState.bootstrapPageToken = input.hasMore
-        ? input.nextPageToken
-        : null;
-      runtimeState.bootstrapRecoveryCursor = input.hasMore
-        ? input.recoveryCursor
-        : null;
+      runtimeState.bootstrapPageToken = input.hasMore ? input.nextPageToken : null;
+      runtimeState.bootstrapRecoveryCursor = input.hasMore ? input.recoveryCursor : null;
       runtimeState.bootstrapSyncEpoch = input.hasMore ? input.syncEpoch : null;
       if (!input.hasMore) {
         runtimeState.bootstrapComplete = true;

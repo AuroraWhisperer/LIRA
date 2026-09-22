@@ -49,9 +49,7 @@ export function calculateTooltipPositionImpl(
   const candidates = fallbackOrder[preferredPosition] || fallbackOrder.bottom;
   const position =
     candidates.find((side) => availableSpace[side] >= requiredSpace[side]) ||
-    candidates.reduce((best, side) =>
-      availableSpace[side] > availableSpace[best] ? side : best,
-    );
+    candidates.reduce((best, side) => (availableSpace[side] > availableSpace[best] ? side : best));
   const positions = {
     bottom: {
       top: targetRect.bottom + gap,
@@ -71,31 +69,18 @@ export function calculateTooltipPositionImpl(
     },
   };
   const placement = positions[position];
-  const top = clamp(
-    placement.top,
-    padding,
-    Math.max(padding, viewport.height - tooltipHeight - padding),
-  );
-  const left = clamp(
-    placement.left,
-    padding,
-    Math.max(padding, viewport.width - tooltipWidth - padding),
-  );
+  const top = clamp(placement.top, padding, Math.max(padding, viewport.height - tooltipHeight - padding));
+  const left = clamp(placement.left, padding, Math.max(padding, viewport.width - tooltipWidth - padding));
   const targetCenter =
     position === 'top' || position === 'bottom'
       ? targetRect.left + targetRect.width / 2 - left
       : targetRect.top + targetRect.height / 2 - top;
-  const arrowLimit =
-    position === 'top' || position === 'bottom' ? tooltipWidth : tooltipHeight;
+  const arrowLimit = position === 'top' || position === 'bottom' ? tooltipWidth : tooltipHeight;
 
   return {
     position,
     top,
     left,
-    arrowOffset: clamp(
-      targetCenter,
-      arrowPadding,
-      Math.max(arrowPadding, arrowLimit - arrowPadding),
-    ),
+    arrowOffset: clamp(targetCenter, arrowPadding, Math.max(arrowPadding, arrowLimit - arrowPadding)),
   };
 }

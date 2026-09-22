@@ -1,18 +1,10 @@
 export function readRules(root, limits) {
-  const {
-    maxEnabledRules,
-    minRandomOutcomes,
-    maxRandomOutcomes,
-    maxDisplayTextLength,
-  } = limits;
+  const { maxEnabledRules, minRandomOutcomes, maxRandomOutcomes, maxDisplayTextLength } = limits;
   const rows = Array.from(root.querySelectorAll('[data-overtime-rule]'));
   const rules = rows.map((row, index) => {
     const mode = row.querySelector('[data-rule-mode]:checked')?.value;
-    if (!mode)
-      throw new Error(`第 ${index + 1} 条礼物规则还没有选择生效方式。`);
-    const quantityMode = row.querySelector(
-      '[data-rule-quantity-mode]:checked',
-    )?.value;
+    if (!mode) throw new Error(`第 ${index + 1} 条礼物规则还没有选择生效方式。`);
+    const quantityMode = row.querySelector('[data-rule-quantity-mode]:checked')?.value;
     if (!['group', 'item'].includes(quantityMode)) {
       throw new Error(`第 ${index + 1} 条礼物规则还没有选择数量计算方式。`);
     }
@@ -28,39 +20,24 @@ export function readRules(root, limits) {
       sortOrder: index,
     };
     if (mode === 'display') {
-      const displayText = String(
-        row.querySelector('[data-display-text]')?.value || '',
-      ).trim();
+      const displayText = String(row.querySelector('[data-display-text]')?.value || '').trim();
       if (!displayText || Array.from(displayText).length > maxDisplayTextLength)
-        throw new Error(
-          `第 ${index + 1} 条文字展板需要填写 1–${maxDisplayTextLength} 个字符。`,
-        );
+        throw new Error(`第 ${index + 1} 条文字展板需要填写 1–${maxDisplayTextLength} 个字符。`);
       return { ...base, displayText };
     }
     if (mode === 'fixed') {
       return {
         ...base,
-        fixedEffect: readEffect(
-          row.querySelector('[data-effect-mode="fixed"]'),
-        ),
+        fixedEffect: readEffect(row.querySelector('[data-effect-mode="fixed"]')),
       };
     }
-    const outcomeCards = Array.from(
-      row.querySelectorAll('[data-random-outcome]'),
-    );
-    if (
-      outcomeCards.length < minRandomOutcomes ||
-      outcomeCards.length > maxRandomOutcomes
-    )
-      throw new Error(
-        `时间盲盒需要 ${minRandomOutcomes}–${maxRandomOutcomes} 个可能结果。`,
-      );
+    const outcomeCards = Array.from(row.querySelectorAll('[data-random-outcome]'));
+    if (outcomeCards.length < minRandomOutcomes || outcomeCards.length > maxRandomOutcomes)
+      throw new Error(`时间盲盒需要 ${minRandomOutcomes}–${maxRandomOutcomes} 个可能结果。`);
     const outcomes = outcomeCards.map((card, outcomeIndex) => {
       const weight = Number(card.querySelector('[data-outcome-weight]').value);
       if (!Number.isSafeInteger(weight) || weight < 1)
-        throw new Error(
-          `盲盒结果 ${outcomeIndex + 1} 的抽中机会应填写正整数。`,
-        );
+        throw new Error(`盲盒结果 ${outcomeIndex + 1} 的抽中机会应填写正整数。`);
       return { ...readEffect(card), weight };
     });
     return { ...base, outcomes };
@@ -78,9 +55,7 @@ export function normalizeEffect(effect, legacySeconds) {
       value: Math.max(0, Math.floor(Number(effect.value) || 0)),
     };
   const seconds = Math.trunc(Number(legacySeconds) || 0);
-  return seconds < 0
-    ? { operation: 'subtract', value: Math.abs(seconds) }
-    : { operation: 'add', value: seconds };
+  return seconds < 0 ? { operation: 'subtract', value: Math.abs(seconds) } : { operation: 'add', value: seconds };
 }
 
 export function describeRule(rule, minRandomOutcomes) {
@@ -125,8 +100,7 @@ function readEffect(root) {
   if (operation === 'clear') return { operation, value: 0 };
   if (operation === 'multiply' || operation === 'divide') {
     const value = Number(root.querySelector('[data-effect-factor]')?.value);
-    if (!Number.isSafeInteger(value) || value < 2)
-      throw new Error('倍数应填写大于等于 2 的整数。');
+    if (!Number.isSafeInteger(value) || value < 2) throw new Error('倍数应填写大于等于 2 的整数。');
     return { operation, value };
   }
   const hours = readDurationPart(root, 'hours', '小时', 999);

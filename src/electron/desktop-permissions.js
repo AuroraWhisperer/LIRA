@@ -1,24 +1,9 @@
 'use strict';
 
-function registerLocalFontPermissionHandler({
-  desktopSession,
-  dialog,
-  desktopBaseUrl,
-  getMainWindow,
-  hasExactOrigin,
-}) {
-  desktopSession.setPermissionRequestHandler(async function (
-    webContents,
-    permission,
-    callback,
-    details = {},
-  ) {
-    const requestingUrl =
-      details.requestingUrl || webContents?.getURL?.() || '';
-    if (
-      permission !== 'localFonts' ||
-      !hasExactOrigin(requestingUrl, desktopBaseUrl)
-    ) {
+function registerLocalFontPermissionHandler({ desktopSession, dialog, desktopBaseUrl, getMainWindow, hasExactOrigin }) {
+  desktopSession.setPermissionRequestHandler(async function (webContents, permission, callback, details = {}) {
+    const requestingUrl = details.requestingUrl || webContents?.getURL?.() || '';
+    if (permission !== 'localFonts' || !hasExactOrigin(requestingUrl, desktopBaseUrl)) {
       callback(false);
       return;
     }

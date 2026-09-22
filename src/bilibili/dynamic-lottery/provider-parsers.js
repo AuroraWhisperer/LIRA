@@ -20,18 +20,12 @@ function hasOwn(value, key) {
 function normalizeDecimalId(value, field) {
   if (typeof value === 'string') {
     if (/^[1-9]\d{0,63}$/u.test(value)) return value;
-    fail(
-      'LOTTERY_UPSTREAM_INVALID',
-      `${field} must be a positive decimal string.`,
-    );
+    fail('LOTTERY_UPSTREAM_INVALID', `${field} must be a positive decimal string.`);
   }
   if (typeof value === 'number' && Number.isSafeInteger(value) && value > 0) {
     return String(value);
   }
-  fail(
-    'LOTTERY_UPSTREAM_INVALID',
-    `${field} must be a safe integer or a positive decimal string.`,
-  );
+  fail('LOTTERY_UPSTREAM_INVALID', `${field} must be a safe integer or a positive decimal string.`);
 }
 
 function readPreferredId(value, fields, label) {
@@ -45,8 +39,7 @@ function readPreferredId(value, fields, label) {
 }
 
 function normalizeSafeInteger(value, field, { minimum = 0 } = {}) {
-  const parsed =
-    typeof value === 'string' && /^\d+$/u.test(value) ? Number(value) : value;
+  const parsed = typeof value === 'string' && /^\d+$/u.test(value) ? Number(value) : value;
   if (!Number.isSafeInteger(parsed) || parsed < minimum) {
     fail('LOTTERY_UPSTREAM_INVALID', `${field} must be a safe integer.`);
   }
@@ -139,16 +132,10 @@ function parseDynamicTarget(payload, expectedDynamicId) {
   }
   const dynamicId = readPreferredId(item, ['id_str', 'id'], 'dynamic ID');
   if (dynamicId !== expectedDynamicId) {
-    fail(
-      'LOTTERY_UPSTREAM_INVALID',
-      'Dynamic detail ID does not match the link.',
-    );
+    fail('LOTTERY_UPSTREAM_INVALID', 'Dynamic detail ID does not match the link.');
   }
   if (!['DYNAMIC_TYPE_WORD', 'DYNAMIC_TYPE_DRAW'].includes(item.type)) {
-    fail(
-      'LOTTERY_DYNAMIC_TYPE_UNSUPPORTED',
-      'Only original text and image dynamics are supported.',
-    );
+    fail('LOTTERY_DYNAMIC_TYPE_UNSUPPORTED', 'Only original text and image dynamics are supported.');
   }
 
   const author = item.modules?.module_author;
@@ -157,18 +144,11 @@ function parseDynamicTarget(payload, expectedDynamicId) {
     kind: 'dynamic',
     dynamicId,
     ownerUid: readPreferredId(author, ['mid_str', 'mid'], 'dynamic owner UID'),
-    commentOid: readPreferredId(
-      basic,
-      ['comment_id_str', 'comment_id'],
-      'comment object ID',
-    ),
+    commentOid: readPreferredId(basic, ['comment_id_str', 'comment_id'], 'comment object ID'),
     commentType: normalizeSafeInteger(basic?.comment_type, 'comment type', {
       minimum: 1,
     }),
-    publishedAtMs: secondsToMilliseconds(
-      author?.pub_ts,
-      'dynamic publication time',
-    ),
+    publishedAtMs: secondsToMilliseconds(author?.pub_ts, 'dynamic publication time'),
     description:
       typeof item.modules?.module_dynamic?.desc?.text === 'string'
         ? item.modules.module_dynamic.desc.text.slice(0, 300)
@@ -183,8 +163,7 @@ function parseDynamicTarget(payload, expectedDynamicId) {
 
 function parseVideoTarget(payload, bvid) {
   const data = payload?.data;
-  if (data?.bvid !== bvid)
-    fail('LOTTERY_UPSTREAM_INVALID', 'Video ID does not match.');
+  if (data?.bvid !== bvid) fail('LOTTERY_UPSTREAM_INVALID', 'Video ID does not match.');
   const aid = readPreferredId(data, ['aid'], 'video ID');
   const capabilities = sourceCapabilities();
   for (const source of ['like', 'repost']) {
@@ -201,17 +180,9 @@ function parseVideoTarget(payload, bvid) {
     dynamicId: aid,
     commentOid: aid,
     commentType: 1,
-    ownerUid: readPreferredId(
-      data.owner,
-      ['mid_str', 'mid'],
-      'video owner UID',
-    ),
-    publishedAtMs: secondsToMilliseconds(
-      data.pubdate,
-      'video publication time',
-    ),
-    description:
-      typeof data.title === 'string' ? data.title.slice(0, 300) : '视频',
+    ownerUid: readPreferredId(data.owner, ['mid_str', 'mid'], 'video owner UID'),
+    publishedAtMs: secondsToMilliseconds(data.pubdate, 'video publication time'),
+    description: typeof data.title === 'string' ? data.title.slice(0, 300) : '视频',
     capabilities,
   };
 }
@@ -227,17 +198,12 @@ function parseCommentRecord(record) {
   }
   const rawLevel = record.member?.level_info?.current_level;
   const level =
-    rawLevel === null || rawLevel === undefined
-      ? null
-      : normalizeSafeInteger(rawLevel, 'comment user level');
+    rawLevel === null || rawLevel === undefined ? null : normalizeSafeInteger(rawLevel, 'comment user level');
   return {
     source: 'comment',
     recordId,
     uid,
-    displayName:
-      typeof record.member.uname === 'string'
-        ? record.member.uname.trim().slice(0, 256) || null
-        : null,
+    displayName: typeof record.member.uname === 'string' ? record.member.uname.trim().slice(0, 256) || null : null,
     occurredAtMs: secondsToMilliseconds(record.ctime, 'comment time'),
     text: record.content.message,
     parentId: null,
@@ -250,8 +216,7 @@ function parseCommentPage(payload, previousCursor) {
   if (
     !data ||
     typeof data !== 'object' ||
-    (!Array.isArray(data.replies) &&
-      !(data.replies === null && data.cursor?.is_end === true))
+    (!Array.isArray(data.replies) && !(data.replies === null && data.cursor?.is_end === true))
   ) {
     fail('LOTTERY_UPSTREAM_INVALID', 'Comment page records are missing.');
   }
@@ -263,10 +228,7 @@ function parseCommentPage(payload, previousCursor) {
   let nextCursor = null;
   if (!ended) {
     if (data.replies.length === 0) {
-      fail(
-        'LOTTERY_UPSTREAM_INVALID',
-        'Comment page is empty before pagination ended.',
-      );
+      fail('LOTTERY_UPSTREAM_INVALID', 'Comment page is empty before pagination ended.');
     }
     const pagination = data.cursor.pagination_reply;
     if (!pagination || !hasOwn(pagination, 'next_offset')) {
@@ -276,10 +238,7 @@ function parseCommentPage(payload, previousCursor) {
       offset: normalizeCursorOffset(pagination.next_offset),
     });
     if (nextCursor === previousCursor) {
-      fail(
-        'LOTTERY_UPSTREAM_INVALID',
-        'Comment pagination cursor did not advance.',
-      );
+      fail('LOTTERY_UPSTREAM_INVALID', 'Comment pagination cursor did not advance.');
     }
   }
   return {

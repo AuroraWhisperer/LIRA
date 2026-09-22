@@ -6,10 +6,7 @@ const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
 
-const SCRIPT = fs.readFileSync(
-  path.join(__dirname, '..', 'public', 'js', 'license.js'),
-  'utf8',
-);
+const SCRIPT = fs.readFileSync(path.join(__dirname, '..', 'public', 'js', 'license.js'), 'utf8');
 const FAILED = { status: 'error', error: 'NETWORK_UNAVAILABLE', percent: 0 };
 
 async function createPage({
@@ -73,8 +70,7 @@ async function createPage({
     get,
     calls,
     click: (id) => get(id).listeners.get('click')?.(),
-    submit: () =>
-      get('licenseForm').listeners.get('submit')({ preventDefault() {} }),
+    submit: () => get('licenseForm').listeners.get('submit')({ preventDefault() {} }),
     licenseChanged: (snapshot) => licenseListener(snapshot),
     catalogChanged: (snapshot) => catalogListener(snapshot),
   };
@@ -110,9 +106,7 @@ for (const action of ['login', 'retry']) {
       await page.click('licenseRetryBtn');
     }
 
-    assert.deepEqual(page.calls, [
-      action === 'login' ? 'activate' : 'retry-authorization',
-    ]);
+    assert.deepEqual(page.calls, [action === 'login' ? 'activate' : 'retry-authorization']);
     assert.equal(page.get('licenseStatus').className, 'license-status error');
     assert.match(page.get('licenseStatus').textContent, /授权已被管理员撤销/);
     page.licenseChanged(snapshot);
@@ -135,10 +129,7 @@ test('failed preparation offers return to login and explains network failures', 
   const page = await createPage();
   assert.equal(page.get('giftCatalogInitializationCard').hidden, false);
   assert.equal(page.get('giftCatalogInitializationBackBtn').hidden, false);
-  assert.match(
-    page.get('giftCatalogInitializationStatus').textContent,
-    /检查网络/,
-  );
+  assert.match(page.get('giftCatalogInitializationStatus').textContent, /检查网络/);
 
   page.get('licensePassword').value = 'old-password';
   page.get('licenseActivationCode').value = 'old-code';
@@ -180,14 +171,8 @@ test('incompatible preparation data explains the server update instead of a netw
   const page = await createPage({
     getCatalog: async () => ({ ...FAILED, error: 'CATALOG_INVALID' }),
   });
-  assert.match(
-    page.get('giftCatalogInitializationStatus').textContent,
-    /数据.*不兼容.*管理员.*更新服务端/,
-  );
-  assert.doesNotMatch(
-    page.get('giftCatalogInitializationStatus').textContent,
-    /检查网络/,
-  );
+  assert.match(page.get('giftCatalogInitializationStatus').textContent, /数据.*不兼容.*管理员.*更新服务端/);
+  assert.doesNotMatch(page.get('giftCatalogInitializationStatus').textContent, /检查网络/);
   assert.equal(page.get('giftCatalogInitializationRetryBtn').hidden, false);
   assert.equal(page.get('giftCatalogInitializationBackBtn').hidden, false);
 });

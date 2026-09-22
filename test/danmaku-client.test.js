@@ -56,10 +56,7 @@ function messagePacket(message) {
   packet.writeUInt32BE(5, 8);
   packet.writeUInt32BE(1, 12);
   body.copy(packet, 16);
-  return packet.buffer.slice(
-    packet.byteOffset,
-    packet.byteOffset + packet.byteLength,
-  );
+  return packet.buffer.slice(packet.byteOffset, packet.byteOffset + packet.byteLength);
 }
 
 test('extracted danmaku client keeps runtime dependencies and diagnostics', async () => {
@@ -311,12 +308,17 @@ test('danmaku marks only the current room owner as the streamer', (t) => {
   client.roomRunContext = client.userInfoService.beginRoomRun();
   client.messageHandlers.updateRoomRunContext(client.roomRunContext);
   for (const [uid, ownerUid, expected] of [
-    [456, '456', true], ['456', '456', true], [789, '456', false],
-    [456, '789', false], [789, '789', true], [456, '', false],
+    [456, '456', true],
+    ['456', '456', true],
+    [789, '456', false],
+    [456, '789', false],
+    [789, '789', true],
+    [456, '', false],
   ]) {
     client.messageHandlers.updateRoomOwnerUid(ownerUid);
     client.messageHandlers.handleDanmaku({
-      cmd: 'DANMU_MSG', info: [[], '主播颜色', [uid, '相同昵称', 1]],
+      cmd: 'DANMU_MSG',
+      info: [[], '主播颜色', [uid, '相同昵称', 1]],
     });
     assert.equal(delivered.at(-1).isStreamer === true, expected);
   }
@@ -389,10 +391,7 @@ test('onMessage return values do not fetch profiles and explicit ensure reuses t
       info: [Array(16).fill(null), '第二条', [64281213, '叶上泓']],
     });
 
-    assert.equal(
-      delivered[1].avatarUrl,
-      'https://i0.hdslb.com/bfs/face/viewer.jpg',
-    );
+    assert.equal(delivered[1].avatarUrl, 'https://i0.hdslb.com/bfs/face/viewer.jpg');
     assert.equal(profileRequests, 1);
   } finally {
     client.stop();
@@ -421,10 +420,13 @@ test('manual viewer refresh delegates to the active online-rank poller', async (
   }
 });
 
-
 test('realtime statistics ingress precedes command deduplication and never fabricates platform time', (t) => {
   const ingress = [];
-  const client = new BilibiliDanmakuClient('123', { onMessage() {}, onStatus() {}, onRealtimeDanmaku: (event) => ingress.push(event) }, { isCommandText: () => true });
+  const client = new BilibiliDanmakuClient(
+    '123',
+    { onMessage() {}, onStatus() {}, onRealtimeDanmaku: (event) => ingress.push(event) },
+    { isCommandText: () => true },
+  );
   t.after(() => client.stop());
   client.stopped = false;
   client.deduplicator.remember = () => false;

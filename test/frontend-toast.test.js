@@ -11,7 +11,12 @@ async function setup(height = 900) {
   dom.windowRef.innerHeight = height;
   const clock = createClock();
   const { createToastStack } = await loadModuleExports(path.resolve('public/js/shared/toast.js'));
-  const stack = createToastStack({ container: dom.container, document: dom.documentRef, window: dom.windowRef, ...clock });
+  const stack = createToastStack({
+    container: dom.container,
+    document: dom.documentRef,
+    window: dom.windowRef,
+    ...clock,
+  });
   return { ...dom, clock, stack };
 }
 
@@ -48,7 +53,8 @@ test('duplicate events do not add cards; rapid eviction clears only the owning g
 test('closing is idempotent and old exit callbacks cannot remove a recreated key', async () => {
   const { stack, clock } = await setup();
   const old = stack.show({ key: 'same', message: '旧' });
-  old.close(); old.close();
+  old.close();
+  old.close();
   const current = stack.show({ key: 'same', message: '新' });
   clock.tick(180);
   assert.equal(old.node.isConnected, false);
@@ -59,7 +65,8 @@ test('closing is idempotent and old exit callbacks cannot remove a recreated key
 test('hover and focus pause independently; action fires once and restores valid focus', async () => {
   const { stack, clock, documentRef } = await setup();
   const trigger = documentRef.createElement('button');
-  documentRef.body.append(trigger); trigger.focus();
+  documentRef.body.append(trigger);
+  trigger.focus();
   let calls = 0;
   const handle = stack.show({ key: 'login', message: '登录', onClick: () => calls++ });
   clock.tick(1000);
@@ -72,7 +79,8 @@ test('hover and focus pause independently; action fires once and restores valid 
   handle.node.fire('mouseleave');
   clock.tick(9000);
   assert.equal(handle.node.isConnected, true);
-  action.fire('click'); action.fire('click');
+  action.fire('click');
+  action.fire('click');
   assert.equal(calls, 1);
   assert.equal(documentRef.activeElement, trigger);
   clock.tick(180);
@@ -97,7 +105,10 @@ test('toasts omit close controls for every status and retain only requested acti
   const { stack } = await setup();
   for (const type of ['info', 'success', 'warning', 'error']) {
     const handle = stack.show({ key: 'notice', message: '通知内容', type, update: true });
-    assert.equal(handle.node.children.some((node) => node.className === 'toast-close'), false);
+    assert.equal(
+      handle.node.children.some((node) => node.className === 'toast-close'),
+      false,
+    );
     assert.equal(handle.node.children.filter((node) => node.tagName === 'button' && !node.hidden).length, 0);
     handle.update({ onClick() {}, actionLabel: '查看详情' });
     const buttons = handle.node.children.filter((node) => node.tagName === 'button' && !node.hidden);
@@ -129,7 +140,10 @@ test('short notices avoid repeated status headings and updates preserve explicit
     assert.equal(documentRef.body.children[1].textContent, `${label}：设置已保存`);
     handle.update({ title: '接口检查通过', message: '音乐服务连接正常' });
     assert.equal(content.classList.contains('toast-content-compact'), false);
-    assert.deepEqual(content.children.map((node) => node.textContent), ['接口检查通过', '音乐服务连接正常']);
+    assert.deepEqual(
+      content.children.map((node) => node.textContent),
+      ['接口检查通过', '音乐服务连接正常'],
+    );
     handle.update({ message: '' });
     assert.equal(content.children.length, 1);
   }
@@ -178,7 +192,9 @@ test('API errors remain automatic by default and callers can own contextual feed
   const { documentRef, windowRef, container } = createDom();
   const clock = createClock();
   const { api } = await loadModuleExports(path.resolve('public/js/shared/utils.js'), {
-    document: documentRef, window: windowRef, ...clock,
+    document: documentRef,
+    window: windowRef,
+    ...clock,
     fetch: async () => ({ status: 500, text: async () => JSON.stringify({ ok: false, error: '网络故障' }) }),
   });
   await assert.rejects(api('/api/settings', {}, { notifyError: false }), /网络故障/);
@@ -199,35 +215,62 @@ test('browser keeps toast variants free of close controls, aligns content and pr
   await page.route('**/*', async (route) => {
     const url = new URL(route.request().url());
     assert.equal(url.hostname, 'toast.test');
-    if (url.pathname === '/') return route.fulfill({
-      contentType: 'text/html; charset=utf-8',
-      body: '<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="/css/styles-base.css"><link id="toast-styles" rel="stylesheet" href="/css/admin/toasts.css"><div id="toast" class="toast-stack"></div>',
-    });
+    if (url.pathname === '/')
+      return route.fulfill({
+        contentType: 'text/html; charset=utf-8',
+        body: '<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="/css/styles-base.css"><link id="toast-styles" rel="stylesheet" href="/css/admin/toasts.css"><div id="toast" class="toast-stack"></div>',
+      });
     if (url.pathname === '/api/overtime/gifts/catalog') {
       catalogRequests++;
-      return route.fulfill({ json: { ok: true, data: { gifts: [
-        { id: '100', name: '实际礼物', variantId: 'output', imagePath: '/overtime-gift-images/output.webp' },
-        { id: '200', name: '心动盲盒', variantId: 'box', imagePath: '/overtime-gift-images/box.webp' },
-        { id: '101', name: '图片缺失', variantId: 'missing', imagePath: '/overtime-gift-images/missing.webp' },
-        { id: '102', name: '远程图片', variantId: 'remote', imagePath: 'https://remote.test/gift.webp' },
-        { id: '103', name: '动态图片', variantId: 'animation', imagePath: '/overtime-gift-images/gift.gif' },
-      ] } } });
+      return route.fulfill({
+        json: {
+          ok: true,
+          data: {
+            gifts: [
+              { id: '100', name: '实际礼物', variantId: 'output', imagePath: '/overtime-gift-images/output.webp' },
+              { id: '200', name: '心动盲盒', variantId: 'box', imagePath: '/overtime-gift-images/box.webp' },
+              { id: '101', name: '图片缺失', variantId: 'missing', imagePath: '/overtime-gift-images/missing.webp' },
+              { id: '102', name: '远程图片', variantId: 'remote', imagePath: 'https://remote.test/gift.webp' },
+              { id: '103', name: '动态图片', variantId: 'animation', imagePath: '/overtime-gift-images/gift.gif' },
+            ],
+          },
+        },
+      });
     }
     if (url.pathname.startsWith('/overtime-gift-images/')) {
       imageRequests.push(url.pathname);
       if (url.pathname === '/overtime-gift-images/output.webp') {
-        return route.fulfill({ contentType: 'image/webp', body: fs.readFileSync('public/img/admin/gifts/bilibili-guard-captain.webp') });
+        return route.fulfill({
+          contentType: 'image/webp',
+          body: fs.readFileSync('public/img/admin/gifts/bilibili-guard-captain.webp'),
+        });
       }
       return route.fulfill({ status: 404, body: '' });
     }
     const file = path.resolve('public', '.' + url.pathname);
     assert.ok(file.startsWith(path.resolve('public') + path.sep));
-    return route.fulfill({ body: fs.readFileSync(file), contentType: file.endsWith('.css') ? 'text/css; charset=utf-8' : file.endsWith('.webp') ? 'image/webp' : file.endsWith('.svg') ? 'image/svg+xml' : 'text/javascript; charset=utf-8' });
+    return route.fulfill({
+      body: fs.readFileSync(file),
+      contentType: file.endsWith('.css')
+        ? 'text/css; charset=utf-8'
+        : file.endsWith('.webp')
+          ? 'image/webp'
+          : file.endsWith('.svg')
+            ? 'image/svg+xml'
+            : 'text/javascript; charset=utf-8',
+    });
   });
   await page.goto('http://toast.test/');
   await page.evaluate(async () => {
     const { showStackedToast } = await import('/js/shared/toast.js');
-    const first = showStackedToast({ key: 'login', message: '登录', duration: 0, onClick: () => { window.clicked = true; } });
+    const first = showStackedToast({
+      key: 'login',
+      message: '登录',
+      duration: 0,
+      onClick: () => {
+        window.clicked = true;
+      },
+    });
     first.node.querySelector('.toast-action').focus();
     showStackedToast({ key: 'later', message: '保存失败', type: 'error' });
   });
@@ -246,43 +289,59 @@ test('browser keeps toast variants free of close controls, aligns content and pr
     ['admin-live-refresh-toast', false],
     ['desktop-update-toast', true],
     ['desktop-update-toast desktop-update-toast-good', true],
-    ...['', 'gift-guard', 'gift-free', 'gift-blind-box', 'gift-premium'].map((variant) => [`gift-notify-toast ${variant}`, false]),
+    ...['', 'gift-guard', 'gift-free', 'gift-blind-box', 'gift-premium'].map((variant) => [
+      `gift-notify-toast ${variant}`,
+      false,
+    ]),
   ]) {
-    const layout = await page.evaluate(async ({ className, hasAction }) => {
-      const { showStackedToast } = await import('/js/shared/toast.js');
-      const handle = showStackedToast({
-        key: 'layout', className, title: '通知标题', message: '通知说明 '.repeat(12),
-        html: className.includes('gift-notify')
-          ? '<strong><span class="gift-notify-name">星空下的梦幻浪漫纪念礼物 x999</span><span class="gift-price-badge">¥128,000.00</span></strong><span>名字稍长的观众也完整显示 · 来自心动盲盒</span>'
-          : undefined,
-        duration: 0, onClick: hasAction ? () => {} : undefined,
-      });
-      const node = handle.node;
-      const content = node.querySelector('.toast-content');
-      const action = node.querySelector('.toast-action');
-      const result = {
-        closeCount: node.querySelectorAll('.toast-close').length,
-        hidden: node.hidden,
-        paddingRight: getComputedStyle(node).paddingRight,
-        background: getComputedStyle(node).backgroundImage,
-        titleSize: getComputedStyle(content.querySelector('strong')).fontSize,
-        bodySize: getComputedStyle(content.querySelector(':scope > span')).fontSize,
-        bodyColor: getComputedStyle(content.querySelector(':scope > span')).color,
-        badgeColor: content.querySelector('.gift-price-badge')
-          ? getComputedStyle(content.querySelector('.gift-price-badge')).color : null,
-        badgeSize: content.querySelector('.gift-price-badge')
-          ? getComputedStyle(content.querySelector('.gift-price-badge')).fontSize : null,
-        overflow: node.scrollWidth > node.clientWidth || content.scrollWidth > content.clientWidth,
-        actionOffset: action.getBoundingClientRect().left - content.getBoundingClientRect().left,
-        actionGap: action.getBoundingClientRect().top - content.getBoundingClientRect().bottom,
-      };
-      handle.close(true);
-      return result;
-    }, { className, hasAction });
+    const layout = await page.evaluate(
+      async ({ className, hasAction }) => {
+        const { showStackedToast } = await import('/js/shared/toast.js');
+        const handle = showStackedToast({
+          key: 'layout',
+          className,
+          title: '通知标题',
+          message: '通知说明 '.repeat(12),
+          html: className.includes('gift-notify')
+            ? '<strong><span class="gift-notify-name">星空下的梦幻浪漫纪念礼物 x999</span><span class="gift-price-badge">¥128,000.00</span></strong><span>名字稍长的观众也完整显示 · 来自心动盲盒</span>'
+            : undefined,
+          duration: 0,
+          onClick: hasAction ? () => {} : undefined,
+        });
+        const node = handle.node;
+        const content = node.querySelector('.toast-content');
+        const action = node.querySelector('.toast-action');
+        const result = {
+          closeCount: node.querySelectorAll('.toast-close').length,
+          hidden: node.hidden,
+          paddingRight: getComputedStyle(node).paddingRight,
+          background: getComputedStyle(node).backgroundImage,
+          titleSize: getComputedStyle(content.querySelector('strong')).fontSize,
+          bodySize: getComputedStyle(content.querySelector(':scope > span')).fontSize,
+          bodyColor: getComputedStyle(content.querySelector(':scope > span')).color,
+          badgeColor: content.querySelector('.gift-price-badge')
+            ? getComputedStyle(content.querySelector('.gift-price-badge')).color
+            : null,
+          badgeSize: content.querySelector('.gift-price-badge')
+            ? getComputedStyle(content.querySelector('.gift-price-badge')).fontSize
+            : null,
+          overflow: node.scrollWidth > node.clientWidth || content.scrollWidth > content.clientWidth,
+          actionOffset: action.getBoundingClientRect().left - content.getBoundingClientRect().left,
+          actionGap: action.getBoundingClientRect().top - content.getBoundingClientRect().bottom,
+        };
+        handle.close(true);
+        return result;
+      },
+      { className, hasAction },
+    );
     assert.equal(layout.closeCount, 0, className);
     assert.equal(layout.hidden, false, className);
     assert.equal(layout.paddingRight, '16px', className);
-    assert.equal(layout.background, 'linear-gradient(125deg, rgb(224, 228, 245) 0%, rgb(211, 216, 239) 45%, rgb(200, 206, 232) 100%)', className);
+    assert.equal(
+      layout.background,
+      'linear-gradient(125deg, rgb(224, 228, 245) 0%, rgb(211, 216, 239) 45%, rgb(200, 206, 232) 100%)',
+      className,
+    );
     assert.equal(layout.titleSize, '15px', className);
     assert.equal(layout.bodySize, className.includes('gift-notify') ? '13px' : '14px', className);
     assert.equal(layout.bodyColor, 'rgb(72, 81, 108)', className);
@@ -329,12 +388,24 @@ test('browser keeps toast variants free of close controls, aligns content and pr
     document.body.append(container);
     window.giftStack = createToastStack({ container });
     const { createGiftNotification } = await import('/js/admin/gifts/notification.js');
-    const notification = createGiftNotification({ notify: (options) => {
-      window.currentGiftNotice = giftStack.show({ ...options, duration: 0 });
-      return currentGiftNotice;
-    } });
+    const notification = createGiftNotification({
+      notify: (options) => {
+        window.currentGiftNotice = giftStack.show({ ...options, duration: 0 });
+        return currentGiftNotice;
+      },
+    });
     await AdminApp.gifts.recent.loadGiftArtworkCatalog();
-    window.giftRecord = { id: 1, gift_id: '100', gift_variant_id: 'output', gift_name: '实际礼物', num: 1, is_blind_box: true, blind_box_id: '200', blind_box_variant_id: 'box', blind_box_name: '心动盲盒' };
+    window.giftRecord = {
+      id: 1,
+      gift_id: '100',
+      gift_variant_id: 'output',
+      gift_name: '实际礼物',
+      num: 1,
+      is_blind_box: true,
+      blind_box_id: '200',
+      blind_box_variant_id: 'box',
+      blind_box_name: '心动盲盒',
+    };
     window.notifyGift = notification.notifyNewGift;
     notifyGift([]);
     notifyGift([giftRecord]);
@@ -344,8 +415,11 @@ test('browser keeps toast variants free of close controls, aligns content and pr
     window.originalGiftImage = node.querySelector('img');
     const bounds = originalGiftImage.getBoundingClientRect();
     return {
-      source: originalGiftImage.getAttribute('src'), width: bounds.width, height: bounds.height,
-      fit: getComputedStyle(originalGiftImage).objectFit, decoding: originalGiftImage.decoding,
+      source: originalGiftImage.getAttribute('src'),
+      width: bounds.width,
+      height: bounds.height,
+      fit: getComputedStyle(originalGiftImage).objectFit,
+      decoding: originalGiftImage.decoding,
       background: getComputedStyle(node).backgroundImage,
       textGap: node.parentNode.querySelector('.toast-content').getBoundingClientRect().left - bounds.right,
     };
@@ -360,15 +434,24 @@ test('browser keeps toast variants free of close controls, aligns content and pr
   await page.evaluate(() => notifyGift([{ ...giftRecord, num: 2 }]));
   assert.equal(await page.evaluate(() => originalGiftImage === document.querySelector('#gift-notice-test img')), true);
   assert.equal(await page.locator('#gift-notice-test .gift-notify-artwork').count(), 1);
-  for (const [id, giftId, variantId] of [[2, '101', 'missing'], [3, '102', 'remote'], [4, '103', 'animation'], [5, '999', 'unknown']]) {
-    await page.evaluate(({ id, giftId, variantId }) => {
-      currentGiftNotice.close(true);
-      notifyGift([{ id, gift_id: giftId, gift_variant_id: variantId, gift_name: '图片回退示例', num: 1 }]);
-    }, { id, giftId, variantId });
+  for (const [id, giftId, variantId] of [
+    [2, '101', 'missing'],
+    [3, '102', 'remote'],
+    [4, '103', 'animation'],
+    [5, '999', 'unknown'],
+  ]) {
+    await page.evaluate(
+      ({ id, giftId, variantId }) => {
+        currentGiftNotice.close(true);
+        notifyGift([{ id, gift_id: giftId, gift_variant_id: variantId, gift_name: '图片回退示例', num: 1 }]);
+      },
+      { id, giftId, variantId },
+    );
     await page.waitForFunction(() => !document.querySelector('#gift-notice-test img'));
     const fallback = await page.locator('#gift-notice-test .gift-notify-artwork').evaluate((node) => ({
       background: getComputedStyle(node).backgroundImage,
-      width: node.getBoundingClientRect().width, height: node.getBoundingClientRect().height,
+      width: node.getBoundingClientRect().width,
+      height: node.getBoundingClientRect().height,
     }));
     assert.match(fallback.background, /gift-toast-fallback\.svg/);
     assert.equal(fallback.width, 40);
@@ -378,7 +461,10 @@ test('browser keeps toast variants free of close controls, aligns content and pr
     currentGiftNotice.close(true);
     document.getElementById('gift-notice-test').style.top = `${innerHeight - 8}px`;
     notifyGift([{ ...giftRecord, id: 6 }]);
-    return { connected: currentGiftNotice.node.isConnected, artwork: currentGiftNotice.node.querySelectorAll('.gift-notify-artwork').length };
+    return {
+      connected: currentGiftNotice.node.isConnected,
+      artwork: currentGiftNotice.node.querySelectorAll('.gift-notify-artwork').length,
+    };
   });
   assert.equal(discarded.connected, false);
   assert.equal(discarded.artwork, 0);

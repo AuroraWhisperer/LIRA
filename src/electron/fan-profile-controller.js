@@ -125,8 +125,7 @@ function createFanProfileController({
 
   async function syncGuardRoster(captured, service, automaticDate) {
     const roomId = String(getRoomId() || '');
-    if (!/^[1-9]\d{0,19}$/.test(roomId))
-      throw new Error('请先在连接设置中填写直播间号。');
+    if (!/^[1-9]\d{0,19}$/.test(roomId)) throw new Error('请先在连接设置中填写直播间号。');
     const controller = new AbortController();
     rosterAbortController = controller;
     try {
@@ -135,15 +134,9 @@ function createFanProfileController({
       });
       if (!same(captured) || controller.signal.aborted)
         throw new Error('登录状态已变化，本次名单没有导入，请重新打开档案。');
-      if (String(getRoomId() || '') !== roomId)
-        throw new Error('直播间已变化，本次名单没有导入，请重新同步。');
-      if (automaticDate &&
-          service.execute(captured.scope, 'settings').autoSyncGuardRoster !== true)
-        return null;
-      return response(
-        captured,
-        service.importGuardRoster(captured.scope, snapshot, automaticDate),
-      );
+      if (String(getRoomId() || '') !== roomId) throw new Error('直播间已变化，本次名单没有导入，请重新同步。');
+      if (automaticDate && service.execute(captured.scope, 'settings').autoSyncGuardRoster !== true) return null;
+      return response(captured, service.importGuardRoster(captured.scope, snapshot, automaticDate));
     } catch (error) {
       if (/[\u4e00-\u9fff]/.test(error.message || '')) throw error;
       throw new Error('大航海名单读取失败，本次没有导入，请检查网络后重试。');
@@ -164,19 +157,19 @@ function createFanProfileController({
     const roomId = String(getRoomId() || '');
     if (!/^[1-9]\d{0,19}$/.test(roomId)) return;
     const key = `${date}:${roomId}`;
-    if (captured.automaticAttempt === key ||
-        (settings.lastGuardRosterAutoUpdate?.date === date &&
-         settings.lastGuardRosterAutoUpdate.roomId === roomId)) return;
+    if (
+      captured.automaticAttempt === key ||
+      (settings.lastGuardRosterAutoUpdate?.date === date && settings.lastGuardRosterAutoUpdate.roomId === roomId)
+    )
+      return;
     captured.automaticAttempt = key;
     const reason = startedAt >= scheduledAt ? 'startup' : 'scheduled';
     try {
       rosterOperation = syncGuardRoster(captured, service, date);
       const result = await rosterOperation;
-      if (result && same(captured))
-        current.notification = { reason, status: 'success', ...result.data };
+      if (result && same(captured)) current.notification = { reason, status: 'success', ...result.data };
     } catch (error) {
-      if (same(captured) && current.automaticAttempt === key &&
-          String(getRoomId() || '') === roomId)
+      if (same(captured) && current.automaticAttempt === key && String(getRoomId() || '') === roomId)
         current.notification = { reason, status: 'error', error: error.message };
     }
   }
@@ -198,7 +191,9 @@ function createFanProfileController({
     const wait = at < scheduledAt ? Math.min(30000, scheduledAt - at) : 30000;
     automaticTimer = timers.setTimeout(() => {
       automaticTimer = null;
-      void runAutomaticUpdate().catch(() => null).finally(scheduleAutomaticUpdate);
+      void runAutomaticUpdate()
+        .catch(() => null)
+        .finally(scheduleAutomaticUpdate);
     }, wait);
     automaticTimer?.unref?.();
   }
@@ -206,8 +201,7 @@ function createFanProfileController({
   function invoke(request) {
     const captured = context();
     if (!captured) throw new Error('请先登录主播账号。');
-    if (!request || typeof request !== 'object')
-      throw new Error('档案请求无效。');
+    if (!request || typeof request !== 'object') throw new Error('档案请求无效。');
     const { action, payload = {}, contextId } = request;
     if (action !== 'open' && action !== 'auto-update-status' && contextId !== captured.id)
       throw new Error('登录状态已变化，请重新打开粉丝档案。');
@@ -224,19 +218,12 @@ function createFanProfileController({
     }
     if (action === 'sync-guard-roster') {
       if (rosterAbortController) throw new Error('大航海名单正在同步，请稍候。');
-      if (
-        payload.expectedRoomId !== undefined &&
-        payload.expectedRoomId !== String(getRoomId() || '')
-      )
+      if (payload.expectedRoomId !== undefined && payload.expectedRoomId !== String(getRoomId() || ''))
         throw new Error('直播间已变化，请重新打开同步窗口。');
       rosterOperation = syncGuardRoster(captured, service);
       return rosterOperation;
     }
-    const data = service.execute(
-      captured.scope,
-      action === 'open' ? 'list' : action,
-      payload,
-    );
+    const data = service.execute(captured.scope, action === 'open' ? 'list' : action, payload);
     if (action === 'configure') {
       if (data.autoSyncGuardRoster !== true) {
         captured.automaticAttempt = null;

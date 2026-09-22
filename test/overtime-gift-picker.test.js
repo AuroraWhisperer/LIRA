@@ -10,18 +10,12 @@ const { readServerFixture } = require('../scripts/verify-server-contract');
 const heart = readServerFixture('test/fixtures/heart-blind-box-events.json');
 
 const ROOT_DIR = path.join(__dirname, '..');
-const OVERTIME_ENTRY = path.join(
-  ROOT_DIR,
-  'public',
-  'js',
-  'admin',
-  'overtime.js',
-);
+const OVERTIME_ENTRY = path.join(ROOT_DIR, 'public', 'js', 'admin', 'overtime.js');
 
 test('gift picker derives three role labels from the shared server catalog without extra requests', async () => {
   const gifts = [
     { ...heart.box, giftCategory: 'blindBox' },
-    ...heart.outputs.map(item => ({ ...item, giftCategory: 'blindBoxOutput' })),
+    ...heart.outputs.map((item) => ({ ...item, giftCategory: 'blindBoxOutput' })),
     { id: '100', name: '小花花', rmb: 1, giftCategory: 'directGift' },
     { id: '999', name: '棉花糖', rmb: 9, giftCategory: 'directGift' },
   ];
@@ -52,38 +46,32 @@ test('gift picker derives three role labels from the shared server catalog witho
 
   fixture.namespace.applyServerGiftArtwork({
     ...snapshot,
-    gifts: [
-      ...gifts,
-      { id: '900', name: '另一个盲盒', rmb: 20, giftCategory: 'blindBox' },
-    ],
-    blindBoxes: [
-      ...snapshot.blindBoxes,
-      { giftId: '900', outputGiftIds: ['32126'] },
-    ],
+    gifts: [...gifts, { id: '900', name: '另一个盲盒', rmb: 20, giftCategory: 'blindBox' }],
+    blindBoxes: [...snapshot.blindBoxes, { giftId: '900', outputGiftIds: ['32126'] }],
   });
-  assert.match(
-    nodeText(optionNodes(fixture)[1]),
-    /盲盒产物 · 心动盲盒 \/ 另一个盲盒/,
-  );
-  fixture.namespace.applyServerGiftArtwork({ ...snapshot, blindBoxes: [], gifts: gifts.map(gift => ({ ...gift,
-    giftCategory: gift.giftCategory === 'blindBoxOutput' ? 'directGift' : gift.giftCategory })) });
+  assert.match(nodeText(optionNodes(fixture)[1]), /盲盒产物 · 心动盲盒 \/ 另一个盲盒/);
+  fixture.namespace.applyServerGiftArtwork({
+    ...snapshot,
+    blindBoxes: [],
+    gifts: gifts.map((gift) => ({
+      ...gift,
+      giftCategory: gift.giftCategory === 'blindBoxOutput' ? 'directGift' : gift.giftCategory,
+    })),
+  });
   assert.match(nodeText(optionNodes(fixture)[1]), /直送礼物/);
   assert.doesNotMatch(nodeText(optionNodes(fixture)[1]), /盲盒产物/);
   fixture.namespace.applyServerGiftArtwork({
     ...snapshot,
-    gifts: gifts.map((item) =>
-      item.id === '32126' ? { ...item, name: '另一个活动', rmb: 12 } : item,
-    ),
+    gifts: gifts.map((item) => (item.id === '32126' ? { ...item, name: '另一个活动', rmb: 12 } : item)),
   });
-  assert.doesNotMatch(
-    nodeText(optionNodes(fixture)[1]),
-    /盲盒产物|直送礼物/,
-  );
+  assert.doesNotMatch(nodeText(optionNodes(fixture)[1]), /盲盒产物|直送礼物/);
 });
 
 test('a slower picker fetch cannot restore removed pool labels after a catalog update', async () => {
-  const gifts = [{ ...heart.box, giftCategory: 'blindBox' },
-    ...heart.outputs.map(item => ({ ...item, giftCategory: 'blindBoxOutput' }))];
+  const gifts = [
+    { ...heart.box, giftCategory: 'blindBox' },
+    ...heart.outputs.map((item) => ({ ...item, giftCategory: 'blindBoxOutput' })),
+  ];
   const snapshot = {
     schemaVersion: 2,
     gifts,
@@ -102,8 +90,14 @@ test('a slower picker fetch cannot restore removed pool labels after a catalog u
   await openPicker(fixture);
   const activation = fixture.elements.globalSearchButton.dispatchEvent('click');
   await flush();
-  fixture.namespace.applyServerGiftArtwork({ ...snapshot, blindBoxes: [], gifts: gifts.map(gift => ({ ...gift,
-    giftCategory: gift.giftCategory === 'blindBoxOutput' ? 'directGift' : gift.giftCategory })) });
+  fixture.namespace.applyServerGiftArtwork({
+    ...snapshot,
+    blindBoxes: [],
+    gifts: gifts.map((gift) => ({
+      ...gift,
+      giftCategory: gift.giftCategory === 'blindBoxOutput' ? 'directGift' : gift.giftCategory,
+    })),
+  });
   pending.resolve({ ok: true, payload: { ok: true, data: snapshot } });
   await activation;
   assert.match(nodeText(optionNodes(fixture)[1]), /直送礼物/);
@@ -130,14 +124,8 @@ test('blank global activation renders the full local catalog and filters in plac
   assert.equal(fixture.state.fetchCalls[0].options?.body, undefined);
   assert.equal(fixture.elements.globalSearchButton.textContent, '返回在售礼物');
   assert.equal(optionNodes(fixture).length, 2999);
-  assert.equal(
-    fixture.elements.results.children[0].textContent,
-    '礼物库 · 2999 / 3000 个',
-  );
-  assert.doesNotMatch(
-    nodeText(fixture.elements.results),
-    /本地礼物库|目录中|当前未在售|目录外/,
-  );
+  assert.equal(fixture.elements.results.children[0].textContent, '礼物库 · 2999 / 3000 个');
+  assert.doesNotMatch(nodeText(fixture.elements.results), /本地礼物库|目录中|当前未在售|目录外/);
   assert.equal(
     optionNodes(fixture).some((node) => nodeText(node).includes('Gift 0000')),
     false,
@@ -212,10 +200,7 @@ test('global picker distinguishes an unavailable cache from a valid empty cache'
     assert.match(nodeText(fixture.elements.results), scenario.expected);
     assert.doesNotMatch(nodeText(fixture.elements.results), /本地礼物库/);
     assert.equal(fixture.elements.globalSearchButton.disabled, false);
-    assert.equal(
-      fixture.elements.globalSearchButton.textContent,
-      '返回在售礼物',
-    );
+    assert.equal(fixture.elements.globalSearchButton.textContent, '返回在售礼物');
   }
 });
 
@@ -239,10 +224,7 @@ test('global picker shows fetch failures and can return to sale gifts', async ()
 
 test('off-sale global gifts remain selectable and are added through the rule editor', async () => {
   const saleGifts = createGifts(1);
-  const globalGifts = [
-    ...saleGifts,
-    { id: 'gift-off-sale', name: 'Off Sale', rmb: 2 },
-  ];
+  const globalGifts = [...saleGifts, { id: 'gift-off-sale', name: 'Off Sale', rmb: 2 }];
   const fixture = await createFixture({ globalGifts, saleGifts });
   await openPicker(fixture);
   await fixture.elements.globalSearchButton.dispatchEvent('click');
@@ -250,10 +232,7 @@ test('off-sale global gifts remain selectable and are added through the rule edi
   fixture.elements.search.value = 'gift-off-sale';
   await fixture.elements.search.dispatchEvent('input');
   assert.equal(optionNodes(fixture).length, 1);
-  assert.equal(
-    nodeText(optionNodes(fixture)[0]),
-    'Off SaleID gift-off-sale · ¥2.00',
-  );
+  assert.equal(nodeText(optionNodes(fixture)[0]), 'Off SaleID gift-off-sale · ¥2.00');
   await optionNodes(fixture)[0].dispatchEvent('click');
 
   assert.equal(fixture.state.addedGifts[0].id, 'gift-off-sale');
@@ -287,8 +266,7 @@ test('reopening the picker invalidates a pending global catalog response', async
   const fixture = await createFixture({
     globalGifts: [{ id: 'stale-gift', name: 'Stale Gift', rmb: 1 }],
     saleGifts: [{ id: 'current-sale-gift', name: 'Current Sale Gift', rmb: 1 }],
-    fetchImpl: () =>
-      catalogRequestCount++ === 0 ? pending.promise : newerPending.promise,
+    fetchImpl: () => (catalogRequestCount++ === 0 ? pending.promise : newerPending.promise),
   });
   await openPicker(fixture);
 
@@ -304,8 +282,7 @@ test('reopening the picker invalidates a pending global catalog response', async
   assert.equal(fixture.elements.globalSearchButton.textContent, '搜索全部礼物');
   assert.ok(optionNodes(fixture).length > 0);
 
-  const newerLoading =
-    fixture.elements.globalSearchButton.dispatchEvent('click');
+  const newerLoading = fixture.elements.globalSearchButton.dispatchEvent('click');
   await flush();
   assert.equal(fixture.elements.globalSearchButton.disabled, true);
 
@@ -334,10 +311,7 @@ test('reopening the picker invalidates a pending global catalog response', async
 
   assert.equal(fixture.elements.globalSearchButton.textContent, '返回在售礼物');
   assert.ok(optionNodes(fixture).length > 0);
-  assert.equal(
-    nodeText(fixture.elements.results).includes('Stale Gift'),
-    false,
-  );
+  assert.equal(nodeText(fixture.elements.results).includes('Stale Gift'), false);
   assert.match(nodeText(fixture.elements.results), /Newer Gift/);
 });
 
@@ -357,8 +331,7 @@ async function createFixture({
     fetchCalls: [],
     apiCalls: [],
     addedGifts: [],
-    fetchImpl:
-      fetchImpl || (() => Promise.resolve({ ok: true, payload: fetchPayload })),
+    fetchImpl: fetchImpl || (() => Promise.resolve({ ok: true, payload: fetchPayload })),
   };
   const namespace = await loadOvertimeModule({
     document,
@@ -390,9 +363,7 @@ async function createFixture({
       picker: document.getElementById('overtimeGiftPicker'),
       search: document.getElementById('overtimeGiftSearch'),
       results: document.getElementById('overtimeGiftResults'),
-      globalSearchButton: document.getElementById(
-        'overtimeGlobalGiftSearchBtn',
-      ),
+      globalSearchButton: document.getElementById('overtimeGlobalGiftSearchBtn'),
     },
   };
 }
@@ -436,8 +407,7 @@ async function loadOvertimeModule({ document, window, state, saleGifts }) {
     return new vm.SyntheticModule(
       Object.keys(exports),
       function () {
-        for (const [name, value] of Object.entries(exports))
-          this.setExport(name, value);
+        for (const [name, value] of Object.entries(exports)) this.setExport(name, value);
       },
       { context },
     );
@@ -470,9 +440,7 @@ async function loadOvertimeModule({ document, window, state, saleGifts }) {
             const row = document.createElement('article');
             row.dataset.overtimeRule = 'true';
             row.dataset.giftId = String(gift.id);
-            row.dataset.giftIdentity = JSON.stringify(
-              gift.giftIdentity || null,
-            );
+            row.dataset.giftIdentity = JSON.stringify(gift.giftIdentity || null);
             row.scrollIntoView = () => {};
             root.append(row);
             return row;
@@ -506,18 +474,14 @@ async function loadOvertimeModule({ document, window, state, saleGifts }) {
     './overtime-gift-identity.js',
   ]) {
     const file = path.resolve(path.dirname(OVERTIME_ENTRY), specifier);
-    dependencies[specifier] = new vm.SourceTextModule(
-      fs.readFileSync(file, 'utf8'),
-      {
-        context,
-        identifier: pathToFileURL(file).href,
-      },
-    );
+    dependencies[specifier] = new vm.SourceTextModule(fs.readFileSync(file, 'utf8'), {
+      context,
+      identifier: pathToFileURL(file).href,
+    });
   }
   await module.link((specifier) => {
     const dependency = dependencies[specifier];
-    if (!dependency)
-      throw new Error(`Unexpected overtime dependency: ${specifier}`);
+    if (!dependency) throw new Error(`Unexpected overtime dependency: ${specifier}`);
     return dependency;
   });
   await module.evaluate();
@@ -555,16 +519,9 @@ test('same-ID gift identities remain separately selectable and keep their own ar
     blindBoxes: [],
     variantBlindBoxes: [],
   });
-  assert.equal(
-    optionNodes(fixture)[0].children[0].src,
-    globalGifts[1].imagePath,
-  );
+  assert.equal(optionNodes(fixture)[0].children[0].src, globalGifts[1].imagePath);
   await optionNodes(fixture)[0].dispatchEvent('click');
-  assert.equal(
-    new Set(fixture.state.addedGifts.map((gift) => gift.giftIdentity.variantId))
-      .size,
-    2,
-  );
+  assert.equal(new Set(fixture.state.addedGifts.map((gift) => gift.giftIdentity.variantId)).size, 2);
 });
 
 function createGifts(count) {
@@ -661,8 +618,7 @@ class FakeElement {
       },
     };
     const results = [];
-    for (const listener of this.listeners.get(type) || [])
-      results.push(listener(dispatchedEvent));
+    for (const listener of this.listeners.get(type) || []) results.push(listener(dispatchedEvent));
     await Promise.all(results);
     return { defaultPrevented };
   }
@@ -700,9 +656,7 @@ function matchesSelector(node, selector) {
   if (simple === 'img') return node.tagName === 'img';
   const attribute = simple.match(/^\[data-([\w-]+)(?:="([^"]*)")?\]$/);
   if (!attribute) return false;
-  const key = attribute[1].replace(/-([a-z])/g, (_, letter) =>
-    letter.toUpperCase(),
-  );
+  const key = attribute[1].replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
   return (
     Object.prototype.hasOwnProperty.call(node.dataset, key) &&
     (attribute[2] === undefined || node.dataset[key] === attribute[2])

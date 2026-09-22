@@ -90,19 +90,9 @@ test('planner renders frozen display data, ordered events and safe text while re
   });
   renderTodo(view);
   assert.equal(element('plannerCalendarGrid').children.length, 42);
-  assert.equal(
-    element('plannerAgendaList').children[0].children[1].dataset.eventEdit,
-    'early',
-  );
-  assert.equal(
-    element('plannerAgendaList').children[0].children[1].children[0]
-      .textContent,
-    dangerous,
-  );
-  assert.equal(
-    element('plannerTaskList').children[0].children[1].value,
-    dangerous,
-  );
+  assert.equal(element('plannerAgendaList').children[0].children[1].dataset.eventEdit, 'early');
+  assert.equal(element('plannerAgendaList').children[0].children[1].children[0].textContent, dangerous);
+  assert.equal(element('plannerTaskList').children[0].children[1].value, dangerous);
   assert.match(element('plannerSaveState').textContent, /已暂停写入/);
   const button = element('plannerAgendaList').children[0].children[1];
   const action = readTodoAction({ closest: () => button });

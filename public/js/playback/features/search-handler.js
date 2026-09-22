@@ -10,13 +10,7 @@ import * as PlaybackUtils from '../utils.js';
  * @returns {Object} 搜索处理函数集合
  */
 export function createSearchHandler(deps) {
-  const {
-    playbackState,
-    searchService,
-    value,
-    toast,
-    renderPlaybackSearchResults,
-  } = deps;
+  const { playbackState, searchService, value, toast, renderPlaybackSearchResults } = deps;
   let searchGeneration = 0;
 
   /**

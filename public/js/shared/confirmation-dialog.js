@@ -23,17 +23,11 @@ function renderList(label, items, className) {
  * @returns {Promise<boolean>}
  */
 export function showConfirmationDialog(options = {}) {
-  const variant = ['normal', 'caution', 'destructive'].includes(options.variant)
-    ? options.variant
-    : 'normal';
+  const variant = ['normal', 'caution', 'destructive'].includes(options.variant) ? options.variant : 'normal';
   const title = String(options.title || '确认操作');
   const description = String(options.description ?? options.message ?? '');
-  const confirmLabel = String(
-    options.confirmLabel || options.confirmText || '继续',
-  );
-  const cancelLabel = String(
-    options.cancelLabel || options.cancelText || '取消',
-  );
+  const confirmLabel = String(options.confirmLabel || options.confirmText || '继续');
+  const cancelLabel = String(options.cancelLabel || options.cancelText || '取消');
   const closeOnBackdrop = options.closeOnBackdrop ?? variant !== 'destructive';
   const dialogId = ++confirmationId;
   const titleId = `lira-confirm-title-${dialogId}`;
@@ -49,16 +43,11 @@ export function showConfirmationDialog(options = {}) {
         : '';
   const deletes = renderList('将移除', options.deletes, 'is-destructive');
   const keeps = renderList('会保留', options.keeps, 'is-kept');
-  const platform = options.platform
-    ? `<p class="lira-confirm-context">${escapeHtml(options.platform)}</p>`
-    : '';
+  const platform = options.platform ? `<p class="lira-confirm-context">${escapeHtml(options.platform)}</p>` : '';
 
   return new Promise((resolve) => {
     const previousFocus =
-      document.activeElement &&
-      typeof document.activeElement.focus === 'function'
-        ? document.activeElement
-        : null;
+      document.activeElement && typeof document.activeElement.focus === 'function' ? document.activeElement : null;
     const backdrop = document.createElement('div');
     backdrop.className = `lira-confirm-backdrop is-${variant}`;
     backdrop.dataset.variant = variant;
@@ -172,12 +161,10 @@ export function showConfirmationDialog(options = {}) {
     document.addEventListener('keydown', onKeyDown);
 
     const focusInitial = () => {
-      const initial =
-        options.initialFocus === 'confirm' ? confirmButton : cancelButton;
+      const initial = options.initialFocus === 'confirm' ? confirmButton : cancelButton;
       (initial || dialog).focus();
     };
-    if (typeof requestAnimationFrame === 'function')
-      requestAnimationFrame(focusInitial);
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(focusInitial);
     else setTimeout(focusInitial, 0);
   });
 }

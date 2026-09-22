@@ -7,18 +7,14 @@ const os = require('node:os');
 const path = require('node:path');
 const { DatabaseSync } = require('node:sqlite');
 const { createSettingsStore } = require('../src/storage/settings-store');
-const {
-  createCloudSyncController,
-} = require('../src/electron/cloud-sync-controller');
+const { createCloudSyncController } = require('../src/electron/cloud-sync-controller');
 
 test('room ownership survives closing and reopening the settings database', () => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'cloud-room-store-'));
   const filename = path.join(directory, 'settings.db');
   let db = new DatabaseSync(filename);
   try {
-    db.exec(
-      'CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL)',
-    );
+    db.exec('CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL)');
     const original = createSettingsStore(db);
     original.prepareCloudRoomAccount('first');
     original.setSetting('roomId', '111');
@@ -38,9 +34,7 @@ test('room ownership survives closing and reopening the settings database', () =
 
 function createFixture(t) {
   const db = new DatabaseSync(':memory:');
-  db.exec(
-    'CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL)',
-  );
+  db.exec('CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL)');
   const store = createSettingsStore(db);
   store.setSetting('roomId', '1716079620');
   let identity = { accountName: 'first', streamerId: 1 };
@@ -51,8 +45,7 @@ function createFixture(t) {
   let failUpload = false;
   const cloud = new Map();
   const uploads = [];
-  const key = () =>
-    JSON.stringify([origin, identity?.accountName, identity?.streamerId]);
+  const key = () => JSON.stringify([origin, identity?.accountName, identity?.streamerId]);
   const values = () => ({
     roomId: store.getSettings().roomId,
     enableBilibili: false,
@@ -100,11 +93,9 @@ function createFixture(t) {
     getCloudSongs: async () => ({ revision: 1, songs: [] }),
   };
   const runtime = {
-    prepareCloudRoomAccount: (accountKey) =>
-      store.prepareCloudRoomAccount(accountKey),
+    prepareCloudRoomAccount: (accountKey) => store.prepareCloudRoomAccount(accountKey),
     getCloudSettingsSnapshot: values,
-    applyCloudSettingsSnapshot: (input) =>
-      store.setSetting('roomId', input.roomId || ''),
+    applyCloudSettingsSnapshot: (input) => store.setSetting('roomId', input.roomId || ''),
     replaceCloudSongsSnapshot() {},
   };
   function restart() {
@@ -180,11 +171,9 @@ for (const change of ['account', 'origin', 'recreated account']) {
     await fixture.controller.start();
     fixture.editRoom('111');
     await fixture.controller.whenIdle();
-    if (change === 'account')
-      fixture.setIdentity({ accountName: 'second', streamerId: 2 });
+    if (change === 'account') fixture.setIdentity({ accountName: 'second', streamerId: 2 });
     if (change === 'origin') fixture.setOrigin('https://other.example.test');
-    if (change === 'recreated account')
-      fixture.setIdentity({ accountName: 'first', streamerId: 3 });
+    if (change === 'recreated account') fixture.setIdentity({ accountName: 'first', streamerId: 3 });
     await fixture.restart().start();
     assert.equal(fixture.store.getSettings().roomId, '');
     assert.equal(fixture.uploads.at(-1).roomId, '');
@@ -202,9 +191,7 @@ test('the same owner retains its room across restart and temporary authorization
   await fixture.restart().start();
   assert.equal(fixture.store.getSettings().roomId, '111');
   assert.equal(
-    fixture.db
-      .prepare('SELECT updated_at FROM settings WHERE key=?')
-      .get('cloudRoomAccountKey').updated_at,
+    fixture.db.prepare('SELECT updated_at FROM settings WHERE key=?').get('cloudRoomAccountKey').updated_at,
     ownerUpdatedAt,
   );
   fixture.setFailUpload(true);
@@ -267,16 +254,8 @@ test('room and owner reset roll back together and storage failure prevents cloud
   );
   fixture.setIdentity({ accountName: 'second', streamerId: 2 });
   const count = fixture.uploads.length;
-  await assert.rejects(
-    async () => fixture.controller.start(),
-    /OWNER_WRITE_FAILED/,
-  );
+  await assert.rejects(async () => fixture.controller.start(), /OWNER_WRITE_FAILED/);
   assert.equal(fixture.store.getSettings().roomId, '111');
-  assert.equal(
-    fixture.db
-      .prepare('SELECT value FROM settings WHERE key=?')
-      .get('cloudRoomAccountKey').value,
-    oldKey,
-  );
+  assert.equal(fixture.db.prepare('SELECT value FROM settings WHERE key=?').get('cloudRoomAccountKey').value, oldKey);
   assert.equal(fixture.uploads.length, count);
 });

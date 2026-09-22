@@ -31,16 +31,21 @@ function captureLog(t) {
   const content = () => fs.readFileSync(filePath, 'utf8');
   return {
     content,
-    events: () => content().split('\n')
-      .filter((line) => line.includes('[Bilibili][Diagnostic] '))
-      .map((line) => JSON.parse(line.split('[Bilibili][Diagnostic] ')[1])),
+    events: () =>
+      content()
+        .split('\n')
+        .filter((line) => line.includes('[Bilibili][Diagnostic] '))
+        .map((line) => JSON.parse(line.split('[Bilibili][Diagnostic] ')[1])),
   };
 }
 
 test('diagnostic projections exclude credentials, viewer identity and message text', () => {
   const input = {
-    message: '点歌 私密歌曲', uid: '912345678', userName: '私密昵称',
-    messageTimestamp: 1789634000000, source: 'danmaku',
+    message: '点歌 私密歌曲',
+    uid: '912345678',
+    userName: '私密昵称',
+    messageTimestamp: 1789634000000,
+    source: 'danmaku',
   };
   const summary = songRequestSummary(input);
   assert.equal(summary.commandRef, songRequestSummary(input).commandRef);
@@ -53,8 +58,11 @@ test('diagnostic projections exclude credentials, viewer identity and message te
   });
   assert.deepEqual(auth, { hasUid: true, hasSessdata: true, hasCsrf: true });
   const state = summarizeAuthState({
-    loggedIn: true, uid: 912345678, hasSessdata: true,
-    keyCookieNames: ['SESSDATA', 'bili_jct'], cookieHeader: 'secret',
+    loggedIn: true,
+    uid: 912345678,
+    hasSessdata: true,
+    keyCookieNames: ['SESSDATA', 'bili_jct'],
+    cookieHeader: 'secret',
   });
   assert.equal(state.loggedIn, true);
   assert.doesNotMatch(JSON.stringify({ summary, auth, state }), /私密|912345678|synthetic|secret/);
@@ -88,7 +96,8 @@ test('song request pipeline persists ingress, masking, rejection, dedup and queu
   t.after(() => client.stop());
   const timestamp = Date.now();
   const packet = (text, at = timestamp) => ({
-    cmd: 'DANMU_MSG', info: [[0, 0, 0, 0, at], text, [912345678, '私**称']],
+    cmd: 'DANMU_MSG',
+    info: [[0, 0, 0, 0, at], text, [912345678, '私**称']],
   });
   client.messageHandlers.handleDanmaku(packet('普通聊天正文'));
   client.messageHandlers.handleDanmaku(packet('点歌 私密歌曲'));
@@ -123,15 +132,21 @@ test('history sampling reports stale/duplicate commands without repeating idle s
   const log = captureLog(t);
   const at = Date.now();
   const delivered = [];
-  const poller = new HistoryPoller({
-    fetchHistory: async () => ({ room: [
-      { text: '点歌 历史歌曲', uid: 42, nickname: '私密昵称', timeline: at },
-      { text: '点歌 旧歌曲', uid: 42, timeline: at - 60_000 },
-    ] }),
-  }, (message) => delivered.push(message), {
-    startedAtMs: at,
-    deduplicator: new MessageDeduplicator(),
-  });
+  const poller = new HistoryPoller(
+    {
+      fetchHistory: async () => ({
+        room: [
+          { text: '点歌 历史歌曲', uid: 42, nickname: '私密昵称', timeline: at },
+          { text: '点歌 旧歌曲', uid: 42, timeline: at - 60_000 },
+        ],
+      }),
+    },
+    (message) => delivered.push(message),
+    {
+      startedAtMs: at,
+      deduplicator: new MessageDeduplicator(),
+    },
+  );
   const context = { roomId: '123', ownerUid: '456' };
   await poller.pollHistory(context);
   await poller.pollHistory(context);
@@ -153,5 +168,6 @@ test('queue refusal codes preserve useful distinctions without echoing request t
     ['点歌队列已达到上限。', 'queue-full'],
     ['歌库里没有这首歌。', 'song-not-in-library'],
     ['secret unknown error', 'unexpected-error'],
-  ]) assert.equal(songRequestReason(reason), code);
+  ])
+    assert.equal(songRequestReason(reason), code);
 });

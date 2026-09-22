@@ -18,9 +18,7 @@ const ERROR_RESERVED_BYTES = 512 * 1024;
 
 function createAiRequestLogger(options = {}) {
   const logDir = options.logDir ? path.resolve(options.logDir) : '';
-  const compatibilityFilePath = path.resolve(
-    options.filePath || path.join(process.cwd(), 'logs', 'ai.log'),
-  );
+  const compatibilityFilePath = path.resolve(options.filePath || path.join(process.cwd(), 'logs', 'ai.log'));
   const targetPaths = logDir
     ? {
         runtime: path.join(logDir, 'runtime', 'ai.jsonl'),
@@ -34,23 +32,11 @@ function createAiRequestLogger(options = {}) {
   const now = options.now || (() => new Date());
   const setTimer = options.setTimeout || setTimeout;
   const clearTimer = options.clearTimeout || clearTimeout;
-  const summaryWindowMs = positiveNumber(
-    options.summaryWindowMs,
-    SUMMARY_WINDOW_MS,
-  );
-  const maxSummaryGroups = positiveNumber(
-    options.maxSummaryGroups,
-    MAX_SUMMARY_GROUPS,
-  );
-  const maxQueueEntries = positiveNumber(
-    options.maxQueueEntries,
-    MAX_QUEUE_ENTRIES,
-  );
+  const summaryWindowMs = positiveNumber(options.summaryWindowMs, SUMMARY_WINDOW_MS);
+  const maxSummaryGroups = positiveNumber(options.maxSummaryGroups, MAX_SUMMARY_GROUPS);
+  const maxQueueEntries = positiveNumber(options.maxQueueEntries, MAX_QUEUE_ENTRIES);
   const maxQueueBytes = positiveNumber(options.maxQueueBytes, MAX_QUEUE_BYTES);
-  const runtimeFileBytes = positiveNumber(
-    options.maxFileBytes,
-    logDir ? RUNTIME_FILE_BYTES : MAX_FILE_BYTES,
-  );
+  const runtimeFileBytes = positiveNumber(options.maxFileBytes, logDir ? RUNTIME_FILE_BYTES : MAX_FILE_BYTES);
   const errorFileBytes = positiveNumber(options.maxFileBytes, MAX_FILE_BYTES);
   const appendLine = options.appendLine || appendToCompatibilityFile;
   const summaries = new Map();
@@ -106,18 +92,9 @@ function createAiRequestLogger(options = {}) {
     summary.windowEnd = timestamp;
     if (succeeded) summary.successCount = boundedAdd(summary.successCount, 1);
     else summary.failureCount = boundedAdd(summary.failureCount, 1);
-    summary.inputTokens = boundedAdd(
-      summary.inputTokens,
-      nonNegativeInteger(event.inputTokens),
-    );
-    summary.outputTokens = boundedAdd(
-      summary.outputTokens,
-      nonNegativeInteger(event.outputTokens),
-    );
-    summary.functionCallCount = boundedAdd(
-      summary.functionCallCount,
-      nonNegativeInteger(event.functionCallCount),
-    );
+    summary.inputTokens = boundedAdd(summary.inputTokens, nonNegativeInteger(event.inputTokens));
+    summary.outputTokens = boundedAdd(summary.outputTokens, nonNegativeInteger(event.outputTokens));
+    summary.functionCallCount = boundedAdd(summary.functionCallCount, nonNegativeInteger(event.functionCallCount));
     const durationMs = nonNegativeNumber(event.durationMs);
     summary.durationMaxMs = Math.max(summary.durationMaxMs, durationMs);
     incrementDurationBucket(summary.durationBuckets, durationMs);
@@ -168,20 +145,11 @@ function createAiRequestLogger(options = {}) {
   function enqueue(stream, line) {
     const bytes = Buffer.byteLength(line, 'utf8');
     const isError = stream === 'errors';
-    const normalEntryLimit = Math.max(
-      1,
-      maxQueueEntries - Math.min(ERROR_RESERVED_ENTRIES, maxQueueEntries - 1),
-    );
-    const normalByteLimit = Math.max(
-      0,
-      maxQueueBytes - Math.min(ERROR_RESERVED_BYTES, maxQueueBytes / 8),
-    );
+    const normalEntryLimit = Math.max(1, maxQueueEntries - Math.min(ERROR_RESERVED_ENTRIES, maxQueueEntries - 1));
+    const normalByteLimit = Math.max(0, maxQueueBytes - Math.min(ERROR_RESERVED_BYTES, maxQueueBytes / 8));
     const entryLimit = isError ? maxQueueEntries : normalEntryLimit;
     const byteLimit = isError ? maxQueueBytes : normalByteLimit;
-    if (
-      health.queuedEntries >= entryLimit ||
-      health.queuedBytes + bytes > byteLimit
-    ) {
+    if (health.queuedEntries >= entryLimit || health.queuedBytes + bytes > byteLimit) {
       health.droppedQueueEntries += 1;
       return Promise.resolve(false);
     }
@@ -193,8 +161,7 @@ function createAiRequestLogger(options = {}) {
       .then(() =>
         appendLine(stream, line, {
           filePath: targetPaths[stream],
-          maxFileBytes:
-            stream === 'errors' ? errorFileBytes : runtimeFileBytes,
+          maxFileBytes: stream === 'errors' ? errorFileBytes : runtimeFileBytes,
         }),
       )
       .then((written) => {
@@ -236,10 +203,7 @@ function createAiRequestLogger(options = {}) {
     } catch (error) {
       if (error?.code !== 'ENOENT') throw error;
     }
-    if (
-      currentBytes + Buffer.byteLength(line, 'utf8') >
-      writeOptions.maxFileBytes
-    ) {
+    if (currentBytes + Buffer.byteLength(line, 'utf8') > writeOptions.maxFileBytes) {
       return false;
     }
     await fs.appendFile(writeOptions.filePath, line, 'utf8');
@@ -292,14 +256,8 @@ function encodeRecord(record, maxBytes) {
       },
     };
     line = `${JSON.stringify(candidate)}\n`;
-    while (
-      Buffer.byteLength(line, 'utf8') > maxBytes &&
-      candidate.error.stack
-    ) {
-      const nextLimit = Math.max(
-        0,
-        Buffer.byteLength(candidate.error.stack, 'utf8') - 512,
-      );
+    while (Buffer.byteLength(line, 'utf8') > maxBytes && candidate.error.stack) {
+      const nextLimit = Math.max(0, Buffer.byteLength(candidate.error.stack, 'utf8') - 512);
       candidate.error.stack = truncateUtf8(candidate.error.stack, nextLimit);
       line = `${JSON.stringify(candidate)}\n`;
     }
@@ -368,19 +326,13 @@ function safeText(value, maxBytes, secrets = []) {
 
 function normalizeSecrets(values) {
   return Array.from(
-    new Set(
-      (Array.isArray(values) ? values : [values])
-        .map((value) => String(value || ''))
-        .filter(Boolean),
-    ),
+    new Set((Array.isArray(values) ? values : [values]).map((value) => String(value || '')).filter(Boolean)),
   );
 }
 
 function nonNegativeNumber(value) {
   const number = Number(value);
-  return Number.isFinite(number)
-    ? Math.min(Number.MAX_SAFE_INTEGER, Math.max(0, number))
-    : 0;
+  return Number.isFinite(number) ? Math.min(Number.MAX_SAFE_INTEGER, Math.max(0, number)) : 0;
 }
 
 function nonNegativeInteger(value) {
@@ -398,9 +350,7 @@ function positiveNumber(value, fallback) {
 
 function toIsoString(value) {
   const date = value instanceof Date ? value : new Date(value);
-  return Number.isNaN(date.getTime())
-    ? new Date().toISOString()
-    : date.toISOString();
+  return Number.isNaN(date.getTime()) ? new Date().toISOString() : date.toISOString();
 }
 
 module.exports = { createAiRequestLogger };

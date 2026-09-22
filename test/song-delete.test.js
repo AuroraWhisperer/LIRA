@@ -43,25 +43,16 @@ test('deleting a song preserves queue and request history without song reference
 
     songService.deleteSong(songStore, song.id);
 
-    assert.equal(
-      songDb.prepare('SELECT id FROM songs WHERE id = ?').get(song.id),
-      undefined,
-    );
+    assert.equal(songDb.prepare('SELECT id FROM songs WHERE id = ?').get(song.id), undefined);
     assert.deepEqual(
       {
-        ...songDb
-          .prepare('SELECT song_id, song_name FROM queue WHERE id = ?')
-          .get(queueItem.id),
+        ...songDb.prepare('SELECT song_id, song_name FROM queue WHERE id = ?').get(queueItem.id),
       },
       { song_id: null, song_name: '待删除歌曲' },
     );
     assert.deepEqual(
       {
-        ...songDb
-          .prepare(
-            'SELECT song_id, song_name, message FROM requests WHERE queue_id = ?',
-          )
-          .get(queueItem.id),
+        ...songDb.prepare('SELECT song_id, song_name, message FROM requests WHERE queue_id = ?').get(queueItem.id),
       },
       {
         song_id: null,

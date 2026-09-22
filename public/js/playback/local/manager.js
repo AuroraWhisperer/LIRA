@@ -15,10 +15,7 @@ export class LocalFileManager {
    * @returns {Promise<Array>} 本地文件列表
    */
   async loadRecentHistory() {
-    if (
-      !window.musicAPI ||
-      typeof window.musicAPI.getRecentLocalFiles !== 'function'
-    ) {
+    if (!window.musicAPI || typeof window.musicAPI.getRecentLocalFiles !== 'function') {
       return [];
     }
 
@@ -51,10 +48,7 @@ export class LocalFileManager {
    * @returns {Promise<Array>} 选中的文件列表
    */
   async selectLocalFiles() {
-    if (
-      !window.musicAPI ||
-      typeof window.musicAPI.selectLocalFiles !== 'function'
-    ) {
+    if (!window.musicAPI || typeof window.musicAPI.selectLocalFiles !== 'function') {
       throw new Error('本地文件功能不可用');
     }
 
@@ -73,14 +67,9 @@ export class LocalFileManager {
       // Resolve file URLs via IPC
       const paths = files.map((f) => f.path).filter(Boolean);
       let urls = {};
-      if (
-        paths.length &&
-        window.musicAPI &&
-        typeof window.musicAPI.resolveLocalMediaUrls === 'function'
-      ) {
+      if (paths.length && window.musicAPI && typeof window.musicAPI.resolveLocalMediaUrls === 'function') {
         try {
-          const resolveResult =
-            await window.musicAPI.resolveLocalMediaUrls(paths);
+          const resolveResult = await window.musicAPI.resolveLocalMediaUrls(paths);
           urls = (resolveResult && resolveResult.results) || {};
         } catch (_) {}
       }
@@ -115,10 +104,7 @@ export class LocalFileManager {
       return null;
     }
 
-    if (
-      !window.musicAPI ||
-      typeof window.musicAPI.selectLocalFiles !== 'function'
-    ) {
+    if (!window.musicAPI || typeof window.musicAPI.selectLocalFiles !== 'function') {
       throw new Error('本地文件功能不可用');
     }
 
@@ -137,19 +123,10 @@ export class LocalFileManager {
       // 使用第一个选中的文件，并通过 IPC 获取实际 URL
       const file = files[0];
       let objectUrl = '';
-      if (
-        file.path &&
-        window.musicAPI &&
-        typeof window.musicAPI.resolveLocalMediaUrls === 'function'
-      ) {
+      if (file.path && window.musicAPI && typeof window.musicAPI.resolveLocalMediaUrls === 'function') {
         try {
-          const resolveResult = await window.musicAPI.resolveLocalMediaUrls([
-            file.path,
-          ]);
-          const entry =
-            resolveResult &&
-            resolveResult.results &&
-            resolveResult.results[file.path];
+          const resolveResult = await window.musicAPI.resolveLocalMediaUrls([file.path]);
+          const entry = resolveResult && resolveResult.results && resolveResult.results[file.path];
           if (entry && entry.ok && entry.url) {
             objectUrl = entry.url;
           }
@@ -179,11 +156,7 @@ export class LocalFileManager {
    * @returns {boolean}
    */
   needsReselect(track) {
-    return (
-      track &&
-      track.source === 'local' &&
-      (!track.objectUrl || track.fileMissing)
-    );
+    return track && track.source === 'local' && (!track.objectUrl || track.fileMissing);
   }
 
   /**

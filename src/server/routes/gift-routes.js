@@ -3,10 +3,12 @@
 'use strict';
 
 const { sendJson } = require('../http-utils');
-const { GIFT_DISPLAY_SETTING, readGiftDisplaySettings, validateGiftDisplaySettings } = require('../../bilibili/gift/display-settings');
 const {
-  buildGiftFramePreviewEvent,
-} = require('../../bilibili/gift/frame-config');
+  GIFT_DISPLAY_SETTING,
+  readGiftDisplaySettings,
+  validateGiftDisplaySettings,
+} = require('../../bilibili/gift/display-settings');
+const { buildGiftFramePreviewEvent } = require('../../bilibili/gift/frame-config');
 
 const prefixes = ['/api/gifts/'];
 
@@ -26,8 +28,9 @@ const routes = {
   },
   async 'POST /api/gifts/display-settings'(context, request, res) {
     let config;
-    try { config = validateGiftDisplaySettings(await request.body()); }
-    catch (error) {
+    try {
+      config = validateGiftDisplaySettings(await request.body());
+    } catch (error) {
       if (error.code === 'REQUEST_BODY_TOO_LARGE') throw error;
       return sendJson(res, 400, { ok: false, error: error.message });
     }
@@ -57,8 +60,11 @@ const routes = {
       sendJson(res, 200, { ok: true, data: context.gifts.getSelection(body) });
     } catch (error) {
       if (!/^(INVALID_GIFT_|GIFT_VIEW_STALE|GIFT_SOURCE_UNAVAILABLE)/.test(error.code || '')) throw error;
-      sendJson(res, error.code.startsWith('INVALID_') ? 400 : 409,
-        { ok: false, error: error.message, code: error.code });
+      sendJson(res, error.code.startsWith('INVALID_') ? 400 : 409, {
+        ok: false,
+        error: error.message,
+        code: error.code,
+      });
     }
   },
 
@@ -204,12 +210,8 @@ function sendGiftLedgerResponse(context, request, res, operation) {
             ...(query?.has?.('giftQuery') ? { giftQuery: query.get('giftQuery') } : {}),
             ...(query?.has?.('amountAbove') ? { amountAbove: query.get('amountAbove') } : {}),
             ...(query?.has?.('viewRevision') ? { viewRevision: query.get('viewRevision') } : {}),
-            sortField: query?.has?.('sortField')
-              ? query.get('sortField')
-              : undefined,
-            sortDirection: query?.has?.('sortDirection')
-              ? query.get('sortDirection')
-              : undefined,
+            sortField: query?.has?.('sortField') ? query.get('sortField') : undefined,
+            sortDirection: query?.has?.('sortDirection') ? query.get('sortDirection') : undefined,
           }
         : {}),
     });

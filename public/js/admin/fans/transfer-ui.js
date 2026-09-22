@@ -2,13 +2,7 @@ import { toast } from '../../shared/utils.js';
 import { html } from './view.js';
 import { legacyForm } from './forms.js';
 
-export function createFanTransferUi({
-  request,
-  openForm,
-  getProfile,
-  onProfile,
-  onReset,
-}) {
+export function createFanTransferUi({ request, openForm, getProfile, onProfile, onReset }) {
   async function mergeDraft(patch, targetId) {
     const input = { id: patch.id, revision: patch.revision, targetId, patch };
     const preview = await request('preview-merge', input);
@@ -100,8 +94,7 @@ export function createFanTransferUi({
         hint: '移除后，下次上舰事件或历史回放可以再次为这个身份建档。',
         fields: `<label class="fan-field fan-field-wide">身份<select name="identity">${items.map((p, index) => `<option value="${index}">${html(p.identity[1])} ${html(p.identity[2])}</option>`).join('')}</select></label><label class="fan-check"><input name="confirm" type="checkbox" required />允许再次自动建档</label>`,
         read: (value) => {
-          const [platform, type, id] =
-            items[Number(value.elements.identity.value)].identity;
+          const [platform, type, id] = items[Number(value.elements.identity.value)].identity;
           return {
             identity: { platform, type, value: id },
             confirm: value.elements.confirm.checked,
@@ -124,8 +117,7 @@ export function createFanTransferUi({
   }
 
   async function restoreFile(file) {
-    if (!file || file.size > 16 * 1024 * 1024)
-      throw new Error('请选择 16 MB 以内的完整档案备份。');
+    if (!file || file.size > 16 * 1024 * 1024) throw new Error('请选择 16 MB 以内的完整档案备份。');
     const backup = JSON.parse(await file.text());
     const preview = await request('preview-restore', { backup });
     openForm(
@@ -150,29 +142,26 @@ export function createFanTransferUi({
   }
 
   function legacy() {
-    openForm(
-      { ...legacyForm(getProfile()), saveLabel: '预览记录' },
-      async (range) => {
-        const preview = await request('preview-legacy', range);
-        openForm(
-          {
-            title: '确认旧点歌归属',
-            saveLabel: '确认补录',
-            fields: `<p class="fan-field-wide">${html(range.from)} 至 ${html(range.to)} 共 ${preview.count} 条，其中 ${preview.unownedCount} 条原来没有主播归属。请确认这些记录属于当前主播。</p><label class="fan-check"><input type="checkbox" name="confirm" required />我已核对这些记录属于当前账号</label>
+    openForm({ ...legacyForm(getProfile()), saveLabel: '预览记录' }, async (range) => {
+      const preview = await request('preview-legacy', range);
+      openForm(
+        {
+          title: '确认旧点歌归属',
+          saveLabel: '确认补录',
+          fields: `<p class="fan-field-wide">${html(range.from)} 至 ${html(range.to)} 共 ${preview.count} 条，其中 ${preview.unownedCount} 条原来没有主播归属。请确认这些记录属于当前主播。</p><label class="fan-check"><input type="checkbox" name="confirm" required />我已核对这些记录属于当前账号</label>
           <details class="fan-field-wide"><summary>查看记录</summary><ul>${preview.records.map((r) => `<li>${html(r.occurredAt)} · ${html(r.songName)} · ${html(r.artist)}</li>`).join('')}</ul></details>`,
-            read: (value) => ({
-              ...range,
-              digest: preview.digest,
-              confirmOwnership: value.elements.confirm.checked,
-            }),
-          },
-          async (payload) => {
-            await onProfile(await request('import-legacy', payload));
-          },
-        );
-        return { keepOpen: true };
-      },
-    );
+          read: (value) => ({
+            ...range,
+            digest: preview.digest,
+            confirmOwnership: value.elements.confirm.checked,
+          }),
+        },
+        async (payload) => {
+          await onProfile(await request('import-legacy', payload));
+        },
+      );
+      return { keepOpen: true };
+    });
   }
 
   return { mergeDraft, snapshots, suppressions, download, restoreFile, legacy };

@@ -4,38 +4,35 @@
 const normalizeText = (text) => text.replace(/\s+/g, ' ').trim();
 
 function buildSearchIndex(panel) {
-  return Array.from(panel.querySelectorAll('.usage-guide-section[id]')).flatMap(
-    (section) => {
-      const sectionTitle = normalizeText(
-        section.querySelector('.usage-guide-section-title').textContent,
-      ).replace(/^\d+\s*/, '');
-      const targets = [
-        section,
-        ...section.querySelectorAll('article, details, .usage-guide-steps > li'),
-      ];
-      return targets.map((target) => {
-        const heading = target === section
-          ? null
-          : target.querySelector('.usage-guide-feature-head strong, strong');
-        const title = heading ? normalizeText(heading.textContent) : sectionTitle;
-        const body = target === section
+  return Array.from(panel.querySelectorAll('.usage-guide-section[id]')).flatMap((section) => {
+    const sectionTitle = normalizeText(section.querySelector('.usage-guide-section-title').textContent).replace(
+      /^\d+\s*/,
+      '',
+    );
+    const targets = [section, ...section.querySelectorAll('article, details, .usage-guide-steps > li')];
+    return targets.map((target) => {
+      const heading = target === section ? null : target.querySelector('.usage-guide-feature-head strong, strong');
+      const title = heading ? normalizeText(heading.textContent) : sectionTitle;
+      const body =
+        target === section
           ? Array.from(section.children)
-            .filter((child) => child.matches('p, h4'))
-            .map((child) => child.textContent).join(' ')
+              .filter((child) => child.matches('p, h4'))
+              .map((child) => child.textContent)
+              .join(' ')
           : target.textContent;
-        let text = normalizeText(body);
-        if (text.startsWith(title)) text = text.slice(title.length).trim();
-        return { target, sectionId: section.id, sectionTitle, title, text };
-      });
-    },
-  );
+      let text = normalizeText(body);
+      if (text.startsWith(title)) text = text.slice(title.length).trim();
+      return { target, sectionId: section.id, sectionTitle, title, text };
+    });
+  });
 }
 
 function appendHighlightedText(element, text, terms, markClass = '') {
   const lowerText = text.toLowerCase();
   let cursor = 0;
   while (cursor < text.length) {
-    const next = terms.map((term) => ({ term, index: lowerText.indexOf(term, cursor) }))
+    const next = terms
+      .map((term) => ({ term, index: lowerText.indexOf(term, cursor) }))
       .filter(({ index }) => index >= 0)
       .sort((a, b) => a.index - b.index || b.term.length - a.term.length)[0];
     if (!next) {
@@ -97,16 +94,16 @@ export function initUsageGuideSearch(panel, navigateToTarget) {
     }
     entries ??= buildSearchIndex(panel);
     const terms = [...new Set(query.split(' '))];
-    const matches = entries.filter((entry) => {
-      const text = `${entry.sectionTitle} ${entry.title} ${entry.text}`.toLowerCase();
-      return terms.every((term) => text.includes(term));
-    }).sort((a, b) => {
-      const score = (entry) => terms.reduce(
-        (total, term) => total + (entry.title.toLowerCase().includes(term) ? 1 : 0),
-        0,
-      );
-      return score(b) - score(a);
-    });
+    const matches = entries
+      .filter((entry) => {
+        const text = `${entry.sectionTitle} ${entry.title} ${entry.text}`.toLowerCase();
+        return terms.every((term) => text.includes(term));
+      })
+      .sort((a, b) => {
+        const score = (entry) =>
+          terms.reduce((total, term) => total + (entry.title.toLowerCase().includes(term) ? 1 : 0), 0);
+        return score(b) - score(a);
+      });
     status.textContent = matches.length
       ? `找到 ${matches.length} 处相关内容，点击查看原文`
       : '没有找到相关内容，试试更短的关键词，例如“点歌”或“登录”。';
@@ -130,8 +127,7 @@ export function initUsageGuideSearch(panel, navigateToTarget) {
       if (entry.text) {
         const snippet = document.createElement('span');
         snippet.className = 'usage-guide-search-snippet';
-        const positions = terms.map((term) => entry.text.toLowerCase().indexOf(term))
-          .filter((index) => index >= 0);
+        const positions = terms.map((term) => entry.text.toLowerCase().indexOf(term)).filter((index) => index >= 0);
         const start = Math.max(0, (positions.length ? Math.min(...positions) : 0) - 24);
         const excerpt = `${start ? '…' : ''}${entry.text.slice(start, start + 100)}${entry.text.length > start + 100 ? '…' : ''}`;
         appendHighlightedText(snippet, excerpt, terms);

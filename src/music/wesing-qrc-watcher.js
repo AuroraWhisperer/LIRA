@@ -8,8 +8,7 @@ const QRC_REFRESH_DEBOUNCE_MS = 2000;
 function createWeSingQrcWatcher(options) {
   const watchFactory =
     options.watchFactory ||
-    ((directoryPath, watchOptions, listener) =>
-      fs.watch(directoryPath, watchOptions, listener));
+    ((directoryPath, watchOptions, listener) => fs.watch(directoryPath, watchOptions, listener));
   const setTimer = options.setTimer || setTimeout;
   const clearTimer = options.clearTimer || clearTimeout;
   let watcher = null;
@@ -26,12 +25,7 @@ function createWeSingQrcWatcher(options) {
       return;
     }
     const exists = await isDirectory(cachePath);
-    if (
-      version !== syncVersion ||
-      !options.isActive() ||
-      cachePath !== options.getCachePath()
-    )
-      return;
+    if (version !== syncVersion || !options.isActive() || cachePath !== options.getCachePath()) return;
     if (!exists) {
       stop();
       return;

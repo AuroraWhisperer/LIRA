@@ -5,12 +5,7 @@ const { redactCredentials } = require('../src/shared/log-redaction');
 // Release tools can echo raw arguments or decoded proxy credentials in any output.
 function redactReleaseOutput(value, environment) {
   const secrets = new Set([environment.WINDOWS_CERT_PASSWORD]);
-  for (const key of [
-    'HTTPS_PROXY',
-    'https_proxy',
-    'HTTP_PROXY',
-    'http_proxy',
-  ]) {
+  for (const key of ['HTTPS_PROXY', 'https_proxy', 'HTTP_PROXY', 'http_proxy']) {
     const proxy = environment[key]?.trim();
     if (!proxy) continue;
     try {
@@ -30,17 +25,12 @@ function redactReleaseOutput(value, environment) {
   }
 
   let output = String(value ?? '');
-  for (const secret of [...secrets]
-    .filter(Boolean)
-    .sort((left, right) => right.length - left.length)) {
+  for (const secret of [...secrets].filter(Boolean).sort((left, right) => right.length - left.length)) {
     for (const form of new Set([secret, JSON.stringify(secret).slice(1, -1)])) {
       output = output.split(form).join('[REDACTED]');
     }
   }
-  return redactCredentials(output).replace(
-    /([a-z][a-z0-9+.-]*:\/\/)[^\s/?#]*@/gi,
-    '$1[REDACTED]@',
-  );
+  return redactCredentials(output).replace(/([a-z][a-z0-9+.-]*:\/\/)[^\s/?#]*@/gi, '$1[REDACTED]@');
 }
 
 function sanitizeCommandError(error, environment) {
@@ -50,15 +40,12 @@ function sanitizeCommandError(error, environment) {
   for (const key of ['code', 'signal']) {
     if (error[key] != null) sanitized[key] = redact(error[key]);
   }
-  if (typeof error.status === 'number' || error.status === null)
-    sanitized.status = error.status;
+  if (typeof error.status === 'number' || error.status === null) sanitized.status = error.status;
   for (const key of ['stdout', 'stderr']) {
     if (error[key] != null) sanitized[key] = redact(error[key]);
   }
   if (Array.isArray(error.output)) {
-    sanitized.output = error.output.map((part) =>
-      part == null ? null : redact(part),
-    );
+    sanitized.output = error.output.map((part) => (part == null ? null : redact(part)));
   }
   // Do not retain raw spawnargs, causes, or arbitrary child-process properties.
   return sanitized;

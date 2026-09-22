@@ -7,7 +7,10 @@ const { createInteractionClient } = require('../public/js/shared/interaction-cli
 test('HTTP/WS revisions preserve newest result and clear across session changes', async () => {
   const pending = [];
   const states = [];
-  const client = createInteractionClient({ onState: (state) => states.push(state), fetchState: () => new Promise((resolve) => pending.push(resolve)) });
+  const client = createInteractionClient({
+    onState: (state) => states.push(state),
+    fetchState: () => new Promise((resolve) => pending.push(resolve)),
+  });
   const initial = client.load();
   client.receive({ runtimeId: 'one', revision: 2, session: { sessionId: 'new' } });
   client.receive({ runtimeId: 'one', revision: 1, session: { sessionId: 'old' } });

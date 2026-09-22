@@ -26,9 +26,7 @@ async function listenWithFallback(server, options) {
     const ok = await tryListen(server, port, host);
     if (ok) return port;
   }
-  throw new Error(
-    `No available local port from ${startPort} to ${startPort + 19}.`,
-  );
+  throw new Error(`No available local port from ${startPort} to ${startPort + 19}.`);
 }
 
 function listenExactly(server, options) {
@@ -66,11 +64,9 @@ function tryListen(server, port, host) {
 }
 
 async function cleanupOwnPortOccupant(options) {
-  const reportPhase =
-    typeof options.onPhase === 'function' ? options.onPhase : () => {};
+  const reportPhase = typeof options.onPhase === 'function' ? options.onPhase : () => {};
   const phaseStart = Date.now();
-  const markPhase = (phase, extra = {}) =>
-    reportPhase(phase, Date.now() - phaseStart, extra);
+  const markPhase = (phase, extra = {}) => reportPhase(phase, Date.now() - phaseStart, extra);
   const requestedPort = Number(options.port);
   const port = requestedPort;
   const host = options.host;
@@ -79,8 +75,7 @@ async function cleanupOwnPortOccupant(options) {
     return;
   }
   const runtime = readRuntimeInfo(options.dataDir);
-  const runtimeForPort =
-    runtime && Number(runtime.port) === port ? runtime : null;
+  const runtimeForPort = runtime && Number(runtime.port) === port ? runtime : null;
   if (runtimeForPort && Number(runtimeForPort.pid) === process.pid) {
     markPhase('port-cleanup', { result: 'skipped-current-process' });
     return;
@@ -88,7 +83,9 @@ async function cleanupOwnPortOccupant(options) {
 
   const gracefulStart = Date.now();
   const attempt = await requestVerifiedShutdown({
-    port, rootDir: options.rootDir, token: readSessionToken(options.dataDir),
+    port,
+    rootDir: options.rootDir,
+    token: readSessionToken(options.dataDir),
   });
   reportPhase('port-health-check', Date.now() - gracefulStart, {
     ok: attempt.verified,
@@ -108,8 +105,7 @@ async function cleanupOwnPortOccupant(options) {
   }
 
   const owner = attempt.owner;
-  if (!owner || owner.ProcessId === process.pid ||
-      !isSameProcess(owner, readPortOwner(port), options.rootDir)) {
+  if (!owner || owner.ProcessId === process.pid || !isSameProcess(owner, readPortOwner(port), options.rootDir)) {
     markPhase('port-cleanup', { result: 'graceful-timeout-unverified' });
     return;
   }
@@ -119,9 +115,7 @@ async function cleanupOwnPortOccupant(options) {
   try {
     process.kill(pid, 'SIGTERM');
   } catch (error) {
-    console.warn(
-      `Could not stop previous service pid ${pid}: ${error.message}`,
-    );
+    console.warn(`Could not stop previous service pid ${pid}: ${error.message}`);
     markPhase('port-cleanup', { result: 'terminate-failed' });
     return;
   }
@@ -149,10 +143,7 @@ async function waitForPortRelease(port, host, options) {
 }
 
 function getSessionTokenPath(dataDir) {
-  return path.join(
-    path.resolve(String(dataDir || '')),
-    SESSION_TOKEN_FILE_NAME,
-  );
+  return path.join(path.resolve(String(dataDir || '')), SESSION_TOKEN_FILE_NAME);
 }
 
 function readSessionToken(dataDir) {
@@ -193,9 +184,7 @@ function getRuntimeInfoPath(dataDir) {
 
 function readRuntimeInfo(dataDir) {
   try {
-    const value = JSON.parse(
-      fs.readFileSync(getRuntimeInfoPath(dataDir), 'utf8'),
-    );
+    const value = JSON.parse(fs.readFileSync(getRuntimeInfoPath(dataDir), 'utf8'));
     return value && typeof value === 'object' ? value : null;
   } catch (_) {
     return null;
@@ -208,12 +197,7 @@ function writeRuntimeInfo(dataDir, info) {
     port: Number(info && info.port),
     host: String((info && info.host) || ''),
   };
-  if (
-    !Number.isInteger(value.pid) ||
-    value.pid <= 0 ||
-    !Number.isInteger(value.port) ||
-    value.port <= 0
-  ) {
+  if (!Number.isInteger(value.pid) || value.pid <= 0 || !Number.isInteger(value.port) || value.port <= 0) {
     throw new Error('Runtime info requires a valid pid and port.');
   }
   fs.writeFileSync(getRuntimeInfoPath(dataDir), `${JSON.stringify(value)}\n`, {
@@ -228,8 +212,7 @@ function removeRuntimeInfo(dataDir, expected) {
   if (
     expected &&
     current &&
-    (Number(expected.pid) !== Number(current.pid) ||
-      Number(expected.port) !== Number(current.port))
+    (Number(expected.pid) !== Number(current.pid) || Number(expected.port) !== Number(current.port))
   )
     return false;
   try {

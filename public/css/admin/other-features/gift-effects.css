@@ -235,11 +235,7 @@
   padding: 22px;
   border: 1px solid var(--border);
   border-radius: 16px;
-  background: linear-gradient(
-    135deg,
-    rgba(248, 243, 232, 0.88),
-    var(--surface)
-  );
+  background: linear-gradient(135deg, rgba(248, 243, 232, 0.88), var(--surface));
 }
 
 .gift-frame-settings-heading,

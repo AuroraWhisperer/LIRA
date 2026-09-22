@@ -52,9 +52,7 @@ body[data-style='ranked'] .draw-danmaku-body {
   align-content: start;
   gap: 5px;
   min-width: 0;
-  max-width: calc(
-    var(--ranked-bubble-max-width) - var(--ranked-avatar-size) - 9px
-  );
+  max-width: calc(var(--ranked-bubble-max-width) - var(--ranked-avatar-size) - 9px);
 }
 body[data-style='ranked'] .draw-danmaku-identity {
   display: flex;
@@ -69,13 +67,21 @@ body[data-style='ranked'] .draw-danmaku-identity {
   box-shadow: 0 2px 5px rgba(12, 18, 30, 0.16);
 }
 body[data-style='ranked']
-  .draw-danmaku-item:not([data-streamer='true']):is([data-identity='captain'], [data-identity='admiral'], [data-identity='governor'])
+  .draw-danmaku-item:not([data-streamer='true']):is(
+    [data-identity='captain'],
+    [data-identity='admiral'],
+    [data-identity='governor']
+  )
   .draw-danmaku-identity {
   position: relative;
   padding-left: 34px;
 }
 body[data-style='ranked']
-  .draw-danmaku-item:not([data-streamer='true']):is([data-identity='captain'], [data-identity='admiral'], [data-identity='governor'])
+  .draw-danmaku-item:not([data-streamer='true']):is(
+    [data-identity='captain'],
+    [data-identity='admiral'],
+    [data-identity='governor']
+  )
   .draw-danmaku-identity::before {
   position: absolute;
   left: 6px;
@@ -132,9 +138,7 @@ body[data-style='ranked'] .draw-danmaku-body p {
   font-size: var(--danmaku-font-size);
   font-weight: 600;
   line-height: 1.28;
-  background:
-    linear-gradient(rgba(0, 0, 0, 0.28), rgba(0, 0, 0, 0.28)),
-    var(--ranked-accent);
+  background: linear-gradient(rgba(0, 0, 0, 0.28), rgba(0, 0, 0, 0.28)), var(--ranked-accent);
   overflow-wrap: anywhere;
   word-break: break-word;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.34);
@@ -163,16 +167,16 @@ body[data-style='ranked'] .draw-danmaku-empty {
     border: 3px solid var(--ranked-accent);
   }
   body[data-style='ranked'] .draw-danmaku-identity {
-    background:
-      linear-gradient(rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.45)),
-      var(--ranked-accent);
+    background: linear-gradient(rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.45)), var(--ranked-accent);
   }
   body[data-style='ranked']
-    .draw-danmaku-item:not([data-streamer='true']):is([data-identity='captain'], [data-identity='admiral'], [data-identity='governor'])
+    .draw-danmaku-item:not([data-streamer='true']):is(
+      [data-identity='captain'],
+      [data-identity='admiral'],
+      [data-identity='governor']
+    )
     .draw-danmaku-identity::before {
-    background:
-      linear-gradient(rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.18)),
-      var(--ranked-accent);
+    background: linear-gradient(rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.18)), var(--ranked-accent);
   }
 }
 
@@ -204,9 +208,17 @@ body[data-style='ranked'] .is-gift .draw-danmaku-gift-art {
 
 /* Custom background strength leaves text and images opaque. */
 body[data-custom-background='true'][data-style='ranked'] .draw-danmaku-item:not(.is-gift) .draw-danmaku-body p {
-  background: linear-gradient(color-mix(in srgb, rgba(0, 0, 0, 0.28) var(--danmaku-background-weight), transparent), color-mix(in srgb, rgba(0, 0, 0, 0.28) var(--danmaku-background-weight), transparent)),
+  background:
+    linear-gradient(
+      color-mix(in srgb, rgba(0, 0, 0, 0.28) var(--danmaku-background-weight), transparent),
+      color-mix(in srgb, rgba(0, 0, 0, 0.28) var(--danmaku-background-weight), transparent)
+    ),
     color-mix(in srgb, var(--ranked-accent) var(--danmaku-background-weight), transparent);
 }
 body[data-custom-background='true'][data-style='ranked'] .draw-danmaku-item.is-gift {
-  background: linear-gradient(110deg, color-mix(in srgb, #dfb8ed var(--danmaku-background-weight), transparent) 0 66px, color-mix(in srgb, #f8eaff var(--danmaku-background-weight), transparent) 66px);
+  background: linear-gradient(
+    110deg,
+    color-mix(in srgb, #dfb8ed var(--danmaku-background-weight), transparent) 0 66px,
+    color-mix(in srgb, #f8eaff var(--danmaku-background-weight), transparent) 66px
+  );
 }

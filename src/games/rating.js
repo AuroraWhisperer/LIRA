@@ -12,7 +12,7 @@ function createRating() {
       return true;
     },
     count: () => scores.size,
-    average: () => scores.size ? sum / scores.size : null,
+    average: () => (scores.size ? sum / scores.size : null),
   };
 }
 

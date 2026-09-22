@@ -22,8 +22,13 @@ function fixture(name) {
       elements.set(id, {
         textContent: '',
         writes: 0,
-        get innerHTML() { return html; },
-        set innerHTML(value) { html = value; this.writes += 1; },
+        get innerHTML() {
+          return html;
+        },
+        set innerHTML(value) {
+          html = value;
+          this.writes += 1;
+        },
         classList: { add() {}, remove() {}, toggle() {} },
         style: { setProperty() {} },
         setAttribute() {},
@@ -52,19 +57,29 @@ function fixture(name) {
       body: element('body'),
     },
     WebSocket: class {
-      constructor() { this.listeners = new Map(); sockets.push(this); }
-      addEventListener(type, callback) { this.listeners.set(type, callback); }
-      emit(type, payload = {}) { this.listeners.get(type)?.(payload); }
-      close() { this.emit('close'); }
+      constructor() {
+        this.listeners = new Map();
+        sockets.push(this);
+      }
+      addEventListener(type, callback) {
+        this.listeners.set(type, callback);
+      }
+      emit(type, payload = {}) {
+        this.listeners.get(type)?.(payload);
+      }
+      close() {
+        this.emit('close');
+      }
     },
-    fetch: (url, options = {}) => new Promise((resolve, reject) => {
-      requests.push({
-        url,
-        options,
-        resolve: (data) => resolve({ ok: true, json: async () => ({ ok: true, data }) }),
-        reject,
-      });
-    }),
+    fetch: (url, options = {}) =>
+      new Promise((resolve, reject) => {
+        requests.push({
+          url,
+          options,
+          resolve: (data) => resolve({ ok: true, json: async () => ({ ok: true, data }) }),
+          reject,
+        });
+      }),
     setTimeout: (callback, delay) => {
       const id = ++timerId;
       timers.set(id, { callback, delay });
@@ -74,7 +89,9 @@ function fixture(name) {
     observed,
     fakeScroller: {
       captureAnchor: () => null,
-      pause() {}, start() {}, setSecondsPerViewport() {},
+      pause() {},
+      start() {},
+      setSecondsPerViewport() {},
       setRecords: (next) => records.push(next),
     },
     desktopLyricRenderer: {
@@ -84,25 +101,39 @@ function fixture(name) {
       updateLyricTimeline: (value) => observed.push(['timeline', value]),
     },
   });
-  const source = name === 'lyric-window'
-    ? fs.readFileSync(path.join(__dirname, '..', 'public', 'js', 'overlays', `${name}.js`), 'utf8')
-      .replace(/^import[^\n]+\n/gm, '')
-    : readJsModuleBundle('public', 'js', 'overlays', `${name}.js`).replace(
-      /^\s*\{\s*applyTheme,\s*setIdentityRuleThemeVars\s*\}\s+from\s+['"]\.\/queue-theme\.js['"];\s*/gm,
-      '',
-    );
+  const source =
+    name === 'lyric-window'
+      ? fs
+          .readFileSync(path.join(__dirname, '..', 'public', 'js', 'overlays', `${name}.js`), 'utf8')
+          .replace(/^import[^\n]+\n/gm, '')
+      : readJsModuleBundle('public', 'js', 'overlays', `${name}.js`).replace(
+          /^\s*\{\s*applyTheme,\s*setIdentityRuleThemeVars\s*\}\s+from\s+['"]\.\/queue-theme\.js['"];\s*/gm,
+          '',
+        );
   vm.runInContext(source, context);
   if (name === 'queue') vm.runInContext('render = () => observed.push(state);', context);
   if (name === 'games') vm.runInContext('renderGame = (value) => { session = value; observed.push(value); };', context);
-  if (name === 'wheel') vm.runInContext('renderState = (value) => { currentState = value; observed.push(value); };', context);
-  if (name === 'songs') vm.runInContext(`
+  if (name === 'wheel')
+    vm.runInContext('renderState = (value) => { currentState = value; observed.push(value); };', context);
+  if (name === 'songs')
+    vm.runInContext(
+      `
     scroller = fakeScroller;
     songListElement = document.getElementById('songScrollList');
     applyTheme = () => {};
     scheduleRelayout = () => {};
-  `, context);
+  `,
+      context,
+    );
   return {
-    context, requests, sockets, timers, observed, records, element, handlers,
+    context,
+    requests,
+    sockets,
+    timers,
+    observed,
+    records,
+    element,
+    handlers,
     read: (expression) => JSON.parse(vm.runInContext(`JSON.stringify(${expression})`, context)),
     message: (payload) => sockets.at(-1).emit('message', { data: JSON.stringify(payload) }),
     async timer(delay) {
@@ -116,7 +147,9 @@ function fixture(name) {
 }
 
 const snapshot = (settings, reason = 'settings') => ({
-  type: 'snapshot', reason, state: { settings, queue: { waiting: [] } },
+  type: 'snapshot',
+  reason,
+  state: { settings, queue: { waiting: [] } },
 });
 
 test('songs retain newer WS settings, discard older HTTP loads and avoid rebuilding unchanged records', async () => {
@@ -208,7 +241,8 @@ test('songs HTTP settings survive a live-status patch without reverting the live
   f.message(snapshot({ songBoardTitle: '原始标题' }));
   const pending = f.context.loadAll();
   f.message({
-    type: 'snapshot', reason: 'live:status',
+    type: 'snapshot',
+    reason: 'live:status',
     state: { settings: { songBoardTitle: '新标题' }, liveStatus: { live: true } },
   });
   f.requests[0].resolve({ settings: { songBoardTitle: '新标题' }, liveStatus: { live: false } });
@@ -260,9 +294,8 @@ test('blindbox gift invalidation and newer HTTP statistics supersede older respo
 
 for (const name of ['games', 'wheel']) {
   const load = name === 'games' ? 'loadSnapshot' : 'loadState';
-  const update = (value) => name === 'games'
-    ? { type: 'game:update', session: value }
-    : { type: 'wheel:update', state: value };
+  const update = (value) =>
+    name === 'games' ? { type: 'game:update', session: value } : { type: 'wheel:update', state: value };
   test(`${name} reconciles on first connection after REST failure and reconnects only once`, async () => {
     const f = fixture(name);
     const pending = f.context[load]();
@@ -302,7 +335,10 @@ for (const name of ['games', 'wheel']) {
     f.message(update({ id: 'latest-ws' }));
     f.requests[1].reject(new Error('late failure'));
     await second;
-    assert.deepEqual(f.observed.map((value) => value.id), ['new-ws', 'latest-ws']);
+    assert.deepEqual(
+      f.observed.map((value) => value.id),
+      ['new-ws', 'latest-ws'],
+    );
     assert.equal(f.timers.size, 0);
   });
 
@@ -331,11 +367,12 @@ for (const name of ['games', 'wheel']) {
     await newer;
     f.requests[0].resolve({ id: 'old-http' });
     await older;
-    assert.deepEqual(f.observed.map((value) => value.id), ['new-http']);
+    assert.deepEqual(
+      f.observed.map((value) => value.id),
+      ['new-http'],
+    );
     f.message(update({ id: 'ready', entries: [{ weight: 1 }, { weight: 1 }] }));
-    const action = name === 'games'
-      ? f.context.submitMove(3)
-      : f.context.spinFromWheel();
+    const action = name === 'games' ? f.context.submitMove(3) : f.context.spinFromWheel();
     assert.equal(f.requests[2].url, name === 'games' ? '/api/games/session/move' : '/api/wheel/spin');
     assert.equal(f.requests[2].options.method, 'POST');
     f.message(update({ id: 'after-action' }));
@@ -359,8 +396,14 @@ test('games accept an authoritative empty session on later reconciliation', asyn
 test('lyrics load settings and timeline from first and reconnected snapshots without invalid GET settings', async () => {
   const f = fixture('lyric-window');
   f.handlers.get('DOMContentLoaded')();
-  f.message({ type: 'snapshot', state: { settings: { size: 32 }, lyricTimeline: { id: 1 }, lyricState: { playing: true } } });
-  assert.deepEqual(f.observed.map(([type]) => type), ['settings', 'timeline', 'state']);
+  f.message({
+    type: 'snapshot',
+    state: { settings: { size: 32 }, lyricTimeline: { id: 1 }, lyricState: { playing: true } },
+  });
+  assert.deepEqual(
+    f.observed.map(([type]) => type),
+    ['settings', 'timeline', 'state'],
+  );
   assert.equal(f.observed[0][1].size, 32);
   f.sockets[0].emit('close');
   await f.timer(1000);

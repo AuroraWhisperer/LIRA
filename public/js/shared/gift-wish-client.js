@@ -1,22 +1,31 @@
 export async function requestGiftWish(path, body, signal) {
-  const response = await fetch(path, {
-    ...(body === undefined
-      ? {}
-      : {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        }),
-    signal: signal
-      ? AbortSignal.any([signal, AbortSignal.timeout(10000)])
-      : AbortSignal.timeout(10000),
-  });
-  const result = await response.json();
-  if (!response.ok || !result.ok)
-    throw Object.assign(new Error(result.error || '许愿暂未更新，请重试。'), {
-      code: result.code,
+  // Browser sources may use a Chromium version without AbortSignal.any/timeout.
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  if (signal?.aborted) abort();
+  else signal?.addEventListener('abort', abort, { once: true });
+  const timeout = setTimeout(abort, 10000);
+  try {
+    const response = await fetch(path, {
+      ...(body === undefined
+        ? {}
+        : {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          }),
+      signal: controller.signal,
     });
-  return result.data;
+    const result = await response.json();
+    if (!response.ok || !result.ok)
+      throw Object.assign(new Error(result.error || '许愿暂未更新，请重试。'), {
+        code: result.code,
+      });
+    return result.data;
+  } finally {
+    clearTimeout(timeout);
+    signal?.removeEventListener('abort', abort);
+  }
 }
 
 export function createGiftWishFeed({ onData, onError }) {
@@ -31,11 +40,7 @@ export function createGiftWishFeed({ onData, onError }) {
     controller = new AbortController();
     const current = ++generation;
     try {
-      const value = await requestGiftWish(
-        '/api/gifts/wishes',
-        undefined,
-        controller.signal,
-      );
+      const value = await requestGiftWish('/api/gifts/wishes', undefined, controller.signal);
       if (active && current === generation) onData(value);
     } catch (error) {
       if (active && current === generation) onError(error);

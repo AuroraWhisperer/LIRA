@@ -47,8 +47,5 @@ test('rejects invalid reply uid before calling Bilibili', async () => {
     cookieHeader: 'DedeUserID=9; SESSDATA=session; bili_jct=csrf-token',
     uid: 9,
   });
-  await assert.rejects(
-    client.sendDanmaku(123, 'hello', { uid: 'not-a-uid', name: 'Alice' }),
-    /UID/,
-  );
+  await assert.rejects(client.sendDanmaku(123, 'hello', { uid: 'not-a-uid', name: 'Alice' }), /UID/);
 });

@@ -1,8 +1,6 @@
 'use strict';
 
-const {
-  createAiAssistantService,
-} = require('../../src/ai/ai-assistant-service');
+const { createAiAssistantService } = require('../../src/ai/ai-assistant-service');
 const { AI_CONFIG_DEFAULTS } = require('../../src/ai/config');
 
 function createTestService(overrides = {}) {
@@ -57,8 +55,7 @@ function createAnsweringDeepseek(nextAnswer) {
       if (request.tools.length) {
         return { text: nextAnswer(), functionCalls: [], usage: {} };
       }
-      const answer =
-        String(request.input).match(/(?:answer|lost)-\d+/)?.[0] || '';
+      const answer = String(request.input).match(/(?:answer|lost)-\d+/)?.[0] || '';
       return {
         text: JSON.stringify({ allowed: true, riskType: '', safeText: answer }),
         functionCalls: [],

@@ -4,9 +4,7 @@ const DEFAULT_TARGET_FPS = 30;
 
 export class LyricFrameScheduler {
   constructor(options = {}) {
-    this.targetFps = Number.isFinite(options.targetFps)
-      ? options.targetFps
-      : DEFAULT_TARGET_FPS;
+    this.targetFps = Number.isFinite(options.targetFps) ? options.targetFps : DEFAULT_TARGET_FPS;
     this.callback = null;
     this.frame = 0;
     this.lastUpdateAt = 0;
@@ -24,8 +22,7 @@ export class LyricFrameScheduler {
 
   stop() {
     this.running = false;
-    if (this.frame && typeof cancelAnimationFrame === 'function')
-      cancelAnimationFrame(this.frame);
+    if (this.frame && typeof cancelAnimationFrame === 'function') cancelAnimationFrame(this.frame);
     this.frame = 0;
   }
 
@@ -57,7 +54,5 @@ export class LyricFrameScheduler {
 }
 
 export function isDocumentVisible() {
-  return (
-    typeof document === 'undefined' || document.visibilityState !== 'hidden'
-  );
+  return typeof document === 'undefined' || document.visibilityState !== 'hidden';
 }

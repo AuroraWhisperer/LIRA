@@ -49,11 +49,7 @@ test('DeepSeek preserves the AI shutdown cancellation reason', async () => {
   const client = createDeepSeekClient({
     fetchImpl: async (_url, options) =>
       new Promise((resolve, reject) => {
-        options.signal.addEventListener(
-          'abort',
-          () => reject(options.signal.reason),
-          { once: true },
-        );
+        options.signal.addEventListener('abort', () => reject(options.signal.reason), { once: true });
       }),
   });
   const request = client.createResponse({
@@ -82,8 +78,7 @@ test('DeepSeek client parses function calls from Responses output', async () => 
             type: 'function_call',
             call_id: 'call_1',
             name: 'get_weather',
-            arguments:
-              '{"location":"苏州","date":"today","dataType":"weather"}',
+            arguments: '{"location":"苏州","date":"today","dataType":"weather"}',
           },
         ],
       }),
@@ -256,11 +251,7 @@ test('DeepSeek official Chat Completions URL remains usable and carries tool res
     tools: [],
   });
 
-  assert.ok(
-    requests.every(
-      ({ url }) => url === 'https://api.deepseek.com/v1/chat/completions',
-    ),
-  );
+  assert.ok(requests.every(({ url }) => url === 'https://api.deepseek.com/v1/chat/completions'));
   assert.deepEqual(requests[1].body.messages.slice(-2), [
     {
       role: 'assistant',
@@ -404,10 +395,7 @@ test('Gemini provider preset uses the official compatibility endpoint and reason
     input: 'hello',
   });
 
-  assert.equal(
-    captured.url,
-    'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
-  );
+  assert.equal(captured.url, 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions');
   assert.equal(captured.body.reasoning_effort, 'high');
   assert.equal(captured.body.thinking, undefined);
 });

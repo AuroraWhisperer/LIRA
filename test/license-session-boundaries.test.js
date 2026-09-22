@@ -15,7 +15,9 @@ function createTimers() {
       pending.add(handle);
       return handle;
     },
-    clearTimeout(handle) { pending.delete(handle); },
+    clearTimeout(handle) {
+      pending.delete(handle);
+    },
     async run(handle) {
       pending.delete(handle);
       handle.fn();
@@ -27,7 +29,8 @@ function createTimers() {
 test('automatic renewal before the next heartbeat includes its session and cannot take over', async (t) => {
   const timers = createTimers();
   const { manager, remote, calls } = createHarness({
-    identity: { deviceId: 'd' }, timers,
+    identity: { deviceId: 'd' },
+    timers,
   });
   t.after(() => manager.dispose());
   await manager.bootstrap();
@@ -94,7 +97,9 @@ test('one second token expires locally without any protected request or timer ca
   t.mock.method(Date, 'now', () => now);
   const timers = createTimers();
   const { manager, remote, state } = createHarness({
-    identity: { deviceId: 'd' }, timers, verifyExpiresIn: () => '1s',
+    identity: { deviceId: 'd' },
+    timers,
+    verifyExpiresIn: () => '1s',
   });
   t.after(() => manager.dispose());
   await manager.bootstrap();
@@ -123,7 +128,9 @@ test('renewal respects Retry-After even when the token expires before retry', as
   t.mock.method(Date, 'now', () => now);
   const timers = createTimers();
   const { manager, remote } = createHarness({
-    identity: { deviceId: 'd' }, timers, verifyExpiresIn: () => '1s',
+    identity: { deviceId: 'd' },
+    timers,
+    verifyExpiresIn: () => '1s',
   });
   t.after(() => manager.dispose());
   await manager.bootstrap();
@@ -131,7 +138,9 @@ test('renewal respects Retry-After even when the token expires before retry', as
   remote.challenge = async () => {
     attempts += 1;
     throw new RemoteLicenseError('HTTP_429', 'slow down', {
-      status: 429, retryable: true, retryAfterMs: 60000,
+      status: 429,
+      retryable: true,
+      retryAfterMs: 60000,
     });
   };
   now += 500;
@@ -150,7 +159,8 @@ test('renewal waits an oversized Retry-After in cancellable native timer chunks'
   const maxDelay = 2 ** 31 - 1;
   const timers = createTimers();
   const { manager, remote } = createHarness({
-    identity: { deviceId: 'd' }, timers,
+    identity: { deviceId: 'd' },
+    timers,
   });
   t.after(() => manager.dispose());
   await manager.bootstrap();
@@ -158,7 +168,9 @@ test('renewal waits an oversized Retry-After in cancellable native timer chunks'
   remote.challenge = async () => {
     attempts += 1;
     throw new RemoteLicenseError('HTTP_429', 'slow down', {
-      status: 429, retryable: true, retryAfterMs: maxDelay + 500,
+      status: 429,
+      retryable: true,
+      retryAfterMs: maxDelay + 500,
     });
   };
   await timers.run([...timers.pending].find((timer) => timer.delay > 150000));

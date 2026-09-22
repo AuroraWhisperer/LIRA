@@ -22,13 +22,9 @@ function overtimeRoute(run) {
 const routes = {
   'GET /api/overtime': overtimeRoute((overtime) => overtime.getOverview()),
 
-  'GET /api/overtime/gifts': overtimeRoute((overtime) =>
-    overtime.getGiftCatalog(),
-  ),
+  'GET /api/overtime/gifts': overtimeRoute((overtime) => overtime.getGiftCatalog()),
 
-  'GET /api/overtime/gifts/catalog': overtimeRoute((overtime) =>
-    overtime.getGlobalGiftCatalog(),
-  ),
+  'GET /api/overtime/gifts/catalog': overtimeRoute((overtime) => overtime.getGlobalGiftCatalog()),
 
   'POST /api/overtime/gifts/refresh': overtimeRoute((overtime) =>
     overtime.refreshGiftCatalog({
@@ -37,19 +33,15 @@ const routes = {
     }),
   ),
 
-  'POST /api/overtime/gifts/local/search': overtimeRoute(
-    async (overtime, request) => {
-      const body = await request.body();
-      return overtime.searchLocalGifts(body.query);
-    },
-  ),
+  'POST /api/overtime/gifts/local/search': overtimeRoute(async (overtime, request) => {
+    const body = await request.body();
+    return overtime.searchLocalGifts(body.query);
+  }),
 
-  'POST /api/overtime/gifts/server/search': overtimeRoute(
-    async (overtime, request) => {
-      const body = await request.body();
-      return overtime.searchServerGifts(body.query);
-    },
-  ),
+  'POST /api/overtime/gifts/server/search': overtimeRoute(async (overtime, request) => {
+    const body = await request.body();
+    return overtime.searchServerGifts(body.query);
+  }),
 
   'POST /api/overtime/time': overtimeRoute(async (overtime, request) => {
     return overtime.setTime(await request.body());

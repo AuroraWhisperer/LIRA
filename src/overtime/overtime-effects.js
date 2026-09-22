@@ -11,22 +11,17 @@ function applyEffect(beforeMs, effect) {
   if (operation === 'add') return clampMs(beforeMs + value * 1000);
   if (operation === 'subtract') return clampMs(beforeMs - value * 1000);
   if (operation === 'multiply') {
-    return beforeMs > MAX_OVERTIME_MS / value
-      ? MAX_OVERTIME_MS
-      : clampMs(beforeMs * value);
+    return beforeMs > MAX_OVERTIME_MS / value ? MAX_OVERTIME_MS : clampMs(beforeMs * value);
   }
-  if (operation === 'divide')
-    return clampMs(Math.floor(beforeMs / value / 1000) * 1000);
+  if (operation === 'divide') return clampMs(Math.floor(beforeMs / value / 1000) * 1000);
   throw new Error('Overtime effect operation is invalid.');
 }
 
 function applyFixedEffectRepeatedly(beforeMs, effect, applicationCount) {
   const operation = effect?.operation;
   const value = Math.max(0, Math.floor(Number(effect?.value) || 0));
-  if (operation === 'add')
-    return clampMs(beforeMs + value * applicationCount * 1000);
-  if (operation === 'subtract')
-    return clampMs(beforeMs - value * applicationCount * 1000);
+  if (operation === 'add') return clampMs(beforeMs + value * applicationCount * 1000);
+  if (operation === 'subtract') return clampMs(beforeMs - value * applicationCount * 1000);
   if (operation === 'clear') return 0;
 
   let afterMs = beforeMs;
@@ -77,13 +72,9 @@ function normalizeState(row) {
     initialSeconds: Math.max(0, Number(row.initial_seconds) || 0),
     remainingMs: clampMs(row.remaining_ms),
     anchorAtMs: Math.max(0, Number(row.anchor_at_ms) || 0),
-    status: ['paused', 'running', 'finished'].includes(row.status)
-      ? row.status
-      : 'paused',
+    status: ['paused', 'running', 'finished'].includes(row.status) ? row.status : 'paused',
     backgroundPath: String(row.background_path || ''),
-    backgroundFit: ['cover', 'contain', 'fill'].includes(row.background_fit)
-      ? row.background_fit
-      : 'cover',
+    backgroundFit: ['cover', 'contain', 'fill'].includes(row.background_fit) ? row.background_fit : 'cover',
     revision: Math.max(0, Number(row.revision) || 0),
     updatedAt: String(row.updated_at || ''),
   };
@@ -114,9 +105,7 @@ function isRemoteGiftImagePath(value) {
 function isLegacyGiftImagePath(value) {
   return (
     typeof value === 'string' &&
-    /^\/img\/bilibili-gifts\/(?:[A-Za-z0-9._-]+\/)*[A-Za-z0-9._-]+\.(?:gif|jpe?g|png|webp)$/iu.test(
-      value,
-    ) &&
+    /^\/img\/bilibili-gifts\/(?:[A-Za-z0-9._-]+\/)*[A-Za-z0-9._-]+\.(?:gif|jpe?g|png|webp)$/iu.test(value) &&
     !value.includes('..')
   );
 }

@@ -11,12 +11,7 @@ const PUBLIC_ERRORS = new Set([
   'LOTTERY_AUTH_RESTORE_FAILED',
 ]);
 
-function registerDynamicLotteryAuthIpc({
-  ipcMain,
-  auth,
-  getMainWindow,
-  getDesktopBaseUrl,
-}) {
+function registerDynamicLotteryAuthIpc({ ipcMain, auth, getMainWindow, getDesktopBaseUrl }) {
   const channels = [];
   for (const [action, method] of [
     ['get-state', 'getAuthState'],
@@ -39,9 +34,7 @@ function registerDynamicLotteryAuthIpc({
       try {
         const state = await auth[method]();
         const loggedIn =
-          state?.loggedIn === true &&
-          typeof state?.uid === 'string' &&
-          /^[1-9]\d{0,63}$/u.test(state.uid);
+          state?.loggedIn === true && typeof state?.uid === 'string' && /^[1-9]\d{0,63}$/u.test(state.uid);
         return {
           ok: true,
           state: {

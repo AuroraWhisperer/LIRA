@@ -1,10 +1,7 @@
 'use strict';
 
 import { LyricClock } from './lyric-clock.js';
-import {
-  LyricFrameScheduler,
-  isDocumentVisible,
-} from './lyric-frame-scheduler.js';
+import { LyricFrameScheduler, isDocumentVisible } from './lyric-frame-scheduler.js';
 
 // The scheduler owns requestAnimationFrame and applies the 30fps time gate.
 
@@ -30,8 +27,7 @@ export class LyricWordRenderer {
     this.renderWords = options.renderWords !== false;
     this.state = { ...EMPTY_STATE };
     this.clock = options.clock || new LyricClock();
-    this.scheduler =
-      options.scheduler || new LyricFrameScheduler({ targetFps: 30 });
+    this.scheduler = options.scheduler || new LyricFrameScheduler({ targetFps: 30 });
     this.signature = '';
     this.renderedWords = [];
     this.wordElements = [];
@@ -42,8 +38,7 @@ export class LyricWordRenderer {
         this.scheduler.stop();
       }
     };
-    if (typeof document !== 'undefined')
-      document.addEventListener?.('visibilitychange', this.visibilityHandler);
+    if (typeof document !== 'undefined') document.addEventListener?.('visibilitychange', this.visibilityHandler);
   }
 
   setState(nextState = {}) {
@@ -66,11 +61,7 @@ export class LyricWordRenderer {
     if (!this.lineElement) return;
     const words = Array.isArray(this.state.words) ? this.state.words : [];
     const fallback = this.fallbackText(this.state);
-    const signature = JSON.stringify([
-      this.state.lineText || fallback,
-      words,
-      this.renderWords,
-    ]);
+    const signature = JSON.stringify([this.state.lineText || fallback, words, this.renderWords]);
     if (signature === this.signature) {
       this.renderFrame(clockNow());
       return;
@@ -87,8 +78,7 @@ export class LyricWordRenderer {
             return element;
           })
         : [];
-    if (!this.wordElements.length)
-      this.lineElement.textContent = this.state.lineText || fallback;
+    if (!this.wordElements.length) this.lineElement.textContent = this.state.lineText || fallback;
     this.signature = signature;
     this.renderFrame(clockNow());
   }
@@ -96,8 +86,7 @@ export class LyricWordRenderer {
   renderFrame = (now, elapsed = 0) => {
     this.onFrameBudget(elapsed);
     const position = this.clock.getPosition(now);
-    if (this.progressElement)
-      this.progressElement.style.transform = `scaleX(${position.progress})`;
+    if (this.progressElement) this.progressElement.style.transform = `scaleX(${position.progress})`;
     this.onFrame(position);
 
     this.wordElements.forEach((element, index) => {
@@ -121,11 +110,7 @@ export class LyricWordRenderer {
   dispose() {
     this.scheduler.stop();
     this.clock.dispose();
-    if (typeof document !== 'undefined')
-      document.removeEventListener?.(
-        'visibilitychange',
-        this.visibilityHandler,
-      );
+    if (typeof document !== 'undefined') document.removeEventListener?.('visibilitychange', this.visibilityHandler);
   }
 }
 
@@ -139,17 +124,11 @@ function clamp(value, minimum, maximum) {
 }
 
 function clockNow() {
-  return typeof performance !== 'undefined' &&
-    typeof performance.now === 'function'
-    ? performance.now()
-    : Date.now();
+  return typeof performance !== 'undefined' && typeof performance.now === 'function' ? performance.now() : Date.now();
 }
 
 function isReducedMotion() {
-  return (
-    typeof window !== 'undefined' &&
-    window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-  );
+  return typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 }
 
 function clearElement(element) {

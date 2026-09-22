@@ -60,10 +60,7 @@ class OnlineRankPoller {
 
         for (const item of items) {
           if (localGeneration !== this.localGeneration) return;
-          const userMeta = packetParser.extractBilibiliOnlineRankUserMeta(
-            item,
-            context.ownerUid,
-          );
+          const userMeta = packetParser.extractBilibiliOnlineRankUserMeta(item, context.ownerUid);
           if (userMeta.uid) onlineUids.push(userMeta.uid);
           const result = this.sink.ingestHint(toIdentityHint(userMeta), {
             ...context,
@@ -73,12 +70,9 @@ class OnlineRankPoller {
           if (result && result.snapshot) cachedCount += 1;
         }
 
-        const onlineNum = normalizePositiveInteger(
-          data.onlineNum || data.online_num,
-        );
+        const onlineNum = normalizePositiveInteger(data.onlineNum || data.online_num);
         if (items.length < BILIBILI_ONLINE_RANK_PAGE_SIZE) break;
-        if (onlineNum > 0 && page * BILIBILI_ONLINE_RANK_PAGE_SIZE >= onlineNum)
-          break;
+        if (onlineNum > 0 && page * BILIBILI_ONLINE_RANK_PAGE_SIZE >= onlineNum) break;
       }
       if (localGeneration !== this.localGeneration) return;
       this.sink.replaceOnlineSnapshot(onlineUids, context);
@@ -87,9 +81,7 @@ class OnlineRankPoller {
     }
 
     if (cachedCount > 0) {
-      console.log(
-        `[Bilibili] online rank cached ${cachedCount} viewer identity record(s).`,
-      );
+      console.log(`[Bilibili] online rank cached ${cachedCount} viewer identity record(s).`);
     }
   }
 }

@@ -11,17 +11,13 @@ const CONSUMER_RETRY_MAX_MS = 30 * 1000;
 const REMOTE_GIFT_COMMAND = 'LIRA_SERVER_GIFT';
 
 function createGiftProjectionService({ store, settings }, options = {}) {
-  if (!store)
-    throw new Error('store is required to create GiftProjectionService.');
+  if (!store) throw new Error('store is required to create GiftProjectionService.');
   const readGift = (id) => normalizeGiftRow(store.read(id));
 
   const consumerRegistry = options.consumerRegistry || {
     dispatch: () => ({ delivered: [], failed: [] }),
   };
-  const getOvertimeEpoch =
-    typeof options.getOvertimeEpoch === 'function'
-      ? options.getOvertimeEpoch
-      : () => 0;
+  const getOvertimeEpoch = typeof options.getOvertimeEpoch === 'function' ? options.getOvertimeEpoch : () => 0;
   const nowMs = typeof options.now === 'function' ? options.now : Date.now;
   const scheduleTimeout = options.setTimeout || setTimeout;
   const cancelTimeout = options.clearTimeout || clearTimeout;
@@ -45,11 +41,7 @@ function createGiftProjectionService({ store, settings }, options = {}) {
     const capturedSourceId = requireRemoteSource(store, sourceId);
     const event = canonicalizeProcessedGiftEvent(input);
     const platformId = `lira-server:${event.eventId}`;
-    let row = store.findEvent(
-      capturedSourceId,
-      platformId,
-      REMOTE_GIFT_COMMAND,
-    );
+    let row = store.findEvent(capturedSourceId, platformId, REMOTE_GIFT_COMMAND);
     if (
       row &&
       [
@@ -83,10 +75,7 @@ function createGiftProjectionService({ store, settings }, options = {}) {
     };
     if (!row) {
       const giftStatisticsEligible = settings().enableGiftSprint === 'true';
-      const overtimeEpoch = Math.max(
-        0,
-        Math.floor(Number(getOvertimeEpoch()) || 0),
-      );
+      const overtimeEpoch = Math.max(0, Math.floor(Number(getOvertimeEpoch()) || 0));
       // Server-processed events are already authoritative. Always persist the
       // projection so the remote cursor can advance without losing a final
       // event merely because local consumers are currently disabled.
@@ -116,11 +105,7 @@ function createGiftProjectionService({ store, settings }, options = {}) {
     const capturedSourceId = requireRemoteSource(store, sourceId);
     const record = canonicalizeProcessedGiftHistoryRecord(input);
     const platformId = `lira-server:${record.eventId}`;
-    const existing = store.findEvent(
-      capturedSourceId,
-      platformId,
-      REMOTE_GIFT_COMMAND,
-    );
+    const existing = store.findEvent(capturedSourceId, platformId, REMOTE_GIFT_COMMAND);
     if (existing) {
       if (!isMatchingHistoryProjection(existing, record)) {
         throw new Error('PROCESSED_GIFT_HISTORY_CONFLICT');
@@ -138,11 +123,7 @@ function createGiftProjectionService({ store, settings }, options = {}) {
     );
   }
 
-  function finalizeImportedGift(
-    giftEventId,
-    finalizedAtMs = Math.floor(nowMs()),
-    finalizeOptions = {},
-  ) {
+  function finalizeImportedGift(giftEventId, finalizedAtMs = Math.floor(nowMs()), finalizeOptions = {}) {
     if (detectionPaused) return null;
     const id = Number(giftEventId) || 0;
     if (id <= 0) return null;
@@ -173,12 +154,10 @@ function createGiftProjectionService({ store, settings }, options = {}) {
 
   function getStatus() {
     const giftStatistics = settings().enableGiftSprint === 'true';
-    const overtime =
-      Math.max(0, Math.floor(Number(getOvertimeEpoch()) || 0)) > 0;
+    const overtime = Math.max(0, Math.floor(Number(getOvertimeEpoch()) || 0)) > 0;
     const pendingCount = store.countPending(REMOTE_GIFT_COMMAND);
     return {
-      coreActive:
-        giftStatistics || overtime || captureWhenDisabled || pendingCount > 0,
+      coreActive: giftStatistics || overtime || captureWhenDisabled || pendingCount > 0,
       consumers: {
         giftStatistics,
         overtime,
@@ -239,8 +218,7 @@ function createGiftProjectionService({ store, settings }, options = {}) {
   }
 
   function scheduleConsumerRetry(id) {
-    if (disposed || detectionPaused || id <= 0 || consumerRetryTimers.has(id))
-      return;
+    if (disposed || detectionPaused || id <= 0 || consumerRetryTimers.has(id)) return;
     const attempt = consumerRetryAttempts.get(id) || 0;
     const delayMs = Math.min(CONSUMER_RETRY_MAX_MS, 1000 * 2 ** attempt);
     consumerRetryAttempts.set(id, Math.min(attempt + 1, 5));
@@ -290,8 +268,12 @@ function isMatchingHistoryProjection(row, record) {
   if (row.detection_status !== 'final' || row.status !== 'active') return false;
   try {
     const { display, ...recordGift } = record.gift;
-    for (const [stored, incoming] of [[row.avatar_url, display?.avatarUrl], [row.guard_level, display?.guardLevel]]) {
-      if (stored !== null && stored !== undefined && incoming !== null && incoming !== undefined && stored !== incoming) return false;
+    for (const [stored, incoming] of [
+      [row.avatar_url, display?.avatarUrl],
+      [row.guard_level, display?.guardLevel],
+    ]) {
+      if (stored !== null && stored !== undefined && incoming !== null && incoming !== undefined && stored !== incoming)
+        return false;
     }
     const existing = canonicalizeProcessedGiftHistoryRecord({
       eventId: record.eventId,
@@ -317,8 +299,7 @@ function isMatchingHistoryProjection(row, record) {
       ['gift_variant_id', 'giftVariantId'],
       ['blind_box_variant_id', 'blindBoxVariantId'],
     ]) {
-      if (row[column] && record.gift[key] && row[column] !== record.gift[key])
-        return false;
+      if (row[column] && record.gift[key] && row[column] !== record.gift[key]) return false;
     }
     // Older installed clients persisted no identity. Confirm the historical
     // display projection without rewriting its identity or replaying consumers.

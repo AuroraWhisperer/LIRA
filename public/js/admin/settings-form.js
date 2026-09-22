@@ -56,74 +56,47 @@ export function createSettingsForm({
   }
 
   function initWindowActions() {
-    documentRef
-      .getElementById('clearDatabaseBtn')
-      ?.addEventListener('click', clearDatabase);
-    documentRef
-      .getElementById('clearSuperChatsBtn')
-      ?.addEventListener('click', clearSuperChats);
-    documentRef
-      .getElementById('clearAllBtn')
-      ?.addEventListener('click', clearAll);
-    documentRef
-      .getElementById('shutdownBtn')
-      ?.addEventListener('click', shutdownServer);
-    documentRef
-      .getElementById('reconnectBtn')
-      ?.addEventListener('click', reconnectBilibili);
+    documentRef.getElementById('clearDatabaseBtn')?.addEventListener('click', clearDatabase);
+    documentRef.getElementById('clearSuperChatsBtn')?.addEventListener('click', clearSuperChats);
+    documentRef.getElementById('clearAllBtn')?.addEventListener('click', clearAll);
+    documentRef.getElementById('shutdownBtn')?.addEventListener('click', shutdownServer);
+    documentRef.getElementById('reconnectBtn')?.addEventListener('click', reconnectBilibili);
   }
 
   async function init() {
     initDesktopControls();
     await initLicenseAccountDevice();
-    documentRef
-      .getElementById('settingsForm')
-      .addEventListener('submit', async (event) => {
-        event.preventDefault();
-        const result = await api('/api/settings', collectSettings());
-        eventBus.emit(Events.STATE_SAVED, { settings: result.data.settings });
-        toast('设置已保存', { type: 'success' });
-        await reloadState();
+    documentRef.getElementById('settingsForm').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const result = await api('/api/settings', collectSettings());
+      eventBus.emit(Events.STATE_SAVED, { settings: result.data.settings });
+      toast('设置已保存', { type: 'success' });
+      await reloadState();
+    });
+    documentRef.getElementById('giftSprintForm').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      await api('/api/settings', {
+        giftSprintTargetRmb: value('giftSprintTargetRmb'),
       });
-    documentRef
-      .getElementById('giftSprintForm')
-      .addEventListener('submit', async (event) => {
-        event.preventDefault();
-        await api('/api/settings', {
-          giftSprintTargetRmb: value('giftSprintTargetRmb'),
-        });
-        toast('冲刺目标已保存');
-        await reloadState();
-      });
+      toast('冲刺目标已保存');
+      await reloadState();
+    });
 
-    initImmediateToggle(
-      'giftDetectToggle',
-      'enableGiftSprint',
-      '礼物统计已开启',
-      '礼物统计已关闭',
-    );
-    initImmediateToggle(
-      'enableGiftNotification',
-      'enableGiftNotification',
-      '礼物提示已开启',
-      '礼物提示已关闭',
-    );
-    documentRef
-      .getElementById('giftSprintResetBtn')
-      .addEventListener('click', async () => {
-        const confirmed = await showConfirmationDialog({
-          variant: 'caution',
-          title: '重置本轮礼物进度？',
-          description:
-            '本轮已收金额会归零，但礼物记录仍会保留，之后可以继续统计。',
-          confirmLabel: '重置进度',
-          initialFocus: 'cancel',
-        });
-        if (!confirmed) return;
-        await api('/api/gifts/sprint/reset', {});
-        toast('本轮冲刺已重置');
-        await reloadState();
+    initImmediateToggle('giftDetectToggle', 'enableGiftSprint', '礼物统计已开启', '礼物统计已关闭');
+    initImmediateToggle('enableGiftNotification', 'enableGiftNotification', '礼物提示已开启', '礼物提示已关闭');
+    documentRef.getElementById('giftSprintResetBtn').addEventListener('click', async () => {
+      const confirmed = await showConfirmationDialog({
+        variant: 'caution',
+        title: '重置本轮礼物进度？',
+        description: '本轮已收金额会归零，但礼物记录仍会保留，之后可以继续统计。',
+        confirmLabel: '重置进度',
+        initialFocus: 'cancel',
       });
+      if (!confirmed) return;
+      await api('/api/gifts/sprint/reset', {});
+      toast('本轮冲刺已重置');
+      await reloadState();
+    });
 
     blindboxSettings.init();
     initWindowActions();

@@ -31,18 +31,9 @@ test('song sync maps local snake_case song fields to the remote contract', () =>
       sortOrder: 3,
     },
   );
-  assert.equal(
-    mapSongForSync({ title: 'Free', requestPrice: ' 免费 ' }).requestPrice,
-    '免费',
-  );
-  assert.equal(
-    mapSongForSync({ title: 'Guard', request_price: '舰长' }).requestPrice,
-    '舰长',
-  );
-  assert.equal(
-    mapSongForSync({ title: 'Legacy', requestPrice: 12.5 }).requestPrice,
-    12.5,
-  );
+  assert.equal(mapSongForSync({ title: 'Free', requestPrice: ' 免费 ' }).requestPrice, '免费');
+  assert.equal(mapSongForSync({ title: 'Guard', request_price: '舰长' }).requestPrice, '舰长');
+  assert.equal(mapSongForSync({ title: 'Legacy', requestPrice: 12.5 }).requestPrice, 12.5);
   assert.equal(mapSongForSync({ title: 'Empty' }).requestPrice, null);
 });
 
@@ -87,9 +78,7 @@ test('gift catalog refresh is authorization-gated but uses the public endpoint w
   const result = await manager.getGiftCatalog({ etag: '"old-catalog"' });
   assert.equal(result.version, 'catalog-1');
   assert.equal(result.imageBaseUrl, 'https://api.example.test');
-  assert.deepEqual(calls.catalog, [
-    { etag: '"old-catalog"', token: undefined },
-  ]);
+  assert.deepEqual(calls.catalog, [{ etag: '"old-catalog"', token: undefined }]);
   manager.dispose();
 });
 
@@ -121,9 +110,7 @@ test('internal gift operations use the current authorized token and bypass publi
     nextCursor: 4,
     hasMore: false,
   });
-  assert.deepEqual(calls.giftEventRequests, [
-    { after: 4, limit: 17, token: 'token' },
-  ]);
+  assert.deepEqual(calls.giftEventRequests, [{ after: 4, limit: 17, token: 'token' }]);
   assert.equal(calls.giftEventOptions[0].syncEpoch, syncEpoch);
   assert.equal(calls.giftEventOptions[0].signal, signal);
   assert.equal(historyPage.recoveryCursor, 4);
@@ -159,8 +146,14 @@ test('gift card profiles retain sender evidence and reject replies after authori
   assert.deepEqual(await manager.getGiftCardProfilesInternal({ cursor: 'event:1', signal }), result);
   let resolve;
   let started;
-  const ready = new Promise((done) => { started = done; });
-  remote.getGiftCardProfiles = () => new Promise((done) => { resolve = done; started(); });
+  const ready = new Promise((done) => {
+    started = done;
+  });
+  remote.getGiftCardProfiles = () =>
+    new Promise((done) => {
+      resolve = done;
+      started();
+    });
   const pending = manager.getGiftCardProfilesInternal();
   await ready;
   manager.dispose();
@@ -181,10 +174,7 @@ test('internal gift operations reject coerced and oversized cursors before remot
     { syncEpoch: '' },
     { syncEpoch: 'x'.repeat(129) },
   ]) {
-    await assert.rejects(
-      manager.getGiftEventsInternal(input),
-      (error) => error.code === 'INVALID_GIFT_CURSOR',
-    );
+    await assert.rejects(manager.getGiftEventsInternal(input), (error) => error.code === 'INVALID_GIFT_CURSOR');
   }
   for (const pageToken of [1, '', 'x'.repeat(4097)]) {
     await assert.rejects(
@@ -226,10 +216,7 @@ test('song background preview rejects credential query parameters', async () => 
     background: { url: '/background.png?token=secret&v=1' },
   });
 
-  await assert.rejects(
-    manager.getSongPageBackground(),
-    (error) => error.code === 'BACKGROUND_URL_INVALID',
-  );
+  await assert.rejects(manager.getSongPageBackground(), (error) => error.code === 'BACKGROUND_URL_INVALID');
   manager.dispose();
 });
 
@@ -268,10 +255,7 @@ test('song background upload validates size and filename before authorization re
     (error) => error.code === 'BACKGROUND_FORMAT_UNSUPPORTED',
   );
   await assert.rejects(
-    manager.uploadSongPageBackground(
-      new Uint8Array(5 * 1024 * 1024 + 1),
-      'cover.png',
-    ),
+    manager.uploadSongPageBackground(new Uint8Array(5 * 1024 * 1024 + 1), 'cover.png'),
     (error) => error.code === 'PAYLOAD_TOO_LARGE',
   );
   assert.equal(backgroundCalls.length, 0);

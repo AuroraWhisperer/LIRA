@@ -11,73 +11,37 @@
       <section class="clock-preview-card" aria-labelledby="clockPreviewTitle">
         <div class="clock-card-heading">
           <h3 id="clockPreviewTitle" class="ui-section-title">实时预览</h3>
-          <button id="clockOpenPreview" class="secondary" type="button">
-            打开预览
-          </button>
+          <button id="clockOpenPreview" class="secondary" type="button">打开预览</button>
         </div>
         <div class="clock-preview-canvas">
-          <iframe
-            sandbox="allow-scripts"
-            id="clockPreview"
-            title="萌时钟实时预览"
-            loading="lazy"
-          ></iframe>
+          <iframe sandbox="allow-scripts" id="clockPreview" title="萌时钟实时预览" loading="lazy"></iframe>
         </div>
         <small id="clockRecommendedSize">推荐浏览器源：580 × 210</small>
       </section>
 
       <aside class="clock-settings-card" aria-label="萌时钟地址与设置">
-        <section
-          class="clock-address-section"
-          aria-labelledby="clockFixedTitle"
-        >
+        <section class="clock-address-section" aria-labelledby="clockFixedTitle">
           <h3 id="clockFixedTitle" class="ui-section-title">萌时钟网址</h3>
           <div class="clock-url-box">
             <code id="clockFixedUrl"></code>
-            <button id="clockCopyFixed" class="secondary" type="button">
-              复制网址
-            </button>
+            <button id="clockCopyFixed" class="secondary" type="button">复制网址</button>
           </div>
         </section>
 
-        <section
-          class="clock-parameter-section"
-          aria-labelledby="clockParametersTitle"
-        >
+        <section class="clock-parameter-section" aria-labelledby="clockParametersTitle">
           <h3 id="clockParametersTitle" class="ui-section-title">自定义设置</h3>
 
           <div class="clock-style-options" role="group" aria-label="萌时钟风格">
-            <button
-              class="clock-style-option active"
-              type="button"
-              data-clock-style-option="peach"
-              aria-pressed="true"
-            >
-              <span class="clock-style-swatch is-peach" aria-hidden="true"
-                ><i></i><b>12:08</b></span
-              >
+            <button class="clock-style-option active" type="button" data-clock-style-option="peach" aria-pressed="true">
+              <span class="clock-style-swatch is-peach" aria-hidden="true"><i></i><b>12:08</b></span>
               <strong>桃桃便签</strong>
             </button>
-            <button
-              class="clock-style-option"
-              type="button"
-              data-clock-style-option="starlight"
-              aria-pressed="false"
-            >
-              <span class="clock-style-swatch is-starlight" aria-hidden="true"
-                ><i></i><b>21:06</b></span
-              >
+            <button class="clock-style-option" type="button" data-clock-style-option="starlight" aria-pressed="false">
+              <span class="clock-style-swatch is-starlight" aria-hidden="true"><i></i><b>21:06</b></span>
               <strong>星夜软糖</strong>
             </button>
-            <button
-              class="clock-style-option"
-              type="button"
-              data-clock-style-option="soda"
-              aria-pressed="false"
-            >
-              <span class="clock-style-swatch is-soda" aria-hidden="true"
-                ><i></i><b>09:25</b></span
-              >
+            <button class="clock-style-option" type="button" data-clock-style-option="soda" aria-pressed="false">
+              <span class="clock-style-swatch is-soda" aria-hidden="true"><i></i><b>09:25</b></span>
               <strong>汽水小鸭</strong>
             </button>
             <button
@@ -86,11 +50,7 @@
               data-clock-style-option="timeline-horizontal"
               aria-pressed="false"
             >
-              <span
-                class="clock-style-swatch is-timeline-horizontal"
-                aria-hidden="true"
-                ><i></i><b>10—45</b></span
-              >
+              <span class="clock-style-swatch is-timeline-horizontal" aria-hidden="true"><i></i><b>10—45</b></span>
               <strong>横向刻度</strong>
             </button>
             <button
@@ -99,19 +59,12 @@
               data-clock-style-option="timeline-vertical"
               aria-pressed="false"
             >
-              <span
-                class="clock-style-swatch is-timeline-vertical"
-                aria-hidden="true"
+              <span class="clock-style-swatch is-timeline-vertical" aria-hidden="true"
                 ><i></i><b>10<br />45</b></span
               >
               <strong>竖向刻度</strong>
             </button>
-            <button
-              class="clock-style-option"
-              type="button"
-              data-clock-style-option="digital"
-              aria-pressed="false"
-            >
+            <button class="clock-style-option" type="button" data-clock-style-option="digital" aria-pressed="false">
               <span class="clock-style-swatch is-digital" aria-hidden="true"
                 ><small>2026-09-03 THU</small><b>09:54:12</b></span
               >
@@ -141,17 +94,8 @@
           </label>
 
           <label class="clock-form-field" for="clockCustomLabel">
-            <span
-              >角标文案
-              <small id="clockCustomLabelHelp">最多 16 个字</small></span
-            >
-            <input
-              id="clockCustomLabel"
-              type="text"
-              maxlength="16"
-              value="今天也要闪闪发光"
-              autocomplete="off"
-            />
+            <span>角标文案 <small id="clockCustomLabelHelp">最多 16 个字</small></span>
+            <input id="clockCustomLabel" type="text" maxlength="16" value="今天也要闪闪发光" autocomplete="off" />
           </label>
         </section>
       </aside>

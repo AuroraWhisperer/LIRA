@@ -64,19 +64,14 @@ test('Bilibili account profile resolves the logged-in UID name and avatar', asyn
     bilibiliCookie('bili_jct', 'fake-csrf'),
   ]);
 
-  const profile = await auth.getBilibiliAccountProfile(
-    path.join(os.tmpdir(), 'lira-missing-bilibili-profile-test'),
-  );
+  const profile = await auth.getBilibiliAccountProfile(path.join(os.tmpdir(), 'lira-missing-bilibili-profile-test'));
 
   assert.deepEqual(profile, {
     uid: 288594073,
     name: '主播小号',
     avatarUrl: 'https://i0.hdslb.com/bfs/face/host.jpg',
   });
-  assert.equal(
-    requests[0].url,
-    'https://api.bilibili.com/x/web-interface/card?mid=288594073',
-  );
+  assert.equal(requests[0].url, 'https://api.bilibili.com/x/web-interface/card?mid=288594073');
   assert.match(requests[0].options.headers.Cookie, /SESSDATA=fake-session/);
 });
 

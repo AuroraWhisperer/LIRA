@@ -11,7 +11,9 @@ function createGameRuntime({ broadcast, getSourceState, subscribe }) {
     isInteractionCollecting: () => interactions?.isCollecting(),
   });
   interactions = createInteractionSessionService({
-    broadcast, getSourceState, subscribe,
+    broadcast,
+    getSourceState,
+    subscribe,
     isGameActive: () => games.isActive(),
     onCollectingChanged: () => games.refreshAvailability(),
   });

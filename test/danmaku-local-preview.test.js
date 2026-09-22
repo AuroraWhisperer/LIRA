@@ -9,12 +9,26 @@ const styles = ['bubble', 'signal', 'minimal', 'ranked', 'transparent', 'identit
 async function fixture(search = '?preview=1', savedStyle) {
   const nodes = new Map();
   const node = (id) => {
-    if (!nodes.has(id)) nodes.set(id, {
-      textContent: '', hidden: true, dataset: {}, events: {}, clientWidth: 1000, clientHeight: 800,
-      style: { setProperty(name, value) { this[name] = value; } },
-      setAttribute(name, value) { this[name] = value; },
-      addEventListener(name, handler) { this.events[name] = handler; },
-    });
+    if (!nodes.has(id))
+      nodes.set(id, {
+        textContent: '',
+        hidden: true,
+        dataset: {},
+        events: {},
+        clientWidth: 1000,
+        clientHeight: 800,
+        style: {
+          setProperty(name, value) {
+            this[name] = value;
+          },
+        },
+        setAttribute(name, value) {
+          this[name] = value;
+        },
+        addEventListener(name, handler) {
+          this.events[name] = handler;
+        },
+      });
     return nodes.get(id);
   };
   const buttons = styles.map((style) => {
@@ -27,34 +41,61 @@ async function fixture(search = '?preview=1', savedStyle) {
   const listeners = {};
   const document = {
     getElementById: node,
-    addEventListener(name, handler) { listeners[name] = handler; },
+    addEventListener(name, handler) {
+      listeners[name] = handler;
+    },
     documentElement: node('root'),
     body: { dataset: {}, classList: { add() {}, toggle() {} } },
   };
   const location = new URL(`http://127.0.0.1:3000/danmaku${search}`);
   const history = {
     state: savedStyle ? { danmakuPreviewStyle: savedStyle } : null,
-    replaceState(state, _title, url) { this.state = state; location.href = new URL(url, location).href; },
+    replaceState(state, _title, url) {
+      this.state = state;
+      location.href = new URL(url, location).href;
+    },
   };
-  const renders = [], options = [];
+  const renders = [],
+    options = [];
   const context = vm.createContext({
-    document, location, URLSearchParams, URL,
+    document,
+    location,
+    URLSearchParams,
+    URL,
     window: { location, history, innerWidth: 1366, innerHeight: 900, addEventListener() {} },
-    WebSocket: class { constructor() { assert.fail('preview must not connect'); } },
-    setInterval() { assert.fail('preview must not loop'); },
-    setTimeout() { assert.fail('preview must not schedule message playback'); },
+    WebSocket: class {
+      constructor() {
+        assert.fail('preview must not connect');
+      }
+    },
+    setInterval() {
+      assert.fail('preview must not loop');
+    },
+    setTimeout() {
+      assert.fail('preview must not schedule message playback');
+    },
   });
   const read = (file) => fs.readFileSync(path.join(__dirname, '../public/js/overlays', file), 'utf8');
   const module = new vm.SourceTextModule(read('danmaku.js'), { context });
   await module.link((specifier) => {
-    if (specifier.includes('danmaku-style-options')) return new vm.SourceTextModule(read('../shared/danmaku-style-options.js'), { context });
+    if (specifier.includes('danmaku-style-options'))
+      return new vm.SourceTextModule(read('../shared/danmaku-style-options.js'), { context });
     if (specifier === './danmaku-preview.js') return new vm.SourceTextModule(read('danmaku-preview.js'), { context });
-    return new vm.SyntheticModule(['createDanmakuFeed'], function () {
-      this.setExport('createDanmakuFeed', (_root, config) => {
-        options.push(config);
-        return { destroy() {}, render(items) { renders.push(items); } };
-      });
-    }, { context });
+    return new vm.SyntheticModule(
+      ['createDanmakuFeed'],
+      function () {
+        this.setExport('createDanmakuFeed', (_root, config) => {
+          options.push(config);
+          return {
+            destroy() {},
+            render(items) {
+              renders.push(items);
+            },
+          };
+        });
+      },
+      { context },
+    );
   });
   await module.evaluate();
   listeners.DOMContentLoaded();
@@ -74,7 +115,10 @@ test('all local styles share one address and retain every example without loopin
     assert.equal(f.node(style)['aria-pressed'], 'true');
     const items = f.renders.at(-1);
     assert.equal(items.length, 6);
-    assert.deepEqual(Array.from(items.slice(0, 4), (item) => item.guardLevel || 0), [1, 2, 3, 0]);
+    assert.deepEqual(
+      Array.from(items.slice(0, 4), (item) => item.guardLevel || 0),
+      [1, 2, 3, 0],
+    );
     assert.ok(items.slice(0, 4).every((item) => item.message.includes('[打call]') && item.emotes.length));
     assert.ok(items.slice(0, 4).every((item) => item.emotes[0].kind === 'inline'));
     assert.ok(items.some((item) => item.message === '[打call]'));
@@ -96,7 +140,10 @@ test('all local styles share one address and retain every example without loopin
 });
 
 test('local preview applies per-style parameters without external image requests', async () => {
-  const options = { signal: { fontSize: 42, fontFamily: 'serif', backgroundOpacity: 35, giftImage: 'gift' }, minimal: { fontSize: 24 } };
+  const options = {
+    signal: { fontSize: 42, fontFamily: 'serif', backgroundOpacity: 35, giftImage: 'gift' },
+    minimal: { fontSize: 24 },
+  };
   const f = await fixture(`?preview=1&style=signal&styleOptions=${encodeURIComponent(JSON.stringify(options))}`);
   assert.equal(f.node('root').style['--danmaku-font-size'], '42px');
   assert.equal(f.node('root').style['--danmaku-background-opacity'], '0.35');
@@ -120,8 +167,11 @@ test('danmaku avatars load directly from the allowed Bilibili CDN while emotes r
   assert.equal(resolveAvatarUrl(avatarUrl), avatarUrl);
   assert.equal(resolveEmoteUrl(avatarUrl), `/api/bilibili/avatar?url=${encodeURIComponent(avatarUrl)}`);
   for (const invalid of [
-    '', 'http://i0.hdslb.com/avatar.png', '/avatar.png',
-    'https://hdslb.com.example.com/avatar.png', 'https://example.com/avatar.png',
+    '',
+    'http://i0.hdslb.com/avatar.png',
+    '/avatar.png',
+    'https://hdslb.com.example.com/avatar.png',
+    'https://example.com/avatar.png',
     'https://user:password@i0.hdslb.com/avatar.png',
   ]) {
     assert.equal(resolveAvatarUrl(invalid), '', invalid);

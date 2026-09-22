@@ -2,9 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {
-  createCloudSyncController,
-} = require('../src/electron/cloud-sync-controller');
+const { createCloudSyncController } = require('../src/electron/cloud-sync-controller');
 
 function createFixture(t, initialAccount = 'first') {
   let account = initialAccount;
@@ -163,11 +161,7 @@ test('an empty new account never inherits an unowned local login', async (t) => 
   fixture.setCookie('explicit-new-login');
   fixture.controller.markDirty('bilibili');
   await fixture.controller.whenIdle();
-  assert.deepEqual(fixture.calls.at(-1), [
-    'upload',
-    'new-account',
-    'explicit-new-login',
-  ]);
+  assert.deepEqual(fixture.calls.at(-1), ['upload', 'new-account', 'explicit-new-login']);
 });
 
 test('same-account authorization interruption retains a pending login retry', async (t) => {
@@ -196,10 +190,7 @@ test('independent desktop controllers keep account cookies and queues separate',
   second.setCookie('second-local');
   first.controller.markDirty('bilibili');
   second.controller.markDirty('bilibili');
-  await Promise.all([
-    first.controller.whenIdle(),
-    second.controller.whenIdle(),
-  ]);
+  await Promise.all([first.controller.whenIdle(), second.controller.whenIdle()]);
   assert.deepEqual(
     first.calls.filter(([type]) => type === 'upload'),
     [['upload', 'first', 'first-local']],

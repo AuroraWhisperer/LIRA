@@ -307,7 +307,14 @@ tr:hover td {
 }
 
 /* The auxiliary page shares lifecycle behavior, not Admin styles. */
-.audit-toast-stack { position: fixed; top: 16px; right: 24px; z-index: 999; display: flex; flex-direction: column; }
+.audit-toast-stack {
+  position: fixed;
+  top: 16px;
+  right: 24px;
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+}
 .toast {
   --toast-accent: #454d85;
   position: relative;
@@ -324,21 +331,54 @@ tr:hover td {
   box-shadow: 0 8px 20px rgb(52 61 92 / 10%);
   opacity: 0;
   transform: translateY(-8px);
-  transition: opacity 180ms ease, transform 180ms ease;
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease;
 }
-.toast.show { opacity: 1; transform: translateY(0); }
-.toast[hidden], .toast-action[hidden] { display: none; }
-.toast.warn { --toast-accent: #754337; }
-.toast-content { overflow-wrap: anywhere; max-height: calc(100dvh - 140px); overflow: auto; }
-.toast-content-compact { display: grid; grid-template-columns: 18px minmax(0, 1fr); align-items: start; column-gap: 8px; }
-.toast-symbol { color: var(--toast-accent); margin-top: 2px; line-height: 0; }
-.toast-symbol svg { width: 18px; height: 18px; }
+.toast.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+.toast[hidden],
+.toast-action[hidden] {
+  display: none;
+}
+.toast.warn {
+  --toast-accent: #754337;
+}
+.toast-content {
+  overflow-wrap: anywhere;
+  max-height: calc(100dvh - 140px);
+  overflow: auto;
+}
+.toast-content-compact {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: start;
+  column-gap: 8px;
+}
+.toast-symbol {
+  color: var(--toast-accent);
+  margin-top: 2px;
+  line-height: 0;
+}
+.toast-symbol svg {
+  width: 18px;
+  height: 18px;
+}
 .toast-announcer {
-  position: absolute; width: 1px; height: 1px;
-  overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 @media (prefers-reduced-motion: reduce) {
-  .toast { transition: none; transform: none; }
+  .toast {
+    transition: none;
+    transform: none;
+  }
 }
 
 /* Gift ID display */

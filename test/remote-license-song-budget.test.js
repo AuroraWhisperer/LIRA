@@ -18,7 +18,8 @@ test('song snapshots accept the exact 8 MiB UTF-8 boundary without raising auth 
   assert.deepEqual(await client.getCloudSongs('synthetic-token'), payload);
   body += ' ';
   await assert.rejects(client.getCloudSongs('synthetic-token'), {
-    code: 'RESPONSE_TOO_LARGE', retryable: false,
+    code: 'RESPONSE_TOO_LARGE',
+    retryable: false,
   });
   await assert.rejects(client.heartbeat('synthetic-token'), { code: 'RESPONSE_TOO_LARGE' });
 });
@@ -31,17 +32,30 @@ test('oversized song streams stop at the budget and do not invite a retry', asyn
   const client = createRemoteLicenseClient({
     baseUrl: 'https://api.example.test',
     fetchImpl: async () => ({
-      status: 200, ok: true,
-      body: { getReader: () => ({
-        read: async () => { readCalls += 1; return { done: false, value: chunk }; },
-        cancel: async () => { cancelled = true; },
-        releaseLock: () => { released = true; },
-      }) },
-      text() { assert.fail('the unbounded text reader must not be used for songs'); },
+      status: 200,
+      ok: true,
+      body: {
+        getReader: () => ({
+          read: async () => {
+            readCalls += 1;
+            return { done: false, value: chunk };
+          },
+          cancel: async () => {
+            cancelled = true;
+          },
+          releaseLock: () => {
+            released = true;
+          },
+        }),
+      },
+      text() {
+        assert.fail('the unbounded text reader must not be used for songs');
+      },
     }),
   });
   await assert.rejects(client.getCloudSongs('synthetic-token'), {
-    code: 'RESPONSE_TOO_LARGE', retryable: false,
+    code: 'RESPONSE_TOO_LARGE',
+    retryable: false,
   });
   assert.equal(readCalls, 9);
   assert.equal(cancelled, true);
@@ -57,7 +71,8 @@ test('song transport checks UTF-8 byte length for text-only injected responses',
     fetchImpl: async () => ({ status: 200, ok: true, text: async () => body }),
   });
   await assert.rejects(client.getCloudSongs('synthetic-token'), {
-    code: 'RESPONSE_TOO_LARGE', retryable: false,
+    code: 'RESPONSE_TOO_LARGE',
+    retryable: false,
   });
 });
 
@@ -66,14 +81,17 @@ test('bounded song decoding preserves Response.text BOM and split UTF-8 behavior
   const bytes = Buffer.from(`\uFEFF${JSON.stringify(payload)}`);
   const client = createRemoteLicenseClient({
     baseUrl: 'https://api.example.test',
-    fetchImpl: async () => new Response(new ReadableStream({
-      start(controller) {
-        for (let offset = 0; offset < bytes.length; offset += 2) {
-          controller.enqueue(bytes.subarray(offset, offset + 2));
-        }
-        controller.close();
-      },
-    })),
+    fetchImpl: async () =>
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            for (let offset = 0; offset < bytes.length; offset += 2) {
+              controller.enqueue(bytes.subarray(offset, offset + 2));
+            }
+            controller.close();
+          },
+        }),
+      ),
   });
   assert.deepEqual(await client.getCloudSongs('synthetic-token'), payload);
 });

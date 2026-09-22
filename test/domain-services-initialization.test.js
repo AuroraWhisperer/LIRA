@@ -102,8 +102,7 @@ function fixture({ failure = '', cleanupFails = false, shared = true } = {}) {
     status='running', remaining_ms=60000, anchor_at_ms=?, revision=7 WHERE id=1`,
     )
     .run(clock.now());
-  db.giftDb
-    .exec(`INSERT INTO gift_events (id, overtime_epoch, detection_status, created_at, updated_at)
+  db.giftDb.exec(`INSERT INTO gift_events (id, overtime_epoch, detection_status, created_at, updated_at)
     VALUES (1, 1, 'final', 'a', 'a');`);
   db.giftDb
     .prepare(
@@ -178,11 +177,7 @@ function fixture({ failure = '', cleanupFails = false, shared = true } = {}) {
       '../bilibili/gift/sale-catalog': {
         ...saleModule,
         createGiftSaleCatalogService(options) {
-          assert.equal(
-            clock.timers.size,
-            2,
-            'clock and retry exist before catalog creation',
-          );
+          assert.equal(clock.timers.size, 2, 'clock and retry exist before catalog creation');
           if (phase === 'catalog') throw originalError;
           return saleModule.createGiftSaleCatalogService(options);
         },
@@ -191,11 +186,7 @@ function fixture({ failure = '', cleanupFails = false, shared = true } = {}) {
       '../bilibili/gift': {
         ...giftModule,
         createGiftService(context, options) {
-          assert.equal(
-            listeners.size,
-            1,
-            'hybrid subscribed before gift construction',
-          );
+          assert.equal(listeners.size, 1, 'hybrid subscribed before gift construction');
           if (phase === 'gift') throw originalError;
           const service = giftModule.createGiftService(context, options);
           services.push(service);
@@ -273,20 +264,13 @@ for (const failure of ['catalog', 'hybrid', 'gift', 'recovery']) {
       assert.equal(f.clock.timers.size, 0);
       assert.equal(f.listeners.size, 0);
       assert.equal(f.borrowedStops(), 0);
-      const state = f.db.giftDb
-        .prepare('SELECT * FROM overtime_machine_state')
-        .get();
+      const state = f.db.giftDb.prepare('SELECT * FROM overtime_machine_state').get();
       assert.equal(state.enabled, 1);
       assert.equal(state.status, 'running');
       assert.equal(state.remaining_ms, 60000);
       assert.equal(state.revision, 7);
-      assert.equal(
-        f.db.giftDb.prepare('SELECT status FROM overtime_settlements').get()
-          .status,
-        'pending',
-      );
-      for (const db of Object.values(f.db))
-        assert.equal(db.prepare('SELECT 1 AS ok').get().ok, 1);
+      assert.equal(f.db.giftDb.prepare('SELECT status FROM overtime_settlements').get().status, 'pending');
+      for (const db of Object.values(f.db)) assert.equal(db.prepare('SELECT 1 AS ok').get().ok, 1);
       f.closeDatabases();
       assert.doesNotThrow(() => f.clock.advance(120000));
       assert.equal(f.clock.fired(), 0);
@@ -304,12 +288,7 @@ test('cleanup failures preserve the assembly error and release remaining owned r
   });
   try {
     assert.throws(f.create, (error) => error === f.originalError);
-    assert.deepEqual(f.events, [
-      'gift:dispose',
-      'unsubscribe',
-      'remote:stop',
-      'overtime:dispose',
-    ]);
+    assert.deepEqual(f.events, ['gift:dispose', 'unsubscribe', 'remote:stop', 'overtime:dispose']);
     assert.equal(f.warnings.length, 2);
     assert.equal(f.clock.timers.size, 0);
     assert.equal(f.listeners.size, 0);
@@ -346,12 +325,7 @@ test('failed assembly can retry and transfers successful services to normal shut
     f.clock.advance(120000);
     const reopened = createDatabases({ dataDir: f.dataDir });
     try {
-      assert.equal(
-        reopened.giftDb
-          .prepare('SELECT status FROM overtime_machine_state')
-          .get().status,
-        'running',
-      );
+      assert.equal(reopened.giftDb.prepare('SELECT status FROM overtime_machine_state').get().status, 'running');
     } finally {
       closeDatabases(reopened);
     }
@@ -413,12 +387,9 @@ test('hybrid acquires a listener at construction and starts polling only on star
       clearInterval: (timer) => intervals.delete(timer),
     },
   );
-  const { createHybridGiftSaleCatalogService } = loadModule(
-    'src/bilibili/gift/hybrid-catalog.js',
-    {
-      './remote-catalog-cache': remoteModule,
-    },
-  );
+  const { createHybridGiftSaleCatalogService } = loadModule('src/bilibili/gift/hybrid-catalog.js', {
+    './remote-catalog-cache': remoteModule,
+  });
   const catalog = createHybridGiftSaleCatalogService({
     dataDir: fs.mkdtempSync(path.join(root, 'hybrid-')),
     local: saleModule.createUnavailableGiftSaleCatalogService(),

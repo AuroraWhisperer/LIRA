@@ -12,8 +12,7 @@ import * as PlaybackUtils from '../utils.js';
 export function renderCurrentCover(coverElement, track) {
   if (!coverElement) return;
 
-  const escapeAttr =
-    window.AdminApp?.utils?.escapeAttr || ((s) => String(s || ''));
+  const escapeAttr = window.AdminApp?.utils?.escapeAttr || ((s) => String(s || ''));
   const coverUrl = String((track && track.coverUrl) || '').trim();
 
   coverElement.classList.toggle('has-image', Boolean(coverUrl));
@@ -31,9 +30,7 @@ export function renderCurrentCover(coverElement, track) {
  */
 export function updateVolumeUI(volume) {
   const numericVolume = Number(volume);
-  const normalizedVolume = Number.isFinite(numericVolume)
-    ? Math.max(0, Math.min(1, numericVolume))
-    : 0;
+  const normalizedVolume = Number.isFinite(numericVolume) ? Math.max(0, Math.min(1, numericVolume)) : 0;
   const volumePct = Math.round(normalizedVolume * 100) + '%';
   const volSlider = document.getElementById('playbackVolume');
   const volValue = document.getElementById('playbackVolumeValue');
@@ -64,10 +61,7 @@ export function renderProgress(audio, restoredTime = 0, durationMs = 0) {
   // readyState === 0 (HAVE_NOTHING) 表示没有媒体加载，此时 audio.currentTime 为 0
   // 应使用 restoredTime 来显示上次退出时保存的播放位置
   const hasMedia = audio && audio.readyState >= 1;
-  const currentTime =
-    hasMedia && Number.isFinite(audio.currentTime)
-      ? audio.currentTime
-      : restoredTime;
+  const currentTime = hasMedia && Number.isFinite(audio.currentTime) ? audio.currentTime : restoredTime;
   const duration =
     hasMedia && Number.isFinite(audio.duration) && audio.duration > 0
       ? audio.duration
@@ -78,11 +72,8 @@ export function renderProgress(audio, restoredTime = 0, durationMs = 0) {
   const seek = document.getElementById('playbackSeek');
   if (seek) {
     seek.max = String(Math.max(0, duration));
-    seek.value = String(
-      Math.max(0, Math.min(currentTime, duration || currentTime)),
-    );
-    const pct =
-      duration > 0 ? Math.round((currentTime / duration) * 1000) / 10 : 0;
+    seek.value = String(Math.max(0, Math.min(currentTime, duration || currentTime)));
+    const pct = duration > 0 ? Math.round((currentTime / duration) * 1000) / 10 : 0;
     seek.style.setProperty('--seek-pos', pct + '%');
   }
 
@@ -115,29 +106,18 @@ export function updateMediaSession(track, audio, handlers = {}) {
       title: track.title || '',
       artist: Array.isArray(track.artists) ? track.artists.join(' / ') : '',
       album: track.album || '',
-      artwork: track.coverUrl
-        ? [{ src: track.coverUrl, sizes: '300x300', type: 'image/jpeg' }]
-        : [],
+      artwork: track.coverUrl ? [{ src: track.coverUrl, sizes: '300x300', type: 'image/jpeg' }] : [],
     });
 
     navigator.mediaSession.playbackState = audio?.paused ? 'paused' : 'playing';
 
     if (handlers.onTogglePlayback) {
-      navigator.mediaSession.setActionHandler(
-        'play',
-        handlers.onTogglePlayback,
-      );
-      navigator.mediaSession.setActionHandler(
-        'pause',
-        handlers.onTogglePlayback,
-      );
+      navigator.mediaSession.setActionHandler('play', handlers.onTogglePlayback);
+      navigator.mediaSession.setActionHandler('pause', handlers.onTogglePlayback);
     }
 
     if (handlers.onPrevious) {
-      navigator.mediaSession.setActionHandler(
-        'previoustrack',
-        handlers.onPrevious,
-      );
+      navigator.mediaSession.setActionHandler('previoustrack', handlers.onPrevious);
     }
 
     if (handlers.onNext) {
@@ -146,10 +126,7 @@ export function updateMediaSession(track, audio, handlers = {}) {
 
     navigator.mediaSession.setActionHandler('seekto', (details) => {
       if (!audio || !Number.isFinite(details.seekTime)) return;
-      audio.currentTime = Math.max(
-        0,
-        Math.min(audio.duration || details.seekTime, details.seekTime),
-      );
+      audio.currentTime = Math.max(0, Math.min(audio.duration || details.seekTime, details.seekTime));
     });
 
     updateMediaSessionPosition(audio);
@@ -163,11 +140,7 @@ export function updateMediaSession(track, audio, handlers = {}) {
  * @param {HTMLAudioElement} audio - 音频元素
  */
 export function updateMediaSessionPosition(audio) {
-  if (
-    !('mediaSession' in navigator) ||
-    typeof navigator.mediaSession.setPositionState !== 'function'
-  )
-    return;
+  if (!('mediaSession' in navigator) || typeof navigator.mediaSession.setPositionState !== 'function') return;
   if (!audio || !Number.isFinite(audio.duration) || audio.duration <= 0) return;
 
   try {
@@ -191,25 +164,15 @@ export function updateMediaSessionPosition(audio) {
  * @param {string} currentOrigin - 当前播放来源
  * @returns {string} HTML 字符串
  */
-export function renderQueueRow(
-  track,
-  origin,
-  index,
-  readonly,
-  currentTrack,
-  currentOrigin,
-) {
-  const escapeHtml =
-    window.AdminApp?.utils?.escapeHtml || ((s) => String(s || ''));
-  const escapeAttr =
-    window.AdminApp?.utils?.escapeAttr || ((s) => String(s || ''));
+export function renderQueueRow(track, origin, index, readonly, currentTrack, currentOrigin) {
+  const escapeHtml = window.AdminApp?.utils?.escapeHtml || ((s) => String(s || ''));
+  const escapeAttr = window.AdminApp?.utils?.escapeAttr || ((s) => String(s || ''));
 
   const isLocal = PlaybackUtils.isLocalTrack(track);
   const needsFile = isLocal && !track.objectUrl;
   const fileMissing = isLocal && track.fileMissing;
   const meta = `${PlaybackUtils.formatTrackMeta(track)}${fileMissing ? ' · 文件已移动，请重新选择' : needsFile ? ' · 需重新选择文件' : ''}`;
-  const isActive =
-    origin === currentOrigin && currentTrack && track.id === currentTrack.id;
+  const isActive = origin === currentOrigin && currentTrack && track.id === currentTrack.id;
 
   return `
     <div class="queue-row playback-queue-row${isActive ? ' active' : ''}">
@@ -242,18 +205,13 @@ export function renderQueueRow(
  * @returns {string} HTML 字符串
  */
 export function renderPlaylistRow(track, index, isCurrent, isPast) {
-  const escapeHtml =
-    window.AdminApp?.utils?.escapeHtml || ((s) => String(s || ''));
+  const escapeHtml = window.AdminApp?.utils?.escapeHtml || ((s) => String(s || ''));
 
   const isLocal = PlaybackUtils.isLocalTrack(track);
   const needsFile = isLocal && !track.objectUrl;
   const fileMissing = isLocal && track.fileMissing;
   const meta = `${PlaybackUtils.formatTrackMeta(track)}${fileMissing ? ' · 文件已移动，请重新选择' : needsFile ? ' · 需重新选择文件' : ''}`;
-  const stateClass = isCurrent
-    ? ' playlist-current'
-    : isPast
-      ? ' playlist-past'
-      : '';
+  const stateClass = isCurrent ? ' playlist-current' : isPast ? ' playlist-past' : '';
   const btnLabel = isCurrent ? '重播' : '播放';
 
   return `
@@ -279,8 +237,7 @@ export function renderPlaylistRow(track, index, isCurrent, isPast) {
  * @returns {string} HTML 字符串
  */
 export function renderPendingRow(item, index) {
-  const escapeHtml =
-    window.AdminApp?.utils?.escapeHtml || ((s) => String(s || ''));
+  const escapeHtml = window.AdminApp?.utils?.escapeHtml || ((s) => String(s || ''));
 
   const track = item.track || {};
   const reasons = Array.isArray(item.reasons) ? item.reasons.join('；') : '';
@@ -308,15 +265,12 @@ export function renderPendingRow(item, index) {
  * @returns {string} HTML 字符串
  */
 export function renderHomeTrackRow(track, index, context, action = '') {
-  const escapeHtml =
-    window.AdminApp?.utils?.escapeHtml || ((s) => String(s || ''));
-  const dataPrefix =
-    context === 'search' ? 'playback-search' : 'playback-home-track';
+  const escapeHtml = window.AdminApp?.utils?.escapeHtml || ((s) => String(s || ''));
+  const dataPrefix = context === 'search' ? 'playback-search' : 'playback-home-track';
   const showRadioButton = action === 'radio';
   const canAddToPlaylist =
     (track.source === 'qq' && Number(track.sourceSongId) > 0) ||
-    (track.source === 'netease' &&
-      /^\d+$/.test(String(track.sourceTrackId || '').replace(/^netease:/, '')));
+    (track.source === 'netease' && /^\d+$/.test(String(track.sourceTrackId || '').replace(/^netease:/, '')));
 
   // 我喜欢和歌单详情显示菜单按钮（带删除功能）
   const showMenuButton = action === 'liked' || action === 'playlist-tracks';
@@ -387,8 +341,7 @@ export function renderHomeTrackRow(track, index, context, action = '') {
  * @returns {string} HTML 字符串
  */
 export function renderPlaylistCard(playlist, index) {
-  const escapeHtml =
-    window.AdminApp?.utils?.escapeHtml || ((s) => String(s || ''));
+  const escapeHtml = window.AdminApp?.utils?.escapeHtml || ((s) => String(s || ''));
 
   return `
     <div class="playback-drawer-playlist-card" data-playback-playlist-index="${index}">
@@ -421,8 +374,7 @@ export function showConfirmDialog(options = {}) {
     trackName = '',
   } = options;
   const showConfirmationDialog = window.AdminApp?.utils?.showConfirmationDialog;
-  if (typeof showConfirmationDialog !== 'function')
-    return Promise.resolve(false);
+  if (typeof showConfirmationDialog !== 'function') return Promise.resolve(false);
   return showConfirmationDialog({
     title,
     description: message,

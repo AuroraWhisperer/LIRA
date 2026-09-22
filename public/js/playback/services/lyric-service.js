@@ -54,10 +54,7 @@ export class LyricService {
 
       return payload.data;
     } catch (error) {
-      console.warn(
-        '[LyricService] load lyrics failed:',
-        error.message || error,
-      );
+      console.warn('[LyricService] load lyrics failed:', error.message || error);
       return null;
     }
   }
@@ -69,10 +66,7 @@ export class LyricService {
    * @returns {Object|null} 歌词行对象
    */
   findLyricLine(track, currentMs) {
-    const lines =
-      track && track.lyrics && Array.isArray(track.lyrics.lines)
-        ? track.lyrics.lines
-        : [];
+    const lines = track && track.lyrics && Array.isArray(track.lyrics.lines) ? track.lyrics.lines : [];
 
     if (!lines.length) return null;
 
@@ -105,22 +99,13 @@ export class LyricService {
    * @returns {Promise<void>}
    */
   async syncWindow(track, audio, force = false) {
-    const duration =
-      audio && Number.isFinite(audio.duration) ? audio.duration : 0;
-    const currentTime =
-      audio && Number.isFinite(audio.currentTime) ? audio.currentTime : 0;
+    const duration = audio && Number.isFinite(audio.duration) ? audio.duration : 0;
+    const currentTime = audio && Number.isFinite(audio.currentTime) ? audio.currentTime : 0;
     const progress = duration > 0 ? currentTime / duration : 0;
     const lyricLine = this.findLyricLine(track, currentTime * 1000);
-    const hasLyrics = Boolean(
-      track?.lyrics && Array.isArray(track.lyrics.lines),
-    );
-    const trackKey = track
-      ? `${track.source || ''}:${track.id || track.sourceTrackId || track.title || ''}`
-      : '';
-    const discontinuity =
-      force ||
-      trackKey !== this.lastStateTrackKey ||
-      track?.lyrics !== this.lastStateLyrics;
+    const hasLyrics = Boolean(track?.lyrics && Array.isArray(track.lyrics.lines));
+    const trackKey = track ? `${track.source || ''}:${track.id || track.sourceTrackId || track.title || ''}` : '';
+    const discontinuity = force || trackKey !== this.lastStateTrackKey || track?.lyrics !== this.lastStateLyrics;
     if (discontinuity) {
       this.stateGeneration += 1;
       this.stateSequence = 0;
@@ -141,13 +126,7 @@ export class LyricService {
       locked: false,
       generation: this.stateGeneration,
       sequence: this.stateSequence,
-      status: !track
-        ? 'idle'
-        : !hasLyrics
-          ? 'loading'
-          : track.lyrics.lines.length > 0
-            ? 'ready'
-            : 'empty',
+      status: !track ? 'idle' : !hasLyrics ? 'loading' : track.lyrics.lines.length > 0 ? 'ready' : 'empty',
     };
 
     const timelinePublish = this.publishBrowserTimeline(track);
@@ -157,14 +136,9 @@ export class LyricService {
   }
 
   publishBrowserTimeline(track) {
-    const trackKey = track
-      ? `${track.source || ''}:${track.id || track.sourceTrackId || track.title || ''}`
-      : '';
+    const trackKey = track ? `${track.source || ''}:${track.id || track.sourceTrackId || track.title || ''}` : '';
     const lyrics = track?.lyrics || null;
-    if (
-      trackKey === this.lastTimelineTrackKey &&
-      lyrics === this.lastTimelineLyrics
-    ) {
+    if (trackKey === this.lastTimelineTrackKey && lyrics === this.lastTimelineLyrics) {
       return this.timelinePublishInFlight;
     }
 
@@ -174,13 +148,7 @@ export class LyricService {
     const timeline = {
       trackTitle: track?.title || '',
       artists: Array.isArray(track?.artists) ? track.artists : [],
-      status: !track
-        ? 'idle'
-        : !hasLyrics
-          ? 'loading'
-          : lyrics.lines.length > 0
-            ? 'ready'
-            : 'empty',
+      status: !track ? 'idle' : !hasLyrics ? 'loading' : lyrics.lines.length > 0 ? 'ready' : 'empty',
       lines: hasLyrics ? lyrics.lines : [],
     };
 
@@ -228,8 +196,7 @@ export class LyricService {
     if (
       previous &&
       (request.state.generation < previous.generation ||
-        (request.state.generation === previous.generation &&
-          request.state.sequence <= previous.sequence))
+        (request.state.generation === previous.generation && request.state.sequence <= previous.sequence))
     ) {
       request.resolve();
       return this.flushStateQueue();
@@ -253,25 +220,18 @@ export class LyricService {
           if (!response.ok || !payload?.ok || !payload.data) break;
           const nextGeneration = payload.data?.nextGeneration;
           if (nextGeneration !== undefined) {
-            if (
-              !Number.isSafeInteger(nextGeneration) ||
-              nextGeneration <= state.generation
-            ) break;
+            if (!Number.isSafeInteger(nextGeneration) || nextGeneration <= state.generation) break;
             this.stateGenerationOffset += nextGeneration - state.generation;
             continue;
           }
-          if (
-            payload.data.generation !== state.generation ||
-            payload.data.sequence !== state.sequence
-          ) break;
+          if (payload.data.generation !== state.generation || payload.data.sequence !== state.sequence) break;
           this.lastAcceptedVersion = request.state;
           this.lastPublishedAt = Date.now();
           this.lastPublishedState = request.serialized;
           break;
         }
       } catch (_) {
-        if (this.lastPublishedState === request.serialized)
-          this.lastPublishedState = '';
+        if (this.lastPublishedState === request.serialized) this.lastPublishedState = '';
       } finally {
         request.resolve();
         this.statePublishInFlight = null;

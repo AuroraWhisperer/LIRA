@@ -6,8 +6,7 @@ import { setGiftImage } from '../shared/gift-image-fallback.js';
 
 const MAX_ANIMATION_QUEUE = 5;
 const quality = new URLSearchParams(location.search).get('quality') || '';
-const lowMotion =
-  quality === 'low' || matchMedia('(prefers-reduced-motion: reduce)').matches;
+const lowMotion = quality === 'low' || matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 let currentState = null;
 let currentRevision = -1;
@@ -60,8 +59,7 @@ function connectSocket() {
         return;
       }
       if (payload.type === 'overtime:update') {
-        if (applyState(payload.state) && payload.adjustment)
-          enqueueAdjustment(payload.adjustment);
+        if (applyState(payload.state) && payload.adjustment) enqueueAdjustment(payload.adjustment);
       }
     },
     onClose: () => {
@@ -85,13 +83,8 @@ function applyState(state) {
   currentRevision = revision;
   currentState = state;
   const transportElapsedMs =
-    state.status === 'running'
-      ? Math.max(0, Date.now() - (Number(state.serverNowMs) || Date.now()))
-      : 0;
-  anchorRemainingMs = Math.max(
-    0,
-    (Number(state.effectiveRemainingMs) || 0) - transportElapsedMs,
-  );
+    state.status === 'running' ? Math.max(0, Date.now() - (Number(state.serverNowMs) || Date.now())) : 0;
+  anchorRemainingMs = Math.max(0, (Number(state.effectiveRemainingMs) || 0) - transportElapsedMs);
   localAnchorMs = performance.now();
   renderStatus();
   renderBackground();
@@ -111,8 +104,7 @@ function renderClock() {
   if (!currentState) return;
 
   const nowMs = performance.now();
-  const elapsed =
-    currentState.status === 'running' ? Math.max(0, nowMs - localAnchorMs) : 0;
+  const elapsed = currentState.status === 'running' ? Math.max(0, nowMs - localAnchorMs) : 0;
   const remainingMs = Math.max(0, anchorRemainingMs - elapsed);
   const value = formatClockDisplay(remainingMs, currentState.status);
   if (value !== lastClockValue) {
@@ -123,8 +115,7 @@ function renderClock() {
     lastClockValue = value;
   }
 
-  if (currentState.status !== 'running' || remainingMs <= 0 || document.hidden)
-    return;
+  if (currentState.status !== 'running' || remainingMs <= 0 || document.hidden) return;
   clockTimer = setTimeout(renderClock, nextClockDelay(remainingMs));
 }
 
@@ -148,14 +139,10 @@ function renderBackground() {
   const machine = byId('overtimeMachine');
   const background = byId('overtimeBackground');
   const imagePath = String(currentState?.background?.path || '');
-  const fit = ['cover', 'contain', 'fill'].includes(
-    currentState?.background?.fit,
-  )
+  const fit = ['cover', 'contain', 'fill'].includes(currentState?.background?.fit)
     ? currentState.background.fit
     : 'cover';
-  background.style.backgroundImage = imagePath
-    ? `url(${JSON.stringify(imagePath)})`
-    : '';
+  background.style.backgroundImage = imagePath ? `url(${JSON.stringify(imagePath)})` : '';
   background.style.backgroundSize = fit;
   machine.classList.toggle('has-background', Boolean(imagePath));
 }
@@ -163,9 +150,7 @@ function renderBackground() {
 function renderTickets() {
   const guide = byId('overtimeGiftGuide');
   const root = byId('overtimeTickets');
-  const rules = Array.isArray(currentState?.rules)
-    ? currentState.rules.filter((rule) => rule.enabled)
-    : [];
+  const rules = Array.isArray(currentState?.rules) ? currentState.rules.filter((rule) => rule.enabled) : [];
   const ticketCount = Math.max(1, rules.length);
   const wideColumns = Math.min(3, ticketCount);
   const narrowColumns = Math.min(2, ticketCount);
@@ -214,14 +199,11 @@ function enqueueAdjustment(adjustment) {
     const previous = animationQueue[lastIndex];
     animationQueue[lastIndex] = {
       aggregate: true,
-      quantity:
-        Number(previous.quantity || 0) + Number(adjustment.quantity || 0),
+      quantity: Number(previous.quantity || 0) + Number(adjustment.quantity || 0),
       appliedDeltaSeconds:
-        Number(previous.appliedDeltaSeconds || previous.netSeconds || 0) +
-        Number(adjustment.appliedDeltaSeconds || 0),
+        Number(previous.appliedDeltaSeconds || previous.netSeconds || 0) + Number(adjustment.appliedDeltaSeconds || 0),
       netSeconds:
-        Number(previous.appliedDeltaSeconds || previous.netSeconds || 0) +
-        Number(adjustment.appliedDeltaSeconds || 0),
+        Number(previous.appliedDeltaSeconds || previous.netSeconds || 0) + Number(adjustment.appliedDeltaSeconds || 0),
     };
   } else {
     animationQueue.push(adjustment);
@@ -233,8 +215,7 @@ function playNextAdjustment() {
   if (animationActive || animationQueue.length === 0) return;
   animationActive = true;
   const adjustment = animationQueue.shift();
-  const delta =
-    Number(adjustment.netSeconds ?? adjustment.appliedDeltaSeconds) || 0;
+  const delta = Number(adjustment.netSeconds ?? adjustment.appliedDeltaSeconds) || 0;
 
   if (!adjustment.aggregate) highlightTicket(adjustment.giftId);
   const stage = byId('overtimeAdjustmentStage');
@@ -265,9 +246,7 @@ function playNextAdjustment() {
 }
 
 function highlightTicket(giftId) {
-  const ticket = Array.from(byId('overtimeTickets').children).find(
-    (node) => node.dataset.giftId === String(giftId),
-  );
+  const ticket = Array.from(byId('overtimeTickets').children).find((node) => node.dataset.giftId === String(giftId));
   if (!ticket) return;
   ticket.classList.remove('is-hit');
   void ticket.offsetWidth;
@@ -288,19 +267,10 @@ function nextClockDelay(remainingMs) {
   const remaining = Math.max(0, Number(remainingMs) || 0);
   const dayMs = 24 * 60 * 60 * 1000;
   const yearMs = 365 * dayMs;
-  const resolutionMs =
-    remaining >= yearMs
-      ? 60 * 60 * 1000
-      : remaining >= dayMs
-        ? 60 * 1000
-        : 1000;
+  const resolutionMs = remaining >= yearMs ? 60 * 60 * 1000 : remaining >= dayMs ? 60 * 1000 : 1000;
   const boundaryDelay = remaining % resolutionMs || resolutionMs;
   const tierBoundaryDelay =
-    remaining >= yearMs
-      ? remaining - yearMs || 1000
-      : remaining >= dayMs
-        ? remaining - dayMs || 1000
-        : boundaryDelay;
+    remaining >= yearMs ? remaining - yearMs || 1000 : remaining >= dayMs ? remaining - dayMs || 1000 : boundaryDelay;
   return Math.max(25, Math.ceil(Math.min(boundaryDelay, tierBoundaryDelay)));
 }
 
@@ -348,9 +318,7 @@ function normalizeRuleEffect(effect, legacySeconds) {
     };
   }
   const seconds = Math.trunc(Number(legacySeconds) || 0);
-  return seconds < 0
-    ? { operation: 'subtract', value: Math.abs(seconds) }
-    : { operation: 'add', value: seconds };
+  return seconds < 0 ? { operation: 'subtract', value: Math.abs(seconds) } : { operation: 'add', value: seconds };
 }
 
 function formatDurationLabel(seconds) {
@@ -371,10 +339,8 @@ function formatSignedSeconds(seconds) {
 }
 
 function formatAdjustmentEffect(effect, deltaSeconds) {
-  if (effect?.operation === 'multiply')
-    return `×${effect.value}（${formatSignedSeconds(deltaSeconds)}）`;
-  if (effect?.operation === 'divide')
-    return `÷${effect.value}（${formatSignedSeconds(deltaSeconds)}）`;
+  if (effect?.operation === 'multiply') return `×${effect.value}（${formatSignedSeconds(deltaSeconds)}）`;
+  if (effect?.operation === 'divide') return `÷${effect.value}（${formatSignedSeconds(deltaSeconds)}）`;
   if (effect?.operation === 'clear') return '清零';
   return formatSignedSeconds(deltaSeconds);
 }

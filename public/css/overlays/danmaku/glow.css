@@ -51,11 +51,16 @@ body[data-style='glow'] .draw-danmaku-identity {
 }
 body[data-style='glow'] .draw-danmaku-identity strong {
   color: #fff;
-  font: 600 20px/1.35 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif;
+  font:
+    600 20px/1.35 'Microsoft YaHei UI',
+    'Microsoft YaHei',
+    sans-serif;
   letter-spacing: 0.02em;
   white-space: normal;
   overflow-wrap: anywhere;
-  text-shadow: 0 2px 3px rgb(0 0 0 / 85%), 0 0 7px var(--ranked-accent);
+  text-shadow:
+    0 2px 3px rgb(0 0 0 / 85%),
+    0 0 7px var(--ranked-accent);
 }
 body[data-style='glow'] .draw-danmaku-body p {
   width: 100%;
@@ -108,8 +113,16 @@ body[data-style='glow'] .is-gift .draw-danmaku-gift {
 
 /* Custom background strength leaves text and images opaque. */
 body[data-custom-background='true'][data-style='glow'] .draw-danmaku-item:not(.is-gift) .draw-danmaku-body p {
-  background: color-mix(in srgb, color-mix(in srgb, var(--ranked-accent) 12%, rgb(12 18 30 / 76%)) var(--danmaku-background-weight), transparent);
+  background: color-mix(
+    in srgb,
+    color-mix(in srgb, var(--ranked-accent) 12%, rgb(12 18 30 / 76%)) var(--danmaku-background-weight),
+    transparent
+  );
 }
 body[data-custom-background='true'][data-style='glow'] .draw-danmaku-item.is-gift {
-  background: color-mix(in srgb, color-mix(in srgb, var(--ranked-accent) 18%, #101522) var(--danmaku-background-weight), transparent);
+  background: color-mix(
+    in srgb,
+    color-mix(in srgb, var(--ranked-accent) 18%, #101522) var(--danmaku-background-weight),
+    transparent
+  );
 }

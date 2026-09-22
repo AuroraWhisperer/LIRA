@@ -2,9 +2,7 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const {
-  WebSocketConnection,
-} = require('../src/bilibili/danmaku/websocket-connection');
+const { WebSocketConnection } = require('../src/bilibili/danmaku/websocket-connection');
 
 class FakeWebSocket {
   static OPEN = 1;
@@ -129,10 +127,7 @@ function operationPacket(operation, body = Buffer.alloc(4)) {
   packet.writeUInt32BE(operation, 8);
   packet.writeUInt32BE(1, 12);
   body.copy(packet, 16);
-  return packet.buffer.slice(
-    packet.byteOffset,
-    packet.byteOffset + packet.byteLength,
-  );
+  return packet.buffer.slice(packet.byteOffset, packet.byteOffset + packet.byteLength);
 }
 
 test('observes authentication codes in mixed frames without exposing the payload or changing transport state', async (t) => {
@@ -155,12 +150,15 @@ test('observes authentication codes in mixed frames without exposing the payload
   socket.emit('message', { data: operationPacket(8, Buffer.from('{"code":0}')) });
   socket.emit('message', { data: operationPacket(8, Buffer.from('invalid private response')) });
   socket.emit('message', { data: operationPacket(8, Buffer.from('{"code":null}')) });
-  assert.deepEqual(diagnostics.filter((entry) => entry.event === 'auth-result'), [
-    { event: 'auth-result', status: 'rejected', code: -101 },
-    { event: 'auth-result', status: 'accepted', code: 0 },
-    { event: 'auth-result', status: 'invalid', code: null },
-    { event: 'auth-result', status: 'invalid', code: null },
-  ]);
+  assert.deepEqual(
+    diagnostics.filter((entry) => entry.event === 'auth-result'),
+    [
+      { event: 'auth-result', status: 'rejected', code: -101 },
+      { event: 'auth-result', status: 'accepted', code: 0 },
+      { event: 'auth-result', status: 'invalid', code: null },
+      { event: 'auth-result', status: 'invalid', code: null },
+    ],
+  );
   assert.equal(connection.ws, socket);
   assert.equal(messages.length, 4);
   assert.equal(connection.awaitingHeartbeatReply, false);
@@ -207,7 +205,6 @@ async function waitFor(predicate, timeoutMs) {
   }
 }
 
-
 test('async binary reads preserve ingress order and drop callbacks from replaced sockets', async (t) => {
   t.mock.property(global, 'WebSocket', FakeWebSocket);
   const connection = new WebSocketConnection();
@@ -216,16 +213,23 @@ test('async binary reads preserve ingress order and drop callbacks from replaced
   const received = [];
   connection.on('message', (data, metadata) => received.push({ data, ...metadata }));
   let resolveFirst;
-  const first = new Promise((resolve) => { resolveFirst = resolve; });
+  const first = new Promise((resolve) => {
+    resolveFirst = resolve;
+  });
   FakeWebSocket.latest.emit('message', { data: { arrayBuffer: () => first } });
   FakeWebSocket.latest.emit('message', { data: operationPacket(3) });
   assert.equal(received.length, 0);
   resolveFirst(operationPacket(8, Buffer.from('{"code":0}')));
   await new Promise((resolve) => setImmediate(resolve));
-  assert.deepEqual(received.map((event) => event.frameSeq), [1, 2]);
+  assert.deepEqual(
+    received.map((event) => event.frameSeq),
+    [1, 2],
+  );
   assert.ok(received[0].receivedAt <= received[1].receivedAt);
   let resolveOld;
-  const old = new Promise((resolve) => { resolveOld = resolve; });
+  const old = new Promise((resolve) => {
+    resolveOld = resolve;
+  });
   FakeWebSocket.latest.emit('message', { data: { arrayBuffer: () => old } });
   await connection.connect('wss://example.test/sub', {});
   resolveOld(operationPacket(8, Buffer.from('{"code":-101}')));

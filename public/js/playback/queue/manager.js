@@ -61,18 +61,8 @@ export class QueueManager {
       this.state.normalQueue.unshift(...items);
 
       if (this.state.queueType === 'playlist') {
-        const insertAt = Math.max(
-          0,
-          Math.min(
-            this.state.normalQueueTracks.length,
-            this.state.playlistIndex + 1,
-          ),
-        );
-        this.state.normalQueueTracks.splice(
-          insertAt,
-          0,
-          ...items.map((track) => ({ ...track })),
-        );
+        const insertAt = Math.max(0, Math.min(this.state.normalQueueTracks.length, this.state.playlistIndex + 1));
+        this.state.normalQueueTracks.splice(insertAt, 0, ...items.map((track) => ({ ...track })));
       } else {
         this.state.queueType = 'queue';
         this.state.queueTitle = '播放队列';
@@ -110,12 +100,7 @@ export class QueueManager {
     const activeOrigin = this.getActiveOrigin();
     const queue = queueName === activeOrigin ? this.getActiveQueue() : null;
 
-    if (
-      !queue ||
-      !Number.isInteger(index) ||
-      index < 0 ||
-      index >= queue.length
-    ) {
+    if (!queue || !Number.isInteger(index) || index < 0 || index >= queue.length) {
       return null;
     }
 
@@ -124,8 +109,7 @@ export class QueueManager {
     // 如果是播放列表模式，同时从完整列表中移除
     if (this.state.queueType === 'playlist') {
       const sourceIndex = this.state.normalQueueTracks.findIndex(
-        (item, itemIndex) =>
-          itemIndex > this.state.playlistIndex && item.id === track.id,
+        (item, itemIndex) => itemIndex > this.state.playlistIndex && item.id === track.id,
       );
       if (sourceIndex >= 0) {
         this.state.normalQueueTracks.splice(sourceIndex, 1);
@@ -154,14 +138,9 @@ export class QueueManager {
 
       if (track && this.state.queueType === 'playlist') {
         if (this.state.mode === 'sequence') {
-          this.state.playlistIndex = Math.min(
-            this.state.normalQueueTracks.length - 1,
-            this.state.playlistIndex + 1,
-          );
+          this.state.playlistIndex = Math.min(this.state.normalQueueTracks.length - 1, this.state.playlistIndex + 1);
         } else {
-          this.state.playlistIndex = this.state.normalQueueTracks.findIndex(
-            (item) => item.id === track.id,
-          );
+          this.state.playlistIndex = this.state.normalQueueTracks.findIndex((item) => item.id === track.id);
         }
       }
 
@@ -189,9 +168,7 @@ export class QueueManager {
     while (this.state.shuffleCursor < this.state.shuffleOrder.length) {
       const nextId = this.state.shuffleOrder[this.state.shuffleCursor];
       this.state.shuffleCursor += 1;
-      const index = this.state.normalQueue.findIndex(
-        (track) => track.id === nextId,
-      );
+      const index = this.state.normalQueue.findIndex((track) => track.id === nextId);
       if (index >= 0) {
         return this.state.normalQueue.splice(index, 1)[0];
       }
@@ -222,9 +199,7 @@ export class QueueManager {
     if (!tracks || index < 0 || index >= tracks.length) return null;
     const track = tracks[index];
     this.state.playlistIndex = index;
-    this.state.normalQueue = tracks
-      .slice(index + 1)
-      .map((item) => ({ ...item }));
+    this.state.normalQueue = tracks.slice(index + 1).map((item) => ({ ...item }));
     this.state.radioQueue = [];
     this.rebuildShuffleOrder();
 
@@ -236,14 +211,9 @@ export class QueueManager {
    * @param {Array} tracks - 曲目列表
    */
   refillRadioQueue(tracks) {
-    const recentIds = new Set(
-      this.state.history.slice(-30).map((track) => track.id),
-    );
+    const recentIds = new Set(this.state.history.slice(-30).map((track) => track.id));
     for (const track of tracks) {
-      if (
-        !recentIds.has(track.id) &&
-        !this.state.radioQueue.some((item) => item.id === track.id)
-      ) {
+      if (!recentIds.has(track.id) && !this.state.radioQueue.some((item) => item.id === track.id)) {
         this.state.radioQueue.push(track);
       }
     }
@@ -258,20 +228,11 @@ export class QueueManager {
    * @param {string} queueSourceKey - 队列来源标识
    * @returns {Object|null} 第一首曲目
    */
-  startCollection(
-    tracks,
-    selectedIndex,
-    queueType,
-    queueTitle = '',
-    queueSourceKey = '',
-  ) {
+  startCollection(tracks, selectedIndex, queueType, queueTitle = '', queueSourceKey = '') {
     const items = Array.isArray(tracks) ? tracks.filter(Boolean) : [];
     if (!items.length) return;
 
-    const index = Math.max(
-      0,
-      Math.min(items.length - 1, Number(selectedIndex) || 0),
-    );
+    const index = Math.max(0, Math.min(items.length - 1, Number(selectedIndex) || 0));
     const type = queueType === 'radio' ? 'radio' : 'playlist';
 
     this.state.requestedQueue = [];
@@ -279,8 +240,7 @@ export class QueueManager {
     this.state.normalQueueTracks = [];
     this.state.radioQueue = [];
     this.state.queueType = type;
-    this.state.queueTitle =
-      queueTitle || (type === 'radio' ? '电台队列' : '歌单队列');
+    this.state.queueTitle = queueTitle || (type === 'radio' ? '电台队列' : '歌单队列');
     this.state.queueSourceKey = String(queueSourceKey || '');
     this.state.playlistIndex = type === 'playlist' ? index : -1;
     this.state.shuffleOrder = [];
@@ -288,13 +248,9 @@ export class QueueManager {
 
     if (type === 'playlist') {
       this.state.normalQueueTracks = items.map((track) => ({ ...track }));
-      this.state.normalQueue = items
-        .slice(index + 1)
-        .map((track) => ({ ...track }));
+      this.state.normalQueue = items.slice(index + 1).map((track) => ({ ...track }));
     } else {
-      this.state.radioQueue = items
-        .slice(index + 1)
-        .map((track) => ({ ...track }));
+      this.state.radioQueue = items.slice(index + 1).map((track) => ({ ...track }));
     }
 
     return items[index];
@@ -317,9 +273,7 @@ export class QueueManager {
       this.state.normalQueueTracks = [];
       this.state.playlistIndex = -1;
     } else {
-      this.state.normalQueueTracks.push(
-        ...items.map((track) => ({ ...track })),
-      );
+      this.state.normalQueueTracks.push(...items.map((track) => ({ ...track })));
     }
     this.state.radioQueue = [];
     this.state.normalQueue.push(...items);
@@ -331,21 +285,12 @@ export class QueueManager {
     const origin = 'normal';
 
     if (this.state.queueType === 'playlist' && this.state.current) {
-      const insertAt = Math.max(
-        0,
-        Math.min(
-          this.state.normalQueueTracks.length,
-          this.state.playlistIndex + 1,
-        ),
-      );
+      const insertAt = Math.max(0, Math.min(this.state.normalQueueTracks.length, this.state.playlistIndex + 1));
       this.state.normalQueueTracks.splice(insertAt, 0, { ...track });
       this.state.playlistIndex = insertAt;
       this.state.radioQueue = [];
     } else if (this.state.queueType === 'radio') {
-      const historyTracks = [
-        track,
-        ...this.state.displayHistory.filter((item) => item.id !== track.id),
-      ];
+      const historyTracks = [track, ...this.state.displayHistory.filter((item) => item.id !== track.id)];
       return {
         shouldStartCollection: true,
         tracks: historyTracks,
@@ -368,19 +313,12 @@ export class QueueManager {
     const queueName = String(origin || '');
     const activeOrigin = this.getActiveOrigin();
     const queue = queueName === activeOrigin ? this.getActiveQueue() : null;
-    if (
-      !queue ||
-      !Number.isInteger(index) ||
-      index < 0 ||
-      index >= queue.length
-    )
-      return null;
+    if (!queue || !Number.isInteger(index) || index < 0 || index >= queue.length) return null;
 
     const track = queue.splice(index, 1)[0];
     if (this.state.queueType === 'playlist') {
       const sourceIndex = this.state.normalQueueTracks.findIndex(
-        (item, itemIndex) =>
-          itemIndex > this.state.playlistIndex && item.id === track.id,
+        (item, itemIndex) => itemIndex > this.state.playlistIndex && item.id === track.id,
       );
       if (sourceIndex >= 0) this.state.normalQueueTracks.splice(sourceIndex, 1);
       const insertAt = this.state.playlistIndex + 1;
@@ -396,9 +334,7 @@ export class QueueManager {
   restartPlaylist(tracks) {
     const first = tracks[0];
     this.state.normalQueue = tracks.slice(1);
-    this.state.playlistIndex = this.state.normalQueueTracks.findIndex(
-      (track) => track.id === first.id,
-    );
+    this.state.playlistIndex = this.state.normalQueueTracks.findIndex((track) => track.id === first.id);
     return first;
   }
 }

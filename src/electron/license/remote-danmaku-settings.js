@@ -18,9 +18,13 @@ function createRemoteDanmakuSettings(request) {
         cancel: ['POST', `/api/device/daily-bot-imports/${input.id}/cancel`],
       };
       const route = routes[operation];
-      if (!route || (operation === 'update' && !['checkin', 'fortune'].includes(input.kind)) ||
-        (['status', 'upload', 'preflight', 'commit', 'cancel'].includes(operation) && !/^[A-Za-z0-9-]{16,80}$/.test(input.id)) ||
-        (operation === 'upload' && (!Number.isInteger(input.sequence) || input.sequence < 0 || input.sequence >= 200))) {
+      if (
+        !route ||
+        (operation === 'update' && !['checkin', 'fortune'].includes(input.kind)) ||
+        (['status', 'upload', 'preflight', 'commit', 'cancel'].includes(operation) &&
+          !/^[A-Za-z0-9-]{16,80}$/.test(input.id)) ||
+        (operation === 'upload' && (!Number.isInteger(input.sequence) || input.sequence < 0 || input.sequence >= 200))
+      ) {
         throw Object.assign(new Error('DAILY_BOT_INVALID_REQUEST'), { code: 'DAILY_BOT_INVALID_REQUEST' });
       }
       return request(route[0], route[1], route[0] === 'GET' ? undefined : input.body, token);

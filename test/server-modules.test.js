@@ -4,9 +4,7 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 
 test('server compatibility wrappers reuse one runtime and preserve stop defaults', async () => {
-  const {
-    createServerCompatibility,
-  } = require('../src/server/compatibility-runtime');
+  const { createServerCompatibility } = require('../src/server/compatibility-runtime');
   const calls = [];
   const runtime = {
     start: (options) => calls.push(['start', options]),

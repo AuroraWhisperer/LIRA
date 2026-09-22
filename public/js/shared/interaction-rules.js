@@ -1,10 +1,19 @@
 // Pure rules shared by the desktop form and the Node session owner (Node 24).
 export const POLL_RULE = '发送任一完整选项，每个账号首次有效选择计票；以客户端截止前收到并处理为准。';
 export const RATING_RULE = '发送整数 1–10，每个账号只计结束前最后一次有效评分。';
-export const INTERACTION_LAYOUT = { width: 800, height: 600, listHeight: 352, rowHeight: 88, pageStep: 320, pageSeconds: 8 };
+export const INTERACTION_LAYOUT = {
+  width: 800,
+  height: 600,
+  listHeight: 352,
+  rowHeight: 88,
+  pageStep: 320,
+  pageSeconds: 8,
+};
 
 export function inspectInteractionText(value, max = 10) {
-  const text = String(value ?? '').trim().normalize('NFC');
+  const text = String(value ?? '')
+    .trim()
+    .normalize('NFC');
   const segments = [...new Intl.Segmenter('zh', { granularity: 'grapheme' }).segment(text)].map((part) => part.segment);
   const invalid = segments.some((part) => {
     if (/[\p{Cc}\p{Zl}\p{Zp}]/u.test(part)) return true;
@@ -14,8 +23,13 @@ export function inspectInteractionText(value, max = 10) {
     }
     return !/[^\p{M}\s]/u.test(part) && !/^ +$/.test(part);
   });
-  const error = invalid ? '请移除不可见字符或换行' : !text || /^\s+$/u.test(text)
-    ? '请填写内容' : segments.length > max ? `最多 ${max} 个可见字符` : '';
+  const error = invalid
+    ? '请移除不可见字符或换行'
+    : !text || /^\s+$/u.test(text)
+      ? '请填写内容'
+      : segments.length > max
+        ? `最多 ${max} 个可见字符`
+        : '';
   return { text, length: segments.length, error };
 }
 
@@ -36,9 +50,11 @@ export function validateInteractionConfig(input = {}) {
     return result.text;
   });
   config.durationSeconds = Number(input.durationSeconds);
-  if (!Number.isInteger(config.durationSeconds) || config.durationSeconds < 1 || config.durationSeconds > 3600) throw new Error('投票时间应为 1–3600 秒的整数');
+  if (!Number.isInteger(config.durationSeconds) || config.durationSeconds < 1 || config.durationSeconds > 3600)
+    throw new Error('投票时间应为 1–3600 秒的整数');
   const worst = config.options.map((text) => ({ text, votes: Number.MAX_SAFE_INTEGER, percentage: 100 }));
-  if (new TextEncoder().encode(JSON.stringify(worst)).length + 2048 > 64 * 1024) throw new Error('选项过多，展示快照不能超过 64 KiB');
+  if (new TextEncoder().encode(JSON.stringify(worst)).length + 2048 > 64 * 1024)
+    throw new Error('选项过多，展示快照不能超过 64 KiB');
   return config;
 }
 

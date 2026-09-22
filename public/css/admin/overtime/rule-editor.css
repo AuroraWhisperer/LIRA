@@ -29,14 +29,12 @@
   border-color: var(--ot-action-add);
   background: var(--ot-action-add);
   color: #fff;
-  box-shadow: 0 4px 10px
-    color-mix(in srgb, var(--ot-action-add) 18%, transparent);
+  box-shadow: 0 4px 10px color-mix(in srgb, var(--ot-action-add) 18%, transparent);
 }
 .overtime-add-gift-action:hover {
   border-color: color-mix(in srgb, var(--ot-action-add) 86%, #000);
   background: color-mix(in srgb, var(--ot-action-add) 86%, #000);
-  box-shadow: 0 5px 14px
-    color-mix(in srgb, var(--ot-action-add) 24%, transparent);
+  box-shadow: 0 5px 14px color-mix(in srgb, var(--ot-action-add) 24%, transparent);
 }
 .overtime-save-rules-action:disabled {
   border-color: var(--border);
@@ -48,14 +46,12 @@
   border-color: var(--ot-action-save);
   background: var(--ot-action-save);
   color: #fff;
-  box-shadow: 0 4px 10px
-    color-mix(in srgb, var(--ot-action-save) 18%, transparent);
+  box-shadow: 0 4px 10px color-mix(in srgb, var(--ot-action-save) 18%, transparent);
 }
 .overtime-save-rules-action.is-dirty:hover {
   border-color: color-mix(in srgb, var(--ot-action-save) 86%, #000);
   background: color-mix(in srgb, var(--ot-action-save) 86%, #000);
-  box-shadow: 0 5px 14px
-    color-mix(in srgb, var(--ot-action-save) 24%, transparent);
+  box-shadow: 0 5px 14px color-mix(in srgb, var(--ot-action-save) 24%, transparent);
 }
 
 .overtime-rule-list,
@@ -100,11 +96,7 @@
   gap: 12px;
   min-height: 62px;
   padding: 9px 12px;
-  background: linear-gradient(
-    110deg,
-    color-mix(in srgb, var(--surface-2) 86%, #fff),
-    var(--surface)
-  );
+  background: linear-gradient(110deg, color-mix(in srgb, var(--surface-2) 86%, #fff), var(--surface));
 }
 .overtime-rule-gift {
   min-width: 0;
@@ -169,11 +161,7 @@
   color: var(--muted);
 }
 .overtime-rule-toggle {
-  border-color: color-mix(
-    in srgb,
-    var(--ot-teal) 54%,
-    var(--border)
-  ) !important;
+  border-color: color-mix(in srgb, var(--ot-teal) 54%, var(--border)) !important;
   color: color-mix(in srgb, var(--ot-teal) 76%, var(--text)) !important;
   font-weight: 700;
 }

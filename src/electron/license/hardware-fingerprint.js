@@ -12,14 +12,9 @@ function createHardwareFingerprint(options = {}) {
 
   async function readCommand(command, args) {
     return new Promise((resolve) => {
-      execFile(
-        command,
-        args,
-        { timeout: timeoutMs, windowsHide: true, maxBuffer: 64 * 1024 },
-        (error, stdout) => {
-          resolve(error ? '' : String(stdout || '').trim());
-        },
-      );
+      execFile(command, args, { timeout: timeoutMs, windowsHide: true, maxBuffer: 64 * 1024 }, (error, stdout) => {
+        resolve(error ? '' : String(stdout || '').trim());
+      });
     });
   }
 
@@ -31,12 +26,7 @@ function createHardwareFingerprint(options = {}) {
     };
     if (platform === 'win32') {
       const [machineGuid, smbiosUuid, driveSerial] = await Promise.all([
-        readCommand('reg', [
-          'query',
-          'HKLM\\SOFTWARE\\Microsoft\\Cryptography',
-          '/v',
-          'MachineGuid',
-        ]),
+        readCommand('reg', ['query', 'HKLM\\SOFTWARE\\Microsoft\\Cryptography', '/v', 'MachineGuid']),
         readCommand('powershell.exe', [
           '-NoProfile',
           '-NonInteractive',
@@ -56,9 +46,7 @@ function createHardwareFingerprint(options = {}) {
         void error;
       }
       values.machineGuidHash = hashRaw(machineId || os.hostname());
-      values.smbiosUuidHash = hashRaw(
-        `${os.platform()}:${os.arch()}:${os.hostname()}`,
-      );
+      values.smbiosUuidHash = hashRaw(`${os.platform()}:${os.arch()}:${os.hostname()}`);
       try {
         const stats = fs.statSync('/');
         values.systemDriveHash = hashRaw(`${stats.dev}:${stats.ino}`);
@@ -82,9 +70,7 @@ function normalizeRaw(value) {
 
 function hashRaw(value) {
   const normalized = normalizeRaw(value);
-  return normalized
-    ? crypto.createHash('sha256').update(normalized, 'utf8').digest('hex')
-    : '';
+  return normalized ? crypto.createHash('sha256').update(normalized, 'utf8').digest('hex') : '';
 }
 
 function extractMachineGuid(output) {

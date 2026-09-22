@@ -5,12 +5,7 @@
 import { getHomeActionTitle } from '../utils.js';
 
 /** 可缓存的 action 列表 */
-export const CACHEABLE_ACTIONS = new Set([
-  'liked',
-  'created-playlists',
-  'collected-playlists',
-  'playlist-tracks',
-]);
+export const CACHEABLE_ACTIONS = new Set(['liked', 'created-playlists', 'collected-playlists', 'playlist-tracks']);
 
 /**
  * 内容加载器
@@ -70,8 +65,7 @@ export class ContentLoader {
 
   _isCurrentRequest(request) {
     return (
-      request.generation === this._requestGeneration &&
-      String(this.state?.selectedSource || '') === request.platform
+      request.generation === this._requestGeneration && String(this.state?.selectedSource || '') === request.platform
     );
   }
 
@@ -83,12 +77,8 @@ export class ContentLoader {
   }
 
   _writeCache(request, result) {
-    if (!CACHEABLE_ACTIONS.has(request.action) || !this.cacheManager)
-      return false;
-    if (
-      this._cacheRequestGenerations.get(request.cacheKey) !== request.generation
-    )
-      return false;
+    if (!CACHEABLE_ACTIONS.has(request.action) || !this.cacheManager) return false;
+    if (this._cacheRequestGenerations.get(request.cacheKey) !== request.generation) return false;
     this.cacheManager.set(request.cacheKey, {
       items: result.items,
       itemType: result.itemType,
@@ -105,10 +95,7 @@ export class ContentLoader {
       const result = await this._fetchByAction(request);
       return { result, cacheWritten: this._writeCache(request, result) };
     } finally {
-      if (
-        this._cacheRequestGenerations.get(request.cacheKey) ===
-        request.generation
-      ) {
+      if (this._cacheRequestGenerations.get(request.cacheKey) === request.generation) {
         this._cacheRequestGenerations.delete(request.cacheKey);
       }
     }
@@ -116,17 +103,8 @@ export class ContentLoader {
 
   _publishCachedUpdate(request, result) {
     const current = this._activeRequest;
-    if (
-      !current?.cachedResult ||
-      current.cacheKey !== request.cacheKey ||
-      !this._isCurrentRequest(current)
-    )
-      return;
-    const changed = this._hasChanged(
-      current.cachedResult.items,
-      result.items,
-      request.action,
-    );
+    if (!current?.cachedResult || current.cacheKey !== request.cacheKey || !this._isCurrentRequest(current)) return;
+    const changed = this._hasChanged(current.cachedResult.items, result.items, request.action);
     if (!changed) return;
     current.cachedResult = result;
     this._applyResult(result);
@@ -159,8 +137,7 @@ export class ContentLoader {
       if (cached) {
         const cachedResult = {
           items: Array.isArray(cached.items) ? cached.items : [],
-          itemType:
-            cached.itemType || (action === 'liked' ? 'track' : 'playlist'),
+          itemType: cached.itemType || (action === 'liked' ? 'track' : 'playlist'),
           action: cached.action || action,
           title: request.title,
         };
@@ -207,11 +184,7 @@ export class ContentLoader {
       return this._fetchLikedTracksAll(request.title, request.platform);
     }
     if (request.action === 'playlist-tracks') {
-      return this._fetchPlaylistTracks(
-        request.title,
-        request.playlistId,
-        request.platform,
-      );
+      return this._fetchPlaylistTracks(request.title, request.playlistId, request.platform);
     }
     return this._fetchGeneric(request.action, request.title, request.platform);
   }
@@ -263,9 +236,7 @@ export class ContentLoader {
     }
 
     // 曲目列表：对比前 3 首和最后 1 首的 id
-    const sampleIndices = [0, 1, 2, oldItems.length - 1].filter(
-      (i) => i >= 0 && i < oldItems.length,
-    );
+    const sampleIndices = [0, 1, 2, oldItems.length - 1].filter((i) => i >= 0 && i < oldItems.length);
     for (const i of sampleIndices) {
       const oldId = oldItems[i] && oldItems[i].id;
       const newId = newItems[i] && newItems[i].id;
@@ -284,10 +255,7 @@ export class ContentLoader {
    * @param {string} [platform] - 请求所属的平台
    * @returns {Promise<Object>} 加载结果
    */
-  async _fetchLikedTracksAll(
-    title,
-    platform = this.state?.selectedSource || '',
-  ) {
+  async _fetchLikedTracksAll(title, platform = this.state?.selectedSource || '') {
     const BATCH_SIZE = 100;
     let offset = 0;
     let allTracks = [];
@@ -311,16 +279,10 @@ export class ContentLoader {
         throw new Error(payload.error || '加载我喜欢失败');
       }
 
-      const tracks = Array.isArray(payload.data && payload.data.tracks)
-        ? payload.data.tracks
-        : [];
+      const tracks = Array.isArray(payload.data && payload.data.tracks) ? payload.data.tracks : [];
 
       const pageSignature = JSON.stringify(
-        tracks.map((track) => [
-          track?.source ?? '',
-          track?.id ?? track?.sourceTrackId ?? '',
-          track?.title ?? '',
-        ]),
+        tracks.map((track) => [track?.source ?? '', track?.id ?? track?.sourceTrackId ?? '', track?.title ?? '']),
       );
       if (tracks.length > 0 && seenPages.has(pageSignature)) break;
       if (tracks.length > 0) seenPages.add(pageSignature);
@@ -348,11 +310,7 @@ export class ContentLoader {
    * @param {string} [platform] - 请求所属的平台
    * @returns {Promise<Object>}
    */
-  async _fetchPlaylistTracks(
-    title,
-    playlistId,
-    platform = this.state?.selectedSource || '',
-  ) {
+  async _fetchPlaylistTracks(title, playlistId, platform = this.state?.selectedSource || '') {
     const response = await fetch('/api/music/home', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -369,9 +327,7 @@ export class ContentLoader {
       throw new Error(payload.error || '打开歌单失败');
     }
 
-    const items = Array.isArray(payload.data && payload.data.tracks)
-      ? payload.data.tracks
-      : [];
+    const items = Array.isArray(payload.data && payload.data.tracks) ? payload.data.tracks : [];
 
     return {
       items,
@@ -388,11 +344,7 @@ export class ContentLoader {
    * @param {string} [platform] - 请求所属的平台
    * @returns {Promise<Object>}
    */
-  async _fetchGeneric(
-    action,
-    title,
-    platform = this.state?.selectedSource || '',
-  ) {
+  async _fetchGeneric(action, title, platform = this.state?.selectedSource || '') {
     const response = await fetch('/api/music/home', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -419,10 +371,7 @@ export class ContentLoader {
     } else if (action === 'daily' || action === 'radio') {
       items = Array.isArray(data.tracks) ? data.tracks : [];
       itemType = 'track';
-    } else if (
-      action === 'created-playlists' ||
-      action === 'collected-playlists'
-    ) {
+    } else if (action === 'created-playlists' || action === 'collected-playlists') {
       items = Array.isArray(data.playlists) ? data.playlists : [];
       itemType = 'playlist';
     }

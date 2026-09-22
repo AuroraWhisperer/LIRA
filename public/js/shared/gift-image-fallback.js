@@ -18,10 +18,7 @@ export function setGiftImage(image, source) {
     boundImages.add(image);
   }
   image.hidden = false;
-  image.src =
-    !source || source === '/img/overtime-machine/gift-placeholder.svg'
-      ? GIFT_PLACEHOLDER
-      : source;
+  image.src = !source || source === '/img/overtime-machine/gift-placeholder.svg' ? GIFT_PLACEHOLDER : source;
 }
 
 export function setGiftImageFallbacks(root) {

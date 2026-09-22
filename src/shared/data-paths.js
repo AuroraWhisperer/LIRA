@@ -13,10 +13,7 @@ function resolveDataPaths(dataDir) {
     musicLyricsCacheDir: path.join(cacheDir, 'music-lyrics-cache'),
     giftImagesDir: path.join(cacheDir, 'overtime-gift-images'),
     giftCatalogPath: path.join(cacheDir, 'overtime-gift-catalog-v2.json'),
-    giftAssetsStatePath: path.join(
-      cacheDir,
-      'overtime-gift-assets-state-v2.json',
-    ),
+    giftAssetsStatePath: path.join(cacheDir, 'overtime-gift-assets-state-v2.json'),
     logDir: path.join(path.dirname(root), 'logs'),
     updatesDir: path.join(path.dirname(root), 'updates'),
   };

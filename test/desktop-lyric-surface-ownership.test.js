@@ -8,14 +8,8 @@ const test = require('node:test');
 const ROOT_DIR = path.resolve(__dirname, '..');
 
 test('lyrics browser source reuses the neutral live timeline renderer', () => {
-  const html = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'pages', 'overlays', 'lyric-window.html'),
-    'utf8',
-  );
-  const source = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'overlays', 'lyric-window.js'),
-    'utf8',
-  );
+  const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'overlays', 'lyric-window.html'), 'utf8');
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'lyric-window.js'), 'utf8');
   const adminPreviewSource = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'js', 'admin', 'desktop-lyric-preview.js'),
     'utf8',
@@ -24,10 +18,7 @@ test('lyrics browser source reuses the neutral live timeline renderer', () => {
     path.join(ROOT_DIR, 'public', 'js', 'lyrics', 'desktop-lyric-renderer.js'),
     'utf8',
   );
-  const styles = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'css', 'playback', 'desktop-lyric.css'),
-    'utf8',
-  );
+  const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'playback', 'desktop-lyric.css'), 'utf8');
 
   assert.match(html, /css\/lyrics\/desktop-lyric\.css/);
   assert.match(html, /id="desktopLyricPreviewViewport"[^>]*tabindex="0"/);
@@ -46,23 +37,11 @@ test('lyrics browser source reuses the neutral live timeline renderer', () => {
   assert.match(source, /payload\.type === ["']lyric-timeline["']/);
   assert.match(source, /payload\.state\?\.lyricTimeline/);
   assert.match(source, /desktopLyricRenderer\.applySettings/);
-  assert.match(
-    adminPreviewSource,
-    /from ["']\.\.\/lyrics\/desktop-lyric-renderer\.js["'];/,
-  );
-  assert.match(
-    rendererSource,
-    /export const desktopLyricRenderer = Object\.freeze\(\{/,
-  );
-  assert.doesNotMatch(
-    rendererSource,
-    /window\.AdminApp|desktop-lyric-controls|shared\/utils/,
-  );
+  assert.match(adminPreviewSource, /from ["']\.\.\/lyrics\/desktop-lyric-renderer\.js["'];/);
+  assert.match(rendererSource, /export const desktopLyricRenderer = Object\.freeze\(\{/);
+  assert.doesNotMatch(rendererSource, /window\.AdminApp|desktop-lyric-controls|shared\/utils/);
   assert.match(rendererSource, /getElementById\(["']desktopLyricSurface["']\)/);
-  assert.match(
-    styles,
-    /\.lyric-window-card\s*\{[^}]*position:\s*fixed[^}]*inset:\s*0/,
-  );
+  assert.match(styles, /\.lyric-window-card\s*\{[^}]*position:\s*fixed[^}]*inset:\s*0/);
   assert.match(styles, /\.lyric-window-stage\s*\{[^}]*height:\s*100vh/);
   assert.match(styles, /background(?:-color)?:\s*transparent/);
 });

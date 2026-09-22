@@ -43,10 +43,18 @@ export function initGiftAssistant() {
   });
   const page = document.getElementById('otherAssistantPage');
   const visibility = new MutationObserver(() => {
-    if (!root.hidden && (!page || page.classList.contains('active')) && root.querySelector('[data-gift-tab="wishes"]')?.getAttribute('aria-selected') === 'true') wishes.open();
+    if (
+      !root.hidden &&
+      (!page || page.classList.contains('active')) &&
+      root.querySelector('[data-gift-tab="wishes"]')?.getAttribute('aria-selected') === 'true'
+    )
+      wishes.open();
     else wishes.close();
   });
   visibility.observe(root, { attributes: true, attributeFilter: ['hidden'] });
   if (page) visibility.observe(page, { attributes: true, attributeFilter: ['class'] });
-  window.addEventListener('pagehide', () => { visibility.disconnect(); wishes.close(); });
+  window.addEventListener('pagehide', () => {
+    visibility.disconnect();
+    wishes.close();
+  });
 }

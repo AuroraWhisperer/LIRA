@@ -12,9 +12,7 @@ const { createInflightTracker } = require('../src/server/inflight-tracker');
 
 // Peer authorization and graceful/forced cleanup now use real HTTP in local-instance-security.test.js.
 test('session token cleanup never removes a token file owned by another instance', () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'song-plugin-lifecycle-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-lifecycle-'));
 
   try {
     const tokenPath = lifecycle.writeSessionToken(dataDir, 'current-token');
@@ -25,14 +23,8 @@ test('session token cleanup never removes a token file owned by another instance
 
     fs.writeFileSync(tokenPath, 'replacement-token\n', 'utf8');
     assert.equal(lifecycle.removeSessionToken(dataDir, 'current-token'), false);
-    assert.equal(
-      fs.readFileSync(tokenPath, 'utf8').trim(),
-      'replacement-token',
-    );
-    assert.equal(
-      lifecycle.removeSessionToken(dataDir, 'replacement-token'),
-      true,
-    );
+    assert.equal(fs.readFileSync(tokenPath, 'utf8').trim(), 'replacement-token');
+    assert.equal(lifecycle.removeSessionToken(dataDir, 'replacement-token'), true);
     assert.equal(fs.existsSync(tokenPath), false);
   } finally {
     fs.rmSync(dataDir, { recursive: true, force: true });
@@ -77,19 +69,14 @@ test('listenExactly rejects when the requested port is already in use', async ()
     const address = first.address();
     const port = address && typeof address === 'object' ? address.port : 0;
 
-    await assert.rejects(
-      lifecycle.listenExactly(second, { port, host: '127.0.0.1' }),
-      { code: 'EADDRINUSE' },
-    );
+    await assert.rejects(lifecycle.listenExactly(second, { port, host: '127.0.0.1' }), { code: 'EADDRINUSE' });
   } finally {
     await new Promise((resolve) => first.close(resolve));
   }
 });
 
 test('runtime info records the previous pid and port and removes only its own record', () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'song-plugin-runtime-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-runtime-'));
   try {
     lifecycle.writeRuntimeInfo(dataDir, {
       pid: 1234,
@@ -101,14 +88,8 @@ test('runtime info records the previous pid and port and removes only its own re
       port: 4567,
       host: '127.0.0.1',
     });
-    assert.equal(
-      lifecycle.removeRuntimeInfo(dataDir, { pid: 9999, port: 4567 }),
-      false,
-    );
-    assert.equal(
-      lifecycle.removeRuntimeInfo(dataDir, { pid: 1234, port: 4567 }),
-      true,
-    );
+    assert.equal(lifecycle.removeRuntimeInfo(dataDir, { pid: 9999, port: 4567 }), false);
+    assert.equal(lifecycle.removeRuntimeInfo(dataDir, { pid: 1234, port: 4567 }), true);
     assert.equal(lifecycle.readRuntimeInfo(dataDir), null);
   } finally {
     fs.rmSync(dataDir, { recursive: true, force: true });

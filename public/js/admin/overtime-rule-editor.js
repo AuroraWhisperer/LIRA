@@ -1,11 +1,6 @@
 'use strict';
 
-import {
-  describeQuantityMode,
-  describeRule,
-  formatDurationSummary,
-  readRules,
-} from './overtime-rule-model.js';
+import { describeQuantityMode, describeRule, formatDurationSummary, readRules } from './overtime-rule-model.js';
 import { createOvertimeRuleEffectEditor } from './overtime-rule-effect-editor.js';
 import { setGiftImage } from '../shared/gift-image-fallback.js';
 
@@ -14,8 +9,7 @@ function describeBinding(id, identity) {
 }
 
 export function createOvertimeRuleEditor(root, markDirty, dependencies = {}) {
-  const documentRef =
-    dependencies.document || root.ownerDocument || globalThis.document;
+  const documentRef = dependencies.document || root.ownerDocument || globalThis.document;
   let ruleControlSequence = 0;
   let limits = null;
 
@@ -34,9 +28,7 @@ export function createOvertimeRuleEditor(root, markDirty, dependencies = {}) {
       minRandomOutcomes: Number(nextLimits?.minRandomOutcomes),
       maxRandomOutcomes: Number(nextLimits?.maxRandomOutcomes),
       maxDisplayTextLength:
-        nextLimits?.maxDisplayTextLength === undefined
-          ? 6
-          : Number(nextLimits.maxDisplayTextLength),
+        nextLimits?.maxDisplayTextLength === undefined ? 6 : Number(nextLimits.maxDisplayTextLength),
     };
     if (
       !Object.values(normalized).every(Number.isSafeInteger) ||
@@ -58,17 +50,10 @@ export function createOvertimeRuleEditor(root, markDirty, dependencies = {}) {
   function renderRules(rules) {
     root.replaceChildren();
     if (!rules.length) {
-      root.append(
-        createMessage(
-          'overtime-rule-empty',
-          '还没有规则。添加礼物后设置固定时间或时间盲盒。',
-        ),
-      );
+      root.append(createMessage('overtime-rule-empty', '还没有规则。添加礼物后设置固定时间或时间盲盒。'));
       return;
     }
-    rules.forEach((rule, index) =>
-      root.append(createRuleRow(rule, index, rules.length)),
-    );
+    rules.forEach((rule, index) => root.append(createRuleRow(rule, index, rules.length)));
   }
 
   function createRule(gift) {
@@ -144,30 +129,17 @@ export function createOvertimeRuleEditor(root, markDirty, dependencies = {}) {
     enabled.type = 'checkbox';
     enabled.checked = rule.enabled !== false;
     enabled.dataset.ruleEnabled = 'true';
-    enabledLabel.append(
-      enabled,
-      documentRef.createElement('span'),
-      documentRef.createTextNode('启用'),
-    );
+    enabledLabel.append(enabled, documentRef.createElement('span'), documentRef.createTextNode('启用'));
     controls.append(enabledLabel);
     if (dependencies.onReselect) {
       controls.append(
-        ruleButton('重新选择礼物', '保留规则设置，重新选择礼物', false, () =>
-          dependencies.onReselect(row),
-        ),
+        ruleButton('重新选择礼物', '保留规则设置，重新选择礼物', false, () => dependencies.onReselect(row)),
       );
     }
-    const moveUp = ruleButton('↑', '将这条规则上移', index === 0, () =>
-      moveRule(row, -1),
-    );
+    const moveUp = ruleButton('↑', '将这条规则上移', index === 0, () => moveRule(row, -1));
     moveUp.classList.add('overtime-rule-icon-button');
     moveUp.dataset.ruleMoveUp = 'true';
-    const moveDown = ruleButton(
-      '↓',
-      '将这条规则下移',
-      index === count - 1,
-      () => moveRule(row, 1),
-    );
+    const moveDown = ruleButton('↓', '将这条规则下移', index === count - 1, () => moveRule(row, 1));
     moveDown.classList.add('overtime-rule-icon-button');
     moveDown.dataset.ruleMoveDown = 'true';
     controls.append(moveUp, moveDown);
@@ -209,24 +181,9 @@ export function createOvertimeRuleEditor(root, markDirty, dependencies = {}) {
     modeOptions.append(modeLegend);
     const modeName = `overtime-rule-mode-${++ruleControlSequence}`;
     modeOptions.append(
-      createModeOption(
-        modeName,
-        'fixed',
-        '直接改时间',
-        rule.mode !== 'random' && rule.mode !== 'display',
-      ),
-      createModeOption(
-        modeName,
-        'random',
-        '随机抽结果',
-        rule.mode === 'random',
-      ),
-      createModeOption(
-        modeName,
-        'display',
-        '文字展板',
-        rule.mode === 'display',
-      ),
+      createModeOption(modeName, 'fixed', '直接改时间', rule.mode !== 'random' && rule.mode !== 'display'),
+      createModeOption(modeName, 'random', '随机抽结果', rule.mode === 'random'),
+      createModeOption(modeName, 'display', '文字展板', rule.mode === 'display'),
     );
     const quantityOptions = documentRef.createElement('fieldset');
     quantityOptions.className = 'overtime-rule-quantity-options';
@@ -235,20 +192,8 @@ export function createOvertimeRuleEditor(root, markDirty, dependencies = {}) {
     quantityOptions.append(quantityLegend);
     const quantityName = `overtime-rule-quantity-${++ruleControlSequence}`;
     quantityOptions.append(
-      createQuantityOption(
-        quantityName,
-        'group',
-        '按连击组',
-        '同一次连击只结算一次',
-        rule.quantityMode !== 'item',
-      ),
-      createQuantityOption(
-        quantityName,
-        'item',
-        '按具体数量',
-        '数量 ×N 就结算 N 次',
-        rule.quantityMode === 'item',
-      ),
+      createQuantityOption(quantityName, 'group', '按连击组', '同一次连击只结算一次', rule.quantityMode !== 'item'),
+      createQuantityOption(quantityName, 'item', '按具体数量', '数量 ×N 就结算 N 次', rule.quantityMode === 'item'),
     );
     modeSection.append(modeOptions, quantityOptions);
     body.append(modeSection);
@@ -257,8 +202,7 @@ export function createOvertimeRuleEditor(root, markDirty, dependencies = {}) {
     effect.className = 'overtime-rule-effect';
     effectEditor.renderEffectEditor(effect, rule);
     modeOptions.addEventListener('change', (event) => {
-      if (event.target.matches('[data-rule-mode]:checked'))
-        effectEditor.setEffectMode(effect, event.target.value);
+      if (event.target.matches('[data-rule-mode]:checked')) effectEditor.setEffectMode(effect, event.target.value);
     });
     body.append(effect);
     body.addEventListener('input', () => updateRuleSummary(row));
@@ -308,14 +252,10 @@ export function createOvertimeRuleEditor(root, markDirty, dependencies = {}) {
     const summary = row.querySelector('[data-rule-summary]');
     const mode = row.querySelector('[data-rule-mode]:checked')?.value;
     if (!summary || !mode) return;
-    const quantityMode = row.querySelector(
-      '[data-rule-quantity-mode]:checked',
-    )?.value;
+    const quantityMode = row.querySelector('[data-rule-quantity-mode]:checked')?.value;
     const quantityLabel = describeQuantityMode(quantityMode);
     if (mode === 'display') {
-      const displayText = String(
-        row.querySelector('[data-display-text]')?.value || '',
-      ).trim();
+      const displayText = String(row.querySelector('[data-display-text]')?.value || '').trim();
       summary.textContent = `文字展板 · ${displayText || '未填写'} · ${quantityLabel}`;
       return;
     }
@@ -325,30 +265,20 @@ export function createOvertimeRuleEditor(root, markDirty, dependencies = {}) {
       return;
     }
     const panel = row.querySelector('[data-effect-mode="fixed"]');
-    const operation = panel?.querySelector(
-      '[data-rule-operation]:checked',
-    )?.value;
+    const operation = panel?.querySelector('[data-rule-operation]:checked')?.value;
     if (!operation) return;
     if (operation === 'clear') {
       summary.textContent = `剩余时间清零 · ${quantityLabel}`;
       return;
     }
     if (operation === 'multiply' || operation === 'divide') {
-      const value = Math.max(
-        0,
-        Math.floor(
-          Number(panel.querySelector('[data-effect-factor]')?.value) || 0,
-        ),
-      );
+      const value = Math.max(0, Math.floor(Number(panel.querySelector('[data-effect-factor]')?.value) || 0));
       summary.textContent = `${operation === 'multiply' ? `剩余时间乘 ${value}` : `剩余时间除以 ${value}`} · ${quantityLabel}`;
       return;
     }
-    const hours =
-      Number(panel.querySelector('[data-duration-hours]')?.value) || 0;
-    const minutes =
-      Number(panel.querySelector('[data-duration-minutes]')?.value) || 0;
-    const seconds =
-      Number(panel.querySelector('[data-duration-seconds]')?.value) || 0;
+    const hours = Number(panel.querySelector('[data-duration-hours]')?.value) || 0;
+    const minutes = Number(panel.querySelector('[data-duration-minutes]')?.value) || 0;
+    const seconds = Number(panel.querySelector('[data-duration-seconds]')?.value) || 0;
     summary.textContent = `${operation === 'subtract' ? '减少' : '增加'} ${formatDurationSummary(hours * 3600 + minutes * 60 + seconds)} · ${quantityLabel}`;
   }
 
@@ -365,8 +295,7 @@ export function createOvertimeRuleEditor(root, markDirty, dependencies = {}) {
   }
 
   function moveRule(row, direction) {
-    const sibling =
-      direction < 0 ? row.previousElementSibling : row.nextElementSibling;
+    const sibling = direction < 0 ? row.previousElementSibling : row.nextElementSibling;
     if (!sibling) return;
     markDirty();
     if (direction < 0) row.parentNode.insertBefore(row, sibling);
@@ -378,8 +307,7 @@ export function createOvertimeRuleEditor(root, markDirty, dependencies = {}) {
     const rows = Array.from(root.querySelectorAll('[data-overtime-rule]'));
     rows.forEach((row, index) => {
       row.querySelector('[data-rule-move-up]').disabled = index === 0;
-      row.querySelector('[data-rule-move-down]').disabled =
-        index === rows.length - 1;
+      row.querySelector('[data-rule-move-down]').disabled = index === rows.length - 1;
     });
   }
 
@@ -402,12 +330,8 @@ export function createOvertimeRuleEditor(root, markDirty, dependencies = {}) {
       row.dataset.giftName = gift.name;
       row.dataset.giftIdentity = JSON.stringify(gift.giftIdentity || null);
       row.dataset.imagePath = gift.imagePath || '';
-      setGiftImage(
-        row.querySelector('.overtime-rule-gift img'),
-        gift.imagePath,
-      );
-      row.querySelector('.overtime-rule-identity strong').textContent =
-        gift.name;
+      setGiftImage(row.querySelector('.overtime-rule-gift img'), gift.imagePath);
+      row.querySelector('.overtime-rule-identity strong').textContent = gift.name;
       row.querySelector('[data-gift-binding]').textContent = gift.giftIdentity
         ? describeBinding(gift.id, gift.giftIdentity)
         : '';

@@ -4,10 +4,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const saleCatalogParser = require('./sale-catalog-parser');
 
-const GIFT_DATA_URL =
-  'https://api.live.bilibili.com/xlive/web-room/v1/giftPanel/giftData';
-const GIFT_CONFIG_URL =
-  'https://api.live.bilibili.com/xlive/web-room/v1/giftPanel/giftConfig';
+const GIFT_DATA_URL = 'https://api.live.bilibili.com/xlive/web-room/v1/giftPanel/giftData';
+const GIFT_CONFIG_URL = 'https://api.live.bilibili.com/xlive/web-room/v1/giftPanel/giftConfig';
 const {
   EXCLUDED_GIFT_IDS,
   buildGiftCatalog,
@@ -48,16 +46,11 @@ function createGiftSaleCatalogService(options = {}) {
   const getBlindBoxConfig = options.getBlindBoxConfig || (() => '');
   const fetchJson = options.fetchJson || defaultFetchJson;
   const now = options.now || Date.now;
-  const minRefreshMs = Math.max(
-    0,
-    Number(options.minRefreshMs ?? DEFAULT_MIN_REFRESH_MS) || 0,
-  );
+  const minRefreshMs = Math.max(0, Number(options.minRefreshMs ?? DEFAULT_MIN_REFRESH_MS) || 0);
   const snapshotPath = path.join(dataDir, 'overtime-gift-sale.json');
   fs.mkdirSync(dataDir, { recursive: true });
   let snapshot = readSnapshot(snapshotPath);
-  let lastRefreshMs = snapshot.refreshedAt
-    ? Date.parse(snapshot.refreshedAt) || 0
-    : 0;
+  let lastRefreshMs = snapshot.refreshedAt ? Date.parse(snapshot.refreshedAt) || 0 : 0;
   let pending = null;
 
   function getSnapshot() {
@@ -71,12 +64,7 @@ function createGiftSaleCatalogService(options = {}) {
   async function refresh({ force = false } = {}) {
     const roomId = validateRoomId(getRoomId());
     const currentMs = now();
-    if (
-      !force &&
-      snapshot.roomId === roomId &&
-      lastRefreshMs > 0 &&
-      currentMs - lastRefreshMs < minRefreshMs
-    ) {
+    if (!force && snapshot.roomId === roomId && lastRefreshMs > 0 && currentMs - lastRefreshMs < minRefreshMs) {
       return getSnapshot();
     }
     if (pending) return pending;
@@ -89,14 +77,9 @@ function createGiftSaleCatalogService(options = {}) {
       validateBilibiliPayload(giftData, '礼物面板');
       validateBilibiliPayload(giftConfig, '礼物配置');
       const panelSaleIds = collectPanelGiftIds(giftData);
-      if (panelSaleIds.size === 0)
-        throw new Error('礼物面板没有返回可用礼物。');
+      if (panelSaleIds.size === 0) throw new Error('礼物面板没有返回可用礼物。');
       const configById = parseGiftConfig(giftConfig);
-      const saleIds = expandBlindBoxSaleIds(
-        panelSaleIds,
-        configById,
-        getBlindBoxConfig(),
-      );
+      const saleIds = expandBlindBoxSaleIds(panelSaleIds, configById, getBlindBoxConfig());
       const gifts = buildGiftCatalog(saleIds, configById);
       snapshot = {
         roomId,
@@ -111,9 +94,7 @@ function createGiftSaleCatalogService(options = {}) {
         ...snapshot,
       });
       lastRefreshMs = currentMs;
-      console.log(
-        `[Bilibili][GiftSale] roomId=${roomId} refreshed=${gifts.length}`,
-      );
+      console.log(`[Bilibili][GiftSale] roomId=${roomId} refreshed=${gifts.length}`);
       return getUncachedSnapshot(snapshot);
     })().finally(() => {
       pending = null;
@@ -140,9 +121,7 @@ function validateRoomId(value) {
 
 function validateBilibiliPayload(payload, label) {
   if (!payload || Number(payload.code) !== 0 || !payload.data) {
-    throw new Error(
-      `${label}接口返回错误：${payload?.message || payload?.msg || payload?.code || '无数据'}`,
-    );
+    throw new Error(`${label}接口返回错误：${payload?.message || payload?.msg || payload?.code || '无数据'}`);
   }
 }
 
@@ -156,8 +135,7 @@ function giftConfigUrl(roomId) {
 
 async function defaultFetchJson(endpointName, url, roomId) {
   const headers = {
-    'User-Agent':
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126 Safari/537.36',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126 Safari/537.36',
     Accept: 'application/json, text/plain, */*',
     'Accept-Language': 'zh-CN,zh;q=0.9',
     Origin: 'https://live.bilibili.com',
@@ -174,19 +152,15 @@ async function defaultFetchJson(endpointName, url, roomId) {
   } catch (_) {
     throw new Error(`直播平台${endpointName}返回了非 JSON 响应。`);
   }
-  if (!response.ok)
-    throw new Error(`直播平台${endpointName}请求失败：HTTP ${response.status}`);
+  if (!response.ok) throw new Error(`直播平台${endpointName}请求失败：HTTP ${response.status}`);
   return payload;
 }
 
 function readSnapshot(filePath) {
   try {
     const parsed = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-    if (parsed.schemaVersion !== SNAPSHOT_SCHEMA_VERSION)
-      throw new Error('Unsupported gift sale snapshot schema.');
-    const gifts = Array.isArray(parsed.gifts)
-      ? parsed.gifts.map(normalizeSnapshotGift).filter(Boolean)
-      : [];
+    if (parsed.schemaVersion !== SNAPSHOT_SCHEMA_VERSION) throw new Error('Unsupported gift sale snapshot schema.');
+    const gifts = Array.isArray(parsed.gifts) ? parsed.gifts.map(normalizeSnapshotGift).filter(Boolean) : [];
     return {
       roomId: String(parsed.roomId || ''),
       refreshedAt: String(parsed.refreshedAt || ''),

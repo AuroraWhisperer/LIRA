@@ -11,18 +11,9 @@ const ROOT_DIR = path.join(__dirname, '..');
 const PUBLIC_DIR = path.join(ROOT_DIR, 'public');
 
 test('wheel overlay is mapped, transparent, and renders labels through DOM APIs', () => {
-  const html = fs.readFileSync(
-    path.join(PUBLIC_DIR, 'pages', 'overlays', 'wheel.html'),
-    'utf8',
-  );
-  const script = fs.readFileSync(
-    path.join(PUBLIC_DIR, 'js', 'overlays', 'wheel.js'),
-    'utf8',
-  );
-  const styles = fs.readFileSync(
-    path.join(PUBLIC_DIR, 'css', 'overlays', 'wheel.css'),
-    'utf8',
-  );
+  const html = fs.readFileSync(path.join(PUBLIC_DIR, 'pages', 'overlays', 'wheel.html'), 'utf8');
+  const script = fs.readFileSync(path.join(PUBLIC_DIR, 'js', 'overlays', 'wheel.js'), 'utf8');
+  const styles = fs.readFileSync(path.join(PUBLIC_DIR, 'css', 'overlays', 'wheel.css'), 'utf8');
   assert.match(html, /id="wheelSvg"/);
   assert.match(html, /id="wheelCenterButton"/);
   assert.match(html, />GO</);
@@ -47,13 +38,16 @@ test('wheel module entry binds its controls without relying on classic-script gl
   const sockets = [];
   const windowRef = { addEventListener() {} };
   function element(id) {
-    if (!elements.has(id)) elements.set(id, {
-      handlers: new Map(),
-      addEventListener(type, handler) { this.handlers.set(type, handler); },
-      classList: { toggle() {} },
-      setAttribute() {},
-      replaceChildren() {},
-    });
+    if (!elements.has(id))
+      elements.set(id, {
+        handlers: new Map(),
+        addEventListener(type, handler) {
+          this.handlers.set(type, handler);
+        },
+        classList: { toggle() {} },
+        setAttribute() {},
+        replaceChildren() {},
+      });
     return elements.get(id);
   }
   await loadModuleExports(path.join(PUBLIC_DIR, 'js', 'overlays', 'wheel.js'), {
@@ -64,7 +58,9 @@ test('wheel module entry binds its controls without relying on classic-script gl
     },
     location: { protocol: 'http:', host: 'localhost' },
     WebSocket: class {
-      constructor() { sockets.push(this); }
+      constructor() {
+        sockets.push(this);
+      }
       addEventListener() {}
     },
     fetch: async (url) => {
@@ -98,13 +94,7 @@ test('wheel overlay page allows embedding with isolated script origin', async ()
       },
       end: resolve,
     };
-    servePageOrAsset(
-      PUBLIC_DIR,
-      { method: 'GET' },
-      response,
-      new URL('http://127.0.0.1/wheel'),
-      'test-token',
-    );
+    servePageOrAsset(PUBLIC_DIR, { method: 'GET' }, response, new URL('http://127.0.0.1/wheel'), 'test-token');
   });
   assert.equal(status, 200);
   assert.equal(headers['Content-Type'], 'text/html; charset=utf-8');

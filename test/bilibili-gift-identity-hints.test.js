@@ -2,9 +2,7 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const {
-  extractBilibiliGiftIdentity,
-} = require('../src/bilibili/users/gift-identity-hints');
+const { extractBilibiliGiftIdentity } = require('../src/bilibili/users/gift-identity-hints');
 const { MessageHandlers } = require('../src/bilibili/danmaku/message-handlers');
 
 test('gift messages supply identity only, independently of amounts and gift metadata', () => {
@@ -30,32 +28,17 @@ test('gift messages supply identity only, independently of amounts and gift meta
     giftId: '1',
   });
   assert.deepEqual(extractBilibiliGiftIdentity(packet), expected);
-  assert.equal(
-    extractBilibiliGiftIdentity({ cmd: 'SEND_GIFT', data: {} }),
-    null,
-  );
-  assert.equal(
-    extractBilibiliGiftIdentity({ cmd: 'COMBO_END', data: packet.data }),
-    null,
-  );
-  assert.equal(
-    extractBilibiliGiftIdentity({ cmd: 'DANMU_MSG', data: packet.data }),
-    null,
-  );
+  assert.equal(extractBilibiliGiftIdentity({ cmd: 'SEND_GIFT', data: {} }), null);
+  assert.equal(extractBilibiliGiftIdentity({ cmd: 'COMBO_END', data: packet.data }), null);
+  assert.equal(extractBilibiliGiftIdentity({ cmd: 'DANMU_MSG', data: packet.data }), null);
 });
 
 test('V2 identity uses only sender protobuf fields and never requires gift totals', () => {
-  const pb = Buffer.concat([
-    Buffer.from([8, 42, 18, 5]),
-    Buffer.from('Alice'),
-  ]).toString('base64');
-  assert.deepEqual(
-    extractBilibiliGiftIdentity({ cmd: 'SEND_GIFT_V2', data: { pb } }),
-    {
-      hint: { uid: '42', name: 'Alice', avatarUrl: '' },
-      roomIdentityVerified: false,
-    },
-  );
+  const pb = Buffer.concat([Buffer.from([8, 42, 18, 5]), Buffer.from('Alice')]).toString('base64');
+  assert.deepEqual(extractBilibiliGiftIdentity({ cmd: 'SEND_GIFT_V2', data: { pb } }), {
+    hint: { uid: '42', name: 'Alice', avatarUrl: '' },
+    roomIdentityVerified: false,
+  });
   assert.equal(
     extractBilibiliGiftIdentity({
       cmd: 'SEND_GIFT_V2',

@@ -26,14 +26,8 @@ test('license states share a bounded stage and scroll only the right card', () =
 });
 
 test('license titlebar keeps branding static and uses local window icons', () => {
-  const html = fs.readFileSync(
-    path.join(ROOT, 'public', 'pages', 'license.html'),
-    'utf8',
-  );
-  const icons = fs.readFileSync(
-    path.join(ROOT, 'public', 'img', 'shared', 'window-controls.svg'),
-    'utf8',
-  );
+  const html = fs.readFileSync(path.join(ROOT, 'public', 'pages', 'license.html'), 'utf8');
+  const icons = fs.readFileSync(path.join(ROOT, 'public', 'img', 'shared', 'window-controls.svg'), 'utf8');
   assert.match(html, /<div class="license-brand">/);
   assert.doesNotMatch(html, /<a\b[^>]*class="license-brand"/);
   for (const name of ['minus', 'square', 'copy', 'x']) {
@@ -43,14 +37,9 @@ test('license titlebar keeps branding static and uses local window icons', () =>
 });
 
 test('license window controls dispatch actions and reflect maximize events', () => {
-  const script = fs.readFileSync(
-    path.join(ROOT, 'public', 'js', 'license.js'),
-    'utf8',
-  );
+  const script = fs.readFileSync(path.join(ROOT, 'public', 'js', 'license.js'), 'utf8');
   const elements = new Map(
-    ['licenseMinimizeBtn', 'licenseMaximizeBtn', 'licenseCloseBtn'].map(
-      (id) => [id, new EventTarget()],
-    ),
+    ['licenseMinimizeBtn', 'licenseMaximizeBtn', 'licenseCloseBtn'].map((id) => [id, new EventTarget()]),
   );
   const maximizeButton = elements.get('licenseMaximizeBtn');
   maximizeButton.dataset = {};
@@ -93,10 +82,7 @@ test('license window controls dispatch actions and reflect maximize events', () 
 });
 
 test('license page is independent from existing onboarding and exposes only three inputs', () => {
-  const html = fs.readFileSync(
-    path.join(ROOT, 'public', 'pages', 'license.html'),
-    'utf8',
-  );
+  const html = fs.readFileSync(path.join(ROOT, 'public', 'pages', 'license.html'), 'utf8');
   const inputs = [...html.matchAll(/<input\b/gi)];
   assert.equal(inputs.length, 3);
   assert.match(html, /id="licenseAccountName"/);
@@ -105,10 +91,7 @@ test('license page is independent from existing onboarding and exposes only thre
   assert.match(html, /注册并进入/);
   assert.match(html, /登录已有账号/);
   assert.match(html, /注册新账号/);
-  assert.ok(
-    html.indexOf('id="licenseRegisterMode"') <
-      html.indexOf('id="licenseLoginMode"'),
-  );
+  assert.ok(html.indexOf('id="licenseRegisterMode"') < html.indexOf('id="licenseLoginMode"'));
   assert.match(html, /id="licenseRegisterMode"[^>]*aria-pressed="true"/);
   assert.match(html, /id="licenseLoginMode"[^>]*aria-pressed="false"/);
   assert.match(html, /id="licenseHeading">注册 LIRA/);
@@ -117,10 +100,7 @@ test('license page is independent from existing onboarding and exposes only thre
 });
 
 test('license renderer uses main-process bridge and clears secrets on success', () => {
-  const script = fs.readFileSync(
-    path.join(ROOT, 'public', 'js', 'license.js'),
-    'utf8',
-  );
+  const script = fs.readFileSync(path.join(ROOT, 'public', 'js', 'license.js'), 'utf8');
   assert.match(script, /window\.liraLicense/);
   assert.match(script, /passwordInput\.value = ''/);
   assert.match(script, /codeInput\.value = ''/);
@@ -133,19 +113,10 @@ test('license renderer uses main-process bridge and clears secrets on success', 
 });
 
 test('license page replaces the form with an accessible gift initialization card', () => {
-  const html = fs.readFileSync(
-    path.join(ROOT, 'public', 'pages', 'license.html'),
-    'utf8',
-  );
-  const styles = fs.readFileSync(
-    path.join(ROOT, 'public', 'css', 'license.css'),
-    'utf8',
-  );
+  const html = fs.readFileSync(path.join(ROOT, 'public', 'pages', 'license.html'), 'utf8');
+  const styles = fs.readFileSync(path.join(ROOT, 'public', 'css', 'license.css'), 'utf8');
   assert.match(html, /id="licenseLoginCard"/);
-  assert.match(
-    html,
-    /id="giftCatalogInitializationCard"[^>]*aria-busy="true"[^>]*hidden/s,
-  );
+  assert.match(html, /id="giftCatalogInitializationCard"[^>]*aria-busy="true"[^>]*hidden/s);
   assert.match(html, /id="giftCatalogInitializationProgress"[^>]*max="100"/s);
   assert.match(html, /id="giftCatalogInitializationStatus"[^>]*role="status"/s);
   assert.match(html, /id="giftCatalogInitializationRetryBtn"/);
@@ -155,24 +126,15 @@ test('license page replaces the form with an accessible gift initialization card
   assert.match(html, /aria-label="准备进度"/);
   assert.match(html, /id="giftCatalogInitializationPercent">0%/);
   assert.doesNotMatch(html, /giftCatalogInitialization(?:Phase|Count)/);
-  const script = fs.readFileSync(
-    path.join(ROOT, 'public', 'js', 'license.js'),
-    'utf8',
-  );
+  const script = fs.readFileSync(path.join(ROOT, 'public', 'js', 'license.js'), 'utf8');
   assert.match(script, /正在为你准备直播工具/);
-  assert.doesNotMatch(
-    script,
-    /initializationPhase|initializationCount|currentGiftName|礼物图片|礼物目录/,
-  );
+  assert.doesNotMatch(script, /initializationPhase|initializationCount|currentGiftName|礼物图片|礼物目录/);
   assert.match(styles, /\.license-initialization-card\s*\{/);
   assert.match(styles, /\.license-progress::-webkit-progress-value\s*\{/);
 });
 
 test('license renderer explains session replacement and temporary server failures', () => {
-  const script = fs.readFileSync(
-    path.join(ROOT, 'public', 'js', 'license.js'),
-    'utf8',
-  );
+  const script = fs.readFileSync(path.join(ROOT, 'public', 'js', 'license.js'), 'utf8');
   assert.match(script, /SESSION_SUPERSEDED/);
   assert.match(script, /另一个 LIRA 进程登录/);
   assert.match(script, /HTTP_\(429\|5\\d\\d\)/);
@@ -180,10 +142,7 @@ test('license renderer explains session replacement and temporary server failure
 });
 
 test('license renderer re-enables both actions after a failed async attempt', () => {
-  const script = fs.readFileSync(
-    path.join(ROOT, 'public', 'js', 'license.js'),
-    'utf8',
-  );
+  const script = fs.readFileSync(path.join(ROOT, 'public', 'js', 'license.js'), 'utf8');
   assert.match(script, /function finishBusy\(\)/);
   assert.match(script, /submitButton\.disabled = !canActivate/);
   assert.match(script, /retryButton\.disabled = false/);
@@ -191,55 +150,29 @@ test('license renderer re-enables both actions after a failed async attempt', ()
 });
 
 test('cloud song sync requires an explicit overwrite confirmation', () => {
-  const script = fs.readFileSync(
-    path.join(ROOT, 'public', 'js', 'admin', 'cloud-song-sync.js'),
-    'utf8',
-  );
+  const script = fs.readFileSync(path.join(ROOT, 'public', 'js', 'admin', 'cloud-song-sync.js'), 'utf8');
   const dialogIndex = script.indexOf('showConfirmationDialog({');
   const syncIndex = script.indexOf('window.liraLicense.syncSongs(');
   assert.ok(dialogIndex >= 0, 'sync must ask for confirmation first');
-  assert.ok(
-    syncIndex > dialogIndex,
-    'confirmation must happen before syncSongs is invoked',
-  );
+  assert.ok(syncIndex > dialogIndex, 'confirmation must happen before syncSongs is invoked');
   assert.match(script, /if \(!confirmed\)/);
   assert.match(script, /variant: 'caution'/);
   assert.match(script, /覆盖同步/);
 });
 
 test('cloud song sync snapshots local songs after confirmation', () => {
-  const script = fs.readFileSync(
-    path.join(ROOT, 'public', 'js', 'admin', 'cloud-song-sync.js'),
-    'utf8',
-  );
+  const script = fs.readFileSync(path.join(ROOT, 'public', 'js', 'admin', 'cloud-song-sync.js'), 'utf8');
   const confirmedGuardIndex = script.indexOf('if (!confirmed)');
-  const snapshotIndex = script.indexOf(
-    'const songs = [...(getSongs() || [])];',
-  );
-  const syncIndex = script.indexOf(
-    'window.liraLicense.syncSongs(songs)',
-    snapshotIndex,
-  );
+  const snapshotIndex = script.indexOf('const songs = [...(getSongs() || [])];');
+  const syncIndex = script.indexOf('window.liraLicense.syncSongs(songs)', snapshotIndex);
   assert.ok(confirmedGuardIndex >= 0, 'confirmation result must be checked');
-  assert.ok(
-    snapshotIndex > confirmedGuardIndex,
-    'local songs must be read after confirmation',
-  );
-  assert.ok(
-    syncIndex > snapshotIndex,
-    'the confirmed snapshot must be the one uploaded',
-  );
+  assert.ok(snapshotIndex > confirmedGuardIndex, 'local songs must be read after confirmation');
+  assert.ok(syncIndex > snapshotIndex, 'the confirmed snapshot must be the one uploaded');
 });
 
 test('cloud song sync compares against the cloud count and records the last sync locally', () => {
-  const script = fs.readFileSync(
-    path.join(ROOT, 'public', 'js', 'admin', 'cloud-song-sync.js'),
-    'utf8',
-  );
-  const html = fs.readFileSync(
-    path.join(ROOT, 'public', 'pages', 'admin', 'song', 'import-export.html'),
-    'utf8',
-  );
+  const script = fs.readFileSync(path.join(ROOT, 'public', 'js', 'admin', 'cloud-song-sync.js'), 'utf8');
+  const html = fs.readFileSync(path.join(ROOT, 'public', 'pages', 'admin', 'song', 'import-export.html'), 'utf8');
   assert.match(script, /window\.liraLicense\.getCloudSongs\(\)/);
   assert.match(script, /云端现有/);
   assert.match(script, /lira:license:lastCloudSync/);
@@ -250,48 +183,27 @@ test('cloud song sync compares against the cloud count and records the last sync
     script,
     /syncButton\.disabled = true;[\s\S]*?await refreshCloudSongCount\(\)[\s\S]*?syncButton\.disabled = false;/,
   );
-  assert.match(
-    script,
-    /syncButton\.disabled = false;\s*\}\s*\n\s*\n\s*syncButton\.addEventListener/,
-  );
+  assert.match(script, /syncButton\.disabled = false;\s*\}\s*\n\s*\n\s*syncButton\.addEventListener/);
   assert.match(script, /Number\.isSafeInteger\(reportedCount\)/);
 });
 
 test('cloud song sync explains which song failed validation', () => {
-  const script = fs.readFileSync(
-    path.join(ROOT, 'public', 'js', 'admin', 'cloud-song-sync.js'),
-    'utf8',
-  );
+  const script = fs.readFileSync(path.join(ROOT, 'public', 'js', 'admin', 'cloud-song-sync.js'), 'utf8');
   assert.match(script, /INVALID_SONG/);
   assert.match(script, /第 \$\{index \+ 1\} 首歌曲的字段格式无效/);
   assert.match(script, /点歌价格、启用状态或排序/);
 });
 
 test('song background controls wait for the initial response before accepting changes', () => {
-  const script = fs.readFileSync(
-    path.join(ROOT, 'public', 'js', 'admin', 'song-background.js'),
-    'utf8',
-  );
+  const script = fs.readFileSync(path.join(ROOT, 'public', 'js', 'admin', 'song-background.js'), 'utf8');
   assert.match(script, /fileInput\.disabled = isBusy/);
-  assert.match(
-    script,
-    /setBusy\(true\);[\s\S]*?await refreshSongBackground\(\)[\s\S]*?setBusy\(false\);/,
-  );
+  assert.match(script, /setBusy\(true\);[\s\S]*?await refreshSongBackground\(\)[\s\S]*?setBusy\(false\);/);
 });
 
 test('account settings show non-sensitive profile data without device-management controls', () => {
-  const script = fs.readFileSync(
-    path.join(ROOT, 'public', 'js', 'admin', 'settings-license.js'),
-    'utf8',
-  );
-  const html = fs.readFileSync(
-    path.join(ROOT, 'public', 'pages', 'admin', 'toolbox', 'settings.html'),
-    'utf8',
-  );
-  const preload = fs.readFileSync(
-    path.join(ROOT, 'src', 'electron', 'preload.js'),
-    'utf8',
-  );
+  const script = fs.readFileSync(path.join(ROOT, 'public', 'js', 'admin', 'settings-license.js'), 'utf8');
+  const html = fs.readFileSync(path.join(ROOT, 'public', 'pages', 'admin', 'toolbox', 'settings.html'), 'utf8');
+  const preload = fs.readFileSync(path.join(ROOT, 'src', 'electron', 'preload.js'), 'utf8');
 
   assert.match(script, /await licenseBridge\.getProfile\(\)/);
   assert.match(script, /accountEl\.textContent/);
@@ -301,12 +213,6 @@ test('account settings show non-sensitive profile data without device-management
   assert.match(html, /账号信息/);
   assert.match(html, /忘记密码？[\s\S]*?请联系管理员重置密码。/);
   assert.doesNotMatch(html, /安全存储|设备私钥|首次授权|激活密钥|设备管理/);
-  assert.doesNotMatch(
-    script,
-    /createPairingCode|listPairingCodes|revokePairingCode/,
-  );
-  assert.doesNotMatch(
-    preload,
-    /createPairingCode|listPairingCodes|revokePairingCode/,
-  );
+  assert.doesNotMatch(script, /createPairingCode|listPairingCodes|revokePairingCode/);
+  assert.doesNotMatch(preload, /createPairingCode|listPairingCodes|revokePairingCode/);
 });

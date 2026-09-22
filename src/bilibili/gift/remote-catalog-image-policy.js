@@ -11,8 +11,7 @@ function normalizeBilibiliImageUrl(value) {
     const hostname = parsed.hostname.toLowerCase();
     if (
       parsed.protocol !== 'https:' ||
-      (hostname !== BILIBILI_IMAGE_HOST &&
-        !hostname.endsWith(`.${BILIBILI_IMAGE_HOST}`)) ||
+      (hostname !== BILIBILI_IMAGE_HOST && !hostname.endsWith(`.${BILIBILI_IMAGE_HOST}`)) ||
       parsed.username ||
       parsed.password ||
       (parsed.port && parsed.port !== '443') ||
@@ -41,10 +40,8 @@ function normalizeImagePath(value, imageBaseUrl = '') {
   } catch (_) {
     return '';
   }
-  if (!/^\/gift-media\/images\/[A-Za-z0-9._-]+$/u.test(parsed.pathname))
-    return '';
-  if (parsed.username || parsed.password || parsed.search || parsed.hash)
-    return '';
+  if (!/^\/gift-media\/images\/[A-Za-z0-9._-]+$/u.test(parsed.pathname)) return '';
+  if (parsed.username || parsed.password || parsed.search || parsed.hash) return '';
   if (parsed.origin !== base.origin) return '';
   return parsed.href;
 }

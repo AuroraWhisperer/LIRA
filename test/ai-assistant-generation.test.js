@@ -2,10 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {
-  createTestService,
-  waitUntil,
-} = require('./helpers/ai-assistant-service-fixture');
+const { createTestService, waitUntil } = require('./helpers/ai-assistant-service-fixture');
 
 test('generation and tool follow-up requests have enough output room for route reasoning and tool JSON', async () => {
   const requests = [];
@@ -74,16 +71,12 @@ test('generation and tool follow-up requests have enough output room for route r
 
   assert.ok(
     requests
-      .filter((request) =>
-        ['generation', 'tool_followup'].includes(request.purpose),
-      )
+      .filter((request) => ['generation', 'tool_followup'].includes(request.purpose))
       .every((request) => request.maxOutputTokens === 3072),
   );
   assert.ok(
     requests
-      .filter((request) =>
-        ['input_review', 'output_review'].includes(request.purpose),
-      )
+      .filter((request) => ['input_review', 'output_review'].includes(request.purpose))
       .every((request) => request.maxOutputTokens === 384),
   );
 });
@@ -120,14 +113,8 @@ test('reasoning-enabled generation gets extra room for thinking and route tool c
     userName: 'Alice',
     message: 'AI 太原火车站到机场怎么规划',
   });
-  await waitUntil(() =>
-    requests.some((request) => request.purpose === 'output_review'),
-  );
-  assert.equal(
-    requests.find((request) => request.purpose === 'generation')
-      .maxOutputTokens,
-    4096,
-  );
+  await waitUntil(() => requests.some((request) => request.purpose === 'output_review'));
+  assert.equal(requests.find((request) => request.purpose === 'generation').maxOutputTokens, 4096);
 });
 
 test('Suzhou route planning keeps a concise useful reply after the route tool round', async () => {
@@ -201,10 +188,7 @@ test('Suzhou route planning keeps a concise useful reply after the route tool ro
       '\u5c0f\u7c73\u5e2e\u6211\u89c4\u5212\u4e00\u4e0b\u82cf\u5dde\u91d1\u9e21\u6e56\u5230\u82cf\u5dde\u56ed\u533a\u7ad9\u7684\u8def\u7ebf',
   });
   await waitUntil(() => deliveries.length === 1);
-  assert.equal(
-    deliveries[0].message,
-    '\u5efa\u8bae\u4e58\u5730\u94c1\uff0c\u7ea6 30 \u5206\u949f\u3002',
-  );
+  assert.equal(deliveries[0].message, '\u5efa\u8bae\u4e58\u5730\u94c1\uff0c\u7ea6 30 \u5206\u949f\u3002');
   assert.ok(Array.from(deliveries[0].message).length < 40);
   assert.doesNotMatch(deliveries[0].message, /\u6682\u65f6|\u65e0\u6cd5/);
 });
@@ -232,9 +216,7 @@ test('a monthly API quota result makes the next tool round rely on web search', 
             id: 'tool-round',
             text: '',
             usage: {},
-            functionCalls: [
-              { callId: 'weather-1', name: 'get_weather', arguments: {} },
-            ],
+            functionCalls: [{ callId: 'weather-1', name: 'get_weather', arguments: {} }],
           };
         }
         assert.ok(request.tools.some((tool) => tool.type === 'web_search'));

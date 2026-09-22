@@ -11,10 +11,7 @@ const {
   normalizeProcessedGiftHistoryPage,
   normalizeProcessedGiftPage,
 } = require('../src/shared/processed-gift-contract');
-const {
-  createFixture,
-  makeEvent,
-} = require('./helpers/processed-gift-fixture');
+const { createFixture, makeEvent } = require('./helpers/processed-gift-fixture');
 
 const giftSyncFixture = readServerFixture('docs/protocol/fixtures/gift-sync-v1.json');
 
@@ -64,44 +61,24 @@ test('processed importer rejects malformed or privacy-sensitive transport shapes
 });
 
 test('gift sync contract consumes the shared server fixture', () => {
-  const canonicalCase = giftSyncFixture.canonicalCases.find(
-    ({ name }) => name === 'canonical-paid-blind-box',
-  );
-  const coinTypeCase = giftSyncFixture.canonicalCases.find(
-    ({ name }) => name === 'coin-type-normalizes-to-nfc',
-  );
+  const canonicalCase = giftSyncFixture.canonicalCases.find(({ name }) => name === 'canonical-paid-blind-box');
+  const coinTypeCase = giftSyncFixture.canonicalCases.find(({ name }) => name === 'coin-type-normalizes-to-nfc');
   assert.ok(canonicalCase);
   assert.ok(coinTypeCase);
   assert.equal(canonicalGiftId(' １２3 '), '１２3');
-  assert.equal(
-    canonicalGiftText(canonicalCase.input.gift.giftName),
-    canonicalCase.expected.record.gift.giftName,
-  );
+  assert.equal(canonicalGiftText(canonicalCase.input.gift.giftName), canonicalCase.expected.record.gift.giftName);
   assert.equal(canonicalGiftText('A\u0085B'), 'A B');
   assert.equal(canonicalCoinType(' GOLD '), 'gold');
-  assert.equal(
-    canonicalCoinType(coinTypeCase.input.gift.coinType),
-    coinTypeCase.expected.record.gift.coinType,
-  );
+  assert.equal(canonicalCoinType(coinTypeCase.input.gift.coinType), coinTypeCase.expected.record.gift.coinType);
 
-  const historyPage = normalizeProcessedGiftHistoryPage(
-    structuredClone(giftSyncFixture.bootstrapPage.response),
-  );
+  const historyPage = normalizeProcessedGiftHistoryPage(structuredClone(giftSyncFixture.bootstrapPage.response));
   assert.equal(historyPage.events[0].gift.totalPriceCents, 250);
-  assert.equal(
-    historyPage.recoveryCursor,
-    giftSyncFixture.bootstrapPage.response.recoveryCursor,
-  );
-  assert.equal(
-    historyPage.historyBootstrapVersion,
-    giftSyncFixture.historyBootstrapVersion,
-  );
+  assert.equal(historyPage.recoveryCursor, giftSyncFixture.bootstrapPage.response.recoveryCursor);
+  assert.equal(historyPage.historyBootstrapVersion, giftSyncFixture.historyBootstrapVersion);
 
   for (const cursorCase of giftSyncFixture.cursorCases) {
     if (!cursorCase.response) continue;
-    const page = normalizeProcessedGiftPage(
-      structuredClone(cursorCase.response),
-    );
+    const page = normalizeProcessedGiftPage(structuredClone(cursorCase.response));
     assert.equal(page.nextCursor, cursorCase.response.nextCursor);
   }
 });
@@ -163,10 +140,7 @@ test('history wire contract rejects incomplete, coerced, or extended pages atomi
   for (const mutate of invalidMutations) {
     const page = structuredClone(giftSyncFixture.bootstrapPage.response);
     mutate(page);
-    assert.throws(
-      () => normalizeProcessedGiftHistoryPage(page),
-      /INVALID_PROCESSED_GIFT_HISTORY_PAGE/,
-    );
+    assert.throws(() => normalizeProcessedGiftHistoryPage(page), /INVALID_PROCESSED_GIFT_HISTORY_PAGE/);
   }
 
   const imprecise = structuredClone(giftSyncFixture.bootstrapPage.response);
@@ -174,28 +148,18 @@ test('history wire contract rejects incomplete, coerced, or extended pages atomi
   imprecise.events[0].gift.totalPrice = 2.0000000009;
   imprecise.events[0].gift.blindBoxPrice = 1.5;
   imprecise.events[0].gift.blindProfit = 0.5;
-  assert.equal(
-    normalizeProcessedGiftHistoryPage(imprecise).events[0].gift.unitPriceCents,
-    100,
-  );
+  assert.equal(normalizeProcessedGiftHistoryPage(imprecise).events[0].gift.unitPriceCents, 100);
 
   const invalidMoney = structuredClone(giftSyncFixture.bootstrapPage.response);
   invalidMoney.events[0].gift.unitPrice = 1.001;
-  assert.throws(
-    () => normalizeProcessedGiftHistoryPage(invalidMoney),
-    /INVALID_PROCESSED_GIFT_HISTORY_PAGE/,
-  );
+  assert.throws(() => normalizeProcessedGiftHistoryPage(invalidMoney), /INVALID_PROCESSED_GIFT_HISTORY_PAGE/);
 });
 
 test('incremental wire contract is exact for v1 pages, events, and gifts', () => {
   const fixturePage = structuredClone(
-    giftSyncFixture.cursorCases.find(
-      ({ name }) => name === 'epoch-aware-no-update',
-    ).response,
+    giftSyncFixture.cursorCases.find(({ name }) => name === 'epoch-aware-no-update').response,
   );
-  const historyRecord = structuredClone(
-    giftSyncFixture.bootstrapPage.response.events[0],
-  );
+  const historyRecord = structuredClone(giftSyncFixture.bootstrapPage.response.events[0]);
   fixturePage.events = [{ ...historyRecord, cursor: 42, phase: 'final' }];
   fixturePage.nextCursor = 42;
   fixturePage.latestCursor = 42;
@@ -245,10 +209,7 @@ test('incremental wire contract is exact for v1 pages, events, and gifts', () =>
   for (const mutate of invalidMutations) {
     const page = structuredClone(fixturePage);
     mutate(page);
-    assert.throws(
-      () => normalizeProcessedGiftPage(page),
-      /INVALID_PROCESSED_GIFT_PAGE/,
-    );
+    assert.throws(() => normalizeProcessedGiftPage(page), /INVALID_PROCESSED_GIFT_PAGE/);
   }
 
   assert.deepEqual(

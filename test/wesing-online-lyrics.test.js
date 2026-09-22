@@ -4,10 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
-const {
-  createWeSingOnlineLyricResolver,
-  selectWeSingLyricTrack,
-} = require('../src/music/wesing-online-lyrics');
+const { createWeSingOnlineLyricResolver, selectWeSingLyricTrack } = require('../src/music/wesing-online-lyrics');
 const { DEFAULT_SETTINGS } = require('../src/storage/settings-store');
 
 test('WeSing online lyric matching uses duration to disambiguate same-title songs', () => {
@@ -62,10 +59,7 @@ test('WeSing online fallback queries both providers and prefers complete word ly
       return {
         tracks:
           body.platform === 'qq'
-            ? [
-                createTrack('qq:wrong', '翻唱歌手', 181000),
-                createTrack('qq:original', '井迪', 255000),
-              ]
+            ? [createTrack('qq:wrong', '翻唱歌手', 181000), createTrack('qq:original', '井迪', 255000)]
             : [createTrack('netease:original', '井迪儿', 255000, 'netease')],
       };
     },
@@ -79,9 +73,7 @@ test('WeSing online fallback queries both providers and prefers complete word ly
             startMs: 1000,
             endMs: 2000,
             text: '请原谅我的词穷',
-            words: wordTimed
-              ? [{ text: '请', startMs: 1000, endMs: 1200 }]
-              : [],
+            words: wordTimed ? [{ text: '请', startMs: 1000, endMs: 1200 }] : [],
           },
         ],
       };
@@ -106,14 +98,7 @@ test('WeSing online fallback does not prefer a nine-line partial timeline over a
   const lyricsService = {
     async searchMusicTracks(_registry, body) {
       return {
-        tracks: [
-          createTrack(
-            `${body.platform}:original`,
-            '井迪',
-            255000,
-            body.platform,
-          ),
-        ],
+        tracks: [createTrack(`${body.platform}:original`, '井迪', 255000, body.platform)],
       };
     },
     async getMusicTrackLyrics(_registry, body) {
@@ -124,9 +109,7 @@ test('WeSing online fallback does not prefer a nine-line partial timeline over a
           startMs: index * 4000,
           endMs: index * 4000 + 3000,
           text: `第 ${index + 1} 行`,
-          words: [
-            { text: '词', startMs: index * 4000, endMs: index * 4000 + 500 },
-          ],
+          words: [{ text: '词', startMs: index * 4000, endMs: index * 4000 + 500 }],
         })),
       };
     },
@@ -209,19 +192,10 @@ test('WeSing lyric preferences default to NetEase smart matching and are injecte
   assert.equal(DEFAULT_SETTINGS.weSingLyricSource, 'netease');
   assert.equal(DEFAULT_SETTINGS.weSingSmartLyricMatch, 'true');
 
-  const runtimeSource = fs.readFileSync(
-    path.join(__dirname, '..', 'src', 'server', 'music-runtime.js'),
-    'utf8',
-  );
+  const runtimeSource = fs.readFileSync(path.join(__dirname, '..', 'src', 'server', 'music-runtime.js'), 'utf8');
   assert.match(runtimeSource, /getPreferences\(\)\s*\{/);
-  assert.match(
-    runtimeSource,
-    /const settings = settingsStore\.getSettings\(\)/,
-  );
-  assert.match(
-    runtimeSource,
-    /preferredPlatform:\s*settings\.weSingLyricSource/,
-  );
+  assert.match(runtimeSource, /const settings = settingsStore\.getSettings\(\)/);
+  assert.match(runtimeSource, /preferredPlatform:\s*settings\.weSingLyricSource/);
   assert.match(runtimeSource, /smartMatch:\s*settings\.weSingSmartLyricMatch/);
 });
 
@@ -229,17 +203,9 @@ function createTrackingLyricsService(requestedPlatforms, options = {}) {
   return {
     async searchMusicTracks(_registry, body) {
       requestedPlatforms.push(body.platform);
-      if (body.platform === options.failingPlatform)
-        throw new Error(`${body.platform} unavailable`);
+      if (body.platform === options.failingPlatform) throw new Error(`${body.platform} unavailable`);
       return {
-        tracks: [
-          createTrack(
-            `${body.platform}:original`,
-            '井迪',
-            255000,
-            body.platform,
-          ),
-        ],
+        tracks: [createTrack(`${body.platform}:original`, '井迪', 255000, body.platform)],
       };
     },
     async getMusicTrackLyrics(_registry, body) {

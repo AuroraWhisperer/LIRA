@@ -2,11 +2,7 @@
 
 const { SYSTEM_PROMPT } = require('./prompt');
 
-const AI_SECRET_KEYS = Object.freeze([
-  'deepseekApiKey',
-  'qweatherApiKey',
-  'amapApiKey',
-]);
+const AI_SECRET_KEYS = Object.freeze(['deepseekApiKey', 'qweatherApiKey', 'amapApiKey']);
 
 const MODEL_PROVIDER_PRESETS = Object.freeze({
   deepseek: Object.freeze({
@@ -68,24 +64,9 @@ const BOOLEAN_KEYS = new Set([
 ]);
 
 const ENUM_VALUES = Object.freeze({
-  modelProvider: new Set([
-    'auto',
-    'deepseek',
-    'openai',
-    'anthropic',
-    'gemini',
-    'custom',
-  ]),
+  modelProvider: new Set(['auto', 'deepseek', 'openai', 'anthropic', 'gemini', 'custom']),
   modelApiProtocol: new Set(['auto', 'responses', 'chat_completions']),
-  reasoningEffort: new Set([
-    'auto',
-    'minimal',
-    'low',
-    'medium',
-    'high',
-    'xhigh',
-    'max',
-  ]),
+  reasoningEffort: new Set(['auto', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']),
 });
 
 const NUMBER_LIMITS = Object.freeze({
@@ -101,31 +82,19 @@ const NUMBER_LIMITS = Object.freeze({
   contextTtlSeconds: [60, 86400],
 });
 
-const URL_KEYS = new Set([
-  'deepseekResponsesUrl',
-  'qweatherApiHost',
-  'amapApiHost',
-]);
+const URL_KEYS = new Set(['deepseekResponsesUrl', 'qweatherApiHost', 'amapApiHost']);
 
 function normalizeAiConfig(input = {}, current = AI_CONFIG_DEFAULTS) {
   const result = { ...AI_CONFIG_DEFAULTS, ...current };
   const allowedKeys = new Set(Object.keys(AI_CONFIG_DEFAULTS));
-  const requestedProvider = String(
-    input?.modelProvider ?? result.modelProvider ?? 'auto',
-  )
+  const requestedProvider = String(input?.modelProvider ?? result.modelProvider ?? 'auto')
     .trim()
     .toLowerCase();
-  const providerPresetActive = Boolean(
-    MODEL_PROVIDER_PRESETS[requestedProvider],
-  );
+  const providerPresetActive = Boolean(MODEL_PROVIDER_PRESETS[requestedProvider]);
 
   for (const [key, rawValue] of Object.entries(input || {})) {
     if (!allowedKeys.has(key)) continue;
-    if (
-      providerPresetActive &&
-      ['deepseekResponsesUrl', 'modelApiProtocol'].includes(key)
-    )
-      continue;
+    if (providerPresetActive && ['deepseekResponsesUrl', 'modelApiProtocol'].includes(key)) continue;
     if (BOOLEAN_KEYS.has(key)) {
       result[key] = rawValue === true || rawValue === 'true';
       continue;
@@ -151,8 +120,7 @@ function normalizeAiConfig(input = {}, current = AI_CONFIG_DEFAULTS) {
     }
     let value = String(rawValue ?? '').trim();
     if (key === 'model' && value === 'ds-v4-flash') value = 'deepseek-v4-flash';
-    if (key === 'qweatherApiHost' && value && !value.includes('://'))
-      value = `https://${value}`;
+    if (key === 'qweatherApiHost' && value && !value.includes('://')) value = `https://${value}`;
     if (URL_KEYS.has(key) && value) validateHttpUrl(key, value);
     if (key === 'trigger' && Array.from(value).length > 12) {
       throw new Error('触发关键词不能超过 12 个字符。');
@@ -183,11 +151,7 @@ function validateHttpUrl(key, value) {
   } catch {
     throw new Error(`${key} 必须是完整的 HTTP(S) 地址。`);
   }
-  if (
-    !['http:', 'https:'].includes(parsed.protocol) ||
-    parsed.username ||
-    parsed.password
-  ) {
+  if (!['http:', 'https:'].includes(parsed.protocol) || parsed.username || parsed.password) {
     throw new Error(`${key} 必须是无账号信息的 HTTP(S) 地址。`);
   }
 }
@@ -198,22 +162,15 @@ function assertSavedModelKeyOrigin(current, next, hasExplicitKey) {
   const nextUrl = applyModelProviderPreset(next).deepseekResponsesUrl;
   if (!nextUrl || nextUrl === previousUrl) return;
   validateHttpUrl('deepseekResponsesUrl', nextUrl);
-  if (previousUrl && new URL(previousUrl).origin === new URL(nextUrl).origin)
-    return;
-  const error = new Error(
-    '更换模型服务地址时，请重新提供 API Key，或先清空已保存密钥。',
-  );
+  if (previousUrl && new URL(previousUrl).origin === new URL(nextUrl).origin) return;
+  const error = new Error('更换模型服务地址时，请重新提供 API Key，或先清空已保存密钥。');
   error.code = 'AI_KEY_ORIGIN_CHANGED';
   throw error;
 }
 
 function isAiReady(config) {
   return Boolean(
-    config.enabled &&
-    config.trigger &&
-    config.deepseekResponsesUrl &&
-    config.deepseekApiKey &&
-    config.model,
+    config.enabled && config.trigger && config.deepseekResponsesUrl && config.deepseekApiKey && config.model,
   );
 }
 

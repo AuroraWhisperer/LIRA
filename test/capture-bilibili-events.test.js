@@ -33,63 +33,37 @@ test('capture arguments accept room, duration, output, and gift filter', () => {
 
   assert.equal(options.roomId, '123');
   assert.equal(options.durationMs, 90_000);
-  assert.equal(
-    options.outputPath,
-    path.join(process.cwd(), 'tmp', 'capture.ndjson'),
-  );
+  assert.equal(options.outputPath, path.join(process.cwd(), 'tmp', 'capture.ndjson'));
   assert.equal(options.giftOnly, true);
-  assert.equal(
-    options.bilibiliUserDataPath,
-    path.join(process.cwd(), 'tmp', 'electron-user-data'),
-  );
+  assert.equal(options.bilibiliUserDataPath, path.join(process.cwd(), 'tmp', 'electron-user-data'));
 });
 
 test('capture records retain decoded command data without transport credentials', () => {
-  assert.deepEqual(
-    buildCaptureRecord(
-      { cmd: 'GUARD_BUY', data: { uid: 42 } },
-      '2026-08-03T12:00:00.000Z',
-    ),
-    {
-      type: 'event',
-      receivedAt: '2026-08-03T12:00:00.000Z',
-      cmd: 'GUARD_BUY',
-      data: { uid: 42 },
-    },
-  );
+  assert.deepEqual(buildCaptureRecord({ cmd: 'GUARD_BUY', data: { uid: 42 } }, '2026-08-03T12:00:00.000Z'), {
+    type: 'event',
+    receivedAt: '2026-08-03T12:00:00.000Z',
+    cmd: 'GUARD_BUY',
+    data: { uid: 42 },
+  });
 });
 
 test('gift-only mode retains guard messages and excludes danmaku', () => {
   assert.equal(shouldCaptureMessage({ cmd: 'GUARD_BUY' }, true), true);
-  assert.equal(
-    shouldCaptureMessage({ cmd: 'DANMU_MSG:4:0:2:2:2:0' }, true),
-    false,
-  );
-  assert.equal(
-    shouldCaptureMessage({ cmd: 'DANMU_MSG:4:0:2:2:2:0' }, false),
-    true,
-  );
+  assert.equal(shouldCaptureMessage({ cmd: 'DANMU_MSG:4:0:2:2:2:0' }, true), false);
+  assert.equal(shouldCaptureMessage({ cmd: 'DANMU_MSG:4:0:2:2:2:0' }, false), true);
 });
 
 test('capture arguments reject a missing room and invalid duration', () => {
   assert.throws(() => parseArguments([], process.cwd()), /--room/);
-  assert.throws(
-    () => parseArguments(['--room', '123', '--duration', '0'], process.cwd()),
-    /duration/,
-  );
+  assert.throws(() => parseArguments(['--room', '123', '--duration', '0'], process.cwd()), /duration/);
 });
 
 test('desktop login data requires the Electron capture entry point', async () => {
-  await assert.rejects(
-    loadBilibiliDesktopAuth('tmp/electron-user-data'),
-    /requires running this script with Electron/,
-  );
+  await assert.rejects(loadBilibiliDesktopAuth('tmp/electron-user-data'), /requires running this script with Electron/);
 });
 
 function captureFixture(t, options = {}) {
-  const directory = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'lira-capture-test-'),
-  );
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-capture-test-'));
   const outputPath = path.join(directory, 'events.ndjson');
   const signals = new EventEmitter();
   signals.env = {};
@@ -97,10 +71,7 @@ function captureFixture(t, options = {}) {
   const records = [];
   let writer;
   let releaseWrite;
-  const failure = Object.assign(
-    new Error(`synthetic ${options.fault} failure`),
-    { code: 'EIO' },
-  );
+  const failure = Object.assign(new Error(`synthetic ${options.fault} failure`), { code: 'EIO' });
   const connection = new EventEmitter();
   connection.closeCount = 0;
   connection.connectCount = 0;
@@ -113,16 +84,12 @@ function captureFixture(t, options = {}) {
     connection.connectCount += 1;
     if (options.fault === 'connect') throw failure;
     if (options.connectPending) {
-      if (options.fault === 'connecting')
-        setImmediate(() => writer.destroy(failure));
+      if (options.fault === 'connecting') setImmediate(() => writer.destroy(failure));
       return new Promise(() => {});
     }
     setImmediate(() => connection.emit('open'));
   };
-  const filename = path.resolve(
-    __dirname,
-    '../scripts/capture-bilibili-events.js',
-  );
+  const filename = path.resolve(__dirname, '../scripts/capture-bilibili-events.js');
   const context = vm.createContext({
     module: { exports: {} },
     Buffer,
@@ -152,8 +119,7 @@ function captureFixture(t, options = {}) {
                   records.push(JSON.parse(chunk.toString()));
                   if (options.fault === 'write-throw') throw failure;
                   else if (options.fault === 'write') callback(failure);
-                  else if (options.backpressure && !releaseWrite)
-                    releaseWrite = callback;
+                  else if (options.backpressure && !releaseWrite) releaseWrite = callback;
                   else callback();
                 },
                 final(callback) {
@@ -194,10 +160,8 @@ function captureFixture(t, options = {}) {
             return connection;
           },
         };
-      if (name.endsWith('/packet-parser'))
-        return { parseBilibiliPackets: (messages) => messages };
-      if (name.endsWith('/utils'))
-        return { cleanText: (value) => String(value || '').trim() };
+      if (name.endsWith('/packet-parser')) return { parseBilibiliPackets: (messages) => messages };
+      if (name.endsWith('/utils')) return { cleanText: (value) => String(value || '').trim() };
       return require(name);
     },
   });
@@ -219,8 +183,7 @@ function captureFixture(t, options = {}) {
     timers,
     failure,
     records,
-    run: () =>
-      capture({ outputPath, roomId: '123', durationMs: 1000, giftOnly: false }),
+    run: () => capture({ outputPath, roomId: '123', durationMs: 1000, giftOnly: false }),
     async until(predicate) {
       for (let attempt = 0; attempt < 100; attempt += 1) {
         if (predicate()) return;
@@ -240,14 +203,8 @@ function captureFixture(t, options = {}) {
       assert.equal(signals.listenerCount('SIGINT'), 0);
       assert.equal(timers.size, 0);
       assert.equal(writer.closed, true);
-      for (const name of writer
-        .eventNames()
-        .filter((name) => typeof name === 'string')) {
-        assert.deepEqual(
-          writer.listeners(name),
-          name === 'error' ? [observeError] : [],
-          String(name),
-        );
+      for (const name of writer.eventNames().filter((name) => typeof name === 'string')) {
+        assert.deepEqual(writer.listeners(name), name === 'error' ? [observeError] : [], String(name));
       }
     },
   };
@@ -280,15 +237,7 @@ test('capture refuses existing output and reports EEXIST without connecting', as
   f.assertClean();
 });
 
-for (const fault of [
-  'open',
-  'write',
-  'write-throw',
-  'final',
-  'close',
-  'connect',
-  'connecting',
-]) {
+for (const fault of ['open', 'write', 'write-throw', 'final', 'close', 'connect', 'connecting']) {
   test(`capture propagates ${fault} failure and releases its resources`, async (t) => {
     const f = captureFixture(t, {
       fault,
@@ -296,9 +245,7 @@ for (const fault of [
     });
     const result = captureOutcome(f.run());
     if (fault === 'final' || fault === 'close') {
-      await f.until(() =>
-        [...f.timers].some((timer) => timer.milliseconds === 1000),
-      );
+      await f.until(() => [...f.timers].some((timer) => timer.milliseconds === 1000));
       f.signals.emit('SIGINT');
       f.signals.emit('SIGINT');
     }
@@ -334,10 +281,7 @@ test('capture does not hang if output closes without an error before open or dra
       await f.until(() => f.records.length === 1);
       f.closePrematurely();
     }
-    assert.match(
-      (await result).error?.message || '',
-      /closed before finishing/,
-    );
+    assert.match((await result).error?.message || '', /closed before finishing/);
     f.assertClean();
   }
 });
@@ -349,10 +293,7 @@ test('capture respects drain before later records and propagates failure while w
   f.connection.emit('message', [{ cmd: 'GUARD_BUY', data: { uid: 42 } }]);
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(f.records.length, 1);
-  assert.equal(
-    f.writer.writableLength,
-    Buffer.byteLength(`${JSON.stringify(f.records[0])}\n`),
-  );
+  assert.equal(f.writer.writableLength, Buffer.byteLength(`${JSON.stringify(f.records[0])}\n`));
   f.fail();
   assert.equal((await result).error, f.failure);
   f.assertClean();
@@ -380,19 +321,13 @@ test('capture drains normally and repeated stop preserves one summary', async (t
 test('capture writes the existing NDJSON format and cleans up after duration', async (t) => {
   const f = captureFixture(t);
   const result = captureOutcome(f.run());
-  await f.until(() =>
-    [...f.timers].some((timer) => timer.milliseconds === 1000),
-  );
+  await f.until(() => [...f.timers].some((timer) => timer.milliseconds === 1000));
   f.connection.emit('message', [{ cmd: 'GUARD_BUY', data: { uid: 42 } }]);
   const timer = [...f.timers].find((entry) => entry.milliseconds === 1000);
   timer.callback();
   timer.callback();
   assert.equal((await result).summary?.reason, 'duration-elapsed');
-  const records = fs
-    .readFileSync(f.outputPath, 'utf8')
-    .trim()
-    .split('\n')
-    .map(JSON.parse);
+  const records = fs.readFileSync(f.outputPath, 'utf8').trim().split('\n').map(JSON.parse);
   assert.deepEqual(
     records.map((record) => record.type),
     ['meta', 'event', 'summary'],

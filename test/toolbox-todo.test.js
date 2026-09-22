@@ -29,23 +29,14 @@ function loadTodo(stored = new Map(), storageOverrides = {}) {
       },
     },
   };
-  vm.runInNewContext(
-    readJsModuleBundle('public', 'js', 'admin', 'todo.js'),
-    sandbox,
-  );
+  vm.runInNewContext(readJsModuleBundle('public', 'js', 'admin', 'todo.js'), sandbox);
   return { todo: sandbox.window.AdminApp.todo, stored };
 }
 
 test('workbench exposes calendar, memos and tasks without beginner cues', () => {
   const html = readAdminHtml();
-  const planner = fs.readFileSync(
-    path.join(ROOT_DIR, 'public/pages/admin/toolbox/planner.html'),
-    'utf8',
-  );
-  assert.match(
-    html,
-    /<strong>主播工作台<\/strong>\s*<small>日历、备忘与待办<\/small>/,
-  );
+  const planner = fs.readFileSync(path.join(ROOT_DIR, 'public/pages/admin/toolbox/planner.html'), 'utf8');
+  assert.match(html, /<strong>主播工作台<\/strong>\s*<small>日历、备忘与待办<\/small>/);
   for (const id of [
     'streamerPlanner',
     'plannerCalendarGrid',
@@ -64,35 +55,22 @@ test('workbench exposes calendar, memos and tasks without beginner cues', () => 
   }
   assert.match(planner, /<dialog\s+id="plannerEventDialog"/);
   assert.match(planner, /maxlength="2000"/);
-  assert.doesNotMatch(
-    planner,
-    /本场提词|暖场问题|小提示|data-planner-template|plannerSessionForm/,
-  );
+  assert.doesNotMatch(planner, /本场提词|暖场问题|小提示|data-planner-template|plannerSessionForm/);
 });
 
 test('workbench uses a stable month grid and adapts to narrow windows', () => {
   const styles = readCssBundle('public', 'css', 'admin', 'other-features.css');
-  assert.match(
-    styles,
-    /\.streamer-planner\s*\{[^}]*grid-auto-rows:\s*max-content/,
-  );
-  assert.match(
-    styles,
-    /\.planner-calendar-grid\s*\{[^}]*grid-template-columns:\s*repeat\(7, minmax\(0, 1fr\)\)/,
-  );
+  assert.match(styles, /\.streamer-planner\s*\{[^}]*grid-auto-rows:\s*max-content/);
+  assert.match(styles, /\.planner-calendar-grid\s*\{[^}]*grid-template-columns:\s*repeat\(7, minmax\(0, 1fr\)\)/);
   assert.match(styles, /\.planner-calendar-day\s*\{[^}]*height:\s*54px/);
-  assert.match(
-    styles,
-    /@media \(max-width: 1000px\)[\s\S]*?\.planner-workspace\s*\{[^}]*grid-template-columns:\s*1fr/,
-  );
+  assert.match(styles, /@media \(max-width: 1000px\)[\s\S]*?\.planner-workspace\s*\{[^}]*grid-template-columns:\s*1fr/);
   assert.match(styles, /:focus-visible/);
 });
 
 test('new workbenches contain no fictional entries', () => {
   const { todo } = loadTodo();
   assert.equal(todo.getState().version, 3);
-  for (const name of ['events', 'tasks', 'notes'])
-    assert.equal(todo.getState()[name].length, 0);
+  for (const name of ['events', 'tasks', 'notes']) assert.equal(todo.getState()[name].length, 0);
 });
 
 test('v2 import preserves personal records and original data, removes exact built-ins', () => {
@@ -287,9 +265,6 @@ test('failed writes keep the latest records in memory', () => {
 
 test('workbench remains initialized through the existing admin entry', () => {
   const read = (file) => fs.readFileSync(path.join(ROOT_DIR, file), 'utf8');
-  assert.match(
-    read('public/js/admin/app.js'),
-    /import \{ todo \} from ["']\.\/todo\.js["'];/,
-  );
+  assert.match(read('public/js/admin/app.js'), /import \{ todo \} from ["']\.\/todo\.js["'];/);
   assert.match(read('public/js/admin/app.js'), /todo\.init\(\)/);
 });

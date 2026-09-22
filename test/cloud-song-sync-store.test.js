@@ -32,10 +32,15 @@ function fixture(t, filename = ':memory:') {
 
 const mutations = {
   save: (f) => songService.saveSong(f.songs, { name: 'Added', categoryName: 'New category' }),
-  update: (f) => songService.saveSong(f.songs, {
-    id: f.songs.listRows()[0].id, name: 'Updated', isEnabled: false,
-    requestPrice: '舰长', songClip: 'BV1', sourcePlatform: 'QQ音乐',
-  }),
+  update: (f) =>
+    songService.saveSong(f.songs, {
+      id: f.songs.listRows()[0].id,
+      name: 'Updated',
+      isEnabled: false,
+      requestPrice: '舰长',
+      songClip: 'BV1',
+      sourcePlatform: 'QQ音乐',
+    }),
   toggle: (f) => f.songs.toggleSong(f.songs.listRows()[0].id),
   delete: (f) => f.songs.deleteSong(f.songs.listRows()[0].id),
   import: (f) => songService.importSongs(f.songs, [{ name: 'Imported', categoryName: 'Imported category' }]),
@@ -89,7 +94,10 @@ test('pending metadata is private and cloud replacements do not create upload ec
   mutations.save(f);
   const settings = createSettingsStore(f.db).getSettings();
   assert.equal(settings.cloudRoomAccountKey, undefined);
-  assert.equal(Object.keys(settings).some((key) => key.startsWith('cloudSongSyncPending:')), false);
+  assert.equal(
+    Object.keys(settings).some((key) => key.startsWith('cloudSongSyncPending:')),
+    false,
+  );
   const saved = f.pending.readPending(ACCOUNT_A);
   songService.replaceCloudSongs(f.songs, []);
   assert.deepEqual(f.pending.readPending(ACCOUNT_A), saved);

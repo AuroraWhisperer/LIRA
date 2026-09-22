@@ -76,12 +76,7 @@ function createRemoteGiftSourceKey(baseUrl, streamer = {}) {
   if (!accountName || !Number.isSafeInteger(streamerId) || streamerId <= 0) {
     throw new Error('REMOTE_GIFT_SOURCE_UNAVAILABLE');
   }
-  const source = [
-    'gift-source-v2',
-    canonicalizeGiftSourceOrigin(baseUrl),
-    accountName,
-    streamerId,
-  ].join('\n');
+  const source = ['gift-source-v2', canonicalizeGiftSourceOrigin(baseUrl), accountName, streamerId].join('\n');
   return crypto.createHash('sha256').update(source).digest('hex');
 }
 

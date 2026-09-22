@@ -138,7 +138,8 @@ body.is-preview:is([data-style='outline'], [data-style='cream'], [data-style='gl
 body.is-preview:is([data-style='outline'], [data-style='cream'], [data-style='glow']) .draw-danmaku-item {
   position: relative;
 }
-body.is-preview:is([data-style='outline'], [data-style='cream'], [data-style='glow']) .draw-danmaku-item:nth-child(even) {
+body.is-preview:is([data-style='outline'], [data-style='cream'], [data-style='glow'])
+  .draw-danmaku-item:nth-child(even) {
   align-self: flex-end;
 }
 @media (max-width: 900px) {

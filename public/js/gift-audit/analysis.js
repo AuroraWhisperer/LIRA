@@ -21,18 +21,14 @@ export function parseBubbleHtml(html) {
     for (let i = 1; i < segments.length; i++) {
       const seg = segments[i];
       const userName = (seg.match(/^([^<]+)/) || ['', ''])[1].trim();
-      const giftNameMatch = seg.match(
-        /<span[^>]*class="[^"]*gift-name[^"]*"[^>]*>([^<]+)<\/span>/,
-      );
+      const giftNameMatch = seg.match(/<span[^>]*class="[^"]*gift-name[^"]*"[^>]*>([^<]+)<\/span>/);
       const giftName = giftNameMatch ? giftNameMatch[1].trim() : '';
       const giftFrameMatch = seg.match(/gift-(\d+)-\d+/);
       const giftId = giftFrameMatch ? giftFrameMatch[1] : '';
 
       // 解析连击数字
       let comboCount = 1;
-      const numbersMatch = seg.match(
-        /<div[^>]*class="[^"]*numbers[^"]*"[^>]*>([\s\S]*?)<\/div>/,
-      );
+      const numbersMatch = seg.match(/<div[^>]*class="[^"]*numbers[^"]*"[^>]*>([\s\S]*?)<\/div>/);
       if (numbersMatch) {
         const digits = [];
         const digitRegex = /number-(\d)/g;
@@ -52,15 +48,11 @@ export function parseBubbleHtml(html) {
 
   for (const itemHtml of allItems) {
     // 提取用户名
-    const userNameMatch = itemHtml.match(
-      /<div[^>]*class="[^"]*user-name[^"]*"[^>]*>([^<]+)<\/div>/,
-    );
+    const userNameMatch = itemHtml.match(/<div[^>]*class="[^"]*user-name[^"]*"[^>]*>([^<]+)<\/div>/);
     const userName = userNameMatch ? userNameMatch[1].trim() : '';
 
     // 提取礼物名
-    const giftNameMatch = itemHtml.match(
-      /<span[^>]*class="[^"]*gift-name[^"]*"[^>]*>([^<]+)<\/span>/,
-    );
+    const giftNameMatch = itemHtml.match(/<span[^>]*class="[^"]*gift-name[^"]*"[^>]*>([^<]+)<\/span>/);
     const giftName = giftNameMatch ? giftNameMatch[1].trim() : '';
 
     // 提取 gift ID（从 gift-XXXXX-50 格式）
@@ -69,9 +61,7 @@ export function parseBubbleHtml(html) {
 
     // 提取连击数
     let comboCount = 1;
-    const numbersMatch = itemHtml.match(
-      /<div[^>]*class="[^"]*numbers[^"]*"[^>]*>([\s\S]*?)<\/div>/,
-    );
+    const numbersMatch = itemHtml.match(/<div[^>]*class="[^"]*numbers[^"]*"[^>]*>([\s\S]*?)<\/div>/);
     if (numbersMatch) {
       const digits = [];
       const digitRegex = /number-(\d)/g;
@@ -85,10 +75,7 @@ export function parseBubbleHtml(html) {
     if (userName && giftName) {
       // 去重：相同用户+相同礼物+相同连击数视为同一条
       const dup = results.find(
-        (r) =>
-          r.userName === userName &&
-          r.giftName === giftName &&
-          r.comboCount === comboCount,
+        (r) => r.userName === userName && r.giftName === giftName && r.comboCount === comboCount,
       );
       if (!dup) {
         results.push({ userName, giftName, giftId, comboCount });
@@ -119,10 +106,7 @@ export function crossReference(bubbles, servers, captureTimeMs) {
       const serverUser = normalizeName(server.user_name || '');
       if (bubbleUser === serverUser) {
         score += 40;
-      } else if (
-        bubbleUser.includes(serverUser) ||
-        serverUser.includes(bubbleUser)
-      ) {
+      } else if (bubbleUser.includes(serverUser) || serverUser.includes(bubbleUser)) {
         score += 25;
       } else {
         // 计算字符重叠度
@@ -137,10 +121,7 @@ export function crossReference(bubbles, servers, captureTimeMs) {
       const serverGift = normalizeName(server.gift_name || '');
       if (bubbleGift === serverGift) {
         score += 40;
-      } else if (
-        bubbleGift.includes(serverGift) ||
-        serverGift.includes(bubbleGift)
-      ) {
+      } else if (bubbleGift.includes(serverGift) || serverGift.includes(bubbleGift)) {
         score += 30;
       } else {
         const overlap = charOverlap(bubbleGift, serverGift);
@@ -155,10 +136,7 @@ export function crossReference(bubbles, servers, captureTimeMs) {
       }
 
       // 连击数匹配
-      if (
-        bubble.comboCount > 0 &&
-        Number(server.num || 1) === bubble.comboCount
-      ) {
+      if (bubble.comboCount > 0 && Number(server.num || 1) === bubble.comboCount) {
         score += 10;
       } else if (Math.abs(Number(server.num || 1) - bubble.comboCount) <= 2) {
         score += 5;

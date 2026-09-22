@@ -4,20 +4,12 @@ let selectMenuId = 0;
 const enhancedSelects = new WeakMap();
 let selectObserverInstalled = false;
 
-const SELECT_VALUE = Object.getOwnPropertyDescriptor(
-  HTMLSelectElement.prototype,
-  'value',
-);
-const SELECTED_INDEX = Object.getOwnPropertyDescriptor(
-  HTMLSelectElement.prototype,
-  'selectedIndex',
-);
+const SELECT_VALUE = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value');
+const SELECTED_INDEX = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'selectedIndex');
 
 function getVariant(select) {
   return (
-    select.dataset.dropdownVariant ||
-    select.closest('[data-dropdown-variant]')?.dataset.dropdownVariant ||
-    'default'
+    select.dataset.dropdownVariant || select.closest('[data-dropdown-variant]')?.dataset.dropdownVariant || 'default'
   );
 }
 
@@ -50,8 +42,7 @@ function getOptionNodes(select) {
       );
       continue;
     }
-    if (child.tagName === 'OPTION')
-      nodes.push({ option: child, group: null, disabled: child.disabled });
+    if (child.tagName === 'OPTION') nodes.push({ option: child, group: null, disabled: child.disabled });
   }
   return nodes;
 }
@@ -62,35 +53,22 @@ function syncSelectedState(state) {
   valueNode.textContent = selected?.textContent?.trim() || '请选择';
   trigger.disabled = select.disabled;
   trigger.setAttribute('aria-disabled', String(select.disabled));
-  trigger.setAttribute(
-    'aria-label',
-    select.getAttribute('aria-label') || labelText || '选择',
-  );
-  menu.setAttribute(
-    'aria-label',
-    select.getAttribute('aria-label') || labelText || '选项',
-  );
+  trigger.setAttribute('aria-label', select.getAttribute('aria-label') || labelText || '选择');
+  menu.setAttribute('aria-label', select.getAttribute('aria-label') || labelText || '选项');
 
   menu.querySelectorAll('[role="option"]').forEach((optionNode) => {
     const isSelected =
-      optionNode.dataset.value === select.value &&
-      optionNode.dataset.index === String(select.selectedIndex);
+      optionNode.dataset.value === select.value && optionNode.dataset.index === String(select.selectedIndex);
     optionNode.setAttribute('aria-selected', String(isSelected));
     optionNode.classList.toggle('is-selected', isSelected);
   });
 }
 
 function focusOption(state, index) {
-  const options = [
-    ...state.menu.querySelectorAll(
-      '[role="option"]:not([aria-disabled="true"])',
-    ),
-  ];
+  const options = [...state.menu.querySelectorAll('[role="option"]:not([aria-disabled="true"])')];
   if (!options.length) return;
   const next = options[Math.max(0, Math.min(index, options.length - 1))];
-  options.forEach((option) =>
-    option.classList.toggle('is-keyboard-focused', option === next),
-  );
+  options.forEach((option) => option.classList.toggle('is-keyboard-focused', option === next));
   next.focus();
 }
 
@@ -117,21 +95,13 @@ function openMenu(state, initialOffset = 0) {
 
   const triggerRect = state.trigger.getBoundingClientRect();
   const menuRect = state.menu.getBoundingClientRect();
-  const opensAbove =
-    menuRect.bottom > window.innerHeight - 12 &&
-    triggerRect.top > menuRect.height + 12;
+  const opensAbove = menuRect.bottom > window.innerHeight - 12 && triggerRect.top > menuRect.height + 12;
   state.wrapper.classList.toggle('is-above', opensAbove);
 
-  const options = [
-    ...state.menu.querySelectorAll(
-      '[role="option"]:not([aria-disabled="true"])',
-    ),
-  ];
+  const options = [...state.menu.querySelectorAll('[role="option"]:not([aria-disabled="true"])')];
   const selectedIndex = Math.max(
     0,
-    options.findIndex(
-      (option) => option.getAttribute('aria-selected') === 'true',
-    ),
+    options.findIndex((option) => option.getAttribute('aria-selected') === 'true'),
   );
   focusOption(state, selectedIndex + initialOffset);
 }
@@ -144,15 +114,13 @@ function closeOpenMenus(except) {
 }
 
 function selectOption(state, optionNode) {
-  if (!optionNode || optionNode.getAttribute('aria-disabled') === 'true')
-    return;
+  if (!optionNode || optionNode.getAttribute('aria-disabled') === 'true') return;
   const nextIndex = Number(optionNode.dataset.index);
   const changed = state.select.selectedIndex !== nextIndex;
   state.select.selectedIndex = nextIndex;
   syncSelectedState(state);
   closeMenu(state);
-  if (changed)
-    state.select.dispatchEvent(new Event('change', { bubbles: true }));
+  if (changed) state.select.dispatchEvent(new Event('change', { bubbles: true }));
 }
 
 function buildOptions(state) {
@@ -184,16 +152,10 @@ function buildOptions(state) {
   }
   syncSelectedState(state);
   if (state.open) {
-    const options = [
-      ...state.menu.querySelectorAll(
-        '[role="option"]:not([aria-disabled="true"])',
-      ),
-    ];
+    const options = [...state.menu.querySelectorAll('[role="option"]:not([aria-disabled="true"])')];
     const selectedIndex = Math.max(
       0,
-      options.findIndex(
-        (option) => option.getAttribute('aria-selected') === 'true',
-      ),
+      options.findIndex((option) => option.getAttribute('aria-selected') === 'true'),
     );
     focusOption(state, selectedIndex);
   }
@@ -228,12 +190,7 @@ function patchNativeValue(state) {
 }
 
 function enhanceSelect(select) {
-  if (
-    !(select instanceof HTMLSelectElement) ||
-    select.multiple ||
-    enhancedSelects.has(select)
-  )
-    return null;
+  if (!(select instanceof HTMLSelectElement) || select.multiple || enhancedSelects.has(select)) return null;
   const labelText = getLabelText(select);
   const wrapper = document.createElement('div');
   wrapper.className = 'lira-select';
@@ -251,13 +208,9 @@ function enhanceSelect(select) {
   trigger.setAttribute('aria-haspopup', 'listbox');
   trigger.setAttribute('aria-controls', menuId);
   trigger.setAttribute('aria-expanded', 'false');
-  if (select.hasAttribute('aria-label'))
-    trigger.setAttribute('aria-label', select.getAttribute('aria-label'));
+  if (select.hasAttribute('aria-label')) trigger.setAttribute('aria-label', select.getAttribute('aria-label'));
   if (select.hasAttribute('aria-describedby'))
-    trigger.setAttribute(
-      'aria-describedby',
-      select.getAttribute('aria-describedby'),
-    );
+    trigger.setAttribute('aria-describedby', select.getAttribute('aria-describedby'));
   const valueNode = document.createElement('span');
   valueNode.className = 'lira-select-value';
   const chevron = document.createElement('span');
@@ -292,9 +245,7 @@ function enhanceSelect(select) {
   buildOptions(state);
   patchNativeValue(state);
 
-  trigger.addEventListener('click', () =>
-    state.open ? closeMenu(state) : openMenu(state),
-  );
+  trigger.addEventListener('click', () => (state.open ? closeMenu(state) : openMenu(state)));
   trigger.addEventListener('keydown', (event) => {
     if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
       event.preventDefault();
@@ -308,21 +259,14 @@ function enhanceSelect(select) {
     }
   });
   menu.addEventListener('keydown', (event) => {
-    const options = [
-      ...menu.querySelectorAll('[role="option"]:not([aria-disabled="true"])'),
-    ];
+    const options = [...menu.querySelectorAll('[role="option"]:not([aria-disabled="true"])')];
     const current = options.indexOf(document.activeElement);
     if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
       event.preventDefault();
       focusOption(state, current < 0 ? 0 : (current + 1) % options.length);
     } else if (event.key === 'ArrowUp' || event.key === 'ArrowLeft') {
       event.preventDefault();
-      focusOption(
-        state,
-        current < 0
-          ? options.length - 1
-          : (current - 1 + options.length) % options.length,
-      );
+      focusOption(state, current < 0 ? options.length - 1 : (current - 1 + options.length) % options.length);
     } else if (event.key === 'Home' || event.key === 'End') {
       event.preventDefault();
       focusOption(state, event.key === 'Home' ? 0 : options.length - 1);
@@ -338,13 +282,11 @@ function enhanceSelect(select) {
   });
   menu.addEventListener('focusout', () => {
     setTimeout(() => {
-      if (state.open && !wrapper.contains(document.activeElement))
-        closeMenu(state, { restoreFocus: false });
+      if (state.open && !wrapper.contains(document.activeElement)) closeMenu(state, { restoreFocus: false });
     }, 0);
   });
   document.addEventListener('pointerdown', (event) => {
-    if (state.open && !wrapper.contains(event.target))
-      closeMenu(state, { restoreFocus: false });
+    if (state.open && !wrapper.contains(event.target)) closeMenu(state, { restoreFocus: false });
   });
   select.addEventListener('change', () => syncSelectedState(state));
   select.form?.addEventListener('reset', () => {
@@ -361,12 +303,7 @@ function enhanceSelect(select) {
 }
 
 function installSelectObserver() {
-  if (
-    selectObserverInstalled ||
-    !document.body ||
-    typeof MutationObserver === 'undefined'
-  )
-    return;
+  if (selectObserverInstalled || !document.body || typeof MutationObserver === 'undefined') return;
   selectObserverInstalled = true;
   const observer = new MutationObserver((records) => {
     for (const record of records) {

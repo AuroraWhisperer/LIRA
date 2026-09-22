@@ -3,10 +3,7 @@
 import { eventBus, Events } from '../../shared/event-bus.js';
 import { publishGiftModule } from '../legacy-admin-bridge.js';
 import { escapeHtml, formatTime, formatMoney } from '../../shared/utils.js';
-import {
-  GIFT_PLACEHOLDER,
-  setGiftImageFallbacks,
-} from '../../shared/gift-image-fallback.js';
+import { GIFT_PLACEHOLDER, setGiftImageFallbacks } from '../../shared/gift-image-fallback.js';
 
 ('use strict');
 
@@ -43,11 +40,7 @@ function getGuardBadge(item) {
     .trim()
     .toLowerCase();
 
-  if (
-    giftName.includes('总督') ||
-    giftName.includes('governor') ||
-    giftId === 'guard-1'
-  ) {
+  if (giftName.includes('总督') || giftName.includes('governor') || giftId === 'guard-1') {
     return {
       name: '总督',
       level: 1,
@@ -66,11 +59,7 @@ function getGuardBadge(item) {
       src: '/img/admin/gifts/bilibili-guard-prefect.webp',
     };
   }
-  if (
-    giftName.includes('舰长') ||
-    giftName.includes('captain') ||
-    giftId === 'guard-3'
-  ) {
+  if (giftName.includes('舰长') || giftName.includes('captain') || giftId === 'guard-3') {
     return {
       name: '舰长',
       level: 3,
@@ -82,8 +71,7 @@ function getGuardBadge(item) {
 
 export function getGiftToastArtwork(item) {
   const id = String(item?.gift_id || '').trim();
-  const isGuard = String(item?.coin_type || '').toLowerCase() === 'guard' ||
-    id.toLowerCase().startsWith('guard-');
+  const isGuard = String(item?.coin_type || '').toLowerCase() === 'guard' || id.toLowerCase().startsWith('guard-');
   const imagePath = isGuard
     ? getGuardBadge(item)?.src || ''
     : findGiftArtwork(id, item?.gift_name, item?.gift_variant_id);
@@ -105,11 +93,7 @@ export const giftRecent = (() => {
   let latestRecentGiftItems = [];
 
   function limitRecentGiftRows(list) {
-    const columns =
-      window
-        .getComputedStyle(list)
-        .gridTemplateColumns.split(/\s+/)
-        .filter(Boolean).length || 1;
+    const columns = window.getComputedStyle(list).gridTemplateColumns.split(/\s+/).filter(Boolean).length || 1;
     const visibleCardCount = columns * MAX_RECENT_GIFT_ROWS;
 
     list.querySelectorAll('.gift-card').forEach((card, index) => {
@@ -119,9 +103,7 @@ export const giftRecent = (() => {
 
   function observeRecentGiftGrid(list) {
     if (recentGiftResizeObserver || !window.ResizeObserver) return;
-    recentGiftResizeObserver = new window.ResizeObserver(() =>
-      limitRecentGiftRows(list),
-    );
+    recentGiftResizeObserver = new window.ResizeObserver(() => limitRecentGiftRows(list));
     recentGiftResizeObserver.observe(list);
   }
 
@@ -138,11 +120,8 @@ export const giftRecent = (() => {
         const response = await window.fetch('/api/overtime/gifts/catalog');
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const payload = await response.json();
-        if (payload?.ok === false)
-          throw new Error(payload.error || '礼物目录不可用');
-        for (const gift of Array.isArray(payload?.data?.gifts)
-          ? payload.data.gifts
-          : []) {
+        if (payload?.ok === false) throw new Error(payload.error || '礼物目录不可用');
+        for (const gift of Array.isArray(payload?.data?.gifts) ? payload.data.gifts : []) {
           addGiftArtwork(artworkById, gift);
         }
       } catch (error) {
@@ -153,22 +132,15 @@ export const giftRecent = (() => {
 
     const loadedArtwork = await giftArtworkLoadPromise;
     giftArtworkLoadPromise = null;
-    if (!giftArtworkById && requestRevision === giftArtworkRevision)
-      giftArtworkById = loadedArtwork;
+    if (!giftArtworkById && requestRevision === giftArtworkRevision) giftArtworkById = loadedArtwork;
     if (!giftArtworkById) giftArtworkById = new Map();
-    if (latestRecentGiftItems.length > 0)
-      renderGiftRecentList(latestRecentGiftItems);
+    if (latestRecentGiftItems.length > 0) renderGiftRecentList(latestRecentGiftItems);
     return giftArtworkById;
   }
 
   function normalizeGiftArtworkPath(value) {
     const imagePath = String(value ?? '').trim();
-    if (
-      !/^\/overtime-gift-images\/[a-z0-9._-]+\.(?:gif|webp|png|jpe?g)$/i.test(
-        imagePath,
-      ) ||
-      imagePath.includes('..')
-    )
+    if (!/^\/overtime-gift-images\/[a-z0-9._-]+\.(?:gif|webp|png|jpe?g)$/i.test(imagePath) || imagePath.includes('..'))
       return '';
     return imagePath;
   }
@@ -178,19 +150,8 @@ export const giftRecent = (() => {
     const name = normalizedGiftName(gift?.name);
     if (!id || !name) return;
     const variantId = gift.variantId || gift.giftIdentity?.variantId;
-    const key =
-      variantId ||
-      JSON.stringify([
-        id,
-        name,
-        gift.priceRaw ?? gift.rmb,
-        gift.coinType,
-        gift.bagGift,
-      ]);
-    const imagePath =
-      normalizeGiftArtworkPath(gift.imagePath) ||
-      index.get(key)?.imagePath ||
-      '';
+    const key = variantId || JSON.stringify([id, name, gift.priceRaw ?? gift.rmb, gift.coinType, gift.bagGift]);
+    const imagePath = normalizeGiftArtworkPath(gift.imagePath) || index.get(key)?.imagePath || '';
     index.set(key, { id, name, imagePath });
   }
 
@@ -204,17 +165,15 @@ export const giftRecent = (() => {
       addGiftArtwork(artworkById, gift);
     }
     giftArtworkById = artworkById;
-    if (latestRecentGiftItems.length > 0)
-      renderGiftRecentList(latestRecentGiftItems);
+    if (latestRecentGiftItems.length > 0) renderGiftRecentList(latestRecentGiftItems);
   }
 
   function initGiftArtworkCatalog(eventBusRef, events) {
     giftArtworkEventsUnsubscribe?.();
     giftArtworkEventsUnsubscribe = null;
     if (typeof eventBusRef?.on === 'function' && events?.GIFT_CATALOG_UPDATED) {
-      giftArtworkEventsUnsubscribe = eventBusRef.on(
-        events.GIFT_CATALOG_UPDATED,
-        ({ snapshot } = {}) => applyGiftArtworkSnapshot(snapshot),
+      giftArtworkEventsUnsubscribe = eventBusRef.on(events.GIFT_CATALOG_UPDATED, ({ snapshot } = {}) =>
+        applyGiftArtworkSnapshot(snapshot),
       );
     }
     return loadGiftArtworkCatalog().catch((error) => {
@@ -256,8 +215,7 @@ export const giftRecent = (() => {
         const userName = escapeHtml(item.user_name || '观众');
         const guardBadge = getGuardBadge(item);
         const blindBoxIcon = getBlindBoxIcon(item);
-        const isHighValueTotal =
-          Number(item.total_price) >= HIGH_VALUE_GIFT_MIN_RMB;
+        const isHighValueTotal = Number(item.total_price) >= HIGH_VALUE_GIFT_MIN_RMB;
         const highValueGiftArtwork = getHighValueGiftArtwork(item);
         const typeIcon = guardBadge
           ? `<img class="gift-type-icon gift-guard-icon" src="${guardBadge.src}" alt="${guardBadge.name}图标" title="${guardBadge.name}">`
@@ -271,19 +229,12 @@ export const giftRecent = (() => {
 
         if (typeIcon) cardClass += ' has-type-icon';
         if (guardBadge) cardClass += ` guard-card guard-${guardBadge.level}`;
-        if (blindBoxIcon)
-          cardClass += ` blind-box-card ${blindBoxIcon.className}`;
-        if (isHighValueTotal && !guardBadge && !blindBoxIcon)
-          cardClass += ' high-value-gift-card';
+        if (blindBoxIcon) cardClass += ` blind-box-card ${blindBoxIcon.className}`;
+        if (isHighValueTotal && !guardBadge && !blindBoxIcon) cardClass += ' high-value-gift-card';
 
         if (item.is_blind_box && Number.isFinite(blindProfit)) {
           const profitSign = blindProfit > 0 ? '+' : blindProfit < 0 ? '-' : '';
-          const profitClass =
-            blindProfit > 0
-              ? 'profit-up'
-              : blindProfit < 0
-                ? 'profit-down'
-                : 'profit-neutral';
+          const profitClass = blindProfit > 0 ? 'profit-up' : blindProfit < 0 ? 'profit-down' : 'profit-neutral';
           blindLine = `<span class="gift-result">盈亏 <span class="${profitClass}">${profitSign}${formatMoney(Math.abs(Number(blindProfit) || 0))}</span></span>`;
         } else if (item.is_blind_box) {
           blindLine = '<span class="gift-result">盈亏待确认</span>';
@@ -318,20 +269,15 @@ export const giftRecent = (() => {
   function getBlindBoxIcon(item) {
     if (!(item?.is_blind_box === true || item?.is_blind_box === 1)) return null;
     const recordedBoxName = String(item?.blind_box_name || '').trim();
-    const blindBoxName = String(
-      recordedBoxName || item?.name || item?.gift_name || '',
-    ).trim();
+    const blindBoxName = String(recordedBoxName || item?.name || item?.gift_name || '').trim();
     const blindBoxId = String(item?.blind_box_id || '').trim();
     const type = SPECIAL_BLIND_BOX_TYPES.find(
       ({ id, name }) =>
-        (!blindBoxId || blindBoxId === id) &&
-        normalizedGiftName(blindBoxName) === normalizedGiftName(name),
+        (!blindBoxId || blindBoxId === id) && normalizedGiftName(blindBoxName) === normalizedGiftName(name),
     );
     // Open-result records carry the output ID, while direct box records carry
     // the box ID. Only the latter can be resolved from item.gift_id exactly.
-    const artworkId =
-      blindBoxId ||
-      (recordedBoxName ? type?.id : String(item?.gift_id || '').trim());
+    const artworkId = blindBoxId || (recordedBoxName ? type?.id : String(item?.gift_id || '').trim());
     return {
       name: type?.name || blindBoxName || '盲盒',
       className: type?.className || 'blind-box-default',
@@ -339,9 +285,7 @@ export const giftRecent = (() => {
         findGiftArtwork(
           artworkId,
           blindBoxName,
-          recordedBoxName || blindBoxId
-            ? item.blind_box_variant_id
-            : item.gift_variant_id,
+          recordedBoxName || blindBoxId ? item.blind_box_variant_id : item.gift_variant_id,
         ) || GIFT_PLACEHOLDER,
     };
   }
@@ -349,13 +293,8 @@ export const giftRecent = (() => {
   function getHighValueGiftArtwork(item) {
     const unitPrice = Number(item?.unit_price);
     const giftId = String(item?.gift_id ?? '').trim();
-    const artworkPath = findGiftArtwork(
-      giftId,
-      item?.gift_name,
-      item?.gift_variant_id,
-    );
-    if (!Number.isFinite(unitPrice) || unitPrice < HIGH_VALUE_GIFT_MIN_RMB)
-      return null;
+    const artworkPath = findGiftArtwork(giftId, item?.gift_name, item?.gift_variant_id);
+    if (!Number.isFinite(unitPrice) || unitPrice < HIGH_VALUE_GIFT_MIN_RMB) return null;
     return { src: artworkPath || GIFT_PLACEHOLDER };
   }
 

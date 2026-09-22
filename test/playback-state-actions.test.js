@@ -7,12 +7,8 @@ const { loadModuleExports } = require('./helpers/frontend-modules');
 const entry = (file) => path.join(__dirname, '../public/js/playback', file);
 
 test('state actions preserve reader identity and publish only after a completed change', async () => {
-  const { createPlaybackStateActions } = await loadModuleExports(
-    entry('state/actions.js'),
-  );
-  const { createInitialState } = await loadModuleExports(
-    entry('state/manager.js'),
-  );
+  const { createPlaybackStateActions } = await loadModuleExports(entry('state/actions.js'));
+  const { createInitialState } = await loadModuleExports(entry('state/manager.js'));
   const state = createInitialState();
   const reader = state;
   const calls = [];
@@ -38,9 +34,7 @@ test('state actions preserve reader identity and publish only after a completed 
 
 test('queue owner consumes persisted shuffle IDs once and keeps playlist position aligned', async () => {
   const { QueueManager } = await loadModuleExports(entry('queue/manager.js'));
-  const { createInitialState } = await loadModuleExports(
-    entry('state/manager.js'),
-  );
+  const { createInitialState } = await loadModuleExports(entry('state/manager.js'));
   const state = createInitialState();
   const queue = new QueueManager({ state });
   queue.startCollection([{ id: 'a' }, { id: 'b' }, { id: 'c' }], 0, 'playlist');
@@ -52,9 +46,6 @@ test('queue owner consumes persisted shuffle IDs once and keeps playlist positio
   assert.equal(state.playlistIndex, 1);
   assert.equal(queue.takeNext(), null);
   assert.equal(queue.jumpToPlaylistTrack(0).id, 'a');
-  assert.equal(
-    new Set([queue.takeNext().track.id, queue.takeNext().track.id]).size,
-    2,
-  );
+  assert.equal(new Set([queue.takeNext().track.id, queue.takeNext().track.id]).size, 2);
   assert.equal(queue.takeNext(), null);
 });

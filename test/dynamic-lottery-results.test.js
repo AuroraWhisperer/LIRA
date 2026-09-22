@@ -12,29 +12,50 @@ const { parseCommentPage } = require('../src/bilibili/dynamic-lottery/provider-p
 
 function comment(recordId, uid, text, displayName) {
   return {
-    source: 'comment', recordId, uid, text, displayName,
-    occurredAtMs: 900, parentId: null, level: null,
+    source: 'comment',
+    recordId,
+    uid,
+    text,
+    displayName,
+    occurredAtMs: 900,
+    parentId: null,
+    level: null,
   };
 }
 
 function readyTask(store, id, streamerId, records) {
   store.createTask({
-    id, streamerId, ownerUid: '999', dynamicId: '888', requestId: id,
+    id,
+    streamerId,
+    ownerUid: '999',
+    dynamicId: '888',
+    requestId: id,
     target: { url: 'https://t.bilibili.com/888', ownerUid: '999' },
     rules: {
-      version: 2, entryAction: 'comment', requiredActions: [],
-      winnerCount: 2, requireFollow: true, endsAtMs: 1_000,
+      version: 2,
+      entryAction: 'comment',
+      requiredActions: [],
+      winnerCount: 2,
+      requireFollow: true,
+      endsAtMs: 1_000,
     },
     nowMs: 1_000,
   });
   store.beginScan({
-    id: `scan-${id}`, taskId: id, sessionEpoch: 1,
-    sources: ['comment'], startedAtMs: 1_000,
+    id: `scan-${id}`,
+    taskId: id,
+    sessionEpoch: 1,
+    sources: ['comment'],
+    startedAtMs: 1_000,
   });
   store.commitPage({
-    taskId: id, scanId: `scan-${id}`, source: 'comment', expectedCursor: null,
+    taskId: id,
+    scanId: `scan-${id}`,
+    source: 'comment',
+    expectedCursor: null,
     page: { records, nextCursor: null, ended: true },
-    sessionEpoch: 1, committedAtMs: 2_000,
+    sessionEpoch: 1,
+    committedAtMs: 2_000,
   });
   return store.getTask(id);
 }
@@ -53,26 +74,30 @@ test('winner metadata uses the frozen comment and scan, including legacy names, 
       comment('3', '102', '历史记录仍有评论'),
       comment('4', '999', '作者不参加', '作者'),
     ]);
-    readyTask(store, 'task-2', 'streamer-2', [
-      comment('1', '101', '其他账号活动的评论', '其他活动昵称'),
-    ]);
+    readyTask(store, 'task-2', 'streamer-2', [comment('1', '101', '其他账号活动的评论', '其他活动昵称')]);
     let paused = true;
     let shuffleCalls = 0;
     const service = createDrawService({
-      store, drawStore,
+      store,
+      drawStore,
       getContext: async () => ({ streamerId: 'streamer-1', sessionEpoch: 1 }),
       clock: { nowMs: () => 3_000 },
-      randomIntFn: (maximum) => { shuffleCalls += 1; return maximum - 1; },
+      randomIntFn: (maximum) => {
+        shuffleCalls += 1;
+        return maximum - 1;
+      },
       provider: {
         verifyOwner: async () => {},
         readRelation: async (uid) => ({
           state: uid === '102' && paused ? 'unknown' : 'eligible',
-          reason: 'FOLLOWING', subjectUid: uid, ownerUid: '999', checkedAtMs: 3_000,
+          reason: 'FOLLOWING',
+          subjectUid: uid,
+          ownerUid: '999',
+          checkedAtMs: 3_000,
         }),
       },
     });
-    await assert.rejects(service.start(task, new AbortController().signal),
-      { code: 'LOTTERY_RELATION_UNKNOWN' });
+    await assert.rejects(service.start(task, new AbortController().signal), { code: 'LOTTERY_RELATION_UNKNOWN' });
     const partial = drawStore.getResult(task.id);
     assert.equal(partial.status, 'paused');
     assert.equal(partial.checkedCount, 1);
@@ -99,13 +124,22 @@ test('winner metadata uses the frozen comment and scan, including legacy names, 
 
 test('missing or invalid optional nickname does not remove an otherwise valid comment', () => {
   for (const uname of [undefined, null, 123, '']) {
-    const page = parseCommentPage({ data: {
-      replies: [{
-        rpid_str: '1', ctime: 1, member: { mid: '101', uname },
-        content: { message: '参加' },
-      }],
-      cursor: { is_end: true },
-    } }, null);
+    const page = parseCommentPage(
+      {
+        data: {
+          replies: [
+            {
+              rpid_str: '1',
+              ctime: 1,
+              member: { mid: '101', uname },
+              content: { message: '参加' },
+            },
+          ],
+          cursor: { is_end: true },
+        },
+      },
+      null,
+    );
     assert.equal(page.records.length, 1);
     assert.equal(page.records[0].displayName, null);
   }

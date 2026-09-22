@@ -46,25 +46,14 @@ test('personal playlist cache survives a restart for up to twenty-four hours', a
   new CacheManager().set('qq:liked', cached);
   now += 12 * 60 * 60 * 1000;
 
-  assert.deepEqual(
-    JSON.parse(JSON.stringify(new CacheManager().get('qq:liked'))),
-    cached,
-  );
+  assert.deepEqual(JSON.parse(JSON.stringify(new CacheManager().get('qq:liked'))), cached);
 
   now += 13 * 60 * 60 * 1000;
   assert.equal(new CacheManager().get('qq:liked'), null);
 });
 
 async function loadCacheManager(globals) {
-  const filePath = path.join(
-    __dirname,
-    '..',
-    'public',
-    'js',
-    'playback',
-    'cache',
-    'manager.js',
-  );
+  const filePath = path.join(__dirname, '..', 'public', 'js', 'playback', 'cache', 'manager.js');
   const context = vm.createContext({ console, ...globals });
   const module = new vm.SourceTextModule(fs.readFileSync(filePath, 'utf8'), {
     context,

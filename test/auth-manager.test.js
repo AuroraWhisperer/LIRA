@@ -52,14 +52,15 @@ test('music login rejects invalid platforms before creating a window or session'
   let loginWindow;
   try {
     Module._load = function (request, parent, isMain) {
-      if (request === 'electron') return {
-        BrowserWindow: class {
-          constructor() {
-            createdWindows += 1;
-            throw new Error('Unexpected login window');
-          }
-        },
-      };
+      if (request === 'electron')
+        return {
+          BrowserWindow: class {
+            constructor() {
+              createdWindows += 1;
+              throw new Error('Unexpected login window');
+            }
+          },
+        };
       if (request === './auth-manager' && parent.filename === modulePath) return authManager;
       return originalLoad.call(this, request, parent, isMain);
     };
@@ -85,10 +86,7 @@ test('QQ auth recognizes every non-empty QQ Music credential', async () => {
 
 test('QQ auth does not treat generic QQ session cookies as music login', async () => {
   for (const name of ['p_skey', 'skey']) {
-    const authManager = loadAuthManager([
-      qqCookie(name, 'token'),
-      qqCookie('uin', 'o123456'),
-    ]);
+    const authManager = loadAuthManager([qqCookie(name, 'token'), qqCookie('uin', 'o123456')]);
     const state = await authManager.getMusicAuthState('qq', 'test-data');
     assert.equal(state.loggedIn, false, name);
   }
@@ -104,19 +102,11 @@ test('QQ auth ignores empty auth cookies and unrelated key cookies', async () =>
   ]);
   const state = await authManager.getMusicAuthState('qq', 'test-data');
   assert.equal(state.loggedIn, false);
-  assert.deepEqual(state.keyCookieNames, [
-    'uin',
-    'qqmusic_key',
-    'qm_keyst',
-    'p_skey',
-    'skey',
-  ]);
+  assert.deepEqual(state.keyCookieNames, ['uin', 'qqmusic_key', 'qm_keyst', 'p_skey', 'skey']);
 });
 
 test('QQ auth still filters auth cookies outside the allowed domains', async () => {
-  const authManager = loadAuthManager([
-    qqCookie('qqmusic_key', 'token', '.evil.example'),
-  ]);
+  const authManager = loadAuthManager([qqCookie('qqmusic_key', 'token', '.evil.example')]);
   const state = await authManager.getMusicAuthState('qq', 'test-data');
   assert.equal(state.loggedIn, false);
   assert.equal(state.cookieCount, 0);

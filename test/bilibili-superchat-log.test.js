@@ -2,9 +2,7 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const {
-  formatBilibiliSuperChatLog,
-} = require('../src/bilibili/danmaku/message-handlers');
+const { formatBilibiliSuperChatLog } = require('../src/bilibili/danmaku/message-handlers');
 
 test('formats every received SuperChat with connection correlation', () => {
   assert.equal(

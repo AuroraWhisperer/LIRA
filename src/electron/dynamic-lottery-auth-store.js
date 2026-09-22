@@ -27,8 +27,7 @@ function normalizeCookie(cookie) {
     return null;
   if (
     cookie.expirationDate !== undefined &&
-    (!Number.isFinite(cookie.expirationDate) ||
-      cookie.expirationDate <= Date.now() / 1000)
+    (!Number.isFinite(cookie.expirationDate) || cookie.expirationDate <= Date.now() / 1000)
   )
     return null;
   return {
@@ -38,12 +37,8 @@ function normalizeCookie(cookie) {
     path: cookie.path || '/',
     secure: cookie.secure === true,
     httpOnly: cookie.httpOnly === true,
-    ...(cookie.expirationDate === undefined
-      ? {}
-      : { expirationDate: cookie.expirationDate }),
-    ...(['unspecified', 'no_restriction', 'lax', 'strict'].includes(
-      cookie.sameSite,
-    )
+    ...(cookie.expirationDate === undefined ? {} : { expirationDate: cookie.expirationDate }),
+    ...(['unspecified', 'no_restriction', 'lax', 'strict'].includes(cookie.sameSite)
       ? { sameSite: cookie.sameSite }
       : {}),
   };
@@ -65,21 +60,16 @@ function createLotteryAuthStore({ session, safeStorage, dataDir, streamerId }) {
     const cookies = await getCookies();
     const values = new Map(cookies.map(({ name, value }) => [name, value]));
     const uid = values.get('DedeUserID') || '';
-    const loggedIn =
-      KEY_COOKIES.every((name) => values.get(name)) &&
-      /^[1-9]\d{0,63}$/u.test(uid);
+    const loggedIn = KEY_COOKIES.every((name) => values.get(name)) && /^[1-9]\d{0,63}$/u.test(uid);
     return { loggedIn: Boolean(loggedIn), uid: loggedIn ? uid : '' };
   }
 
   async function getCookieHeader() {
-    return (await getCookies())
-      .map(({ name, value }) => `${name}=${value}`)
-      .join('; ');
+    return (await getCookies()).map(({ name, value }) => `${name}=${value}`).join('; ');
   }
 
   async function persist() {
-    if (!safeStorage.isEncryptionAvailable())
-      throw authError('LOTTERY_AUTH_ENCRYPTION_UNAVAILABLE');
+    if (!safeStorage.isEncryptionAvailable()) throw authError('LOTTERY_AUTH_ENCRYPTION_UNAVAILABLE');
     const cookies = await getCookies();
     const payload = JSON.stringify({ version: 1, streamerId, cookies });
     const encrypted = safeStorage.encryptString(payload);
@@ -96,22 +86,13 @@ function createLotteryAuthStore({ session, safeStorage, dataDir, streamerId }) {
 
   async function restore() {
     if ((await getAuthState()).loggedIn || !fs.existsSync(snapshotPath)) return;
-    if (!safeStorage.isEncryptionAvailable())
-      throw authError('LOTTERY_AUTH_ENCRYPTION_UNAVAILABLE');
+    if (!safeStorage.isEncryptionAvailable()) throw authError('LOTTERY_AUTH_ENCRYPTION_UNAVAILABLE');
     try {
-      const payload = JSON.parse(
-        safeStorage.decryptString(fs.readFileSync(snapshotPath)),
-      );
-      if (
-        payload.version !== 1 ||
-        payload.streamerId !== streamerId ||
-        !Array.isArray(payload.cookies)
-      ) {
+      const payload = JSON.parse(safeStorage.decryptString(fs.readFileSync(snapshotPath)));
+      if (payload.version !== 1 || payload.streamerId !== streamerId || !Array.isArray(payload.cookies)) {
         throw authError('LOTTERY_AUTH_RESTORE_FAILED');
       }
-      for (const cookie of payload.cookies
-        .map(normalizeCookie)
-        .filter(Boolean)) {
+      for (const cookie of payload.cookies.map(normalizeCookie).filter(Boolean)) {
         await loginSession.cookies.set({
           ...cookie,
           url: `https://${cookie.domain.replace(/^\./u, '')}${cookie.path}`,

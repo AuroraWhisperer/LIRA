@@ -14,10 +14,7 @@ const LIBRARY_TAG_ALIASES = {
 const LIBRARY_TAG_BY_VIEWER_ALIAS = new Map();
 for (const [libraryTag, aliases] of Object.entries(LIBRARY_TAG_ALIASES)) {
   for (const alias of aliases) {
-    LIBRARY_TAG_BY_VIEWER_ALIAS.set(
-      normalizeTag(alias),
-      normalizeTag(libraryTag),
-    );
+    LIBRARY_TAG_BY_VIEWER_ALIAS.set(normalizeTag(alias), normalizeTag(libraryTag));
   }
 }
 
@@ -30,10 +27,7 @@ function matchesLibraryTag(libraryTag, viewerTerm) {
   const normalizedViewerTerm = normalizeTag(viewerTerm);
   if (!normalizedLibraryTag || !normalizedViewerTerm) return false;
   if (normalizedLibraryTag === normalizedViewerTerm) return true;
-  return (
-    LIBRARY_TAG_BY_VIEWER_ALIAS.get(normalizedViewerTerm) ===
-    normalizedLibraryTag
-  );
+  return LIBRARY_TAG_BY_VIEWER_ALIAS.get(normalizedViewerTerm) === normalizedLibraryTag;
 }
 
 function normalizeTag(value) {

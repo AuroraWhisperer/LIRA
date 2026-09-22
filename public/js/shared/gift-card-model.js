@@ -22,13 +22,16 @@ export function buildGiftCards(items, { day = shanghaiToday(), profiles = [] } =
       cards.push(item);
       continue;
     }
-    const key = gift.giftId && gift.giftName
-      ? JSON.stringify([day, senderId, gift.giftId, gift.giftName]) : null;
+    const key = gift.giftId && gift.giftName ? JSON.stringify([day, senderId, gift.giftId, gift.giftName]) : null;
     const amount = BigInt(Math.round(gift.unitPrice * 100)) * BigInt(gift.num);
     let card = key && groups.get(key);
     if (!card) {
-      card = { ...item, eventId: key ? `card:${key}` : item.eventId,
-        gift: { ...gift, ...senders.get(senderId) }, cardTotalCents: amount.toString() };
+      card = {
+        ...item,
+        eventId: key ? `card:${key}` : item.eventId,
+        gift: { ...gift, ...senders.get(senderId) },
+        cardTotalCents: amount.toString(),
+      };
       cards.push(card);
       if (key) groups.set(key, card);
     } else {

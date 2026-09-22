@@ -2,10 +2,7 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const {
-  GiftSyncState,
-  createRemoteGiftController,
-} = require('../src/electron/remote-gift-controller');
+const { GiftSyncState, createRemoteGiftController } = require('../src/electron/remote-gift-controller');
 const {
   capabilityPage,
   createDeferred,
@@ -130,9 +127,7 @@ test('expired bootstrap token restarts from page one without resetting projectio
   await controller.whenIdle();
 
   assert.deepEqual(fixture.historyCalls, ['expired-token', null]);
-  assert.deepEqual(fixture.restartCalls, [
-    { sourceId: fixture.source.id, projectionGeneration: 1 },
-  ]);
+  assert.deepEqual(fixture.restartCalls, [{ sourceId: fixture.source.id, projectionGeneration: 1 }]);
   assert.equal(fixture.resetCalls.length, 0);
   assert.equal(fixture.runtimeState.finalCursor, 12);
   assert.equal(controller.getStatus().state, GiftSyncState.LIVE);
@@ -173,9 +168,7 @@ test('epoch mismatch replaces only the current projection before bootstrap', asy
       finalCursor: 99,
     },
     discovery: capabilityPage({ syncEpoch: 'epoch-1', latestCursor: 10 }),
-    historyPages: new Map([
-      [null, historyPage({ eventIds: ['rebuilt'], recoveryCursor: 10 })],
-    ]),
+    historyPages: new Map([[null, historyPage({ eventIds: ['rebuilt'], recoveryCursor: 10 })]]),
   });
   const controller = createRemoteGiftController(fixture.options);
 

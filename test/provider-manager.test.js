@@ -64,15 +64,7 @@ test('provider state stays scoped to its source when checks finish out of order'
 
 async function loadProviderManager(sandbox) {
   const context = vm.createContext({ console, encodeURIComponent, ...sandbox });
-  const filePath = path.join(
-    __dirname,
-    '..',
-    'public',
-    'js',
-    'playback',
-    'provider',
-    'manager.js',
-  );
+  const filePath = path.join(__dirname, '..', 'public', 'js', 'playback', 'provider', 'manager.js');
   const identifier = pathToFileURL(filePath).href;
   const module = new vm.SourceTextModule(fs.readFileSync(filePath, 'utf8'), {
     context,

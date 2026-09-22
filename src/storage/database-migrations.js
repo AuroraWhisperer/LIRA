@@ -1,17 +1,16 @@
 'use strict';
 
+const { now, cleanText, normalizePositiveInteger } = require('../shared/utils');
 const {
-  now,
-  cleanText,
-  normalizeSuperChatPrice,
-  normalizeGuardLevel,
-  normalizePositiveInteger,
-} = require('../shared/utils');
+  migrateLegacySuperChatsToDedicatedDatabase,
+  dropLegacySuperChatTable,
+  legacySuperChatFingerprint,
+} = require('./legacy-superchat-migration');
 const schema = require('./schema');
 const { seedThemePresets } = require('./theme-store');
 const { migrateGiftIdentities } = require('./gift-identity-migration');
 const { migrateGiftDisplay } = require('./gift-display-migration');
-const { migrateGiftWishes } = require('./gift-wish-migration');
+const { migrateGiftWishes, migrateGiftWishDisplay } = require('./gift-wish-migration');
 const { migrateFanProfiles } = require('./fan-profile-migration');
 
 // ── 迁移注册表 ──
@@ -72,9 +71,7 @@ function runAllMigrations(databases, options = {}) {
         )
       `,
         ).run();
-        db.exec(
-          'CREATE UNIQUE INDEX idx_songs_name_artist ON songs(name, artist)',
-        );
+        db.exec('CREATE UNIQUE INDEX idx_songs_name_artist ON songs(name, artist)');
       },
       // v4：保存 Excel 点歌价格说明，旧歌曲默认留空
       (db) => {
@@ -109,9 +106,7 @@ function runAllMigrations(databases, options = {}) {
       },
       (db) => {
         // v2: 补齐 platform_id 索引，避免全表扫描导致礼物漏记
-        db.exec(
-          'CREATE INDEX IF NOT EXISTS idx_gift_events_platform_id ON gift_events(platform_id)',
-        );
+        db.exec('CREATE INDEX IF NOT EXISTS idx_gift_events_platform_id ON gift_events(platform_id)');
       },
       (db) => {
         // v3: 同一平台事件允许属于不同 UID，但同一 UID 只能保留一条。
@@ -235,9 +230,7 @@ function runAllMigrations(databases, options = {}) {
             .map((column) => column.name),
         );
         if (!columns.has('source_id')) {
-          db.exec(
-            'ALTER TABLE gift_events ADD COLUMN source_id INTEGER REFERENCES gift_sources(id)',
-          );
+          db.exec('ALTER TABLE gift_events ADD COLUMN source_id INTEGER REFERENCES gift_sources(id)');
         }
         db.exec(`
           CREATE TABLE IF NOT EXISTS gift_sync_state (
@@ -315,6 +308,8 @@ function runAllMigrations(databases, options = {}) {
       },
       // v13: source-scoped wishes and confirmed livestream windows.
       migrateGiftWishes,
+      // v14: per-wish display style and custom text, preserving existing cards.
+      migrateGiftWishDisplay,
     ]),
   );
 
@@ -336,9 +331,7 @@ function runAllMigrations(databases, options = {}) {
 
   for (const result of results) {
     if (result.applied > 0) {
-      console.log(
-        `[Schema] ${result.key}: v${result.from} → v${result.to} (${result.applied} step(s))`,
-      );
+      console.log(`[Schema] ${result.key}: v${result.from} → v${result.to} (${result.applied} step(s))`);
     }
   }
   return results;
@@ -347,10 +340,7 @@ function runAllMigrations(databases, options = {}) {
 function getSchemaVersions(databases) {
   return {
     songDb: schema.getSchemaVersion(databases.songDb, 'song_db'),
-    superChatDb: schema.getSchemaVersion(
-      databases.superChatDb,
-      'super_chat_db',
-    ),
+    superChatDb: schema.getSchemaVersion(databases.superChatDb, 'super_chat_db'),
     giftDb: schema.getSchemaVersion(databases.giftDb, 'gift_db'),
     musicDb: schema.getSchemaVersion(databases.musicDb, 'music_db'),
     checkinDb: schema.getSchemaVersion(databases.checkinDb, 'checkin_db'),
@@ -388,9 +378,7 @@ function ensureSongRequestPriceColumn(db) {
       .map((column) => column.name),
   );
   if (!columns.has('request_price')) {
-    db.exec(
-      "ALTER TABLE songs ADD COLUMN request_price TEXT NOT NULL DEFAULT ''",
-    );
+    db.exec("ALTER TABLE songs ADD COLUMN request_price TEXT NOT NULL DEFAULT ''");
   }
 }
 
@@ -498,8 +486,7 @@ function ensureGiftDetectionColumns(db) {
   ];
 
   for (const [name, definition] of wanted) {
-    if (!columns.has(name))
-      db.exec(`ALTER TABLE gift_events ADD COLUMN ${name} ${definition}`);
+    if (!columns.has(name)) db.exec(`ALTER TABLE gift_events ADD COLUMN ${name} ${definition}`);
   }
 }
 
@@ -528,12 +515,8 @@ function collapseDuplicateGiftIdentities(db) {
       .all(group.platform_id, group.uid);
     const canonical = rows[0];
     const latest = rows.at(-1);
-    const mergedNum = Math.max(
-      ...rows.map((row) => normalizePositiveInteger(row.num) || 1),
-    );
-    const mergedTotal = Math.max(
-      ...rows.map((row) => Number(row.total_price) || 0),
-    );
+    const mergedNum = Math.max(...rows.map((row) => normalizePositiveInteger(row.num) || 1));
+    const mergedTotal = Math.max(...rows.map((row) => Number(row.total_price) || 0));
 
     db.prepare(
       `
@@ -558,115 +541,6 @@ function collapseDuplicateGiftIdentities(db) {
     `,
     ).run(group.platform_id, group.uid, Number(canonical.id));
   }
-}
-
-// ── 数据迁移 ──
-
-function migrateLegacySuperChatsToDedicatedDatabase(songDb, superChatDb) {
-  const legacyTable = songDb
-    .prepare(
-      `
-    SELECT name
-    FROM sqlite_master
-    WHERE type = 'table' AND name = 'super_chats'
-  `,
-    )
-    .get();
-  if (!legacyTable) return;
-
-  const rows = songDb
-    .prepare('SELECT * FROM super_chats ORDER BY id ASC')
-    .all();
-  if (rows.length === 0) {
-    dropLegacySuperChatTable(songDb, 0);
-    return;
-  }
-
-  let migrated = 0;
-  superChatDb.exec('BEGIN');
-  try {
-    for (const row of rows) {
-      const fingerprint = legacySuperChatFingerprint(row);
-      const existing = superChatDb
-        .prepare(
-          `
-        SELECT id
-        FROM super_chats
-        WHERE (platform_id != '' AND platform_id = ?)
-           OR (platform_id = '' AND ? != '' AND uid = ? AND message = ? AND created_at = ?)
-        LIMIT 1
-      `,
-        )
-        .get(
-          cleanText(row.platform_id),
-          fingerprint,
-          cleanText(row.uid),
-          cleanText(row.message),
-          cleanText(row.created_at),
-        );
-      if (existing) continue;
-
-      superChatDb
-        .prepare(
-          `
-        INSERT INTO super_chats (
-          platform_id, uid, user_name, price, message,
-          requester_guard_level, requester_medal_name, requester_medal_level,
-          status, source, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `,
-        )
-        .run(
-          cleanText(row.platform_id),
-          cleanText(row.uid),
-          cleanText(row.user_name) || '观众',
-          normalizeSuperChatPrice(row.price),
-          cleanText(row.message),
-          normalizeGuardLevel(row.requester_guard_level),
-          cleanText(row.requester_medal_name),
-          normalizePositiveInteger(row.requester_medal_level),
-          cleanText(row.status) || 'active',
-          cleanText(row.source) || 'superchat',
-          cleanText(row.created_at) || now(),
-          cleanText(row.updated_at) || cleanText(row.created_at) || now(),
-        );
-      migrated += 1;
-    }
-    superChatDb.exec('COMMIT');
-  } catch (error) {
-    superChatDb.exec('ROLLBACK');
-    throw error;
-  }
-
-  if (migrated > 0) {
-    console.log(`[Startup] migrated ${migrated} legacy super chat record(s).`);
-  }
-  dropLegacySuperChatTable(songDb, migrated);
-}
-
-function dropLegacySuperChatTable(songDb, migrated) {
-  try {
-    songDb.exec('DROP TABLE IF EXISTS super_chats');
-    if (migrated > 0) {
-      console.log(
-        '[Startup] dropped legacy super_chats table from song database.',
-      );
-    }
-  } catch (error) {
-    console.warn(
-      '[Startup] failed to drop legacy super_chats table:',
-      error.message,
-    );
-  }
-}
-
-function legacySuperChatFingerprint(row) {
-  if (!row) return '';
-  return [
-    cleanText(row.uid),
-    cleanText(row.message),
-    cleanText(row.created_at),
-  ].join('|');
 }
 
 module.exports = {

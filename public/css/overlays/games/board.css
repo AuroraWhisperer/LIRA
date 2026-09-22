@@ -56,11 +56,7 @@
   border-style: solid;
   border-color: rgba(255, 200, 87, 0.88);
   color: #ffe8ad;
-  background: linear-gradient(
-    145deg,
-    rgba(255, 200, 87, 0.22),
-    rgba(255, 200, 87, 0.08)
-  );
+  background: linear-gradient(145deg, rgba(255, 200, 87, 0.22), rgba(255, 200, 87, 0.08));
   opacity: 1;
   box-shadow:
     0 0 0 1px rgba(255, 200, 87, 0.16),
@@ -68,11 +64,7 @@
 }
 .bomb-number.is-picked:disabled {
   color: #ffe8ad;
-  background: linear-gradient(
-    145deg,
-    rgba(255, 200, 87, 0.22),
-    rgba(255, 200, 87, 0.08)
-  );
+  background: linear-gradient(145deg, rgba(255, 200, 87, 0.22), rgba(255, 200, 87, 0.08));
 }
 .gomoku-view {
   width: 100%;

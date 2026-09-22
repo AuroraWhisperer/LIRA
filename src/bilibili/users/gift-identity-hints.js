@@ -1,27 +1,13 @@
 'use strict';
 
-const {
-  cleanText,
-  normalizeGuardLevel,
-  readObjectValue,
-} = require('../../shared/utils');
+const { cleanText, normalizeGuardLevel, readObjectValue } = require('../../shared/utils');
 const { readFirstObject } = require('../utils/user-meta-extractor');
-const {
-  firstProtoScalar,
-  decodeBilibiliGiftV2Proto,
-} = require('../protocols/protobuf-decoder');
-const {
-  isBilibiliDuplicateGuardToast,
-  isBilibiliGiftLikeCommand,
-} = require('../parsers/gift-command-utils');
+const { firstProtoScalar, decodeBilibiliGiftV2Proto } = require('../protocols/protobuf-decoder');
+const { isBilibiliDuplicateGuardToast, isBilibiliGiftLikeCommand } = require('../parsers/gift-command-utils');
 
 function extractBilibiliGiftIdentity(packet) {
   const cmd = cleanText(packet?.cmd);
-  if (
-    !isBilibiliGiftLikeCommand(cmd) ||
-    cmd.startsWith('GUARD_BUY') ||
-    isBilibiliDuplicateGuardToast(packet)
-  )
+  if (!isBilibiliGiftLikeCommand(cmd) || cmd.startsWith('GUARD_BUY') || isBilibiliDuplicateGuardToast(packet))
     return null;
   const data = packet?.data;
   if (!data || typeof data !== 'object') return null;
@@ -40,24 +26,11 @@ function extractBilibiliGiftIdentity(packet) {
       };
   }
 
-  const sender =
-    readFirstObject(data, [
-      'sender_uinfo',
-      'senderUinfo',
-      'user_info',
-      'userInfo',
-    ]) || {};
+  const sender = readFirstObject(data, ['sender_uinfo', 'senderUinfo', 'user_info', 'userInfo']) || {};
   const base = readFirstObject(sender, ['base']) || {};
   const uid = cleanText(
     readObjectValue(sender, ['uid', 'mid', 'open_id', 'openId']) ||
-      readObjectValue(data, [
-        'uid',
-        'mid',
-        'sender_uid',
-        'senderUid',
-        'open_id',
-        'openId',
-      ]),
+      readObjectValue(data, ['uid', 'mid', 'sender_uid', 'senderUid', 'open_id', 'openId']),
   );
   if (!uid) return null;
   const hint = {
@@ -65,45 +38,20 @@ function extractBilibiliGiftIdentity(packet) {
     name:
       cleanText(
         readObjectValue(base, ['name', 'uname', 'user_name', 'userName']) ||
-          readObjectValue(sender, [
-            'username',
-            'user_name',
-            'userName',
-            'uname',
-            'nickname',
-          ]) ||
-          readObjectValue(data, [
-            'username',
-            'uname',
-            'user_name',
-            'userName',
-            'nickname',
-          ]),
+          readObjectValue(sender, ['username', 'user_name', 'userName', 'uname', 'nickname']) ||
+          readObjectValue(data, ['username', 'uname', 'user_name', 'userName', 'nickname']),
       ) || '观众',
-    avatarUrl: cleanText(
-      readObjectValue(base, ['face']) || readObjectValue(data, ['face']),
-    ),
+    avatarUrl: cleanText(readObjectValue(base, ['face']) || readObjectValue(data, ['face'])),
   };
   let roomIdentityVerified = false;
   if (cmd.startsWith('USER_TOAST_MSG')) {
     const guard = readFirstObject(data, ['guard_info', 'guardInfo']) || data;
     const role = readFirstObject(data, ['gift_info', 'giftInfo']) || data;
-    const keys = [
-      'guard_level',
-      'guardLevel',
-      'privilege_type',
-      'privilegeType',
-    ];
+    const keys = ['guard_level', 'guardLevel', 'privilege_type', 'privilegeType'];
     const names = ['gift_name', 'giftName', 'role_name', 'roleName', 'role'];
     const guardLevel =
-      normalizeGuardLevel(
-        readObjectValue(guard, keys) || readObjectValue(data, keys),
-      ) ||
-      guardLevelFromName(
-        readObjectValue(role, names) ||
-          readObjectValue(guard, names) ||
-          readObjectValue(data, names),
-      );
+      normalizeGuardLevel(readObjectValue(guard, keys) || readObjectValue(data, keys)) ||
+      guardLevelFromName(readObjectValue(role, names) || readObjectValue(guard, names) || readObjectValue(data, names));
     if (guardLevel > 0) {
       hint.roomIdentity = { guardKnown: true, guardLevel };
       roomIdentityVerified = true;

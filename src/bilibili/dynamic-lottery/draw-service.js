@@ -1,11 +1,7 @@
 'use strict';
 
 const { createHash, randomInt } = require('node:crypto');
-const {
-  lotteryError,
-  buildCandidatePool,
-  assertSameContext,
-} = require('./rules');
+const { lotteryError, buildCandidatePool, assertSameContext } = require('./rules');
 
 function createUniformOrder(members, randomIntFn = randomInt) {
   const order = members.map((member) => member.uid);
@@ -16,18 +12,10 @@ function createUniformOrder(members, randomIntFn = randomInt) {
   return order;
 }
 
-function createDrawService({
-  store,
-  drawStore,
-  provider,
-  getContext,
-  clock,
-  randomIntFn = randomInt,
-}) {
+function createDrawService({ store, drawStore, provider, getContext, clock, randomIntFn = randomInt }) {
   async function start(task, signal) {
     const context = await getContext();
-    if (context.streamerId !== task.streamerId)
-      throw lotteryError('LOTTERY_SESSION_CHANGED');
+    if (context.streamerId !== task.streamerId) throw lotteryError('LOTTERY_SESSION_CHANGED');
     await provider.verifyOwner(task.ownerUid, signal);
     assertSameContext(context, await getContext());
     signal.throwIfAborted();
@@ -53,11 +41,7 @@ function createDrawService({
     if (['completed', 'exhausted'].includes(round.status)) return;
     drawStore.setStatus(task, 'drawing', '', clock.nowMs());
     try {
-      for (
-        let index = round.nextIndex;
-        index < round.order.length;
-        index += 1
-      ) {
+      for (let index = round.nextIndex; index < round.order.length; index += 1) {
         signal.throwIfAborted();
         assertSameContext(context, await getContext());
         const uid = round.order[index];
@@ -72,13 +56,9 @@ function createDrawService({
             };
         assertSameContext(context, await getContext());
         signal.throwIfAborted();
-        if (
-          verification.ownerUid !== task.ownerUid ||
-          verification.subjectUid !== uid
-        )
+        if (verification.ownerUid !== task.ownerUid || verification.subjectUid !== uid)
           throw lotteryError('LOTTERY_SESSION_CHANGED');
-        if (!['eligible', 'ineligible'].includes(verification.state))
-          throw lotteryError('LOTTERY_RELATION_UNKNOWN');
+        if (!['eligible', 'ineligible'].includes(verification.state)) throw lotteryError('LOTTERY_RELATION_UNKNOWN');
         round = drawStore.recordCheck({
           task,
           roundId: round.id,
@@ -91,12 +71,7 @@ function createDrawService({
       }
       drawStore.setStatus(task, 'exhausted', '', clock.nowMs());
     } catch (error) {
-      drawStore.setStatus(
-        task,
-        'paused',
-        error.code || 'LOTTERY_DRAW_FAILED',
-        clock.nowMs(),
-      );
+      drawStore.setStatus(task, 'paused', error.code || 'LOTTERY_DRAW_FAILED', clock.nowMs());
       throw error;
     }
   }

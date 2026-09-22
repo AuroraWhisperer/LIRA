@@ -155,12 +155,7 @@
   background: var(--select-surface);
   box-shadow: var(--shadow-floating, 0 12px 28px rgba(22, 31, 43, 0.14));
   color: var(--select-text);
-  scrollbar-color: color-mix(
-      in srgb,
-      var(--select-accent) 35%,
-      var(--select-border)
-    )
-    transparent;
+  scrollbar-color: color-mix(in srgb, var(--select-accent) 35%, var(--select-border)) transparent;
   animation: lira-select-menu-in 140ms ease-out;
 }
 
@@ -232,8 +227,7 @@
 
 .lira-select-group + .lira-select-group {
   margin-top: 4px;
-  border-top: 1px solid
-    color-mix(in srgb, var(--select-border) 70%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--select-border) 70%, transparent);
   padding-top: 7px;
 }
 

@@ -21,10 +21,7 @@ test('song store migration preserves LIKE filtering and stable artist ordering',
   songService.saveSong(store, { name: 'Same', artist: '\u00c5bc' });
   songService.saveSong(store, { name: 'Same', artist: 'Zed' });
   assert.equal(songService.listSongs(store, { query: '%' }).length, 4);
-  assert.equal(
-    songService.listSongs(store, { query: '\u00e5ngstrom' }).length,
-    0,
-  );
+  assert.equal(songService.listSongs(store, { query: '\u00e5ngstrom' }).length, 0);
   assert.equal(songService.listSongs(store, { category: 'F%k' }).length, 1);
   assert.deepEqual(
     songService.listSongs(store, { query: 'Same' }).map((row) => row.artist),
@@ -35,10 +32,7 @@ test('song store migration preserves LIKE filtering and stable artist ordering',
 test('invalid supplied update IDs do not become song inserts', (t) => {
   const { store } = fixture(t);
   for (const id of ['0', 'not-an-id']) {
-    assert.throws(
-      () => songService.saveSong(store, { id, name: 'unwanted' }),
-      /不存在/,
-    );
+    assert.throws(() => songService.saveSong(store, { id, name: 'unwanted' }), /不存在/);
   }
   assert.equal(songService.countSongs(store), 0);
 });

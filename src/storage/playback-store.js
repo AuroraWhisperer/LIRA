@@ -49,11 +49,7 @@ function createPlaybackStore(db) {
   }
 
   function readQueueRow(clientId) {
-    return db
-      .prepare(
-        'SELECT payload, updated_at FROM play_queue_state WHERE client_id = ?',
-      )
-      .get(clientId);
+    return db.prepare('SELECT payload, updated_at FROM play_queue_state WHERE client_id = ?').get(clientId);
   }
 
   function writeQueueRow(clientId, payload, updatedAt = now()) {
@@ -122,10 +118,7 @@ function createPlaybackStore(db) {
 
     listHistory(options = {}) {
       const clientId = normalizeClientId(options.clientId);
-      const limit = Math.max(
-        1,
-        Math.min(PLAY_HISTORY_LIMIT, Number(options.limit) || 500),
-      );
+      const limit = Math.max(1, Math.min(PLAY_HISTORY_LIMIT, Number(options.limit) || 500));
       return db
         .prepare(
           `
@@ -162,9 +155,7 @@ function createPlaybackStore(db) {
 
     removeHistoryTrack(trackKey, options = {}) {
       const result = db
-        .prepare(
-          'DELETE FROM play_history WHERE client_id = ? AND track_key = ?',
-        )
+        .prepare('DELETE FROM play_history WHERE client_id = ? AND track_key = ?')
         .run(normalizeClientId(options.clientId), cleanText(trackKey));
       return Number(result.changes) || 0;
     },
@@ -184,21 +175,17 @@ function createPlaybackStore(db) {
       return queueTransaction(() => {
         const row = readQueueRow(clientId);
         const payload = (row && safeParseJson(row.payload)) || {};
-        const generation = Math.max(
-          payload.issuedGeneration || 0,
-          payload.snapshotVersion?.generation || 0,
-        ) + 1;
+        const generation = Math.max(payload.issuedGeneration || 0, payload.snapshotVersion?.generation || 0) + 1;
         if (!Number.isSafeInteger(generation)) {
           throw new Error('播放快照代次超出范围。');
         }
         const snapshotVersion = {
-          writerId: randomUUID(), generation, senderGeneration: 0, sequence: 0,
+          writerId: randomUUID(),
+          generation,
+          senderGeneration: 0,
+          sequence: 0,
         };
-        writeQueueRow(
-          clientId,
-          { ...payload, issuedGeneration: generation },
-          row?.updated_at || now(),
-        );
+        writeQueueRow(clientId, { ...payload, issuedGeneration: generation }, row?.updated_at || now());
         return snapshotVersion;
       });
     },
@@ -209,14 +196,16 @@ function createPlaybackStore(db) {
       const snapshot = payload && typeof payload === 'object' ? payload : {};
       const version = snapshot.snapshotVersion;
       if (
-        version !== undefined && (
-          !version || typeof version.writerId !== 'string' || !version.writerId ||
-          !Number.isSafeInteger(version.generation) || version.generation < 1 ||
-          (version.senderGeneration !== undefined && (
-            !Number.isSafeInteger(version.senderGeneration) || version.senderGeneration < 0
-          )) ||
-          !Number.isSafeInteger(version.sequence) || version.sequence < 1
-        )
+        version !== undefined &&
+        (!version ||
+          typeof version.writerId !== 'string' ||
+          !version.writerId ||
+          !Number.isSafeInteger(version.generation) ||
+          version.generation < 1 ||
+          (version.senderGeneration !== undefined &&
+            (!Number.isSafeInteger(version.senderGeneration) || version.senderGeneration < 0)) ||
+          !Number.isSafeInteger(version.sequence) ||
+          version.sequence < 1)
       ) {
         throw new Error('无效播放快照版本。');
       }
@@ -224,24 +213,20 @@ function createPlaybackStore(db) {
         const row = readQueueRow(clientId);
         const previousPayload = (row && safeParseJson(row.payload)) || {};
         const previous = previousPayload.snapshotVersion;
-        const issuedGeneration = Math.max(
-          previousPayload.issuedGeneration || 0, previous?.generation || 0,
-        );
+        const issuedGeneration = Math.max(previousPayload.issuedGeneration || 0, previous?.generation || 0);
         const sender = version?.senderGeneration || 0;
         const previousSender = previous?.senderGeneration || 0;
         if (previous && !version) {
           return { saved: false, reason: 'stale-snapshot' };
         }
         if (version) {
-          if (
-            version.generation > issuedGeneration ||
-            version.generation < (previous?.generation || 0)
-          ) {
+          if (version.generation > issuedGeneration || version.generation < (previous?.generation || 0)) {
             return { saved: false, reason: 'stale-snapshot' };
           }
           if (version.generation === previous?.generation) {
             if (
-              previous.writerId !== version.writerId || sender < previousSender ||
+              previous.writerId !== version.writerId ||
+              sender < previousSender ||
               (sender === previousSender && version.sequence < previous.sequence)
             ) {
               return { saved: false, reason: 'stale-snapshot' };
@@ -264,8 +249,7 @@ function createPlaybackStore(db) {
       const payload = safeParseJson(row.payload);
       if (payload && (payload.snapshotVersion || payload.issuedGeneration)) {
         delete payload.issuedGeneration;
-        if (Object.keys(payload).every((key) => key === 'snapshotVersion'))
-          return null;
+        if (Object.keys(payload).every((key) => key === 'snapshotVersion')) return null;
       }
       return { payload, updatedAt: row.updated_at };
     },
@@ -277,10 +261,8 @@ function createPlaybackStore(db) {
         // 保留已接收序号，防止清除后旧快照重放复活队列。
         const payload = (row && safeParseJson(row.payload)) || {};
         const { snapshotVersion, issuedGeneration } = payload;
-        if (snapshotVersion || issuedGeneration)
-          writeQueueRow(clientId, { snapshotVersion, issuedGeneration });
-        else db.prepare('DELETE FROM play_queue_state WHERE client_id = ?')
-          .run(clientId);
+        if (snapshotVersion || issuedGeneration) writeQueueRow(clientId, { snapshotVersion, issuedGeneration });
+        else db.prepare('DELETE FROM play_queue_state WHERE client_id = ?').run(clientId);
       });
       return { cleared: true };
     },
@@ -288,19 +270,14 @@ function createPlaybackStore(db) {
     // ── 收藏 ──
 
     listFavorites() {
-      return db
-        .prepare('SELECT * FROM favorites ORDER BY sort_order ASC, id ASC')
-        .all()
-        .map(mapTrackRow);
+      return db.prepare('SELECT * FROM favorites ORDER BY sort_order ASC, id ASC').all().map(mapTrackRow);
     },
 
     addFavorite(track) {
       const fields = normalizeTrackFields(track);
       if (!fields.title && !fields.trackId) throw new Error('缺少曲目信息。');
       const key = trackKeyOf(track);
-      const nextOrder =
-        (db.prepare('SELECT MAX(sort_order) AS max FROM favorites').get() || {})
-          .max || 0;
+      const nextOrder = (db.prepare('SELECT MAX(sort_order) AS max FROM favorites').get() || {}).max || 0;
       db.prepare(
         `
         INSERT INTO favorites (
@@ -327,16 +304,12 @@ function createPlaybackStore(db) {
     },
 
     removeFavorite(trackKey) {
-      const result = db
-        .prepare('DELETE FROM favorites WHERE track_key = ?')
-        .run(cleanText(trackKey));
+      const result = db.prepare('DELETE FROM favorites WHERE track_key = ?').run(cleanText(trackKey));
       return { removed: Number(result.changes) > 0 };
     },
 
     isFavorite(trackKey) {
-      const row = db
-        .prepare('SELECT id FROM favorites WHERE track_key = ?')
-        .get(cleanText(trackKey));
+      const row = db.prepare('SELECT id FROM favorites WHERE track_key = ?').get(cleanText(trackKey));
       return Boolean(row);
     },
 
@@ -368,13 +341,9 @@ function createPlaybackStore(db) {
     createPlaylist(input = {}) {
       const name = cleanText(input.name).slice(0, 80);
       if (!name) throw new Error('缺少歌单名称。');
-      const existing = db
-        .prepare('SELECT id FROM playlists WHERE name = ?')
-        .get(name);
+      const existing = db.prepare('SELECT id FROM playlists WHERE name = ?').get(name);
       if (existing) throw new Error('已有同名歌单。');
-      const nextOrder =
-        (db.prepare('SELECT MAX(sort_order) AS max FROM playlists').get() || {})
-          .max || 0;
+      const nextOrder = (db.prepare('SELECT MAX(sort_order) AS max FROM playlists').get() || {}).max || 0;
       const timestamp = now();
       const result = db
         .prepare(
@@ -383,13 +352,7 @@ function createPlaybackStore(db) {
         VALUES (?, ?, ?, ?, ?)
       `,
         )
-        .run(
-          name,
-          cleanText(input.description).slice(0, 200),
-          Number(nextOrder) + 1,
-          timestamp,
-          timestamp,
-        );
+        .run(name, cleanText(input.description).slice(0, 200), Number(nextOrder) + 1, timestamp, timestamp);
       return { id: Number(result.lastInsertRowid), name };
     },
 
@@ -397,12 +360,8 @@ function createPlaybackStore(db) {
       const playlistId = Number(id) || 0;
       db.exec('BEGIN');
       try {
-        db.prepare('DELETE FROM playlist_tracks WHERE playlist_id = ?').run(
-          playlistId,
-        );
-        const result = db
-          .prepare('DELETE FROM playlists WHERE id = ?')
-          .run(playlistId);
+        db.prepare('DELETE FROM playlist_tracks WHERE playlist_id = ?').run(playlistId);
+        const result = db.prepare('DELETE FROM playlists WHERE id = ?').run(playlistId);
         db.exec('COMMIT');
         return { removed: Number(result.changes) > 0 };
       } catch (error) {
@@ -426,15 +385,11 @@ function createPlaybackStore(db) {
 
     addPlaylistTracks(id, tracks) {
       const playlistId = Number(id) || 0;
-      const playlist = db
-        .prepare('SELECT id FROM playlists WHERE id = ?')
-        .get(playlistId);
+      const playlist = db.prepare('SELECT id FROM playlists WHERE id = ?').get(playlistId);
       if (!playlist) throw new Error('歌单不存在。');
       const list = Array.isArray(tracks) ? tracks : [tracks];
       const nextOrderRow = db
-        .prepare(
-          'SELECT MAX(sort_order) AS max FROM playlist_tracks WHERE playlist_id = ?',
-        )
+        .prepare('SELECT MAX(sort_order) AS max FROM playlist_tracks WHERE playlist_id = ?')
         .get(playlistId);
       let order = Number(nextOrderRow && nextOrderRow.max) || 0;
       let added = 0;
@@ -469,10 +424,7 @@ function createPlaybackStore(db) {
             );
           if (Number(result.changes) > 0) added += 1;
         }
-        db.prepare('UPDATE playlists SET updated_at = ? WHERE id = ?').run(
-          now(),
-          playlistId,
-        );
+        db.prepare('UPDATE playlists SET updated_at = ? WHERE id = ?').run(now(), playlistId);
         db.exec('COMMIT');
       } catch (error) {
         db.exec('ROLLBACK');
@@ -484,15 +436,10 @@ function createPlaybackStore(db) {
     removePlaylistTrack(id, trackKey) {
       const playlistId = Number(id) || 0;
       const result = db
-        .prepare(
-          'DELETE FROM playlist_tracks WHERE playlist_id = ? AND track_key = ?',
-        )
+        .prepare('DELETE FROM playlist_tracks WHERE playlist_id = ? AND track_key = ?')
         .run(playlistId, cleanText(trackKey));
       if (Number(result.changes) > 0) {
-        db.prepare('UPDATE playlists SET updated_at = ? WHERE id = ?').run(
-          now(),
-          playlistId,
-        );
+        db.prepare('UPDATE playlists SET updated_at = ? WHERE id = ?').run(now(), playlistId);
       }
       return { removed: Number(result.changes) > 0 };
     },

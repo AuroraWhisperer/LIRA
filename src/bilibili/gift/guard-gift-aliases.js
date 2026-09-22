@@ -9,8 +9,7 @@ const GUARD_GIFT_ALIASES = Object.freeze({
 const CANONICAL_GUARD_GIFT_BY_ID = new Map();
 for (const [canonicalId, aliases] of Object.entries(GUARD_GIFT_ALIASES)) {
   CANONICAL_GUARD_GIFT_BY_ID.set(canonicalId, canonicalId);
-  for (const alias of aliases)
-    CANONICAL_GUARD_GIFT_BY_ID.set(alias, canonicalId);
+  for (const alias of aliases) CANONICAL_GUARD_GIFT_BY_ID.set(alias, canonicalId);
 }
 
 function canonicalizeGuardGiftId(value) {

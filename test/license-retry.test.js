@@ -4,13 +4,8 @@ const assert = require('node:assert/strict');
 const crypto = require('node:crypto');
 const test = require('node:test');
 const { createRetryPolicy } = require('../src/electron/license/retry-policy');
-const {
-  createLicenseManager,
-  LicenseState,
-} = require('../src/electron/license/license-manager');
-const {
-  RemoteLicenseError,
-} = require('../src/electron/license/remote-license-client');
+const { createLicenseManager, LicenseState } = require('../src/electron/license/license-manager');
+const { RemoteLicenseError } = require('../src/electron/license/remote-license-client');
 
 // ---- retry policy unit tests ----
 
@@ -22,13 +17,7 @@ test('retry policy produces capped exponential delays with deterministic jitter'
     jitter: () => 0.5,
   });
   assert.deepEqual(
-    [
-      policy.nextDelay(),
-      policy.nextDelay(),
-      policy.nextDelay(),
-      policy.nextDelay(),
-      policy.nextDelay(),
-    ],
+    [policy.nextDelay(), policy.nextDelay(), policy.nextDelay(), policy.nextDelay(), policy.nextDelay()],
     [5000, 10000, 20000, 40000, 60000],
   );
   assert.equal(policy.attempts, 5);
@@ -39,10 +28,7 @@ test('retry policy jitter bounds the delay within [0.5x, 1.5x)', () => {
   assert.equal(low.nextDelay(), 2500);
   const high = createRetryPolicy({ baseMs: 5000, jitter: () => 0.9999 });
   const delay = high.nextDelay();
-  assert.ok(
-    delay >= 2500 && delay < 7500,
-    `delay ${delay} must stay inside the jitter window`,
-  );
+  assert.ok(delay >= 2500 && delay < 7500, `delay ${delay} must stay inside the jitter window`);
 });
 
 test('retry policy returns null after maxAttempts and reset restarts the sequence', () => {
@@ -95,10 +81,7 @@ function createFakeTimers() {
   };
 }
 
-function createManagerHarness({
-  verifyExpiresIn = () => '10m',
-  randomSource = () => 0.5,
-} = {}) {
+function createManagerHarness({ verifyExpiresIn = () => '10m', randomSource = () => 0.5 } = {}) {
   const identity = { deviceId: 'd', publicKeyPem: 'public' };
   const state = { value: identity };
   const calls = { challenges: 0, verifies: 0 };
@@ -174,8 +157,7 @@ function createManagerHarness({
 }
 
 async function flushMicrotasks(rounds = 20) {
-  for (let i = 0; i < rounds; i += 1)
-    await new Promise((resolve) => setImmediate(resolve));
+  for (let i = 0; i < rounds; i += 1) await new Promise((resolve) => setImmediate(resolve));
 }
 
 // The maintenance renewal delay derives from two Date.now() calls, so it can
@@ -185,11 +167,7 @@ const HEARTBEAT_DELAY = 150000;
 
 function renewalDelayOf(timers) {
   const delays = timers.delays().filter((d) => d !== HEARTBEAT_DELAY);
-  assert.equal(
-    delays.length,
-    1,
-    `expected exactly one renewal timer, got ${delays.join(',')}`,
-  );
+  assert.equal(delays.length, 1, `expected exactly one renewal timer, got ${delays.join(',')}`);
   return delays[0];
 }
 
@@ -203,15 +181,9 @@ test('renewal failure schedules bounded exponential retries and exhausts into ne
     `maintenance renewal should be ~510s, got ${maintenanceDelay}`,
   );
 
-  remoteControl.challengeError = new RemoteLicenseError(
-    'REQUEST_TIMEOUT',
-    'timeout',
-    { retryable: true },
-  );
+  remoteControl.challengeError = new RemoteLicenseError('REQUEST_TIMEOUT', 'timeout', { retryable: true });
 
-  const expectedDelays = [
-    5000, 10000, 20000, 40000, 60000, 60000, 60000, 60000, 60000, 60000,
-  ];
+  const expectedDelays = [5000, 10000, 20000, 40000, 60000, 60000, 60000, 60000, 60000, 60000];
   let timerDelay = maintenanceDelay;
   for (const expected of expectedDelays) {
     timers.runPendingWithDelay(timerDelay);
@@ -228,15 +200,8 @@ test('renewal failure schedules bounded exponential retries and exhausts into ne
   timers.runPendingWithDelay(60000);
   await flushMicrotasks();
   assert.equal(manager.getState(), LicenseState.NEEDS_CONNECTION);
-  assert.equal(
-    timers.pending().length,
-    0,
-    'no further retry timers may be scheduled',
-  );
-  assert.ok(
-    calls.challenges >= 11,
-    `expected at least 11 challenge attempts, got ${calls.challenges}`,
-  );
+  assert.equal(timers.pending().length, 0, 'no further retry timers may be scheduled');
+  assert.ok(calls.challenges >= 11, `expected at least 11 challenge attempts, got ${calls.challenges}`);
   manager.dispose();
 });
 
@@ -247,24 +212,14 @@ test('renewal retry delay is clamped by the remaining token lifetime', async () 
   await manager.bootstrap();
   assert.equal(manager.getState(), LicenseState.AUTHORIZED);
 
-  remoteControl.challengeError = new RemoteLicenseError(
-    'REQUEST_TIMEOUT',
-    'timeout',
-    { retryable: true },
-  );
+  remoteControl.challengeError = new RemoteLicenseError('REQUEST_TIMEOUT', 'timeout', { retryable: true });
   timers.runPendingWithDelay(renewalDelayOf(timers));
   await flushMicrotasks();
 
   const retryDelays = timers.delays().filter((d) => d !== 150000);
   assert.equal(retryDelays.length, 1);
-  assert.ok(
-    retryDelays[0] <= 3000,
-    `retry delay ${retryDelays[0]} must not outlive the token`,
-  );
-  assert.ok(
-    retryDelays[0] >= 1000,
-    `retry delay ${retryDelays[0]} must stay above the 1s floor`,
-  );
+  assert.ok(retryDelays[0] <= 3000, `retry delay ${retryDelays[0]} must not outlive the token`);
+  assert.ok(retryDelays[0] >= 1000, `retry delay ${retryDelays[0]} must stay above the 1s floor`);
   manager.dispose();
 });
 
@@ -273,40 +228,23 @@ test('successful renewal resets the backoff sequence', async () => {
   await manager.bootstrap();
   assert.equal(manager.getState(), LicenseState.AUTHORIZED);
 
-  remoteControl.challengeError = new RemoteLicenseError(
-    'REQUEST_TIMEOUT',
-    'timeout',
-    { retryable: true },
-  );
+  remoteControl.challengeError = new RemoteLicenseError('REQUEST_TIMEOUT', 'timeout', { retryable: true });
   timers.runPendingWithDelay(renewalDelayOf(timers));
   await flushMicrotasks();
   timers.runPendingWithDelay(5000);
   await flushMicrotasks();
-  assert.ok(
-    timers.delays().includes(10000),
-    'second retry should use the 10s backoff step',
-  );
+  assert.ok(timers.delays().includes(10000), 'second retry should use the 10s backoff step');
 
   remoteControl.challengeError = null;
   timers.runPendingWithDelay(10000);
   await flushMicrotasks();
   assert.equal(manager.getState(), LicenseState.AUTHORIZED);
   const rescheduled = renewalDelayOf(timers);
-  assert.ok(
-    rescheduled > 500000 && rescheduled <= 510000,
-    'success should reschedule normal maintenance',
-  );
+  assert.ok(rescheduled > 500000 && rescheduled <= 510000, 'success should reschedule normal maintenance');
 
-  remoteControl.challengeError = new RemoteLicenseError(
-    'REQUEST_TIMEOUT',
-    'timeout',
-    { retryable: true },
-  );
+  remoteControl.challengeError = new RemoteLicenseError('REQUEST_TIMEOUT', 'timeout', { retryable: true });
   timers.runPendingWithDelay(rescheduled);
   await flushMicrotasks();
-  assert.ok(
-    timers.delays().includes(5000),
-    'backoff must restart from the base delay after a success',
-  );
+  assert.ok(timers.delays().includes(5000), 'backoff must restart from the base delay after a success');
   manager.dispose();
 });

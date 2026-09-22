@@ -90,8 +90,7 @@ export function createPlaybackController(initialOptions = {}) {
     save: savePlaybackState,
     render: () => renderPlayback(),
   });
-  const flushPlaybackStateOnUnload =
-    statePersistence.flushPlaybackStateOnUnload;
+  const flushPlaybackStateOnUnload = statePersistence.flushPlaybackStateOnUnload;
 
   const providerManager = new ProviderManager({
     state: playbackState,
@@ -178,8 +177,7 @@ export function createPlaybackController(initialOptions = {}) {
     onStateChange: renderPlayback,
     showError: (error) => showError(error),
     toast: (message) => toast(message),
-    readJsonResponse: (response, message) =>
-      readJsonResponse(response, message),
+    readJsonResponse: (response, message) => readJsonResponse(response, message),
   });
 
   function getPlaybackAudio() {
@@ -203,8 +201,7 @@ export function createPlaybackController(initialOptions = {}) {
   // 直接从渲染模块导出渲染函数
   const renderPlaybackProgress = rendererModule.renderPlaybackProgress;
   const renderFullscreenPlayer = rendererModule.renderFullscreenPlayer;
-  const renderPlaybackSearchResults =
-    rendererModule.renderPlaybackSearchResults;
+  const renderPlaybackSearchResults = rendererModule.renderPlaybackSearchResults;
   const renderPlaybackHomeResults = rendererModule.renderPlaybackHomeResults;
   const renderPlaybackMatchResults = rendererModule.renderPlaybackMatchResults;
 
@@ -300,10 +297,7 @@ export function createPlaybackController(initialOptions = {}) {
   // SECTION 7 — 渲染与延迟绑定包装函数
   // ══════════════════════════════════════════════════════════════
   function renderPlayback() {
-    rendererModule.renderPlayback(
-      providerOperations.getAuthState(),
-      providerOperations.getProviderHealth(),
-    );
+    rendererModule.renderPlayback(providerOperations.getAuthState(), providerOperations.getProviderHealth());
   }
 
   function syncPlaybackLyricWindow(force = false) {
@@ -319,11 +313,7 @@ export function createPlaybackController(initialOptions = {}) {
   }
 
   function updatePlaybackMediaSession() {
-    rendererModule.updatePlaybackMediaSession(
-      togglePlayback,
-      playbackPrevious,
-      () => playbackNext(false),
-    );
+    rendererModule.updatePlaybackMediaSession(togglePlayback, playbackPrevious, () => playbackNext(false));
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -337,11 +327,9 @@ export function createPlaybackController(initialOptions = {}) {
     renderPlayback: () => renderPlayback(),
     getPlaybackAudio,
     syncPlaybackLyricWindow: () => syncPlaybackLyricWindow(),
-    invalidatePlaybackRequests: () =>
-      playbackControls.invalidatePlaybackRequests(),
+    invalidatePlaybackRequests: () => playbackControls.invalidatePlaybackRequests(),
     playPlaybackTrack: (...args) => playPlaybackTrack(...args),
-    ensurePlaybackRadioQueueFilled: (...args) =>
-      ensurePlaybackRadioQueueFilled(...args),
+    ensurePlaybackRadioQueueFilled: (...args) => ensurePlaybackRadioQueueFilled(...args),
     toast,
   });
   const {
@@ -436,17 +424,11 @@ export function createPlaybackController(initialOptions = {}) {
   // SECTION 12 — 回调注入（包装需要注入回调的函数）
   // ══════════════════════════════════════════════════════════════
   function togglePlayback() {
-    return togglePlaybackRaw(takeNextPlaybackTrack, () =>
-      providerOperations.showPlaybackLoginPrompt(),
-    );
+    return togglePlaybackRaw(takeNextPlaybackTrack, () => providerOperations.showPlaybackLoginPrompt());
   }
 
   function playbackNext(fromEnded) {
-    return playbackNextRaw(
-      fromEnded,
-      takeNextPlaybackTrack,
-      ensurePlaybackRadioQueueFilled,
-    );
+    return playbackNextRaw(fromEnded, takeNextPlaybackTrack, ensurePlaybackRadioQueueFilled);
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -475,14 +457,10 @@ export function createPlaybackController(initialOptions = {}) {
     playbackNext,
     togglePlayback,
     changePlaybackQuality,
-    addCurrentTrackToPlaylist: () =>
-      playlistOperations.addCurrentTrackToPlaylist(),
-    loginSelectedMusicProvider: () =>
-      providerOperations.loginSelectedMusicProvider(),
-    logoutSelectedMusicProvider: () =>
-      providerOperations.logoutSelectedMusicProvider(),
-    checkSelectedMusicProviderHealth: (options) =>
-      providerOperations.checkSelectedMusicProviderHealth(options),
+    addCurrentTrackToPlaylist: () => playlistOperations.addCurrentTrackToPlaylist(),
+    loginSelectedMusicProvider: () => providerOperations.loginSelectedMusicProvider(),
+    logoutSelectedMusicProvider: () => providerOperations.logoutSelectedMusicProvider(),
+    checkSelectedMusicProviderHealth: (options) => providerOperations.checkSelectedMusicProviderHealth(options),
     clearPlaybackMusicCache: () => cacheOperations.clearPlaybackMusicCache(),
     runPlaybackMatchTest: () => matchHandler.runPlaybackMatchTest(),
     runPlaybackSearch: () => searchHandler.runPlaybackSearch(),
@@ -503,8 +481,7 @@ export function createPlaybackController(initialOptions = {}) {
     jumpToPlaylistTrack,
     playPlaybackTrack,
     rebuildPlaybackShuffleOrder,
-    refreshSelectedMusicProviderState: () =>
-      providerOperations.refreshSelectedMusicProviderState(),
+    refreshSelectedMusicProviderState: () => providerOperations.refreshSelectedMusicProviderState(),
     escapeHtml,
     value,
   });
@@ -524,10 +501,8 @@ export function createPlaybackController(initialOptions = {}) {
     playbackNext,
     handlePlaybackError: streamHandler.handlePlaybackError,
     flushPlaybackStateOnUnload: statePersistence.flushPlaybackStateOnUnload,
-    flushPlaybackStateForShutdown:
-      statePersistence.flushPlaybackStateForShutdown,
-    refreshSelectedMusicProviderState: () =>
-      providerOperations.refreshSelectedMusicProviderState(),
+    flushPlaybackStateForShutdown: statePersistence.flushPlaybackStateForShutdown,
+    refreshSelectedMusicProviderState: () => providerOperations.refreshSelectedMusicProviderState(),
   });
 
   async function restorePlaybackState() {
@@ -549,8 +524,7 @@ export function createPlaybackController(initialOptions = {}) {
         if (options.toast) toast = options.toast;
         if (options.showError) showError = options.showError;
         if (options.api) api = options.api;
-        if (options.readJsonResponse)
-          readJsonResponse = options.readJsonResponse;
+        if (options.readJsonResponse) readJsonResponse = options.readJsonResponse;
       }
 
       weSingService.init();

@@ -4,18 +4,9 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
-const {
-  createLotteryAuthStore,
-} = require('../src/electron/dynamic-lottery-auth-store');
-const {
-  createLotteryProvider,
-} = require('../src/bilibili/dynamic-lottery/provider');
-const {
-  createFixture,
-  settle,
-  authCookies,
-  uid,
-} = require('./helpers/dynamic-lottery-auth-fixture');
+const { createLotteryAuthStore } = require('../src/electron/dynamic-lottery-auth-store');
+const { createLotteryProvider } = require('../src/bilibili/dynamic-lottery/provider');
+const { createFixture, settle, authCookies, uid } = require('./helpers/dynamic-lottery-auth-fixture');
 
 test('dedicated login, provider context, encrypted restore and logout never touch live credentials', async (t) => {
   const f = createFixture(t);
@@ -33,9 +24,7 @@ test('dedicated login, provider context, encrypted restore and logout never touc
     })
     .filter((name) => name.endsWith('.enc'));
   assert.equal(snapshots.length, 1);
-  const encrypted = fs.readFileSync(
-    path.join(f.dataDir, 'dynamic-lottery-auth', snapshots[0]),
-  );
+  const encrypted = fs.readFileSync(path.join(f.dataDir, 'dynamic-lottery-auth', snapshots[0]));
   assert.equal(encrypted.includes(Buffer.from('lottery-test-secret')), false);
   const store = createLotteryAuthStore({ ...f, streamerId: 'streamer-a' });
   f.lotteryCookies().items = [];
@@ -52,16 +41,11 @@ test('dedicated login, provider context, encrypted restore and logout never touc
       return new Response(JSON.stringify({ code: -101 }));
     },
   });
-  await assert.rejects(
-    provider.inspectDynamic('https://www.bilibili.com/opus/123'),
-  );
+  await assert.rejects(provider.inspectDynamic('https://www.bilibili.com/opus/123'));
   assert.equal(called, true);
   await f.auth.logout();
   assert.equal((await f.auth.getAuthState()).loggedIn, false);
-  assert.equal(
-    fs.existsSync(path.join(f.dataDir, 'dynamic-lottery-auth', snapshots[0])),
-    false,
-  );
+  assert.equal(fs.existsSync(path.join(f.dataDir, 'dynamic-lottery-auth', snapshots[0])), false);
   await assert.rejects(f.auth.getContext(), {
     code: 'LOTTERY_SESSION_UNAVAILABLE',
   });

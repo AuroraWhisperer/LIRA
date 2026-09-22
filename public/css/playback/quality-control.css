@@ -32,11 +32,7 @@
 }
 
 .playback-quality-btn:hover {
-  background: color-mix(
-    in srgb,
-    var(--color-control-accent) 14%,
-    var(--surface)
-  );
+  background: color-mix(in srgb, var(--color-control-accent) 14%, var(--surface));
   transform: translateY(-1px);
 }
 

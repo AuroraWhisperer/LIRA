@@ -6,10 +6,7 @@ import { DESKTOP_LYRIC_DEFAULTS } from '../lyrics/desktop-lyric-defaults.js';
 import { copyText, localOverlayOrigin, toast } from '../shared/utils.js';
 import { stateService } from './state.js';
 import { publishDesktopLyricPreview } from './legacy-admin-bridge.js';
-import {
-  readDesktopLyricFormSettings,
-  setDesktopLyricBackground,
-} from './desktop-lyric-controls.js';
+import { readDesktopLyricFormSettings, setDesktopLyricBackground } from './desktop-lyric-controls.js';
 
 let initialized = false;
 
@@ -20,25 +17,13 @@ function init(form) {
 
   form?.addEventListener('input', applyStylesFromForm);
   form?.addEventListener('change', applyStylesFromForm);
-  document
-    .querySelectorAll('[data-lyric-preview-background]')
-    .forEach((button) => {
-      button.addEventListener('click', () =>
-        setDesktopLyricBackground(button.dataset.lyricPreviewBackground),
-      );
-    });
-  document
-    .getElementById('desktopLyricCopyUrlBtn')
-    ?.addEventListener('click', copyDesktopLyricUrl);
-  window.addEventListener('app:lyric-state', (event) =>
-    desktopLyricRenderer.updateLyricState(event.detail),
-  );
-  window.addEventListener('app:lyric-timeline', (event) =>
-    desktopLyricRenderer.updateLyricTimeline(event.detail),
-  );
-  window.addEventListener('app:settings-state', (event) =>
-    desktopLyricRenderer.applySettings(event.detail),
-  );
+  document.querySelectorAll('[data-lyric-preview-background]').forEach((button) => {
+    button.addEventListener('click', () => setDesktopLyricBackground(button.dataset.lyricPreviewBackground));
+  });
+  document.getElementById('desktopLyricCopyUrlBtn')?.addEventListener('click', copyDesktopLyricUrl);
+  window.addEventListener('app:lyric-state', (event) => desktopLyricRenderer.updateLyricState(event.detail));
+  window.addEventListener('app:lyric-timeline', (event) => desktopLyricRenderer.updateLyricTimeline(event.detail));
+  window.addEventListener('app:settings-state', (event) => desktopLyricRenderer.applySettings(event.detail));
 
   const appState = stateService.getAppState();
   if (appState?.lyricTimeline) {
@@ -51,9 +36,7 @@ function init(form) {
 }
 
 function applyStylesFromForm() {
-  desktopLyricRenderer.applySettings(
-    readDesktopLyricFormSettings(DESKTOP_LYRIC_DEFAULTS),
-  );
+  desktopLyricRenderer.applySettings(readDesktopLyricFormSettings(DESKTOP_LYRIC_DEFAULTS));
 }
 
 async function copyDesktopLyricUrl() {

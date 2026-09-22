@@ -17,9 +17,7 @@ function runMigrations(db, key, steps) {
     )
   `);
 
-  const row = db
-    .prepare('SELECT version FROM schema_version WHERE key = ?')
-    .get(key);
+  const row = db.prepare('SELECT version FROM schema_version WHERE key = ?').get(key);
   const current = row ? Number(row.version) || 0 : 0;
   const target = steps.length;
 
@@ -40,9 +38,7 @@ function runMigrations(db, key, steps) {
       db.exec('COMMIT');
     } catch (error) {
       db.exec('ROLLBACK');
-      throw new Error(
-        `[Schema] ${key} migration to v${version} failed: ${error.message}`,
-      );
+      throw new Error(`[Schema] ${key} migration to v${version} failed: ${error.message}`);
     }
     applied += 1;
   }
@@ -62,9 +58,7 @@ function writeSchemaVersion(db, key, version) {
 
 function getSchemaVersion(db, key) {
   try {
-    const row = db
-      .prepare('SELECT version FROM schema_version WHERE key = ?')
-      .get(key);
+    const row = db.prepare('SELECT version FROM schema_version WHERE key = ?').get(key);
     return row ? Number(row.version) || 0 : 0;
   } catch (_) {
     return 0;

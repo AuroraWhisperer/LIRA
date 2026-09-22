@@ -29,11 +29,7 @@ async function createForm() {
   const edit = element('edit');
   edit.dataset = { editSong: '7' };
   const calls = [];
-  const escapeHtml = (input) =>
-    String(input)
-      .replaceAll('&', '&amp;')
-      .replaceAll('<', '&lt;')
-      .replaceAll('>', '&gt;');
+  const escapeHtml = (input) => String(input).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;');
   const window = {
     addEventListener() {},
     AdminApp: {
@@ -52,19 +48,18 @@ async function createForm() {
   };
   const document = {
     getElementById: element,
-    querySelectorAll: (selector) =>
-      selector === '[data-edit-song]' ? [edit] : [],
+    querySelectorAll: (selector) => (selector === '[data-edit-song]' ? [edit] : []),
     addEventListener() {},
   };
   const utils = window.AdminApp.utils;
   const { loadModuleExports } = require('./helpers/frontend-modules');
-  const { createSongs } = await loadModuleExports(
-    path.resolve(__dirname, '../public/js/admin/songs.js'), { window, document },
-  );
+  const { createSongs } = await loadModuleExports(path.resolve(__dirname, '../public/js/admin/songs.js'), {
+    window,
+    document,
+  });
   const songs = createSongs({ utils, state: { reloadAll: async () => {} } });
   songs.initSongForm();
-  const submit = () =>
-    element('songForm').events.submit({ preventDefault() {} });
+  const submit = () => element('songForm').events.submit({ preventDefault() {} });
   const render = (price, clip = '') =>
     songs.renderSongs(
       [
@@ -88,10 +83,7 @@ test('song form edits and clears price and clip, resets presets, and escapes lis
   const { element, edit, songs, calls, submit, render } = await createForm();
   const price = '舰长 "原文"\n<script>价格</script>';
   render(price, 'BV1\n<img>');
-  assert.match(
-    element('songsTable').innerHTML,
-    /&lt;script&gt;价格&lt;\/script&gt;/,
-  );
+  assert.match(element('songsTable').innerHTML, /&lt;script&gt;价格&lt;\/script&gt;/);
   assert.match(element('songsTable').innerHTML, /&lt;img&gt;/);
   await edit.events.click();
   assert.equal(element('songRequestPrice').value, price);
@@ -101,13 +93,7 @@ test('song form edits and clears price and clip, resets presets, and escapes lis
   assert.equal(calls.find((call) => call.url).body.requestPrice, price);
   assert.equal(calls.find((call) => call.url).body.songClip, 'BV1\n<img>');
   assert.ok(calls.some((call) => call.toast?.includes('本地')));
-  for (const id of [
-    'songId',
-    'songRequestPrice',
-    'songClip',
-    'songPricePreset',
-  ])
-    assert.equal(element(id).value, '');
+  for (const id of ['songId', 'songRequestPrice', 'songClip', 'songPricePreset']) assert.equal(element(id).value, '');
   await edit.events.click();
   element('songRequestPrice').value = '';
   element('songClip').value = '';

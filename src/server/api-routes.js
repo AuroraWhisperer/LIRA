@@ -32,16 +32,11 @@ const ROUTE_MODULES = [
 function findRoute(pathName, method) {
   let pathExists = false;
   for (const routeModule of ROUTE_MODULES) {
-    if (!routeModule.prefixes.some((prefix) => pathName.startsWith(prefix)))
-      continue;
+    if (!routeModule.prefixes.some((prefix) => pathName.startsWith(prefix))) continue;
     const handler = routeModule.routes[`${method} ${pathName}`];
     if (handler) return { handler };
     // 路径存在但方法不匹配时要回 405，而不是 404
-    pathExists =
-      pathExists ||
-      Object.keys(routeModule.routes).some((key) =>
-        key.endsWith(` ${pathName}`),
-      );
+    pathExists = pathExists || Object.keys(routeModule.routes).some((key) => key.endsWith(` ${pathName}`));
   }
   return { pathExists };
 }
@@ -50,8 +45,7 @@ function findRoute(pathName, method) {
 function createBodyReader(req, maxBodyBytes) {
   let pending = null;
   return () => {
-    if (!pending)
-      pending = readJsonBody(req, maxBodyBytes).then((body) => body || {});
+    if (!pending) pending = readJsonBody(req, maxBodyBytes).then((body) => body || {});
     return pending;
   };
 }
@@ -64,8 +58,7 @@ async function handleApi(context, req, res, requestUrl) {
   if (origin === 'null') {
     // Opaque origin is not an identity. Preflight exposes no data; every actual
     // operation below still requires a verified, matching page capability.
-    const requestedMethod = method === 'OPTIONS'
-      ? req.headers['access-control-request-method'] : method;
+    const requestedMethod = method === 'OPTIONS' ? req.headers['access-control-request-method'] : method;
     if (!isOverlayRoute(requestedMethod, pathName) || principal?.type === 'admin') {
       return sendJson(res, 403, { ok: false, error: 'Origin not allowed.' });
     }
@@ -73,7 +66,10 @@ async function handleApi(context, req, res, requestUrl) {
     res.setHeader('Vary', 'Origin');
     if (method === 'OPTIONS') {
       const headers = String(req.headers['access-control-request-headers'] || '')
-        .toLowerCase().split(',').map((value) => value.trim()).filter(Boolean);
+        .toLowerCase()
+        .split(',')
+        .map((value) => value.trim())
+        .filter(Boolean);
       if (headers.some((value) => !['authorization', 'content-type'].includes(value))) {
         return sendJson(res, 403, { ok: false, error: 'Request headers not allowed.' });
       }
@@ -95,7 +91,10 @@ async function handleApi(context, req, res, requestUrl) {
   }
 
   const request = {
-    method, pathName, query: requestUrl.searchParams, req,
+    method,
+    pathName,
+    query: requestUrl.searchParams,
+    req,
     body: createBodyReader(req, pathName.startsWith('/api/interactions/') ? 16 * 1024 : context.maxBodyBytes),
   };
   if (principal?.type === 'overlay' && pathName !== '/api/health') {

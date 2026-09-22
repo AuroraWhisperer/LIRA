@@ -5,11 +5,7 @@ const { sanitizeAuthState } = require('../auth-state');
 function mapNeteaseSong(song, searchCoverUrl) {
   if (!song || !song.id || !song.name) return null;
   const album = song.album || song.al || {};
-  const artists = Array.isArray(song.artists)
-    ? song.artists
-    : Array.isArray(song.ar)
-      ? song.ar
-      : [];
+  const artists = Array.isArray(song.artists) ? song.artists : Array.isArray(song.ar) ? song.ar : [];
   const sourceTrackId = String(song.id);
 
   // 封面来源优先级：
@@ -17,8 +13,7 @@ function mapNeteaseSong(song, searchCoverUrl) {
   // 2. 当前歌曲中的专辑 picUrl（歌单/推荐等接口有）
   // 3. 第一位艺术家的头像（搜索详情缺失或请求失败时的回退）
   let coverUrl = String(searchCoverUrl || '').trim();
-  if (!coverUrl)
-    coverUrl = String((album && (album.picUrl || album.pic_url)) || '');
+  if (!coverUrl) coverUrl = String((album && (album.picUrl || album.pic_url)) || '');
   if (!coverUrl && artists.length > 0) {
     coverUrl = String(artists[0].img1v1Url || '');
   }
@@ -29,9 +24,7 @@ function mapNeteaseSong(song, searchCoverUrl) {
     sourceTrackId,
     sourceAlbumId: album && album.id ? String(album.id) : '',
     title: String(song.name || '').trim(),
-    artists: artists
-      .map((artist) => String((artist && artist.name) || '').trim())
-      .filter(Boolean),
+    artists: artists.map((artist) => String((artist && artist.name) || '').trim()).filter(Boolean),
     album: String((album && album.name) || '').trim(),
     durationMs: Math.max(0, Number(song.duration || song.dt || 0)),
     coverUrl,
@@ -46,23 +39,16 @@ function mapNeteasePlaylist(playlist) {
     id: String(playlist.id),
     source: 'netease',
     title: String(playlist.name || '').trim(),
-    description: String(
-      playlist.copywriter || playlist.description || '',
-    ).trim(),
+    description: String(playlist.copywriter || playlist.description || '').trim(),
     coverUrl: String(playlist.picUrl || playlist.coverImgUrl || ''),
     trackCount: Math.max(0, Number(playlist.trackCount || 0)),
     playCount: Math.max(0, Number(playlist.playCount || 0)),
-    creatorUserId:
-      playlist.creator && playlist.creator.userId
-        ? String(playlist.creator.userId)
-        : '',
+    creatorUserId: playlist.creator && playlist.creator.userId ? String(playlist.creator.userId) : '',
   };
 }
 
 function extractSourceTrackId(track) {
-  const sourceTrackId = String(
-    (track && (track.sourceTrackId || track.id)) || '',
-  )
+  const sourceTrackId = String((track && (track.sourceTrackId || track.id)) || '')
     .replace(/^netease:/, '')
     .trim();
   if (!sourceTrackId) throw new Error('缺少网易云歌曲 ID。');
@@ -70,20 +56,15 @@ function extractSourceTrackId(track) {
 }
 
 function normalizeNeteasePlaylistTrackIds(tracks) {
-  const trackIds = (Array.isArray(tracks) ? tracks : []).map((track) =>
-    extractSourceTrackId(track),
-  );
+  const trackIds = (Array.isArray(tracks) ? tracks : []).map((track) => extractSourceTrackId(track));
   if (trackIds.length === 0) throw new Error('缺少网易云歌曲 ID。');
-  if (trackIds.some((id) => !/^\d+$/.test(id)))
-    throw new Error('网易云歌曲 ID 必须是正整数。');
+  if (trackIds.some((id) => !/^\d+$/.test(id))) throw new Error('网易云歌曲 ID 必须是正整数。');
   return trackIds;
 }
 
 function normalizeTrialTimeMs(value) {
   const seconds = Number(value);
-  return Number.isFinite(seconds) && seconds >= 0
-    ? Math.round(seconds * 1000)
-    : 0;
+  return Number.isFinite(seconds) && seconds >= 0 ? Math.round(seconds * 1000) : 0;
 }
 
 function extractCookieValue(cookieHeader, name) {

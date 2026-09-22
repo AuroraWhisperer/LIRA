@@ -43,20 +43,12 @@ function createCooldownStore(db) {
           request_count = user_cooldowns.request_count + 1,
           updated_at = excluded.updated_at
       `,
-      ).run(
-        key,
-        cleanText(uid),
-        cleanText(userName),
-        Number(at) || Date.now(),
-        now(),
-      );
+      ).run(key, cleanText(uid), cleanText(userName), Number(at) || Date.now(), now());
     },
 
     prune(retentionMs = COOLDOWN_RETENTION_MS) {
       const threshold = Date.now() - Math.max(0, Number(retentionMs) || 0);
-      const result = db
-        .prepare('DELETE FROM user_cooldowns WHERE last_request_at < ?')
-        .run(threshold);
+      const result = db.prepare('DELETE FROM user_cooldowns WHERE last_request_at < ?').run(threshold);
       return Number(result.changes) || 0;
     },
 

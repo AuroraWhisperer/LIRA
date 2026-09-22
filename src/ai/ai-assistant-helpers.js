@@ -21,9 +21,7 @@ function randomIntervalMs(random, minimum, maximum) {
 }
 
 function buildAvailableTools(config, excludedToolNames) {
-  return buildTools(config).filter(
-    (tool) => !tool.name || !excludedToolNames.has(tool.name),
-  );
+  return buildTools(config).filter((tool) => !tool.name || !excludedToolNames.has(tool.name));
 }
 
 function extractTriggeredQuestion(message, trigger) {
@@ -31,9 +29,10 @@ function extractTriggeredQuestion(message, trigger) {
   const keyword = cleanText(trigger);
   const index = keyword ? text.indexOf(keyword) : -1;
   if (index < 0) return null;
-  const question = cleanText(
-    `${text.slice(0, index)} ${text.slice(index + keyword.length)}`,
-  ).replace(/^[，,。.!！?？:：、\s]+|[\s]+$/g, '');
+  const question = cleanText(`${text.slice(0, index)} ${text.slice(index + keyword.length)}`).replace(
+    /^[，,。.!！?？:：、\s]+|[\s]+$/g,
+    '',
+  );
   return question || '和大家打个招呼';
 }
 
@@ -97,9 +96,7 @@ function addUsage(target, usage = {}) {
 }
 
 function getModelOutputTokens(config = {}) {
-  return config.reasoningEnabled
-    ? REASONING_OUTPUT_TOKENS
-    : MODEL_OUTPUT_TOKENS;
+  return config.reasoningEnabled ? REASONING_OUTPUT_TOKENS : MODEL_OUTPUT_TOKENS;
 }
 
 function codedError(code, message) {
@@ -123,18 +120,12 @@ function publicError(error) {
 function failureReply(error) {
   const code = String(error?.code || '');
   if (code === 'UPSTREAM_TIMEOUT') return '查询超时了，稍后再试一次～';
-  if (code.startsWith('WEB_SEARCH_'))
-    return '联网搜索暂时失败，换个关键词或稍后再问我～';
-  if (code === 'AMAP_NOT_CONFIGURED')
-    return '路线服务还没配置好，请先接入地图服务。';
-  if (code === 'QWEATHER_NOT_CONFIGURED')
-    return '天气服务还没配置好，请先接入天气服务。';
-  if (code === 'AI_NOT_CONFIGURED')
-    return 'AI 服务还没配置好，请先检查接口地址和 Key。';
-  if (code.startsWith('QWEATHER_'))
-    return '天气服务暂时没返回结果，换个城市再问我～';
-  if (code.startsWith('AMAP_'))
-    return '路线数据没返回完整，换个地点或方式再问我～';
+  if (code.startsWith('WEB_SEARCH_')) return '联网搜索暂时失败，换个关键词或稍后再问我～';
+  if (code === 'AMAP_NOT_CONFIGURED') return '路线服务还没配置好，请先接入地图服务。';
+  if (code === 'QWEATHER_NOT_CONFIGURED') return '天气服务还没配置好，请先接入天气服务。';
+  if (code === 'AI_NOT_CONFIGURED') return 'AI 服务还没配置好，请先检查接口地址和 Key。';
+  if (code.startsWith('QWEATHER_')) return '天气服务暂时没返回结果，换个城市再问我～';
+  if (code.startsWith('AMAP_')) return '路线数据没返回完整，换个地点或方式再问我～';
   return '这次查询没完成，换个问法或稍后再试～';
 }
 

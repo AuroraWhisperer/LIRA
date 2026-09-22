@@ -4,18 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const SOURCE_ROOTS = ['src', 'public', 'scripts', 'tools', 'test', 'build'];
-const SOURCE_EXTENSIONS = new Set([
-  '.js',
-  '.mjs',
-  '.cjs',
-  '.css',
-  '.html',
-  '.json',
-  '.ps1',
-  '.cmd',
-  '.bat',
-  '.nsh',
-]);
+const SOURCE_EXTENSIONS = new Set(['.js', '.mjs', '.cjs', '.css', '.html', '.json', '.ps1', '.cmd', '.bat', '.nsh']);
 const BASELINE_PATH = 'docs/architecture/engineering/modularity-baseline.json';
 
 function countPhysicalLines(source) {
@@ -31,10 +20,7 @@ function collectSourceFiles(rootDir) {
     for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
       const relativePath = `${relativeDirectory}/${entry.name}`;
       if (entry.isDirectory()) visit(relativePath);
-      else if (
-        entry.isFile() &&
-        SOURCE_EXTENSIONS.has(path.extname(entry.name).toLowerCase())
-      ) {
+      else if (entry.isFile() && SOURCE_EXTENSIONS.has(path.extname(entry.name).toLowerCase())) {
         files.push(relativePath);
       }
     }
@@ -67,9 +53,7 @@ function validateRecord(record, sourceFiles, rootDir, today) {
   }
   const label = record.path || '<missing path>';
   if (!isRepositoryPath(record.path) || !sourceFiles.has(record.path)) {
-    errors.push(
-      `${label}: registry path must name one existing scanned source file`,
-    );
+    errors.push(`${label}: registry path must name one existing scanned source file`);
   }
   if (!['review', 'legacy', 'exception'].includes(record.kind)) {
     errors.push(`${label}: kind must be review, legacy or exception`);
@@ -78,24 +62,18 @@ function validateRecord(record, sourceFiles, rootDir, today) {
     errors.push(`${label}: maxLines must be an integer greater than 600`);
   }
   if (record.kind === 'review' && record.maxLines > 800) {
-    errors.push(
-      `${label}: an ordinary review cannot permit more than 800 lines`,
-    );
+    errors.push(`${label}: an ordinary review cannot permit more than 800 lines`);
   }
   if (record.kind === 'legacy' && record.maxLines <= 800) {
     errors.push(`${label}: legacy overflow must be above 800 lines`);
   }
   for (const field of ['owner', 'reason', 'removal']) {
     if (typeof record[field] !== 'string' || !record[field].trim()) {
-      errors.push(
-        `${label}: ${field} must explain the file-specific assessment`,
-      );
+      errors.push(`${label}: ${field} must explain the file-specific assessment`);
     }
   }
   if (!isReviewDate(record.reviewBy) || record.reviewBy < today) {
-    errors.push(
-      `${label}: reviewBy is invalid or expired; review the debt before renewing`,
-    );
+    errors.push(`${label}: reviewBy is invalid or expired; review the debt before renewing`);
   }
   if (
     !isRepositoryPath(record.test) ||
@@ -108,11 +86,7 @@ function validateRecord(record, sourceFiles, rootDir, today) {
   return errors;
 }
 
-function checkModularity(
-  rootDir,
-  registry,
-  today = new Date().toISOString().slice(0, 10),
-) {
+function checkModularity(rootDir, registry, today = new Date().toISOString().slice(0, 10)) {
   const files = collectSourceFiles(rootDir);
   const sourceFiles = new Set(files);
   const errors = [];
@@ -128,20 +102,14 @@ function checkModularity(
   for (const record of registry.entries) {
     errors.push(...validateRecord(record, sourceFiles, rootDir, today));
     if (!record || typeof record.path !== 'string') continue;
-    if (records.has(record.path))
-      errors.push(`${record.path}: duplicate registry entry`);
+    if (records.has(record.path)) errors.push(`${record.path}: duplicate registry entry`);
     records.set(record.path, record);
   }
   for (const file of files) {
-    const lines = countPhysicalLines(
-      fs.readFileSync(path.join(rootDir, file), 'utf8'),
-    );
+    const lines = countPhysicalLines(fs.readFileSync(path.join(rootDir, file), 'utf8'));
     const record = records.get(file);
     if (lines <= 600) {
-      if (record)
-        errors.push(
-          `${file}: now ${lines} lines; remove the obsolete file-size record`,
-        );
+      if (record) errors.push(`${file}: now ${lines} lines; remove the obsolete file-size record`);
       continue;
     }
     if (!record) {
@@ -160,9 +128,7 @@ function checkModularity(
 
 function main() {
   const rootDir = path.resolve(__dirname, '..');
-  const registry = JSON.parse(
-    fs.readFileSync(path.join(rootDir, BASELINE_PATH), 'utf8'),
-  );
+  const registry = JSON.parse(fs.readFileSync(path.join(rootDir, BASELINE_PATH), 'utf8'));
   const result = checkModularity(rootDir, registry);
   for (const error of result.errors) console.error(error);
   console.log(

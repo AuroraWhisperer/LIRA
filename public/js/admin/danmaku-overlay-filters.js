@@ -17,11 +17,19 @@ export function initDanmakuOverlayFilters() {
   const get = (id) => document.getElementById(`danmaku${id}`);
   const bridge = window.liraLicense;
   const state = get('FiltersState');
-  const uidInput = get('BlacklistUid'), wordInput = get('KeywordInput');
-  const picker = get('ViewerPicker'), viewerState = get('ViewerState');
+  const uidInput = get('BlacklistUid'),
+    wordInput = get('KeywordInput');
+  const picker = get('ViewerPicker'),
+    viewerState = get('ViewerState');
   let settings = { blockedUsers: [], blockedKeywords: [] };
-  let owner = '', generation = 0, loaded = false, loading = false, saving = false;
-  let readingViewers = false, viewers = [], selected = new Set();
+  let owner = '',
+    generation = 0,
+    loaded = false,
+    loading = false,
+    saving = false;
+  let readingViewers = false,
+    viewers = [],
+    selected = new Set();
 
   function checked(response) {
     if (!response?.ok) throw new Error(ERRORS[response?.error] || '操作未完成，请重新读取后重试。');
@@ -47,22 +55,28 @@ export function initDanmakuOverlayFilters() {
     const query = get('ViewerSearch').value.trim().toLowerCase();
     const blocked = new Set(settings.blockedUsers.map((user) => user.uid));
     const visible = viewers.filter((user) => `${user.name} ${user.uid}`.toLowerCase().includes(query));
-    get('ViewerList').replaceChildren(...visible.map((user) => {
-      const item = document.createElement('li'), label = document.createElement('label');
-      const checkbox = document.createElement('input'), text = document.createElement('span');
-      checkbox.type = 'checkbox';
-      checkbox.checked = blocked.has(user.uid) || selected.has(user.uid);
-      checkbox.disabled = saving || loading || readingViewers || blocked.has(user.uid);
-      checkbox.addEventListener('change', () => {
-        if (checkbox.checked) selected.add(user.uid); else selected.delete(user.uid);
-        updateSelection();
-      });
-      text.textContent = `${user.name || '未提供昵称'} · UID ${user.uid}${blocked.has(user.uid) ? '（已屏蔽）' : ''}`;
-      label.append(checkbox, text);
-      item.append(label);
-      return item;
-    }));
-    if (viewers.length && !readingViewers) viewerState.textContent = visible.length ? '' : '没有匹配的观众，可调整搜索或手动输入 UID。';
+    get('ViewerList').replaceChildren(
+      ...visible.map((user) => {
+        const item = document.createElement('li'),
+          label = document.createElement('label');
+        const checkbox = document.createElement('input'),
+          text = document.createElement('span');
+        checkbox.type = 'checkbox';
+        checkbox.checked = blocked.has(user.uid) || selected.has(user.uid);
+        checkbox.disabled = saving || loading || readingViewers || blocked.has(user.uid);
+        checkbox.addEventListener('change', () => {
+          if (checkbox.checked) selected.add(user.uid);
+          else selected.delete(user.uid);
+          updateSelection();
+        });
+        text.textContent = `${user.name || '未提供昵称'} · UID ${user.uid}${blocked.has(user.uid) ? '（已屏蔽）' : ''}`;
+        label.append(checkbox, text);
+        item.append(label);
+        return item;
+      }),
+    );
+    if (viewers.length && !readingViewers)
+      viewerState.textContent = visible.length ? '' : '没有匹配的观众，可调整搜索或手动输入 UID。';
     updateSelection();
   }
 
@@ -83,14 +97,20 @@ export function initDanmakuOverlayFilters() {
     get('KeywordCount').textContent = `${settings.blockedKeywords.length} 个词`;
     get('BlacklistEmpty').hidden = !loaded || settings.blockedUsers.length > 0;
     get('KeywordsEmpty').hidden = !loaded || settings.blockedKeywords.length > 0;
-    get('Blacklist').replaceChildren(...settings.blockedUsers.map((user) => listItem(
-      `${user.name ? `${user.name} · ` : ''}UID ${user.uid}`, `移除黑名单用户 ${user.uid}`,
-      () => save({ blockedUsers: settings.blockedUsers.filter((entry) => entry.uid !== user.uid) }),
-    )));
-    get('Keywords').replaceChildren(...settings.blockedKeywords.map((word) => listItem(
-      word, `移除屏蔽词 ${word}`,
-      () => save({ blockedKeywords: settings.blockedKeywords.filter((entry) => entry !== word) }),
-    )));
+    get('Blacklist').replaceChildren(
+      ...settings.blockedUsers.map((user) =>
+        listItem(`${user.name ? `${user.name} · ` : ''}UID ${user.uid}`, `移除黑名单用户 ${user.uid}`, () =>
+          save({ blockedUsers: settings.blockedUsers.filter((entry) => entry.uid !== user.uid) }),
+        ),
+      ),
+    );
+    get('Keywords').replaceChildren(
+      ...settings.blockedKeywords.map((word) =>
+        listItem(word, `移除屏蔽词 ${word}`, () =>
+          save({ blockedKeywords: settings.blockedKeywords.filter((entry) => entry !== word) }),
+        ),
+      ),
+    );
     renderViewers();
   }
 
@@ -111,7 +131,10 @@ export function initDanmakuOverlayFilters() {
     } catch (error) {
       if (current === generation) state.textContent = error.message;
     } finally {
-      if (current === generation) { loading = false; render(); }
+      if (current === generation) {
+        loading = false;
+        render();
+      }
     }
   }
 
@@ -131,7 +154,10 @@ export function initDanmakuOverlayFilters() {
     } catch (error) {
       if (current === generation) state.textContent = `保存失败，输入已保留：${error.message}`;
     } finally {
-      if (current === generation) { saving = false; render(); }
+      if (current === generation) {
+        saving = false;
+        render();
+      }
     }
   }
 
@@ -142,19 +168,28 @@ export function initDanmakuOverlayFilters() {
       state.textContent = '该 UID 已在黑名单中。';
       return;
     }
-    void save({ blockedUsers: [...settings.blockedUsers, { uid, name: '' }] }, () => { uidInput.value = ''; });
+    void save({ blockedUsers: [...settings.blockedUsers, { uid, name: '' }] }, () => {
+      uidInput.value = '';
+    });
   });
   get('KeywordForm').addEventListener('submit', (event) => {
     event.preventDefault();
-    void save({ blockedKeywords: [...settings.blockedKeywords, wordInput.value.trim()] }, () => { wordInput.value = ''; });
+    void save({ blockedKeywords: [...settings.blockedKeywords, wordInput.value.trim()] }, () => {
+      wordInput.value = '';
+    });
   });
   get('ClearKeywords').addEventListener('click', () => save({ blockedKeywords: [] }));
   get('FiltersReload').addEventListener('click', reload);
   get('ViewerSearch').addEventListener('input', renderViewers);
-  get('CloseViewers').addEventListener('click', () => { picker.hidden = true; get('ReadViewers').focus(); });
-  get('AddViewers').addEventListener('click', () => save({
-    blockedUsers: [...settings.blockedUsers, ...viewers.filter((user) => selected.has(user.uid))],
-  }));
+  get('CloseViewers').addEventListener('click', () => {
+    picker.hidden = true;
+    get('ReadViewers').focus();
+  });
+  get('AddViewers').addEventListener('click', () =>
+    save({
+      blockedUsers: [...settings.blockedUsers, ...viewers.filter((user) => selected.has(user.uid))],
+    }),
+  );
   get('ReadViewers').addEventListener('click', async () => {
     if (!loaded || readingViewers || loading || saving) return;
     const current = generation;
@@ -176,7 +211,10 @@ export function initDanmakuOverlayFilters() {
     } catch (error) {
       if (current === generation) viewerState.textContent = error.message;
     } finally {
-      if (current === generation) { readingViewers = false; render(); }
+      if (current === generation) {
+        readingViewers = false;
+        render();
+      }
     }
   });
   observeServerOverlayUrl((url) => {

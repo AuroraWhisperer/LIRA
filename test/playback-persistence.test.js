@@ -3,12 +3,7 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const {
-  closestTarget,
-  createPlaybackApp,
-  flushAsyncWork,
-  track,
-} = require('./helpers/playback-app');
+const { closestTarget, createPlaybackApp, flushAsyncWork, track } = require('./helpers/playback-app');
 
 for (const mode of ['repeat-one', 'single']) {
   for (const source of ['server', 'v2', 'v1']) {
@@ -29,8 +24,7 @@ for (const mode of ['repeat-one', 'single']) {
         currentTime: 42,
       };
       const storage = new Map();
-      if (source === 'v2')
-        storage.set('playbackState:v2', JSON.stringify(saved));
+      if (source === 'v2') storage.set('playbackState:v2', JSON.stringify(saved));
       const app = await createPlaybackApp(saved, {
         serverState: source === 'server' ? saved : {},
         localState: source === 'v1' ? saved : null,
@@ -40,10 +34,7 @@ for (const mode of ['repeat-one', 'single']) {
       await app.init();
       await flushAsyncWork();
       assert.equal(app.element('playbackModeLabel').textContent, '单曲');
-      assert.equal(
-        app.element('playbackTrackTitle').textContent,
-        current.title,
-      );
+      assert.equal(app.element('playbackTrackTitle').textContent, current.title);
       assert.equal(app.element('playbackCurrentTime').textContent, '00:42');
       assert.match(app.element('playbackQueueList').innerHTML, /下一首/);
       await app.emitWindow('pagehide');
@@ -90,14 +81,8 @@ test('the single-track repeat mode selected in the UI survives a server snapshot
   await restored.init();
   await flushAsyncWork();
   assert.equal(restored.element('playbackModeLabel').textContent, '单曲');
-  assert.equal(
-    restored.element('playbackTrackTitle').textContent,
-    current.title,
-  );
-  assert.match(
-    restored.element('playbackQueueList').innerHTML,
-    /界面选择的下一首/,
-  );
+  assert.equal(restored.element('playbackTrackTitle').textContent, current.title);
+  assert.match(restored.element('playbackQueueList').innerHTML, /界面选择的下一首/);
 });
 
 test('empty playback uses the latest authenticated provider state', async () => {
@@ -152,10 +137,7 @@ test('pagehide beacon includes the injected API token', async () => {
   await flushAsyncWork();
   await app.emitWindow('pagehide');
 
-  assert.equal(
-    app.beaconUrls().at(-1),
-    '/api/playback/queue-state?token=token%20with%20%26%20symbols',
-  );
+  assert.equal(app.beaconUrls().at(-1), '/api/playback/queue-state?token=token%20with%20%26%20symbols');
 });
 
 test('playback persistence retains the numeric QQ song ID', async () => {
@@ -196,10 +178,7 @@ test('cold start restores the server queue and playback progress without local s
     currentOrigin: 'normal',
     requestedQueue: [],
     normalQueue: [track('restored-next', '恢复的下一首')],
-    normalQueueTracks: [
-      track('restored-current', '恢复的歌曲'),
-      track('restored-next', '恢复的下一首'),
-    ],
+    normalQueueTracks: [track('restored-current', '恢复的歌曲'), track('restored-next', '恢复的下一首')],
     radioQueue: [],
     mode: 'sequence',
     selectedSource: 'qq',

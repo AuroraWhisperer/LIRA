@@ -29,10 +29,7 @@ export function normalizeQuality(source, quality) {
 }
 
 export function getQualityLabel(source, quality) {
-  return (
-    getQualityOptions(source).find((item) => item.id === quality)?.label ||
-    '标准'
-  );
+  return getQualityOptions(source).find((item) => item.id === quality)?.label || '标准';
 }
 
 function normalizeSourceSongType(value) {
@@ -47,10 +44,7 @@ function normalizeSourceSongType(value) {
  */
 export function normalizeOnlineTrack(track) {
   const source = track.source === 'netease' ? 'netease' : 'qq';
-  const sourceTrackId = String(track.sourceTrackId || track.id || '').replace(
-    `${source}:`,
-    '',
-  );
+  const sourceTrackId = String(track.sourceTrackId || track.id || '').replace(`${source}:`, '');
   return {
     id: track.id || `${source}:${sourceTrackId}`,
     source,
@@ -62,9 +56,7 @@ export function normalizeOnlineTrack(track) {
     sourceTrackId,
     sourceMediaId: track.sourceMediaId || '',
     sourceSongId: Math.max(0, Number(track.sourceSongId || track.songId) || 0),
-    sourceSongType: normalizeSourceSongType(
-      track.sourceSongType ?? track.songType,
-    ),
+    sourceSongType: normalizeSourceSongType(track.sourceSongType ?? track.songType),
     sourceAlbumId: track.sourceAlbumId || '',
     playable: track.playable !== false,
     vip: track.vip === true,
@@ -88,9 +80,7 @@ export function serializeTrackForProvider(track) {
     sourceTrackId: track.sourceTrackId || track.id,
     sourceMediaId: track.sourceMediaId || '',
     sourceSongId: Math.max(0, Number(track.sourceSongId || track.songId) || 0),
-    sourceSongType: normalizeSourceSongType(
-      track.sourceSongType ?? track.songType,
-    ),
+    sourceSongType: normalizeSourceSongType(track.sourceSongType ?? track.songType),
     sourceAlbumId: track.sourceAlbumId || '',
     playable: track.playable !== false,
     vip: track.vip === true,
@@ -139,10 +129,7 @@ export function hasUsableUrl(track, refreshMarginMs = 30000) {
  * @returns {Array<string>} 平台列表，优先级从高到低
  */
 export function preferredPlatforms(currentSource, selectedSource) {
-  const preferred =
-    currentSource === 'qq' || currentSource === 'netease'
-      ? currentSource
-      : selectedSource;
+  const preferred = currentSource === 'qq' || currentSource === 'netease' ? currentSource : selectedSource;
   return preferred === 'qq' ? ['qq', 'netease'] : ['netease', 'qq'];
 }
 
@@ -164,15 +151,8 @@ export function formatTime(seconds) {
  * @returns {string} 格式化后的元信息字符串
  */
 export function formatTrackMeta(track) {
-  const artists =
-    Array.isArray(track.artists) && track.artists.length
-      ? track.artists.join(' / ')
-      : '未知歌手';
-  const parts = [
-    artists,
-    track.album || '',
-    formatTime((track.durationMs || 0) / 1000),
-  ].filter(Boolean);
+  const artists = Array.isArray(track.artists) && track.artists.length ? track.artists.join(' / ') : '未知歌手';
+  const parts = [artists, track.album || '', formatTime((track.durationMs || 0) / 1000)].filter(Boolean);
   if (track.vip) parts.push('VIP');
   if (track.playable === false) parts.push('可能不可播');
   return parts.join(' · ');
@@ -187,8 +167,7 @@ export function formatPlaylistMeta(playlist) {
   const parts = [];
   if (playlist.trackCount) parts.push(`${playlist.trackCount} 首`);
   if (playlist.playCount) {
-    const formatCompactNumber =
-      window.AdminApp?.utils?.formatCompactNumber || ((n) => n);
+    const formatCompactNumber = window.AdminApp?.utils?.formatCompactNumber || ((n) => n);
     parts.push(`${formatCompactNumber(playlist.playCount)} 次播放`);
   }
   if (playlist.description) parts.push(playlist.description);
@@ -203,10 +182,8 @@ export function formatPlaylistMeta(playlist) {
  * @returns {string} 封面 HTML 字符串
  */
 export function renderArtwork(item, options = {}) {
-  const escapeAttr =
-    window.AdminApp?.utils?.escapeAttr || ((s) => String(s || ''));
-  const escapeHtml =
-    window.AdminApp?.utils?.escapeHtml || ((s) => String(s || ''));
+  const escapeAttr = window.AdminApp?.utils?.escapeAttr || ((s) => String(s || ''));
+  const escapeHtml = window.AdminApp?.utils?.escapeHtml || ((s) => String(s || ''));
   const coverUrl = String((item && item.coverUrl) || '').trim();
   const fallback = options.fallback || '音';
   return `
@@ -224,11 +201,7 @@ export function renderArtwork(item, options = {}) {
  * @returns {number} 主题编号 (1-themeCount)
  */
 export function pickBackgroundTheme(track, themeCount = 30) {
-  const seed = track
-    ? String(
-        track.id || `${track.title || ''}|${(track.artists || []).join(',')}`,
-      )
-    : '';
+  const seed = track ? String(track.id || `${track.title || ''}|${(track.artists || []).join(',')}`) : '';
   if (!seed) return 1;
   let hash = 0;
   for (let i = 0; i < seed.length; i++) {

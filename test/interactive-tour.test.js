@@ -8,10 +8,9 @@ const { loadModuleExports } = require('./helpers/frontend-modules');
 
 let tour;
 test.before(async () => {
-  tour = await loadModuleExports(
-    path.join(__dirname, '..', 'public', 'js', 'admin', 'interactive-tour.js'),
-    { window: {} },
-  );
+  tour = await loadModuleExports(path.join(__dirname, '..', 'public', 'js', 'admin', 'interactive-tour.js'), {
+    window: {},
+  });
 });
 
 function createStorage(initial = {}) {
@@ -47,10 +46,7 @@ test('tour version changes do not reopen it for existing installations', () => {
 });
 
 test('manual tour reset does not clear first-run display history', () => {
-  const js = fs.readFileSync(
-    path.join(__dirname, '..', 'public', 'js', 'admin', 'interactive-tour.js'),
-    'utf8',
-  );
+  const js = fs.readFileSync(path.join(__dirname, '..', 'public', 'js', 'admin', 'interactive-tour.js'), 'utf8');
   const resetBody = js.match(/reset:\s*\(\)\s*=>\s*\{([\s\S]*?)\n\s*\},/)?.[1];
 
   assert.ok(resetBody, 'tour reset implementation should remain defined');
@@ -101,21 +97,11 @@ test('tour tooltip uses the viewport center only for steps without a target', ()
 
 test('tour styles leave the spotlight interior interactive and point the arrow at its target', () => {
   const css = fs.readFileSync(
-    path.join(
-      __dirname,
-      '..',
-      'public',
-      'css',
-      'admin',
-      'other-features',
-      'interactive-tour.css',
-    ),
+    path.join(__dirname, '..', 'public', 'css', 'admin', 'other-features', 'interactive-tour.css'),
     'utf8',
   );
   const backdropRule = css.match(/\.lira-tour-backdrop\s*\{[\s\S]*?\n\}/)?.[0];
-  const targetBackdropRule = css.match(
-    /\.lira-tour\.has-target \.lira-tour-backdrop\s*\{[\s\S]*?\n\}/,
-  )?.[0];
+  const targetBackdropRule = css.match(/\.lira-tour\.has-target \.lira-tour-backdrop\s*\{[\s\S]*?\n\}/)?.[0];
 
   assert.match(backdropRule, /pointer-events:\s*none/);
   assert.match(targetBackdropRule, /display:\s*none/);
@@ -123,20 +109,9 @@ test('tour styles leave the spotlight interior interactive and point the arrow a
 });
 
 test('tour avoids continuously expensive rendering effects and polling', () => {
-  const js = fs.readFileSync(
-    path.join(__dirname, '..', 'public', 'js', 'admin', 'interactive-tour.js'),
-    'utf8',
-  );
+  const js = fs.readFileSync(path.join(__dirname, '..', 'public', 'js', 'admin', 'interactive-tour.js'), 'utf8');
   const css = fs.readFileSync(
-    path.join(
-      __dirname,
-      '..',
-      'public',
-      'css',
-      'admin',
-      'other-features',
-      'interactive-tour.css',
-    ),
+    path.join(__dirname, '..', 'public', 'css', 'admin', 'other-features', 'interactive-tour.css'),
     'utf8',
   );
 
@@ -157,16 +132,11 @@ test('tour avoids continuously expensive rendering effects and polling', () => {
 });
 
 test('tour introduces LIRA and the four primary buttons before seven sequential actions', () => {
-  const actionSteps = tour.TOUR_STEPS.filter(
-    (step) => !['welcome', 'complete'].includes(step.id),
-  );
+  const actionSteps = tour.TOUR_STEPS.filter((step) => !['welcome', 'complete'].includes(step.id));
 
   assert.equal(tour.TOUR_VERSION, 6);
   assert.equal(tour.TOUR_STEPS[0].kicker, '第 0 步 · 认识 LIRA');
-  assert.match(
-    tour.TOUR_STEPS[0].content,
-    /跟着提示连接直播间/,
-  );
+  assert.match(tour.TOUR_STEPS[0].content, /跟着提示连接直播间/);
   assert.match(tour.TOUR_STEPS[0].content, /页面会带你找到要操作的位置/);
   assert.deepEqual(
     Array.from(actionSteps, (step) => step.kicker),
@@ -194,13 +164,8 @@ test('tour introduces LIRA and the four primary buttons before seven sequential 
 });
 
 test('refresh step spotlights the live-room status together with the refresh button', () => {
-  const refreshStep = tour.TOUR_STEPS.find(
-    (step) => step.id === 'refresh-live',
-  );
-  const js = fs.readFileSync(
-    path.join(__dirname, '..', 'public', 'js', 'admin', 'interactive-tour.js'),
-    'utf8',
-  );
+  const refreshStep = tour.TOUR_STEPS.find((step) => step.id === 'refresh-live');
+  const js = fs.readFileSync(path.join(__dirname, '..', 'public', 'js', 'admin', 'interactive-tour.js'), 'utf8');
 
   assert.equal(refreshStep.targetSelector, '#liveStatus, #reconnectBtn');
   assert.match(refreshStep.content, /保存设置/);
@@ -209,48 +174,23 @@ test('refresh step spotlights the live-room status together with the refresh but
 
 test('disabled tour actions use an unavailable cursor instead of a busy cursor', () => {
   const css = fs.readFileSync(
-    path.join(
-      __dirname,
-      '..',
-      'public',
-      'css',
-      'admin',
-      'other-features',
-      'interactive-tour.css',
-    ),
+    path.join(__dirname, '..', 'public', 'css', 'admin', 'other-features', 'interactive-tour.css'),
     'utf8',
   );
-  const disabledRule = css.match(
-    /\.lira-tour-actions button:disabled\s*\{[\s\S]*?\n\}/,
-  )?.[0];
+  const disabledRule = css.match(/\.lira-tour-actions button:disabled\s*\{[\s\S]*?\n\}/)?.[0];
 
   assert.match(disabledRule, /cursor:\s*not-allowed/);
   assert.doesNotMatch(disabledRule, /cursor:\s*wait/);
 });
 
 test('tour status circles carry waiting and completed meanings without an image asset', () => {
-  const js = fs.readFileSync(
-    path.join(__dirname, '..', 'public', 'js', 'admin', 'interactive-tour.js'),
-    'utf8',
-  );
+  const js = fs.readFileSync(path.join(__dirname, '..', 'public', 'js', 'admin', 'interactive-tour.js'), 'utf8');
   const css = fs.readFileSync(
-    path.join(
-      __dirname,
-      '..',
-      'public',
-      'css',
-      'admin',
-      'other-features',
-      'interactive-tour.css',
-    ),
+    path.join(__dirname, '..', 'public', 'css', 'admin', 'other-features', 'interactive-tour.css'),
     'utf8',
   );
-  const waitingIconRule = css.match(
-    /\.lira-tour-status\.waiting::before\s*\{[\s\S]*?\n\}/,
-  )?.[0];
-  const completedIconRule = css.match(
-    /\.lira-tour-status\.completed::before\s*\{[\s\S]*?\n\}/,
-  )?.[0];
+  const waitingIconRule = css.match(/\.lira-tour-status\.waiting::before\s*\{[\s\S]*?\n\}/)?.[0];
+  const completedIconRule = css.match(/\.lira-tour-status\.completed::before\s*\{[\s\S]*?\n\}/)?.[0];
 
   assert.match(waitingIconRule, /content:\s*['"]…['"]/);
   assert.match(completedIconRule, /content:\s*['"]✓['"]/);
@@ -261,20 +201,9 @@ test('tour status circles carry waiting and completed meanings without an image 
 });
 
 test('tour uses an accessible styled exit confirmation instead of the native dialog', () => {
-  const js = fs.readFileSync(
-    path.join(__dirname, '..', 'public', 'js', 'admin', 'interactive-tour.js'),
-    'utf8',
-  );
+  const js = fs.readFileSync(path.join(__dirname, '..', 'public', 'js', 'admin', 'interactive-tour.js'), 'utf8');
   const css = fs.readFileSync(
-    path.join(
-      __dirname,
-      '..',
-      'public',
-      'css',
-      'admin',
-      'other-features',
-      'interactive-tour.css',
-    ),
+    path.join(__dirname, '..', 'public', 'css', 'admin', 'other-features', 'interactive-tour.css'),
     'utf8',
   );
 
@@ -285,30 +214,17 @@ test('tour uses an accessible styled exit confirmation instead of the native dia
   assert.match(js, /event\.key === ["']Escape["']/);
   assert.match(js, /event\.key !== ["']Tab["']/);
   assert.match(js, /container\.classList\.add\(["']is-exit-confirming["']\)/);
-  assert.match(
-    js,
-    /container\.classList\.remove\(["']is-exit-confirming["']\)/,
-  );
+  assert.match(js, /container\.classList\.remove\(["']is-exit-confirming["']\)/);
   assert.match(css, /\.lira-tour-exit-confirmation\s*\{/);
   assert.match(css, /\.lira-tour\.is-exit-confirming \.lira-tour-tooltip/);
   assert.match(css, /\.lira-tour-exit-actions button:focus-visible/);
 });
 
 test('Bilibili setup steps target the real settings tab', () => {
-  const loginStep = tour.TOUR_STEPS.find(
-    (step) => step.id === 'bilibili-login',
-  );
+  const loginStep = tour.TOUR_STEPS.find((step) => step.id === 'bilibili-login');
   const roomStep = tour.TOUR_STEPS.find((step) => step.id === 'room-id');
   const settingsPage = fs.readFileSync(
-    path.join(
-      __dirname,
-      '..',
-      'public',
-      'pages',
-      'admin',
-      'song',
-      'settings.html',
-    ),
+    path.join(__dirname, '..', 'public', 'pages', 'admin', 'song', 'settings.html'),
     'utf8',
   );
 
@@ -331,19 +247,9 @@ test('song import step opens the import tab and points at the file input', () =>
 });
 
 test('music setup step targets the real playback source switcher', () => {
-  const musicStep = tour.TOUR_STEPS.find(
-    (step) => step.id === 'music-platform',
-  );
+  const musicStep = tour.TOUR_STEPS.find((step) => step.id === 'music-platform');
   const playbackPage = fs.readFileSync(
-    path.join(
-      __dirname,
-      '..',
-      'public',
-      'pages',
-      'admin',
-      'playback',
-      'page.html',
-    ),
+    path.join(__dirname, '..', 'public', 'pages', 'admin', 'playback', 'page.html'),
     'utf8',
   );
 
@@ -351,35 +257,18 @@ test('music setup step targets the real playback source switcher', () => {
   assert.equal(musicStep.position, 'bottom');
   assert.match(playbackPage, /class="source-tabs"/);
   assert.match(musicStep.content, /选择你平时使用的平台/);
-  assert.match(
-    musicStep.content.replace(/<[^>]+>/g, ''),
-    /点击右上方的「登录」/,
-  );
+  assert.match(musicStep.content.replace(/<[^>]+>/g, ''), /点击右上方的「登录」/);
 });
 
 test('usage guide step opens and points to the real toolbox document button', () => {
   const usageStep = tour.TOUR_STEPS.find((step) => step.id === 'usage-guide');
   const toolboxShell = fs.readFileSync(
-    path.join(
-      __dirname,
-      '..',
-      'public',
-      'pages',
-      'admin',
-      'toolbox',
-      'shell-start.html',
-    ),
+    path.join(__dirname, '..', 'public', 'pages', 'admin', 'toolbox', 'shell-start.html'),
     'utf8',
   );
 
-  assert.equal(
-    usageStep.targetTab,
-    '[data-other-feature="otherUsageGuideFeature"]',
-  );
-  assert.equal(
-    usageStep.targetSelector,
-    '[data-other-feature="otherUsageGuideFeature"]',
-  );
+  assert.equal(usageStep.targetTab, '[data-other-feature="otherUsageGuideFeature"]');
+  assert.equal(usageStep.targetSelector, '[data-other-feature="otherUsageGuideFeature"]');
   assert.match(toolboxShell, /data-other-feature="otherUsageGuideFeature"/);
   assert.match(usageStep.content, /忘记怎么登录、导入歌单或设置其他功能/);
   assert.match(usageStep.note, /重新查看新手引导/);

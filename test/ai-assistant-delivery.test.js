@@ -2,11 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {
-  createAnsweringDeepseek,
-  createTestService,
-  waitUntil,
-} = require('./helpers/ai-assistant-service-fixture');
+const { createAnsweringDeepseek, createTestService, waitUntil } = require('./helpers/ai-assistant-service-fixture');
 
 test('generation may finish out of order but delivery remains FIFO', async () => {
   const deliveries = [];
@@ -27,9 +23,7 @@ test('generation may finish out of order but delivery remains FIFO', async () =>
             functionCalls: [],
             usage: {},
           };
-        return await new Promise((resolve) =>
-          pendingAnswers.set(String(request.input), resolve),
-        );
+        return await new Promise((resolve) => pendingAnswers.set(String(request.input), resolve));
       },
     },
     sendReply: async (value) => deliveries.push(value),
@@ -54,9 +48,7 @@ test('generation may finish out of order but delivery remains FIFO', async () =>
     deliveries.map((item) => item.mentionTarget.name),
     ['甲', '乙'],
   );
-  assert.ok(
-    deliveries.every((item) => item.mentionTarget.source === 'ai-assistant'),
-  );
+  assert.ok(deliveries.every((item) => item.mentionTarget.source === 'ai-assistant'));
   assert.ok(deliveries.every((item) => item.mentionEveryChunk === true));
 });
 

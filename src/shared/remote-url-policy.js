@@ -8,15 +8,9 @@ function isDnsHostname(value) {
   const raw = String(value || '')
     .trim()
     .toLowerCase();
-  const unwrapped =
-    raw.startsWith('[') && raw.endsWith(']') ? raw.slice(1, -1) : raw;
+  const unwrapped = raw.startsWith('[') && raw.endsWith(']') ? raw.slice(1, -1) : raw;
   const hostname = unwrapped.endsWith('.') ? unwrapped.slice(0, -1) : unwrapped;
-  if (
-    !hostname ||
-    hostname === 'localhost' ||
-    hostname.length > 253 ||
-    net.isIP(hostname) !== 0
-  ) {
+  if (!hostname || hostname === 'localhost' || hostname.length > 253 || net.isIP(hostname) !== 0) {
     return false;
   }
   return hostname.split('.').every((label) => DNS_LABEL_PATTERN.test(label));

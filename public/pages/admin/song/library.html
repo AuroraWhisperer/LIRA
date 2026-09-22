@@ -35,10 +35,7 @@
         </label>
         <label>
           核对平台
-          <input
-            id="songSourcePlatform"
-            placeholder="QQ音乐 / 网易云音乐"
-          />
+          <input id="songSourcePlatform" placeholder="QQ音乐 / 网易云音乐" />
         </label>
         <label>
           核对备注
@@ -48,21 +45,13 @@
       <div class="song-form-details">
         <label>
           <span class="song-form-detail-heading">歌切</span>
-          <textarea
-            id="songClip"
-            rows="3"
-            placeholder="链接 / BV号 / 时间点 / 说明"
-          ></textarea>
+          <textarea id="songClip" rows="3" placeholder="链接 / BV号 / 时间点 / 说明"></textarea>
         </label>
         <div class="song-form-pricing">
           <div class="song-form-detail-heading">
             <label for="songRequestPrice">点歌价格</label>
             <div class="song-form-preset">
-              <select
-                id="songPricePreset"
-                aria-label="点歌价格快捷填写"
-                data-dropdown-variant="settings"
-              >
+              <select id="songPricePreset" aria-label="点歌价格快捷填写" data-dropdown-variant="settings">
                 <option value="">快捷填写</option>
                 <option value="免费">免费</option>
                 <option value="舰长">舰长</option>
@@ -72,11 +61,7 @@
               </select>
             </div>
           </div>
-          <textarea
-            id="songRequestPrice"
-            rows="3"
-            aria-describedby="songPriceHint songPriceLength"
-          ></textarea>
+          <textarea id="songRequestPrice" rows="3" aria-describedby="songPriceHint songPriceLength"></textarea>
           <div class="song-form-price-meta">
             <span id="songPriceHint" class="hint">留空时网页不显示价格</span>
             <span id="songPriceLength" class="hint">0 / 1000</span>
@@ -102,11 +87,7 @@
       </label>
       <div class="category-filter-field">
         <span>分类</span>
-        <details
-          id="categoryFilter"
-          class="category-filter"
-          name="songLibraryFilter"
-        >
+        <details id="categoryFilter" class="category-filter" name="songLibraryFilter">
           <summary>
             <span id="categoryFilterSummary">全部分类</span>
             <span class="category-filter-hint">可多选</span>
@@ -118,13 +99,7 @@
               role="group"
               aria-label="分类（可多选）"
             ></div>
-            <button
-              id="clearCategoryFilter"
-              class="category-filter-clear"
-              type="button"
-            >
-              清除选择
-            </button>
+            <button id="clearCategoryFilter" class="category-filter-clear" type="button">清除选择</button>
           </div>
         </details>
       </div>
@@ -140,31 +115,14 @@
       </label>
       <div class="category-filter-field">
         <span>标签</span>
-        <details
-          id="tagFilter"
-          class="category-filter"
-          name="songLibraryFilter"
-        >
+        <details id="tagFilter" class="category-filter" name="songLibraryFilter">
           <summary>
-            <span id="tagFilterSummary" class="category-filter-summary"
-              >全部标签</span
-            >
+            <span id="tagFilterSummary" class="category-filter-summary">全部标签</span>
             <span class="category-filter-hint">可多选</span>
           </summary>
           <div class="category-filter-menu">
-            <div
-              id="tagFilterOptions"
-              class="category-filter-options"
-              role="group"
-              aria-label="标签（可多选）"
-            ></div>
-            <button
-              id="clearTagFilter"
-              class="category-filter-clear"
-              type="button"
-            >
-              清除选择
-            </button>
+            <div id="tagFilterOptions" class="category-filter-options" role="group" aria-label="标签（可多选）"></div>
+            <button id="clearTagFilter" class="category-filter-clear" type="button">清除选择</button>
           </div>
         </details>
       </div>

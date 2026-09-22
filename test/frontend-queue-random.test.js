@@ -19,9 +19,7 @@ test('queue random click stays disabled while pending and recovers after success
   const dom = createDom();
   const clock = createClock();
   const elements = Object.fromEntries(
-    ['randomSongBtn', 'nextBtn', 'clearBtn'].map((id) => [
-      id, dom.documentRef.createElement('button'),
-    ]),
+    ['randomSongBtn', 'nextBtn', 'clearBtn'].map((id) => [id, dom.documentRef.createElement('button')]),
   );
   const calls = [];
   let pending = Promise.withResolvers();
@@ -41,9 +39,7 @@ test('queue random click stays disabled while pending and recovers after success
       return pending.promise;
     },
   };
-  const queue = await loadModuleExports(
-    path.resolve(__dirname, '../public/js/admin/queue.js'), globals,
-  );
+  const queue = await loadModuleExports(path.resolve(__dirname, '../public/js/admin/queue.js'), globals);
   queue.initQueueForm();
   const button = elements.randomSongBtn;
   const click = button.fire('click');

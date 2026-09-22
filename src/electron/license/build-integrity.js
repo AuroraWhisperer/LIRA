@@ -1,9 +1,7 @@
 'use strict';
 
 // Electron's patched fs treats app.asar as a directory; hash the raw archive.
-const fs = process.versions.electron
-  ? require('original-fs')
-  : require('node:fs');
+const fs = process.versions.electron ? require('original-fs') : require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 
@@ -19,10 +17,7 @@ function getBuildInfo(options = {}) {
     };
   }
   try {
-    const digest = crypto
-      .createHash('sha256')
-      .update(fs.readFileSync(appPath))
-      .digest('hex');
+    const digest = crypto.createHash('sha256').update(fs.readFileSync(appPath)).digest('hex');
     return {
       appVersion,
       buildId: `LIRA/${appVersion}/${digest}`,

@@ -3,11 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { AI_CONFIG_DEFAULTS } = require('../src/ai/config');
-const {
-  createAnsweringDeepseek,
-  createTestService,
-  waitUntil,
-} = require('./helpers/ai-assistant-service-fixture');
+const { createAnsweringDeepseek, createTestService, waitUntil } = require('./helpers/ai-assistant-service-fixture');
 
 test('model listing uses the saved key and prefers a newly entered key', async () => {
   const requests = [];
@@ -36,10 +32,7 @@ test('model listing uses the saved key and prefers a newly entered key', async (
   assert.equal(requests[0].modelProvider, 'auto');
   assert.equal(requests[0].modelApiProtocol, 'auto');
   assert.equal(requests[1].apiKey, 'new-secret');
-  assert.equal(
-    requests[1].responsesUrl,
-    'https://gateway.example.test/v1/responses',
-  );
+  assert.equal(requests[1].responsesUrl, 'https://gateway.example.test/v1/responses');
   assert.equal(requests[1].modelProvider, 'auto');
   assert.equal(requests[1].modelApiProtocol, 'responses');
 });
@@ -77,10 +70,7 @@ test('provider connection tests dispatch with the saved private configuration', 
     provider: 'qweather',
   });
   assert.deepEqual(await service.testProvider('amap'), { provider: 'amap' });
-  await assert.rejects(
-    service.testProvider('unknown'),
-    (error) => error.code === 'AI_PROVIDER_UNKNOWN',
-  );
+  await assert.rejects(service.testProvider('unknown'), (error) => error.code === 'AI_PROVIDER_UNKNOWN');
   assert.deepEqual(received, [
     ['deepseek', 'secret'],
     ['qweather', 'secret'],
@@ -104,11 +94,7 @@ test('shutdown aborts and drains active generation without writes or delivery', 
       async createResponse(request) {
         requestSignal = request.signal;
         return new Promise((resolve, reject) => {
-          request.signal.addEventListener(
-            'abort',
-            () => reject(request.signal.reason),
-            { once: true },
-          );
+          request.signal.addEventListener('abort', () => reject(request.signal.reason), { once: true });
         });
       },
     },
@@ -150,11 +136,7 @@ test('shutdown aborts and waits for direct provider operations', async () => {
       async listModels(request) {
         requestSignal = request.signal;
         return new Promise((resolve, reject) => {
-          request.signal.addEventListener(
-            'abort',
-            () => reject(request.signal.reason),
-            { once: true },
-          );
+          request.signal.addEventListener('abort', () => reject(request.signal.reason), { once: true });
         });
       },
     },
@@ -169,10 +151,7 @@ test('shutdown aborts and waits for direct provider operations', async () => {
   await assert.rejects(listing, (error) => error.code === 'AI_SHUTDOWN');
   await firstShutdown;
   assert.equal(requestSignal.aborted, true);
-  await assert.rejects(
-    service.testConfiguration(),
-    (error) => error.code === 'AI_SHUTDOWN',
-  );
+  await assert.rejects(service.testConfiguration(), (error) => error.code === 'AI_SHUTDOWN');
 });
 
 test('shutdown releases delivery confirmation without retrying or logging a failure', async () => {
@@ -241,9 +220,7 @@ test('reply cache separates viewers and their conversation context', async (t) =
         }
         inputs.push(String(request.input));
         return {
-          text: String(request.input).includes('北京')
-            ? '你在北京'
-            : '你在上海',
+          text: String(request.input).includes('北京') ? '你在北京' : '你在上海',
           functionCalls: [],
           usage: {},
         };

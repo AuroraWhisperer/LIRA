@@ -31,13 +31,9 @@ function addSuperChatItem(context, input) {
     userName: cleanText(input && input.userName) || '观众',
     price,
     message: cleanText(input && input.message),
-    requesterGuardLevel: normalizeGuardLevel(
-      input && input.requesterGuardLevel,
-    ),
+    requesterGuardLevel: normalizeGuardLevel(input && input.requesterGuardLevel),
     requesterMedalName: cleanText(input && input.requesterMedalName),
-    requesterMedalLevel: normalizePositiveInteger(
-      input && input.requesterMedalLevel,
-    ),
+    requesterMedalLevel: normalizePositiveInteger(input && input.requesterMedalLevel),
     createdAt,
   });
 }
@@ -51,11 +47,7 @@ function handleSuperChatAction(context, action, rawId) {
     return getSuperChatSnapshot(context);
   }
   if (action === 'assist' || action === 'unassist') {
-    context.store.setStatus(
-      id,
-      action === 'assist' ? 'assisted' : 'active',
-      now(),
-    );
+    context.store.setStatus(id, action === 'assist' ? 'assisted' : 'active', now());
     return getSuperChatSnapshot(context);
   }
 

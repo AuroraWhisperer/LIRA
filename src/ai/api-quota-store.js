@@ -70,8 +70,7 @@ function createAiApiQuotaStore(db, options = {}) {
     const excluded = [];
     for (const category of Object.keys(API_QUOTAS)) {
       const usage = getUsage(category);
-      if (usage.requestCount >= usage.limit)
-        excluded.push(...CATEGORY_TOOL_NAMES[category]);
+      if (usage.requestCount >= usage.limit) excluded.push(...CATEGORY_TOOL_NAMES[category]);
     }
     return excluded;
   }
@@ -97,9 +96,7 @@ function reserveApiQuota(quotaStore, category) {
   if (!quotaStore) return { commit() {}, release() {} };
   const usage = quotaStore.consume(category);
   if (!usage.allowed) {
-    const error = new Error(
-      '本月第三方 API 安全用量已达到上限，请改用 web_search。',
-    );
+    const error = new Error('本月第三方 API 安全用量已达到上限，请改用 web_search。');
     error.code = CATEGORY_ERROR_CODES[category];
     error.quotaCategory = category;
     throw error;
@@ -134,9 +131,7 @@ function getQuotaToolNames(error) {
 }
 
 function getBeijingMonthKey(timestamp) {
-  return new Date(Number(timestamp) + 8 * 60 * 60 * 1000)
-    .toISOString()
-    .slice(0, 7);
+  return new Date(Number(timestamp) + 8 * 60 * 60 * 1000).toISOString().slice(0, 7);
 }
 
 function requireLimit(category) {

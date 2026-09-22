@@ -1,10 +1,7 @@
 'use strict';
 
 const path = require('node:path');
-const {
-  createLyricToggleButton,
-  loadModuleExports,
-} = require('./frontend-modules');
+const { createLyricToggleButton, loadModuleExports } = require('./frontend-modules');
 
 async function createGiftHistoryFixture({ fetch, headers = [] } = {}) {
   function element() {
@@ -56,17 +53,15 @@ async function createGiftHistoryFixture({ fetch, headers = [] } = {}) {
     },
     getElementById: (id) => elements.get(id) || null,
     querySelector: () => null,
-    querySelectorAll: (selector) =>
-      selector === '#giftHistoryDrawer th[data-sort]' ? headers : [],
+    querySelectorAll: (selector) => (selector === '#giftHistoryDrawer th[data-sort]' ? headers : []),
     addEventListener() {},
     removeEventListener() {},
     createElement() {
       const nodes = new Map(
-        [
-          '.lira-confirm-dialog',
-          '.lira-confirm-cancel',
-          '.lira-confirm-confirm',
-        ].map((selector) => [selector, element()]),
+        ['.lira-confirm-dialog', '.lira-confirm-cancel', '.lira-confirm-confirm'].map((selector) => [
+          selector,
+          element(),
+        ]),
       );
       dialog = {
         ...element(),
@@ -78,37 +73,34 @@ async function createGiftHistoryFixture({ fetch, headers = [] } = {}) {
       return dialog;
     },
   };
-  const ledger = await loadModuleExports(
-    path.join(__dirname, '../..', 'public/js/admin/gifts/history.js'),
-    {
-      document,
-      location: {},
-      URLSearchParams,
-      AbortController,
-      AbortSignal,
-      Date: class extends Date {
-        static now() {
-          return clock;
-        }
-      },
-      console: { warn() {} },
-      requestAnimationFrame: (callback) => callback(),
-      window: { matchMedia: () => ({ matches: true }) },
-      setTimeout(callback, delay) {
-        timers.set(++timerId, { callback, delay });
-        return timerId;
-      },
-      clearTimeout(id) {
-        timers.delete(id);
-      },
-      fetch:
-        fetch ||
-        ((url, options = {}) =>
-          new Promise((resolve, reject) => {
-            requests.push({ url, options, resolve, reject });
-          })),
+  const ledger = await loadModuleExports(path.join(__dirname, '../..', 'public/js/admin/gifts/history.js'), {
+    document,
+    location: {},
+    URLSearchParams,
+    AbortController,
+    AbortSignal,
+    Date: class extends Date {
+      static now() {
+        return clock;
+      }
     },
-  );
+    console: { warn() {} },
+    requestAnimationFrame: (callback) => callback(),
+    window: { matchMedia: () => ({ matches: true }) },
+    setTimeout(callback, delay) {
+      timers.set(++timerId, { callback, delay });
+      return timerId;
+    },
+    clearTimeout(id) {
+      timers.delete(id);
+    },
+    fetch:
+      fetch ||
+      ((url, options = {}) =>
+        new Promise((resolve, reject) => {
+          requests.push({ url, options, resolve, reject });
+        })),
+  });
   ledger.initGiftHistoryDrawer();
   const flush = () => new Promise(setImmediate);
   function runTimer() {
@@ -141,12 +133,8 @@ async function createGiftHistoryFixture({ fetch, headers = [] } = {}) {
       await flush();
     },
     async confirm(value) {
-      dialog
-        .querySelector(value ? '.lira-confirm-confirm' : '.lira-confirm-cancel')
-        .handlers.click();
-      const [id, timer] = [...timers.entries()].find(
-        ([, entry]) => entry.delay === 0,
-      );
+      dialog.querySelector(value ? '.lira-confirm-confirm' : '.lira-confirm-cancel').handlers.click();
+      const [id, timer] = [...timers.entries()].find(([, entry]) => entry.delay === 0);
       timers.delete(id);
       timer.callback();
       await flush();

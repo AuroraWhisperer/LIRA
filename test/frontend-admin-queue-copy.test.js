@@ -9,10 +9,7 @@ const { createDom, createClock } = require('./helpers/toast-dom');
 const ROOT_DIR = path.join(__dirname, '..');
 const MESSAGE = '测试 "SC" & <留言>\n继续加油 ⚡🥵';
 
-async function createQueueRuntime({
-  clipboardMode = 'native',
-  fallbackOk = true,
-} = {}) {
+async function createQueueRuntime({ clipboardMode = 'native', fallbackOk = true } = {}) {
   const dom = createDom();
   const clock = createClock();
   const copied = [];
@@ -20,22 +17,22 @@ async function createQueueRuntime({
   const inputs = new Set();
   let selectedText = '';
   const entities = {
-    amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'", '#96': '`',
+    amp: '&',
+    lt: '<',
+    gt: '>',
+    quot: '"',
+    '#39': "'",
+    '#96': '`',
   };
   const createList = () => ({
     buttons: [],
     style: { setProperty() {} },
     set innerHTML(html) {
-      this.buttons = [
-        ...html.matchAll(/<button\b[^>]*data-copy="([^"]*)"[^>]*>/g),
-      ].map((match) => {
+      this.buttons = [...html.matchAll(/<button\b[^>]*data-copy="([^"]*)"[^>]*>/g)].map((match) => {
         const listeners = [];
         return {
           dataset: {
-            copy: match[1].replace(
-              /&(amp|lt|gt|quot|#39|#96);/g,
-              (_, entity) => entities[entity],
-            ),
+            copy: match[1].replace(/&(amp|lt|gt|quot|#39|#96);/g, (_, entity) => entities[entity]),
           },
           addEventListener(type, listener) {
             if (type === 'click') listeners.push(listener);
@@ -63,27 +60,26 @@ async function createQueueRuntime({
   };
   const globals = {
     window: dom.windowRef,
-    navigator: clipboardMode === 'missing'
-      ? {}
-      : {
-          clipboard: {
-            async writeText(text) {
-              if (clipboardMode === 'denied') {
-                throw new Error('Write permission denied.');
-              }
-              copied.push(text);
+    navigator:
+      clipboardMode === 'missing'
+        ? {}
+        : {
+            clipboard: {
+              async writeText(text) {
+                if (clipboardMode === 'denied') {
+                  throw new Error('Write permission denied.');
+                }
+                copied.push(text);
+              },
             },
           },
-        },
     setTimeout: clock.setTimeout,
     clearTimeout: clock.clearTimeout,
     document: {
       ...dom.documentRef,
       getElementById: (id) => elements[id] || null,
       querySelectorAll: (selector) =>
-        [elements.superChatList, elements.queueList].flatMap((list) =>
-          list.querySelectorAll(selector),
-        ),
+        [elements.superChatList, elements.queueList].flatMap((list) => list.querySelectorAll(selector)),
       createElement(tag) {
         if (tag !== 'textarea') return dom.documentRef.createElement(tag);
         return {
@@ -106,10 +102,7 @@ async function createQueueRuntime({
       },
     },
   };
-  await loadModuleExports(
-    path.join(ROOT_DIR, 'public/js/admin/queue.js'),
-    globals,
-  );
+  await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/queue.js'), globals);
   return {
     queue: globals.window.AdminApp.queue,
     elements,
@@ -153,8 +146,7 @@ test('SC copy remains bound after the SC queue renders independently', async () 
 
 for (const clipboardMode of ['denied', 'missing']) {
   test(`SC copy falls back when the clipboard API is ${clipboardMode}`, async () => {
-    const { queue, elements, copied, messages, inputs } =
-      await createQueueRuntime({ clipboardMode });
+    const { queue, elements, copied, messages, inputs } = await createQueueRuntime({ clipboardMode });
     renderState(queue);
     await elements.superChatList.buttons[0].click();
 
@@ -165,11 +157,10 @@ for (const clipboardMode of ['denied', 'missing']) {
 }
 
 test('SC copy reports failure when neither clipboard path succeeds', async () => {
-  const { queue, elements, copied, messages, inputs } =
-    await createQueueRuntime({
-      clipboardMode: 'denied',
-      fallbackOk: false,
-    });
+  const { queue, elements, copied, messages, inputs } = await createQueueRuntime({
+    clipboardMode: 'denied',
+    fallbackOk: false,
+  });
   renderState(queue);
   await elements.superChatList.buttons[0].click();
 

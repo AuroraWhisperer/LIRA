@@ -6,15 +6,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 test('installer stale-entry cleanup uses the builder app key, context, and quoted executable parser', () => {
-  const source = fs.readFileSync(
-    path.join(__dirname, '../build/installer.nsh'),
-    'utf8',
-  );
+  const source = fs.readFileSync(path.join(__dirname, '../build/installer.nsh'), 'utf8');
   assert.doesNotMatch(source, /EnumRegKey/);
-  assert.match(
-    source,
-    /ReadRegStr \$R3 SHELL_CONTEXT "\$\{UNINSTALL_REGISTRY_KEY\}" "UninstallString"/,
-  );
+  assert.match(source, /ReadRegStr \$R3 SHELL_CONTEXT "\$\{UNINSTALL_REGISTRY_KEY\}" "UninstallString"/);
   assert.match(source, /Push "\$R3"\s+Call GetInQuotes\s+Pop \$R4/);
   assert.doesNotMatch(source, /!insertmacro GetInQuotes/);
   assert.match(

@@ -44,9 +44,7 @@ function canConnect(port) {
 }
 
 test('server runtime construction performs no data-directory I/O', async () => {
-  const parentDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'song-plugin-lazy-runtime-'),
-  );
+  const parentDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-lazy-runtime-'));
   const dataDir = path.join(parentDir, 'not-created-yet');
   const { createServerRuntime } = require('../src/server');
   const runtime = createServerRuntime({ dataDir });
@@ -61,9 +59,7 @@ test('server runtime construction performs no data-directory I/O', async () => {
 });
 
 test('server normalizes localhost to the IPv4 loopback address', async () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'song-plugin-loopback-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-loopback-'));
   const { createServerRuntime } = require('../src/server');
   const runtime = createServerRuntime({ dataDir });
   const port = await findAvailablePort();
@@ -79,9 +75,7 @@ test('server normalizes localhost to the IPv4 loopback address', async () => {
 });
 
 test('server rejects non-loopback host addresses', async () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'song-plugin-reject-host-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-reject-host-'));
   const { createServerRuntime } = require('../src/server');
 
   try {
@@ -106,9 +100,7 @@ test('server rejects non-loopback host addresses', async () => {
 });
 
 test('server rejects requests with mismatched Host header', async () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'song-plugin-host-header-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-host-header-'));
   const { createServerRuntime } = require('../src/server');
   const runtime = createServerRuntime({ dataDir });
   const port = await findAvailablePort();
@@ -179,9 +171,7 @@ test('server rejects state-changing requests with wrong Origin', async () => {
 });
 
 test('server allows requests without Origin header (non-browser clients)', async () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'song-plugin-no-origin-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-no-origin-'));
   const { createServerRuntime } = require('../src/server');
   const runtime = createServerRuntime({ dataDir });
   const port = await findAvailablePort();
@@ -210,9 +200,7 @@ test('server allows requests without Origin header (non-browser clients)', async
 });
 
 test('server quiesce rejects new API work and retains the port until cleanup finishes', async () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'song-plugin-quiesce-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-quiesce-'));
   const { createServerRuntime } = require('../src/server');
   const runtime = createServerRuntime({ dataDir });
   const port = await findAvailablePort();
@@ -240,10 +228,7 @@ test('server quiesce rejects new API work and retains the port until cleanup fin
     assert.equal(response.status, 503);
 
     const contender = http.createServer();
-    await assert.rejects(
-      lifecycle.listenExactly(contender, { port, host: '127.0.0.1' }),
-      { code: 'EADDRINUSE' },
-    );
+    await assert.rejects(lifecycle.listenExactly(contender, { port, host: '127.0.0.1' }), { code: 'EADDRINUSE' });
 
     releaseHook();
     await stop;
@@ -270,13 +255,9 @@ test('server keeps its core HTTP, state, song and queue behavior', async () => {
       return originalFetch(input, options);
     }
     if (url.hostname === 'raw.githubusercontent.com') {
-      return Promise.resolve(
-        new Response("'SEND_GIFT' 'COMBO_SEND'", { status: 200 }),
-      );
+      return Promise.resolve(new Response("'SEND_GIFT' 'COMBO_SEND'", { status: 200 }));
     }
-    return Promise.reject(
-      new Error(`Unexpected external request in smoke test: ${url.hostname}`),
-    );
+    return Promise.reject(new Error(`Unexpected external request in smoke test: ${url.hostname}`));
   };
 
   try {
@@ -308,12 +289,8 @@ test('server keeps its core HTTP, state, song and queue behavior', async () => {
 });
 
 test('server runtimes isolate sequential data directories', async () => {
-  const firstDataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'song-plugin-runtime-first-'),
-  );
-  const secondDataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'song-plugin-runtime-second-'),
-  );
+  const firstDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-runtime-first-'));
+  const secondDataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-runtime-second-'));
   const { createServerRuntime } = require('../src/server');
   let firstRuntime;
   let secondRuntime;
@@ -325,30 +302,18 @@ test('server runtimes isolate sequential data directories', async () => {
       startPort: await findAvailablePort(),
     });
     assert.equal(firstRuntime.getSetting('queueLimit'), '50');
-    assert.equal(
-      fs.existsSync(path.join(firstDataDir, '.session-token')),
-      true,
-    );
+    assert.equal(fs.existsSync(path.join(firstDataDir, '.session-token')), true);
     await firstRuntime.stop({ exitProcess: false });
-    assert.equal(
-      fs.existsSync(path.join(firstDataDir, '.session-token')),
-      false,
-    );
+    assert.equal(fs.existsSync(path.join(firstDataDir, '.session-token')), false);
 
     secondRuntime = createServerRuntime({ dataDir: secondDataDir });
     await secondRuntime.start({
       host: '127.0.0.1',
       startPort: await findAvailablePort(),
     });
-    assert.equal(
-      fs.existsSync(path.join(secondDataDir, '.session-token')),
-      true,
-    );
+    assert.equal(fs.existsSync(path.join(secondDataDir, '.session-token')), true);
     await secondRuntime.stop({ exitProcess: false });
-    assert.equal(
-      fs.existsSync(path.join(secondDataDir, '.session-token')),
-      false,
-    );
+    assert.equal(fs.existsSync(path.join(secondDataDir, '.session-token')), false);
   } finally {
     if (firstRuntime) await firstRuntime.stop({ exitProcess: false });
     if (secondRuntime) await secondRuntime.stop({ exitProcess: false });
@@ -364,7 +329,9 @@ test('server runtime stops once with an upgraded peer that never sends FIN', asy
   let client;
   let watchdog;
   let hookCalls = 0;
-  runtime.setPreShutdownHook(async () => { hookCalls += 1; });
+  runtime.setPreShutdownHook(async () => {
+    hookCalls += 1;
+  });
   try {
     const app = await runtime.start({ host: '127.0.0.1', startPort: await findAvailablePort() });
     client = net.createConnection({ host: app.host, port: app.port, allowHalfOpen: true });
@@ -373,11 +340,13 @@ test('server runtime stops once with an upgraded peer that never sends FIN', asy
     await new Promise((resolve, reject) => {
       client.once('error', reject);
       client.once('data', resolve);
-      client.on('connect', () => client.write(
-        `GET /ws?token=${runtime.getApiToken()} HTTP/1.1\r\nHost: ${app.host}:${app.port}\r\n` +
-        'Connection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Version: 13\r\n' +
-        'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n',
-      ));
+      client.on('connect', () =>
+        client.write(
+          `GET /ws?token=${runtime.getApiToken()} HTTP/1.1\r\nHost: ${app.host}:${app.port}\r\n` +
+            'Connection: Upgrade\r\nUpgrade: websocket\r\nSec-WebSocket-Version: 13\r\n' +
+            'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n\r\n',
+        ),
+      );
     });
     assert.match(Buffer.concat(received).toString(), /101 Switching Protocols/);
     const stop = runtime.stop({ exitProcess: false });
@@ -403,9 +372,7 @@ test('server runtime stops once with an upgraded peer that never sends FIN', asy
 });
 
 test('server runtime closes cleanly when stop races with start', async () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'song-plugin-runtime-race-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-runtime-race-'));
   const { createServerRuntime } = require('../src/server');
   const runtime = createServerRuntime({ dataDir });
   const port = await findAvailablePort();
@@ -425,9 +392,7 @@ test('server runtime closes cleanly when stop races with start', async () => {
 });
 
 test('server startup rolls back an ephemeral listener when runtime info fails', async () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'song-plugin-runtime-rollback-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-runtime-rollback-'));
   const lifecycle = require('../src/server/lifecycle');
   const originalWriteRuntimeInfo = lifecycle.writeRuntimeInfo;
   const { createServerRuntime } = require('../src/server');
@@ -441,17 +406,11 @@ test('server startup rolls back an ephemeral listener when runtime info fails', 
   };
 
   try {
-    await assert.rejects(
-      runtime.start({ host: '127.0.0.1', startPort: 0 }),
-      /forced runtime info failure/,
-    );
+    await assert.rejects(runtime.start({ host: '127.0.0.1', startPort: 0 }), /forced runtime info failure/);
     assert.ok(assignedPort > 0);
     assert.equal(await canConnect(assignedPort), false);
     assert.equal(fs.existsSync(path.join(dataDir, '.session-token')), false);
-    assert.equal(
-      fs.existsSync(path.join(dataDir, '.server-runtime.json')),
-      false,
-    );
+    assert.equal(fs.existsSync(path.join(dataDir, '.server-runtime.json')), false);
   } finally {
     lifecycle.writeRuntimeInfo = originalWriteRuntimeInfo;
     await runtime.stop();

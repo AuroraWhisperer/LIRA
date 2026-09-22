@@ -5,10 +5,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
-const {
-  migrateBrowserData,
-  migrateCacheData,
-} = require('../src/storage/data-directory-migration');
+const { migrateBrowserData, migrateCacheData } = require('../src/storage/data-directory-migration');
 const { resolveDataPaths } = require('../src/shared/data-paths');
 
 function fixture(t) {
@@ -30,14 +27,8 @@ test('layout groups rebuildable data without changing the durable data root', (t
   const { root } = fixture(t);
   const paths = resolveDataPaths(root);
   assert.equal(paths.browserDir, path.join(root, 'browser'));
-  assert.equal(
-    paths.musicApiCacheDir,
-    path.join(root, 'cache', 'music-api-cache'),
-  );
-  assert.equal(
-    paths.giftImagesDir,
-    path.join(root, 'cache', 'overtime-gift-images'),
-  );
+  assert.equal(paths.musicApiCacheDir, path.join(root, 'cache', 'music-api-cache'));
+  assert.equal(paths.giftImagesDir, path.join(root, 'cache', 'overtime-gift-images'));
   assert.equal(paths.updatesDir, path.join(path.dirname(root), 'updates'));
 });
 
@@ -84,14 +75,10 @@ test('interrupted migration resumes without overwriting moved state', (t) => {
   put('Network/Cookies', 'cookies');
   const brokenFs = Object.create(fs);
   brokenFs.renameSync = (source, destination) => {
-    if (source === path.join(root, 'Network'))
-      throw new Error('simulated file lock');
+    if (source === path.join(root, 'Network')) throw new Error('simulated file lock');
     fs.renameSync(source, destination);
   };
-  assert.throws(
-    () => migrateBrowserData({ dataDir: root, fileSystem: brokenFs }),
-    /simulated file lock/,
-  );
+  assert.throws(() => migrateBrowserData({ dataDir: root, fileSystem: brokenFs }), /simulated file lock/);
   assert.equal(read('browser/Cache/index'), 'cache');
   assert.equal(read('Network/Cookies'), 'cookies');
   assert.equal(migrateBrowserData({ dataDir: root }).status, 'migrated');
@@ -107,37 +94,22 @@ test('conflicting source and destination abort before any entry moves', (t) => {
   assert.equal(read('Cache/index'), 'old-cache');
   assert.equal(read('Network/Cookies'), 'old-login');
   assert.equal(read('browser/Network/Cookies'), 'new-login');
-  assert.equal(
-    fs.existsSync(path.join(root, '.browser-layout-v1.json')),
-    false,
-  );
+  assert.equal(fs.existsSync(path.join(root, '.browser-layout-v1.json')), false);
 });
 
 test('a missing pending entry and a forged journal cannot publish a completed migration', (t) => {
   const { root, put } = fixture(t);
-  put(
-    '.browser-layout-v1.json',
-    JSON.stringify({ version: 1, status: 'pending', entries: ['Network'] }),
-  );
+  put('.browser-layout-v1.json', JSON.stringify({ version: 1, status: 'pending', entries: ['Network'] }));
   assert.throws(() => migrateBrowserData({ dataDir: root }), /missing entry/);
-  put(
-    '.browser-layout-v1.json',
-    JSON.stringify({ version: 1, status: 'pending', entries: ['../outside'] }),
-  );
-  assert.throws(
-    () => migrateBrowserData({ dataDir: root }),
-    /Invalid migration journal/,
-  );
+  put('.browser-layout-v1.json', JSON.stringify({ version: 1, status: 'pending', entries: ['../outside'] }));
+  assert.throws(() => migrateBrowserData({ dataDir: root }), /Invalid migration journal/);
 });
 
 test('an active server prevents cache relocation', (t) => {
   const { root, put, read } = fixture(t);
   put('.server-runtime.json', JSON.stringify({ pid: process.pid }));
   put('music-api-cache/a.json', 'cached');
-  assert.throws(
-    () => migrateCacheData({ dataDir: root }),
-    /still using this data directory/,
-  );
+  assert.throws(() => migrateCacheData({ dataDir: root }), /still using this data directory/);
   assert.equal(read('music-api-cache/a.json'), 'cached');
 });
 
@@ -154,15 +126,8 @@ test('a redirected cache directory cannot move data outside the selected root', 
   const { root, put, read } = fixture(t);
   put('untouched/keep.txt', 'preserved');
   put('music-api-cache/a.json', 'cached');
-  fs.symlinkSync(
-    path.join(root, 'untouched'),
-    path.join(root, 'cache'),
-    'junction',
-  );
-  assert.throws(
-    () => migrateCacheData({ dataDir: root }),
-    /Invalid storage directory/,
-  );
+  fs.symlinkSync(path.join(root, 'untouched'), path.join(root, 'cache'), 'junction');
+  assert.throws(() => migrateCacheData({ dataDir: root }), /Invalid storage directory/);
   assert.equal(read('untouched/keep.txt'), 'preserved');
   assert.equal(read('music-api-cache/a.json'), 'cached');
 });
@@ -176,10 +141,7 @@ test('failure to publish completion keeps the journal recoverable after all rena
     if (++journalWrites === 2) throw new Error('simulated disk failure');
     fs.writeFileSync(file, contents, options);
   };
-  assert.throws(
-    () => migrateCacheData({ dataDir: root, fileSystem: brokenFs }),
-    /simulated disk failure/,
-  );
+  assert.throws(() => migrateCacheData({ dataDir: root, fileSystem: brokenFs }), /simulated disk failure/);
   assert.equal(read('cache/music-api-cache/a.json'), 'cached');
   assert.equal(migrateCacheData({ dataDir: root }).status, 'migrated');
 });

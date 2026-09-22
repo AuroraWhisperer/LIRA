@@ -18,9 +18,11 @@ function v2CatalogResponse(response) {
     ...response,
     gifts: (response.gifts || []).map((gift) => ({
       active: true,
-      giftCategory: (response.blindBoxes || []).some(box => box.giftId === gift.id)
-        ? 'blindBox' : (response.blindBoxes || []).some(box => box.outputGiftIds.includes(gift.id))
-          ? 'blindBoxOutput' : 'directGift',
+      giftCategory: (response.blindBoxes || []).some((box) => box.giftId === gift.id)
+        ? 'blindBox'
+        : (response.blindBoxes || []).some((box) => box.outputGiftIds.includes(gift.id))
+          ? 'blindBoxOutput'
+          : 'directGift',
       ...gift,
     })),
   };
@@ -30,8 +32,7 @@ function createRemoteGiftCatalogCache(options) {
   const fetchRemote = options.fetchRemote;
   return createRemoteGiftCatalogCacheImpl({
     ...options,
-    fetchRemote: async (request) =>
-      v2CatalogResponse(await fetchRemote(request)),
+    fetchRemote: async (request) => v2CatalogResponse(await fetchRemote(request)),
   });
 }
 

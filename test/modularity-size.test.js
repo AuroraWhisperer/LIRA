@@ -96,10 +96,7 @@ test('all maintained source kinds, helpers, fixtures and untracked files are sca
   write('data/private.json', 900);
   write('node_modules/dependency/index.js', 900);
   write('public/img/example.svg', 900);
-  assert.deepEqual(
-    collectSourceFiles(root),
-    [...files, 'test/protection.test.js'].sort(),
-  );
+  assert.deepEqual(collectSourceFiles(root), [...files, 'test/protection.test.js'].sort());
   assert.equal(check(root).length, files.length);
 });
 
@@ -111,10 +108,7 @@ test('legacy and exceptions remain exact-file ceilings, and shrinking debt can b
     write(file, 900);
     assert.deepEqual(check(root, [entry]), []);
     write(file, 901);
-    assert.match(
-      check(root, [entry]).join('\n'),
-      /exceeds reviewed ceiling 900/,
-    );
+    assert.match(check(root, [entry]).join('\n'), /exceeds reviewed ceiling 900/);
     write(file, 600);
     assert.match(check(root, [entry]).join('\n'), /obsolete file-size record/);
     assert.deepEqual(check(root), []);
@@ -126,10 +120,7 @@ test('legacy and exceptions remain exact-file ceilings, and shrinking debt can b
 test('reviewed warning files cannot silently grow inside the warning band', (t) => {
   const { root, write } = fixture(t);
   write('src/service.js', 702);
-  assert.match(
-    check(root, [record('src/service.js', 701)]).join('\n'),
-    /ceiling 701/,
-  );
+  assert.match(check(root, [record('src/service.js', 701)]).join('\n'), /ceiling 701/);
 });
 
 test('registry rejects malformed records, duplicates, wildcards, stale paths and expiry', (t) => {
@@ -156,10 +147,7 @@ test('registry rejects malformed records, duplicates, wildcards, stale paths and
     { test: '../secret' },
     { test: 'src/service.js' },
   ]) {
-    assert.ok(
-      check(root, [{ ...valid, ...changes }]).length,
-      JSON.stringify(changes),
-    );
+    assert.ok(check(root, [{ ...valid, ...changes }]).length, JSON.stringify(changes));
   }
   assert.match(check(root, [valid, valid]).join('\n'), /duplicate/);
   assert.match(check(root, [null]).join('\n'), /must be an object/);
@@ -171,19 +159,15 @@ test('standalone CLI fails on an unreviewed source and succeeds after a valid re
   const { root, write } = fixture(t);
   write('src/new.js', 801);
   fs.mkdirSync(path.join(root, 'scripts'), { recursive: true });
-  fs.copyFileSync(
-    path.join(ROOT_DIR, 'scripts/check-modularity.js'),
-    path.join(root, 'scripts/check-modularity.js'),
-  );
+  fs.copyFileSync(path.join(ROOT_DIR, 'scripts/check-modularity.js'), path.join(root, 'scripts/check-modularity.js'));
   const baseline = path.join(root, BASELINE_PATH);
   fs.mkdirSync(path.dirname(baseline), { recursive: true });
   fs.writeFileSync(baseline, JSON.stringify({ version: 1, entries: [] }));
   const run = () =>
-    spawnSync(
-      process.execPath,
-      [path.join(root, 'scripts/check-modularity.js')],
-      { encoding: 'utf8', windowsHide: true },
-    );
+    spawnSync(process.execPath, [path.join(root, 'scripts/check-modularity.js')], {
+      encoding: 'utf8',
+      windowsHide: true,
+    });
   const rejected = run();
   assert.equal(rejected.status, 1, rejected.stderr);
   assert.match(rejected.stderr, /800-line ceiling/);
@@ -199,21 +183,24 @@ test('standalone CLI fails on an unreviewed source and succeeds after a valid re
   assert.equal(accepted.status, 0, accepted.stderr);
 });
 
-test('the two static exceptions retain data and help-content responsibilities', () => {
+test('the static preset exception and help chapters retain their content responsibilities', () => {
   const read = (file) => fs.readFileSync(path.join(ROOT_DIR, file), 'utf8');
   const presets = JSON.parse(read('public/data/theme-presets.json'));
   assert.equal(typeof presets.default, 'object');
-  const help = read('public/pages/admin/toolbox/usage-guide.html');
-  assert.doesNotMatch(
-    help,
-    /<(?:script|form|input|select|textarea)\b|\son[a-z]+\s*=/i,
-  );
+  for (const file of [
+    'usage-guide.html',
+    'usage-guide-getting-started.html',
+    'usage-guide-features.html',
+    'usage-guide-configuration.html',
+    'usage-guide-faq.html',
+  ]) {
+    const help = read(`public/pages/admin/toolbox/${file}`);
+    assert.doesNotMatch(help, /<(?:script|form|input|select|textarea)\b|\son[a-z]+\s*=/i);
+  }
 });
 
 test('repository sources satisfy their reviewed modularity registry', () => {
-  const registry = JSON.parse(
-    fs.readFileSync(path.join(ROOT_DIR, BASELINE_PATH), 'utf8'),
-  );
+  const registry = JSON.parse(fs.readFileSync(path.join(ROOT_DIR, BASELINE_PATH), 'utf8'));
   const result = checkModularity(ROOT_DIR, registry);
   assert.deepEqual(result.errors, [], result.errors.join('\n'));
 });

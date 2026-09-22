@@ -1,16 +1,8 @@
 'use strict';
 
 const crypto = require('node:crypto');
-const {
-  fetchJson,
-  createPublicError,
-  throwIfAborted,
-} = require('./http-client');
-const {
-  describeModelEndpoint,
-  resolveModelEndpoint,
-  resolveModelsEndpoint,
-} = require('./model-endpoint');
+const { fetchJson, createPublicError, throwIfAborted } = require('./http-client');
+const { describeModelEndpoint, resolveModelEndpoint, resolveModelsEndpoint } = require('./model-endpoint');
 const { applyModelProviderPreset } = require('./config');
 
 function createDeepSeekClient(options = {}) {
@@ -24,10 +16,7 @@ function createDeepSeekClient(options = {}) {
     if (!config.deepseekResponsesUrl || !config.deepseekApiKey) {
       throw createPublicError('AI_NOT_CONFIGURED', '模型服务尚未配置。');
     }
-    const endpoint = resolveModelEndpoint(
-      config.deepseekResponsesUrl,
-      config.modelApiProtocol,
-    );
+    const endpoint = resolveModelEndpoint(config.deepseekResponsesUrl, config.modelApiProtocol);
     const responsesBody = {
       model: config.model,
       instructions: request.instructions,
@@ -35,16 +24,14 @@ function createDeepSeekClient(options = {}) {
       tools: request.tools || [],
       max_output_tokens: Math.max(64, Number(request.maxOutputTokens) || 256),
     };
-    if (request.previousResponseId)
-      responsesBody.previous_response_id = request.previousResponseId;
+    if (request.previousResponseId) responsesBody.previous_response_id = request.previousResponseId;
     if (!config.reasoningEnabled) {
       responsesBody.reasoning = { effort: 'none' };
     } else if (config.reasoningEffort && config.reasoningEffort !== 'auto') {
       const reasoningEffort = endpoint.officialDeepSeek
         ? toDeepSeekReasoningEffort(config.reasoningEffort)
         : config.reasoningEffort;
-      if (reasoningEffort)
-        responsesBody.reasoning = { effort: reasoningEffort };
+      if (reasoningEffort) responsesBody.reasoning = { effort: reasoningEffort };
     }
 
     if (endpoint.protocol === 'chat_completions') {
@@ -64,10 +51,7 @@ function createDeepSeekClient(options = {}) {
   async function createChatResponse(request, config, endpoint) {
     const previousId = String(request.previousResponseId || '');
     const previousMessages = previousId ? chatHistory.get(previousId) : null;
-    const instructions = appendChatCapabilityNotice(
-      request.instructions,
-      request.tools,
-    );
+    const instructions = appendChatCapabilityNotice(request.instructions, request.tools);
     const messages = previousMessages
       ? [...previousMessages, ...toChatInputMessages(request.input)]
       : buildInitialChatMessages(instructions, request.input);
@@ -82,8 +66,7 @@ function createDeepSeekClient(options = {}) {
         type: config.reasoningEnabled ? 'enabled' : 'disabled',
       };
       const reasoningEffort = toDeepSeekReasoningEffort(config.reasoningEffort);
-      if (config.reasoningEnabled && reasoningEffort)
-        body.reasoning_effort = reasoningEffort;
+      if (config.reasoningEnabled && reasoningEffort) body.reasoning_effort = reasoningEffort;
     } else if (config.modelProvider === 'gemini') {
       const reasoningEffort = toGeminiReasoningEffort(config.reasoningEffort);
       if (!config.reasoningEnabled) body.reasoning_effort = 'none';
@@ -103,21 +86,12 @@ function createDeepSeekClient(options = {}) {
     });
     const assistantMessage = toAssistantHistoryMessage(result.rawMessage);
     const responseId = result.id || `chat_${crypto.randomUUID()}`;
-    if (assistantMessage)
-      rememberChatHistory(responseId, [...messages, assistantMessage]);
+    if (assistantMessage) rememberChatHistory(responseId, [...messages, assistantMessage]);
     if (previousId) chatHistory.delete(previousId);
     return { ...result, id: responseId, rawMessage: undefined };
   }
 
-  async function sendModelRequest({
-    url,
-    config,
-    purpose,
-    protocol,
-    body,
-    normalize,
-    signal,
-  }) {
+  async function sendModelRequest({ url, config, purpose, protocol, body, normalize, signal }) {
     throwIfAborted(signal);
     const requestId = crypto.randomUUID();
     const secrets = [config.deepseekApiKey];
@@ -148,19 +122,10 @@ function createDeepSeekClient(options = {}) {
       throwIfAborted(signal);
       const result = normalize(payload);
       if (!result.text && !result.functionCalls.length) {
-        if (
-          result.finishReason === 'length' ||
-          result.finishReason === 'max_output_tokens'
-        ) {
-          throw createPublicError(
-            'DEEPSEEK_OUTPUT_TRUNCATED',
-            '模型输出达到长度上限，未生成完整回复。',
-          );
+        if (result.finishReason === 'length' || result.finishReason === 'max_output_tokens') {
+          throw createPublicError('DEEPSEEK_OUTPUT_TRUNCATED', '模型输出达到长度上限，未生成完整回复。');
         }
-        throw createPublicError(
-          'DEEPSEEK_INVALID_RESPONSE',
-          '模型服务返回了空响应。',
-        );
+        throw createPublicError('DEEPSEEK_INVALID_RESPONSE', '模型服务返回了空响应。');
       }
       throwIfAborted(signal);
       await safeLog(
@@ -175,9 +140,7 @@ function createDeepSeekClient(options = {}) {
           durationMs: Math.max(0, Date.now() - startedAt),
           inputTokens: Number(result.usage?.inputTokens) || 0,
           outputTokens: Number(result.usage?.outputTokens) || 0,
-          functionCallCount: Array.isArray(result.functionCalls)
-            ? result.functionCalls.length
-            : 0,
+          functionCallCount: Array.isArray(result.functionCalls) ? result.functionCalls.length : 0,
           finishReason: String(result.finishReason || ''),
         },
         secrets,
@@ -228,35 +191,20 @@ function createDeepSeekClient(options = {}) {
       deepseekResponsesUrl: request.responsesUrl,
       modelApiProtocol: request.modelApiProtocol,
     });
-    const responsesUrl = String(
-      providerConfig.deepseekResponsesUrl || '',
-    ).trim();
-    if (!responsesUrl)
-      throw createPublicError(
-        'DEEPSEEK_URL_MISSING',
-        '请先填写 API 请求地址。',
-      );
-    if (!apiKey)
-      throw createPublicError(
-        'AI_NOT_CONFIGURED',
-        '请先填写当前模型服务的 API Key。',
-      );
-    const payload = await fetchJson(
-      resolveModelsEndpoint(responsesUrl, providerConfig.modelApiProtocol),
-      {
-        headers: { Authorization: `Bearer ${apiKey}` },
-        timeoutMs: request.requestTimeoutMs,
-        fetchImpl,
-        signal: request.signal,
-      },
-    );
+    const responsesUrl = String(providerConfig.deepseekResponsesUrl || '').trim();
+    if (!responsesUrl) throw createPublicError('DEEPSEEK_URL_MISSING', '请先填写 API 请求地址。');
+    if (!apiKey) throw createPublicError('AI_NOT_CONFIGURED', '请先填写当前模型服务的 API Key。');
+    const payload = await fetchJson(resolveModelsEndpoint(responsesUrl, providerConfig.modelApiProtocol), {
+      headers: { Authorization: `Bearer ${apiKey}` },
+      timeoutMs: request.requestTimeoutMs,
+      fetchImpl,
+      signal: request.signal,
+    });
     const models = Array.from(
       new Set(
         (Array.isArray(payload?.data) ? payload.data : [])
           .map((item) => item?.id)
-          .filter(
-            (id) => typeof id === 'string' && id.length >= 1 && id.length <= 80,
-          ),
+          .filter((id) => typeof id === 'string' && id.length >= 1 && id.length <= 80),
       ),
     ).sort((left, right) => left.localeCompare(right));
     return { models };
@@ -265,29 +213,17 @@ function createDeepSeekClient(options = {}) {
   async function testConnection(config = {}, options = {}) {
     config = applyModelProviderPreset(config);
     if (!config.deepseekResponsesUrl) {
-      throw createPublicError(
-        'DEEPSEEK_URL_MISSING',
-        '请先填写模型服务 API 地址。',
-      );
+      throw createPublicError('DEEPSEEK_URL_MISSING', '请先填写模型服务 API 地址。');
     }
     if (!config.deepseekApiKey) {
-      throw createPublicError(
-        'DEEPSEEK_KEY_MISSING',
-        '请先填写当前模型服务的 API Key。',
-      );
+      throw createPublicError('DEEPSEEK_KEY_MISSING', '请先填写当前模型服务的 API Key。');
     }
     let responseText;
-    const testEndpoint = resolveModelEndpoint(
-      config.deepseekResponsesUrl,
-      config.modelApiProtocol,
-    );
+    const testEndpoint = resolveModelEndpoint(config.deepseekResponsesUrl, config.modelApiProtocol);
     try {
       const response = await createResponse({
         config,
-        instructions:
-          testEndpoint.protocol === 'chat_completions'
-            ? ''
-            : '请简短回复用户。',
+        instructions: testEndpoint.protocol === 'chat_completions' ? '' : '请简短回复用户。',
         input: '你好',
         tools: [],
         maxOutputTokens: 128,
@@ -297,19 +233,13 @@ function createDeepSeekClient(options = {}) {
       responseText = response.text;
     } catch (error) {
       if (isAuthenticationError(error)) {
-        throw createPublicError(
-          'DEEPSEEK_AUTH_FAILED',
-          '模型服务拒绝了该 API Key。',
-        );
+        throw createPublicError('DEEPSEEK_AUTH_FAILED', '模型服务拒绝了该 API Key。');
       }
       throw error;
     }
     responseText = String(responseText || '').trim();
     if (!responseText) {
-      throw createPublicError(
-        'DEEPSEEK_INVALID_RESPONSE',
-        '模型服务返回了空响应。',
-      );
+      throw createPublicError('DEEPSEEK_INVALID_RESPONSE', '模型服务返回了空响应。');
     }
     return {
       provider: 'deepseek',
@@ -326,9 +256,7 @@ function normalizeChatResponse(payload) {
   const choice = payload?.choices?.[0] || {};
   const message = choice.message || {};
   const finishReason = String(choice.finish_reason || '');
-  const functionCalls = (
-    Array.isArray(message.tool_calls) ? message.tool_calls : []
-  )
+  const functionCalls = (Array.isArray(message.tool_calls) ? message.tool_calls : [])
     .filter((call) => call?.type === 'function' && call.function)
     .map((call) => ({
       callId: String(call.id || ''),
@@ -386,8 +314,7 @@ function buildInitialChatMessages(instructions, input) {
   if (String(instructions || '').trim()) {
     messages.push({ role: 'system', content: String(instructions).trim() });
   }
-  if (typeof input === 'string')
-    messages.push({ role: 'user', content: input });
+  if (typeof input === 'string') messages.push({ role: 'user', content: input });
   else messages.push(...toChatInputMessages(input));
   return messages;
 }
@@ -411,10 +338,7 @@ function toChatInputMessages(input) {
 
 function toChatTools(tools) {
   return (Array.isArray(tools) ? tools : [])
-    .filter(
-      (tool) =>
-        (tool?.type === 'function' && tool.name) || tool?.type === 'web_search',
-    )
+    .filter((tool) => (tool?.type === 'function' && tool.name) || tool?.type === 'web_search')
     .map((tool) => {
       if (tool.type === 'web_search') {
         return {
@@ -459,8 +383,7 @@ function normalizeResponse(payload) {
   const functionCalls = [];
   const textParts = [];
   const finishReason =
-    payload?.status === 'incomplete' &&
-    payload?.incomplete_details?.reason === 'max_output_tokens'
+    payload?.status === 'incomplete' && payload?.incomplete_details?.reason === 'max_output_tokens'
       ? 'max_output_tokens'
       : '';
   for (const item of outputs) {
@@ -472,12 +395,10 @@ function normalizeResponse(payload) {
       });
     }
     for (const content of Array.isArray(item?.content) ? item.content : []) {
-      if (content?.type === 'output_text' && content.text)
-        textParts.push(String(content.text));
+      if (content?.type === 'output_text' && content.text) textParts.push(String(content.text));
     }
   }
-  const directText =
-    typeof payload?.output_text === 'string' ? payload.output_text : '';
+  const directText = typeof payload?.output_text === 'string' ? payload.output_text : '';
   return {
     id: String(payload?.id || ''),
     text: directText || textParts.join(''),
@@ -496,22 +417,14 @@ function parseArguments(value, finishReason = '') {
     return JSON.parse(String(value || '{}'));
   } catch {
     if (finishReason === 'length' || finishReason === 'max_output_tokens') {
-      throw createPublicError(
-        'DEEPSEEK_OUTPUT_TRUNCATED',
-        '模型输出达到长度上限，工具参数不完整。',
-      );
+      throw createPublicError('DEEPSEEK_OUTPUT_TRUNCATED', '模型输出达到长度上限，工具参数不完整。');
     }
-    throw createPublicError(
-      'INVALID_TOOL_ARGUMENTS',
-      '模型给出了无效的工具参数。',
-    );
+    throw createPublicError('INVALID_TOOL_ARGUMENTS', '模型给出了无效的工具参数。');
   }
 }
 
 function isAuthenticationError(error) {
-  return /(?:^|_)(?:401|403|AUTH|AUTHENTICATION|UNAUTHORIZED|INVALID_API_KEY)(?:$|_)/i.test(
-    String(error?.code || ''),
-  );
+  return /(?:^|_)(?:401|403|AUTH|AUTHENTICATION|UNAUTHORIZED|INVALID_API_KEY)(?:$|_)/i.test(String(error?.code || ''));
 }
 
 module.exports = { createDeepSeekClient, normalizeResponse };

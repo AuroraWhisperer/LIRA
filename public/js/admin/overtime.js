@@ -2,20 +2,9 @@
 
 import { eventBus, Events } from '../shared/event-bus.js';
 import { createGiftCatalogRoleLookup } from '../shared/gift-catalog-roles.js';
-import {
-  giftSelectionKey,
-  giftArtworkKey,
-  rowGiftIdentity,
-} from './overtime-gift-identity.js';
+import { giftSelectionKey, giftArtworkKey, rowGiftIdentity } from './overtime-gift-identity.js';
 import { setGiftImage } from '../shared/gift-image-fallback.js';
-import {
-  api,
-  copyText,
-  localOverlayOrigin,
-  readJsonResponse,
-  showError,
-  toast,
-} from '../shared/utils.js';
+import { api, copyText, localOverlayOrigin, readJsonResponse, showError, toast } from '../shared/utils.js';
 import { createOvertimeRuleEditor } from './overtime-rule-editor.js';
 import { createOvertimeTimeView } from './overtime-time-view.js';
 import { createOvertimeStatusView } from './overtime-status-view.js';
@@ -88,8 +77,7 @@ const overtimeStatusView = createOvertimeStatusView({
   getRuleEditor: () =>
     ruleEditor
       ? {
-          renderRules: (rules) =>
-            ruleEditor.renderRules(decorateOvertimeRules(rules)),
+          renderRules: (rules) => ruleEditor.renderRules(decorateOvertimeRules(rules)),
         }
       : null,
   isRulesDirty: () => rulesDirty,
@@ -148,41 +136,21 @@ function bindControls() {
   byId('overtimePauseBtn').addEventListener('click', () => runAction('pause'));
   byId('overtimeResetBtn').addEventListener('click', () => runAction('reset'));
   byId('overtimeApplyTimeBtn').addEventListener('click', applyTime);
-  byId('overtimeInitialTime').addEventListener(
-    'input',
-    syncDurationSelectorsFromInput,
-  );
-  byId('overtimeInitialHours').addEventListener(
-    'change',
-    syncDurationInputFromSelectors,
-  );
-  byId('overtimeInitialMinutes').addEventListener(
-    'change',
-    syncDurationInputFromSelectors,
-  );
+  byId('overtimeInitialTime').addEventListener('input', syncDurationSelectorsFromInput);
+  byId('overtimeInitialHours').addEventListener('change', syncDurationInputFromSelectors);
+  byId('overtimeInitialMinutes').addEventListener('change', syncDurationInputFromSelectors);
   byId('overtimeRefreshGiftsBtn').addEventListener('click', refreshGiftCatalog);
   byId('overtimeAddGiftBtn').addEventListener('click', openGiftPicker);
   byId('overtimeGiftSearch').addEventListener('input', handleGiftSearchInput);
-  byId('overtimeGiftSearch').addEventListener(
-    'keydown',
-    handleGiftSearchKeydown,
-  );
-  byId('overtimeGlobalGiftSearchBtn').addEventListener(
-    'click',
-    toggleGiftPickerSource,
-  );
+  byId('overtimeGiftSearch').addEventListener('keydown', handleGiftSearchKeydown);
+  byId('overtimeGlobalGiftSearchBtn').addEventListener('click', toggleGiftPickerSource);
   byId('overtimeRules').addEventListener('input', markRulesDirty);
   byId('overtimeRules').addEventListener('change', markRulesDirty);
   byId('overtimeSaveRulesBtn').addEventListener('click', saveRules);
   byId('overtimeSaveBackgroundBtn').addEventListener('click', saveBackground);
-  byId('overtimeBackgroundPath').addEventListener(
-    'change',
-    markBackgroundDirty,
-  );
+  byId('overtimeBackgroundPath').addEventListener('change', markBackgroundDirty);
   byId('overtimeBackgroundFit').addEventListener('change', markBackgroundDirty);
-  byId('overtimeOpenOverlayBtn').addEventListener('click', () =>
-    window.open(overlayUrl(), '_blank', 'noopener'),
-  );
+  byId('overtimeOpenOverlayBtn').addEventListener('click', () => window.open(overlayUrl(), '_blank', 'noopener'));
   byId('overtimeCopyOverlayBtn').addEventListener('click', copyOverlayUrl);
   byId('overtimePreview').src = '/overtime?quality=low';
   syncRulesSaveButton();
@@ -198,9 +166,7 @@ async function runAction(action) {
 
 async function applyTime() {
   try {
-    const initialSeconds = parseInitialDuration(
-      byId('overtimeInitialTime').value,
-    );
+    const initialSeconds = parseInitialDuration(byId('overtimeInitialTime').value);
     const result = await api('/api/overtime/time', {
       initialSeconds,
       remainingSeconds: initialSeconds,
@@ -322,11 +288,8 @@ async function refreshGiftCatalog({ notify = true } = {}) {
 
 function applyGiftCatalog(snapshot) {
   giftCatalogApplyGeneration += 1;
-  giftCatalogSnapshot =
-    snapshot && typeof snapshot === 'object' ? snapshot : {};
-  const saleGifts = Array.isArray(giftCatalogSnapshot.gifts)
-    ? giftCatalogSnapshot.gifts
-    : [];
+  giftCatalogSnapshot = snapshot && typeof snapshot === 'object' ? snapshot : {};
+  const saleGifts = Array.isArray(giftCatalogSnapshot.gifts) ? giftCatalogSnapshot.gifts : [];
   catalog = [
     ...GUARD_GIFTS.map((gift, index) => ({
       ...gift,
@@ -351,9 +314,7 @@ function applyGiftCatalog(snapshot) {
     }))
     .sort(
       (left, right) =>
-        left.catalogGroup - right.catalogGroup ||
-        left.catalogOrder - right.catalogOrder ||
-        left.rmb - right.rmb,
+        left.catalogGroup - right.catalogGroup || left.catalogOrder - right.catalogOrder || left.rmb - right.rmb,
     );
   renderGiftCatalogStatus();
   // Keep an open picker in sync without changing its source or search query.
@@ -382,12 +343,8 @@ function applyServerGiftArtwork(snapshot) {
     const imagePath = serverGiftArtworkById.get(giftArtworkKey(gift));
     return imagePath ? { ...gift, imagePath } : gift;
   });
-  for (const row of byId('overtimeRules').querySelectorAll(
-    '[data-overtime-rule]',
-  )) {
-    const imagePath = serverGiftArtworkById.get(
-      giftArtworkKey({ ...row.dataset, giftIdentity: rowGiftIdentity(row) }),
-    );
+  for (const row of byId('overtimeRules').querySelectorAll('[data-overtime-rule]')) {
+    const imagePath = serverGiftArtworkById.get(giftArtworkKey({ ...row.dataset, giftIdentity: rowGiftIdentity(row) }));
     if (!imagePath) continue;
     row.dataset.imagePath = imagePath;
     const image = row.querySelector('.overtime-rule-gift img');
@@ -413,9 +370,7 @@ function decorateOvertimeRules(rules) {
 
 function normalizeGiftArtworkPath(value) {
   const imagePath = String(value ?? '').trim();
-  return /^\/overtime-gift-images\/[a-z0-9._-]+\.(?:gif|webp|png|jpe?g)$/i.test(
-    imagePath,
-  ) && !imagePath.includes('..')
+  return /^\/overtime-gift-images\/[a-z0-9._-]+\.(?:gif|webp|png|jpe?g)$/i.test(imagePath) && !imagePath.includes('..')
     ? imagePath
     : '';
 }
@@ -445,9 +400,7 @@ function catalogRoomLabel(snapshot, liveStatus) {
   const roomId = String(snapshot?.roomId || '');
   const liveRoomId = String(liveStatus?.roomId || '');
   const ownerName = String(liveStatus?.ownerName || '').trim();
-  return ownerName && roomId && liveRoomId === roomId
-    ? ownerName
-    : roomId || '—';
+  return ownerName && roomId && liveRoomId === roomId ? ownerName : roomId || '—';
 }
 
 function syncCatalogRefreshButton() {
@@ -459,9 +412,7 @@ function syncCatalogRefreshButton() {
 
 function openGiftPicker(row = null) {
   reselectingRule = row?.dataset?.overtimeRule ? row : null;
-  byId('overtimeGiftPickerTitle').textContent = reselectingRule
-    ? '重新选择礼物'
-    : '添加礼物';
+  byId('overtimeGiftPickerTitle').textContent = reselectingRule ? '重新选择礼物' : '添加礼物';
   giftPickerGeneration += 1;
   const search = byId('overtimeGiftSearch');
   search.value = '';
@@ -515,17 +466,14 @@ async function toggleGiftPickerSource() {
     if (!Array.isArray(result.data?.gifts)) {
       throw new Error('礼物库尚未缓存。');
     }
-    if (requestRoleRevision === giftRoleRevision)
-      applyGiftRoleCatalog(result.data);
+    if (requestRoleRevision === giftRoleRevision) applyGiftRoleCatalog(result.data);
     globalGiftMatches = result.data.gifts.map((gift) => ({
       variantId: gift.variantId,
       giftIdentity: gift.giftIdentity,
       id: String(gift.id),
       name: String(gift.name || gift.id),
       rmb: Number(gift.rmb) || 0,
-      imagePath:
-        serverGiftArtworkById.get(giftArtworkKey(gift)) ||
-        String(gift.imagePath || ''),
+      imagePath: serverGiftArtworkById.get(giftArtworkKey(gift)) || String(gift.imagePath || ''),
     }));
   } catch (error) {
     if (requestGeneration !== giftPickerGeneration) return;
@@ -553,10 +501,7 @@ function syncGlobalGiftSearchButton() {
 function renderGiftPicker() {
   const root = byId('overtimeGiftResults');
   root.replaceChildren();
-  if (
-    giftPickerSource === 'global' &&
-    (globalGiftSearchPending || globalGiftSearchError)
-  ) {
+  if (giftPickerSource === 'global' && (globalGiftSearchPending || globalGiftSearchError)) {
     appendPickerMessage(
       root,
       'overtime-rule-empty overtime-local-gift-search-status',
@@ -598,9 +543,7 @@ function filterGiftOptions(source, selectedIds, query) {
   return source.filter(
     (gift) =>
       !selectedIds.has(giftSelectionKey(gift)) &&
-      (!query ||
-        gift.id.toLocaleLowerCase().includes(query) ||
-        gift.name.toLocaleLowerCase().includes(query)),
+      (!query || gift.id.toLocaleLowerCase().includes(query) || gift.name.toLocaleLowerCase().includes(query)),
   );
 }
 
@@ -644,15 +587,11 @@ function appendPickerMessage(root, className, message) {
 
 function addGiftRule(gift) {
   const replacing = Boolean(reselectingRule);
-  const row = replacing
-    ? ruleEditor.reselectGift(reselectingRule, gift)
-    : ruleEditor.createRule(gift);
+  const row = replacing ? ruleEditor.reselectGift(reselectingRule, gift) : ruleEditor.createRule(gift);
   reselectingRule = null;
   byId('overtimeGiftPicker').close();
   row.scrollIntoView({ block: 'nearest' });
-  toast(
-    replacing ? `已选择 ${gift.name}，原规则设置已保留` : `已添加 ${gift.name}`,
-  );
+  toast(replacing ? `已选择 ${gift.name}，原规则设置已保留` : `已添加 ${gift.name}`);
 }
 
 function overlayUrl() {

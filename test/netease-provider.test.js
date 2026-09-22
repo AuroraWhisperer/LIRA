@@ -2,13 +2,8 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {
-  NeteaseMusicProvider,
-} = require('../src/music/providers/netease-provider');
-const {
-  getMusicHomeContent,
-  writeMusicPlaylistTracks,
-} = require('../src/music/lyrics-service');
+const { NeteaseMusicProvider } = require('../src/music/providers/netease-provider');
+const { getMusicHomeContent, writeMusicPlaylistTracks } = require('../src/music/lyrics-service');
 
 function createProvider() {
   return new NeteaseMusicProvider({
@@ -30,8 +25,7 @@ test('Netease provider requests and aligns translated and romanized lyrics', asy
         lyric: '[00:19.64]那天所眺望的海岸\n[00:24.50]直至今日仍能想起',
       },
       romalrc: {
-        lyric:
-          '[00:19.64]a no hi mi wa ta shi ta na gi sa wo\n[00:24.50]i ma mo o mo i da su n da',
+        lyric: '[00:19.64]a no hi mi wa ta shi ta na gi sa wo\n[00:24.50]i ma mo o mo i da su n da',
       },
     };
   };
@@ -99,10 +93,7 @@ test('Netease provider forwards a selected lossless level', async () => {
     };
   };
 
-  const stream = await provider.resolvePlayableUrl(
-    { sourceTrackId: '461011' },
-    { quality: 'lossless' },
-  );
+  const stream = await provider.resolvePlayableUrl({ sourceTrackId: '461011' }, { quality: 'lossless' });
 
   assert.equal(captured.params.level, 'lossless');
   assert.equal(captured.params.encodeType, 'flac');
@@ -140,10 +131,7 @@ test('Netease provider rejects songs that the current account cannot play or tri
     data: [{ id: 461011, url: null, code: -110, freeTrialInfo: null }],
   });
 
-  await assert.rejects(
-    provider.resolvePlayableUrl({ sourceTrackId: '461011' }),
-    /无法播放或试听/,
-  );
+  await assert.rejects(provider.resolvePlayableUrl({ sourceTrackId: '461011' }), /无法播放或试听/);
 });
 
 test('Netease provider rejects unsafe upstream stream protocols', async () => {
@@ -153,10 +141,7 @@ test('Netease provider rejects unsafe upstream stream protocols', async () => {
     data: [{ id: 461011, url: 'javascript:alert(1)', code: 200 }],
   });
 
-  await assert.rejects(
-    provider.resolvePlayableUrl({ sourceTrackId: '461011' }),
-    /地址无效/,
-  );
+  await assert.rejects(provider.resolvePlayableUrl({ sourceTrackId: '461011' }), /地址无效/);
 });
 
 test('Netease search enriches result artwork with one batched song-detail request', async () => {
@@ -172,9 +157,7 @@ test('Netease search enriches result artwork with one batched song-detail reques
               id: 11,
               name: 'A',
               album: { id: 1, name: 'Old' },
-              artists: [
-                { name: 'Singer', img1v1Url: 'https://artist.test/a.jpg' },
-              ],
+              artists: [{ name: 'Singer', img1v1Url: 'https://artist.test/a.jpg' }],
             },
             {
               id: 22,
@@ -219,9 +202,7 @@ test('Netease search preserves artist artwork when song-detail lookup fails', as
                 id: 11,
                 name: 'A',
                 album: { id: 1, name: 'Old' },
-                artists: [
-                  { name: 'Singer', img1v1Url: 'https://artist.test/a.jpg' },
-                ],
+                artists: [{ name: 'Singer', img1v1Url: 'https://artist.test/a.jpg' }],
               },
             ],
           },
@@ -293,9 +274,7 @@ test('Netease track lists enrich every missing album cover', async (t) => {
         if (pathname === '/api/song/detail') {
           detailRequests.push(params.ids);
           return {
-            songs: [
-              { id: 22, album: { picUrl: 'https://album.test/enriched.jpg' } },
-            ],
+            songs: [{ id: 22, album: { picUrl: 'https://album.test/enriched.jpg' } }],
           };
         }
         throw new Error(`Unexpected request: ${pathname}`);
@@ -320,8 +299,7 @@ test('Netease artwork enrichment batches large lists and preserves successful ba
   }));
   const detailRequests = [];
   provider.requestJson = async (pathname, params) => {
-    if (pathname === '/api/v6/playlist/detail')
-      return { playlist: { tracks: songs } };
+    if (pathname === '/api/v6/playlist/detail') return { playlist: { tracks: songs } };
     if (pathname === '/api/song/detail') {
       const ids = JSON.parse(params.ids);
       detailRequests.push(ids);
@@ -354,10 +332,7 @@ test('Netease provider writes numeric tracks to a playlist', async () => {
     return { code: 200 };
   };
 
-  const result = await provider.addTracksToPlaylist(
-    { id: '123456', title: '我的歌单' },
-    [{ sourceTrackId: '789012' }],
-  );
+  const result = await provider.addTracksToPlaylist({ id: '123456', title: '我的歌单' }, [{ sourceTrackId: '789012' }]);
 
   assert.equal(captured.pathname, '/weapi/playlist/manipulate/tracks');
   assert.equal(captured.payload.op, 'add');
@@ -374,10 +349,9 @@ test('Netease provider reports an existing track without treating it as a failur
     message: '歌单中歌曲重复',
   });
 
-  const result = await provider.addTracksToPlaylist(
-    { id: '123456', title: '我喜欢的音乐' },
-    [{ sourceTrackId: '789012' }],
-  );
+  const result = await provider.addTracksToPlaylist({ id: '123456', title: '我喜欢的音乐' }, [
+    { sourceTrackId: '789012' },
+  ]);
 
   assert.equal(result.songlist[0].existed, 1);
 });
@@ -388,14 +362,8 @@ test('Netease provider checks the complete playlist track id list', async () => 
     playlist: { trackIds: [{ id: 123 }, { id: 789012 }] },
   });
 
-  assert.equal(
-    await provider.playlistContainsTrack('123456', { sourceTrackId: '789012' }),
-    true,
-  );
-  assert.equal(
-    await provider.playlistContainsTrack('123456', { sourceTrackId: '345678' }),
-    false,
-  );
+  assert.equal(await provider.playlistContainsTrack('123456', { sourceTrackId: '789012' }), true);
+  assert.equal(await provider.playlistContainsTrack('123456', { sourceTrackId: '345678' }), false);
 });
 
 test('playlist write service routes Netease writes to its provider', async () => {
@@ -453,15 +421,10 @@ test('Netease liked removal resolves the logged-in users actual playlist ID', as
 test('Netease liked removal fails without writing to an arbitrary playlist', async () => {
   const provider = createProvider();
   provider.getUserProfile = async () => ({ userId: '42' });
-  provider.getUserPlaylists = async () => [
-    { id: '123456', title: 'Daily Mix' },
-  ];
-  provider.requestWeapiJson = async () =>
-    assert.fail('must not write without liked playlist');
+  provider.getUserPlaylists = async () => [{ id: '123456', title: 'Daily Mix' }];
+  provider.requestWeapiJson = async () => assert.fail('must not write without liked playlist');
   await assert.rejects(
-    provider.removeTracksFromPlaylist({ id: 'liked' }, [
-      { sourceTrackId: '789012' },
-    ]),
+    provider.removeTracksFromPlaylist({ id: 'liked' }, [{ sourceTrackId: '789012' }]),
     /没有从网易云音乐读取到.*我喜欢/,
   );
 });
@@ -475,9 +438,7 @@ test('created playlist content marks only playlists without the track as availab
       ];
     },
     async getPlaylistTracks(playlistId) {
-      return playlistId === '1'
-        ? [{ sourceTrackId: '789012' }]
-        : [{ sourceTrackId: '345678' }];
+      return playlistId === '1' ? [{ sourceTrackId: '789012' }] : [{ sourceTrackId: '345678' }];
     },
   };
   const result = await getMusicHomeContent(
@@ -500,9 +461,7 @@ test('Netease liked tracks reject instead of falling back to an arbitrary playli
     { id: 'first', title: 'Favorites' },
     { id: 'second', title: 'Daily Mix' },
   ];
-  provider.getPlaylistTracks = async (playlistId) => [
-    { sourceTrackId: playlistId },
-  ];
+  provider.getPlaylistTracks = async (playlistId) => [{ sourceTrackId: playlistId }];
 
   await assert.rejects(provider.getLikedTracks({ limit: 20 }), /我喜欢/);
 });

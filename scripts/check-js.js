@@ -50,8 +50,7 @@ async function main() {
   const concurrency = Math.min(4, os.availableParallelism(), files.length);
   await Promise.all(Array.from({ length: concurrency }, worker));
   process.exitCode = exitCode;
-  if (exitCode === 0)
-    console.log(`Syntax check passed for ${files.length} JavaScript files.`);
+  if (exitCode === 0) console.log(`Syntax check passed for ${files.length} JavaScript files.`);
 }
 
 main().catch((error) => {

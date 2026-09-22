@@ -19,10 +19,7 @@ test(
     const app = Object.assign(new EventEmitter(), {
       getVersion: () => '4.1.0',
       getName: () => 'LIRA',
-      getPath: (name) =>
-        name === 'exe'
-          ? 'D:\\Apps\\LIRA\\LIRA.exe'
-          : 'D:\\Apps\\LIRA\\data\\browser',
+      getPath: (name) => (name === 'exe' ? 'D:\\Apps\\LIRA\\LIRA.exe' : 'D:\\Apps\\LIRA\\data\\browser'),
       isPackaged: true,
     });
     try {
@@ -34,10 +31,7 @@ test(
       delete require.cache[modulePath];
       require(modulePath).configureAutoUpdater({});
       const updater = require('electron-updater').autoUpdater;
-      assert.equal(
-        updater.httpExecutor.constructor.name,
-        'ElectronHttpExecutor',
-      );
+      assert.equal(updater.httpExecutor.constructor.name, 'ElectronHttpExecutor');
       assert.equal(typeof updater.httpExecutor.download, 'function');
       // Resolve the actual library download helper without disk or network access.
       updater.configOnDisk = {
@@ -45,10 +39,7 @@ test(
       };
       updater.logger = null;
       const helper = await updater.getOrCreateDownloadHelper();
-      assert.equal(
-        helper.cacheDir,
-        path.join('D:\\Apps\\LIRA', 'updates', 'lira-updater'),
-      );
+      assert.equal(helper.cacheDir, path.join('D:\\Apps\\LIRA', 'updates', 'lira-updater'));
       assert.equal(updater.autoDownload, true);
       assert.equal(updater.autoInstallOnAppQuit, true);
     } finally {

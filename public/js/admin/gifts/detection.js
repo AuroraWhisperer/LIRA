@@ -2,7 +2,7 @@ import { publishGiftModule } from '../legacy-admin-bridge.js';
 import { formatTime } from '../../shared/utils.js';
 // 编写人：Aurora
 // 礼物检测模块 - 负责礼物检测状态管理和显示
-'use strict';
+('use strict');
 
 export const giftDetection = (() => {
   /**
@@ -24,10 +24,7 @@ export const giftDetection = (() => {
       if (!sprint.enabled) {
         status.textContent = '未开启';
         status.className = 'pill warn';
-      } else if (
-        live.connected &&
-        !String(live.message || '').includes('历史消息监听中')
-      ) {
+      } else if (live.connected && !String(live.message || '').includes('历史消息监听中')) {
         status.textContent = '监听中';
         status.className = 'pill good';
       } else {

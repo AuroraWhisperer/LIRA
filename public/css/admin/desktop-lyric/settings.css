@@ -148,9 +148,7 @@
   box-shadow: 0 3px 10px rgba(217, 75, 112, 0.12);
 }
 
-.desktop-lyric-source-option
-  input:focus-visible
-  + .desktop-lyric-source-choice {
+.desktop-lyric-source-option input:focus-visible + .desktop-lyric-source-choice {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
 }
@@ -299,11 +297,7 @@
   margin-left: auto;
   padding: 3px 7px;
   border-radius: 999px;
-  background: color-mix(
-    in srgb,
-    var(--desktop-lyric-group-accent) 10%,
-    transparent
-  );
+  background: color-mix(in srgb, var(--desktop-lyric-group-accent) 10%, transparent);
   color: var(--desktop-lyric-group-accent);
   font-weight: var(--type-weight-bold);
   white-space: nowrap;

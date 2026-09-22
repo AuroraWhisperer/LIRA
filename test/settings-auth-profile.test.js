@@ -33,27 +33,18 @@ function createElement(id, overrides = {}) {
 }
 
 test('Bilibili settings render the current account profile in the existing row', async () => {
-  const module = await loadModuleExports(
-    path.join(ROOT, 'public', 'js', 'admin', 'settings-auth.js'),
-    { URL, URLSearchParams },
-  );
+  const module = await loadModuleExports(path.join(ROOT, 'public', 'js', 'admin', 'settings-auth.js'), {
+    URL,
+    URLSearchParams,
+  });
   const elements = new Map([
     ['bilibiliAuthStatus', createElement('bilibiliAuthStatus')],
-    [
-      'bilibiliAuthProfile',
-      createElement('bilibiliAuthProfile', { hidden: true }),
-    ],
-    [
-      'bilibiliAuthAvatar',
-      createElement('bilibiliAuthAvatar', { hidden: true }),
-    ],
+    ['bilibiliAuthProfile', createElement('bilibiliAuthProfile', { hidden: true })],
+    ['bilibiliAuthAvatar', createElement('bilibiliAuthAvatar', { hidden: true })],
     ['bilibiliAuthName', createElement('bilibiliAuthName')],
     ['bilibiliAuthUid', createElement('bilibiliAuthUid')],
     ['bilibiliLoginBtn', createElement('bilibiliLoginBtn')],
-    [
-      'bilibiliLogoutBtn',
-      createElement('bilibiliLogoutBtn', { style: { display: 'none' } }),
-    ],
+    ['bilibiliLogoutBtn', createElement('bilibiliLogoutBtn', { style: { display: 'none' } })],
   ]);
   const windowRef = {
     __API_TOKEN__: 'desktop-session-token',
@@ -86,54 +77,33 @@ test('Bilibili settings render the current account profile in the existing row',
   assert.equal(elements.get('bilibiliAuthUid').textContent, 'UID: 288594073');
   assert.equal(elements.get('bilibiliAuthAvatar').hidden, false);
   assert.equal(elements.get('bilibiliAuthAvatar').alt, '主播小号的头像');
-  const avatarUrl = new URL(
-    elements.get('bilibiliAuthAvatar').src,
-    'http://127.0.0.1',
-  );
+  const avatarUrl = new URL(elements.get('bilibiliAuthAvatar').src, 'http://127.0.0.1');
   assert.equal(avatarUrl.pathname, '/api/bilibili/avatar');
-  assert.equal(
-    avatarUrl.searchParams.get('url'),
-    'https://i0.hdslb.com/bfs/face/host.jpg',
-  );
+  assert.equal(avatarUrl.searchParams.get('url'), 'https://i0.hdslb.com/bfs/face/host.jpg');
   assert.equal(avatarUrl.searchParams.get('token'), 'desktop-session-token');
   assert.equal(elements.get('bilibiliLoginBtn').style.display, 'none');
   assert.equal(elements.get('bilibiliLogoutBtn').style.display, '');
-  assert.equal(
-    module.bilibiliAvatarSource('https://images.example.com/avatar.jpg'),
-    '',
-  );
+  assert.equal(module.bilibiliAvatarSource('https://images.example.com/avatar.jpg'), '');
 });
 
 test('Bilibili auth copy keeps local login separate from cloud capture', async () => {
-  const module = await loadModuleExports(
-    path.join(ROOT, 'public', 'js', 'admin', 'settings-auth.js'),
-    {
-      URL,
-      URLSearchParams,
-      CustomEvent: class CustomEvent {
-        constructor(type) {
-          this.type = type;
-        }
-      },
+  const module = await loadModuleExports(path.join(ROOT, 'public', 'js', 'admin', 'settings-auth.js'), {
+    URL,
+    URLSearchParams,
+    CustomEvent: class CustomEvent {
+      constructor(type) {
+        this.type = type;
+      }
     },
-  );
+  });
   const elements = new Map([
     ['bilibiliAuthStatus', createElement('bilibiliAuthStatus')],
-    [
-      'bilibiliAuthProfile',
-      createElement('bilibiliAuthProfile', { hidden: true }),
-    ],
-    [
-      'bilibiliAuthAvatar',
-      createElement('bilibiliAuthAvatar', { hidden: true }),
-    ],
+    ['bilibiliAuthProfile', createElement('bilibiliAuthProfile', { hidden: true })],
+    ['bilibiliAuthAvatar', createElement('bilibiliAuthAvatar', { hidden: true })],
     ['bilibiliAuthName', createElement('bilibiliAuthName')],
     ['bilibiliAuthUid', createElement('bilibiliAuthUid')],
     ['bilibiliLoginBtn', createElement('bilibiliLoginBtn')],
-    [
-      'bilibiliLogoutBtn',
-      createElement('bilibiliLogoutBtn', { style: { display: 'none' } }),
-    ],
+    ['bilibiliLogoutBtn', createElement('bilibiliLogoutBtn', { style: { display: 'none' } })],
   ]);
   const toasts = [];
   let authState = { loggedIn: false };
@@ -181,51 +151,32 @@ test('Bilibili auth copy keeps local login separate from cloud capture', async (
   assert.match(logoutPrompt.message, /不会回退为匿名采集/);
   assert.equal(toasts[1], '直播账号已在本机退出');
   assert.doesNotMatch(toasts[1], /同步完成|匿名模式/);
-  assert.deepEqual(authEvents, [
-    'app:bilibili-auth-changed',
-    'app:bilibili-auth-changed',
-  ]);
+  assert.deepEqual(authEvents, ['app:bilibili-auth-changed', 'app:bilibili-auth-changed']);
 });
 
 test('Bilibili settings explain connection setup and confirmed stop actions', () => {
-  const html = fs.readFileSync(
-    path.join(ROOT, 'public', 'pages', 'admin', 'song', 'settings.html'),
-    'utf8',
-  );
+  const html = fs.readFileSync(path.join(ROOT, 'public', 'pages', 'admin', 'song', 'settings.html'), 'utf8');
 
   const help = html.match(/<lira-help\s*>(.*?)<\/lira-help/s)?.[1];
   assert.match(help, /扫码登录后，填写自己的直播间号，开启接收并保存设置/);
   assert.match(help, /「本机已登录」只说明扫码成功/);
   assert.match(help, /还要确认连接正常/);
-  assert.match(help, /关闭 LIRA 后仍会接收/);
+  assert.match(help, /关闭\s+LIRA\s+后仍会接收/);
   assert.match(help, /需要停止时关闭接收并保存，或退出直播账号，等待保存成功/);
   assert.doesNotMatch(html, /id="bilibiliAuthHint"/);
 });
 
 test('Bilibili account markup keeps avatar, identity and actions in one aligned row', () => {
-  const html = fs.readFileSync(
-    path.join(ROOT, 'public', 'pages', 'admin', 'song', 'settings.html'),
-    'utf8',
-  );
-  const css = fs.readFileSync(
-    path.join(ROOT, 'public', 'css', 'admin', 'workspace', 'base.css'),
-    'utf8',
-  );
-  const row = html.match(
-    /<div\s+class="bilibili-auth-row"[\s\S]*?<\/div>/,
-  )?.[0];
+  const html = fs.readFileSync(path.join(ROOT, 'public', 'pages', 'admin', 'song', 'settings.html'), 'utf8');
+  const css = fs.readFileSync(path.join(ROOT, 'public', 'css', 'admin', 'workspace', 'base.css'), 'utf8');
+  const row = html.match(/<div\s+class="bilibili-auth-row"[\s\S]*?<\/div>/)?.[0];
 
   assert.ok(row);
   assert.match(row, /id="bilibiliAuthAvatar"/);
   assert.match(row, /id="bilibiliAuthName"/);
   assert.match(row, /id="bilibiliAuthUid"/);
-  assert.ok(
-    row.indexOf('bilibiliAuthProfile') < row.indexOf('bilibiliLogoutBtn'),
-  );
+  assert.ok(row.indexOf('bilibiliAuthProfile') < row.indexOf('bilibiliLogoutBtn'));
   assert.match(css, /\.bilibili-auth-profile\s*\{[\s\S]*?align-items: center/);
   assert.match(css, /\.bilibili-auth-avatar\s*\{[\s\S]*?width: 28px/);
-  assert.match(
-    css,
-    /\.bilibili-auth-identity\s*\{[\s\S]*?flex-direction: column/,
-  );
+  assert.match(css, /\.bilibili-auth-identity\s*\{[\s\S]*?flex-direction: column/);
 });

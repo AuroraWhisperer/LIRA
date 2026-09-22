@@ -42,10 +42,7 @@ function migrateLegacyUserData(options) {
   if (!fileSystem.existsSync(sourceDir)) return { status: 'source-missing' };
 
   const migrationId = crypto.randomUUID();
-  const stagingDir = path.join(
-    path.dirname(targetDir),
-    `.${path.basename(targetDir)}.migration-${migrationId}`,
-  );
+  const stagingDir = path.join(path.dirname(targetDir), `.${path.basename(targetDir)}.migration-${migrationId}`);
 
   fileSystem.mkdirSync(path.dirname(targetDir), { recursive: true });
   try {

@@ -8,9 +8,7 @@ const { readServerFixture } = require('../scripts/verify-server-contract');
 const heartBox = readServerFixture('test/fixtures/heart-blind-box-events.json');
 
 test('recent blind-box icon names stay escaped at the HTML attribute boundary', async () => {
-  const { escapeHtml } = await loadModuleExports(
-    path.join(__dirname, '../public/js/shared/utils.js'),
-  );
+  const { escapeHtml } = await loadModuleExports(path.join(__dirname, '../public/js/shared/utils.js'));
   const list = {
     innerHTML: '',
     classList: { toggle() {} },
@@ -25,10 +23,7 @@ test('recent blind-box icon names stay escaped at the HTML attribute boundary', 
     },
     document: { getElementById: () => list },
   };
-  await loadModuleExports(
-    path.join(__dirname, '../public/js/admin/gifts/recent.js'),
-    globals,
-  );
+  await loadModuleExports(path.join(__dirname, '../public/js/admin/gifts/recent.js'), globals);
   const recent = globals.window.AdminApp.gifts.recent;
   const names = [
     {
@@ -37,8 +32,7 @@ test('recent blind-box icon names stay escaped at the HTML attribute boundary', 
     },
     {
       raw: '"><span data-audit-probe="node"> & \'</span>',
-      escaped:
-        '&quot;&gt;&lt;span data-audit-probe=&quot;node&quot;&gt; &amp; &#39;&lt;/span&gt;',
+      escaped: '&quot;&gt;&lt;span data-audit-probe=&quot;node&quot;&gt; &amp; &#39;&lt;/span&gt;',
     },
     {
       raw: '&quot; & < > \' "',
@@ -72,8 +66,9 @@ test('gift panel renders empty and populated recent gifts without legacy history
     querySelectorAll: () => [],
   };
   const gifts = {};
-  const sprintNodes = new Map(['giftSprintTarget', 'giftSprintReceived',
-    'giftSprintRemaining', 'giftSprintCrystalBalls'].map((id) => [id, {}]));
+  const sprintNodes = new Map(
+    ['giftSprintTarget', 'giftSprintReceived', 'giftSprintRemaining', 'giftSprintCrystalBalls'].map((id) => [id, {}]),
+  );
   const globals = {
     console: { error: t.mock.fn() },
     window: {
@@ -95,14 +90,7 @@ test('gift panel renders empty and populated recent gifts without legacy history
     },
     fetch: async () => ({ ok: true, text: async () => JSON.stringify({ ok: true, data: { gifts: [] } }) }),
   };
-  const moduleDir = path.join(
-    __dirname,
-    '..',
-    'public',
-    'js',
-    'admin',
-    'gifts',
-  );
+  const moduleDir = path.join(__dirname, '..', 'public', 'js', 'admin', 'gifts');
   await loadModuleExports(path.join(moduleDir, 'index.js'), globals);
   t.mock.method(gifts.notification, 'notifyNewGift');
 
@@ -110,10 +98,7 @@ test('gift panel renders empty and populated recent gifts without legacy history
   gifts.renderGiftPanel({ recent: [] }, {}, {}, {});
 
   assert.match(list.innerHTML, /class="empty gift-recent-empty"/);
-  assert.deepEqual(
-    [...list.classList.toggle.mock.calls.at(-1).arguments],
-    ['is-empty', true],
-  );
+  assert.deepEqual([...list.classList.toggle.mock.calls.at(-1).arguments], ['is-empty', true]);
 
   const items = [
     {
@@ -130,15 +115,9 @@ test('gift panel renders empty and populated recent gifts without legacy history
   assert.match(list.innerHTML, /Example gift x2/);
   assert.match(list.innerHTML, /Test viewer/);
   assert.doesNotMatch(list.innerHTML, /gift-recent-empty/);
-  assert.deepEqual(
-    [...list.classList.toggle.mock.calls.at(-1).arguments],
-    ['is-empty', false],
-  );
+  assert.deepEqual([...list.classList.toggle.mock.calls.at(-1).arguments], ['is-empty', false]);
   assert.equal(gifts.notification.notifyNewGift.mock.callCount(), 2);
-  assert.equal(
-    gifts.notification.notifyNewGift.mock.calls.at(-1).arguments[0],
-    items,
-  );
+  assert.equal(gifts.notification.notifyNewGift.mock.calls.at(-1).arguments[0], items);
   assert.equal(globals.console.error.mock.callCount(), 0);
 });
 
@@ -181,10 +160,7 @@ test('heart-box output cards require source identity evidence for artwork and pr
     },
     document: { getElementById: () => list },
   };
-  await loadModuleExports(
-    path.join(__dirname, '../public/js/admin/gifts/recent.js'),
-    globals,
-  );
+  await loadModuleExports(path.join(__dirname, '../public/js/admin/gifts/recent.js'), globals);
   const recent = globals.window.AdminApp.gifts.recent;
   await recent.loadGiftArtworkCatalog();
   for (const name of [heartBox.box.name, '']) {
@@ -201,26 +177,15 @@ test('heart-box output cards require source identity evidence for artwork and pr
         blind_profit: item.profit,
       };
       recent.renderGiftRecentList([row]);
+      assert.match(list.innerHTML, name ? /blind-box-card blind-box-heart/ : /blind-box-card blind-box-default/);
       assert.match(
         list.innerHTML,
-        name
-          ? /blind-box-card blind-box-heart/
-          : /blind-box-card blind-box-default/,
+        name ? /src="\/overtime-gift-images\/32251.webp"/ : /src="\/img\/gift-placeholder.png"/,
       );
+      assert.ok(!list.innerHTML.includes(`/overtime-gift-images/${item.id}.webp`));
       assert.match(
         list.innerHTML,
-        name
-          ? /src="\/overtime-gift-images\/32251.webp"/
-          : /src="\/img\/gift-placeholder.png"/,
-      );
-      assert.ok(
-        !list.innerHTML.includes(`/overtime-gift-images/${item.id}.webp`),
-      );
-      assert.match(
-        list.innerHTML,
-        item.profit < 0
-          ? /class="profit-down">-¥6\.00<\/span>/
-          : /class="profit-up">\+¥1\.00<\/span>/,
+        item.profit < 0 ? /class="profit-down">-¥6\.00<\/span>/ : /class="profit-up">\+¥1\.00<\/span>/,
       );
       assert.ok(list.innerHTML.includes(`计入 ¥${item.rmb.toFixed(2)}`));
     }

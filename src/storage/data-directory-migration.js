@@ -63,8 +63,7 @@ function migrateGroup({ dataDir, fileSystem = fs }, group, allowedEntries) {
   let journal;
   if (fileSystem.existsSync(journalPath)) {
     const stat = fileSystem.lstatSync(journalPath);
-    if (!stat.isFile() || stat.isSymbolicLink())
-      throw new Error(`Invalid migration journal: ${journalPath}`);
+    if (!stat.isFile() || stat.isSymbolicLink()) throw new Error(`Invalid migration journal: ${journalPath}`);
     journal = JSON.parse(fileSystem.readFileSync(journalPath, 'utf8'));
     if (
       journal.version !== 1 ||
@@ -75,22 +74,14 @@ function migrateGroup({ dataDir, fileSystem = fs }, group, allowedEntries) {
     ) {
       throw new Error(`Invalid migration journal: ${journalPath}`);
     }
-    if (journal.status === 'complete')
-      return { status: 'already-current', group };
+    if (journal.status === 'complete') return { status: 'already-current', group };
   } else {
-    const entries = allowedEntries.filter((name) =>
-      fileSystem.existsSync(path.join(root, name)),
-    );
+    const entries = allowedEntries.filter((name) => fileSystem.existsSync(path.join(root, name)));
     // Detect every conflict before recording or moving anything.
     for (const name of entries) {
       const source = path.join(root, name);
-      if (
-        fileSystem.lstatSync(source).isSymbolicLink() ||
-        fileSystem.existsSync(path.join(targetDir, name))
-      ) {
-        throw new Error(
-          `Storage migration conflict; files were preserved: ${source}`,
-        );
+      if (fileSystem.lstatSync(source).isSymbolicLink() || fileSystem.existsSync(path.join(targetDir, name))) {
+        throw new Error(`Storage migration conflict; files were preserved: ${source}`);
       }
     }
     journal = { version: 1, status: 'pending', entries };
@@ -105,20 +96,14 @@ function migrateGroup({ dataDir, fileSystem = fs }, group, allowedEntries) {
     const destination = path.join(targetDir, name);
     const hasSource = fileSystem.existsSync(source);
     const hasDestination = fileSystem.existsSync(destination);
-    if (
-      hasSource === hasDestination ||
-      fileSystem.lstatSync(hasSource ? source : destination).isSymbolicLink()
-    ) {
-      throw new Error(
-        `Storage migration conflict or missing entry; files were preserved: ${source}`,
-      );
+    if (hasSource === hasDestination || fileSystem.lstatSync(hasSource ? source : destination).isSymbolicLink()) {
+      throw new Error(`Storage migration conflict or missing entry; files were preserved: ${source}`);
     }
   }
   fileSystem.mkdirSync(targetDir, { recursive: true });
   for (const name of journal.entries) {
     const source = path.join(root, name);
-    if (fileSystem.existsSync(source))
-      fileSystem.renameSync(source, path.join(targetDir, name));
+    if (fileSystem.existsSync(source)) fileSystem.renameSync(source, path.join(targetDir, name));
   }
   writeJournal(fileSystem, journalPath, { ...journal, status: 'complete' });
   return {
@@ -130,8 +115,7 @@ function migrateGroup({ dataDir, fileSystem = fs }, group, allowedEntries) {
 
 function assertDirectory(fileSystem, directory) {
   const stat = fileSystem.lstatSync(directory);
-  if (!stat.isDirectory() || stat.isSymbolicLink())
-    throw new Error(`Invalid storage directory: ${directory}`);
+  if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error(`Invalid storage directory: ${directory}`);
 }
 
 function assertRuntimeStopped(fileSystem, root) {
@@ -139,18 +123,14 @@ function assertRuntimeStopped(fileSystem, root) {
   if (!fileSystem.existsSync(runtimePath)) return;
   const runtime = JSON.parse(fileSystem.readFileSync(runtimePath, 'utf8'));
   if (!Number.isSafeInteger(runtime.pid) || runtime.pid <= 0)
-    throw new Error(
-      'Invalid runtime information; close LIRA before migrating storage.',
-    );
+    throw new Error('Invalid runtime information; close LIRA before migrating storage.');
   try {
     process.kill(runtime.pid, 0);
   } catch (error) {
     if (error.code === 'ESRCH') return;
     throw error;
   }
-  throw new Error(
-    'LIRA is still using this data directory. Close it before migrating storage.',
-  );
+  throw new Error('LIRA is still using this data directory. Close it before migrating storage.');
 }
 
 function writeJournal(fileSystem, journalPath, journal) {
@@ -162,8 +142,7 @@ function writeJournal(fileSystem, journalPath, journal) {
     });
     fileSystem.renameSync(temporaryPath, journalPath);
   } finally {
-    if (fileSystem.existsSync(temporaryPath))
-      fileSystem.unlinkSync(temporaryPath);
+    if (fileSystem.existsSync(temporaryPath)) fileSystem.unlinkSync(temporaryPath);
   }
 }
 

@@ -7,15 +7,11 @@ const test = require('node:test');
 const { readCssBundle } = require('./helpers/css-bundle');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
-const read = (...segments) =>
-  fs.readFileSync(path.join(ROOT_DIR, ...segments), 'utf8');
+const read = (...segments) => fs.readFileSync(path.join(ROOT_DIR, ...segments), 'utf8');
 
 test('desktop lyric styles separate admin controls from shared rendering', () => {
   const entry = read('public', 'css', 'admin', 'desktop-lyric-preview.css');
-  const imports = Array.from(
-    entry.matchAll(/@import\s+url\(['"]([^'"]+)['"]\);/g),
-    (match) => match[1],
-  );
+  const imports = Array.from(entry.matchAll(/@import\s+url\(['"]([^'"]+)['"]\);/g), (match) => match[1]);
 
   assert.deepEqual(imports, [
     './desktop-lyric/settings.css',
@@ -24,27 +20,9 @@ test('desktop lyric styles separate admin controls from shared rendering', () =>
     './desktop-lyric/preview.css',
   ]);
 
-  const settings = read(
-    'public',
-    'css',
-    'admin',
-    'desktop-lyric',
-    'settings.css',
-  );
-  const controls = read(
-    'public',
-    'css',
-    'admin',
-    'desktop-lyric',
-    'controls.css',
-  );
-  const preview = read(
-    'public',
-    'css',
-    'admin',
-    'desktop-lyric',
-    'preview.css',
-  );
+  const settings = read('public', 'css', 'admin', 'desktop-lyric', 'settings.css');
+  const controls = read('public', 'css', 'admin', 'desktop-lyric', 'controls.css');
+  const preview = read('public', 'css', 'admin', 'desktop-lyric', 'preview.css');
   const renderer = read('public', 'css', 'lyrics', 'desktop-lyric.css');
   const overlay = read('public', 'pages', 'overlays', 'lyric-window.html');
 
@@ -53,10 +31,7 @@ test('desktop lyric styles separate admin controls from shared rendering', () =>
   assert.match(controls, /\.desktop-lyric-karaoke-card\s*\{/);
   assert.match(controls, /\.desktop-lyric-control \.range-row\s*\{/);
   assert.match(preview, /\.desktop-lyric-preview-header\s*\{/);
-  assert.match(
-    preview,
-    /@container admin-lyric-preview \(max-width:\s*560px\)/,
-  );
+  assert.match(preview, /@container admin-lyric-preview \(max-width:\s*560px\)/);
   assert.match(renderer, /\.desktop-lyric-preview-card\s*\{/);
   assert.match(renderer, /\.desktop-lyric-preview-stage\s*\{/);
   assert.match(renderer, /\.desktop-lyric-preview-row-text\s*\{/);
@@ -67,17 +42,9 @@ test('desktop lyric styles separate admin controls from shared rendering', () =>
   );
   assert.match(overlay, /\/css\/lyrics\/desktop-lyric\.css\?v=20260913-01/);
   assert.doesNotMatch(overlay, /\/css\/admin\/desktop-lyric-preview\.css/);
-  assert.ok(
-    overlay.indexOf('/css/lyrics/desktop-lyric.css') <
-      overlay.indexOf('/css/styles-playback.css'),
-  );
+  assert.ok(overlay.indexOf('/css/lyrics/desktop-lyric.css') < overlay.indexOf('/css/styles-playback.css'));
 
-  const bundle = readCssBundle(
-    'public',
-    'css',
-    'admin',
-    'desktop-lyric-preview.css',
-  );
+  const bundle = readCssBundle('public', 'css', 'admin', 'desktop-lyric-preview.css');
   for (const selector of [
     '.desktop-lyric-settings',
     '.desktop-lyric-karaoke-card',

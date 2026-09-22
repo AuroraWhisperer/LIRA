@@ -11,35 +11,60 @@ const BASE = 'http://127.0.0.1:3000';
 function fixture() {
   const session = {};
   const frame = {
-    url: `${BASE}/admin?desktop=1`, origin: BASE,
-    processId: 4, frameToken: 'main-document', detached: false, parent: null,
+    url: `${BASE}/admin?desktop=1`,
+    origin: BASE,
+    processId: 4,
+    frameToken: 'main-document',
+    detached: false,
+    parent: null,
   };
   const contents = { id: 11, session, mainFrame: frame, isDestroyed: () => false };
   let window = { webContents: contents, isDestroyed: () => false };
   let token = 'synthetic-main-only-token';
   const auth = createDesktopRequestAuth({
-    desktopSession: session, getMainWindow: () => window,
-    getBaseUrl: () => BASE, getToken: () => token,
+    desktopSession: session,
+    getMainWindow: () => window,
+    getBaseUrl: () => BASE,
+    getToken: () => token,
   });
   function request(overrides = {}, headers = {}) {
-    auth.applyHeaders({
-      id: 1, url: `${BASE}/api/settings`, method: 'GET', resourceType: 'xhr',
-      webContentsId: contents.id, webContents: contents, frame, ...overrides,
-    }, headers);
+    auth.applyHeaders(
+      {
+        id: 1,
+        url: `${BASE}/api/settings`,
+        method: 'GET',
+        resourceType: 'xhr',
+        webContentsId: contents.id,
+        webContents: contents,
+        frame,
+        ...overrides,
+      },
+      headers,
+    );
     return headers;
   }
   return {
-    auth, request, frame, contents, session,
-    setWindow: (value) => { window = value; },
-    setToken: (value) => { token = value; },
+    auth,
+    request,
+    frame,
+    contents,
+    session,
+    setWindow: (value) => {
+      window = value;
+    },
+    setToken: (value) => {
+      token = value;
+    },
   };
 }
 
 test('only the registered admin main frame receives management HTTP, media, beacon and WS headers', () => {
   const f = fixture();
   for (const [resourceType, url] of [
-    ['xhr', `${BASE}/api/settings`], ['media', `${BASE}/api/music/stream`],
-    ['ping', `${BASE}/api/playback/queue-state`], ['webSocket', 'ws://127.0.0.1:3000/ws'],
+    ['xhr', `${BASE}/api/settings`],
+    ['media', `${BASE}/api/music/stream`],
+    ['ping', `${BASE}/api/playback/queue-state`],
+    ['webSocket', 'ws://127.0.0.1:3000/ws'],
     ['mainFrame', `${BASE}/api/songs/export`],
   ]) {
     assert.equal(f.request({ resourceType, url }).Authorization, 'Bearer synthetic-main-only-token');
@@ -55,14 +80,18 @@ test('initial and license-recovery navigations bootstrap admin HTML without gran
       assert.ok(f.request({ resourceType: 'mainFrame', url: BASE + pathname }).Authorization);
     }
     assert.equal(f.request().Authorization, undefined);
-    assert.equal(f.request({ resourceType: 'mainFrame', url: `${BASE}/admin`, method: 'POST' }).Authorization, undefined);
+    assert.equal(
+      f.request({ resourceType: 'mainFrame', url: `${BASE}/admin`, method: 'POST' }).Authorization,
+      undefined,
+    );
   }
 });
 
 test('subframes, opaque or missing frames, detached documents and other sessions never receive management headers', () => {
   const f = fixture();
   for (const override of [
-    { frame: null }, { frame: undefined },
+    { frame: null },
+    { frame: undefined },
     { frame: { ...f.frame, parent: f.frame } },
     { frame: { ...f.frame, detached: true } },
     { frame: { ...f.frame, frameToken: 'old-document' } },
@@ -72,7 +101,8 @@ test('subframes, opaque or missing frames, detached documents and other sessions
     { frame: { ...f.frame, url: 'https://login.example.test/admin' } },
     { webContentsId: 12 },
     { webContents: { ...f.contents, session: {} } },
-  ]) assert.equal(f.request(override).Authorization, undefined);
+  ])
+    assert.equal(f.request(override).Authorization, undefined);
   f.contents.session = {};
   assert.equal(f.request().Authorization, undefined);
   f.contents.session = f.session;
@@ -83,21 +113,32 @@ test('subframes, opaque or missing frames, detached documents and other sessions
 test('foreign origins, overlays, assets and wrong websocket protocols are outside the privileged target set', () => {
   const f = fixture();
   for (const url of [
-    'http://localhost:3000/api/settings', 'http://127.0.0.1:3001/api/settings',
-    'https://127.0.0.1:3000/api/settings', 'http://127.0.0.1.evil.test:3000/api/settings',
+    'http://localhost:3000/api/settings',
+    'http://127.0.0.1:3001/api/settings',
+    'https://127.0.0.1:3000/api/settings',
+    'http://127.0.0.1.evil.test:3000/api/settings',
     'http://user:password@127.0.0.1:3000/api/settings',
-    `${BASE}/clock`, `${BASE}/js/admin/index.js`, `${BASE}/api`,
-    'ws://127.0.0.1:3001/ws', 'wss://127.0.0.1:3000/ws', 'ws://127.0.0.1:3000/ws/other',
-  ]) assert.equal(f.request({ url, resourceType: 'webSocket' }).Authorization, undefined);
+    `${BASE}/clock`,
+    `${BASE}/js/admin/index.js`,
+    `${BASE}/api`,
+    'ws://127.0.0.1:3001/ws',
+    'wss://127.0.0.1:3000/ws',
+    'ws://127.0.0.1:3000/ws/other',
+  ])
+    assert.equal(f.request({ url, resourceType: 'webSocket' }).Authorization, undefined);
 });
 
 test('redirects strip the exact attached management secret even after token rotation or disposal', () => {
   const f = fixture();
   const first = f.request();
   f.setToken('replacement-token');
-  const redirected = f.request({ url: 'https://outside.example.test/api/settings' }, {
-    authorization: first.Authorization, Accept: 'application/json',
-  });
+  const redirected = f.request(
+    { url: 'https://outside.example.test/api/settings' },
+    {
+      authorization: first.Authorization,
+      Accept: 'application/json',
+    },
+  );
   assert.deepEqual(redirected, { Accept: 'application/json' });
   const second = f.request({ id: 2 });
   f.auth.dispose();
@@ -128,9 +169,15 @@ test('navigation keeps the privileged window on admin/license documents or admin
 test('media and management rules share one listener with request lifecycle cleanup', () => {
   const f = fixture();
   const registrations = {};
-  f.session.webRequest = Object.fromEntries(['onBeforeSendHeaders', 'onCompleted', 'onErrorOccurred'].map((event) => [
-    event, (...args) => { assert.equal(registrations[event], undefined); registrations[event] = args; },
-  ]));
+  f.session.webRequest = Object.fromEntries(
+    ['onBeforeSendHeaders', 'onCompleted', 'onErrorOccurred'].map((event) => [
+      event,
+      (...args) => {
+        assert.equal(registrations[event], undefined);
+        registrations[event] = args;
+      },
+    ]),
+  );
   const state = {};
   configureMediaRequestHeaders(f.session, state, f.auth);
   configureMediaRequestHeaders(f.session, state, f.auth);
@@ -148,7 +195,9 @@ test('window rebinding and disposal remove owned navigation listeners', () => {
   function window() {
     const contents = new EventEmitter();
     contents.isDestroyed = () => false;
-    contents.setWindowOpenHandler = (handler) => { contents.open = handler; };
+    contents.setWindowOpenHandler = (handler) => {
+      contents.open = handler;
+    };
     return { webContents: contents };
   }
   const first = window();

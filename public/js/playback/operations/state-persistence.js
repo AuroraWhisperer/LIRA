@@ -20,8 +20,7 @@ export function createStatePersistence(deps) {
   let playbackStateSavePending = null;
   let snapshotSequence = 0;
   const bootWriter = deps.snapshotWriter || window.__PLAYBACK_SNAPSHOT_WRITER__;
-  if (!bootWriter?.writerId || !Number.isSafeInteger(bootWriter.generation) ||
-    bootWriter.generation < 1) {
+  if (!bootWriter?.writerId || !Number.isSafeInteger(bootWriter.generation) || bootWriter.generation < 1) {
     throw new Error('播放快照启动信息缺失，请重新加载管理页。');
   }
   const snapshotWriter = {
@@ -48,14 +47,8 @@ export function createStatePersistence(deps) {
       filePath: track.filePath || '',
       sourceTrackId: track.sourceTrackId,
       sourceMediaId: track.sourceMediaId || '',
-      sourceSongId: Math.max(
-        0,
-        Number(track.sourceSongId || track.songId) || 0,
-      ),
-      sourceSongType:
-        Number.isSafeInteger(sourceSongType) && sourceSongType >= 0
-          ? sourceSongType
-          : 0,
+      sourceSongId: Math.max(0, Number(track.sourceSongId || track.songId) || 0),
+      sourceSongType: Number.isSafeInteger(sourceSongType) && sourceSongType >= 0 ? sourceSongType : 0,
       sourceAlbumId: track.sourceAlbumId,
       playable: track.playable,
       vip: track.vip,
@@ -72,15 +65,9 @@ export function createStatePersistence(deps) {
     const payload = {
       current: serializeTrack(playbackState.current),
       currentOrigin: playbackState.currentOrigin,
-      requestedQueue: playbackState.requestedQueue
-        .map(serializeTrack)
-        .filter(Boolean),
-      normalQueue: playbackState.normalQueue
-        .map(serializeTrack)
-        .filter(Boolean),
-      normalQueueTracks: playbackState.normalQueueTracks
-        .map(serializeTrack)
-        .filter(Boolean),
+      requestedQueue: playbackState.requestedQueue.map(serializeTrack).filter(Boolean),
+      normalQueue: playbackState.normalQueue.map(serializeTrack).filter(Boolean),
+      normalQueueTracks: playbackState.normalQueueTracks.map(serializeTrack).filter(Boolean),
       radioQueue: playbackState.radioQueue.map(serializeTrack).filter(Boolean),
       queueType: playbackState.queueType,
       queueTitle: playbackState.queueTitle,
@@ -102,10 +89,7 @@ export function createStatePersistence(deps) {
       qualityPreferences: playbackState.qualityPreferences,
       shuffleOrder: playbackState.shuffleOrder,
       shuffleCursor: playbackState.shuffleCursor,
-      history: playbackState.history
-        .slice(-PlaybackConfig.HISTORY_MAX_SIZE)
-        .map(serializeTrack)
-        .filter(Boolean),
+      history: playbackState.history.slice(-PlaybackConfig.HISTORY_MAX_SIZE).map(serializeTrack).filter(Boolean),
       displayHistory: playbackState.displayHistory
         .slice(0, PlaybackConfig.DISPLAY_HISTORY_MAX_SIZE)
         .map(serializeTrack)
@@ -148,8 +132,10 @@ export function createStatePersistence(deps) {
 
   function retainPendingPayload(payload) {
     if (payload.snapshotVersion.sequence !== snapshotSequence) return;
-    if (!playbackStateSavePending ||
-      playbackStateSavePending.snapshotVersion.sequence < payload.snapshotVersion.sequence) {
+    if (
+      !playbackStateSavePending ||
+      playbackStateSavePending.snapshotVersion.sequence < payload.snapshotVersion.sequence
+    ) {
       playbackStateSavePending = payload;
     }
   }
@@ -177,17 +163,10 @@ export function createStatePersistence(deps) {
 
   function sendUnloadSnapshot(payload) {
     // 两条通道复用同一快照版本，store 将第二次到达视为幂等重放。
-    if (
-      window.musicAPI &&
-      typeof window.musicAPI.savePlaybackState === 'function'
-    ) {
+    if (window.musicAPI && typeof window.musicAPI.savePlaybackState === 'function') {
       try {
-        const saveResult = window.musicAPI.savePlaybackState(
-          playbackClientId,
-          payload,
-        );
-        if (saveResult && typeof saveResult.catch === 'function')
-          saveResult.catch(() => {});
+        const saveResult = window.musicAPI.savePlaybackState(playbackClientId, payload);
+        if (saveResult && typeof saveResult.catch === 'function') saveResult.catch(() => {});
       } catch (_) {}
     }
 
@@ -215,15 +194,9 @@ export function createStatePersistence(deps) {
     const payload = takePendingPayload();
     if (!payload) return;
 
-    if (
-      window.musicAPI &&
-      typeof window.musicAPI.savePlaybackState === 'function'
-    ) {
+    if (window.musicAPI && typeof window.musicAPI.savePlaybackState === 'function') {
       try {
-        const result = await window.musicAPI.savePlaybackState(
-          playbackClientId,
-          payload,
-        );
+        const result = await window.musicAPI.savePlaybackState(playbackClientId, payload);
         if (!result || result.ok !== false) return;
       } catch (_) {}
     }

@@ -142,9 +142,7 @@ const WORD_CATEGORIES = Object.freeze([
   ),
 ]);
 
-const DEFAULT_WORDS = Object.freeze(
-  WORD_CATEGORIES.flatMap((category) => category.words),
-);
+const DEFAULT_WORDS = Object.freeze(WORD_CATEGORIES.flatMap((category) => category.words));
 
 function createCategory(id, label, source) {
   const words = String(source || '')

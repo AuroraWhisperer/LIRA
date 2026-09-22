@@ -23,8 +23,11 @@ const GIFT_CARD_WIDTH = 460;
 const MAX_GIFT_SCALE = 1.5;
 const params = new URLSearchParams(location.search);
 const previewMode = params.get('preview') === '1';
-const previewOptions = previewMode ? (params.has('styleOptions')
-  ? parseStyleOptions(params.get('styleOptions')) : window.history.state?.danmakuStyleOptions || {}) : {};
+const previewOptions = previewMode
+  ? params.has('styleOptions')
+    ? parseStyleOptions(params.get('styleOptions'))
+    : window.history.state?.danmakuStyleOptions || {}
+  : {};
 
 let items = [];
 let socket = null;
@@ -51,7 +54,11 @@ document.addEventListener('DOMContentLoaded', () => {
       styleOptions: previewOptions,
       duration: params.get('fullscreenDurationSeconds') || window.history.state?.danmakuDuration,
       renderSamples(style) {
-        applyConfiguration(style, params.get('fullscreenDurationSeconds') || window.history.state?.danmakuDuration, previewOptions);
+        applyConfiguration(
+          style,
+          params.get('fullscreenDurationSeconds') || window.history.state?.danmakuDuration,
+          previewOptions,
+        );
         applyItems(previewItems());
       },
     });
@@ -65,9 +72,7 @@ function connectSocket() {
   clearTimeout(reconnectTimer);
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
   const token = window.__API_TOKEN__;
-  const query = token
-    ? `?token=${encodeURIComponent(token)}&topic=danmaku`
-    : '?topic=danmaku';
+  const query = token ? `?token=${encodeURIComponent(token)}&topic=danmaku` : '?topic=danmaku';
   const url = `${protocol}//${location.host}/ws${query}`;
   socket = new WebSocket(url);
   socket.addEventListener('open', () => {
@@ -84,20 +89,14 @@ function connectSocket() {
       return;
     }
     if (payload.type === 'snapshot' && payload.state) {
-      const style = payload.state.settings
-        ? payload.state.settings.danmakuOverlayStyle
-        : '';
-      const duration = payload.state.settings
-        ? payload.state.settings.danmakuFullscreenDurationSeconds
-        : '';
+      const style = payload.state.settings ? payload.state.settings.danmakuOverlayStyle : '';
+      const duration = payload.state.settings ? payload.state.settings.danmakuFullscreenDurationSeconds : '';
       applyConfiguration(style, duration);
-      if (Array.isArray(payload.state.danmakuFeed))
-        applyItems(payload.state.danmakuFeed);
+      if (Array.isArray(payload.state.danmakuFeed)) applyItems(payload.state.danmakuFeed);
       applyLiveStatus(payload.state.liveStatus);
       return;
     }
-    if (payload.type === 'danmaku:message' && payload.item)
-      appendItem(payload.item);
+    if (payload.type === 'danmaku:message' && payload.item) appendItem(payload.item);
   });
   socket.addEventListener('close', () => {
     localSocketConnected = false;
@@ -119,8 +118,7 @@ function applyItems(nextItems) {
     })
     .slice(-MAX_ITEMS);
   // items already includes queued increments; leave their animation frame intact.
-  if (!feedNeedsRender && JSON.stringify(normalizedItems) === JSON.stringify(items))
-    return;
+  if (!feedNeedsRender && JSON.stringify(normalizedItems) === JSON.stringify(items)) return;
   if (renderFrame !== null) cancelAnimationFrame(renderFrame);
   pendingItems = [];
   renderFrame = null;
@@ -133,8 +131,7 @@ function appendItem(item) {
   if (items.some((current) => itemKey(current) === key)) return;
   items = [...items, item].slice(-MAX_ITEMS);
   pendingItems = [...pendingItems, item].slice(-MAX_ITEMS);
-  if (renderFrame === null)
-    renderFrame = requestAnimationFrame(flushPendingItems);
+  if (renderFrame === null) renderFrame = requestAnimationFrame(flushPendingItems);
 }
 
 function flushPendingItems() {
@@ -152,9 +149,7 @@ function render() {
 }
 
 function renderMessageCount() {
-  document.getElementById('danmakuMessageCount').textContent = String(
-    items.length,
-  ).padStart(2, '0');
+  document.getElementById('danmakuMessageCount').textContent = String(items.length).padStart(2, '0');
 }
 
 function createOverlayFeed(style, durationSeconds) {
@@ -166,8 +161,12 @@ function createOverlayFeed(style, durationSeconds) {
     autoScroll: false,
     resolveAvatarUrl: bilibiliAvatarSource,
     resolveEmoteUrl: bilibiliImageSource,
-    resolveGiftImageUrl: (value) => currentGiftImage === 'gift'
-      ? (previewMode && value === '/img/gift-placeholder.png' ? value : bilibiliAvatarSource(value)) : '',
+    resolveGiftImageUrl: (value) =>
+      currentGiftImage === 'gift'
+        ? previewMode && value === '/img/gift-placeholder.png'
+          ? value
+          : bilibiliAvatarSource(value)
+        : '',
     getGuardLabel: guardLabel,
     showAvatar: !['outline', 'glow'].includes(style),
     showGiftTotal: ['transparent', 'cream'].includes(style),
@@ -183,8 +182,7 @@ function createOverlayFeed(style, durationSeconds) {
 function normalizeFullscreenDuration(value) {
   let duration;
   if (typeof value === 'number') duration = value;
-  else if (typeof value === 'string' && /^\d+$/.test(value.trim()))
-    duration = Number(value.trim());
+  else if (typeof value === 'string' && /^\d+$/.test(value.trim())) duration = Number(value.trim());
   else return DEFAULT_FULLSCREEN_DURATION_SECONDS;
   return Number.isSafeInteger(duration) && duration >= 2 && duration <= 30
     ? duration
@@ -208,10 +206,7 @@ function applyConfiguration(styleValue, durationValue, styleOptions = {}) {
 }
 
 function itemKey(item = {}) {
-  return String(
-    item.id ||
-      `${item.uid || ''}:${item.timestamp || ''}:${item.message || ''}`,
-  );
+  return String(item.id || `${item.uid || ''}:${item.timestamp || ''}:${item.message || ''}`);
 }
 
 function syncRankedOverlayScale() {
@@ -232,8 +227,7 @@ export function calculateRankedOverlayScale(viewportWidth) {
 function bilibiliAvatarSource(value) {
   try {
     const url = new URL(String(value || ''));
-    if (url.protocol !== 'https:' || !url.hostname.endsWith('.hdslb.com') || url.username || url.password)
-      return '';
+    if (url.protocol !== 'https:' || !url.hostname.endsWith('.hdslb.com') || url.username || url.password) return '';
     return url.toString();
   } catch (_) {
     return '';
@@ -288,13 +282,15 @@ export function describeDanmakuConnection(liveStatus, localConnected) {
 }
 
 function previewItems() {
-  const emotes = [{
-    text: '[打call]',
-    url: '/img/overlays/danmaku-previews/dacall.png',
-    kind: 'inline',
-    width: 96,
-    height: 96,
-  }];
+  const emotes = [
+    {
+      text: '[打call]',
+      url: '/img/overlays/danmaku-previews/dacall.png',
+      kind: 'inline',
+      width: 96,
+      height: 96,
+    },
+  ];
   return [
     {
       id: 'preview-1091',

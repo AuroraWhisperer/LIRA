@@ -18,73 +18,32 @@ const SONG_EXPORT_HEADERS = [
 const SONG_IMPORT_ALIASES = {
   name: ['name', 'songName', '歌曲名字', '歌曲名称', '歌名', '曲名'],
   artist: ['artist', 'singer', '原唱/首发歌手', '歌手', '演唱者', '原唱'],
-  categoryName: [
-    'categoryName',
-    'category',
-    '歌曲分类',
-    '类别',
-    '分类',
-    '分组',
-  ],
+  categoryName: ['categoryName', 'category', '歌曲分类', '类别', '分类', '分组'],
   note: ['note', '核对备注', '备注', '说明'],
   tags: ['tags', 'tag', '歌曲标签', '标签'],
   isEnabled: ['isEnabled', 'enabled', '是否可点', '可点', '是否启用', '启用'],
   language: ['language', '语言', '语种'],
-  sourcePlatform: [
-    'sourcePlatform',
-    'source',
-    '核对平台',
-    '来源平台',
-    '平台',
-    '来源',
-  ],
-  requestPrice: [
-    'requestPrice',
-    'request_price',
-    '点歌价格',
-    '点歌价',
-    '点歌门槛',
-    '点歌要求',
-    '点歌条件',
-    '点歌说明',
-  ],
-  songClip: [
-    'songClip',
-    'song_clip',
-    '歌切',
-    '歌切链接',
-    '歌曲切片',
-    '切片链接',
-  ],
+  sourcePlatform: ['sourcePlatform', 'source', '核对平台', '来源平台', '平台', '来源'],
+  requestPrice: ['requestPrice', 'request_price', '点歌价格', '点歌价', '点歌门槛', '点歌要求', '点歌条件', '点歌说明'],
+  songClip: ['songClip', 'song_clip', '歌切', '歌切链接', '歌曲切片', '切片链接'],
 };
 
 function normalizeImportedSongRow(row) {
   const prices = new Set(
-    SONG_IMPORT_ALIASES.requestPrice
-      .map((key) => cleanTextPreserveLines(String(row[key] ?? '')))
-      .filter(Boolean),
+    SONG_IMPORT_ALIASES.requestPrice.map((key) => cleanTextPreserveLines(String(row[key] ?? ''))).filter(Boolean),
   );
   if (prices.size > 1) throw new Error('点歌价格别名冲突：请保留一个价格文本');
   return {
     name: cleanText(firstValue(row, SONG_IMPORT_ALIASES.name)),
     artist: cleanText(firstValue(row, SONG_IMPORT_ALIASES.artist)),
-    categoryName:
-      cleanText(firstValue(row, SONG_IMPORT_ALIASES.categoryName) || '默认') ||
-      '默认',
+    categoryName: cleanText(firstValue(row, SONG_IMPORT_ALIASES.categoryName) || '默认') || '默认',
     tags: cleanText(firstValue(row, SONG_IMPORT_ALIASES.tags)),
-    isEnabled: parseEnabled(
-      firstValue(row, SONG_IMPORT_ALIASES.isEnabled),
-      true,
-    ),
+    isEnabled: parseEnabled(firstValue(row, SONG_IMPORT_ALIASES.isEnabled), true),
     language: cleanText(firstValue(row, SONG_IMPORT_ALIASES.language)),
-    sourcePlatform: cleanText(
-      firstValue(row, SONG_IMPORT_ALIASES.sourcePlatform),
-    ),
+    sourcePlatform: cleanText(firstValue(row, SONG_IMPORT_ALIASES.sourcePlatform)),
     note: cleanText(firstValue(row, SONG_IMPORT_ALIASES.note)),
     requestPrice: prices.values().next().value || '',
-    songClip: cleanTextPreserveLines(
-      firstValue(row, SONG_IMPORT_ALIASES.songClip),
-    ),
+    songClip: cleanTextPreserveLines(firstValue(row, SONG_IMPORT_ALIASES.songClip)),
   };
 }
 
@@ -100,10 +59,8 @@ function firstValue(row, keys) {
 function parseEnabled(value, defaultValue) {
   const text = cleanText(value).toLowerCase();
   if (!text) return defaultValue;
-  if (['是', '可点', '启用', 'true', 'yes', 'y', '1'].includes(text))
-    return true;
-  if (['否', '不可点', '停用', 'false', 'no', 'n', '0'].includes(text))
-    return false;
+  if (['是', '可点', '启用', 'true', 'yes', 'y', '1'].includes(text)) return true;
+  if (['否', '不可点', '停用', 'false', 'no', 'n', '0'].includes(text)) return false;
   return defaultValue;
 }
 

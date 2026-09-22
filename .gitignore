@@ -2,6 +2,7 @@ data/
 !public/data/
 !public/data/theme-presets.json
 node_modules/
+screenshots/
 release/
 /output/
 tmp/

@@ -103,14 +103,10 @@
   --radius: var(--radius-md);
   --motion-ui-duration: 180ms;
   --font:
-    'Microsoft YaHei', 'Microsoft JhengHei', 'PingFang SC', 'Hiragino Sans GB',
-    'Yu Gothic', 'Meiryo', 'Malgun Gothic', 'Apple SD Gothic Neo',
-    'Noto Sans CJK SC', 'Noto Sans JP', 'Noto Sans KR', 'Segoe UI', Arial,
-    sans-serif;
+    'Microsoft YaHei', 'Microsoft JhengHei', 'PingFang SC', 'Hiragino Sans GB', 'Yu Gothic', 'Meiryo', 'Malgun Gothic',
+    'Apple SD Gothic Neo', 'Noto Sans CJK SC', 'Noto Sans JP', 'Noto Sans KR', 'Segoe UI', Arial, sans-serif;
   --font-ui: var(--font);
-  --font-display:
-    'Segoe UI Variable Display', 'Microsoft YaHei UI', 'Microsoft YaHei',
-    'PingFang SC', sans-serif;
+  --font-display: 'Segoe UI Variable Display', 'Microsoft YaHei UI', 'Microsoft YaHei', 'PingFang SC', sans-serif;
   --font-mono: 'Cascadia Mono', Consolas, monospace;
 
   --type-size-display: 28px;
@@ -296,6 +292,6 @@ label {
   overflow-wrap: anywhere;
 }
 
-[aria-invalid="true"] {
+[aria-invalid='true'] {
   outline: 1px solid var(--color-danger, #b42332);
 }

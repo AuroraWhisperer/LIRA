@@ -6,10 +6,7 @@ const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 const { encryptQrc } = require('qrc-decoder');
-const {
-  buildPowerShellMonitorScript,
-  createWeSingCapture,
-} = require('../src/music/wesing-capture');
+const { buildPowerShellMonitorScript, createWeSingCapture } = require('../src/music/wesing-capture');
 const { createFixture, qrcXml } = require('./helpers/wesing-capture-fixture');
 
 test('WeSing capture falls back to injected online lyrics when local QRC is absent', async (t) => {
@@ -20,10 +17,7 @@ test('WeSing capture falls back to injected online lyrics when local QRC is abse
   fs.mkdirSync(logDir, { recursive: true });
   fs.writeFileSync(
     path.join(logDir, 'WeSing-online.log'),
-    Buffer.from(
-      'event "StartKSong" payload {"mid":"online-mid","songname":"失控","artist":"井迪"}',
-      'utf16le',
-    ),
+    Buffer.from('event "StartKSong" payload {"mid":"online-mid","songname":"失控","artist":"井迪"}', 'utf16le'),
   );
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
 
@@ -82,10 +76,7 @@ test('WeSing capture falls back to injected online lyrics when local QRC is abse
       durationMs: 255000,
     },
   ]);
-  assert.equal(
-    timelines.filter((timeline) => timeline.lines.length > 0).length,
-    1,
-  );
+  assert.equal(timelines.filter((timeline) => timeline.lines.length > 0).length, 1);
   assert.equal(timelines.at(-1).trackTitle, '失控');
   assert.equal(timelines.at(-1).lines[0].text, '请原谅我的词穷');
   await capture.setActive(false);
@@ -176,20 +167,8 @@ test('WeSing capture refreshes a late QRC without resetting the playback clock',
     ),
     'hex',
   );
-  fs.writeFileSync(
-    path.join(
-      fixture.cachePath,
-      'WeSingDL',
-      'Res',
-      fixture.mid,
-      `${fixture.mid}.qrc`,
-    ),
-    replacement,
-  );
-  watchCallback(
-    'change',
-    path.join('WeSingDL', 'Res', fixture.mid, `${fixture.mid}.qrc`),
-  );
+  fs.writeFileSync(path.join(fixture.cachePath, 'WeSingDL', 'Res', fixture.mid, `${fixture.mid}.qrc`), replacement);
+  watchCallback('change', path.join('WeSingDL', 'Res', fixture.mid, `${fixture.mid}.qrc`));
   assert.equal(scheduledRefresh.delayMs, 2000);
   scheduledRefresh.callback();
   await capture.waitForRefresh();

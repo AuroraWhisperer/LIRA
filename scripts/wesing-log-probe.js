@@ -32,9 +32,7 @@ async function findLatestLogFile(logDirectory) {
   }
   const candidates = await Promise.all(
     entries
-      .filter(
-        (entry) => entry.isFile() && entry.name.toLowerCase().endsWith('.log'),
-      )
+      .filter((entry) => entry.isFile() && entry.name.toLowerCase().endsWith('.log'))
       .map(async (entry) => {
         const filePath = path.join(logDirectory, entry.name);
         try {
@@ -45,11 +43,7 @@ async function findLatestLogFile(logDirectory) {
         }
       }),
   );
-  return (
-    candidates
-      .filter(Boolean)
-      .sort((left, right) => right.modifiedMs - left.modifiedMs)[0] ?? null
-  );
+  return candidates.filter(Boolean).sort((left, right) => right.modifiedMs - left.modifiedMs)[0] ?? null;
 }
 
 /**
@@ -132,8 +126,7 @@ function createWeSingLogProbe(cachePath, onEvent, options = {}) {
     } else {
       oddByte = Buffer.alloc(0);
     }
-    if (combined.length)
-      processText(combined.toString('utf16le'), activeFilePath);
+    if (combined.length) processText(combined.toString('utf16le'), activeFilePath);
   }
 
   async function poll() {

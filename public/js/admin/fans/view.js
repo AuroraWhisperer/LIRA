@@ -5,22 +5,17 @@ export const attr = escapeAttr;
 export const levels = { 1: '总督', 2: '提督', 3: '舰长' };
 export function dateLabel(value) {
   return value
-    ? new Date(
-        value.length === 10 ? `${value}T00:00:00+08:00` : value,
-      ).toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai' })
+    ? new Date(value.length === 10 ? `${value}T00:00:00+08:00` : value).toLocaleDateString('zh-CN', {
+        timeZone: 'Asia/Shanghai',
+      })
     : '待补充';
 }
 export function memberLabel(membership, guardRoster) {
-  if (guardRoster)
-    return guardRoster.level
-      ? `在舰 · ${levels[guardRoster.level]}`
-      : '最近同步时未在舰';
-  if (membership.status === 'active')
-    return `在舰 · ${levels[membership.level]}`;
+  if (guardRoster) return guardRoster.level ? `在舰 · ${levels[guardRoster.level]}` : '最近同步时未在舰';
+  if (membership.status === 'active') return `在舰 · ${levels[membership.level]}`;
   if (membership.status === 'pending') return '大航海待核实';
   if (membership.status === 'expired') return '已确认区间到期';
-  if (membership.observedLevel)
-    return `曾观察到${levels[membership.observedLevel]} · 当前待核实`;
+  if (membership.observedLevel) return `曾观察到${levels[membership.observedLevel]} · 当前待核实`;
   return membership.hasHistory ? '曾观察到上舰 · 当前待核实' : '未记录大航海';
 }
 function guardIcon(level) {
@@ -63,18 +58,11 @@ function recordRow(record) {
 
 function overview(p) {
   const latest =
-    p.records.find(
-      (r) => r.kind === 'note' && r.data.pinned && !r.data.archived,
-    ) || p.records.find((r) => r.kind === 'note' && !r.data.archived);
-  const topics = p.records.filter(
-    (r) => r.kind === 'topic' && !r.data.archived,
-  );
-  const cautions = p.records.filter(
-    (r) => r.kind === 'caution' && !r.data.archived,
-  );
-  const followups = p.records.filter(
-    (r) => r.kind === 'followup' && !r.data.archived && !r.data.completed,
-  );
+    p.records.find((r) => r.kind === 'note' && r.data.pinned && !r.data.archived) ||
+    p.records.find((r) => r.kind === 'note' && !r.data.archived);
+  const topics = p.records.filter((r) => r.kind === 'topic' && !r.data.archived);
+  const cautions = p.records.filter((r) => r.kind === 'caution' && !r.data.archived);
+  const followups = p.records.filter((r) => r.kind === 'followup' && !r.data.archived && !r.data.completed);
   return `<section class="fan-section"><div class="fan-section-title"><h4>基本资料</h4>${button('edit-profile', '编辑资料')}</div>
     <dl class="fan-facts fan-basic-facts"><div><dt>生日</dt><dd>${html(p.birthday ? `${p.birthday.monthDay}${p.birthday.calendar === 'lunar' ? '（农历，手动设置本年提醒）' : '（公历）'}` : '待补充')}</dd></div>
     <div><dt>星座</dt><dd>${html(p.zodiacHint || '未知')}${p.zodiac ? '' : p.zodiacHint ? '（公历提示）' : ''}</dd></div><div><dt>MBTI</dt><dd>${html(p.mbti || '未知')}${p.mbtiNote ? ` · ${html(p.mbtiNote)}` : ''}</dd></div>
@@ -92,9 +80,7 @@ function overview(p) {
 }
 
 function music(p) {
-  const categories = Object.entries(p.musicStats.categories).sort(
-    (a, b) => b[1] - a[1],
-  );
+  const categories = Object.entries(p.musicStats.categories).sort((a, b) => b[1] - a[1]);
   return `<section class="fan-section"><div class="fan-section-title"><h4>明确偏好</h4>${button('new-preference', '记录喜欢 / 不喜欢')}</div>
     ${p.preferences.length ? p.preferences.map((r) => `<article class="fan-record"><div class="fan-record-top"><strong>${r.data.sentiment === 'like' ? '喜欢' : '不喜欢'} ${html(r.data.label)}</strong>${button('edit-record', '编辑', `data-record-id="${attr(r.id)}"`)}</div><p class="fan-muted">${html(r.data.reason || '手动确认')}</p></article>`).join('') : '<p class="fan-muted">按交流确认偏好，点歌观察不会替你下结论。</p>'}</section>
     <section class="fan-section"><h4>点歌观察</h4><p class="fan-muted">近 90 天已记录 ${p.musicStats.count} 次，按当时曲库分类计数；排除随机点歌及手动排除项。</p>
@@ -112,10 +98,7 @@ function membershipRecord(record, p) {
         : d.type === 'first'
           ? `首次上舰：${dateLabel(d.date)}`
           : `${dateLabel(d.observedAt)} 观察到 ${levels[d.level]}${d.status === 'inactive' ? '（人工标记不在舰）' : ''}`;
-  const conflicts =
-    d.conflicts
-      ?.map((id) => p.records.find((r) => r.id === id))
-      .filter(Boolean) || [];
+  const conflicts = d.conflicts?.map((id) => p.records.find((r) => r.id === id)).filter(Boolean) || [];
   return `<article class="fan-record"><div class="fan-record-top"><strong>${html(title)}</strong>${button('edit-record', '编辑', `data-record-id="${attr(record.id)}"`)}</div>
     <p class="fan-muted">${record.original.source === 'platform' ? '平台观察' : '手动确认'} · ${{ adopted: '已采用', pending: '待核实', rejected: '保留原依据', superseded: '已被修订替代' }[d.decision] || ''}${d.precision === 'date' ? ' · 按日期补录' : ''}</p>
     ${d.reason ? `<p>${html(d.reason)}</p>` : ''}${d.decision === 'pending' ? `<div class="fan-conflict"><p>与上次确认依据冲突。相关大航海提醒已暂停，生日提醒不受影响。</p><details><summary>核对双方依据</summary><pre>${html(JSON.stringify({ candidate: d, adopted: conflicts.map((r) => ({ data: r.data, original: r.original })) }, null, 2))}</pre></details><div class="fan-actions">${button('resolve-adopt', '采用这份依据', `data-record-id="${attr(record.id)}"`)}${button('resolve-keep', '保留上次确认', `data-record-id="${attr(record.id)}"`)}</div></div>` : ''}
@@ -135,16 +118,13 @@ function membership(p) {
       p.records
         .filter((r) => r.kind === 'membership')
         .map((r) => membershipRecord(r, p))
-        .join('') ||
-      '<p class="fan-muted">不知道起止日期也可以只补录天数及截至日期。</p>'
+        .join('') || '<p class="fan-muted">不知道起止日期也可以只补录天数及截至日期。</p>'
     }`;
 }
 
 export function renderDetail(p, tab = 'overview', timelineFilter = '') {
   const sections = { overview, music, membership };
-  const timeline = p.records.filter(
-    (r) => !timelineFilter || r.kind === timelineFilter,
-  );
+  const timeline = p.records.filter((r) => !timelineFilter || r.kind === timelineFilter);
   const content = sections[tab]
     ? sections[tab](p)
     : `<div class="fan-timeline-filter"><label>记录类型 <select id="fanTimelineFilter">${[
@@ -194,9 +174,7 @@ export function renderReminders(items) {
   const groups = Object.keys(names)
     .map((group) => {
       const records = items.filter(
-        (r) =>
-          r.group === group &&
-          (group === 'history' || !['handled', 'ignored'].includes(r.status)),
+        (r) => r.group === group && (group === 'history' || !['handled', 'ignored'].includes(r.status)),
       );
       if (!records.length) return '';
       const people = new Map();
@@ -205,9 +183,7 @@ export function renderReminders(items) {
         if (!people.has(key)) people.set(key, []);
         people.get(key).push(record);
       }
-      return `<section class="fan-reminder-group"><h3>${names[group]}</h3>${[
-        ...people.values(),
-      ]
+      return `<section class="fan-reminder-group"><h3>${names[group]}</h3>${[...people.values()]
         .map((day) => {
           const first = day[0];
           return `<article class="fan-reminder-person"><header class="fan-section-title"><h4>${html(first.name)} · ${html(dateLabel(first.date))}</h4>${button('open-reminder', '打开档案', `data-profile-id="${attr(first.profileId)}"`)}</header>${day.map((r) => `<div class="fan-reminder-row"><div><strong>${html(r.title)}</strong><p class="fan-muted">${html(r.basis || '')}${r.predicted ? ' · 预计' : ''}${r.revisedBelowThreshold ? ' · 修订后未达标，处理历史保留' : ''}${r.status === 'snoozed' ? ` · 延至 ${html(r.until)}` : ''}${r.status === 'handled' ? ' · 已处理' : r.status === 'ignored' ? ' · 已忽略' : ''}</p></div><div class="fan-actions">${group === 'history' ? '' : ['handled', 'snoozed', 'ignored'].map((state) => button(`reminder-${state}`, { handled: '已处理', snoozed: '稍后提醒', ignored: '忽略本次' }[state], `data-profile-id="${attr(r.profileId)}" data-reminder-key="${attr(r.key)}"`)).join('')}</div></div>`).join('')}</article>`;

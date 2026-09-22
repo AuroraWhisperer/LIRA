@@ -1,0 +1,374 @@
+<!-- ============ 配置 AI 助手 ============ -->
+<section class="usage-guide-section" id="ug-deepseek">
+  <h3 class="usage-guide-section-title">
+    <span class="usage-guide-section-index" aria-hidden="true">09</span>配置 AI 助手
+  </h3>
+  <p class="usage-guide-section-intro">
+    先在 AI 平台获取密钥（API Key），再回到 LIRA 选择平台、粘贴密钥、选择模型并测试连接。下面以 DeepSeek 为例。
+  </p>
+  <h4 class="usage-guide-subsection-title">1. 以 DeepSeek 为例完成配置</h4>
+  <p class="usage-guide-section-intro">
+    先在 DeepSeek 开放平台创建密钥，再回到 LIRA 设置。以下第三方截图是旧版示意，仅用于识别入口；余额、价格、活动和登录方式以平台当前页面为准。
+  </p>
+  <div class="usage-guide-feature-list">
+    <article class="usage-guide-feature">
+      <div class="usage-guide-feature-head">
+        <strong>1. 登录 DeepSeek 开放平台</strong>
+      </div>
+      <p>
+        打开
+        <a href="https://platform.deepseek.com/" target="_blank" rel="noreferrer">DeepSeek 开放平台</a
+        >，按当前页面提供的方式注册或登录。
+      </p>
+      <figure class="usage-guide-figure usage-guide-figure--compact">
+<img
+        class="usage-guide-image"
+        src="/img/usage-guide/deepseek-login.webp"
+        width="1440"
+        height="687"
+        loading="lazy"
+        decoding="async"
+        alt="DeepSeek开放平台登录页，左侧微信扫码二维码，右侧手机号验证码登录表单"
+      />
+        <figcaption>DeepSeek 旧版界面示意；当前入口和费用以平台页面为准。</figcaption>
+      </figure>
+    </article>
+    <article class="usage-guide-feature usage-guide-feature--illustrated">
+      <div class="usage-guide-feature-copy">
+        <div class="usage-guide-feature-head">
+          <strong>2. 完成账号验证</strong>
+        </div>
+        <p>如果页面要求绑定邮箱或验证账号，按提示完成后继续。</p>
+      </div>
+      <figure class="usage-guide-figure usage-guide-figure--compact">
+<img
+        class="usage-guide-image"
+        src="/img/usage-guide/deepseek-email-later.webp"
+        width="620"
+        height="514"
+        loading="lazy"
+        decoding="async"
+        alt="绑定邮箱提示弹窗，底部有稍后再说和立即绑定两个按钮"
+      />
+        <figcaption>DeepSeek 旧版界面示意；当前入口和费用以平台页面为准。</figcaption>
+      </figure>
+    </article>
+    <article class="usage-guide-feature">
+      <div class="usage-guide-feature-head">
+        <strong>3. 进入 API keys 页面</strong>
+      </div>
+      <p>
+        在左侧菜单点击<strong class="usage-guide-keyword">「API keys」</strong>，然后点击<strong
+          class="usage-guide-keyword"
+          >「创建 API key」</strong
+        >按钮。
+      </p>
+      <figure class="usage-guide-figure usage-guide-figure--compact">
+<img
+        class="usage-guide-image"
+        src="/img/usage-guide/deepseek-api-keys.webp"
+        width="1440"
+        height="695"
+        loading="lazy"
+        decoding="async"
+        alt="DeepSeek开放平台API keys页面，左下角显示首次充值赠送余额，右侧有创建API key按钮"
+      />
+        <figcaption>DeepSeek 旧版界面示意；当前入口和费用以平台页面为准。</figcaption>
+      </figure>
+    </article>
+    <div class="usage-guide-step-pair">
+      <article class="usage-guide-feature usage-guide-feature--illustrated">
+        <div class="usage-guide-feature-copy">
+          <div class="usage-guide-feature-head">
+            <strong>4. 命名并创建</strong>
+          </div>
+          <p>给密钥起一个能认出来的名字（比如 LIRA），点击<strong class="usage-guide-keyword">「创建」</strong>。</p>
+        </div>
+        <figure class="usage-guide-figure usage-guide-figure--compact">
+<img
+          class="usage-guide-image"
+          src="/img/usage-guide/deepseek-create-key.webp"
+          width="587"
+          height="317"
+          loading="lazy"
+          decoding="async"
+          alt="创建API key弹窗，名称输入框中填写LIRA，底部有取消和创建按钮"
+        />
+        <figcaption>DeepSeek 旧版界面示意；当前入口和费用以平台页面为准。</figcaption>
+      </figure>
+      </article>
+      <article class="usage-guide-feature usage-guide-feature--illustrated">
+        <div class="usage-guide-feature-copy">
+          <div class="usage-guide-feature-head">
+            <strong>5. 复制并保存密钥</strong>
+          </div>
+          <p>
+            创建后点击<strong class="usage-guide-keyword">「复制」</strong
+            >。按平台提示妥善保存完整密钥，不要发给别人。
+          </p>
+        </div>
+        <figure class="usage-guide-figure usage-guide-figure--compact">
+<img
+          class="usage-guide-image"
+          src="/img/usage-guide/deepseek-copy-key.webp"
+          width="583"
+          height="433"
+          loading="lazy"
+          decoding="async"
+          alt="旧版 API key 创建成功弹窗，密钥已遮盖，底部有复制按钮"
+        />
+        <figcaption>DeepSeek 旧版界面示意；当前入口和费用以平台页面为准。</figcaption>
+      </figure>
+      </article>
+    </div>
+    <article class="usage-guide-feature">
+      <div class="usage-guide-feature-head">
+        <strong>6. 选择「DeepSeek 官方」</strong>
+      </div>
+      <p>
+        回到<strong class="usage-guide-keyword">「百宝箱 → 弹幕姬 → AI 互动助手」</strong>，在<strong
+          class="usage-guide-keyword"
+          >「AI 平台」</strong
+        >中选择「DeepSeek 官方」，地址会自动填好。
+      </p>
+    </article>
+    <article class="usage-guide-feature">
+      <div class="usage-guide-feature-head">
+        <strong>7. 粘贴密钥（API Key）</strong>
+      </div>
+      <p>
+        将复制的密钥粘贴到<strong class="usage-guide-keyword">「密钥（API Key）」</strong>输入框，等待显示<strong
+          class="usage-guide-success"
+          >「已保存」</strong
+        >，也可以点击<strong class="usage-guide-keyword">「保存设置」</strong>。保存后不会完整显示密钥。
+      </p>
+    </article>
+    <article class="usage-guide-feature">
+      <div class="usage-guide-feature-head">
+        <strong>8. 获取并选择模型</strong>
+      </div>
+      <p>
+        点击<strong class="usage-guide-keyword">「获取模型」</strong>，选择一个可用模型，再点击<strong
+          class="usage-guide-keyword"
+          >「测试 AI 连接」</strong
+        >。在「回复规则」中填写自定义触发关键词，等待显示<strong class="usage-guide-success">「已保存」</strong
+        >。测试通过后打开<strong class="usage-guide-keyword">「启用 AI」</strong
+        >，发送一条包含该关键词的弹幕，试试是否收到回复。模型说明可查看
+        <a href="https://api-docs.deepseek.com/zh-cn/" target="_blank" rel="noreferrer">DeepSeek 官方文档</a>。
+      </p>
+    </article>
+    <article class="usage-guide-feature">
+      <div class="usage-guide-feature-head">
+        <strong>9. 查看用量、余额不足时充值</strong>
+      </div>
+      <p>
+        打开
+        <a href="https://platform.deepseek.com/usage" target="_blank" rel="noreferrer">DeepSeek 用量与余额</a
+        >，查看使用量和余额，需要时再充值。充值后回到 LIRA 点击<strong class="usage-guide-keyword"
+          >「测试 AI 连接」</strong
+        >。
+      </p>
+      <p>
+        使用前请查看
+        <a href="https://api-docs.deepseek.com/zh-cn/quick_start/pricing/" target="_blank" rel="noreferrer"
+          >DeepSeek 官方价格</a
+        >，费用和余额以平台显示为准。
+      </p>
+      <figure class="usage-guide-figure usage-guide-figure--compact">
+<img
+        class="usage-guide-image"
+        src="/img/usage-guide/deepseek-usage.webp"
+        width="2488"
+        height="1195"
+        loading="lazy"
+        decoding="async"
+        alt="DeepSeek开放平台用量信息页面，显示充值余额、累计消费金额、API请求次数和Tokens统计"
+      />
+        <figcaption>DeepSeek 旧版界面示意；当前入口和费用以平台页面为准。</figcaption>
+      </figure>
+      <figure class="usage-guide-figure usage-guide-figure--compact">
+<img
+        class="usage-guide-image"
+        src="/img/usage-guide/deepseek-recharge.webp"
+        width="1440"
+        height="686"
+        loading="lazy"
+        decoding="async"
+        alt="DeepSeek开放平台充值页面，可选充值金额，支持支付宝和微信支付"
+      />
+        <figcaption>DeepSeek 旧版界面示意；当前入口和费用以平台页面为准。</figcaption>
+      </figure>
+    </article>
+  </div>
+  <h4 class="usage-guide-subsection-title">2. 平台、回复规则与高级设置</h4>
+  <p class="usage-guide-section-intro">入口：百宝箱 → 弹幕姬 → AI 互动助手。先看「配置状态」「等待队列」「运行模型」，再修改对应区域；修改后等待「已保存」，也可点「保存设置」。</p>
+  <div class="usage-guide-feature-list">
+    <article class="usage-guide-feature">
+      <strong>选择平台与模型</strong>
+      <p>「AI 平台」包括自动识别（兼容旧设置）、DeepSeek 官方、OpenAI 官方、Claude 官方兼容、Gemini 官方兼容、自定义 / 第三方兼容。官方平台会自动填写地址；第三方服务按提供方说明填写「API 请求地址」和密钥。「接口协议」不确定时保持自动识别。</p>
+      <p>「获取模型」用于读取当前服务支持的模型，也可直接填写提供方给出的模型 ID。「联网」「深度思考」能力随平台和模型变化，以面板提示为准；出现「思考强度」后才可调整，不能把开关可见当作连接已成功。</p>
+      <figure class="usage-guide-figure">
+        <img class="usage-guide-image" src="/img/usage-guide/E/ai-assistant-provider-menu.webp" width="1440" height="902" loading="lazy" decoding="async" alt="AI 平台下拉菜单展开，显示六种配置入口" />
+        <figcaption>AI 平台菜单示例：密钥留空，未执行外部服务测试。</figcaption>
+      </figure>
+    </article>
+    <article class="usage-guide-feature">
+      <strong>让观众唤醒 AI</strong>
+      <p>填写最多 12 字的「触发关键词」，例如「小助手」，保存后让观众发送「小助手，晚上好」。弹幕包含已保存的关键词才会触发；留空不会回复。「回复长度偏好」可填 10–50，默认 50，是长度偏好；内容较多时可能分成两条或三条弹幕。</p>
+      <ul class="usage-guide-bullets">
+        <li>同时处理的提问数：1–5，默认 3；等待中的提问看「等待队列」。</li>
+        <li>同一观众提问间隔：0–3600 秒，默认 0；每分钟提问上限：1–120，默认 20。</li>
+        <li>「AI 的性格和说话方式」：20–8000 字，可描述称呼、语气和回答习惯。</li>
+        <li>发送间隔只读：不同回复随机间隔 500–2000 毫秒，同一回复分段随机间隔 200–600 毫秒。</li>
+      </ul>
+      <figure class="usage-guide-figure usage-guide-figure--compact">
+        <img class="usage-guide-image" src="/img/usage-guide/E/ai-assistant-config.webp" width="1092" height="1107" loading="lazy" decoding="async" alt="AI 互动助手的模型服务、回复规则与高级设置" />
+        <figcaption>配置入口示例，密钥尚未填写；本图不是测试成功反馈。</figcaption>
+      </figure>
+    </article>
+    <article class="usage-guide-feature">
+      <strong>天气与地点查询（需要时再配）</strong>
+      <p>展开「扩展能力」后，和风天气填写专属 API Host（不带 https://）与密钥；高德地图填写 Web 服务 API Host 和 Web 服务 Key。分别用「测试和风天气」「测试高德地图」检查。它们与模型服务的密钥分开填写，普通 AI 对话不必先配齐这些项目。</p>
+      <p>先通过「测试 AI 连接」，再开启「启用 AI」并用真实弹幕验证。若测试成功但不回复，继续检查直播账号、触发词和提问频率，见<a href="#ug-faq" data-usage-guide-link>常见问题</a>。</p>
+    </article>
+  </div>
+</section>
+
+<!-- ============ 投屏设置 ============ -->
+<section class="usage-guide-section" id="ug-obs">
+  <h3 class="usage-guide-section-title"><span class="usage-guide-section-index" aria-hidden="true">10</span>直播姬 / OBS 投屏设置</h3>
+  <p class="usage-guide-section-intro">复制需要的画面地址，添加到直播姬的「浏览器」或 OBS 的「浏览器源」。网页歌单用于让观众查歌，使用另外的链接，见<a href="#ug-web-songlist" data-usage-guide-link>网页歌单与分享</a>。</p>
+  <ol class="usage-guide-steps">
+    <li>在「点歌 → 浏览器源」找到常用地址并复制。这里有 11 个地址项；其他地址在对应功能面板复制，礼物许愿三个周期各有地址。</li>
+    <li>在直播软件中添加浏览器源，粘贴地址，按功能面板的说明设置源的宽度和高度，再把画面摆到需要的位置。</li>
+    <li>在 LIRA 中调整该功能的样式，并按对应面板的实际按钮应用。弹幕姬点「应用到直播画面」；萌时钟修改时自动保存。没有内容时，歌词、礼物特效等源可能是透明的，先用歌曲或面板预览验证。</li>
+  </ol>
+  <div class="usage-guide-notice usage-guide-notice--warning"><strong>先分清本机画面和服务器弹幕姬</strong><p>除弹幕姬外，本节所列投屏均为本机画面。含 127.0.0.1 的地址必须在运行 LIRA 的电脑上加载，并保持 LIRA 开启。退出后不能重新加载或继续获取实时数据；已加载的画面是否保留最后内容取决于该功能。</p><p>服务器弹幕姬不依赖桌面进程持续运行，但仍依赖服务器和直播间连接。复制它的链接需要 LIRA 授权与服务器配置读取成功；接收直播消息还需要配置直播账号。这两项要分开检查。</p></div>
+      <figure class="usage-guide-figure">
+        <img class="usage-guide-image" src="/img/usage-guide/B/song-overlay-addresses.webp" width="1440" height="902" loading="lazy" decoding="async" alt="点歌页浏览器源中常用的直播画面地址与复制按钮" />
+        <figcaption>点歌 → 浏览器源：按用途复制；图中的演示地址不能直接用于直播。</figcaption>
+      </figure>
+  <div class="usage-guide-grid">
+    <article class="usage-guide-card">
+      <strong>点歌队列画面 · 本机</strong>
+      <p>在「点歌 → 浏览器源」或「点歌板」复制。点歌板有六种风格，例如「点歌板风格 1（经典队列展示）」；字号、配色和滚动在点歌板页调整，宽高按所选风格说明设置。显示的是等待演唱的点歌队列。</p>
+      <figure class="usage-guide-figure">
+        <img class="usage-guide-image" src="/img/usage-guide/F/public-overlay-queue.webp" width="1440" height="900" loading="lazy" decoding="async" alt="点歌板示例输出" />
+        <figcaption>本机点歌板的示例队列；不是 OBS 添加源界面。</figcaption>
+      </figure>
+    </article>
+    <article class="usage-guide-card">
+      <strong>歌曲展示板 · 本机</strong>
+      <p>在「浏览器源」或「展示板」复制，循环展示歌库歌曲。到「点歌 → 展示板」设置滚动速率、排序、字号以及是否同步点歌板主题；源尺寸按该面板说明调整。它与点歌队列是两个画面。</p>
+      <figure class="usage-guide-figure usage-guide-figure--portrait">
+        <img class="usage-guide-image" src="/img/usage-guide/F/public-overlay-songs.webp" width="440" height="650" loading="lazy" decoding="async" alt="歌曲展示板滚动显示示例歌库" />
+        <figcaption>歌曲展示板示例，开启了同步点歌板主题。</figcaption>
+      </figure>
+    </article>
+    <article class="usage-guide-card">
+      <strong>歌词画面 · 本机</strong>
+      <p>在「浏览器源」或桌面歌词设置页复制。浏览器源的宽高决定歌词画面的空间；字体、颜色、描边与逐字高亮在「点歌 → 桌面歌词设置」中调整。先播放有歌词的歌曲，再检查投屏效果。</p>
+      <figure class="usage-guide-figure">
+        <img class="usage-guide-image" src="/img/usage-guide/B/desktop-lyric-karaoke.webp" width="1440" height="902" loading="lazy" decoding="async" alt="桌面歌词逐字效果设置入口" />
+        <figcaption>逐字效果设置示意；显示内容取决于当前歌曲及歌词来源。</figcaption>
+      </figure>
+    </article>
+    <article class="usage-guide-card">
+      <strong>盲盒盈亏榜 · 本机</strong>
+      <p>在「礼物 → 盲盒盈亏榜」卡片复制。设置标题、排行人数、仅显示盈利和仅显示心动盲盒后使用对应链接；排行人数 -1 为全部，0 仅汇总，1–10 指定人数，默认 3。画面自动适配捕捉窗口。</p>
+      <figure class="usage-guide-figure usage-guide-figure--compact">
+        <img class="usage-guide-image" src="/img/usage-guide/F/public-overlay-blindbox.webp" width="420" height="302" loading="lazy" decoding="async" alt="盲盒盈亏榜示例排行" />
+        <figcaption>示例礼物记录生成的榜单，不是真实收益。</figcaption>
+      </figure>
+    </article>
+    <article class="usage-guide-card">
+      <strong>加班机画面 · 本机</strong>
+      <p>在「百宝箱 → 加班机 → 直播画面」复制。背景与适配方式在面板选择，尺寸按画面设置调整；透明背景适合叠在直播画面上。倒计时是否暂停、礼物是否改时，由加班机本身的状态与规则决定。</p>
+      <figure class="usage-guide-figure">
+        <img class="usage-guide-image" src="/img/usage-guide/E/toolbox-overtime-controls.webp" width="1440" height="902" loading="lazy" decoding="async" alt="加班机的启用、时间控制和直播画面设置" />
+        <figcaption>加班机面板示例：先设置时间和规则，再检查倒计时。</figcaption>
+      </figure>
+    </article>
+    <article class="usage-guide-card">
+      <strong>礼物特效、边框、滚动与许愿 · 本机</strong>
+      <p>礼物特效在「百宝箱 → 礼物特效」复制；边框、滚动、许愿在「礼物姬」对应页签复制。特效与边框适合全屏；滚动礼物建议宽 900，高度随行数；许愿建议宽 440，高度随内容调整，并按长效 / 本日 / 本场选择地址。滚动礼物修改后点「保存」，也可「恢复默认」或「取消修改」。</p>
+      <figure class="usage-guide-figure usage-guide-figure--compact">
+        <img class="usage-guide-image" src="/img/usage-guide/F/gift-wishes-overlay.webp" width="440" height="340" loading="lazy" decoding="async" alt="礼物许愿卡片和文字两种示例输出" />
+        <figcaption>许愿示例进度，礼物图使用兜底图标。</figcaption>
+      </figure>
+    </article>
+    <article class="usage-guide-card">
+      <strong>弹幕姬 · 服务器</strong>
+      <p>在「百宝箱 → 弹幕姬」或「点歌 → 浏览器源」复制。固定位置六种、全屏随机三种样式，按样式说明设置源尺寸。改完样式和参数要点「应用到直播画面」。能复制地址不代表已收到直播弹幕；还需看连接状态。</p>
+      <figure class="usage-guide-figure usage-guide-figure--compact">
+        <img class="usage-guide-image" src="/img/usage-guide/F/public-overlay-danmaku.webp" width="900" height="700" loading="lazy" decoding="async" alt="弹幕姬深色面板的文字、表情与礼物通知" />
+        <figcaption>产品内置静态样式预览，不是实际直播消息。</figcaption>
+      </figure>
+    </article>
+    <article class="usage-guide-card">
+      <strong>游戏、开场与时钟 · 本机</strong>
+      <p>三款小游戏共用「游戏网页」；转盘有独立地址；投票与评分共用一个独立「浏览器源」，推荐 800 × 600。开播动画复制「固定浏览器源地址」，使用 16:9 画面，总开关同时控制预览与投屏。萌时钟复制「萌时钟网址」，推荐 580 × 210，修改自动保存。常用地址也可从「点歌 → 浏览器源」复制。</p>
+      <figure class="usage-guide-figure">
+        <img class="usage-guide-image" src="/img/usage-guide/B/song-overlay-addresses-scene.webp" width="1440" height="902" loading="lazy" decoding="async" alt="浏览器源中的小游戏、开播动画和萌时钟地址" />
+        <figcaption>场景类常用地址；投票评分等补充地址在对应功能页复制。</figcaption>
+      </figure>
+    </article>
+  </div>
+  <p class="usage-guide-section-intro">换电脑后，请在新电脑重新核对复制地址、端口、源尺寸和本机样式；不能只凭旧链接相同就认为设置也已迁移。地址复制失败时可按提示手动复制，画面仍异常见<a href="#ug-faq" data-usage-guide-link>投屏与 OBS 常见问题</a>。</p>
+</section>
+
+<!-- ============ 常用设置速查 ============ -->
+<section class="usage-guide-section" id="ug-cheatsheet">
+  <h3 class="usage-guide-section-title"><span class="usage-guide-section-index" aria-hidden="true">11</span>常用设置在哪里</h3>
+  <p class="usage-guide-section-intro">按要修改的内容找入口；各面板的保存方式以按钮和结果提示为准。更完整的画面分类见<a href="#ug-appearance" data-usage-guide-link>界面与画面外观速查</a>。</p>
+  <div class="usage-guide-grid">
+    <article class="usage-guide-card">
+      <strong>点歌规则</strong>
+      <p>「点歌 → 设置」：直播间号、接收弹幕和礼物、暂停点歌、排队上限、同一观众点歌间隔、允许重复、只允许歌库歌曲。修改后保存，会同步到同账号设备。暂停点歌不会停止接收礼物。</p>
+      <figure class="usage-guide-figure">
+        <img class="usage-guide-image" src="/img/usage-guide/B/song-settings-rules.webp" width="1440" height="902" loading="lazy" decoding="async" alt="点歌规则与保存入口" />
+        <figcaption>设置入口示例；图中账号、数值和状态仅供说明。</figcaption>
+      </figure>
+    </article>
+    <article class="usage-guide-card">
+      <strong>主题美化</strong>
+      <p>「点歌 → 点歌板」：按当前风格调整颜色、背景透明度、毛玻璃、发光与渐变；各风格提供的参数不同。可从配色预设开始，再微调。网页歌单背景和外观另有入口。</p>
+      <figure class="usage-guide-figure">
+        <img class="usage-guide-image" src="/img/usage-guide/B/song-theme-styles.webp" width="1440" height="902" loading="lazy" decoding="async" alt="六种点歌板风格入口" />
+        <figcaption>设置入口示例；图中账号、数值和状态仅供说明。</figcaption>
+      </figure>
+    </article>
+    <article class="usage-guide-card">
+      <strong>投屏文字</strong>
+      <p>「点歌 → 点歌板」：歌名、标题与点歌人的字号，以及字体、字重。队列滚动模式为「循环滚动（首尾相接）」或「往返滚动（到底后返回）」；滚动速率 1 最慢、100 最快。</p>
+      <figure class="usage-guide-figure">
+        <img class="usage-guide-image" src="/img/usage-guide/B/song-theme-detail.webp" width="1362" height="1378" loading="lazy" decoding="async" alt="点歌板字号、字体与滚动设置" />
+        <figcaption>设置入口示例；图中账号、数值和状态仅供说明。</figcaption>
+      </figure>
+    </article>
+    <article class="usage-guide-card">
+      <strong>礼物与盲盒</strong>
+      <p>「礼物」页：礼物统计、提示、冲刺目标、历史记录与盲盒盈亏榜；「盲盒设置」补充自定义盲盒成本与可能开出的礼物。月底冲刺的「重置本轮」不清空礼物记录。</p>
+      <figure class="usage-guide-figure">
+        <img class="usage-guide-image" src="/img/usage-guide/D/gift-page-overview.webp" width="1440" height="902" loading="lazy" decoding="async" alt="礼物页统计与盲盒入口" />
+        <figcaption>设置入口示例；图中账号、数值和状态仅供说明。</figcaption>
+      </figure>
+    </article>
+    <article class="usage-guide-card">
+      <strong>签到与回复</strong>
+      <p>「百宝箱 → 弹幕姬」：签到机器人、抽签机器人、随机点歌回复、自定义关键词回复，以及进场欢迎等辅助功能。AI 的平台、密钥、模型和触发词在同页「AI 互动助手」中设置。</p>
+      <figure class="usage-guide-figure">
+        <img class="usage-guide-image" src="/img/usage-guide/E/danmaku-reply-tools.webp" width="1440" height="913" loading="lazy" decoding="async" alt="弹幕姬的回复与辅助设置" />
+        <figcaption>设置入口示例；图中账号、数值和状态仅供说明。</figcaption>
+      </figure>
+    </article>
+    <article class="usage-guide-card">
+      <strong>歌曲展示板</strong>
+      <p>「点歌 → 展示板」：滚动速率 1–100、歌曲排序方式、字号和「同步点歌板主题」。这里调整的是歌库展示画面，不会改变播放队列顺序。</p>
+      <figure class="usage-guide-figure">
+        <img class="usage-guide-image" src="/img/usage-guide/B/song-board-settings.webp" width="1394" height="370" loading="lazy" decoding="async" alt="歌曲展示板排序与字号设置" />
+        <figcaption>设置入口示例；图中账号、数值和状态仅供说明。</figcaption>
+      </figure>
+    </article>
+  </div>
+</section>

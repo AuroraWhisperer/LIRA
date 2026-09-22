@@ -49,28 +49,18 @@ function redactString(str) {
   );
 
   // Redact Cookie header values
-  result = result.replace(
-    /\b(Cookie|cookie):\s*[^\r\n]+/gi,
-    `$1: ${REDACTED_PLACEHOLDER}`,
-  );
+  result = result.replace(/\b(Cookie|cookie):\s*[^\r\n]+/gi, `$1: ${REDACTED_PLACEHOLDER}`);
 
   // Redact credential-like URL query parameters.  Match the parameter name
   // broadly, then apply the same normalized-key policy used for objects so
   // variants such as private_key_pem and accessToken cannot bypass logging
   // redaction.
-  result = result.replace(
-    /([?&])([^=&#\s]+)=([^&#\s]*)/g,
-    (match, separator, key, value) =>
-      isSensitiveKey(key)
-        ? `${separator}${key}=${REDACTED_PLACEHOLDER}`
-        : match,
+  result = result.replace(/([?&])([^=&#\s]+)=([^&#\s]*)/g, (match, separator, key, value) =>
+    isSensitiveKey(key) ? `${separator}${key}=${REDACTED_PLACEHOLDER}` : match,
   );
 
   // Redact URL userinfo (user:pass@host)
-  result = result.replace(
-    /([a-z][a-z0-9+.-]*:\/\/)([^:@\s]+:[^@\s]+@)/gi,
-    `$1${REDACTED_PLACEHOLDER}@`,
-  );
+  result = result.replace(/([a-z][a-z0-9+.-]*:\/\/)([^:@\s]+:[^@\s]+@)/gi, `$1${REDACTED_PLACEHOLDER}@`);
 
   return result;
 }
@@ -145,10 +135,7 @@ function redactUrl(url) {
 
   // Redact sensitive query parameters (case-insensitive param names)
   for (const param of [...redactedUrl.searchParams.keys()]) {
-    if (
-      isSensitiveKey(param) ||
-      param.toLowerCase().replace(/[_-]/g, '') === 'key'
-    ) {
+    if (isSensitiveKey(param) || param.toLowerCase().replace(/[_-]/g, '') === 'key') {
       redactedUrl.searchParams.set(param, REDACTED_PLACEHOLDER);
     }
   }

@@ -18,8 +18,10 @@ function mutate(action) {
 module.exports = {
   prefixes: ['/api/interactions'],
   routes: {
-    'GET /api/interactions/session': (context, request, res) => sendJson(res, 200, { ok: true, data: context.interactions.getState() }),
-    'GET /api/interactions/host-state': (context, request, res) => sendJson(res, 200, { ok: true, data: context.interactions.getHostState() }),
+    'GET /api/interactions/session': (context, request, res) =>
+      sendJson(res, 200, { ok: true, data: context.interactions.getState() }),
+    'GET /api/interactions/host-state': (context, request, res) =>
+      sendJson(res, 200, { ok: true, data: context.interactions.getHostState() }),
     'POST /api/interactions/session': mutate('start'),
     'POST /api/interactions/session/finish': mutate('finish'),
     'POST /api/interactions/session/clear': mutate('clear'),

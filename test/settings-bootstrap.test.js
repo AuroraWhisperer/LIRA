@@ -6,14 +6,10 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { DatabaseSync } = require('node:sqlite');
-const {
-  prepareSettingsBootstrap,
-} = require('../src/server/settings-bootstrap');
+const { prepareSettingsBootstrap } = require('../src/server/settings-bootstrap');
 
 function fixture(t, values) {
-  const root = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'lira-settings-migration-'),
-  );
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-settings-migration-'));
   const filename = path.join(root, 'settings.db');
   let db = new DatabaseSync(filename);
   t.after(() => {
@@ -23,12 +19,9 @@ function fixture(t, values) {
       fs.rmSync(root, { recursive: true, force: true });
     }
   });
-  db.exec(
-    'CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT, updated_at TEXT)',
-  );
+  db.exec('CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT, updated_at TEXT)');
   const insert = db.prepare('INSERT INTO settings VALUES (?, ?, ?)');
-  for (const [key, value] of Object.entries(values))
-    insert.run(key, value, 'before');
+  for (const [key, value] of Object.entries(values)) insert.run(key, value, 'before');
   return {
     get db() {
       return db;
@@ -38,8 +31,7 @@ function fixture(t, values) {
       db = new DatabaseSync(filename);
     },
     value(key) {
-      return db.prepare('SELECT value FROM settings WHERE key = ?').get(key)
-        ?.value;
+      return db.prepare('SELECT value FROM settings WHERE key = ?').get(key)?.value;
     },
   };
 }
@@ -58,10 +50,7 @@ for (const version of ['1', undefined]) {
       WHEN NEW.key = 'queueFontSizeRangeVersion'
       AND (SELECT value FROM settings WHERE key = 'queueSongFontSize') = '20'
       BEGIN SELECT RAISE(ABORT, 'version write failed'); END`);
-    assert.throws(
-      () => prepareSettingsBootstrap(state.db),
-      /version write failed/,
-    );
+    assert.throws(() => prepareSettingsBootstrap(state.db), /version write failed/);
     state.reopen();
     assert.equal(state.value('queueSongFontSize'), '10');
     assert.equal(state.value('queueTitleFontSize'), '8');
@@ -85,13 +74,8 @@ test('new and already migrated settings remain stable on repeated startup', (t) 
   const state = fixture(t, {});
   const first = prepareSettingsBootstrap(state.db).settingsStore.getSettings();
   state.reopen();
-  assert.deepEqual(
-    prepareSettingsBootstrap(state.db).settingsStore.getSettings(),
-    first,
-  );
-  state.db
-    .prepare('UPDATE settings SET value = ? WHERE key = ?')
-    .run('12', 'queueSongFontSize');
+  assert.deepEqual(prepareSettingsBootstrap(state.db).settingsStore.getSettings(), first);
+  state.db.prepare('UPDATE settings SET value = ? WHERE key = ?').run('12', 'queueSongFontSize');
   state.reopen();
   prepareSettingsBootstrap(state.db);
   assert.equal(state.value('queueSongFontSize'), '12');

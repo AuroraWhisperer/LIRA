@@ -78,9 +78,7 @@ test('normalizes tasks and filters only exact historical starters when requested
 
   assert.equal(model.normalizeTasks(values, 'task', true).length, 2);
   assert.deepEqual(
-    model
-      .normalizeTasks(values, 'task', true)
-      .map(({ id, title, stage, done }) => ({ id, title, stage, done })),
+    model.normalizeTasks(values, 'task', true).map(({ id, title, stage, done }) => ({ id, title, stage, done })),
     [
       {
         id: 'starter-device-check',
@@ -177,10 +175,7 @@ test('migrates a goal-only session with a fallback event title and keeps empty a
   });
   assert.equal(state.events[0].title, '直播安排');
   assert.equal(state.events[0].detail, '复盘上周数据');
-  assert.deepEqual(
-    plain(model.normalizeState({ version: 2, session: null })).events,
-    [],
-  );
+  assert.deepEqual(plain(model.normalizeState({ version: 2, session: null })).events, []);
   assert.deepEqual(
     plain(
       model.normalizeState({
@@ -218,26 +213,11 @@ test('normalizes events and rejects invalid local dates and times', () => {
   assert.equal(event.detail.length, 500);
   assert.equal(event.type, 'live');
   assert.equal(event.time, '');
-  assert.equal(
-    model.normalizeEvent({ title: 'x', date: '2023-02-29', time: '20:00' }),
-    null,
-  );
-  assert.equal(
-    model.normalizeEvent({ title: 'x', date: '2024-02-30', time: '20:00' }),
-    null,
-  );
-  assert.equal(
-    model.normalizeEvent({ title: 'x', date: '2024-02-29', time: '24:00' }),
-    null,
-  );
-  assert.equal(
-    model.normalizeEvent({ title: 'x', date: '2024-02-29', time: '20:60' }),
-    null,
-  );
-  assert.equal(
-    model.normalizeEvent({ title: '   ', date: '2024-02-29', time: '' }),
-    null,
-  );
+  assert.equal(model.normalizeEvent({ title: 'x', date: '2023-02-29', time: '20:00' }), null);
+  assert.equal(model.normalizeEvent({ title: 'x', date: '2024-02-30', time: '20:00' }), null);
+  assert.equal(model.normalizeEvent({ title: 'x', date: '2024-02-29', time: '24:00' }), null);
+  assert.equal(model.normalizeEvent({ title: 'x', date: '2024-02-29', time: '20:60' }), null);
+  assert.equal(model.normalizeEvent({ title: '   ', date: '2024-02-29', time: '' }), null);
 });
 
 test('uses local calendar dates for 42-cell Monday-first grids and month shifts', () => {
@@ -249,10 +229,7 @@ test('uses local calendar dates for 42-cell Monday-first grids and month shifts'
     { date: '2024-01-31', isCurrentMonth: false },
   ]);
   assert.equal(february.filter((day) => day.isCurrentMonth).length, 29);
-  assert.equal(
-    february.find((day) => day.date === '2024-02-29').isCurrentMonth,
-    true,
-  );
+  assert.equal(february.find((day) => day.date === '2024-02-29').isCurrentMonth, true);
   assert.equal(model.shiftMonth('2024-12', 1), '2025-01');
   assert.equal(model.shiftMonth('2025-01', -1), '2024-12');
   assert.equal(model.toDateValue(new Date(2024, 1, 29)), '2024-02-29');

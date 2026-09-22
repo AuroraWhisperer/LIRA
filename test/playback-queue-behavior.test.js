@@ -3,12 +3,7 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const {
-  closestTarget,
-  createPlaybackApp,
-  flushAsyncWork,
-  track,
-} = require('./helpers/playback-app');
+const { closestTarget, createPlaybackApp, flushAsyncWork, track } = require('./helpers/playback-app');
 
 for (const action of ['ended', 'next', 'error']) {
   test(`repeat-one only repeats on natural completion (${action})`, async () => {
@@ -51,19 +46,13 @@ test('playlist playback keeps one queue and loops with directly played search tr
     current: track('playlist-1', '歌单第一首'),
     currentOrigin: 'normal',
     requestedQueue: [],
-    normalQueue: [
-      track('playlist-2', '歌单第二首'),
-      track('playlist-3', '歌单第三首'),
-    ],
+    normalQueue: [track('playlist-2', '歌单第二首'), track('playlist-3', '歌单第三首')],
     normalQueueTracks: [
       track('playlist-1', '歌单第一首'),
       track('playlist-2', '歌单第二首'),
       track('playlist-3', '歌单第三首'),
     ],
-    radioQueue: [
-      track('radio-1', '不应显示的电台歌曲'),
-      track('radio-2', '不应保留的电台歌曲'),
-    ],
+    radioQueue: [track('radio-1', '不应显示的电台歌曲'), track('radio-2', '不应保留的电台歌曲')],
     mode: 'sequence',
     selectedSource: 'qq',
     queueType: 'playlist',
@@ -78,14 +67,8 @@ test('playlist playback keeps one queue and loops with directly played search tr
 
   assert.equal(app.element('queuePopupTitle').textContent, '歌单队列');
   assert.equal(app.element('queuePopupSize').textContent, '3 首');
-  assert.match(
-    app.element('playbackQueueList').innerHTML,
-    /歌单第二首[\s\S]*歌单第三首/,
-  );
-  assert.doesNotMatch(
-    app.element('playbackQueueList').innerHTML,
-    /不应显示的电台歌曲|不应保留的电台歌曲/,
-  );
+  assert.match(app.element('playbackQueueList').innerHTML, /歌单第二首[\s\S]*歌单第三首/);
+  assert.doesNotMatch(app.element('playbackQueueList').innerHTML, /不应显示的电台歌曲|不应保留的电台歌曲/);
   assert.doesNotMatch(app.element('playbackQueueList').innerHTML, /插队/);
 
   app.element('playbackSearchKeyword').value = '新点的歌';
@@ -203,10 +186,7 @@ test('clicking a drawer track replaces the queue with its visible list and prese
       currentOrigin: 'normal',
       requestedQueue: [track('old-requested', '原插队歌曲')],
       normalQueue: [track('old-next', '原下一首')],
-      normalQueueTracks: [
-        track('old-current', '原队列歌曲'),
-        track('old-next', '原下一首'),
-      ],
+      normalQueueTracks: [track('old-current', '原队列歌曲'), track('old-next', '原下一首')],
       radioQueue: [track('old-radio', '原电台歌曲')],
       mode: 'sequence',
       selectedSource: 'qq',
@@ -228,28 +208,15 @@ test('clicking a drawer track replaces the queue with its visible list and prese
   await app.emitHomeAction();
   await flushAsyncWork();
 
-  assert.match(
-    app.element('playbackDrawerBody').innerHTML,
-    /data-playback-home-track-row-index="1"/,
-  );
+  assert.match(app.element('playbackDrawerBody').innerHTML, /data-playback-home-track-row-index="1"/);
 
   await app.emit('playbackDrawerBody', 'click', {
-    target: closestTarget(
-      { playbackHomeTrackMenuIndex: '1' },
-      'playback-home-track-menu-index',
-    ),
+    target: closestTarget({ playbackHomeTrackMenuIndex: '1' }, 'playback-home-track-menu-index'),
   });
-  assert.equal(
-    app.savedState().current.id,
-    'old-current',
-    'the menu button must not play its row',
-  );
+  assert.equal(app.savedState().current.id, 'old-current', 'the menu button must not play its row');
 
   await app.emit('playbackDrawerBody', 'click', {
-    target: closestTarget(
-      { playbackHomeTrackRowIndex: '1' },
-      'playback-home-track-row-index',
-    ),
+    target: closestTarget({ playbackHomeTrackRowIndex: '1' }, 'playback-home-track-row-index'),
   });
   await flushAsyncWork();
 
@@ -285,13 +252,7 @@ test('clicking a track in the active playlist jumps without duplicating or repla
       currentOrigin: 'normal',
       requestedQueue: [],
       normalQueue: [],
-      normalQueueTracks: [
-        likedTracks[0],
-        searchedTrack,
-        likedTracks[1],
-        likedTracks[2],
-        likedTracks[3],
-      ],
+      normalQueueTracks: [likedTracks[0], searchedTrack, likedTracks[1], likedTracks[2], likedTracks[3]],
       radioQueue: [],
       mode: 'sequence',
       selectedSource: 'qq',

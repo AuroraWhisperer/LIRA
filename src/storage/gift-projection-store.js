@@ -4,10 +4,7 @@ function createGiftProjectionStore(giftDb) {
   if (!giftDb || typeof giftDb.prepare !== 'function')
     throw new Error('giftDb is required to create GiftProjectionStore.');
   return {
-    hasSource: (id) =>
-      Boolean(
-        giftDb.prepare('SELECT 1 FROM gift_sources WHERE id = ?').get(id),
-      ),
+    hasSource: (id) => Boolean(giftDb.prepare('SELECT 1 FROM gift_sources WHERE id = ?').get(id)),
     read: (id) => readGift(giftDb, id),
     findEvent(sourceId, platformId, command) {
       const row = giftDb
@@ -18,10 +15,8 @@ function createGiftProjectionStore(giftDb) {
         .get(sourceId, platformId, command);
       return row ? { ...row } : null;
     },
-    insertProgress: (gift, eligibility) =>
-      insertProgressGift(giftDb, gift, eligibility),
-    updateProgress: (id, sourceId, gift, detectedAtMs) =>
-      updateProcessedGift(giftDb, id, sourceId, gift, detectedAtMs),
+    insertProgress: (gift, eligibility) => insertProgressGift(giftDb, gift, eligibility),
+    updateProgress: (id, sourceId, gift, detectedAtMs) => updateProcessedGift(giftDb, id, sourceId, gift, detectedAtMs),
     insertHistory({ gift, sourceId, platformId, command }) {
       const createdAtMs = Date.parse(gift.createdAt);
       const result = giftDb
@@ -199,9 +194,7 @@ function insertProgressGift(giftDb, gift, eligibility) {
 }
 
 function readGift(giftDb, id) {
-  const row = giftDb
-    .prepare('SELECT * FROM gift_events WHERE id = ?')
-    .get(Number(id));
+  const row = giftDb.prepare('SELECT * FROM gift_events WHERE id = ?').get(Number(id));
   return row ? { ...row } : null;
 }
 

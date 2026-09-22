@@ -62,8 +62,7 @@ body[data-style='minimal'] .draw-danmaku-identity::after {
   /* 利用原图透明留白，让上下文字靠近图案。 */
   margin: -20px 0 -19px;
   aspect-ratio: 3 / 1;
-  background: url('/img/overlays/danmaku-guard/bow-divider.webp') center /
-    contain no-repeat;
+  background: url('/img/overlays/danmaku-guard/bow-divider.webp') center / contain no-repeat;
   content: '';
   pointer-events: none;
 }

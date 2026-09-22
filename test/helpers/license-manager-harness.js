@@ -1,9 +1,7 @@
 'use strict';
 
 const crypto = require('node:crypto');
-const {
-  createLicenseManager,
-} = require('../../src/electron/license/license-manager');
+const { createLicenseManager } = require('../../src/electron/license/license-manager');
 
 function createHarness({
   identity = null,
@@ -61,8 +59,7 @@ function createHarness({
     },
     verify: async () => {
       calls.verifies += 1;
-      const accessToken =
-        calls.verifies === 1 ? 'token' : `token-${calls.verifies}`;
+      const accessToken = calls.verifies === 1 ? 'token' : `token-${calls.verifies}`;
       const result = {
         accessToken,
         sessionId: 'session-1',
@@ -73,8 +70,7 @@ function createHarness({
       };
       const expiresInSeconds = verifyExpiresInSeconds(calls.verifies);
       const expiresAt = verifyExpiresAt(calls.verifies);
-      if (expiresInSeconds !== undefined)
-        result.expiresInSeconds = expiresInSeconds;
+      if (expiresInSeconds !== undefined) result.expiresInSeconds = expiresInSeconds;
       if (expiresAt !== undefined) result.expiresAt = expiresAt;
       return result;
     },

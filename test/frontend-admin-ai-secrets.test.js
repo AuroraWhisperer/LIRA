@@ -13,10 +13,7 @@ test('AI assistant keeps saved secrets out of password fields', async () => {
     assert.equal(elements.get(`xiaomiAi${provider}Key`).value, '');
   }
   for (const provider of ['DeepSeek', 'QWeather']) {
-    assert.equal(
-      elements.get(`xiaomiAi${provider}KeyHint`).textContent,
-      '已加密保存；清空或输入新值以更新',
-    );
+    assert.equal(elements.get(`xiaomiAi${provider}KeyHint`).textContent, '已加密保存；清空或输入新值以更新');
   }
   assert.equal(elements.get('xiaomiAiAmapKeyHint').textContent, '尚未保存');
 });

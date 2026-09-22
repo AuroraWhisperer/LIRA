@@ -13,10 +13,7 @@ function createGiftSource(giftDb) {
   );
 }
 
-function makeProcessedGiftEvent(
-  gift = {},
-  { eventId = 'gift-1', phase = 'final', cursor = 1 } = {},
-) {
+function makeProcessedGiftEvent(gift = {}, { eventId = 'gift-1', phase = 'final', cursor = 1 } = {}) {
   return {
     eventId,
     phase,

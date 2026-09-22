@@ -20,9 +20,7 @@
         </svg>
       </span>
       <div>
-        <h2 id="blindBoxAnalysisTitle" class="ui-page-title" tabindex="-1">
-          今日盲盒分析
-        </h2>
+        <h2 id="blindBoxAnalysisTitle" class="ui-page-title" tabindex="-1">今日盲盒分析</h2>
         <p id="blindBoxAnalysisSubtitle" class="ui-caption">今天的全部盲盒</p>
       </div>
     </div>
@@ -34,33 +32,22 @@
       aria-label="关闭盲盒分析"
     >
       <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <path
-          d="M6 6l12 12M18 6 6 18"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-        />
+        <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
       </svg>
     </button>
   </header>
 
   <div class="blind-analysis-content">
     <section class="blind-analysis-summary" aria-label="当前统计">
+      <div><span class="ui-caption">盒数</span><strong id="blindBoxAnalysisCount" class="ui-metric">0</strong></div>
       <div>
-        <span class="ui-caption">盒数</span
-        ><strong id="blindBoxAnalysisCount" class="ui-metric">0</strong>
+        <span class="ui-caption">总成本</span><strong id="blindBoxAnalysisCost" class="ui-metric">¥0.00</strong>
       </div>
       <div>
-        <span class="ui-caption">总成本</span
-        ><strong id="blindBoxAnalysisCost" class="ui-metric">¥0.00</strong>
-      </div>
-      <div>
-        <span class="ui-caption">开出价值</span
-        ><strong id="blindBoxAnalysisValue" class="ui-metric">¥0.00</strong>
+        <span class="ui-caption">开出价值</span><strong id="blindBoxAnalysisValue" class="ui-metric">¥0.00</strong>
       </div>
       <div id="blindBoxAnalysisProfitItem">
-        <span class="ui-caption">观众盈亏</span
-        ><strong id="blindBoxAnalysisProfit" class="ui-metric">¥0.00</strong>
+        <span class="ui-caption">观众盈亏</span><strong id="blindBoxAnalysisProfit" class="ui-metric">¥0.00</strong>
       </div>
     </section>
 
@@ -124,56 +111,22 @@
             hidden
           ></div>
         </div>
-        <button
-          id="blindBoxAnalysisClear"
-          class="blind-analysis-clear"
-          type="button"
-        >
-          清除选择
-        </button>
+        <button id="blindBoxAnalysisClear" class="blind-analysis-clear" type="button">清除选择</button>
       </div>
       <div class="blind-analysis-view-tabs" role="group" aria-label="查看方式">
-        <button
-          class="active"
-          type="button"
-          data-blind-analysis-view="users"
-          aria-pressed="true"
-        >
-          按观众看
-        </button>
-        <button
-          type="button"
-          data-blind-analysis-view="boxes"
-          aria-pressed="false"
-        >
-          按盲盒看
-        </button>
-        <button
-          type="button"
-          data-blind-analysis-view="records"
-          aria-pressed="false"
-        >
-          开盒记录
-        </button>
+        <button class="active" type="button" data-blind-analysis-view="users" aria-pressed="true">按观众看</button>
+        <button type="button" data-blind-analysis-view="boxes" aria-pressed="false">按盲盒看</button>
+        <button type="button" data-blind-analysis-view="records" aria-pressed="false">开盒记录</button>
       </div>
     </div>
 
-    <section
-      class="blind-analysis-results"
-      aria-live="polite"
-      aria-busy="false"
-    >
+    <section class="blind-analysis-results" aria-live="polite" aria-busy="false">
       <div class="blind-analysis-results-head">
         <div>
           <h3 id="blindBoxAnalysisViewTitle" class="ui-card-title">观众排行</h3>
-          <span id="blindBoxAnalysisResultCount" class="ui-caption"
-            >共 0 人</span
-          >
+          <span id="blindBoxAnalysisResultCount" class="ui-caption">共 0 人</span>
         </div>
-        <span
-          class="blind-analysis-updated ui-caption"
-          id="blindBoxAnalysisUpdated"
-        ></span>
+        <span class="blind-analysis-updated ui-caption" id="blindBoxAnalysisUpdated"></span>
       </div>
       <div class="blind-analysis-table-wrap" tabindex="0" role="region" aria-label="盲盒分析明细">
         <table class="blind-analysis-table">
@@ -185,11 +138,7 @@
           </tbody>
         </table>
       </div>
-      <footer
-        class="blind-analysis-pagination"
-        id="blindBoxAnalysisPagination"
-        hidden
-      >
+      <footer class="blind-analysis-pagination" id="blindBoxAnalysisPagination" hidden>
         <button id="blindBoxAnalysisPrev" type="button">上一页</button>
         <span id="blindBoxAnalysisPageInfo">第 1 页，共 1 页</span>
         <button id="blindBoxAnalysisNext" type="button">下一页</button>

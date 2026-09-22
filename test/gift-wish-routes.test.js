@@ -21,11 +21,7 @@ function response() {
 test('wishes API rejects client source selection and maps stale and invalid writes', async () => {
   for (const key of ['sourceId', 'source_id']) {
     const res = response();
-    await routes['GET /api/gifts/wishes'](
-      {},
-      { query: new URLSearchParams(`${key}=1`) },
-      res,
-    );
+    await routes['GET /api/gifts/wishes']({}, { query: new URLSearchParams(`${key}=1`) }, res);
     assert.equal(res.status, 400);
   }
   for (const [code, status] of [
@@ -67,21 +63,12 @@ test('wishes API rejects client source selection and maps stale and invalid writ
 });
 
 test('wish overlay can read only its progress and never mutate or expose source and sender data', () => {
-  assert.equal(
-    isOverlayRequestAllowed('gift-wishes', 'GET', '/api/gifts/wishes'),
-    true,
-  );
+  assert.equal(isOverlayRequestAllowed('gift-wishes', 'GET', '/api/gifts/wishes'), true);
   for (const path of ['/api/gifts/wishes/save', '/api/gifts/wishes/delete']) {
     assert.equal(isOverlayRequestAllowed('gift-wishes', 'POST', path), false);
   }
-  assert.equal(
-    isOverlayRequestAllowed('gift-feed', 'GET', '/api/gifts/wishes'),
-    false,
-  );
-  assert.equal(
-    isOverlayRequestAllowed('gift-wishes', 'GET', '/api/gifts/history'),
-    false,
-  );
+  assert.equal(isOverlayRequestAllowed('gift-feed', 'GET', '/api/gifts/wishes'), false);
+  assert.equal(isOverlayRequestAllowed('gift-wishes', 'GET', '/api/gifts/history'), false);
   const result = projectOverlayResponse('gift-wishes', '/api/gifts/wishes', {
     sourceId: 'private',
     guards: ['private'],
@@ -92,6 +79,8 @@ test('wish overlay can read only its progress and never mutate or expose source 
         giftName: '花',
         count: 3,
         target: 10,
+        displayStyle: 'text',
+        textTemplate: '许愿{礼物}（{已收}/{目标}）',
         createdAt: 'private',
         sender: 'private',
       },
@@ -99,4 +88,6 @@ test('wish overlay can read only its progress and never mutate or expose source 
   });
   assert.doesNotMatch(JSON.stringify(result), /private/);
   assert.equal(result.items[0].count, 3);
+  assert.equal(result.items[0].displayStyle, 'text');
+  assert.equal(result.items[0].textTemplate, '许愿{礼物}（{已收}/{目标}）');
 });

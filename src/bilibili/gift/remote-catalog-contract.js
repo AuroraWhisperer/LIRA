@@ -18,26 +18,23 @@ const EXCLUDED_GIFT_IDS = new Set(['13000']);
 function normalizeRemoteCatalog(response, options = {}) {
   const source = readRemoteCatalogSource(response);
   if (source.schemaVersion === 3) {
-    return normalizeVariantSnapshot(
-      source,
-      normalizeRemoteGift,
-      normalizeImageBaseUrl(options.imageBaseUrl),
-    );
+    return normalizeVariantSnapshot(source, normalizeRemoteGift, normalizeImageBaseUrl(options.imageBaseUrl));
   }
   if (source.schemaVersion !== 2 || !Array.isArray(source.blindBoxes)) {
     throw catalogError('REMOTE_CATALOG_SCHEMA_UNSUPPORTED');
   }
   const gifts = normalizeLegacyGifts(source.gifts, options.imageBaseUrl);
   const blindBoxes = normalizeBlindBoxes(source.blindBoxes, gifts);
-  const outputs = new Set(blindBoxes.flatMap(box => box.outputGiftIds));
-  if (gifts.some(gift => gift.giftCategory !== 'blindBox' &&
-      (gift.giftCategory === 'blindBoxOutput') !== outputs.has(gift.id)))
+  const outputs = new Set(blindBoxes.flatMap((box) => box.outputGiftIds));
+  if (
+    gifts.some(
+      (gift) => gift.giftCategory !== 'blindBox' && (gift.giftCategory === 'blindBoxOutput') !== outputs.has(gift.id),
+    )
+  )
     throw catalogError('REMOTE_CATALOG_BLIND_BOXES_INVALID');
   const version = safeText(source.version || source.revision, MAX_TEXT_LENGTH);
   if (!version) throw catalogError('REMOTE_CATALOG_VERSION_MISSING');
-  const updatedAt =
-    validIso(source.updatedAt || source.refreshedAt) ||
-    isoTime(options.now || Date.now());
+  const updatedAt = validIso(source.updatedAt || source.refreshedAt) || isoTime(options.now || Date.now());
   const sources = normalizeSources(source.sources);
   return {
     schemaVersion: 2,
@@ -47,10 +44,7 @@ function normalizeRemoteCatalog(response, options = {}) {
     version,
     refreshedAt: updatedAt,
     updatedAt,
-    stale:
-      parseBooleanLike(source.stale) ||
-      sources.gifts.stale ||
-      sources.effects.stale,
+    stale: parseBooleanLike(source.stale) || sources.gifts.stale || sources.effects.stale,
     sources,
     count: gifts.length,
     gifts,
@@ -60,15 +54,10 @@ function normalizeRemoteCatalog(response, options = {}) {
 
 function readRemoteCatalogSource(response) {
   if (response?.ok === false) {
-    throw catalogError(
-      String(response.error || response.code || 'REMOTE_CATALOG_INVALID'),
-    );
+    throw catalogError(String(response.error || response.code || 'REMOTE_CATALOG_INVALID'));
   }
   const nested =
-    response?.data &&
-    response?.gifts == null &&
-    typeof response.data === 'object' &&
-    !Array.isArray(response.data)
+    response?.data && response?.gifts == null && typeof response.data === 'object' && !Array.isArray(response.data)
       ? response.data
       : null;
   const source = nested ? nested : response;
@@ -81,8 +70,7 @@ function readRemoteCatalogSource(response) {
 function normalizeLegacyGifts(value, imageBaseUrl) {
   const rawGifts = Array.isArray(value) ? value : [];
   if (rawGifts.length === 0) throw catalogError('REMOTE_CATALOG_EMPTY');
-  if (rawGifts.length > MAX_GIFTS)
-    throw catalogError('REMOTE_CATALOG_TOO_LARGE');
+  if (rawGifts.length > MAX_GIFTS) throw catalogError('REMOTE_CATALOG_TOO_LARGE');
   // The server origin is supplied by the composition root (the configured
   // license API base).  Never trust an origin echoed inside the response;
   // accepting it would let a proxy redirect image requests to an arbitrary
@@ -93,14 +81,9 @@ function normalizeLegacyGifts(value, imageBaseUrl) {
   for (const rawGift of rawGifts) {
     const gift = normalizeRemoteGift(rawGift, configuredImageBaseUrl);
     if (!gift) throw catalogError('REMOTE_CATALOG_GIFT_INVALID');
-    if (seenIds.has(gift.id))
-      throw catalogError('REMOTE_CATALOG_DUPLICATE_GIFT');
+    if (seenIds.has(gift.id)) throw catalogError('REMOTE_CATALOG_DUPLICATE_GIFT');
     seenIds.add(gift.id);
-    if (
-      gift.coinType === 'gold' &&
-      !EXCLUDED_GIFT_IDS.has(gift.id) &&
-      !isGuardGiftAliasId(gift.id)
-    ) {
+    if (gift.coinType === 'gold' && !EXCLUDED_GIFT_IDS.has(gift.id) && !isGuardGiftAliasId(gift.id)) {
       gifts.push(gift);
     }
   }
@@ -117,22 +100,15 @@ function normalizeRemoteGift(value, imageBaseUrl) {
     id,
     name,
     battery: normalizeGiftAmount(value.battery, priceRaw, coinType, 100),
-    ...(variantId
-      ? { variantId, giftIdentity: { variantId, priceRaw, coinType, bagGift } }
-      : {}),
+    ...(variantId ? { variantId, giftIdentity: { variantId, priceRaw, coinType, bagGift } } : {}),
     rmb: normalizeGiftAmount(value.rmb, priceRaw, coinType, 1000),
     priceRaw,
     coinType,
     bagGift,
     active: value.active,
     giftCategory: value.giftCategory,
-    sourceUrl: normalizeBilibiliImageUrl(
-      value.sourceUrl ?? value.source_url ?? value.imageSourceUrl,
-    ),
-    imagePath: normalizeImagePath(
-      value.imagePath || value.imageUrl,
-      imageBaseUrl,
-    ),
+    sourceUrl: normalizeBilibiliImageUrl(value.sourceUrl ?? value.source_url ?? value.imageSourceUrl),
+    imagePath: normalizeImagePath(value.imagePath || value.imageUrl, imageBaseUrl),
   };
 }
 
@@ -145,9 +121,7 @@ function normalizeRemoteGiftIdentity(value) {
   } catch (_) {
     return null;
   }
-  const name =
-    safeText(value.name ?? value.displayName ?? value.giftName, 100) ||
-    `礼物 ${id}`;
+  const name = safeText(value.name ?? value.displayName ?? value.giftName, 100) || `礼物 ${id}`;
   const priceRaw = strictNonNegativeInteger(value.priceRaw ?? value.price_raw);
   const coinType = safeText(value.coinType ?? value.coin_type, 32);
   if (
@@ -227,8 +201,7 @@ function normalizeSource(value) {
 
 function parseBooleanLike(value) {
   if (value === true || value === 1) return true;
-  if (value === false || value === 0 || value === null || value === undefined)
-    return false;
+  if (value === false || value === 0 || value === null || value === undefined) return false;
   const text = String(value).trim().toLowerCase();
   return text === 'true' || text === '1' || text === 'yes';
 }

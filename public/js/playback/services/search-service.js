@@ -50,9 +50,7 @@ export class SearchService {
         throw new Error(payload.error || '在线搜索失败');
       }
 
-      this.searchResults = Array.isArray(payload.data && payload.data.tracks)
-        ? payload.data.tracks
-        : [];
+      this.searchResults = Array.isArray(payload.data && payload.data.tracks) ? payload.data.tracks : [];
 
       return this.searchResults;
     } catch (error) {
@@ -77,11 +75,7 @@ export class SearchService {
    * @returns {Object|null}
    */
   getResultByIndex(index) {
-    if (
-      !Number.isInteger(index) ||
-      index < 0 ||
-      index >= this.searchResults.length
-    ) {
+    if (!Number.isInteger(index) || index < 0 || index >= this.searchResults.length) {
       return null;
     }
     return this.searchResults[index];

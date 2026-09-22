@@ -20,17 +20,10 @@ test('packaged desktop data stays beside the installed executable', () => {
 
   assert.equal(
     paths.legacyDataDir,
-    path.resolve(
-      'C:\\Users\\Tester\\AppData\\Roaming',
-      PACKAGED_USER_DATA_DIR_NAME,
-      'data',
-    ),
+    path.resolve('C:\\Users\\Tester\\AppData\\Roaming', PACKAGED_USER_DATA_DIR_NAME, 'data'),
   );
   assert.equal(paths.dataDir, path.resolve('D:\\Apps\\LIRA\\data'));
-  assert.equal(
-    paths.recoveryDataDir,
-    path.resolve('D:\\Apps\\LIRA.lira-data-backup'),
-  );
+  assert.equal(paths.recoveryDataDir, path.resolve('D:\\Apps\\LIRA.lira-data-backup'));
 });
 
 test('development desktop data remains in the repository data directory', () => {
@@ -43,9 +36,7 @@ test('development desktop data remains in the repository data directory', () => 
       rootDir,
     }),
     {
-      ...require('../src/shared/data-paths').resolveDataPaths(
-        path.join(rootDir, 'data'),
-      ),
+      ...require('../src/shared/data-paths').resolveDataPaths(path.join(rootDir, 'data')),
       legacyDataDir: path.join(rootDir, 'data'),
     },
   );
@@ -58,29 +49,18 @@ test('packaged data follows a selected installation on another drive', () => {
     exePath: 'C:\\Apps\\LIRA\\LIRA.exe',
   });
   assert.equal(paths.dataDir, path.resolve('C:\\Apps\\LIRA\\data'));
-  assert.equal(
-    paths.recoveryDataDir,
-    path.resolve('C:\\Apps\\LIRA.lira-data-backup'),
-  );
+  assert.equal(paths.recoveryDataDir, path.resolve('C:\\Apps\\LIRA.lira-data-backup'));
 });
 
 test('legacy desktop data is completely published after a successful copy', () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-user-data-'));
-  const sourceDir = path.join(
-    tempDir,
-    'appdata',
-    PACKAGED_USER_DATA_DIR_NAME,
-    'data',
-  );
+  const sourceDir = path.join(tempDir, 'appdata', PACKAGED_USER_DATA_DIR_NAME, 'data');
   const targetDir = path.join(tempDir, 'install', 'data');
 
   try {
     fs.mkdirSync(path.join(sourceDir, 'music-auth'), { recursive: true });
     fs.writeFileSync(path.join(sourceDir, 'song-request-data.db'), 'songs');
-    fs.writeFileSync(
-      path.join(sourceDir, 'music-auth', 'qq.cookies.enc'),
-      'auth',
-    );
+    fs.writeFileSync(path.join(sourceDir, 'music-auth', 'qq.cookies.enc'), 'auth');
 
     const result = migrateLegacyUserData({
       sourceDir,
@@ -88,17 +68,8 @@ test('legacy desktop data is completely published after a successful copy', () =
     });
 
     assert.equal(result.status, 'migrated');
-    assert.equal(
-      fs.readFileSync(path.join(targetDir, 'song-request-data.db'), 'utf8'),
-      'songs',
-    );
-    assert.equal(
-      fs.readFileSync(
-        path.join(targetDir, 'music-auth', 'qq.cookies.enc'),
-        'utf8',
-      ),
-      'auth',
-    );
+    assert.equal(fs.readFileSync(path.join(targetDir, 'song-request-data.db'), 'utf8'), 'songs');
+    assert.equal(fs.readFileSync(path.join(targetDir, 'music-auth', 'qq.cookies.enc'), 'utf8'), 'auth');
     assert.equal(fs.existsSync(sourceDir), true);
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
@@ -119,10 +90,7 @@ test('an existing durable destination is never overwritten by legacy data', () =
     assert.deepEqual(migrateLegacyUserData({ sourceDir, targetDir }), {
       status: 'target-exists',
     });
-    assert.equal(
-      fs.readFileSync(path.join(targetDir, 'song-request-data.db'), 'utf8'),
-      'current',
-    );
+    assert.equal(fs.readFileSync(path.join(targetDir, 'song-request-data.db'), 'utf8'), 'current');
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
   }
@@ -155,9 +123,7 @@ test('a failed copy does not publish a partial durable destination', () => {
     );
     assert.equal(fs.existsSync(targetDir), false);
     assert.deepEqual(
-      fs
-        .readdirSync(tempDir)
-        .filter((name) => name.startsWith('.durable-data.migration-')),
+      fs.readdirSync(tempDir).filter((name) => name.startsWith('.durable-data.migration-')),
       [],
     );
     assert.equal(fs.existsSync(sourceDir), true);
@@ -167,18 +133,9 @@ test('a failed copy does not publish a partial durable destination', () => {
 });
 
 test('the Windows installer preserves legacy data before uninstalling an update', () => {
-  const installer = fs.readFileSync(
-    path.join(__dirname, '..', 'build', 'installer.nsh'),
-    'utf8',
-  );
-  const preservation = fs.readFileSync(
-    path.join(__dirname, '..', 'build', 'installer-data.nsh'),
-    'utf8',
-  );
-  const removal = fs.readFileSync(
-    path.join(__dirname, '..', 'build', 'installer-uninstall.nsh'),
-    'utf8',
-  );
+  const installer = fs.readFileSync(path.join(__dirname, '..', 'build', 'installer.nsh'), 'utf8');
+  const preservation = fs.readFileSync(path.join(__dirname, '..', 'build', 'installer-data.nsh'), 'utf8');
+  const removal = fs.readFileSync(path.join(__dirname, '..', 'build', 'installer-uninstall.nsh'), 'utf8');
 
   assert.match(preservation, /\$INSTDIR\\data/);
   assert.match(preservation, /\$APPDATA\\com\.aurorawhisperer\.lira\\data/);
@@ -187,13 +144,7 @@ test('the Windows installer preserves legacy data before uninstalling an update'
   assert.match(installer, /!include "installer-uninstall\.nsh"/);
   assert.match(removal, /!macro customRemoveFiles/);
   assert.match(preservation, /lira-data-backup/);
-  assert.ok(
-    installer.indexOf('Call liraWaitForAppExit') <
-      installer.indexOf('Call liraPreserveInstallData'),
-  );
-  assert.match(
-    installer,
-    /SetShellVarContext current\s+Call liraPreserveInstallData/,
-  );
+  assert.ok(installer.indexOf('Call liraWaitForAppExit') < installer.indexOf('Call liraPreserveInstallData'));
+  assert.match(installer, /SetShellVarContext current\s+Call liraPreserveInstallData/);
   assert.doesNotMatch(installer, /RMDir \/r "\$APPDATA\\LIRA"/);
 });

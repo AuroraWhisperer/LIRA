@@ -13,44 +13,92 @@ function element(tagName = 'div') {
   const listeners = new Map();
   let text = '';
   return {
-    tagName, children: [], attributes: {}, disabled: false, hidden: false, value: '',
-    get textContent() { return text + this.children.map((child) => child.textContent).join(''); },
-    set textContent(value) { text = String(value); this.children = []; },
-    set innerHTML(_) { throw new Error('Untrusted content must not be rendered as HTML'); },
-    append(...children) { this.children.push(...children); },
-    replaceChildren(...children) { text = ''; this.children = children; },
-    setAttribute(name, value) { this.attributes[name] = value; },
-    removeAttribute(name) { delete this.attributes[name]; },
-    focus() { this.focused = true; },
-    reportValidity() { return true; },
+    tagName,
+    children: [],
+    attributes: {},
+    disabled: false,
+    hidden: false,
+    value: '',
+    get textContent() {
+      return text + this.children.map((child) => child.textContent).join('');
+    },
+    set textContent(value) {
+      text = String(value);
+      this.children = [];
+    },
+    set innerHTML(_) {
+      throw new Error('Untrusted content must not be rendered as HTML');
+    },
+    append(...children) {
+      this.children.push(...children);
+    },
+    replaceChildren(...children) {
+      text = '';
+      this.children = children;
+    },
+    setAttribute(name, value) {
+      this.attributes[name] = value;
+    },
+    removeAttribute(name) {
+      delete this.attributes[name];
+    },
+    focus() {
+      this.focused = true;
+    },
+    reportValidity() {
+      return true;
+    },
     reset() {},
     addEventListener: (event, callback) => listeners.set(event, callback),
     removeEventListener: (event) => listeners.delete(event),
-    dispatch(event) { if (!this.disabled) listeners.get(event)?.({ preventDefault() {} }); },
+    dispatch(event) {
+      if (!this.disabled) listeners.get(event)?.({ preventDefault() {} });
+    },
   };
 }
 
 function task(status = 'collecting') {
   return {
-    id: 'task-1', revision: 4, createdAtMs: 1_700_000_000_000, status, ownerUid: '999',
+    id: 'task-1',
+    revision: 4,
+    createdAtMs: 1_700_000_000_000,
+    status,
+    ownerUid: '999',
     target: { url: 'https://t.bilibili.com/888', description: '真实活动标题' },
-    rules: { version: 2, winnerCount: 10, requiredActions: ['like', 'repost'], requireFollow: true, endsAtMs: 1_700_000_000_000 },
-    scan: { sources: {
-      comment: { readCount: 80, coverage: 'exhausted' },
-      like: { readCount: 30, coverage: 'unknown' },
-      repost: { readCount: 20, coverage: 'unknown' },
-    } },
+    rules: {
+      version: 2,
+      winnerCount: 10,
+      requiredActions: ['like', 'repost'],
+      requireFollow: true,
+      endsAtMs: 1_700_000_000_000,
+    },
+    scan: {
+      sources: {
+        comment: { readCount: 80, coverage: 'exhausted' },
+        like: { readCount: 30, coverage: 'unknown' },
+        repost: { readCount: 20, coverage: 'unknown' },
+      },
+    },
     candidateCount: null,
   };
 }
 
 function result(count = 7) {
   return {
-    roundId: 'round-1', status: 'exhausted', requestedCount: 10, checkedCount: 12,
-    excludedCount: 12 - count, shortage: 10 - count, digest: 'abc123', algorithm: 'fisher-yates-crypto-v1',
+    roundId: 'round-1',
+    status: 'exhausted',
+    requestedCount: 10,
+    checkedCount: 12,
+    excludedCount: 12 - count,
+    shortage: 10 - count,
+    digest: 'abc123',
+    algorithm: 'fisher-yates-crypto-v1',
     winners: Array.from({ length: count }, (_, index) => ({
-      uid: String(index + 101), position: index + 1, displayName: `昵称${index + 1}`,
-      commentText: `参与评论${index + 1}`, verification: { reason: 'FOLLOWING' },
+      uid: String(index + 101),
+      position: index + 1,
+      displayName: `昵称${index + 1}`,
+      commentText: `参与评论${index + 1}`,
+      verification: { reason: 'FOLLOWING' },
     })),
   };
 }
@@ -58,7 +106,10 @@ function result(count = 7) {
 function state(currentTask = null, currentResult = null, job = null) {
   return {
     tasks: currentTask ? [{ ...currentTask, description: currentTask.target.description }] : [],
-    task: currentTask, result: currentResult, job, error: '',
+    task: currentTask,
+    result: currentResult,
+    job,
+    error: '',
   };
 }
 
@@ -68,8 +119,10 @@ async function fixture(initial = state()) {
   const form = get('form');
   form.elements = {
     url: { value: 'https://t.bilibili.com/888', focus() {} },
-    winnerCount: { value: '10' }, requireLike: { checked: false },
-    requireRepost: { checked: false }, requireFollow: { checked: true },
+    winnerCount: { value: '10' },
+    requireLike: { checked: false },
+    requireRepost: { checked: false },
+    requireFollow: { checked: true },
   };
   get('history-panel').hidden = true;
   let responseState = initial;
@@ -78,10 +131,16 @@ async function fixture(initial = state()) {
   const timers = new Map();
   let nextTimer = 0;
   const { initLotteryWorkflow } = await loadModuleExports(
-    path.resolve(__dirname, '../public/js/admin/dynamic-lottery-workflow.js'), {
-      document: { createElement: element }, AbortController,
+    path.resolve(__dirname, '../public/js/admin/dynamic-lottery-workflow.js'),
+    {
+      document: { createElement: element },
+      AbortController,
       crypto: { randomUUID: () => 'request-1' },
-      setTimeout: (callback) => { const id = ++nextTimer; timers.set(id, callback); return id; },
+      setTimeout: (callback) => {
+        const id = ++nextTimer;
+        timers.set(id, callback);
+        return id;
+      },
       clearTimeout: (id) => timers.delete(id),
       window: { __API_TOKEN__: 'fixture-token' },
       fetch: async (url, options) => {
@@ -97,10 +156,20 @@ async function fixture(initial = state()) {
   controller.setAuth({ available: true, loggedIn: true, busy: false });
   await settle();
   return {
-    get, calls, controller, timers,
-    setState(next) { responseState = next; },
-    setPending(next) { pending = next; },
-    async click(name) { get(name).dispatch('click'); await settle(); },
+    get,
+    calls,
+    controller,
+    timers,
+    setState(next) {
+      responseState = next;
+    },
+    setPending(next) {
+      pending = next;
+    },
+    async click(name) {
+      get(name).dispatch('click');
+      await settle();
+    },
   };
 }
 
@@ -117,8 +186,12 @@ test('setup submits the original rule fields and history remains accessible', as
   f.get('form').dispatch('submit');
   await settle();
   assert.deepEqual(JSON.parse(f.calls.at(-1).body), {
-    url: 'https://t.bilibili.com/888', winnerCount: 10,
-    requireLike: false, requireRepost: false, requireFollow: true, requestId: 'request-1',
+    url: 'https://t.bilibili.com/888',
+    winnerCount: 10,
+    requireLike: false,
+    requireRepost: false,
+    requireFollow: true,
+    requestId: 'request-1',
   });
   assert.equal(f.calls.at(-1).headers.Authorization, 'Bearer fixture-token');
   assert.equal(f.get('create').disabled, true);
@@ -154,8 +227,12 @@ test('logged-out users can prepare settings and new drafts but cannot fetch part
   f.get('form').dispatch('submit');
   await settle();
   assert.deepEqual(JSON.parse(f.calls.at(-1).body), {
-    url: 'https://t.bilibili.com/123', winnerCount: 5,
-    requireLike: true, requireRepost: true, requireFollow: false, requestId: 'request-1',
+    url: 'https://t.bilibili.com/123',
+    winnerCount: 5,
+    requireLike: true,
+    requireRepost: true,
+    requireFollow: false,
+    requestId: 'request-1',
   });
 });
 
@@ -201,7 +278,9 @@ test('verification can pause and resume while confirmed winners remain visible',
   assert.equal(f.get('scan-details').open, false);
   assert.equal(f.get('task-actions').hidden, false);
   assert.equal(f.get('winners').children.length, 1);
-  f.setState(state({ ...current, status: 'paused' }, { ...partial, status: 'paused', reason: 'LOTTERY_RELATION_UNKNOWN' }));
+  f.setState(
+    state({ ...current, status: 'paused' }, { ...partial, status: 'paused', reason: 'LOTTERY_RELATION_UNKNOWN' }),
+  );
   await f.click('pause');
   assert.match(f.get('message').textContent, /当前候选人/);
   assert.equal(f.get('resume').textContent, '继续原顺序核验');

@@ -22,12 +22,7 @@
   place-items: center;
   border-radius: 50%;
   background:
-    radial-gradient(
-      circle at 28% 18%,
-      var(--license-record-light),
-      transparent 68%
-    ),
-    var(--license-record-bg);
+    radial-gradient(circle at 28% 18%, var(--license-record-light), transparent 68%), var(--license-record-bg);
   box-shadow: 0 16px 24px -10px rgba(32, 34, 31, 0.32);
 }
 .license-record::before {

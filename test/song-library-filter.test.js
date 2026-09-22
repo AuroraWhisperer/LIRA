@@ -15,23 +15,14 @@ const songService = require('../src/music/song-service');
 const ROOT_DIR = path.join(__dirname, '..');
 
 async function loadCategoryFilterModule() {
-  const filePath = path.join(
-    __dirname,
-    '..',
-    'public',
-    'js',
-    'admin',
-    'song-category-filter.js',
-  );
+  const filePath = path.join(__dirname, '..', 'public', 'js', 'admin', 'song-category-filter.js');
   const context = vm.createContext({ console, document: {} });
   const module = new vm.SourceTextModule(fs.readFileSync(filePath, 'utf8'), {
     context,
     identifier: pathToFileURL(filePath).href,
   });
   await module.link(() => {
-    throw new Error(
-      'The category filter module should not import dependencies.',
-    );
+    throw new Error('The category filter module should not import dependencies.');
   });
   await module.evaluate();
   return module.namespace;
@@ -40,15 +31,12 @@ async function loadCategoryFilterModule() {
 async function loadSongsModule(globals) {
   const { utils, state = {} } = globals.window.AdminApp;
   const { loadModuleExports } = require('./helpers/frontend-modules');
-  const { createSongs } = await loadModuleExports(
-    path.join(ROOT_DIR, 'public/js/admin/songs.js'), globals,
-  );
+  const { createSongs } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/songs.js'), globals);
   return createSongs({ utils, state });
 }
 
 test('category filter presents each slash-separated category on its own row', async () => {
-  const { readSelectedTags, splitCategoryNames } =
-    await loadCategoryFilterModule();
+  const { readSelectedTags, splitCategoryNames } = await loadCategoryFilterModule();
 
   const names = Array.from(
     splitCategoryNames([
@@ -71,9 +59,7 @@ test('category filter presents each slash-separated category on its own row', as
 });
 
 test('song library requires every selected category and composes with other filters', () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'song-library-filter-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-library-filter-'));
   const databases = createDatabases({ dataDir });
   const songStore = createSongStore(databases.songDb);
 
@@ -122,10 +108,7 @@ test('song library requires every selected category and composes with other filt
         .map((song) => song.name),
       ['双分类可点'],
     );
-    assert.deepEqual(
-      songService.listSongs(songStore, { categories: ['R&B', '民谣'] }),
-      [],
-    );
+    assert.deepEqual(songService.listSongs(songStore, { categories: ['R&B', '民谣'] }), []);
   } finally {
     closeDatabases(databases);
     fs.rmSync(dataDir, { recursive: true, force: true });
@@ -133,9 +116,7 @@ test('song library requires every selected category and composes with other filt
 });
 
 test('song library artist filter matches an individual artist in a collaboration field', () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'song-library-artist-filter-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-library-artist-filter-'));
   const databases = createDatabases({ dataDir });
   const songStore = createSongStore(databases.songDb);
 
@@ -164,9 +145,7 @@ test('song library artist filter matches an individual artist in a collaboration
       ['合作歌曲', '歌手甲独唱'].sort(),
     );
     assert.deepEqual(
-      songService
-        .listSongs(songStore, { artist: '歌手乙' })
-        .map((song) => song.name),
+      songService.listSongs(songStore, { artist: '歌手乙' }).map((song) => song.name),
       ['合作歌曲'],
     );
   } finally {
@@ -176,9 +155,7 @@ test('song library artist filter matches an individual artist in a collaboration
 });
 
 test('song library language filter matches an individual language in a combined field', () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'song-library-language-filter-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-library-language-filter-'));
   const databases = createDatabases({ dataDir });
   const songStore = createSongStore(databases.songDb);
 
@@ -207,9 +184,7 @@ test('song library language filter matches an individual language in a combined 
       ['双语歌曲', '国语歌曲'].sort(),
     );
     assert.deepEqual(
-      songService
-        .listSongs(songStore, { language: '英语' })
-        .map((song) => song.name),
+      songService.listSongs(songStore, { language: '英语' }).map((song) => song.name),
       ['双语歌曲'],
     );
   } finally {
@@ -219,9 +194,7 @@ test('song library language filter matches an individual language in a combined 
 });
 
 test('song library requires every selected complete tag and composes with category filters', () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'song-library-tag-filter-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-library-tag-filter-'));
   const databases = createDatabases({ dataDir });
   const songStore = createSongStore(databases.songDb);
 
@@ -247,11 +220,7 @@ test('song library requires every selected complete tag and composes with catego
       tags: '治愈系',
     });
 
-    assert.deepEqual(songService.listTags(songStore), [
-      '抒情',
-      '治愈',
-      '治愈系',
-    ]);
+    assert.deepEqual(songService.listTags(songStore), ['抒情', '治愈', '治愈系']);
     assert.deepEqual(
       songService
         .listSongs(songStore, {
@@ -261,10 +230,7 @@ test('song library requires every selected complete tag and composes with catego
         .map((song) => song.name),
       ['双标签匹配'],
     );
-    assert.deepEqual(
-      songService.listSongs(songStore, { tags: ['抒情', '摇滚'] }),
-      [],
-    );
+    assert.deepEqual(songService.listSongs(songStore, { tags: ['抒情', '摇滚'] }), []);
   } finally {
     closeDatabases(databases);
     fs.rmSync(dataDir, { recursive: true, force: true });
@@ -273,15 +239,11 @@ test('song library requires every selected complete tag and composes with catego
 
 test('song library table displays the language column for rows and empty results', () => {
   const html = readAdminHtml();
-  const source = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'songs.js'),
-    'utf8',
-  );
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'songs.js'), 'utf8');
   const header =
     html.match(
       /<tbody id="songsTable"><\/tbody>[\s\S]*?<thead>|<thead>[\s\S]*?<tbody id="songsTable"><\/tbody>/,
-    )?.[0] ??
-    html.match(/<thead>[\s\S]*?<tbody id="songsTable"><\/tbody>/)?.[0];
+    )?.[0] ?? html.match(/<thead>[\s\S]*?<tbody id="songsTable"><\/tbody>/)?.[0];
 
   assert.ok(header, 'song table markup should remain present');
   assert.match(header, /<th>歌曲标签<\/th>\s*<th>语言<\/th>\s*<th>状态<\/th>/);
@@ -290,38 +252,17 @@ test('song library table displays the language column for rows and empty results
 });
 
 test('song library folds row actions into an accessible bordered menu', () => {
-  const source = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'songs.js'),
-    'utf8',
-  );
-  const styles = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'css', 'admin', 'song-actions.css'),
-    'utf8',
-  );
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'songs.js'), 'utf8');
+  const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'song-actions.css'), 'utf8');
 
-  assert.match(
-    source,
-    /class="song-actions-trigger"[^>]+aria-haspopup="menu"[^>]+aria-expanded="false"/,
-  );
-  assert.match(
-    source,
-    /class="song-actions-list" role="menu"[^>]+popover="manual"[^>]+hidden/,
-  );
+  assert.match(source, /class="song-actions-trigger"[^>]+aria-haspopup="menu"[^>]+aria-expanded="false"/);
+  assert.match(source, /class="song-actions-list" role="menu"[^>]+popover="manual"[^>]+hidden/);
   assert.match(source, /menu\.showPopover\(\)/);
   assert.match(source, /role="menuitem" data-edit-song=/);
   assert.match(source, /role="menuitem" data-add-song=/);
-  assert.match(
-    source,
-    /class="danger" type="button" role="menuitem" data-delete-song=/,
-  );
-  assert.match(
-    styles,
-    /\.song-actions-list:popover-open\s*\{[^}]*position: fixed;/s,
-  );
-  assert.match(
-    styles,
-    /\.song-actions-list button\.danger\s*\{[^}]*border-color:/s,
-  );
+  assert.match(source, /class="danger" type="button" role="menuitem" data-delete-song=/);
+  assert.match(styles, /\.song-actions-list:popover-open\s*\{[^}]*position: fixed;/s);
+  assert.match(styles, /\.song-actions-list button\.danger\s*\{[^}]*border-color:/s);
 });
 
 test('song library hides the note column when every visible note is empty', async () => {
@@ -356,10 +297,7 @@ test('song library hides the note column when every visible note is empty', asyn
   const songsModule = await loadSongsModule({ document, window });
   const filters = [new Set(), new Set(), new Set()];
 
-  songsModule.renderSongs(
-    [{ id: 1, name: '无备注歌曲', artist: '', is_enabled: true, note: '  ' }],
-    ...filters,
-  );
+  songsModule.renderSongs([{ id: 1, name: '无备注歌曲', artist: '', is_enabled: true, note: '  ' }], ...filters);
   assert.equal(elements.songNoteColumnHeader.hidden, true);
   assert.doesNotMatch(elements.songsTable.innerHTML, /<td>  <\/td>/);
 

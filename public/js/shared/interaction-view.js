@@ -32,7 +32,7 @@ export function renderPollRows(container, session) {
     const row = container.children[index];
     const winner = session.phase === 'finished' && maximum > 0 && option.votes === maximum;
     const [bar, label, value] = row.children[0].children;
-    label.textContent = option.text + (winner ? tied ? ' · 并列最高' : ' · 最高票' : '');
+    label.textContent = option.text + (winner ? (tied ? ' · 并列最高' : ' · 最高票') : '');
     bar.style.width = `${option.percentage}%`;
     value.children[0].textContent = `${option.votes} 票`;
     value.children[1].textContent = `${option.percentage.toFixed(1)}%`;

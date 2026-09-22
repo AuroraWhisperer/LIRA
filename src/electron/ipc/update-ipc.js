@@ -51,10 +51,7 @@ function registerUpdateIpc({
     return shell.openExternal(githubRepoUrl);
   });
   ipcMain.handle('desktop:set-auto-update', function (_event, enabled) {
-    writeLog(
-      'settings',
-      'enableAutoUpdate set to: ' + String(Boolean(enabled)),
-    );
+    writeLog('settings', 'enableAutoUpdate set to: ' + String(Boolean(enabled)));
   });
   ipcMain.handle('desktop:gift-display', function () {
     return { ok: true };

@@ -1,19 +1,13 @@
 'use strict';
 
-const PROTOCOL_PREFERENCES = Object.freeze([
-  'auto',
-  'responses',
-  'chat_completions',
-]);
+const PROTOCOL_PREFERENCES = Object.freeze(['auto', 'responses', 'chat_completions']);
 
 function normalizeProtocolPreference(value) {
   const normalized = String(value ?? 'auto')
     .trim()
     .toLowerCase();
   if (!PROTOCOL_PREFERENCES.includes(normalized)) {
-    throw new Error(
-      'modelApiProtocol 必须是 auto、responses 或 chat_completions。',
-    );
+    throw new Error('modelApiProtocol 必须是 auto、responses 或 chat_completions。');
   }
   return normalized;
 }
@@ -41,16 +35,10 @@ function resolveModelEndpoint(value, protocolPreference = 'auto') {
       officialDeepSeek,
     };
   }
-  const isBasePath =
-    !url.search && !url.hash && (path === '' || path.endsWith('/v1'));
-  if (
-    preference === 'responses' ||
-    preference === 'chat_completions' ||
-    (preference === 'auto' && isBasePath)
-  ) {
+  const isBasePath = !url.search && !url.hash && (path === '' || path.endsWith('/v1'));
+  if (preference === 'responses' || preference === 'chat_completions' || (preference === 'auto' && isBasePath)) {
     const protocol = preference === 'auto' ? 'chat_completions' : preference;
-    const suffix =
-      protocol === 'responses' ? '/responses' : '/chat/completions';
+    const suffix = protocol === 'responses' ? '/responses' : '/chat/completions';
     const basePath = path || (officialDeepSeek ? '' : '/v1');
     url.pathname = `${basePath}${suffix}`;
     return {
@@ -85,9 +73,7 @@ function resolveModelsEndpoint(value, protocolPreference = 'auto') {
     const endpointPath = new URL(endpoint.url).pathname.replace(/\/+$/, '');
     url.pathname = `${endpointPath.slice(
       0,
-      endpoint.protocol === 'responses'
-        ? -'/responses'.length
-        : -'/chat/completions'.length,
+      endpoint.protocol === 'responses' ? -'/responses'.length : -'/chat/completions'.length,
     )}/models`;
   }
   url.search = '';
@@ -95,11 +81,7 @@ function resolveModelsEndpoint(value, protocolPreference = 'auto') {
   return url.toString();
 }
 
-function describeModelEndpoint(
-  value,
-  protocolPreference = 'auto',
-  providerPreference = 'auto',
-) {
+function describeModelEndpoint(value, protocolPreference = 'auto', providerPreference = 'auto') {
   const input = String(value || '').trim();
   if (!input) {
     return {
@@ -113,13 +95,7 @@ function describeModelEndpoint(
   const configuredProvider = String(providerPreference || 'auto')
     .trim()
     .toLowerCase();
-  const provider = [
-    'deepseek',
-    'openai',
-    'anthropic',
-    'gemini',
-    'custom',
-  ].includes(configuredProvider)
+  const provider = ['deepseek', 'openai', 'anthropic', 'gemini', 'custom'].includes(configuredProvider)
     ? configuredProvider
     : endpoint.officialDeepSeek
       ? 'deepseek'
@@ -127,8 +103,7 @@ function describeModelEndpoint(
   return {
     protocol: endpoint.protocol,
     provider,
-    webSearchMode:
-      endpoint.protocol === 'responses' ? 'hosted' : 'local_function',
+    webSearchMode: endpoint.protocol === 'responses' ? 'hosted' : 'local_function',
     reasoningMode:
       provider === 'deepseek'
         ? 'deepseek_effort'
@@ -142,11 +117,7 @@ function describeModelEndpoint(
 
 function isOfficialDeepSeekUrl(value) {
   const url = value instanceof URL ? value : new URL(value);
-  return (
-    url.protocol === 'https:' &&
-    url.hostname === 'api.deepseek.com' &&
-    !url.port
-  );
+  return url.protocol === 'https:' && url.hostname === 'api.deepseek.com' && !url.port;
 }
 
 module.exports = {

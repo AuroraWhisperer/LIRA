@@ -2,9 +2,7 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const {
-  createRemoteLicenseClient,
-} = require('../src/electron/license/remote-license-client');
+const { createRemoteLicenseClient } = require('../src/electron/license/remote-license-client');
 
 test('cloud state event stream uses DeviceBearer and parses revision-only SSE frames', async () => {
   const requests = [];
@@ -17,11 +15,7 @@ test('cloud state event stream uses DeviceBearer and parses revision-only SSE fr
         new ReadableStream({
           start(controller) {
             controller.enqueue(encoder.encode(': connected\n\n'));
-            controller.enqueue(
-              encoder.encode(
-                'event: cloud-state-changed\ndata: {"scopes":{"settings":2,',
-              ),
-            );
+            controller.enqueue(encoder.encode('event: cloud-state-changed\ndata: {"scopes":{"settings":2,'));
             controller.enqueue(encoder.encode('"songs":3,"ignored":9}}\n\n'));
             controller.close();
           },
@@ -42,10 +36,7 @@ test('cloud state event stream uses DeviceBearer and parses revision-only SSE fr
   });
 
   assert.deepEqual(events, [{ scopes: { settings: 2, songs: 3 } }]);
-  assert.equal(
-    requests[0].url,
-    'https://api.lirahub.cn/api/device/cloud-state/events',
-  );
+  assert.equal(requests[0].url, 'https://api.lirahub.cn/api/device/cloud-state/events');
   assert.equal(requests[0].init.method, 'GET');
   assert.equal(requests[0].init.headers.Accept, 'text/event-stream');
   assert.equal(requests[0].init.headers.Authorization, 'Bearer device-token');
@@ -69,9 +60,7 @@ test('cloud state event stream rejects non-SSE and oversized event data', async 
     (error) => error.code === 'INVALID_RESPONSE',
   );
 
-  const oversized = new TextEncoder().encode(
-    `event: cloud-state-changed\ndata: ${'x'.repeat(70_000)}\n\n`,
-  );
+  const oversized = new TextEncoder().encode(`event: cloud-state-changed\ndata: ${'x'.repeat(70_000)}\n\n`);
   await assert.rejects(
     createClient(
       new Response(
@@ -162,21 +151,9 @@ test('gift event stream allowlists valid SSE fields and ignores malformed blocks
       return new Response(
         new ReadableStream({
           start(controller) {
-            controller.enqueue(
-              encoder.encode(
-                `event: gift-event\ndata: ${JSON.stringify(valid)}\n\n`,
-              ),
-            );
-            controller.enqueue(
-              encoder.encode(
-                `event: gift-event\ndata: ${JSON.stringify(invalid)}\n\n`,
-              ),
-            );
-            controller.enqueue(
-              encoder.encode(
-                `event: gift-event\ndata: ${JSON.stringify(extended)}\n\n`,
-              ),
-            );
+            controller.enqueue(encoder.encode(`event: gift-event\ndata: ${JSON.stringify(valid)}\n\n`));
+            controller.enqueue(encoder.encode(`event: gift-event\ndata: ${JSON.stringify(invalid)}\n\n`));
+            controller.enqueue(encoder.encode(`event: gift-event\ndata: ${JSON.stringify(extended)}\n\n`));
             controller.close();
           },
         }),
@@ -199,18 +176,10 @@ test('gift event stream allowlists valid SSE fields and ignores malformed blocks
   });
 
   assert.equal(events.length, 1);
-  assert.deepEqual(Object.keys(events[0]).sort(), [
-    'cursor',
-    'eventId',
-    'gift',
-    'phase',
-  ]);
+  assert.deepEqual(Object.keys(events[0]).sort(), ['cursor', 'eventId', 'gift', 'phase']);
   assert.equal(Object.hasOwn(events[0], 'uid'), false);
   assert.equal(Object.hasOwn(events[0].gift, 'uid'), false);
-  assert.equal(
-    requests[0].url,
-    'https://api.lirahub.cn/api/device/gift-events/stream',
-  );
+  assert.equal(requests[0].url, 'https://api.lirahub.cn/api/device/gift-events/stream');
   assert.equal(requests[0].init.headers.Authorization, 'Bearer device-token');
   assert.deepEqual(openedEpochs, ['epoch-1']);
   assert.equal(requests[0].init.headers['X-Lira-Gift-Identity'], '1');
@@ -229,8 +198,5 @@ test('gift event stream rejects an oversized sync epoch header', async () => {
       }),
   });
 
-  await assert.rejects(
-    client.watchGiftEvents('device-token'),
-    (error) => error.code === 'INVALID_RESPONSE',
-  );
+  await assert.rejects(client.watchGiftEvents('device-token'), (error) => error.code === 'INVALID_RESPONSE');
 });

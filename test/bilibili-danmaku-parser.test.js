@@ -18,19 +18,13 @@ function createInfo(user) {
 test('danmaku avatar parser reads the live room user face', () => {
   const avatarUrl = 'https://i0.hdslb.com/bfs/face/example.webp';
 
-  assert.equal(
-    extractBilibiliDanmakuAvatarUrl(createInfo({ face: avatarUrl })),
-    avatarUrl,
-  );
+  assert.equal(extractBilibiliDanmakuAvatarUrl(createInfo({ face: avatarUrl })), avatarUrl);
 });
 
 test('danmaku avatar parser supports the nested base face field', () => {
   const avatarUrl = 'https://i1.hdslb.com/bfs/face/example.jpg';
 
-  assert.equal(
-    extractBilibiliDanmakuAvatarUrl(createInfo({ base: { face: avatarUrl } })),
-    avatarUrl,
-  );
+  assert.equal(extractBilibiliDanmakuAvatarUrl(createInfo({ base: { face: avatarUrl } })), avatarUrl);
 });
 
 test('danmaku avatar parser supports JSON encoded user metadata', () => {
@@ -50,23 +44,11 @@ test('danmaku avatar parser accepts protocol-relative collection avatars without
 
 test('danmaku avatar parser upgrades official HTTP avatars and rejects other hosts', () => {
   assert.equal(
-    extractBilibiliDanmakuAvatarUrl(
-      createInfo({ face: 'http://i0.hdslb.com/bfs/face/example.jpg' }),
-    ),
+    extractBilibiliDanmakuAvatarUrl(createInfo({ face: 'http://i0.hdslb.com/bfs/face/example.jpg' })),
     'https://i0.hdslb.com/bfs/face/example.jpg',
   );
-  assert.equal(
-    extractBilibiliDanmakuAvatarUrl(
-      createInfo({ face: 'https://example.com/avatar.jpg' }),
-    ),
-    '',
-  );
-  assert.equal(
-    extractBilibiliDanmakuAvatarUrl(
-      createInfo({ face: 'https://hdslb.com/avatar.jpg' }),
-    ),
-    '',
-  );
+  assert.equal(extractBilibiliDanmakuAvatarUrl(createInfo({ face: 'https://example.com/avatar.jpg' })), '');
+  assert.equal(extractBilibiliDanmakuAvatarUrl(createInfo({ face: 'https://hdslb.com/avatar.jpg' })), '');
 });
 
 test('danmaku emote parser reads inline emotes from JSON encoded extra metadata', () => {

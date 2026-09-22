@@ -1,7 +1,6 @@
 export function formatClockDisplay(milliseconds, status) {
   const remainingMs = Math.max(0, Number(milliseconds) || 0);
-  const finished =
-    status === 'finished' || (status === 'running' && remainingMs === 0);
+  const finished = status === 'finished' || (status === 'running' && remainingMs === 0);
   return finished ? '该下播了' : formatClock(remainingMs);
 }
 

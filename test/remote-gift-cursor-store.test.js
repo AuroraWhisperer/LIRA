@@ -5,10 +5,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
-const {
-  createRemoteGiftCursorStore,
-  createRemoteGiftSourceKey,
-} = require('../src/electron/remote-gift-cursor-store');
+const { createRemoteGiftCursorStore, createRemoteGiftSourceKey } = require('../src/electron/remote-gift-cursor-store');
 
 test('remote gift cursor store atomically keeps only the matching source cursor', () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-gift-cursor-'));
@@ -55,10 +52,7 @@ test('remote gift source key is tenant-specific without storing tenant text', ()
   assert.match(alice, /^[a-f0-9]{64}$/u);
   assert.notEqual(alice, bob);
   assert.equal(alice.includes('alice'), false);
-  assert.throws(
-    () => createRemoteGiftSourceKey('https://api.example.test'),
-    /REMOTE_GIFT_SOURCE_UNAVAILABLE/,
-  );
+  assert.throws(() => createRemoteGiftSourceKey('https://api.example.test'), /REMOTE_GIFT_SOURCE_UNAVAILABLE/);
 });
 
 test('remote gift source key uses canonical origin, account and stable owner', () => {
@@ -121,9 +115,11 @@ test('same-name recreated owner cannot reuse a source and missing owner fails cl
   );
   for (const streamerId of [undefined, null, '10', 0, -1, 1.5, NaN]) {
     assert.throws(
-      () => createRemoteGiftSourceKey(origin, {
-        accountName: 'alice', streamerId,
-      }),
+      () =>
+        createRemoteGiftSourceKey(origin, {
+          accountName: 'alice',
+          streamerId,
+        }),
       /REMOTE_GIFT_SOURCE_UNAVAILABLE/,
     );
   }

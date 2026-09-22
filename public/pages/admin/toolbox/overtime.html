@@ -9,30 +9,20 @@
   <div id="overtimePanel" class="other-feature-panel-body overtime-admin">
     <section class="overtime-console" aria-labelledby="overtimeClockLabel">
       <div class="overtime-clock-block">
-        <span id="overtimeClockLabel" class="overtime-clock-status"
-          >未启用</span
-        >
-        <strong id="overtimeClockValue" class="overtime-clock-value"
-          >00:00:00</strong
-        >
+        <span id="overtimeClockLabel" class="overtime-clock-status">未启用</span>
+        <strong id="overtimeClockValue" class="overtime-clock-value">00:00:00</strong>
       </div>
       <div class="overtime-control-stack">
         <div class="overtime-consumer-status" aria-label="收礼服务状态">
-          <span id="overtimeCoreStatus" class="pill warn"
-            >礼物处理：未运行</span
-          >
+          <span id="overtimeCoreStatus" class="pill warn">礼物处理：未运行</span>
           <span id="overtimeGiftStatsStatus" class="pill">礼物统计：关闭</span>
           <span id="overtimeConsumerStatus" class="pill">加班机：关闭</span>
         </div>
         <div class="overtime-actions">
           <button id="overtimeEnableBtn" type="button">启用加班机</button>
           <button id="overtimeStartBtn" type="button">开始</button>
-          <button id="overtimePauseBtn" class="secondary" type="button">
-            暂停
-          </button>
-          <button id="overtimeResetBtn" class="secondary" type="button">
-            重置
-          </button>
+          <button id="overtimePauseBtn" class="secondary" type="button">暂停</button>
+          <button id="overtimeResetBtn" class="secondary" type="button">重置</button>
         </div>
       </div>
     </section>
@@ -42,9 +32,7 @@
         <div>
           <h3 class="ui-section-title">
             初始时长
-            <lira-help
-              >可手动输入或选择时间；设置后倒计时会重置并暂停。</lira-help
-            >
+            <lira-help>可手动输入或选择时间；设置后倒计时会重置并暂停。</lira-help>
           </h3>
         </div>
       </div>
@@ -62,11 +50,7 @@
       <fieldset class="overtime-duration-selectors">
         <legend>选择时长</legend>
         <label
-          >小时<select
-            id="overtimeInitialHours"
-            aria-label="初始时长的小时数"
-            data-dropdown-variant="overtime"
-          ></select
+          >小时<select id="overtimeInitialHours" aria-label="初始时长的小时数" data-dropdown-variant="overtime"></select
         ></label>
         <label
           >分钟<select
@@ -88,26 +72,13 @@
           </div>
         </div>
         <div class="overtime-heading-actions">
-          <span
-            id="overtimeGiftCatalogStatus"
-            class="overtime-gift-catalog-status"
-            role="status"
+          <span id="overtimeGiftCatalogStatus" class="overtime-gift-catalog-status" role="status"
             >在售目录：未刷新</span
           >
-          <button
-            id="overtimeRefreshGiftsBtn"
-            class="secondary overtime-refresh-gifts-action"
-            type="button"
-          >
+          <button id="overtimeRefreshGiftsBtn" class="secondary overtime-refresh-gifts-action" type="button">
             刷新在售礼物
           </button>
-          <button
-            id="overtimeAddGiftBtn"
-            class="overtime-add-gift-action"
-            type="button"
-          >
-            ＋ 添加礼物
-          </button>
+          <button id="overtimeAddGiftBtn" class="overtime-add-gift-action" type="button">＋ 添加礼物</button>
           <button
             id="overtimeSaveRulesBtn"
             class="secondary overtime-save-rules-action"
@@ -119,11 +90,7 @@
           </button>
         </div>
       </div>
-      <div
-        id="overtimeRules"
-        class="overtime-rule-list"
-        aria-live="polite"
-      ></div>
+      <div id="overtimeRules" class="overtime-rule-list" aria-live="polite"></div>
     </section>
 
     <section class="overtime-admin-section overtime-screen-section">
@@ -139,9 +106,7 @@
         >背景
         <select id="overtimeBackgroundPath" data-dropdown-variant="overtime">
           <option value="">透明</option>
-          <option value="/img/overtime-machine/midnight-grid.svg">
-            深夜票券
-          </option>
+          <option value="/img/overtime-machine/midnight-grid.svg">深夜票券</option>
         </select>
       </label>
       <label
@@ -152,12 +117,8 @@
           <option value="fill">拉伸</option>
         </select>
       </label>
-      <button id="overtimeSaveBackgroundBtn" class="secondary" type="button">
-        保存画面
-      </button>
-      <button id="overtimeOpenOverlayBtn" class="secondary" type="button">
-        打开画面
-      </button>
+      <button id="overtimeSaveBackgroundBtn" class="secondary" type="button">保存画面</button>
+      <button id="overtimeOpenOverlayBtn" class="secondary" type="button">打开画面</button>
       <button id="overtimeCopyOverlayBtn" type="button">复制地址</button>
       <iframe
         sandbox="allow-scripts"
@@ -171,9 +132,7 @@
     <section class="overtime-admin-section">
       <div class="overtime-section-heading">
         <div>
-          <h3>
-            最近结算 <lira-help>显示最近 20 组已完成或忽略的礼物。</lira-help>
-          </h3>
+          <h3>最近结算 <lira-help>显示最近 20 组已完成或忽略的礼物。</lira-help></h3>
         </div>
       </div>
       <div id="overtimeSettlements" class="overtime-settlement-list"></div>
@@ -195,13 +154,7 @@
           autocomplete="off"
           maxlength="100"
         />
-        <button
-          id="overtimeGlobalGiftSearchBtn"
-          class="secondary"
-          type="button"
-        >
-          搜索全部礼物
-        </button>
+        <button id="overtimeGlobalGiftSearchBtn" class="secondary" type="button">搜索全部礼物</button>
       </div>
       <div id="overtimeGiftResults" class="overtime-gift-results"></div>
     </form>

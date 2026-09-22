@@ -9,29 +9,39 @@ const test = require('node:test');
 const vm = require('node:vm');
 const { readCssBundle } = require('./helpers/css-bundle');
 const { readJsModuleBundle } = require('./helpers/js-module-bundle');
-const {
-  createLyricToggleButton,
-  loadModuleExports,
-  response,
-} = require('./helpers/frontend-modules');
+const { createLyricToggleButton, loadModuleExports, response } = require('./helpers/frontend-modules');
 
 const ROOT_DIR = path.join(__dirname, '..');
 
 test('display overlay URLs use explicit settings capabilities without the legacy registry', async () => {
-  const nodes = new Map([
-    'queueUrl', 'songsUrl', 'lyricsUrl', 'liveDanmakuUrl', 'liveBlindboxUrl',
-    'liveGamesUrl', 'liveWheelUrl', 'liveOvertimeUrl', 'liveGiftEffectsUrl',
-    'liveOpeningUrl', 'liveClockUrl', 'blindboxOverlayUrl', 'blindboxLiveLink',
-  ].map((id) => [id, {}]));
+  const nodes = new Map(
+    [
+      'queueUrl',
+      'songsUrl',
+      'lyricsUrl',
+      'liveDanmakuUrl',
+      'liveBlindboxUrl',
+      'liveGamesUrl',
+      'liveWheelUrl',
+      'liveOvertimeUrl',
+      'liveGiftEffectsUrl',
+      'liveOpeningUrl',
+      'liveClockUrl',
+      'blindboxOverlayUrl',
+      'blindboxLiveLink',
+    ].map((id) => [id, {}]),
+  );
   const copyButton = {};
   const window = { addEventListener() {} };
   const { display } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/display.js'), {
     window,
     location: { protocol: 'http:', hostname: 'localhost', port: '3012' },
     document: {
-      readyState: 'loading', addEventListener() {},
+      readyState: 'loading',
+      addEventListener() {},
       getElementById: (id) => nodes.get(id) || null,
-      querySelectorAll: () => [], querySelector: () => copyButton,
+      querySelectorAll: () => [],
+      querySelector: () => copyButton,
     },
     fetch: async () => ({ ok: true, text: async () => JSON.stringify({ ok: true, data: { gifts: [] } }) }),
   });
@@ -45,41 +55,21 @@ test('display overlay URLs use explicit settings capabilities without the legacy
 
 test('song list exposes a display board font size control', () => {
   const html = readAdminHtml();
-  const displaySource = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'display.js'),
-    'utf8',
-  );
-  const overlaySource = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'overlays', 'songs.js'),
-    'utf8',
-  );
+  const displaySource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'display.js'), 'utf8');
+  const overlaySource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'songs.js'), 'utf8');
   const overlayStyles = readCssBundle('public', 'css', 'overlays', 'base.css');
-  const defaultsSource = fs.readFileSync(
-    path.join(ROOT_DIR, 'src', 'storage', 'settings-defaults.js'),
-    'utf8',
-  );
-  const themePage = html.match(
-    /<div id="themePage"[\s\S]*?<div id="displayPage"/,
-  )?.[0];
+  const defaultsSource = fs.readFileSync(path.join(ROOT_DIR, 'src', 'storage', 'settings-defaults.js'), 'utf8');
+  const themePage = html.match(/<div id="themePage"[\s\S]*?<div id="displayPage"/)?.[0];
 
   assert.ok(themePage);
   assert.doesNotMatch(themePage, /songBoardFontSize/);
-  assert.match(
-    html,
-    /id="displayPage"[\s\S]*id="songBoardFontSize"[^>]*min="10"[^>]*max="80"[^>]*value="28"/,
-  );
-  assert.match(
-    displaySource,
-    /songBoardFontSize: value\('songBoardFontSize'\)/,
-  );
+  assert.match(html, /id="displayPage"[\s\S]*id="songBoardFontSize"[^>]*min="10"[^>]*max="80"[^>]*value="28"/);
+  assert.match(displaySource, /songBoardFontSize: value\('songBoardFontSize'\)/);
   assert.match(
     overlaySource,
     /Math\.max\(\s*10,\s*Math\.min\(\s*80,\s*Number\(settings\.songBoardFontSize\)\s*\|\|\s*28\s*\)\s*,?\s*\)/,
   );
-  assert.match(
-    overlayStyles,
-    /\.song-board \{[\s\S]*font-size: calc\(16px \* var\(--overlay-font-scale, 1\)\)/,
-  );
+  assert.match(overlayStyles, /\.song-board \{[\s\S]*font-size: calc\(16px \* var\(--overlay-font-scale, 1\)\)/);
   assert.match(
     overlayStyles,
     /\.song-board \.overlay-content \{[\s\S]*padding: clamp\(5px, calc\(8px \* var\(--overlay-font-scale, 1\)\), 18px\)/,
@@ -92,20 +82,14 @@ test('song list exposes a display board font size control', () => {
 });
 
 test('song board keeps song names readable in narrow browser sources', async () => {
-  const source = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'overlays', 'songs.js'),
-    'utf8',
-  );
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'songs.js'), 'utf8');
   const overlayStyles = readCssBundle('public', 'css', 'overlays', 'base.css');
-  const songModule = await loadModuleExports(
-    path.join(ROOT_DIR, 'public', 'js', 'overlays', 'songs.js'),
-    {
-      document: { addEventListener() {} },
-      location: { protocol: 'http:', host: 'localhost', search: '' },
-      URLSearchParams,
-      WebSocket: function WebSocket() {},
-    },
-  );
+  const songModule = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'songs.js'), {
+    document: { addEventListener() {} },
+    location: { protocol: 'http:', host: 'localhost', search: '' },
+    URLSearchParams,
+    WebSocket: function WebSocket() {},
+  });
 
   const listRule = overlayStyles.match(/\.song-scroll-list\s*\{[^}]*\}/)?.[0];
   const cardRule = [...overlayStyles.matchAll(/\.song-card\s*\{[^}]*\}/g)]
@@ -113,9 +97,7 @@ test('song board keeps song names readable in narrow browser sources', async () 
     .find((rule) => /display:\s*flex/.test(rule));
   const nameRule = overlayStyles.match(/\.song-card strong\s*\{[^}]*\}/)?.[0];
   const artistRule = overlayStyles.match(/\.song-card span\s*\{[^}]*\}/)?.[0];
-  const headerRule = overlayStyles.match(
-    /\.song-board \.overlay-header\s*\{[^}]*\}/,
-  )?.[0];
+  const headerRule = overlayStyles.match(/\.song-board \.overlay-header\s*\{[^}]*\}/)?.[0];
   assert.ok(listRule);
   assert.ok(cardRule);
   assert.ok(nameRule);
@@ -126,26 +108,14 @@ test('song board keeps song names readable in narrow browser sources', async () 
   assert.doesNotMatch(cardRule, /grid-template-columns/);
   assert.match(nameRule, /flex:\s*1 1 auto/);
   assert.match(nameRule, /min-width:\s*0/);
-  assert.match(
-    headerRule,
-    /clamp\(4px, calc\(6px \* var\(--overlay-font-scale, 1\)\), 8px\)/,
-  );
+  assert.match(headerRule, /clamp\(4px, calc\(6px \* var\(--overlay-font-scale, 1\)\), 8px\)/);
   assert.match(artistRule, /max-width:\s*min\(32\.4%, 9em\)/);
-  assert.match(
-    artistRule,
-    /font-size:\s*calc\(10\.5px \* var\(--overlay-font-scale, 1\)\)/,
-  );
+  assert.match(artistRule, /font-size:\s*calc\(10\.5px \* var\(--overlay-font-scale, 1\)\)/);
   assert.doesNotMatch(artistRule, /letter-spacing/);
   assert.match(artistRule, /text-overflow:\s*ellipsis/);
   assert.match(artistRule, /white-space:\s*nowrap/);
-  assert.match(
-    overlayStyles,
-    /@media \(max-width: 360px\)\s*\{[\s\S]*?-webkit-line-clamp:\s*2/,
-  );
-  assert.match(
-    overlayStyles,
-    /@media \(max-width: 280px\)\s*\{[\s\S]*?\.song-card span\s*\{[\s\S]*?display:\s*none/,
-  );
+  assert.match(overlayStyles, /@media \(max-width: 360px\)\s*\{[\s\S]*?-webkit-line-clamp:\s*2/);
+  assert.match(overlayStyles, /@media \(max-width: 280px\)\s*\{[\s\S]*?\.song-card span\s*\{[\s\S]*?display:\s*none/);
 
   const flatRecords = songModule.buildSongRecords(
     [
@@ -178,27 +148,12 @@ test('song board keeps song names readable in narrow browser sources', async () 
 });
 
 test('song display board keeps one viewport above and one and a half below', async () => {
-  const html = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'pages', 'overlays', 'songs.html'),
-    'utf8',
-  );
-  const source = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'overlays', 'songs.js'),
-    'utf8',
-  );
+  const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'overlays', 'songs.html'), 'utf8');
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'songs.js'), 'utf8');
   const styles = readCssBundle('public', 'css', 'overlays', 'base.css');
-  assert.match(
-    html,
-    /<script type="module" src="\/js\/overlays\/songs\.js\?v=[^"]+"><\/script>/,
-  );
-  assert.match(
-    source,
-    /new SongVirtualScroller\(\{[\s\S]*beforeViewports: 1,[\s\S]*afterViewports: 1\.5/,
-  );
-  assert.match(
-    source,
-    /new ResizeObserver\(\(\) => scheduleRelayout\(\{ delay: 120 \}\)\)/,
-  );
+  assert.match(html, /<script type="module" src="\/js\/overlays\/songs\.js\?v=[^"]+"><\/script>/);
+  assert.match(source, /new SongVirtualScroller\(\{[\s\S]*beforeViewports: 1,[\s\S]*afterViewports: 1\.5/);
+  assert.match(source, /new ResizeObserver\(\(\) => scheduleRelayout\(\{ delay: 120 \}\)\)/);
   assert.doesNotMatch(styles, /@keyframes song-scroll/);
   assert.doesNotMatch(source, /insertAdjacentHTML|\.innerHTML\s*=/);
 
@@ -220,10 +175,7 @@ test('song display board keeps one viewport above and one and a half below', asy
         this.parentElement.offsetTop +
         this.parentElement.children
           .slice(0, index)
-          .reduce(
-            (total, node) => total + node.offsetHeight + this.parentElement.gap,
-            0,
-          )
+          .reduce((total, node) => total + node.offsetHeight + this.parentElement.gap, 0)
       );
     }
 
@@ -252,8 +204,7 @@ test('song display board keeps one viewport above and one and a half below', asy
     get scrollHeight() {
       if (this.children.length === 0) return 0;
       return (
-        this.children.reduce((total, node) => total + node.offsetHeight, 0) +
-        (this.children.length - 1) * this.gap
+        this.children.reduce((total, node) => total + node.offsetHeight, 0) + (this.children.length - 1) * this.gap
       );
     }
 
@@ -276,16 +227,9 @@ test('song display board keeps one viewport above and one and a half below', asy
     }
   }
 
-  const { SongVirtualScroller, bufferPixels, pixelsPerSecond, wrapIndex } =
-    await loadModuleExports(
-      path.join(
-        ROOT_DIR,
-        'public',
-        'js',
-        'overlays',
-        'song-virtual-scroller.js',
-      ),
-    );
+  const { SongVirtualScroller, bufferPixels, pixelsPerSecond, wrapIndex } = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'overlays', 'song-virtual-scroller.js'),
+  );
   assert.equal(wrapIndex(-1, 5), 4);
   assert.equal(wrapIndex(5, 5), 0);
   assert.equal(pixelsPerSecond(300, 12), 25);
@@ -299,10 +243,7 @@ test('song display board keeps one viewport above and one and a half below', asy
       return this.currentScrollTop;
     },
     set scrollTop(value) {
-      this.currentScrollTop = Math.min(
-        Math.max(0, value),
-        Math.max(0, content.scrollHeight - this.clientHeight),
-      );
+      this.currentScrollTop = Math.min(Math.max(0, value), Math.max(0, content.scrollHeight - this.clientHeight));
     },
   };
   const records = Array.from({ length: 1000 }, (_, index) => ({
@@ -321,10 +262,7 @@ test('song display board keeps one viewport above and one and a half below', asy
   scroller.setRecords(records, { key: 'song:500', offset: 5 });
   assert.equal(scroller.beforeViewports, 1);
   assert.equal(scroller.afterViewports, 1.5);
-  assert.ok(
-    content.children.length < 40,
-    `expected a bounded DOM, got ${content.children.length} nodes`,
-  );
+  assert.ok(content.children.length < 40, `expected a bounded DOM, got ${content.children.length} nodes`);
   assert.ok(viewport.scrollTop >= 100);
   assert.equal(scroller.captureAnchor().key, 'song:500');
 
@@ -355,15 +293,12 @@ test('song board scroll speed stays constant as content grows', async () => {
     /<input\b(?=[^>]*\bid="scrollSecondsRange")[^>]*\bclass="parameter-range parameter-range--tempo"[^>]*\btype="range"[^>]*\bmin="1"[^>]*\bmax="100"[^>]*>/s,
   );
   assert.match(adminHtml, /id="scrollSeconds" type="number" min="1" max="100"/);
-  const songModule = await loadModuleExports(
-    path.join(ROOT_DIR, 'public', 'js', 'overlays', 'songs.js'),
-    {
-      document: { addEventListener() {} },
-      location: { protocol: 'http:', host: 'localhost', search: '' },
-      URLSearchParams,
-      WebSocket: function WebSocket() {},
-    },
-  );
+  const songModule = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'songs.js'), {
+    document: { addEventListener() {} },
+    location: { protocol: 'http:', host: 'localhost', search: '' },
+    URLSearchParams,
+    WebSocket: function WebSocket() {},
+  });
   const { pixelsPerSecond } = await loadModuleExports(
     path.join(ROOT_DIR, 'public', 'js', 'overlays', 'song-virtual-scroller.js'),
   );
@@ -376,9 +311,7 @@ test('song board scroll speed stays constant as content grows', async () => {
     (speed) => 1 / Number(songModule.scrollSpeedToDuration(speed)),
   );
   const rateSteps = rates.slice(1).map((rate, index) => rate - rates[index]);
-  assert.ok(
-    rateSteps.every((step) => Math.abs(step - rateSteps[0]) < 0.000001),
-  );
+  assert.ok(rateSteps.every((step) => Math.abs(step - rateSteps[0]) < 0.000001));
 
   const secondsPerViewport = Number(songModule.scrollSpeedToDuration(80));
   const rate = pixelsPerSecond(300, secondsPerViewport);

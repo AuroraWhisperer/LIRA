@@ -20,29 +20,13 @@
         </div>
       </header>
       <section id="numberBombView" class="game-view" hidden>
-        <div
-          id="bombNumbers"
-          class="bomb-numbers"
-          aria-label="数字炸弹选择区"
-        ></div>
+        <div id="bombNumbers" class="bomb-numbers" aria-label="数字炸弹选择区"></div>
       </section>
       <section id="gomokuView" class="game-view gomoku-view" hidden>
         <div class="gomoku-board-wrap">
-          <div
-            id="gomokuColumnLabels"
-            class="gomoku-column-labels"
-            aria-hidden="true"
-          ></div>
-          <div
-            id="gomokuRowLabels"
-            class="gomoku-row-labels"
-            aria-hidden="true"
-          ></div>
-          <div
-            id="gomokuBoard"
-            class="gomoku-board"
-            aria-label="五子棋棋盘"
-          ></div>
+          <div id="gomokuColumnLabels" class="gomoku-column-labels" aria-hidden="true"></div>
+          <div id="gomokuRowLabels" class="gomoku-row-labels" aria-hidden="true"></div>
+          <div id="gomokuBoard" class="gomoku-board" aria-label="五子棋棋盘"></div>
         </div>
       </section>
       <section id="drawGuessView" class="game-view draw-guess-view" hidden>
@@ -58,23 +42,15 @@
               <strong id="drawClue">等待开局</strong>
               <small>输入答案即可抢答</small>
             </div>
-            <section
-              class="draw-score-section"
-              aria-labelledby="drawScoreTitle"
-            >
+            <section class="draw-score-section" aria-labelledby="drawScoreTitle">
               <div class="draw-panel-heading">
-                <strong id="drawScoreTitle">总积分</strong
-                ><span id="drawCorrectCount">0 人答对</span>
+                <strong id="drawScoreTitle">总积分</strong><span id="drawCorrectCount">0 人答对</span>
               </div>
               <ol id="drawScoreboard" class="draw-scoreboard"></ol>
             </section>
-            <section
-              class="draw-correct-section"
-              aria-labelledby="drawCorrectTitle"
-            >
+            <section class="draw-correct-section" aria-labelledby="drawCorrectTitle">
               <div class="draw-panel-heading">
-                <strong id="drawCorrectTitle">本局抢答</strong
-                ><span>10 / 7 / 5 / 3</span>
+                <strong id="drawCorrectTitle">本局抢答</strong><span>10 / 7 / 5 / 3</span>
               </div>
               <ol id="drawCorrectFeed" class="draw-correct-feed"></ol>
             </section>
@@ -105,9 +81,7 @@
                     aria-pressed="true"
                   >
                     <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path
-                        d="M4 20l4.2-1 10.6-10.6a2.1 2.1 0 0 0-3-3L5.2 16 4 20zm9.8-12.6 3 3"
-                      />
+                      <path d="M4 20l4.2-1 10.6-10.6a2.1 2.1 0 0 0-3-3L5.2 16 4 20zm9.8-12.6 3 3" />
                     </svg>
                   </button>
                   <button
@@ -169,9 +143,7 @@
                     aria-pressed="false"
                   >
                     <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path
-                        d="m14.8 5.2 4 4M6.5 17.5l8.8-8.8 2 2-8.8 8.8H5v-3.5l8.8-8.8M5 21h5"
-                      />
+                      <path d="m14.8 5.2 4 4M6.5 17.5l8.8-8.8 2 2-8.8 8.8H5v-3.5l8.8-8.8M5 21h5" />
                     </svg>
                   </button>
                   <button
@@ -193,9 +165,7 @@
                     data-tooltip="清空全部"
                   >
                     <svg viewBox="0 0 24 24" aria-hidden="true">
-                      <path
-                        d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5"
-                      />
+                      <path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13M10 11v5M14 11v5" />
                     </svg>
                   </button>
                 </div>
@@ -244,31 +214,13 @@
                   ></button>
                 </div>
                 <div class="draw-width-tools" aria-label="工具大小">
-                  <button
-                    type="button"
-                    data-draw-width="2"
-                    aria-label="小号"
-                    data-tooltip="小号"
-                    aria-pressed="false"
-                  >
+                  <button type="button" data-draw-width="2" aria-label="小号" data-tooltip="小号" aria-pressed="false">
                     <span></span>
                   </button>
-                  <button
-                    type="button"
-                    data-draw-width="4"
-                    aria-label="中号"
-                    data-tooltip="中号"
-                    aria-pressed="true"
-                  >
+                  <button type="button" data-draw-width="4" aria-label="中号" data-tooltip="中号" aria-pressed="true">
                     <span></span>
                   </button>
-                  <button
-                    type="button"
-                    data-draw-width="8"
-                    aria-label="大号"
-                    data-tooltip="大号"
-                    aria-pressed="false"
-                  >
+                  <button type="button" data-draw-width="8" aria-label="大号" data-tooltip="大号" aria-pressed="false">
                     <span></span>
                   </button>
                   <button
@@ -285,13 +237,7 @@
             </div>
           </div>
           <aside class="draw-danmaku-panel" aria-label="直播消息">
-            <div
-              id="drawDanmakuFeed"
-              class="draw-danmaku-feed"
-              data-style="bubble"
-              role="log"
-              aria-live="polite"
-            >
+            <div id="drawDanmakuFeed" class="draw-danmaku-feed" data-style="bubble" role="log" aria-live="polite">
               <div class="draw-danmaku-empty">等待直播消息…</div>
             </div>
           </aside>
@@ -301,27 +247,13 @@
         <strong>等待主播开局</strong>
       </section>
       <div id="gameResult" class="game-result" hidden>
-        <div
-          class="game-result-card"
-          role="dialog"
-          aria-labelledby="gameResultText"
-        >
+        <div class="game-result-card" role="dialog" aria-labelledby="gameResultText">
           <div class="game-result-emblem">
             <div class="game-result-icon">
               <!-- 数字炸弹：爆炸图标 -->
-              <svg
-                class="icon-bomb"
-                viewBox="0 0 100 100"
-                xmlns="http://www.w3.org/2000/svg"
-              >
+              <svg class="icon-bomb" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
                 <!-- 爆炸外层光晕 -->
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="42"
-                  fill="url(#explosion-glow)"
-                  opacity="0.6"
-                />
+                <circle cx="50" cy="50" r="42" fill="url(#explosion-glow)" opacity="0.6" />
                 <!-- 爆炸主体星形 -->
                 <path
                   d="M 50 10 L 55 40 L 85 35 L 60 55 L 90 80 L 58 65 L 50 95 L 42 65 L 10 80 L 40 55 L 15 35 L 45 40 Z"
@@ -390,27 +322,9 @@
                 </defs>
               </svg>
               <!-- 五子棋：棋子图标 -->
-              <svg
-                class="icon-gomoku"
-                viewBox="0 0 100 100"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="35"
-                  fill="url(#stone-gradient)"
-                  stroke="#3a3a3a"
-                  stroke-width="2"
-                />
-                <ellipse
-                  cx="42"
-                  cy="42"
-                  rx="8"
-                  ry="6"
-                  fill="#ffffff"
-                  opacity="0.4"
-                />
+              <svg class="icon-gomoku" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="50" cy="50" r="35" fill="url(#stone-gradient)" stroke="#3a3a3a" stroke-width="2" />
+                <ellipse cx="42" cy="42" rx="8" ry="6" fill="#ffffff" opacity="0.4" />
                 <defs>
                   <radialGradient id="stone-gradient" cx="40%" cy="40%">
                     <stop offset="0%" stop-color="#f0ead2" />
@@ -419,36 +333,14 @@
                 </defs>
               </svg>
             </div>
-            <img
-              id="gameResultAvatar"
-              class="game-result-avatar"
-              alt=""
-              hidden
-            />
+            <img id="gameResultAvatar" class="game-result-avatar" alt="" hidden />
           </div>
           <div id="gameResultText" class="game-result-text"></div>
           <div class="game-result-actions">
-            <button
-              id="gameResultExit"
-              class="game-result-button game-result-exit"
-              type="button"
-            >
-              退出
-            </button>
-            <button
-              id="gameResultNext"
-              class="game-result-button game-result-next"
-              type="button"
-            >
-              下一局
-            </button>
+            <button id="gameResultExit" class="game-result-button game-result-exit" type="button">退出</button>
+            <button id="gameResultNext" class="game-result-button game-result-next" type="button">下一局</button>
           </div>
-          <p
-            id="gameResultActionStatus"
-            class="game-result-action-status"
-            role="status"
-            hidden
-          ></p>
+          <p id="gameResultActionStatus" class="game-result-action-status" role="status" hidden></p>
         </div>
       </div>
     </main>

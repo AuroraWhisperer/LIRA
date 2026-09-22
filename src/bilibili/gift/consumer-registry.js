@@ -1,13 +1,8 @@
 'use strict';
 
 function createGiftConsumerRegistry(options = {}) {
-  const consumers = Array.isArray(options.consumers)
-    ? options.consumers.filter(isConsumer)
-    : [];
-  const onError =
-    typeof options.onError === 'function'
-      ? options.onError
-      : defaultErrorHandler;
+  const consumers = Array.isArray(options.consumers) ? options.consumers.filter(isConsumer) : [];
+  const onError = typeof options.onError === 'function' ? options.onError : defaultErrorHandler;
 
   function dispatch(event) {
     const result = { delivered: [], failed: [] };
@@ -31,19 +26,12 @@ function createGiftConsumerRegistry(options = {}) {
 }
 
 function isConsumer(value) {
-  return Boolean(
-    value &&
-    typeof value.name === 'string' &&
-    value.name &&
-    typeof value.handle === 'function',
-  );
+  return Boolean(value && typeof value.name === 'string' && value.name && typeof value.handle === 'function');
 }
 
 function defaultErrorHandler(error, consumerName, event) {
   const eventId = Number(event?.giftEventId) || 0;
-  console.warn(
-    `[Bilibili][GiftConsumer] consumer=${consumerName} eventId=${eventId} error=${error.message}`,
-  );
+  console.warn(`[Bilibili][GiftConsumer] consumer=${consumerName} eventId=${eventId} error=${error.message}`);
 }
 
 module.exports = { createGiftConsumerRegistry };

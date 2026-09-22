@@ -15,8 +15,7 @@ export function createDrawControls({ byId, canDraw, getSession, onDisable }) {
   function syncUndoState() {
     const button = byId('drawUndoBtn');
     if (!button) return;
-    button.disabled =
-      !canDraw() || !getSession()?.state?.canvas?.strokes?.length;
+    button.disabled = !canDraw() || !getSession()?.state?.canvas?.strokes?.length;
   }
 
   return { setToolsEnabled, syncUndoState };

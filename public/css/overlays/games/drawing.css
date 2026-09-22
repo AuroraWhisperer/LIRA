@@ -272,11 +272,7 @@
   display: grid;
   gap: 5px;
   padding: 12px;
-  background: linear-gradient(
-    145deg,
-    rgba(108, 92, 231, 0.24),
-    rgba(255, 200, 87, 0.1)
-  );
+  background: linear-gradient(145deg, rgba(108, 92, 231, 0.24), rgba(255, 200, 87, 0.1));
 }
 .draw-clue-card span,
 .draw-clue-card small {

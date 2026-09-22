@@ -4,9 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { once } = require('node:events');
 const { BilibiliApiClient } = require('../src/bilibili/danmaku/api-client');
-const {
-  WebSocketConnection,
-} = require('../src/bilibili/danmaku/websocket-connection');
+const { WebSocketConnection } = require('../src/bilibili/danmaku/websocket-connection');
 const packetParser = require('../src/bilibili/packet-parser');
 const { cleanText } = require('../src/shared/utils');
 const { resolveDataPaths } = require('../src/shared/data-paths');
@@ -16,13 +14,7 @@ const DEFAULT_DURATION_SECONDS = 300;
 function parseArguments(argv, cwd = process.cwd()) {
   if (argv.includes('--help') || argv.includes('-h')) return { help: true };
 
-  const allowedOptions = new Set([
-    '--room',
-    '--duration',
-    '--output',
-    '--gift-only',
-    '--bilibili-user-data',
-  ]);
+  const allowedOptions = new Set(['--room', '--duration', '--output', '--gift-only', '--bilibili-user-data']);
   for (const argument of argv) {
     if (argument.startsWith('--') && !allowedOptions.has(argument)) {
       throw new Error(`Unknown option: ${argument}`);
@@ -30,9 +22,7 @@ function parseArguments(argv, cwd = process.cwd()) {
   }
 
   const roomId = readRequiredOption(argv, '--room');
-  const durationSeconds = Number(
-    readOption(argv, '--duration') || DEFAULT_DURATION_SECONDS,
-  );
+  const durationSeconds = Number(readOption(argv, '--duration') || DEFAULT_DURATION_SECONDS);
   if (!Number.isInteger(durationSeconds) || durationSeconds <= 0) {
     throw new Error('--duration must be a positive whole number of seconds');
   }
@@ -45,9 +35,7 @@ function parseArguments(argv, cwd = process.cwd()) {
     durationMs: durationSeconds * 1000,
     outputPath: path.resolve(cwd, outputOption || defaultOutputName()),
     giftOnly: argv.includes('--gift-only'),
-    bilibiliUserDataPath: bilibiliUserDataOption
-      ? path.resolve(cwd, bilibiliUserDataOption)
-      : '',
+    bilibiliUserDataPath: bilibiliUserDataOption ? path.resolve(cwd, bilibiliUserDataOption) : '',
   };
 }
 
@@ -61,8 +49,7 @@ function readOption(argv, option) {
   const index = argv.indexOf(option);
   if (index === -1) return '';
   const value = argv[index + 1];
-  if (!value || value.startsWith('--'))
-    throw new Error(`${option} requires a value`);
+  if (!value || value.startsWith('--')) throw new Error(`${option} requires a value`);
   return value;
 }
 
@@ -76,10 +63,7 @@ function buildCaptureRecord(message, receivedAt) {
     type: 'event',
     receivedAt,
     cmd: cleanText(message && message.cmd),
-    data:
-      message && message.data && typeof message.data === 'object'
-        ? message.data
-        : {},
+    data: message && message.data && typeof message.data === 'object' ? message.data : {},
   };
 }
 
@@ -96,8 +80,7 @@ async function captureEvents(options) {
   const roomInfo = await apiClient.resolveRoomInfo();
   const danmuInfo = await apiClient.resolveDanmuInfo(roomInfo.roomId);
   const host = (danmuInfo.host_list || [])[0];
-  if (!host)
-    throw new Error('Bilibili did not provide a danmaku WebSocket host');
+  if (!host) throw new Error('Bilibili did not provide a danmaku WebSocket host');
 
   fs.mkdirSync(path.dirname(options.outputPath), { recursive: true });
   const writer = fs.createWriteStream(options.outputPath, { flags: 'wx' });
@@ -141,10 +124,7 @@ async function captureEvents(options) {
   const writerClosed = new Promise((resolve) => {
     writer.once('close', () => {
       if (!writer.writableFinished && !failure) {
-        stop(
-          'output-error',
-          new Error('Capture output closed before finishing'),
-        );
+        stop('output-error', new Error('Capture output closed before finishing'));
       }
       resolve();
     });
@@ -182,17 +162,11 @@ async function captureEvents(options) {
     }
   });
   connection.on('close', () => {
-    stop(
-      'connection-closed',
-      connected ? null : new Error('弹幕 WebSocket 连接已关闭。'),
-    );
+    stop('connection-closed', connected ? null : new Error('弹幕 WebSocket 连接已关闭。'));
   });
   connection.on('error', (error) => {
     console.warn('[Capture] WebSocket reported an error');
-    stop(
-      'connection-error',
-      error instanceof Error ? error : new Error('弹幕 WebSocket 连接失败。'),
-    );
+    stop('connection-error', error instanceof Error ? error : new Error('弹幕 WebSocket 连接失败。'));
   });
 
   try {
@@ -206,22 +180,16 @@ async function captureEvents(options) {
       }),
     );
     connectTimer = setTimeout(() => {
-      stop(
-        'connection-error',
-        new Error('弹幕 WebSocket 连接超时，请稍后重试。'),
-      );
+      stop('connection-error', new Error('弹幕 WebSocket 连接超时，请稍后重试。'));
     }, 8000);
-    const connecting = connection.connect(
-      `wss://${host.host}:${host.wss_port || 443}/sub`,
-      {
-        uid: apiClient.uid || 0,
-        roomid: roomInfo.roomId,
-        protover: 3,
-        platform: 'web',
-        type: 2,
-        key: danmuInfo.token,
-      },
-    );
+    const connecting = connection.connect(`wss://${host.host}:${host.wss_port || 443}/sub`, {
+      uid: apiClient.uid || 0,
+      roomid: roomInfo.roomId,
+      protover: 3,
+      platform: 'web',
+      type: 2,
+      key: danmuInfo.token,
+    });
     await Promise.race([Promise.all([connecting, opened]), stopped]);
     clearTimeout(connectTimer);
     if (!stopping) {
@@ -273,9 +241,7 @@ async function captureEvents(options) {
 async function loadBilibiliDesktopAuth(userDataPath) {
   if (!userDataPath) return null;
   if (!process.versions.electron) {
-    throw new Error(
-      '--bilibili-user-data requires running this script with Electron',
-    );
+    throw new Error('--bilibili-user-data requires running this script with Electron');
   }
 
   const { app } = require('electron');
@@ -305,9 +271,7 @@ function printUsage() {
   console.log(
     'Logged-in desktop capture: electron scripts/bilibili-capture-electron ... --bilibili-user-data <Electron userData path>',
   );
-  console.log(
-    'Set BILIBILI_COOKIE when the room requires a logged-in danmaku connection.',
-  );
+  console.log('Set BILIBILI_COOKIE when the room requires a logged-in danmaku connection.');
 }
 
 async function main() {

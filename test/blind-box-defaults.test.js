@@ -5,15 +5,11 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
-const {
-  prepareSettingsBootstrap,
-} = require('../src/server/settings-bootstrap');
+const { prepareSettingsBootstrap } = require('../src/server/settings-bootstrap');
 const { closeDatabases, createDatabases } = require('../src/storage/database');
 const settingsStoreModule = require('../src/storage/settings-store');
 const settingsRoutes = require('../src/server/routes/settings-routes');
-const {
-  normalizeGiftBlindBoxConfig,
-} = require('../src/bilibili/gift/blind-box-config');
+const { normalizeGiftBlindBoxConfig } = require('../src/bilibili/gift/blind-box-config');
 const defaultBlindBoxConfig = require('../src/storage/default-blind-box-config.json');
 const { DEFAULT_SETTINGS, migrateBlindBoxConfig } = settingsStoreModule;
 
@@ -92,9 +88,7 @@ test('blind-box migration appends missing defaults without replacing user entrie
 });
 
 test('settings bootstrap merges new blind-box defaults before the first settings read', () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'lira-blind-box-bootstrap-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-blind-box-bootstrap-'));
   const databases = createDatabases({
     dataDir,
     defaultSettings: DEFAULT_SETTINGS,
@@ -122,10 +116,7 @@ test('settings bootstrap merges new blind-box defaults before the first settings
       )
       .run(JSON.stringify(existing), new Date().toISOString());
 
-    const { settingsStore } = prepareSettingsBootstrap(
-      databases.songDb,
-      settingsStoreModule,
-    );
+    const { settingsStore } = prepareSettingsBootstrap(databases.songDb, settingsStoreModule);
     const migrated = JSON.parse(settingsStore.getSettings().giftBlindBoxConfig);
 
     assert.deepEqual(migrated.slice(0, existing.length), existing);
@@ -185,31 +176,20 @@ test('blind-box migration preserves an explicit empty configuration', () => {
 });
 
 test('an empty blind-box configuration survives repeated settings bootstrap', () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'lira-empty-blind-box-bootstrap-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-empty-blind-box-bootstrap-'));
   const databases = createDatabases({
     dataDir,
     defaultSettings: DEFAULT_SETTINGS,
   });
 
   try {
-    const first = prepareSettingsBootstrap(
-      databases.songDb,
-      settingsStoreModule,
-    );
+    const first = prepareSettingsBootstrap(databases.songDb, settingsStoreModule);
     first.settingsStore.setSetting('giftBlindBoxConfig', '[]');
 
-    const second = prepareSettingsBootstrap(
-      databases.songDb,
-      settingsStoreModule,
-    );
+    const second = prepareSettingsBootstrap(databases.songDb, settingsStoreModule);
     assert.equal(second.settingsStore.getSettings().giftBlindBoxConfig, '[]');
 
-    const third = prepareSettingsBootstrap(
-      databases.songDb,
-      settingsStoreModule,
-    );
+    const third = prepareSettingsBootstrap(databases.songDb, settingsStoreModule);
     assert.equal(third.settingsStore.getSettings().giftBlindBoxConfig, '[]');
   } finally {
     closeDatabases(databases);
@@ -292,13 +272,7 @@ test('blind-box prices must remain positive after two-decimal normalization', ()
     },
   ];
 
-  assert.throws(
-    () => normalizeGiftBlindBoxConfig(config(0.001)),
-    /INVALID_GIFT_BLIND_BOX_CONFIG/,
-  );
-  assert.throws(
-    () => normalizeGiftBlindBoxConfig(config(0.01, 0.001)),
-    /INVALID_GIFT_BLIND_BOX_CONFIG/,
-  );
+  assert.throws(() => normalizeGiftBlindBoxConfig(config(0.001)), /INVALID_GIFT_BLIND_BOX_CONFIG/);
+  assert.throws(() => normalizeGiftBlindBoxConfig(config(0.01, 0.001)), /INVALID_GIFT_BLIND_BOX_CONFIG/);
   assert.deepEqual(normalizeGiftBlindBoxConfig(config(0.01)), config(0.01));
 });

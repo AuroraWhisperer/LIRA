@@ -35,20 +35,14 @@ function createHttpServer(options = {}) {
   };
 
   const rejectUpgrade = (socket, status) => {
-    socket.end(
-      `HTTP/1.1 ${status}\r\nConnection: close\r\n\r\n`,
-      () => socket.destroy(),
-    );
+    socket.end(`HTTP/1.1 ${status}\r\nConnection: close\r\n\r\n`, () => socket.destroy());
   };
 
   const server = http.createServer(async (req, res) => {
     let requestPath = '[invalid-url]';
     try {
       const phase = getPhase();
-      const requestUrl = new URL(
-        req.url,
-        `http://${req.headers.host || `${host}:${startPort}`}`,
-      );
+      const requestUrl = new URL(req.url, `http://${req.headers.host || `${host}:${startPort}`}`);
       requestPath = requestUrl.pathname;
 
       const baseUrl = `http://${host}:${getStartedPort() || startPort}`;
@@ -90,10 +84,7 @@ function createHttpServer(options = {}) {
           res.end();
           return;
         }
-        if (
-          requestUrl.pathname.startsWith('/api/') &&
-          requestUrl.pathname !== '/api/health'
-        ) {
+        if (requestUrl.pathname.startsWith('/api/') && requestUrl.pathname !== '/api/health') {
           httpUtils.sendJson(res, 423, {
             ok: false,
             error: 'LICENSE_REQUIRED',
@@ -102,11 +93,7 @@ function createHttpServer(options = {}) {
         }
       }
 
-      if (
-        req.method !== 'GET' &&
-        req.method !== 'HEAD' &&
-        req.method !== 'OPTIONS'
-      ) {
+      if (req.method !== 'GET' && req.method !== 'HEAD' && req.method !== 'OPTIONS') {
         const opaqueApiRequest = req.headers.origin === 'null' && requestUrl.pathname.startsWith('/api/');
         if (!opaqueApiRequest && !httpUtils.validateOrigin(req, [baseUrl])) {
           httpUtils.sendJson(res, 403, {
@@ -126,31 +113,17 @@ function createHttpServer(options = {}) {
       }
 
       if (requestUrl.pathname.startsWith('/api/')) {
-        await inflightTracker.run(() =>
-          apiRoutes.handleApi(createApiContext(), req, res, requestUrl),
-        );
+        await inflightTracker.run(() => apiRoutes.handleApi(createApiContext(), req, res, requestUrl));
         return;
       }
 
       if (requestUrl.pathname.startsWith('/opening-media/')) {
-        httpUtils.serveOpeningMedia(
-          dataDir,
-          req,
-          res,
-          requestUrl,
-          () => getSettings()?.openingAudioFile || '',
-        );
+        httpUtils.serveOpeningMedia(dataDir, req, res, requestUrl, () => getSettings()?.openingAudioFile || '');
         return;
       }
 
       if (requestUrl.pathname.startsWith('/opening-character/')) {
-        httpUtils.serveOpeningCharacter(
-          dataDir,
-          req,
-          res,
-          requestUrl,
-          () => getSettings()?.openingCharacterFile || '',
-        );
+        httpUtils.serveOpeningCharacter(dataDir, req, res, requestUrl, () => getSettings()?.openingCharacterFile || '');
         return;
       }
 
@@ -192,10 +165,7 @@ function createHttpServer(options = {}) {
     }
     let requestUrl;
     try {
-      requestUrl = new URL(
-        req.url,
-        `http://${req.headers.host || `${host}:${startPort}`}`,
-      );
+      requestUrl = new URL(req.url, `http://${req.headers.host || `${host}:${startPort}`}`);
     } catch (_) {
       rejectUpgrade(socket, '400 Bad Request');
       return;

@@ -6,38 +6,24 @@
           <legend>
             🔐 直播账号登录
             <lira-help
-              >扫码登录后，填写自己的直播间号，开启接收并保存设置。显示「本机已登录」只说明扫码成功，还要确认连接正常。关闭 LIRA 后仍会接收；需要停止时关闭接收并保存，或退出直播账号，等待保存成功。</lira-help
+              >扫码登录后，填写自己的直播间号，开启接收并保存设置。显示「本机已登录」只说明扫码成功，还要确认连接正常。关闭
+              LIRA 后仍会接收；需要停止时关闭接收并保存，或退出直播账号，等待保存成功。</lira-help
             >
           </legend>
           <div class="bilibili-auth-row">
-            <span id="bilibiliAuthStatus" class="pill warn" style="padding: 2px 7px"
-              >本机未登录</span
-            >
+            <span id="bilibiliAuthStatus" class="pill warn" style="padding: 2px 7px">本机未登录</span>
             <span id="bilibiliAuthProfile" class="bilibili-auth-profile" hidden>
-              <img
-                id="bilibiliAuthAvatar"
-                class="bilibili-auth-avatar"
-                alt=""
-                hidden
-              />
+              <img id="bilibiliAuthAvatar" class="bilibili-auth-avatar" alt="" hidden />
               <span class="bilibili-auth-identity">
                 <strong id="bilibiliAuthName" class="bilibili-auth-name"></strong>
-                <span
-                  id="bilibiliAuthUid"
-                  class="bilibili-auth-uid ui-caption"
-                ></span>
+                <span id="bilibiliAuthUid" class="bilibili-auth-uid ui-caption"></span>
               </span>
             </span>
             <button
               id="bilibiliLoginBtn"
               class="primary"
               type="button"
-              style="
-                background: #fb7299;
-                border-color: #fb7299;
-                padding: 3px 8px;
-                min-height: 26px;
-              "
+              style="background: #fb7299; border-color: #fb7299; padding: 3px 8px; min-height: 26px"
             >
               📱 扫码登录直播账号
             </button>
@@ -58,20 +44,11 @@
             <lira-help>请务必填写你自己的直播间房间号或链接，保存设置后显示房主资料。</lira-help>
           </legend>
           <div class="bilibili-room-row" aria-live="polite">
-            <span id="bilibiliRoomStatus" class="pill warn" style="padding: 2px 7px"
-              >未设置</span
-            >
+            <span id="bilibiliRoomStatus" class="pill warn" style="padding: 2px 7px">未设置</span>
             <span class="bilibili-auth-profile">
-              <img
-                id="bilibiliRoomAvatar"
-                class="bilibili-auth-avatar"
-                alt=""
-                hidden
-              />
+              <img id="bilibiliRoomAvatar" class="bilibili-auth-avatar" alt="" hidden />
               <span class="bilibili-auth-identity">
-                <strong id="bilibiliRoomName" class="bilibili-auth-name"
-                  >填写直播间号后保存设置</strong
-                >
+                <strong id="bilibiliRoomName" class="bilibili-auth-name">填写直播间号后保存设置</strong>
               </span>
             </span>
             <input

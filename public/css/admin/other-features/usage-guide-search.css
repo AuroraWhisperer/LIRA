@@ -162,11 +162,13 @@
 }
 
 @keyframes usage-guide-search-pulse {
-  0%, 100% {
+  0%,
+  100% {
     background-color: var(--usage-guide-search-fill);
     color: var(--usage-guide-search-ink);
   }
-  20%, 60% {
+  20%,
+  60% {
     background-color: var(--usage-guide-search-ink);
     color: var(--color-text-white);
   }

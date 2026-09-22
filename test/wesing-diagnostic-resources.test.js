@@ -6,9 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const { EventEmitter } = require('node:events');
-const {
-  createDiagnosticTerminal,
-} = require('../scripts/wesing-diagnostic-terminal');
+const { createDiagnosticTerminal } = require('../scripts/wesing-diagnostic-terminal');
 
 function logFixture() {
   let content = Buffer.from('old\n', 'utf16le');
@@ -37,12 +35,7 @@ function logFixture() {
               async read(buffer, bufferOffset, length, position) {
                 reads.push({ length, position });
                 if (readGate) await readGate;
-                const bytesRead = content.copy(
-                  buffer,
-                  bufferOffset,
-                  position,
-                  position + length,
-                );
+                const bytesRead = content.copy(buffer, bufferOffset, position, position + length);
                 return { bytesRead };
               },
               async close() {
@@ -62,10 +55,7 @@ function logFixture() {
     },
   });
   vm.runInContext(fs.readFileSync(filename, 'utf8'), context, { filename });
-  const probe = context.module.exports.createWeSingLogProbe(
-    'synthetic-cache',
-    (event) => events.push(event),
-  );
+  const probe = context.module.exports.createWeSingLogProbe('synthetic-cache', (event) => events.push(event));
   return {
     probe,
     events,
@@ -133,10 +123,7 @@ test('WeSing log probe preserves byte offsets and split UTF-16 bytes, then flush
   assert.equal(f.events.at(-1).line, '新歌词');
   assert.equal(f.timers.size, 0);
   await f.probe.stop();
-  assert.equal(
-    f.events.filter((event) => event.event === 'wesing-log-line').length,
-    1,
-  );
+  assert.equal(f.events.filter((event) => event.event === 'wesing-log-line').length, 1);
 });
 
 test('WeSing log probe resets partial text and odd bytes on truncation and file rotation', async () => {
@@ -183,8 +170,7 @@ function terminalFixture(options = {}) {
     input.isRaw = value;
   };
   const existing = () => {};
-  for (const event of ['data', 'newListener', 'keypress'])
-    input.on(event, existing);
+  for (const event of ['data', 'newListener', 'keypress']) input.on(event, existing);
   const terminal = createDiagnosticTerminal(() => {}, {
     input,
     emitKeypressEvents(stream) {
@@ -196,8 +182,7 @@ function terminalFixture(options = {}) {
     terminal,
     input,
     assertRestored() {
-      for (const event of ['data', 'newListener', 'keypress'])
-        assert.deepEqual(input.listeners(event), [existing]);
+      for (const event of ['data', 'newListener', 'keypress']) assert.deepEqual(input.listeners(event), [existing]);
       assert.equal(input.isRaw, options.raw === true);
       assert.equal(input.isPaused(), options.paused !== false);
     },

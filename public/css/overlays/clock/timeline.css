@@ -10,8 +10,7 @@
   color: #35483f;
   background: transparent;
   box-shadow: none;
-  font-family:
-    'Bahnschrift Condensed', 'Aptos Narrow', 'Arial Narrow', sans-serif;
+  font-family: 'Bahnschrift Condensed', 'Aptos Narrow', 'Arial Narrow', sans-serif;
 }
 
 .clock-card[data-clock-style^='timeline-'] .clock-sparkles,

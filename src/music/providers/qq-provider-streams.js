@@ -20,8 +20,7 @@ const {
 } = require('./qq-provider-utils');
 
 const QQ_SEARCH_URL = 'https://c.y.qq.com/soso/fcgi-bin/client_search_cp';
-const QQ_LYRIC_URL =
-  'https://c.y.qq.com/lyric/fcgi-bin/fcg_query_lyric_new.fcg';
+const QQ_LYRIC_URL = 'https://c.y.qq.com/lyric/fcgi-bin/fcg_query_lyric_new.fcg';
 const STREAM_TTL_MS = 5 * 60 * 1000;
 const QQ_STREAM_QUALITIES = {
   standard: { prefix: 'M500', extension: 'mp3' },
@@ -100,10 +99,7 @@ class QQMusicStreamProvider extends QQMusicClient {
       platform: 'yqq.json',
       needNewCode: '0',
     });
-    const songs =
-      data && data.data && data.data.song && Array.isArray(data.data.song.list)
-        ? data.data.song.list
-        : [];
+    const songs = data && data.data && data.data.song && Array.isArray(data.data.song.list) ? data.data.song.list : [];
     return songs.map(mapQQSong).filter(Boolean);
   }
 
@@ -130,12 +126,7 @@ class QQMusicStreamProvider extends QQMusicClient {
           },
         });
         const inner = response && response.req_0;
-        if (
-          Number(response && response.code) !== 0 ||
-          Number(inner && inner.code) !== 0 ||
-          !inner ||
-          !inner.data
-        ) {
+        if (Number(response && response.code) !== 0 || Number(inner && inner.code) !== 0 || !inner || !inner.data) {
           throw new Error('QQ 音乐未返回完整歌词数据。');
         }
 
@@ -151,8 +142,7 @@ class QQMusicStreamProvider extends QQMusicClient {
             ? lyric
             : decodeQQPlayableLyric(qrcPayload, encrypted);
         const lines = parseLyricResult(lyric, translation, wordLyric, roma);
-        if (lines.length > 0)
-          return { source: this.source, sourceTrackId, lines };
+        if (lines.length > 0) return { source: this.source, sourceTrackId, lines };
         throw new Error('QQ 音乐返回的歌词无法解析。');
       } catch (error) {
         richLyricError = error;
@@ -163,9 +153,7 @@ class QQMusicStreamProvider extends QQMusicClient {
       return await this.getLegacyLyrics(sourceTrackId);
     } catch (error) {
       if (!richLyricError) throw error;
-      throw new Error(
-        `QQ 音乐歌词获取失败：${richLyricError.message || String(richLyricError)}`,
-      );
+      throw new Error(`QQ 音乐歌词获取失败：${richLyricError.message || String(richLyricError)}`);
     }
   }
 
@@ -174,17 +162,12 @@ class QQMusicStreamProvider extends QQMusicClient {
     if (existingId > 0) return existingId;
 
     const artists = Array.isArray(track && track.artists) ? track.artists : [];
-    const query = [track && track.title, artists[0]]
-      .filter(Boolean)
-      .join(' ')
-      .trim();
+    const query = [track && track.title, artists[0]].filter(Boolean).join(' ').trim();
     if (!query) return 0;
 
     try {
       const candidates = await this.searchTracks(query, { limit: 20 });
-      const exactMatch = candidates.find(
-        (candidate) => candidate.sourceTrackId === sourceTrackId,
-      );
+      const exactMatch = candidates.find((candidate) => candidate.sourceTrackId === sourceTrackId);
       return extractSourceSongId(exactMatch);
     } catch (_) {
       return 0;
@@ -223,13 +206,8 @@ class QQMusicStreamProvider extends QQMusicClient {
 
   async resolvePlayableUrl(track, options = {}) {
     const sourceTrackId = extractSourceTrackId(track);
-    const sourceMediaId = String(
-      (track && track.sourceMediaId) || sourceTrackId,
-    ).trim();
-    const requestedQuality = Object.hasOwn(
-      QQ_ENCRYPTED_QUALITIES,
-      options.quality,
-    )
+    const sourceMediaId = String((track && track.sourceMediaId) || sourceTrackId).trim();
+    const requestedQuality = Object.hasOwn(QQ_ENCRYPTED_QUALITIES, options.quality)
       ? options.quality
       : Object.hasOwn(QQ_STREAM_QUALITIES, options.quality)
         ? options.quality
@@ -267,10 +245,7 @@ class QQMusicStreamProvider extends QQMusicClient {
       },
     });
     const midUrlInfoList =
-      data &&
-      data.req_0 &&
-      data.req_0.data &&
-      Array.isArray(data.req_0.data.midurlinfo)
+      data && data.req_0 && data.req_0.data && Array.isArray(data.req_0.data.midurlinfo)
         ? data.req_0.data.midurlinfo
         : [];
     const streamIndex = midUrlInfoList.findIndex((item) => item && item.purl);
@@ -280,17 +255,9 @@ class QQMusicStreamProvider extends QQMusicClient {
       if (!hasQQMusicAuthCookie(cookieHeader)) {
         throw new Error('请先登录 QQ 音乐后再播放该歌曲。');
       }
-      throw new Error(
-        '当前 QQ 音乐账号没有该歌曲的完整播放或试听权益，可能需要 VIP 或受版权、地区限制。',
-      );
+      throw new Error('当前 QQ 音乐账号没有该歌曲的完整播放或试听权益，可能需要 VIP 或受版权、地区限制。');
     }
-    const sip =
-      data &&
-      data.req_0 &&
-      data.req_0.data &&
-      Array.isArray(data.req_0.data.sip)
-        ? data.req_0.data.sip
-        : [];
+    const sip = data && data.req_0 && data.req_0.data && Array.isArray(data.req_0.data.sip) ? data.req_0.data.sip : [];
     const baseUrl = sip.find(Boolean) || 'https://isure.stream.qqmusic.qq.com/';
     const expiresAt = Date.now() + STREAM_TTL_MS;
     const actualQuality = identifyQQStreamQuality(
@@ -311,9 +278,7 @@ class QQMusicStreamProvider extends QQMusicClient {
   async resolveEncryptedPlayableUrl(track, requestedQuality) {
     await this.requireLogin('QQ 音乐臻品音质需要先登录 QQ 音乐。');
     const sourceTrackId = extractSourceTrackId(track);
-    const sourceMediaId = String(
-      (track && track.sourceMediaId) || sourceTrackId,
-    ).trim();
+    const sourceMediaId = String((track && track.sourceMediaId) || sourceTrackId).trim();
     const sourceSongType = normalizeQQSongType(track && track.sourceSongType);
     const format = QQ_ENCRYPTED_QUALITIES[requestedQuality];
     const filename = `${format.family}${sourceMediaId}.${format.extension}`;
@@ -344,21 +309,13 @@ class QQMusicStreamProvider extends QQMusicClient {
       guid,
     );
     const info =
-      data &&
-      data.queryvkey &&
-      data.queryvkey.data &&
-      Array.isArray(data.queryvkey.data.midurlinfo)
-        ? data.queryvkey.data.midurlinfo.find(
-            (item) => item && item.purl && item.ekey,
-          )
+      data && data.queryvkey && data.queryvkey.data && Array.isArray(data.queryvkey.data.midurlinfo)
+        ? data.queryvkey.data.midurlinfo.find((item) => item && item.purl && item.ekey)
         : null;
     const purl = info && String(info.purl || '');
     const ekey = info && String(info.ekey || '');
     if (!purl || !ekey) throw new Error('QQ 音乐未返回可解密的臻品媒体。');
-    const sip =
-      data.queryvkey.data && Array.isArray(data.queryvkey.data.sip)
-        ? data.queryvkey.data.sip
-        : [];
+    const sip = data.queryvkey.data && Array.isArray(data.queryvkey.data.sip) ? data.queryvkey.data.sip : [];
     const baseUrl = sip.find(Boolean) || 'https://isure.stream.qqmusic.qq.com/';
     const id = crypto.randomUUID();
     const expiresAt = Date.now() + STREAM_TTL_MS;

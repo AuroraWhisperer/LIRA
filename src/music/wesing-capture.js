@@ -9,10 +9,7 @@ const {
   parseQrcDocument,
 } = require('./wesing-cache');
 const { createWeSingCapture } = require('./wesing-capture-engine');
-const {
-  buildPowerShellMonitorScript,
-  createPowerShellWeSingMonitor,
-} = require('./wesing-monitor');
+const { buildPowerShellMonitorScript, createPowerShellWeSingMonitor } = require('./wesing-monitor');
 
 module.exports = {
   buildPowerShellMonitorScript,

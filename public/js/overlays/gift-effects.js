@@ -47,8 +47,7 @@ import { createGiftEffectPlayer } from './gift-effect-player.js';
   let reconnectTimer = null;
 
   if (DEBUG) document.body.classList.add('is-debug');
-  if (document.readyState === 'loading')
-    document.addEventListener('DOMContentLoaded', init, { once: true });
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true });
   else init();
 
   function init() {
@@ -61,18 +60,14 @@ import { createGiftEffectPlayer } from './gift-effect-player.js';
       if (document.hidden) particleController.stop();
       else playNextFrame();
     });
-    window.addEventListener('resize', () =>
-      particleController.resize(window.innerWidth, window.innerHeight),
-    );
+    window.addEventListener('resize', () => particleController.resize(window.innerWidth, window.innerHeight));
     particleController.resize(window.innerWidth, window.innerHeight);
     connectSocket();
   }
 
   function initFrameAssets() {
     const artwork = document.getElementById('giftFrameArtworkImage');
-    const accents = Array.from(
-      document.querySelectorAll('[data-frame-accent]'),
-    );
+    const accents = Array.from(document.querySelectorAll('[data-frame-accent]'));
     const hideArtwork = () => {
       if (artwork) artwork.hidden = true;
       showStatus('礼物边框素材加载失败。');
@@ -126,16 +121,11 @@ import { createGiftEffectPlayer } from './gift-effect-player.js';
     if (!isPreview) {
       if (seenEventIds.has(payload.eventId)) return;
       seenEventIds.add(payload.eventId);
-      if (seenEventIds.size > 100)
-        seenEventIds.delete(seenEventIds.values().next().value);
+      if (seenEventIds.size > 100) seenEventIds.delete(seenEventIds.values().next().value);
     }
     if (pending.length >= MAX_PENDING) {
       const lowestIndex = findLowestPendingIndex();
-      if (
-        lowestIndex < 0 ||
-        Number(payload.totalPriceCents) <=
-          Number(pending[lowestIndex].payload.totalPriceCents)
-      )
+      if (lowestIndex < 0 || Number(payload.totalPriceCents) <= Number(pending[lowestIndex].payload.totalPriceCents))
         return;
       pending.splice(lowestIndex, 1);
     }
@@ -165,10 +155,7 @@ import { createGiftEffectPlayer } from './gift-effect-player.js';
       frameController.prepare(payload, motionMode);
       session.watchdog = setTimeout(
         () => session.abort('watchdog'),
-        TIMELINE.enterDuration +
-          TIMELINE.holdDuration +
-          TIMELINE.exitDuration +
-          TIMELINE.watchdogGraceDuration,
+        TIMELINE.enterDuration + TIMELINE.holdDuration + TIMELINE.exitDuration + TIMELINE.watchdogGraceDuration,
       );
       if (motionMode !== 'reduced') particleController.start();
       await raceAbort(session, async () => {
@@ -191,11 +178,9 @@ import { createGiftEffectPlayer } from './gift-effect-player.js';
   function resolveMotionMode(payload) {
     const explicit = params.get('motion');
     if (explicit === 'full' || explicit === 'reduced') return explicit;
-    const configured =
-      payload.motionMode || currentSettings.giftFrameMotionMode;
+    const configured = payload.motionMode || currentSettings.giftFrameMotionMode;
     if (configured === 'full' || configured === 'reduced') return configured;
-    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches)
-      return 'reduced';
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return 'reduced';
     return 'full';
   }
 
@@ -216,17 +201,13 @@ import { createGiftEffectPlayer } from './gift-effect-player.js';
       },
       start() {
         if (!context || document.hidden) return;
-        particles = FRAME_PERIMETER_ANCHORS.slice(0, FIREFLY_LIMIT).map(
-          (anchor, index) => ({
-            ...anchor,
-            life: 920 + (index % 3) * 120,
-            radius: 1.8 + (index % 2) * 0.45,
-          }),
-        );
+        particles = FRAME_PERIMETER_ANCHORS.slice(0, FIREFLY_LIMIT).map((anchor, index) => ({
+          ...anchor,
+          life: 920 + (index % 3) * 120,
+          radius: 1.8 + (index % 2) * 0.45,
+        }));
         const startedAt = performance.now();
-        const finalElapsed = Math.max(
-          ...particles.map((particle) => particle.delay + particle.life),
-        );
+        const finalElapsed = Math.max(...particles.map((particle) => particle.delay + particle.life));
         const draw = (now) => {
           const elapsed = now - startedAt;
           if (!context || particles.length === 0) return;
@@ -277,11 +258,7 @@ import { createGiftEffectPlayer } from './gift-effect-player.js';
       this.abortPromise = new Promise((resolve) => {
         this.resolveAbort = resolve;
       });
-      this.controller.signal.addEventListener(
-        'abort',
-        () => this.resolveAbort(),
-        { once: true },
-      );
+      this.controller.signal.addEventListener('abort', () => this.resolveAbort(), { once: true });
     }
     wait(duration) {
       return new Promise((resolve, reject) => {
@@ -307,8 +284,7 @@ import { createGiftEffectPlayer } from './gift-effect-player.js';
       this.controller.abort();
     }
     throwIfAborted() {
-      if (this.controller.signal.aborted)
-        throw new Error(`播放会话已取消：${this.abortReason || 'abort'}`);
+      if (this.controller.signal.aborted) throw new Error(`播放会话已取消：${this.abortReason || 'abort'}`);
     }
     cleanup() {
       this.abort('cleanup');
@@ -345,8 +321,7 @@ import { createGiftEffectPlayer } from './gift-effect-player.js';
       Number.isSafeInteger(Number(payload.totalPriceCents)) &&
       Number(payload.totalPriceCents) > 0 &&
       ALLOWED_THEMES.has(String(payload.themeId || 'woodland-bloom')) &&
-      (payload.motionMode === undefined ||
-        ALLOWED_MOTION.has(String(payload.motionMode)))
+      (payload.motionMode === undefined || ALLOWED_MOTION.has(String(payload.motionMode)))
     );
   }
 
@@ -355,8 +330,7 @@ import { createGiftEffectPlayer } from './gift-effect-player.js';
     let index = 0;
     for (let i = 1; i < pending.length; i += 1) {
       if (
-        Number(pending[i].payload.totalPriceCents) <=
-          Number(pending[index].payload.totalPriceCents) &&
+        Number(pending[i].payload.totalPriceCents) <= Number(pending[index].payload.totalPriceCents) &&
         pending[i].queuedAt >= pending[index].queuedAt
       )
         index = i;
@@ -399,8 +373,7 @@ import { createGiftEffectPlayer } from './gift-effect-player.js';
   function keyOutBlack(context, x, y, width, height) {
     const frame = context.getImageData(x, y, width, height);
     const data = frame.data;
-    for (let i = 0; i < data.length; i += 4)
-      data[i + 3] = Math.max(data[i], data[i + 1], data[i + 2]);
+    for (let i = 0; i < data.length; i += 4) data[i + 3] = Math.max(data[i], data[i + 1], data[i + 2]);
     context.putImageData(frame, x, y);
   }
   function applyAlphaMask(context, maskContext, x, y, width, height) {
@@ -410,10 +383,7 @@ import { createGiftEffectPlayer } from './gift-effect-player.js';
     context.putImageData(frame, x, y);
   }
   function containRect(sourceWidth, sourceHeight, targetWidth, targetHeight) {
-    const scale = Math.min(
-      targetWidth / sourceWidth,
-      targetHeight / sourceHeight,
-    );
+    const scale = Math.min(targetWidth / sourceWidth, targetHeight / sourceHeight);
     const width = Math.max(1, Math.round(sourceWidth * scale));
     const height = Math.max(1, Math.round(sourceHeight * scale));
     return {
@@ -424,8 +394,7 @@ import { createGiftEffectPlayer } from './gift-effect-player.js';
     };
   }
   function getSourceLayout(layout, width, height) {
-    if (!layout || layout.videoWidth !== width || layout.videoHeight !== height)
-      return null;
+    if (!layout || layout.videoWidth !== width || layout.videoHeight !== height) return null;
     return {
       packedAlpha: true,
       colorX: layout.rgbFrame[0],

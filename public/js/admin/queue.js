@@ -32,9 +32,7 @@ function initQueueForm() {
       randomButton.disabled = false;
     }
   });
-  document
-    .getElementById('nextBtn')
-    .addEventListener('click', () => queueAction('next'));
+  document.getElementById('nextBtn').addEventListener('click', () => queueAction('next'));
   document.getElementById('clearBtn').addEventListener('click', async () => {
     const confirmed = await dangerConfirm({
       title: '清空全部队列',
@@ -67,10 +65,7 @@ function initQueueForm() {
         const delta = normalizedWheelDelta(event, list);
         const maxScrollTop = Math.max(0, list.scrollHeight - list.clientHeight);
         const canScroll =
-          maxScrollTop > 0 &&
-          (delta < 0
-            ? list.scrollTop > 0
-            : delta > 0 && list.scrollTop < maxScrollTop);
+          maxScrollTop > 0 && (delta < 0 ? list.scrollTop > 0 : delta > 0 && list.scrollTop < maxScrollTop);
         if (!canScroll) return;
 
         event.preventDefault();
@@ -140,9 +135,7 @@ function renderQueueState(queue = {}) {
   }
 
   list.querySelectorAll('[data-action]').forEach((button) => {
-    button.addEventListener('click', () =>
-      queueAction(button.dataset.action, button.dataset.id),
-    );
+    button.addEventListener('click', () => queueAction(button.dataset.action, button.dataset.id));
   });
   bindQueueCopyButtons(list, '歌名已复制');
 }
@@ -186,9 +179,7 @@ function renderSuperChatQueue(items) {
     .join('');
 
   list.querySelectorAll('[data-sc-action]').forEach((button) => {
-    button.addEventListener('click', () =>
-      superChatAction(button.dataset.scAction, button.dataset.id),
-    );
+    button.addEventListener('click', () => superChatAction(button.dataset.scAction, button.dataset.id));
   });
   bindQueueCopyButtons(list, 'SC 已复制');
 }
@@ -209,16 +200,9 @@ function bindQueueCopyButtons(list, successMessage) {
 function applyAdminQueueFontPreview(settings = {}) {
   const list = document.getElementById('queueList');
   if (!list) return;
-  const fontFamily =
-    settings.overlayFontFamily ||
-    value('overlayFontFamily') ||
-    'Microsoft YaHei';
-  const fontWeight =
-    settings.overlayFontWeight || value('overlayFontWeight') || '700';
-  list.style.setProperty(
-    '--admin-queue-font-family',
-    withMultilingualFallback(fontFamily),
-  );
+  const fontFamily = settings.overlayFontFamily || value('overlayFontFamily') || 'Microsoft YaHei';
+  const fontWeight = settings.overlayFontWeight || value('overlayFontWeight') || '700';
+  list.style.setProperty('--admin-queue-font-family', withMultilingualFallback(fontFamily));
   list.style.setProperty('--admin-queue-font-weight', fontWeight);
 }
 
@@ -242,8 +226,7 @@ function requesterLabel(item) {
 }
 
 function sourceLabel(itemOrSource) {
-  const item =
-    typeof itemOrSource === 'object' && itemOrSource ? itemOrSource : null;
+  const item = typeof itemOrSource === 'object' && itemOrSource ? itemOrSource : null;
   const source = item ? item.source : itemOrSource;
   if (source === 'random' || String(source || '').startsWith('random:')) {
     const scope = String(source || '').startsWith('random:')
@@ -297,10 +280,4 @@ publishQueue({
   sourceLabel,
 });
 
-export {
-  initQueueForm,
-  renderState,
-  renderQueueState,
-  renderSuperChatQueue,
-  applyAdminQueueFontPreview,
-};
+export { initQueueForm, renderState, renderQueueState, renderSuperChatQueue, applyAdminQueueFontPreview };

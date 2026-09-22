@@ -52,8 +52,7 @@
   box-shadow: 0 2px 7px rgba(22, 31, 43, 0.08);
 }
 
-.desktop-lyric-workspace
-  .desktop-lyric-preview-viewport:has(.desktop-lyric-preview-empty) {
+.desktop-lyric-workspace .desktop-lyric-preview-viewport:has(.desktop-lyric-preview-empty) {
   overflow-y: hidden;
 }
 

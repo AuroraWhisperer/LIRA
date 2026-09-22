@@ -7,10 +7,7 @@ const path = require('node:path');
 const test = require('node:test');
 
 test('desktop shutdown drains sync controllers before stopping the runtime', () => {
-  const source = fs.readFileSync(
-    path.join(__dirname, '..', 'src', 'electron', 'main.js'),
-    'utf8',
-  );
+  const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'electron', 'main.js'), 'utf8');
   const start = source.indexOf('function requestDesktopShutdown(');
   const end = source.indexOf('// ---- startup ----', start);
   const shutdown = source.slice(start, end);
@@ -25,8 +22,7 @@ test('desktop shutdown drains sync controllers before stopping the runtime', () 
     /await Promise\.all\([\s\S]*?controller\.whenIdle\(\)[\s\S]*?await lifecycleState\.shutdown\?\.\(\{ exitProcess: false \}\)/,
   );
   assert.ok(
-    shutdown.indexOf('controller.whenIdle()') <
-      shutdown.indexOf('lifecycleState.shutdown?.({ exitProcess: false })'),
+    shutdown.indexOf('controller.whenIdle()') < shutdown.indexOf('lifecycleState.shutdown?.({ exitProcess: false })'),
   );
 });
 
@@ -98,13 +94,10 @@ test('desktop runtime adapts the legacy server API without changing calls', asyn
   });
   await runtime.stop({ exitProcess: false });
   runtime.setPreShutdownHook(hook);
-  assert.deepEqual(
-    runtime.persistPlaybackSnapshot({ currentMs: 10 }, 'desktop'),
-    {
-      payload: { currentMs: 10 },
-      clientId: 'desktop',
-    },
-  );
+  assert.deepEqual(runtime.persistPlaybackSnapshot({ currentMs: 10 }, 'desktop'), {
+    payload: { currentMs: 10 },
+    clientId: 'desktop',
+  });
   assert.equal(runtime.getSetting('theme'), 'setting:theme');
   assert.equal(runtime.getApiToken(), 'synthetic-main-token');
   const processedEvent = {
@@ -150,18 +143,9 @@ test('desktop runtime adapts the legacy server API without changing calls', asyn
 });
 
 test('desktop freezes gift source switching before waiting for cloud sync', () => {
-  const source = fs.readFileSync(
-    path.join(__dirname, '..', 'src', 'electron', 'main.js'),
-    'utf8',
-  );
+  const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'electron', 'main.js'), 'utf8');
   const readinessSource = fs.readFileSync(
-    path.join(
-      __dirname,
-      '..',
-      'src',
-      'electron',
-      'desktop-readiness-controller.js',
-    ),
+    path.join(__dirname, '..', 'src', 'electron', 'desktop-readiness-controller.js'),
     'utf8',
   );
   const start = readinessSource.indexOf('function resumeAuthorizedWork');
@@ -171,17 +155,12 @@ test('desktop freezes gift source switching before waiting for cloud sync', () =
   assert.ok(start >= 0 && end > start);
   assert.doesNotMatch(source, /createRemoteGiftCursorStore/u);
   assert.match(source, /giftSync:\s*\{[\s\S]*?remoteGiftController\?\.start/u);
-  assert.ok(
-    stateChange.indexOf('remoteGiftController?.start()') <
-      stateChange.indexOf('cloudSyncController'),
-  );
+  assert.ok(stateChange.indexOf('remoteGiftController?.start()') < stateChange.indexOf('cloudSyncController'));
   assert.match(stateChange, /remoteGiftController\?\.stop\(\)/u);
 });
 
 test('local media protocol enforces authorization and serves byte ranges', async (t) => {
-  const {
-    registerLocalMediaProtocol,
-  } = require('../src/electron/local-media-protocol');
+  const { registerLocalMediaProtocol } = require('../src/electron/local-media-protocol');
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-local-media-'));
   const allowedPath = path.join(tempDir, 'allowed.mp3');
   const blockedPath = path.join(tempDir, 'blocked.mp3');
@@ -207,10 +186,7 @@ test('local media protocol enforces authorization and serves byte ranges', async
   });
   assert.equal(partial.status, 206);
   assert.equal(partial.headers.get('content-range'), 'bytes 1-3/6');
-  assert.equal(
-    Buffer.from(await partial.arrayBuffer()).toString('utf8'),
-    'bcd',
-  );
+  assert.equal(Buffer.from(await partial.arrayBuffer()).toString('utf8'), 'bcd');
 
   const inverted = await handler({
     url: allowedUrl,
@@ -218,10 +194,7 @@ test('local media protocol enforces authorization and serves byte ranges', async
   });
   assert.equal(inverted.status, 200);
   assert.equal(inverted.headers.get('content-range'), null);
-  assert.equal(
-    Buffer.from(await inverted.arrayBuffer()).toString('utf8'),
-    'abcdef',
-  );
+  assert.equal(Buffer.from(await inverted.arrayBuffer()).toString('utf8'), 'abcdef');
 
   const blockedUrl = `local-media://media/${Buffer.from(blockedPath).toString('base64url')}`;
   const blocked = await handler({ url: blockedUrl, headers: new Headers() });
@@ -229,9 +202,7 @@ test('local media protocol enforces authorization and serves byte ranges', async
 });
 
 test('desktop local font permission requires the exact app origin and explicit approval', async () => {
-  const {
-    registerLocalFontPermissionHandler,
-  } = require('../src/electron/desktop-permissions');
+  const { registerLocalFontPermissionHandler } = require('../src/electron/desktop-permissions');
   let permissionHandler = null;
   let response = 0;
   const prompts = [];
@@ -262,10 +233,7 @@ test('desktop local font permission requires the exact app origin and explicit a
       });
     });
 
-  assert.equal(
-    await request('localFonts', 'http://127.0.0.1:3000/admin?desktop=1'),
-    true,
-  );
+  assert.equal(await request('localFonts', 'http://127.0.0.1:3000/admin?desktop=1'), true);
   assert.equal(prompts.length, 1);
   assert.equal(prompts[0].parent, mainWindow);
   assert.match(prompts[0].options.message, /读取本机字体列表/);
@@ -274,14 +242,8 @@ test('desktop local font permission requires the exact app origin and explicit a
   assert.match(prompts[0].options.detail, /不会读取字体文件/);
 
   response = 1;
-  assert.equal(
-    await request('localFonts', 'http://127.0.0.1:3000/admin?desktop=1'),
-    false,
-  );
+  assert.equal(await request('localFonts', 'http://127.0.0.1:3000/admin?desktop=1'), false);
   assert.equal(await request('localFonts', 'https://example.com/'), false);
-  assert.equal(
-    await request('notifications', 'http://127.0.0.1:3000/admin?desktop=1'),
-    false,
-  );
+  assert.equal(await request('notifications', 'http://127.0.0.1:3000/admin?desktop=1'), false);
   assert.equal(prompts.length, 2);
 });

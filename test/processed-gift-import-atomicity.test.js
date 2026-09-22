@@ -3,12 +3,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const { createGiftSyncStore } = require('../src/storage/gift-sync-store');
-const {
-  createFixture,
-  makeEvent,
-  makeHistoryRecord,
-  readGift,
-} = require('./helpers/processed-gift-fixture');
+const { createFixture, makeEvent, makeHistoryRecord, readGift } = require('./helpers/processed-gift-fixture');
 
 test('paused gift imports roll back history and catch-up cursors until writes resume', () => {
   const fixture = createFixture();
@@ -29,17 +24,9 @@ test('paused gift imports roll back history and catch-up cursors until writes re
     };
     const initial = store.getState(fixture.sourceId);
     fixture.detection.pauseDetection();
-    assert.throws(
-      () => store.commitHistoryPage(history),
-      /GIFT_DETECTION_PAUSED/,
-    );
+    assert.throws(() => store.commitHistoryPage(history), /GIFT_DETECTION_PAUSED/);
     assert.deepEqual(store.getState(fixture.sourceId), initial);
-    assert.equal(
-      fixture.db.giftDb
-        .prepare('SELECT COUNT(*) AS count FROM gift_events')
-        .get().count,
-      0,
-    );
+    assert.equal(fixture.db.giftDb.prepare('SELECT COUNT(*) AS count FROM gift_events').get().count, 0);
     fixture.detection.resumeDetection();
     store.commitHistoryPage(history);
 
@@ -55,20 +42,10 @@ test('paused gift imports roll back history and catch-up cursors until writes re
     fixture.detection.pauseDetection();
     assert.throws(() => store.commitCatchUpPage(page), /GIFT_DETECTION_PAUSED/);
     assert.deepEqual(store.getState(fixture.sourceId), bootstrapped);
-    assert.equal(
-      fixture.db.giftDb
-        .prepare('SELECT COUNT(*) AS count FROM gift_events')
-        .get().count,
-      1,
-    );
+    assert.equal(fixture.db.giftDb.prepare('SELECT COUNT(*) AS count FROM gift_events').get().count, 1);
     fixture.detection.resumeDetection();
     assert.equal(store.commitCatchUpPage(page).finalCursor, 6);
-    assert.equal(
-      fixture.db.giftDb
-        .prepare('SELECT COUNT(*) AS count FROM gift_events')
-        .get().count,
-      2,
-    );
+    assert.equal(fixture.db.giftDb.prepare('SELECT COUNT(*) AS count FROM gift_events').get().count, 2);
   } finally {
     fixture.close();
   }
@@ -78,16 +55,12 @@ test('a deferred gift delivery cannot replay its old row across a clear-all paus
   const fixture = createFixture();
   const afterCommit = [];
   try {
-    const row = fixture.detection.importProcessedEvent(
-      makeEvent('final', 1),
-      fixture.sourceId,
-      { registerAfterCommit: (callback) => afterCommit.push(callback) },
-    );
+    const row = fixture.detection.importProcessedEvent(makeEvent('final', 1), fixture.sourceId, {
+      registerAfterCommit: (callback) => afterCommit.push(callback),
+    });
     assert.equal(afterCommit.length, 1);
     fixture.detection.pauseDetection();
-    fixture.db.giftDb
-      .prepare('DELETE FROM gift_events WHERE id = ?')
-      .run(row.id);
+    fixture.db.giftDb.prepare('DELETE FROM gift_events WHERE id = ?').run(row.id);
     fixture.detection.resumeDetection();
     afterCommit[0]();
     assert.deepEqual(fixture.events, []);
@@ -146,11 +119,7 @@ test('live final replay compares the full canonical DTO and rolls back its page'
       giftDb: fixture.db.giftDb,
       importHistoryRecord() {},
       importLiveEvent(event, sourceId, importOptions) {
-        return fixture.detection.importProcessedEvent(
-          event,
-          sourceId,
-          importOptions,
-        );
+        return fixture.detection.importProcessedEvent(event, sourceId, importOptions);
       },
     });
     store.commitHistoryPage({
@@ -169,10 +138,7 @@ test('live final replay compares the full canonical DTO and rolls back its page'
       ['userName', { userName: 'Bob' }],
       ['num', { num: 3 }],
       ['unitPriceCents', { unitPrice: 0.2 }],
-      [
-        'totalPriceCents/blindProfitCents',
-        { totalPrice: 0.3, blindProfit: 0.2 },
-      ],
+      ['totalPriceCents/blindProfitCents', { totalPrice: 0.3, blindProfit: 0.2 }],
       ['coinType', { coinType: 'silver' }],
       [
         'isBlindBox',

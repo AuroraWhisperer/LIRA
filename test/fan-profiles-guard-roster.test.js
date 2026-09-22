@@ -4,17 +4,24 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { fanFixture, SCOPE, IDENTITY, NOW } = require('./helpers/fan-profile-fixture');
 
-function roster(members = [{ uid: IDENTITY.value, name: '海边听歌',
-  avatar: 'https://i0.hdslb.com/bfs/face/fixture.jpg', level: 3 }]) {
+function roster(
+  members = [{ uid: IDENTITY.value, name: '海边听歌', avatar: 'https://i0.hdslb.com/bfs/face/fixture.jpg', level: 3 }],
+) {
   return { roomId: '1234', ownerUid: '99', observedAt: NOW, members, skipped: 0 };
 }
 
 test('daily roster setting is opt-in, validates input and survives restart and backup restore', (t) => {
   const f = fanFixture(t);
   assert.equal(f.run('settings').autoSyncGuardRoster, false);
-  assert.throws(() => f.run('configure', {
-    autoCreate: true, autoUpdate: true, autoSyncGuardRoster: 'true',
-  }), /自动更新/);
+  assert.throws(
+    () =>
+      f.run('configure', {
+        autoCreate: true,
+        autoUpdate: true,
+        autoSyncGuardRoster: 'true',
+      }),
+    /自动更新/,
+  );
   f.run('configure', { autoCreate: false, autoUpdate: false, autoSyncGuardRoster: true });
   f.run('configure', { autoCreate: false, autoUpdate: false });
   f.restart();
@@ -36,10 +43,19 @@ test('automatic roster atomically saves a scoped success date and retains it acr
   f.restart();
   assert.equal(f.run('settings').lastGuardRosterAutoUpdate.date, '2026-09-18');
   const before = f.detail(profile.id);
-  assert.throws(() => f.service.importGuardRoster(SCOPE, { ...roster([
-    { uid: IDENTITY.value, name: '不应保存的新名字', level: 1 },
-    { uid: '900000002', level: 4 },
-  ]), observedAt: '2026-09-19T04:10:00.000Z' }, '2026-09-19'));
+  assert.throws(() =>
+    f.service.importGuardRoster(
+      SCOPE,
+      {
+        ...roster([
+          { uid: IDENTITY.value, name: '不应保存的新名字', level: 1 },
+          { uid: '900000002', level: 4 },
+        ]),
+        observedAt: '2026-09-19T04:10:00.000Z',
+      },
+      '2026-09-19',
+    ),
+  );
   assert.deepEqual(f.detail(profile.id), before);
   assert.equal(f.run('settings').lastGuardRosterAutoUpdate.date, '2026-09-18');
   f.service.importGuardRoster(SCOPE, roster());
@@ -53,8 +69,11 @@ test('daily roster refresh changes guard ranks and removes current identity for 
   const p = f.create({ notes: '私人备注' });
   f.service.importGuardRoster(SCOPE, roster(), '2026-09-18');
   assert.equal(f.detail(p.id).currentGuardLevel, 3);
-  f.service.importGuardRoster(SCOPE, { ...roster([{ uid: IDENTITY.value, name: '海边听歌', level: 2 }]),
-    observedAt: '2026-09-19T04:10:00.000Z' }, '2026-09-19');
+  f.service.importGuardRoster(
+    SCOPE,
+    { ...roster([{ uid: IDENTITY.value, name: '海边听歌', level: 2 }]), observedAt: '2026-09-19T04:10:00.000Z' },
+    '2026-09-19',
+  );
   assert.equal(f.detail(p.id).currentGuardLevel, 2);
   const records = f.detail(p.id).records;
   f.service.importGuardRoster(SCOPE, { ...roster([]), observedAt: '2026-09-20T04:10:00.000Z' }, '2026-09-20');
@@ -93,8 +112,12 @@ test('manual roster import preserves private fields, existing history and repeat
   f.record(original.id, 'note', { body: '一起聊过旅行' });
   f.service.importGuardRoster(SCOPE, roster());
   const observed = f.detail(original.id).records.find((r) => r.kind === 'membership');
-  f.run('save-record', { profileId: original.id, id: observed.id, revision: observed.revision,
-    data: { ...observed.data, level: 2, reason: '人工核对' } });
+  f.run('save-record', {
+    profileId: original.id,
+    id: observed.id,
+    revision: observed.revision,
+    data: { ...observed.data, level: 2, reason: '人工核对' },
+  });
   const again = f.service.importGuardRoster(SCOPE, { ...roster(), observedAt: '2026-09-18T05:00:00.000Z' });
   assert.equal(again.created, 0);
   const p = f.detail(original.id);
@@ -115,9 +138,16 @@ test('manual import skips archived and suppressed profiles, and never merges ano
   const openId = f.create({ identity: { ...IDENTITY, type: 'open_id', value: '900000003' } });
   const otherScope = JSON.stringify(['https://lira.example', 'streamer-b']);
   f.run('create', { alias: '另一个主播的档案', identity: { ...IDENTITY, value: '900000004' } }, otherScope);
-  const result = f.service.importGuardRoster(SCOPE, roster([1, 2, 3, 4].map((n) => ({
-    uid: `90000000${n}`, name: `虚构粉丝${n}`, level: 3,
-  }))));
+  const result = f.service.importGuardRoster(
+    SCOPE,
+    roster(
+      [1, 2, 3, 4].map((n) => ({
+        uid: `90000000${n}`,
+        name: `虚构粉丝${n}`,
+        level: 3,
+      })),
+    ),
+  );
   assert.equal(result.skipped, 2);
   assert.equal(result.created, 2);
   assert.equal(f.detail(archived.id).records.length, 0);
@@ -127,10 +157,15 @@ test('manual import skips archived and suppressed profiles, and never merges ano
 
 test('manual roster import is atomic and does not infer absence as an expired membership', (t) => {
   const f = fanFixture(t);
-  assert.throws(() => f.service.importGuardRoster(SCOPE, roster([
-    { uid: IDENTITY.value, name: '虚构粉丝', level: 3 },
-    { uid: '900000002', name: '无效等级', level: 4 },
-  ])));
+  assert.throws(() =>
+    f.service.importGuardRoster(
+      SCOPE,
+      roster([
+        { uid: IDENTITY.value, name: '虚构粉丝', level: 3 },
+        { uid: '900000002', name: '无效等级', level: 4 },
+      ]),
+    ),
+  );
   assert.equal(f.run('list').profiles.length, 0);
   f.service.importGuardRoster(SCOPE, roster());
   f.service.importGuardRoster(SCOPE, { ...roster([]), observedAt: '2026-09-18T05:00:00.000Z' });
@@ -148,7 +183,11 @@ test('current roster roles survive absence, rejoining, restart and backup withou
   const f = fanFixture(t);
   const complete = f.create({ summary: '常听民谣', notes: '保留备注', birthday: { monthDay: '09-19' } });
   f.record(complete.id, 'note', { body: '一起聊过旅行' });
-  const members = [3, 2, 1].map((level, index) => ({ uid: `90000000${index + 1}`, name: `虚构粉丝${index + 1}`, level }));
+  const members = [3, 2, 1].map((level, index) => ({
+    uid: `90000000${index + 1}`,
+    name: `虚构粉丝${index + 1}`,
+    level,
+  }));
   f.service.importGuardRoster(SCOPE, roster(members));
   for (const member of members) {
     const p = f.run('find', { identity: { ...IDENTITY, value: member.uid } });
@@ -171,7 +210,11 @@ test('current roster roles survive absence, rejoining, restart and backup withou
   f.setNow(later);
   f.service.importGuardRoster(SCOPE, { ...roster(members), observedAt: later });
   assert.equal(f.detail(complete.id).currentGuardLevel, 3);
-  assert.equal(f.detail(complete.id).records.length, 2, 'same-day rejoining does not duplicate unchanged historical evidence');
+  assert.equal(
+    f.detail(complete.id).records.length,
+    2,
+    'same-day rejoining does not duplicate unchanged historical evidence',
+  );
   const preview = f.run('preview-restore', { backup });
   f.run('restore', { backup, ...preview, conflicts: 'replace' });
   assert.equal(f.detail(complete.id).currentGuardLevel, null);
@@ -184,15 +227,29 @@ test('unidentified roster members, other rooms and stale imports do not clear ne
   const p = f.run('find', { identity: IDENTITY });
   f.service.importGuardRoster(SCOPE, { ...roster([]), skipped: 1, observedAt: '2026-09-18T05:00:00.000Z' });
   assert.equal(f.detail(p.id).currentGuardLevel, 3);
-  f.service.importGuardRoster(SCOPE, { ...roster([]), roomId: '5678', ownerUid: '88', observedAt: '2026-09-18T06:00:00.000Z' });
+  f.service.importGuardRoster(SCOPE, {
+    ...roster([]),
+    roomId: '5678',
+    ownerUid: '88',
+    observedAt: '2026-09-18T06:00:00.000Z',
+  });
   assert.equal(f.detail(p.id).currentGuardLevel, 3);
-  f.service.importGuardRoster(SCOPE, { ...roster([{ uid: IDENTITY.value, level: 2 }]), observedAt: '2026-09-18T07:00:00.000Z' });
+  f.service.importGuardRoster(SCOPE, {
+    ...roster([{ uid: IDENTITY.value, level: 2 }]),
+    observedAt: '2026-09-18T07:00:00.000Z',
+  });
   f.service.importGuardRoster(SCOPE, { ...roster([]), observedAt: '2026-09-18T06:00:00.000Z' });
   assert.equal(f.detail(p.id).currentGuardLevel, 2);
   const before = f.detail(p.id);
-  assert.throws(() => f.service.importGuardRoster(SCOPE, { ...roster([
-    { uid: IDENTITY.value, level: 1 }, { uid: '900000002', level: 4 },
-  ]), observedAt: '2026-09-18T08:00:00.000Z' }));
+  assert.throws(() =>
+    f.service.importGuardRoster(SCOPE, {
+      ...roster([
+        { uid: IDENTITY.value, level: 1 },
+        { uid: '900000002', level: 4 },
+      ]),
+      observedAt: '2026-09-18T08:00:00.000Z',
+    }),
+  );
   assert.deepEqual(f.detail(p.id), before);
 });
 
@@ -214,7 +271,10 @@ test('repeated same-day imports retain an actual level change back to a previous
   const f = fanFixture(t);
   f.service.importGuardRoster(SCOPE, roster());
   const at = '2026-09-18T05:00:00.000Z';
-  f.service.importGuardRoster(SCOPE, { ...roster([{ uid: IDENTITY.value, name: '海边听歌', level: 2 }]), observedAt: at });
+  f.service.importGuardRoster(SCOPE, {
+    ...roster([{ uid: IDENTITY.value, name: '海边听歌', level: 2 }]),
+    observedAt: at,
+  });
   f.setNow('2026-09-18T06:00:00.000Z');
   f.service.importGuardRoster(SCOPE, { ...roster(), observedAt: '2026-09-18T06:00:00.000Z' });
   const p = f.run('find', { identity: IDENTITY });
@@ -224,12 +284,15 @@ test('repeated same-day imports retain an actual level change back to a previous
 
 test('profiles sort by guard rank, then fan medal level and recency, and retain ordering', (t) => {
   const f = fanFixture(t);
-  f.service.importGuardRoster(SCOPE, roster([
-    { uid: IDENTITY.value, name: '低灯牌', level: 1, medalLevel: 12 },
-    { uid: '900000002', name: '高灯牌舰长', level: 3, medalLevel: 32 },
-    { uid: '900000003', name: '无灯牌提督', level: 2 },
-    { uid: '900000004', name: '高灯牌总督', level: 1, medalLevel: 28 },
-  ]));
+  f.service.importGuardRoster(
+    SCOPE,
+    roster([
+      { uid: IDENTITY.value, name: '低灯牌', level: 1, medalLevel: 12 },
+      { uid: '900000002', name: '高灯牌舰长', level: 3, medalLevel: 32 },
+      { uid: '900000003', name: '无灯牌提督', level: 2 },
+      { uid: '900000004', name: '高灯牌总督', level: 1, medalLevel: 28 },
+    ]),
+  );
   const low = f.run('find', { identity: IDENTITY });
   f.setNow('2026-09-18T06:00:00.000Z');
   f.record(low.id, 'note', { body: '更晚的互动不应改变灯牌排序' });
@@ -259,19 +322,31 @@ test('same-day medal changes update ordering without duplicating unchanged evide
   f.service.importGuardRoster(SCOPE, roster());
   const p = f.run('find', { identity: IDENTITY });
   const original = p.records[0];
-  f.run('save-record', { profileId: p.id, id: original.id, revision: original.revision,
-    data: { ...original.data, reason: '人工核对' } });
+  f.run('save-record', {
+    profileId: p.id,
+    id: original.id,
+    revision: original.revision,
+    data: { ...original.data, reason: '人工核对' },
+  });
   const snapshot = roster([{ uid: IDENTITY.value, name: '海边听歌', level: 3, medalLevel: 25 }]);
   snapshot.observedAt = '2026-09-18T04:30:00.000Z';
   f.service.importGuardRoster(SCOPE, snapshot);
   f.service.importGuardRoster(SCOPE, snapshot);
   assert.equal(f.detail(p.id).records.length, 2);
   assert.equal(f.detail(p.id).records.find((r) => r.id === original.id).data.reason, '人工核对');
-  f.service.importGuardRoster(SCOPE, { ...snapshot, observedAt: '2026-09-18T05:00:00.000Z',
-    members: [{ ...snapshot.members[0], medalLevel: 26 }] });
+  f.service.importGuardRoster(SCOPE, {
+    ...snapshot,
+    observedAt: '2026-09-18T05:00:00.000Z',
+    members: [{ ...snapshot.members[0], medalLevel: 26 }],
+  });
   assert.equal(f.detail(p.id).records.length, 3);
   const revised = f.detail(p.id).records.find((r) => r.id === original.id);
-  f.run('save-record', { profileId: p.id, id: original.id, revision: revised.revision,
-    occurredAt: '2026-09-18T06:00:00.000Z', data: revised.data });
+  f.run('save-record', {
+    profileId: p.id,
+    id: original.id,
+    revision: revised.revision,
+    occurredAt: '2026-09-18T06:00:00.000Z',
+    data: revised.data,
+  });
   assert.equal(f.run('list').profiles[0].medalLevel, 26);
 });

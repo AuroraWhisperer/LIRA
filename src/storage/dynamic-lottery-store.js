@@ -12,11 +12,7 @@ function storeError(code, message) {
 
 function requiredText(value, field, maximum = 512) {
   const normalized = typeof value === 'string' ? value.trim() : '';
-  if (
-    !normalized ||
-    normalized.length > maximum ||
-    /[\r\n\0]/u.test(normalized)
-  ) {
+  if (!normalized || normalized.length > maximum || /[\r\n\0]/u.test(normalized)) {
     throw new TypeError(`${field} is invalid.`);
   }
   return normalized;
@@ -76,8 +72,7 @@ function toScan(row) {
     readCount: Number(row.read_count),
     pauseReason: row.pause_reason,
     startedAtMs: Number(row.started_at_ms),
-    completedAtMs:
-      row.completed_at_ms === null ? null : Number(row.completed_at_ms),
+    completedAtMs: row.completed_at_ms === null ? null : Number(row.completed_at_ms),
     updatedAtMs: Number(row.updated_at_ms),
   };
 }
@@ -91,35 +86,19 @@ function normalizeEvidence(record, source) {
   if (!/^\d+$/u.test(recordId) || !/^\d+$/u.test(uid)) {
     throw new TypeError('Evidence IDs must be decimal strings.');
   }
-  const occurredAtMs =
-    record.occurredAtMs === null
-      ? null
-      : normalizeMs(record.occurredAtMs, 'evidence time');
+  const occurredAtMs = record.occurredAtMs === null ? null : normalizeMs(record.occurredAtMs, 'evidence time');
   const text = record.text === null ? null : String(record.text);
   if (text !== null && text.length > 1024 * 1024) {
     throw new TypeError('Evidence text is too large.');
   }
-  const parentId =
-    record.parentId === null
-      ? null
-      : requiredText(record.parentId, 'evidence parent ID', 64);
-  const level =
-    record.level === null
-      ? null
-      : normalizeMs(record.level, 'evidence user level');
-  const displayName =
-    typeof record.displayName === 'string'
-      ? record.displayName.trim().slice(0, 256) || null
-      : null;
+  const parentId = record.parentId === null ? null : requiredText(record.parentId, 'evidence parent ID', 64);
+  const level = record.level === null ? null : normalizeMs(record.level, 'evidence user level');
+  const displayName = typeof record.displayName === 'string' ? record.displayName.trim().slice(0, 256) || null : null;
   return { source, recordId, uid, occurredAtMs, text, parentId, level, displayName };
 }
 
 function normalizePage(page, source) {
-  if (
-    !page ||
-    !Array.isArray(page.records) ||
-    typeof page.ended !== 'boolean'
-  ) {
+  if (!page || !Array.isArray(page.records) || typeof page.ended !== 'boolean') {
     throw new TypeError('Collection page is invalid.');
   }
   const nextCursor = page.nextCursor === null ? null : String(page.nextCursor);
@@ -139,11 +118,7 @@ function createDynamicLotteryStore(lotteryDb) {
   }
 
   function getTask(taskId) {
-    return toTask(
-      lotteryDb
-        .prepare('SELECT * FROM lottery_tasks WHERE id = ?')
-        .get(requiredText(taskId, 'task ID')),
-    );
+    return toTask(lotteryDb.prepare('SELECT * FROM lottery_tasks WHERE id = ?').get(requiredText(taskId, 'task ID')));
   }
 
   function createTask(input) {
@@ -180,11 +155,7 @@ function createDynamicLotteryStore(lotteryDb) {
   }
 
   function getScan(scanId) {
-    return toScan(
-      lotteryDb
-        .prepare('SELECT * FROM lottery_scans WHERE id = ?')
-        .get(requiredText(scanId, 'scan ID')),
-    );
+    return toScan(lotteryDb.prepare('SELECT * FROM lottery_scans WHERE id = ?').get(requiredText(scanId, 'scan ID')));
   }
 
   function getActiveScan(taskId) {
@@ -198,19 +169,11 @@ function createDynamicLotteryStore(lotteryDb) {
     const sessionEpoch = normalizeMs(input?.sessionEpoch, 'session epoch');
     const startedAtMs = normalizeMs(input?.startedAtMs, 'scan start time');
     const sources = [...new Set(input?.sources || [])];
-    if (
-      sources.length === 0 ||
-      sources.some((source) => !['comment', 'repost', 'like'].includes(source))
-    ) {
-      throw new TypeError(
-        'At least one supported collection source is required.',
-      );
+    if (sources.length === 0 || sources.some((source) => !['comment', 'repost', 'like'].includes(source))) {
+      throw new TypeError('At least one supported collection source is required.');
     }
     const sourceState = Object.fromEntries(
-      sources.map((source) => [
-        source,
-        { cursor: null, coverage: 'unknown', readCount: 0 },
-      ]),
+      sources.map((source) => [source, { cursor: null, coverage: 'unknown', readCount: 0 }]),
     );
 
     transaction(lotteryDb, () => {
@@ -226,14 +189,7 @@ function createDynamicLotteryStore(lotteryDb) {
           ) VALUES (?, ?, ?, 'running', ?, ?, ?)
         `,
         )
-        .run(
-          id,
-          taskId,
-          sessionEpoch,
-          json(sourceState, 'scan sources'),
-          startedAtMs,
-          startedAtMs,
-        );
+        .run(id, taskId, sessionEpoch, json(sourceState, 'scan sources'), startedAtMs, startedAtMs);
       lotteryDb
         .prepare(
           `
@@ -252,8 +208,7 @@ function createDynamicLotteryStore(lotteryDb) {
     const taskId = requiredText(input?.taskId, 'task ID');
     const scanId = requiredText(input?.scanId, 'scan ID');
     const source = requiredText(input?.source, 'collection source', 32);
-    const expectedCursor =
-      input.expectedCursor === null ? null : String(input.expectedCursor);
+    const expectedCursor = input.expectedCursor === null ? null : String(input.expectedCursor);
     const sessionEpoch = normalizeMs(input?.sessionEpoch, 'session epoch');
     const committedAtMs = normalizeMs(input?.committedAtMs, 'page commit time');
     const page = normalizePage(input?.page, source);
@@ -270,28 +225,18 @@ function createDynamicLotteryStore(lotteryDb) {
     }
     const state = scan.sources[source];
     if (!state) {
-      throw storeError(
-        'LOTTERY_SOURCE_MISMATCH',
-        'Source is not part of scan.',
-      );
+      throw storeError('LOTTERY_SOURCE_MISMATCH', 'Source is not part of scan.');
     }
     if ((state.cursor ?? null) !== expectedCursor) {
       throw storeError('LOTTERY_CURSOR_CONFLICT', 'Scan cursor changed.');
     }
     if (
       state.coverage === 'exhausted' ||
-      (page.nextCursor !== null &&
-        (state.seenCursors || []).includes(page.nextCursor))
+      (page.nextCursor !== null && (state.seenCursors || []).includes(page.nextCursor))
     ) {
-      throw storeError(
-        'LOTTERY_CURSOR_CONFLICT',
-        'Repeated or completed pagination.',
-      );
+      throw storeError('LOTTERY_CURSOR_CONFLICT', 'Repeated or completed pagination.');
     }
-    if (
-      scan.readCount + page.records.length > 100_000 ||
-      (state.seenCursors || []).length >= 10_000
-    ) {
+    if (scan.readCount + page.records.length > 100_000 || (state.seenCursors || []).length >= 10_000) {
       throw storeError(
         'LOTTERY_COLLECTION_LIMIT',
         'Collection exceeds the supported size; no partial draw is allowed.',
@@ -326,22 +271,15 @@ function createDynamicLotteryStore(lotteryDb) {
       cursor: page.nextCursor,
       coverage: page.ended ? 'exhausted' : 'unknown',
       readCount: Number(state.readCount || 0) + page.records.length,
-      seenCursors: [
-        ...(state.seenCursors || []),
-        ...(expectedCursor === null ? [] : [expectedCursor]),
-      ],
+      seenCursors: [...(state.seenCursors || []), ...(expectedCursor === null ? [] : [expectedCursor])],
     };
-    const completed = Object.values(nextSources).every(
-      (entry) => entry.coverage === 'exhausted',
-    );
+    const completed = Object.values(nextSources).every((entry) => entry.coverage === 'exhausted');
     if (completed) {
       const task = getTask(taskId);
       for (const requiredSource of task.rules.requiredActions || []) {
         const expected = task.target.expectedReactions?.[requiredSource];
         const count = lotteryDb
-          .prepare(
-            'SELECT COUNT(*) AS count FROM lottery_evidence WHERE scan_id = ? AND source = ?',
-          )
+          .prepare('SELECT COUNT(*) AS count FROM lottery_evidence WHERE scan_id = ? AND source = ?')
           .get(scanId, requiredSource).count;
         if (Number.isSafeInteger(expected) && count < expected) {
           throw storeError(
@@ -399,13 +337,8 @@ function createDynamicLotteryStore(lotteryDb) {
       }
       if (scan.status === 'completed') return;
       const nextReason = reason || '';
-      const nextSessionEpoch =
-        sessionEpoch === undefined ? scan.sessionEpoch : sessionEpoch;
-      if (
-        scan.status === status &&
-        scan.pauseReason === nextReason &&
-        scan.sessionEpoch === nextSessionEpoch
-      ) {
+      const nextSessionEpoch = sessionEpoch === undefined ? scan.sessionEpoch : sessionEpoch;
+      if (scan.status === status && scan.pauseReason === nextReason && scan.sessionEpoch === nextSessionEpoch) {
         return;
       }
       lotteryDb
@@ -441,22 +374,15 @@ function createDynamicLotteryStore(lotteryDb) {
     commitPages,
     listTasks(streamerId) {
       return lotteryDb
-        .prepare(
-          'SELECT * FROM lottery_tasks WHERE streamer_id = ? ORDER BY created_at_ms DESC, id DESC LIMIT 50',
-        )
+        .prepare('SELECT * FROM lottery_tasks WHERE streamer_id = ? ORDER BY created_at_ms DESC, id DESC LIMIT 50')
         .all(requiredText(streamerId, 'streamer ID'))
         .map(toTask);
     },
     findTaskByRequest(streamerId, requestId) {
       return toTask(
         lotteryDb
-          .prepare(
-            'SELECT * FROM lottery_tasks WHERE streamer_id = ? AND request_id = ?',
-          )
-          .get(
-            requiredText(streamerId, 'streamer ID'),
-            requiredText(requestId, 'request ID'),
-          ),
+          .prepare('SELECT * FROM lottery_tasks WHERE streamer_id = ? AND request_id = ?')
+          .get(requiredText(streamerId, 'streamer ID'), requiredText(requestId, 'request ID')),
       );
     },
     recoverInterrupted(nowMs) {
@@ -473,18 +399,10 @@ function createDynamicLotteryStore(lotteryDb) {
           .run(nowMs);
       });
     },
-    pauseScan: ({ taskId, reason, nowMs }) =>
-      setScanStatus(taskId, 'paused', String(reason || ''), nowMs),
+    pauseScan: ({ taskId, reason, nowMs }) => setScanStatus(taskId, 'paused', String(reason || ''), nowMs),
     resumeScan: ({ taskId, sessionEpoch, nowMs }) =>
-      setScanStatus(
-        taskId,
-        'running',
-        '',
-        nowMs,
-        normalizeMs(sessionEpoch, 'session epoch'),
-      ),
-    failScan: ({ taskId, reason, nowMs }) =>
-      setScanStatus(taskId, 'failed', String(reason || ''), nowMs),
+      setScanStatus(taskId, 'running', '', nowMs, normalizeMs(sessionEpoch, 'session epoch')),
+    failScan: ({ taskId, reason, nowMs }) => setScanStatus(taskId, 'failed', String(reason || ''), nowMs),
     getEvidence(scanId) {
       return lotteryDb
         .prepare(
@@ -501,8 +419,7 @@ function createDynamicLotteryStore(lotteryDb) {
           recordId: row.record_id,
           uid: row.uid,
           displayName: row.display_name,
-          occurredAtMs:
-            row.occurred_at_ms === null ? null : Number(row.occurred_at_ms),
+          occurredAtMs: row.occurred_at_ms === null ? null : Number(row.occurred_at_ms),
           text: row.text,
           parentId: row.parent_id,
           level: row.level === null ? null : Number(row.level),

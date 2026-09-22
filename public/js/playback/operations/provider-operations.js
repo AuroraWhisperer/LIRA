@@ -43,11 +43,7 @@ export function createProviderOperations(deps) {
     const platform = playbackState.selectedSource;
     const refreshId = ++playbackProviderRefreshId;
     await weSingService.setSelected(platform === 'wesing');
-    if (
-      refreshId !== playbackProviderRefreshId ||
-      playbackState.selectedSource !== platform
-    )
-      return;
+    if (refreshId !== playbackProviderRefreshId || playbackState.selectedSource !== platform) return;
     if (platform === 'wesing') {
       playbackAuthState = weSingService.getAuthState();
       playbackProviderHealth = weSingService.getProviderHealth();
@@ -63,15 +59,8 @@ export function createProviderOperations(deps) {
       }),
     ]);
 
-    if (
-      refreshId !== playbackProviderRefreshId ||
-      playbackState.selectedSource !== platform
-    )
-      return;
-    playbackAuthState =
-      authResult.status === 'fulfilled'
-        ? authResult.value
-        : providerManager.getAuthState(platform);
+    if (refreshId !== playbackProviderRefreshId || playbackState.selectedSource !== platform) return;
+    playbackAuthState = authResult.status === 'fulfilled' ? authResult.value : providerManager.getAuthState(platform);
     playbackProviderHealth = providerManager.getProviderHealth(platform);
     if (!playbackProviderHealth && healthResult.status === 'rejected') {
       playbackProviderHealth = {
@@ -127,8 +116,7 @@ export function createProviderOperations(deps) {
       playbackProviderHealth = healthState;
       if (!options.silent) showHealthResult(platform, playbackProviderHealth);
     } catch (error) {
-      if (playbackState.selectedSource !== platform)
-        return providerManager.getProviderHealth(platform);
+      if (playbackState.selectedSource !== platform) return providerManager.getProviderHealth(platform);
       playbackProviderHealth = {
         source: platform,
         ok: false,
@@ -147,7 +135,8 @@ export function createProviderOperations(deps) {
       return;
     }
     U.showStackedToast({
-      key: `playback-health:${platform}`, update: true,
+      key: `playback-health:${platform}`,
+      update: true,
       type: state.ok ? 'success' : 'warning',
       title: state.ok ? '连接检查通过' : '音乐平台连接异常',
       message: state.message || '音乐平台连接检查完成',
@@ -172,9 +161,10 @@ export function createProviderOperations(deps) {
       cacheManager?.clearByPrefix(`${platform}:`);
       let authState = null;
       try {
-        authState = platform === 'wesing'
-          ? weSingService.getAuthState()
-          : await providerManager.refreshAuthState({ platform, notify: false });
+        authState =
+          platform === 'wesing'
+            ? weSingService.getAuthState()
+            : await providerManager.refreshAuthState({ platform, notify: false });
       } catch (_) {
         // A closed login window does not prove authentication succeeded.
         authState = null;
@@ -190,10 +180,16 @@ export function createProviderOperations(deps) {
         key: `music-login-result:${platform}`,
         update: true,
         type: loggedIn ? 'success' : 'warning',
-        title: loggedIn ? `${sourceName}已登录` : authState
-          ? `尚未完成${sourceName}登录` : `暂时无法确认${sourceName}登录状态`,
-        message: loggedIn ? '现在可以使用该平台账号' : authState
-          ? '登录窗口已关闭，可重新打开完成登录' : '请稍后刷新该平台的登录状态',
+        title: loggedIn
+          ? `${sourceName}已登录`
+          : authState
+            ? `尚未完成${sourceName}登录`
+            : `暂时无法确认${sourceName}登录状态`,
+        message: loggedIn
+          ? '现在可以使用该平台账号'
+          : authState
+            ? '登录窗口已关闭，可重新打开完成登录'
+            : '请稍后刷新该平台的登录状态',
         className: loggedIn ? 'music-cookie-refreshed-toast' : 'playback-health-toast-warn',
         duration: loggedIn ? 3600 : 6000,
       });
@@ -234,9 +230,7 @@ export function createProviderOperations(deps) {
       toast('退出音乐账号需要在桌面版里使用');
       return;
     }
-    const sourceName = PlaybackUtils.getSourceName(
-      playbackState.selectedSource,
-    );
+    const sourceName = PlaybackUtils.getSourceName(playbackState.selectedSource);
 
     const confirmed = await window.AdminApp.utils.logoutConfirm({
       title: '退出登录',

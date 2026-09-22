@@ -74,11 +74,7 @@ export class UIRenderer {
    * @param {string} selectedSource - 选中的音乐源
    */
   renderProviderState(authState, healthState, selectedSource) {
-    this.playbackBar.renderProviderState(
-      authState,
-      healthState,
-      selectedSource,
-    );
+    this.playbackBar.renderProviderState(authState, healthState, selectedSource);
   }
 
   /**

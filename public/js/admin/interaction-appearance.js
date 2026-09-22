@@ -1,5 +1,9 @@
 import { api } from '../shared/utils.js';
-import { INTERACTION_APPEARANCE_DEFAULTS, readInteractionAppearance, applyInteractionAppearance } from '../shared/interaction-appearance.js';
+import {
+  INTERACTION_APPEARANCE_DEFAULTS,
+  readInteractionAppearance,
+  applyInteractionAppearance,
+} from '../shared/interaction-appearance.js';
 import { renderPollRows } from '../shared/interaction-view.js';
 import { initParameterRanges, refreshParameterRange } from '../shared/parameter-range.js';
 
@@ -10,9 +14,11 @@ export function initInteractionAppearance() {
   const status = get('interactionAppearanceStatus');
   const apply = get('interactionAppearanceApply');
   const retry = get('interactionAppearanceRetry');
-  const controls = Object.fromEntries(Object.keys(INTERACTION_APPEARANCE_DEFAULTS)
-    .filter((key) => key !== 'interactionBackgroundColor' && key !== 'interactionBackgroundOpacity')
-    .map((key) => [key, get(key)]));
+  const controls = Object.fromEntries(
+    Object.keys(INTERACTION_APPEARANCE_DEFAULTS)
+      .filter((key) => key !== 'interactionBackgroundColor' && key !== 'interactionBackgroundOpacity')
+      .map((key) => [key, get(key)]),
+  );
   initParameterRanges(form);
   let loaded = false;
   let saving = false;
@@ -21,9 +27,12 @@ export function initInteractionAppearance() {
   let kind = 'poll';
 
   function draft() {
-    return Object.fromEntries(Object.entries(controls).map(([key, input]) => [
-      key, input.type === 'checkbox' ? String(input.checked) : input.value,
-    ]));
+    return Object.fromEntries(
+      Object.entries(controls).map(([key, input]) => [
+        key,
+        input.type === 'checkbox' ? String(input.checked) : input.value,
+      ]),
+    );
   }
   function fill(settings) {
     const appearance = readInteractionAppearance(settings);
@@ -53,7 +62,8 @@ export function initInteractionAppearance() {
     get('interactionPreviewScore').hidden = kind !== 'rating';
     for (const [key, unit] of [
       ['interactionOverallOpacity', '%'],
-      ['interactionFontSize', 'px'], ['interactionCornerRadius', 'px'],
+      ['interactionFontSize', 'px'],
+      ['interactionCornerRadius', 'px'],
     ]) {
       const value = `${appearance[key]}${unit}`;
       get(`${key}Value`).textContent = value;
@@ -61,10 +71,15 @@ export function initInteractionAppearance() {
       refreshParameterRange(controls[key]);
     }
     const options = [...get('pollOptions').querySelectorAll('input')].map((input, index) => ({
-      text: input.value.trim() || `选项 ${index + 1}`, votes: index === 0 ? 68 : index === 1 ? 32 : 0,
+      text: input.value.trim() || `选项 ${index + 1}`,
+      votes: index === 0 ? 68 : index === 1 ? 32 : 0,
       percentage: index === 0 ? 68 : index === 1 ? 32 : 0,
     }));
-    renderPollRows(get('interactionPreviewRows'), { sessionId: `preview-${options.length}`, phase: 'collecting', options });
+    renderPollRows(get('interactionPreviewRows'), {
+      sessionId: `preview-${options.length}`,
+      phase: 'collecting',
+      options,
+    });
   }
   function edit() {
     if (!loaded || saving) return;
@@ -117,7 +132,10 @@ export function initInteractionAppearance() {
       if (!disposed) status.textContent = `应用失败，修改已保留：${error.message}`;
     } finally {
       saving = false;
-      if (!disposed) { fields.disabled = false; apply.disabled = !dirty; }
+      if (!disposed) {
+        fields.disabled = false;
+        apply.disabled = !dirty;
+      }
     }
   });
   get('pollForm').addEventListener('input', preview);
@@ -126,7 +144,14 @@ export function initInteractionAppearance() {
   observer.observe(get('pollOptions'), { childList: true });
   fill(INTERACTION_APPEARANCE_DEFAULTS);
   void load();
-  window.addEventListener('app:shutdown', () => { disposed = true; observer.disconnect(); }, { once: true });
+  window.addEventListener(
+    'app:shutdown',
+    () => {
+      disposed = true;
+      observer.disconnect();
+    },
+    { once: true },
+  );
   return {
     setKind(nextKind) {
       if (nextKind === kind) return;

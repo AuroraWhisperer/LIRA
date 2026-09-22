@@ -5,13 +5,21 @@ const test = require('node:test');
 const { fanFixture, interval, SCOPE, IDENTITY, NOW } = require('./helpers/fan-profile-fixture');
 
 function pair(f, source = {}, target = {}) {
-  return { source: f.create({ identity: null, alias: '未绑定的小海', ...source }),
-    target: f.create({ alias: '已有身份小海', ...target }) };
+  return {
+    source: f.create({ identity: null, alias: '未绑定的小海', ...source }),
+    target: f.create({ alias: '已有身份小海', ...target }),
+  };
 }
 
 function mergeInput(source, target, extra = {}) {
-  return { id: source.id, revision: source.revision, targetId: target.id, targetRevision: target.revision,
-    prefer: 'target', ...extra };
+  return {
+    id: source.id,
+    revision: source.revision,
+    targetId: target.id,
+    targetRevision: target.revision,
+    prefer: 'target',
+    ...extra,
+  };
 }
 
 function sortedExport(f, scope = SCOPE) {
@@ -24,9 +32,13 @@ test('draft former names follow the merge preference and omit the current platfo
   const f = fanFixture(t);
   const { source, target } = pair(f, { formerNames: ['草稿旧名'] }, { formerNames: ['目标旧名'] });
   f.consume([{ name: '当前名字' }]);
-  const result = f.run('merge', mergeInput(source, f.detail(target.id), {
-    prefer: 'source', patch: { formerNames: ['修订旧名', '当前名字'] },
-  }));
+  const result = f.run(
+    'merge',
+    mergeInput(source, f.detail(target.id), {
+      prefer: 'source',
+      patch: { formerNames: ['修订旧名', '当前名字'] },
+    }),
+  );
   assert.deepEqual(result.profile.formerNames, ['修订旧名']);
   assert.equal(result.profile.platformName, '当前名字');
 });
@@ -36,7 +48,10 @@ test('merge preview is read-only and permits only an unbound draft into an exist
   const { source, target } = pair(f);
   f.record(source.id, 'note', { body: '草稿里的手记' });
   const before = sortedExport(f);
-  const plan = f.run('preview-merge', mergeInput(source, target, { patch: { alias: '待采用称呼', identity: IDENTITY } }));
+  const plan = f.run(
+    'preview-merge',
+    mergeInput(source, target, { patch: { alias: '待采用称呼', identity: IDENTITY } }),
+  );
   assert.equal(plan.source.alias, '待采用称呼');
   assert.equal(plan.source.identity, null);
   assert.equal(plan.target.id, target.id);
@@ -44,9 +59,12 @@ test('merge preview is read-only and permits only an unbound draft into an exist
   assert.deepEqual(sortedExport(f), before);
   assert.deepEqual(f.run('snapshots'), []);
   for (const input of [
-    mergeInput(source, source), mergeInput(target, source), mergeInput(target, target),
+    mergeInput(source, source),
+    mergeInput(target, source),
+    mergeInput(target, target),
     mergeInput(source, target, { patch: { identity: { ...IDENTITY, value: '900000002' } } }),
-  ]) assert.throws(() => f.run('preview-merge', input), /未绑定|不一致/);
+  ])
+    assert.throws(() => f.run('preview-merge', input), /未绑定|不一致/);
 });
 
 test('merge rejects cross-account or cross-server source/target references', (t) => {
@@ -80,8 +98,12 @@ test('merge rejects stale source/target revisions and missing choices without ch
   assert.throws(() => f.run('merge', freshInput), /已更新/);
   assert.throws(() => f.run('preview-merge', freshInput), /已更新/);
   const current = mergeInput(updatedSource, updatedTarget);
-  for (const input of [{ ...current, targetRevision: undefined }, { ...current, prefer: undefined },
-    { ...current, prefer: 'unknown' }]) assert.throws(() => f.run('merge', input), /确认|已更新/);
+  for (const input of [
+    { ...current, targetRevision: undefined },
+    { ...current, prefer: undefined },
+    { ...current, prefer: 'unknown' },
+  ])
+    assert.throws(() => f.run('merge', input), /确认|已更新/);
   assert.equal(f.detail(source.id).notes, '新草稿内容');
   assert.equal(f.detail(target.id).notes, '目标的新内容');
   assert.equal(f.run('snapshots').length, 0);
@@ -89,12 +111,23 @@ test('merge rejects stale source/target revisions and missing choices without ch
 
 test('prefer source adopts nonempty manual fields while empty values and platform identity preserve the target', (t) => {
   const f = fanFixture(t);
-  const { source, target } = pair(f,
+  const { source, target } = pair(
+    f,
     { alias: '草稿称呼', summary: '草稿摘要', notes: '', tags: [], birthday: null },
-    { alias: '目标称呼', summary: '目标摘要', notes: '目标私密备注', tags: ['目标标签'], birthday: { monthDay: '09-19' } });
+    {
+      alias: '目标称呼',
+      summary: '目标摘要',
+      notes: '目标私密备注',
+      tags: ['目标标签'],
+      birthday: { monthDay: '09-19' },
+    },
+  );
   f.consume([{ name: '最新平台昵称' }]);
   const currentTarget = f.detail(target.id);
-  const result = f.run('merge', mergeInput(source, currentTarget, { prefer: 'source', patch: { nextTopic: '待保存的话题' } }));
+  const result = f.run(
+    'merge',
+    mergeInput(source, currentTarget, { prefer: 'source', patch: { nextTopic: '待保存的话题' } }),
+  );
   assert.equal(result.profile.alias, '草稿称呼');
   assert.equal(result.profile.summary, '草稿摘要');
   assert.equal(result.profile.notes, '目标私密备注');
@@ -109,9 +142,11 @@ test('prefer source adopts nonempty manual fields while empty values and platfor
 
 test('prefer target preserves existing manual fields but fills its empty fields from the draft', (t) => {
   const f = fanFixture(t);
-  const { source, target } = pair(f,
+  const { source, target } = pair(
+    f,
     { summary: '可补充摘要', notes: '草稿私密备注', tags: ['草稿标签'], birthday: { monthDay: '09-18' } },
-    { summary: '', notes: '目标私密备注', tags: [], birthday: null });
+    { summary: '', notes: '目标私密备注', tags: [], birthday: null },
+  );
   const result = f.run('merge', mergeInput(source, target));
   assert.equal(result.profile.alias, target.alias);
   assert.equal(result.profile.notes, '目标私密备注');
@@ -125,10 +160,18 @@ test('prefer target preserves existing manual fields but fills its empty fields 
 test('merge moves stable record identities with original evidence and full revision history', (t) => {
   const f = fanFixture(t);
   const { source, target } = pair(f);
-  const original = f.record(source.id, 'song', { songName: '原始曲名', artist: '原始歌手' },
-    { occurredAt: '2026-09-17T04:00:00Z' });
-  const corrected = f.record(source.id, 'song', { songName: '修订曲名', artist: '修订歌手' },
-    { id: original.id, revision: original.revision, occurredAt: NOW });
+  const original = f.record(
+    source.id,
+    'song',
+    { songName: '原始曲名', artist: '原始歌手' },
+    { occurredAt: '2026-09-17T04:00:00Z' },
+  );
+  const corrected = f.record(
+    source.id,
+    'song',
+    { songName: '修订曲名', artist: '修订歌手' },
+    { id: original.id, revision: original.revision, occurredAt: NOW },
+  );
   const note = f.record(source.id, 'note', { body: '草稿里的经历' });
   const targetNote = f.record(target.id, 'note', { body: '目标原有经历' });
   const result = f.run('merge', mergeInput(source, target));
@@ -140,8 +183,14 @@ test('merge moves stable record identities with original evidence and full revis
   assert.deepEqual(moved.data, corrected.data);
   assert.equal(moved.revision, corrected.revision);
   assert.equal(moved.occurredAt, corrected.occurredAt);
-  assert.equal(result.profile.records.some((record) => record.id === note.id), true);
-  assert.equal(result.profile.records.some((record) => record.id === targetNote.id), true);
+  assert.equal(
+    result.profile.records.some((record) => record.id === note.id),
+    true,
+  );
+  assert.equal(
+    result.profile.records.some((record) => record.id === targetNote.id),
+    true,
+  );
   f.restart();
   assert.equal(f.detail(target.id).songs[0].id, original.id);
   assert.equal(f.detail(target.id).songs[0].original.songName, '原始曲名');
@@ -166,7 +215,10 @@ test('merge preserves handled birthdays, stable anniversary records and continuo
     assert.equal(merged.profileId, target.id);
   }
   assert.equal(result.profile.records.find((r) => r.id === anniversary.id).profileId, target.id);
-  assert.equal(f.run('reminders').some((r) => r.profileId === source.id), false);
+  assert.equal(
+    f.run('reminders').some((r) => r.profileId === source.id),
+    false,
+  );
 });
 
 test('an already handled target reminder takes precedence over a draft snooze', (t) => {
@@ -206,13 +258,21 @@ test('previewing and restoring the merge snapshot restores both original profile
   const snapshots = f.run('snapshots');
   assert.equal(snapshots[0].id, merge.snapshotId);
   assert.match(snapshots[0].reason, /合并/);
-  assert.equal(Object.hasOwn(snapshots[0], 'profiles'), false, 'snapshot listing contains metadata, not full private content');
+  assert.equal(
+    Object.hasOwn(snapshots[0], 'profiles'),
+    false,
+    'snapshot listing contains metadata, not full private content',
+  );
   const plan = f.run('preview-snapshot', { snapshotId: merge.snapshotId });
   assert.equal(plan.added, 1);
   assert.equal(plan.updated, 1);
   assert.deepEqual(sortedExport(f), afterMerge, 'preview itself cannot restore or rewrite anything');
-  const restored = f.run('restore-snapshot', { snapshotId: merge.snapshotId, digest: plan.digest,
-    currentDigest: plan.currentDigest, confirm: true });
+  const restored = f.run('restore-snapshot', {
+    snapshotId: merge.snapshotId,
+    digest: plan.digest,
+    currentDigest: plan.currentDigest,
+    confirm: true,
+  });
   assert.ok(restored.snapshotId);
   assert.notEqual(restored.snapshotId, merge.snapshotId);
   assert.deepEqual(sortedExport(f), before);
@@ -222,8 +282,12 @@ test('previewing and restoring the merge snapshot restores both original profile
   assert.equal(f.detail(source.id).reminders.find((r) => r.key === 'birthday:2026').status, 'handled');
   assert.equal(f.detail(target.id).notes, '原目标');
   const redoPlan = f.run('preview-snapshot', { snapshotId: restored.snapshotId });
-  f.run('restore-snapshot', { snapshotId: restored.snapshotId, digest: redoPlan.digest,
-    currentDigest: redoPlan.currentDigest, confirm: true });
+  f.run('restore-snapshot', {
+    snapshotId: restored.snapshotId,
+    digest: redoPlan.digest,
+    currentDigest: redoPlan.currentDigest,
+    confirm: true,
+  });
   assert.deepEqual(sortedExport(f), afterMerge);
 });
 
@@ -231,11 +295,16 @@ test('snapshot access and restoration cannot cross streamer or server scope', (t
   const f = fanFixture(t);
   const { source, target } = pair(f);
   const merged = f.run('merge', mergeInput(source, target));
-  for (const scope of [JSON.stringify(['https://lira.example', 'streamer-b']),
-    JSON.stringify(['https://other.example', 'streamer-a'])]) {
+  for (const scope of [
+    JSON.stringify(['https://lira.example', 'streamer-b']),
+    JSON.stringify(['https://other.example', 'streamer-a']),
+  ]) {
     assert.deepEqual(f.run('snapshots', {}, scope), []);
     assert.throws(() => f.run('preview-snapshot', { snapshotId: merged.snapshotId }, scope), /不属于当前账号/);
-    assert.throws(() => f.run('restore-snapshot', { snapshotId: merged.snapshotId, confirm: true }, scope), /不属于当前账号/);
+    assert.throws(
+      () => f.run('restore-snapshot', { snapshotId: merged.snapshotId, confirm: true }, scope),
+      /不属于当前账号/,
+    );
   }
   assert.equal(f.run('list').profiles.length, 1);
 });
@@ -245,15 +314,38 @@ test('snapshot restore rejects missing confirmation and stale preview after reco
   const { source, target } = pair(f, {}, { birthday: { monthDay: '09-18' } });
   const merged = f.run('merge', mergeInput(source, target));
   const first = f.run('preview-snapshot', { snapshotId: merged.snapshotId });
-  assert.throws(() => f.run('restore-snapshot', { snapshotId: merged.snapshotId,
-    digest: first.digest, currentDigest: first.currentDigest }), /确认/);
+  assert.throws(
+    () =>
+      f.run('restore-snapshot', {
+        snapshotId: merged.snapshotId,
+        digest: first.digest,
+        currentDigest: first.currentDigest,
+      }),
+    /确认/,
+  );
   f.record(target.id, 'note', { body: '预览后新增的手记' });
-  assert.throws(() => f.run('restore-snapshot', { snapshotId: merged.snapshotId,
-    digest: first.digest, currentDigest: first.currentDigest, confirm: true }), /预览已变化/);
+  assert.throws(
+    () =>
+      f.run('restore-snapshot', {
+        snapshotId: merged.snapshotId,
+        digest: first.digest,
+        currentDigest: first.currentDigest,
+        confirm: true,
+      }),
+    /预览已变化/,
+  );
   const second = f.run('preview-snapshot', { snapshotId: merged.snapshotId });
   f.run('reminder-state', { profileId: target.id, key: 'birthday:2026', status: 'handled' });
-  assert.throws(() => f.run('restore-snapshot', { snapshotId: merged.snapshotId,
-    digest: second.digest, currentDigest: second.currentDigest, confirm: true }), /预览已变化/);
+  assert.throws(
+    () =>
+      f.run('restore-snapshot', {
+        snapshotId: merged.snapshotId,
+        digest: second.digest,
+        currentDigest: second.currentDigest,
+        confirm: true,
+      }),
+    /预览已变化/,
+  );
   assert.equal(f.detail(target.id).records[0].data.body, '预览后新增的手记');
   assert.equal(f.run('snapshots').length, 1, 'rejected restoration creates no recovery point');
 });
@@ -269,7 +361,12 @@ test('snapshot restore is atomic on persistence failure and resets replay cursor
   const before = sortedExport(f);
   f.db.songDb.exec(`CREATE TRIGGER fail_fan_snapshot_restore BEFORE INSERT ON fan_records
     BEGIN SELECT RAISE(ABORT, 'forced snapshot restore failure'); END;`);
-  const input = { snapshotId: merged.snapshotId, digest: plan.digest, currentDigest: plan.currentDigest, confirm: true };
+  const input = {
+    snapshotId: merged.snapshotId,
+    digest: plan.digest,
+    currentDigest: plan.currentDigest,
+    confirm: true,
+  };
   assert.throws(() => f.run('restore-snapshot', input), /forced snapshot restore failure/);
   assert.deepEqual(sortedExport(f), before);
   assert.equal(f.run('snapshots').length, 1);

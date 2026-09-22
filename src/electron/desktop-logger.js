@@ -8,11 +8,7 @@ const NORMAL_ENTRY_BYTES = 2 * 1024;
 const ERROR_ENTRY_BYTES = 16 * 1024;
 const LEGACY_FILE_BYTES = 10 * 1024 * 1024;
 
-function createDesktopLogger({
-  getLogFile,
-  loggingState,
-  maxFileBytes = LEGACY_FILE_BYTES,
-}) {
+function createDesktopLogger({ getLogFile, loggingState, maxFileBytes = LEGACY_FILE_BYTES }) {
   function nextSequence() {
     loggingState.sequence += 1;
     return loggingState.sequence;
@@ -23,9 +19,7 @@ function createDesktopLogger({
       const redactedValue = redactCredentials(value);
       const isError =
         redactedValue instanceof Error ||
-        /(?:^|[-_.])(error|failed|failure|fatal)(?:$|[-_.])/i.test(
-          String(scope || ''),
-        );
+        /(?:^|[-_.])(error|failed|failure|fatal)(?:$|[-_.])/i.test(String(scope || ''));
       const message =
         redactedValue instanceof Error
           ? redactedValue.stack || redactedValue.message

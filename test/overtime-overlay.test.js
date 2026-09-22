@@ -14,10 +14,7 @@ test('overtime overlay has independent layers and responsive container scaling',
   const css = read('public/css/overlays/overtime.css');
   const adminCss = readCssBundle('public', 'css', 'admin', 'overtime.css');
 
-  assert.match(
-    html,
-    /<script type="module" src="\/js\/overlays\/overtime\.js\?v=[^"]+"><\/script>/,
-  );
+  assert.match(html, /<script type="module" src="\/js\/overlays\/overtime\.js\?v=[^"]+"><\/script>/);
   assert.equal(require('../src/server/access-policy').getOverlayScope('/overtime'), 'overtime');
   assert.match(html, /id="overtimeMachine"/);
   assert.match(html, /id="overtimeBackground"/);
@@ -26,10 +23,7 @@ test('overtime overlay has independent layers and responsive container scaling',
   assert.match(html, /id="overtimeAdjustmentStage"/);
   assert.match(css, /container-type:\s*size/);
   assert.match(css, /cqmin/);
-  assert.match(
-    css,
-    /\.overtime-machine\s*\{[^}]*height:\s*100vh;\s*height:\s*100dvh;/,
-  );
+  assert.match(css, /\.overtime-machine\s*\{[^}]*height:\s*100vh;\s*height:\s*100dvh;/);
   assert.match(css, /@container[^\{]*\(max-height:\s*239px\)/);
   assert.match(css, /prefers-reduced-motion:\s*reduce/);
   assert.match(css, /overflow:\s*hidden/);
@@ -48,10 +42,7 @@ test('overtime overlay has independent layers and responsive container scaling',
   assert.match(css, /\.overtime-clock\s*\{[\s\S]*?font:\s*700 8\.5em\/0\.9/);
   assert.doesNotMatch(css, /\.overtime-clock\.is-calendar\s*\{[^}]*font-size/);
   assert.doesNotMatch(css, /\.overtime-clock\.is-years/);
-  assert.doesNotMatch(
-    adminCss,
-    /\.overtime-clock-value\.is-calendar\s*\{[^}]*font-size/,
-  );
+  assert.doesNotMatch(adminCss, /\.overtime-clock-value\.is-calendar\s*\{[^}]*font-size/);
   assert.doesNotMatch(adminCss, /\.overtime-clock-value\.is-years/);
   assert.doesNotMatch(css, /font-size:\s*clamp/);
 });
@@ -89,29 +80,13 @@ test('overtime overlay explains configured gift effects to viewers', () => {
   assert.doesNotMatch(source, /rule\.mode === 'random' \? '随机'/);
 
   const helperStart = source.indexOf('function describeRuleEffect');
-  const helperEnd = source.indexOf(
-    '\nfunction formatSignedSeconds',
-    helperStart,
-  );
+  const helperEnd = source.indexOf('\nfunction formatSignedSeconds', helperStart);
   const sandbox = {};
-  vm.runInNewContext(
-    `${source.slice(helperStart, helperEnd)}\nthis.describeRuleEffect = describeRuleEffect;`,
-    sandbox,
-  );
+  vm.runInNewContext(`${source.slice(helperStart, helperEnd)}\nthis.describeRuleEffect = describeRuleEffect;`, sandbox);
   assert.equal(sandbox.describeRuleEffect({ mode: 'random' }).value, '盲盒');
-  assert.equal(
-    sandbox.describeRuleEffect({ mode: 'display', displayText: '谢谢支持' })
-      .value,
-    '谢谢支持',
-  );
-  assert.equal(
-    sandbox.describeRuleEffect({ mode: 'fixed', fixedSeconds: 300 }).verb,
-    '加时',
-  );
-  assert.equal(
-    sandbox.describeRuleEffect({ mode: 'fixed', fixedSeconds: -90 }).value,
-    '1分30秒',
-  );
+  assert.equal(sandbox.describeRuleEffect({ mode: 'display', displayText: '谢谢支持' }).value, '谢谢支持');
+  assert.equal(sandbox.describeRuleEffect({ mode: 'fixed', fixedSeconds: 300 }).verb, '加时');
+  assert.equal(sandbox.describeRuleEffect({ mode: 'fixed', fixedSeconds: -90 }).value, '1分30秒');
   assert.equal(
     JSON.stringify(
       sandbox.describeRuleEffect({
@@ -134,19 +109,10 @@ test('overtime clock uses bounded calendar tiers for large durations', async () 
   const source = read('public/js/shared/overtime-time-format.js');
   const helpers = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
 
-  assert.equal(
-    helpers.formatClock(23 * 60 * 60 * 1000 + 59_000),
-    '23:00:59',
-  );
+  assert.equal(helpers.formatClock(23 * 60 * 60 * 1000 + 59_000), '23:00:59');
   assert.equal(helpers.formatClock(24 * 60 * 60 * 1000), '1天 00:00');
-  assert.equal(
-    helpers.formatClock(365 * 24 * 60 * 60 * 1000),
-    '1年 0天 0小时',
-  );
-  assert.equal(
-    helpers.formatClock(9_999 * 365 * 24 * 60 * 60 * 1000),
-    '9999年 0天 0小时',
-  );
+  assert.equal(helpers.formatClock(365 * 24 * 60 * 60 * 1000), '1年 0天 0小时');
+  assert.equal(helpers.formatClock(9_999 * 365 * 24 * 60 * 60 * 1000), '9999年 0天 0小时');
   assert.equal(helpers.formatClockDisplay(0, 'paused'), '00:00:00');
   assert.equal(helpers.formatClockDisplay(0, 'running'), '该下播了');
   assert.equal(helpers.formatClockDisplay(0, 'finished'), '该下播了');
@@ -156,39 +122,21 @@ test('overtime clock updates on display boundaries only while active and visible
   const source = read('public/js/overlays/overtime.js');
 
   assert.doesNotMatch(source, /requestAnimationFrame\(renderClockFrame\)/);
-  assert.match(
-    source,
-    /clockTimer = setTimeout\(renderClock, nextClockDelay\(remainingMs\)\)/,
-  );
-  assert.match(
-    source,
-    /currentState\.status !== 'running' \|\| remainingMs <= 0 \|\| document\.hidden/,
-  );
+  assert.match(source, /clockTimer = setTimeout\(renderClock, nextClockDelay\(remainingMs\)\)/);
+  assert.match(source, /currentState\.status !== 'running' \|\| remainingMs <= 0 \|\| document\.hidden/);
   assert.match(source, /if \(value !== lastClockValue\)/);
-  assert.match(
-    source,
-    /document\.addEventListener\('visibilitychange', syncClock\)/,
-  );
+  assert.match(source, /document\.addEventListener\('visibilitychange', syncClock\)/);
 
   const helperStart = source.indexOf('function nextClockDelay(remainingMs)');
-  const helperEnd = source.indexOf(
-    '\nfunction describeRuleEffect',
-    helperStart,
-  );
+  const helperEnd = source.indexOf('\nfunction describeRuleEffect', helperStart);
   const sandbox = {};
-  vm.runInNewContext(
-    `${source.slice(helperStart, helperEnd)}\nthis.nextClockDelay = nextClockDelay;`,
-    sandbox,
-  );
+  vm.runInNewContext(`${source.slice(helperStart, helperEnd)}\nthis.nextClockDelay = nextClockDelay;`, sandbox);
   assert.equal(sandbox.nextClockDelay(5_001), 25);
   assert.equal(sandbox.nextClockDelay(5_500), 500);
   assert.equal(sandbox.nextClockDelay(24 * 60 * 60 * 1000), 1000);
   assert.equal(sandbox.nextClockDelay(24 * 60 * 60 * 1000 + 30_000), 30_000);
   assert.equal(sandbox.nextClockDelay(365 * 24 * 60 * 60 * 1000), 1000);
-  assert.equal(
-    sandbox.nextClockDelay(365 * 24 * 60 * 60 * 1000 + 90_000),
-    90_000,
-  );
+  assert.equal(sandbox.nextClockDelay(365 * 24 * 60 * 60 * 1000 + 90_000), 90_000);
 });
 
 function read(relativePath) {

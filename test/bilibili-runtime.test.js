@@ -228,8 +228,7 @@ function createReplacementFixture(options = {}) {
     },
   });
   runtime.setAuthProvider({
-    getCookieHeader:
-      options.getCookieHeader || (async () => 'synthetic-cookie'),
+    getCookieHeader: options.getCookieHeader || (async () => 'synthetic-cookie'),
     getUid: async () => 42,
   });
   return { runtime, settings, clients };

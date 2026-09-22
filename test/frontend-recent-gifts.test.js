@@ -11,22 +11,14 @@ const ROOT_DIR = path.join(__dirname, '..');
 
 test('recent gift cards keep a wider responsive minimum width', () => {
   const source = readCssBundle('public', 'css', 'admin', 'workspace.css');
-  const giftCardsRule = source.match(
-    /\.gift-page \.panel-body \.gift-cards\s*\{[\s\S]*?\n\}/,
-  )?.[0];
+  const giftCardsRule = source.match(/\.gift-page \.panel-body \.gift-cards\s*\{[\s\S]*?\n\}/)?.[0];
 
   assert.ok(giftCardsRule, 'gift card layout styles should remain defined');
-  assert.match(
-    giftCardsRule,
-    /grid-template-columns:\s*repeat\(auto-fill, minmax\(270px, 1fr\)\)/,
-  );
+  assert.match(giftCardsRule, /grid-template-columns:\s*repeat\(auto-fill, minmax\(270px, 1fr\)\)/);
 });
 
 test('admin gift styles load feature-owned stylesheets in order', () => {
-  const giftEntry = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'css', 'admin', 'gifts.css'),
-    'utf8',
-  );
+  const giftEntry = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'gifts.css'), 'utf8');
 
   assert.match(giftEntry, /@import url\('\.\/gifts\/recent\.css'\);/);
 });
@@ -40,8 +32,7 @@ test('recent gift cards stay within six rows as the grid width changes', async (
     querySelectorAll: (selector) => (selector === '.gift-card' ? cards : []),
     set innerHTML(value) {
       cards.length = (value.match(/class="gift-card/g) ?? []).length;
-      for (let index = 0; index < cards.length; index += 1)
-        cards[index] = { hidden: false };
+      for (let index = 0; index < cards.length; index += 1) cards[index] = { hidden: false };
     },
   };
   const sandbox = {
@@ -85,10 +76,7 @@ test('recent gift cards stay within six rows as the grid width changes', async (
 });
 
 test('recent gift cards reserve artwork space and keep metadata in named slots', () => {
-  const script = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'recent.js'),
-    'utf8',
-  );
+  const script = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'recent.js'), 'utf8');
   const styles = readCssBundle('public', 'css', 'admin', 'gifts.css');
 
   assert.match(script, /class="gift-card-content"/);
@@ -96,29 +84,14 @@ test('recent gift cards reserve artwork space and keep metadata in named slots',
   assert.match(script, /class="gift-amount"/);
   assert.match(script, /class="gift-result/);
   assert.match(script, /class="gift-time"/);
-  assert.doesNotMatch(
-    script,
-    /item\.is_blind_box \? '' : `<span>\$\{formatTime/,
-  );
-  assert.match(
-    styles,
-    /\.gift-card\.has-type-icon\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) 52px/,
-  );
-  assert.match(
-    styles,
-    /\.gift-card \.gift-meta\s*\{[\s\S]*?grid-template-areas:/,
-  );
-  assert.match(
-    styles,
-    /\.gift-card \.gift-type-icon\s*\{[\s\S]*?position:\s*static/,
-  );
+  assert.doesNotMatch(script, /item\.is_blind_box \? '' : `<span>\$\{formatTime/);
+  assert.match(styles, /\.gift-card\.has-type-icon\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) 52px/);
+  assert.match(styles, /\.gift-card \.gift-meta\s*\{[\s\S]*?grid-template-areas:/);
+  assert.match(styles, /\.gift-card \.gift-type-icon\s*\{[\s\S]*?position:\s*static/);
 });
 
 test('recent guard gift cards use subtle matching guard level colors', () => {
-  const script = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'recent.js'),
-    'utf8',
-  );
+  const script = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'recent.js'), 'utf8');
   const styles = readCssBundle('public', 'css', 'admin', 'gifts.css');
 
   assert.match(script, /guard-card guard-\$\{guardBadge\.level\}/);
@@ -137,17 +110,11 @@ test('recent guard gift cards use subtle matching guard level colors', () => {
     styles,
     /\.gift-card\.guard-card\.guard-3\s*\{[^}]*border-left-color:\s*#4b91e8[^}]*background:\s*linear-gradient/,
   );
-  assert.doesNotMatch(
-    styles,
-    /\.gift-card\.guard-card\s*\{[^}]*color:\s*var\(--color-bg-primary\)/,
-  );
+  assert.doesNotMatch(styles, /\.gift-card\.guard-card\s*\{[^}]*color:\s*var\(--color-bg-primary\)/);
 });
 
 test('recent blind box cards keep heart and lucky colors and default all others to purple', () => {
-  const script = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'recent.js'),
-    'utf8',
-  );
+  const script = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'recent.js'), 'utf8');
   const styles = readCssBundle('public', 'css', 'admin', 'gifts.css');
 
   assert.match(
@@ -159,30 +126,15 @@ test('recent blind box cards keep heart and lucky colors and default all others 
   assert.match(script, /className: type\?\.className \|\| 'blind-box-default'/);
   assert.doesNotMatch(script, /className: 'blind-box-(?:bear|qixi|bond)'/);
   assert.doesNotMatch(script, /\/img\/bilibili-gifts/);
-  assert.match(
-    styles,
-    /\.gift-card\.blind-box-card\.blind-box-heart\s*\{[^}]*border-left-color:\s*#f3a2aa/,
-  );
-  assert.match(
-    styles,
-    /\.gift-card\.blind-box-card\.blind-box-lucky\s*\{[^}]*border-left-color:\s*#b8d983/,
-  );
+  assert.match(styles, /\.gift-card\.blind-box-card\.blind-box-heart\s*\{[^}]*border-left-color:\s*#f3a2aa/);
+  assert.match(styles, /\.gift-card\.blind-box-card\.blind-box-lucky\s*\{[^}]*border-left-color:\s*#b8d983/);
   assert.match(
     styles,
     /\.gift-card\.blind-box-card\.blind-box-default\s*\{[^}]*border-left-color:\s*#8459c7[^}]*background:\s*linear-gradient/,
   );
-  assert.match(
-    styles,
-    /\.gift-card\.blind-box-card \.profit-up\s*\{[^}]*color:\s*#c0392b/,
-  );
-  assert.match(
-    styles,
-    /\.gift-card\.blind-box-card \.profit-down\s*\{[^}]*color:\s*#21b6a8/,
-  );
-  assert.match(
-    styles,
-    /\.gift-card\.blind-box-card \.profit-neutral\s*\{[^}]*color:\s*#647181/,
-  );
+  assert.match(styles, /\.gift-card\.blind-box-card \.profit-up\s*\{[^}]*color:\s*#c0392b/);
+  assert.match(styles, /\.gift-card\.blind-box-card \.profit-down\s*\{[^}]*color:\s*#21b6a8/);
+  assert.match(styles, /\.gift-card\.blind-box-card \.profit-neutral\s*\{[^}]*color:\s*#647181/);
 });
 
 test('same-name 七夕鹊匣 gift card uses server artwork for its exact ID', async () => {
@@ -365,10 +317,7 @@ test('recent gift artwork refreshes from live catalog events without a slow fetc
   await initialPromise;
 
   assert.match(list.innerHTML, /\/overtime-gift-images\/35792-new\.webp/);
-  assert.doesNotMatch(
-    list.innerHTML,
-    /\/overtime-gift-images\/35792-old\.webp/,
-  );
+  assert.doesNotMatch(list.innerHTML, /\/overtime-gift-images\/35792-old\.webp/);
 
   sandbox.window.AdminApp.eventBus.emit('gift:catalog_updated', {
     snapshot: {
@@ -387,10 +336,7 @@ test('recent gift artwork refreshes from live catalog events without a slow fetc
 });
 
 test('recent gift totals worth at least 1000 RMB use gold while unit-value artwork comes from the catalog', async () => {
-  const script = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'recent.js'),
-    'utf8',
-  );
+  const script = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'recent.js'), 'utf8');
   const styles = readCssBundle('public', 'css', 'admin', 'gifts.css');
   const list = {
     classList: { toggle() {} },
@@ -452,17 +398,8 @@ test('recent gift totals worth at least 1000 RMB use gold while unit-value artwo
 
   assert.equal((list.innerHTML.match(/high-value-gift-card/g) || []).length, 2);
   assert.equal((list.innerHTML.match(/gift-high-value-icon/g) || []).length, 1);
-  assert.equal(
-    (list.innerHTML.match(/\/overtime-gift-images\/35792\.webp/g) || []).length,
-    1,
-  );
+  assert.equal((list.innerHTML.match(/\/overtime-gift-images\/35792\.webp/g) || []).length, 1);
   assert.doesNotMatch(script, /HIGH_VALUE_GIFT_ARTWORK/);
-  assert.match(
-    styles,
-    /\.gift-card\.high-value-gift-card\s*\{[\s\S]*?background:\s*linear-gradient\(90deg/,
-  );
-  assert.match(
-    styles,
-    /\.gift-card \.gift-high-value-icon\s*\{[\s\S]*?object-fit:\s*contain/,
-  );
+  assert.match(styles, /\.gift-card\.high-value-gift-card\s*\{[\s\S]*?background:\s*linear-gradient\(90deg/);
+  assert.match(styles, /\.gift-card \.gift-high-value-icon\s*\{[\s\S]*?object-fit:\s*contain/);
 });

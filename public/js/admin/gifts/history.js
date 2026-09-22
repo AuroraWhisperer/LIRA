@@ -74,11 +74,7 @@ export function buildGiftHistoryUrl({
   }
   if (cursor && viewRevision) params.set('viewRevision', viewRevision);
   if (cursor) params.set('cursor', cursor);
-  if (
-    sortField &&
-    (sortField !== DEFAULT_HISTORY_SORT_FIELD ||
-      sortDirection !== DEFAULT_HISTORY_SORT_DIRECTION)
-  ) {
+  if (sortField && (sortField !== DEFAULT_HISTORY_SORT_FIELD || sortDirection !== DEFAULT_HISTORY_SORT_DIRECTION)) {
     params.set('sortField', sortField);
     params.set('sortDirection', sortDirection);
   }
@@ -88,8 +84,11 @@ export function buildGiftHistoryUrl({
 export function initGiftHistoryDrawer() {
   if (initialized) return;
   initialized = true;
-  historyTools = createGiftHistoryTools({ state: giftLedgerState,
-    reload: () => loadGiftHistory(), resetPagination: () => resetGiftLedgerPagination(giftLedgerState) });
+  historyTools = createGiftHistoryTools({
+    state: giftLedgerState,
+    reload: () => loadGiftHistory(),
+    resetPagination: () => resetGiftLedgerPagination(giftLedgerState),
+  });
   eventBus.on(Events.STATE_LOADED, ({ state }) => {
     const revision = state?.gifts?.viewRevision;
     if (revision === undefined || !giftLedgerState.viewRevision || revision === giftLedgerState.viewRevision) return;
@@ -217,10 +216,7 @@ export async function loadGiftHistory({ background = false } = {}) {
         viewRevision: giftLedgerState.viewRevision,
       }),
       {
-        signal: AbortSignal.any([
-          historyRequestController.signal,
-          AbortSignal.timeout(HISTORY_SLOW_RETRY_INTERVAL_MS),
-        ]),
+        signal: AbortSignal.any([historyRequestController.signal, AbortSignal.timeout(HISTORY_SLOW_RETRY_INTERVAL_MS)]),
       },
     );
     const payload = await readJsonResponse(response, '礼物记录加载失败');
@@ -244,12 +240,7 @@ export async function loadGiftHistory({ background = false } = {}) {
       : giftLedgerState.items.length;
     giftLedgerState.totalPages = Number.isSafeInteger(Number(data.totalPages))
       ? Math.max(1, Number(data.totalPages))
-      : Math.max(
-          1,
-          giftLedgerState.hasMore
-            ? giftLedgerState.page + 1
-            : giftLedgerState.page,
-        );
+      : Math.max(1, giftLedgerState.hasMore ? giftLedgerState.page + 1 : giftLedgerState.page);
     historyLoaded = true;
     renderSyncStatus(data);
     historyTools?.update();
@@ -262,11 +253,7 @@ export async function loadGiftHistory({ background = false } = {}) {
       resetGiftLedgerPagination(giftLedgerState);
       renderHistoryWaiting();
     } else {
-      console.warn(
-        '[GiftHistory] Load failed',
-        error.code || error.name,
-        error.status,
-      );
+      console.warn('[GiftHistory] Load failed', error.code || error.name, error.status);
       renderHistoryError();
     }
     scheduleHistoryRetry(sequence);
@@ -287,9 +274,7 @@ function scheduleHistoryRetry(sequence, interval) {
   if (!isGiftHistoryOpen()) return;
   const delay =
     interval ??
-    (Date.now() - historyWaitStartedAt >= HISTORY_WAIT_MS
-      ? HISTORY_SLOW_RETRY_INTERVAL_MS
-      : HISTORY_RETRY_INTERVAL_MS);
+    (Date.now() - historyWaitStartedAt >= HISTORY_WAIT_MS ? HISTORY_SLOW_RETRY_INTERVAL_MS : HISTORY_RETRY_INTERVAL_MS);
   historyRetryTimer = setTimeout(() => {
     historyRetryTimer = null;
     if (sequence !== historyRequestSequence || !isGiftHistoryOpen()) return;
@@ -318,8 +303,7 @@ async function clearGiftDatabase() {
   try {
     confirmed = await dangerConfirm({
       title: '清空全部礼物记录？',
-      message:
-        '将永久删除当前账号在本机和云端的全部礼物记录，其他设备同步后也会清空。此操作无法撤销。',
+      message: '将永久删除当前账号在本机和云端的全部礼物记录，其他设备同步后也会清空。此操作无法撤销。',
       confirmLabel: '清空全部记录',
     });
     if (!confirmed) return;
@@ -348,10 +332,7 @@ async function clearGiftDatabase() {
       console.warn('[GiftHistory] Clear failed', response.status);
       renderHistoryNotice({
         state: 'error',
-        label:
-          response.status === 503
-            ? '暂时无法清空礼物记录。'
-            : '暂时无法确认清空结果。',
+        label: response.status === 503 ? '暂时无法清空礼物记录。' : '暂时无法确认清空结果。',
         detail: '请重新加载记录后检查。',
         retry: true,
       });
@@ -373,8 +354,7 @@ async function clearGiftDatabase() {
     if (button) button.disabled = false;
     setText('giftHistoryClearDatabaseBtn', '清空全部记录');
     if (reload && isGiftHistoryOpen()) loadGiftHistory();
-    else if (!confirmed && isGiftHistoryOpen())
-      loadGiftHistory({ background: true });
+    else if (!confirmed && isGiftHistoryOpen()) loadGiftHistory({ background: true });
   }
 }
 
@@ -426,10 +406,7 @@ function renderSyncStatus(data) {
     renderGiftHistory();
     setSyncNotice(status, true);
     setRetryButton(false);
-    scheduleHistoryRetry(
-      historyRequestSequence,
-      HISTORY_SLOW_RETRY_INTERVAL_MS,
-    );
+    scheduleHistoryRetry(historyRequestSequence, HISTORY_SLOW_RETRY_INTERVAL_MS);
     return;
   }
   if (hasHistoryRows()) renderGiftHistory();
@@ -437,17 +414,12 @@ function renderSyncStatus(data) {
     renderHistoryError();
   } else if (syncState === 'LEGACY_PARTIAL') {
     renderHistoryNotice({ ...status, retry: true });
-    scheduleHistoryRetry(
-      historyRequestSequence,
-      HISTORY_SLOW_RETRY_INTERVAL_MS,
-    );
+    scheduleHistoryRetry(historyRequestSequence, HISTORY_SLOW_RETRY_INTERVAL_MS);
     return;
   } else if (status.state === 'offline') {
     renderHistoryNotice({
       ...status,
-      label: hasHistoryRows()
-        ? status.label
-        : '当前离线，暂时无法更新礼物记录。',
+      label: hasHistoryRows() ? status.label : '当前离线，暂时无法更新礼物记录。',
       retry: true,
     });
   } else {

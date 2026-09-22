@@ -54,11 +54,7 @@ function clockSettingsPayload(config) {
 }
 
 function isTransparentClockStyle(style) {
-  return (
-    style === 'timeline-horizontal' ||
-    style === 'timeline-vertical' ||
-    style === 'digital'
-  );
+  return style === 'timeline-horizontal' || style === 'timeline-vertical' || style === 'digital';
 }
 
 function usesDefaultClockLabel(style, label) {
@@ -76,9 +72,7 @@ function initClockCard() {
   const customLabel = document.getElementById('clockCustomLabel');
   const customLabelHelp = document.getElementById('clockCustomLabelHelp');
   const recommendedSize = document.getElementById('clockRecommendedSize');
-  const styleOptions = Array.from(
-    document.querySelectorAll('[data-clock-style-option]'),
-  );
+  const styleOptions = Array.from(document.querySelectorAll('[data-clock-style-option]'));
   if (
     !preview ||
     !fixedUrlNode ||
@@ -115,10 +109,7 @@ function initClockCard() {
       preview.src = buildClockUrl(previewBaseUrl, config);
       return;
     }
-    preview.contentWindow?.postMessage(
-      { type: 'lira:clock-preview-config', config },
-      '*',
-    );
+    preview.contentWindow?.postMessage({ type: 'lira:clock-preview-config', config }, '*');
   }
 
   function render() {
@@ -129,14 +120,8 @@ function initClockCard() {
     showSeconds.disabled = hydrating;
     hourFormat.disabled = hydrating;
     customLabel.disabled = hydrating || transparent;
-    if (customLabelHelp)
-      customLabelHelp.textContent = transparent
-        ? '此样式不显示'
-        : '最多 16 个字';
-    if (recommendedSize)
-      recommendedSize.textContent = vertical
-        ? '推荐浏览器源：240 × 400'
-        : '推荐浏览器源：580 × 210';
+    if (customLabelHelp) customLabelHelp.textContent = transparent ? '此样式不显示' : '最多 16 个字';
+    if (recommendedSize) recommendedSize.textContent = vertical ? '推荐浏览器源：240 × 400' : '推荐浏览器源：580 × 210';
     styleOptions.forEach((button) => {
       const active = button.dataset.clockStyleOption === selectedStyle;
       button.disabled = hydrating;
@@ -179,15 +164,11 @@ function initClockCard() {
       const payload = await response.json();
       const config = payload?.ok ? payload.data : null;
       if (!config) throw new Error('萌时钟配置读取失败');
-      selectedStyle = CLOCK_STYLE_VALUES.has(config.style)
-        ? config.style
-        : 'peach';
+      selectedStyle = CLOCK_STYLE_VALUES.has(config.style) ? config.style : 'peach';
       showDate.checked = config.showDate !== false;
       showSeconds.checked = config.showSeconds !== false;
       hourFormat.value = config.hourFormat === '12' ? '12' : '24';
-      customLabel.value = String(
-        config.label || CLOCK_STYLE_LABELS[selectedStyle],
-      );
+      customLabel.value = String(config.label || CLOCK_STYLE_LABELS[selectedStyle]);
     } catch (error) {
       // Keep the defaults when the optional saved-config read fails.
       void error;
@@ -206,10 +187,7 @@ function initClockCard() {
       // Only replace the label when it is the default for the style that is
       // currently selected. A user may intentionally choose text that happens
       // to be another style's built-in label.
-      const usesDefaultLabel = usesDefaultClockLabel(
-        selectedStyle,
-        currentLabel,
-      );
+      const usesDefaultLabel = usesDefaultClockLabel(selectedStyle, currentLabel);
       selectedStyle = style;
       if (!isTransparentClockStyle(selectedStyle) && usesDefaultLabel) {
         customLabel.value = CLOCK_STYLE_LABELS[selectedStyle];
@@ -224,16 +202,14 @@ function initClockCard() {
   customLabel.addEventListener('input', handleConfigChange);
   preview.addEventListener('load', updatePreview);
 
-  document
-    .getElementById('clockCopyFixed')
-    ?.addEventListener('click', async () => {
-      try {
-        await copyText(fixedUrl);
-        toast('萌时钟固定网址已复制');
-      } catch (error) {
-        toast(error.message || '复制失败，请手动复制网址。');
-      }
-    });
+  document.getElementById('clockCopyFixed')?.addEventListener('click', async () => {
+    try {
+      await copyText(fixedUrl);
+      toast('萌时钟固定网址已复制');
+    } catch (error) {
+      toast(error.message || '复制失败，请手动复制网址。');
+    }
+  });
 
   document.getElementById('clockOpenPreview')?.addEventListener('click', () => {
     window.open(fixedUrl, '_blank', 'noopener');
@@ -243,9 +219,4 @@ function initClockCard() {
   loadSavedConfig();
 }
 
-export {
-  buildClockUrl,
-  clockSettingsPayload,
-  initClockCard,
-  usesDefaultClockLabel,
-};
+export { buildClockUrl, clockSettingsPayload, initClockCard, usesDefaultClockLabel };

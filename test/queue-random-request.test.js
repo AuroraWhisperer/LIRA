@@ -56,20 +56,26 @@ test('queue random uses the logged-in account and existing danmaku request rules
   await expectRejected(/请先登录/);
   account = { loggedIn: true, uid: 42 };
   await post('/api/settings', {
-    paused: false, userCooldownSeconds: 0, allowDuplicate: false,
+    paused: false,
+    userCooldownSeconds: 0,
+    allowDuplicate: false,
   });
   await expectRejected(/没有可随机歌曲/);
   const disabled = await post('/api/songs/save', { name: '不可点歌曲' });
   await post('/api/songs/toggle', { id: disabled.data.id });
   await expectRejected(/没有可随机歌曲/);
   await post('/api/songs/save', {
-    name: '测试随机歌', artist: '测试歌手', categoryName: '国语',
+    name: '测试随机歌',
+    artist: '测试歌手',
+    categoryName: '国语',
   });
   await post('/api/settings', { paused: true });
   await expectRejected(/暂停接收点歌/);
   await post('/api/settings', { paused: false, userCooldownSeconds: 60 });
   const accepted = await post('/api/queue/random', {
-    requesterUid: 'forged', requesterName: '伪造账号', message: '点歌 伪造歌曲',
+    requesterUid: 'forged',
+    requesterName: '伪造账号',
+    message: '点歌 伪造歌曲',
   });
   assert.equal(accepted.status, 200);
   assert.equal(accepted.ok, true);

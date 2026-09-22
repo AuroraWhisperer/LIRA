@@ -3,12 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const zlib = require('node:zlib');
-const {
-  createZip,
-  readZipFiles,
-  parseSharedStrings,
-  parseWorksheetXml,
-} = require('../src/shared/xlsx-codec');
+const { createZip, readZipFiles, parseSharedStrings, parseWorksheetXml } = require('../src/shared/xlsx-codec');
 const { parseSongsFromXlsx } = require('../src/music/song-file-codec');
 const { routes } = require('../src/server/routes/song-routes');
 const { sendStableError } = require('../src/server/http-utils');
@@ -18,16 +13,10 @@ function zipFixture(entries, { descriptor = false, signature = true } = {}) {
   const locals = [];
   const centrals = [];
   let offset = 0;
-  for (const {
-    name,
-    text,
-    declaredSize = Buffer.byteLength(text),
-  } of entries) {
+  for (const { name, text, declaredSize = Buffer.byteLength(text) } of entries) {
     const stored = createZip([[name, text]]);
     const centralOffset = stored.readUInt32LE(stored.length - 6);
-    const central = Buffer.from(
-      stored.subarray(centralOffset, stored.length - 22),
-    );
+    const central = Buffer.from(stored.subarray(centralOffset, stored.length - 22));
     const local = Buffer.from(stored.subarray(0, 30 + Buffer.byteLength(name)));
     const compressed = zlib.deflateRawSync(Buffer.from(text));
     local.writeUInt16LE(descriptor ? 8 : 0, 6);
@@ -64,14 +53,9 @@ function zipFixture(entries, { descriptor = false, signature = true } = {}) {
 
 test('ZIP enforces actual per-entry inflate limits despite forged small sizes', (t) => {
   const inflate = t.mock.method(zlib, 'inflateRawSync');
-  const zip = zipFixture([
-    { name: 'sheet.xml', text: 'x'.repeat(4096), declaredSize: 1 },
-  ]);
+  const zip = zipFixture([{ name: 'sheet.xml', text: 'x'.repeat(4096), declaredSize: 1 }]);
   assert.ok(zip.length < 200);
-  assert.throws(
-    () => readZipFiles(zip, { limits: { entryBytes: 64 } }),
-    /Excel/,
-  );
+  assert.throws(() => readZipFiles(zip, { limits: { entryBytes: 64 } }), /Excel/);
   assert.equal(inflate.mock.calls[0].arguments[1].maxOutputLength, 64);
 });
 
@@ -116,14 +100,8 @@ test('ZIP accepts exact byte budgets, including UTF-8, STORE and DEFLATE', () =>
         ['b', 'xy'],
       ],
     );
-    assert.throws(
-      () => readZipFiles(zip, { limits: { entryBytes: 5 } }),
-      /Excel/,
-    );
-    assert.throws(
-      () => readZipFiles(zip, { limits: { totalBytes: 7 } }),
-      /Excel/,
-    );
+    assert.throws(() => readZipFiles(zip, { limits: { entryBytes: 5 } }), /Excel/);
+    assert.throws(() => readZipFiles(zip, { limits: { totalBytes: 7 } }), /Excel/);
   }
 });
 
@@ -140,11 +118,7 @@ test('ZIP supports data descriptors with and without a signature and EOCD commen
 });
 
 test('ZIP rejects understated output and corrupt data descriptors, including local metadata', () => {
-  assert.throws(
-    () =>
-      readZipFiles(zipFixture([{ name: 'a', text: 'xx', declaredSize: 1 }])),
-    /Excel/,
-  );
+  assert.throws(() => readZipFiles(zipFixture([{ name: 'a', text: 'xx', declaredSize: 1 }])), /Excel/);
   for (const corrupt of [
     (zip) => zip.writeUInt32LE(100, 22),
     (zip) => zip.writeUInt32LE(100, zip.readUInt32LE(zip.length - 6) - 4),
@@ -167,26 +141,20 @@ test('ZIP rejects understated output and corrupt data descriptors, including loc
 
 test('ZIP validates directory, local headers and data before reading entries', async (t) => {
   const cases = {
-    'central offset past EOF': (zip, end) =>
-      zip.writeUInt32LE(zip.length + 1, end + 16),
+    'central offset past EOF': (zip, end) => zip.writeUInt32LE(zip.length + 1, end + 16),
     'central size mismatch': (zip, end) => zip.writeUInt32LE(1, end + 12),
     'entry count mismatch': (zip, end) => zip.writeUInt16LE(2, end + 10),
     'multi-disk archive': (zip, end) => zip.writeUInt16LE(1, end + 4),
-    'truncated central header': (zip, end) =>
-      zip.writeUInt32LE(end - 2, end + 16),
-    'central name outside directory': (zip, end, central) =>
-      zip.writeUInt16LE(65535, central + 28),
-    'local offset past EOF': (zip, end, central) =>
-      zip.writeUInt32LE(zip.length, central + 42),
-    'local offset inside directory': (zip, end, central) =>
-      zip.writeUInt32LE(central, central + 42),
+    'truncated central header': (zip, end) => zip.writeUInt32LE(end - 2, end + 16),
+    'central name outside directory': (zip, end, central) => zip.writeUInt16LE(65535, central + 28),
+    'local offset past EOF': (zip, end, central) => zip.writeUInt32LE(zip.length, central + 42),
+    'local offset inside directory': (zip, end, central) => zip.writeUInt32LE(central, central + 42),
     'local name mismatch': (zip) => {
       zip[30] = 98;
     },
     'local method mismatch': (zip) => zip.writeUInt16LE(8, 8),
     'local extra outside data': (zip) => zip.writeUInt16LE(65535, 28),
-    'entry data outside archive': (zip, end, central) =>
-      zip.writeUInt32LE(zip.length, central + 20),
+    'entry data outside archive': (zip, end, central) => zip.writeUInt32LE(zip.length, central + 20),
     'claimed output mismatch': (zip, end, central) => {
       zip.writeUInt32LE(1, 22);
       zip.writeUInt32LE(1, central + 24);
@@ -194,8 +162,7 @@ test('ZIP validates directory, local headers and data before reading entries', a
     'corrupt payload checksum': (zip) => {
       zip[31] ^= 1;
     },
-    'EOCD comment length mismatch': (zip, end) =>
-      zip.writeUInt16LE(1, end + 20),
+    'EOCD comment length mismatch': (zip, end) => zip.writeUInt16LE(1, end + 20),
   };
   for (const [name, corrupt] of Object.entries(cases)) {
     await t.test(name, () => {
@@ -241,10 +208,7 @@ test('ZIP checks entry count before parsing and callers may only tighten limits'
     ['b', 'x'],
   ]);
   assert.equal(readZipFiles(zip, { limits: { zipEntries: 2 } }).size, 2);
-  assert.throws(
-    () => readZipFiles(zip, { limits: { zipEntries: 1 } }),
-    /Excel/,
-  );
+  assert.throws(() => readZipFiles(zip, { limits: { zipEntries: 1 } }), /Excel/);
   for (const entryBytes of [0, -1, NaN, Infinity, Number.MAX_SAFE_INTEGER]) {
     assert.throws(() => readZipFiles(zip, { limits: { entryBytes } }));
   }
@@ -304,32 +268,16 @@ test('ZIP rejects unsupported encryption, compression and ZIP64 sizes on selecte
 });
 
 test('worksheet checks sparse columns and implicit columns before growing arrays', () => {
-  assert.equal(
-    parseWorksheetXml('<row><c r="XFD1"><v>边界</v></c></row>', [])[0].length,
-    16384,
-  );
+  assert.equal(parseWorksheetXml('<row><c r="XFD1"><v>边界</v></c></row>', [])[0].length, 16384);
   for (const ref of ['XFE1', 'ZZZZ1', 'A0', 'A1048577', 'A1B', '-A1']) {
-    assert.throws(
-      () => parseWorksheetXml(`<row><c r="${ref}"><v>1</v></c></row>`, []),
-      /Excel/,
-    );
+    assert.throws(() => parseWorksheetXml(`<row><c r="${ref}"><v>1</v></c></row>`, []), /Excel/);
   }
-  assert.throws(
-    () => parseWorksheetXml('<row><c/><c/><c/></row>', [], { columns: 2 }),
-    /Excel/,
-  );
+  assert.throws(() => parseWorksheetXml('<row><c/><c/><c/></row>', [], { columns: 2 }), /Excel/);
 });
 
 test('worksheet counts empty rows, duplicate/empty cells and aggregate sparse row width', () => {
-  assert.equal(
-    parseWorksheetXml('<row/><row><c><v>1</v></c></row>', [], { rows: 2 })
-      .length,
-    1,
-  );
-  assert.throws(
-    () => parseWorksheetXml('<row/><row/><row/>', [], { rows: 2 }),
-    /Excel/,
-  );
+  assert.equal(parseWorksheetXml('<row/><row><c><v>1</v></c></row>', [], { rows: 2 }).length, 1);
+  assert.throws(() => parseWorksheetXml('<row/><row/><row/>', [], { rows: 2 }), /Excel/);
   assert.throws(
     () =>
       parseWorksheetXml('<row><c r="A1"/><c r="A1"/><c r="A1"/></row>', [], {
@@ -337,8 +285,7 @@ test('worksheet counts empty rows, duplicate/empty cells and aggregate sparse ro
       }),
     /Excel/,
   );
-  const rows =
-    '<row><c r="C1"><v>1</v></c></row><row><c r="C2"><v>2</v></c></row>';
+  const rows = '<row><c r="C1"><v>1</v></c></row><row><c r="C2"><v>2</v></c></row>';
   assert.equal(parseWorksheetXml(rows, [], { cells: 6 }).length, 2);
   assert.throws(() => parseWorksheetXml(rows, [], { cells: 5 }), /Excel/);
 });
@@ -351,37 +298,17 @@ test('shared strings and expanded worksheet text obey count and text budgets', (
     }),
     ['', '中文'],
   );
-  assert.throws(
-    () => parseSharedStrings('<si/><si/><si/>', { sharedStrings: 2 }),
-    /Excel/,
-  );
-  assert.throws(
-    () => parseSharedStrings('<si><t>中文文</t></si>', { textChars: 2 }),
-    /Excel/,
-  );
+  assert.throws(() => parseSharedStrings('<si/><si/><si/>', { sharedStrings: 2 }), /Excel/);
+  assert.throws(() => parseSharedStrings('<si><t>中文文</t></si>', { textChars: 2 }), /Excel/);
   const xml = '<row><c t="s"><v>0</v></c><c t="s"><v>0</v></c></row>';
-  assert.equal(
-    parseWorksheetXml(xml, ['中文'], { totalTextChars: 4 })[0][1],
-    '中文',
-  );
+  assert.equal(parseWorksheetXml(xml, ['中文'], { totalTextChars: 4 })[0][1], '中文');
+  assert.throws(() => parseWorksheetXml(xml, ['中文'], { totalTextChars: 3 }), /Excel/);
   assert.throws(
-    () => parseWorksheetXml(xml, ['中文'], { totalTextChars: 3 }),
-    /Excel/,
-  );
-  assert.throws(
-    () =>
-      parseWorksheetXml(
-        '<row><c t="inlineStr"><is><t>123</t></is></c></row>',
-        [],
-        { textChars: 2 },
-      ),
+    () => parseWorksheetXml('<row><c t="inlineStr"><is><t>123</t></is></c></row>', [], { textChars: 2 }),
     /Excel/,
   );
   const sharedXml = '<si><t>中文</t></si>';
-  assert.deepEqual(
-    parseSharedStrings(sharedXml, { entryBytes: Buffer.byteLength(sharedXml) }),
-    ['中文'],
-  );
+  assert.deepEqual(parseSharedStrings(sharedXml, { entryBytes: Buffer.byteLength(sharedXml) }), ['中文']);
   assert.throws(
     () =>
       parseSharedStrings(sharedXml, {
@@ -389,14 +316,8 @@ test('shared strings and expanded worksheet text obey count and text budgets', (
       }),
     /Excel/,
   );
-  assert.deepEqual(
-    parseSharedStrings('<si><t>&#x1F600;</t></si>', { textChars: 2 }),
-    ['😀'],
-  );
-  assert.throws(
-    () => parseSharedStrings('<si><t>&#x1F600;</t></si>', { textChars: 1 }),
-    /Excel/,
-  );
+  assert.deepEqual(parseSharedStrings('<si><t>&#x1F600;</t></si>', { textChars: 2 }), ['😀']);
+  assert.throws(() => parseSharedStrings('<si><t>&#x1F600;</t></si>', { textChars: 1 }), /Excel/);
 });
 
 test('song import keeps namespaced shared strings, rich text, inline strings and empty cells aligned', () => {
@@ -459,10 +380,7 @@ test('failed XLSX import causes no writes, broadcasts or sync and next import wo
     },
   };
   const invalid = createZip([
-    [
-      'xl/worksheets/sheet1.xml',
-      '<row><c><v>valid first</v></c></row><row><c r="XFE2"><v>bad</v></c></row>',
-    ],
+    ['xl/worksheets/sheet1.xml', '<row><c><v>valid first</v></c></row><row><c r="XFE2"><v>bad</v></c></row>'],
   ]);
   const oversized = zipFixture([
     {
@@ -480,11 +398,7 @@ test('failed XLSX import causes no writes, broadcasts or sync and next import wo
   ]) {
     let importError;
     await assert.rejects(
-      handler(
-        context,
-        { body: async () => ({ base64: buffer.toString('base64') }) },
-        response,
-      ),
+      handler(context, { body: async () => ({ base64: buffer.toString('base64') }) }, response),
       (error) => {
         importError = error;
         return /Excel/.test(error.message);
@@ -495,14 +409,8 @@ test('failed XLSX import causes no writes, broadcasts or sync and next import wo
     assert.equal(response.body.ok, false);
     assert.equal(response.status, status);
   }
-  const valid = createZip([
-    ['xl/worksheets/sheet1.xml', '<row><c><v>恢复导入</v></c></row>'],
-  ]);
-  await handler(
-    context,
-    { body: async () => ({ base64: valid.toString('base64') }) },
-    response,
-  );
+  const valid = createZip([['xl/worksheets/sheet1.xml', '<row><c><v>恢复导入</v></c></row>']]);
+  await handler(context, { body: async () => ({ base64: valid.toString('base64') }) }, response);
   assert.equal(response.status, 200);
   assert.equal(response.body.data.inserted, 1);
   assert.deepEqual(

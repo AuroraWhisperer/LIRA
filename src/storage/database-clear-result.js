@@ -24,16 +24,8 @@ function createDeletedCounts() {
   return counts;
 }
 
-function preCommitFailure({
-  errors,
-  rolledBack,
-  rollbackFailed,
-  counts,
-  giftProjectionReset,
-}) {
-  const error = new Error(
-    `Clear-all pre-commit failed: ${errors.map((e) => `${e.db} ${e.phase}`).join(', ')}`,
-  );
+function preCommitFailure({ errors, rolledBack, rollbackFailed, counts, giftProjectionReset }) {
+  const error = new Error(`Clear-all pre-commit failed: ${errors.map((e) => `${e.db} ${e.phase}`).join(', ')}`);
   error.details = errors;
   if (rollbackFailed.length === 0) throw error;
   return {
@@ -52,15 +44,7 @@ function preCommitFailure({
   };
 }
 
-function committedResult({
-  committed,
-  failed,
-  rolledBack,
-  rollbackFailed,
-  results,
-  counts,
-  giftProjectionReset,
-}) {
+function committedResult({ committed, failed, rolledBack, rollbackFailed, results, counts, giftProjectionReset }) {
   if (failed.length > 0) {
     return {
       ok: false,

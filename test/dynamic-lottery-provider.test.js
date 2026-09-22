@@ -3,19 +3,13 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 
-const {
-  normalizeDynamicLink,
-} = require('../src/bilibili/dynamic-lottery/link');
-const {
-  createLotteryProvider,
-} = require('../src/bilibili/dynamic-lottery/provider');
+const { normalizeDynamicLink } = require('../src/bilibili/dynamic-lottery/link');
+const { createLotteryProvider } = require('../src/bilibili/dynamic-lottery/provider');
 
 const OWNER_UID = '9007199254740993123';
 const DYNAMIC_ID = '9007199254740993999';
-const IMG_URL =
-  'https://i0.hdslb.com/bfs/wbi/7cd084941338484aae1ad9425b84077c.png';
-const SUB_URL =
-  'https://i0.hdslb.com/bfs/wbi/4932caff0ff746eab6f01bf08b70ac45.png';
+const IMG_URL = 'https://i0.hdslb.com/bfs/wbi/7cd084941338484aae1ad9425b84077c.png';
+const SUB_URL = 'https://i0.hdslb.com/bfs/wbi/4932caff0ff746eab6f01bf08b70ac45.png';
 
 function jsonResponse(payload, status = 200, headers = {}) {
   return new Response(JSON.stringify(payload), {
@@ -63,8 +57,7 @@ function createFixture(responses, options = {}) {
     streamerId: '42',
     authorizationEpoch: 3,
     sessionEpoch: 1,
-    cookieHeader:
-      'DedeUserID=9007199254740993123; SESSDATA=fixture; bili_jct=fixture',
+    cookieHeader: 'DedeUserID=9007199254740993123; SESSDATA=fixture; bili_jct=fixture',
   };
   const request = async (input) => {
     calls.push(input);
@@ -83,22 +76,16 @@ function createFixture(responses, options = {}) {
 }
 
 test('dynamic link normalization preserves decimal IDs and rejects unsafe origins', () => {
-  assert.deepEqual(
-    normalizeDynamicLink(`https://t.bilibili.com/${DYNAMIC_ID}?share_source=copy_link`),
-    {
-      url: `https://t.bilibili.com/${DYNAMIC_ID}`,
-      dynamicId: DYNAMIC_ID,
-      needsRedirect: false,
-    },
-  );
-  assert.deepEqual(
-    normalizeDynamicLink(`https://www.bilibili.com/opus/${DYNAMIC_ID}`),
-    {
-      url: `https://www.bilibili.com/opus/${DYNAMIC_ID}`,
-      dynamicId: DYNAMIC_ID,
-      needsRedirect: false,
-    },
-  );
+  assert.deepEqual(normalizeDynamicLink(`https://t.bilibili.com/${DYNAMIC_ID}?share_source=copy_link`), {
+    url: `https://t.bilibili.com/${DYNAMIC_ID}`,
+    dynamicId: DYNAMIC_ID,
+    needsRedirect: false,
+  });
+  assert.deepEqual(normalizeDynamicLink(`https://www.bilibili.com/opus/${DYNAMIC_ID}`), {
+    url: `https://www.bilibili.com/opus/${DYNAMIC_ID}`,
+    dynamicId: DYNAMIC_ID,
+    needsRedirect: false,
+  });
   assert.deepEqual(normalizeDynamicLink('https://b23.tv/AbC_123'), {
     url: 'https://b23.tv/AbC_123',
     dynamicId: null,
@@ -135,9 +122,7 @@ test('short links are manually resolved without forwarding credentials', async (
 });
 
 test('short links reject an off-list redirect before any credentialed request', async () => {
-  const fixture = createFixture([
-    redirectResponse('https://example.com/steal'),
-  ]);
+  const fixture = createFixture([redirectResponse('https://example.com/steal')]);
 
   await assert.rejects(
     fixture.provider.inspectDynamic('https://b23.tv/abc'),
@@ -161,20 +146,13 @@ test('short links stop after five validated redirects', async () => {
     (error) => error.code === 'LOTTERY_DYNAMIC_LINK_INVALID',
   );
   assert.equal(fixture.calls.length, 5);
-  assert.ok(
-    fixture.calls.every((call) => call.init.headers.Cookie === undefined),
-  );
+  assert.ok(fixture.calls.every((call) => call.init.headers.Cookie === undefined));
 });
 
 test('dynamic inspection verifies the logged-in owner and strict target fields', async () => {
-  const fixture = createFixture([
-    jsonResponse(navPayload()),
-    jsonResponse(detailPayload()),
-  ]);
+  const fixture = createFixture([jsonResponse(navPayload()), jsonResponse(detailPayload())]);
 
-  const result = await fixture.provider.inspectDynamic(
-    `https://t.bilibili.com/${DYNAMIC_ID}`,
-  );
+  const result = await fixture.provider.inspectDynamic(`https://t.bilibili.com/${DYNAMIC_ID}`);
 
   assert.deepEqual(result.owner, {
     streamerId: '42',
@@ -236,10 +214,7 @@ test('dynamic inspection verifies the logged-in owner and strict target fields',
 });
 
 test('dynamic inspection rejects non-owner and precision-lost numeric IDs', async () => {
-  const nonOwner = createFixture([
-    jsonResponse(navPayload('123')),
-    jsonResponse(detailPayload()),
-  ]);
+  const nonOwner = createFixture([jsonResponse(navPayload('123')), jsonResponse(detailPayload())]);
   await assert.rejects(
     nonOwner.provider.inspectDynamic(`https://t.bilibili.com/${DYNAMIC_ID}`),
     (error) => error.code === 'LOTTERY_DYNAMIC_OWNER_MISMATCH',
@@ -266,21 +241,17 @@ test('dynamic inspection rejects non-owner and precision-lost numeric IDs', asyn
 
 test('dynamic inspection rejects a response from a changed session', async () => {
   let contextReads = 0;
-  const fixture = createFixture(
-    [jsonResponse(navPayload()), jsonResponse(detailPayload())],
-    {
-      getContext: async () => {
-        contextReads += 1;
-        return {
-          streamerId: '42',
-          authorizationEpoch: 3,
-          sessionEpoch: contextReads >= 3 ? 2 : 1,
-          cookieHeader:
-            'DedeUserID=9007199254740993123; SESSDATA=fixture; bili_jct=fixture',
-        };
-      },
+  const fixture = createFixture([jsonResponse(navPayload()), jsonResponse(detailPayload())], {
+    getContext: async () => {
+      contextReads += 1;
+      return {
+        streamerId: '42',
+        authorizationEpoch: 3,
+        sessionEpoch: contextReads >= 3 ? 2 : 1,
+        cookieHeader: 'DedeUserID=9007199254740993123; SESSDATA=fixture; bili_jct=fixture',
+      };
     },
-  );
+  });
 
   await assert.rejects(
     fixture.provider.inspectDynamic(`https://t.bilibili.com/${DYNAMIC_ID}`),
@@ -322,9 +293,7 @@ test('comment pages require an explicit cursor and preserve root evidence', asyn
       },
     }),
   ]);
-  const { target } = await fixture.provider.inspectDynamic(
-    `https://www.bilibili.com/opus/${DYNAMIC_ID}`,
-  );
+  const { target } = await fixture.provider.inspectDynamic(`https://www.bilibili.com/opus/${DYNAMIC_ID}`);
 
   const page = await fixture.provider.readPage({
     target,
@@ -358,9 +327,7 @@ test('comment pages reject missing pagination and malformed records', async () =
     jsonResponse(detailPayload()),
     jsonResponse({ code: 0, data: { replies: [], cursor: {} } }),
   ]);
-  const { target } = await fixture.provider.inspectDynamic(
-    `https://t.bilibili.com/${DYNAMIC_ID}`,
-  );
+  const { target } = await fixture.provider.inspectDynamic(`https://t.bilibili.com/${DYNAMIC_ID}`);
   await assert.rejects(
     fixture.provider.readPage({ target, source: 'comment', cursor: null }),
     (error) => error.code === 'LOTTERY_UPSTREAM_INVALID',

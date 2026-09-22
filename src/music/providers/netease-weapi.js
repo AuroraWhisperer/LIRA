@@ -11,33 +11,19 @@ const WEAPI_MODULUS =
 function encryptNeteaseWeapiPayload(payload) {
   const secretKey = crypto.randomBytes(16).toString('hex').slice(0, 16);
   return {
-    params: aesEncrypt(
-      aesEncrypt(JSON.stringify(payload), WEAPI_NONCE),
-      secretKey,
-    ),
+    params: aesEncrypt(aesEncrypt(JSON.stringify(payload), WEAPI_NONCE), secretKey),
     encSecKey: rsaEncrypt(secretKey),
   };
 }
 
 function aesEncrypt(text, key) {
-  const cipher = crypto.createCipheriv(
-    'aes-128-cbc',
-    Buffer.from(key),
-    Buffer.from(WEAPI_IV),
-  );
-  return Buffer.concat([
-    cipher.update(String(text), 'utf8'),
-    cipher.final(),
-  ]).toString('base64');
+  const cipher = crypto.createCipheriv('aes-128-cbc', Buffer.from(key), Buffer.from(WEAPI_IV));
+  return Buffer.concat([cipher.update(String(text), 'utf8'), cipher.final()]).toString('base64');
 }
 
 function rsaEncrypt(secretKey) {
   const reversedHex = Buffer.from(secretKey).reverse().toString('hex');
-  return modularPower(
-    BigInt(`0x${reversedHex}`),
-    BigInt(`0x${WEAPI_PUBLIC_KEY}`),
-    BigInt(`0x${WEAPI_MODULUS}`),
-  )
+  return modularPower(BigInt(`0x${reversedHex}`), BigInt(`0x${WEAPI_PUBLIC_KEY}`), BigInt(`0x${WEAPI_MODULUS}`))
     .toString(16)
     .padStart(256, '0');
 }

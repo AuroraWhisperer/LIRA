@@ -13,8 +13,7 @@ const COMPLETION_DURATION_MS = 2600;
  */
 export function createGiftCatalogUpdateToast(dependencies = {}) {
   const windowRef = dependencies.window || globalThis.window;
-  const documentRef =
-    dependencies.document || windowRef?.document || globalThis.document;
+  const documentRef = dependencies.document || windowRef?.document || globalThis.document;
   const licenseBridge = dependencies.licenseBridge || windowRef?.liraLicense;
   const eventBus = dependencies.eventBus || defaultEventBus;
   const setTimeoutRef = dependencies.setTimeout || globalThis.setTimeout;
@@ -50,12 +49,7 @@ export function createGiftCatalogUpdateToast(dependencies = {}) {
     if (disposed) return;
     const state = normalizeState(snapshot);
     if (isStaleProgress(state)) return;
-    if (
-      isTerminalState(state) &&
-      state.completedAt &&
-      state.completedAt === lastCompletedAt
-    )
-      return;
+    if (isTerminalState(state) && state.completedAt && state.completedAt === lastCompletedAt) return;
     latestState = state;
 
     // The first initialization uses the license page and is intentionally
@@ -77,8 +71,7 @@ export function createGiftCatalogUpdateToast(dependencies = {}) {
 
   function isTerminalState(state) {
     return (
-      (state.status === 'ready' && state.phase === 'complete') ||
-      (state.status === 'error' && state.phase === 'error')
+      (state.status === 'ready' && state.phase === 'complete') || (state.status === 'error' && state.phase === 'error')
     );
   }
 
@@ -99,10 +92,13 @@ export function createGiftCatalogUpdateToast(dependencies = {}) {
   }
 
   function renderCompletion(state) {
-    renderToast(state, state.error ? '礼物图片更新失败'
-      : state.failed ? '部分图片暂未更新' : '礼物图片更新完成',
-    state.error || state.failed ? '下次检查时重试' : formatProgress(state),
-    state.error ? 'error' : state.failed ? 'warning' : 'success', COMPLETION_DURATION_MS);
+    renderToast(
+      state,
+      state.error ? '礼物图片更新失败' : state.failed ? '部分图片暂未更新' : '礼物图片更新完成',
+      state.error || state.failed ? '下次检查时重试' : formatProgress(state),
+      state.error ? 'error' : state.failed ? 'warning' : 'success',
+      COMPLETION_DURATION_MS,
+    );
   }
 
   function formatProgress(state) {
@@ -116,12 +112,20 @@ export function createGiftCatalogUpdateToast(dependencies = {}) {
     const container = documentRef?.getElementById?.('toast');
     if (!container) return;
     const stack = getToastStack({
-      container, document: documentRef, window: windowRef,
-      setTimeout: setTimeoutRef, clearTimeout: clearTimeoutRef,
+      container,
+      document: documentRef,
+      window: windowRef,
+      setTimeout: setTimeoutRef,
+      clearTimeout: clearTimeoutRef,
     });
     toastHandle = stack.show({
-      key: 'gift-catalog-update', update: true,
-      title, message, type, duration, className: 'gift-catalog-update-toast',
+      key: 'gift-catalog-update',
+      update: true,
+      title,
+      message,
+      type,
+      duration,
+      className: 'gift-catalog-update-toast',
     });
     toastNode = toastHandle.node;
     const progress = documentRef.createElement('progress');
@@ -143,8 +147,7 @@ export function createGiftCatalogUpdateToast(dependencies = {}) {
         }) || (() => {});
     }
     if (typeof eventBus?.on === 'function')
-      unsubscribeShutdown =
-        eventBus.on(APP_SHUTDOWN_EVENT, dispose) || (() => {});
+      unsubscribeShutdown = eventBus.on(APP_SHUTDOWN_EVENT, dispose) || (() => {});
     windowRef?.addEventListener?.('pagehide', dispose, { once: true });
 
     if (typeof licenseBridge?.getGiftCatalogState !== 'function') return;

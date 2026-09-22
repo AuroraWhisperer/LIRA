@@ -4,12 +4,8 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 
 const { HistoryPoller } = require('../src/bilibili/danmaku/history-poller');
-const {
-  OnlineRankPoller,
-} = require('../src/bilibili/danmaku/online-rank-poller');
-const {
-  MessageDeduplicator,
-} = require('../src/bilibili/danmaku/message-deduplicator');
+const { OnlineRankPoller } = require('../src/bilibili/danmaku/online-rank-poller');
+const { MessageDeduplicator } = require('../src/bilibili/danmaku/message-deduplicator');
 const { UserInfoService } = require('../src/bilibili/users/user-info-service');
 
 test('history poller deduplicates and submits a stable old-to-new hint order', async () => {
@@ -51,8 +47,7 @@ test('history poller deduplicates and submits a stable old-to-new hint order', a
       roomOwnerUid: '999',
       deduplicator: new MessageDeduplicator(),
       isCommandText: () => true,
-      onIdentityHint: (hint, ingestContext) =>
-        service.ingestHint(hint, ingestContext),
+      onIdentityHint: (hint, ingestContext) => service.ingestHint(hint, ingestContext),
     },
   );
 
@@ -85,15 +80,11 @@ test('online rank poller uses the injected sink and replaces the latest snapshot
       },
     },
     {
-      ingestHint: (hint, ingestContext) =>
-        service.ingestHint(hint, ingestContext),
-      replaceOnlineSnapshot: (uids, replaceContext) =>
-        service.replaceOnlineSnapshot(uids, replaceContext),
+      ingestHint: (hint, ingestContext) => service.ingestHint(hint, ingestContext),
+      replaceOnlineSnapshot: (uids, replaceContext) => service.replaceOnlineSnapshot(uids, replaceContext),
     },
   );
 
   await poller.pollOnlineRank(context);
-  assert.deepEqual(service.listOnline({ fields: ['name'] }), [
-    { uid: '1', name: 'Alice' },
-  ]);
+  assert.deepEqual(service.listOnline({ fields: ['name'] }), [{ uid: '1', name: 'Alice' }]);
 });

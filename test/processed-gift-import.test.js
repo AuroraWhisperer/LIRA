@@ -14,10 +14,7 @@ TICKET_IDENTITY.variantId = giftVariantId({
 });
 const { createGiftService } = require('../src/bilibili/gift');
 const { buildGiftFrameEvent } = require('../src/bilibili/gift/frame-config');
-const {
-  createOvertimeConsumer,
-  createOvertimeService,
-} = require('../src/overtime');
+const { createOvertimeConsumer, createOvertimeService } = require('../src/overtime');
 const { closeDatabases, createDatabases } = require('../src/storage/database');
 const { readServerFixture } = require('../scripts/verify-server-contract');
 const heartBox = readServerFixture('test/fixtures/heart-blind-box-events.json');
@@ -73,9 +70,7 @@ test('heart-box output metadata survives remote import and recent snapshot proje
 test('processed server progress stays pending until the matching server final', () => {
   const fixture = createFixture();
   try {
-    const progress = fixture.importProcessedEvent(
-      makeEvent('progress', null, { num: 1, totalPrice: 0.1 }),
-    );
+    const progress = fixture.importProcessedEvent(makeEvent('progress', null, { num: 1, totalPrice: 0.1 }));
     assert.equal(progress.detection_status, 'progress');
     assert.equal(progress.platform_id, 'lira-server:gift-event-1');
     assert.equal(progress.cmd, 'LIRA_SERVER_GIFT');
@@ -90,14 +85,9 @@ test('processed server progress stays pending until the matching server final', 
 
     fixture.clock.advance(30_000);
     fixture.detection.recover();
-    assert.equal(
-      readGift(fixture.db, progress.id).detection_status,
-      'progress',
-    );
+    assert.equal(readGift(fixture.db, progress.id).detection_status, 'progress');
 
-    const finalized = fixture.importProcessedEvent(
-      makeEvent('final', 11, { num: 3, totalPrice: 0.3 }),
-    );
+    const finalized = fixture.importProcessedEvent(makeEvent('final', 11, { num: 3, totalPrice: 0.3 }));
     assert.equal(finalized.id, progress.id);
     assert.equal(finalized.detection_status, 'final');
     assert.equal(finalized.num, 3);
@@ -110,9 +100,7 @@ test('processed server progress stays pending until the matching server final', 
     );
     assert.deepEqual(fixture.finalizedIds, [progress.id]);
 
-    const replay = fixture.importProcessedEvent(
-      makeEvent('final', 11, { num: 3, totalPrice: 0.3 }),
-    );
+    const replay = fixture.importProcessedEvent(makeEvent('final', 11, { num: 3, totalPrice: 0.3 }));
     assert.equal(replay.id, progress.id);
     assert.deepEqual(
       fixture.events.map((event) => event.phase),
@@ -148,12 +136,8 @@ test('gift projection runtime never finalizes or consumes old local gifts', () =
   `,
     )
     .run(timestamp, timestamp);
-  const legacy = fixture.db.giftDb
-    .prepare("SELECT * FROM gift_events WHERE platform_id = 'legacy-combo'")
-    .get();
-  const legacyFinal = fixture.db.giftDb
-    .prepare("SELECT * FROM gift_events WHERE platform_id = 'legacy-final'")
-    .get();
+  const legacy = fixture.db.giftDb.prepare("SELECT * FROM gift_events WHERE platform_id = 'legacy-combo'").get();
+  const legacyFinal = fixture.db.giftDb.prepare("SELECT * FROM gift_events WHERE platform_id = 'legacy-final'").get();
   const finalized = [];
   const gifts = createGiftService(
     { db: fixture.db, settings: () => ({ enableGiftSprint: 'true' }) },
@@ -165,27 +149,16 @@ test('gift projection runtime never finalizes or consumes old local gifts', () =
     },
   );
   try {
-    for (const method of [
-      'add',
-      'detect',
-      'flushPending',
-      'finalizeDetected',
-    ]) {
+    for (const method of ['add', 'detect', 'flushPending', 'finalizeDetected']) {
       assert.equal(gifts[method], undefined, `${method} must not be exposed`);
     }
     assert.equal(gifts.getStatus().pendingCount, 0);
-    const progress = gifts.importProcessedEvent(
-      makeEvent('progress', null),
-      fixture.sourceId,
-    );
+    const progress = gifts.importProcessedEvent(makeEvent('progress', null), fixture.sourceId);
     fixture.clock.advance(30_000);
     gifts.recover();
     gifts.pauseDetection();
     gifts.resumeDetection();
-    assert.equal(
-      readGift(fixture.db, progress.id).detection_status,
-      'progress',
-    );
+    assert.equal(readGift(fixture.db, progress.id).detection_status, 'progress');
     assert.equal(gifts.getStatus().pendingCount, 1);
     assert.deepEqual(finalized, []);
 
@@ -284,9 +257,7 @@ test('processed final reaches existing statistics, overtime, history, snapshot, 
       blindBoxVariantId: null,
       ...overrides,
     });
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'lira-processed-gift-integration-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-processed-gift-integration-'));
   const db = createDatabases({ dataDir });
   const clock = createFakeClock(1_800_000_000_000);
   const settings = {
@@ -354,14 +325,8 @@ test('processed final reaches existing statistics, overtime, history, snapshot, 
       syncedAt: new Date(clock.now()).toISOString(),
     });
     gifts.importProcessedEvent(makeTicketEvent('progress', null), sourceId);
-    const finalized = gifts.importProcessedEvent(
-      makeTicketEvent('final', 21, { num: 3, totalPrice: 0.3 }),
-      sourceId,
-    );
-    gifts.importProcessedEvent(
-      makeTicketEvent('final', 21, { num: 3, totalPrice: 0.3 }),
-      sourceId,
-    );
+    const finalized = gifts.importProcessedEvent(makeTicketEvent('final', 21, { num: 3, totalPrice: 0.3 }), sourceId);
+    gifts.importProcessedEvent(makeTicketEvent('final', 21, { num: 3, totalPrice: 0.3 }), sourceId);
 
     assert.equal(gifts.getSprintSnapshot().receivedRmb, 0.3);
     assert.equal(gifts.getSprintSnapshot().countedGiftCount, 1);
@@ -375,17 +340,11 @@ test('processed final reaches existing statistics, overtime, history, snapshot, 
     assert.equal(frames[0].giftEventId, finalized.id);
     assert.equal(overtime.getSnapshot().effectiveRemainingMs, 60_000);
     assert.equal(
-      db.giftDb
-        .prepare(
-          'SELECT COUNT(*) AS count FROM overtime_settlements WHERE gift_event_id = ?',
-        )
-        .get(finalized.id).count,
+      db.giftDb.prepare('SELECT COUNT(*) AS count FROM overtime_settlements WHERE gift_event_id = ?').get(finalized.id)
+        .count,
       1,
     );
-    assert.equal(
-      overtimeUpdates.filter((update) => update.reason === 'gift').length,
-      1,
-    );
+    assert.equal(overtimeUpdates.filter((update) => update.reason === 'gift').length, 1);
   } finally {
     gifts?.dispose();
     overtime.dispose();
@@ -402,10 +361,7 @@ test('history-only importer persists a final projection without live side effect
       coinType: ' GOLD ',
       createdAt: '2027-01-15T16:00:00+08:00',
     });
-    const imported = fixture.detection.importProcessedHistoryRecord(
-      record,
-      fixture.sourceId,
-    );
+    const imported = fixture.detection.importProcessedHistoryRecord(record, fixture.sourceId);
     assert.equal(imported.detection_status, 'final');
     assert.equal(imported.status, 'active');
     assert.equal(imported.gift_name, 'Café 礼物');

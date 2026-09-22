@@ -1,9 +1,7 @@
 'use strict';
 
 const childProcess = require('node:child_process');
-const {
-  WESING_NATIVE_MONITOR_SOURCE,
-} = require('./wesing-native-monitor-source');
+const { WESING_NATIVE_MONITOR_SOURCE } = require('./wesing-native-monitor-source');
 
 function createPowerShellWeSingMonitor(onSample, options = {}) {
   const spawn = options.spawn || childProcess.spawn;
@@ -20,15 +18,7 @@ function createPowerShellWeSingMonitor(onSample, options = {}) {
     const command = `[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${encoded}')) | Invoke-Expression`;
     child = spawn(
       'powershell.exe',
-      [
-        '-NoLogo',
-        '-NoProfile',
-        '-NonInteractive',
-        '-ExecutionPolicy',
-        'Bypass',
-        '-Command',
-        command,
-      ],
+      ['-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', command],
       { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] },
     );
     child.stdout.setEncoding('utf8');
@@ -74,8 +64,7 @@ function createPowerShellWeSingMonitor(onSample, options = {}) {
 }
 
 function buildPowerShellMonitorScript(options = {}) {
-  const includeDiagnostics =
-    options.includeDiagnostics === true ? '$true' : '$false';
+  const includeDiagnostics = options.includeDiagnostics === true ? '$true' : '$false';
   const requestedIntervalMs = Math.round(Number(options.pollIntervalMs));
   const pollIntervalMs = Number.isFinite(requestedIntervalMs)
     ? Math.min(5000, Math.max(100, requestedIntervalMs))

@@ -7,14 +7,11 @@ const test = require('node:test');
 const { readCssBundle } = require('./helpers/css-bundle');
 
 const ROOT_DIR = path.join(__dirname, '..');
-const read = (...parts) =>
-  fs.readFileSync(path.join(ROOT_DIR, ...parts), 'utf8');
+const read = (...parts) => fs.readFileSync(path.join(ROOT_DIR, ...parts), 'utf8');
 
 function assertOpenSelectEscapesCard(styles, selector, description) {
   const selectorPattern = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const rule = styles.match(
-    new RegExp(`${selectorPattern}\\s*\\{([^}]*)\\}`),
-  )?.[1];
+  const rule = styles.match(new RegExp(`${selectorPattern}\\s*\\{([^}]*)\\}`))?.[1];
   assert.ok(rule, `${description} should define an open-select rule`);
   assert.match(rule, /z-index:\s*1/);
   assert.match(rule, /overflow:\s*visible/);
@@ -32,13 +29,7 @@ test('all audited admin select cards release overflow while a menu is open', () 
     'AI settings cards',
   );
   assertOpenSelectEscapesCard(
-    readCssBundle(
-      'public',
-      'css',
-      'admin',
-      'other-features',
-      'streamer-planner.css',
-    ),
+    readCssBundle('public', 'css', 'admin', 'other-features', 'streamer-planner.css'),
     '.planner-notes-panel:has(.lira-select.is-open)',
     'planner notes cards',
   );

@@ -9,10 +9,7 @@ const {
   resetGiftSprintProgress,
   searchGifts,
 } = require('../src/bilibili/gift/query-service');
-const {
-  getBlindBoxStats,
-  getBlindBoxAnalysis,
-} = require('../src/bilibili/gift/blind-box-analysis');
+const { getBlindBoxStats, getBlindBoxAnalysis } = require('../src/bilibili/gift/blind-box-analysis');
 const { createFixture } = require('./helpers/gift-query-fixture');
 
 test('gift query stores fail closed for missing or invalid structured source scopes', (t) => {
@@ -21,16 +18,22 @@ test('gift query stores fail closed for missing or invalid structured source sco
   const source = fixture.resolveSource('a'.repeat(64));
   fixture.insertGift(null, 'local', { cmd: 'SEND_GIFT', countedInSprint: 1 });
   fixture.insertGift(source.id, 'remote', { countedInSprint: 1 });
-  for (const sourceScope of [undefined, {}, { kind: 'unavailable' },
-    { kind: 'source', sourceId: 0 }, { kind: 'source', sourceId: '1 OR 1=1' },
-    { sql: 'source_id IS NULL', params: [] }]) {
+  for (const sourceScope of [
+    undefined,
+    {},
+    { kind: 'unavailable' },
+    { kind: 'source', sourceId: 0 },
+    { kind: 'source', sourceId: '1 OR 1=1' },
+    { sql: 'source_id IS NULL', params: [] },
+  ]) {
     const store = fixture.context.queryStore;
     assert.deepEqual(store.listRecent({ sourceScope, limit: 30 }), []);
     assert.equal(store.resetSprint({ sourceScope, updatedAt: new Date().toISOString() }), 0);
   }
-  assert.equal(fixture.giftDb.prepare(
-    'SELECT count(*) AS count FROM gift_events WHERE counted_in_sprint = 1',
-  ).get().count, 2);
+  assert.equal(
+    fixture.giftDb.prepare('SELECT count(*) AS count FROM gift_events WHERE counted_in_sprint = 1').get().count,
+    2,
+  );
 });
 
 test('history query accepts only 1-100 normalized Unicode code points', () => {
@@ -44,9 +47,7 @@ test('history query accepts only 1-100 normalized Unicode code points', () => {
       epochValidated: true,
     });
 
-    assert.doesNotThrow(() =>
-      getGiftHistory(fixture.context, { range: 'all' }),
-    );
+    assert.doesNotThrow(() => getGiftHistory(fixture.context, { range: 'all' }));
     for (const query of ['a'.repeat(100), '\ud83c\udf81'.repeat(100)]) {
       assert.doesNotThrow(() =>
         getGiftHistory(fixture.context, {
@@ -55,12 +56,7 @@ test('history query accepts only 1-100 normalized Unicode code points', () => {
         }),
       );
     }
-    for (const query of [
-      '',
-      ' \t ',
-      'a'.repeat(101),
-      '\ud83c\udf81'.repeat(101),
-    ]) {
+    for (const query of ['', ' \t ', 'a'.repeat(101), '\ud83c\udf81'.repeat(101)]) {
       assert.throws(
         () => getGiftHistory(fixture.context, { query, range: 'all' }),
         (error) => error.code === 'INVALID_GIFT_QUERY',
@@ -186,34 +182,10 @@ test('history sorting is deterministic across keyset pages with stable totals', 
     for (const row of rows) fixture.insertGift(source.id, row.id, row);
 
     const expectedBySort = {
-      created_at: [
-        'ordinary-old',
-        'guard-governor',
-        'blind-loss',
-        'guard-captain',
-        'guard-admiral',
-      ],
-      gift_name: [
-        'guard-governor',
-        'guard-admiral',
-        'ordinary-old',
-        'blind-loss',
-        'guard-captain',
-      ],
-      price: [
-        'ordinary-old',
-        'guard-captain',
-        'guard-governor',
-        'guard-admiral',
-        'blind-loss',
-      ],
-      remarks: [
-        'ordinary-old',
-        'blind-loss',
-        'guard-captain',
-        'guard-admiral',
-        'guard-governor',
-      ],
+      created_at: ['ordinary-old', 'guard-governor', 'blind-loss', 'guard-captain', 'guard-admiral'],
+      gift_name: ['guard-governor', 'guard-admiral', 'ordinary-old', 'blind-loss', 'guard-captain'],
+      price: ['ordinary-old', 'guard-captain', 'guard-governor', 'guard-admiral', 'blind-loss'],
+      remarks: ['ordinary-old', 'blind-loss', 'guard-captain', 'guard-admiral', 'guard-governor'],
     };
 
     for (const sortField of Object.keys(expectedBySort)) {
@@ -242,15 +214,8 @@ test('history sorting is deterministic across keyset pages with stable totals', 
               sortDirection,
             })
           : null;
-        const ids = [
-          ...first.items,
-          ...(second?.items || []),
-          ...(third?.items || []),
-        ].map((item) => item.eventId);
-        const expected =
-          sortDirection === 'asc'
-            ? expectedBySort[sortField]
-            : [...expectedBySort[sortField]].reverse();
+        const ids = [...first.items, ...(second?.items || []), ...(third?.items || [])].map((item) => item.eventId);
+        const expected = sortDirection === 'asc' ? expectedBySort[sortField] : [...expectedBySort[sortField]].reverse();
         assert.deepEqual(ids, expected);
         assert.equal(new Set(ids).size, rows.length);
         assert.equal(first.total, rows.length);
@@ -450,11 +415,8 @@ test('legacy gift page reads and sprint reset stay within the active source', ()
     });
     resetGiftSprintProgress(fixture.context);
     assert.equal(
-      fixture.giftDb
-        .prepare(
-          'SELECT counted_in_sprint FROM gift_events WHERE source_id = ?',
-        )
-        .get(sourceA.id).counted_in_sprint,
+      fixture.giftDb.prepare('SELECT counted_in_sprint FROM gift_events WHERE source_id = ?').get(sourceA.id)
+        .counted_in_sprint,
       1,
     );
 
@@ -468,11 +430,8 @@ test('legacy gift page reads and sprint reset stay within the active source', ()
     });
     resetGiftSprintProgress(fixture.context);
     assert.equal(
-      fixture.giftDb
-        .prepare(
-          'SELECT counted_in_sprint FROM gift_events WHERE source_id IS NULL',
-        )
-        .get().counted_in_sprint,
+      fixture.giftDb.prepare('SELECT counted_in_sprint FROM gift_events WHERE source_id IS NULL').get()
+        .counted_in_sprint,
       1,
     );
 

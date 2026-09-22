@@ -36,10 +36,7 @@ function createToolboxRuntime({ initialStorage = {} } = {}) {
       },
       querySelector(selector) {
         if (selector === 'strong' && textContent) return { textContent };
-        if (
-          selector === '.other-feature-label strong' &&
-          dataset.otherFeature
-        ) {
+        if (selector === '.other-feature-label strong' && dataset.otherFeature) {
           return { textContent: dataset.otherFeature };
         }
         return null;
@@ -58,28 +55,13 @@ function createToolboxRuntime({ initialStorage = {} } = {}) {
   }
 
   const groups = [
-    [
-      'live-interaction',
-      ['otherDanmakuFeature', 'otherGiftFeature', 'otherGamesFeature'],
-    ],
+    ['live-interaction', ['otherDanmakuFeature', 'otherGiftFeature', 'otherGamesFeature']],
     [
       'live-scene',
-      [
-        'otherOvertimeMachineFeature',
-        'otherGiftEffectsFeature',
-        'otherStartAnimationFeature',
-        'otherClockFeature',
-      ],
+      ['otherOvertimeMachineFeature', 'otherGiftEffectsFeature', 'otherStartAnimationFeature', 'otherClockFeature'],
     ],
     ['streamer-work', ['otherDailyTodoFeature']],
-    [
-      'software-help',
-      [
-        'otherPerformanceFeature',
-        'otherUsageGuideFeature',
-        'otherDesktopUpdateFeature',
-      ],
-    ],
+    ['software-help', ['otherPerformanceFeature', 'otherUsageGuideFeature', 'otherDesktopUpdateFeature']],
   ];
   const headings = [];
   const buttons = [];
@@ -92,20 +74,14 @@ function createToolboxRuntime({ initialStorage = {} } = {}) {
       textContent: groupId,
     });
     heading.setAttribute('aria-expanded', 'true');
-    heading.querySelector = (selector) =>
-      selector === 'strong' ? { textContent: groupId } : null;
+    heading.querySelector = (selector) => (selector === 'strong' ? { textContent: groupId } : null);
     headings.push(heading);
     orderedNodes.push(heading);
     featureIds.forEach((featureId) => {
       const button = createNode({ dataset: { otherFeature: featureId } });
       button.querySelector = (selector) =>
-        selector === '.other-feature-label strong'
-          ? { textContent: featureId }
-          : null;
-      button.setAttribute(
-        'aria-selected',
-        featureId === 'otherPerformanceFeature' ? 'true' : 'false',
-      );
+        selector === '.other-feature-label strong' ? { textContent: featureId } : null;
+      button.setAttribute('aria-selected', featureId === 'otherPerformanceFeature' ? 'true' : 'false');
       if (featureId === 'otherDesktopUpdateFeature') button.hidden = true;
       buttons.push(button);
       panels.push(createNode({ id: featureId }));
@@ -165,10 +141,7 @@ function createToolboxRuntime({ initialStorage = {} } = {}) {
       },
     },
   };
-  const other = vm.runInNewContext(
-    `${readJsModuleBundle('public', 'js', 'admin', 'other.js')}\nother;`,
-    sandbox,
-  );
+  const other = vm.runInNewContext(`${readJsModuleBundle('public', 'js', 'admin', 'other.js')}\nother;`, sandbox);
   return {
     other,
     sandbox,
@@ -179,9 +152,7 @@ function createToolboxRuntime({ initialStorage = {} } = {}) {
     sidebarToggle,
     stored,
     dispatchWindowEvent(type, detail) {
-      (windowListeners.get(type) || []).forEach((handler) =>
-        handler({ detail }),
-      );
+      (windowListeners.get(type) || []).forEach((handler) => handler({ detail }));
     },
   };
 }

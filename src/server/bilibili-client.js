@@ -2,10 +2,7 @@
 
 const { BilibiliDanmakuClient } = require('../bilibili/danmaku-client');
 const { isBilibiliCommandText } = require('../bilibili/danmaku/command-text');
-const {
-  logSongRequest,
-  songRequestReason,
-} = require('../bilibili/diagnostics');
+const { logSongRequest, songRequestReason } = require('../bilibili/diagnostics');
 
 function createBilibiliClient(roomId, context) {
   const {
@@ -37,18 +34,12 @@ function createBilibiliClient(roomId, context) {
         if (isShuttingDown()) return false;
         let stage = 'dispatch';
         try {
-          if (
-            typeof publishDanmaku === 'function' &&
-            danmaku.source === 'danmaku'
-          ) {
+          if (typeof publishDanmaku === 'function' && danmaku.source === 'danmaku') {
             publishDanmaku(danmaku);
           }
           aiDanmakuDeliveryVerifier.observe(danmaku);
           const gameResult = games?.handleDanmaku?.(danmaku);
-          if (
-            gameResult?.session?.game === 'draw-guess' &&
-            !danmaku.avatarUrl
-          ) {
+          if (gameResult?.session?.game === 'draw-guess' && !danmaku.avatarUrl) {
             void client
               .ensureUserInfo(danmaku.uid, { fields: ['name', 'avatarUrl'] })
               .then((snapshot) => {
@@ -60,9 +51,7 @@ function createBilibiliClient(roomId, context) {
                 });
               })
               .catch((error) => {
-                console.warn(
-                  `[Bilibili] viewer avatar lookup failed: uid=${danmaku.uid || ''} error=${error.message}`,
-                );
+                console.warn(`[Bilibili] viewer avatar lookup failed: uid=${danmaku.uid || ''} error=${error.message}`);
               });
           }
           stage = 'request';
@@ -113,11 +102,7 @@ function createBilibiliClient(roomId, context) {
           }
           if (result.accepted) {
             stage = 'queue-broadcast';
-            broadcastSnapshot(
-              danmaku.source === 'superchat'
-                ? 'bilibili:superchat'
-                : 'bilibili:danmaku',
-            );
+            broadcastSnapshot(danmaku.source === 'superchat' ? 'bilibili:superchat' : 'bilibili:danmaku');
             logSongRequest('queue-broadcast', danmaku, {
               queueId: Number(result.queueItem?.id) || 0,
             });
@@ -125,11 +110,11 @@ function createBilibiliClient(roomId, context) {
           return gameResult?.session?.game === 'draw-guess';
         } catch (error) {
           logSongRequest('command-result', danmaku, {
-            status: 'failed', stage, reason: songRequestReason(error.message),
+            status: 'failed',
+            stage,
+            reason: songRequestReason(error.message),
           });
-          console.warn(
-            `[Bilibili] danmaku command failed: reason=${songRequestReason(error.message)}`,
-          );
+          console.warn(`[Bilibili] danmaku command failed: reason=${songRequestReason(error.message)}`);
           return false;
         }
       },
@@ -166,11 +151,7 @@ function createBilibiliClient(roomId, context) {
         uid: bilibiliAuthCache.uid,
       },
       userInfoService,
-      isCommandText: (message) =>
-        isBilibiliCommandText(
-          message,
-          domainServices.customReplies.isCommandText,
-        ),
+      isCommandText: (message) => isBilibiliCommandText(message, domainServices.customReplies.isCommandText),
     },
   );
   return client;

@@ -6,9 +6,7 @@ const MAX_TIME_MS = 24 * 60 * 60 * 1000;
 
 function normalizeLyricState(input) {
   const state = input && typeof input === 'object' ? input : {};
-  const status = ['idle', 'loading', 'ready', 'empty'].includes(state.status)
-    ? state.status
-    : 'idle';
+  const status = ['idle', 'loading', 'ready', 'empty'].includes(state.status) ? state.status : 'idle';
 
   return {
     trackTitle: cleanText(state.trackTitle, 120),

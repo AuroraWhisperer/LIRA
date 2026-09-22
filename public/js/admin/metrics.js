@@ -19,12 +19,8 @@ export const metrics = (() => {
     const loadHardware = () => {
       loadHardwareSummary(false);
     };
-    document
-      .getElementById('otherPerformanceFeatureTab')
-      ?.addEventListener('click', loadHardware);
-    document
-      .querySelector('[data-main-page="otherAssistantPage"]')
-      ?.addEventListener('click', loadHardware);
+    document.getElementById('otherPerformanceFeatureTab')?.addEventListener('click', loadHardware);
+    document.querySelector('[data-main-page="otherAssistantPage"]')?.addEventListener('click', loadHardware);
 
     button.addEventListener('click', runMetricsSample);
   }
@@ -35,9 +31,7 @@ export const metrics = (() => {
     setMetricsBusy(true);
 
     try {
-      const hardwarePromise = fetch(
-        '/api/system/hardware?includeTemperatures=true',
-      )
+      const hardwarePromise = fetch('/api/system/hardware?includeTemperatures=true')
         .then((response) => response.json())
         .catch(() => ({ ok: false }));
       const response = await fetch('/api/system/metrics?windowMs=5000');
@@ -48,14 +42,10 @@ export const metrics = (() => {
 
       try {
         const hardwarePayload = await hardwarePromise;
-        if (hardwarePayload.ok)
-          renderHardwareSummary(hardwarePayload.data, true);
-        else
-          document.getElementById('hardwareSummaryStatus').textContent =
-            '硬件温度暂不可用，不影响性能检测';
+        if (hardwarePayload.ok) renderHardwareSummary(hardwarePayload.data, true);
+        else document.getElementById('hardwareSummaryStatus').textContent = '硬件温度暂不可用，不影响性能检测';
       } catch (_) {
-        document.getElementById('hardwareSummaryStatus').textContent =
-          '硬件温度暂不可用，不影响性能检测';
+        document.getElementById('hardwareSummaryStatus').textContent = '硬件温度暂不可用，不影响性能检测';
       }
     } catch (error) {
       showError(error);
@@ -90,10 +80,7 @@ export const metrics = (() => {
     countdown.classList.add('is-running');
     metricsCountdownTimer = setInterval(() => {
       const elapsedSeconds = Math.floor((Date.now() - startedAt) / 1000);
-      const remainingSeconds = Math.max(
-        0,
-        METRICS_SAMPLE_SECONDS - elapsedSeconds,
-      );
+      const remainingSeconds = Math.max(0, METRICS_SAMPLE_SECONDS - elapsedSeconds);
       countdownValue.textContent = String(remainingSeconds);
       if (remainingSeconds === 0) {
         clearInterval(metricsCountdownTimer);
@@ -110,8 +97,7 @@ export const metrics = (() => {
     const countdown = document.getElementById('metricsCountdown');
     const countdownValue = document.getElementById('metricsCountdownValue');
     countdown?.classList.remove('is-running');
-    if (countdownValue)
-      countdownValue.textContent = String(METRICS_SAMPLE_SECONDS);
+    if (countdownValue) countdownValue.textContent = String(METRICS_SAMPLE_SECONDS);
   }
 
   function renderMetrics(metrics) {
@@ -142,34 +128,28 @@ export const metrics = (() => {
     );
     document.getElementById('metricsSampleWindow').textContent =
       `采样窗口：${Math.round((metrics.windowMs || 0) / 1000)} 秒`;
-    document.getElementById('metricsSampleTime').textContent =
-      `检测时间：${formatDateTime(metrics.sampledAt)}`;
+    document.getElementById('metricsSampleTime').textContent = `检测时间：${formatDateTime(metrics.sampledAt)}`;
     document.getElementById('metricsProcessPid').textContent =
       `本次服务进程：${app.pid || '--'}，已运行 ${formatDuration(app.uptimeSeconds)}，直播期间保持开启`;
   }
 
   function renderMetricsError(error) {
-    document.getElementById('metricsStatus').textContent =
-      error.message || '检测失败';
+    document.getElementById('metricsStatus').textContent = error.message || '检测失败';
   }
 
   async function loadHardwareSummary(includeTemperatures) {
     if (hardwareLoading || (hardwareLoaded && !includeTemperatures)) return;
     hardwareLoading = true;
-    document.getElementById('hardwareSummaryStatus').textContent =
-      '正在读取本机硬件信息';
+    document.getElementById('hardwareSummaryStatus').textContent = '正在读取本机硬件信息';
 
     try {
-      const response = await fetch(
-        `/api/system/hardware?includeTemperatures=${includeTemperatures}`,
-      );
+      const response = await fetch(`/api/system/hardware?includeTemperatures=${includeTemperatures}`);
       const payload = await response.json();
       if (!payload.ok) throw new Error(payload.error || '硬件信息读取失败');
       renderHardwareSummary(payload.data, includeTemperatures);
       hardwareLoaded = true;
     } catch (_) {
-      document.getElementById('hardwareSummaryStatus').textContent =
-        '硬件信息暂不可用，不影响性能检测';
+      document.getElementById('hardwareSummaryStatus').textContent = '硬件信息暂不可用，不影响性能检测';
     } finally {
       hardwareLoading = false;
     }
@@ -190,28 +170,17 @@ export const metrics = (() => {
 
     setHardwareText(
       'hardwareGpuModel',
-      gpus.length
-        ? gpus.map((gpu) => gpu.name || '未知 GPU').join('\n')
-        : '未读取到 GPU',
+      gpus.length ? gpus.map((gpu) => gpu.name || '未知 GPU').join('\n') : '未读取到 GPU',
     );
     setHardwareText(
       'hardwareGpuDetail',
       gpus.length
-        ? gpus
-            .map(
-              (gpu) =>
-                `${gpu.vendor || '未知厂商'}，显存 ${formatHardwareBytes(gpu.videoMemoryBytes)}`,
-            )
-            .join('\n')
+        ? gpus.map((gpu) => `${gpu.vendor || '未知厂商'}，显存 ${formatHardwareBytes(gpu.videoMemoryBytes)}`).join('\n')
         : 'Windows 未返回显卡信息',
     );
     setHardwareText(
       'hardwareGpuTemperature',
-      gpus.length
-        ? gpus
-            .map((gpu) => `${gpu.name || 'GPU'}：${formatTemperature(gpu)}`)
-            .join('\n')
-        : '不可用',
+      gpus.length ? gpus.map((gpu) => `${gpu.name || 'GPU'}：${formatTemperature(gpu)}`).join('\n') : '不可用',
     );
 
     setHardwareText(
@@ -235,10 +204,9 @@ export const metrics = (() => {
             .join('\n')
         : 'Windows 未返回内存条型号',
     );
-    document.getElementById('hardwareSummaryStatus').textContent =
-      includesTemperatures
-        ? '型号和容量已缓存；GPU 温度为本次检测时临时读取'
-        : '型号和容量已读取；GPU 温度仅在检测时读取';
+    document.getElementById('hardwareSummaryStatus').textContent = includesTemperatures
+      ? '型号和容量已缓存；GPU 温度为本次检测时临时读取'
+      : '型号和容量已读取；GPU 温度仅在检测时读取';
   }
 
   function setHardwareText(id, value) {
@@ -247,24 +215,16 @@ export const metrics = (() => {
   }
 
   function formatHardwareBytes(value) {
-    return Number.isFinite(Number(value)) && Number(value) > 0
-      ? formatBytes(Number(value))
-      : '容量未知';
+    return Number.isFinite(Number(value)) && Number(value) > 0 ? formatBytes(Number(value)) : '容量未知';
   }
 
   function formatTemperature(device, unavailableText) {
     const rawTemperature = device.temperatureCelsius;
-    if (
-      rawTemperature === null ||
-      rawTemperature === undefined ||
-      String(rawTemperature).trim() === ''
-    ) {
+    if (rawTemperature === null || rawTemperature === undefined || String(rawTemperature).trim() === '') {
       return unavailableText || device.temperatureMessage || '不可用';
     }
     const temperature = Number(rawTemperature);
-    return Number.isFinite(temperature)
-      ? `${temperature.toFixed(0)}°C`
-      : device.temperatureMessage || '不可用';
+    return Number.isFinite(temperature) ? `${temperature.toFixed(0)}°C` : device.temperatureMessage || '不可用';
   }
 
   function setMetric(id, percent, detail) {
@@ -275,12 +235,9 @@ export const metrics = (() => {
     const available = Number.isFinite(val);
 
     valueNode.textContent = available ? `${val.toFixed(1)}%` : '不可用';
-    barNode.style.width = available
-      ? `${Math.max(0, Math.min(100, val))}%`
-      : '0%';
+    barNode.style.width = available ? `${Math.max(0, Math.min(100, val))}%` : '0%';
     detailNode.textContent = detail || '等待检测';
-    valueNode.closest('.metric-card').className =
-      `metric-card ${metricLevel(val)}`;
+    valueNode.closest('.metric-card').className = `metric-card ${metricLevel(val)}`;
   }
 
   function metricLevel(val) {

@@ -48,7 +48,9 @@ function createRuntimeTransport({
     let effect;
     try {
       effect = await resolveGiftEffect(Number(event.giftId));
-    } catch { return false; }
+    } catch {
+      return false;
+    }
     if (!effect || !isCurrent() || getSettings()?.giftEffectDanmakuEnabled !== 'true') return false;
     getWebSocketHub()?.broadcast({ ...event, giftId: Number(event.giftId), effect });
     return true;
@@ -61,10 +63,7 @@ function createRuntimeTransport({
 
   function publishDanmakuItem(item) {
     if (item) {
-      getWebSocketHub()?.broadcast(
-        { type: 'danmaku:message', item },
-        { topic: 'danmaku' },
-      );
+      getWebSocketHub()?.broadcast({ type: 'danmaku:message', item }, { topic: 'danmaku' });
     }
   }
 
@@ -78,14 +77,7 @@ function createRuntimeTransport({
   }
 
   function servePageOrAsset(req, res, requestUrl) {
-    httpUtils.servePageOrAsset(
-      publicDir,
-      req,
-      res,
-      requestUrl,
-      getSessionToken(),
-      beginPlaybackSnapshotSession,
-    );
+    httpUtils.servePageOrAsset(publicDir, req, res, requestUrl, getSessionToken(), beginPlaybackSnapshotSession);
   }
 
   return {

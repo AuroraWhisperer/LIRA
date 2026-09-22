@@ -1,39 +1,134 @@
 <section id="danmakuWelcomePanel" data-fixed-editor="welcome" hidden aria-label="进场欢迎设置">
-  <p id="danmakuWelcomeCapability" class="hint" role="status" hidden>服务器暂不支持新设置，欢迎开关和原词库仍可使用。</p>
+  <p id="danmakuWelcomeCapability" class="hint" role="status" hidden>
+    服务器暂不支持新设置，欢迎开关和原词库仍可使用。
+  </p>
   <div id="danmakuWelcomeParameters">
     <div class="danmaku-welcome-rules">
       <div class="danmaku-welcome-rule">
         <strong>首次欢迎</strong><span></span>
-        <label class="danmaku-welcome-field"><span>进场后</span><input id="danmakuWelcomewelcomeDelaySeconds" type="number" min="0" max="300" step="1" value="0" aria-describedby="danmakuWelcomewelcomeDelaySecondsError" disabled /><span>秒</span><span id="danmakuWelcomewelcomeDelaySecondsError" class="danmaku-field-error" role="alert" hidden></span></label>
-        <label class="danmaku-welcome-field"><span>荣耀至少</span><input id="danmakuWelcomewelcomeMinHonorLevel" type="number" min="0" max="999" step="1" value="0" aria-describedby="danmakuWelcomewelcomeMinHonorLevelError" disabled /><span>级</span><span id="danmakuWelcomewelcomeMinHonorLevelError" class="danmaku-field-error" role="alert" hidden></span></label>
+        <label class="danmaku-welcome-field"
+          ><span>进场后</span
+          ><input
+            id="danmakuWelcomewelcomeDelaySeconds"
+            type="number"
+            min="0"
+            max="300"
+            step="1"
+            value="0"
+            aria-describedby="danmakuWelcomewelcomeDelaySecondsError"
+            disabled /><span>秒</span
+          ><span id="danmakuWelcomewelcomeDelaySecondsError" class="danmaku-field-error" role="alert" hidden></span
+        ></label>
+        <label class="danmaku-welcome-field"
+          ><span>荣耀至少</span
+          ><input
+            id="danmakuWelcomewelcomeMinHonorLevel"
+            type="number"
+            min="0"
+            max="999"
+            step="1"
+            value="0"
+            aria-describedby="danmakuWelcomewelcomeMinHonorLevelError"
+            disabled /><span>级</span
+          ><span id="danmakuWelcomewelcomeMinHonorLevelError" class="danmaku-field-error" role="alert" hidden></span
+        ></label>
         <button class="danmaku-text-action" type="button" data-welcome-library="messages">欢迎词库</button>
       </div>
       <div class="danmaku-welcome-rule">
         <strong id="danmakuWelcomeGreetingTitle">二次问候</strong>
-        <label class="switch-control"><input id="danmakuWelcomeGreetingToggle" type="checkbox" disabled aria-labelledby="danmakuWelcomeGreetingTitle" aria-describedby="danmakuWelcomeEnableHint" /><span class="switch-track"></span></label>
-        <label class="danmaku-welcome-field"><span>进场后</span><input id="danmakuWelcomegreetingDelaySeconds" type="number" min="1" max="600" step="1" value="10" aria-describedby="danmakuWelcomegreetingDelaySecondsError" disabled /><span>秒</span><span id="danmakuWelcomegreetingDelaySecondsError" class="danmaku-field-error" role="alert" hidden></span></label>
-        <label class="danmaku-welcome-field"><span>荣耀至少</span><input id="danmakuWelcomegreetingMinHonorLevel" type="number" min="0" max="999" step="1" value="0" aria-describedby="danmakuWelcomegreetingMinHonorLevelError" disabled /><span>级</span><span id="danmakuWelcomegreetingMinHonorLevelError" class="danmaku-field-error" role="alert" hidden></span></label>
+        <label class="switch-control"
+          ><input
+            id="danmakuWelcomeGreetingToggle"
+            type="checkbox"
+            disabled
+            aria-labelledby="danmakuWelcomeGreetingTitle"
+            aria-describedby="danmakuWelcomeEnableHint" /><span class="switch-track"></span
+        ></label>
+        <label class="danmaku-welcome-field"
+          ><span>进场后</span
+          ><input
+            id="danmakuWelcomegreetingDelaySeconds"
+            type="number"
+            min="1"
+            max="600"
+            step="1"
+            value="10"
+            aria-describedby="danmakuWelcomegreetingDelaySecondsError"
+            disabled /><span>秒</span
+          ><span id="danmakuWelcomegreetingDelaySecondsError" class="danmaku-field-error" role="alert" hidden></span
+        ></label>
+        <label class="danmaku-welcome-field"
+          ><span>荣耀至少</span
+          ><input
+            id="danmakuWelcomegreetingMinHonorLevel"
+            type="number"
+            min="0"
+            max="999"
+            step="1"
+            value="0"
+            aria-describedby="danmakuWelcomegreetingMinHonorLevelError"
+            disabled /><span>级</span
+          ><span id="danmakuWelcomegreetingMinHonorLevelError" class="danmaku-field-error" role="alert" hidden></span
+        ></label>
         <button class="danmaku-text-action" type="button" data-welcome-library="greetingMessages">问候词库</button>
       </div>
       <div class="danmaku-welcome-rule">
         <strong id="danmakuWelcomeAttentionTitle">重点关注</strong>
-        <label class="switch-control"><input id="danmakuWelcomeAttentionToggle" type="checkbox" disabled aria-labelledby="danmakuWelcomeAttentionTitle" aria-describedby="danmakuWelcomeEnableHint" /><span class="switch-track"></span></label>
+        <label class="switch-control"
+          ><input
+            id="danmakuWelcomeAttentionToggle"
+            type="checkbox"
+            disabled
+            aria-labelledby="danmakuWelcomeAttentionTitle"
+            aria-describedby="danmakuWelcomeEnableHint" /><span class="switch-track"></span
+        ></label>
         <span class="hint">换用专属文案</span>
-        <label class="danmaku-welcome-field"><span>荣耀至少</span><input id="danmakuWelcomeattentionMinHonorLevel" type="number" min="1" max="999" step="1" value="31" aria-describedby="danmakuWelcomeattentionMinHonorLevelError" disabled /><span>级</span><span id="danmakuWelcomeattentionMinHonorLevelError" class="danmaku-field-error" role="alert" hidden></span></label>
-        <button class="danmaku-text-action" type="button" data-welcome-library="attentionWelcomeMessages">专属词库</button>
+        <label class="danmaku-welcome-field"
+          ><span>荣耀至少</span
+          ><input
+            id="danmakuWelcomeattentionMinHonorLevel"
+            type="number"
+            min="1"
+            max="999"
+            step="1"
+            value="31"
+            aria-describedby="danmakuWelcomeattentionMinHonorLevelError"
+            disabled /><span>级</span
+          ><span id="danmakuWelcomeattentionMinHonorLevelError" class="danmaku-field-error" role="alert" hidden></span
+        ></label>
+        <button class="danmaku-text-action" type="button" data-welcome-library="attentionWelcomeMessages">
+          专属词库
+        </button>
       </div>
     </div>
-    <p class="hint danmaku-fixed-help danmaku-welcome-rule-help"><strong>0 秒立即处理，0 级不限。</strong>两次延时都从进场算起；首次欢迎成功后，才会发送二次问候。发送时，观众可能已离开。</p>
+    <p class="hint danmaku-fixed-help danmaku-welcome-rule-help">
+      <strong>0 秒立即处理，0 级不限。</strong
+      >两次延时都从进场算起；首次欢迎成功后，才会发送二次问候。发送时，观众可能已离开。
+    </p>
     <p id="danmakuWelcomeDependencyHint" class="hint"></p>
     <p id="danmakuWelcomeEnableHint" class="hint" role="status"></p>
     <details id="danmakuWelcomePreview" class="danmaku-welcome-preview">
       <summary><span>样例预览</span><span id="danmakuWelcomePreviewSummary" class="hint">样例，不发送</span></summary>
       <div class="danmaku-welcome-preview-controls">
-        <label>配置来源 <select id="danmakuWelcomePreviewSource"><option value="draft">编辑草稿</option><option value="confirmed">已确认设置</option></select></label>
-        <label>样例荣耀 <select id="danmakuWelcomePreviewLevel"><option value="31">31 级</option><option value="unknown">未知</option><option value="0">0 级</option></select></label>
+        <label
+          >配置来源
+          <select id="danmakuWelcomePreviewSource">
+            <option value="draft">编辑草稿</option>
+            <option value="confirmed">已确认设置</option>
+          </select></label
+        >
+        <label
+          >样例荣耀
+          <select id="danmakuWelcomePreviewLevel">
+            <option value="31">31 级</option>
+            <option value="unknown">未知</option>
+            <option value="0">0 级</option>
+          </select></label
+        >
       </div>
       <p class="hint">示例昵称「小曌」 · 仅预览第一条文案，实际随机选择</p>
-      <p id="danmakuWelcomePreviewFirst"></p><p id="danmakuWelcomePreviewSecond"></p>
+      <p id="danmakuWelcomePreviewFirst"></p>
+      <p id="danmakuWelcomePreviewSecond"></p>
       <p class="hint">二次问候时间仅作参考，实际受首次欢迎、排队和发送频率限制影响。注音会随弹幕公开发送。</p>
     </details>
     <div class="danmaku-welcome-parameter-actions">
@@ -55,7 +150,9 @@
       <span id="danmakuWelcomeCount" class="hint">未读取</span>
     </div>
     <div class="danmaku-fixed-notes">
-      <p class="hint danmaku-fixed-help"><strong>{username}</strong> 代表观众昵称，没填也会自动补上。舰长、提督、总督头衔会放在昵称前。</p>
+      <p class="hint danmaku-fixed-help">
+        <strong>{username}</strong> 代表观众昵称，没填也会自动补上。舰长、提督、总督头衔会放在昵称前。
+      </p>
       <p class="hint">内容太长时，会保留完整昵称，改用短句。</p>
     </div>
     <div id="danmakuWelcomeLibraryDrafts" class="hint" role="status"></div>
@@ -66,8 +163,17 @@
       <button id="danmakuWelcomeNextPage" class="ghost" type="button">下一页</button>
     </div>
     <div class="danmaku-blessing-add-row">
-      <input id="danmakuWelcomeInput" type="text" maxlength="80" disabled placeholder="例如：欢迎 {username} 来到直播间～" aria-label="新增欢迎语" />
-      <button id="danmakuWelcomeAddBtn" class="icon" type="button" disabled title="添加文案" aria-label="添加文案">＋</button>
+      <input
+        id="danmakuWelcomeInput"
+        type="text"
+        maxlength="80"
+        disabled
+        placeholder="例如：欢迎 {username} 来到直播间～"
+        aria-label="新增欢迎语"
+      />
+      <button id="danmakuWelcomeAddBtn" class="icon" type="button" disabled title="添加文案" aria-label="添加文案">
+        ＋
+      </button>
     </div>
     <div class="danmaku-blessing-actions">
       <span id="danmakuWelcomeLibraryStatus" class="hint" role="status"></span>

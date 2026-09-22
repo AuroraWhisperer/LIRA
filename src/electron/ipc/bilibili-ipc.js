@@ -1,12 +1,6 @@
 'use strict';
 
-function registerBilibiliIpc({
-  ipcMain,
-  getAuthState,
-  getProfile,
-  login,
-  logout,
-}) {
+function registerBilibiliIpc({ ipcMain, getAuthState, getProfile, login, logout }) {
   ipcMain.handle('bilibili:get-auth-state', function () {
     return getAuthState();
   });

@@ -48,23 +48,38 @@ const SETTING_KEYS = {
   interactions: `interactionOverlayTitle interactionOverlayHint interactionRatingRules interactionTextColor
     interactionBackgroundColor interactionBackgroundOpacity interactionOverallOpacity interactionBarColor interactionTrackColor
     interactionFontSize interactionCornerRadius interactionShowStatus interactionShowParticipants`,
-  overtime: '', games: '', wheel: '', 'gift-feed': '', 'gift-wishes': '', 'gift-export': '', opening: '', clock: '',
+  overtime: '',
+  games: '',
+  wheel: '',
+  'gift-feed': '',
+  'gift-wishes': '',
+  'gift-export': '',
+  opening: '',
+  clock: '',
 };
 
 function fields(names) {
-  return Object.fromEntries(names.trim().split(/\s+/).filter(Boolean).map((name) => [name, true]));
+  return Object.fromEntries(
+    names
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((name) => [name, true]),
+  );
 }
 
-const SETTING_SCHEMAS = Object.fromEntries(
-  Object.entries(SETTING_KEYS).map(([scope, keys]) => [scope, fields(keys)]),
-);
+const SETTING_SCHEMAS = Object.fromEntries(Object.entries(SETTING_KEYS).map(([scope, keys]) => [scope, fields(keys)]));
 const POINT = fields('x y');
 const EFFECT = fields('operation value');
 const DANMAKU_ITEM = {
-  ...fields('id uid timestamp name message guardLevel medalName medalLevel isStreamer avatarUrl kind giftName giftCount giftTotalPrice'),
+  ...fields(
+    'id uid timestamp name message guardLevel medalName medalLevel isStreamer avatarUrl kind giftName giftCount giftTotalPrice',
+  ),
   emotes: [fields('text url kind width height')],
 };
-const QUEUE_ITEM = fields('song_name requester_name is_pinned requester_guard_level requester_medal_level requester_medal_name');
+const QUEUE_ITEM = fields(
+  'song_name requester_name is_pinned requester_guard_level requester_medal_level requester_medal_name',
+);
 const OVERTIME = {
   ...fields('revision status serverNowMs effectiveRemainingMs'),
   background: fields('path fit'),
@@ -76,7 +91,8 @@ const LYRIC_STATE = {
   words: [fields('text startMs endMs')],
 };
 const LYRIC_TIMELINE = {
-  ...fields('trackTitle status'), artists: [true],
+  ...fields('trackTitle status'),
+  artists: [true],
   lines: [fields('startMs endMs text translation roma')],
 };
 const WHEEL = {
@@ -86,7 +102,8 @@ const WHEEL = {
 };
 const DRAW_STATE = {
   ...fields('phase round totalRounds wordLength remainingMs serverNowMs answerRevealed revealedAnswer'),
-  correct: [fields('name rank points')], scores: [fields('name score')],
+  correct: [fields('name rank points')],
+  scores: [fields('name score')],
   canvas: {
     ...fields('revision totalPoints'),
     strokes: [{ ...fields('id color width'), points: [POINT] }],
@@ -99,18 +116,27 @@ const GAME_STATES = {
 };
 const STATE_SCHEMAS = {
   queue: { queue: { current: QUEUE_ITEM, waiting: [QUEUE_ITEM] }, superChats: [fields('message price')] },
-  songlist: {}, blindbox: {}, 'gift-effects': {},
+  songlist: {},
+  blindbox: {},
+  'gift-effects': {},
   'gift-feed': { gifts: fields('viewRevision') },
   'gift-wishes': { gifts: fields('viewRevision') },
   overtime: { overtime: OVERTIME },
   lyrics: { lyricState: LYRIC_STATE, lyricTimeline: LYRIC_TIMELINE },
   danmaku: { danmakuFeed: [DANMAKU_ITEM], liveStatus: fields('enabled roomId connected message') },
-  interactions: {}, games: {}, wheel: {}, opening: {}, clock: {}, 'gift-export': {},
+  interactions: {},
+  games: {},
+  wheel: {},
+  opening: {},
+  clock: {},
+  'gift-export': {},
 };
 const INTERACTION = {
   ...fields('runtimeId revision'),
   session: {
-    ...fields('sessionId kind title phase rule startedAt endsAt finishedAt finishReason receptionInterrupted connected participants average'),
+    ...fields(
+      'sessionId kind title phase rule startedAt endsAt finishedAt finishReason receptionInterrupted connected participants average',
+    ),
     options: [fields('text votes percentage')],
   },
 };
@@ -120,7 +146,11 @@ const RESPONSE_SCHEMAS = {
     '/api/gifts/wishes': {
       ...fields('viewRevision asOf day partial'),
       session: fields('state stale startedAt endedAt'),
-      items: [fields('id period giftId giftName giftCategory imagePath target label count remaining completed progress startAt')],
+      items: [
+        fields(
+          'id period giftId giftName giftCategory imagePath target label displayStyle textTemplate count remaining completed progress startAt',
+        ),
+      ],
     },
   },
   songlist: { '/api/songs': [fields('id name artist category_name language name_initial')] },
@@ -132,11 +162,17 @@ const RESPONSE_SCHEMAS = {
   },
   'gift-feed': {
     '/api/gifts/display-settings': {
-      ...fields('palette visibleRows scrollSpeed minGiftAmountCents'), thresholds: [true],
+      ...fields('palette visibleRows scrollSpeed minGiftAmountCents'),
+      thresholds: [true],
     },
     '/api/gifts/history': {
       ...fields('viewRevision nextCursor partial'),
-      items: [{ ...fields('eventId artworkPath'), gift: fields('userName giftName giftId giftVariantId coinType unitPrice num avatarUrl guardLevel createdAt') }],
+      items: [
+        {
+          ...fields('eventId artworkPath'),
+          gift: fields('userName giftName giftId giftVariantId coinType unitPrice num avatarUrl guardLevel createdAt'),
+        },
+      ],
     },
     '/api/gifts/card-profiles': {
       ...fields('viewRevision day partial'),
@@ -152,18 +188,28 @@ const RESPONSE_SCHEMAS = {
   },
   wheel: { '/api/wheel': WHEEL, '/api/wheel/spin': WHEEL },
   clock: { '/api/clock/config': fields('style showDate showSeconds hourFormat label') },
-  opening: { '/api/opening/config': fields('enabled title subtitle name footer quality trackMotion showNotes showEq audio volume audioUrl characterUrl') },
+  opening: {
+    '/api/opening/config': fields(
+      'enabled title subtitle name footer quality trackMotion showNotes showEq audio volume audioUrl characterUrl',
+    ),
+  },
 };
 const EVENT_SCHEMAS = {
   'interaction:update': { scope: 'interactions', schema: { state: INTERACTION } },
   'danmaku:message': { scope: 'danmaku', schema: { item: DANMAKU_ITEM } },
   'gift-catalog:update': { scope: 'gift-feed', schema: {} },
-  'gift:frame': { scope: 'gift-effects', schema: fields('eventId giftName userName num totalPriceCents themeId motionMode preview') },
+  'gift:frame': {
+    scope: 'gift-effects',
+    schema: fields('eventId giftName userName num totalPriceCents themeId motionMode preview'),
+  },
   'gift:effect': {
     scope: 'gift-effects',
     schema: {
       ...fields('eventId source preview'),
-      effect: { ...fields('mp4Url'), layout: { ...fields('videoWidth videoHeight'), rgbFrame: [true], alphaFrame: [true] } },
+      effect: {
+        ...fields('mp4Url'),
+        layout: { ...fields('videoWidth videoHeight'), rgbFrame: [true], alphaFrame: [true] },
+      },
     },
   },
   'game:draw': {
@@ -176,8 +222,12 @@ const EVENT_SCHEMAS = {
   'overtime:update': {
     scope: 'overtime',
     schema: {
-      ...fields('reason'), state: OVERTIME,
-      adjustment: { ...fields('mode aggregate quantity appliedDeltaSeconds netSeconds giftId giftName applicationCount'), effect: EFFECT },
+      ...fields('reason'),
+      state: OVERTIME,
+      adjustment: {
+        ...fields('mode aggregate quantity appliedDeltaSeconds netSeconds giftId giftName applicationCount'),
+        effect: EFFECT,
+      },
     },
   },
 };
@@ -187,8 +237,9 @@ const EVENT_SCHEMAS = {
 function select(value, schema) {
   if (value === null) return null;
   if (schema === true) {
-    return ['string', 'boolean'].includes(typeof value) ||
-      (typeof value === 'number' && Number.isFinite(value)) ? value : undefined;
+    return ['string', 'boolean'].includes(typeof value) || (typeof value === 'number' && Number.isFinite(value))
+      ? value
+      : undefined;
   }
   if (Array.isArray(schema)) {
     return Array.isArray(value)
@@ -221,8 +272,7 @@ function projectOverlayState(scope, state) {
   if (SETTING_KEYS[scope]) result.settings = select(state?.settings || {}, SETTING_SCHEMAS[scope]);
   // Retain the optional legacy dedicated game snapshot without expanding the
   // global runtime snapshot to include a new domain.
-  if (scope === 'games' && Object.hasOwn(state || {}, 'games'))
-    result.games = projectGameSession(state.games);
+  if (scope === 'games' && Object.hasOwn(state || {}, 'games')) result.games = projectGameSession(state.games);
   return result;
 }
 
@@ -258,8 +308,8 @@ function projectWebSocketPayload(principal, payload) {
   if (payload.type === 'game:update') {
     return scope === 'games' ? { type: 'game:update', session: projectGameSession(payload.session) } : null;
   }
-  if (payload.type === 'interaction:update') return scope === 'interactions'
-    ? { type: payload.type, state: projectInteraction(payload.state) } : null;
+  if (payload.type === 'interaction:update')
+    return scope === 'interactions' ? { type: payload.type, state: projectInteraction(payload.state) } : null;
   const event = EVENT_SCHEMAS[payload.type];
   return event?.scope === scope ? { type: payload.type, ...select(payload, event.schema) } : null;
 }

@@ -6,11 +6,7 @@ const assert = require('node:assert');
 const fs = require('node:fs');
 const path = require('node:path');
 const { describe, it, beforeEach, afterEach } = require('node:test');
-const {
-  createDatabases,
-  clearAllData,
-  closeDatabases,
-} = require('../src/storage/database');
+const { createDatabases, clearAllData, closeDatabases } = require('../src/storage/database');
 const { now } = require('../src/shared/utils');
 const {
   seedClearAllConfiguration,
@@ -27,12 +23,7 @@ describe('clearAllData Matrix', () => {
   let tempDir;
 
   beforeEach(() => {
-    tempDir = path.join(
-      process.cwd(),
-      'test',
-      'tmp',
-      `clear-all-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-    );
+    tempDir = path.join(process.cwd(), 'test', 'tmp', `clear-all-${Date.now()}-${Math.random().toString(36).slice(2)}`);
     fs.mkdirSync(tempDir, { recursive: true });
     databases = createDatabases({ dataDir: tempDir });
   });
@@ -52,14 +43,7 @@ describe('clearAllData Matrix', () => {
     const giftSourceId = seedClearAllBusinessData(databases);
 
     // Execute clear-all
-    const result = clearAllData(
-      songDb,
-      superChatDb,
-      giftDb,
-      musicDb,
-      checkinDb,
-      { sourceId: Number(giftSourceId) },
-    );
+    const result = clearAllData(songDb, superChatDb, giftDb, musicDb, checkinDb, { sourceId: Number(giftSourceId) });
 
     assertClearAllResultStructure(result);
     assertConfigurationsPreserved(databases);
@@ -71,26 +55,16 @@ describe('clearAllData Matrix', () => {
   it('should handle empty databases', () => {
     const { songDb, superChatDb, giftDb, musicDb, checkinDb } = databases;
 
-    const result = clearAllData(
-      songDb,
-      superChatDb,
-      giftDb,
-      musicDb,
-      checkinDb,
-    );
+    const result = clearAllData(songDb, superChatDb, giftDb, musicDb, checkinDb);
 
     assert.strictEqual(result.cleared, true);
     assert.strictEqual(result.totalDeleted, 0);
 
     // Assert defaults still recreated
-    const categoriesCount = songDb
-      .prepare('SELECT COUNT(*) AS count FROM song_categories')
-      .get().count;
+    const categoriesCount = songDb.prepare('SELECT COUNT(*) AS count FROM song_categories').get().count;
     assert.strictEqual(categoriesCount, 1);
 
-    const overtimeState = giftDb
-      .prepare('SELECT * FROM overtime_machine_state WHERE id = 1')
-      .get();
+    const overtimeState = giftDb.prepare('SELECT * FROM overtime_machine_state WHERE id = 1').get();
     assert.strictEqual(overtimeState.enabled, 0);
   });
 
@@ -115,9 +89,7 @@ describe('clearAllData Matrix', () => {
         (client_id, payload, updated_at) VALUES ('retain', '{}', ?)`,
         )
         .run(timestamp);
-      const originalState = giftDb
-        .prepare('SELECT * FROM overtime_machine_state')
-        .get();
+      const originalState = giftDb.prepare('SELECT * FROM overtime_machine_state').get();
       let commits = 0;
       for (const db of Object.values(databases)) {
         const exec = db.exec;
@@ -150,15 +122,8 @@ describe('clearAllData Matrix', () => {
           .map((row) => row.name),
         ['保留分类'],
       );
-      assert.deepStrictEqual(
-        giftDb.prepare('SELECT * FROM overtime_machine_state').get(),
-        originalState,
-      );
-      assert.strictEqual(
-        musicDb.prepare('SELECT COUNT(*) AS count FROM play_queue_state').get()
-          .count,
-        1,
-      );
+      assert.deepStrictEqual(giftDb.prepare('SELECT * FROM overtime_machine_state').get(), originalState);
+      assert.strictEqual(musicDb.prepare('SELECT COUNT(*) AS count FROM play_queue_state').get().count, 1);
       for (const db of Object.values(databases)) {
         db.exec('BEGIN');
         db.exec('ROLLBACK');
@@ -220,44 +185,18 @@ describe('clearAllData Matrix', () => {
       },
     });
 
-    const result = clearAllData(
-      songDb,
-      failingSuperChatDb,
-      giftDb,
-      musicDb,
-      checkinDb,
-    );
+    const result = clearAllData(songDb, failingSuperChatDb, giftDb, musicDb, checkinDb);
 
     assert.strictEqual(result.partial, true);
     assert.deepStrictEqual(result.committed, ['songDb']);
     assert.deepStrictEqual(result.failed, ['superChatDb']);
-    assert.deepStrictEqual(result.rolledBack, [
-      'superChatDb',
-      'giftDb',
-      'musicDb',
-      'checkinDb',
-    ]);
+    assert.deepStrictEqual(result.rolledBack, ['superChatDb', 'giftDb', 'musicDb', 'checkinDb']);
     assert.deepStrictEqual(result.rollbackFailed, []);
 
-    assert.strictEqual(
-      superChatDb.prepare('SELECT COUNT(*) AS count FROM super_chats').get()
-        .count,
-      1,
-    );
-    assert.strictEqual(
-      giftDb.prepare('SELECT COUNT(*) AS count FROM gift_events').get().count,
-      1,
-    );
-    assert.strictEqual(
-      musicDb.prepare('SELECT COUNT(*) AS count FROM play_queue_state').get()
-        .count,
-      1,
-    );
-    assert.strictEqual(
-      checkinDb.prepare('SELECT COUNT(*) AS count FROM checkin_users').get()
-        .count,
-      1,
-    );
+    assert.strictEqual(superChatDb.prepare('SELECT COUNT(*) AS count FROM super_chats').get().count, 1);
+    assert.strictEqual(giftDb.prepare('SELECT COUNT(*) AS count FROM gift_events').get().count, 1);
+    assert.strictEqual(musicDb.prepare('SELECT COUNT(*) AS count FROM play_queue_state').get().count, 1);
+    assert.strictEqual(checkinDb.prepare('SELECT COUNT(*) AS count FROM checkin_users').get().count, 1);
 
     for (const db of [superChatDb, giftDb, musicDb, checkinDb]) {
       db.exec('BEGIN');

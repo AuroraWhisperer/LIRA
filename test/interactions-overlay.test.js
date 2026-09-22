@@ -7,15 +7,33 @@ const { loadModuleExports } = require('./helpers/frontend-modules');
 
 test('live poll updates preserve row nodes and scroll position while showing zero and small percentages', async () => {
   function node() {
-    return { dataset: {}, children: [], style: {}, textContent: '', scrollTop: 0,
-      append(...children) { this.children.push(...children); }, replaceChildren() { this.children = []; },
+    return {
+      dataset: {},
+      children: [],
+      style: {},
+      textContent: '',
+      scrollTop: 0,
+      append(...children) {
+        this.children.push(...children);
+      },
+      replaceChildren() {
+        this.children = [];
+      },
     };
   }
-  const { renderPollRows } = await loadModuleExports(path.resolve(__dirname, '../public/js/shared/interaction-view.js'), { document: { createElement: node } });
+  const { renderPollRows } = await loadModuleExports(
+    path.resolve(__dirname, '../public/js/shared/interaction-view.js'),
+    { document: { createElement: node } },
+  );
   const container = node();
-  const session = { sessionId: 'one', phase: 'collecting', options: [
-    { text: '<img>', votes: 0, percentage: 0 }, { text: '汉字', votes: 1, percentage: 0.5 },
-  ] };
+  const session = {
+    sessionId: 'one',
+    phase: 'collecting',
+    options: [
+      { text: '<img>', votes: 0, percentage: 0 },
+      { text: '汉字', votes: 1, percentage: 0.5 },
+    ],
+  };
   renderPollRows(container, session);
   const row = container.children[0];
   container.scrollTop = 320;
@@ -32,7 +50,9 @@ test('live poll updates preserve row nodes and scroll position while showing zer
   renderPollRows(container, session);
   assert.match(row.children[0].children[1].textContent, /最高票/);
   session.sessionId = 'two';
-  session.options.forEach((option) => { option.votes = option.percentage = 0; });
+  session.options.forEach((option) => {
+    option.votes = option.percentage = 0;
+  });
   renderPollRows(container, session);
   assert.notEqual(container.children[0], row);
   assert.equal(container.scrollTop, 0);

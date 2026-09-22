@@ -1,8 +1,6 @@
 'use strict';
 
-const {
-  canonicalizeGuardGiftId,
-} = require('../bilibili/gift/guard-gift-aliases');
+const { canonicalizeGuardGiftId } = require('../bilibili/gift/guard-gift-aliases');
 
 function createOvertimeStore(giftDb) {
   if (!giftDb || typeof giftDb.prepare !== 'function') {
@@ -10,11 +8,7 @@ function createOvertimeStore(giftDb) {
   }
 
   function getState() {
-    return (
-      giftDb
-        .prepare('SELECT * FROM overtime_machine_state WHERE id = 1')
-        .get() || null
-    );
+    return giftDb.prepare('SELECT * FROM overtime_machine_state WHERE id = 1').get() || null;
   }
 
   function ensureState(updatedAt) {
@@ -136,8 +130,7 @@ function createOvertimeStore(giftDb) {
       if (isComplete(settlement)) return { kind: 'complete', settlement };
       if (!gift) return { kind: 'missing' };
       if (!isEligible(state, gift)) {
-        if (settlement?.status === 'pending')
-          ignoreSettlement(giftEventId, updatedAt);
+        if (settlement?.status === 'pending') ignoreSettlement(giftEventId, updatedAt);
         return { kind: 'ineligible' };
       }
       ensurePending(gift, updatedAt);
@@ -157,15 +150,13 @@ function createOvertimeStore(giftDb) {
         !currentState.enabled ||
         currentState.enableEpoch !== Number(persistedState.enable_epoch)
       ) {
-        if (settlement?.status === 'pending')
-          ignoreSettlement(giftEventId, updatedAt);
+        if (settlement?.status === 'pending') ignoreSettlement(giftEventId, updatedAt);
         return { kind: 'ineligible' };
       }
 
       ensurePending(gift, updatedAt);
       settlement = getSettlement(giftEventId);
-      if (gift.detection_status !== 'final')
-        return { kind: 'pending', settlement };
+      if (gift.detection_status !== 'final') return { kind: 'pending', settlement };
 
       const rawGiftId = String(gift.gift_id || '').trim();
       const canonicalGiftId = canonicalizeGuardGiftId(rawGiftId);
@@ -177,9 +168,7 @@ function createOvertimeStore(giftDb) {
       const platformGift = /^\d+$/u.test(canonicalGiftId);
       const identityKey = platformGift ? gift.gift_variant_id : '';
       const ruleRow =
-        (identityKey != null
-          ? findRule.get(canonicalGiftId, identityKey)
-          : null) ||
+        (identityKey != null ? findRule.get(canonicalGiftId, identityKey) : null) ||
         (canonicalGiftId !== rawGiftId ? findRule.get(rawGiftId, '') : null);
       if (!ruleRow) {
         ignoreSettlement(giftEventId, updatedAt);
@@ -239,13 +228,7 @@ function createOvertimeStore(giftDb) {
         WHERE gift_event_id = ? AND status = 'pending'
       `,
         )
-        .run(
-          retryCount,
-          settleAfterMs,
-          sanitizeError(error),
-          updatedAt,
-          Number(giftEventId),
-        );
+        .run(retryCount, settleAfterMs, sanitizeError(error), updatedAt, Number(giftEventId));
       return { retryCount, settleAfterMs };
     });
   }
@@ -280,9 +263,7 @@ function createOvertimeStore(giftDb) {
     `,
       )
       .get(Number(enableEpoch));
-    return row?.next_at === null || row?.next_at === undefined
-      ? null
-      : Number(row.next_at);
+    return row?.next_at === null || row?.next_at === undefined ? null : Number(row.next_at);
   }
 
   function getSettlement(giftEventId) {
@@ -312,10 +293,7 @@ function createOvertimeStore(giftDb) {
   }
 
   function listRecent(limit = 20) {
-    const safeLimit = Math.min(
-      100,
-      Math.max(1, Math.floor(Number(limit) || 20)),
-    );
+    const safeLimit = Math.min(100, Math.max(1, Math.floor(Number(limit) || 20)));
     return giftDb
       .prepare(
         `
@@ -330,11 +308,7 @@ function createOvertimeStore(giftDb) {
   }
 
   function getGift(giftEventId) {
-    return (
-      giftDb
-        .prepare('SELECT * FROM gift_events WHERE id = ?')
-        .get(Number(giftEventId)) || null
-    );
+    return giftDb.prepare('SELECT * FROM gift_events WHERE id = ?').get(Number(giftEventId)) || null;
   }
 
   function ensurePending(gift, updatedAt) {
@@ -415,16 +389,8 @@ function createOvertimeStore(giftDb) {
 
 function normalizeRule(row) {
   const stored = parseStoredJson(row.outcomes_json);
-  const fixedSeconds =
-    row.mode === 'display'
-      ? null
-      : row.fixed_seconds === null
-        ? null
-        : Number(row.fixed_seconds);
-  const displayText =
-    row.mode === 'display' && stored?.version === 3
-      ? String(stored.displayText || '')
-      : '';
+  const fixedSeconds = row.mode === 'display' ? null : row.fixed_seconds === null ? null : Number(row.fixed_seconds);
+  const displayText = row.mode === 'display' && stored?.version === 3 ? String(stored.displayText || '') : '';
   const fixedEffect =
     row.mode === 'display'
       ? null
@@ -432,24 +398,16 @@ function normalizeRule(row) {
         ? stored.effect
         : effectFromLegacySeconds(fixedSeconds);
   const outcomes =
-    stored?.version === 2 && Array.isArray(stored.outcomes)
-      ? stored.outcomes
-      : parseLegacyOutcomes(stored);
+    stored?.version === 2 && Array.isArray(stored.outcomes) ? stored.outcomes : parseLegacyOutcomes(stored);
   const normalized = {
     giftIdentity: parseStoredJson(row.gift_identity_json),
     bindingStatus:
-      row.gift_identity_key ||
-      !/^\d+$/u.test(canonicalizeGuardGiftId(row.gift_id))
-        ? 'bound'
-        : 'needs-selection',
+      row.gift_identity_key || !/^\d+$/u.test(canonicalizeGuardGiftId(row.gift_id)) ? 'bound' : 'needs-selection',
     giftId: row.gift_id,
     giftName: row.gift_name,
     imagePath: row.image_path,
     mode: row.mode,
-    quantityMode:
-      [2, 3].includes(stored?.version) && stored?.quantityMode === 'item'
-        ? 'item'
-        : 'group',
+    quantityMode: [2, 3].includes(stored?.version) && stored?.quantityMode === 'item' ? 'item' : 'group',
     fixedSeconds,
     fixedEffect,
     outcomes,
@@ -471,18 +429,12 @@ function parseLegacyOutcomes(stored) {
 
 function effectFromLegacySeconds(seconds) {
   const value = Number(seconds) || 0;
-  return value < 0
-    ? { operation: 'subtract', value: Math.abs(value) }
-    : { operation: 'add', value };
+  return value < 0 ? { operation: 'subtract', value: Math.abs(value) } : { operation: 'add', value };
 }
 
 function isEligible(state, gift) {
   const currentEpoch = Math.max(0, Number(state?.enable_epoch) || 0);
-  return (
-    Number(state?.enabled) === 1 &&
-    currentEpoch > 0 &&
-    Number(gift?.overtime_epoch) === currentEpoch
-  );
+  return Number(state?.enabled) === 1 && currentEpoch > 0 && Number(gift?.overtime_epoch) === currentEpoch;
 }
 
 function isComplete(settlement) {
@@ -514,14 +466,8 @@ function normalizeSettlement(row) {
     retryCount: Number(row.retry_count),
     ruleMode: row.rule_mode,
     ruleSnapshot: parseStoredJson(row.rule_snapshot_json),
-    requestedDeltaSeconds:
-      row.requested_delta_seconds === null
-        ? null
-        : Number(row.requested_delta_seconds),
-    appliedDeltaSeconds:
-      row.applied_delta_seconds === null
-        ? null
-        : Number(row.applied_delta_seconds),
+    requestedDeltaSeconds: row.requested_delta_seconds === null ? null : Number(row.requested_delta_seconds),
+    appliedDeltaSeconds: row.applied_delta_seconds === null ? null : Number(row.applied_delta_seconds),
     outcome: parseStoredJson(row.outcomes_json),
     createdAt: row.created_at,
     updatedAt: row.updated_at,

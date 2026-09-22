@@ -1,20 +1,10 @@
 <div id="importPage" class="tab-page">
   <div class="panel-body stack">
     <div class="actions">
-      <a class="song-data-action" href="/api/songs/template.xlsx"
-        >下载导入模板</a
-      >
-      <a class="song-data-action" href="/api/songs/export.xlsx"
-        >导出歌库 Excel</a
-      >
-      <button id="clearDatabaseBtn" class="song-data-action danger" type="button">
-        清空歌库
-      </button>
-      <button
-        id="clearAllBtn"
-        class="song-data-action danger song-data-action-solid"
-        type="button"
-      >
+      <a class="song-data-action" href="/api/songs/template.xlsx">下载导入模板</a>
+      <a class="song-data-action" href="/api/songs/export.xlsx">导出歌库 Excel</a>
+      <button id="clearDatabaseBtn" class="song-data-action danger" type="button">清空歌库</button>
+      <button id="clearAllBtn" class="song-data-action danger song-data-action-solid" type="button">
         清空歌曲和使用记录
       </button>
     </div>
@@ -52,12 +42,7 @@
       </p>
       <button id="songImportPreviewBtn" type="button">预览更新</button>
     </div>
-    <section
-      id="songImportPreview"
-      class="stack"
-      aria-label="歌库更新预览"
-      hidden
-    >
+    <section id="songImportPreview" class="stack" aria-label="歌库更新预览" hidden>
       <p id="songImportPreviewSummary" class="hint" role="status"></p>
       <div class="table-wrap">
         <table>
@@ -78,9 +63,7 @@
         <span id="songImportPage" class="hint"></span>
         <button id="songImportNextPage" type="button">下一页</button>
       </div>
-      <button id="songImportApplyBtn" class="primary" type="button" disabled>
-        确认更新歌库
-      </button>
+      <button id="songImportApplyBtn" class="primary" type="button" disabled>确认更新歌库</button>
     </section>
     <p class="hint song-import-note">
       默认仅新增，相同歌名和歌手的已有歌曲会跳过，不会更新价格。批量修改请先切换到更新模式并核对预览。
@@ -90,9 +73,7 @@
       <dl>
         <div>
           <dt>文件与表头</dt>
-          <dd>
-            支持 XLSX、CSV、TSV，也可直接粘贴表格。兼容常用表头；无表头时，请保留模板完整十列。
-          </dd>
+          <dd>支持 XLSX、CSV、TSV，也可直接粘贴表格。兼容常用表头；无表头时，请保留模板完整十列。</dd>
         </div>
         <div>
           <dt>多个值</dt>
@@ -117,12 +98,7 @@
     </details>
     <div id="importResult" class="hint" role="status" aria-live="polite"></div>
     <div class="song-cloud-settings">
-      <section
-        id="licenseSongSync"
-        class="song-cloud-panel"
-        aria-labelledby="songCloudSyncTitle"
-        hidden
-      >
+      <section id="licenseSongSync" class="song-cloud-panel" aria-labelledby="songCloudSyncTitle" hidden>
         <header class="song-cloud-heading">
           <h3 id="songCloudSyncTitle" class="ui-card-title">网页歌单同步</h3>
           <p class="hint">将本地歌库同步到观众可访问的歌单页面。</p>
@@ -143,48 +119,21 @@
           <p class="hint">请先确认这台电脑的歌曲齐全，并避免同时在多台电脑修改歌库。</p>
         </div>
         <div class="actions song-cloud-actions">
-          <button
-            id="licenseSyncSongsBtn"
-            class="song-data-action primary"
-            type="button"
-          >
-            同步到网页
-          </button>
-          <a
-            id="licenseSongPageLink"
-            class="song-data-action"
-            href="#"
-            target="_blank"
-            rel="noreferrer"
-            hidden
+          <button id="licenseSyncSongsBtn" class="song-data-action primary" type="button">同步到网页</button>
+          <a id="licenseSongPageLink" class="song-data-action" href="#" target="_blank" rel="noreferrer" hidden
             >查看网页歌单</a
           >
         </div>
-        <p
-          id="licenseSyncResult"
-          class="hint song-cloud-result"
-          role="status"
-          aria-live="polite"
-        ></p>
+        <p id="licenseSyncResult" class="hint song-cloud-result" role="status" aria-live="polite"></p>
       </section>
-      <section
-        id="licenseSongBackground"
-        class="song-cloud-panel"
-        aria-labelledby="songCloudBackgroundTitle"
-        hidden
-      >
+      <section id="licenseSongBackground" class="song-cloud-panel" aria-labelledby="songCloudBackgroundTitle" hidden>
         <header class="song-cloud-heading">
           <h3 id="songCloudBackgroundTitle" class="ui-card-title">歌单背景</h3>
           <p class="hint">设置观众打开网页歌单时看到的背景。</p>
         </header>
         <div class="song-background-content">
           <div class="song-bg-preview-wrap">
-            <img
-              id="licenseSongBgPreview"
-              class="song-bg-preview"
-              alt="当前歌单背景预览"
-              hidden
-            />
+            <img id="licenseSongBgPreview" class="song-bg-preview" alt="当前歌单背景预览" hidden />
             <div id="licenseSongBgEmpty" class="song-background-empty">
               <svg
                 viewBox="0 0 24 24"
@@ -209,30 +158,11 @@
         </div>
         <p id="licenseSongBgMeta" class="hint song-cloud-result"></p>
         <div class="actions song-cloud-actions">
-          <input
-            id="licenseSongBgFile"
-            type="file"
-            accept="image/png,image/jpeg,image/webp,image/gif"
-            hidden
-          />
-          <button id="licenseSongBgPickBtn" class="song-data-action" type="button">
-            上传背景
-          </button>
-          <button
-            id="licenseSongBgDeleteBtn"
-            class="song-data-action"
-            type="button"
-            hidden
-          >
-            恢复默认背景
-          </button>
+          <input id="licenseSongBgFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden />
+          <button id="licenseSongBgPickBtn" class="song-data-action" type="button">上传背景</button>
+          <button id="licenseSongBgDeleteBtn" class="song-data-action" type="button" hidden>恢复默认背景</button>
         </div>
-        <p
-          id="licenseSongBgResult"
-          class="hint song-cloud-result"
-          role="status"
-          aria-live="polite"
-        ></p>
+        <p id="licenseSongBgResult" class="hint song-cloud-result" role="status" aria-live="polite"></p>
       </section>
     </div>
   </div>

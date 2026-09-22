@@ -32,7 +32,8 @@ export function createToastStack({
   }
 
   function resume(entry) {
-    if (!entry.visible || entry.closed || entry.hovered || entry.focused || !entry.duration || entry.timer !== null) return;
+    if (!entry.visible || entry.closed || entry.hovered || entry.focused || !entry.duration || entry.timer !== null)
+      return;
     entry.started = now();
     entry.timer = later(() => close(entry), Math.max(0, entry.remaining));
   }
@@ -52,15 +53,18 @@ export function createToastStack({
 
   function layout() {
     if (disposed) return;
-    const sorted = [...entries.values()].sort((a, b) =>
-      Number(b.focused || b.hovered) - Number(a.focused || a.hovered) ||
-      Number(a.gift) - Number(b.gift) ||
-      Number(b.type === 'error' || !!b.options.onClick) - Number(a.type === 'error' || !!a.options.onClick) ||
-      b.order - a.order,
+    const sorted = [...entries.values()].sort(
+      (a, b) =>
+        Number(b.focused || b.hovered) - Number(a.focused || a.hovered) ||
+        Number(a.gift) - Number(b.gift) ||
+        Number(b.type === 'error' || !!b.options.onClick) - Number(a.type === 'error' || !!a.options.onClick) ||
+        b.order - a.order,
     );
     const oldTops = new Map(sorted.filter((e) => e.visible).map((e) => [e, e.node.getBoundingClientRect().top]));
     // CSS ordering preserves focused controls; re-appending a node would blur them.
-    sorted.forEach((entry, index) => { entry.node.style.order = index; });
+    sorted.forEach((entry, index) => {
+      entry.node.style.order = index;
+    });
     let height = 0;
     let systems = 0;
     let gifts = 0;
@@ -88,10 +92,11 @@ export function createToastStack({
       for (const entry of sorted.filter((item) => item.visible)) {
         const previous = oldTops.get(entry);
         const delta = previous === undefined ? 0 : previous - entry.node.getBoundingClientRect().top;
-        if (delta) entry.node.animate?.(
-          [{ translate: `0 ${delta}px` }, { translate: '0 0' }],
-          { duration: EXIT_MS, easing: 'ease-out' },
-        );
+        if (delta)
+          entry.node.animate?.([{ translate: `0 ${delta}px` }, { translate: '0 0' }], {
+            duration: EXIT_MS,
+            easing: 'ease-out',
+          });
       }
     }
     // Gifts are transient events; hidden system results wait for available space.
@@ -134,10 +139,13 @@ export function createToastStack({
     entry.options = options;
     entry.type = TYPE_LABELS[options.type] ? options.type : 'info';
     entry.gift = (options.className || '').includes('gift-notify-toast');
-    entry.duration = options.duration === 0 ? 0 : Math.max(
-      Number(options.duration) || 2600,
-      options.onClick ? 8000 : ['error', 'warning'].includes(entry.type) ? 6000 : 0,
-    );
+    entry.duration =
+      options.duration === 0
+        ? 0
+        : Math.max(
+            Number(options.duration) || 2600,
+            options.onClick ? 8000 : ['error', 'warning'].includes(entry.type) ? 6000 : 0,
+          );
     entry.remaining = entry.duration;
     const detailed = Boolean(options.title || options.html);
     entry.node.className = `toast toast-${entry.type}${detailed ? ' toast-detailed' : ''}${options.className ? ` ${options.className}` : ''}`;
@@ -161,9 +169,16 @@ export function createToastStack({
       const symbol = documentRef.createElement('span');
       symbol.className = 'toast-symbol';
       symbol.setAttribute('aria-hidden', 'true');
-      const paths = entry.type === 'warning' ? '<path d="m12 3 10 18H2L12 3Z"/><path d="M12 9v4m0 4h.01"/>'
-        : `<circle cx="12" cy="12" r="9"/>${entry.type === 'success' ? '<path d="m8 12 3 3 5-6"/>'
-          : entry.type === 'error' ? '<path d="M12 7v6m0 4h.01"/>' : '<path d="M12 11v6m0-10h.01"/>'}`;
+      const paths =
+        entry.type === 'warning'
+          ? '<path d="m12 3 10 18H2L12 3Z"/><path d="M12 9v4m0 4h.01"/>'
+          : `<circle cx="12" cy="12" r="9"/>${
+              entry.type === 'success'
+                ? '<path d="m8 12 3 3 5-6"/>'
+                : entry.type === 'error'
+                  ? '<path d="M12 7v6m0 4h.01"/>'
+                  : '<path d="M12 11v6m0-10h.01"/>'
+            }`;
       symbol.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
       entry.content.prepend(symbol);
     }
@@ -194,9 +209,17 @@ export function createToastStack({
     action.className = 'toast-action';
     node.append(content, action);
     const entry = {
-      key, node, content, action, order: ++sequence,
-      returnFocus: documentRef.activeElement, timer: null, visible: false,
-      hovered: false, focused: false, closed: false,
+      key,
+      node,
+      content,
+      action,
+      order: ++sequence,
+      returnFocus: documentRef.activeElement,
+      timer: null,
+      visible: false,
+      hovered: false,
+      focused: false,
+      closed: false,
     };
     entry.handle = {
       node,
@@ -209,9 +232,18 @@ export function createToastStack({
       close(entry);
       callback?.();
     });
-    node.addEventListener('mouseenter', () => { entry.hovered = true; pause(entry); });
-    node.addEventListener('mouseleave', () => { entry.hovered = false; resume(entry); });
-    node.addEventListener('focusin', () => { entry.focused = true; pause(entry); });
+    node.addEventListener('mouseenter', () => {
+      entry.hovered = true;
+      pause(entry);
+    });
+    node.addEventListener('mouseleave', () => {
+      entry.hovered = false;
+      resume(entry);
+    });
+    node.addEventListener('focusin', () => {
+      entry.focused = true;
+      pause(entry);
+    });
     node.addEventListener('focusout', (event) => {
       if (node.contains(event.relatedTarget)) return;
       entry.focused = false;
@@ -228,7 +260,10 @@ export function createToastStack({
     if (disposed) return;
     disposed = true;
     for (const entry of entries.values()) close(entry, true, false);
-    for (const entry of leaving) { cancel(entry.exitTimer); entry.node.remove(); }
+    for (const entry of leaving) {
+      cancel(entry.exitTimer);
+      entry.node.remove();
+    }
     leaving.clear();
     announcer.remove();
     windowRef?.removeEventListener?.('resize', layout);

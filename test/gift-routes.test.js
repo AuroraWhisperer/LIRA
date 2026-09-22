@@ -20,11 +20,7 @@ test('gift ledger routes pass only allowlisted filters and reject source selecto
   };
 
   const forbidden = createResponse();
-  routes['GET /api/gifts/history'](
-    context,
-    createRequest('sourceId=99&range=all'),
-    forbidden,
-  );
+  routes['GET /api/gifts/history'](context, createRequest('sourceId=99&range=all'), forbidden);
   assert.equal(forbidden.status, 400);
   assert.equal(forbidden.payload.code, 'GIFT_SOURCE_SELECTOR_FORBIDDEN');
   assert.deepEqual(calls, []);
@@ -32,9 +28,7 @@ test('gift ledger routes pass only allowlisted filters and reject source selecto
   const history = createResponse();
   routes['GET /api/gifts/history'](
     context,
-    createRequest(
-      'query=%25_&range=90d&limit=25&cursor=opaque&sortField=price&sortDirection=asc&amountAbove=10.01',
-    ),
+    createRequest('query=%25_&range=90d&limit=25&cursor=opaque&sortField=price&sortDirection=asc&amountAbove=10.01'),
     history,
   );
   assert.equal(history.status, 200);
@@ -52,24 +46,13 @@ test('gift ledger routes pass only allowlisted filters and reject source selecto
   ]);
 
   const statistics = createResponse();
-  routes['GET /api/gifts/statistics'](
-    context,
-    createRequest('query=box&range=all&amountAbove=10.01'),
-    statistics,
-  );
+  routes['GET /api/gifts/statistics'](context, createRequest('query=box&range=all&amountAbove=10.01'), statistics);
   assert.equal(statistics.status, 200);
-  assert.deepEqual(calls[1], [
-    'statistics',
-    { query: 'box', range: 'all', limit: undefined, cursor: null },
-  ]);
+  assert.deepEqual(calls[1], ['statistics', { query: 'box', range: 'all', limit: undefined, cursor: null }]);
 });
 
 test('gift ledger routes return 400 for invalid sorting and filter parameters', () => {
-  for (const code of [
-    'INVALID_GIFT_SORT_FIELD',
-    'INVALID_GIFT_SORT_DIRECTION',
-    'INVALID_GIFT_FILTER',
-  ]) {
+  for (const code of ['INVALID_GIFT_SORT_FIELD', 'INVALID_GIFT_SORT_DIRECTION', 'INVALID_GIFT_FILTER']) {
     const error = new Error('礼物排序参数无效。');
     error.code = code;
     const response = createResponse();
@@ -128,17 +111,9 @@ test('gift ledger routes distinguish a missing query from an explicit empty quer
   };
 
   const missing = createResponse();
-  routes['GET /api/gifts/history'](
-    context,
-    createRequest('range=all'),
-    missing,
-  );
+  routes['GET /api/gifts/history'](context, createRequest('range=all'), missing);
   const explicitEmpty = createResponse();
-  routes['GET /api/gifts/history'](
-    context,
-    createRequest('query=&range=all'),
-    explicitEmpty,
-  );
+  routes['GET /api/gifts/history'](context, createRequest('query=&range=all'), explicitEmpty);
 
   assert.equal(missing.status, 200);
   assert.equal(calls[0].query, undefined);
@@ -158,9 +133,17 @@ test('gift selection rejects invalid bodies and maps stale selection to conflict
     assert.equal(response.status, 400);
   }
   const response = createResponse();
-  await routes['POST /api/gifts/selection']({ gifts: { getSelection() {
-    throw Object.assign(new Error('来源已变更'), { code: 'GIFT_VIEW_STALE' });
-  } } }, { body: async () => ({ viewRevision: 'old' }) }, response);
+  await routes['POST /api/gifts/selection'](
+    {
+      gifts: {
+        getSelection() {
+          throw Object.assign(new Error('来源已变更'), { code: 'GIFT_VIEW_STALE' });
+        },
+      },
+    },
+    { body: async () => ({ viewRevision: 'old' }) },
+    response,
+  );
   assert.equal(response.status, 409);
   assert.equal(response.payload.code, 'GIFT_VIEW_STALE');
 });
@@ -168,23 +151,48 @@ test('gift selection rejects invalid bodies and maps stale selection to conflict
 test('gift display settings persist valid cents and leave saved configuration unchanged on invalid input', async () => {
   const settings = {};
   const broadcasts = [];
-  const context = { settings: { get: () => settings, set: (key, value) => { settings[key] = value; } },
-    broadcastSnapshot: (reason) => broadcasts.push(reason) };
-  const config = { palette: 'bilibili-four', thresholds: [9999, 49999, 99999], visibleRows: 1, scrollSpeed: 26, minGiftAmountCents: 1250 };
+  const context = {
+    settings: {
+      get: () => settings,
+      set: (key, value) => {
+        settings[key] = value;
+      },
+    },
+    broadcastSnapshot: (reason) => broadcasts.push(reason),
+  };
+  const config = {
+    palette: 'bilibili-four',
+    thresholds: [9999, 49999, 99999],
+    visibleRows: 1,
+    scrollSpeed: 26,
+    minGiftAmountCents: 1250,
+  };
   const saved = createResponse();
   await routes['POST /api/gifts/display-settings'](context, { body: async () => config }, saved);
   assert.equal(saved.status, 200);
   const rejected = createResponse();
-  await routes['POST /api/gifts/display-settings'](context, { body: async () => ({ ...config, thresholds: [100, 100, 100] }) }, rejected);
+  await routes['POST /api/gifts/display-settings'](
+    context,
+    { body: async () => ({ ...config, thresholds: [100, 100, 100] }) },
+    rejected,
+  );
   assert.equal(rejected.status, 400);
   for (const scrollSpeed of [0, 51, 1.5, '25']) {
     const invalid = createResponse();
-    await routes['POST /api/gifts/display-settings'](context, { body: async () => ({ ...config, scrollSpeed }) }, invalid);
+    await routes['POST /api/gifts/display-settings'](
+      context,
+      { body: async () => ({ ...config, scrollSpeed }) },
+      invalid,
+    );
     assert.equal(invalid.status, 400);
   }
   for (const minGiftAmountCents of [-10, 1, 1251, 0.5, '1250', null, Number.MAX_SAFE_INTEGER + 1]) {
     const invalid = createResponse();
-    await routes['POST /api/gifts/display-settings'](context, { body: async () => ({ ...config, minGiftAmountCents }) }, invalid);
+    await routes['POST /api/gifts/display-settings'](
+      context,
+      { body: async () => ({ ...config, minGiftAmountCents }) },
+      invalid,
+    );
     assert.equal(invalid.status, 400);
   }
   const read = createResponse();

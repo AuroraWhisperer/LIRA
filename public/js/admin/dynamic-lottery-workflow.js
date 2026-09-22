@@ -6,49 +6,34 @@ const BASE = '/api/bilibili/dynamic-lottery';
 const ERRORS = {
   LOTTERY_IDENTITY_UNAVAILABLE: '请先完成 LIRA 账号授权。',
   LOTTERY_DESKTOP_REQUIRED: '请在 LIRA 桌面客户端使用动态抽奖。',
-  LOTTERY_STORAGE_UNAVAILABLE:
-    '抽奖数据库不可用，请重启客户端。其他功能不受影响。',
+  LOTTERY_STORAGE_UNAVAILABLE: '抽奖数据库不可用，请重启客户端。其他功能不受影响。',
   LOTTERY_STORAGE_FAILED: '保存抽奖进度失败，请停止操作并检查本地数据目录。',
-  LOTTERY_DYNAMIC_LINK_INVALID:
-    '请粘贴 B站动态、BV 视频或 b23.tv 的 HTTPS 链接。',
-  LOTTERY_DYNAMIC_TYPE_UNSUPPORTED:
-    '此动态类型暂不支持，请使用原创文字/图文动态，或直接使用 BV 视频链接。',
-  LOTTERY_DYNAMIC_OWNER_MISMATCH:
-    '抽奖账号不是内容作者，请在上方切换为作者的专用账号。',
+  LOTTERY_DYNAMIC_LINK_INVALID: '请粘贴 B站动态、BV 视频或 b23.tv 的 HTTPS 链接。',
+  LOTTERY_DYNAMIC_TYPE_UNSUPPORTED: '此动态类型暂不支持，请使用原创文字/图文动态，或直接使用 BV 视频链接。',
+  LOTTERY_DYNAMIC_OWNER_MISMATCH: '抽奖账号不是内容作者，请在上方切换为作者的专用账号。',
   LOTTERY_VIDEO_SOURCE_UNAVAILABLE:
     '视频支持评论抽奖及关注核验；暂不能可靠取得视频点赞、分享用户名单。请关闭这两个条件，或使用原创图文动态。',
   LOTTERY_BILIBILI_AUTH_REQUIRED: '抽奖登录已失效，请退出并重新登录作者账号。',
-  LOTTERY_SESSION_CHANGED:
-    '账号或授权发生变化，操作已停止。确认原作者账号后继续。',
+  LOTTERY_SESSION_CHANGED: '账号或授权发生变化，操作已停止。确认原作者账号后继续。',
   LOTTERY_SESSION_DISPOSED: '客户端正在关闭；重新打开后可继续。',
   LOTTERY_AUTH_BUSY: '账号正在登录或退出，请稍后继续。',
-  LOTTERY_BILIBILI_CHALLENGE:
-    'B站要求验证或触发风控。请先在登录窗口处理，稍后手动继续。',
-  LOTTERY_BILIBILI_RATE_LIMITED:
-    'B站限制了请求频率。进度已保存，请冷却后手动继续。',
-  LOTTERY_REQUEST_PAUSED:
-    '请求已暂停；确认登录和网络后点击继续，冷却期间仍会等待。',
-  LOTTERY_COOLING_DOWN:
-    'B站请求仍在冷却期，请至少等待 5 分钟或服务器要求的更长时间后继续。',
-  LOTTERY_UPSTREAM_INVALID:
-    'B站返回的名单或分页不完整，已停止；不会用部分名单开奖。请稍后继续。',
-  LOTTERY_REACTION_UNKNOWN:
-    'B站返回了无法识别的互动类型，已暂停，不能把它当作点赞或转发。',
+  LOTTERY_BILIBILI_CHALLENGE: 'B站要求验证或触发风控。请先在登录窗口处理，稍后手动继续。',
+  LOTTERY_BILIBILI_RATE_LIMITED: 'B站限制了请求频率。进度已保存，请冷却后手动继续。',
+  LOTTERY_REQUEST_PAUSED: '请求已暂停；确认登录和网络后点击继续，冷却期间仍会等待。',
+  LOTTERY_COOLING_DOWN: 'B站请求仍在冷却期，请至少等待 5 分钟或服务器要求的更长时间后继续。',
+  LOTTERY_UPSTREAM_INVALID: 'B站返回的名单或分页不完整，已停止；不会用部分名单开奖。请稍后继续。',
+  LOTTERY_REACTION_UNKNOWN: 'B站返回了无法识别的互动类型，已暂停，不能把它当作点赞或转发。',
   LOTTERY_REACTION_INCOMPLETE:
     '互动用户名单少于内容显示的数量，无法确认完整性。已暂停，不会用部分名单开奖；请稍后新建活动重新采集。',
-  LOTTERY_BILIBILI_API_ERROR:
-    'B站接口暂时无法读取，请稍后重试；已保存的名单不会丢失。',
+  LOTTERY_BILIBILI_API_ERROR: 'B站接口暂时无法读取，请稍后重试；已保存的名单不会丢失。',
   LOTTERY_REQUEST_TIMEOUT: 'B站请求超时，进度已保存，可稍后继续。',
-  LOTTERY_RELATION_UNKNOWN:
-    '无法确认当前候选人是否关注作者。停在该候选人，继续时不会跳过或重新乱序。',
+  LOTTERY_RELATION_UNKNOWN: '无法确认当前候选人是否关注作者。停在该候选人，继续时不会跳过或重新乱序。',
   LOTTERY_INTERRUPTED: '上次操作被中断，进度已保存。请手动继续。',
   LOTTERY_COLLECTION_PAUSED: '采集已暂停，可从保存的位置继续。',
   LOTTERY_OPERATION_PAUSED: '操作已暂停；名单、顺序和已确认的中奖者均已保留。',
   LOTTERY_COLLECTION_INCOMPLETE: '请先完成所有所选来源的采集，再开始开奖。',
-  LOTTERY_CURSOR_CONFLICT:
-    '分页游标重复或发生冲突，不能继续确认完整名单。请新建活动重新采集。',
-  LOTTERY_COLLECTION_LIMIT:
-    '名单超过本版采集上限（10 万条证据），已停止；不能使用截断名单开奖。',
+  LOTTERY_CURSOR_CONFLICT: '分页游标重复或发生冲突，不能继续确认完整名单。请新建活动重新采集。',
+  LOTTERY_COLLECTION_LIMIT: '名单超过本版采集上限（10 万条证据），已停止；不能使用截断名单开奖。',
   LOTTERY_DRAW_CONFLICT: '活动状态已更新，请刷新后再操作。',
   LOTTERY_BUSY: '已有采集或开奖操作在进行，请先等待或暂停。',
   LOTTERY_RULES_INVALID: '请填写链接和 1–100 的整数中奖人数。',
@@ -70,9 +55,7 @@ const STATUSES = {
 };
 
 function errorText(code) {
-  return code
-    ? ERRORS[code] || '操作未完成，已保留进度。请刷新状态后再继续。'
-    : '';
+  return code ? ERRORS[code] || '操作未完成，已保留进度。请刷新状态后再继续。' : '';
 }
 
 export function initLotteryWorkflow(root) {
@@ -113,10 +96,8 @@ export function initLotteryWorkflow(root) {
     hydratedId = task.id;
     form.elements.url.value = task.target.url || '';
     form.elements.winnerCount.value = task.rules.winnerCount || 10;
-    form.elements.requireLike.checked =
-      task.rules.requiredActions?.includes('like') === true;
-    form.elements.requireRepost.checked =
-      task.rules.requiredActions?.includes('repost') === true;
+    form.elements.requireLike.checked = task.rules.requiredActions?.includes('like') === true;
+    form.elements.requireRepost.checked = task.rules.requiredActions?.includes('repost') === true;
     form.elements.requireFollow.checked = task.rules.requireFollow === true;
   }
 
@@ -137,8 +118,7 @@ export function initLotteryWorkflow(root) {
     find('pause').textContent = result ? '暂停核验' : '暂停获取';
     const canResume = hasTask && !legacy && ['paused', 'draft', 'frozen'].includes(task.status);
     const canDraw = hasTask && !legacy && task.status === 'ready';
-    find('resume').disabled =
-      !canAct || working || !canResume;
+    find('resume').disabled = !canAct || working || !canResume;
     find('resume').hidden = working || !canResume;
     find('draw').disabled = !canAct || working || !canDraw;
     find('draw').hidden = working || !canDraw;
@@ -167,12 +147,15 @@ export function initLotteryWorkflow(root) {
           ? '旧版抽奖记录'
           : task
             ? STATUSES[task.status] || '等待操作'
-            : data.error ? '操作未完成' : '获取名单与开奖';
+            : data.error
+              ? '操作未完成'
+              : '获取名单与开奖';
     taskInfo.textContent = task?.target.description || '';
     if (task) {
       const conditions = ['评论', ...(task.rules.requiredActions || []).map((source) => SOURCE_NAMES[source])];
       if (task.rules.requireFollow) conditions.push('关注作者');
-      find('task-summary').textContent = `${conditions.join(' + ')}${task.rules.winnerCount ? ` · 抽取 ${task.rules.winnerCount} 人` : ''}`;
+      find('task-summary').textContent =
+        `${conditions.join(' + ')}${task.rules.winnerCount ? ` · 抽取 ${task.rules.winnerCount} 人` : ''}`;
       const link = find('task-link');
       link.textContent = task.target.url || '未保存链接';
       if (task.target.url?.startsWith('https://')) link.href = task.target.url;
@@ -200,9 +183,8 @@ export function initLotteryWorkflow(root) {
         progress.append(item);
       }
     }
-    find('candidate-info').textContent = task?.candidateCount != null
-      ? `候选名单 ${task.candidateCount} 人 · 已去重并排除作者`
-      : '';
+    find('candidate-info').textContent =
+      task?.candidateCount != null ? `候选名单 ${task.candidateCount} 人 · 已去重并排除作者` : '';
     find('rate-note').hidden = !working || Boolean(result) || !task?.scan;
     message.textContent = errorText(
       data.error || result?.reason || task?.scan?.pauseReason || (legacy ? 'LOTTERY_LEGACY_TASK' : ''),
@@ -248,10 +230,7 @@ export function initLotteryWorkflow(root) {
       }
       const verified = document.createElement('span');
       verified.className = 'dynamic-lottery-verification';
-      verified.textContent =
-        winner.verification.reason === 'FOLLOW_NOT_REQUIRED'
-          ? '未要求关注'
-          : '已确认关注';
+      verified.textContent = winner.verification.reason === 'FOLLOW_NOT_REQUIRED' ? '未要求关注' : '已确认关注';
       person.append(verified);
       const comment = document.createElement('p');
       comment.className = 'dynamic-lottery-comment';
@@ -290,13 +269,9 @@ export function initLotteryWorkflow(root) {
     render();
     try {
       const headers = {};
-      if (window.__API_TOKEN__)
-        headers.Authorization = `Bearer ${window.__API_TOKEN__}`;
+      if (window.__API_TOKEN__) headers.Authorization = `Bearer ${window.__API_TOKEN__}`;
       if (body) headers['Content-Type'] = 'application/json';
-      const query =
-        path === '/state' && selectedId
-          ? `?taskId=${encodeURIComponent(selectedId)}`
-          : '';
+      const query = path === '/state' && selectedId ? `?taskId=${encodeURIComponent(selectedId)}` : '';
       const response = await fetch(`${BASE}${path}${query}`, {
         method: body ? 'POST' : 'GET',
         headers,
@@ -315,8 +290,7 @@ export function initLotteryWorkflow(root) {
         if (!data.task && !data.job) creating = true;
       }
     } catch (error) {
-      if (disposed || current !== generation || error.name === 'AbortError')
-        return;
+      if (disposed || current !== generation || error.name === 'AbortError') return;
       data.error = 'LOTTERY_OPERATION_FAILED';
     } finally {
       if (!disposed && current === generation) {
@@ -381,7 +355,10 @@ export function initLotteryWorkflow(root) {
     panel.hidden = !panel.hidden;
     find('history-toggle').setAttribute('aria-expanded', String(!panel.hidden));
   });
-  for (const [action, change] of [['previous', -1], ['next', 1]]) {
+  for (const [action, change] of [
+    ['previous', -1],
+    ['next', 1],
+  ]) {
     listen(find(action), 'click', () => {
       if (find(action).disabled) return;
       resultPage += change;
@@ -405,10 +382,7 @@ export function initLotteryWorkflow(root) {
   return {
     setAuth(next) {
       if (disposed) return;
-      const changed =
-        auth.available !== next.available ||
-        auth.loggedIn !== next.loggedIn ||
-        auth.busy !== next.busy;
+      const changed = auth.available !== next.available || auth.loggedIn !== next.loggedIn || auth.busy !== next.busy;
       auth = next;
       if (changed) {
         cancelRequest();

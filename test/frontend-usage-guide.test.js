@@ -13,9 +13,7 @@ const ROOT_DIR = path.join(__dirname, '..');
 test('usage guide main-flow steps keep body text out of the number gutter', () => {
   const source = readCssBundle('public', 'css', 'admin', 'other-features.css');
   const stepRule = source.match(/\.usage-guide-steps li\s*\{[\s\S]*?\n\}/)?.[0];
-  const markerRule = source.match(
-    /\.usage-guide-steps li::before\s*\{[\s\S]*?\n\}/,
-  )?.[0];
+  const markerRule = source.match(/\.usage-guide-steps li::before\s*\{[\s\S]*?\n\}/)?.[0];
 
   assert.ok(stepRule, 'usage guide step layout should remain defined');
   assert.ok(markerRule, 'usage guide step marker should remain defined');
@@ -32,18 +30,10 @@ test('usage guide keeps expanded sidebar content in one column without the remov
   assert.ok(panelRule, 'usage guide panel sizing should remain defined');
   assert.doesNotMatch(readAdminHtml(), /class="usage-guide-lead"/);
   assert.match(panelRule, /max-width:\s*none/);
-  const collapsedRule = source.match(
-    /\.other-page\.sidebar-collapsed \.usage-guide-panel\s*\{[^}]*\}/,
-  )?.[0];
-  assert.ok(
-    collapsedRule,
-    'only the collapsed sidebar should enable two columns',
-  );
+  const collapsedRule = source.match(/\.other-page\.sidebar-collapsed \.usage-guide-panel\s*\{[^}]*\}/)?.[0];
+  assert.ok(collapsedRule, 'only the collapsed sidebar should enable two columns');
   assert.doesNotMatch(panelRule, /grid-template-columns/);
-  assert.match(
-    collapsedRule,
-    /grid-template-columns:\s*176px minmax\(0, 1fr\)/,
-  );
+  assert.match(collapsedRule, /grid-template-columns:\s*176px minmax\(0, 1fr\)/);
 });
 
 test('usage guide presents overlays for both live companion and OBS users', () => {
@@ -58,11 +48,10 @@ test('usage guide presents overlays for both live companion and OBS users', () =
 test('usage guide defers image loading and avoids sticky backdrop blur', () => {
   const html = readAdminHtml();
   const styles = readCssBundle('public', 'css', 'admin', 'other-features.css');
-  const images =
-    html.match(/<img\b[^>]*class="usage-guide-image"[^>]*>/g) || [];
+  const images = html.match(/<img\b[^>]*class="usage-guide-image"[^>]*>/g) || [];
   const tocRule = styles.match(/\.usage-guide-toc\s*\{[\s\S]*?\n\}/)?.[0];
 
-  assert.equal(images.length, 10);
+  assert.ok(images.length > 10, 'the guide should include client screenshots alongside the original images');
   assert.equal(
     images.every((image) => /loading="lazy"/.test(image)),
     true,
@@ -72,18 +61,13 @@ test('usage guide defers image loading and avoids sticky backdrop blur', () => {
     true,
   );
   assert.equal(
-    images.every(
-      (image) => /\bwidth="\d+"/.test(image) && /\bheight="\d+"/.test(image),
-    ),
+    images.every((image) => /\bwidth="\d+"/.test(image) && /\bheight="\d+"/.test(image)),
     true,
   );
   assert.ok(tocRule, 'usage guide table of contents should remain defined');
   assert.match(tocRule, /background:\s*var\(--usage-guide-accent-soft\)/);
   assert.match(tocRule, /display:\s*grid/);
-  assert.doesNotMatch(
-    tocRule,
-    /white-space:\s*nowrap|overflow-x:\s*(?:auto|scroll)/,
-  );
+  assert.doesNotMatch(tocRule, /white-space:\s*nowrap|overflow-x:\s*(?:auto|scroll)/);
   assert.doesNotMatch(tocRule, /backdrop-filter/);
 });
 
@@ -184,9 +168,7 @@ function createUsageGuideFixture({
   const document = {
     documentElement: { scrollHeight: 2000 },
     getElementById: (id) =>
-      id === 'otherUsageGuideFeature'
-        ? panel
-        : sections.find((section) => section.id === id) || null,
+      id === 'otherUsageGuideFeature' ? panel : sections.find((section) => section.id === id) || null,
   };
   const window = {
     innerHeight: 600,
@@ -284,10 +266,7 @@ test('usage guide horizontal toc includes padding only for its internal scroller
 
     fixture.triggerResize();
     assert.equal(fixture.scrollOffset, expectedOffset);
-    assert.equal(
-      fixture.links[1].classList.contains('active'),
-      scrollerOverflowY === 'auto',
-    );
+    assert.equal(fixture.links[1].classList.contains('active'), scrollerOverflowY === 'auto');
   }
 });
 

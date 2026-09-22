@@ -11,8 +11,12 @@ function normalizeHistoryFilters(options = {}) {
   const filters = {};
   for (const key of ['startDate', 'endDate']) {
     const value = options[key] || '';
-    if (value && (!/^\d{4}-\d{2}-\d{2}$/.test(value) ||
-      !Number.isFinite(Date.parse(value)) || new Date(value).toISOString().slice(0, 10) !== value)) {
+    if (
+      value &&
+      (!/^\d{4}-\d{2}-\d{2}$/.test(value) ||
+        !Number.isFinite(Date.parse(value)) ||
+        new Date(value).toISOString().slice(0, 10) !== value)
+    ) {
       throw queryError('INVALID_GIFT_FILTER', '请输入有效的日期。');
     }
     filters[key] = value;
@@ -44,9 +48,7 @@ function shanghaiDayStart(date) {
 
 function historyBounds(filters, rangeStart, asOf) {
   const start = filters.startDate ? shanghaiDayStart(filters.startDate) : null;
-  const end = filters.endDate
-    ? new Date(Date.parse(shanghaiDayStart(filters.endDate)) + 86400000).toISOString()
-    : null;
+  const end = filters.endDate ? new Date(Date.parse(shanghaiDayStart(filters.endDate)) + 86400000).toISOString() : null;
   return {
     rangeStart: start && (!rangeStart || start > rangeStart) ? start : rangeStart,
     rangeEnd: end && end < asOf ? end : asOf,
@@ -54,9 +56,10 @@ function historyBounds(filters, rangeStart, asOf) {
 }
 
 function giftViewRevision(source, generation) {
-  return createHash('sha256').update(JSON.stringify([
-    source.sourceId, generation, source.viewEpoch || '',
-  ])).digest('hex').slice(0, 32);
+  return createHash('sha256')
+    .update(JSON.stringify([source.sourceId, generation, source.viewEpoch || '']))
+    .digest('hex')
+    .slice(0, 32);
 }
 
 module.exports = { normalizeHistoryFilters, shanghaiDayStart, historyBounds, giftViewRevision, queryError };

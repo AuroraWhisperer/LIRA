@@ -8,9 +8,7 @@ const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
 const { readCssBundle } = require('./helpers/css-bundle');
-const {
-  readJsModuleBundle: readRawJsModuleBundle,
-} = require('./helpers/js-module-bundle');
+const { readJsModuleBundle: readRawJsModuleBundle } = require('./helpers/js-module-bundle');
 
 const ROOT_DIR = path.join(__dirname, '..');
 
@@ -22,12 +20,7 @@ function readJsModuleBundle(...relativeSegments) {
 }
 
 function loadQueueRenderers() {
-  const source = readJsModuleBundle(
-    'public',
-    'js',
-    'overlays',
-    'queue.js',
-  );
+  const source = readJsModuleBundle('public', 'js', 'overlays', 'queue.js');
   const sandbox = {
     console,
     URLSearchParams,
@@ -44,63 +37,31 @@ test('storybook queue scales complete illustrated rows while identity content st
   const html = readAdminHtml();
   const sandbox = loadQueueRenderers();
   const overlayStyles = readCssBundle('public', 'css', 'overlays', 'base.css');
-  const entryCss = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'css', 'overlays', 'base.css'),
-    'utf8',
-  );
-  const adminThemeSource = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme-style-view.js'),
-    'utf8',
-  );
+  const entryCss = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'overlays', 'base.css'), 'utf8');
+  const adminThemeSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme-style-view.js'), 'utf8');
   const adminStyles = readCssBundle('public', 'css', 'admin', 'workspace.css');
-  const framePath = path.join(
-    ROOT_DIR,
-    'public',
-    'img',
-    'overlays',
-    'song-board-style-3',
-    'frame.webp',
-  );
-  const entryPath = path.join(
-    ROOT_DIR,
-    'public',
-    'img',
-    'overlays',
-    'song-board-style-3',
-    'entry.webp',
-  );
+  const framePath = path.join(ROOT_DIR, 'public', 'img', 'overlays', 'song-board-style-3', 'frame.webp');
+  const entryPath = path.join(ROOT_DIR, 'public', 'img', 'overlays', 'song-board-style-3', 'entry.webp');
   assert.match(html, /data-overlay-style="storybook"[\s\S]*点歌板风格 3/);
   assert.match(html, /data-identity-only/);
   assert.match(adminThemeSource, /ILLUSTRATED_QUEUE_STYLES[\s\S]*'storybook'/);
   assert.match(adminThemeSource, /if \(nextStyle !== 'classic'\)/);
-  assert.match(
-    adminStyles,
-    /\.style-picker\s*\{[\s\S]*grid-template-columns:\s*repeat\(6,/,
-  );
+  assert.match(adminStyles, /\.style-picker\s*\{[\s\S]*grid-template-columns:\s*repeat\(6,/);
   assert.equal(sandbox.normalizeQueueStyle('storybook'), 'storybook');
   assert.equal(sandbox.normalizeQueueStyle('festival'), 'identity');
   assert.equal(sandbox.normalizeQueueStyle('unknown'), 'classic');
   assert.ok(fs.statSync(framePath).size > 0);
   assert.ok(fs.statSync(entryPath).size > 0);
   assert.match(entryCss, /@import url\('\.\/base\/storybook\.css'\);/);
-  assert.match(
-    overlayStyles,
-    /\.queue-storybook\s*\{[\s\S]*?aspect-ratio:\s*2\s*\/\s*3/,
-  );
-  assert.match(
-    overlayStyles,
-    /\.queue-storybook::before\s*\{[\s\S]*?background:\s*#fff/,
-  );
+  assert.match(overlayStyles, /\.queue-storybook\s*\{[\s\S]*?aspect-ratio:\s*2\s*\/\s*3/);
+  assert.match(overlayStyles, /\.queue-storybook::before\s*\{[\s\S]*?background:\s*#fff/);
   assert.match(overlayStyles, /song-board-style-3\/frame\.webp/);
   assert.match(overlayStyles, /song-board-style-3\/entry\.webp/);
   assert.match(
     overlayStyles,
     /\.queue-storybook \.overlay-header\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\)/,
   );
-  assert.match(
-    overlayStyles,
-    /\.queue-storybook \.overlay-title\s*\{[\s\S]*?width:\s*100%/,
-  );
+  assert.match(overlayStyles, /\.queue-storybook \.overlay-title\s*\{[\s\S]*?width:\s*100%/);
 
   const row = sandbox.renderStorybookRow(
     {
@@ -114,22 +75,15 @@ test('storybook queue scales complete illustrated rows while identity content st
   );
   assert.match(row, /storybook-rank">1<\/span>/);
   assert.match(row, /storybook-info-viewport[\s\S]*storybook-info/);
-  assert.match(
-    row,
-    /storybook-song[\s\S]*storybook-requester[\s\S]*storybook-badge[\s\S]*storybook-medal/,
-  );
+  assert.match(row, /storybook-song[\s\S]*storybook-requester[\s\S]*storybook-badge[\s\S]*storybook-medal/);
   assert.match(row, /&lt;img src=x onerror=alert\(1\)&gt;超长歌名/);
   assert.match(row, /&lt;b&gt;点歌人&lt;\/b&gt;/);
   assert.doesNotMatch(row, /<img src=x|<b>点歌人/);
 
-  const viewportRule = overlayStyles.match(
-    /\.storybook-info-viewport\s*\{[^}]*\}/,
-  )?.[0];
+  const viewportRule = overlayStyles.match(/\.storybook-info-viewport\s*\{[^}]*\}/)?.[0];
   const rankRule = overlayStyles.match(/\.storybook-rank\s*\{[^}]*\}/)?.[0];
   const rowRule = overlayStyles.match(/\.storybook-row\s*\{[^}]*\}/)?.[0];
-  const contentRule = overlayStyles.match(
-    /\.queue-storybook \.overlay-content\s*\{[^}]*\}/,
-  )?.[0];
+  const contentRule = overlayStyles.match(/\.queue-storybook \.overlay-content\s*\{[^}]*\}/)?.[0];
   assert.ok(viewportRule);
   assert.ok(rankRule);
   assert.ok(rowRule);
@@ -146,14 +100,8 @@ test('storybook queue scales complete illustrated rows while identity content st
     contentRule,
     /inset:\s*calc\(24\.5% - var\(--storybook-list-offset-y\)\)\s+7\.5%\s+calc\(17% \+ var\(--storybook-list-offset-y\)\)\s+12\.5%/,
   );
-  assert.match(
-    rowRule,
-    /background-image:\s*url\('\/img\/overlays\/song-board-style-3\/entry\.webp'\)/,
-  );
-  assert.match(
-    rowRule,
-    /font-size:\s*var\(--identity-queue-font-size,\s*28px\)/,
-  );
+  assert.match(rowRule, /background-image:\s*url\('\/img\/overlays\/song-board-style-3\/entry\.webp'\)/);
+  assert.match(rowRule, /font-size:\s*var\(--identity-queue-font-size,\s*28px\)/);
   const entryBuffer = fs.readFileSync(entryPath);
   assert.equal(entryBuffer.subarray(0, 4).toString('ascii'), 'RIFF');
   assert.equal(
@@ -167,14 +115,8 @@ test('styles 4 and 5 use supplied art, omit queue ranks, and render all four req
   const html = readAdminHtml();
   const sandbox = loadQueueRenderers();
   const overlayStyles = readCssBundle('public', 'css', 'overlays', 'base.css');
-  const entryCss = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'css', 'overlays', 'base.css'),
-    'utf8',
-  );
-  const adminThemeSource = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme-style-view.js'),
-    'utf8',
-  );
+  const entryCss = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'overlays', 'base.css'), 'utf8');
+  const adminThemeSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme-style-view.js'), 'utf8');
   const assetPaths = [
     ['song-board-style-4', 'frame.webp'],
     ['song-board-style-4', 'entry.webp'],
@@ -199,10 +141,7 @@ test('styles 4 and 5 use supplied art, omit queue ranks, and render all four req
     overlayStyles,
     /\.queue-neon-vinyl \.overlay-header,[\s\S]*\.queue-cherry-ribbon \.overlay-header,[\s\S]*\.queue-golden-lily \.overlay-header\s*\{[\s\S]*display:\s*none/,
   );
-  assert.match(
-    overlayStyles,
-    /\.illustrated-info-viewport\s*\{[\s\S]*overflow:\s*hidden/,
-  );
+  assert.match(overlayStyles, /\.illustrated-info-viewport\s*\{[\s\S]*overflow:\s*hidden/);
 
   const unsafeItem = {
     song_name: '<img src=x onerror=alert(1)>超长歌名',
@@ -227,24 +166,12 @@ test('styles 4 and 5 use supplied art, omit queue ranks, and render all four req
   assert.doesNotMatch(ribbonRow, /illustrated-label/);
 
   const neonRowRule = overlayStyles.match(/\.neon-vinyl-row\s*\{[^}]*\}/)?.[0];
-  const neonInfoRule = overlayStyles.match(
-    /\.neon-vinyl-info\.identity-content\s*\{[^}]*\}/,
-  )?.[0];
-  const neonViewportRule = overlayStyles.match(
-    /\.neon-vinyl-info-viewport\s*\{[^}]*\}/,
-  )?.[0];
-  const ribbonContentRule = overlayStyles.match(
-    /\.queue-cherry-ribbon \.overlay-content\s*\{[^}]*\}/,
-  )?.[0];
-  const ribbonRowRule = overlayStyles.match(
-    /\.cherry-ribbon-row\s*\{[^}]*\}/,
-  )?.[0];
-  const ribbonInfoRule = overlayStyles.match(
-    /\.cherry-ribbon-info\.identity-content\s*\{[^}]*\}/,
-  )?.[0];
-  const ribbonViewportRule = overlayStyles.match(
-    /\.cherry-ribbon-info-viewport\s*\{[^}]*\}/,
-  )?.[0];
+  const neonInfoRule = overlayStyles.match(/\.neon-vinyl-info\.identity-content\s*\{[^}]*\}/)?.[0];
+  const neonViewportRule = overlayStyles.match(/\.neon-vinyl-info-viewport\s*\{[^}]*\}/)?.[0];
+  const ribbonContentRule = overlayStyles.match(/\.queue-cherry-ribbon \.overlay-content\s*\{[^}]*\}/)?.[0];
+  const ribbonRowRule = overlayStyles.match(/\.cherry-ribbon-row\s*\{[^}]*\}/)?.[0];
+  const ribbonInfoRule = overlayStyles.match(/\.cherry-ribbon-info\.identity-content\s*\{[^}]*\}/)?.[0];
+  const ribbonViewportRule = overlayStyles.match(/\.cherry-ribbon-info-viewport\s*\{[^}]*\}/)?.[0];
   assert.ok(neonRowRule);
   assert.ok(neonInfoRule);
   assert.ok(neonViewportRule);
@@ -253,10 +180,7 @@ test('styles 4 and 5 use supplied art, omit queue ranks, and render all four req
   assert.ok(ribbonInfoRule);
   assert.ok(ribbonViewportRule);
   assert.match(neonRowRule, /margin-inline:\s*auto/);
-  assert.match(
-    neonRowRule,
-    /font-size:\s*var\(--identity-queue-font-size,\s*28px\)/,
-  );
+  assert.match(neonRowRule, /font-size:\s*var\(--identity-queue-font-size,\s*28px\)/);
   assert.match(neonInfoRule, /margin-inline:\s*0/);
   assert.match(neonViewportRule, /top:\s*30%/);
   assert.match(neonViewportRule, /right:\s*15%/);
@@ -270,10 +194,7 @@ test('styles 4 and 5 use supplied art, omit queue ranks, and render all four req
     /inset:\s*calc\(15% \+ var\(--cherry-ribbon-top-trim\)\)\s+10%\s+calc\(9\.5% \+ var\(--cherry-ribbon-bottom-trim\)\)/,
   );
   assert.match(ribbonRowRule, /margin-inline:\s*auto/);
-  assert.match(
-    ribbonRowRule,
-    /font-size:\s*var\(--identity-queue-font-size,\s*28px\)/,
-  );
+  assert.match(ribbonRowRule, /font-size:\s*var\(--identity-queue-font-size,\s*28px\)/);
   assert.match(ribbonInfoRule, /margin-inline:\s*auto/);
   assert.match(ribbonViewportRule, /top:\s*41%/);
   assert.match(ribbonViewportRule, /right:\s*14\.5%/);
@@ -283,12 +204,8 @@ test('styles 4 and 5 use supplied art, omit queue ranks, and render all four req
 
 test('style 4 keeps its viewport inside the frame and its scroll endpoint above the foreground', () => {
   const overlayStyles = readCssBundle('public', 'css', 'overlays', 'base.css');
-  const contentRule = overlayStyles.match(
-    /\.queue-neon-vinyl \.overlay-content\s*\{[^}]*\}/,
-  )?.[0];
-  const frameRule = overlayStyles.match(
-    /\.queue-neon-vinyl::after\s*\{[^}]*\}/,
-  )?.[0];
+  const contentRule = overlayStyles.match(/\.queue-neon-vinyl \.overlay-content\s*\{[^}]*\}/)?.[0];
+  const frameRule = overlayStyles.match(/\.queue-neon-vinyl::after\s*\{[^}]*\}/)?.[0];
 
   assert.ok(contentRule);
   assert.ok(frameRule);
@@ -296,15 +213,11 @@ test('style 4 keeps its viewport inside the frame and its scroll endpoint above 
   const [, aspectWidth, aspectHeight] = overlayStyles.match(
     /\.queue-neon-vinyl\s*\{\s*aspect-ratio:\s*([\d.]+)\s*\/\s*([\d.]+)/,
   );
-  const bottomInset = Number(
-    contentRule.match(/inset:\s*[\d.]+%\s+[\d.]+%\s+([\d.]+)%/)?.[1],
-  );
-  const frameBottom = Number(
-    frameRule.match(/border-width:\s*[\d.]+px\s+[\d.]+px\s+([\d.]+)px/)?.[1],
-  );
-  const canvasHeight = 560 * Number(aspectHeight) / Number(aspectWidth);
+  const bottomInset = Number(contentRule.match(/inset:\s*[\d.]+%\s+[\d.]+%\s+([\d.]+)%/)?.[1]);
+  const frameBottom = Number(frameRule.match(/border-width:\s*[\d.]+px\s+[\d.]+px\s+([\d.]+)px/)?.[1]);
+  const canvasHeight = (560 * Number(aspectHeight)) / Number(aspectWidth);
   assert.ok(
-    Math.ceil(canvasHeight * bottomInset / 100) >= frameBottom,
+    Math.ceil((canvasHeight * bottomInset) / 100) >= frameBottom,
     'the scroll viewport must end above the bottom artwork in design coordinates',
   );
 });
@@ -319,9 +232,7 @@ test('styles 4-6 give each guard tier one shared guard and medal color', () => {
 
   for (const style of ['neon-vinyl', 'cherry-ribbon', 'golden-lily']) {
     for (const [level, color] of Object.entries(guardColors)) {
-      const rule = overlayStyles.match(
-        new RegExp(`\\.${style}-row\\.guard-${level}\\s*\\{[^}]*\\}`),
-      )?.[0];
+      const rule = overlayStyles.match(new RegExp(`\\.${style}-row\\.guard-${level}\\s*\\{[^}]*\\}`))?.[0];
       assert.ok(rule, `${style} guard ${level} rule should exist`);
       assert.match(rule, new RegExp(`--identity-bg:\\s*${color}`));
       assert.match(rule, new RegExp(`--medal-bg:\\s*${color}`));
@@ -333,30 +244,10 @@ test('style 6 uses supplied golden lily art, shows queue ranks, and renders all 
   const html = readAdminHtml();
   const sandbox = loadQueueRenderers();
   const overlayStyles = readCssBundle('public', 'css', 'overlays', 'base.css');
-  const entryCss = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'css', 'overlays', 'base.css'),
-    'utf8',
-  );
-  const adminThemeSource = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme-style-view.js'),
-    'utf8',
-  );
-  const framePath = path.join(
-    ROOT_DIR,
-    'public',
-    'img',
-    'overlays',
-    'song-board-style-6',
-    'frame.webp',
-  );
-  const entryPath = path.join(
-    ROOT_DIR,
-    'public',
-    'img',
-    'overlays',
-    'song-board-style-6',
-    'entry.webp',
-  );
+  const entryCss = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'overlays', 'base.css'), 'utf8');
+  const adminThemeSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme-style-view.js'), 'utf8');
+  const framePath = path.join(ROOT_DIR, 'public', 'img', 'overlays', 'song-board-style-6', 'frame.webp');
+  const entryPath = path.join(ROOT_DIR, 'public', 'img', 'overlays', 'song-board-style-6', 'entry.webp');
   assert.match(html, /data-overlay-style="golden-lily"[\s\S]*点歌板风格 6/);
   assert.match(html, /点歌板风格 2 \/ 3 \/ 4 \/ 5 \/ 6/);
   assert.match(adminThemeSource, /golden-lily/);
@@ -367,10 +258,7 @@ test('style 6 uses supplied golden lily art, shows queue ranks, and renders all 
   assert.match(entryCss, /@import url\('\.\/base\/golden-lily\.css'\);/);
   assert.match(overlayStyles, /song-board-style-6\/frame\.webp/);
   assert.match(overlayStyles, /song-board-style-6\/entry\.webp/);
-  assert.match(
-    overlayStyles,
-    /\.golden-lily-info-viewport\s*\{[\s\S]*overflow:\s*hidden/,
-  );
+  assert.match(overlayStyles, /\.golden-lily-info-viewport\s*\{[\s\S]*overflow:\s*hidden/);
   assert.match(
     overlayStyles,
     /@media \(prefers-reduced-motion:\s*reduce\)[\s\S]*\.golden-lily-list\.scrolling[\s\S]*animation:\s*none/,
@@ -395,27 +283,16 @@ test('style 6 uses supplied golden lily art, shows queue ranks, and renders all 
   assert.match(row, /&lt;i&gt;灯牌&lt;\/i&gt; · 26/);
   assert.doesNotMatch(row, /<img src=x|<b>点歌人|<i>灯牌/);
 
-  const goldenRowRule = overlayStyles.match(
-    /\.golden-lily-row\s*\{[^}]*\}/,
-  )?.[0];
-  const goldenRankRule = overlayStyles.match(
-    /\.golden-lily-rank\s*\{[^}]*\}/,
-  )?.[0];
-  const goldenViewportRule = overlayStyles.match(
-    /\.golden-lily-info-viewport\s*\{[^}]*\}/,
-  )?.[0];
-  const goldenInfoRule = overlayStyles.match(
-    /\.golden-lily-info\.identity-content\s*\{[^}]*\}/,
-  )?.[0];
+  const goldenRowRule = overlayStyles.match(/\.golden-lily-row\s*\{[^}]*\}/)?.[0];
+  const goldenRankRule = overlayStyles.match(/\.golden-lily-rank\s*\{[^}]*\}/)?.[0];
+  const goldenViewportRule = overlayStyles.match(/\.golden-lily-info-viewport\s*\{[^}]*\}/)?.[0];
+  const goldenInfoRule = overlayStyles.match(/\.golden-lily-info\.identity-content\s*\{[^}]*\}/)?.[0];
   assert.ok(goldenRowRule);
   assert.ok(goldenRankRule);
   assert.ok(goldenViewportRule);
   assert.ok(goldenInfoRule);
   assert.match(goldenRowRule, /margin-inline:\s*auto/);
-  assert.match(
-    goldenRowRule,
-    /font-size:\s*var\(--identity-queue-font-size,\s*28px\)/,
-  );
+  assert.match(goldenRowRule, /font-size:\s*var\(--identity-queue-font-size,\s*28px\)/);
   assert.match(goldenRankRule, /top:\s*25%/);
   assert.match(goldenRankRule, /bottom:\s*21%/);
   assert.match(goldenRankRule, /left:\s*5\.5%/);
@@ -438,17 +315,11 @@ test('styles 5 and 6 expand vertical visibility above their foreground frames', 
 
   ['cherry-ribbon', 'golden-lily'].forEach((style) => {
     const contentRule = [
-      ...overlayStyles.matchAll(
-        new RegExp(`\\.queue-${style} \\.overlay-content\\s*\\{[^}]*\\}`, 'g'),
-      ),
+      ...overlayStyles.matchAll(new RegExp(`\\.queue-${style} \\.overlay-content\\s*\\{[^}]*\\}`, 'g')),
     ]
       .map((match) => match[0])
       .find((rule) => /inset:/.test(rule));
-    const windowRule = [
-      ...overlayStyles.matchAll(
-        new RegExp(`\\.${style}-list-window\\s*\\{[^}]*\\}`, 'g'),
-      ),
-    ]
+    const windowRule = [...overlayStyles.matchAll(new RegExp(`\\.${style}-list-window\\s*\\{[^}]*\\}`, 'g'))]
       .map((match) => match[0])
       .find((rule) => /overflow:\s*visible/.test(rule));
 

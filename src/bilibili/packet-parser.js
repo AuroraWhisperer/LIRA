@@ -23,15 +23,10 @@ const {
 } = require('./utils/user-meta-extractor');
 
 // SuperChat parsing
-const {
-  extractBilibiliSuperChatMessage,
-} = require('./parsers/superchat-parser');
+const { extractBilibiliSuperChatMessage } = require('./parsers/superchat-parser');
 
 // Gift command routing for identity hints and explicit capture diagnostics.
-const {
-  isBilibiliGiftCommand,
-  isBilibiliGiftLikeCommand,
-} = require('./parsers/gift-command-utils');
+const { isBilibiliGiftCommand, isBilibiliGiftLikeCommand } = require('./parsers/gift-command-utils');
 
 // ---------------------------------------------------------------------------
 // Packet, message and identity helpers.

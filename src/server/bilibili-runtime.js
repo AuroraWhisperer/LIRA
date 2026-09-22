@@ -1,30 +1,15 @@
 'use strict';
 
 const { BilibiliApiClient } = require('../bilibili/danmaku/api-client');
-const {
-  createDanmakuSenderService,
-} = require('../bilibili/danmaku/sender-service');
-const {
-  createGameWinnerProfileResolver,
-} = require('../bilibili/users/game-winner-profile');
-const {
-  BilibiliUserProfileProvider,
-} = require('../bilibili/users/profile-provider');
+const { createDanmakuSenderService } = require('../bilibili/danmaku/sender-service');
+const { createGameWinnerProfileResolver } = require('../bilibili/users/game-winner-profile');
+const { BilibiliUserProfileProvider } = require('../bilibili/users/profile-provider');
 const { UserInfoService } = require('../bilibili/users/user-info-service');
 const sharedUtils = require('../shared/utils');
-const {
-  logBilibiliDiagnostic,
-  summarizeConnectionAuth,
-} = require('../bilibili/diagnostics');
+const { logBilibiliDiagnostic, summarizeConnectionAuth } = require('../bilibili/diagnostics');
 
 function createBilibiliRuntime(options) {
-  const {
-    settingsStore,
-    domainServices,
-    broadcastSnapshot,
-    buildClient,
-    setActiveDanmakuRoom = () => {},
-  } = options;
+  const { settingsStore, domainServices, broadcastSnapshot, buildClient, setActiveDanmakuRoom = () => {} } = options;
   const liveStatus = {
     connected: false,
     enabled: false,
@@ -52,9 +37,7 @@ function createBilibiliRuntime(options) {
   const userInfoService = new UserInfoService({
     profileProvider: {
       async fetchProfile(uid) {
-        const apiClient =
-          client?.apiClient ||
-          new BilibiliApiClient(getConfiguredRoomId(), authCache);
+        const apiClient = client?.apiClient || new BilibiliApiClient(getConfiguredRoomId(), authCache);
         return new BilibiliUserProfileProvider(apiClient).fetchProfile(uid);
       },
     },
@@ -63,8 +46,7 @@ function createBilibiliRuntime(options) {
   const resolveGameWinnerProfile = createGameWinnerProfileResolver({
     getHostIdentity: () => ({ uid: client?.ownerUid, name: client?.ownerName }),
     resolveRoomInfo: () => getGameApiClient().resolveRoomInfo(),
-    ensureProfile: (uid, profileOptions) =>
-      userInfoService.ensure(uid, profileOptions),
+    ensureProfile: (uid, profileOptions) => userInfoService.ensure(uid, profileOptions),
   });
   let stopped = false;
   let clientGeneration = 0;
@@ -74,9 +56,7 @@ function createBilibiliRuntime(options) {
     async getAuth() {
       await refreshAuthCache();
       const state = authProvider
-        ? await authProvider
-            .getAuthState()
-            .catch(() => ({ loggedIn: false, uid: 0 }))
+        ? await authProvider.getAuthState().catch(() => ({ loggedIn: false, uid: 0 }))
         : { loggedIn: false, uid: 0 };
       return {
         loggedIn: Boolean(state.loggedIn),
@@ -88,16 +68,11 @@ function createBilibiliRuntime(options) {
       return { roomId: getConfiguredRoomId() };
     },
     getLiveStatus: () => liveStatus,
-    getMentionTarget: () =>
-      domainServices.requesterTargets.getLatestRandomRequester(),
-    getAutoReplyEnabled: () =>
-      settingsStore.getSettings().enableRandomTagReply === 'true',
-    getCheckinBotEnabled: () =>
-      settingsStore.getSettings().enableCheckinBot === 'true',
-    getFortuneBotEnabled: () =>
-      settingsStore.getSettings().enableFortuneBot === 'true',
-    getCustomReplyBotEnabled: () =>
-      settingsStore.getSettings().enableCustomReplyBot === 'true',
+    getMentionTarget: () => domainServices.requesterTargets.getLatestRandomRequester(),
+    getAutoReplyEnabled: () => settingsStore.getSettings().enableRandomTagReply === 'true',
+    getCheckinBotEnabled: () => settingsStore.getSettings().enableCheckinBot === 'true',
+    getFortuneBotEnabled: () => settingsStore.getSettings().enableFortuneBot === 'true',
+    getCustomReplyBotEnabled: () => settingsStore.getSettings().enableCustomReplyBot === 'true',
     createClient(roomId, auth) {
       if (client && client.roomId === roomId) {
         client.apiClient.updateAuth(auth.cookieHeader, auth.uid);
@@ -112,10 +87,7 @@ function createBilibiliRuntime(options) {
   }
 
   function getGameApiClient() {
-    return (
-      client?.apiClient ||
-      new BilibiliApiClient(getConfiguredRoomId(), authCache)
-    );
+    return client?.apiClient || new BilibiliApiClient(getConfiguredRoomId(), authCache);
   }
 
   function fetchAvatarImage(value) {
@@ -216,7 +188,8 @@ function createBilibiliRuntime(options) {
     const roomId = sharedUtils.normalizeRoomInput(settings.roomId);
     const enabled = settings.enableBilibili === 'true' && roomId;
     logBilibiliDiagnostic('refresh-requested', {
-      roomId, enabled: Boolean(enabled),
+      roomId,
+      enabled: Boolean(enabled),
     });
     options.onRealtimeStatus?.();
     setActiveDanmakuRoom(enabled ? roomId : '');
@@ -252,7 +225,9 @@ function createBilibiliRuntime(options) {
         updateLiveStatus: (status) => {
           if (isCurrent()) updateStatus(status);
         },
-        onRealtimeStatus: () => { if (isCurrent()) options.onRealtimeStatus?.(); },
+        onRealtimeStatus: () => {
+          if (isCurrent()) options.onRealtimeStatus?.();
+        },
         onRealtimeDanmaku: (event) => {
           if (isCurrent()) for (const listener of realtimeListeners) listener(event);
         },
@@ -289,10 +264,7 @@ function createBilibiliRuntime(options) {
           return 0;
         }),
       ]);
-      if (
-        authCache.cookieHeader !== (cookieHeader || '') ||
-        authCache.uid !== (Number(uid) || 0)
-      ) {
+      if (authCache.cookieHeader !== (cookieHeader || '') || authCache.uid !== (Number(uid) || 0)) {
         logBilibiliDiagnostic('auth-cache-changed', {
           clientGeneration,
           ...summarizeConnectionAuth({ cookieHeader, uid }),
@@ -340,7 +312,11 @@ function createBilibiliRuntime(options) {
     const state = client?.getRealtimeState?.();
     if (client && !lastRealtimeInput) lastRealtimeInput = client.roomId;
     if (state?.roomId) lastRealtimeRoom = state.roomId;
-    return { ready: false, roomId: lastRealtimeRoom, reason: '实时弹幕尚未就绪', ...state,
+    return {
+      ready: false,
+      roomId: lastRealtimeRoom,
+      reason: '实时弹幕尚未就绪',
+      ...state,
       accountUid: String(authCache.uid || ''),
       configuredRoomChanged: Boolean(lastRealtimeInput && lastRealtimeInput !== getConfiguredRoomId()),
     };
@@ -363,8 +339,7 @@ function createBilibiliRuntime(options) {
     getDiagnostics: () => diagnostics,
     getLiveStatus: () => liveStatus,
     getViewerCandidates: () => client?.getViewerCandidates?.() || [],
-    refreshViewerCandidates: () =>
-      client?.refreshViewerCandidates?.() || Promise.resolve(),
+    refreshViewerCandidates: () => client?.refreshViewerCandidates?.() || Promise.resolve(),
     getGameWinnerProfile: resolveGameWinnerProfile,
     getRoomProfile,
     getUserAvatar,

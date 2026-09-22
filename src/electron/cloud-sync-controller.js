@@ -12,12 +12,7 @@ function createCloudSyncController(options = {}) {
   const licenseManager = options.licenseManager;
   const runtime = options.runtime;
   const bilibiliAuth = options.bilibiliAuth;
-  if (
-    !licenseManager ||
-    !runtime ||
-    !bilibiliAuth ||
-    typeof runtime.prepareCloudRoomAccount !== 'function'
-  ) {
+  if (!licenseManager || !runtime || !bilibiliAuth || typeof runtime.prepareCloudRoomAccount !== 'function') {
     throw new Error('Cloud sync controller dependencies are required.');
   }
   const suppliedTimers = options.timers || {};
@@ -26,15 +21,16 @@ function createCloudSyncController(options = {}) {
     setTimeout: suppliedTimers.setTimeout || setTimeout,
     clearTimeout: suppliedTimers.clearTimeout || clearTimeout,
   };
-  const intervalMs = Math.max(
-    5_000,
-    Number(options.intervalMs) || DEFAULT_INTERVAL_MS,
-  );
+  const intervalMs = Math.max(5_000, Number(options.intervalMs) || DEFAULT_INTERVAL_MS);
   const revisions = { settings: null, songs: null, bilibili: null };
   const dirty = new Set();
   const dirtyGenerations = { settings: 0, songs: 0, bilibili: 0 };
   const songSync = createCloudSongSyncController({
-    runtime, licenseManager, isCurrent, shouldApply, seedScope,
+    runtime,
+    licenseManager,
+    isCurrent,
+    shouldApply,
+    seedScope,
   });
   let timer = null;
   let disposed = false;
@@ -75,9 +71,7 @@ function createCloudSyncController(options = {}) {
 
   function confirmInteractionState(values) {
     publishInteractionState({
-      values: Object.fromEntries(
-        GIFT_INTERACTION_KEYS.map((key) => [key, values?.[key] === true]),
-      ),
+      values: Object.fromEntries(GIFT_INTERACTION_KEYS.map((key) => [key, values?.[key] === true])),
       status: interactionSaving ? 'pending' : 'confirmed',
       error: null,
     });
@@ -105,7 +99,9 @@ function createCloudSyncController(options = {}) {
 
   async function setGiftInteraction(intent) {
     if (
-      !intent || typeof intent !== 'object' || Array.isArray(intent) ||
+      !intent ||
+      typeof intent !== 'object' ||
+      Array.isArray(intent) ||
       Object.keys(intent).length !== 2 ||
       !GIFT_INTERACTION_KEYS.includes(intent.key) ||
       typeof intent.enabled !== 'boolean'
@@ -137,9 +133,7 @@ function createCloudSyncController(options = {}) {
           { signal: work.signal },
         );
         if (!isCurrent(work)) return { ok: false, ...getGiftInteractionState() };
-        if (result?.ok === false || !GIFT_INTERACTION_KEYS.every(
-          (key) => typeof result?.values?.[key] === 'boolean',
-        )) {
+        if (result?.ok === false || !GIFT_INTERACTION_KEYS.every((key) => typeof result?.values?.[key] === 'boolean')) {
           throw Object.assign(new Error(), { code: 'INVALID_RESPONSE' });
         }
         if (dirtyGeneration === dirtyGenerations.settings) {
@@ -181,10 +175,7 @@ function createCloudSyncController(options = {}) {
   });
 
   function isAuthorized() {
-    return (
-      !disposed &&
-      licenseManager.getState() === licenseManager.LicenseState.AUTHORIZED
-    );
+    return !disposed && licenseManager.getState() === licenseManager.LicenseState.AUTHORIZED;
   }
 
   function isCurrent(work) {
@@ -204,14 +195,9 @@ function createCloudSyncController(options = {}) {
       .trim()
       .toLowerCase();
     const streamerId = identity?.streamerId;
-    if (!accountName || !Number.isSafeInteger(streamerId) || streamerId <= 0)
-      return null;
+    if (!accountName || !Number.isSafeInteger(streamerId) || streamerId <= 0) return null;
     try {
-      return JSON.stringify([
-        new URL(licenseManager.getRemoteBaseUrl()).origin,
-        accountName,
-        streamerId,
-      ]);
+      return JSON.stringify([new URL(licenseManager.getRemoteBaseUrl()).origin, accountName, streamerId]);
     } catch {
       return null;
     }
@@ -262,12 +248,15 @@ function createCloudSyncController(options = {}) {
   function schedule() {
     clearTimer();
     if (!active || !isAuthorized()) return;
-    timer = timers.setTimeout(() => {
-      timer = null;
-      syncNow().catch((error) => {
-        void error;
-      });
-    }, Math.min(2 ** 31 - 1, Math.max(intervalMs, retryNotBefore - now())));
+    timer = timers.setTimeout(
+      () => {
+        timer = null;
+        syncNow().catch((error) => {
+          void error;
+        });
+      },
+      Math.min(2 ** 31 - 1, Math.max(intervalMs, retryNotBefore - now())),
+    );
     timer.unref?.();
   }
 
@@ -284,11 +273,7 @@ function createCloudSyncController(options = {}) {
       if (!VALID_SCOPES.has(scope)) return false;
       const incoming = Number(revision);
       const current = revisions[scope];
-      return (
-        Number.isSafeInteger(incoming) &&
-        incoming >= 0 &&
-        (current === null || incoming > current)
-      );
+      return Number.isSafeInteger(incoming) && incoming >= 0 && (current === null || incoming > current);
     });
   }
 
@@ -298,16 +283,19 @@ function createCloudSyncController(options = {}) {
     const delay = Math.max(streamRetryMs, retryAfterMs);
     streamRetryNotBefore = now() + delay;
     streamRetryMs = Math.min(STREAM_RETRY_MAX_MS, streamRetryMs * 2);
-    const timer = timers.setTimeout(() => {
-      if (streamReconnectTimer !== timer) return;
-      streamReconnectTimer = null;
-      if (delay > 2 ** 31 - 1) {
-        scheduleStreamReconnect(delay - (2 ** 31 - 1));
-        return;
-      }
-      streamRetryNotBefore = 0;
-      startEventStream();
-    }, Math.min(delay, 2 ** 31 - 1));
+    const timer = timers.setTimeout(
+      () => {
+        if (streamReconnectTimer !== timer) return;
+        streamReconnectTimer = null;
+        if (delay > 2 ** 31 - 1) {
+          scheduleStreamReconnect(delay - (2 ** 31 - 1));
+          return;
+        }
+        streamRetryNotBefore = 0;
+        startEventStream();
+      },
+      Math.min(delay, 2 ** 31 - 1),
+    );
     streamReconnectTimer = timer;
     streamReconnectTimer.unref?.();
   }
@@ -333,8 +321,7 @@ function createCloudSyncController(options = {}) {
       .watchCloudStateChangesInternal({
         signal: controller.signal,
         onOpen() {
-          if (streamAbortController !== controller || controller.signal.aborted)
-            return;
+          if (streamAbortController !== controller || controller.signal.aborted) return;
           streamRetryMs = STREAM_RETRY_MIN_MS;
           streamConnections += 1;
           if (streamConnections > 1) {
@@ -344,8 +331,7 @@ function createCloudSyncController(options = {}) {
           }
         },
         onChange(event) {
-          if (streamAbortController !== controller || controller.signal.aborted)
-            return;
+          if (streamAbortController !== controller || controller.signal.aborted) return;
           if (!hasNewCloudRevision(event)) return;
           syncNow().catch((error) => {
             void error;
@@ -376,10 +362,7 @@ function createCloudSyncController(options = {}) {
     const requestOptions = { signal: work.signal };
     let result;
     if (scope === 'settings') {
-      result = await licenseManager.updateCloudSettings(
-        runtime.getCloudSettingsSnapshot(),
-        requestOptions,
-      );
+      result = await licenseManager.updateCloudSettings(runtime.getCloudSettingsSnapshot(), requestOptions);
     } else if (scope === 'songs') {
       result = await songSync.upload(work);
     } else {
@@ -388,31 +371,21 @@ function createCloudSyncController(options = {}) {
       if (state?.loggedIn) {
         const cookie = await bilibiliAuth.getCookieHeader();
         if (!isCurrent(work)) return false;
-        result = await licenseManager.setBilibiliCredentialsInternal(
-          cookie,
-          requestOptions,
-        );
+        result = await licenseManager.setBilibiliCredentialsInternal(cookie, requestOptions);
       } else {
-        result =
-          await licenseManager.clearBilibiliCredentialsInternal(requestOptions);
+        result = await licenseManager.clearBilibiliCredentialsInternal(requestOptions);
       }
     }
     if (!isCurrent(work)) return false;
     if (scope === 'settings' && result?.values) confirmInteractionState(result.values);
-    if (
-      scope === 'settings' &&
-      dirtyGenerations.settings === dirtyGeneration &&
-      result?.values
-    ) {
+    if (scope === 'settings' && dirtyGenerations.settings === dirtyGeneration && result?.values) {
       await runtime.applyCloudSettingsSnapshot(result.values);
       if (!isCurrent(work)) return false;
       runtime.setBlindBoxMappingState?.(result?.blindBoxMapping || null);
     }
     revisions[scope] = Number(result?.revision) || revisions[scope];
-    if (
-      dirtyGenerations[scope] === dirtyGeneration &&
-      (scope !== 'songs' || !songSync.hasPending(work.accountKey))
-    ) dirty.delete(scope);
+    if (dirtyGenerations[scope] === dirtyGeneration && (scope !== 'songs' || !songSync.hasPending(work.accountKey)))
+      dirty.delete(scope);
     return true;
   }
 
@@ -464,10 +437,7 @@ function createCloudSyncController(options = {}) {
     }
     if (!shouldApply('settings', state.revision, work)) return;
     const values = state.values || {};
-    const isMissingBlindBoxConfig = !Object.prototype.hasOwnProperty.call(
-      values,
-      'giftBlindBoxConfig',
-    );
+    const isMissingBlindBoxConfig = !Object.prototype.hasOwnProperty.call(values, 'giftBlindBoxConfig');
     await runtime.applyCloudSettingsSnapshot(values);
     if (!isCurrent(work)) return;
     runtime.setBlindBoxMappingState?.(state.blindBoxMapping || null);
@@ -488,10 +458,7 @@ function createCloudSyncController(options = {}) {
     const result = await licenseManager.getBilibiliCredentialsInternal({
       signal: work.signal,
     });
-    const cloudRevision = Math.max(
-      Number(state.revision) || 0,
-      Number(result?.revision) || 0,
-    );
+    const cloudRevision = Math.max(Number(state.revision) || 0, Number(result?.revision) || 0);
     if (!shouldApply('bilibili', cloudRevision, work)) return;
     if (result?.loggedIn && result.cookie) {
       await bilibiliAuth.replaceCookieHeader(result.cookie);
@@ -557,12 +524,7 @@ function createCloudSyncController(options = {}) {
 
   function markDirty(scope) {
     if (disposed || !VALID_SCOPES.has(scope)) return;
-    if (
-      scope !== 'songs' &&
-      !isAuthorized() &&
-      (!accountKey || accountKey !== getAccountKey())
-    )
-      return;
+    if (scope !== 'songs' && !isAuthorized() && (!accountKey || accountKey !== getAccountKey())) return;
     if (isAuthorized() && !prepareAccount()) return;
     markScopeDirty(scope);
     if (isAuthorized()) {

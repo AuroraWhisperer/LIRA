@@ -21,23 +21,16 @@ let blindboxViewportResized = false;
 
 // URL 参数解析 — 支持短别名：t=top, w=winners, c=compact, tt=title
 const urlParams = new URLSearchParams(location.search);
-const param = (longKey, shortKey) =>
-  urlParams.get(longKey) || urlParams.get(shortKey);
+const param = (longKey, shortKey) => urlParams.get(longKey) || urlParams.get(shortKey);
 const requestedTop = Number.parseInt(param('top', 't') || '3', 10);
-const TOP_N = Number.isFinite(requestedTop)
-  ? Math.min(10, Math.max(-1, requestedTop))
-  : 3;
+const TOP_N = Number.isFinite(requestedTop) ? Math.min(10, Math.max(-1, requestedTop)) : 3;
 const SUMMARY_ONLY = TOP_N === 0;
 const COMPACT = param('compact', 'c') === '1';
-const WINNERS_ONLY =
-  param('winners', 'w') === '1' || urlParams.get('show') === 'winners';
+const WINNERS_ONLY = param('winners', 'w') === '1' || urlParams.get('show') === 'winners';
 const HEART_BOX_ONLY = param('heartBox', 'hb') === '1';
 const CUSTOM_TITLE = (param('title', 'tt') || '').trim();
 const HIDE_LOSS = param('hideLoss', 'hl') === '1' || WINNERS_ONLY;
-const REFRESH_SEC = Math.max(
-  10,
-  parseInt(param('refresh', 'r') || '0', 10) || 0,
-);
+const REFRESH_SEC = Math.max(10, parseInt(param('refresh', 'r') || '0', 10) || 0);
 const NO_SCROLL = param('noScroll', 'ns') !== '0';
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -80,10 +73,7 @@ async function loadStateThenStats() {
     const payload = await response.json();
     if (payload.ok && revision === stateRevision) state = payload.data;
   } catch (error) {
-    console.warn(
-      '[overlay-blindbox] loadState failed:',
-      error.message || error,
-    );
+    console.warn('[overlay-blindbox] loadState failed:', error.message || error);
   }
   await loadStats();
 }
@@ -91,19 +81,14 @@ async function loadStateThenStats() {
 async function loadStats() {
   const revision = ++statsRevision;
   try {
-    const boxFilter = HEART_BOX_ONLY
-      ? '?boxName=' + encodeURIComponent('心动盲盒')
-      : '';
+    const boxFilter = HEART_BOX_ONLY ? '?boxName=' + encodeURIComponent('心动盲盒') : '';
     const response = await fetch('/api/gifts/blind-box-stats' + boxFilter);
     const payload = await response.json();
     if (payload.ok && revision === statsRevision) {
       render(payload.data);
     }
   } catch (error) {
-    console.warn(
-      '[overlay-blindbox] loadStats failed:',
-      error.message || error,
-    );
+    console.warn('[overlay-blindbox] loadStats failed:', error.message || error);
   }
 }
 
@@ -122,11 +107,7 @@ function connectSocket() {
       }
       // 礼物相关更新时刷新统计数据
       const reason = payload.reason || '';
-      if (
-        reason.startsWith('bilibili:gift') ||
-        reason === 'gift:sprint:reset' ||
-        reason === 'connect'
-      ) {
+      if (reason.startsWith('bilibili:gift') || reason === 'gift:sprint:reset' || reason === 'connect') {
         loadStats();
       }
     },
@@ -182,8 +163,7 @@ function render(stats) {
     totalProfit: 0,
   };
   if (SUMMARY_ONLY || summaryValues.boxCount > 0) {
-    const profitClass =
-      summaryValues.totalProfit >= 0 ? 'profit-up' : 'profit-down';
+    const profitClass = summaryValues.totalProfit >= 0 ? 'profit-up' : 'profit-down';
     const profitSign = summaryValues.totalProfit >= 0 ? '+' : '-';
     summaryEl.innerHTML = `
       <div class="blindbox-stat-card">
@@ -293,10 +273,7 @@ function applyTheme(settings) {
   const root = document.documentElement;
   applyOverlayTheme(root, panel, settings);
 
-  panel.style.backgroundColor = hexToRgba(
-    settings.themeBackground || '#181823',
-    settings.themeOpacity || 0.76,
-  );
+  panel.style.backgroundColor = hexToRgba(settings.themeBackground || '#181823', settings.themeOpacity || 0.76);
 }
 
 // ── 工具函数 ──

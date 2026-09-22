@@ -1,9 +1,7 @@
 'use strict';
 
 const schema = require('./schema');
-const {
-  DYNAMIC_LOTTERY_SCHEMA,
-} = require('./dynamic-lottery-schema');
+const { DYNAMIC_LOTTERY_SCHEMA } = require('./dynamic-lottery-schema');
 
 function runDynamicLotteryMigrations(lotteryDb) {
   const result = schema.runMigrations(lotteryDb, 'lottery_db', [
@@ -11,9 +9,7 @@ function runDynamicLotteryMigrations(lotteryDb) {
     (db) => db.exec('ALTER TABLE lottery_evidence ADD COLUMN display_name TEXT'),
   ]);
   if (result.applied > 0) {
-    console.log(
-      `[Schema] ${result.key}: v${result.from} → v${result.to} (${result.applied} step(s))`,
-    );
+    console.log(`[Schema] ${result.key}: v${result.from} → v${result.to} (${result.applied} step(s))`);
   }
   return result;
 }

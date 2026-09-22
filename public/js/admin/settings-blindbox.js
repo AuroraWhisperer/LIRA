@@ -26,8 +26,7 @@ function parseBlindboxOutputs(value) {
       const priceText = parts.join(':');
       if (!/^[1-9]\d{0,19}$/u.test(giftId) || !name) return null;
       const price = priceText === '' ? null : Number(priceText);
-      if (price !== null && (!Number.isFinite(price) || price <= 0))
-        return null;
+      if (price !== null && (!Number.isFinite(price) || price <= 0)) return null;
       return {
         giftId,
         name,
@@ -84,143 +83,115 @@ export function createBlindboxSettings({
   }
 
   function init() {
-    documentRef
-      .getElementById('blindBoxAddBtn')
-      .addEventListener('click', async () => {
-        const giftId = (value('blindBoxGiftId') || '').trim();
-        const name = (value('blindBoxName') || '').trim();
-        const price = parseFloat(value('blindBoxPrice'));
-        const outputsRaw = (value('blindBoxOutputs') || '').trim();
-        if (!name) return invalid('blindBoxName', '请输入盲盒名');
-        if (isNaN(price) || price <= 0) return invalid('blindBoxPrice', '请输入有效成本');
-        if (giftId && !/^[1-9]\d{0,19}$/u.test(giftId))
-          return invalid('blindBoxGiftId', '请输入有效盲盒 ID');
-        if (!outputsRaw) return invalid('blindBoxOutputs', '请输入可能开出的礼物');
+    documentRef.getElementById('blindBoxAddBtn').addEventListener('click', async () => {
+      const giftId = (value('blindBoxGiftId') || '').trim();
+      const name = (value('blindBoxName') || '').trim();
+      const price = parseFloat(value('blindBoxPrice'));
+      const outputsRaw = (value('blindBoxOutputs') || '').trim();
+      if (!name) return invalid('blindBoxName', '请输入盲盒名');
+      if (isNaN(price) || price <= 0) return invalid('blindBoxPrice', '请输入有效成本');
+      if (giftId && !/^[1-9]\d{0,19}$/u.test(giftId)) return invalid('blindBoxGiftId', '请输入有效盲盒 ID');
+      if (!outputsRaw) return invalid('blindBoxOutputs', '请输入可能开出的礼物');
 
-        const outputs = parseBlindboxOutputs(outputsRaw);
-        if (!outputs?.length) return invalid('blindBoxOutputs', '请按“产物 ID:名称:价格”填写礼物');
+      const outputs = parseBlindboxOutputs(outputsRaw);
+      if (!outputs?.length) return invalid('blindBoxOutputs', '请按“产物 ID:名称:价格”填写礼物');
 
-        const textarea = documentRef.getElementById(
-          'giftBlindBoxCustomConfigV2',
-        );
-        const config = parseBlindboxConfig(textarea);
-        config.push({ giftId: giftId || null, name, price, outputs });
-        const newRaw = JSON.stringify(config, null, 2);
-        textarea.value = newRaw;
-        textarea.dataset.dirty = 'true';
-        await saveSettings({ giftBlindBoxCustomConfigV2: newRaw });
-        textarea.dataset.dirty = 'false';
-        toast(`已保存盲盒「${name}」，等待服务器确认`);
-        documentRef.getElementById('blindBoxGiftId').value = '';
-        documentRef.getElementById('blindBoxName').value = '';
-        documentRef.getElementById('blindBoxPrice').value = '';
-        documentRef.getElementById('blindBoxOutputs').value = '';
-        renderBlindboxList();
-      });
+      const textarea = documentRef.getElementById('giftBlindBoxCustomConfigV2');
+      const config = parseBlindboxConfig(textarea);
+      config.push({ giftId: giftId || null, name, price, outputs });
+      const newRaw = JSON.stringify(config, null, 2);
+      textarea.value = newRaw;
+      textarea.dataset.dirty = 'true';
+      await saveSettings({ giftBlindBoxCustomConfigV2: newRaw });
+      textarea.dataset.dirty = 'false';
+      toast(`已保存盲盒「${name}」，等待服务器确认`);
+      documentRef.getElementById('blindBoxGiftId').value = '';
+      documentRef.getElementById('blindBoxName').value = '';
+      documentRef.getElementById('blindBoxPrice').value = '';
+      documentRef.getElementById('blindBoxOutputs').value = '';
+      renderBlindboxList();
+    });
 
-    documentRef
-      .getElementById('blindBoxList')
-      .addEventListener('click', async (event) => {
-        const btn = event.target.closest('.chip-delete');
-        if (!btn) return;
-        const index = parseInt(btn.dataset.blindIndex, 10);
-        if (isNaN(index)) return;
-        const textarea = documentRef.getElementById(
-          'giftBlindBoxCustomConfigV2',
-        );
-        const config = parseBlindboxConfig(textarea);
-        if (index < 0 || index >= config.length) return;
-        config.splice(index, 1);
-        const newRaw = JSON.stringify(config, null, 2);
-        textarea.value = newRaw;
-        textarea.dataset.dirty = 'true';
-        await saveSettings({ giftBlindBoxCustomConfigV2: newRaw });
-        textarea.dataset.dirty = 'false';
-        toast('盲盒移除已保存，等待服务器确认');
-        renderBlindboxList();
-      });
+    documentRef.getElementById('blindBoxList').addEventListener('click', async (event) => {
+      const btn = event.target.closest('.chip-delete');
+      if (!btn) return;
+      const index = parseInt(btn.dataset.blindIndex, 10);
+      if (isNaN(index)) return;
+      const textarea = documentRef.getElementById('giftBlindBoxCustomConfigV2');
+      const config = parseBlindboxConfig(textarea);
+      if (index < 0 || index >= config.length) return;
+      config.splice(index, 1);
+      const newRaw = JSON.stringify(config, null, 2);
+      textarea.value = newRaw;
+      textarea.dataset.dirty = 'true';
+      await saveSettings({ giftBlindBoxCustomConfigV2: newRaw });
+      textarea.dataset.dirty = 'false';
+      toast('盲盒移除已保存，等待服务器确认');
+      renderBlindboxList();
+    });
 
-    documentRef
-      .getElementById('blindBoxListToggle')
-      ?.addEventListener('click', () => {
-        const button = documentRef.getElementById('blindBoxListToggle');
-        const expanded = button.getAttribute('aria-expanded') === 'true';
-        button.setAttribute('aria-expanded', String(!expanded));
-        renderBlindboxList();
-      });
+    documentRef.getElementById('blindBoxListToggle')?.addEventListener('click', () => {
+      const button = documentRef.getElementById('blindBoxListToggle');
+      const expanded = button.getAttribute('aria-expanded') === 'true';
+      button.setAttribute('aria-expanded', String(!expanded));
+      renderBlindboxList();
+    });
 
-    documentRef
-      .getElementById('blindBoxAdvancedToggle')
-      .addEventListener('click', () => {
-        const advanced = documentRef.getElementById('blindBoxAdvanced');
-        const button = documentRef.getElementById('blindBoxAdvancedToggle');
-        advanced.hidden = !advanced.hidden;
-        button.textContent = advanced.hidden ? '高级 ▾' : '高级 ▴';
-      });
+    documentRef.getElementById('blindBoxAdvancedToggle').addEventListener('click', () => {
+      const advanced = documentRef.getElementById('blindBoxAdvanced');
+      const button = documentRef.getElementById('blindBoxAdvancedToggle');
+      advanced.hidden = !advanced.hidden;
+      button.textContent = advanced.hidden ? '高级 ▾' : '高级 ▴';
+    });
 
-    documentRef
-      .getElementById('giftBlindBoxSaveBtn')
-      .addEventListener('click', async () => {
-        const textarea = documentRef.getElementById(
-          'giftBlindBoxCustomConfigV2',
-        );
-        if (!textarea.value.trim() && textarea.dataset.dirty !== 'true') {
-          toast('暂无自定义配置，可在上方添加盲盒');
-          return;
-        }
-        let raw = textarea.value.trim() || '[]';
-        try {
-          const parsed = JSON.parse(raw);
-          if (!Array.isArray(parsed)) throw new Error('配置必须是 JSON 数组');
-          raw = JSON.stringify(parsed);
-        } catch (error) {
-          invalid('giftBlindBoxCustomConfigV2', '盲盒配置 JSON 格式错误：' + error.message);
-          return;
-        }
-        textarea.dataset.dirty = 'true';
-        await saveSettings({ giftBlindBoxCustomConfigV2: raw });
-        textarea.dataset.dirty = 'false';
-        toast('自定义盲盒已保存，等待服务器确认');
-        renderBlindboxList();
-        await getState()?.reloadState?.();
-      });
+    documentRef.getElementById('giftBlindBoxSaveBtn').addEventListener('click', async () => {
+      const textarea = documentRef.getElementById('giftBlindBoxCustomConfigV2');
+      if (!textarea.value.trim() && textarea.dataset.dirty !== 'true') {
+        toast('暂无自定义配置，可在上方添加盲盒');
+        return;
+      }
+      let raw = textarea.value.trim() || '[]';
+      try {
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) throw new Error('配置必须是 JSON 数组');
+        raw = JSON.stringify(parsed);
+      } catch (error) {
+        invalid('giftBlindBoxCustomConfigV2', '盲盒配置 JSON 格式错误：' + error.message);
+        return;
+      }
+      textarea.dataset.dirty = 'true';
+      await saveSettings({ giftBlindBoxCustomConfigV2: raw });
+      textarea.dataset.dirty = 'false';
+      toast('自定义盲盒已保存，等待服务器确认');
+      renderBlindboxList();
+      await getState()?.reloadState?.();
+    });
 
-    for (const id of [
-      'blindboxOverlayTitle',
-      'blindboxOverlayTop',
-      'blindboxWinnersOnly',
-      'blindboxHeartBoxOnly',
-    ]) {
+    for (const id of ['blindboxOverlayTitle', 'blindboxOverlayTop', 'blindboxWinnersOnly', 'blindboxHeartBoxOnly']) {
       const element = documentRef.getElementById(id);
       if (!element) continue;
       element.addEventListener('input', updateOverlayUrl);
       element.addEventListener('change', () => {
         updateOverlayUrl();
         if (id === 'blindboxOverlayTitle') {
-          saveSettings({ blindboxOverlayTitle: element.value.trim() }).catch(
-            () => {},
-          );
+          saveSettings({ blindboxOverlayTitle: element.value.trim() }).catch(() => {});
         }
       });
     }
 
-    documentRef
-      .getElementById('blindboxCopyUrlBtn')
-      .addEventListener('click', async () => {
-        const url = buildOverlayUrl();
-        try {
-          await navigatorRef.clipboard.writeText(url);
-          toast('投屏地址已复制');
-        } catch (error) {
-          void error;
-          promptRef('复制以下地址：', url);
-        }
-      });
+    documentRef.getElementById('blindboxCopyUrlBtn').addEventListener('click', async () => {
+      const url = buildOverlayUrl();
+      try {
+        await navigatorRef.clipboard.writeText(url);
+        toast('投屏地址已复制');
+      } catch (error) {
+        void error;
+        promptRef('复制以下地址：', url);
+      }
+    });
 
     updateOverlayUrl();
-    const customConfig = documentRef.getElementById(
-      'giftBlindBoxCustomConfigV2',
-    );
+    const customConfig = documentRef.getElementById('giftBlindBoxCustomConfigV2');
     customConfig.dataset.preserveDirty = 'true';
     customConfig.addEventListener('input', () => {
       customConfig.dataset.dirty = 'true';

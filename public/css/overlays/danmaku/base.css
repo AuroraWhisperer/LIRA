@@ -50,12 +50,7 @@ body {
   padding: 8px 12px 8px 10px;
   border-left: 3px solid var(--signal-cyan);
   color: var(--signal-ice);
-  background: linear-gradient(
-    90deg,
-    rgba(13, 20, 34, 0.94),
-    rgba(13, 20, 34, 0.74) 76%,
-    rgba(13, 20, 34, 0.2)
-  );
+  background: linear-gradient(90deg, rgba(13, 20, 34, 0.94), rgba(13, 20, 34, 0.74) 76%, rgba(13, 20, 34, 0.2));
   clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 0 100%);
 }
 
@@ -191,18 +186,13 @@ body:not(.is-connected) .danmaku-signal-count {
   padding: 8px 18px 8px 9px;
   border-left: 3px solid var(--signal-accent);
   background:
-    linear-gradient(
-      90deg,
-      color-mix(in srgb, var(--signal-accent) 13%, transparent),
-      transparent 52%
-    ),
+    linear-gradient(90deg, color-mix(in srgb, var(--signal-accent) 13%, transparent), transparent 52%),
     linear-gradient(90deg, rgba(16, 21, 34, 0.96), rgba(16, 21, 34, 0.82));
   box-shadow:
     0 10px 24px rgba(2, 6, 16, 0.22),
     inset 0 1px rgba(255, 255, 255, 0.06);
   clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
-  animation: signalMessageIn 260ms cubic-bezier(0.2, 0.8, 0.2, 1)
-    var(--danmaku-delay) both;
+  animation: signalMessageIn 260ms cubic-bezier(0.2, 0.8, 0.2, 1) var(--danmaku-delay) both;
 }
 .draw-danmaku-item[data-tone='1'] {
   --signal-accent: var(--signal-gold);
@@ -241,14 +231,7 @@ body:not(.is-connected) .danmaku-signal-count {
   overflow: hidden;
   color: transparent;
   background: var(--danmaku-avatar-art) center / cover no-repeat;
-  clip-path: polygon(
-    0 7px,
-    7px 0,
-    100% 0,
-    100% calc(100% - 7px),
-    calc(100% - 7px) 100%,
-    0 100%
-  );
+  clip-path: polygon(0 7px, 7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%);
   font-size: 0;
 }
 .draw-danmaku-avatar img {
@@ -357,11 +340,7 @@ html:has(body.is-preview) {
   color-scheme: light;
 }
 body.is-preview {
-  background: repeating-conic-gradient(
-      rgba(248, 251, 255, 0.84) 0 25%,
-      rgba(229, 239, 248, 0.72) 0 50%
-    )
-    0 0 / 20px 20px;
+  background: repeating-conic-gradient(rgba(248, 251, 255, 0.84) 0 25%, rgba(229, 239, 248, 0.72) 0 50%) 0 0 / 20px 20px;
 }
 
 body[data-custom-font='true'] .draw-danmaku-feed .draw-danmaku-body,
@@ -369,6 +348,10 @@ body[data-custom-font='true'] .draw-danmaku-feed .draw-danmaku-body * {
   font-family: var(--danmaku-custom-font);
 }
 
-body[data-custom-text-color='true'][data-style] .draw-danmaku-feed .draw-danmaku-item:not(.is-gift) .draw-danmaku-body p {
+body[data-custom-text-color='true'][data-style]
+  .draw-danmaku-feed
+  .draw-danmaku-item:not(.is-gift)
+  .draw-danmaku-body
+  p {
   color: var(--danmaku-text-color);
 }

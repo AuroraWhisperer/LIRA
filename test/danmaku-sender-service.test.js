@@ -7,15 +7,13 @@ const {
   DANMAKU_MESSAGE_LIMIT,
   splitDanmakuEveryMentionMessage,
 } = require('../src/bilibili/danmaku/sender-service');
-const {
-  buildMentionedMessage,
-} = require('../src/bilibili/danmaku/mention-policy');
+const { buildMentionedMessage } = require('../src/bilibili/danmaku/mention-policy');
 
 test('mention policy formats a visible mention without transport dependencies', () => {
-  assert.deepEqual(
-    buildMentionedMessage('选中了一首歌', { uid: '42', name: 'Alice' }),
-    { message: '@Alice 选中了一首歌', target: { uid: '42', name: 'Alice' } },
-  );
+  assert.deepEqual(buildMentionedMessage('选中了一首歌', { uid: '42', name: 'Alice' }), {
+    message: '@Alice 选中了一首歌',
+    target: { uid: '42', name: 'Alice' },
+  });
 });
 
 test('sender service gets the mention target only when requested', async () => {
@@ -86,10 +84,7 @@ test('sender service accepts a caller-specific rate limit interval', async () =>
 
 test('concurrent default sends cannot pass the same rate-limit check', async () => {
   const { service, sent } = createConcurrentSenderFixture();
-  const results = await Promise.allSettled([
-    service.send({ message: 'first' }),
-    service.send({ message: 'second' }),
-  ]);
+  const results = await Promise.allSettled([service.send({ message: 'first' }), service.send({ message: 'second' })]);
 
   assert.deepEqual(
     results.map((result) => result.status),
@@ -125,8 +120,7 @@ test('zero-rate sends keep all chunks together across callers', async () => {
   const firstChunk = Promise.withResolvers();
   const { service, sent } = createConcurrentSenderFixture({
     sendDanmaku: async (_roomId, message) => {
-      if (message === 'a'.repeat(DANMAKU_MESSAGE_LIMIT))
-        await firstChunk.promise;
+      if (message === 'a'.repeat(DANMAKU_MESSAGE_LIMIT)) await firstChunk.promise;
       return { message };
     },
   });
@@ -154,10 +148,7 @@ test('a failed send does not block the next queued caller', async () => {
       return { message };
     },
   });
-  const results = await Promise.allSettled([
-    service.send({ message: 'first' }),
-    service.send({ message: 'second' }),
-  ]);
+  const results = await Promise.allSettled([service.send({ message: 'first' }), service.send({ message: 'second' })]);
 
   assert.deepEqual(
     results.map((result) => result.status),
@@ -187,9 +178,7 @@ function createConcurrentSenderFixture(options = {}) {
       resolveRoomInfo: async () => ({ roomId: 123 }),
       async sendDanmaku(roomId, message) {
         sent.push({ message, at: currentTime });
-        return options.sendDanmaku
-          ? options.sendDanmaku(roomId, message)
-          : { message };
+        return options.sendDanmaku ? options.sendDanmaku(roomId, message) : { message };
       },
     }),
     now: () => currentTime,
@@ -233,14 +222,8 @@ test('sender service splits long admin messages into Bilibili-sized chunks', asy
   assert.equal(result.accountUid, '9');
   assert.equal(typeof result.sentAfter, 'number');
   assert.equal(result.messages.length, 3);
-  assert.ok(
-    calls.every(
-      (call) => Array.from(call.message).length <= DANMAKU_MESSAGE_LIMIT,
-    ),
-  );
-  assert.ok(
-    Array.from(`@Alice ${calls[0].message}`).length <= DANMAKU_MESSAGE_LIMIT,
-  );
+  assert.ok(calls.every((call) => Array.from(call.message).length <= DANMAKU_MESSAGE_LIMIT));
+  assert.ok(Array.from(`@Alice ${calls[0].message}`).length <= DANMAKU_MESSAGE_LIMIT);
   assert.equal(calls[0].target.uid, '42');
   assert.deepEqual(calls[1].target, {
     uid: '',
@@ -283,12 +266,7 @@ test('sender service repeats an AI mention on every 40-character chunk', async (
   });
   assert.equal(calls.length, 3);
   assert.ok(calls.every((call) => call.target.uid === '42'));
-  assert.ok(
-    calls.every(
-      (call) =>
-        Array.from(`@Alice ${call.message}`).length <= DANMAKU_MESSAGE_LIMIT,
-    ),
-  );
+  assert.ok(calls.every((call) => Array.from(`@Alice ${call.message}`).length <= DANMAKU_MESSAGE_LIMIT));
   assert.equal(calls.map((call) => call.message).join(''), '猫'.repeat(70));
   assert.deepEqual(waits, [3000, 3000]);
 });
@@ -345,17 +323,9 @@ test('AI chunking moves a short trailing emoticon instead of cutting through it'
     name: '哈极光dd_',
   });
 
-  assert.deepEqual(chunks, [
-    '喵平时都在自己直播间蹲着，最爱看的就是你们这些观众啦～',
-    '(｡･ω･｡)',
-  ]);
+  assert.deepEqual(chunks, ['喵平时都在自己直播间蹲着，最爱看的就是你们这些观众啦～', '(｡･ω･｡)']);
   assert.equal(chunks.join(''), message);
-  assert.ok(
-    chunks.every(
-      (chunk) =>
-        Array.from(`@哈极光dd_ ${chunk}`).length <= DANMAKU_MESSAGE_LIMIT,
-    ),
-  );
+  assert.ok(chunks.every((chunk) => Array.from(`@哈极光dd_ ${chunk}`).length <= DANMAKU_MESSAGE_LIMIT));
 });
 
 test('AI chunking prefers nearby punctuation without creating more than three messages', () => {
@@ -368,12 +338,7 @@ test('AI chunking prefers nearby punctuation without creating more than three me
   assert.equal(chunks[0], `${'甲'.repeat(28)}。`);
   assert.equal(chunks.join(''), message);
   assert.ok(chunks.length <= 3);
-  assert.ok(
-    chunks.every(
-      (chunk) =>
-        Array.from(`@哈极光dd_ ${chunk}`).length <= DANMAKU_MESSAGE_LIMIT,
-    ),
-  );
+  assert.ok(chunks.every((chunk) => Array.from(`@哈极光dd_ ${chunk}`).length <= DANMAKU_MESSAGE_LIMIT));
 });
 
 test('sender service keeps emoji and symbols intact while splitting a DIY reply after the mention', async () => {
@@ -401,15 +366,8 @@ test('sender service keeps emoji and symbols intact while splitting a DIY reply 
   assert.equal(result.message, message);
   assert.ok(calls.length > 1);
   assert.ok(calls.every((call) => !call.message.includes('\uFFFD')));
-  assert.ok(
-    calls.every(
-      (call) => Array.from(call.message).length <= DANMAKU_MESSAGE_LIMIT,
-    ),
-  );
-  assert.ok(
-    Array.from(`@${target.name} ${calls[0].message}`).length <=
-      DANMAKU_MESSAGE_LIMIT,
-  );
+  assert.ok(calls.every((call) => Array.from(call.message).length <= DANMAKU_MESSAGE_LIMIT));
+  assert.ok(Array.from(`@${target.name} ${calls[0].message}`).length <= DANMAKU_MESSAGE_LIMIT);
   assert.equal(calls[0].target.uid, target.uid);
   assert.ok(calls.slice(1).every((call) => call.target.uid === ''));
 });
@@ -445,17 +403,8 @@ test('sender service splits long fortune and check-in replies after reserving th
     });
 
     assert.ok(result.count > 1);
-    assert.ok(
-      Array.from(`@${longName} ${calls[0].message}`).length <=
-        DANMAKU_MESSAGE_LIMIT,
-    );
-    assert.ok(
-      calls
-        .slice(1)
-        .every(
-          (call) => Array.from(call.message).length <= DANMAKU_MESSAGE_LIMIT,
-        ),
-    );
+    assert.ok(Array.from(`@${longName} ${calls[0].message}`).length <= DANMAKU_MESSAGE_LIMIT);
+    assert.ok(calls.slice(1).every((call) => Array.from(call.message).length <= DANMAKU_MESSAGE_LIMIT));
     assert.equal(calls[0].target.uid, '789');
     assert.ok(calls.slice(1).every((call) => call.target.uid === ''));
     assert.equal(result.message, message);

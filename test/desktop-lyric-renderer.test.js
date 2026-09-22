@@ -8,9 +8,7 @@ const { loadModuleExports } = require('./helpers/frontend-modules');
 const ROOT_DIR = path.resolve(__dirname, '..');
 
 test('desktop lyric timeline identifies active lines and countdowns for long gaps', async () => {
-  const preview = await loadModuleExports(
-    path.join(ROOT_DIR, 'public', 'js', 'lyrics', 'desktop-lyric-renderer.js'),
-  );
+  const preview = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'lyrics', 'desktop-lyric-renderer.js'));
   const lines = [
     { startMs: 0, text: '出品：骁Studio' },
     { startMs: 9000, text: '请原谅我的词穷' },
@@ -19,22 +17,14 @@ test('desktop lyric timeline identifies active lines and countdowns for long gap
 
   assert.equal(preview.findActiveLyricIndex(lines, 500), 0);
   assert.equal(preview.findActiveLyricIndex(lines, 9500), 1);
-  assert.deepEqual(
-    { ...preview.getLyricCountdown(lines, 0, 6200) },
-    { nextIndex: 1, seconds: 3 },
-  );
-  assert.deepEqual(
-    { ...preview.getLyricCountdown(lines, 0, 7200) },
-    { nextIndex: 1, seconds: 2 },
-  );
+  assert.deepEqual({ ...preview.getLyricCountdown(lines, 0, 6200) }, { nextIndex: 1, seconds: 3 });
+  assert.deepEqual({ ...preview.getLyricCountdown(lines, 0, 7200) }, { nextIndex: 1, seconds: 2 });
   assert.equal(preview.getLyricCountdown(lines, 0, 4000), null);
   assert.equal(preview.getLyricCountdown(lines, 1, 9500), null);
 });
 
 test('desktop lyric timeline spring converges smoothly on the active-line anchor', async () => {
-  const preview = await loadModuleExports(
-    path.join(ROOT_DIR, 'public', 'js', 'lyrics', 'desktop-lyric-renderer.js'),
-  );
+  const preview = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'lyrics', 'desktop-lyric-renderer.js'));
   let frame = { position: 0, velocity: 0 };
 
   frame = preview.stepSpringScroll(frame.position, frame.velocity, 500, 16);
@@ -49,9 +39,7 @@ test('desktop lyric timeline spring converges smoothly on the active-line anchor
 });
 
 test('desktop lyric renderer normalizes timing, empty text, and anchor settings', async () => {
-  const preview = await loadModuleExports(
-    path.join(ROOT_DIR, 'public', 'js', 'lyrics', 'desktop-lyric-renderer.js'),
-  );
+  const preview = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'lyrics', 'desktop-lyric-renderer.js'));
   const settings = preview.resolveDesktopLyricSettings({
     desktopLyricTimeOffsetMs: '350',
     desktopLyricShowTitleWhenNoLyric: 'true',
@@ -67,57 +55,23 @@ test('desktop lyric renderer normalizes timing, empty text, and anchor settings'
   assert.equal(settings.alignPosition, 0.25);
   assert.equal(settings.alignAnchor, 'end');
   assert.equal(preview.resolveLyricTime(1000, settings), 1350);
-  assert.equal(
-    preview.resolveNoLyricText({ trackTitle: '测试歌曲' }, settings),
-    '测试歌曲',
-  );
-  assert.equal(
-    preview.calculateFollowTarget(
-      600,
-      100,
-      400,
-      1200,
-      settings.alignPosition,
-      settings.alignAnchor,
-    ),
-    600,
-  );
+  assert.equal(preview.resolveNoLyricText({ trackTitle: '测试歌曲' }, settings), '测试歌曲');
+  assert.equal(preview.calculateFollowTarget(600, 100, 400, 1200, settings.alignPosition, settings.alignAnchor), 600);
 
   const fallbackSettings = preview.resolveDesktopLyricSettings({
     desktopLyricShowTitleWhenNoLyric: 'false',
     desktopLyricNoLyricText: '纯音乐',
   });
-  assert.equal(
-    preview.resolveNoLyricText({ trackTitle: '测试歌曲' }, fallbackSettings),
-    '纯音乐',
-  );
+  assert.equal(preview.resolveNoLyricText({ trackTitle: '测试歌曲' }, fallbackSettings), '纯音乐');
 });
 
 test('desktop lyric renderer resolves explicit and legacy karaoke modes', async () => {
-  const preview = await loadModuleExports(
-    path.join(ROOT_DIR, 'public', 'js', 'lyrics', 'desktop-lyric-renderer.js'),
-  );
+  const preview = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'lyrics', 'desktop-lyric-renderer.js'));
 
-  assert.equal(
-    preview.resolveDesktopLyricSettings({ desktopLyricKaraokeMode: 'discrete' })
-      .karaokeMode,
-    'discrete',
-  );
-  assert.equal(
-    preview.resolveDesktopLyricSettings({ desktopLyricKaraokeMode: 'off' })
-      .karaokeEnabled,
-    false,
-  );
-  assert.equal(
-    preview.resolveDesktopLyricSettings({ desktopLyricKaraokeEnabled: 'false' })
-      .karaokeMode,
-    'off',
-  );
-  assert.equal(
-    preview.resolveDesktopLyricSettings({ desktopLyricKaraokeEnabled: 'true' })
-      .karaokeMode,
-    'continuous',
-  );
+  assert.equal(preview.resolveDesktopLyricSettings({ desktopLyricKaraokeMode: 'discrete' }).karaokeMode, 'discrete');
+  assert.equal(preview.resolveDesktopLyricSettings({ desktopLyricKaraokeMode: 'off' }).karaokeEnabled, false);
+  assert.equal(preview.resolveDesktopLyricSettings({ desktopLyricKaraokeEnabled: 'false' }).karaokeMode, 'off');
+  assert.equal(preview.resolveDesktopLyricSettings({ desktopLyricKaraokeEnabled: 'true' }).karaokeMode, 'continuous');
 });
 
 test('desktop lyric discrete animator toggles timed words without continuous fill', async () => {
@@ -183,16 +137,10 @@ test('desktop lyric discrete animator toggles timed words without continuous fil
 });
 
 test('desktop lyric visible-line window keeps full timeline semantics', async () => {
-  const preview = await loadModuleExports(
-    path.join(ROOT_DIR, 'public', 'js', 'lyrics', 'desktop-lyric-renderer.js'),
-  );
+  const preview = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'lyrics', 'desktop-lyric-renderer.js'));
 
   const range = (activeLine, visibleLines, lineCount) =>
-    JSON.parse(
-      JSON.stringify(
-        preview.getVisibleLyricRange(activeLine, visibleLines, lineCount),
-      ),
-    );
+    JSON.parse(JSON.stringify(preview.getVisibleLyricRange(activeLine, visibleLines, lineCount)));
   assert.deepEqual(range(4, 0, 9), { first: 0, last: 8 });
   assert.deepEqual(range(4, 1, 9), { first: 4, last: 4 });
   assert.deepEqual(range(4, 2, 9), { first: 4, last: 5 });

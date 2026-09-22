@@ -6,7 +6,8 @@ export function createInteractionClient({ onState, onHost = () => {}, fetchState
   let revision = -1;
   let queued = null;
   function apply(next) {
-    if (!next || next.runtimeId !== runtimeId || !Number.isInteger(next.revision) || next.revision < revision) return false;
+    if (!next || next.runtimeId !== runtimeId || !Number.isInteger(next.revision) || next.revision < revision)
+      return false;
     revision = next.revision;
     onState(next);
     return true;
@@ -28,7 +29,10 @@ export function createInteractionClient({ onState, onHost = () => {}, fetchState
       revision = -1;
     }
     const accepted = apply(next);
-    if (queued) { apply(queued); queued = null; }
+    if (queued) {
+      apply(queued);
+      queued = null;
+    }
     if (host && accepted && next.revision === revision) onHost(next);
   }
   function reset() {

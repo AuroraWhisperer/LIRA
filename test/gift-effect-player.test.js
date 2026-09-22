@@ -7,7 +7,10 @@ const { loadModuleExports } = require('./helpers/frontend-modules');
 
 function event(eventId, preview = false) {
   return {
-    type: 'gift:effect', source: 'danmaku', eventId, preview,
+    type: 'gift:effect',
+    source: 'danmaku',
+    eventId,
+    preview,
     effect: {
       mp4Url: 'https://i0.hdslb.com/test.mp4',
       layout: { videoWidth: 4, videoHeight: 2, rgbFrame: [0, 0, 2, 2], alphaFrame: [2, 0, 2, 2] },
@@ -16,24 +19,47 @@ function event(eventId, preview = false) {
 }
 
 async function fixture() {
-  const { createGiftEffectPlayer } = await loadModuleExports(path.join(__dirname, '../public/js/overlays/gift-effect-player.js'), { URL });
+  const { createGiftEffectPlayer } = await loadModuleExports(
+    path.join(__dirname, '../public/js/overlays/gift-effect-player.js'),
+    { URL },
+  );
   const played = [];
   const errors = [];
   let time = 0;
   const player = createGiftEffectPlayer({
     now: () => time,
-    onError: error => errors.push(error),
+    onError: (error) => errors.push(error),
     play(payload) {
       let resolve, reject;
-      const done = new Promise((ok, fail) => { resolve = ok; reject = fail; });
-      const playback = { payload, done, finish: resolve, fail: reject, stopped: false, stop() { this.stopped = true; resolve(); } };
+      const done = new Promise((ok, fail) => {
+        resolve = ok;
+        reject = fail;
+      });
+      const playback = {
+        payload,
+        done,
+        finish: resolve,
+        fail: reject,
+        stopped: false,
+        stop() {
+          this.stopped = true;
+          resolve();
+        },
+      };
       played.push(playback);
       return playback;
     },
   });
-  return { player, played, errors, advance: value => { time += value; } };
+  return {
+    player,
+    played,
+    errors,
+    advance: (value) => {
+      time += value;
+    },
+  };
 }
-const settle = () => new Promise(resolve => setImmediate(resolve));
+const settle = () => new Promise((resolve) => setImmediate(resolve));
 
 test('only one effect plays; duplicates are ignored and pending capacity is bounded', async () => {
   const { player, played } = await fixture();

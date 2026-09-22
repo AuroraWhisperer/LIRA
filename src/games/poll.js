@@ -12,7 +12,12 @@ function createPoll(options) {
       return true;
     },
     count: () => voters.size,
-    result: () => options.map((text, index) => ({ text, votes: votes[index], percentage: voters.size ? votes[index] / voters.size * 100 : 0 })),
+    result: () =>
+      options.map((text, index) => ({
+        text,
+        votes: votes[index],
+        percentage: voters.size ? (votes[index] / voters.size) * 100 : 0,
+      })),
   };
 }
 

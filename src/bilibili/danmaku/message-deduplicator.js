@@ -17,19 +17,9 @@ class MessageDeduplicator {
   }
 
   remember(uid, message, timestampMs, options = {}) {
-    const key = bilibiliHelpers.buildBilibiliCommandKey(
-      uid,
-      message,
-      timestampMs,
-    );
+    const key = bilibiliHelpers.buildBilibiliCommandKey(uid, message, timestampMs);
     if (!key) {
-      logDeduplicationDecision(
-        'invalid-key',
-        uid,
-        message,
-        timestampMs,
-        options,
-      );
+      logDeduplicationDecision('invalid-key', uid, message, timestampMs, options);
       return false;
     }
 
@@ -38,20 +28,10 @@ class MessageDeduplicator {
     if (seenCommand) {
       const sourceToken = source || '(unknown)';
       if (!seenCommand.rejectedSources.has(sourceToken)) {
-        const reason =
-          source && !seenCommand.sources.has(source)
-            ? 'cross-source'
-            : 'seen-key';
+        const reason = source && !seenCommand.sources.has(source) ? 'cross-source' : 'seen-key';
         seenCommand.sources.add(sourceToken);
         seenCommand.rejectedSources.add(sourceToken);
-        logDeduplicationDecision(
-          reason,
-          uid,
-          message,
-          timestampMs,
-          options,
-          seenCommand.sources,
-        );
+        logDeduplicationDecision(reason, uid, message, timestampMs, options, seenCommand.sources);
       }
       return false;
     }
@@ -74,21 +54,15 @@ class MessageDeduplicator {
     this.seenCommandKeys.set(key, seenEntry);
 
     const crossSourceMatch = this.recentCommands.find(
-      (candidate) =>
-        isCrossSourceDuplicate(candidate, command) &&
-        !candidate.matchedSources.has(command.source),
+      (candidate) => isCrossSourceDuplicate(candidate, command) && !candidate.matchedSources.has(command.source),
     );
     if (crossSourceMatch) {
       crossSourceMatch.matchedSources.add(command.source);
       seenEntry.rejectedSources.add(command.source || '(unknown)');
-      logDeduplicationDecision(
-        'cross-source',
-        uid,
-        message,
-        timestampMs,
-        options,
-        [...crossSourceMatch.matchedSources, command.source],
-      );
+      logDeduplicationDecision('cross-source', uid, message, timestampMs, options, [
+        ...crossSourceMatch.matchedSources,
+        command.source,
+      ]);
       this.prune(receivedAt);
       return false;
     }
@@ -103,10 +77,7 @@ class MessageDeduplicator {
     if (this.seenCommandKeys.size > 1000) {
       const cutoff = receivedAt - COMMAND_CACHE_MAX_AGE_MS;
       for (const [seenKey, seenCommand] of this.seenCommandKeys) {
-        if (
-          seenCommand.receivedAt < cutoff ||
-          this.seenCommandKeys.size > COMMAND_CACHE_MAX_SIZE
-        ) {
+        if (seenCommand.receivedAt < cutoff || this.seenCommandKeys.size > COMMAND_CACHE_MAX_SIZE) {
           this.seenCommandKeys.delete(seenKey);
         }
       }
@@ -119,32 +90,21 @@ class MessageDeduplicator {
   }
 
   has(uid, message, timestampMs) {
-    const key = bilibiliHelpers.buildBilibiliCommandKey(
-      uid,
-      message,
-      timestampMs,
-    );
+    const key = bilibiliHelpers.buildBilibiliCommandKey(uid, message, timestampMs);
     return key && this.seenCommandKeys.has(key);
   }
 }
 
 function isCrossSourceDuplicate(left, right) {
-  if (!left.source || !right.source || left.source === right.source)
-    return false;
+  if (!left.source || !right.source || left.source === right.source) return false;
   if (left.message !== right.message) return false;
-  if (Math.abs(left.timestampMs - right.timestampMs) > COMMAND_MATCH_WINDOW_MS)
-    return false;
+  if (Math.abs(left.timestampMs - right.timestampMs) > COMMAND_MATCH_WINDOW_MS) return false;
   return isSameRequester(left, right);
 }
 
 function isSameRequester(left, right) {
   if (left.uid && right.uid && left.uid === right.uid) return true;
-  if (
-    left.userName &&
-    right.userName &&
-    namesMatch(left.userName, right.userName)
-  )
-    return true;
+  if (left.userName && right.userName && namesMatch(left.userName, right.userName)) return true;
   if (left.uid && right.uid) return false;
   return !left.userName || !right.userName;
 }
@@ -160,11 +120,7 @@ function maskedNameMatches(maskedName, fullName) {
   const lastMask = maskedName.lastIndexOf('*');
   const prefix = maskedName.slice(0, firstMask);
   const suffix = maskedName.slice(lastMask + 1);
-  return (
-    fullName.length >= prefix.length + suffix.length &&
-    fullName.startsWith(prefix) &&
-    fullName.endsWith(suffix)
-  );
+  return fullName.length >= prefix.length + suffix.length && fullName.startsWith(prefix) && fullName.endsWith(suffix);
 }
 
 function normalizeUid(value) {
@@ -177,22 +133,21 @@ function normalizeUserName(value) {
   return userName === '观众' ? '' : userName;
 }
 
-function logDeduplicationDecision(
-  reason,
-  uid,
-  message,
-  timestampMs,
-  options = {},
-  sources = [],
-) {
+function logDeduplicationDecision(reason, uid, message, timestampMs, options = {}, sources = []) {
   const normalizedSources = [...new Set(Array.from(sources).filter(Boolean))];
   const source = cleanText(options.source);
-  if (source && !normalizedSources.includes(source))
-    normalizedSources.push(source);
-  logSongRequest('command-filtered', {
-    message, uid, userName: options.userName, source,
-    messageTimestamp: normalizeTimestampMs(timestampMs),
-  }, { reason: `deduplicated:${reason}` });
+  if (source && !normalizedSources.includes(source)) normalizedSources.push(source);
+  logSongRequest(
+    'command-filtered',
+    {
+      message,
+      uid,
+      userName: options.userName,
+      source,
+      messageTimestamp: normalizeTimestampMs(timestampMs),
+    },
+    { reason: `deduplicated:${reason}` },
+  );
   console.log(
     `[Bilibili][Command] status=deduplicated reason=${reason}` +
       ` uid=${JSON.stringify(normalizeUid(uid))}` +

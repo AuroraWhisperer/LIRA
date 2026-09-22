@@ -6,11 +6,7 @@
   min-height: 0;
   border: 1px solid var(--border);
   border-radius: 12px;
-  background: linear-gradient(
-    135deg,
-    var(--color-bg-tertiary) 0%,
-    var(--color-bg-primary) 100%
-  );
+  background: linear-gradient(135deg, var(--color-bg-tertiary) 0%, var(--color-bg-primary) 100%);
   box-shadow: 0 2px 8px rgba(22, 31, 43, 0.08);
 }
 
@@ -18,11 +14,7 @@
   flex-shrink: 0;
   padding: 18px 20px 16px;
   border-bottom: 1px solid rgba(217, 224, 232, 0.6);
-  background: linear-gradient(
-    135deg,
-    rgba(217, 75, 112, 0.04) 0%,
-    rgba(147, 112, 219, 0.02) 100%
-  );
+  background: linear-gradient(135deg, rgba(217, 75, 112, 0.04) 0%, rgba(147, 112, 219, 0.02) 100%);
 }
 
 .playback-discovery-panel .panel-header h2 {
@@ -58,11 +50,7 @@
   overflow: visible;
   border: 1.5px solid var(--border);
   border-radius: 11px;
-  background: linear-gradient(
-    135deg,
-    var(--color-bg-primary) 0%,
-    var(--color-bg-tertiary) 100%
-  );
+  background: linear-gradient(135deg, var(--color-bg-primary) 0%, var(--color-bg-tertiary) 100%);
   padding: 12px 10px;
   text-align: center;
   transition:

@@ -2,10 +2,7 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const {
-  createRemoteLicenseClient,
-  RemoteLicenseError,
-} = require('../src/electron/license/remote-license-client');
+const { createRemoteLicenseClient, RemoteLicenseError } = require('../src/electron/license/remote-license-client');
 
 test('activation credentials stay in the JSON POST body and never enter the URL', async () => {
   const requests = [];
@@ -23,15 +20,9 @@ test('activation credentials stay in the JSON POST body and never enter the URL'
   };
   await client.activate(credentials);
   assert.equal(requests.length, 1);
-  assert.equal(
-    requests[0].url,
-    'https://synthetic-api.example/api/device/activate',
-  );
+  assert.equal(requests[0].url, 'https://synthetic-api.example/api/device/activate');
   assert.equal(requests[0].init.method, 'POST');
-  assert.equal(
-    new Headers(requests[0].init.headers).get('content-type'),
-    'application/json',
-  );
+  assert.equal(new Headers(requests[0].init.headers).get('content-type'), 'application/json');
   assert.deepEqual(JSON.parse(requests[0].init.body), credentials);
 });
 
@@ -96,10 +87,7 @@ test('remote client marks throttling and server failures retryable without retry
     });
     await assert.rejects(
       client.challenge({ deviceId: 'device' }),
-      (error) =>
-        error instanceof RemoteLicenseError &&
-        error.status === status &&
-        error.retryable === true,
+      (error) => error instanceof RemoteLicenseError && error.status === status && error.retryable === true,
     );
   }
 
@@ -113,16 +101,12 @@ test('remote client marks throttling and server failures retryable without retry
   });
   await assert.rejects(
     rejected.heartbeat('token'),
-    (error) =>
-      error instanceof RemoteLicenseError &&
-      error.code === 'SESSION_SUPERSEDED' &&
-      error.retryable === false,
+    (error) => error instanceof RemoteLicenseError && error.code === 'SESSION_SUPERSEDED' && error.retryable === false,
   );
 
   const proxyFailure = createRemoteLicenseClient({
     baseUrl: 'https://api.lirahub.cn',
-    fetchImpl: async () =>
-      new Response('<html>Bad Gateway</html>', { status: 502 }),
+    fetchImpl: async () => new Response('<html>Bad Gateway</html>', { status: 502 }),
   });
   await assert.rejects(
     proxyFailure.challenge({ deviceId: 'device' }),
@@ -135,8 +119,7 @@ test('remote client marks throttling and server failures retryable without retry
 
   const authProxyRejection = createRemoteLicenseClient({
     baseUrl: 'https://api.lirahub.cn',
-    fetchImpl: async () =>
-      new Response('<html>Unauthorized</html>', { status: 401 }),
+    fetchImpl: async () => new Response('<html>Unauthorized</html>', { status: 401 }),
   });
   await assert.rejects(
     authProxyRejection.profile('token'),
@@ -269,10 +252,7 @@ test('remote client reads the public flat gift catalog with conditional etag req
   const first = await client.getGiftCatalog('');
   assert.equal(first.version, '42');
   assert.equal(first.etag, '"catalog-42"');
-  assert.equal(
-    requests[0].url,
-    'https://api.lirahub.cn/api/public/gifts/catalog?schemaVersion=3',
-  );
+  assert.equal(requests[0].url, 'https://api.lirahub.cn/api/public/gifts/catalog?schemaVersion=3');
   assert.equal(requests[0].init.method, 'GET');
   assert.equal(requests[0].init.body, undefined);
   assert.equal(requests[0].init.headers.Authorization, undefined);
@@ -295,10 +275,7 @@ test('gift catalog accepts large resource responses without raising auth respons
     fetchImpl: async () => new Response(body),
   });
 
-  assert.equal(
-    (await client.getGiftCatalog()).padding.length,
-    2 * 1024 * 1024,
-  );
+  assert.equal((await client.getGiftCatalog()).padding.length, 2 * 1024 * 1024);
   await assert.rejects(client.heartbeat('test-token'), {
     code: 'RESPONSE_TOO_LARGE',
   });
@@ -348,11 +325,7 @@ test('cloud sync client keeps settings and Bilibili credentials on fixed Device 
   await client.clearBilibiliCredentials('device-token');
 
   assert.deepEqual(
-    requests.map(({ url, init }) => [
-      init.method,
-      new URL(url).pathname,
-      init.headers.Authorization,
-    ]),
+    requests.map(({ url, init }) => [init.method, new URL(url).pathname, init.headers.Authorization]),
     [
       ['GET', '/api/device/cloud-state', 'Bearer device-token'],
       ['PUT', '/api/device/cloud-settings', 'Bearer device-token'],
@@ -376,13 +349,10 @@ test('gift recovery uses the fixed Device endpoint and bounded cursor query', as
     baseUrl: 'https://api.lirahub.cn',
     fetchImpl: async (url, init) => {
       requests.push({ url, init });
-      return new Response(
-        JSON.stringify({ ok: true, events: [], nextCursor: 5, hasMore: false }),
-        {
-          status: 200,
-          headers: { 'content-type': 'application/json' },
-        },
-      );
+      return new Response(JSON.stringify({ ok: true, events: [], nextCursor: 5, hasMore: false }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
     },
   });
 
@@ -469,9 +439,7 @@ test('gift history, clear, and epoch-aware recovery use fixed abortable Device e
   assert.equal(recoveryUrl.searchParams.get('syncEpoch'), 'epoch-1');
   assert.equal(requests[2].init.signal.aborted, false);
   assert.equal(
-    requests.every(
-      ({ init }) => init.headers.Authorization === 'Bearer device-token',
-    ),
+    requests.every(({ init }) => init.headers.Authorization === 'Bearer device-token'),
     true,
   );
 });
@@ -504,11 +472,7 @@ test('external abort is not misreported as a request timeout', async () => {
     baseUrl: 'https://api.lirahub.cn',
     fetchImpl: async (_url, init) =>
       new Promise((_resolve, reject) => {
-        init.signal.addEventListener(
-          'abort',
-          () => reject(new DOMException('aborted', 'AbortError')),
-          { once: true },
-        );
+        init.signal.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')), { once: true });
       }),
   });
   const controller = new AbortController();
@@ -526,11 +490,9 @@ test('cloud HTTP operations preserve their caller cancellation signal', async ()
     fetchImpl: async (_url, init) =>
       new Promise((_resolve, reject) => {
         signals.push(init.signal);
-        init.signal.addEventListener(
-          'abort',
-          () => reject(new DOMException('cancelled', 'AbortError')),
-          { once: true },
-        );
+        init.signal.addEventListener('abort', () => reject(new DOMException('cancelled', 'AbortError')), {
+          once: true,
+        });
       }),
   });
   const controller = new AbortController();
@@ -545,8 +507,7 @@ test('cloud HTTP operations preserve their caller cancellation signal', async ()
     client.clearBilibiliCredentials('fixture', options),
   ];
   controller.abort();
-  for (const request of pending)
-    await assert.rejects(request, (error) => error.name === 'AbortError');
+  for (const request of pending) await assert.rejects(request, (error) => error.name === 'AbortError');
   assert.equal(signals.length, 7);
   assert.equal(
     signals.every((signal) => signal.aborted),

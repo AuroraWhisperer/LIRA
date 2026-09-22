@@ -3,27 +3,15 @@
   grid-area: discovery;
   overflow: hidden;
   border-color: color-mix(in srgb, var(--color-primary) 22%, var(--border));
-  background: linear-gradient(
-    135deg,
-    var(--surface) 0%,
-    var(--color-primary-light) 100%
-  );
+  background: linear-gradient(135deg, var(--surface) 0%, var(--color-primary-light) 100%);
   box-shadow: 0 8px 28px rgba(22, 31, 43, 0.08);
 }
 
 .wesing-panel-heading {
   align-items: center;
   padding: 18px 22px 16px;
-  border-bottom-color: color-mix(
-    in srgb,
-    var(--color-primary) 16%,
-    var(--border)
-  );
-  background: linear-gradient(
-    100deg,
-    rgba(255, 246, 250, 0.96),
-    rgba(240, 250, 248, 0.8)
-  );
+  border-bottom-color: color-mix(in srgb, var(--color-primary) 16%, var(--border));
+  background: linear-gradient(100deg, rgba(255, 246, 250, 0.96), rgba(240, 250, 248, 0.8));
 }
 
 .wesing-heading-copy h2 {
@@ -100,16 +88,8 @@
   border: 1px solid rgba(255, 111, 145, 0.2);
   border-radius: 14px;
   background:
-    radial-gradient(
-      circle at 12% 8%,
-      rgba(255, 111, 145, 0.2),
-      transparent 32%
-    ),
-    radial-gradient(
-      circle at 88% 84%,
-      rgba(33, 182, 168, 0.18),
-      transparent 34%
-    ),
+    radial-gradient(circle at 12% 8%, rgba(255, 111, 145, 0.2), transparent 32%),
+    radial-gradient(circle at 88% 84%, rgba(33, 182, 168, 0.18), transparent 34%),
     linear-gradient(145deg, #fff9fb 0%, #f4fbfa 100%);
   box-shadow:
     inset 0 1px rgba(255, 255, 255, 0.9),
@@ -376,11 +356,7 @@
   padding: 8px 14px;
   border-color: var(--primary);
   border-radius: 8px;
-  background: linear-gradient(
-    135deg,
-    var(--primary) 0%,
-    var(--primary-strong) 100%
-  );
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-strong) 100%);
   box-shadow: 0 5px 14px rgba(255, 111, 145, 0.2);
   font-size: var(--type-size-control);
   font-weight: var(--type-weight-semibold);

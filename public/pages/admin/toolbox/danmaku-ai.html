@@ -1,8 +1,4 @@
-<section
-  id="xiaomiAiSection"
-  class="danmaku-feature-section xiaomi-ai-section"
-  aria-labelledby="xiaomiAiTitle"
->
+<section id="xiaomiAiSection" class="danmaku-feature-section xiaomi-ai-section" aria-labelledby="xiaomiAiTitle">
   <div class="xiaomi-ai-heading">
     <div class="xiaomi-ai-title-wrap">
       <svg
@@ -22,35 +18,20 @@
           d="M15 13h18a9 9 0 0 1 9 9v8a9 9 0 0 1-9 9H21l-9 5v-5.5A9 9 0 0 1 6 30v-8a9 9 0 0 1 9-9Z"
           fill="var(--surface)"
         />
-        <rect
-          x="12"
-          y="19"
-          width="24"
-          height="14"
-          rx="6"
-          fill="currentColor"
-          fill-opacity="0.12"
-          stroke="none"
-        />
+        <rect x="12" y="19" width="24" height="14" rx="6" fill="currentColor" fill-opacity="0.12" stroke="none" />
         <path d="M18 23v3m12-3v3m-9 3a5 5 0 0 0 6 0" />
       </svg>
       <div><h3 id="xiaomiAiTitle">AI 互动助手</h3></div>
     </div>
     <label class="switch-control"
-      ><input id="xiaomiAiEnabled" type="checkbox" checked /><span
-        class="switch-track"
-      ></span
+      ><input id="xiaomiAiEnabled" type="checkbox" checked /><span class="switch-track"></span
       ><span>启用 AI</span></label
     >
   </div>
   <div class="xiaomi-ai-status-grid" aria-label="AI 互动助手状态">
-    <div>
-      <span>配置状态</span><strong id="xiaomiAiConfigState">正在读取</strong>
-    </div>
+    <div><span>配置状态</span><strong id="xiaomiAiConfigState">正在读取</strong></div>
     <div><span>等待队列</span><strong id="xiaomiAiQueueState">0</strong></div>
-    <div>
-      <span>运行模型</span><strong id="xiaomiAiModelState">未配置</strong>
-    </div>
+    <div><span>运行模型</span><strong id="xiaomiAiModelState">未配置</strong></div>
   </div>
   <form id="xiaomiAiForm" class="xiaomi-ai-form">
     <fieldset class="xiaomi-ai-primary-config">
@@ -58,10 +39,7 @@
       <div class="xiaomi-ai-field-grid">
         <div class="xiaomi-ai-provider-row">
           <label
-            ><span
-              >AI 平台
-              <lira-help>选择官方平台后，地址会自动填好。</lira-help></span
-            >
+            ><span>AI 平台 <lira-help>选择官方平台后，地址会自动填好。</lira-help></span>
             <select id="xiaomiAiModelProvider" data-dropdown-variant="toolbox">
               <option value="auto">自动识别（兼容旧设置）</option>
               <option value="deepseek">DeepSeek 官方</option>
@@ -75,9 +53,7 @@
             <span class="xiaomi-ai-provider-label"
               ><span id="xiaomiAiProviderBadge">自动识别</span
               ><lira-help
-                ><span id="xiaomiAiProviderNote"
-                  >选择你使用的 AI 平台，也可以填写第三方平台地址。</span
-                ></lira-help
+                ><span id="xiaomiAiProviderNote">选择你使用的 AI 平台，也可以填写第三方平台地址。</span></lira-help
               ></span
             >
           </div>
@@ -85,11 +61,7 @@
         <label id="xiaomiAiEndpointControl" class="wide"
           ><span
             >API 请求地址
-            <lira-help
-              ><span id="xiaomiAiEndpointHelp"
-                >接受服务根地址、v1 地址或完整接口地址。</span
-              ></lira-help
-            ></span
+            <lira-help><span id="xiaomiAiEndpointHelp">接受服务根地址、v1 地址或完整接口地址。</span></lira-help></span
           ><input
             id="xiaomiAiDeepSeekUrl"
             type="url"
@@ -107,12 +79,7 @@
           /><small id="xiaomiAiDeepSeekKeyHint">尚未保存</small></label
         >
         <label id="xiaomiAiProtocolControl"
-          ><span
-            >接口协议
-            <lira-help
-              >不确定时保持「自动识别」；平台有明确要求时再修改。</lira-help
-            ></span
-          >
+          ><span>接口协议 <lira-help>不确定时保持「自动识别」；平台有明确要求时再修改。</lira-help></span>
           <select id="xiaomiAiModelApiProtocol" data-dropdown-variant="toolbox">
             <option value="auto">自动识别</option>
             <option value="responses">Responses API</option>
@@ -153,9 +120,7 @@
               获取模型
             </button>
           </span>
-          <small id="xiaomiAiModelFetchState"
-            >可直接填写模型 ID，或从当前服务获取可用模型。</small
-          >
+          <small id="xiaomiAiModelFetchState">可直接填写模型 ID，或从当前服务获取可用模型。</small>
         </label>
       </div>
     </fieldset>
@@ -164,53 +129,28 @@
       <div class="xiaomi-ai-field-grid">
         <label
           ><span
-            >触发关键词 <lira-help>由主播自定义，填写后自动保存。弹幕包含该关键词时唤醒助手；未填写时不触发回复。</lira-help></span
-          ><input
-            id="xiaomiAiTrigger"
-            type="text"
-            maxlength="12"
-            placeholder="请自定义触发关键词"
+            >触发关键词
+            <lira-help>由主播自定义，填写后自动保存。弹幕包含该关键词时唤醒助手；未填写时不触发回复。</lira-help></span
+          ><input id="xiaomiAiTrigger" type="text" maxlength="12" placeholder="请自定义触发关键词"
         /></label>
         <label
-          ><span
-            >回复长度偏好
-            <lira-help>优先一条；内容较多时两条，必要时三条。</lira-help></span
-          ><input
-            id="xiaomiAiReplyMaxChars"
-            type="number"
-            min="10"
-            max="50"
-            value="50"
+          ><span>回复长度偏好 <lira-help>优先一条；内容较多时两条，必要时三条。</lira-help></span
+          ><input id="xiaomiAiReplyMaxChars" type="number" min="10" max="50" value="50"
         /></label>
       </div>
       <div class="xiaomi-ai-capability-rail" aria-label="当前模型服务能力">
-        <div>
-          <span>协议</span
-          ><strong id="xiaomiAiProtocolCapability">等待配置</strong>
-        </div>
-        <div>
-          <span>联网</span
-          ><strong id="xiaomiAiWebSearchCapability">等待配置</strong>
-        </div>
-        <div>
-          <span>深度思考</span
-          ><strong id="xiaomiAiReasoningCapability">等待配置</strong>
-        </div>
+        <div><span>协议</span><strong id="xiaomiAiProtocolCapability">等待配置</strong></div>
+        <div><span>联网</span><strong id="xiaomiAiWebSearchCapability">等待配置</strong></div>
+        <div><span>深度思考</span><strong id="xiaomiAiReasoningCapability">等待配置</strong></div>
       </div>
       <div class="xiaomi-ai-toggle-row">
-        <label
-          class="switch-control xiaomi-ai-capability-control xiaomi-ai-toggle-control"
-        >
+        <label class="switch-control xiaomi-ai-capability-control xiaomi-ai-toggle-control">
           <input id="xiaomiAiWebSearch" type="checkbox" role="switch" checked />
           <span class="switch-track" aria-hidden="true"></span>
           <span class="xiaomi-ai-control-copy"
             ><span
               ><b id="xiaomiAiWebSearchLabel">联网搜索</b
-              ><lira-help
-                ><span id="xiaomiAiWebSearchHelp"
-                  >使用所选平台支持的搜索方式。</span
-                ></lira-help
-              ></span
+              ><lira-help><span id="xiaomiAiWebSearchHelp">使用所选平台支持的搜索方式。</span></lira-help></span
             ><small>使用当前服务支持的方式检索信息。</small></span
           >
         </label>
@@ -224,19 +164,12 @@
           <span class="xiaomi-ai-control-copy"
             ><span
               ><b id="xiaomiAiReasoningLabel">深度思考</b
-              ><lira-help
-                ><span id="xiaomiAiReasoningHelp"></span></lira-help></span
+              ><lira-help><span id="xiaomiAiReasoningHelp"></span></lira-help></span
             ><small>让模型在回答前进行额外思考。</small></span
           >
         </label>
-        <label
-          id="xiaomiAiReasoningEffortControl"
-          class="xiaomi-ai-capability-control xiaomi-ai-effort-control"
-          hidden
-        >
-          <span class="xiaomi-ai-control-copy"
-            ><b>思考强度</b><small>开启深度思考后可调整。</small></span
-          >
+        <label id="xiaomiAiReasoningEffortControl" class="xiaomi-ai-capability-control xiaomi-ai-effort-control" hidden>
+          <span class="xiaomi-ai-control-copy"><b>思考强度</b><small>开启深度思考后可调整。</small></span>
           <select id="xiaomiAiReasoningEffort" data-dropdown-variant="toolbox">
             <option value="auto">服务默认</option>
             <option value="minimal">最低</option>
@@ -247,11 +180,7 @@
             <option value="max">最高</option>
           </select>
         </label>
-        <p
-          id="xiaomiAiProviderManagedReasoning"
-          class="xiaomi-ai-provider-managed"
-          hidden
-        >
+        <p id="xiaomiAiProviderManagedReasoning" class="xiaomi-ai-provider-managed" hidden>
           是否支持深度思考，由所选平台和模型决定。
         </p>
       </div>
@@ -338,14 +267,7 @@
         </svg>
       </summary>
       <div class="xiaomi-ai-collapsible-body xiaomi-ai-field-grid">
-        <label
-          >同时处理的提问数<input
-            id="xiaomiAiConcurrency"
-            type="number"
-            min="1"
-            max="5"
-            value="3"
-        /></label>
+        <label>同时处理的提问数<input id="xiaomiAiConcurrency" type="number" min="1" max="5" value="3" /></label>
         <label
           >发送间隔（毫秒）<input
             type="text"
@@ -353,28 +275,11 @@
             readonly
         /></label>
         <label
-          >同一观众提问间隔（秒）<input
-            id="xiaomiAiUserCooldown"
-            type="number"
-            min="0"
-            max="3600"
-            value="0"
+          >同一观众提问间隔（秒）<input id="xiaomiAiUserCooldown" type="number" min="0" max="3600" value="0"
         /></label>
-        <label
-          >每分钟提问上限<input
-            id="xiaomiAiRoomLimit"
-            type="number"
-            min="1"
-            max="120"
-            value="20"
-        /></label>
+        <label>每分钟提问上限<input id="xiaomiAiRoomLimit" type="number" min="1" max="120" value="20" /></label>
         <label class="wide"
-          >AI 的性格和说话方式<textarea
-            id="xiaomiAiSystemPrompt"
-            rows="10"
-            minlength="20"
-            maxlength="8000"
-          ></textarea>
+          >AI 的性格和说话方式<textarea id="xiaomiAiSystemPrompt" rows="10" minlength="20" maxlength="8000"></textarea>
         </label>
       </div>
     </details>
@@ -383,18 +288,10 @@
         >修改后自动保存，也可以点击「保存设置」。密钥保存后不会完整显示。</span
       >
       <div class="xiaomi-ai-test-actions" aria-label="API 连接测试">
-        <button id="xiaomiAiSaveBtn" class="primary" type="submit">
-          保存设置
-        </button>
-        <button id="xiaomiAiTestBtn" class="secondary" type="button">
-          测试 AI 连接
-        </button>
-        <button id="xiaomiAiQWeatherTestBtn" class="secondary" type="button">
-          测试和风天气
-        </button>
-        <button id="xiaomiAiAmapTestBtn" class="secondary" type="button">
-          测试高德地图
-        </button>
+        <button id="xiaomiAiSaveBtn" class="primary" type="submit">保存设置</button>
+        <button id="xiaomiAiTestBtn" class="secondary" type="button">测试 AI 连接</button>
+        <button id="xiaomiAiQWeatherTestBtn" class="secondary" type="button">测试和风天气</button>
+        <button id="xiaomiAiAmapTestBtn" class="secondary" type="button">测试高德地图</button>
       </div>
     </div>
   </form>

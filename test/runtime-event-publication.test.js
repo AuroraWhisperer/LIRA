@@ -21,8 +21,7 @@ test('runtime publication preserves gift snapshot/frame order, danmaku topic and
       pushGift: () => null,
     }),
     getWebSocketHub: () => ({
-      broadcastSnapshot: (context, reason) =>
-        sent.push(['snapshot', context.allowedOrigins, reason]),
+      broadcastSnapshot: (context, reason) => sent.push(['snapshot', context.allowedOrigins, reason]),
       broadcast: (payload, options) => sent.push(['event', payload, options]),
     }),
   });
@@ -32,11 +31,7 @@ test('runtime publication preserves gift snapshot/frame order, danmaku topic and
     total_price: 25,
     detection_status: 'final',
   });
-  assert.deepEqual(sent[0], [
-    'snapshot',
-    ['http://127.0.0.1:3010'],
-    'bilibili:gift',
-  ]);
+  assert.deepEqual(sent[0], ['snapshot', ['http://127.0.0.1:3010'], 'bilibili:gift']);
   assert.equal(sent[1][1].type, 'gift:frame');
   assert.equal(sent[1][1].giftEventId, 5);
   assert.equal(sent[1][1].totalPriceCents, 2500);
@@ -44,11 +39,7 @@ test('runtime publication preserves gift snapshot/frame order, danmaku topic and
   transport.publishGiftFlushed({ id: 6, total_price: 25 });
   assert.equal(sent.length, 3);
   transport.publishDanmaku({ text: 'hello' });
-  assert.deepEqual(sent[3], [
-    'event',
-    { type: 'danmaku:message', item },
-    { topic: 'danmaku' },
-  ]);
+  assert.deepEqual(sent[3], ['event', { type: 'danmaku:message', item }, { topic: 'danmaku' }]);
   transport.publishDanmaku(null);
   assert.equal(sent.length, 4);
   const state = { remainingMs: 1000 };
@@ -57,11 +48,7 @@ test('runtime publication preserves gift snapshot/frame order, danmaku topic and
   transport.publishOvertimeUpdate({ reason: 'gift', state, adjustment });
   assert.deepEqual(sent.slice(4), [
     ['event', { type: 'overtime:update', reason: 'tick', state }, undefined],
-    [
-      'event',
-      { type: 'overtime:update', reason: 'gift', state, adjustment },
-      undefined,
-    ],
+    ['event', { type: 'overtime:update', reason: 'gift', state, adjustment }, undefined],
   ]);
 });
 
@@ -79,13 +66,17 @@ test('finalized gifts reach the danmaku topic and reconnect snapshot without a g
     getSettings: () => ({ giftFrameEnabled: 'false' }),
     getDanmakuFeedBuffer: () => feed,
     getWebSocketHub: () => ({
-      broadcastSnapshot: context => snapshots.push(context.getState()),
+      broadcastSnapshot: (context) => snapshots.push(context.getState()),
       broadcast: (payload, options) => events.push({ payload, options }),
     }),
   });
   transport.publishGiftFlushed({
-    id: 5, detection_status: 'final', user_name: '阿沐',
-    gift_name: '小花花', num: 2, total_price: 0,
+    id: 5,
+    detection_status: 'final',
+    user_name: '阿沐',
+    gift_name: '小花花',
+    num: 2,
+    total_price: 0,
   });
   assert.equal(events.length, 1);
   assert.equal(events[0].payload.type, 'danmaku:message');

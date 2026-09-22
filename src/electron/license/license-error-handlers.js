@@ -1,9 +1,6 @@
 'use strict';
 
-const {
-  getErrorCode,
-  isRetryableAuthError,
-} = require('./license-response-utils');
+const { getErrorCode, isRetryableAuthError } = require('./license-response-utils');
 
 const BLOCKED_CODES = new Set([
   'DEVICE_REVOKED',

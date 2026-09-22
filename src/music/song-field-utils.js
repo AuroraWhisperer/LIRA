@@ -12,9 +12,7 @@ function splitSongLanguages(value) {
 function splitSongArtists(value, { preservePunctuation = false } = {}) {
   // Random requests preserve punctuation inside artist names; library filters
   // retain the legacy comma-separated import format.
-  const separator = preservePunctuation
-    ? /\s*(?:\/|／|&|＆)\s*/
-    : /\s*(?:\/|／|&|＆|、|,|，)\s*/;
+  const separator = preservePunctuation ? /\s*(?:\/|／|&|＆)\s*/ : /\s*(?:\/|／|&|＆|、|,|，)\s*/;
   return String(value || '')
     .split(separator)
     .map((artist) => cleanText(artist))

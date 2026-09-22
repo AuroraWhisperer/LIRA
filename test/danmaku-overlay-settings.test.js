@@ -9,15 +9,7 @@ test('danmaku overlay style defaults to signal and accepts only named themes', a
   assert.equal(DEFAULT_SETTINGS.danmakuOverlayStyle, 'signal');
   assert.equal(DEFAULT_SETTINGS.danmakuFullscreenDurationSeconds, '6');
 
-  for (const style of [
-    'bubble',
-    'signal',
-    'minimal',
-    'ranked',
-    'transparent',
-    'identity',
-    'outline',
-  ]) {
+  for (const style of ['bubble', 'signal', 'minimal', 'ranked', 'transparent', 'identity', 'outline']) {
     const result = await postSettings({ danmakuOverlayStyle: ` ${style} ` });
     assert.equal(result.status, 200);
     assert.deepEqual(result.writes, [['danmakuOverlayStyle', style]]);
@@ -40,26 +32,11 @@ test('fullscreen danmaku duration accepts safe integer seconds from 2 through 30
       danmakuFullscreenDurationSeconds: value,
     });
     assert.equal(result.status, 200);
-    assert.deepEqual(result.writes, [
-      ['danmakuFullscreenDurationSeconds', String(value)],
-    ]);
+    assert.deepEqual(result.writes, [['danmakuFullscreenDurationSeconds', String(value)]]);
     assert.equal(result.broadcastReason, 'settings');
   }
 
-  for (const value of [
-    '',
-    null,
-    undefined,
-    true,
-    [2],
-    '2.0',
-    '2e0',
-    '0x2',
-    1,
-    31,
-    2.5,
-    NaN,
-  ]) {
+  for (const value of ['', null, undefined, true, [2], '2.0', '2e0', '0x2', 1, 31, 2.5, NaN]) {
     const result = await postSettings({
       danmakuFullscreenDurationSeconds: value,
     });

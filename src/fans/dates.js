@@ -37,10 +37,7 @@ function daysBetween(start, end) {
 
 function anniversaryDate(monthDay, year, leapDay = 'feb28') {
   const date = `${year}-${monthDay}`;
-  if (
-    monthDay === '02-29' &&
-    new Date(`${year}-02-29T00:00:00Z`).getUTCMonth() !== 1
-  ) {
+  if (monthDay === '02-29' && new Date(`${year}-02-29T00:00:00Z`).getUTCMonth() !== 1) {
     return `${year}-${leapDay === 'mar01' ? '03-01' : '02-28'}`;
   }
   return dateValue(date, '纪念日', false);
@@ -48,9 +45,7 @@ function anniversaryDate(monthDay, year, leapDay = 'feb28') {
 
 function zodiacFor(birthday) {
   if (!birthday?.monthDay || birthday.calendar !== 'solar') return '';
-  const boundaries = [
-    120, 219, 321, 420, 521, 622, 723, 823, 923, 1024, 1123, 1222,
-  ];
+  const boundaries = [120, 219, 321, 420, 521, 622, 723, 823, 923, 1024, 1123, 1222];
   const signs = [
     '摩羯座',
     '水瓶座',

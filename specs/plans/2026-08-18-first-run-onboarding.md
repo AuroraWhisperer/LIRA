@@ -1,5 +1,7 @@
 # 首次启动配置引导 Implementation Plan
 
+> 已替代：旧七步弹窗于 2026-09-22 退役，本文不再是活动实施任务。当前行为见 [交互式引导说明](../../docs/interactive-tour-demo.md)，旧设置键保留兼容。
+
 > **For agentic workers:** Implement this plan task by task in the current worktree. Steps use checkbox (`- [ ]`) syntax for tracking. Do not create commits unless the user explicitly requests one.
 
 **Goal:** 在 LIRA 首次启动时提供一个按步骤验证的配置引导，帮助用户完成 Bilibili 直播基础配置、了解歌单导入入口、知道各音乐平台登录位置，并按需配置 AI；完成后不再自动弹出，但可从使用文档重新打开。

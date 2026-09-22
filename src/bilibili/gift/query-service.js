@@ -2,13 +2,15 @@
 
 const { normalizeGiftRow } = require('./normalizer');
 const { now, normalizeMoney } = require('../../shared/utils');
-const {
-  canonicalGiftId,
-  canonicalGiftText,
-  canonicalCoinType,
-} = require('../../shared/processed-gift-contract');
+const { canonicalGiftId, canonicalGiftText, canonicalCoinType } = require('../../shared/processed-gift-contract');
 const { resolveGiftSourceScope } = require('./source-scope');
-const { normalizeHistoryFilters, shanghaiDayStart, historyBounds, giftViewRevision, queryError } = require('./history-filters');
+const {
+  normalizeHistoryFilters,
+  shanghaiDayStart,
+  historyBounds,
+  giftViewRevision,
+  queryError,
+} = require('./history-filters');
 
 const CRYSTAL_BALL_VALUE_RMB = 100;
 const DEFAULT_HISTORY_LIMIT = 50;
@@ -17,12 +19,7 @@ const MAX_SEARCH_LENGTH = 100;
 const MAX_CURSOR_LENGTH = 4096;
 const DEFAULT_HISTORY_SORT_FIELD = 'created_at';
 const DEFAULT_HISTORY_SORT_DIRECTION = 'desc';
-const HISTORY_SORT_FIELDS = Object.freeze([
-  'created_at',
-  'gift_name',
-  'price',
-  'remarks',
-]);
+const HISTORY_SORT_FIELDS = Object.freeze(['created_at', 'gift_name', 'price', 'remarks']);
 const GIFT_METRIC_FIELDS = Object.freeze([
   'eventCount',
   'itemCount',
@@ -55,11 +52,11 @@ function resetGiftSprintProgress(context) {
 
 function getGiftSnapshot(context) {
   const sourceScope = resolveGiftSourceScope(context);
-  const recent = context.queryStore
-    .listRecent({ sourceScope, limit: 30 })
-    .map(normalizeGiftRow);
+  const recent = context.queryStore.listRecent({ sourceScope, limit: 30 }).map(normalizeGiftRow);
   let viewRevision = null;
-  try { viewRevision = getGiftViewRevision(context); } catch (error) {
+  try {
+    viewRevision = getGiftViewRevision(context);
+  } catch (error) {
     if (error.code !== 'GIFT_SOURCE_UNAVAILABLE') throw error;
   }
   return { recent, viewRevision };
@@ -186,9 +183,7 @@ function getGiftSprintSnapshot(context) {
 
 function searchGifts(context, { from, to, limit = 100 }) {
   const sourceScope = resolveGiftSourceScope(context);
-  return context.queryStore
-    .search({ sourceScope, from, to, limit: Math.min(limit, 500) })
-    .map(normalizeGiftRow);
+  return context.queryStore.search({ sourceScope, from, to, limit: Math.min(limit, 500) }).map(normalizeGiftRow);
 }
 
 function clearRecentGifts(context) {
@@ -204,15 +199,8 @@ function clearRecentGifts(context) {
 function requireActiveGiftSource(context) {
   const source = context.getActiveGiftSource?.() || context.activeGiftSource;
   const sourceId = Number(source?.sourceId);
-  if (
-    !Number.isSafeInteger(sourceId) ||
-    sourceId < 1 ||
-    source?.syncState === 'SOURCE_SWITCHING'
-  ) {
-    throw createGiftQueryError(
-      'GIFT_SOURCE_UNAVAILABLE',
-      '当前礼物来源尚未就绪。',
-    );
+  if (!Number.isSafeInteger(sourceId) || sourceId < 1 || source?.syncState === 'SOURCE_SWITCHING') {
+    throw createGiftQueryError('GIFT_SOURCE_UNAVAILABLE', '当前礼物来源尚未就绪。');
   }
   return Object.freeze({ ...source, sourceId });
 }
@@ -220,16 +208,12 @@ function requireActiveGiftSource(context) {
 function buildSyncMetadata(source) {
   const syncState = String(source.syncState || 'OFFLINE').toUpperCase();
   const complete =
-    syncState === 'LIVE' &&
-    source.partial === false &&
-    source.dirty === false &&
-    source.epochValidated === true;
+    syncState === 'LIVE' && source.partial === false && source.dirty === false && source.epochValidated === true;
   const cursor = Number(source.syncedThroughCursor);
   return {
     partial: !complete,
     syncState,
-    syncedThroughCursor:
-      Number.isSafeInteger(cursor) && cursor >= 0 ? cursor : null,
+    syncedThroughCursor: Number.isSafeInteger(cursor) && cursor >= 0 ? cursor : null,
     syncedAt: normalizeOptionalIsoTimestamp(source.syncedAt),
   };
 }
@@ -238,17 +222,11 @@ function mapLedgerHistoryRow(row) {
   const unitPriceCents = moneyToSafeCents(row.unit_price);
   const totalPriceCents = moneyToSafeCents(row.total_price);
   const isBlindBox = Number(row.is_blind_box) === 1;
-  const blindBoxPriceCents =
-    isBlindBox && row.blind_box_price !== null
-      ? moneyToSafeCents(row.blind_box_price)
-      : null;
-  const blindProfitCents =
-    blindBoxPriceCents === null ? null : totalPriceCents - blindBoxPriceCents;
+  const blindBoxPriceCents = isBlindBox && row.blind_box_price !== null ? moneyToSafeCents(row.blind_box_price) : null;
+  const blindProfitCents = blindBoxPriceCents === null ? null : totalPriceCents - blindBoxPriceCents;
   const platformId = String(row.platform_id || '');
   return {
-    eventId: platformId.startsWith('lira-server:')
-      ? platformId.slice('lira-server:'.length)
-      : platformId,
+    eventId: platformId.startsWith('lira-server:') ? platformId.slice('lira-server:'.length) : platformId,
     gift: {
       giftId: canonicalGiftId(row.gift_id),
       giftVariantId: row.gift_variant_id || null,
@@ -264,8 +242,7 @@ function mapLedgerHistoryRow(row) {
       isBlindBox,
       blindBoxId: isBlindBox ? normalizeBlindBoxId(row.blind_box_id) : null,
       blindBoxName: isBlindBox ? canonicalGiftText(row.blind_box_name) : '',
-      blindBoxPrice:
-        blindBoxPriceCents === null ? null : blindBoxPriceCents / 100,
+      blindBoxPrice: blindBoxPriceCents === null ? null : blindBoxPriceCents / 100,
       blindProfit: blindProfitCents === null ? null : blindProfitCents / 100,
       createdAt: normalizeIsoTimestamp(row.created_at),
     },
@@ -314,23 +291,15 @@ function normalizeHistorySortField(value) {
 }
 
 function normalizeHistorySortDirection(value) {
-  const sortDirection = String(
-    value || DEFAULT_HISTORY_SORT_DIRECTION,
-  ).toLowerCase();
+  const sortDirection = String(value || DEFAULT_HISTORY_SORT_DIRECTION).toLowerCase();
   if (sortDirection !== 'asc' && sortDirection !== 'desc') {
-    throw createGiftQueryError(
-      'INVALID_GIFT_SORT_DIRECTION',
-      '礼物排序方向无效。',
-    );
+    throw createGiftQueryError('INVALID_GIFT_SORT_DIRECTION', '礼物排序方向无效。');
   }
   return sortDirection;
 }
 
 function resolveAsOf(context) {
-  const value =
-    typeof context.now === 'function'
-      ? context.now()
-      : new Date().toISOString();
+  const value = typeof context.now === 'function' ? context.now() : new Date().toISOString();
   return normalizeIsoTimestamp(value);
 }
 
@@ -345,8 +314,7 @@ function resolveRangeStart(range, asOf) {
 
 function encodeHistoryCursor(value) {
   const isDefaultSort =
-    value.sortField === DEFAULT_HISTORY_SORT_FIELD &&
-    value.sortDirection === DEFAULT_HISTORY_SORT_DIRECTION;
+    value.sortField === DEFAULT_HISTORY_SORT_FIELD && value.sortDirection === DEFAULT_HISTORY_SORT_DIRECTION;
   const payload = isDefaultSort
     ? {
         version: 1,
@@ -360,10 +328,7 @@ function encodeHistoryCursor(value) {
         version: 2,
         sortField: value.sortField,
         sortDirection: value.sortDirection,
-        sortValue: normalizeHistoryCursorSortValue(
-          value.sortField,
-          value.sortValue,
-        ),
+        sortValue: normalizeHistoryCursorSortValue(value.sortField, value.sortValue),
         id: value.id,
         asOf: value.asOf,
         query: value.query,
@@ -376,11 +341,7 @@ function encodeHistoryCursor(value) {
 
 function decodeHistoryCursor(value, expected) {
   if (value === undefined || value === null || value === '') return null;
-  if (
-    typeof value !== 'string' ||
-    value.length > MAX_CURSOR_LENGTH ||
-    !/^[A-Za-z0-9_-]+$/u.test(value)
-  ) {
+  if (typeof value !== 'string' || value.length > MAX_CURSOR_LENGTH || !/^[A-Za-z0-9_-]+$/u.test(value)) {
     throw createGiftQueryError('INVALID_GIFT_CURSOR', '礼物分页游标无效。');
   }
   try {
@@ -414,16 +375,10 @@ function decodeHistoryCursor(value, expected) {
       if (createdAt >= asOf) throw new Error('invalid cursor');
       return Object.freeze({ id, sortValue: createdAt, asOf });
     }
-    if (
-      parsed?.sortField !== expected.sortField ||
-      parsed?.sortDirection !== expected.sortDirection
-    ) {
+    if (parsed?.sortField !== expected.sortField || parsed?.sortDirection !== expected.sortDirection) {
       throw new Error('invalid cursor');
     }
-    const sortValue = normalizeHistoryCursorSortValue(
-      expected.sortField,
-      parsed?.sortValue,
-    );
+    const sortValue = normalizeHistoryCursorSortValue(expected.sortField, parsed?.sortValue);
     if (expected.sortField === 'created_at' && sortValue >= asOf) {
       throw new Error('invalid cursor');
     }
@@ -458,11 +413,7 @@ function moneyToSafeCents(value) {
   const amount = Number(value);
   const scaled = amount * 100;
   const cents = Math.round(scaled);
-  if (
-    !Number.isFinite(amount) ||
-    !Number.isSafeInteger(cents) ||
-    Math.abs(scaled - cents) > 1e-7
-  ) {
+  if (!Number.isFinite(amount) || !Number.isSafeInteger(cents) || Math.abs(scaled - cents) > 1e-7) {
     throw new Error('INVALID_GIFT_MONEY');
   }
   return Object.is(cents, -0) ? 0 : cents;
@@ -526,8 +477,13 @@ function getGiftSelection(context, options = {}) {
   const source = requireActiveGiftSource(context);
   const asOf = resolveAsOf(context);
   const ids = options.eventIds;
-  if (ids !== undefined && (!Array.isArray(ids) || ids.length === 0 || ids.length > 10000 ||
-    ids.some((id) => typeof id !== 'string' || !id || id.length > 64))) {
+  if (
+    ids !== undefined &&
+    (!Array.isArray(ids) ||
+      ids.length === 0 ||
+      ids.length > 10000 ||
+      ids.some((id) => typeof id !== 'string' || !id || id.length > 64))
+  ) {
     throw queryError('INVALID_GIFT_SELECTION', '请选择 1 至 10000 条礼物记录。');
   }
   const rows = context.queryStore.readHistorySnapshot({

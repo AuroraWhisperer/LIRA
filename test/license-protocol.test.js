@@ -8,13 +8,16 @@ const protocol = require('../src/electron/license/license-protocol');
 test('activation validation and signing preserve spaces and Unicode in the password', () => {
   const password = '  歌手Aa1!😀  ';
   const result = protocol.validateActivationInput({
-    accountName: 'sample-account', password, activationCode: 'SYNTHETIC-CODE',
+    accountName: 'sample-account',
+    password,
+    activationCode: 'SYNTHETIC-CODE',
   });
   assert.equal(result.ok, true);
   assert.equal(result.password, password);
   const digest = crypto.createHash('sha256').update(password, 'utf8').digest('hex');
-  assert.ok(protocol.buildActivationPayload({ ...result, fingerprint: {} })
-    .endsWith(`accountPasswordSha256=${digest}`));
+  assert.ok(
+    protocol.buildActivationPayload({ ...result, fingerprint: {} }).endsWith(`accountPasswordSha256=${digest}`),
+  );
 });
 
 const fingerprint = {
@@ -92,22 +95,9 @@ test('P-256 signature verifies and changes to canonical input fail', () => {
     fingerprint,
   });
   const signature = protocol.signPayload(payload, pair.privateKey);
+  assert.equal(crypto.verify('sha256', Buffer.from(payload), pair.publicKey, Buffer.from(signature, 'base64')), true);
   assert.equal(
-    crypto.verify(
-      'sha256',
-      Buffer.from(payload),
-      pair.publicKey,
-      Buffer.from(signature, 'base64'),
-    ),
-    true,
-  );
-  assert.equal(
-    crypto.verify(
-      'sha256',
-      Buffer.from(`${payload}x`),
-      pair.publicKey,
-      Buffer.from(signature, 'base64'),
-    ),
+    crypto.verify('sha256', Buffer.from(`${payload}x`), pair.publicKey, Buffer.from(signature, 'base64')),
     false,
   );
 });

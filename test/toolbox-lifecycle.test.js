@@ -10,10 +10,9 @@ const root = path.resolve(__dirname, '..');
 const settle = () => new Promise((resolve) => setImmediate(resolve));
 
 async function setup(loaders, onError = assert.fail) {
-  const { createToolboxLifecycle } = await loadModuleExports(
-    path.join(root, 'public/js/admin/toolbox-lifecycle.js'),
-    { queueMicrotask },
-  );
+  const { createToolboxLifecycle } = await loadModuleExports(path.join(root, 'public/js/admin/toolbox-lifecycle.js'), {
+    queueMicrotask,
+  });
   return createToolboxLifecycle({ loaders, onError });
 }
 
@@ -121,19 +120,10 @@ test('shutdown prevents pending initialization and failed imports can retry on n
 });
 
 test('optional editors have no eager entry imports or initialization calls', () => {
-  const entry = fs.readFileSync(
-    path.join(root, 'public/js/admin/index.js'),
-    'utf8',
-  );
-  const app = fs.readFileSync(
-    path.join(root, 'public/js/admin/app.js'),
-    'utf8',
-  );
+  const entry = fs.readFileSync(path.join(root, 'public/js/admin/index.js'), 'utf8');
+  const app = fs.readFileSync(path.join(root, 'public/js/admin/app.js'), 'utf8');
   for (const file of ['clock-card', 'start-animation', 'games', 'overtime']) {
-    assert.doesNotMatch(
-      entry + app,
-      new RegExp(`(?:from\\s+|import\\s+)['"]\\./${file}\\.js['"]`),
-    );
+    assert.doesNotMatch(entry + app, new RegExp(`(?:from\\s+|import\\s+)['"]\\./${file}\\.js['"]`));
     assert.ok(app.includes(`import('./${file}.js')`));
   }
   assert.match(app, /onFeatureSelected: toolbox\.selectFeature/);

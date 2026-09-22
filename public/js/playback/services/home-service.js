@@ -138,13 +138,10 @@ export class HomeService {
     };
 
     try {
-      const result = await this.contentLoader.loadHomeContent(
-        'playlist-tracks',
-        {
-          playlistId: playlist.id,
-          requestGeneration: generation,
-        },
-      );
+      const result = await this.contentLoader.loadHomeContent('playlist-tracks', {
+        playlistId: playlist.id,
+        requestGeneration: generation,
+      });
 
       if (!this._isCurrentRequest(generation) || result?.stale) {
         return this._staleResult();
@@ -250,20 +247,12 @@ export class HomeService {
         throw new Error(payload.error || '刷新内容失败');
       }
 
-      if (
-        !this._isCurrentRequest(generation) ||
-        this.state.selectedSource !== platform ||
-        this.homeAction !== action
-      ) {
+      if (!this._isCurrentRequest(generation) || this.state.selectedSource !== platform || this.homeAction !== action) {
         return this._staleResult();
       }
 
       const data = payload.data || {};
-      const items = Array.isArray(data.playlists)
-        ? data.playlists
-        : Array.isArray(data.tracks)
-          ? data.tracks
-          : [];
+      const items = Array.isArray(data.playlists) ? data.playlists : Array.isArray(data.tracks) ? data.tracks : [];
 
       if (items.length === 0) {
         throw new Error('没有更多内容了');
@@ -305,8 +294,7 @@ export class HomeService {
    */
   _applyBackgroundUpdate(update) {
     if (
-      (update.requestGeneration !== undefined &&
-        update.requestGeneration !== this._requestGeneration) ||
+      (update.requestGeneration !== undefined && update.requestGeneration !== this._requestGeneration) ||
       (update.platform && update.platform !== this.state?.selectedSource)
     ) {
       return false;
@@ -324,11 +312,7 @@ export class HomeService {
    * @returns {Object|null}
    */
   getItemByIndex(index) {
-    if (
-      !Number.isInteger(index) ||
-      index < 0 ||
-      index >= this.homeItems.length
-    ) {
+    if (!Number.isInteger(index) || index < 0 || index >= this.homeItems.length) {
       return null;
     }
     return this.homeItems[index];
@@ -347,11 +331,7 @@ export class HomeService {
       const lastHistory = this.drawerHistory[this.drawerHistory.length - 1];
       if (lastHistory && lastHistory.items && lastHistory.items.length > 0) {
         // 查找被点击的歌单（通过 _currentPlaylistId 匹配）
-        return (
-          lastHistory.items.find(
-            (item) => item.id === this._currentPlaylistId,
-          ) || null
-        );
+        return lastHistory.items.find((item) => item.id === this._currentPlaylistId) || null;
       }
     }
     return null;

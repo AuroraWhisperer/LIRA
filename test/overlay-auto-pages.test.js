@@ -12,20 +12,33 @@ test('broadcast pages reach the tail, survive updates, pause for interaction and
   const events = new Map();
   const document = { hidden: false, activeElement: null };
   const element = {
-    clientHeight: 200, scrollHeight: 550, scrollTop: 0,
+    clientHeight: 200,
+    scrollHeight: 550,
+    scrollTop: 0,
     contains: (target) => target === element,
     addEventListener: (type, listener) => events.set(type, listener),
     removeEventListener: (type) => events.delete(type),
   };
   const { startOverlayPages } = await loadModuleExports(
     path.resolve(__dirname, '../public/js/overlays/auto-pages.js'),
-    { document, Date: { now: () => now }, setInterval: (fn) => { tick = fn; return 1; }, clearInterval: () => { cleared = true; } },
+    {
+      document,
+      Date: { now: () => now },
+      setInterval: (fn) => {
+        tick = fn;
+        return 1;
+      },
+      clearInterval: () => {
+        cleared = true;
+      },
+    },
   );
   const stop = startOverlayPages(element);
   tick();
   assert.equal(element.scrollTop, 168);
   element.scrollHeight = 600;
-  tick(); tick();
+  tick();
+  tick();
   assert.equal(element.scrollTop, 400, 'updated tail remains reachable');
   events.get('wheel')();
   tick();

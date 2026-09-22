@@ -6,13 +6,7 @@ const test = require('node:test');
 const { loadModuleExports } = require('./helpers/frontend-modules');
 
 const ROOT_DIR = path.join(__dirname, '..');
-const SOCKET_ENTRY = path.join(
-  ROOT_DIR,
-  'public',
-  'js',
-  'overlays',
-  'socket-client.js',
-);
+const SOCKET_ENTRY = path.join(ROOT_DIR, 'public', 'js', 'overlays', 'socket-client.js');
 
 class FakeWebSocket {
   static instances = [];
@@ -71,12 +65,8 @@ async function loadSocketModule() {
 }
 
 test('overlay socket builds the tokenized URL and starts idempotently', async () => {
-  const { buildOverlaySocketUrl, createOverlaySocket } =
-    await loadSocketModule();
-  assert.equal(
-    buildOverlaySocketUrl(),
-    'wss://overlay.test/ws?token=token%20value',
-  );
+  const { buildOverlaySocketUrl, createOverlaySocket } = await loadSocketModule();
+  assert.equal(buildOverlaySocketUrl(), 'wss://overlay.test/ws?token=token%20value');
 
   const timers = createTimers();
   const controller = createOverlaySocket({
@@ -89,10 +79,7 @@ test('overlay socket builds the tokenized URL and starts idempotently', async ()
   assert.equal(controller.start(), false);
   assert.equal(controller.connect(), socket);
   assert.equal(FakeWebSocket.instances.length, 1);
-  assert.equal(
-    FakeWebSocket.instances[0].url,
-    'wss://overlay.test/ws?token=token%20value',
-  );
+  assert.equal(FakeWebSocket.instances[0].url, 'wss://overlay.test/ws?token=token%20value');
 });
 
 test('overlay socket retries with bounded exponential backoff and notifies recovery', async () => {

@@ -237,11 +237,7 @@ function friendlyUpdateError(error) {
       message: '更新包校验失败，请前往 GitHub Releases 手动下载最新安装包。',
     };
   }
-  if (
-    /ENOTFOUND|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ERR_CONNECTION|ERR_NETWORK|ERR_INTERNET|network|timeout/i.test(
-      text,
-    )
-  ) {
+  if (/ENOTFOUND|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ERR_CONNECTION|ERR_NETWORK|ERR_INTERNET|network|timeout/i.test(text)) {
     return {
       status: 'error',
       message: '暂时无法连接 GitHub 更新服务，请稍后再试。',

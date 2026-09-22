@@ -117,9 +117,7 @@ const watchdog = setTimeout(() => process.exit(2), 3000);
 `;
 
 for (const kind of ['opening-music', 'opening-character']) {
-  for (const scenario of [
-    'removed-after-stat', 'read-failure', 'open-failure', 'client-abort', 'GET', 'HEAD',
-  ]) {
+  for (const scenario of ['removed-after-stat', 'read-failure', 'open-failure', 'client-abort', 'GET', 'HEAD']) {
     test(`${kind} handles ${scenario} without an unhandled stream error`, (t) => {
       const root = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-opening-stream-'));
       t.after(() => {

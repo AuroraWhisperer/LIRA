@@ -23,7 +23,13 @@ function client() {
 test('QQ request paths share JSON/JSONP parsing and read each response once', async (t) => {
   let responseBody;
   let reads = 0;
-  t.mock.method(globalThis, 'fetch', async () => ({ ok: true, text: async () => { reads += 1; return responseBody; } }));
+  t.mock.method(globalThis, 'fetch', async () => ({
+    ok: true,
+    text: async () => {
+      reads += 1;
+      return responseBody;
+    },
+  }));
   for (const wrapped of [false, true]) {
     responseBody = wrapped ? `callback(${JSON.stringify(body)});` : JSON.stringify(body);
     for (const [index, request] of calls.entries()) {
@@ -43,7 +49,13 @@ test('QQ response failures preserve HTTP precedence, parse wrapping and body-rea
     response = { ok: true, text: async () => '<invalid>' };
     await assert.rejects(request(client()), /QQ 音乐返回了非 JSON 响应：/);
     const readError = new Error('synthetic stream failure');
-    response = { ok: false, status: 503, text: async () => { throw readError; } };
+    response = {
+      ok: false,
+      status: 503,
+      text: async () => {
+        throw readError;
+      },
+    };
     await assert.rejects(request(client()), (error) => error === readError);
   }
 });

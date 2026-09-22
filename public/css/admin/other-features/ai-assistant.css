@@ -484,7 +484,7 @@
   }
 }
 
-.hint[id^="aiTestDetail-"] {
+.hint[id^='aiTestDetail-'] {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }

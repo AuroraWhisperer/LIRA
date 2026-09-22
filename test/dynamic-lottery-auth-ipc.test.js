@@ -5,9 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
-const {
-  registerDynamicLotteryAuthIpc,
-} = require('../src/electron/ipc/dynamic-lottery-auth-ipc');
+const { registerDynamicLotteryAuthIpc } = require('../src/electron/ipc/dynamic-lottery-auth-ipc');
 
 function fixture(overrides = {}) {
   const handlers = new Map();
@@ -54,11 +52,7 @@ function fixture(overrides = {}) {
 test('all dedicated auth IPC requires the actual main window, main frame and exact origin', async () => {
   const f = fixture();
   for (const handler of f.handlers.values()) {
-    for (const event of [
-      {},
-      { ...f.event, sender: {} },
-      { ...f.event, senderFrame: { url: f.frame.url } },
-    ])
+    for (const event of [{}, { ...f.event, sender: {} }, { ...f.event, senderFrame: { url: f.frame.url } }])
       assert.deepEqual(await handler(event), {
         ok: false,
         error: 'IPC_SOURCE_INVALID',
@@ -85,44 +79,34 @@ test('IPC serializes only public state and hides raw errors and cookie data', as
   f.auth.login = async () => {
     throw new Error('Cookie=secret&token=secret');
   };
-  assert.deepEqual(
-    await f.handlers.get('dynamic-lottery-auth:login')(f.event),
-    { ok: false, error: 'LOTTERY_AUTH_FAILED' },
-  );
+  assert.deepEqual(await f.handlers.get('dynamic-lottery-auth:login')(f.event), {
+    ok: false,
+    error: 'LOTTERY_AUTH_FAILED',
+  });
   f.auth.logout = async () => {
     throw new Error('LOTTERY_IDENTITY_UNAVAILABLE');
   };
-  assert.equal(
-    (await f.handlers.get('dynamic-lottery-auth:logout')(f.event)).error,
-    'LOTTERY_IDENTITY_UNAVAILABLE',
-  );
+  assert.equal((await f.handlers.get('dynamic-lottery-auth:logout')(f.event)).error, 'LOTTERY_IDENTITY_UNAVAILABLE');
 });
 
 test('preload exposes separate parameterless state/login/logout methods, never a context or cookie getter', async () => {
   const exposed = new Map();
   const invocations = [];
-  vm.runInNewContext(
-    fs.readFileSync(
-      path.resolve(__dirname, '../src/electron/preload.js'),
-      'utf8',
-    ),
-    {
-      require: () => ({
-        contextBridge: {
-          exposeInMainWorld: (name, value) => exposed.set(name, value),
+  vm.runInNewContext(fs.readFileSync(path.resolve(__dirname, '../src/electron/preload.js'), 'utf8'), {
+    require: () => ({
+      contextBridge: {
+        exposeInMainWorld: (name, value) => exposed.set(name, value),
+      },
+      ipcRenderer: {
+        invoke: (channel, ...args) => {
+          invocations.push([channel, args]);
         },
-        ipcRenderer: {
-          invoke: (channel, ...args) => {
-            invocations.push([channel, args]);
-          },
-        },
-      }),
-    },
-  );
+      },
+    }),
+  });
   const bridge = exposed.get('dynamicLotteryAuth');
   assert.deepEqual(Object.keys(bridge), ['getState', 'login', 'logout']);
-  for (const method of Object.values(bridge))
-    await method({ cookie: 'must-not-be-forwarded' });
+  for (const method of Object.values(bridge)) await method({ cookie: 'must-not-be-forwarded' });
   assert.deepEqual(invocations, [
     ['dynamic-lottery-auth:get-state', []],
     ['dynamic-lottery-auth:login', []],

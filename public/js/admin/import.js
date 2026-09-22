@@ -41,9 +41,9 @@ export function createSongImports({ state = stateService, utils = sharedUtils } 
 
   function showImportSummary({ inserted, duplicate, failed }) {
     if (failed > 0) {
-      toast(inserted > 0
-        ? `新增 ${inserted} 首，${failed} 行失败，请查看导入明细`
-        : '本次未导入歌曲，请查看失败行', { type: 'warning' });
+      toast(inserted > 0 ? `新增 ${inserted} 首，${failed} 行失败，请查看导入明细` : '本次未导入歌曲，请查看失败行', {
+        type: 'warning',
+      });
     } else if (inserted > 0) {
       toast(`已新增 ${inserted} 首歌曲${duplicate ? `，重复跳过 ${duplicate} 首` : ''}`, { type: 'success' });
     } else {
@@ -77,9 +77,7 @@ export function createSongImports({ state = stateService, utils = sharedUtils } 
     let binary = '';
     const chunkSize = 0x8000;
     for (let offset = 0; offset < bytes.length; offset += chunkSize) {
-      binary += String.fromCharCode(
-        ...bytes.subarray(offset, offset + chunkSize),
-      );
+      binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
     }
     return btoa(binary);
   }

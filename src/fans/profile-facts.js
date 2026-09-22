@@ -1,24 +1,13 @@
 'use strict';
 
 const { randomUUID } = require('node:crypto');
-const {
-  identity,
-  identityKey,
-  timestamp,
-  text,
-  recordData,
-  recentNameHistory,
-} = require('./validation');
+const { identity, identityKey, timestamp, text, recordData, recentNameHistory } = require('./validation');
 const { membershipConflicts, cycleForNewRecord } = require('./membership');
 
 function createFanFactConsumer({ store, now, create }) {
   function observe(scope, observation, newlyCreated = false, manual = false) {
     const settings = store.getScope(scope);
-    if (
-      !manual &&
-      (!settings.initialized || (!settings.autoUpdate && !newlyCreated))
-    )
-      return null;
+    if (!manual && (!settings.initialized || (!settings.autoUpdate && !newlyCreated))) return null;
     const person = identity(observation.identity);
     if (!person) return null;
     const profile = store.byIdentity(scope, identityKey(person));
@@ -39,8 +28,7 @@ function createFanFactConsumer({ store, now, create }) {
         observedAt: profile.platformObservedAt,
       });
     const avatar =
-      typeof observation.avatar === 'string' &&
-      /^https:\/\//.test(observation.avatar)
+      typeof observation.avatar === 'string' && /^https:\/\//.test(observation.avatar)
         ? observation.avatar.slice(0, 2048)
         : profile.avatar;
     return store.save(
@@ -74,31 +62,19 @@ function createFanFactConsumer({ store, now, create }) {
       throw new Error('档案同步数据无效。');
     }
     const expectedStreamer = JSON.parse(scope)[1];
-    if (String(page.streamerId) !== String(expectedStreamer))
-      throw new Error('档案同步账号不匹配。');
+    if (String(page.streamerId) !== String(expectedStreamer)) throw new Error('档案同步账号不匹配。');
     return store.transaction(() => {
       const settings = store.getScope(scope);
       if (!settings.initialized) return settings;
       if (settings.epoch && settings.epoch !== page.epoch && page.after !== 0)
         throw new Error('档案同步需要从新游标恢复。');
-      const previousCursor =
-        settings.epoch === page.epoch && page.reset !== true
-          ? settings.cursor || 0
-          : 0;
-      if (page.nextCursor < previousCursor)
-        throw new Error('档案同步游标倒退。');
-      if (
-        !page.events.length &&
-        (page.nextCursor !== page.after || page.hasMore === true)
-      ) {
+      const previousCursor = settings.epoch === page.epoch && page.reset !== true ? settings.cursor || 0 : 0;
+      if (page.nextCursor < previousCursor) throw new Error('档案同步游标倒退。');
+      if (!page.events.length && (page.nextCursor !== page.after || page.hasMore === true)) {
         throw new Error('空的档案同步页不能跳过事实或继续翻页。');
       }
       let cursor = page.after;
-      if (
-        !Number.isSafeInteger(cursor) ||
-        cursor < 0 ||
-        cursor !== previousCursor
-      )
+      if (!Number.isSafeInteger(cursor) || cursor < 0 || cursor !== previousCursor)
         throw new Error('档案同步页顺序无效。');
       for (const event of page.events) {
         if (
@@ -116,25 +92,14 @@ function createFanFactConsumer({ store, now, create }) {
         const key = identityKey(person);
         let profile = store.byIdentity(scope, key);
         let newlyCreated = false;
-        if (
-          !profile &&
-          event.kind === 'membership' &&
-          settings.autoCreate &&
-          !store.suppressed(scope, key)
-        ) {
+        if (!profile && event.kind === 'membership' && settings.autoCreate && !store.suppressed(scope, key)) {
           profile = create(scope, { identity: person }, true);
           newlyCreated = true;
         }
-        if (
-          !profile ||
-          profile.archived ||
-          (!settings.autoUpdate && !newlyCreated)
-        )
-          continue;
+        if (!profile || profile.archived || (!settings.autoUpdate && !newlyCreated)) continue;
         observe(scope, event, newlyCreated);
         if (event.identitySnapshot) {
-          if (identityKey(identity(event.identitySnapshot.identity)) !== key)
-            throw new Error('档案身份快照不匹配。');
+          if (identityKey(identity(event.identitySnapshot.identity)) !== key) throw new Error('档案身份快照不匹配。');
           observe(scope, event.identitySnapshot, newlyCreated);
         }
         if (event.kind !== 'membership') continue;
@@ -142,15 +107,10 @@ function createFanFactConsumer({ store, now, create }) {
         const sourceKey = `remote:${event.id}`;
         if (records.some((record) => record.sourceKey === sourceKey)) continue;
         const data = recordData('membership', event.membership);
-        if (
-          data.type === 'interval' &&
-          event.membership.evidenceVerified !== true
-        )
+        if (data.type === 'interval' && event.membership.evidenceVerified !== true)
           throw new Error('会员有效期缺少已核实证据。');
-        if (!['interval', 'observation'].includes(data.type))
-          throw new Error('远端会员事实类型无效。');
-        data.cycleId =
-          cycleForNewRecord(profile, records, data) || randomUUID();
+        if (!['interval', 'observation'].includes(data.type)) throw new Error('远端会员事实类型无效。');
+        data.cycleId = cycleForNewRecord(profile, records, data) || randomUUID();
         const record = {
           kind: 'membership',
           data,
@@ -173,8 +133,7 @@ function createFanFactConsumer({ store, now, create }) {
           store.save(scope, { ...profile, cycleId: data.cycleId }, key, now());
         }
       }
-      if (page.events.length && cursor !== page.nextCursor)
-        throw new Error('档案同步页不完整。');
+      if (page.events.length && cursor !== page.nextCursor) throw new Error('档案同步页不完整。');
       const state = {
         ...settings,
         epoch: page.epoch,
@@ -193,8 +152,7 @@ function createFanFactConsumer({ store, now, create }) {
   function archiveAccepted(scope, request) {
     if (!scope || /^random(?::|$)/.test(request.source)) return;
     const settings = store.getScope(scope);
-    if (!settings.initialized || !settings.autoUpdate || !request.identityType)
-      return;
+    if (!settings.initialized || !settings.autoUpdate || !request.identityType) return;
     const person = identity({
       platform: 'bilibili',
       type: request.identityType,
@@ -247,13 +205,7 @@ function createFanFactConsumer({ store, now, create }) {
       current: '已加入队列',
     }[status];
     if (!state || state === record.data.state) return;
-    store.records.update(
-      scope,
-      record.profileId,
-      { ...record, data: { ...record.data, state } },
-      changedAt,
-      'queue',
-    );
+    store.records.update(scope, record.profileId, { ...record, data: { ...record.data, state } }, changedAt, 'queue');
   }
 
   return { consume, observe, archiveAccepted, archiveQueueState };

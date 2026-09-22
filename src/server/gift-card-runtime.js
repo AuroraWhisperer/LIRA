@@ -51,8 +51,11 @@ function createGiftCardRuntime({ getGifts, fetchPage, ensureAvatar, now = Date.n
       return result;
     })();
     pending = { key, promise };
-    try { return await promise; }
-    finally { if (pending?.promise === promise) pending = null; }
+    try {
+      return await promise;
+    } finally {
+      if (pending?.promise === promise) pending = null;
+    }
   }
 
   async function resolveAvatars(items, previous, assertCurrent) {
@@ -60,8 +63,9 @@ function createGiftCardRuntime({ getGifts, fetchPage, ensureAvatar, now = Date.n
     for (const item of [...previous, ...[...items].sort((a, b) => a.createdAt.localeCompare(b.createdAt))]) {
       if (item.senderId && item.avatarUrl) avatars.set(item.senderId, item.avatarUrl);
     }
-    const missing = [...new Set(items.map((item) => item.senderId))]
-      .filter((uid) => uid && /^[1-9]\d{0,19}$/.test(uid) && !avatars.has(uid));
+    const missing = [...new Set(items.map((item) => item.senderId))].filter(
+      (uid) => uid && /^[1-9]\d{0,19}$/.test(uid) && !avatars.has(uid),
+    );
     if (ensureAvatar && missing.length) {
       let index = 0;
       let expired = false;
@@ -74,8 +78,10 @@ function createGiftCardRuntime({ getGifts, fetchPage, ensureAvatar, now = Date.n
             const avatarUrl = await ensureAvatar(uid);
             assertCurrent();
             if (avatarUrl) {
-              const display = normalizeGiftDisplayProfile({ version: 1, avatarUrl, guardLevel: null },
-                () => new Error('INVALID_GIFT_AVATAR'));
+              const display = normalizeGiftDisplayProfile(
+                { version: 1, avatarUrl, guardLevel: null },
+                () => new Error('INVALID_GIFT_AVATAR'),
+              );
               avatars.set(uid, display.avatarUrl);
             }
           } catch (error) {
@@ -85,9 +91,15 @@ function createGiftCardRuntime({ getGifts, fetchPage, ensureAvatar, now = Date.n
       });
       try {
         // Slow lookups finish in the user-info cache; the next read can reuse them.
-        await Promise.race([Promise.all(workers), new Promise((resolve) => {
-          timer = setTimeout(() => { expired = true; resolve(); }, 4000);
-        })]);
+        await Promise.race([
+          Promise.all(workers),
+          new Promise((resolve) => {
+            timer = setTimeout(() => {
+              expired = true;
+              resolve();
+            }, 4000);
+          }),
+        ]);
       } finally {
         expired = true;
         clearTimeout(timer);
@@ -96,7 +108,14 @@ function createGiftCardRuntime({ getGifts, fetchPage, ensureAvatar, now = Date.n
     return items.map((item) => ({ ...item, avatarUrl: avatars.get(item.senderId) || item.avatarUrl }));
   }
 
-  return { getProfiles, reset() { generation += 1; cached = null; pending = null; } };
+  return {
+    getProfiles,
+    reset() {
+      generation += 1;
+      cached = null;
+      pending = null;
+    },
+  };
 }
 
 module.exports = { createGiftCardRuntime };

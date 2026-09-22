@@ -26,9 +26,7 @@ function qrcXml(content) {
 }
 
 test('QQ provider keeps HTTP and authentication behind a focused client', () => {
-  const {
-    QQMusicClient,
-  } = require('../src/music/providers/qq-provider-client');
+  const { QQMusicClient } = require('../src/music/providers/qq-provider-client');
   const provider = createProvider();
 
   assert.ok(provider instanceof QQMusicClient);
@@ -47,10 +45,7 @@ test('QQ provider tells logged-out users to sign in when no stream is available'
     return { req_0: { data: { midurlinfo: [{ purl: '' }], sip: [] } } };
   };
 
-  await assert.rejects(
-    provider.resolvePlayableUrl({ sourceTrackId: 'paid-song-mid' }),
-    /请先登录 QQ 音乐/,
-  );
+  await assert.rejects(provider.resolvePlayableUrl({ sourceTrackId: 'paid-song-mid' }), /请先登录 QQ 音乐/);
   assert.deepEqual(requestBody.req_0.param.songtype, [0]);
 });
 
@@ -101,11 +96,7 @@ test('QQ provider requests the selected quality and falls back to the best playa
   );
 
   const params = requestBody.req_0.param;
-  assert.deepEqual(params.filename, [
-    'F000media-mid.flac',
-    'M800media-mid.mp3',
-    'M500media-mid.mp3',
-  ]);
+  assert.deepEqual(params.filename, ['F000media-mid.flac', 'M800media-mid.mp3', 'M500media-mid.mp3']);
   assert.deepEqual(params.songmid, ['song-mid', 'song-mid', 'song-mid']);
   assert.deepEqual(params.songtype, [1, 1, 1]);
   assert.equal(stream.url, 'https://isure.test/M800media-mid.mp3?vkey=test');
@@ -126,17 +117,9 @@ test('QQ provider requests, decrypts, and aligns translated and romanized lyrics
           data: {
             crypt: 1,
             lyric: encryptedQrc(qrcXml('[00:01.00]甲乙\n[00:04.00]丙')),
-            qrc: encryptedQrc(
-              qrcXml(
-                '[1000,1900]甲(1000,900)乙(1900,1000)\n[4000,1000]丙(4000,1000)',
-              ),
-            ),
+            qrc: encryptedQrc(qrcXml('[1000,1900]甲(1000,900)乙(1900,1000)\n[4000,1000]丙(4000,1000)')),
             trans: encryptedQrc('[00:01.05]翻译一\n[00:04.04]翻译二'),
-            roma: encryptedQrc(
-              qrcXml(
-                '[1001,1900]jia (1001,900)yi(1901,1000)\n[4001,1000]bing(4001,1000)',
-              ),
-            ),
+            roma: encryptedQrc(qrcXml('[1001,1900]jia (1001,900)yi(1901,1000)\n[4001,1000]bing(4001,1000)')),
           },
         },
       }),
@@ -230,18 +213,10 @@ test('QQ provider treats numeric qrc as a flag and keeps rich lyric translations
       code: 0,
       data: {
         crypt: 1,
-        lyric: encryptedQrc(
-          qrcXml(
-            '[1000,1900]甲(1000,900)乙(1900,1000)\n[4000,1000]丙(4000,1000)',
-          ),
-        ),
+        lyric: encryptedQrc(qrcXml('[1000,1900]甲(1000,900)乙(1900,1000)\n[4000,1000]丙(4000,1000)')),
         qrc: 1,
         trans: encryptedQrc('[00:01.05]翻译一\n[00:04.04]翻译二'),
-        roma: encryptedQrc(
-          qrcXml(
-            '[1001,1900]jia (1001,900)yi(1901,1000)\n[4001,1000]bing(4001,1000)',
-          ),
-        ),
+        roma: encryptedQrc(qrcXml('[1001,1900]jia (1001,900)yi(1901,1000)\n[4001,1000]bing(4001,1000)')),
       },
     },
   });
@@ -409,18 +384,13 @@ test('QQ provider signs AddSonglist requests and preserves QQ numeric ids', asyn
     const url = new URL(captured.url);
     const body = captured.options.body;
     const payload = JSON.parse(body);
-    assert.equal(
-      url.origin + url.pathname,
-      'https://u6.y.qq.com/cgi-bin/musics.fcg',
-    );
+    assert.equal(url.origin + url.pathname, 'https://u6.y.qq.com/cgi-bin/musics.fcg');
     assert.equal(url.searchParams.get('sign'), zzcSign(body));
     assert.equal(payload.comm.uin, '123456');
     assert.equal(payload.comm.g_tk, payload.comm.g_tk_new_20200303);
-    assert.deepEqual(
-      payload['music.musicasset.PlaylistDetailWrite.AddSonglist'].param
-        .v_songInfo,
-      [{ songId: 563728446, songType: 0 }],
-    );
+    assert.deepEqual(payload['music.musicasset.PlaylistDetailWrite.AddSonglist'].param.v_songInfo, [
+      { songId: 563728446, songType: 0 },
+    ]);
   } finally {
     global.fetch = originalFetch;
   }
@@ -486,10 +456,7 @@ test('QQ provider maps sourceSongId and playlist tid/dirId', async () => {
     assert.equal(new URL(playlistRequest.url).origin, 'https://u6.y.qq.com');
     assert.equal(payload.comm.authst, 'test-client-key');
     assert.equal(payload.comm.ct, '19');
-    assert.equal(
-      payload['music.musicasset.PlaylistBaseRead.GetPlaylistByUin'].method,
-      'GetPlaylistByUin',
-    );
+    assert.equal(payload['music.musicasset.PlaylistBaseRead.GetPlaylistByUin'].method, 'GetPlaylistByUin');
   } finally {
     global.fetch = originalFetch;
   }
@@ -627,11 +594,7 @@ test('QQ liked tracks uses the client playlist and slices the requested page', a
     });
     assert.equal(tracks.length, 50);
     assert.equal(tracks[0].sourceTrackId, 'song-101');
-    assert.equal(
-      requests[1].body['music.srfDissInfo.DissInfoForPc.uniform_get_Dissinfo']
-        .param.disstid,
-      2924077536,
-    );
+    assert.equal(requests[1].body['music.srfDissInfo.DissInfoForPc.uniform_get_Dissinfo'].param.disstid, 2924077536);
   } finally {
     global.fetch = originalFetch;
   }
@@ -643,10 +606,7 @@ test('QQ liked tracks rejects an incomplete login instead of returning an empty 
     getCookieHeader: () => 'pt2gguin=o123456; superuin=o123456',
   });
 
-  await assert.rejects(
-    provider.getLikedTracks({ limit: 100, offset: 0 }),
-    /登录/,
-  );
+  await assert.rejects(provider.getLikedTracks({ limit: 100, offset: 0 }), /登录/);
 });
 
 test('QQ playlist detail sends server-side pagination parameters', async () => {
@@ -659,9 +619,7 @@ test('QQ playlist detail sends server-side pagination parameters', async () => {
         code: 0,
         cdlist: [
           {
-            songlist: [
-              { id: 1, mid: 'page-two-song', title: '第二页', singer: [] },
-            ],
+            songlist: [{ id: 1, mid: 'page-two-song', title: '第二页', singer: [] }],
           },
         ],
       }),

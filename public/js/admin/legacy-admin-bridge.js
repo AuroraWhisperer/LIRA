@@ -9,11 +9,6 @@ export function publishNavigation(navigation) {
   window.AdminApp.navigation = navigation;
 }
 
-export function publishOnboarding(controller) {
-  window.AdminApp = window.AdminApp || {};
-  window.AdminApp.onboarding = controller;
-}
-
 export function publishQueue(queue) {
   window.AdminApp = window.AdminApp || {};
   window.AdminApp.queue = queue;
@@ -77,11 +72,11 @@ export function publishAiAssistantSettings(settings) {
 export function publishDanmakuTool(danmakuTool) {
   window.AdminApp = window.AdminApp || {};
   window.AdminApp.danmakuTool = {
-    init: (options = {}) => danmakuTool.init({
-      ...options,
-      reconnectBilibili: options.reconnectBilibili ??
-        (() => window.AdminApp.settings?.reconnectBilibili?.()),
-    }),
+    init: (options = {}) =>
+      danmakuTool.init({
+        ...options,
+        reconnectBilibili: options.reconnectBilibili ?? (() => window.AdminApp.settings?.reconnectBilibili?.()),
+      }),
     refresh: danmakuTool.refresh,
   };
 }
@@ -90,12 +85,13 @@ export function publishOther(other) {
   window.AdminApp = window.AdminApp || {};
   window.AdminApp.other = {
     ...other,
-    initOtherPage: (options = {}) => other.initOtherPage({
-      danmakuTool: window.AdminApp.danmakuTool,
-      aiAssistantSettings: window.AdminApp.aiAssistantSettings,
-      onNavigate: (page) => window.AdminApp.navigation?.setMainPage(page),
-      ...options,
-    }),
+    initOtherPage: (options = {}) =>
+      other.initOtherPage({
+        danmakuTool: window.AdminApp.danmakuTool,
+        aiAssistantSettings: window.AdminApp.aiAssistantSettings,
+        onNavigate: (page) => window.AdminApp.navigation?.setMainPage(page),
+        ...options,
+      }),
   };
 }
 
@@ -130,16 +126,15 @@ export function publishForms(formsService) {
   window.AdminApp.forms = {
     bindRangePair: (...args) => formsService.bindRangePair(...args),
     initTabs: () => formsService.initTabs(),
-    initWorkspaceControls: (options = {}) => formsService.initWorkspaceControls({
-      getCloseQueuePopup: () => window.AdminApp.playback?.closeQueuePopup,
-      ...options,
-    }),
+    initWorkspaceControls: (options = {}) =>
+      formsService.initWorkspaceControls({
+        getCloseQueuePopup: () => window.AdminApp.playback?.closeQueuePopup,
+        ...options,
+      }),
     refreshParameterRanges: (root) => formsService.refreshParameterRanges(root),
     fillForm: (values) => formsService.fillForm(values),
-    normalizeQueueScrollSpeedForDisplay: (input) =>
-      formsService.normalizeQueueScrollSpeedForDisplay(input),
-    normalizeSongScrollSpeedForDisplay: (input) =>
-      formsService.normalizeSongScrollSpeedForDisplay(input),
+    normalizeQueueScrollSpeedForDisplay: (input) => formsService.normalizeQueueScrollSpeedForDisplay(input),
+    normalizeSongScrollSpeedForDisplay: (input) => formsService.normalizeSongScrollSpeedForDisplay(input),
     normalizeFontSize: (...args) => formsService.normalizeFontSize(...args),
     scaleToFontSize: (...args) => formsService.scaleToFontSize(...args),
     reconnectErrorMessage: (error) => formsService.reconnectErrorMessage(error),

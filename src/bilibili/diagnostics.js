@@ -7,9 +7,7 @@ const { redactCredentials } = require('../shared/log-redaction');
 const commandReferenceKey = randomBytes(32);
 
 function logBilibiliDiagnostic(event, details = {}) {
-  console.info(
-    `[Bilibili][Diagnostic] ${JSON.stringify(redactCredentials({ event, ...details }))}`,
-  );
+  console.info(`[Bilibili][Diagnostic] ${JSON.stringify(redactCredentials({ event, ...details }))}`);
 }
 
 function summarizeAuthState(state = {}) {
@@ -37,15 +35,11 @@ function songRequestSummary(danmaku = {}) {
   if (!message.startsWith('点歌') && !message.startsWith('随机')) return null;
   return {
     commandRef: createHmac('sha256', commandReferenceKey)
-      .update(JSON.stringify([
-        String(danmaku.uid || ''), message, danmaku.messageTimestamp || 0,
-      ]))
+      .update(JSON.stringify([String(danmaku.uid || ''), message, danmaku.messageTimestamp || 0]))
       .digest('hex')
       .slice(0, 16),
     commandType: message.startsWith('点歌') ? 'request' : 'random',
-    source: ['danmaku', 'history', 'superchat', 'client'].includes(danmaku.source)
-      ? danmaku.source
-      : 'danmaku',
+    source: ['danmaku', 'history', 'superchat', 'client'].includes(danmaku.source) ? danmaku.source : 'danmaku',
     messageTimestamp: Number(danmaku.messageTimestamp) || 0,
     messageLength: message.length,
     hasUid: Number(danmaku.uid) > 0,

@@ -31,10 +31,7 @@ function truncateUtf8(value, maxBytes, marker = TRUNCATION_MARKER) {
 
 function appendBoundedFileSync(filePath, line, options = {}) {
   const maxEntryBytes = Math.max(1, Number(options.maxEntryBytes) || 1);
-  const maxFileBytes =
-    Number(options.maxFileBytes) > 0
-      ? Number(options.maxFileBytes)
-      : maxEntryBytes;
+  const maxFileBytes = Number(options.maxFileBytes) > 0 ? Number(options.maxFileBytes) : maxEntryBytes;
   const original = String(line ?? '');
   const hasNewline = original.endsWith('\n');
   const newlineBytes = hasNewline ? 1 : 0;
@@ -42,9 +39,7 @@ function appendBoundedFileSync(filePath, line, options = {}) {
   const bounded =
     Buffer.byteLength(original, 'utf8') <= maxEntryBytes
       ? original
-      : `${truncateUtf8(content, maxEntryBytes - newlineBytes)}${
-          hasNewline ? '\n' : ''
-        }`;
+      : `${truncateUtf8(content, maxEntryBytes - newlineBytes)}${hasNewline ? '\n' : ''}`;
   const bytes = Buffer.byteLength(bounded, 'utf8');
 
   try {

@@ -8,17 +8,12 @@ const MAX_TEXT_BUDGET = 48 * 1024;
 
 function normalizeLyricTimeline(input) {
   const timeline = input && typeof input === 'object' ? input : {};
-  const status = ['idle', 'loading', 'ready', 'empty'].includes(timeline.status)
-    ? timeline.status
-    : 'idle';
+  const status = ['idle', 'loading', 'ready', 'empty'].includes(timeline.status) ? timeline.status : 'idle';
   const candidates = Array.isArray(timeline.lines)
     ? timeline.lines
         .map((line, index) => ({ ...normalizeLine(line), index }))
         .filter((line) => line.text)
-        .sort(
-          (left, right) =>
-            left.startMs - right.startMs || left.index - right.index,
-        )
+        .sort((left, right) => left.startMs - right.startMs || left.index - right.index)
     : [];
   const lines = [];
   let remainingText = MAX_TEXT_BUDGET;
@@ -26,8 +21,7 @@ function normalizeLyricTimeline(input) {
   for (const candidate of candidates) {
     if (lines.length >= MAX_LINES) break;
     const { index: _index, ...line } = candidate;
-    const textSize =
-      line.text.length + line.translation.length + line.roma.length;
+    const textSize = line.text.length + line.translation.length + line.roma.length;
     if (textSize > remainingText) break;
     lines.push(line);
     remainingText -= textSize;

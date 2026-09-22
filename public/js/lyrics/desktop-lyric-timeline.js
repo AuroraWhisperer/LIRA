@@ -19,16 +19,11 @@ export function stepSpringScroll(position, velocity, target, elapsedMs) {
   const currentVelocity = finiteNumber(velocity, 0);
   const destination = finiteNumber(target, currentPosition);
   const deltaSeconds = clamp(finiteNumber(elapsedMs, 0) / 1000, 0, 0.05);
-  const acceleration =
-    (destination - currentPosition) * SPRING_STIFFNESS -
-    currentVelocity * SPRING_DAMPING;
+  const acceleration = (destination - currentPosition) * SPRING_STIFFNESS - currentVelocity * SPRING_DAMPING;
   const nextVelocity = currentVelocity + acceleration * deltaSeconds;
   const nextPosition = currentPosition + nextVelocity * deltaSeconds;
 
-  if (
-    Math.abs(destination - nextPosition) <= SPRING_SETTLE_DISTANCE &&
-    Math.abs(nextVelocity) <= SPRING_SETTLE_SPEED
-  ) {
+  if (Math.abs(destination - nextPosition) <= SPRING_SETTLE_DISTANCE && Math.abs(nextVelocity) <= SPRING_SETTLE_SPEED) {
     return { position: destination, velocity: 0 };
   }
   return { position: nextPosition, velocity: nextVelocity };
@@ -58,15 +53,10 @@ export function getLyricCountdown(lines, currentIndex, currentMs) {
   const nextLine = lines[nextIndex];
   if (!nextLine) return null;
   const nextStartMs = finiteNumber(nextLine.startMs, 0);
-  const previousStartMs =
-    currentIndex >= 0 ? finiteNumber(lines[currentIndex]?.startMs, 0) : 0;
+  const previousStartMs = currentIndex >= 0 ? finiteNumber(lines[currentIndex]?.startMs, 0) : 0;
   const gapMs = nextStartMs - previousStartMs;
   const remainingMs = nextStartMs - Math.max(0, finiteNumber(currentMs, 0));
-  if (
-    gapMs < COUNTDOWN_MIN_GAP_MS ||
-    remainingMs <= 0 ||
-    remainingMs > COUNTDOWN_WINDOW_MS
-  ) {
+  if (gapMs < COUNTDOWN_MIN_GAP_MS || remainingMs <= 0 || remainingMs > COUNTDOWN_WINDOW_MS) {
     return null;
   }
   return { nextIndex, seconds: Math.max(1, Math.ceil(remainingMs / 1000)) };
@@ -74,10 +64,7 @@ export function getLyricCountdown(lines, currentIndex, currentMs) {
 
 export function getVisibleLyricRange(activeLine, visibleLines, lineCount) {
   const count = Math.max(0, Math.floor(finiteNumber(lineCount, 0)));
-  const lines = Math.max(
-    0,
-    Math.min(99, Math.round(finiteNumber(visibleLines, 0))),
-  );
+  const lines = Math.max(0, Math.min(99, Math.round(finiteNumber(visibleLines, 0))));
   if (!count) return { first: 0, last: -1 };
   if (lines === 0) return { first: 0, last: count - 1 };
   if (activeLine < 0) return { first: 0, last: -1 };
@@ -89,24 +76,10 @@ export function getVisibleLyricRange(activeLine, visibleLines, lineCount) {
   };
 }
 
-export function calculateFollowTarget(
-  rowTop,
-  rowHeight,
-  viewportHeight,
-  scrollHeight,
-  alignPosition,
-  alignAnchor,
-) {
-  const anchorRatio =
-    alignAnchor === 'start' ? 0 : alignAnchor === 'end' ? 1 : 0.5;
-  const maximum = Math.max(
-    0,
-    finiteNumber(scrollHeight, 0) - finiteNumber(viewportHeight, 0),
-  );
-  const rowAnchor =
-    finiteNumber(rowTop, 0) + finiteNumber(rowHeight, 0) * anchorRatio;
-  const viewportAnchor =
-    finiteNumber(viewportHeight, 0) *
-    clamp(finiteNumber(alignPosition, 0.5), 0, 1);
+export function calculateFollowTarget(rowTop, rowHeight, viewportHeight, scrollHeight, alignPosition, alignAnchor) {
+  const anchorRatio = alignAnchor === 'start' ? 0 : alignAnchor === 'end' ? 1 : 0.5;
+  const maximum = Math.max(0, finiteNumber(scrollHeight, 0) - finiteNumber(viewportHeight, 0));
+  const rowAnchor = finiteNumber(rowTop, 0) + finiteNumber(rowHeight, 0) * anchorRatio;
+  const viewportAnchor = finiteNumber(viewportHeight, 0) * clamp(finiteNumber(alignPosition, 0.5), 0, 1);
   return clamp(rowAnchor - viewportAnchor, 0, maximum);
 }

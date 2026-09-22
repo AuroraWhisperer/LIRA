@@ -19,13 +19,7 @@ let serverGiftCache = []; // 累积的服务器礼物
 function connectWs() {
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
   const token = window.__API_TOKEN__;
-  ws = new WebSocket(
-    proto +
-      '//' +
-      location.host +
-      '/ws' +
-      (token ? '?token=' + encodeURIComponent(token) : ''),
-  );
+  ws = new WebSocket(proto + '//' + location.host + '/ws' + (token ? '?token=' + encodeURIComponent(token) : ''));
   ws.onopen = () => {
     document.getElementById('connInfo').textContent = 'WebSocket 已连接';
     document.getElementById('connInfo').style.color = 'var(--green)';
@@ -43,15 +37,13 @@ function connectWs() {
             }
           }
           // 限制缓存大小
-          if (serverGiftCache.length > 500)
-            serverGiftCache = serverGiftCache.slice(-300);
+          if (serverGiftCache.length > 500) serverGiftCache = serverGiftCache.slice(-300);
         }
       }
     } catch (e) {}
   };
   ws.onclose = () => {
-    document.getElementById('connInfo').textContent =
-      'WebSocket 断开 · 重新连接中';
+    document.getElementById('connInfo').textContent = 'WebSocket 断开 · 重新连接中';
     document.getElementById('connInfo').style.color = 'var(--yellow)';
     setTimeout(connectWs, 2000);
   };
@@ -130,8 +122,7 @@ async function parseAndCompare() {
 
   // 解析气泡
   bubbleGifts = parseBubbleHtml(html);
-  document.getElementById('bubbleCount').textContent =
-    bubbleGifts.length + ' 条';
+  document.getElementById('bubbleCount').textContent = bubbleGifts.length + ' 条';
   renderBubbleTable(bubbleGifts);
 
   // 确保有服务器数据
@@ -146,9 +137,7 @@ async function parseAndCompare() {
 
   // 执行对比
   const captureTimeStr = document.getElementById('captureTime').value;
-  const captureTime = captureTimeStr
-    ? new Date(captureTimeStr).getTime()
-    : Date.now();
+  const captureTime = captureTimeStr ? new Date(captureTimeStr).getTime() : Date.now();
 
   comparisonResults = crossReference(bubbleGifts, serverGiftCache, captureTime);
   renderComparison(comparisonResults);
@@ -162,9 +151,7 @@ async function parseAndCompare() {
   document.getElementById('statsRow').style.display = 'flex';
 
   // 滚动到对比结果
-  document
-    .getElementById('comparisonSection')
-    .scrollIntoView({ behavior: 'smooth' });
+  document.getElementById('comparisonSection').scrollIntoView({ behavior: 'smooth' });
 
   const missed = comparisonResults.filter((r) => r.status === 'miss').length;
   if (missed > 0) {
@@ -214,22 +201,12 @@ function loadExample() {
 
 // ── 事件与启动 ──
 document.getElementById('setTimeNowBtn').addEventListener('click', setTimeNow);
-document
-  .getElementById('setTime1MinAgoBtn')
-  .addEventListener('click', setTime1MinAgo);
-document
-  .getElementById('setTime5MinAgoBtn')
-  .addEventListener('click', setTime5MinAgo);
-document
-  .getElementById('loadExampleBtn')
-  .addEventListener('click', loadExample);
-document
-  .getElementById('parseAndCompareBtn')
-  .addEventListener('click', parseAndCompare);
+document.getElementById('setTime1MinAgoBtn').addEventListener('click', setTime1MinAgo);
+document.getElementById('setTime5MinAgoBtn').addEventListener('click', setTime5MinAgo);
+document.getElementById('loadExampleBtn').addEventListener('click', loadExample);
+document.getElementById('parseAndCompareBtn').addEventListener('click', parseAndCompare);
 document.getElementById('clearAllBtn').addEventListener('click', clearAll);
-document
-  .getElementById('btnFetchServer')
-  .addEventListener('click', fetchServerGifts);
+document.getElementById('btnFetchServer').addEventListener('click', fetchServerGifts);
 
 setTimeNow();
 connectWs();

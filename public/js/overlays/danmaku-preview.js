@@ -5,16 +5,21 @@ export function initDanmakuPreview({ initialStyle, styleOptions, duration, rende
   controls.hidden = false;
 
   function selectStyle(value) {
-    const selected = buttons.find((button) => button.dataset.previewStyle === value)
-      || buttons.find((button) => button.dataset.previewStyle === 'signal');
+    const selected =
+      buttons.find((button) => button.dataset.previewStyle === value) ||
+      buttons.find((button) => button.dataset.previewStyle === 'signal');
     const style = selected.dataset.previewStyle;
     for (const button of buttons) {
       button.setAttribute('aria-pressed', String(button === selected));
     }
     description.textContent = `${selected.querySelector('small').textContent} · 6 条静态示例，可向下滚动`;
     window.history.replaceState(
-      { ...window.history.state, danmakuPreviewStyle: style,
-        danmakuStyleOptions: styleOptions, danmakuDuration: duration },
+      {
+        ...window.history.state,
+        danmakuPreviewStyle: style,
+        danmakuStyleOptions: styleOptions,
+        danmakuDuration: duration,
+      },
       '',
       `${window.location.pathname}?preview=1`,
     );

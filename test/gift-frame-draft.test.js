@@ -23,28 +23,24 @@ async function createFixture() {
   }
   const handlers = new Map();
   const requests = [];
-  const module = await loadModuleExports(
-    path.resolve('public/js/admin/gift-frame.js'),
-    {
-      document: { getElementById: node },
-      window: { addEventListener: (name, fn) => handlers.set(name, fn) },
-      location: { protocol: 'http:', port: '3000' },
-      fetch: (url, options) =>
-        new Promise((resolve) =>
-          requests.push({
-            body: JSON.parse(options.body),
-            resolve: () =>
-              resolve({
-                ok: true,
-                text: async () => JSON.stringify({ ok: true }),
-              }),
-          }),
-        ),
-    },
-  );
+  const module = await loadModuleExports(path.resolve('public/js/admin/gift-frame.js'), {
+    document: { getElementById: node },
+    window: { addEventListener: (name, fn) => handlers.set(name, fn) },
+    location: { protocol: 'http:', port: '3000' },
+    fetch: (url, options) =>
+      new Promise((resolve) =>
+        requests.push({
+          body: JSON.parse(options.body),
+          resolve: () =>
+            resolve({
+              ok: true,
+              text: async () => JSON.stringify({ ok: true }),
+            }),
+        }),
+      ),
+  });
   module.initGiftFrame();
-  const render = (settings) =>
-    handlers.get('app:settings-state')({ detail: settings });
+  const render = (settings) => handlers.get('app:settings-state')({ detail: settings });
   const edit = (id, value) => {
     node(id).value = value;
     node('otherGiftFeature').handlers.get('input')?.({ target: node(id) });

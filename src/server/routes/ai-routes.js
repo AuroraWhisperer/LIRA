@@ -1,11 +1,7 @@
 'use strict';
 
 const { sendJson } = require('../http-utils');
-const {
-  AI_CONFIG_DEFAULTS,
-  AI_SECRET_KEYS,
-  ENUM_VALUES,
-} = require('../../ai/config');
+const { AI_CONFIG_DEFAULTS, AI_SECRET_KEYS, ENUM_VALUES } = require('../../ai/config');
 
 const prefixes = ['/api/ai'];
 const SECRET_KEYS = new Set(AI_SECRET_KEYS);
@@ -60,27 +56,17 @@ const routes = {
       const apiUrl = body?.apiUrl ?? '';
       const modelProvider = body?.modelProvider ?? '';
       const modelApiProtocol = body?.modelApiProtocol ?? '';
-      if (typeof apiKey !== 'string' || apiKey.length > 512)
-        throw new Error('API Key 格式无效。');
-      if (typeof apiUrl !== 'string' || apiUrl.length > 2048)
-        throw new Error('API 请求地址格式无效。');
-      if (typeof modelProvider !== 'string' || modelProvider.length > 32)
-        throw new Error('模型供应商格式无效。');
-      if (typeof modelApiProtocol !== 'string' || modelApiProtocol.length > 32)
-        throw new Error('接口协议格式无效。');
+      if (typeof apiKey !== 'string' || apiKey.length > 512) throw new Error('API Key 格式无效。');
+      if (typeof apiUrl !== 'string' || apiUrl.length > 2048) throw new Error('API 请求地址格式无效。');
+      if (typeof modelProvider !== 'string' || modelProvider.length > 32) throw new Error('模型供应商格式无效。');
+      if (typeof modelApiProtocol !== 'string' || modelApiProtocol.length > 32) throw new Error('接口协议格式无效。');
       const input = { apiKey: apiKey.trim(), apiUrl: apiUrl.trim() };
       const normalizedProvider = modelProvider.trim().toLowerCase();
       const normalizedProtocol = modelApiProtocol.trim().toLowerCase();
-      if (
-        normalizedProvider &&
-        !ENUM_VALUES.modelProvider.has(normalizedProvider)
-      ) {
+      if (normalizedProvider && !ENUM_VALUES.modelProvider.has(normalizedProvider)) {
         throw new Error('模型供应商格式无效。');
       }
-      if (
-        normalizedProtocol &&
-        !ENUM_VALUES.modelApiProtocol.has(normalizedProtocol)
-      ) {
+      if (normalizedProtocol && !ENUM_VALUES.modelApiProtocol.has(normalizedProtocol)) {
         throw new Error('接口协议格式无效。');
       }
       if (normalizedProvider) input.modelProvider = normalizedProvider;

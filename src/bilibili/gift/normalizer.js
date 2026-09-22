@@ -1,18 +1,11 @@
 'use strict';
 
-const {
-  cleanText,
-  normalizePositiveInteger,
-  normalizeMoney,
-  normalizeSignedMoney,
-} = require('../../shared/utils');
+const { cleanText, normalizePositiveInteger, normalizeMoney, normalizeSignedMoney } = require('../../shared/utils');
 
 function normalizeGiftRow(row) {
   if (!row) return null;
   const blindBoxPrice =
-    row.blind_box_price === null || row.blind_box_price === undefined
-      ? null
-      : normalizeMoney(row.blind_box_price);
+    row.blind_box_price === null || row.blind_box_price === undefined ? null : normalizeMoney(row.blind_box_price);
   const totalPrice = normalizeMoney(row.total_price);
   return {
     ...row,
@@ -24,9 +17,7 @@ function normalizeGiftRow(row) {
     blind_box_name: cleanText(row.blind_box_name),
     blind_box_price: blindBoxPrice,
     blind_profit:
-      row.blind_profit === null || row.blind_profit === undefined
-        ? null
-        : normalizeSignedMoney(row.blind_profit),
+      row.blind_profit === null || row.blind_profit === undefined ? null : normalizeSignedMoney(row.blind_profit),
     counted_in_sprint: Boolean(row.counted_in_sprint),
     sprint_count_price: totalPrice,
   };

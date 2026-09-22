@@ -12,10 +12,7 @@ const ACTIONS = new Map([
 function parseReactionPage(payload, previousCursor = null) {
   const data = payload?.data;
   if (!Array.isArray(data?.items) || typeof data.has_more !== 'boolean') {
-    fail(
-      'LOTTERY_UPSTREAM_INVALID',
-      'Reaction records or pagination are missing.',
-    );
+    fail('LOTTERY_UPSTREAM_INVALID', 'Reaction records or pagination are missing.');
   }
   let nextCursor = null;
   if (data.has_more) {
@@ -32,8 +29,7 @@ function parseReactionPage(payload, previousCursor = null) {
   }
   const records = data.items.map((item) => {
     const source = ACTIONS.get(item?.action);
-    if (!source)
-      fail('LOTTERY_REACTION_UNKNOWN', 'Reaction action is not recognized.');
+    if (!source) fail('LOTTERY_REACTION_UNKNOWN', 'Reaction action is not recognized.');
     const uid = readPreferredId(item, ['mid_str', 'mid'], 'reaction UID');
     return {
       source,

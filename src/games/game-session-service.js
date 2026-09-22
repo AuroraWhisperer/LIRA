@@ -6,22 +6,12 @@ const gomoku = require('./gomoku');
 const drawGuess = require('./draw-guess');
 
 function createGameSessionService(options = {}) {
-  const broadcast =
-    typeof options.broadcast === 'function' ? options.broadcast : () => {};
-  const monotonicNow =
-    typeof options.monotonicNow === 'function'
-      ? options.monotonicNow
-      : () => performance.now();
-  const wallNow =
-    typeof options.wallNow === 'function' ? options.wallNow : Date.now;
-  const scheduleTimeout =
-    typeof options.setTimeout === 'function' ? options.setTimeout : setTimeout;
-  const cancelTimeout =
-    typeof options.clearTimeout === 'function'
-      ? options.clearTimeout
-      : clearTimeout;
-  const random =
-    typeof options.random === 'function' ? options.random : Math.random;
+  const broadcast = typeof options.broadcast === 'function' ? options.broadcast : () => {};
+  const monotonicNow = typeof options.monotonicNow === 'function' ? options.monotonicNow : () => performance.now();
+  const wallNow = typeof options.wallNow === 'function' ? options.wallNow : Date.now;
+  const scheduleTimeout = typeof options.setTimeout === 'function' ? options.setTimeout : setTimeout;
+  const cancelTimeout = typeof options.clearTimeout === 'function' ? options.clearTimeout : clearTimeout;
+  const random = typeof options.random === 'function' ? options.random : Math.random;
   const viewers = new Map();
   let session = null;
   let viewer = null;
@@ -51,7 +41,9 @@ function createGameSessionService(options = {}) {
 
   function isActive() {
     materializeDrawGuessDeadline();
-    return Boolean(session && (session.game === 'draw-guess' ? session.state.phase !== 'finished' : !session.state.winner));
+    return Boolean(
+      session && (session.game === 'draw-guess' ? session.state.phase !== 'finished' : !session.state.winner),
+    );
   }
 
   function start(input = {}) {
@@ -61,14 +53,8 @@ function createGameSessionService(options = {}) {
       error.statusCode = 409;
       throw error;
     }
-    const game =
-      input.game === 'gomoku'
-        ? 'gomoku'
-        : input.game === 'draw-guess'
-          ? 'draw-guess'
-          : 'number-bomb';
-    const mode =
-      game === 'draw-guess' || input.mode === 'multi' ? 'multi' : 'single';
+    const game = input.game === 'gomoku' ? 'gomoku' : input.game === 'draw-guess' ? 'draw-guess' : 'number-bomb';
+    const mode = game === 'draw-guess' || input.mode === 'multi' ? 'multi' : 'single';
     const targetUid = String(input.targetUid || '').trim();
     const targetName = String(input.targetName || '').trim();
     viewer = targetUid ? { uid: targetUid, name: targetName || '观众' } : null;
@@ -142,9 +128,7 @@ function createGameSessionService(options = {}) {
       winner = null;
     } else if (result.state.winner) {
       winner =
-        result.state.winner === 'viewer'
-          ? { role: 'viewer', ...(viewer || {}) }
-          : { role: 'host', uid: '', name: '' };
+        result.state.winner === 'viewer' ? { role: 'viewer', ...(viewer || {}) } : { role: 'host', uid: '', name: '' };
     }
     publish();
     return { ...result, session: publicSessionRaw() };
@@ -155,12 +139,9 @@ function createGameSessionService(options = {}) {
     if (!isStreamer) touchViewer(danmaku);
     if (session?.game === 'draw-guess') {
       session.danmaku.push(normalizeGameDanmaku(danmaku));
-      if (session.danmaku.length > MAX_DANMAKU)
-        session.danmaku.splice(0, session.danmaku.length - MAX_DANMAKU);
+      if (session.danmaku.length > MAX_DANMAKU) session.danmaku.splice(0, session.danmaku.length - MAX_DANMAKU);
       materializeDrawGuessDeadline();
-      const result = isStreamer
-        ? { accepted: false }
-        : drawGuess.submitGuess(session.state, danmaku, monotonicNow());
+      const result = isStreamer ? { accepted: false } : drawGuess.submitGuess(session.state, danmaku, monotonicNow());
       publish();
       if (!result.accepted) return { ...result, session: publicSessionRaw() };
       session.state = result.state;
@@ -168,26 +149,18 @@ function createGameSessionService(options = {}) {
       return { ...result, session: publicSessionRaw() };
     }
     materializeDrawGuessDeadline();
-    if (isStreamer || !session || session.state.winner || session.state.turn !== 'viewer')
-      return { accepted: false };
+    if (isStreamer || !session || session.state.winner || session.state.turn !== 'viewer') return { accepted: false };
     const uid = String(danmaku.uid || '').trim();
-    const isTarget =
-      session.mode === 'multi' ||
-      !session.targetUid ||
-      uid === session.targetUid;
+    const isTarget = session.mode === 'multi' || !session.targetUid || uid === session.targetUid;
     if (!isTarget) return { accepted: false };
-    const value =
-      session.game === 'gomoku'
-        ? extractCoordinate(danmaku.message)
-        : extractNumber(danmaku.message);
+    const value = session.game === 'gomoku' ? extractCoordinate(danmaku.message) : extractNumber(danmaku.message);
     if (value === null) return { accepted: false };
     return move({ value }, 'viewer', { uid, name: danmaku.userName });
   }
 
   function draw(input = {}) {
     materializeDrawGuessDeadline();
-    if (!session || session.game !== 'draw-guess')
-      return { accepted: false, reason: '你画我猜尚未开始。' };
+    if (!session || session.game !== 'draw-guess') return { accepted: false, reason: '你画我猜尚未开始。' };
     const result = drawGuess.applyDrawOperation(session.state, input);
     if (!result.accepted) return result;
     session.state = result.state;
@@ -224,9 +197,7 @@ function createGameSessionService(options = {}) {
 
   function getHostState() {
     materializeDrawGuessDeadline();
-    return session?.game === 'draw-guess'
-      ? drawGuess.getHostDrawGuessState(session.state)
-      : null;
+    return session?.game === 'draw-guess' ? drawGuess.getHostDrawGuessState(session.state) : null;
   }
 
   function listDrawGuessCategories() {
@@ -242,9 +213,7 @@ function createGameSessionService(options = {}) {
       targetUid: session.targetUid,
       targetName: session.targetName,
       startedAt: session.startedAt,
-      ...(session.game === 'draw-guess'
-        ? { danmaku: session.danmaku || [] }
-        : {}),
+      ...(session.game === 'draw-guess' ? { danmaku: session.danmaku || [] } : {}),
       ...(winner ? { winner } : {}),
       state:
         session.game === 'number-bomb'
@@ -263,12 +232,10 @@ function createGameSessionService(options = {}) {
   }
 
   function controlDrawGuess(input, player) {
-    if (player !== 'host')
-      return { accepted: false, reason: '只有主播可以控制回合。' };
+    if (player !== 'host') return { accepted: false, reason: '只有主播可以控制回合。' };
     const action = String(input.value?.action || input.action || '').trim();
     if (action === 'finish-round') {
-      if (session.state.phase !== 'drawing')
-        return { accepted: false, reason: '当前回合已经结束。' };
+      if (session.state.phase !== 'drawing') return { accepted: false, reason: '当前回合已经结束。' };
       finishDrawGuessRound({ reveal: false, deferFinal: true });
       return {
         accepted: true,
@@ -277,18 +244,13 @@ function createGameSessionService(options = {}) {
       };
     }
     if (action === 'reveal-answer') {
-      if (
-        session.state.phase !== 'round-result' ||
-        session.state.answerRevealed
-      ) {
+      if (session.state.phase !== 'round-result' || session.state.answerRevealed) {
         return { accepted: false, reason: '当前没有待公布的答案。' };
       }
       session.state = drawGuess.revealAnswer(session.state);
       if (session.state.phase === 'finished') {
         const champion = session.state.scores[0];
-        winner = champion
-          ? { role: 'viewer', uid: champion.uid, name: champion.name }
-          : null;
+        winner = champion ? { role: 'viewer', uid: champion.uid, name: champion.name } : null;
       }
       publish();
       return {
@@ -298,10 +260,7 @@ function createGameSessionService(options = {}) {
       };
     }
     if (action === 'next-round') {
-      if (
-        session.state.phase !== 'round-result' ||
-        !session.state.answerRevealed
-      )
+      if (session.state.phase !== 'round-result' || !session.state.answerRevealed)
         return { accepted: false, reason: '请先公布答案。' };
       session.state = drawGuess.startNextRound(session.state, {
         random,
@@ -319,8 +278,7 @@ function createGameSessionService(options = {}) {
   }
 
   function materializeDrawGuessDeadline() {
-    if (session?.game !== 'draw-guess' || session.state.phase !== 'drawing')
-      return false;
+    if (session?.game !== 'draw-guess' || session.state.phase !== 'drawing') return false;
     if (monotonicNow() < session.state.roundDeadlineMs) return false;
     finishDrawGuessRound({ reveal: false, deferFinal: true });
     return true;
@@ -328,24 +286,17 @@ function createGameSessionService(options = {}) {
 
   function finishDrawGuessRound(options = {}) {
     cancelDrawGuessTimer();
-    session.state = drawGuess.finishRound(
-      session.state,
-      monotonicNow(),
-      options,
-    );
+    session.state = drawGuess.finishRound(session.state, monotonicNow(), options);
     if (session.state.phase === 'finished') {
       const champion = session.state.scores[0];
-      winner = champion
-        ? { role: 'viewer', uid: champion.uid, name: champion.name }
-        : null;
+      winner = champion ? { role: 'viewer', uid: champion.uid, name: champion.name } : null;
     }
     publish();
   }
 
   function scheduleDrawGuessTimer() {
     cancelDrawGuessTimer();
-    if (session?.game !== 'draw-guess' || session.state.phase !== 'drawing')
-      return;
+    if (session?.game !== 'draw-guess' || session.state.phase !== 'drawing') return;
     const delay = Math.max(0, session.state.roundDeadlineMs - monotonicNow());
     roundTimer = scheduleTimeout(() => {
       if (session?.game === 'draw-guess' && session.state.phase === 'drawing') {
@@ -366,8 +317,7 @@ function createGameSessionService(options = {}) {
 
   function pruneViewers() {
     const cutoff = Date.now() - 10 * 60 * 1000;
-    for (const [key, viewer] of viewers)
-      if (viewer.lastSeenAt < cutoff) viewers.delete(key);
+    for (const [key, viewer] of viewers) if (viewer.lastSeenAt < cutoff) viewers.delete(key);
   }
 
   return {
@@ -405,18 +355,12 @@ function normalizeGameDanmaku(danmaku = {}) {
     avatarUrl: String(danmaku.avatarUrl || danmaku.face || '')
       .trim()
       .slice(0, 500),
-    guardLevel: [1, 2, 3].includes(requestedGuardLevel)
-      ? requestedGuardLevel
-      : 0,
+    guardLevel: [1, 2, 3].includes(requestedGuardLevel) ? requestedGuardLevel : 0,
     medalName: String(danmaku.requesterMedalName || '')
       .trim()
       .slice(0, 40),
-    medalLevel: Number.isFinite(requestedMedalLevel)
-      ? Math.max(0, Math.min(999, requestedMedalLevel))
-      : 0,
-    timestamp: Number.isFinite(Number(danmaku.messageTimestamp))
-      ? Number(danmaku.messageTimestamp)
-      : Date.now(),
+    medalLevel: Number.isFinite(requestedMedalLevel) ? Math.max(0, Math.min(999, requestedMedalLevel)) : 0,
+    timestamp: Number.isFinite(Number(danmaku.messageTimestamp)) ? Number(danmaku.messageTimestamp) : Date.now(),
   };
 }
 

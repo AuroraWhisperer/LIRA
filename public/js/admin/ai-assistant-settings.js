@@ -50,10 +50,7 @@ function init({ notify = showStackedToast } = {}) {
 
   refreshConfig = async () => {
     try {
-      const [config, status] = await Promise.all([
-        readApi('/api/ai/config'),
-        readApi('/api/ai/status'),
-      ]);
+      const [config, status] = await Promise.all([readApi('/api/ai/config'), readApi('/api/ai/status')]);
       renderConfig(config, editedFieldIds);
       renderStatus(status);
       if (!configLoaded) {
@@ -61,10 +58,7 @@ function init({ notify = showStackedToast } = {}) {
         if (dirty && form.checkValidity()) {
           clearTimeout(autosaveTimer);
           setState(saveState, '等待自动保存…');
-          autosaveTimer = setTimeout(
-            () => void saveConfig(),
-            AUTOSAVE_DELAY_MS,
-          );
+          autosaveTimer = setTimeout(() => void saveConfig(), AUTOSAVE_DELAY_MS);
         }
       }
     } catch (error) {
@@ -75,11 +69,7 @@ function init({ notify = showStackedToast } = {}) {
   const saveConfig = async () => {
     if (!dirty) return true;
     if (!configLoaded) {
-      setState(
-        saveState,
-        '配置尚未加载，暂时无法保存；请等待或刷新页面重试。',
-        'warn',
-      );
+      setState(saveState, '配置尚未加载，暂时无法保存；请等待或刷新页面重试。', 'warn');
       return false;
     }
     if (!form.checkValidity()) return false;
@@ -100,13 +90,9 @@ function init({ notify = showStackedToast } = {}) {
         });
         if (restoreManualEndpointAfterProviderSave) {
           const endpointInput = document.getElementById('xiaomiAiDeepSeekUrl');
-          const protocolInput = document.getElementById(
-            'xiaomiAiModelApiProtocol',
-          );
-          if (endpointInput)
-            endpointInput.value = config.deepseekResponsesUrl || '';
-          if (protocolInput)
-            protocolInput.value = config.modelApiProtocol || 'auto';
+          const protocolInput = document.getElementById('xiaomiAiModelApiProtocol');
+          if (endpointInput) endpointInput.value = config.deepseekResponsesUrl || '';
+          if (protocolInput) protocolInput.value = config.modelApiProtocol || 'auto';
           restoreManualEndpointAfterProviderSave = false;
         }
         renderConfigSummary(config);
@@ -166,11 +152,8 @@ function init({ notify = showStackedToast } = {}) {
 
   providerInput?.addEventListener('change', () => {
     const endpointInput = document.getElementById('xiaomiAiDeepSeekUrl');
-    const official = ['deepseek', 'openai', 'anthropic', 'gemini'].includes(
-      providerInput.value,
-    );
-    restoreManualEndpointAfterProviderSave =
-      !official && Boolean(endpointInput?.disabled);
+    const official = ['deepseek', 'openai', 'anthropic', 'gemini'].includes(providerInput.value);
+    restoreManualEndpointAfterProviderSave = !official && Boolean(endpointInput?.disabled);
     renderProviderSelection(providerInput.value, {
       keepEndpointLocked: restoreManualEndpointAfterProviderSave,
     });
@@ -183,11 +166,7 @@ function init({ notify = showStackedToast } = {}) {
   });
 
   form.addEventListener('change', (event) => {
-    if (
-      event.target.matches(
-        'input[type="checkbox"], input[type="number"], select',
-      )
-    ) {
+    if (event.target.matches('input[type="checkbox"], input[type="number"], select')) {
       if (event.target.id) editedFieldIds.add(event.target.id);
       if (event.target === reasoningInput) syncReasoningEffortAvailability();
       scheduleSave(true);
@@ -206,10 +185,7 @@ function init({ notify = showStackedToast } = {}) {
   });
 
   for (const [provider, button] of providerTestButtons) {
-    button.addEventListener(
-      'click',
-      () => void runProviderTest(provider, button),
-    );
+    button.addEventListener('click', () => void runProviderTest(provider, button));
   }
 
   async function runProviderTest(provider, button) {
@@ -226,19 +202,15 @@ function init({ notify = showStackedToast } = {}) {
     setState(testDetail, `正在准备 ${label} 连接测试…`);
     try {
       await initialLoadPromise;
-      if (!form.reportValidity())
-        throw codedClientError('FORM_INVALID', '请先修正表单中的网址或数值。');
-      if (!(await flushPendingSave()))
-        throw codedClientError('SAVE_FAILED', '配置保存失败，未运行连接测试。');
+      if (!form.reportValidity()) throw codedClientError('FORM_INVALID', '请先修正表单中的网址或数值。');
+      if (!(await flushPendingSave())) throw codedClientError('SAVE_FAILED', '配置保存失败，未运行连接测试。');
       setState(testDetail, `正在测试 ${label} 连接…`);
       const result = await readApi(`/api/ai/test/${provider}`, {
         method: 'POST',
         body: '{}',
       });
       const detail =
-        provider === 'deepseek' && result.reply
-          ? `模型 ${result.model} 回复：${result.reply}`
-          : '地址与密钥均可用';
+        provider === 'deepseek' && result.reply ? `模型 ${result.model} 回复：${result.reply}` : '地址与密钥均可用';
       setState(testDetail, `${label} 连接正常。${detail}`, 'good');
       showProviderToast(notify, {
         provider,
@@ -270,13 +242,9 @@ function init({ notify = showStackedToast } = {}) {
       // A previously saved key is intentionally not populated in the input.
       // Keep this guard for older renderer state that may still contain the mask.
       const apiKey = apiKeyValue === '********' ? '' : apiKeyValue;
-      const apiUrl = document
-        .getElementById('xiaomiAiDeepSeekUrl')
-        .value.trim();
-      const modelProvider =
-        document.getElementById('xiaomiAiModelProvider')?.value || 'auto';
-      const modelApiProtocol =
-        document.getElementById('xiaomiAiModelApiProtocol')?.value || 'auto';
+      const apiUrl = document.getElementById('xiaomiAiDeepSeekUrl').value.trim();
+      const modelProvider = document.getElementById('xiaomiAiModelProvider')?.value || 'auto';
+      const modelApiProtocol = document.getElementById('xiaomiAiModelApiProtocol')?.value || 'auto';
       const result = await readApi('/api/ai/models', {
         method: 'POST',
         body: JSON.stringify({
@@ -311,16 +279,9 @@ function init({ notify = showStackedToast } = {}) {
       );
       modelMenu.hidden = menuItems.length === 0;
       modelInput.setAttribute('aria-expanded', String(menuItems.length > 0));
-      fetchModelsButton.setAttribute(
-        'aria-expanded',
-        String(menuItems.length > 0),
-      );
+      fetchModelsButton.setAttribute('aria-expanded', String(menuItems.length > 0));
     } catch (error) {
-      setState(
-        modelFetchState,
-        error.message || '无法获取当前服务的模型列表。',
-        'warn',
-      );
+      setState(modelFetchState, error.message || '无法获取当前服务的模型列表。', 'warn');
     } finally {
       fetchModelsButton.disabled = false;
       fetchModelsButton.textContent = '获取模型';
@@ -332,16 +293,10 @@ function init({ notify = showStackedToast } = {}) {
       closeModelMenu();
       return;
     }
-    if (
-      !['ArrowDown', 'ArrowUp'].includes(event.key) ||
-      !modelMenu.children.length
-    )
-      return;
+    if (!['ArrowDown', 'ArrowUp'].includes(event.key) || !modelMenu.children.length) return;
     event.preventDefault();
     const options = [...modelMenu.querySelectorAll('[role="option"]')];
-    const selectedIndex = options.findIndex(
-      (item) => item.getAttribute('aria-selected') === 'true',
-    );
+    const selectedIndex = options.findIndex((item) => item.getAttribute('aria-selected') === 'true');
     const nextIndex = modelMenu.hidden
       ? event.key === 'ArrowUp'
         ? options.length - 1
@@ -349,14 +304,8 @@ function init({ notify = showStackedToast } = {}) {
           ? 0
           : selectedIndex
       : event.key === 'ArrowUp'
-        ? Math.max(
-            0,
-            selectedIndex < 0 ? options.length - 1 : selectedIndex - 1,
-          )
-        : Math.min(
-            options.length - 1,
-            selectedIndex < 0 ? 0 : selectedIndex + 1,
-          );
+        ? Math.max(0, selectedIndex < 0 ? options.length - 1 : selectedIndex - 1)
+        : Math.min(options.length - 1, selectedIndex < 0 ? 0 : selectedIndex + 1);
     openModelMenu();
     focusModelOption(options[nextIndex]);
   });

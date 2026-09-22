@@ -14,10 +14,7 @@ const {
   buildAuthPayload,
   signPayload,
 } = require('./license-protocol');
-const {
-  createRemoteLicenseClient,
-  RemoteLicenseError,
-} = require('./remote-license-client');
+const { createRemoteLicenseClient, RemoteLicenseError } = require('./remote-license-client');
 const { createDeviceKeyStore } = require('./device-key-store');
 const { createLicenseStateStore } = require('./license-state-store');
 const { createHardwareFingerprint } = require('./hardware-fingerprint');
@@ -33,27 +30,19 @@ const {
 } = require('./license-runtime-policy');
 
 const { resolveTokenExpiresAt, parseExpiresIn } = licenseTokenUtils;
-const {
-  getErrorCode,
-  isRetryableAuthError,
-  mapSongForSync,
-  sanitizeDevice,
-  sanitizeRemoteResponse,
-  sanitizeStreamer,
-} = licenseResponseUtils;
+const { getErrorCode, isRetryableAuthError, mapSongForSync, sanitizeDevice, sanitizeRemoteResponse, sanitizeStreamer } =
+  licenseResponseUtils;
 
 function createLicenseManager(options = {}) {
   const appVersion = String(options.appVersion || '0.0.0');
-  const stateStore =
-    options.stateStore || createLicenseStateStore({ dataDir: options.dataDir });
+  const stateStore = options.stateStore || createLicenseStateStore({ dataDir: options.dataDir });
   const keyStore =
     options.keyStore ||
     createDeviceKeyStore({
       dataDir: options.dataDir,
       safeStorage: options.safeStorage,
     });
-  const fingerprintProvider =
-    options.fingerprintProvider || createHardwareFingerprint();
+  const fingerprintProvider = options.fingerprintProvider || createHardwareFingerprint();
   const remote =
     options.remoteClient ||
     createRemoteLicenseClient({
@@ -69,20 +58,11 @@ function createLicenseManager(options = {}) {
         appPath: options.appPath,
       }));
   const runtimeId = String(options.runtimeId || `lira:${crypto.randomUUID()}`);
-  const randomSource =
-    typeof options.randomSource === 'function'
-      ? options.randomSource
-      : Math.random;
+  const randomSource = typeof options.randomSource === 'function' ? options.randomSource : Math.random;
   const suppliedTimers = options.timers || {};
   const timers = {
-    setTimeout:
-      typeof suppliedTimers.setTimeout === 'function'
-        ? suppliedTimers.setTimeout
-        : setTimeout,
-    clearTimeout:
-      typeof suppliedTimers.clearTimeout === 'function'
-        ? suppliedTimers.clearTimeout
-        : clearTimeout,
+    setTimeout: typeof suppliedTimers.setTimeout === 'function' ? suppliedTimers.setTimeout : setTimeout,
+    clearTimeout: typeof suppliedTimers.clearTimeout === 'function' ? suppliedTimers.clearTimeout : clearTimeout,
   };
   const renewalRetryPolicy = createRetryPolicy({
     jitter: () => randomSource(),
@@ -106,17 +86,16 @@ function createLicenseManager(options = {}) {
   let lifecycleGeneration = 0;
   let authorizationEpoch = 0;
   const listeners = new Set();
-  const { handleAuthError, handleProtectedRequestError, isBlockedCode } =
-    createLicenseErrorHandlers({
-      states: LicenseState,
-      isDisposed: () => disposed,
-      getState: () => state,
-      hasAccessToken: () => Boolean(accessToken),
-      getTokenExpiresAt: () => tokenExpiresAt,
-      clearSession,
-      resetRetryPolicy: () => renewalRetryPolicy.reset(),
-      setState,
-    });
+  const { handleAuthError, handleProtectedRequestError, isBlockedCode } = createLicenseErrorHandlers({
+    states: LicenseState,
+    isDisposed: () => disposed,
+    getState: () => state,
+    hasAccessToken: () => Boolean(accessToken),
+    getTokenExpiresAt: () => tokenExpiresAt,
+    clearSession,
+    resetRetryPolicy: () => renewalRetryPolicy.reset(),
+    setState,
+  });
 
   function getState() {
     if (state === LicenseState.AUTHORIZED && tokenExpiresAt <= Date.now())
@@ -153,8 +132,7 @@ function createLicenseManager(options = {}) {
       error = 'DEVICE_TOKEN_EXPIRED';
     }
     const normalizedError = error || '';
-    if (disposed || (state === next && lastError === normalizedError))
-      return state;
+    if (disposed || (state === next && lastError === normalizedError)) return state;
     state = next;
     lastError = normalizedError;
     const snapshot = getSnapshot();
@@ -211,17 +189,13 @@ function createLicenseManager(options = {}) {
             });
             return state;
           } catch (error) {
-            if (getErrorCode(error) !== 'SIGNATURE_INVALID' || error.status !== 401)
-              throw error;
+            if (getErrorCode(error) !== 'SIGNATURE_INVALID' || error.status !== 401) throw error;
           }
         }
         const privateKeyPem = keyStore.loadPrivateKey();
         if (!privateKeyPem) {
           clearSession();
-          return setState(
-            LicenseState.NEEDS_ACTIVATION,
-            'DEVICE_KEY_UNAVAILABLE',
-          );
+          return setState(LicenseState.NEEDS_ACTIVATION, 'DEVICE_KEY_UNAVAILABLE');
         }
         await authenticate({
           identity,
@@ -244,8 +218,7 @@ function createLicenseManager(options = {}) {
   }
 
   async function activate(input = {}) {
-    if (disposed)
-      return { ok: false, state, error: 'LICENSE_MANAGER_DISPOSED' };
+    if (disposed) return { ok: false, state, error: 'LICENSE_MANAGER_DISPOSED' };
     if (busy) return busy;
     sessionId = '';
     renewalNotBefore = 0;
@@ -268,8 +241,7 @@ function createLicenseManager(options = {}) {
           deviceName: options.deviceName,
           isActive: () => isLifecycleActive(generation),
         });
-        if (!activation)
-          return { ok: false, state, error: 'LICENSE_MANAGER_DISPOSED' };
+        if (!activation) return { ok: false, state, error: 'LICENSE_MANAGER_DISPOSED' };
         identity = stateStore.write(activation.identity);
         activation.complete();
         const authenticated = await authenticate({
@@ -277,18 +249,14 @@ function createLicenseManager(options = {}) {
           privateKeyPem: activation.keyPair.privateKeyPem,
           generation,
         });
-        if (!authenticated)
-          return { ok: false, state, error: 'LICENSE_MANAGER_DISPOSED' };
+        if (!authenticated) return { ok: false, state, error: 'LICENSE_MANAGER_DISPOSED' };
         return {
           ok: true,
           state,
-          streamer: sanitizeStreamer(
-            profile?.streamer || activation.result.streamer,
-          ),
+          streamer: sanitizeStreamer(profile?.streamer || activation.result.streamer),
         };
       } catch (error) {
-        if (!isLifecycleActive(generation))
-          return { ok: false, state, error: getErrorCode(error) };
+        if (!isLifecycleActive(generation)) return { ok: false, state, error: getErrorCode(error) };
         clearSession();
         const next = handleAuthError(error);
         return { ok: false, state: next, error: getErrorCode(error) };
@@ -310,16 +278,12 @@ function createLicenseManager(options = {}) {
     assertAuthorizationContext(context);
     if (renewalPromise) await renewalPromise;
     assertAuthorizationContext(context);
-    if (
-      ![LicenseState.AUTHORIZED, LicenseState.NEEDS_CONNECTION].includes(state) ||
-      !accessToken
-    )
+    if (![LicenseState.AUTHORIZED, LicenseState.NEEDS_CONNECTION].includes(state) || !accessToken)
       throw new Error('LICENSE_NOT_AUTHORIZED');
     if (tokenExpiresAt && tokenExpiresAt <= Date.now()) {
       const renewed = await renew();
       assertAuthorizationContext(context);
-      if (!renewed || state !== LicenseState.AUTHORIZED || !accessToken)
-        throw new Error('LICENSE_NOT_AUTHORIZED');
+      if (!renewed || state !== LicenseState.AUTHORIZED || !accessToken) throw new Error('LICENSE_NOT_AUTHORIZED');
     }
     return accessToken;
   }
@@ -337,35 +301,20 @@ function createLicenseManager(options = {}) {
   function captureAuthorizationContext() {
     return {
       generation: lifecycleGeneration,
-      owner: JSON.stringify([
-        identity?.streamerId,
-        identity?.deviceId,
-        identity?.licenseId,
-      ]),
+      owner: JSON.stringify([identity?.streamerId, identity?.deviceId, identity?.licenseId]),
     };
   }
 
   function isAuthorizationContextActive(context) {
-    return (
-      isLifecycleActive(context.generation) &&
-      context.owner === captureAuthorizationContext().owner
-    );
+    return isLifecycleActive(context.generation) && context.owner === captureAuthorizationContext().owner;
   }
 
   function assertAuthorizationContext(context) {
     if (!isAuthorizationContextActive(context))
-      throw new RemoteLicenseError(
-        'LICENSE_NOT_AUTHORIZED',
-        'LICENSE_NOT_AUTHORIZED',
-      );
+      throw new RemoteLicenseError('LICENSE_NOT_AUTHORIZED', 'LICENSE_NOT_AUTHORIZED');
   }
 
-  async function withAuthorizedToken(
-    operation,
-    attempt = 0,
-    sanitize = true,
-    acceptResult = (result) => result,
-  ) {
+  async function withAuthorizedToken(operation, attempt = 0, sanitize = true, acceptResult = (result) => result) {
     // Token renewal stays inside one lifecycle; activation, blocking and
     // disposal invalidate its requests even when the same owner returns later.
     const context = captureAuthorizationContext();
@@ -384,11 +333,7 @@ function createLicenseManager(options = {}) {
       } catch (error) {
         if (!isAuthorizationContextActive(context)) throw error;
         const code = getErrorCode(error);
-        if (
-          currentAttempt < 1 &&
-          REAUTHENTICATE_CODES.has(code) &&
-          state === LicenseState.AUTHORIZED
-        ) {
+        if (currentAttempt < 1 && REAUTHENTICATE_CODES.has(code) && state === LicenseState.AUTHORIZED) {
           if (token !== accessToken && accessToken) {
             return execute(currentAttempt + 1);
           }
@@ -418,18 +363,12 @@ function createLicenseManager(options = {}) {
     beforeAccept,
   }) {
     const isAttemptActive = () =>
-      isLifecycleActive(generation) &&
-      (expectedToken === null || accessToken === expectedToken);
+      isLifecycleActive(generation) && (expectedToken === null || accessToken === expectedToken);
     if (!isAttemptActive()) return null;
-    const fingerprint = normalizeFingerprint(
-      await fingerprintProvider.collect(),
-    );
+    const fingerprint = normalizeFingerprint(await fingerprintProvider.collect());
     if (!isAttemptActive()) return null;
     if (countFingerprintValues(fingerprint) < 2)
-      throw new RemoteLicenseError(
-        'FINGERPRINT_UNAVAILABLE',
-        '无法读取足够的设备标识，暂时无法完成绑定。',
-      );
+      throw new RemoteLicenseError('FINGERPRINT_UNAVAILABLE', '无法读取足够的设备标识，暂时无法完成绑定。');
     const build = buildInfoProvider();
     const challenge = await remote.challenge({
       deviceId: currentIdentity.deviceId,
@@ -483,16 +422,9 @@ function createLicenseManager(options = {}) {
 
   function acceptAuthenticationResult(result, beforeAccept) {
     if (typeof result.sessionId !== 'string' || !result.sessionId.trim())
-      throw new RemoteLicenseError(
-        'DEVICE_SESSION_INVALID',
-        '授权服务器未返回有效会话标识。',
-      );
+      throw new RemoteLicenseError('DEVICE_SESSION_INVALID', '授权服务器未返回有效会话标识。');
     const nextAccessToken = String(result.accessToken || '');
-    if (!nextAccessToken)
-      throw new RemoteLicenseError(
-        'SIGNATURE_INVALID',
-        '授权服务器未返回有效会话。',
-      );
+    if (!nextAccessToken) throw new RemoteLicenseError('SIGNATURE_INVALID', '授权服务器未返回有效会话。');
     beforeAccept?.(result);
     accessToken = nextAccessToken;
     tokenExpiresAt = resolveTokenExpiresAt(result, Date.now());
@@ -510,10 +442,7 @@ function createLicenseManager(options = {}) {
     return result;
   }
 
-  async function renew({
-    preserveValidSession = true,
-    throwOnFailure = false,
-  } = {}) {
+  async function renew({ preserveValidSession = true, throwOnFailure = false } = {}) {
     if (disposed) return false;
     if (renewalPromise) return renewalPromise;
     if (renewalNotBefore > Date.now()) {
@@ -522,16 +451,10 @@ function createLicenseManager(options = {}) {
     }
     const context = captureAuthorizationContext();
     const operation = (async () => {
-      if (
-        !identity ||
-        ![LicenseState.AUTHORIZED, LicenseState.NEEDS_CONNECTION].includes(state)
-      ) return false;
+      if (!identity || ![LicenseState.AUTHORIZED, LicenseState.NEEDS_CONNECTION].includes(state)) return false;
       const expectedToken = accessToken;
       try {
-        if (!sessionId)
-          throw new RemoteLicenseError(
-            'DEVICE_SESSION_INVALID', '授权服务器未返回有效会话标识。',
-          );
+        if (!sessionId) throw new RemoteLicenseError('DEVICE_SESSION_INVALID', '授权服务器未返回有效会话标识。');
         const privateKeyPem = keyStore.loadPrivateKey();
         const result = await authenticate({
           identity,
@@ -553,12 +476,7 @@ function createLicenseManager(options = {}) {
           if (throwOnFailure) throw error;
           return false;
         }
-        if (
-          preserveValidSession &&
-          isRetryableAuthError(error) &&
-          accessToken &&
-          tokenExpiresAt > Date.now()
-        ) {
+        if (preserveValidSession && isRetryableAuthError(error) && accessToken && tokenExpiresAt > Date.now()) {
           scheduleRenewalRetry(error);
           return false;
         }
@@ -587,12 +505,7 @@ function createLicenseManager(options = {}) {
     if (backoff === null) {
       // Retries exhausted: stop hammering the server and surface the connection state.
       handleAuthError(
-        error ||
-          new RemoteLicenseError(
-            'NETWORK_UNAVAILABLE',
-            '授权服务器暂时不可用。',
-            { retryable: true },
-          ),
+        error || new RemoteLicenseError('NETWORK_UNAVAILABLE', '授权服务器暂时不可用。', { retryable: true }),
       );
       return;
     }
@@ -603,12 +516,15 @@ function createLicenseManager(options = {}) {
     );
     const generation = lifecycleGeneration;
     function scheduleRetry(delay) {
-      renewalTimer = timers.setTimeout(() => {
-        if (!isLifecycleActive(generation)) return;
-        const wait = renewalNotBefore - Date.now();
-        if (wait > 0) scheduleRetry(wait);
-        else renew().catch(() => {});
-      }, Math.min(MAX_TIMER_DELAY_MS, delay));
+      renewalTimer = timers.setTimeout(
+        () => {
+          if (!isLifecycleActive(generation)) return;
+          const wait = renewalNotBefore - Date.now();
+          if (wait > 0) scheduleRetry(wait);
+          else renew().catch(() => {});
+        },
+        Math.min(MAX_TIMER_DELAY_MS, delay),
+      );
       renewalTimer.unref?.();
     }
     scheduleRetry(retryDelay);
@@ -621,11 +537,7 @@ function createLicenseManager(options = {}) {
     timers.clearTimeout(heartbeatTimer);
     const renewDelay = Math.min(
       MAX_TIMER_DELAY_MS,
-      Math.max(
-        1,
-        Math.min(30000, (tokenExpiresAt - Date.now()) / 2),
-        tokenExpiresAt - Date.now() - RENEW_EARLY_MS,
-      ),
+      Math.max(1, Math.min(30000, (tokenExpiresAt - Date.now()) / 2), tokenExpiresAt - Date.now() - RENEW_EARLY_MS),
     );
     renewalTimer = timers.setTimeout(() => {
       renew().catch(() => {});
@@ -641,8 +553,7 @@ function createLicenseManager(options = {}) {
     heartbeatTimer = timers.setTimeout(async () => {
       heartbeatTimer = null;
       await heartbeatNow();
-      if (isLifecycleActive(generation) && state === LicenseState.AUTHORIZED)
-        scheduleHeartbeat();
+      if (isLifecycleActive(generation) && state === LicenseState.AUTHORIZED) scheduleHeartbeat();
     }, HEARTBEAT_INTERVAL_MS);
     heartbeatTimer.unref?.();
   }
@@ -677,13 +588,11 @@ function createLicenseManager(options = {}) {
     }
     timers.clearTimeout(heartbeatTimer);
     heartbeatTimer = null;
-    if (state === LicenseState.NEEDS_CONNECTION)
-      return bootstrap({ allowTakeover: false });
+    if (state === LicenseState.NEEDS_CONNECTION) return bootstrap({ allowTakeover: false });
     if (state !== LicenseState.AUTHORIZED) return false;
     const generation = lifecycleGeneration;
     const result = await heartbeatNow();
-    if (isLifecycleActive(generation) && state === LicenseState.AUTHORIZED)
-      scheduleHeartbeat();
+    if (isLifecycleActive(generation) && state === LicenseState.AUTHORIZED) scheduleHeartbeat();
     return result;
   }
 
@@ -715,8 +624,7 @@ function createLicenseManager(options = {}) {
   const operations = createLicenseOperations({
     remote,
     withAuthorizedToken,
-    withAuthorizedSecret: (operation) =>
-      withAuthorizedToken(operation, 0, false),
+    withAuthorizedSecret: (operation) => withAuthorizedToken(operation, 0, false),
     isDisposed: () => disposed,
     getOverlayOwner: () => JSON.stringify([identity?.streamerId, identity?.deviceId]),
     setProfile: (value) => {
@@ -732,9 +640,7 @@ function createLicenseManager(options = {}) {
     getSnapshot,
     getAuthorizationEpoch,
     getCloudSyncIdentity: () =>
-      identity
-        ? { streamerId: identity.streamerId, accountName: identity.accountName }
-        : null,
+      identity ? { streamerId: identity.streamerId, accountName: identity.accountName } : null,
     onStateChanged,
     bootstrap,
     activate,

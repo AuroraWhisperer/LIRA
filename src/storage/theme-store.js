@@ -106,9 +106,7 @@ const SCOPE_KEYS = {
 
 function normalizeScope(scope) {
   const value = cleanText(scope) || 'all';
-  return Object.prototype.hasOwnProperty.call(SCOPE_KEYS, value)
-    ? value
-    : 'all';
+  return Object.prototype.hasOwnProperty.call(SCOPE_KEYS, value) ? value : 'all';
 }
 
 function keysForScope(scope) {
@@ -141,9 +139,7 @@ function createThemeStore(db, settingsStore) {
     },
 
     get(id) {
-      const row = db
-        .prepare('SELECT * FROM theme_presets WHERE id = ?')
-        .get(Number(id) || 0);
+      const row = db.prepare('SELECT * FROM theme_presets WHERE id = ?').get(Number(id) || 0);
       return row ? mapPresetRow(row) : null;
     },
 
@@ -155,9 +151,7 @@ function createThemeStore(db, settingsStore) {
       const payload = extractThemePayload(settingsStore.getSettings(), scope);
       const timestamp = now();
 
-      const existing = db
-        .prepare('SELECT id, is_builtin FROM theme_presets WHERE name = ?')
-        .get(name);
+      const existing = db.prepare('SELECT id, is_builtin FROM theme_presets WHERE name = ?').get(name);
       if (existing && Number(existing.is_builtin) === 1) {
         throw new Error('内置预设不能覆盖，请换一个名称。');
       }
@@ -173,12 +167,7 @@ function createThemeStore(db, settingsStore) {
         return this.get(existing.id);
       }
 
-      const nextOrder =
-        (
-          db
-            .prepare('SELECT MAX(sort_order) AS max FROM theme_presets')
-            .get() || {}
-        ).max || 0;
+      const nextOrder = (db.prepare('SELECT MAX(sort_order) AS max FROM theme_presets').get() || {}).max || 0;
       const result = db
         .prepare(
           `
@@ -186,14 +175,7 @@ function createThemeStore(db, settingsStore) {
         VALUES (?, ?, ?, 0, ?, ?, ?)
       `,
         )
-        .run(
-          name,
-          scope,
-          JSON.stringify(payload),
-          Number(nextOrder) + 1,
-          timestamp,
-          timestamp,
-        );
+        .run(name, scope, JSON.stringify(payload), Number(nextOrder) + 1, timestamp, timestamp);
       return this.get(result.lastInsertRowid);
     },
 
@@ -225,13 +207,9 @@ function createThemeStore(db, settingsStore) {
       if (preset.isBuiltin) throw new Error('内置预设不能重命名。');
       const name = cleanText(nextName).slice(0, 60);
       if (!name) throw new Error('缺少预设名称。');
-      const clash = db
-        .prepare('SELECT id FROM theme_presets WHERE name = ? AND id != ?')
-        .get(name, preset.id);
+      const clash = db.prepare('SELECT id FROM theme_presets WHERE name = ? AND id != ?').get(name, preset.id);
       if (clash) throw new Error('已有同名预设。');
-      db.prepare(
-        'UPDATE theme_presets SET name = ?, updated_at = ? WHERE id = ?',
-      ).run(name, now(), preset.id);
+      db.prepare('UPDATE theme_presets SET name = ?, updated_at = ? WHERE id = ?').run(name, now(), preset.id);
       return this.get(preset.id);
     },
   };
@@ -280,10 +258,7 @@ function seedThemePresets(db, defaultSettings) {
   for (const row of currentRows) current[row.key] = row.value;
   const currentPayload = extractThemePayload(current, 'all');
 
-  const differs = ALL_THEME_KEYS.some(
-    (key) =>
-      String(currentPayload[key] ?? '') !== String(builtinPayload[key] ?? ''),
-  );
+  const differs = ALL_THEME_KEYS.some((key) => String(currentPayload[key] ?? '') !== String(builtinPayload[key] ?? ''));
   if (!differs) return;
 
   db.prepare(

@@ -6,12 +6,7 @@
  * The browser and preload objects are passed in so this module remains a
  * focused UI adapter and does not reach through the Admin compatibility bag.
  */
-export function initBilibiliAuth({
-  documentRef,
-  windowRef,
-  toast,
-  logoutConfirm,
-}) {
+export function initBilibiliAuth({ documentRef, windowRef, toast, logoutConfirm }) {
   const statusEl = documentRef.getElementById('bilibiliAuthStatus');
   const profileEl = documentRef.getElementById('bilibiliAuthProfile');
   const avatarEl = documentRef.getElementById('bilibiliAuthAvatar');
@@ -34,10 +29,7 @@ export function initBilibiliAuth({
   function renderProfile(profile, fallbackUid) {
     const uid = Number(profile?.uid) || Number(fallbackUid) || 0;
     const name = String(profile?.name || '').trim();
-    const avatarSource = bilibiliAvatarSource(
-      profile?.avatarUrl,
-      windowRef.__API_TOKEN__,
-    );
+    const avatarSource = bilibiliAvatarSource(profile?.avatarUrl, windowRef.__API_TOKEN__);
 
     profileEl.hidden = !uid && !name && !avatarSource;
     uidEl.textContent = uid ? `UID: ${uid}` : '';
@@ -46,11 +38,7 @@ export function initBilibiliAuth({
     else nameEl.removeAttribute('title');
 
     avatarEl.hidden = !avatarSource;
-    avatarEl.alt = avatarSource
-      ? name
-        ? `${name}的头像`
-        : '直播账号头像'
-      : '';
+    avatarEl.alt = avatarSource ? (name ? `${name}的头像` : '直播账号头像') : '';
     if (avatarSource) avatarEl.src = avatarSource;
     else avatarEl.removeAttribute('src');
   }
@@ -118,12 +106,8 @@ export function initBilibiliAuth({
       if (result?.state) {
         await refreshAuthState();
         if (result.state.loggedIn) {
-          documentRef.dispatchEvent(
-            new CustomEvent('app:bilibili-auth-changed'),
-          );
-          toast(
-            '直播账号已在本机登录', { type: 'success' },
-          );
+          documentRef.dispatchEvent(new CustomEvent('app:bilibili-auth-changed'));
+          toast('直播账号已在本机登录', { type: 'success' });
         }
       }
     } catch (error) {
@@ -151,9 +135,7 @@ export function initBilibiliAuth({
       await windowRef.bilibiliAuth.logout();
       await refreshAuthState();
       documentRef.dispatchEvent(new CustomEvent('app:bilibili-auth-changed'));
-      toast(
-        '直播账号已在本机退出', { type: 'success' },
-      );
+      toast('直播账号已在本机退出', { type: 'success' });
     } catch (error) {
       toast('退出失败：' + (error.message || String(error)), { type: 'error' });
     } finally {

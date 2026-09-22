@@ -2,13 +2,7 @@
 
 const { findLatestSongEntry, loadWeSingLyrics } = require('./wesing-cache');
 
-async function resolveWeSingLyrics({
-  cachePath,
-  title,
-  cacheReady,
-  durationMs,
-  resolveFallbackLyrics,
-}) {
+async function resolveWeSingLyrics({ cachePath, title, cacheReady, durationMs, resolveFallbackLyrics }) {
   let result = null;
   let fallbackError = null;
   let detectedArtist = '';

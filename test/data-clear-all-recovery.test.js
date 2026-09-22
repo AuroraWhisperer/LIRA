@@ -63,20 +63,8 @@ test('clear-all route resumes writers after a fully rolled-back exception', asyn
     throw failure;
   });
 
-  await assert.rejects(
-    clearAllRoute(
-      context,
-      { body: async () => ({ confirm: true }) },
-      createResponse(),
-    ),
-    failure,
-  );
-  assert.deepEqual(calls, [
-    'gifts:pause',
-    'overtime:pause',
-    'overtime:resume',
-    'gifts:resume',
-  ]);
+  await assert.rejects(clearAllRoute(context, { body: async () => ({ confirm: true }) }, createResponse()), failure);
+  assert.deepEqual(calls, ['gifts:pause', 'overtime:pause', 'overtime:resume', 'gifts:resume']);
 });
 
 test('clear-all route keeps writers paused after a partial commit failure', async () => {
@@ -89,20 +77,12 @@ test('clear-all route keeps writers paused after a partial commit failure', asyn
   const { context, calls } = createRouteContext(() => result);
   const response = createResponse();
 
-  await clearAllRoute(
-    context,
-    { body: async () => ({ confirm: true }) },
-    response,
-  );
+  await clearAllRoute(context, { body: async () => ({ confirm: true }) }, response);
 
   assert.equal(response.status, 500);
   assert.equal(response.payload.partial, true);
   assert.deepEqual(response.payload.data, result);
-  assert.deepEqual(calls, [
-    'gifts:pause',
-    'overtime:pause',
-    'music:clear-cache',
-  ]);
+  assert.deepEqual(calls, ['gifts:pause', 'overtime:pause', 'music:clear-cache']);
 });
 
 test('partial clear-all rebuilds when the gift projection already committed', async () => {
@@ -122,20 +102,11 @@ test('partial clear-all rebuilds when the gift projection already committed', as
   };
   const response = createResponse();
 
-  await clearAllRoute(
-    context,
-    { body: async () => ({ confirm: true }) },
-    response,
-  );
+  await clearAllRoute(context, { body: async () => ({ confirm: true }) }, response);
 
   assert.equal(response.status, 500);
   assert.equal(response.payload.partial, true);
-  assert.deepEqual(calls, [
-    'gifts:pause',
-    'overtime:pause',
-    'music:clear-cache',
-    'gift-sync:rebuild',
-  ]);
+  assert.deepEqual(calls, ['gifts:pause', 'overtime:pause', 'music:clear-cache', 'gift-sync:rebuild']);
 });
 
 test('clear-all route resumes writers and broadcasts after success', async () => {
@@ -145,11 +116,7 @@ test('clear-all route resumes writers and broadcasts after success', async () =>
   }));
   const response = createResponse();
 
-  await clearAllRoute(
-    context,
-    { body: async () => ({ confirm: true }) },
-    response,
-  );
+  await clearAllRoute(context, { body: async () => ({ confirm: true }) }, response);
 
   assert.equal(response.status, 200);
   assert.equal(response.payload.ok, true);
@@ -176,11 +143,7 @@ test('successful projection clears trigger a gift bootstrap rebuild', async () =
     },
   };
 
-  await clearAllRoute(
-    context,
-    { body: async () => ({ confirm: true }) },
-    createResponse(),
-  );
+  await clearAllRoute(context, { body: async () => ({ confirm: true }) }, createResponse());
 
   assert.deepEqual(calls, [
     'gifts:pause',
@@ -226,11 +189,7 @@ test('gift database clear deletes remotely before clearing and rebuilding locall
   };
   const response = createResponse();
 
-  await clearGiftsRoute(
-    context,
-    { body: async () => ({ confirm: true }) },
-    response,
-  );
+  await clearGiftsRoute(context, { body: async () => ({ confirm: true }) }, response);
 
   assert.equal(response.status, 200);
   assert.equal(response.payload.ok, true);
@@ -238,12 +197,7 @@ test('gift database clear deletes remotely before clearing and rebuilding locall
     giftEvents: 12,
     giftEventDeliveries: 10,
   });
-  assert.deepEqual(calls, [
-    'remote:clear',
-    'local:clear',
-    'gift-sync:rebuild',
-    'broadcast:database:clear-gifts',
-  ]);
+  assert.deepEqual(calls, ['remote:clear', 'local:clear', 'gift-sync:rebuild', 'broadcast:database:clear-gifts']);
 });
 
 test('gift database clear preserves local data when server deletion fails', async () => {
@@ -266,17 +220,10 @@ test('gift database clear preserves local data when server deletion fails', asyn
   };
   const response = createResponse();
 
-  await clearGiftsRoute(
-    context,
-    { body: async () => ({ confirm: true }) },
-    response,
-  );
+  await clearGiftsRoute(context, { body: async () => ({ confirm: true }) }, response);
 
   assert.equal(response.status, 502);
-  assert.equal(
-    response.payload.error,
-    '服务器礼物流水清理失败，本地数据未删除。',
-  );
+  assert.equal(response.payload.error, '服务器礼物流水清理失败，本地数据未删除。');
   assert.deepEqual(calls, ['remote:clear']);
 });
 
@@ -310,18 +257,11 @@ test('gift database clear reports a partial result and rebuilds after local fail
   };
   const response = createResponse();
 
-  await clearGiftsRoute(
-    context,
-    { body: async () => ({ confirm: true }) },
-    response,
-  );
+  await clearGiftsRoute(context, { body: async () => ({ confirm: true }) }, response);
 
   assert.equal(response.status, 500);
   assert.equal(response.payload.partial, true);
-  assert.equal(
-    response.payload.error,
-    '服务器礼物流水已清空，但本地清理失败，正在重新同步。',
-  );
+  assert.equal(response.payload.error, '服务器礼物流水已清空，但本地清理失败，正在重新同步。');
   assert.deepEqual(calls, ['remote:clear', 'local:clear', 'gift-sync:rebuild']);
 });
 
@@ -332,23 +272,20 @@ test('shared api preserves the parsed error payload and HTTP status', async () =
     error: 'Commit failed at superChatDb',
     data: { committed: ['songDb'], failed: ['superChatDb'] },
   };
-  const utils = await loadModuleExports(
-    path.join(ROOT_DIR, 'public', 'js', 'shared', 'utils.js'),
-    {
-      document: {
-        getElementById() {
-          return null;
-        },
+  const utils = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'shared', 'utils.js'), {
+    document: {
+      getElementById() {
+        return null;
       },
-      fetch: async () => ({
-        ok: false,
-        status: 500,
-        async text() {
-          return JSON.stringify(payload);
-        },
-      }),
     },
-  );
+    fetch: async () => ({
+      ok: false,
+      status: 500,
+      async text() {
+        return JSON.stringify(payload);
+      },
+    }),
+  });
 
   let caught;
   try {

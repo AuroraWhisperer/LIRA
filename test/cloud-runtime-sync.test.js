@@ -19,9 +19,7 @@ test('room account preparation reaches the runtime without dirty echo or metadat
     licenseGate: { isAuthorized: () => true },
   });
   const dirty = [];
-  const unsubscribe = runtime.onCloudSyncRequested((scope) =>
-    dirty.push(scope),
-  );
+  const unsubscribe = runtime.onCloudSyncRequested((scope) => dirty.push(scope));
   try {
     await runtime.start({ host: '127.0.0.1', startPort: 0 });
     const adapter = createDesktopRuntime({
@@ -40,10 +38,7 @@ test('room account preparation reaches the runtime without dirty echo or metadat
     assert.equal(adapter.prepareCloudRoomAccount('second'), true);
     assert.equal(runtime.getCloudSettingsSnapshot().roomId, '');
     assert.equal(runtime.getSetting('cloudRoomAccountKey'), undefined);
-    assert.equal(
-      runtime.getCloudSettingsSnapshot().cloudRoomAccountKey,
-      undefined,
-    );
+    assert.equal(runtime.getCloudSettingsSnapshot().cloudRoomAccountKey, undefined);
     assert.deepEqual(dirty, []);
   } finally {
     unsubscribe();
@@ -53,9 +48,7 @@ test('room account preparation reaches the runtime without dirty echo or metadat
 });
 
 test('previewed song updates run through the API facade and request one complete cloud snapshot', async () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'song-import-update-runtime-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-import-update-runtime-'));
   const runtime = createServerRuntime({
     dataDir,
     licenseGate: { isAuthorized: () => true },
@@ -118,21 +111,18 @@ test('previewed song updates run through the API facade and request one complete
     assert.equal(applied.status, 200);
     assert.equal(snapshots.length, 1);
     assert.equal(snapshots[0].length, 2);
-    assert.equal(
-      snapshots[0].find((song) => song.name === '本地原曲').request_price,
-      '30元SC',
-    );
-    assert.equal(
-      snapshots[0].find((song) => song.name === '本地原曲').source_platform,
-      'QQ音乐',
-    );
+    assert.equal(snapshots[0].find((song) => song.name === '本地原曲').request_price, '30元SC');
+    assert.equal(snapshots[0].find((song) => song.name === '本地原曲').source_platform, 'QQ音乐');
     const pending = adapter.getPendingCloudSongs(accountKey);
     assert.equal(pending.songs.length, 2);
     assert.equal(pending.songs.find((song) => song.name === '本地原曲').request_price, '30元SC');
     const response = await fetch(`${server.baseUrl}/api/state`, { headers });
     assert.equal(response.status, 200);
     const settings = (await response.json()).data.settings;
-    assert.equal(Object.keys(settings).some((key) => key.startsWith('cloudSongSyncPending:')), false);
+    assert.equal(
+      Object.keys(settings).some((key) => key.startsWith('cloudSongSyncPending:')),
+      false,
+    );
     assert.equal(adapter.acknowledgePendingCloudSongs(accountKey, pending.mutationId), true);
     assert.equal(adapter.getPendingCloudSongs(accountKey), null);
     assert.equal(snapshots.length, 1, 'acknowledgement does not emit a dirty echo');
@@ -203,27 +193,16 @@ test('cloud song replacement is atomic, deduplicates local identities, and prese
         { name: '第二首', artist: '', is_enabled: 1 },
       ],
     );
-    assert.equal(
-      songDb
-        .prepare('SELECT name FROM song_categories WHERE name=?')
-        .get('旧分类'),
-      undefined,
-    );
+    assert.equal(songDb.prepare('SELECT name FROM song_categories WHERE name=?').get('旧分类'), undefined);
     assert.deepEqual(
       {
-        ...songDb
-          .prepare('SELECT song_id,song_name FROM queue WHERE id=?')
-          .get(queueItem.id),
+        ...songDb.prepare('SELECT song_id,song_name FROM queue WHERE id=?').get(queueItem.id),
       },
       { song_id: null, song_name: '旧歌曲' },
     );
     assert.deepEqual(
       {
-        ...songDb
-          .prepare(
-            'SELECT song_id,song_name,message FROM requests WHERE queue_id=?',
-          )
-          .get(queueItem.id),
+        ...songDb.prepare('SELECT song_id,song_name,message FROM requests WHERE queue_id=?').get(queueItem.id),
       },
       { song_id: null, song_name: '旧歌曲', message: '点歌 旧歌曲' },
     );
@@ -240,14 +219,11 @@ test('runtime applies cloud snapshots without echo and emits dirty scopes after 
     licenseGate: { isAuthorized: () => true },
   });
   const dirty = [];
-  const unsubscribe = runtime.onCloudSyncRequested((scope) =>
-    dirty.push(scope),
-  );
+  const unsubscribe = runtime.onCloudSyncRequested((scope) => dirty.push(scope));
 
   try {
     const server = await runtime.start({ host: '127.0.0.1', startPort: 0 });
-    const localBlindBoxConfig =
-      runtime.getCloudSettingsSnapshot().giftBlindBoxConfig;
+    const localBlindBoxConfig = runtime.getCloudSettingsSnapshot().giftBlindBoxConfig;
     runtime.applyCloudSettingsSnapshot({
       roomId: 'https://live.bilibili.com/1963694209',
       enableBilibili: false,
@@ -342,10 +318,7 @@ test('runtime applies cloud snapshots without echo and emits dirty scopes after 
       headers,
     });
     assert.equal(stateResponse.status, 200);
-    assert.deepEqual(
-      (await stateResponse.json()).data.blindBoxMapping,
-      mappingState,
-    );
+    assert.deepEqual((await stateResponse.json()).data.blindBoxMapping, mappingState);
     const settingsResponse = await fetch(`${server.baseUrl}/api/settings`, {
       method: 'POST',
       headers,
@@ -367,9 +340,7 @@ test('runtime applies cloud snapshots without echo and emits dirty scopes after 
 });
 
 test('local song mutations emit complete snapshots for cloud upload', async () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'cloud-song-mutations-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cloud-song-mutations-'));
   const runtime = createServerRuntime({
     dataDir,
     licenseGate: { isAuthorized: () => true },
@@ -487,10 +458,7 @@ test('runtime exposes the transactional gift projection sync surface', async () 
     });
     assert.equal(partial.bootstrapPageToken, 'opaque-page-token');
 
-    const restarted = runtime.restartGiftHistoryBootstrap(
-      source.id,
-      initial.projectionGeneration,
-    );
+    const restarted = runtime.restartGiftHistoryBootstrap(source.id, initial.projectionGeneration);
     assert.equal(restarted.bootstrapPageToken, null);
     assert.equal(restarted.bootstrapRecoveryCursor, null);
     assert.equal(restarted.bootstrapSyncEpoch, null);

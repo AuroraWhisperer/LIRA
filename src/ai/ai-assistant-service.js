@@ -8,11 +8,7 @@ const {
   buildOutputReviewPrompt,
   parseSafetyReview,
 } = require('./safety');
-const {
-  isAiReady,
-  applyModelProviderPreset,
-  assertSavedModelKeyOrigin,
-} = require('./config');
+const { isAiReady, applyModelProviderPreset, assertSavedModelKeyOrigin } = require('./config');
 const { createOrderedAsyncCoordinator } = require('./async-coordinator');
 const { getQuotaToolNames } = require('./api-quota-store');
 const assistantHelpers = require('./ai-assistant-helpers');
@@ -88,19 +84,16 @@ function createAiAssistantService(dependencies) {
   function handleDanmaku(danmaku = {}) {
     if (shuttingDown) return { accepted: false, reason: 'stopped' };
     const config = store.getConfig();
-    if (!isAiReady(config))
-      return { accepted: false, reason: 'disabled_or_unconfigured' };
+    if (!isAiReady(config)) return { accepted: false, reason: 'disabled_or_unconfigured' };
     const message = cleanText(danmaku.message);
     const question = extractTriggeredQuestion(message, config.trigger);
     if (question === null) return { accepted: false, reason: 'not_triggered' };
     const uid = cleanText(danmaku.uid) || `name:${cleanText(danmaku.userName)}`;
-    if (store.isBlacklisted(uid))
-      return { accepted: false, reason: 'blacklisted' };
+    if (store.isBlacklisted(uid)) return { accepted: false, reason: 'blacklisted' };
     const localSafety = checkLocalInput(question);
     const rateReason = consumeRateLimit(uid, config);
     if (rateReason) return { accepted: false, reason: rateReason };
-    if (coordinator.getStatus().queued >= config.queueLimit)
-      return { accepted: false, reason: 'queue_full' };
+    if (coordinator.getStatus().queued >= config.queueLimit) return { accepted: false, reason: 'queue_full' };
     if (!localSafety.allowed) {
       return enqueueReply({
         ...normalizeDanmaku(danmaku, uid),
@@ -120,13 +113,10 @@ function createAiAssistantService(dependencies) {
   function consumeRateLimit(uid, config) {
     const current = now();
     const last = userLastRequest.get(uid) || 0;
-    if (last && current - last < config.userCooldownSeconds * 1000)
-      return 'user_rate_limited';
+    if (last && current - last < config.userCooldownSeconds * 1000) return 'user_rate_limited';
     const cutoff = current - 60000;
-    while (roomRequests.length && roomRequests[0] <= cutoff)
-      roomRequests.shift();
-    if (roomRequests.length >= config.roomLimitPerMinute)
-      return 'room_rate_limited';
+    while (roomRequests.length && roomRequests[0] <= cutoff) roomRequests.shift();
+    if (roomRequests.length >= config.roomLimitPerMinute) return 'room_rate_limited';
     userLastRequest.set(uid, current);
     roomRequests.push(current);
     pruneUserLastRequest(current, config);
@@ -137,10 +127,7 @@ function createAiAssistantService(dependencies) {
   function pruneUserLastRequest(current, config) {
     if (current - lastUserMapPruneAt < 60000) return;
     lastUserMapPruneAt = current;
-    const retentionMs = Math.max(
-      60000,
-      Number(config.userCooldownSeconds) * 1000 + 60000,
-    );
+    const retentionMs = Math.max(60000, Number(config.userCooldownSeconds) * 1000 + 60000);
     const expireBefore = current - retentionMs;
     for (const [uid, timestamp] of userLastRequest) {
       if (timestamp < expireBefore) userLastRequest.delete(uid);
@@ -166,9 +153,7 @@ function createAiAssistantService(dependencies) {
         item.conversationContext = store.getContext(item.uid);
       }
       const context = item.conversationContext;
-      const excludedToolNames = new Set(
-        quotaStore?.getExcludedToolNames?.() || [],
-      );
+      const excludedToolNames = new Set(quotaStore?.getExcludedToolNames?.() || []);
       // The store persists only the key hash, not config secrets or context text.
       const cacheKey = JSON.stringify([
         'reply-v2',
@@ -183,12 +168,7 @@ function createAiAssistantService(dependencies) {
       if (cached?.text) {
         return { ...cached, category: 'cache' };
       }
-      const inputReview = await runSafetyReview(
-        config,
-        buildInputReviewPrompt(item.question),
-        usage,
-        'input_review',
-      );
+      const inputReview = await runSafetyReview(config, buildInputReviewPrompt(item.question), usage, 'input_review');
       throwIfShuttingDown();
       if (!inputReview.allowed) {
         return {
@@ -200,10 +180,7 @@ function createAiAssistantService(dependencies) {
       }
 
       const input = buildConversationInput(item.question, context);
-      const replyBudget = getReplyLengthBudget(
-        item.userName,
-        config.replyMaxChars,
-      );
+      const replyBudget = getReplyLengthBudget(item.userName, config.replyMaxChars);
       let response = await deepseek.createResponse({
         config,
         instructions: buildReplyInstructions(
@@ -223,22 +200,12 @@ function createAiAssistantService(dependencies) {
       addUsage(usage, response.usage);
 
       while (response.functionCalls.length) {
-        if (
-          toolCallCount + response.functionCalls.length >
-          config.maxToolCalls
-        ) {
-          throw codedError(
-            'TOOL_LIMIT',
-            '工具调用次数太多，这次先不继续查了。',
-          );
+        if (toolCallCount + response.functionCalls.length > config.maxToolCalls) {
+          throw codedError('TOOL_LIMIT', '工具调用次数太多，这次先不继续查了。');
         }
         const outputs = [];
         for (const call of response.functionCalls) {
-          const result = await executeToolWithQuotaFallback(
-            call,
-            config,
-            excludedToolNames,
-          );
+          const result = await executeToolWithQuotaFallback(call, config, excludedToolNames);
           throwIfShuttingDown();
           outputs.push({
             type: 'function_call_output',
@@ -275,9 +242,7 @@ function createAiAssistantService(dependencies) {
         'output_review',
       );
       throwIfShuttingDown();
-      const approved = outputReview.allowed
-        ? outputReview.safeText || rawText
-        : outputReview.safeText || SAFE_REFUSAL;
+      const approved = outputReview.allowed ? outputReview.safeText || rawText : outputReview.safeText || SAFE_REFUSAL;
       const text = truncateReply(approved, replyBudget.threeMessages);
       const result = {
         text,
@@ -342,18 +307,12 @@ function createAiAssistantService(dependencies) {
 
   async function executeTool(call, config) {
     const options = { signal: shutdownController.signal };
-    if (call.name === 'get_weather')
-      return tools.qweather.getWeather(config, call.arguments, options);
-    if (call.name === 'search_places')
-      return tools.amap.searchPlaces(config, call.arguments, options);
-    if (call.name === 'resolve_location')
-      return tools.amap.resolveLocation(config, call.arguments, options);
-    if (call.name === 'get_route')
-      return tools.amap.getRoute(config, call.arguments, options);
-    if (call.name === 'web_search')
-      return tools.webSearch.search(config, call.arguments, options);
-    if (call.name === 'get_current_time')
-      return tools.getCurrentTime(call.arguments);
+    if (call.name === 'get_weather') return tools.qweather.getWeather(config, call.arguments, options);
+    if (call.name === 'search_places') return tools.amap.searchPlaces(config, call.arguments, options);
+    if (call.name === 'resolve_location') return tools.amap.resolveLocation(config, call.arguments, options);
+    if (call.name === 'get_route') return tools.amap.getRoute(config, call.arguments, options);
+    if (call.name === 'web_search') return tools.webSearch.search(config, call.arguments, options);
+    if (call.name === 'get_current_time') return tools.getCurrentTime(call.arguments);
     throw codedError('UNKNOWN_TOOL', '模型请求了未开放的工具。');
   }
 
@@ -378,14 +337,8 @@ function createAiAssistantService(dependencies) {
     let currentResult = result;
     for (let attempt = 1; attempt <= MAX_DELIVERY_ATTEMPTS; attempt += 1) {
       throwIfShuttingDown();
-      const chunkIntervalMs = randomIntervalMs(
-        random,
-        MIN_CHUNK_INTERVAL_MS,
-        MAX_CHUNK_INTERVAL_MS,
-      );
-      const waitMs = lastDeliveryAt
-        ? Math.max(0, randomReplyIntervalMs(random) - (now() - lastDeliveryAt))
-        : 0;
+      const chunkIntervalMs = randomIntervalMs(random, MIN_CHUNK_INTERVAL_MS, MAX_CHUNK_INTERVAL_MS);
+      const waitMs = lastDeliveryAt ? Math.max(0, randomReplyIntervalMs(random) - (now() - lastDeliveryAt)) : 0;
       if (waitMs) {
         await delay(waitMs);
         throwIfShuttingDown();
@@ -430,10 +383,7 @@ function createAiAssistantService(dependencies) {
         currentResult = await generateReply(item, { bypassCache: true });
       }
     }
-    throw codedError(
-      'DANMAKU_SWALLOWED',
-      'AI 回复连续三次未完整出现在直播间弹幕中。',
-    );
+    throw codedError('DANMAKU_SWALLOWED', 'AI 回复连续三次未完整出现在直播间弹幕中。');
   }
 
   async function testConfiguration() {
@@ -449,12 +399,9 @@ function createAiAssistantService(dependencies) {
     const config = store.getConfig();
     return runDirectOperation(() => {
       const options = { signal: shutdownController.signal };
-      if (provider === 'deepseek')
-        return deepseek.testConnection(config, options);
-      if (provider === 'qweather')
-        return tools.qweather.testConnection(config, options);
-      if (provider === 'amap')
-        return tools.amap.testConnection(config, options);
+      if (provider === 'deepseek') return deepseek.testConnection(config, options);
+      if (provider === 'qweather') return tools.qweather.testConnection(config, options);
+      if (provider === 'amap') return tools.amap.testConnection(config, options);
       throw codedError('AI_PROVIDER_UNKNOWN', '不支持该连接测试。');
     });
   }
@@ -464,8 +411,7 @@ function createAiAssistantService(dependencies) {
     const explicitKey = String(input.apiKey || '').trim();
     const requested = applyModelProviderPreset({
       ...config,
-      deepseekResponsesUrl:
-        String(input.apiUrl || '').trim() || config.deepseekResponsesUrl,
+      deepseekResponsesUrl: String(input.apiUrl || '').trim() || config.deepseekResponsesUrl,
       modelProvider: input.modelProvider || config.modelProvider,
       modelApiProtocol: input.modelApiProtocol || config.modelApiProtocol,
     });
@@ -517,10 +463,7 @@ function createAiAssistantService(dependencies) {
     shuttingDown = true;
     shutdownController.abort(createShutdownError());
     const coordinatorDrain = coordinator.stop();
-    shutdownPromise = Promise.allSettled([
-      coordinatorDrain,
-      ...directOperations,
-    ]).then(() => {});
+    shutdownPromise = Promise.allSettled([coordinatorDrain, ...directOperations]).then(() => {});
     return shutdownPromise;
   }
 

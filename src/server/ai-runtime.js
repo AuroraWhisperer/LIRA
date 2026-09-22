@@ -11,26 +11,16 @@ const { createAmapTool } = require('../ai/tools/amap-tool');
 const { createWebSearchTool } = require('../ai/tools/web-search-tool');
 const { getCurrentTime } = require('../ai/tools/current-time-tool');
 const { createAiAssistantService } = require('../ai/ai-assistant-service');
-const {
-  createDanmakuDeliveryVerifier,
-} = require('../ai/danmaku-delivery-verifier');
+const { createDanmakuDeliveryVerifier } = require('../ai/danmaku-delivery-verifier');
 
-function buildAiRuntime({
-  songDb,
-  runtimeOptions = {},
-  aiLogPath,
-  danmakuSender,
-}) {
+function buildAiRuntime({ songDb, runtimeOptions = {}, aiLogPath, danmakuSender }) {
   const configStore = createAiConfigStore(
     songDb,
-    runtimeOptions.aiSecretCodec ||
-      createElectronSecretCodec(runtimeOptions.safeStorage),
+    runtimeOptions.aiSecretCodec || createElectronSecretCodec(runtimeOptions.safeStorage),
   );
   const quotaStore = createAiApiQuotaStore(songDb);
   const deliveryVerifier = createDanmakuDeliveryVerifier();
-  const requestLogger =
-    runtimeOptions.aiRequestLogger ||
-    createAiRequestLogger({ logDir: path.dirname(aiLogPath) });
+  const requestLogger = runtimeOptions.aiRequestLogger || createAiRequestLogger({ logDir: path.dirname(aiLogPath) });
   const service = createAiAssistantService({
     store: configStore,
     quotaStore,
@@ -47,8 +37,7 @@ function buildAiRuntime({
       webSearch: createWebSearchTool({ fetchImpl: runtimeOptions.fetchImpl }),
       getCurrentTime,
     },
-    sendReply: (input) =>
-      danmakuSender.send({ ...input, waitForRateLimit: true }),
+    sendReply: (input) => danmakuSender.send({ ...input, waitForRateLimit: true }),
     waitForDelivery: (delivery) => deliveryVerifier.waitForDelivery(delivery),
   });
   let shutdownPromise = null;

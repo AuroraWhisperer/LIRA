@@ -8,11 +8,7 @@ const { execFileSync } = require('node:child_process');
 const LOCK_PATH = path.resolve(__dirname, '../server-contract.lock.json');
 
 function resolveServerRoot(serverRoot) {
-  return path.resolve(
-    serverRoot ||
-      process.env.LIRA_SERVER_ROOT ||
-      path.join(__dirname, '../../lira-server'),
-  );
+  return path.resolve(serverRoot || process.env.LIRA_SERVER_ROOT || path.join(__dirname, '../../lira-server'));
 }
 
 function contractError(code, message) {
@@ -21,15 +17,11 @@ function contractError(code, message) {
 
 function git(serverRoot, args) {
   try {
-    return execFileSync(
-      'git',
-      ['--no-optional-locks', '-C', serverRoot, ...args],
-      {
-        encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'pipe'],
-        windowsHide: true,
-      },
-    ).trim();
+    return execFileSync('git', ['--no-optional-locks', '-C', serverRoot, ...args], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true,
+    }).trim();
   } catch {
     throw contractError(
       'SERVER_CONTRACT_CHECKOUT_REQUIRED',
@@ -117,17 +109,13 @@ if (require.main === module) {
     const args = process.argv.slice(2);
     const paths = args.filter((value) => value !== '--runtime');
     if (paths.length > 1 || paths.some((value) => value.startsWith('--'))) {
-      throw new Error(
-        'Usage: node scripts/verify-server-contract.js [--runtime] [server-root]',
-      );
+      throw new Error('Usage: node scripts/verify-server-contract.js [--runtime] [server-root]');
     }
     const result = verifyServerContract({
       serverRoot: paths[0],
       runtime: args.includes('--runtime'),
     });
-    console.log(
-      `Verified server ${result.revision}: ${result.fixtures.size} contract fixtures.`,
-    );
+    console.log(`Verified server ${result.revision}: ${result.fixtures.size} contract fixtures.`);
   } catch (error) {
     console.error(error.message);
     process.exitCode = 1;

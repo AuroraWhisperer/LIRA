@@ -33,10 +33,7 @@ function createFixture() {
   const content =
     '[ti:测试歌曲]\n[ar:测试歌手]\n[1000,1800]你(1000,800)好(1800,1000)\n[4000,1200]世(4000,600)界(4600,600)';
   const encrypted = Buffer.from(encryptQrc(qrcXml(content)), 'hex');
-  fs.writeFileSync(
-    path.join(qrcDir, `${mid}.qrc`),
-    Buffer.concat([Buffer.from('[offset:0]\n', 'utf8'), encrypted]),
-  );
+  fs.writeFileSync(path.join(qrcDir, `${mid}.qrc`), Buffer.concat([Buffer.from('[offset:0]\n', 'utf8'), encrypted]));
   return { root, cachePath, mid };
 }
 

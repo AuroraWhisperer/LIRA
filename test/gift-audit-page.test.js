@@ -11,23 +11,11 @@ const { loadModuleExports } = require('./helpers/frontend-modules');
 const ROOT_DIR = path.join(__dirname, '..');
 
 test('gift audit page loads dedicated assets without inline behavior', () => {
-  const html = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'pages', 'gift-audit.html'),
-    'utf8',
-  );
-  const entrySource = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'gift-audit', 'index.js'),
-    'utf8',
-  );
+  const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'gift-audit.html'), 'utf8');
+  const entrySource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'gift-audit', 'index.js'), 'utf8');
 
-  assert.match(
-    html,
-    /<link\s+rel="stylesheet"\s+href="\/css\/gift-audit\.css\?v=[^"]+"\s*\/?>/,
-  );
-  assert.match(
-    html,
-    /<script type="module" src="\/js\/gift-audit\/index\.js\?v=[^"]+"><\/script>/,
-  );
+  assert.match(html, /<link\s+rel="stylesheet"\s+href="\/css\/gift-audit\.css\?v=[^"]+"\s*\/?>/);
+  assert.match(html, /<script type="module" src="\/js\/gift-audit\/index\.js\?v=[^"]+"><\/script>/);
   assert.doesNotMatch(html, /<style>/);
   assert.doesNotMatch(html, /\sonclick=/);
   assert.match(entrySource, /from '\.\/analysis\.js';/);
@@ -35,19 +23,10 @@ test('gift audit page loads dedicated assets without inline behavior', () => {
 });
 
 test('packaged frontend excludes the retired gift debug page and links', () => {
-  const html = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'pages', 'gift-audit.html'),
-    'utf8',
-  );
-  const view = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'gift-audit', 'view.js'),
-    'utf8',
-  );
+  const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'gift-audit.html'), 'utf8');
+  const view = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'gift-audit', 'view.js'), 'utf8');
 
-  assert.equal(
-    fs.existsSync(path.join(ROOT_DIR, 'public', 'pages', 'debug-gifts.html')),
-    false,
-  );
+  assert.equal(fs.existsSync(path.join(ROOT_DIR, 'public', 'pages', 'debug-gifts.html')), false);
   assert.doesNotMatch(html, /debug-gifts/);
   assert.doesNotMatch(view, /debug-gifts/);
 });
@@ -80,32 +59,29 @@ test('gift audit consumes snapshot.state while the WebSocket remains open', asyn
       socket = this;
     }
   }
-  await loadModuleExports(
-    path.join(ROOT_DIR, 'public/js/gift-audit/index.js'),
-    {
-      location: { protocol: 'http:', host: 'localhost' },
-      WebSocket: FakeWebSocket,
-      document: { ...documentRef, getElementById: getElement },
-      window: windowRef,
-      clearTimeout() {},
-      setTimeout() {},
-      setInterval(callback) {
-        poll = callback;
-      },
-      async fetch() {
-        fetchCount += 1;
-        return {
-          json: async () => ({
-            ok: true,
-            data: {
-              liveStatus: { roomId: 'http-room' },
-              gifts: { recent: [] },
-            },
-          }),
-        };
-      },
+  await loadModuleExports(path.join(ROOT_DIR, 'public/js/gift-audit/index.js'), {
+    location: { protocol: 'http:', host: 'localhost' },
+    WebSocket: FakeWebSocket,
+    document: { ...documentRef, getElementById: getElement },
+    window: windowRef,
+    clearTimeout() {},
+    setTimeout() {},
+    setInterval(callback) {
+      poll = callback;
     },
-  );
+    async fetch() {
+      fetchCount += 1;
+      return {
+        json: async () => ({
+          ok: true,
+          data: {
+            liveStatus: { roomId: 'http-room' },
+            gifts: { recent: [] },
+          },
+        }),
+      };
+    },
+  });
   await new Promise(setImmediate);
   assert.match(getElement('connBar').innerHTML, /http-room/);
   socket.onopen();
@@ -137,16 +113,13 @@ test('gift audit consumes snapshot.state while the WebSocket remains open', asyn
     }),
   });
   poll();
-  getElement('bubbleHtml').value = '<div class="super-gift-item"><div class="user-name">用户A</div><span class="gift-name">小花花</span><div class="gift-frame gift-1-50"></div></div>';
+  getElement('bubbleHtml').value =
+    '<div class="super-gift-item"><div class="user-name">用户A</div><span class="gift-name">小花花</span><div class="gift-frame gift-1-50"></div></div>';
   await getElement('parseAndCompareBtn').click();
   assert.equal(getElement('statServer').textContent, 2);
   assert.match(getElement('comparisonBody').innerHTML, /小花花/);
   assert.match(getElement('comparisonBody').innerHTML, /辣条/);
-  assert.equal(
-    fetchCount,
-    1,
-    'open WebSocket snapshots populate the cache without HTTP refresh',
-  );
+  assert.equal(fetchCount, 1, 'open WebSocket snapshots populate the cache without HTTP refresh');
 });
 
 test('gift audit analysis parses bubbles without browser dependencies', async () => {
@@ -228,13 +201,7 @@ test('gift audit analysis separates matches, misses, and server-only gifts', asy
 });
 
 async function loadAnalysisModule() {
-  const filePath = path.join(
-    ROOT_DIR,
-    'public',
-    'js',
-    'gift-audit',
-    'analysis.js',
-  );
+  const filePath = path.join(ROOT_DIR, 'public', 'js', 'gift-audit', 'analysis.js');
   const module = new vm.SourceTextModule(fs.readFileSync(filePath, 'utf8'), {
     context: vm.createContext({}),
     identifier: pathToFileURL(filePath).href,

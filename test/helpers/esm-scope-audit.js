@@ -257,11 +257,7 @@ const IDENTIFIER_RE = /(?<![\w$])[A-Za-z_$][\w$]*/g;
 // position. `get`/`set`/`async`/`static` are deliberately absent so that a
 // method literally named `get` or `set` (e.g. CacheManager#set) still counts
 // as a declaration of its parameters.
-const CONTROL_KEYWORDS = new Set(
-  ['if', 'for', 'while', 'switch', 'catch', 'with', 'function']
-    .join(' ')
-    .split(' '),
-);
+const CONTROL_KEYWORDS = new Set(['if', 'for', 'while', 'switch', 'catch', 'with', 'function'].join(' ').split(' '));
 
 function balancedParens(text, openIdx) {
   let depth = 0;
@@ -294,8 +290,7 @@ function splitTopLevel(text, separator) {
   for (let k = 0; k < text.length; k += 1) {
     const ch = text[k];
     if (ch === '{' || ch === '[' || ch === '(') depth += 1;
-    else if (ch === '}' || ch === ']' || ch === ')')
-      depth = Math.max(0, depth - 1);
+    else if (ch === '}' || ch === ']' || ch === ')') depth = Math.max(0, depth - 1);
     else if (ch === separator && depth === 0) {
       parts.push(text.slice(start, k));
       start = k + 1;
@@ -325,8 +320,7 @@ function captureStatement(text, start) {
   for (let k = start; k < text.length; k += 1) {
     const ch = text[k];
     if (ch === '{' || ch === '[' || ch === '(') depth += 1;
-    else if (ch === '}' || ch === ']' || ch === ')')
-      depth = Math.max(0, depth - 1);
+    else if (ch === '}' || ch === ']' || ch === ')') depth = Math.max(0, depth - 1);
     else if (ch === ';' && depth === 0) return text.slice(start, k);
   }
   return text.slice(start);
@@ -334,8 +328,7 @@ function captureStatement(text, start) {
 
 function collectImportedNames(sanitized) {
   const imported = new Set();
-  const importRe =
-    /import\s+(?:([A-Za-z_$][\w$]*)\s*,?\s*)?(?:\{([^}]*)\}|\*\s*as\s+([A-Za-z_$][\w$]*))?\s*from\s*/g;
+  const importRe = /import\s+(?:([A-Za-z_$][\w$]*)\s*,?\s*)?(?:\{([^}]*)\}|\*\s*as\s+([A-Za-z_$][\w$]*))?\s*from\s*/g;
   let match;
   while ((match = importRe.exec(sanitized))) {
     if (match[1]) imported.add(match[1]);
@@ -343,9 +336,7 @@ function collectImportedNames(sanitized) {
       for (const part of match[2].split(',')) {
         const trimmed = part.trim();
         if (!trimmed) continue;
-        const asMatch = trimmed.match(
-          /^([A-Za-z_$][\w$]*)\s+as\s+([A-Za-z_$][\w$]*)$/,
-        );
+        const asMatch = trimmed.match(/^([A-Za-z_$][\w$]*)\s+as\s+([A-Za-z_$][\w$]*)$/);
         if (asMatch) imported.add(asMatch[2]);
         else imported.add(trimmed);
       }
@@ -363,8 +354,7 @@ function collectDeclaredNames(sanitized) {
   while ((match = functionDecl.exec(sanitized))) {
     if (match[1]) declared.add(match[1]);
     const openIdx = match.index + match[0].length - 1;
-    for (const name of extractNames(balancedParens(sanitized, openIdx)))
-      declared.add(name);
+    for (const name of extractNames(balancedParens(sanitized, openIdx))) declared.add(name);
   }
 
   const classDecl = /\bclass\s+([A-Za-z_$][\w$]*)/g;
@@ -403,30 +393,24 @@ function collectDeclaredNames(sanitized) {
     if (before.endsWith(')')) {
       const openIdx = matchingOpenParenBackward(sanitized, before.length - 1);
       if (openIdx !== -1) {
-        for (const name of extractNames(
-          sanitized.slice(openIdx + 1, before.length - 1),
-        ))
-          declared.add(name);
+        for (const name of extractNames(sanitized.slice(openIdx + 1, before.length - 1))) declared.add(name);
       }
     } else {
       const identMatch = /([A-Za-z_$][\w$]*)\s*$/.exec(before);
-      if (identMatch && !KEYWORDS.has(identMatch[1]))
-        declared.add(identMatch[1]);
+      if (identMatch && !KEYWORDS.has(identMatch[1])) declared.add(identMatch[1]);
     }
     arrowIdx = sanitized.indexOf('=>', arrowIdx + 2);
   }
 
   // Class fields and other function-valued assignments: name = (...) => ...
-  const fieldArrow =
-    /\b([A-Za-z_$][\w$]*)\s*=\s*(?:async\s+)?(?:[A-Za-z_$][\w$]*|\([^()]*\))\s*=>/g;
+  const fieldArrow = /\b([A-Za-z_$][\w$]*)\s*=\s*(?:async\s+)?(?:[A-Za-z_$][\w$]*|\([^()]*\))\s*=>/g;
   while ((match = fieldArrow.exec(sanitized))) declared.add(match[1]);
 
   // catch parameters.
   const catchParams = /\bcatch\s*\(/g;
   while ((match = catchParams.exec(sanitized))) {
     const openIdx = match.index + match[0].length - 1;
-    for (const name of extractNames(balancedParens(sanitized, openIdx)))
-      declared.add(name);
+    for (const name of extractNames(balancedParens(sanitized, openIdx))) declared.add(name);
   }
 
   return declared;
@@ -460,8 +444,7 @@ function collectUnresolvedUsages(sanitized, imported, declared) {
   while ((match = IDENTIFIER_RE.exec(sanitized))) {
     const name = match[0];
     if (KEYWORDS.has(name)) continue;
-    if (imported.has(name) || declared.has(name) || BROWSER_GLOBALS.has(name))
-      continue;
+    if (imported.has(name) || declared.has(name) || BROWSER_GLOBALS.has(name)) continue;
     const prev = previousChar(sanitized, match.index);
     const next = nextChar(sanitized, match.index + name.length);
     if (prev === '.') continue;
@@ -469,14 +452,7 @@ function collectUnresolvedUsages(sanitized, imported, declared) {
     if (next === ':') continue;
     if (prev === '{' && next === '(') continue;
     const word = previousWord(sanitized, match.index);
-    if (
-      (word === 'get' ||
-        word === 'set' ||
-        word === 'async' ||
-        word === 'static') &&
-      next === '('
-    )
-      continue;
+    if ((word === 'get' || word === 'set' || word === 'async' || word === 'static') && next === '(') continue;
     if (!unresolved.has(name)) {
       const line = sanitized.slice(0, match.index).split('\n').length;
       unresolved.set(name, line);

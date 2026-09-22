@@ -125,21 +125,13 @@ test('overlay bootstrap attaches capabilities only to exact local API and WebSoc
 
 test('an open overlay recovers after a real runtime restarts with a rotated token', async (t) => {
   const { createServerRuntime } = require('../src/server');
-  const tempDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'lira-overlay-restart-'),
-  );
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-overlay-restart-'));
   const nativeFetch = globalThis.fetch;
   const originalAutoOpen = process.env.AUTO_OPEN_ADMIN;
   process.env.AUTO_OPEN_ADMIN = '0';
   t.mock.method(globalThis, 'fetch', (input, options) => {
-    const url = new URL(
-      typeof input === 'string' ? input : input.url || input.href,
-    );
-    assert.equal(
-      url.hostname,
-      '127.0.0.1',
-      'test must not call external services',
-    );
+    const url = new URL(typeof input === 'string' ? input : input.url || input.href);
+    assert.equal(url.hostname, '127.0.0.1', 'test must not call external services');
     return nativeFetch(input, options);
   });
   const first = createServerRuntime({ dataDir: path.join(tempDir, 'data') });
@@ -162,15 +154,11 @@ test('an open overlay recovers after a real runtime restarts with a rotated toke
 
   const app = await first.start({ host: '127.0.0.1', startPort: 0 });
   const oldToken = first.getApiToken();
-  page = await createPage(
-    '/queue',
-    (url, options) => nativeFetch(new URL(url, app.baseUrl), options),
-    {
-      baseUrl: app.baseUrl,
-      html: await (await nativeFetch(`${app.baseUrl}/queue`)).text(),
-      WebSocket,
-    },
-  );
+  page = await createPage('/queue', (url, options) => nativeFetch(new URL(url, app.baseUrl), options), {
+    baseUrl: app.baseUrl,
+    html: await (await nativeFetch(`${app.baseUrl}/queue`)).text(),
+    WebSocket,
+  });
   const { createOverlaySocket } = await loadModuleExports(
     path.resolve(__dirname, '..', 'public/js/overlays/socket-client.js'),
     {
@@ -217,28 +205,19 @@ test('an open overlay recovers after a real runtime restarts with a rotated toke
   page.hide();
   controller.dispose();
 
-  refreshedPage = await createPage(
-    '/queue',
-    (url, options) => nativeFetch(new URL(url, app.baseUrl), options),
-    {
-      baseUrl: app.baseUrl,
-      html: await (await nativeFetch(`${app.baseUrl}/queue`)).text(),
-      WebSocket,
-    },
-  );
-  freshSocket = new refreshedPage.window.WebSocket(
-    `${app.baseUrl.replace('http:', 'ws:')}/ws`,
-  );
+  refreshedPage = await createPage('/queue', (url, options) => nativeFetch(new URL(url, app.baseUrl), options), {
+    baseUrl: app.baseUrl,
+    html: await (await nativeFetch(`${app.baseUrl}/queue`)).text(),
+    WebSocket,
+  });
+  freshSocket = new refreshedPage.window.WebSocket(`${app.baseUrl.replace('http:', 'ws:')}/ws`);
   await waitFor(() => freshSocket.readyState === WebSocket.OPEN);
   assert.equal(refreshedPage.window.__API_TOKEN__, createOverlayToken(second.getApiToken(), 'queue'));
   assert.equal((await refreshedPage.window.fetch('/api/state')).status, 200);
 });
 
 async function createPage(pathname, fetchFn, options = {}) {
-  const location = new URL(
-    pathname,
-    options.baseUrl || 'http://127.0.0.1:3000',
-  );
+  const location = new URL(pathname, options.baseUrl || 'http://127.0.0.1:3000');
   const html =
     options.html ||
     (await new Promise((resolve) => {
@@ -258,9 +237,7 @@ async function createPage(pathname, fetchFn, options = {}) {
         'old-token',
       );
     }));
-  const match = html.match(
-    /<script id="lira-overlay-bootstrap">([\s\S]*?)<\/script>/,
-  );
+  const match = html.match(/<script id="lira-overlay-bootstrap">([\s\S]*?)<\/script>/);
   if (pathname === '/admin') assert.equal(match, null, 'admin HTML has no credential bootstrap');
   else assert.ok(match, 'expected the real injected session script');
   let reloads = 0;
@@ -288,16 +265,17 @@ async function createPage(pathname, fetchFn, options = {}) {
     WebSocket: options.WebSocket || FakeWebSocket,
     addEventListener: (name, listener) => listeners.set(name, listener),
   };
-  if (match) vm.runInNewContext(match[1], {
-    window,
-    location,
-    URL,
-    Headers,
-    AbortController,
-    setTimeout,
-    clearTimeout,
-    document: { readyState: 'complete', querySelectorAll: () => [] },
-  });
+  if (match)
+    vm.runInNewContext(match[1], {
+      window,
+      location,
+      URL,
+      Headers,
+      AbortController,
+      setTimeout,
+      clearTimeout,
+      document: { readyState: 'complete', querySelectorAll: () => [] },
+    });
   return {
     window,
     reloads: () => reloads,

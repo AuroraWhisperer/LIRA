@@ -28,25 +28,13 @@ body[data-style='signal'] .draw-danmaku-item[data-identity='governor'] {
 body[data-style='signal'] .draw-danmaku-item[data-identity] {
   border-left-width: 4px;
   background:
-    linear-gradient(
-      90deg,
-      color-mix(in srgb, var(--signal-accent) 19%, transparent),
-      transparent 56%
-    ),
+    linear-gradient(90deg, color-mix(in srgb, var(--signal-accent) 19%, transparent), transparent 56%),
     linear-gradient(90deg, rgba(16, 21, 34, 0.97), rgba(16, 21, 34, 0.82));
 }
 body[data-style='signal']
-  .draw-danmaku-item:is(
-    [data-identity='captain'],
-    [data-identity='admiral'],
-    [data-identity='governor']
-  ) {
+  .draw-danmaku-item:is([data-identity='captain'], [data-identity='admiral'], [data-identity='governor']) {
   background:
-    linear-gradient(
-      90deg,
-      color-mix(in srgb, var(--signal-accent) 29%, transparent),
-      transparent 58%
-    ),
+    linear-gradient(90deg, color-mix(in srgb, var(--signal-accent) 29%, transparent), transparent 58%),
     linear-gradient(90deg, rgba(16, 21, 34, 0.97), rgba(16, 21, 34, 0.82));
   box-shadow:
     0 10px 26px color-mix(in srgb, var(--signal-accent) 22%, transparent),
@@ -101,8 +89,7 @@ body[data-style='signal'] .draw-danmaku-medal {
   max-width: 100%;
   padding: 0 0 0 7px;
   border: 0;
-  border-left: 1px solid
-    color-mix(in srgb, var(--signal-accent) 32%, transparent);
+  border-left: 1px solid color-mix(in srgb, var(--signal-accent) 32%, transparent);
   color: color-mix(in srgb, var(--signal-accent) 30%, var(--signal-ice));
   background: transparent;
   font-family: inherit;
@@ -158,12 +145,21 @@ body[data-style='signal'] .is-gift .draw-danmaku-gift-count {
 
 /* Custom background strength leaves text and images opaque. */
 body[data-custom-background='true'][data-style='signal'] .draw-danmaku-item:not(.is-gift)[data-identity] {
-  background: linear-gradient(
+  background:
+    linear-gradient(
       90deg,
-      color-mix(in srgb, color-mix(in srgb, var(--signal-accent) 19%, transparent) var(--danmaku-background-weight), transparent),
+      color-mix(
+        in srgb,
+        color-mix(in srgb, var(--signal-accent) 19%, transparent) var(--danmaku-background-weight),
+        transparent
+      ),
       transparent 56%
     ),
-    linear-gradient(90deg, color-mix(in srgb, rgba(16, 21, 34, 0.97) var(--danmaku-background-weight), transparent), color-mix(in srgb, rgba(16, 21, 34, 0.82) var(--danmaku-background-weight), transparent));
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, rgba(16, 21, 34, 0.97) var(--danmaku-background-weight), transparent),
+      color-mix(in srgb, rgba(16, 21, 34, 0.82) var(--danmaku-background-weight), transparent)
+    );
 }
 body[data-custom-background='true'][data-style='signal']
   .draw-danmaku-item:not(.is-gift):is(
@@ -171,10 +167,19 @@ body[data-custom-background='true'][data-style='signal']
     [data-identity='admiral'],
     [data-identity='governor']
   ) {
-  background: linear-gradient(
+  background:
+    linear-gradient(
       90deg,
-      color-mix(in srgb, color-mix(in srgb, var(--signal-accent) 29%, transparent) var(--danmaku-background-weight), transparent),
+      color-mix(
+        in srgb,
+        color-mix(in srgb, var(--signal-accent) 29%, transparent) var(--danmaku-background-weight),
+        transparent
+      ),
       transparent 58%
     ),
-    linear-gradient(90deg, color-mix(in srgb, rgba(16, 21, 34, 0.97) var(--danmaku-background-weight), transparent), color-mix(in srgb, rgba(16, 21, 34, 0.82) var(--danmaku-background-weight), transparent));
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, rgba(16, 21, 34, 0.97) var(--danmaku-background-weight), transparent),
+      color-mix(in srgb, rgba(16, 21, 34, 0.82) var(--danmaku-background-weight), transparent)
+    );
 }

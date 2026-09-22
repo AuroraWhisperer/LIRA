@@ -22,14 +22,10 @@ input.parameter-range[type='range'] {
   appearance: none;
   -webkit-appearance: none;
   background:
-    linear-gradient(var(--parameter-range-accent), var(--parameter-range-accent))
-      var(--parameter-range-track-inset) center /
-      var(--parameter-range-fill-length) var(--parameter-range-track-height)
-      no-repeat,
-    linear-gradient(var(--parameter-range-track), var(--parameter-range-track))
-      var(--parameter-range-track-inset) center /
-      var(--parameter-range-track-length) var(--parameter-range-track-height)
-      no-repeat;
+    linear-gradient(var(--parameter-range-accent), var(--parameter-range-accent)) var(--parameter-range-track-inset)
+      center / var(--parameter-range-fill-length) var(--parameter-range-track-height) no-repeat,
+    linear-gradient(var(--parameter-range-track), var(--parameter-range-track)) var(--parameter-range-track-inset)
+      center / var(--parameter-range-track-length) var(--parameter-range-track-height) no-repeat;
   border: 0;
   border-radius: 4px;
 }
@@ -51,9 +47,7 @@ input.parameter-range[type='range']::-moz-range-track {
 input.parameter-range[type='range']::-webkit-slider-thumb {
   width: var(--parameter-range-thumb-size);
   height: var(--parameter-range-thumb-size);
-  margin-top: calc(
-    (var(--parameter-range-track-height) - var(--parameter-range-thumb-size)) / 2
-  );
+  margin-top: calc((var(--parameter-range-track-height) - var(--parameter-range-thumb-size)) / 2);
   appearance: none;
   -webkit-appearance: none;
   background: var(--parameter-range-accent);
@@ -92,17 +86,12 @@ input.parameter-range[type='range']:focus-visible {
 /* 正负偏移沿用统一外观，以零点标记和双向填充表达数值方向。 */
 input.parameter-range--centered[type='range'] {
   background:
-    linear-gradient(var(--parameter-range-accent), var(--parameter-range-accent))
-      var(--parameter-range-origin-start) center /
-      var(--parameter-range-origin-length) var(--parameter-range-track-height)
-      no-repeat,
-    linear-gradient(var(--muted, #75665b), var(--muted, #75665b))
-      calc(var(--parameter-range-zero-position) - 1px) center / 2px 10px
-      no-repeat,
-    linear-gradient(var(--parameter-range-track), var(--parameter-range-track))
-      var(--parameter-range-track-inset) center /
-      var(--parameter-range-track-length) var(--parameter-range-track-height)
-      no-repeat;
+    linear-gradient(var(--parameter-range-accent), var(--parameter-range-accent)) var(--parameter-range-origin-start)
+      center / var(--parameter-range-origin-length) var(--parameter-range-track-height) no-repeat,
+    linear-gradient(var(--muted, #75665b), var(--muted, #75665b)) calc(var(--parameter-range-zero-position) - 1px)
+      center / 2px 10px no-repeat,
+    linear-gradient(var(--parameter-range-track), var(--parameter-range-track)) var(--parameter-range-track-inset)
+      center / var(--parameter-range-track-length) var(--parameter-range-track-height) no-repeat;
 }
 
 input.parameter-range[type='range']:disabled {

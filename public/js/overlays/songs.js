@@ -87,22 +87,16 @@ async function loadAll() {
     const category = new URLSearchParams(location.search).get('category') || '';
     const [stateResponse, songsResponse] = await Promise.all([
       fetch('/api/state'),
-      fetch(
-        `/api/songs?enabledOnly=true${category ? `&category=${encodeURIComponent(category)}` : ''}`,
-      ),
+      fetch(`/api/songs?enabledOnly=true${category ? `&category=${encodeURIComponent(category)}` : ''}`),
     ]);
     const statePayload = await stateResponse.json();
     const songsPayload = await songsResponse.json();
     if (revision !== loadRevision) return;
     if (statePayload.ok && expectedStateRevision === stateRevision) {
-      if (expectedLiveStatusRevision !== liveStatusRevision)
-        statePayload.data.liveStatus = state.liveStatus;
+      if (expectedLiveStatusRevision !== liveStatusRevision) statePayload.data.liveStatus = state.liveStatus;
       state = statePayload.data;
     }
-    if (
-      songsPayload.ok &&
-      JSON.stringify(songsPayload.data) !== JSON.stringify(songs)
-    ) {
+    if (songsPayload.ok && JSON.stringify(songsPayload.data) !== JSON.stringify(songs)) {
       songs = songsPayload.data;
       songsRevision += 1;
     }
@@ -168,15 +162,11 @@ function render() {
   if (layoutChanged) scroller.pause();
   applyTheme(settings);
   if (!settings.overlayTitle && !settings.songBoardTitle) {
-    document.getElementById('songBoardTitle').textContent = category
-      ? `可点歌单 · ${category}`
-      : '可点歌单';
+    document.getElementById('songBoardTitle').textContent = category ? `可点歌单 · ${category}` : '可点歌单';
   }
 
   if (motionKey !== lastMotionKey) {
-    scroller.setSecondsPerViewport(
-      Number(scrollSpeedToDuration(Number(motionKey))),
-    );
+    scroller.setSecondsPerViewport(Number(scrollSpeedToDuration(Number(motionKey))));
   }
 
   if (orderChanged) {
@@ -212,11 +202,7 @@ function renderEmptyState() {
   songListElement.replaceChildren(empty);
 }
 
-function scheduleRelayout({
-  anchor = scroller?.captureAnchor() ?? null,
-  delay = 120,
-  waitForFonts = false,
-} = {}) {
+function scheduleRelayout({ anchor = scroller?.captureAnchor() ?? null, delay = 120, waitForFonts = false } = {}) {
   if (!scroller || scroller.records.length === 0) return;
   const revision = ++relayoutRevision;
   scroller.pause();
@@ -226,10 +212,7 @@ function scheduleRelayout({
       try {
         await document.fonts.ready;
       } catch (error) {
-        console.warn(
-          '[overlay-songs] font loading failed:',
-          error.message || error,
-        );
+        console.warn('[overlay-songs] font loading failed:', error.message || error);
       }
     }
     if (revision !== relayoutRevision || !scroller) return;
@@ -322,20 +305,14 @@ function groupSongs(items, sortMode) {
     groups.get(key).push(song);
   }
 
-  return Array.from(groups.entries()).sort((a, b) =>
-    a[0].localeCompare(b[0], 'zh-Hans-CN'),
-  );
+  return Array.from(groups.entries()).sort((a, b) => a[0].localeCompare(b[0], 'zh-Hans-CN'));
 }
 
 function sortSongsByLength(items) {
   return [...items].sort((a, b) => {
-    const lengthDiff =
-      String(a.name || '').length - String(b.name || '').length;
+    const lengthDiff = String(a.name || '').length - String(b.name || '').length;
     if (lengthDiff !== 0) return lengthDiff;
-    return String(a.name || '').localeCompare(
-      String(b.name || ''),
-      'zh-Hans-CN',
-    );
+    return String(a.name || '').localeCompare(String(b.name || ''), 'zh-Hans-CN');
   });
 }
 
@@ -353,9 +330,7 @@ function applyTheme(settings) {
       const override = settings[songBoardKey];
       if (override !== undefined && override !== '') return override;
     }
-    return settings[mainKey] !== undefined && settings[mainKey] !== ''
-      ? settings[mainKey]
-      : defaultValue;
+    return settings[mainKey] !== undefined && settings[mainKey] !== '' ? settings[mainKey] : defaultValue;
   }
 
   const root = document.documentElement;
@@ -363,40 +338,15 @@ function applyTheme(settings) {
   const lowPower = overlayLowPowerEnabled(settings);
   panel.classList.toggle('low-power', lowPower);
 
-  root.style.setProperty(
-    '--overlay-primary',
-    resolve('themePrimary', 'songBoardThemePrimary', '#ff6f91'),
-  );
-  root.style.setProperty(
-    '--overlay-accent',
-    resolve('themeAccent', 'songBoardThemeAccent', '#21b6a8'),
-  );
-  root.style.setProperty(
-    '--overlay-text',
-    resolve('themeText', 'songBoardThemeText', '#fff7fb'),
-  );
-  root.style.setProperty(
-    '--overlay-opacity',
-    resolve('themeOpacity', 'songBoardThemeOpacity', '0.48'),
-  );
-  root.style.setProperty(
-    '--overlay-radius',
-    `${resolve('themeRadius', 'songBoardThemeRadius', '8')}px`,
-  );
-  const songBoardFontSize = Math.max(
-    10,
-    Math.min(80, Number(settings.songBoardFontSize) || 28),
-  );
-  root.style.setProperty(
-    '--overlay-font-scale',
-    String(songBoardFontSize / 16),
-  );
+  root.style.setProperty('--overlay-primary', resolve('themePrimary', 'songBoardThemePrimary', '#ff6f91'));
+  root.style.setProperty('--overlay-accent', resolve('themeAccent', 'songBoardThemeAccent', '#21b6a8'));
+  root.style.setProperty('--overlay-text', resolve('themeText', 'songBoardThemeText', '#fff7fb'));
+  root.style.setProperty('--overlay-opacity', resolve('themeOpacity', 'songBoardThemeOpacity', '0.48'));
+  root.style.setProperty('--overlay-radius', `${resolve('themeRadius', 'songBoardThemeRadius', '8')}px`);
+  const songBoardFontSize = Math.max(10, Math.min(80, Number(settings.songBoardFontSize) || 28));
+  root.style.setProperty('--overlay-font-scale', String(songBoardFontSize / 16));
 
-  const primaryHex = resolve(
-    'themePrimary',
-    'songBoardThemePrimary',
-    '#ff6f91',
-  );
+  const primaryHex = resolve('themePrimary', 'songBoardThemePrimary', '#ff6f91');
   const primaryRgb = hexToRgb(primaryHex);
   root.style.setProperty('--overlay-primary-r', String(primaryRgb.r));
   root.style.setProperty('--overlay-primary-g', String(primaryRgb.g));
@@ -408,32 +358,18 @@ function applyTheme(settings) {
   root.style.setProperty('--overlay-accent-g', String(accentRgb.g));
   root.style.setProperty('--overlay-accent-b', String(accentRgb.b));
 
-  const bgHex = resolve(
-    'themeBackground',
-    'songBoardThemeBackground',
-    '#181823',
-  );
+  const bgHex = resolve('themeBackground', 'songBoardThemeBackground', '#181823');
   const bgRgb = hexToRgb(bgHex);
   root.style.setProperty('--overlay-bg-r', String(bgRgb.r));
   root.style.setProperty('--overlay-bg-g', String(bgRgb.g));
   root.style.setProperty('--overlay-bg-b', String(bgRgb.b));
 
-  const blur = lowPower
-    ? 0
-    : Number(resolve('backdropBlur', 'songBoardBackdropBlur', '14'));
-  root.style.setProperty(
-    '--overlay-blur',
-    `${Number.isFinite(blur) ? Math.max(0, blur) : 0}px`,
-  );
+  const blur = lowPower ? 0 : Number(resolve('backdropBlur', 'songBoardBackdropBlur', '14'));
+  root.style.setProperty('--overlay-blur', `${Number.isFinite(blur) ? Math.max(0, blur) : 0}px`);
   panel.classList.toggle('has-backdrop-blur', blur > 0);
 
-  const rawGlowIntensity = Number(
-    resolve('glowIntensity', 'songBoardGlowIntensity', '2'),
-  );
-  const glowIntensity =
-    lowPower || !Number.isFinite(rawGlowIntensity)
-      ? 0
-      : Math.max(0, rawGlowIntensity);
+  const rawGlowIntensity = Number(resolve('glowIntensity', 'songBoardGlowIntensity', '2'));
+  const glowIntensity = lowPower || !Number.isFinite(rawGlowIntensity) ? 0 : Math.max(0, rawGlowIntensity);
   root.style.setProperty('--overlay-glow-size', `${glowIntensity}px`);
   root.style.setProperty(
     '--overlay-glow-color',
@@ -442,12 +378,10 @@ function applyTheme(settings) {
       : 'transparent',
   );
 
-  const gradientEnabled =
-    resolve('enableGradient', 'songBoardEnableGradient', 'false') === 'true';
+  const gradientEnabled = resolve('enableGradient', 'songBoardEnableGradient', 'false') === 'true';
   panel.classList.toggle('gradient-bg', gradientEnabled);
   if (gradientEnabled) {
-    const gradHex =
-      resolve('gradientEnd', 'songBoardGradientEnd', '#181823') || bgHex;
+    const gradHex = resolve('gradientEnd', 'songBoardGradientEnd', '#181823') || bgHex;
     const gradRgb = hexToRgb(gradHex);
     root.style.setProperty('--overlay-gradient-r', String(gradRgb.r));
     root.style.setProperty('--overlay-gradient-g', String(gradRgb.g));
@@ -456,49 +390,30 @@ function applyTheme(settings) {
 
   root.style.setProperty(
     '--overlay-font-family',
-    withMultilingualFallback(
-      resolve('overlayFontFamily', 'songBoardFontFamily', 'Microsoft YaHei'),
-    ),
+    withMultilingualFallback(resolve('overlayFontFamily', 'songBoardFontFamily', 'Microsoft YaHei')),
   );
-  root.style.setProperty(
-    '--overlay-font-weight',
-    resolve('overlayFontWeight', 'songBoardFontWeight', '800'),
-  );
+  root.style.setProperty('--overlay-font-weight', resolve('overlayFontWeight', 'songBoardFontWeight', '800'));
 
   const songColor = resolve('overlaySongColor', 'songBoardSongColor', '');
-  root.style.setProperty(
-    '--overlay-song-color',
-    songColor || resolve('themeText', 'songBoardThemeText', '#fff7fb'),
-  );
-  root.style.setProperty(
-    '--overlay-requester-color',
-    settings.overlayRequesterColor || '',
-  );
+  root.style.setProperty('--overlay-song-color', songColor || resolve('themeText', 'songBoardThemeText', '#fff7fb'));
+  root.style.setProperty('--overlay-requester-color', settings.overlayRequesterColor || '');
 
   const titleEl = document.getElementById('songBoardTitle');
   if (titleEl) {
-    const customTitle = String(
-      resolve('overlayTitle', 'songBoardTitle', ''),
-    ).trim();
+    const customTitle = String(resolve('overlayTitle', 'songBoardTitle', '')).trim();
     titleEl.textContent = customTitle || '可点歌单';
   }
 
   if (useOwnTheme) {
     const songFontSize = Number(settings.songBoardSongFontSize || '16');
     root.style.setProperty('--overlay-song-font-size', `${songFontSize}px`);
-    root.style.setProperty(
-      '--overlay-title-font-size',
-      `${Number(settings.songBoardTitleFontSize || '15')}px`,
-    );
+    root.style.setProperty('--overlay-title-font-size', `${Number(settings.songBoardTitleFontSize || '15')}px`);
   } else {
     root.style.removeProperty('--overlay-song-font-size');
     root.style.removeProperty('--overlay-title-font-size');
   }
 
-  panel.style.backgroundColor = hexToRgba(
-    bgHex,
-    resolve('themeOpacity', 'songBoardThemeOpacity', '0.48'),
-  );
+  panel.style.backgroundColor = hexToRgba(bgHex, resolve('themeOpacity', 'songBoardThemeOpacity', '0.48'));
 }
 
 function hexToRgb(hex) {

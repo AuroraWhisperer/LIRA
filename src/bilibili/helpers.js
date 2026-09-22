@@ -2,12 +2,7 @@
 // Bilibili 杂项辅助函数 — 诊断记录、身份解析、时间戳工具。
 'use strict';
 
-const {
-  cleanText,
-  normalizeTimestampMs,
-  normalizePositiveInteger,
-  normalizeGuardLevel,
-} = require('../shared/utils');
+const { cleanText, normalizeTimestampMs, normalizePositiveInteger, normalizeGuardLevel } = require('../shared/utils');
 
 // ── 数值转换 ──
 
@@ -71,32 +66,19 @@ function guardLevelName(level) {
 
 function readMedalName(medalInfo) {
   return cleanText(
-    (medalInfo &&
-      (medalInfo.medal_name ||
-        medalInfo.medalName ||
-        medalInfo.medal ||
-        medalInfo.name)) ||
-      '',
+    (medalInfo && (medalInfo.medal_name || medalInfo.medalName || medalInfo.medal || medalInfo.name)) || '',
   );
 }
 
 function readMedalLevel(medalInfo) {
   return normalizePositiveInteger(
-    (medalInfo &&
-      (medalInfo.medal_level || medalInfo.medalLevel || medalInfo.level)) ||
-      0,
+    (medalInfo && (medalInfo.medal_level || medalInfo.medalLevel || medalInfo.level)) || 0,
   );
 }
 
 function readBilibiliOnlineRankItems(data) {
   if (!data || typeof data !== 'object') return [];
-  const candidates = [
-    data.OnlineRankItem,
-    data.onlineRankItem,
-    data.online_rank_item,
-    data.list,
-    data.items,
-  ];
+  const candidates = [data.OnlineRankItem, data.onlineRankItem, data.online_rank_item, data.list, data.items];
   for (const candidate of candidates) {
     if (Array.isArray(candidate)) return candidate;
   }
@@ -105,13 +87,7 @@ function readBilibiliOnlineRankItems(data) {
 
 function readBilibiliFansMembersRankItems(data) {
   if (!data || typeof data !== 'object') return [];
-  const candidates = [
-    data.item,
-    data.items,
-    data.list,
-    data.fans_members,
-    data.fansMembers,
-  ];
+  const candidates = [data.item, data.items, data.list, data.fans_members, data.fansMembers];
   for (const candidate of candidates) {
     if (Array.isArray(candidate)) return candidate;
   }

@@ -7,9 +7,7 @@ const path = require('node:path');
 const { EventEmitter } = require('node:events');
 const vm = require('node:vm');
 const { createRequire } = require('node:module');
-const {
-  createDiagnosticTerminal,
-} = require('../scripts/wesing-diagnostic-terminal');
+const { createDiagnosticTerminal } = require('../scripts/wesing-diagnostic-terminal');
 const {
   markerForKey,
   parseArguments,
@@ -20,14 +18,7 @@ const {
 
 test('WeSing diagnostic parses cache, output, and duration options', () => {
   const result = parseArguments(
-    [
-      '--cache',
-      'C:\\Music\\WeSingCache',
-      '--output',
-      'D:\\Logs\\wesing.jsonl',
-      '--duration',
-      '90',
-    ],
+    ['--cache', 'C:\\Music\\WeSingCache', '--output', 'D:\\Logs\\wesing.jsonl', '--duration', '90'],
     {
       environment: { APPDATA: 'C:\\Users\\Tester\\AppData\\Roaming' },
       projectRoot: 'D:\\Work\\Live',
@@ -56,10 +47,7 @@ test('WeSing diagnostic maps operation markers', () => {
 test('WeSing diagnostic reads the configured cache path from the running local app', async () => {
   const requests = [];
   const files = new Map([
-    [
-      'D:\\Work\\Live\\data\\.server-runtime.json',
-      '{"port":3000,"host":"127.0.0.1"}',
-    ],
+    ['D:\\Work\\Live\\data\\.server-runtime.json', '{"port":3000,"host":"127.0.0.1"}'],
     ['D:\\Work\\Live\\data\\.session-token', 'local-token'],
   ]);
   const cachePath = await readRunningCachePath({
@@ -89,9 +77,7 @@ test('WeSing diagnostic reads the configured cache path from the running local a
 });
 
 test('WeSing diagnostic extracts StartKSong identity from native log rows', () => {
-  const parsed = parseStartKSongLine(
-    'event "StartKSong" payload {"mid":"0042","songname":"失眠飞行"}',
-  );
+  const parsed = parseStartKSongLine('event "StartKSong" payload {"mid":"0042","songname":"失眠飞行"}');
   assert.deepEqual(parsed, { mid: '0042', songName: '失眠飞行' });
   assert.equal(parseStartKSongLine('ordinary row'), null);
 });
@@ -163,8 +149,7 @@ function diagnosticFixture(options = {}) {
     },
     async stop() {
       calls.push('probe.stop');
-      if (options.finalLog)
-        probeEvent({ event: 'wesing-log-line', line: 'synthetic final line' });
+      if (options.finalLog) probeEvent({ event: 'wesing-log-line', line: 'synthetic final line' });
       if (options.fault === 'probe.stop') throw original;
       if (options.cleanupFails) throw cleanupError;
     },
@@ -172,8 +157,7 @@ function diagnosticFixture(options = {}) {
   const writer = {
     async write(record) {
       records.push(record);
-      if (options.fault === 'writer.write' && record.event === 'monitor-sample')
-        throw original;
+      if (options.fault === 'writer.write' && record.event === 'monitor-sample') throw original;
     },
     async close() {
       calls.push('writer.close');
@@ -181,10 +165,7 @@ function diagnosticFixture(options = {}) {
       if (options.cleanupFails) throw cleanupError;
     },
   };
-  const filename = path.resolve(
-    __dirname,
-    '../scripts/inspect-wesing-playback.js',
-  );
+  const filename = path.resolve(__dirname, '../scripts/inspect-wesing-playback.js');
   const context = vm.createContext({
     require(name) {
       if (name === '../src/music/wesing-capture')
@@ -306,14 +287,7 @@ async function diagnosticOutcome(promise) {
   }
 }
 
-for (const fault of [
-  'writer.close',
-  'probe.stop',
-  'monitor.stop',
-  'writer.write',
-  'probe.start',
-  'monitor.start',
-]) {
+for (const fault of ['writer.close', 'probe.stop', 'monitor.stop', 'writer.write', 'probe.start', 'monitor.start']) {
   test(`WeSing diagnostic propagates ${fault} and still cleans every resource`, async () => {
     const f = diagnosticFixture({
       fault,
@@ -347,16 +321,9 @@ test('WeSing repeated finish calls share success and restore the previous termin
   f.processFake.emit('SIGINT');
   assert.equal((await outcome).success, true);
   f.assertClean();
-  assert.equal(
-    f.records.filter((record) => record.event === 'diagnostic-stop').length,
-    1,
-  );
+  assert.equal(f.records.filter((record) => record.event === 'diagnostic-stop').length, 1);
   assert.equal(f.records.at(-2).line, 'synthetic final line');
-  assert.deepEqual(f.calls.slice(-3), [
-    'monitor.stop',
-    'probe.stop',
-    'writer.close',
-  ]);
+  assert.deepEqual(f.calls.slice(-3), ['monitor.stop', 'probe.stop', 'writer.close']);
 });
 
 test('WeSing main reports finish failure from the CLI configuration path', async () => {
@@ -386,10 +353,7 @@ test('WeSing JSONL writer preserves the first write failure when file close also
   const first = new Error('synthetic append failure');
   const later = new Error('synthetic handle close failure');
   let closes = 0;
-  const filename = path.resolve(
-    __dirname,
-    '../scripts/inspect-wesing-playback.js',
-  );
+  const filename = path.resolve(__dirname, '../scripts/inspect-wesing-playback.js');
   const context = vm.createContext({
     module: { exports: {} },
     __dirname: path.dirname(filename),
@@ -416,14 +380,8 @@ test('WeSing JSONL writer preserves the first write failure when file close also
     },
   });
   vm.runInContext(fs.readFileSync(filename, 'utf8'), context, { filename });
-  const writer = await vm.runInContext(
-    'createJsonlWriter',
-    context,
-  )('synthetic.jsonl');
-  await assert.rejects(
-    writer.write({ event: 'synthetic' }),
-    (error) => error === first,
-  );
+  const writer = await vm.runInContext('createJsonlWriter', context)('synthetic.jsonl');
+  await assert.rejects(writer.write({ event: 'synthetic' }), (error) => error === first);
   const closing = writer.close();
   await assert.rejects(closing, (error) => error === first);
   assert.equal(writer.close(), closing);

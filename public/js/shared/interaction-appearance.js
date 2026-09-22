@@ -46,9 +46,12 @@ export function normalizeInteractionAppearanceValue(key, value) {
 }
 
 export function readInteractionAppearance(settings = {}) {
-  return Object.fromEntries(Object.entries(INTERACTION_APPEARANCE_DEFAULTS).map(([key, fallback]) => [
-    key, normalizeInteractionAppearanceValue(key, settings[key]) ?? fallback,
-  ]));
+  return Object.fromEntries(
+    Object.entries(INTERACTION_APPEARANCE_DEFAULTS).map(([key, fallback]) => [
+      key,
+      normalizeInteractionAppearanceValue(key, settings[key]) ?? fallback,
+    ]),
+  );
 }
 
 export function applyInteractionAppearance(element, settings) {
@@ -56,7 +59,10 @@ export function applyInteractionAppearance(element, settings) {
   element.style.setProperty('--interaction-text', appearance.interactionTextColor);
   element.style.setProperty('--interaction-background', appearance.interactionBackgroundColor);
   element.style.setProperty('--interaction-opacity', `${appearance.interactionBackgroundOpacity}%`);
-  element.style.setProperty('--interaction-overall-opacity', String(Number(appearance.interactionOverallOpacity) / 100));
+  element.style.setProperty(
+    '--interaction-overall-opacity',
+    String(Number(appearance.interactionOverallOpacity) / 100),
+  );
   element.style.setProperty('--interaction-bar', appearance.interactionBarColor);
   element.style.setProperty('--interaction-track', appearance.interactionTrackColor);
   element.style.setProperty('--interaction-font-size', `${appearance.interactionFontSize}px`);

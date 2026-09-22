@@ -9,8 +9,7 @@ const prefixes = ['/api/health', '/api/state', '/api/system/'];
 
 const routes = {
   'GET /api/health'(context, request, res) {
-    const detailAllowed = context.sessionToken &&
-      verifyToken(context, request.req, { searchParams: request.query });
+    const detailAllowed = context.sessionToken && verifyToken(context, request.req, { searchParams: request.query });
     const data = detailAllowed
       ? { ...context.system.getHealth(), phase: 'ready' }
       : { serviceId: 'lira', phase: 'ready' };
@@ -36,8 +35,7 @@ const routes = {
   },
 
   async 'GET /api/system/hardware'(context, request, res) {
-    const includeTemperatures =
-      request.query.get('includeTemperatures') === 'true';
+    const includeTemperatures = request.query.get('includeTemperatures') === 'true';
     sendJson(res, 200, {
       ok: true,
       data: await context.system.getHardware(includeTemperatures),

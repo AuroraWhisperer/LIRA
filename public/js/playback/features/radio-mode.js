@@ -16,8 +16,7 @@ export function createRadioMode(deps) {
     renderPlayback,
   } = deps;
 
-  const queueManager =
-    deps.queueManager || new QueueManager({ state: playbackState });
+  const queueManager = deps.queueManager || new QueueManager({ state: playbackState });
 
   let playbackRadioRefillRunning = false;
 
@@ -38,8 +37,7 @@ export function createRadioMode(deps) {
         }),
       });
       const payload = await readJsonResponse(response, '补充电台队列失败');
-      if (!response.ok || !payload.ok)
-        throw new Error(payload.error || '补充电台队列失败');
+      if (!response.ok || !payload.ok) throw new Error(payload.error || '补充电台队列失败');
       if (playbackState.queueType !== 'radio') return;
 
       const tracks = Array.isArray(payload.data && payload.data.tracks)

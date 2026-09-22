@@ -2,9 +2,7 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const {
-  createLicenseResumeHandler,
-} = require('../src/electron/license/license-resume');
+const { createLicenseResumeHandler } = require('../src/electron/license/license-resume');
 
 function createFakePowerMonitor() {
   const handlers = new Map();
@@ -64,8 +62,7 @@ test('register attaches a resume listener exactly once', () => {
 });
 
 test('system resume triggers licenseManager.resume via the latest reference', async () => {
-  const { powerMonitor, manager, controller, getAfterResumeCalls } =
-    createHarness();
+  const { powerMonitor, manager, controller, getAfterResumeCalls } = createHarness();
   controller.register();
   powerMonitor.emit('resume');
   await new Promise((resolve) => setImmediate(resolve));
@@ -79,11 +76,9 @@ test('system resume triggers licenseManager.resume via the latest reference', as
 });
 
 test('resume rejection is logged instead of crashing', async () => {
-  const { powerMonitor, logs, controller, getAfterResumeCalls } = createHarness(
-    {
-      resumeError: new Error('boom'),
-    },
-  );
+  const { powerMonitor, logs, controller, getAfterResumeCalls } = createHarness({
+    resumeError: new Error('boom'),
+  });
   controller.register();
   powerMonitor.emit('resume');
   await new Promise((resolve) => setImmediate(resolve));

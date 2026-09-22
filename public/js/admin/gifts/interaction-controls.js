@@ -36,9 +36,12 @@ export function initGiftInteractionControls({
       inputs[index].checked = state.values?.[KEYS[index]] === true;
       inputs[index].disabled = saving || state.status === 'pending';
     }
-    status.textContent = state.status === 'pending' || saving ? '正在同步，等待服务器确认…'
-      : state.status === 'confirmed' ? '已同步到服务器'
-        : ERRORS[state.error] || '状态未确认，请刷新核对。';
+    status.textContent =
+      state.status === 'pending' || saving
+        ? '正在同步，等待服务器确认…'
+        : state.status === 'confirmed'
+          ? '已同步到服务器'
+          : ERRORS[state.error] || '状态未确认，请刷新核对。';
     retry.hidden = state.status === 'confirmed';
     retry.disabled = saving || state.status === 'pending';
   }
@@ -55,7 +58,10 @@ export function initGiftInteractionControls({
 
   async function change(index) {
     const enabled = inputs[index].checked;
-    if (saving) { render(state); return; }
+    if (saving) {
+      render(state);
+      return;
+    }
     saving = true;
     render(state);
     const version = eventVersion;
@@ -68,11 +74,13 @@ export function initGiftInteractionControls({
     saving = false;
     if (disposed) return;
     // Events can overtake the invoke reply after an account or cloud change.
-    if (version !== eventVersion && state.status !== 'pending' && (
-      state.status !== result.status ||
-      (state.error || null) !== (result.error || null) ||
-      KEYS.some((key) => (state.values?.[key] === true) !== (result.values?.[key] === true))
-    )) {
+    if (
+      version !== eventVersion &&
+      state.status !== 'pending' &&
+      (state.status !== result.status ||
+        (state.error || null) !== (result.error || null) ||
+        KEYS.some((key) => (state.values?.[key] === true) !== (result.values?.[key] === true)))
+    ) {
       render(state);
       return;
     }
@@ -80,16 +88,19 @@ export function initGiftInteractionControls({
     if (result.ok && result.status === 'confirmed' && result.values?.[KEYS[index]] === enabled) {
       notify(enabled ? '已开启，服务器会持续运行。' : '已关闭并同步到服务器。');
     } else {
-      const message = !enabled && result.status !== 'confirmed'
-        ? '关闭还没同步，服务器可能仍在运行。'
-        : ERRORS[result.error] || '设置尚未确认，请刷新核对后重试。';
+      const message =
+        !enabled && result.status !== 'confirmed'
+          ? '关闭还没同步，服务器可能仍在运行。'
+          : ERRORS[result.error] || '设置尚未确认，请刷新核对后重试。';
       status.textContent = message;
       notify(message);
     }
   }
 
   const handlers = inputs.map((input, index) => {
-    const handler = () => { void change(index); };
+    const handler = () => {
+      void change(index);
+    };
     input.addEventListener('change', handler);
     return handler;
   });

@@ -24,33 +24,20 @@ function syntheticCertificate(attributes, serial = 1) {
   const name = (values) =>
     sequence(
       ...values.map(([field, value]) =>
-        der(
-          0x31,
-          sequence(oid(`5504${field}`), der(0x0c, Buffer.from(value, 'utf8'))),
-        ),
+        der(0x31, sequence(oid(`5504${field}`), der(0x0c, Buffer.from(value, 'utf8')))),
       ),
     );
   const algorithm = sequence(oid('2a864886f70d01010b'), der(0x05));
   const publicKey = sequence(
     sequence(oid('2a864886f70d010101'), der(0x05)),
-    der(
-      0x03,
-      Buffer.from([0]),
-      sequence(
-        der(0x02, Buffer.alloc(128, 0x7f)),
-        der(0x02, Buffer.from([1, 0, 1])),
-      ),
-    ),
+    der(0x03, Buffer.from([0]), sequence(der(0x02, Buffer.alloc(128, 0x7f)), der(0x02, Buffer.from([1, 0, 1])))),
   );
   return sequence(
     sequence(
       der(0x02, Buffer.from([serial])),
       algorithm,
       name([['03', 'Synthetic Issuer']]),
-      sequence(
-        der(0x17, Buffer.from('250101000000Z')),
-        der(0x17, Buffer.from('300101000000Z')),
-      ),
+      sequence(der(0x17, Buffer.from('250101000000Z')), der(0x17, Buffer.from('300101000000Z'))),
       name(attributes),
       publicKey,
     ),
@@ -60,10 +47,7 @@ function syntheticCertificate(attributes, serial = 1) {
 }
 
 function verifyFixture(expectedPublisher, options = {}) {
-  const certificate = syntheticCertificate(
-    options.attributes || [['03', 'Synthetic Publisher']],
-    options.serial,
-  );
+  const certificate = syntheticCertificate(options.attributes || [['03', 'Synthetic Publisher']], options.serial);
   const signature = {
     Status: 'Valid',
     StatusMessage: 'synthetic validity result only',
@@ -77,14 +61,9 @@ function verifyFixture(expectedPublisher, options = {}) {
   const logs = [];
   const commands = [];
   let exitCode;
-  const filename = path.resolve(
-    __dirname,
-    '../scripts/verify-windows-release.js',
-  );
+  const filename = path.resolve(__dirname, '../scripts/verify-windows-release.js');
   // A process exit ends this script immediately, even inside its try block.
-  const source = fs
-    .readFileSync(filename, 'utf8')
-    .replaceAll('process.exit(', 'return process.exit(');
+  const source = fs.readFileSync(filename, 'utf8').replaceAll('process.exit(', 'return process.exit(');
   vm.runInNewContext(
     `(function () {\n${source}\n})()`,
     {
@@ -96,10 +75,7 @@ function verifyFixture(expectedPublisher, options = {}) {
         },
       },
       console: Object.fromEntries(
-        ['log', 'warn', 'error'].map((name) => [
-          name,
-          (...args) => logs.push(args.join(' ')),
-        ]),
+        ['log', 'warn', 'error'].map((name) => [name, (...args) => logs.push(args.join(' '))]),
       ),
       require(name) {
         if (name === 'node:fs') return { existsSync: () => true };
@@ -208,12 +184,7 @@ test('publisher verification rejects ambiguous multiple CNs and missing or malfo
 });
 
 test('publisher verification requires a valid signature even when CN matches', () => {
-  for (const status of [
-    'NotSigned',
-    'HashMismatch',
-    'NotTrusted',
-    'UnknownError',
-  ]) {
+  for (const status of ['NotSigned', 'HashMismatch', 'NotTrusted', 'UnknownError']) {
     const f = verifyFixture('Synthetic Publisher', {
       signature: { Status: status },
     });

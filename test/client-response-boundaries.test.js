@@ -10,10 +10,11 @@ const { createHarness } = require('./helpers/license-manager-harness');
 function rejectingClient(body, status = 429, retryAfter = '60') {
   return createRemoteLicenseClient({
     now: () => Date.parse('2026-09-16T00:00:00Z'),
-    fetchImpl: async () => new Response(body, {
-      status,
-      headers: { 'Retry-After': retryAfter },
-    }),
+    fetchImpl: async () =>
+      new Response(body, {
+        status,
+        headers: { 'Retry-After': retryAfter },
+      }),
   });
 }
 
@@ -42,14 +43,17 @@ test('Retry-After accepts dates and zero, rejecting malformed or unsafe delay va
     ['Wed, 16 Sep 2026 00:02:00 GMT', 120_000],
     ['Wed, 16 Sep 2026 00:00:00 GMT', 0],
     ['Tue, 15 Sep 2026 23:59:00 GMT', 0],
-    ['0', 0], ['-1', undefined], ['1.5', undefined], ['', undefined],
-    ['tomorrow', undefined], ['9999999999999999999999', undefined],
+    ['0', 0],
+    ['-1', undefined],
+    ['1.5', undefined],
+    ['', undefined],
+    ['tomorrow', undefined],
+    ['9999999999999999999999', undefined],
   ]) {
-    await assert.rejects(rejectingClient('{}', 429, header).getGiftEvents(null, 1, 'token'),
-      (error) => {
-        assert.equal(error.retryAfterMs, expected, header);
-        return true;
-      });
+    await assert.rejects(rejectingClient('{}', 429, header).getGiftEvents(null, 1, 'token'), (error) => {
+      assert.equal(error.retryAfterMs, expected, header);
+      return true;
+    });
   }
 });
 
@@ -66,8 +70,14 @@ test('real Retry-After response sets gift discovery and SSE recovery minimum wai
     try {
       await controller.start();
       await new Promise((resolve) => setImmediate(resolve));
-      assert.ok(fixture.scheduledTimers.some((timer) => !timer.cleared && timer.delay === 120_000), stage);
-      assert.equal(fixture.scheduledTimers.some((timer) => !timer.cleared && timer.delay === 1000), false);
+      assert.ok(
+        fixture.scheduledTimers.some((timer) => !timer.cleared && timer.delay === 120_000),
+        stage,
+      );
+      assert.equal(
+        fixture.scheduledTimers.some((timer) => !timer.cleared && timer.delay === 1000),
+        false,
+      );
     } finally {
       controller.dispose();
     }
@@ -83,8 +93,10 @@ test('real malformed SSE 401 responses close license authorization and clear tok
         await manager.bootstrap();
         remote.watchGiftEvents = client.watchGiftEvents;
         remote.watchCloudStateChanges = client.watchCloudStateChanges;
-        await assert.rejects(stream === 'gift' ? manager.watchGiftEventsInternal() : manager.watchCloudStateChangesInternal(),
-          (error) => error.status === 401);
+        await assert.rejects(
+          stream === 'gift' ? manager.watchGiftEventsInternal() : manager.watchCloudStateChangesInternal(),
+          (error) => error.status === 401,
+        );
         assert.equal(manager.getState(), manager.LicenseState.BLOCKED);
         assert.equal(manager.getAccessToken(), '');
       } finally {

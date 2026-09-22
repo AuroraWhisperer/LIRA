@@ -35,27 +35,15 @@ export function renderClassicQueue(settings, current, waiting, content) {
   const items = [current].concat(waiting).filter(Boolean);
   const baseFontSize = Math.max(
     10,
-    normalizeFontSize(
-      (settings || {}).queueSongFontSize,
-      scaleToFontSize((settings || {}).themeFontScale, 28),
-      70,
-      10,
-    ),
+    normalizeFontSize((settings || {}).queueSongFontSize, scaleToFontSize((settings || {}).themeFontScale, 28), 70, 10),
   );
   const rowHeight = Math.max(35, Math.round(baseFontSize * 0.65 * 1.8));
   const rowGap = 5;
   const showIndex = settings.overlayShowIndex !== 'false';
   const threshold = Number(settings.overlayIndexThreshold || 0);
-  const shouldShowIndex =
-    showIndex && (threshold === 0 || items.length > threshold);
-  document.documentElement.style.setProperty(
-    '--classic-row-height',
-    `${rowHeight}px`,
-  );
-  document.documentElement.style.setProperty(
-    '--classic-row-gap',
-    `${rowGap}px`,
-  );
+  const shouldShowIndex = showIndex && (threshold === 0 || items.length > threshold);
+  document.documentElement.style.setProperty('--classic-row-height', `${rowHeight}px`);
+  document.documentElement.style.setProperty('--classic-row-gap', `${rowGap}px`);
 
   if (items.length === 0) {
     content.innerHTML = '<div class="overlay-empty">当前还没有点歌</div>';
@@ -91,38 +79,19 @@ export function renderClassicQueue(settings, current, waiting, content) {
   scheduleClassicVerticalScroll(content, settings, rowsHtml, rowGap);
 }
 
-export function renderIdentityQueue(
-  settings,
-  current,
-  waiting,
-  content,
-  superChats = [],
-) {
+export function renderIdentityQueue(settings, current, waiting, content, superChats = []) {
   const songItems = [current].concat(waiting).filter(Boolean);
-  const scItems = (Array.isArray(superChats) ? superChats : []).filter(
-    (item) => Number(item.price || 0) >= 2,
-  );
+  const scItems = (Array.isArray(superChats) ? superChats : []).filter((item) => Number(item.price || 0) >= 2);
   const baseFontSize = identityQueueFontSize(settings);
   const rowHeight = Math.max(24, Math.round(baseFontSize * 1.6));
   const rowGap = 4;
-  document.documentElement.style.setProperty(
-    '--identity-row-height',
-    `${rowHeight}px`,
-  );
-  document.documentElement.style.setProperty(
-    '--identity-row-gap',
-    `${rowGap}px`,
-  );
+  document.documentElement.style.setProperty('--identity-row-height', `${rowHeight}px`);
+  document.documentElement.style.setProperty('--identity-row-gap', `${rowGap}px`);
 
   const showIndex = settings.overlayShowIndex !== 'false';
   const threshold = Number(settings.overlayIndexThreshold || 0);
-  const shouldShowIndex =
-    showIndex && (threshold === 0 || songItems.length > threshold);
-  const pins = [
-    settings.overlayPin1,
-    settings.overlayPin2,
-    settings.overlayPin3,
-  ]
+  const shouldShowIndex = showIndex && (threshold === 0 || songItems.length > threshold);
+  const pins = [settings.overlayPin1, settings.overlayPin2, settings.overlayPin3]
     .map((item) => String(item || '').trim())
     .filter(Boolean);
   const pinHtml = pins.length
@@ -167,15 +136,9 @@ export function renderIdentityQueue(
   `
     : '';
 
-  const scRowsHtml = scItems
-    .map((item) => renderIdentitySuperChatRow(item))
-    .join('');
+  const scRowsHtml = scItems.map((item) => renderIdentitySuperChatRow(item)).join('');
   const songRowsHtml =
-    songItems.length > 0
-      ? songItems
-          .map((item, i) => renderIdentityRow(item, i, shouldShowIndex))
-          .join('')
-      : '';
+    songItems.length > 0 ? songItems.map((item, i) => renderIdentityRow(item, i, shouldShowIndex)).join('') : '';
   const combinedRows = scRowsHtml + songRowsHtml;
   const totalRows = scItems.length + songItems.length;
 
@@ -261,9 +224,7 @@ export function renderStorybookQueue(settings, current, waiting, content) {
     return;
   }
 
-  const rowsHtml = items
-    .map((item, index) => renderStorybookRow(item, index))
-    .join('');
+  const rowsHtml = items.map((item, index) => renderStorybookRow(item, index)).join('');
   content.innerHTML = `
     <div class="storybook-list-window">
       <div class="identity-list storybook-list paused">
@@ -301,50 +262,18 @@ export function renderStorybookRow(item, index) {
 }
 
 export function renderNeonVinylQueue(settings, current, waiting, content) {
-  renderIllustratedAssetQueue(
-    settings,
-    current,
-    waiting,
-    content,
-    'neon-vinyl',
-    8,
-    renderNeonVinylRow,
-  );
+  renderIllustratedAssetQueue(settings, current, waiting, content, 'neon-vinyl', 8, renderNeonVinylRow);
 }
 
 export function renderCherryRibbonQueue(settings, current, waiting, content) {
-  renderIllustratedAssetQueue(
-    settings,
-    current,
-    waiting,
-    content,
-    'cherry-ribbon',
-    8,
-    renderCherryRibbonRow,
-  );
+  renderIllustratedAssetQueue(settings, current, waiting, content, 'cherry-ribbon', 8, renderCherryRibbonRow);
 }
 
 export function renderGoldenLilyQueue(settings, current, waiting, content) {
-  renderIllustratedAssetQueue(
-    settings,
-    current,
-    waiting,
-    content,
-    'golden-lily',
-    4,
-    renderGoldenLilyRow,
-  );
+  renderIllustratedAssetQueue(settings, current, waiting, content, 'golden-lily', 4, renderGoldenLilyRow);
 }
 
-function renderIllustratedAssetQueue(
-  settings,
-  current,
-  waiting,
-  content,
-  style,
-  rowGap,
-  renderRow,
-) {
+function renderIllustratedAssetQueue(settings, current, waiting, content, style, rowGap, renderRow) {
   const items = [current].concat(waiting).filter(Boolean);
 
   if (items.length === 0) {
@@ -389,9 +318,7 @@ function renderIllustratedAssetRow(item, style, rank = null) {
   const medalClass = medalLevelClass(medalLevel);
   const songPrefix = item.is_pinned ? '📌 ' : '';
   const hasMedal = medalName.length > 0 || medalLevel > 0;
-  const medalText = medalName
-    ? `${medalName}${medalLevel > 0 ? ` · ${medalLevel}` : ''}`
-    : String(medalLevel);
+  const medalText = medalName ? `${medalName}${medalLevel > 0 ? ` · ${medalLevel}` : ''}` : String(medalLevel);
 
   return `
     <div class="${style}-row illustrated-queue-row guard-${guardLevel} medal-${medalClass}">

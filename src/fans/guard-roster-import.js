@@ -1,20 +1,13 @@
 'use strict';
 
-const {
-  identity,
-  identityKey,
-  timestamp,
-  recordData,
-} = require('./validation');
+const { identity, identityKey, timestamp, recordData } = require('./validation');
 const { dayOf } = require('./dates');
 
 function getGuardRoster(profile, records) {
   if (profile.guardRoster) return profile.guardRoster;
   const latest = records
     .filter((record) => record.original.evidence === 'guard-roster')
-    .sort((a, b) =>
-      b.original.observedAt.localeCompare(a.original.observedAt),
-    )[0]?.original;
+    .sort((a, b) => b.original.observedAt.localeCompare(a.original.observedAt))[0]?.original;
   return latest
     ? {
         roomId: latest.roomId,
@@ -77,10 +70,7 @@ function createGuardRosterImporter({ store, create, observe }) {
         if (seen.has(key)) throw new Error('大航海名单存在重复 UID。');
         seen.add(key);
         const medalLevel = member.medalLevel ?? null;
-        if (
-          medalLevel !== null &&
-          (!Number.isSafeInteger(medalLevel) || medalLevel < 0)
-        )
+        if (medalLevel !== null && (!Number.isSafeInteger(medalLevel) || medalLevel < 0))
           throw new Error('粉丝灯牌等级无效。');
         const data = recordData('membership', {
           type: 'observation',

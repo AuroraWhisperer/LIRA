@@ -1,5 +1,17 @@
-import { BANNER_HEIGHT, BANNER_GAP, createGiftBanner, updateGiftBanner, fitGiftBannerNames, loadGiftArtworkCatalog } from '../shared/gift-banner.js';
-import { createGiftFeedState, giftFeedRowDurationMs, scanTodayGifts, shanghaiToday } from '../shared/gift-feed-state.js';
+import {
+  BANNER_HEIGHT,
+  BANNER_GAP,
+  createGiftBanner,
+  updateGiftBanner,
+  fitGiftBannerNames,
+  loadGiftArtworkCatalog,
+} from '../shared/gift-banner.js';
+import {
+  createGiftFeedState,
+  giftFeedRowDurationMs,
+  scanTodayGifts,
+  shanghaiToday,
+} from '../shared/gift-feed-state.js';
 import { createOverlaySocket } from './socket-client.js';
 import { buildGiftCards } from '../shared/gift-card-model.js';
 
@@ -39,7 +51,8 @@ async function request(url, signal) {
   try {
     const response = await fetch(url, { signal: requestController.signal });
     const result = await response.json();
-    if (!response.ok || !result.ok) throw Object.assign(new Error(result.error || '本日礼物暂未更新'), { code: result.code });
+    if (!response.ok || !result.ok)
+      throw Object.assign(new Error(result.error || '本日礼物暂未更新'), { code: result.code });
     return result.data;
   } finally {
     clearTimeout(timeout);
@@ -107,9 +120,15 @@ function scheduleRefresh({ settings = false, catalog = false } = {}) {
   if (disposed) return;
   settingsDirty ||= settings;
   catalogDirty ||= catalog;
-  if (scanning) { dirty = true; return; }
+  if (scanning) {
+    dirty = true;
+    return;
+  }
   if (refreshTimer) return;
-  refreshTimer = setTimeout(() => { refreshTimer = null; refresh(); }, 500);
+  refreshTimer = setTimeout(() => {
+    refreshTimer = null;
+    refresh();
+  }, 500);
 }
 
 async function refresh() {
@@ -125,33 +144,58 @@ async function refresh() {
   try {
     const [nextConfig, nextCatalog] = await Promise.all([
       readSettings ? request('/api/gifts/display-settings', controller.signal) : config,
-      readCatalog ? loadGiftArtworkCatalog(controller.signal).catch(() => { catalogDirty = true; return catalog; }) : catalog,
+      readCatalog
+        ? loadGiftArtworkCatalog(controller.signal).catch(() => {
+            catalogDirty = true;
+            return catalog;
+          })
+        : catalog,
     ]);
     if (current !== generation) return;
     config = nextConfig;
     if (catalog !== nextCatalog && JSON.stringify(catalog) !== JSON.stringify(nextCatalog)) catalogVersion += 1;
     catalog = nextCatalog;
     render(true); // Refresh failed avatars as well as saved colors on static rows.
-    const result = await scanTodayGifts({ request, signal: controller.signal, day,
+    const result = await scanTodayGifts({
+      request,
+      signal: controller.signal,
+      day,
       onRevision(next) {
         if (current !== generation) return;
-        if (revision && revision !== next) { state.replace([]); pending = null; render(); }
+        if (revision && revision !== next) {
+          state.replace([]);
+          pending = null;
+          render();
+        }
         revision = next;
-      } });
+      },
+    });
     if (current !== generation) return;
-    const profiles = await request(`/api/gifts/card-profiles?${new URLSearchParams({ viewRevision: revision })}`, controller.signal);
+    const profiles = await request(
+      `/api/gifts/card-profiles?${new URLSearchParams({ viewRevision: revision })}`,
+      controller.signal,
+    );
     if (current !== generation) return;
     if (profiles.day !== day || profiles.viewRevision !== revision) {
       throw Object.assign(new Error('礼物来源或日期已变更'), { code: 'GIFT_VIEW_STALE' });
     }
     const cards = buildGiftCards(result.items, { day, profiles: profiles.items });
     const minimumCents = BigInt(config.minGiftAmountCents ?? 0);
-    pending = minimumCents === 0n ? cards : cards.filter((item) => {
-      const totalCents = item.cardTotalCents === undefined
-        ? BigInt(Math.round(item.gift.unitPrice * 100)) * BigInt(item.gift.num) : BigInt(item.cardTotalCents);
-      return totalCents > minimumCents;
-    });
-    if (state.count <= config.visibleRows || document.hidden) { state.replace(pending); pending = null; render(); }
+    pending =
+      minimumCents === 0n
+        ? cards
+        : cards.filter((item) => {
+            const totalCents =
+              item.cardTotalCents === undefined
+                ? BigInt(Math.round(item.gift.unitPrice * 100)) * BigInt(item.gift.num)
+                : BigInt(item.cardTotalCents);
+            return totalCents > minimumCents;
+          });
+    if (state.count <= config.visibleRows || document.hidden) {
+      state.replace(pending);
+      pending = null;
+      render();
+    }
     if (status.textContent) status.textContent = '';
   } catch (error) {
     if (current !== generation || disposed) return;
@@ -166,14 +210,20 @@ async function refresh() {
 }
 
 function advance(time) {
-  if (disposed || document.hidden) { stopScrolling(); return; }
+  if (disposed || document.hidden) {
+    stopScrolling();
+    return;
+  }
   if (previousTime !== null) progress += (time - previousTime) / giftFeedRowDurationMs(config.scrollSpeed);
   previousTime = time;
   const steps = Math.floor(progress);
   if (steps > 0) {
     progress -= steps;
     state.advance(steps);
-    if (pending) { state.replace(pending); pending = null; }
+    if (pending) {
+      state.replace(pending);
+      pending = null;
+    }
     render();
   }
   if (frame !== null) {
@@ -191,8 +241,10 @@ const socket = createOverlaySocket({
     if (sourceChanged) reset();
     const reason = payload.reason || '';
     if (sourceChanged || payload.type === 'gift-catalog:update' || /gift|settings|connect/.test(reason)) {
-      scheduleRefresh({ settings: sourceChanged || /settings|connect/.test(reason),
-        catalog: sourceChanged || payload.type === 'gift-catalog:update' || /connect/.test(reason) });
+      scheduleRefresh({
+        settings: sourceChanged || /settings|connect/.test(reason),
+        catalog: sourceChanged || payload.type === 'gift-catalog:update' || /connect/.test(reason),
+      });
     }
   },
 });
@@ -201,16 +253,28 @@ scheduleRefresh();
 const reconcileTimer = setInterval(() => scheduleRefresh({ settings: true, catalog: true }), 30000);
 const dayTimer = setInterval(() => {
   const nextDay = shanghaiToday();
-  if (day !== nextDay) { day = nextDay; reset(); scheduleRefresh(); }
+  if (day !== nextDay) {
+    day = nextDay;
+    reset();
+    scheduleRefresh();
+  }
 }, 1000);
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) stopScrolling();
-  else { render(); scheduleRefresh({ settings: true, catalog: true }); }
+  else {
+    render();
+    scheduleRefresh({ settings: true, catalog: true });
+  }
 });
-window.addEventListener('pagehide', () => {
-  disposed = true;
-  reset();
-  socket.dispose();
-  clearInterval(dayTimer); clearInterval(reconcileTimer);
-  clearTimeout(refreshTimer);
-}, { once: true });
+window.addEventListener(
+  'pagehide',
+  () => {
+    disposed = true;
+    reset();
+    socket.dispose();
+    clearInterval(dayTimer);
+    clearInterval(reconcileTimer);
+    clearTimeout(refreshTimer);
+  },
+  { once: true },
+);

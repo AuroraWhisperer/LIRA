@@ -10,9 +10,18 @@ test('ESM overlay utilities use the same functions as the classic-script surface
   const window = {};
   const location = { search: '?quality=low' };
   const utils = await loadModuleExports(overlayPath('overlay-utils-module.js'), {
-    window, location, URLSearchParams,
+    window,
+    location,
+    URLSearchParams,
   });
-  for (const name of ['hexToRgb', 'hexToRgba', 'withMultilingualFallback', 'overlayLowPowerEnabled', 'scrollTravelSeconds', 'escapeHtml']) {
+  for (const name of [
+    'hexToRgb',
+    'hexToRgba',
+    'withMultilingualFallback',
+    'overlayLowPowerEnabled',
+    'scrollTravelSeconds',
+    'escapeHtml',
+  ]) {
     assert.equal(utils[name], window.OverlayUtils[name]);
   }
   assert.equal(utils.hexToRgba('#abc', 2), 'rgba(170, 187, 204, 1)');
@@ -28,7 +37,9 @@ test('ESM overlay utilities use the same functions as the classic-script surface
 test('shared theme tokens preserve colors, blur, glow and fonts without replacing page backgrounds', async () => {
   const location = { search: '' };
   const { applyOverlayTheme } = await loadModuleExports(overlayPath('overlay-theme.js'), {
-    window: {}, location, URLSearchParams,
+    window: {},
+    location,
+    URLSearchParams,
   });
   const values = new Map();
   const classes = new Map();
@@ -38,9 +49,15 @@ test('shared theme tokens preserve colors, blur, glow and fonts without replacin
     style: { backgroundColor: 'page-owned' },
   };
   const settings = {
-    themePrimary: '#abc', themeAccent: '#123456', themeBackground: '#000',
-    backdropBlur: '8', glowIntensity: '4', enableGradient: 'true',
-    gradientEnd: '#fff', overlayFontFamily: 'Custom Font', overlayFontWeight: '600',
+    themePrimary: '#abc',
+    themeAccent: '#123456',
+    themeBackground: '#000',
+    backdropBlur: '8',
+    glowIntensity: '4',
+    enableGradient: 'true',
+    gradientEnd: '#fff',
+    overlayFontFamily: 'Custom Font',
+    overlayFontWeight: '600',
   };
   applyOverlayTheme(root, panel, settings);
   assert.equal(values.get('--overlay-primary-r'), '170');

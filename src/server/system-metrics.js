@@ -22,8 +22,7 @@ async function getSystemMetrics(rawWindowMs = 5000) {
 
   const cpuEnd = readSystemCpuSnapshot();
   const processCpuDelta = process.cpuUsage(processCpuStart);
-  const processElapsedMicros =
-    Number(process.hrtime.bigint() - processTimeStart) / 1000;
+  const processElapsedMicros = Number(process.hrtime.bigint() - processTimeStart) / 1000;
   const cpuCount = Math.max(os.cpus().length, 1);
   const totalMemory = os.totalmem();
   const freeMemory = os.freemem();
@@ -46,10 +45,7 @@ async function getSystemMetrics(rawWindowMs = 5000) {
     windowMs: Date.now() - startedAt,
     system: {
       cpuPercent: calculateSystemCpuPercent(cpuStart, cpuEnd),
-      memoryPercent:
-        totalMemory > 0
-          ? clampPercent(((totalMemory - freeMemory) / totalMemory) * 100)
-          : null,
+      memoryPercent: totalMemory > 0 ? clampPercent(((totalMemory - freeMemory) / totalMemory) * 100) : null,
       memoryUsedBytes: totalMemory - freeMemory,
       memoryTotalBytes: totalMemory,
       gpuPercent: gpu.totalPercent,
@@ -60,16 +56,9 @@ async function getSystemMetrics(rawWindowMs = 5000) {
       pid: process.pid,
       cpuPercent:
         processElapsedMicros > 0
-          ? clampPercent(
-              ((processCpuDelta.user + processCpuDelta.system) /
-                (processElapsedMicros * cpuCount)) *
-                100,
-            )
+          ? clampPercent(((processCpuDelta.user + processCpuDelta.system) / (processElapsedMicros * cpuCount)) * 100)
           : null,
-      memoryPercent:
-        totalMemory > 0
-          ? clampPercent((processMemory.rss / totalMemory) * 100)
-          : null,
+      memoryPercent: totalMemory > 0 ? clampPercent((processMemory.rss / totalMemory) * 100) : null,
       memoryRssBytes: processMemory.rss,
       memoryHeapUsedBytes: processMemory.heapUsed,
       uptimeSeconds: Math.floor(process.uptime()),
@@ -111,8 +100,7 @@ function createHardwareSummaryService(options = {}) {
   const readTemperatures = options.readTemperatures || readHardwareTemperatures;
 
   async function getStaticSummary() {
-    if (!staticSummaryPromise)
-      staticSummaryPromise = Promise.resolve().then(readStatic);
+    if (!staticSummaryPromise) staticSummaryPromise = Promise.resolve().then(readStatic);
     return staticSummaryPromise;
   }
 
@@ -131,9 +119,7 @@ function createHardwareSummaryService(options = {}) {
         return {
           ...gpu,
           temperatureCelsius: Number.isFinite(temperature) ? temperature : null,
-          temperatureMessage: Number.isFinite(temperature)
-            ? ''
-            : temperatures.gpuMessage || 'NVIDIA GPU 温度不可用',
+          temperatureMessage: Number.isFinite(temperature) ? '' : temperatures.gpuMessage || 'NVIDIA GPU 温度不可用',
         };
       });
       return result;
@@ -169,11 +155,9 @@ $ErrorActionPreference = 'Stop'
 } | ConvertTo-Json -Depth 3 -Compress
 `;
 
-  return runCommand(
-    'powershell.exe',
-    ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', command],
-    { timeout: 5000 },
-  ).then((stdout) => parseCommandJson(stdout));
+  return runCommand('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', command], {
+    timeout: 5000,
+  }).then((stdout) => parseCommandJson(stdout));
 }
 
 async function readHardwareTemperatures(gpus) {
@@ -195,26 +179,15 @@ async function readHardwareTemperatures(gpus) {
 function buildHardwareSummary(details = {}, osSnapshot = {}) {
   const cpus = toArray(details.cpus);
   const memoryModules = toArray(details.memoryModules);
-  const gpus = toArray(details.gpus).filter(
-    (gpu) => !isVirtualDisplayAdapter(gpu),
-  );
+  const gpus = toArray(details.gpus).filter((gpu) => !isVirtualDisplayAdapter(gpu));
   const primaryCpu = cpus[0] || {};
   const logicalCpuCount =
-    positiveInteger(primaryCpu.NumberOfLogicalProcessors) ||
-    positiveInteger(osSnapshot.logicalCpuCount) ||
-    null;
-  const physicalCores =
-    cpus.reduce(
-      (total, cpu) => total + positiveInteger(cpu.NumberOfCores),
-      0,
-    ) || null;
+    positiveInteger(primaryCpu.NumberOfLogicalProcessors) || positiveInteger(osSnapshot.logicalCpuCount) || null;
+  const physicalCores = cpus.reduce((total, cpu) => total + positiveInteger(cpu.NumberOfCores), 0) || null;
 
   return {
     cpu: {
-      model:
-        hardwareText(primaryCpu.Name) ||
-        hardwareText(osSnapshot.cpuModel) ||
-        '未知 CPU',
+      model: hardwareText(primaryCpu.Name) || hardwareText(osSnapshot.cpuModel) || '未知 CPU',
       physicalCores,
       logicalCores: logicalCpuCount,
       temperatureCelsius: null,
@@ -236,9 +209,7 @@ function buildHardwareSummary(details = {}, osSnapshot = {}) {
       vendor: hardwareText(gpu.AdapterCompatibility),
       videoMemoryBytes: positiveInteger(gpu.AdapterRAM) || null,
       temperatureCelsius: null,
-      temperatureMessage: isNvidiaGpu(gpu)
-        ? '点击检测时读取温度'
-        : 'Windows/驱动未提供可靠的 GPU 温度',
+      temperatureMessage: isNvidiaGpu(gpu) ? '点击检测时读取温度' : 'Windows/驱动未提供可靠的 GPU 温度',
     })),
   };
 }
@@ -296,11 +267,7 @@ function runCommand(file, args, options = {}) {
 }
 
 function toArray(value) {
-  return Array.isArray(value)
-    ? value
-    : value && typeof value === 'object'
-      ? [value]
-      : [];
+  return Array.isArray(value) ? value : value && typeof value === 'object' ? [value] : [];
 }
 
 function positiveInteger(value) {
@@ -317,9 +284,7 @@ function isNvidiaGpu(gpu) {
 }
 
 function isVirtualDisplayAdapter(gpu) {
-  return /\bvirtual\s+(?:display|graphics|video)(?:\s+adapter)?\b/i.test(
-    hardwareText(gpu.name || gpu.Name),
-  );
+  return /\bvirtual\s+(?:display|graphics|video)(?:\s+adapter)?\b/i.test(hardwareText(gpu.name || gpu.Name));
 }
 
 function sampleWindowsGpuMetrics(windowMs) {

@@ -12,27 +12,15 @@ const MAX_RANDOM_OUTCOMES = 10;
 const MAX_DISPLAY_TEXT_LENGTH = 6;
 
 function validateTimeInput(input) {
-  if (!input || typeof input !== 'object')
-    throw new Error('time input is required.');
+  if (!input || typeof input !== 'object') throw new Error('time input is required.');
   const result = {};
   if (Object.hasOwn(input, 'initialSeconds')) {
-    result.initialSeconds = validateSeconds(
-      input.initialSeconds,
-      'initialSeconds',
-      false,
-    );
+    result.initialSeconds = validateSeconds(input.initialSeconds, 'initialSeconds', false);
   }
   if (Object.hasOwn(input, 'remainingSeconds')) {
-    result.remainingSeconds = validateSeconds(
-      input.remainingSeconds,
-      'remainingSeconds',
-      false,
-    );
+    result.remainingSeconds = validateSeconds(input.remainingSeconds, 'remainingSeconds', false);
   }
-  if (
-    !Object.hasOwn(result, 'initialSeconds') &&
-    !Object.hasOwn(result, 'remainingSeconds')
-  ) {
+  if (!Object.hasOwn(result, 'initialSeconds') && !Object.hasOwn(result, 'remainingSeconds')) {
     throw new Error('initialSeconds or remainingSeconds is required.');
   }
   return result;
@@ -47,8 +35,7 @@ function validateAction(action) {
 }
 
 function validateBackground(input) {
-  if (!input || typeof input !== 'object')
-    throw new Error('background input is required.');
+  if (!input || typeof input !== 'object') throw new Error('background input is required.');
   const path = String(input.path || '').trim();
   const fit = String(input.fit || 'cover').trim();
   if (!['cover', 'contain', 'fill'].includes(fit)) {
@@ -62,13 +49,9 @@ function validateBackground(input) {
 
 function validateRules(input, options = {}) {
   if (!Array.isArray(input)) throw new Error('rules must be an array.');
-  const allowedRemoteImageOrigins = normalizeRemoteImageOrigins(
-    options.allowedRemoteImageOrigins,
-  );
+  const allowedRemoteImageOrigins = normalizeRemoteImageOrigins(options.allowedRemoteImageOrigins);
   const giftIds = new Set();
-  const rules = input.map((value, index) =>
-    validateRule(value, index, allowedRemoteImageOrigins),
-  );
+  const rules = input.map((value, index) => validateRule(value, index, allowedRemoteImageOrigins));
   for (const [index, rule] of rules.entries()) {
     rule.giftIdentity = validateRuleGiftIdentity({
       ...rule,
@@ -85,11 +68,9 @@ function validateRules(input, options = {}) {
 }
 
 function validateRule(input, index, allowedRemoteImageOrigins = []) {
-  if (!input || typeof input !== 'object')
-    throw new Error(`rule ${index + 1} must be an object.`);
+  if (!input || typeof input !== 'object') throw new Error(`rule ${index + 1} must be an object.`);
   const giftId = String(input.giftId ?? input.gift_id ?? '').trim();
-  if (!giftId || giftId.length > 100)
-    throw new Error(`rule ${index + 1} giftId is invalid.`);
+  if (!giftId || giftId.length > 100) throw new Error(`rule ${index + 1} giftId is invalid.`);
   const giftName = String(input.giftName ?? input.gift_name ?? '')
     .trim()
     .slice(0, 100);
@@ -98,37 +79,23 @@ function validateRule(input, index, allowedRemoteImageOrigins = []) {
     imagePath &&
     !isAllowedImagePath(
       imagePath,
-      [
-        'admin/gifts',
-        'bilibili-gifts',
-        'overtime-machine',
-        'overtime-gift-images',
-      ],
+      ['admin/gifts', 'bilibili-gifts', 'overtime-machine', 'overtime-gift-images'],
       allowedRemoteImageOrigins,
     )
   ) {
     throw new Error(`rule ${index + 1} imagePath is invalid.`);
   }
   const mode = String(input.mode || '').trim();
-  if (!['fixed', 'random', 'display'].includes(mode))
-    throw new Error(`rule ${index + 1} mode is invalid.`);
-  const quantityMode = String(
-    input.quantityMode ?? input.quantity_mode ?? 'group',
-  ).trim();
+  if (!['fixed', 'random', 'display'].includes(mode)) throw new Error(`rule ${index + 1} mode is invalid.`);
+  const quantityMode = String(input.quantityMode ?? input.quantity_mode ?? 'group').trim();
   if (!['group', 'item'].includes(quantityMode)) {
     throw new Error(`rule ${index + 1} quantityMode is invalid.`);
   }
   const enabled = input.enabled !== false && Number(input.enabled) !== 0;
-  const sortOrder = normalizeInteger(
-    input.sortOrder ?? input.sort_order ?? index,
-    `rule ${index + 1} sortOrder`,
-  );
+  const sortOrder = normalizeInteger(input.sortOrder ?? input.sort_order ?? index, `rule ${index + 1} sortOrder`);
 
   if (mode === 'display') {
-    const displayText = validateDisplayText(
-      input.displayText ?? input.display_text,
-      `rule ${index + 1} displayText`,
-    );
+    const displayText = validateDisplayText(input.displayText ?? input.display_text, `rule ${index + 1} displayText`);
     return {
       giftId,
       giftName,
@@ -170,29 +137,15 @@ function validateRule(input, index, allowedRemoteImageOrigins = []) {
     outcomesInput.length < MIN_RANDOM_OUTCOMES ||
     outcomesInput.length > MAX_RANDOM_OUTCOMES
   ) {
-    throw new Error(
-      `rule ${index + 1} outcomes must contain ${MIN_RANDOM_OUTCOMES} to ${MAX_RANDOM_OUTCOMES} items.`,
-    );
+    throw new Error(`rule ${index + 1} outcomes must contain ${MIN_RANDOM_OUTCOMES} to ${MAX_RANDOM_OUTCOMES} items.`);
   }
   const outcomes = outcomesInput.map((outcome, outcomeIndex) => ({
-    ...validateEffect(
-      outcome?.effect ?? outcome,
-      outcome?.seconds,
-      `rule ${index + 1} outcome ${outcomeIndex + 1}`,
-    ),
-    weight: validateWeight(
-      outcome?.weight,
-      `rule ${index + 1} outcome ${outcomeIndex + 1} weight`,
-    ),
+    ...validateEffect(outcome?.effect ?? outcome, outcome?.seconds, `rule ${index + 1} outcome ${outcomeIndex + 1}`),
+    weight: validateWeight(outcome?.weight, `rule ${index + 1} outcome ${outcomeIndex + 1} weight`),
   }));
-  const totalWeight = outcomes.reduce(
-    (sum, outcome) => sum + outcome.weight,
-    0,
-  );
+  const totalWeight = outcomes.reduce((sum, outcome) => sum + outcome.weight, 0);
   if (totalWeight > MAX_RANDOM_WEIGHT) {
-    throw new Error(
-      `rule ${index + 1} total weight cannot exceed ${MAX_RANDOM_WEIGHT}.`,
-    );
+    throw new Error(`rule ${index + 1} total weight cannot exceed ${MAX_RANDOM_WEIGHT}.`);
   }
   return {
     giftId,
@@ -211,9 +164,7 @@ function validateSeconds(value, field, signed) {
   const number = normalizeInteger(value, field);
   const minimum = signed ? -MAX_OVERTIME_SECONDS : 0;
   if (number < minimum || number > MAX_OVERTIME_SECONDS) {
-    throw new Error(
-      `${field} must be between ${minimum} and ${MAX_OVERTIME_SECONDS}.`,
-    );
+    throw new Error(`${field} must be between ${minimum} and ${MAX_OVERTIME_SECONDS}.`);
   }
   return number;
 }
@@ -221,18 +172,14 @@ function validateSeconds(value, field, signed) {
 function validateEffect(input, legacySeconds, field) {
   if (input && typeof input === 'object' && Object.hasOwn(input, 'operation')) {
     const operation = String(input.operation || '').trim();
-    if (
-      !['add', 'subtract', 'multiply', 'divide', 'clear'].includes(operation)
-    ) {
+    if (!['add', 'subtract', 'multiply', 'divide', 'clear'].includes(operation)) {
       throw new Error(`${field} operation is invalid.`);
     }
     if (operation === 'clear') return { operation, value: 0 };
     if (operation === 'multiply' || operation === 'divide') {
       const value = normalizeInteger(input.value, `${field} value`);
       if (value < 2 || value > MAX_EFFECT_FACTOR) {
-        throw new Error(
-          `${field} value must be between 2 and ${MAX_EFFECT_FACTOR}.`,
-        );
+        throw new Error(`${field} value must be between 2 and ${MAX_EFFECT_FACTOR}.`);
       }
       return { operation, value };
     }
@@ -243,9 +190,7 @@ function validateEffect(input, legacySeconds, field) {
   }
 
   const seconds = validateSeconds(legacySeconds, `${field} seconds`, true);
-  return seconds < 0
-    ? { operation: 'subtract', value: Math.abs(seconds) }
-    : { operation: 'add', value: seconds };
+  return seconds < 0 ? { operation: 'subtract', value: Math.abs(seconds) } : { operation: 'add', value: seconds };
 }
 
 function effectToLegacySeconds(effect) {
@@ -265,24 +210,19 @@ function validateWeight(value, field) {
 function validateDisplayText(value, field) {
   const rawText = String(value ?? '');
   if (/[\u0000-\u001F\u007F]/u.test(rawText)) {
-    throw new Error(
-      `${field} must contain 1-${MAX_DISPLAY_TEXT_LENGTH} characters without control characters.`,
-    );
+    throw new Error(`${field} must contain 1-${MAX_DISPLAY_TEXT_LENGTH} characters without control characters.`);
   }
   const text = rawText.trim();
   const length = Array.from(text).length;
   if (!text || length > MAX_DISPLAY_TEXT_LENGTH) {
-    throw new Error(
-      `${field} must contain 1-${MAX_DISPLAY_TEXT_LENGTH} characters without control characters.`,
-    );
+    throw new Error(`${field} must contain 1-${MAX_DISPLAY_TEXT_LENGTH} characters without control characters.`);
   }
   return text;
 }
 
 function normalizeInteger(value, field) {
   const number = Number(value);
-  if (!Number.isSafeInteger(number))
-    throw new Error(`${field} must be an integer.`);
+  if (!Number.isSafeInteger(number)) throw new Error(`${field} must be an integer.`);
   return number;
 }
 
@@ -301,15 +241,11 @@ function isAllowedImagePath(value, roots, allowedRemoteImageOrigins = []) {
   if (!/^(?:[a-z]+:|\/\/)/i.test(value)) {
     if (
       roots.includes('overtime-gift-images') &&
-      /^\/overtime-gift-images\/[A-Za-z0-9._-]+\.(?:gif|jpe?g|png|webp)$/iu.test(
-        value,
-      )
+      /^\/overtime-gift-images\/[A-Za-z0-9._-]+\.(?:gif|jpe?g|png|webp)$/iu.test(value)
     ) {
       return true;
     }
-    return roots.some((root) =>
-      new RegExp(`^/img/${root}(?:/[A-Za-z0-9._-]+)+$`).test(value),
-    );
+    return roots.some((root) => new RegExp(`^/img/${root}(?:/[A-Za-z0-9._-]+)+$`).test(value));
   }
 
   // Remote gift artwork is accepted only when the composition root supplies

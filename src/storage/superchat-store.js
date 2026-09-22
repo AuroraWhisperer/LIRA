@@ -45,18 +45,12 @@ function createSuperChatStore(superChatDb) {
           input.createdAt,
         );
       return normalizeSuperChatRow(
-        superChatDb
-          .prepare('SELECT * FROM super_chats WHERE id = ?')
-          .get(Number(result.lastInsertRowid)),
+        superChatDb.prepare('SELECT * FROM super_chats WHERE id = ?').get(Number(result.lastInsertRowid)),
       );
     },
 
     setStatus(id, status, updatedAt) {
-      superChatDb
-        .prepare(
-          'UPDATE super_chats SET status = ?, updated_at = ? WHERE id = ?',
-        )
-        .run(status, updatedAt, id);
+      superChatDb.prepare('UPDATE super_chats SET status = ?, updated_at = ? WHERE id = ?').run(status, updatedAt, id);
     },
 
     listActive() {

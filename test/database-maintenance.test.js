@@ -118,27 +118,15 @@ function getIndexColumns(db, indexName) {
 }
 
 test('clearAllData counts deleted and active queue rows', () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'song-plugin-clear-all-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-clear-all-'));
   const databases = createDatabases({ dataDir });
   try {
     const insertQueue = databases.songDb.prepare(`
       INSERT INTO queue (song_name, created_at, updated_at, status)
       VALUES (?, ?, ?, ?)
     `);
-    insertQueue.run(
-      'Active',
-      '2026-08-15T00:00:00.000Z',
-      '2026-08-15T00:00:00.000Z',
-      'waiting',
-    );
-    insertQueue.run(
-      'Deleted',
-      '2026-08-15T00:00:01.000Z',
-      '2026-08-15T00:00:01.000Z',
-      'deleted',
-    );
+    insertQueue.run('Active', '2026-08-15T00:00:00.000Z', '2026-08-15T00:00:00.000Z', 'waiting');
+    insertQueue.run('Deleted', '2026-08-15T00:00:01.000Z', '2026-08-15T00:00:01.000Z', 'deleted');
 
     const result = clearAllData(
       databases.songDb,
@@ -151,16 +139,9 @@ test('clearAllData counts deleted and active queue rows', () => {
     assert.equal(result.deletedCounts.queue, 2);
     assert.equal(
       result.totalDeleted,
-      Object.values(result.deletedCounts).reduce(
-        (total, count) => total + count,
-        0,
-      ),
+      Object.values(result.deletedCounts).reduce((total, count) => total + count, 0),
     );
-    assert.equal(
-      databases.songDb.prepare('SELECT COUNT(*) AS count FROM queue').get()
-        .count,
-      0,
-    );
+    assert.equal(databases.songDb.prepare('SELECT COUNT(*) AS count FROM queue').get().count, 0);
   } finally {
     closeDatabases(databases);
     fs.rmSync(dataDir, { recursive: true, force: true });
@@ -180,7 +161,7 @@ test('createDatabases upgrades genuine pre-v1 song and gift databases idempotent
       assert.deepEqual(getSchemaVersions(databases), {
         songDb: 7,
         superChatDb: 1,
-        giftDb: 13,
+        giftDb: 14,
         musicDb: 1,
         checkinDb: 1,
         lotteryDb: 2,
@@ -191,10 +172,11 @@ test('createDatabases upgrades genuine pre-v1 song and gift databases idempotent
         'pinned_at',
         'created_at',
       ]);
-      assert.deepEqual(
-        getIndexColumns(databases.giftDb, 'idx_gift_events_sprint'),
-        ['counted_in_sprint', 'status', 'created_at'],
-      );
+      assert.deepEqual(getIndexColumns(databases.giftDb, 'idx_gift_events_sprint'), [
+        'counted_in_sprint',
+        'status',
+        'created_at',
+      ]);
 
       const song = databases.songDb
         .prepare(
@@ -252,10 +234,7 @@ test('createDatabases upgrades genuine pre-v1 song and gift databases idempotent
       );
 
       for (const db of Object.values(databases)) {
-        assert.equal(
-          db.prepare('PRAGMA integrity_check').get().integrity_check,
-          'ok',
-        );
+        assert.equal(db.prepare('PRAGMA integrity_check').get().integrity_check, 'ok');
       }
 
       closeDatabases(databases);
@@ -268,9 +247,7 @@ test('createDatabases upgrades genuine pre-v1 song and gift databases idempotent
 });
 
 test('createDatabases closes every opened handle when initialization fails', () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'song-plugin-init-failure-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-init-failure-'));
   const songDb = new DatabaseSync(path.join(dataDir, DB_FILE_NAMES.songDb));
   songDb.exec(`
     CREATE TABLE songs (
@@ -291,10 +268,7 @@ test('createDatabases closes every opened handle when initialization fails', () 
   };
 
   try {
-    assert.throws(
-      () => createDatabases({ dataDir }),
-      /song_db migration to v3 failed/,
-    );
+    assert.throws(() => createDatabases({ dataDir }), /song_db migration to v3 failed/);
     assert.equal(closeCount, 5);
   } finally {
     DatabaseSync.prototype.close = originalClose;

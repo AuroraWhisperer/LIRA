@@ -7,15 +7,26 @@ function fail(code) {
 function users(value, max, code) {
   if (!Array.isArray(value) || value.length > max) fail(code);
   return value.map((user) => {
-    if (!user || typeof user.uid !== 'string' || !/^[1-9]\d{0,19}$/u.test(user.uid) ||
-        typeof user.name !== 'string' || user.name.length > 80 || /[\x00-\x1f\x7f]/u.test(user.name)) fail(code);
+    if (
+      !user ||
+      typeof user.uid !== 'string' ||
+      !/^[1-9]\d{0,19}$/u.test(user.uid) ||
+      typeof user.name !== 'string' ||
+      user.name.length > 80 ||
+      /[\x00-\x1f\x7f]/u.test(user.name)
+    )
+      fail(code);
     return { uid: user.uid, name: user.name };
   });
 }
 
 function keywords(value, code) {
-  if (!Array.isArray(value) || value.length > 200 || value.some((word) =>
-    typeof word !== 'string' || !word.trim() || word.length > 100 || /[\x00-\x1f\x7f]/u.test(word))) fail(code);
+  if (
+    !Array.isArray(value) ||
+    value.length > 200 ||
+    value.some((word) => typeof word !== 'string' || !word.trim() || word.length > 100 || /[\x00-\x1f\x7f]/u.test(word))
+  )
+    fail(code);
   return [...value];
 }
 
@@ -34,8 +45,11 @@ function overlayFilterParameters(value) {
 }
 
 function sanitizeOverlayFilters(value) {
-  return { ok: true, blockedUsers: users(value?.blockedUsers, 500, 'INVALID_RESPONSE'),
-    blockedKeywords: keywords(value?.blockedKeywords, 'INVALID_RESPONSE') };
+  return {
+    ok: true,
+    blockedUsers: users(value?.blockedUsers, 500, 'INVALID_RESPONSE'),
+    blockedKeywords: keywords(value?.blockedKeywords, 'INVALID_RESPONSE'),
+  };
 }
 
 function sanitizeOverlayViewers(value) {

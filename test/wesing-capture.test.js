@@ -22,10 +22,7 @@ test('WeSing capture facade preserves focused module exports', () => {
 
   assert.equal(facade.createWeSingCapture, engine.createWeSingCapture);
   assert.equal(facade.loadWeSingLyrics, cache.loadWeSingLyrics);
-  assert.equal(
-    facade.buildPowerShellMonitorScript,
-    monitor.buildPowerShellMonitorScript,
-  );
+  assert.equal(facade.buildPowerShellMonitorScript, monitor.buildPowerShellMonitorScript);
 });
 
 test('WeSing cache parser reads matching UTF-16LE log and decrypts local word-timed QRC', async (t) => {
@@ -62,24 +59,15 @@ test('WeSing log parser ignores title mismatches and unsafe song IDs', async (t)
   const logPath = path.join(fixture.cachePath, 'Log', 'WeSing', 'WeSing-2.log');
   fs.writeFileSync(
     logPath,
-    Buffer.from(
-      'event "StartKSong" payload {"mid":"..\\..\\secret","songname":"测试歌曲"}',
-      'utf16le',
-    ),
+    Buffer.from('event "StartKSong" payload {"mid":"..\\..\\secret","songname":"测试歌曲"}', 'utf16le'),
   );
   const future = new Date(Date.now() + 2000);
   fs.utimesSync(logPath, future, future);
 
   assert.equal(await findLatestSongEntry(fixture.cachePath, '另一首歌'), null);
   assert.equal(await findLatestSongEntry(fixture.cachePath, '测试歌曲'), null);
-  assert.throws(
-    () => normalizeWeSingCachePath('relative\\WeSingCache'),
-    /绝对路径/,
-  );
-  assert.throws(
-    () => normalizeWeSingCachePath('C:\\Temp\\OtherFolder'),
-    /WeSingCache/,
-  );
+  assert.throws(() => normalizeWeSingCachePath('relative\\WeSingCache'), /绝对路径/);
+  assert.throws(() => normalizeWeSingCachePath('C:\\Temp\\OtherFolder'), /WeSingCache/);
 });
 
 test('WeSing cache configuration creates a missing user cache directory', async (t) => {
@@ -129,8 +117,22 @@ test('unchanged WeSing configuration preserves listeners and does not reset capt
   const capture = createWeSingCapture({
     cachePath: fixture.cachePath,
     platform: 'win32',
-    monitorFactory: () => ({ start() { starts += 1; }, stop() { stops += 1; } }),
-    watchFactory: () => { watchers += 1; return { close() { closed += 1; } }; },
+    monitorFactory: () => ({
+      start() {
+        starts += 1;
+      },
+      stop() {
+        stops += 1;
+      },
+    }),
+    watchFactory: () => {
+      watchers += 1;
+      return {
+        close() {
+          closed += 1;
+        },
+      };
+    },
   });
   t.after(() => {
     capture.stop();
@@ -162,7 +164,14 @@ test('a prepared cache directory that disappears is reported unavailable without
   const capture = createWeSingCapture({
     cachePath: fixture.cachePath,
     platform: 'win32',
-    monitorFactory: () => ({ start() { starts += 1; }, stop() { stops += 1; } }),
+    monitorFactory: () => ({
+      start() {
+        starts += 1;
+      },
+      stop() {
+        stops += 1;
+      },
+    }),
     watchFactory: () => ({ close() {} }),
   });
   t.after(() => {

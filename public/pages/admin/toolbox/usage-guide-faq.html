@@ -1,0 +1,433 @@
+<!-- ============ 常见问题 ============ -->
+<section class="usage-guide-section" id="ug-faq">
+  <h3 class="usage-guide-section-title"><span class="usage-guide-section-index" aria-hidden="true">16</span>常见问题</h3>
+  <p class="usage-guide-section-intro">先按主题找到与你看到的提示相近的问题，再依次检查。换机、备份等完整操作说明见<a href="#ug-data" data-usage-guide-link>数据保存与换电脑</a>；不确定名词可看<a href="#ug-glossary" data-usage-guide-link>名词小词典</a>。</p>
+  <h4 class="usage-guide-subsection-title">账号与设备</h4>
+  <div class="usage-guide-faq-grid">
+    <details class="usage-guide-faq">
+      <summary>
+        <strong>打开软件时无法登录</strong>
+        <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      </summary>
+      <ol class="usage-guide-checks">
+        <li>看到「无法连接授权服务器，请检查网络后重试。」或连接超时，先恢复网络，再点「重试连接」。首次使用选「注册新账号」；重装或换电脑选「登录已有账号」，两种模式需要的码不同。</li>
+        <li>若显示「准备未完成」，按当前等待页提示重试；这与用户名或密码输入错误不是同一阶段，不必反复注册。</li>
+        <li>仍失败时记录完整提示。若是账号停用、授权撤销或设备绑定不一致，联系管理员处理，不要自行删除登录文件。完整入口见<a href="#ug-quick" data-usage-guide-link>快速上手</a>。</li>
+      </ol>
+    </details>
+    <details class="usage-guide-faq">
+      <summary>
+        <strong>用户名填了中文、横线或已有名字，注册不过去</strong>
+        <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      </summary>
+      <ol class="usage-guide-checks">
+        <li>「用户名只能使用英文字母、数字和中划线（-），且不能以中划线开头或结尾，不支持中文。」用户名须为 2–32 个字符，大写会自动转小写。</li>
+        <li>例如可用 <code>demo-singer</code>，不要用中文、空格或首尾中划线。若提示「此用户名为系统保留名称，请更换。」，换一个名字。</li>
+        <li>若提示「此用户名已被使用；已有账号请选择“登录已有账号”。」，已有账号请切到登录模式；不确定归属时联系管理员。</li>
+      </ol>
+    </details>
+    <details class="usage-guide-faq">
+      <summary>
+        <strong>密码不符合要求，或者忘记密码了</strong>
+        <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      </summary>
+      <ol class="usage-guide-checks">
+        <li>若提示「密码不符合要求，请查看密码旁的说明。」，新密码须为 8–64 个字符，并包含大写字母、小写字母、中文、数字、符号中至少三类；允许空格，不要用常见弱密码。</li>
+        <li>若提示「密码的 UTF-8 编码不能超过 72 字节，请缩短密码。」，缩短包含较多中文或符号的密码；不要加入换行或不可见字符。</li>
+        <li>忘记密码时联系管理员取得密码重置码，再到网页登录页点「使用重置码」。重置码用于网页重置密码，不填入客户端的注册激活码或短效登录码栏。</li>
+      </ol>
+    </details>
+    <details class="usage-guide-faq">
+      <summary>
+        <strong>管理员给的码用不了，或提示过期、已使用</strong>
+        <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      </summary>
+      <ol class="usage-guide-checks">
+        <li>「此激活密钥已过期，请联系管理员重新生成。」或「此激活密钥已使用或已撤销。」表示这串码不能继续使用。</li>
+        <li>先核对模式：注册新账号用注册激活码；登录已有账号用短效登录码，并确认用户名属于这串码对应的账号。不要把密码重置码当登录码。</li>
+        <li>检查复制是否完整；仍失败时把错误提示交给管理员，领取新的对应码，不需要另建一个账号绕过。</li>
+      </ol>
+    </details>
+    <details class="usage-guide-faq">
+      <summary>
+        <strong>提示设备授权被撤销、协议不兼容或构建校验失败</strong>
+        <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      </summary>
+      <ol class="usage-guide-checks">
+        <li>「当前设备授权已被管理员撤销。」需要管理员核对授权；「本机保留的旧设备授权已撤销，请获取新的短效登录码后重新登录。」则按提示获取新码。</li>
+        <li>遇到客户端协议不兼容、构建校验失败，或「当前客户端版本不可使用，请更新 LIRA。」，使用管理员提供的新版安装包更新。</li>
+        <li>更新后仍失败时提供完整错误与版本信息；不要通过删除数据或修改程序文件来跳过校验。</li>
+      </ol>
+    </details>
+    <details class="usage-guide-faq">
+      <summary>
+        <strong>提示“当前设备已由另一个 LIRA 进程登录”</strong>
+        <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      </summary>
+      <ol class="usage-guide-checks">
+        <li>同一台电脑重复启动 LIRA，可能提示当前设备已由另一个进程登录。先关闭多余窗口，只保留要使用的那个，再点「重试连接」。</li>
+        <li>所有 LIRA 窗口已关闭却仍有提示时，按 Ctrl + Shift + Esc 打开任务管理器，确认残留项属于 LIRA 后选择「结束任务」，再正常启动一次。结束前先保存未完成的操作。</li>
+        <li>仍提示会话被替换时联系管理员核查，不用重新注册。</li>
+      </ol>
+    </details>
+  </div>
+  <h4 class="usage-guide-subsection-title">安装与系统</h4>
+  <div class="usage-guide-faq-grid">
+    <details class="usage-guide-faq">
+      <summary>
+        <strong>安装包被 Windows 或杀毒软件拦截</strong>
+        <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      </summary>
+      <ol class="usage-guide-checks">
+        <li>看到 Windows 或杀毒软件的拦截提示时，先核对安装包来自项目主页或管理员提供的可信渠道。</li>
+        <li>把提示截图、文件名和版本交给管理员确认，再按确认后的处理方式操作。不要关闭整套防护，也不要从不明网站重新下载安装包。</li>
+        <li>安装位置可以选 D 盘，例如 <code>D:\Apps\LIRA</code>；安装与更新步骤见<a href="#ug-quick" data-usage-guide-link>快速上手</a>。</li>
+      </ol>
+    </details>
+    <details class="usage-guide-faq">
+      <summary>
+        <strong>装完双击没反应，或页面空白</strong>
+        <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      </summary>
+      <ol class="usage-guide-checks">
+        <li>先查看是否已有 LIRA 窗口、未关闭的弹窗或仍在准备中的提示；若系统给出拦截或错误信息，先按该提示处理。</li>
+        <li>确认并关闭重复或残留进程后重开 LIRA。若只有画面异常，可检查 Windows 与显卡厂商提供的驱动更新；不要先清空数据。</li>
+        <li>反复出现时记录电脑环境、操作步骤和错误提示；能进入软件时从「百宝箱 → 桌面更新 → 日志目录」打开日志，交给管理员排查。</li>
+      </ol>
+    </details>
+    <details class="usage-guide-faq">
+      <summary>
+        <strong>更新一直卡住</strong>
+        <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      </summary>
+      <ol class="usage-guide-checks">
+        <li>打开「百宝箱 → 桌面更新」查看正在检查、下载还是等待重启。网络恢复后重新检查或下载，下载完成后才能点「重启并更新」。</li>
+        <li>反复失败时使用项目主页或管理员提供的安装包，按原安装位置更新。先保存未完成的工作。</li>
+        <li>把更新提示和日志交给管理员；不要把卸载或删除数据当成默认修复步骤。</li>
+      </ol>
+    </details>
+  </div>
+  <h4 class="usage-guide-subsection-title">点歌与播放</h4>
+  <div class="usage-guide-faq-grid">
+    <details class="usage-guide-faq">
+      <summary>
+        <strong>观众点了歌，但没有任何反应</strong>
+        <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      </summary>
+      <ol class="usage-guide-checks">
+        <li>先到「点歌 → 设置」检查直播账号、直播间号和「接收弹幕和礼物」是否为「启用」，并确认已保存。再检查是否暂停点歌、指令和歌名是否正确。</li>
+        <li>查看「同一观众点歌间隔」：间隔未到可能静默拦截，等设定时间过后再试，不能把所有无响应都归因于冷却。</li>
+        <li>仍无反应时到弹幕姬查看连接状态；连接异常可「刷新直播」。保留观众发送的原文和发送时间，便于管理员定位。</li>
+      </ol>
+    </details>
+    <details class="usage-guide-faq">
+      <summary>
+        <strong>观众说“点歌队列已达到上限。”</strong>
+        <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      </summary>
+      <ol class="usage-guide-checks">
+        <li>「点歌队列已达到上限。」表示当前等待歌曲已满。先完成或删除已处理的点歌，再让观众重试。</li>
+        <li>确实需要更长队列时到「点歌 → 设置」调整最多排队歌曲数（1–300，默认 50）并保存。</li>
+        <li>点歌队列清空会移除全部等待条目；不要为了腾一首歌的位置就随意清空。</li>
+      </ol>
+    </details>
+    <details class="usage-guide-faq">
+      <summary>
+        <strong>观众说“队列里已经有这首歌。”或“当前已暂停接收点歌。”</strong>
+        <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      </summary>
+      <ol class="usage-guide-checks">
+        <li>「队列里已经有这首歌。」时，先核对当前队列；需要允许重复时再到「点歌 → 设置」调整重复点歌规则并保存。</li>
+        <li>「当前已暂停接收点歌。」时，在同页检查暂停点歌状态，需要继续接收时再解除并保存。</li>
+        <li>解除后让观众重新发送一次；不会自动补回暂停期间被拒绝的请求。</li>
+      </ol>
+    </details>
+    <details class="usage-guide-faq">
+      <summary>
+        <strong>随机点歌没反应，或找不到符合条件的歌</strong>
+        <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      </summary>
+      <ol class="usage-guide-checks">
+        <li>若显示「请先登录直播账号后再随机点歌。」，先在「点歌 → 设置」完成直播账号登录。其他情况先检查歌库歌曲是否可点。</li>
+        <li>语言、分类和标签等多个条件需要同时满足，可先用少量条件尝试。「百宝箱 → 弹幕姬」开启「随机点歌回复」后，没有符合条件的歌曲会提醒观众。</li>
+        <li>歌曲已入队但版本不对时，到播放页搜索歌名与歌手。「点歌匹配诊断」没有结果不代表歌库没有该歌曲。</li>
+      </ol>
+    </details>
+    <details class="usage-guide-faq">
+      <summary>
+        <strong>歌曲已经排队，为什么没有声音</strong>
+        <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      </summary>
+      <ol class="usage-guide-checks">
+        <li>先确认你看到的是点歌队列还是播放队列：点歌队列记录观众请求，不等于播放器正在播放；需要时在播放队列使用「导入点歌」，再选择歌曲播放。</li>
+        <li>检查播放器是否暂停或静音、音量以及 Windows 音量混合器；随后确认对应 QQ 音乐或网易云账号仍已登录，歌曲具有可播放的音源。</li>
+        <li>单首异常可重新搜索相同歌名与歌手选择可播版本；所有歌曲异常时点「检查音乐平台连接」，并提供错误提示。详见<a href="#ug-playback" data-usage-guide-link>播放页</a>。</li>
+      </ol>
+    </details>
+    <details class="usage-guide-faq">
+      <summary>
+        <strong>QQ 音乐或网易云登录过期了</strong>
+        <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      </summary>
+      <ol class="usage-guide-checks">
+        <li>音乐平台提示未登录或账号失效时，在「播放」页切到该平台，使用它自己的登录入口重新登录。LIRA 账号和 B 站账号不能替代音乐平台账号。</li>
+        <li>登录后点「检查音乐平台连接」，再试一首可播放的歌曲。</li>
+        <li>仍失败时记录平台名与连接结果，不要反复清空歌库；音乐平台登录仅在本机保留，换电脑后需重新登录。</li>
+      </ol>
+    </details>
+    <details class="usage-guide-faq">
+      <summary>
+        <strong>全民 K 歌歌词不出现或时间对不上</strong>
+        <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      </summary>
+      <ol class="usage-guide-checks">
+        <li>先打开全民 K 歌电脑版并播放伴奏，再到「播放 → 全民 K 歌」核对「全民 K 歌缓存文件夹」，选择实际使用的 <code>WeSingCache</code> 并点「保存并检测」。</li>
+        <li>默认位置通常在当前 Windows 用户的 <code>%APPDATA%\Tencent\WeSing\WeSingCache</code>；可粘贴到文件资源管理器地址栏查找。若全民 K 歌改过缓存位置，使用实际位置，不要任意选择空文件夹。</li>
+        <li>已有歌词但快慢不一致时，用「歌词时间调整」在 ±3000 毫秒内按 50 毫秒微调；仍异常时记录检测提示和歌曲。桌面歌词另有 ±5000 毫秒偏移，不要混淆两处设置。</li>
+      </ol>
+    </details>
+  </div>
+  <h4 class="usage-guide-subsection-title">歌库与同步</h4>
+  <div class="usage-guide-faq-grid">
+    <details class="usage-guide-faq">
+      <summary>
+        <strong>歌单表格导入失败</strong>
+        <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      </summary>
+      <ol class="usage-guide-checks">
+        <li>先使用「点歌 → 导入导出」提供的模板，保留「歌曲名字」等表头；不要只改文件后缀。</li>
+        <li>无法读取时用 Excel 重新另存为 .xlsx，或复制表格内容粘贴到导入框，也支持 CSV、TSV。导入结束后查看新增、更新、跳过或失败的结果，再核对歌库。</li>
+        <li>仍失败时提供结果提示与去掉个人信息的少量示例行，不要直接反复导入整个文件。</li>
+      </ol>
+    </details>
+    <details class="usage-guide-faq">
+      <summary>
+        <strong>提示歌库超过 5000 首，传不上去</strong>
+        <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      </summary>
+      <ol class="usage-guide-checks">
+        <li>「歌库超过 5000 首限制。」或「结果歌库超过 5000 首，无法完整同步；请先在歌库整理至 5000 首以内。」表示本次内容超出数量限制。</li>
+        <li>先导出备份，再整理重复或不再使用的歌曲，让最终歌库不超过 5000 首；导入更新也要计算原有歌曲加上新增后的总量。</li>
+        <li>精简后重新核对并同步。若提示的是数据大小限制，即使歌曲数量未超限，也需缩短过长备注、点歌价格或歌切内容。</li>
+      </ol>
+    </details>
+    <details class="usage-guide-faq">
+      <summary>
+        <strong>同步到一半断网，不知道成功没有</strong>
+        <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      </summary>
+      <ol class="usage-guide-checks">
+        <li>看到「同步失败」或超时，不要把按钮曾经点过当作成功，也不能据此断言服务器一定没收到。</li>
+        <li>恢复网络后查看网页歌曲数量和实际歌单，再核对本机完整歌库。只有成功反馈才会更新「本机上次同步」时间与数量。</li>
+        <li>需要重试时先确认当前本机版本无误：「同步到网页」会覆盖云端歌库，不会自动合并。见<a href="#ug-data" data-usage-guide-link>数据保存与换电脑</a>。</li>
+      </ol>
+    </details>
+    <details class="usage-guide-faq">
+      <summary>
+        <strong>两台电脑的歌库不一样，换机后也少了设置</strong>
+        <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      </summary>
+      <ol class="usage-guide-checks">
+        <li>登录同一账号并联网后歌库会同步，但不要同时在两台电脑编辑：最后同步成功的歌库会替换先前版本，不会自动合并。</li>
+        <li>先停止两边继续修改，分别核对与导出需要保留的版本，再确定完整歌库。不要立即用少歌的电脑执行覆盖同步。</li>
+        <li>点歌队列、播放队列、音乐平台登录、歌词缓存位置及本机画面样式等不随歌库迁移；按<a href="#ug-data" data-usage-guide-link>数据保存与换电脑</a>重新核对。</li>
+      </ol>
+    </details>
+    <details class="usage-guide-faq">
+      <summary>
+        <strong>歌单背景图传不上去</strong>
+        <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      </summary>
+      <ol class="usage-guide-checks">
+        <li>「图片超过 5MB，请压缩后再上传。」时先压缩图片；「仅支持 PNG / JPG / WebP / GIF 图片。」时使用支持的图片格式。</li>
+        <li>到「点歌 → 导入导出 → 歌单背景」重新上传；恢复默认使用「恢复默认背景」。</li>
+        <li>若提示网络或授权失效，先恢复连接或处理授权。仍失败时提供具体提示，不要反复更改图片扩展名。</li>
+      </ol>
+    </details>
+  </div>
+  <h4 class="usage-guide-subsection-title">礼物与账本</h4>
+  <div class="usage-guide-faq-grid">
+    <details class="usage-guide-faq">
+      <summary>
+        <strong>礼物列表不更新，或只显示部分历史</strong>
+        <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      </summary>
+      <ol class="usage-guide-checks">
+        <li>「正在更新礼物记录…」表示仍在同步；「当前仅能查看部分历史记录。」表示历史尚不完整；「当前离线，显示已保存的记录」不能当成最新账本。</li>
+        <li>先检查直播间号、B 站登录、「接收弹幕和礼物」和礼物页的「礼物统计」。恢复网络后等同步完成，按页面的「重新加载」或「重试」检查。</li>
+        <li>仍与网页不一致时，用同一日期与筛选条件核对，提供状态提示和时间范围；不要为了对齐数量直接清空记录。</li>
+      </ol>
+    </details>
+    <details class="usage-guide-faq">
+      <summary>
+        <strong>清空后还看到“云端记录已清空，本机记录尚未更新。”</strong>
+        <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      </summary>
+      <ol class="usage-guide-checks">
+        <li>「云端记录已清空，本机记录尚未更新。」说明云端删除已完成，本机仍在等待更新，不代表清空失败。</li>
+        <li>恢复连接后重新加载礼物记录，等待本机与云端状态一致。</li>
+        <li>仍有旧记录时把提示交给管理员，不必再次执行清空；清空云端账本会影响同账号设备。</li>
+      </ol>
+    </details>
+    <details class="usage-guide-faq">
+      <summary>
+        <strong>关掉 LIRA 后，还会继续记录礼物吗</strong>
+        <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      </summary>
+      <ol class="usage-guide-checks">
+        <li>服务器负责礼物记录；满足账号、直播间连接和统计设置等条件时，可在客户端关闭后继续工作。客户端关闭不等于关闭服务器功能。</li>
+        <li>需要核对最新账本时到网页主播中心「礼物流水」查看，或重开客户端联网同步；断网本机显示的是已保存记录。</li>
+        <li>本机加班机、礼物特效和本机投屏仍依赖 LIRA 运行，不会因为服务器继续记账就继续输出。见<a href="#ug-data" data-usage-guide-link>数据保存与换电脑</a>。</li>
+      </ol>
+    </details>
+    <details class="usage-guide-faq">
+      <summary>
+        <strong>加班机没有增加时间，礼物统计关了也会生效吗</strong>
+        <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      </summary>
+      <ol class="usage-guide-checks">
+        <li>先确认「启用加班机」已打开，收到的礼物有对应且已开启的规则；减少、清零或文字展板规则不会增加时间。</li>
+        <li>礼物连击尚未结束时等处理完成，再看「最近结算」。加班机不依赖礼物统计开关，因此关掉礼物统计也可能继续改时。</li>
+        <li>「暂停」只停止倒计时，不停止礼物改时；需要停止加班机功能时检查它自己的启用状态。</li>
+      </ol>
+    </details>
+    <details class="usage-guide-faq">
+      <summary>
+        <strong>点“自动钓鱼 / 打劫”后为什么连续发弹幕</strong>
+        <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      </summary>
+      <ol class="usage-guide-checks">
+        <li>开始提示会说明：钓鱼 ×10、打劫 ×5，每 5 秒一条，共 15 条。这是一次批量发送，请确认目标直播间后再点击。</li>
+        <li>查看发送进度与结果；发送完毕会提示「自动发送完成：钓鱼 ×10、打劫 ×5」，不会无限循环。</li>
+        <li>若发送失败，先检查发送账号和连接状态，不要连续重复点击增加任务。</li>
+      </ol>
+    </details>
+  </div>
+  <h4 class="usage-guide-subsection-title">投屏与 OBS</h4>
+  <div class="usage-guide-faq-grid">
+    <details class="usage-guide-faq">
+      <summary>
+        <strong>弹幕姬链接是灰的，或者复制不了</strong>
+        <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      </summary>
+      <ol class="usage-guide-checks">
+        <li>弹幕姬链接需要 LIRA 授权有效，并成功读取服务器配置。先检查 LIRA 与服务器的连接，等地址可用后再复制。</li>
+        <li>有地址但复制失败时，按「复制失败，请手动复制地址」提示手动选择并复制；不要拿示例截图里的地址使用。</li>
+        <li>B 站登录影响接收直播消息，但不能把链接读不出来一律归因于未登录 B 站。仍灰色时记录页面提示交给管理员。</li>
+      </ol>
+    </details>
+    <details class="usage-guide-faq">
+      <summary>
+        <strong>直播姬 / OBS 投屏画面不显示或尺寸不对</strong>
+        <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      </summary>
+      <ol class="usage-guide-checks">
+        <li>先从对应功能面板重新复制链接，添加为浏览器源；不要使用网页歌单链接替代。含 127.0.0.1 的本机源要与 LIRA 在同一电脑运行。</li>
+        <li>保持 LIRA 开启，按功能说明设置源宽高，再检查是否有点歌、正在播放的歌词、许愿或礼物触发事件；无内容时透明是可能的正常状态。</li>
+        <li>更新或重启 LIRA 后可刷新一次浏览器源。仍不显示时核对功能启用状态与地址，见<a href="#ug-obs" data-usage-guide-link>投屏设置</a>。</li>
+      </ol>
+    </details>
+    <details class="usage-guide-faq">
+      <summary>
+        <strong>弹幕姬画面不更新，或者改了样式 OBS 没变化</strong>
+        <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      </summary>
+      <ol class="usage-guide-checks">
+        <li>在「百宝箱 → 弹幕姬」修改样式后，要点「应用到直播画面」并等待结果提示；只改预览不代表已应用。</li>
+        <li>服务器弹幕姬还需要服务器与直播间连接正常。先看连接状态、目标房间与屏蔽设置，再发一条测试弹幕检查。</li>
+        <li>确认成功应用且地址正确后仍旧样式，可刷新浏览器源；请保留应用结果和连接状态。萌时钟是修改自动保存，不要给所有功能找同一个保存按钮。</li>
+      </ol>
+    </details>
+    <details class="usage-guide-faq">
+      <summary>
+        <strong>换电脑后，原来的画面链接还能用吗</strong>
+        <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      </summary>
+      <ol class="usage-guide-checks">
+        <li>本机地址中的 127.0.0.1 指向当前电脑。换电脑后必须在新电脑运行 LIRA，并重新核对复制出来的地址、端口和画面配置；地址不一定变化。</li>
+        <li>在新电脑按对应功能页核对源宽高、样式与歌词来源，不能仅复制 OBS 场景就认定全部已迁移。</li>
+        <li>服务器弹幕姬使用在线地址，另外核对账号授权与服务器连接；两类画面的依赖见<a href="#ug-obs" data-usage-guide-link>投屏设置</a>。</li>
+      </ol>
+    </details>
+    <details class="usage-guide-faq">
+      <summary>
+        <strong>弹幕发不出去</strong>
+        <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      </summary>
+      <ol class="usage-guide-checks">
+        <li>到「百宝箱 → 弹幕姬」核对发送账号、目标直播间和发送结果；只显示「本机已登录」不代表已能正常发送。</li>
+        <li>登录过期时到「点歌 → 设置」重新扫码登录并保存，等待账号同步成功；连接异常可点「刷新直播」后重试。</li>
+        <li>仍失败时提供发送结果与目标房间，先不要反复批量发送。</li>
+      </ol>
+    </details>
+  </div>
+  <h4 class="usage-guide-subsection-title">云端功能、AI 与维护</h4>
+  <div class="usage-guide-faq-grid">
+    <details class="usage-guide-faq">
+      <summary>
+        <strong>自动答谢、弹幕查询等开关点了没反应</strong>
+        <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      </summary>
+      <ol class="usage-guide-checks">
+        <li>「请先登录 B 站，再同步到服务器。」或「连接云端账号后可设置」时，先检查「点歌 → 设置」里的 B 站登录和云端连接。</li>
+        <li>若提示「B 站登录已失效，请重新登录并同步。」，重新扫码登录并保存；等待账号自动同步成功后，再开启所需功能。没有额外的手动“同步 B 站账号”步骤。</li>
+        <li>等待「已同步到服务器」确认；状态未确认时按面板刷新核对，仍失败再提供提示给管理员。</li>
+      </ol>
+    </details>
+    <details class="usage-guide-faq">
+      <summary>
+        <strong>已经关了功能，为什么提示服务器可能仍在运行</strong>
+        <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      </summary>
+      <ol class="usage-guide-checks">
+        <li>「关闭还没同步，服务器可能仍在运行。」表示关闭操作尚未被服务器确认；不能仅凭开关外观或退出客户端认定已关闭。</li>
+        <li>恢复网络与云端连接后，刷新状态，再关闭并等「已同步到服务器」。</li>
+        <li>如果一直无法确认，请联系管理员核查服务器状态。</li>
+      </ol>
+    </details>
+    <details class="usage-guide-faq">
+      <summary>
+        <strong>签到机器人没有回复</strong>
+        <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      </summary>
+      <ol class="usage-guide-checks">
+        <li>先到「百宝箱 → 弹幕姬 → 回复与辅助」检查「签到机器人」是否开启，云端状态是否已确认。</li>
+        <li>确认祝福语列表有内容，直播账号与房间连接正常，再让观众发送「签到」。</li>
+        <li>仍无回复时刷新云端状态并保留提示；不要只通过反复开关判断服务器是否已生效。</li>
+      </ol>
+    </details>
+    <details class="usage-guide-faq">
+      <summary>
+        <strong>AI 互动助手不回复</strong>
+        <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      </summary>
+      <ol class="usage-guide-checks">
+        <li>先在「百宝箱 → 弹幕姬 → AI 互动助手」检查「启用 AI」、平台、密钥和模型，点击「测试 AI 连接」。</li>
+        <li>保存自定义触发关键词，发送包含该关键词的弹幕；关键词留空不会触发。再查看「等待队列」、同一观众间隔和每分钟上限，过于频繁时稍等再试。</li>
+        <li>测试失败按结果检查服务地址、模型或平台余额；测试通过仍无回复时检查直播账号与发送状态。配置步骤见<a href="#ug-deepseek" data-usage-guide-link>配置 AI 助手</a>。</li>
+      </ol>
+    </details>
+    <details class="usage-guide-faq">
+      <summary>
+        <strong>报错后，日志在哪里找、怎么交给管理员</strong>
+        <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      </summary>
+      <ol class="usage-guide-checks">
+        <li>在「百宝箱 → 桌面更新」找到「日志目录」，点击旁边的「打开目录」；不要与「数据目录」混淆。</li>
+        <li>记录发生时间、当前版本、操作步骤和界面完整提示，按管理员指定方式提供对应时间的日志。</li>
+        <li>只提供排查需要的文件，不要发送整个数据目录、密码或 API 密钥；无法进入软件时先把屏幕上的错误与版本交给管理员。</li>
+      </ol>
+    </details>
+    <details class="usage-guide-faq">
+      <summary>
+        <strong>想彻底清空数据或换一个 LIRA 账号</strong>
+        <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" /></svg>
+      </summary>
+      <ol class="usage-guide-checks">
+        <li>当前桌面客户端没有切换或退出 LIRA 账号的入口；「点歌 → 设置」里的「退出登录」只退出直播账号。</li>
+        <li>先按<a href="#ug-data" data-usage-guide-link>数据保存与换电脑</a>分别备份需要的本机资料，再联系管理员确认账号与设备处理方式。</li>
+        <li>不要直接删除数据目录或复制别人的目录尝试换号：本机数据与服务器账本边界不同，删除本机文件不会替你清空服务器数据。</li>
+      </ol>
+    </details>
+  </div>
+</section>

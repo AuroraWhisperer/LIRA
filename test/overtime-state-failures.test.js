@@ -75,8 +75,7 @@ for (const scenario of [
   {
     name: 'remaining time',
     status: 'running',
-    run: (service) =>
-      service.setTime({ initialSeconds: 180, remainingSeconds: 45 }),
+    run: (service) => service.setTime({ initialSeconds: 180, remainingSeconds: 45 }),
     expected: {
       initialSeconds: 180,
       status: 'paused',
@@ -111,9 +110,7 @@ for (const scenario of [
     let service = fixture.createService({
       onUpdate: (update) => updates.push(update),
     });
-    const savedState = fixture.db.giftDb.prepare(
-      'SELECT * FROM overtime_machine_state',
-    );
+    const savedState = fixture.db.giftDb.prepare('SELECT * FROM overtime_machine_state');
     try {
       service.setTime({ initialSeconds: 120, remainingSeconds: 60 });
       if (scenario.status !== 'disabled') service.act('enable');
@@ -127,22 +124,15 @@ for (const scenario of [
         BEGIN SELECT RAISE(ABORT, 'simulated state save failure'); END;
       `);
 
-      assert.throws(
-        () => scenario.run(service),
-        /simulated state save failure/,
-      );
+      assert.throws(() => scenario.run(service), /simulated state save failure/);
       assert.deepEqual(service.getSnapshot(), before);
-      assert.equal(
-        service.getCurrentEpoch(),
-        before.enabled ? before.enableEpoch : 0,
-      );
+      assert.equal(service.getCurrentEpoch(), before.enabled ? before.enableEpoch : 0);
       assert.deepEqual(savedState.get(), savedBefore);
       assert.deepEqual(updates, []);
       fixture.clock.advance(1_000);
       assert.equal(
         service.getSnapshot().effectiveRemainingMs,
-        before.effectiveRemainingMs -
-          (scenario.status === 'running' ? 1_000 : 0),
+        before.effectiveRemainingMs - (scenario.status === 'running' ? 1_000 : 0),
       );
 
       fixture.db.giftDb.exec('DROP TRIGGER fail_overtime_save');
@@ -152,9 +142,7 @@ for (const scenario of [
       }
       assert.equal(after.enableEpoch, 1);
       assert.equal(after.revision, before.revision + 1);
-      assert.deepEqual(updates, [
-        { reason: scenario.reason || 'manual', state: after },
-      ]);
+      assert.deepEqual(updates, [{ reason: scenario.reason || 'manual', state: after }]);
       assert.equal(savedState.get().revision, after.revision);
       service.dispose();
       service = fixture.createService();
@@ -194,12 +182,7 @@ test('pause save failure keeps the original countdown and zero timer', () => {
     fixture.clock.advance(1);
     assert.equal(service.getSnapshot().status, 'finished');
     assert.equal(service.getSnapshot().revision, revision + 1);
-    assert.equal(
-      fixture.db.giftDb
-        .prepare('SELECT remaining_ms FROM overtime_machine_state')
-        .get().remaining_ms,
-      0,
-    );
+    assert.equal(fixture.db.giftDb.prepare('SELECT remaining_ms FROM overtime_machine_state').get().remaining_ms, 0);
     assert.deepEqual(
       updates.map((update) => update.reason),
       ['finished'],
@@ -213,9 +196,7 @@ test('pause save failure keeps the original countdown and zero timer', () => {
 test('disable transaction failure preserves pending gifts and their recovery timer', () => {
   const fixture = createFixture();
   const updates = [];
-  const savedState = fixture.db.giftDb.prepare(
-    'SELECT * FROM overtime_machine_state',
-  );
+  const savedState = fixture.db.giftDb.prepare('SELECT * FROM overtime_machine_state');
   let attempts = 0;
   const service = fixture.createService({
     onUpdate: (update) => updates.push(update),
@@ -245,10 +226,7 @@ test('disable transaction failure preserves pending gifts and their recovery tim
       giftId: 'blind',
       overtimeEpoch: 1,
     });
-    assert.throws(
-      () => service.finalizeGift(event),
-      /temporary settlement failure/,
-    );
+    assert.throws(() => service.finalizeGift(event), /temporary settlement failure/);
     fixture.clock.advance(500);
     const before = service.getSnapshot();
     const savedBefore = savedState.get();
@@ -260,10 +238,7 @@ test('disable transaction failure preserves pending gifts and their recovery tim
       BEGIN SELECT RAISE(ABORT, 'simulated disable transaction failure'); END;
     `);
 
-    assert.throws(
-      () => service.act('disable'),
-      /simulated disable transaction failure/,
-    );
+    assert.throws(() => service.act('disable'), /simulated disable transaction failure/);
     assert.deepEqual(service.getSnapshot(), before);
     assert.deepEqual(savedState.get(), savedBefore);
     assert.deepEqual(fixture.getSettlement(event.giftEventId), pendingBefore);
@@ -311,9 +286,7 @@ test('update notification failure does not roll back a successfully saved state'
     const snapshot = service.act('enable');
     assert.equal(snapshot.enabled, true);
     assert.equal(snapshot.revision, 1);
-    const saved = fixture.db.giftDb
-      .prepare('SELECT * FROM overtime_machine_state')
-      .get();
+    const saved = fixture.db.giftDb.prepare('SELECT * FROM overtime_machine_state').get();
     assert.equal(saved.enabled, 1);
     assert.equal(saved.enable_epoch, 1);
     assert.equal(saved.revision, 1);

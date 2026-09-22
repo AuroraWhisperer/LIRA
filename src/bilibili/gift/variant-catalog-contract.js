@@ -22,9 +22,7 @@ function record(value, required, optional = []) {
     typeof value === 'object' &&
     !Array.isArray(value) &&
     required.every((key) => Object.hasOwn(value, key)) &&
-    Object.keys(value).every(
-      (key) => required.includes(key) || optional.includes(key),
-    )
+    Object.keys(value).every((key) => required.includes(key) || optional.includes(key))
   );
 }
 
@@ -32,9 +30,7 @@ function timestamp(value) {
   return (
     value === null ||
     (typeof value === 'string' &&
-      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/u.test(
-        value,
-      ) &&
+      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/u.test(value) &&
       Number.isFinite(Date.parse(value)))
   );
 }
@@ -50,12 +46,8 @@ function mediaUrl(value, imageOnly = false) {
       !url.password &&
       !url.hash &&
       !url.port &&
-      (imageOnly
-        ? ['hdslb.com']
-        : ['hdslb.com', 'bilibili.com', 'bilivideo.com']
-      ).some(
-        (domain) =>
-          url.hostname === domain || url.hostname.endsWith(`.${domain}`),
+      (imageOnly ? ['hdslb.com'] : ['hdslb.com', 'bilibili.com', 'bilivideo.com']).some(
+        (domain) => url.hostname === domain || url.hostname.endsWith(`.${domain}`),
       )
     );
   } catch {
@@ -66,14 +58,7 @@ function mediaUrl(value, imageOnly = false) {
 function validEffect(effect) {
   if (effect === null) return true;
   if (
-    !record(effect, [
-      'effectKey',
-      'sourceEffectId',
-      'mp4Url',
-      'layoutUrl',
-      'fileSize',
-      'layout',
-    ]) ||
+    !record(effect, ['effectKey', 'sourceEffectId', 'mp4Url', 'layoutUrl', 'fileSize', 'layout']) ||
     typeof effect.effectKey !== 'string' ||
     !effect.effectKey ||
     !Number.isSafeInteger(effect.sourceEffectId) ||
@@ -89,9 +74,7 @@ function validEffect(effect) {
   const layout = effect.layout;
   return (
     record(layout, ['videoWidth', 'videoHeight', 'rgbFrame', 'alphaFrame']) &&
-    [layout.videoWidth, layout.videoHeight].every(
-      (size) => Number.isSafeInteger(size) && size > 0 && size <= 8192,
-    ) &&
+    [layout.videoWidth, layout.videoHeight].every((size) => Number.isSafeInteger(size) && size > 0 && size <= 8192) &&
     [layout.rgbFrame, layout.alphaFrame].every(
       (rect) =>
         Array.isArray(rect) &&
@@ -110,17 +93,7 @@ function validMetadata(item) {
   if (
     !record(
       metadata,
-      [
-        'id',
-        'name',
-        'price',
-        'coinType',
-        'bagGift',
-        'desc',
-        'webpUrl',
-        'mp4Url',
-        'layoutUrl',
-      ],
+      ['id', 'name', 'price', 'coinType', 'bagGift', 'desc', 'webpUrl', 'mp4Url', 'layoutUrl'],
       [...METADATA_INTEGERS, 'rule', 'rights', 'countMap'],
     ) ||
     metadata.id !== Number(item.giftId) ||
@@ -136,14 +109,10 @@ function validMetadata(item) {
     return false;
   return (
     METADATA_INTEGERS.every(
-      (key) =>
-        !Object.hasOwn(metadata, key) ||
-        (Number.isSafeInteger(metadata[key]) && metadata[key] >= 0),
+      (key) => !Object.hasOwn(metadata, key) || (Number.isSafeInteger(metadata[key]) && metadata[key] >= 0),
     ) &&
     ['rule', 'rights'].every(
-      (key) =>
-        !Object.hasOwn(metadata, key) ||
-        (typeof metadata[key] === 'string' && metadata[key].length > 0),
+      (key) => !Object.hasOwn(metadata, key) || (typeof metadata[key] === 'string' && metadata[key].length > 0),
     ) &&
     (!Object.hasOwn(metadata, 'countMap') ||
       (Array.isArray(metadata.countMap) &&
@@ -154,27 +123,16 @@ function validMetadata(item) {
             Number.isSafeInteger(entry.num) &&
             entry.num > 0 &&
             ['text', 'desc'].every(
-              (key) =>
-                !Object.hasOwn(entry, key) ||
-                (typeof entry[key] === 'string' && entry[key].length > 0),
+              (key) => !Object.hasOwn(entry, key) || (typeof entry[key] === 'string' && entry[key].length > 0),
             ) &&
-            (!Object.hasOwn(entry, 'effectId') ||
-              (Number.isSafeInteger(entry.effectId) && entry.effectId >= 0)),
+            (!Object.hasOwn(entry, 'effectId') || (Number.isSafeInteger(entry.effectId) && entry.effectId >= 0)),
         )))
   );
 }
 
 function validAward(item) {
   return (
-    record(item, [
-      'awardId',
-      'contentType',
-      'level',
-      'name',
-      'valueRmb',
-      'imageUrl',
-      'probabilities',
-    ]) &&
+    record(item, ['awardId', 'contentType', 'level', 'name', 'valueRmb', 'imageUrl', 'probabilities']) &&
     typeof item.awardId === 'string' &&
     /^[0-9]{1,32}$/u.test(item.awardId) &&
     item.contentType === 97 &&
@@ -183,21 +141,14 @@ function validAward(item) {
     item.name.length > 0 &&
     Number.isFinite(item.valueRmb) &&
     item.valueRmb > 0 &&
-    /^https:\/\/i0\.hdslb\.com\/bfs\/live\/[0-9a-f]+\.png$/u.test(
-      item.imageUrl,
-    ) &&
+    /^https:\/\/i0\.hdslb\.com\/bfs\/live\/[0-9a-f]+\.png$/u.test(item.imageUrl) &&
     record(item.probabilities, ['base', 'bonus1', 'bonus2', 'bonus3']) &&
-    Object.values(item.probabilities).every(
-      (value) => Number.isFinite(value) && value >= 0 && value <= 100,
-    )
+    Object.values(item.probabilities).every((value) => Number.isFinite(value) && value >= 0 && value <= 100)
   );
 }
 
 function digest(value) {
-  return crypto
-    .createHash('sha256')
-    .update(JSON.stringify(value))
-    .digest('hex');
+  return crypto.createHash('sha256').update(JSON.stringify(value)).digest('hex');
 }
 
 function validateVariantCatalog(value) {
@@ -223,15 +174,11 @@ function validateVariantCatalog(value) {
     !timestamp(value.updatedAt) ||
     !(
       value.versionLabel === null ||
-      (typeof value.versionLabel === 'string' &&
-        /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/u.test(value.versionLabel))
+      (typeof value.versionLabel === 'string' && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/u.test(value.versionLabel))
     ) ||
     !record(value.sources, ['gifts', 'effects']) ||
     !Object.values(value.sources).every(
-      (source) =>
-        record(source, ['asOf', 'stale']) &&
-        timestamp(source.asOf) &&
-        typeof source.stale === 'boolean',
+      (source) => record(source, ['asOf', 'stale']) && timestamp(source.asOf) && typeof source.stale === 'boolean',
     ) ||
     !Array.isArray(value.variants) ||
     !value.variants.length ||
@@ -287,24 +234,16 @@ function validateVariantCatalog(value) {
       !timestamp(item.firstSeenAt) ||
       !timestamp(item.lastSeenAt) ||
       ![item.firstSeenRunId, item.lastSeenRunId].every(
-        (id) =>
-          id === null || (typeof id === 'string' && /^[1-9]\d*$/u.test(id)),
+        (id) => id === null || (typeof id === 'string' && /^[1-9]\d*$/u.test(id)),
       ) ||
-      item.battery !==
-        (item.coinType === 'gold' ? item.priceRaw / 100 : null) ||
+      item.battery !== (item.coinType === 'gold' ? item.priceRaw / 100 : null) ||
       item.rmb !== (item.coinType === 'gold' ? item.priceRaw / 1000 : null) ||
-      item.silver !==
-        (item.coinType === 'silver' && item.priceRaw > 0
-          ? item.priceRaw / 1000
-          : null)
+      item.silver !== (item.coinType === 'silver' && item.priceRaw > 0 ? item.priceRaw / 1000 : null)
     )
       throw new Error('CATALOG_INVALID');
     byId.set(item.variantId, item);
   }
-  if (
-    new Set(value.variants.map((item) => item.giftId)).size !== value.count ||
-    value.blindBoxes.length > 100
-  )
+  if (new Set(value.variants.map((item) => item.giftId)).size !== value.count || value.blindBoxes.length > 100)
     throw new Error('CATALOG_INVALID');
   const boxes = new Set();
   for (const relation of value.blindBoxes) {
@@ -317,21 +256,21 @@ function validateVariantCatalog(value) {
       relation.outputVariantIds.length > 200 ||
       !Array.isArray(relation.awards) ||
       !relation.awards.every(validAward) ||
-      new Set(relation.awards.map((item) => item.awardId)).size !==
-        relation.awards.length ||
+      new Set(relation.awards.map((item) => item.awardId)).size !== relation.awards.length ||
       (!relation.outputVariantIds.length && !relation.awards.length) ||
-      new Set(relation.outputVariantIds).size !==
-        relation.outputVariantIds.length ||
-      relation.outputVariantIds.some(
-        (id) => id === relation.variantId || byId.get(id)?.coinType !== 'gold',
-      )
+      new Set(relation.outputVariantIds).size !== relation.outputVariantIds.length ||
+      relation.outputVariantIds.some((id) => id === relation.variantId || byId.get(id)?.coinType !== 'gold')
     )
       throw new Error('CATALOG_INVALID');
     boxes.add(relation.variantId);
   }
-  const outputs = new Set(value.blindBoxes.flatMap(box => box.outputVariantIds));
-  if (value.variants.some(item => item.giftCategory !== 'blindBox' &&
-      (item.giftCategory === 'blindBoxOutput') !== outputs.has(item.variantId)))
+  const outputs = new Set(value.blindBoxes.flatMap((box) => box.outputVariantIds));
+  if (
+    value.variants.some(
+      (item) =>
+        item.giftCategory !== 'blindBox' && (item.giftCategory === 'blindBoxOutput') !== outputs.has(item.variantId),
+    )
+  )
     throw new Error('CATALOG_INVALID');
   const identities = value.variants.map((item) =>
     digest([
@@ -346,16 +285,9 @@ function validateVariantCatalog(value) {
       item.bagGift,
     ]),
   );
-  if (
-    value.variants.some(
-      (item, index) => item.variantId !== `gv_${identities[index]}`,
-    )
-  )
+  if (value.variants.some((item, index) => item.variantId !== `gv_${identities[index]}`))
     throw new Error('CATALOG_INVALID');
-  const variants = value.variants.map(
-    ({ firstSeenAt, lastSeenAt, firstSeenRunId, lastSeenRunId, ...item }) =>
-      item,
-  );
+  const variants = value.variants.map(({ firstSeenAt, lastSeenAt, firstSeenRunId, lastSeenRunId, ...item }) => item);
   const hash = digest({ variants, blindBoxes: value.blindBoxes });
   if (value.version !== `sha256:${hash}`) throw new Error('CATALOG_INVALID');
   return value;

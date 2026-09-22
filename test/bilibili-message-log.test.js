@@ -2,9 +2,7 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const {
-  formatBilibiliCommandLog,
-} = require('../src/bilibili/bilibili-message-handler');
+const { formatBilibiliCommandLog } = require('../src/bilibili/bilibili-message-handler');
 
 test('formats accepted commands with transport and connection trace', () => {
   assert.equal(

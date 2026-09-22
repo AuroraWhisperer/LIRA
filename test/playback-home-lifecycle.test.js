@@ -10,17 +10,11 @@ const ROOT_DIR = path.join(__dirname, '..');
 test('cached readers share refresh work without invalidating its cache write', async () => {
   for (const forceRefresh of [false, true]) {
     const pending = [];
-    const cache = new Map([
-      [
-        'qq:liked',
-        { items: [{ id: 'cached' }], itemType: 'track', action: 'liked' },
-      ],
-    ]);
+    const cache = new Map([['qq:liked', { items: [{ id: 'cached' }], itemType: 'track', action: 'liked' }]]);
     const updates = [];
-    const { ContentLoader } = await loadModuleExports(
-      path.join(ROOT_DIR, 'public/js/playback/content/loader.js'),
-      { fetch: () => new Promise((resolve) => pending.push(resolve)) },
-    );
+    const { ContentLoader } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/playback/content/loader.js'), {
+      fetch: () => new Promise((resolve) => pending.push(resolve)),
+    });
     const loader = new ContentLoader({
       state: { selectedSource: 'qq' },
       cacheManager: {
@@ -43,9 +37,7 @@ test('cached readers share refresh work without invalidating its cache write', a
     pending.at(-1)(fresh);
     if (explicitRefresh) {
       assert.equal((await explicitRefresh).stale, true);
-      pending[0](
-        response({ ok: true, data: { tracks: [{ id: 'old-background' }] } }),
-      );
+      pending[0](response({ ok: true, data: { tracks: [{ id: 'old-background' }] } }));
     }
     await new Promise((resolve) => setImmediate(resolve));
     assert.equal(cache.get('qq:liked').items[0].id, 'fresh');
@@ -59,14 +51,7 @@ test('HomeService keeps the newest home request and ignores stale success or fai
   const pending = new Map();
   const errors = [];
   const { HomeService } = await loadModuleExports(
-    path.join(
-      ROOT_DIR,
-      'public',
-      'js',
-      'playback',
-      'services',
-      'home-service.js',
-    ),
+    path.join(ROOT_DIR, 'public', 'js', 'playback', 'services', 'home-service.js'),
   );
   const service = new HomeService({
     state: { selectedSource: 'qq' },
@@ -108,14 +93,7 @@ test('HomeService keeps the newest home request and ignores stale success or fai
 test('HomeService invalidates pending content when recent history or clear is selected', async () => {
   const pending = {};
   const { HomeService } = await loadModuleExports(
-    path.join(
-      ROOT_DIR,
-      'public',
-      'js',
-      'playback',
-      'services',
-      'home-service.js',
-    ),
+    path.join(ROOT_DIR, 'public', 'js', 'playback', 'services', 'home-service.js'),
   );
   const service = new HomeService({
     state: { selectedSource: 'qq', displayHistory: [{ id: 'recent-item' }] },
@@ -174,9 +152,7 @@ test('ContentLoader keeps a fixed provider cache key when the provider changes d
 
   const request = loader.loadHomeContent('liked', { forceRefresh: true });
   state.selectedSource = 'netease';
-  resolveRequest(
-    response({ ok: true, data: { tracks: [{ id: 'qq-track' }] } }),
-  );
+  resolveRequest(response({ ok: true, data: { tracks: [{ id: 'qq-track' }] } }));
 
   assert.equal((await request).stale, true);
   assert.equal(cache.has('qq:liked'), true);
@@ -227,12 +203,7 @@ test('ContentLoader keeps the newest result when same-key requests finish out of
 
 test('ContentLoader background refresh does not overwrite a newer active page', async () => {
   let resolveBackground;
-  const cache = new Map([
-    [
-      'qq:liked',
-      { items: [{ id: 'cached-liked' }], itemType: 'track', action: 'liked' },
-    ],
-  ]);
+  const cache = new Map([['qq:liked', { items: [{ id: 'cached-liked' }], itemType: 'track', action: 'liked' }]]);
   const { ContentLoader } = await loadModuleExports(
     path.join(ROOT_DIR, 'public', 'js', 'playback', 'content', 'loader.js'),
     {
@@ -267,9 +238,7 @@ test('ContentLoader background refresh does not overwrite a newer active page', 
 
   await loader.loadHomeContent('liked');
   await loader.loadHomeContent('created-playlists', { forceRefresh: true });
-  resolveBackground(
-    response({ ok: true, data: { tracks: [{ id: 'fresh-liked' }] } }),
-  );
+  resolveBackground(response({ ok: true, data: { tracks: [{ id: 'fresh-liked' }] } }));
   await new Promise((resolve) => setTimeout(resolve, 0));
 
   const current = loader.getCurrentHomeContent();

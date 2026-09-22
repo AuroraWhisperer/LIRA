@@ -3,9 +3,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 
-const {
-  createDanmakuFeedBuffer,
-} = require('../src/bilibili/danmaku/feed-buffer');
+const { createDanmakuFeedBuffer } = require('../src/bilibili/danmaku/feed-buffer');
 
 test('danmaku feed buffer projects public fields and keeps a bounded defensive snapshot', () => {
   const feed = createDanmakuFeedBuffer({ limit: 2 });
@@ -76,18 +74,22 @@ test('danmaku feed buffer clears only when the active room changes', () => {
   assert.equal(feed.getSnapshot().length, 1);
   assert.equal(feed.setRoom('200'), true);
   assert.equal(feed.getSnapshot().length, 0);
-  assert.equal(
-    feed.push({ uid: '2', userName: '乙', message: '新房间' }).id,
-    2,
-  );
+  assert.equal(feed.push({ uid: '2', userName: '乙', message: '新房间' }).id, 2);
 });
 
 test('danmaku feed preserves known emote kinds and omits unknown or absent kinds', () => {
   const feed = createDanmakuFeedBuffer();
   for (const kind of ['inline', 'sticker', 'unknown', undefined]) {
-    const item = feed.push({ message: '[喝彩]', emotes: [{
-      text: '[喝彩]', url: 'https://i0.hdslb.com/cheer.png', kind,
-    }] });
+    const item = feed.push({
+      message: '[喝彩]',
+      emotes: [
+        {
+          text: '[喝彩]',
+          url: 'https://i0.hdslb.com/cheer.png',
+          kind,
+        },
+      ],
+    });
     const expected = kind === 'inline' || kind === 'sticker' ? kind : undefined;
     assert.equal(item.emotes[0].kind, expected);
     assert.equal(feed.getSnapshot().at(-1).emotes[0].kind, expected);
@@ -127,9 +129,15 @@ test('finalized gifts share the public feed without exposing ledger fields', () 
   feed.setRoom('100');
   feed.push({ name: '观众', message: '好听' });
   const gift = feed.pushGift({
-    id: 71, detection_status: 'final', uid: '42', user_name: '晚风',
-    gift_name: '小花花', num: 10, total_price: 100,
-    source_event_id: 'private-ledger-id', raw_data: 'private',
+    id: 71,
+    detection_status: 'final',
+    uid: '42',
+    user_name: '晚风',
+    gift_name: '小花花',
+    num: 10,
+    total_price: 100,
+    source_event_id: 'private-ledger-id',
+    raw_data: 'private',
   });
   assert.equal(gift.id, 2);
   assert.equal(gift.kind, 'gift');
@@ -145,7 +153,10 @@ test('finalized gifts share the public feed without exposing ledger fields', () 
   assert.equal(feed.getSnapshot()[1].giftName, '小花花');
   assert.equal(feed.getSnapshot()[1].giftTotalPrice, 100);
   feed.push({ message: '谢谢' });
-  assert.deepEqual(feed.getSnapshot().map(item => item.id), [2, 3]);
+  assert.deepEqual(
+    feed.getSnapshot().map((item) => item.id),
+    [2, 3],
+  );
   feed.setRoom('200');
   assert.deepEqual(feed.getSnapshot(), []);
 });
@@ -162,9 +173,15 @@ test('gift feed projection ignores progress and invalid gift quantities', () => 
 test('gift totals preserve RMB decimals and omit unavailable amounts', () => {
   const feed = createDanmakuFeedBuffer();
   for (const totalPrice of [0, 0.01, 12.5, 128.88]) {
-    assert.equal(feed.pushGift({ detection_status: 'final', num: 10, total_price: totalPrice }).giftTotalPrice, totalPrice);
+    assert.equal(
+      feed.pushGift({ detection_status: 'final', num: 10, total_price: totalPrice }).giftTotalPrice,
+      totalPrice,
+    );
   }
   for (const totalPrice of [undefined, null, -1, Infinity, NaN, 'invalid']) {
-    assert.equal(Object.hasOwn(feed.pushGift({ detection_status: 'final', num: 1, total_price: totalPrice }), 'giftTotalPrice'), false);
+    assert.equal(
+      Object.hasOwn(feed.pushGift({ detection_status: 'final', num: 1, total_price: totalPrice }), 'giftTotalPrice'),
+      false,
+    );
   }
 });

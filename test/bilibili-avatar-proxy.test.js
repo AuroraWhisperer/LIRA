@@ -16,12 +16,18 @@ test('avatar proxy requests a bounded CDN thumbnail for original collection artw
 });
 
 test('collection thumbnails still obey the avatar byte limit', async (t) => {
-  t.mock.method(global, 'fetch', async () => new Response('', {
-    headers: { 'Content-Type': 'image/webp', 'Content-Length': String(2 * 1024 * 1024 + 1) },
-  }));
-  await assert.rejects(new BilibiliApiClient('').fetchAvatarImage(
-    'https://i0.hdslb.com/bfs/garb/collection.png',
-  ), /头像文件过大/);
+  t.mock.method(
+    global,
+    'fetch',
+    async () =>
+      new Response('', {
+        headers: { 'Content-Type': 'image/webp', 'Content-Length': String(2 * 1024 * 1024 + 1) },
+      }),
+  );
+  await assert.rejects(
+    new BilibiliApiClient('').fetchAvatarImage('https://i0.hdslb.com/bfs/garb/collection.png'),
+    /头像文件过大/,
+  );
 });
 
 test('ordinary avatars preserve their URLs and supported image formats', async (t) => {
@@ -69,9 +75,7 @@ test('Bilibili avatar proxy fetches only trusted HTTPS image URLs', async () => 
   const client = new BilibiliApiClient('123', { cookieHeader: 'SESSDATA=synthetic-session' });
 
   try {
-    const image = await client.fetchAvatarImage(
-      'https://i0.hdslb.com/bfs/face/viewer.jpg',
-    );
+    const image = await client.fetchAvatarImage('https://i0.hdslb.com/bfs/face/viewer.jpg');
     assert.equal(image.contentType, 'image/jpeg');
     assert.deepEqual(image.data, Buffer.from([1, 2, 3]));
     assert.equal(requests[0].url, 'https://i0.hdslb.com/bfs/face/viewer.jpg');
@@ -79,14 +83,8 @@ test('Bilibili avatar proxy fetches only trusted HTTPS image URLs', async () => 
     assert.equal(new Headers(requests[0].options.headers).has('cookie'), false);
     assert.equal(client.requestHeaders().Cookie, 'SESSDATA=synthetic-session');
 
-    await assert.rejects(
-      client.fetchAvatarImage('http://i0.hdslb.com/bfs/face/viewer.jpg'),
-      /头像地址无效/,
-    );
-    await assert.rejects(
-      client.fetchAvatarImage('https://hdslb.com.attacker.test/avatar.jpg'),
-      /头像地址无效/,
-    );
+    await assert.rejects(client.fetchAvatarImage('http://i0.hdslb.com/bfs/face/viewer.jpg'), /头像地址无效/);
+    await assert.rejects(client.fetchAvatarImage('https://hdslb.com.attacker.test/avatar.jpg'), /头像地址无效/);
     assert.equal(requests.length, 1);
   } finally {
     global.fetch = originalFetch;

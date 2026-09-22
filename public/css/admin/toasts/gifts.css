@@ -68,15 +68,21 @@
   object-fit: contain;
   opacity: 0;
 }
-.gift-notify-artwork.is-loaded { background-image: none; }
-.gift-notify-artwork.is-loaded img { opacity: 1; }
+.gift-notify-artwork.is-loaded {
+  background-image: none;
+}
+.gift-notify-artwork.is-loaded img {
+  opacity: 1;
+}
 .gift-notify-toast .toast-content > strong {
   display: flex;
   align-items: baseline;
   flex-wrap: wrap;
   gap: 4px 8px;
 }
-.gift-notify-name { min-width: 0; }
+.gift-notify-name {
+  min-width: 0;
+}
 .gift-notify-toast .toast-content > span {
   font-size: var(--type-size-control);
 }

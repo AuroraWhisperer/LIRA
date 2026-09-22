@@ -33,14 +33,16 @@ test('discovery failure exposes only the verified stable owner, never same-name 
   const controller = createRemoteGiftController(fixture.options);
   try {
     const original = store.resolveSource(createRemoteGiftSourceKey(ORIGIN, owner));
-    const legacyKey = crypto.createHash('sha256')
-      .update(`gift-source-v1\n${ORIGIN}\nalice`).digest('hex');
+    const legacyKey = crypto.createHash('sha256').update(`gift-source-v1\n${ORIGIN}\nalice`).digest('hex');
     const legacy = store.resolveSource(legacyKey);
     query.insertGift(original.id, 'original');
     query.insertGift(legacy.id, 'legacy');
     assert.equal(await controller.start(), false);
-    assert.equal(getGiftHistory(query.context, { range: 'all' }).items.length, 1,
-      'the same verified owner can still read its own offline projection');
+    assert.equal(
+      getGiftHistory(query.context, { range: 'all' }).items.length,
+      1,
+      'the same verified owner can still read its own offline projection',
+    );
 
     owner.streamerId = 11;
     fixture.authorization.epoch += 1;
@@ -52,8 +54,11 @@ test('discovery failure exposes only the verified stable owner, never same-name 
     assert.equal(controller.getStatus().sourceId, replacement.id);
     assert.deepEqual(getGiftHistory(query.context, { range: 'all' }).items, []);
     assert.equal(getGiftStatistics(query.context, { range: 'all' }).summary.eventCount, 0);
-    assert.equal(query.giftDb.prepare('SELECT count(*) AS count FROM gift_events').get().count, 2,
-      'unproven and previous-owner data is retained, never reassigned or deleted');
+    assert.equal(
+      query.giftDb.prepare('SELECT count(*) AS count FROM gift_events').get().count,
+      2,
+      'unproven and previous-owner data is retained, never reassigned or deleted',
+    );
   } finally {
     controller.dispose();
     query.close();

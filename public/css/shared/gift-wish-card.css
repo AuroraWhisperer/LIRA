@@ -19,6 +19,20 @@
   height: 72px;
   object-fit: contain;
 }
+.wish-card--text {
+  display: block;
+}
+.wish-card-text {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  -webkit-text-stroke: 2px #fffcf6;
+  paint-order: stroke fill;
+}
 .wish-card-progress {
   position: relative;
   grid-column: 2;
@@ -73,6 +87,53 @@
 .wish-card.is-complete {
   --wish-ink: #38654f;
   --wish-pink: #78ad97;
+}
+.wish-card--circle {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  width: max-content;
+  max-width: 100%;
+  padding: 4px;
+}
+.wish-card-circle {
+  position: relative;
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  width: 96px;
+  height: 96px;
+  padding: 10px;
+}
+.wish-card-circle::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  background: url('/img/shared/gift-wish-circle.svg') center / contain no-repeat;
+  pointer-events: none;
+}
+.wish-card-circle .wish-card-image {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+.wish-card--circle .wish-card-total {
+  position: relative;
+  justify-content: center;
+  flex-wrap: nowrap;
+  gap: 0;
+  margin-top: -18px;
+  padding: 0;
+  color: #e6bd68;
+  font-size: 20px;
+  -webkit-text-stroke: 3px #513c2e;
+}
+.wish-card--circle .wish-card-count,
+.wish-card--circle .wish-card-target {
+  color: inherit;
+  font-size: inherit;
+  font-weight: 800;
 }
 .wish-card ::selection {
   color: #704451;

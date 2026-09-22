@@ -19,27 +19,16 @@ import {
   createDefaultState,
   normalizeState,
 } from './todo-model.js';
-import {
-  dangerConfirm,
-  showConfirmationDialog,
-} from '../shared/confirmation-dialog.js';
+import { dangerConfirm, showConfirmationDialog } from '../shared/confirmation-dialog.js';
 
-import {
-  renderTodo,
-  renderTodoCalendar,
-  renderTodoAgenda,
-  renderTodoTasks,
-  readTodoAction,
-} from './todo-view.js';
+import { renderTodo, renderTodoCalendar, renderTodoAgenda, renderTodoTasks, readTodoAction } from './todo-view.js';
 
 export const todo = (() => {
   let readFailed = false;
 
   function readStoredJson(key) {
     const stored = window.localStorage.getItem(key);
-    return stored === null || stored === undefined
-      ? undefined
-      : JSON.parse(stored);
+    return stored === null || stored === undefined ? undefined : JSON.parse(stored);
   }
 
   function readState() {
@@ -93,10 +82,7 @@ export const todo = (() => {
   function storeState() {
     if (readFailed) return;
     try {
-      window.localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify(moduleState.planner),
-      );
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(moduleState.planner));
       moduleState.saveFailed = false;
     } catch {
       moduleState.saveFailed = true;
@@ -124,14 +110,10 @@ export const todo = (() => {
 
   function updateSession(patch = {}) {
     const session = moduleState.planner.session;
-    if (/^\d{4}-\d{2}-\d{2}$/.test(String(patch.date)))
-      session.date = String(patch.date);
-    if (/^\d{2}:\d{2}$/.test(String(patch.time)))
-      session.time = String(patch.time);
-    if (patch.title !== undefined)
-      session.title = String(patch.title || '').slice(0, 60);
-    if (patch.goal !== undefined)
-      session.goal = String(patch.goal || '').slice(0, 100);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(String(patch.date))) session.date = String(patch.date);
+    if (/^\d{2}:\d{2}$/.test(String(patch.time))) session.time = String(patch.time);
+    if (patch.title !== undefined) session.title = String(patch.title || '').slice(0, 60);
+    if (patch.goal !== undefined) session.goal = String(patch.goal || '').slice(0, 100);
     commit();
     return { ...session };
   }
@@ -159,8 +141,7 @@ export const todo = (() => {
     }
     if (STAGES.includes(patch.stage)) task.stage = patch.stage;
     if (patch.done !== undefined) task.done = patch.done === true;
-    if (patch.progress !== undefined)
-      task.done = Number(patch.progress) === 100;
+    if (patch.progress !== undefined) task.done = Number(patch.progress) === 100;
     commit();
     return { ...task };
   }
@@ -196,9 +177,7 @@ export const todo = (() => {
   }
 
   function updateNote(noteId, patch = {}) {
-    const index = moduleState.planner.notes.findIndex(
-      (note) => note.id === noteId,
-    );
+    const index = moduleState.planner.notes.findIndex((note) => note.id === noteId);
     if (index < 0) return null;
     const original = moduleState.planner.notes[index];
     const note = normalizeNote({
@@ -217,9 +196,7 @@ export const todo = (() => {
   function promoteNote(noteId) {
     const note = moduleState.planner.notes.find((item) => item.id === noteId);
     if (!note) return null;
-    const existing = moduleState.planner.tasks.find(
-      (task) => task.id === note.promotedTaskId,
-    );
+    const existing = moduleState.planner.tasks.find((task) => task.id === note.promotedTaskId);
     if (existing) return { ...existing };
     const task = normalizeTask({
       title: note.body,
@@ -245,9 +222,7 @@ export const todo = (() => {
   }
 
   function updateEvent(eventId, patch = {}) {
-    const index = moduleState.planner.events.findIndex(
-      (event) => event.id === eventId,
-    );
+    const index = moduleState.planner.events.findIndex((event) => event.id === eventId);
     if (index < 0) return null;
     const original = moduleState.planner.events[index];
     const event = normalizeEvent({
@@ -284,10 +259,7 @@ export const todo = (() => {
     moduleState.month = date.slice(0, 7);
     renderTodoCalendar(viewSnapshot());
     renderTodoAgenda(viewSnapshot());
-    if (focus)
-      byId('plannerCalendarGrid')
-        .querySelector('[aria-pressed="true"]')
-        ?.focus();
+    if (focus) byId('plannerCalendarGrid').querySelector('[aria-pressed="true"]')?.focus();
   }
 
   function editNote(noteId = '') {
@@ -301,13 +273,9 @@ export const todo = (() => {
   }
 
   function openEvent(eventId = '') {
-    const event = moduleState.planner.events.find(
-      (item) => item.id === eventId,
-    );
+    const event = moduleState.planner.events.find((item) => item.id === eventId);
     moduleState.editingEventId = event?.id || '';
-    byId('plannerEventDialogTitle').textContent = event
-      ? '编辑日程'
-      : '新建日程';
+    byId('plannerEventDialogTitle').textContent = event ? '编辑日程' : '新建日程';
     byId('plannerEventTitle').value = event?.title || '';
     byId('plannerEventDate').value = event?.date || moduleState.selectedDate;
     byId('plannerEventTime').value = event ? event.time : '20:00';
@@ -336,9 +304,7 @@ export const todo = (() => {
 
   async function confirmNoteEdit(noteId) {
     const body = byId('plannerNoteBody').value.trim();
-    const previous = moduleState.planner.notes.find(
-      (note) => note.id === moduleState.editingNoteId,
-    );
+    const previous = moduleState.planner.notes.find((note) => note.id === moduleState.editingNoteId);
     if (body && body !== previous?.body) {
       const confirmed = await showConfirmationDialog({
         variant: 'caution',
@@ -414,9 +380,7 @@ export const todo = (() => {
       body: byId('plannerNoteBody').value,
       type: byId('plannerNoteType').value,
     };
-    const note = moduleState.editingNoteId
-      ? updateNote(moduleState.editingNoteId, input)
-      : addNote(input);
+    const note = moduleState.editingNoteId ? updateNote(moduleState.editingNoteId, input) : addNote(input);
     if (note) editNote();
   }
 
@@ -425,21 +389,14 @@ export const todo = (() => {
     const input = {
       title: byId('plannerEventTitle').value,
       date: byId('plannerEventDate').value,
-      time: byId('plannerEventAllDay').checked
-        ? ''
-        : byId('plannerEventTime').value,
-      type: byId('plannerEventForm').querySelector(
-        '[name="plannerEventType"]:checked',
-      ).value,
+      time: byId('plannerEventAllDay').checked ? '' : byId('plannerEventTime').value,
+      type: byId('plannerEventForm').querySelector('[name="plannerEventType"]:checked').value,
       detail: byId('plannerEventDetail').value,
     };
-    const saved = moduleState.editingEventId
-      ? updateEvent(moduleState.editingEventId, input)
-      : addEvent(input);
+    const saved = moduleState.editingEventId ? updateEvent(moduleState.editingEventId, input) : addEvent(input);
     if (saved) byId('plannerEventDialog').close();
     else {
-      byId('plannerEventError').textContent =
-        '请填写日程名称和有效的日期、时间。';
+      byId('plannerEventError').textContent = '请填写日程名称和有效的日期、时间。';
       byId('plannerEventError').hidden = false;
     }
   }
@@ -463,9 +420,7 @@ export const todo = (() => {
     byId('plannerTaskForm').addEventListener('submit', submitTask);
     byId('plannerNoteForm').addEventListener('submit', submitNote);
     byId('plannerNoteCancel').addEventListener('click', () => editNote());
-    byId('plannerGoToday').addEventListener('click', () =>
-      selectDate(toDateValue()),
-    );
+    byId('plannerGoToday').addEventListener('click', () => selectDate(toDateValue()));
     byId('plannerEventAllDay').addEventListener('change', (event) => {
       byId('plannerEventTime').disabled = event.target.checked;
     });
@@ -473,14 +428,10 @@ export const todo = (() => {
     byId('plannerEventDelete').addEventListener('click', confirmEventDelete);
     root.addEventListener('change', (event) => {
       const target = event.target;
-      if (target.dataset.taskComplete)
-        updateTask(target.dataset.taskComplete, { done: target.checked });
-      if (target.dataset.taskTitle)
-        updateTask(target.dataset.taskTitle, { title: target.value });
+      if (target.dataset.taskComplete) updateTask(target.dataset.taskComplete, { done: target.checked });
+      if (target.dataset.taskTitle) updateTask(target.dataset.taskTitle, { title: target.value });
     });
-    root.addEventListener('click', (event) =>
-      handleAction(readTodoAction(event.target)),
-    );
+    root.addEventListener('click', (event) => handleAction(readTodoAction(event.target)));
     byId('plannerCalendarGrid').addEventListener('keydown', (event) => {
       const offsets = {
         ArrowLeft: -1,
@@ -497,11 +448,9 @@ export const todo = (() => {
     storeState();
     render();
     if (readFailed)
-      root
-        .querySelectorAll('button, input, select, textarea')
-        .forEach((control) => {
-          control.disabled = true;
-        });
+      root.querySelectorAll('button, input, select, textarea').forEach((control) => {
+        control.disabled = true;
+      });
     moduleState.initialized = true;
   }
 

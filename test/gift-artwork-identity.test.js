@@ -32,7 +32,10 @@ test('recent gifts and source-box icons keep reused IDs and repriced identities 
       }),
     },
   };
-  const { getGiftToastArtwork } = await loadModuleExports(path.join(__dirname, '../public/js/admin/gifts/recent.js'), sandbox);
+  const { getGiftToastArtwork } = await loadModuleExports(
+    path.join(__dirname, '../public/js/admin/gifts/recent.js'),
+    sandbox,
+  );
   const recent = sandbox.window.AdminApp.gifts.recent;
   await recent.loadGiftArtworkCatalog();
   const output = {
@@ -74,10 +77,7 @@ test('recent gifts and source-box icons keep reused IDs and repriced identities 
     getGiftToastArtwork({ gift_id: 'guard-3', coin_type: 'guard', gift_name: '舰长' }),
     '/img/admin/gifts/bilibili-guard-captain.webp',
   );
-  assert.equal(
-    recent.getHighValueGiftArtwork({ ...record, gift_variant_id: null }).src,
-    '/img/gift-placeholder.png',
-  );
+  assert.equal(recent.getHighValueGiftArtwork({ ...record, gift_variant_id: null }).src, '/img/gift-placeholder.png');
   assert.equal(
     recent.getHighValueGiftArtwork({
       ...record,

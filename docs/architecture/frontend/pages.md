@@ -59,7 +59,7 @@
 | `/opening`         | [overlays/opening.html](../../../public/pages/overlays/opening.html)                                               | OBS 浏览器源、管理页预览                                     | 固定开播画面地址,读取已保存的文案、动画、画质与音乐设置                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `/clock`           | [overlays/clock.html](../../../public/pages/overlays/clock.html)                                                   | OBS/直播姬浏览器源、管理页预览 `<iframe>`                    | 固定萌时钟地址；默认读取已保存设置，兼容 `style=peach                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | starlight | soda | timeline-horizontal | timeline-vertical`、`date=0 | 1`、`seconds=0 | 1`、`format=12 | 24`、`label=` 逐字段覆盖 |
 
-礼物姬在「礼物边框」「滚动礼物」后增加「礼物许愿」。管理片段 `toolbox/gift-wishes.html` 由原礼物片段组合；`admin/gifts/wishes.js` 管理三周期与增改删，`wish-picker.js` 复用在售/全库目录，`shared/gift-wish-card.js` / CSS 与 OBS 共用实际心愿卡。空、加载、同步不完整、直播状态未知均有对应提示，离开面板暂停轮询。
+礼物姬在「礼物边框」「滚动礼物」后增加「礼物许愿」。管理片段 `toolbox/gift-wishes.html` 由原礼物片段组合；`admin/gifts/wishes.js` 管理三周期与增改删，`wish-picker.js` 复用在售/全库目录，`shared/gift-wish-card.js` / CSS 与 OBS 共用实际展示。每条许愿可选「礼物卡片」或「纯文字」，文字版提供模板输入、动态内容插入按钮及即时文字预览；默认“许愿{礼物}（{已收}/{目标}）”，按标记替换名称和数量，使用文本节点渲染，不解析 HTML。已保存预览只保留展示内容和编辑/删除操作。空、加载、同步不完整、直播状态未知均有对应提示，离开面板暂停轮询。
 
 | 入口 URL | 实际 HTML | 打开者 | 行为说明 |
 | --- | --- | --- | --- |
@@ -72,6 +72,8 @@
 | `/pages/gift-audit.html` | [gift-audit.html](../../../public/pages/gift-audit.html) | 开发者/主播排查 | 礼物气泡 × WebSocket 交叉对比审计,详见 [app.md](app.md) §9 |
 
 ## 3. 页面清单(每个页面一行)
+
+Admin 使用文档的 `toolbox/usage-guide.html` 保留面板、目录和搜索入口；正文依次组合 `usage-guide-getting-started.html`、`usage-guide-features.html`、`usage-guide-toolbox.html`、`usage-guide-configuration.html`、`usage-guide-faq.html` 的完整章节。子片段继续由 `src/server/admin-page.js` 在服务端一次性展开，页面地址与章节锚点不变。
 
 | 页面           | 文件                                                                                                          | 类型                                     | 内容                                                                                                                                                                                                                               |
 | -------------- | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -167,7 +169,8 @@
 | `css/overlays/blindbox.css`          | 盲盒叠加层动画与布局                                                                                                                                                                  |
 | `css/overlays/overtime.css`          | 加班机叠加层(cq 单位 + 容器查询,见 [overlays.md](overlays.md) §4)                                                                                                                     |
 | `css/overlays/clock.css`             | 萌时钟三套代码原生装饰卡片、横/竖透明时间轴与 reduced-motion 降级                                                                                                                     |
-| `css/overlays/desktop.css`           | 桌面外壳主题(`html.desktop-shell`,标题栏拖拽区/窗口控件)                                                                                                                              |
+| `css/admin/workspace/song.css`      | 按原顺序导入 `song-management.css` 的歌曲资料与导入/云库表单、`song-layout.css` 的队列和工作区布局 |
+| `css/overlays/desktop.css`           | 保留桌面样式入口，依次导入滚动条及 `css/desktop/theme.css`、`update.css`、`shell.css`；分别拥有暖金主题、更新/支持页和退出屏/标题栏/工作区布局 |
 
 ## 6. 静态资源
 

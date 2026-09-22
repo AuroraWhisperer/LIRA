@@ -37,21 +37,14 @@ async function fixture({ reloadError } = {}) {
   let reloadCount = 0;
   const context = vm.createContext({ document: {}, console });
   const module = new vm.SourceTextModule(
-    fs.readFileSync(
-      require.resolve('../public/js/admin/song-import-update.js'),
-      'utf8',
-    ),
+    fs.readFileSync(require.resolve('../public/js/admin/song-import-update.js'), 'utf8'),
     { context },
   );
   await module.link((specifier) =>
     specifier === './song-import-parser.js'
-      ? new vm.SourceTextModule(
-          fs.readFileSync(
-            require.resolve('../public/js/admin/song-import-parser.js'),
-            'utf8',
-          ),
-          { context },
-        )
+      ? new vm.SourceTextModule(fs.readFileSync(require.resolve('../public/js/admin/song-import-parser.js'), 'utf8'), {
+          context,
+        })
       : new vm.SyntheticModule(
           ['api'],
           function () {
@@ -71,10 +64,7 @@ async function fixture({ reloadError } = {}) {
       reloadCount += 1;
       if (reloadError) throw reloadError;
     },
-    request: (url, payload) =>
-      new Promise((resolve, reject) =>
-        calls.push({ url, payload, resolve, reject }),
-      ),
+    request: (url, payload) => new Promise((resolve, reject) => calls.push({ url, payload, resolve, reject })),
   });
   function updateMode() {
     element('songImportMode').value = 'update';
@@ -84,9 +74,7 @@ async function fixture({ reloadError } = {}) {
     const columns = [...new Set(rows.flatMap((row) => Object.keys(row)))];
     element('importText').value = [
       columns.join('\t'),
-      ...rows.map((row) =>
-        columns.map((column) => row[column] ?? '').join('\t'),
-      ),
+      ...rows.map((row) => columns.map((column) => row[column] ?? '').join('\t')),
     ].join('\n');
     element('importText').events.input();
   }
@@ -141,10 +129,7 @@ test('update UI defaults to add-only and paginates every preview row without ins
     '<script>歌</script> / （无歌手）',
   );
   ui.element('songImportNextPage').events.click();
-  assert.equal(
-    ui.element('songImportPreviewRows').children[0].children[0].textContent,
-    '26',
-  );
+  assert.equal(ui.element('songImportPreviewRows').children[0].children[0].textContent, '26');
   ui.element('songImportNextPage').events.click();
   assert.equal(ui.element('songImportPreviewRows').children.length, 10);
   assert.equal(ui.element('songImportNextPage').disabled, true);
@@ -182,9 +167,7 @@ test('confirmation submits the reviewed input and token once, while stale errors
   assert.equal(ui.calls[1].url, '/api/songs/import-apply');
   assert.equal(ui.calls[1].payload.previewToken, 'original-token');
   assert.equal(ui.calls[1].payload.allowEmptyClear, false);
-  assert.deepEqual(JSON.parse(JSON.stringify(ui.calls[1].payload.rows)), [
-    { name: '歌', requestPrice: '' },
-  ]);
+  assert.deepEqual(JSON.parse(JSON.stringify(ui.calls[1].payload.rows)), [{ name: '歌', requestPrice: '' }]);
   ui.calls[1].resolve({ data: { inserted: 1, updated: 0, unchanged: 0 } });
   await applying;
   assert.equal(ui.reloadCount(), 1);
@@ -207,14 +190,8 @@ test('a failed list refresh preserves the committed result and cloud-sync distin
   await applying;
   assert.equal(ui.reloadCount(), 1);
   assert.match(ui.element('importResult').textContent, /本地已新增 1/);
-  assert.match(
-    ui.element('importResult').textContent,
-    /网页更新以云端同步结果为准/,
-  );
-  assert.match(
-    ui.element('importResult').textContent,
-    /本地已保存，但列表刷新失败，请刷新页面/,
-  );
+  assert.match(ui.element('importResult').textContent, /网页更新以云端同步结果为准/);
+  assert.match(ui.element('importResult').textContent, /本地已保存，但列表刷新失败，请刷新页面/);
   assert.doesNotMatch(ui.element('importResult').textContent, /回滚/);
   assert.equal(ui.element('songImportApplyBtn').disabled, true);
 });

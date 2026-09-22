@@ -28,8 +28,7 @@
   position: absolute;
   z-index: 3;
   inset: 0;
-  background: url('/img/overlays/song-board-style-3/frame.webp') center / 100%
-    100% no-repeat;
+  background: url('/img/overlays/song-board-style-3/frame.webp') center / 100% 100% no-repeat;
   pointer-events: none;
 }
 
@@ -97,8 +96,7 @@
   --storybook-list-offset-y: 10px;
   position: absolute;
   z-index: 2;
-  inset: calc(24.5% - var(--storybook-list-offset-y)) 7.5%
-    calc(17% + var(--storybook-list-offset-y)) 12.5%;
+  inset: calc(24.5% - var(--storybook-list-offset-y)) 7.5% calc(17% + var(--storybook-list-offset-y)) 12.5%;
   overflow: hidden;
   padding: 0;
 }

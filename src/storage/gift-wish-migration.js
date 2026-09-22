@@ -26,4 +26,19 @@ function migrateGiftWishes(db) {
   `);
 }
 
-module.exports = { migrateGiftWishes };
+function migrateGiftWishDisplay(db) {
+  const columns = new Set(
+    db
+      .prepare('PRAGMA table_info(gift_wishes)')
+      .all()
+      .map((row) => row.name),
+  );
+  if (!columns.has('display_style')) {
+    db.exec("ALTER TABLE gift_wishes ADD COLUMN display_style TEXT NOT NULL DEFAULT 'card'");
+  }
+  if (!columns.has('text_template')) {
+    db.exec("ALTER TABLE gift_wishes ADD COLUMN text_template TEXT NOT NULL DEFAULT ''");
+  }
+}
+
+module.exports = { migrateGiftWishes, migrateGiftWishDisplay };

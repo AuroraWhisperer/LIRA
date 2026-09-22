@@ -18,12 +18,7 @@ const groups = {
     'frontend-toast',
     'ui-edit-state',
   ],
-  desktop: [
-    'build-integrity',
-    'desktop-request-auth-electron',
-    'electron-data-layout',
-    'local-instance-windows',
-  ],
+  desktop: ['build-integrity', 'desktop-request-auth-electron', 'electron-data-layout', 'local-instance-windows'],
   installer: [
     'installer-app-exit',
     'installer-diagnostics',
@@ -42,7 +37,8 @@ const groups = {
     'processed-gift-source',
   ],
 };
-const files = fs.readdirSync(path.join(root, 'test'))
+const files = fs
+  .readdirSync(path.join(root, 'test'))
   .filter((file) => file.endsWith('.test.js'))
   .map((file) => `test/${file}`)
   .sort();
@@ -60,17 +56,18 @@ groups.offline = files.filter((file) => !assigned.has(file));
 groups.all = files;
 
 const testArgs = process.argv.slice(2);
-const group = testArgs[0]?.startsWith('--') ? 'all' : (testArgs.shift() || 'all');
+const group = testArgs[0]?.startsWith('--') ? 'all' : testArgs.shift() || 'all';
 if (!Object.hasOwn(groups, group)) {
   throw new Error(`Unknown test group ${group}; use ${Object.keys(groups).join(', ')}`);
 }
 if (testArgs.includes('--list')) {
   console.log(groups[group].join('\n'));
 } else {
-  const result = spawnSync(process.execPath, [
-    '--experimental-vm-modules', '--test', '--test-concurrency=6',
-    ...testArgs, ...groups[group],
-  ], { cwd: root, stdio: 'inherit', windowsHide: true });
+  const result = spawnSync(
+    process.execPath,
+    ['--experimental-vm-modules', '--test', '--test-concurrency=6', ...testArgs, ...groups[group]],
+    { cwd: root, stdio: 'inherit', windowsHide: true },
+  );
   if (result.error) throw result.error;
   process.exitCode = result.status ?? 1;
 }

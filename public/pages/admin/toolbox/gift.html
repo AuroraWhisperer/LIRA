@@ -8,9 +8,38 @@
 >
   <div class="other-feature-panel-body stack gift-assistant">
     <div class="gift-assistant-tabs" role="tablist" aria-label="礼物姬功能">
-      <button id="giftAssistantFrameTab" type="button" role="tab" aria-selected="true" aria-controls="giftFramePanel" data-gift-tab="frame">礼物边框</button>
-      <button id="giftAssistantDisplayTab" type="button" role="tab" aria-selected="false" aria-controls="giftDisplaySettings" tabindex="-1" data-gift-tab="display">滚动礼物</button>
-      <button id="giftAssistantWishesTab" type="button" role="tab" aria-selected="false" aria-controls="giftWishesPanel" tabindex="-1" data-gift-tab="wishes">礼物许愿</button>
+      <button
+        id="giftAssistantFrameTab"
+        type="button"
+        role="tab"
+        aria-selected="true"
+        aria-controls="giftFramePanel"
+        data-gift-tab="frame"
+      >
+        礼物边框
+      </button>
+      <button
+        id="giftAssistantDisplayTab"
+        type="button"
+        role="tab"
+        aria-selected="false"
+        aria-controls="giftDisplaySettings"
+        tabindex="-1"
+        data-gift-tab="display"
+      >
+        滚动礼物
+      </button>
+      <button
+        id="giftAssistantWishesTab"
+        type="button"
+        role="tab"
+        aria-selected="false"
+        aria-controls="giftWishesPanel"
+        tabindex="-1"
+        data-gift-tab="wishes"
+      >
+        礼物许愿
+      </button>
     </div>
     <section
       id="giftFramePanel"
@@ -24,9 +53,7 @@
           <span class="panel-kicker">观众画面</span>
           <h3 id="giftFrameSettingsTitle" class="ui-section-title">
             礼物边框
-            <lira-help
-              >礼物金额达到门槛后，在投屏画面四周显示林间花信边框。</lira-help
-            >
+            <lira-help>礼物金额达到门槛后，在投屏画面四周显示林间花信边框。</lira-help>
           </h3>
           <p>收到达到触发金额的礼物时，在投屏画面四周播放边框。</p>
         </div>
@@ -39,20 +66,8 @@
           <span>启用礼物边框</span>
         </label>
         <label>
-          <span
-            >触发金额（元）
-            <lira-help
-              >按最终礼物金额判断；0 元表示所有付费礼物。</lira-help
-            ></span
-          >
-          <input
-            id="giftFrameThresholdRmb"
-            type="number"
-            min="0"
-            step="0.01"
-            inputmode="decimal"
-            value="20"
-          />
+          <span>触发金额（元） <lira-help>按最终礼物金额判断；0 元表示所有付费礼物。</lira-help></span>
+          <input id="giftFrameThresholdRmb" type="number" min="0" step="0.01" inputmode="decimal" value="20" />
         </label>
         <label>
           <span>边框主题</span>
@@ -70,99 +85,118 @@
         </label>
       </div>
       <div class="gift-frame-preview-grid">
+        <label><span>预览观众</span><input id="giftFramePreviewUser" type="text" value="观众A" maxlength="80" /></label>
         <label
-          ><span>预览观众</span
-          ><input
-            id="giftFramePreviewUser"
-            type="text"
-            value="观众A"
-            maxlength="80"
+          ><span>预览礼物</span><input id="giftFramePreviewGift" type="text" value="林间花信" maxlength="80"
         /></label>
+        <label><span>数量</span><input id="giftFramePreviewNum" type="number" min="1" step="1" value="2" /></label>
         <label
-          ><span>预览礼物</span
-          ><input
-            id="giftFramePreviewGift"
-            type="text"
-            value="林间花信"
-            maxlength="80"
-        /></label>
-        <label
-          ><span>数量</span
-          ><input
-            id="giftFramePreviewNum"
-            type="number"
-            min="1"
-            step="1"
-            value="2"
-        /></label>
-        <label
-          ><span>金额（元）</span
-          ><input
-            id="giftFramePreviewAmount"
-            type="number"
-            min="0.01"
-            step="0.01"
-            value="520"
+          ><span>金额（元）</span><input id="giftFramePreviewAmount" type="number" min="0.01" step="0.01" value="520"
         /></label>
       </div>
       <div class="gift-frame-settings-actions">
-        <button id="giftFrameSaveBtn" class="primary" type="button">
-          保存礼物边框设置
-        </button>
-        <button id="giftFramePreviewBtn" class="secondary" type="button">
-          播放预览
-        </button>
-        <span
-          id="giftFrameSaveState"
-          class="hint"
-          role="status"
-          aria-live="polite"
-        ></span>
+        <button id="giftFrameSaveBtn" class="primary" type="button">保存礼物边框设置</button>
+        <button id="giftFramePreviewBtn" class="secondary" type="button">播放预览</button>
+        <span id="giftFrameSaveState" class="hint" role="status" aria-live="polite"></span>
       </div>
       <div class="gift-frame-url-row">
-        <div>
-          <span>OBS / 直播姬地址</span><code id="giftFrameOverlayUrl"></code>
-        </div>
+        <div><span>OBS / 直播姬地址</span><code id="giftFrameOverlayUrl"></code></div>
         <div class="gift-frame-url-actions">
-          <button id="giftFrameCopyBtn" class="secondary" type="button">
-            复制地址</button
-          ><button id="giftFrameOpenBtn" class="secondary" type="button">
-            打开预览
-          </button>
+          <button id="giftFrameCopyBtn" class="secondary" type="button">复制地址</button
+          ><button id="giftFrameOpenBtn" class="secondary" type="button">打开预览</button>
         </div>
       </div>
     </section>
-    <section id="giftDisplaySettings" class="gift-display-settings" data-gift-feature="display" role="tabpanel" aria-labelledby="giftAssistantDisplayTab" hidden>
-      <header class="gift-assistant-heading"><h3 class="ui-section-title">礼物词条样式与滚动设置</h3><p class="hint">词条样式与颜色区间共用于滚动展示、导出预览和导出图片。</p></header>
+    <section
+      id="giftDisplaySettings"
+      class="gift-display-settings"
+      data-gift-feature="display"
+      role="tabpanel"
+      aria-labelledby="giftAssistantDisplayTab"
+      hidden
+    >
+      <header class="gift-assistant-heading">
+        <h3 class="ui-section-title">礼物词条样式与滚动设置</h3>
+        <p class="hint">词条样式与颜色区间共用于滚动展示、导出预览和导出图片。</p>
+      </header>
       <form id="giftDisplayForm">
         <fieldset id="giftDisplayFields" disabled>
           <div class="gift-display-columns">
             <div class="gift-display-group">
               <div class="gift-display-group-head">
-                <h4>共用词条样式 · 价格分色</h4><p class="hint">滚动展示与图片导出均按卡片内礼物的累计金额分色；金额不进入横幅。</p>
+                <h4>共用词条样式 · 价格分色</h4>
+                <p class="hint">滚动展示与图片导出均按卡片内礼物的累计金额分色；金额不进入横幅。</p>
               </div>
               <div class="gift-tier-inputs">
                 <div>
                   <span class="gift-tier-swatch" aria-hidden="true"></span><span>浅蓝</span>
                   <input type="number" value="0" readonly aria-label="浅蓝起始金额（元）" />
                   <span aria-hidden="true">～</span>
-                  <input id="giftTierEnd0" data-gift-boundary="1" type="number" min="0.01" step="0.01" required aria-label="浅蓝结束金额（元）" />
+                  <input
+                    id="giftTierEnd0"
+                    data-gift-boundary="1"
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    required
+                    aria-label="浅蓝结束金额（元）"
+                  />
                 </div>
                 <div>
                   <span class="gift-tier-swatch" aria-hidden="true"></span><span>紫蓝</span>
-                  <input id="giftTier1" data-gift-boundary="1" type="number" min="0.01" step="0.01" required aria-label="紫蓝起始金额（元）" />
+                  <input
+                    id="giftTier1"
+                    data-gift-boundary="1"
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    required
+                    aria-label="紫蓝起始金额（元）"
+                  />
                   <span aria-hidden="true">～</span>
-                  <input id="giftTierEnd1" data-gift-boundary="2" type="number" min="0.01" step="0.01" required aria-label="紫蓝结束金额（元）" />
+                  <input
+                    id="giftTierEnd1"
+                    data-gift-boundary="2"
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    required
+                    aria-label="紫蓝结束金额（元）"
+                  />
                 </div>
                 <div>
                   <span class="gift-tier-swatch" aria-hidden="true"></span><span>粉红</span>
-                  <input id="giftTier2" data-gift-boundary="2" type="number" min="0.01" step="0.01" required aria-label="粉红起始金额（元）" />
+                  <input
+                    id="giftTier2"
+                    data-gift-boundary="2"
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    required
+                    aria-label="粉红起始金额（元）"
+                  />
                   <span aria-hidden="true">～</span>
-                  <input id="giftTierEnd2" data-gift-boundary="3" type="number" min="0.01" step="0.01" required aria-label="粉红结束金额（元）" />
+                  <input
+                    id="giftTierEnd2"
+                    data-gift-boundary="3"
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    required
+                    aria-label="粉红结束金额（元）"
+                  />
                 </div>
                 <div>
                   <span class="gift-tier-swatch" aria-hidden="true"></span><span>橙金</span>
-                  <input id="giftTier3" data-gift-boundary="3" type="number" min="0.01" step="0.01" required aria-label="橙金起始金额（元）" />
+                  <input
+                    id="giftTier3"
+                    data-gift-boundary="3"
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    required
+                    aria-label="橙金起始金额（元）"
+                  />
                   <span aria-hidden="true">～</span>
                   <input type="text" value="不限" readonly aria-label="橙金结束金额（元）" />
                 </div>
@@ -175,24 +209,60 @@
             </div>
             <div class="gift-display-group">
               <div class="gift-display-group-head">
-                <h4>本日礼物循环</h4><p class="hint">今天同一人送的同款礼物合并展示。卡片超过显示行数时首尾连续滚动，北京时间零点换日。</p>
+                <h4>本日礼物循环</h4>
+                <p class="hint">今天同一人送的同款礼物合并展示。卡片超过显示行数时首尾连续滚动，北京时间零点换日。</p>
               </div>
               <label>显示行数<input id="giftFeedRows" type="number" min="1" max="10" required /></label>
-              <label>滚动速率（1–50）<input id="giftFeedSpeed" type="number" min="1" max="50" step="1" required /></label>
+              <label
+                >滚动速率（1–50）<input id="giftFeedSpeed" type="number" min="1" max="50" step="1" required
+              /></label>
               <label>
-                <span>最小礼物金额（元）<span class="gift-feed-amount-help" title="按同一人当天同款礼物的累计金额筛选，不包含输入的金额，只显示大于该金额的礼物。例如输入 1 元，累计 1 元不显示。0 表示不限制。" aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9" /><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3m.1 4h.01" /></svg></span></span>
-                <input id="giftFeedMinAmount" type="number" min="0" step="0.1" required aria-describedby="giftFeedMinAmountHint" />
+                <span
+                  >最小礼物金额（元）<span
+                    class="gift-feed-amount-help"
+                    title="按同一人当天同款礼物的累计金额筛选，不包含输入的金额，只显示大于该金额的礼物。例如输入 1 元，累计 1 元不显示。0 表示不限制。"
+                    aria-hidden="true"
+                    ><svg
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.75"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <circle cx="12" cy="12" r="9" />
+                      <path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3m.1 4h.01" /></svg></span
+                ></span>
+                <input
+                  id="giftFeedMinAmount"
+                  type="number"
+                  min="0"
+                  step="0.1"
+                  required
+                  aria-describedby="giftFeedMinAmountHint"
+                />
               </label>
-              <p id="giftFeedMinAmountHint" class="hint">0 表示不限制，最多 1 位小数；累计金额须大于输入金额，不包含等于该金额的礼物。</p>
+              <p id="giftFeedMinAmountHint" class="hint">
+                0 表示不限制，最多 1 位小数；累计金额须大于输入金额，不包含等于该金额的礼物。
+              </p>
               <div class="gift-feed-source">
                 <label>OBS 浏览器源<input id="giftFeedUrl" readonly /></label>
-                <div class="gift-directory-actions"><button id="giftFeedCopy" type="button" class="secondary">复制地址</button><a id="giftFeedPreviewLink" target="_blank" rel="noopener">打开本日预览</a></div>
+                <div class="gift-directory-actions">
+                  <button id="giftFeedCopy" type="button" class="secondary">复制地址</button
+                  ><a id="giftFeedPreviewLink" target="_blank" rel="noopener">打开本日预览</a>
+                </div>
                 <p class="hint">OBS 建议宽度 900，高度随显示行数调整；多位数量会向右延长。关闭此面板后仍继续播放。</p>
               </div>
             </div>
           </div>
           <p id="giftDisplayError" role="alert"></p>
-          <div class="gift-display-actions"><button class="primary" type="submit">保存滚动与样式设置</button><button id="giftDisplayDefaults" class="secondary" type="button">恢复默认</button><button id="giftDisplayCancel" class="secondary" type="button">取消修改</button></div>
+          <div class="gift-display-actions">
+            <button class="primary" type="submit">保存滚动与样式设置</button
+            ><button id="giftDisplayDefaults" class="secondary" type="button">恢复默认</button
+            ><button id="giftDisplayCancel" class="secondary" type="button">取消修改</button>
+          </div>
         </fieldset>
       </form>
     </section>

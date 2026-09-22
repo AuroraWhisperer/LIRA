@@ -1,8 +1,6 @@
 'use strict';
 
-const {
-  canonicalizeProcessedGiftEvent,
-} = require('../shared/processed-gift-contract');
+const { canonicalizeProcessedGiftEvent } = require('../shared/processed-gift-contract');
 const { createRemoteGiftSourceKey } = require('./remote-gift-cursor-store');
 
 const RECONNECT_MIN_MS = 1000;
@@ -76,10 +74,7 @@ function createRemoteGiftController(options = {}) {
   let reconcileTimer = null;
 
   function isAuthorized() {
-    return (
-      !disposed &&
-      licenseManager.getState() === licenseManager.LicenseState.AUTHORIZED
-    );
+    return !disposed && licenseManager.getState() === licenseManager.LicenseState.AUTHORIZED;
   }
 
   function getAuthorizationEpoch() {
@@ -257,15 +252,8 @@ function createRemoteGiftController(options = {}) {
           signal: generationController.signal,
         });
       } catch (error) {
-        if (
-          canRestartBootstrap(error) &&
-          !restarted &&
-          ensureFenceCurrent(fence)
-        ) {
-          currentState = runtime.restartGiftHistoryBootstrap(
-            currentSource.id,
-            fence.projectionGeneration,
-          );
+        if (canRestartBootstrap(error) && !restarted && ensureFenceCurrent(fence)) {
+          currentState = runtime.restartGiftHistoryBootstrap(currentSource.id, fence.projectionGeneration);
           if (!ensureFenceCurrent(fence)) return false;
           restarted = true;
           pageToken = null;
@@ -278,8 +266,7 @@ function createRemoteGiftController(options = {}) {
         page.syncEpoch !== discovery.syncEpoch ||
         (currentState.bootstrapRecoveryCursor !== null &&
           currentState.bootstrapRecoveryCursor !== page.recoveryCursor) ||
-        (currentState.bootstrapSyncEpoch !== null &&
-          currentState.bootstrapSyncEpoch !== page.syncEpoch)
+        (currentState.bootstrapSyncEpoch !== null && currentState.bootstrapSyncEpoch !== page.syncEpoch)
       ) {
         const mismatch = new Error('GIFT_BOOTSTRAP_SNAPSHOT_MISMATCH');
         mismatch.code = 'REBUILD_REQUIRED';
@@ -322,10 +309,7 @@ function createRemoteGiftController(options = {}) {
           signal: generationController.signal,
         });
         if (!ensureFenceCurrent(fence)) return false;
-        if (
-          page.syncEpoch !== currentState.syncEpoch ||
-          page.nextCursor < currentState.finalCursor
-        ) {
+        if (page.syncEpoch !== currentState.syncEpoch || page.nextCursor < currentState.finalCursor) {
           const mismatch = new Error('GIFT_SYNC_STATE_MISMATCH');
           mismatch.code = 'SYNC_EPOCH_MISMATCH';
           throw mismatch;
@@ -396,11 +380,7 @@ function createRemoteGiftController(options = {}) {
         onOpen(metadata = {}) {
           if (!ensureFenceCurrent(streamFence)) return;
           const streamEpoch = metadata.syncEpoch || null;
-          if (
-            !legacyMode &&
-            expectedSyncEpoch &&
-            streamEpoch !== expectedSyncEpoch
-          ) {
+          if (!legacyMode && expectedSyncEpoch && streamEpoch !== expectedSyncEpoch) {
             epochValidated = false;
             streamEpochMismatch = true;
             dirty = true;
@@ -416,9 +396,7 @@ function createRemoteGiftController(options = {}) {
         },
         onEffect(input) {
           const isCurrent = () =>
-            streamController === controller &&
-            !controller.signal.aborted &&
-            ensureFenceCurrent(streamFence);
+            streamController === controller && !controller.signal.aborted && ensureFenceCurrent(streamFence);
           if (isCurrent()) runtime.publishGiftEffect?.(input, isCurrent);
         },
         onEvent(input) {
@@ -453,7 +431,9 @@ function createRemoteGiftController(options = {}) {
     }
     let retryAfterMs = 0;
     streamTask = Promise.resolve(task)
-      .catch((error) => { retryAfterMs = error?.retryAfterMs || 0; })
+      .catch((error) => {
+        retryAfterMs = error?.retryAfterMs || 0;
+      })
       .finally(() => {
         generationSignal.removeEventListener('abort', abortFromGeneration);
         if (streamController !== controller) return;
@@ -539,8 +519,7 @@ function createRemoteGiftController(options = {}) {
     clearReconcileTimer();
     dirty = true;
     if (reconnectTimer) return Promise.resolve(false);
-    if (reconcileTask && reconcileGeneration === generation)
-      return reconcileTask;
+    if (reconcileTask && reconcileGeneration === generation) return reconcileTask;
     const task = enqueue(async () => {
       try {
         let result = false;
@@ -572,12 +551,7 @@ function createRemoteGiftController(options = {}) {
     ) {
       reconnectDelayMs = RECONNECT_MIN_MS;
       setSyncState(GiftSyncState.LIVE);
-    } else if (
-      active &&
-      !legacyMode &&
-      streamController &&
-      syncState !== GiftSyncState.OFFLINE
-    ) {
+    } else if (active && !legacyMode && streamController && syncState !== GiftSyncState.OFFLINE) {
       setSyncState(GiftSyncState.CATCHING_UP);
     } else if (active && !legacyMode) {
       setSyncState(GiftSyncState.OFFLINE);
@@ -613,22 +587,21 @@ function createRemoteGiftController(options = {}) {
     retryNotBefore = Date.parse(now()) + delay;
     retrySourceKey = currentSource?.sourceKey;
     reconnectDelayMs = Math.min(RECONNECT_MAX_MS, reconnectDelayMs * 2);
-    const timer = timers.setTimeout(() => {
-      if (reconnectTimer !== timer) return;
-      reconnectTimer = null;
-      if (delay > 2 ** 31 - 1) {
-        scheduleReconnect(generation, initialize, delay - (2 ** 31 - 1));
-        return;
-      }
-      retryNotBefore = 0;
-      if (
-        !ensureFenceCurrent(captureFence()) ||
-        !isGenerationActive(generation)
-      )
-        return;
-      if (initialize) enqueue(() => initializeGeneration(generation));
-      else startEventStream(generation);
-    }, Math.min(delay, 2 ** 31 - 1));
+    const timer = timers.setTimeout(
+      () => {
+        if (reconnectTimer !== timer) return;
+        reconnectTimer = null;
+        if (delay > 2 ** 31 - 1) {
+          scheduleReconnect(generation, initialize, delay - (2 ** 31 - 1));
+          return;
+        }
+        retryNotBefore = 0;
+        if (!ensureFenceCurrent(captureFence()) || !isGenerationActive(generation)) return;
+        if (initialize) enqueue(() => initializeGeneration(generation));
+        else startEventStream(generation);
+      },
+      Math.min(delay, 2 ** 31 - 1),
+    );
     reconnectTimer = timer;
     reconnectTimer.unref?.();
   }
@@ -674,10 +647,7 @@ function createRemoteGiftController(options = {}) {
 
   function setSyncState(nextState) {
     syncState = nextState;
-    if (
-      nextState === GiftSyncState.LIVE ||
-      nextState === GiftSyncState.LEGACY_PARTIAL
-    ) {
+    if (nextState === GiftSyncState.LIVE || nextState === GiftSyncState.LEGACY_PARTIAL) {
       scheduleReconcile();
     } else {
       clearReconcileTimer();
@@ -714,8 +684,7 @@ function createRemoteGiftController(options = {}) {
       fence.sourceId === (currentSource?.id ?? null) &&
       fence.authorizationEpoch === getAuthorizationEpoch() &&
       fence.controllerGeneration === controllerGeneration &&
-      fence.projectionGeneration ===
-        (currentState?.projectionGeneration ?? null)
+      fence.projectionGeneration === (currentState?.projectionGeneration ?? null)
     );
   }
 

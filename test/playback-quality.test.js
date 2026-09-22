@@ -2,12 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {
-  closestTarget,
-  createPlaybackApp,
-  flushAsyncWork,
-  track,
-} = require('./helpers/playback-app');
+const { closestTarget, createPlaybackApp, flushAsyncWork, track } = require('./helpers/playback-app');
 
 test('quality selection refreshes the current stream and persists the provider preference', async () => {
   const current = {
@@ -50,10 +45,7 @@ test('quality selection refreshes the current stream and persists the provider p
 
   await app.emit('playbackQualityPanel', 'click', {
     stopPropagation() {},
-    target: closestTarget(
-      { playbackQuality: 'lossless' },
-      'data-playback-quality',
-    ),
+    target: closestTarget({ playbackQuality: 'lossless' }, 'data-playback-quality'),
   });
   await app.emit('music-player', 'loadedmetadata');
   await app.emitWindow('pagehide');
@@ -61,10 +53,7 @@ test('quality selection refreshes the current stream and persists the provider p
   assert.equal(requestBody.quality, 'lossless');
   assert.equal(requestBody.track.sourceTrackId, 'quality-song');
   assert.equal(requestBody.track.sourceSongType, 1);
-  assert.equal(
-    app.element('music-player').src,
-    'https://example.test/high.mp3',
-  );
+  assert.equal(app.element('music-player').src, 'https://example.test/high.mp3');
   assert.equal(app.element('music-player').currentTime, 47);
   assert.equal(app.element('playbackQualityLabel').textContent, 'HQ');
   assert.equal(app.ipcSavedState().qualityPreferences.qq, 'lossless');
@@ -119,10 +108,7 @@ test('a stale quality stream cannot replace a newer quality selection', async ()
 
   const staleQualityRequest = app.emit('playbackQualityPanel', 'click', {
     stopPropagation() {},
-    target: closestTarget(
-      { playbackQuality: 'lossless' },
-      'data-playback-quality',
-    ),
+    target: closestTarget({ playbackQuality: 'lossless' }, 'data-playback-quality'),
   });
   await flushAsyncWork();
 
@@ -140,10 +126,7 @@ test('a stale quality stream cannot replace a newer quality selection', async ()
   await staleQualityRequest;
   await flushAsyncWork();
 
-  assert.equal(
-    app.element('music-player').src,
-    'https://example.test/high.mp3',
-  );
+  assert.equal(app.element('music-player').src, 'https://example.test/high.mp3');
   assert.equal(app.element('music-player').paused, false);
   assert.equal(app.audioPlayCalls(), 2);
   await app.emit('music-player', 'loadedmetadata');
@@ -151,10 +134,7 @@ test('a stale quality stream cannot replace a newer quality selection', async ()
 
   const staleQualityError = app.emit('playbackQualityPanel', 'click', {
     stopPropagation() {},
-    target: closestTarget(
-      { playbackQuality: 'premium' },
-      'data-playback-quality',
-    ),
+    target: closestTarget({ playbackQuality: 'premium' }, 'data-playback-quality'),
   });
   await flushAsyncWork();
   await app.emit('playbackQualityPanel', 'click', {
@@ -166,10 +146,7 @@ test('a stale quality stream cannot replace a newer quality selection', async ()
   await staleQualityError;
   await flushAsyncWork();
 
-  assert.equal(
-    app.element('music-player').src,
-    'https://example.test/high.mp3',
-  );
+  assert.equal(app.element('music-player').src, 'https://example.test/high.mp3');
   assert.equal(app.element('music-player').paused, false);
   assert.equal(app.audioPlayCalls(), 3);
   assert.deepEqual(app.errors(), []);
@@ -202,10 +179,7 @@ test('a stale quality stream cannot replace the next track', async () => {
     },
     {
       async resolveStream(_requestCount, requestBody) {
-        if (
-          requestBody.track.sourceTrackId === current.sourceTrackId &&
-          requestBody.quality === 'lossless'
-        ) {
+        if (requestBody.track.sourceTrackId === current.sourceTrackId && requestBody.quality === 'lossless') {
           return losslessStream;
         }
         if (requestBody.track.sourceTrackId === next.sourceTrackId) {
@@ -227,10 +201,7 @@ test('a stale quality stream cannot replace the next track', async () => {
 
   const staleQualityRequest = app.emit('playbackQualityPanel', 'click', {
     stopPropagation() {},
-    target: closestTarget(
-      { playbackQuality: 'lossless' },
-      'data-playback-quality',
-    ),
+    target: closestTarget({ playbackQuality: 'lossless' }, 'data-playback-quality'),
   });
   await flushAsyncWork();
 

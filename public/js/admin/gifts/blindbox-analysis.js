@@ -1,9 +1,7 @@
 import { publishGiftModule } from '../legacy-admin-bridge.js';
-import {
-  escapeHtml, escapeAttr, formatDateTime, formatMoney, readJsonResponse,
-} from '../../shared/utils.js';
+import { escapeHtml, escapeAttr, formatDateTime, formatMoney, readJsonResponse } from '../../shared/utils.js';
 // 盲盒分析工作区：独立管理筛选、视图、分页和请求生命周期。
-'use strict';
+('use strict');
 
 import { eventBus, Events } from '../../shared/event-bus.js';
 
@@ -41,15 +39,13 @@ export const giftAnalysis = (() => {
       state.page = 1;
       load();
     });
-    workspace
-      .querySelectorAll('[data-blind-analysis-view]')
-      .forEach((button) => {
-        button.addEventListener('click', () => {
-          state.view = button.dataset.blindAnalysisView;
-          state.page = 1;
-          load();
-        });
+    workspace.querySelectorAll('[data-blind-analysis-view]').forEach((button) => {
+      button.addEventListener('click', () => {
+        state.view = button.dataset.blindAnalysisView;
+        state.page = 1;
+        load();
       });
+    });
     get('blindBoxAnalysisPrev')?.addEventListener('click', () => {
       if (state.page <= 1) return;
       state.page -= 1;
@@ -61,15 +57,12 @@ export const giftAnalysis = (() => {
     });
     document.addEventListener('keydown', (event) => {
       if (event.key !== 'Escape' || !state.open) return;
-      const openButton = document.querySelector(
-        '.blind-analysis-select[aria-expanded="true"]',
-      );
+      const openButton = document.querySelector('.blind-analysis-select[aria-expanded="true"]');
       if (closeSelects()) openButton?.focus();
       else close();
     });
     document.addEventListener('click', (event) => {
-      if (state.open && !event.target.closest('.blind-analysis-filter'))
-        closeSelects();
+      if (state.open && !event.target.closest('.blind-analysis-filter')) closeSelects();
     });
     eventBus.on(Events.GIFT_RECEIVED, refreshIfOpen);
   }
@@ -78,15 +71,10 @@ export const giftAnalysis = (() => {
     const workspace = get('blindBoxAnalysisWorkspace');
     if (!workspace) return;
     closeCompetingLayers();
-    state.returnFocus =
-      document.activeElement instanceof HTMLElement
-        ? document.activeElement
-        : null;
+    state.returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     state.viewer = typeof filters.viewer === 'string' ? filters.viewer : '';
     state.box = typeof filters.box === 'string' ? filters.box : '';
-    state.view = Object.hasOwn(VIEW_META, filters.view)
-      ? filters.view
-      : 'users';
+    state.view = Object.hasOwn(VIEW_META, filters.view) ? filters.view : 'users';
     state.page = 1;
     state.open = true;
     workspace.hidden = false;
@@ -109,10 +97,7 @@ export const giftAnalysis = (() => {
   function refreshIfOpen() {
     if (!state.open) return;
     clearTimeout(state.refreshTimer);
-    state.refreshTimer = setTimeout(
-      () => load({ quiet: true }),
-      REFRESH_DELAY_MS,
-    );
+    state.refreshTimer = setTimeout(() => load({ quiet: true }), REFRESH_DELAY_MS);
   }
 
   async function load({ quiet = false } = {}) {
@@ -135,8 +120,7 @@ export const giftAnalysis = (() => {
         signal: state.controller.signal,
       });
       const payload = await readJsonResponse(response, '盲盒分析读取失败');
-      if (!response.ok || !payload.ok)
-        throw new Error(payload.error || '盲盒分析读取失败');
+      if (!response.ok || !payload.ok) throw new Error(payload.error || '盲盒分析读取失败');
       if (requestId !== state.requestId || !state.open) return;
       render(payload.data);
     } catch (error) {
@@ -167,10 +151,7 @@ export const giftAnalysis = (() => {
     );
     renderSelect(
       'blindBoxAnalysisBox',
-      [
-        { value: '', label: '全部盲盒' },
-        ...(filters.boxes || []).map((name) => ({ value: name, label: name })),
-      ],
+      [{ value: '', label: '全部盲盒' }, ...(filters.boxes || []).map((name) => ({ value: name, label: name }))],
       state.box,
     );
     const clearButton = get('blindBoxAnalysisClear');
@@ -215,9 +196,7 @@ export const giftAnalysis = (() => {
         moveOptionFocus(menu, event.key);
       } else if (event.key === 'Enter' || event.key === ' ') {
         event.preventDefault();
-        const option =
-          menu.querySelector('.focused') ||
-          menu.querySelector('[aria-selected="true"]');
+        const option = menu.querySelector('.focused') || menu.querySelector('[aria-selected="true"]');
         if (option) selectOption(id, stateKey, option.dataset.value || '');
       } else if (event.key === 'Tab') {
         closeSelects();
@@ -233,8 +212,7 @@ export const giftAnalysis = (() => {
     const button = get(id);
     const menu = get(`${id}Menu`);
     if (!button || !menu) return;
-    const selected =
-      options.find((option) => option.value === selectedValue) || options[0];
+    const selected = options.find((option) => option.value === selectedValue) || options[0];
     button.querySelector('span').textContent = selected.label;
     menu.innerHTML = options
       .map(
@@ -247,30 +225,25 @@ export const giftAnalysis = (() => {
   function openSelect(button, menu) {
     menu.hidden = false;
     button.setAttribute('aria-expanded', 'true');
-    const selected =
-      menu.querySelector('[aria-selected="true"]') || menu.firstElementChild;
+    const selected = menu.querySelector('[aria-selected="true"]') || menu.firstElementChild;
     focusOption(menu, selected);
   }
 
   function closeSelects() {
     let closed = false;
-    document
-      .querySelectorAll('.blind-analysis-select[aria-expanded="true"]')
-      .forEach((button) => {
-        button.setAttribute('aria-expanded', 'false');
-        const menu = get(button.getAttribute('aria-controls'));
-        if (menu) menu.hidden = true;
-        closed = true;
-      });
+    document.querySelectorAll('.blind-analysis-select[aria-expanded="true"]').forEach((button) => {
+      button.setAttribute('aria-expanded', 'false');
+      const menu = get(button.getAttribute('aria-controls'));
+      if (menu) menu.hidden = true;
+      closed = true;
+    });
     return closed;
   }
 
   function moveOptionFocus(menu, key) {
     const options = [...menu.querySelectorAll('[role="option"]')];
     if (!options.length) return;
-    const focusedIndex = options.findIndex((option) =>
-      option.classList.contains('focused'),
-    );
+    const focusedIndex = options.findIndex((option) => option.classList.contains('focused'));
     const nextIndex =
       key === 'Home'
         ? 0
@@ -303,23 +276,17 @@ export const giftAnalysis = (() => {
     setText('blindBoxAnalysisCost', formatMoney(summary.totalCost));
     setText('blindBoxAnalysisValue', formatMoney(summary.totalValue));
     const profit = Number(summary.totalProfit || 0);
-    setText(
-      'blindBoxAnalysisProfit',
-      `${profit > 0 ? '+' : profit < 0 ? '-' : ''}${formatMoney(Math.abs(profit))}`,
-    );
+    setText('blindBoxAnalysisProfit', `${profit > 0 ? '+' : profit < 0 ? '-' : ''}${formatMoney(Math.abs(profit))}`);
     const item = get('blindBoxAnalysisProfitItem');
-    if (item)
-      item.dataset.tone = profit > 0 ? 'up' : profit < 0 ? 'down' : 'flat';
+    if (item) item.dataset.tone = profit > 0 ? 'up' : profit < 0 ? 'down' : 'flat';
   }
 
   function renderViewControls() {
-    document
-      .querySelectorAll('[data-blind-analysis-view]')
-      .forEach((button) => {
-        const active = button.dataset.blindAnalysisView === state.view;
-        button.classList.toggle('active', active);
-        button.setAttribute('aria-pressed', String(active));
-      });
+    document.querySelectorAll('[data-blind-analysis-view]').forEach((button) => {
+      const active = button.dataset.blindAnalysisView === state.view;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-pressed', String(active));
+    });
     setText('blindBoxAnalysisViewTitle', VIEW_META[state.view].title);
   }
 
@@ -387,42 +354,29 @@ export const giftAnalysis = (() => {
     const total = Number(pagination.total || 0);
     const totalPages = Number(pagination.totalPages || 1);
     const page = Number(pagination.page || 1);
-    setText(
-      'blindBoxAnalysisResultCount',
-      `共 ${total} ${VIEW_META[state.view].unit}`,
-    );
+    setText('blindBoxAnalysisResultCount', `共 ${total} ${VIEW_META[state.view].unit}`);
     setText('blindBoxAnalysisPageInfo', `第 ${page} 页，共 ${totalPages} 页`);
     const container = get('blindBoxAnalysisPagination');
     if (container) container.hidden = totalPages <= 1;
-    if (get('blindBoxAnalysisPrev'))
-      get('blindBoxAnalysisPrev').disabled = page <= 1;
-    if (get('blindBoxAnalysisNext'))
-      get('blindBoxAnalysisNext').disabled = page >= totalPages;
+    if (get('blindBoxAnalysisPrev')) get('blindBoxAnalysisPrev').disabled = page <= 1;
+    if (get('blindBoxAnalysisNext')) get('blindBoxAnalysisNext').disabled = page >= totalPages;
   }
 
   function renderContext(data) {
-    const viewerLabel = (data.filters?.viewers || []).find(
-      (item) => item.value === state.viewer,
-    )?.label;
+    const viewerLabel = (data.filters?.viewers || []).find((item) => item.value === state.viewer)?.label;
     const parts = [viewerLabel || '全部观众', state.box || '全部盲盒'];
     setText('blindBoxAnalysisSubtitle', parts.join(' · '));
     setText('blindBoxAnalysisUpdated', `刚刚更新`);
   }
 
   function renderLoading() {
-    document
-      .querySelector('.blind-analysis-results')
-      ?.setAttribute('aria-busy', 'true');
+    document.querySelector('.blind-analysis-results')?.setAttribute('aria-busy', 'true');
     const body = get('blindBoxAnalysisBody');
-    if (body)
-      body.innerHTML =
-        '<tr><td class="blind-analysis-empty">正在读取今天的数据…</td></tr>';
+    if (body) body.innerHTML = '<tr><td class="blind-analysis-empty">正在读取今天的数据…</td></tr>';
   }
 
   function renderError(message) {
-    document
-      .querySelector('.blind-analysis-results')
-      ?.setAttribute('aria-busy', 'false');
+    document.querySelector('.blind-analysis-results')?.setAttribute('aria-busy', 'false');
     const body = get('blindBoxAnalysisBody');
     if (body)
       body.innerHTML = `<tr><td class="blind-analysis-empty"><strong>数据读取失败</strong><span>${escapeHtml(message)}</span><button type="button" id="blindBoxAnalysisRetry">重新读取</button></td></tr>`;
@@ -446,11 +400,7 @@ export const giftAnalysis = (() => {
   }
 
   function profitClass(item) {
-    return Number(item.profit || 0) > 0
-      ? 'profit-up'
-      : Number(item.profit || 0) < 0
-        ? 'profit-down'
-        : '';
+    return Number(item.profit || 0) > 0 ? 'profit-up' : Number(item.profit || 0) < 0 ? 'profit-down' : '';
   }
 
   function get(id) {
@@ -462,8 +412,7 @@ export const giftAnalysis = (() => {
     if (element) element.textContent = value;
   }
 
-  if (document.readyState === 'loading')
-    document.addEventListener('DOMContentLoaded', init);
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
 
   const module = { open, close, refreshIfOpen };

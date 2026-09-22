@@ -15,10 +15,7 @@ function createDesktopReadinessController({
   let disposed = false;
   let recoveryGeneration = 0;
   const initialRoute =
-    licenseManager.getState() === LicenseState.AUTHORIZED &&
-    runtime.isGiftCatalogInitialized()
-      ? 'admin'
-      : 'license';
+    licenseManager.getState() === LicenseState.AUTHORIZED && runtime.isGiftCatalogInitialized() ? 'admin' : 'license';
   const navigation = createMainNavigation({
     initialRoute,
     getMainWindow,
@@ -35,9 +32,7 @@ function createDesktopReadinessController({
     // Source switching must freeze before waiting for cloud restoration.
     const giftStart = remoteGiftController?.start();
     const cloudReady = startup
-      ? cloudSyncController
-          ?.start()
-          .catch((error) => writeLog('cloud-sync', error))
+      ? cloudSyncController?.start().catch((error) => writeLog('cloud-sync', error))
       : cloudSyncController?.whenIdle();
     const resume = cloudReady?.then(() => {
       if (
@@ -49,9 +44,7 @@ function createDesktopReadinessController({
         return runtime.resumeAuthorizedWork?.();
       }
     });
-    Promise.all([giftStart, resume]).catch((error) =>
-      writeLog('license-resume', error),
-    );
+    Promise.all([giftStart, resume]).catch((error) => writeLog('license-resume', error));
   }
 
   function onCatalogChanged(snapshot) {
@@ -77,11 +70,7 @@ function createDesktopReadinessController({
       resumeAuthorizedWork(false);
       const ready = runtime.isGiftCatalogInitialized();
       navigateMain(ready ? 'admin' : 'license');
-      refreshGiftCatalog(
-        runtime,
-        ready ? 'authorized-session' : 'first-authorization',
-        writeLog,
-      );
+      refreshGiftCatalog(runtime, ready ? 'authorized-session' : 'first-authorization', writeLog);
     } else {
       remoteGiftController?.stop();
     }
@@ -98,16 +87,13 @@ function createDesktopReadinessController({
   function start() {
     if (active || disposed) return;
     active = true;
-    unsubscribeCatalog =
-      runtime.onGiftCatalogInitializationStateChanged(onCatalogChanged);
+    unsubscribeCatalog = runtime.onGiftCatalogInitializationStateChanged(onCatalogChanged);
     unsubscribeLicense = licenseManager.onStateChanged(onLicenseChanged);
     if (licenseManager.getState() === LicenseState.AUTHORIZED) {
       resumeAuthorizedWork(true);
       refreshGiftCatalog(
         runtime,
-        runtime.isGiftCatalogInitialized()
-          ? 'authorized-startup'
-          : 'first-authorized-startup',
+        runtime.isGiftCatalogInitialized() ? 'authorized-startup' : 'first-authorized-startup',
         writeLog,
       );
     }
@@ -128,35 +114,23 @@ function createDesktopReadinessController({
 
 function refreshGiftCatalog(runtime, reason, writeLog) {
   const initialization = runtime.initializeGiftCatalog({ force: true, reason });
-  initialization?.catch?.((error) =>
-    writeLog('gift-catalog-initialization', error),
-  );
+  initialization?.catch?.((error) => writeLog('gift-catalog-initialization', error));
   return initialization;
 }
 
 // Navigation owns route deduplication and loadURL completion generations.
-function createMainNavigation({
-  initialRoute,
-  getMainWindow,
-  baseUrl,
-  writeLog,
-}) {
+function createMainNavigation({ initialRoute, getMainWindow, baseUrl, writeLog }) {
   let active = true;
   let mainRoute = initialRoute;
   let navigationGeneration = 0;
   function navigateMain(route) {
     const window = getMainWindow();
-    if (!active || mainRoute === route || !window || window.isDestroyed())
-      return;
+    if (!active || mainRoute === route || !window || window.isDestroyed()) return;
     mainRoute = route;
     const generation = ++navigationGeneration;
     const pathname = route === 'admin' ? '/admin?desktop=1' : '/license';
     window.loadURL(baseUrl + pathname).catch((error) => {
-      if (
-        active &&
-        generation === navigationGeneration &&
-        mainRoute === route
-      ) {
+      if (active && generation === navigationGeneration && mainRoute === route) {
         mainRoute = '';
       }
       writeLog('license-navigation', error);

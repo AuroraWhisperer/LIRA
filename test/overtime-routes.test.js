@@ -9,9 +9,7 @@ const test = require('node:test');
 const { createServerRuntime } = require('../src/server');
 
 test('overtime API requires auth, validates commands, extends snapshots, and broadcasts updates', async () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'song-plugin-overtime-routes-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-overtime-routes-'));
   const giftSaleEndpoints = [];
   const runtime = createServerRuntime({
     dataDir,
@@ -92,19 +90,10 @@ test('overtime API requires auth, validates commands, extends snapshots, and bro
     assert.equal(initial.pendingCount, 0);
     assert.deepEqual(initial.settlements, []);
 
-    const initialCatalog = await requestJson(
-      app.baseUrl,
-      token,
-      '/api/overtime/gifts',
-    );
+    const initialCatalog = await requestJson(app.baseUrl, token, '/api/overtime/gifts');
     assert.equal(initialCatalog.count, 0);
 
-    const refreshedCatalog = await postJson(
-      app.baseUrl,
-      token,
-      '/api/overtime/gifts/refresh',
-      {},
-    );
+    const refreshedCatalog = await postJson(app.baseUrl, token, '/api/overtime/gifts/refresh', {});
     assert.equal(refreshedCatalog.response.status, 200);
     assert.equal(refreshedCatalog.payload.data.count, 1);
     assert.deepEqual(
@@ -112,28 +101,18 @@ test('overtime API requires auth, validates commands, extends snapshots, and bro
       ['35793'],
     );
     assert.deepEqual(giftSaleEndpoints, ['gift_data', 'gift_config']);
-    assert.equal(
-      refreshedCatalog.payload.data.gifts[0].imagePath,
-      '/overtime-gift-images/35793.webp',
-    );
+    assert.equal(refreshedCatalog.payload.data.gifts[0].imagePath, '/overtime-gift-images/35793.webp');
 
-    const localSearch = await postJson(
-      app.baseUrl,
-      token,
-      '/api/overtime/gifts/local/search',
-      { query: '万象' },
-    );
+    const localSearch = await postJson(app.baseUrl, token, '/api/overtime/gifts/local/search', { query: '万象' });
     assert.equal(localSearch.response.status, 200);
     assert.deepEqual(localSearch.payload.data.gifts, [
       {
         id: '35600',
         name: '万象天衣',
         battery: 30000,
-        variantId:
-          'gv_cdd4695c21dcffe7fc2637b95e0e9d7ffca72e01af1660c77c6d008c01e443cd',
+        variantId: 'gv_cdd4695c21dcffe7fc2637b95e0e9d7ffca72e01af1660c77c6d008c01e443cd',
         giftIdentity: {
-          variantId:
-            'gv_cdd4695c21dcffe7fc2637b95e0e9d7ffca72e01af1660c77c6d008c01e443cd',
+          variantId: 'gv_cdd4695c21dcffe7fc2637b95e0e9d7ffca72e01af1660c77c6d008c01e443cd',
           priceRaw: 3000000,
           coinType: 'gold',
           bagGift: false,
@@ -148,31 +127,21 @@ test('overtime API requires auth, validates commands, extends snapshots, and bro
         imagePath: '/overtime-gift-images/35600.webp',
       },
     ]);
-    const invalidLocalSearch = await postJson(
-      app.baseUrl,
-      token,
-      '/api/overtime/gifts/local/search',
-      { query: '' },
-    );
+    const invalidLocalSearch = await postJson(app.baseUrl, token, '/api/overtime/gifts/local/search', { query: '' });
     assert.equal(invalidLocalSearch.response.status, 400);
 
-    const manualLocalRule = await postJson(
-      app.baseUrl,
-      token,
-      '/api/overtime/rules',
-      {
-        rules: [
-          {
-            giftId: '35600',
-            giftName: '万象天衣',
-            imagePath: '',
-            mode: 'fixed',
-            fixedSeconds: 60,
-            quantityMode: 'item',
-          },
-        ],
-      },
-    );
+    const manualLocalRule = await postJson(app.baseUrl, token, '/api/overtime/rules', {
+      rules: [
+        {
+          giftId: '35600',
+          giftName: '万象天衣',
+          imagePath: '',
+          mode: 'fixed',
+          fixedSeconds: 60,
+          quantityMode: 'item',
+        },
+      ],
+    });
     assert.equal(manualLocalRule.response.status, 200);
     assert.equal(manualLocalRule.payload.data.rules[0].giftId, '35600');
 
@@ -191,12 +160,7 @@ test('overtime API requires auth, validates commands, extends snapshots, and bro
       app.baseUrl,
       token,
       async () => {
-        const enabled = await postJson(
-          app.baseUrl,
-          token,
-          '/api/overtime/action',
-          { action: 'enable' },
-        );
+        const enabled = await postJson(app.baseUrl, token, '/api/overtime/action', { action: 'enable' });
         assert.equal(enabled.response.status, 200);
         assert.equal(enabled.payload.data.enabled, true);
       },
@@ -207,98 +171,63 @@ test('overtime API requires auth, validates commands, extends snapshots, and bro
     assert.equal(update.state.enabled, true);
     assert.equal(update.state.revision > 0, true);
 
-    const configured = await postJson(
-      app.baseUrl,
-      token,
-      '/api/overtime/time',
-      {
-        initialSeconds: 600,
-        remainingSeconds: 300,
-      },
-    );
+    const configured = await postJson(app.baseUrl, token, '/api/overtime/time', {
+      initialSeconds: 600,
+      remainingSeconds: 300,
+    });
     assert.equal(configured.response.status, 200);
     assert.equal(configured.payload.data.effectiveRemainingMs, 300_000);
 
-    const invalidQuantityMode = await postJson(
-      app.baseUrl,
-      token,
-      '/api/overtime/rules',
-      {
-        rules: [
-          {
-            giftId: '35793',
-            mode: 'fixed',
-            fixedSeconds: 60,
-            quantityMode: 'price',
-          },
-        ],
-      },
-    );
+    const invalidQuantityMode = await postJson(app.baseUrl, token, '/api/overtime/rules', {
+      rules: [
+        {
+          giftId: '35793',
+          mode: 'fixed',
+          fixedSeconds: 60,
+          quantityMode: 'price',
+        },
+      ],
+    });
     assert.equal(invalidQuantityMode.response.status, 400);
     assert.match(invalidQuantityMode.payload.error, /quantityMode/);
 
-    const savedRules = await postJson(
-      app.baseUrl,
-      token,
-      '/api/overtime/rules',
-      {
-        rules: [
-          {
-            giftId: '35793',
-            mode: 'fixed',
-            fixedSeconds: 60,
-            quantityMode: 'item',
-          },
-        ],
-      },
-    );
+    const savedRules = await postJson(app.baseUrl, token, '/api/overtime/rules', {
+      rules: [
+        {
+          giftId: '35793',
+          mode: 'fixed',
+          fixedSeconds: 60,
+          quantityMode: 'item',
+        },
+      ],
+    });
     assert.equal(savedRules.response.status, 200);
     assert.equal(savedRules.payload.data.rules[0].quantityMode, 'item');
 
-    const savedDisplayRule = await postJson(
-      app.baseUrl,
-      token,
-      '/api/overtime/rules',
-      {
-        rules: [
-          {
-            giftId: '35793',
-            mode: 'display',
-            displayText: '谢谢支持',
-            quantityMode: 'group',
-          },
-        ],
-      },
-    );
+    const savedDisplayRule = await postJson(app.baseUrl, token, '/api/overtime/rules', {
+      rules: [
+        {
+          giftId: '35793',
+          mode: 'display',
+          displayText: '谢谢支持',
+          quantityMode: 'group',
+        },
+      ],
+    });
     assert.equal(savedDisplayRule.response.status, 200);
-    assert.equal(
-      savedDisplayRule.payload.data.rules[0].displayText,
-      '谢谢支持',
-    );
+    assert.equal(savedDisplayRule.payload.data.rules[0].displayText, '谢谢支持');
     assert.equal(savedDisplayRule.payload.data.rules[0].mode, 'display');
 
-    const invalidDisplayRule = await postJson(
-      app.baseUrl,
-      token,
-      '/api/overtime/rules',
-      {
-        rules: [
-          { giftId: '35793', mode: 'display', displayText: '七个文字超长度' },
-        ],
-      },
-    );
+    const invalidDisplayRule = await postJson(app.baseUrl, token, '/api/overtime/rules', {
+      rules: [{ giftId: '35793', mode: 'display', displayText: '七个文字超长度' }],
+    });
     assert.equal(invalidDisplayRule.response.status, 400);
     assert.match(invalidDisplayRule.payload.error, /displayText/);
 
-    const malicious = await postJson(
-      app.baseUrl,
-      token,
-      '/api/overtime/config',
-      {
-        path: '../secret.png',
-        fit: 'cover',
-      },
-    );
+    const malicious = await postJson(app.baseUrl, token, '/api/overtime/config', {
+      path: '../secret.png',
+      fit: 'cover',
+    });
     assert.equal(malicious.response.status, 400);
   } finally {
     await runtime.stop({ exitProcess: false });
@@ -307,9 +236,7 @@ test('overtime API requires auth, validates commands, extends snapshots, and bro
 });
 
 test('catalog initialization caches images and both searches stay local', async () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'lira-overtime-server-search-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-overtime-server-search-'));
   let remoteCalls = 0;
   let imageCalls = 0;
   const runtime = createServerRuntime({ dataDir });
@@ -351,47 +278,27 @@ test('catalog initialization caches images and both searches stay local', async 
     assert.equal(remoteCalls, 1);
     assert.equal(imageCalls, 1);
 
-    const catalog = await requestJson(
-      app.baseUrl,
-      token,
-      '/api/overtime/gifts/catalog',
-    );
+    const catalog = await requestJson(app.baseUrl, token, '/api/overtime/gifts/catalog');
     assert.equal(catalog.count, 1);
     assert.deepEqual(
       catalog.gifts.map((gift) => gift.id),
       ['8001'],
     );
-    assert.equal(
-      catalog.gifts[0].imagePath,
-      '/overtime-gift-images/search.webp',
-    );
+    assert.equal(catalog.gifts[0].imagePath, '/overtime-gift-images/search.webp');
     assert.equal(remoteCalls, 1);
     assert.equal(imageCalls, 1);
 
-    const search = await postJson(
-      app.baseUrl,
-      token,
-      '/api/overtime/gifts/local/search',
-      { query: '本地' },
-    );
+    const search = await postJson(app.baseUrl, token, '/api/overtime/gifts/local/search', { query: '本地' });
     assert.equal(search.response.status, 200);
     assert.deepEqual(
       search.payload.data.gifts.map((gift) => gift.id),
       ['8001'],
     );
-    assert.equal(
-      search.payload.data.gifts[0].imagePath,
-      '/overtime-gift-images/search.webp',
-    );
+    assert.equal(search.payload.data.gifts[0].imagePath, '/overtime-gift-images/search.webp');
     assert.equal(remoteCalls, 1);
     assert.equal(imageCalls, 1);
 
-    const legacyAlias = await postJson(
-      app.baseUrl,
-      token,
-      '/api/overtime/gifts/server/search',
-      { query: '本地' },
-    );
+    const legacyAlias = await postJson(app.baseUrl, token, '/api/overtime/gifts/server/search', { query: '本地' });
     assert.equal(legacyAlias.response.status, 200);
     assert.deepEqual(
       legacyAlias.payload.data.gifts.map((gift) => gift.id),
@@ -400,38 +307,23 @@ test('catalog initialization caches images and both searches stay local', async 
     assert.equal(remoteCalls, 1);
     assert.equal(imageCalls, 1);
 
-    const image = await fetch(
-      `${app.baseUrl}/overtime-gift-images/search.webp`,
-    );
+    const image = await fetch(`${app.baseUrl}/overtime-gift-images/search.webp`);
     assert.equal(image.status, 200);
     assert.equal(image.headers.get('content-type'), 'image/webp');
     assert.equal(image.headers.get('x-content-type-options'), 'nosniff');
     assert.match(image.headers.get('cache-control'), /immutable/);
-    assert.equal(
-      Buffer.from(await image.arrayBuffer()).equals(webpBytes()),
-      true,
-    );
+    assert.equal(Buffer.from(await image.arrayBuffer()).equals(webpBytes()), true);
 
-    const head = await fetch(
-      `${app.baseUrl}/overtime-gift-images/search.webp`,
-      {
-        method: 'HEAD',
-      },
-    );
+    const head = await fetch(`${app.baseUrl}/overtime-gift-images/search.webp`, {
+      method: 'HEAD',
+    });
     assert.equal(head.status, 200);
-    assert.equal(
-      Number(head.headers.get('content-length')),
-      webpBytes().length,
-    );
+    assert.equal(Number(head.headers.get('content-length')), webpBytes().length);
     assert.equal((await head.arrayBuffer()).byteLength, 0);
 
-    const traversal = await fetch(
-      `${app.baseUrl}/overtime-gift-images/%2e%2e%2fsearch.webp`,
-    );
+    const traversal = await fetch(`${app.baseUrl}/overtime-gift-images/%2e%2e%2fsearch.webp`);
     assert.equal(traversal.status, 404);
-    const unsupported = await fetch(
-      `${app.baseUrl}/overtime-gift-images/search.svg`,
-    );
+    const unsupported = await fetch(`${app.baseUrl}/overtime-gift-images/search.svg`);
     assert.equal(unsupported.status, 404);
   } finally {
     await runtime.stop({ exitProcess: false });
@@ -473,16 +365,9 @@ async function postJson(baseUrl, token, pathname, body) {
   return { response, payload: await response.json() };
 }
 
-function readNextWebSocketMessage(
-  baseUrl,
-  token,
-  afterOpen,
-  predicate = () => true,
-) {
+function readNextWebSocketMessage(baseUrl, token, afterOpen, predicate = () => true) {
   return new Promise((resolve, reject) => {
-    const socket = new WebSocket(
-      `${baseUrl.replace(/^http/, 'ws')}/ws?token=${encodeURIComponent(token)}`,
-    );
+    const socket = new WebSocket(`${baseUrl.replace(/^http/, 'ws')}/ws?token=${encodeURIComponent(token)}`);
     const timeout = setTimeout(() => {
       socket.close();
       reject(new Error('Timed out waiting for overtime WebSocket message.'));

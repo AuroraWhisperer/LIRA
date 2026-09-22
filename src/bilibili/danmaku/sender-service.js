@@ -29,11 +29,7 @@ function createDanmakuSenderService(dependencies) {
   };
 
   async function getState() {
-    const [auth, room, target] = await Promise.all([
-      getAuth(),
-      getRoom(),
-      getMentionTarget(),
-    ]);
+    const [auth, room, target] = await Promise.all([getAuth(), getRoom(), getMentionTarget()]);
     const live = getLiveStatus();
     const loggedIn = Boolean(auth && auth.loggedIn && auth.cookieHeader);
     const roomId = String((room && room.roomId) || '');
@@ -50,11 +46,7 @@ function createDanmakuSenderService(dependencies) {
       fortuneBotEnabled: Boolean(getFortuneBotEnabled()),
       customReplyBotEnabled: Boolean(getCustomReplyBotEnabled()),
       canSend: Boolean(loggedIn && roomId),
-      unavailableReason: !loggedIn
-        ? '请先登录直播账号。'
-        : !roomId
-          ? '请先设置直播间号。'
-          : '',
+      unavailableReason: !loggedIn ? '请先登录直播账号。' : !roomId ? '请先设置直播间号。' : '',
       requester: target || emptyTarget(),
     };
     await enrichDisplayNames(state, auth || {}, roomId, live || {});
@@ -71,15 +63,8 @@ function createDanmakuSenderService(dependencies) {
   }
 
   async function resolveAccountName(state, auth, client) {
-    const accountKey = String(
-      Number(auth && auth.uid) || state.accountUid || '',
-    );
-    if (
-      !state.loggedIn ||
-      !accountKey ||
-      typeof client.fetchCurrentUserName !== 'function'
-    )
-      return;
+    const accountKey = String(Number(auth && auth.uid) || state.accountUid || '');
+    if (!state.loggedIn || !accountKey || typeof client.fetchCurrentUserName !== 'function') return;
     const cached = getCachedDisplayName(displayCache.account, accountKey);
     if (cached) {
       state.accountName = cached;
@@ -131,19 +116,14 @@ function createDanmakuSenderService(dependencies) {
     waitForRateLimit = false,
   }) {
     const nowMs = now();
-    const remainingWait = lastSentAt
-      ? rateLimitIntervalMs - (nowMs - lastSentAt)
-      : 0;
+    const remainingWait = lastSentAt ? rateLimitIntervalMs - (nowMs - lastSentAt) : 0;
     if (remainingWait > 0 && waitForRateLimit) await delay(remainingWait);
     else if (remainingWait > 0) throw new Error('发送过于频繁，请稍后再试。');
     const [auth, room] = await Promise.all([getAuth(), getRoom()]);
-    if (!auth || !auth.loggedIn || !auth.cookieHeader)
-      throw new Error('请先登录直播账号。');
+    if (!auth || !auth.loggedIn || !auth.cookieHeader) throw new Error('请先登录直播账号。');
     if (!room || !room.roomId) throw new Error('请先设置直播间号。');
 
-    const target = normalizeReplyTarget(
-      mentionTarget || (mentionRequester ? await getMentionTarget() : null),
-    );
+    const target = normalizeReplyTarget(mentionTarget || (mentionRequester ? await getMentionTarget() : null));
     const messages = mentionEveryChunk
       ? splitDanmakuEveryMentionMessage(message, target)
       : splitDanmakuReplyMessage(message, target);
@@ -153,11 +133,8 @@ function createDanmakuSenderService(dependencies) {
     const sentAfter = now();
     for (let index = 0; index < messages.length; index += 1) {
       if (index > 0 && intervalMs > 0) await delay(intervalMs);
-      const replyTarget =
-        mentionEveryChunk || index === 0 ? target : emptyTarget();
-      results.push(
-        await client.sendDanmaku(roomInfo.roomId, messages[index], replyTarget),
-      );
+      const replyTarget = mentionEveryChunk || index === 0 ? target : emptyTarget();
+      results.push(await client.sendDanmaku(roomInfo.roomId, messages[index], replyTarget));
     }
     const result = {
       message: results.map((item) => item.message).join(''),
@@ -191,11 +168,7 @@ function splitDanmakuMessage(message, limit = DANMAKU_MESSAGE_LIMIT) {
   return chunks;
 }
 
-function splitDanmakuReplyMessage(
-  message,
-  target,
-  limit = DANMAKU_MESSAGE_LIMIT,
-) {
+function splitDanmakuReplyMessage(message, target, limit = DANMAKU_MESSAGE_LIMIT) {
   const name = cleanText(target && target.name);
   if (!name) return splitDanmakuMessage(message, limit);
 
@@ -210,11 +183,7 @@ function splitDanmakuReplyMessage(
 }
 
 /** Split every chunk after reserving space for the visible `@name ` prefix. */
-function splitDanmakuEveryMentionMessage(
-  message,
-  target,
-  limit = DANMAKU_MESSAGE_LIMIT,
-) {
+function splitDanmakuEveryMentionMessage(message, target, limit = DANMAKU_MESSAGE_LIMIT) {
   const name = cleanText(target && target.name);
   if (!name) return splitDanmakuMessage(message, limit);
   const mentionLength = splitTextIntoCharacters(`@${name} `).length;

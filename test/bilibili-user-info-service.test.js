@@ -131,23 +131,14 @@ test('room identity uses verification, target ownership, authority, and verified
 test('field validation precedes stale-room guards and projections hide internal metadata', async () => {
   const { service } = createService();
   const run = beginRoom(service);
-  service.ingestHint(
-    { uid: '123', name: 'Alice' },
-    { ...run, source: 'danmaku' },
-  );
+  service.ingestHint({ uid: '123', name: 'Alice' }, { ...run, source: 'danmaku' });
 
-  assert.throws(
-    () => service.peek('123', { roomId: 'old', fields: ['unknown'] }),
-    TypeError,
-  );
+  assert.throws(() => service.peek('123', { roomId: 'old', fields: ['unknown'] }), TypeError);
   await assert.rejects(service.ensure('123', { fields: ['guard'] }), TypeError);
   assert.equal(service.peek('123', { roomId: 'old', fields: ['name'] }), null);
   assert.deepEqual(service.listRecent({ roomId: 'old', fields: ['name'] }), []);
   assert.deepEqual(service.peek('123', { fields: [] }), { uid: '123' });
-  assert.deepEqual(
-    Object.keys(service.peek('123', { fields: ['name', 'name'] })),
-    ['uid', 'name'],
-  );
+  assert.deepEqual(Object.keys(service.peek('123', { fields: ['name', 'name'] })), ['uid', 'name']);
 });
 
 test('subscriptions report only projected material changes and generic room invalidation', () => {
@@ -207,14 +198,9 @@ test('room generation and run token reject stale mixed hints and snapshots', () 
     [],
   );
 
-  service.ingestHint(
-    { uid: '123', name: 'Alice' },
-    { ...runA1, source: 'online_rank' },
-  );
+  service.ingestHint({ uid: '123', name: 'Alice' }, { ...runA1, source: 'online_rank' });
   service.replaceOnlineSnapshot(['123'], runA1);
-  assert.deepEqual(service.listOnline({ fields: ['name'] }), [
-    { uid: '123', name: 'Alice' },
-  ]);
+  assert.deepEqual(service.listOnline({ fields: ['name'] }), [{ uid: '123', name: 'Alice' }]);
 
   service.setRoom({ roomId: '200', ownerUid: '777' });
   beginRoom(service, '100', '999');
@@ -307,10 +293,7 @@ test('begin/end/dispose own room-run and service lifecycle', async () => {
   });
   assert.throws(() => service.beginRoomRun(), /room scope/i);
   const run = beginRoom(service);
-  service.ingestHint(
-    { uid: '123', name: 'Alice' },
-    { ...run, source: 'online_rank' },
-  );
+  service.ingestHint({ uid: '123', name: 'Alice' }, { ...run, source: 'online_rank' });
   service.replaceOnlineSnapshot(['123'], run);
   assert.equal(service.listOnline().length, 1);
   service.endRoomRun(run);
@@ -328,10 +311,14 @@ test('begin/end/dispose own room-run and service lifecycle', async () => {
 test('an incomplete profile keeps useful fields and retries the missing avatar after the negative-cache interval', async () => {
   let calls = 0;
   const avatarUrl = 'https://i0.hdslb.com/bfs/face/recovered.jpg';
-  const { service, advance } = createService({ profileProvider: { async fetchProfile() {
-    calls += 1;
-    return { name: 'Alice', avatarUrl: calls === 1 ? '' : avatarUrl };
-  } } });
+  const { service, advance } = createService({
+    profileProvider: {
+      async fetchProfile() {
+        calls += 1;
+        return { name: 'Alice', avatarUrl: calls === 1 ? '' : avatarUrl };
+      },
+    },
+  });
   assert.deepEqual(await service.ensure('123', { fields: ['avatarUrl'] }), { uid: '123' });
   assert.deepEqual(await service.ensure('123', { fields: ['name'] }), { uid: '123', name: 'Alice' });
   await service.ensure('123', { fields: ['avatarUrl'] });

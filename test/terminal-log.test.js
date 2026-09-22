@@ -50,9 +50,7 @@ test('redaction or disk failures never fall back to raw console arguments', (t) 
 });
 
 test('preserves prior content and excludes ordinary info/debug output', () => {
-  const directory = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'song-plugin-terminal-log-'),
-  );
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-terminal-log-'));
   const filePath = path.join(directory, 'terminal.log');
   const originalLog = console.log;
   const originalInfo = console.info;
@@ -119,9 +117,7 @@ test('persists selected Bilibili diagnostics and restores the info console', (t)
 });
 
 test('redacts credentials from terminal output', () => {
-  const directory = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'song-plugin-terminal-log-'),
-  );
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-terminal-log-'));
   const filePath = path.join(directory, 'terminal.log');
   const originalLog = console.log;
   let restore;
@@ -143,34 +139,17 @@ test('redacts credentials from terminal output', () => {
 
     console.warn('Authorization: Bearer secret-token-12345');
     console.warn('Cookie: session=abc123; user=john');
-    console.error(
-      'API URL: https://api.example.com/data?key=secret123&other=value',
-    );
+    console.error('API URL: https://api.example.com/data?key=secret123&other=value');
     console.error('Connecting to https://user:password@example.com/resource');
 
     const content = fs.readFileSync(filePath, 'utf8');
 
     // Verify credentials are redacted
-    assert.ok(
-      !content.includes('secret-token-12345'),
-      'Bearer token should be redacted',
-    );
-    assert.ok(
-      !content.includes('session=abc123'),
-      'Cookie values should be redacted',
-    );
-    assert.ok(
-      !content.includes('key=secret123'),
-      'Query param secrets should be redacted',
-    );
-    assert.ok(
-      !content.includes('user:password@'),
-      'URL userinfo should be redacted',
-    );
-    assert.ok(
-      content.includes('[REDACTED]'),
-      'Should contain redaction placeholder',
-    );
+    assert.ok(!content.includes('secret-token-12345'), 'Bearer token should be redacted');
+    assert.ok(!content.includes('session=abc123'), 'Cookie values should be redacted');
+    assert.ok(!content.includes('key=secret123'), 'Query param secrets should be redacted');
+    assert.ok(!content.includes('user:password@'), 'URL userinfo should be redacted');
+    assert.ok(content.includes('[REDACTED]'), 'Should contain redaction placeholder');
   } finally {
     restore?.();
     console.log = originalLog;
@@ -179,9 +158,7 @@ test('redacts credentials from terminal output', () => {
 });
 
 test('bounds multibyte terminal errors after final UTF-8 encoding', () => {
-  const directory = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'song-plugin-terminal-log-'),
-  );
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-terminal-log-'));
   const filePath = path.join(directory, 'terminal.log');
   const originalError = console.error;
   let restore;

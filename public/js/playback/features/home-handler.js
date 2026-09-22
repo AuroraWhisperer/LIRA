@@ -99,10 +99,7 @@ export function createHomeHandler(deps) {
   // === 本地播放历史 ===
   function loadPlaybackLocalRecentHistory() {
     document.querySelectorAll('[data-playback-home-action]').forEach((btn) => {
-      btn.classList.toggle(
-        'active',
-        btn.dataset.playbackHomeAction === 'recent',
-      );
+      btn.classList.toggle('active', btn.dataset.playbackHomeAction === 'recent');
     });
 
     const result = homeService.loadLocalRecentHistory();
@@ -112,8 +109,7 @@ export function createHomeHandler(deps) {
     if (!body) return;
 
     if (!result.items.length) {
-      body.innerHTML =
-        '<p class="playback-drawer-state playback-drawer-empty ui-caption">暂无播放记录</p>';
+      body.innerHTML = '<p class="playback-drawer-state playback-drawer-empty ui-caption">暂无播放记录</p>';
       updateDrawerActions(false);
       return;
     }
@@ -213,17 +209,11 @@ export function createHomeHandler(deps) {
 
   // === Home 交互 ===
   function getHomeCollectionContext(homeState) {
-    const currentPlaylist =
-      homeState.action === 'playlist-tracks'
-        ? homeService.getCurrentPlaylist()
-        : null;
-    const title =
-      currentPlaylist?.title || HomeService.getActionName(homeState.action);
+    const currentPlaylist = homeState.action === 'playlist-tracks' ? homeService.getCurrentPlaylist() : null;
+    const title = currentPlaylist?.title || HomeService.getActionName(homeState.action);
     const source = playbackState.selectedSource || 'qq';
     const sourceId =
-      homeState.action === 'playlist-tracks'
-        ? `playlist:${currentPlaylist?.id || title}`
-        : homeState.action;
+      homeState.action === 'playlist-tracks' ? `playlist:${currentPlaylist?.id || title}` : homeState.action;
     return { title, sourceKey: `${source}:${sourceId}` };
   }
 
@@ -244,17 +234,9 @@ export function createHomeHandler(deps) {
     if (action === 'play-all' || action === 'shuffle-all') {
       const queueType = homeState.action === 'radio' ? 'radio' : 'playlist';
       const collection = getHomeCollectionContext(homeState);
-      queueCallbacks.startPlaybackCollection(
-        tracks,
-        0,
-        queueType,
-        collection.title,
-        collection.sourceKey,
-      );
+      queueCallbacks.startPlaybackCollection(tracks, 0, queueType, collection.title, collection.sourceKey);
       toast(
-        queueType === 'radio'
-          ? `开始播放电台，共载入 ${tracks.length} 首`
-          : `开始播放歌单，共 ${tracks.length} 首`,
+        queueType === 'radio' ? `开始播放电台，共载入 ${tracks.length} 首` : `开始播放歌单，共 ${tracks.length} 首`,
       );
     } else {
       queueCallbacks.appendPlaybackTracks(tracks);
@@ -277,13 +259,7 @@ export function createHomeHandler(deps) {
       startIndex = Math.floor(Math.random() * tracks.length);
     }
 
-    queueCallbacks.startPlaybackCollection(
-      tracks,
-      startIndex,
-      queueType,
-      collection.title,
-      collection.sourceKey,
-    );
+    queueCallbacks.startPlaybackCollection(tracks, startIndex, queueType, collection.title, collection.sourceKey);
     const label = queueType === 'radio' ? '电台' : '歌单';
     toast(
       playbackState.mode === 'shuffle'
@@ -294,23 +270,17 @@ export function createHomeHandler(deps) {
 
   // === 轨道菜单 ===
   function toggleTrackMenu(index) {
-    const menu = document.querySelector(
-      `[data-playback-home-track-menu-for="${index}"]`,
-    );
+    const menu = document.querySelector(`[data-playback-home-track-menu-for="${index}"]`);
     if (!menu) return;
 
-    const menuButton = document.querySelector(
-      `[data-playback-home-track-menu-index="${index}"]`,
-    );
+    const menuButton = document.querySelector(`[data-playback-home-track-menu-index="${index}"]`);
 
     const isHidden = menu.hasAttribute('hidden');
 
     document.querySelectorAll('.track-menu').forEach((m) => {
       if (m !== menu) {
         m.setAttribute('hidden', '');
-        document
-          .querySelector(`[aria-controls="${m.id}"]`)
-          ?.setAttribute('aria-expanded', 'false');
+        document.querySelector(`[aria-controls="${m.id}"]`)?.setAttribute('aria-expanded', 'false');
       }
     });
 
@@ -368,32 +338,20 @@ export function createHomeHandler(deps) {
         queueType === 'playlist' &&
         playbackState.queueType === 'playlist' &&
         playbackState.queueSourceKey === collection.sourceKey
-          ? playbackState.normalQueueTracks.findIndex(
-              (item) => item.id === selectedTrack.id,
-            )
+          ? playbackState.normalQueueTracks.findIndex((item) => item.id === selectedTrack.id)
           : -1;
 
       if (activeIndex >= 0) {
         callbacks.jumpToPlaylistTrack(activeIndex);
       } else {
-        callbacks.startPlaybackCollection(
-          tracks,
-          index,
-          queueType,
-          collection.title,
-          collection.sourceKey,
-        );
+        callbacks.startPlaybackCollection(tracks, index, queueType, collection.title, collection.sourceKey);
       }
       return;
     }
 
-    callbacks.queuePlaybackTrack(
-      PlaybackUtils.normalizeOnlineTrack(track),
-      action,
-      {
-        requestedBy: '音乐首页',
-      },
-    );
+    callbacks.queuePlaybackTrack(PlaybackUtils.normalizeOnlineTrack(track), action, {
+      requestedBy: '音乐首页',
+    });
   }
 
   return {

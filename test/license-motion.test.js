@@ -6,10 +6,7 @@ const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
 
-const script = fs.readFileSync(
-  path.join(__dirname, '..', 'public', 'js', 'license-motion.js'),
-  'utf8',
-);
+const script = fs.readFileSync(path.join(__dirname, '..', 'public', 'js', 'license-motion.js'), 'utf8');
 
 function createPage(reduced = false) {
   const properties = new Map();
@@ -53,23 +50,11 @@ function createPage(reduced = false) {
 }
 
 test('license page loads welcome artwork styles and the motion controller', () => {
-  const css = fs.readFileSync(
-    path.join(__dirname, '..', 'public', 'css', 'license.css'),
-    'utf8',
-  );
-  const artworkCss = fs.readFileSync(
-    path.join(__dirname, '..', 'public', 'css', 'license', 'welcome-art.css'),
-    'utf8',
-  );
-  const html = fs.readFileSync(
-    path.join(__dirname, '..', 'public', 'pages', 'license.html'),
-    'utf8',
-  );
+  const css = fs.readFileSync(path.join(__dirname, '..', 'public', 'css', 'license.css'), 'utf8');
+  const artworkCss = fs.readFileSync(path.join(__dirname, '..', 'public', 'css', 'license', 'welcome-art.css'), 'utf8');
+  const html = fs.readFileSync(path.join(__dirname, '..', 'public', 'pages', 'license.html'), 'utf8');
   assert.match(css, /@import url\('\.\/license\/welcome-art\.css'\);/);
-  assert.match(
-    artworkCss,
-    /animation-play-state: var\(--license-motion-play-state, paused\)/,
-  );
+  assert.match(artworkCss, /animation-play-state: var\(--license-motion-play-state, paused\)/);
   assert.match(artworkCss, /@media \(prefers-reduced-motion: no-preference\)/);
   assert.match(html, /id="licenseArt"/);
   assert.doesNotMatch(html, /licenseMotionToggle|license-motion-toggle/);

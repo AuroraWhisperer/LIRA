@@ -40,8 +40,8 @@ function fixture(t, count = 0) {
     db,
     store,
     snapshot: () =>
-      ['songs', 'song_categories', 'import_batches', 'queue', 'requests'].map(
-        (table) => db.prepare(`SELECT * FROM ${table} ORDER BY id`).all(),
+      ['songs', 'song_categories', 'import_batches', 'queue', 'requests'].map((table) =>
+        db.prepare(`SELECT * FROM ${table} ORDER BY id`).all(),
       ),
   };
 }
@@ -58,31 +58,18 @@ test('legacy store rejects 5001 songs before inserting songs, categories or a ba
 test('legacy merge counts disabled existing songs and deduplicates identities before checking 5000', (t) => {
   const { store, snapshot } = fixture(t, 4999);
   const before = snapshot();
-  assert.throws(
-    () => songService.importSongs(store, songs(2, '新增')),
-    limitError,
-  );
+  assert.throws(() => songService.importSongs(store, songs(2, '新增')), limitError);
   assert.deepEqual(snapshot(), before);
 
-  const result = songService.importSongs(store, [
-    ...songs(1),
-    ...songs(1, '新增'),
-    ...songs(1, '新增'),
-  ]);
+  const result = songService.importSongs(store, [...songs(1), ...songs(1, '新增'), ...songs(1, '新增')]);
   assert.equal(result.inserted, 1);
   assert.equal(result.duplicate, 2);
   assert.equal(store.countSongs(), 5000);
-  assert.equal(
-    store.listRows().find((row) => row.name === '歌曲0').is_enabled,
-    0,
-  );
+  assert.equal(store.listRows().find((row) => row.name === '歌曲0').is_enabled, 0);
   assert.equal(store.listCategories().length, 2);
 
   const full = snapshot();
-  assert.throws(
-    () => songService.importSongs(store, songs(1, '第5001首')),
-    limitError,
-  );
+  assert.throws(() => songService.importSongs(store, songs(1, '第5001首')), limitError);
   assert.deepEqual(snapshot(), full);
 });
 
@@ -120,10 +107,7 @@ test('replacement rejects oversized results before detaching references or remov
   assert.throws(() => store.replaceAll(songs(5001, '替换')), limitError);
   assert.deepEqual(snapshot(), before);
 
-  const result = songService.replaceCloudSongs(store, [
-    ...songs(4999, '替换'),
-    ...songs(1, '替换'),
-  ]);
+  const result = songService.replaceCloudSongs(store, [...songs(4999, '替换'), ...songs(1, '替换')]);
   assert.deepEqual(result, { total: 5000, count: 4999, duplicate: 1 });
   assert.equal(store.countSongs(), 4999);
   assert.equal(db.prepare('SELECT song_id FROM queue').get().song_id, null);
@@ -154,15 +138,8 @@ for (const format of ['import', 'import-xlsx']) {
           this.body = JSON.parse(body);
         },
       };
-      const body =
-        format === 'import'
-          ? { rows }
-          : { base64: buildSongsWorkbook(rows).toString('base64') };
-      await routes[`POST /api/songs/${format}`](
-        context,
-        { body: async () => body },
-        response,
-      );
+      const body = format === 'import' ? { rows } : { base64: buildSongsWorkbook(rows).toString('base64') };
+      await routes[`POST /api/songs/${format}`](context, { body: async () => body }, response);
       return response;
     }
     const before = snapshot();

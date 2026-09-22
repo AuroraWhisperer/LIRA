@@ -60,22 +60,17 @@ function replaceLocalFontOptions(select, families) {
   });
 
   select.appendChild(group);
-  if (
-    Array.from(select.options).some((option) => option.value === currentValue)
-  ) {
+  if (Array.from(select.options).some((option) => option.value === currentValue)) {
     select.value = currentValue;
   }
 }
 
 function populateRegisteredSelects(families) {
-  registeredSelects.forEach((select) =>
-    replaceLocalFontOptions(select, families),
-  );
+  registeredSelects.forEach((select) => replaceLocalFontOptions(select, families));
 }
 
 function installGestureRetry() {
-  if (gestureRetryInstalled || typeof window.addEventListener !== 'function')
-    return;
+  if (gestureRetryInstalled || typeof window.addEventListener !== 'function') return;
   gestureRetryInstalled = true;
   const retry = () => {
     gestureRetryInstalled = false;
@@ -98,27 +93,21 @@ async function loadRegisteredLocalFonts() {
       .then(() => window.queryLocalFonts())
       .then(normalizeLocalFontFamilies);
     localFontFamilies = await localFontQuery;
-    if (localFontFamilies.length > 0)
-      populateRegisteredSelects(localFontFamilies);
+    if (localFontFamilies.length > 0) populateRegisteredSelects(localFontFamilies);
   } catch (error) {
     if (error?.name === 'SecurityError') {
       localFontQuery = null;
       installGestureRetry();
       return;
     }
-    console.warn(
-      'Automatic local font detection failed:',
-      error?.message || error,
-    );
+    console.warn('Automatic local font detection failed:', error?.message || error);
   }
 }
 
 /** Preserve a persisted font value that is absent from this machine's current options. */
 export function ensureSavedFontOption(select, value) {
   if (!select?.options || !value) return;
-  const exists = Array.from(select.options).some(
-    (option) => option.value === value,
-  );
+  const exists = Array.from(select.options).some((option) => option.value === value);
   if (exists) return;
 
   const option = document.createElement('option');

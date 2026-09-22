@@ -39,10 +39,7 @@ export function createCustomReplyEditor({ document, saveSetting, toast }) {
     input.type = 'text';
     input.maxLength = maxLength;
     input.value = rule[field];
-    input.setAttribute(
-      'aria-label',
-      `第 ${index + 1} 条自定义回复的${labelText}`,
-    );
+    input.setAttribute('aria-label', `第 ${index + 1} 条自定义回复的${labelText}`);
     input.addEventListener('input', () => {
       items[index][field] = input.value;
       markDirty();
@@ -67,15 +64,11 @@ export function createCustomReplyEditor({ document, saveSetting, toast }) {
         createField(rule, index, 'keyword', '关键词', 30),
         createField(rule, index, 'reply', '回复内容', 120),
       );
-      const deleteButton = createDeleteButton(
-        document,
-        `删除第 ${index + 1} 条自定义回复`,
-        () => {
-          items.splice(index, 1);
-          render();
-          markDirty();
-        },
-      );
+      const deleteButton = createDeleteButton(document, `删除第 ${index + 1} 条自定义回复`, () => {
+        items.splice(index, 1);
+        render();
+        markDirty();
+      });
       row.append(createIndex(document, index), fields, deleteButton);
       elements.list.appendChild(row);
     });
@@ -105,9 +98,7 @@ export function createCustomReplyEditor({ document, saveSetting, toast }) {
   });
   elements.saveButton.addEventListener('click', async () => {
     if (saving) return;
-    const cleaned = items
-      .map(normalizeCustomReply)
-      .filter((item) => item.keyword && item.reply);
+    const cleaned = items.map(normalizeCustomReply).filter((item) => item.keyword && item.reply);
     const submittedRevision = editRevision;
     saving = true;
     elements.saveButton.disabled = true;
@@ -165,10 +156,7 @@ function normalizeCustomReply(item = {}) {
 function truncateUnicodeText(value, limit) {
   const text = String(value || '');
   if (typeof Intl.Segmenter === 'function') {
-    return Array.from(
-      new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(text),
-      (item) => item.segment,
-    )
+    return Array.from(new Intl.Segmenter(undefined, { granularity: 'grapheme' }).segment(text), (item) => item.segment)
       .slice(0, limit)
       .join('');
   }

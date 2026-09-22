@@ -12,12 +12,8 @@
         <h3 id="giftEffectFindTitle" class="ui-section-title">查找礼物 ID</h3>
         <p>前往礼物特效档案查找礼物 ID，用于测试播放或弹幕触发。</p>
       </div>
-      <a
-        class="gift-effect-find-link"
-        href="https://gifts.lirahub.cn/"
-        target="_blank"
-        rel="noopener noreferrer"
-      >查找礼物 ID
+      <a class="gift-effect-find-link" href="https://gifts.lirahub.cn/" target="_blank" rel="noopener noreferrer"
+        >查找礼物 ID
         <svg
           aria-hidden="true"
           width="16"
@@ -28,14 +24,13 @@
           stroke-width="1.8"
           stroke-linecap="round"
           stroke-linejoin="round"
-        ><path d="M7 17 17 7M7 7h10v10" /></svg>
+        >
+          <path d="M7 17 17 7M7 7h10v10" />
+        </svg>
       </a>
     </section>
     <div class="gift-effect-tool-grid">
-      <section
-        class="gift-effect-control-card"
-        aria-labelledby="giftEffectLookupTitle"
-      >
+      <section class="gift-effect-control-card" aria-labelledby="giftEffectLookupTitle">
         <div class="gift-effect-card-heading">
           <h3 id="giftEffectLookupTitle" class="ui-section-title">测试播放</h3>
           <span id="giftEffectLookupState" class="pill">待播放</span>
@@ -55,23 +50,13 @@
               placeholder="例如 32132"
               required
             />
-            <button id="giftEffectLookupBtn" class="primary" type="submit">
-              播放特效
-            </button>
+            <button id="giftEffectLookupBtn" class="primary" type="submit">播放特效</button>
           </div>
         </form>
-        <div
-          id="giftEffectMatchSummary"
-          class="gift-effect-match-summary"
-          role="status"
-          aria-live="polite"
-        ></div>
+        <div id="giftEffectMatchSummary" class="gift-effect-match-summary" role="status" aria-live="polite"></div>
       </section>
 
-      <section
-        class="gift-effect-address-card"
-        aria-labelledby="giftEffectAddressTitle"
-      >
+      <section class="gift-effect-address-card" aria-labelledby="giftEffectAddressTitle">
         <div class="gift-effect-card-heading">
           <h3 id="giftEffectAddressTitle" class="ui-section-title">直播投屏</h3>
         </div>
@@ -80,12 +65,8 @@
           <div class="gift-effect-url-row">
             <code id="giftEffectOverlayUrl"></code>
             <div class="gift-effect-url-actions">
-              <button id="giftEffectCopyBtn" class="secondary" type="button">
-                复制地址
-              </button>
-              <button id="giftEffectOpenBtn" class="secondary" type="button">
-                预览
-              </button>
+              <button id="giftEffectCopyBtn" class="secondary" type="button">复制地址</button>
+              <button id="giftEffectOpenBtn" class="secondary" type="button">预览</button>
             </div>
           </div>
         </div>
@@ -107,8 +88,7 @@
         <div id="giftEffectCommandHelp" class="gift-effect-command-help">
           <p>开启后，观众发送以下任一弹幕即可播放，礼物 ID 前有无空格均可。</p>
           <div class="gift-effect-command-examples">
-            <code>礼物特效 32132</code><code>礼物特效32132</code>
-            <code>🎁 32132</code><code>🎁32132</code>
+            <code>礼物特效 32132</code><code>礼物特效32132</code> <code>🎁 32132</code><code>🎁32132</code>
           </div>
           <p>将 32132 替换为礼物 ID，特效按顺序播放。</p>
         </div>

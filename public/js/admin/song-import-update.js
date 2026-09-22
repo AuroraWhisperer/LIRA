@@ -25,19 +25,12 @@ const STATUS_LABELS = {
 };
 const ERROR_MESSAGES = {
   SONG_IMPORT_PREVIEW_STALE: '歌库或导入内容已变化，请重新预览。',
-  SONG_IMPORT_PREVIEW_INVALID:
-    '请修正冲突或无效行后重新预览；没有变更时无需应用。',
-  SONG_IMPORT_INPUT_INVALID:
-    '无法读取更新内容，请使用完整模板或带表头的文件（最多 5000 行）。',
+  SONG_IMPORT_PREVIEW_INVALID: '请修正冲突或无效行后重新预览；没有变更时无需应用。',
+  SONG_IMPORT_INPUT_INVALID: '无法读取更新内容，请使用完整模板或带表头的文件（最多 5000 行）。',
   SONG_IMPORT_FAILED: '导入未完成，已回滚，请重试。',
 };
 
-export function initSongImportUpdate({
-  imports,
-  reloadSongs,
-  request = api,
-  documentRef = document,
-}) {
+export function initSongImportUpdate({ imports, reloadSongs, request = api, documentRef = document }) {
   const mode = documentRef.getElementById('songImportMode');
   if (!mode) return;
   const textInput = documentRef.getElementById('importText');
@@ -127,10 +120,7 @@ export function initSongImportUpdate({
   }
 
   function showFailure(error) {
-    result.textContent =
-      ERROR_MESSAGES[error?.code || error?.message] ||
-      error?.message ||
-      '导入失败，请重新预览。';
+    result.textContent = ERROR_MESSAGES[error?.code || error?.message] || error?.message || '导入失败，请重新预览。';
   }
 
   previewButton.addEventListener('click', async () => {
@@ -185,8 +175,7 @@ export function initSongImportUpdate({
       try {
         await reloadSongs();
       } catch (error) {
-        if (current === generation)
-          result.textContent += ' 本地已保存，但列表刷新失败，请刷新页面。';
+        if (current === generation) result.textContent += ' 本地已保存，但列表刷新失败，请刷新页面。';
       }
     } catch (error) {
       if (current === generation) {

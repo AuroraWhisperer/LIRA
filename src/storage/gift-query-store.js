@@ -1,9 +1,6 @@
 'use strict';
 
-const {
-  canonicalGiftId,
-  canonicalGiftText,
-} = require('../shared/processed-gift-contract');
+const { canonicalGiftId, canonicalGiftText } = require('../shared/processed-gift-contract');
 
 const registeredGiftSqlFunctions = new WeakSet();
 const historyCountCaches = new WeakMap();
@@ -122,20 +119,28 @@ function createGiftQueryStore(giftDb) {
     };
     const filter = buildLedgerFilter(filterOptions);
     if (cursor && sort.field === 'created_at') {
-      const sameTime = giftDb.prepare(`
+      const sameTime = giftDb
+        .prepare(
+          `
         SELECT g.*, g.created_at AS history_sort_value
         FROM gift_events g
         WHERE ${filter.sql} AND g.created_at = ? AND g.id < ?
         ORDER BY g.id DESC LIMIT ?
-      `).all(...filter.params, cursor.sortValue, cursor.id, limit);
+      `,
+        )
+        .all(...filter.params, cursor.sortValue, cursor.id, limit);
       if (sameTime.length === limit) return sameTime;
       const nextFilter = buildLedgerFilter({ ...filterOptions, timeCursor: cursor });
-      const remaining = giftDb.prepare(`
+      const remaining = giftDb
+        .prepare(
+          `
         SELECT g.*, g.created_at AS history_sort_value
         FROM gift_events g
         WHERE ${nextFilter.sql}
         ORDER BY g.created_at ${sort.sqlDirection}, g.id DESC LIMIT ?
-      `).all(...nextFilter.params, limit - sameTime.length);
+      `,
+        )
+        .all(...nextFilter.params, limit - sameTime.length);
       return [...sameTime, ...remaining];
     }
     return giftDb
@@ -342,9 +347,11 @@ function createGiftQueryStore(giftDb) {
     listBlindBoxRows,
     readHistorySnapshot: (options) => withReadTransaction(giftDb, () => listHistoryRows(options)),
     readHistoryPage,
-    getProjectionGeneration: (sourceId) => Number(giftDb.prepare(
-      'SELECT projection_generation FROM gift_sync_state WHERE source_id = ?',
-    ).get(sourceId)?.projection_generation || 0),
+    getProjectionGeneration: (sourceId) =>
+      Number(
+        giftDb.prepare('SELECT projection_generation FROM gift_sync_state WHERE source_id = ?').get(sourceId)
+          ?.projection_generation || 0,
+      ),
     resetSprint,
     listRecent,
     listHistory: (options) => withReadTransaction(giftDb, () => listHistoryRows(options)),
@@ -359,10 +366,7 @@ function normalizeSourceScope(sourceScope) {
   if (sourceScope?.kind === 'local') {
     return { sql: 'source_id IS NULL', params: [] };
   }
-  if (
-    sourceScope?.kind === 'source' &&
-    Number.isSafeInteger(sourceScope.sourceId) && sourceScope.sourceId >= 1
-  ) {
+  if (sourceScope?.kind === 'source' && Number.isSafeInteger(sourceScope.sourceId) && sourceScope.sourceId >= 1) {
     return { sql: 'source_id = ?', params: [sourceScope.sourceId] };
   }
   return { sql: '1 = 0', params: [] };
@@ -433,7 +437,10 @@ function buildLedgerFilter({
     sql.push("g.platform_id IN (SELECT 'lira-server:' || value FROM json_each(?))");
     params.push(JSON.stringify(eventIds));
   }
-  for (const [column, value] of [['user_name', userQuery], ['gift_name', giftQuery]]) {
+  for (const [column, value] of [
+    ['user_name', userQuery],
+    ['gift_name', giftQuery],
+  ]) {
     if (!value) continue;
     sql.push(`instr(canonicalGiftText(g.${column}), ?) > 0`);
     params.push(value);
@@ -443,16 +450,12 @@ function buildLedgerFilter({
     params.push(lowerBound);
   }
   if (query) {
-    sql.push(
-      '(instr(canonicalGiftText(g.gift_name), ?) > 0 OR instr(canonicalGiftText(g.blind_box_name), ?) > 0)',
-    );
+    sql.push('(instr(canonicalGiftText(g.gift_name), ?) > 0 OR instr(canonicalGiftText(g.blind_box_name), ?) > 0)');
     params.push(query, query);
   }
   if (cursor) {
     const operator = sort.direction === 'asc' ? '>' : '<';
-    sql.push(
-      `(${sort.expression} ${operator} ? OR (${sort.expression} = ? AND g.id < ?))`,
-    );
+    sql.push(`(${sort.expression} ${operator} ? OR (${sort.expression} = ? AND g.id < ?))`);
     params.push(cursor.sortValue, cursor.sortValue, cursor.id);
   }
   return { sql: sql.join('\n          AND '), params };
@@ -461,11 +464,7 @@ function buildLedgerFilter({
 function ensureGiftSqlFunctions(giftDb) {
   if (registeredGiftSqlFunctions.has(giftDb)) return;
   giftDb.function('canonicalGiftId', { deterministic: true }, canonicalGiftId);
-  giftDb.function(
-    'canonicalGiftText',
-    { deterministic: true },
-    canonicalGiftText,
-  );
+  giftDb.function('canonicalGiftText', { deterministic: true }, canonicalGiftText);
   giftDb.function('giftMoneyCents', { deterministic: true }, giftMoneyCents);
   giftDb.function('giftQuantity', { deterministic: true }, giftQuantity);
   registeredGiftSqlFunctions.add(giftDb);
@@ -513,9 +512,7 @@ function shanghaiBucketStart(bucketKey) {
   const year = Number(match[1]);
   const month = Number(match[2]) - 1;
   const day = Number(match[3] || 1);
-  return new Date(
-    Date.UTC(year, month, day, 0, 0, 0, 0) - SHANGHAI_OFFSET_MS,
-  ).toISOString();
+  return new Date(Date.UTC(year, month, day, 0, 0, 0, 0) - SHANGHAI_OFFSET_MS).toISOString();
 }
 
 function withReadTransaction(db, operation) {

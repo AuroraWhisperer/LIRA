@@ -5,20 +5,9 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
-const {
-  createGiftService,
-  getBlindBoxAnalysis,
-  getBlindBoxStats,
-} = require('../src/bilibili/gift');
-const {
-  closeDatabases,
-  createDatabases,
-  getSchemaVersions,
-} = require('../src/storage/database');
-const {
-  createGiftSource,
-  makeProcessedGiftEvent,
-} = require('./helpers/processed-gifts');
+const { createGiftService, getBlindBoxAnalysis, getBlindBoxStats } = require('../src/bilibili/gift');
+const { closeDatabases, createDatabases, getSchemaVersions } = require('../src/storage/database');
+const { createGiftSource, makeProcessedGiftEvent } = require('./helpers/processed-gifts');
 
 function fixture(t) {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-gift-analysis-'));
@@ -160,9 +149,7 @@ test('blind box analysis shares filters across viewer, box, and record views', (
   );
   assert.deepEqual(users.filters.boxes, ['心动盲盒', '幸运盲盒']);
 
-  const aliceKey = users.filters.viewers.find(
-    (item) => item.label === 'Alice',
-  ).value;
+  const aliceKey = users.filters.viewers.find((item) => item.label === 'Alice').value;
   const aliceBoxes = getBlindBoxAnalysis(f.context, {
     viewer: aliceKey,
     view: 'boxes',
@@ -212,24 +199,16 @@ test('blind box analysis bounds pagination and ignores unsupported sort fields',
   assert.equal(result.pagination.total, 3);
   assert.equal(result.pagination.totalPages, 2);
   assert.equal(result.items.length, 1);
-  assert.equal(
-    f.db.giftDb.prepare('SELECT COUNT(*) AS count FROM gift_events').get()
-      .count,
-    3,
-  );
+  assert.equal(f.db.giftDb.prepare('SELECT COUNT(*) AS count FROM gift_events').get().count, 3);
 });
 
 test('gift database v3 identity migration remains intact after later migrations', () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'song-plugin-gift-v3-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-gift-v3-'));
   let db = createDatabases({ dataDir });
 
   try {
     db.giftDb.exec('DROP INDEX idx_gift_events_platform_uid');
-    db.giftDb
-      .prepare("UPDATE schema_version SET version = 2 WHERE key = 'gift_db'")
-      .run();
+    db.giftDb.prepare("UPDATE schema_version SET version = 2 WHERE key = 'gift_db'").run();
     const insert = db.giftDb.prepare(`
       INSERT INTO gift_events (
         platform_id, cmd, gift_id, gift_name, uid, user_name,
@@ -238,40 +217,13 @@ test('gift database v3 identity migration remains intact after later migrations'
       ) VALUES (?, 'SEND_GIFT', '1', 'Rose', ?, ?, ?, ?, ?, 1, 'active', ?, ?)
     `);
     const createdAt = new Date().toISOString();
-    insert.run(
-      'duplicate-platform',
-      '42',
-      'Alice',
-      1,
-      1,
-      1,
-      createdAt,
-      createdAt,
-    );
-    insert.run(
-      'duplicate-platform',
-      '42',
-      'Alice Renamed',
-      5,
-      1,
-      5,
-      createdAt,
-      createdAt,
-    );
-    insert.run(
-      'duplicate-platform',
-      '43',
-      'Bob',
-      1,
-      1,
-      1,
-      createdAt,
-      createdAt,
-    );
+    insert.run('duplicate-platform', '42', 'Alice', 1, 1, 1, createdAt, createdAt);
+    insert.run('duplicate-platform', '42', 'Alice Renamed', 5, 1, 5, createdAt, createdAt);
+    insert.run('duplicate-platform', '43', 'Bob', 1, 1, 1, createdAt, createdAt);
     closeDatabases(db);
 
     db = createDatabases({ dataDir });
-    assert.equal(getSchemaVersions(db).giftDb, 13);
+    assert.equal(getSchemaVersions(db).giftDb, 14);
     const rows = db.giftDb
       .prepare(
         `
@@ -285,10 +237,7 @@ test('gift database v3 identity migration remains intact after later migrations'
     assert.equal(rows[0].num, 5);
     assert.equal(rows[0].total_price, 5);
     assert.equal(rows[1].uid, '43');
-    assert.throws(
-      () => insertDuplicateGift(db.giftDb, createdAt),
-      /UNIQUE constraint failed/,
-    );
+    assert.throws(() => insertDuplicateGift(db.giftDb, createdAt), /UNIQUE constraint failed/);
   } finally {
     closeDatabases(db);
     fs.rmSync(dataDir, { recursive: true, force: true });

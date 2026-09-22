@@ -99,9 +99,7 @@ function createGiftMaintenanceStore(giftDb) {
   function countGiftsByPredicate(whereClause, params) {
     if (!whereClause) return 0;
 
-    const result = giftDb
-      .prepare(`SELECT COUNT(*) AS count FROM gift_events WHERE ${whereClause}`)
-      .get(...params);
+    const result = giftDb.prepare(`SELECT COUNT(*) AS count FROM gift_events WHERE ${whereClause}`).get(...params);
 
     return Number(result?.count) || 0;
   }

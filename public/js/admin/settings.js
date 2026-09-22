@@ -29,15 +29,11 @@ import { publishSettings } from './legacy-admin-bridge.js';
 
 const documentRef = document;
 const windowRef = window;
-const locationRef =
-  typeof location === 'undefined' ? windowRef.location : location;
+const locationRef = typeof location === 'undefined' ? windowRef.location : location;
 const navigatorRef = typeof navigator === 'undefined' ? null : navigator;
-const localStorageRef =
-  typeof localStorage === 'undefined' ? null : localStorage;
-const promptRef =
-  typeof prompt === 'undefined' ? () => {} : (...args) => prompt(...args);
-const alertRef =
-  typeof alert === 'undefined' ? () => {} : (...args) => alert(...args);
+const localStorageRef = typeof localStorage === 'undefined' ? null : localStorage;
+const promptRef = typeof prompt === 'undefined' ? () => {} : (...args) => prompt(...args);
+const alertRef = typeof alert === 'undefined' ? () => {} : (...args) => alert(...args);
 const fetchRef = typeof fetch === 'undefined' ? null : fetch;
 
 const getState = () => stateService;
@@ -125,14 +121,8 @@ export const initLicenseAccountDevice = () =>
     documentRef,
     licenseBridge: windowRef.liraLicense,
   });
-export const {
-  clearDatabase,
-  clearSuperChats,
-  clearAll,
-  renderShutdownScreen,
-  shutdownServer,
-  reconnectBilibili,
-} = operations;
+export const { clearDatabase, clearSuperChats, clearAll, renderShutdownScreen, shutdownServer, reconnectBilibili } =
+  operations;
 export const updateBlindboxOverlayUrl = blindboxSettings.updateOverlayUrl;
 
 export const settings = {

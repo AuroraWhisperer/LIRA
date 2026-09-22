@@ -5,9 +5,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
-const {
-  isBilibiliCommandText,
-} = require('../src/bilibili/danmaku/command-text');
+const { isBilibiliCommandText } = require('../src/bilibili/danmaku/command-text');
 const {
   createCustomReplyService,
   findCustomReplyRule,
@@ -16,10 +14,7 @@ const {
 } = require('../src/bilibili/custom-reply-service');
 const { createDomainServices } = require('../src/server/domain-services');
 const { closeDatabases, createDatabases } = require('../src/storage/database');
-const {
-  DEFAULT_SETTINGS,
-  createSettingsStore,
-} = require('../src/storage/settings-store');
+const { DEFAULT_SETTINGS, createSettingsStore } = require('../src/storage/settings-store');
 
 test('all danmaku reply bots are enabled by default', () => {
   assert.deepEqual(
@@ -92,17 +87,12 @@ test('custom reply service creates targeted automatic replies', () => {
     message: '点歌格式：点歌 歌名',
     target: { uid: '123', name: 'Alice' },
   });
-  assert.equal(
-    service.handleDanmaku({ message: '路过', uid: '123' }).reason,
-    'not-custom-reply',
-  );
+  assert.equal(service.handleDanmaku({ message: '路过', uid: '123' }).reason, 'not-custom-reply');
   assert.equal(isBilibiliCommandText('菜单看看', service.isCommandText), true);
 });
 
 test('domain services attach a custom reply after built-in commands decline', () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'song-plugin-custom-reply-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-custom-reply-'));
   const databases = createDatabases({ dataDir });
   const settingsStore = createSettingsStore(databases.songDb);
   settingsStore.setSetting('enableCustomReplyBot', 'true');

@@ -3,21 +3,15 @@
 const { GUARD_GIFT_ALIASES } = require('../bilibili/gift/guard-gift-aliases');
 
 function createGiftWishStore(db) {
-  const list = db.prepare(
-    'SELECT * FROM gift_wishes WHERE source_id = ? ORDER BY created_at, id',
-  );
+  const list = db.prepare('SELECT * FROM gift_wishes WHERE source_id = ? ORDER BY created_at, id');
   const insert = db.prepare(`INSERT INTO gift_wishes
-    (id, source_id, period, gift_id, variant_id, gift_name, gift_category, image_path, target, label, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
-  const update = db.prepare(
-    'UPDATE gift_wishes SET target = ?, label = ? WHERE source_id = ? AND id = ?',
-  );
-  const remove = db.prepare(
-    'DELETE FROM gift_wishes WHERE source_id = ? AND id = ?',
-  );
-  const session = db.prepare(
-    'SELECT * FROM gift_wish_sessions WHERE source_id = ? AND room_id = ?',
-  );
+    (id, source_id, period, gift_id, variant_id, gift_name, gift_category, image_path, target, label, created_at, display_style, text_template)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+  const update = db.prepare(`UPDATE gift_wishes SET target = ?, label = ?,
+    display_style = COALESCE(?, display_style), text_template = COALESCE(?, text_template)
+    WHERE source_id = ? AND id = ?`);
+  const remove = db.prepare('DELETE FROM gift_wishes WHERE source_id = ? AND id = ?');
+  const session = db.prepare('SELECT * FROM gift_wish_sessions WHERE source_id = ? AND room_id = ?');
   const saveSession = db.prepare(`INSERT INTO gift_wish_sessions
     (source_id, room_id, started_at, ended_at, checked_at) VALUES (?, ?, ?, ?, ?)
     ON CONFLICT(source_id) DO UPDATE SET room_id = excluded.room_id, started_at = excluded.started_at,
@@ -37,8 +31,7 @@ function createGiftWishStore(db) {
       const variant = box ? 'blind_box_variant_id' : 'gift_variant_id';
       match = wish.variant_id ? `${variant} = ?` : `${column} = ?`;
       params.push(wish.variant_id || wish.gift_id);
-      if (box || wish.gift_category === 'blindBoxOutput')
-        match += ' AND is_blind_box = 1';
+      if (box || wish.gift_category === 'blindBoxOutput') match += ' AND is_blind_box = 1';
     }
     const row = db
       .prepare(
@@ -66,21 +59,17 @@ function createGiftWishStore(db) {
         wish.target,
         wish.label,
         wish.createdAt,
+        wish.displayStyle,
+        wish.textTemplate,
       );
     },
-    update: (sourceId, id, target, label) =>
-      Number(update.run(target, label, sourceId, id).changes),
+    update: (sourceId, id, { target, label, displayStyle, textTemplate }) =>
+      Number(update.run(target, label, displayStyle ?? null, textTemplate ?? null, sourceId, id).changes),
     remove: (sourceId, id) => Number(remove.run(sourceId, id).changes),
     count,
     readSession: (sourceId, roomId) => session.get(sourceId, roomId) || null,
     saveSession(sourceId, roomId, value) {
-      saveSession.run(
-        sourceId,
-        roomId,
-        value.started_at,
-        value.ended_at,
-        value.checked_at,
-      );
+      saveSession.run(sourceId, roomId, value.started_at, value.ended_at, value.checked_at);
     },
   };
 }

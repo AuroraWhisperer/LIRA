@@ -57,9 +57,7 @@ function parseLyricResult(rawLyric, rawTranslation, rawWordLyric, rawRoma) {
         }));
   const translations = parseTimedText(rawTranslation);
   const resolveTranslation = createTimedTextResolver(translations);
-  const wordLineByStart = new Map(
-    wordLines.map((line) => [line.startMs, line]),
-  );
+  const wordLineByStart = new Map(wordLines.map((line) => [line.startMs, line]));
   const romaLines = parseTimedText(rawRoma);
   const resolveRoma = createTimedTextResolver(romaLines);
 
@@ -72,18 +70,13 @@ function parseLyricResult(rawLyric, rawTranslation, rawWordLyric, rawRoma) {
 
   return lines.map((line, index) => {
     const romaFromApi = resolveRoma(line.startMs);
-    const kanaFromTag = kanaByLineStart
-      ? kanaByLineStart.get(line.startMs) || ''
-      : '';
+    const kanaFromTag = kanaByLineStart ? kanaByLineStart.get(line.startMs) || '' : '';
     return {
       ...line,
-      endMs:
-        line.endMs ?? (lines[index + 1] ? lines[index + 1].startMs : undefined),
+      endMs: line.endMs ?? (lines[index + 1] ? lines[index + 1].startMs : undefined),
       translation: resolveTranslation(line.startMs),
       roma: romaFromApi || kanaFromTag,
-      words: wordLineByStart.get(line.startMs)
-        ? wordLineByStart.get(line.startMs).words
-        : [],
+      words: wordLineByStart.get(line.startMs) ? wordLineByStart.get(line.startMs).words : [],
     };
   });
 }
@@ -99,9 +92,7 @@ function parseTimedText(rawText) {
  */
 function createTimedTextResolver(lines, toleranceMs = 100) {
   const sorted = Array.isArray(lines)
-    ? lines
-        .filter((line) => Number.isFinite(line.startMs))
-        .sort((a, b) => a.startMs - b.startMs)
+    ? lines.filter((line) => Number.isFinite(line.startMs)).sort((a, b) => a.startMs - b.startMs)
     : [];
   const exact = new Map(sorted.map((line) => [line.startMs, line.text]));
 
@@ -117,12 +108,8 @@ function createTimedTextResolver(lines, toleranceMs = 100) {
     }
 
     const candidates = [sorted[low], sorted[low - 1]].filter(Boolean);
-    const nearest = candidates.sort(
-      (a, b) => Math.abs(a.startMs - startMs) - Math.abs(b.startMs - startMs),
-    )[0];
-    return nearest && Math.abs(nearest.startMs - startMs) <= toleranceMs
-      ? nearest.text || ''
-      : '';
+    const nearest = candidates.sort((a, b) => Math.abs(a.startMs - startMs) - Math.abs(b.startMs - startMs))[0];
+    return nearest && Math.abs(nearest.startMs - startMs) <= toleranceMs ? nearest.text || '' : '';
   };
 }
 
@@ -156,10 +143,7 @@ function toStartMs(minutes, seconds, fraction) {
   const minuteNumber = Number(minutes);
   const secondNumber = Number(seconds);
   const fractionText = String(fraction || '0');
-  const fractionMs =
-    fractionText.length === 3
-      ? Number(fractionText)
-      : Number(fractionText.padEnd(3, '0'));
+  const fractionMs = fractionText.length === 3 ? Number(fractionText) : Number(fractionText.padEnd(3, '0'));
   return (minuteNumber * 60 + secondNumber) * 1000 + fractionMs;
 }
 

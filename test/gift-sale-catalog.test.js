@@ -139,10 +139,7 @@ test('gift sale service validates room ID, caches refreshes, persists snapshots,
   const service = createGiftSaleCatalogService({
     dataDir: fixture.dataDir,
     getRoomId: () => roomId,
-    getBlindBoxConfig: () =>
-      JSON.stringify([
-        { name: '测试盲盒', outputs: [{ name: '测试产物', price: 2 }] },
-      ]),
+    getBlindBoxConfig: () => JSON.stringify([{ name: '测试盲盒', outputs: [{ name: '测试产物', price: 2 }] }]),
     now: () => nowMs,
     minRefreshMs: 10_000,
     async fetchJson(name) {
@@ -191,17 +188,9 @@ test('gift sale service validates room ID, caches refreshes, persists snapshots,
     refreshed.gifts.map((gift) => gift.imagePath),
     ['', ''],
   );
+  assert.equal(fs.existsSync(path.join(fixture.dataDir, 'overtime-gift-sale.json')), true);
   assert.equal(
-    fs.existsSync(path.join(fixture.dataDir, 'overtime-gift-sale.json')),
-    true,
-  );
-  assert.equal(
-    JSON.parse(
-      fs.readFileSync(
-        path.join(fixture.dataDir, 'overtime-gift-sale.json'),
-        'utf8',
-      ),
-    ).schemaVersion,
+    JSON.parse(fs.readFileSync(path.join(fixture.dataDir, 'overtime-gift-sale.json'), 'utf8')).schemaVersion,
     1,
   );
   const reloaded = createGiftSaleCatalogService({ dataDir: fixture.dataDir });
@@ -230,9 +219,7 @@ test('gift sale service validates room ID, caches refreshes, persists snapshots,
 
 test('gift sale service does not call upstream without a configured room', async (t) => {
   let called = false;
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'lira-gift-sale-empty-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-gift-sale-empty-'));
   t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
   const service = createGiftSaleCatalogService({
     dataDir,

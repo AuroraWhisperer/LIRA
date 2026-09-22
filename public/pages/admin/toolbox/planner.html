@@ -6,19 +6,19 @@
   data-other-feature-panel
   hidden
 >
-  <div id="streamerPlanner" class="other-feature-panel-body streamer-planner" tabindex="0" role="region" aria-label="主播工作台">
+  <div
+    id="streamerPlanner"
+    class="other-feature-panel-body streamer-planner"
+    tabindex="0"
+    role="region"
+    aria-label="主播工作台"
+  >
     <header class="planner-header">
       <div class="planner-heading">
         <h2 id="plannerTodayLabel"></h2>
       </div>
       <div class="planner-header-actions">
-        <span
-          id="plannerSaveState"
-          class="planner-save-state"
-          role="status"
-          aria-live="polite"
-          >已保存到本机</span
-        >
+        <span id="plannerSaveState" class="planner-save-state" role="status" aria-live="polite">已保存到本机</span>
         <button class="primary planner-command" type="button" data-event-new>
           <svg class="planner-icon" aria-hidden="true">
             <use href="/img/admin/workbench-icons.svg#plus"></use>
@@ -29,10 +29,7 @@
     </header>
 
     <div class="planner-workspace">
-      <section
-        class="planner-calendar-panel"
-        aria-labelledby="plannerCalendarTitle"
-      >
+      <section class="planner-calendar-panel" aria-labelledby="plannerCalendarTitle">
         <div class="planner-panel-heading">
           <h3 id="plannerCalendarTitle">
             <svg class="planner-icon" aria-hidden="true">
@@ -41,56 +38,29 @@
             日历
           </h3>
           <div class="planner-calendar-navigation" aria-label="日历月份">
-            <button
-              type="button"
-              class="planner-icon-button"
-              data-month-offset="-1"
-              aria-label="上个月"
-              title="上个月"
-            >
+            <button type="button" class="planner-icon-button" data-month-offset="-1" aria-label="上个月" title="上个月">
               <svg class="planner-icon" aria-hidden="true">
                 <use href="/img/admin/workbench-icons.svg#chevron-left"></use>
               </svg>
             </button>
             <strong id="plannerMonthLabel" aria-live="polite"></strong>
-            <button
-              type="button"
-              class="planner-icon-button"
-              data-month-offset="1"
-              aria-label="下个月"
-              title="下个月"
-            >
+            <button type="button" class="planner-icon-button" data-month-offset="1" aria-label="下个月" title="下个月">
               <svg class="planner-icon" aria-hidden="true">
                 <use href="/img/admin/workbench-icons.svg#chevron-right"></use>
               </svg>
             </button>
-            <button
-              type="button"
-              class="planner-today-button"
-              id="plannerGoToday"
-            >
-              今天
-            </button>
+            <button type="button" class="planner-today-button" id="plannerGoToday">今天</button>
           </div>
         </div>
         <div class="planner-calendar-legend" aria-label="日程分类">
-          <span class="event-live">直播</span
-          ><span class="event-work">工作</span
+          <span class="event-live">直播</span><span class="event-work">工作</span
           ><span class="event-personal">个人</span>
-          <span id="plannerMonthCount" class="planner-month-count"
-            >本月 0 项安排</span
-          >
+          <span id="plannerMonthCount" class="planner-month-count">本月 0 项安排</span>
         </div>
         <div class="planner-weekdays" aria-hidden="true">
-          <span>一</span><span>二</span><span>三</span><span>四</span
-          ><span>五</span><span>六</span><span>日</span>
+          <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span>
         </div>
-        <div
-          id="plannerCalendarGrid"
-          class="planner-calendar-grid"
-          role="group"
-          aria-label="选择日程日期"
-        ></div>
+        <div id="plannerCalendarGrid" class="planner-calendar-grid" role="group" aria-label="选择日程日期"></div>
         <section class="planner-agenda" aria-labelledby="plannerAgendaTitle">
           <div class="planner-panel-heading">
             <div class="planner-agenda-heading">
@@ -109,20 +79,12 @@
               </svg>
             </button>
           </div>
-          <div
-            id="plannerAgendaList"
-            class="planner-agenda-list"
-            role="list"
-            aria-live="polite"
-          ></div>
+          <div id="plannerAgendaList" class="planner-agenda-list" role="list" aria-live="polite"></div>
         </section>
       </section>
 
       <aside class="planner-side-panel">
-        <section
-          class="planner-notes-panel"
-          aria-labelledby="plannerNotesTitle"
-        >
+        <section class="planner-notes-panel" aria-labelledby="plannerNotesTitle">
           <div class="planner-panel-heading">
             <h3 id="plannerNotesTitle">
               <svg class="planner-icon" aria-hidden="true">
@@ -132,20 +94,9 @@
             </h3>
             <span id="plannerNoteCount" class="planner-count">0 条</span>
           </div>
-          <form
-            id="plannerNoteForm"
-            class="planner-note-form"
-            autocomplete="off"
-          >
-            <label class="planner-sr-only" for="plannerNoteBody"
-              >备忘内容</label
-            >
-            <textarea
-              id="plannerNoteBody"
-              maxlength="2000"
-              required
-              placeholder="记一笔…"
-            ></textarea>
+          <form id="plannerNoteForm" class="planner-note-form" autocomplete="off">
+            <label class="planner-sr-only" for="plannerNoteBody">备忘内容</label>
+            <textarea id="plannerNoteBody" maxlength="2000" required placeholder="记一笔…"></textarea>
             <div class="planner-note-actions">
               <label class="planner-note-type-field">
                 <span class="planner-sr-only">备忘分类</span>
@@ -167,13 +118,7 @@
                   <use href="/img/admin/workbench-icons.svg#x"></use>
                 </svg>
               </button>
-              <button
-                id="plannerNoteSubmit"
-                class="planner-note-submit"
-                type="submit"
-              >
-                保存备忘
-              </button>
+              <button id="plannerNoteSubmit" class="planner-note-submit" type="submit">保存备忘</button>
             </div>
           </form>
           <div
@@ -194,48 +139,19 @@
               </svg>
               待办
             </h3>
-            <div
-              class="planner-task-filters"
-              role="group"
-              aria-label="待办状态"
-            >
-              <button
-                type="button"
-                data-task-filter="pending"
-                aria-pressed="true"
-              >
+            <div class="planner-task-filters" role="group" aria-label="待办状态">
+              <button type="button" data-task-filter="pending" aria-pressed="true">
                 未完成 <span id="plannerPendingCount">0</span>
               </button>
-              <button
-                type="button"
-                data-task-filter="done"
-                aria-pressed="false"
-              >
+              <button type="button" data-task-filter="done" aria-pressed="false">
                 已完成 <span id="plannerDoneCount">0</span>
               </button>
             </div>
           </div>
-          <form
-            id="plannerTaskForm"
-            class="planner-task-form"
-            autocomplete="off"
-          >
-            <label class="planner-sr-only" for="plannerTaskTitle"
-              >待办内容</label
-            >
-            <input
-              id="plannerTaskTitle"
-              type="text"
-              maxlength="80"
-              required
-              placeholder="添加待办"
-            />
-            <button
-              type="submit"
-              class="planner-icon-button"
-              aria-label="添加待办"
-              title="添加待办"
-            >
+          <form id="plannerTaskForm" class="planner-task-form" autocomplete="off">
+            <label class="planner-sr-only" for="plannerTaskTitle">待办内容</label>
+            <input id="plannerTaskTitle" type="text" maxlength="80" required placeholder="添加待办" />
+            <button type="submit" class="planner-icon-button" aria-label="添加待办" title="添加待办">
               <svg class="planner-icon" aria-hidden="true">
                 <use href="/img/admin/workbench-icons.svg#plus"></use>
               </svg>
@@ -253,98 +169,37 @@
       </aside>
     </div>
 
-    <dialog
-      id="plannerEventDialog"
-      class="planner-event-dialog"
-      aria-labelledby="plannerEventDialogTitle"
-    >
+    <dialog id="plannerEventDialog" class="planner-event-dialog" aria-labelledby="plannerEventDialogTitle">
       <form id="plannerEventForm" autocomplete="off">
         <div class="planner-panel-heading">
           <h3 id="plannerEventDialogTitle">新建日程</h3>
-          <button
-            type="button"
-            class="planner-icon-button"
-            data-event-cancel
-            aria-label="关闭日程编辑"
-            title="关闭"
-          >
+          <button type="button" class="planner-icon-button" data-event-cancel aria-label="关闭日程编辑" title="关闭">
             <svg class="planner-icon" aria-hidden="true">
               <use href="/img/admin/workbench-icons.svg#x"></use>
             </svg>
           </button>
         </div>
         <label
-          >日程名称<input
-            id="plannerEventTitle"
-            type="text"
-            maxlength="80"
-            required
-            placeholder="日程名称"
+          >日程名称<input id="plannerEventTitle" type="text" maxlength="80" required placeholder="日程名称"
         /></label>
         <div class="planner-event-fields">
-          <label
-            >日期<input
-              id="plannerEventDate"
-              type="date"
-              min="0001-01-01"
-              max="9999-12-31"
-              required
-          /></label>
+          <label>日期<input id="plannerEventDate" type="date" min="0001-01-01" max="9999-12-31" required /></label>
           <label>时间<input id="plannerEventTime" type="time" /></label>
         </div>
-        <label class="planner-all-day"
-          ><input id="plannerEventAllDay" type="checkbox" />全天</label
-        >
+        <label class="planner-all-day"><input id="plannerEventAllDay" type="checkbox" />全天</label>
         <fieldset class="planner-event-types">
           <legend>分类</legend>
-          <label class="event-live"
-            ><input
-              type="radio"
-              name="plannerEventType"
-              value="live"
-              checked
-            />直播</label
-          >
-          <label class="event-work"
-            ><input
-              type="radio"
-              name="plannerEventType"
-              value="work"
-            />工作</label
-          >
-          <label class="event-personal"
-            ><input
-              type="radio"
-              name="plannerEventType"
-              value="personal"
-            />个人</label
-          >
+          <label class="event-live"><input type="radio" name="plannerEventType" value="live" checked />直播</label>
+          <label class="event-work"><input type="radio" name="plannerEventType" value="work" />工作</label>
+          <label class="event-personal"><input type="radio" name="plannerEventType" value="personal" />个人</label>
         </fieldset>
         <label
-          >备注<textarea
-            id="plannerEventDetail"
-            maxlength="500"
-            rows="3"
-            placeholder="备注（选填）"
-          ></textarea>
+          >备注<textarea id="plannerEventDetail" maxlength="500" rows="3" placeholder="备注（选填）"></textarea>
         </label>
-        <p
-          id="plannerEventError"
-          class="planner-form-error"
-          role="alert"
-          hidden
-        ></p>
+        <p id="plannerEventError" class="planner-form-error" role="alert" hidden></p>
         <div class="planner-dialog-actions">
-          <button
-            id="plannerEventDelete"
-            type="button"
-            class="planner-delete-command"
-            hidden
-          >
-            删除日程
-          </button>
-          <button type="button" data-event-cancel>取消</button
-          ><button type="submit" class="primary">保存日程</button>
+          <button id="plannerEventDelete" type="button" class="planner-delete-command" hidden>删除日程</button>
+          <button type="button" data-event-cancel>取消</button><button type="submit" class="primary">保存日程</button>
         </div>
       </form>
     </dialog>

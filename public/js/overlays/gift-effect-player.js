@@ -20,10 +20,12 @@ export function createGiftEffectPlayer({ stage, play, now = Date.now, onError = 
       try {
         const playback = startPlayback(item.payload);
         active = { playback, payload: item.payload };
-        Promise.resolve(playback.done).catch(onError).finally(() => {
-          active = null;
-          next();
-        });
+        Promise.resolve(playback.done)
+          .catch(onError)
+          .finally(() => {
+            active = null;
+            next();
+          });
         return;
       } catch (error) {
         onError(error);
@@ -64,8 +66,14 @@ export function createGiftEffectPlayer({ stage, play, now = Date.now, onError = 
 function validEffect(effect) {
   try {
     const url = new URL(effect?.mp4Url);
-    if (url.protocol !== 'https:' || url.username || url.password || url.port || !/\.mp4$/iu.test(url.pathname)) return false;
-    if (!['hdslb.com', 'bilibili.com', 'bilivideo.com'].some((host) => url.hostname === host || url.hostname.endsWith(`.${host}`))) return false;
+    if (url.protocol !== 'https:' || url.username || url.password || url.port || !/\.mp4$/iu.test(url.pathname))
+      return false;
+    if (
+      !['hdslb.com', 'bilibili.com', 'bilivideo.com'].some(
+        (host) => url.hostname === host || url.hostname.endsWith(`.${host}`),
+      )
+    )
+      return false;
     const layout = effect.layout;
     const { videoWidth: width, videoHeight: height } = layout;
     if (![width, height].every((value) => Number.isInteger(value) && value > 0 && value <= 8192)) return false;
@@ -74,14 +82,16 @@ function validEffect(effect) {
       const [x, y, w, h] = frame;
       return x >= 0 && y >= 0 && w > 0 && h > 0 && x + w <= width && y + h <= height;
     });
-  } catch { return false; }
+  } catch {
+    return false;
+  }
 }
 
 function playVideo(stage, effect) {
   const video = document.createElement('video');
   const canvas = document.createElement('canvas');
   canvas.className = 'gift-official-effect';
-  const [,, width, height] = effect.layout.rgbFrame;
+  const [, , width, height] = effect.layout.rgbFrame;
   canvas.width = width;
   canvas.height = height;
   let renderer = null;
@@ -116,10 +126,10 @@ function playVideo(stage, effect) {
     if (settled) return;
     try {
       renderer.draw(video);
-      frameId = video.requestVideoFrameCallback
-        ? video.requestVideoFrameCallback(draw)
-        : requestAnimationFrame(draw);
-    } catch (error) { finish(error); }
+      frameId = video.requestVideoFrameCallback ? video.requestVideoFrameCallback(draw) : requestAnimationFrame(draw);
+    } catch (error) {
+      finish(error);
+    }
   };
   const loaded = () => {
     if (settled) return;
@@ -131,7 +141,9 @@ function playVideo(stage, effect) {
       renderer = createAlphaRenderer(canvas, effect.layout);
       stage.append(canvas);
       draw();
-    } catch (error) { finish(error); }
+    } catch (error) {
+      finish(error);
+    }
   };
   video.crossOrigin = 'anonymous';
   video.referrerPolicy = 'no-referrer';
@@ -141,8 +153,11 @@ function playVideo(stage, effect) {
   video.addEventListener('ended', ended, { once: true });
   video.addEventListener('error', failed, { once: true });
   video.src = effect.mp4Url;
-  try { Promise.resolve(video.play()).catch(finish); }
-  catch (error) { finish(error); }
+  try {
+    Promise.resolve(video.play()).catch(finish);
+  } catch (error) {
+    finish(error);
+  }
   return { done, stop: () => finish() };
 }
 
@@ -170,15 +185,25 @@ function createAlphaRenderer(canvas, layout) {
   }
   try {
     program = gl.createProgram();
-    gl.attachShader(program, compile(gl.VERTEX_SHADER, `
+    gl.attachShader(
+      program,
+      compile(
+        gl.VERTEX_SHADER,
+        `
       attribute vec2 position;
       varying vec2 uv;
       void main() {
         uv = vec2((position.x + 1.0) * 0.5, (1.0 - position.y) * 0.5);
         gl_Position = vec4(position, 0.0, 1.0);
       }
-    `));
-    gl.attachShader(program, compile(gl.FRAGMENT_SHADER, `
+    `,
+      ),
+    );
+    gl.attachShader(
+      program,
+      compile(
+        gl.FRAGMENT_SHADER,
+        `
       precision mediump float;
       uniform sampler2D video;
       uniform vec4 rgbRect;
@@ -189,7 +214,9 @@ function createAlphaRenderer(canvas, layout) {
         float alpha = texture2D(video, alphaRect.xy + uv * alphaRect.zw).r;
         gl_FragColor = vec4(rgb, alpha);
       }
-    `));
+    `,
+      ),
+    );
     gl.linkProgram(program);
     if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error('特效着色器连接失败。');
     gl.useProgram(program);
@@ -199,11 +226,18 @@ function createAlphaRenderer(canvas, layout) {
     const position = gl.getAttribLocation(program, 'position');
     gl.enableVertexAttribArray(position);
     gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
-    for (const [name, frame] of [['rgbRect', layout.rgbFrame], ['alphaRect', layout.alphaFrame]]) {
+    for (const [name, frame] of [
+      ['rgbRect', layout.rgbFrame],
+      ['alphaRect', layout.alphaFrame],
+    ]) {
       const [x, y, w, h] = frame;
-      gl.uniform4f(gl.getUniformLocation(program, name),
-        (x + 0.5) / layout.videoWidth, (y + 0.5) / layout.videoHeight,
-        (w - 1) / layout.videoWidth, (h - 1) / layout.videoHeight);
+      gl.uniform4f(
+        gl.getUniformLocation(program, name),
+        (x + 0.5) / layout.videoWidth,
+        (y + 0.5) / layout.videoHeight,
+        (w - 1) / layout.videoWidth,
+        (h - 1) / layout.videoHeight,
+      );
     }
     texture = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, texture);

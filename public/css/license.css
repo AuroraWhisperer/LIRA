@@ -11,11 +11,7 @@
   --license-primary: #3e463b;
   --license-primary-strong: #2e352b;
   --license-on-primary: #fff;
-  --license-brand-accent: color-mix(
-    in srgb,
-    var(--color-primary-strong) 30%,
-    #85867c
-  );
+  --license-brand-accent: color-mix(in srgb, var(--color-primary-strong) 30%, #85867c);
   --license-intro-bg: #e9eae3;
   --license-record-bg: #30342f;
   --license-record-light: #535b4e;
@@ -27,10 +23,8 @@
   --license-input-bg: #fff;
   --license-input-border: #d8dad2;
   --license-placeholder: #74786f;
-  --license-display-font:
-    'Segoe UI Variable Display', 'Segoe UI', 'Microsoft YaHei', sans-serif;
-  --license-shadow:
-    0 16px 48px rgba(41, 47, 35, 0.05), 0 2px 6px rgba(41, 47, 35, 0.02);
+  --license-display-font: 'Segoe UI Variable Display', 'Segoe UI', 'Microsoft YaHei', sans-serif;
+  --license-shadow: 0 16px 48px rgba(41, 47, 35, 0.05), 0 2px 6px rgba(41, 47, 35, 0.02);
 }
 
 * {
@@ -331,8 +325,7 @@ button {
 }
 .license-field input:focus {
   border-color: var(--license-primary);
-  box-shadow: 0 0 0 3px
-    color-mix(in srgb, var(--license-primary) 12%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--license-primary) 12%, transparent);
 }
 #licenseActivationCode {
   font-family: 'Cascadia Mono', Consolas, monospace;

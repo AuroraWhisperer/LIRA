@@ -2,19 +2,19 @@
 'use strict';
 
 import {
-  escapeHtml, hexToRgb, hexToRgba, withMultilingualFallback,
-  scrollTravelSeconds, overlayLowPowerEnabled,
+  escapeHtml,
+  hexToRgb,
+  hexToRgba,
+  withMultilingualFallback,
+  scrollTravelSeconds,
+  overlayLowPowerEnabled,
 } from './overlay-utils-module.js';
 
-export {
-  escapeHtml, hexToRgb, hexToRgba, withMultilingualFallback,
-  scrollTravelSeconds, overlayLowPowerEnabled,
-};
+export { escapeHtml, hexToRgb, hexToRgba, withMultilingualFallback, scrollTravelSeconds, overlayLowPowerEnabled };
 
 export function queueScrollSeconds(settings, settingKey = 'queueScrollSpeed') {
   const urlSpeed = new URLSearchParams(location.search).get('speed');
-  const settingSpeed =
-    settings?.[settingKey] || settings?.queueScrollSpeed || 80;
+  const settingSpeed = settings?.[settingKey] || settings?.queueScrollSpeed || 80;
   const speed = Math.round(Number(urlSpeed || settingSpeed));
   const displaySpeed = normalizeQueueScrollSpeed(speed);
   const actualSpeed = 50 + ((displaySpeed - 1) / 99) * 150;
@@ -25,9 +25,7 @@ export function queueScrollSeconds(settings, settingKey = 'queueScrollSpeed') {
 export function normalizeQueueScrollSpeed(speed) {
   if (!Number.isFinite(speed)) return 80;
   if (speed > 100) {
-    return Math.round(
-      1 + ((Math.max(50, Math.min(200, speed)) - 50) / 150) * 99,
-    );
+    return Math.round(1 + ((Math.max(50, Math.min(200, speed)) - 50) / 150) * 99);
   }
   return Math.max(1, Math.min(100, speed));
 }
@@ -39,8 +37,7 @@ export function bounceScrollTiming(downSeconds, upSeconds = 3) {
     totalSeconds,
     topPauseEndPercent: (pauseSeconds / totalSeconds) * 100,
     downPercent: ((pauseSeconds + downSeconds) / totalSeconds) * 100,
-    pauseEndPercent:
-      ((pauseSeconds + downSeconds + pauseSeconds) / totalSeconds) * 100,
+    pauseEndPercent: ((pauseSeconds + downSeconds + pauseSeconds) / totalSeconds) * 100,
   };
 }
 
@@ -111,15 +108,12 @@ export function medalLevelClass(level) {
 export function formatSuperChatPrice(value) {
   const number = Number(value);
   if (!Number.isFinite(number)) return '0';
-  return Number.isInteger(number)
-    ? String(number)
-    : number.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
+  return Number.isInteger(number) ? String(number) : number.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
 }
 
 export function superChatPriceClass(value) {
   const number = Number(value);
   if (Number.isFinite(number) && number >= 1000) return 'identity-sc-price-red';
-  if (Number.isFinite(number) && number >= 100)
-    return 'identity-sc-price-yellow';
+  if (Number.isFinite(number) && number >= 100) return 'identity-sc-price-yellow';
   return 'identity-sc-price-blue';
 }

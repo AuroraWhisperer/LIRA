@@ -31,24 +31,11 @@ function createDatabases(options = {}) {
   const databases = {};
 
   try {
-    databases.songDb = openSqliteDatabase(
-      path.join(dataDir, DB_FILE_NAMES.songDb),
-      { foreignKeys: true },
-    );
-    databases.superChatDb = openSqliteDatabase(
-      path.join(dataDir, DB_FILE_NAMES.superChatDb),
-    );
-    databases.giftDb = openSqliteDatabase(
-      path.join(dataDir, DB_FILE_NAMES.giftDb),
-      { foreignKeys: true },
-    );
-    databases.musicDb = openSqliteDatabase(
-      path.join(dataDir, DB_FILE_NAMES.musicDb),
-      { foreignKeys: true },
-    );
-    databases.checkinDb = openSqliteDatabase(
-      path.join(dataDir, DB_FILE_NAMES.checkinDb),
-    );
+    databases.songDb = openSqliteDatabase(path.join(dataDir, DB_FILE_NAMES.songDb), { foreignKeys: true });
+    databases.superChatDb = openSqliteDatabase(path.join(dataDir, DB_FILE_NAMES.superChatDb));
+    databases.giftDb = openSqliteDatabase(path.join(dataDir, DB_FILE_NAMES.giftDb), { foreignKeys: true });
+    databases.musicDb = openSqliteDatabase(path.join(dataDir, DB_FILE_NAMES.musicDb), { foreignKeys: true });
+    databases.checkinDb = openSqliteDatabase(path.join(dataDir, DB_FILE_NAMES.checkinDb));
 
     // 依赖迁移列的索引必须在不可变迁移完成后创建。
     databases.songDb.exec(schema.SONG_TABLE_SCHEMA);
@@ -60,10 +47,7 @@ function createDatabases(options = {}) {
     databaseMigrations.runAllMigrations(databases, options);
     databases.songDb.exec(schema.SONG_INDEX_SCHEMA);
     databases.giftDb.exec(schema.GIFT_INDEX_SCHEMA);
-    databaseMigrations.migrateLegacySuperChatsToDedicatedDatabase(
-      databases.songDb,
-      databases.superChatDb,
-    );
+    databaseMigrations.migrateLegacySuperChatsToDedicatedDatabase(databases.songDb, databases.superChatDb);
 
     databases.lotteryDb = createLotteryDatabase(dataDir);
 
@@ -77,18 +61,12 @@ function createDatabases(options = {}) {
 function createLotteryDatabase(dataDir) {
   let lotteryDb = null;
   try {
-    lotteryDb = openSqliteDatabase(
-      path.join(dataDir, DB_FILE_NAMES.lotteryDb),
-      { foreignKeys: true },
-    );
+    lotteryDb = openSqliteDatabase(path.join(dataDir, DB_FILE_NAMES.lotteryDb), { foreignKeys: true });
     dynamicLotteryMigrations.runDynamicLotteryMigrations(lotteryDb);
     return lotteryDb;
   } catch (error) {
     if (lotteryDb) databaseMaintenance.closeDatabases(lotteryDb);
-    const reason =
-      typeof error?.code === 'string' && error.code
-        ? error.code
-        : error?.name || 'initialization failed';
+    const reason = typeof error?.code === 'string' && error.code ? error.code : error?.name || 'initialization failed';
     console.warn(`[Startup] dynamic lottery database unavailable: ${reason}`);
     return null;
   }
@@ -97,10 +75,7 @@ function createLotteryDatabase(dataDir) {
 function getSchemaVersions(databases) {
   const versions = databaseMigrations.getSchemaVersions(databases);
   if (databases.lotteryDb) {
-    versions.lotteryDb =
-      dynamicLotteryMigrations.getDynamicLotterySchemaVersion(
-        databases.lotteryDb,
-      );
+    versions.lotteryDb = dynamicLotteryMigrations.getDynamicLotterySchemaVersion(databases.lotteryDb);
   }
   return versions;
 }

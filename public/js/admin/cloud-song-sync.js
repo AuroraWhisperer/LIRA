@@ -23,15 +23,11 @@ function songSyncErrorMessage(error) {
       ? '歌库中有歌曲字段格式无效，请检查点歌价格、启用状态或排序后重试。'
       : `第 ${index + 1} 首歌曲的字段格式无效，请检查点歌价格、启用状态或排序后重试。`;
   }
-  if (code === 'SONG_LIST_INVALID' || code === 'SONGS_ARRAY_REQUIRED')
-    return '歌库格式无效，请重试。';
+  if (code === 'SONG_LIST_INVALID' || code === 'SONGS_ARRAY_REQUIRED') return '歌库格式无效，请重试。';
   if (code === 'TOO_MANY_SONGS') return '歌库超过 5000 首限制。';
-  if (code === 'PAYLOAD_TOO_LARGE')
-    return '歌库数据超过同步大小限制，请减少歌曲或缩短备注、点歌价格和歌切后重新同步。';
-  if (code === 'RESPONSE_TOO_LARGE')
-    return '云端歌库超过读取大小限制，请先缩减歌库或联系管理员处理。';
-  if (code === 'NETWORK_UNAVAILABLE')
-    return '无法连接授权服务器，请检查网络后重试。';
+  if (code === 'PAYLOAD_TOO_LARGE') return '歌库数据超过同步大小限制，请减少歌曲或缩短备注、点歌价格和歌切后重新同步。';
+  if (code === 'RESPONSE_TOO_LARGE') return '云端歌库超过读取大小限制，请先缩减歌库或联系管理员处理。';
+  if (code === 'NETWORK_UNAVAILABLE') return '无法连接授权服务器，请检查网络后重试。';
   if (code === 'REQUEST_TIMEOUT') return '连接授权服务器超时，请重试。';
   return '请稍后重试。';
 }
@@ -45,10 +41,7 @@ function extractCloudSongCount(payload) {
 
 function renderCloudSongCount(cloudCountEl, cloudSongCount) {
   if (!cloudCountEl) return;
-  cloudCountEl.textContent =
-    cloudSongCount === null
-      ? '暂时无法读取'
-      : `${cloudSongCount} 首`;
+  cloudCountEl.textContent = cloudSongCount === null ? '暂时无法读取' : `${cloudSongCount} 首`;
 }
 
 function renderLastCloudSync(lastSyncEl) {
@@ -64,11 +57,7 @@ function renderLastCloudSync(lastSyncEl) {
     : '本机尚未同步过歌单。';
 }
 
-export async function initCloudSongSync({
-  getSongs,
-  toast,
-  showConfirmationDialog,
-}) {
+export async function initCloudSongSync({ getSongs, toast, showConfirmationDialog }) {
   if (typeof document === 'undefined') return;
   const section = document.getElementById('licenseSongSync');
   const syncButton = document.getElementById('licenseSyncSongsBtn');
@@ -85,9 +74,7 @@ export async function initCloudSongSync({
 
   async function refreshCloudSongCount() {
     try {
-      cloudSongCount = extractCloudSongCount(
-        await window.liraLicense.getCloudSongs(),
-      );
+      cloudSongCount = extractCloudSongCount(await window.liraLicense.getCloudSongs());
     } catch (_) {
       cloudSongCount = null;
     }
@@ -101,9 +88,7 @@ export async function initCloudSongSync({
     try {
       const profile = await window.liraLicense.getProfile();
       const streamer = profile?.streamer;
-      status.textContent = streamer?.accountName
-        ? streamer.accountName
-        : '已授权，但暂时无法读取主播资料。';
+      status.textContent = streamer?.accountName ? streamer.accountName : '已授权，但暂时无法读取主播资料。';
       if (streamer?.songPageUrl && /^https:\/\//i.test(streamer.songPageUrl)) {
         link.href = streamer.songPageUrl;
         link.hidden = false;
@@ -152,16 +137,10 @@ export async function initCloudSongSync({
       const response = await window.liraLicense.syncSongs(songs);
       if (!response?.ok) throw createSongSyncError(response);
       const reportedCount = Number(response.count);
-      const syncedCount =
-        Number.isSafeInteger(reportedCount) && reportedCount >= 0
-          ? reportedCount
-          : songs.length;
+      const syncedCount = Number.isSafeInteger(reportedCount) && reportedCount >= 0 ? reportedCount : songs.length;
       result.textContent = `已同步 ${syncedCount} 首歌曲。`;
       try {
-        localStorage.setItem(
-          LAST_SYNC_KEY,
-          JSON.stringify({ time: Date.now(), count: syncedCount }),
-        );
+        localStorage.setItem(LAST_SYNC_KEY, JSON.stringify({ time: Date.now(), count: syncedCount }));
       } catch (error) {
         void error;
       }

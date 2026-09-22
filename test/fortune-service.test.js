@@ -5,75 +5,11 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
-const {
-  FORTUNES,
-  buildFortuneReply,
-  createFortuneService,
-  parseFortunePool,
-  pickDailyFortune,
-} = require('../src/bilibili/fortune-service');
-const {
-  isBilibiliCommandText,
-} = require('../src/bilibili/danmaku/command-text');
+const { FORTUNES } = require('../src/shared/bot-defaults');
+const { isBilibiliCommandText } = require('../src/bilibili/danmaku/command-text');
 const { createDomainServices } = require('../src/server/domain-services');
 const { closeDatabases, createDatabases } = require('../src/storage/database');
 const { createSettingsStore } = require('../src/storage/settings-store');
-
-test('fortune bot returns one stable fortune per viewer and Beijing date', () => {
-  let currentMs = Date.parse('2026-08-05T01:00:00.000Z');
-  const service = createFortuneService({
-    settings: () => ({ enableFortuneBot: 'true' }),
-    nowMs: () => currentMs,
-  });
-
-  const first = service.handleDanmaku({
-    message: '抽签',
-    uid: '123',
-    userName: 'Alice',
-  });
-  const repeated = service.handleDanmaku({
-    message: '抽签',
-    uid: '123',
-    userName: 'Alice',
-  });
-  assert.equal(first.accepted, true);
-  assert.equal(first.dateKey, '2026-08-05');
-  assert.deepEqual(repeated.fortune, first.fortune);
-  assert.deepEqual(first.autoReply.target, { uid: '123', name: 'Alice' });
-  assert.equal(first.autoReply.message, buildFortuneReply(first.fortune));
-
-  currentMs = Date.parse('2026-08-05T16:00:00.000Z');
-  const nextDay = service.handleDanmaku({
-    message: '抽签',
-    uid: '123',
-    userName: 'Alice',
-  });
-  assert.equal(nextDay.dateKey, '2026-08-06');
-  assert.deepEqual(nextDay.fortune, pickDailyFortune('123', '2026-08-06'));
-});
-
-test('fortune bot ignores other messages, disabled settings, and missing uid', () => {
-  const disabled = createFortuneService({
-    settings: () => ({ enableFortuneBot: 'false' }),
-  });
-  assert.deepEqual(disabled.handleDanmaku({ message: '路过', uid: '1' }), {
-    accepted: false,
-    reason: 'not-fortune',
-  });
-  assert.deepEqual(disabled.handleDanmaku({ message: '抽签', uid: '1' }), {
-    accepted: false,
-    reason: 'fortune-disabled',
-    command: { type: 'fortune' },
-  });
-
-  const enabled = createFortuneService({
-    settings: () => ({ enableFortuneBot: 'true' }),
-  });
-  assert.equal(
-    enabled.handleDanmaku({ message: '抽签' }).reason,
-    'missing-uid',
-  );
-});
 
 test('fortune pool has weighted Chinese sign levels and complete guidance', () => {
   assert.equal(FORTUNES.length, 20);
@@ -86,45 +22,14 @@ test('fortune pool has weighted Chinese sign levels and complete guidance', () =
   );
   assert.ok(
     FORTUNES.every((fortune) => {
-      const reply = buildFortuneReply(fortune);
-      return reply.includes('宜') && reply.includes('忌');
+      return (
+        [fortune.level, fortune.name, fortune.text, fortune.advice].every(
+          (value) => typeof value === 'string' && value.length > 0,
+        ) &&
+        fortune.advice.includes('宜') &&
+        fortune.advice.includes('忌')
+      );
     }),
-  );
-  assert.ok(
-    FORTUNES.some(
-      (fortune) => Array.from(buildFortuneReply(fortune)).length > 40,
-    ),
-  );
-});
-
-test('fortune bot uses a saved pool and falls back from invalid settings', () => {
-  const saved = [
-    {
-      level: '自定义签',
-      name: '心想事成',
-      text: '今天会有好消息',
-      advice: '宜保持期待，忌过度焦虑',
-    },
-  ];
-
-  assert.deepEqual(parseFortunePool(JSON.stringify(saved)), saved);
-  assert.deepEqual(parseFortunePool('not-json'), FORTUNES);
-  assert.deepEqual(parseFortunePool('[]'), FORTUNES);
-  assert.deepEqual(parseFortunePool('[{"level":"上签"}]'), FORTUNES);
-  assert.deepEqual(
-    pickDailyFortune('123', '2026-08-06', JSON.stringify(saved)),
-    saved[0],
-  );
-
-  const service = createFortuneService({
-    settings: () => ({
-      enableFortuneBot: 'true',
-      fortunePool: JSON.stringify(saved),
-    }),
-  });
-  assert.deepEqual(
-    service.handleDanmaku({ message: '抽签', uid: '123' }).fortune,
-    saved[0],
   );
 });
 
@@ -132,9 +37,7 @@ test('fortune command is filtered and reserved for cloud execution', () => {
   assert.equal(isBilibiliCommandText('抽签'), true);
   assert.equal(isBilibiliCommandText('帮我抽签'), false);
 
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'song-plugin-fortune-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-fortune-'));
   const databases = createDatabases({ dataDir });
   const settingsStore = createSettingsStore(databases.songDb);
   settingsStore.setSetting('enableFortuneBot', 'true');

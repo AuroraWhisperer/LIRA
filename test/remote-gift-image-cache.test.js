@@ -5,17 +5,12 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
-const {
-  createRemoteGiftImageCache,
-  MAX_IMAGE_BYTES,
-} = require('../src/bilibili/gift/remote-gift-image-cache');
+const { createRemoteGiftImageCache, MAX_IMAGE_BYTES } = require('../src/bilibili/gift/remote-gift-image-cache');
 
 const QUIET_LOGGER = { debug() {}, warn() {} };
 
 test('downloads configured server images into a reusable local cache', async () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'lira-remote-gift-images-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-remote-gift-images-'));
   try {
     let calls = 0;
     const cache = createRemoteGiftImageCache({
@@ -43,11 +38,7 @@ test('downloads configured server images into a reusable local cache', async () 
       imagePath: '/overtime-gift-images/a.webp',
     });
     assert.equal(
-      fs
-        .readFileSync(
-          path.join(dataDir, 'cache', 'overtime-gift-images', 'a.webp'),
-        )
-        .equals(webpBytes()),
+      fs.readFileSync(path.join(dataDir, 'cache', 'overtime-gift-images', 'a.webp')).equals(webpBytes()),
       true,
     );
 
@@ -61,25 +52,15 @@ test('downloads configured server images into a reusable local cache', async () 
     assert.equal(second[0].imagePath, '/overtime-gift-images/a.webp');
     assert.equal(calls, 1);
 
-    fs.writeFileSync(
-      path.join(dataDir, 'cache', 'overtime-gift-images', 'a.webp'),
-      'not an image',
-    );
-    assert.equal(
-      cache.getCachedImagePath(
-        'https://api.example.test/gift-media/images/a.webp',
-      ),
-      '',
-    );
+    fs.writeFileSync(path.join(dataDir, 'cache', 'overtime-gift-images', 'a.webp'), 'not an image');
+    assert.equal(cache.getCachedImagePath('https://api.example.test/gift-media/images/a.webp'), '');
   } finally {
     fs.rmSync(dataDir, { recursive: true, force: true });
   }
 });
 
 test('downloads trusted Bilibili images with stable id-specific cache names', async () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'lira-remote-gift-images-bilibili-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-remote-gift-images-bilibili-'));
   try {
     const sourceUrl = 'https://i0.hdslb.com/bfs/live/shared.webp';
     const calls = [];
@@ -104,42 +85,13 @@ test('downloads trusted Bilibili images with stable id-specific cache names', as
 
     assert.deepEqual(
       result.map((gift) => gift.imagePath),
-      [
-        '/overtime-gift-images/101-aa0c9beac01c7884.webp',
-        '/overtime-gift-images/102-aa0c9beac01c7884.webp',
-      ],
+      ['/overtime-gift-images/101-aa0c9beac01c7884.webp', '/overtime-gift-images/102-aa0c9beac01c7884.webp'],
     );
-    assert.deepEqual(calls.map((call) => call.url).sort(), [
-      sourceUrl,
-      sourceUrl,
-    ]);
-    assert.equal(
-      calls[0].options.headers.Referer,
-      'https://live.bilibili.com/',
-    );
+    assert.deepEqual(calls.map((call) => call.url).sort(), [sourceUrl, sourceUrl]);
+    assert.equal(calls[0].options.headers.Referer, 'https://live.bilibili.com/');
     assert.equal(calls[0].options.headers['User-Agent'], 'Mozilla/5.0 LIRA/4');
-    assert.equal(
-      fs.existsSync(
-        path.join(
-          dataDir,
-          'cache',
-          'overtime-gift-images',
-          '101-aa0c9beac01c7884.webp',
-        ),
-      ),
-      true,
-    );
-    assert.equal(
-      fs.existsSync(
-        path.join(
-          dataDir,
-          'cache',
-          'overtime-gift-images',
-          '102-aa0c9beac01c7884.webp',
-        ),
-      ),
-      true,
-    );
+    assert.equal(fs.existsSync(path.join(dataDir, 'cache', 'overtime-gift-images', '101-aa0c9beac01c7884.webp')), true);
+    assert.equal(fs.existsSync(path.join(dataDir, 'cache', 'overtime-gift-images', '102-aa0c9beac01c7884.webp')), true);
     assert.deepEqual(
       progress.map((value) => value.completed).sort((a, b) => a - b),
       [1, 2],
@@ -149,9 +101,7 @@ test('downloads trusted Bilibili images with stable id-specific cache names', as
       true,
     );
 
-    const reused = await cache.cacheGifts([
-      { id: '101', name: '同名礼物', sourceUrl },
-    ]);
+    const reused = await cache.cacheGifts([{ id: '101', name: '同名礼物', sourceUrl }]);
     assert.equal(reused[0].imagePath, result[0].imagePath);
     assert.equal(calls.length, 2);
   } finally {
@@ -160,9 +110,7 @@ test('downloads trusted Bilibili images with stable id-specific cache names', as
 });
 
 test('stores Bilibili APNG artwork with a locally served PNG extension', async () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'lira-remote-gift-images-apng-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-remote-gift-images-apng-'));
   try {
     const sourceUrl = 'https://s1.hdslb.com/bfs/live/source.vnd.mozilla.apng';
     const calls = [];
@@ -176,24 +124,12 @@ test('stores Bilibili APNG artwork with a locally served PNG extension', async (
       logger: QUIET_LOGGER,
     });
 
-    const result = await cache.cacheGifts([
-      { id: '34929', name: '整蛊盲盒(test)', sourceUrl },
-    ]);
+    const result = await cache.cacheGifts([{ id: '34929', name: '整蛊盲盒(test)', sourceUrl }]);
 
     assert.deepEqual(calls, [sourceUrl]);
-    assert.match(
-      result[0].imagePath,
-      /^\/overtime-gift-images\/34929-[a-f0-9]{16}\.png$/,
-    );
+    assert.match(result[0].imagePath, /^\/overtime-gift-images\/34929-[a-f0-9]{16}\.png$/);
     assert.equal(
-      fs.existsSync(
-        path.join(
-          dataDir,
-          'cache',
-          'overtime-gift-images',
-          path.posix.basename(result[0].imagePath),
-        ),
-      ),
+      fs.existsSync(path.join(dataDir, 'cache', 'overtime-gift-images', path.posix.basename(result[0].imagePath))),
       true,
     );
   } finally {
@@ -202,9 +138,7 @@ test('stores Bilibili APNG artwork with a locally served PNG extension', async (
 });
 
 test('does not request images from an untrusted Bilibili host', async () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'lira-remote-gift-images-untrusted-bilibili-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-remote-gift-images-untrusted-bilibili-'));
   try {
     let calls = 0;
     const cache = createRemoteGiftImageCache({
@@ -231,9 +165,7 @@ test('does not request images from an untrusted Bilibili host', async () => {
 });
 
 test('does not transfer Bilibili failures to the server image endpoint', async () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'lira-remote-gift-images-fallback-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-remote-gift-images-fallback-'));
   try {
     const calls = [];
     const cache = createRemoteGiftImageCache({
@@ -241,8 +173,7 @@ test('does not transfer Bilibili failures to the server image endpoint', async (
       imageBaseUrl: 'https://api.example.test',
       fetch: async (url) => {
         calls.push(url);
-        if (url.startsWith('https://i0.hdslb.com/'))
-          return new Response('unavailable', { status: 503 });
+        if (url.startsWith('https://i0.hdslb.com/')) return new Response('unavailable', { status: 503 });
         return new Response(webpBytes());
       },
       logger: QUIET_LOGGER,
@@ -272,9 +203,7 @@ test('does not transfer Bilibili failures to the server image endpoint', async (
 });
 
 test('revisions replace only changed images and keep previous artwork across offline restarts', async () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'lira-gift-image-revision-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-gift-image-revision-'));
   try {
     const calls = [];
     let offline = false;
@@ -330,9 +259,7 @@ test('revisions replace only changed images and keep previous artwork across off
     assert.equal(cache.getCachedGiftImagePath(revised), updated[0].imagePath);
     await cache.cacheGifts([revised, unchanged]);
     assert.equal(calls.length, 4);
-    fs.unlinkSync(
-      path.join(cache.cacheDir, path.posix.basename(updated[0].imagePath)),
-    );
+    fs.unlinkSync(path.join(cache.cacheDir, path.posix.basename(updated[0].imagePath)));
     assert.equal(cache.isGiftImageCurrent(revised), false);
     await cache.cacheGifts([revised]);
     assert.equal(calls.length, 5);
@@ -342,9 +269,7 @@ test('revisions replace only changed images and keep previous artwork across off
 });
 
 test('ignores unsafe persisted last-good image mappings', () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'lira-gift-image-index-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-gift-image-index-'));
   try {
     const cacheDir = path.join(dataDir, 'cache', 'overtime-gift-images');
     fs.mkdirSync(cacheDir, { recursive: true });
@@ -369,17 +294,10 @@ test('ignores unsafe persisted last-good image mappings', () => {
 });
 
 test('rejects untrusted paths and invalid image bytes per gift', async () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'lira-remote-gift-images-invalid-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-remote-gift-images-invalid-'));
   try {
     let insecureCalls = 0;
-    for (const origin of [
-      'http://127.0.0.1:13000',
-      'https://127.0.0.1',
-      'https://localhost',
-      'https://[::1]',
-    ]) {
+    for (const origin of ['http://127.0.0.1:13000', 'https://127.0.0.1', 'https://localhost', 'https://[::1]']) {
       const insecureCache = createRemoteGiftImageCache({
         dataDir,
         imageBaseUrl: origin,
@@ -436,9 +354,7 @@ test('rejects untrusted paths and invalid image bytes per gift', async () => {
 });
 
 test('limits concurrent image downloads and enforces the size ceiling', async () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'lira-remote-gift-images-limit-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-remote-gift-images-limit-'));
   try {
     let active = 0;
     let peak = 0;
@@ -482,29 +398,21 @@ test('limits concurrent image downloads and enforces the size ceiling', async ()
       },
     ]);
     assert.equal(oversized[0].imagePath, '');
-    assert.equal(
-      fs.existsSync(
-        path.join(dataDir, 'cache', 'overtime-gift-images', 'oversized.webp'),
-      ),
-      false,
-    );
+    assert.equal(fs.existsSync(path.join(dataDir, 'cache', 'overtime-gift-images', 'oversized.webp')), false);
   } finally {
     fs.rmSync(dataDir, { recursive: true, force: true });
   }
 });
 
 test('same-ID image failures reuse only that identity across restart', async (t) => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'lira-variant-images-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-variant-images-'));
   t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
   let fail = false;
   const options = {
     dataDir,
     imageBaseUrl: 'https://api.example.test',
     logger: QUIET_LOGGER,
-    fetch: async () =>
-      fail ? new Response('', { status: 503 }) : new Response(webpBytes()),
+    fetch: async () => (fail ? new Response('', { status: 503 }) : new Response(webpBytes())),
   };
   let cache = createRemoteGiftImageCache(options);
   const old = {

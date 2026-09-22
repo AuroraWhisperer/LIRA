@@ -54,9 +54,7 @@ test('mode changes release WAAPI effects and use current playback progress', asy
     },
   );
   const animator = new LyricWordAnimator({ mode: 'waapi' });
-  animator.mount({ appendChild() {}, replaceChildren() {} }, [
-    { text: '歌', startMs: 0, endMs: 1000 },
-  ]);
+  animator.mount({ appendChild() {}, replaceChildren() {} }, [{ text: '歌', startMs: 0, endMs: 1000 }]);
   try {
     animator.sync({ currentMs: 250 }, { playing: true });
     assert.equal(created[0].currentTime, 250);
@@ -66,21 +64,12 @@ test('mode changes release WAAPI effects and use current playback progress', asy
     assert.equal(created[0].cancelled, 1);
     assert.equal(animator.animations.length, 0);
     animator.sync({ currentMs: 250 }, { playing: true });
-    assert.equal(
-      animator.elements[0].highlight.style.clipPath,
-      'inset(0 75% 0 0)',
-    );
+    assert.equal(animator.elements[0].highlight.style.clipPath, 'inset(0 75% 0 0)');
     animator.setMode('static');
     animator.sync({ currentMs: 250 });
-    assert.equal(
-      animator.elements[0].highlight.style.clipPath,
-      'inset(0 100% 0 0)',
-    );
+    assert.equal(animator.elements[0].highlight.style.clipPath, 'inset(0 100% 0 0)');
     animator.sync({ currentMs: 1000 });
-    assert.equal(
-      animator.elements[0].highlight.style.clipPath,
-      'inset(0 0% 0 0)',
-    );
+    assert.equal(animator.elements[0].highlight.style.clipPath, 'inset(0 0% 0 0)');
     animator.setMode('waapi');
     animator.sync({ currentMs: 600 }, { playing: true });
     assert.equal(created.length, 2);

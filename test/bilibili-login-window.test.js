@@ -3,9 +3,7 @@
 const assert = require('node:assert/strict');
 const { EventEmitter } = require('node:events');
 const test = require('node:test');
-const {
-  openBilibiliLoginWindow,
-} = require('../src/electron/bilibili-login-window');
+const { openBilibiliLoginWindow } = require('../src/electron/bilibili-login-window');
 
 class FakeCookies extends EventEmitter {}
 
@@ -31,9 +29,7 @@ class FakeBrowserWindow extends EventEmitter {
   }
 
   loadURL() {
-    return FakeBrowserWindow.loadError
-      ? Promise.reject(FakeBrowserWindow.loadError)
-      : Promise.resolve();
+    return FakeBrowserWindow.loadError ? Promise.reject(FakeBrowserWindow.loadError) : Promise.resolve();
   }
 
   isDestroyed() {
@@ -86,17 +82,21 @@ for (const snapshotFailure of [false, true]) {
   test(`login diagnostics report final state and snapshot save failure=${snapshotFailure} without credentials`, async (t) => {
     const lines = [];
     t.mock.method(console, 'info', (line) => lines.push(line));
-    const resultPromise = open(createAuth({
-      persistBilibiliCookieSnapshot: async () => {
-        if (snapshotFailure) throw new Error('save failed');
-        return { savedAt: '2026-09-17T00:00:00Z', cookieCount: 3 };
-      },
-      getBilibiliAuthState: async () => ({
-        loggedIn: true, uid: 912345678, hasSessdata: true,
-        keyCookieNames: ['DedeUserID', 'SESSDATA', 'bili_jct'],
-        cookieHeader: 'synthetic-secret',
+    const resultPromise = open(
+      createAuth({
+        persistBilibiliCookieSnapshot: async () => {
+          if (snapshotFailure) throw new Error('save failed');
+          return { savedAt: '2026-09-17T00:00:00Z', cookieCount: 3 };
+        },
+        getBilibiliAuthState: async () => ({
+          loggedIn: true,
+          uid: 912345678,
+          hasSessdata: true,
+          keyCookieNames: ['DedeUserID', 'SESSDATA', 'bili_jct'],
+          cookieHeader: 'synthetic-secret',
+        }),
       }),
-    }));
+    );
     await new Promise((resolve) => setImmediate(resolve));
     FakeBrowserWindow.latest.webContents.session.cookies.emit('changed');
     await resultPromise;
@@ -115,12 +115,7 @@ test('login window removes its cookie listener when initial navigation fails', a
   FakeBrowserWindow.loadError = new Error('navigation failed');
   try {
     await assert.rejects(open(createAuth()), /navigation failed/);
-    assert.equal(
-      FakeBrowserWindow.latest.webContents.session.cookies.listenerCount(
-        'changed',
-      ),
-      0,
-    );
+    assert.equal(FakeBrowserWindow.latest.webContents.session.cookies.listenerCount('changed'), 0);
     assert.equal(FakeBrowserWindow.latest.isDestroyed(), true);
   } finally {
     FakeBrowserWindow.loadError = null;
@@ -147,12 +142,7 @@ test('login window resolves with a logged-out state when final auth lookup fails
     logs.some((entry) => entry.scope === 'bilibili-auth-state'),
     true,
   );
-  assert.equal(
-    FakeBrowserWindow.latest.webContents.session.cookies.listenerCount(
-      'changed',
-    ),
-    0,
-  );
+  assert.equal(FakeBrowserWindow.latest.webContents.session.cookies.listenerCount('changed'), 0);
 });
 
 test('login window is muted by default so the live homepage cannot play sound', async () => {
@@ -212,9 +202,7 @@ test('login completion is logged and closed once when several cookie changes arr
 
 test('login window cleans up listeners on did-fail-load', async () => {
   const logs = [];
-  const resultPromise = open(createAuth(), (scope, data) =>
-    logs.push({ scope, data }),
-  );
+  const resultPromise = open(createAuth(), (scope, data) => logs.push({ scope, data }));
 
   await new Promise((resolve) => setImmediate(resolve));
   const win = FakeBrowserWindow.latest;
@@ -226,58 +214,28 @@ test('login window cleans up listeners on did-fail-load', async () => {
   assert.equal(win.isDestroyed(), true);
   assert.equal(win.webContents.session.cookies.listenerCount('changed'), 0);
 
-  const failureLog = logs.find(
-    (log) => log.scope === 'bilibili-login-load-failure',
-  );
+  const failureLog = logs.find((log) => log.scope === 'bilibili-login-load-failure');
   assert.ok(failureLog);
   assert.equal(failureLog.data.errorCode, -3);
   assert.equal(failureLog.data.errorDescription, 'ERR_ABORTED');
 });
 
 test('URL policy: allows navigation to allowedHosts domains', async () => {
-  const {
-    isAllowedLoginNavigation,
-  } = require('../src/electron/external-url-policy');
+  const { isAllowedLoginNavigation } = require('../src/electron/external-url-policy');
   const config = createAuth().BILIBILI_LOGIN_CONFIG;
 
-  assert.equal(
-    isAllowedLoginNavigation('https://bilibili.com', config.allowedHosts),
-    true,
-  );
-  assert.equal(
-    isAllowedLoginNavigation(
-      'https://passport.bilibili.com',
-      config.allowedHosts,
-    ),
-    true,
-  );
-  assert.equal(
-    isAllowedLoginNavigation(
-      'https://api.live.bilibili.com',
-      config.allowedHosts,
-    ),
-    true,
-  );
+  assert.equal(isAllowedLoginNavigation('https://bilibili.com', config.allowedHosts), true);
+  assert.equal(isAllowedLoginNavigation('https://passport.bilibili.com', config.allowedHosts), true);
+  assert.equal(isAllowedLoginNavigation('https://api.live.bilibili.com', config.allowedHosts), true);
 });
 
 test('URL policy: rejects navigation to disallowed domains', async () => {
-  const {
-    isAllowedLoginNavigation,
-  } = require('../src/electron/external-url-policy');
+  const { isAllowedLoginNavigation } = require('../src/electron/external-url-policy');
   const config = createAuth().BILIBILI_LOGIN_CONFIG;
 
-  assert.equal(
-    isAllowedLoginNavigation('https://evil.com', config.allowedHosts),
-    false,
-  );
-  assert.equal(
-    isAllowedLoginNavigation('http://bilibili.com', config.allowedHosts),
-    false,
-  );
-  assert.equal(
-    isAllowedLoginNavigation('file:///etc/passwd', config.allowedHosts),
-    false,
-  );
+  assert.equal(isAllowedLoginNavigation('https://evil.com', config.allowedHosts), false);
+  assert.equal(isAllowedLoginNavigation('http://bilibili.com', config.allowedHosts), false);
+  assert.equal(isAllowedLoginNavigation('file:///etc/passwd', config.allowedHosts), false);
 });
 
 test('URL policy: external URLs require https protocol', async () => {

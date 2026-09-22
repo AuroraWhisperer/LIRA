@@ -13,11 +13,13 @@ const source = fs.readFileSync(path.join(root, 'public/js/desktop.js'), 'utf8');
 
 function createFixture() {
   const { documentRef, windowRef } = createDom();
-  const nodes = Object.fromEntries([...markup.matchAll(/\bid="([^"]+)"/g)].map(([, id]) => {
-    const node = documentRef.createElement('div');
-    node.dataset = {};
-    return [id, node];
-  }));
+  const nodes = Object.fromEntries(
+    [...markup.matchAll(/\bid="([^"]+)"/g)].map(([, id]) => {
+      const node = documentRef.createElement('div');
+      node.dataset = {};
+      return [id, node];
+    }),
+  );
   documentRef.getElementById = (id) => nodes[id] || null;
   windowRef.AdminApp = { utils: {} };
   vm.runInNewContext(source, { document: documentRef, window: windowRef });
@@ -41,7 +43,11 @@ test('desktop update shows only the action for the current update phase', () => 
 
   for (const [state, visibleButton, disabled] of cases) {
     render(state);
-    assert.deepEqual(buttons.filter((id) => !nodes[id].hidden), visibleButton ? [visibleButton] : [], state.status);
+    assert.deepEqual(
+      buttons.filter((id) => !nodes[id].hidden),
+      visibleButton ? [visibleButton] : [],
+      state.status,
+    );
     assert.equal(nodes.desktopUpdateActions.hidden, !visibleButton, state.status);
     if (visibleButton) assert.equal(nodes[visibleButton].disabled, disabled, state.status);
   }

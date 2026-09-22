@@ -10,8 +10,16 @@ const { buildMusicRuntime } = require('../src/server/music-runtime');
 const { routes } = require('../src/server/routes/playback-routes');
 
 const track = {
-  id: 'fixture', source: 'local', title: 'Fixture', artists: [],
-  lyrics: { lines: [{ startMs: 0, text: '第一句' }, { startMs: 40000, text: '跳转后' }] },
+  id: 'fixture',
+  source: 'local',
+  title: 'Fixture',
+  artists: [],
+  lyrics: {
+    lines: [
+      { startMs: 0, text: '第一句' },
+      { startMs: 40000, text: '跳转后' },
+    ],
+  },
 };
 const audioAt = (seconds, paused = false) => ({ currentTime: seconds, duration: 120, paused });
 
@@ -34,27 +42,48 @@ async function fixture(t, intercept = async () => null) {
   };
   let now = 10000;
   const requests = [];
-  const { LyricService } = await loadModuleExports(path.resolve(
-    __dirname, '../public/js/playback/services/lyric-service.js',
-  ), {
-    Date: class extends Date { static now() { return now; } },
-    fetch: async (url, options) => {
-      const body = JSON.parse(options.body);
-      if (url.endsWith('/lyric-state')) {
-        requests.push(body);
-        const override = await intercept(body, runtime, requests.length);
-        if (override) return override;
-      }
-      let status;
-      let responseBody;
-      await routes[`POST ${url}`](context, { body: async () => body }, {
-        writeHead(value) { status = value; },
-        end(value) { responseBody = value; },
-      });
-      return new Response(responseBody, { status });
+  const { LyricService } = await loadModuleExports(
+    path.resolve(__dirname, '../public/js/playback/services/lyric-service.js'),
+    {
+      Date: class extends Date {
+        static now() {
+          return now;
+        }
+      },
+      fetch: async (url, options) => {
+        const body = JSON.parse(options.body);
+        if (url.endsWith('/lyric-state')) {
+          requests.push(body);
+          const override = await intercept(body, runtime, requests.length);
+          if (override) return override;
+        }
+        let status;
+        let responseBody;
+        await routes[`POST ${url}`](
+          context,
+          { body: async () => body },
+          {
+            writeHead(value) {
+              status = value;
+            },
+            end(value) {
+              responseBody = value;
+            },
+          },
+        );
+        return new Response(responseBody, { status });
+      },
     },
-  });
-  return { runtime, broadcasts, requests, create: () => new LyricService(), tick: () => { now += 1000; } };
+  );
+  return {
+    runtime,
+    broadcasts,
+    requests,
+    create: () => new LyricService(),
+    tick: () => {
+      now += 1000;
+    },
+  };
 }
 
 test('rebuilt sender recovers the same track immediately and ordinary ticks keep advancing', async (t) => {
@@ -95,7 +124,10 @@ test('recovery uses the timeline fence even before that generation has any accep
 test('recovery preserves forced ordering and never revives older pending progress after seek', async (t) => {
   let release;
   const f = await fixture(t, async (_body, _runtime, count) => {
-    if (count === 1) await new Promise((resolve) => { release = resolve; });
+    if (count === 1)
+      await new Promise((resolve) => {
+        release = resolve;
+      });
   });
   f.runtime.publishLyricState({ generation: 8, sequence: 1 });
   const service = f.create();
@@ -109,7 +141,10 @@ test('recovery preserves forced ordering and never revives older pending progres
   assert.equal(f.runtime.getLyricState().currentMs, 42000);
   assert.equal(f.runtime.getLyricState().playing, false);
   assert.equal(f.runtime.getLyricState().lineText, '跳转后');
-  assert.deepEqual(f.requests.map((request) => request.currentMs), [1000, 1000, 42000]);
+  assert.deepEqual(
+    f.requests.map((request) => request.currentMs),
+    [1000, 1000, 42000],
+  );
   assert.ok(f.requests[2].generation > f.requests[1].generation);
 });
 
@@ -127,7 +162,10 @@ test('continuous version conflicts retry at most once per publication', async (t
 test('same-generation sequence conflict recovers and legacy producers remain supported', async (t) => {
   const f = await fixture(t);
   f.runtime.publishLyricTimeline({
-    trackTitle: track.title, artists: [], status: 'ready', lines: track.lyrics.lines,
+    trackTitle: track.title,
+    artists: [],
+    status: 'ready',
+    lines: track.lyrics.lines,
   });
   f.runtime.publishLyricState({ generation: 1, sequence: 100, currentMs: 0 });
   await f.create().syncWindow(track, audioAt(15), true);

@@ -11,10 +11,7 @@ const {
 } = require('../src/electron/remote-gift-recovery-rules');
 
 test('history capability requires the version and a bounded epoch', () => {
-  assert.equal(
-    hasHistoryCapability({ historyBootstrapVersion: 1, syncEpoch: 'epoch' }),
-    true,
-  );
+  assert.equal(hasHistoryCapability({ historyBootstrapVersion: 1, syncEpoch: 'epoch' }), true);
   for (const discovery of [
     {},
     { historyBootstrapVersion: 2, syncEpoch: 'e' },
@@ -37,16 +34,8 @@ test('projection recovery distinguishes expired snapshots and incomplete bootstr
     finalCursor: 4,
   });
   assert.equal(requiresProjectionReplacement(state, discovery), false);
-  for (const patch of [
-    { syncEpoch: 'old' },
-    { finalCursor: 3 },
-    { finalCursor: 11 },
-    { finalCursor: 4.5 },
-  ]) {
-    assert.equal(
-      requiresProjectionReplacement({ ...state, ...patch }, discovery),
-      true,
-    );
+  for (const patch of [{ syncEpoch: 'old' }, { finalCursor: 3 }, { finalCursor: 11 }, { finalCursor: 4.5 }]) {
+    assert.equal(requiresProjectionReplacement({ ...state, ...patch }, discovery), true);
   }
   const bootstrap = {
     bootstrapComplete: false,
@@ -56,13 +45,7 @@ test('projection recovery distinguishes expired snapshots and incomplete bootstr
     finalCursor: null,
   };
   assert.equal(requiresProjectionReplacement(bootstrap, discovery), false);
-  assert.equal(
-    requiresProjectionReplacement(
-      { ...bootstrap, bootstrapPageToken: 'token' },
-      discovery,
-    ),
-    true,
-  );
+  assert.equal(requiresProjectionReplacement({ ...bootstrap, bootstrapPageToken: 'token' }, discovery), true);
   assert.equal(
     requiresProjectionReplacement(
       {
@@ -93,19 +76,13 @@ test('cursor validation rejects gaps and inconsistent page bounds without changi
     { hasMore: true },
     { earliestCursor: 6 },
   ]) {
-    assert.throws(
-      () => validateEpochAwareCursorPage({ ...page, ...patch }, 4),
-      { code: 'REBUILD_REQUIRED' },
-    );
+    assert.throws(() => validateEpochAwareCursorPage({ ...page, ...patch }, 4), { code: 'REBUILD_REQUIRED' });
   }
 });
 
 test('bootstrap expiry restarts a page sequence while invalid tokens replace the projection', () => {
   assert.equal(canRestartBootstrap({ code: 'BOOTSTRAP_TOKEN_EXPIRED' }), true);
-  assert.equal(
-    requiresProjectionRebuild({ code: 'BOOTSTRAP_TOKEN_EXPIRED' }),
-    false,
-  );
+  assert.equal(requiresProjectionRebuild({ code: 'BOOTSTRAP_TOKEN_EXPIRED' }), false);
   for (const code of [
     'INVALID_BOOTSTRAP_TOKEN',
     'SYNC_EPOCH_MISMATCH',

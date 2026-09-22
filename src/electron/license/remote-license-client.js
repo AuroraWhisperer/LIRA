@@ -2,9 +2,7 @@
 
 const { normalizeGiftEffectEvent } = require('../../bilibili/gift/effect-event');
 
-const {
-  normalizeProcessedGiftEvent,
-} = require('../../shared/processed-gift-contract');
+const { normalizeProcessedGiftEvent } = require('../../shared/processed-gift-contract');
 const { isDnsHostname } = require('../../shared/remote-url-policy');
 const { sanitizeWelcomeFieldErrors } = require('../../shared/welcome-settings-contract');
 const { createRemoteDanmakuSettings } = require('./remote-danmaku-settings');
@@ -51,14 +49,7 @@ function createRemoteLicenseClient(options = {}) {
   }
   if (typeof fetchImpl !== 'function') throw new Error('Fetch is unavailable.');
 
-  async function requestWithBody(
-    method,
-    pathname,
-    body,
-    contentType,
-    token,
-    requestOptions = {},
-  ) {
+  async function requestWithBody(method, pathname, body, contentType, token, requestOptions = {}) {
     const controller = new AbortController();
     const externalSignal = requestOptions.signal;
     let timedOut = false;
@@ -91,56 +82,44 @@ function createRemoteLicenseClient(options = {}) {
           etag: safeHeaderValue(response.headers?.get?.('etag')),
         };
       }
-      const maxResponseBytes = Math.max(
-        1024,
-        Number(requestOptions.maxResponseBytes) || 1024 * 1024,
-      );
-      const text = await readResponseText(response, maxResponseBytes, () =>
-        new RemoteLicenseError(
-          'RESPONSE_TOO_LARGE',
-          pathname === '/api/device/songs' ? '云端歌库超过读取上限。' : '授权服务器响应过大。',
-          {
-            status: response.status,
-            retryAfterMs: readRetryAfter(response, now()),
-            retryable: pathname !== '/api/device/songs' &&
-              (response.ok || isRetryableStatus(response.status)),
-          },
-        ),
+      const maxResponseBytes = Math.max(1024, Number(requestOptions.maxResponseBytes) || 1024 * 1024);
+      const text = await readResponseText(
+        response,
+        maxResponseBytes,
+        () =>
+          new RemoteLicenseError(
+            'RESPONSE_TOO_LARGE',
+            pathname === '/api/device/songs' ? '云端歌库超过读取上限。' : '授权服务器响应过大。',
+            {
+              status: response.status,
+              retryAfterMs: readRetryAfter(response, now()),
+              retryable: pathname !== '/api/device/songs' && (response.ok || isRetryableStatus(response.status)),
+            },
+          ),
       );
       let data = {};
       try {
         data = text ? JSON.parse(text) : {};
       } catch (_) {
-        throw new RemoteLicenseError(
-          'INVALID_RESPONSE',
-          '授权服务器返回无效响应。',
-          {
-            status: response.status,
-            retryAfterMs: readRetryAfter(response, now()),
-            retryable: response.ok || isRetryableStatus(response.status),
-          },
-        );
+        throw new RemoteLicenseError('INVALID_RESPONSE', '授权服务器返回无效响应。', {
+          status: response.status,
+          retryAfterMs: readRetryAfter(response, now()),
+          retryable: response.ok || isRetryableStatus(response.status),
+        });
       }
       // Every successful or structured error response in the protocol is a
       // JSON object.  Accessing `.ok` on `null` throws and spreading an array
       // into the metadata result silently changes the response shape; both
       // cases used to be misclassified as transient network failures.
       if (!data || typeof data !== 'object' || Array.isArray(data)) {
-        throw new RemoteLicenseError(
-          'INVALID_RESPONSE',
-          '授权服务器返回无效响应。',
-          {
-            status: response.status,
-            retryAfterMs: readRetryAfter(response, now()),
-            retryable: response.ok || isRetryableStatus(response.status),
-          },
-        );
+        throw new RemoteLicenseError('INVALID_RESPONSE', '授权服务器返回无效响应。', {
+          status: response.status,
+          retryAfterMs: readRetryAfter(response, now()),
+          retryable: response.ok || isRetryableStatus(response.status),
+        });
       }
       if (!response.ok || data.ok === false) {
-        const code = normalizeErrorCode(
-          data.error || data.code,
-          `HTTP_${response.status}`,
-        );
+        const code = normalizeErrorCode(data.error || data.code, `HTTP_${response.status}`);
         throw new RemoteLicenseError(code, code, {
           status: response.status,
           retryAfterMs: readRetryAfter(response, now()),
@@ -152,9 +131,7 @@ function createRemoteLicenseClient(options = {}) {
       if (requestOptions.includeResponseMeta === true) {
         return {
           ...data,
-          etag:
-            safeHeaderValue(response.headers?.get?.('etag')) ||
-            safeHeaderValue(data.etag),
+          etag: safeHeaderValue(response.headers?.get?.('etag')) || safeHeaderValue(data.etag),
         };
       }
       return data;
@@ -162,16 +139,10 @@ function createRemoteLicenseClient(options = {}) {
       if (error instanceof RemoteLicenseError) throw error;
       if (error?.name === 'AbortError' && externalSignal?.aborted) throw error;
       if (error?.name === 'AbortError' && timedOut)
-        throw new RemoteLicenseError(
-          'REQUEST_TIMEOUT',
-          '连接授权服务器超时，请重试。',
-          { retryable: true },
-        );
-      throw new RemoteLicenseError(
-        'NETWORK_UNAVAILABLE',
-        '无法连接授权服务器，请检查网络后重试。',
-        { retryable: true },
-      );
+        throw new RemoteLicenseError('REQUEST_TIMEOUT', '连接授权服务器超时，请重试。', { retryable: true });
+      throw new RemoteLicenseError('NETWORK_UNAVAILABLE', '无法连接授权服务器，请检查网络后重试。', {
+        retryable: true,
+      });
     } finally {
       clearTimeout(timer);
       externalSignal?.removeEventListener('abort', abortFromCaller);
@@ -230,24 +201,18 @@ function createRemoteLicenseClient(options = {}) {
       });
     } catch (error) {
       if (error?.name === 'AbortError') throw error;
-      throw new RemoteLicenseError(
-        'NETWORK_UNAVAILABLE',
-        '无法连接授权服务器，请检查网络后重试。',
-        { retryable: true },
-      );
+      throw new RemoteLicenseError('NETWORK_UNAVAILABLE', '无法连接授权服务器，请检查网络后重试。', {
+        retryable: true,
+      });
     }
 
     if (!response.ok) throw await readStreamError(response, now());
     const contentType = String(response.headers?.get?.('content-type') || '');
-    if (
-      !/^text\/event-stream(?:\s*;|$)/iu.test(contentType) ||
-      !response.body?.getReader
-    ) {
-      throw new RemoteLicenseError(
-        'INVALID_RESPONSE',
-        '授权服务器返回无效响应。',
-        { status: response.status, retryable: true },
-      );
+    if (!/^text\/event-stream(?:\s*;|$)/iu.test(contentType) || !response.body?.getReader) {
+      throw new RemoteLicenseError('INVALID_RESPONSE', '授权服务器返回无效响应。', {
+        status: response.status,
+        retryable: true,
+      });
     }
 
     const reader = response.body.getReader();
@@ -259,11 +224,10 @@ function createRemoteLicenseClient(options = {}) {
         const { value, done } = await reader.read();
         buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
         if (buffer.length > 64 * 1024) {
-          throw new RemoteLicenseError(
-            'RESPONSE_TOO_LARGE',
-            '授权服务器响应过大。',
-            { status: response.status, retryable: true },
-          );
+          throw new RemoteLicenseError('RESPONSE_TOO_LARGE', '授权服务器响应过大。', {
+            status: response.status,
+            retryable: true,
+          });
         }
         buffer = buffer.replace(/\r\n/g, '\n');
         let boundary = buffer.indexOf('\n\n');
@@ -297,13 +261,7 @@ function createRemoteLicenseClient(options = {}) {
   }
 
   function clearGiftHistory(token, options = {}) {
-    return request(
-      'POST',
-      '/api/device/gift-history/clear',
-      { confirm: true },
-      token,
-      options,
-    );
+    return request('POST', '/api/device/gift-history/clear', { confirm: true }, token, options);
   }
 
   function watchGiftEvents(token, options = {}) {
@@ -315,11 +273,10 @@ function createRemoteLicenseClient(options = {}) {
         const rawSyncEpoch = response.headers?.get?.('x-lira-gift-sync-epoch');
         const syncEpoch = normalizeSyncEpochHeader(rawSyncEpoch);
         if (rawSyncEpoch !== null && syncEpoch === null) {
-          throw new RemoteLicenseError(
-            'INVALID_RESPONSE',
-            '授权服务器返回无效响应。',
-            { status: response.status, retryable: true },
-          );
+          throw new RemoteLicenseError('INVALID_RESPONSE', '授权服务器返回无效响应。', {
+            status: response.status,
+            retryable: true,
+          });
         }
         options.onOpen?.({ syncEpoch });
       },
@@ -334,88 +291,40 @@ function createRemoteLicenseClient(options = {}) {
     verify: (body) => request('POST', '/api/device/verify', body),
     heartbeat: (token) => request('POST', '/api/device/heartbeat', {}, token),
     profile: (token) => request('GET', '/api/device/profile', undefined, token),
-    getOverlaySettings: (token) =>
-      request('GET', '/api/device/overlay-settings', undefined, token),
+    getOverlaySettings: (token) => request('GET', '/api/device/overlay-settings', undefined, token),
     ...createRemoteDanmakuSettings(request),
-    updateOverlaySettings: (settings, token) =>
-      request('PUT', '/api/device/overlay-settings', settings, token),
+    updateOverlaySettings: (settings, token) => request('PUT', '/api/device/overlay-settings', settings, token),
     getCloudState: (token, requestOptions) =>
-      request(
-        'GET',
-        '/api/device/cloud-state',
-        undefined,
-        token,
-        requestOptions,
-      ),
+      request('GET', '/api/device/cloud-state', undefined, token, requestOptions),
     watchCloudStateChanges,
     getFanFacts: (after, epoch, token, requestOptions = {}) => {
       const query = new URLSearchParams({ after: String(after), limit: '200' });
       if (epoch) query.set('epoch', epoch);
-      return request(
-        'GET', `/api/device/fan-facts?${query}`, undefined, token, requestOptions,
-      );
+      return request('GET', `/api/device/fan-facts?${query}`, undefined, token, requestOptions);
     },
     ...createRemoteGiftReads(request),
     clearGiftHistory,
     watchGiftEvents,
     updateCloudSettings: (settings, token, requestOptions) =>
-      request(
-        'PUT',
-        '/api/device/cloud-settings',
-        settings,
-        token,
-        requestOptions,
-      ),
+      request('PUT', '/api/device/cloud-settings', settings, token, requestOptions),
     syncSongs: (songs, token, requestOptions) =>
-      request(
-        'PUT',
-        '/api/device/songs/sync',
-        { songs },
-        token,
-        requestOptions,
-      ),
+      request('PUT', '/api/device/songs/sync', { songs }, token, requestOptions),
     getCloudSongs: (token, requestOptions = {}) =>
       request('GET', '/api/device/songs', undefined, token, {
         maxResponseBytes: MAX_SONG_SNAPSHOT_BYTES,
         signal: requestOptions.signal,
       }),
     getBilibiliCredentials: (token, requestOptions) =>
-      request(
-        'GET',
-        '/api/device/bilibili-credentials',
-        undefined,
-        token,
-        requestOptions,
-      ),
+      request('GET', '/api/device/bilibili-credentials', undefined, token, requestOptions),
     setBilibiliCredentials: (cookie, token, requestOptions) =>
-      request(
-        'PUT',
-        '/api/device/bilibili-credentials',
-        { cookie },
-        token,
-        requestOptions,
-      ),
+      request('PUT', '/api/device/bilibili-credentials', { cookie }, token, requestOptions),
     clearBilibiliCredentials: (token, requestOptions) =>
-      request(
-        'DELETE',
-        '/api/device/bilibili-credentials',
-        undefined,
-        token,
-        requestOptions,
-      ),
+      request('DELETE', '/api/device/bilibili-credentials', undefined, token, requestOptions),
     getGiftCatalog: (etag, token) => requestGiftCatalog(etag, token),
-    getSongPageBackground: (token) =>
-      request('GET', '/api/device/song-page/background', undefined, token),
+    getSongPageBackground: (token) => request('GET', '/api/device/song-page/background', undefined, token),
     uploadSongPageBackground: (bytes, contentType, token) =>
-      requestRaw(
-        'PUT',
-        '/api/device/song-page/background',
-        bytes,
-        contentType,
-        token,
-      ),
-    deleteSongPageBackground: (token) =>
-      request('DELETE', '/api/device/song-page/background', undefined, token),
+      requestRaw('PUT', '/api/device/song-page/background', bytes, contentType, token),
+    deleteSongPageBackground: (token) => request('DELETE', '/api/device/song-page/background', undefined, token),
   };
 }
 
@@ -452,8 +361,7 @@ function parseEventBlock(block) {
   const dataLines = [];
   for (const line of String(block || '').split('\n')) {
     if (line.startsWith('event:')) eventName = line.slice(6).trim();
-    else if (line.startsWith('data:'))
-      dataLines.push(line.slice(5).trimStart());
+    else if (line.startsWith('data:')) dataLines.push(line.slice(5).trimStart());
   }
   return { eventName, data: dataLines.join('\n') };
 }
@@ -464,7 +372,9 @@ function handleGiftEventBlock(block, onEvent, onEffect) {
     try {
       const event = normalizeGiftEffectEvent(JSON.parse(data));
       if (event) onEffect?.(event);
-    } catch { return; }
+    } catch {
+      return;
+    }
     return;
   }
   if (eventName !== 'gift-event' || !data) return;
@@ -502,18 +412,17 @@ function handleCloudStateEventBlock(block, onChange) {
 async function readStreamError(response, now) {
   let data = {};
   try {
-    const text = await readResponseText(response, 64 * 1024, () =>
-      new RemoteLicenseError('RESPONSE_TOO_LARGE', '授权服务器响应过大。'),
+    const text = await readResponseText(
+      response,
+      64 * 1024,
+      () => new RemoteLicenseError('RESPONSE_TOO_LARGE', '授权服务器响应过大。'),
     );
     data = text ? JSON.parse(text) : {};
   } catch (error) {
     void error;
   }
   if (!data || typeof data !== 'object' || Array.isArray(data)) data = {};
-  const code = normalizeErrorCode(
-    data?.error || data?.code,
-    `HTTP_${response.status}`,
-  );
+  const code = normalizeErrorCode(data?.error || data?.code, `HTTP_${response.status}`);
   return new RemoteLicenseError(code, code, {
     status: response.status,
     retryAfterMs: readRetryAfter(response, now),

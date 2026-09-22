@@ -2,11 +2,7 @@
 // 前端共享工具 — escapedHtml, toast, api, format 系列。
 'use strict';
 
-import {
-  dangerConfirm,
-  logoutConfirm,
-  showConfirmationDialog,
-} from './confirmation-dialog.js';
+import { dangerConfirm, logoutConfirm, showConfirmationDialog } from './confirmation-dialog.js';
 import { toast, showStackedToast } from './toast.js';
 
 export { dangerConfirm, logoutConfirm, showConfirmationDialog };
@@ -106,9 +102,7 @@ export function formatDuration(seconds) {
 export function formatSuperChatPrice(v) {
   const number = Number(v);
   if (!Number.isFinite(number)) return '0';
-  return Number.isInteger(number)
-    ? String(number)
-    : number.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
+  return Number.isInteger(number) ? String(number) : number.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
 }
 
 export function formatMoney(v) {
@@ -119,10 +113,8 @@ export function formatMoney(v) {
 
 export function formatCompactNumber(v) {
   const number = Math.max(0, Number(v) || 0);
-  if (number >= 100000000)
-    return `${(number / 100000000).toFixed(1).replace(/\.0$/, '')}亿`;
-  if (number >= 10000)
-    return `${(number / 10000).toFixed(1).replace(/\.0$/, '')}万`;
+  if (number >= 100000000) return `${(number / 100000000).toFixed(1).replace(/\.0$/, '')}亿`;
+  if (number >= 10000) return `${(number / 10000).toFixed(1).replace(/\.0$/, '')}万`;
   return String(Math.round(number));
 }
 
@@ -159,8 +151,7 @@ export async function api(url, body, { notifyError = true } = {}) {
 export async function readJsonResponse(response, fallbackMessage) {
   const text = await response.text();
   if (!text) {
-    if (!response.ok)
-      throw new Error(`${fallbackMessage}（HTTP ${response.status}）`);
+    if (!response.ok) throw new Error(`${fallbackMessage}（HTTP ${response.status}）`);
     return {};
   }
   try {

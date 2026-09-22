@@ -36,9 +36,7 @@ async function loadModuleExports(entryPath, globals = {}) {
   if (typeof vm.SourceTextModule !== 'function') {
     const source = fs.readFileSync(entryPath, 'utf8');
     const exportNames = [];
-    for (const match of source.matchAll(
-      /^export\s+(?:(?:async)\s+)?(?:class|function|const|let|var)\s+([\w$]+)/gm,
-    )) {
+    for (const match of source.matchAll(/^export\s+(?:(?:async)\s+)?(?:class|function|const|let|var)\s+([\w$]+)/gm)) {
       exportNames.push([match[1], match[1]]);
     }
     for (const match of source.matchAll(/^export\s*\{([^}]+)\}\s*;?/gm)) {
@@ -53,17 +51,10 @@ async function loadModuleExports(entryPath, globals = {}) {
           `${JSON.stringify(exportedName)}: typeof ${localName} === 'undefined' ? undefined : ${localName}`,
       )
       .join(',')}}`;
-    const bundle = readJsModuleBundle(
-      ...path
-        .relative(path.resolve(__dirname, '..', '..'), entryPath)
-        .split(path.sep),
-    );
-    const script = new vm.Script(
-      `${bundle}\nglobalThis.__moduleNamespace = ${namespaceExpression};`,
-      {
-        filename: entryPath,
-      },
-    );
+    const bundle = readJsModuleBundle(...path.relative(path.resolve(__dirname, '..', '..'), entryPath).split(path.sep));
+    const script = new vm.Script(`${bundle}\nglobalThis.__moduleNamespace = ${namespaceExpression};`, {
+      filename: entryPath,
+    });
     script.runInContext(context);
     return context.__moduleNamespace;
   }

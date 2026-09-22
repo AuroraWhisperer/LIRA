@@ -8,23 +8,17 @@ async function readLiveRoom(roomId) {
     `https://api.live.bilibili.com/room/v1/Room/room_init?id=${encodeURIComponent(roomId)}`,
     { signal: AbortSignal.timeout(5000) },
   );
-  if (payload?.code !== 0 || !payload.data?.room_id)
-    throw new Error('直播状态暂时无法确认');
+  if (payload?.code !== 0 || !payload.data?.room_id) throw new Error('直播状态暂时无法确认');
   return payload.data;
 }
 
-function createGiftWishSession({
-  store,
-  readRoom = readLiveRoom,
-  now = Date.now,
-}) {
+function createGiftWishSession({ store, readRoom = readLiveRoom, now = Date.now }) {
   let cached = null;
   let pending = null;
 
   function get(sourceId, roomId) {
     const key = `${sourceId}:${roomId}`;
-    if (cached?.key === key && now() - cached.at < 30000)
-      return Promise.resolve(cached.value);
+    if (cached?.key === key && now() - cached.at < 30000) return Promise.resolve(cached.value);
     if (pending?.key === key) return pending.promise;
     const promise = refresh(sourceId, roomId)
       .then((value) => {
@@ -46,8 +40,7 @@ function createGiftWishSession({
       const checkedAt = new Date(now()).toISOString();
       if (Number(room.live_status) === 1) {
         const start = Number(room.live_time) * 1000;
-        if (!Number.isSafeInteger(start) || start <= 0 || start > now())
-          throw new Error('开播时间暂时无法确认');
+        if (!Number.isSafeInteger(start) || start <= 0 || start > now()) throw new Error('开播时间暂时无法确认');
         const value = {
           started_at: new Date(start).toISOString(),
           ended_at: null,
@@ -56,8 +49,7 @@ function createGiftWishSession({
         store.saveSession(sourceId, roomId, value);
         return { ...value, state: 'live', stale: false };
       }
-      if (![0, 2].includes(Number(room.live_status)))
-        throw new Error('直播状态暂时无法确认');
+      if (![0, 2].includes(Number(room.live_status))) throw new Error('直播状态暂时无法确认');
       if (previous) {
         const value = {
           ...previous,

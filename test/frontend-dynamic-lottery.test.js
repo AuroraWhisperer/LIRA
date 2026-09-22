@@ -48,10 +48,11 @@ async function fixture(api) {
       clearTimeout,
       fetch: async () => ({
         ok: true,
-        text: async () => JSON.stringify({
-          ok: true,
-          data: { tasks: [], task: null, result: null, job: null, error: '' },
-        }),
+        text: async () =>
+          JSON.stringify({
+            ok: true,
+            data: { tasks: [], task: null, result: null, job: null, error: '' },
+          }),
       }),
     },
   );

@@ -18,41 +18,23 @@ const {
 } = require('electron');
 const { createDesktopAuthController } = require('./desktop-auth-controller');
 const { createDynamicLotteryAuth } = require('./dynamic-lottery-auth');
-const {
-  registerDynamicLotteryAuthIpc,
-} = require('./ipc/dynamic-lottery-auth-ipc');
+const { registerDynamicLotteryAuthIpc } = require('./ipc/dynamic-lottery-auth-ipc');
 const { createCloudSyncController } = require('./cloud-sync-controller');
-const {
-  createFanProfileController,
-  fanScopeFor,
-} = require('./fan-profile-controller');
+const { createFanProfileController, fanScopeFor } = require('./fan-profile-controller');
 const { registerFanProfileIpc } = require('./ipc/fan-profile-ipc');
 const { fetchGuardRoster } = require('../bilibili/guard-roster');
 const { createDailyBotController } = require('./daily-bot-controller');
 const { registerDailyBotIpc } = require('./ipc/daily-bot-ipc');
 const { createRemoteGiftController } = require('./remote-gift-controller');
-const {
-  createDesktopReadinessController,
-} = require('./desktop-readiness-controller');
+const { createDesktopReadinessController } = require('./desktop-readiness-controller');
 const { createDesktopLogger } = require('./desktop-logger');
 const { createDesktopRuntime } = require('./desktop-runtime');
-const {
-  createDesktopUpdateController,
-} = require('./desktop-update-controller');
+const { createDesktopUpdateController } = require('./desktop-update-controller');
 const { createDesktopState } = require('./desktop-state');
-const {
-  migrateLegacyUserData,
-  resolveDesktopUserDataPaths,
-} = require('./desktop-user-data');
-const {
-  migrateBrowserData,
-  migrateCacheData,
-} = require('../storage/data-directory-migration');
+const { migrateLegacyUserData, resolveDesktopUserDataPaths } = require('./desktop-user-data');
+const { migrateBrowserData, migrateCacheData } = require('../storage/data-directory-migration');
 const { registerLocalFontPermissionHandler } = require('./desktop-permissions');
-const {
-  createLocalMediaAccess,
-  hasExactOrigin,
-} = require('./local-media-access');
+const { createLocalMediaAccess, hasExactOrigin } = require('./local-media-access');
 const { registerLocalMediaProtocol } = require('./local-media-protocol');
 const { configureMediaRequestHeaders } = require('./media-request-headers');
 const { createDesktopRequestAuth } = require('./desktop-request-auth');
@@ -66,10 +48,7 @@ const { registerLicenseIpc } = require('./ipc/license-ipc');
 const { registerGiftInteractionIpc } = require('./ipc/gift-interaction-ipc');
 const { registerGiftExportIpc } = require('./ipc/gift-export-ipc');
 const { createGiftExportController } = require('./gift-export-controller');
-const {
-  createLicenseManager,
-  LicenseState,
-} = require('./license/license-manager');
+const { createLicenseManager, LicenseState } = require('./license/license-manager');
 const { resolveConfiguredBaseUrl } = require('./license/remote-license-client');
 const { createLicenseResumeHandler } = require('./license/license-resume');
 const serverRuntimeModule = require('../server');
@@ -168,14 +147,8 @@ const desktopUserDataPaths = resolveDesktopUserDataPaths({
 const userDataMigrationState = { migration: null, error: null };
 var gotInstanceLock = false;
 try {
-  if (
-    desktopUserDataPaths.recoveryDataDir &&
-    fs.existsSync(desktopUserDataPaths.recoveryDataDir)
-  ) {
-    throw new Error(
-      '上次安装的数据尚未恢复，请重新运行安装包。数据保留在：' +
-        desktopUserDataPaths.recoveryDataDir,
-    );
+  if (desktopUserDataPaths.recoveryDataDir && fs.existsSync(desktopUserDataPaths.recoveryDataDir)) {
+    throw new Error('上次安装的数据尚未恢复，请重新运行安装包。数据保留在：' + desktopUserDataPaths.recoveryDataDir);
   }
   userDataMigrationState.migration = migrateLegacyUserData({
     sourceDir: desktopUserDataPaths.legacyDataDir,
@@ -192,10 +165,7 @@ try {
     app.setPath('userData', desktopUserDataPaths.browserDir);
     app.setPath('sessionData', desktopUserDataPaths.browserDir);
     app.setPath('logs', desktopUserDataPaths.logDir);
-    app.setPath(
-      'crashDumps',
-      path.join(desktopUserDataPaths.browserDir, 'Crashpad'),
-    );
+    app.setPath('crashDumps', path.join(desktopUserDataPaths.browserDir, 'Crashpad'));
   }
 } catch (error) {
   userDataMigrationState.error = error;
@@ -205,8 +175,7 @@ if (userDataMigrationState.error) {
   dialog.showErrorBox(
     '启动失败',
     '无法准备安装目录中的用户数据。LIRA 已停止启动：' +
-      (userDataMigrationState.error.message ||
-        String(userDataMigrationState.error)),
+      (userDataMigrationState.error.message || String(userDataMigrationState.error)),
   );
   app.exit(1);
 } else if (!gotInstanceLock) {
@@ -289,11 +258,7 @@ function requestDesktopShutdown({ restart = false } = {}) {
       disposeFanProfileIpc?.();
       disposeDailyBotIpc?.();
       dynamicLotteryAuth?.dispose();
-      const controllersToDrain = [
-        remoteGiftController,
-        cloudSyncController,
-        fanProfileController,
-      ].filter(Boolean);
+      const controllersToDrain = [remoteGiftController, cloudSyncController, fanProfileController].filter(Boolean);
       for (const controller of controllersToDrain) controller.dispose();
       remoteGiftController = null;
       cloudSyncController = null;
@@ -360,10 +325,7 @@ async function startDesktopApp() {
     isPathAllowedForLocalMedia,
     acknowledgePlaybackFlush: playbackFlush.acknowledgePlaybackFlush,
     writePlaybackSnapshot: (payload, clientId) => {
-      if (
-        !lifecycleState.runtime ||
-        typeof lifecycleState.runtime.persistPlaybackSnapshot !== 'function'
-      ) {
+      if (!lifecycleState.runtime || typeof lifecycleState.runtime.persistPlaybackSnapshot !== 'function') {
         return { ok: false, error: 'Playback store not available' };
       }
       return lifecycleState.runtime.persistPlaybackSnapshot(payload, clientId);
@@ -430,11 +392,8 @@ async function startDesktopApp() {
       // The callback is evaluated after the license manager is created. It
       // deliberately exposes no token or remote client to the renderer.
       fetch: (request) =>
-        licenseManager?.getState() === LicenseState.AUTHORIZED
-          ? licenseManager.getGiftCatalog(request)
-          : null,
-      imageBaseUrl: () =>
-        licenseManager?.getRemoteBaseUrl?.() || remoteGiftCatalogBootstrapBase,
+        licenseManager?.getState() === LicenseState.AUTHORIZED ? licenseManager.getGiftCatalog(request) : null,
+      imageBaseUrl: () => licenseManager?.getRemoteBaseUrl?.() || remoteGiftCatalogBootstrapBase,
     },
   };
   lifecycleState.runtime = createDesktopRuntime(serverRuntimeModule, {
@@ -459,9 +418,7 @@ async function startDesktopApp() {
         ...extra,
       }),
   });
-  lifecycleState.shutdown = lifecycleState.runtime.stop.bind(
-    lifecycleState.runtime,
-  );
+  lifecycleState.shutdown = lifecycleState.runtime.stop.bind(lifecycleState.runtime);
 
   // Register pre-shutdown hook: flush renderer playback state via IPC before closing server/DB
   lifecycleState.runtime.setPreShutdownHook(requestPlaybackFlush);
@@ -498,17 +455,13 @@ async function startDesktopApp() {
     ipcMain,
     licenseManager,
     giftCatalog: {
-      getState: () =>
-        lifecycleState.runtime.getGiftCatalogInitializationState(),
+      getState: () => lifecycleState.runtime.getGiftCatalogInitializationState(),
       initialize: () =>
         lifecycleState.runtime.initializeGiftCatalog({
           force: true,
           reason: 'license-retry',
         }),
-      onStateChanged: (listener) =>
-        lifecycleState.runtime.onGiftCatalogInitializationStateChanged(
-          listener,
-        ),
+      onStateChanged: (listener) => lifecycleState.runtime.onGiftCatalogInitializationStateChanged(listener),
     },
     getMainWindow: () => windowState.main,
     getDesktopBaseUrl: () => serverInfo.baseUrl,
@@ -539,8 +492,13 @@ async function startDesktopApp() {
   disposeGiftExportIpc = registerGiftExportIpc({
     ipcMain,
     controller: createGiftExportController({
-      app, BrowserWindow, dialog, shell, runtime: lifecycleState.runtime,
-      getBaseUrl: () => serverInfo.baseUrl, getMainWindow: () => windowState.main,
+      app,
+      BrowserWindow,
+      dialog,
+      shell,
+      runtime: lifecycleState.runtime,
+      getBaseUrl: () => serverInfo.baseUrl,
+      getMainWindow: () => windowState.main,
     }),
     getMainWindow: () => windowState.main,
     getDesktopBaseUrl: () => serverInfo.baseUrl,
@@ -565,7 +523,8 @@ async function startDesktopApp() {
   void fanProfileController.start();
   disposeDailyBotIpc = registerDailyBotIpc({
     ipcMain,
-    controller: createDailyBotController({ licenseManager,
+    controller: createDailyBotController({
+      licenseManager,
       getLegacyReader: () => lifecycleState.runtime.getDailyBotLegacy(),
       sourceLabel: path.join(pathState.dataDir, 'checkin-data.db'),
     }),
@@ -600,10 +559,7 @@ async function startDesktopApp() {
     baseUrl: serverInfo.baseUrl,
     writeLog,
   });
-  createMainWindow(
-    serverInfo.baseUrl,
-    readinessController.initialRoute === 'admin',
-  );
+  createMainWindow(serverInfo.baseUrl, readinessController.initialRoute === 'admin');
   readinessController.start();
   logStartupPhase('window-create', phaseStartedAt);
   writeLog('lifecycle', { event: 'READY', baseUrl: serverInfo.baseUrl });
@@ -660,13 +616,7 @@ function migrateUserDataFromAppData() {
   if (fs.existsSync(oldPartitions) && !fs.existsSync(newPartitions)) {
     try {
       fs.cpSync(oldPartitions, newPartitions, { recursive: true });
-      writeLog(
-        'migration',
-        '已将旧 Chromium 分区数据从 ' +
-          oldPartitions +
-          ' 迁移至 ' +
-          newPartitions,
-      );
+      writeLog('migration', '已将旧 Chromium 分区数据从 ' + oldPartitions + ' 迁移至 ' + newPartitions);
     } catch (e) {
       writeLog('migration-error', e);
     }
@@ -678,9 +628,7 @@ function configureMenu() {
 }
 
 function isPathAllowedForLocalMedia(filePath) {
-  return Boolean(
-    mediaState.localAccess && mediaState.localAccess.isAllowed(filePath),
-  );
+  return Boolean(mediaState.localAccess && mediaState.localAccess.isAllowed(filePath));
 }
 
 function configureLocalMediaProtocol() {
@@ -711,9 +659,7 @@ function createMainWindow(baseUrl, authorized = false) {
   windowState.main = new BrowserWindow(opts);
   lifecycleState.requestAuth.bindWindow(windowState.main, shell);
   writeLog('window', { event: 'create', window: 'main' });
-  windowState.main.loadURL(
-    baseUrl + (authorized ? '/admin?desktop=1' : '/license'),
-  );
+  windowState.main.loadURL(baseUrl + (authorized ? '/admin?desktop=1' : '/license'));
 
   windowState.main.once('ready-to-show', function () {
     writeLog('window', { event: 'ready', window: 'main' });

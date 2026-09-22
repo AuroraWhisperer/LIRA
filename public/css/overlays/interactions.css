@@ -1,5 +1,30 @@
-html, body { margin: 0; padding: 0; background: transparent; width: 100%; height: 100%; overflow: hidden; }
-[hidden] { display: none !important; }
-.interaction-score.is-revealed { animation: interaction-reveal 260ms ease-out; }
-@keyframes interaction-reveal { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-@media (prefers-reduced-motion: reduce) { .interaction-score.is-revealed { animation: none; } }
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+[hidden] {
+  display: none !important;
+}
+.interaction-score.is-revealed {
+  animation: interaction-reveal 260ms ease-out;
+}
+@keyframes interaction-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .interaction-score.is-revealed {
+    animation: none;
+  }
+}

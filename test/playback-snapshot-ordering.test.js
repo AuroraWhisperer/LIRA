@@ -21,7 +21,9 @@ function fixture(t) {
 
 function deferred() {
   let resolve;
-  const promise = new Promise((done) => { resolve = done; });
+  const promise = new Promise((done) => {
+    resolve = done;
+  });
   return { promise, resolve };
 }
 
@@ -32,8 +34,12 @@ async function post(store, url, body) {
     { playback: store },
     { query: new URLSearchParams(), body: async () => body },
     {
-      writeHead(status) { statusCode = status; },
-      end(text) { result = JSON.parse(text); },
+      writeHead(status) {
+        statusCode = status;
+      },
+      end(text) {
+        result = JSON.parse(text);
+      },
     },
   );
   return { statusCode, result };
@@ -41,9 +47,7 @@ async function post(store, url, body) {
 
 async function sender(store, options = {}) {
   const bootWriter = store.beginQueueStateSession();
-  const stateModule = await loadModuleExports(path.resolve(
-    __dirname, '../public/js/playback/state/manager.js',
-  ));
+  const stateModule = await loadModuleExports(path.resolve(__dirname, '../public/js/playback/state/manager.js'));
   const state = stateModule.createInitialState();
   state.current = { id: 'test-track', source: 'qq', title: 'Test track' };
   const audio = { readyState: 1, currentTime: 17 };
@@ -53,59 +57,78 @@ async function sender(store, options = {}) {
   const timers = new Map();
   let timerId = 0;
   registerMusicIpc({
-    ipcMain: { handle(name, run) { ipcHandlers.set(name, run); } },
+    ipcMain: {
+      handle(name, run) {
+        ipcHandlers.set(name, run);
+      },
+    },
     writePlaybackSnapshot(payload, clientId) {
       return store.saveQueueState(payload, { clientId });
     },
   });
-  const module = await loadModuleExports(path.resolve(
-    __dirname, '../public/js/playback/operations/state-persistence.js',
-  ), {
-    Blob,
-    setTimeout(run) { timers.set(++timerId, run); return timerId; },
-    clearTimeout(id) { timers.delete(id); },
-    window: {
-      __API_TOKEN__: 'test-token',
-      __PLAYBACK_SNAPSHOT_WRITER__: bootWriter,
-      musicAPI: options.ipc === false ? undefined : {
-        async savePlaybackState(clientId, payload) {
-          calls.ipc.push(payload);
-          if (options.beforeIpc) await options.beforeIpc();
-          return ipcHandlers.get('playback:save-state')({}, { clientId, payload });
-        },
+  const module = await loadModuleExports(
+    path.resolve(__dirname, '../public/js/playback/operations/state-persistence.js'),
+    {
+      Blob,
+      setTimeout(run) {
+        timers.set(++timerId, run);
+        return timerId;
+      },
+      clearTimeout(id) {
+        timers.delete(id);
+      },
+      window: {
+        __API_TOKEN__: 'test-token',
+        __PLAYBACK_SNAPSHOT_WRITER__: bootWriter,
+        musicAPI:
+          options.ipc === false
+            ? undefined
+            : {
+                async savePlaybackState(clientId, payload) {
+                  calls.ipc.push(payload);
+                  if (options.beforeIpc) await options.beforeIpc();
+                  return ipcHandlers.get('playback:save-state')({}, { clientId, payload });
+                },
+              },
+      },
+      navigator:
+        options.beacon === false
+          ? {}
+          : {
+              sendBeacon(url, blob) {
+                const save = blob.text().then(async (text) => {
+                  const body = JSON.parse(text);
+                  calls.beacon.push(body);
+                  return post(store, url.split('?')[0], body);
+                });
+                beaconSaves.push(save);
+                return true;
+              },
+            },
+      async fetch(url, init) {
+        const body = JSON.parse(init.body);
+        if (url.endsWith('/session')) {
+          calls.sessions.push(body);
+          if (options.beforeSession) await options.beforeSession();
+        } else {
+          calls.http.push(body);
+          if (options.beforeHttp) await options.beforeHttp();
+        }
+        const { statusCode, result } = await post(store, url, body);
+        return { ok: statusCode === 200, json: async () => result };
       },
     },
-    navigator: options.beacon === false ? {} : {
-      sendBeacon(url, blob) {
-        const save = blob.text().then(async (text) => {
-          const body = JSON.parse(text);
-          calls.beacon.push(body);
-          return post(store, url.split('?')[0], body);
-        });
-        beaconSaves.push(save);
-        return true;
-      },
-    },
-    async fetch(url, init) {
-      const body = JSON.parse(init.body);
-      if (url.endsWith('/session')) {
-        calls.sessions.push(body);
-        if (options.beforeSession) await options.beforeSession();
-      } else {
-        calls.http.push(body);
-        if (options.beforeHttp) await options.beforeHttp();
-      }
-      const { statusCode, result } = await post(store, url, body);
-      return { ok: statusCode === 200, json: async () => result };
-    },
-  });
+  );
   const persistence = module.createStatePersistence({
     playbackState: state,
     getPlaybackAudio: () => audio,
   });
   await new Promise((resolve) => setImmediate(resolve));
   return {
-    audio, calls, persistence, state,
+    audio,
+    calls,
+    persistence,
+    state,
     rebuild() {
       return module.createStatePersistence({
         playbackState: state,
@@ -290,7 +313,10 @@ test('a failed older HTTP save cannot displace a newer pending snapshot', async 
   const { store } = fixture(t);
   const failed = deferred();
   const app = await sender(store, {
-    beforeHttp: async () => { await failed.promise; throw new Error('offline'); },
+    beforeHttp: async () => {
+      await failed.promise;
+      throw new Error('offline');
+    },
   });
   app.persistence.savePlaybackState();
   const oldSave = app.persistence.flushPlaybackStateSave();
@@ -363,7 +389,9 @@ for (const newerSavedBeforeFailure of [false, true]) {
 test('shutdown HTTP fallback preserves the failed IPC snapshot version', async (t) => {
   const { store } = fixture(t);
   const app = await sender(store, {
-    beforeIpc() { throw new Error('IPC unavailable'); },
+    beforeIpc() {
+      throw new Error('IPC unavailable');
+    },
   });
   app.audio.currentTime = 72;
   app.persistence.savePlaybackState();
@@ -395,25 +423,44 @@ test('persisted writer generations survive reopening the database and remain cli
   store = createPlaybackStore(db);
   assert.equal(store.getQueueState().payload.currentTime, 37);
   assert.equal(store.saveQueueState(snapshot).duplicate, true);
-  assert.equal(store.saveQueueState({
-    currentTime: 12, snapshotVersion: { ...first, sequence: 4 },
-  }).saved, false);
+  assert.equal(
+    store.saveQueueState({
+      currentTime: 12,
+      snapshotVersion: { ...first, sequence: 4 },
+    }).saved,
+    false,
+  );
 
   const restarted = store.beginQueueStateSession();
   assert.equal(restarted.generation, unusedBoot.generation + 1);
   assert.notEqual(restarted.writerId, first.writerId);
   assert.equal(store.getQueueState().payload.currentTime, 37);
-  assert.equal(store.saveQueueState({
-    currentTime: 38, snapshotVersion: { ...restarted, sequence: 1 },
-  }).saved, true);
-  assert.equal(store.saveQueueState({
-    currentTime: 100, snapshotVersion: { ...first, sequence: 1000 },
-  }).saved, false);
+  assert.equal(
+    store.saveQueueState({
+      currentTime: 38,
+      snapshotVersion: { ...restarted, sequence: 1 },
+    }).saved,
+    true,
+  );
+  assert.equal(
+    store.saveQueueState({
+      currentTime: 100,
+      snapshotVersion: { ...first, sequence: 1000 },
+    }).saved,
+    false,
+  );
   const independent = store.beginQueueStateSession({ clientId: 'other-client' });
   assert.equal(independent.generation, 1);
-  assert.equal(store.saveQueueState({
-    currentTime: 90, snapshotVersion: { ...independent, sequence: 1 },
-  }, { clientId: 'other-client' }).saved, true);
+  assert.equal(
+    store.saveQueueState(
+      {
+        currentTime: 90,
+        snapshotVersion: { ...independent, sequence: 1 },
+      },
+      { clientId: 'other-client' },
+    ).saved,
+    true,
+  );
   assert.equal(store.getQueueState().payload.currentTime, 38);
 });
 
@@ -427,10 +474,14 @@ test('allocator-only rows remain invisible and their high water survives clear a
   const next = restarted.beginQueueStateSession();
   assert.equal(next.generation, allocated.generation + 1);
   assert.equal(restarted.getQueueState(), null);
-  assert.equal(restarted.saveQueueState({
-    currentTime: 37, issuedGeneration: 999,
-    snapshotVersion: { ...allocated, sequence: 1 },
-  }).saved, true);
+  assert.equal(
+    restarted.saveQueueState({
+      currentTime: 37,
+      issuedGeneration: 999,
+      snapshotVersion: { ...allocated, sequence: 1 },
+    }).saved,
+    true,
+  );
   const afterClientMetadata = restarted.beginQueueStateSession();
   assert.equal(afterClientMetadata.generation, next.generation + 1);
   assert.equal(restarted.getQueueState().payload.issuedGeneration, undefined);
@@ -448,19 +499,31 @@ test('legacy snapshots restore and accept saves until an ordered writer takes ow
   const session = store.beginQueueStateSession();
   assert.equal(store.getQueueState().payload.currentTime, 9);
   assert.equal(store.saveQueueState({ currentTime: 1 }).saved, true);
-  assert.equal(store.saveQueueState({
-    currentTime: 10, snapshotVersion: { ...session, sequence: 1 },
-  }).saved, true);
+  assert.equal(
+    store.saveQueueState({
+      currentTime: 10,
+      snapshotVersion: { ...session, sequence: 1 },
+    }).saved,
+    true,
+  );
   assert.equal(store.saveQueueState({ currentTime: 1 }).saved, false);
   store.clearQueueState();
   assert.equal(store.getQueueState(), null);
-  assert.equal(store.saveQueueState({
-    currentTime: 10, snapshotVersion: { ...session, sequence: 1 },
-  }).duplicate, true);
+  assert.equal(
+    store.saveQueueState({
+      currentTime: 10,
+      snapshotVersion: { ...session, sequence: 1 },
+    }).duplicate,
+    true,
+  );
   assert.equal(store.getQueueState(), null);
-  assert.equal(store.saveQueueState({
-    currentTime: 11, snapshotVersion: { ...session, sequence: 2 },
-  }).saved, true);
+  assert.equal(
+    store.saveQueueState({
+      currentTime: 11,
+      snapshotVersion: { ...session, sequence: 2 },
+    }).saved,
+    true,
+  );
 });
 
 test('malformed versions and unissued generations cannot bypass the owner', async (t) => {
@@ -482,9 +545,13 @@ test('malformed versions and unissued generations cannot bypass the owner', asyn
     { ...session, writerId: 'another-writer', sequence: 1 },
     { ...session, generation: session.generation + 1, sequence: 1 },
   ]) {
-    assert.equal(store.saveQueueState({
-      currentTime: 200, snapshotVersion: version,
-    }).saved, false);
+    assert.equal(
+      store.saveQueueState({
+        currentTime: 200,
+        snapshotVersion: version,
+      }).saved,
+      false,
+    );
   }
   assert.equal(store.getQueueState().payload.currentTime, 17);
 });

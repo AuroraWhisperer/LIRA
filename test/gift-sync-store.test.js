@@ -5,33 +5,20 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
-const {
-  closeDatabases,
-  createDatabases,
-  getSchemaVersions,
-} = require('../src/storage/database');
+const { closeDatabases, createDatabases, getSchemaVersions } = require('../src/storage/database');
 const { createGiftSyncStore } = require('../src/storage/gift-sync-store');
 
 test('gift migration partitions remote rows and fails closed without a source', () => {
   const fixture = createFixture();
   try {
-    assert.equal(getSchemaVersions(fixture.databases).giftDb, 13);
-    assert.equal(
-      fixture.giftDb.prepare('PRAGMA foreign_keys').get().foreign_keys,
-      1,
-    );
+    assert.equal(getSchemaVersions(fixture.databases).giftDb, 14);
+    assert.equal(fixture.giftDb.prepare('PRAGMA foreign_keys').get().foreign_keys, 1);
     assert.equal(hasColumn(fixture.giftDb, 'gift_events', 'source_id'), true);
-    assert.equal(
-      hasColumn(fixture.giftDb, 'gift_events', 'blind_box_id'),
-      true,
-    );
+    assert.equal(hasColumn(fixture.giftDb, 'gift_events', 'blind_box_id'), true);
     assert.equal(hasTable(fixture.giftDb, 'gift_sources'), true);
     assert.equal(hasTable(fixture.giftDb, 'gift_sync_state'), true);
 
-    assert.throws(
-      () => insertRemoteGift(fixture.giftDb, null, 'event-without-source'),
-      /REMOTE_GIFT_SOURCE_REQUIRED/,
-    );
+    assert.throws(() => insertRemoteGift(fixture.giftDb, null, 'event-without-source'), /REMOTE_GIFT_SOURCE_REQUIRED/);
     assert.throws(
       () => insertRemoteGift(fixture.giftDb, 999_999, 'unknown-source'),
       /REMOTE_GIFT_SOURCE_REQUIRED|FOREIGN KEY constraint failed/,
@@ -49,17 +36,14 @@ test('gift migration partitions remote rows and fails closed without a source', 
       )
       .run(NOW, NOW);
     assert.equal(
-      fixture.giftDb
-        .prepare('SELECT source_id FROM gift_events WHERE id = ?')
-        .get(legacyResult.lastInsertRowid).source_id,
+      fixture.giftDb.prepare('SELECT source_id FROM gift_events WHERE id = ?').get(legacyResult.lastInsertRowid)
+        .source_id,
       null,
     );
     assert.throws(
       () =>
         fixture.giftDb
-          .prepare(
-            "UPDATE gift_events SET cmd = 'LIRA_SERVER_GIFT' WHERE id = ?",
-          )
+          .prepare("UPDATE gift_events SET cmd = 'LIRA_SERVER_GIFT' WHERE id = ?")
           .run(legacyResult.lastInsertRowid),
       /REMOTE_GIFT_SOURCE_REQUIRED/,
     );
@@ -68,10 +52,7 @@ test('gift migration partitions remote rows and fails closed without a source', 
     const sourceB = fixture.store.resolveSource('b'.repeat(64));
     insertRemoteGift(fixture.giftDb, sourceA.id, 'same-event');
     insertRemoteGift(fixture.giftDb, sourceB.id, 'same-event');
-    assert.throws(
-      () => insertRemoteGift(fixture.giftDb, sourceA.id, 'same-event'),
-      /UNIQUE constraint failed/,
-    );
+    assert.throws(() => insertRemoteGift(fixture.giftDb, sourceA.id, 'same-event'), /UNIQUE constraint failed/);
   } finally {
     fixture.close();
   }
@@ -120,10 +101,7 @@ test('history page rows and progress token commit or roll back together', () => 
       /INVALID_HISTORY_RECORD/,
     );
     assert.equal(countEvent(fixture.giftDb, source.id, 'two'), 0);
-    assert.equal(
-      fixture.store.getState(source.id).bootstrapPageToken,
-      'opaque-next',
-    );
+    assert.equal(fixture.store.getState(source.id).bootstrapPageToken, 'opaque-next');
 
     const complete = fixture.store.commitHistoryPage({
       sourceId: source.id,
@@ -180,11 +158,7 @@ test('catch-up and projection replacement fence stale generations', () => {
     assert.equal(reset.bootstrapComplete, false);
     assert.equal(reset.finalCursor, null);
     assert.equal(
-      fixture.giftDb
-        .prepare(
-          'SELECT COUNT(*) AS count FROM gift_events WHERE source_id = ?',
-        )
-        .get(source.id).count,
+      fixture.giftDb.prepare('SELECT COUNT(*) AS count FROM gift_events WHERE source_id = ?').get(source.id).count,
       0,
     );
     assert.throws(
@@ -379,11 +353,7 @@ function countEvent(giftDb, sourceId, eventId) {
 }
 
 function hasTable(db, name) {
-  return Boolean(
-    db
-      .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?")
-      .get(name),
-  );
+  return Boolean(db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(name));
 }
 
 function hasColumn(db, tableName, columnName) {
@@ -402,7 +372,9 @@ test('clear and rebuild reset the same metadata but preserve their different del
       seedResetState(fixture.giftDb, source.id);
       insertRemoteGift(fixture.giftDb, source.id, 'remote');
       insertRemoteGift(fixture.giftDb, source.id, 'other-command');
-      fixture.giftDb.prepare("UPDATE gift_events SET cmd = 'SEND_GIFT' WHERE platform_id = 'lira-server:other-command'").run();
+      fixture.giftDb
+        .prepare("UPDATE gift_events SET cmd = 'SEND_GIFT' WHERE platform_id = 'lira-server:other-command'")
+        .run();
       insertRemoteGift(fixture.giftDb, other.id, 'other-source');
       const otherState = fixture.store.getState(other.id);
       if (mode === 'clear') {
@@ -411,13 +383,25 @@ test('clear and rebuild reset the same metadata but preserve their different del
         fixture.store.resetProjectionForRebuild(source.id);
       }
       const reset = fixture.store.getState(source.id);
-      for (const field of ['syncEpoch', 'finalCursor', 'bootstrapPageToken', 'bootstrapRecoveryCursor', 'bootstrapSyncEpoch', 'lastValidatedAt']) {
+      for (const field of [
+        'syncEpoch',
+        'finalCursor',
+        'bootstrapPageToken',
+        'bootstrapRecoveryCursor',
+        'bootstrapSyncEpoch',
+        'lastValidatedAt',
+      ]) {
         assert.equal(reset[field], null, `${mode}: ${field}`);
       }
       assert.equal(reset.bootstrapComplete, false);
       assert.equal(reset.projectionGeneration, 2);
       assert.equal(countEvent(fixture.giftDb, source.id, 'remote'), 0);
-      assert.equal(fixture.giftDb.prepare("SELECT count(*) AS count FROM gift_events WHERE source_id = ? AND cmd = 'SEND_GIFT'").get(source.id).count, mode === 'clear' ? 0 : 1);
+      assert.equal(
+        fixture.giftDb
+          .prepare("SELECT count(*) AS count FROM gift_events WHERE source_id = ? AND cmd = 'SEND_GIFT'")
+          .get(source.id).count,
+        mode === 'clear' ? 0 : 1,
+      );
       assert.equal(countEvent(fixture.giftDb, other.id, 'other-source'), 1);
       assert.deepEqual(fixture.store.getState(other.id), otherState);
     } finally {
@@ -435,12 +419,18 @@ test('reset metadata and row deletion roll back together in each owning transact
       insertRemoteGift(fixture.giftDb, source.id, 'retained');
       const before = fixture.store.getState(source.id);
       // Fail after metadata changed in clear; fail after deletion in rebuild.
-      fixture.giftDb.exec(mode === 'clear'
-        ? "CREATE TRIGGER fail_reset BEFORE DELETE ON gift_events BEGIN SELECT RAISE(ABORT, 'reset failure'); END"
-        : "CREATE TRIGGER fail_reset BEFORE UPDATE ON gift_sync_state BEGIN SELECT RAISE(ABORT, 'reset failure'); END");
-      assert.throws(() => mode === 'clear'
-        ? require('../src/storage/database').clearGiftData(fixture.giftDb, { sourceId: source.id })
-        : fixture.store.resetProjectionForRebuild(source.id), /reset failure/);
+      fixture.giftDb.exec(
+        mode === 'clear'
+          ? "CREATE TRIGGER fail_reset BEFORE DELETE ON gift_events BEGIN SELECT RAISE(ABORT, 'reset failure'); END"
+          : "CREATE TRIGGER fail_reset BEFORE UPDATE ON gift_sync_state BEGIN SELECT RAISE(ABORT, 'reset failure'); END",
+      );
+      assert.throws(
+        () =>
+          mode === 'clear'
+            ? require('../src/storage/database').clearGiftData(fixture.giftDb, { sourceId: source.id })
+            : fixture.store.resetProjectionForRebuild(source.id),
+        /reset failure/,
+      );
       assert.deepEqual(fixture.store.getState(source.id), before);
       assert.equal(countEvent(fixture.giftDb, source.id, 'retained'), 1);
     } finally {
@@ -450,8 +440,10 @@ test('reset metadata and row deletion roll back together in each owning transact
 });
 
 function seedResetState(db, sourceId) {
-  db.prepare(`UPDATE gift_sync_state SET sync_epoch = 'old', final_cursor = 12,
+  db.prepare(
+    `UPDATE gift_sync_state SET sync_epoch = 'old', final_cursor = 12,
     bootstrap_complete = 0, bootstrap_page_token = 'page',
     bootstrap_recovery_cursor = 8, bootstrap_sync_epoch = 'bootstrap',
-    last_validated_at = ? WHERE source_id = ?`).run(NOW, sourceId);
+    last_validated_at = ? WHERE source_id = ?`,
+  ).run(NOW, sourceId);
 }

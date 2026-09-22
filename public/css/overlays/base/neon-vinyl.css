@@ -5,8 +5,7 @@
 }
 
 .queue-neon-vinyl::before {
-  background: url('/img/overlays/song-board-style-4/frame.webp') center / 100%
-    100% no-repeat;
+  background: url('/img/overlays/song-board-style-4/frame.webp') center / 100% 100% no-repeat;
 }
 
 .queue-neon-vinyl::after {

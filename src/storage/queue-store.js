@@ -2,18 +2,21 @@
 
 const { randomUUID } = require('node:crypto');
 
-const {
-  cleanText,
-  normalizeGuardLevel,
-  normalizePositiveInteger,
-} = require('../shared/utils');
+const { cleanText, normalizeGuardLevel, normalizePositiveInteger } = require('../shared/utils');
 
-function createQueueStore(songDb, { getFanScope = () => null, archiveAccepted = () => {}, archiveQueueState = () => {} } = {}) {
+function createQueueStore(
+  songDb,
+  { getFanScope = () => null, archiveAccepted = () => {}, archiveQueueState = () => {} } = {},
+) {
   function updateStatus(where, values, status, updatedAt) {
     songDb.exec('SAVEPOINT queue_status');
     try {
-      const requests = songDb.prepare(`SELECT requests.* FROM requests JOIN queue ON queue.id = requests.queue_id WHERE ${where}`).all(...values);
-      const result = songDb.prepare(`UPDATE queue SET status = ?, updated_at = ? WHERE ${where}`).run(status, updatedAt, ...values);
+      const requests = songDb
+        .prepare(`SELECT requests.* FROM requests JOIN queue ON queue.id = requests.queue_id WHERE ${where}`)
+        .all(...values);
+      const result = songDb
+        .prepare(`UPDATE queue SET status = ?, updated_at = ? WHERE ${where}`)
+        .run(status, updatedAt, ...values);
       for (const request of requests) {
         if (request.owner_scope === getFanScope() && request.stable_id) {
           archiveQueueState(request.owner_scope, request.stable_id, status, updatedAt);
@@ -122,9 +125,7 @@ function createQueueStore(songDb, { getFanScope = () => null, archiveAccepted = 
 
         archiveAccepted(ownerScope, { ...input, stableId, queueId, requestId: Number(request.lastInsertRowid) });
 
-        const item = normalizeQueueRow(
-          songDb.prepare('SELECT * FROM queue WHERE id = ?').get(queueId),
-        );
+        const item = normalizeQueueRow(songDb.prepare('SELECT * FROM queue WHERE id = ?').get(queueId));
         songDb.exec('COMMIT');
         return item;
       } catch (error) {
@@ -155,9 +156,7 @@ function createQueueStore(songDb, { getFanScope = () => null, archiveAccepted = 
 
     setPinned(id, pinned, updatedAt) {
       songDb
-        .prepare(
-          'UPDATE queue SET is_pinned = ?, pinned_at = ?, updated_at = ? WHERE id = ?',
-        )
+        .prepare('UPDATE queue SET is_pinned = ?, pinned_at = ?, updated_at = ? WHERE id = ?')
         .run(pinned ? 1 : 0, pinned ? updatedAt : '', updatedAt, id);
     },
 

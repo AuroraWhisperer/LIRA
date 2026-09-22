@@ -1,6 +1,6 @@
 // 编写人：Aurora
 // 机器人内置文案池（签到祝福语 / 抽签签池）。
-// 放在 shared 层，供 storage（默认值）与 bilibili（运行时回退）共同引用，
+// 放在 shared 层，供设置默认值与云端机器人旧数据兼容读取共同引用，
 // 避免 storage 层反向依赖 bilibili 领域。
 'use strict';
 

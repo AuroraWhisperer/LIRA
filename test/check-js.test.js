@@ -56,13 +56,8 @@ async function runFixture({ cpus = 8, failure } = {}) {
           const child = new EventEmitter();
           setImmediate(() => {
             finish();
-            if (failed === 'start')
-              child.emit('error', new Error('fixture spawn failure'));
-            child.emit(
-              'close',
-              failed === 'signal' ? null : failed ? 7 : 0,
-              failed === 'signal' ? 'SIGTERM' : null,
-            );
+            if (failed === 'start') child.emit('error', new Error('fixture spawn failure'));
+            child.emit('close', failed === 'signal' ? null : failed ? 7 : 0, failed === 'signal' ? 'SIGTERM' : null);
           });
           return child;
         },
@@ -97,9 +92,7 @@ test('syntax checks cover every file with bounded concurrency and respect availa
     assert.equal(result.completed, 11);
     assert.equal(result.peak, Math.min(4, cpus));
     assert.equal(result.active, 0);
-    assert.deepEqual(result.output, [
-      'Syntax check passed for 11 JavaScript files.',
-    ]);
+    assert.deepEqual(result.output, ['Syntax check passed for 11 JavaScript files.']);
   }
 });
 
@@ -119,8 +112,7 @@ test('child startup and signal failures cannot produce a successful syntax check
     assert.ok(result.calls.length <= 4);
     assert.equal(result.completed, result.calls.length);
     assert.deepEqual(result.output, []);
-    if (failure === 'start')
-      assert.match(result.errors.join('\n'), /fixture spawn failure/);
+    if (failure === 'start') assert.match(result.errors.join('\n'), /fixture spawn failure/);
   }
 });
 
@@ -142,10 +134,7 @@ test('checker CLI preserves native CommonJS and ESM syntax checks without execut
   put('src/空 格.js', 'throw new Error("must not execute");');
   put('src/ignored.cjs', 'const invalid = ;');
   put('public/package.json', '{"type":"module"}');
-  put(
-    'public/module.js',
-    'import missing from "./missing.js"; await missing();',
-  );
+  put('public/module.js', 'import missing from "./missing.js"; await missing();');
   put('test/fixture.js', 'module.exports = 1;');
   const run = () =>
     spawnSync(process.execPath, [path.join(root, 'scripts/check-js.js')], {

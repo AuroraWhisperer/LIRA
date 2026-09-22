@@ -1,11 +1,7 @@
 'use strict';
 
 function createOvertimeConsumer({ service } = {}) {
-  if (
-    !service ||
-    typeof service.observeGift !== 'function' ||
-    typeof service.finalizeGift !== 'function'
-  ) {
+  if (!service || typeof service.observeGift !== 'function' || typeof service.finalizeGift !== 'function') {
     throw new Error('OvertimeService is required to create OvertimeConsumer.');
   }
 

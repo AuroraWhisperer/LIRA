@@ -2,10 +2,7 @@
 
 const { isSensitiveFieldName: isSensitiveResponseKey } = require('../../shared/sensitive-field-name');
 
-const {
-  RemoteLicenseError,
-  normalizeErrorCode,
-} = require('./remote-license-client');
+const { RemoteLicenseError, normalizeErrorCode } = require('./remote-license-client');
 
 const SONG_BACKGROUND_MAX_BYTES = 5 * 1024 * 1024;
 const SONG_BACKGROUND_TYPES = new Map([
@@ -17,10 +14,7 @@ const SONG_BACKGROUND_TYPES = new Map([
 ]);
 
 function getErrorCode(error) {
-  const raw =
-    error instanceof RemoteLicenseError
-      ? error.code
-      : error?.code || error?.message || 'NETWORK_UNAVAILABLE';
+  const raw = error instanceof RemoteLicenseError ? error.code : error?.code || error?.message || 'NETWORK_UNAVAILABLE';
   return normalizeErrorCode(raw);
 }
 
@@ -42,9 +36,7 @@ function sanitizeRemoteResponse(value, seen = new WeakSet()) {
   seen.add(value);
 
   if (Array.isArray(value)) {
-    return value
-      .map((item) => sanitizeRemoteResponse(item, seen))
-      .filter((item) => item !== undefined);
+    return value.map((item) => sanitizeRemoteResponse(item, seen)).filter((item) => item !== undefined);
   }
 
   const entries = [];
@@ -59,29 +51,20 @@ function sanitizeRemoteResponse(value, seen = new WeakSet()) {
 function addSongBackgroundPreviewUrl(result, baseUrl) {
   if (!result?.background) return result;
   const pathname = String(result.background.url || '');
-  if (!pathname.startsWith('/'))
-    throw new RemoteLicenseError(
-      'BACKGROUND_URL_INVALID',
-      '服务器返回的背景地址无效。',
-    );
+  if (!pathname.startsWith('/')) throw new RemoteLicenseError('BACKGROUND_URL_INVALID', '服务器返回的背景地址无效。');
   try {
     const origin = new URL(String(baseUrl || '')).origin;
     const preview = new URL(pathname, origin);
-    if (preview.origin !== origin || preview.username || preview.password)
-      throw new Error('origin mismatch');
+    if (preview.origin !== origin || preview.username || preview.password) throw new Error('origin mismatch');
     for (const key of preview.searchParams.keys()) {
-      if (isSensitiveResponseKey(key))
-        throw new Error('credential query parameter');
+      if (isSensitiveResponseKey(key)) throw new Error('credential query parameter');
     }
     return {
       ...result,
       background: { ...result.background, previewUrl: preview.href },
     };
   } catch (_) {
-    throw new RemoteLicenseError(
-      'BACKGROUND_URL_INVALID',
-      '服务器返回的背景地址无效。',
-    );
+    throw new RemoteLicenseError('BACKGROUND_URL_INVALID', '服务器返回的背景地址无效。');
   }
 }
 
@@ -89,10 +72,7 @@ function sanitizeStreamer(value) {
   if (!value || typeof value !== 'object') return undefined;
   return {
     accountName: String(value.accountName || '').slice(0, 32),
-    displayName: String(value.displayName || value.accountName || '').slice(
-      0,
-      80,
-    ),
+    displayName: String(value.displayName || value.accountName || '').slice(0, 80),
     subdomain: String(value.subdomain || '').slice(0, 63),
     songPageUrl: String(value.songPageUrl || '').slice(0, 300),
     manageUrl: String(value.manageUrl || '').slice(0, 300),
@@ -110,8 +90,7 @@ function sanitizeDevice(value) {
 
 function mapSongForSync(song = {}) {
   const enabled = song.isEnabled ?? song.is_enabled ?? song.enabled ?? true;
-  const rawRequestPrice =
-    song.requestPrice !== undefined ? song.requestPrice : song.request_price;
+  const rawRequestPrice = song.requestPrice !== undefined ? song.requestPrice : song.request_price;
   const requestPrice =
     rawRequestPrice === undefined || rawRequestPrice === null
       ? null
@@ -124,17 +103,11 @@ function mapSongForSync(song = {}) {
     categoryName: String(song.categoryName ?? song.category_name ?? '').trim(),
     tags: String(song.tags ?? '').trim(),
     language: String(song.language ?? '').trim(),
-    sourcePlatform: String(
-      song.sourcePlatform ?? song.source_platform ?? '',
-    ).trim(),
+    sourcePlatform: String(song.sourcePlatform ?? song.source_platform ?? '').trim(),
     note: String(song.note ?? '').trim(),
     requestPrice,
     songClip: String(song.songClip ?? song.song_clip ?? '').trim(),
-    isEnabled: !(
-      enabled === false ||
-      enabled === 0 ||
-      String(enabled).toLowerCase() === 'false'
-    ),
+    isEnabled: !(enabled === false || enabled === 0 || String(enabled).toLowerCase() === 'false'),
     sortOrder: Number(song.sortOrder ?? song.sort_order ?? 0) || 0,
   };
 }

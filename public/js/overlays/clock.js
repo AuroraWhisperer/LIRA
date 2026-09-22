@@ -57,9 +57,7 @@ function cleanLabel(value, fallback) {
 
 function readClockConfig(params) {
   const requestedStyle = params.get('style');
-  const style = CLOCK_STYLE_VALUES.has(requestedStyle)
-    ? requestedStyle
-    : 'peach';
+  const style = CLOCK_STYLE_VALUES.has(requestedStyle) ? requestedStyle : 'peach';
   return {
     style,
     showDate: booleanParameter(params, 'date', true),
@@ -87,9 +85,7 @@ function mergeClockConfig(savedConfig, queryConfig, params) {
   return {
     style,
     showDate: params.has('date') ? queryConfig.showDate : saved.showDate,
-    showSeconds: params.has('seconds')
-      ? queryConfig.showSeconds
-      : saved.showSeconds,
+    showSeconds: params.has('seconds') ? queryConfig.showSeconds : saved.showSeconds,
     hour12: params.has('format') ? queryConfig.hour12 : saved.hour12,
     label: params.has('label')
       ? cleanLabel(params.get('label'), DEFAULT_LABELS[style])
@@ -138,9 +134,7 @@ function createClockFormatters(config) {
 async function initClock() {
   const params = new URLSearchParams(location.search);
   const queryConfig = readClockConfig(params);
-  const completeQuery = ['style', 'date', 'seconds', 'format'].every((key) =>
-    params.has(key),
-  );
+  const completeQuery = ['style', 'date', 'seconds', 'format'].every((key) => params.has(key));
   const savedConfig = completeQuery ? null : await loadSavedClockConfig();
   let config = mergeClockConfig(savedConfig, queryConfig, params);
   let formatters = createClockFormatters(config);
@@ -162,13 +156,7 @@ async function initClock() {
   function syncCardScale() {
     card.style.setProperty(
       '--clock-scale',
-      String(
-        clockScaleForViewport(
-          window.innerWidth,
-          window.innerHeight,
-          config.style,
-        ),
-      ),
+      String(clockScaleForViewport(window.innerWidth, window.innerHeight, config.style)),
     );
   }
 
@@ -222,9 +210,7 @@ async function initClock() {
     hoursNode.textContent = hours;
     minutesNode.textContent = minutes;
     secondsNode.textContent = seconds;
-    periodNode.textContent = config.style === 'digital'
-      ? (now.getHours() < 12 ? 'AM' : 'PM')
-      : period;
+    periodNode.textContent = config.style === 'digital' ? (now.getHours() < 12 ? 'AM' : 'PM') : period;
     const dateParts = formatters.date.formatToParts(now);
     const month = partValue(dateParts, 'month', '01').padStart(2, '0');
     const day = partValue(dateParts, 'day', '01').padStart(2, '0');
@@ -238,14 +224,9 @@ async function initClock() {
         ? `${month}/${day}`
         : `${month}月${day}日`;
     weekdayNode.textContent =
-      timelineStyle || digitalStyle
-        ? formatters.weekday.format(now).toUpperCase()
-        : formatters.weekday.format(now);
+      timelineStyle || digitalStyle ? formatters.weekday.format(now).toUpperCase() : formatters.weekday.format(now);
     timeNode.dateTime = now.toISOString();
-    timeNode.setAttribute(
-      'aria-label',
-      `${hours}点${minutes}分${config.showSeconds ? `${seconds}秒` : ''}`,
-    );
+    timeNode.setAttribute('aria-label', `${hours}点${minutes}分${config.showSeconds ? `${seconds}秒` : ''}`);
   }
 
   function schedule() {

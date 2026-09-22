@@ -46,9 +46,7 @@ class BilibiliApiClient {
       try {
         ownerName = await this.fetchOwnerName(uid);
       } catch (e) {
-        console.warn(
-          `[Bilibili] failed to fetch owner name for uid=${uid}: ${e.message}`,
-        );
+        console.warn(`[Bilibili] failed to fetch owner name for uid=${uid}: ${e.message}`);
       }
     }
     console.log(
@@ -68,12 +66,7 @@ class BilibiliApiClient {
       'master_info',
       `https://api.live.bilibili.com/live_user/v1/Master/info?uid=${encodeURIComponent(uid)}`,
     );
-    if (
-      payload.code === 0 &&
-      payload.data &&
-      payload.data.info &&
-      payload.data.info.uname
-    ) {
+    if (payload.code === 0 && payload.data && payload.data.info && payload.data.info.uname) {
       return payload.data.info.uname;
     }
     return '';
@@ -81,13 +74,8 @@ class BilibiliApiClient {
 
   async fetchCurrentUserName() {
     if (!this.cookieHeader) return '';
-    const { payload } = await this.fetchJson(
-      'nav',
-      'https://api.bilibili.com/x/web-interface/nav',
-    );
-    return cleanText(
-      payload && payload.data && (payload.data.uname || payload.data.name),
-    );
+    const { payload } = await this.fetchJson('nav', 'https://api.bilibili.com/x/web-interface/nav');
+    return cleanText(payload && payload.data && (payload.data.uname || payload.data.name));
   }
 
   async fetchUserProfile(uid) {
@@ -123,41 +111,26 @@ class BilibiliApiClient {
     const response = await fetch(imageUrl.toString(), {
       headers: {
         ...headers,
-        Accept:
-          'image/avif,image/webp,image/png,image/jpeg,image/gif,image/*;q=0.8',
+        Accept: 'image/avif,image/webp,image/png,image/jpeg,image/gif,image/*;q=0.8',
       },
       signal: AbortSignal.timeout(8000),
     });
-    if (!response.ok)
-      throw new Error(`直播账号头像读取失败。HTTP ${response.status}`);
+    if (!response.ok) throw new Error(`直播账号头像读取失败。HTTP ${response.status}`);
     const contentType = String(response.headers.get('content-type') || '')
       .split(';', 1)[0]
       .toLowerCase();
-    if (
-      ![
-        'image/jpeg',
-        'image/png',
-        'image/webp',
-        'image/gif',
-        'image/avif',
-      ].includes(contentType)
-    ) {
+    if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'].includes(contentType)) {
       throw new Error('直播账号头像返回了非图片内容。');
     }
     const contentLength = Number(response.headers.get('content-length')) || 0;
-    if (contentLength > MAX_AVATAR_BYTES)
-      throw new Error('直播账号头像文件过大。');
+    if (contentLength > MAX_AVATAR_BYTES) throw new Error('直播账号头像文件过大。');
     const data = Buffer.from(await response.arrayBuffer());
-    if (data.length > MAX_AVATAR_BYTES)
-      throw new Error('直播账号头像文件过大。');
+    if (data.length > MAX_AVATAR_BYTES) throw new Error('直播账号头像文件过大。');
     return { contentType, data };
   }
 
   async resolveDanmuInfo(roomId) {
-    const query = await wbiSigner.signBilibiliWbiParams(
-      { id: roomId, type: 0 },
-      this.requestHeaders(),
-    );
+    const query = await wbiSigner.signBilibiliWbiParams({ id: roomId, type: 0 }, this.requestHeaders());
     const { payload, response } = await this.fetchJson(
       'getDanmuInfo',
       `https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo?${query}`,
@@ -179,33 +152,16 @@ class BilibiliApiClient {
     const url = `https://api.live.bilibili.com/xlive/general-interface/v1/rank/getOnlineGoldRank?roomId=${encodeURIComponent(roomId)}&ruid=${encodeURIComponent(ruid)}&page=${page}&pageSize=${pageSize}`;
     const { payload, response } = await this.fetchJson('online_gold_rank', url);
     if (payload.code !== 0 || !payload.data) {
-      throw new Error(
-        formatBilibiliApiError(
-          'online_gold_rank',
-          response,
-          payload,
-          '在线榜身份缓存获取失败。',
-        ),
-      );
+      throw new Error(formatBilibiliApiError('online_gold_rank', response, payload, '在线榜身份缓存获取失败。'));
     }
     return payload.data;
   }
 
   async fetchFansMembersRank(roomId, ruid, page, pageSize) {
     const url = `https://api.live.bilibili.com/xlive/general-interface/v1/rank/getFansMembersRank?roomId=${encodeURIComponent(roomId)}&ruid=${encodeURIComponent(ruid)}&page=${encodeURIComponent(page)}&page_size=${encodeURIComponent(pageSize)}`;
-    const { payload, response } = await this.fetchJson(
-      'fans_members_rank',
-      url,
-    );
+    const { payload, response } = await this.fetchJson('fans_members_rank', url);
     if (payload.code !== 0 || !payload.data) {
-      throw new Error(
-        formatBilibiliApiError(
-          'fans_members_rank',
-          response,
-          payload,
-          '全量粉丝牌身份缓存获取失败。',
-        ),
-      );
+      throw new Error(formatBilibiliApiError('fans_members_rank', response, payload, '全量粉丝牌身份缓存获取失败。'));
     }
     return payload.data;
   }
@@ -216,14 +172,7 @@ class BilibiliApiClient {
       `https://api.live.bilibili.com/xlive/web-room/v1/dM/gethistory?roomid=${encodeURIComponent(roomId)}`,
     );
     if (payload.code !== 0 || !payload.data) {
-      throw new Error(
-        formatBilibiliApiError(
-          'gethistory',
-          response,
-          payload,
-          '历史消息补偿监听失败。',
-        ),
-      );
+      throw new Error(formatBilibiliApiError('gethistory', response, payload, '历史消息补偿监听失败。'));
     }
     return payload.data;
   }
@@ -233,8 +182,7 @@ class BilibiliApiClient {
     if (!this.cookieHeader) throw new Error('请先登录直播账号。');
     const csrf = extractCookie(this.cookieHeader, 'bili_jct');
     if (!csrf) throw new Error('登录态缺少 bili_jct，无法发送弹幕。');
-    if (!rawText || rawText.length > 1000)
-      throw new Error('弹幕内容不能为空且不能超过 1000 个字符。');
+    if (!rawText || rawText.length > 1000) throw new Error('弹幕内容不能为空且不能超过 1000 个字符。');
 
     const mentionTarget = normalizeMentionTarget(reply);
     const replyMid = mentionTarget.uid;
@@ -270,12 +218,7 @@ class BilibiliApiClient {
     const payload = await response.json().catch(() => ({}));
     if (!response.ok || Number(payload.code) !== 0) {
       throw new Error(
-        formatBilibiliApiError(
-          'send_danmaku',
-          response,
-          payload,
-          '请确认账号已登录且具备在该直播间发言权限。',
-        ),
+        formatBilibiliApiError('send_danmaku', response, payload, '请确认账号已登录且具备在该直播间发言权限。'),
       );
     }
     return {
@@ -287,9 +230,7 @@ class BilibiliApiClient {
 
   async fetchJson(endpointName, url, options = {}) {
     const quiet =
-      endpointName === 'gethistory' ||
-      endpointName === 'online_gold_rank' ||
-      endpointName === 'fans_members_rank';
+      endpointName === 'gethistory' || endpointName === 'online_gold_rank' || endpointName === 'fans_members_rank';
     if (!quiet) {
       console.log(`[Bilibili] request ${endpointName}: ${redactUrl(url)}`);
     }
@@ -312,14 +253,7 @@ class BilibiliApiClient {
       );
     }
     if (!response.ok) {
-      throw new Error(
-        formatBilibiliApiError(
-          endpointName,
-          response,
-          payload,
-          'HTTP 请求失败。',
-        ),
-      );
+      throw new Error(formatBilibiliApiError(endpointName, response, payload, 'HTTP 请求失败。'));
     }
     return { payload, response };
   }
@@ -341,9 +275,7 @@ class BilibiliApiClient {
 }
 
 function extractCookie(cookieHeader, name) {
-  const match = String(cookieHeader || '').match(
-    new RegExp(`(?:^|;\\s*)${name}=([^;]*)`),
-  );
+  const match = String(cookieHeader || '').match(new RegExp(`(?:^|;\\s*)${name}=([^;]*)`));
   return match ? decodeURIComponent(match[1]) : '';
 }
 
@@ -355,8 +287,7 @@ function normalizeBilibiliAvatarUrl(value) {
   try {
     const source = String(value || '').trim();
     const url = new URL(source.startsWith('//') ? `https:${source}` : source);
-    if (url.protocol !== 'https:' || !url.hostname.endsWith('.hdslb.com'))
-      return '';
+    if (url.protocol !== 'https:' || !url.hostname.endsWith('.hdslb.com')) return '';
     return url.toString();
   } catch (_) {
     return '';

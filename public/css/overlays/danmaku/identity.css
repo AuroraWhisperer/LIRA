@@ -47,7 +47,8 @@ body[data-style='identity'] .draw-danmaku-item[data-identity='governor'] {
   --identity-surface: rgba(171, 37, 61, 0.92);
 }
 /* 把头像的色彩延展到普通观众卡片，保留原图的深浅与色彩分布。 */
-body[data-style='identity'] .draw-danmaku-item:is([data-identity='viewer'], [data-identity='fan']):not(.is-gift)::before {
+body[data-style='identity']
+  .draw-danmaku-item:is([data-identity='viewer'], [data-identity='fan']):not(.is-gift)::before {
   position: absolute;
   inset: -36px;
   background: var(--danmaku-avatar-image, var(--danmaku-avatar-art)) center / 100% 100% no-repeat;
@@ -55,8 +56,14 @@ body[data-style='identity'] .draw-danmaku-item:is([data-identity='viewer'], [dat
   pointer-events: none;
   content: '';
 }
-body[data-style='identity'] .draw-danmaku-item:is([data-identity='viewer'], [data-identity='fan']):not(.is-gift) .draw-danmaku-identity strong,
-body[data-style='identity'] .draw-danmaku-item:is([data-identity='viewer'], [data-identity='fan']):not(.is-gift) .draw-danmaku-body p {
+body[data-style='identity']
+  .draw-danmaku-item:is([data-identity='viewer'], [data-identity='fan']):not(.is-gift)
+  .draw-danmaku-identity
+  strong,
+body[data-style='identity']
+  .draw-danmaku-item:is([data-identity='viewer'], [data-identity='fan']):not(.is-gift)
+  .draw-danmaku-body
+  p {
   color: #fff;
   -webkit-text-stroke: 2px rgba(18, 22, 28, 0.88);
   paint-order: stroke fill;
@@ -142,7 +149,9 @@ body[data-style='identity'] .draw-danmaku-item.is-gift {
   --gift-surface: #fff0cf;
   border: 1px solid #dbb16c;
   border-radius: 4px;
-  box-shadow: inset 0 0 0 5px #fff8e8, 0 6px 16px rgb(12 18 30 / 18%);
+  box-shadow:
+    inset 0 0 0 5px #fff8e8,
+    0 6px 16px rgb(12 18 30 / 18%);
   grid-template-areas: 'content';
   grid-template-columns: minmax(0, 1fr);
 }
@@ -164,6 +173,7 @@ body[data-style='identity'] .is-gift .draw-danmaku-gift-art {
 body[data-custom-background='true'][data-style='identity'] .draw-danmaku-item:not(.is-gift) {
   background: color-mix(in srgb, var(--identity-surface) var(--danmaku-background-weight), transparent);
 }
-body[data-custom-background='true'][data-style='identity'] .draw-danmaku-item:is([data-identity='viewer'], [data-identity='fan']):not(.is-gift)::before {
+body[data-custom-background='true'][data-style='identity']
+  .draw-danmaku-item:is([data-identity='viewer'], [data-identity='fan']):not(.is-gift)::before {
   opacity: var(--danmaku-background-opacity);
 }

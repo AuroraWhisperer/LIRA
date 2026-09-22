@@ -1,9 +1,5 @@
 import { showConfirmationDialog } from '../shared/confirmation-dialog.js';
-import {
-  colorDistance,
-  createShapePoints,
-  isShapeTool,
-} from './games-drawing-geometry.js';
+import { colorDistance, createShapePoints, isShapeTool } from './games-drawing-geometry.js';
 import { createDrawControls } from './games-drawing-controls.js';
 
 const DRAW_TOOLS = ['pen', 'eraser', 'line', 'rectangle', 'ellipse', 'picker'];
@@ -16,13 +12,7 @@ const DRAW_TOOL_BUTTONS = {
   picker: 'drawPickerBtn',
 };
 
-export function createDrawController({
-  byId,
-  canDraw,
-  getSession,
-  loadSnapshot,
-  renderDanmaku,
-}) {
+export function createDrawController({ byId, canDraw, getSession, loadSnapshot, renderDanmaku }) {
   let drawColor = '#222034';
   let drawWidth = 4;
   let drawTool = 'pen';
@@ -49,9 +39,7 @@ export function createDrawController({
   });
 
   const drawClientId = `draw-${
-    typeof crypto.randomUUID === 'function'
-      ? crypto.randomUUID()
-      : Math.random().toString(36).slice(2)
+    typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : Math.random().toString(36).slice(2)
   }`;
 
   function init() {
@@ -64,24 +52,12 @@ export function createDrawController({
         updateDrawColorButtons();
       }),
     );
-    byId('drawPenBtn').addEventListener('click', () =>
-      setActiveDrawTool('pen'),
-    );
-    byId('drawEraserBtn').addEventListener('click', () =>
-      setActiveDrawTool('eraser'),
-    );
-    byId('drawLineBtn').addEventListener('click', () =>
-      setActiveDrawTool('line'),
-    );
-    byId('drawRectangleBtn').addEventListener('click', () =>
-      setActiveDrawTool('rectangle'),
-    );
-    byId('drawEllipseBtn').addEventListener('click', () =>
-      setActiveDrawTool('ellipse'),
-    );
-    byId('drawPickerBtn').addEventListener('click', () =>
-      setActiveDrawTool('picker'),
-    );
+    byId('drawPenBtn').addEventListener('click', () => setActiveDrawTool('pen'));
+    byId('drawEraserBtn').addEventListener('click', () => setActiveDrawTool('eraser'));
+    byId('drawLineBtn').addEventListener('click', () => setActiveDrawTool('line'));
+    byId('drawRectangleBtn').addEventListener('click', () => setActiveDrawTool('rectangle'));
+    byId('drawEllipseBtn').addEventListener('click', () => setActiveDrawTool('ellipse'));
+    byId('drawPickerBtn').addEventListener('click', () => setActiveDrawTool('picker'));
     document.querySelectorAll('[data-draw-width]').forEach((button) =>
       button.addEventListener('click', () => {
         setDrawWidth(Number(button.dataset.drawWidth));
@@ -100,34 +76,20 @@ export function createDrawController({
     pendingDrawDanmakuItems = Array.isArray(items) ? items : [];
     const now = performance.now();
     drawDanmakuUpdateTimes.push(now);
-    drawDanmakuUpdateTimes = drawDanmakuUpdateTimes.filter(
-      (timestamp) => now - timestamp < 1000,
-    );
+    drawDanmakuUpdateTimes = drawDanmakuUpdateTimes.filter((timestamp) => now - timestamp < 1000);
     if (drawDanmakuRenderTimer) return;
     const interval = getDrawDanmakuRenderInterval(now);
-    const elapsed = drawDanmakuLastRenderedAt
-      ? now - drawDanmakuLastRenderedAt
-      : interval;
+    const elapsed = drawDanmakuLastRenderedAt ? now - drawDanmakuLastRenderedAt : interval;
     const waitMs = Math.max(0, interval - elapsed);
-    if (waitMs > 0)
-      drawDanmakuRenderTimer = setTimeout(flushDrawDanmakuRender, waitMs);
+    if (waitMs > 0) drawDanmakuRenderTimer = setTimeout(flushDrawDanmakuRender, waitMs);
     else flushDrawDanmakuRender();
   }
 
   function getDrawDanmakuRenderInterval(now = performance.now()) {
     const updatesPerSecond = drawDanmakuUpdateTimes.length;
-    const renderWasRecentlySlow =
-      drawDanmakuLastRenderedAt > 0 && now - drawDanmakuLastRenderedAt < 1000;
-    if (
-      updatesPerSecond >= 20 ||
-      (renderWasRecentlySlow && drawDanmakuLastRenderDurationMs >= 16)
-    )
-      return 500;
-    if (
-      updatesPerSecond >= 8 ||
-      (renderWasRecentlySlow && drawDanmakuLastRenderDurationMs >= 8)
-    )
-      return 200;
+    const renderWasRecentlySlow = drawDanmakuLastRenderedAt > 0 && now - drawDanmakuLastRenderedAt < 1000;
+    if (updatesPerSecond >= 20 || (renderWasRecentlySlow && drawDanmakuLastRenderDurationMs >= 16)) return 500;
+    if (updatesPerSecond >= 8 || (renderWasRecentlySlow && drawDanmakuLastRenderDurationMs >= 8)) return 200;
     return 0;
   }
 
@@ -154,16 +116,8 @@ export function createDrawController({
 
   function updateCountdown() {
     const currentSession = getSession();
-    if (
-      currentSession?.game !== 'draw-guess' ||
-      currentSession.state?.phase !== 'drawing' ||
-      !drawClock
-    )
-      return;
-    const remaining = Math.max(
-      0,
-      drawClock.remainingMs - (performance.now() - drawClock.receivedAt),
-    );
+    if (currentSession?.game !== 'draw-guess' || currentSession.state?.phase !== 'drawing' || !drawClock) return;
+    const remaining = Math.max(0, drawClock.remainingMs - (performance.now() - drawClock.receivedAt));
     const seconds = Math.ceil(remaining / 1000);
     const countdown = `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
     byId('drawCountdown').textContent = countdown;
@@ -179,10 +133,7 @@ export function createDrawController({
     drawTool = DRAW_TOOLS.includes(tool) ? tool : 'pen';
     const canvas = byId('drawCanvas');
     canvas.classList.toggle('is-eraser', drawTool === 'eraser');
-    canvas.classList.toggle(
-      'is-shape',
-      ['line', 'rectangle', 'ellipse'].includes(drawTool),
-    );
+    canvas.classList.toggle('is-shape', ['line', 'rectangle', 'ellipse'].includes(drawTool));
     canvas.classList.toggle('is-picker', drawTool === 'picker');
     Object.entries(DRAW_TOOL_BUTTONS).forEach(([name, id]) => {
       byId(id).setAttribute('aria-pressed', String(drawTool === name));
@@ -191,10 +142,7 @@ export function createDrawController({
 
   function updateDrawColorButtons() {
     document.querySelectorAll('[data-draw-color]').forEach((button) => {
-      button.setAttribute(
-        'aria-pressed',
-        String(button.dataset.drawColor === drawColor),
-      );
+      button.setAttribute('aria-pressed', String(button.dataset.drawColor === drawColor));
     });
   }
 
@@ -203,10 +151,7 @@ export function createDrawController({
     if (![2, 4, 8, 12].includes(nextWidth)) return;
     drawWidth = nextWidth;
     document.querySelectorAll('[data-draw-width]').forEach((item) => {
-      item.setAttribute(
-        'aria-pressed',
-        String(Number(item.dataset.drawWidth) === drawWidth),
-      );
+      item.setAttribute('aria-pressed', String(Number(item.dataset.drawWidth) === drawWidth));
     });
   }
 
@@ -215,20 +160,12 @@ export function createDrawController({
       .map((button) => Number(button.dataset.drawWidth))
       .filter((width) => Number.isFinite(width));
     const currentIndex = Math.max(0, widths.indexOf(drawWidth));
-    const nextIndex = Math.max(
-      0,
-      Math.min(widths.length - 1, currentIndex + direction),
-    );
+    const nextIndex = Math.max(0, Math.min(widths.length - 1, currentIndex + direction));
     setDrawWidth(widths[nextIndex]);
   }
 
   function handleDrawShortcut(event) {
-    if (
-      !canDraw() ||
-      isDrawTextInput(event.target) ||
-      event.target?.closest?.('.lira-confirm-backdrop')
-    )
-      return;
+    if (!canDraw() || isDrawTextInput(event.target) || event.target?.closest?.('.lira-confirm-backdrop')) return;
     const key = String(event.key || '').toLowerCase();
     if ((event.ctrlKey || event.metaKey) && !event.shiftKey && key === 'z') {
       event.preventDefault();
@@ -265,17 +202,11 @@ export function createDrawController({
 
   function isDrawTextInput(target) {
     const tagName = String(target?.tagName || '').toLowerCase();
-    return (
-      tagName === 'input' ||
-      tagName === 'textarea' ||
-      tagName === 'select' ||
-      Boolean(target?.isContentEditable)
-    );
+    return tagName === 'input' || tagName === 'textarea' || tagName === 'select' || Boolean(target?.isContentEditable);
   }
 
   function startDrawing(event) {
-    if (!canDraw() || (event.pointerType === 'mouse' && event.button !== 0))
-      return;
+    if (!canDraw() || (event.pointerType === 'mouse' && event.button !== 0)) return;
     event.preventDefault();
     if (drawTool === 'picker') {
       pickDrawColor(event);
@@ -303,12 +234,7 @@ export function createDrawController({
   }
 
   function continueDrawing(event) {
-    if (
-      !activeStroke ||
-      activeStroke.pointerId !== event.pointerId ||
-      !canDraw()
-    )
-      return;
+    if (!activeStroke || activeStroke.pointerId !== event.pointerId || !canDraw()) return;
     event.preventDefault();
     const point = drawPointFromEvent(event);
     if (isShapeTool(activeStroke.tool)) {
@@ -316,17 +242,8 @@ export function createDrawController({
       previewActiveShape();
       return;
     }
-    if (
-      Math.abs(point.x - activeStroke.lastPoint.x) +
-        Math.abs(point.y - activeStroke.lastPoint.y) <
-      0.001
-    )
-      return;
-    drawCanvasPoints(
-      [activeStroke.lastPoint, point],
-      activeStroke.color,
-      activeStroke.width,
-    );
+    if (Math.abs(point.x - activeStroke.lastPoint.x) + Math.abs(point.y - activeStroke.lastPoint.y) < 0.001) return;
+    drawCanvasPoints([activeStroke.lastPoint, point], activeStroke.color, activeStroke.width);
     activeStroke.lastPoint = point;
     activeStroke.pendingPoints.push(point);
     if (activeStroke.pendingPoints.length >= 16) flushActiveStroke();
@@ -342,11 +259,7 @@ export function createDrawController({
   function finalizeActiveStroke() {
     if (!activeStroke) return;
     if (isShapeTool(activeStroke.tool)) {
-      const points = createShapePoints(
-        activeStroke.tool,
-        activeStroke.startPoint,
-        activeStroke.lastPoint,
-      );
+      const points = createShapePoints(activeStroke.tool, activeStroke.startPoint, activeStroke.lastPoint);
       activeStroke.pendingPoints = points;
       redrawCanvas(getSession()?.state?.canvas);
       drawCanvasPoints(points, activeStroke.color, activeStroke.width);
@@ -359,11 +272,7 @@ export function createDrawController({
 
   function previewActiveShape() {
     if (!activeStroke || !isShapeTool(activeStroke.tool)) return;
-    const points = createShapePoints(
-      activeStroke.tool,
-      activeStroke.startPoint,
-      activeStroke.lastPoint,
-    );
+    const points = createShapePoints(activeStroke.tool, activeStroke.startPoint, activeStroke.lastPoint);
     redrawCanvas(getSession()?.state?.canvas);
     drawCanvasPoints(points, activeStroke.color, activeStroke.width);
   }
@@ -373,26 +282,15 @@ export function createDrawController({
     const point = drawPointFromEvent(event);
     const context = canvas.getContext('2d');
     const pixel = context.getImageData(
-      Math.min(
-        canvas.width - 1,
-        Math.max(0, Math.floor(point.x * canvas.width)),
-      ),
-      Math.min(
-        canvas.height - 1,
-        Math.max(0, Math.floor(point.y * canvas.height)),
-      ),
+      Math.min(canvas.width - 1, Math.max(0, Math.floor(point.x * canvas.width))),
+      Math.min(canvas.height - 1, Math.max(0, Math.floor(point.y * canvas.height))),
       1,
       1,
     ).data;
     if (pixel[0] > 245 && pixel[1] > 245 && pixel[2] > 245) return;
-    const palette = [...document.querySelectorAll('[data-draw-color]')].map(
-      (button) => button.dataset.drawColor,
-    );
+    const palette = [...document.querySelectorAll('[data-draw-color]')].map((button) => button.dataset.drawColor);
     drawColor = palette.reduce(
-      (nearest, color) =>
-        colorDistance(color, pixel) < colorDistance(nearest, pixel)
-          ? color
-          : nearest,
+      (nearest, color) => (colorDistance(color, pixel) < colorDistance(nearest, pixel) ? color : nearest),
       palette[0] || drawColor,
     );
     updateDrawColorButtons();
@@ -468,8 +366,7 @@ export function createDrawController({
     if (!operation || getSession()?.game !== 'draw-guess') return;
     // Undo waits for confirmation because the server selects the stroke.
     if (operation.clientId === drawClientId && operation.action !== 'undo') {
-      if (getSession().state?.canvas)
-        getSession().state.canvas.revision = operation.revision;
+      if (getSession().state?.canvas) getSession().state.canvas.revision = operation.revision;
       return;
     }
     mergeDrawOperation(operation, true);
@@ -487,15 +384,9 @@ export function createDrawController({
       return;
     }
     if (operation.action === 'undo') {
-      const strokeIndex = canvasState.strokes.findIndex(
-        (stroke) => stroke.id === operation.strokeId,
-      );
+      const strokeIndex = canvasState.strokes.findIndex((stroke) => stroke.id === operation.strokeId);
       if (strokeIndex >= 0) {
-        canvasState.totalPoints = Math.max(
-          0,
-          canvasState.totalPoints -
-            canvasState.strokes[strokeIndex].points.length,
-        );
+        canvasState.totalPoints = Math.max(0, canvasState.totalPoints - canvasState.strokes[strokeIndex].points.length);
         canvasState.strokes.splice(strokeIndex, 1);
         redrawCanvas(canvasState);
       }
@@ -503,11 +394,8 @@ export function createDrawController({
       drawControls.syncUndoState();
       return;
     }
-    if (operation.action !== 'append' || !Array.isArray(operation.points))
-      return;
-    let stroke = canvasState.strokes.find(
-      (item) => item.id === operation.strokeId,
-    );
+    if (operation.action !== 'append' || !Array.isArray(operation.points)) return;
+    let stroke = canvasState.strokes.find((item) => item.id === operation.strokeId);
     const previous = stroke?.points.at(-1) || null;
     if (!stroke) {
       stroke = {
@@ -524,15 +412,10 @@ export function createDrawController({
         y: Number(point.y),
       })),
     );
-    canvasState.totalPoints =
-      (Number(canvasState.totalPoints) || 0) + operation.points.length;
+    canvasState.totalPoints = (Number(canvasState.totalPoints) || 0) + operation.points.length;
     canvasState.revision = Number(operation.revision) || canvasState.revision;
     if (drawIncrement)
-      drawCanvasPoints(
-        previous ? [previous, ...operation.points] : operation.points,
-        operation.color,
-        operation.width,
-      );
+      drawCanvasPoints(previous ? [previous, ...operation.points] : operation.points, operation.color, operation.width);
     drawControls.syncUndoState();
   }
 
@@ -542,8 +425,7 @@ export function createDrawController({
     const context = canvas.getContext('2d');
     context.fillStyle = '#ffffff';
     context.fillRect(0, 0, canvas.width, canvas.height);
-    for (const stroke of canvasState.strokes || [])
-      drawCanvasPoints(stroke.points, stroke.color, stroke.width);
+    for (const stroke of canvasState.strokes || []) drawCanvasPoints(stroke.points, stroke.color, stroke.width);
   }
 
   function drawCanvasPoints(points, color, width) {
@@ -557,23 +439,14 @@ export function createDrawController({
     context.lineJoin = 'round';
     if (points.length === 1) {
       context.beginPath();
-      context.arc(
-        points[0].x * canvas.width,
-        points[0].y * canvas.height,
-        Number(width),
-        0,
-        Math.PI * 2,
-      );
+      context.arc(points[0].x * canvas.width, points[0].y * canvas.height, Number(width), 0, Math.PI * 2);
       context.fill();
       return;
     }
     context.beginPath();
     context.moveTo(points[0].x * canvas.width, points[0].y * canvas.height);
     for (let index = 1; index < points.length; index += 1) {
-      context.lineTo(
-        points[index].x * canvas.width,
-        points[index].y * canvas.height,
-      );
+      context.lineTo(points[index].x * canvas.width, points[index].y * canvas.height);
     }
     context.stroke();
   }

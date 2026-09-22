@@ -9,11 +9,7 @@ const MAX_REMOTE_SEARCH_RESULTS = 100;
 
 function createHybridGiftSaleCatalogService(options = {}) {
   const local = options.local;
-  if (
-    !local ||
-    typeof local.getSnapshot !== 'function' ||
-    typeof local.refresh !== 'function'
-  ) {
+  if (!local || typeof local.getSnapshot !== 'function' || typeof local.refresh !== 'function') {
     throw new Error('A local gift catalog service is required.');
   }
 
@@ -35,9 +31,7 @@ function createHybridGiftSaleCatalogService(options = {}) {
   let lastUpdateSignature = '';
   let assetsUpdatedAt = '';
   const getCustomBlindBoxes =
-    typeof options.getBlindBoxCustomConfigV2 === 'function'
-      ? options.getBlindBoxCustomConfigV2
-      : () => [];
+    typeof options.getBlindBoxCustomConfigV2 === 'function' ? options.getBlindBoxCustomConfigV2 : () => [];
   const remoteCatalog =
     options.remoteCatalog ||
     createRemoteGiftCatalogCache({
@@ -46,11 +40,7 @@ function createHybridGiftSaleCatalogService(options = {}) {
       fetchRemote: options.fetchRemote,
       onUpdated: (snapshot) => {
         roomSnapshot = decorateWithCachedImages(
-          mergeRoomCatalog(
-            local.getSnapshot(),
-            snapshot,
-            getCustomBlindBoxes(),
-          ),
+          mergeRoomCatalog(local.getSnapshot(), snapshot, getCustomBlindBoxes()),
           remoteImageCache,
         );
         if (!giftCatalogInitializer) {
@@ -61,12 +51,7 @@ function createHybridGiftSaleCatalogService(options = {}) {
           if (stopped) return;
           giftCatalogInitializer
             ?.initialize({ refresh: false, reason: 'catalog-update' })
-            .catch((error) =>
-              logger.warn?.(
-                '[GiftCatalog] background asset refresh failed:',
-                error?.message || error,
-              ),
-            );
+            .catch((error) => logger.warn?.('[GiftCatalog] background asset refresh failed:', error?.message || error));
         });
       },
       now: options.now,
@@ -92,18 +77,13 @@ function createHybridGiftSaleCatalogService(options = {}) {
     });
   }
   let roomSnapshot = decorateWithCachedImages(
-    mergeRoomCatalog(
-      local.getSnapshot(),
-      remoteCatalog.getSnapshot(),
-      getCustomBlindBoxes(),
-    ),
+    mergeRoomCatalog(local.getSnapshot(), remoteCatalog.getSnapshot(), getCustomBlindBoxes()),
     remoteImageCache,
   );
   let roomRefreshPending = null;
   let unsubscribe = giftCatalogInitializer?.onStateChanged?.((state) => {
     if (stopped || state.status !== 'ready') return;
-    if (state.total > 0 && !state.error)
-      assetsUpdatedAt = state.completedAt || assetsUpdatedAt;
+    if (state.total > 0 && !state.error) assetsUpdatedAt = state.completedAt || assetsUpdatedAt;
     const snapshot = getGlobalSnapshot();
     if (!snapshot) return;
     const signature = JSON.stringify({
@@ -123,11 +103,7 @@ function createHybridGiftSaleCatalogService(options = {}) {
   function getSnapshot() {
     return cloneRoomSnapshot(
       decorateWithCachedImages(
-        mergeRoomCatalog(
-          roomSnapshot,
-          remoteCatalog.getSnapshot(),
-          getCustomBlindBoxes(),
-        ),
+        mergeRoomCatalog(roomSnapshot, remoteCatalog.getSnapshot(), getCustomBlindBoxes()),
         remoteImageCache,
       ),
       true,
@@ -143,17 +119,9 @@ function createHybridGiftSaleCatalogService(options = {}) {
         serverSnapshot = await remoteCatalog.refresh({ reason: 'room' });
       } catch (error) {
         serverSnapshot = remoteCatalog.getSnapshot();
-        logger.warn?.(
-          '[GiftCatalog] room artwork refresh failed:',
-          error?.message || error,
-        );
+        logger.warn?.('[GiftCatalog] room artwork refresh failed:', error?.message || error);
       }
-      roomSnapshot = await decorateRoomSnapshot(
-        localSnapshot,
-        serverSnapshot,
-        remoteImageCache,
-        getCustomBlindBoxes(),
-      );
+      roomSnapshot = await decorateRoomSnapshot(localSnapshot, serverSnapshot, remoteImageCache, getCustomBlindBoxes());
       return cloneRoomSnapshot(roomSnapshot, localSnapshot.cached === true);
     })().finally(() => {
       roomRefreshPending = null;
@@ -175,14 +143,10 @@ function createHybridGiftSaleCatalogService(options = {}) {
   function getGlobalSnapshot() {
     const snapshot = remoteCatalog.getSnapshot();
     if (!snapshot) return null;
-    const gifts = (Array.isArray(snapshot.gifts) ? snapshot.gifts : []).map(
-      (gift) => ({
-        ...gift,
-        imagePath: remoteImageCache
-          ? remoteImageCache.getCachedGiftImagePath(gift)
-          : '',
-      }),
-    );
+    const gifts = (Array.isArray(snapshot.gifts) ? snapshot.gifts : []).map((gift) => ({
+      ...gift,
+      imagePath: remoteImageCache ? remoteImageCache.getCachedGiftImagePath(gift) : '',
+    }));
     return { ...snapshot, assetsUpdatedAt, count: gifts.length, gifts };
   }
 
@@ -214,25 +178,16 @@ function createHybridGiftSaleCatalogService(options = {}) {
             ?.gifts?.find(
               (item) =>
                 String(item.id) === id &&
-                (!rule?.giftIdentity?.variantId ||
-                  item.variantId === rule.giftIdentity.variantId),
+                (!rule?.giftIdentity?.variantId || item.variantId === rule.giftIdentity.variantId),
             );
-    const candidate =
-      gift || roomSnapshot.gifts.find((item) => String(item.id) === id);
+    const candidate = gift || roomSnapshot.gifts.find((item) => String(item.id) === id);
     if (!candidate) return '';
-    if (
-      candidate.variantId &&
-      candidate.variantId !== rule?.giftIdentity?.variantId
-    )
-      return '';
-    return remoteImageCache
-      ? remoteImageCache.getCachedGiftImagePath(candidate)
-      : candidate.imagePath || '';
+    if (candidate.variantId && candidate.variantId !== rule?.giftIdentity?.variantId) return '';
+    return remoteImageCache ? remoteImageCache.getCachedGiftImagePath(candidate) : candidate.imagePath || '';
   }
 
   function initializeGlobalCatalog(request = {}) {
-    if (!giftCatalogInitializer)
-      return Promise.reject(new Error('全局礼物目录初始化服务未配置。'));
+    if (!giftCatalogInitializer) return Promise.reject(new Error('全局礼物目录初始化服务未配置。'));
     return giftCatalogInitializer.initialize(request);
   }
 
@@ -246,10 +201,8 @@ function createHybridGiftSaleCatalogService(options = {}) {
         percent: 100,
       },
     initializeGlobalCatalog,
-    isGlobalCatalogInitialized: () =>
-      giftCatalogInitializer?.isInitialized?.() !== false,
-    onInitializationStateChanged: (listener) =>
-      giftCatalogInitializer?.onStateChanged?.(listener) || (() => {}),
+    isGlobalCatalogInitialized: () => giftCatalogInitializer?.isInitialized?.() !== false,
+    onInitializationStateChanged: (listener) => giftCatalogInitializer?.onStateChanged?.(listener) || (() => {}),
     refresh,
     refreshRemote,
     searchRemote,
@@ -271,9 +224,7 @@ function createHybridGiftSaleCatalogService(options = {}) {
       if (disposed) return;
       stopped = false;
       remoteCatalog.start?.(
-        giftCatalogInitializer
-          ? (request) => initializeGlobalCatalog({ ...request, force: true })
-          : undefined,
+        giftCatalogInitializer ? (request) => initializeGlobalCatalog({ ...request, force: true }) : undefined,
       );
     },
     stop() {
@@ -286,19 +237,10 @@ function createHybridGiftSaleCatalogService(options = {}) {
 
 function mergeRoomCatalog(roomSnapshot, serverSnapshot, customBlindBoxes = []) {
   if (serverSnapshot?.schemaVersion === 3) {
-    return mergeVariantRoomCatalog(
-      roomSnapshot,
-      serverSnapshot,
-      customBlindBoxes,
-    );
+    return mergeVariantRoomCatalog(roomSnapshot, serverSnapshot, customBlindBoxes);
   }
-  if (
-    serverSnapshot?.gifts?.length &&
-    serverSnapshot.gifts.every((gift) => gift.variantId)
-  ) {
-    const byId = new Map(
-      serverSnapshot.gifts.map((gift) => [gift.id, gift.variantId]),
-    );
+  if (serverSnapshot?.gifts?.length && serverSnapshot.gifts.every((gift) => gift.variantId)) {
+    const byId = new Map(serverSnapshot.gifts.map((gift) => [gift.id, gift.variantId]));
     return mergeVariantRoomCatalog(
       roomSnapshot,
       {
@@ -311,25 +253,19 @@ function mergeRoomCatalog(roomSnapshot, serverSnapshot, customBlindBoxes = []) {
       customBlindBoxes,
     );
   }
-  const room =
-    roomSnapshot && typeof roomSnapshot === 'object' ? roomSnapshot : {};
+  const room = roomSnapshot && typeof roomSnapshot === 'object' ? roomSnapshot : {};
   const serverById = new Map(
-    (Array.isArray(serverSnapshot?.gifts) ? serverSnapshot.gifts : []).map(
-      (gift) => [String(gift?.id || '').trim(), gift],
-    ),
+    (Array.isArray(serverSnapshot?.gifts) ? serverSnapshot.gifts : []).map((gift) => [
+      String(gift?.id || '').trim(),
+      gift,
+    ]),
   );
   const roomGifts = Array.isArray(room.gifts) ? room.gifts : [];
-  const panelGiftIds = new Set(
-    roomGifts.map((gift) => String(gift?.id || '').trim()).filter(Boolean),
-  );
+  const panelGiftIds = new Set(roomGifts.map((gift) => String(gift?.id || '').trim()).filter(Boolean));
   const gifts = roomGifts.map((gift) => ({
     ...gift,
-    sourceUrl:
-      String(serverById.get(String(gift?.id || '').trim())?.sourceUrl || '') ||
-      '',
-    imagePath:
-      String(serverById.get(String(gift?.id || '').trim())?.imagePath || '') ||
-      '',
+    sourceUrl: String(serverById.get(String(gift?.id || '').trim())?.sourceUrl || '') || '',
+    imagePath: String(serverById.get(String(gift?.id || '').trim())?.imagePath || '') || '',
   }));
   const addGiftById = (giftId, fallback = null) => {
     const id = String(giftId || '').trim();
@@ -348,9 +284,7 @@ function mergeRoomCatalog(roomSnapshot, serverSnapshot, customBlindBoxes = []) {
       imagePath: String(serverGift?.imagePath || ''),
     });
   };
-  for (const relation of Array.isArray(serverSnapshot?.blindBoxes)
-    ? serverSnapshot.blindBoxes
-    : []) {
+  for (const relation of Array.isArray(serverSnapshot?.blindBoxes) ? serverSnapshot.blindBoxes : []) {
     if (!panelGiftIds.has(String(relation?.giftId || '').trim())) continue;
     for (const outputGiftId of relation.outputGiftIds || []) {
       addGiftById(outputGiftId);
@@ -365,17 +299,8 @@ function mergeRoomCatalog(roomSnapshot, serverSnapshot, customBlindBoxes = []) {
   return { ...room, count: gifts.length, gifts };
 }
 
-async function decorateRoomSnapshot(
-  roomSnapshot,
-  serverSnapshot,
-  remoteImageCache,
-  customBlindBoxes = [],
-) {
-  const merged = mergeRoomCatalog(
-    roomSnapshot,
-    serverSnapshot,
-    customBlindBoxes,
-  );
+async function decorateRoomSnapshot(roomSnapshot, serverSnapshot, remoteImageCache, customBlindBoxes = []) {
+  const merged = mergeRoomCatalog(roomSnapshot, serverSnapshot, customBlindBoxes);
   const gifts = remoteImageCache
     ? await remoteImageCache.cacheGifts(merged.gifts)
     : merged.gifts.map((gift) => ({ ...gift }));
@@ -394,12 +319,10 @@ function decorateWithCachedImages(snapshot, remoteImageCache) {
 function cloneRoomSnapshot(snapshot, cached) {
   return {
     ...snapshot,
-    gifts: (Array.isArray(snapshot?.gifts) ? snapshot.gifts : []).map(
-      (gift) => {
-        const { sourceUrl: _sourceUrl, ...publicGift } = gift;
-        return structuredClone(publicGift);
-      },
-    ),
+    gifts: (Array.isArray(snapshot?.gifts) ? snapshot.gifts : []).map((gift) => {
+      const { sourceUrl: _sourceUrl, ...publicGift } = gift;
+      return structuredClone(publicGift);
+    }),
     cached,
   };
 }
@@ -416,12 +339,10 @@ function searchSnapshot(snapshot, query) {
 }
 
 function validateRemoteGiftQuery(value) {
-  if (typeof value !== 'string')
-    throw new Error('服务器礼物搜索词必须是字符串。');
+  if (typeof value !== 'string') throw new Error('服务器礼物搜索词必须是字符串。');
   const query = value.trim();
   const length = Array.from(query).length;
-  if (length < 1 || length > 100)
-    throw new Error('请输入 1–100 个字符的礼物名称或 ID。');
+  if (length < 1 || length > 100) throw new Error('请输入 1–100 个字符的礼物名称或 ID。');
   return query;
 }
 

@@ -47,27 +47,9 @@ test('frame adapter uses final total price in integer cents and stable event ids
 test('frame adapter rejects disabled, progress, zero, and below-threshold gifts', () => {
   const base = { id: 1, detection_status: 'final', total_price: 20 };
   assert.equal(buildGiftFrameEvent(base, { giftFrameEnabled: 'false' }), null);
-  assert.equal(
-    buildGiftFrameEvent(
-      { ...base, detection_status: 'progress' },
-      { giftFrameEnabled: 'true' },
-    ),
-    null,
-  );
-  assert.equal(
-    buildGiftFrameEvent(
-      { ...base, total_price: 0 },
-      { giftFrameEnabled: 'true' },
-    ),
-    null,
-  );
-  assert.equal(
-    buildGiftFrameEvent(
-      { ...base, total_price: 19.99 },
-      { giftFrameEnabled: 'true' },
-    ),
-    null,
-  );
+  assert.equal(buildGiftFrameEvent({ ...base, detection_status: 'progress' }, { giftFrameEnabled: 'true' }), null);
+  assert.equal(buildGiftFrameEvent({ ...base, total_price: 0 }, { giftFrameEnabled: 'true' }), null);
+  assert.equal(buildGiftFrameEvent({ ...base, total_price: 19.99 }, { giftFrameEnabled: 'true' }), null);
 });
 
 test('frame settings allowlist invalid values and preview bypasses live settings', () => {

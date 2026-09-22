@@ -55,7 +55,10 @@ test('a new baseline does not invent dates for smaller historical milestones', (
   f.record(p.id, 'membership', interval('2026-09-01', '2026-09-30'));
   f.record(p.id, 'membership', { type: 'baseline', asOf: '2026-09-18', totalDays: 120, continuousDays: 95 });
   const reminders = f.detail(p.id).reminders.filter((r) => r.metric);
-  assert.equal(reminders.some((r) => r.date === '2026-09-18'), false);
+  assert.equal(
+    reminders.some((r) => r.date === '2026-09-18'),
+    false,
+  );
   assert.ok(reminders.some((r) => r.metric === 'continuous' && r.threshold === 100 && r.date === '2026-09-23'));
 });
 
@@ -66,7 +69,12 @@ test('A01-A03: complete newer names preserve private fields and reject stale or 
   f.consume([{ name: '新昵称' }]);
   f.consume([{ name: '迟到旧昵称', observedAt: '2026-09-16T04:00:00Z' }]);
   for (const name of ['观众', '用户', '新…', '新***', '新...']) {
-    f.service.observeIdentity(SCOPE, { identity: IDENTITY, name, nameComplete: false, observedAt: '2026-09-19T04:00:00Z' });
+    f.service.observeIdentity(SCOPE, {
+      identity: IDENTITY,
+      name,
+      nameComplete: false,
+      observedAt: '2026-09-19T04:00:00Z',
+    });
   }
   const actual = f.detail(p.id);
   assert.equal(actual.platformName, '新昵称');
@@ -74,7 +82,10 @@ test('A01-A03: complete newer names preserve private fields and reject stale or 
   assert.equal(actual.notes, '只在本地保存');
   assert.deepEqual(actual.tags, ['吉他']);
   assert.equal(actual.birthday.monthDay, '09-19');
-  assert.deepEqual(actual.nameHistory.map((item) => item.name), ['旧昵称']);
+  assert.deepEqual(
+    actual.nameHistory.map((item) => item.name),
+    ['旧昵称'],
+  );
   assert.equal(actual.records.length, 0, 'identity observations do not flood interaction history');
 });
 
@@ -107,7 +118,10 @@ test('A14: profile CRUD and remote facts remain isolated by server and streamer'
   assert.equal(f.run('find', { identity: IDENTITY }, otherServer).id, c.id);
   assert.throws(() => f.detail(a.id, secondScope), /不属于当前账号/);
   assert.throws(() => f.run('save', { id: a.id, revision: a.revision, notes: '越界' }, secondScope), /不属于当前账号/);
-  assert.throws(() => f.consume([{ name: '迟到的甲账号事件' }], { streamerId: 'streamer-a' }, secondScope), /账号不匹配/);
+  assert.throws(
+    () => f.consume([{ name: '迟到的甲账号事件' }], { streamerId: 'streamer-a' }, secondScope),
+    /账号不匹配/,
+  );
   assert.equal(f.detail(b.id, secondScope).notes, '乙的备注');
   assert.equal(f.detail(b.id, secondScope).platformName, '');
 });
@@ -115,10 +129,11 @@ test('A14: profile CRUD and remote facts remain isolated by server and streamer'
 test('remote fact page and cursor roll back atomically on invalid evidence and survive replay', (t) => {
   const f = fanFixture(t);
   const p = f.create();
-  assert.throws(() => f.consume([
-    { name: '不得提前保存' },
-    { kind: 'membership', membership: interval('2026-09-01', '2026-09-30') },
-  ]), /缺少已核实证据/);
+  assert.throws(
+    () =>
+      f.consume([{ name: '不得提前保存' }, { kind: 'membership', membership: interval('2026-09-01', '2026-09-30') }]),
+    /缺少已核实证据/,
+  );
   assert.equal(f.detail(p.id).platformName, '');
   assert.equal(f.detail(p.id).records.length, 0);
   assert.equal(f.run('settings').cursor, 0);
@@ -134,8 +149,13 @@ test('remote fact page and cursor roll back atomically on invalid evidence and s
 
 test('A09: an old guard observation neither proves active status nor an expiry date', (t) => {
   const f = fanFixture(t);
-  f.consume([{ kind: 'membership', observedAt: '2026-06-18T04:00:00Z',
-    membership: { type: 'observation', level: 3, observedAt: '2026-06-18T04:00:00Z' } }]);
+  f.consume([
+    {
+      kind: 'membership',
+      observedAt: '2026-06-18T04:00:00Z',
+      membership: { type: 'observation', level: 3, observedAt: '2026-06-18T04:00:00Z' },
+    },
+  ]);
   const p = f.run('find', { identity: IDENTITY });
   assert.equal(p.membership.status, 'unknown');
   assert.equal(p.membership.observedAt, '2026-06-18T04:00:00.000Z');
@@ -185,8 +205,13 @@ test('A10: interval union deduplicates overlap, retains lower ranks, and resets 
 test('half-open exact validity excludes future starts and end instants, counting each business day once', (t) => {
   const f = fanFixture(t);
   const p = f.create();
-  f.record(p.id, 'membership', { type: 'interval', precision: 'instant', level: 3,
-    startAt: '2026-09-18T12:00:00+08:00', endAt: '2026-09-19T00:00:00+08:00' });
+  f.record(p.id, 'membership', {
+    type: 'interval',
+    precision: 'instant',
+    level: 3,
+    startAt: '2026-09-18T12:00:00+08:00',
+    endAt: '2026-09-19T00:00:00+08:00',
+  });
   f.setNow('2026-09-18T11:59:59+08:00');
   assert.equal(f.detail(p.id).membership.totalDays, 0);
   assert.equal(f.detail(p.id).membership.status, 'unknown');
@@ -221,7 +246,8 @@ test('A24: baseline validation rejects negative, fractional, missing-date and im
     { continuousDays: 1.5, asOf: '2026-09-18' },
     { totalDays: 120 },
     { totalDays: 90, continuousDays: 100, asOf: '2026-09-18' },
-  ]) assert.throws(() => f.record(p.id, 'membership', { type: 'baseline', ...data }));
+  ])
+    assert.throws(() => f.record(p.id, 'membership', { type: 'baseline', ...data }));
   assert.equal(f.detail(p.id).records.length, 0);
 });
 
@@ -229,8 +255,11 @@ test('A11: conflicting platform expiry is pending, pauses membership reminders, 
   const f = fanFixture(t);
   const p = f.create({ expiryReminders: true, birthday: { monthDay: '09-18' } });
   const manual = f.record(p.id, 'membership', interval('2026-09-01', '2026-12-31'));
-  const event = { id: 'conflicting-expiry', kind: 'membership',
-    membership: interval('2026-09-01', '2026-11-30', { evidenceVerified: true }) };
+  const event = {
+    id: 'conflicting-expiry',
+    kind: 'membership',
+    membership: interval('2026-09-01', '2026-11-30', { evidenceVerified: true }),
+  };
   f.consume([event]);
   let actual = f.detail(p.id);
   assert.equal(actual.membership.status, 'pending');
@@ -259,8 +288,11 @@ test('A12/A28: yearless leap-day birthdays use chosen solar rules and lunar date
   p = f.run('save', { id: p.id, revision: p.revision, birthday: { monthDay: '02-29', calendar: 'lunar' } });
   assert.equal(p.zodiacHint, '');
   assert.equal(p.reminders.length, 0);
-  p = f.run('save', { id: p.id, revision: p.revision,
-    birthday: { monthDay: '02-29', calendar: 'lunar', thisYearDate: '2027-04-05' } });
+  p = f.run('save', {
+    id: p.id,
+    revision: p.revision,
+    birthday: { monthDay: '02-29', calendar: 'lunar', thisYearDate: '2027-04-05' },
+  });
   assert.equal(p.reminders[0].date, '2027-04-05');
 });
 
@@ -289,7 +321,10 @@ test('A13: reopening lists only recent missed reminders and keeps handling durab
   f.record(p.id, 'anniversary', { name: '昨天错过', date: '2026-09-17' });
   f.restart();
   const reminders = f.detail(p.id).reminders;
-  assert.equal(reminders.some((r) => r.title === '很早以前'), false);
+  assert.equal(
+    reminders.some((r) => r.title === '很早以前'),
+    false,
+  );
   assert.equal(reminders.find((r) => r.title === '昨天错过').group, 'missed');
   assert.equal(reminders.find((r) => r.key === 'birthday:2026').group, 'missed');
 });
@@ -307,7 +342,10 @@ test('A22: editing interaction date preserves its identity, original content and
   assert.equal(detail.records[0].original.body, '原始正文');
   assert.equal(detail.records[0].revisions.length, 1);
   assert.equal(f.run('list').profiles[0].lastInteraction, NOW);
-  assert.throws(() => f.record(p.id, 'note', { body: '迟到覆盖' }, { id: first.id, revision: first.revision }), /已更新/);
+  assert.throws(
+    () => f.record(p.id, 'note', { body: '迟到覆盖' }, { id: first.id, revision: first.revision }),
+    /已更新/,
+  );
   assert.equal(f.detail(p.id).records[0].data.body, '修订正文');
 });
 
@@ -336,7 +374,10 @@ test('A24: a same-date continuous baseline cannot exceed an already confirmed to
   const f = fanFixture(t);
   const p = f.create();
   f.record(p.id, 'membership', { type: 'baseline', totalDays: 120, asOf: '2026-09-18' });
-  assert.throws(() => f.record(p.id, 'membership', { type: 'baseline', continuousDays: 130, asOf: '2026-09-18' }), /累计|连续/);
+  assert.throws(
+    () => f.record(p.id, 'membership', { type: 'baseline', continuousDays: 130, asOf: '2026-09-18' }),
+    /累计|连续/,
+  );
   assert.equal(f.detail(p.id).membership.totalDays, 120);
 });
 
@@ -357,7 +398,11 @@ test('A25: a handled milestone stays handled after a same-cycle baseline correct
   const reachedAgain = f.detail(p.id).reminders.find((r) => r.key === milestone.key);
   assert.equal(reachedAgain.status, 'handled');
   assert.equal(reachedAgain.actionable, false);
-  assert.equal(revised.revisedBelowThreshold, true, 'the retained handled occurrence identifies the downward correction');
+  assert.equal(
+    revised.revisedBelowThreshold,
+    true,
+    'the retained handled occurrence identifies the downward correction',
+  );
 });
 
 test('A25: a confirmed break permits the same continuous milestone in a new cycle', (t) => {
@@ -369,7 +414,9 @@ test('A25: a confirmed break permits the same continuous milestone in a new cycl
   f.run('reminder-state', { profileId: p.id, key: first.key, status: 'handled' });
   f.record(p.id, 'membership', interval('2026-10-01', '2027-01-31'));
   f.setNow('2027-01-08T04:00:00Z');
-  const second = f.detail(p.id).reminders.find((r) => r.key.startsWith('continuous:') && r.threshold === 100 && r.key !== first.key);
+  const second = f
+    .detail(p.id)
+    .reminders.find((r) => r.key.startsWith('continuous:') && r.threshold === 100 && r.key !== first.key);
   assert.equal(second.status, 'pending');
   assert.equal(second.actionable, true);
   assert.equal(second.date, '2027-01-08');
@@ -396,8 +443,15 @@ test('membership auto-creation recovers a newer identity snapshot already consum
   f.consume([{ ...latest, kind: 'identity' }]);
   assert.equal(f.run('find', { identity: IDENTITY }), null, 'ordinary identity observations do not auto-create fans');
   const earlier = '2026-06-18T04:00:00.000Z';
-  f.consume([{ kind: 'membership', name: '上舰时旧昵称', observedAt: earlier,
-    membership: { type: 'observation', level: 3, observedAt: earlier }, identitySnapshot: latest }]);
+  f.consume([
+    {
+      kind: 'membership',
+      name: '上舰时旧昵称',
+      observedAt: earlier,
+      membership: { type: 'observation', level: 3, observedAt: earlier },
+      identitySnapshot: latest,
+    },
+  ]);
   const p = f.run('find', { identity: IDENTITY });
   assert.equal(p.platformName, '当前完整昵称');
   assert.equal(p.platformObservedAt, NOW);
@@ -411,23 +465,36 @@ test('new membership facts cannot replace a later local nickname using an older 
   const p = f.create();
   f.consume([{ name: '本地已有最新昵称' }]);
   const earlier = '2026-06-18T04:00:00.000Z';
-  f.consume([{ kind: 'membership', name: '上舰时旧昵称', observedAt: earlier,
-    membership: { type: 'observation', level: 3, observedAt: earlier },
-    identitySnapshot: { identity: IDENTITY, name: '快照里的旧昵称', nameComplete: true, observedAt: earlier } }]);
+  f.consume([
+    {
+      kind: 'membership',
+      name: '上舰时旧昵称',
+      observedAt: earlier,
+      membership: { type: 'observation', level: 3, observedAt: earlier },
+      identitySnapshot: { identity: IDENTITY, name: '快照里的旧昵称', nameComplete: true, observedAt: earlier },
+    },
+  ]);
   assert.equal(f.detail(p.id).platformName, '本地已有最新昵称');
 });
 
 test('auto-create with auto-update disabled retains the initial membership observation and skips later changes', (t) => {
   const f = fanFixture(t);
   f.run('configure', { autoCreate: true, autoUpdate: false });
-  f.consume([{ kind: 'membership', name: '建档时的昵称',
-    membership: { type: 'observation', level: 3, observedAt: NOW } }]);
+  f.consume([
+    { kind: 'membership', name: '建档时的昵称', membership: { type: 'observation', level: 3, observedAt: NOW } },
+  ]);
   const created = f.run('find', { identity: IDENTITY });
   assert.equal(created.platformName, '建档时的昵称');
   assert.equal(created.membership.observedLevel, 3);
   assert.equal(created.records.length, 1);
-  f.consume([{ kind: 'membership', name: '关闭自动更新后出现的昵称', observedAt: '2026-09-19T04:00:00Z',
-    membership: { type: 'observation', level: 1, observedAt: '2026-09-19T04:00:00Z' } }]);
+  f.consume([
+    {
+      kind: 'membership',
+      name: '关闭自动更新后出现的昵称',
+      observedAt: '2026-09-19T04:00:00Z',
+      membership: { type: 'observation', level: 1, observedAt: '2026-09-19T04:00:00Z' },
+    },
+  ]);
   const unchanged = f.detail(created.id);
   assert.equal(unchanged.platformName, '建档时的昵称');
   assert.equal(unchanged.membership.observedLevel, 3);

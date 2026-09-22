@@ -24,10 +24,7 @@ function clearRoute(clear, reason) {
   };
 }
 
-function resumeClearAllWriters(
-  context,
-  { gifts = true, overtime = true } = {},
-) {
+function resumeClearAllWriters(context, { gifts = true, overtime = true } = {}) {
   try {
     // 先准备结算消费者，再恢复可能立即派发礼物的检测器。
     if (overtime) context.overtime.resumeRecovery();
@@ -89,18 +86,12 @@ async function clearGiftDatabases(context, request, res) {
 }
 
 const routes = {
-  'POST /api/database/clear': clearRoute(
-    (context) => context.data.clearSongLibrary(),
-    'database:clear',
-  ),
+  'POST /api/database/clear': clearRoute((context) => context.data.clearSongLibrary(), 'database:clear'),
   'POST /api/database/clear-superchats': clearRoute(
     (context) => context.data.clearSuperChats(),
     'database:clear-superchats',
   ),
-  'POST /api/database/clear-playback': clearRoute(
-    (context) => context.data.clearPlayback(),
-    'database:clear-playback',
-  ),
+  'POST /api/database/clear-playback': clearRoute((context) => context.data.clearPlayback(), 'database:clear-playback'),
   'POST /api/database/clear-gifts': clearGiftDatabases,
 
   // 清空全部：需要静默异步写入器并处理部分失败

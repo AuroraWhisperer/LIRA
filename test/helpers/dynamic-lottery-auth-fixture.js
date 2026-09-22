@@ -5,9 +5,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { EventEmitter } = require('node:events');
-const {
-  createDynamicLotteryAuth,
-} = require('../../src/electron/dynamic-lottery-auth');
+const { createDynamicLotteryAuth } = require('../../src/electron/dynamic-lottery-auth');
 
 const settle = () => new Promise((resolve) => setImmediate(resolve));
 const uid = '9007199254740993123';
@@ -60,23 +58,13 @@ function createFixture(t) {
     encryptString(value) {
       const iv = crypto.randomBytes(12);
       const cipher = crypto.createCipheriv('aes-256-gcm', encryptionKey, iv);
-      const encrypted = Buffer.concat([
-        cipher.update(value, 'utf8'),
-        cipher.final(),
-      ]);
+      const encrypted = Buffer.concat([cipher.update(value, 'utf8'), cipher.final()]);
       return Buffer.concat([iv, cipher.getAuthTag(), encrypted]);
     },
     decryptString(value) {
-      const cipher = crypto.createDecipheriv(
-        'aes-256-gcm',
-        encryptionKey,
-        value.subarray(0, 12),
-      );
+      const cipher = crypto.createDecipheriv('aes-256-gcm', encryptionKey, value.subarray(0, 12));
       cipher.setAuthTag(value.subarray(12, 28));
-      return Buffer.concat([
-        cipher.update(value.subarray(28)),
-        cipher.final(),
-      ]).toString('utf8');
+      return Buffer.concat([cipher.update(value.subarray(28)), cipher.final()]).toString('utf8');
     },
   };
   const stateChanges = new EventEmitter();
@@ -138,9 +126,7 @@ function createFixture(t) {
     fs.rmSync(dataDir, { recursive: true, force: true });
   });
   function lotteryCookies() {
-    return [...sessions.entries()].find(([name]) =>
-      name.startsWith('persist:bilibili-dynamic-lottery-'),
-    )?.[1].cookies;
+    return [...sessions.entries()].find(([name]) => name.startsWith('persist:bilibili-dynamic-lottery-'))?.[1].cookies;
   }
   async function signIn() {
     const result = auth.login();

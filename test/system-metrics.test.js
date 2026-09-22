@@ -137,10 +137,5 @@ test('hardware service caches static reads and refreshes temperatures only on re
 });
 
 test('NVIDIA temperature parsing ignores malformed rows', () => {
-  assert.deepEqual(
-    parseNvidiaSmiOutput(
-      'NVIDIA RTX 4090, 64\r\nBad row\r\nNVIDIA RTX 4080, N/A',
-    ),
-    [64, null],
-  );
+  assert.deepEqual(parseNvidiaSmiOutput('NVIDIA RTX 4090, 64\r\nBad row\r\nNVIDIA RTX 4080, N/A'), [64, null]);
 });

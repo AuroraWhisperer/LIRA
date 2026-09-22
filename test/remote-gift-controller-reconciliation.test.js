@@ -2,10 +2,7 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const {
-  GiftSyncState,
-  createRemoteGiftController,
-} = require('../src/electron/remote-gift-controller');
+const { GiftSyncState, createRemoteGiftController } = require('../src/electron/remote-gift-controller');
 const {
   capabilityPage,
   createDeferred,
@@ -20,11 +17,9 @@ test('silent open SSE recovers finals and later ticks use the advanced cursor', 
   let catchUpCalls = 0;
   const fixture = createFixture({
     getGiftEventsPage(input) {
-      if (!Object.hasOwn(input, 'after'))
-        return capabilityPage({ latestCursor: 10 });
+      if (!Object.hasOwn(input, 'after')) return capabilityPage({ latestCursor: 10 });
       catchUpCalls += 1;
-      if (catchUpCalls === 1)
-        return capabilityPage({ nextCursor: 10, latestCursor: 10 });
+      if (catchUpCalls === 1) return capabilityPage({ nextCursor: 10, latestCursor: 10 });
       if (catchUpCalls === 2) {
         return capabilityPage({
           events: [makeEvent('silent-final', 11)],
@@ -40,9 +35,7 @@ test('silent open SSE recovers finals and later ticks use the advanced cursor', 
   await controller.start();
   await controller.whenIdle();
 
-  const firstTimer = fixture.scheduledTimers.find(
-    (timer) => timer.delay === 10_000,
-  );
+  const firstTimer = fixture.scheduledTimers.find((timer) => timer.delay === 10_000);
   assert.ok(firstTimer);
   firstTimer.callback();
   await controller.whenIdle();
@@ -69,11 +62,9 @@ test('silent-stream reconciliation does not overlap a pending cursor pull', asyn
   const pending = createDeferred();
   const fixture = createFixture({
     getGiftEventsPage(input) {
-      if (!Object.hasOwn(input, 'after'))
-        return capabilityPage({ latestCursor: 10 });
+      if (!Object.hasOwn(input, 'after')) return capabilityPage({ latestCursor: 10 });
       catchUpCalls += 1;
-      if (catchUpCalls === 1)
-        return capabilityPage({ nextCursor: 10, latestCursor: 10 });
+      if (catchUpCalls === 1) return capabilityPage({ nextCursor: 10, latestCursor: 10 });
       return pending.promise;
     },
   });
@@ -82,9 +73,7 @@ test('silent-stream reconciliation does not overlap a pending cursor pull', asyn
   await controller.start();
   await controller.whenIdle();
 
-  const timer = fixture.scheduledTimers.find(
-    (scheduled) => scheduled.delay === 10_000,
-  );
+  const timer = fixture.scheduledTimers.find((scheduled) => scheduled.delay === 10_000);
   assert.ok(timer);
   timer.callback();
   await waitFor(() => catchUpCalls === 2);
@@ -106,9 +95,7 @@ test('stop invalidates a silent-stream reconciliation callback before it pulls',
 
   await controller.start();
   await controller.whenIdle();
-  const timer = fixture.scheduledTimers.find(
-    (scheduled) => scheduled.delay === 10_000,
-  );
+  const timer = fixture.scheduledTimers.find((scheduled) => scheduled.delay === 10_000);
   assert.ok(timer);
   const pullCount = fixture.pullCalls.length;
 
@@ -129,9 +116,7 @@ test('dispose invalidates a silent-stream reconciliation callback before it writ
 
   await controller.start();
   await controller.whenIdle();
-  const timer = fixture.scheduledTimers.find(
-    (scheduled) => scheduled.delay === 10_000,
-  );
+  const timer = fixture.scheduledTimers.find((scheduled) => scheduled.delay === 10_000);
   assert.ok(timer);
   const pullCount = fixture.pullCalls.length;
 
@@ -151,9 +136,7 @@ test('restart invalidates the previous silent-stream callback', async () => {
 
   await controller.start();
   await controller.whenIdle();
-  const timer = fixture.scheduledTimers.find(
-    (scheduled) => scheduled.delay === 10_000,
-  );
+  const timer = fixture.scheduledTimers.find((scheduled) => scheduled.delay === 10_000);
   assert.ok(timer);
 
   const restarted = controller.start();
@@ -174,9 +157,7 @@ test('authorization epoch fence rejects a stale silent-stream callback', async (
 
   await controller.start();
   await controller.whenIdle();
-  const timer = fixture.scheduledTimers.find(
-    (scheduled) => scheduled.delay === 10_000,
-  );
+  const timer = fixture.scheduledTimers.find((scheduled) => scheduled.delay === 10_000);
   assert.ok(timer);
   fixture.authorization.epoch += 1;
   const pullCount = fixture.pullCalls.length;
@@ -209,9 +190,7 @@ test('legacy reconciliation remains LEGACY_PARTIAL after a silent-stream pull', 
   await controller.start();
   await controller.whenIdle();
 
-  const timer = fixture.scheduledTimers.find(
-    (scheduled) => scheduled.delay === 10_000,
-  );
+  const timer = fixture.scheduledTimers.find((scheduled) => scheduled.delay === 10_000);
   assert.ok(timer);
   timer.callback();
   await controller.whenIdle();
@@ -247,8 +226,7 @@ test('retryable silent-stream pull uses reconnect backoff and cancels stale poll
   let catchUpCalls = 0;
   const fixture = createFixture({
     getGiftEventsPage(input) {
-      if (!Object.hasOwn(input, 'after'))
-        return capabilityPage({ latestCursor: 10 });
+      if (!Object.hasOwn(input, 'after')) return capabilityPage({ latestCursor: 10 });
       catchUpCalls += 1;
       if (catchUpCalls === 2) {
         throw Object.assign(new Error('REQUEST_TIMEOUT'), { retryable: true });
@@ -260,18 +238,14 @@ test('retryable silent-stream pull uses reconnect backoff and cancels stale poll
 
   await controller.start();
   await controller.whenIdle();
-  const reconcileTimer = fixture.scheduledTimers.find(
-    (timer) => timer.delay === 10_000,
-  );
+  const reconcileTimer = fixture.scheduledTimers.find((timer) => timer.delay === 10_000);
   assert.ok(reconcileTimer);
 
   reconcileTimer.callback();
   await controller.whenIdle();
 
   assert.equal(controller.getStatus().state, GiftSyncState.ERROR);
-  const reconnectTimer = fixture.scheduledTimers.find(
-    (timer) => timer.delay === 1_000 && !timer.cleared,
-  );
+  const reconnectTimer = fixture.scheduledTimers.find((timer) => timer.delay === 1_000 && !timer.cleared);
   assert.ok(reconnectTimer);
   const pullCount = fixture.pullCalls.length;
   reconcileTimer.callback();

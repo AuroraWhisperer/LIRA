@@ -5,12 +5,8 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
-const {
-  createHybridGiftSaleCatalogService,
-} = require('../src/bilibili/gift/hybrid-catalog');
-const {
-  STATE_FILE_NAME,
-} = require('../src/bilibili/gift/gift-catalog-initializer');
+const { createHybridGiftSaleCatalogService } = require('../src/bilibili/gift/hybrid-catalog');
+const { STATE_FILE_NAME } = require('../src/bilibili/gift/gift-catalog-initializer');
 
 const HOURS_12 = 12 * 60 * 60 * 1000;
 const LOGGER = { warn() {}, debug() {} };
@@ -29,9 +25,7 @@ test('authorized startup checks the persisted ETag without downloading unchanged
       onUpdated: (snapshot) => updates.push(snapshot),
       fetchRemote: async (request) => {
         requests.push(request);
-        return requests.length === 1
-          ? catalog('1')
-          : { notModified: true, etag: '"1"' };
+        return requests.length === 1 ? catalog('1') : { notModified: true, etag: '"1"' };
       },
       fetchImage: async () => {
         imageCalls += 1;
@@ -57,14 +51,7 @@ test('authorized startup checks the persisted ETag without downloading unchanged
     assert.equal(service.getInitializationState().total, 0);
     const gift = service.getGlobalSnapshot().gifts[0];
     const beforeRepair = updates.at(-1);
-    fs.unlinkSync(
-      path.join(
-        dataDir,
-        'cache',
-        'overtime-gift-images',
-        path.posix.basename(gift.imagePath),
-      ),
-    );
+    fs.unlinkSync(path.join(dataDir, 'cache', 'overtime-gift-images', path.posix.basename(gift.imagePath)));
     now += HOURS_12;
     await service.initializeGlobalCatalog({ force: true });
     assert.equal(requests.length, 3);
@@ -73,10 +60,7 @@ test('authorized startup checks the persisted ETag without downloading unchanged
     assert.equal(service.getInitializationState().background, true);
     assert.equal(updates.length, 3);
     assert.equal(updates.at(-1).gifts[0].imagePath, gift.imagePath);
-    assert.notEqual(
-      updates.at(-1).assetsUpdatedAt,
-      beforeRepair.assetsUpdatedAt,
-    );
+    assert.notEqual(updates.at(-1).assetsUpdatedAt, beforeRepair.assetsUpdatedAt);
   } finally {
     service?.stop();
     fs.rmSync(dataDir, { recursive: true, force: true });
@@ -97,15 +81,10 @@ test('checks every 12 hours, retries failed images on 304, and stops polling', a
     service = createService({
       dataDir,
       onUpdated: (snapshot) => updates.push(snapshot),
-      fetchRemote: async () =>
-        ++catalogCalls === 1
-          ? catalog('1')
-          : { notModified: true, etag: '"1"' },
+      fetchRemote: async () => (++catalogCalls === 1 ? catalog('1') : { notModified: true, etag: '"1"' }),
       fetchImage: async (url) => {
         imageCalls.push(url);
-        return imageCalls.length === 1
-          ? new Response('offline', { status: 503 })
-          : new Response(webpBytes());
+        return imageCalls.length === 1 ? new Response('offline', { status: 503 }) : new Response(webpBytes());
       },
     });
     service.start();
@@ -185,19 +164,14 @@ test('publishes local artwork only after downloads complete and preserves room m
     await initialization;
     assert.equal(updates.length, 1);
     assert.equal(
-      updates[0].gifts.every((gift) =>
-        gift.imagePath.startsWith('/overtime-gift-images/'),
-      ),
+      updates[0].gifts.every((gift) => gift.imagePath.startsWith('/overtime-gift-images/')),
       true,
     );
     assert.deepEqual(
       service.getSnapshot().gifts.map((gift) => gift.id),
       ['1'],
     );
-    assert.equal(
-      service.getSnapshot().gifts[0].imagePath,
-      updates[0].gifts[0].imagePath,
-    );
+    assert.equal(service.getSnapshot().gifts[0].imagePath, updates[0].gifts[0].imagePath);
   } finally {
     service?.stop();
     fs.rmSync(dataDir, { recursive: true, force: true });
@@ -258,9 +232,7 @@ test('a newer catalog arriving during an image scan is completed without an extr
 });
 
 test('identity changes recheck artwork and incremental progress counts only changed artwork', async () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'lira-gift-incremental-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-gift-incremental-'));
   let service;
   try {
     let current = catalog('1');
@@ -297,16 +269,13 @@ test('identity changes recheck artwork and incremental progress counts only chan
     assert.equal(imageCalls, 3);
     assert.equal(updates.at(-1).gifts[0].name, 'Renamed gift');
     assert.equal(updates.at(-1).gifts[0].priceRaw, 200);
-    const completion = JSON.parse(
-      fs.readFileSync(path.join(dataDir, 'cache', STATE_FILE_NAME), 'utf8'),
-    );
+    const completion = JSON.parse(fs.readFileSync(path.join(dataDir, 'cache', STATE_FILE_NAME), 'utf8'));
     assert.equal(completion.available, 2);
     assert.equal(completion.failed, 1);
 
     states.length = 0;
     current.version = '3';
-    current.gifts[0].imagePath =
-      'https://api.example.test/gift-media/images/revised.webp';
+    current.gifts[0].imagePath = 'https://api.example.test/gift-media/images/revised.webp';
     await service.initializeGlobalCatalog({ force: true });
     assert.equal(imageCalls, 4);
     assert.equal(

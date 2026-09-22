@@ -231,13 +231,11 @@
   border-color: #ded3d9;
   background: #fff;
 }
-.opening-animation-editor
-  input:not([type='checkbox']):not([type='range']):hover,
+.opening-animation-editor input:not([type='checkbox']):not([type='range']):hover,
 .opening-animation-editor select:hover {
   border-color: #ca8ba4;
 }
-.opening-animation-editor
-  input:not([type='checkbox']):not([type='range']):focus-visible,
+.opening-animation-editor input:not([type='checkbox']):not([type='range']):focus-visible,
 .opening-animation-editor select:focus-visible {
   border-color: var(--opening-admin-accent);
   outline: 2px solid rgba(184, 70, 114, 0.17);

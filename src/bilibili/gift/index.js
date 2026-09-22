@@ -3,19 +3,11 @@
 'use strict';
 const { randomUUID } = require('node:crypto');
 
-const {
-  createGiftProjectionService: buildGiftProjectionService,
-} = require('./projection-service');
+const { createGiftProjectionService: buildGiftProjectionService } = require('./projection-service');
 const { createGiftConsumerRegistry } = require('./consumer-registry');
-const {
-  createGiftStatisticsConsumer: buildGiftStatisticsConsumer,
-} = require('./statistics-consumer');
-const {
-  createGiftProjectionStore,
-} = require('../../storage/gift-projection-store');
-const {
-  createGiftStatisticsStore,
-} = require('../../storage/gift-statistics-store');
+const { createGiftStatisticsConsumer: buildGiftStatisticsConsumer } = require('./statistics-consumer');
+const { createGiftProjectionStore } = require('../../storage/gift-projection-store');
+const { createGiftStatisticsStore } = require('../../storage/gift-statistics-store');
 const { createGiftQueryStore } = require('../../storage/gift-query-store');
 const { createGiftMaintenanceStore } = require('../../storage/gift-maintenance-store');
 const {
@@ -30,10 +22,7 @@ const {
   searchGifts,
   clearRecentGifts,
 } = require('./query-service');
-const {
-  getBlindBoxStats,
-  getBlindBoxAnalysis,
-} = require('./blind-box-analysis');
+const { getBlindBoxStats, getBlindBoxAnalysis } = require('./blind-box-analysis');
 const { normalizeGiftRow } = require('./normalizer');
 
 // Existing callers use this facade's database context. Keep that adaptation
@@ -41,8 +30,7 @@ const { normalizeGiftRow } = require('./normalizer');
 function createGiftProjectionService(context, options = {}) {
   return buildGiftProjectionService(
     {
-      store:
-        context.projectionStore || createGiftProjectionStore(context.db.giftDb),
+      store: context.projectionStore || createGiftProjectionStore(context.db.giftDb),
       settings: context.settings,
     },
     options,
@@ -95,19 +83,18 @@ function createGiftService(context, options = {}) {
     getHistory: (queryOptions) => getGiftHistory(giftContext, queryOptions),
     getSelection: (queryOptions) => getGiftSelection(giftContext, queryOptions),
     getViewRevision: () => getGiftViewRevision(giftContext),
-    getStatistics: (queryOptions) =>
-      getGiftStatistics(giftContext, queryOptions),
+    getStatistics: (queryOptions) => getGiftStatistics(giftContext, queryOptions),
     getSprintSnapshot: () => getGiftSprintSnapshot(giftContext),
-    getBlindBoxStats: (queryOptions) =>
-      getBlindBoxStats(giftContext, queryOptions),
-    getBlindBoxAnalysis: (queryOptions) =>
-      getBlindBoxAnalysis(giftContext, queryOptions),
+    getBlindBoxStats: (queryOptions) => getBlindBoxStats(giftContext, queryOptions),
+    getBlindBoxAnalysis: (queryOptions) => getBlindBoxAnalysis(giftContext, queryOptions),
     resetSprint: () => resetGiftSprintProgress(giftContext),
     search: (queryOptions) => searchGifts(giftContext, queryOptions || {}),
     clearRecent: () => clearRecentGifts(giftContext),
     setActiveSource(source) {
-      if (source?.sourceId !== activeGiftSource?.sourceId ||
-        (source?.syncState === 'SOURCE_SWITCHING' && activeGiftSource?.syncState !== 'SOURCE_SWITCHING')) {
+      if (
+        source?.sourceId !== activeGiftSource?.sourceId ||
+        (source?.syncState === 'SOURCE_SWITCHING' && activeGiftSource?.syncState !== 'SOURCE_SWITCHING')
+      ) {
         viewEpoch = randomUUID();
       }
       activeGiftSource = normalizeActiveGiftSource(source);
@@ -126,15 +113,12 @@ function normalizeActiveGiftSource(source) {
     syncState: String(source.syncState || 'OFFLINE').toUpperCase(),
     partial: source.partial !== false,
     syncedThroughCursor:
-      source.syncedThroughCursor === null ||
-      source.syncedThroughCursor === undefined
+      source.syncedThroughCursor === null || source.syncedThroughCursor === undefined
         ? null
         : Number(source.syncedThroughCursor),
     syncedAt: source.syncedAt || null,
     latestCursor:
-      source.latestCursor === null || source.latestCursor === undefined
-        ? null
-        : Number(source.latestCursor),
+      source.latestCursor === null || source.latestCursor === undefined ? null : Number(source.latestCursor),
     dirty: source.dirty !== false,
     epochValidated: source.epochValidated === true,
   });

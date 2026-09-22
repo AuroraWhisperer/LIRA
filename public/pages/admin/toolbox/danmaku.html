@@ -1,15 +1,6 @@
-<section
-  id="otherDanmakuFeature"
-  class="other-feature-panel"
-  role="tabpanel"
-  data-other-feature-panel
-  hidden
->
+<section id="otherDanmakuFeature" class="other-feature-panel" role="tabpanel" data-other-feature-panel hidden>
   <div class="other-feature-panel-body stack danmaku-tool-panel">
-    <section
-      class="danmaku-feature-section danmaku-connection-section"
-      aria-labelledby="danmakuConnectionTitle"
-    >
+    <section class="danmaku-feature-section danmaku-connection-section" aria-labelledby="danmakuConnectionTitle">
       <div class="danmaku-section-heading">
         <div>
           <h3 id="danmakuConnectionTitle" class="ui-section-title">
@@ -25,18 +16,14 @@
               focusable="false"
             >
               <circle cx="12" cy="12" r="2" />
-              <path d="M16.24 7.76a6 6 0 0 1 0 8.48m-8.48 0a6 6 0 0 1 0-8.48M19.07 4.93a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14" />
+              <path
+                d="M16.24 7.76a6 6 0 0 1 0 8.48m-8.48 0a6 6 0 0 1 0-8.48M19.07 4.93a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"
+              />
             </svg>
             连接状态
           </h3>
         </div>
-        <button
-          id="danmakuRefreshBtn"
-          class="icon"
-          type="button"
-          title="刷新发送状态"
-          aria-label="刷新发送状态"
-        >
+        <button id="danmakuRefreshBtn" class="icon" type="button" title="刷新发送状态" aria-label="刷新发送状态">
           <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path
               d="M20 6v5h-5M4 18v-5h5M18.7 9A7 7 0 0 0 6.4 6.4L4 9m16 6-2.4 2.6A7 7 0 0 1 5.3 15"
@@ -49,21 +36,12 @@
         </button>
       </div>
       <div class="danmaku-status-grid">
-        <div>
-          <span>发送账号</span><strong id="danmakuAccountState">检查中</strong>
-        </div>
-        <div>
-          <span>直播间</span><strong id="danmakuRoomState">检查中</strong>
-        </div>
-        <div>
-          <span>发送状态</span><strong id="danmakuToolStatus">检查中</strong>
-        </div>
+        <div><span>发送账号</span><strong id="danmakuAccountState">检查中</strong></div>
+        <div><span>直播间</span><strong id="danmakuRoomState">检查中</strong></div>
+        <div><span>发送状态</span><strong id="danmakuToolStatus">检查中</strong></div>
       </div>
     </section>
-    <section
-      class="danmaku-feature-section danmaku-style-section"
-      aria-labelledby="danmakuStyleTitle"
-    >
+    <section class="danmaku-feature-section danmaku-style-section" aria-labelledby="danmakuStyleTitle">
       <div class="danmaku-section-heading">
         <div>
           <h3 id="danmakuStyleTitle">
@@ -83,32 +61,21 @@
             </svg>
             弹幕姬
             <lira-help
-              >先选择样式并预览，确认后应用到直播画面。
-              将固定链接添加到 OBS 或直播姬浏览器源，关闭客户端后仍可接收。</lira-help
+              >先选择样式并预览，确认后应用到直播画面。 将固定链接添加到 OBS
+              或直播姬浏览器源，关闭客户端后仍可接收。</lira-help
             >
           </h3>
         </div>
         <div class="danmaku-style-tools">
-          <span id="danmakuStyleChip" class="danmaku-style-chip"
-            >当前样式 · 深色面板</span
-          >
-          <button id="danmakuPreviewOverlayBtn" class="secondary" type="button">
-            预览效果
-          </button>
+          <span id="danmakuStyleChip" class="danmaku-style-chip">当前样式 · 深色面板</span>
+          <button id="danmakuPreviewOverlayBtn" class="secondary" type="button">预览效果</button>
         </div>
       </div>
       <div class="danmaku-overlay-link">
-        <label
-          ><span>直播画面链接</span
-          ><input id="danmakuOverlayUrl" type="text" readonly
-        /></label>
+        <label><span>直播画面链接</span><input id="danmakuOverlayUrl" type="text" readonly /></label>
         <div class="danmaku-overlay-actions">
-          <button id="danmakuCopyOverlayUrlBtn" class="secondary" type="button" disabled>
-            复制链接
-          </button>
-          <button id="danmakuOpenOverlayBtn" class="secondary" type="button" disabled>
-            打开网页
-          </button>
+          <button id="danmakuCopyOverlayUrlBtn" class="secondary" type="button" disabled>复制链接</button>
+          <button id="danmakuOpenOverlayBtn" class="secondary" type="button" disabled>打开网页</button>
         </div>
       </div>
       <p class="danmaku-preview-hint">将链接添加到 OBS 或直播姬浏览器源。切换样式后，链接保持不变。</p>
@@ -128,11 +95,22 @@
             <form id="danmakuBlacklistForm" class="danmaku-filter-form">
               <label for="danmakuBlacklistUid">用户 UID</label>
               <div class="danmaku-filter-input-row">
-                <input id="danmakuBlacklistUid" type="text" inputmode="numeric" pattern="[1-9][0-9]{0,19}" maxlength="20" placeholder="输入 B 站 UID" required disabled />
+                <input
+                  id="danmakuBlacklistUid"
+                  type="text"
+                  inputmode="numeric"
+                  pattern="[1-9][0-9]{0,19}"
+                  maxlength="20"
+                  placeholder="输入 B 站 UID"
+                  required
+                  disabled
+                />
                 <button class="primary" type="submit" disabled>添加</button>
               </div>
             </form>
-            <div><button id="danmakuReadViewers" class="secondary" type="button" disabled>读取当前直播间观众</button></div>
+            <div>
+              <button id="danmakuReadViewers" class="secondary" type="button" disabled>读取当前直播间观众</button>
+            </div>
             <div id="danmakuViewerPicker" class="danmaku-viewer-picker" hidden>
               <div class="danmaku-filter-toolbar">
                 <strong id="danmakuViewerTitle">选择观众</strong>
@@ -157,97 +135,66 @@
             <form id="danmakuKeywordForm" class="danmaku-filter-form">
               <label for="danmakuKeywordInput">屏蔽词</label>
               <div class="danmaku-filter-input-row">
-                <input id="danmakuKeywordInput" type="text" maxlength="100" placeholder="输入要屏蔽的文字" required disabled />
+                <input
+                  id="danmakuKeywordInput"
+                  type="text"
+                  maxlength="100"
+                  placeholder="输入要屏蔽的文字"
+                  required
+                  disabled
+                />
                 <button class="primary" type="submit" disabled>添加</button>
               </div>
             </form>
-            <div><button id="danmakuClearKeywords" class="secondary" type="button" disabled>一键清空屏蔽词</button></div>
+            <div>
+              <button id="danmakuClearKeywords" class="secondary" type="button" disabled>一键清空屏蔽词</button>
+            </div>
             <ul id="danmakuKeywords" class="danmaku-filter-list" aria-label="已添加的屏蔽词"></ul>
             <p id="danmakuKeywordsEmpty" class="hint">尚未添加屏蔽词。</p>
           </section>
         </div>
       </section>
       <div class="danmaku-style-picker">
-        <section
-          class="danmaku-style-group danmaku-style-group-fixed"
-          aria-labelledby="danmakuFixedStyleTitle"
-        >
+        <section class="danmaku-style-group danmaku-style-group-fixed" aria-labelledby="danmakuFixedStyleTitle">
           <div class="danmaku-style-group-heading">
             <strong id="danmakuFixedStyleTitle">固定位置弹幕</strong>
             <lira-help label="添加弹幕样式说明">有想要添加的弹幕样式，可以截图通过微信发给我，我会试着添加。</lira-help>
             <p>在画面一侧依次排列</p>
           </div>
-          <div
-            class="danmaku-style-options danmaku-style-options-fixed"
-            role="group"
-            aria-label="选择固定位置弹幕样式"
-          >
-            <button
-              class="danmaku-style-option"
-              type="button"
-              data-danmaku-style="bubble"
-              aria-pressed="false"
-            >
+          <div class="danmaku-style-options danmaku-style-options-fixed" role="group" aria-label="选择固定位置弹幕样式">
+            <button class="danmaku-style-option" type="button" data-danmaku-style="bubble" aria-pressed="false">
               <img src="/img/overlays/danmaku-previews/bubble.png" class="danmaku-style-sample" alt="" />
               <span class="danmaku-style-name">聊天气泡</span>
               <span class="danmaku-style-description">圆角底色，头像在左</span>
             </button>
-            <button
-              class="danmaku-style-option"
-              type="button"
-              data-danmaku-style="signal"
-              aria-pressed="true"
-            >
+            <button class="danmaku-style-option" type="button" data-danmaku-style="signal" aria-pressed="true">
               <img src="/img/overlays/danmaku-previews/signal.png" class="danmaku-style-sample" alt="" />
               <span class="danmaku-style-name">深色面板</span>
               <span class="danmaku-style-description">深色切角，彩色边线</span>
             </button>
-            <button
-              class="danmaku-style-option"
-              type="button"
-              data-danmaku-style="minimal"
-              aria-pressed="false"
-            >
+            <button class="danmaku-style-option" type="button" data-danmaku-style="minimal" aria-pressed="false">
               <img src="/img/overlays/danmaku-previews/minimal.png" class="danmaku-style-sample" alt="" />
               <span class="danmaku-style-name">蝴蝶结</span>
               <span class="danmaku-style-description">居中文字，蝴蝶结装饰</span>
             </button>
-            <button
-              class="danmaku-style-option"
-              type="button"
-              data-danmaku-style="ranked"
-              aria-pressed="false"
-            >
+            <button class="danmaku-style-option" type="button" data-danmaku-style="ranked" aria-pressed="false">
               <img src="/img/overlays/danmaku-previews/ranked.png" class="danmaku-style-sample" alt="" />
               <span class="danmaku-style-name">经典样式</span>
               <span class="danmaku-style-description">大圆头像，昵称在气泡上方</span>
             </button>
-            <button
-              class="danmaku-style-option"
-              type="button"
-              data-danmaku-style="transparent"
-              aria-pressed="false"
-            >
+            <button class="danmaku-style-option" type="button" data-danmaku-style="transparent" aria-pressed="false">
               <img src="/img/overlays/danmaku-previews/transparent.png" class="danmaku-style-sample" alt="" />
               <span class="danmaku-style-name">透明文字</span>
               <span class="danmaku-style-description">无底色，文字直接叠加</span>
             </button>
-            <button
-              class="danmaku-style-option"
-              type="button"
-              data-danmaku-style="identity"
-              aria-pressed="false"
-            >
+            <button class="danmaku-style-option" type="button" data-danmaku-style="identity" aria-pressed="false">
               <img src="/img/overlays/danmaku-previews/identity.png" class="danmaku-style-sample" alt="" />
               <span class="danmaku-style-name">头像横卡</span>
               <span class="danmaku-style-description">横向色块，右侧头像渐隐</span>
             </button>
           </div>
         </section>
-        <section
-          class="danmaku-style-group danmaku-style-group-random"
-          aria-labelledby="danmakuRandomStyleTitle"
-        >
+        <section class="danmaku-style-group danmaku-style-group-random" aria-labelledby="danmakuRandomStyleTitle">
           <div class="danmaku-style-group-heading">
             <strong id="danmakuRandomStyleTitle">全屏随机弹幕</strong>
             <p>在整个画面随机出现，停留后消失</p>
@@ -257,32 +204,17 @@
             role="group"
             aria-label="选择全屏随机弹幕样式"
           >
-            <button
-              class="danmaku-style-option"
-              type="button"
-              data-danmaku-style="outline"
-              aria-pressed="false"
-            >
+            <button class="danmaku-style-option" type="button" data-danmaku-style="outline" aria-pressed="false">
               <img src="/img/overlays/danmaku-previews/outline.png" class="danmaku-style-sample" alt="" />
               <span class="danmaku-style-name">简洁白卡</span>
               <span class="danmaku-style-description">白底圆角，只显示昵称和正文</span>
             </button>
-            <button
-              class="danmaku-style-option"
-              type="button"
-              data-danmaku-style="cream"
-              aria-pressed="false"
-            >
+            <button class="danmaku-style-option" type="button" data-danmaku-style="cream" aria-pressed="false">
               <img src="/img/overlays/danmaku-previews/cream.png" class="danmaku-style-sample" alt="" />
               <span class="danmaku-style-name">奶油气泡</span>
               <span class="danmaku-style-description">奶油底色，粉边与外置头像</span>
             </button>
-            <button
-              class="danmaku-style-option"
-              type="button"
-              data-danmaku-style="glow"
-              aria-pressed="false"
-            >
+            <button class="danmaku-style-option" type="button" data-danmaku-style="glow" aria-pressed="false">
               <img src="/img/overlays/danmaku-previews/glow.png" class="danmaku-style-sample" alt="" />
               <span class="danmaku-style-name">流光气泡</span>
               <span class="danmaku-style-description">昵称在框上方，经典身份色柔光</span>
@@ -301,20 +233,32 @@
             <span>字体</span>
             <select id="danmakuFontFamily" disabled>
               <optgroup label="推荐字体">
-                <option value="&quot;Microsoft YaHei UI&quot;">微软雅黑</option>
-                <option value="&quot;SimHei&quot;">黑体</option>
-                <option value="&quot;SimSun&quot;">宋体</option>
-                <option value="&quot;KaiTi&quot;">楷体</option>
-                <option value="&quot;YouYuan&quot;">幼圆</option>
-                <option value="&quot;Noto Sans SC&quot;">思源黑体</option>
-                <option value="&quot;PingFang SC&quot;">苹方</option>
+                <option value='"Microsoft YaHei UI"'>微软雅黑</option>
+                <option value='"SimHei"'>黑体</option>
+                <option value='"SimSun"'>宋体</option>
+                <option value='"KaiTi"'>楷体</option>
+                <option value='"YouYuan"'>幼圆</option>
+                <option value='"Noto Sans SC"'>思源黑体</option>
+                <option value='"PingFang SC"'>苹方</option>
               </optgroup>
             </select>
-            <small class="hint">推荐字体置顶，下方列出本机已安装字体。直播画面使用 OBS 所在电脑的字体，缺失时自动回退。</small>
+            <small class="hint"
+              >推荐字体置顶，下方列出本机已安装字体。直播画面使用 OBS 所在电脑的字体，缺失时自动回退。</small
+            >
           </label>
           <label class="danmaku-parameter-field" for="danmakuFontSize">
             <span>正文字号</span>
-            <input id="danmakuFontSize" type="number" min="18" max="48" step="1" value="30" inputmode="numeric" aria-describedby="danmakuFontSizeHint" disabled />
+            <input
+              id="danmakuFontSize"
+              type="number"
+              min="18"
+              max="48"
+              step="1"
+              value="30"
+              inputmode="numeric"
+              aria-describedby="danmakuFontSizeHint"
+              disabled
+            />
             <small id="danmakuFontSizeHint" class="hint">18～48 px</small>
           </label>
           <label class="danmaku-parameter-field" for="danmakuTextColor">
@@ -323,8 +267,20 @@
             <small class="hint">调整弹幕正文颜色，昵称、身份标识和礼物通知保留原配色。</small>
           </label>
           <label id="danmakuBackgroundOpacityField" class="danmaku-parameter-field" for="danmakuBackgroundOpacity">
-            <span>背景不透明度 <output id="danmakuBackgroundOpacityValue" for="danmakuBackgroundOpacity">100%</output></span>
-            <input id="danmakuBackgroundOpacity" class="parameter-range" type="range" min="0" max="100" step="1" value="100" disabled />
+            <span
+              >背景不透明度
+              <output id="danmakuBackgroundOpacityValue" for="danmakuBackgroundOpacity">100%</output></span
+            >
+            <input
+              id="danmakuBackgroundOpacity"
+              class="parameter-range"
+              type="range"
+              min="0"
+              max="100"
+              step="1"
+              value="100"
+              disabled
+            />
             <small class="hint">0% 隐去底色，100% 为原样式；文字和图片保持清晰。</small>
           </label>
           <label id="danmakuGiftImageField" class="danmaku-parameter-field" for="danmakuGiftImage">
@@ -335,11 +291,7 @@
             </select>
             <small class="hint">原图由浏览器直接从 B 站加载；不可用时显示样式插画。</small>
           </label>
-          <label
-            id="danmakuFullscreenDurationField"
-            class="danmaku-fullscreen-duration danmaku-parameter-field"
-            hidden
-          >
+          <label id="danmakuFullscreenDurationField" class="danmaku-fullscreen-duration danmaku-parameter-field" hidden>
             <span>停留（秒）</span>
             <input
               id="danmakuFullscreenDurationSeconds"
@@ -354,26 +306,14 @@
         </div>
       </section>
       <div class="danmaku-style-footer">
-        <p
-          id="danmakuStyleSaveState"
-          class="danmaku-style-save-state"
-          role="status"
-          aria-live="polite"
-        ></p>
+        <p id="danmakuStyleSaveState" class="danmaku-style-save-state" role="status" aria-live="polite"></p>
         <div class="danmaku-overlay-actions">
-          <button id="danmakuReloadOverlayBtn" class="secondary" type="button" disabled>
-            读取服务器配置
-          </button>
-          <button id="danmakuApplyOverlayBtn" class="primary" type="button" disabled>
-            应用到直播画面
-          </button>
+          <button id="danmakuReloadOverlayBtn" class="secondary" type="button" disabled>读取服务器配置</button>
+          <button id="danmakuApplyOverlayBtn" class="primary" type="button" disabled>应用到直播画面</button>
         </div>
       </div>
     </section>
-    <section
-      class="danmaku-feature-section danmaku-compose-section"
-      aria-labelledby="danmakuComposeTitle"
-    >
+    <section class="danmaku-feature-section danmaku-compose-section" aria-labelledby="danmakuComposeTitle">
       <div class="danmaku-section-heading">
         <div>
           <h3 id="danmakuComposeTitle" class="ui-section-title">
@@ -397,41 +337,21 @@
       </div>
       <form id="danmakuSendForm" class="stack">
         <label
-          >弹幕内容<textarea
-            id="danmakuMessage"
-            rows="4"
-            required
-            placeholder="输入内容，Ctrl + Enter 发送"
-          ></textarea>
+          >弹幕内容<textarea id="danmakuMessage" rows="4" required placeholder="输入内容，Ctrl + Enter 发送"></textarea>
         </label>
         <div class="form-actions-row">
           <span id="danmakuCounter" class="hint">0 字</span
-          ><button
-            id="danmakuAutoBtn"
-            class="secondary"
-            type="button"
-            title="自动发送 钓鱼×10、打劫×5，每 5 秒一条"
-          >
+          ><button id="danmakuAutoBtn" class="secondary" type="button" title="自动发送 钓鱼×10、打劫×5，每 5 秒一条">
             自动钓鱼/打劫</button
-          ><button id="danmakuSendBtn" class="primary" type="submit">
-            发送弹幕
-          </button>
+          ><button id="danmakuSendBtn" class="primary" type="submit">发送弹幕</button>
         </div>
       </form>
-      <div
-        id="danmakuSendResult"
-        class="danmaku-send-result"
-        role="status"
-        aria-live="polite"
-      >
+      <div id="danmakuSendResult" class="danmaku-send-result" role="status" aria-live="polite">
         发送结果会显示在这里
       </div>
     </section>
     <!-- admin-fragment: pages/admin/toolbox/danmaku-ai.html -->
-    <section
-      class="danmaku-feature-section danmaku-fixed-reply-section"
-      aria-labelledby="danmakuFixedReplyTitle"
-    >
+    <section class="danmaku-feature-section danmaku-fixed-reply-section" aria-labelledby="danmakuFixedReplyTitle">
       <div class="danmaku-section-heading">
         <div>
           <h3 id="danmakuFixedReplyTitle">
@@ -456,26 +376,76 @@
       </div>
       <div class="danmaku-fixed-overview">
         <div class="danmaku-fixed-item" data-fixed-item="random">
-          <div class="danmaku-fixed-copy"><strong id="danmakuReplyTitle">随机点歌回复</strong><span class="danmaku-fixed-summary">无匹配歌曲时自动回复</span><span class="danmaku-fixed-note" data-fixed-note="random"></span></div>
-          <button class="danmaku-fixed-open" type="button" data-fixed-open="random" aria-label="随机点歌回复说明" aria-controls="danmakuRandomReplyPanel" aria-expanded="false">
+          <div class="danmaku-fixed-copy">
+            <strong id="danmakuReplyTitle">随机点歌回复</strong
+            ><span class="danmaku-fixed-summary">无匹配歌曲时自动回复</span
+            ><span class="danmaku-fixed-note" data-fixed-note="random"></span>
+          </div>
+          <button
+            class="danmaku-fixed-open"
+            type="button"
+            data-fixed-open="random"
+            aria-label="随机点歌回复说明"
+            aria-controls="danmakuRandomReplyPanel"
+            aria-expanded="false"
+          >
             说明<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m6 8 4 4 4-4" /></svg>
           </button>
-          <label class="switch-control"><input id="danmakuReplyToggle" type="checkbox" aria-labelledby="danmakuReplyTitle" /><span class="switch-track"></span><span class="switch-caption" aria-hidden="true"></span></label>
+          <label class="switch-control"
+            ><input id="danmakuReplyToggle" type="checkbox" aria-labelledby="danmakuReplyTitle" /><span
+              class="switch-track"
+            ></span
+            ><span class="switch-caption" aria-hidden="true"></span
+          ></label>
         </div>
         <div class="danmaku-fixed-item" data-fixed-item="checkin">
-          <div class="danmaku-fixed-copy"><strong id="danmakuCheckinTitle">签到机器人</strong><span class="danmaku-fixed-summary">云端运行 · 收到“签到”后回复累计天数</span><span id="dailyBotcheckinStatus" class="danmaku-fixed-note" role="status">尚未确认云端状态</span></div>
-          <label class="switch-control"><input id="danmakuCheckinToggle" type="checkbox" aria-labelledby="danmakuCheckinTitle" disabled /><span class="switch-track"></span><span class="switch-caption" aria-hidden="true"></span></label>
+          <div class="danmaku-fixed-copy">
+            <strong id="danmakuCheckinTitle">签到机器人</strong
+            ><span class="danmaku-fixed-summary">云端运行 · 收到“签到”后回复累计天数</span
+            ><span id="dailyBotcheckinStatus" class="danmaku-fixed-note" role="status">尚未确认云端状态</span>
+          </div>
+          <label class="switch-control"
+            ><input id="danmakuCheckinToggle" type="checkbox" aria-labelledby="danmakuCheckinTitle" disabled /><span
+              class="switch-track"
+            ></span
+            ><span class="switch-caption" aria-hidden="true"></span
+          ></label>
         </div>
         <div class="danmaku-fixed-item" data-fixed-item="fortune">
-          <div class="danmaku-fixed-copy"><strong id="danmakuFortuneTitle">抽签机器人</strong><span class="danmaku-fixed-summary">云端运行 · 收到“抽签”后回复每日一签</span><span id="dailyBotfortuneStatus" class="danmaku-fixed-note" role="status">尚未确认云端状态</span></div>
-          <label class="switch-control"><input id="danmakuFortuneToggle" type="checkbox" aria-labelledby="danmakuFortuneTitle" disabled /><span class="switch-track"></span><span class="switch-caption" aria-hidden="true"></span></label>
+          <div class="danmaku-fixed-copy">
+            <strong id="danmakuFortuneTitle">抽签机器人</strong
+            ><span class="danmaku-fixed-summary">云端运行 · 收到“抽签”后回复每日一签</span
+            ><span id="dailyBotfortuneStatus" class="danmaku-fixed-note" role="status">尚未确认云端状态</span>
+          </div>
+          <label class="switch-control"
+            ><input id="danmakuFortuneToggle" type="checkbox" aria-labelledby="danmakuFortuneTitle" disabled /><span
+              class="switch-track"
+            ></span
+            ><span class="switch-caption" aria-hidden="true"></span
+          ></label>
         </div>
         <div class="danmaku-fixed-item" data-fixed-item="diy">
-          <div class="danmaku-fixed-copy"><strong id="danmakuCustomReplyTitle">自定义关键词回复</strong><span class="danmaku-fixed-summary" data-fixed-count="danmakuCustomReplyCount">正在读取规则</span><span class="danmaku-fixed-note" data-fixed-note="diy"></span></div>
-          <button class="danmaku-fixed-open" type="button" data-fixed-open="diy" aria-label="编辑自定义关键词回复" aria-controls="danmakuCustomRepliesPanel" aria-expanded="false">
+          <div class="danmaku-fixed-copy">
+            <strong id="danmakuCustomReplyTitle">自定义关键词回复</strong
+            ><span class="danmaku-fixed-summary" data-fixed-count="danmakuCustomReplyCount">正在读取规则</span
+            ><span class="danmaku-fixed-note" data-fixed-note="diy"></span>
+          </div>
+          <button
+            class="danmaku-fixed-open"
+            type="button"
+            data-fixed-open="diy"
+            aria-label="编辑自定义关键词回复"
+            aria-controls="danmakuCustomRepliesPanel"
+            aria-expanded="false"
+          >
             编辑<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m6 8 4 4 4-4" /></svg>
           </button>
-          <label class="switch-control"><input id="danmakuCustomReplyToggle" type="checkbox" aria-labelledby="danmakuCustomReplyTitle" /><span class="switch-track"></span><span class="switch-caption" aria-hidden="true"></span></label>
+          <label class="switch-control"
+            ><input id="danmakuCustomReplyToggle" type="checkbox" aria-labelledby="danmakuCustomReplyTitle" /><span
+              class="switch-track"
+            ></span
+            ><span class="switch-caption" aria-hidden="true"></span
+          ></label>
         </div>
         <!-- admin-fragment: pages/admin/toolbox/danmaku-welcome-switch.html -->
         <!-- admin-fragment: pages/admin/toolbox/danmaku-pk-report-switch.html -->
@@ -490,11 +460,15 @@
         <button id="danmakuFixedEditorClose" class="danmaku-text-action" type="button">收起</button>
       </div>
       <section id="danmakuRandomReplyPanel" data-fixed-editor="random" hidden>
-        <p class="hint danmaku-fixed-help">点歌未匹配时，会自动回复点歌人。<strong>回复自动生成，不用设置词库。</strong></p>
+        <p class="hint danmaku-fixed-help">
+          点歌未匹配时，会自动回复点歌人。<strong>回复自动生成，不用设置词库。</strong>
+        </p>
       </section>
       <section id="danmakuPkReportPanel" data-fixed-editor="pk" hidden>
         <div class="danmaku-fixed-notes">
-          <p class="hint danmaku-fixed-help">PK 开始时，自动在本直播间播报对手的<strong>大航海和在线榜概况</strong>。关闭客户端也会继续播报。</p>
+          <p class="hint danmaku-fixed-help">
+            PK 开始时，自动在本直播间播报对手的<strong>大航海和在线榜概况</strong>。关闭客户端也会继续播报。
+          </p>
           <p class="hint">榜单可能不全；金额按当前贡献值估算（1 元＝10 贡献值），三个档位不重复统计。</p>
         </div>
         <p id="danmakuPkReportDetail" class="hint" role="status"></p>
@@ -503,17 +477,10 @@
       <details id="danmakuCustomRepliesPanel" class="danmaku-blessings-section" data-fixed-editor="diy" hidden>
         <summary>
           <div>
-            <h3>
-              自定义关键词回复 <lira-help>收到自定义关键词后回复固定文案。</lira-help>
-            </h3>
+            <h3>自定义关键词回复 <lira-help>收到自定义关键词后回复固定文案。</lira-help></h3>
             <p><span id="danmakuCustomReplyCount">0 条</span></p>
           </div>
-          <svg
-            class="danmaku-details-chevron"
-            viewBox="0 0 20 20"
-            fill="none"
-            aria-hidden="true"
-          >
+          <svg class="danmaku-details-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
             <path
               d="m5 8 5 5 5-5"
               stroke="currentColor"
@@ -524,18 +491,10 @@
           </svg>
         </summary>
         <div class="danmaku-blessings-body">
-          <div
-            id="danmakuCustomReplyList"
-            class="danmaku-custom-reply-list"
-            aria-live="polite"
-          ></div>
+          <div id="danmakuCustomReplyList" class="danmaku-custom-reply-list" aria-live="polite"></div>
           <div class="danmaku-custom-reply-add-grid">
             <label
-              >关键词<input
-                id="danmakuCustomKeywordInput"
-                type="text"
-                maxlength="30"
-                placeholder="例如：菜单"
+              >关键词<input id="danmakuCustomKeywordInput" type="text" maxlength="30" placeholder="例如：菜单"
             /></label>
             <label
               >回复内容<input
@@ -544,29 +503,11 @@
                 maxlength="120"
                 placeholder="例如：点歌格式是 点歌 歌名"
             /></label>
-            <button
-              id="danmakuCustomReplyAddBtn"
-              class="secondary"
-              type="button"
-            >
-              添加回复
-            </button>
+            <button id="danmakuCustomReplyAddBtn" class="secondary" type="button">添加回复</button>
           </div>
           <div class="danmaku-blessing-actions">
-            <span
-              id="danmakuCustomReplyStatus"
-              class="hint"
-              role="status"
-              aria-live="polite"
-              >正在读取自定义回复</span
-            >
-            <button
-              id="danmakuCustomReplySaveBtn"
-              class="primary"
-              type="button"
-            >
-              保存自定义回复
-            </button>
+            <span id="danmakuCustomReplyStatus" class="hint" role="status" aria-live="polite">正在读取自定义回复</span>
+            <button id="danmakuCustomReplySaveBtn" class="primary" type="button">保存自定义回复</button>
           </div>
         </div>
       </details>
@@ -576,8 +517,21 @@
         <button id="dailyBotRefresh" type="button" class="danmaku-text-action" disabled>刷新云端状态</button>
       </div>
       <div class="danmaku-welcome-pinyin">
-        <div><strong id="danmakuWelcomePinyinTitle">昵称生僻字自动注音</strong><span id="danmakuWelcomePinyinStatus" class="hint" role="status">尚未确认</span><p class="hint danmaku-fixed-help"><strong>读音会随欢迎、问候弹幕公开发送。</strong>多音字或读音不确定时，保留原字。</p></div>
-        <label class="switch-control"><input id="danmakuWelcomePinyinToggle" type="checkbox" disabled aria-labelledby="danmakuWelcomePinyinTitle" /><span class="switch-track"></span><span class="switch-caption" aria-hidden="true"></span></label>
+        <div>
+          <strong id="danmakuWelcomePinyinTitle">昵称生僻字自动注音</strong
+          ><span id="danmakuWelcomePinyinStatus" class="hint" role="status">尚未确认</span>
+          <p class="hint danmaku-fixed-help">
+            <strong>读音会随欢迎、问候弹幕公开发送。</strong>多音字或读音不确定时，保留原字。
+          </p>
+        </div>
+        <label class="switch-control"
+          ><input
+            id="danmakuWelcomePinyinToggle"
+            type="checkbox"
+            disabled
+            aria-labelledby="danmakuWelcomePinyinTitle" /><span class="switch-track"></span
+          ><span class="switch-caption" aria-hidden="true"></span
+        ></label>
       </div>
     </section>
   </div>

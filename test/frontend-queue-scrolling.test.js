@@ -6,9 +6,7 @@ const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
 const { readCssBundle } = require('./helpers/css-bundle');
-const {
-  readJsModuleBundle: readRawJsModuleBundle,
-} = require('./helpers/js-module-bundle');
+const { readJsModuleBundle: readRawJsModuleBundle } = require('./helpers/js-module-bundle');
 
 const ROOT_DIR = path.join(__dirname, '..');
 
@@ -78,13 +76,7 @@ test('identity content scrolls as one stream only when its rendered width overfl
   assert.ok(longAnimation);
   assert.deepEqual(
     Array.from(longAnimation.keyframes, (frame) => frame.transform),
-    [
-      'translateX(0)',
-      'translateX(0)',
-      'translateX(-200px)',
-      'translateX(-200px)',
-      'translateX(0)',
-    ],
+    ['translateX(0)', 'translateX(0)', 'translateX(-200px)', 'translateX(-200px)', 'translateX(0)'],
   );
   assert.equal(longClasses.has('has-horizontal-overflow'), true);
   assert.equal(shortClasses.has('has-horizontal-overflow'), false);
@@ -98,15 +90,13 @@ test('identity content scrolls as one stream only when its rendered width overfl
   );
   assert.equal(
     Math.round(
-      (longAnimation.keyframes[1].offset - longAnimation.keyframes[0].offset) *
-        longAnimation.options.duration,
+      (longAnimation.keyframes[1].offset - longAnimation.keyframes[0].offset) * longAnimation.options.duration,
     ),
     1000,
   );
   assert.equal(
     Math.round(
-      (longAnimation.keyframes[3].offset - longAnimation.keyframes[2].offset) *
-        longAnimation.options.duration,
+      (longAnimation.keyframes[3].offset - longAnimation.keyframes[2].offset) * longAnimation.options.duration,
     ),
     1000,
   );
@@ -145,21 +135,14 @@ test('identity queue keeps song and requester fields in one continuous stream', 
     row,
     /identity-content-wrapper[\s\S]*identity-content[\s\S]*identity-song[\s\S]*identity-requester[\s\S]*identity-badge[\s\S]*identity-medal/,
   );
-  assert.doesNotMatch(
-    row,
-    /identity-song-wrapper|identity-details-wrapper|identity-details/,
-  );
+  assert.doesNotMatch(row, /identity-song-wrapper|identity-details-wrapper|identity-details/);
   assert.match(
     row,
     /identity-requester">[^<]*<\/span>\s*<span class="identity-badge[^"]*">[^<]*<\/span>\s*<span class="identity-medal">[^<]*<\/span>\s*<\/span>\s*<\/span>/,
     'badge and medal stay inside the same fading scroll wrapper as the song and requester',
   );
-  const contentWrapperRule = overlayStyles.match(
-    /\.identity-content-wrapper\s*\{[^}]*\}/,
-  )?.[0];
-  const contentRule = overlayStyles.match(
-    /\.identity-content\s*\{[^}]*\}/,
-  )?.[0];
+  const contentWrapperRule = overlayStyles.match(/\.identity-content-wrapper\s*\{[^}]*\}/)?.[0];
+  const contentRule = overlayStyles.match(/\.identity-content\s*\{[^}]*\}/)?.[0];
   assert.ok(contentWrapperRule);
   assert.ok(contentRule);
   assert.match(contentWrapperRule, /flex:\s*1 1 auto/);
@@ -168,10 +151,7 @@ test('identity queue keeps song and requester fields in one continuous stream', 
   assert.match(contentRule, /display:\s*inline-flex/);
   assert.match(contentRule, /min-width:\s*max-content/);
   assert.match(contentRule, /gap:\s*max\(4px,\s*0\.3em\)/);
-  assert.doesNotMatch(
-    overlayStyles,
-    /\.identity-song-wrapper|\.identity-details-wrapper|\.identity-details/,
-  );
+  assert.doesNotMatch(overlayStyles, /\.identity-song-wrapper|\.identity-details-wrapper|\.identity-details/);
   assert.doesNotMatch(overlayStyles, /transform:\s*translateX\(-52px\)/);
 
   let longAnimation = null;
@@ -197,25 +177,17 @@ test('identity queue keeps song and requester fields in one continuous stream', 
   assert.ok(longAnimation);
   assert.deepEqual(
     Array.from(longAnimation.keyframes, (frame) => frame.transform),
-    [
-      'translateX(0)',
-      'translateX(0)',
-      'translateX(-200px)',
-      'translateX(-200px)',
-      'translateX(0)',
-    ],
+    ['translateX(0)', 'translateX(0)', 'translateX(-200px)', 'translateX(-200px)', 'translateX(0)'],
   );
   assert.equal(
     Math.round(
-      (longAnimation.keyframes[1].offset - longAnimation.keyframes[0].offset) *
-        longAnimation.options.duration,
+      (longAnimation.keyframes[1].offset - longAnimation.keyframes[0].offset) * longAnimation.options.duration,
     ),
     1000,
   );
   assert.equal(
     Math.round(
-      (longAnimation.keyframes[3].offset - longAnimation.keyframes[2].offset) *
-        longAnimation.options.duration,
+      (longAnimation.keyframes[3].offset - longAnimation.keyframes[2].offset) * longAnimation.options.duration,
     ),
     1000,
   );
@@ -261,10 +233,7 @@ test('identity queue shows the actual room medal name for a requester without gu
 });
 
 test('overlay utility helpers preserve shared formatting behavior', () => {
-  const source = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'overlays', 'overlay-utils.js'),
-    'utf8',
-  );
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'overlay-utils.js'), 'utf8');
   const sandbox = {
     URLSearchParams,
     location: { search: '?quality=low' },
@@ -274,10 +243,7 @@ test('overlay utility helpers preserve shared formatting behavior', () => {
   vm.runInNewContext(source, sandbox);
   const utils = sandbox.window.OverlayUtils;
 
-  assert.equal(
-    utils.escapeHtml('"quoted" & <tag>'),
-    '&quot;quoted&quot; &amp; &lt;tag&gt;',
-  );
+  assert.equal(utils.escapeHtml('"quoted" & <tag>'), '&quot;quoted&quot; &amp; &lt;tag&gt;');
   const rgb = utils.hexToRgb('#abc');
   assert.equal(rgb.r, 170);
   assert.equal(rgb.g, 187);
@@ -288,10 +254,7 @@ test('overlay utility helpers preserve shared formatting behavior', () => {
     'Noto Sans, "Microsoft YaHei", "Microsoft JhengHei", "PingFang SC", "Hiragino Sans GB", "Yu Gothic", "Meiryo", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans CJK SC", "Noto Sans JP", "Noto Sans KR", "Segoe UI", Arial, sans-serif',
   );
   assert.equal(utils.scrollTravelSeconds(12, 800, 300), 32);
-  assert.equal(
-    utils.overlayLowPowerEnabled({ overlayLowPowerMode: 'false' }),
-    true,
-  );
+  assert.equal(utils.overlayLowPowerEnabled({ overlayLowPowerMode: 'false' }), true);
 });
 
 test('identity rule text scrolls independently only when it overflows', () => {
@@ -346,41 +309,25 @@ test('identity rule text scrolls independently only when it overflows', () => {
   assert.equal(longAnimation.keyframes[1].transform, 'translateX(-120px)');
   assert.ok(longClasses.has('is-scrolling'));
   const pauseMilliseconds =
-    (longAnimation.keyframes[2].offset - longAnimation.keyframes[1].offset) *
-    longAnimation.options.duration;
+    (longAnimation.keyframes[2].offset - longAnimation.keyframes[1].offset) * longAnimation.options.duration;
   assert.ok(Math.abs(pauseMilliseconds - 1500) < 0.001);
 });
 
 test('classic queue uses calculated row height and sizes indexes with song text', () => {
-  const overlaySource = readJsModuleBundle(
-    'public',
-    'js',
-    'overlays',
-    'queue.js',
-  );
+  const overlaySource = readJsModuleBundle('public', 'js', 'overlays', 'queue.js');
   const styles = readCssBundle('public', 'css', 'overlays', 'base.css');
   const waitingRule = styles.match(/\.overlay-waiting\s*\{[\s\S]*?\n\}/)?.[0];
-  const windowRule = styles.match(
-    /\.classic-list-window\s*\{[\s\S]*?\n\}/,
-  )?.[0];
-  const indexRule = styles.match(
-    /\.overlay-waiting-row \.index\s*\{[\s\S]*?\n\}/,
-  )?.[0];
+  const windowRule = styles.match(/\.classic-list-window\s*\{[\s\S]*?\n\}/)?.[0];
+  const indexRule = styles.match(/\.overlay-waiting-row \.index\s*\{[\s\S]*?\n\}/)?.[0];
 
   assert.ok(waitingRule, 'classic queue list styles should remain defined');
   assert.ok(windowRule, 'classic queue viewport styles should remain defined');
   assert.ok(indexRule, 'classic queue index styles should remain defined');
   assert.doesNotMatch(waitingRule, /--classic-row-height/);
   assert.doesNotMatch(windowRule, /--classic-row-height/);
-  assert.match(
-    indexRule,
-    /font-size:\s*var\(--overlay-waiting-font-size,\s*13px\)/,
-  );
+  assert.match(indexRule, /font-size:\s*var\(--overlay-waiting-font-size,\s*13px\)/);
   assert.match(overlaySource, /setTimeout\(relayoutQueue, 100\)/);
-  assert.doesNotMatch(
-    overlaySource,
-    /overlayResizeTimer = setTimeout\(render, 100\)/,
-  );
+  assert.doesNotMatch(overlaySource, /overlayResizeTimer = setTimeout\(render, 100\)/);
   assert.match(styles, /--overlay-edge:\s*clamp\(0px,\s*2vmin,\s*16px\)/);
 });
 
@@ -523,19 +470,13 @@ test('identity queue scrolls from actual overflow', () => {
   assert.equal(styleValues.get('--identity-bounce-distance'), '200px');
   const bounceTiming = sandbox.bounceScrollTiming(
     sandbox.window.OverlayUtils.scrollTravelSeconds(
-      sandbox.queueScrollSeconds(
-        { identityQueueScrollSpeed: '42' },
-        'identityQueueScrollSpeed',
-      ),
+      sandbox.queueScrollSeconds({ identityQueueScrollSpeed: '42' }, 'identityQueueScrollSpeed'),
       200,
       300,
     ),
     sandbox.window.OverlayUtils.scrollTravelSeconds(3, 200, 300),
   );
-  assert.equal(
-    styleValues.get('--scroll-seconds'),
-    `${bounceTiming.totalSeconds}s`,
-  );
+  assert.equal(styleValues.get('--scroll-seconds'), `${bounceTiming.totalSeconds}s`);
   assert.equal(bounceClasses.has('paused'), false);
   assert.equal(bounceClasses.has('scrolling-bounce'), true);
 
@@ -546,22 +487,11 @@ test('identity queue scrolls from actual overflow', () => {
       assert.fail('fitting content must not be duplicated');
     },
   };
-  assert.equal(
-    sandbox.configureIdentityVerticalScroll(
-      { clientHeight: 300 },
-      fittingList,
-      {},
-      '',
-      4,
-    ),
-    false,
-  );
+  assert.equal(sandbox.configureIdentityVerticalScroll({ clientHeight: 300 }, fittingList, {}, '', 4), false);
 
   const shortDistance = 200;
   const longDistance = 800;
   const shortSeconds = sandbox.window.OverlayUtils.scrollTravelSeconds(12, shortDistance, 300);
   const longSeconds = sandbox.window.OverlayUtils.scrollTravelSeconds(12, longDistance, 300);
-  assert.ok(
-    Math.abs(shortDistance / shortSeconds - longDistance / longSeconds) < 0.001,
-  );
+  assert.ok(Math.abs(shortDistance / shortSeconds - longDistance / longSeconds) < 0.001);
 });

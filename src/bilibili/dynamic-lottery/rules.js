@@ -13,17 +13,13 @@ function normalizeRules(input, endsAtMs) {
     !Number.isSafeInteger(winnerCount) ||
     winnerCount < 1 ||
     winnerCount > 100 ||
-    [requireLike, requireRepost, requireFollow].some(
-      (value) => typeof value !== 'boolean',
-    )
+    [requireLike, requireRepost, requireFollow].some((value) => typeof value !== 'boolean')
   )
     throw lotteryError('LOTTERY_RULES_INVALID');
   return {
     version: 2,
     entryAction: 'comment',
-    requiredActions: [requireLike && 'like', requireRepost && 'repost'].filter(
-      Boolean,
-    ),
+    requiredActions: [requireLike && 'like', requireRepost && 'repost'].filter(Boolean),
     requireFollow,
     winnerCount,
     endsAtMs,
@@ -34,25 +30,17 @@ function normalizeRules(input, endsAtMs) {
 
 function buildCandidatePool({ task, scan, evidence }) {
   const sources = ['comment', ...task.rules.requiredActions];
-  if (
-    scan?.status !== 'completed' ||
-    sources.some((source) => scan.sources[source]?.coverage !== 'exhausted')
-  )
+  if (scan?.status !== 'completed' || sources.some((source) => scan.sources[source]?.coverage !== 'exhausted'))
     throw lotteryError('LOTTERY_COLLECTION_INCOMPLETE');
   const comments = new Map();
-  const required = new Map(
-    task.rules.requiredActions.map((source) => [source, new Set()]),
-  );
+  const required = new Map(task.rules.requiredActions.map((source) => [source, new Set()]));
   for (const record of evidence) {
     if (record.uid === task.ownerUid) continue;
     if (record.source === 'comment') {
       if (!Number.isSafeInteger(record.occurredAtMs)) {
         throw lotteryError('LOTTERY_UPSTREAM_INVALID');
       }
-      if (
-        record.occurredAtMs <= task.rules.endsAtMs &&
-        !comments.has(record.uid)
-      ) {
+      if (record.occurredAtMs <= task.rules.endsAtMs && !comments.has(record.uid)) {
         comments.set(record.uid, {
           uid: record.uid,
           source: 'comment',
@@ -64,14 +52,8 @@ function buildCandidatePool({ task, scan, evidence }) {
     }
   }
   return [...comments.values()]
-    .filter(({ uid }) =>
-      [...required.values()].every((members) => members.has(uid)),
-    )
-    .sort(
-      (left, right) =>
-        left.uid.length - right.uid.length ||
-        left.uid.localeCompare(right.uid, 'en'),
-    );
+    .filter(({ uid }) => [...required.values()].every((members) => members.has(uid)))
+    .sort((left, right) => left.uid.length - right.uid.length || left.uid.localeCompare(right.uid, 'en'));
 }
 
 function assertSameContext(before, after) {

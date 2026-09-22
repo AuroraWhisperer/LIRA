@@ -5,10 +5,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
-const {
-  createGiftSource,
-  makeProcessedGiftEvent,
-} = require('./helpers/processed-gifts');
+const { createGiftSource, makeProcessedGiftEvent } = require('./helpers/processed-gifts');
 const {
   EFFECT_API_URL,
   buildEffectMap,
@@ -21,11 +18,7 @@ const {
 const { createGiftProjectionService } = require('../src/bilibili/gift');
 const { closeDatabases, createDatabases } = require('../src/storage/database');
 
-function confEntry(
-  id,
-  giftIds,
-  mp4Url = `https://i0.hdslb.com/bfs/live/effect-${id}.mp4`,
-) {
+function confEntry(id, giftIds, mp4Url = `https://i0.hdslb.com/bfs/live/effect-${id}.mp4`) {
   return {
     id,
     type: 1,
@@ -74,10 +67,7 @@ test('buildEffectMap maps gift ids to the newest trusted MP4 effect', () => {
   assert.equal(map.size, 2);
   assert.equal(map.get(31645).effectId, 584);
   assert.equal(map.get(31645).fileSize, 1584);
-  assert.equal(
-    map.get(31645).layoutUrl,
-    'https://i0.hdslb.com/bfs/live/effect-584.json',
-  );
+  assert.equal(map.get(31645).layoutUrl, 'https://i0.hdslb.com/bfs/live/effect-584.json');
   assert.equal(map.get(30636).effectId, 1638);
   assert.equal(map.get(25), undefined);
   assert.equal(map.get(99999), undefined);
@@ -91,10 +81,7 @@ test('effect helpers tolerate missing entries and reject untrusted URLs', () => 
   assert.equal(pickEffect([]), null);
   assert.equal(isTrustedEffectUrl('https://i0.hdslb.com/bfs/live/a.mp4'), true);
   assert.equal(isTrustedEffectUrl('http://i0.hdslb.com/bfs/live/a.mp4'), false);
-  assert.equal(
-    isTrustedEffectUrl('https://hdslb.com.example.com/a.mp4'),
-    false,
-  );
+  assert.equal(isTrustedEffectUrl('https://hdslb.com.example.com/a.mp4'), false);
 });
 
 test('parseEffectLayout keeps the official RGB and alpha rectangles and rejects invalid bounds', () => {
@@ -175,10 +162,7 @@ test('resolver fetches lazily, dedupes concurrent calls and refreshes after ttl'
   });
 
   assert.equal(resolver.resolve(31645), null);
-  const [first, same] = await Promise.all([
-    resolver.getEffectMap(),
-    resolver.getEffectMap(),
-  ]);
+  const [first, same] = await Promise.all([resolver.getEffectMap(), resolver.getEffectMap()]);
   assert.equal(calls, 1);
   assert.equal(first, same);
   assert.equal(resolver.resolve(31645).effectId, 585);
@@ -241,10 +225,7 @@ test('resolver fetches and dedupes packed-alpha layout metadata lazily', async (
     },
   });
 
-  const [first, same] = await Promise.all([
-    resolver.resolveEffect(32132),
-    resolver.resolveEffect(32132),
-  ]);
+  const [first, same] = await Promise.all([resolver.resolveEffect(32132), resolver.resolveEffect(32132)]);
 
   assert.equal(catalogCalls, 1);
   assert.equal(layoutCalls, 1);
@@ -278,10 +259,7 @@ test('resolver throttles failed layout requests and retries after the retry wind
     },
   });
 
-  const [first, sameFailure] = await Promise.all([
-    resolver.resolveEffect(32132),
-    resolver.resolveEffect(32132),
-  ]);
+  const [first, sameFailure] = await Promise.all([resolver.resolveEffect(32132), resolver.resolveEffect(32132)]);
   assert.equal(first, null);
   assert.equal(sameFailure, null);
   assert.equal(layoutCalls, 1);
@@ -329,25 +307,14 @@ test('buildGiftEffectEvent supports normalized database rows and camelCase input
     effect,
   });
 
-  const fromCamelCase = await buildGiftEffectEvent(
-    { id: 78, giftId: 35457 },
-    resolver,
-  );
+  const fromCamelCase = await buildGiftEffectEvent({ id: 78, giftId: 35457 }, resolver);
   assert.equal(fromCamelCase.giftName, '礼物');
-  assert.equal(
-    await buildGiftEffectEvent({ id: 79, gift_id: '0' }, resolver),
-    null,
-  );
-  assert.equal(
-    await buildGiftEffectEvent({ id: 80, gift_id: '31643' }, resolver),
-    null,
-  );
+  assert.equal(await buildGiftEffectEvent({ id: 79, gift_id: '0' }, resolver), null);
+  assert.equal(await buildGiftEffectEvent({ id: 80, gift_id: '31643' }, resolver), null);
 });
 
 test('gift effect capture stays active when sprint and overtime consumers are disabled', () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'gift-effect-capture-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gift-effect-capture-'));
   const db = createDatabases({ dataDir });
   const finalized = [];
   const sourceId = createGiftSource(db.giftDb);

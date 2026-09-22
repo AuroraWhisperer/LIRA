@@ -6,9 +6,7 @@ function rankTrackCandidates(request, candidates) {
   const normalizedRequest = normalizeRequest(request);
   return (Array.isArray(candidates) ? candidates : [])
     .map((candidate) => scoreTrackMatch(normalizedRequest, candidate))
-    .sort(
-      (a, b) => b.score - a.score || a.track.title.localeCompare(b.track.title),
-    );
+    .sort((a, b) => b.score - a.score || a.track.title.localeCompare(b.track.title));
 }
 
 function scoreTrackMatch(request, candidate) {
@@ -21,10 +19,7 @@ function scoreTrackMatch(request, candidate) {
     reasons.push('歌名完全一致 +60');
   }
 
-  if (
-    request.artist &&
-    track.artists.some((artist) => artist === request.artist)
-  ) {
+  if (request.artist && track.artists.some((artist) => artist === request.artist)) {
     score += 25;
     reasons.push('歌手完全一致 +25');
   }
@@ -39,11 +34,7 @@ function scoreTrackMatch(request, candidate) {
     reasons.push('歌名清洗后一致 +15');
   }
 
-  if (
-    request.durationMs > 0 &&
-    track.durationMs > 0 &&
-    Math.abs(request.durationMs - track.durationMs) <= 5000
-  ) {
+  if (request.durationMs > 0 && track.durationMs > 0 && Math.abs(request.durationMs - track.durationMs) <= 5000) {
     score += 10;
     reasons.push('时长误差小于 5 秒 +10');
   }
@@ -99,15 +90,11 @@ function normalizeCandidate(candidate) {
 function penaltyRules(track) {
   const text = `${track.title} ${track.album}`.toLowerCase();
   const penalties = [];
-  if (/live|现场|演唱会/.test(text))
-    penalties.push({ value: -15, label: 'Live / 现场' });
-  if (/dj|remix|混音|电音/.test(text))
-    penalties.push({ value: -25, label: 'DJ / Remix' });
-  if (/伴奏|纯音乐|instrumental/.test(text))
-    penalties.push({ value: -30, label: '伴奏 / 纯音乐' });
+  if (/live|现场|演唱会/.test(text)) penalties.push({ value: -15, label: 'Live / 现场' });
+  if (/dj|remix|混音|电音/.test(text)) penalties.push({ value: -25, label: 'DJ / Remix' });
+  if (/伴奏|纯音乐|instrumental/.test(text)) penalties.push({ value: -30, label: '伴奏 / 纯音乐' });
   if (/翻唱|cover/.test(text)) penalties.push({ value: -20, label: '翻唱' });
-  if (/加速|慢速|speed up|sped up|slowed/.test(text))
-    penalties.push({ value: -20, label: '加速版 / 慢速版' });
+  if (/加速|慢速|speed up|sped up|slowed/.test(text)) penalties.push({ value: -20, label: '加速版 / 慢速版' });
   return penalties;
 }
 

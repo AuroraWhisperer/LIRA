@@ -15,11 +15,7 @@ function createGiftStatisticsStore(giftDb) {
       `,
         )
         .get(giftEventId);
-      if (
-        !row ||
-        Number(row.gift_stats_eligible) !== 1 ||
-        Number(row.gift_stats_delivered) === 1
-      ) {
+      if (!row || Number(row.gift_stats_eligible) !== 1 || Number(row.gift_stats_delivered) === 1) {
         giftDb.exec('COMMIT');
         return false;
       }

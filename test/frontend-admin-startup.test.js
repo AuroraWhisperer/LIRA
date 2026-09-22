@@ -12,11 +12,16 @@ const noop = () => {};
 
 test('legacy danmaku initialization preserves reconnect defaults and explicit injection', async () => {
   const calls = [];
-  const window = { AdminApp: { settings: {
-    reconnectBilibili: () => calls.push('legacy'),
-  } } };
+  const window = {
+    AdminApp: {
+      settings: {
+        reconnectBilibili: () => calls.push('legacy'),
+      },
+    },
+  };
   const { publishDanmakuTool } = await loadModuleExports(
-    path.join(ROOT_DIR, 'public/js/admin/legacy-admin-bridge.js'), { window },
+    path.join(ROOT_DIR, 'public/js/admin/legacy-admin-bridge.js'),
+    { window },
   );
   publishDanmakuTool({
     init: ({ reconnectBilibili }) => reconnectBilibili(),
@@ -56,19 +61,20 @@ async function createStartupFixture() {
     '../shared/utils.js': { showError: (error) => errors.push(error) },
     '../shared/theme.js': {
       theme: {},
-      loadThemeConfig: () => { calls.push('theme'); return theme.promise; },
+      loadThemeConfig: () => {
+        calls.push('theme');
+        return theme.promise;
+      },
     },
     '../shared/parameter-range.js': { initParameterRanges: noop },
     '../shared/select-menu.js': { enhanceSelects: noop },
     './legacy-admin-bridge.js': {
       getLegacyAdminModules: () => modules,
       publishNavigation: noop,
-      publishOnboarding: noop,
     },
     './usage-guide.js': { initUsageGuide: noop },
     './toolbox-lifecycle.js': { createToolboxLifecycle: () => ({ dispose: noop }) },
     './dynamic-lottery.js': { initDynamicLottery: () => ({ dispose: noop }) },
-    './onboarding.js': { initOnboarding: noop },
     './interactive-tour.js': { initInteractiveTour: () => ({ claimAutoOpen: () => false }) },
     './gift-frame.js': { initGiftFrame: noop },
     './gifts/history.js': { initGiftHistoryDrawer: noop },
@@ -77,7 +83,10 @@ async function createStartupFixture() {
     './state.js': {
       stateService: {
         connectSocket: noop,
-        reloadAll: () => { dataRequested.resolve(); return data.promise; },
+        reloadAll: () => {
+          dataRequested.resolve();
+          return data.promise;
+        },
       },
     },
     './forms.js': {
@@ -96,24 +105,29 @@ async function createStartupFixture() {
     './ai-assistant-settings.js': { aiAssistantSettings: {} },
     './desktop-lyric.js': { desktopLyric: { initDesktopLyricForm: noop } },
     './import.js': { songImports: {} },
-    './settings.js': { settings: {
-      initSettingsForm: () => calls.push('settings'),
-      initBilibiliAuth: noop,
-    } },
+    './settings.js': {
+      settings: {
+        initSettingsForm: () => calls.push('settings'),
+        initBilibiliAuth: noop,
+      },
+    },
     './theme.js': { theme: { initThemeForm: noop, renderPresetCards: noop } },
     './display.js': { display: { initDisplayForm: noop, initOverlayUrls: noop } },
     './state-renderer.js': { createAdminStateRenderer: noop },
   };
-  const entry = new vm.SourceTextModule(
-    fs.readFileSync(path.join(ROOT_DIR, 'public/js/admin/app.js'), 'utf8'),
-    { context },
-  );
+  const entry = new vm.SourceTextModule(fs.readFileSync(path.join(ROOT_DIR, 'public/js/admin/app.js'), 'utf8'), {
+    context,
+  });
   await entry.link((specifier) => {
     const exports = dependencies[specifier];
     assert.ok(exports, `Unexpected startup dependency: ${specifier}`);
-    return new vm.SyntheticModule(Object.keys(exports), function () {
-      for (const [name, value] of Object.entries(exports)) this.setExport(name, value);
-    }, { context });
+    return new vm.SyntheticModule(
+      Object.keys(exports),
+      function () {
+        for (const [name, value] of Object.entries(exports)) this.setExport(name, value);
+      },
+      { context },
+    );
   });
   await entry.evaluate();
   return { start, theme, data, dataRequested, classes, calls, errors };
@@ -126,10 +140,12 @@ test('desktop first paint applies body styling before admin modules load', () =>
     const rootClasses = new Set();
     const bodyClasses = new Set();
     const document = {
-      documentElement: { classList: {
-        add: (...names) => names.forEach((name) => rootClasses.add(name)),
-        contains: (name) => rootClasses.has(name),
-      } },
+      documentElement: {
+        classList: {
+          add: (...names) => names.forEach((name) => rootClasses.add(name)),
+          contains: (name) => rootClasses.has(name),
+        },
+      },
       body: null,
     };
     const context = vm.createContext({ document, location: { search }, URLSearchParams });
@@ -168,16 +184,16 @@ test('failed initial state loading exits the startup screen and reports the erro
 });
 
 test('window controls work while account initialization is still pending', async () => {
-  const { createSettingsForm } = await loadModuleExports(
-    path.join(ROOT_DIR, 'public/js/admin/settings-form.js'),
-  );
+  const { createSettingsForm } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/settings-form.js'));
   const account = Promise.withResolvers();
   const listeners = new Map();
   const actions = [];
   const form = createSettingsForm({
-    documentRef: { getElementById: (id) => ({
-      addEventListener: (event, listener) => listeners.set(`${id}:${event}`, listener),
-    }) },
+    documentRef: {
+      getElementById: (id) => ({
+        addEventListener: (event, listener) => listeners.set(`${id}:${event}`, listener),
+      }),
+    },
     initLicenseAccountDevice: () => account.promise,
     blindboxSettings: { init: noop },
     desktopRef: {

@@ -150,12 +150,7 @@ function buildTools(config) {
     if (tool.name === 'get_weather' && !config.weatherEnabled) continue;
     if (tool.name === 'search_places' && !config.placesEnabled) continue;
     if (tool.name === 'get_route' && !config.routesEnabled) continue;
-    if (
-      tool.name === 'resolve_location' &&
-      !config.placesEnabled &&
-      !config.routesEnabled
-    )
-      continue;
+    if (tool.name === 'resolve_location' && !config.placesEnabled && !config.routesEnabled) continue;
     tools.push(tool);
   }
   return tools;

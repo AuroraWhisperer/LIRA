@@ -21,8 +21,7 @@ export function renderConnBar(state) {
 export function renderBubbleTable(gifts) {
   const tbody = document.getElementById('bubbleTableBody');
   if (gifts.length === 0) {
-    tbody.innerHTML =
-      '<tr><td colspan="5" class="empty-state">未解析到礼物（请检查 HTML 格式）</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="5" class="empty-state">未解析到礼物（请检查 HTML 格式）</td></tr>';
     return;
   }
   tbody.innerHTML = gifts
@@ -44,8 +43,7 @@ export function renderBubbleTable(gifts) {
 export function renderServerTable(gifts) {
   const tbody = document.getElementById('serverTableBody');
   if (gifts.length === 0) {
-    tbody.innerHTML =
-      '<tr><td colspan="7" class="empty-state">暂无 WebSocket 记录</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="empty-state">暂无 WebSocket 记录</td></tr>';
     return;
   }
   tbody.innerHTML = gifts
@@ -69,8 +67,7 @@ export function renderServerTable(gifts) {
 export function renderComparison(results) {
   const tbody = document.getElementById('comparisonBody');
   if (results.length === 0) {
-    tbody.innerHTML =
-      '<tr><td colspan="8" class="empty-state">无对比数据</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="empty-state">无对比数据</td></tr>';
     return;
   }
 
@@ -138,7 +135,9 @@ export function showToast(msg, type) {
     toastStack = createToastStack({ container, systemLimit: 1 });
   }
   return toastStack.show({
-    key: 'audit-result', update: true, message: msg,
+    key: 'audit-result',
+    update: true,
+    message: msg,
     type: type === 'warn' ? 'warning' : 'success',
     className: type === 'warn' ? 'warn' : 'ok',
   });

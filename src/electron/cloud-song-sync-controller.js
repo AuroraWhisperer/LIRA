@@ -25,10 +25,9 @@ function createCloudSongSyncController({ runtime, licenseManager, isCurrent, sho
 
     async upload(work) {
       const pending = readPending(work.accountKey);
-      const result = await licenseManager.syncSongs(
-        pending ? pending.songs : runtime.getCloudSongsSnapshot(),
-        { signal: work.signal },
-      );
+      const result = await licenseManager.syncSongs(pending ? pending.songs : runtime.getCloudSongsSnapshot(), {
+        signal: work.signal,
+      });
       if (pending && isCurrent(work)) {
         runtime.acknowledgePendingCloudSongs(work.accountKey, pending.mutationId);
       }

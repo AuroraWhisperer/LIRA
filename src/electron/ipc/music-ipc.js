@@ -60,11 +60,7 @@ function registerMusicIpc({
   });
   ipcMain.handle('music:get-recent-local-files', function () {
     const localMediaAccess = getLocalMediaAccess();
-    if (
-      !localMediaAccess ||
-      typeof localMediaAccess.getAllowedPaths !== 'function'
-    )
-      return { files: [] };
+    if (!localMediaAccess || typeof localMediaAccess.getAllowedPaths !== 'function') return { files: [] };
     const files = localMediaAccess
       .getAllowedPaths()
       .filter((filePath) => {
@@ -108,41 +104,34 @@ function registerMusicIpc({
       path: (result.filePaths || [])[0] || '',
     };
   });
-  ipcMain.handle(
-    'music:resolve-local-media-urls',
-    async function (event, paths) {
-      const senderUrl = event && event.senderFrame ? event.senderFrame.url : '';
-      if (!hasExactOrigin(senderUrl, getDesktopBaseUrl()))
-        return { results: {} };
-      const results = {};
-      const list = Array.isArray(paths) ? paths : [];
-      for (const filePath of list) {
-        try {
-          const resolved = path.resolve(filePath);
-          if (fs.existsSync(resolved) && isPathAllowedForLocalMedia(resolved)) {
-            const encoded = Buffer.from(filePath, 'utf8').toString('base64url');
-            results[filePath] = {
-              ok: true,
-              url: `local-media://media/${encoded}`,
-            };
-          } else {
-            results[filePath] = {
-              ok: false,
-              reason: fs.existsSync(resolved) ? 'not-allowed' : 'missing',
-            };
-          }
-        } catch (_) {
-          results[filePath] = { ok: false, reason: 'error' };
+  ipcMain.handle('music:resolve-local-media-urls', async function (event, paths) {
+    const senderUrl = event && event.senderFrame ? event.senderFrame.url : '';
+    if (!hasExactOrigin(senderUrl, getDesktopBaseUrl())) return { results: {} };
+    const results = {};
+    const list = Array.isArray(paths) ? paths : [];
+    for (const filePath of list) {
+      try {
+        const resolved = path.resolve(filePath);
+        if (fs.existsSync(resolved) && isPathAllowedForLocalMedia(resolved)) {
+          const encoded = Buffer.from(filePath, 'utf8').toString('base64url');
+          results[filePath] = {
+            ok: true,
+            url: `local-media://media/${encoded}`,
+          };
+        } else {
+          results[filePath] = {
+            ok: false,
+            reason: fs.existsSync(resolved) ? 'not-allowed' : 'missing',
+          };
         }
+      } catch (_) {
+        results[filePath] = { ok: false, reason: 'error' };
       }
-      return { results };
-    },
-  );
+    }
+    return { results };
+  });
   ipcMain.handle('playback:save-state', function (_event, data) {
-    return writePlaybackSnapshot(
-      (data && data.payload) || {},
-      (data && data.clientId) || 'default',
-    );
+    return writePlaybackSnapshot((data && data.payload) || {}, (data && data.clientId) || 'default');
   });
   ipcMain.handle('playback:flush-ack', function () {
     acknowledgePlaybackFlush();

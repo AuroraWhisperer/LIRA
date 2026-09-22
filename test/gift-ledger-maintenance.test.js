@@ -5,12 +5,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
-const {
-  clearAllData,
-  clearGiftData,
-  closeDatabases,
-  createDatabases,
-} = require('../src/storage/database');
+const { clearAllData, clearGiftData, closeDatabases, createDatabases } = require('../src/storage/database');
 const { createGiftSyncStore } = require('../src/storage/gift-sync-store');
 const { createSettingsStore } = require('../src/storage/settings-store');
 const { applyRetentionPolicies } = require('../src/storage/retention');
@@ -41,9 +36,7 @@ test('database gift clear resets only the active source and derived settlements'
     ]);
     assert.deepEqual(
       fixture.databases.giftDb
-        .prepare(
-          'SELECT gift_event_id FROM overtime_settlements ORDER BY gift_event_id',
-        )
+        .prepare('SELECT gift_event_id FROM overtime_settlements ORDER BY gift_event_id')
         .all()
         .map((row) => Number(row.gift_event_id)),
       [Number(seeded.sourceBEventId), Number(seeded.legacyId)],
@@ -172,9 +165,7 @@ test('domain clear-all resets the live overtime clock before another action can 
 
     services.overtime.act('pause');
     const persisted = fixture.databases.giftDb
-      .prepare(
-        'SELECT enabled, remaining_ms FROM overtime_machine_state WHERE id = 1',
-      )
+      .prepare('SELECT enabled, remaining_ms FROM overtime_machine_state WHERE id = 1')
       .get();
     assert.equal(persisted.enabled, 0);
     assert.equal(persisted.remaining_ms, 0);
@@ -281,9 +272,7 @@ test('retention and legacy clear-recent never delete remote-source rows', () => 
 });
 
 function createFixture() {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'lira-gift-maintenance-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-gift-maintenance-'));
   const databases = createDatabases({ dataDir });
   return {
     dataDir,
@@ -372,9 +361,7 @@ function insertSettlement(giftDb, giftEventId, status) {
 
 function readGiftPartitions(giftDb) {
   return giftDb
-    .prepare(
-      'SELECT platform_id, source_id FROM gift_events ORDER BY platform_id',
-    )
+    .prepare('SELECT platform_id, source_id FROM gift_events ORDER BY platform_id')
     .all()
     .map((row) => ({
       platform_id: row.platform_id,

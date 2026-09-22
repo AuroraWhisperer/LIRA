@@ -29,21 +29,12 @@ function createRemoteGiftCatalogCache(options = {}) {
 
   const now = typeof options.now === 'function' ? options.now : Date.now;
   const logger = options.logger || console;
-  const pollIntervalMs = positiveMs(
-    options.pollIntervalMs,
-    DEFAULT_POLL_INTERVAL_MS,
-  );
+  const pollIntervalMs = positiveMs(options.pollIntervalMs, DEFAULT_POLL_INTERVAL_MS);
   const minRefreshMs = positiveMs(options.minRefreshMs, DEFAULT_MIN_REFRESH_MS);
-  const cachePath = path.resolve(
-    options.cachePath || resolveDataPaths(dataDir).giftCatalogPath,
-  );
+  const cachePath = path.resolve(options.cachePath || resolveDataPaths(dataDir).giftCatalogPath);
   const configuredImageBaseUrl = () => {
-    const value =
-      typeof options.imageBaseUrl === 'function'
-        ? options.imageBaseUrl()
-        : options.imageBaseUrl;
-    if (value === undefined || value === null || String(value).trim() === '')
-      return '';
+    const value = typeof options.imageBaseUrl === 'function' ? options.imageBaseUrl() : options.imageBaseUrl;
+    if (value === undefined || value === null || String(value).trim() === '') return '';
     const normalized = normalizeImageBaseUrl(value);
     if (!normalized) throw catalogError('REMOTE_CATALOG_IMAGE_BASE_INVALID');
     return normalized;
@@ -52,12 +43,7 @@ function createRemoteGiftCatalogCache(options = {}) {
   fs.mkdirSync(path.dirname(cachePath), { recursive: true });
 
   const bootstrapNowMs = currentTimeMs(now);
-  let cache = readPersistedCache(
-    cachePath,
-    logger,
-    initialImageBaseUrl,
-    bootstrapNowMs,
-  );
+  let cache = readPersistedCache(cachePath, logger, initialImageBaseUrl, bootstrapNowMs);
   let giftsById = indexGifts(cache?.snapshot?.gifts || []);
   let pending = null;
   let timer = null;
@@ -71,9 +57,9 @@ function createRemoteGiftCatalogCache(options = {}) {
   }
 
   function getGift(giftId, variantId) {
-    const candidates = (
-      giftsById.get(String(giftId || '').trim()) || []
-    ).filter((gift) => !variantId || gift.variantId === variantId);
+    const candidates = (giftsById.get(String(giftId || '').trim()) || []).filter(
+      (gift) => !variantId || gift.variantId === variantId,
+    );
     const gift = candidates.length === 1 ? candidates[0] : null;
     return gift ? structuredClone(gift) : null;
   }
@@ -86,11 +72,7 @@ function createRemoteGiftCatalogCache(options = {}) {
     // future refreshes. Treat a future attempt timestamp as unknown.
     if (lastAttemptMs > currentMs) lastAttemptMs = 0;
     const force = requestOptions.force === true;
-    if (
-      !force &&
-      lastAttemptMs > 0 &&
-      currentMs - lastAttemptMs < minRefreshMs
-    ) {
+    if (!force && lastAttemptMs > 0 && currentMs - lastAttemptMs < minRefreshMs) {
       return Promise.resolve(getSnapshot());
     }
 
@@ -103,8 +85,7 @@ function createRemoteGiftCatalogCache(options = {}) {
 
       // stop() invalidates in-flight work. Do not write a late response or
       // notify a WebSocket that the owning runtime has already shut down.
-      if (stopped || requestGeneration !== lifecycleGeneration)
-        return getSnapshot();
+      if (stopped || requestGeneration !== lifecycleGeneration) return getSnapshot();
 
       // The license manager can be unavailable before the first authorization;
       // leave the local/previous snapshot untouched and try again later.
@@ -115,17 +96,14 @@ function createRemoteGiftCatalogCache(options = {}) {
           throw catalogError('REMOTE_CATALOG_NOT_MODIFIED_WITHOUT_CACHE');
         }
         const responseEtag = safeHeaderValue(response.etag);
-        if (stopped || requestGeneration !== lifecycleGeneration)
-          return getSnapshot();
+        if (stopped || requestGeneration !== lifecycleGeneration) return getSnapshot();
         const nextCache = {
           ...cache,
           etag: responseEtag || cache.etag || '',
           checkedAt: isoTime(currentTimeMs(now)),
         };
-        if (stopped || requestGeneration !== lifecycleGeneration)
-          return getSnapshot();
-        if (writePersistedCache(cachePath, nextCache, logger))
-          cache = nextCache;
+        if (stopped || requestGeneration !== lifecycleGeneration) return getSnapshot();
+        if (writePersistedCache(cachePath, nextCache, logger)) cache = nextCache;
         return getSnapshot();
       }
 
@@ -151,23 +129,19 @@ function createRemoteGiftCatalogCache(options = {}) {
           fetchedAt: isoTime(currentTimeMs(now)),
         },
       };
-      if (stopped || requestGeneration !== lifecycleGeneration)
-        return getSnapshot();
+      if (stopped || requestGeneration !== lifecycleGeneration) return getSnapshot();
       if (changed) {
         if (!writePersistedCache(cachePath, nextCache, logger)) {
           throw catalogError('REMOTE_CATALOG_CACHE_WRITE_FAILED');
         }
         cache = nextCache;
         giftsById = indexGifts(snapshot.gifts);
-        if (stopped || requestGeneration !== lifecycleGeneration)
-          return getSnapshot();
+        if (stopped || requestGeneration !== lifecycleGeneration) return getSnapshot();
         const update = cloneSnapshot(cache.snapshot, false);
         try {
           const result = options.onUpdated?.(update);
           if (result && typeof result.catch === 'function') {
-            result.catch((error) =>
-              logger.warn?.('[GiftCatalog] update notification failed:', error),
-            );
+            result.catch((error) => logger.warn?.('[GiftCatalog] update notification failed:', error));
           }
         } catch (error) {
           logger.warn?.('[GiftCatalog] update notification failed:', error);
@@ -217,17 +191,10 @@ function createRemoteGiftCatalogCache(options = {}) {
   };
 }
 
-function readPersistedCache(
-  filePath,
-  logger,
-  imageBaseUrl = '',
-  nowMs = Date.now(),
-) {
+function readPersistedCache(filePath, logger, imageBaseUrl = '', nowMs = Date.now()) {
   try {
     const parsed = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-    const currentMs = Number.isFinite(Number(nowMs))
-      ? Number(nowMs)
-      : Date.now();
+    const currentMs = Number.isFinite(Number(nowMs)) ? Number(nowMs) : Date.now();
     const persistedCheckedMs = parseTime(parsed.checkedAt);
     // Never let a future timestamp from a damaged or manually copied cache
     // block the first conditional request after startup.
@@ -245,17 +212,11 @@ function readPersistedCache(
       checkedAt: futureChecked ? '' : checkedMs ? isoTime(checkedMs) : '',
       snapshot: {
         ...snapshot,
-        fetchedAt:
-          validIso(parsed.fetchedAt) ||
-          validIso(snapshot.fetchedAt) ||
-          snapshot.updatedAt,
+        fetchedAt: validIso(parsed.fetchedAt) || validIso(snapshot.fetchedAt) || snapshot.updatedAt,
       },
     };
   } catch (error) {
-    logger.debug?.(
-      '[GiftCatalog] no usable persisted remote cache:',
-      error?.message || error,
-    );
+    logger.debug?.('[GiftCatalog] no usable persisted remote cache:', error?.message || error);
     return null;
   }
 }
@@ -294,10 +255,7 @@ function writePersistedCache(filePath, value, logger) {
       try {
         fs.rmSync(tempPath, { force: true });
       } catch (error) {
-        logger.debug?.(
-          '[GiftCatalog] temporary cache cleanup failed:',
-          error?.message || error,
-        );
+        logger.debug?.('[GiftCatalog] temporary cache cleanup failed:', error?.message || error);
       }
     }
   }

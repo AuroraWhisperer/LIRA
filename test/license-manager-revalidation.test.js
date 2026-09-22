@@ -3,9 +3,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const { LicenseState } = require('../src/electron/license/license-manager');
-const {
-  RemoteLicenseError,
-} = require('../src/electron/license/remote-license-client');
+const { RemoteLicenseError } = require('../src/electron/license/remote-license-client');
 const { createHarness } = require('./helpers/license-manager-harness');
 
 test('cloud songs are read through the authorized device token', async () => {
@@ -81,16 +79,9 @@ test('device auth epoch change blocks without silently reauthorizing', async () 
     });
   };
 
-  await assert.rejects(
-    manager.syncSongs([]),
-    (error) => error.code === 'DEVICE_AUTH_EPOCH_CHANGED',
-  );
+  await assert.rejects(manager.syncSongs([]), (error) => error.code === 'DEVICE_AUTH_EPOCH_CHANGED');
 
-  assert.equal(
-    calls.verifies,
-    1,
-    'a terminal auth-epoch change must not issue another session',
-  );
+  assert.equal(calls.verifies, 1, 'a terminal auth-epoch change must not issue another session');
   assert.equal(manager.getState(), LicenseState.BLOCKED);
   assert.equal(manager.getAccessToken(), '');
   manager.dispose();
@@ -107,9 +98,7 @@ test('successful renewal does not emit a duplicate authorized transition', async
     return syncSongs(songs, token);
   };
   const snapshots = [];
-  const unsubscribe = manager.onStateChanged((snapshot) =>
-    snapshots.push(snapshot),
-  );
+  const unsubscribe = manager.onStateChanged((snapshot) => snapshots.push(snapshot));
 
   await manager.syncSongs([]);
 
@@ -198,15 +187,9 @@ test('terminal rejection cannot be undone by an in-flight reverify', async () =>
   const pendingSync = manager.syncSongs([]);
   await challengeStarted;
   releaseProfile();
-  await assert.rejects(
-    terminalRequest,
-    (error) => error.code === 'DEVICE_REVOKED',
-  );
+  await assert.rejects(terminalRequest, (error) => error.code === 'DEVICE_REVOKED');
   releaseChallenge();
-  await assert.rejects(
-    pendingSync,
-    (error) => error.code === 'DEVICE_SESSION_INVALID',
-  );
+  await assert.rejects(pendingSync, (error) => error.code === 'DEVICE_SESSION_INVALID');
 
   assert.equal(manager.getState(), LicenseState.BLOCKED);
   assert.equal(manager.getAccessToken(), '');
@@ -229,25 +212,13 @@ test('concurrent 401 storm triggers exactly one shared reverify', async () => {
     return { ok: true, count: 0 };
   };
 
-  const results = await Promise.all([
-    manager.syncSongs([]),
-    manager.syncSongs([]),
-    manager.syncSongs([]),
-  ]);
+  const results = await Promise.all([manager.syncSongs([]), manager.syncSongs([]), manager.syncSongs([])]);
 
   assert.ok(results.every((result) => result?.ok));
-  assert.equal(
-    calls.verifies,
-    2,
-    'three concurrent 401s must share a single reverify',
-  );
+  assert.equal(calls.verifies, 2, 'three concurrent 401s must share a single reverify');
   assert.equal(calls.challenges, 2);
   assert.deepEqual(calls.syncTokens.slice(0, 3), ['token', 'token', 'token']);
-  assert.deepEqual(calls.syncTokens.slice(3), [
-    'token-2',
-    'token-2',
-    'token-2',
-  ]);
+  assert.deepEqual(calls.syncTokens.slice(3), ['token-2', 'token-2', 'token-2']);
   assert.equal(manager.getState(), LicenseState.AUTHORIZED);
   manager.dispose();
 });
@@ -268,10 +239,7 @@ test('failed reverify after an invalid session becomes a recoverable connection 
     });
   };
 
-  await assert.rejects(
-    manager.syncSongs([]),
-    (error) => error.code === 'NETWORK_UNAVAILABLE',
-  );
+  await assert.rejects(manager.syncSongs([]), (error) => error.code === 'NETWORK_UNAVAILABLE');
 
   assert.equal(manager.getState(), LicenseState.NEEDS_CONNECTION);
   assert.equal(manager.getAccessToken(), '');

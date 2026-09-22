@@ -151,11 +151,7 @@
 }
 
 .lira-confirm-details.is-kept {
-  border-color: color-mix(
-    in srgb,
-    var(--color-control-accent) 20%,
-    var(--border)
-  );
+  border-color: color-mix(in srgb, var(--color-control-accent) 20%, var(--border));
   background: var(--color-control-accent-light);
 }
 

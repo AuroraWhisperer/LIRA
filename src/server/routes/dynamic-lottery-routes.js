@@ -29,9 +29,7 @@ async function respond(context, res, operation) {
 
 const routes = {
   'GET /api/bilibili/dynamic-lottery/state'(context, request, res) {
-    return respond(context, res, (service) =>
-      service.getState({ taskId: request.query.get('taskId') || undefined }),
-    );
+    return respond(context, res, (service) => service.getState({ taskId: request.query.get('taskId') || undefined }));
   },
   'POST /api/bilibili/dynamic-lottery/tasks'(context, request, res) {
     return respond(context, res, async (service) => {

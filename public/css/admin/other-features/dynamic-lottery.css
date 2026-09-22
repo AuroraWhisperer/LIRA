@@ -367,7 +367,8 @@
   overflow-wrap: anywhere;
 }
 
-.dynamic-lottery-panel :is(input, .hint, table, .dynamic-lottery-account-state, .dynamic-lottery-rank, .dynamic-lottery-winner-uid) {
+.dynamic-lottery-panel
+  :is(input, .hint, table, .dynamic-lottery-account-state, .dynamic-lottery-rank, .dynamic-lottery-winner-uid) {
   font-variant-numeric: tabular-nums;
 }
 

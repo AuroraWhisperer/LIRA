@@ -11,14 +11,7 @@ test('NetEase login closure names the selected music provider', async () => {
   const notifications = [];
   const button = { disabled: false };
   const { createProviderOperations } = await loadModuleExports(
-    path.join(
-      ROOT_DIR,
-      'public',
-      'js',
-      'playback',
-      'operations',
-      'provider-operations.js',
-    ),
+    path.join(ROOT_DIR, 'public', 'js', 'playback', 'operations', 'provider-operations.js'),
     {
       document: { getElementById: () => button },
       window: { musicAPI: { login: async () => {} } },

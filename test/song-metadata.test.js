@@ -17,9 +17,7 @@ test('snapshot metadata reuses reads and invalidates for writes, rollback and de
     const read = createSongMetadataReader(createSongStore(db));
     const initial = read();
     assert.equal(read(), initial);
-    db.prepare(
-      "INSERT INTO songs(name, tags, created_at, updated_at) VALUES (?, ?, '', '')",
-    ).run('one', '治愈/抒情');
+    db.prepare("INSERT INTO songs(name, tags, created_at, updated_at) VALUES (?, ?, '', '')").run('one', '治愈/抒情');
     const changed = read();
     assert.notEqual(changed, initial);
     assert.equal(changed.songCount, 1);
@@ -46,9 +44,7 @@ test('metadata notices a commit from another connection', () => {
     const read = createSongMetadataReader(createSongStore(db));
     assert.equal(read().songCount, 0);
     writer = new DatabaseSync(path.join(dir, 'songs.db'));
-    writer.exec(
-      "INSERT INTO songs(name, created_at, updated_at) VALUES ('two', '', '')",
-    );
+    writer.exec("INSERT INTO songs(name, created_at, updated_at) VALUES ('two', '', '')");
     assert.equal(read().songCount, 1);
   } finally {
     writer?.close();

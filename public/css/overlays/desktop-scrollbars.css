@@ -56,7 +56,8 @@ body.desktop-shell * {
 }
 
 /* Reserve lyric geometry while hiding the thumb during automatic follow. */
-body.desktop-shell :is(.player-fs-lyrics, .desktop-lyric-preview-viewport):not(.is-manual-browsing)::-webkit-scrollbar-thumb {
+body.desktop-shell
+  :is(.player-fs-lyrics, .desktop-lyric-preview-viewport):not(.is-manual-browsing)::-webkit-scrollbar-thumb {
   background-color: transparent;
 }
 

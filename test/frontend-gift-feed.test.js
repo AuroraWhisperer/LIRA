@@ -11,45 +11,63 @@ const fixture = createUiFixture();
 // Speed 31 advances one row in two seconds on the 5–0.1 second scale.
 async function openFeed(t, { count = 5, scrollSpeed = 31, missingAbortMethods = [] } = {}) {
   const page = await fixture(t, 'gift-feed');
-  await page.setContent('<main id="giftFeedViewport"><div id="giftFeedStage" class="gift-banner-stage"></div></main><p id="giftFeedStatus"></p>');
+  await page.setContent(
+    '<main id="giftFeedViewport"><div id="giftFeedStage" class="gift-banner-stage"></div></main><p id="giftFeedStatus"></p>',
+  );
   for (const file of ['shared/gift-banner.css', 'overlays/gift-feed.css']) {
     await page.addStyleTag({ content: fs.readFileSync(path.resolve('public/css', file), 'utf8') });
   }
-  await page.evaluate(async ({ count, scrollSpeed, missingAbortMethods }) => {
-    for (const method of missingAbortMethods) delete AbortSignal[method];
-    window.feedConfig = { palette: 'bilibili-four', thresholds: [3000, 10000, 100000], visibleRows: 3, scrollSpeed };
-    window.feedItems = Array.from({ length: count }, (_, index) => ({ eventId: String(index),
-      gift: { giftId: 'sample', giftName: '礼物', userName: `观众${index}`, unitPrice: 2, num: 1 } }));
-    window.feedRevision = 'first';
-    window.feedProfiles = [];
-    window.feedScans = 0;
-    window.feedRequests = [];
-    window.feedFrames = new Map();
-    let frameId = 0;
-    window.requestAnimationFrame = (callback) => { window.feedFrames.set(++frameId, callback); return frameId; };
-    window.cancelAnimationFrame = (id) => window.feedFrames.delete(id);
-    window.stepFeedFrame = (time) => {
-      const callbacks = [...window.feedFrames.values()];
-      window.feedFrames.clear();
-      for (const callback of callbacks) callback(time);
-    };
-    window.fetch = async (url) => {
-      window.feedRequests.push(url);
-      let data;
-      if (url === '/api/gifts/display-settings') data = window.feedConfig;
-      else if (url.startsWith('/api/gifts/card-profiles?')) data = {
-        viewRevision: window.feedRevision, day: new Date(Date.now() + 28800000).toISOString().slice(0, 10), items: window.feedProfiles, partial: false,
+  await page.evaluate(
+    async ({ count, scrollSpeed, missingAbortMethods }) => {
+      for (const method of missingAbortMethods) delete AbortSignal[method];
+      window.feedConfig = { palette: 'bilibili-four', thresholds: [3000, 10000, 100000], visibleRows: 3, scrollSpeed };
+      window.feedItems = Array.from({ length: count }, (_, index) => ({
+        eventId: String(index),
+        gift: { giftId: 'sample', giftName: '礼物', userName: `观众${index}`, unitPrice: 2, num: 1 },
+      }));
+      window.feedRevision = 'first';
+      window.feedProfiles = [];
+      window.feedScans = 0;
+      window.feedRequests = [];
+      window.feedFrames = new Map();
+      let frameId = 0;
+      window.requestAnimationFrame = (callback) => {
+        window.feedFrames.set(++frameId, callback);
+        return frameId;
       };
-      else if (url === '/api/overtime/gifts/catalog') data = { gifts: [] };
-      else if (url.startsWith('/api/gifts/history?')) {
-        window.feedScans += 1;
-        data = { items: window.feedItems, viewRevision: window.feedRevision, nextCursor: null, partial: false };
-      } else throw new Error(`Unexpected fetch: ${url}`);
-      return { ok: true, json: async () => ({ ok: true, data: structuredClone(data) }) };
-    };
-    await import('/js/overlays/gift-feed.js');
-  }, { count, scrollSpeed, missingAbortMethods });
-  await page.waitForFunction(() => window.feedScans === 1 || document.getElementById('giftFeedStatus').textContent, {}, { polling: 20 });
+      window.cancelAnimationFrame = (id) => window.feedFrames.delete(id);
+      window.stepFeedFrame = (time) => {
+        const callbacks = [...window.feedFrames.values()];
+        window.feedFrames.clear();
+        for (const callback of callbacks) callback(time);
+      };
+      window.fetch = async (url) => {
+        window.feedRequests.push(url);
+        let data;
+        if (url === '/api/gifts/display-settings') data = window.feedConfig;
+        else if (url.startsWith('/api/gifts/card-profiles?'))
+          data = {
+            viewRevision: window.feedRevision,
+            day: new Date(Date.now() + 28800000).toISOString().slice(0, 10),
+            items: window.feedProfiles,
+            partial: false,
+          };
+        else if (url === '/api/overtime/gifts/catalog') data = { gifts: [] };
+        else if (url.startsWith('/api/gifts/history?')) {
+          window.feedScans += 1;
+          data = { items: window.feedItems, viewRevision: window.feedRevision, nextCursor: null, partial: false };
+        } else throw new Error(`Unexpected fetch: ${url}`);
+        return { ok: true, json: async () => ({ ok: true, data: structuredClone(data) }) };
+      };
+      await import('/js/overlays/gift-feed.js');
+    },
+    { count, scrollSpeed, missingAbortMethods },
+  );
+  await page.waitForFunction(
+    () => window.feedScans === 1 || document.getElementById('giftFeedStatus').textContent,
+    {},
+    { polling: 20 },
+  );
   assert.equal(await page.locator('#giftFeedStatus').textContent(), '');
   return page;
 }
@@ -58,9 +76,11 @@ async function frame(page, time) {
   return page.evaluate((timestamp) => {
     window.stepFeedFrame(timestamp);
     const stage = document.getElementById('giftFeedStage');
-    return { ids: [...stage.children].map((row) => row.dataset.eventId),
+    return {
+      ids: [...stage.children].map((row) => row.dataset.eventId),
       offset: new DOMMatrixReadOnly(getComputedStyle(stage).transform).m42,
-      frames: window.feedFrames.size };
+      frames: window.feedFrames.size,
+    };
   }, time);
 }
 
@@ -73,7 +93,9 @@ async function refreshFeed(page, reason = 'settings') {
 }
 
 async function observeFeed(page) {
-  await page.waitForFunction(() => [...document.querySelectorAll('#giftFeedStage img')].every((image) => image.complete));
+  await page.waitForFunction(() =>
+    [...document.querySelectorAll('#giftFeedStage img')].every((image) => image.complete),
+  );
   await page.evaluate(() => {
     const stage = document.getElementById('giftFeedStage');
     window.savedRows = [...stage.children];
@@ -103,10 +125,13 @@ for (const cancellation of ['timeout', 'pagehide']) {
         const response = await read(url);
         if (url.startsWith('/api/gifts/history?') && !window.pendingFeedSignal) {
           window.pendingFeedSignal = options.signal;
-          response.json = () => new Promise((resolve, reject) => {
-            window.pendingFeedBody = true;
-            options.signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), { once: true });
-          });
+          response.json = () =>
+            new Promise((resolve, reject) => {
+              window.pendingFeedBody = true;
+              options.signal.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')), {
+                once: true,
+              });
+            });
         }
         return response;
       };
@@ -133,17 +158,27 @@ for (const cancellation of ['timeout', 'pagehide']) {
 test('new gift inserts only its card and repeated gift notifications leave the displayed DOM untouched', async (t) => {
   const page = await openFeed(t, { count: 2 });
   await observeFeed(page);
-  await page.evaluate(() => { window.feedItems.push({ ...window.feedItems[0], eventId: 'new' }); });
+  await page.evaluate(() => {
+    window.feedItems.push({ ...window.feedItems[0], eventId: 'new' });
+  });
   await refreshFeed(page, 'bilibili:gift');
-  assert.deepEqual(await page.evaluate(() => ({
-    reused: window.savedRows.every((row, index) => row === document.getElementById('giftFeedStage').children[index]),
-    inserted: window.feedMutations.filter((record) => record.target.id === 'giftFeedStage')
-      .flatMap((record) => [...record.addedNodes].map((node) => node.dataset.eventId)),
-    removed: window.feedMutations.reduce((count, record) => count + record.removedNodes.length, 0),
-    resourceRequests: window.feedRequests.filter((url) => /display-settings|catalog/.test(url)),
-  })), { reused: true, inserted: ['new'], removed: 0, resourceRequests: [] });
-  await page.waitForFunction(() => [...document.querySelectorAll('#giftFeedStage img')].every((image) => image.complete));
-  await page.evaluate(() => { window.feedMutations = []; });
+  assert.deepEqual(
+    await page.evaluate(() => ({
+      reused: window.savedRows.every((row, index) => row === document.getElementById('giftFeedStage').children[index]),
+      inserted: window.feedMutations
+        .filter((record) => record.target.id === 'giftFeedStage')
+        .flatMap((record) => [...record.addedNodes].map((node) => node.dataset.eventId)),
+      removed: window.feedMutations.reduce((count, record) => count + record.removedNodes.length, 0),
+      resourceRequests: window.feedRequests.filter((url) => /display-settings|catalog/.test(url)),
+    })),
+    { reused: true, inserted: ['new'], removed: 0, resourceRequests: [] },
+  );
+  await page.waitForFunction(() =>
+    [...document.querySelectorAll('#giftFeedStage img')].every((image) => image.complete),
+  );
+  await page.evaluate(() => {
+    window.feedMutations = [];
+  });
   await refreshFeed(page, 'bilibili:gift');
   assert.equal(await page.evaluate(() => window.feedMutations.length), 0);
 });
@@ -153,8 +188,16 @@ test('a new gift in an existing sender group patches quantity and color without 
   await page.evaluate(() => {
     const day = new Date(Date.now() + 28800000).toISOString().slice(0, 10);
     Object.assign(window.feedItems[0].gift, { createdAt: `${day}T01:00:00Z`, unitPrice: 20 });
-    window.feedProfiles = [{ eventId: '0', senderId: '100', userName: '观众0', avatarUrl: null,
-      guardLevel: 3, createdAt: window.feedItems[0].gift.createdAt }];
+    window.feedProfiles = [
+      {
+        eventId: '0',
+        senderId: '100',
+        userName: '观众0',
+        avatarUrl: null,
+        guardLevel: 3,
+        createdAt: window.feedItems[0].gift.createdAt,
+      },
+    ];
   });
   await refreshFeed(page);
   await observeFeed(page);
@@ -171,14 +214,20 @@ test('a new gift in an existing sender group patches quantity and color without 
     window.feedProfiles.push({ ...window.feedProfiles[0], eventId: 'new' });
   });
   await refreshFeed(page, 'bilibili:gift');
-  assert.deepEqual(await page.evaluate(() => {
-    const row = document.getElementById('giftFeedStage').firstElementChild;
-    return { sameRow: row === window.savedRows[0],
-      sameImages: window.savedImages.every((image, index) => image === row.querySelectorAll('img')[index]),
-      count: row.querySelector('.gift-banner-count').textContent,
-      color: row.style.getPropertyValue('--gift-start'), measurements: window.textMeasurements,
-      childChanges: window.feedMutations.filter((record) => record.type === 'childList').length };
-  }), { sameRow: true, sameImages: true, count: '×2', color: '#8F58EDF2', measurements: 0, childChanges: 0 });
+  assert.deepEqual(
+    await page.evaluate(() => {
+      const row = document.getElementById('giftFeedStage').firstElementChild;
+      return {
+        sameRow: row === window.savedRows[0],
+        sameImages: window.savedImages.every((image, index) => image === row.querySelectorAll('img')[index]),
+        count: row.querySelector('.gift-banner-count').textContent,
+        color: row.style.getPropertyValue('--gift-start'),
+        measurements: window.textMeasurements,
+        childChanges: window.feedMutations.filter((record) => record.type === 'childList').length,
+      };
+    }),
+    { sameRow: true, sameImages: true, count: '×2', color: '#8F58EDF2', measurements: 0, childChanges: 0 },
+  );
 });
 
 test('one scrolling step removes the outgoing row and inserts only the new buffer row', async (t) => {
@@ -186,12 +235,21 @@ test('one scrolling step removes the outgoing row and inserts only the new buffe
   await frame(page, 0);
   await observeFeed(page);
   await frame(page, 2000);
-  assert.deepEqual(await page.evaluate(() => {
-    const changes = window.feedMutations.filter((record) => record.target.id === 'giftFeedStage' && record.type === 'childList');
-    return { added: changes.flatMap((record) => [...record.addedNodes].map((node) => node.dataset.eventId)),
-      removed: changes.flatMap((record) => [...record.removedNodes].map((node) => node.dataset.eventId)),
-      reused: window.savedRows.slice(1).every((row, index) => row === document.getElementById('giftFeedStage').children[index]) };
-  }), { added: ['4'], removed: ['0'], reused: true });
+  assert.deepEqual(
+    await page.evaluate(() => {
+      const changes = window.feedMutations.filter(
+        (record) => record.target.id === 'giftFeedStage' && record.type === 'childList',
+      );
+      return {
+        added: changes.flatMap((record) => [...record.addedNodes].map((node) => node.dataset.eventId)),
+        removed: changes.flatMap((record) => [...record.removedNodes].map((node) => node.dataset.eventId)),
+        reused: window.savedRows
+          .slice(1)
+          .every((row, index) => row === document.getElementById('giftFeedStage').children[index]),
+      };
+    }),
+    { added: ['4'], removed: ['0'], reused: true },
+  );
 });
 
 test('a settings change arriving during a gift refresh is applied in the next batch', async (t) => {
@@ -203,7 +261,9 @@ test('a settings change arriving during a gift refresh is applied in the next ba
     window.fetch = async (url) => {
       if (window.deferHistory && url.startsWith('/api/gifts/history?')) {
         window.deferHistory = false;
-        await new Promise((resolve) => { window.resumeHistory = resolve; });
+        await new Promise((resolve) => {
+          window.resumeHistory = resolve;
+        });
       }
       return fetch(url);
     };
@@ -216,11 +276,14 @@ test('a settings change arriving during a gift refresh is applied in the next ba
     window.resumeHistory();
   });
   await page.waitForFunction(() => window.feedScans === 3);
-  assert.deepEqual(await page.evaluate(() => ({
-    sameRow: document.getElementById('giftFeedStage').firstElementChild === window.savedRows[0],
-    color: window.savedRows[0].style.getPropertyValue('--gift-start'),
-    resources: window.feedRequests.filter((url) => /display-settings|catalog/.test(url)),
-  })), { sameRow: true, color: '#8F58EDF2', resources: ['/api/gifts/display-settings'] });
+  assert.deepEqual(
+    await page.evaluate(() => ({
+      sameRow: document.getElementById('giftFeedStage').firstElementChild === window.savedRows[0],
+      color: window.savedRows[0].style.getPropertyValue('--gift-start'),
+      resources: window.feedRequests.filter((url) => /display-settings|catalog/.test(url)),
+    })),
+    { sameRow: true, color: '#8F58EDF2', resources: ['/api/gifts/display-settings'] },
+  );
 });
 
 test('a static card retries a failed avatar at refresh and keeps a successfully loaded avatar', async (t) => {
@@ -229,26 +292,48 @@ test('a static card retries a failed avatar at refresh and keeps a successfully 
   let requests = 0;
   await page.route('**/api/bilibili/avatar?*', (route) => {
     requests += 1;
-    return fail ? route.fulfill({ status: 502, body: 'unavailable' })
-      : route.fulfill({ contentType: 'image/png', body: Buffer.from(
-        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aFeYAAAAASUVORK5CYII=', 'base64') });
+    return fail
+      ? route.fulfill({ status: 502, body: 'unavailable' })
+      : route.fulfill({
+          contentType: 'image/png',
+          body: Buffer.from(
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aFeYAAAAASUVORK5CYII=',
+            'base64',
+          ),
+        });
   });
-  await page.evaluate(() => { window.feedItems[0].gift.avatarUrl = 'https://i0.hdslb.com/bfs/face/synthetic.webp'; });
+  await page.evaluate(() => {
+    window.feedItems[0].gift.avatarUrl = 'https://i0.hdslb.com/bfs/face/synthetic.webp';
+  });
   await refreshFeed(page);
-  await page.waitForFunction(() => document.querySelector('.gift-banner-avatar').getAttribute('src') === '/img/gift-avatar-placeholder.svg');
+  await page.waitForFunction(
+    () => document.querySelector('.gift-banner-avatar').getAttribute('src') === '/img/gift-avatar-placeholder.svg',
+  );
   await page.evaluate(() => {
     window.failedAvatar = document.querySelector('.gift-banner-avatar');
     window.failedAvatarRow = document.querySelector('.gift-banner');
   });
   fail = false;
   await refreshFeed(page);
-  await page.waitForFunction(() => {
-    const avatar = document.querySelector('.gift-banner-avatar');
-    return avatar.getAttribute('src').startsWith('/api/bilibili/avatar?') && avatar.complete && avatar.naturalWidth > 0;
-  }, {}, { timeout: 1500 });
+  await page.waitForFunction(
+    () => {
+      const avatar = document.querySelector('.gift-banner-avatar');
+      return (
+        avatar.getAttribute('src').startsWith('/api/bilibili/avatar?') && avatar.complete && avatar.naturalWidth > 0
+      );
+    },
+    {},
+    { timeout: 1500 },
+  );
   assert.equal(requests, 2);
-  assert.equal(await page.evaluate(() => window.failedAvatar === document.querySelector('.gift-banner-avatar') &&
-    window.failedAvatarRow === document.querySelector('.gift-banner')), true);
+  assert.equal(
+    await page.evaluate(
+      () =>
+        window.failedAvatar === document.querySelector('.gift-banner-avatar') &&
+        window.failedAvatarRow === document.querySelector('.gift-banner'),
+    ),
+    true,
+  );
   await refreshFeed(page);
   assert.equal(requests, 2);
 });
@@ -256,11 +341,16 @@ test('a static card retries a failed avatar at refresh and keeps a successfully 
 test('feed moves continuously, reuses rows and joins the last gift directly to the first', async (t) => {
   const page = await openFeed(t);
   assert.deepEqual(await frame(page, 0), { ids: ['0', '1', '2', '3'], offset: 0, frames: 1 });
-  await page.evaluate(() => { window.originalSecond = document.getElementById('giftFeedStage').children[1]; });
+  await page.evaluate(() => {
+    window.originalSecond = document.getElementById('giftFeedStage').children[1];
+  });
   assert.equal((await frame(page, 500)).offset, -20);
   assert.equal((await frame(page, 1000)).offset, -40);
   assert.deepEqual(await frame(page, 2000), { ids: ['1', '2', '3', '4'], offset: 0, frames: 1 });
-  assert.equal(await page.evaluate(() => window.originalSecond === document.getElementById('giftFeedStage').firstElementChild), true);
+  assert.equal(
+    await page.evaluate(() => window.originalSecond === document.getElementById('giftFeedStage').firstElementChild),
+    true,
+  );
   assert.deepEqual(await frame(page, 9500), { ids: ['4', '0', '1', '2'], offset: -60, frames: 1 });
   assert.deepEqual(await frame(page, 10000), { ids: ['0', '1', '2', '3'], offset: 0, frames: 1 });
   assert.equal((await frame(page, 10500)).offset, -20);
@@ -284,12 +374,17 @@ test('refresh preserves fractional motion and applies changed gifts at a row bou
     window.feedItems.push({ ...window.feedItems[0], eventId: 'new' });
   });
   await refreshFeed(page);
-  assert.equal(await page.evaluate(() => window.originalFirst === document.getElementById('giftFeedStage').firstElementChild), true);
+  assert.equal(
+    await page.evaluate(() => window.originalFirst === document.getElementById('giftFeedStage').firstElementChild),
+    true,
+  );
   assert.equal((await frame(page, 1500)).offset, -60);
   assert.deepEqual(await frame(page, 2000), { ids: ['1', '2', '3', '4'], offset: 0, frames: 1 });
   assert.equal(await page.locator('#giftFeedStage .gift-banner-count').first().textContent(), '×9');
   assert.deepEqual((await frame(page, 10000)).ids, ['new', '0', '1', '2']);
-  await page.evaluate(() => { window.feedConfig.scrollSpeed = 50; });
+  await page.evaluate(() => {
+    window.feedConfig.scrollSpeed = 50;
+  });
   await refreshFeed(page);
   assert.equal((await frame(page, 10050)).offset, -40);
   assert.equal((await frame(page, 10100)).ids[0], '0');
@@ -298,14 +393,20 @@ test('refresh preserves fractional motion and applies changed gifts at a row bou
 test('feed stays static at capacity, starts above it and stops when refreshed below it', async (t) => {
   const page = await openFeed(t, { count: 3 });
   assert.deepEqual(await frame(page, 0), { ids: ['0', '1', '2'], offset: 0, frames: 0 });
-  await page.evaluate(() => { window.feedItems.push({ ...window.feedItems[0], eventId: '3' }); });
+  await page.evaluate(() => {
+    window.feedItems.push({ ...window.feedItems[0], eventId: '3' });
+  });
   await refreshFeed(page);
   await frame(page, 0);
   assert.equal((await frame(page, 1000)).offset, -40);
-  await page.evaluate(() => { window.feedItems = window.feedItems.slice(0, 1); });
+  await page.evaluate(() => {
+    window.feedItems = window.feedItems.slice(0, 1);
+  });
   await refreshFeed(page);
   assert.deepEqual(await frame(page, 2000), { ids: ['0'], offset: 0, frames: 0 });
-  await page.evaluate(() => { window.feedItems = []; });
+  await page.evaluate(() => {
+    window.feedItems = [];
+  });
   await refreshFeed(page);
   assert.deepEqual(await frame(page, 3000), { ids: [], offset: 0, frames: 0 });
 });
@@ -316,22 +417,38 @@ test('feed minimum filters accumulated historical prices after merging and uses 
     const day = new Date(Date.now() + 28800000).toISOString().slice(0, 10);
     const createdAt = `${day}T01:00:00Z`;
     const records = [
-      ['merged-equal-a', '100', 6, 1], ['merged-equal-b', '100', 4, 1],
-      ['merged-above-a', '200', 4, 1], ['merged-above-b', '200', 6.01, 1],
-      ['below', null, 9.99, 1], ['equal', null, 10, 1], ['above', null, 10.01, 1],
-      ['batch', null, 1, 11], ['free', null, 0, 1],
+      ['merged-equal-a', '100', 6, 1],
+      ['merged-equal-b', '100', 4, 1],
+      ['merged-above-a', '200', 4, 1],
+      ['merged-above-b', '200', 6.01, 1],
+      ['below', null, 9.99, 1],
+      ['equal', null, 10, 1],
+      ['above', null, 10.01, 1],
+      ['batch', null, 1, 11],
+      ['free', null, 0, 1],
     ];
     window.feedConfig.minGiftAmountCents = 1000;
-    window.feedItems = records.map(([eventId, , unitPrice, num]) => ({ eventId,
-      gift: { giftId: 'sample', giftName: '礼物', userName: eventId, unitPrice, num, createdAt } }));
-    window.feedProfiles = records.filter(([, senderId]) => senderId).map(([eventId, senderId]) => ({
-      eventId, senderId, userName: senderId, avatarUrl: null, guardLevel: null, createdAt,
+    window.feedItems = records.map(([eventId, , unitPrice, num]) => ({
+      eventId,
+      gift: { giftId: 'sample', giftName: '礼物', userName: eventId, unitPrice, num, createdAt },
     }));
+    window.feedProfiles = records
+      .filter(([, senderId]) => senderId)
+      .map(([eventId, senderId]) => ({
+        eventId,
+        senderId,
+        userName: senderId,
+        avatarUrl: null,
+        guardLevel: null,
+        createdAt,
+      }));
     window.expectedMergedId = `card:${JSON.stringify([day, '200', 'sample', '礼物'])}`;
   });
   await refreshFeed(page);
   assert.deepEqual(await frame(page, 0), {
-    ids: [await page.evaluate(() => window.expectedMergedId), 'above', 'batch'], offset: 0, frames: 0,
+    ids: [await page.evaluate(() => window.expectedMergedId), 'above', 'batch'],
+    offset: 0,
+    frames: 0,
   });
   assert.deepEqual(await page.locator('#giftFeedStage .gift-banner-count').allTextContents(), ['×2', '×1', '×11']);
   assert.equal(await page.evaluate(() => window.feedItems.length), 9);
@@ -341,16 +458,22 @@ test('minimum changes filter at the scrolling boundary and zero restores every a
   const page = await openFeed(t);
   await frame(page, 0);
   await page.evaluate(() => {
-    window.feedItems.forEach((item, index) => { item.gift.unitPrice = [0, 5, 10, 10.01, 20][index]; });
+    window.feedItems.forEach((item, index) => {
+      item.gift.unitPrice = [0, 5, 10, 10.01, 20][index];
+    });
     window.feedConfig.minGiftAmountCents = 1000;
   });
   await refreshFeed(page);
   assert.deepEqual((await frame(page, 1000)).ids, ['0', '1', '2', '3']);
   assert.deepEqual(await frame(page, 2000), { ids: ['3', '4'], offset: 0, frames: 0 });
-  await page.evaluate(() => { window.feedConfig.minGiftAmountCents = 2000; });
+  await page.evaluate(() => {
+    window.feedConfig.minGiftAmountCents = 2000;
+  });
   await refreshFeed(page);
   assert.deepEqual(await frame(page, 3000), { ids: [], offset: 0, frames: 0 });
-  await page.evaluate(() => { window.feedConfig.minGiftAmountCents = 0; });
+  await page.evaluate(() => {
+    window.feedConfig.minGiftAmountCents = 0;
+  });
   await refreshFeed(page);
   assert.deepEqual(await frame(page, 4000), { ids: ['0', '1', '2', '3'], offset: 0, frames: 1 });
   assert.deepEqual(await frame(page, 6000), { ids: ['1', '2', '3', '4'], offset: 0, frames: 1 });
@@ -362,26 +485,65 @@ test('merged cards control the row threshold and update every sender card withou
   await page.evaluate(() => {
     const day = new Date(Date.now() + 28800000).toISOString().slice(0, 10);
     window.feedItems.forEach((item, index) => {
-      Object.assign(item.gift, { createdAt: `${day}T01:00:00Z`, unitPrice: 20, guardLevel: 3, giftId: index === 3 ? 'different' : 'same' });
+      Object.assign(item.gift, {
+        createdAt: `${day}T01:00:00Z`,
+        unitPrice: 20,
+        guardLevel: 3,
+        giftId: index === 3 ? 'different' : 'same',
+      });
     });
-    window.feedProfiles = window.feedItems.map((item, index) => ({ eventId: item.eventId,
-      senderId: index === 4 ? '200' : '100', userName: '重名', avatarUrl: null, guardLevel: 3, createdAt: item.gift.createdAt }));
-    window.feedProfiles.push({ ...window.feedProfiles[0], eventId: 'unselected', userName: '新昵称', guardLevel: 2, createdAt: `${day}T02:00:00Z` });
+    window.feedProfiles = window.feedItems.map((item, index) => ({
+      eventId: item.eventId,
+      senderId: index === 4 ? '200' : '100',
+      userName: '重名',
+      avatarUrl: null,
+      guardLevel: 3,
+      createdAt: item.gift.createdAt,
+    }));
+    window.feedProfiles.push({
+      ...window.feedProfiles[0],
+      eventId: 'unselected',
+      userName: '新昵称',
+      guardLevel: 2,
+      createdAt: `${day}T02:00:00Z`,
+    });
   });
   await refreshFeed(page);
   const result = await frame(page, 2000);
   assert.equal(result.frames, 0);
   assert.equal(result.ids.length, 3);
   assert.deepEqual(await page.locator('#giftFeedStage .gift-banner-count').allTextContents(), ['×3', '×1', '×1']);
-  assert.deepEqual(await page.locator('#giftFeedStage .gift-banner-name').allTextContents(), ['新昵称', '新昵称', '重名']);
-  assert.deepEqual(await page.locator('#giftFeedStage .gift-banner-frame').evaluateAll((images) => images.map((image) => image.getAttribute('src').match(/bubble-(.*)-frame/)[1])), ['admiral', 'admiral', 'captain']);
-  assert.equal(await page.locator('#giftFeedStage .gift-banner').first().evaluate((row) => row.style.getPropertyValue('--gift-start')), '#8F58EDF2');
+  assert.deepEqual(await page.locator('#giftFeedStage .gift-banner-name').allTextContents(), [
+    '新昵称',
+    '新昵称',
+    '重名',
+  ]);
+  assert.deepEqual(
+    await page
+      .locator('#giftFeedStage .gift-banner-frame')
+      .evaluateAll((images) => images.map((image) => image.getAttribute('src').match(/bubble-(.*)-frame/)[1])),
+    ['admiral', 'admiral', 'captain'],
+  );
+  assert.equal(
+    await page
+      .locator('#giftFeedStage .gift-banner')
+      .first()
+      .evaluate((row) => row.style.getPropertyValue('--gift-start')),
+    '#8F58EDF2',
+  );
   await page.evaluate(() => {
     window.unchangedCard = document.getElementById('giftFeedStage').firstElementChild;
-    window.feedProfiles.push({ ...window.feedProfiles.at(-1), eventId: 'renewal', createdAt: window.feedProfiles.at(-1).createdAt.replace('02:00', '03:00') });
+    window.feedProfiles.push({
+      ...window.feedProfiles.at(-1),
+      eventId: 'renewal',
+      createdAt: window.feedProfiles.at(-1).createdAt.replace('02:00', '03:00'),
+    });
   });
   await refreshFeed(page);
-  assert.equal(await page.evaluate(() => window.unchangedCard === document.getElementById('giftFeedStage').firstElementChild), true);
+  assert.equal(
+    await page.evaluate(() => window.unchangedCard === document.getElementById('giftFeedStage').firstElementChild),
+    true,
+  );
 });
 
 test('hidden feeds resume from the same position without catching up elapsed hidden time', async (t) => {
@@ -413,7 +575,11 @@ test('source changes clear the moving rows and pagehide cancels animation work',
   });
   assert.deepEqual(await frame(page, 1500), { ids: [], offset: 0, frames: 0 });
   await page.waitForFunction(() => window.feedScans === 2, {}, { polling: 20 });
-  assert.deepEqual(await frame(page, 2000), { ids: ['replacement-0', 'replacement-1', 'replacement-2', 'replacement-3'], offset: 0, frames: 1 });
+  assert.deepEqual(await frame(page, 2000), {
+    ids: ['replacement-0', 'replacement-1', 'replacement-2', 'replacement-3'],
+    offset: 0,
+    frames: 1,
+  });
   await page.evaluate(() => window.dispatchEvent(new Event('pagehide')));
   assert.deepEqual(await frame(page, 2500), { ids: [], offset: 0, frames: 0 });
 });

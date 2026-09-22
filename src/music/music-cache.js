@@ -31,12 +31,7 @@ function readMusicJsonCache(directory, key, ttlMs) {
   }
 }
 
-function writeMusicJsonCache(
-  directory,
-  key,
-  data,
-  maxBytes = MUSIC_API_CACHE_MAX_BYTES,
-) {
+function writeMusicJsonCache(directory, key, data, maxBytes = MUSIC_API_CACHE_MAX_BYTES) {
   if (!key || !data) return;
   try {
     fs.mkdirSync(directory, { recursive: true });
@@ -48,10 +43,7 @@ function writeMusicJsonCache(
       }),
       'utf8',
     );
-    pruneMusicCacheDirectory(
-      directory,
-      Number(maxBytes) || MUSIC_API_CACHE_MAX_BYTES,
-    );
+    pruneMusicCacheDirectory(directory, Number(maxBytes) || MUSIC_API_CACHE_MAX_BYTES);
   } catch (_) {
     /* Cache failures must not affect playback. */
   }
@@ -117,10 +109,8 @@ function getMusicCacheStats(apiDir, lyricDir) {
   return {
     api: getDirectoryStats(apiDir),
     lyrics: getDirectoryStats(lyricDir),
-    totalBytes:
-      getDirectoryStats(apiDir).bytes + getDirectoryStats(lyricDir).bytes,
-    totalFiles:
-      getDirectoryStats(apiDir).files + getDirectoryStats(lyricDir).files,
+    totalBytes: getDirectoryStats(apiDir).bytes + getDirectoryStats(lyricDir).bytes,
+    totalFiles: getDirectoryStats(apiDir).files + getDirectoryStats(lyricDir).files,
   };
 }
 

@@ -1,114 +1,48 @@
-# 交互式引导系统设计说明
+# 交互式引导系统说明
 
-## 设计理念
+更新：2026-09-22。本文合并原视觉说明，以当前 Electron 管理页实现为准。
 
-替换原有的独立对话框引导，采用**真正的产品tour**方式：
+## 当前入口与首次展示
 
-1. **自动导航** - 引导自动切换到目标功能页面和标签
-2. **聚光灯高亮** - 用半透明遮罩让非目标区域变暗，可把同一步中的相邻状态与按钮合并为一个高亮区域
-3. **浮动提示** - 在目标元素旁边显示带箭头的说明卡片
-4. **等待真实操作** - 检测用户是否真正完成了操作（如登录、填写表单），完成后才能进入下一步
+管理页通过 `app.js` 初始化聚光灯引导。初始状态加载成功后，`claimAutoOpen()` 检查 `localStorage.liraTourFirstRunShown` 与旧的 `liraTourCompleted`：仅当两者均不存在时自动打开，并在打开前立即记录首次展示。因此后续启动、覆盖安装和引导版本升级不会再次自动展示。
 
-## 视觉设计
+“百宝箱 → 使用文档”的重新打开按钮调用 `window.liraTour.reset()`，从头开始引导，但不清除首次展示记录。控制器也提供 `open()` 和 `close()`。完成引导会保存完成版本；手动退出使用现有确认面板。
 
-### 遮罩与高亮
+旧七步弹窗的 JavaScript、HTML、CSS 和 `window.AdminApp.onboarding` 已退役。`onboardingVersion`、`onboardingCompletedAt`、`onboardingSkippedOptional` 三个旧设置键保留兼容，不参与现行引导的自动展示判定。
 
-- 半透明深色背景（`rgba(9, 12, 20, 0.75)` + `blur(3px)`）让非目标区域变暗
-- 目标元素周围有青色边框高亮（`--color-accent: #21b6a8`）
-- 边框外有柔和的发光效果（`box-shadow` 多层叠加）
+## 操作流程
 
-### 浮动提示框
+引导直接导航到真实功能位置，不复制登录、导入或设置业务逻辑：
 
-- 圆角卡片（`12px border-radius`）
-- 带方向箭头（CSS `::before` 伪元素旋转 45 度实现）
-- 自动计算位置，优先显示在目标元素下方，空间不足时自动切换到上/左/右
-- 顶部有引导标识（`LIRA 首次启动` 类似的 kicker）
-- 底部有进度点（当前步骤长条形，其他步骤圆点）
+1. 欢迎说明。
+2. 认识顶部“点歌 / 播放 / 礼物 / 百宝箱”四个主入口。
+3. 导航到点歌设置页，登录直播账号。
+4. 填写直播间号或网址。
+5. 查看右上角直播间状态和“刷新直播”按钮，按提示保存设置并建立连接。
+6. 打开导入导出页，了解导入歌单的入口。
+7. 切换到播放页，了解音乐平台选择器。
+8. 打开百宝箱使用文档。
+9. 显示完成提示。
 
-### 动画与交互
+带 `waitForAction` 的步骤通过配置中的 `checkCompleted` 检查实际操作状态，未完成时不能进入下一步。等待时显示琥珀色状态，完成后显示绿色确认状态。步骤文案、目标和条件以配置文件为准。
 
-- 提示框进入动画：从下往上淡入 + 轻微缩放（`cubic-bezier(0.34, 1.56, 0.64, 1)`）
-- 按钮悬停放大效果
-- 等待状态显示琥珀色提示和省略号圆圈（"请按上面的提示完成这一步"）
-- 完成后显示绿色圆圈勾选（"这一步已完成，可以点击「下一步」"）
+## 视觉与定位
 
-## 技术实现
+遮罩使用 `rgba(16, 29, 46, 0.38)`，不做全屏模糊。有目标时用四块矩形围出高亮区域，内部透明且保留真实控件交互；无目标步骤显示普通遮罩和居中说明。高亮边框使用现有强调色 token。
 
-### 核心文件
+浮动提示按目标、可用空间和视口边界定位，空间不足时换边并钳制位置；相邻目标可以组合高亮。调整窗口或滚动时更新位置。切换步骤时避免导航过渡引入额外等待，不以持续动画或高频布局刷新维持高亮。具体字号、圆角、动画和窄窗口规则以 CSS 为准。
 
-- **CSS**: `public/css/admin/other-features/interactive-tour.css`
-  - 遮罩层、聚光灯、浮动提示框样式
-  - 箭头位置计算（上下左右四个方向）
-  - 响应式适配
+## 文件职责与验证
 
-- **JS**: `public/js/admin/interactive-tour.js`
-  - 步骤定义（`TOUR_STEPS` 数组）
-  - 自动导航（切换主页面、子标签）
-  - 元素高亮与滚动定位
-  - 提示框智能定位算法
-  - 操作完成度检测（轮询 `checkCompleted` 函数）
+| 文件 | 职责 |
+| --- | --- |
+| [interactive-tour-config.js](../public/js/admin/interactive-tour-config.js) | `TOUR_CONFIG_STEPS`、版本、完成检查间隔及首次展示标记判定 |
+| [interactive-tour.js](../public/js/admin/interactive-tour.js) | 控制器、真实页面导航、操作检测、打开/关闭与退出确认；保留 `TOUR_STEPS` 等既有导出 |
+| [interactive-tour-position.js](../public/js/admin/interactive-tour-position.js) | 提示框定位计算 |
+| [interactive-tour.css](../public/css/admin/other-features/interactive-tour.css) | 遮罩、高亮、提示框与状态样式 |
+| [app.js](../public/js/admin/app.js) | 管理页初始化和首次自动打开 |
+| [usage-guide.js](../public/js/admin/usage-guide.js) | 手动重新打开入口 |
+| [interactive-tour.test.js](../test/interactive-tour.test.js) | 首次展示、手动重开、定位、目标配置与样式回归 |
+| [frontend-admin-startup.test.js](../test/frontend-admin-startup.test.js) | 初始数据、主题和桌面控制的启动顺序 |
 
-### 步骤定义示例
-
-```javascript
-{
-  id: 'bilibili-login',
-  title: '登录你的 Bilibili 账号',
-  kicker: '第 2 步 · 登录账号',
-  content: '点击高亮区域里的「扫码登录 Bilibili」...',
-  note: '需要桌面版才能扫码',
-  targetPage: 'songAssistantPage',      // 自动切换到点歌页
-  targetTab: 'settingsTab',             // 切换到设置标签
-  targetSelector: '#bilibiliLoginBtn',  // 高亮登录按钮
-  position: 'bottom',                   // 提示框显示在按钮下方
-  waitForAction: true,                  // 等待用户完成操作
-  checkCompleted: async () => {         // 检查是否登录成功
-    const state = await window.bilibiliAuth.getAuthState();
-    return Boolean(state.loggedIn);
-  },
-}
-```
-
-### 集成方式
-
-1. **自动启动**：全新用户配置首次使用时自动打开，并立即写入 `localStorage.liraTourFirstRunShown`；已有任意 `liraTourCompleted` 标记的旧版本用户也视为已经展示过，覆盖安装和引导版本升级均不会再次自动打开
-2. **手动触发**：使用文档中的"重新打开交互式引导"按钮
-3. **全局访问**：`window.liraTour.open()` / `.reset()` / `.close()`
-
-## 引导流程
-
-1. **第 0 步：认识 LIRA** - 居中说明 `Live Interactive Room Assistant` 全称和引导范围
-2. **第 1 步：认识主功能** - 高亮顶部「点歌 / 播放 / 礼物 / 百宝箱」，解释四个入口
-3. **第 2 步：登录账号** - 切换到点歌→设置，高亮登录区域，等待登录完成
-4. **第 3 步：填写直播间** - 高亮输入框，等待用户填写
-5. **第 4 步：刷新连接** - 同时高亮右上角直播间状态和「刷新直播」按钮，等待连接成功
-6. **第 5 步：导入歌单** - 高亮文件入口，引导用户了解导入方法
-7. **第 6 步：选择音乐** - 切换到播放页，高亮平台选择器
-8. **第 7 步：查看帮助** - 切换到百宝箱，高亮使用文档入口
-9. **完成** - 居中显示完成提示，保存完成状态
-
-## 与旧引导的区别
-
-| 特性 | 旧引导（对话框）         | 新引导（交互式tour）    |
-| ---- | ------------------------ | ----------------------- |
-| 形式 | 独立对话框，覆盖整个页面 | 聚光灯高亮，浮动提示    |
-| 导航 | 需要用户自己切换页面     | 自动切换到目标位置      |
-| 高亮 | 无元素高亮               | 精确高亮目标按钮/输入框 |
-| 操作 | 在对话框内操作           | 在真实功能位置操作      |
-| 反馈 | 手动确认已完成           | 自动检测操作是否完成    |
-| 视觉 | 传统模态框               | 现代产品tour            |
-
-## 样式与品牌
-
-- 使用项目现有的设计系统变量（`--color-accent`、`--color-bg-primary` 等）
-- 青色（`#21b6a8`）作为强调色，与软件整体风格一致
-- 圆角、阴影、过渡动画与现有组件保持一致
-- 响应式设计，移动端自动调整布局
-
-## 未来扩展
-
-- 可以在 `TOUR_STEPS` 中添加更多步骤
-- 支持分支引导（根据用户选择跳转到不同步骤）
-- 支持视频或 GIF 演示
-- 支持"跳过可选步骤"功能
-- 多语言支持
+验证命令：`node --experimental-vm-modules --test test/interactive-tour.test.js test/frontend-admin-startup.test.js`。真实登录仍要求 Electron 的正常授权环境，普通浏览器不能验证桌面登录能力。

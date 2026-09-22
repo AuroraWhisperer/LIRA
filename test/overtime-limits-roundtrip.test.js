@@ -96,10 +96,7 @@ test('backend accepts only configured remote catalog artwork paths', () => {
         quantityMode: 'item',
       },
     ]);
-    assert.equal(
-      saved.rules[0].imagePath,
-      'https://api.example.test/gift-media/images/hash.webp',
-    );
+    assert.equal(saved.rules[0].imagePath, 'https://api.example.test/gift-media/images/hash.webp');
 
     assert.throws(
       () =>
@@ -130,8 +127,7 @@ test('backend accepts only configured remote catalog artwork paths', () => {
         service.replaceRules([
           {
             giftId: 'remote-test',
-            imagePath:
-              'https://api.example.test/gift-media/images/hash.webp?token=secret',
+            imagePath: 'https://api.example.test/gift-media/images/hash.webp?token=secret',
             mode: 'fixed',
             fixedSeconds: 60,
           },
@@ -161,10 +157,7 @@ test('backend migrates a saved remote rule image when the catalog origin changes
   let origin = 'https://api.one.example';
   const service = fixture.createService({
     allowedRemoteImageOrigins: () => origin,
-    resolveGiftImagePath: (giftId) =>
-      giftId === 'remote-test'
-        ? `${origin}/gift-media/images/current.webp`
-        : '',
+    resolveGiftImagePath: (giftId) => (giftId === 'remote-test' ? `${origin}/gift-media/images/current.webp` : ''),
   });
 
   try {
@@ -180,10 +173,7 @@ test('backend migrates a saved remote rule image when the catalog origin changes
 
     origin = 'https://api.two.example';
     const saved = service.replaceRules(service.getSnapshot().rules);
-    assert.equal(
-      saved.rules[0].imagePath,
-      'https://api.two.example/gift-media/images/current.webp',
-    );
+    assert.equal(saved.rules[0].imagePath, 'https://api.two.example/gift-media/images/current.webp');
   } finally {
     service.dispose();
     fixture.close();
@@ -205,8 +195,7 @@ test('backend resolves legacy bundled gift artwork by gift ID without removing t
   original.dispose();
 
   const service = fixture.createService({
-    resolveGiftImagePath: (giftId) =>
-      giftId === '35793' ? '/overtime-gift-images/35793.webp' : '',
+    resolveGiftImagePath: (giftId) => (giftId === '35793' ? '/overtime-gift-images/35793.webp' : ''),
   });
   try {
     const [rule] = service.getSnapshot().rules;

@@ -4,10 +4,7 @@ import { PlaybackConfig } from '../config.js';
 
 // One owner for current track, history, preferences and pending requests.
 // QueueManager owns queue transitions. Readers keep the same state identity.
-export function createPlaybackStateActions(
-  state,
-  { save = () => {}, render = () => {} } = {},
-) {
+export function createPlaybackStateActions(state, { save = () => {}, render = () => {} } = {}) {
   return {
     restore(snapshot) {
       Object.assign(state, snapshot);
@@ -47,14 +44,8 @@ export function createPlaybackStateActions(
       state.currentOrigin = origin;
     },
     beginTrack(track, options = {}) {
-      if (
-        state.current &&
-        state.current.id !== track.id &&
-        !options.fromHistory
-      ) {
-        state.history = [...state.history, state.current].slice(
-          -PlaybackConfig.HISTORY_MAX_SIZE,
-        );
+      if (state.current && state.current.id !== track.id && !options.fromHistory) {
+        state.history = [...state.history, state.current].slice(-PlaybackConfig.HISTORY_MAX_SIZE);
       }
       if (!options.fromHistory) {
         state.displayHistory = [

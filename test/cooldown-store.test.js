@@ -2,10 +2,7 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const {
-  createCooldownStore,
-  COOLDOWN_RETENTION_MS,
-} = require('../src/storage/cooldown-store');
+const { createCooldownStore, COOLDOWN_RETENTION_MS } = require('../src/storage/cooldown-store');
 
 test('cooldown Map pruning removes expired entries and keeps fresh entries', () => {
   const store = createCooldownStore({});

@@ -39,12 +39,7 @@ function isAllowedLocalUrl(rawUrl) {
     return false;
   }
 
-  return (
-    parsed.protocol === 'http:' &&
-    parsed.hostname === '127.0.0.1' &&
-    !parsed.username &&
-    !parsed.password
-  );
+  return parsed.protocol === 'http:' && parsed.hostname === '127.0.0.1' && !parsed.username && !parsed.password;
 }
 
 /**

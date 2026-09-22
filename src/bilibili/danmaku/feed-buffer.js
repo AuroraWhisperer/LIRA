@@ -8,9 +8,7 @@ const MAX_LIMIT = 200;
 function createDanmakuFeedBuffer(options = {}) {
   const requestedLimit = Math.trunc(Number(options.limit));
   const limit =
-    Number.isFinite(requestedLimit) && requestedLimit > 0
-      ? Math.min(requestedLimit, MAX_LIMIT)
-      : DEFAULT_LIMIT;
+    Number.isFinite(requestedLimit) && requestedLimit > 0 ? Math.min(requestedLimit, MAX_LIMIT) : DEFAULT_LIMIT;
   let activeRoomId = '';
   let nextId = 1;
   let items = [];
@@ -32,18 +30,10 @@ function createDanmakuFeedBuffer(options = {}) {
       name: String(danmaku.userName || danmaku.name || '观众').trim() || '观众',
       message,
       avatarUrl: normalizeBilibiliImageUrl(danmaku.avatarUrl),
-      guardLevel: normalizeGuardLevel(
-        danmaku.requesterGuardLevel ?? danmaku.guardLevel,
-      ),
-      medalName: String(
-        danmaku.requesterMedalName || danmaku.medalName || '',
-      ).trim(),
-      medalLevel: normalizeNonNegativeInteger(
-        danmaku.requesterMedalLevel ?? danmaku.medalLevel,
-      ),
-      timestamp: normalizeTimestamp(
-        danmaku.messageTimestamp ?? danmaku.timestamp,
-      ),
+      guardLevel: normalizeGuardLevel(danmaku.requesterGuardLevel ?? danmaku.guardLevel),
+      medalName: String(danmaku.requesterMedalName || danmaku.medalName || '').trim(),
+      medalLevel: normalizeNonNegativeInteger(danmaku.requesterMedalLevel ?? danmaku.medalLevel),
+      timestamp: normalizeTimestamp(danmaku.messageTimestamp ?? danmaku.timestamp),
       emotes: normalizeEmotes(danmaku.emotes),
       ...(danmaku.isStreamer === true ? { isStreamer: true } : {}),
     };
@@ -68,8 +58,7 @@ function createDanmakuFeedBuffer(options = {}) {
       kind: 'gift',
       giftName,
       giftCount,
-      ...(Number.isFinite(gift.total_price) && gift.total_price >= 0
-        ? { giftTotalPrice: gift.total_price } : {}),
+      ...(Number.isFinite(gift.total_price) && gift.total_price >= 0 ? { giftTotalPrice: gift.total_price } : {}),
     });
   }
 
@@ -123,9 +112,7 @@ function normalizeNonNegativeInteger(value) {
 
 function normalizeTimestamp(value) {
   const number = Number(value);
-  return Number.isFinite(number) && number > 0
-    ? Math.trunc(number)
-    : Date.now();
+  return Number.isFinite(number) && number > 0 ? Math.trunc(number) : Date.now();
 }
 
 function cloneItem(item) {

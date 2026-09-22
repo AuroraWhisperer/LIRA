@@ -8,12 +8,20 @@ const fixture = require('./fixtures/pk-report-settings.json');
 
 test('PK settings use fixed authenticated endpoints and manager projection', async () => {
   const calls = [];
-  const client = createRemoteLicenseClient({ baseUrl: 'https://api.example.test', isProduction: true,
-    fetchImpl: async (url, init) => { calls.push({ url, init }); return { ok: true, status: 200, text: async () => '{}' }; },
+  const client = createRemoteLicenseClient({
+    baseUrl: 'https://api.example.test',
+    isProduction: true,
+    fetchImpl: async (url, init) => {
+      calls.push({ url, init });
+      return { ok: true, status: 200, text: async () => '{}' };
+    },
   });
   await client.getPkReportSettings('synthetic');
   await client.updatePkReportSettings({ enabled: true }, 'synthetic');
-  assert.deepEqual(calls.map(({ init }) => init.method), ['GET', 'PUT']);
+  assert.deepEqual(
+    calls.map(({ init }) => init.method),
+    ['GET', 'PUT'],
+  );
   for (const { url, init } of calls) {
     assert.equal(url, 'https://api.example.test/api/device/pk-report-settings');
     assert.equal(init.headers.Authorization, 'Bearer synthetic');
@@ -26,23 +34,39 @@ test('PK settings use fixed authenticated endpoints and manager projection', asy
     await manager.bootstrap();
     assert.deepEqual(await manager.getPkReportSettings(), fixture.defaultResponse);
     assert.deepEqual(await manager.updatePkReportSettings({ enabled: true }), fixture.response);
-  } finally { manager.dispose(); }
+  } finally {
+    manager.dispose();
+  }
 });
 
 test('PK IPC rejects foreign windows/invalid inputs and strips unsolicited server data', async () => {
-  const handlers = new Map(), writes = [], webContents = {};
+  const handlers = new Map(),
+    writes = [],
+    webContents = {};
   const event = { sender: webContents, senderFrame: { url: 'http://127.0.0.1:3000/admin' } };
   let response = { ...fixture.response, cookie: 'private', streamerId: 2 };
-  registerLicenseIpc({ ipcMain: { handle: (key, handler) => handlers.set(key, handler) },
-    licenseManager: { getState: () => 'authorized', onStateChanged: () => () => {},
+  registerLicenseIpc({
+    ipcMain: { handle: (key, handler) => handlers.set(key, handler) },
+    licenseManager: {
+      getState: () => 'authorized',
+      onStateChanged: () => () => {},
       getPkReportSettings: async () => response,
-      updatePkReportSettings: async (patch) => { writes.push(patch); return response; } },
-    getMainWindow: () => ({ webContents }), getDesktopBaseUrl: () => 'http://127.0.0.1:3000',
+      updatePkReportSettings: async (patch) => {
+        writes.push(patch);
+        return response;
+      },
+    },
+    getMainWindow: () => ({ webContents }),
+    getDesktopBaseUrl: () => 'http://127.0.0.1:3000',
     hasExactOrigin: (url, origin) => new URL(url).origin === origin,
   });
-  const read = handlers.get('license:get-pk-report-settings'), write = handlers.get('license:update-pk-report-settings');
+  const read = handlers.get('license:get-pk-report-settings'),
+    write = handlers.get('license:update-pk-report-settings');
   assert.equal((await read({ ...event, sender: {} })).error, 'IPC_SOURCE_INVALID');
-  assert.equal((await write({ ...event, senderFrame: { url: 'https://other.example' } }, { enabled: true })).error, 'IPC_SOURCE_INVALID');
+  assert.equal(
+    (await write({ ...event, senderFrame: { url: 'https://other.example' } }, { enabled: true })).error,
+    'IPC_SOURCE_INVALID',
+  );
   for (const patch of fixture.invalidUpdates)
     assert.equal((await write(event, patch)).error, 'INVALID_PK_REPORT_SETTINGS');
   assert.equal(writes.length, 0);
@@ -55,14 +79,29 @@ test('PK IPC rejects foreign windows/invalid inputs and strips unsolicited serve
 
 test('PK reads/writes reject late old-account responses and automatic retries after switching', async () => {
   for (const method of ['getPkReportSettings', 'updatePkReportSettings']) {
-    let owner = 'one', resolve, retry, calls = 0;
+    let owner = 'one',
+      resolve,
+      retry,
+      calls = 0;
     const operations = createLicenseOperations({
-      remote: { [method]: () => { calls++; return new Promise((done) => { resolve = done; }); } },
-      getOverlayOwner: () => owner, isDisposed: () => false,
-      withAuthorizedToken: (operation) => { retry = operation; return operation('one-token'); },
+      remote: {
+        [method]: () => {
+          calls++;
+          return new Promise((done) => {
+            resolve = done;
+          });
+        },
+      },
+      getOverlayOwner: () => owner,
+      isDisposed: () => false,
+      withAuthorizedToken: (operation) => {
+        retry = operation;
+        return operation('one-token');
+      },
     });
     const pending = operations[method]({ enabled: true });
-    owner = 'two'; resolve(fixture.response);
+    owner = 'two';
+    resolve(fixture.response);
     await assert.rejects(pending, { code: 'LICENSE_NOT_AUTHORIZED' });
     await assert.rejects(retry('two-token'), { code: 'LICENSE_NOT_AUTHORIZED' });
     assert.equal(calls, 1);

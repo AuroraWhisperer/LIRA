@@ -11,22 +11,32 @@ test('avatar backdrops follow each successfully loaded, resolved image independe
   const document = {
     createElement() {
       return {
-        children: [], dataset: {}, listeners: {},
-        style: { setProperty(name, value) { this[name] = value; } },
-        append(...nodes) { this.children.push(...nodes); },
+        children: [],
+        dataset: {},
+        listeners: {},
+        style: {
+          setProperty(name, value) {
+            this[name] = value;
+          },
+        },
+        append(...nodes) {
+          this.children.push(...nodes);
+        },
         setAttribute() {},
-        addEventListener(type, listener) { this.listeners[type] = listener; },
-        remove() { this.removed = true; },
+        addEventListener(type, listener) {
+          this.listeners[type] = listener;
+        },
+        remove() {
+          this.removed = true;
+        },
       };
     },
   };
-  const renderer = await loadModuleExports(
-    path.join(ROOT_DIR, 'public/js/overlays/danmaku-message-renderer.js'),
-  );
+  const renderer = await loadModuleExports(path.join(ROOT_DIR, 'public/js/overlays/danmaku-message-renderer.js'));
   const render = renderer.createDanmakuMessageRenderer({
     document,
     classNames: renderer.DEFAULT_DANMAKU_CLASSES,
-    resolveAvatarUrl: (source) => source === 'rejected' ? '' : `/avatar?url=${encodeURIComponent(source)}`,
+    resolveAvatarUrl: (source) => (source === 'rejected' ? '' : `/avatar?url=${encodeURIComponent(source)}`),
   });
   const first = render({ name: '晚风', message: '浅色头像', avatarUrl: 'light.webp' });
   const second = render({ name: '夜色', message: '深色头像', avatarUrl: 'dark.webp' });
@@ -48,15 +58,12 @@ test('avatar backdrops follow each successfully loaded, resolved image independe
 });
 
 test('ranked danmaku fits the shared horizontal inset without shrinking for height', async () => {
-  const module = await loadModuleExports(
-    path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku.js'),
-    {
-      document: { addEventListener() {} },
-      location: { search: '', protocol: 'http:', host: '127.0.0.1:3000' },
-      URL,
-      URLSearchParams,
-    },
-  );
+  const module = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku.js'), {
+    document: { addEventListener() {} },
+    location: { search: '', protocol: 'http:', host: '127.0.0.1:3000' },
+    URL,
+    URLSearchParams,
+  });
 
   assert.equal(module.calculateRankedOverlayScale(624, 640), 1);
   assert.equal(module.calculateRankedOverlayScale(324, 640), 0.5);
@@ -113,16 +120,12 @@ test('shared danmaku renderer replaces whole and inline emote triggers with safe
   }
 
   const root = new FakeNode('div');
-  const module = await loadModuleExports(
-    path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku-feed.js'),
-    {
-      document: {
-        createElement: (tagName) => new FakeNode(tagName),
-        createDocumentFragment: () =>
-          Object.assign(new FakeNode(), { isFragment: true }),
-      },
+  const module = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku-feed.js'), {
+    document: {
+      createElement: (tagName) => new FakeNode(tagName),
+      createDocumentFragment: () => Object.assign(new FakeNode(), { isFragment: true }),
     },
-  );
+  });
   const feed = module.createDanmakuFeed(root, {
     maxItems: 2,
     autoScroll: false,
@@ -161,25 +164,15 @@ test('shared danmaku renderer replaces whole and inline emote triggers with safe
   const firstBubble = root.children[0];
   feed.append({ name: '第二位', message: '第二条' });
   assert.equal(root.children.length, 2);
-  assert.equal(
-    root.children[0],
-    firstBubble,
-    'incremental append must preserve existing message nodes',
-  );
+  assert.equal(root.children[0], firstBubble, 'incremental append must preserve existing message nodes');
   feed.append({ name: '第三位', message: '第三条' });
   assert.equal(root.children.length, 2);
-  assert.notEqual(
-    root.children[0],
-    firstBubble,
-    'incremental append must trim only the oldest node',
-  );
+  assert.notEqual(root.children[0], firstBubble, 'incremental append must trim only the oldest node');
 
   feed.render([
     {
       message: '[打call]',
-      emotes: [
-        { text: '[打call]', url: 'https://i0.hdslb.com/bfs/emote/call.gif' },
-      ],
+      emotes: [{ text: '[打call]', url: 'https://i0.hdslb.com/bfs/emote/call.gif' }],
     },
   ]);
   const emoteBubble = root.children[0];
@@ -199,10 +192,20 @@ test('shared danmaku renderer replaces whole and inline emote triggers with safe
     ['sticker', '[喝彩]', true],
     [undefined, '[喝彩]', true],
   ]) {
-    feed.render([{ message: text, emotes: [{
-      text: '[喝彩]', url: 'https://i0.hdslb.com/cheer.png', kind,
-      width: 192, height: 192,
-    }] }]);
+    feed.render([
+      {
+        message: text,
+        emotes: [
+          {
+            text: '[喝彩]',
+            url: 'https://i0.hdslb.com/cheer.png',
+            kind,
+            width: 192,
+            height: 192,
+          },
+        ],
+      },
+    ]);
     assert.equal(root.children[0].className.includes('is-emote-only'), enlarged, `${kind}: ${text}`);
   }
 
@@ -214,8 +217,7 @@ test('shared danmaku renderer replaces whole and inline emote triggers with safe
   const identityFeed = module.createDanmakuFeed(identityRoot, {
     maxItems: 5,
     autoScroll: false,
-    getGuardLabel: (level) =>
-      ({ 1: '总督', 2: '提督', 3: '舰长' })[level] || '',
+    getGuardLabel: (level) => ({ 1: '总督', 2: '提督', 3: '舰长' })[level] || '',
   });
   identityFeed.render([
     { message: '普通' },
@@ -259,10 +261,15 @@ test('shared danmaku renderer replaces whole and inline emote triggers with safe
     );
   }
 
-  feed.render([{
-    kind: 'gift', name: '<img src=x onerror=alert(1)>',
-    message: '送出 小花花 × 10', giftName: '<b>小花花</b>', giftCount: 10,
-  }]);
+  feed.render([
+    {
+      kind: 'gift',
+      name: '<img src=x onerror=alert(1)>',
+      message: '送出 小花花 × 10',
+      giftName: '<b>小花花</b>',
+      giftCount: 10,
+    },
+  ]);
   const giftBubble = root.children[0];
   assert.match(giftBubble.className, /\bis-gift\b/);
   const giftBody = giftBubble.children[1];
@@ -276,8 +283,25 @@ test('shared danmaku renderer replaces whole and inline emote triggers with safe
   assert.equal(giftMessage.children.length, 3, 'gift notifications do not synthesize account replies');
   const transparentRoot = new FakeNode('div');
   const transparentFeed = module.createDanmakuFeed(transparentRoot, { autoScroll: false, showGiftTotal: true });
-  for (const [giftTotalPrice, expected] of [[12.5, '¥12.5'], [0.01, '¥0.01'], [0, '¥0'], [undefined, '—'], [null, '—'], [-1, '—'], [Infinity, '—']]) {
-    transparentFeed.render([{ kind: 'gift', name: '观众', message: '送出 小花花 × 10', giftName: '<b>小花花</b>', giftCount: 10, giftTotalPrice }]);
+  for (const [giftTotalPrice, expected] of [
+    [12.5, '¥12.5'],
+    [0.01, '¥0.01'],
+    [0, '¥0'],
+    [undefined, '—'],
+    [null, '—'],
+    [-1, '—'],
+    [Infinity, '—'],
+  ]) {
+    transparentFeed.render([
+      {
+        kind: 'gift',
+        name: '观众',
+        message: '送出 小花花 × 10',
+        giftName: '<b>小花花</b>',
+        giftCount: 10,
+        giftTotalPrice,
+      },
+    ]);
     const content = transparentRoot.children[0].children[1].children[1];
     assert.equal(content.children[1].children[1].textContent, '<b>小花花</b>');
     assert.equal(content.children[1].children[1].children.length, 0);
@@ -286,7 +310,11 @@ test('shared danmaku renderer replaces whole and inline emote triggers with safe
     assert.equal(content.children[2].textContent, expected);
   }
   feed.render([{ kind: 'gift', message: '送出 小花花 × 10', giftName: '小花花', giftCount: 10, giftTotalPrice: 12.5 }]);
-  assert.equal(root.children[0].children[1].children[1].children[2].textContent, '× 10', 'other styles retain the quantity in the right column');
+  assert.equal(
+    root.children[0].children[1].children[1].children[2].textContent,
+    '× 10',
+    'other styles retain the quantity in the right column',
+  );
   feed.render([{ name: '已登录账号', message: '谢谢星河来客送来的 10 朵小花花！' }]);
   const thanksMessage = root.children[0].children[1].children[1];
   assert.doesNotMatch(root.children[0].className, /\bis-gift\b/);
@@ -348,17 +376,13 @@ test('fixed danmaku feed prunes incremental nodes outside its visible viewport',
 
   const root = new FakeNode('div');
   root.clientHeight = 130;
-  const module = await loadModuleExports(
-    path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku-feed.js'),
-    {
-      document: {
-        createElement: (tagName) => new FakeNode(tagName),
-        createDocumentFragment: () =>
-          Object.assign(new FakeNode(), { isFragment: true }),
-      },
-      getComputedStyle: (node) => ({ zoom: String(node.zoom || 1) }),
+  const module = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku-feed.js'), {
+    document: {
+      createElement: (tagName) => new FakeNode(tagName),
+      createDocumentFragment: () => Object.assign(new FakeNode(), { isFragment: true }),
     },
-  );
+    getComputedStyle: (node) => ({ zoom: String(node.zoom || 1) }),
+  });
   const feed = module.createDanmakuFeed(root, {
     maxItems: 50,
     offscreenViewports: 0,
@@ -378,15 +402,8 @@ test('fixed danmaku feed prunes incremental nodes outside its visible viewport',
   root.children[0].offsetHeight = 100;
   root.children[1].offsetHeight = 80;
   feed.append({ name: '第四位', message: '图片加载后高度变大' });
-  assert.equal(
-    root.children.length,
-    1,
-    'pruning must use measured image/name height',
-  );
-  assert.equal(
-    root.children[0].children[1].children[0].children[0].textContent,
-    '第四位',
-  );
+  assert.equal(root.children.length, 1, 'pruning must use measured image/name height');
+  assert.equal(root.children[0].children[1].children[0].children[0].textContent, '第四位');
 
   root.clientHeight = 150;
   root.children[0].offsetHeight = 80;

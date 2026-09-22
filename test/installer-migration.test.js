@@ -20,24 +20,11 @@ test(
         : false,
   },
   async (t) => {
-    const source = fs.readFileSync(
-      path.join(__dirname, '../build/installer-data.nsh'),
-      'utf8',
-    );
-    const functions = source
-      .replaceAll('$APPDATA', '${FIXTURE_APPDATA}')
-      .replaceAll('$TEMP', '${FIXTURE_TEMP}');
-    const installer = fs.readFileSync(
-      path.join(__dirname, '../build/installer-uninstall.nsh'),
-      'utf8',
-    );
-    const removal = installer
-      .replaceAll('$APPDATA', '${FIXTURE_APPDATA}')
-      .replaceAll('$TEMP', '${FIXTURE_TEMP}');
-    assert.doesNotMatch(
-      functions + removal,
-      /\$(?:APPDATA|TEMP|LOCALAPPDATA)\b|ReadReg|DeleteReg/,
-    );
+    const source = fs.readFileSync(path.join(__dirname, '../build/installer-data.nsh'), 'utf8');
+    const functions = source.replaceAll('$APPDATA', '${FIXTURE_APPDATA}').replaceAll('$TEMP', '${FIXTURE_TEMP}');
+    const installer = fs.readFileSync(path.join(__dirname, '../build/installer-uninstall.nsh'), 'utf8');
+    const removal = installer.replaceAll('$APPDATA', '${FIXTURE_APPDATA}').replaceAll('$TEMP', '${FIXTURE_TEMP}');
+    assert.doesNotMatch(functions + removal, /\$(?:APPDATA|TEMP|LOCALAPPDATA)\b|ReadReg|DeleteReg/);
 
     for (const scenario of [
       'legacy-update',
@@ -56,24 +43,16 @@ test(
       'upgrade-preserves-data-and-downloads',
     ]) {
       await t.test(scenario, async () => {
-        const root = fs.mkdtempSync(
-          path.join(os.tmpdir(), 'lira-installer-test-'),
-        );
+        const root = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-installer-test-'));
         const oldInstall = path.join(root, '旧版 LIRA');
-        const newInstall = ['change-directory', 'target-conflict'].includes(
-          scenario,
-        )
+        const newInstall = ['change-directory', 'target-conflict'].includes(scenario)
           ? path.join(root, '新版 LIRA')
           : oldInstall;
         const oldData = path.join(oldInstall, 'data');
         const destination = path.join(newInstall, 'data');
         const backup = newInstall + '.lira-data-backup';
         const appData = path.join(root, 'roaming');
-        const legacyAppData = path.join(
-          appData,
-          'com.aurorawhisperer.lira',
-          'data',
-        );
+        const legacyAppData = path.join(appData, 'com.aurorawhisperer.lira', 'data');
         const reportDir = path.join(root, 'reports');
         const prepared = path.join(root, 'prepared.txt');
         const completed = path.join(root, 'completed.txt');
@@ -82,32 +61,19 @@ test(
           assert.ok(path.resolve(directory).startsWith(root + path.sep));
           fs.mkdirSync(path.join(directory, 'Network'), { recursive: true });
           fs.writeFileSync(path.join(directory, 'fixture.txt'), value);
-          fs.writeFileSync(
-            path.join(directory, 'Network', 'Cookies'),
-            'cookie fixture',
-          );
+          fs.writeFileSync(path.join(directory, 'Network', 'Cookies'), 'cookie fixture');
         };
         try {
-          for (const directory of [appData, reportDir, oldInstall])
-            fs.mkdirSync(directory);
-          fs.writeFileSync(
-            path.join(oldInstall, 'old-program.txt'),
-            'program fixture',
-          );
+          for (const directory of [appData, reportDir, oldInstall]) fs.mkdirSync(directory);
+          fs.writeFileSync(path.join(oldInstall, 'old-program.txt'), 'program fixture');
           if (scenario === 'appdata-return') putData(legacyAppData);
           else if (scenario === 'recover-backup') putData(backup);
           else putData(oldData);
-          if (scenario === 'existing-local')
-            putData(legacyAppData, 'stale AppData fixture');
-          if (scenario === 'backup-conflict')
-            putData(backup, 'previous recovery fixture');
-          if (scenario === 'target-conflict')
-            putData(destination, 'newer fixture');
+          if (scenario === 'existing-local') putData(legacyAppData, 'stale AppData fixture');
+          if (scenario === 'backup-conflict') putData(backup, 'previous recovery fixture');
+          if (scenario === 'target-conflict') putData(destination, 'newer fixture');
           if (['copy-failure', 'report-failure'].includes(scenario))
-            fs.writeFileSync(
-              backup + '.partial',
-              'obstructs staging directory',
-            );
+            fs.writeFileSync(backup + '.partial', 'obstructs staging directory');
           if (scenario === 'report-failure') {
             fs.rmdirSync(reportDir);
             fs.writeFileSync(reportDir, 'obstructs report creation');
@@ -115,10 +81,7 @@ test(
           if (scenario === 'upgrade-preserves-data-and-downloads') {
             for (const name of ['logs', 'updates', 'resources']) {
               fs.mkdirSync(path.join(oldInstall, name));
-              fs.writeFileSync(
-                path.join(oldInstall, name, 'fixture.txt'),
-                name,
-              );
+              fs.writeFileSync(path.join(oldInstall, name, 'fixture.txt'), name);
             }
           }
           if (scenario === 'locked-data') {
@@ -129,21 +92,13 @@ test(
               `[IO.File]::WriteAllText(${literal(ready)}, 'ready'); try { [Console]::ReadLine() } finally { $lock.Dispose() }`;
             holder = spawn(
               'powershell.exe',
-              [
-                '-NoLogo',
-                '-NoProfile',
-                '-EncodedCommand',
-                Buffer.from(command, 'utf16le').toString('base64'),
-              ],
+              ['-NoLogo', '-NoProfile', '-EncodedCommand', Buffer.from(command, 'utf16le').toString('base64')],
               { windowsHide: true, stdio: ['pipe', 'ignore', 'ignore'] },
             );
             const deadline = Date.now() + 10000;
             while (!fs.existsSync(ready) && Date.now() < deadline)
               await new Promise((resolve) => setTimeout(resolve, 25));
-            assert.ok(
-              fs.existsSync(ready),
-              'fixture file lock must be acquired',
-            );
+            assert.ok(fs.existsSync(ready), 'fixture file lock must be acquired');
           }
           const fixture = [
             'Unicode true',
@@ -171,17 +126,10 @@ test(
             `FileOpen $0 "${definePath(prepared)}" w`,
             'FileWrite $0 "$INSTDIR | $liraDataSource | $liraDataBackup"',
             'FileClose $0',
-            [
-              'legacy-update',
-              'change-directory',
-              'appdata-return',
-              'restore-failure',
-            ].includes(scenario)
+            ['legacy-update', 'change-directory', 'appdata-return', 'restore-failure'].includes(scenario)
               ? `RMDir /r "${definePath(oldInstall)}"`
               : '',
-            scenario === 'upgrade-preserves-data-and-downloads'
-              ? '!insertmacro customRemoveFiles'
-              : '',
+            scenario === 'upgrade-preserves-data-and-downloads' ? '!insertmacro customRemoveFiles' : '',
             'CreateDirectory "$INSTDIR"',
             scenario === 'restore-failure'
               ? 'FileOpen $0 "$INSTDIR\\data" w\nFileWrite $0 "obstruction"\nFileClose $0'
@@ -198,11 +146,11 @@ test(
           ].join('\n');
           const script = path.join(root, 'fixture.nsi');
           fs.writeFileSync(script, fixture);
-          const build = spawnSync(
-            compiler,
-            ['/V2', '-INPUTCHARSET', 'UTF8', script],
-            { encoding: 'utf8', windowsHide: true, timeout: 30000 },
-          );
+          const build = spawnSync(compiler, ['/V2', '-INPUTCHARSET', 'UTF8', script], {
+            encoding: 'utf8',
+            windowsHide: true,
+            timeout: 30000,
+          });
           assert.equal(build.error, undefined);
           assert.equal(build.status, 0, build.stdout + build.stderr);
           const run = spawnSync(path.join(root, 'fixture.exe'), ['/S'], {
@@ -218,90 +166,46 @@ test(
           assert.equal(
             run.status,
             failed ? 2 : 0,
-            fs.existsSync(reportPath)
-              ? fs.readFileSync(reportPath, 'utf16le')
-              : 'installer exit code',
+            fs.existsSync(reportPath) ? fs.readFileSync(reportPath, 'utf16le') : 'installer exit code',
           );
           assert.equal(fs.existsSync(completed), !failed);
           if (!failed) {
             assert.ok(
               fs.existsSync(path.join(destination, 'fixture.txt')),
-              fs.readFileSync(prepared, 'utf8') +
-                '\n' +
-                fs.readdirSync(root, { recursive: true }).join('\n'),
+              fs.readFileSync(prepared, 'utf8') + '\n' + fs.readdirSync(root, { recursive: true }).join('\n'),
             );
-            assert.equal(
-              fs.readFileSync(path.join(destination, 'fixture.txt'), 'utf8'),
-              'legacy fixture',
-            );
+            assert.equal(fs.readFileSync(path.join(destination, 'fixture.txt'), 'utf8'), 'legacy fixture');
             assert.equal(fs.existsSync(backup), false);
           } else if (scenario === 'restore-failure') {
-            assert.equal(
-              fs.readFileSync(path.join(backup, 'fixture.txt'), 'utf8'),
-              'legacy fixture',
-            );
+            assert.equal(fs.readFileSync(path.join(backup, 'fixture.txt'), 'utf8'), 'legacy fixture');
           } else {
             assert.equal(fs.existsSync(prepared), false);
-            assert.equal(
-              fs.readFileSync(path.join(oldData, 'fixture.txt'), 'utf8'),
-              'legacy fixture',
-            );
+            assert.equal(fs.readFileSync(path.join(oldData, 'fixture.txt'), 'utf8'), 'legacy fixture');
           }
           if (failed && scenario !== 'report-failure') {
-            const report = fs.readFileSync(
-              path.join(reportDir, 'LIRA-install-error.txt'),
-              'utf16le',
-            );
+            const report = fs.readFileSync(path.join(reportDir, 'LIRA-install-error.txt'), 'utf16le');
             assert.ok(report.includes('fixture'));
             assert.ok(report.includes(destination));
-            if (scenario === 'running-app')
-              assert.ok(report.includes('等待旧版 LIRA 退出'));
-            if (scenario === 'locked-data')
-              assert.ok(report.includes('Cookies'), report);
+            if (scenario === 'running-app') assert.ok(report.includes('等待旧版 LIRA 退出'));
+            if (scenario === 'locked-data') assert.ok(report.includes('Cookies'), report);
           }
           if (scenario === 'backup-conflict')
-            assert.equal(
-              fs.readFileSync(path.join(backup, 'fixture.txt'), 'utf8'),
-              'previous recovery fixture',
-            );
+            assert.equal(fs.readFileSync(path.join(backup, 'fixture.txt'), 'utf8'), 'previous recovery fixture');
           if (scenario === 'target-conflict')
-            assert.equal(
-              fs.readFileSync(path.join(destination, 'fixture.txt'), 'utf8'),
-              'newer fixture',
-            );
+            assert.equal(fs.readFileSync(path.join(destination, 'fixture.txt'), 'utf8'), 'newer fixture');
           if (scenario === 'existing-local')
-            assert.equal(
-              fs.readFileSync(path.join(legacyAppData, 'fixture.txt'), 'utf8'),
-              'stale AppData fixture',
-            );
+            assert.equal(fs.readFileSync(path.join(legacyAppData, 'fixture.txt'), 'utf8'), 'stale AppData fixture');
           if (scenario === 'appdata-return')
-            assert.equal(
-              fs.readFileSync(path.join(legacyAppData, 'fixture.txt'), 'utf8'),
-              'legacy fixture',
-            );
+            assert.equal(fs.readFileSync(path.join(legacyAppData, 'fixture.txt'), 'utf8'), 'legacy fixture');
           if (scenario === 'upgrade-preserves-data-and-downloads') {
             for (const name of ['logs', 'updates'])
-              assert.equal(
-                fs.readFileSync(
-                  path.join(newInstall, name, 'fixture.txt'),
-                  'utf8',
-                ),
-                name,
-              );
-            assert.equal(
-              fs.existsSync(path.join(newInstall, 'resources')),
-              false,
-            );
-            assert.equal(
-              fs.existsSync(path.join(newInstall, 'old-program.txt')),
-              false,
-            );
+              assert.equal(fs.readFileSync(path.join(newInstall, name, 'fixture.txt'), 'utf8'), name);
+            assert.equal(fs.existsSync(path.join(newInstall, 'resources')), false);
+            assert.equal(fs.existsSync(path.join(newInstall, 'old-program.txt')), false);
           }
         } finally {
           if (holder && holder.exitCode === null) {
-            const exited = new Promise((resolve) =>
-              holder.once('exit', resolve),
-            );
+            const exited = new Promise((resolve) => holder.once('exit', resolve));
             holder.stdin.end('\n');
             await exited;
           }

@@ -8,15 +8,10 @@ const {
   createGiftProjectionService,
   createGiftStatisticsConsumer,
 } = require('../../src/bilibili/gift');
-const {
-  closeDatabases,
-  createDatabases,
-} = require('../../src/storage/database');
+const { closeDatabases, createDatabases } = require('../../src/storage/database');
 
 function createFixture(options = {}) {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'lira-processed-gift-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-processed-gift-'));
   const db = createDatabases({ dataDir });
   const sourceId = createSource(db.giftDb, 'd'.repeat(64));
   const clock = createFakeClock(1_800_000_000_000);
@@ -80,9 +75,7 @@ function createSource(giftDb, sourceKey) {
     )
     .run(sourceKey, timestamp, timestamp);
   giftDb
-    .prepare(
-      'INSERT INTO gift_sync_state (source_id, updated_at) VALUES (?, ?)',
-    )
+    .prepare('INSERT INTO gift_sync_state (source_id, updated_at) VALUES (?, ?)')
     .run(result.lastInsertRowid, timestamp);
   return Number(result.lastInsertRowid);
 }

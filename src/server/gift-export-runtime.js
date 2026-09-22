@@ -6,12 +6,20 @@ const { createGiftCardRuntime } = require('./gift-card-runtime');
 
 function createGiftExportRuntime({ getServices, getSettingsStore, broadcastSnapshot, giftCards, getUserAvatar }) {
   let sync = {};
-  const cards = giftCards || createGiftCardRuntime({ getGifts: () => getServices().gifts,
-    fetchPage: (request) => sync.cardProfiles?.(request), ensureAvatar: getUserAvatar });
+  const cards =
+    giftCards ||
+    createGiftCardRuntime({
+      getGifts: () => getServices().gifts,
+      fetchPage: (request) => sync.cardProfiles?.(request),
+      ensureAvatar: getUserAvatar,
+    });
   return {
     giftCards: cards,
-    configureGiftSync(options) { sync = options || {}; cards.reset?.(); },
-    rebuildGiftProjection: () => typeof sync.rebuild === 'function' ? sync.rebuild() : false,
+    configureGiftSync(options) {
+      sync = options || {};
+      cards.reset?.();
+    },
+    rebuildGiftProjection: () => (typeof sync.rebuild === 'function' ? sync.rebuild() : false),
     clearRemoteGiftHistory() {
       if (typeof sync.clearRemote !== 'function') throw new Error('REMOTE_GIFT_CLEAR_UNAVAILABLE');
       return sync.clearRemote();
@@ -22,8 +30,10 @@ function createGiftExportRuntime({ getServices, getSettingsStore, broadcastSnaps
       const previous = gifts.getActiveSource();
       const next = gifts.setActiveSource(source);
       // Leaving source switching makes cached gifts readable without changing viewEpoch.
-      if (previous?.viewEpoch !== next?.viewEpoch ||
-        (previous?.syncState === 'SOURCE_SWITCHING' && next?.syncState !== 'SOURCE_SWITCHING')) {
+      if (
+        previous?.viewEpoch !== next?.viewEpoch ||
+        (previous?.syncState === 'SOURCE_SWITCHING' && next?.syncState !== 'SOURCE_SWITCHING')
+      ) {
         broadcastSnapshot('gift:source');
       }
       return next;
@@ -46,9 +56,12 @@ function createGiftExportRuntime({ getServices, getSettingsStore, broadcastSnaps
       };
     },
     setGiftExportDirectory: (directory) => getSettingsStore().setSetting('giftExportDirectory', directory),
-    setGiftExportSettings: ({ mode, background, directory }) => getSettingsStore().setSettings({
-      giftExportMode: mode, giftExportBackground: background, giftExportDirectory: directory,
-    }),
+    setGiftExportSettings: ({ mode, background, directory }) =>
+      getSettingsStore().setSettings({
+        giftExportMode: mode,
+        giftExportBackground: background,
+        giftExportDirectory: directory,
+      }),
   };
 }
 

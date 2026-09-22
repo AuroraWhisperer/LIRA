@@ -100,16 +100,10 @@ function createUiFixture() {
         contentType = 'text/html';
         body =
           kind === 'admin'
-            ? fs.readFileSync(
-                path.join(publicRoot, 'pages/admin/toolbox/overtime.html'),
-                'utf8',
-              ) +
+            ? fs.readFileSync(path.join(publicRoot, 'pages/admin/toolbox/overtime.html'), 'utf8') +
               '<script type="module">import { initOvertime } from "/js/admin/overtime.js"; initOvertime(); window.ready = true;</script>'
             : kind === 'overlay'
-              ? fs.readFileSync(
-                  path.join(publicRoot, 'pages/overlays/overtime.html'),
-                  'utf8',
-                )
+              ? fs.readFileSync(path.join(publicRoot, 'pages/overlays/overtime.html'), 'utf8')
               : '<!doctype html><body></body>';
       } else if (url.pathname === '/js/shared/utils.js') {
         body = `export const api = (url, body) => new Promise((resolve, reject) => window.pendingSaves.push({ url, body: structuredClone(body), resolve, reject }));
@@ -125,10 +119,7 @@ function createUiFixture() {
         body =
           'export const createOverlaySocket = (options) => { window.socketOptions = options; return { start() {}, dispose() {} }; };';
       } else if (/^\/js\/[a-z0-9/-]+\.js$/i.test(url.pathname)) {
-        body = fs.readFileSync(
-          path.join(publicRoot, url.pathname.slice(1)),
-          'utf8',
-        );
+        body = fs.readFileSync(path.join(publicRoot, url.pathname.slice(1)), 'utf8');
       } else {
         contentType = 'text/html';
         body = '';
@@ -136,12 +127,8 @@ function createUiFixture() {
       return route.fulfill({ status: 200, contentType, body });
     });
     await page.goto('http://lira-ui.test/');
-    if (kind === 'admin')
-      await page.waitForFunction(() =>
-        document.querySelector('[data-overtime-rule]'),
-      );
-    if (kind === 'overlay')
-      await page.waitForFunction(() => window.socketOptions);
+    if (kind === 'admin') await page.waitForFunction(() => document.querySelector('[data-overtime-rule]'));
+    if (kind === 'overlay') await page.waitForFunction(() => window.socketOptions);
     return page;
   }
 

@@ -12,20 +12,10 @@ const ROOT_DIR = path.resolve(__dirname, '..');
 
 test('playback publishes lyrics through the authenticated local API', () => {
   const service = fs.readFileSync(
-    path.join(
-      ROOT_DIR,
-      'public',
-      'js',
-      'playback',
-      'services',
-      'lyric-service.js',
-    ),
+    path.join(ROOT_DIR, 'public', 'js', 'playback', 'services', 'lyric-service.js'),
     'utf8',
   );
-  const routes = fs.readFileSync(
-    path.join(ROOT_DIR, 'src', 'server', 'routes', 'playback-routes.js'),
-    'utf8',
-  );
+  const routes = fs.readFileSync(path.join(ROOT_DIR, 'src', 'server', 'routes', 'playback-routes.js'), 'utf8');
 
   assert.match(service, /fetch\(["']\/api\/playback\/lyric-state["']/);
   assert.match(service, /fetch\(["']\/api\/playback\/lyric-timeline["']/);
@@ -40,14 +30,7 @@ test('playback publishes lyrics through the authenticated local API', () => {
 test('playback publishes a complete timeline only when the lyric identity changes', async () => {
   const requests = [];
   const playback = await loadModuleExports(
-    path.join(
-      ROOT_DIR,
-      'public',
-      'js',
-      'playback',
-      'services',
-      'lyric-service.js',
-    ),
+    path.join(ROOT_DIR, 'public', 'js', 'playback', 'services', 'lyric-service.js'),
     {
       fetch: async (url, options) => {
         requests.push({ url, body: JSON.parse(options.body) });
@@ -70,9 +53,7 @@ test('playback publishes a complete timeline only when the lyric identity change
   track.lyrics = { lines: [{ startMs: 0, text: '制作：Timeline Studio' }] };
   await service.syncWindow(track, audio);
 
-  const timelineRequests = requests.filter(
-    (request) => request.url === '/api/playback/lyric-timeline',
-  );
+  const timelineRequests = requests.filter((request) => request.url === '/api/playback/lyric-timeline');
   assert.equal(timelineRequests.length, 2);
   assert.equal(timelineRequests[0].body.lines[0].text, '制作：Timeline Studio');
 });
@@ -81,14 +62,7 @@ test('forced playback states bypass throttling and preserve publication order', 
   const stateRequests = [];
   let releaseFirstState;
   const playback = await loadModuleExports(
-    path.join(
-      ROOT_DIR,
-      'public',
-      'js',
-      'playback',
-      'services',
-      'lyric-service.js',
-    ),
+    path.join(ROOT_DIR, 'public', 'js', 'playback', 'services', 'lyric-service.js'),
     {
       fetch: async (url, options) => {
         if (url === '/api/playback/lyric-timeline') return { ok: true };
@@ -125,11 +99,7 @@ test('forced playback states bypass throttling and preserve publication order', 
   audio.paused = true;
   const seekAndPausePublish = service.syncWindow(track, audio, true);
   await new Promise((resolve) => setImmediate(resolve));
-  assert.equal(
-    stateRequests.length,
-    1,
-    'newer state waits until the prior request finishes',
-  );
+  assert.equal(stateRequests.length, 1, 'newer state waits until the prior request finishes');
 
   releaseFirstState();
   await Promise.all([playingPublish, seekAndPausePublish]);
@@ -158,14 +128,7 @@ test('ordinary lyric publication is latest-wins while one request is in flight',
   const requests = [];
   let releaseFirst;
   const playback = await loadModuleExports(
-    path.join(
-      ROOT_DIR,
-      'public',
-      'js',
-      'playback',
-      'services',
-      'lyric-service.js',
-    ),
+    path.join(ROOT_DIR, 'public', 'js', 'playback', 'services', 'lyric-service.js'),
     {
       fetch: async (url, options) => {
         if (url === '/api/playback/lyric-timeline') return { ok: true };
@@ -281,11 +244,7 @@ test('shared lyric renderer freezes its clock when playback pauses', async () =>
     lineText: '已暂停',
   });
   assert.equal(canceledFrames.has(pendingFrameId), true);
-  assert.equal(
-    nextFrameId,
-    pendingFrameId,
-    'paused rendering does not schedule another animation frame',
-  );
+  assert.equal(nextFrameId, pendingFrameId, 'paused rendering does not schedule another animation frame');
   assert.equal(renderer.getPosition(5000).currentMs, 1200);
 });
 
@@ -315,10 +274,7 @@ test('shared lyric renderer accepts small backward authoritative corrections', a
   renderer.setState({ currentMs: 1100, durationMs: 10000, playing: true });
   assert.equal(renderer.getPosition(currentTime).currentMs, 1100);
 
-  const overlaySource = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'overlays', 'lyric-window.js'),
-    'utf8',
-  );
+  const overlaySource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'lyric-window.js'), 'utf8');
   assert.doesNotMatch(overlaySource, /Math\.max\(incoming, estimated\)/);
 });
 
@@ -328,21 +284,11 @@ test('built-in playback forces lyric sync for play, pause, and seek transitions'
     'utf8',
   );
   const handlers = fs.readFileSync(
-    path.join(
-      ROOT_DIR,
-      'public',
-      'js',
-      'playback',
-      'core',
-      'event-handlers.js',
-    ),
+    path.join(ROOT_DIR, 'public', 'js', 'playback', 'core', 'event-handlers.js'),
     'utf8',
   );
 
-  assert.match(
-    initializer,
-    /addEventListener\(["']play["'], \(\) => \{[^}]*syncPlaybackLyricWindow\(true\)[^}]*\}\);/,
-  );
+  assert.match(initializer, /addEventListener\(["']play["'], \(\) => \{[^}]*syncPlaybackLyricWindow\(true\)[^}]*\}\);/);
   assert.match(
     initializer,
     /addEventListener\(["']pause["'], \(\) => \{[^}]*syncPlaybackLyricWindow\(true\)[^}]*\}\);/,
@@ -355,8 +301,5 @@ test('built-in playback forces lyric sync for play, pause, and seek transitions'
     initializer,
     /addEventListener\(["']seeked["'], \(\) => \{[^}]*syncPlaybackLyricWindow\(true\)[^}]*\}\);/,
   );
-  assert.match(
-    handlers,
-    /getElementById\(["']playbackSeek["']\)[\s\S]*?syncPlaybackLyricWindow\(true\)/,
-  );
+  assert.match(handlers, /getElementById\(["']playbackSeek["']\)[\s\S]*?syncPlaybackLyricWindow\(true\)/);
 });

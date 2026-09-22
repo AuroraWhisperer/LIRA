@@ -40,10 +40,7 @@ export class ProviderManager {
     const source = options.platform ?? this.state?.selectedSource;
     try {
       // 桌面版优先使用 Electron IPC
-      if (
-        window.musicAPI &&
-        typeof window.musicAPI.providerHealth === 'function'
-      ) {
+      if (window.musicAPI && typeof window.musicAPI.providerHealth === 'function') {
         const healthState = await window.musicAPI.providerHealth(source);
         this.setProviderHealth(source, healthState, options);
         return healthState;
@@ -79,10 +76,7 @@ export class ProviderManager {
 
     try {
       // 桌面版优先使用 Electron IPC
-      if (
-        window.musicAPI &&
-        typeof window.musicAPI.getAuthState === 'function'
-      ) {
+      if (window.musicAPI && typeof window.musicAPI.getAuthState === 'function') {
         const authState = await window.musicAPI.getAuthState(source);
         this.setAuthState(source, authState, options);
         return authState;
@@ -122,10 +116,7 @@ export class ProviderManager {
       if (error.message && error.message.includes('Failed to fetch')) {
         this._authStateApiUnavailable.add(source);
       }
-      console.warn(
-        '[ProviderManager] refreshAuthState failed (this is normal for web version):',
-        error.message,
-      );
+      console.warn('[ProviderManager] refreshAuthState failed (this is normal for web version):', error.message);
       this.setAuthState(source, null, options);
       // Web 版没有认证接口是正常的，不需要显示错误
       return null;
@@ -140,10 +131,7 @@ export class ProviderManager {
   async checkProviderHealth(options = {}) {
     const source = options.platform ?? this.state?.selectedSource;
     try {
-      if (
-        window.musicAPI &&
-        typeof window.musicAPI.providerHealth === 'function'
-      ) {
+      if (window.musicAPI && typeof window.musicAPI.providerHealth === 'function') {
         const healthState = await window.musicAPI.providerHealth(source);
         this.setProviderHealth(source, healthState, options);
         return healthState;
@@ -306,9 +294,7 @@ export class ProviderManager {
 
     // 清除待确认请求
     if (Array.isArray(state.pendingRequests)) {
-      state.pendingRequests = state.pendingRequests.filter(
-        (item) => !item.track || item.track.source !== platform,
-      );
+      state.pendingRequests = state.pendingRequests.filter((item) => !item.track || item.track.source !== platform);
     }
   }
 

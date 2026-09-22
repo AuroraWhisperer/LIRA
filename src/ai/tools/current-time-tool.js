@@ -2,8 +2,7 @@
 
 function getCurrentTime(input = {}, options = {}) {
   const timeZone = String(input.timeZone || 'Asia/Shanghai');
-  const suppliedNow =
-    typeof options.now === 'function' ? options.now() : options.now;
+  const suppliedNow = typeof options.now === 'function' ? options.now() : options.now;
   const now = suppliedNow ? new Date(suppliedNow) : new Date();
   let formatted;
   try {

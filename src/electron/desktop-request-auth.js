@@ -15,33 +15,46 @@ function createDesktopRequestAuth({ desktopSession, getMainWindow, getBaseUrl, g
     const frame = details.frame;
     const mainFrame = contents.mainFrame;
     if (
-      contents.isDestroyed() || details.webContentsId !== contents.id ||
-      details.webContents !== contents || contents.session !== desktopSession ||
-      !frame || frame.detached || frame.parent ||
-      !mainFrame || frame.processId !== mainFrame.processId ||
-      !frame.frameToken || frame.frameToken !== mainFrame.frameToken
-    ) return false;
+      contents.isDestroyed() ||
+      details.webContentsId !== contents.id ||
+      details.webContents !== contents ||
+      contents.session !== desktopSession ||
+      !frame ||
+      frame.detached ||
+      frame.parent ||
+      !mainFrame ||
+      frame.processId !== mainFrame.processId ||
+      !frame.frameToken ||
+      frame.frameToken !== mainFrame.frameToken
+    )
+      return false;
 
     const base = new URL(getBaseUrl());
     const target = new URL(details.url);
     if (target.username || target.password) return false;
     const sameOrigin = target.origin === base.origin;
     const source = frame.url ? new URL(frame.url) : null;
-    const fromAdmin = source?.origin === base.origin &&
-      frame.origin === base.origin && ADMIN_PATHS.has(source.pathname);
+    const fromAdmin =
+      source?.origin === base.origin && frame.origin === base.origin && ADMIN_PATHS.has(source.pathname);
     if (details.resourceType === 'mainFrame') {
-      if (sameOrigin && ADMIN_PATHS.has(target.pathname) &&
-        (details.method === 'GET' || details.method === 'HEAD')) {
-        return fromAdmin || !source || source.href === 'about:blank' ||
-          (source.origin === base.origin && frame.origin === base.origin && source.pathname === '/license');
+      if (sameOrigin && ADMIN_PATHS.has(target.pathname) && (details.method === 'GET' || details.method === 'HEAD')) {
+        return (
+          fromAdmin ||
+          !source ||
+          source.href === 'about:blank' ||
+          (source.origin === base.origin && frame.origin === base.origin && source.pathname === '/license')
+        );
       }
       return fromAdmin && sameOrigin && target.pathname.startsWith('/api/');
     }
     if (!fromAdmin) return false;
     if (sameOrigin && target.pathname.startsWith('/api/')) return true;
-    return details.resourceType === 'webSocket' && target.pathname === '/ws' &&
+    return (
+      details.resourceType === 'webSocket' &&
+      target.pathname === '/ws' &&
       target.host === base.host &&
-      target.protocol === (base.protocol === 'https:' ? 'wss:' : 'ws:');
+      target.protocol === (base.protocol === 'https:' ? 'wss:' : 'ws:')
+    );
   }
 
   function applyHeaders(details, headers) {
@@ -50,9 +63,11 @@ function createDesktopRequestAuth({ desktopSession, getMainWindow, getBaseUrl, g
     // A redirect can carry the header added to an earlier request leg. Strip
     // it before rechecking the destination and requesting frame, even on dispose.
     for (const name of Object.keys(headers)) {
-      if (name.toLowerCase() === 'authorization' &&
-        ((attached && headers[name] === `Bearer ${attached}`) ||
-          (token && headers[name] === `Bearer ${token}`))) delete headers[name];
+      if (
+        name.toLowerCase() === 'authorization' &&
+        ((attached && headers[name] === `Bearer ${attached}`) || (token && headers[name] === `Bearer ${token}`))
+      )
+        delete headers[name];
     }
     if (!token || disposed) return;
     let trusted = false;
@@ -80,8 +95,7 @@ function createDesktopRequestAuth({ desktopSession, getMainWindow, getBaseUrl, g
         if (target.origin !== base.origin || target.username || target.password) return false;
         if (ADMIN_PATHS.has(target.pathname) || target.pathname === '/license') return true;
         const source = new URL(getMainWindow().webContents.mainFrame.url);
-        return source.origin === base.origin && ADMIN_PATHS.has(source.pathname) &&
-          target.pathname.startsWith('/api/');
+        return source.origin === base.origin && ADMIN_PATHS.has(source.pathname) && target.pathname.startsWith('/api/');
       } catch (error) {
         void error;
         return false;

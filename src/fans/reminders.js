@@ -1,12 +1,6 @@
 'use strict';
 
-const {
-  dayOf,
-  dayStart,
-  addDays,
-  daysBetween,
-  anniversaryDate,
-} = require('./dates');
+const { dayOf, dayStart, addDays, daysBetween, anniversaryDate } = require('./dates');
 const { summarizeMembership } = require('./membership');
 
 function buildReminders(profile, records, states, now = Date.now()) {
@@ -50,10 +44,7 @@ function buildReminders(profile, records, states, now = Date.now()) {
             : daysBetween(today, date) <= 7
               ? 'week'
               : 'later',
-      actionable:
-        !['handled', 'ignored'].includes(state?.status) &&
-        !snoozed &&
-        scheduled <= today,
+      actionable: !['handled', 'ignored'].includes(state?.status) && !snoozed && scheduled <= today,
     });
   }
 
@@ -93,20 +84,9 @@ function buildReminders(profile, records, states, now = Date.now()) {
             data.advanceDays,
           );
         }
-      } else
-        add(
-          `anniversary:${record.id}`,
-          data.date,
-          data.name,
-          '手动纪念日',
-          data.advanceDays,
-        );
+      } else add(`anniversary:${record.id}`, data.date, data.name, '手动纪念日', data.advanceDays);
     }
-    if (
-      ['followup', 'caution'].includes(record.kind) &&
-      record.data.reviewDate &&
-      !record.data.completed
-    ) {
+    if (['followup', 'caution'].includes(record.kind) && record.data.reviewDate && !record.data.completed) {
       add(
         `followup:${record.id}`,
         record.data.reviewDate,
@@ -136,8 +116,7 @@ function buildReminders(profile, records, states, now = Date.now()) {
         membership.expiry.source === 'platform' ? '平台确认' : '手动确认',
         7,
       );
-    if (membership.hasHistory && profile.milestoneReminders !== false)
-      addMilestones();
+    if (membership.hasHistory && profile.milestoneReminders !== false) addMilestones();
   }
 
   function addMilestones() {
@@ -159,10 +138,7 @@ function buildReminders(profile, records, states, now = Date.now()) {
     const seen = new Set();
     let last = previous;
     for (let date = earliest; date <= latest; date = addDays(date, 1)) {
-      const current = summarizeMembership(
-        records,
-        date === today ? now : dayStart(date) + 86400000 - 1,
-      );
+      const current = summarizeMembership(records, date === today ? now : dayStart(date) + 86400000 - 1);
       for (const type of ['total', 'continuous']) {
         const value = current[`${type}Days`];
         const prior = last[`${type}Days`];
@@ -170,18 +146,9 @@ function buildReminders(profile, records, states, now = Date.now()) {
           // A newly entered baseline establishes today's count, not the dates
           // when smaller milestones were reached in the unknown past.
           if (value > threshold && baselineDates[type].has(date)) continue;
-          if (
-            value === null ||
-            value < threshold ||
-            (prior !== null && prior >= threshold)
-          )
-            continue;
-          if (type === 'continuous' && current.continuousAsOf !== date)
-            continue;
-          const key =
-            type === 'total'
-              ? `total:${threshold}`
-              : `continuous:${current.cycleId}:${threshold}`;
+          if (value === null || value < threshold || (prior !== null && prior >= threshold)) continue;
+          if (type === 'continuous' && current.continuousAsOf !== date) continue;
+          const key = type === 'total' ? `total:${threshold}` : `continuous:${current.cycleId}:${threshold}`;
           if (seen.has(key)) continue;
           seen.add(key);
           add(
@@ -199,14 +166,9 @@ function buildReminders(profile, records, states, now = Date.now()) {
   }
 
   for (const state of states) {
-    if (
-      !['handled', 'ignored'].includes(state.status) ||
-      result.some((r) => r.key === state.key)
-    )
-      continue;
+    if (!['handled', 'ignored'].includes(state.status) || result.some((r) => r.key === state.key)) continue;
     const match = /^(total|continuous):.*?(\d+)$/.exec(state.key);
-    const revised =
-      match && (membership[`${match[1]}Days`] ?? -1) < Number(match[2]);
+    const revised = match && (membership[`${match[1]}Days`] ?? -1) < Number(match[2]);
     result.push({
       ...state,
       profileId: profile.id,
@@ -217,11 +179,7 @@ function buildReminders(profile, records, states, now = Date.now()) {
       revisedBelowThreshold: Boolean(revised),
     });
   }
-  return result.sort(
-    (a, b) =>
-      String(a.date || '').localeCompare(String(b.date || '')) ||
-      a.key.localeCompare(b.key),
-  );
+  return result.sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')) || a.key.localeCompare(b.key));
 }
 
 module.exports = { buildReminders };

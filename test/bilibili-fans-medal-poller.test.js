@@ -3,9 +3,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 
-const {
-  FansMedalPoller,
-} = require('../src/bilibili/danmaku/fans-medal-poller');
+const { FansMedalPoller } = require('../src/bilibili/danmaku/fans-medal-poller');
 const { UserInfoService } = require('../src/bilibili/users/user-info-service');
 
 test('fans medal poller paginates through an injected user-info sink', async () => {
@@ -49,8 +47,7 @@ test('fans medal poller paginates through an injected user-info sink', async () 
       },
     },
     {
-      ingestHint: (hint, ingestContext) =>
-        service.ingestHint(hint, ingestContext),
+      ingestHint: (hint, ingestContext) => service.ingestHint(hint, ingestContext),
     },
   );
 
@@ -60,17 +57,14 @@ test('fans medal poller paginates through an injected user-info sink', async () 
     { roomId: '123', ruid: '456', page: 1, pageSize: 30 },
     { roomId: '123', ruid: '456', page: 2, pageSize: 30 },
   ]);
-  assert.deepEqual(
-    service.peek('31', { fields: ['name', 'guard', 'fansMedal'] }),
-    {
-      uid: '31',
-      name: '第31人',
-      room: { roomId: '123', ownerUid: '456' },
-      guard: { known: true, level: 3 },
-      fansMedal: {
-        known: true,
-        value: { name: 'imilly', level: 12, targetUid: '456' },
-      },
+  assert.deepEqual(service.peek('31', { fields: ['name', 'guard', 'fansMedal'] }), {
+    uid: '31',
+    name: '第31人',
+    room: { roomId: '123', ownerUid: '456' },
+    guard: { known: true, level: 3 },
+    fansMedal: {
+      known: true,
+      value: { name: 'imilly', level: 12, targetUid: '456' },
     },
-  );
+  });
 });

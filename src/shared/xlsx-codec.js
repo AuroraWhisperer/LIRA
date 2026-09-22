@@ -27,9 +27,7 @@ function resourceLimit(limits, name) {
 function checkBudget(size, limit, name) {
   if (size > limit) {
     // Reuse the existing HTTP oversized-input error mapping (413).
-    throw new Error(
-      `Excel file is too large (${name}). Please split the workbook before importing.`,
-    );
+    throw new Error(`Excel file is too large (${name}). Please split the workbook before importing.`);
   }
 }
 
@@ -53,16 +51,12 @@ function unescapeXml(value) {
     .replace(/&quot;/g, '"')
     .replace(/&apos;/g, "'")
     .replace(/&#(\d+);/g, (_, code) => decodeXmlCodePoint(Number(code)))
-    .replace(/&#x([0-9a-f]+);/gi, (_, code) =>
-      decodeXmlCodePoint(Number.parseInt(code, 16)),
-    )
+    .replace(/&#x([0-9a-f]+);/gi, (_, code) => decodeXmlCodePoint(Number.parseInt(code, 16)))
     .replace(/&amp;/g, '&');
 }
 
 function decodeXmlCodePoint(codePoint) {
-  return Number.isFinite(codePoint) && codePoint >= 0 && codePoint <= 0x10ffff
-    ? String.fromCodePoint(codePoint)
-    : '';
+  return Number.isFinite(codePoint) && codePoint >= 0 && codePoint <= 0x10ffff ? String.fromCodePoint(codePoint) : '';
 }
 
 function getXmlAttr(attrs, name) {
@@ -108,14 +102,8 @@ function crc32(buffer) {
 function dosDateTime(dateValue) {
   const year = Math.max(1980, dateValue.getFullYear());
   return {
-    time:
-      (dateValue.getHours() << 11) |
-      (dateValue.getMinutes() << 5) |
-      Math.floor(dateValue.getSeconds() / 2),
-    date:
-      ((year - 1980) << 9) |
-      ((dateValue.getMonth() + 1) << 5) |
-      dateValue.getDate(),
+    time: (dateValue.getHours() << 11) | (dateValue.getMinutes() << 5) | Math.floor(dateValue.getSeconds() / 2),
+    date: ((year - 1980) << 9) | ((dateValue.getMonth() + 1) << 5) | dateValue.getDate(),
   };
 }
 
@@ -199,9 +187,7 @@ function readZipEntries(buffer, maxEntries) {
   const names = new Set();
   let offset = centralOffset;
   for (let index = 0; index < entryCount; index += 1) {
-    checkZip(
-      offset + 46 <= eocdOffset && buffer.readUInt32LE(offset) === 0x02014b50,
-    );
+    checkZip(offset + 46 <= eocdOffset && buffer.readUInt32LE(offset) === 0x02014b50);
     const flags = buffer.readUInt16LE(offset + 8);
     const method = buffer.readUInt16LE(offset + 10);
     const crc = buffer.readUInt32LE(offset + 16);
@@ -232,9 +218,7 @@ function readZipEntries(buffer, maxEntries) {
     checkZip(
       dataEnd <= centralOffset &&
         localNameLength === nameLength &&
-        name.equals(
-          buffer.subarray(localOffset + 30, localOffset + 30 + localNameLength),
-        ) &&
+        name.equals(buffer.subarray(localOffset + 30, localOffset + 30 + localNameLength)) &&
         flags === buffer.readUInt16LE(localOffset + 6) &&
         method === buffer.readUInt16LE(localOffset + 8),
     );
@@ -277,9 +261,7 @@ function readZipEntries(buffer, maxEntries) {
   }
   checkZip(offset === eocdOffset);
   let previousEnd = 0;
-  for (const entry of [...entries].sort(
-    (a, b) => a.localOffset - b.localOffset,
-  )) {
+  for (const entry of [...entries].sort((a, b) => a.localOffset - b.localOffset)) {
     checkZip(entry.localOffset >= previousEnd);
     previousEnd = entry.recordEnd;
   }
@@ -290,10 +272,9 @@ function readZipEntries(buffer, maxEntries) {
 function readZipFiles(buffer, { selectEntry = () => true, limits = {} } = {}) {
   const maxEntryBytes = resourceLimit(limits, 'entryBytes');
   const maxTotalBytes = resourceLimit(limits, 'totalBytes');
-  const entries = readZipEntries(
-    buffer,
-    resourceLimit(limits, 'zipEntries'),
-  ).filter((entry) => selectEntry(entry.filename));
+  const entries = readZipEntries(buffer, resourceLimit(limits, 'zipEntries')).filter((entry) =>
+    selectEntry(entry.filename),
+  );
   let declaredBytes = 0;
   for (const entry of entries) {
     if (entry.flags & 0x41 || ![0, 8].includes(entry.method)) {
@@ -333,15 +314,8 @@ function readZipFiles(buffer, { selectEntry = () => true, limits = {} } = {}) {
 }
 
 function findEndOfCentralDirectory(buffer) {
-  for (
-    let offset = buffer.length - 22;
-    offset >= Math.max(0, buffer.length - 65557);
-    offset -= 1
-  ) {
-    if (
-      buffer.readUInt32LE(offset) === 0x06054b50 &&
-      offset + 22 + buffer.readUInt16LE(offset + 20) === buffer.length
-    )
+  for (let offset = buffer.length - 22; offset >= Math.max(0, buffer.length - 65557); offset -= 1) {
+    if (buffer.readUInt32LE(offset) === 0x06054b50 && offset + 22 + buffer.readUInt16LE(offset + 20) === buffer.length)
       return offset;
   }
   return -1;
@@ -368,11 +342,7 @@ function* xmlElements(xml, tag) {
 }
 
 function checkXmlBudget(xml, limits) {
-  checkBudget(
-    Buffer.byteLength(xml, 'utf8'),
-    resourceLimit(limits, 'entryBytes'),
-    'XML bytes',
-  );
+  checkBudget(Buffer.byteLength(xml, 'utf8'), resourceLimit(limits, 'entryBytes'), 'XML bytes');
 }
 
 function parseSharedStrings(xml, limits = {}) {
@@ -427,11 +397,7 @@ function parseWorksheetXml(xml, sharedStrings, limits = {}) {
       checkBudget(rowSlots + growth, maxCells, 'worksheet row slots');
       const value = readWorksheetCell(attrs, body, sharedStrings, maxTextChars);
       checkBudget(value.length, maxTextChars, 'cell text');
-      checkBudget(
-        textChars + value.length,
-        maxTotalTextChars,
-        'expanded worksheet text',
-      );
+      checkBudget(textChars + value.length, maxTotalTextChars, 'expanded worksheet text');
       rowSlots += growth;
       textChars += value.length;
       row[columnIndex] = value;

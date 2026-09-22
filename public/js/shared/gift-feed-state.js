@@ -3,7 +3,7 @@ export function shanghaiToday(time = Date.now()) {
 }
 
 export function giftFeedRowDurationMs(speed) {
-  return 5000 - (speed - 1) * 4900 / 49;
+  return 5000 - ((speed - 1) * 4900) / 49;
 }
 
 export function createGiftFeedState() {
@@ -16,12 +16,16 @@ export function createGiftFeedState() {
       const found = items.findIndex((item) => item.eventId === anchor);
       index = found < 0 ? 0 : found;
     },
-    advance(step = 1) { if (items.length) index = (index + step) % items.length; },
+    advance(step = 1) {
+      if (items.length) index = (index + step) % items.length;
+    },
     visible(rows, buffer = false) {
       const count = Math.min(items.length, rows + (buffer && items.length > rows ? 1 : 0));
       return Array.from({ length: count }, (_, offset) => items[(index + offset) % items.length]);
     },
-    get count() { return items.length; },
+    get count() {
+      return items.length;
+    },
   };
 }
 
@@ -31,13 +35,23 @@ export async function scanTodayGifts({ request, signal, day, onRevision }) {
   let viewRevision = null;
   let partial = true;
   do {
-    const params = new URLSearchParams({ range: 'today', startDate: day, endDate: day,
-      limit: '100', sortField: 'created_at', sortDirection: 'asc' });
+    const params = new URLSearchParams({
+      range: 'today',
+      startDate: day,
+      endDate: day,
+      limit: '100',
+      sortField: 'created_at',
+      sortDirection: 'asc',
+    });
     if (cursor) params.set('cursor', cursor);
     if (viewRevision) params.set('viewRevision', viewRevision);
     const data = await request(`/api/gifts/history?${params}`, signal);
-    if (!viewRevision) { viewRevision = data.viewRevision; onRevision(viewRevision); }
-    if (viewRevision !== data.viewRevision) throw Object.assign(new Error('礼物来源已变更'), { code: 'GIFT_VIEW_STALE' });
+    if (!viewRevision) {
+      viewRevision = data.viewRevision;
+      onRevision(viewRevision);
+    }
+    if (viewRevision !== data.viewRevision)
+      throw Object.assign(new Error('礼物来源已变更'), { code: 'GIFT_VIEW_STALE' });
     for (const item of data.items) items.set(item.eventId, item);
     partial = data.partial;
     cursor = data.nextCursor;

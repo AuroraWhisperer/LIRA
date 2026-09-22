@@ -357,6 +357,8 @@ handler 未包 try/catch:抛错走顶层 **500**。
 
 礼物许愿接口由 `routes/gift-wish-routes.js` 合并到礼物路由。`GET /api/gifts/wishes` 返回当前授权来源的 `viewRevision/asOf/day/partial/session/items`；管理页额外取得内置舰队选择项。`POST /api/gifts/wishes/save` 接收 `viewRevision`、整数 `target`（1–999999999）、`label`（最多 40 字）；新建另需 `period`（`long/day/session`）及目录 `giftKey`（variantId 优先，舰队使用 guard ID），编辑只需 `id`，不改变礼物和起算时间。每个来源最多 30 条。`POST /api/gifts/wishes/delete` 接收 `viewRevision/id`。非法参数返回 400，来源未就绪或版本变化返回 409，客户端禁止选择 sourceId。保存/删除广播 `gift:wishes` 快照刷新通知。计数与时间窗口合同见 [礼物许愿](bilibili/gift.md#礼物许愿)。
 
+保存支持可选 `displayStyle`（`card` / `text`）和 `textTemplate`（最多 200 个 Unicode code point，去除首尾空白）。新建缺省为卡片和空模板，旧编辑请求省略字段时保留已保存值；切换样式不改变礼物、创建时间或已收数量。两个字段均包含在管理与 OBS 的许愿条目中，空模板和动态标记的展示规则见 [前端页面](../frontend/pages.md)。
+
 | 端点                                | 请求                                                                                                                          | 响应(data)                                          | 错误码                              |
 | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- | ----------------------------------- |
 | `POST /api/gifts/sprint/reset`      | 无                                                                                                                            | 重置礼物冲刺进度;广播 `gift:sprint:reset`           | —                                   |

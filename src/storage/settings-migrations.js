@@ -38,9 +38,7 @@ function migrateQueueScrollSpeedSetting(db, savedVersion) {
   const savedSpeed = Number(row && row.value);
   const normalizedSpeed =
     Number.isFinite(savedSpeed) && savedSpeed > 100
-      ? Math.round(
-          1 + ((Math.max(50, Math.min(200, savedSpeed)) - 50) / 150) * 99,
-        )
+      ? Math.round(1 + ((Math.max(50, Math.min(200, savedSpeed)) - 50) / 150) * 99)
       : Number.isFinite(savedSpeed)
         ? Math.max(1, Math.min(100, Math.round(savedSpeed)))
         : 80;
@@ -67,12 +65,8 @@ function migrateQueueFontSizeSettings(db, savedVersion) {
   const updatedAt = now();
 
   // 读取当前字号设置
-  const songRow = db
-    .prepare(`SELECT value FROM settings WHERE key = 'queueSongFontSize'`)
-    .get();
-  const titleRow = db
-    .prepare(`SELECT value FROM settings WHERE key = 'queueTitleFontSize'`)
-    .get();
+  const songRow = db.prepare(`SELECT value FROM settings WHERE key = 'queueSongFontSize'`).get();
+  const titleRow = db.prepare(`SELECT value FROM settings WHERE key = 'queueTitleFontSize'`).get();
 
   // 如果设置存在且在旧范围内，则翻倍
   if (songRow) {
@@ -133,8 +127,7 @@ function migrateQueueStyleSettings(db, savedVersion) {
     values[`${prefix}QueueFontSize`] = sharedValues.fontSize;
     values[`${prefix}QueueFontFamily`] = sharedValues.fontFamily;
     values[`${prefix}QueueFontWeight`] = sharedValues.fontWeight;
-    values[`${prefix}QueueUseCustomTextColor`] =
-      sharedValues.useCustomTextColor;
+    values[`${prefix}QueueUseCustomTextColor`] = sharedValues.useCustomTextColor;
     values[`${prefix}QueueTextColor`] = sharedValues.textColor;
     values[`${prefix}QueueScrollMode`] = sharedValues.scrollMode;
     values[`${prefix}QueueScrollSpeed`] = sharedValues.scrollSpeed;
@@ -178,14 +171,9 @@ function migrateSongScrollSpeedSetting(db, savedVersion) {
     )
     .get();
   const savedSpeed = Number(row && row.value);
-  const legacySpeed = Number.isFinite(savedSpeed)
-    ? Math.max(20, Math.min(200, savedSpeed))
-    : 20;
+  const legacySpeed = Number.isFinite(savedSpeed) ? Math.max(20, Math.min(200, savedSpeed)) : 20;
   const normalizedSpeed = Number.isFinite(savedSpeed)
-    ? Math.max(
-        1,
-        Math.min(100, Math.round(1 + ((legacySpeed - 20) / 180) * 99)),
-      )
+    ? Math.max(1, Math.min(100, Math.round(1 + ((legacySpeed - 20) / 180) * 99)))
     : 45;
   const updatedAt = now();
   db.prepare(

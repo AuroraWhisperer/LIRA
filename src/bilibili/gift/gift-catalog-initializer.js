@@ -13,20 +13,13 @@ function createGiftCatalogInitializer(options = {}) {
   const catalog = options.catalog;
   const imageCache = options.imageCache;
   if (!dataDir) throw new Error('dataDir is required.');
-  if (
-    !catalog ||
-    typeof catalog.getSnapshot !== 'function' ||
-    typeof catalog.refresh !== 'function'
-  )
+  if (!catalog || typeof catalog.getSnapshot !== 'function' || typeof catalog.refresh !== 'function')
     throw new Error('catalog is required.');
-  if (!imageCache || typeof imageCache.cacheGifts !== 'function')
-    throw new Error('imageCache is required.');
+  if (!imageCache || typeof imageCache.cacheGifts !== 'function') throw new Error('imageCache is required.');
 
   const logger = options.logger || console;
   const now = typeof options.now === 'function' ? options.now : Date.now;
-  const statePath = path.resolve(
-    options.statePath || resolveDataPaths(dataDir).giftAssetsStatePath,
-  );
+  const statePath = path.resolve(options.statePath || resolveDataPaths(dataDir).giftAssetsStatePath);
   fs.mkdirSync(path.dirname(statePath), { recursive: true });
   let completion = readCompletion(statePath, logger);
   let state = initialState(catalog.getSnapshot(), completion);
@@ -48,10 +41,7 @@ function createGiftCatalogInitializer(options = {}) {
       try {
         listener(snapshot);
       } catch (error) {
-        logger.debug?.(
-          '[GiftCatalog] initialization listener failed:',
-          error?.message || error,
-        );
+        logger.debug?.('[GiftCatalog] initialization listener failed:', error?.message || error);
       }
     }
     return snapshot;
@@ -97,11 +87,7 @@ function createGiftCatalogInitializer(options = {}) {
         snapshot = catalog.getSnapshot();
       }
       snapshot = snapshot || catalog.getSnapshot();
-      if (
-        !snapshot ||
-        !Array.isArray(snapshot.gifts) ||
-        !snapshot.gifts.length
-      ) {
+      if (!snapshot || !Array.isArray(snapshot.gifts) || !snapshot.gifts.length) {
         throw refreshError || new Error('REMOTE_CATALOG_NOT_READY');
       }
 
@@ -137,9 +123,7 @@ function createGiftCatalogInitializer(options = {}) {
         const work =
           wasInitialized && typeof imageCache.isGiftImageCurrent === 'function'
             ? gifts.filter(
-                (gift) =>
-                  !imageCache.isGiftImageCurrent(gift) &&
-                  imageCache.hasGiftImageSource?.(gift) !== false,
+                (gift) => !imageCache.isGiftImageCurrent(gift) && imageCache.hasGiftImageSource?.(gift) !== false,
               )
             : gifts;
         if (work.length) {
@@ -161,10 +145,7 @@ function createGiftCatalogInitializer(options = {}) {
                 total: progress.total,
                 available: progress.available,
                 failed: progress.failed,
-                percent:
-                  progress.total > 0
-                    ? 5 + Math.floor((progress.completed / progress.total) * 95)
-                    : 100,
+                percent: progress.total > 0 ? 5 + Math.floor((progress.completed / progress.total) * 95) : 100,
                 currentGiftId: progress.giftId,
                 currentGiftName: progress.giftName,
               });
@@ -181,8 +162,7 @@ function createGiftCatalogInitializer(options = {}) {
         const latest = catalog.getSnapshot();
         if (
           latest &&
-          JSON.stringify([latest.version, latest.gifts]) !==
-            JSON.stringify([snapshot.version, snapshot.gifts])
+          JSON.stringify([latest.version, latest.gifts]) !== JSON.stringify([snapshot.version, snapshot.gifts])
         ) {
           snapshot = latest;
           continue;
@@ -215,12 +195,7 @@ function createGiftCatalogInitializer(options = {}) {
         currentGiftName: '',
         completedAt: completion.completedAt,
         error: '',
-        warning:
-          failed === 0
-            ? refreshError
-              ? 'CATALOG_REFRESH_FAILED'
-              : ''
-            : 'SOME_IMAGES_UNAVAILABLE',
+        warning: failed === 0 ? (refreshError ? 'CATALOG_REFRESH_FAILED' : '') : 'SOME_IMAGES_UNAVAILABLE',
       });
     })()
       .catch((error) => {
@@ -275,17 +250,9 @@ function normalizeState(value = {}) {
   const available = Math.min(nonNegativeInteger(value.available), completed);
   const failed = Math.min(nonNegativeInteger(value.failed), completed);
   return {
-    status: ['required', 'running', 'updating', 'ready', 'error'].includes(
-      value.status,
-    )
-      ? value.status
-      : 'required',
+    status: ['required', 'running', 'updating', 'ready', 'error'].includes(value.status) ? value.status : 'required',
     background: value.background === true,
-    phase: ['idle', 'catalog', 'images', 'complete', 'error'].includes(
-      value.phase,
-    )
-      ? value.phase
-      : 'idle',
+    phase: ['idle', 'catalog', 'images', 'complete', 'error'].includes(value.phase) ? value.phase : 'idle',
     version: safeText(value.version, 256),
     completed,
     total,
@@ -321,10 +288,7 @@ function readCompletion(filePath, logger) {
       completedAt: validIso(value.completedAt),
     };
   } catch (error) {
-    logger.debug?.(
-      '[GiftCatalog] no completed asset initialization:',
-      error?.message || error,
-    );
+    logger.debug?.('[GiftCatalog] no completed asset initialization:', error?.message || error);
     return null;
   }
 }
@@ -346,16 +310,12 @@ function writeCompletion(filePath, value) {
 }
 
 function safeErrorCode(error) {
-  const code = String(
-    error?.code || error?.message || 'CATALOG_INITIALIZATION_FAILED',
-  )
+  const code = String(error?.code || error?.message || 'CATALOG_INITIALIZATION_FAILED')
     .trim()
     .toUpperCase()
     .replace(/[^A-Z0-9_]/gu, '_')
     .slice(0, 64);
-  return /^[A-Z][A-Z0-9_]{0,63}$/u.test(code)
-    ? code
-    : 'CATALOG_INITIALIZATION_FAILED';
+  return /^[A-Z][A-Z0-9_]{0,63}$/u.test(code) ? code : 'CATALOG_INITIALIZATION_FAILED';
 }
 
 function nonNegativeInteger(value) {

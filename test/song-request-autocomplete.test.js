@@ -43,19 +43,10 @@ test('unique song-name matching prefers exact names and ignores disabled or ambi
     songService.saveSong(songStore, { name: '100%真心', artist: '测试歌手' });
     songService.saveSong(songStore, { name: '1000真心', artist: '测试歌手' });
 
-    assert.equal(
-      songService.findUniqueSongNameMatch(songStore, '不醉不会').name,
-      '不醉不会',
-    );
+    assert.equal(songService.findUniqueSongNameMatch(songStore, '不醉不会').name, '不醉不会');
     assert.equal(songService.findUniqueSongNameMatch(songStore, '不醉'), null);
-    assert.equal(
-      songService.findUniqueSongNameMatch(songStore, '比尔').name,
-      '1022比尔的歌',
-    );
-    assert.equal(
-      songService.findUniqueSongNameMatch(songStore, '100%').name,
-      '100%真心',
-    );
+    assert.equal(songService.findUniqueSongNameMatch(songStore, '比尔').name, '1022比尔的歌');
+    assert.equal(songService.findUniqueSongNameMatch(songStore, '100%').name, '100%真心');
   } finally {
     closeTestDatabases(testContext);
   }
@@ -88,9 +79,8 @@ test('danmaku requests enqueue the complete unique library name and preserve the
     assert.equal(result.queueItem.artist, 'Bomb比尔');
     assert.equal(result.queueItem.category_name, '流行');
     assert.equal(
-      testContext.databases.songDb
-        .prepare('SELECT message FROM requests WHERE queue_id = ?')
-        .get(result.queueItem.id).message,
+      testContext.databases.songDb.prepare('SELECT message FROM requests WHERE queue_id = ?').get(result.queueItem.id)
+        .message,
       '点歌 比尔',
     );
   } finally {
@@ -99,9 +89,7 @@ test('danmaku requests enqueue the complete unique library name and preserve the
 });
 
 test('danmaku requests preserve the submitted name when multiple library songs match', () => {
-  const testContext = createTestDatabases(
-    'song-plugin-autocomplete-ambiguous-',
-  );
+  const testContext = createTestDatabases('song-plugin-autocomplete-ambiguous-');
   const settingsStore = createSettingsStore(testContext.databases.songDb);
 
   try {

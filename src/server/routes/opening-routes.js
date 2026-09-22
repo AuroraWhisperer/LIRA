@@ -5,10 +5,7 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const { readRawBody, sendJson } = require('../http-utils');
-const {
-  DEFAULT_OPENING_TRACK_MOTION,
-  normalizeOpeningTrackMotion,
-} = require('../opening-contract');
+const { DEFAULT_OPENING_TRACK_MOTION, normalizeOpeningTrackMotion } = require('../opening-contract');
 
 const prefixes = ['/api/opening'];
 const OPENING_MUSIC_DIR_NAME = 'opening-music';
@@ -18,15 +15,7 @@ const DEFAULT_CHARACTER_URL = '';
 const MAX_UPLOAD_BYTES = 64 * 1024 * 1024;
 const MAX_CHARACTER_UPLOAD_BYTES = 16 * 1024 * 1024;
 const MAX_CHARACTER_REQUEST_BYTES = MAX_CHARACTER_UPLOAD_BYTES + 64 * 1024;
-const AUDIO_EXTENSIONS = new Set([
-  '.mp3',
-  '.flac',
-  '.wav',
-  '.aac',
-  '.ogg',
-  '.m4a',
-  '.wma',
-]);
+const AUDIO_EXTENSIONS = new Set(['.mp3', '.flac', '.wav', '.aac', '.ogg', '.m4a', '.wma']);
 const CHARACTER_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp']);
 const QUALITY_VALUES = new Set(['high', 'normal', 'low']);
 const MAX_TEXT_LENGTHS = Object.freeze({
@@ -124,53 +113,33 @@ function getOpeningConfig(context) {
   const settings = context.settings.get();
   const audioFile = normalizeStoredFileName(settings.openingAudioFile);
   const hasUploadedAudio = Boolean(
-    audioFile &&
-    fs.existsSync(path.join(getMusicDir(context.system.dataDir), audioFile)),
+    audioFile && fs.existsSync(path.join(getMusicDir(context.system.dataDir), audioFile)),
   );
-  const characterFile = normalizeStoredCharacterFileName(
-    settings.openingCharacterFile,
-  );
+  const characterFile = normalizeStoredCharacterFileName(settings.openingCharacterFile);
   const hasUploadedCharacter = Boolean(
-    characterFile &&
-    fs.existsSync(
-      path.join(getCharacterDir(context.system.dataDir), characterFile),
-    ),
+    characterFile && fs.existsSync(path.join(getCharacterDir(context.system.dataDir), characterFile)),
   );
   const volume = Number(settings.openingAudioVolume);
   const footer = cleanText(settings.openingFooter, MAX_TEXT_LENGTHS.footer);
   return {
     enabled: parseBoolean(settings.openingEnabled, false),
-    title:
-      cleanText(settings.openingTitle, MAX_TEXT_LENGTHS.title) ||
-      '唱一首，在一首，给你的歌',
-    subtitle:
-      cleanText(settings.openingSubtitle, MAX_TEXT_LENGTHS.subtitle) ||
-      '开播准备中',
+    title: cleanText(settings.openingTitle, MAX_TEXT_LENGTHS.title) || '唱一首，在一首，给你的歌',
+    subtitle: cleanText(settings.openingSubtitle, MAX_TEXT_LENGTHS.subtitle) || '开播准备中',
     name: cleanText(settings.openingName, MAX_TEXT_LENGTHS.name),
     footer: footer && footer !== 'SINGING LIVE' ? footer : '欢迎来到直播间',
-    quality: QUALITY_VALUES.has(settings.openingQuality)
-      ? settings.openingQuality
-      : 'normal',
-    trackMotion:
-      normalizeOpeningTrackMotion(settings.openingTrackMotion) ||
-      DEFAULT_OPENING_TRACK_MOTION,
+    quality: QUALITY_VALUES.has(settings.openingQuality) ? settings.openingQuality : 'normal',
+    trackMotion: normalizeOpeningTrackMotion(settings.openingTrackMotion) || DEFAULT_OPENING_TRACK_MOTION,
     showNotes: parseBoolean(settings.openingShowNotes, true),
     showEq: parseBoolean(settings.openingShowEq, true),
     audio: 'browser',
     volume: Number.isFinite(volume) ? Math.max(0, Math.min(1, volume)) : 0.35,
-    audioUrl: hasUploadedAudio
-      ? `/opening-media/${encodeURIComponent(audioFile)}`
-      : DEFAULT_AUDIO_URL,
-    audioName: hasUploadedAudio
-      ? cleanText(settings.openingAudioName, 160) || audioFile
-      : '',
+    audioUrl: hasUploadedAudio ? `/opening-media/${encodeURIComponent(audioFile)}` : DEFAULT_AUDIO_URL,
+    audioName: hasUploadedAudio ? cleanText(settings.openingAudioName, 160) || audioFile : '',
     hasUploadedAudio,
     characterUrl: hasUploadedCharacter
       ? `/opening-character/${encodeURIComponent(characterFile)}`
       : DEFAULT_CHARACTER_URL,
-    characterName: hasUploadedCharacter
-      ? cleanText(settings.openingCharacterName, 160) || characterFile
-      : '',
+    characterName: hasUploadedCharacter ? cleanText(settings.openingCharacterName, 160) || characterFile : '',
     hasUploadedCharacter,
   };
 }
@@ -180,29 +149,18 @@ function getMusicDir(dataDir) {
 }
 
 function getCharacterDir(dataDir) {
-  return path.join(
-    path.resolve(String(dataDir || '')),
-    OPENING_CHARACTER_DIR_NAME,
-  );
+  return path.join(path.resolve(String(dataDir || '')), OPENING_CHARACTER_DIR_NAME);
 }
 
 function normalizeStoredFileName(value) {
   const fileName = path.basename(String(value || ''));
-  if (
-    fileName !== String(value || '') ||
-    !AUDIO_EXTENSIONS.has(path.extname(fileName).toLowerCase())
-  )
-    return '';
+  if (fileName !== String(value || '') || !AUDIO_EXTENSIONS.has(path.extname(fileName).toLowerCase())) return '';
   return fileName;
 }
 
 function normalizeStoredCharacterFileName(value) {
   const fileName = path.basename(String(value || ''));
-  if (
-    fileName !== String(value || '') ||
-    !CHARACTER_EXTENSIONS.has(path.extname(fileName).toLowerCase())
-  )
-    return '';
+  if (fileName !== String(value || '') || !CHARACTER_EXTENSIONS.has(path.extname(fileName).toLowerCase())) return '';
   return fileName;
 }
 
@@ -227,37 +185,21 @@ async function readMultipartAudio(req) {
 }
 
 async function readMultipartCharacter(req) {
-  const upload = await readMultipartFile(
-    req,
-    MAX_CHARACTER_REQUEST_BYTES,
-    CHARACTER_EXTENSIONS,
-    '上传人物图',
-  );
-  if (!upload || upload.content.length > MAX_CHARACTER_UPLOAD_BYTES)
-    return null;
+  const upload = await readMultipartFile(req, MAX_CHARACTER_REQUEST_BYTES, CHARACTER_EXTENSIONS, '上传人物图');
+  if (!upload || upload.content.length > MAX_CHARACTER_UPLOAD_BYTES) return null;
   const detectedExtension = detectCharacterExtension(upload.content);
-  const expectedExtension =
-    upload.extension === '.jpeg' ? '.jpg' : upload.extension;
-  if (!detectedExtension || detectedExtension !== expectedExtension)
-    return null;
+  const expectedExtension = upload.extension === '.jpeg' ? '.jpg' : upload.extension;
+  if (!detectedExtension || detectedExtension !== expectedExtension) return null;
   return { ...upload, extension: detectedExtension };
 }
 
 function detectCharacterExtension(content) {
   if (
     content.length >= 8 &&
-    content
-      .subarray(0, 8)
-      .equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
+    content.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))
   )
     return '.png';
-  if (
-    content.length >= 3 &&
-    content[0] === 0xff &&
-    content[1] === 0xd8 &&
-    content[2] === 0xff
-  )
-    return '.jpg';
+  if (content.length >= 3 && content[0] === 0xff && content[1] === 0xd8 && content[2] === 0xff) return '.jpg';
   if (
     content.length >= 12 &&
     content.subarray(0, 4).toString('ascii') === 'RIFF' &&
@@ -292,10 +234,7 @@ async function readMultipartFile(req, maxBytes, extensions, fallbackName) {
   const extension = path.extname(name).toLowerCase();
   if (!name || !extensions.has(extension)) return null;
   const contentStart = headerEnd + 4;
-  const contentEnd = body.indexOf(
-    Buffer.from(`\r\n--${boundary}`),
-    contentStart,
-  );
+  const contentEnd = body.indexOf(Buffer.from(`\r\n--${boundary}`), contentStart);
   if (contentEnd < 0) return null;
   const content = body.subarray(contentStart, contentEnd);
   if (content.length === 0) return null;

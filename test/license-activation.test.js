@@ -25,7 +25,7 @@ function createFixture(t, existing) {
     fs.mkdirSync(path.dirname(keyStore.keyPath), { recursive: true });
     fs.writeFileSync(keyStore.keyPath, 'synthetic-unreadable-device-key');
   }
-  const readStored = () => fs.existsSync(keyStore.keyPath) ? fs.readFileSync(keyStore.keyPath) : null;
+  const readStored = () => (fs.existsSync(keyStore.keyPath) ? fs.readFileSync(keyStore.keyPath) : null);
   const original = readStored();
   const options = {
     keyStore,
@@ -57,7 +57,9 @@ for (const existing of ['missing', 'corrupt', 'valid']) {
 
   test(`activation preserves a ${existing} key when remote binding fails`, async (t) => {
     const { options, readStored, original } = createFixture(t, existing);
-    options.remote.activate = async () => { throw new Error('synthetic remote rejection'); };
+    options.remote.activate = async () => {
+      throw new Error('synthetic remote rejection');
+    };
     await assert.rejects(requestDeviceActivation(options), /synthetic remote rejection/);
     assert.deepEqual(readStored(), original);
   });
@@ -121,7 +123,9 @@ for (const operation of ['write', 'rename']) {
 
 test('encryption failure is detected before binding and leaves the existing key intact', async (t) => {
   const { options, safeStorage, readStored, original } = createFixture(t, 'corrupt');
-  safeStorage.encryptString = () => { throw new Error('synthetic encryption failure'); };
+  safeStorage.encryptString = () => {
+    throw new Error('synthetic encryption failure');
+  };
   options.remote.activate = () => assert.fail('unprotected keys must not reach the server');
   await assert.rejects(requestDeviceActivation(options), /synthetic encryption failure/);
   assert.deepEqual(readStored(), original);

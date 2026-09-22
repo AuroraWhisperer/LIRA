@@ -15,11 +15,7 @@ async function requestJson(connection, pathname, options = {}) {
     headers,
   });
   const payload = await response.json();
-  assert.equal(
-    response.ok,
-    true,
-    payload.error || `${pathname} returned ${response.status}`,
-  );
+  assert.equal(response.ok, true, payload.error || `${pathname} returned ${response.status}`);
   assert.equal(payload.ok, true);
   return payload.data;
 }
@@ -66,10 +62,7 @@ async function assertSmokeHealth(connection, dataDir) {
   assert.equal(health.serviceId, 'lira');
   assert.equal(path.resolve(health.dataDir), path.resolve(dataDir));
 
-  const blindBoxAnalysis = await requestJson(
-    connection,
-    '/api/gifts/blind-box-analysis?view=records&page=1&limit=25',
-  );
+  const blindBoxAnalysis = await requestJson(connection, '/api/gifts/blind-box-analysis?view=records&page=1&limit=25');
   assert.equal(blindBoxAnalysis.summary.boxCount, 0);
   assert.deepEqual(blindBoxAnalysis.items, []);
   assert.equal(blindBoxAnalysis.pagination.total, 0);
@@ -89,30 +82,15 @@ async function assertSmokePagesAndExports(connection) {
     }
   }
 
-  for (const pathname of [
-    '/api/songs/template.xlsx',
-    '/api/songs/export.xlsx',
-  ]) {
+  for (const pathname of ['/api/songs/template.xlsx', '/api/songs/export.xlsx']) {
     const unauthorized = await fetch(`${connection.baseUrl}${pathname}`);
-    assert.equal(
-      unauthorized.status,
-      401,
-      `${pathname} should reject a missing token`,
-    );
+    assert.equal(unauthorized.status, 401, `${pathname} should reject a missing token`);
 
-    const authorized = await fetch(
-      `${connection.baseUrl}${pathname}`,
-      { headers: { Authorization: `Bearer ${connection.token}` } },
-    );
-    assert.equal(
-      authorized.status,
-      200,
-      `${pathname} should accept a management header without a token in the URL`,
-    );
-    assert.ok(
-      (await authorized.arrayBuffer()).byteLength > 0,
-      `${pathname} should return a workbook`,
-    );
+    const authorized = await fetch(`${connection.baseUrl}${pathname}`, {
+      headers: { Authorization: `Bearer ${connection.token}` },
+    });
+    assert.equal(authorized.status, 200, `${pathname} should accept a management header without a token in the URL`);
+    assert.ok((await authorized.arrayBuffer()).byteLength > 0, `${pathname} should return a workbook`);
   }
 }
 
@@ -123,41 +101,30 @@ async function assertSmokeLyrics(connection) {
   assert.equal(initialSnapshot.state.lyricState.status, 'idle');
   assert.equal(initialSnapshot.state.lyricTimeline.status, 'idle');
 
-  const publishedLyric = await postJson(
-    connection,
-    '/api/playback/lyric-state',
-    {
-      trackTitle: 'Smoke Song',
-      artists: ['Smoke Artist'],
-      lineText: 'Smoke lyric',
-      progress: 0.4,
-      playing: true,
-      status: 'ready',
-    },
-  );
+  const publishedLyric = await postJson(connection, '/api/playback/lyric-state', {
+    trackTitle: 'Smoke Song',
+    artists: ['Smoke Artist'],
+    lineText: 'Smoke lyric',
+    progress: 0.4,
+    playing: true,
+    status: 'ready',
+  });
   assert.equal(publishedLyric.lineText, 'Smoke lyric');
   const lyricSnapshot = await readInitialWebSocketSnapshot(connection);
   assert.equal(lyricSnapshot.state.lyricState.lineText, 'Smoke lyric');
 
-  const publishedTimeline = await postJson(
-    connection,
-    '/api/playback/lyric-timeline',
-    {
-      trackTitle: 'Smoke Song',
-      artists: ['Smoke Artist'],
-      status: 'ready',
-      lines: [
-        { startMs: 0, text: '出品：Smoke Studio' },
-        { startMs: 9000, text: 'Smoke lyric' },
-      ],
-    },
-  );
+  const publishedTimeline = await postJson(connection, '/api/playback/lyric-timeline', {
+    trackTitle: 'Smoke Song',
+    artists: ['Smoke Artist'],
+    status: 'ready',
+    lines: [
+      { startMs: 0, text: '出品：Smoke Studio' },
+      { startMs: 9000, text: 'Smoke lyric' },
+    ],
+  });
   assert.equal(publishedTimeline.lines.length, 2);
   const timelineSnapshot = await readInitialWebSocketSnapshot(connection);
-  assert.equal(
-    timelineSnapshot.state.lyricTimeline.lines[0].text,
-    '出品：Smoke Studio',
-  );
+  assert.equal(timelineSnapshot.state.lyricTimeline.lines[0].text, '出品：Smoke Studio');
 }
 
 async function assertSmokeSongsAndSettings(connection) {
@@ -227,9 +194,7 @@ async function assertSmokeQueueAndClearing(connection) {
   assert.equal(stateAfterLibraryClear.queue.waiting.length, 1);
   assert.equal(stateAfterLibraryClear.queue.waiting[0].song_id, null);
   assert.equal(
-    stateAfterLibraryClear.categories.some(
-      (category) => category.name === '默认',
-    ),
+    stateAfterLibraryClear.categories.some((category) => category.name === '默认'),
     true,
   );
 
@@ -248,10 +213,7 @@ async function assertSmokeQueueAndClearing(connection) {
   assert.equal(finalState.queue.waiting.length, 0);
   assert.equal(finalState.settings.queueLimit, '3');
   assert.equal(finalState.settings.onboardingVersion, '1');
-  assert.equal(
-    finalState.settings.onboardingCompletedAt,
-    '2026-08-19T00:00:00.000Z',
-  );
+  assert.equal(finalState.settings.onboardingCompletedAt, '2026-08-19T00:00:00.000Z');
   assert.deepEqual(
     finalState.categories.map((category) => category.name),
     ['默认'],

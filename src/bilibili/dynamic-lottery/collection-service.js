@@ -19,14 +19,8 @@ function readNow(clock) {
 function requiredSources(rules) {
   const sources = [rules?.entryAction, ...(rules?.requiredActions || [])];
   const unique = [...new Set(sources.filter(Boolean))];
-  if (
-    unique.length === 0 ||
-    unique.some((source) => !['comment', 'repost', 'like'].includes(source))
-  ) {
-    throw collectionError(
-      'LOTTERY_SOURCE_UNAVAILABLE',
-      'Task rules contain an unsupported collection source.',
-    );
+  if (unique.length === 0 || unique.some((source) => !['comment', 'repost', 'like'].includes(source))) {
+    throw collectionError('LOTTERY_SOURCE_UNAVAILABLE', 'Task rules contain an unsupported collection source.');
   }
   return unique;
 }
@@ -37,10 +31,7 @@ function assertSameSession(before, after) {
     before.authorizationEpoch !== after.authorizationEpoch ||
     before.sessionEpoch !== after.sessionEpoch
   ) {
-    throw collectionError(
-      'LOTTERY_SESSION_CHANGED',
-      'The trusted session changed while collecting a page.',
-    );
+    throw collectionError('LOTTERY_SESSION_CHANGED', 'The trusted session changed while collecting a page.');
   }
 }
 
@@ -58,8 +49,7 @@ function createCollectionService({ store, provider, getContext, clock }) {
   let disposed = false;
 
   function assertTaskReady(task) {
-    if (!task)
-      throw collectionError('LOTTERY_TASK_NOT_FOUND', 'Task not found.');
+    if (!task) throw collectionError('LOTTERY_TASK_NOT_FOUND', 'Task not found.');
     const endsAtMs = Number(task.rules?.endsAtMs);
     if (!Number.isSafeInteger(endsAtMs) || endsAtMs < 0) {
       throw collectionError('LOTTERY_RULES_INVALID', 'Task cutoff is invalid.');
@@ -74,10 +64,7 @@ function createCollectionService({ store, provider, getContext, clock }) {
 
   function assertTaskScope(task, context) {
     if (String(context?.streamerId || '') !== task.streamerId) {
-      throw collectionError(
-        'LOTTERY_SESSION_CHANGED',
-        'The trusted streamer identity changed.',
-      );
+      throw collectionError('LOTTERY_SESSION_CHANGED', 'The trusted streamer identity changed.');
     }
   }
 
@@ -111,24 +98,17 @@ function createCollectionService({ store, provider, getContext, clock }) {
     try {
       for (const source of sources) {
         // Both reaction sources share the upstream cursor and are committed together.
-        const pageSources =
-          source === 'comment'
-            ? ['comment']
-            : sources.filter((value) => value !== 'comment');
+        const pageSources = source === 'comment' ? ['comment'] : sources.filter((value) => value !== 'comment');
         for (;;) {
           controller.signal.throwIfAborted();
           scan = store.getActiveScan(taskId);
           const state = scan?.sources?.[source];
           if (!state) {
-            throw collectionError(
-              'LOTTERY_SOURCE_MISMATCH',
-              'Persisted scan source does not match task rules.',
-            );
+            throw collectionError('LOTTERY_SOURCE_MISMATCH', 'Persisted scan source does not match task rules.');
           }
           if (state.coverage === 'exhausted') break;
 
-          const read =
-            source === 'comment' ? provider.readPage : provider.readReactions;
+          const read = source === 'comment' ? provider.readPage : provider.readReactions;
           const page = await read({
             target: task.target,
             source,
@@ -150,13 +130,8 @@ function createCollectionService({ store, provider, getContext, clock }) {
             scan = store.commitPage({ ...commit, source, page });
           } else {
             for (const reactionSource of pageSources) {
-              if (
-                (scan.sources[reactionSource].cursor ?? null) !== state.cursor
-              ) {
-                throw collectionError(
-                  'LOTTERY_CURSOR_CONFLICT',
-                  'Reaction cursors differ.',
-                );
+              if ((scan.sources[reactionSource].cursor ?? null) !== state.cursor) {
+                throw collectionError('LOTTERY_CURSOR_CONFLICT', 'Reaction cursors differ.');
               }
             }
             scan = store.commitPages(
@@ -165,9 +140,7 @@ function createCollectionService({ store, provider, getContext, clock }) {
                 source: reactionSource,
                 page: {
                   ...page,
-                  records: page.records.filter(
-                    (record) => record.source === reactionSource,
-                  ),
+                  records: page.records.filter((record) => record.source === reactionSource),
                 },
               })),
             );
@@ -187,12 +160,7 @@ function createCollectionService({ store, provider, getContext, clock }) {
 
   function run(taskId, resumeExisting) {
     if (disposed) {
-      return Promise.reject(
-        collectionError(
-          'LOTTERY_COLLECTION_DISPOSED',
-          'Collection service has been disposed.',
-        ),
-      );
+      return Promise.reject(collectionError('LOTTERY_COLLECTION_DISPOSED', 'Collection service has been disposed.'));
     }
     const id = String(taskId || '').trim();
     if (!id) return Promise.reject(new TypeError('taskId is required.'));
@@ -219,12 +187,7 @@ function createCollectionService({ store, provider, getContext, clock }) {
     const id = String(taskId || '').trim();
     const current = active.get(id);
     if (current) {
-      current.controller.abort(
-        collectionError(
-          'LOTTERY_COLLECTION_PAUSED',
-          'Collection was paused by the user.',
-        ),
-      );
+      current.controller.abort(collectionError('LOTTERY_COLLECTION_PAUSED', 'Collection was paused by the user.'));
     }
     const scan = store.getActiveScan(id);
     if (!scan || scan.status === 'completed') return store.getTask(id);
@@ -239,17 +202,10 @@ function createCollectionService({ store, provider, getContext, clock }) {
     if (!disposed) {
       disposed = true;
       for (const { controller } of active.values()) {
-        controller.abort(
-          collectionError(
-            'LOTTERY_COLLECTION_DISPOSED',
-            'Collection service has been disposed.',
-          ),
-        );
+        controller.abort(collectionError('LOTTERY_COLLECTION_DISPOSED', 'Collection service has been disposed.'));
       }
     }
-    await Promise.allSettled(
-      [...active.values()].map((entry) => entry.promise),
-    );
+    await Promise.allSettled([...active.values()].map((entry) => entry.promise));
   }
 
   return { start, pause, resume, dispose };

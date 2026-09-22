@@ -2,12 +2,8 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const {
-  LicenseState,
-} = require('../src/electron/license/license-runtime-policy');
-const {
-  createDesktopReadinessController,
-} = require('../src/electron/desktop-readiness-controller');
+const { LicenseState } = require('../src/electron/license/license-runtime-policy');
+const { createDesktopReadinessController } = require('../src/electron/desktop-readiness-controller');
 
 function createHarness({ ready = true, authorized = true } = {}) {
   const cloud = Promise.withResolvers();
@@ -15,9 +11,7 @@ function createHarness({ ready = true, authorized = true } = {}) {
   const navigations = [];
   const licenseListeners = new Set();
   const catalogListeners = new Set();
-  let state = authorized
-    ? LicenseState.AUTHORIZED
-    : LicenseState.NEEDS_ACTIVATION;
+  let state = authorized ? LicenseState.AUTHORIZED : LicenseState.NEEDS_ACTIVATION;
   let epoch = 1;
   let lastLicenseListener;
   let lastCatalogListener;
@@ -98,11 +92,7 @@ test('startup freezes gift source before cloud restore and resumes only after re
   assert.equal(h.controller.initialRoute, 'admin');
   h.controller.start();
   h.controller.start();
-  assert.deepEqual(h.calls, [
-    ['gifts:start'],
-    ['cloud:start'],
-    ['catalog', 'authorized-startup'],
-  ]);
+  assert.deepEqual(h.calls, [['gifts:start'], ['cloud:start'], ['catalog', 'authorized-startup']]);
   h.cloud.resolve();
   await h.cloud.promise;
   await Promise.resolve();
@@ -115,17 +105,11 @@ for (const action of ['revoke', 'dispose', 'rotate']) {
     const h = createHarness();
     h.controller.start();
     if (action === 'dispose') h.controller.dispose();
-    else
-      h.change(
-        action === 'revoke' ? LicenseState.BLOCKED : LicenseState.AUTHORIZED,
-      );
+    else h.change(action === 'revoke' ? LicenseState.BLOCKED : LicenseState.AUTHORIZED);
     h.cloud.resolve();
     await h.cloud.promise;
     await Promise.resolve();
-    assert.equal(
-      h.calls.filter(([call]) => call === 'resume').length,
-      action === 'rotate' ? 1 : 0,
-    );
+    assert.equal(h.calls.filter(([call]) => call === 'resume').length, action === 'rotate' ? 1 : 0);
     if (action === 'revoke') {
       assert.ok(h.calls.some(([call]) => call === 'gifts:stop'));
       assert.ok(h.calls.some(([call]) => call === 'pause'));

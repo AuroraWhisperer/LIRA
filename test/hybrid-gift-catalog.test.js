@@ -2,10 +2,7 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const {
-  createHybridGiftSaleCatalogService,
-  mergeRoomCatalog,
-} = require('../src/bilibili/gift/hybrid-catalog');
+const { createHybridGiftSaleCatalogService, mergeRoomCatalog } = require('../src/bilibili/gift/hybrid-catalog');
 
 test('hybrid catalog keeps local room catalog primary and exposes remote search separately', async () => {
   const calls = { local: 0, remote: 0, search: 0 };
@@ -82,28 +79,19 @@ test('room expansion uses exact box ids and removes relation-only outputs', () =
     blindBoxes: [{ giftId: '900', outputGiftIds: ['902', '903'] }],
   };
 
-  const wrongId = mergeRoomCatalog(
-    { gifts: [{ id: '901', name: '同名盲盒' }] },
-    serverSnapshot,
-  );
+  const wrongId = mergeRoomCatalog({ gifts: [{ id: '901', name: '同名盲盒' }] }, serverSnapshot);
   assert.deepEqual(
     wrongId.gifts.map((gift) => gift.id),
     ['901'],
   );
 
-  const expanded = mergeRoomCatalog(
-    { gifts: [{ id: '900', name: '同名盲盒' }] },
-    serverSnapshot,
-  );
+  const expanded = mergeRoomCatalog({ gifts: [{ id: '900', name: '同名盲盒' }] }, serverSnapshot);
   assert.deepEqual(
     expanded.gifts.map((gift) => gift.id),
     ['900', '902'],
   );
 
-  const removed = mergeRoomCatalog(
-    { gifts: [{ id: '900', name: '同名盲盒' }] },
-    { ...serverSnapshot, blindBoxes: [] },
-  );
+  const removed = mergeRoomCatalog({ gifts: [{ id: '900', name: '同名盲盒' }] }, { ...serverSnapshot, blindBoxes: [] });
   assert.deepEqual(
     removed.gifts.map((gift) => gift.id),
     ['900'],
@@ -135,8 +123,5 @@ test('hybrid server search reports unavailable when refresh has no cache', async
       refresh: async () => null,
     },
   });
-  await assert.rejects(
-    hybrid.searchRemote('礼物'),
-    /服务器礼物目录本地缓存尚不可用/,
-  );
+  await assert.rejects(hybrid.searchRemote('礼物'), /服务器礼物目录本地缓存尚不可用/);
 });

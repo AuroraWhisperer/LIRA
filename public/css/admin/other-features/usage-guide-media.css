@@ -1,0 +1,56 @@
+.usage-guide-image {
+  display: block;
+  width: auto;
+  max-width: min(100%, 960px);
+  height: auto;
+  margin-top: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-sm);
+}
+
+.usage-guide-figure {
+  width: fit-content;
+  max-width: min(100%, 960px);
+  margin: 16px 0;
+}
+
+.usage-guide-figure--compact {
+  max-width: min(100%, 520px);
+}
+
+.usage-guide-figure--portrait {
+  max-width: min(100%, 320px);
+}
+
+.usage-guide-figure .usage-guide-image {
+  max-width: 100%;
+  margin-top: 0;
+}
+
+.usage-guide-figure figcaption {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+
+.usage-guide-foldout {
+  margin-top: 14px;
+  padding: 12px 0;
+  border-top: 1px dashed var(--usage-guide-rule);
+}
+
+.usage-guide-foldout > summary {
+  width: fit-content;
+  color: var(--usage-guide-accent);
+  font-size: var(--type-size-body);
+  line-height: 1.8;
+  cursor: pointer;
+}
+
+.usage-guide-foldout > summary:focus-visible {
+  outline: 2px solid var(--usage-guide-accent);
+  outline-offset: 4px;
+}

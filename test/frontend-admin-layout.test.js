@@ -14,88 +14,39 @@ const ROOT_DIR = path.join(__dirname, '..');
 
 test('gift workspace rows keep their content height inside the scroll container', () => {
   const source = readCssBundle('public', 'css', 'admin', 'workspace.css');
-  const giftWorkspaceRule = source.match(
-    /\.gift-workspace\s*\{[\s\S]*?\n\}/,
-  )?.[0];
+  const giftWorkspaceRule = source.match(/\.gift-workspace\s*\{[\s\S]*?\n\}/)?.[0];
 
   assert.ok(giftWorkspaceRule, 'gift workspace styles should remain defined');
-  assert.match(
-    giftWorkspaceRule,
-    /grid-auto-rows:\s*max-content/,
-  );
+  assert.match(giftWorkspaceRule, /grid-auto-rows:\s*max-content/);
 });
 
 test('song workspace scrolls within the viewport above the player dock', () => {
   const source = readCssBundle('public', 'css', 'admin', 'workspace.css');
-  const songWorkspaceRule = source.match(
-    /\.song-workspace\s*\{[\s\S]*?\n\}/,
-  )?.[0];
-  const expandedRule = source.match(
-    /body\.player-dock-expanded \.song-workspace\s*\{[\s\S]*?\n\}/,
-  )?.[0];
+  const songWorkspaceRule = source.match(/\.song-workspace\s*\{[\s\S]*?\n\}/)?.[0];
+  const expandedRule = source.match(/body\.player-dock-expanded \.song-workspace\s*\{[\s\S]*?\n\}/)?.[0];
 
   assert.ok(songWorkspaceRule, 'song workspace styles should remain defined');
   assert.ok(expandedRule, 'expanded player sizing should remain defined');
-  assert.match(
-    songWorkspaceRule,
-    /height:\s*calc\(100vh - 58px - var\(--player-dock-height, 96px\)\)/,
-  );
+  assert.match(songWorkspaceRule, /height:\s*calc\(100vh - 58px - var\(--player-dock-height, 96px\)\)/);
   assert.match(songWorkspaceRule, /overflow-y:\s*auto/);
-  assert.match(
-    expandedRule,
-    /height:\s*calc\(100vh - 58px - var\(--player-dock-height, 218px\)\)/,
-  );
+  assert.match(expandedRule, /height:\s*calc\(100vh - 58px - var\(--player-dock-height, 218px\)\)/);
 });
 
 test('player dock exposes a collapse handle and shares its height with route workspaces', () => {
   const html = readAdminHtml();
-  const playerStyles = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'css', 'playback', 'player.css'),
-    'utf8',
-  );
-  const playbackLayout = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'css', 'playback', 'layout.css'),
-    'utf8',
-  );
-  const adminWorkspace = readCssBundle(
-    'public',
-    'css',
-    'admin',
-    'workspace.css',
-  );
-  const otherWorkspace = readCssBundle(
-    'public',
-    'css',
-    'admin',
-    'other-features.css',
-  );
+  const playerStyles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'playback', 'player.css'), 'utf8');
+  const playbackLayout = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'playback', 'layout.css'), 'utf8');
+  const adminWorkspace = readCssBundle('public', 'css', 'admin', 'workspace.css');
+  const otherWorkspace = readCssBundle('public', 'css', 'admin', 'other-features.css');
 
-  assert.match(
-    html,
-    /id="playerDockToggle"[^>]*aria-expanded="true"[^>]*aria-controls="playbackPlayerBody"/,
-  );
-  assert.match(
-    html,
-    /id="playbackPlayerBody" class="panel-body playback-player"/,
-  );
+  assert.match(html, /id="playerDockToggle"[^>]*aria-expanded="true"[^>]*aria-controls="playbackPlayerBody"/);
+  assert.match(html, /id="playbackPlayerBody" class="panel-body playback-player"/);
   assert.match(playerStyles, /--player-dock-collapsed-height:\s*0px/);
   assert.match(playerStyles, /body\.player-dock-collapsed\s*\{/);
-  assert.match(
-    playerStyles,
-    /\.playback-player-panel\.is-collapsed \.playback-player\s*\{/,
-  );
-  assert.match(
-    playbackLayout,
-    /height:\s*calc\(100vh - 58px - var\(--player-dock-height, 96px\)\)/,
-  );
-  assert.match(
-    adminWorkspace,
-    /height:\s*calc\(100vh - 58px - var\(--player-dock-height, 96px\)\)/,
-  );
-  assert.match(
-    otherWorkspace,
-    /height:\s*calc\(100vh - 58px - var\(--player-dock-height, 96px\)\)/,
-  );
+  assert.match(playerStyles, /\.playback-player-panel\.is-collapsed \.playback-player\s*\{/);
+  assert.match(playbackLayout, /height:\s*calc\(100vh - 58px - var\(--player-dock-height, 96px\)\)/);
+  assert.match(adminWorkspace, /height:\s*calc\(100vh - 58px - var\(--player-dock-height, 96px\)\)/);
+  assert.match(otherWorkspace, /height:\s*calc\(100vh - 58px - var\(--player-dock-height, 96px\)\)/);
 });
 
 test('player dock starts collapsed and toggles open without opening fullscreen', async () => {
@@ -169,10 +120,10 @@ test('player dock starts collapsed and toggles open without opening fullscreen',
   };
   const window = { AdminApp: {} };
 
-  const { FormsService } = await loadModuleExports(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'forms.js'),
-    { document, window },
-  );
+  const { FormsService } = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'admin', 'forms.js'), {
+    document,
+    window,
+  });
   const service = new FormsService();
   let fullscreenOpened = false;
   service.openFullscreenPlayer = () => {
@@ -208,41 +159,25 @@ test('player dock starts collapsed and toggles open without opening fullscreen',
   assert.equal(dockToggle.getAttribute('aria-expanded'), 'true');
   assert.equal(dockToggle.getAttribute('aria-label'), '收起播放器');
   // Playback may load after the workspace; resolve its current capability.
-  closeQueuePopup = () => { popupCloses += 1; };
+  closeQueuePopup = () => {
+    popupCloses += 1;
+  };
   dockClick({ stopPropagation() {} });
   assert.equal(popupCloses, 1);
 });
 
 test('queue panels retain their original 450px height on desktop', () => {
-  const workspaceSource = readCssBundle(
-    'public',
-    'css',
-    'admin',
-    'workspace.css',
-  );
-  const responsiveSource = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'css', 'admin', 'responsive.css'),
-    'utf8',
-  );
-  const queueRowRule = workspaceSource.match(
-    /\.queues-row\s*\{[\s\S]*?\n\}/,
-  )?.[0];
+  const workspaceSource = readCssBundle('public', 'css', 'admin', 'workspace.css');
+  const responsiveSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'responsive.css'), 'utf8');
+  const queueRowRule = workspaceSource.match(/\.queues-row\s*\{[\s\S]*?\n\}/)?.[0];
   const responsiveQueueRule = responsiveSource.match(
     /@media \(max-width: 900px\) \{[\s\S]*?(\.queues-row\s*\{[\s\S]*?\n\s*\})/,
   )?.[1];
-  const responsivePanelRule = responsiveSource.match(
-    /\.queues-row \.sc-queue-panel,[\s\S]*?\n\s*\}/,
-  )?.[0];
+  const responsivePanelRule = responsiveSource.match(/\.queues-row \.sc-queue-panel,[\s\S]*?\n\s*\}/)?.[0];
 
   assert.ok(queueRowRule, 'desktop queue row styles should remain defined');
-  assert.ok(
-    responsiveQueueRule,
-    'responsive queue row styles should remain defined',
-  );
-  assert.ok(
-    responsivePanelRule,
-    'narrow-layout queue panel sizing should remain defined',
-  );
+  assert.ok(responsiveQueueRule, 'responsive queue row styles should remain defined');
+  assert.ok(responsivePanelRule, 'narrow-layout queue panel sizing should remain defined');
   assert.match(queueRowRule, /--queue-height:\s*450px;/);
   assert.match(queueRowRule, /flex:\s*0 0 var\(--queue-height\)/);
   assert.match(queueRowRule, /height:\s*var\(--queue-height\)/);
@@ -254,13 +189,16 @@ test('queue panels retain their original 450px height on desktop', () => {
 test('desktop scrollbar states preserve transparent insets and system fallback', () => {
   const styles = readCssBundle('public', 'css', 'overlays', 'desktop.css');
   for (const state of ['hover', 'active']) {
-    const rule = styles.match(new RegExp(
-      `body\\.desktop-shell ::-webkit-scrollbar-thumb:${state}[\\s\\S]*?\\{([^}]+)\\}`,
-    ))?.[1];
+    const rule = styles.match(
+      new RegExp(`body\\.desktop-shell ::-webkit-scrollbar-thumb:${state}[\\s\\S]*?\\{([^}]+)\\}`),
+    )?.[1];
     assert.ok(rule, `${state} styling should remain defined`);
     assert.match(rule, /border-width:\s*var\(--scrollbar-interactive-inset\)/);
-    assert.match(rule, /background-clip:\s*padding-box/,
-      'legacy background shorthands must not paint across the transparent inset');
+    assert.match(
+      rule,
+      /background-clip:\s*padding-box/,
+      'legacy background shorthands must not paint across the transparent inset',
+    );
   }
   assert.doesNotMatch(styles, /body\.desktop-shell[^{}]*:focus-within[^{}]*::-webkit-scrollbar-thumb/);
   assert.match(styles, /@media \(forced-colors: active\)[\s\S]*scrollbar-width:\s*auto !important/);
@@ -272,7 +210,10 @@ test('zoomed desktop routes keep scrolling below the titlebar and above the dock
   const narrow = styles.slice(styles.lastIndexOf('@media (max-width: 900px)'));
   assert.match(narrow, /body\.desktop-shell\s*\{[^}]*overflow:\s*hidden/);
   assert.match(narrow, /\.app-shell\s*\{[^}]*height:\s*100dvh[^}]*padding-bottom:\s*var\(--player-dock-height/);
-  assert.match(narrow, /:is\(\.song-workspace, \.gift-workspace, \.other-workspace\)\s*\{[^}]*height:\s*100%[^}]*overflow-y:\s*auto/);
+  assert.match(
+    narrow,
+    /:is\(\.song-workspace, \.gift-workspace, \.other-workspace\)\s*\{[^}]*height:\s*100%[^}]*overflow-y:\s*auto/,
+  );
   assert.match(narrow, /\.song-management-panel > \.tabs\s*\{[^}]*flex-wrap:\s*wrap/);
 });
 
@@ -282,25 +223,22 @@ test('expanded toolbox navigation and planner lists retain visible scrolling aff
     /\.other-page\.sidebar-collapsed \.other-feature-sidebar(?:::-webkit-scrollbar)?\s*\{[^}]*\}/g,
     '',
   );
-  assert.doesNotMatch(expandedStyles, /\.(?:other-feature-sidebar|streamer-planner|planner-note-list|planner-task-list)[^{}]*\{[^}]*scrollbar-width:\s*none/);
-  assert.doesNotMatch(expandedStyles, /\.(?:other-feature-sidebar|streamer-planner|planner-note-list|planner-task-list)::-webkit-scrollbar[^{}]*\{[^}]*display:\s*none/);
+  assert.doesNotMatch(
+    expandedStyles,
+    /\.(?:other-feature-sidebar|streamer-planner|planner-note-list|planner-task-list)[^{}]*\{[^}]*scrollbar-width:\s*none/,
+  );
+  assert.doesNotMatch(
+    expandedStyles,
+    /\.(?:other-feature-sidebar|streamer-planner|planner-note-list|planner-task-list)::-webkit-scrollbar[^{}]*\{[^}]*display:\s*none/,
+  );
 });
 
 test('admin queue cards have enough height for their text and metadata', () => {
   const source = readCssBundle('public', 'css', 'admin', 'workspace.css');
-  const collapsibleSource = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'css', 'admin', 'collapsible.css'),
-    'utf8',
-  );
-  const queueListRule = source.match(
-    /\.queues-row \.queue-panel \.queue-list\s*\{[\s\S]*?\n\}/,
-  )?.[0];
-  const scListRule = source.match(
-    /\.queues-row \.queue-panel \.sc-list\s*\{[\s\S]*?\n\}/,
-  )?.[0];
-  const queueItemRule = source.match(
-    /\.queues-row \.queue-panel \.queue-row\s*\{[\s\S]*?\n\}/,
-  )?.[0];
+  const collapsibleSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'collapsible.css'), 'utf8');
+  const queueListRule = source.match(/\.queues-row \.queue-panel \.queue-list\s*\{[\s\S]*?\n\}/)?.[0];
+  const scListRule = source.match(/\.queues-row \.queue-panel \.sc-list\s*\{[\s\S]*?\n\}/)?.[0];
+  const queueItemRule = source.match(/\.queues-row \.queue-panel \.queue-row\s*\{[\s\S]*?\n\}/)?.[0];
   const scRowRule = collapsibleSource.match(/\.sc-row\s*\{[\s\S]*?\n\}/)?.[0];
 
   assert.ok(queueListRule, 'queue list styles should remain defined');
@@ -316,18 +254,10 @@ test('admin queue cards have enough height for their text and metadata', () => {
 });
 
 test('assisted super chat cards keep a single status color on hover', () => {
-  const source = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'css', 'admin', 'collapsible.css'),
-    'utf8',
-  );
-  const assistedHoverRule = source.match(
-    /\.sc-row\.assisted:hover::before\s*\{[\s\S]*?\n\}/,
-  )?.[0];
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'collapsible.css'), 'utf8');
+  const assistedHoverRule = source.match(/\.sc-row\.assisted:hover::before\s*\{[\s\S]*?\n\}/)?.[0];
 
-  assert.ok(
-    assistedHoverRule,
-    'assisted SC hover override should remain defined',
-  );
+  assert.ok(assistedHoverRule, 'assisted SC hover override should remain defined');
   assert.match(assistedHoverRule, /opacity:\s*0/);
 });
 
@@ -380,10 +310,7 @@ test('admin queue wheel scrolls overflowing lists and releases the page at their
     },
   };
 
-  await loadModuleExports(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'queue.js'),
-    sandbox,
-  );
+  await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'admin', 'queue.js'), sandbox);
   sandbox.window.AdminApp.queue.initQueueForm();
   const wheel = superChatPanel.listeners.get('wheel');
   const dispatchWheel = (deltaY) => {
@@ -398,66 +325,26 @@ test('admin queue wheel scrolls overflowing lists and releases the page at their
     return prevented;
   };
 
-  assert.equal(
-    dispatchWheel(120),
-    false,
-    'a non-overflowing queue should leave page scrolling alone',
-  );
+  assert.equal(dispatchWheel(120), false, 'a non-overflowing queue should leave page scrolling alone');
   superChatList.scrollHeight = 300;
-  assert.equal(
-    dispatchWheel(120),
-    true,
-    'an overflowing queue should consume downward wheel input',
-  );
+  assert.equal(dispatchWheel(120), true, 'an overflowing queue should consume downward wheel input');
   assert.equal(superChatList.scrollTop, 36);
   superChatList.scrollTop = 200;
-  assert.equal(
-    dispatchWheel(120),
-    false,
-    'the bottom edge should release downward input to the page',
-  );
-  assert.equal(
-    dispatchWheel(-120),
-    true,
-    'the list should still consume input away from the bottom edge',
-  );
+  assert.equal(dispatchWheel(120), false, 'the bottom edge should release downward input to the page');
+  assert.equal(dispatchWheel(-120), true, 'the list should still consume input away from the bottom edge');
   superChatList.scrollTop = 0;
-  assert.equal(
-    dispatchWheel(-120),
-    false,
-    'the top edge should release upward input to the page',
-  );
+  assert.equal(dispatchWheel(-120), false, 'the top edge should release upward input to the page');
 });
 
 test('desktop admin keeps scrolling on the workspace instead of nesting it in tabs', () => {
-  const workspaceSource = readCssBundle(
-    'public',
-    'css',
-    'admin',
-    'workspace.css',
-  );
-  const responsiveSource = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'css', 'admin', 'responsive.css'),
-    'utf8',
-  );
-  const activeTabRule = workspaceSource.match(
-    /\.song-management-panel > \.tab-page\.active\s*\{[\s\S]*?\n\}/,
-  )?.[0];
-  const desktopBodyRule = responsiveSource.match(
-    /@media \(min-width: 901px\)[\s\S]*?body\s*\{[\s\S]*?\n\s*\}/,
-  )?.[0];
-  const mobileBodyRule = responsiveSource.match(
-    /@media \(max-width: 900px\)[\s\S]*?body\s*\{[\s\S]*?\n\s*\}/,
-  )?.[0];
+  const workspaceSource = readCssBundle('public', 'css', 'admin', 'workspace.css');
+  const responsiveSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'responsive.css'), 'utf8');
+  const activeTabRule = workspaceSource.match(/\.song-management-panel > \.tab-page\.active\s*\{[\s\S]*?\n\}/)?.[0];
+  const desktopBodyRule = responsiveSource.match(/@media \(min-width: 901px\)[\s\S]*?body\s*\{[\s\S]*?\n\s*\}/)?.[0];
+  const mobileBodyRule = responsiveSource.match(/@media \(max-width: 900px\)[\s\S]*?body\s*\{[\s\S]*?\n\s*\}/)?.[0];
 
-  assert.ok(
-    activeTabRule,
-    'active management tab styles should remain defined',
-  );
-  assert.ok(
-    desktopBodyRule,
-    'desktop body overflow rule should remain defined',
-  );
+  assert.ok(activeTabRule, 'active management tab styles should remain defined');
+  assert.ok(desktopBodyRule, 'desktop body overflow rule should remain defined');
   assert.ok(mobileBodyRule, 'mobile body overflow rule should remain defined');
   assert.match(activeTabRule, /overflow:\s*visible/);
   assert.match(desktopBodyRule, /overflow:\s*hidden/);
@@ -465,28 +352,15 @@ test('desktop admin keeps scrolling on the workspace instead of nesting it in ta
 });
 
 test('hidden switches and the narrow player do not widen the page', () => {
-  const adminSource = readCssBundle(
-    'public',
-    'css',
-    'components',
-    'switch-control.css',
-  );
-  const playbackSource = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'css', 'playback', 'responsive.css'),
-    'utf8',
-  );
-  const switchInputRule = adminSource.match(
-    /\.switch-control input\s*\{[\s\S]*?\n\}/,
-  )?.[0];
+  const adminSource = readCssBundle('public', 'css', 'components', 'switch-control.css');
+  const playbackSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'playback', 'responsive.css'), 'utf8');
+  const switchInputRule = adminSource.match(/\.switch-control input\s*\{[\s\S]*?\n\}/)?.[0];
   const narrowPlayerRule = playbackSource.match(
     /@media \(max-width: 900px\)[\s\S]*?\.playback-progress-row\s*\{[\s\S]*?\n\s*\}/,
   )?.[0];
 
   assert.ok(switchInputRule, 'switch input styles should remain defined');
-  assert.ok(
-    narrowPlayerRule,
-    'narrow player progress styles should remain defined',
-  );
+  assert.ok(narrowPlayerRule, 'narrow player progress styles should remain defined');
   assert.match(switchInputRule, /width:\s*1px/);
   assert.match(switchInputRule, /height:\s*1px/);
   assert.match(narrowPlayerRule, /width:\s*auto/);
@@ -495,17 +369,11 @@ test('hidden switches and the narrow player do not widen the page', () => {
 
 test('playback labels scroll independently without resizing the progress slot', async () => {
   const html = readAdminHtml();
-  const styles = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'css', 'playback', 'player.css'),
-    'utf8',
-  );
+  const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'playback', 'player.css'), 'utf8');
   const nowPlayingRule = styles.match(/\.playback-now\s*\{[\s\S]*?\n\}/)?.[0];
 
   assert.ok(nowPlayingRule, 'now-playing layout styles should remain defined');
-  assert.match(
-    nowPlayingRule,
-    /grid-template-columns:\s*minmax\(0, 180px\) minmax\(520px, 1fr\)/,
-  );
+  assert.match(nowPlayingRule, /grid-template-columns:\s*minmax\(0, 180px\) minmax\(520px, 1fr\)/);
   assert.match(html, /id="playbackTrackTitle" class="playback-marquee"/);
   assert.match(html, /id="playbackTrackArtist" class="playback-marquee"/);
 
@@ -553,17 +421,11 @@ test('playback labels scroll independently without resizing the progress slot', 
   assert.equal(animationKeyframes[3].transform, 'translateX(-160px)');
   assert.equal(animationKeyframes[4].transform, 'translateX(0)');
   assert.equal(
-    Math.round(
-      (animationKeyframes[1].offset - animationKeyframes[0].offset) *
-        animationOptions.duration,
-    ),
+    Math.round((animationKeyframes[1].offset - animationKeyframes[0].offset) * animationOptions.duration),
     1000,
   );
   assert.equal(
-    Math.round(
-      (animationKeyframes[3].offset - animationKeyframes[2].offset) *
-        animationOptions.duration,
-    ),
+    Math.round((animationKeyframes[3].offset - animationKeyframes[2].offset) * animationOptions.duration),
     1000,
   );
 

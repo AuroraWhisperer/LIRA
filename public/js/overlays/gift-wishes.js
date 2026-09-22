@@ -3,9 +3,7 @@ import { createGiftWishFeed } from '../shared/gift-wish-client.js';
 import { createOverlaySocket } from './socket-client.js';
 
 const query = new URLSearchParams(location.search);
-const period = Object.hasOwn(WISH_PERIODS, query.get('period'))
-  ? query.get('period')
-  : 'long';
+const period = Object.hasOwn(WISH_PERIODS, query.get('period')) ? query.get('period') : 'long';
 const preview = query.get('preview') === '1';
 const stage = document.getElementById('giftWishStage');
 const status = document.getElementById('giftWishOverlayStatus');
@@ -23,19 +21,15 @@ const feed = createGiftWishFeed({
       signature = next;
     }
     const messages = [];
-    if (!items.length)
-      messages.push(`还没有${WISH_PERIODS[period]}，请在礼物姬中添加。`);
+    if (!items.length) messages.push(`还没有${WISH_PERIODS[period]}，请在礼物姬中添加。`);
     if (data.partial) messages.push('正在同步已捕获的礼物，进度可能尚未完整。');
-    if (period === 'session' && data.session.stale)
-      messages.push('开播状态暂未确认，已暂停本场计数。');
-    if (period === 'session' && data.session.state === 'offline')
-      messages.push('还未开播，等待本场心愿开始。');
+    if (period === 'session' && data.session.stale) messages.push('开播状态暂未确认，已暂停本场计数。');
+    if (period === 'session' && data.session.state === 'offline') messages.push('还未开播，等待本场心愿开始。');
     status.textContent = messages.join(' ');
     status.hidden = !preview || !messages.length;
   },
   onError(error) {
-    if (['GIFT_SOURCE_UNAVAILABLE', 'GIFT_VIEW_STALE'].includes(error.code))
-      clear();
+    if (['GIFT_SOURCE_UNAVAILABLE', 'GIFT_VIEW_STALE'].includes(error.code)) clear();
     status.textContent = error.message;
     status.hidden = !preview;
   },

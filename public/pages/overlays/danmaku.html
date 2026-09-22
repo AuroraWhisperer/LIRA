@@ -53,29 +53,29 @@
           <span>流光气泡<small>昵称在框上方，经典身份色柔光</small></span>
         </button>
       </div>
-      <p class="danmaku-preview-note">总督、提督、舰长、主播、普通观众<br />文字、表情包与送礼通知<br />共 6 条示例，可滚动查看全部。<br />账号发送的感谢按普通弹幕显示。<br />随机样式在此静态排布，直播时随机出现。<br />不循环、不影响直播。</p>
+      <p class="danmaku-preview-note">
+        总督、提督、舰长、主播、普通观众<br />文字、表情包与送礼通知<br />共 6 条示例，可滚动查看全部。<br />账号发送的感谢按普通弹幕显示。<br />随机样式在此静态排布，直播时随机出现。<br />不循环、不影响直播。
+      </p>
     </aside>
     <div id="danmakuPreviewViewport" class="danmaku-overlay-viewport">
       <p id="danmakuPreviewDescription" class="danmaku-preview-description" role="status"></p>
-    <main class="danmaku-signal-stage">
-      <header class="danmaku-signal-header" aria-label="弹幕接收状态">
-        <span class="danmaku-signal-mark" aria-hidden="true"
-          ><i></i><i></i><i></i><i></i
-        ></span>
-        <span class="danmaku-signal-copy">
-          <small>ROOM SIGNAL / CHAT</small>
-          <strong id="danmakuConnectionState">正在连接弹幕</strong>
-        </span>
-        <span id="danmakuMessageCount" class="danmaku-signal-count">00</span>
-      </header>
-      <section
-        id="danmakuFeed"
-        class="draw-danmaku-feed"
-        role="log"
-        aria-live="polite"
-        aria-relevant="additions"
-      ></section>
-    </main>
+      <main class="danmaku-signal-stage">
+        <header class="danmaku-signal-header" aria-label="弹幕接收状态">
+          <span class="danmaku-signal-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+          <span class="danmaku-signal-copy">
+            <small>ROOM SIGNAL / CHAT</small>
+            <strong id="danmakuConnectionState">正在连接弹幕</strong>
+          </span>
+          <span id="danmakuMessageCount" class="danmaku-signal-count">00</span>
+        </header>
+        <section
+          id="danmakuFeed"
+          class="draw-danmaku-feed"
+          role="log"
+          aria-live="polite"
+          aria-relevant="additions"
+        ></section>
+      </main>
     </div>
     <script type="module" src="/js/overlays/danmaku.js?v=20260901-01"></script>
   </body>

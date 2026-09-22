@@ -15,10 +15,22 @@ test('blind boxes show the actual output and update the same event identity', as
       window: {},
       document: { getElementById: () => ({ checked: true }) },
     };
-    const { createGiftNotification } = await loadModuleExports(path.resolve('public/js/admin/gifts/notification.js'), sandbox);
+    const { createGiftNotification } = await loadModuleExports(
+      path.resolve('public/js/admin/gifts/notification.js'),
+      sandbox,
+    );
     const { notifyNewGift: notify } = createGiftNotification({ notify: (notice) => notices.push(notice) });
-    const gift = { id: 1, is_blind_box: true, gift_name: '测试产物', blind_box_name: box, user_name: '<script>', num: 1 };
-    notify([]); notify([gift]); notify([{ ...gift, num: 2 }]);
+    const gift = {
+      id: 1,
+      is_blind_box: true,
+      gift_name: '测试产物',
+      blind_box_name: box,
+      user_name: '<script>',
+      num: 1,
+    };
+    notify([]);
+    notify([gift]);
+    notify([{ ...gift, num: 2 }]);
     assert.match(notices[0].html, /测试产物 x1/);
     assert.ok(notices[0].html.includes(`来自${box || '盲盒'}`));
     assert.match(notices[0].html, /&lt;script&gt;/);
@@ -32,12 +44,30 @@ test('desktop available and downloaded both notify, immediately or after expiry,
   for (const delay of [0, 10000]) {
     const { documentRef, windowRef, container } = createDom();
     const clock = createClock();
-    const utils = await loadModuleExports(path.resolve('public/js/shared/utils.js'), { document: documentRef, window: windowRef, ...clock });
+    const utils = await loadModuleExports(path.resolve('public/js/shared/utils.js'), {
+      document: documentRef,
+      window: windowRef,
+      ...clock,
+    });
     documentRef.querySelectorAll = () => [];
     let onState;
     const notices = [];
-    windowRef.AdminApp = { utils: { ...utils, showStackedToast: (notice) => { notices.push(notice); return utils.showStackedToast(notice); } } };
-    windowRef.songAssistantDesktop = { onShowUpdatePage() {}, onUpdateState(fn) { onState = fn; }, getInfo: async () => ({}) };
+    windowRef.AdminApp = {
+      utils: {
+        ...utils,
+        showStackedToast: (notice) => {
+          notices.push(notice);
+          return utils.showStackedToast(notice);
+        },
+      },
+    };
+    windowRef.songAssistantDesktop = {
+      onShowUpdatePage() {},
+      onUpdateState(fn) {
+        onState = fn;
+      },
+      getInfo: async () => ({}),
+    };
     vm.runInNewContext(fs.readFileSync('public/js/desktop.js', 'utf8'), { document: documentRef, window: windowRef });
     windowRef.AdminApp.desktop.initDesktopShell();
     onState({ status: 'available', updateVersion: 'A' });
@@ -56,18 +86,27 @@ test('music login action and result remain bound to the prompted platform after 
     const notifications = [];
     const requested = [];
     const state = { selectedSource: 'qq' };
-    const { createProviderOperations } = await loadModuleExports(path.resolve('public/js/playback/operations/provider-operations.js'), {
-      document: { getElementById: () => null },
-      window: { musicAPI: { login: async (platform) => requested.push(platform) } },
-    });
+    const { createProviderOperations } = await loadModuleExports(
+      path.resolve('public/js/playback/operations/provider-operations.js'),
+      {
+        document: { getElementById: () => null },
+        window: { musicAPI: { login: async (platform) => requested.push(platform) } },
+      },
+    );
     const operations = createProviderOperations({
       playbackState: state,
-      providerManager: { refreshAuthState: async ({ platform }) => {
-        requested.push(platform);
-        if (auth === 'error') throw new Error('offline');
-        return { loggedIn: auth };
-      } },
-      renderPlayback() {}, showError(error) { throw error; }, toast() {},
+      providerManager: {
+        refreshAuthState: async ({ platform }) => {
+          requested.push(platform);
+          if (auth === 'error') throw new Error('offline');
+          return { loggedIn: auth };
+        },
+      },
+      renderPlayback() {},
+      showError(error) {
+        throw error;
+      },
+      toast() {},
       U: { showStackedToast: (notice) => notifications.push(notice) },
     });
     operations.showPlaybackLoginPrompt();
@@ -85,15 +124,30 @@ test('music login action and result remain bound to the prompted platform after 
 test('health results including thrown errors replace earlier results under one key', async () => {
   const notifications = [];
   let current;
-  const { createProviderOperations } = await loadModuleExports(path.resolve('public/js/playback/operations/provider-operations.js'));
+  const { createProviderOperations } = await loadModuleExports(
+    path.resolve('public/js/playback/operations/provider-operations.js'),
+  );
   const operations = createProviderOperations({
     playbackState: { selectedSource: 'qq' },
-    providerManager: { checkProviderHealth: async () => { if (current instanceof Error) throw current; return current; } },
-    renderPlayback() {}, toast() {}, showError(error) { throw error; },
+    providerManager: {
+      checkProviderHealth: async () => {
+        if (current instanceof Error) throw current;
+        return current;
+      },
+    },
+    renderPlayback() {},
+    toast() {},
+    showError(error) {
+      throw error;
+    },
     U: { showStackedToast: (notice) => notifications.push(notice) },
   });
-  for (current of [{ ok: true }, { ok: false }, { ok: true }, new Error('offline')]) await operations.checkSelectedMusicProviderHealth();
-  assert.deepEqual(notifications.map((notice) => notice.type), ['success', 'warning', 'success', 'warning']);
+  for (current of [{ ok: true }, { ok: false }, { ok: true }, new Error('offline')])
+    await operations.checkSelectedMusicProviderHealth();
+  assert.deepEqual(
+    notifications.map((notice) => notice.type),
+    ['success', 'warning', 'success', 'warning'],
+  );
   assert.equal(new Set(notifications.map((notice) => notice.key)).size, 1);
   assert.ok(notifications.every((notice) => notice.update));
   assert.equal(operations.getProviderHealth().message, 'offline');
@@ -109,13 +163,26 @@ test('import summaries distinguish success, partial failure, no success and all 
     const notices = [];
     const result = {};
     let reloads = 0;
-    const utils = { value: () => 'song', toast: (message, options) => notices.push({ message, ...options }), api: async () => ({ data }) };
+    const utils = {
+      value: () => 'song',
+      toast: (message, options) => notices.push({ message, ...options }),
+      api: async () => ({ data }),
+    };
     const sandbox = {
       window: {},
-      document: { getElementById: (id) => id === 'importFile' ? { files: [] } : id === 'importResult' ? result : null },
+      document: {
+        getElementById: (id) => (id === 'importFile' ? { files: [] } : id === 'importResult' ? result : null),
+      },
     };
     const { createSongImports } = await loadModuleExports(path.resolve('public/js/admin/import.js'), sandbox);
-    const imports = createSongImports({ utils, state: { reloadAll: async () => { reloads++; } } });
+    const imports = createSongImports({
+      utils,
+      state: {
+        reloadAll: async () => {
+          reloads++;
+        },
+      },
+    });
     sandbox.window.AdminApp = {};
     await imports.importSongs();
     assert.equal(reloads, 1);
@@ -153,12 +220,16 @@ test('an immediate settings toggle reports one contextual failure and restores t
     return elements.get(id);
   };
   const utils = await loadModuleExports(path.resolve('public/js/shared/utils.js'), {
-    document: documentRef, window: windowRef, ...clock,
+    document: documentRef,
+    window: windowRef,
+    ...clock,
     fetch: async () => ({ status: 500, text: async () => JSON.stringify({ ok: false, error: '网络故障' }) }),
   });
   const { createSettingsForm } = await loadModuleExports(path.resolve('public/js/admin/settings-form.js'));
   const form = createSettingsForm({
-    documentRef, ...utils, initLicenseAccountDevice: async () => {},
+    documentRef,
+    ...utils,
+    initLicenseAccountDevice: async () => {},
     blindboxSettings: { init() {} },
     getState: () => ({ getAppState: () => ({ settings: { enableGiftNotification: 'false' } }) }),
   });
@@ -186,20 +257,31 @@ test('audit refuses zero parsed gifts and failed record fetches but accepts a re
       return elements.get(id);
     };
     await loadModuleExports(path.resolve('public/js/gift-audit/index.js'), {
-      document: documentRef, window: windowRef, ...clock,
+      document: documentRef,
+      window: windowRef,
+      ...clock,
       location: { protocol: 'http:', host: 'local.test' },
-      WebSocket: class { static OPEN = 1; }, setInterval() {},
-      fetch: async () => ({ json: async () => {
-        if (scenario === 'failed') throw new Error('offline');
-        return { ok: true, data: { gifts: { recent: [] } } };
-      } }),
+      WebSocket: class {
+        static OPEN = 1;
+      },
+      setInterval() {},
+      fetch: async () => ({
+        json: async () => {
+          if (scenario === 'failed') throw new Error('offline');
+          return { ok: true, data: { gifts: { recent: [] } } };
+        },
+      }),
     });
-    documentRef.getElementById('bubbleHtml').value = scenario === 'zero'
-      ? '<div class="bubble-list"></div>'
-      : '<div class="super-gift-item"><div class="user-name">观众</div><span class="gift-name">小花</span><div class="gift-frame gift-1-50"></div></div>';
+    documentRef.getElementById('bubbleHtml').value =
+      scenario === 'zero'
+        ? '<div class="bubble-list"></div>'
+        : '<div class="super-gift-item"><div class="user-name">观众</div><span class="gift-name">小花</span><div class="gift-frame gift-1-50"></div></div>';
     await elements.get('parseAndCompareBtn').fire('click');
     const notice = documentRef.body.children.find((node) => node.className === 'audit-toast-stack').children[0];
-    assert.match(notice.textContent, scenario === 'zero' ? /未识别到礼物/ : scenario === 'failed' ? /暂时无法核对/ : /疑似漏记/);
+    assert.match(
+      notice.textContent,
+      scenario === 'zero' ? /未识别到礼物/ : scenario === 'failed' ? /暂时无法核对/ : /疑似漏记/,
+    );
     assert.equal(elements.get('comparisonSection').style.display, scenario === 'empty' ? 'block' : 'none');
   }
 });

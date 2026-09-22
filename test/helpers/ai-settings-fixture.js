@@ -10,11 +10,7 @@ const aiResponse = (data) => ({
   json: async () => ({ ok: true, data }),
 });
 
-async function createAiSettingsFixture({
-  config = {},
-  deferInitialConfig = false,
-  request,
-} = {}) {
+async function createAiSettingsFixture({ config = {}, deferInitialConfig = false, request } = {}) {
   const publicConfig = {
     enabled: false,
     trigger: '小米',
@@ -70,10 +66,7 @@ async function createAiSettingsFixture({
       checkValidity: () => true,
       reportValidity: () => true,
       matches(selector) {
-        return (
-          selector.includes(`input[type="${this.type}"]`) ||
-          (tagName === 'select' && selector.includes('select'))
-        );
+        return selector.includes(`input[type="${this.type}"]`) || (tagName === 'select' && selector.includes('select'));
       },
       parentElement: {
         after(node) {
@@ -82,9 +75,7 @@ async function createAiSettingsFixture({
       },
     };
   }
-  for (const [tag, tagName, id] of readAdminHtml().matchAll(
-    /<(\w+)\b[^>]*\bid="(xiaomiAi[^"]+)"[^>]*>/g,
-  )) {
+  for (const [tag, tagName, id] of readAdminHtml().matchAll(/<(\w+)\b[^>]*\bid="(xiaomiAi[^"]+)"[^>]*>/g)) {
     const element = createElement(tagName, id);
     element.type = tag.match(/\btype="([^"]+)"/)?.[1] || 'text';
     element.value = tag.match(/\bvalue="([^"]*)"/)?.[1] || '';
@@ -124,9 +115,7 @@ async function createAiSettingsFixture({
             reply: '你好！有什么可以帮你？',
             endpointAdapted: true,
           });
-        return aiResponse(
-          url === '/api/ai/status' ? { queued: 0 } : publicConfig,
-        );
+        return aiResponse(url === '/api/ai/status' ? { queued: 0 } : publicConfig);
       },
       setTimeout(handler, delay) {
         timers.set(++timerId, { handler, at: clock + delay });
@@ -147,10 +136,7 @@ async function createAiSettingsFixture({
     resolveInitialConfig: () => resolveInitialConfig(aiResponse(publicConfig)),
     saves: () =>
       calls
-        .filter(
-          ({ url, options }) =>
-            url === '/api/ai/config' && options.method === 'PUT',
-        )
+        .filter(({ url, options }) => url === '/api/ai/config' && options.method === 'PUT')
         .map(({ options }) => JSON.parse(options.body)),
     fire(id, type, event = {}) {
       return elements.get(id).listeners[type](event);

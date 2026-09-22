@@ -6,8 +6,11 @@ import { giftSprint } from './sprint.js';
 import { giftRecent } from './recent.js';
 import { giftBlindbox } from './blindbox.js';
 import {
-  initGiftHistoryDrawer, openGiftHistoryDrawer, closeGiftHistoryDrawer,
-  loadGiftHistory, initGiftRecentToggle,
+  initGiftHistoryDrawer,
+  openGiftHistoryDrawer,
+  closeGiftHistoryDrawer,
+  loadGiftHistory,
+  initGiftRecentToggle,
 } from './history.js';
 import { publishGiftPanel } from '../legacy-admin-bridge.js';
 
@@ -16,9 +19,7 @@ export function renderGiftPanel(gifts, sprint, live, diagnostics, settings = {})
   giftDetection.renderDetectionStatus(sprint, live);
 
   // 礼物提示 toggle
-  const notificationToggle = document.getElementById(
-    'enableGiftNotification',
-  );
+  const notificationToggle = document.getElementById('enableGiftNotification');
   if (notificationToggle) {
     notificationToggle.checked = settings.enableGiftNotification !== 'false';
   }

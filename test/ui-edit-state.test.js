@@ -6,11 +6,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { readAdminHtml } = require('./helpers/admin-html');
-const {
-  createDatabases,
-  closeDatabases,
-  clearAllData,
-} = require('../src/storage/database');
+const { createDatabases, closeDatabases, clearAllData } = require('../src/storage/database');
 const { createOvertimeService } = require('../src/overtime');
 
 const { createUiFixture, limits } = require('./helpers/ui-edit-state-fixture');
@@ -19,52 +15,27 @@ const fixture = createUiFixture();
 for (const action of ['add', 'remove']) {
   test(`S7-003: a clean saved random rule becomes dirty after outcome ${action}`, async (t) => {
     const page = await fixture(t);
-    assert.equal(
-      await page.locator('#overtimeSaveRulesBtn').isDisabled(),
-      true,
-    );
+    assert.equal(await page.locator('#overtimeSaveRulesBtn').isDisabled(), true);
     const count = action === 'add' ? 4 : 2;
     await page.evaluate((action) => {
-      document
-        .querySelector(
-          action === 'add' ? '[data-add-outcome]' : '[data-remove-outcome]',
-        )
-        .click();
+      document.querySelector(action === 'add' ? '[data-add-outcome]' : '[data-remove-outcome]').click();
       window.pushState(window.initialState);
     }, action);
     assert.equal(await page.locator('[data-random-outcome]').count(), count);
-    assert.equal(
-      await page.locator('#overtimeSaveRulesBtn').isDisabled(),
-      false,
-    );
-    await page.evaluate(() =>
-      document.getElementById('overtimeSaveRulesBtn').click(),
-    );
-    assert.equal(
-      await page.evaluate(
-        () => window.pendingSaves[0].body.rules[0].outcomes.length,
-      ),
-      count,
-    );
+    assert.equal(await page.locator('#overtimeSaveRulesBtn').isDisabled(), false);
+    await page.evaluate(() => document.getElementById('overtimeSaveRulesBtn').click());
+    assert.equal(await page.evaluate(() => window.pendingSaves[0].body.rules[0].outcomes.length), count);
     await page.evaluate(() => {
       const request = window.pendingSaves[0];
       request.resolve({
         data: { ...window.initialState, rules: request.body.rules },
       });
     });
-    assert.equal(
-      await page.locator('#overtimeSaveRulesBtn').isDisabled(),
-      true,
-    );
+    assert.equal(await page.locator('#overtimeSaveRulesBtn').isDisabled(), true);
     assert.equal(await page.locator('[data-random-outcome]').count(), count);
     if (action === 'remove') {
-      await page.evaluate(() =>
-        document.querySelector('[data-remove-outcome]').click(),
-      );
-      assert.equal(
-        await page.locator('#overtimeSaveRulesBtn').isDisabled(),
-        true,
-      );
+      await page.evaluate(() => document.querySelector('[data-remove-outcome]').click());
+      assert.equal(await page.locator('#overtimeSaveRulesBtn').isDisabled(), true);
     }
   });
 }
@@ -72,8 +43,7 @@ for (const action of ['add', 'remove']) {
 test('S7-005: move controls follow empty, single, first, middle and last positions', async (t) => {
   const page = await fixture(t, 'libraries');
   await page.evaluate(async (limits) => {
-    const { createOvertimeRuleEditor } =
-      await import('/js/admin/overtime-rule-editor.js');
+    const { createOvertimeRuleEditor } = await import('/js/admin/overtime-rule-editor.js');
     const root = document.createElement('div');
     document.body.append(root);
     window.editor = createOvertimeRuleEditor(root, () => {});
@@ -90,18 +60,12 @@ test('S7-005: move controls follow empty, single, first, middle and last positio
         ]);
     window.addRule = (id) => window.editor.createRule({ id, name: id });
     window.move = (index, direction) =>
-      window
-        .rows()
-        [index].querySelector(`[aria-label="将这条规则${direction}移"]`)
-        .click();
-    window.removeRule = (index) =>
-      window.rows()[index].querySelector('[aria-label="删除规则"]').click();
+      window.rows()[index].querySelector(`[aria-label="将这条规则${direction}移"]`).click();
+    window.removeRule = (index) => window.rows()[index].querySelector('[aria-label="删除规则"]').click();
   }, limits);
   assert.deepEqual(await page.evaluate(() => window.bounds()), []);
   await page.evaluate(() => window.addRule('a'));
-  assert.deepEqual(await page.evaluate(() => window.bounds()), [
-    ['a', true, true],
-  ]);
+  assert.deepEqual(await page.evaluate(() => window.bounds()), [['a', true, true]]);
   await page.evaluate(() => window.addRule('b'));
   assert.deepEqual(await page.evaluate(() => window.bounds()), [
     ['a', true, false],
@@ -124,16 +88,11 @@ test('S7-005: move controls follow empty, single, first, middle and last positio
     window.move(2, '上');
     window.move(1, '上');
   });
-  assert.deepEqual(
-    await page.evaluate(() =>
-      window.editor.readRules().map((rule) => [rule.giftId, rule.sortOrder]),
-    ),
-    [
-      ['a', 0],
-      ['b', 1],
-      ['c', 2],
-    ],
-  );
+  assert.deepEqual(await page.evaluate(() => window.editor.readRules().map((rule) => [rule.giftId, rule.sortOrder])), [
+    ['a', 0],
+    ['b', 1],
+    ['c', 2],
+  ]);
   await page.evaluate(() => window.removeRule(2));
   assert.deepEqual(await page.evaluate(() => window.bounds()), [
     ['a', true, false],
@@ -146,15 +105,11 @@ test('S7-005: move controls follow empty, single, first, middle and last positio
     ['c', false, true],
   ]);
   await page.evaluate(() => window.removeRule(0));
-  assert.deepEqual(await page.evaluate(() => window.bounds()), [
-    ['c', true, true],
-  ]);
+  assert.deepEqual(await page.evaluate(() => window.bounds()), [['c', true, true]]);
   await page.evaluate(() => window.removeRule(0));
   assert.deepEqual(await page.evaluate(() => window.bounds()), []);
   await page.evaluate(() => window.addRule('d'));
-  assert.deepEqual(await page.evaluate(() => window.bounds()), [
-    ['d', true, true],
-  ]);
+  assert.deepEqual(await page.evaluate(() => window.bounds()), [['d', true, true]]);
 });
 
 for (const result of [
@@ -183,44 +138,30 @@ for (const result of [
           input.value = '2';
           input.dispatchEvent(new Event('input', { bubbles: true }));
         }
-        document
-          .getElementById('overtimeSaveRulesBtn')
-          .dispatchEvent(new Event('click'));
+        document.getElementById('overtimeSaveRulesBtn').dispatchEvent(new Event('click'));
       }, result);
     if (result === 'success-add' || result === 'success-remove')
       await page.evaluate((result) => {
-        if (result === 'success-add')
-          document.querySelector('[data-add-outcome]').click();
-        else
-          [...document.querySelectorAll('[data-remove-outcome]')]
-            .at(-1)
-            .click();
+        if (result === 'success-add') document.querySelector('[data-add-outcome]').click();
+        else [...document.querySelectorAll('[data-remove-outcome]')].at(-1).click();
       }, result);
     assert.equal(await page.evaluate(() => window.pendingSaves.length), 1);
-    assert.equal(
-      await page.locator('#overtimeSaveRulesBtn').isDisabled(),
-      true,
-    );
+    assert.equal(await page.locator('#overtimeSaveRulesBtn').isDisabled(), true);
     await page.evaluate((result) => {
       const request = window.pendingSaves[0];
-      if (result.startsWith('failure-'))
-        request.reject(new Error('synthetic save failure'));
+      if (result.startsWith('failure-')) request.reject(new Error('synthetic save failure'));
       else
         request.resolve({
           data: { ...window.initialState, rules: request.body.rules },
         });
     }, result);
     const dirty = result !== 'success-unchanged';
-    assert.equal(
-      await page.locator('#overtimeSaveRulesBtn').isDisabled(),
-      !dirty,
-    );
+    assert.equal(await page.locator('#overtimeSaveRulesBtn').isDisabled(), !dirty);
     assert.equal(
       await page.locator('[data-outcome-weight]').first().inputValue(),
       result.endsWith('-edit') ? '3' : '2',
     );
-    const count =
-      result === 'success-add' ? 4 : result === 'success-remove' ? 2 : 3;
+    const count = result === 'success-add' ? 4 : result === 'success-remove' ? 2 : 3;
     assert.equal(await page.locator('[data-random-outcome]').count(), count);
     if (dirty) {
       await page.evaluate(() => {
@@ -228,27 +169,17 @@ for (const result of [
         document.getElementById('overtimeSaveRulesBtn').click();
       });
       assert.equal(
-        await page.evaluate(
-          () => window.pendingSaves[1].body.rules[0].outcomes[0].weight,
-        ),
+        await page.evaluate(() => window.pendingSaves[1].body.rules[0].outcomes[0].weight),
         result.endsWith('-edit') ? 3 : 2,
       );
-      assert.equal(
-        await page.evaluate(
-          () => window.pendingSaves[1].body.rules[0].outcomes.length,
-        ),
-        count,
-      );
+      assert.equal(await page.evaluate(() => window.pendingSaves[1].body.rules[0].outcomes.length), count);
       await page.evaluate(() => {
         const request = window.pendingSaves[1];
         request.resolve({
           data: { ...window.initialState, rules: request.body.rules },
         });
       });
-      assert.equal(
-        await page.locator('#overtimeSaveRulesBtn').isDisabled(),
-        true,
-      );
+      assert.equal(await page.locator('#overtimeSaveRulesBtn').isDisabled(), true);
     }
   });
 }
@@ -265,11 +196,18 @@ test('danmaku panel initializes every shipped style and keeps existing controls 
     window.open = (url) => window.opened.push(url);
     window.AdminApp = { utils: { toast: (message) => window.messages.push(message) } };
     window.liraLicense = {
-      getProfile: async () => ({ state: 'authorized', streamer: {
-        accountName: 'synthetic', songPageUrl: 'https://lira-ui.test/',
-      } }),
-      getOverlaySettings: async () => ({ ok: true, style: 'signal',
-        fullscreenDurationSeconds: 6, overlayUrl: 'https://lira-ui.test/overlay/syntheticKey_123',
+      getProfile: async () => ({
+        state: 'authorized',
+        streamer: {
+          accountName: 'synthetic',
+          songPageUrl: 'https://lira-ui.test/',
+        },
+      }),
+      getOverlaySettings: async () => ({
+        ok: true,
+        style: 'signal',
+        fullscreenDurationSeconds: 6,
+        overlayUrl: 'https://lira-ui.test/overlay/syntheticKey_123',
       }),
     };
     window.fetch = async (url, options) => {
@@ -278,8 +216,13 @@ test('danmaku panel initializes every shipped style and keeps existing controls 
       let data;
       if (url === '/api/bilibili/danmaku/state') {
         data = {
-          loggedIn: true, accountName: '测试账号', accountUid: 123,
-          roomId: 456, roomName: '测试直播间', canSend: true, connected: true,
+          loggedIn: true,
+          accountName: '测试账号',
+          accountUid: 123,
+          roomId: 456,
+          roomName: '测试直播间',
+          canSend: true,
+          connected: true,
           checkinBlessings: JSON.stringify(['测试祝福']),
           fortunePool: JSON.stringify([{ level: '吉', name: '测试签', text: '测试签文', advice: '测试建议' }]),
           customReplyRules: JSON.stringify([{ keyword: '测试关键词', reply: '测试回复', enabled: true }]),
@@ -309,9 +252,10 @@ test('danmaku panel initializes every shipped style and keeps existing controls 
   await page.locator('#danmakuSendBtn').click();
   assert.equal(await page.locator('#danmakuMessage').inputValue(), '');
   assert.match(await page.locator('#danmakuSendResult').textContent(), /已发送：测试弹幕/);
-  assert.deepEqual(await page.evaluate(() => window.requests.find(
-    (request) => request.url === '/api/bilibili/danmaku/send',
-  ).body), { message: '测试弹幕' });
+  assert.deepEqual(
+    await page.evaluate(() => window.requests.find((request) => request.url === '/api/bilibili/danmaku/send').body),
+    { message: '测试弹幕' },
+  );
 
   for (const [id, key] of [
     ['danmakuReplyToggle', 'enableRandomTagReply'],
@@ -333,14 +277,15 @@ test('danmaku panel initializes every shipped style and keeps existing controls 
   }
   await page.locator('#danmakuFixedEditorClose').click();
   assert.equal(await page.locator('[data-fixed-editor]:visible').count(), 0);
-  assert.equal(await page.locator('[data-fixed-open="pk"]').evaluate((button) => button === document.activeElement), true);
-  for (const [id, value] of [
-    ['danmakuCustomReplyList', '测试关键词'],
-  ]) {
+  assert.equal(
+    await page.locator('[data-fixed-open="pk"]').evaluate((button) => button === document.activeElement),
+    true,
+  );
+  for (const [id, value] of [['danmakuCustomReplyList', '测试关键词']]) {
     assert.equal(await page.locator(`#${id} input`).first().inputValue(), value);
   }
   const styleButtons = page.locator('[data-danmaku-style]');
-  for (let index = 0; index < await styleButtons.count(); index += 1) {
+  for (let index = 0; index < (await styleButtons.count()); index += 1) {
     const button = styleButtons.nth(index);
     await button.click();
     assert.equal(await button.getAttribute('aria-pressed'), 'true');
@@ -378,13 +323,9 @@ for (const library of libraries) {
     test(`S7-004: ${library.name} save ${result}`, async (t) => {
       const page = await fixture(t, 'libraries');
       await page.evaluate(async (library) => {
-        const ids = library.ids
-          .map((suffix) => `danmaku${library.name}${suffix}`)
-          .concat(library.extraIds || []);
+        const ids = library.ids.map((suffix) => `danmaku${library.name}${suffix}`).concat(library.extraIds || []);
         for (const id of ids) {
-          const node = document.createElement(
-            /Btn$/.test(id) ? 'button' : /Input$/.test(id) ? 'input' : 'div',
-          );
+          const node = document.createElement(/Btn$/.test(id) ? 'button' : /Input$/.test(id) ? 'input' : 'div');
           node.id = id;
           document.body.append(node);
         }
@@ -396,12 +337,8 @@ for (const library of libraries) {
         });
         window.editor.load(JSON.stringify(library.initial));
         window.list = document.getElementById(`danmaku${library.name}List`);
-        window.saveButton = document.getElementById(
-          `danmaku${library.name}SaveBtn`,
-        );
-        window.statusNode = document.getElementById(
-          `danmaku${library.name}Status`,
-        );
+        window.saveButton = document.getElementById(`danmaku${library.name}SaveBtn`);
+        window.statusNode = document.getElementById(`danmaku${library.name}Status`);
         window.edit = (value) => {
           const input = window.list.querySelector('input');
           input.value = value;
@@ -416,8 +353,7 @@ for (const library of libraries) {
             window.edit('B');
             if (result === 'success-revert') window.edit(' A ');
           } else if (result === 'success-add') {
-            for (const input of document.querySelectorAll('body > input'))
-              input.value = 'new';
+            for (const input of document.querySelectorAll('body > input')) input.value = 'new';
             document.getElementById(`danmaku${library.name}AddBtn`).click();
           } else if (result === 'success-remove') {
             window.list.lastElementChild.querySelector('button').click();
@@ -427,31 +363,18 @@ for (const library of libraries) {
       );
       assert.equal(await page.evaluate(() => window.pendingSaves.length), 1);
       assert.equal(await page.evaluate(() => window.saveButton.disabled), true);
-      await page.evaluate(() =>
-        window.saveButton.dispatchEvent(new Event('click')),
-      );
+      await page.evaluate(() => window.saveButton.dispatchEvent(new Event('click')));
       assert.equal(await page.evaluate(() => window.pendingSaves.length), 1);
-      assert.equal(
-        await page.evaluate(() => window.pendingSaves[0].key),
-        library.key,
-      );
+      assert.equal(await page.evaluate(() => window.pendingSaves[0].key), library.key);
       await page.evaluate((result) => {
-        if (result.startsWith('failure-'))
-          window.pendingSaves[0].reject(new Error('synthetic failure'));
+        if (result.startsWith('failure-')) window.pendingSaves[0].reject(new Error('synthetic failure'));
         else window.pendingSaves[0].resolve();
       }, result);
       const dirty = result !== 'success-unchanged';
-      assert.equal(
-        await page.evaluate(() => window.saveButton.disabled),
-        !dirty,
-      );
+      assert.equal(await page.evaluate(() => window.saveButton.disabled), !dirty);
       assert.equal(
         await page.evaluate(() => window.list.querySelector('input').value),
-        result.endsWith('-edit')
-          ? 'B'
-          : result === 'success-unchanged'
-            ? 'A'
-            : ' A ',
+        result.endsWith('-edit') ? 'B' : result === 'success-unchanged' ? 'A' : ' A ',
       );
       assert.equal(
         await page.evaluate(() => window.list.children.length),
@@ -459,30 +382,16 @@ for (const library of libraries) {
       );
       if (dirty) {
         const before = await page.evaluate(() => window.list.innerHTML);
-        await page.evaluate(
-          (initial) => window.editor.load(JSON.stringify(initial)),
-          library.initial,
-        );
+        await page.evaluate((initial) => window.editor.load(JSON.stringify(initial)), library.initial);
         assert.equal(await page.evaluate(() => window.list.innerHTML), before);
         await page.evaluate(() => window.saveButton.click());
         assert.equal(await page.evaluate(() => window.pendingSaves.length), 2);
-        const saved = await page.evaluate(() =>
-          JSON.parse(window.pendingSaves[1].value),
-        );
-        const first =
-          typeof saved[0] === 'string'
-            ? saved[0]
-            : (saved[0].level ?? saved[0].keyword);
+        const saved = await page.evaluate(() => JSON.parse(window.pendingSaves[1].value));
+        const first = typeof saved[0] === 'string' ? saved[0] : (saved[0].level ?? saved[0].keyword);
         assert.equal(first, result.endsWith('-edit') ? 'B' : 'A');
-        assert.equal(
-          saved.length,
-          result === 'success-add' ? 3 : result === 'success-remove' ? 1 : 2,
-        );
+        assert.equal(saved.length, result === 'success-add' ? 3 : result === 'success-remove' ? 1 : 2);
         await page.evaluate(() => window.pendingSaves[1].resolve());
-        assert.equal(
-          await page.evaluate(() => window.saveButton.disabled),
-          true,
-        );
+        assert.equal(await page.evaluate(() => window.saveButton.disabled), true);
       }
     });
   }
@@ -517,10 +426,7 @@ async function sendState(page, state, type = 'snapshot', adjustment = null) {
 }
 
 async function resolveSnapshot(page, index, state) {
-  await page.evaluate(
-    ({ index, state }) => window.pendingSnapshots[index].resolve(state),
-    { index, state },
-  );
+  await page.evaluate(({ index, state }) => window.pendingSnapshots[index].resolve(state), { index, state });
 }
 
 async function clockValue(page) {
@@ -554,10 +460,7 @@ test('S7-013: same-connection snapshots and updates share the revision guard', a
         appliedDeltaSeconds: 60,
       });
       assert.equal(await clockValue(page), '00:07:00');
-      assert.equal(
-        await page.locator('#overtimeAdjustmentStage').textContent(),
-        '',
-      );
+      assert.equal(await page.locator('#overtimeAdjustmentStage').textContent(), '');
     }
   }
   await sendState(page, snapshot(13, 480), 'overtime:update', {
@@ -565,25 +468,17 @@ test('S7-013: same-connection snapshots and updates share the revision guard', a
     appliedDeltaSeconds: 60,
   });
   assert.equal(await clockValue(page), '00:08:00');
-  assert.match(
-    await page.locator('#overtimeAdjustmentStage').textContent(),
-    /fresh/,
-  );
+  assert.match(await page.locator('#overtimeAdjustmentStage').textContent(), /fresh/);
 });
 
 test('clear-all synchronizes the existing overtime socket and rejects pre-clear HTTP state', async (t) => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'lira-overtime-overlay-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-overtime-overlay-'));
   const db = createDatabases({ dataDir });
   const service = createOvertimeService({ giftDb: db.giftDb });
   t.after(() => {
     service.dispose();
     closeDatabases(db);
-    assert.equal(
-      path.dirname(fs.realpathSync(dataDir)),
-      fs.realpathSync(os.tmpdir()),
-    );
+    assert.equal(path.dirname(fs.realpathSync(dataDir)), fs.realpathSync(os.tmpdir()));
     fs.rmSync(dataDir, { recursive: true, force: true });
   });
   service.act('enable');
@@ -596,10 +491,7 @@ test('clear-all synchronizes the existing overtime socket and rejects pre-clear 
 
   for (let reset = 0; reset < 2; reset += 1) {
     const { songDb, superChatDb, giftDb, musicDb, checkinDb } = db;
-    assert.equal(
-      clearAllData(songDb, superChatDb, giftDb, musicDb, checkinDb).cleared,
-      true,
-    );
+    assert.equal(clearAllData(songDb, superChatDb, giftDb, musicDb, checkinDb).cleared, true);
     service.reloadState();
     await sendState(page, service.getSnapshot());
     assert.equal(await clockValue(page), '00:00:00');
@@ -653,10 +545,7 @@ for (const revision of [10, 11, 12]) {
     await openSocket(page, true);
     await sendState(page, snapshot(11, 360));
     await resolveSnapshot(page, 1, snapshot(revision, 420));
-    assert.equal(
-      await clockValue(page),
-      revision > 11 ? '00:07:00' : '00:06:00',
-    );
+    assert.equal(await clockValue(page), revision > 11 ? '00:07:00' : '00:06:00');
   });
 }
 
@@ -667,8 +556,5 @@ test('S7-013: old-connection HTTP completion is ignored while disconnected', asy
   await page.evaluate(() => window.socketOptions.onClose());
   await resolveSnapshot(page, 0, snapshot(99, 900));
   assert.equal(await clockValue(page), '00:05:00');
-  assert.equal(
-    await page.locator('#overtimeStatusText').textContent(),
-    '连接中断',
-  );
+  assert.equal(await page.locator('#overtimeStatusText').textContent(), '连接中断');
 });

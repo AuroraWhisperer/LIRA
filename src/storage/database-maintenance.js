@@ -3,11 +3,7 @@
 const { now } = require('../shared/utils');
 const { createCloudSongSyncStore } = require('./cloud-song-sync-store');
 
-const {
-  CLEAR_ALL_MATRIX,
-  clearGiftScopeInTransaction,
-  countRows,
-} = require('./database-clear-operations');
+const { CLEAR_ALL_MATRIX, clearGiftScopeInTransaction, countRows } = require('./database-clear-operations');
 const { coordinateClearAll } = require('./database-clear-coordinator');
 
 // ── 清空操作 ──
@@ -15,12 +11,8 @@ const { coordinateClearAll } = require('./database-clear-coordinator');
 function clearSongLibraryData(db) {
   db.exec('BEGIN');
   try {
-    db.prepare(
-      'UPDATE queue SET song_id = NULL WHERE song_id IS NOT NULL',
-    ).run();
-    db.prepare(
-      'UPDATE requests SET song_id = NULL WHERE song_id IS NOT NULL',
-    ).run();
+    db.prepare('UPDATE queue SET song_id = NULL WHERE song_id IS NOT NULL').run();
+    db.prepare('UPDATE requests SET song_id = NULL WHERE song_id IS NOT NULL').run();
     db.prepare('DELETE FROM songs').run();
     db.prepare('DELETE FROM song_categories').run();
     db.prepare('DELETE FROM import_batches').run();
@@ -47,9 +39,7 @@ function clearSongLibraryData(db) {
 function clearSuperChatData(db) {
   db.exec('BEGIN');
   try {
-    const result = db
-      .prepare('SELECT COUNT(*) AS count FROM super_chats')
-      .get();
+    const result = db.prepare('SELECT COUNT(*) AS count FROM super_chats').get();
     const cleared = result ? result.count : 0;
     db.prepare('DELETE FROM super_chats').run();
     db.prepare("DELETE FROM sqlite_sequence WHERE name = 'super_chats'").run();
@@ -69,16 +59,10 @@ function clearSuperChatData(db) {
 function clearPlaybackData(musicDb) {
   musicDb.exec('BEGIN');
   try {
-    const history =
-      (
-        musicDb.prepare('SELECT COUNT(*) AS count FROM play_history').get() ||
-        {}
-      ).count || 0;
+    const history = (musicDb.prepare('SELECT COUNT(*) AS count FROM play_history').get() || {}).count || 0;
     musicDb.prepare('DELETE FROM play_history').run();
     musicDb.prepare('DELETE FROM play_queue_state').run();
-    musicDb
-      .prepare("DELETE FROM sqlite_sequence WHERE name = 'play_history'")
-      .run();
+    musicDb.prepare("DELETE FROM sqlite_sequence WHERE name = 'play_history'").run();
     musicDb.exec('COMMIT');
     return { cleared: true, scope: 'playback', deletedCount: history };
   } catch (error) {
@@ -104,14 +88,7 @@ function clearGiftData(giftDb, options = {}) {
 }
 
 /** Preserve the database facade's positional API. */
-function clearAllData(
-  songDb,
-  superChatDb,
-  giftDb,
-  musicDb,
-  checkinDb,
-  options = {},
-) {
+function clearAllData(songDb, superChatDb, giftDb, musicDb, checkinDb, options = {}) {
   return coordinateClearAll({
     songDb,
     superChatDb,

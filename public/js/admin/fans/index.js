@@ -2,13 +2,7 @@ import { createFanTransferUi } from './transfer-ui.js';
 import { dangerConfirm, toast } from '../../shared/utils.js';
 import { html, renderPeople, renderDetail, renderReminders } from './view.js';
 import { getBilibiliRoomProfileSnapshot } from '../settings-room-profile.js';
-import {
-  profileForm,
-  recordForm,
-  settingsForm,
-  exportForm,
-  guardRosterForm,
-} from './forms.js';
+import { profileForm, recordForm, settingsForm, exportForm, guardRosterForm } from './forms.js';
 
 let instance;
 
@@ -54,15 +48,13 @@ function createFanUi() {
     },
     onReset: async () => {
       state.profile = null;
-      detailNode.innerHTML =
-        '<p class="fan-empty">恢复完成，请重新选择档案。</p>';
+      detailNode.innerHTML = '<p class="fan-empty">恢复完成，请重新选择档案。</p>';
       await load();
     },
   });
 
   async function request(action, payload = {}) {
-    if (!window.fanProfiles)
-      throw new Error('粉丝档案在 Electron 桌面客户端中使用。');
+    if (!window.fanProfiles) throw new Error('粉丝档案在 Electron 桌面客户端中使用。');
     const contextId = state.contextId;
     const result = await window.fanProfiles.invoke({
       action,
@@ -70,25 +62,17 @@ function createFanUi() {
       contextId,
     });
     if (!result.ok) {
-      const error = new Error(
-        result.error || '档案操作失败，未保存的输入仍保留。',
-      );
+      const error = new Error(result.error || '档案操作失败，未保存的输入仍保留。');
       error.existingId = result.existingId;
       throw error;
     }
-    if (action !== 'open' && state.contextId !== contextId)
-      throw new Error('登录状态已变化，请重新打开粉丝档案。');
-    if (
-      action === 'open' &&
-      state.contextId &&
-      state.contextId !== result.contextId
-    ) {
+    if (action !== 'open' && state.contextId !== contextId) throw new Error('登录状态已变化，请重新打开粉丝档案。');
+    if (action === 'open' && state.contextId && state.contextId !== result.contextId) {
       state.profile = null;
       state.selection++;
       state.tab = 'overview';
       get('fanRosterResult').hidden = true;
-      detailNode.innerHTML =
-        '<p class="fan-empty">登录状态已变化，请重新选择档案。</p>';
+      detailNode.innerHTML = '<p class="fan-empty">登录状态已变化，请重新选择档案。</p>';
     }
     state.contextId = result.contextId;
     state.roomId = result.roomId || '';
@@ -122,9 +106,7 @@ function createFanUi() {
         merge.type = 'button';
         merge.textContent = '预览合并草稿';
         merge.addEventListener('click', () => {
-          void transfer
-            .mergeDraft(error.mergeInput, error.existingId)
-            .catch((failure) => showError(failure, true));
+          void transfer.mergeDraft(error.mergeInput, error.existingId).catch((failure) => showError(failure, true));
         });
         node.append(' ', merge);
       }
@@ -132,12 +114,7 @@ function createFanUi() {
   }
 
   function renderSelected() {
-    if (state.profile)
-      detailNode.innerHTML = renderDetail(
-        state.profile,
-        state.tab,
-        state.timelineFilter,
-      );
+    if (state.profile) detailNode.innerHTML = renderDetail(state.profile, state.tab, state.timelineFilter);
     renderList();
   }
 
@@ -150,10 +127,7 @@ function createFanUi() {
       Boolean(get('fanSearch').value || state.filters.length || state.archived),
     );
     list.scrollTop = scroll;
-    get('fanSplit').classList.toggle(
-      'fan-has-selection',
-      Boolean(state.profile),
-    );
+    get('fanSplit').classList.toggle('fan-has-selection', Boolean(state.profile));
     get('fanSplit').classList.toggle('fan-expanded', state.expanded);
   }
 
@@ -203,10 +177,7 @@ function createFanUi() {
     get('fanNewProfileButton').hidden = state.page !== 'profiles';
     get('fanArchivedNotice').hidden = !state.archived;
     for (const node of root.querySelectorAll('[data-fan-page][role="tab"]'))
-      node.setAttribute(
-        'aria-selected',
-        String(node.dataset.fanPage === state.page),
-      );
+      node.setAttribute('aria-selected', String(node.dataset.fanPage === state.page));
   }
 
   function openForm(description, save) {
@@ -219,11 +190,7 @@ function createFanUi() {
     get('fanSaveButton').textContent = description.saveLabel || '保存';
     description.bind?.(form);
     if (!editor.open) editor.showModal();
-    form
-      .querySelector(
-        '[autofocus], textarea, input:not([type="checkbox"]), select',
-      )
-      ?.focus();
+    form.querySelector('[autofocus], textarea, input:not([type="checkbox"]), select')?.focus();
   }
 
   function editProfile(profile = {}, showQuick = false) {
@@ -231,8 +198,7 @@ function createFanUi() {
       try {
         state.profile = await request(profile.id ? 'save' : 'create', payload);
       } catch (error) {
-        if (error.existingId && profile.id && !profile.identity)
-          error.mergeInput = payload;
+        if (error.existingId && profile.id && !profile.identity) error.mergeInput = payload;
         throw error;
       }
       await load();
@@ -277,9 +243,7 @@ function createFanUi() {
     if (name === 'expand') {
       if (quick.open) {
         leaveQuick();
-        document
-          .querySelector('[data-main-page="otherAssistantPage"]')
-          ?.click();
+        document.querySelector('[data-main-page="otherAssistantPage"]')?.click();
         get('otherFanProfilesFeatureTab')?.click();
       }
       state.expanded = !state.expanded;
@@ -296,23 +260,17 @@ function createFanUi() {
     if (name === 'guard-roster') {
       await load(true);
       if (!state.roomId) throw new Error('请先在连接设置中填写直播间号。');
-      openForm(
-        guardRosterForm(
-          state.roomId,
-          getBilibiliRoomProfileSnapshot(state.roomId),
-        ),
-        async (payload) => {
-          const result = await request('sync-guard-roster', payload);
-          const message = result.total
-            ? `房间 ${result.roomId}：新增 ${result.created} 份档案，更新 ${result.updated} 份，跳过 ${result.skipped} 位。`
-            : `房间 ${result.roomId} 当前没有大航海成员。`;
-          get('fanRosterResult').textContent = message;
-          get('fanRosterResult').hidden = false;
-          await load();
-          if (state.profile) await select(state.profile.id, false);
-          return { message };
-        },
-      );
+      openForm(guardRosterForm(state.roomId, getBilibiliRoomProfileSnapshot(state.roomId)), async (payload) => {
+        const result = await request('sync-guard-roster', payload);
+        const message = result.total
+          ? `房间 ${result.roomId}：新增 ${result.created} 份档案，更新 ${result.updated} 份，跳过 ${result.skipped} 位。`
+          : `房间 ${result.roomId} 当前没有大航海成员。`;
+        get('fanRosterResult').textContent = message;
+        get('fanRosterResult').hidden = false;
+        await load();
+        if (state.profile) await select(state.profile.id, false);
+        return { message };
+      });
       return;
     }
     if (name === 'new') {
@@ -349,11 +307,7 @@ function createFanUi() {
     }
     if (name === 'backup') {
       const data = await request('backup');
-      transfer.download(
-        JSON.stringify(data, null, 2),
-        'LIRA-粉丝档案备份.json',
-        'application/json',
-      );
+      transfer.download(JSON.stringify(data, null, 2), 'LIRA-粉丝档案备份.json', 'application/json');
       return;
     }
     if (name === 'restore') {
@@ -371,8 +325,7 @@ function createFanUi() {
     if (name === 'delete-all') {
       const confirmed = await dangerConfirm({
         title: '清除全部档案',
-        message:
-          '当前账号的主列表与已归档档案都会永久删除。建议先保存完整备份；清除后，后续同步仍可重新自动建档。',
+        message: '当前账号的主列表与已归档档案都会永久删除。建议先保存完整备份；清除后，后续同步仍可重新自动建档。',
         deletes: ['全部粉丝档案', '档案内的手记与互动记录', '档案提醒状态'],
         keeps: ['原始礼物账本', '排除名单与档案设置', '现有恢复点'],
         confirmLabel: '确认清除全部档案',
@@ -390,11 +343,7 @@ function createFanUi() {
     }
     if (name === 'export') {
       openForm({ ...exportForm(), saveLabel: '导出 CSV' }, async (payload) =>
-        transfer.download(
-          await request('export-list', payload),
-          'LIRA-粉丝档案列表.csv',
-          'text/csv;charset=utf-8',
-        ),
+        transfer.download(await request('export-list', payload), 'LIRA-粉丝档案列表.csv', 'text/csv;charset=utf-8'),
       );
       return;
     }
@@ -425,9 +374,7 @@ function createFanUi() {
       return;
     }
     if (name === 'edit-record') {
-      const record = state.profile.records.find(
-        (r) => r.id === element.dataset.recordId,
-      );
+      const record = state.profile.records.find((r) => r.id === element.dataset.recordId);
       if (record) editRecord(record.kind, record);
       return;
     }
@@ -477,8 +424,7 @@ function createFanUi() {
     );
     if (!element) return;
     void (async () => {
-      if (element.dataset.fanAction)
-        await action(element.dataset.fanAction, element);
+      if (element.dataset.fanAction) await action(element.dataset.fanAction, element);
       else if (element.dataset.fanId) await select(element.dataset.fanId);
       else if (element.dataset.fanTab) {
         state.tab = element.dataset.fanTab;
@@ -496,11 +442,7 @@ function createFanUi() {
         for (const button of root.querySelectorAll('[data-fan-filter]'))
           button.setAttribute(
             'aria-pressed',
-            String(
-              button.dataset.fanFilter
-                ? state.filters.includes(button.dataset.fanFilter)
-                : !state.filters.length,
-            ),
+            String(button.dataset.fanFilter ? state.filters.includes(button.dataset.fanFilter) : !state.filters.length),
           );
         await load();
       }
@@ -548,8 +490,7 @@ function createFanUi() {
   get('fanRestoreFile').addEventListener('change', () => {
     const file = get('fanRestoreFile').files[0];
     get('fanRestoreFile').value = '';
-    if (file)
-      void transfer.restoreFile(file).catch((error) => showError(error));
+    if (file) void transfer.restoreFile(file).catch((error) => showError(error));
   });
   quick.addEventListener('close', () => {
     if (detailNode.parentNode === get('fanQuickHost')) leaveQuick();

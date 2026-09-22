@@ -61,11 +61,7 @@ test('opening music uploads stay inside the configured data directory', async ()
   };
 
   try {
-    await openingRoutes.routes['POST /api/opening/music'](
-      context,
-      { req: request },
-      response,
-    );
+    await openingRoutes.routes['POST /api/opening/music'](context, { req: request }, response);
     assert.equal(response.status, 200);
     assert.equal(responsePayload.ok, true);
     assert.equal(responsePayload.data.audioName, 'custom.mp3');
@@ -73,26 +69,18 @@ test('opening music uploads stay inside the configured data directory', async ()
     assert.equal(files.length, 1);
     assert.match(files[0], /^opening-.*\.mp3$/);
     assert.equal(responsePayload.data.hasUploadedAudio, true);
-    await openingRoutes.routes['DELETE /api/opening/music'](
-      context,
-      {},
-      response,
-    );
+    await openingRoutes.routes['DELETE /api/opening/music'](context, {}, response);
     assert.equal(responsePayload.data.audioUrl, '');
     assert.equal(responsePayload.data.audioName, '');
     assert.equal(responsePayload.data.hasUploadedAudio, false);
-    assert.ok(
-      fs.existsSync(path.join(openingRoutes.getMusicDir(dataDir), files[0])),
-    );
+    assert.ok(fs.existsSync(path.join(openingRoutes.getMusicDir(dataDir), files[0])));
   } finally {
     fs.rmSync(dataDir, { recursive: true, force: true });
   }
 });
 
 test('opening character uploads validate image signatures and stay inside the data directory', async () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'lira-opening-character-test-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-opening-character-test-'));
   const settings = {
     values: {
       openingEnabled: 'true',
@@ -157,9 +145,7 @@ test('opening character uploads validate image signatures and stay inside the da
     assert.equal(invalid.response.status, 400);
     assert.equal(settings.values.openingCharacterFile, '');
 
-    const png = Buffer.from([
-      0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00,
-    ]);
+    const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]);
     const uploaded = makeResponse();
     await openingRoutes.routes['POST /api/opening/character'](
       context,
@@ -170,26 +156,15 @@ test('opening character uploads validate image signatures and stay inside the da
     assert.equal(uploaded.payload.ok, true);
     assert.equal(uploaded.payload.data.characterName, 'custom.png');
     assert.equal(uploaded.payload.data.hasUploadedCharacter, true);
-    assert.match(
-      uploaded.payload.data.characterUrl,
-      /^\/opening-character\/opening-character-.*\.png$/,
-    );
+    assert.match(uploaded.payload.data.characterUrl, /^\/opening-character\/opening-character-.*\.png$/);
     const files = fs.readdirSync(openingRoutes.getCharacterDir(dataDir));
     assert.equal(files.length, 1);
     assert.equal(files[0], settings.values.openingCharacterFile);
-    await openingRoutes.routes['DELETE /api/opening/character'](
-      context,
-      {},
-      uploaded.response,
-    );
+    await openingRoutes.routes['DELETE /api/opening/character'](context, {}, uploaded.response);
     assert.equal(uploaded.payload.data.characterUrl, '');
     assert.equal(uploaded.payload.data.characterName, '');
     assert.equal(uploaded.payload.data.hasUploadedCharacter, false);
-    assert.ok(
-      fs.existsSync(
-        path.join(openingRoutes.getCharacterDir(dataDir), files[0]),
-      ),
-    );
+    assert.ok(fs.existsSync(path.join(openingRoutes.getCharacterDir(dataDir), files[0])));
   } finally {
     fs.rmSync(dataDir, { recursive: true, force: true });
   }
@@ -214,9 +189,7 @@ test('opening character writes require authentication and only the selected file
   assert.equal(authResponse.status, 401);
   assert.equal(authPayload.ok, false);
 
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'lira-opening-character-media-test-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-opening-character-media-test-'));
   const characterDir = openingRoutes.getCharacterDir(dataDir);
   const fileName = 'opening-character-selected.png';
   const content = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);

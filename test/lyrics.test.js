@@ -7,16 +7,11 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { parseLyricResult, parseWordLyric } = require('../src/music/lyrics');
 const { createLyricsService } = require('../src/music/lyrics-service');
-const {
-  musicCacheKey,
-  writeMusicJsonCache,
-} = require('../src/music/music-cache');
+const { musicCacheKey, writeMusicJsonCache } = require('../src/music/music-cache');
 const { resolveMusicStream } = require('../src/music/stream-resolver');
 
 test('parseWordLyric supports QQ QRC suffix timing', () => {
-  const lines = parseWordLyric(
-    '[1000,1900]jia (1000,900)yi(1900,1000)\n[4000,1000]bing(4000,1000)',
-  );
+  const lines = parseWordLyric('[1000,1900]jia (1000,900)yi(1900,1000)\n[4000,1000]bing(4000,1000)');
 
   assert.equal(lines.length, 2);
   assert.equal(lines[0].text, 'jia yi');
@@ -50,9 +45,7 @@ test('parseLyricResult derives base lines from QRC and aligns alternates within 
 });
 
 test('lyric and stream provider calls retain QQ numeric source identifiers', async (t) => {
-  const cacheRoot = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'live-lyrics-service-'),
-  );
+  const cacheRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'live-lyrics-service-'));
   t.after(() => fs.rmSync(cacheRoot, { recursive: true, force: true }));
 
   let lyricTrack;
@@ -130,9 +123,7 @@ test('stream resolver forwards the selected quality to the provider', async () =
 });
 
 test('lyric service ignores incomplete v4 lyric cache entries', async (t) => {
-  const cacheRoot = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'live-lyrics-cache-version-'),
-  );
+  const cacheRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'live-lyrics-cache-version-'));
   t.after(() => fs.rmSync(cacheRoot, { recursive: true, force: true }));
 
   const lyricCacheDir = path.join(cacheRoot, 'lyrics');

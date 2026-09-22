@@ -14,15 +14,7 @@ const ONLINE_CONTROL_TITLES = {
 };
 
 export function createRenderer(deps) {
-  const {
-    uiRenderer,
-    playbackState,
-    getPlaybackAudio,
-    searchService,
-    homeService,
-    weSingService,
-    escapeHtml,
-  } = deps;
+  const { uiRenderer, playbackState, getPlaybackAudio, searchService, homeService, weSingService, escapeHtml } = deps;
 
   function renderPlayback(playbackAuthState, playbackProviderHealth) {
     const audio = getPlaybackAudio();
@@ -32,21 +24,13 @@ export function createRenderer(deps) {
     renderSourceView();
 
     // 渲染音乐源状态
-    uiRenderer.renderProviderState(
-      playbackAuthState,
-      playbackProviderHealth,
-      playbackState.selectedSource,
-    );
+    uiRenderer.renderProviderState(playbackAuthState, playbackProviderHealth, playbackState.selectedSource);
 
     // 更新"添加到歌单"按钮状态
-    const addToPlaylistBtn = document.getElementById(
-      'playbackAddToPlaylistBtn',
-    );
+    const addToPlaylistBtn = document.getElementById('playbackAddToPlaylistBtn');
     if (addToPlaylistBtn) {
       const track = playbackState.current;
-      const canAdd =
-        playbackState.selectedSource !== 'wesing' &&
-        canAddTrackToPlaylist(track);
+      const canAdd = playbackState.selectedSource !== 'wesing' && canAddTrackToPlaylist(track);
       addToPlaylistBtn.disabled = !canAdd;
       addToPlaylistBtn.title = canAdd
         ? `添加到${track.source === 'netease' ? '网易云音乐' : 'QQ 音乐'}歌单`
@@ -64,16 +48,12 @@ export function createRenderer(deps) {
   // Online providers share discovery/search panels; WeSing owns a separate capture workspace.
   function renderSourceView() {
     const isWeSing = playbackState.selectedSource === 'wesing';
-    document
-      .querySelectorAll('[data-online-source-view]')
-      .forEach((element) => {
-        element.hidden = isWeSing;
-      });
+    document.querySelectorAll('[data-online-source-view]').forEach((element) => {
+      element.hidden = isWeSing;
+    });
     const weSingView = document.getElementById('playbackWeSingView');
     if (weSingView) weSingView.hidden = !isWeSing;
-    document
-      .querySelector('.playback-player-panel')
-      ?.classList.toggle('is-external-source', isWeSing);
+    document.querySelector('.playback-player-panel')?.classList.toggle('is-external-source', isWeSing);
     [
       'playbackPrev',
       'playbackPlayPause',
@@ -99,10 +79,7 @@ export function createRenderer(deps) {
   function canAddTrackToPlaylist(track) {
     if (!track) return false;
     if (track.source === 'qq') return Number(track.sourceSongId) > 0;
-    if (track.source === 'netease')
-      return /^\d+$/.test(
-        String(track.sourceTrackId || '').replace(/^netease:/, ''),
-      );
+    if (track.source === 'netease') return /^\d+$/.test(String(track.sourceTrackId || '').replace(/^netease:/, ''));
     return false;
   }
 
@@ -161,40 +138,25 @@ export function createRenderer(deps) {
 
     if (songName) songName.textContent = pending.songName || track.title || '';
     if (matchInfo) {
-      const reasons = Array.isArray(pending.reasons)
-        ? pending.reasons.join('；')
-        : '';
+      const reasons = Array.isArray(pending.reasons) ? pending.reasons.join('；') : '';
       matchInfo.textContent = `匹配：${track.title || ''} · ${PlaybackUtils.formatTrackMeta(track)} · ${pending.score || 0} 分${reasons ? ' · ' + reasons : ''}`;
     }
-    if (requester)
-      requester.textContent = `点歌人：${pending.requesterName || '观众'}`;
+    if (requester) requester.textContent = `点歌人：${pending.requesterName || '观众'}`;
     if (count)
       count.textContent =
-        playbackState.pendingRequests.length > 1
-          ? `+${playbackState.pendingRequests.length - 1}`
-          : '';
+        playbackState.pendingRequests.length > 1 ? `+${playbackState.pendingRequests.length - 1}` : '';
 
     popup.classList.add('visible');
   }
 
   function renderPlaybackProgress() {
     const audio = getPlaybackAudio();
-    const trackDurationMs = playbackState.current
-      ? playbackState.current.durationMs
-      : 0;
-    uiRenderer.renderProgress(
-      audio,
-      playbackState.restoredTime,
-      trackDurationMs,
-    );
+    const trackDurationMs = playbackState.current ? playbackState.current.durationMs : 0;
+    uiRenderer.renderProgress(audio, playbackState.restoredTime, trackDurationMs);
     uiRenderer.updateMediaSessionPosition(audio);
   }
 
-  function updatePlaybackMediaSession(
-    togglePlayback,
-    playbackPrevious,
-    playbackNext,
-  ) {
+  function updatePlaybackMediaSession(togglePlayback, playbackPrevious, playbackNext) {
     const audio = getPlaybackAudio();
     uiRenderer.updateMediaSession(playbackState.current, audio, {
       onTogglePlayback: togglePlayback,
@@ -210,22 +172,13 @@ export function createRenderer(deps) {
 
   function renderPlaybackHomeResults(action = '', title = '') {
     const homeState = homeService.getHomeState();
-    uiRenderer
-      .getDrawer()
-      .renderContent(
-        homeState.items,
-        homeState.itemType,
-        action,
-        title,
-        homeState.page,
-      );
+    uiRenderer.getDrawer().renderContent(homeState.items, homeState.itemType, action, title, homeState.page);
   }
 
   function renderPlaybackMatchResults(data) {
     const resultNode = document.getElementById('playbackMatchResults');
     if (!resultNode) return;
-    const results =
-      data && Array.isArray(data.results) ? data.results.slice(0, 5) : [];
+    const results = data && Array.isArray(data.results) ? data.results.slice(0, 5) : [];
     if (!results.length) {
       resultNode.innerHTML = '没有找到候选歌曲。';
       return;
@@ -233,9 +186,7 @@ export function createRenderer(deps) {
     resultNode.innerHTML = results
       .map((item) => {
         const track = item.track || {};
-        const reasons = Array.isArray(item.reasons)
-          ? item.reasons.join('；')
-          : '';
+        const reasons = Array.isArray(item.reasons) ? item.reasons.join('；') : '';
         return `
         <div class="match-result-row${item.autoAccept ? ' accepted' : ''}">
           <strong>${escapeHtml(track.title || '')}</strong>

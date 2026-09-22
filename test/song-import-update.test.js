@@ -8,15 +8,8 @@ const { DatabaseSync } = require('node:sqlite');
 const { SONG_SCHEMA } = require('../src/storage/schema');
 const { createSongStore } = require('../src/storage/song-store');
 const songService = require('../src/music/song-service');
-const {
-  previewSongImport,
-  applySongImport,
-} = require('../src/music/song-import-update');
-const {
-  buildSongsWorkbook,
-  parseSongsFromXlsx,
-  buildSongsCsv,
-} = require('../src/music/song-file-codec');
+const { previewSongImport, applySongImport } = require('../src/music/song-import-update');
+const { buildSongsWorkbook, parseSongsFromXlsx, buildSongsCsv } = require('../src/music/song-file-codec');
 const { readZipFiles, createZip } = require('../src/shared/xlsx-codec');
 const { routes } = require('../src/server/routes/song-routes');
 
@@ -30,8 +23,7 @@ function fixture(t) {
     store,
     save: (song) => songService.saveSong(store, song),
     preview: (input) => previewSongImport(store, input),
-    apply: (input, preview) =>
-      applySongImport(store, { ...input, previewToken: preview.previewToken }),
+    apply: (input, preview) => applySongImport(store, { ...input, previewToken: preview.previewToken }),
   };
 }
 
@@ -81,29 +73,16 @@ test('update preview preserves omitted and blank fields and matches exact artist
     invalid: 0,
   });
   assert.equal(plan.changes, undefined);
-  assert.deepEqual(plan.rows[0].differences, [
-    { field: 'requestPrice', before: '舰长', after: '30元SC' },
-  ]);
+  assert.deepEqual(plan.rows[0].differences, [{ field: 'requestPrice', before: '舰长', after: '30元SC' }]);
   assert.equal(store.listRows().length, 2, 'preview does not mutate');
   assert.equal(apply(input, plan).updated, 1);
   const songs = store.listRows();
   const edited = songs.find((song) => song.id === original.id);
   assert.equal(edited.request_price, '30元SC');
-  for (const field of [
-    'song_clip',
-    'tags',
-    'language',
-    'note',
-    'source_platform',
-    'is_enabled',
-    'category_id',
-  ]) {
+  for (const field of ['song_clip', 'tags', 'language', 'note', 'source_platform', 'is_enabled', 'category_id']) {
     assert.equal(edited[field], original[field], field);
   }
-  assert.equal(
-    songs.find((song) => song.id === other.id).request_price,
-    '总督',
-  );
+  assert.equal(songs.find((song) => song.id === other.id).request_price, '总督');
   assert.equal(songs.length, 3);
   assert.throws(() => apply(input, plan), {
     code: 'SONG_IMPORT_PREVIEW_STALE',
@@ -203,15 +182,8 @@ test('invalid rows and conflicting price aliases are visible and block the batch
     conflict: 1,
     invalid: 4,
   });
-  assert.equal(
-    plan.rows[5].differences.find((diff) => diff.field === 'isEnabled').after,
-    false,
-  );
-  assert.equal(
-    plan.rows[5].differences.find((diff) => diff.field === 'requestPrice')
-      .after,
-    '0',
-  );
+  assert.equal(plan.rows[5].differences.find((diff) => diff.field === 'isEnabled').after, false);
+  assert.equal(plan.rows[5].differences.find((diff) => diff.field === 'requestPrice').after, '0');
   assert.throws(() => apply(input, plan), {
     code: 'SONG_IMPORT_PREVIEW_INVALID',
   });
@@ -231,10 +203,9 @@ test('stale song, category, source input or clear option rejects before writes',
   save({ name: '原歌', requestPrice: '舰长' });
   const input = { rows: [{ name: '原歌', requestPrice: '提督' }] };
   let plan = preview(input);
-  assert.throws(
-    () => apply({ rows: [{ name: '原歌', requestPrice: '总督' }] }, plan),
-    { code: 'SONG_IMPORT_PREVIEW_STALE' },
-  );
+  assert.throws(() => apply({ rows: [{ name: '原歌', requestPrice: '总督' }] }, plan), {
+    code: 'SONG_IMPORT_PREVIEW_STALE',
+  });
   assert.throws(() => apply({ ...input, allowEmptyClear: true }, plan), {
     code: 'SONG_IMPORT_PREVIEW_STALE',
   });
@@ -247,10 +218,7 @@ test('stale song, category, source input or clear option rejects before writes',
   assert.throws(() => apply(input, plan), {
     code: 'SONG_IMPORT_PREVIEW_STALE',
   });
-  assert.equal(
-    store.listRows().find((song) => song.name === '原歌').request_price,
-    '舰长',
-  );
+  assert.equal(store.listRows().find((song) => song.name === '原歌').request_price, '舰长');
 });
 
 test('new songs cannot exceed the final 5000-song library boundary while existing updates remain available', (t) => {
@@ -273,9 +241,11 @@ test('new songs cannot exceed the final 5000-song library boundary while existin
   const update = { rows: [{ name: '歌曲0', requestPrice: '舰长' }] };
   apply(update, preview(update));
   assert.equal(store.countSongs(), 5000);
-  db.prepare(
-    'INSERT INTO songs (name, created_at, updated_at) VALUES (?, ?, ?)',
-  ).run('历史超限歌曲', 'fixture', 'fixture');
+  db.prepare('INSERT INTO songs (name, created_at, updated_at) VALUES (?, ?, ?)').run(
+    '历史超限歌曲',
+    'fixture',
+    'fixture',
+  );
   const overLimitUpdate = { rows: [{ name: '歌曲0', requestPrice: '提督' }] };
   const overLimitPlan = preview(overLimitUpdate);
   assert.equal(overLimitPlan.canApply, false);
@@ -303,42 +273,29 @@ test('write failure rolls back updates, inserted categories, rows and import bat
   assert.throws(() => apply(input, plan), /fixture failure/);
   assert.deepEqual(store.listRows(), before);
   assert.deepEqual(store.listCategories(), categories);
-  assert.equal(
-    db.prepare('SELECT COUNT(*) AS count FROM import_batches').get().count,
-    0,
-  );
+  assert.equal(db.prepare('SELECT COUNT(*) AS count FROM import_batches').get().count, 0);
 });
 
 test('update parsing preserves missing columns and empty-name data rows across text and XLSX', (t) => {
   const { preview } = fixture(t);
   const parseTable = textParser();
   for (const separator of ['\t', ',']) {
-    const rows = parseTable(
-      `歌曲名字${separator}点歌价格\n测试${separator}舰长\n${separator}提督`,
-      { preserveMissing: true },
-    );
+    const rows = parseTable(`歌曲名字${separator}点歌价格\n测试${separator}舰长\n${separator}提督`, {
+      preserveMissing: true,
+    });
     assert.equal(rows.length, 2);
     assert.equal(Object.hasOwn(rows[0], 'isEnabled'), false);
     assert.equal(preview({ rows }).counts.invalid, 1);
   }
-  assert.throws(
-    () => parseTable('无表头\t测试歌手', { preserveMissing: true }),
-    /完整十列/,
-  );
-  assert.equal(
-    parseTable('歌\t测试歌手\t\t\t\t\t舰长\t\t\t', { preserveMissing: true })
-      .length,
-    1,
-  );
+  assert.throws(() => parseTable('无表头\t测试歌手', { preserveMissing: true }), /完整十列/);
+  assert.equal(parseTable('歌\t测试歌手\t\t\t\t\t舰长\t\t\t', { preserveMissing: true }).length, 1);
   const files = readZipFiles(
     buildSongsWorkbook([
       { name: '有效', request_price: '舰长' },
       { name: '', request_price: '提督' },
     ]),
   );
-  const xml = files
-    .get('xl/worksheets/sheet1.xml')
-    .replace(/<c r="[B-FH-J]\d+"[\s\S]*?<\/c>/g, '');
+  const xml = files.get('xl/worksheets/sheet1.xml').replace(/<c r="[B-FH-J]\d+"[\s\S]*?<\/c>/g, '');
   files.set('xl/worksheets/sheet1.xml', xml);
   const rows = parseSongsFromXlsx(createZip([...files]), {
     preserveMissing: true,
@@ -380,21 +337,11 @@ test('preview/apply routes use server plans, reject stale requests and publish o
         this.body = JSON.parse(value);
       },
     };
-    await routes[`POST /api/songs/${path}`](
-      context,
-      { body: async () => body },
-      response,
-    );
+    await routes[`POST /api/songs/${path}`](context, { body: async () => body }, response);
     return response;
   }
   const input = { rows: [{ name: '更新导入', requestPrice: '舰长' }] };
-  for (const invalid of [
-    null,
-    [],
-    'text',
-    { base64: 1 },
-    { base64: '', rows: [] },
-  ]) {
+  for (const invalid of [null, [], 'text', { base64: 1 }, { base64: '', rows: [] }]) {
     const response = await call('import-preview', invalid);
     assert.equal(response.status, 400);
     assert.equal(response.body.error, 'SONG_IMPORT_INPUT_INVALID');

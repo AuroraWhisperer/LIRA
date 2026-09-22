@@ -9,10 +9,7 @@
 
   function syncMotion() {
     const paused = reducedMotion.matches || document.hidden || !visible;
-    art.style.setProperty(
-      '--license-motion-play-state',
-      paused ? 'paused' : 'running',
-    );
+    art.style.setProperty('--license-motion-play-state', paused ? 'paused' : 'running');
   }
 
   const observer = new IntersectionObserver(([entry]) => {

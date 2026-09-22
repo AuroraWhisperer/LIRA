@@ -74,10 +74,7 @@ function applyRetentionPolicies(databases, options = {}) {
 
     if (dryRun) {
       // Dry-run: 只统计数量
-      result.giftEventsDeleted = maintenance.countGiftsByPredicate(
-        'source_id IS NULL AND created_at < ?',
-        [threshold],
-      );
+      result.giftEventsDeleted = maintenance.countGiftsByPredicate('source_id IS NULL AND created_at < ?', [threshold]);
     } else {
       // 实际删除：使用维护存储协调删除，确保 pending settlements 被标记为 ignored
       const deleteResult = maintenance.deleteGiftsByPredicate(
@@ -92,22 +89,12 @@ function applyRetentionPolicies(databases, options = {}) {
 
   const requestDays = normalizeDays(policy.requestDays);
   if (requestDays > 0 && databases.songDb) {
-    result.requestsDeleted = deleteOlderThan(
-      databases.songDb,
-      'requests',
-      isoDaysAgo(requestDays),
-      dryRun,
-    );
+    result.requestsDeleted = deleteOlderThan(databases.songDb, 'requests', isoDaysAgo(requestDays), dryRun);
   }
 
   const superChatDays = normalizeDays(policy.superChatDays);
   if (superChatDays > 0 && databases.superChatDb) {
-    result.superChatsDeleted = deleteOlderThan(
-      databases.superChatDb,
-      'super_chats',
-      isoDaysAgo(superChatDays),
-      dryRun,
-    );
+    result.superChatsDeleted = deleteOlderThan(databases.superChatDb, 'super_chats', isoDaysAgo(superChatDays), dryRun);
   }
 
   const cooldownDays = normalizeDays(policy.cooldownDays, 1);
@@ -122,9 +109,7 @@ function applyRetentionPolicies(databases, options = {}) {
       .get(threshold);
     result.cooldownsDeleted = Number(countRow && countRow.count) || 0;
     if (!dryRun && result.cooldownsDeleted > 0) {
-      databases.songDb
-        .prepare('DELETE FROM user_cooldowns WHERE last_request_at < ?')
-        .run(threshold);
+      databases.songDb.prepare('DELETE FROM user_cooldowns WHERE last_request_at < ?').run(threshold);
     }
   }
 
@@ -132,9 +117,7 @@ function applyRetentionPolicies(databases, options = {}) {
 }
 
 function deleteOlderThan(db, tableName, threshold, dryRun) {
-  const countRow = db
-    .prepare(`SELECT COUNT(*) AS count FROM ${tableName} WHERE created_at < ?`)
-    .get(threshold);
+  const countRow = db.prepare(`SELECT COUNT(*) AS count FROM ${tableName} WHERE created_at < ?`).get(threshold);
   const count = Number(countRow && countRow.count) || 0;
   if (!dryRun && count > 0) {
     db.prepare(`DELETE FROM ${tableName} WHERE created_at < ?`).run(threshold);
@@ -146,22 +129,10 @@ function deleteOlderThan(db, tableName, threshold, dryRun) {
 function readRetentionPolicy(settings) {
   const source = settings && typeof settings === 'object' ? settings : {};
   return {
-    giftRawJsonDays: normalizeDays(
-      source.giftRawJsonRetentionDays,
-      DEFAULT_POLICY.giftRawJsonDays,
-    ),
-    giftEventDays: normalizeDays(
-      source.giftEventRetentionDays,
-      DEFAULT_POLICY.giftEventDays,
-    ),
-    requestDays: normalizeDays(
-      source.requestRetentionDays,
-      DEFAULT_POLICY.requestDays,
-    ),
-    superChatDays: normalizeDays(
-      source.superChatRetentionDays,
-      DEFAULT_POLICY.superChatDays,
-    ),
+    giftRawJsonDays: normalizeDays(source.giftRawJsonRetentionDays, DEFAULT_POLICY.giftRawJsonDays),
+    giftEventDays: normalizeDays(source.giftEventRetentionDays, DEFAULT_POLICY.giftEventDays),
+    requestDays: normalizeDays(source.requestRetentionDays, DEFAULT_POLICY.requestDays),
+    superChatDays: normalizeDays(source.superChatRetentionDays, DEFAULT_POLICY.superChatDays),
     cooldownDays: DEFAULT_POLICY.cooldownDays,
   };
 }

@@ -2,10 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {
-  createWebSearchTool,
-  parseRssResults,
-} = require('../src/ai/tools/web-search-tool');
+const { createWebSearchTool, parseRssResults } = require('../src/ai/tools/web-search-tool');
 
 test('web search parses bounded RSS results and decodes XML', async () => {
   let requestedUrl = '';
@@ -20,10 +17,7 @@ test('web search parses bounded RSS results and decodes XML', async () => {
       };
     },
   });
-  const result = await tool.search(
-    { requestTimeoutMs: 3000 },
-    { query: '郑州 演唱会' },
-  );
+  const result = await tool.search({ requestTimeoutMs: 3000 }, { query: '郑州 演唱会' });
   assert.equal(new URL(requestedUrl).searchParams.get('format'), 'rss');
   assert.deepEqual(result.results, [
     {
@@ -43,13 +37,7 @@ test('web search rejects empty or failed responses clearly', async () => {
       },
     }),
   });
-  await assert.rejects(
-    tool.search({}, {}),
-    (error) => error.code === 'WEB_SEARCH_QUERY_MISSING',
-  );
-  await assert.rejects(
-    tool.search({}, { query: 'test' }),
-    (error) => error.code === 'WEB_SEARCH_FAILED',
-  );
+  await assert.rejects(tool.search({}, {}), (error) => error.code === 'WEB_SEARCH_QUERY_MISSING');
+  await assert.rejects(tool.search({}, { query: 'test' }), (error) => error.code === 'WEB_SEARCH_FAILED');
   assert.deepEqual(parseRssResults('<rss><channel /></rss>'), []);
 });

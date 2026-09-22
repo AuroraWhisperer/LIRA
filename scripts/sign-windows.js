@@ -19,11 +19,7 @@
 
 const { execFileSync, spawnSync } = require('node:child_process');
 const path = require('node:path');
-const {
-  redactReleaseOutput,
-  sanitizeCommandError,
-  checkCommandResult,
-} = require('./release-output');
+const { redactReleaseOutput, sanitizeCommandError, checkCommandResult } = require('./release-output');
 
 // RFC 3161 时间戳服务器(优先级顺序)
 const TIMESTAMP_SERVERS = [
@@ -48,10 +44,8 @@ const SIGNTOOL_SEARCH_PATHS = [
  * @returns {Promise<void>}
  */
 exports.default = async function sign(configuration) {
-  const log = (message) =>
-    console.log(redactReleaseOutput(message, process.env));
-  const warn = (message) =>
-    console.warn(redactReleaseOutput(message, process.env));
+  const log = (message) => console.log(redactReleaseOutput(message, process.env));
+  const warn = (message) => console.warn(redactReleaseOutput(message, process.env));
   const filePath = configuration.path;
   log(`[sign-windows] Signing: ${filePath}`);
 
@@ -117,9 +111,7 @@ exports.default = async function sign(configuration) {
       break;
     } catch (error) {
       lastTimestampError = sanitizeCommandError(error, process.env);
-      warn(
-        `[sign-windows] ⚠️  Timestamp server ${tsUrl} failed: ${lastTimestampError.message}`,
-      );
+      warn(`[sign-windows] ⚠️  Timestamp server ${tsUrl} failed: ${lastTimestampError.message}`);
       if (lastTimestampError.stdout) log(lastTimestampError.stdout.trimEnd());
       if (lastTimestampError.stderr) warn(lastTimestampError.stderr.trimEnd());
     }
@@ -133,8 +125,7 @@ exports.default = async function sign(configuration) {
       { cause: lastTimestampError },
     );
     for (const key of ['status', 'code', 'signal']) {
-      if (lastTimestampError?.[key] != null)
-        error[key] = lastTimestampError[key];
+      if (lastTimestampError?.[key] != null) error[key] = lastTimestampError[key];
     }
     throw error;
   }
@@ -169,13 +160,7 @@ function findSigntool() {
   try {
     const result = execFileSync(
       'cmd',
-      [
-        '/c',
-        'dir',
-        '/s',
-        '/b',
-        'C:\\Program Files (x86)\\Windows Kits\\*signtool.exe',
-      ],
+      ['/c', 'dir', '/s', '/b', 'C:\\Program Files (x86)\\Windows Kits\\*signtool.exe'],
       {
         encoding: 'utf8',
         shell: false,

@@ -126,9 +126,7 @@ export class StorageManager {
    */
   async _restoreFromServer() {
     try {
-      const response = await fetch(
-        `/api/playback/queue-state?clientId=${encodeURIComponent(CLIENT_ID)}`,
-      );
+      const response = await fetch(`/api/playback/queue-state?clientId=${encodeURIComponent(CLIENT_ID)}`);
       if (!response.ok) return null;
       const result = await response.json();
       return this._normalizeRestoredState(result?.data?.payload);
@@ -146,10 +144,7 @@ export class StorageManager {
     if (!saved || typeof saved !== 'object') return null;
     const restored = {
       ...saved,
-      restoredTime: Math.max(
-        0,
-        Number(saved.currentTime ?? saved.restoredTime ?? 0),
-      ),
+      restoredTime: Math.max(0, Number(saved.currentTime ?? saved.restoredTime ?? 0)),
     };
     if (!validateState(restored)) return null;
     return normalizeState(restored);
@@ -194,10 +189,7 @@ export class StorageManager {
    * @returns {boolean}
    */
   hasStoredState() {
-    return Boolean(
-      localStorage.getItem(STORAGE_KEY_V2) ||
-      localStorage.getItem(STORAGE_KEY_V1),
-    );
+    return Boolean(localStorage.getItem(STORAGE_KEY_V2) || localStorage.getItem(STORAGE_KEY_V1));
   }
 
   /**

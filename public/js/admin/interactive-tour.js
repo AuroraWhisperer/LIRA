@@ -13,14 +13,10 @@ import {
   TOUR_CONFIG_STEPS,
   claimFirstRunTourFromStorage,
 } from './interactive-tour-config.js';
-import {
-  calculateTooltipPositionImpl,
-  clamp,
-} from './interactive-tour-position.js';
+import { calculateTooltipPositionImpl, clamp } from './interactive-tour-position.js';
 
 export const TOUR_VERSION = TOUR_CONFIG_VERSION;
-export const TOUR_COMPLETION_CHECK_INTERVAL_MS =
-  TOUR_CONFIG_COMPLETION_CHECK_INTERVAL_MS;
+export const TOUR_COMPLETION_CHECK_INTERVAL_MS = TOUR_CONFIG_COMPLETION_CHECK_INTERVAL_MS;
 export const TOUR_FIRST_RUN_SHOWN_KEY = TOUR_CONFIG_FIRST_RUN_SHOWN_KEY;
 export const TOUR_STEPS = TOUR_CONFIG_STEPS;
 export const claimFirstRunTour = claimFirstRunTourFromStorage;
@@ -202,8 +198,7 @@ export function createInteractiveTourController(deps = {}) {
 
     elements.shades.forEach((shade, index) => {
       const rect = shadeRects[index];
-      shade.style.display =
-        rect.width > 0 && rect.height > 0 ? 'block' : 'none';
+      shade.style.display = rect.width > 0 && rect.height > 0 ? 'block' : 'none';
       shade.style.top = `${rect.top}px`;
       shade.style.left = `${rect.left}px`;
       shade.style.width = `${Math.max(0, rect.width)}px`;
@@ -289,28 +284,21 @@ export function createInteractiveTourController(deps = {}) {
       const tooltipRect = elements.tooltip.getBoundingClientRect();
       tooltipSize = { width: tooltipRect.width, height: tooltipRect.height };
     }
-    const calculated = calculateTooltipPosition(
-      targetRect,
-      tooltipSize.width,
-      tooltipSize.height,
-      position,
-      { width: window.innerWidth, height: window.innerHeight },
-    );
+    const calculated = calculateTooltipPosition(targetRect, tooltipSize.width, tooltipSize.height, position, {
+      width: window.innerWidth,
+      height: window.innerHeight,
+    });
 
     elements.tooltip.style.top = `${calculated.top}px`;
     elements.tooltip.style.left = `${calculated.left}px`;
     elements.tooltip.style.transform = 'none';
     elements.tooltip.dataset.position = calculated.position;
-    elements.tooltip.style.setProperty(
-      '--tour-arrow-offset',
-      `${calculated.arrowOffset}px`,
-    );
+    elements.tooltip.style.setProperty('--tour-arrow-offset', `${calculated.arrowOffset}px`);
   }
 
   function renderProgressDots() {
     elements.progress.innerHTML = TOUR_STEPS.map(
-      (_, index) =>
-        `<span class="lira-tour-progress-dot ${index === currentStepIndex ? 'active' : ''}"></span>`,
+      (_, index) => `<span class="lira-tour-progress-dot ${index === currentStepIndex ? 'active' : ''}"></span>`,
     ).join('');
   }
 
@@ -342,8 +330,7 @@ export function createInteractiveTourController(deps = {}) {
     lastLayoutKey = '';
     renderProgressDots();
     elements.prev.disabled = stepIndex === 0;
-    elements.next.textContent =
-      stepIndex === TOUR_STEPS.length - 1 ? '完成' : '下一步';
+    elements.next.textContent = stepIndex === TOUR_STEPS.length - 1 ? '完成' : '下一步';
 
     // 切换到目标页面和标签
     const pageChanged = switchToPage(step.targetPage);
@@ -384,10 +371,7 @@ export function createInteractiveTourController(deps = {}) {
         return;
       }
 
-      checkTimeout = setTimeout(
-        checkCompletion,
-        TOUR_COMPLETION_CHECK_INTERVAL_MS,
-      );
+      checkTimeout = setTimeout(checkCompletion, TOUR_COMPLETION_CHECK_INTERVAL_MS);
     };
 
     void checkCompletion();
@@ -485,10 +469,7 @@ export function createInteractiveTourController(deps = {}) {
     const buttons = [elements.exitStay, elements.exitLeave];
     const currentIndex = buttons.indexOf(document.activeElement);
     const direction = event.shiftKey ? -1 : 1;
-    const nextIndex =
-      currentIndex === -1
-        ? 0
-        : (currentIndex + direction + buttons.length) % buttons.length;
+    const nextIndex = currentIndex === -1 ? 0 : (currentIndex + direction + buttons.length) % buttons.length;
     event.preventDefault();
     buttons[nextIndex].focus();
   });

@@ -73,10 +73,7 @@ export class CacheManager {
 
     // localStorage
     try {
-      localStorage.setItem(
-        CACHE_PREFIX + key,
-        JSON.stringify({ data, timestamp }),
-      );
+      localStorage.setItem(CACHE_PREFIX + key, JSON.stringify({ data, timestamp }));
     } catch (error) {
       // localStorage 满了就只保留内存缓存，不影响功能
       console.warn('[CacheManager] localStorage write failed:', error.message);

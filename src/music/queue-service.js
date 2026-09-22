@@ -2,13 +2,7 @@
 // 点歌队列领域规则；持久化由 storage/queue-store.js 实现。
 'use strict';
 
-const {
-  cleanText,
-  now,
-  timestampToIso,
-  normalizeGuardLevel,
-  normalizePositiveInteger,
-} = require('../shared/utils');
+const { cleanText, now, timestampToIso, normalizeGuardLevel, normalizePositiveInteger } = require('../shared/utils');
 
 function addQueueItem(context, input) {
   const songName = cleanText(input.songName);
@@ -18,45 +12,34 @@ function addQueueItem(context, input) {
   const defaults = context.defaults();
   const store = context.store;
   const queueLimit = Number(settings.queueLimit || defaults.queueLimit);
-  if (
-    Number.isFinite(queueLimit) &&
-    queueLimit > 0 &&
-    store.countActive() >= queueLimit
-  ) {
+  if (Number.isFinite(queueLimit) && queueLimit > 0 && store.countActive() >= queueLimit) {
     throw new Error('点歌队列已达到上限。');
   }
 
-  if (
-    settings.allowDuplicate !== 'true' &&
-    store.findActiveBySongName(songName)
-  ) {
+  if (settings.allowDuplicate !== 'true' && store.findActiveBySongName(songName)) {
     throw new Error('队列里已经有这首歌。');
   }
 
-  const matchedSong = context.findSong
-    ? context.findSong(songName, input.artist)
-    : null;
+  const matchedSong = context.findSong ? context.findSong(songName, input.artist) : null;
   if (settings.onlyFromLibrary === 'true' && !matchedSong) {
     throw new Error('歌库里没有这首歌。');
   }
 
-  const createdAt =
-    timestampToIso(input.messageTimestamp || input.createdAt) || now();
-  const isPinned =
-    input.isPinned === true || input.isPinned === 1 || input.isPinned === 'true'
-      ? 1
-      : 0;
+  const createdAt = timestampToIso(input.messageTimestamp || input.createdAt) || now();
+  const isPinned = input.isPinned === true || input.isPinned === 1 || input.isPinned === 'true' ? 1 : 0;
   return store.insertRequest({
     songId: matchedSong ? matchedSong.id : null,
     songName: matchedSong ? matchedSong.name : songName,
     artist: cleanText(input.artist) || (matchedSong ? matchedSong.artist : ''),
-    categoryName:
-      cleanText(input.categoryName) ||
-      (matchedSong ? matchedSong.category_name : ''),
+    categoryName: cleanText(input.categoryName) || (matchedSong ? matchedSong.category_name : ''),
     requesterUid: cleanText(input.requesterUid),
     fanScope: input.fanScope,
-    identityType: input.requesterIdentityType === 'open_id' ? 'open_id'
-      : input.requesterIdentityType === 'uid' && /^[1-9]\d{0,24}$/.test(cleanText(input.requesterUid)) ? 'uid' : null,
+    identityType:
+      input.requesterIdentityType === 'open_id'
+        ? 'open_id'
+        : input.requesterIdentityType === 'uid' && /^[1-9]\d{0,24}$/.test(cleanText(input.requesterUid))
+          ? 'uid'
+          : null,
     requesterName: cleanText(input.requesterName) || '观众',
     requesterGuardLevel: normalizeGuardLevel(input.requesterGuardLevel),
     requesterMedalName: cleanText(input.requesterMedalName),
@@ -89,8 +72,7 @@ function handleQueueAction(context, action, rawId) {
     return getQueueSnapshot(context);
   }
   if (action === 'delete' || action === 'done' || action === 'skip') {
-    const status =
-      action === 'delete' ? 'deleted' : action === 'skip' ? 'skipped' : 'done';
+    const status = action === 'delete' ? 'deleted' : action === 'skip' ? 'skipped' : 'done';
     context.store.setStatus(id, status, updatedAt);
     return getQueueSnapshot(context);
   }

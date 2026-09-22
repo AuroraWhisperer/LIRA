@@ -1,18 +1,10 @@
 'use strict';
 
 const { setTimeout: delay } = require('node:timers/promises');
-const {
-  createDynamicLotteryStore,
-} = require('../storage/dynamic-lottery-store');
-const {
-  createLotteryDrawStore,
-} = require('../storage/dynamic-lottery-draw-store');
-const {
-  createRequestScheduler,
-} = require('../bilibili/dynamic-lottery/request-scheduler');
-const {
-  createDynamicLotteryService,
-} = require('../bilibili/dynamic-lottery/service');
+const { createDynamicLotteryStore } = require('../storage/dynamic-lottery-store');
+const { createLotteryDrawStore } = require('../storage/dynamic-lottery-draw-store');
+const { createRequestScheduler } = require('../bilibili/dynamic-lottery/request-scheduler');
+const { createDynamicLotteryService } = require('../bilibili/dynamic-lottery/service');
 const { lotteryError } = require('../bilibili/dynamic-lottery/rules');
 
 function unavailableRuntime(code) {
@@ -27,15 +19,9 @@ function unavailableRuntime(code) {
   };
 }
 
-function createDynamicLotteryRuntime({
-  db,
-  auth,
-  fetchImpl = globalThis.fetch,
-}) {
+function createDynamicLotteryRuntime({ db, auth, fetchImpl = globalThis.fetch }) {
   if (!db || !auth) {
-    return unavailableRuntime(
-      !db ? 'LOTTERY_STORAGE_UNAVAILABLE' : 'LOTTERY_DESKTOP_REQUIRED',
-    );
+    return unavailableRuntime(!db ? 'LOTTERY_STORAGE_UNAVAILABLE' : 'LOTTERY_DESKTOP_REQUIRED');
   }
   const clock = {
     nowMs: Date.now,

@@ -2,9 +2,7 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const {
-  createGameWinnerProfileResolver,
-} = require('../src/bilibili/users/game-winner-profile');
+const { createGameWinnerProfileResolver } = require('../src/bilibili/users/game-winner-profile');
 
 test('winner profile resolver uses the recorded viewer uid and shared profile fields', async () => {
   const calls = [];
@@ -19,16 +17,11 @@ test('winner profile resolver uses the recorded viewer uid and shared profile fi
     },
   });
 
-  assert.deepEqual(
-    await resolver({ role: 'viewer', uid: '42', name: '弹幕名' }),
-    {
-      avatarUrl: 'https://i0.hdslb.com/bfs/face/alice.jpg',
-      name: 'Alice',
-    },
-  );
-  assert.deepEqual(calls, [
-    { uid: '42', options: { fields: ['name', 'avatarUrl'] } },
-  ]);
+  assert.deepEqual(await resolver({ role: 'viewer', uid: '42', name: '弹幕名' }), {
+    avatarUrl: 'https://i0.hdslb.com/bfs/face/alice.jpg',
+    name: 'Alice',
+  });
+  assert.deepEqual(calls, [{ uid: '42', options: { fields: ['name', 'avatarUrl'] } }]);
 });
 
 test('winner profile resolver prefers the connected host identity', async () => {
@@ -74,11 +67,8 @@ test('winner profile resolver returns a text-only fallback after lookup failure'
     },
   });
 
-  assert.deepEqual(
-    await resolver({ role: 'viewer', uid: '42', name: 'Alice' }),
-    {
-      avatarUrl: '',
-      name: 'Alice',
-    },
-  );
+  assert.deepEqual(await resolver({ role: 'viewer', uid: '42', name: 'Alice' }), {
+    avatarUrl: '',
+    name: 'Alice',
+  });
 });

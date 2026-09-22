@@ -5,10 +5,7 @@ const test = require('node:test');
 const { giftVariantId } = require('../src/shared/gift-identity');
 const { createOvertimeConsumer } = require('../src/overtime');
 const { clearGiftData } = require('../src/storage/database');
-const {
-  createFixture,
-  fixedRule,
-} = require('./helpers/overtime-service-fixture');
+const { createFixture, fixedRule } = require('./helpers/overtime-service-fixture');
 
 test('progress creates pending, disable ignores it, and old epochs never reopen it', () => {
   const fixture = createFixture();
@@ -92,10 +89,7 @@ for (const pendingProgress of [false, true]) {
           sortOrder: 0,
         },
       ]);
-      if (pendingProgress)
-        consumer.handle(
-          fixture.insertProgressGift({ giftId: 'blind', overtimeEpoch: 1 }),
-        );
+      if (pendingProgress) consumer.handle(fixture.insertProgressGift({ giftId: 'blind', overtimeEpoch: 1 }));
       const event = fixture.insertFinalGift({
         giftId: 'blind',
         overtimeEpoch: 1,
@@ -141,28 +135,14 @@ test('clearing gifts also clears settlements while preserving overtime configura
       )
       .run('a'.repeat(64), timestamp, timestamp).lastInsertRowid;
     fixture.db.giftDb
-      .prepare(
-        'INSERT INTO gift_sync_state (source_id, updated_at) VALUES (?, ?)',
-      )
+      .prepare('INSERT INTO gift_sync_state (source_id, updated_at) VALUES (?, ?)')
       .run(sourceId, timestamp);
-    fixture.db.giftDb
-      .prepare('UPDATE gift_events SET source_id = ? WHERE id = ?')
-      .run(sourceId, event.giftEventId);
+    fixture.db.giftDb.prepare('UPDATE gift_events SET source_id = ? WHERE id = ?').run(sourceId, event.giftEventId);
 
     clearGiftData(fixture.db.giftDb, { sourceId: Number(sourceId) });
 
-    assert.equal(
-      fixture.db.giftDb
-        .prepare('SELECT COUNT(*) AS count FROM gift_events')
-        .get().count,
-      0,
-    );
-    assert.equal(
-      fixture.db.giftDb
-        .prepare('SELECT COUNT(*) AS count FROM overtime_settlements')
-        .get().count,
-      0,
-    );
+    assert.equal(fixture.db.giftDb.prepare('SELECT COUNT(*) AS count FROM gift_events').get().count, 0);
+    assert.equal(fixture.db.giftDb.prepare('SELECT COUNT(*) AS count FROM overtime_settlements').get().count, 0);
     assert.equal(service.getSnapshot().enabled, true);
     assert.equal(service.getSnapshot().rules.length, 1);
   } finally {
@@ -208,8 +188,7 @@ test('same-ID names and prices settle only their bound identity, including repla
       assert.equal(service.getSnapshot().effectiveRemainingMs, expected);
       assert.equal(service.finalizeGift(event), false);
       assert.deepEqual(
-        JSON.parse(fixture.getSettlement(event.giftEventId).rule_snapshot_json)
-          .giftIdentity,
+        JSON.parse(fixture.getSettlement(event.giftEventId).rule_snapshot_json).giftIdentity,
         rule.giftIdentity,
       );
     }
@@ -224,14 +203,8 @@ test('same-ID names and prices settle only their bound identity, including repla
     service = fixture.createService();
     assert.equal(service.getSnapshot().rules.length, 3);
     assert.equal(service.getSnapshot().effectiveRemainingMs, expected);
-    assert.throws(
-      () => service.replaceRules([rules[0], rules[0]]),
-      /duplicate/,
-    );
-    assert.throws(
-      () => service.replaceRules([{ ...rules[0], giftName: '伪造名字' }]),
-      /礼物身份/,
-    );
+    assert.throws(() => service.replaceRules([rules[0], rules[0]]), /duplicate/);
+    assert.throws(() => service.replaceRules([{ ...rules[0], giftName: '伪造名字' }]), /礼物身份/);
   } finally {
     service.dispose();
     fixture.close();
@@ -261,9 +234,7 @@ test('legacy numeric rules retain effects but need reselection, and ignored hist
       overtimeEpoch: 1,
     });
     assert.equal(service.finalizeGift(ignored), false);
-    service.replaceRules([
-      { ...oldRule, giftName: '新礼物', giftIdentity: identity },
-    ]);
+    service.replaceRules([{ ...oldRule, giftName: '新礼物', giftIdentity: identity }]);
     assert.equal(service.getSnapshot().rules[0].bindingStatus, 'bound');
     assert.equal(service.finalizeGift(ignored), false);
     const next = fixture.insertFinalGift({

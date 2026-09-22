@@ -33,7 +33,9 @@ function fixture(t) {
         transport.servePageOrAsset(
           { method, headers: { 'if-none-match': 'cached-page', authorization: 'Bearer synthetic-token' } },
           {
-            setHeader(name, value) { headers[name] = value; },
+            setHeader(name, value) {
+              headers[name] = value;
+            },
             writeHead(code, nextHeaders) {
               status = code;
               headers = { ...headers, ...nextHeaders };
@@ -80,17 +82,25 @@ test('HEAD, standalone toolbox fragments and overlay visits do not retire the ac
     assert.equal(head.html, '');
   }
   for (const pathname of [
-    '/queue', '/lyrics', '/license', '/js/playback/index.js',
-    '/pages/admin/toolbox/settings.html', '/pages/admin/playback/page.html',
+    '/queue',
+    '/lyrics',
+    '/license',
+    '/js/playback/index.js',
+    '/pages/admin/toolbox/settings.html',
+    '/pages/admin/playback/page.html',
   ]) {
     const page = await f.page(pathname);
     assert.equal(page.status, 200, pathname);
     assert.equal(page.writer, null, pathname);
   }
   assert.equal(f.bootCount(), 1);
-  assert.equal(f.store.saveQueueState({
-    currentTime: 38, snapshotVersion: { ...version, sequence: 2 },
-  }).saved, true);
+  assert.equal(
+    f.store.saveQueueState({
+      currentTime: 38,
+      snapshotVersion: { ...version, sequence: 2 },
+    }).saved,
+    true,
+  );
   assert.equal(f.store.getQueueState().payload.currentTime, 38);
 });
 
@@ -104,27 +114,40 @@ for (const savedBeforeNextPage of [false, true]) {
     }
     const unopened = await f.page('/admin');
     assert.ok(unopened.writer.generation > active.writer.generation);
-    assert.equal(f.store.saveQueueState({
-      currentTime: 38, snapshotVersion: { ...version, sequence: 2 },
-    }).saved, true);
+    assert.equal(
+      f.store.saveQueueState({
+        currentTime: 38,
+        snapshotVersion: { ...version, sequence: 2 },
+      }).saved,
+      true,
+    );
     assert.equal(f.store.getQueueState().payload.currentTime, 38);
-    assert.equal(f.store.saveQueueState({
-      currentTime: 42,
-      snapshotVersion: { ...unopened.writer, senderGeneration: 1, sequence: 1 },
-    }).saved, true);
-    assert.equal(f.store.saveQueueState({
-      currentTime: 39, snapshotVersion: { ...version, sequence: 3 },
-    }).saved, false);
+    assert.equal(
+      f.store.saveQueueState({
+        currentTime: 42,
+        snapshotVersion: { ...unopened.writer, senderGeneration: 1, sequence: 1 },
+      }).saved,
+      true,
+    );
+    assert.equal(
+      f.store.saveQueueState({
+        currentTime: 39,
+        snapshotVersion: { ...version, sequence: 3 },
+      }).saved,
+      false,
+    );
     assert.equal(f.store.getQueueState().payload.currentTime, 42);
   });
 }
 
 test('standalone persistence callers must supply an explicit boot writer', async () => {
-  const module = await loadModuleExports(path.resolve(
-    __dirname, '../public/js/playback/operations/state-persistence.js',
-  ));
+  const module = await loadModuleExports(
+    path.resolve(__dirname, '../public/js/playback/operations/state-persistence.js'),
+  );
   assert.throws(() => module.createStatePersistence({}), /播放快照启动信息缺失/);
-  assert.doesNotThrow(() => module.createStatePersistence({
-    snapshotWriter: { writerId: 'explicit-test-owner', generation: 1 },
-  }));
+  assert.doesNotThrow(() =>
+    module.createStatePersistence({
+      snapshotWriter: { writerId: 'explicit-test-owner', generation: 1 },
+    }),
+  );
 });

@@ -29,21 +29,11 @@ for (const sample of samples) {
     assert.equal(page.submissions.length, sample.clientSubmits ? 1 : 0);
     if (sample.clientSubmits) {
       assert.equal(page.submissions[0].password, sample.password);
-      assert.equal(
-        page.getElementById('licenseStatus').textContent,
-        '用户名或密码错误。',
-      );
+      assert.equal(page.getElementById('licenseStatus').textContent, '用户名或密码错误。');
     } else {
-      assert.equal(
-        page.getElementById('licenseStatus').textContent,
-        '请输入密码。',
-      );
+      assert.equal(page.getElementById('licenseStatus').textContent, '请输入密码。');
     }
-    assert.equal(
-      password.value,
-      sample.password,
-      'failed authentication preserves the original input',
-    );
+    assert.equal(password.value, sample.password, 'failed authentication preserves the original input');
   });
 }
 
@@ -61,10 +51,7 @@ for (const sample of samples) {
         ...result,
         fingerprint: {},
       });
-      const digest = crypto
-        .createHash('sha256')
-        .update(sample.password, 'utf8')
-        .digest('hex');
+      const digest = crypto.createHash('sha256').update(sample.password, 'utf8').digest('hex');
       assert.ok(payload.endsWith(`accountPasswordSha256=${digest}`));
     }
   });

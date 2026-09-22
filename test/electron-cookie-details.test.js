@@ -6,18 +6,35 @@ const { toSerializableCookie, toElectronCookieDetails } = require('../src/electr
 
 test('cookie snapshots retain the existing allowlisted fields without mutating input', () => {
   const cookie = Object.freeze({
-    name: 'synthetic', value: 'test-only', domain: '.example.test', path: '/login',
-    secure: true, httpOnly: true, expirationDate: 123456,
-    sameSite: 'strict', hostOnly: false, session: false,
+    name: 'synthetic',
+    value: 'test-only',
+    domain: '.example.test',
+    path: '/login',
+    secure: true,
+    httpOnly: true,
+    expirationDate: 123456,
+    sameSite: 'strict',
+    hostOnly: false,
+    session: false,
   });
   assert.deepEqual(toSerializableCookie(cookie), {
-    name: 'synthetic', value: 'test-only', domain: '.example.test', path: '/login',
-    secure: true, httpOnly: true, expirationDate: 123456,
+    name: 'synthetic',
+    value: 'test-only',
+    domain: '.example.test',
+    path: '/login',
+    secure: true,
+    httpOnly: true,
+    expirationDate: 123456,
   });
   assert.deepEqual(toElectronCookieDetails(cookie), {
     url: 'https://example.test/login',
-    name: 'synthetic', value: 'test-only', domain: '.example.test', path: '/login',
-    secure: true, httpOnly: true, expirationDate: 123456,
+    name: 'synthetic',
+    value: 'test-only',
+    domain: '.example.test',
+    path: '/login',
+    secure: true,
+    httpOnly: true,
+    expirationDate: 123456,
   });
 });
 

@@ -4,10 +4,7 @@ const assert = require('node:assert/strict');
 const { readJsModuleBundle } = require('./helpers/js-module-bundle');
 const test = require('node:test');
 const vm = require('node:vm');
-const {
-  normalizeImportedSongRow,
-  SONG_IMPORT_ALIASES,
-} = require('../src/music/song-import-schema');
+const { normalizeImportedSongRow, SONG_IMPORT_ALIASES } = require('../src/music/song-import-schema');
 
 function loadImportModule() {
   const context = {
@@ -57,20 +54,11 @@ test('text imports use backend price aliases and retain conflicting aliases for 
   const { parseTable } = loadImportModule();
   for (const alias of SONG_IMPORT_ALIASES.requestPrice) {
     for (const separator of [',', '\t']) {
-      const [row] = parseTable(
-        `歌曲名字${separator}${alias}\n别名测试${separator}"30元SC, ""原文""\n第二行"`,
-      );
-      assert.equal(
-        normalizeImportedSongRow(row).requestPrice,
-        '30元SC, "原文"\n第二行',
-      );
+      const [row] = parseTable(`歌曲名字${separator}${alias}\n别名测试${separator}"30元SC, ""原文""\n第二行"`);
+      assert.equal(normalizeImportedSongRow(row).requestPrice, '30元SC, "原文"\n第二行');
     }
   }
-  for (const headers of [
-    '点歌条件\t点歌价格',
-    '点歌价格\trequestPrice',
-    'requestPrice\t点歌说明',
-  ]) {
+  for (const headers of ['点歌条件\t点歌价格', '点歌价格\trequestPrice', 'requestPrice\t点歌说明']) {
     const [conflict] = parseTable(`歌曲名字\t${headers}\n冲突\t舰长\t30元SC`);
     assert.throws(() => normalizeImportedSongRow(conflict), /价格别名冲突/);
     const [same] = parseTable(`歌曲名字\t${headers}\n一致\t舰长\t舰长`);

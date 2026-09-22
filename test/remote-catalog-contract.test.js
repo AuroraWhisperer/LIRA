@@ -34,45 +34,18 @@ test('normalizes only same-origin immutable gift images and rejects duplicate id
     normalizeImagePath('/gift-media/images/a.webp', 'https://api.lirahub.cn'),
     'https://api.lirahub.cn/gift-media/images/a.webp',
   );
-  assert.equal(
-    normalizeImagePath(
-      '/gift-media/images/../secret',
-      'https://api.lirahub.cn',
-    ),
-    '',
-  );
-  assert.equal(
-    normalizeImagePath(
-      '/gift-media/images/nested/hash.webp',
-      'https://api.lirahub.cn',
-    ),
-    '',
-  );
-  assert.equal(
-    normalizeImagePath(
-      '/gift-media/images/hash%2Ewebp',
-      'https://api.lirahub.cn',
-    ),
-    '',
-  );
-  assert.equal(
-    normalizeImagePath('https://evil.example/a.webp', 'https://api.lirahub.cn'),
-    '',
-  );
-  assert.equal(
-    normalizeImagePath('/gift-media/images/a.webp', 'http://evil.example'),
-    '',
-  );
+  assert.equal(normalizeImagePath('/gift-media/images/../secret', 'https://api.lirahub.cn'), '');
+  assert.equal(normalizeImagePath('/gift-media/images/nested/hash.webp', 'https://api.lirahub.cn'), '');
+  assert.equal(normalizeImagePath('/gift-media/images/hash%2Ewebp', 'https://api.lirahub.cn'), '');
+  assert.equal(normalizeImagePath('https://evil.example/a.webp', 'https://api.lirahub.cn'), '');
+  assert.equal(normalizeImagePath('/gift-media/images/a.webp', 'http://evil.example'), '');
   assert.equal(normalizeImageBaseUrl('http://127.0.0.1:13000'), '');
   assert.equal(normalizeImageBaseUrl('https://localhost'), '');
   assert.equal(normalizeImageBaseUrl('https://127.0.0.1'), '');
   assert.equal(normalizeImageBaseUrl('https://[::1]'), '');
   assert.equal(normalizeImageBaseUrl('https://bad_host.example'), '');
   assert.equal(normalizeImageBaseUrl('https://api.lirahub.cn/path'), '');
-  assert.equal(
-    normalizeImagePath('https://api.lirahub.cn/gift-media/images/a.webp'),
-    '',
-  );
+  assert.equal(normalizeImagePath('https://api.lirahub.cn/gift-media/images/a.webp'), '');
 
   const advertisedOrigin = normalizeRemoteCatalog({
     ok: true,
@@ -123,10 +96,7 @@ test('normalizes only same-origin immutable gift images and rejects duplicate id
     normalizeBilibiliImageUrl('https://i0.hdslb.com/bfs/live/source.webp'),
     'https://i0.hdslb.com/bfs/live/source.webp',
   );
-  assert.equal(
-    normalizeBilibiliImageUrl('https://evil.example/source.webp'),
-    '',
-  );
+  assert.equal(normalizeBilibiliImageUrl('https://evil.example/source.webp'), '');
 });
 
 test('requires explicit v2 gift state booleans', () => {
@@ -152,9 +122,7 @@ test('requires explicit v2 gift state booleans', () => {
 });
 
 test('persists and notifies a relation-only catalog update', async () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'lira-remote-catalog-relations-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-remote-catalog-relations-'));
   try {
     let outputGiftId = '602';
     const updates = [];
@@ -186,12 +154,8 @@ test('persists and notifies a relation-only catalog update', async () => {
     await cache.refresh({ force: true });
 
     assert.equal(updates.length, 2);
-    assert.deepEqual(cache.getSnapshot().blindBoxes, [
-      { giftId: '601', outputGiftIds: ['603'] },
-    ]);
-    const persisted = JSON.parse(
-      fs.readFileSync(path.join(dataDir, 'cache', CACHE_FILE_NAME), 'utf8'),
-    );
+    assert.deepEqual(cache.getSnapshot().blindBoxes, [{ giftId: '601', outputGiftIds: ['603'] }]);
+    const persisted = JSON.parse(fs.readFileSync(path.join(dataDir, 'cache', CACHE_FILE_NAME), 'utf8'));
     assert.deepEqual(persisted.blindBoxes, cache.getSnapshot().blindBoxes);
   } finally {
     fs.rmSync(dataDir, { recursive: true, force: true });
@@ -199,9 +163,7 @@ test('persists and notifies a relation-only catalog update', async () => {
 });
 
 test('retains the previous snapshot when a relation reference is invalid', async () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'lira-remote-catalog-invalid-relation-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-remote-catalog-invalid-relation-'));
   try {
     let outputGiftId = '612';
     const cache = createRemoteGiftCatalogCache({
@@ -238,9 +200,7 @@ test('retains the previous snapshot when a relation reference is invalid', async
 });
 
 test('retains the in-memory snapshot when the replacement cannot be persisted', async () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'lira-remote-catalog-write-failure-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-remote-catalog-write-failure-'));
   const cacheDir = path.join(dataDir, 'cache');
   try {
     let giftId = '621';
@@ -267,10 +227,7 @@ test('retains the in-memory snapshot when the replacement cannot be persisted', 
     fs.writeFileSync(cacheDir, 'blocks cache writes');
     giftId = '622';
 
-    await assert.rejects(
-      cache.refresh({ force: true }),
-      (error) => error.code === 'REMOTE_CATALOG_CACHE_WRITE_FAILED',
-    );
+    await assert.rejects(cache.refresh({ force: true }), (error) => error.code === 'REMOTE_CATALOG_CACHE_WRITE_FAILED');
     assert.equal(cache.getGift('621').name, '礼物 621');
     assert.equal(cache.getGift('622'), null);
   } finally {
@@ -279,9 +236,7 @@ test('retains the in-memory snapshot when the replacement cannot be persisted', 
 });
 
 test('does not persist or use a response-advertised image origin without configuration', async () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'lira-remote-catalog-untrusted-origin-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-remote-catalog-untrusted-origin-'));
   try {
     const cache = createRemoteGiftCatalogCache({
       dataDir,
@@ -304,9 +259,7 @@ test('does not persist or use a response-advertised image origin without configu
 
     const snapshot = await cache.refresh({ force: true });
     assert.equal(snapshot.gifts[0].imagePath, '');
-    const persisted = JSON.parse(
-      fs.readFileSync(path.join(dataDir, 'cache', CACHE_FILE_NAME), 'utf8'),
-    );
+    const persisted = JSON.parse(fs.readFileSync(path.join(dataDir, 'cache', CACHE_FILE_NAME), 'utf8'));
     assert.equal(persisted.imageBaseUrl, '');
   } finally {
     fs.rmSync(dataDir, { recursive: true, force: true });
@@ -314,9 +267,7 @@ test('does not persist or use a response-advertised image origin without configu
 });
 
 test('refreshes a persisted snapshot that has no prior check timestamp', async () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'lira-remote-catalog-unchecked-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-remote-catalog-unchecked-'));
   try {
     fs.mkdirSync(path.join(dataDir, 'cache'), { recursive: true });
     fs.writeFileSync(
@@ -351,9 +302,7 @@ test('refreshes a persisted snapshot that has no prior check timestamp', async (
           ok: true,
           version: 'checked',
           updatedAt: UPDATED_AT,
-          gifts: [
-            { id: '498', name: '新礼物', priceRaw: 200, coinType: 'gold' },
-          ],
+          gifts: [{ id: '498', name: '新礼物', priceRaw: 200, coinType: 'gold' }],
         };
       },
     });
@@ -366,9 +315,7 @@ test('refreshes a persisted snapshot that has no prior check timestamp', async (
 });
 
 test('rejects an empty replacement and keeps the last usable remote snapshot', async () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'lira-remote-catalog-empty-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-remote-catalog-empty-'));
   try {
     let call = 0;
     const cache = createRemoteGiftCatalogCache({
@@ -394,17 +341,12 @@ test('rejects an empty replacement and keeps the last usable remote snapshot', a
       },
     });
     await cache.refresh({ force: true });
-    await assert.rejects(
-      cache.refresh({ force: true }),
-      (error) => error.code === 'REMOTE_CATALOG_EMPTY',
-    );
+    await assert.rejects(cache.refresh({ force: true }), (error) => error.code === 'REMOTE_CATALOG_EMPTY');
     assert.deepEqual(
       cache.getSnapshot().gifts.map((gift) => gift.id),
       ['500'],
     );
-    const persisted = JSON.parse(
-      fs.readFileSync(path.join(dataDir, 'cache', CACHE_FILE_NAME), 'utf8'),
-    );
+    const persisted = JSON.parse(fs.readFileSync(path.join(dataDir, 'cache', CACHE_FILE_NAME), 'utf8'));
     assert.equal(persisted.version, '1');
   } finally {
     fs.rmSync(dataDir, { recursive: true, force: true });
@@ -431,9 +373,7 @@ test('strictly normalizes remote booleans and binds restored image paths to the 
     false,
   );
 
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'lira-remote-catalog-origin-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-remote-catalog-origin-'));
   try {
     const cache = createRemoteGiftCatalogCache({
       dataDir,
@@ -495,16 +435,11 @@ test('keeps nonnegative-price gold gifts in the local catalog', () => {
     ['504', '505'],
   );
   assert.equal(snapshot.gifts[0].priceRaw, 0);
-  assert.equal(
-    snapshot.gifts[1].sourceUrl,
-    'https://i0.hdslb.com/bfs/live/paid.webp',
-  );
+  assert.equal(snapshot.gifts[1].sourceUrl, 'https://i0.hdslb.com/bfs/live/paid.webp');
 });
 
 test('retains the validated image origin when later snapshots omit the optional field', async () => {
-  const dataDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), 'lira-remote-catalog-origin-retain-'),
-  );
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-remote-catalog-origin-retain-'));
   try {
     let call = 0;
     const cache = createRemoteGiftCatalogCache({
@@ -531,14 +466,8 @@ test('retains the validated image origin when later snapshots omit the optional 
     });
     const first = await cache.refresh({ force: true });
     const second = await cache.refresh({ force: true });
-    assert.equal(
-      first.gifts[0].imagePath,
-      'https://api.example.test/gift-media/images/cover.webp',
-    );
-    assert.equal(
-      second.gifts[0].imagePath,
-      'https://api.example.test/gift-media/images/cover.webp',
-    );
+    assert.equal(first.gifts[0].imagePath, 'https://api.example.test/gift-media/images/cover.webp');
+    assert.equal(second.gifts[0].imagePath, 'https://api.example.test/gift-media/images/cover.webp');
   } finally {
     fs.rmSync(dataDir, { recursive: true, force: true });
   }

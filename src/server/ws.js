@@ -21,13 +21,9 @@ function createWebSocketHub(options = {}) {
   const closingSockets = new Map();
   const closeTimeoutMs = options.closeTimeoutMs || CLOSE_TIMEOUT_MS;
   let stopped = false;
-  const heartbeatIntervalMs =
-    options.heartbeatIntervalMs || HEARTBEAT_INTERVAL_MS;
+  const heartbeatIntervalMs = options.heartbeatIntervalMs || HEARTBEAT_INTERVAL_MS;
   const socketTimeoutMs = options.socketTimeoutMs || SOCKET_TIMEOUT_MS;
-  const maxPendingBytes = Math.max(
-    1,
-    Math.trunc(Number(options.maxPendingBytes)) || MAX_PENDING_BYTES,
-  );
+  const maxPendingBytes = Math.max(1, Math.trunc(Number(options.maxPendingBytes)) || MAX_PENDING_BYTES);
   let heartbeatTimer = null;
   let snapshotFlushQueued = false;
   let pendingSnapshot = null;
@@ -43,10 +39,7 @@ function createWebSocketHub(options = {}) {
       return;
     }
 
-    const requestUrl = new URL(
-      req.url,
-      `http://${req.headers.host || '127.0.0.1'}`,
-    );
+    const requestUrl = new URL(req.url, `http://${req.headers.host || '127.0.0.1'}`);
     const principal = resolveRequestPrincipal(context, req, requestUrl);
     if (!principal) {
       socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
@@ -57,9 +50,7 @@ function createWebSocketHub(options = {}) {
     // Sandboxed overlays have an opaque origin; only their verified scope may use it.
     const origin = req.headers.origin;
     if (origin) {
-      const allowed = origin === 'null'
-        ? principal.type === 'overlay'
-        : context.allowedOrigins?.includes(origin);
+      const allowed = origin === 'null' ? principal.type === 'overlay' : context.allowedOrigins?.includes(origin);
       if (!allowed) {
         socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
         socket.destroy();
@@ -92,8 +83,7 @@ function createWebSocketHub(options = {}) {
     socket._wsMaxPendingBytes = maxPendingBytes;
 
     sockets.add(socket);
-    if (context.state && context.state.sockets)
-      context.state.sockets.add(socket);
+    if (context.state && context.state.sockets) context.state.sockets.add(socket);
     socket._wsContext = context;
     socket.on('close', () => finishSocket(socket));
     socket.on('error', () => dropSocket(socket));
@@ -156,11 +146,7 @@ function createWebSocketHub(options = {}) {
     if (socket._wsDataHandler) socket.off('data', socket._wsDataHandler);
     socket._wsDataHandler = null;
     sockets.delete(socket);
-    if (
-      socket._wsContext &&
-      socket._wsContext.state &&
-      socket._wsContext.state.sockets
-    ) {
+    if (socket._wsContext && socket._wsContext.state && socket._wsContext.state.sockets) {
       socket._wsContext.state.sockets.delete(socket);
     }
     socket._wsContext = null;
@@ -174,17 +160,9 @@ function createWebSocketHub(options = {}) {
   }
 
   function handleSocketData(socket, chunk) {
-    if (
-      socket._wsCleanedUp ||
-      !sockets.has(socket) ||
-      socket._wsBuffer === null
-    )
-      return;
+    if (socket._wsCleanedUp || !sockets.has(socket) || socket._wsBuffer === null) return;
 
-    socket._wsBuffer =
-      socket._wsBuffer.length === 0
-        ? chunk
-        : Buffer.concat([socket._wsBuffer, chunk]);
+    socket._wsBuffer = socket._wsBuffer.length === 0 ? chunk : Buffer.concat([socket._wsBuffer, chunk]);
     processBufferedFrames(socket);
   }
 
@@ -198,10 +176,10 @@ function createWebSocketHub(options = {}) {
       const lengthCode = buffer[1] & 0x7f;
       if (
         !masked ||
-        (buffer[0] & 0x70) ||
+        buffer[0] & 0x70 ||
         ![0x0, 0x1, 0x2, 0x8, 0x9, 0xa].includes(opcode) ||
         (control && (!fin || lengthCode > 125)) ||
-        (!control && ((opcode === 0x0) !== (socket._wsFragment !== null)))
+        (!control && (opcode === 0x0) !== (socket._wsFragment !== null))
       ) {
         rejectFrame(socket);
         return;
@@ -223,10 +201,7 @@ function createWebSocketHub(options = {}) {
         headerSize = 10;
       }
 
-      if (
-        (lengthCode === 126 && length < 126) ||
-        (lengthCode === 127 && length < 65536)
-      ) {
+      if ((lengthCode === 126 && length < 126) || (lengthCode === 127 && length < 65536)) {
         rejectFrame(socket);
         return;
       }
@@ -243,9 +218,7 @@ function createWebSocketHub(options = {}) {
 
       // Extract and unmask payload
       const payloadStart = headerSize + 4;
-      const payload = Buffer.from(
-        buffer.subarray(payloadStart, payloadStart + length),
-      );
+      const payload = Buffer.from(buffer.subarray(payloadStart, payloadStart + length));
       for (let i = 0; i < payload.length; i++) {
         payload[i] ^= maskKey[i % 4];
       }
@@ -262,8 +235,7 @@ function createWebSocketHub(options = {}) {
         if (payload.length >= 2) {
           const code = payload.readUInt16BE(0);
           const validCode =
-            (code >= 1000 && code <= 1014 && ![1004, 1005, 1006].includes(code)) ||
-            (code >= 3000 && code <= 4999);
+            (code >= 1000 && code <= 1014 && ![1004, 1005, 1006].includes(code)) || (code >= 3000 && code <= 4999);
           if (!validCode) {
             rejectFrame(socket);
             return;
@@ -343,8 +315,7 @@ function createWebSocketHub(options = {}) {
         if (now - socket._lastPongAt > socketTimeoutMs) {
           dropSocket(socket);
         } else {
-          if (!sendWebSocketFrame(socket, Buffer.alloc(0), 0x9))
-            dropSocket(socket);
+          if (!sendWebSocketFrame(socket, Buffer.alloc(0), 0x9)) dropSocket(socket);
         }
       }
     }, heartbeatIntervalMs);
@@ -367,8 +338,7 @@ function createWebSocketHub(options = {}) {
         state: next.context.getState(),
       };
       for (const socket of Array.from(sockets)) {
-        if (!sendWebSocket(socket, payload))
-          dropSocket(socket);
+        if (!sendWebSocket(socket, payload)) dropSocket(socket);
       }
     });
   }
@@ -391,10 +361,7 @@ function createWebSocketHub(options = {}) {
       heartbeatTimer = null;
     }
     for (const socket of Array.from(sockets)) {
-      if (
-        options.shutdownPayload &&
-        !sendWebSocket(socket, options.shutdownPayload)
-      ) {
+      if (options.shutdownPayload && !sendWebSocket(socket, options.shutdownPayload)) {
         dropSocket(socket);
         continue;
       }
@@ -435,12 +402,8 @@ function sendWebSocketFrame(socket, payload, opcode) {
   }
   const frame = Buffer.concat([header, payload]);
   const pendingBytes = Math.max(0, Number(socket.writableLength) || 0);
-  const maxPendingBytes = Math.max(
-    1,
-    Number(socket._wsMaxPendingBytes) || MAX_PENDING_BYTES,
-  );
-  if (socket.destroyed || pendingBytes + frame.length > maxPendingBytes)
-    return false;
+  const maxPendingBytes = Math.max(1, Number(socket._wsMaxPendingBytes) || MAX_PENDING_BYTES);
+  if (socket.destroyed || pendingBytes + frame.length > maxPendingBytes) return false;
   try {
     socket.write(frame);
     return true;

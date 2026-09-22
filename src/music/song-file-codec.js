@@ -9,11 +9,7 @@ const {
   parseSharedStrings,
   parseWorksheetXml,
 } = require('../shared/xlsx-codec');
-const {
-  SONG_EXPORT_HEADERS,
-  SONG_IMPORT_ALIASES,
-  firstValue,
-} = require('./song-import-schema');
+const { SONG_EXPORT_HEADERS, SONG_IMPORT_ALIASES, firstValue } = require('./song-import-schema');
 
 function parseSongsFromXlsx(buffer, { preserveMissing = false } = {}) {
   if (!buffer.length) throw new Error('Excel 文件为空。');
@@ -29,9 +25,7 @@ function parseSongsFromXlsx(buffer, { preserveMissing = false } = {}) {
     },
   });
   if (!worksheetEntry) throw new Error('Excel 文件里没有找到工作表。');
-  const sharedStrings = parseSharedStrings(
-    files.get('xl/sharedStrings.xml') || '',
-  );
+  const sharedStrings = parseSharedStrings(files.get('xl/sharedStrings.xml') || '');
   const table = parseWorksheetXml(files.get(worksheetEntry), sharedStrings);
   if (table.length === 0) return [];
   const header = table[0].map((cell) => cleanText(cell));
@@ -40,23 +34,15 @@ function parseSongsFromXlsx(buffer, { preserveMissing = false } = {}) {
   const bodyRows = hasHeader ? table.slice(1) : table;
   return bodyRows
     .map((row) => {
-      if (
-        preserveMissing &&
-        !hasHeader &&
-        row.length !== SONG_EXPORT_HEADERS.length
-      ) {
+      if (preserveMissing && !hasHeader && row.length !== SONG_EXPORT_HEADERS.length) {
         throw new Error('无表头更新需要完整十列，请使用带表头的模板。');
       }
       const output = {};
       const sourceHeader = hasHeader ? header : SONG_EXPORT_HEADERS;
-      for (let i = 0; i < sourceHeader.length; i += 1)
-        output[sourceHeader[i]] = row[i] || '';
+      for (let i = 0; i < sourceHeader.length; i += 1) output[sourceHeader[i]] = row[i] || '';
       return output;
     })
-    .filter(
-      (row) =>
-        preserveMissing || cleanText(firstValue(row, SONG_IMPORT_ALIASES.name)),
-    );
+    .filter((row) => preserveMissing || cleanText(firstValue(row, SONG_IMPORT_ALIASES.name)));
 }
 
 function songToExportRow(song) {
@@ -76,20 +62,15 @@ function songToExportRow(song) {
 
 function buildSongsCsv(rows) {
   return [SONG_EXPORT_HEADERS.join(',')]
-    .concat(
-      rows.map((song) => songToExportRow(song).map(songCsvCell).join(',')),
-    )
+    .concat(rows.map((song) => songToExportRow(song).map(songCsvCell).join(',')))
     .join('\n');
 }
 
 function songCsvCell(value) {
   const text = String(value || '');
-  const formulaPrefix =
-    /^[\s\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2060-\u206f]*[=+\-@＝＋－＠]/u;
-  const leadingControl =
-    /^[\s\u0000-\u001f\u007f-\u009f]*[\u0000-\u001f\u007f-\u009f]/u;
-  if (!formulaPrefix.test(text) && !leadingControl.test(text))
-    return csvCell(text);
+  const formulaPrefix = /^[\s\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2060-\u206f]*[=+\-@＝＋－＠]/u;
+  const leadingControl = /^[\s\u0000-\u001f\u007f-\u009f]*[\u0000-\u001f\u007f-\u009f]/u;
+  if (!formulaPrefix.test(text) && !leadingControl.test(text)) return csvCell(text);
   // Keep the marker on CSV reimport; never remove an original apostrophe.
   // XLSX uses inlineStr and does not need this CSV-only text marker.
   const cell = csvCell(`'${text}`);
@@ -156,13 +137,7 @@ function buildSongsWorkbook(rows) {
       const rn = ri + 1;
       const cells = row
         .map(
-          (cell, ci) =>
-            '<c r="' +
-            columnName(ci) +
-            rn +
-            '" t="inlineStr"><is><t>' +
-            escapeXml(cell) +
-            '</t></is></c>',
+          (cell, ci) => '<c r="' + columnName(ci) + rn + '" t="inlineStr"><is><t>' + escapeXml(cell) + '</t></is></c>',
         )
         .join('');
       return '<row r="' + rn + '">' + cells + '</row>';

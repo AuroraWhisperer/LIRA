@@ -12,9 +12,7 @@ test('every public ES module only references identifiers it declares or imports'
   const details = findings
     .map(({ file, unresolved }) => {
       const relative = path.relative(PUBLIC_JS_DIR, file);
-      const names = unresolved
-        .map(({ name, line }) => `${name} (line ${line})`)
-        .join(', ');
+      const names = unresolved.map(({ name, line }) => `${name} (line ${line})`).join(', ');
       return `${relative}: ${names}`;
     })
     .join('\n');

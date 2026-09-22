@@ -25,14 +25,8 @@ function normalizeMusicPlatform(value) {
 }
 
 function createMusicProviderRegistry(options = {}) {
-  const authStateProvider =
-    typeof options.getAuthState === 'function'
-      ? options.getAuthState
-      : () => null;
-  const cookieHeaderProvider =
-    typeof options.getCookieHeader === 'function'
-      ? options.getCookieHeader
-      : () => '';
+  const authStateProvider = typeof options.getAuthState === 'function' ? options.getAuthState : () => null;
+  const cookieHeaderProvider = typeof options.getCookieHeader === 'function' ? options.getCookieHeader : () => '';
 
   const providers = {
     qq: new QQMusicProvider({
@@ -53,22 +47,13 @@ function createMusicProviderRegistry(options = {}) {
       return Object.values(providers);
     },
     async healthCheck(platform) {
-      if (platform)
-        return providers[normalizeMusicPlatform(platform)].healthCheck();
-      return Promise.all(
-        Object.values(providers).map((provider) => provider.healthCheck()),
-      );
+      if (platform) return providers[normalizeMusicPlatform(platform)].healthCheck();
+      return Promise.all(Object.values(providers).map((provider) => provider.healthCheck()));
     },
     async getHealthyFallback(preferredPlatform) {
-      const preferred = preferredPlatform
-        ? normalizeMusicPlatform(preferredPlatform)
-        : '';
-      const health = await Promise.all(
-        Object.values(providers).map((provider) => provider.healthCheck()),
-      );
-      return (
-        health.find((item) => item.ok && item.source !== preferred) || null
-      );
+      const preferred = preferredPlatform ? normalizeMusicPlatform(preferredPlatform) : '';
+      const health = await Promise.all(Object.values(providers).map((provider) => provider.healthCheck()));
+      return health.find((item) => item.ok && item.source !== preferred) || null;
     },
   };
 }

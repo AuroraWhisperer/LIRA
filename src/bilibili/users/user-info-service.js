@@ -56,8 +56,7 @@ class UserInfoService {
     if (this.disposed) return emptyIngestResult();
     const uid = normalizeUid(hint && hint.uid);
     if (!uid) return emptyIngestResult();
-    if (source !== 'profile' && !this.matchesActiveRun(context))
-      return emptyIngestResult();
+    if (source !== 'profile' && !this.matchesActiveRun(context)) return emptyIngestResult();
 
     const observedAt = this.now();
     let record = this.records.get(uid);
@@ -76,10 +75,7 @@ class UserInfoService {
 
     const changed = new Set();
     const name = cleanText(hint && hint.name);
-    if (
-      name &&
-      shouldReplaceName(record.evidence.name, name, source, observedAt)
-    ) {
+    if (name && shouldReplaceName(record.evidence.name, name, source, observedAt)) {
       if (record.name !== name) changed.add('name');
       record.name = name;
       record.evidence.name = profileEvidence(source, observedAt, {
@@ -88,24 +84,14 @@ class UserInfoService {
     }
 
     const avatarUrl = normalizeBilibiliAvatarUrl(hint && hint.avatarUrl);
-    if (
-      avatarUrl &&
-      shouldReplaceProfileField(record.evidence.avatarUrl, source, observedAt)
-    ) {
+    if (avatarUrl && shouldReplaceProfileField(record.evidence.avatarUrl, source, observedAt)) {
       if (record.avatarUrl !== avatarUrl) changed.add('avatarUrl');
       record.avatarUrl = avatarUrl;
       record.evidence.avatarUrl = profileEvidence(source, observedAt);
     }
 
     if (source !== 'profile') {
-      this.mergeRoomIdentity(
-        record,
-        hint && hint.roomIdentity,
-        context,
-        source,
-        observedAt,
-        changed,
-      );
+      this.mergeRoomIdentity(record, hint && hint.roomIdentity, context, source, observedAt, changed);
     }
 
     record.seenAt = observedAt;
@@ -121,27 +107,18 @@ class UserInfoService {
   }
 
   async ensure(uid, options = {}) {
-    const selection = normalizeFields(
-      options.fields === undefined ? PROFILE_FIELDS : options.fields,
-      PROFILE_FIELDS,
-    );
+    const selection = normalizeFields(options.fields === undefined ? PROFILE_FIELDS : options.fields, PROFILE_FIELDS);
     for (const field of selection.fields) {
-      if (!PROFILE_FIELDS.includes(field))
-        throw new TypeError(`ensure() does not support field: ${field}`);
+      if (!PROFILE_FIELDS.includes(field)) throw new TypeError(`ensure() does not support field: ${field}`);
     }
 
     const uidKey = normalizeUid(uid);
-    if (!uidKey || !this.matchesRequestedRoom(options.roomId) || this.disposed)
-      return null;
+    if (!uidKey || !this.matchesRequestedRoom(options.roomId) || this.disposed) return null;
     this.cleanupExpired();
-    const explicitRoomId =
-      options.roomId === undefined ? '' : cleanText(options.roomId);
-    const requestedGeneration =
-      explicitRoomId && this.roomScope ? this.roomScope.generation : 0;
+    const explicitRoomId = options.roomId === undefined ? '' : cleanText(options.roomId);
+    const requestedGeneration = explicitRoomId && this.roomScope ? this.roomScope.generation : 0;
     const existing = this.records.get(uidKey);
-    if (
-      selection.fields.every((field) => Boolean(existing && existing[field]))
-    ) {
+    if (selection.fields.every((field) => Boolean(existing && existing[field]))) {
       return this.project(existing, selection);
     }
 
@@ -152,10 +129,7 @@ class UserInfoService {
 
     let request = this.profileRequests.get(uidKey);
     if (!request) {
-      if (
-        !this.profileProvider ||
-        typeof this.profileProvider.fetchProfile !== 'function'
-      ) {
+      if (!this.profileProvider || typeof this.profileProvider.fetchProfile !== 'function') {
         return existing ? this.project(existing, selection) : null;
       }
       const lifecycleToken = this.lifecycleToken;
@@ -167,8 +141,7 @@ class UserInfoService {
       }
       request = Promise.resolve(providerRequest)
         .then((profile) => {
-          if (this.disposed || lifecycleToken !== this.lifecycleToken)
-            return null;
+          if (this.disposed || lifecycleToken !== this.lifecycleToken) return null;
           const snapshot = this.ingestHint(
             {
               uid: uidKey,
@@ -190,8 +163,7 @@ class UserInfoService {
           return null;
         })
         .finally(() => {
-          if (this.profileRequests.get(uidKey) === request)
-            this.profileRequests.delete(uidKey);
+          if (this.profileRequests.get(uidKey) === request) this.profileRequests.delete(uidKey);
         });
       this.profileRequests.set(uidKey, request);
     }
@@ -200,9 +172,7 @@ class UserInfoService {
     if (this.disposed) return null;
     if (
       explicitRoomId &&
-      (!this.roomScope ||
-        this.roomScope.roomId !== explicitRoomId ||
-        this.roomScope.generation !== requestedGeneration)
+      (!this.roomScope || this.roomScope.roomId !== explicitRoomId || this.roomScope.generation !== requestedGeneration)
     ) {
       return null;
     }
@@ -230,35 +200,26 @@ class UserInfoService {
       .map((uid) => this.records.get(uid))
       .filter(Boolean)
       .map((record) => this.project(record, selection))
-      .sort((left, right) =>
-        cleanText(left.name).localeCompare(cleanText(right.name), 'zh-CN'),
-      );
+      .sort((left, right) => cleanText(left.name).localeCompare(cleanText(right.name), 'zh-CN'));
   }
 
   replaceOnlineSnapshot(uids = [], context = {}) {
     if (this.disposed || !this.matchesActiveRun(context)) return false;
-    const normalizedUids = [
-      ...new Set(
-        (Array.isArray(uids) ? uids : []).map(normalizeUid).filter(Boolean),
-      ),
-    ];
+    const normalizedUids = [...new Set((Array.isArray(uids) ? uids : []).map(normalizeUid).filter(Boolean))];
     this.identityCache.replaceOnlineSnapshot(normalizedUids);
     return true;
   }
 
   subscribe(listener, options = {}) {
-    if (typeof listener !== 'function')
-      throw new TypeError('listener must be a function');
+    if (typeof listener !== 'function') throw new TypeError('listener must be a function');
     const selection = normalizeFields(options.fields, ALL_FIELDS);
     if (!this.matchesRequestedRoom(options.roomId)) return () => {};
-    const explicitRoomId =
-      options.roomId === undefined ? '' : cleanText(options.roomId);
+    const explicitRoomId = options.roomId === undefined ? '' : cleanText(options.roomId);
     const subscription = {
       listener,
       selection,
       roomId: explicitRoomId,
-      generation:
-        explicitRoomId && this.roomScope ? this.roomScope.generation : 0,
+      generation: explicitRoomId && this.roomScope ? this.roomScope.generation : 0,
       active: true,
     };
     this.subscriptions.add(subscription);
@@ -274,11 +235,7 @@ class UserInfoService {
     if ((roomId && !ownerUid) || (!roomId && ownerUid)) {
       throw new TypeError('roomId and ownerUid must be provided together');
     }
-    if (
-      this.roomScope &&
-      this.roomScope.roomId === roomId &&
-      this.roomScope.ownerUid === ownerUid
-    ) {
+    if (this.roomScope && this.roomScope.roomId === roomId && this.roomScope.ownerUid === ownerUid) {
       return { ...this.roomScope };
     }
     if (!this.roomScope && !roomId && !ownerUid) {
@@ -301,23 +258,16 @@ class UserInfoService {
     }
 
     this.generation += 1;
-    this.roomScope = roomId
-      ? Object.freeze({ roomId, ownerUid, generation: this.generation })
-      : null;
+    this.roomScope = roomId ? Object.freeze({ roomId, ownerUid, generation: this.generation }) : null;
     this.activeRoomRun = null;
     this.identityCache.clearRoomIndexes();
-    for (const record of this.records.values())
-      this.storeCompatibilityRecord(record, false);
-    for (const item of invalidated)
-      this.notify(item.record, item.changedFields);
-    return this.roomScope
-      ? { ...this.roomScope }
-      : { roomId: '', ownerUid: '', generation: this.generation };
+    for (const record of this.records.values()) this.storeCompatibilityRecord(record, false);
+    for (const item of invalidated) this.notify(item.record, item.changedFields);
+    return this.roomScope ? { ...this.roomScope } : { roomId: '', ownerUid: '', generation: this.generation };
   }
 
   beginRoomRun() {
-    if (!this.roomScope)
-      throw new Error('Cannot begin room run without a room scope.');
+    if (!this.roomScope) throw new Error('Cannot begin room run without a room scope.');
     this.identityCache.replaceOnlineSnapshot([]);
     this.activeRoomRun = Object.freeze({
       ...this.roomScope,
@@ -344,36 +294,20 @@ class UserInfoService {
     this.profileFailures.clear();
   }
 
-  mergeRoomIdentity(
-    record,
-    roomIdentity,
-    context,
-    source,
-    observedAt,
-    changed,
-  ) {
-    if (
-      !roomIdentity ||
-      context.roomIdentityVerified !== true ||
-      !this.roomScope
-    )
-      return;
+  mergeRoomIdentity(record, roomIdentity, context, source, observedAt, changed) {
+    if (!roomIdentity || context.roomIdentityVerified !== true || !this.roomScope) return;
     if (roomIdentity.guardKnown === true) {
       const value = normalizeGuardLevel(roomIdentity.guardLevel);
       const incoming = roomEvidence(value, source, observedAt);
       if (shouldReplaceRoomField(record.room.guard, incoming, observedAt)) {
-        if (!record.room.guard || record.room.guard.value !== value)
-          changed.add('guard');
+        if (!record.room.guard || record.room.guard.value !== value) changed.add('guard');
         record.room.guard = incoming;
       }
     }
     if (roomIdentity.medalKnown !== true) return;
 
     let value = null;
-    if (
-      roomIdentity.fansMedal !== null &&
-      roomIdentity.fansMedal !== undefined
-    ) {
+    if (roomIdentity.fansMedal !== null && roomIdentity.fansMedal !== undefined) {
       value = normalizeFansMedal(roomIdentity.fansMedal);
       if (!value || value.targetUid !== this.roomScope.ownerUid) {
         this.recordDiagnostic('medal-owner-mismatch', record.uid);
@@ -382,10 +316,7 @@ class UserInfoService {
     }
     const incoming = roomEvidence(value, source, observedAt);
     if (shouldReplaceRoomField(record.room.fansMedal, incoming, observedAt)) {
-      if (
-        !record.room.fansMedal ||
-        !sameValue(record.room.fansMedal.value, value)
-      ) {
+      if (!record.room.fansMedal || !sameValue(record.room.fansMedal.value, value)) {
         changed.add('fansMedal');
       }
       record.room.fansMedal = incoming;
@@ -396,21 +327,16 @@ class UserInfoService {
     const snapshot = { uid: record.uid };
     for (const field of selection.fields) {
       if (field === 'name' && record.name) snapshot.name = record.name;
-      if (field === 'avatarUrl' && record.avatarUrl)
-        snapshot.avatarUrl = record.avatarUrl;
+      if (field === 'avatarUrl' && record.avatarUrl) snapshot.avatarUrl = record.avatarUrl;
     }
-    const wantsRoom = selection.fields.some((field) =>
-      ROOM_FIELDS.includes(field),
-    );
+    const wantsRoom = selection.fields.some((field) => ROOM_FIELDS.includes(field));
     if (wantsRoom && this.roomScope) {
       snapshot.room = {
         roomId: this.roomScope.roomId,
         ownerUid: this.roomScope.ownerUid,
       };
       if (selection.fields.includes('guard')) {
-        snapshot.guard = record.room.guard
-          ? { known: true, level: record.room.guard.value }
-          : { known: false };
+        snapshot.guard = record.room.guard ? { known: true, level: record.room.guard.value } : { known: false };
       }
       if (selection.fields.includes('fansMedal')) {
         snapshot.fansMedal = record.room.fansMedal
@@ -435,9 +361,7 @@ class UserInfoService {
         this.subscriptions.delete(subscription);
         continue;
       }
-      const projectedChanges = changedFields.filter((field) =>
-        subscription.selection.fields.includes(field),
-      );
+      const projectedChanges = changedFields.filter((field) => subscription.selection.fields.includes(field));
       if (projectedChanges.length === 0) continue;
       try {
         subscription.listener({
@@ -455,9 +379,7 @@ class UserInfoService {
   matchesRequestedRoom(roomId) {
     if (roomId === undefined) return true;
     const requested = cleanText(roomId);
-    return Boolean(
-      this.roomScope && requested && this.roomScope.roomId === requested,
-    );
+    return Boolean(this.roomScope && requested && this.roomScope.roomId === requested);
   }
 
   matchesActiveRun(context) {
@@ -504,10 +426,7 @@ class UserInfoService {
     };
     if (typeof this.diagnostics === 'function') {
       this.diagnostics(entry);
-    } else if (
-      this.diagnostics &&
-      typeof this.diagnostics.record === 'function'
-    ) {
+    } else if (this.diagnostics && typeof this.diagnostics.record === 'function') {
       this.diagnostics.record(entry);
     }
   }

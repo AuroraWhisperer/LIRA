@@ -2,10 +2,7 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const {
-  createBlindboxFixture,
-  flushBlindboxTasks,
-} = require('./helpers/frontend-blindbox-fixture');
+const { createBlindboxFixture, flushBlindboxTasks } = require('./helpers/frontend-blindbox-fixture');
 
 test('blind-box catalog events do not depend on the legacy gift registry', async () => {
   const fixture = await createBlindboxFixture();
@@ -58,11 +55,7 @@ test('blind-box mapping shows room gifts by default and expands the remaining ma
   const { applyOfficialCatalogSnapshot, renderBlindBoxList } = fixture.module;
   applyOfficialCatalogSnapshot(snapshot);
 
-  assert.equal(
-    fixture.fetchCalls.filter(({ url }) => url === '/api/overtime/gifts')
-      .length,
-    0,
-  );
+  assert.equal(fixture.fetchCalls.filter(({ url }) => url === '/api/overtime/gifts').length, 0);
   assert.equal(fixture.refreshRequests.length, 1);
   assert.equal(fixture.fetchCalls.at(-1).url, '/api/overtime/gifts/refresh');
   assert.equal(fixture.fetchCalls.at(-1).options.method, 'POST');
@@ -78,11 +71,7 @@ test('blind-box mapping shows room gifts by default and expands the remaining ma
   });
 
   const renderedNames = () =>
-    [
-      ...fixture.container.innerHTML.matchAll(
-        /<span class="bb-chip-name">([^<]+)<\/span>/g,
-      ),
-    ].map(([, name]) => name);
+    [...fixture.container.innerHTML.matchAll(/<span class="bb-chip-name">([^<]+)<\/span>/g)].map(([, name]) => name);
   assert.deepEqual(renderedNames(), [
     '在售官方盒甲',
     '在售官方盒乙',
@@ -91,11 +80,7 @@ test('blind-box mapping shows room gifts by default and expands the remaining ma
     '历史官方盒',
     '主播自定义盒',
   ]);
-  assert.deepEqual(fixture.visibleNames(), [
-    '在售官方盒甲',
-    '在售官方盒乙',
-    '在售自定义盒',
-  ]);
+  assert.deepEqual(fixture.visibleNames(), ['在售官方盒甲', '在售官方盒乙', '在售自定义盒']);
   assert.equal(fixture.listToggle.hidden, false);
   assert.equal(fixture.listToggle.textContent, '展开其余盲盒（3） ▾');
   fixture.listToggle.setAttribute('aria-expanded', 'true');
@@ -106,11 +91,7 @@ test('blind-box mapping shows room gifts by default and expands the remaining ma
   assert.deepEqual(fixture.visibleNames(), renderedNames());
   fixture.listToggle.setAttribute('aria-expanded', 'false');
   renderBlindBoxList();
-  assert.deepEqual(fixture.visibleNames(), [
-    '在售官方盒甲',
-    '在售官方盒乙',
-    '在售自定义盒',
-  ]);
+  assert.deepEqual(fixture.visibleNames(), ['在售官方盒甲', '在售官方盒乙', '在售自定义盒']);
 
   assert.deepEqual(JSON.parse(JSON.stringify(catalogEvents)), [
     {
@@ -121,23 +102,12 @@ test('blind-box mapping shows room gifts by default and expands the remaining ma
     },
   ]);
   assert.match(fixture.container.innerHTML, /官方盲盒/);
-  assert.match(
-    fixture.container.innerHTML,
-    /官方产物<small>#101<\/small><small>¥3\.00<\/small>/,
-  );
-  assert.match(
-    fixture.container.innerHTML,
-    /<span class="bb-chip-source">官方<\/span>/,
-  );
+  assert.match(fixture.container.innerHTML, /官方产物<small>#101<\/small><small>¥3\.00<\/small>/);
+  assert.match(fixture.container.innerHTML, /<span class="bb-chip-source">官方<\/span>/);
   assert.match(fixture.container.innerHTML, /主播自定义盒/);
-  assert.equal(
-    (fixture.container.innerHTML.match(/class="chip-delete"/g) || []).length,
-    2,
-  );
+  assert.equal((fixture.container.innerHTML.match(/class="chip-delete"/g) || []).length, 2);
   assert.deepEqual(
-    [...fixture.container.innerHTML.matchAll(/data-blind-index="(\d+)"/g)].map(
-      ([, index]) => index,
-    ),
+    [...fixture.container.innerHTML.matchAll(/data-blind-index="(\d+)"/g)].map(([, index]) => index),
     ['1', '0'],
   );
   assert.equal(JSON.parse(fixture.textarea.value)[0].name, '主播自定义盒');
@@ -176,10 +146,7 @@ test('blind-box mapping reports official readiness without legacy migration prom
   assert.equal(fixture.status.hidden, true);
   Object.assign(mappingState, { customCount: 2, takenOverCount: 1 });
   fixture.module.renderBlindBoxList();
-  assert.equal(
-    fixture.status.textContent,
-    '自定义 2 项 · 官方已接管 1 项',
-  );
+  assert.equal(fixture.status.textContent, '自定义 2 项 · 官方已接管 1 项');
   assert.equal(fixture.status.hidden, false);
 });
 
@@ -204,18 +171,24 @@ test('official mapping requires a verified pool for each identity and respects n
     ['35429', '中秋盲盒'],
     ['35960', '组合测试'],
   ].map(([id, name]) => ({
-    id, name, variantId: `excluded-${id}-${name}`, rmb: 1, giftCategory: 'directGift',
+    id,
+    name,
+    variantId: `excluded-${id}-${name}`,
+    rmb: 1,
+    giftCategory: 'directGift',
   }));
   const output = { id: '100', variantId: 'output', name: '官方产物', rmb: 3 };
   const snapshot = {
     schemaVersion: 3,
     gifts: [unverified, verified, ...excluded, output],
     blindBoxes: [],
-    variantBlindBoxes: [{
-      variantId: 'verified',
-      outputVariantIds: [],
-      awards: [{ name: '舰长3天', valueRmb: 19.8 }],
-    }],
+    variantBlindBoxes: [
+      {
+        variantId: 'verified',
+        outputVariantIds: [],
+        awards: [{ name: '舰长3天', valueRmb: 19.8 }],
+      },
+    ],
   };
   fixture.module.applyOfficialCatalogSnapshot(snapshot);
   await fixture.resolveRefresh({ roomId: '123', gifts: snapshot.gifts });
@@ -238,10 +211,7 @@ test('official mapping requires a verified pool for each identity and respects n
   assert.deepEqual(fixture.visibleNames(), ['大航海盲盒', '大航海盲盒']);
   assert.match(fixture.container.innerHTML, /#33925/);
   assert.match(fixture.container.innerHTML, /#34635/);
-  assert.match(
-    fixture.container.innerHTML,
-    /官方产物<small>#100<\/small><small>¥3\.00<\/small>/,
-  );
+  assert.match(fixture.container.innerHTML, /官方产物<small>#100<\/small><small>¥3\.00<\/small>/);
 
   verified.giftCategory = 'directGift';
   fixture.module.applyOfficialCatalogSnapshot(snapshot);
@@ -269,11 +239,16 @@ test('legacy official mapping also excludes boxes without a verified output pool
 test('same-name Zongxia boxes keep the verified box and all seven outputs after refresh', async () => {
   const fixture = await createBlindboxFixture({ roomId: '123' });
   const verified = {
-    id: '35015', variantId: 'zongxia-verified', name: '粽夏奇趣',
-    rmb: 9, giftCategory: 'blindBox',
+    id: '35015',
+    variantId: 'zongxia-verified',
+    name: '粽夏奇趣',
+    rmb: 9,
+    giftCategory: 'blindBox',
   };
   const unverified = {
-    ...verified, id: '35029', variantId: 'zongxia-unverified',
+    ...verified,
+    id: '35029',
+    variantId: 'zongxia-unverified',
   };
   const outputs = [
     ['35026', '快乐星球'],
@@ -288,11 +263,13 @@ test('same-name Zongxia boxes keep the verified box and all seven outputs after 
     schemaVersion: 3,
     gifts: [unverified, verified, ...outputs],
     blindBoxes: [],
-    variantBlindBoxes: [{
-      variantId: verified.variantId,
-      outputVariantIds: outputs.map((gift) => gift.variantId),
-      awards: [],
-    }],
+    variantBlindBoxes: [
+      {
+        variantId: verified.variantId,
+        outputVariantIds: outputs.map((gift) => gift.variantId),
+        awards: [],
+      },
+    ],
   };
   fixture.module.applyOfficialCatalogSnapshot(snapshot);
   await fixture.resolveRefresh({ roomId: '123', gifts: [unverified, verified] });
@@ -305,9 +282,7 @@ test('same-name Zongxia boxes keep the verified box and all seven outputs after 
   assert.match(fixture.container.innerHTML, /#35015/);
   assert.doesNotMatch(fixture.container.innerHTML, /#35029/);
   for (const { id, name } of outputs) {
-    assert.ok(fixture.container.innerHTML.includes(
-      `${name}<small>#${id}</small><small>¥9.00</small>`,
-    ));
+    assert.ok(fixture.container.innerHTML.includes(`${name}<small>#${id}</small><small>¥9.00</small>`));
   }
 });
 
@@ -318,19 +293,28 @@ test('same-name Qixi gifts keep only the verified 25 yuan box in mappings', asyn
     schemaVersion: 3,
     gifts: [
       {
-        id: '35429', variantId: 'qixi15', name: '七夕盲盒',
-        rmb: 15, giftCategory: 'directGift',
+        id: '35429',
+        variantId: 'qixi15',
+        name: '七夕盲盒',
+        rmb: 15,
+        giftCategory: 'directGift',
       },
       {
-        id: '35141', variantId: 'qixi25', name: '七夕盲盒',
-        rmb: 25, giftCategory: 'blindBox',
+        id: '35141',
+        variantId: 'qixi25',
+        name: '七夕盲盒',
+        rmb: 25,
+        giftCategory: 'blindBox',
       },
       { id: '35142', variantId: 'qixi-output', name: '七夕产物', rmb: 1 },
     ],
     blindBoxes: [],
-    variantBlindBoxes: [{
-      variantId: 'qixi25', outputVariantIds: ['qixi-output'],
-    }],
+    variantBlindBoxes: [
+      {
+        variantId: 'qixi25',
+        outputVariantIds: ['qixi-output'],
+      },
+    ],
   });
   assert.deepEqual(fixture.visibleNames(), ['七夕盲盒']);
   assert.match(fixture.container.innerHTML, /#35141/);
@@ -393,22 +377,13 @@ test('blind-box mapping refreshes when a room is configured without a desktop au
   });
 
   const names = () =>
-    [
-      ...fixture.container.innerHTML.matchAll(
-        /<span class="bb-chip-name">([^<]+)<\/span>/g,
-      ),
-    ].map(([, name]) => name);
+    [...fixture.container.innerHTML.matchAll(/<span class="bb-chip-name">([^<]+)<\/span>/g)].map(([, name]) => name);
   fixture.module.applyOfficialCatalogSnapshot({
     roomId: '123',
     gifts: [{ id: '200' }],
   });
   assert.equal(fixture.refreshRequests.length, 0);
-  assert.deepEqual(names(), [
-    '官方盲盒',
-    '历史官方盒',
-    '在售自定义盒',
-    '主播自定义盒',
-  ]);
+  assert.deepEqual(names(), ['官方盲盒', '历史官方盒', '在售自定义盒', '主播自定义盒']);
   assert.deepEqual(fixture.visibleNames(), []);
   assert.match(fixture.container.innerHTML, /尚未设置直播间/);
 
@@ -416,21 +391,11 @@ test('blind-box mapping refreshes when a room is configured without a desktop au
   await flushBlindboxTasks();
   assert.equal(fixture.refreshRequests.length, 1);
   await fixture.resolveRefresh({ roomId: '123', gifts: [{ id: '200' }] });
-  assert.deepEqual(names(), [
-    '在售自定义盒',
-    '官方盲盒',
-    '历史官方盒',
-    '主播自定义盒',
-  ]);
+  assert.deepEqual(names(), ['在售自定义盒', '官方盲盒', '历史官方盒', '主播自定义盒']);
 
   fixture.dispatchSettings('');
   assert.deepEqual(fixture.visibleNames(), []);
-  assert.deepEqual(names(), [
-    '官方盲盒',
-    '历史官方盒',
-    '在售自定义盒',
-    '主播自定义盒',
-  ]);
+  assert.deepEqual(names(), ['官方盲盒', '历史官方盒', '在售自定义盒', '主播自定义盒']);
   assert.equal(fixture.refreshRequests.length, 0);
   fixture.dispatchSettings('');
   fixture.dispatchAuthChanged();
@@ -441,18 +406,8 @@ test('blind-box mapping refreshes when a room is configured without a desktop au
   await flushBlindboxTasks();
   assert.equal(fixture.refreshRequests.length, 1);
   fixture.dispatchSettings('');
-  assert.deepEqual(names(), [
-    '官方盲盒',
-    '历史官方盒',
-    '在售自定义盒',
-    '主播自定义盒',
-  ]);
+  assert.deepEqual(names(), ['官方盲盒', '历史官方盒', '在售自定义盒', '主播自定义盒']);
   await fixture.resolveRefresh({ roomId: '456', gifts: [{ id: '200' }] });
-  assert.deepEqual(names(), [
-    '官方盲盒',
-    '历史官方盒',
-    '在售自定义盒',
-    '主播自定义盒',
-  ]);
+  assert.deepEqual(names(), ['官方盲盒', '历史官方盒', '在售自定义盒', '主播自定义盒']);
   assert.equal(fixture.refreshRequests.length, 0);
 });

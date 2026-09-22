@@ -2,20 +2,13 @@
 
 import { formatClockDisplay, formatClockSeconds } from '../shared/overtime-time-format.js';
 
-export function createOvertimeTimeView({
-  byId,
-  setValueUnlessFocused,
-  getServerLimits,
-  getSettlements,
-}) {
+export function createOvertimeTimeView({ byId, setValueUnlessFocused, getServerLimits, getSettlements }) {
   function renderSettlements() {
     const settlements = getSettlements();
     const root = byId('overtimeSettlements');
     root.replaceChildren();
     if (!settlements.length) {
-      root.append(
-        createMessage('overtime-settlement-empty', '本场还没有礼物结算。'),
-      );
+      root.append(createMessage('overtime-settlement-empty', '本场还没有礼物结算。'));
       return;
     }
     for (const item of settlements) {
@@ -69,9 +62,7 @@ export function createOvertimeTimeView({
 
   function syncDurationSelectorsFromInput() {
     try {
-      renderDurationSelectors(
-        parseInitialDuration(byId('overtimeInitialTime').value),
-      );
+      renderDurationSelectors(parseInitialDuration(byId('overtimeInitialTime').value));
     } catch (_) {
       return;
     }
@@ -80,29 +71,18 @@ export function createOvertimeTimeView({
   function syncDurationInputFromSelectors() {
     const hours = Number(byId('overtimeInitialHours').value) || 0;
     const minutes = Number(byId('overtimeInitialMinutes').value) || 0;
-    byId('overtimeInitialTime').value = formatInitialDuration(
-      (hours * 60 + minutes) * 60,
-    );
+    byId('overtimeInitialTime').value = formatInitialDuration((hours * 60 + minutes) * 60);
   }
 
   function renderInitialDuration(seconds) {
-    const normalizedSeconds = Math.max(
-      0,
-      Math.floor((Number(seconds) || 0) / 60) * 60,
-    );
-    setValueUnlessFocused(
-      'overtimeInitialTime',
-      formatInitialDuration(normalizedSeconds),
-    );
+    const normalizedSeconds = Math.max(0, Math.floor((Number(seconds) || 0) / 60) * 60);
+    setValueUnlessFocused('overtimeInitialTime', formatInitialDuration(normalizedSeconds));
     renderDurationSelectors(normalizedSeconds);
   }
 
   function renderDurationSelectors(seconds) {
     const totalMinutes = Math.floor(Math.max(0, Number(seconds) || 0) / 60);
-    setValueUnlessFocused(
-      'overtimeInitialHours',
-      String(Math.floor(totalMinutes / 60)),
-    );
+    setValueUnlessFocused('overtimeInitialHours', String(Math.floor(totalMinutes / 60)));
     setValueUnlessFocused('overtimeInitialMinutes', String(totalMinutes % 60));
   }
 
@@ -116,9 +96,7 @@ export function createOvertimeTimeView({
     if (minutes > 59) throw new Error('分钟必须小于 60。');
     const seconds = (hours * 60 + minutes) * 60;
     if (seconds > serverLimits.maxSeconds) {
-      throw new Error(
-        `初始时长不能超过 ${formatMaxSeconds(serverLimits.maxSeconds)}。`,
-      );
+      throw new Error(`初始时长不能超过 ${formatMaxSeconds(serverLimits.maxSeconds)}。`);
     }
     return seconds;
   }
@@ -144,19 +122,14 @@ export function createOvertimeTimeView({
 
   function formatSettlementEffect(item) {
     const applicationCount =
-      item.ruleSnapshot?.quantityMode === 'item'
-        ? Math.max(1, Math.floor(Number(item.quantity) || 1))
-        : 1;
+      item.ruleSnapshot?.quantityMode === 'item' ? Math.max(1, Math.floor(Number(item.quantity) || 1)) : 1;
     if (applicationCount > 1) {
       return `结算 ${applicationCount} 次 · ${formatSignedClock(item.appliedDeltaSeconds)}`;
     }
-    const effect =
-      item.outcome?.selectedEffect ?? item.ruleSnapshot?.fixedEffect;
+    const effect = item.outcome?.selectedEffect ?? item.ruleSnapshot?.fixedEffect;
     if (!effect) return formatSignedClock(item.appliedDeltaSeconds);
-    if (effect.operation === 'multiply')
-      return `×${effect.value}（${formatSignedClock(item.appliedDeltaSeconds)}）`;
-    if (effect.operation === 'divide')
-      return `÷${effect.value}（${formatSignedClock(item.appliedDeltaSeconds)}）`;
+    if (effect.operation === 'multiply') return `×${effect.value}（${formatSignedClock(item.appliedDeltaSeconds)}）`;
+    if (effect.operation === 'divide') return `÷${effect.value}（${formatSignedClock(item.appliedDeltaSeconds)}）`;
     if (effect.operation === 'clear') return '清零';
     return formatSignedClock(item.appliedDeltaSeconds);
   }

@@ -14,9 +14,12 @@ test('health minimizes anonymous data and checks Host in every lifecycle phase',
   let detailReads = 0;
   let shutdowns = 0;
   const server = createHttpServer({
-    host: '127.0.0.1', startPort: 0,
-    rootDir: 'private-root', dataDir: 'private-data',
-    getPhase: () => phase, getStartedPort: () => server.address().port,
+    host: '127.0.0.1',
+    startPort: 0,
+    rootDir: 'private-root',
+    dataDir: 'private-data',
+    getPhase: () => phase,
+    getStartedPort: () => server.address().port,
     isLicenseAuthorized: () => true,
     inflightTracker: { run: (callback) => callback() },
     createApiContext: () => ({
@@ -24,23 +27,37 @@ test('health minimizes anonymous data and checks Host in every lifecycle phase',
       system: {
         getHealth: () => {
           detailReads += 1;
-          return { serviceId: 'lira', rootDir: 'private-root', dataDir: 'private-data', pid: 424242, schemaVersions: { song: 3 } };
+          return {
+            serviceId: 'lira',
+            rootDir: 'private-root',
+            dataDir: 'private-data',
+            pid: 424242,
+            schemaVersions: { song: 3 },
+          };
         },
-        shutdown: () => { shutdowns += 1; },
+        shutdown: () => {
+          shutdowns += 1;
+        },
       },
     }),
   });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
-  t.after(async () => { server.closeAllConnections(); await new Promise((resolve) => server.close(resolve)); });
-  const port = server.address().port;
-  const get = (headers = {}) => new Promise((resolve, reject) => {
-    const req = http.get({ host: '127.0.0.1', port, path: '/api/health', headers }, (res) => {
-      let body = '';
-      res.on('data', (chunk) => { body += chunk; });
-      res.on('end', () => resolve({ status: res.statusCode, body: JSON.parse(body) }));
-    });
-    req.on('error', reject);
+  t.after(async () => {
+    server.closeAllConnections();
+    await new Promise((resolve) => server.close(resolve));
   });
+  const port = server.address().port;
+  const get = (headers = {}) =>
+    new Promise((resolve, reject) => {
+      const req = http.get({ host: '127.0.0.1', port, path: '/api/health', headers }, (res) => {
+        let body = '';
+        res.on('data', (chunk) => {
+          body += chunk;
+        });
+        res.on('end', () => resolve({ status: res.statusCode, body: JSON.parse(body) }));
+      });
+      req.on('error', reject);
+    });
   for (const state of ['starting', 'ready', 'quiescing']) {
     phase = state;
     assert.equal((await get({ Host: 'foreign.invalid' })).status, 400);
@@ -57,7 +74,8 @@ test('health minimizes anonymous data and checks Host in every lifecycle phase',
   assert.deepEqual(detailed.body.data.schemaVersions, { song: 3 });
   const proved = await get({ [CHALLENGE_HEADER]: challenge });
   assert.deepEqual(proved.body.data, {
-    serviceId: 'lira', phase: 'ready',
+    serviceId: 'lira',
+    phase: 'ready',
     instanceProof: createInstanceProof(token, challenge, port),
   });
   assert.equal((await get({ [CHALLENGE_HEADER]: 'bad-challenge' })).body.data.instanceProof, undefined);

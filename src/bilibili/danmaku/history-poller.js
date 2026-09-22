@@ -14,14 +14,8 @@ class HistoryPoller {
     this.onMessage = onMessage;
     this.startedAtMs = options.startedAtMs || Date.now();
     this.roomOwnerUid = cleanText(options.roomOwnerUid);
-    this.isCommandText =
-      typeof options.isCommandText === 'function'
-        ? options.isCommandText
-        : isBilibiliCommandText;
-    this.onIdentityHint =
-      typeof options.onIdentityHint === 'function'
-        ? options.onIdentityHint
-        : null;
+    this.isCommandText = typeof options.isCommandText === 'function' ? options.isCommandText : isBilibiliCommandText;
+    this.onIdentityHint = typeof options.onIdentityHint === 'function' ? options.onIdentityHint : null;
     this.deduplicator = options.deduplicator || null;
     this.timer = null;
     this.pollInFlight = false;
@@ -67,10 +61,7 @@ class HistoryPoller {
       const messages = []
         .concat(Array.isArray(data.admin) ? data.admin : [])
         .concat(Array.isArray(data.room) ? data.room : []);
-      messages.sort(
-        (a, b) =>
-          parseBilibiliTimeline(a.timeline) - parseBilibiliTimeline(b.timeline),
-      );
+      messages.sort((a, b) => parseBilibiliTimeline(a.timeline) - parseBilibiliTimeline(b.timeline));
 
       let processed = 0;
       let stale = 0;
@@ -81,12 +72,7 @@ class HistoryPoller {
         if (!text) continue;
         const timelineMs = parseBilibiliTimeline(item.timeline);
         if (!this.isCommandText(text)) continue;
-        if (
-          !bilibiliHelpers.isCapturableBilibiliTimestamp(
-            timelineMs,
-            this.startedAtMs,
-          )
-        ) {
+        if (!bilibiliHelpers.isCapturableBilibiliTimestamp(timelineMs, this.startedAtMs)) {
           stale += 1;
           continue;
         }
@@ -102,10 +88,7 @@ class HistoryPoller {
         }
 
         processed += 1;
-        const userMeta = packetParser.extractBilibiliHistoryUserMeta(
-          item,
-          this.roomOwnerUid,
-        );
+        const userMeta = packetParser.extractBilibiliHistoryUserMeta(item, this.roomOwnerUid);
         let identitySnapshot = null;
         if (this.onIdentityHint) {
           if (localGeneration !== this.localGeneration) return;
@@ -138,14 +121,14 @@ class HistoryPoller {
         logBilibiliDiagnostic('history-sample', {
           roomId: context.roomId,
           fetched: messages.length,
-          processed, stale, duplicates,
+          processed,
+          stale,
+          duplicates,
           listenerStartedAt: this.startedAtMs,
         });
       }
       if (processed > 0) {
-        console.log(
-          `[Bilibili] history polling processed ${processed} command message(s).`,
-        );
+        console.log(`[Bilibili] history polling processed ${processed} command message(s).`);
       }
     } finally {
       this.pollInFlight = false;

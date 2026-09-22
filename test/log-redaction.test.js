@@ -52,10 +52,7 @@ test('nested objects and arrays are redacted recursively', () => {
   });
   assert.equal(out.payload.activationCode, '[REDACTED]');
   assert.equal(out.payload.note, 'ok');
-  assert.deepEqual(out.attempts, [
-    { token: '[REDACTED]' },
-    { token: '[REDACTED]' },
-  ]);
+  assert.deepEqual(out.attempts, [{ token: '[REDACTED]' }, { token: '[REDACTED]' }]);
 });
 
 test('error redaction strips credentials from message and stack', () => {
@@ -63,18 +60,9 @@ test('error redaction strips credentials from message and stack', () => {
     'verify failed: https://lirahub.cn/api/device/verify?signature=SIGVALUE&token=abc123&state=retry',
   );
   const out = redactCredentials(error);
-  assert.ok(
-    !out.message.includes('SIGVALUE'),
-    'signature must be redacted from error message',
-  );
-  assert.ok(
-    !out.message.includes('abc123'),
-    'token must be redacted from error message',
-  );
-  assert.ok(
-    out.message.includes('state=retry'),
-    'non-sensitive params must survive',
-  );
+  assert.ok(!out.message.includes('SIGVALUE'), 'signature must be redacted from error message');
+  assert.ok(!out.message.includes('abc123'), 'token must be redacted from error message');
+  assert.ok(out.message.includes('state=retry'), 'non-sensitive params must survive');
 });
 
 test('string redaction covers activation and pairing codes in URLs', () => {
@@ -95,12 +83,7 @@ test('snake_case credential fields cannot bypass redaction', () => {
     hardware_id: 'HARDWARE',
     note: 'keep',
   });
-  for (const key of [
-    'private_key',
-    'activation_code',
-    'access_token',
-    'hardware_id',
-  ]) {
+  for (const key of ['private_key', 'activation_code', 'access_token', 'hardware_id']) {
     assert.equal(object[key], '[REDACTED]', `${key} must be redacted`);
   }
   assert.equal(object.note, 'keep');
@@ -108,15 +91,12 @@ test('snake_case credential fields cannot bypass redaction', () => {
   const string = redactCredentials(
     'GET https://example.test/?private_key_pem=PEM&activation_code=ACTIVATION&accessToken=ACCESS&access%5Ftoken=ENCODED&state=ok',
   );
-  for (const value of ['PEM', 'ACTIVATION', 'ACCESS', 'ENCODED'])
-    assert.ok(!string.includes(value));
+  for (const value of ['PEM', 'ACTIVATION', 'ACCESS', 'ENCODED']) assert.ok(!string.includes(value));
   assert.ok(string.includes('state=ok'));
 });
 
 test('URL object redaction covers license params and keeps others', () => {
-  const url = new URL(
-    'https://lirahub.cn/api/device/pairing-codes?activationCode=SECRET-CODE&signature=SIG&page=2',
-  );
+  const url = new URL('https://lirahub.cn/api/device/pairing-codes?activationCode=SECRET-CODE&signature=SIG&page=2');
   const out = redactCredentials(url);
   assert.ok(!out.includes('SECRET-CODE'));
   assert.ok(!out.includes('SIG'));
@@ -139,8 +119,7 @@ test('URL object redaction covers token variants and private-key fields', () => 
     'https://lirahub.cn/api/device/verify?access_token=ACCESS&refresh_token=REFRESH&private_key_pem=PEM&state=ok',
   );
   const out = redactCredentials(url);
-  for (const value of ['ACCESS', 'REFRESH', 'PEM'])
-    assert.ok(!out.includes(value));
+  for (const value of ['ACCESS', 'REFRESH', 'PEM']) assert.ok(!out.includes(value));
   assert.ok(out.includes('state=ok'));
 });
 

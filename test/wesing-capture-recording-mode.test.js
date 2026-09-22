@@ -27,10 +27,7 @@ test('WeSing capture waits for progress change when starting at 0 seconds', asyn
     totalSec: 180,
   });
   let state = capture.getStatus();
-  assert.ok(
-    state.currentMs <= 200,
-    `初始currentMs应该接近0，实际: ${state.currentMs}ms`,
-  );
+  assert.ok(state.currentMs <= 200, `初始currentMs应该接近0，实际: ${state.currentMs}ms`);
   assert.equal(state.playing, false, '进度为0时应该等待播放');
   assert.equal(state.waitingForPlayback, true);
 
@@ -43,10 +40,7 @@ test('WeSing capture waits for progress change when starting at 0 seconds', asyn
     totalSec: 180,
   });
   state = capture.getStatus();
-  assert.ok(
-    state.currentMs <= 200,
-    `暂停时currentMs应该接近0，实际: ${state.currentMs}ms`,
-  );
+  assert.ok(state.currentMs <= 200, `暂停时currentMs应该接近0，实际: ${state.currentMs}ms`);
   assert.equal(state.playing, false, '进度不变时应该保持等待');
 
   // 500ms 后，进度变为 1 秒（真正开始播放）
@@ -126,10 +120,7 @@ test('WeSing capture distinguishes an unchanged integer second from a confirmed 
 
   // 确认暂停在正确的位置
   const pausedMs = state.currentMs;
-  assert.ok(
-    pausedMs > 59000 && pausedMs < 60000,
-    `应该冻结连续时钟，实际: ${pausedMs}ms`,
-  );
+  assert.ok(pausedMs > 59000 && pausedMs < 60000, `应该冻结连续时钟，实际: ${pausedMs}ms`);
 
   // 继续收到相同进度时，应该保持暂停
   currentTime = 2800;
@@ -200,10 +191,7 @@ test('WeSing capture resets lyrics to 0 during loading state', async () => {
   });
   state = capture.getStatus();
   assert.equal(state.trackTitle, '第二首');
-  assert.ok(
-    state.currentMs <= 200,
-    `加载时currentMs应该接近0，实际: ${state.currentMs}ms`,
-  );
+  assert.ok(state.currentMs <= 200, `加载时currentMs应该接近0，实际: ${state.currentMs}ms`);
   assert.equal(state.playing, false, '加载时应该暂停');
 
   // 加载中，100ms后仍然显示加载
@@ -216,10 +204,7 @@ test('WeSing capture resets lyrics to 0 during loading state', async () => {
     loading: true,
   });
   state = capture.getStatus();
-  assert.ok(
-    state.currentMs <= 200,
-    `加载期间currentMs应该接近0，实际: ${state.currentMs}ms`,
-  );
+  assert.ok(state.currentMs <= 200, `加载期间currentMs应该接近0，实际: ${state.currentMs}ms`);
   assert.equal(state.playing, false, '加载期间应该保持暂停');
 
   // 加载完成，开始播放
@@ -232,10 +217,7 @@ test('WeSing capture resets lyrics to 0 during loading state', async () => {
     loading: false,
   });
   state = capture.getStatus();
-  assert.ok(
-    state.currentMs <= 200,
-    `加载完成后currentMs应该接近0，实际: ${state.currentMs}ms`,
-  );
+  assert.ok(state.currentMs <= 200, `加载完成后currentMs应该接近0，实际: ${state.currentMs}ms`);
   assert.equal(state.playing, false, '加载完成但进度为0时应该等待');
 
   // 真正开始播放
@@ -526,11 +508,7 @@ test('WeSing capture lets explicit audio inactivity override stale UI progress',
     audioActive: false,
   });
   assert.equal(capture.getStatus().playing, false);
-  assert.equal(
-    capture.getStatus().currentMs,
-    10130,
-    '暂停时应锚定全民报告的真实进度',
-  );
+  assert.equal(capture.getStatus().currentMs, 10130, '暂停时应锚定全民报告的真实进度');
 
   await capture.setActive(false);
 });
@@ -568,11 +546,7 @@ test('WeSing capture keeps a measured pause frozen even when the audio session s
 
   currentTime = 5000;
   sample(31);
-  assert.equal(
-    capture.getStatus().playing,
-    false,
-    'Active 不能推翻不变的真实进度',
-  );
+  assert.equal(capture.getStatus().playing, false, 'Active 不能推翻不变的真实进度');
   assert.equal(capture.getStatus().currentMs, pausedMs);
 
   currentTime = 5200;
@@ -618,28 +592,17 @@ test('WeSing capture resets a same-title replay when measured progress returns t
   sample(122, false);
   currentTime = 11000;
   sample(122, true);
-  assert.equal(
-    capture.getStatus().playing,
-    false,
-    '同歌重进时的陈旧进度不能恢复旧时钟',
-  );
+  assert.equal(capture.getStatus().playing, false, '同歌重进时的陈旧进度不能恢复旧时钟');
 
   currentTime = 11200;
   sample(0, true);
   assert.equal(capture.getStatus().currentMs, 130);
-  assert.equal(
-    capture.getStatus().playing,
-    false,
-    '归零后应等待全民真实进度开始走',
-  );
+  assert.equal(capture.getStatus().playing, false, '归零后应等待全民真实进度开始走');
 
   currentTime = 12200;
   sample(1, true);
   assert.equal(capture.getStatus().playing, true);
-  assert.ok(
-    capture.getStatus().currentMs >= 1130 &&
-      capture.getStatus().currentMs < 1200,
-  );
+  assert.ok(capture.getStatus().currentMs >= 1130 && capture.getStatus().currentMs < 1200);
 
   await capture.setActive(false);
 });

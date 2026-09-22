@@ -67,9 +67,7 @@ function parseBilibiliPackets(buffer) {
     if (operation === 5) {
       if (protocolVersion === 3) {
         try {
-          messages.push(
-            ...parseBilibiliPackets(zlib.brotliDecompressSync(body)),
-          );
+          messages.push(...parseBilibiliPackets(zlib.brotliDecompressSync(body)));
         } catch (error) {
           console.warn(`Bilibili brotli decode failed: ${error.message}`);
         }

@@ -2,11 +2,7 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const {
-  createAiSettingsFixture,
-  flushAiTasks,
-  aiResponse,
-} = require('./helpers/ai-settings-fixture');
+const { createAiSettingsFixture, flushAiTasks, aiResponse } = require('./helpers/ai-settings-fixture');
 
 test('AI initial load preserves edits and blocks saving before configuration arrives', async () => {
   const f = await createAiSettingsFixture({ deferInitialConfig: true });
@@ -21,20 +17,13 @@ test('AI initial load preserves edits and blocks saving before configuration arr
   for (const [id, value] of Object.entries(edits)) f.input(id, value);
   f.fire('xiaomiAiForm', 'submit', { preventDefault() {} });
   await flushAiTasks();
-  assert.equal(
-    f.elements.get('xiaomiAiSaveState').textContent,
-    '配置尚未加载，暂时无法保存；请等待或刷新页面重试。',
-  );
+  assert.equal(f.elements.get('xiaomiAiSaveState').textContent, '配置尚未加载，暂时无法保存；请等待或刷新页面重试。');
   assert.equal(f.saves().length, 0);
 
   f.resolveInitialConfig();
   await flushAiTasks();
-  for (const [id, value] of Object.entries(edits))
-    assert.equal(f.elements.get(id).value, value);
-  assert.equal(
-    f.elements.get('xiaomiAiSystemPrompt').value,
-    f.publicConfig.systemPrompt,
-  );
+  for (const [id, value] of Object.entries(edits)) assert.equal(f.elements.get(id).value, value);
+  assert.equal(f.elements.get('xiaomiAiSystemPrompt').value, f.publicConfig.systemPrompt);
   assert.equal(f.elements.get('xiaomiAiModelApiProtocol').value, 'responses');
   assert.equal(f.elements.get('xiaomiAiModelProvider').value, 'custom');
   assert.equal(f.elements.get('xiaomiAiReasoningEffort').value, 'high');
@@ -63,8 +52,7 @@ test('AI initial load preserves edits and blocks saving before configuration arr
     roomLimitPerMinute: 20,
     systemPrompt: f.publicConfig.systemPrompt,
   });
-  for (const [id, value] of Object.entries(edits))
-    assert.equal(f.elements.get(id).value, value);
+  for (const [id, value] of Object.entries(edits)) assert.equal(f.elements.get(id).value, value);
 });
 
 test('AI enabled toggle saves immediately', async () => {
@@ -84,10 +72,7 @@ test('AI refresh updates untouched fields and preserves the current draft', asyn
   await f.api.refresh();
   assert.equal(f.elements.get('xiaomiAiTrigger').value, '正在编辑的关键词');
   assert.equal(f.elements.get('xiaomiAiModel').value, 'updated-model');
-  assert.equal(
-    f.elements.get('xiaomiAiModelState').textContent,
-    'updated-model',
-  );
+  assert.equal(f.elements.get('xiaomiAiModelState').textContent, 'updated-model');
   assert.equal(f.saves().length, 0);
 });
 
@@ -119,8 +104,7 @@ test('AI edits during a pending save are saved after it completes', async () => 
   });
   let saveCount = 0;
   const f = await createAiSettingsFixture({
-    request: (url, options) =>
-      options.method === 'PUT' && ++saveCount === 1 ? pendingSave : undefined,
+    request: (url, options) => (options.method === 'PUT' && ++saveCount === 1 ? pendingSave : undefined),
   });
   f.input('xiaomiAiModel', 'first-model');
   await f.advance(700);
@@ -135,10 +119,7 @@ test('AI edits during a pending save are saved after it completes', async () => 
     ['first-model', 'later-model'],
   );
   assert.equal(f.elements.get('xiaomiAiModel').value, 'later-model');
-  assert.equal(
-    f.elements.get('xiaomiAiSaveState').textContent,
-    '已保存，后续新弹幕立即生效。',
-  );
+  assert.equal(f.elements.get('xiaomiAiSaveState').textContent, '已保存，后续新弹幕立即生效。');
 });
 
 test('AI model listing uses draft credentials and saves a selected model after reopening the menu', async () => {
@@ -159,10 +140,7 @@ test('AI model listing uses draft credentials and saves a selected model after r
     menu.children.map((option) => option.textContent),
     ['deepseek-v4-flash', 'deepseek-v4-pro'],
   );
-  assert.equal(
-    f.elements.get('xiaomiAiModelFetchState').textContent,
-    '已获取 2 个可用模型；可选择或直接输入。',
-  );
+  assert.equal(f.elements.get('xiaomiAiModelFetchState').textContent, '已获取 2 个可用模型；可选择或直接输入。');
   menu.children[1].listeners.click();
   assert.equal(f.elements.get('xiaomiAiModel').value, 'deepseek-v4-pro');
   assert.equal(menu.hidden, true);
@@ -185,8 +163,7 @@ for (const scenario of [
     value: 'https://api.deepseek.com',
     key: 'deepseekResponsesUrl',
     button: 'xiaomiAiTestBtn',
-    detail:
-      '模型服务 连接正常。模型 deepseek-chat 回复：你好！有什么可以帮你？',
+    detail: '模型服务 连接正常。模型 deepseek-chat 回复：你好！有什么可以帮你？',
   },
   {
     provider: 'qweather',
@@ -202,19 +179,12 @@ for (const scenario of [
     f.input(scenario.field, scenario.value);
     f.fire(scenario.button, 'click');
     await flushAiTasks();
-    const saveIndex = f.calls.findIndex(
-      (call) => call.options.method === 'PUT',
-    );
-    const testIndex = f.calls.findIndex(
-      (call) => call.url === `/api/ai/test/${scenario.provider}`,
-    );
+    const saveIndex = f.calls.findIndex((call) => call.options.method === 'PUT');
+    const testIndex = f.calls.findIndex((call) => call.url === `/api/ai/test/${scenario.provider}`);
     assert.ok(saveIndex >= 0 && testIndex > saveIndex);
     assert.equal(f.saves()[0][scenario.key], scenario.value);
     assert.equal(f.elements.get(scenario.field).value, scenario.value);
-    assert.equal(
-      f.elements.get(`aiTestDetail-${scenario.provider}`).textContent,
-      scenario.detail,
-    );
+    assert.equal(f.elements.get(`aiTestDetail-${scenario.provider}`).textContent, scenario.detail);
     assert.match(f.toasts[0].className, /xiaomi-ai-test-toast-good/);
   });
 }
@@ -223,18 +193,9 @@ test('AI custom provider renders editable endpoint and configured capabilities',
   const { elements } = await createAiSettingsFixture();
   assert.equal(elements.get('xiaomiAiDeepSeekUrl').disabled, false);
   assert.equal(elements.get('xiaomiAiProtocolControl').hidden, false);
-  assert.equal(
-    elements.get('xiaomiAiProtocolCapability').textContent,
-    'Responses API',
-  );
-  assert.equal(
-    elements.get('xiaomiAiWebSearchCapability').textContent,
-    'AI 平台搜索',
-  );
-  assert.equal(
-    elements.get('xiaomiAiReasoningCapability').textContent,
-    '可设置强度',
-  );
+  assert.equal(elements.get('xiaomiAiProtocolCapability').textContent, 'Responses API');
+  assert.equal(elements.get('xiaomiAiWebSearchCapability').textContent, 'AI 平台搜索');
+  assert.equal(elements.get('xiaomiAiReasoningCapability').textContent, '可设置强度');
   assert.equal(elements.get('xiaomiAiReasoningControl').hidden, false);
   assert.equal(elements.get('xiaomiAiReasoningEffortControl').hidden, false);
   assert.equal(elements.get('xiaomiAiProviderManagedReasoning').hidden, true);
@@ -255,28 +216,13 @@ test('AI DeepSeek preset locks the endpoint and shows local search and DeepSeek 
       },
     },
   });
-  assert.equal(
-    elements.get('xiaomiAiProtocolCapability').textContent,
-    'Chat Completions',
-  );
-  assert.equal(
-    elements.get('xiaomiAiWebSearchCapability').textContent,
-    'LIRA 搜索',
-  );
-  assert.equal(
-    elements.get('xiaomiAiReasoningCapability').textContent,
-    'DeepSeek 强度',
-  );
+  assert.equal(elements.get('xiaomiAiProtocolCapability').textContent, 'Chat Completions');
+  assert.equal(elements.get('xiaomiAiWebSearchCapability').textContent, 'LIRA 搜索');
+  assert.equal(elements.get('xiaomiAiReasoningCapability').textContent, 'DeepSeek 强度');
   assert.equal(elements.get('xiaomiAiReasoningControl').hidden, false);
   assert.equal(elements.get('xiaomiAiReasoningEffortControl').hidden, false);
-  assert.equal(
-    elements.get('xiaomiAiReasoningLabel').textContent,
-    'DeepSeek 思考',
-  );
-  assert.equal(
-    elements.get('xiaomiAiProviderBadge').textContent,
-    'DeepSeek 官方',
-  );
+  assert.equal(elements.get('xiaomiAiReasoningLabel').textContent, 'DeepSeek 思考');
+  assert.equal(elements.get('xiaomiAiProviderBadge').textContent, 'DeepSeek 官方');
   assert.equal(elements.get('xiaomiAiDeepSeekUrl').disabled, true);
   assert.equal(elements.get('xiaomiAiProtocolControl').hidden, true);
 });
@@ -294,10 +240,7 @@ test('AI platform-managed reasoning hides manual reasoning controls', async () =
       },
     },
   });
-  assert.equal(
-    elements.get('xiaomiAiReasoningCapability').textContent,
-    '由平台决定',
-  );
+  assert.equal(elements.get('xiaomiAiReasoningCapability').textContent, '由平台决定');
   assert.equal(elements.get('xiaomiAiReasoningControl').hidden, true);
   assert.equal(elements.get('xiaomiAiProviderManagedReasoning').hidden, false);
 });
@@ -338,14 +281,8 @@ test('AI switching from an official provider restores the saved custom endpoint 
   assert.equal(f.saves()[0].modelProvider, 'custom');
   assert.equal(f.saves()[0].deepseekResponsesUrl, undefined);
   assert.equal(f.saves()[0].modelApiProtocol, undefined);
-  assert.equal(
-    f.elements.get('xiaomiAiDeepSeekUrl').value,
-    'https://saved-custom.example/v1',
-  );
-  assert.equal(
-    f.elements.get('xiaomiAiModelApiProtocol').value,
-    'chat_completions',
-  );
+  assert.equal(f.elements.get('xiaomiAiDeepSeekUrl').value, 'https://saved-custom.example/v1');
+  assert.equal(f.elements.get('xiaomiAiModelApiProtocol').value, 'chat_completions');
   assert.equal(f.elements.get('xiaomiAiDeepSeekUrl').disabled, false);
 });
 

@@ -53,18 +53,13 @@ class FansMedalPoller {
           BILIBILI_FANS_MEDAL_PAGE_SIZE,
         );
         if (localGeneration !== this.localGeneration) return;
-        expectedCount = normalizePositiveInteger(
-          data.num || data.total || data.total_num,
-        );
+        expectedCount = normalizePositiveInteger(data.num || data.total || data.total_num);
         const items = bilibiliHelpers.readBilibiliFansMembersRankItems(data);
         if (items.length === 0) break;
 
         for (const item of items) {
           if (localGeneration !== this.localGeneration) return;
-          const userMeta = packetParser.extractBilibiliOnlineRankUserMeta(
-            item,
-            context.ownerUid,
-          );
+          const userMeta = packetParser.extractBilibiliOnlineRankUserMeta(item, context.ownerUid);
           const result = this.sink.ingestHint(toIdentityHint(userMeta), {
             ...context,
             source: 'fans_rank',
@@ -74,20 +69,14 @@ class FansMedalPoller {
         }
 
         if (items.length < BILIBILI_FANS_MEDAL_PAGE_SIZE) break;
-        if (
-          expectedCount > 0 &&
-          page * BILIBILI_FANS_MEDAL_PAGE_SIZE >= expectedCount
-        )
-          break;
+        if (expectedCount > 0 && page * BILIBILI_FANS_MEDAL_PAGE_SIZE >= expectedCount) break;
       }
     } finally {
       this.pollInFlight = false;
     }
 
     if (cachedCount > 0) {
-      console.log(
-        `[Bilibili] fans medal snapshot cached ${cachedCount} member identity record(s).`,
-      );
+      console.log(`[Bilibili] fans medal snapshot cached ${cachedCount} member identity record(s).`);
     }
   }
 }

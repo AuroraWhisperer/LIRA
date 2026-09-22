@@ -17,20 +17,15 @@ const {
   readQQModuleData,
 } = require('./qq-provider-utils');
 
-const QQ_PLAYLIST_DETAIL_URL =
-  'https://c.y.qq.com/qzone/fcg-bin/fcg_ucc_getcdinfo_byids_cp.fcg';
-const QQ_CREATED_PLAYLIST_URL =
-  'https://c.y.qq.com/rsc/fcgi-bin/fcg_user_created_diss';
-const QQ_COLLECTED_ASSET_URL =
-  'https://c.y.qq.com/fav/fcgi-bin/fcg_get_profile_order_asset.fcg';
+const QQ_PLAYLIST_DETAIL_URL = 'https://c.y.qq.com/qzone/fcg-bin/fcg_ucc_getcdinfo_byids_cp.fcg';
+const QQ_CREATED_PLAYLIST_URL = 'https://c.y.qq.com/rsc/fcgi-bin/fcg_user_created_diss';
+const QQ_COLLECTED_ASSET_URL = 'https://c.y.qq.com/fav/fcgi-bin/fcg_get_profile_order_asset.fcg';
 
 class QQMusicProvider extends QQMusicStreamProvider {
   async getPersonalizedPlaylists(options = {}) {
     const limit = clampInteger(options.limit, 1, 30, 9);
     const page = clampInteger(options.page, 1, 50, 1);
-    const vUniq = Array.isArray(options.vUniq)
-      ? options.vUniq.slice(0, 200)
-      : [];
+    const vUniq = Array.isArray(options.vUniq) ? options.vUniq.slice(0, 200) : [];
     const cookieHeader = await this.getSafeCookieHeader();
     const uin = extractUin(cookieHeader) || '0';
     const guid = buildGuid();
@@ -64,12 +59,7 @@ class QQMusicProvider extends QQMusicStreamProvider {
     );
 
     const shelves =
-      data &&
-      data.req_1 &&
-      data.req_1.data &&
-      Array.isArray(data.req_1.data.v_shelf)
-        ? data.req_1.data.v_shelf
-        : [];
+      data && data.req_1 && data.req_1.data && Array.isArray(data.req_1.data.v_shelf) ? data.req_1.data.v_shelf : [];
     const playlists = [];
     shelves.forEach((shelf) => {
       const niches = Array.isArray(shelf.v_niche) ? shelf.v_niche : [];
@@ -124,12 +114,7 @@ class QQMusicProvider extends QQMusicStreamProvider {
       ).catch(() => null);
 
       const shelves =
-        data &&
-        data.req_1 &&
-        data.req_1.data &&
-        Array.isArray(data.req_1.data.v_shelf)
-          ? data.req_1.data.v_shelf
-          : [];
+        data && data.req_1 && data.req_1.data && Array.isArray(data.req_1.data.v_shelf) ? data.req_1.data.v_shelf : [];
 
       // 从所有 shelf 收集 type 200 的歌曲 id
       const songIds = [];
@@ -190,12 +175,7 @@ class QQMusicProvider extends QQMusicStreamProvider {
         needNewCode: 1,
       },
     ).catch(() => null);
-    return data &&
-      data.req_1 &&
-      data.req_1.data &&
-      Array.isArray(data.req_1.data.tracks)
-      ? data.req_1.data.tracks
-      : [];
+    return data && data.req_1 && data.req_1.data && Array.isArray(data.req_1.data.tracks) ? data.req_1.data.tracks : [];
   }
 
   async getRadioTracks(options = {}) {
@@ -245,14 +225,9 @@ class QQMusicProvider extends QQMusicStreamProvider {
       limit: 50,
       includeLiked: true,
     });
-    const liked = playlists.find(
-      (playlist) =>
-        playlist.dirId === '201' || /我喜欢|喜欢/.test(playlist.title),
-    );
+    const liked = playlists.find((playlist) => playlist.dirId === '201' || /我喜欢|喜欢/.test(playlist.title));
     if (!liked) {
-      throw new Error(
-        '没有从 QQ 音乐读取到“我喜欢”，当前登录凭证不完整或已失效，请重新登录 QQ 音乐。',
-      );
+      throw new Error('没有从 QQ 音乐读取到“我喜欢”，当前登录凭证不完整或已失效，请重新登录 QQ 音乐。');
     }
     return this.getPlaylistTracks(liked.id, { limit, offset });
   }
@@ -272,9 +247,7 @@ class QQMusicProvider extends QQMusicStreamProvider {
         },
       });
       const moduleData = readQQModuleData(data, callKey, '读取我的歌单');
-      playlists = Array.isArray(moduleData.v_playlist)
-        ? moduleData.v_playlist
-        : [];
+      playlists = Array.isArray(moduleData.v_playlist) ? moduleData.v_playlist : [];
     } catch (_) {
       const cookieHeader = await this.getSafeCookieHeader();
       const gtkSource = extractQQGtkSource(cookieHeader);
@@ -293,16 +266,11 @@ class QQMusicProvider extends QQMusicStreamProvider {
         platform: 'yqq.json',
         needNewCode: '0',
       });
-      playlists =
-        data && data.data && Array.isArray(data.data.disslist)
-          ? data.data.disslist
-          : [];
+      playlists = data && data.data && Array.isArray(data.data.disslist) ? data.data.disslist : [];
     }
     const mapped = playlists.map(mapQQPlaylist).filter(Boolean);
     if (options.includeLiked === false) {
-      return mapped
-        .filter((playlist) => playlist.dirId !== '201')
-        .slice(0, limit);
+      return mapped.filter((playlist) => playlist.dirId !== '201').slice(0, limit);
     }
     return mapped.slice(0, limit);
   }
@@ -342,10 +310,7 @@ class QQMusicProvider extends QQMusicStreamProvider {
         platform: 'yqq.json',
         needNewCode: '0',
       });
-      playlists =
-        data && data.data && Array.isArray(data.data.cdlist)
-          ? data.data.cdlist
-          : [];
+      playlists = data && data.data && Array.isArray(data.data.cdlist) ? data.data.cdlist : [];
     }
     return playlists.map(mapQQPlaylist).filter(Boolean).slice(0, limit);
   }
@@ -382,10 +347,7 @@ class QQMusicProvider extends QQMusicStreamProvider {
       });
       muDebug = muData && muData.req_0;
       const list =
-        muData &&
-        muData.req_0 &&
-        muData.req_0.data &&
-        Array.isArray(muData.req_0.data.result_song_list)
+        muData && muData.req_0 && muData.req_0.data && Array.isArray(muData.req_0.data.result_song_list)
           ? muData.req_0.data.result_song_list
           : null;
       if (list && list.length > 0) {
@@ -421,11 +383,7 @@ class QQMusicProvider extends QQMusicStreamProvider {
     const rawData = data && data.data;
     const songlist =
       rawData &&
-      (Array.isArray(rawData.songlist)
-        ? rawData.songlist
-        : Array.isArray(rawData.song_list)
-          ? rawData.song_list
-          : []);
+      (Array.isArray(rawData.songlist) ? rawData.songlist : Array.isArray(rawData.song_list) ? rawData.song_list : []);
     const songs = songlist.map(mapQQSong).filter(Boolean).slice(0, limit);
     if (songs.length > 0) return songs;
     const legacyKeys = rawData ? Object.keys(rawData) : 'null';
@@ -458,9 +416,7 @@ class QQMusicProvider extends QQMusicStreamProvider {
           },
         });
         const moduleData = readQQModuleData(data, callKey, '读取歌单详情');
-        const songlist = Array.isArray(moduleData.songlist)
-          ? moduleData.songlist
-          : [];
+        const songlist = Array.isArray(moduleData.songlist) ? moduleData.songlist : [];
         return songlist
           .slice(offset, offset + limit)
           .map(mapQQSong)
@@ -494,8 +450,7 @@ class QQMusicProvider extends QQMusicStreamProvider {
     }
     const data = await this.requestJson(QQ_PLAYLIST_DETAIL_URL, params);
     const cdlist = data && Array.isArray(data.cdlist) ? data.cdlist : [];
-    const songlist =
-      cdlist[0] && Array.isArray(cdlist[0].songlist) ? cdlist[0].songlist : [];
+    const songlist = cdlist[0] && Array.isArray(cdlist[0].songlist) ? cdlist[0].songlist : [];
     return songlist.slice(0, limit).map(mapQQSong).filter(Boolean);
   }
 }

@@ -25,12 +25,7 @@ const BILIBILI_LOGIN_CONFIG = {
     'member.bilibili.com',
     'account.bilibili.com',
   ],
-  cookieDomains: [
-    '.bilibili.com',
-    'bilibili.com',
-    '.live.bilibili.com',
-    'live.bilibili.com',
-  ],
+  cookieDomains: ['.bilibili.com', 'bilibili.com', '.live.bilibili.com', 'live.bilibili.com'],
   keyCookies: ['DedeUserID', 'SESSDATA', 'bili_jct'],
 };
 
@@ -52,11 +47,7 @@ function isAllowedBilibiliCookie(cookie) {
   return config.cookieDomains.some((allowed) => {
     const cleanAllowed = allowed.toLowerCase();
     const hostAllowed = cleanAllowed.replace(/^\./, '');
-    return (
-      domain === cleanAllowed ||
-      domain === hostAllowed ||
-      domain.endsWith(`.${hostAllowed}`)
-    );
+    return domain === cleanAllowed || domain === hostAllowed || domain.endsWith(`.${hostAllowed}`);
   });
 }
 
@@ -89,25 +80,16 @@ async function persistBilibiliCookieSnapshot(dataDir) {
   };
 
   if (!safeStorage.isEncryptionAvailable()) {
-    throw new Error(
-      'safeStorage 当前不可用，已保留 Electron partition Cookie，但不会写入明文快照。',
-    );
+    throw new Error('safeStorage 当前不可用，已保留 Electron partition Cookie，但不会写入明文快照。');
   }
 
   const authDir = getBilibiliAuthDir(dataDir);
   fs.mkdirSync(authDir, { recursive: true });
   const encrypted = safeStorage.encryptString(JSON.stringify(payload));
-  fs.writeFileSync(
-    getBilibiliCookieSnapshotPath(dataDir),
-    encrypted.toString('base64'),
-    'utf8',
-  );
+  fs.writeFileSync(getBilibiliCookieSnapshotPath(dataDir), encrypted.toString('base64'), 'utf8');
 
   const exportPath = getBilibiliCookieExportPath(dataDir);
-  if (
-    fs.existsSync(exportPath) ||
-    process.env.BILIBILI_PLAINTEXT_COOKIE_EXPORT === '1'
-  ) {
+  if (fs.existsSync(exportPath) || process.env.BILIBILI_PLAINTEXT_COOKIE_EXPORT === '1') {
     const cookieHeader = cookies
       .filter((cookie) => cookie.name && cookie.value)
       .map((cookie) => `${cookie.name}=${cookie.value}`)
@@ -124,15 +106,10 @@ async function restoreBilibiliCookieSnapshot(dataDir) {
   if (!safeStorage.isEncryptionAvailable()) return null;
 
   try {
-    const encrypted = Buffer.from(
-      fs.readFileSync(snapshotPath, 'utf8'),
-      'base64',
-    );
+    const encrypted = Buffer.from(fs.readFileSync(snapshotPath, 'utf8'), 'base64');
     const payload = JSON.parse(safeStorage.decryptString(encrypted));
     const loginSession = session.fromPartition(BILIBILI_LOGIN_CONFIG.partition);
-    for (const cookie of Array.isArray(payload.cookies)
-      ? payload.cookies
-      : []) {
+    for (const cookie of Array.isArray(payload.cookies) ? payload.cookies : []) {
       await loginSession.cookies.set(toElectronCookieDetails(cookie));
     }
     return {
@@ -148,12 +125,8 @@ async function getBilibiliAuthState(dataDir) {
   const config = BILIBILI_LOGIN_CONFIG;
   const cookies = await getAllowedBilibiliCookies();
   const cookieNames = new Set(cookies.map((c) => c.name));
-  const presentKeyCookies = config.keyCookies.filter((name) =>
-    cookieNames.has(name),
-  );
-  const allKeyCookiesPresent = config.keyCookies.every((name) =>
-    cookieNames.has(name),
-  );
+  const presentKeyCookies = config.keyCookies.filter((name) => cookieNames.has(name));
+  const allKeyCookiesPresent = config.keyCookies.every((name) => cookieNames.has(name));
 
   // 提取用户信息
   const dedeUserId = cookies.find((c) => c.name === 'DedeUserID');
@@ -164,10 +137,7 @@ async function getBilibiliAuthState(dataDir) {
   const snapshotPath = getBilibiliCookieSnapshotPath(dataDir);
   if (fs.existsSync(snapshotPath) && safeStorage.isEncryptionAvailable()) {
     try {
-      const encrypted = Buffer.from(
-        fs.readFileSync(snapshotPath, 'utf8'),
-        'base64',
-      );
+      const encrypted = Buffer.from(fs.readFileSync(snapshotPath, 'utf8'), 'base64');
       const payload = JSON.parse(safeStorage.decryptString(encrypted));
       snapshotMeta = { exists: true, savedAt: payload.savedAt || '' };
     } catch (_) {
@@ -175,9 +145,7 @@ async function getBilibiliAuthState(dataDir) {
     }
   }
 
-  const exportedCookieExists = fs.existsSync(
-    getBilibiliCookieExportPath(dataDir),
-  );
+  const exportedCookieExists = fs.existsSync(getBilibiliCookieExportPath(dataDir));
 
   return {
     name: config.name,

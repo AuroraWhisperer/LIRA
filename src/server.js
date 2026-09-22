@@ -7,32 +7,21 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { openAdminPageIfNeeded } = require('./server/admin-launcher');
-const {
-  createBilibiliClient: buildBilibiliClient,
-} = require('./server/bilibili-client');
+const { createBilibiliClient: buildBilibiliClient } = require('./server/bilibili-client');
 const { createBilibiliRuntime } = require('./server/bilibili-runtime');
 const { buildMusicRuntime } = require('./server/music-runtime');
 const { buildAiRuntime } = require('./server/ai-runtime');
 const { createInflightTracker } = require('./server/inflight-tracker');
 const { createServerCompatibility } = require('./server/compatibility-runtime');
-const {
-  createRuntimeApiContextFactory,
-} = require('./server/runtime-api-context');
-const {
-  resolveServerRuntimeConfig,
-  validateServerHost,
-} = require('./server/runtime-config');
+const { createRuntimeApiContextFactory } = require('./server/runtime-api-context');
+const { resolveServerRuntimeConfig, validateServerHost } = require('./server/runtime-config');
 const { createRuntimeTransport } = require('./server/runtime-transport');
 const { runStartupRetention } = require('./server/startup-retention');
 const lifecycle = require('./server/lifecycle');
 const wsTransport = require('./server/ws');
 const { createDomainServices } = require('./server/domain-services');
 const sharedUtils = require('./shared/utils');
-const {
-  createDatabases,
-  optimizeDatabases,
-  closeDatabases,
-} = require('./storage/database');
+const { createDatabases, optimizeDatabases, closeDatabases } = require('./storage/database');
 const { createGiftSyncStore } = require('./storage/gift-sync-store');
 const { migrateCacheData } = require('./storage/data-directory-migration');
 const { DEFAULT_SETTINGS } = require('./storage/settings-defaults');
@@ -42,9 +31,7 @@ const { createGiftExportRuntime } = require('./server/gift-export-runtime');
 const { createDanmakuFeedBuffer } = require('./bilibili/danmaku/feed-buffer');
 const { createGameRuntime } = require('./server/game-runtime');
 const { createWheelSessionService } = require('./games/wheel-session-service');
-const {
-  createDynamicLotteryRuntime,
-} = require('./server/dynamic-lottery-runtime');
+const { createDynamicLotteryRuntime } = require('./server/dynamic-lottery-runtime');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 const PUBLIC_DIR = path.join(ROOT_DIR, 'public');
@@ -52,10 +39,7 @@ const START_PORT = 3000;
 const PORT_CLEANUP_TIMEOUT_MS = 7500;
 const PORT_CLEANUP_POLL_MS = 120;
 const MAX_BODY_BYTES = 16 * 1024 * 1024;
-const {
-  normalizeCloudSettingsSnapshot,
-  serializeCloudSettings,
-} = require('./server/settings-contract');
+const { normalizeCloudSettingsSnapshot, serializeCloudSettings } = require('./server/settings-contract');
 
 function createServerRuntime(runtimeOptions = {}) {
   const {
@@ -106,9 +90,7 @@ function createServerRuntime(runtimeOptions = {}) {
     isAuthorized: () => true,
   };
   const isLicenseAuthorized = () =>
-    typeof licenseGate.isAuthorized === 'function'
-      ? licenseGate.isAuthorized() === true
-      : true;
+    typeof licenseGate.isAuthorized === 'function' ? licenseGate.isAuthorized() === true : true;
   const {
     getWebSocketContext,
     broadcastSnapshot,
@@ -131,21 +113,17 @@ function createServerRuntime(runtimeOptions = {}) {
     getDanmakuFeedBuffer: () => danmakuFeedBuffer,
     resolveGiftEffect: (giftId) => domainServices.gifts.resolveEffect(giftId),
   });
-  const { resumeAuthorizedWork, pauseAuthorizedWork } =
-    createAuthorizedWorkController({
-      isLicenseAuthorized,
-      getBilibiliRuntime: () => bilibiliRuntime,
-      getOvertimeGiftCatalog: () => domainServices?.overtimeGiftCatalog,
-    });
+  const { resumeAuthorizedWork, pauseAuthorizedWork } = createAuthorizedWorkController({
+    isLicenseAuthorized,
+    getBilibiliRuntime: () => bilibiliRuntime,
+    getOvertimeGiftCatalog: () => domainServices?.overtimeGiftCatalog,
+  });
 
   async function initializeApplication(options = {}) {
     if (applicationInitialized) return;
     try {
       giftRuntime.configureGiftSync(options.giftSync);
-      const reportPhase =
-        typeof runtimeOptions.onPhase === 'function'
-          ? runtimeOptions.onPhase
-          : () => {};
+      const reportPhase = typeof runtimeOptions.onPhase === 'function' ? runtimeOptions.onPhase : () => {};
       let phaseStartedAt = Date.now();
       migrateCacheData({ dataDir: DATA_DIR });
       db = createDatabases({
@@ -196,14 +174,9 @@ function createServerRuntime(runtimeOptions = {}) {
       });
       giftSyncStore = createGiftSyncStore({
         giftDb: db.giftDb,
-        importHistoryRecord: (record, sourceId) =>
-          domainServices.gifts.importProcessedHistoryRecord(record, sourceId),
+        importHistoryRecord: (record, sourceId) => domainServices.gifts.importProcessedHistoryRecord(record, sourceId),
         importLiveEvent: (event, sourceId, importOptions) =>
-          domainServices.gifts.importProcessedEvent(
-            event,
-            sourceId,
-            importOptions,
-          ),
+          domainServices.gifts.importProcessedEvent(event, sourceId, importOptions),
       });
       musicRuntime = buildMusicRuntime({
         dataDir: {
@@ -259,9 +232,12 @@ function createServerRuntime(runtimeOptions = {}) {
     }
   }
 
-  const giftRuntime = createGiftExportRuntime({ getServices: () => domainServices,
-    getSettingsStore: () => settingsStore, broadcastSnapshot,
-    getUserAvatar: (uid) => bilibiliRuntime.getUserAvatar(uid) });
+  const giftRuntime = createGiftExportRuntime({
+    getServices: () => domainServices,
+    getSettingsStore: () => settingsStore,
+    broadcastSnapshot,
+    getUserAvatar: (uid) => bilibiliRuntime.getUserAvatar(uid),
+  });
   const createApiContext = createRuntimeApiContextFactory({
     giftCards: giftRuntime.giftCards,
     getDynamicLottery: () => dynamicLottery,
@@ -329,29 +305,20 @@ function createServerRuntime(runtimeOptions = {}) {
 
   function startServer(options = {}) {
     if (startPromise) return startPromise;
-    if (isShuttingDown)
-      return Promise.reject(new Error('Server runtime is shutting down.'));
+    if (isShuttingDown) return Promise.reject(new Error('Server runtime is shutting down.'));
 
-    const startPort =
-      options.startPort === undefined ? START_PORT : Number(options.startPort);
+    const startPort = options.startPort === undefined ? START_PORT : Number(options.startPort);
     const host = validateServerHost(options.host || HOST);
     if (!Number.isInteger(startPort) || startPort < 0 || startPort > 65535) {
-      return Promise.reject(
-        new Error('startPort must be an integer between 0 and 65535.'),
-      );
+      return Promise.reject(new Error('startPort must be an integer between 0 and 65535.'));
     }
     startPromise = (async () => {
       try {
-        const reportPhase =
-          typeof runtimeOptions.onPhase === 'function'
-            ? runtimeOptions.onPhase
-            : () => {};
+        const reportPhase = typeof runtimeOptions.onPhase === 'function' ? runtimeOptions.onPhase : () => {};
         const markPhase = (name, startedAt, extra = {}) => {
           reportPhase(name, Date.now() - startedAt, extra);
         };
-        await lifecycle.cleanupOwnPortOccupant(
-          getLifecycleOptions(startPort, host),
-        );
+        await lifecycle.cleanupOwnPortOccupant(getLifecycleOptions(startPort, host));
         if (isShuttingDown) throw new Error('Server runtime is shutting down.');
         let phaseStartedAt = Date.now();
         const port = await lifecycle.listenExactly(server, {
@@ -381,15 +348,11 @@ function createServerRuntime(runtimeOptions = {}) {
         openAdminPageIfNeeded(baseUrl);
         if (isLicenseAuthorized()) {
           bilibiliRuntime.reconnect().catch((error) => {
-            console.warn(
-              `[Bilibili] startup reconnect failed: ${error.message}`,
-            );
+            console.warn(`[Bilibili] startup reconnect failed: ${error.message}`);
             bilibiliRuntime?.updateStatus({
               connected: false,
               enabled: true,
-              roomId: sharedUtils.normalizeRoomInput(
-                settingsStore.getSettings().roomId,
-              ),
+              roomId: sharedUtils.normalizeRoomInput(settingsStore.getSettings().roomId),
               mode: 'bilibili',
               message: sharedUtils.publicBilibiliErrorMessage(error, true),
             });
@@ -498,9 +461,13 @@ function createServerRuntime(runtimeOptions = {}) {
   async function disposeApplication(options = {}) {
     const steps = [
       ['Bilibili', () => bilibiliRuntime?.stop()],
-      ['WebSocket', () => webSocketHub?.stop({
-        shutdownPayload: { type: 'shutdown', reason: 'manual' },
-      })],
+      [
+        'WebSocket',
+        () =>
+          webSocketHub?.stop({
+            shutdownPayload: { type: 'shutdown', reason: 'manual' },
+          }),
+      ],
       ['game', () => gameSessionService?.dispose()],
       ['interactions', () => interactionSessionService?.dispose()],
       ['wheel', () => wheelSessionService?.dispose()],
@@ -566,8 +533,7 @@ function createServerRuntime(runtimeOptions = {}) {
 
   /** Persist playback snapshot directly (used by Electron main process via IPC). */
   function persistPlaybackSnapshot(payload, clientId) {
-    if (!domainServices?.playback)
-      return { ok: false, error: 'Playback store not ready' };
+    if (!domainServices?.playback) return { ok: false, error: 'Playback store not ready' };
     try {
       return domainServices.playback.saveQueueState(payload, {
         clientId: clientId || 'default',
@@ -578,9 +544,7 @@ function createServerRuntime(runtimeOptions = {}) {
   }
 
   function getSetting(key) {
-    return settingsStore
-      ? settingsStore.getSettings()[key]
-      : DEFAULT_SETTINGS[key];
+    return settingsStore ? settingsStore.getSettings()[key] : DEFAULT_SETTINGS[key];
   }
 
   function requireGiftSyncStore() {
@@ -601,10 +565,7 @@ function createServerRuntime(runtimeOptions = {}) {
   }
 
   function restartGiftHistoryBootstrap(sourceId, projectionGeneration) {
-    return requireGiftSyncStore().restartHistoryBootstrap(
-      sourceId,
-      projectionGeneration,
-    );
+    return requireGiftSyncStore().restartHistoryBootstrap(sourceId, projectionGeneration);
   }
 
   function commitGiftCatchUpPage(page) {
@@ -664,10 +625,7 @@ function createServerRuntime(runtimeOptions = {}) {
       settingsRevision: Math.max(0, Number(input.settingsRevision) || 0),
       customCount: Math.max(0, Number(input.customCount) || 0),
       takenOverCount: Math.max(0, Number(input.takenOverCount) || 0),
-      migrationPendingCount: Math.max(
-        0,
-        Number(input.migrationPendingCount) || 0,
-      ),
+      migrationPendingCount: Math.max(0, Number(input.migrationPendingCount) || 0),
       applied: input.applied === true,
     });
   }
@@ -717,18 +675,11 @@ function createServerRuntime(runtimeOptions = {}) {
   }
 
   function isGiftCatalogInitialized() {
-    return (
-      domainServices?.overtimeGiftCatalog?.isGlobalCatalogInitialized?.() ===
-      true
-    );
+    return domainServices?.overtimeGiftCatalog?.isGlobalCatalogInitialized?.() === true;
   }
 
   function onGiftCatalogInitializationStateChanged(listener) {
-    return (
-      domainServices?.overtimeGiftCatalog?.onInitializationStateChanged?.(
-        listener,
-      ) || (() => {})
-    );
+    return domainServices?.overtimeGiftCatalog?.onInitializationStateChanged?.(listener) || (() => {});
   }
 
   return {
@@ -769,13 +720,8 @@ function createServerRuntime(runtimeOptions = {}) {
   };
 }
 
-const {
-  getApiToken,
-  persistPlaybackSnapshot,
-  setPreShutdownHook,
-  shutdownApplication,
-  startServer,
-} = createServerCompatibility(createServerRuntime);
+const { getApiToken, persistPlaybackSnapshot, setPreShutdownHook, shutdownApplication, startServer } =
+  createServerCompatibility(createServerRuntime);
 
 if (require.main === module) {
   process.once('SIGINT', () => shutdownApplication());

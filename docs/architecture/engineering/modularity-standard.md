@@ -246,15 +246,15 @@ extracted when consumers justify it; neither all tests nor all fixtures are
 excluded. A larger cohesive test needs its own reviewed `exception` with a
 reason and ceiling. Current oversized tests remain `legacy` work, not fixtures.
 
-Two static-content exceptions are accepted: `public/data/theme-presets.json`
-keeps a fixed-address pure-data catalog, and
-`public/pages/admin/toolbox/usage-guide.html` keeps help chapters and anchors.
-Their exact ceilings, owners, reasons, exit triggers, deadlines and protection
-tests are recorded in the registry. The help exception explicitly extends the
-static-data rule to static HTML content; it does not cover settings forms or
-other HTML. Exceptions still fail on growth or expiry and are reviewed for
-continued static content. Handwritten migration executors and analyzers are
-ordinary source, not generated snapshots or fixtures.
+The static-content exception for `public/data/theme-presets.json` keeps a
+fixed-address pure-data catalog. Its ceiling, owner, reason, exit trigger,
+deadline and protection test are recorded in the registry. The help chapters
+formerly covered by `public/pages/admin/toolbox/usage-guide.html` now use
+ordered complete fragments, each within the ordinary size limit; that record
+has been removed. Help content still excludes inline scripts and business
+forms. Exceptions fail on growth or expiry and are reviewed for continued
+static content. Handwritten migration executors and analyzers are ordinary
+source, not generated snapshots or fixtures.
 
 ### Function Review And Incremental Debt
 

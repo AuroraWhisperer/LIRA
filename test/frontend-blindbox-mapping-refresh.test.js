@@ -4,10 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
-const {
-  createBlindboxFixture,
-  flushBlindboxTasks,
-} = require('./helpers/frontend-blindbox-fixture');
+const { createBlindboxFixture, flushBlindboxTasks } = require('./helpers/frontend-blindbox-fixture');
 const { loadModuleExports } = require('./helpers/frontend-modules');
 
 const ROOT_DIR = path.join(__dirname, '..');
@@ -32,9 +29,7 @@ test('settings form announces the saved room only after a successful save, inclu
     { window },
   );
   const saved = [];
-  window.AdminApp?.eventBus?.on('state:saved', (payload) =>
-    saved.push(payload),
-  );
+  window.AdminApp?.eventBus?.on('state:saved', (payload) => saved.push(payload));
   let resolveSave;
   let rejectSave;
   const form = createSettingsForm({
@@ -51,8 +46,7 @@ test('settings form announces the saved room only after a successful save, inclu
     blindboxSettings: { init() {} },
   });
   await form.init();
-  const submit = () =>
-    elements.get('settingsForm').submit({ preventDefault() {} });
+  const submit = () => elements.get('settingsForm').submit({ preventDefault() {} });
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const pending = submit();
     assert.equal(saved.length, attempt);
@@ -90,20 +84,11 @@ test('blind-box mapping skips obsolete room requests and retries a wrong-room re
   fixture.dispatchSettings('789');
   await fixture.resolveRefresh({ roomId: '123', gifts: [{ id: 'old' }] });
   await flushBlindboxTasks();
-  assert.equal(
-    fixture.fetchCalls.filter(
-      ({ url }) => url === '/api/overtime/gifts/refresh',
-    ).length,
-    2,
-  );
+  assert.equal(fixture.fetchCalls.filter(({ url }) => url === '/api/overtime/gifts/refresh').length, 2);
   assert.equal(fixture.refreshRequests.length, 1);
   await fixture.resolveRefresh({ roomId: '789', gifts: [{ id: 'final' }] });
   assert.deepEqual(
-    [
-      ...fixture.container.innerHTML.matchAll(
-        /<span class="bb-chip-name">([^<]+)<\/span>/g,
-      ),
-    ].map(([, name]) => name),
+    [...fixture.container.innerHTML.matchAll(/<span class="bb-chip-name">([^<]+)<\/span>/g)].map(([, name]) => name),
     ['最终盒', '旧盒'],
   );
 
@@ -113,19 +98,10 @@ test('blind-box mapping skips obsolete room requests and retries a wrong-room re
   await fixture.resolveRefresh({ roomId: 'stale', gifts: [{ id: 'wrong' }] });
   await flushBlindboxTasks();
   assert.deepEqual(
-    [
-      ...fixture.container.innerHTML.matchAll(
-        /<span class="bb-chip-name">([^<]+)<\/span>/g,
-      ),
-    ].map(([, name]) => name),
+    [...fixture.container.innerHTML.matchAll(/<span class="bb-chip-name">([^<]+)<\/span>/g)].map(([, name]) => name),
     ['旧盒', '最终盒'],
   );
-  assert.equal(
-    fixture.fetchCalls.filter(
-      ({ url }) => url === '/api/overtime/gifts/refresh',
-    ).length,
-    4,
-  );
+  assert.equal(fixture.fetchCalls.filter(({ url }) => url === '/api/overtime/gifts/refresh').length, 4);
   assert.equal(fixture.refreshRequests.length, 1);
   await fixture.resolveRefresh({ roomId: '999', gifts: [{ id: 'current' }] });
 });
@@ -147,11 +123,7 @@ test('blind-box mapping stays alphabetical after a failed refresh and can refres
     })),
   });
   const names = () =>
-    [
-      ...fixture.container.innerHTML.matchAll(
-        /<span class="bb-chip-name">([^<]+)<\/span>/g,
-      ),
-    ].map(([, name]) => name);
+    [...fixture.container.innerHTML.matchAll(/<span class="bb-chip-name">([^<]+)<\/span>/g)].map(([, name]) => name);
   await fixture.resolveRefresh({ roomId: '123', gifts: [{ id: '200' }] });
   assert.deepEqual(names(), ['在售盲盒', '官方盲盒']);
 
@@ -189,18 +161,15 @@ test('blind-box advanced editor replaces saved null with an empty state while pr
       gifts: { recent: { getBlindBoxIcon: () => null } },
     },
   };
-  await loadModuleExports(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'blindbox.js'),
-    {
-      document: {
-        readyState: 'loading',
-        addEventListener() {},
-        getElementById: (id) => elements[id] || null,
-      },
-      window,
-      fetch: () => new Promise(() => {}),
+  await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'blindbox.js'), {
+    document: {
+      readyState: 'loading',
+      addEventListener() {},
+      getElementById: (id) => elements[id] || null,
     },
-  );
+    window,
+    fetch: () => new Promise(() => {}),
+  });
   const { renderBlindBoxList } = window.AdminApp.gifts.blindbox;
 
   renderBlindBoxList();
@@ -257,19 +226,13 @@ test('blind-box advanced editor replaces saved null with an empty state while pr
   assert.equal(toggle.hidden, false);
   assert.equal(textarea.value, '{');
 
-  const page = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'pages', 'admin', 'gifts', 'page.html'),
-    'utf8',
-  );
+  const page = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin', 'gifts', 'page.html'), 'utf8');
   assert.doesNotMatch(page, /id="blindBoxAdvancedToggle"[^>]*\bhidden\b/);
   assert.match(page, /id="blindBoxAdvanced"[^>]*\bhidden\b/);
   assert.doesNotMatch(page, /id="blindBoxAddBtn"[^>]*\bhidden\b/);
   assert.match(page, /placeholder="暂无自定义配置/);
   assert.match(page, /官方盲盒设置自动同步，无需填写/);
-  assert.match(
-    page,
-    /id="blindBoxListToggle"[^>]*aria-expanded="false"[^>]*aria-controls="blindBoxList"/,
-  );
+  assert.match(page, /id="blindBoxListToggle"[^>]*aria-expanded="false"[^>]*aria-controls="blindBoxList"/);
 });
 
 test('blind-box JSON draft survives state refresh and a failed save', async () => {
@@ -282,16 +245,15 @@ test('blind-box JSON draft survives state refresh and a failed save', async () =
   };
   const document = {
     activeElement: null,
-    getElementById: (id) =>
-      id === 'giftBlindBoxCustomConfigV2' ? textarea : null,
+    getElementById: (id) => (id === 'giftBlindBoxCustomConfigV2' ? textarea : null),
     querySelectorAll: () => [],
     querySelector: () => null,
   };
   const window = { AdminApp: {} };
-  const { FormsService } = await loadModuleExports(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'forms.js'),
-    { document, window },
-  );
+  const { FormsService } = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'admin', 'forms.js'), {
+    document,
+    window,
+  });
   const forms = new FormsService();
   forms.fillForm({ giftBlindBoxCustomConfigV2: '[]' });
   assert.equal(textarea.value, draft);
@@ -373,11 +335,7 @@ test('blind-box JSON draft survives state refresh and a failed save', async () =
 
   editable.value = '';
   await elements.get('giftBlindBoxSaveBtn').listeners.get('click')();
-  assert.equal(
-    savedConfigs.length,
-    0,
-    'saving the untouched empty state must not replace legacy config',
-  );
+  assert.equal(savedConfigs.length, 0, 'saving the untouched empty state must not replace legacy config');
   assert.equal(editable.dataset.dirty, undefined);
   const toggle = elements.get('blindBoxAdvancedToggle');
   toggle.listeners.get('click')();
@@ -390,17 +348,11 @@ test('blind-box JSON draft survives state refresh and a failed save', async () =
   assert.equal(advanced.hidden, false);
   editable.value = draft;
   editable.listeners.get('input')();
-  await assert.rejects(
-    elements.get('giftBlindBoxSaveBtn').listeners.get('click')(),
-    /offline/,
-  );
+  await assert.rejects(elements.get('giftBlindBoxSaveBtn').listeners.get('click')(), /offline/);
   assert.equal(editable.value, draft);
   assert.equal(editable.dataset.dirty, 'true');
   editable.value = '';
   editable.listeners.get('input')();
-  await assert.rejects(
-    elements.get('giftBlindBoxSaveBtn').listeners.get('click')(),
-    /offline/,
-  );
+  await assert.rejects(elements.get('giftBlindBoxSaveBtn').listeners.get('click')(), /offline/);
   assert.equal(savedConfigs.at(-1).giftBlindBoxCustomConfigV2, '[]');
 });

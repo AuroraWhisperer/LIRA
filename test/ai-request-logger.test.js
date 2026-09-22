@@ -86,9 +86,7 @@ test('AI request logger appends one activity summary without prompt or response 
 });
 
 test('AI request logger keeps safe failure fields within the final UTF-8 byte ceiling', async (t) => {
-  const directory = await fs.mkdtemp(
-    path.join(os.tmpdir(), 'ai-request-log-error-'),
-  );
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'ai-request-log-error-'));
   t.after(() => fs.rm(directory, { recursive: true, force: true }));
   const filePath = path.join(directory, 'ai.log');
   const logger = createAiRequestLogger({
@@ -131,9 +129,7 @@ test('AI request logger keeps safe failure fields within the final UTF-8 byte ce
 });
 
 test('AI request logger leaves legacy ai.log read-only in structured directory mode', async (t) => {
-  const directory = await fs.mkdtemp(
-    path.join(os.tmpdir(), 'ai-request-log-streams-'),
-  );
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'ai-request-log-streams-'));
   t.after(() => fs.rm(directory, { recursive: true, force: true }));
   const legacyPath = path.join(directory, 'ai.log');
   await fs.writeFile(legacyPath, 'legacy content\n', 'utf8');
@@ -154,14 +150,8 @@ test('AI request logger leaves legacy ai.log read-only in structured directory m
   await logger.flush();
 
   assert.equal(await fs.readFile(legacyPath, 'utf8'), 'legacy content\n');
-  const runtime = await fs.readFile(
-    path.join(directory, 'runtime', 'ai.jsonl'),
-    'utf8',
-  );
-  const errors = await fs.readFile(
-    path.join(directory, 'errors', 'ai.jsonl'),
-    'utf8',
-  );
+  const runtime = await fs.readFile(path.join(directory, 'runtime', 'ai.jsonl'), 'utf8');
+  const errors = await fs.readFile(path.join(directory, 'errors', 'ai.jsonl'), 'utf8');
   assert.equal(JSON.parse(runtime).event, 'ai.requestSummary');
   assert.equal(JSON.parse(errors).event, 'ai.requestFailed');
 });
@@ -228,9 +218,6 @@ test('AI request logger bounds its pending write queue and reports drops', async
   await logger.flush();
   const entries = written.map((line) => JSON.parse(line));
   assert.equal(entries.filter((entry) => entry.level === 'error').length, 2);
-  assert.equal(
-    entries.find((entry) => entry.event === 'ai.requestSummary').failureCount,
-    3,
-  );
+  assert.equal(entries.find((entry) => entry.event === 'ai.requestSummary').failureCount, 3);
   assert.equal(logger.getHealth().queuedEntries, 0);
 });

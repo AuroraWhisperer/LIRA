@@ -120,11 +120,7 @@
   display: grid;
   place-items: center;
   border-radius: 20px;
-  background: linear-gradient(
-    145deg,
-    rgba(217, 75, 112, 0.12),
-    rgba(147, 112, 219, 0.12)
-  );
+  background: linear-gradient(145deg, rgba(217, 75, 112, 0.12), rgba(147, 112, 219, 0.12));
   border: 1px solid rgba(217, 75, 112, 0.18);
   color: #d94b70;
   font-size: var(--type-size-metric-md);

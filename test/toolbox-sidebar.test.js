@@ -11,60 +11,27 @@ const { readCssBundle } = require('./helpers/css-bundle');
 const ROOT_DIR = path.resolve(__dirname, '..');
 
 test('toolbox styles load feature-owned stylesheets in order', () => {
-  const entry = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'css', 'admin', 'other-features.css'),
-    'utf8',
-  );
+  const entry = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'other-features.css'), 'utf8');
 
-  assert.match(
-    entry,
-    /@import url\('\.\/other-features\/streamer-planner\.css'\);/,
-  );
+  assert.match(entry, /@import url\('\.\/other-features\/streamer-planner\.css'\);/);
 });
 
 test('toolbox defers offscreen rendering in its heaviest panels', () => {
   const usageGuideStyles = fs.readFileSync(
-    path.join(
-      ROOT_DIR,
-      'public',
-      'css',
-      'admin',
-      'other-features',
-      'usage-guide.css',
-    ),
+    path.join(ROOT_DIR, 'public', 'css', 'admin', 'other-features', 'usage-guide.css'),
     'utf8',
   );
-  const overtimeStyles = readCssBundle(
-    'public',
-    'css',
-    'admin',
-    'overtime.css',
-  );
-  const usageGuideScript = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'usage-guide.js'),
-    'utf8',
-  );
+  const overtimeStyles = readCssBundle('public', 'css', 'admin', 'overtime.css');
+  const usageGuideScript = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'usage-guide.js'), 'utf8');
 
-  assert.match(
-    usageGuideStyles,
-    /\.usage-guide-section\s*\{[^}]*content-visibility:\s*auto/,
-  );
-  assert.match(
-    usageGuideStyles,
-    /\.usage-guide-section\s*\{[^}]*contain-intrinsic-size:\s*auto 720px/,
-  );
+  assert.match(usageGuideStyles, /\.usage-guide-section\s*\{[^}]*content-visibility:\s*auto/);
+  assert.match(usageGuideStyles, /\.usage-guide-section\s*\{[^}]*contain-intrinsic-size:\s*auto 720px/);
   assert.match(
     usageGuideStyles,
     /\.usage-guide-render-all \.usage-guide-section\s*\{[^}]*content-visibility:\s*visible/,
   );
-  assert.match(
-    usageGuideScript,
-    /panel\.classList\.add\('usage-guide-render-all'\)/,
-  );
-  assert.match(
-    overtimeStyles,
-    /\.overtime-admin > \.overtime-admin-section\s*\{[^}]*content-visibility:\s*auto/,
-  );
+  assert.match(usageGuideScript, /panel\.classList\.add\('usage-guide-render-all'\)/);
+  assert.match(overtimeStyles, /\.overtime-admin > \.overtime-admin-section\s*\{[^}]*content-visibility:\s*auto/);
   assert.match(
     overtimeStyles,
     /\.overtime-admin > \.overtime-admin-section\s*\{[^}]*contain-intrinsic-size:\s*auto 260px/,
@@ -76,14 +43,8 @@ test('toolbox sidebar switches between labeled and icon-only layouts', () => {
   const styles = readCssBundle('public', 'css', 'admin', 'other-features.css');
 
   assert.match(html, /data-other-sidebar-toggle/);
-  assert.match(
-    html,
-    /class="other-sidebar-toggle-state other-sidebar-toggle-collapse"/,
-  );
-  assert.match(
-    html,
-    /class="other-sidebar-toggle-state other-sidebar-toggle-expand"/,
-  );
+  assert.match(html, /class="other-sidebar-toggle-state other-sidebar-toggle-collapse"/);
+  assert.match(html, /class="other-sidebar-toggle-state other-sidebar-toggle-expand"/);
   assert.match(
     html,
     /data-other-feature="otherDanmakuFeature"[^>]*>[\s\S]*?弹幕姬[\s\S]*?class="other-feature-arrow"[\s\S]*?<\/button>/,
@@ -97,27 +58,15 @@ test('toolbox sidebar switches between labeled and icon-only layouts', () => {
     /data-other-feature="otherOvertimeMachineFeature"[^>]*>[\s\S]*?<strong>加班机<\/strong>\s*<small>用礼物延长直播倒计时<\/small>/,
   );
   assert.match(html, /aria-expanded="true"/);
-  assert.match(
-    styles,
-    /\.other-page\.sidebar-collapsed \.other-workspace\s*\{[^}]*grid-template-columns:\s*76px/,
-  );
+  assert.match(styles, /\.other-page\.sidebar-collapsed \.other-workspace\s*\{[^}]*grid-template-columns:\s*76px/);
   assert.match(styles, /\.other-page\.sidebar-collapsed \.other-feature-label/);
-  assert.match(
-    styles,
-    /\.other-page\.sidebar-collapsed \.other-sidebar-toggle-collapse\s*\{[^}]*opacity:\s*0/,
-  );
-  assert.match(
-    styles,
-    /\.other-page\.sidebar-collapsed \.other-sidebar-toggle-expand\s*\{[^}]*opacity:\s*1/,
-  );
+  assert.match(styles, /\.other-page\.sidebar-collapsed \.other-sidebar-toggle-collapse\s*\{[^}]*opacity:\s*0/);
+  assert.match(styles, /\.other-page\.sidebar-collapsed \.other-sidebar-toggle-expand\s*\{[^}]*opacity:\s*1/);
   assert.match(
     styles,
     /\.other-page\.sidebar-collapsed \.other-feature-button\s*\{[^}]*grid-template-columns:\s*38px minmax\(0, 1fr\) 16px[^}]*justify-content:\s*initial[^}]*min-height:\s*56px/,
   );
-  assert.match(
-    styles,
-    /@media \(max-width: 900px\)[\s\S]*?\.other-sidebar-toolbar\s*\{[^}]*display:\s*none/,
-  );
+  assert.match(styles, /@media \(max-width: 900px\)[\s\S]*?\.other-sidebar-toolbar\s*\{[^}]*display:\s*none/);
   assert.match(
     styles,
     /@media \(max-width: 900px\)[\s\S]*?\.other-page\.sidebar-collapsed \.other-feature-label\s*\{[^}]*display:\s*grid/,
@@ -131,35 +80,16 @@ test('toolbox sidebar switches between labeled and icon-only layouts', () => {
 test('toolbox sidebar groups features by live and local workflows', () => {
   const html = readAdminHtml();
   const styles = readCssBundle('public', 'css', 'admin', 'other-features.css');
-  const navigation = html.match(
-    /<nav\b[^>]*class=["']other-feature-menu["'][^>]*>([\s\S]*?)<\/nav\s*>/,
-  )?.[1];
+  const navigation = html.match(/<nav\b[^>]*class=["']other-feature-menu["'][^>]*>([\s\S]*?)<\/nav\s*>/)?.[1];
   const expectedGroups = [
-    [
-      'live-interaction',
-      '直播互动',
-      ['otherDanmakuFeature', 'otherGiftFeature', 'otherGamesFeature'],
-    ],
+    ['live-interaction', '直播互动', ['otherDanmakuFeature', 'otherGiftFeature', 'otherGamesFeature']],
     [
       'live-scene',
       '直播画面',
-      [
-        'otherOvertimeMachineFeature',
-        'otherGiftEffectsFeature',
-        'otherStartAnimationFeature',
-        'otherClockFeature',
-      ],
+      ['otherOvertimeMachineFeature', 'otherGiftEffectsFeature', 'otherStartAnimationFeature', 'otherClockFeature'],
     ],
     ['streamer-work', '主播工作', ['otherDailyTodoFeature']],
-    [
-      'software-help',
-      '软件与帮助',
-      [
-        'otherPerformanceFeature',
-        'otherUsageGuideFeature',
-        'otherDesktopUpdateFeature',
-      ],
-    ],
+    ['software-help', '软件与帮助', ['otherPerformanceFeature', 'otherUsageGuideFeature', 'otherDesktopUpdateFeature']],
   ];
 
   assert.ok(navigation, 'toolbox navigation should remain present');
@@ -182,14 +112,8 @@ test('toolbox sidebar groups features by live and local workflows', () => {
     const groupEnd = headingPositions[groupIndex + 1] ?? navigation.length;
     const groupHtml = navigation.slice(groupStart, groupEnd);
 
-    assert.match(
-      groupHtml,
-      new RegExp(`<strong>${label}<\\/strong>`),
-      `${label} should label its workflow group`,
-    );
-    const featurePositions = featureIds.map((featureId) =>
-      groupHtml.indexOf(`data-other-feature="${featureId}"`),
-    );
+    assert.match(groupHtml, new RegExp(`<strong>${label}<\\/strong>`), `${label} should label its workflow group`);
+    const featurePositions = featureIds.map((featureId) => groupHtml.indexOf(`data-other-feature="${featureId}"`));
     assert.ok(
       featurePositions.every((position) => position >= 0),
       `${label} should contain its assigned features`,
@@ -203,22 +127,13 @@ test('toolbox sidebar groups features by live and local workflows', () => {
     for (const [otherGroupId, , otherFeatureIds] of expectedGroups) {
       if (otherGroupId === groupId) continue;
       for (const featureId of otherFeatureIds) {
-        assert.doesNotMatch(
-          groupHtml,
-          new RegExp(`data-other-feature="${featureId}"`),
-        );
+        assert.doesNotMatch(groupHtml, new RegExp(`data-other-feature="${featureId}"`));
       }
     }
   });
 
-  assert.match(
-    styles,
-    /\.other-feature-group-heading\s*\{[^}]*border-top:\s*1px solid var\(--border\)/,
-  );
-  assert.match(
-    styles,
-    /\.other-page\.sidebar-collapsed \.other-feature-group-heading\s*\{[^}]*overflow:\s*hidden/,
-  );
+  assert.match(styles, /\.other-feature-group-heading\s*\{[^}]*border-top:\s*1px solid var\(--border\)/);
+  assert.match(styles, /\.other-page\.sidebar-collapsed \.other-feature-group-heading\s*\{[^}]*overflow:\s*hidden/);
   assert.match(
     styles,
     /@media \(max-width: 900px\)[\s\S]*?\.other-feature-group-heading\s*\{[^}]*grid-column:\s*1 \/ -1/,
@@ -228,9 +143,7 @@ test('toolbox sidebar groups features by live and local workflows', () => {
 test('toolbox group headings are collapsible buttons with the intended type scale', () => {
   const html = readAdminHtml();
   const styles = readCssBundle('public', 'css', 'admin', 'other-features.css');
-  const navigation = html.match(
-    /<nav\b[^>]*class=["']other-feature-menu["'][^>]*>([\s\S]*?)<\/nav\s*>/,
-  )?.[1];
+  const navigation = html.match(/<nav\b[^>]*class=["']other-feature-menu["'][^>]*>([\s\S]*?)<\/nav\s*>/)?.[1];
   const groups = [
     ['live-interaction', '直播互动'],
     ['live-scene', '直播画面'],
@@ -239,10 +152,7 @@ test('toolbox group headings are collapsible buttons with the intended type scal
   ];
 
   assert.ok(navigation, 'toolbox navigation should remain present');
-  assert.equal(
-    (navigation.match(/data-other-feature-group=/g) || []).length,
-    groups.length,
-  );
+  assert.equal((navigation.match(/data-other-feature-group=/g) || []).length, groups.length);
 
   groups.forEach(([groupId, label]) => {
     const heading = navigation.match(
@@ -257,22 +167,10 @@ test('toolbox group headings are collapsible buttons with the intended type scal
     assert.match(heading, new RegExp(`title="收起${label}"`));
   });
 
-  assert.match(
-    styles,
-    /\.other-feature-group-heading strong\s*\{[^}]*font-size:\s*var\(--type-size-card-title\)/,
-  );
-  assert.match(
-    styles,
-    /\.other-feature-group-heading small\s*\{[^}]*font-size:\s*var\(--type-size-caption\)/,
-  );
-  assert.match(
-    styles,
-    /\.other-feature-label strong\s*\{[^}]*font-size:\s*var\(--type-size-control\)/,
-  );
-  assert.match(
-    styles,
-    /\.other-feature-label small\s*\{[^}]*font-size:\s*var\(--type-size-caption\)/,
-  );
+  assert.match(styles, /\.other-feature-group-heading strong\s*\{[^}]*font-size:\s*var\(--type-size-card-title\)/);
+  assert.match(styles, /\.other-feature-group-heading small\s*\{[^}]*font-size:\s*var\(--type-size-caption\)/);
+  assert.match(styles, /\.other-feature-label strong\s*\{[^}]*font-size:\s*var\(--type-size-control\)/);
+  assert.match(styles, /\.other-feature-label small\s*\{[^}]*font-size:\s*var\(--type-size-caption\)/);
   assert.match(styles, /\.other-feature-group-heading:focus-visible\s*\{/);
   assert.match(
     styles,

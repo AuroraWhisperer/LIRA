@@ -52,10 +52,8 @@
   overflow: hidden;
   background-color: #15171b;
   background-image:
-    linear-gradient(45deg, #202328 25%, transparent 25%),
-    linear-gradient(-45deg, #202328 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #202328 75%),
-    linear-gradient(-45deg, transparent 75%, #202328 75%);
+    linear-gradient(45deg, #202328 25%, transparent 25%), linear-gradient(-45deg, #202328 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, #202328 75%), linear-gradient(-45deg, transparent 75%, #202328 75%);
   background-position:
     0 0,
     0 10px,
@@ -81,23 +79,10 @@
   outline: none;
   scrollbar-color: auto;
   scrollbar-width: auto;
-  mask-image: linear-gradient(
-    to bottom,
-    transparent,
-    #000 9%,
-    #000 90%,
-    transparent
-  );
-  -webkit-mask-image: linear-gradient(
-    to bottom,
-    transparent,
-    #000 9%,
-    #000 90%,
-    transparent
-  );
+  mask-image: linear-gradient(to bottom, transparent, #000 9%, #000 90%, transparent);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 9%, #000 90%, transparent);
   overscroll-behavior-y: auto;
-  filter: opacity(var(--preview-global-opacity))
-    brightness(var(--preview-brightness)) contrast(var(--preview-contrast))
+  filter: opacity(var(--preview-global-opacity)) brightness(var(--preview-brightness)) contrast(var(--preview-contrast))
     saturate(var(--preview-saturation));
   transform-style: preserve-3d;
   transition: opacity 180ms ease;
@@ -129,39 +114,20 @@
   transition: opacity 180ms ease;
 }
 
-.desktop-lyric-preview-card.is-background-enabled
-  .desktop-lyric-preview-viewport::before {
+.desktop-lyric-preview-card.is-background-enabled .desktop-lyric-preview-viewport::before {
   opacity: 1;
 }
 
-.desktop-lyric-preview-card.is-background-mesh
-  .desktop-lyric-preview-viewport::before {
+.desktop-lyric-preview-card.is-background-mesh .desktop-lyric-preview-viewport::before {
   background:
-    radial-gradient(
-      circle at 18% 22%,
-      rgba(255, 111, 145, calc(var(--preview-bg-opacity) * 0.95)),
-      transparent 34%
-    ),
-    radial-gradient(
-      circle at 78% 24%,
-      rgba(33, 182, 168, calc(var(--preview-bg-opacity) * 0.72)),
-      transparent 31%
-    ),
-    linear-gradient(
-      145deg,
-      rgba(7, 13, 28, var(--preview-bg-opacity)),
-      rgba(20, 29, 47, var(--preview-bg-opacity))
-    );
+    radial-gradient(circle at 18% 22%, rgba(255, 111, 145, calc(var(--preview-bg-opacity) * 0.95)), transparent 34%),
+    radial-gradient(circle at 78% 24%, rgba(33, 182, 168, calc(var(--preview-bg-opacity) * 0.72)), transparent 31%),
+    linear-gradient(145deg, rgba(7, 13, 28, var(--preview-bg-opacity)), rgba(20, 29, 47, var(--preview-bg-opacity)));
 }
 
-.desktop-lyric-preview-card.is-background-aurora
-  .desktop-lyric-preview-viewport::before {
+.desktop-lyric-preview-card.is-background-aurora .desktop-lyric-preview-viewport::before {
   background:
-    linear-gradient(
-      120deg,
-      rgba(143, 107, 216, calc(var(--preview-bg-opacity) * 0.8)),
-      transparent 46%
-    ),
+    linear-gradient(120deg, rgba(143, 107, 216, calc(var(--preview-bg-opacity) * 0.8)), transparent 46%),
     linear-gradient(
       300deg,
       rgba(33, 182, 168, calc(var(--preview-bg-opacity) * 0.72)),
@@ -169,8 +135,7 @@
     );
 }
 
-.desktop-lyric-preview-card.is-background-solid
-  .desktop-lyric-preview-viewport::before {
+.desktop-lyric-preview-card.is-background-solid .desktop-lyric-preview-viewport::before {
   background: rgba(6, 12, 24, var(--preview-bg-opacity));
 }
 
@@ -191,16 +156,10 @@
   width: min(100%, 980px);
   min-height: 100%;
   margin: 0 auto;
-  padding: clamp(72px, 16vh, 148px) clamp(24px, 6vw, 82px)
-    clamp(180px, 38vh, 340px);
+  padding: clamp(72px, 16vh, 148px) clamp(24px, 6vw, 82px) clamp(180px, 38vh, 340px);
   align-items: var(--preview-row-align);
-  transform: translate3d(
-      var(--preview-translate-x),
-      var(--preview-translate-y),
-      0
-    )
-    rotateX(var(--preview-rotate-x)) rotateY(var(--preview-rotate-y))
-    scale(var(--preview-scale, 1));
+  transform: translate3d(var(--preview-translate-x), var(--preview-translate-y), 0) rotateX(var(--preview-rotate-x))
+    rotateY(var(--preview-rotate-y)) scale(var(--preview-scale, 1));
   transform-origin: top center;
   transform-style: preserve-3d;
 }
@@ -253,8 +212,7 @@
   opacity: var(--preview-opacity);
 }
 
-.desktop-lyric-preview-card.is-current-enhanced
-  .desktop-lyric-preview-row.is-active {
+.desktop-lyric-preview-card.is-current-enhanced .desktop-lyric-preview-row.is-active {
   background: linear-gradient(
     90deg,
     rgba(255, 255, 255, 0.045),
@@ -266,18 +224,15 @@
     0 0 28px rgba(255, 207, 74, 0.14);
 }
 
-.desktop-lyric-preview-card.is-scale-enabled
-  .desktop-lyric-preview-row:not(.is-active) {
+.desktop-lyric-preview-card.is-scale-enabled .desktop-lyric-preview-row:not(.is-active) {
   transform: scale(0.96);
 }
 
-.desktop-lyric-preview-card.is-scale-enabled
-  .desktop-lyric-preview-row.is-near {
+.desktop-lyric-preview-card.is-scale-enabled .desktop-lyric-preview-row.is-near {
   transform: scale(0.985);
 }
 
-.desktop-lyric-preview-card.is-scale-enabled
-  .desktop-lyric-preview-row.is-active {
+.desktop-lyric-preview-card.is-scale-enabled .desktop-lyric-preview-row.is-active {
   transform: scale(1.02);
 }
 
@@ -301,8 +256,7 @@
   letter-spacing: var(--preview-letter-spacing);
   paint-order: stroke fill;
   -webkit-text-stroke: var(--preview-stroke-width) var(--preview-stroke);
-  text-shadow: var(--preview-shadow-x) var(--preview-shadow-y)
-    var(--preview-shadow-blur) var(--preview-shadow-color);
+  text-shadow: var(--preview-shadow-x) var(--preview-shadow-y) var(--preview-shadow-blur) var(--preview-shadow-color);
 }
 
 .desktop-lyric-preview-card.is-text-justify .desktop-lyric-preview-row {
@@ -310,8 +264,7 @@
 }
 
 .desktop-lyric-preview-card.is-text-justify .desktop-lyric-preview-row-text,
-.desktop-lyric-preview-card.is-text-justify
-  .desktop-lyric-preview-row-translation,
+.desktop-lyric-preview-card.is-text-justify .desktop-lyric-preview-row-translation,
 .desktop-lyric-preview-card.is-text-justify .desktop-lyric-preview-row-roma {
   text-align: justify;
   text-align-last: justify;
@@ -338,8 +291,7 @@
   pointer-events: none;
 }
 
-.desktop-lyric-preview-card.is-karaoke-discrete
-  .desktop-lyric-preview-word-highlight {
+.desktop-lyric-preview-card.is-karaoke-discrete .desktop-lyric-preview-word-highlight {
   clip-path: none;
   opacity: 0;
   transition: none;
@@ -360,8 +312,7 @@
   letter-spacing: var(--preview-letter-spacing);
   opacity: var(--preview-translation-opacity);
   paint-order: stroke fill;
-  -webkit-text-stroke: calc(var(--preview-stroke-width) * 0.55)
-    var(--preview-stroke);
+  -webkit-text-stroke: calc(var(--preview-stroke-width) * 0.55) var(--preview-stroke);
 }
 
 .desktop-lyric-preview-row-roma {
@@ -371,14 +322,12 @@
   opacity: 0.55;
 }
 
-.desktop-lyric-preview-card.is-translation-hidden
-  .desktop-lyric-preview-row-translation {
+.desktop-lyric-preview-card.is-translation-hidden .desktop-lyric-preview-row-translation {
   display: none;
 }
 
 .desktop-lyric-preview-card.is-traditional .desktop-lyric-preview-row-text,
-.desktop-lyric-preview-card.is-traditional
-  .desktop-lyric-preview-row-translation {
+.desktop-lyric-preview-card.is-traditional .desktop-lyric-preview-row-translation {
   font-variant-east-asian: traditional;
 }
 
@@ -480,8 +429,7 @@
     transition: none;
   }
 
-  .desktop-lyric-preview-viewport.is-following
-    .desktop-lyric-preview-row:not(.is-active) {
+  .desktop-lyric-preview-viewport.is-following .desktop-lyric-preview-row:not(.is-active) {
     filter: none;
   }
 }

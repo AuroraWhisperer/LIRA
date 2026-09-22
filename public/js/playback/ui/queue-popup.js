@@ -96,9 +96,7 @@ export class QueuePopup {
     } else {
       const queue = this.getActiveQueue(state);
       const origin = this.getActiveOrigin(state);
-      sections.push(
-        this.renderQueueSection(state.queueTitle, queue, origin, state),
-      );
+      sections.push(this.renderQueueSection(state.queueTitle, queue, origin, state));
     }
 
     const html = sections.filter(Boolean).join('');
@@ -114,9 +112,7 @@ export class QueuePopup {
     if (!this.listContainer) return;
 
     requestAnimationFrame(() => {
-      const currentRow = this.listContainer.querySelector(
-        '.playback-queue-row.playlist-current',
-      );
+      const currentRow = this.listContainer.querySelector('.playback-queue-row.playlist-current');
       if (currentRow) {
         currentRow.scrollIntoView({ block: 'center', behavior: 'instant' });
       }
@@ -161,9 +157,7 @@ export class QueuePopup {
   renderPendingSection(state) {
     if (!state.pendingRequests || !state.pendingRequests.length) return '';
 
-    const rows = state.pendingRequests
-      .map((item, index) => UIComponents.renderPendingRow(item, index))
-      .join('');
+    const rows = state.pendingRequests.map((item, index) => UIComponents.renderPendingRow(item, index)).join('');
 
     return `
       <section class="playback-queue-section">
@@ -183,8 +177,7 @@ export class QueuePopup {
     if (!tracks || !tracks.length) return '';
 
     const currentIndex = state.playlistIndex;
-    const escapeHtml =
-      window.AdminApp?.utils?.escapeHtml || ((s) => String(s || ''));
+    const escapeHtml = window.AdminApp?.utils?.escapeHtml || ((s) => String(s || ''));
 
     const rows = tracks
       .map((track, index) => {
@@ -213,19 +206,11 @@ export class QueuePopup {
   renderQueueSection(title, queue, origin, state) {
     if (!queue || !queue.length) return '';
 
-    const escapeHtml =
-      window.AdminApp?.utils?.escapeHtml || ((s) => String(s || ''));
+    const escapeHtml = window.AdminApp?.utils?.escapeHtml || ((s) => String(s || ''));
 
     const rows = queue
       .map((track, index) =>
-        UIComponents.renderQueueRow(
-          track,
-          origin,
-          index,
-          false,
-          state.current,
-          state.currentOrigin,
-        ),
+        UIComponents.renderQueueRow(track, origin, index, false, state.current, state.currentOrigin),
       )
       .join('');
 

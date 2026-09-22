@@ -2,9 +2,7 @@
 
 const path = require('node:path');
 const { DatabaseSync } = require('node:sqlite');
-const {
-  createGiftSaleCatalogService,
-} = require('../src/bilibili/gift/sale-catalog');
+const { createGiftSaleCatalogService } = require('../src/bilibili/gift/sale-catalog');
 const { DEFAULT_SETTINGS } = require('../src/storage/settings-store');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
@@ -21,9 +19,7 @@ async function main() {
     minRefreshMs: 0,
   });
   const snapshot = await service.refresh();
-  console.log(
-    `已刷新直播间 ${snapshot.roomId}：当前在售 ${snapshot.count} 个礼物。`,
-  );
+  console.log(`已刷新直播间 ${snapshot.roomId}：当前在售 ${snapshot.count} 个礼物。`);
 }
 
 function readConfiguredBlindBoxConfig(dataDir) {
@@ -32,9 +28,8 @@ function readConfiguredBlindBoxConfig(dataDir) {
   try {
     database = new DatabaseSync(databasePath, { readOnly: true });
     return String(
-      database
-        .prepare("SELECT value FROM settings WHERE key = 'giftBlindBoxConfig'")
-        .get()?.value || DEFAULT_SETTINGS.giftBlindBoxConfig,
+      database.prepare("SELECT value FROM settings WHERE key = 'giftBlindBoxConfig'").get()?.value ||
+        DEFAULT_SETTINGS.giftBlindBoxConfig,
     );
   } catch (_) {
     return DEFAULT_SETTINGS.giftBlindBoxConfig;
@@ -65,10 +60,7 @@ function readConfiguredRoomId(dataDir) {
   let database;
   try {
     database = new DatabaseSync(databasePath, { readOnly: true });
-    return String(
-      database.prepare("SELECT value FROM settings WHERE key = 'roomId'").get()
-        ?.value || '',
-    ).trim();
+    return String(database.prepare("SELECT value FROM settings WHERE key = 'roomId'").get()?.value || '').trim();
   } catch (error) {
     throw new Error(`无法读取已配置的直播间号：${error.message || error}`);
   } finally {

@@ -47,14 +47,20 @@ export function createGiftHistorySelection({ state, update, onManualSelection })
     const top = Math.min(drag.start.y, end.y);
     const right = Math.max(drag.start.x, end.x);
     const bottom = Math.max(drag.start.y, end.y);
-    Object.assign(marquee.style, { left: `${left}px`, top: `${top}px`, width: `${right - left}px`, height: `${bottom - top}px` });
+    Object.assign(marquee.style, {
+      left: `${left}px`,
+      top: `${top}px`,
+      width: `${right - left}px`,
+      height: `${bottom - top}px`,
+    });
     marquee.hidden = false;
     let changed = false;
     for (const row of drag.rows) {
-      const selected = drag.base.has(row.id) ||
-        (row.right >= left && row.left <= right && row.bottom >= top && row.top <= bottom);
+      const selected =
+        drag.base.has(row.id) || (row.right >= left && row.left <= right && row.bottom >= top && row.top <= bottom);
       if (state.selected.has(row.id) === selected) continue;
-      if (selected) state.selected.add(row.id); else state.selected.delete(row.id);
+      if (selected) state.selected.add(row.id);
+      else state.selected.delete(row.id);
       changed = true;
     }
     if (changed) update();
@@ -66,9 +72,12 @@ export function createGiftHistorySelection({ state, update, onManualSelection })
     const rect = surface.getBoundingClientRect();
     const top = rect.top + (surface.querySelector('thead')?.offsetHeight || 0);
     const bottom = rect.top + surface.clientHeight;
-    const speed = drag.clientY < top + 28
-      ? -Math.min(18, (top + 28 - drag.clientY) / 3)
-      : drag.clientY > bottom - 28 ? Math.min(18, (drag.clientY - bottom + 28) / 3) : 0;
+    const speed =
+      drag.clientY < top + 28
+        ? -Math.min(18, (top + 28 - drag.clientY) / 3)
+        : drag.clientY > bottom - 28
+          ? Math.min(18, (drag.clientY - bottom + 28) / 3)
+          : 0;
     const previousScrollTop = surface.scrollTop;
     if (speed) surface.scrollTop += speed;
     paint();
@@ -79,12 +88,16 @@ export function createGiftHistorySelection({ state, update, onManualSelection })
     if (frame === null) frame = requestAnimationFrame(autoScroll);
   }
 
-  surface.addEventListener('click', (event) => {
-    if (!suppressClick || event.detail === 0) return;
-    suppressClick = false;
-    event.preventDefault();
-    event.stopPropagation();
-  }, true);
+  surface.addEventListener(
+    'click',
+    (event) => {
+      if (!suppressClick || event.detail === 0) return;
+      suppressClick = false;
+      event.preventDefault();
+      event.stopPropagation();
+    },
+    true,
+  );
 
   body.addEventListener('click', (event) => {
     if (event.target.closest(controls)) return;
@@ -92,7 +105,8 @@ export function createGiftHistorySelection({ state, update, onManualSelection })
     if (!row) return;
     onManualSelection();
     const id = row.dataset.eventId;
-    if (state.selected.has(id)) state.selected.delete(id); else state.selected.add(id);
+    if (state.selected.has(id)) state.selected.delete(id);
+    else state.selected.add(id);
     row.querySelector('input[data-gift-select]')?.focus({ preventScroll: true });
     update();
   });
@@ -106,17 +120,31 @@ export function createGiftHistorySelection({ state, update, onManualSelection })
     if (event.clientX >= rect.left + surface.clientWidth || event.clientY >= rect.top + surface.clientHeight) return;
     const rows = [...body.querySelectorAll('tr[data-event-id]')].map((node) => {
       const bounds = node.getBoundingClientRect();
-      return { node, id: node.dataset.eventId,
-        left: bounds.left - rect.left + surface.scrollLeft, right: bounds.right - rect.left + surface.scrollLeft,
-        top: bounds.top - rect.top + surface.scrollTop, bottom: bounds.bottom - rect.top + surface.scrollTop };
+      return {
+        node,
+        id: node.dataset.eventId,
+        left: bounds.left - rect.left + surface.scrollLeft,
+        right: bounds.right - rect.left + surface.scrollLeft,
+        top: bounds.top - rect.top + surface.scrollTop,
+        bottom: bounds.bottom - rect.top + surface.scrollTop,
+      };
     });
     if (!rows.length) return;
     const original = new Set(state.selected);
     const base = new Set(original);
     if (!event.ctrlKey && !event.metaKey && !event.shiftKey) rows.forEach(({ id }) => base.delete(id));
-    drag = { pointerId: event.pointerId, start: point(event.clientX, event.clientY),
-      clientX: event.clientX, clientY: event.clientY, originX: event.clientX, originY: event.clientY,
-      rows, original, base, active: false };
+    drag = {
+      pointerId: event.pointerId,
+      start: point(event.clientX, event.clientY),
+      clientX: event.clientX,
+      clientY: event.clientY,
+      originX: event.clientX,
+      originY: event.clientY,
+      rows,
+      original,
+      base,
+      active: false,
+    };
     event.preventDefault();
   });
 

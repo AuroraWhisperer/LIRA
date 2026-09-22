@@ -2,19 +2,11 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {
-  normalizeSessionInput,
-  routes,
-} = require('../src/server/routes/game-routes');
-const {
-  createGameSessionService,
-} = require('../src/games/game-session-service');
+const { normalizeSessionInput, routes } = require('../src/server/routes/game-routes');
+const { createGameSessionService } = require('../src/games/game-session-service');
 
 test('single-player game requires a selected numeric viewer uid', () => {
-  assert.throws(
-    () => normalizeSessionInput({ game: 'gomoku', mode: 'single' }),
-    /请选择一位在线观众/,
-  );
+  assert.throws(() => normalizeSessionInput({ game: 'gomoku', mode: 'single' }), /请选择一位在线观众/);
   assert.deepEqual(
     normalizeSessionInput({
       game: 'number-bomb',
@@ -104,10 +96,7 @@ test('draw guess session input normalizes category ids and rejects empty selecti
       categoryIds: ['animals', 'food-drink'],
     },
   );
-  assert.throws(
-    () => normalizeSessionInput({ game: 'draw-guess', categoryIds: [] }),
-    /至少选择一个词库分类/,
-  );
+  assert.throws(() => normalizeSessionInput({ game: 'draw-guess', categoryIds: [] }), /至少选择一个词库分类/);
   assert.throws(
     () =>
       normalizeSessionInput({
@@ -124,9 +113,7 @@ test('draw guess category route returns summaries without exposing words', () =>
   routes['GET /api/games/draw-guess/categories'](
     {
       games: {
-        listDrawGuessCategories: () => [
-          { id: 'animals', label: '动物世界', count: 100 },
-        ],
+        listDrawGuessCategories: () => [{ id: 'animals', label: '动物世界', count: 100 }],
       },
     },
     {},
@@ -157,11 +144,7 @@ test('game session accepts only selected viewer danmaku in single mode', () => {
     targetName: 'Alice',
   });
   service.move({ value: 50 }, 'host');
-  assert.equal(
-    service.handleDanmaku({ uid: '2', userName: 'Bob', message: '60' })
-      .accepted,
-    false,
-  );
+  assert.equal(service.handleDanmaku({ uid: '2', userName: 'Bob', message: '60' }).accepted, false);
   const result = service.handleDanmaku({
     uid: '1',
     userName: 'Alice',
@@ -182,8 +165,7 @@ test('game session refuses replacing an active game until it is stopped', () => 
         targetUid: '2',
         targetName: 'Bob',
       }),
-    (error) =>
-      error.statusCode === 409 && /请先结束当前游戏/.test(error.message),
+    (error) => error.statusCode === 409 && /请先结束当前游戏/.test(error.message),
   );
   assert.equal(service.getSession().game, 'number-bomb');
 

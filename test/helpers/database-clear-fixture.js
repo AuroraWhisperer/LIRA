@@ -70,9 +70,7 @@ function seedSongBusinessData(songDb, timestamp) {
     )
     .run(timestamp, timestamp);
 
-  const categoryId = songDb
-    .prepare('SELECT id FROM song_categories WHERE name = ?')
-    .get('流行').id;
+  const categoryId = songDb.prepare('SELECT id FROM song_categories WHERE name = ?').get('流行').id;
 
   songDb
     .prepare(
@@ -193,9 +191,7 @@ function seedGiftBusinessData(giftDb, timestamp) {
     )
     .run(giftSourceId, timestamp, timestamp);
 
-  const giftEventId = giftDb
-    .prepare('SELECT id FROM gift_events LIMIT 1')
-    .get().id;
+  const giftEventId = giftDb.prepare('SELECT id FROM gift_events LIMIT 1').get().id;
   giftDb
     .prepare(
       `
@@ -270,154 +266,82 @@ function assertClearAllResultStructure(result) {
 
 function assertConfigurationsPreserved({ songDb, giftDb, musicDb }) {
   // Assert configuration tables preserved
-  const settingsCount = songDb
-    .prepare('SELECT COUNT(*) AS count FROM settings')
-    .get().count;
+  const settingsCount = songDb.prepare('SELECT COUNT(*) AS count FROM settings').get().count;
   assert.strictEqual(settingsCount, 1, 'settings should be preserved');
 
-  const aiConfigCount = songDb
-    .prepare('SELECT COUNT(*) AS count FROM ai_configuration')
-    .get().count;
+  const aiConfigCount = songDb.prepare('SELECT COUNT(*) AS count FROM ai_configuration').get().count;
   assert.strictEqual(aiConfigCount, 1, 'ai_configuration should be preserved');
 
-  const themePresetsCount = songDb
-    .prepare('SELECT COUNT(*) AS count FROM theme_presets')
-    .get().count;
-  assert(
-    themePresetsCount >= 1,
-    'theme_presets should be preserved (migration seeds built-in presets)',
-  );
+  const themePresetsCount = songDb.prepare('SELECT COUNT(*) AS count FROM theme_presets').get().count;
+  assert(themePresetsCount >= 1, 'theme_presets should be preserved (migration seeds built-in presets)');
 
-  const overtimeRulesCount = giftDb
-    .prepare('SELECT COUNT(*) AS count FROM overtime_gift_rules')
-    .get().count;
-  assert.strictEqual(
-    overtimeRulesCount,
-    1,
-    'overtime_gift_rules should be preserved',
-  );
+  const overtimeRulesCount = giftDb.prepare('SELECT COUNT(*) AS count FROM overtime_gift_rules').get().count;
+  assert.strictEqual(overtimeRulesCount, 1, 'overtime_gift_rules should be preserved');
 
-  const favoritesCount = musicDb
-    .prepare('SELECT COUNT(*) AS count FROM favorites')
-    .get().count;
+  const favoritesCount = musicDb.prepare('SELECT COUNT(*) AS count FROM favorites').get().count;
   assert.strictEqual(favoritesCount, 1, 'favorites should be preserved');
 
-  const playlistsCount = musicDb
-    .prepare('SELECT COUNT(*) AS count FROM playlists')
-    .get().count;
+  const playlistsCount = musicDb.prepare('SELECT COUNT(*) AS count FROM playlists').get().count;
   assert.strictEqual(playlistsCount, 1, 'playlists should be preserved');
 }
 
 function assertSongBusinessCleared(songDb) {
   // Assert business tables cleared
-  const songsCount = songDb
-    .prepare('SELECT COUNT(*) AS count FROM songs')
-    .get().count;
+  const songsCount = songDb.prepare('SELECT COUNT(*) AS count FROM songs').get().count;
   assert.strictEqual(songsCount, 0, 'songs should be cleared');
 
-  const categoriesCount = songDb
-    .prepare('SELECT COUNT(*) AS count FROM song_categories')
-    .get().count;
-  assert.strictEqual(
-    categoriesCount,
-    1,
-    'song_categories should have only default category',
-  );
-  const defaultCategory = songDb
-    .prepare('SELECT name FROM song_categories LIMIT 1')
-    .get();
+  const categoriesCount = songDb.prepare('SELECT COUNT(*) AS count FROM song_categories').get().count;
+  assert.strictEqual(categoriesCount, 1, 'song_categories should have only default category');
+  const defaultCategory = songDb.prepare('SELECT name FROM song_categories LIMIT 1').get();
   assert.strictEqual(defaultCategory.name, '默认');
 
-  const queueCount = songDb
-    .prepare('SELECT COUNT(*) AS count FROM queue')
-    .get().count;
+  const queueCount = songDb.prepare('SELECT COUNT(*) AS count FROM queue').get().count;
   assert.strictEqual(queueCount, 0, 'queue should be cleared');
 
-  const requestsCount = songDb
-    .prepare('SELECT COUNT(*) AS count FROM requests')
-    .get().count;
+  const requestsCount = songDb.prepare('SELECT COUNT(*) AS count FROM requests').get().count;
   assert.strictEqual(requestsCount, 0, 'requests should be cleared');
 
-  const importBatchesCount = songDb
-    .prepare('SELECT COUNT(*) AS count FROM import_batches')
-    .get().count;
+  const importBatchesCount = songDb.prepare('SELECT COUNT(*) AS count FROM import_batches').get().count;
   assert.strictEqual(importBatchesCount, 0, 'import_batches should be cleared');
 
-  const cooldownsCount = songDb
-    .prepare('SELECT COUNT(*) AS count FROM user_cooldowns')
-    .get().count;
+  const cooldownsCount = songDb.prepare('SELECT COUNT(*) AS count FROM user_cooldowns').get().count;
   assert.strictEqual(cooldownsCount, 0, 'user_cooldowns should be cleared');
 }
 
 function assertAiBusinessCleared(songDb) {
-  const aiLogsCount = songDb
-    .prepare('SELECT COUNT(*) AS count FROM ai_request_logs')
-    .get().count;
+  const aiLogsCount = songDb.prepare('SELECT COUNT(*) AS count FROM ai_request_logs').get().count;
   assert.strictEqual(aiLogsCount, 0, 'ai_request_logs should be cleared');
 
-  const aiUsageCount = songDb
-    .prepare('SELECT COUNT(*) AS count FROM ai_api_usage')
-    .get().count;
+  const aiUsageCount = songDb.prepare('SELECT COUNT(*) AS count FROM ai_api_usage').get().count;
   assert.strictEqual(aiUsageCount, 0, 'ai_api_usage should be cleared');
 
-  const aiContextCount = songDb
-    .prepare('SELECT COUNT(*) AS count FROM ai_viewer_context')
-    .get().count;
+  const aiContextCount = songDb.prepare('SELECT COUNT(*) AS count FROM ai_viewer_context').get().count;
   assert.strictEqual(aiContextCount, 0, 'ai_viewer_context should be cleared');
 
-  const aiCacheCount = songDb
-    .prepare('SELECT COUNT(*) AS count FROM ai_query_cache')
-    .get().count;
+  const aiCacheCount = songDb.prepare('SELECT COUNT(*) AS count FROM ai_query_cache').get().count;
   assert.strictEqual(aiCacheCount, 0, 'ai_query_cache should be cleared');
 
-  const aiBlacklistCount = songDb
-    .prepare('SELECT COUNT(*) AS count FROM ai_blacklist')
-    .get().count;
+  const aiBlacklistCount = songDb.prepare('SELECT COUNT(*) AS count FROM ai_blacklist').get().count;
   assert.strictEqual(aiBlacklistCount, 0, 'ai_blacklist should be cleared');
 }
 
-function assertEventAndPlaybackCleared({
-  superChatDb,
-  giftDb,
-  musicDb,
-  checkinDb,
-}) {
-  const scCount = superChatDb
-    .prepare('SELECT COUNT(*) AS count FROM super_chats')
-    .get().count;
+function assertEventAndPlaybackCleared({ superChatDb, giftDb, musicDb, checkinDb }) {
+  const scCount = superChatDb.prepare('SELECT COUNT(*) AS count FROM super_chats').get().count;
   assert.strictEqual(scCount, 0, 'super_chats should be cleared');
 
-  const giftsCount = giftDb
-    .prepare('SELECT COUNT(*) AS count FROM gift_events')
-    .get().count;
+  const giftsCount = giftDb.prepare('SELECT COUNT(*) AS count FROM gift_events').get().count;
   assert.strictEqual(giftsCount, 0, 'gift_events should be cleared');
 
-  const settlementsCount = giftDb
-    .prepare('SELECT COUNT(*) AS count FROM overtime_settlements')
-    .get().count;
-  assert.strictEqual(
-    settlementsCount,
-    0,
-    'overtime_settlements should be cleared',
-  );
+  const settlementsCount = giftDb.prepare('SELECT COUNT(*) AS count FROM overtime_settlements').get().count;
+  assert.strictEqual(settlementsCount, 0, 'overtime_settlements should be cleared');
 
-  const playHistoryCount = musicDb
-    .prepare('SELECT COUNT(*) AS count FROM play_history')
-    .get().count;
+  const playHistoryCount = musicDb.prepare('SELECT COUNT(*) AS count FROM play_history').get().count;
   assert.strictEqual(playHistoryCount, 0, 'play_history should be cleared');
 
-  const playQueueStateCount = musicDb
-    .prepare('SELECT COUNT(*) AS count FROM play_queue_state')
-    .get().count;
-  assert.strictEqual(
-    playQueueStateCount,
-    0,
-    'play_queue_state should be cleared',
-  );
+  const playQueueStateCount = musicDb.prepare('SELECT COUNT(*) AS count FROM play_queue_state').get().count;
+  assert.strictEqual(playQueueStateCount, 0, 'play_queue_state should be cleared');
 
-  const checkinsCount = checkinDb
-    .prepare('SELECT COUNT(*) AS count FROM checkin_users')
-    .get().count;
+  const checkinsCount = checkinDb.prepare('SELECT COUNT(*) AS count FROM checkin_users').get().count;
   assert.strictEqual(checkinsCount, 0, 'checkin_users should be cleared');
 }
 
@@ -429,20 +353,10 @@ function assertBusinessCleared(databases) {
 
 function assertDefaultsRecreated(giftDb) {
   // Assert recreated defaults
-  const overtimeState = giftDb
-    .prepare('SELECT * FROM overtime_machine_state WHERE id = 1')
-    .get();
+  const overtimeState = giftDb.prepare('SELECT * FROM overtime_machine_state WHERE id = 1').get();
   assert.strictEqual(overtimeState.enabled, 0, 'overtime should be disabled');
-  assert.strictEqual(
-    overtimeState.status,
-    'paused',
-    'overtime should be paused',
-  );
-  assert.strictEqual(
-    overtimeState.enable_epoch,
-    0,
-    'overtime epoch should be 0',
-  );
+  assert.strictEqual(overtimeState.status, 'paused', 'overtime should be paused');
+  assert.strictEqual(overtimeState.enable_epoch, 0, 'overtime epoch should be 0');
 }
 
 function assertDeletedCounts(result) {

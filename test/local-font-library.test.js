@@ -19,9 +19,7 @@ function createNode(tagName) {
     },
     remove() {
       if (!this.parentNode) return;
-      this.parentNode.children = this.parentNode.children.filter(
-        (child) => child !== this,
-      );
+      this.parentNode.children = this.parentNode.children.filter((child) => child !== this);
       this.parentNode = null;
     },
   };
@@ -38,16 +36,11 @@ function createSelect(value, builtIns) {
   select.value = value;
   select.querySelector = (selector) => {
     if (selector !== 'optgroup[data-local-fonts="true"]') return null;
-    return (
-      select.children.find((child) => child.dataset?.localFonts === 'true') ||
-      null
-    );
+    return select.children.find((child) => child.dataset?.localFonts === 'true') || null;
   };
   Object.defineProperty(select, 'options', {
     get() {
-      return this.children.flatMap((child) =>
-        child.tagName === 'OPTGROUP' ? child.children : [child],
-      );
+      return this.children.flatMap((child) => (child.tagName === 'OPTGROUP' ? child.children : [child]));
     },
   });
   return select;
@@ -63,9 +56,7 @@ test('shared local font library queries once and populates both registered selec
       label: '微软雅黑 · 清晰',
     },
   ]);
-  const lyricSelect = createSelect('Microsoft YaHei', [
-    { value: 'Microsoft YaHei', label: '微软雅黑（默认）' },
-  ]);
+  const lyricSelect = createSelect('Microsoft YaHei', [{ value: 'Microsoft YaHei', label: '微软雅黑（默认）' }]);
   const sandbox = {
     console,
     document: { createElement },
@@ -170,9 +161,7 @@ test('shared local font library retries a security error after the first user ge
 
   assert.equal(queryCount, 2);
   assert.deepEqual(
-    select
-      .querySelector('optgroup[data-local-fonts="true"]')
-      .children.map((option) => option.textContent),
+    select.querySelector('optgroup[data-local-fonts="true"]').children.map((option) => option.textContent),
     ['Cascadia Code'],
   );
 });

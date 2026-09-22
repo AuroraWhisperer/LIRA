@@ -8,14 +8,8 @@
  * treat null as "stop retrying". `jitter` is injectable (returns [0, 1)) so
  * tests can make the sequence deterministic.
  */
-function createRetryPolicy({
-  baseMs = 5000,
-  capMs = 60000,
-  maxAttempts = 10,
-  jitter = Math.random,
-} = {}) {
-  if (typeof jitter !== 'function')
-    throw new Error('jitter must be a function');
+function createRetryPolicy({ baseMs = 5000, capMs = 60000, maxAttempts = 10, jitter = Math.random } = {}) {
+  if (typeof jitter !== 'function') throw new Error('jitter must be a function');
   let attempts = 0;
 
   function nextDelay() {

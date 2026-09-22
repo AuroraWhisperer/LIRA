@@ -2,18 +2,13 @@ import { giftRecent } from './recent.js';
 import { giftAnalysis } from './blindbox-analysis.js';
 // 编写人：Aurora
 // 盲盒统计模块 - 负责盲盒映射配置和统计数据显示
-'use strict';
+('use strict');
 
 import { publishGiftModule } from '../legacy-admin-bridge.js';
 import { stateService } from '../state.js';
 import { eventBus, Events } from '../../shared/event-bus.js';
-import {
-  escapeHtml, escapeAttr, formatTime, formatMoney, readJsonResponse,
-} from '../../shared/utils.js';
-import {
-  GIFT_PLACEHOLDER,
-  setGiftImageFallbacks,
-} from '../../shared/gift-image-fallback.js';
+import { escapeHtml, escapeAttr, formatTime, formatMoney, readJsonResponse } from '../../shared/utils.js';
+import { GIFT_PLACEHOLDER, setGiftImageFallbacks } from '../../shared/gift-image-fallback.js';
 
 export const giftBlindbox = (() => {
   let statsInitialized = false;
@@ -26,9 +21,7 @@ export const giftBlindbox = (() => {
   let saleRoomId = '';
 
   function isBlindBoxAvailable(item) {
-    return item.variantId
-      ? saleVariantIds.has(item.variantId)
-      : saleGiftIds.has(String(item.giftId));
+    return item.variantId ? saleVariantIds.has(item.variantId) : saleGiftIds.has(String(item.giftId));
   }
 
   /**
@@ -47,8 +40,7 @@ export const giftBlindbox = (() => {
     let config = [];
     try {
       const parsed = raw ? JSON.parse(raw) : [];
-      if (parsed !== null && !Array.isArray(parsed))
-        throw new Error('不是数组');
+      if (parsed !== null && !Array.isArray(parsed)) throw new Error('不是数组');
       if (parsed === null && textarea.dataset?.dirty !== 'true') {
         textarea.value = '';
       }
@@ -63,21 +55,13 @@ export const giftBlindbox = (() => {
       ...config.map((item, index) => ({ ...item, index, official: false })),
     ].sort(
       (left, right) =>
-        Number(isBlindBoxAvailable(right)) -
-          Number(isBlindBoxAvailable(left)) ||
-        String(left.name || '未命名').localeCompare(
-          String(right.name || '未命名'),
-          'zh-Hans-CN',
-        ),
+        Number(isBlindBoxAvailable(right)) - Number(isBlindBoxAvailable(left)) ||
+        String(left.name || '未命名').localeCompare(String(right.name || '未命名'), 'zh-Hans-CN'),
     );
-    const otherCount = entries.filter(
-      (item) => !isBlindBoxAvailable(item),
-    ).length;
+    const otherCount = entries.filter((item) => !isBlindBoxAvailable(item)).length;
     if (toggle) {
       toggle.hidden = otherCount === 0;
-      toggle.textContent = expanded
-        ? `收起其余盲盒（${otherCount}） ▴`
-        : `展开其余盲盒（${otherCount}） ▾`;
+      toggle.textContent = expanded ? `收起其余盲盒（${otherCount}） ▴` : `展开其余盲盒（${otherCount}） ▾`;
     }
     renderBlindBoxMappingStatus();
     if (entries.length === 0) {
@@ -145,8 +129,7 @@ export const giftBlindbox = (() => {
   function renderBlindBoxMappingStatus() {
     const status = document.getElementById('blindBoxMappingStatus');
     if (!status) return;
-    const mapping =
-      stateService.getAppState()?.blindBoxMapping;
+    const mapping = stateService.getAppState()?.blindBoxMapping;
     if (!mapping) {
       status.hidden = false;
       status.textContent = '正在读取服务器映射状态';
@@ -165,26 +148,15 @@ export const giftBlindbox = (() => {
 
   function applyOfficialCatalogSnapshot(snapshot) {
     // Catalog updates also carry room sale snapshots without official relations.
-    if (
-      typeof snapshot?.roomId === 'string' &&
-      !Array.isArray(snapshot?.blindBoxes)
-    ) {
+    if (typeof snapshot?.roomId === 'string' && !Array.isArray(snapshot?.blindBoxes)) {
       applySaleCatalogSnapshot(snapshot);
       return;
     }
     const gifts = Array.isArray(snapshot?.gifts) ? snapshot.gifts : [];
     const identityMode = snapshot.schemaVersion === 3;
-    const giftById = new Map(
-      gifts.map((gift) => [
-        String(identityMode ? gift.variantId : gift.id),
-        gift,
-      ]),
-    );
+    const giftById = new Map(gifts.map((gift) => [String(identityMode ? gift.variantId : gift.id), gift]));
     const relationById = new Map(
-      (identityMode
-        ? snapshot.variantBlindBoxes || []
-        : snapshot.blindBoxes || []
-      ).map((relation) => [
+      (identityMode ? snapshot.variantBlindBoxes || [] : snapshot.blindBoxes || []).map((relation) => [
         String(identityMode ? relation.variantId : relation.giftId),
         relation,
       ]),
@@ -192,9 +164,7 @@ export const giftBlindbox = (() => {
     officialBlindBoxes = gifts
       .filter((gift) => {
         if (gift?.giftCategory !== 'blindBox') return false;
-        const relation = relationById.get(
-          String(identityMode ? gift.variantId : gift.id),
-        );
+        const relation = relationById.get(String(identityMode ? gift.variantId : gift.id));
         // A catalog label alone does not establish a verified prize pool.
         return identityMode
           ? relation?.outputVariantIds?.length || relation?.awards?.length
@@ -202,20 +172,14 @@ export const giftBlindbox = (() => {
       })
       .map((gift) => {
         const giftId = String(gift.id);
-        const relation = relationById.get(
-          identityMode ? gift.variantId : giftId,
-        );
+        const relation = relationById.get(identityMode ? gift.variantId : giftId);
         return {
           giftId,
           variantId: gift.variantId,
           name: gift.name,
           price: gift.rmb,
           outputs: [
-            ...(
-              (identityMode
-                ? relation?.outputVariantIds
-                : relation?.outputGiftIds) || []
-            ).map((outputGiftId) => {
+            ...((identityMode ? relation?.outputVariantIds : relation?.outputGiftIds) || []).map((outputGiftId) => {
               const output = giftById.get(String(outputGiftId));
               return {
                 giftId: String(output?.id || outputGiftId),
@@ -238,9 +202,7 @@ export const giftBlindbox = (() => {
     saleCatalogRevision += 1;
     const gifts = Array.isArray(snapshot?.gifts) ? snapshot.gifts : [];
     saleGiftIds = new Set(gifts.map((gift) => String(gift.id)));
-    saleVariantIds = new Set(
-      gifts.map((gift) => gift.variantId).filter(Boolean),
-    );
+    saleVariantIds = new Set(gifts.map((gift) => gift.variantId).filter(Boolean));
     renderBlindBoxList();
   }
 
@@ -260,12 +222,8 @@ export const giftBlindbox = (() => {
             headers: { 'Content-Type': 'application/json' },
             body: '{}',
           });
-          const payload = await readJsonResponse(
-            response,
-            '在售礼物目录加载失败',
-          );
-          if (!response.ok || payload?.ok === false)
-            throw new Error(payload.error);
+          const payload = await readJsonResponse(response, '在售礼物目录加载失败');
+          if (!response.ok || payload?.ok === false) throw new Error(payload.error);
           if (requestRevision !== saleCatalogRevision) return;
           // The overtime picker may already be refreshing a different room.
           if (String(payload?.data?.roomId || '') !== saleRoomId) continue;
@@ -276,10 +234,7 @@ export const giftBlindbox = (() => {
           return;
         }
       } catch (error) {
-        console.warn(
-          '[BlindBox] sale catalog load failed:',
-          error.message || error,
-        );
+        console.warn('[BlindBox] sale catalog load failed:', error.message || error);
       }
     });
     return saleCatalogLoadPromise;
@@ -301,10 +256,7 @@ export const giftBlindbox = (() => {
         applyOfficialCatalogSnapshot(payload?.data);
       })
       .catch((error) => {
-        console.warn(
-          '[BlindBox] catalog refresh failed:',
-          error.message || error,
-        );
+        console.warn('[BlindBox] catalog refresh failed:', error.message || error);
       })
       .finally(() => {
         officialCatalogLoadPromise = null;
@@ -331,9 +283,7 @@ export const giftBlindbox = (() => {
       const response = await fetch('/api/gifts/blind-box-stats');
       const payload = await readJsonResponse(response, '盲盒统计加载失败');
       if (!response.ok || !payload.ok) {
-        throw new Error(
-          payload.error || `盲盒统计加载失败（HTTP ${response.status}）`,
-        );
+        throw new Error(payload.error || `盲盒统计加载失败（HTTP ${response.status}）`);
       }
       renderBlindBoxStats(payload.data);
     } catch (error) {
@@ -350,8 +300,7 @@ export const giftBlindbox = (() => {
         `;
       }
       const body = document.getElementById('blindBoxStatsBody');
-      if (body)
-        body.innerHTML = '<tr><td colspan="6" class="empty">加载失败</td></tr>';
+      if (body) body.innerHTML = '<tr><td colspan="6" class="empty">加载失败</td></tr>';
     } finally {
       blindBoxStatsLoading = false;
       if (blindBoxStatsPending) {
@@ -384,14 +333,8 @@ export const giftBlindbox = (() => {
           </div>
         `;
       } else {
-        const profitSign =
-          summary.totalProfit > 0 ? '+' : summary.totalProfit < 0 ? '-' : '';
-        const profitClass =
-          summary.totalProfit > 0
-            ? 'profit-up'
-            : summary.totalProfit < 0
-              ? 'profit-down'
-              : '';
+        const profitSign = summary.totalProfit > 0 ? '+' : summary.totalProfit < 0 ? '-' : '';
+        const profitClass = summary.totalProfit > 0 ? 'profit-up' : summary.totalProfit < 0 ? 'profit-down' : '';
         if (section) section.dataset.state = 'ready';
         summaryEl.innerHTML = `
           <div class="stats-summary-row">
@@ -429,14 +372,8 @@ export const giftBlindbox = (() => {
     body.innerHTML = users
       .slice(0, 10)
       .map((user) => {
-        const profitSign =
-          user.totalProfit > 0 ? '+' : user.totalProfit < 0 ? '-' : '';
-        const profitClass =
-          user.totalProfit > 0
-            ? 'profit-up'
-            : user.totalProfit < 0
-              ? 'profit-down'
-              : '';
+        const profitSign = user.totalProfit > 0 ? '+' : user.totalProfit < 0 ? '-' : '';
+        const profitClass = user.totalProfit > 0 ? 'profit-up' : user.totalProfit < 0 ? 'profit-down' : '';
         return `
         <tr class="blind-stats-user-row" tabindex="0" data-viewer="${escapeAttr(user.viewer || '')}" title="查看${escapeAttr(user.userName || '观众')}的开盒记录">
           <td class="user-cell">${escapeHtml(user.userName || '观众')}</td>
@@ -468,35 +405,29 @@ export const giftBlindbox = (() => {
       }
     });
 
-    document
-      .getElementById('blindBoxAnalysisOpenBtn')
-      ?.addEventListener('click', () => {
-        giftAnalysis.open({ view: 'users' });
-      });
+    document.getElementById('blindBoxAnalysisOpenBtn')?.addEventListener('click', () => {
+      giftAnalysis.open({ view: 'users' });
+    });
 
-    document
-      .getElementById('blindBoxStatsBody')
-      ?.addEventListener('click', (event) => {
-        const row = event.target.closest('[data-viewer]');
-        if (row)
-          giftAnalysis.open({
-            viewer: row.dataset.viewer,
-            view: 'records',
-          });
-      });
-
-    document
-      .getElementById('blindBoxStatsBody')
-      ?.addEventListener('keydown', (event) => {
-        if (event.key !== 'Enter' && event.key !== ' ') return;
-        const row = event.target.closest('[data-viewer]');
-        if (!row) return;
-        event.preventDefault();
+    document.getElementById('blindBoxStatsBody')?.addEventListener('click', (event) => {
+      const row = event.target.closest('[data-viewer]');
+      if (row)
         giftAnalysis.open({
           viewer: row.dataset.viewer,
           view: 'records',
         });
+    });
+
+    document.getElementById('blindBoxStatsBody')?.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      const row = event.target.closest('[data-viewer]');
+      if (!row) return;
+      event.preventDefault();
+      giftAnalysis.open({
+        viewer: row.dataset.viewer,
+        view: 'records',
       });
+    });
 
     if (!statsInitialized) {
       statsInitialized = true;
@@ -524,12 +455,8 @@ export const giftBlindbox = (() => {
   eventBus.on(Events.GIFT_CATALOG_UPDATED, ({ snapshot } = {}) => {
     if (Array.isArray(snapshot?.gifts)) applyOfficialCatalogSnapshot(snapshot);
   });
-  window.addEventListener('app:settings-state', (event) =>
-    updateSaleRoom(event.detail),
-  );
-  eventBus.on(Events.STATE_SAVED, ({ settings }) =>
-    updateSaleRoom(settings, { force: true }),
-  );
+  window.addEventListener('app:settings-state', (event) => updateSaleRoom(event.detail));
+  eventBus.on(Events.STATE_SAVED, ({ settings }) => updateSaleRoom(settings, { force: true }));
   document.addEventListener('app:bilibili-auth-changed', loadSaleCatalog);
   updateSaleRoom(stateService.getAppState()?.settings);
   return module;

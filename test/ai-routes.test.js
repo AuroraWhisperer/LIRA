@@ -19,10 +19,7 @@ function createResponseRecorder() {
 }
 
 test('AI route allowed keys come from the config contract', () => {
-  assert.deepEqual(
-    [...ALLOWED_KEYS].sort(),
-    Object.keys(AI_CONFIG_DEFAULTS).sort(),
-  );
+  assert.deepEqual([...ALLOWED_KEYS].sort(), Object.keys(AI_CONFIG_DEFAULTS).sort());
 });
 
 test('AI config GET/PUT never expose plaintext secrets and preserve omitted keys', async () => {
@@ -84,11 +81,7 @@ test('AI config route returns a validation error without exposing request intern
     },
   };
   const res = createResponseRecorder();
-  await routes['PUT /api/ai/config'](
-    context,
-    { body: async () => ({ sendIntervalMs: 1 }) },
-    res,
-  );
+  await routes['PUT /api/ai/config'](context, { body: async () => ({ sendIntervalMs: 1 }) }, res);
   assert.equal(res.statusCode, 400);
   assert.equal(JSON.parse(res.body).error, '发送间隔无效。');
 });
@@ -124,10 +117,7 @@ test('AI models route passes an optional temporary endpoint and key without expo
     modelProvider: 'custom',
     modelApiProtocol: 'responses',
   });
-  assert.deepEqual(JSON.parse(res.body).data.models, [
-    'deepseek-v4-flash',
-    'deepseek-v4-pro',
-  ]);
+  assert.deepEqual(JSON.parse(res.body).data.models, ['deepseek-v4-flash', 'deepseek-v4-pro']);
   assert.doesNotMatch(res.body, /temporary-key/);
 });
 

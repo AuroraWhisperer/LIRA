@@ -11,10 +11,7 @@ const {
   persistMusicCookieSnapshot,
   getMusicAuthState,
 } = require('./auth-manager');
-const {
-  isAllowedLoginNavigation,
-  isAllowedExternal,
-} = require('./external-url-policy');
+const { isAllowedLoginNavigation, isAllowedExternal } = require('./external-url-policy');
 
 async function loginMusicAccount(mainWindow, platform, dataDir) {
   platform = normalizeMusicPlatform(platform);
@@ -35,19 +32,13 @@ async function loginMusicAccount(mainWindow, platform, dataDir) {
   });
 
   const loginSession = loginWindow.webContents.session;
-  loginSession.setPermissionRequestHandler(
-    (_webContents, _permission, callback) => callback(false),
-  );
+  loginSession.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
 
   loginWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (isAllowedLoginNavigation(url, config.allowedHosts)) {
-      loginWindow
-        .loadURL(url)
-        .catch((error) => writeLog('music-login-navigation', error));
+      loginWindow.loadURL(url).catch((error) => writeLog('music-login-navigation', error));
     } else if (isAllowedExternal(url)) {
-      shell
-        .openExternal(url)
-        .catch((error) => writeLog('music-login-external', error));
+      shell.openExternal(url).catch((error) => writeLog('music-login-external', error));
     }
     return { action: 'deny' };
   });
@@ -56,9 +47,7 @@ async function loginMusicAccount(mainWindow, platform, dataDir) {
     if (isAllowedLoginNavigation(url, config.allowedHosts)) return;
     event.preventDefault();
     if (isAllowedExternal(url)) {
-      shell
-        .openExternal(url)
-        .catch((error) => writeLog('music-login-external', error));
+      shell.openExternal(url).catch((error) => writeLog('music-login-external', error));
     }
   });
 
@@ -68,9 +57,7 @@ async function loginMusicAccount(mainWindow, platform, dataDir) {
   const scheduleCookieSave = () => {
     clearTimeout(cookieSaveTimer);
     cookieSaveTimer = setTimeout(() => {
-      persistMusicCookieSnapshot(platform, dataDir).catch((error) =>
-        writeLog('music-cookie-save', error),
-      );
+      persistMusicCookieSnapshot(platform, dataDir).catch((error) => writeLog('music-cookie-save', error));
     }, 800);
   };
 
@@ -78,10 +65,7 @@ async function loginMusicAccount(mainWindow, platform, dataDir) {
     getMusicAuthState(platform, dataDir)
       .then((state) => {
         if (state.loggedIn && loginWindow && !loginWindow.isDestroyed()) {
-          writeLog(
-            'music-login-auto-close',
-            `${config.name} 登录成功，自动关闭登录窗口`,
-          );
+          writeLog('music-login-auto-close', `${config.name} 登录成功，自动关闭登录窗口`);
           loginWindow.close();
         }
       })
@@ -103,20 +87,17 @@ async function loginMusicAccount(mainWindow, platform, dataDir) {
     loginSession.cookies.removeListener('changed', onCookieChanged);
   };
 
-  loginWindow.webContents.on(
-    'did-fail-load',
-    (_event, errorCode, errorDescription) => {
-      writeLog('music-login-load-failure', {
-        errorCode,
-        errorDescription,
-        platform,
-      });
-      cleanup();
-      if (!loginWindow.isDestroyed()) {
-        loginWindow.destroy();
-      }
-    },
-  );
+  loginWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => {
+    writeLog('music-login-load-failure', {
+      errorCode,
+      errorDescription,
+      platform,
+    });
+    cleanup();
+    if (!loginWindow.isDestroyed()) {
+      loginWindow.destroy();
+    }
+  });
 
   try {
     await loginWindow.loadURL(config.loginUrl);

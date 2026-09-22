@@ -3,22 +3,9 @@
 // 纯 music 域，不包含 Bilibili 逻辑。
 'use strict';
 
-const {
-  now,
-  cleanText,
-  cleanTextPreserveLines,
-  getInitial,
-} = require('../shared/utils');
-const {
-  SONG_EXPORT_HEADERS,
-  SONG_IMPORT_ALIASES,
-  normalizeImportedSongRow,
-} = require('./song-import-schema');
-const {
-  filterRandomSongCandidates,
-  describeRandomSongScope,
-  randomLanguageAliases,
-} = require('./random-song-filter');
+const { now, cleanText, cleanTextPreserveLines, getInitial } = require('../shared/utils');
+const { SONG_EXPORT_HEADERS, SONG_IMPORT_ALIASES, normalizeImportedSongRow } = require('./song-import-schema');
+const { filterRandomSongCandidates, describeRandomSongScope, randomLanguageAliases } = require('./random-song-filter');
 const {
   splitSongLanguages,
   splitSongArtists,
@@ -35,8 +22,7 @@ function saveSong(store, input) {
     Object.prototype.hasOwnProperty.call(input, 'requestPrice') ||
     Object.prototype.hasOwnProperty.call(input, 'request_price');
   const hasSongClip =
-    Object.prototype.hasOwnProperty.call(input, 'songClip') ||
-    Object.prototype.hasOwnProperty.call(input, 'song_clip');
+    Object.prototype.hasOwnProperty.call(input, 'songClip') || Object.prototype.hasOwnProperty.call(input, 'song_clip');
   const initial = getInitial(name);
 
   return store.saveSong({
@@ -45,17 +31,14 @@ function saveSong(store, input) {
     namePinyin: initial,
     nameInitial: initial,
     artist: cleanText(input.artist),
-    categoryName:
-      cleanText(input.categoryName || input.category || '默认') || '默认',
+    categoryName: cleanText(input.categoryName || input.category || '默认') || '默认',
     isEnabled: input.isEnabled === undefined ? 1 : input.isEnabled ? 1 : 0,
     note: cleanText(input.note),
     tags: cleanText(input.tags),
     language: cleanText(input.language),
     sourcePlatform: cleanText(input.sourcePlatform || input.source_platform),
     hasRequestPrice,
-    requestPrice: cleanTextPreserveLines(
-      String(input.requestPrice ?? input.request_price ?? ''),
-    ),
+    requestPrice: cleanTextPreserveLines(String(input.requestPrice ?? input.request_price ?? '')),
     hasSongClip,
     songClip: cleanTextPreserveLines(input.songClip ?? input.song_clip),
     updatedAt: now(),
@@ -64,21 +47,11 @@ function saveSong(store, input) {
 
 function listSongs(
   store,
-  {
-    query = '',
-    category = '',
-    categories = [],
-    language = '',
-    artist = '',
-    tags = '',
-    enabledOnly = false,
-  } = {},
+  { query = '', category = '', categories = [], language = '', artist = '', tags = '', enabledOnly = false } = {},
 ) {
   const cleanQuery = cleanText(query);
   const categoryValues = Array.isArray(categories) ? categories : [categories];
-  const categoryFilters = (categoryValues.length ? categoryValues : [category])
-    .map(cleanText)
-    .filter(Boolean);
+  const categoryFilters = (categoryValues.length ? categoryValues : [category]).map(cleanText).filter(Boolean);
   const cleanLang = cleanText(language);
   const cleanArt = cleanText(artist);
   const tagValues = Array.isArray(tags) ? tags : [tags];
@@ -93,34 +66,20 @@ function listSongs(
   });
   return rows
     .filter((row) => {
-      if (
-        cleanLang &&
-        !splitSongLanguages(row.language).some((value) => value === cleanLang)
-      ) {
+      if (cleanLang && !splitSongLanguages(row.language).some((value) => value === cleanLang)) {
         return false;
       }
-      if (
-        cleanArt &&
-        !splitSongArtists(row.artist).some((value) => value === cleanArt)
-      ) {
+      if (cleanArt && !splitSongArtists(row.artist).some((value) => value === cleanArt)) {
         return false;
       }
       if (tagFilters.length === 0) return true;
-      const songTags = new Set(
-        splitSongTags(row.tags).map((tag) => tag.toLocaleLowerCase()),
-      );
+      const songTags = new Set(splitSongTags(row.tags).map((tag) => tag.toLocaleLowerCase()));
       return tagFilters.every((tag) => songTags.has(tag.toLocaleLowerCase()));
     })
     .sort((a, b) => {
-      const initialCompare = String(a.name_initial).localeCompare(
-        String(b.name_initial),
-        'zh-Hans-CN',
-      );
+      const initialCompare = String(a.name_initial).localeCompare(String(b.name_initial), 'zh-Hans-CN');
       if (initialCompare !== 0) return initialCompare;
-      return String(a.name).localeCompare(
-        String(b.name),
-        'zh-Hans-CN-u-co-pinyin',
-      );
+      return String(a.name).localeCompare(String(b.name), 'zh-Hans-CN-u-co-pinyin');
     })
     .map((row) => ({ ...row, is_enabled: Boolean(row.is_enabled) }));
 }
@@ -218,11 +177,7 @@ function replaceCloudSongs(store, rows) {
     if (!row.name) throw new Error('云端歌库包含空歌名。');
     const enabled = rawRow?.isEnabled ?? rawRow?.enabled ?? rawRow?.is_enabled;
     if (enabled !== undefined) {
-      row.isEnabled = !(
-        enabled === false ||
-        enabled === 0 ||
-        String(enabled).toLowerCase() === 'false'
-      );
+      row.isEnabled = !(enabled === false || enabled === 0 || String(enabled).toLowerCase() === 'false');
     }
     byIdentity.set(`${row.name}\u0000${row.artist}`, row);
   }
@@ -247,17 +202,11 @@ function pickRandomSong(store, scopeText) {
 }
 
 function listRandomSongCandidates(store, scopeText) {
-  return filterRandomSongCandidates(
-    store.listRandomRows(),
-    normalizeRandomScopeText(scopeText),
-  );
+  return filterRandomSongCandidates(store.listRandomRows(), normalizeRandomScopeText(scopeText));
 }
 
 function describeRandomSongScopeInLibrary(store, scopeText) {
-  return describeRandomSongScope(
-    store.listRandomRows(),
-    normalizeRandomScopeText(scopeText),
-  );
+  return describeRandomSongScope(store.listRandomRows(), normalizeRandomScopeText(scopeText));
 }
 
 module.exports = {

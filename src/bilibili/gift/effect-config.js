@@ -12,10 +12,7 @@ const TRUSTED_EFFECT_HOSTS = ['hdslb.com', 'bilibili.com', 'bilivideo.com'];
 
 function pickEffect(entries) {
   if (!Array.isArray(entries) || entries.length === 0) return null;
-  return entries.reduce(
-    (best, entry) => (Number(entry?.id) > Number(best?.id) ? entry : best),
-    entries[0],
-  );
+  return entries.reduce((best, entry) => (Number(entry?.id) > Number(best?.id) ? entry : best), entries[0]);
 }
 
 function isTrustedEffectUrl(value) {
@@ -23,9 +20,7 @@ function isTrustedEffectUrl(value) {
     const url = new URL(String(value || ''));
     if (url.protocol !== 'https:') return false;
     const hostname = url.hostname.toLowerCase();
-    return TRUSTED_EFFECT_HOSTS.some(
-      (host) => hostname === host || hostname.endsWith(`.${host}`),
-    );
+    return TRUSTED_EFFECT_HOSTS.some((host) => hostname === host || hostname.endsWith(`.${host}`));
   } catch (_) {
     return false;
   }
@@ -64,14 +59,7 @@ function parseEffectFrame(value, videoWidth, videoHeight) {
   const frame = value.map(Number);
   if (!frame.every(Number.isInteger)) throw new Error('礼物特效画面坐标无效');
   const [x, y, width, height] = frame;
-  if (
-    x < 0 ||
-    y < 0 ||
-    width <= 0 ||
-    height <= 0 ||
-    x + width > videoWidth ||
-    y + height > videoHeight
-  ) {
+  if (x < 0 || y < 0 || width <= 0 || height <= 0 || x + width > videoWidth || y + height > videoHeight) {
     throw new Error('礼物特效画面坐标无效');
   }
   return Object.freeze(frame);
@@ -100,8 +88,7 @@ function buildEffectMap(payload) {
       const giftId = Number(value);
       if (!Number.isSafeInteger(giftId) || giftId <= 0) continue;
       const existing = byGiftId.get(giftId);
-      if (!existing || effect.effectId > existing.effectId)
-        byGiftId.set(giftId, effect);
+      if (!existing || effect.effectId > existing.effectId) byGiftId.set(giftId, effect);
     }
   }
 
@@ -138,16 +125,12 @@ function createGiftEffectResolver(options = {}) {
         byGiftId = nextMap;
         fetchedAt = now();
         failedAt = 0;
-        console.log(
-          `[Bilibili][GiftEffect] 特效配置已更新：${nextMap.size} 个礼物可播放全屏特效`,
-        );
+        console.log(`[Bilibili][GiftEffect] 特效配置已更新：${nextMap.size} 个礼物可播放全屏特效`);
         return byGiftId;
       })
       .catch((error) => {
         failedAt = now();
-        console.warn(
-          `[Bilibili][GiftEffect] 特效配置拉取失败，沿用旧缓存：${error.message || error}`,
-        );
+        console.warn(`[Bilibili][GiftEffect] 特效配置拉取失败，沿用旧缓存：${error.message || error}`);
         return byGiftId;
       })
       .finally(() => {
@@ -164,8 +147,7 @@ function createGiftEffectResolver(options = {}) {
 
   async function getEffectLayout(layoutUrl) {
     if (layoutByUrl.has(layoutUrl)) return layoutByUrl.get(layoutUrl);
-    if (pendingLayoutByUrl.has(layoutUrl))
-      return pendingLayoutByUrl.get(layoutUrl);
+    if (pendingLayoutByUrl.has(layoutUrl)) return pendingLayoutByUrl.get(layoutUrl);
     const failedAtMs = failedLayoutAtByUrl.get(layoutUrl);
     if (failedAtMs !== undefined && now() - failedAtMs < retryMs) return null;
 
@@ -179,9 +161,7 @@ function createGiftEffectResolver(options = {}) {
       })
       .catch((error) => {
         failedLayoutAtByUrl.set(layoutUrl, now());
-        console.warn(
-          `[Bilibili][GiftEffect] 特效坐标拉取失败：${error.message || error}`,
-        );
+        console.warn(`[Bilibili][GiftEffect] 特效坐标拉取失败：${error.message || error}`);
         return null;
       })
       .finally(() => {
@@ -271,14 +251,10 @@ async function fetchJsonDocument(endpointName, url) {
   try {
     payload = JSON.parse(text);
   } catch (_) {
-    throw new Error(
-      `Bilibili API ${endpointName} returned non-JSON response. HTTP ${response.status}.`,
-    );
+    throw new Error(`Bilibili API ${endpointName} returned non-JSON response. HTTP ${response.status}.`);
   }
   if (!response.ok) {
-    throw new Error(
-      `Bilibili API ${endpointName} failed: http=${response.status}`,
-    );
+    throw new Error(`Bilibili API ${endpointName} failed: http=${response.status}`);
   }
   return { payload, response };
 }

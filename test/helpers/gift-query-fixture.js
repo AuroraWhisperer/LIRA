@@ -3,10 +3,7 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const {
-  closeDatabases,
-  createDatabases,
-} = require('../../src/storage/database');
+const { closeDatabases, createDatabases } = require('../../src/storage/database');
 const { createGiftSyncStore } = require('../../src/storage/gift-sync-store');
 const { createGiftQueryStore } = require('../../src/storage/gift-query-store');
 const { createGiftMaintenanceStore } = require('../../src/storage/gift-maintenance-store');
@@ -64,9 +61,7 @@ function createFixture() {
     insertGift(sourceId, eventId, overrides = {}) {
       const isBlindBox = overrides.isBlindBox === true;
       const totalPrice = overrides.totalPrice ?? 1;
-      const blindBoxPrice = isBlindBox
-        ? (overrides.blindBoxPrice ?? null)
-        : null;
+      const blindBoxPrice = isBlindBox ? (overrides.blindBoxPrice ?? null) : null;
       return insert.run(
         sourceId,
         `lira-server:${eventId}`,

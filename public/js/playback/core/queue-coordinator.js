@@ -30,20 +30,8 @@ export function createPlaybackQueueCoordinator({
     return queueOps.rebuildPlaybackShuffleOrder();
   }
 
-  async function startPlaybackCollection(
-    tracks,
-    selectedIndex,
-    queueType,
-    queueTitle = '',
-    queueSourceKey = '',
-  ) {
-    const result = queueOps.startPlaybackCollection(
-      tracks,
-      selectedIndex,
-      queueType,
-      queueTitle,
-      queueSourceKey,
-    );
+  async function startPlaybackCollection(tracks, selectedIndex, queueType, queueTitle = '', queueSourceKey = '') {
+    const result = queueOps.startPlaybackCollection(tracks, selectedIndex, queueType, queueTitle, queueSourceKey);
     if (!result) return;
     rebuildPlaybackShuffleOrder();
     savePlaybackState();
@@ -63,12 +51,7 @@ export function createPlaybackQueueCoordinator({
     const result = queueOps.insertAndPlayPlaybackTrack(track);
     if (!result) return;
     if (result.shouldStartCollection) {
-      await startPlaybackCollection(
-        result.tracks,
-        0,
-        result.queueType,
-        result.title,
-      );
+      await startPlaybackCollection(result.tracks, 0, result.queueType, result.title);
       return;
     }
     savePlaybackState();
@@ -94,9 +77,7 @@ export function createPlaybackQueueCoordinator({
       return;
     }
     if (action === 'requested') {
-      insertPlaybackTracksNext([
-        { ...track, requestedBy: options.requestedBy || '手动添加' },
-      ]);
+      insertPlaybackTracksNext([{ ...track, requestedBy: options.requestedBy || '手动添加' }]);
       toast('已插入当前歌曲之后');
     } else if (action === 'radio') {
       startPlaybackCollection([track], 0, 'radio');
@@ -117,8 +98,7 @@ export function createPlaybackQueueCoordinator({
     insertPlaybackTracksNext,
     insertAndPlayPlaybackTrack,
     takeNextPlaybackTrack,
-    takePlaybackQueueTrack: (...args) =>
-      queueOps.takePlaybackQueueTrack(...args),
+    takePlaybackQueueTrack: (...args) => queueOps.takePlaybackQueueTrack(...args),
     clearPlaybackQueue: (...args) => queueOps.clearPlaybackQueue(...args),
     jumpToPlaylistTrack,
     queuePlaybackTrack,

@@ -14,10 +14,7 @@ function jsonResponse(payload, status = 200) {
 }
 
 test('current time tool uses IANA timezone without an external API', () => {
-  const result = getCurrentTime(
-    { timeZone: 'Asia/Shanghai' },
-    { now: '2026-08-06T04:00:00.000Z' },
-  );
+  const result = getCurrentTime({ timeZone: 'Asia/Shanghai' }, { now: '2026-08-06T04:00:00.000Z' });
   assert.equal(result.timeZone, 'Asia/Shanghai');
   assert.match(result.formatted, /12:00:00/);
   assert.throws(() => getCurrentTime({ timeZone: 'Not/AZone' }), /时区/);
@@ -33,10 +30,7 @@ test('QWeather does not send a request after its monthly quota is exhausted', as
     quotaStore: { consume: () => ({ allowed: false }) },
   });
   await assert.rejects(
-    tool.getWeather(
-      { qweatherApiHost: 'https://weather.test', qweatherApiKey: 'key' },
-      { location: '苏州' },
-    ),
+    tool.getWeather({ qweatherApiHost: 'https://weather.test', qweatherApiKey: 'key' }, { location: '苏州' }),
     (error) => error.code === 'QWEATHER_MONTHLY_LIMIT',
   );
   assert.equal(fetchCalls, 0);
@@ -55,10 +49,7 @@ test('QWeather refunds quota when a successful response has no locations', async
   });
 
   await assert.rejects(
-    tool.resolveLocation(
-      { qweatherApiHost: 'https://weather.test', qweatherApiKey: 'key' },
-      '未知地点',
-    ),
+    tool.resolveLocation({ qweatherApiHost: 'https://weather.test', qweatherApiKey: 'key' }, '未知地点'),
     (error) => error.code === 'WEATHER_LOCATION_NOT_FOUND',
   );
   assert.equal(releases, 1);
@@ -151,10 +142,7 @@ test('AMap separates search and LBS quota categories before sending requests', a
     },
   });
   await assert.rejects(
-    tool.searchPlaces(
-      { amapApiHost: 'https://amap.test', amapApiKey: 'key' },
-      { keywords: '餐厅' },
-    ),
+    tool.searchPlaces({ amapApiHost: 'https://amap.test', amapApiKey: 'key' }, { keywords: '餐厅' }),
     (error) => error.code === 'AMAP_SEARCH_MONTHLY_LIMIT',
   );
   assert.deepEqual(categories, ['amap_search']);
@@ -204,11 +192,7 @@ test('AMap automatically uses the first matching endpoint and completes the rout
   assert.equal(result.durationSeconds, 2400);
   assert.deepEqual(result.origin.alternatives, ['太原南站东广场']);
   assert.deepEqual(result.destination.alternatives, ['太原南站东广场']);
-  assert.deepEqual(requestedPaths, [
-    '/v3/geocode/geo',
-    '/v3/geocode/geo',
-    '/v3/direction/transit/integrated',
-  ]);
+  assert.deepEqual(requestedPaths, ['/v3/geocode/geo', '/v3/geocode/geo', '/v3/direction/transit/integrated']);
 });
 
 test('AMap prefers a complete place-name match over an earlier unrelated result', async () => {

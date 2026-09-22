@@ -26,11 +26,8 @@ function createDynamicLotteryAuth({
 
   function getScope() {
     if (disposed) fail('LOTTERY_SESSION_DISPOSED');
-    if (licenseManager.getState() !== 'authorized')
-      fail('LOTTERY_IDENTITY_UNAVAILABLE');
-    const streamerId = String(
-      licenseManager.getCloudSyncIdentity()?.streamerId || '',
-    );
+    if (licenseManager.getState() !== 'authorized') fail('LOTTERY_IDENTITY_UNAVAILABLE');
+    const streamerId = String(licenseManager.getCloudSyncIdentity()?.streamerId || '');
     const authorizationEpoch = licenseManager.getAuthorizationEpoch();
     if (
       !streamerId ||
@@ -45,10 +42,7 @@ function createDynamicLotteryAuth({
   }
 
   function sameScope(left, right) {
-    return (
-      left?.streamerId === right?.streamerId &&
-      left?.authorizationEpoch === right?.authorizationEpoch
-    );
+    return left?.streamerId === right?.streamerId && left?.authorizationEpoch === right?.authorizationEpoch;
   }
 
   function assertCurrent(selected) {
@@ -148,8 +142,7 @@ function createDynamicLotteryAuth({
     job.promise = run(async () => {
       const selected = await getAccount();
       if (job.abort.signal.aborted) fail('LOTTERY_SESSION_CHANGED');
-      if (!safeStorage.isEncryptionAvailable())
-        fail('LOTTERY_AUTH_ENCRYPTION_UNAVAILABLE');
+      if (!safeStorage.isEncryptionAvailable()) fail('LOTTERY_AUTH_ENCRYPTION_UNAVAILABLE');
       if ((await readState(selected)).loggedIn) return { selected };
       lotterySession.invalidate();
       const auth = {
@@ -180,8 +173,7 @@ function createDynamicLotteryAuth({
             job.window = window;
           },
           // Never forward an upstream URL, request header or raw error to logs.
-          writeLog: () =>
-            writeLog('dynamic-lottery-auth', 'LOGIN_WINDOW_EVENT'),
+          writeLog: () => writeLog('dynamic-lottery-auth', 'LOGIN_WINDOW_EVENT'),
         }),
       };
     })
@@ -211,8 +203,7 @@ function createDynamicLotteryAuth({
       .catch(() => {})
       .then(() =>
         run(async () => {
-          if (!sameScope(expectedScope, getScope()))
-            fail('LOTTERY_SESSION_CHANGED');
+          if (!sameScope(expectedScope, getScope())) fail('LOTTERY_SESSION_CHANGED');
           const selected = await getAccount();
           await selected.store.clear();
           selected.warning = '';

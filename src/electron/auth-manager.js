@@ -78,11 +78,7 @@ function isAllowedMusicCookie(platform, cookie) {
   return config.cookieDomains.some((allowed) => {
     const cleanAllowed = allowed.toLowerCase();
     const hostAllowed = cleanAllowed.replace(/^\./, '');
-    return (
-      domain === cleanAllowed ||
-      domain === hostAllowed ||
-      domain.endsWith(`.${hostAllowed}`)
-    );
+    return domain === cleanAllowed || domain === hostAllowed || domain.endsWith(`.${hostAllowed}`);
   });
 }
 
@@ -106,9 +102,7 @@ function isAllowedMusicLoginUrl(platform, rawUrl) {
 
 async function getAllowedMusicCookies(platform) {
   platform = normalizeMusicPlatform(platform);
-  const loginSession = session.fromPartition(
-    MUSIC_LOGIN_CONFIG[platform].partition,
-  );
+  const loginSession = session.fromPartition(MUSIC_LOGIN_CONFIG[platform].partition);
   const cookies = await loginSession.cookies.get({});
   return cookies.filter((cookie) => isAllowedMusicCookie(platform, cookie));
 }
@@ -123,19 +117,13 @@ async function persistMusicCookieSnapshot(platform, dataDir) {
   };
 
   if (!safeStorage.isEncryptionAvailable()) {
-    throw new Error(
-      'safeStorage 当前不可用，已保留 Electron partition Cookie，但不会写入明文快照。',
-    );
+    throw new Error('safeStorage 当前不可用，已保留 Electron partition Cookie，但不会写入明文快照。');
   }
 
   const authDir = getMusicAuthDir(dataDir);
   fs.mkdirSync(authDir, { recursive: true });
   const encrypted = safeStorage.encryptString(JSON.stringify(payload));
-  fs.writeFileSync(
-    getMusicCookieSnapshotPath(dataDir, platform),
-    encrypted.toString('base64'),
-    'utf8',
-  );
+  fs.writeFileSync(getMusicCookieSnapshotPath(dataDir, platform), encrypted.toString('base64'), 'utf8');
   return { savedAt: payload.savedAt, cookieCount: payload.cookies.length };
 }
 
@@ -146,17 +134,10 @@ async function restoreMusicCookieSnapshot(platform, dataDir) {
   if (!safeStorage.isEncryptionAvailable()) return null;
 
   try {
-    const encrypted = Buffer.from(
-      fs.readFileSync(snapshotPath, 'utf8'),
-      'base64',
-    );
+    const encrypted = Buffer.from(fs.readFileSync(snapshotPath, 'utf8'), 'base64');
     const payload = JSON.parse(safeStorage.decryptString(encrypted));
-    const loginSession = session.fromPartition(
-      MUSIC_LOGIN_CONFIG[platform].partition,
-    );
-    for (const cookie of Array.isArray(payload.cookies)
-      ? payload.cookies
-      : []) {
+    const loginSession = session.fromPartition(MUSIC_LOGIN_CONFIG[platform].partition);
+    for (const cookie of Array.isArray(payload.cookies) ? payload.cookies : []) {
       await loginSession.cookies.set(toElectronCookieDetails(cookie));
     }
     return {
@@ -173,29 +154,17 @@ async function getMusicAuthState(platform, dataDir) {
   const config = MUSIC_LOGIN_CONFIG[platform];
   const cookies = await getAllowedMusicCookies(platform);
   const cookieNames = new Set(cookies.map((c) => c.name));
-  const presentKeyCookies = config.keyCookies.filter((name) =>
-    cookieNames.has(name),
-  );
-  const authCookieNames = Array.isArray(config.authCookies)
-    ? config.authCookies
-    : config.keyCookies;
+  const presentKeyCookies = config.keyCookies.filter((name) => cookieNames.has(name));
+  const authCookieNames = Array.isArray(config.authCookies) ? config.authCookies : config.keyCookies;
   const loggedIn = authCookieNames.some((name) =>
-    cookies.some(
-      (cookie) =>
-        cookie.name === name &&
-        typeof cookie.value === 'string' &&
-        cookie.value.length > 0,
-    ),
+    cookies.some((cookie) => cookie.name === name && typeof cookie.value === 'string' && cookie.value.length > 0),
   );
 
   let snapshotMeta = { exists: false, savedAt: '' };
   const snapshotPath = getMusicCookieSnapshotPath(dataDir, platform);
   if (fs.existsSync(snapshotPath) && safeStorage.isEncryptionAvailable()) {
     try {
-      const encrypted = Buffer.from(
-        fs.readFileSync(snapshotPath, 'utf8'),
-        'base64',
-      );
+      const encrypted = Buffer.from(fs.readFileSync(snapshotPath, 'utf8'), 'base64');
       const payload = JSON.parse(safeStorage.decryptString(encrypted));
       snapshotMeta = { exists: true, savedAt: payload.savedAt || '' };
     } catch (_) {
@@ -225,9 +194,7 @@ async function getMusicCookieHeader(platform) {
 
 async function logoutMusicAccount(platform, dataDir) {
   platform = normalizeMusicPlatform(platform);
-  const loginSession = session.fromPartition(
-    MUSIC_LOGIN_CONFIG[platform].partition,
-  );
+  const loginSession = session.fromPartition(MUSIC_LOGIN_CONFIG[platform].partition);
   await loginSession.clearStorageData({
     storages: ['cookies', 'localstorage', 'indexdb', 'websql'],
   });
@@ -236,15 +203,11 @@ async function logoutMusicAccount(platform, dataDir) {
   return getMusicAuthState(platform, dataDir);
 }
 
-async function clearMusicBrowserCache(
-  platforms = Object.keys(MUSIC_LOGIN_CONFIG),
-) {
+async function clearMusicBrowserCache(platforms = Object.keys(MUSIC_LOGIN_CONFIG)) {
   const cleared = [];
   for (const value of platforms) {
     const platform = normalizeMusicPlatform(value);
-    const loginSession = session.fromPartition(
-      MUSIC_LOGIN_CONFIG[platform].partition,
-    );
+    const loginSession = session.fromPartition(MUSIC_LOGIN_CONFIG[platform].partition);
     await loginSession.clearStorageData({
       storages: ['cache', 'cachestorage'],
     });

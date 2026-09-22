@@ -14,7 +14,8 @@ test('full snapshots reach all clients while danmaku increments require a topic'
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const clients = [];
   t.after(async () => {
-    clients.forEach((client) => client.socket.close()); hub.stop();
+    clients.forEach((client) => client.socket.close());
+    hub.stop();
     await new Promise((resolve) => server.close(resolve));
   });
   function connect(topic) {
@@ -22,26 +23,34 @@ test('full snapshots reach all clients while danmaku increments require a topic'
     const messages = [];
     const waiters = new Map();
     socket.addEventListener('message', ({ data }) => {
-      const message = JSON.parse(data); messages.push(message);
+      const message = JSON.parse(data);
+      messages.push(message);
       waiters.get(message.type)?.(message);
     });
     const client = { socket, messages, next: (type) => new Promise((resolve) => waiters.set(type, resolve)) };
-    clients.push(client); return client;
+    clients.push(client);
+    return client;
   }
-  const ordinary = connect(''); const topic = connect('&topic=danmaku');
+  const ordinary = connect('');
+  const topic = connect('&topic=danmaku');
   for (const message of await Promise.all(clients.map((client) => client.next('snapshot')))) {
-    assert.equal(message.reason, 'connect'); assert.deepEqual(message.state, state);
+    assert.equal(message.reason, 'connect');
+    assert.deepEqual(message.state, state);
   }
   const incrementsDone = clients.map((client) => client.next('barrier'));
   hub.broadcast({ type: 'danmaku:message', item: { id: 'one' } }, { topic: 'danmaku' });
   hub.broadcast({ type: 'barrier' });
   await Promise.all(incrementsDone);
-  assert.equal(ordinary.messages.some((message) => message.type === 'danmaku:message'), false);
+  assert.equal(
+    ordinary.messages.some((message) => message.type === 'danmaku:message'),
+    false,
+  );
   assert.equal(topic.messages.filter((message) => message.type === 'danmaku:message').length, 1);
   const snapshots = clients.map((client) => client.next('snapshot'));
   state = { queue: { current: 'changed' }, danmakuFeed: [{ id: 'one' }] };
   hub.broadcastSnapshot(context, 'queue:update');
   for (const message of await Promise.all(snapshots)) {
-    assert.deepEqual(message.state, state); assert.equal(message.reason, 'queue:update');
+    assert.deepEqual(message.state, state);
+    assert.equal(message.reason, 'queue:update');
   }
 });

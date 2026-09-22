@@ -77,17 +77,13 @@ test('fullscreen random danmaku positions are stable, bounded, and expire from t
       this.callback();
     }
   }
-  const module = await loadModuleExports(
-    path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku-feed.js'),
-    {
-      document: {
-        createElement: (tagName) => new FakeNode(tagName),
-        createDocumentFragment: () =>
-          Object.assign(new FakeNode(), { isFragment: true }),
-      },
-      ResizeObserver: FakeResizeObserver,
+  const module = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku-feed.js'), {
+    document: {
+      createElement: (tagName) => new FakeNode(tagName),
+      createDocumentFragment: () => Object.assign(new FakeNode(), { isFragment: true }),
     },
-  );
+    ResizeObserver: FakeResizeObserver,
+  });
   const feed = module.createDanmakuFeed(root, {
     layout: 'fullscreen-random',
     maxItems: 5,
@@ -121,15 +117,9 @@ test('fullscreen random danmaku positions are stable, bounded, and expire from t
   assert.match(firstLeft, /^\d+(?:\.\d+)?px$/);
   assert.match(firstTop, /^\d+(?:\.\d+)?px$/);
   assert.ok(Number.parseFloat(firstLeft) >= 8);
-  assert.ok(
-    Number.parseFloat(firstLeft) <=
-      root.clientWidth - firstNode.offsetWidth - 8,
-  );
+  assert.ok(Number.parseFloat(firstLeft) <= root.clientWidth - firstNode.offsetWidth - 8);
   assert.ok(Number.parseFloat(firstTop) >= 8);
-  assert.ok(
-    Number.parseFloat(firstTop) <=
-      root.clientHeight - firstNode.offsetHeight - 8,
-  );
+  assert.ok(Number.parseFloat(firstTop) <= root.clientHeight - firstNode.offsetHeight - 8);
   assert.equal(scheduled[0].delay, 200);
 
   now = 1100;
@@ -190,8 +180,7 @@ test('fullscreen random danmaku positions are stable, bounded, and expire from t
   const retainedNode = root.children.at(-1);
   const retainedPosition = retainedNode.style.getPropertyValue('left');
   collisionFeed.append({ id: 'newest', name: '最新消息', message: '新弹幕' });
-  if (root.children.includes(retainedNode))
-    assert.equal(retainedNode.style.getPropertyValue('left'), retainedPosition);
+  if (root.children.includes(retainedNode)) assert.equal(retainedNode.style.getPropertyValue('left'), retainedPosition);
   assertClearLayout();
   root.children.at(-1).offsetHeight = 90;
   resizeObservers.at(-1).trigger();
@@ -199,15 +188,8 @@ test('fullscreen random danmaku positions are stable, bounded, and expire from t
   root.clientWidth = 220;
   root.clientHeight = 140;
   resizeObservers.at(-1).trigger();
-  assert.equal(
-    root.children.length,
-    1,
-    'a full viewport must make room for the latest message',
-  );
-  assert.equal(
-    root.children[0].children[0].children[0].children[0].textContent,
-    '最新消息',
-  );
+  assert.equal(root.children.length, 1, 'a full viewport must make room for the latest message');
+  assert.equal(root.children[0].children[0].children[0].children[0].textContent, '最新消息');
   assertClearLayout();
   root.clientWidth = 400;
   root.clientHeight = 240;
@@ -219,11 +201,7 @@ test('fullscreen random danmaku positions are stable, bounded, and expire from t
   root.children.at(-1).offsetHeight = 400;
   resizeObservers.at(-1).trigger();
   assert.equal(root.children.length, 1);
-  assert.equal(
-    root.children[0],
-    fittingNode,
-    'an oversized item must not evict fitting messages',
-  );
+  assert.equal(root.children[0], fittingNode, 'an oversized item must not evict fitting messages');
   collisionFeed.destroy();
 });
 
@@ -255,16 +233,12 @@ test('fullscreen random preview keeps rendered items without expiration timers',
   }
   const root = new FakeNode('section');
   const scheduled = [];
-  const module = await loadModuleExports(
-    path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku-feed.js'),
-    {
-      document: {
-        createElement: (tagName) => new FakeNode(tagName),
-        createDocumentFragment: () =>
-          Object.assign(new FakeNode(), { isFragment: true }),
-      },
+  const module = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku-feed.js'), {
+    document: {
+      createElement: (tagName) => new FakeNode(tagName),
+      createDocumentFragment: () => Object.assign(new FakeNode(), { isFragment: true }),
     },
-  );
+  });
   const feed = module.createDanmakuFeed(root, {
     layout: 'fullscreen-random',
     itemLifetimeMs: 500,
@@ -311,16 +285,12 @@ test('fullscreen random live items without a timestamp still expire from arrival
   }
   const root = new FakeNode('section');
   const scheduled = [];
-  const module = await loadModuleExports(
-    path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku-feed.js'),
-    {
-      document: {
-        createElement: (tagName) => new FakeNode(tagName),
-        createDocumentFragment: () =>
-          Object.assign(new FakeNode(), { isFragment: true }),
-      },
+  const module = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku-feed.js'), {
+    document: {
+      createElement: (tagName) => new FakeNode(tagName),
+      createDocumentFragment: () => Object.assign(new FakeNode(), { isFragment: true }),
     },
-  );
+  });
   const feed = module.createDanmakuFeed(root, {
     layout: 'fullscreen-random',
     itemLifetimeMs: 500,

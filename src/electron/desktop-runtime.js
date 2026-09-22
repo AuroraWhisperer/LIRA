@@ -24,17 +24,12 @@ function createDesktopRuntime(serverModule, options = {}) {
         : () => {},
     persistPlaybackSnapshot:
       typeof serverModule.persistPlaybackSnapshot === 'function'
-        ? (payload, clientId) =>
-            serverModule.persistPlaybackSnapshot(payload, clientId)
+        ? (payload, clientId) => serverModule.persistPlaybackSnapshot(payload, clientId)
         : null,
     resumeAuthorizedWork:
-      typeof serverModule.resumeAuthorizedWork === 'function'
-        ? () => serverModule.resumeAuthorizedWork()
-        : null,
+      typeof serverModule.resumeAuthorizedWork === 'function' ? () => serverModule.resumeAuthorizedWork() : null,
     pauseAuthorizedWork:
-      typeof serverModule.pauseAuthorizedWork === 'function'
-        ? () => serverModule.pauseAuthorizedWork()
-        : null,
+      typeof serverModule.pauseAuthorizedWork === 'function' ? () => serverModule.pauseAuthorizedWork() : null,
     resolveGiftSource:
       typeof serverModule.resolveGiftSource === 'function'
         ? (sourceKey) => serverModule.resolveGiftSource(sourceKey)
@@ -49,11 +44,7 @@ function createDesktopRuntime(serverModule, options = {}) {
         : null,
     restartGiftHistoryBootstrap:
       typeof serverModule.restartGiftHistoryBootstrap === 'function'
-        ? (sourceId, projectionGeneration) =>
-            serverModule.restartGiftHistoryBootstrap(
-              sourceId,
-              projectionGeneration,
-            )
+        ? (sourceId, projectionGeneration) => serverModule.restartGiftHistoryBootstrap(sourceId, projectionGeneration)
         : null,
     commitGiftCatchUpPage:
       typeof serverModule.commitGiftCatchUpPage === 'function'
@@ -73,13 +64,9 @@ function createDesktopRuntime(serverModule, options = {}) {
         : null,
     importProcessedGiftEvent:
       typeof serverModule.importProcessedGiftEvent === 'function'
-        ? (event, sourceId) =>
-            serverModule.importProcessedGiftEvent(event, sourceId)
+        ? (event, sourceId) => serverModule.importProcessedGiftEvent(event, sourceId)
         : null,
-    getSetting:
-      typeof serverModule.getSetting === 'function'
-        ? (key) => serverModule.getSetting(key)
-        : () => undefined,
+    getSetting: typeof serverModule.getSetting === 'function' ? (key) => serverModule.getSetting(key) : () => undefined,
     getCloudSettingsSnapshot:
       typeof serverModule.getCloudSettingsSnapshot === 'function'
         ? () => serverModule.getCloudSettingsSnapshot()
@@ -97,9 +84,7 @@ function createDesktopRuntime(serverModule, options = {}) {
         ? (state) => serverModule.setBlindBoxMappingState(state)
         : null,
     getCloudSongsSnapshot:
-      typeof serverModule.getCloudSongsSnapshot === 'function'
-        ? () => serverModule.getCloudSongsSnapshot()
-        : null,
+      typeof serverModule.getCloudSongsSnapshot === 'function' ? () => serverModule.getCloudSongsSnapshot() : null,
     getPendingCloudSongs:
       typeof serverModule.getPendingCloudSongs === 'function'
         ? (accountKey) => serverModule.getPendingCloudSongs(accountKey)
@@ -135,8 +120,7 @@ function createDesktopRuntime(serverModule, options = {}) {
         : () => true,
     onGiftCatalogInitializationStateChanged:
       typeof serverModule.onGiftCatalogInitializationStateChanged === 'function'
-        ? (listener) =>
-            serverModule.onGiftCatalogInitializationStateChanged(listener)
+        ? (listener) => serverModule.onGiftCatalogInitializationStateChanged(listener)
         : () => () => {},
   };
 }

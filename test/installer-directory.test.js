@@ -14,57 +14,20 @@ test(
   },
   () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-directory-test-'));
-    const installer = fs.readFileSync(
-      path.join(__dirname, '../build/installer.nsh'),
-      'utf8',
-    );
+    const installer = fs.readFileSync(path.join(__dirname, '../build/installer.nsh'), 'utf8');
     const choose = installer
       .match(/Function liraSelectDefaultDirectory\b[\s\S]*?FunctionEnd/)[0]
-      .replace(
-        /ReadRegStr[^\r\n]+/,
-        'StrCpy $liraPreviousInstallDir "${FIXTURE_PREVIOUS}"',
-      )
-      .replace(
-        '!insertmacro GetDParameter $R0',
-        'StrCpy $R0 "${FIXTURE_EXPLICIT}"',
-      )
+      .replace(/ReadRegStr[^\r\n]+/, 'StrCpy $liraPreviousInstallDir "${FIXTURE_PREVIOUS}"')
+      .replace('!insertmacro GetDParameter $R0', 'StrCpy $R0 "${FIXTURE_EXPLICIT}"')
       .replace('IfFileExists "D:\\*.*"', 'IfFileExists "${FIXTURE_DRIVE}"');
     assert.doesNotMatch(choose, /ReadReg|WriteReg|DeleteReg/);
     try {
       for (const [name, previous, selected, explicit, hasD, expected] of [
         ['fresh-with-d', '', 'C:\\Default\\LIRA', '', true, 'D:\\LIRA'],
-        [
-          'fresh-without-d',
-          '',
-          'C:\\Default\\LIRA',
-          '',
-          false,
-          'C:\\Default\\LIRA',
-        ],
-        [
-          'existing-d',
-          'D:\\0点歌\\LIRA',
-          'D:\\0点歌\\LIRA',
-          '',
-          true,
-          'D:\\0点歌\\LIRA',
-        ],
-        [
-          'existing-c',
-          'C:\\Apps\\LIRA',
-          'C:\\Apps\\LIRA',
-          '',
-          true,
-          'C:\\Apps\\LIRA',
-        ],
-        [
-          'explicit-other-drive',
-          'D:\\Apps\\LIRA',
-          'E:\\软件\\LIRA',
-          'E:\\软件\\LIRA',
-          true,
-          'E:\\软件\\LIRA',
-        ],
+        ['fresh-without-d', '', 'C:\\Default\\LIRA', '', false, 'C:\\Default\\LIRA'],
+        ['existing-d', 'D:\\0点歌\\LIRA', 'D:\\0点歌\\LIRA', '', true, 'D:\\0点歌\\LIRA'],
+        ['existing-c', 'C:\\Apps\\LIRA', 'C:\\Apps\\LIRA', '', true, 'C:\\Apps\\LIRA'],
+        ['explicit-other-drive', 'D:\\Apps\\LIRA', 'E:\\软件\\LIRA', 'E:\\软件\\LIRA', true, 'E:\\软件\\LIRA'],
       ]) {
         const output = path.join(root, name + '.txt');
         const executable = path.join(root, name + '.exe');
@@ -95,11 +58,11 @@ test(
             'SectionEnd',
           ].join('\n'),
         );
-        const build = spawnSync(
-          process.env.LIRA_TEST_MAKENSIS,
-          ['/V2', '-INPUTCHARSET', 'UTF8', script],
-          { encoding: 'utf8', windowsHide: true, timeout: 30000 },
-        );
+        const build = spawnSync(process.env.LIRA_TEST_MAKENSIS, ['/V2', '-INPUTCHARSET', 'UTF8', script], {
+          encoding: 'utf8',
+          windowsHide: true,
+          timeout: 30000,
+        });
         assert.equal(build.status, 0, build.stdout + build.stderr);
         const run = spawnSync(executable, ['/S'], {
           windowsHide: true,

@@ -34,13 +34,7 @@ function installTerminalLog(filePath, options = {}) {
         message = '[Log redaction failed]';
       }
       original.call(console, message);
-      if (
-        method === 'info' &&
-        !(
-          typeof args[0] === 'string' &&
-          args[0].startsWith('[Bilibili][Diagnostic] ')
-        )
-      ) {
+      if (method === 'info' && !(typeof args[0] === 'string' && args[0].startsWith('[Bilibili][Diagnostic] '))) {
         return;
       }
       appendTerminalLine(filePath, message, method, context);
@@ -70,8 +64,7 @@ function appendTerminalLine(filePath, message, method, context) {
         message,
       }),
       {
-        maxEntryBytes:
-          method === 'error' ? ERROR_ENTRY_BYTES : NORMAL_ENTRY_BYTES,
+        maxEntryBytes: method === 'error' ? ERROR_ENTRY_BYTES : NORMAL_ENTRY_BYTES,
         maxFileBytes: context.maxFileBytes,
       },
     );
@@ -86,14 +79,8 @@ function normalizeLogContext(options) {
     runId: String(options.runId || 'unknown'),
     pid: Number(options.pid) || process.pid,
     processType: String(options.processType || process.type || 'node'),
-    maxFileBytes:
-      Number(options.maxFileBytes) > 0
-        ? Number(options.maxFileBytes)
-        : LEGACY_FILE_BYTES,
-    now:
-      typeof options.now === 'function'
-        ? options.now
-        : () => new Date().toISOString(),
+    maxFileBytes: Number(options.maxFileBytes) > 0 ? Number(options.maxFileBytes) : LEGACY_FILE_BYTES,
+    now: typeof options.now === 'function' ? options.now : () => new Date().toISOString(),
     nextSequence:
       typeof options.nextSequence === 'function'
         ? options.nextSequence
@@ -104,15 +91,7 @@ function normalizeLogContext(options) {
   };
 }
 
-function formatLogLine({
-  timestamp,
-  runId,
-  sequence,
-  pid,
-  processType,
-  source,
-  message,
-}) {
+function formatLogLine({ timestamp, runId, sequence, pid, processType, source, message }) {
   const safeTimestamp = String(timestamp || new Date().toISOString());
   const safeRunId = String(runId || 'unknown');
   const safeSequence = Math.max(0, Number(sequence) || 0);

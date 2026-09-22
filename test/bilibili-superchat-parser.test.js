@@ -3,9 +3,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 
-const {
-  extractBilibiliSuperChatMessage,
-} = require('../src/bilibili/parsers/superchat-parser');
+const { extractBilibiliSuperChatMessage } = require('../src/bilibili/parsers/superchat-parser');
 
 test('superchat metadata drops a medal explicitly belonging to another room', () => {
   const result = extractBilibiliSuperChatMessage(

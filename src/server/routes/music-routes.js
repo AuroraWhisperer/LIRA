@@ -37,14 +37,10 @@ const routes = {
   async 'POST /api/music/resolve-stream'(context, request, res) {
     const body = await request.body();
     await sendProviderResult(res, '在线音源 Provider 尚未接入。', async () => {
-      const stream = await resolveMusicStream(
-        context.music.registry,
-        body.track,
-        {
-          forceRefresh: body.forceRefresh === true,
-          quality: String(body.quality || ''),
-        },
-      );
+      const stream = await resolveMusicStream(context.music.registry, body.track, {
+        forceRefresh: body.forceRefresh === true,
+        quality: String(body.quality || ''),
+      });
       if (stream && stream.encrypted && stream.url && context.sessionToken) {
         const url = new URL(stream.url, 'http://lira.local');
         url.searchParams.set('token', context.sessionToken);
@@ -56,11 +52,7 @@ const routes = {
 
   async 'GET /api/music/qq-encrypted-stream'(context, request, res) {
     const provider = context.music.registry.get('qq');
-    await provider.serveEncryptedStream(
-      request.query.get('id'),
-      request.req,
-      res,
-    );
+    await provider.serveEncryptedStream(request.query.get('id'), request.req, res);
   },
 
   async 'POST /api/music/search'(context, request, res) {
@@ -80,22 +72,14 @@ const routes = {
   async 'POST /api/music/playlists/tracks/add'(context, request, res) {
     const body = await request.body();
     await sendProviderResult(res, '添加到音乐歌单失败。', () =>
-      context.music.lyrics.writeMusicPlaylistTracks(
-        context.music.registry,
-        body,
-        'add',
-      ),
+      context.music.lyrics.writeMusicPlaylistTracks(context.music.registry, body, 'add'),
     );
   },
 
   async 'POST /api/music/playlists/tracks/remove'(context, request, res) {
     const body = await request.body();
     await sendProviderResult(res, '从音乐歌单删除失败。', () =>
-      context.music.lyrics.writeMusicPlaylistTracks(
-        context.music.registry,
-        body,
-        'remove',
-      ),
+      context.music.lyrics.writeMusicPlaylistTracks(context.music.registry, body, 'remove'),
     );
   },
 
@@ -116,9 +100,7 @@ const routes = {
   async 'POST /api/music/match-track'(context, request, res) {
     sendJson(res, 200, {
       ok: true,
-      data: context.music.lyrics.matchMusicTrackCandidates(
-        await request.body(),
-      ),
+      data: context.music.lyrics.matchMusicTrackCandidates(await request.body()),
     });
   },
 

@@ -75,9 +75,16 @@ async function createBlindboxFixture({
   const fetch = (url, options = {}) => {
     fetchCalls.push({ url, options });
     if (url === '/api/state') {
-      return Promise.resolve({ ok: true, json: async () => ({ ok: true, data: {
-        settings: { roomId: currentRoomId }, blindBoxMapping: mappingState,
-      } }) });
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({
+          ok: true,
+          data: {
+            settings: { roomId: currentRoomId },
+            blindBoxMapping: mappingState,
+          },
+        }),
+      });
     }
     if (url === '/api/overtime/gifts/catalog') {
       return Promise.resolve(
@@ -88,19 +95,22 @@ async function createBlindboxFixture({
       );
     }
     if (url === '/api/overtime/gifts/refresh') {
-      return new Promise((resolve) =>
-        refreshRequests.push({ resolve, options }),
-      );
+      return new Promise((resolve) => refreshRequests.push({ resolve, options }));
     }
     return Promise.resolve(response({ ok: true, data: {} }));
   };
 
-  await loadModuleExports(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'blindbox.js'),
-    { document, window, fetch, CustomEvent: class {
-      constructor(type, { detail }) { this.type = type; this.detail = detail; }
-    } },
-  );
+  await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'blindbox.js'), {
+    document,
+    window,
+    fetch,
+    CustomEvent: class {
+      constructor(type, { detail }) {
+        this.type = type;
+        this.detail = detail;
+      }
+    },
+  });
   await window.AdminApp.state.reloadState();
   await flushBlindboxTasks();
   window.AdminApp.gifts.blindbox.renderBlindBoxList();

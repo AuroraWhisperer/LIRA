@@ -22,15 +22,7 @@ function giftVariantId(gift) {
     return null;
   return `gv_${crypto
     .createHash('sha256')
-    .update(
-      JSON.stringify([
-        String(id),
-        name,
-        gift.priceRaw,
-        gift.coinType,
-        gift.bagGift,
-      ]),
-    )
+    .update(JSON.stringify([String(id), name, gift.priceRaw, gift.coinType, gift.bagGift]))
     .digest('hex')}`;
 }
 
@@ -42,8 +34,7 @@ function validateRuleGiftIdentity(rule) {
     Array.isArray(identity) ||
     !/^[1-9]\d*$/u.test(String(rule.giftId)) ||
     !/^gv_[a-f0-9]{64}$/u.test(identity.variantId) ||
-    giftVariantId({ ...identity, giftId: rule.giftId, name: rule.giftName }) !==
-      identity.variantId
+    giftVariantId({ ...identity, giftId: rule.giftId, name: rule.giftName }) !== identity.variantId
   ) {
     throw new Error('礼物身份不完整，请从礼物目录重新选择。');
   }

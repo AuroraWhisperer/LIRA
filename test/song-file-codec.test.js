@@ -11,10 +11,7 @@ const {
   parseSongsFromXlsx,
   templateSongs,
 } = require('../src/music/song-file-codec');
-const {
-  SONG_IMPORT_ALIASES,
-  normalizeImportedSongRow,
-} = require('../src/music/song-import-schema');
+const { SONG_IMPORT_ALIASES, normalizeImportedSongRow } = require('../src/music/song-import-schema');
 const { createZip, readZipFiles } = require('../src/shared/xlsx-codec');
 const { SONG_SCHEMA } = require('../src/storage/schema');
 const { createSongStore } = require('../src/storage/song-store');
@@ -181,11 +178,7 @@ test('song CSV protects formula prefixes and leading whitespace/control characte
   ];
   for (const name of inputs) {
     const csv = buildSongsCsv([{ name }]);
-    assert.equal(
-      parseDelimited(csv, ',')[1][0],
-      `'${name}`,
-      JSON.stringify(name),
-    );
+    assert.equal(parseDelimited(csv, ',')[1][0], `'${name}`, JSON.stringify(name));
     assert.ok(csv.split('\n')[1].startsWith('"\''), JSON.stringify(name));
   }
 });
@@ -224,16 +217,7 @@ test('song CSV applies one text policy to every exported external field without 
 
 test('ordinary CSV text, original apostrophes, punctuation and empty fields keep their content', () => {
   const { parseDelimited } = loadCsvParser();
-  for (const name of [
-    '晴天',
-    '夜-曲',
-    'A+B',
-    '123',
-    "'原有前缀",
-    "'=1+1",
-    "''=1+1",
-    '中文,逗号"引号"\n第二行',
-  ]) {
+  for (const name of ['晴天', '夜-曲', 'A+B', '123', "'原有前缀", "'=1+1", "''=1+1", '中文,逗号"引号"\n第二行']) {
     const csv = buildSongsCsv([{ name, note: null }]);
     const row = parseDelimited(csv, ',')[1];
     assert.equal(row[0], name);
@@ -245,15 +229,11 @@ test('ordinary CSV text, original apostrophes, punctuation and empty fields keep
 test('CSV reimport retains the text marker instead of stripping original apostrophes', () => {
   const { parseTable } = loadCsvParser();
   for (const name of ['=1+1', '-夜曲', "'=1+1", "'原有前缀", '晴天']) {
-    const [row] = parseTable(
-      buildSongsCsv([{ name, note: '=1+1', is_enabled: true }]),
-    );
+    const [row] = parseTable(buildSongsCsv([{ name, note: '=1+1', is_enabled: true }]));
     const expected = /^[=-]/.test(name) ? `'${name}` : name;
     assert.equal(normalizeImportedSongRow(row).name, expected);
     assert.equal(row.note, "'=1+1");
-    const [secondImport] = parseTable(
-      buildSongsCsv([{ ...row, is_enabled: true }]),
-    );
+    const [secondImport] = parseTable(buildSongsCsv([{ ...row, is_enabled: true }]));
     assert.equal(secondImport.name, expected);
   }
 });
@@ -271,9 +251,7 @@ test('CSV and XLSX exports leave stored names and notes unchanged', () => {
     const before = db.prepare('SELECT name, note FROM songs').all();
     const songs = songService.listSongs(store, {});
     buildSongsCsv(songs);
-    const worksheet = readZipFiles(buildSongsWorkbook(songs)).get(
-      'xl/worksheets/sheet1.xml',
-    );
+    const worksheet = readZipFiles(buildSongsWorkbook(songs)).get('xl/worksheets/sheet1.xml');
     assert.match(worksheet, /t="inlineStr"><is><t>=1\+1<\/t>/);
     assert.doesNotMatch(worksheet, /<f[\s>]/);
     assert.deepEqual(db.prepare('SELECT name, note FROM songs').all(), before);
@@ -297,10 +275,7 @@ test('CSV template and library routes use the song codec output', () => {
     routes[route]({ songs: { list: () => songs } }, {}, response);
     assert.equal(response.body, `\ufeff${buildSongsCsv(rows)}\n`);
   }
-  assert.equal(
-    parseSongsFromXlsx(buildSongsWorkbook(templateSongs())).length,
-    5,
-  );
+  assert.equal(parseSongsFromXlsx(buildSongsWorkbook(templateSongs())).length, 5);
   assert.deepEqual(
     templateSongs().map((song) => song.request_price),
     ['免费', '30元SC', '舰长', '提督', '总督'],
@@ -326,14 +301,8 @@ test('price aliases report conflicts per data row and duplicates never overwrite
     assert.equal(result.failed, 1);
     assert.equal(result.failures[0].row, 1);
     assert.match(result.failures[0].reason, /价格别名冲突/);
-    assert.equal(
-      songService.importSongs(store, [{ name: '一致', requestPrice: '总督' }])
-        .duplicate,
-      1,
-    );
-    const original = songService
-      .listSongs(store)
-      .find((song) => song.name === '一致');
+    assert.equal(songService.importSongs(store, [{ name: '一致', requestPrice: '总督' }]).duplicate, 1);
+    const original = songService.listSongs(store).find((song) => song.name === '一致');
     assert.equal(original.request_price, '舰长');
     assert.equal(original.song_clip, 'BV1 / 01:30');
     songService.saveSong(store, {
@@ -342,9 +311,7 @@ test('price aliases report conflicts per data row and duplicates never overwrite
       requestPrice: '',
       songClip: '',
     });
-    const cleared = songService
-      .listSongs(store)
-      .find((song) => song.name === '一致');
+    const cleared = songService.listSongs(store).find((song) => song.name === '一致');
     assert.equal(cleared.request_price, '');
     assert.equal(cleared.song_clip, '');
   } finally {
@@ -366,18 +333,12 @@ test('price and clip retain internal text whitespace through save, export and re
     assert.equal(song.request_price, '舰长  原文\n第二行');
     assert.equal(song.song_clip, 'BV1  说明\n01:30');
     const { parseTable } = loadCsvParser();
-    for (const row of [
-      parseSongsFromXlsx(buildSongsWorkbook([song]))[0],
-      parseTable(buildSongsCsv([song]))[0],
-    ]) {
+    for (const row of [parseSongsFromXlsx(buildSongsWorkbook([song]))[0], parseTable(buildSongsCsv([song]))[0]]) {
       const normalized = normalizeImportedSongRow(row);
       assert.equal(normalized.requestPrice, song.request_price);
       assert.equal(normalized.songClip, song.song_clip);
     }
-    assert.equal(
-      normalizeImportedSongRow({ name: '零', requestPrice: 0 }).requestPrice,
-      '0',
-    );
+    assert.equal(normalizeImportedSongRow({ name: '零', requestPrice: 0 }).requestPrice, '0');
     songService.saveSong(store, {
       id: song.id,
       name: song.name,
@@ -391,27 +352,17 @@ test('price and clip retain internal text whitespace through save, export and re
 
 test('XLSX accepts both new price aliases and preserves conflict evidence', () => {
   for (const alias of ['点歌条件', '点歌说明']) {
-    const workbook = buildSongsWorkbook([
-      { name: '别名歌曲', request_price: '30元SC, "原文"\n第二行' },
-    ]);
+    const workbook = buildSongsWorkbook([{ name: '别名歌曲', request_price: '30元SC, "原文"\n第二行' }]);
     const files = readZipFiles(workbook);
-    const sheet = files
-      .get('xl/worksheets/sheet1.xml')
-      .replace('点歌价格', alias);
+    const sheet = files.get('xl/worksheets/sheet1.xml').replace('点歌价格', alias);
     files.set('xl/worksheets/sheet1.xml', sheet);
     const [row] = parseSongsFromXlsx(createZip([...files]));
-    assert.equal(
-      normalizeImportedSongRow(row).requestPrice,
-      '30元SC, "原文"\n第二行',
-    );
+    assert.equal(normalizeImportedSongRow(row).requestPrice, '30元SC, "原文"\n第二行');
     files.set(
       'xl/worksheets/sheet1.xml',
       sheet
         .replace('核对备注', '点歌价格')
-        .replace(
-          '<c r="J2" t="inlineStr"><is><t></t>',
-          '<c r="J2" t="inlineStr"><is><t>舰长</t>',
-        ),
+        .replace('<c r="J2" t="inlineStr"><is><t></t>', '<c r="J2" t="inlineStr"><is><t>舰长</t>'),
     );
     const [conflicting] = parseSongsFromXlsx(createZip([...files]));
     assert.throws(() => normalizeImportedSongRow(conflicting), /价格别名冲突/);

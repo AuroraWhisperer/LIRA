@@ -6,8 +6,7 @@ export class LyricWordAnimator {
   constructor(options = {}) {
     this.wordClass = options.wordClass || 'lyric-word';
     this.highlightClass = options.highlightClass || 'lyric-word-highlight';
-    this.mode =
-      options.mode || (LyricWordAnimator.supported() ? 'waapi' : 'manual');
+    this.mode = options.mode || (LyricWordAnimator.supported() ? 'waapi' : 'manual');
     this.animations = [];
     this.words = [];
     this.elements = [];
@@ -55,29 +54,16 @@ export class LyricWordAnimator {
       const startMs = numberValue(entry.word.startMs, 0);
       const endMs = Math.max(startMs, numberValue(entry.word.endMs, startMs));
       const progress =
-        endMs > startMs
-          ? clamp((currentMs - startMs) / (endMs - startMs), 0, 1)
-          : currentMs >= endMs
-            ? 1
-            : 0;
+        endMs > startMs ? clamp((currentMs - startMs) / (endMs - startMs), 0, 1) : currentMs >= endMs ? 1 : 0;
       const animationTime = Math.max(0, currentMs - startMs);
-      if (
-        this.mode === 'waapi' &&
-        typeof entry.highlight.animate === 'function'
-      ) {
+      if (this.mode === 'waapi' && typeof entry.highlight.animate === 'function') {
         let animation = this.animations[index];
         if (!animation) {
-          animation = entry.highlight.animate(
-            [
-              { clipPath: 'inset(0 100% 0 0)' },
-              { clipPath: 'inset(0 0% 0 0)' },
-            ],
-            {
-              duration: Math.max(1, endMs - startMs),
-              fill: 'both',
-              easing: 'linear',
-            },
-          );
+          animation = entry.highlight.animate([{ clipPath: 'inset(0 100% 0 0)' }, { clipPath: 'inset(0 0% 0 0)' }], {
+            duration: Math.max(1, endMs - startMs),
+            fill: 'both',
+            easing: 'linear',
+          });
           animation.pause();
           this.animations[index] = animation;
         }
@@ -85,8 +71,7 @@ export class LyricWordAnimator {
           force ||
           !playing ||
           animation.currentTime === null ||
-          Math.abs(Number(animation.currentTime) - animationTime) >
-            DRIFT_THRESHOLD_MS;
+          Math.abs(Number(animation.currentTime) - animationTime) > DRIFT_THRESHOLD_MS;
         if (shouldAnchor) animation.currentTime = animationTime;
         if (playing) animation.play();
         else animation.pause();
@@ -118,9 +103,7 @@ export class LyricWordAnimator {
     this.animations.forEach((animation) => animation?.cancel?.());
     this.animations = [];
     if (options.commit && this.container)
-      this.container.textContent = this.words
-        .map((word) => word.text || '')
-        .join('');
+      this.container.textContent = this.words.map((word) => word.text || '').join('');
     else if (this.container) this.container.replaceChildren?.();
     this.elements = [];
     this.words = [];
@@ -151,9 +134,7 @@ export class LyricWordAnimator {
   }
 
   static supported() {
-    const hasAnimation =
-      typeof Element !== 'undefined' &&
-      typeof Element.prototype?.animate === 'function';
+    const hasAnimation = typeof Element !== 'undefined' && typeof Element.prototype?.animate === 'function';
     const cssApi = globalThis.CSS;
     const hasClipPath =
       typeof cssApi === 'undefined' ||
