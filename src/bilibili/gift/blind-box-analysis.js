@@ -2,6 +2,7 @@
 
 const { cleanText, normalizePositiveInteger, normalizeMoney, normalizeSignedMoney } = require('../../shared/utils');
 const { resolveGiftSourceScope } = require('./source-scope');
+const { normalizeHistoryFilters } = require('./history-filters');
 
 const BLIND_BOX_ANALYSIS_VIEWS = new Set(['users', 'boxes', 'records']);
 const BLIND_BOX_ANALYSIS_SORTS = {
@@ -11,7 +12,7 @@ const BLIND_BOX_ANALYSIS_SORTS = {
 };
 
 function getBlindBoxStats(context, { boxName = '' } = {}) {
-  const { todayStart, rows } = loadTodayBlindBoxRows(context, { boxName });
+  const { todayStart, rows } = loadBlindBoxRows(context, { boxName });
   if (rows.length === 0) {
     return {
       today: todayStart,
@@ -103,7 +104,7 @@ function getBlindBoxAnalysis(context, options = {}) {
   const requestedPage = Math.max(1, Number.parseInt(options.page, 10) || 1);
   const viewer = cleanText(options.viewer);
   const box = cleanText(options.box);
-  const { todayStart, rows } = loadTodayBlindBoxRows(context);
+  const { todayStart, dateRange, rows } = loadBlindBoxRows(context, options);
 
   const viewerMap = new Map();
   const boxes = new Set();
@@ -128,6 +129,7 @@ function getBlindBoxAnalysis(context, options = {}) {
 
   return {
     today: todayStart,
+    dateRange,
     summary,
     filters: {
       viewers: Array.from(viewerMap.values()).sort((a, b) => a.label.localeCompare(b.label, 'zh-CN')),
@@ -143,17 +145,26 @@ function getBlindBoxAnalysis(context, options = {}) {
   };
 }
 
-function loadTodayBlindBoxRows(context, { boxName = '' } = {}) {
+function loadBlindBoxRows(context, { boxName = '', startDate = '', endDate = '' } = {}) {
+  normalizeHistoryFilters({ startDate, endDate });
   const nowDate = new Date();
   const todayStart = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate()).toISOString();
-  const tomorrowStart = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate() + 1).toISOString();
+  const today = [
+    nowDate.getFullYear(),
+    String(nowDate.getMonth() + 1).padStart(2, '0'),
+    String(nowDate.getDate()).padStart(2, '0'),
+  ].join('-');
+  const dateRange = { startDate: startDate || endDate || today, endDate: endDate || startDate || today };
+  const from = new Date(`${dateRange.startDate}T00:00:00`).toISOString();
+  const end = new Date(`${dateRange.endDate}T00:00:00`);
+  end.setDate(end.getDate() + 1);
   return {
     todayStart,
-    tomorrowStart,
+    dateRange,
     rows: context.queryStore.listBlindBoxRows({
       sourceScope: resolveGiftSourceScope(context),
-      from: todayStart,
-      to: tomorrowStart,
+      from,
+      to: end.toISOString(),
       boxName: cleanText(boxName),
     }),
   };

@@ -29,7 +29,10 @@ body.player-dock-expanded .gift-workspace {
   grid-row: 1;
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-primary);
 }
 
 #giftInteractionControls:not([hidden]) {
@@ -38,6 +41,17 @@ body.player-dock-expanded .gift-workspace {
 
 .gift-interaction-summary {
   grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm) var(--spacing-md);
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+}
+
+.gift-interaction-summary:has(#giftInteractionStatus[hidden]) {
+  display: none;
 }
 
 .gift-recent-panel {
@@ -132,85 +146,89 @@ body.player-dock-expanded .gift-workspace {
   min-height: auto;
 }
 
-/* Compact controls: keep the switches visible without making them compete with the data panels. */
+/* Keep settings compact so gift records remain the focus. */
 .gift-control-panel {
-  position: relative;
-  overflow: hidden;
-  min-height: 112px;
-  border-color: #d7e9e6;
-  border-radius: 16px;
-  background: linear-gradient(135deg, var(--color-bg-primary) 0%, #f5fbfa 100%);
-  box-shadow: 0 8px 24px rgba(27, 72, 67, 0.07);
-}
-
-.gift-control-panel::before {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 5px;
-  height: 100%;
-  background: linear-gradient(180deg, #21b6a8, #87d8ce);
-  content: '';
-}
-
-.gift-notification-panel::before {
-  background: linear-gradient(180deg, #ef9b72, #f6c6ad);
-}
-
-.gift-control-panel .panel-header {
-  min-height: 0;
-  padding: 15px 18px 3px 21px;
-  border-bottom: 0;
-}
-
-.gift-control-panel .gift-section-title {
-  color: #253a3a;
-  font-size: var(--type-size-section-title);
-  line-height: var(--type-leading-section-title);
-  letter-spacing: var(--type-tracking-tight);
-}
-
-.gift-control-panel > .panel-body {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 6px 18px 15px 21px;
-  overflow: visible;
+  min-width: 0;
+  padding: var(--spacing-md) 20px;
+  border-left: 1px solid var(--border);
 }
 
-.gift-control-panel .switch-control {
-  flex: 0 0 auto;
-  min-height: 34px;
-  gap: 10px;
-  color: #203332;
-  font-size: var(--type-size-body);
-  font-weight: var(--type-weight-bold);
-  line-height: var(--type-leading-body);
+.gift-detection-panel {
+  border-left: 0;
 }
 
-.gift-detection-panel #giftStatusLine,
-.gift-notification-panel .gift-setting-desc {
-  max-width: 52%;
-  margin: 0;
-  color: #718381;
-  font-size: var(--type-size-caption);
-  font-weight: var(--type-weight-regular);
-  line-height: var(--type-leading-caption);
-  text-align: right;
+.gift-control-heading,
+.gift-control-detail {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-xs) var(--spacing-sm);
+  min-width: 0;
 }
 
-.gift-notification-panel .gift-setting-desc {
-  max-width: 48%;
-}
-
-.gift-interaction-panel > .panel-body {
+.gift-detection-panel .gift-control-heading {
   align-items: flex-start;
   flex-direction: column;
 }
 
-#giftInteractionControls p {
+.gift-control-panel .gift-section-title {
   margin: 0;
+  color: var(--text);
+  font-size: var(--type-size-body);
+  font-weight: var(--type-weight-semibold);
+  line-height: var(--type-leading-body);
+}
+
+.gift-control-panel .gift-section-title label {
+  cursor: pointer;
+}
+
+.gift-control-panel .switch-control {
+  flex: 0 0 auto;
+}
+
+.gift-control-panel .switch-control input:focus-visible + .switch-track {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 3px;
+}
+
+.gift-control-panel .switch-control input:disabled + .switch-track {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+@container gift-workspace (min-width: 1060px) {
+  .gift-controls-grid:has(#giftInteractionControls:not([hidden])) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@container gift-workspace (max-width: 1059px) {
+  .gift-interaction-panel {
+    border-top: 1px solid var(--border);
+  }
+
+  .gift-interaction-panel:first-child {
+    border-left: 0;
+  }
+}
+
+@container gift-workspace (max-width: 559px) {
+  .gift-controls-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .gift-control-panel {
+    border-left: 0;
+  }
+
+  .gift-notification-panel {
+    border-top: 1px solid var(--border);
+  }
 }
 
 .app-shell .gift-drawer-title .ui-section-title {

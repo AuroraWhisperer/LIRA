@@ -34,6 +34,7 @@
 
 /* 盲盒完整分析工作区 */
 @import url('./admin/blindbox-analysis.css');
+@import url('./admin/blindbox-analysis-dates.css');
 
 /* 工作区布局 */
 @import url('./admin/workspace.css');

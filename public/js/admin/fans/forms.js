@@ -33,7 +33,7 @@ export function profileForm(profile = {}) {
         <p class="fan-profile-intro">${profile.platformName ? '卡片显示最新平台昵称，常用称呼与其他资料可按需填写。' : profile.id ? '除常用称呼外，其余信息均为选填。' : '填写常用称呼即可创建，其余信息可稍后补充。'}</p>
         <div class="fan-profile-tabs" role="tablist" aria-label="档案信息">
           <button type="button" id="fanProfileBasicTab" role="tab" aria-controls="fanProfileBasic" aria-selected="true">基本信息</button>
-          <button type="button" id="fanProfilePersonalTab" role="tab" aria-controls="fanProfilePersonal" aria-selected="false" tabindex="-1">生日与偏好</button>
+          <button type="button" id="fanProfilePersonalTab" role="tab" aria-controls="fanProfilePersonal" aria-selected="false" tabindex="-1">生日与性格</button>
           <button type="button" id="fanProfileNotesTab" role="tab" aria-controls="fanProfileNotes" aria-selected="false" tabindex="-1">备注与提醒</button>
         </div>
         <section id="fanProfileBasic" class="fan-profile-panel" role="tabpanel" aria-labelledby="fanProfileBasicTab">
@@ -51,8 +51,8 @@ export function profileForm(profile = {}) {
         'identityType',
         'B 站账号类型',
         [
-          ['uid', 'UID'],
-          ['open_id', '开放平台 ID（open_id）'],
+          ['uid', 'B 站 UID（个人主页可查看）'],
+          ['open_id', '开放平台账号'],
         ],
         profile.identity?.type || 'uid',
       ) +
@@ -61,7 +61,7 @@ export function profileForm(profile = {}) {
         'B 站账号 ID',
         profile.identity?.value,
         'text',
-        'maxlength="128" placeholder="填写所选类型的 ID，可留空"',
+        'maxlength="128" placeholder="不清楚可以先留空"',
       ) +
       '<div class="fan-field-wide">' +
       field(
@@ -240,16 +240,16 @@ function membershipFields(data) {
   return (
     choice(
       'type',
-      '补录或修订内容',
+      '要补充什么',
       [
-        ['interval', '有效区间'],
+        ['interval', '上舰和到期日期'],
         ['baseline', '只补累计 / 连续天数'],
-        ['observation', '状态观察（不代表持续有效）'],
+        ['observation', '只记录当时是否在舰'],
         ['first', '首次上舰日期'],
       ],
       type,
     ) +
-    '<p class="fan-muted fan-field-wide">修改会重算天数、筛选和未处理提醒，已处理事项不会重复。已知证据冲突时保留上次确认值，先保存为待核实。</p>' +
+    '<p class="fan-muted fan-field-wide">填你知道的信息即可。与之前记录不一致时，会请你核对后再采用。</p>' +
     `<div class="fan-membership-fields fan-field-wide" data-membership-type="interval" ${type === 'interval' ? '' : 'hidden'}>` +
     field('start', '开始日期', data.start || (data.startAt ? localTime(data.startAt).slice(0, 10) : ''), 'date') +
     field(
@@ -265,23 +265,24 @@ function membershipFields(data) {
     field('asOf', '天数截至日期（含当日）', data.asOf || day(), 'date') +
     '</div>' +
     `<div class="fan-membership-fields fan-field-wide" data-membership-type="observation" ${type === 'observation' ? '' : 'hidden'}>` +
-    field('observedAt', '观察时间（北京时间）', localTime(data.observedAt), 'datetime-local') +
+    field('observedAt', '查看时间（北京时间）', localTime(data.observedAt), 'datetime-local') +
     choice(
       'status',
-      '观察状态',
+      '当时的状态',
       [
-        ['observed', '观察到在舰'],
+        ['observed', '当时在舰'],
         ['inactive', '确认当时不在舰'],
       ],
       data.status || 'observed',
     ) +
+    '<p class="fan-muted">只记录当时的状态，不会推算到期日或在舰天数。</p>' +
     '</div>' +
     `<div class="fan-membership-fields fan-field-wide" data-membership-type="first" ${type === 'first' ? '' : 'hidden'}>` +
     field('date', '首次上舰日期', data.date, 'date') +
     '</div>' +
     choice(
       'level',
-      '大航海等级（区间 / 观察）',
+      '大航海等级',
       [
         [3, '舰长'],
         [2, '提督'],
@@ -289,21 +290,21 @@ function membershipFields(data) {
       ],
       data.level || 3,
     ) +
-    area('reason', '依据或修订说明', data.reason)
+    area('reason', '备注（选填）', data.reason)
   );
 }
 
 export function recordForm(kind, record) {
   const data = record?.data || {};
   const titles = {
-    note: '记一笔',
-    topic: '可以聊的话题',
+    note: '手记',
+    topic: '话题',
     caution: '相处提醒',
-    followup: '下次的约定',
-    song: '补记一次点歌',
-    preference: '明确音乐偏好',
+    followup: '约定',
+    song: '点歌记录',
+    preference: '音乐偏好',
     anniversary: '纪念日',
-    membership: '编辑大航海',
+    membership: '大航海记录',
   };
   let fields = '';
   if (kind === 'membership') fields = membershipFields(data);
@@ -311,10 +312,10 @@ export function recordForm(kind, record) {
     fields =
       field('songName', '歌名', data.songName, 'text', 'required maxlength="300"') +
       field('artist', '歌手', data.artist) +
-      field('category', '当时曲库分类', data.category) +
+      field('category', '歌曲分类', data.category) +
       area('note', '说明', data.note) +
-      check('excludeFromStats', '排除在偏好统计外（如替别人点歌）', data.excludeFromStats) +
-      (record ? check('excluded', '解除这条错误关联（保留原始记录）', data.excluded) : '');
+      check('excludeFromStats', '不计入听歌偏好（例如替别人点歌）', data.excludeFromStats) +
+      (record ? check('excluded', '不是这位粉丝点的，从点歌记录中移除', data.excluded) : '');
   else if (kind === 'preference')
     fields =
       choice(
@@ -327,7 +328,7 @@ export function recordForm(kind, record) {
         data.sentiment || 'like',
       ) +
       field('label', '歌曲、歌手、风格或类别', data.label, 'text', 'required maxlength="300"') +
-      area('reason', '根据哪次交流确认', data.reason);
+      area('reason', '备注（选填）', data.reason);
   else if (kind === 'anniversary')
     fields =
       field('name', '纪念日名称', data.name, 'text', 'required maxlength="100"') +
@@ -345,11 +346,11 @@ export function recordForm(kind, record) {
       (kind === 'followup' ? check('completed', '已经完成', data.completed) : '') +
       check('pinned', '置顶', data.pinned);
   fields += field('occurredAt', '发生时间（北京时间）', localTime(record?.occurredAt), 'datetime-local', 'required');
-  if (record && !['song', 'membership'].includes(kind)) fields += check('archived', '归档这条资料', data.archived);
+  if (record && !['song', 'membership'].includes(kind)) fields += check('archived', '收起这条记录（仍可找回）', data.archived);
   return {
-    title: record ? `修订${titles[kind]}` : titles[kind],
+    title: record ? `编辑${titles[kind]}` : kind === 'note' ? '记一笔' : `添加${titles[kind]}`,
     fields,
-    hint: kind === 'preference' ? '记录偏好不会增加点歌次数。' : '取消不保存；自动记录的原始身份、事件与来源始终保留。',
+    hint: kind === 'preference' ? '只记录本人提过的喜好，不会增加点歌次数。' : '',
     read(form) {
       const values = Object.fromEntries(new FormData(form));
       const result = { ...values };
@@ -384,12 +385,12 @@ export function guardRosterForm(roomId, roomProfile = null) {
     : '';
   return {
     title: '同步大航海名单',
-    saveLabel: '同步并预建档',
+    saveLabel: '同步名单',
     busyLabel: '正在读取名单…',
-    hint: '仅本次同步；完成后可在档案中补充生日、备注和相处故事。',
+    hint: '已有备注会保留，已收起的档案和排除名单会跳过。',
     fields: `<div class="fan-field-wide"><dl class="fan-facts"><div><dt>同步房间</dt><dd class="bilibili-room-row"><span class="bilibili-auth-profile">${avatar}<span class="bilibili-auth-identity"><strong class="bilibili-auth-name" title="${attr(roomName)}">${html(roomName)}</strong></span></span></dd></div></dl>
-      <p>读取这个房间主人的当前大航海名单，按 UID 预存昵称、头像和等级。</p>
-      <p class="fan-muted">已有备注与私人资料会保留；已归档、排除名单或无法确认身份的粉丝会跳过。名单未提供起止日期时，先记录本次观察，日期和天数可之后补充。</p></div>`,
+      <p>为当前大航海成员建立档案，并更新昵称、头像和等级。</p>
+      <p class="fan-muted">到期日期和在舰天数可之后手动补充。</p></div>`,
     read: () => ({ expectedRoomId: roomId }),
   };
 }
@@ -397,13 +398,12 @@ export function guardRosterForm(roomId, roomProfile = null) {
 export function settingsForm(settings) {
   return {
     title: '粉丝档案自动更新',
-    hint: '普通观众和普通点歌不会自动批量建档。',
+    hint: '普通观众需要手动建档。生日、备注与话题仅保存在本机。',
     fields:
-      '<p class="fan-field-wide">推荐让已建档粉丝自动更新；收到可靠大航海记录时为新粉丝建档。生日、备注与话题仍只保存在本机。</p>' +
-      check('autoUpdate', '自动更新已建档粉丝的昵称与点歌、上舰事实', settings.autoUpdate !== false) +
-      check('autoCreate', '收到可验证的大航海记录时自动建档', settings.autoCreate !== false) +
+      check('autoUpdate', '自动更新已有档案的昵称、点歌和上舰记录', settings.autoUpdate !== false) +
+      check('autoCreate', '有新粉丝上舰时自动建档', settings.autoCreate !== false) +
       check('autoSyncGuardRoster', '每天自动更新大航海身份', settings.autoSyncGuardRoster === true) +
-      '<p class="fan-field-wide fan-muted">北京时间每天 12:10，客户端开着时核对最新名单，更新舰长、提督、总督身份，已不在大航海的粉丝取消当前身份显示；错过后，当天首次打开软件时补更新。保留备注与历史记录，更新后显示提示。</p>',
+      '<p class="fan-field-wide fan-muted">北京时间每天 12:10 核对名单，已下舰的粉丝会移除身份标记。错过后，当天首次打开软件时补更新。</p>',
     read: (form) => ({
       autoUpdate: form.elements.autoUpdate.checked,
       autoCreate: form.elements.autoCreate.checked,
@@ -414,13 +414,13 @@ export function settingsForm(settings) {
 
 export function exportForm() {
   return {
-    title: '导出档案列表',
-    hint: 'CSV 列表不能恢复完整档案；要迁移或恢复，请保存完整备份。',
+    title: '导出档案表格',
+    hint: '表格可用 Excel 打开。换电脑或恢复资料，请使用完整备份。',
     fields: [
       ['alias', '常用称呼'],
       ['platformName', '平台昵称'],
-      ['uid', 'UID / open_id'],
-      ['summary', '识别摘要'],
+      ['uid', 'B 站账号'],
+      ['summary', '一句话印象'],
       ['birthday', '生日'],
       ['mbti', 'MBTI'],
       ['notes', '个人备注'],
@@ -433,10 +433,10 @@ export function exportForm() {
 
 export function legacyForm(profile) {
   return {
-    title: '预览本机旧点歌',
-    hint: '旧点歌没有主播归属，预览后需明确确认属于当前账号。',
+    title: '导入以前的点歌',
+    hint: '导入前会列出记录，请确认这些点歌来自你的直播间。',
     fields:
-      `<p class="fan-field-wide">仅查找 UID ${html(profile.identity?.value || '')} 的记录。无可靠身份、其他账号记录不会补入。</p>` +
+      `<p class="fan-field-wide">查找这位粉丝以前在本机留下的点歌记录（UID ${html(profile.identity?.value || '')}）。</p>` +
       field('from', '开始日期', '2000-01-01', 'date', 'required') +
       field('to', '结束日期', day(), 'date', 'required'),
     read: (form) => ({

@@ -7,6 +7,28 @@ const { loadModuleExports } = require('./helpers/frontend-modules');
 const { readServerFixture } = require('../scripts/verify-server-contract');
 const heartBox = readServerFixture('test/fixtures/heart-blind-box-events.json');
 
+test('gift detection updates its switch without a redundant state label and keeps connection errors visible', async () => {
+  const toggle = { checked: true };
+  const status = {};
+  const { giftDetection } = await loadModuleExports(path.join(__dirname, '../public/js/admin/gifts/detection.js'), {
+    document: {
+      getElementById: (id) => ({ giftDetectToggle: toggle, giftSprintStatus: status })[id] || null,
+    },
+  });
+
+  giftDetection.renderDetectionStatus({ enabled: false }, {});
+  assert.equal(toggle.checked, false);
+  assert.equal(status.textContent, '未开启');
+
+  giftDetection.renderDetectionStatus({ enabled: true }, { connected: true, message: '未开播，历史消息监听中' });
+  assert.equal(toggle.checked, true);
+  assert.equal(status.textContent, '待开播');
+  assert.equal(status.title, '未开播，历史消息监听中');
+
+  giftDetection.renderDetectionStatus({ enabled: true }, { connected: false, message: '连接失败，请重试' });
+  assert.equal(status.textContent, '连接失败，请重试');
+});
+
 test('recent blind-box icon names stay escaped at the HTML attribute boundary', async () => {
   const { escapeHtml } = await loadModuleExports(path.join(__dirname, '../public/js/shared/utils.js'));
   const list = {

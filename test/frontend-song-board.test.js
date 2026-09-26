@@ -23,10 +23,16 @@ test('display overlay URLs use explicit settings capabilities without the legacy
       'liveBlindboxUrl',
       'liveGamesUrl',
       'liveWheelUrl',
+      'liveInteractionsUrl',
+      'liveGiftFeedUrl',
+      'liveGiftWishLongUrl',
+      'liveGiftWishDayUrl',
+      'liveGiftWishSessionUrl',
       'liveOvertimeUrl',
       'liveGiftEffectsUrl',
       'liveOpeningUrl',
       'liveClockUrl',
+      'webSongPageUrl',
       'blindboxOverlayUrl',
       'blindboxLiveLink',
     ].map((id) => [id, {}]),
@@ -52,6 +58,80 @@ test('display overlay URLs use explicit settings capabilities without the legacy
   assert.equal(nodes.get('blindboxLiveLink').href, 'http://127.0.0.1:3012/blindbox');
   assert.equal(copyButton.disabled, true);
 });
+
+for (const initialProfile of ['older response', 'initial rejection', 'late rejection']) {
+  test('web song page follows the current account with ' + initialProfile, async () => {
+    const html = fs.readFileSync(path.join(ROOT_DIR, 'public/pages/admin/song/overlay-addresses.html'), 'utf8');
+    const nodes = new Map([...html.matchAll(/id="([^"]+)"/g)].map(([, id]) => [id, {}]));
+    nodes.set('blindboxOverlayUrl', {});
+    nodes.set('blindboxLiveLink', {});
+    const buttons = new Map();
+    const listeners = new Set();
+    const pagehide = [];
+    let resolveProfile;
+    let rejectProfile;
+    const profile = new Promise((resolve, reject) => { resolveProfile = resolve; rejectProfile = reject; });
+    const bridge = {
+      getProfile: () => profile,
+      getOverlaySettings: async () => ({ ok: false }),
+      onStateChanged(listener) {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+    };
+    const { display } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/display.js'), {
+      URL,
+      window: {
+        liraLicense: bridge,
+        addEventListener(name, listener) { if (name === 'pagehide') pagehide.push(listener); },
+      },
+      location: { protocol: 'http:', hostname: 'localhost', port: '3012' },
+      document: {
+        readyState: 'loading',
+        addEventListener() {},
+        getElementById: (id) => nodes.get(id) || null,
+        querySelectorAll: () => [],
+        querySelector(selector) {
+          if (!buttons.has(selector)) buttons.set(selector, {});
+          return buttons.get(selector);
+        },
+      },
+      fetch: async () => ({ ok: true, text: async () => JSON.stringify({ ok: true, data: { gifts: [] } }) }),
+    });
+    const account = (url) => ({ state: 'authorized', streamer: { accountName: 'demo', songPageUrl: url } });
+    const emit = (snapshot) => listeners.forEach((listener) => listener(snapshot));
+    display.initOverlayUrls();
+    const copy = buttons.get('[data-copy-url="webSongPageUrl"]');
+    const open = buttons.get('[data-open-url="webSongPageUrl"]');
+    assert.equal(copy.disabled, true);
+    assert.equal(open.disabled, true);
+    if (initialProfile === 'initial rejection') {
+      rejectProfile(new Error('profile unavailable'));
+      await new Promise(setImmediate);
+      assert.equal(copy.disabled, true);
+      assert.equal(open.disabled, true);
+    }
+    emit(account('https://current.example.test/'));
+    if (initialProfile === 'older response') resolveProfile(account('https://old.example.test/'));
+    if (initialProfile === 'late rejection') rejectProfile(new Error('profile unavailable'));
+    await new Promise(setImmediate);
+    assert.equal(nodes.get('webSongPageUrl').textContent, 'https://current.example.test/');
+    assert.equal(copy.disabled, false);
+    assert.equal(open.disabled, false);
+    emit({ state: 'needs_activation' });
+    assert.equal(copy.disabled, true);
+    assert.equal(open.disabled, true);
+    assert.doesNotMatch(nodes.get('webSongPageUrl').textContent, /current\.example/);
+    for (const url of ['javascript:alert(1)', 'http://example.test/', 'https://user:secret@example.test/', 'invalid']) {
+      emit(account(url));
+      assert.equal(open.disabled, true, url);
+      assert.equal(copy.disabled, true, url);
+    }
+    pagehide.forEach((listener) => listener());
+    assert.equal(listeners.size, 0);
+  });
+
+}
 
 test('song list exposes a display board font size control', () => {
   const html = readAdminHtml();

@@ -98,7 +98,7 @@ export const giftBlindbox = (() => {
         const iconHtml = `<img class="bb-chip-icon" src="${escapeAttr(icon?.src || GIFT_PLACEHOLDER)}" alt="${escapeAttr(icon?.name || item.name || '礼物图片')}">`;
 
         return `
-        <div class="blind-box-chip"${!expanded && !isBlindBoxAvailable(item) ? ' hidden' : ''}>
+        <div class="blind-box-chip" data-blind-box-theme="${icon?.theme || 'default'}"${!expanded && !isBlindBoxAvailable(item) ? ' hidden' : ''}>
           ${iconHtml}
           <div class="bb-chip-body">
             <div class="bb-chip-head">

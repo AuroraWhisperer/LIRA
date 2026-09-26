@@ -186,7 +186,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 百宝箱)
 | sprint.js                                               | 月底冲刺(目标/已收/剩余,水晶球)                                           | snapshot `giftSprint`                                                                           |
 | recent.js                                               | 最近礼物(最多 6 行,按精确礼物 ID 使用本地全局目录图片或占位图)             | snapshot `gifts.recent` + `/api/overtime/gifts/catalog` + `Events.GIFT_CATALOG_UPDATED` 图片映射 |
 | blindbox.js                                             | 今日盲盒盈亏(汇总/盈亏榜/映射列表)                                        | `GET /api/gifts/blind-box-stats`                                                                |
-| blindbox-analysis.js                                    | 盲盒分析工作区(观众排行/盲盒汇总/开盒记录三视图,25 条分页,500ms 刷新防抖) | `GET /api/gifts/blind-box-analysis?...`                                                         |
+| blindbox-analysis.js / blindbox-analysis-dates.js         | 盲盒分析工作区(单日/日期区间日历,观众排行/盲盒汇总/开盒记录三视图,25 条分页,500ms 刷新防抖) | `GET /api/gifts/blind-box-analysis?...`                                               |
 | history.js                                              | 礼物历史抽屉(时间范围/平台筛选)                                           | `GET /api/gifts/history`;清最近/清礼物走 `/api/gifts/clear-recent`、`/api/database/clear-gifts` |
 | [gift-frame.js](../../../public/js/admin/gift-frame.js) | 礼物姬里的四方边框开关、金额阈值、主题/动效、预览和投屏地址               | `/api/settings`、`POST /api/gifts/frame/preview`、`app:settings-state`                          |
 

@@ -280,6 +280,11 @@ body.player-dock-expanded .song-workspace {
   min-height: 420px;
 }
 
+.song-management-panel:has(> #settingsPage.active) {
+  flex: 0 0 auto;
+  min-height: 0;
+}
+
 .song-management-panel > .tabs {
   flex: 0 0 auto;
 }

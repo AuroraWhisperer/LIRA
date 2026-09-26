@@ -4,6 +4,7 @@ import { eventBus, Events } from '../../shared/event-bus.js';
 import { publishGiftModule } from '../legacy-admin-bridge.js';
 import { escapeHtml, formatTime, formatMoney } from '../../shared/utils.js';
 import { GIFT_PLACEHOLDER, setGiftImageFallbacks } from '../../shared/gift-image-fallback.js';
+import { findBlindBoxTheme } from './blindbox-theme.js';
 
 ('use strict');
 
@@ -81,11 +82,6 @@ export function getGiftToastArtwork(item) {
 export const giftRecent = (() => {
   const MAX_RECENT_GIFT_ROWS = 6;
   const HIGH_VALUE_GIFT_MIN_RMB = 1000;
-  const SPECIAL_BLIND_BOX_TYPES = [
-    { name: '心动盲盒', id: '32251', className: 'blind-box-heart' },
-    { name: '幸运盲盒', id: '35206', className: 'blind-box-lucky' },
-    { name: '修仙盲盒', id: '35891', className: 'blind-box-xiuxian' },
-  ];
   let recentGiftResizeObserver = null;
   let giftArtworkLoadPromise = null;
   let giftArtworkRevision = 0;
@@ -241,7 +237,7 @@ export const giftRecent = (() => {
         }
 
         return `
-        <div class="${cardClass}">
+        <div class="${cardClass}"${blindBoxIcon ? ` data-blind-box-theme="${blindBoxIcon.theme}"` : ''}>
           <div class="gift-card-content">
             <div class="gift-name" title="${giftName}">${giftName} x${Number(item.num || 1)}</div>
             <div class="gift-meta">
@@ -264,23 +260,21 @@ export const giftRecent = (() => {
   /**
    * 获取盲盒图标信息
    * @param {Object} item - 礼物项
-   * @returns {Object|null} 图标信息 {name, src}
+   * @returns {Object|null} 图标信息 {name, src, className, theme}
    */
   function getBlindBoxIcon(item) {
     if (!(item?.is_blind_box === true || item?.is_blind_box === 1)) return null;
     const recordedBoxName = String(item?.blind_box_name || '').trim();
     const blindBoxName = String(recordedBoxName || item?.name || item?.gift_name || '').trim();
     const blindBoxId = String(item?.blind_box_id || '').trim();
-    const type = SPECIAL_BLIND_BOX_TYPES.find(
-      ({ id, name }) =>
-        (!blindBoxId || blindBoxId === id) && normalizedGiftName(blindBoxName) === normalizedGiftName(name),
-    );
+    const type = findBlindBoxTheme(blindBoxName, blindBoxId);
     // Open-result records carry the output ID, while direct box records carry
     // the box ID. Only the latter can be resolved from item.gift_id exactly.
     const artworkId = blindBoxId || (recordedBoxName ? type?.id : String(item?.gift_id || '').trim());
     return {
       name: type?.name || blindBoxName || '盲盒',
       className: type?.className || 'blind-box-default',
+      theme: type?.key || 'default',
       src:
         findGiftArtwork(
           artworkId,

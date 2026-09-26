@@ -151,11 +151,17 @@ export const display = (() => {
         if (button.disabled || !url) return;
         try {
           await copyText(url);
-          toast('直播画面地址已复制');
+          toast('地址已复制');
         } catch (error) {
           toast(error?.message || '复制失败，请手动复制地址');
           prompt('复制以下地址：', url);
         }
+      });
+    });
+    document.querySelectorAll('[data-open-url]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const url = document.getElementById(button.dataset.openUrl).textContent;
+        if (!button.disabled && url) window.open(url, '_blank', 'noopener,noreferrer');
       });
     });
   }
@@ -172,11 +178,56 @@ export const display = (() => {
     document.getElementById('liveBlindboxUrl').textContent = `${origin}/blindbox`;
     document.getElementById('liveGamesUrl').textContent = `${origin}/games`;
     document.getElementById('liveWheelUrl').textContent = `${origin}/wheel`;
+    document.getElementById('liveInteractionsUrl').textContent = `${origin}/interactions`;
+    document.getElementById('liveGiftFeedUrl').textContent = `${origin}/gift-feed`;
+    document.getElementById('liveGiftWishLongUrl').textContent = `${origin}/gift-wishes?period=long`;
+    document.getElementById('liveGiftWishDayUrl').textContent = `${origin}/gift-wishes?period=day`;
+    document.getElementById('liveGiftWishSessionUrl').textContent = `${origin}/gift-wishes?period=session`;
     document.getElementById('liveOvertimeUrl').textContent = `${origin}/overtime`;
     document.getElementById('liveGiftEffectsUrl').textContent = `${origin}/gift-effects`;
     document.getElementById('liveOpeningUrl').textContent = `${origin}/opening`;
     document.getElementById('liveClockUrl').textContent = `${origin}/clock`;
     updateBlindboxOverlayUrl();
+    initSongPageUrl();
+  }
+
+  function initSongPageUrl() {
+    const bridge = window.liraLicense;
+    let profileChanged = false;
+    const render = (snapshot) => {
+      let url = '';
+      if (snapshot?.state === 'authorized') {
+        try {
+          const page = new URL(snapshot.streamer?.songPageUrl);
+          if (page.protocol === 'https:' && !page.username && !page.password) url = page.href;
+        } catch {
+          url = '';
+        }
+      }
+      document.getElementById('webSongPageUrl').textContent = url || '连接已授权账号后显示网页歌单地址';
+      document.querySelector('[data-copy-url="webSongPageUrl"]').disabled = !url;
+      document.querySelector('[data-open-url="webSongPageUrl"]').disabled = !url;
+    };
+    render(null);
+    const dispose = bridge?.onStateChanged?.((snapshot) => {
+      profileChanged = true;
+      render(snapshot);
+    });
+    Promise.resolve(bridge?.getProfile?.())
+      .then((snapshot) => {
+        if (!profileChanged) render(snapshot);
+      })
+      .catch(() => {
+        if (!profileChanged) render(null);
+      });
+    window.addEventListener(
+      'pagehide',
+      () => {
+        profileChanged = true;
+        dispose?.();
+      },
+      { once: true },
+    );
   }
 
   function collectDisplay() {

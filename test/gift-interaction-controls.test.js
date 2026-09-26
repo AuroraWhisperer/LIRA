@@ -348,9 +348,11 @@ async function uiFixture() {
 test('renderer keeps logged-out control clickable, distinct errors, pending rollback and offline-off warning', async () => {
   const ui = await uiFixture();
   assert.equal(ui.elements[KEYS[0]].disabled, false);
+  assert.equal(ui.elements.giftInteractionStatus.hidden, true);
   await ui.click(KEYS[0], true);
   assert.equal(ui.toasts.at(-1), '请先登录 B 站，再同步到服务器。');
   assert.equal(ui.elements[KEYS[0]].checked, false);
+  assert.equal(ui.elements.giftInteractionStatus.hidden, false);
   for (const [error, message] of [
     ['BILIBILI_CREDENTIALS_INVALID', 'B 站登录已失效，请重新登录并同步。'],
     ['BILIBILI_ACCOUNT_CHECK_FAILED', 'B 站登录验证超时，请稍后再试。'],
@@ -365,12 +367,15 @@ test('renderer keeps logged-out control clickable, distinct errors, pending roll
   await ui.click(KEYS[0], false);
   assert.equal(ui.elements[KEYS[0]].checked, true);
   assert.equal(ui.elements[KEYS[1]].disabled, true);
+  assert.equal(ui.elements.giftInteractionStatus.hidden, false);
+  assert.equal(ui.elements.giftInteractionStatus.textContent, '正在同步，等待服务器确认…');
   pending.resolve({ ok: false, status: 'unconfirmed', values: flags(true, true) });
   await new Promise(setImmediate);
   assert.equal(ui.toasts.at(-1), '关闭还没同步，服务器可能仍在运行。');
   ui.emit({ status: 'confirmed', values: flags() });
   assert.equal(ui.elements[KEYS[0]].checked, false);
   assert.equal(ui.elements[KEYS[1]].checked, false);
+  assert.equal(ui.elements.giftInteractionStatus.hidden, true);
   ui.dispose();
   assert.equal(ui.elements[KEYS[0]].listeners.size, 0);
 });

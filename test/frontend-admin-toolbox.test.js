@@ -201,6 +201,11 @@ test('browser source tab classifies and exposes every overlay address', () => {
     ['liveBlindboxUrl', '/blindbox'],
     ['liveGamesUrl', '/games'],
     ['liveWheelUrl', '/wheel'],
+    ['liveInteractionsUrl', '/interactions'],
+    ['liveGiftFeedUrl', '/gift-feed'],
+    ['liveGiftWishLongUrl', '/gift-wishes?period=long'],
+    ['liveGiftWishDayUrl', '/gift-wishes?period=day'],
+    ['liveGiftWishSessionUrl', '/gift-wishes?period=session'],
     ['liveOvertimeUrl', '/overtime'],
     ['liveGiftEffectsUrl', '/gift-effects'],
     ['liveOpeningUrl', '/opening'],
@@ -215,7 +220,7 @@ test('browser source tab classifies and exposes every overlay address', () => {
       'document\\s*\\.\\s*getElementById\\(\\s*[\'\"]' +
         id +
         '[\'\"]\\s*\\)\\s*\\.textContent\\s*=\\s*`\\$\\{origin\\}' +
-        route +
+        route.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') +
         '`;',
     );
     assert.match(displaySource, assignmentPattern, `${route} should be initialized in the live screen tab`);
@@ -230,5 +235,12 @@ test('browser source tab classifies and exposes every overlay address', () => {
   assert.match(html, />\s*点歌与音乐\s*<\/h3\s*>/);
   assert.match(html, />\s*直播互动\s*<\/h3\s*>/);
   assert.match(html, />\s*场景与氛围\s*<\/h3\s*>/);
+  assert.match(html, />\s*礼物与心愿\s*<\/h3\s*>/);
+  assert.match(html, />\s*网页页面\s*<\/h3\s*>/);
+  for (const id of ['webSongPageUrl', 'webAccountUrl', 'webGiftCatalogUrl', 'webGamesUrl', 'webHomeUrl']) {
+    assert.match(html, new RegExp(`id="${id}"`));
+    assert.match(html, new RegExp(`data-copy-url="${id}"`));
+    assert.match(html, new RegExp(`data-open-url="${id}"`));
+  }
   assert.doesNotMatch(html, /playbackLyricBtn|playbackLyricLockBtn/);
 });

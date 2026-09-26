@@ -1,5 +1,6 @@
 /* Admin gift styles - ordered compatibility entrypoint. */
 @import url('./gifts/detection.css');
+@import url('./gifts/blindbox-themes.css');
 @import url('./gifts/recent.css');
 @import url('./gifts/blindbox-mapping.css');
 @import url('./gifts/blindbox-stats.css');

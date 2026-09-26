@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const { loadModuleExports } = require('./helpers/frontend-modules');
-const { fanFixture, SCOPE, IDENTITY, NOW } = require('./helpers/fan-profile-fixture');
+const { fanFixture, interval, SCOPE, IDENTITY, NOW } = require('./helpers/fan-profile-fixture');
 
 const ROOT = path.join(__dirname, '..');
 
@@ -45,7 +45,7 @@ test('daily update settings default off and return the selected value with the t
   const description = forms.settingsForm({});
   assert.match(description.fields, /12:10/);
   assert.match(description.fields, /当天首次打开/);
-  assert.match(description.fields, /已不在大航海的粉丝取消当前身份显示/);
+  assert.match(description.fields, /已下舰的粉丝会移除身份标记/);
   assert.doesNotMatch(description.fields, /name="autoSyncGuardRoster"[^>]*checked/);
   assert.match(forms.settingsForm({ autoSyncGuardRoster: true }).fields, /name="autoSyncGuardRoster"[^>]*checked/);
   const values = description.read({
@@ -200,4 +200,86 @@ test('missing members and ordinary profiles have plain names and no identity pla
       assert.doesNotMatch(rendered, /class="fan-status"|曾观察到|当前待核实|未记录大航海/);
     }
   }
+});
+
+test('detail tabs show each record in one place and keep archived records editable', async (t) => {
+  const f = fanFixture(t);
+  const p = f.create({ alias: '星星同学' });
+  f.consume([{ name: '星星同学' }]);
+  const note = f.record(p.id, 'note', { body: '今天聊了吉他' });
+  const pinned = f.record(p.id, 'note', { body: '下次先问候', pinned: true });
+  const archivedNote = f.record(p.id, 'note', { body: '以前的聊天', archived: true });
+  const topic = f.record(p.id, 'topic', { body: '周末旅行' });
+  const followup = f.record(p.id, 'followup', { body: '已经唱过的约定', completed: true });
+  const song = f.record(p.id, 'song', { songName: '星晴', artist: '周杰伦' });
+  const hiddenSong = f.record(p.id, 'song', { songName: '替别人点的歌', excluded: true });
+  const preference = f.record(p.id, 'preference', { sentiment: 'dislike', label: '太吵的歌', archived: true });
+  const member = f.record(p.id, 'membership', interval('2026-09-01', '2026-09-30'));
+  const profile = f.detail(p.id);
+  const view = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/view.js'));
+  const pages = Object.fromEntries(['overview', 'interactions', 'music', 'membership'].map((tab) => [tab, view.renderDetail(profile, tab)]));
+  for (const [record, owner] of [[note, 'interactions'], [pinned, 'interactions'], [archivedNote, 'interactions'], [topic, 'overview'], [followup, 'overview'], [song, 'music'], [hiddenSong, 'music'], [preference, 'music'], [member, 'membership']]) {
+    for (const [tab, rendered] of Object.entries(pages)) {
+      assert.equal(rendered.includes(`data-record-id="${record.id}"`), tab === owner, `${record.kind} belongs in ${owner}`);
+    }
+  }
+  assert.ok(pages.interactions.indexOf(pinned.id) < pages.interactions.indexOf(note.id));
+  assert.match(pages.interactions, /已收起的手记/);
+  assert.match(pages.music, /已收起的音乐记录/);
+  assert.match(pages.music, /不喜欢 太吵的歌/);
+  for (const rendered of Object.values(pages)) {
+    assert.equal((rendered.match(/星星同学/g) || []).length, 1);
+    assert.equal((rendered.match(/data-fan-action="edit-profile"/g) || []).length, 1);
+    assert.doesNotMatch(rendered, /<pre|fan-original|原始记录|JSON|人工修订|fanTimelineFilter/);
+  }
+});
+
+test('membership conflicts show both dates and retain both resolution choices without raw data', async (t) => {
+  const f = fanFixture(t);
+  const p = f.create({ expiryReminders: true });
+  f.record(p.id, 'membership', interval('2026-09-01', '2026-12-31', { reason: '<上次确认>' }));
+  f.consume([{ kind: 'membership', membership: interval('2026-09-01', '2026-11-30', { evidenceVerified: true }) }]);
+  const profile = f.detail(p.id);
+  const pending = profile.records.find((record) => record.data.decision === 'pending');
+  assert.ok(pending);
+  const view = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/view.js'));
+  const rendered = view.renderDetail(profile, 'membership');
+  assert.match(rendered, /2026\/11\/30/);
+  assert.match(rendered, /2026\/12\/31/);
+  assert.match(rendered, /&lt;上次确认&gt;/);
+  assert.match(rendered, /确认前暂停大航海提醒，生日提醒照常/);
+  for (const action of ['resolve-adopt', 'resolve-keep']) {
+    assert.match(rendered, new RegExp(`data-fan-action="${action}" data-record-id="${pending.id}"`));
+  }
+  assert.ok(rendered.indexOf('class="fan-conflict"') < rendered.indexOf('class="fan-history"'));
+  assert.doesNotMatch(rendered, /<pre|<上次确认>|JSON|evidenceVerified|Asia\/Shanghai/);
+});
+
+test('merge preview uses readable escaped fields and preserves the selected merge policy', async (t) => {
+  const f = fanFixture(t);
+  const target = f.create({ alias: '已有称呼', notes: '已有备注' });
+  const draft = f.create({ identity: null, alias: '<新称呼>', notes: '新增备注', birthday: { calendar: 'lunar', monthDay: '09-18', advance: true, thisYearDate: '2026-10-28' } });
+  f.record(draft.id, 'note', { body: '聊天记录' });
+  const { createFanTransferUi } = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/transfer-ui.js'));
+  let description;
+  let save;
+  let savedProfile;
+  const transfer = createFanTransferUi({
+    request: async (action, input) => f.run(action, input),
+    openForm: (form, submit) => { description = form; save = submit; },
+    onProfile: (profile) => { savedProfile = profile; },
+  });
+  await transfer.mergeDraft(f.detail(draft.id), target.id);
+  assert.match(description.fields, /&lt;新称呼&gt;/);
+  assert.match(description.fields, /09-18（农历）/);
+  assert.match(description.fields, /提前 7 天提醒 · 今年提醒日：2026-10-28/);
+  assert.match(description.fields, /已有备注/);
+  assert.match(description.fields, /新增备注/);
+  assert.doesNotMatch(description.fields, /<pre|<新称呼>|monthDay|"calendar"|JSON/);
+  const payload = description.read({ elements: { prefer: { value: 'target' } } });
+  assert.equal(payload.targetId, target.id);
+  assert.equal(payload.targetRevision, target.revision);
+  await save(payload);
+  assert.equal(savedProfile.notes, '已有备注');
+  assert.equal(savedProfile.records[0].data.body, '聊天记录');
 });

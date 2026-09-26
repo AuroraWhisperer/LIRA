@@ -4,6 +4,7 @@ import { escapeHtml, escapeAttr, formatDateTime, formatMoney, readJsonResponse }
 ('use strict');
 
 import { eventBus, Events } from '../../shared/event-bus.js';
+import { createBlindBoxDatePicker } from './blindbox-analysis-dates.js';
 
 export const giftAnalysis = (() => {
   const PAGE_SIZE = 25;
@@ -16,7 +17,9 @@ export const giftAnalysis = (() => {
   const state = {
     open: false,
     viewer: '',
+    viewerLabel: '',
     box: '',
+    dateRange: null,
     view: 'users',
     page: 1,
     requestId: 0,
@@ -24,6 +27,7 @@ export const giftAnalysis = (() => {
     refreshTimer: null,
     returnFocus: null,
   };
+  let datePicker;
 
   function init() {
     const workspace = get('blindBoxAnalysisWorkspace');
@@ -31,6 +35,14 @@ export const giftAnalysis = (() => {
     workspace.dataset.initialized = 'true';
 
     get('blindBoxAnalysisClose')?.addEventListener('click', close);
+    datePicker = createBlindBoxDatePicker({
+      onOpen: closeSelects,
+      onChange(dateRange) {
+        state.dateRange = dateRange;
+        state.page = 1;
+        load();
+      },
+    });
     initSelect('blindBoxAnalysisViewer', 'viewer');
     initSelect('blindBoxAnalysisBox', 'box');
     get('blindBoxAnalysisClear')?.addEventListener('click', () => {
@@ -73,9 +85,12 @@ export const giftAnalysis = (() => {
     closeCompetingLayers();
     state.returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     state.viewer = typeof filters.viewer === 'string' ? filters.viewer : '';
+    state.viewerLabel = '';
     state.box = typeof filters.box === 'string' ? filters.box : '';
     state.view = Object.hasOwn(VIEW_META, filters.view) ? filters.view : 'users';
     state.page = 1;
+    state.dateRange = null;
+    datePicker.setSelection(null);
     state.open = true;
     workspace.hidden = false;
     document.body.classList.add('blind-analysis-open');
@@ -89,6 +104,8 @@ export const giftAnalysis = (() => {
     state.open = false;
     state.controller?.abort();
     clearTimeout(state.refreshTimer);
+    datePicker.close();
+    closeSelects();
     workspace.hidden = true;
     document.body.classList.remove('blind-analysis-open');
     state.returnFocus?.focus?.();
@@ -114,6 +131,10 @@ export const giftAnalysis = (() => {
     });
     if (state.viewer) params.set('viewer', state.viewer);
     if (state.box) params.set('box', state.box);
+    if (state.dateRange) {
+      params.set('startDate', state.dateRange.startDate);
+      params.set('endDate', state.dateRange.endDate);
+    }
 
     try {
       const response = await fetch(`/api/gifts/blind-box-analysis?${params}`, {
@@ -138,20 +159,27 @@ export const giftAnalysis = (() => {
     renderViewControls();
     renderTable(data.items || []);
     renderPagination(data.pagination || {});
-    renderContext(data);
+    renderContext();
     const results = document.querySelector('.blind-analysis-results');
     results?.setAttribute('aria-busy', 'false');
   }
 
   function renderFilters(filters) {
+    const viewers = [...(filters.viewers || [])];
+    if (state.viewer && !viewers.some((item) => item.value === state.viewer)) {
+      viewers.push({ value: state.viewer, label: state.viewerLabel || state.viewer.replace(/^(uid|name):/, '') });
+    }
+    state.viewerLabel = viewers.find((item) => item.value === state.viewer)?.label || '';
+    const boxes = [...(filters.boxes || [])];
+    if (state.box && !boxes.includes(state.box)) boxes.push(state.box);
     renderSelect(
       'blindBoxAnalysisViewer',
-      [{ value: '', label: '全部观众' }, ...(filters.viewers || [])],
+      [{ value: '', label: '全部观众' }, ...viewers],
       state.viewer,
     );
     renderSelect(
       'blindBoxAnalysisBox',
-      [{ value: '', label: '全部盲盒' }, ...(filters.boxes || []).map((name) => ({ value: name, label: name }))],
+      [{ value: '', label: '全部盲盒' }, ...boxes.map((name) => ({ value: name, label: name }))],
       state.box,
     );
     const clearButton = get('blindBoxAnalysisClear');
@@ -361,17 +389,17 @@ export const giftAnalysis = (() => {
     if (get('blindBoxAnalysisNext')) get('blindBoxAnalysisNext').disabled = page >= totalPages;
   }
 
-  function renderContext(data) {
-    const viewerLabel = (data.filters?.viewers || []).find((item) => item.value === state.viewer)?.label;
-    const parts = [viewerLabel || '全部观众', state.box || '全部盲盒'];
+  function renderContext() {
+    const parts = [state.viewerLabel || '全部观众', state.box || '全部盲盒'];
     setText('blindBoxAnalysisSubtitle', parts.join(' · '));
+    setText('blindBoxAnalysisTitle', state.dateRange ? '盲盒分析' : '今日盲盒分析');
     setText('blindBoxAnalysisUpdated', `刚刚更新`);
   }
 
   function renderLoading() {
     document.querySelector('.blind-analysis-results')?.setAttribute('aria-busy', 'true');
     const body = get('blindBoxAnalysisBody');
-    if (body) body.innerHTML = '<tr><td class="blind-analysis-empty">正在读取今天的数据…</td></tr>';
+    if (body) body.innerHTML = '<tr><td class="blind-analysis-empty">正在读取盲盒数据…</td></tr>';
   }
 
   function renderError(message) {

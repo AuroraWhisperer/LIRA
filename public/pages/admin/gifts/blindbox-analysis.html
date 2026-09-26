@@ -24,6 +24,79 @@
         <p id="blindBoxAnalysisSubtitle" class="ui-caption">今天的全部盲盒</p>
       </div>
     </div>
+    <div class="blind-analysis-dates" id="blindBoxAnalysisDates">
+      <button
+        class="blind-analysis-date-trigger"
+        id="blindBoxAnalysisDateTrigger"
+        type="button"
+        aria-label="选择统计日期，今天"
+        aria-haspopup="dialog"
+        aria-expanded="false"
+        aria-controls="blindBoxAnalysisDatePopover"
+      >
+        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path
+            d="M8 3v4m8-4v4M4 10h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z"
+            stroke="currentColor"
+            stroke-width="1.7"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          />
+        </svg>
+        <span id="blindBoxAnalysisDateLabel">今天</span>
+        <svg class="blind-analysis-date-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <path d="m6 8 4 4 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </button>
+      <div
+        class="blind-analysis-date-popover"
+        id="blindBoxAnalysisDatePopover"
+        role="dialog"
+        aria-label="选择统计日期"
+        hidden
+      >
+        <div class="blind-analysis-date-modes" role="group" aria-label="日期选择方式">
+          <button type="button" data-blind-date-mode="single" aria-pressed="true">指定日期</button>
+          <button type="button" data-blind-date-mode="range" aria-pressed="false">日期区间</button>
+        </div>
+        <p class="blind-analysis-date-selection" id="blindBoxAnalysisDateSelection"></p>
+        <div class="blind-analysis-calendar-nav">
+          <button type="button" data-blind-date-month="-1" aria-label="上个月">
+            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path d="m12 5-5 5 5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+          <strong id="blindBoxAnalysisDateMonth" aria-live="polite"></strong>
+          <button type="button" data-blind-date-month="1" aria-label="下个月">
+            <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path d="m8 5 5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+        </div>
+        <div class="blind-analysis-calendar-week" aria-hidden="true">
+          <span>一</span>
+          <span>二</span>
+          <span>三</span>
+          <span>四</span>
+          <span>五</span>
+          <span>六</span>
+          <span>日</span>
+        </div>
+        <div
+          class="blind-analysis-calendar-days"
+          id="blindBoxAnalysisDateDays"
+          role="group"
+          aria-labelledby="blindBoxAnalysisDateMonth"
+          aria-describedby="blindBoxAnalysisDateHint"
+        ></div>
+        <p class="blind-analysis-date-hint" id="blindBoxAnalysisDateHint" aria-live="polite">选择要查看的日期</p>
+        <footer class="blind-analysis-date-footer">
+          <button type="button" id="blindBoxAnalysisDateToday">今天</button>
+          <button type="button" id="blindBoxAnalysisDateCancel">取消</button>
+          <button type="button" class="blind-analysis-date-apply" id="blindBoxAnalysisDateApply">应用</button>
+        </footer>
+      </div>
+    </div>
     <button
       id="blindBoxAnalysisClose"
       class="blind-analysis-close"
@@ -133,7 +206,7 @@
           <thead id="blindBoxAnalysisHead"></thead>
           <tbody id="blindBoxAnalysisBody">
             <tr>
-              <td class="blind-analysis-empty">正在读取今天的数据…</td>
+              <td class="blind-analysis-empty">正在读取盲盒数据…</td>
             </tr>
           </tbody>
         </table>

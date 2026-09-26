@@ -13,22 +13,20 @@ export const giftDetection = (() => {
   function renderDetectionStatus(sprint, live) {
     // 礼物检测 toggle & 状态
     const toggle = document.getElementById('giftDetectToggle');
-    const label = document.getElementById('giftDetectLabel');
-    if (toggle && label) {
-      toggle.checked = sprint.enabled === true;
-      label.textContent = sprint.enabled ? '已开启' : '已关闭';
-    }
+    if (toggle) toggle.checked = sprint.enabled === true;
 
     const status = document.getElementById('giftSprintStatus');
     if (status) {
+      const message = String(live.message || '');
+      status.title = sprint.enabled ? message : '';
       if (!sprint.enabled) {
         status.textContent = '未开启';
         status.className = 'pill warn';
-      } else if (live.connected && !String(live.message || '').includes('历史消息监听中')) {
+      } else if (live.connected && !message.includes('历史消息监听中')) {
         status.textContent = '监听中';
         status.className = 'pill good';
       } else {
-        status.textContent = live.message || '未连接';
+        status.textContent = message.includes('历史消息监听中') ? '待开播' : message || '未连接';
         status.className = 'pill warn';
       }
     }

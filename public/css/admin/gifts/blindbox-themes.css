@@ -1,0 +1,111 @@
+/* 每张卡片独立初始化主题，避免继承另一种盲盒的配色。 */
+.blind-box-card,
+.blind-box-chip {
+  --blind-box-card-border: #b89ae8;
+  --blind-box-card-accent: #8459c7;
+  --blind-box-card-background: linear-gradient(90deg, #eee5ff 0%, #f7f1ff 52%, var(--color-bg-primary) 100%);
+  --blind-box-mapping-border: #d8c4ef;
+  --blind-box-mapping-background: linear-gradient(135deg, #f5edff 0%, #e9d8fa 100%);
+  --blind-box-mapping-shadow: 0 1px 3px rgba(118, 83, 173, 0.06);
+  --blind-box-mapping-hover-border: #b994dd;
+  --blind-box-mapping-hover-shadow: 0 2px 8px rgba(118, 83, 173, 0.14);
+  --blind-box-icon-background: linear-gradient(135deg, #f0e6ff 0%, #fce4ec 100%);
+  --blind-box-name-color: #1e293b;
+  --blind-box-price-color: #6366f1;
+  --blind-box-price-background: rgba(99, 102, 241, 0.08);
+  --blind-box-source-color: #7653ad;
+}
+
+:is(.blind-box-card, .blind-box-chip)[data-blind-box-theme='heart'] {
+  --blind-box-card-border: var(--border);
+  --blind-box-card-accent: var(--blind-box-mapping-border);
+  --blind-box-card-background: linear-gradient(90deg, #ffecef 0%, var(--color-bg-primary) 100%);
+  --blind-box-mapping-border: #f3a2aa;
+  --blind-box-mapping-background: linear-gradient(135deg, #fff6f7 0%, #fde9ec 100%);
+  --blind-box-mapping-hover-border: #d85e6d;
+  --blind-box-mapping-hover-shadow: 0 4px 12px rgba(216, 94, 109, 0.18);
+  --blind-box-icon-background: linear-gradient(135deg, #fff0f2 0%, #fbd8dd 100%);
+  --blind-box-name-color: #b54555;
+  --blind-box-price-color: #c94f60;
+  --blind-box-price-background: rgba(201, 79, 96, 0.09);
+}
+
+:is(.blind-box-card, .blind-box-chip)[data-blind-box-theme='lucky'] {
+  --blind-box-card-border: var(--border);
+  --blind-box-card-accent: var(--blind-box-mapping-border);
+  --blind-box-card-background: linear-gradient(90deg, #f2fadf 0%, var(--color-bg-primary) 100%);
+  --blind-box-mapping-border: #b8d983;
+  --blind-box-mapping-background: linear-gradient(135deg, #fbfff4 0%, #edf7dc 100%);
+  --blind-box-mapping-hover-border: #78a83f;
+  --blind-box-mapping-hover-shadow: 0 4px 12px rgba(120, 168, 63, 0.18);
+  --blind-box-icon-background: linear-gradient(135deg, #f6fce9 0%, #e3f1c9 100%);
+  --blind-box-name-color: #56852d;
+  --blind-box-price-color: #669735;
+  --blind-box-price-background: rgba(102, 151, 53, 0.1);
+}
+
+:is(.blind-box-card, .blind-box-chip)[data-blind-box-theme='xiuxian'] {
+  --blind-box-card-border: var(--blind-box-mapping-border);
+  --blind-box-card-accent: var(--blind-box-mapping-hover-border);
+  --blind-box-card-background: linear-gradient(90deg, #d7e8e0 0%, var(--color-bg-primary) 100%);
+  --blind-box-mapping-border: #a0bfb6;
+  --blind-box-mapping-background: linear-gradient(135deg, #edf6f2 0%, #d7e8e0 100%);
+  --blind-box-mapping-shadow: 0 1px 3px rgba(61, 112, 103, 0.06);
+  --blind-box-mapping-hover-border: #3d7067;
+  --blind-box-mapping-hover-shadow: 0 4px 12px rgba(61, 112, 103, 0.18);
+  --blind-box-icon-background: linear-gradient(135deg, #e5f1eb 0%, #c5ddd1 100%);
+  --blind-box-name-color: #315f53;
+  --blind-box-price-color: var(--blind-box-name-color);
+  --blind-box-price-background: rgba(49, 95, 83, 0.1);
+  --blind-box-source-color: var(--blind-box-name-color);
+}
+
+:is(.blind-box-card, .blind-box-chip)[data-blind-box-theme='mid-autumn'] {
+  --blind-box-card-border: var(--blind-box-mapping-border);
+  --blind-box-card-accent: var(--blind-box-mapping-hover-border);
+  --blind-box-card-background: linear-gradient(90deg, #fff1c9 0%, #fff9eb 52%, var(--color-bg-primary) 100%);
+  --blind-box-mapping-border: #e3ba62;
+  --blind-box-mapping-background: linear-gradient(135deg, #fff9eb 0%, #ffedbd 100%);
+  --blind-box-mapping-shadow: 0 1px 3px rgba(185, 129, 33, 0.06);
+  --blind-box-mapping-hover-border: #b98121;
+  --blind-box-mapping-hover-shadow: 0 4px 12px rgba(185, 129, 33, 0.18);
+  --blind-box-icon-background: linear-gradient(135deg, #fff4d2 0%, #f8db8b 100%);
+  --blind-box-name-color: #855b1e;
+  --blind-box-price-color: var(--blind-box-name-color);
+  --blind-box-price-background: rgba(133, 91, 30, 0.1);
+  --blind-box-source-color: var(--blind-box-name-color);
+}
+
+/* 这三种盲盒原有专属配色仅用于映射；最近礼物卡片继续使用默认色。 */
+:is(.blind-box-card, .blind-box-chip)[data-blind-box-theme='bear'] {
+  --blind-box-mapping-border: #f5a6cb;
+  --blind-box-mapping-background: linear-gradient(135deg, #fff5f9 0%, #fde8ef 100%);
+  --blind-box-mapping-hover-border: #d1568e;
+  --blind-box-mapping-hover-shadow: 0 4px 12px rgba(209, 86, 142, 0.18);
+  --blind-box-icon-background: linear-gradient(135deg, #fdedf3 0%, #fcd5e4 100%);
+  --blind-box-name-color: #b34068;
+  --blind-box-price-color: #c94b84;
+  --blind-box-price-background: rgba(201, 75, 132, 0.09);
+}
+
+:is(.blind-box-card, .blind-box-chip)[data-blind-box-theme='qixi'] {
+  --blind-box-mapping-border: #d786dc;
+  --blind-box-mapping-background: linear-gradient(135deg, #fff2fb 0%, #f3e8ff 100%);
+  --blind-box-mapping-hover-border: #bb63c4;
+  --blind-box-mapping-hover-shadow: 0 4px 12px rgba(155, 63, 166, 0.18);
+  --blind-box-icon-background: linear-gradient(135deg, #ffe8f7 0%, #eadcff 100%);
+  --blind-box-name-color: #9b3fa6;
+  --blind-box-price-color: #a94db4;
+  --blind-box-price-background: rgba(169, 77, 180, 0.1);
+}
+
+:is(.blind-box-card, .blind-box-chip)[data-blind-box-theme='bond'] {
+  --blind-box-mapping-border: #ff6fb8;
+  --blind-box-mapping-background: linear-gradient(135deg, #fff0fa 0%, #eefbff 100%);
+  --blind-box-mapping-hover-border: #e84e9f;
+  --blind-box-mapping-hover-shadow: 0 4px 12px rgba(232, 78, 159, 0.18);
+  --blind-box-icon-background: linear-gradient(135deg, #ffe7f5 0%, #dcf8ff 100%);
+  --blind-box-name-color: #b43f89;
+  --blind-box-price-color: #2a87b7;
+  --blind-box-price-background: rgba(42, 135, 183, 0.1);
+}

@@ -42,6 +42,7 @@ export function initGiftInteractionControls({
         : state.status === 'confirmed'
           ? '已同步到服务器'
           : ERRORS[state.error] || '状态未确认，请刷新核对。';
+    status.hidden = state.status === 'confirmed' && !saving;
     retry.hidden = state.status === 'confirmed';
     retry.disabled = saving || state.status === 'pending';
   }

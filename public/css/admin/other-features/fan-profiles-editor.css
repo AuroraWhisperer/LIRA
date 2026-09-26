@@ -25,7 +25,8 @@
   padding: 20px 0 0;
   max-height: none;
 }
-.fan-quick .fan-back-list {
+.fan-quick .fan-back-list,
+.fan-quick .fan-header-actions [data-fan-action='expand'] {
   display: none;
 }
 .fan-editor-heading {
@@ -215,9 +216,6 @@
   margin-top: 16px;
   padding-top: 16px;
 }
-.fan-timeline-filter {
-  padding-top: 16px;
-}
 .fan-reminder-person {
   padding: 16px 0;
   border-bottom: 1px solid var(--border);
@@ -225,15 +223,17 @@
 .fan-reminder-person h4 {
   margin: 0;
 }
-.fan-editor pre {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  font: inherit;
-  font-size: 13px;
+.fan-merge-preview {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
+  gap: var(--spacing-lg);
 }
-.fan-timeline-filter select {
-  width: auto;
-  margin-left: 8px;
+.fan-merge-preview h3 {
+  margin: 0 0 var(--spacing-md);
+  font-size: var(--type-size-card-title);
+}
+.fan-merge-preview dd {
+  white-space: pre-wrap;
 }
 .fan-profiles button:focus-visible,
 .fan-quick button:focus-visible,

@@ -111,10 +111,6 @@
     padding: 12px 12px calc(var(--player-dock-height, 102px) + 14px);
   }
 
-  .gift-controls-grid {
-    grid-template-columns: 1fr;
-  }
-
   .gift-controls-grid,
   .gift-recent-panel,
   .gift-planning-row,
@@ -122,17 +118,6 @@
   .gift-blindbox-mapping-panel {
     grid-column: 1;
     grid-row: auto;
-  }
-
-  .gift-control-panel > .panel-body {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .gift-detection-panel #giftStatusLine,
-  .gift-notification-panel .gift-setting-desc {
-    max-width: none;
-    text-align: left;
   }
 }
 

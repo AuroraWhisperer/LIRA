@@ -123,7 +123,7 @@ async function createBlindboxFixture({
     visibleNames: () =>
       [
         ...container.innerHTML.matchAll(
-          /<div class="blind-box-chip">[\s\S]*?<span class="bb-chip-name">([^<]+)<\/span>/g,
+          /<div class="blind-box-chip" data-blind-box-theme="[^"]+">[\s\S]*?<span class="bb-chip-name">([^<]+)<\/span>/g,
         ),
       ].map(([, name]) => name),
     window,

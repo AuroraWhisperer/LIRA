@@ -92,7 +92,7 @@ test('Admin optional explanations use one contextual help component', () => {
     assert.doesNotMatch(html, new RegExp(`>${label} <lira-help`));
   }
 
-  for (const statusId of ['xiaomiAiSaveState', 'giftStatusLine', 'desktopLyricAutosaveState']) {
+  for (const statusId of ['xiaomiAiSaveState', 'desktopLyricAutosaveState']) {
     const owner = html.match(new RegExp(`<([\\w-]+)[^>]*id="${statusId}"`));
     assert.ok(owner, `${statusId} should remain in the page`);
     assert.notEqual(owner[1], 'lira-help', `${statusId} should stay visible instead of becoming help`);

@@ -80,16 +80,23 @@ const routes = {
 
   'GET /api/gifts/blind-box-analysis'(context, request, res) {
     const query = request.query;
-    const data = context.gifts.getBlindBoxAnalysis({
-      viewer: query.get('viewer') || '',
-      box: query.get('box') || '',
-      view: query.get('view') || 'users',
-      page: query.get('page') || '1',
-      limit: query.get('limit') || '25',
-      sort: query.get('sort') || '',
-      direction: query.get('direction') || 'desc',
-    });
-    sendJson(res, 200, { ok: true, data });
+    try {
+      const data = context.gifts.getBlindBoxAnalysis({
+        viewer: query.get('viewer') || '',
+        box: query.get('box') || '',
+        view: query.get('view') || 'users',
+        page: query.get('page') || '1',
+        limit: query.get('limit') || '25',
+        sort: query.get('sort') || '',
+        direction: query.get('direction') || 'desc',
+        startDate: query.get('startDate') || '',
+        endDate: query.get('endDate') || '',
+      });
+      sendJson(res, 200, { ok: true, data });
+    } catch (error) {
+      if (error.code !== 'INVALID_GIFT_FILTER') throw error;
+      sendJson(res, 400, { ok: false, error: error.message, code: error.code });
+    }
   },
 
   'GET /api/gifts/search'(context, request, res) {

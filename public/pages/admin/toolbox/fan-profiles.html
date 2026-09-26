@@ -50,7 +50,7 @@
     <div id="fanProfilesPage" role="tabpanel" aria-labelledby="fanProfilesTab">
       <div id="fanReminderSummary" class="fan-reminder-summary" hidden></div>
       <div id="fanArchivedNotice" class="fan-archived-notice" hidden>
-        <span class="fan-muted">正在查看已归档的档案，资料仍然保留。</span>
+        <span class="fan-muted">正在查看已收起的档案，资料仍然保留。</span>
         <button type="button" data-fan-action="back-profiles">返回档案列表</button>
       </div>
       <div class="fan-searchbar">
@@ -83,7 +83,7 @@
         <div class="fan-setting-row">
           <div>
             <h4>同步大航海名单</h4>
-            <p class="fan-muted">读取当前直播间的大航海成员，为新成员建立档案，并更新已有成员的昵称、头像和等级。</p>
+            <p class="fan-muted">为当前大航海成员建档，更新昵称、头像和等级。</p>
           </div>
           <button type="button" data-fan-action="guard-roster">同步名单</button>
         </div>
@@ -91,8 +91,7 @@
           <div>
             <h4>自动更新</h4>
             <p class="fan-muted">
-              自动补充昵称、点歌和上舰记录；也可每天 12:10
-              核对大航海身份，更新等级或取消已不在舰的身份，错过后当天首次打开时补更新。
+              设置哪些资料自动更新，以及是否每天核对大航海名单。
             </p>
           </div>
           <button type="button" data-fan-action="settings">设置自动更新</button>
@@ -101,7 +100,7 @@
           <div>
             <h4>重新加载档案</h4>
             <p class="fan-muted">
-              页面每 30 秒自动更新。资料未及时显示时，可重新读取本机档案和提醒；不会同步大航海名单。
+              资料没有及时显示时，重新读取已保存的档案和提醒。
             </p>
           </div>
           <button type="button" data-fan-action="refresh">重新加载</button>
@@ -113,7 +112,7 @@
           <div>
             <h4>导出档案表格</h4>
             <p class="fan-muted">
-              选择昵称、UID、生日或备注等资料，导出为 Excel 可打开的表格。表格不能用于恢复完整档案。
+              选择需要的资料，导出为 Excel 可打开的表格。恢复档案请使用完整备份。
             </p>
           </div>
           <button type="button" data-fan-action="export">导出表格</button>
@@ -128,7 +127,7 @@
         <div class="fan-setting-row">
           <div>
             <h4>从备份文件恢复</h4>
-            <p class="fan-muted">选择之前保存的完整备份，先预览再恢复。已有资料发生冲突时，需要你选择如何处理。</p>
+            <p class="fan-muted">选择完整备份，核对内容后恢复。已有档案可选择保留或替换。</p>
           </div>
           <button type="button" data-fan-action="restore">选择备份文件</button>
         </div>
@@ -136,7 +135,7 @@
           <div>
             <h4>恢复到之前的状态</h4>
             <p class="fan-muted">
-              合并档案或恢复备份前，会在本机保存恢复点。恢复时会将当前账号的全部档案退回那个时间点。
+              合并或恢复前会自动保存恢复点，可将全部档案退回当时的状态。
             </p>
           </div>
           <button type="button" data-fan-action="snapshots">查看恢复点</button>
@@ -147,16 +146,16 @@
         <div class="fan-setting-row">
           <div>
             <h4>不再自动建档的粉丝</h4>
-            <p class="fan-muted">删除档案时选择停止自动建档的粉丝会列在这里。移出排除名单后，可再次为他们自动建档。</p>
+            <p class="fan-muted">管理删除档案时停止自动建档的粉丝，可在这里恢复自动建档。</p>
           </div>
           <button type="button" data-fan-action="suppressions">管理排除名单</button>
         </div>
         <div class="fan-setting-row">
           <div>
-            <h4>已归档的档案</h4>
-            <p class="fan-muted">查看暂时从主列表收起的档案。资料仍然保留，可以在档案的“管理”中恢复到主列表。</p>
+            <h4>已收起的档案</h4>
+            <p class="fan-muted">资料仍然保留，可在档案的“更多”中恢复到主列表。</p>
           </div>
-          <button type="button" data-fan-action="archived">查看已归档</button>
+          <button type="button" data-fan-action="archived">查看已收起</button>
         </div>
         <div class="fan-setting-row">
           <div>

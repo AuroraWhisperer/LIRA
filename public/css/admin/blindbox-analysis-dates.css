@@ -1,0 +1,265 @@
+.blind-analysis-dates {
+  position: relative;
+  margin-left: auto;
+  flex: 0 0 auto;
+  color: #24323d;
+  font-size: var(--type-size-control);
+  font-variant-numeric: tabular-nums;
+}
+
+.blind-analysis-dates + .blind-analysis-close {
+  margin-left: 0;
+  flex-shrink: 0;
+}
+
+.blind-analysis-dates button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.blind-analysis-dates button:focus-visible {
+  outline: 2px solid var(--analysis-green);
+  outline-offset: 2px;
+}
+
+.blind-analysis-dates svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+}
+
+.blind-analysis-dates .blind-analysis-date-trigger {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid #d8e0e5;
+  border-radius: 8px;
+  background: #fff;
+  font-weight: var(--type-weight-medium);
+  white-space: nowrap;
+}
+
+.blind-analysis-date-trigger > svg:first-child {
+  color: #087f75;
+}
+
+.blind-analysis-dates .blind-analysis-date-trigger:hover,
+.blind-analysis-dates .blind-analysis-date-trigger[aria-expanded='true'] {
+  border-color: var(--analysis-green);
+  background: var(--analysis-green-soft);
+}
+
+.blind-analysis-date-chevron {
+  color: #687681;
+}
+
+.blind-analysis-date-trigger[aria-expanded='true'] .blind-analysis-date-chevron {
+  transform: rotate(180deg);
+}
+
+.blind-analysis-date-popover {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 12;
+  width: 320px;
+  max-width: calc(100vw - 32px);
+  max-height: calc(100vh - 160px);
+  overflow-y: auto;
+  padding: 16px;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 12px 36px rgba(31, 49, 61, 0.2);
+  scrollbar-width: thin;
+  scrollbar-color: #b7c2c9 transparent;
+}
+
+.blind-analysis-date-popover[hidden] {
+  display: none;
+}
+
+.blind-analysis-date-modes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 8px;
+  background: #f3f6f8;
+}
+
+.blind-analysis-date-modes button {
+  min-height: 32px;
+  border-radius: 6px;
+  color: #586773;
+  font-weight: var(--type-weight-medium);
+}
+
+.blind-analysis-date-modes button[aria-pressed='true'] {
+  background: #fff;
+  color: #087f75;
+  box-shadow: 0 1px 4px rgba(30, 51, 64, 0.12);
+}
+
+.blind-analysis-date-selection {
+  margin: 14px 0 12px;
+  color: #087f75;
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-medium);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.blind-analysis-calendar-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.blind-analysis-calendar-nav button {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 6px;
+}
+
+.blind-analysis-calendar-nav strong {
+  font-weight: var(--type-weight-semibold);
+}
+
+.blind-analysis-calendar-week,
+.blind-analysis-calendar-days {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  text-align: center;
+}
+
+.blind-analysis-calendar-week {
+  padding-bottom: 8px;
+  color: #687681;
+  font-size: var(--type-size-micro);
+}
+
+.blind-analysis-calendar-days {
+  row-gap: 4px;
+}
+
+.blind-analysis-calendar-days button {
+  position: relative;
+  height: 34px;
+  min-width: 0;
+  padding: 0;
+  border-radius: 6px;
+}
+
+.blind-analysis-calendar-days .is-outside {
+  color: #7b8994;
+}
+
+.blind-analysis-calendar-days .is-in-range {
+  border-radius: 0;
+  background: var(--analysis-green-soft);
+  color: #087f75;
+}
+
+.blind-analysis-calendar-days .is-range-start {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.blind-analysis-calendar-days .is-range-end {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.blind-analysis-calendar-days .is-today::after {
+  position: absolute;
+  bottom: 3px;
+  left: calc(50% - 2px);
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: currentColor;
+  content: '';
+}
+
+.blind-analysis-calendar-nav button:hover,
+.blind-analysis-calendar-days button:hover,
+.blind-analysis-date-footer button:hover {
+  background: var(--analysis-green-soft);
+  color: #087f75;
+}
+
+.blind-analysis-calendar-days .is-selected,
+.blind-analysis-date-footer .blind-analysis-date-apply {
+  background: #087f75;
+  color: #fff;
+}
+
+.blind-analysis-calendar-days .is-selected:hover,
+.blind-analysis-date-footer .blind-analysis-date-apply:hover {
+  background: #076b63;
+  color: #fff;
+}
+
+.blind-analysis-date-hint {
+  min-height: 18px;
+  margin: 12px 0;
+  color: #687681;
+  font-size: var(--type-size-micro);
+  text-align: center;
+}
+
+.blind-analysis-date-footer {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-top: 12px;
+  border-top: 1px solid #e5eaee;
+}
+
+.blind-analysis-date-footer button {
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 6px;
+  font-weight: var(--type-weight-medium);
+}
+
+.blind-analysis-date-footer button:first-child {
+  margin-right: auto;
+  color: #087f75;
+}
+
+.blind-analysis-date-footer button:disabled {
+  background: #f3f6f8;
+  color: #7b8994;
+  cursor: default;
+}
+
+@media (max-width: 680px) {
+  .blind-analysis-header {
+    flex-wrap: wrap;
+  }
+
+  .blind-analysis-dates {
+    order: 3;
+    width: 100%;
+  }
+
+  .blind-analysis-dates + .blind-analysis-close {
+    margin-left: auto;
+  }
+
+  .blind-analysis-date-popover {
+    right: auto;
+    left: 0;
+  }
+}

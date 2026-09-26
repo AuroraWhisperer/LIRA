@@ -31,7 +31,6 @@
 .fan-nav,
 .fan-section-title,
 .fan-record-top,
-.fan-detail-title,
 .fan-quick-top,
 .fan-editor-heading,
 .fan-editor-footer {
@@ -58,9 +57,6 @@
   color: var(--muted);
   font-size: 13px;
   line-height: 1.6;
-}
-.fan-small {
-  font-size: 12px;
 }
 .fan-prose,
 .fan-record p {
@@ -186,7 +182,7 @@
 .fan-split {
   display: grid;
   flex: 1;
-  grid-template-columns: minmax(240px, 0.8fr) minmax(0, 1.6fr);
+  grid-template-columns: clamp(200px, 24%, 280px) minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
   min-height: 0;
   border-top: 1px solid var(--border);
@@ -263,7 +259,6 @@
 .fan-person-line strong {
   min-width: 0;
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 15px;
   font-weight: var(--type-weight-semibold);
@@ -317,7 +312,36 @@
   line-height: var(--type-leading-body);
 }
 .fan-person-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm) var(--spacing-lg);
   padding-bottom: var(--spacing-md);
+}
+.fan-header-info {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+.fan-header-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--spacing-sm);
+  margin-left: auto;
+}
+.fan-header-actions .fan-actions {
+  justify-content: flex-end;
+}
+.fan-header-actions button,
+.fan-header-actions .fan-more > summary {
+  padding: 7px 10px;
+  font-size: var(--type-size-control);
+}
+.fan-detail-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--spacing-sm);
 }
 .fan-person-header h3 {
   font-size: var(--type-size-page-title);
@@ -330,20 +354,11 @@
   margin: 7px 0;
   overflow-wrap: anywhere;
 }
-.fan-detail-title {
-  align-items: start;
-}
 .fan-detail-name {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 12px;
-}
-.fan-detail-title > div {
-  min-width: 0;
-}
-.fan-detail-title > button {
-  flex-shrink: 0;
 }
 .fan-detail-tabs {
   display: flex;
@@ -473,39 +488,17 @@
 .fan-cautions > details[open] > summary {
   color: var(--text);
 }
-.fan-original {
-  font-size: 12px;
-  color: var(--muted);
-  margin-top: 12px;
+.fan-history {
+  margin-top: var(--spacing-md);
 }
-.fan-profiles pre,
-.fan-quick pre {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-  max-height: 280px;
-  overflow: auto;
+.fan-history > summary {
+  font-size: var(--type-size-control);
+  color: var(--muted);
 }
 .fan-profiles summary,
 .fan-quick summary {
   cursor: pointer;
   padding: 6px 0;
-}
-.fan-music-summary {
-  display: flex;
-  width: 100%;
-  gap: 12px;
-  justify-content: space-between;
-  text-align: left;
-  margin: 16px 0;
-  background: var(--color-bg-tertiary);
-  line-height: 1.6;
-}
-.fan-music-summary span {
-  flex-shrink: 0;
-  font-size: 12px;
-  color: var(--color-success-dark);
 }
 .fan-empty {
   padding: 48px 24px;
@@ -588,6 +581,9 @@
   padding: 12px;
   border-radius: var(--radius-md);
   line-height: 1.6;
+}
+.fan-conflict .fan-actions {
+  margin-top: var(--spacing-md);
 }
 .fan-error {
   color: var(--danger);

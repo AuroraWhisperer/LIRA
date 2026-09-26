@@ -32,7 +32,6 @@ function createFanUi() {
     selection: 0,
     editor: null,
     expanded: false,
-    timelineFilter: '',
   };
   let searchTimer;
   let returnFocus;
@@ -114,8 +113,23 @@ function createFanUi() {
   }
 
   function renderSelected() {
-    if (state.profile) detailNode.innerHTML = renderDetail(state.profile, state.tab, state.timelineFilter);
+    if (state.profile) detailNode.innerHTML = renderDetail(state.profile, state.tab);
     renderList();
+  }
+
+  function fitPeopleNames() {
+    for (const name of get('fanPeople').querySelectorAll('.fan-name')) {
+      name.style.fontSize = '';
+      const availableWidth = name.getBoundingClientRect().width;
+      if (!availableWidth) continue;
+      const range = document.createRange();
+      range.selectNodeContents(name);
+      const textWidth = range.getBoundingClientRect().width;
+      if (textWidth > availableWidth) {
+        const fontSize = parseFloat(getComputedStyle(name).fontSize);
+        name.style.fontSize = `${Math.floor(((fontSize * availableWidth) / textWidth) * 10) / 10}px`;
+      }
+    }
   }
 
   function renderList() {
@@ -129,6 +143,9 @@ function createFanUi() {
     list.scrollTop = scroll;
     get('fanSplit').classList.toggle('fan-has-selection', Boolean(state.profile));
     get('fanSplit').classList.toggle('fan-expanded', state.expanded);
+    const expandButton = detailNode.querySelector('[data-fan-action="expand"]');
+    if (expandButton) expandButton.textContent = state.expanded ? '收起详情' : '展开详情';
+    fitPeopleNames();
   }
 
   async function load(open = false) {
@@ -212,6 +229,7 @@ function createFanUi() {
     openForm(recordForm(kind, record), async (payload) => {
       const result = await request('save-record', { ...payload, profileId });
       state.profile = result.profile;
+      if (kind === 'note') state.tab = 'interactions';
       await load();
       renderSelected();
     });
@@ -247,6 +265,7 @@ function createFanUi() {
         get('otherFanProfilesFeatureTab')?.click();
       }
       state.expanded = !state.expanded;
+      element.closest('details')?.removeAttribute('open');
       renderList();
       return;
     }
@@ -342,7 +361,7 @@ function createFanUi() {
       return;
     }
     if (name === 'export') {
-      openForm({ ...exportForm(), saveLabel: '导出 CSV' }, async (payload) =>
+      openForm({ ...exportForm(), saveLabel: '导出表格' }, async (payload) =>
         transfer.download(await request('export-list', payload), 'LIRA-粉丝档案列表.csv', 'text/csv;charset=utf-8'),
       );
       return;
@@ -398,7 +417,7 @@ function createFanUi() {
           title: '永久删除档案',
           saveLabel: '确认永久删除',
           hint: '档案、手记与提醒状态会删除，原始礼物账本不受影响。此操作不能撤销。',
-          fields: `<p class="fan-field-wide">即将删除 ${html(state.profile.alias || state.profile.platformName)}。建议先保存完整备份。</p><label class="fan-check"><input name="suppress" type="checkbox" checked />停止为这个身份自动建档</label><label class="fan-check"><input name="confirm" type="checkbox" required />我确认永久删除</label>`,
+          fields: `<p class="fan-field-wide">即将删除 ${html(state.profile.alias || state.profile.platformName)}。建议先保存完整备份。</p><label class="fan-check"><input name="suppress" type="checkbox" checked />不再为这位粉丝自动建档</label><label class="fan-check"><input name="confirm" type="checkbox" required />我确认永久删除</label>`,
           read: (value) => ({
             id,
             confirm: value.elements.confirm.checked,
@@ -481,12 +500,6 @@ function createFanUi() {
       void load().catch((error) => showError(error));
     }, 180);
   });
-  document.addEventListener('change', (event) => {
-    if (event.target.id === 'fanTimelineFilter') {
-      state.timelineFilter = event.target.value;
-      renderSelected();
-    }
-  });
   get('fanRestoreFile').addEventListener('change', () => {
     const file = get('fanRestoreFile').files[0];
     get('fanRestoreFile').value = '';
@@ -504,6 +517,8 @@ function createFanUi() {
         .catch((error) => showError(error));
   });
   observer.observe(panel, { attributes: true, attributeFilter: ['hidden'] });
+  const namesObserver = new ResizeObserver(fitPeopleNames);
+  namesObserver.observe(get('fanPeople'));
   if (!panel.hidden)
     void load(true)
       .then(() => {
@@ -523,6 +538,7 @@ function createFanUi() {
     'pagehide',
     () => {
       observer.disconnect();
+      namesObserver.disconnect();
       clearInterval(pollTimer);
       clearTimeout(searchTimer);
     },

@@ -21,6 +21,7 @@ test('admin gift styles load feature-owned stylesheets in order', () => {
   const giftEntry = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'gifts.css'), 'utf8');
 
   assert.match(giftEntry, /@import url\('\.\/gifts\/recent\.css'\);/);
+  assert.match(giftEntry, /@import url\('\.\/gifts\/blindbox-themes\.css'\);/);
 });
 
 test('recent gift cards stay within six rows as the grid width changes', async () => {
@@ -113,7 +114,7 @@ test('recent guard gift cards use subtle matching guard level colors', () => {
   assert.doesNotMatch(styles, /\.gift-card\.guard-card\s*\{[^}]*color:\s*var\(--color-bg-primary\)/);
 });
 
-test('recent blind box cards keep heart and lucky colors and default all others to purple', () => {
+test('recent blind box cards consume shared theme colors and preserve profit colors', () => {
   const script = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'recent.js'), 'utf8');
   const styles = readCssBundle('public', 'css', 'admin', 'gifts.css');
 
@@ -121,16 +122,11 @@ test('recent blind box cards keep heart and lucky colors and default all others 
     script,
     /profitClass\s*=\s*blindProfit\s*>\s*0\s*\?\s*['"]profit-up['"]\s*:\s*blindProfit\s*<\s*0\s*\?\s*['"]profit-down['"]\s*:\s*['"]profit-neutral['"]/,
   );
-  assert.match(script, /className: 'blind-box-heart'/);
-  assert.match(script, /className: 'blind-box-lucky'/);
   assert.match(script, /className: type\?\.className \|\| 'blind-box-default'/);
-  assert.doesNotMatch(script, /className: 'blind-box-(?:bear|qixi|bond)'/);
   assert.doesNotMatch(script, /\/img\/bilibili-gifts/);
-  assert.match(styles, /\.gift-card\.blind-box-card\.blind-box-heart\s*\{[^}]*border-left-color:\s*#f3a2aa/);
-  assert.match(styles, /\.gift-card\.blind-box-card\.blind-box-lucky\s*\{[^}]*border-left-color:\s*#b8d983/);
   assert.match(
     styles,
-    /\.gift-card\.blind-box-card\.blind-box-default\s*\{[^}]*border-left-color:\s*#8459c7[^}]*background:\s*linear-gradient/,
+    /\.gift-card\.blind-box-card\s*\{[^}]*border-left-color:\s*var\(--blind-box-card-accent\)[^}]*background:\s*var\(--blind-box-card-background\)/,
   );
   assert.match(styles, /\.gift-card\.blind-box-card \.profit-up\s*\{[^}]*color:\s*#c0392b/);
   assert.match(styles, /\.gift-card\.blind-box-card \.profit-down\s*\{[^}]*color:\s*#21b6a8/);
