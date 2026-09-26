@@ -1,6 +1,7 @@
 'use strict';
 
 const { zzcSign } = require('@jixun/qmweb-sign');
+const { readResponseText } = require('../../shared/response-body');
 const {
   buildGuid,
   calcQQGtk,
@@ -14,9 +15,14 @@ const {
 const QQ_MUSICU_URL = 'https://u.y.qq.com/cgi-bin/musicu.fcg';
 const QQ_MUSICS_URL = 'https://u6.y.qq.com/cgi-bin/musics.fcg';
 const REQUEST_TIMEOUT_MS = 10000;
+const MAX_RESPONSE_BYTES = 16 * 1024 * 1024;
+
+function responseLimitError() {
+  return Object.assign(new Error('QQ 音乐响应过大，无法处理。'), { code: 'MUSIC_RESPONSE_TOO_LARGE' });
+}
 
 async function readQQJsonResponse(response) {
-  const text = await response.text();
+  const text = await readResponseText(response, MAX_RESPONSE_BYTES, responseLimitError);
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   try {
     return JSON.parse(stripJsonp(text));
@@ -158,14 +164,14 @@ class QQMusicClient {
       tmeLoginType: Number(extractCookieValue(cookieHeader, 'tmeLoginType')) || 2,
       uin,
     };
-    for (const [field, cookieName] of [
-      ['psrf_access_token_expiresAt', 'psrf_access_token_expiresAt'],
-      ['psrf_qqaccess_token', 'psrf_qqaccess_token'],
-      ['psrf_qqopenid', 'psrf_qqopenid'],
-      ['psrf_qqunionid', 'psrf_qqunionid'],
+    for (const cookieName of [
+      'psrf_access_token_expiresAt',
+      'psrf_qqaccess_token',
+      'psrf_qqopenid',
+      'psrf_qqunionid',
     ]) {
       const value = extractCookieValue(cookieHeader, cookieName);
-      if (value) comm[field] = value;
+      if (value) comm[cookieName] = value;
     }
     if (!comm.psrf_qqunionid) {
       const wxUnionId = extractCookieValue(cookieHeader, 'wxunionid');
@@ -236,7 +242,7 @@ class QQMusicClient {
       redirect: 'follow',
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
-    const text = await response.text();
+    const text = await readResponseText(response, MAX_RESPONSE_BYTES, responseLimitError);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     return text;
   }

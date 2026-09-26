@@ -4,6 +4,26 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { BilibiliDanmakuClient } = require('../src/bilibili/danmaku-client');
 
+for (const method of ['start', 'restart']) {
+  test(`${method} cannot report history listening before any room lookup succeeds`, async (t) => {
+    const statuses = [];
+    const client = new BilibiliDanmakuClient('123', { onStatus: (status) => statuses.push(status) });
+    t.after(() => client.stop());
+    client.apiClient.resolveRoomInfo = async () => {
+      throw new Error('synthetic offline');
+    };
+    if (method === 'restart') await assert.rejects(client.restart(), /synthetic offline/);
+    else {
+      client.start();
+      await new Promise((resolve) => setImmediate(resolve));
+    }
+    assert.equal(client.historyPoller.timer, null);
+    assert.equal(statuses.at(-1).connected, false);
+    assert.doesNotMatch(statuses.at(-1).message, /历史消息监听中/);
+    assert.notEqual(client.reconnectTimer, null);
+  });
+}
+
 class FakeWebSocket {
   static OPEN = 1;
 

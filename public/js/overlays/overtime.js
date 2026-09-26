@@ -197,13 +197,14 @@ function enqueueAdjustment(adjustment) {
   if (animationQueue.length >= MAX_ANIMATION_QUEUE) {
     const lastIndex = animationQueue.length - 1;
     const previous = animationQueue[lastIndex];
+    const quantity = Number(previous.quantity || 0) + Number(adjustment.quantity || 0);
+    const netSeconds =
+      Number(previous.appliedDeltaSeconds || previous.netSeconds || 0) + Number(adjustment.appliedDeltaSeconds || 0);
     animationQueue[lastIndex] = {
       aggregate: true,
-      quantity: Number(previous.quantity || 0) + Number(adjustment.quantity || 0),
-      appliedDeltaSeconds:
-        Number(previous.appliedDeltaSeconds || previous.netSeconds || 0) + Number(adjustment.appliedDeltaSeconds || 0),
-      netSeconds:
-        Number(previous.appliedDeltaSeconds || previous.netSeconds || 0) + Number(adjustment.appliedDeltaSeconds || 0),
+      quantity,
+      appliedDeltaSeconds: netSeconds,
+      netSeconds,
     };
   } else {
     animationQueue.push(adjustment);

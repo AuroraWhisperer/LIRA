@@ -220,6 +220,20 @@ test('login window cleans up listeners on did-fail-load', async () => {
   assert.equal(failureLog.data.errorDescription, 'ERR_ABORTED');
 });
 
+test('login window remains usable when only a subframe fails to load', async () => {
+  const resultPromise = open(createAuth());
+  await new Promise((resolve) => setImmediate(resolve));
+  const win = FakeBrowserWindow.latest;
+  try {
+    win.webContents.emit('did-fail-load', {}, -105, 'ERR_NAME_NOT_RESOLVED', 'https://invalid.example/', false);
+    assert.equal(win.isDestroyed(), false);
+    assert.equal(win.webContents.session.cookies.listenerCount('changed'), 1);
+  } finally {
+    win.close();
+    await resultPromise;
+  }
+});
+
 test('URL policy: allows navigation to allowedHosts domains', async () => {
   const { isAllowedLoginNavigation } = require('../src/electron/external-url-policy');
   const config = createAuth().BILIBILI_LOGIN_CONFIG;

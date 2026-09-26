@@ -5,6 +5,7 @@ const { Readable, Transform } = require('node:stream');
 const { pipeline } = require('node:stream/promises');
 
 const MAX_UPSTREAM_BYTES = 64 * 1024 * 1024;
+const UPSTREAM_TIMEOUT_MS = 30 * 1000;
 const QQ_MEDIA_HOSTS = new Set([
   'isure.stream.qqmusic.qq.com',
   'ws.stream.qqmusic.qq.com',
@@ -62,14 +63,47 @@ async function serveQQEncryptedStream(record, req, res, options = {}) {
   res.once('close', onClose);
   let upstream;
   let cipher;
+  let upstreamTimedOut = false;
+
+  async function waitForUpstream(work) {
+    const timer = setTimeout(() => {
+      upstreamTimedOut = true;
+      controller.abort();
+    }, UPSTREAM_TIMEOUT_MS);
+    timer.unref?.();
+    try {
+      return await work();
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  async function* readUpstreamBody() {
+    const reader = upstream.body.getReader();
+    try {
+      while (true) {
+        const { done, value } = await waitForUpstream(() => reader.read());
+        if (done) return;
+        // The read deadline is cleared before yielding to downstream backpressure.
+        yield value;
+      }
+    } finally {
+      try {
+        await reader.cancel();
+      } finally {
+        reader.releaseLock();
+      }
+    }
+  }
+
   try {
     if (req.aborted || res.destroyed) return;
     const fetchImpl = options.fetchImpl || fetch;
-    upstream = await fetchImpl(mediaUrl, {
+    upstream = await waitForUpstream(() => fetchImpl(mediaUrl, {
       headers,
       redirect: 'follow',
       signal: controller.signal,
-    });
+    }));
     if (controller.signal.aborted) return;
     try {
       validateMediaUrl(upstream.url || mediaUrl);
@@ -116,11 +150,13 @@ async function serveQQEncryptedStream(record, req, res, options = {}) {
         }
       },
     });
-    await pipeline(Readable.fromWeb(upstream.body), decrypt, res, {
+    await pipeline(Readable.from(readUpstreamBody(), { objectMode: false }), decrypt, res, {
       signal: controller.signal,
     });
   } catch (error) {
-    if (!controller.signal.aborted && !res.destroyed) {
+    if (upstreamTimedOut && !res.destroyed) {
+      sendError(res, 504, 'QQ 加密媒体请求超时，请重新播放。');
+    } else if (!controller.signal.aborted && !res.destroyed) {
       if (!res.headersSent) throw error;
       res.destroy(error);
     }

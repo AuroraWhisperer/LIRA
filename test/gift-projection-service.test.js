@@ -6,6 +6,7 @@ const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 const { createGiftSource, makeProcessedGiftEvent } = require('./helpers/processed-gifts');
+const { createGiftProjectionStore } = require('../src/storage/gift-projection-store');
 const {
   createGiftConsumerRegistry,
   createGiftProjectionService,
@@ -259,6 +260,51 @@ test('pause cancels consumer retries and resume retains failed non-statistics de
     clock.advance(30_000);
     assert.equal(attempts, 2);
     clock.advance(30_000);
+    assert.equal(attempts, 2);
+  } finally {
+    projection.dispose();
+    closeDatabases(db);
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  }
+});
+
+test('a transient database read failure during consumer retry is contained and retried', () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-gift-read-retry-'));
+  const db = createDatabases({ dataDir });
+  const sourceId = createGiftSource(db.giftDb);
+  const clock = createFakeClock(1_800_000_000_000);
+  const projectionStore = createGiftProjectionStore(db.giftDb);
+  const read = projectionStore.read;
+  let failRead = false;
+  projectionStore.read = (id) => {
+    if (failRead) throw new Error('synthetic projection read failure');
+    return read(id);
+  };
+  let attempts = 0;
+  const projection = createGiftProjectionService({ db, projectionStore, settings: () => ({}) }, {
+    now: clock.now,
+    setTimeout: clock.setTimeout,
+    clearTimeout: clock.clearTimeout,
+    consumerRegistry: createGiftConsumerRegistry({
+      consumers: [{
+        name: 'once',
+        handle() {
+          if (++attempts === 1) throw new Error('synthetic consumer failure');
+        },
+      }],
+      onError() {},
+    }),
+  });
+  try {
+    projection.importProcessedEvent(makeProcessedGiftEvent(), sourceId);
+    assert.equal(attempts, 1);
+    failRead = true;
+    assert.doesNotThrow(() => clock.advance(1000));
+    assert.equal(attempts, 1);
+    failRead = false;
+    clock.advance(2000);
+    assert.equal(attempts, 2);
+    clock.advance(30000);
     assert.equal(attempts, 2);
   } finally {
     projection.dispose();

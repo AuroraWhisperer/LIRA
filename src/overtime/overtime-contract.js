@@ -9,6 +9,7 @@ const MAX_RANDOM_WEIGHT = 100_000;
 const MAX_ENABLED_RULES = 8;
 const MIN_RANDOM_OUTCOMES = 2;
 const MAX_RANDOM_OUTCOMES = 10;
+const MAX_RANDOM_APPLICATIONS = 100_000;
 const MAX_DISPLAY_TEXT_LENGTH = 6;
 
 function validateTimeInput(input) {
@@ -50,7 +51,7 @@ function validateBackground(input) {
 function validateRules(input, options = {}) {
   if (!Array.isArray(input)) throw new Error('rules must be an array.');
   const allowedRemoteImageOrigins = normalizeRemoteImageOrigins(options.allowedRemoteImageOrigins);
-  const giftIds = new Set();
+  const giftIdentityKeys = new Set();
   const rules = input.map((value, index) => validateRule(value, index, allowedRemoteImageOrigins));
   for (const [index, rule] of rules.entries()) {
     rule.giftIdentity = validateRuleGiftIdentity({
@@ -58,8 +59,8 @@ function validateRules(input, options = {}) {
       giftIdentity: input[index]?.giftIdentity,
     });
     const key = `${rule.giftId}:${rule.giftIdentity?.variantId || ''}`;
-    if (giftIds.has(key)) throw new Error(`duplicate giftId: ${rule.giftId}`);
-    giftIds.add(key);
+    if (giftIdentityKeys.has(key)) throw new Error(`duplicate giftId: ${rule.giftId}`);
+    giftIdentityKeys.add(key);
   }
   if (rules.filter((rule) => rule.enabled).length > MAX_ENABLED_RULES) {
     throw new Error(`enabled rules cannot exceed ${MAX_ENABLED_RULES}.`);
@@ -311,6 +312,7 @@ module.exports = {
   MAX_ENABLED_RULES,
   MIN_RANDOM_OUTCOMES,
   MAX_RANDOM_OUTCOMES,
+  MAX_RANDOM_APPLICATIONS,
   MAX_DISPLAY_TEXT_LENGTH,
   validateTimeInput,
   validateAction,

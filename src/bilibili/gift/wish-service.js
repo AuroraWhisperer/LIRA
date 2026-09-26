@@ -59,14 +59,14 @@ function createGiftWishService({ store, gifts, catalog, getRoomId, now = Date.no
     const day = new Date(now() + 8 * 3600000).toISOString().slice(0, 10);
     const artwork = new Map(catalogItems().map((gift) => [gift.variantId || String(gift.id), gift.imagePath]));
     const items = store.list(source.sourceId).map((wish) => {
-      const start =
-        wish.period === 'long'
-          ? wish.created_at
-          : wish.period === 'day'
-            ? shanghaiDayStart(day)
-            : session.state === 'offline' || session.ended_at
-              ? null
-              : session.started_at;
+      let start;
+      if (wish.period === 'long') {
+        start = wish.created_at;
+      } else if (wish.period === 'day') {
+        start = shanghaiDayStart(day);
+      } else {
+        start = session.state === 'offline' || session.ended_at ? null : session.started_at;
+      }
       const end = wish.period === 'session' && session.stale ? session.checked_at : asOf;
       const count = store.count(source.sourceId, wish, start, end);
       return {

@@ -113,35 +113,27 @@ test('gift effects overlay uses official frame metadata without cropping or inve
   const html = read('public/pages/overlays/gift-effects.html');
   const css = read('public/css/overlays/gift-effects.css');
   const overlayJs = readOverlayModules();
+  const playerJs = read('public/js/overlays/gift-effect-player.js');
 
   assert.equal(require('../src/server/access-policy').getOverlayScope('/gift-effects'), 'gift-effects');
   assert.match(html, /meta name="referrer" content="no-referrer"/);
   assert.match(html, /id="giftEffectStage"/);
   assert.match(css, /\.gift-effects-overlay-body\s*\{[^}]*background:\s*transparent/);
   assert.match(overlayJs, /payload\.type === ["']gift:effect["']/);
-  assert.match(overlayJs, /referrerPolicy\s*=\s*["']no-referrer["']/);
-  assert.match(overlayJs, /crossOrigin\s*=\s*["']anonymous["']/);
-  assert.match(overlayJs, /keyOutBlack/);
-  assert.match(overlayJs, /applyAlphaMask/);
-  assert.match(overlayJs, /frame\.data\[i \+ 3\] = mask\[i\]/);
-  assert.match(overlayJs, /layout\.rgbFrame/);
-  assert.match(overlayJs, /layout\.alphaFrame/);
-  assert.match(
-    overlayJs,
-    /source\.colorX,[\s\S]*?source\.colorY,[\s\S]*?source\.colorWidth,[\s\S]*?source\.colorHeight/,
-  );
-  assert.match(overlayJs, /source\.maskX,[\s\S]*?source\.maskY,[\s\S]*?source\.maskWidth,[\s\S]*?source\.maskHeight/);
-  assert.match(overlayJs, /videoWidth !== width \|\|[\s\S]*?layout\.videoHeight !== height/);
-  assert.match(overlayJs, /containRect/);
-  assert.match(overlayJs, /Math\.max\(data\[i\], data\[i \+ 1\], data\[i \+ 2\]\)/);
-  assert.doesNotMatch(overlayJs, /height \* 9 \/ 16|activeHeight|horizontalPadding/);
-  assert.doesNotMatch(overlayJs, /255 - Math\.max\(mask/);
-  assert.match(overlayJs, /const MAX_PLAYING = 1/);
-  assert.match(overlayJs, /const MAX_PENDING = 10/);
+  assert.match(overlayJs, /createGiftEffectPlayer\(/);
+  assert.match(overlayJs, /effectPlayer\.enqueue\(payload\)/);
+  assert.match(playerJs, /referrerPolicy\s*=\s*["']no-referrer["']/);
+  assert.match(playerJs, /crossOrigin\s*=\s*["']anonymous["']/);
+  assert.match(playerJs, /\['rgbRect', layout\.rgbFrame\]/);
+  assert.match(playerJs, /\['alphaRect', layout\.alphaFrame\]/);
+  assert.match(playerJs, /vec3 rgb = texture2D\(video, rgbRect\.xy \+ uv \* rgbRect\.zw\)\.rgb/);
+  assert.match(playerJs, /float alpha = texture2D\(video, alphaRect\.xy \+ uv \* alphaRect\.zw\)\.r/);
+  assert.match(playerJs, /gl_FragColor = vec4\(rgb, alpha\)/);
+  assert.match(playerJs, /video\.videoWidth !== effect\.layout\.videoWidth/);
+  assert.match(playerJs, /video\.videoHeight !== effect\.layout\.videoHeight/);
+  assert.doesNotMatch(playerJs, /height \* 9 \/ 16|activeHeight|horizontalPadding/);
   assert.match(overlayJs, /PREVIEW_MODE/);
   assert.match(overlayJs, /visibilitychange/);
-  assert.match(overlayJs, /if \(pending\.length >= MAX_PENDING\) return/);
-  assert.match(overlayJs, /playNextEffect\(\)/);
   assert.doesNotMatch(overlayJs, /innerHTML/);
   assert.doesNotMatch(css, /mix-blend-mode/);
 });

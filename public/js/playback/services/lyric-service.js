@@ -2,6 +2,8 @@
 // 歌词服务 - 负责歌词加载和浏览器源同步
 'use strict';
 
+const MAX_PENDING_FORCED_STATES = 64;
+
 /**
  * 歌词服务类
  */
@@ -23,6 +25,7 @@ export class LyricService {
     this.lastTimelineTrackKey = null;
     this.lastTimelineLyrics = null;
     this.timelinePublishInFlight = null;
+    this.pendingTimeline = null;
   }
 
   /**
@@ -131,6 +134,7 @@ export class LyricService {
 
     const timelinePublish = this.publishBrowserTimeline(track);
     if (timelinePublish) await timelinePublish;
+    if (state.generation !== this.stateGeneration) return false;
     await this.publishBrowserState(state, force);
     return false;
   }
@@ -139,7 +143,7 @@ export class LyricService {
     const trackKey = track ? `${track.source || ''}:${track.id || track.sourceTrackId || track.title || ''}` : '';
     const lyrics = track?.lyrics || null;
     if (trackKey === this.lastTimelineTrackKey && lyrics === this.lastTimelineLyrics) {
-      return this.timelinePublishInFlight;
+      return this.pendingTimeline?.promise || this.timelinePublishInFlight;
     }
 
     this.lastTimelineTrackKey = trackKey;
@@ -152,17 +156,40 @@ export class LyricService {
       lines: hasLyrics ? lyrics.lines : [],
     };
 
-    this.timelinePublishInFlight = (async () => {
+    const request = { timeline, trackKey, lyrics };
+    request.promise = new Promise((resolve) => {
+      request.resolve = resolve;
+    });
+    this.pendingTimeline?.resolve();
+    this.pendingTimeline = request;
+    this.flushTimelineQueue();
+    return request.promise;
+  }
+
+  flushTimelineQueue() {
+    if (this.timelinePublishInFlight || !this.pendingTimeline) return;
+    const request = this.pendingTimeline;
+    this.pendingTimeline = null;
+    this.timelinePublishInFlight = Promise.resolve().then(async () => {
       try {
-        await fetch('/api/playback/lyric-timeline', {
+        const response = await fetch('/api/playback/lyric-timeline', {
           method: 'POST',
+          signal: AbortSignal.timeout(10000),
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(timeline),
+          body: JSON.stringify(request.timeline),
         });
-      } catch (_) {}
-      this.timelinePublishInFlight = null;
-    })();
-    return this.timelinePublishInFlight;
+        if (!response.ok) throw new Error('同步歌词时间轴失败');
+      } catch (_) {
+        if (this.lastTimelineTrackKey === request.trackKey && this.lastTimelineLyrics === request.lyrics) {
+          this.lastTimelineTrackKey = null;
+          this.lastTimelineLyrics = null;
+        }
+      } finally {
+        request.resolve();
+        this.timelinePublishInFlight = null;
+        this.flushTimelineQueue();
+      }
+    });
   }
 
   async publishBrowserState(state, force) {
@@ -178,6 +205,7 @@ export class LyricService {
     return new Promise((resolve) => {
       const request = { serialized, state: roundedState, resolve };
       if (force) {
+        if (this.forcedStateQueue.length >= MAX_PENDING_FORCED_STATES) this.forcedStateQueue.shift().resolve();
         this.forcedStateQueue.push(request);
       } else {
         if (this.pendingState) this.pendingState.resolve();
@@ -213,6 +241,7 @@ export class LyricService {
           if (!Number.isSafeInteger(state.generation)) break;
           const response = await fetch('/api/playback/lyric-state', {
             method: 'POST',
+            signal: AbortSignal.timeout(10000),
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(state),
           });

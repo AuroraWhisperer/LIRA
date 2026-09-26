@@ -3,6 +3,7 @@
 const { buildBilibiliWbiQuery, createBilibiliWbiMixinKey } = require('../wbi-signer');
 const { normalizeDynamicLink } = require('./link');
 const { parseReactionPage } = require('./reaction-parser');
+const { readResponseBytes } = require('../../shared/response-body');
 const {
   LotteryProviderError,
   fail,
@@ -51,15 +52,11 @@ async function readLimitedJson(response) {
   if (!response || typeof response.arrayBuffer !== 'function') {
     fail('LOTTERY_UPSTREAM_INVALID', 'Upstream response object is invalid.');
   }
-  const contentLength = Number(response.headers?.get?.('content-length'));
-  if (Number.isFinite(contentLength) && contentLength > MAX_RESPONSE_BYTES) {
-    fail('LOTTERY_RESPONSE_TOO_LARGE', 'Upstream response exceeds four MiB.');
-  }
-
-  const body = Buffer.from(await response.arrayBuffer());
-  if (body.length > MAX_RESPONSE_BYTES) {
-    fail('LOTTERY_RESPONSE_TOO_LARGE', 'Upstream response exceeds four MiB.');
-  }
+  const body = await readResponseBytes(
+    response,
+    MAX_RESPONSE_BYTES,
+    () => new LotteryProviderError('LOTTERY_RESPONSE_TOO_LARGE', 'Upstream response exceeds four MiB.'),
+  );
   let text;
   try {
     text = new TextDecoder('utf-8', { fatal: true }).decode(body);

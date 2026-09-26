@@ -89,12 +89,12 @@ return hash & 0x7fffffff; // 保留 31 位正数
 
 ## 6. 请求方法
 
-所有请求统一超时 `REQUEST_TIMEOUT_MS = 10000`([qq-provider-streams.js](../../../../src/music/providers/qq-provider-streams.js)),`redirect: 'follow'`。
+JSON/JSONP/文本请求统一超时 `REQUEST_TIMEOUT_MS = 10000`([qq-provider-client.js](../../../../src/music/providers/qq-provider-client.js)),`redirect: 'follow'`。所有这些响应经[共享读取器](../../../../src/shared/response-body.js)限制为 16 MiB；保留分块前累计字节数，超限取消上游且错误不拼接大正文，缓冲区按倍数扩容以限制微小分块的对象开销。
 
 | 方法                  | 形式            | 要点                                                                                                                                                  | 出处                                                                               |
 | --------------------- | --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `requestJson`         | GET             | 参数逐个 `searchParams.set`;`AbortSignal.timeout(10000)`;`stripJsonp` 解包后 JSON.parse;非 JSON 抛"返回了非 JSON 响应"                                | [qq-provider-client.js](../../../../src/music/providers/qq-provider-client.js) |
-| `requestText`         | GET             | 同 requestJson 但返回原始文本(当前无调用点,保留工具)                                                                                                  | [qq-provider-client.js](../../../../src/music/providers/qq-provider-client.js) |
+| `requestJson`         | GET             | 参数逐个 `searchParams.set`;`AbortSignal.timeout(10000)`;共享响应体读取器限制 16 MiB，`stripJsonp` 解包后 JSON.parse;非 JSON 抛"返回了非 JSON 响应"                                | [qq-provider-client.js](../../../../src/music/providers/qq-provider-client.js) |
+| `requestText`         | GET             | 同 requestJson 但返回原始文本（同样限制 16 MiB；当前无调用点,保留工具）                                                                                                  | [qq-provider-client.js](../../../../src/music/providers/qq-provider-client.js) |
 | `requestMusicu`       | GET musicu      | `data=<JSON.stringify({...modules, comm})>` 查询参数;comm 固定 `{uin, format:'json', ct:24, cv:0}`                                                    | [qq-provider-client.js](../../../../src/music/providers/qq-provider-client.js) |
 | `requestMusicuPost`   | POST musicu     | `Content-Type: application/json`,body 为 `{...modules, comm}`(comm 由调用方传)                                                                        | [qq-provider-client.js](../../../../src/music/providers/qq-provider-client.js) |
 | `requestMusicsClient` | POST musics.fcg | `Content-Type: application/x-www-form-urlencoded`,URL 加 `pcachetime=floor(now/1000)`;**前置要求 `uin` + `authst` 都存在**,否则抛"登录 Cookie 不完整" | [qq-provider-client.js](../../../../src/music/providers/qq-provider-client.js) |

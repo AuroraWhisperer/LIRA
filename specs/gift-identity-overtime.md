@@ -19,7 +19,11 @@
 
 11. 目录类别统一为 `directGift`（直送礼物）、`blindBox`（盲盒）、`blindBoxOutput`（盲盒产物），替换目录 `isBlindBox`。main 校验枚举及关系一致性：关系来源必须是盲盒，非盒子产物必须标为产物，产物必须有来源。类别包含在服务端业务摘要内并原子缓存，renderer 直接使用类别；关系仅补充来源名称。身份未匹配不沿用旧类别。原始 metadata 和收礼事件/账本的 `isBlindBox` 不变，不按目录重新结算；概率可以后补。
 
+The complete catalog response must have a finite decoded-byte budget as specified in [desktop/main.md](../docs/architecture/desktop/main.md#21-设备授权生命周期). Exceeding that budget fails the refresh atomically, preserving the last valid catalog and ETag.
+
 ## Acceptance criteria
+
+- 完整目录读取遵守 [桌面响应容量合同](../docs/architecture/desktop/main.md#21-设备授权生命周期)。达到上限的合法正文可读取；多一个字节即取消 reader、返回 `RESPONSE_TOO_LARGE`，已有内存/磁盘目录及 ETag 不变。不得截断身份或把不完整目录写成成功版本。验证：`test/remote-catalog-capacity.test.js`。
 
 - 同 ID 的旧名称、新名称、同名新标价三个规则并存，分别触发 30、60、90 秒；没有身份的同 ID 事件不触发，重放与重启不二次结算。
 - 旧数字 ID 规则迁移后保留原设置并提示重新选择；选择新礼物后仅后续该身份事件生效。

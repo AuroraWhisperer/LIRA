@@ -214,3 +214,21 @@ test('window rebinding and disposal remove owned navigation listeners', () => {
   assert.equal(second.webContents.listenerCount('will-navigate'), 0);
   assert.equal(second.webContents.listenerCount('will-redirect'), 0);
 });
+
+test('failed external browser launches are owned by the navigation handler', async (t) => {
+  const f = fixture();
+  const contents = new EventEmitter();
+  contents.isDestroyed = () => false;
+  contents.setWindowOpenHandler = (handler) => { contents.open = handler; };
+  const warnings = t.mock.method(console, 'warn', () => {});
+  f.auth.bindWindow({ webContents: contents }, {
+    openExternal: async () => { throw new Error('synthetic system browser failure'); },
+  });
+  t.after(() => f.auth.dispose());
+  let prevented = false;
+  contents.emit('will-navigate', { preventDefault() { prevented = true; } }, 'https://example.test');
+  assert.equal(prevented, true);
+  assert.deepEqual(contents.open({ url: 'https://example.test' }), { action: 'deny' });
+  await new Promise(setImmediate);
+  assert.equal(warnings.mock.callCount(), 2);
+});

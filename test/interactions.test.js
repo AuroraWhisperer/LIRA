@@ -145,6 +145,44 @@ test('rating keeps final valid score, rejects stale timestamps/replays and hides
   assert.throws(() => f.service.clear(id), { statusCode: 409 });
 });
 
+for (const hours of [12, 24, 168]) {
+  test(`rating survives ${hours} virtual hours and releases its subscription without background tasks`, () => {
+    const f = fixture();
+    const expectedScores = new Map();
+    const id = f.service.start({ kind: 'rating' }).session.sessionId;
+    try {
+      const originalListener = f.listener;
+      for (let minute = 0; minute < hours * 60; minute++) {
+        f.setTime(1000 + minute * 60_000);
+        if (minute % 60 === 0) {
+          f.source.ready = false;
+          f.service.sourceChanged();
+          f.send('999', '10');
+          f.source.ready = true;
+          f.source.connectionKey = String(minute + 2);
+          f.service.sourceChanged();
+          assert.equal(f.listener, originalListener);
+        }
+        const uid = String(1 + minute % 64);
+        const score = 1 + minute % 10;
+        f.send(uid, String(score), { platformTime: minute * 60_000, eventId: null });
+        expectedScores.set(uid, score);
+        assert.equal(f.tasks.size, 0);
+      }
+      assert.equal(f.service.getHostState().participants, 64);
+      assert.equal(f.service.getState().session.average, null);
+      const final = f.service.finish(id);
+      assert.equal(final.session.average, [...expectedScores.values()].reduce((sum, value) => sum + value, 0) / 64);
+      assert.equal(final.session.participants, 64);
+      assert.equal(f.listener, null);
+      assert.equal(f.tasks.size, 0);
+    } finally {
+      f.service.dispose();
+      f.games.dispose();
+    }
+  });
+}
+
 test('receiving window excludes pre-start frames and deadline equality despite late timer', () => {
   const f = fixture();
   f.service.start({ ...poll, durationSeconds: 1 });

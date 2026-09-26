@@ -4,9 +4,9 @@
     {
       "path": "src/electron/main.js",
       "kind": "review",
-      "maxLines": 710,
+      "maxLines": 712,
       "owner": "桌面组合入口",
-      "reason": "2026-09-15 礼物互动接入复核：组合入口仅增加专用 IPC 的注册与关闭清理，设置确认/串行写入仍归云同步控制器，窄 IPC 校验在独立模块；保留 2026-09-14 抽奖认证与 runtime 接线。保护测试为 electron-shutdown 与 gift-interaction-controls。 2026-09-18 集成门禁逐块复核：礼物导出仅增加 IPC/controller 导入、启动接线和关闭清理，数据选择及文件导出仍在独立 controller；没有将业务逻辑加入入口。补齐既有 shutdown harness 两个依赖桩后，以启动/停机和 gift-export-controller 测试验证组合边界。 2026-09-18 粉丝档案逐项复核：粉丝档案的同步/来源校验已提取为 fan-profile-controller 与 fan-profile-ipc；入口只注册、传依赖、在现有 drain 集合中关闭。未增加领域状态；electron-shutdown 新增粉丝同步 drain 断言。",
+      "reason": "2026-09-15 礼物互动接入复核：组合入口仅增加专用 IPC 的注册与关闭清理，设置确认/串行写入仍归云同步控制器，窄 IPC 校验在独立模块；保留 2026-09-14 抽奖认证与 runtime 接线。保护测试为 electron-shutdown 与 gift-interaction-controls。 2026-09-18 集成门禁逐块复核：礼物导出仅增加 IPC/controller 导入、启动接线和关闭清理，数据选择及文件导出仍在独立 controller；没有将业务逻辑加入入口。补齐既有 shutdown harness 两个依赖桩后，以启动/停机和 gift-export-controller 测试验证组合边界。 2026-09-18 粉丝档案逐项复核：粉丝档案的同步/来源校验已提取为 fan-profile-controller 与 fan-profile-ipc；入口只注册、传依赖、在现有 drain 集合中关闭。未增加领域状态；electron-shutdown 新增粉丝同步 drain 断言。 2026-09-25 审计跟进逐块复核：仅为旧 IPC 注入当前窗口/服务 origin，并将现有认证 owner 加入停机 drain；净增两行依赖接线。来源判定独立在 main-window-ipc，取消和串行写入在 desktop-auth-controller；不为两行组合接线新建抽象或压缩代码。legacy-ipc-source、真实 desktop-auth-race-electron 与 electron-shutdown 保护合法调用和停机顺序。",
       "removal": "继续按真实独立职责整理组合阶段；保留启动失败、授权及停机验证。",
       "reviewBy": "2026-12-18",
       "test": "test/electron-shutdown.test.js"

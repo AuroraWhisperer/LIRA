@@ -14,6 +14,7 @@ class LiveStatusMonitor {
     this.checkInFlight = false;
     this.reconnectInFlight = false;
     this.ownerName = '';
+    this.localGeneration = 0;
   }
 
   start(roomInfo) {
@@ -40,6 +41,7 @@ class LiveStatusMonitor {
     clearInterval(this.timer);
     this.timer = null;
     this.stopped = true;
+    this.localGeneration += 1;
   }
 
   setReconnectInFlight(value) {
@@ -50,8 +52,10 @@ class LiveStatusMonitor {
     if (this.stopped || this.checkInFlight || this.reconnectInFlight) return;
 
     this.checkInFlight = true;
+    const localGeneration = this.localGeneration;
     try {
       const roomInfo = await this.apiClient.resolveRoomInfo();
+      if (this.stopped || localGeneration !== this.localGeneration) return;
       if (roomInfo.ownerName) {
         this.ownerName = roomInfo.ownerName;
       }

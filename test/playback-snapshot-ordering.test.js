@@ -56,7 +56,12 @@ async function sender(store, options = {}) {
   const ipcHandlers = new Map();
   const timers = new Map();
   let timerId = 0;
+  const mainFrame = { url: 'http://127.0.0.1:3000/admin' };
+  const webContents = { mainFrame };
+  const ipcEvent = { sender: webContents, senderFrame: mainFrame };
   registerMusicIpc({
+    getMainWindow: () => ({ webContents, isDestroyed: () => false }),
+    getDesktopBaseUrl: () => 'http://127.0.0.1:3000',
     ipcMain: {
       handle(name, run) {
         ipcHandlers.set(name, run);
@@ -87,7 +92,7 @@ async function sender(store, options = {}) {
                 async savePlaybackState(clientId, payload) {
                   calls.ipc.push(payload);
                   if (options.beforeIpc) await options.beforeIpc();
-                  return ipcHandlers.get('playback:save-state')({}, { clientId, payload });
+                  return ipcHandlers.get('playback:save-state')(ipcEvent, { clientId, payload });
                 },
               },
       },

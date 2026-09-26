@@ -61,7 +61,7 @@ class HistoryPoller {
       const messages = []
         .concat(Array.isArray(data.admin) ? data.admin : [])
         .concat(Array.isArray(data.room) ? data.room : []);
-      messages.sort((a, b) => parseBilibiliTimeline(a.timeline) - parseBilibiliTimeline(b.timeline));
+      messages.sort((a, b) => normalizeTimestampMs(a.timeline) - normalizeTimestampMs(b.timeline));
 
       let processed = 0;
       let stale = 0;
@@ -70,7 +70,7 @@ class HistoryPoller {
         if (localGeneration !== this.localGeneration) return;
         const text = cleanText(item.text);
         if (!text) continue;
-        const timelineMs = parseBilibiliTimeline(item.timeline);
+        const timelineMs = normalizeTimestampMs(item.timeline);
         if (!this.isCommandText(text)) continue;
         if (!bilibiliHelpers.isCapturableBilibiliTimestamp(timelineMs, this.startedAtMs)) {
           stale += 1;
@@ -154,10 +154,6 @@ function toIdentityHint(item, userMeta) {
         : null,
     },
   };
-}
-
-function parseBilibiliTimeline(value) {
-  return normalizeTimestampMs(value);
 }
 
 module.exports = { HistoryPoller };

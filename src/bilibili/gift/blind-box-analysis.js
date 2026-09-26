@@ -120,7 +120,7 @@ function getBlindBoxAnalysis(context, options = {}) {
   });
   const summary = summarizeBlindBoxRows(filteredRows);
   const allItems = buildBlindBoxAnalysisItems(filteredRows, view);
-  sortBlindBoxAnalysisItems(allItems, view, sort, direction);
+  sortBlindBoxAnalysisItems(allItems, sort, direction);
   const total = allItems.length;
   const totalPages = Math.max(1, Math.ceil(total / limit));
   const page = Math.min(requestedPage, totalPages);
@@ -251,35 +251,11 @@ function buildBlindBoxAnalysisItems(rows, view) {
   });
 }
 
-function sortBlindBoxAnalysisItems(items, view, sort, direction) {
-  const fields = {
-    users: {
-      profit: 'profit',
-      boxCount: 'boxCount',
-      totalCost: 'totalCost',
-      totalValue: 'totalValue',
-      lastOpenedAt: 'lastOpenedAt',
-    },
-    boxes: {
-      profit: 'profit',
-      boxCount: 'boxCount',
-      viewerCount: 'viewerCount',
-      totalCost: 'totalCost',
-      totalValue: 'totalValue',
-    },
-    records: {
-      createdAt: 'createdAt',
-      profit: 'profit',
-      cost: 'cost',
-      value: 'value',
-      num: 'num',
-    },
-  };
-  const field = fields[view][sort];
+function sortBlindBoxAnalysisItems(items, sortField, direction) {
   const multiplier = direction === 'asc' ? 1 : -1;
   items.sort((a, b) => {
-    const left = a[field];
-    const right = b[field];
+    const left = a[sortField];
+    const right = b[sortField];
     const difference =
       typeof left === 'number' ? left - right : String(left || '').localeCompare(String(right || ''), 'zh-CN');
     if (difference !== 0) return difference * multiplier;

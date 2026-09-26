@@ -7,6 +7,8 @@ import { applyOverlayTheme } from './overlay-theme.js';
 import { createOverlaySocket } from './socket-client.js';
 import { startOverlayPages } from './auto-pages.js';
 
+const RANK_ICONS = ['👑', '🥈', '🥉'];
+
 let state = null;
 let stateRevision = 0;
 let statsRevision = 0;
@@ -210,18 +212,8 @@ function render(stats) {
     const rows = users
       .map((user, index) => {
         const rank = index + 1;
-        let rankClass = '';
-        let rankIcon = '';
-        if (rank === 1) {
-          rankClass = 'rank-1';
-          rankIcon = '👑';
-        } else if (rank === 2) {
-          rankClass = 'rank-2';
-          rankIcon = '🥈';
-        } else if (rank === 3) {
-          rankClass = 'rank-3';
-          rankIcon = '🥉';
-        }
+        const rankClass = rank <= 3 ? `rank-${rank}` : '';
+        const rankLabel = RANK_ICONS[index] || rank;
 
         const profitSign = user.totalProfit >= 0 ? '+' : '-';
         const profitIsUp = user.totalProfit >= 0;
@@ -237,7 +229,7 @@ function render(stats) {
 
         return `
         <div class="leaderboard-row ${rankClass}${isLoss ? ' is-loss' : ''}">
-          <div class="rank-badge">${rank <= 3 ? rankIcon : rank}</div>
+          <div class="rank-badge">${rankLabel}</div>
           <div class="user-info">
             <span class="user-name">${escapeHtml(user.userName)}</span>
             ${titleHtml}
@@ -263,8 +255,6 @@ function render(stats) {
 
     leaderboard.innerHTML = headerHtml + rows;
   }
-
-  // ── 底部 ── 已移除更新时间和参数显示
 }
 
 function applyTheme(settings) {

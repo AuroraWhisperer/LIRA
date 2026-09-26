@@ -15,18 +15,7 @@ function truncateUtf8(value, maxBytes, marker = TRUNCATION_MARKER) {
   if (markerBytes >= byteLimit) return sliceUtf8(safeMarker, byteLimit);
 
   const contentLimit = byteLimit - markerBytes;
-  let low = 0;
-  let high = text.length;
-  while (low < high) {
-    const middle = Math.ceil((low + high) / 2);
-    if (Buffer.byteLength(text.slice(0, middle), 'utf8') <= contentLimit) {
-      low = middle;
-    } else {
-      high = middle - 1;
-    }
-  }
-  if (low > 0 && isHighSurrogate(text.charCodeAt(low - 1))) low -= 1;
-  return `${text.slice(0, low)}${safeMarker}`;
+  return `${sliceUtf8(text, contentLimit)}${safeMarker}`;
 }
 
 function appendBoundedFileSync(filePath, line, options = {}) {

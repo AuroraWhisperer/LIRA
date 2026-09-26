@@ -2,7 +2,7 @@
 
 const { createHash } = require('node:crypto');
 const { profilePatch, identityKey, timestamp, recordData } = require('./validation');
-const { dateValue, dayStart } = require('./dates');
+const { DAY_MS, dateValue, dayStart } = require('./dates');
 
 function digest(value) {
   return createHash('sha256').update(JSON.stringify(value)).digest('hex');
@@ -31,11 +31,11 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
     ) {
       throw new Error('备份格式无效或归属不匹配。请切换到备份所属服务器和主播账号后恢复。');
     }
-    const ids = new Set();
-    const keys = new Set();
+    const profileIds = new Set();
+    const identityKeys = new Set();
     for (const profile of input.profiles) {
-      if (typeof profile.id !== 'string' || ids.has(profile.id)) throw new Error('备份中有重复或无效档案。');
-      ids.add(profile.id);
+      if (typeof profile.id !== 'string' || profileIds.has(profile.id)) throw new Error('备份中有重复或无效档案。');
+      profileIds.add(profile.id);
       const patch = profilePatch(profile);
       if (profile.guardRoster !== undefined && profile.guardRoster !== null) {
         const roster = profile.guardRoster;
@@ -53,8 +53,8 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
         timestamp(roster.observedAt, '大航海名单同步时间');
       }
       const key = identityKey(patch.identity);
-      if (key && keys.has(key)) throw new Error('备份中同一身份重复。');
-      if (key) keys.add(key);
+      if (key && identityKeys.has(key)) throw new Error('备份中同一身份重复。');
+      if (key) identityKeys.add(key);
       if (!Array.isArray(profile.records) || !Array.isArray(profile.reminders)) throw new Error('备份缺少完整记录。');
       for (const record of profile.records) {
         recordData(record.kind, record.data);
@@ -152,7 +152,7 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
         scope,
         profile.identity.value,
         new Date(dayStart(from)).toISOString(),
-        new Date(dayStart(to) + 86400000).toISOString(),
+        new Date(dayStart(to) + DAY_MS).toISOString(),
       )
       .filter((r) => !r.identityType || r.identityType === 'uid');
     return {

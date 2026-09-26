@@ -51,12 +51,12 @@ function writeMusicJsonCache(directory, key, data, maxBytes = MUSIC_API_CACHE_MA
 
 function pruneMusicCacheDirectory(directory, maxBytes) {
   const files = listCacheFiles(directory);
-  let total = files.reduce((sum, file) => sum + file.size, 0);
+  let totalBytes = files.reduce((sum, file) => sum + file.size, 0);
   for (const file of files.sort((a, b) => a.mtimeMs - b.mtimeMs)) {
-    if (total <= maxBytes) break;
+    if (totalBytes <= maxBytes) break;
     try {
       fs.unlinkSync(file.path);
-      total -= file.size;
+      totalBytes -= file.size;
     } catch (_) {
       /* ignore */
     }
@@ -66,7 +66,7 @@ function pruneMusicCacheDirectory(directory, maxBytes) {
 function getDirectoryStats(directory) {
   const files = listCacheFiles(directory);
   return {
-    bytes: files.reduce((sum, f) => sum + f.size, 0),
+    bytes: files.reduce((sum, file) => sum + file.size, 0),
     files: files.length,
   };
 }
@@ -75,11 +75,11 @@ function listCacheFiles(directory) {
   try {
     return fs
       .readdirSync(directory, { withFileTypes: true })
-      .filter((e) => e.isFile() && e.name.endsWith('.json'))
-      .map((e) => {
-        const fp = path.join(directory, e.name);
-        const st = fs.statSync(fp);
-        return { path: fp, size: st.size, mtimeMs: st.mtimeMs };
+      .filter((entry) => entry.isFile() && entry.name.endsWith('.json'))
+      .map((entry) => {
+        const filePath = path.join(directory, entry.name);
+        const stats = fs.statSync(filePath);
+        return { path: filePath, size: stats.size, mtimeMs: stats.mtimeMs };
       });
   } catch (_) {
     return [];
@@ -106,11 +106,13 @@ function clearMusicCache(apiDir, lyricDir) {
 }
 
 function getMusicCacheStats(apiDir, lyricDir) {
+  const api = getDirectoryStats(apiDir);
+  const lyrics = getDirectoryStats(lyricDir);
   return {
-    api: getDirectoryStats(apiDir),
-    lyrics: getDirectoryStats(lyricDir),
-    totalBytes: getDirectoryStats(apiDir).bytes + getDirectoryStats(lyricDir).bytes,
-    totalFiles: getDirectoryStats(apiDir).files + getDirectoryStats(lyricDir).files,
+    api,
+    lyrics,
+    totalBytes: api.bytes + lyrics.bytes,
+    totalFiles: api.files + lyrics.files,
   };
 }
 

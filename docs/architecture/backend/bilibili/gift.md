@@ -8,6 +8,8 @@
 
 **目录内模块边界:** `gift/sale-catalog.js` 拥有缓存、刷新与服务门面，`gift/sale-catalog-parser.js` 只做目录响应的纯解析/归一化；`users/user-info-service.js` 拥有网络、缓存与失败策略，`users/user-info-evidence.js` 只做用户证据和风险字段归一化。解析模块不得持有服务生命周期或重复缓存。
 
+`gift/effect-config.js` 的特效布局与失败 URL 缓存仅保留当前特效目录引用的地址。目录成功刷新时清理旧地址；旧请求晚到仍向原调用者返回结果，但不重新写入过期缓存。目录刷新失败时保留旧目录及其缓存，并沿用单飞与失败重试间隔。
+
 远端目录的 `remote-catalog-cache.js` 独占刷新合并、ETag、停止代次及持久化后发布；`remote-catalog-contract.js` 校验响应封装、v2 礼物/盲盒关系并复用 v3 variant 契约；`remote-catalog-image-policy.js` 校验 B 站原图与配置服务器同源的不可变图片地址。缓存入口保留原具名导出以兼容既有消费者。
 
 Schema 3 按服务器协议接收完整历史活动目录，不额外设置 10,000 条活动身份的拒绝门槛；仍逐项核对字段、身份摘要、总数、业务版本和奖池引用，合法全包才持久化后发布。超过该数量的合法目录须完整刷新、重启可读；非法大目录保留旧快照，不能截断活动或删除未被当前奖池引用的历史身份。验证：`test/gift-identity-catalog.test.js`。

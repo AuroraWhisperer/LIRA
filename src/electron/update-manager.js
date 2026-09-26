@@ -100,13 +100,12 @@ function configureAutoUpdater({ onStateChange, writeLog, updater }) {
     const transferred = progress.transferred || 0;
     const total = progress.total || 0;
 
-    // 计算下载速度
     const now = Date.now();
     let speed = 0;
     if (lastProgressTime > 0 && now > lastProgressTime) {
-      const timeDiff = (now - lastProgressTime) / 1000; // 秒
-      const bytesDiff = transferred - lastTransferred;
-      speed = bytesDiff / timeDiff; // 字节/秒
+      const elapsedSeconds = (now - lastProgressTime) / 1000;
+      const downloadedBytes = transferred - lastTransferred;
+      speed = downloadedBytes / elapsedSeconds;
     }
     lastProgressTime = now;
     lastTransferred = transferred;

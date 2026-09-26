@@ -41,13 +41,13 @@ function createFanMergeService({ store, now, detail, requireProfile }) {
     const patch = profilePatch(plan.source);
     patch.nameHistory = recentNameHistory(plan.source.nameHistory, plan.target.platformName);
     delete patch.identity;
-    const value = { ...plan.target };
+    const mergedProfile = { ...plan.target };
+    const isEmpty = (value) => value == null || value === '' || (Array.isArray(value) && !value.length);
     for (const [key, incoming] of Object.entries(patch)) {
-      const empty = (v) => v == null || v === '' || (Array.isArray(v) && !v.length);
-      if (!empty(incoming) && (empty(value[key]) || input.prefer === 'source')) value[key] = incoming;
+      if (!isEmpty(incoming) && (isEmpty(mergedProfile[key]) || input.prefer === 'source')) mergedProfile[key] = incoming;
     }
-    value.merges = [...(value.merges || []), { sourceId: plan.source.id, mergedAt: at, snapshotId }];
-    store.save(scope, value, identityKey(value.identity), at);
+    mergedProfile.merges = [...(mergedProfile.merges || []), { sourceId: plan.source.id, mergedAt: at, snapshotId }];
+    store.save(scope, mergedProfile, identityKey(mergedProfile.identity), at);
     store.moveRecords(scope, plan.source.id, plan.target.id);
     const targetStates = new Map(store.states(scope, plan.target.id).map((item) => [item.key, item]));
     for (const state of store.states(scope, plan.source.id)) {

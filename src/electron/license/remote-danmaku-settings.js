@@ -27,7 +27,8 @@ function createRemoteDanmakuSettings(request) {
       ) {
         throw Object.assign(new Error('DAILY_BOT_INVALID_REQUEST'), { code: 'DAILY_BOT_INVALID_REQUEST' });
       }
-      return request(route[0], route[1], route[0] === 'GET' ? undefined : input.body, token);
+      const [method, pathname] = route;
+      return request(method, pathname, method === 'GET' ? undefined : input.body, token);
     },
     getWelcomeSettings: (token) => request('GET', '/api/device/welcome-settings', undefined, token),
     updateWelcomeSettings: (settings, token) => request('PUT', '/api/device/welcome-settings', settings, token),

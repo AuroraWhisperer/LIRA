@@ -67,8 +67,7 @@ async function cleanupOwnPortOccupant(options) {
   const reportPhase = typeof options.onPhase === 'function' ? options.onPhase : () => {};
   const phaseStart = Date.now();
   const markPhase = (phase, extra = {}) => reportPhase(phase, Date.now() - phaseStart, extra);
-  const requestedPort = Number(options.port);
-  const port = requestedPort;
+  const port = Number(options.port);
   const host = options.host;
   if (!Number.isInteger(port) || port <= 0) {
     markPhase('port-cleanup', { result: 'skipped-invalid-port' });

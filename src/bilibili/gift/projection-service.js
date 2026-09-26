@@ -224,14 +224,19 @@ function createGiftProjectionService({ store, settings }, options = {}) {
     consumerRetryAttempts.set(id, Math.min(attempt + 1, 5));
     const generation = detectionGeneration;
     const timer = scheduleTimeout(() => {
-      if (detectionPaused || generation !== detectionGeneration) return;
+      if (disposed || detectionPaused || generation !== detectionGeneration) return;
       consumerRetryTimers.delete(id);
-      const row = readGift(id);
-      if (!row || row.detection_status !== 'final') {
-        clearConsumerRetry(id);
-        return;
+      try {
+        const row = readGift(id);
+        if (!row || row.detection_status !== 'final') {
+          clearConsumerRetry(id);
+          return;
+        }
+        dispatch(row, 'final');
+      } catch (error) {
+        console.warn('[Bilibili][GiftConsumer] automatic delivery retry failed:', error);
+        scheduleConsumerRetry(id);
       }
-      dispatch(row, 'final');
     }, delayMs);
     if (timer && typeof timer.unref === 'function') timer.unref();
     consumerRetryTimers.set(id, timer);

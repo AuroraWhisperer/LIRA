@@ -287,23 +287,12 @@ export class PlaybackBar {
       // 始终更新登录按钮文本，确保切换音乐源时文本正确
       loginBtn.textContent = `登录${sourceName}`;
 
-      // 确保只显示一个按钮
-      if (isWeSing) {
-        loginBtn.style.display = 'none';
-        loginBtn.disabled = true;
-        logoutBtn.style.display = 'none';
-        logoutBtn.disabled = true;
-      } else if (loggedIn) {
-        loginBtn.style.display = 'none';
-        loginBtn.disabled = true;
-        logoutBtn.style.display = '';
-        logoutBtn.disabled = false;
-      } else {
-        loginBtn.style.display = '';
-        loginBtn.disabled = false;
-        logoutBtn.style.display = 'none';
-        logoutBtn.disabled = true;
-      }
+      const canLogin = !isWeSing && !loggedIn;
+      const canLogout = !isWeSing && loggedIn;
+      loginBtn.style.display = canLogin ? '' : 'none';
+      loginBtn.disabled = !canLogin;
+      logoutBtn.style.display = canLogout ? '' : 'none';
+      logoutBtn.disabled = !canLogout;
     }
 
     const clearCacheBtn = document.getElementById('playbackClearCacheBtn');

@@ -93,7 +93,7 @@ PowerShell 侧兜底:**MSAA 未给出进度时**,UIAutomation 从窗口句柄 `A
 ### 5.1 日志扫描(findLatestSongEntry,[wesing-cache.js](../../../../src/music/wesing-cache.js))
 
 1. `Log/WeSing/` 下全部 `*.log` 按 mtime 降序取**最新文件**
-2. 尾部 `LOG_TAIL_BYTES = 100KB`,起始偏移按 `& ~1` **偶数对齐**(UTF-16LE 防半个字符)
+2. 尾部 `LOG_TAIL_BYTES = 100KB`,起始偏移按数值整除向下取整至偶数(UTF-16LE 防半个字符)，避免大于 2 GiB 的文件偏移被位运算截断；最多读取 100 KiB + 1 字节
 3. 整块 `utf16le` 解码,按行**倒序**找含 `"StartKSong"` 的行,正则提取 `"mid"` 与 `"songname"`(`decodeJsonString` 解转义)
 4. `SAFE_SONG_MID` 校验失败整体返回 null;传入期望标题时按 `normalizeTitle`(去"全民K歌 - "前缀 + 去空白 + 小写)过滤
 

@@ -69,7 +69,7 @@ async function findLatestSongEntry(cachePath, expectedTitle = '') {
   if (!logFiles.length) return null;
 
   const latest = logFiles[0];
-  const start = Math.max(0, latest.size - LOG_TAIL_BYTES) & ~1;
+  const start = Math.floor(Math.max(0, latest.size - LOG_TAIL_BYTES) / 2) * 2;
   const length = Math.max(0, latest.size - start);
   if (!length) return null;
 

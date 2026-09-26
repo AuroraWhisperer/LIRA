@@ -94,6 +94,9 @@ async function createPlaybackApp(initialState, options = {}) {
       },
     },
     musicAPI: {
+      async login(platform) {
+        return options.login?.(platform);
+      },
       async logout() {
         return { ok: true };
       },
@@ -179,7 +182,10 @@ async function createPlaybackApp(initialState, options = {}) {
     if (url === '/api/music/home') {
       return response({
         ok: true,
-        data: { tracks: homeTracks || [track('radio-refill', '电台补充歌曲')] },
+        data:
+          typeof appOptions.loadHome === 'function'
+            ? await appOptions.loadHome(JSON.parse(options.body))
+            : { tracks: homeTracks || [track('radio-refill', '电台补充歌曲')] },
       });
     }
     return response({ ok: true, data: {} });
@@ -190,6 +196,7 @@ async function createPlaybackApp(initialState, options = {}) {
 
   const sandbox = {
     console,
+    AbortSignal,
     document,
     encodeURIComponent,
     fetch,

@@ -4,7 +4,9 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { createRequire } = require('node:module');
 const test = require('node:test');
+const vm = require('node:vm');
 const { createGiftSource, makeProcessedGiftEvent } = require('./helpers/processed-gifts');
 const {
   EFFECT_API_URL,
@@ -42,6 +44,57 @@ function packedLayout() {
     },
   };
 }
+
+test('catalog rotation retains layout caches only for current URLs, including late requests', async () => {
+  const maps = [];
+  class CountedMap extends Map {
+    constructor(...args) { super(...args); maps.push(this); }
+  }
+  const filename = path.join(__dirname, '../src/bilibili/gift/effect-config.js');
+  const module = { exports: {} };
+  vm.runInNewContext(fs.readFileSync(filename, 'utf8'), {
+    module, require: createRequire(filename), Map: CountedMap, URL,
+    console: { log() {}, warn() {} },
+  }, { filename });
+  let generation = 0;
+  let nowMs = 1000;
+  let releaseSuccess;
+  let releaseFailure;
+  const resolver = module.exports.createGiftEffectResolver({
+    now: () => nowMs,
+    refreshMs: 1,
+    fetchJson: async () => ({ payload: { data: { full_sc_resource: {
+      conf_list: [confEntry(generation * 2 + 1, [1]), confEntry(generation * 2 + 2, [2])],
+    } } } }),
+    fetchLayoutJson: async (name, url) => {
+      const id = Number(/effect-(\d+)\.json$/.exec(url)[1]);
+      if (id === 1) await new Promise((resolve) => { releaseSuccess = resolve; });
+      if (id === 2) await new Promise((resolve) => { releaseFailure = resolve; });
+      if (id % 2 === 0) throw new Error('synthetic layout unavailable');
+      return { payload: packedLayout() };
+    },
+  });
+  const oldSuccess = resolver.resolveEffect(1);
+  const oldFailure = resolver.resolveEffect(2);
+  while (!releaseSuccess || !releaseFailure) await new Promise(setImmediate);
+  generation++;
+  nowMs++;
+  await resolver.getEffectMap();
+  releaseSuccess();
+  releaseFailure();
+  assert.equal((await oldSuccess).effectId, 1, 'an in-flight effect still receives its own metadata');
+  assert.equal(await oldFailure, null);
+  for (; generation <= 100; generation++, nowMs++) {
+    await resolver.resolveEffect(1);
+    await resolver.resolveEffect(2);
+  }
+  const retainedLayoutUrls = maps.flatMap((map) => [...map.keys()].filter((key) =>
+    typeof key === 'string' && key.startsWith('https://')));
+  assert.deepEqual(retainedLayoutUrls.sort(), [
+    'https://i0.hdslb.com/bfs/live/effect-201.json',
+    'https://i0.hdslb.com/bfs/live/effect-202.json',
+  ]);
+});
 
 test('buildEffectMap maps gift ids to the newest trusted MP4 effect', () => {
   const untrustedLayout = confEntry(2001, [99998]);

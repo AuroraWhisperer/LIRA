@@ -239,10 +239,9 @@ function createDomainServices(options) {
       clearSuperChats: () => database.clearSuperChatData(db.superChatDb),
       clearPlayback: () => database.clearPlaybackData(db.musicDb),
       clearGifts() {
-        const result = database.clearGiftData(db.giftDb, {
+        return database.clearGiftData(db.giftDb, {
           sourceId: getActiveGiftSourceId(gifts),
         });
-        return result;
       },
       clearAll() {
         const result = database.clearAllData(db.songDb, db.superChatDb, db.giftDb, db.musicDb, db.checkinDb, {

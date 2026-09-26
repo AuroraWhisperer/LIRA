@@ -69,11 +69,13 @@ async function openBilibiliLoginWindow(options = {}) {
   let loginCheckTimer = null;
   let loginCheckInFlight = false;
   let loginCloseRequested = false;
+  let cookieSaveJob = Promise.resolve();
 
   const scheduleCookieSave = () => {
     clearTimeout(cookieSaveTimer);
     cookieSaveTimer = setTimeout(() => {
-      auth.persistBilibiliCookieSnapshot(dataDir).catch((error) => writeLog('bilibili-cookie-save', error));
+      cookieSaveJob = cookieSaveJob.then(() => auth.persistBilibiliCookieSnapshot(dataDir))
+        .catch((error) => writeLog('bilibili-cookie-save', error));
     }, 800);
   };
 
@@ -111,7 +113,8 @@ async function openBilibiliLoginWindow(options = {}) {
     if (!loginWindow.isDestroyed()) loginWindow.destroy();
   };
 
-  loginWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => {
+  loginWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, _validatedUrl, isMainFrame) => {
+    if (isMainFrame === false) return;
     logBilibiliDiagnostic('login-load-failed', { errorCode });
     writeLog('bilibili-login-load-failure', { errorCode, errorDescription });
     cleanup();
@@ -123,9 +126,10 @@ async function openBilibiliLoginWindow(options = {}) {
   const completion = new Promise((resolve) => {
     loginWindow.once('closed', async () => {
       cleanup();
+      await cookieSaveJob;
       let snapshot = null;
       try {
-        snapshot = await auth.persistBilibiliCookieSnapshot(dataDir);
+        if (!signal?.aborted) snapshot = await auth.persistBilibiliCookieSnapshot(dataDir);
       } catch (error) {
         writeLog('bilibili-cookie-save', error);
       }
@@ -160,6 +164,8 @@ async function openBilibiliLoginWindow(options = {}) {
     logBilibiliDiagnostic('login-navigation-failed');
     cleanup();
     if (!loginWindow.isDestroyed()) loginWindow.destroy();
+    await completion;
+    if (signal?.aborted) return completion;
     throw error;
   }
 

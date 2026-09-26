@@ -214,6 +214,7 @@ final    → service.finalizeGift(event)  // 收到服务器 final 后立即结�
 - 结算行审计：单次随机结果保存 `{version:2,selectedIndex,selectedEffect:{operation,value},totalWeight}`；多次执行保存 `{version:3,quantity,selectedIndexes,totalWeight}`，并结合结算行的规则快照还原各项效果。客户端仅展示持久化结果，不自行重抽。
 - `selectRuleResult` 位于 [overtime-service.js](../../../src/overtime/overtime-service.js)：fixed 使用 `fixedEffect`，random 按权重通过 `node:crypto.randomInt(totalWeight)` 选择 effect；多次结果由 [overtime-effects.js](../../../src/overtime/overtime-effects.js) 的 `summarizeRandomOutcomes` 汇总。
 - **随机结果按执行次数产生**:`group` 模式抽一次,`item` 模式按最终数量独立抽取;同一结算会保存全部抽中索引。页面刷新、WS 重连和重复礼物包都不能重抽(结算行已 complete)。
+- 每次随机结算只计算一次总权重；运行时保留首个完整结果以兼容单件 v2 格式，多件直接累积全部索引以生成原 v3 格式，不为每件保留重复的完整结果对象。自动抽取次数受 `limits.maxRandomApplications` 约束，具体范围及超限 `pending` 规则见[数量规格](../../../specs/overtime-rule-quantity-mode_design.md)。超限不执行抽取、提交倒计时或写部分索引；完整付费礼物保留，沿用现有退避恢复。`getOverview()` 附加 `quantityLimitedCount`；失败记录成功后通过既有 `overtime:update` 的 `quantity-limit` 原因发送待结算计数，不发送成功 adjustment、不改变 revision。界面在待结算数量旁实时明确提示尚未结算；该计数只包含仍为 pending 的数量超限记录。
 
 ## 5. 配置校验
 

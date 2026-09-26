@@ -100,11 +100,13 @@ class BilibiliDanmakuClient {
       this.reconnecting = true;
       if (this.roomRunContext) this.historyPoller.start(this.roomRunContext);
       this.report({
-        connected: true,
+        connected: Boolean(this.historyPoller.timer),
         enabled: true,
         roomId: this.roomId,
         mode: 'bilibili',
-        message: '直播弹幕长连失败，历史消息监听中',
+        message: this.historyPoller.timer
+          ? '直播弹幕长连失败，历史消息监听中'
+          : publicBilibiliErrorMessage(error, true),
       });
       this.scheduleReconnect(generation);
     });
@@ -130,11 +132,13 @@ class BilibiliDanmakuClient {
       this.reconnecting = true;
       if (this.roomRunContext) this.historyPoller.start(this.roomRunContext);
       this.report({
-        connected: true,
+        connected: Boolean(this.historyPoller.timer),
         enabled: true,
         roomId: this.roomId,
         mode: 'bilibili',
-        message: '直播弹幕长连失败，历史消息监听中',
+        message: this.historyPoller.timer
+          ? '直播弹幕长连失败，历史消息监听中'
+          : publicBilibiliErrorMessage(error, true),
       });
       this.scheduleReconnect(generation);
       throw error;

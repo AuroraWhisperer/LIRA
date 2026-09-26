@@ -14,16 +14,6 @@ export function createPlaylistOperations(deps) {
   const { playbackState, homeService, toast, showError, readJsonResponse, renderPlayback, escapeHtml } = deps;
 
   /**
-   * 检查轨道是否可以添加到歌单
-   */
-  function canAddTrackToPlaylist(track) {
-    if (!track) return false;
-    if (track.source === 'qq') return Number(track.sourceSongId) > 0;
-    if (track.source === 'netease') return /^\d+$/.test(String(track.sourceTrackId || '').replace(/^netease:/, ''));
-    return false;
-  }
-
-  /**
    * 显示确认对话框
    */
   function showConfirmDialog(title, message, trackName, confirmText = '确认', cancelText = '取消') {
@@ -199,7 +189,7 @@ export function createPlaylistOperations(deps) {
    * 添加轨道到歌单
    */
   async function addTrackToPlaylist(track) {
-    if (!canAddTrackToPlaylist(track)) {
+    if (!PlaybackUtils.canAddTrackToPlaylist(track)) {
       toast('这首歌曲缺少平台歌曲 ID，暂时无法添加到歌单');
       return;
     }
@@ -267,7 +257,7 @@ export function createPlaylistOperations(deps) {
   }
 
   return {
-    canAddTrackToPlaylist,
+    canAddTrackToPlaylist: PlaybackUtils.canAddTrackToPlaylist,
     removeTrackFromPlaylist,
     addTrackToPlaylist,
     addCurrentTrackToPlaylist,

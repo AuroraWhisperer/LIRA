@@ -26,6 +26,7 @@ export class StateService {
     this.songArtists = new Set();
     this.songTags = new Set();
     this.ws = null;
+    this.reconnectTimer = null;
     this.lyricVersion = { generation: null, sequence: 0 };
     this.giftCatalogVersion = '';
   }
@@ -34,6 +35,7 @@ export class StateService {
    * 连接WebSocket
    */
   connectSocket() {
+    if (this.shuttingDown || this.ws || this.reconnectTimer !== null) return;
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
     const token = window.__API_TOKEN__;
     const wsUrl = `${protocol}//${location.host}/ws${token ? '?token=' + encodeURIComponent(token) : ''}`;
@@ -42,14 +44,22 @@ export class StateService {
     const status = document.getElementById('wsStatus');
 
     this.ws.addEventListener('open', () => {
+      if (this.ws !== connection || this.shuttingDown) return;
       status.hidden = true;
       eventBus.emit('ws:connected');
     });
 
     this.ws.addEventListener('message', (event) => {
-      if (this.ws !== connection) return;
-      const payload = JSON.parse(event.data);
+      if (this.ws !== connection || this.shuttingDown) return;
+      let payload;
+      try {
+        payload = JSON.parse(event.data);
+      } catch (_) {
+        return;
+      }
+      if (!isRecord(payload)) return;
       if (payload.type === 'snapshot') {
+        if (!isStateSnapshot(payload.state)) return;
         this.realtimeVersion += 1;
         for (const key of Object.keys(payload.state)) {
           this.realtimeFields.set(key, this.realtimeVersion);
@@ -62,6 +72,7 @@ export class StateService {
           this.scheduleSongReload();
         }
       } else if (payload.type === 'overtime:update') {
+        if (!isRecord(payload.state)) return;
         const currentRevision = Number(this.appState?.overtime?.revision) || 0;
         const nextRevision = Number(payload.state?.revision) || 0;
         if (nextRevision <= currentRevision) return;
@@ -91,6 +102,7 @@ export class StateService {
         this.giftCatalogVersion = signature;
         eventBus.emit(Events.GIFT_CATALOG_UPDATED, { snapshot });
       } else if (payload.type === 'wesing-state') {
+        if (payload.state !== null && !isRecord(payload.state)) return;
         this.applyRealtimeField('weSing', payload.state);
         dispatchRealtimeState('app:wesing-state', payload.state);
       } else if (payload.type === 'lyric-state') {
@@ -98,6 +110,7 @@ export class StateService {
         this.applyRealtimeField('lyricState', payload.state);
         dispatchRealtimeState('app:lyric-state', payload.state);
       } else if (payload.type === 'lyric-timeline') {
+        if (payload.timeline !== null && !isRecord(payload.timeline)) return;
         this.applyRealtimeField('lyricTimeline', payload.timeline);
         dispatchRealtimeState('app:lyric-timeline', payload.timeline);
       } else if (payload.type === 'game:update') {
@@ -110,6 +123,8 @@ export class StateService {
     });
 
     this.ws.addEventListener('close', () => {
+      if (this.ws !== connection) return;
+      this.ws = null;
       status.hidden = false;
       if (this.shuttingDown) {
         status.textContent = '程序已退出';
@@ -120,7 +135,10 @@ export class StateService {
       status.textContent = '前端连接断开，重连中';
       status.className = 'pill warn';
       eventBus.emit('ws:disconnected');
-      setTimeout(() => this.connectSocket(), 1600);
+      this.reconnectTimer = setTimeout(() => {
+        this.reconnectTimer = null;
+        this.connectSocket();
+      }, 1600);
     });
   }
 
@@ -141,7 +159,8 @@ export class StateService {
     const response = await fetch('/api/state');
     const payload = await response.json();
     if (requestVersion !== this.stateReloadVersion) return;
-    if (!payload.ok) throw new Error(payload.error || '读取状态失败');
+    if (!payload?.ok) throw new Error(payload?.error || '读取状态失败');
+    if (!isStateSnapshot(payload.data)) throw new Error('读取状态失败：数据格式错误');
     this.applySnapshot(payload.data, startedAtVersion);
   }
 
@@ -152,6 +171,7 @@ export class StateService {
   }
 
   applySnapshot(snapshot, startedAtVersion = Infinity, isConnectionSnapshot = false) {
+    if (!isStateSnapshot(snapshot)) return;
     const previous = this.appState || {};
     const next = { ...snapshot };
     // HTTP hydrates untouched fields but cannot undo realtime work received
@@ -279,10 +299,14 @@ export class StateService {
    */
   setShuttingDown(value) {
     this.shuttingDown = value;
+    if (value && this.reconnectTimer !== null) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
   }
 
   acceptLyricState(state) {
-    if (!state || typeof state !== 'object') return false;
+    if (!isRecord(state)) return false;
     const generation = Number(state.generation);
     const sequence = Number(state.sequence);
     if (!Number.isFinite(generation) || !Number.isFinite(sequence)) {
@@ -296,6 +320,14 @@ export class StateService {
     this.lyricVersion.sequence = sequence;
     return true;
   }
+}
+
+function isRecord(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function isStateSnapshot(value) {
+  return isRecord(value) && ['categories', 'tags'].every((key) => value[key] == null || Array.isArray(value[key]));
 }
 
 function parseBooleanLike(value) {

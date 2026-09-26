@@ -200,7 +200,7 @@ function requireActiveGiftSource(context) {
   const source = context.getActiveGiftSource?.() || context.activeGiftSource;
   const sourceId = Number(source?.sourceId);
   if (!Number.isSafeInteger(sourceId) || sourceId < 1 || source?.syncState === 'SOURCE_SWITCHING') {
-    throw createGiftQueryError('GIFT_SOURCE_UNAVAILABLE', '当前礼物来源尚未就绪。');
+    throw queryError('GIFT_SOURCE_UNAVAILABLE', '当前礼物来源尚未就绪。');
   }
   return Object.freeze({ ...source, sourceId });
 }
@@ -258,7 +258,7 @@ function normalizeLedgerQuery(value) {
   if (value === undefined || value === null) return '';
   const query = canonicalGiftText(value);
   if (!query || Array.from(query).length > MAX_SEARCH_LENGTH) {
-    throw createGiftQueryError('INVALID_GIFT_QUERY', '礼物搜索内容过长。');
+    throw queryError('INVALID_GIFT_QUERY', '礼物搜索内容过长。');
   }
   return query;
 }
@@ -266,7 +266,7 @@ function normalizeLedgerQuery(value) {
 function normalizeLedgerRange(value) {
   const range = String(value || '30d');
   if (!Object.hasOwn(GIFT_RANGES, range)) {
-    throw createGiftQueryError('INVALID_GIFT_RANGE', '礼物统计范围无效。');
+    throw queryError('INVALID_GIFT_RANGE', '礼物统计范围无效。');
   }
   return range;
 }
@@ -277,7 +277,7 @@ function normalizeHistoryLimit(value) {
   }
   const limit = Number(value);
   if (!Number.isSafeInteger(limit) || limit < 1 || limit > MAX_HISTORY_LIMIT) {
-    throw createGiftQueryError('INVALID_GIFT_LIMIT', '礼物分页大小无效。');
+    throw queryError('INVALID_GIFT_LIMIT', '礼物分页大小无效。');
   }
   return limit;
 }
@@ -285,7 +285,7 @@ function normalizeHistoryLimit(value) {
 function normalizeHistorySortField(value) {
   const sortField = String(value || DEFAULT_HISTORY_SORT_FIELD);
   if (!HISTORY_SORT_FIELDS.includes(sortField)) {
-    throw createGiftQueryError('INVALID_GIFT_SORT_FIELD', '礼物排序字段无效。');
+    throw queryError('INVALID_GIFT_SORT_FIELD', '礼物排序字段无效。');
   }
   return sortField;
 }
@@ -293,7 +293,7 @@ function normalizeHistorySortField(value) {
 function normalizeHistorySortDirection(value) {
   const sortDirection = String(value || DEFAULT_HISTORY_SORT_DIRECTION).toLowerCase();
   if (sortDirection !== 'asc' && sortDirection !== 'desc') {
-    throw createGiftQueryError('INVALID_GIFT_SORT_DIRECTION', '礼物排序方向无效。');
+    throw queryError('INVALID_GIFT_SORT_DIRECTION', '礼物排序方向无效。');
   }
   return sortDirection;
 }
@@ -342,7 +342,7 @@ function encodeHistoryCursor(value) {
 function decodeHistoryCursor(value, expected) {
   if (value === undefined || value === null || value === '') return null;
   if (typeof value !== 'string' || value.length > MAX_CURSOR_LENGTH || !/^[A-Za-z0-9_-]+$/u.test(value)) {
-    throw createGiftQueryError('INVALID_GIFT_CURSOR', '礼物分页游标无效。');
+    throw queryError('INVALID_GIFT_CURSOR', '礼物分页游标无效。');
   }
   try {
     const parsed = JSON.parse(Buffer.from(value, 'base64url').toString('utf8'));
@@ -385,7 +385,7 @@ function decodeHistoryCursor(value, expected) {
     return Object.freeze({ id, sortValue, asOf });
   } catch (error) {
     if (error.code === 'GIFT_VIEW_STALE') throw error;
-    throw createGiftQueryError('INVALID_GIFT_CURSOR', '礼物分页游标无效。');
+    throw queryError('INVALID_GIFT_CURSOR', '礼物分页游标无效。');
   }
 }
 
@@ -440,12 +440,6 @@ function normalizeOptionalIsoTimestamp(value) {
   } catch (_) {
     return null;
   }
-}
-
-function createGiftQueryError(code, message) {
-  const error = new Error(message);
-  error.code = code;
-  return error;
 }
 
 module.exports = {

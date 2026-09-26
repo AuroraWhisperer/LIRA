@@ -127,40 +127,40 @@ export function createInitializer(deps) {
 
   async function restoreLocalFileUrls() {
     const localTracks = [];
-    const collect = function (t) {
-      if (t && t.source === 'local' && !t.objectUrl && t.filePath) localTracks.push(t);
+    const collectUnresolvedLocalTrack = function (track) {
+      if (track && track.source === 'local' && !track.objectUrl && track.filePath) localTracks.push(track);
     };
-    collect(playbackState.current);
-    (playbackState.requestedQueue || []).forEach(collect);
-    (playbackState.normalQueue || []).forEach(collect);
-    (playbackState.normalQueueTracks || []).forEach(collect);
-    (playbackState.radioQueue || []).forEach(collect);
-    (playbackState.history || []).forEach(collect);
+    collectUnresolvedLocalTrack(playbackState.current);
+    (playbackState.requestedQueue || []).forEach(collectUnresolvedLocalTrack);
+    (playbackState.normalQueue || []).forEach(collectUnresolvedLocalTrack);
+    (playbackState.normalQueueTracks || []).forEach(collectUnresolvedLocalTrack);
+    (playbackState.radioQueue || []).forEach(collectUnresolvedLocalTrack);
+    (playbackState.history || []).forEach(collectUnresolvedLocalTrack);
 
-    const paths = [];
-    const seen = {};
+    const filePaths = [];
+    const seenPaths = {};
     for (let i = 0; i < localTracks.length; i++) {
-      const fp = localTracks[i].filePath;
-      if (fp && !seen[fp]) {
-        seen[fp] = true;
-        paths.push(fp);
+      const filePath = localTracks[i].filePath;
+      if (filePath && !seenPaths[filePath]) {
+        seenPaths[filePath] = true;
+        filePaths.push(filePath);
       }
     }
-    if (!paths.length) return;
+    if (!filePaths.length) return;
     if (!window.musicAPI || typeof window.musicAPI.resolveLocalMediaUrls !== 'function') return;
 
     try {
-      const result = await window.musicAPI.resolveLocalMediaUrls(paths);
-      const map = (result && result.results) || {};
+      const result = await window.musicAPI.resolveLocalMediaUrls(filePaths);
+      const resultsByPath = (result && result.results) || {};
       for (let j = 0; j < localTracks.length; j++) {
-        const t = localTracks[j];
-        const entry = t.filePath ? map[t.filePath] : null;
+        const track = localTracks[j];
+        const entry = track.filePath ? resultsByPath[track.filePath] : null;
         if (entry && entry.ok) {
-          t.objectUrl = entry.url;
-          t.fileMissing = false;
+          track.objectUrl = entry.url;
+          track.fileMissing = false;
         } else {
-          t.objectUrl = '';
-          t.fileMissing = true;
+          track.objectUrl = '';
+          track.fileMissing = true;
         }
       }
       renderPlayback();

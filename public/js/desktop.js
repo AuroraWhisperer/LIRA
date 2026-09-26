@@ -3,8 +3,8 @@
 'use strict';
 
 (function () {
-  const U = window.AdminApp.utils;
-  const { toast, showStackedToast, showError } = U;
+  const utils = window.AdminApp.utils;
+  const { toast, showStackedToast, showError } = utils;
   let desktopUpdateNoticeKey = '';
 
   function initDesktopShell() {
@@ -57,7 +57,7 @@
       autoUpdateToggle.addEventListener('change', async () => {
         const enabled = autoUpdateToggle.checked;
         try {
-          await U.api(
+          await utils.api(
             '/api/settings',
             {
               enableAutoUpdate: enabled ? 'true' : 'false',
@@ -293,7 +293,7 @@
   }
 
   function showRestartConfirmModal() {
-    return U.showConfirmationDialog({
+    return utils.showConfirmationDialog({
       variant: 'caution',
       title: '现在重启并安装更新？',
       description: '应用会退出并安装已下载的新版本。建议确认直播间暂时不需要操作后再继续。',

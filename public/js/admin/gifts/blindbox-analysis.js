@@ -309,7 +309,6 @@ export const giftAnalysis = (() => {
   }
 
   function getColumns(view) {
-    const money = (value) => formatMoney(value);
     const profit = (item) => formatProfit(item.profit);
     if (view === 'boxes')
       return [
@@ -319,8 +318,8 @@ export const giftAnalysis = (() => {
         },
         { label: '盒数', render: (item) => String(item.boxCount) },
         { label: '观众', render: (item) => `${item.viewerCount} 人` },
-        { label: '总成本', render: (item) => money(item.totalCost) },
-        { label: '开出价值', render: (item) => money(item.totalValue) },
+        { label: '总成本', render: (item) => formatMoney(item.totalCost) },
+        { label: '开出价值', render: (item) => formatMoney(item.totalValue) },
         { label: '观众盈亏', render: profit, className: profitClass },
       ];
     if (view === 'records')
@@ -333,8 +332,8 @@ export const giftAnalysis = (() => {
         { label: '盲盒', render: (item) => escapeHtml(item.boxName) },
         { label: '开出礼物', render: (item) => escapeHtml(item.giftName) },
         { label: '数量', render: (item) => String(item.num) },
-        { label: '成本', render: (item) => money(item.cost) },
-        { label: '开出价值', render: (item) => money(item.value) },
+        { label: '成本', render: (item) => formatMoney(item.cost) },
+        { label: '开出价值', render: (item) => formatMoney(item.value) },
         { label: '观众盈亏', render: profit, className: profitClass },
       ];
     return [
@@ -344,8 +343,8 @@ export const giftAnalysis = (() => {
       },
       { label: '盒数', render: (item) => String(item.boxCount) },
       { label: '盒型', render: (item) => `${item.boxTypeCount} 种` },
-      { label: '总成本', render: (item) => money(item.totalCost) },
-      { label: '开出价值', render: (item) => money(item.totalValue) },
+      { label: '总成本', render: (item) => formatMoney(item.totalCost) },
+      { label: '开出价值', render: (item) => formatMoney(item.totalValue) },
       { label: '观众盈亏', render: profit, className: profitClass },
     ];
   }
@@ -415,7 +414,6 @@ export const giftAnalysis = (() => {
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
   else init();
 
-  const module = { open, close, refreshIfOpen };
-  return module;
+  return { open, close, refreshIfOpen };
 })();
 publishGiftModule('analysis', giftAnalysis);

@@ -64,8 +64,12 @@ function syncSelectedState(state) {
   });
 }
 
+function getEnabledOptions(menu) {
+  return [...menu.querySelectorAll('[role="option"]:not([aria-disabled="true"])')];
+}
+
 function focusOption(state, index) {
-  const options = [...state.menu.querySelectorAll('[role="option"]:not([aria-disabled="true"])')];
+  const options = getEnabledOptions(state.menu);
   if (!options.length) return;
   const next = options[Math.max(0, Math.min(index, options.length - 1))];
   options.forEach((option) => option.classList.toggle('is-keyboard-focused', option === next));
@@ -98,7 +102,7 @@ function openMenu(state, initialOffset = 0) {
   const opensAbove = menuRect.bottom > window.innerHeight - 12 && triggerRect.top > menuRect.height + 12;
   state.wrapper.classList.toggle('is-above', opensAbove);
 
-  const options = [...state.menu.querySelectorAll('[role="option"]:not([aria-disabled="true"])')];
+  const options = getEnabledOptions(state.menu);
   const selectedIndex = Math.max(
     0,
     options.findIndex((option) => option.getAttribute('aria-selected') === 'true'),
@@ -152,7 +156,7 @@ function buildOptions(state) {
   }
   syncSelectedState(state);
   if (state.open) {
-    const options = [...state.menu.querySelectorAll('[role="option"]:not([aria-disabled="true"])')];
+    const options = getEnabledOptions(state.menu);
     const selectedIndex = Math.max(
       0,
       options.findIndex((option) => option.getAttribute('aria-selected') === 'true'),
@@ -259,7 +263,7 @@ function enhanceSelect(select) {
     }
   });
   menu.addEventListener('keydown', (event) => {
-    const options = [...menu.querySelectorAll('[role="option"]:not([aria-disabled="true"])')];
+    const options = getEnabledOptions(menu);
     const current = options.indexOf(document.activeElement);
     if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {
       event.preventDefault();

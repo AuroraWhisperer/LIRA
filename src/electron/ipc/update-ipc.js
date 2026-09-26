@@ -1,5 +1,7 @@
 'use strict';
 
+const { createMainWindowIpcRegistrar } = require('./main-window-ipc');
+
 function registerUpdateIpc({
   ipcMain,
   app,
@@ -15,9 +17,11 @@ function registerUpdateIpc({
   installUpdate,
   requestRestart,
   getMainWindow,
+  getDesktopBaseUrl,
   writeLog,
 }) {
-  ipcMain.handle('desktop:get-info', function () {
+  const handle = createMainWindowIpcRegistrar({ ipcMain, getMainWindow, getDesktopBaseUrl, allowLicense: true });
+  handle('desktop:get-info', function () {
     return {
       version: app.getVersion(),
       isPackaged: app.isPackaged,
@@ -29,47 +33,47 @@ function registerUpdateIpc({
       updateState: getUpdateState(),
     };
   });
-  ipcMain.handle('desktop:check-for-updates', function () {
+  handle('desktop:check-for-updates', function () {
     writeLog('ipc', { action: 'check-for-updates' });
     return checkForUpdates();
   });
-  ipcMain.handle('desktop:download-update', function () {
+  handle('desktop:download-update', function () {
     writeLog('ipc', { action: 'download-update' });
     return downloadUpdate();
   });
-  ipcMain.handle('desktop:install-update', function () {
+  handle('desktop:install-update', function () {
     writeLog('ipc', { action: 'install-update' });
     return installUpdate();
   });
-  ipcMain.handle('desktop:open-data-dir', function () {
+  handle('desktop:open-data-dir', function () {
     return getDataDir() ? shell.openPath(getDataDir()) : '';
   });
-  ipcMain.handle('desktop:open-log-dir', function () {
+  handle('desktop:open-log-dir', function () {
     return getLogDir() ? shell.openPath(getLogDir()) : '';
   });
-  ipcMain.handle('desktop:open-github', function () {
+  handle('desktop:open-github', function () {
     return shell.openExternal(githubRepoUrl);
   });
-  ipcMain.handle('desktop:set-auto-update', function (_event, enabled) {
+  handle('desktop:set-auto-update', function (_event, enabled) {
     writeLog('settings', 'enableAutoUpdate set to: ' + String(Boolean(enabled)));
   });
-  ipcMain.handle('desktop:gift-display', function () {
+  handle('desktop:gift-display', function () {
     return { ok: true };
   });
-  ipcMain.handle('desktop:restart', async function () {
+  handle('desktop:restart', async function () {
     writeLog('ipc', { action: 'restart' });
     await requestRestart();
   });
-  ipcMain.handle('desktop:close-window', function () {
+  handle('desktop:close-window', function () {
     writeLog('ipc', { action: 'close-window' });
     const mainWindow = getMainWindow();
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.close();
   });
-  ipcMain.handle('desktop:minimize-window', function () {
+  handle('desktop:minimize-window', function () {
     const mainWindow = getMainWindow();
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.minimize();
   });
-  ipcMain.handle('desktop:maximize-window', function () {
+  handle('desktop:maximize-window', function () {
     const mainWindow = getMainWindow();
     if (!mainWindow || mainWindow.isDestroyed()) return;
     if (mainWindow.isMaximized()) mainWindow.unmaximize();

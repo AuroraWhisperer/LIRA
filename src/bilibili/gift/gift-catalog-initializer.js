@@ -120,25 +120,25 @@ function createGiftCatalogInitializer(options = {}) {
       for (;;) {
         version = String(snapshot.version || '').trim();
         const gifts = snapshot.gifts;
-        const work =
+        const giftsToCache =
           wasInitialized && typeof imageCache.isGiftImageCurrent === 'function'
             ? gifts.filter(
                 (gift) => !imageCache.isGiftImageCurrent(gift) && imageCache.hasGiftImageSource?.(gift) !== false,
               )
             : gifts;
-        if (work.length) {
+        if (giftsToCache.length) {
           publish({
             status: wasInitialized ? 'updating' : 'running',
             phase: 'images',
             version,
             completed: 0,
-            total: work.length,
+            total: giftsToCache.length,
             available: 0,
             failed: 0,
             percent: 5,
             warning: refreshError ? 'CATALOG_REFRESH_FAILED' : '',
           });
-          const cachedGifts = await imageCache.cacheGifts(work, {
+          const cachedGifts = await imageCache.cacheGifts(giftsToCache, {
             onProgress(progress) {
               publish({
                 completed: progress.completed,
@@ -151,13 +151,13 @@ function createGiftCatalogInitializer(options = {}) {
               });
             },
           });
-          completed = work.length;
+          completed = giftsToCache.length;
           available = cachedGifts.filter((gift, index) =>
             typeof imageCache.isGiftImageCurrent === 'function'
-              ? imageCache.isGiftImageCurrent(work[index])
+              ? imageCache.isGiftImageCurrent(giftsToCache[index])
               : Boolean(gift.imagePath),
           ).length;
-          failed = work.length - available;
+          failed = giftsToCache.length - available;
         }
         const latest = catalog.getSnapshot();
         if (
@@ -170,7 +170,7 @@ function createGiftCatalogInitializer(options = {}) {
         const catalogAvailable =
           typeof imageCache.isGiftImageCurrent === 'function'
             ? gifts.filter((gift) => imageCache.isGiftImageCurrent(gift)).length
-            : gifts.length - (work.length ? failed : 0);
+            : gifts.length - (giftsToCache.length ? failed : 0);
         completion = {
           schemaVersion: STATE_SCHEMA_VERSION,
           catalogVersion: version,

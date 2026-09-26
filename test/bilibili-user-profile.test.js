@@ -18,14 +18,26 @@ test('profile requests normalize protocol-relative collection avatars to HTTPS',
   });
 });
 
-test('profile requests forward a finite timeout and reject upstream business failures', async (t) => {
+test('profile requests preserve finite deadlines, cancellation and upstream business failures', async (t) => {
   t.mock.method(console, 'log', () => {});
-  const controller = new AbortController();
-  const timeout = t.mock.method(AbortSignal, 'timeout', () => controller.signal);
+  const deadlines = [];
+  const timeout = t.mock.method(AbortSignal, 'timeout', (milliseconds) => {
+    assert.ok(Number.isFinite(milliseconds) && milliseconds > 0);
+    const controller = new AbortController();
+    deadlines.push({ milliseconds, controller });
+    return controller.signal;
+  });
   let payload = { code: 0, data: { card: { name: 'Alice', face: avatarUrl } } };
+  let waitForAbort = false;
   const fetch = t.mock.method(global, 'fetch', async (url, options) => {
     assert.equal(url, 'https://api.bilibili.com/x/web-interface/card?mid=123');
-    assert.equal(options.signal, controller.signal);
+    assert.ok(options.signal instanceof AbortSignal);
+    assert.equal(options.signal.aborted, false);
+    if (waitForAbort) {
+      return new Promise((resolve, reject) => {
+        options.signal.addEventListener('abort', () => reject(options.signal.reason), { once: true });
+      });
+    }
     return Response.json(payload);
   });
   const client = new BilibiliApiClient('');
@@ -40,6 +52,21 @@ test('profile requests forward a finite timeout and reject upstream business fai
   }
   assert.deepEqual(await client.fetchUserProfile('not-a-uid'), { name: '', avatarUrl: '' });
   assert.equal(fetch.mock.callCount(), 3);
+
+  waitForAbort = true;
+  for (const milliseconds of [8000, 15000]) {
+    deadlines.length = 0;
+    const request = client.fetchUserProfile('123');
+    assert.deepEqual(deadlines.map((entry) => entry.milliseconds), [8000, 15000]);
+    const reason = new Error(`synthetic ${milliseconds}ms deadline exceeded`);
+    const rejected = assert.rejects(request, (error) => {
+      assert.equal(error, reason, 'caller and shared deadline reasons must propagate unchanged');
+      return true;
+    });
+    deadlines.find((entry) => entry.milliseconds === milliseconds).controller.abort(reason);
+    await rejected;
+    assert.equal(deadlines.find((entry) => entry.milliseconds !== milliseconds).controller.signal.aborted, false);
+  }
 });
 
 test('the gift avatar facade uses the authenticated cached user service without starting a listener', async (t) => {

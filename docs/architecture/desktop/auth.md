@@ -57,7 +57,7 @@ Cookie 域名匹配(`isAllowedMusicCookie`/`isAllowedBilibiliCookie`):`domain ==
 - **音乐平台** `getMusicAuthState(platform, dataDir)`([auth-manager.js:128-154](../../../src/electron/auth-manager.js#L128-L154)):`loggedIn = authCookies 中任一 Cookie 值非空`(QQ 仅 `qqmusic_key`、`qm_keyst` 之一;`p_skey`/`skey` 虽保留在 `keyCookies` 中供 QQ Provider 的 GTK/Web 回退使用,但不单独完成 QQ 音乐登录;网易云回退到 keyCookies,即 `MUSIC_U` 或 `__csrf` 之一)。
 - **Bilibili** `getBilibiliAuthState(dataDir)`([bilibili-auth.js:127-163](../../../src/electron/bilibili-auth.js#L127-L163)):**`DedeUserID`、`SESSDATA`、`bili_jct` 三者全部存在**才 `loggedIn`(比音乐平台严格);`uid = Number(DedeUserID.value) || 0`,并单独标记 `hasSessdata`。
 
-返回结构:音乐 `{platform, name, loggedIn, cookieCount, keyCookieNames, encryptedSnapshotExists, lastSavedAt, encryptionAvailable}`;Bilibili 追加 `uid`、`hasSessdata`、`exportedCookieExists`。
+返回结构:音乐 `{platform, name, loggedIn, cookieCount, keyCookieNames, encryptedSnapshotExists, lastSavedAt, encryptionAvailable}`;Bilibili 追加 `uid`、`hasSessdata`。
 
 ## 5. Cookie 快照加密(唯一成文处)
 
@@ -85,7 +85,7 @@ Cookie 域名匹配(`isAllowedMusicCookie`/`isAllowedBilibiliCookie`):`domain ==
 
 ## 6. Bilibili 明文导出
 
-`persistBilibiliCookieSnapshot` 在加密快照之外,当 `data/bilibili-auth/cookies.txt` 已存在**或**环境变量 `BILIBILI_PLAINTEXT_COOKIE_EXPORT === '1'` 时,写入明文 Cookie header 字符串(`name=value; ...`)([bilibili-auth.js:99-106](../../../src/electron/bilibili-auth.js#L99-L106))。**设计如此**:供外部脚本(如 capture-gifts.js)读取完整 `SESSDATA`/`bili_jct`;登出时一并删除([bilibili-auth.js:185-186](../../../src/electron/bilibili-auth.js#L185-L186))。
+完整 Cookie 只保存在既有 Electron partition 和 safeStorage 加密快照中，不再导出明文。2026-09-25 用户确认外部采集脚本已停用，原明文导出开关失效；持久化加密快照后、启动恢复和退出时删除旧 `data/bilibili-auth/cookies.txt`，不读取或迁移其中内容。加密不可用时保持原有失败行为，不创建明文替代物。验收见 [Cookie 存储回归](../../../test/bilibili-cookie-storage.test.js)。
 
 ## 7. 登出
 
@@ -95,6 +95,16 @@ Cookie 域名匹配(`isAllowedMusicCookie`/`isAllowedBilibiliCookie`):`domain ==
 2. 删除 `.enc` 快照文件
 3. Bilibili 额外删除 `cookies.txt`
 4. 返回最新 auth state
+
+### 7.1 登录、退出与替换竞争
+
+[desktop-auth-controller.js](../../../src/electron/desktop-auth-controller.js) 按既有平台分区管理操作顺序。
+退出、重新登录、云端替换会取消旧登录窗口；先等待窗口关闭及已开始的 Cookie 保存，再清除或替换凭据。
+恢复、导入、退出按请求顺序串行执行，后一次替换保留完整新账号；交互登录不占住写入队列等待用户，避免阻塞退出。
+旧登录完成时由代次检查返回 `{cancelled:true,snapshot:null,state:{loggedIn:false}}`，不将云端替换误判为本地登录成功。
+窗口关闭会等待已触发的 800 ms 保存任务；导航失败也等待关闭任务结束。主进程退出先取消并等待这些任务，再关闭后端。
+存储格式、分区键和正常登录返回值不变。验证见 [真实 Electron 时序测试](../../../test/desktop-auth-race-electron.test.js)
+及 [退出装配测试](../../../test/electron-shutdown.test.js)。
 
 ## 8. 会话恢复时序
 
@@ -114,12 +124,12 @@ restoreMusicCookieSnapshots()    # Object.keys(MUSIC_LOGIN_CONFIG) → qq → ne
 
 | 机制                 | 说明                                                                                      | 出处                                                                   |
 | -------------------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| cookie change 主路径 | 每次 `cookies.on('changed')` 立即 `getAuthState()` 判定登录完成,并触发 800ms 防抖快照落盘 | [login-window.js:63-68](../../../src/electron/login-window.js#L63-L68) |
+| cookie change 主路径 | `cookies.on('changed')` 在没有进行中认证读取时立即 `getAuthState()`；重叠事件合并，并触发 800ms 防抖快照落盘 | [login-window.js](../../../src/electron/login-window.js) |
 | 1.5s 轮询安全网      | `setInterval(checkLoginComplete, 1500)` 兜底(防止漏掉 cookie 事件)                        | [login-window.js:73](../../../src/electron/login-window.js#L73)        |
 | 自动关闭             | 检测到 `loggedIn` → 登录窗自动 `close()`                                                  | [login-window.js:52-61](../../../src/electron/login-window.js#L52-L61) |
 | 最终快照             | 窗口 `closed` 时强制 persist 一次,随 promise resolve `{snapshot, state}`                  | [login-window.js:75-89](../../../src/electron/login-window.js#L75-L89) |
 
-Bilibili 同构,另带 `loginCheckInFlight`/`loginCloseRequested` 防重入(见 [windows.md](windows.md) §3)。
+音乐与 Bilibili 均由 `loginCheckInFlight` 保证同一窗口最多一次未完成的认证检查；读取失败后释放标记，后续 Cookie 事件或 1.5s 轮询重试。音乐窗口仅记录固定失败诊断，不输出 Cookie 或异常详情。窗口销毁后不再开启检查；最终关闭快照/状态读取保持独立。Bilibili 另带 `loginCloseRequested` 防止重复自动关闭(见 [windows.md](windows.md) §3)。
 
 ## 10. Cookie → API 请求头
 
@@ -199,7 +209,7 @@ HTTP/WS/beacon、重定向、opaque iframe、四类 Worker 被 CSP 阻止、真�
 | 子域名通配  | 剥离前导点后 `endsWith('.host')` 接受所有子域名                                                                                                   | §3                                                                                                                                          |
 | 会话 Cookie | 无 expirationDate 的 Cookie 恢复后仍是会话 Cookie,重启可能丢失                                                                                    | §5.2                                                                                                                                        |
 | 判定差异    | QQ: `qqmusic_key`/`qm_keyst` 任一非空;网易云:任一认证 Cookie;Bilibili:三键全有                                                                    | §4                                                                                                                                          |
-| 明文风险    | cookies.txt 存有完整 SESSDATA + bili_jct,设计如此                                                                                                 | §6                                                                                                                                          |
+| 旧明文清理  | 不再生成 cookies.txt；持久化、恢复和退出清理历史文件                                                                                             | §6                                                                                                                                          |
 
 ## 13. 云端 Bilibili 凭据同步边界
 
@@ -233,7 +243,7 @@ IPC/返回字段只在 [preload.md](preload.md) 登记。百宝箱已接入用�
 
 响应丢失时保留并复用候选，不重新生成可能覆盖服务端已绑定私钥的新密钥。已有 deviceId 的启动流程先使用候选完成 challenge/verify；仅明确的 HTTP 401 `SIGNATURE_INVALID` 才回退原密钥。恢复成功后先提升主密钥、保存身份，再发布 AUTHORIZED 和启动会话维护；提升/身份写入失败及 dispose 保留候选。首次激活若尚未取得 deviceId，现有服务端协议无法仅凭候选自动找回该身份；本轮只保证候选保留，不宣称跨系统事务或无条件自动恢复。
 
-远端 HTTP 响应按流累计字节，普通请求 1 MiB、礼物历史/补拉 512 KiB、歌曲 8 MiB、SSE 错误体 64 KiB；超限取消 reader 并释放锁。完整礼物目录保留既有无固定体积/行数上限策略。仅提供 `text()` 的注入响应保留测试兼容回退，仍只能事后检查；生产 fetch 使用流式读取。本机构建摘要的信任语义不变。
+远端 HTTP 响应按流累计字节，普通请求 1 MiB、礼物历史/补拉 512 KiB、歌曲 8 MiB、SSE 错误体 64 KiB；超限取消 reader 并释放锁。完整礼物目录采用 [main.md 的独立容量合同](main.md#21-设备授权生命周期)，失败保留旧目录，不截断业务行。仅提供 `text()` 的注入响应保留测试兼容回退，仍只能事后检查；生产 fetch 使用流式读取。本机构建摘要的信任语义不变。
 
 [license-manager.js](../../../src/electron/license/license-manager.js) 在通用 `withAuthorizedToken` 入口捕获可信 `streamerId`、`deviceId`、`licenseId` 与内部生命周期代际；等待授权、首次远端调用、成功提交、失败处理和重试都必须仍属于该上下文。`bootstrap`、`activate` 开始以及会话清理/阻断、`dispose` 使旧代际失效，因此 A → B → A 即使恢复到相同主体和 token，也不会接受第一轮 A 的响应或重发其写入。
 

@@ -42,8 +42,7 @@ function normalizeFrameSettings(settings = {}) {
 
 function normalizeFrameSettingValue(key, value) {
   if (key === 'giftFrameEnabled') {
-    const normalized = String(value) === 'true' || String(value) === 'false' ? String(value) : null;
-    return normalized;
+    return String(value) === 'true' || String(value) === 'false' ? String(value) : null;
   }
   if (key === 'giftFrameThresholdRmb') return normalizeThresholdRmb(value);
   if (key === 'giftFrameTheme') {

@@ -27,7 +27,7 @@ export class ContentLoader {
     this.homePage = 1;
 
     // 防止同一 action 并发后台刷新
-    this._bgRefreshing = new Set();
+    this._bgRefreshing = new Map();
     this._requestGeneration = 0;
     this._activeRequest = null;
     this._cacheRequestGenerations = new Map();
@@ -104,7 +104,7 @@ export class ContentLoader {
   _publishCachedUpdate(request, result) {
     const current = this._activeRequest;
     if (!current?.cachedResult || current.cacheKey !== request.cacheKey || !this._isCurrentRequest(current)) return;
-    const changed = this._hasChanged(current.cachedResult.items, result.items, request.action);
+    const changed = this._hasChanged(current.cachedResult.items, result.items);
     if (!changed) return;
     current.cachedResult = result;
     this._applyResult(result);
@@ -199,7 +199,7 @@ export class ContentLoader {
 
     // 防止同一 action 并发刷新
     if (this._bgRefreshing.has(bgKey)) return;
-    this._bgRefreshing.add(bgKey);
+    this._bgRefreshing.set(bgKey, request);
 
     try {
       const { result, cacheWritten } = await this._fetchRequest(request);
@@ -207,7 +207,7 @@ export class ContentLoader {
     } catch (_) {
       // 后台刷新失败静默处理，不影响已有缓存
     } finally {
-      this._bgRefreshing.delete(bgKey);
+      if (this._bgRefreshing.get(bgKey) === request) this._bgRefreshing.delete(bgKey);
     }
   }
 
@@ -215,35 +215,12 @@ export class ContentLoader {
    * 简单对比新旧数据是否变化
    * @param {Array} oldItems
    * @param {Array} newItems
-   * @param {string} action
    * @returns {boolean}
    */
-  _hasChanged(oldItems, newItems, action) {
+  _hasChanged(oldItems, newItems) {
     if (!Array.isArray(oldItems) || !Array.isArray(newItems)) return true;
     if (oldItems.length !== newItems.length) return true;
-
-    // 歌单列表：对比 id 列表
-    if (action === 'created-playlists' || action === 'collected-playlists') {
-      const oldIds = oldItems
-        .map((item) => item.id)
-        .sort()
-        .join(',');
-      const newIds = newItems
-        .map((item) => item.id)
-        .sort()
-        .join(',');
-      return oldIds !== newIds;
-    }
-
-    // 曲目列表：对比前 3 首和最后 1 首的 id
-    const sampleIndices = [0, 1, 2, oldItems.length - 1].filter((i) => i >= 0 && i < oldItems.length);
-    for (const i of sampleIndices) {
-      const oldId = oldItems[i] && oldItems[i].id;
-      const newId = newItems[i] && newItems[i].id;
-      if (oldId !== newId) return true;
-    }
-
-    return false;
+    return oldItems.some((item, index) => JSON.stringify(item) !== JSON.stringify(newItems[index]));
   }
 
   // ── API 请求方法 ──
@@ -406,5 +383,16 @@ export class ContentLoader {
     this.homeItemType = '';
     this.homeAction = '';
     this.homePage = 1;
+  }
+
+  invalidatePlatform(platform) {
+    const prefix = `${platform}:`;
+    for (const key of this._cacheRequestGenerations.keys()) {
+      if (key.startsWith(prefix)) this._cacheRequestGenerations.delete(key);
+    }
+    for (const key of this._bgRefreshing.keys()) {
+      if (key.startsWith(prefix)) this._bgRefreshing.delete(key);
+    }
+    if (this._activeRequest?.platform === platform) this.clearHomeContent();
   }
 }

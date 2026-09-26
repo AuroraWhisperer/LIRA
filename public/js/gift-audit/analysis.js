@@ -8,36 +8,25 @@ export function parseBubbleHtml(html) {
   let match;
 
   // 也尝试匹配 gift-item（非 super 的普通气泡）
-  const allItems = [];
+  const itemFragments = [];
   const giftItemRegex =
     /<div[^>]*class="[^"]*(?:super-)?gift-item[^"]*"[^>]*>([\s\S]*?)(?=<div[^>]*class="[^"]*(?:super-)?gift-item[^"]*"|<\/div>\s*<\/div>\s*$)/g;
   while ((match = giftItemRegex.exec(html)) !== null) {
-    allItems.push(match[1] || match[0]);
+    itemFragments.push(match[1] || match[0]);
   }
 
   // 如果上述正则没匹配到，尝试按 user-name 分段
-  if (allItems.length === 0) {
+  if (itemFragments.length === 0) {
     const segments = html.split(/<div[^>]*class="[^"]*user-name[^"]*"[^>]*>/);
     for (let i = 1; i < segments.length; i++) {
-      const seg = segments[i];
-      const userName = (seg.match(/^([^<]+)/) || ['', ''])[1].trim();
-      const giftNameMatch = seg.match(/<span[^>]*class="[^"]*gift-name[^"]*"[^>]*>([^<]+)<\/span>/);
+      const segment = segments[i];
+      const userName = (segment.match(/^([^<]+)/) || ['', ''])[1].trim();
+      const giftNameMatch = segment.match(/<span[^>]*class="[^"]*gift-name[^"]*"[^>]*>([^<]+)<\/span>/);
       const giftName = giftNameMatch ? giftNameMatch[1].trim() : '';
-      const giftFrameMatch = seg.match(/gift-(\d+)-\d+/);
+      const giftFrameMatch = segment.match(/gift-(\d+)-\d+/);
       const giftId = giftFrameMatch ? giftFrameMatch[1] : '';
 
-      // 解析连击数字
-      let comboCount = 1;
-      const numbersMatch = seg.match(/<div[^>]*class="[^"]*numbers[^"]*"[^>]*>([\s\S]*?)<\/div>/);
-      if (numbersMatch) {
-        const digits = [];
-        const digitRegex = /number-(\d)/g;
-        let dMatch;
-        while ((dMatch = digitRegex.exec(numbersMatch[1])) !== null) {
-          digits.push(dMatch[1]);
-        }
-        if (digits.length > 0) comboCount = parseInt(digits.join(''), 10) || 1;
-      }
+      const comboCount = parseComboCount(segment);
 
       if (userName && giftName) {
         results.push({ userName, giftName, giftId, comboCount });
@@ -46,7 +35,7 @@ export function parseBubbleHtml(html) {
     return results;
   }
 
-  for (const itemHtml of allItems) {
+  for (const itemHtml of itemFragments) {
     // 提取用户名
     const userNameMatch = itemHtml.match(/<div[^>]*class="[^"]*user-name[^"]*"[^>]*>([^<]+)<\/div>/);
     const userName = userNameMatch ? userNameMatch[1].trim() : '';
@@ -59,18 +48,7 @@ export function parseBubbleHtml(html) {
     const giftFrameMatch = itemHtml.match(/gift-(\d+)-\d+/);
     const giftId = giftFrameMatch ? giftFrameMatch[1] : '';
 
-    // 提取连击数
-    let comboCount = 1;
-    const numbersMatch = itemHtml.match(/<div[^>]*class="[^"]*numbers[^"]*"[^>]*>([\s\S]*?)<\/div>/);
-    if (numbersMatch) {
-      const digits = [];
-      const digitRegex = /number-(\d)/g;
-      let dMatch;
-      while ((dMatch = digitRegex.exec(numbersMatch[1])) !== null) {
-        digits.push(dMatch[1]);
-      }
-      if (digits.length > 0) comboCount = parseInt(digits.join(''), 10) || 1;
-    }
+    const comboCount = parseComboCount(itemHtml);
 
     if (userName && giftName) {
       // 去重：相同用户+相同礼物+相同连击数视为同一条
@@ -85,9 +63,24 @@ export function parseBubbleHtml(html) {
   return results;
 }
 
+function parseComboCount(itemHtml) {
+  let comboCount = 1;
+  const numbersMatch = itemHtml.match(/<div[^>]*class="[^"]*numbers[^"]*"[^>]*>([\s\S]*?)<\/div>/);
+  if (numbersMatch) {
+    const digits = [];
+    const digitRegex = /number-(\d)/g;
+    let digitMatch;
+    while ((digitMatch = digitRegex.exec(numbersMatch[1])) !== null) {
+      digits.push(digitMatch[1]);
+    }
+    if (digits.length > 0) comboCount = parseInt(digits.join(''), 10) || 1;
+  }
+  return comboCount;
+}
+
 export function crossReference(bubbles, servers, captureTimeMs) {
   const results = [];
-  const serverMatched = new Set();
+  const matchedServerIndexes = new Set();
   const TIME_WINDOW_MS = 5 * 60 * 1000; // 5分钟时间窗口
 
   for (const bubble of bubbles) {
@@ -95,7 +88,7 @@ export function crossReference(bubbles, servers, captureTimeMs) {
     let bestScore = 0;
 
     for (let i = 0; i < servers.length; i++) {
-      if (serverMatched.has(i)) continue;
+      if (matchedServerIndexes.has(i)) continue;
       const server = servers[i];
 
       // 计算匹配分数
@@ -158,7 +151,7 @@ export function crossReference(bubbles, servers, captureTimeMs) {
     }
 
     if (bestMatch && bestScore >= 50) {
-      serverMatched.add(bestMatch.serverIndex);
+      matchedServerIndexes.add(bestMatch.serverIndex);
       results.push({
         source: 'bubble',
         userName: bubble.userName,
@@ -188,7 +181,7 @@ export function crossReference(bubbles, servers, captureTimeMs) {
 
   // 未匹配的服务器记录（气泡中没有的）
   for (let i = 0; i < servers.length; i++) {
-    if (!serverMatched.has(i)) {
+    if (!matchedServerIndexes.has(i)) {
       const s = servers[i];
       results.push({
         source: 'server',

@@ -3,6 +3,14 @@
 
 import { bounceScrollTiming, overlayLowPowerEnabled, queueScrollSeconds, scrollTravelSeconds } from './queue-utils.js';
 
+function scheduleLayout(callback) {
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(callback);
+  } else {
+    callback();
+  }
+}
+
 export function captureScrollAnimation() {
   const list = document.querySelector(
     '.classic-list.scrolling, .classic-list.scrolling-bounce, .identity-list.scrolling, .identity-list.scrolling-bounce',
@@ -32,12 +40,7 @@ export function restoreScrollAnimation(scrollState) {
 
 export function scheduleScrollAnimationRestore(scrollState) {
   if (!scrollState) return;
-  const restore = () => restoreScrollAnimation(scrollState);
-  if (typeof requestAnimationFrame === 'function') {
-    requestAnimationFrame(restore);
-  } else {
-    restore();
-  }
+  scheduleLayout(() => restoreScrollAnimation(scrollState));
 }
 
 export function removeQueueLoopClones(list) {
@@ -74,18 +77,12 @@ export function scheduleClassicVerticalScroll(content, settings, rowsHtml, rowGa
   if (!viewport || !list) return;
 
   const setup = () => configureClassicVerticalScroll(viewport, list, settings, rowsHtml, rowGap);
-  if (typeof requestAnimationFrame === 'function') {
-    requestAnimationFrame(setup);
-  } else {
-    setup();
-  }
+  scheduleLayout(setup);
 }
 
 export function configureClassicVerticalScroll(viewport, list, settings, rowsHtml, rowGap = 5) {
   removeQueueLoopClones(list);
-  if (typeof list.getAnimations === 'function') {
-    list.getAnimations().forEach((animation) => animation.cancel());
-  }
+  cancelElementAnimations(list);
   resetQueueScrollClasses(list);
 
   const visibleHeight = Math.max(1, viewport.clientHeight);
@@ -123,11 +120,7 @@ export function scheduleIdentityVerticalScroll(content, settings, combinedRows, 
   if (!viewport || !list) return;
 
   const setup = () => configureIdentityVerticalScroll(viewport, list, settings, combinedRows, rowGap);
-  if (typeof requestAnimationFrame === 'function') {
-    requestAnimationFrame(setup);
-  } else {
-    setup();
-  }
+  scheduleLayout(setup);
 }
 
 export function scheduleStorybookVerticalScroll(content, settings, rowsHtml, rowGap) {
@@ -140,18 +133,12 @@ export function scheduleIllustratedVerticalScroll(content, settings, rowsHtml, r
   if (!viewport || !list) return;
 
   const setup = () => configureIdentityVerticalScroll(viewport, list, settings, rowsHtml, rowGap);
-  if (typeof requestAnimationFrame === 'function') {
-    requestAnimationFrame(setup);
-  } else {
-    setup();
-  }
+  scheduleLayout(setup);
 }
 
 export function configureIdentityVerticalScroll(viewport, list, settings, combinedRows, rowGap = 4) {
   removeQueueLoopClones(list);
-  if (typeof list.getAnimations === 'function') {
-    list.getAnimations().forEach((animation) => animation.cancel());
-  }
+  cancelElementAnimations(list);
   resetQueueScrollClasses(list);
   const contentHeight = Math.max(1, Math.ceil(list.scrollHeight));
   const viewportHeight = Math.max(1, viewport.clientHeight);
@@ -215,11 +202,7 @@ export function scheduleIdentitySuperChatScroll(content) {
     });
   };
 
-  if (typeof requestAnimationFrame === 'function') {
-    requestAnimationFrame(setup);
-  } else {
-    setup();
-  }
+  scheduleLayout(setup);
 }
 
 export function scheduleIdentityContentScroll(content) {
@@ -260,11 +243,7 @@ export function scheduleIdentityContentScroll(content) {
     });
   };
 
-  if (typeof requestAnimationFrame === 'function') {
-    requestAnimationFrame(setup);
-  } else {
-    setup();
-  }
+  scheduleLayout(setup);
 }
 
 export function scheduleIdentityRuleScroll(content) {
@@ -308,11 +287,7 @@ export function scheduleIdentityRuleScroll(content) {
     });
   };
 
-  if (typeof requestAnimationFrame === 'function') {
-    requestAnimationFrame(setup);
-  } else {
-    setup();
-  }
+  scheduleLayout(setup);
 }
 
 export function cancelElementAnimations(element) {

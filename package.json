@@ -1,6 +1,6 @@
 {
   "name": "lira",
-  "version": "5.0.4",
+  "version": "5.0.5",
   "private": true,
   "license": "UNLICENSED",
   "description": "LIRA - Live Interactive Room Assistant",
@@ -117,6 +117,6 @@
     ]
   },
   "overrides": {
-    "js-yaml": "^4.3.1"
+    "js-yaml": "^4.3.2"
   }
 }

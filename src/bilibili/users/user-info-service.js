@@ -24,6 +24,8 @@ const {
   emptyIngestResult,
 } = require('./user-info-evidence');
 
+const CACHE_CLEANUP_INTERVAL_MS = 30000;
+
 class UserInfoService {
   constructor(options = {}) {
     this.identityCache = options.identityCache || new IdentityCache();
@@ -40,6 +42,7 @@ class UserInfoService {
     this.nextRunToken = 0;
     this.lifecycleToken = 0;
     this.disposed = false;
+    this.nextCleanupAt = 0;
   }
 
   peek(uid, options = {}) {
@@ -59,6 +62,7 @@ class UserInfoService {
     if (source !== 'profile' && !this.matchesActiveRun(context)) return emptyIngestResult();
 
     const observedAt = this.now();
+    if (observedAt >= this.nextCleanupAt) this.cleanupExpired();
     let record = this.records.get(uid);
     if (!record) {
       record = {
@@ -158,6 +162,7 @@ class UserInfoService {
           return snapshot;
         })
         .catch((error) => {
+          if (this.disposed || lifecycleToken !== this.lifecycleToken) return null;
           this.profileFailures.set(uidKey, this.now() + PROFILE_FAILURE_TTL_MS);
           this.recordDiagnostic('profile-failed', uidKey, error);
           return null;
@@ -409,11 +414,16 @@ class UserInfoService {
   }
 
   cleanupExpired() {
-    const cutoff = this.now() - USER_INFO_TTL_MS;
+    const nowMs = this.now();
+    this.nextCleanupAt = nowMs + CACHE_CLEANUP_INTERVAL_MS;
+    const cutoff = nowMs - USER_INFO_TTL_MS;
     for (const [uid, record] of this.records) {
       if (record.seenAt >= cutoff) continue;
       this.records.delete(uid);
       this.identityCache.deleteMerged(uid);
+    }
+    for (const [uid, expiresAt] of this.profileFailures) {
+      if (expiresAt <= nowMs) this.profileFailures.delete(uid);
     }
     this.identityCache.cleanup();
   }

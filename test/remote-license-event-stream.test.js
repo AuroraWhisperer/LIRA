@@ -80,6 +80,71 @@ test('cloud state event stream rejects non-SSE and oversized event data', async 
   );
 });
 
+test('SSE budgets each event independently of network chunk boundaries', async () => {
+  const count = 2000;
+  const frames = Array.from({ length: count }, (_, index) =>
+    `event: cloud-state-changed\r\ndata: {"scopes":{"settings":${index}}}\r\n\r\n`,
+  ).join('');
+  assert.ok(Buffer.byteLength(frames) > 64 * 1024);
+  for (const chunks of [[frames], [frames.slice(0, 27), frames.slice(27)]]) {
+    const events = [];
+    const client = createRemoteLicenseClient({
+      fetchImpl: async () => new Response(new ReadableStream({
+        start(controller) {
+          for (const chunk of chunks) controller.enqueue(new TextEncoder().encode(chunk));
+          controller.close();
+        },
+      }), { headers: { 'content-type': 'text/event-stream' } }),
+    });
+    await client.watchCloudStateChanges('synthetic', { onChange: (event) => events.push(event) });
+    assert.equal(events.length, count);
+    assert.equal(events.at(-1).scopes.settings, count - 1);
+  }
+});
+
+test('SSE applies the event budget to UTF-8 bytes and cancels an oversized unfinished event', async () => {
+  let cancelled = false;
+  let delivered = false;
+  const client = createRemoteLicenseClient({
+    fetchImpl: async () => new Response(new ReadableStream({
+      pull(controller) {
+        if (delivered) controller.error(new Error('event budget was not applied'));
+        else controller.enqueue(new TextEncoder().encode(`data: ${'字'.repeat(23000)}`));
+        delivered = true;
+      },
+      cancel() {
+        cancelled = true;
+      },
+    }, { highWaterMark: 0 }), { headers: { 'content-type': 'text/event-stream' } }),
+  });
+  await assert.rejects(client.watchCloudStateChanges('synthetic'), { code: 'RESPONSE_TOO_LARGE' });
+  assert.equal(cancelled, true);
+});
+
+test('tiny SSE chunks do not repeatedly scan the accumulated unfinished event', async (t) => {
+  const frame = new TextEncoder().encode(`event: cloud-state-changed\r\ndata: ${JSON.stringify({
+    scopes: { settings: 7 }, padding: 'a'.repeat(30000),
+  })}\r\n\r\n`);
+  let offset = 0;
+  const response = new Response(new ReadableStream({
+    pull(controller) {
+      if (offset < frame.length) controller.enqueue(frame.subarray(offset, ++offset));
+      else controller.close();
+    },
+  }), { headers: { 'content-type': 'text/event-stream' } });
+  const client = createRemoteLicenseClient({ fetchImpl: async () => response });
+  const byteLength = Buffer.byteLength;
+  let scanned = 0;
+  t.mock.method(Buffer, 'byteLength', (value, encoding) => {
+    scanned += value.length;
+    return byteLength(value, encoding);
+  });
+  const events = [];
+  await client.watchCloudStateChanges('synthetic', { onChange: (event) => events.push(event) });
+  assert.deepEqual(events, [{ scopes: { settings: 7 } }]);
+  assert.ok(scanned < frame.length * 4, `${frame.length} input bytes caused ${scanned} characters to be rescanned`);
+});
+
 test('SSE readers are cancelled and released when a consumer fails during open', async () => {
   let cancelled = 0;
   let released = 0;
@@ -112,6 +177,25 @@ test('SSE readers are cancelled and released when a consumer fails during open',
   );
   assert.equal(cancelled, 1);
   assert.equal(released, 1);
+});
+
+test('a rejected non-SSE response cancels its body before retrying', async () => {
+  for (const watch of ['watchCloudStateChanges', 'watchGiftEvents']) {
+    let cancelled = 0;
+    const client = createRemoteLicenseClient({
+      fetchImpl: async () =>
+        new Response(
+          new ReadableStream({
+            cancel() {
+              cancelled += 1;
+            },
+          }),
+          { headers: { 'content-type': 'application/json' } },
+        ),
+    });
+    await assert.rejects(client[watch]('synthetic-token'), { code: 'INVALID_RESPONSE' });
+    assert.equal(cancelled, 1, 'rejected response bodies must release their underlying connection');
+  }
 });
 
 test('gift event stream allowlists valid SSE fields and ignores malformed blocks', async () => {

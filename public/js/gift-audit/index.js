@@ -15,6 +15,14 @@ let comparisonResults = [];
 let ws = null;
 let serverGiftCache = []; // 累积的服务器礼物
 
+function mergeServerGifts(gifts) {
+  for (const gift of gifts) {
+    if (!serverGiftCache.find((cachedGift) => cachedGift.id === gift.id)) {
+      serverGiftCache.push(gift);
+    }
+  }
+}
+
 // ── WebSocket ──
 function connectWs() {
   const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -31,11 +39,7 @@ function connectWs() {
         renderConnBar(msg.state);
         // 自动更新服务器礼物缓存
         if (msg.state.gifts && Array.isArray(msg.state.gifts.recent)) {
-          for (const g of msg.state.gifts.recent) {
-            if (!serverGiftCache.find((s) => s.id === g.id)) {
-              serverGiftCache.push(g);
-            }
-          }
+          mergeServerGifts(msg.state.gifts.recent);
           // 限制缓存大小
           if (serverGiftCache.length > 500) serverGiftCache = serverGiftCache.slice(-300);
         }
@@ -88,12 +92,7 @@ async function fetchServerGifts() {
     if (!json.ok) throw new Error(json.error || 'Failed');
     const gifts = json.data.gifts || {};
     const recent = Array.isArray(gifts.recent) ? gifts.recent : [];
-    // 合并到缓存
-    for (const g of recent) {
-      if (!serverGiftCache.find((s) => s.id === g.id)) {
-        serverGiftCache.push(g);
-      }
-    }
+    mergeServerGifts(recent);
     status.textContent = `已加载 ${recent.length} 条（缓存共 ${serverGiftCache.length} 条）`;
     status.style.color = 'var(--green)';
     serverGifts = recent;

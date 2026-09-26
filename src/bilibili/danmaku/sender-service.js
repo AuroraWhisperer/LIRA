@@ -23,7 +23,7 @@ function createDanmakuSenderService(dependencies) {
   } = dependencies;
   let lastSentAt = 0;
   let sendChain = Promise.resolve();
-  let displayCache = {
+  const displayCache = {
     account: { key: '', name: '', expiresAt: 0 },
     room: { key: '', name: '', expiresAt: 0 },
   };

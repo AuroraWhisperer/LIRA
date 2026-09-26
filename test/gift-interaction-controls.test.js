@@ -40,7 +40,7 @@ function fixture(t) {
     getCloudState: async () => ({
       settings: { initialized: true, revision, values: { ...cloud } },
       songs: { initialized: true, revision: 1 },
-      bilibili: { initialized: false },
+      bilibili: { initialized: false, revision: 0, loggedIn: false },
     }),
     getCloudSongs: async () => ({ songs: [], revision: 1 }),
     updateCloudSettings: async (values) => {

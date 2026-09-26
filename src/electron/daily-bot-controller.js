@@ -36,13 +36,13 @@ function createDailyBotController({ licenseManager, getLegacyReader, sourceLabel
     }
     return current;
   }
-  function same(captured) {
+  function assertCurrentContext(captured) {
     if (!captured || context()?.id !== captured.id) invalid('DAILY_BOT_ACCOUNT_CHANGED');
   }
   async function call(captured, operation, input = {}) {
-    same(captured);
+    assertCurrentContext(captured);
     const result = await licenseManager.dailyBotRequestInternal(operation, input);
-    same(captured);
+    assertCurrentContext(captured);
     return result;
   }
   const read = async (captured) => sanitizeSettings(await call(captured, 'read'));
@@ -54,7 +54,7 @@ function createDailyBotController({ licenseManager, getLegacyReader, sourceLabel
   function summary() {
     return { ...reader().summary(), sourceLabel };
   }
-  function confirmed(input) {
+  function assertTakeoverConfirmed(input) {
     if (input.legacyStoppedConfirmed !== true || input.ownershipConfirmed !== true) invalid();
   }
   async function prepare(captured, input) {
@@ -63,7 +63,7 @@ function createDailyBotController({ licenseManager, getLegacyReader, sourceLabel
       ['legacyStoppedConfirmed', 'ownershipConfirmed', 'libraryChoice', 'blessings', 'fortunes'],
       ['legacyStoppedConfirmed', 'ownershipConfirmed', 'libraryChoice'],
     );
-    confirmed(input);
+    assertTakeoverConfirmed(input);
     exact(input.libraryChoice, ['checkin', 'fortune']);
     if (Object.values(input.libraryChoice).some((v) => !['legacy', 'builtin', 'corrected'].includes(v))) invalid();
     const settings = await read(captured);
@@ -115,8 +115,8 @@ function createDailyBotController({ licenseManager, getLegacyReader, sourceLabel
       resumed: Boolean(status),
     };
   }
-  async function unchanged(captured, item, startedRevision) {
-    same(captured);
+  async function assertLegacySourceUnchanged(captured, item, startedRevision) {
+    assertCurrentContext(captured);
     if (digest(reader().read()) === item.sourceHash) return;
     if (startedRevision !== undefined) {
       await call(captured, 'cancel', { id: item.id, body: { expectedRevision: startedRevision } });
@@ -128,7 +128,7 @@ function createDailyBotController({ licenseManager, getLegacyReader, sourceLabel
     exact(input, ['draftId']);
     const item = draft;
     if (!item || item.id !== input.draftId) invalid('DAILY_BOT_DRAFT_REQUIRED');
-    await unchanged(captured, item);
+    await assertLegacySourceUnchanged(captured, item);
     const { data } = item;
     const totalBatches = Math.max(1, Math.ceil(data.checkins.length / 250));
     const state = sanitizeTakeover(
@@ -150,7 +150,7 @@ function createDailyBotController({ licenseManager, getLegacyReader, sourceLabel
     const status = await call(captured, 'status', { id: item.id });
     if (status.status !== 'committed') {
       for (let sequence = 0; sequence < totalBatches; sequence++) {
-        same(captured);
+        assertCurrentContext(captured);
         const body = {
           checkins: data.checkins.slice(sequence * 250, (sequence + 1) * 250),
           ...(sequence === 0 ? { blessings: data.blessings, fortunes: data.fortunes } : {}),
@@ -159,7 +159,7 @@ function createDailyBotController({ licenseManager, getLegacyReader, sourceLabel
       }
       const preflight = await call(captured, 'preflight', { id: item.id, body: {} });
       if (preflight.valid !== true) return { data: await read(captured), preflight: safePreflight(preflight) };
-      await unchanged(captured, item, state.revision);
+      await assertLegacySourceUnchanged(captured, item, state.revision);
     }
     await call(captured, 'commit', { id: item.id, body: { expectedRevision: state.revision } });
     // A lost commit response is retried with the same ID and receipt, never a new base.
@@ -237,7 +237,7 @@ function createDailyBotController({ licenseManager, getLegacyReader, sourceLabel
         default:
           invalid();
       }
-      same(captured);
+      assertCurrentContext(captured);
       return {
         ...result,
         contextId: captured.id,

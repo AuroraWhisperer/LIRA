@@ -136,3 +136,46 @@ test('wheel disposal clears its owned timer and prevents a late publication', ()
   timer.callback();
   assert.equal(published.length, count);
 });
+
+test('wheel spin locks use monotonic elapsed time through wall clock changes', (t) => {
+  let wallMs = 1_800_000_000_000;
+  let monotonicMs = 0;
+  t.mock.method(Date, 'now', () => wallMs);
+  const tasks = new Set();
+  const published = [];
+  const wheel = createWheelSessionService({
+    random: () => 0,
+    wallNow: () => wallMs,
+    monotonicNow: () => monotonicMs,
+    broadcast: (payload) => published.push(payload),
+    setTimeout(callback) {
+      const timer = { callback, unref() {} };
+      tasks.add(timer);
+      return timer;
+    },
+    clearTimeout: (timer) => tasks.delete(timer),
+  });
+  t.after(() => wheel.dispose());
+  const entries = [{ label: 'A', weight: 1 }, { label: 'B', weight: 1 }];
+  wheel.configure(entries);
+  const started = wheel.spin();
+  assert.equal(started.spin.startedAt, wallMs);
+  for (const offset of [24 * 60 * 60 * 1000, -7 * 24 * 60 * 60 * 1000]) {
+    wallMs += offset;
+    monotonicMs += 1000;
+    assert.ok(wheel.getState().spin);
+    assert.throws(() => wheel.spin(), { statusCode: 409 });
+    assert.throws(() => wheel.configure(entries), { statusCode: 409 });
+  }
+  monotonicMs = 4800;
+  const [timer] = tasks;
+  tasks.delete(timer);
+  timer.callback();
+  assert.equal(wheel.getState().spin, null);
+  assert.equal(published.at(-1).state.spin, null);
+  assert.deepEqual(wheel.getState().lastResult, started.lastResult);
+  assert.doesNotThrow(() => wheel.configure(entries));
+  wheel.spin();
+  wheel.dispose();
+  assert.equal(tasks.size, 0);
+});

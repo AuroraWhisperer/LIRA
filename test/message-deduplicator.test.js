@@ -51,6 +51,25 @@ test('keeps simultaneous commands from different viewers', () => {
   );
 });
 
+test('different reliable UIDs override matching or masked display names across sources', () => {
+  const timestamp = Date.now();
+  for (const [firstName, secondName] of [['同名观众', '同名观众'], ['A***', 'Alice']]) {
+    const deduplicator = new MessageDeduplicator();
+    assert.equal(deduplicator.remember('101', '点歌 同一首', timestamp, {
+      userName: firstName,
+      source: 'danmaku',
+    }), true);
+    assert.equal(deduplicator.remember('202', '点歌 同一首', timestamp + 500, {
+      userName: secondName,
+      source: 'history',
+    }), true);
+    assert.equal(deduplicator.remember('101', '点歌 同一首', timestamp + 500, {
+      userName: '改名后的观众',
+      source: 'history',
+    }), false);
+  }
+});
+
 test('deduplicates anonymous commands across live and history sources', () => {
   const deduplicator = new MessageDeduplicator();
   const timestamp = Date.now();

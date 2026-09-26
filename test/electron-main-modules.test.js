@@ -15,7 +15,7 @@ test('desktop shutdown drains sync controllers before stopping the runtime', () 
   assert.ok(start >= 0 && end > start);
   assert.match(
     shutdown,
-    /const controllersToDrain = \[\s*remoteGiftController,\s*cloudSyncController,\s*fanProfileController,?\s*\]/,
+    /const controllersToDrain = \[\s*remoteGiftController,\s*cloudSyncController,\s*fanProfileController,\s*desktopAuth,?\s*\]/,
   );
   assert.match(
     shutdown,

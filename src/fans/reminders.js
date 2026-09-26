@@ -1,6 +1,6 @@
 'use strict';
 
-const { dayOf, dayStart, addDays, daysBetween, anniversaryDate } = require('./dates');
+const { DAY_MS, dayOf, dayStart, addDays, daysBetween, anniversaryDate } = require('./dates');
 const { summarizeMembership } = require('./membership');
 
 function buildReminders(profile, records, states, now = Date.now()) {
@@ -9,15 +9,16 @@ function buildReminders(profile, records, states, now = Date.now()) {
   const earliest = addDays(today, -7);
   const latest = addDays(today, 366);
   const year = Number(today.slice(0, 4));
-  const handled = new Map(states.map((state) => [state.key, state]));
+  const statesByKey = new Map(states.map((state) => [state.key, state]));
   const result = [];
   const membership = summarizeMembership(records, now);
 
   function add(key, date, title, basis, advance = 0, extra = {}) {
     if (!date || date < earliest || date > latest) return;
-    const state = handled.get(key);
+    const state = statesByKey.get(key);
     const scheduled = addDays(date, -advance);
     const snoozed = state?.status === 'snoozed' && state.until > today;
+    const isResolved = ['handled', 'ignored'].includes(state?.status);
     result.push({
       key,
       profileId: profile.id,
@@ -33,9 +34,9 @@ function buildReminders(profile, records, states, now = Date.now()) {
       revisedBelowThreshold: Boolean(
         extra.metric &&
         (membership[`${extra.metric}Days`] ?? -1) < extra.threshold &&
-        ['handled', 'ignored'].includes(state?.status),
+        isResolved,
       ),
-      group: ['handled', 'ignored'].includes(state?.status)
+      group: isResolved
         ? 'history'
         : date < today
           ? 'missed'
@@ -44,7 +45,7 @@ function buildReminders(profile, records, states, now = Date.now()) {
             : daysBetween(today, date) <= 7
               ? 'week'
               : 'later',
-      actionable: !['handled', 'ignored'].includes(state?.status) && !snoozed && scheduled <= today,
+      actionable: !isResolved && !snoozed && scheduled <= today,
     });
   }
 
@@ -138,7 +139,7 @@ function buildReminders(profile, records, states, now = Date.now()) {
     const seen = new Set();
     let last = previous;
     for (let date = earliest; date <= latest; date = addDays(date, 1)) {
-      const current = summarizeMembership(records, date === today ? now : dayStart(date) + 86400000 - 1);
+      const current = summarizeMembership(records, date === today ? now : dayStart(date) + DAY_MS - 1);
       for (const type of ['total', 'continuous']) {
         const value = current[`${type}Days`];
         const prior = last[`${type}Days`];

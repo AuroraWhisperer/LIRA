@@ -12,7 +12,7 @@ const {
 } = require('../../public/js/shared/interaction-rules.js');
 
 function createInteractionSessionService(options = {}) {
-  const now = options.now || (() => performance.now());
+  const monotonicNow = options.now || (() => performance.now());
   const wallNow = options.wallNow || Date.now;
   const schedule = options.setTimeout || setTimeout;
   const cancel = options.clearTimeout || clearTimeout;
@@ -22,10 +22,10 @@ function createInteractionSessionService(options = {}) {
   let session = null;
   let counter = null;
   let binding = null;
-  let started = 0;
-  let deadline = Infinity;
-  let timer = null;
-  let pending = null;
+  let startedAtMs = 0;
+  let deadlineMs = Infinity;
+  let expiryTimer = null;
+  let broadcastTimer = null;
   let unsubscribe = null;
   let disposed = false;
   let collecting = false;
@@ -59,12 +59,12 @@ function createInteractionSessionService(options = {}) {
       options.onCollectingChanged?.();
     }
     if (immediate) {
-      cancel(pending);
-      pending = null;
+      cancel(broadcastTimer);
+      broadcastTimer = null;
       broadcast({ type: 'interaction:update', state: snapshot() });
-    } else if (pending === null) {
-      pending = schedule(() => {
-        pending = null;
+    } else if (broadcastTimer === null) {
+      broadcastTimer = schedule(() => {
+        broadcastTimer = null;
         broadcast({ type: 'interaction:update', state: snapshot() });
       }, 200);
     }
@@ -75,14 +75,14 @@ function createInteractionSessionService(options = {}) {
   }
   function release() {
     detach();
-    cancel(timer);
-    cancel(pending);
-    timer = pending = null;
+    cancel(expiryTimer);
+    cancel(broadcastTimer);
+    expiryTimer = broadcastTimer = null;
     eventIds.clear();
     timestamps.clear();
   }
   function expire() {
-    if (session && session.phase !== 'finished' && now() >= deadline) finish(session.sessionId, 'timeout');
+    if (session && session.phase !== 'finished' && monotonicNow() >= deadlineMs) finish(session.sessionId, 'timeout');
   }
   function requireSession(id) {
     if (!session || session.sessionId !== id) fail('本场已变化，请刷新后重试');
@@ -101,8 +101,8 @@ function createInteractionSessionService(options = {}) {
     const source = options.getSourceState();
     if (!source.ready) fail(source.reason || '实时弹幕尚未就绪');
     binding = { accountUid: source.accountUid, roomId: source.roomId, ownerUid: source.ownerUid };
-    started = now();
-    deadline = config.kind === 'poll' ? started + config.durationSeconds * 1000 : Infinity;
+    startedAtMs = monotonicNow();
+    deadlineMs = config.kind === 'poll' ? startedAtMs + config.durationSeconds * 1000 : Infinity;
     counter = config.kind === 'poll' ? createPoll(config.options) : createRating();
     session = {
       sessionId: randomUUID(),
@@ -119,13 +119,13 @@ function createInteractionSessionService(options = {}) {
     unsubscribe = options.subscribe((event) => {
       if (session?.sessionId === id) accept(event);
     });
-    if (Number.isFinite(deadline)) {
+    if (Number.isFinite(deadlineMs)) {
       const tick = () => {
         if (session?.sessionId !== id || session.phase === 'finished') return;
         expire();
-        if (session.phase !== 'finished') timer = schedule(tick, Math.max(1, deadline - now()));
+        if (session.phase !== 'finished') expiryTimer = schedule(tick, Math.max(1, deadlineMs - monotonicNow()));
       };
-      timer = schedule(tick, deadline - started);
+      expiryTimer = schedule(tick, deadlineMs - startedAtMs);
     }
     publish();
     return state();
@@ -160,8 +160,8 @@ function createInteractionSessionService(options = {}) {
       event.roomId !== binding.roomId ||
       event.connectionKey !== source.connectionKey ||
       !Number.isFinite(event.receivedAt) ||
-      event.receivedAt < started ||
-      now() >= deadline
+      event.receivedAt < startedAtMs ||
+      monotonicNow() >= deadlineMs
     )
       return false;
     const uid = typeof event.uid === 'number' && !Number.isSafeInteger(event.uid) ? '' : String(event.uid || '');

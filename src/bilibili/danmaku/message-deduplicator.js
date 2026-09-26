@@ -103,9 +103,8 @@ function isCrossSourceDuplicate(left, right) {
 }
 
 function isSameRequester(left, right) {
-  if (left.uid && right.uid && left.uid === right.uid) return true;
+  if (left.uid && right.uid) return left.uid === right.uid;
   if (left.userName && right.userName && namesMatch(left.userName, right.userName)) return true;
-  if (left.uid && right.uid) return false;
   return !left.userName || !right.userName;
 }
 

@@ -130,3 +130,19 @@ test('authorization and cookie headers stay redacted', () => {
   );
   assert.ok(!redactCredentials('Cookie: lira_admin=abc123').includes('abc123'));
 });
+
+test('error metadata follows the same sensitive-key policy as ordinary objects', () => {
+  const error = Object.assign(new Error('request failed'), {
+    accessToken: 'synthetic-access-secret',
+    private_key_pem: 'synthetic-private-secret',
+    Cookie: 'synthetic-cookie-secret',
+    code: 'UPSTREAM_ERROR',
+    details: { token: 'nested-secret', attempts: 2 },
+  });
+  const out = redactCredentials(error);
+  assert.ok(out instanceof Error);
+  for (const key of ['accessToken', 'private_key_pem', 'Cookie']) assert.equal(out[key], '[REDACTED]');
+  assert.equal(out.code, 'UPSTREAM_ERROR');
+  assert.deepEqual(out.details, { token: '[REDACTED]', attempts: 2 });
+  assert.equal(error.accessToken, 'synthetic-access-secret');
+});

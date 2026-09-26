@@ -102,3 +102,28 @@ test('logout allows an already pending request for another provider to complete'
   assert.equal(app.element('music-player').paused, false);
   assert.equal(app.audioPlayCalls(), 2);
 });
+
+for (const accountAction of ['login', 'logout']) {
+  test(`${accountAction} prevents an old account's personal content from returning to storage or the drawer`, async () => {
+    const pending = Promise.withResolvers();
+    const storage = new Map();
+    const app = await createPlaybackApp(
+      { selectedSource: 'qq' },
+      {
+        storage,
+        homeAction: 'liked',
+        authState: { platform: 'qq', loggedIn: true },
+        loadHome: () => pending.promise,
+      },
+    );
+    await app.init();
+    await flushAsyncWork();
+    await app.emitHomeAction();
+    await app.emit(accountAction === 'login' ? 'playbackLoginBtn' : 'playbackLogoutBtn', 'click');
+    pending.resolve({ tracks: [track('private-old', '旧账号私人收藏')] });
+    await flushAsyncWork();
+    assert.equal(storage.has('playbackCache:v2:qq:liked'), false);
+    assert.doesNotMatch(app.element('playbackDrawerBody').innerHTML, /旧账号私人收藏/);
+    assert.deepEqual(app.errors(), []);
+  });
+}

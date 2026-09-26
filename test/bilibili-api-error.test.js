@@ -31,3 +31,13 @@ test('Bilibili errors retain upstream hints, fallback messages and bounded data'
   assert.ok(message.includes('message=未知错误.'));
   assert.equal(message.includes(' data='), false);
 });
+
+test('Bilibili error data redacts nested credentials before serializing diagnostics', () => {
+  const message = formatBilibiliApiError('getDanmuInfo', { status: 403 }, {
+    code: -352,
+    data: { token: 'synthetic-auth-token', nested: { SESSDATA: 'synthetic-session-cookie', hint: 'retry' } },
+  });
+  assert.doesNotMatch(message, /synthetic-auth-token|synthetic-session-cookie/);
+  assert.match(message, /REDACTED/);
+  assert.match(message, /retry/);
+});

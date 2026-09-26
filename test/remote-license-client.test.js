@@ -281,7 +281,7 @@ test('gift catalog accepts large resource responses without raising auth respons
   });
 });
 
-test('gift catalog growth beyond 8 MiB is not rejected by a fixed response limit', async () => {
+test('gift catalog growth beyond 8 MiB remains within its independent response budget', async () => {
   const body = JSON.stringify({
     ok: true,
     padding: '礼'.repeat(3 * 1024 * 1024),

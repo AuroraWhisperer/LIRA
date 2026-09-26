@@ -58,6 +58,67 @@ test('playback publishes a complete timeline only when the lyric identity change
   assert.equal(timelineRequests[0].body.lines[0].text, '制作：Timeline Studio');
 });
 
+test('timeline publication cannot let an older track finish after a newer one', async () => {
+  const timelines = [];
+  const states = [];
+  const pending = [];
+  const { LyricService } = await loadModuleExports(
+    path.join(ROOT_DIR, 'public/js/playback/services/lyric-service.js'),
+    {
+      fetch: async (url, options) => {
+        const body = JSON.parse(options.body);
+        if (url.endsWith('/lyric-timeline')) {
+          timelines.push(body.trackTitle);
+          return new Promise((resolve) => pending.push(resolve));
+        }
+        states.push(body.trackTitle);
+        return { ok: true, json: async () => ({ ok: true, data: body }) };
+      },
+    },
+  );
+  const service = new LyricService();
+  const track = (id) => ({ id, source: 'qq', title: id, lyrics: { lines: [{ startMs: 0, text: id }] } });
+  const audio = { currentTime: 1, duration: 120, paused: false };
+  const first = service.syncWindow(track('older'), audio, true);
+  const skipped = service.syncWindow(track('superseded'), audio, true);
+  const last = service.syncWindow(track('current'), audio, true);
+  await new Promise(setImmediate);
+  assert.deepEqual(timelines, ['older'], 'only one timeline request may be in flight');
+  pending.shift()({ ok: true });
+  await new Promise(setImmediate);
+  assert.deepEqual(timelines, ['older', 'current'], 'queued track switches retain only the newest timeline');
+  pending.shift()({ ok: true });
+  await Promise.all([first, skipped, last]);
+  assert.deepEqual(states, ['current']);
+});
+
+for (const failure of ['network', 'http']) {
+  test(`timeline publication retries the same track after a ${failure} failure`, async () => {
+    let attempts = 0;
+    const { LyricService } = await loadModuleExports(
+      path.join(ROOT_DIR, 'public/js/playback/services/lyric-service.js'),
+      {
+        fetch: async (url, options) => {
+          if (url.endsWith('/lyric-timeline')) {
+            if (++attempts === 1) {
+              if (failure === 'network') throw new Error('offline');
+              return { ok: false };
+            }
+            return { ok: true };
+          }
+          return { ok: true, json: async () => ({ ok: true, data: JSON.parse(options.body) }) };
+        },
+      },
+    );
+    const service = new LyricService();
+    const track = { id: 'recover', source: 'qq', lyrics: { lines: [{ startMs: 0, text: 'line' }] } };
+    const audio = { currentTime: 1, duration: 120, paused: false };
+    await service.syncWindow(track, audio, true);
+    await service.syncWindow(track, audio, true);
+    assert.equal(attempts, 2);
+  });
+}
+
 test('forced playback states bypass throttling and preserve publication order', async () => {
   const stateRequests = [];
   let releaseFirstState;

@@ -90,8 +90,7 @@ function createQWeatherTool(options = {}) {
   // 预扣配额 → 请求 → 校验业务 code；任何失败都退款，避免失败请求永久扣配额。
   async function requestWithQuota(url, config, transform = (payload) => payload, options = {}) {
     return withApiQuota(quotaStore, 'qweather', async () => {
-      let payload;
-      payload = await fetchJson(url, {
+      const payload = await fetchJson(url, {
         timeoutMs: config.requestTimeoutMs,
         fetchImpl,
         signal: options.signal,

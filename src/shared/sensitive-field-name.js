@@ -12,6 +12,8 @@ function isSensitiveFieldName(key) {
     normalizedKey === 'hardwareid' ||
     normalizedKey === 'authorization' ||
     normalizedKey === 'cookie' ||
+    normalizedKey === 'sessdata' ||
+    normalizedKey === 'bilijct' ||
     normalizedKey.endsWith('apikey') ||
     normalizedKey.endsWith('secret') ||
     normalizedKey.endsWith('token') ||

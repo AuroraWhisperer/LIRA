@@ -45,7 +45,7 @@ function createCollectionService({ store, provider, getContext, clock }) {
     throw new TypeError('Collection service dependencies are required.');
   }
 
-  const active = new Map();
+  const activeCollections = new Map();
   let disposed = false;
 
   function assertTaskReady(task) {
@@ -69,7 +69,7 @@ function createCollectionService({ store, provider, getContext, clock }) {
   }
 
   async function collect(taskId, controller, resumeExisting) {
-    let task = store.getTask(taskId);
+    const task = store.getTask(taskId);
     assertTaskReady(task);
     const context = await getContext();
     assertTaskScope(task, context);
@@ -153,8 +153,7 @@ function createCollectionService({ store, provider, getContext, clock }) {
       const reason = controller.signal.aborted
         ? controller.signal.reason?.code || 'LOTTERY_COLLECTION_PAUSED'
         : error?.code || 'LOTTERY_COLLECTION_FAILED';
-      task = store.pauseScan({ taskId, reason, nowMs: readNow(clock) });
-      return task;
+      return store.pauseScan({ taskId, reason, nowMs: readNow(clock) });
     }
   }
 
@@ -164,14 +163,14 @@ function createCollectionService({ store, provider, getContext, clock }) {
     }
     const id = String(taskId || '').trim();
     if (!id) return Promise.reject(new TypeError('taskId is required.'));
-    const current = active.get(id);
+    const current = activeCollections.get(id);
     if (current) return current.promise;
 
     const controller = new AbortController();
     const operation = collect(id, controller, resumeExisting).finally(() => {
-      if (active.get(id)?.controller === controller) active.delete(id);
+      if (activeCollections.get(id)?.controller === controller) activeCollections.delete(id);
     });
-    active.set(id, { controller, promise: operation });
+    activeCollections.set(id, { controller, promise: operation });
     return operation;
   }
 
@@ -185,7 +184,7 @@ function createCollectionService({ store, provider, getContext, clock }) {
 
   function pause(taskId) {
     const id = String(taskId || '').trim();
-    const current = active.get(id);
+    const current = activeCollections.get(id);
     if (current) {
       current.controller.abort(collectionError('LOTTERY_COLLECTION_PAUSED', 'Collection was paused by the user.'));
     }
@@ -201,11 +200,11 @@ function createCollectionService({ store, provider, getContext, clock }) {
   async function dispose() {
     if (!disposed) {
       disposed = true;
-      for (const { controller } of active.values()) {
+      for (const { controller } of activeCollections.values()) {
         controller.abort(collectionError('LOTTERY_COLLECTION_DISPOSED', 'Collection service has been disposed.'));
       }
     }
-    await Promise.allSettled([...active.values()].map((entry) => entry.promise));
+    await Promise.allSettled([...activeCollections.values()].map((entry) => entry.promise));
   }
 
   return { start, pause, resume, dispose };

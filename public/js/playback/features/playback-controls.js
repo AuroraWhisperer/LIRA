@@ -28,7 +28,7 @@ export function createPlaybackControls(deps) {
     syncPlaybackLyricWindow,
     getPlaybackAuthState,
     rebuildPlaybackShuffleOrder,
-    U,
+    U: utils,
   } = deps;
   const stateActions =
     deps.stateActions ||
@@ -276,9 +276,9 @@ export function createPlaybackControls(deps) {
       if (!playbackAuthState || !playbackAuthState.loggedIn) {
         showPlaybackLoginPrompt();
       } else {
-        if (typeof U.showStackedToast === 'function') {
+        if (typeof utils.showStackedToast === 'function') {
           const sourceName = PlaybackUtils.getSourceName(playbackState.selectedSource);
-          U.showStackedToast({
+          utils.showStackedToast({
             key: 'playback-queue-empty',
             title: '播放队列为空',
             message: `搜索${sourceName}歌曲并添加到播放队列`,

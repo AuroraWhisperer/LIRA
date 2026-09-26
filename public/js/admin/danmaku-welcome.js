@@ -341,17 +341,17 @@ export function initDanmakuWelcome({
         return;
       }
       void write({ ...parsed.values, [key]: true }, ['parameters']);
-    } else {
-      if (target && isV2()) {
-        const parsed = parameterValues(settings, { ...settings, [key]: true });
-        showErrors(parsed.errors, true);
-        if (Object.keys(parsed.errors).length) {
-          controls();
-          return;
-        }
-      }
-      void write({ [key]: target });
+      return;
     }
+    if (target && isV2()) {
+      const parsed = parameterValues(settings, { ...settings, [key]: true });
+      showErrors(parsed.errors, true);
+      if (Object.keys(parsed.errors).length) {
+        controls();
+        return;
+      }
+    }
+    void write({ [key]: target });
   }
   function addMessage() {
     const domain = libraries[editor.current()];

@@ -90,13 +90,13 @@ class QQMusicProvider extends QQMusicStreamProvider {
     const tracks = [];
     const seen = new Set();
     const maxPages = Math.min(5, Math.max(1, Math.ceil(limit / 9)));
-    for (let p = page; p < page + maxPages && tracks.length < limit; p++) {
+    for (let currentPage = page; currentPage < page + maxPages && tracks.length < limit; currentPage++) {
       const data = await this.requestMusicuPost(
         {
           req_1: {
             module: 'music.recommend.RecommendFeed',
             method: 'get_recommend_feed',
-            param: { direction: 1, page: p, v_cache: [], v_uniq: [], s_num: 4 },
+            param: { direction: 1, page: currentPage, v_cache: [], v_uniq: [], s_num: 4 },
           },
         },
         {
@@ -184,7 +184,6 @@ class QQMusicProvider extends QQMusicStreamProvider {
     const radioId = clampInteger(options.radioId, 1, 9999, 101);
     // 电台一次只回 5 首左右，所以要连抓几轮凑够 limit。
     // firstplay=1 表示「开始新一轮」，之后用 0 才会继续往下发新歌；
-    // 每次调用换新 guid 也能让服务端换一批，两个手段一起用。
     const tracks = [];
     const seen = new Set();
     const maxRounds = Math.min(12, Math.max(3, Math.ceil(limit / 4)));
@@ -202,17 +201,17 @@ class QQMusicProvider extends QQMusicStreamProvider {
       }).catch(() => null);
       const batch = extractRadioSongs(data);
       if (batch.length === 0) break;
-      let fresh = 0;
+      let addedTrackCount = 0;
       for (const song of batch) {
         const mapped = mapQQSong(song);
         if (!mapped || seen.has(mapped.sourceTrackId)) continue;
         seen.add(mapped.sourceTrackId);
         tracks.push(mapped);
-        fresh++;
+        addedTrackCount++;
         if (tracks.length >= limit) break;
       }
       // 服务端开始重复发同一批就停，避免空转。
-      if (fresh === 0) break;
+      if (addedTrackCount === 0) break;
     }
     return tracks.slice(0, limit);
   }
@@ -336,19 +335,22 @@ class QQMusicProvider extends QQMusicStreamProvider {
     const uin = await this.requireUin();
 
     // Try newer musicu API first
-    let muDebug = null;
+    let musicuDiagnostic = null;
     try {
-      const muData = await this.requestMusicu({
+      const musicuResponse = await this.requestMusicu({
         req_0: {
           module: 'music.globalchannel.GlobalChannelSvr',
           method: 'GetPlayHistory',
           param: { uin, start: 0, num: limit },
         },
       });
-      muDebug = muData && muData.req_0;
+      musicuDiagnostic = musicuResponse && musicuResponse.req_0;
       const list =
-        muData && muData.req_0 && muData.req_0.data && Array.isArray(muData.req_0.data.result_song_list)
-          ? muData.req_0.data.result_song_list
+        musicuResponse &&
+        musicuResponse.req_0 &&
+        musicuResponse.req_0.data &&
+        Array.isArray(musicuResponse.req_0.data.result_song_list)
+          ? musicuResponse.req_0.data.result_song_list
           : null;
       if (list && list.length > 0) {
         const songs = list
@@ -357,8 +359,8 @@ class QQMusicProvider extends QQMusicStreamProvider {
           .slice(0, limit);
         if (songs.length > 0) return songs;
       }
-    } catch (e) {
-      muDebug = { error: e && e.message };
+    } catch (error) {
+      musicuDiagnostic = { error: error && error.message };
     }
 
     // Legacy API fallback
@@ -389,7 +391,12 @@ class QQMusicProvider extends QQMusicStreamProvider {
     const legacyKeys = rawData ? Object.keys(rawData) : 'null';
     throw new Error(
       `QQ 音乐没有返回最近播放歌曲。` +
-        `[musicu:${JSON.stringify(muDebug && { code: muDebug.code, dataKeys: muDebug.data ? Object.keys(muDebug.data) : null })}]` +
+        `[musicu:${JSON.stringify(
+          musicuDiagnostic && {
+            code: musicuDiagnostic.code,
+            dataKeys: musicuDiagnostic.data ? Object.keys(musicuDiagnostic.data) : null,
+          },
+        )}]` +
         `[legacy keys:${JSON.stringify(legacyKeys)}]`,
     );
   }

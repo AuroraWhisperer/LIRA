@@ -87,10 +87,12 @@ User-Agent: Mozilla/5.0 SongAssistant/1.0
 
 ## 6. 请求方法
 
+所有 JSON 响应经[共享读取器](../../../../src/shared/response-body.js)限制为 16 MiB；保留分块前累计字节数，超限取消上游且错误不拼接大正文，缓冲区按倍数扩容以限制微小分块的对象开销。
+
 | 方法                                  | 用途                | 要点                                                                                                                                                                                      |
 | ------------------------------------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `requestJson(pathname, params)`       | GET 明文接口        | `new URL(pathname, NETEASE_BASE_URL)` 拼参;空响应体返回 `{}`;非 JSON 抛"返回了非 JSON 响应"([netease-provider.js](../../../../src/music/providers/netease-provider.js)) |
-| `requestWeapiJson(pathname, payload)` | POST weapi 加密接口 | payload 注入 `csrf_token` 后走 §3 加密,`URLSearchParams` 编码,URL 带 `csrf_token` 查询参数([netease-provider.js](../../../../src/music/providers/netease-provider.js))  |
+| `requestJson(pathname, params)`       | GET 明文接口        | `new URL(pathname, NETEASE_BASE_URL)` 拼参;共享响应体读取器限制 16 MiB，空响应体返回 `{}`;非 JSON 抛"返回了非 JSON 响应"([netease-provider.js](../../../../src/music/providers/netease-provider.js)) |
+| `requestWeapiJson(pathname, payload)` | POST weapi 加密接口 | payload 注入 `csrf_token` 后走 §3 加密,`URLSearchParams` 编码,URL 带 `csrf_token` 查询参数；响应体同样限制 16 MiB([netease-provider.js](../../../../src/music/providers/netease-provider.js))  |
 
 ## 7. 上游端点详解(12 个)
 

@@ -1,5 +1,7 @@
 'use strict';
 
+const { performance } = require('node:perf_hooks');
+
 const MIN_ENTRIES = 2;
 const MAX_ENTRIES = 12;
 const MAX_LABEL_LENGTH = 40;
@@ -54,17 +56,20 @@ function chooseWeightedEntry(entries, random = Math.random) {
 function createWheelSessionService(options = {}) {
   const broadcast = typeof options.broadcast === 'function' ? options.broadcast : () => {};
   const random = typeof options.random === 'function' ? options.random : Math.random;
+  const monotonicNow = options.monotonicNow || (() => performance.now());
+  const wallNow = options.wallNow || Date.now;
   const scheduleTimeout = options.setTimeout || setTimeout;
   const cancelTimeout = options.clearTimeout || clearTimeout;
   let entries = [];
   let totalWeight = 0;
   let lastResult = null;
   let activeSpin = null;
+  let spinStartedMs = 0;
   let spinTimer = null;
   let disposed = false;
 
   function getState() {
-    const spin = activeSpin && Date.now() - activeSpin.startedAt < activeSpin.durationMs ? { ...activeSpin } : null;
+    const spin = isSpinning() ? { ...activeSpin } : null;
     return {
       entries: entries.map((entry) => ({ ...entry })),
       totalWeight,
@@ -74,8 +79,12 @@ function createWheelSessionService(options = {}) {
     };
   }
 
+  function isSpinning() {
+    return activeSpin && monotonicNow() - spinStartedMs < activeSpin.durationMs;
+  }
+
   function configure(input) {
-    if (activeSpin && Date.now() - activeSpin.startedAt < activeSpin.durationMs) {
+    if (isSpinning()) {
       const error = new Error('转盘正在转动，请稍候再修改。');
       error.statusCode = 409;
       throw error;
@@ -91,13 +100,14 @@ function createWheelSessionService(options = {}) {
 
   function spin() {
     if (entries.length < MIN_ENTRIES) throw new Error('请先配置至少两个转盘选项。');
-    if (activeSpin && Date.now() - activeSpin.startedAt < activeSpin.durationMs) {
+    if (isSpinning()) {
       const error = new Error('转盘正在转动，请稍候再抽取。');
       error.statusCode = 409;
       throw error;
     }
     const index = chooseWeightedEntry(entries, random);
-    const now = Date.now();
+    const now = wallNow();
+    spinStartedMs = monotonicNow();
     activeSpin = {
       id: `${now}-${index}-${Math.floor(random() * 1000000)}`,
       index,

@@ -40,6 +40,31 @@ test('gomoku parses viewer coordinates and detects five stones', () => {
   assert.equal(state.winner, 'host');
 });
 
+test('gomoku rejects malformed object coordinates without advancing or corrupting a session', () => {
+  const service = createGameSessionService();
+  service.start({ game: 'gomoku', mode: 'multi' });
+  const before = structuredClone(service.getSession());
+  for (const value of [
+    {},
+    { row: 0 },
+    { row: 0, column: 0.5 },
+    { row: 0.5, column: 0 },
+    { row: null, column: 0 },
+    { row: '0', column: 0 },
+    { row: 0, column: NaN },
+    { row: NaN, column: 0 },
+    { row: 0, column: Infinity },
+    [],
+    true,
+  ]) {
+    const result = service.move({ value }, 'host');
+    assert.equal(result.accepted, false);
+    assert.deepEqual(service.getSession(), before);
+  }
+  assert.equal(service.move({ value: { row: 0, column: 0 } }, 'host').accepted, true);
+  assert.equal(service.getSession().state.board[0][0], 'black');
+});
+
 test('game session retains the viewer identity that wins', () => {
   const service = createGameSessionService();
   service.start({ game: 'gomoku', mode: 'multi' });

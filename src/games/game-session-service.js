@@ -24,13 +24,17 @@ function createGameSessionService(options = {}) {
     const name = String(danmaku.userName || '观众').trim() || '观众';
     if (!uid && name === '观众') return;
     const key = uid || `name:${name}`;
-    viewers.set(key, { uid, name, lastSeenAt: Date.now() });
+    // Keep insertion order aligned with expiry so each stale viewer is visited once.
+    viewers.delete(key);
+    viewers.set(key, { uid, name, lastSeenAt: wallNow(), expiresAtMs: monotonicNow() + 10 * 60 * 1000 });
     pruneViewers();
   }
 
   function listViewers() {
     pruneViewers();
-    return [...viewers.values()].sort((a, b) => b.lastSeenAt - a.lastSeenAt);
+    return [...viewers.values()]
+      .map(({ uid, name, lastSeenAt }) => ({ uid, name, lastSeenAt }))
+      .sort((a, b) => b.lastSeenAt - a.lastSeenAt);
   }
 
   function assertCanCollect() {
@@ -142,9 +146,7 @@ function createGameSessionService(options = {}) {
       if (session.danmaku.length > MAX_DANMAKU) session.danmaku.splice(0, session.danmaku.length - MAX_DANMAKU);
       materializeDrawGuessDeadline();
       const result = isStreamer ? { accepted: false } : drawGuess.submitGuess(session.state, danmaku, monotonicNow());
-      publish();
-      if (!result.accepted) return { ...result, session: publicSessionRaw() };
-      session.state = result.state;
+      if (result.accepted) session.state = result.state;
       publish();
       return { ...result, session: publicSessionRaw() };
     }
@@ -316,8 +318,11 @@ function createGameSessionService(options = {}) {
   }
 
   function pruneViewers() {
-    const cutoff = Date.now() - 10 * 60 * 1000;
-    for (const [key, viewer] of viewers) if (viewer.lastSeenAt < cutoff) viewers.delete(key);
+    const nowMs = monotonicNow();
+    for (const [key, viewer] of viewers) {
+      if (viewer.expiresAtMs >= nowMs) break;
+      viewers.delete(key);
+    }
   }
 
   return {

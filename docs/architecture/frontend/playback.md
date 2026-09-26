@@ -86,6 +86,8 @@ playbackControls → audio.load()/play()
 
 发送者重建时不从零版本持续覆盖服务状态。`lyric-state` HTTP 响应若带 `data.nextGeneration`，表示本次旧版本被拒；发送队列更新代际偏移并至多立即重试一次。偏移在发送时应用于后续排队项，保留切歌/seek 的本地版本顺序；已被成功强制状态超过的旧 pending 直接丢弃，不能因重新升代而回灌。只有有效成功响应才记录发布成功；服务端旧包过滤仍有效，响应恢复信息不进入 WS 状态。
 
+时间轴发布串行执行，最多保留一份最新待发时间轴；失败后解除该曲目去重，下一次同步可重试。等待旧时间轴的状态若已被新 generation 替代则丢弃。时间轴与状态请求使用 10 秒取消期限（状态包括响应体读取），强制状态待发队列最多 64 项；超限完成最旧等待者并保留较新的状态，不改变服务端版本合同。
+
 ## 4. 服务层(services/)
 
 | 服务           | 职责与端点(定义见 [api.md](../backend/api.md))                                                                                                                                                                                                   |
@@ -99,6 +101,8 @@ playbackControls → audio.load()/play()
 | wesing-service | 全民 K 歌适配层:`/api/music/wesing/*`(active/refresh/configure/offset)+ WS `wesing-state` 实时状态 + `LyricWordRenderer` 逐字现场(详见 [backend/music/wesing.md](../backend/music/wesing.md));源切换用 `activationQueue` 串行化,避免后端状态错乱 |
 
 首页请求在开始时固定平台、action、歌单 ID 和缓存键。HomeService 的代际决定页面是否接受结果，ContentLoader 的每键请求代际决定缓存是否接受写入：切换分类、最近历史、音源或返回历史后，旧成功和旧失败均不能覆盖新页面。后台刷新使用局部结果，不把页面状态当临时工作区；重复缓存读取可复用在途刷新，同键较新的实际请求优先，完成后清理请求记录。可缓存 action 只由 ContentLoader 的 `CACHEABLE_ACTIONS` 定义，HomeService 复用该集合。
+
+`CacheManager` 内存层最多 64 项，按序列化字符串 UTF-16 长度估算的合计预算为 8 MiB（不是 V8 实际堆大小保证）。读取提升最近使用顺序，写入/回填时回收超过默认 24 小时的内存条目，按最近使用顺序淘汰至预算内。超大单项跳过缓存而不截断歌单数据；localStorage 保留既有 24 小时有效期和浏览器配额。登录/退出还会使对应平台未完成内容请求失去缓存写入权，防止旧账号响应重新填回缓存。
 
 ## 5. 队列、电台与歌单
 

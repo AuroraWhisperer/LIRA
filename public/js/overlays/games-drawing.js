@@ -52,12 +52,9 @@ export function createDrawController({ byId, canDraw, getSession, loadSnapshot, 
         updateDrawColorButtons();
       }),
     );
-    byId('drawPenBtn').addEventListener('click', () => setActiveDrawTool('pen'));
-    byId('drawEraserBtn').addEventListener('click', () => setActiveDrawTool('eraser'));
-    byId('drawLineBtn').addEventListener('click', () => setActiveDrawTool('line'));
-    byId('drawRectangleBtn').addEventListener('click', () => setActiveDrawTool('rectangle'));
-    byId('drawEllipseBtn').addEventListener('click', () => setActiveDrawTool('ellipse'));
-    byId('drawPickerBtn').addEventListener('click', () => setActiveDrawTool('picker'));
+    for (const [tool, buttonId] of Object.entries(DRAW_TOOL_BUTTONS)) {
+      byId(buttonId).addEventListener('click', () => setActiveDrawTool(tool));
+    }
     document.querySelectorAll('[data-draw-width]').forEach((button) =>
       button.addEventListener('click', () => {
         setDrawWidth(Number(button.dataset.drawWidth));
@@ -133,7 +130,7 @@ export function createDrawController({ byId, canDraw, getSession, loadSnapshot, 
     drawTool = DRAW_TOOLS.includes(tool) ? tool : 'pen';
     const canvas = byId('drawCanvas');
     canvas.classList.toggle('is-eraser', drawTool === 'eraser');
-    canvas.classList.toggle('is-shape', ['line', 'rectangle', 'ellipse'].includes(drawTool));
+    canvas.classList.toggle('is-shape', isShapeTool(drawTool));
     canvas.classList.toggle('is-picker', drawTool === 'picker');
     Object.entries(DRAW_TOOL_BUTTONS).forEach(([name, id]) => {
       byId(id).setAttribute('aria-pressed', String(drawTool === name));

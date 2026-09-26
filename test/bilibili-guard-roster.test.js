@@ -24,7 +24,7 @@ function fixture(pages) {
     const data = url.includes('room_init')
       ? { room_id: 1234, uid: 99 }
       : pages[Number(new URL(url).searchParams.get('page')) - 1];
-    return { ok: true, json: async () => ({ code: 0, data }) };
+    return new Response(JSON.stringify({ code: 0, data }));
   };
   return { requests, fetchImpl };
 }
@@ -111,7 +111,7 @@ test('guard roster rejects invalid IDs, upstream errors, and cancellation', asyn
   await assert.rejects(fetchGuardRoster('https://untrusted.example'), /直播间/);
   await assert.rejects(fetchGuardRoster('42', { fetchImpl: async () => ({ ok: false, status: 412 }) }), /B站/);
   await assert.rejects(
-    fetchGuardRoster('42', { fetchImpl: async () => ({ ok: true, json: async () => ({ code: -352 }) }) }),
+    fetchGuardRoster('42', { fetchImpl: async () => new Response(JSON.stringify({ code: -352 })) }),
     /B站/,
   );
   const abort = new AbortController();

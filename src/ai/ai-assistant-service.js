@@ -50,8 +50,8 @@ function createAiAssistantService(dependencies) {
     random = Math.random,
     log = console,
   } = dependencies;
-  const userLastRequest = new Map();
-  const roomRequests = [];
+  const lastRequestAtByUser = new Map();
+  const roomRequestTimes = [];
   const shutdownController = new AbortController();
   const directOperations = new Set();
   let lastUserMapPruneAt = 0;
@@ -112,25 +112,25 @@ function createAiAssistantService(dependencies) {
 
   function consumeRateLimit(uid, config) {
     const current = now();
-    const last = userLastRequest.get(uid) || 0;
+    const last = lastRequestAtByUser.get(uid) || 0;
     if (last && current - last < config.userCooldownSeconds * 1000) return 'user_rate_limited';
     const cutoff = current - 60000;
-    while (roomRequests.length && roomRequests[0] <= cutoff) roomRequests.shift();
-    if (roomRequests.length >= config.roomLimitPerMinute) return 'room_rate_limited';
-    userLastRequest.set(uid, current);
-    roomRequests.push(current);
+    while (roomRequestTimes.length && roomRequestTimes[0] <= cutoff) roomRequestTimes.shift();
+    if (roomRequestTimes.length >= config.roomLimitPerMinute) return 'room_rate_limited';
+    lastRequestAtByUser.set(uid, current);
+    roomRequestTimes.push(current);
     pruneUserLastRequest(current, config);
     return '';
   }
 
-  // 与 roomRequests 一样把观众维度的冷却表有界化：长直播下永不清理会无界增长。
+  // 与房间请求时间表一样，清理观众冷却记录以免长直播下无界增长。
   function pruneUserLastRequest(current, config) {
     if (current - lastUserMapPruneAt < 60000) return;
     lastUserMapPruneAt = current;
     const retentionMs = Math.max(60000, Number(config.userCooldownSeconds) * 1000 + 60000);
     const expireBefore = current - retentionMs;
-    for (const [uid, timestamp] of userLastRequest) {
-      if (timestamp < expireBefore) userLastRequest.delete(uid);
+    for (const [uid, timestamp] of lastRequestAtByUser) {
+      if (timestamp < expireBefore) lastRequestAtByUser.delete(uid);
     }
   }
 
@@ -242,8 +242,8 @@ function createAiAssistantService(dependencies) {
         'output_review',
       );
       throwIfShuttingDown();
-      const approved = outputReview.allowed ? outputReview.safeText || rawText : outputReview.safeText || SAFE_REFUSAL;
-      const text = truncateReply(approved, replyBudget.threeMessages);
+      const approvedText = outputReview.allowed ? outputReview.safeText || rawText : outputReview.safeText || SAFE_REFUSAL;
+      const text = truncateReply(approvedText, replyBudget.threeMessages);
       const result = {
         text,
         category: toolCallCount ? 'tool' : 'chat',

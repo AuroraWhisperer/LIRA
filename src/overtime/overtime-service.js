@@ -10,6 +10,7 @@ const {
   MAX_ENABLED_RULES,
   MIN_RANDOM_OUTCOMES,
   MAX_RANDOM_OUTCOMES,
+  MAX_RANDOM_APPLICATIONS,
   MAX_DISPLAY_TEXT_LENGTH,
   validateTimeInput,
   validateAction,
@@ -40,6 +41,7 @@ const OVERTIME_LIMITS = Object.freeze({
   maxEnabledRules: MAX_ENABLED_RULES,
   minRandomOutcomes: MIN_RANDOM_OUTCOMES,
   maxRandomOutcomes: MAX_RANDOM_OUTCOMES,
+  maxRandomApplications: MAX_RANDOM_APPLICATIONS,
   maxDisplayTextLength: MAX_DISPLAY_TEXT_LENGTH,
 });
 
@@ -91,6 +93,7 @@ function createOvertimeService(options = {}) {
     return {
       ...getSnapshot(),
       pendingCount: store.countPending(),
+      quantityLimitedCount: store.countQuantityLimited(),
       settlements: store.listRecent(20),
     };
   }
@@ -256,6 +259,12 @@ function createOvertimeService(options = {}) {
         retry = null;
       }
       scheduleRecovery(retry?.settleAfterMs || currentMs + 1000);
+      if (error.code === 'OVERTIME_QUANTITY_LIMIT' && retry) {
+        onUpdate({
+          reason: 'quantity-limit',
+          state: { ...getSnapshot(), pendingCount: store.countPending(), quantityLimitedCount: store.countQuantityLimited() },
+        });
+      }
       throw error;
     }
   }
@@ -263,6 +272,9 @@ function createOvertimeService(options = {}) {
   function resolveGiftSettlement({ giftEventId, gift, rule, currentState, updatedAt }) {
     const quantity = normalizeQuantity(gift.num);
     const applicationCount = rule.quantityMode === 'item' ? quantity : 1;
+    if (rule.mode === 'random' && applicationCount > MAX_RANDOM_APPLICATIONS) {
+      throw Object.assign(new Error('OVERTIME_QUANTITY_LIMIT'), { code: 'OVERTIME_QUANTITY_LIMIT' });
+    }
     const beforeMs = clampMs(currentState.remainingMs);
     const resolution = applyRule(rule, applicationCount, beforeMs);
     const afterMs = resolution.afterMs;
@@ -339,26 +351,28 @@ function createOvertimeService(options = {}) {
 
     let afterMs = beforeMs;
     let requestedDeltaSeconds = 0;
-    const outcomes = [];
+    const selectedIndexes = [];
+    let firstOutcome = null;
+    const totalWeight = rule.outcomes.reduce((sum, outcome) => sum + Number(outcome.weight), 0);
     for (let index = 0; index < applicationCount; index += 1) {
-      const selection = selectRuleResult(rule);
+      const selection = selectRuleResult(rule, totalWeight);
       const nextMs = applyEffect(afterMs, selection.effect);
       const appliedDeltaSeconds = Math.trunc((nextMs - afterMs) / 1000);
       requestedDeltaSeconds += requestedDelta(selection.effect, appliedDeltaSeconds);
       afterMs = nextMs;
-      outcomes.push(selection.outcome);
+      if (index === 0) firstOutcome = selection.outcome;
+      selectedIndexes.push(selection.outcome.selectedIndex);
     }
     return {
       afterMs,
       requestedDeltaSeconds,
-      effect: applicationCount === 1 ? outcomes[0].selectedEffect : null,
-      outcome: summarizeRandomOutcomes(outcomes),
+      effect: applicationCount === 1 ? firstOutcome.selectedEffect : null,
+      outcome: summarizeRandomOutcomes(firstOutcome, selectedIndexes),
     };
   }
 
-  function selectRuleResult(rule) {
+  function selectRuleResult(rule, totalWeight) {
     if (rule.mode === 'fixed') return { effect: rule.fixedEffect, outcome: null };
-    const totalWeight = rule.outcomes.reduce((sum, outcome) => sum + Number(outcome.weight), 0);
     const draw = randomInt(totalWeight);
     let cumulative = 0;
     for (let index = 0; index < rule.outcomes.length; index += 1) {
@@ -458,13 +472,13 @@ function createOvertimeService(options = {}) {
       }
     } finally {
       recovering = false;
-      scheduleNextRecovery();
+      scheduleNextRecovery(!retryTimer);
     }
   }
 
-  function scheduleNextRecovery() {
+  function scheduleNextRecovery(includeUnobserved = false) {
     if (recovering || disposed || recoveryPaused || !state.enabled) return;
-    const nextAt = store.getNextPendingAt(state.enableEpoch);
+    const nextAt = store.getNextPendingAt(state.enableEpoch, includeUnobserved);
     if (nextAt !== null) scheduleRecovery(nextAt);
   }
 
@@ -474,7 +488,12 @@ function createOvertimeService(options = {}) {
     const delay = Math.max(0, Math.floor(atMs) - Math.floor(now()));
     retryTimer = scheduleTimeout(() => {
       retryTimer = null;
-      recoverSettlements();
+      try {
+        recoverSettlements();
+      } catch (error) {
+        console.warn('[Overtime] automatic settlement recovery failed:', error);
+        scheduleRecovery(Math.floor(now()) + 1000);
+      }
     }, delay);
     if (retryTimer && typeof retryTimer.unref === 'function') retryTimer.unref();
   }
@@ -506,7 +525,15 @@ function createOvertimeService(options = {}) {
     const nextState = materialize();
     nextState.remainingMs = 0;
     nextState.status = 'finished';
-    commit('finished', nextState);
+    try {
+      commit('finished', nextState);
+    } catch (error) {
+      console.warn('[Overtime] automatic countdown completion failed:', error);
+      if (!disposed && !recoveryPaused && state.enabled && state.status === 'running') {
+        zeroTimer = scheduleTimeout(handleZeroTimer, 1000);
+        if (zeroTimer && typeof zeroTimer.unref === 'function') zeroTimer.unref();
+      }
+    }
   }
 
   function pauseRecovery() {

@@ -236,3 +236,92 @@ test('Admin emits a fresh HTTP lyric version once and ignores duplicate or stale
   );
   assert.equal(service.appState.lyricState.text, 'fresh');
 });
+
+async function createSocketLifecycleHarness() {
+  const globals = createGlobals();
+  const sockets = [];
+  const timers = new Map();
+  let nextTimer = 0;
+  globals.WebSocket = class extends FakeWebSocket {
+    constructor() {
+      super();
+      sockets.push(this);
+    }
+  };
+  globals.setTimeout = (callback) => {
+    timers.set(++nextTimer, callback);
+    return nextTimer;
+  };
+  globals.clearTimeout = (timer) => timers.delete(timer);
+  const { StateService } = await loadModuleExports(STATE_PATH, globals);
+  const service = new StateService();
+  return { service, sockets, timers, globals };
+}
+
+test('Admin owns one socket and ignores obsolete socket events after reconnecting', async () => {
+  const { service, sockets, timers, globals } = await createSocketLifecycleHarness();
+  let connected = 0;
+  globals.window.AdminApp.eventBus.on('ws:connected', () => connected++);
+  service.connectSocket();
+  service.connectSocket();
+  assert.equal(sockets.length, 1);
+  sockets[0].emit('close');
+  assert.equal(timers.size, 1);
+  const [timer, reconnect] = [...timers][0];
+  timers.delete(timer);
+  reconnect();
+  assert.equal(sockets.length, 2);
+  sockets[0].emit('open');
+  sockets[0].emit('close');
+  assert.equal(connected, 0);
+  assert.equal(timers.size, 0);
+  assert.equal(service.ws, sockets[1]);
+  sockets[1].emit('open');
+  assert.equal(connected, 1);
+});
+
+test('Admin cancels pending reconnects when shutdown starts', async () => {
+  const { service, sockets, timers } = await createSocketLifecycleHarness();
+  service.connectSocket();
+  sockets[0].emit('close');
+  const reconnect = [...timers.values()][0];
+  service.setShuttingDown(true);
+  assert.equal(timers.size, 0);
+  reconnect();
+  service.connectSocket();
+  assert.equal(sockets.length, 1);
+});
+
+test('Admin rejects malformed frames without changing state and continues accepting valid frames', async () => {
+  const { service } = await createSocketLifecycleHarness();
+  service.connectSocket();
+  const initial = { settings: { roomId: '123' }, categories: [], tags: [] };
+  service.appState = initial;
+  for (const data of [
+    '{',
+    'null',
+    '[]',
+    '1',
+    '{"type":"snapshot"}',
+    '{"type":"snapshot","state":null}',
+    '{"type":"snapshot","state":[]}',
+    '{"type":"snapshot","state":{"tags":{}}}',
+    '{"type":"wesing-state","state":[]}',
+    '{"type":"lyric-timeline","timeline":[]}',
+  ]) {
+    assert.doesNotThrow(() => service.ws.emit('message', { data }));
+    assert.equal(service.appState, initial);
+  }
+  service.ws.emit('message', { data: '{"type":"snapshot","state":{"settings":{"roomId":"456"}}}' });
+  assert.equal(service.appState.settings.roomId, '456');
+});
+
+test('Admin rejects an invalid HTTP snapshot without discarding the current state', async () => {
+  const globals = createGlobals(async () => ({ json: async () => ({ ok: true, data: { tags: {} } }) }));
+  const { StateService } = await loadModuleExports(STATE_PATH, globals);
+  const service = new StateService();
+  const initial = { settings: { roomId: '123' }, tags: [] };
+  service.appState = initial;
+  await assert.rejects(service.reloadState(), /数据格式错误/);
+  assert.equal(service.appState, initial);
+});

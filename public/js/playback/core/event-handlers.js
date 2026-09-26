@@ -7,6 +7,13 @@ import { createPlaybackStateActions } from '../state/actions.js';
 import * as PlaybackUtils from '../utils.js';
 import * as PlaybackComponents from '../ui/components.js';
 
+function menuNavigationIndex(key, currentIndex, itemCount) {
+  if (key === 'Home') return 0;
+  if (key === 'End') return itemCount - 1;
+  if (key === 'ArrowUp') return Math.max(0, currentIndex - 1);
+  return Math.min(itemCount - 1, currentIndex + 1);
+}
+
 export function createEventHandlers(deps) {
   const {
     playbackState,
@@ -181,14 +188,7 @@ export function createEventHandlers(deps) {
       const currentIndex = items.indexOf(document.activeElement);
       if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
         event.preventDefault();
-        const nextIndex =
-          event.key === 'Home'
-            ? 0
-            : event.key === 'End'
-              ? items.length - 1
-              : event.key === 'ArrowUp'
-                ? Math.max(0, currentIndex - 1)
-                : Math.min(items.length - 1, currentIndex + 1);
+        const nextIndex = menuNavigationIndex(event.key, currentIndex, items.length);
         items[nextIndex]?.focus();
       } else if (event.key === 'Escape') {
         event.preventDefault();
@@ -376,14 +376,7 @@ export function createEventHandlers(deps) {
       const currentIndex = options.indexOf(document.activeElement);
       if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
         event.preventDefault();
-        const nextIndex =
-          event.key === 'Home'
-            ? 0
-            : event.key === 'End'
-              ? options.length - 1
-              : event.key === 'ArrowUp'
-                ? Math.max(0, currentIndex - 1)
-                : Math.min(options.length - 1, currentIndex + 1);
+        const nextIndex = menuNavigationIndex(event.key, currentIndex, options.length);
         focusQualityOption(options[nextIndex]);
       } else if (event.key === 'Escape') {
         event.preventDefault();

@@ -2,6 +2,9 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
+const { DatabaseSync } = require('node:sqlite');
+const { SONG_SCHEMA } = require('../src/storage/schema');
+const { createAiConfigStore } = require('../src/ai/config-store');
 const { createAiSettingsFixture, flushAiTasks, aiResponse } = require('./helpers/ai-settings-fixture');
 
 test('AI initial load preserves edits and blocks saving before configuration arrives', async () => {
@@ -120,6 +123,36 @@ test('AI edits during a pending save are saved after it completes', async () => 
   );
   assert.equal(f.elements.get('xiaomiAiModel').value, 'later-model');
   assert.equal(f.elements.get('xiaomiAiSaveState').textContent, '已保存，后续新弹幕立即生效。');
+});
+
+test('AI refresh cannot replace edits protected by a newer pending save', async (t) => {
+  const complete = [];
+  const responses = [0, 1].map(() => new Promise((resolve) => complete.push(resolve)));
+  let saveCount = 0;
+  const f = await createAiSettingsFixture({
+    request: (_url, options) => options.method === 'PUT' ? responses[saveCount++] : undefined,
+  });
+  t.after(() => complete.forEach((resolve) => resolve(aiResponse(f.publicConfig))));
+  f.input('xiaomiAiModel', 'first-model');
+  await f.advance(700);
+  f.input('xiaomiAiModel', 'newer-model');
+  await f.advance(700);
+  f.publicConfig.model = 'first-model';
+  complete[0](aiResponse({ ...f.publicConfig }));
+  await flushAiTasks();
+  assert.equal(f.saves().length, 2);
+
+  // Reopening the feature refreshes the last persisted value while save #2 is pending.
+  await f.api.refresh();
+  assert.equal(f.elements.get('xiaomiAiModel').value, 'newer-model');
+  assert.equal(f.saves()[1].model, 'newer-model');
+
+  f.publicConfig.model = 'newer-model';
+  complete[1](aiResponse({ ...f.publicConfig }));
+  await flushAiTasks();
+  f.publicConfig.model = 'later-server-model';
+  await f.api.refresh();
+  assert.equal(f.elements.get('xiaomiAiModel').value, 'later-server-model');
 });
 
 test('AI model listing uses draft credentials and saves a selected model after reopening the menu', async () => {
@@ -285,6 +318,67 @@ test('AI switching from an official provider restores the saved custom endpoint 
   assert.equal(f.elements.get('xiaomiAiModelApiProtocol').value, 'chat_completions');
   assert.equal(f.elements.get('xiaomiAiDeepSeekUrl').disabled, false);
 });
+
+for (const outcome of ['successful', 'failed']) {
+  test(`AI ${outcome} older save cannot overwrite a newer provider switch`, async (t) => {
+    const db = new DatabaseSync(':memory:');
+    t.after(() => db.close());
+    db.exec(SONG_SCHEMA);
+    const store = createAiConfigStore(db, { isAvailable: () => true });
+    const customUrl = 'https://saved-custom.example/v1';
+    store.updateConfig({
+      enabled: false,
+      trigger: 'test',
+      model: 'test-model',
+      modelProvider: 'custom',
+      deepseekResponsesUrl: customUrl,
+      modelApiProtocol: 'chat_completions',
+    });
+    const initialConfig = store.updateConfig({ modelProvider: 'openai' });
+    let resolveFirst;
+    let rejectFirst;
+    let firstConfig;
+    let saveCount = 0;
+    const firstSave = new Promise((resolve, reject) => {
+      resolveFirst = resolve;
+      rejectFirst = reject;
+    });
+    const f = await createAiSettingsFixture({
+      config: initialConfig,
+      request: (url, options) => {
+        if (url !== '/api/ai/config' || options.method !== 'PUT') return undefined;
+        const config = store.updateConfig(JSON.parse(options.body));
+        if (++saveCount !== 1) return aiResponse(config);
+        firstConfig = config;
+        return firstSave;
+      },
+    });
+
+    f.input('xiaomiAiModel', 'edited-model');
+    await f.advance(700);
+    const provider = f.elements.get('xiaomiAiModelProvider');
+    provider.value = 'custom';
+    f.fire('xiaomiAiModelProvider', 'change');
+    f.fire('xiaomiAiForm', 'change', { target: provider });
+    if (outcome === 'successful') resolveFirst(aiResponse(firstConfig));
+    else rejectFirst(new Error('Older save response failed'));
+    await flushAiTasks();
+
+    assert.equal(f.saves().length, 2);
+    assert.equal(f.saves()[1].deepseekResponsesUrl, undefined);
+    assert.equal(f.saves()[1].modelApiProtocol, undefined);
+    assert.equal(f.elements.get('xiaomiAiDeepSeekUrl').value, customUrl);
+    assert.equal(f.elements.get('xiaomiAiModelApiProtocol').value, 'chat_completions');
+    assert.equal(f.elements.get('xiaomiAiDeepSeekUrl').disabled, false);
+
+    f.input('xiaomiAiTrigger', 'edited');
+    await f.advance(700);
+    assert.equal(f.saves().length, 3);
+    assert.equal(store.getPublicConfig().deepseekResponsesUrl, customUrl);
+    assert.equal(store.getPublicConfig().modelApiProtocol, 'chat_completions');
+    assert.equal(store.getPublicConfig().trigger, 'edited');
+  });
+}
 
 test('AI custom endpoint can be cleared and saved', async () => {
   const f = await createAiSettingsFixture();

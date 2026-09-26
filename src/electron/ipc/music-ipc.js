@@ -2,6 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { createMainWindowIpcRegistrar } = require('./main-window-ipc');
 
 function registerMusicIpc({
   ipcMain,
@@ -16,27 +17,27 @@ function registerMusicIpc({
   logoutMusicAccount,
   clearMusicBrowserCache,
   getMusicProviderRegistry,
-  hasExactOrigin,
   isPathAllowedForLocalMedia,
   acknowledgePlaybackFlush,
   writePlaybackSnapshot,
 }) {
-  ipcMain.handle('music:get-auth-state', function (_event, platform) {
+  const handle = createMainWindowIpcRegistrar({ ipcMain, getMainWindow, getDesktopBaseUrl });
+  handle('music:get-auth-state', function (_event, platform) {
     return getMusicAuthState(platform);
   });
-  ipcMain.handle('music:login', function (_event, platform) {
+  handle('music:login', function (_event, platform) {
     return loginMusicAccount(platform);
   });
-  ipcMain.handle('music:logout', function (_event, platform) {
+  handle('music:logout', function (_event, platform) {
     return logoutMusicAccount(platform);
   });
-  ipcMain.handle('music:clear-cache', function () {
+  handle('music:clear-cache', function () {
     return clearMusicBrowserCache();
   });
-  ipcMain.handle('music:provider-health', async function (_event, platform) {
+  handle('music:provider-health', async function (_event, platform) {
     return getMusicProviderRegistry().healthCheck(platform);
   });
-  ipcMain.handle('music:select-local-files', async function () {
+  handle('music:select-local-files', async function () {
     const result = await dialog.showOpenDialog(getMainWindow(), {
       title: '选择本地音频文件',
       properties: ['openFile', 'multiSelections'],
@@ -58,7 +59,7 @@ function registerMusicIpc({
     }));
     return { ok: true, canceled: false, files };
   });
-  ipcMain.handle('music:get-recent-local-files', function () {
+  handle('music:get-recent-local-files', function () {
     const localMediaAccess = getLocalMediaAccess();
     if (!localMediaAccess || typeof localMediaAccess.getAllowedPaths !== 'function') return { files: [] };
     const files = localMediaAccess
@@ -77,16 +78,7 @@ function registerMusicIpc({
       }));
     return { files };
   });
-  ipcMain.handle('music:select-wesing-cache', async function (event) {
-    const senderUrl = event && event.senderFrame ? event.senderFrame.url : '';
-    if (!hasExactOrigin(senderUrl, getDesktopBaseUrl())) {
-      return {
-        ok: false,
-        canceled: true,
-        path: '',
-        error: 'Invalid request origin',
-      };
-    }
+  handle('music:select-wesing-cache', async function () {
     const desktopRuntime = getDesktopRuntime();
     const savedPath =
       desktopRuntime && typeof desktopRuntime.getSetting === 'function'
@@ -104,9 +96,7 @@ function registerMusicIpc({
       path: (result.filePaths || [])[0] || '',
     };
   });
-  ipcMain.handle('music:resolve-local-media-urls', async function (event, paths) {
-    const senderUrl = event && event.senderFrame ? event.senderFrame.url : '';
-    if (!hasExactOrigin(senderUrl, getDesktopBaseUrl())) return { results: {} };
+  handle('music:resolve-local-media-urls', async function (_event, paths) {
     const results = {};
     const list = Array.isArray(paths) ? paths : [];
     for (const filePath of list) {
@@ -130,10 +120,10 @@ function registerMusicIpc({
     }
     return { results };
   });
-  ipcMain.handle('playback:save-state', function (_event, data) {
+  handle('playback:save-state', function (_event, data) {
     return writePlaybackSnapshot((data && data.payload) || {}, (data && data.clientId) || 'default');
   });
-  ipcMain.handle('playback:flush-ack', function () {
+  handle('playback:flush-ack', function () {
     acknowledgePlaybackFlush();
     return { ok: true };
   });

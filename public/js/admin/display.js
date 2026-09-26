@@ -63,34 +63,32 @@ export const display = (() => {
     const songBoardArea = document.getElementById('songBoardThemeArea');
     songBoardSync.addEventListener('change', () => {
       songBoardArea.hidden = songBoardSync.checked;
-      if (!songBoardSync.checked) {
-        const appState = stateService.getAppState();
-        if (appState) {
-          const s = appState.settings || {};
-          setValue('songBoardThemePrimary', s.songBoardThemePrimary || s.themePrimary || '#ff6f91');
-          setValue('songBoardThemeAccent', s.songBoardThemeAccent || s.themeAccent || '#21b6a8');
-          setValue('songBoardThemeText', s.songBoardThemeText || s.themeText || '#fff7fb');
-          setValue('songBoardThemeBackground', s.songBoardThemeBackground || s.themeBackground || '#181823');
-          setValue('songBoardThemeOpacity', s.songBoardThemeOpacity || s.themeOpacity || '0.35');
-          setValue('songBoardThemeOpacityNumber', s.songBoardThemeOpacity || s.themeOpacity || '0.35');
-          setValue('songBoardThemeRadius', s.songBoardThemeRadius || s.themeRadius || '8');
-          setValue('songBoardBackdropBlur', s.songBoardBackdropBlur || s.backdropBlur || '0');
-          setValue('songBoardBackdropBlurNumber', s.songBoardBackdropBlur || s.backdropBlur || '0');
-          setValue('songBoardGlowIntensity', s.songBoardGlowIntensity || s.glowIntensity || '0');
-          setValue('songBoardGlowIntensityNumber', s.songBoardGlowIntensity || s.glowIntensity || '0');
-          setValue('songBoardEnableGradient', s.songBoardEnableGradient || s.enableGradient || 'false');
-          setValue('songBoardGradientEnd', s.songBoardGradientEnd || s.gradientEnd || '#181823');
-          setValue('songBoardFontFamily', s.songBoardFontFamily || s.overlayFontFamily || 'Microsoft YaHei');
-          setValue('songBoardFontWeight', s.songBoardFontWeight || s.overlayFontWeight || '800');
-          setValue('songBoardSongColor', s.songBoardSongColor || s.overlaySongColor || '');
-          setValue('songBoardTitle', s.songBoardTitle || s.overlayTitle || '');
-          setValue('songBoardSongFontSize', s.songBoardSongFontSize || '16');
-          setValue('songBoardSongFontSizeNumber', s.songBoardSongFontSize || '16');
-          setValue('songBoardTitleFontSize', s.songBoardTitleFontSize || '15');
-          setValue('songBoardTitleFontSizeNumber', s.songBoardTitleFontSize || '15');
-          formsService?.refreshParameterRanges?.();
-        }
-      }
+      if (songBoardSync.checked) return;
+      const appState = stateService.getAppState();
+      if (!appState) return;
+      const settings = appState.settings || {};
+      setValue('songBoardThemePrimary', settings.songBoardThemePrimary || settings.themePrimary || '#ff6f91');
+      setValue('songBoardThemeAccent', settings.songBoardThemeAccent || settings.themeAccent || '#21b6a8');
+      setValue('songBoardThemeText', settings.songBoardThemeText || settings.themeText || '#fff7fb');
+      setValue('songBoardThemeBackground', settings.songBoardThemeBackground || settings.themeBackground || '#181823');
+      setValue('songBoardThemeOpacity', settings.songBoardThemeOpacity || settings.themeOpacity || '0.35');
+      setValue('songBoardThemeOpacityNumber', settings.songBoardThemeOpacity || settings.themeOpacity || '0.35');
+      setValue('songBoardThemeRadius', settings.songBoardThemeRadius || settings.themeRadius || '8');
+      setValue('songBoardBackdropBlur', settings.songBoardBackdropBlur || settings.backdropBlur || '0');
+      setValue('songBoardBackdropBlurNumber', settings.songBoardBackdropBlur || settings.backdropBlur || '0');
+      setValue('songBoardGlowIntensity', settings.songBoardGlowIntensity || settings.glowIntensity || '0');
+      setValue('songBoardGlowIntensityNumber', settings.songBoardGlowIntensity || settings.glowIntensity || '0');
+      setValue('songBoardEnableGradient', settings.songBoardEnableGradient || settings.enableGradient || 'false');
+      setValue('songBoardGradientEnd', settings.songBoardGradientEnd || settings.gradientEnd || '#181823');
+      setValue('songBoardFontFamily', settings.songBoardFontFamily || settings.overlayFontFamily || 'Microsoft YaHei');
+      setValue('songBoardFontWeight', settings.songBoardFontWeight || settings.overlayFontWeight || '800');
+      setValue('songBoardSongColor', settings.songBoardSongColor || settings.overlaySongColor || '');
+      setValue('songBoardTitle', settings.songBoardTitle || settings.overlayTitle || '');
+      setValue('songBoardSongFontSize', settings.songBoardSongFontSize || '16');
+      setValue('songBoardSongFontSizeNumber', settings.songBoardSongFontSize || '16');
+      setValue('songBoardTitleFontSize', settings.songBoardTitleFontSize || '15');
+      setValue('songBoardTitleFontSizeNumber', settings.songBoardTitleFontSize || '15');
+      formsService?.refreshParameterRanges?.();
     });
 
     // Song board range ↔ number pairs

@@ -18,12 +18,14 @@ Admin 完整消息的礼物身份扩展沿用既有封套；overlay 仅接收下
 | 鉴权 | 与 HTTP 共用 `resolveRequestPrincipal(context, req, requestUrl)`：Bearer 优先于 `?token=`，显式无效 Authorization 不回退。运行时管理凭据解析为 Admin，服务器签名的页面凭据解析为 overlay(scope)；空运行时密钥或无效凭据返回 401 | [access-policy.js](../../../src/server/access-policy.js) |
 | 帧上限               | 单帧 `MAX_FRAME_BYTES = 256 KB`,跨分片消息 `MAX_MESSAGE_BYTES = 256 KB`,超限回 close code 1009                                                                                         | [ws.js:8-9](../../../src/server/ws.js#L8-L9)          |
 | 待发送上限           | 每个 socket 的 Node 待发送字节数 + 新帧不得超过 `MAX_PENDING_BYTES = 2 MB`；超过时立即销毁并清理该慢客户端，由客户端重连后通过 snapshot 恢复                                           | [ws.js](../../../src/server/ws.js)                    |
-| 心跳                 | 每 `HEARTBEAT_INTERVAL_MS = 30000` 发一次 ping;超过 `SOCKET_TIMEOUT_MS = 90000` 未收到 pong 则销毁连接;心跳定时器 `unref()`                                                            | [ws.js:10-11](../../../src/server/ws.js#L10-L11)      |
+| 心跳                 | 每 `HEARTBEAT_INTERVAL_MS = 30000` 发一次 ping;以 `performance.now()` 单调历时判断，超过 `SOCKET_TIMEOUT_MS = 90000` 未收到 pong 则销毁连接;心跳定时器 `unref()` | [ws.js](../../../src/server/ws.js) |
 | 客户端消息 | 服务端不执行业务客户端消息。Admin 文本/二进制消息校验重组后丢弃；overlay 业务数据帧（包括 clear-history、控制消息和分片起始帧）使用 Close(1008) 拒绝。两类连接均允许协议 ping/pong/close | [ws.js](../../../src/server/ws.js) |
 | 发送 | 服务端业务消息为 JSON 文本帧；连接初始、合并快照、普通/主题广播、shutdown 和兼容导出均经统一 `sendWebSocket` 按 socket principal 投影。被 scope 禁止的消息跳过；topic 只增加订阅条件，不扩大权限 | [ws.js](../../../src/server/ws.js)、[overlay-projection.js](../../../src/server/overlay-projection.js) |
 | 停止                 | `webSocketHub.stop({shutdownPayload})` 首次调用停止新升级和心跳，依次发送 shutdown、Close(1001)、FIN；仍未物理关闭的 socket 在 1 秒期限后销毁，重复 stop 不续期或重复发送 | [ws.js](../../../src/server/ws.js) |
 
-入站帧按 [RFC 6455 §5](https://www.rfc-editor.org/rfc/rfc6455.html#section-5) 校验：客户端必须掩码，未协商扩展时 RSV 必须为零；保留 opcode、非最短长度编码、非法分片顺序、被分片或超过 125 字节的控制帧以 1002 关闭。Admin 文本消息在完整重组后验证 UTF-8（允许字符跨分片），非法文本或两类连接的 close reason 使用 1007；帧/消息超限使用 1009。合法 Close 载荷回显，非法/保留状态码不回显。服务端仍不执行业务客户端消息。
+入站帧按 [RFC 6455 §5](https://www.rfc-editor.org/rfc/rfc6455.html#section-5) 校验：客户端必须掩码，未协商扩展时 RSV 必须为零；保留 opcode、非最短长度编码、非法分片顺序、被分片或超过 125 字节的控制帧以 1002 关闭。Admin 分片文本使用严格增量 UTF-8 校验（允许字符跨分片，并在 FIN 检查未完成字符），不保留已校验的消息正文；非法文本或两类连接的 close reason 使用 1007；帧/消息超限使用 1009。合法 Close 载荷回显，非法/保留状态码不回显。服务端仍不执行业务客户端消息。
+
+HTTP upgrade 的 `head` 在鉴权及握手成功后进入同一帧解析器，恰好处理一次。TCP 未完整帧的缓冲按几何容量增长，已消费的前缀在需要追加时压实；单字节网络分块和 WebSocket continuation 不再重复拷贝整个累积正文。回归和加速生命周期证据见 `test/websocket-upgrade-head.test.js`、`test/websocket-resource-bounds.test.js`。
 
 所有 Close 路径立即移出广播集合并释放输入缓冲，但 hub 保留关闭期限直到物理 `close`；正常关闭取消计时器，超时销毁，写入失败/背压则立即销毁。`closeAllConnections()` 不拥有 HTTP 升级后的连接，不能代替这项回收责任。关闭期限不延长 Electron 的总退出期限；测试可用 `closeTimeoutMs` 缩短等待。
 
@@ -112,6 +114,8 @@ Admin 完整消息的礼物身份扩展沿用既有封套；overlay 仅接收下
 | `live:status`        | 直播间状态变化(`updateLiveStatus`,[server.js:720](../../../src/server.js#L720))              |
 
 ### 3.2 `overtime:update` 的 reason 枚举
+
+`quantity-limit` 表示完整礼物因自动随机次数超限保留为待结算。此通知的 state 附带 `pendingCount` 与 `quantityLimitedCount`，不改变 revision/倒计时、不携带成功 adjustment；Admin 实时显示尚未结算。
 
 | reason     | 含义                                   | 出处                                                                      |
 | ---------- | -------------------------------------- | ------------------------------------------------------------------------- |

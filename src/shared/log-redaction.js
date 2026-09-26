@@ -3,6 +3,7 @@
 const { isSensitiveFieldName } = require('./sensitive-field-name');
 
 const REDACTED_PLACEHOLDER = '[REDACTED]';
+const MAX_REDACTION_DEPTH = 32;
 
 /**
  * Redacts sensitive credentials from various value types.
@@ -10,6 +11,10 @@ const REDACTED_PLACEHOLDER = '[REDACTED]';
  * @returns {*} Redacted value (same type as input)
  */
 function redactCredentials(value) {
+  return redactValue(value, new WeakSet(), 0);
+}
+
+function redactValue(value, ancestors, depth) {
   if (value == null) return value;
 
   const valueType = typeof value;
@@ -19,16 +24,23 @@ function redactCredentials(value) {
   }
 
   if (valueType === 'object') {
-    if (value instanceof Error) {
-      return redactError(value);
+    if (ancestors.has(value)) return '[Circular]';
+    if (depth >= MAX_REDACTION_DEPTH) return '[Truncated]';
+    ancestors.add(value);
+    try {
+      if (value instanceof Error) {
+        return redactError(value, ancestors, depth);
+      }
+      if (value instanceof URL) {
+        return redactUrl(value);
+      }
+      if (Array.isArray(value)) {
+        return value.map((item) => redactValue(item, ancestors, depth + 1));
+      }
+      return redactObject(value, ancestors, depth);
+    } finally {
+      ancestors.delete(value);
     }
-    if (value instanceof URL) {
-      return redactUrl(value);
-    }
-    if (Array.isArray(value)) {
-      return value.map((item) => redactCredentials(item));
-    }
-    return redactObject(value);
   }
 
   return value;
@@ -55,12 +67,15 @@ function redactString(str) {
   // broadly, then apply the same normalized-key policy used for objects so
   // variants such as private_key_pem and accessToken cannot bypass logging
   // redaction.
-  result = result.replace(/([?&])([^=&#\s]+)=([^&#\s]*)/g, (match, separator, key, value) =>
+  result = result.replace(/([?&])([^=?&#\s]+)=([^&#\s]*)/g, (match, separator, key, value) =>
     isSensitiveKey(key) ? `${separator}${key}=${REDACTED_PLACEHOLDER}` : match,
   );
 
-  // Redact URL userinfo (user:pass@host)
-  result = result.replace(/([a-z][a-z0-9+.-]*:\/\/)([^:@\s]+:[^@\s]+@)/gi, `$1${REDACTED_PLACEHOLDER}@`);
+  // Match each authority once, including incomplete URLs, instead of retrying every suffix.
+  result = result.replace(/(?<![a-z0-9+.-])([a-z][a-z0-9+.-]*:\/\/)([^\s/?#]*)/gi, (match, scheme, authority) => {
+    const userInfoEnd = authority.lastIndexOf('@');
+    return userInfoEnd < 0 ? match : `${scheme}${REDACTED_PLACEHOLDER}@${authority.slice(userInfoEnd + 1)}`;
+  });
 
   return result;
 }
@@ -81,7 +96,7 @@ function isSensitiveKey(key) {
  * @param {object} obj - Input object
  * @returns {object} New object with redacted fields
  */
-function redactObject(obj) {
+function redactObject(obj, ancestors, depth) {
   const result = {};
 
   for (const key of Object.keys(obj)) {
@@ -89,7 +104,7 @@ function redactObject(obj) {
     if (isSensitiveKey(key)) {
       result[key] = REDACTED_PLACEHOLDER;
     } else {
-      result[key] = redactCredentials(obj[key]);
+      result[key] = redactValue(obj[key], ancestors, depth + 1);
     }
   }
 
@@ -101,7 +116,7 @@ function redactObject(obj) {
  * @param {Error} error - Input error
  * @returns {Error} New error with redacted message and stack
  */
-function redactError(error) {
+function redactError(error, ancestors, depth) {
   const redacted = new Error(redactString(error.message));
 
   if (error.stack) {
@@ -111,7 +126,7 @@ function redactError(error) {
   // Copy other enumerable properties (redacted)
   for (const key of Object.keys(error)) {
     if (key !== 'message' && key !== 'stack') {
-      redacted[key] = redactCredentials(error[key]);
+      redacted[key] = isSensitiveKey(key) ? REDACTED_PLACEHOLDER : redactValue(error[key], ancestors, depth + 1);
     }
   }
 

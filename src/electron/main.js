@@ -258,7 +258,7 @@ function requestDesktopShutdown({ restart = false } = {}) {
       disposeFanProfileIpc?.();
       disposeDailyBotIpc?.();
       dynamicLotteryAuth?.dispose();
-      const controllersToDrain = [remoteGiftController, cloudSyncController, fanProfileController].filter(Boolean);
+      const controllersToDrain = [remoteGiftController, cloudSyncController, fanProfileController, desktopAuth].filter(Boolean);
       for (const controller of controllersToDrain) controller.dispose();
       remoteGiftController = null;
       cloudSyncController = null;
@@ -306,6 +306,7 @@ async function startDesktopApp() {
     installUpdate,
     requestRestart: () => requestDesktopShutdown({ restart: true }),
     getMainWindow: () => windowState.main,
+    getDesktopBaseUrl: () => windowState.baseUrl,
     writeLog,
   });
   registerMusicIpc({
@@ -321,7 +322,6 @@ async function startDesktopApp() {
     logoutMusicAccount,
     clearMusicBrowserCache,
     getMusicProviderRegistry,
-    hasExactOrigin,
     isPathAllowedForLocalMedia,
     acknowledgePlaybackFlush: playbackFlush.acknowledgePlaybackFlush,
     writePlaybackSnapshot: (payload, clientId) => {
@@ -333,6 +333,8 @@ async function startDesktopApp() {
   });
   registerBilibiliIpc({
     ipcMain,
+    getMainWindow: () => windowState.main,
+    getDesktopBaseUrl: () => windowState.baseUrl,
     getAuthState: getBilibiliAuthState,
     getProfile: getBilibiliAccountProfile,
     login: async () => {

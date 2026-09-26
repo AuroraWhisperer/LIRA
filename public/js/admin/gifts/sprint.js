@@ -16,10 +16,8 @@ export const giftSprint = (() => {
     document.getElementById('giftSprintCrystalBalls').textContent = `${Number(sprint.remainingCrystalBalls || 0)} 个`;
   }
 
-  // 导出
-  const module = {
+  return {
     renderSprintStats,
   };
-  return module;
 })();
 publishGiftModule('sprint', giftSprint);

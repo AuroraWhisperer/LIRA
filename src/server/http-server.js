@@ -153,7 +153,7 @@ function createHttpServer(options = {}) {
     }
   });
 
-  server.on('upgrade', (req, socket) => {
+  server.on('upgrade', (req, socket, head) => {
     if (getPhase() !== 'ready') {
       rejectUpgrade(socket, '503 Service Unavailable');
       return;
@@ -178,7 +178,7 @@ function createHttpServer(options = {}) {
       rejectUpgrade(socket, '423 Locked');
       return;
     }
-    getWebSocketHub().handleUpgrade(getWebSocketContext(baseUrl), req, socket);
+    getWebSocketHub().handleUpgrade(getWebSocketContext(baseUrl), req, socket, head);
   });
 
   return server;

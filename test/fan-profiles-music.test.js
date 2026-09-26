@@ -49,6 +49,23 @@ function acceptedSnapshot(f, requestId) {
   };
 }
 
+test('song category statistics count arbitrary valid names as ordinary keys', (t) => {
+  const f = fanFixture(t);
+  const p = f.create();
+  const queue = music(f);
+  for (const categoryName of ['__proto__', '__proto__', 'constructor', 'toString', '粤语']) {
+    queue.add({ categoryName });
+  }
+  const stats = f.detail(p.id).musicStats;
+  assert.equal(stats.count, 5);
+  assert.equal(Object.hasOwn(stats.categories, '__proto__'), true);
+  assert.equal(stats.categories.__proto__, 2);
+  assert.equal(stats.categories.constructor, 1);
+  assert.equal(stats.categories.toString, 1);
+  assert.equal(stats.categories['粤语'], 1);
+  assert.deepEqual(JSON.parse(JSON.stringify(stats.categories)), JSON.parse('{"__proto__":2,"constructor":1,"toString":1,"粤语":1}'));
+});
+
 test('A04: duplicate callbacks archive once, while the next real request gets a new stable source', (t) => {
   const f = fanFixture(t);
   const p = f.create();

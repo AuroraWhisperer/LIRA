@@ -2,6 +2,8 @@
 // B站礼物全屏特效配置：拉取并缓存礼物 ID 到可信 MP4 素材的映射。
 'use strict';
 
+const { readResponseText } = require('../../shared/response-body');
+
 const EFFECT_API_URL =
   'https://api.live.bilibili.com/xlive/general-interface/v1/fullScSpecialEffect/GetEffectConfListV2' +
   '?platform=pc&room_id=0&area_parent_id=0&area_id=0&source=live&build=0&base_version=0';
@@ -105,6 +107,7 @@ function createGiftEffectResolver(options = {}) {
   let fetchedAt = 0;
   let failedAt = 0;
   let pending = null;
+  let layoutUrls = new Set();
   const layoutByUrl = new Map();
   const pendingLayoutByUrl = new Map();
   const failedLayoutAtByUrl = new Map();
@@ -123,6 +126,10 @@ function createGiftEffectResolver(options = {}) {
       .then(({ payload }) => buildEffectMap(payload))
       .then((nextMap) => {
         byGiftId = nextMap;
+        layoutUrls = new Set([...nextMap.values()].map((effect) => effect.layoutUrl));
+        for (const cache of [layoutByUrl, failedLayoutAtByUrl]) {
+          for (const url of cache.keys()) if (!layoutUrls.has(url)) cache.delete(url);
+        }
         fetchedAt = now();
         failedAt = 0;
         console.log(`[Bilibili][GiftEffect] 特效配置已更新：${nextMap.size} 个礼物可播放全屏特效`);
@@ -155,12 +162,12 @@ function createGiftEffectResolver(options = {}) {
       .then(() => fetchLayoutJson('gift_effect_layout', layoutUrl))
       .then(({ payload }) => parseEffectLayout(payload))
       .then((layout) => {
-        layoutByUrl.set(layoutUrl, layout);
+        if (layoutUrls.has(layoutUrl)) layoutByUrl.set(layoutUrl, layout);
         failedLayoutAtByUrl.delete(layoutUrl);
         return layout;
       })
       .catch((error) => {
-        failedLayoutAtByUrl.set(layoutUrl, now());
+        if (layoutUrls.has(layoutUrl)) failedLayoutAtByUrl.set(layoutUrl, now());
         console.warn(`[Bilibili][GiftEffect] 特效坐标拉取失败：${error.message || error}`);
         return null;
       })
@@ -246,7 +253,7 @@ async function fetchJsonDocument(endpointName, url) {
       Referer: 'https://live.bilibili.com/',
     },
   });
-  const text = await response.text();
+  const text = await readResponseText(response, 8 * 1024 * 1024, () => new Error('直播平台礼物特效响应过大。'));
   let payload;
   try {
     payload = JSON.parse(text);

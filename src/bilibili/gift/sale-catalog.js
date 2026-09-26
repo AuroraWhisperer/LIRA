@@ -3,6 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const saleCatalogParser = require('./sale-catalog-parser');
+const { readResponseText } = require('../../shared/response-body');
 
 const GIFT_DATA_URL = 'https://api.live.bilibili.com/xlive/web-room/v1/giftPanel/giftData';
 const GIFT_CONFIG_URL = 'https://api.live.bilibili.com/xlive/web-room/v1/giftPanel/giftConfig';
@@ -145,7 +146,7 @@ async function defaultFetchJson(endpointName, url, roomId) {
     signal: AbortSignal.timeout(15_000),
     headers,
   });
-  const text = await response.text();
+  const text = await readResponseText(response, 8 * 1024 * 1024, () => new Error('直播平台礼物目录响应过大。'));
   let payload;
   try {
     payload = JSON.parse(text);

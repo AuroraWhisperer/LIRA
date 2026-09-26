@@ -22,6 +22,8 @@ BilibiliDanmakuClient (顶层编排, 见 danmaku.md)
 
 `BilibiliApiClient`([api-client.js:9](../../../../src/bilibili/danmaku/api-client.js#L9))封装全部出向 HTTP 调用。**这是平台 API,不是本服务的 `/api/*`**(本服务端点见 [api.md](../api.md))。
 
+JSON 响应通过[共享读取器](../../../../src/shared/response-body.js)限制为 4 MiB；普通调用和弹幕发送有 15 秒期限，额外调用方信号与期限合并。头像沿用 8 秒期限和 2 MiB 预算；HTTP 错误、非支持图片 MIME 在拒绝前取消未读正文。共享读取器在保留分块前检查累计字节数，并以单个几何扩容缓冲区限制微小分块对象开销。
+
 ### 2.1 通用请求头
 
 统一由 `requestHeaders()`([api-client.js:173-185](../../../../src/bilibili/danmaku/api-client.js#L173-L185)) 生成:

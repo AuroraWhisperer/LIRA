@@ -52,24 +52,24 @@ function listSongs(
   const cleanQuery = cleanText(query);
   const categoryValues = Array.isArray(categories) ? categories : [categories];
   const categoryFilters = (categoryValues.length ? categoryValues : [category]).map(cleanText).filter(Boolean);
-  const cleanLang = cleanText(language);
-  const cleanArt = cleanText(artist);
+  const languageFilter = cleanText(language);
+  const artistFilter = cleanText(artist);
   const tagValues = Array.isArray(tags) ? tags : [tags];
   const tagFilters = tagValues.map(cleanText).filter(Boolean);
 
   const rows = store.listRows({
     query: cleanQuery,
     categories: categoryFilters,
-    language: cleanLang,
-    artist: cleanArt,
+    language: languageFilter,
+    artist: artistFilter,
     enabledOnly,
   });
   return rows
     .filter((row) => {
-      if (cleanLang && !splitSongLanguages(row.language).some((value) => value === cleanLang)) {
+      if (languageFilter && !splitSongLanguages(row.language).some((value) => value === languageFilter)) {
         return false;
       }
-      if (cleanArt && !splitSongArtists(row.artist).some((value) => value === cleanArt)) {
+      if (artistFilter && !splitSongArtists(row.artist).some((value) => value === artistFilter)) {
         return false;
       }
       if (tagFilters.length === 0) return true;
@@ -168,7 +168,7 @@ function replaceCloudSongs(store, rows) {
   if (!Array.isArray(rows)) throw new Error('云端歌库格式无效。');
   if (rows.length > 5000) throw new Error('云端歌库超过 5000 首限制。');
 
-  const byIdentity = new Map();
+  const songsByIdentity = new Map();
   for (const rawRow of rows) {
     const row = normalizeImportedSongRow({
       ...rawRow,
@@ -179,10 +179,10 @@ function replaceCloudSongs(store, rows) {
     if (enabled !== undefined) {
       row.isEnabled = !(enabled === false || enabled === 0 || String(enabled).toLowerCase() === 'false');
     }
-    byIdentity.set(`${row.name}\u0000${row.artist}`, row);
+    songsByIdentity.set(`${row.name}\u0000${row.artist}`, row);
   }
 
-  const songs = [...byIdentity.values()];
+  const songs = [...songsByIdentity.values()];
   store.replaceAll(songs);
   return {
     total: rows.length,

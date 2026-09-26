@@ -82,7 +82,11 @@ test('Bilibili IPC exposes only the public profile result', async () => {
     name: '主播小号',
     avatarUrl: 'https://i0.hdslb.com/bfs/face/host.jpg',
   };
+  const mainFrame = { url: 'http://127.0.0.1:3000/admin' };
+  const webContents = { mainFrame };
   registerBilibiliIpc({
+    getMainWindow: () => ({ webContents, isDestroyed: () => false }),
+    getDesktopBaseUrl: () => 'http://127.0.0.1:3000',
     ipcMain: {
       handle: (channel, handler) => handlers.set(channel, handler),
     },
@@ -92,6 +96,6 @@ test('Bilibili IPC exposes only the public profile result', async () => {
     logout: async () => ({}),
   });
 
-  assert.deepEqual(await handlers.get('bilibili:get-profile')(), profile);
+  assert.deepEqual(await handlers.get('bilibili:get-profile')({ sender: webContents, senderFrame: mainFrame }), profile);
   assert.equal('cookieHeader' in profile, false);
 });

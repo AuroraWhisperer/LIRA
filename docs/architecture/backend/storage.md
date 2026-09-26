@@ -53,7 +53,6 @@ data/
 ├── music-auth/qq.cookies.enc          # QQ 音乐 Cookie 快照(safeStorage 加密)
 ├── music-auth/netease.cookies.enc     # 网易云 Cookie 快照
 ├── bilibili-auth/cookies.enc          # B站 Cookie 快照
-├── bilibili-auth/cookies.txt          # 可选明文导出(脚本用)
 ├── license/                   # 设备授权资料与 safeStorage 加密私钥
 ├── opening-music/             # 用户上传音乐，保持持久保存
 └── local-media-access.json      # 本地媒体文件允许清单

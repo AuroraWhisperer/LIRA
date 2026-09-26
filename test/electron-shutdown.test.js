@@ -26,6 +26,24 @@ function assertFinalized(harness, restart) {
   assert.equal(harness.clock.pending, 0);
 }
 
+test('shutdown drains ordinary login writes before stopping the backend', async () => {
+  const authIdle = Promise.withResolvers();
+  const h = createShutdownHarness({ authIdle });
+  await h.start();
+  h.quit();
+  h.remoteIdle.resolve();
+  h.cloudIdle.resolve();
+  await h.settle();
+  assert.equal(h.count('auth:dispose'), 1);
+  assert.equal(h.count('runtime:stop'), 0);
+  authIdle.resolve();
+  await h.settle();
+  assert.equal(h.count('runtime:stop'), 1);
+  h.backendStop.resolve();
+  await h.settle();
+  assertFinalized(h, false);
+});
+
 test('every quit event waits for one sync drain, playback flush and runtime stop', async () => {
   const playbackFlush = Promise.withResolvers();
   const h = createShutdownHarness({ playbackFlush });
@@ -244,7 +262,8 @@ for (const restore of ['musicRestore', 'bilibiliRestore']) {
     const h = createShutdownHarness({ [restore]: pendingRestore });
     await h.start();
     assert.equal(h.state.lifecycle.runtime, null);
-    assert.equal(await h.restart(), undefined);
+    assert.deepEqual(await h.restart(), { ok: false, error: 'IPC_SOURCE_INVALID' });
+    assert.equal(await h.requestRestart(), undefined);
     assert.equal(h.count('app:relaunch'), 1);
     assert.equal(h.count('app:exit'), 1);
     pendingRestore.resolve();

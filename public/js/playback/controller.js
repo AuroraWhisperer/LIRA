@@ -55,17 +55,16 @@ export function createPlaybackController(initialOptions = {}) {
   // ══════════════════════════════════════════════════════════════
   // SECTION 1 — 工具函数提取
   // ══════════════════════════════════════════════════════════════
-  const U = Utils;
-  const escapeHtml = U.escapeHtml;
-  const value = U.value;
-  const formatBytes = U.formatBytes;
+  const escapeHtml = Utils.escapeHtml;
+  const value = Utils.value;
+  const formatBytes = Utils.formatBytes;
 
   let getSongs = () => [];
   let reloadSongs = async () => {};
-  let toast = U.toast;
-  let showError = U.showError;
-  let api = U.api;
-  let readJsonResponse = U.readJsonResponse;
+  let toast = Utils.toast;
+  let showError = Utils.showError;
+  let api = Utils.api;
+  let readJsonResponse = Utils.readJsonResponse;
 
   // ══════════════════════════════════════════════════════════════
   // SECTION 2 — 配置常量
@@ -277,9 +276,17 @@ export function createPlaybackController(initialOptions = {}) {
     renderPlayback: () => renderPlayback(),
     getPlaybackAudio,
     invalidatePlaybackRequests: (source) => playbackControls.invalidatePlaybackRequests(source),
+    invalidateProviderContent: (source) => {
+      contentLoader.invalidatePlatform(source);
+      if (playbackState.selectedSource === source) {
+        homeHandler.closePlaybackDrawer();
+        const body = document.getElementById('playbackDrawerBody');
+        if (body) body.textContent = '';
+      }
+    },
     toast,
     showError,
-    U,
+    U: Utils,
   });
 
   const playlistOperations = createPlaylistOperations({
@@ -391,7 +398,7 @@ export function createPlaybackController(initialOptions = {}) {
     syncPlaybackLyricWindow,
     getPlaybackAuthState: () => providerOperations.getAuthState(),
     rebuildPlaybackShuffleOrder,
-    U,
+    U: Utils,
   });
   const togglePlaybackRaw = playbackControls.togglePlayback;
   const playbackPrevious = playbackControls.playbackPrevious;
@@ -513,19 +520,22 @@ export function createPlaybackController(initialOptions = {}) {
     }
   }
 
+  function updateContext(options) {
+    if (!options) return;
+    if (options.getSongs) getSongs = options.getSongs;
+    if (options.reloadSongs) reloadSongs = options.reloadSongs;
+    if (options.toast) toast = options.toast;
+    if (options.showError) showError = options.showError;
+    if (options.api) api = options.api;
+    if (options.readJsonResponse) readJsonResponse = options.readJsonResponse;
+  }
+
   // ══════════════════════════════════════════════════════════════
   // SECTION 14 — 公共 API
   // ══════════════════════════════════════════════════════════════
   return {
     init: async (options) => {
-      if (options) {
-        if (options.getSongs) getSongs = options.getSongs;
-        if (options.reloadSongs) reloadSongs = options.reloadSongs;
-        if (options.toast) toast = options.toast;
-        if (options.showError) showError = options.showError;
-        if (options.api) api = options.api;
-        if (options.readJsonResponse) readJsonResponse = options.readJsonResponse;
-      }
+      updateContext(options);
 
       weSingService.init();
 
@@ -536,14 +546,6 @@ export function createPlaybackController(initialOptions = {}) {
       );
     },
 
-    updateContext: (options) => {
-      if (!options) return;
-      if (options.getSongs) getSongs = options.getSongs;
-      if (options.reloadSongs) reloadSongs = options.reloadSongs;
-      if (options.toast) toast = options.toast;
-      if (options.showError) showError = options.showError;
-      if (options.api) api = options.api;
-      if (options.readJsonResponse) readJsonResponse = options.readJsonResponse;
-    },
+    updateContext,
   };
 }

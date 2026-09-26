@@ -23,7 +23,7 @@ function createGiftExportController({ app, BrowserWindow, dialog, shell, runtime
   let task = null;
   let renderWindow = null;
   let disposed = false;
-  let preparation = 0;
+  let preparationGeneration = 0;
   const defaultRoot = () => path.join(app.getPath('pictures'), 'LIRA', '礼物导出');
   const assertCurrent = (current) => {
     if (disposed || task !== current || current.cancelled) throw new Error('导出已取消。');
@@ -61,13 +61,13 @@ function createGiftExportController({ app, BrowserWindow, dialog, shell, runtime
       throw new Error('保存位置参数无效。');
     let directory;
     if (directoryAction === 'choose') {
-      const request = preparation;
+      const generation = preparationGeneration;
       const result = await dialog.showOpenDialog(getMainWindow(), {
         title: '选择礼物图片保存文件夹',
         defaultPath: readSettings().directory,
         properties: ['openDirectory', 'createDirectory'],
       });
-      if (disposed || request !== preparation) throw new Error('导出设置已取消，请重新打开。');
+      if (disposed || generation !== preparationGeneration) throw new Error('导出设置已取消，请重新打开。');
       if (result.canceled || !result.filePaths[0]) return readSettings();
       directory = result.filePaths[0];
     } else if (directoryAction === 'default') directory = defaultRoot();
@@ -86,9 +86,9 @@ function createGiftExportController({ app, BrowserWindow, dialog, shell, runtime
   async function prepare(selection) {
     if (task?.running) throw new Error('请先完成或取消当前导出。');
     cancel();
-    const request = preparation;
+    const generation = preparationGeneration;
     const snapshot = await runtime.prepareGiftExport(selection);
-    if (disposed || request !== preparation) throw new Error('导出预览已取消。');
+    if (disposed || generation !== preparationGeneration) throw new Error('导出预览已取消。');
     if (!snapshot.items.length) throw new Error('请选择礼物记录。');
     const defaults = readSettings();
     task = {
@@ -256,7 +256,7 @@ function createGiftExportController({ app, BrowserWindow, dialog, shell, runtime
 
   function cancel(id) {
     if (id && task?.id !== id) return;
-    preparation += 1;
+    preparationGeneration += 1;
     if (task) task.cancelled = true;
     if (renderWindow && !renderWindow.isDestroyed()) renderWindow.destroy();
     renderWindow = null;

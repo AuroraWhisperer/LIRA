@@ -43,7 +43,6 @@ class FansMedalPoller {
     this.pollInFlight = true;
     let cachedCount = 0;
     try {
-      let expectedCount = 0;
       for (let page = 1; page <= BILIBILI_FANS_MEDAL_MAX_PAGES; page += 1) {
         if (localGeneration !== this.localGeneration) return;
         const data = await this.apiClient.fetchFansMembersRank(
@@ -53,7 +52,7 @@ class FansMedalPoller {
           BILIBILI_FANS_MEDAL_PAGE_SIZE,
         );
         if (localGeneration !== this.localGeneration) return;
-        expectedCount = normalizePositiveInteger(data.num || data.total || data.total_num);
+        const expectedCount = normalizePositiveInteger(data.num || data.total || data.total_num);
         const items = bilibiliHelpers.readBilibiliFansMembersRankItems(data);
         if (items.length === 0) break;
 

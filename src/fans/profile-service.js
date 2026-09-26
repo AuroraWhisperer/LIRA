@@ -2,7 +2,7 @@
 
 const { randomUUID } = require('node:crypto');
 const { text, timestamp, identity, identityKey, profilePatch, recordData, recentNameHistory } = require('./validation');
-const { dayOf, zodiacFor } = require('./dates');
+const { DAY_MS, dayOf, zodiacFor } = require('./dates');
 const { summarizeMembership, membershipConflicts, cycleForNewRecord } = require('./membership');
 const { buildReminders } = require('./reminders');
 const { createFanBackupService } = require('./profile-transfer');
@@ -54,9 +54,10 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
     const guardRoster = getGuardRoster(profile, records);
     const songs = records.filter((record) => record.kind === 'song' && !record.data.excluded);
     const preferences = records.filter((record) => record.kind === 'preference' && !record.data.archived);
-    const recentSongs = songs.filter((record) => Date.parse(record.occurredAt) >= Date.parse(now()) - 90 * 86400000);
-    const categories = {};
-    for (const song of recentSongs.filter((record) => !record.data.excludeFromStats)) {
+    const recentSongs = songs.filter((record) => Date.parse(record.occurredAt) >= Date.parse(now()) - 90 * DAY_MS);
+    const countedSongs = recentSongs.filter((record) => !record.data.excludeFromStats);
+    const categories = Object.create(null);
+    for (const song of countedSongs) {
       const key = song.data.category || '未分类';
       categories[key] = (categories[key] || 0) + 1;
     }
@@ -82,7 +83,7 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
           : '',
       musicStats: {
         days: 90,
-        count: recentSongs.filter((r) => !r.data.excludeFromStats).length,
+        count: countedSongs.length,
         categories,
       },
       reminders: buildReminders(profile, records, store.states(scope, id), Date.parse(now())),
@@ -205,7 +206,7 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
     detail,
     requireProfile,
   });
-  const facts = createFanFactConsumer({ store, now, create, requireProfile });
+  const facts = createFanFactConsumer({ store, now, create });
   const merge = createFanMergeService({ store, now, detail, requireProfile });
 
   function list(scope, input) {
@@ -363,7 +364,7 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
             ...item,
             status: input.status,
             handledAt: now(),
-            until: input.status === 'snoozed' ? dayOf(Date.parse(now()) + 86400000) : '',
+            until: input.status === 'snoozed' ? dayOf(Date.parse(now()) + DAY_MS) : '',
           });
           return true;
         }

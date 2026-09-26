@@ -68,7 +68,7 @@ AI 弹幕姬是一个由模型服务驱动的通用互动助手；当前默认�
 
 ## 4. 模型客户端(双协议路由)
 
-[deepseek-client.js](../../../src/ai/deepseek-client.js) 的 `createDeepSeekClient` 是唯一模型出口；端点与能力判定由 [model-endpoint.js](../../../src/ai/model-endpoint.js) 统一负责。所有请求经 [http-client.js](../../../src/ai/http-client.js) 的 `fetchJson`(外部 shutdown signal 与请求 timeout signal 合并、响应体 ≤ 2 MB、错误码归一化)。外部取消保留稳定 `AI_SHUTDOWN` 原因，不被误报为普通上游超时。
+[deepseek-client.js](../../../src/ai/deepseek-client.js) 的 `createDeepSeekClient` 是唯一模型出口；端点与能力判定由 [model-endpoint.js](../../../src/ai/model-endpoint.js) 统一负责。所有请求经 [http-client.js](../../../src/ai/http-client.js) 的 `fetchJson`(外部 shutdown signal 与请求 timeout signal 合并、响应体 ≤ 2 MiB、错误码归一化)。联网搜索复用[共享响应体读取器](../../../src/shared/response-body.js)，RSS 也限制为 2 MiB；流式读取在保留 chunk 前累计字节数，超限取消上游且不把大正文放入诊断。读取器按倍数扩容单个缓冲区，容量不超过预算，避免微小分块保留大量对象；非流式测试替身在完整正文后作同样检查。外部取消保留稳定 `AI_SHUTDOWN` 原因，不被误报为普通上游超时。
 
 ### 4.1 协议选择
 
@@ -229,7 +229,7 @@ AI 弹幕姬是一个由模型服务驱动的通用互动助手；当前默认�
 | `ai_query_cache`    | 查询缓存(cache_key = sha256)  | [config-store.js:131-148](../../../src/ai/config-store.js#L131-L148)   |
 | `ai_blacklist`      | 黑名单(uid PK,reason)         | [config-store.js:100-112](../../../src/ai/config-store.js#L100-L112)   |
 
-过期的上下文/缓存行在读取时**惰性删除**(`getContext`/`getCache` 命中过期即删);`pruneExpired` 提供批量清理入口,当前运行时未挂定时器([config-store.js:114-153](../../../src/ai/config-store.js#L114-L153))。
+过期的上下文/缓存行在读取时**惰性删除**(`getContext`/`getCache` 命中过期即删)。每次写入后按最短 60 秒间隔调用 `pruneExpired`，首次写入和检测到时钟回退会立即清理；因此持续唯一查询不会让过期行随进程寿命无限增长，同时不引入独立定时器或删除未过期值([config-store.js](../../../src/ai/config-store.js))。
 
 故障行为(全部按实现):
 

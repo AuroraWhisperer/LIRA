@@ -104,16 +104,21 @@ function createDesktopRequestAuth({ desktopSession, getMainWindow, getBaseUrl, g
     bindWindow(window, shell) {
       unbindWindow();
       const contents = window.webContents;
+      const openExternal = (url) => {
+        Promise.resolve(shell.openExternal(url)).catch(() => {
+          console.warn('[Desktop] failed to open the external browser.');
+        });
+      };
       const navigate = (event, url) => {
         if (policy.isAllowedNavigation(url)) return;
         event.preventDefault();
-        if (isAllowedExternal(url) || isAllowedLocalUrl(url)) shell.openExternal(url);
+        if (isAllowedExternal(url) || isAllowedLocalUrl(url)) openExternal(url);
       };
       const redirect = (event, url) => {
         if (!policy.isAllowedNavigation(url)) event.preventDefault();
       };
       contents.setWindowOpenHandler(({ url }) => {
-        if (isAllowedExternal(url) || isAllowedLocalUrl(url)) shell.openExternal(url);
+        if (isAllowedExternal(url) || isAllowedLocalUrl(url)) openExternal(url);
         return { action: 'deny' };
       });
       contents.on('will-navigate', navigate);

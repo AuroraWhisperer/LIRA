@@ -20,6 +20,8 @@ const sensitive = [
   'HardwareId',
   'Authorization',
   'Cookie',
+  'SESSDATA',
+  'bili_jct',
   'apiKey',
   'client-secret',
   'access_token',

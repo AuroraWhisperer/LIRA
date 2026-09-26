@@ -21,9 +21,10 @@ export function createProviderOperations(deps) {
     renderPlayback,
     getPlaybackAudio,
     invalidatePlaybackRequests,
+    invalidateProviderContent,
     toast,
     showError,
-    U,
+    U: utils,
   } = deps;
   const stateActions =
     deps.stateActions ||
@@ -130,11 +131,11 @@ export function createProviderOperations(deps) {
   }
 
   function showHealthResult(platform, state) {
-    if (typeof U.showStackedToast !== 'function') {
+    if (typeof utils.showStackedToast !== 'function') {
       toast(state.message || '音乐平台连接检查完成', { type: state.ok ? 'success' : 'warning' });
       return;
     }
-    U.showStackedToast({
+    utils.showStackedToast({
       key: `playback-health:${platform}`,
       update: true,
       type: state.ok ? 'success' : 'warning',
@@ -158,6 +159,7 @@ export function createProviderOperations(deps) {
     if (button) button.disabled = true;
     try {
       await window.musicAPI.login(platform);
+      invalidateProviderContent?.(platform);
       cacheManager?.clearByPrefix(`${platform}:`);
       let authState = null;
       try {
@@ -176,7 +178,7 @@ export function createProviderOperations(deps) {
       }
       const sourceName = PlaybackUtils.getSourceName(platform);
       const loggedIn = authState?.loggedIn === true;
-      U.showStackedToast({
+      utils.showStackedToast({
         key: `music-login-result:${platform}`,
         update: true,
         type: loggedIn ? 'success' : 'warning',
@@ -206,12 +208,12 @@ export function createProviderOperations(deps) {
   function showPlaybackLoginPrompt() {
     const platform = playbackState.selectedSource;
     const sourceName = PlaybackUtils.getSourceName(platform);
-    if (typeof U.showStackedToast !== 'function') {
+    if (typeof utils.showStackedToast !== 'function') {
       toast(`请先登录${sourceName}`);
       return;
     }
 
-    U.showStackedToast({
+    utils.showStackedToast({
       key: `playback-login-required:${platform}`,
       title: `请先登录${sourceName}`,
       message: '登录后即可播放在线音乐',
@@ -260,6 +262,7 @@ export function createProviderOperations(deps) {
   function clearPlaybackPlatformAfterLogout(platform) {
     const source = platform === 'netease' ? 'netease' : 'qq';
     invalidatePlaybackRequests(source);
+    invalidateProviderContent?.(source);
     cacheManager?.clearByPrefix(`${source}:`);
     stateActions.forgetProviderStreams(source);
 

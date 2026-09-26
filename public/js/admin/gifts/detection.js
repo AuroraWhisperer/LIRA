@@ -63,11 +63,9 @@ export const giftDetection = (() => {
     node.textContent = parts.join(' · ') || '等待直播消息…';
   }
 
-  // 导出
-  const module = {
+  return {
     renderDetectionStatus,
     renderGiftStatusLine,
   };
-  return module;
 })();
 publishGiftModule('detection', giftDetection);

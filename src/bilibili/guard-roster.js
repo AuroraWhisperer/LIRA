@@ -1,6 +1,7 @@
 'use strict';
 
 const { BilibiliApiClient } = require('./danmaku/api-client');
+const { readResponseText } = require('../shared/response-body');
 
 function positiveId(value) {
   if (typeof value === 'number' && !Number.isSafeInteger(value)) return '';
@@ -21,7 +22,7 @@ async function fetchGuardRoster(roomInput, { signal, fetchImpl = fetch } = {}) {
       signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
     });
     if (!response.ok) throw new Error('B站暂时无法读取名单，请稍后重试。');
-    const payload = await response.json();
+    const payload = JSON.parse(await readResponseText(response, 4 * 1024 * 1024, () => new Error('B站名单响应过大。')));
     if (payload?.code !== 0 || !payload.data) throw new Error('B站未返回有效名单，请稍后重试。');
     return payload.data;
   }

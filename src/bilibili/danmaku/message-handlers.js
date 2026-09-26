@@ -45,7 +45,6 @@ class MessageHandlers {
     this.roomRunContext = roomRunContext || null;
   }
 
-  // 销毁定时器，避免泄漏
   destroy() {
     this.roomRunContext = null;
   }

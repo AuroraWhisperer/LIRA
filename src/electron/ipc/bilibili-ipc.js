@@ -1,16 +1,19 @@
 'use strict';
 
-function registerBilibiliIpc({ ipcMain, getAuthState, getProfile, login, logout }) {
-  ipcMain.handle('bilibili:get-auth-state', function () {
+const { createMainWindowIpcRegistrar } = require('./main-window-ipc');
+
+function registerBilibiliIpc({ ipcMain, getMainWindow, getDesktopBaseUrl, getAuthState, getProfile, login, logout }) {
+  const handle = createMainWindowIpcRegistrar({ ipcMain, getMainWindow, getDesktopBaseUrl });
+  handle('bilibili:get-auth-state', function () {
     return getAuthState();
   });
-  ipcMain.handle('bilibili:get-profile', function () {
+  handle('bilibili:get-profile', function () {
     return getProfile();
   });
-  ipcMain.handle('bilibili:login', function () {
+  handle('bilibili:login', function () {
     return login();
   });
-  ipcMain.handle('bilibili:logout', function () {
+  handle('bilibili:logout', function () {
     return logout();
   });
 }

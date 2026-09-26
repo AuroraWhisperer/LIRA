@@ -1,6 +1,6 @@
 'use strict';
 
-const { dayOf, dayStart, addDays, daysBetween } = require('./dates');
+const { DAY_MS, dayOf, dayStart, addDays, daysBetween } = require('./dates');
 
 function unionIntervals(intervals) {
   const result = [];
@@ -20,7 +20,7 @@ function coveredDays(intervals, at, after = '') {
       end: dayStart(addDays(dayOf(Math.min(item.end - 1, at)), 1)),
     }))
     .filter((item) => item.end > item.start);
-  return unionIntervals(days).reduce((total, item) => total + Math.round((item.end - item.start) / 86400000), 0);
+  return unionIntervals(days).reduce((total, item) => total + Math.round((item.end - item.start) / DAY_MS), 0);
 }
 
 function summarizeMembership(records, atValue = Date.now()) {
@@ -28,7 +28,7 @@ function summarizeMembership(records, atValue = Date.now()) {
     typeof atValue === 'number'
       ? atValue
       : /^\d{4}-\d{2}-\d{2}$/.test(atValue)
-        ? dayStart(atValue) + 86400000 - 1
+        ? dayStart(atValue) + DAY_MS - 1
         : Date.parse(atValue);
   const today = dayOf(at);
   const all = records.filter((r) => r.kind === 'membership' && !r.data.excluded);

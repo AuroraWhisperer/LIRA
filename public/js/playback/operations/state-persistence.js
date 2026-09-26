@@ -151,7 +151,7 @@ export function createStatePersistence(deps) {
   }
 
   /**
-   * 在页面卸载时强制保存状态（使用 sendBeacon 或同步请求）
+   * 在页面卸载时通过 IPC 和 HTTP 兜底通道提交同一份快照。
    */
   function flushPlaybackStateOnUnload() {
     if (!playbackStateSavePending && playbackState.current) {

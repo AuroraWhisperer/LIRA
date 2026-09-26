@@ -328,3 +328,56 @@ test('an incomplete profile keeps useful fields and retries the missing avatar a
   assert.equal(calls, 2);
   service.dispose();
 });
+
+test('continuous identity ingestion evicts expired viewers without requiring a UI query', () => {
+  const { service, advance } = createService();
+  const run = beginRoom(service);
+  for (let index = 1; index <= 100; index += 1) {
+    service.ingestHint({ uid: String(index), name: `viewer-${index}` }, { ...run, source: 'danmaku' });
+    advance(11 * 60 * 1000);
+  }
+  assert.equal(service.records.size, 1);
+  assert.equal(service.identityCache.identityByUid.size, 1);
+  assert.equal(service.identityCache.identityByName.size, 1);
+  service.dispose();
+});
+
+for (const hours of [12, 24, 168]) {
+  test(`identity ingestion retains only the TTL window after ${hours} simulated hours`, () => {
+    const { service, advance } = createService({ nowMs: Date.now() });
+    const run = beginRoom(service);
+    const minutes = hours * 60;
+    for (let minute = 1; minute <= minutes; minute += 1) {
+      service.ingestHint({ uid: String(minute), name: `viewer-${minute}` }, { ...run, source: 'danmaku' });
+      advance(60000);
+    }
+    assert.equal(service.records.size, 11);
+    assert.equal(service.identityCache.identityByUid.size, 11);
+    assert.equal(service.identityCache.identityByName.size, 11);
+    assert.equal(service.identityCache.recentByUid.size, 11);
+    service.dispose();
+  });
+}
+
+test('expired profile failures are evicted and late failures cannot repopulate disposed state', async () => {
+  let rejectProfile;
+  const { service, advance } = createService({
+    profileProvider: {
+      fetchProfile: () => new Promise((resolve, reject) => {
+        rejectProfile = reject;
+      }),
+    },
+  });
+  const first = service.ensure('100');
+  rejectProfile(new Error('synthetic offline'));
+  await first;
+  assert.equal(service.profileFailures.size, 1);
+  advance(30_001);
+  service.cleanupExpired();
+  assert.equal(service.profileFailures.size, 0);
+  const late = service.ensure('101');
+  service.dispose();
+  rejectProfile(new Error('synthetic late failure'));
+  await late;
+  assert.equal(service.profileFailures.size, 0);
+});

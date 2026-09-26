@@ -12,10 +12,12 @@ const { SYSTEM_PROMPT } = require('./prompt');
 const { describeModelEndpoint } = require('./model-endpoint');
 
 const SECRET_SET = new Set(AI_SECRET_KEYS);
+const EXPIRED_PRUNE_INTERVAL_MS = 60 * 1000;
 
 function createAiConfigStore(db, secretCodec, options = {}) {
   const now = options.now || Date.now;
   let cached = null;
+  let lastPrunedAt = null;
 
   function getConfig() {
     if (cached) return { ...cached };
@@ -170,6 +172,7 @@ function createAiConfigStore(db, secretCodec, options = {}) {
       ON CONFLICT(uid) DO UPDATE SET payload = excluded.payload, expires_at = excluded.expires_at
     `,
     ).run(String(uid), JSON.stringify(payload), now() + Math.max(1, Number(ttlSeconds) || 1) * 1000);
+    pruneExpiredIfDue();
   }
 
   function getCache(key) {
@@ -191,11 +194,21 @@ function createAiConfigStore(db, secretCodec, options = {}) {
       ON CONFLICT(cache_key) DO UPDATE SET payload = excluded.payload, expires_at = excluded.expires_at
     `,
     ).run(hashCacheKey(key), JSON.stringify(payload), now() + ttl * 1000);
+    pruneExpiredIfDue();
   }
 
   function pruneExpired() {
-    db.prepare('DELETE FROM ai_viewer_context WHERE expires_at <= ?').run(now());
-    db.prepare('DELETE FROM ai_query_cache WHERE expires_at <= ?').run(now());
+    const timestamp = now();
+    db.prepare('DELETE FROM ai_viewer_context WHERE expires_at <= ?').run(timestamp);
+    db.prepare('DELETE FROM ai_query_cache WHERE expires_at <= ?').run(timestamp);
+    lastPrunedAt = timestamp;
+  }
+
+  function pruneExpiredIfDue() {
+    const timestamp = now();
+    if (lastPrunedAt === null || timestamp < lastPrunedAt || timestamp - lastPrunedAt >= EXPIRED_PRUNE_INTERVAL_MS) {
+      pruneExpired();
+    }
   }
 
   return {

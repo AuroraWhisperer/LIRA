@@ -28,6 +28,7 @@ function createLyricToggleButton() {
 async function loadModuleExports(entryPath, globals = {}) {
   const context = vm.createContext({
     console,
+    AbortSignal,
     fetch: globals.fetch,
     window: {},
     ...globals,

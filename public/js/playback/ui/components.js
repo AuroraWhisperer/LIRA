@@ -268,9 +268,7 @@ export function renderHomeTrackRow(track, index, context, action = '') {
   const escapeHtml = window.AdminApp?.utils?.escapeHtml || ((s) => String(s || ''));
   const dataPrefix = context === 'search' ? 'playback-search' : 'playback-home-track';
   const showRadioButton = action === 'radio';
-  const canAddToPlaylist =
-    (track.source === 'qq' && Number(track.sourceSongId) > 0) ||
-    (track.source === 'netease' && /^\d+$/.test(String(track.sourceTrackId || '').replace(/^netease:/, '')));
+  const canAddToPlaylist = PlaybackUtils.canAddTrackToPlaylist(track);
 
   // 我喜欢和歌单详情显示菜单按钮（带删除功能）
   const showMenuButton = action === 'liked' || action === 'playlist-tracks';

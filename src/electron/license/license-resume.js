@@ -1,10 +1,8 @@
 'use strict';
 
 /**
- * Owns the Electron `powerMonitor` resume listener for the license manager.
- * Extracted from main.js so the wiring can be unit-tested with a fake
- * powerMonitor. `getLicenseManager` is a function so the handler always
- * resolves the current manager reference.
+ * Owns the Electron `powerMonitor` resume listener and resolves the current
+ * license manager for each event.
  */
 function createLicenseResumeHandler({
   powerMonitor,

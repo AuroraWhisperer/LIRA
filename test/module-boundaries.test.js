@@ -15,7 +15,6 @@ const LEGACY_ADMIN_GLOBAL_LIMITS = {
   'public/js/playback/ui/fullscreen.js': 2,
   'public/js/playback/ui/queue-popup.js': 2,
   'public/js/playback/utils.js': 3,
-  'public/js/playback.js': 1,
   'public/js/shared/event-bus.js': 5,
   'public/js/shared/logger.js': 4,
   'public/js/shared/theme.js': 5,
@@ -58,7 +57,6 @@ const EMPTY_CATCH_LIMITS = {
   'public/js/playback/features/playback-controls.js': 2,
   'public/js/playback/local/manager.js': 2,
   'public/js/playback/operations/state-persistence.js': 4,
-  'public/js/playback/services/lyric-service.js': 1,
   'public/js/playback/ui/components.js': 2,
 };
 const DOMAIN_SQL_PATTERN = /\b(?:db|songDb|superChatDb|giftDb|musicDb|checkinDb)\.(?:prepare|exec)\s*\(/g;

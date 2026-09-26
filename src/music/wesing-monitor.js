@@ -7,8 +7,8 @@ function createPowerShellWeSingMonitor(onSample, options = {}) {
   const spawn = options.spawn || childProcess.spawn;
   let child = null;
   let stopping = false;
-  let pending = '';
-  let pendingError = '';
+  let stdoutBuffer = '';
+  let stderrTail = '';
 
   function start() {
     if (child) return;
@@ -23,9 +23,9 @@ function createPowerShellWeSingMonitor(onSample, options = {}) {
     );
     child.stdout.setEncoding('utf8');
     child.stdout.on('data', (chunk) => {
-      pending += chunk;
-      const rows = pending.split(/\r?\n/);
-      pending = rows.pop() || '';
+      stdoutBuffer += chunk;
+      const rows = stdoutBuffer.split(/\r?\n/);
+      stdoutBuffer = rows.pop() || '';
       for (const row of rows) {
         if (!row.trim()) continue;
         try {
@@ -35,7 +35,7 @@ function createPowerShellWeSingMonitor(onSample, options = {}) {
     });
     child.stderr.setEncoding('utf8');
     child.stderr.on('data', (chunk) => {
-      pendingError = `${pendingError}${chunk}`.slice(-2000);
+      stderrTail = `${stderrTail}${chunk}`.slice(-2000);
     });
     child.on('error', (error) => {
       if (!stopping) onSample({ error: error.message || String(error) });
@@ -43,10 +43,10 @@ function createPowerShellWeSingMonitor(onSample, options = {}) {
     child.on('exit', (code) => {
       child = null;
       if (!stopping && code !== 0) {
-        const detail = pendingError.trim();
+        const detail = stderrTail.trim();
         onSample({ error: detail || `监视进程已退出（${code}）` });
       }
-      pendingError = '';
+      stderrTail = '';
     });
   }
 

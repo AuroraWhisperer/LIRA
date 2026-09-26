@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { giftVariantId } = require('../src/shared/gift-identity');
 const { createOvertimeConsumer } = require('../src/overtime');
+const { createOvertimeStore } = require('../src/overtime/overtime-store');
 const { clearGiftData } = require('../src/storage/database');
 const { createFixture, fixedRule } = require('./helpers/overtime-service-fixture');
 
@@ -52,6 +53,64 @@ test('startup compensation settles an eligible final event missing its checkpoin
 
     service = fixture.createService();
     assert.equal(service.getSnapshot().effectiveRemainingMs, 40_000);
+    assert.equal(fixture.getSettlement(event.giftEventId).status, 'applied');
+  } finally {
+    service.dispose();
+    fixture.close();
+  }
+});
+
+test('startup compensation drains more than one batch of final events without checkpoints', () => {
+  const fixture = createFixture();
+  let service = fixture.createService();
+  try {
+    service.act('enable');
+    service.replaceRules([fixedRule('gift-a', 1)]);
+    service.dispose();
+    const events = Array.from({ length: 250 }, () => fixture.insertFinalGift({ giftId: 'gift-a', overtimeEpoch: 1 }));
+    const oldEpoch = fixture.insertFinalGift({ giftId: 'gift-a', overtimeEpoch: 0 });
+    const progress = fixture.insertProgressGift({ giftId: 'gift-a', overtimeEpoch: 1 });
+    service = fixture.createService();
+    const settledCount = () => fixture.db.giftDb.prepare('SELECT COUNT(*) AS count FROM overtime_settlements').get().count;
+    assert.equal(settledCount(), 100, 'startup yields after its first bounded batch');
+    fixture.clock.advance(0);
+    assert.equal(settledCount(), 250, 'the remaining batches recover without a new gift or restart');
+    assert.equal(service.getSnapshot().effectiveRemainingMs, 250_000);
+    assert.equal(fixture.getSettlement(oldEpoch.giftEventId), null);
+    assert.equal(fixture.getSettlement(progress.giftEventId), null);
+    for (const event of events) assert.equal(service.finalizeGift(event), false);
+    assert.equal(service.getSnapshot().effectiveRemainingMs, 250_000);
+    assert.equal(fixture.getSettlement(events.at(-1).giftEventId).status, 'applied');
+  } finally {
+    service.dispose();
+    fixture.close();
+  }
+});
+
+test('unobserved recovery backlog keeps its retry delay while checkpoint writes fail', () => {
+  const fixture = createFixture();
+  let service = fixture.createService();
+  try {
+    service.act('enable');
+    service.replaceRules([fixedRule('gift-a', 1)]);
+    service.dispose();
+    const event = fixture.insertFinalGift({ giftId: 'gift-a', overtimeEpoch: 1 });
+    const store = createOvertimeStore(fixture.db.giftDb);
+    const observe = store.observeGift;
+    let attempts = 0;
+    let blocked = true;
+    store.observeGift = (...args) => {
+      attempts++;
+      if (blocked) throw new Error('synthetic checkpoint unavailable');
+      return observe(...args);
+    };
+    service = fixture.createService({ store });
+    assert.equal(attempts, 1);
+    fixture.clock.advance(999);
+    assert.equal(attempts, 1);
+    blocked = false;
+    fixture.clock.advance(1);
+    assert.equal(attempts, 2);
     assert.equal(fixture.getSettlement(event.giftEventId).status, 'applied');
   } finally {
     service.dispose();

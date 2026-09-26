@@ -460,14 +460,15 @@ function createWeSingCapture(options = {}) {
       durationMs,
       progress: durationMs > 0 ? lyricCurrentMs / durationMs : 0,
       playing: state.playing,
-      status: state.qrcReady
-        ? 'ready'
-        : state.status === 'loading'
-          ? 'loading'
-          : state.status === 'empty'
-            ? 'empty'
-            : 'idle',
+      status: getLyricStatus(),
     });
+  }
+
+  function getLyricStatus() {
+    if (state.qrcReady) return 'ready';
+    if (state.status === 'loading') return 'loading';
+    if (state.status === 'empty') return 'empty';
+    return 'idle';
   }
 
   function resetLyrics() {
@@ -487,13 +488,7 @@ function createWeSingCapture(options = {}) {
       active: state.active,
       trackTitle: state.trackTitle,
       artists: lyricArtists,
-      status: state.qrcReady
-        ? 'ready'
-        : state.status === 'loading'
-          ? 'loading'
-          : state.status === 'empty'
-            ? 'empty'
-            : 'idle',
+      status: getLyricStatus(),
       lines: lyrics,
     });
   }

@@ -31,6 +31,8 @@ function placeStone(state, input, player) {
   const coordinate = typeof input === 'string' ? parseCoordinate(input) : input;
   if (
     !coordinate ||
+    !Number.isInteger(coordinate.row) ||
+    !Number.isInteger(coordinate.column) ||
     coordinate.row < 0 ||
     coordinate.row >= BOARD_SIZE ||
     coordinate.column < 0 ||

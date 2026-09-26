@@ -16,12 +16,7 @@ function isAllowedExternal(rawUrl) {
     return false;
   }
 
-  // 仅允许 https: 协议，拒绝 file:, javascript:, data:, ms-settings:, 自定义协议
-  if (parsed.protocol !== 'https:') {
-    return false;
-  }
-
-  return true;
+  return parsed.protocol === 'https:';
 }
 
 /**
@@ -47,7 +42,7 @@ function isAllowedLocalUrl(rawUrl) {
  *
  * @param {string} rawUrl - 待验证的 URL
  * @param {string[]} providerDomains - 允许的域名列表（完整主机名，不含协议）
- * @returns {boolean} - URL 必须是 https: 且主机名精确匹配白名单
+ * @returns {boolean} - URL 必须是 https: 且主机名匹配白名单域名或其子域名
  */
 function isAllowedLoginNavigation(rawUrl, providerDomains) {
   let parsed;
@@ -57,25 +52,15 @@ function isAllowedLoginNavigation(rawUrl, providerDomains) {
     return false;
   }
 
-  // 仅允许 https: 协议
   if (parsed.protocol !== 'https:') {
     return false;
   }
 
   const hostname = parsed.hostname.toLowerCase();
 
-  // 精确匹配或子域名匹配
   return providerDomains.some((allowed) => {
     const cleanAllowed = allowed.toLowerCase();
-    // 精确匹配
-    if (hostname === cleanAllowed) {
-      return true;
-    }
-    // 子域名匹配：example.com 允许 sub.example.com
-    if (hostname.endsWith(`.${cleanAllowed}`)) {
-      return true;
-    }
-    return false;
+    return hostname === cleanAllowed || hostname.endsWith(`.${cleanAllowed}`);
   });
 }
 

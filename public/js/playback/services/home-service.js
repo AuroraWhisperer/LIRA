@@ -70,12 +70,7 @@ export class HomeService {
       this.homeAction = result.action;
       this.homePage = 1;
 
-      return {
-        items: this.homeItems,
-        itemType: this.homeItemType,
-        action: this.homeAction,
-        page: this.homePage,
-      };
+      return this.getHomeState();
     } catch (error) {
       if (!this._isCurrentRequest(generation)) return this._staleResult();
       this.clearHomeState();
@@ -101,12 +96,7 @@ export class HomeService {
     this.homeAction = 'recent';
     this.homePage = 1;
 
-    return {
-      items: this.homeItems,
-      itemType: this.homeItemType,
-      action: this.homeAction,
-      page: this.homePage,
-    };
+    return this.getHomeState();
   }
 
   /**
@@ -130,12 +120,7 @@ export class HomeService {
       throw new Error('ContentLoader not initialized');
     }
 
-    const previousState = {
-      items: this.homeItems,
-      itemType: this.homeItemType,
-      action: this.homeAction,
-      page: this.homePage,
-    };
+    const previousState = this.getHomeState();
 
     try {
       const result = await this.contentLoader.loadHomeContent('playlist-tracks', {
@@ -208,12 +193,7 @@ export class HomeService {
         this.homeAction = result.action;
         this.homePage = 1;
 
-        return {
-          items: this.homeItems,
-          itemType: this.homeItemType,
-          action: this.homeAction,
-          page: this.homePage,
-        };
+        return this.getHomeState();
       } catch (error) {
         if (!this._isCurrentRequest(generation)) return this._staleResult();
         this.onError(error);
@@ -262,12 +242,7 @@ export class HomeService {
       this.homeItemType = Array.isArray(data.playlists) ? 'playlist' : 'track';
       this.homePage = nextPage;
 
-      return {
-        items: this.homeItems,
-        itemType: this.homeItemType,
-        action: this.homeAction,
-        page: this.homePage,
-      };
+      return this.getHomeState();
     } catch (error) {
       if (!this._isCurrentRequest(generation)) return this._staleResult();
       this.onError(error);

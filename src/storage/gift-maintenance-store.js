@@ -30,7 +30,7 @@ function createGiftMaintenanceStore(giftDb) {
 
     giftDb.exec('BEGIN IMMEDIATE');
     try {
-      // 第一步：将待删除礼物的 pending settlements 标记为 ignored
+      // 停止待结算记录的重试，保留 applied/ignored 记录用于审计。
       const pendingCount = giftDb
         .prepare(
           `
@@ -43,10 +43,6 @@ function createGiftMaintenanceStore(giftDb) {
         )
         .run(reason, updatedAt, ...giftEventIds).changes;
 
-      // 第二步：保留 applied/ignored 结算记录（不删除，用于审计）
-      // 无需操作 - 已完成的结算会自然保留
-
-      // 第三步：删除礼物事件本身
       const deletedCount = giftDb
         .prepare(
           `
@@ -77,16 +73,12 @@ function createGiftMaintenanceStore(giftDb) {
       throw new Error('whereClause is required for predicate-based deletion.');
     }
 
-    // 先查找符合条件的礼物 ID
     const ids = giftDb
       .prepare(`SELECT id FROM gift_events WHERE ${whereClause}`)
       .all(...params)
       .map((row) => Number(row.id));
 
-    // 委托给 ID 删除方法
-    return ids.length > 0
-      ? deleteGiftsWithSettlements(ids, reason, updatedAt)
-      : { deletedGifts: 0, ignoredSettlements: 0 };
+    return deleteGiftsWithSettlements(ids, reason, updatedAt);
   }
 
   /**

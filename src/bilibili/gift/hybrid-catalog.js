@@ -240,14 +240,14 @@ function mergeRoomCatalog(roomSnapshot, serverSnapshot, customBlindBoxes = []) {
     return mergeVariantRoomCatalog(roomSnapshot, serverSnapshot, customBlindBoxes);
   }
   if (serverSnapshot?.gifts?.length && serverSnapshot.gifts.every((gift) => gift.variantId)) {
-    const byId = new Map(serverSnapshot.gifts.map((gift) => [gift.id, gift.variantId]));
+    const variantIdByGiftId = new Map(serverSnapshot.gifts.map((gift) => [gift.id, gift.variantId]));
     return mergeVariantRoomCatalog(
       roomSnapshot,
       {
         ...serverSnapshot,
         variantBlindBoxes: (serverSnapshot.blindBoxes || []).map((box) => ({
-          variantId: byId.get(box.giftId),
-          outputVariantIds: box.outputGiftIds.map((id) => byId.get(id)),
+          variantId: variantIdByGiftId.get(box.giftId),
+          outputVariantIds: box.outputGiftIds.map((id) => variantIdByGiftId.get(id)),
         })),
       },
       customBlindBoxes,

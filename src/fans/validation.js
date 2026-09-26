@@ -1,6 +1,6 @@
 'use strict';
 
-const { dateValue, dayStart } = require('./dates');
+const { DAY_MS, dateValue, dayStart } = require('./dates');
 
 function text(value, label, max = 2000) {
   if (value == null) return '';
@@ -134,7 +134,7 @@ function membership(input) {
       result.start = dateValue(input.start, '开始日期', false);
       result.end = dateValue(input.end, '有效至', false);
       result.startAt = new Date(dayStart(result.start)).toISOString();
-      result.endAt = new Date(dayStart(result.end) + 86400000).toISOString();
+      result.endAt = new Date(dayStart(result.end) + DAY_MS).toISOString();
     } else {
       result.startAt = timestamp(input.startAt, '生效时间');
       result.endAt = timestamp(input.endAt, '到期时间');

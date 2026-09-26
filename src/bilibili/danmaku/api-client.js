@@ -5,9 +5,12 @@
 const wbiSigner = require('../wbi-signer');
 const { formatBilibiliApiError } = require('../api-error');
 const { cleanText } = require('../../shared/utils');
+const { readResponseBytes, readResponseText } = require('../../shared/response-body');
 const { normalizeMentionTarget } = require('./mention-policy');
 
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
+const MAX_JSON_BYTES = 4 * 1024 * 1024;
+const REQUEST_TIMEOUT_MS = 15000;
 
 class BilibiliApiClient {
   constructor(roomId, options = {}) {
@@ -115,17 +118,24 @@ class BilibiliApiClient {
       },
       signal: AbortSignal.timeout(8000),
     });
-    if (!response.ok) throw new Error(`直播账号头像读取失败。HTTP ${response.status}`);
+    if (!response.ok) {
+      await response.body?.cancel().catch((cancellationError) => {
+        // Preserve the HTTP failure when releasing an already-failed response body.
+        void cancellationError;
+      });
+      throw new Error(`直播账号头像读取失败。HTTP ${response.status}`);
+    }
     const contentType = String(response.headers.get('content-type') || '')
       .split(';', 1)[0]
       .toLowerCase();
     if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'].includes(contentType)) {
+      await response.body?.cancel().catch((cancellationError) => {
+        // Preserve the MIME failure when releasing an already-failed response body.
+        void cancellationError;
+      });
       throw new Error('直播账号头像返回了非图片内容。');
     }
-    const contentLength = Number(response.headers.get('content-length')) || 0;
-    if (contentLength > MAX_AVATAR_BYTES) throw new Error('直播账号头像文件过大。');
-    const data = Buffer.from(await response.arrayBuffer());
-    if (data.length > MAX_AVATAR_BYTES) throw new Error('直播账号头像文件过大。');
+    const data = await readResponseBytes(response, MAX_AVATAR_BYTES, () => new Error('直播账号头像文件过大。'));
     return { contentType, data };
   }
 
@@ -178,16 +188,15 @@ class BilibiliApiClient {
   }
 
   async sendDanmaku(roomId, message, reply = {}) {
-    const rawText = String(message || '').trim();
+    const text = String(message || '').trim();
     if (!this.cookieHeader) throw new Error('请先登录直播账号。');
     const csrf = extractCookie(this.cookieHeader, 'bili_jct');
     if (!csrf) throw new Error('登录态缺少 bili_jct，无法发送弹幕。');
-    if (!rawText || rawText.length > 1000) throw new Error('弹幕内容不能为空且不能超过 1000 个字符。');
+    if (!text || text.length > 1000) throw new Error('弹幕内容不能为空且不能超过 1000 个字符。');
 
     const mentionTarget = normalizeMentionTarget(reply);
     const replyMid = mentionTarget.uid;
     const replyName = mentionTarget.name;
-    const text = rawText;
 
     const form = new URLSearchParams({
       bubble: '0',
@@ -209,13 +218,20 @@ class BilibiliApiClient {
 
     const response = await fetch('https://api.live.bilibili.com/msg/send', {
       method: 'POST',
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       headers: {
         ...this.requestHeaders(),
         'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
       },
       body: form.toString(),
     });
-    const payload = await response.json().catch(() => ({}));
+    const responseText = await readResponseText(response, MAX_JSON_BYTES, () => new Error('直播平台 API 响应过大。'));
+    let payload;
+    try {
+      payload = JSON.parse(responseText);
+    } catch (_) {
+      payload = {};
+    }
     if (!response.ok || Number(payload.code) !== 0) {
       throw new Error(
         formatBilibiliApiError('send_danmaku', response, payload, '请确认账号已登录且具备在该直播间发言权限。'),
@@ -234,17 +250,18 @@ class BilibiliApiClient {
     if (!quiet) {
       console.log(`[Bilibili] request ${endpointName}: ${redactUrl(url)}`);
     }
+    const timeout = AbortSignal.timeout(REQUEST_TIMEOUT_MS);
     const response = await fetch(url, {
       headers: this.requestHeaders(),
-      signal: options.signal,
+      signal: options.signal ? AbortSignal.any([options.signal, timeout]) : timeout,
     });
-    const text = await response.text();
+    const text = await readResponseText(response, MAX_JSON_BYTES, () => new Error('直播平台 API 响应过大。'));
     let payload;
     try {
       payload = JSON.parse(text);
     } catch (_) {
       throw new Error(
-        `直播平台 API ${endpointName} returned non-JSON response. HTTP ${response.status}. Body: ${text.slice(0, 160)}`,
+        `直播平台 API ${endpointName} returned non-JSON response. HTTP ${response.status}.`,
       );
     }
     if (!quiet) {

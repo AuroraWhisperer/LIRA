@@ -4,6 +4,7 @@
 
 const crypto = require('node:crypto');
 const { formatBilibiliApiError } = require('./api-error');
+const { readResponseText } = require('../shared/response-body');
 
 const WBI_MIXIN_KEY_ENC_TAB = [
   46, 47, 18, 2, 53, 8, 23, 32, 15, 50, 10, 31, 58, 3, 45, 35, 27, 43, 5, 49, 33, 9, 42, 19, 29, 28, 14, 39, 12, 38, 41,
@@ -21,14 +22,15 @@ async function getBilibiliWbiMixinKey(headers) {
 
   const response = await fetch('https://api.bilibili.com/x/web-interface/nav', {
     headers,
+    signal: AbortSignal.timeout(15000),
   });
-  const text = await response.text();
+  const text = await readResponseText(response, 4 * 1024 * 1024, () => new Error('直播平台 WBI 响应过大。'));
   let payload;
   try {
     payload = JSON.parse(text);
   } catch (_) {
     throw new Error(
-      `直播平台 WBI key request returned non-JSON response. HTTP ${response.status}. Body: ${text.slice(0, 160)}`,
+      `直播平台 WBI key request returned non-JSON response. HTTP ${response.status}.`,
     );
   }
 

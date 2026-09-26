@@ -28,7 +28,7 @@ function createWebSocketHub(options = {}) {
   let snapshotFlushQueued = false;
   let pendingSnapshot = null;
 
-  function handleWebSocketUpgrade(context, req, socket) {
+  function handleWebSocketUpgrade(context, req, socket, head) {
     if (stopped) {
       socket.destroy();
       return;
@@ -73,10 +73,10 @@ function createWebSocketHub(options = {}) {
 
     // Per-socket state for frame reassembly and heartbeat
     socket._wsBuffer = Buffer.alloc(0);
+    socket._wsBufferStorage = null;
     socket._wsFragment = null;
-    socket._wsFragmentOpcode = 0;
     socket._wsFragmentBytes = 0;
-    socket._lastPongAt = Date.now();
+    socket._lastPongAt = performance.now();
     socket._wsCleanedUp = false;
     socket._wsPrincipal = principal;
     socket._wsTopics = parseSubscriptionTopics(requestUrl.searchParams);
@@ -98,8 +98,11 @@ function createWebSocketHub(options = {}) {
         reason: 'connect',
         state: context.getState(),
       })
-    )
+    ) {
       dropSocket(socket);
+      return;
+    }
+    if (head?.length) handleSocketData(socket, head);
   }
 
   function dropSocket(socket) {
@@ -152,8 +155,8 @@ function createWebSocketHub(options = {}) {
     socket._wsContext = null;
     socket._wsPrincipal = null;
     socket._wsBuffer = null;
+    socket._wsBufferStorage = null;
     socket._wsFragment = null;
-    socket._wsFragmentOpcode = 0;
     socket._wsFragmentBytes = 0;
     socket._wsTopics = null;
     socket._wsMaxPendingBytes = null;
@@ -162,8 +165,25 @@ function createWebSocketHub(options = {}) {
   function handleSocketData(socket, chunk) {
     if (socket._wsCleanedUp || !sockets.has(socket) || socket._wsBuffer === null) return;
 
-    socket._wsBuffer = socket._wsBuffer.length === 0 ? chunk : Buffer.concat([socket._wsBuffer, chunk]);
+    const buffered = socket._wsBuffer;
+    if (buffered.length === 0) {
+      socket._wsBuffer = chunk;
+      socket._wsBufferStorage = null;
+    } else {
+      const length = buffered.length + chunk.length;
+      let storage = socket._wsBufferStorage;
+      if (!storage || storage.length < length) {
+        storage = Buffer.allocUnsafe(Math.max(length, buffered.length * 2));
+        buffered.copy(storage);
+      } else if (buffered.byteOffset !== storage.byteOffset) {
+        buffered.copy(storage);
+      }
+      chunk.copy(storage, buffered.length);
+      socket._wsBufferStorage = storage;
+      socket._wsBuffer = storage.subarray(0, length);
+    }
     processBufferedFrames(socket);
+    if (socket._wsBuffer?.length === 0) socket._wsBufferStorage = null;
   }
 
   function processBufferedFrames(socket) {
@@ -223,10 +243,8 @@ function createWebSocketHub(options = {}) {
         payload[i] ^= maskKey[i % 4];
       }
 
-      // Advance buffer past this frame
       socket._wsBuffer = buffer.subarray(totalFrameSize);
 
-      // Dispatch by opcode
       if (opcode === 0x8) {
         if (payload.length === 1) {
           rejectFrame(socket);
@@ -255,13 +273,12 @@ function createWebSocketHub(options = {}) {
           dropSocket(socket);
           return;
         }
-        // Continue loop (more frames may follow in same buffer)
         continue;
       }
 
       if (opcode === 0xa) {
         // Pong: update heartbeat timestamp
-        socket._lastPongAt = Date.now();
+        socket._lastPongAt = performance.now();
         continue;
       }
 
@@ -271,51 +288,45 @@ function createWebSocketHub(options = {}) {
       }
 
       // Text (0x1) / Binary (0x2) / Continuation (0x0)
-      // Accumulate fragments but don't act on them (server doesn't consume client messages)
-      if (opcode === 0x0) {
-        // Continuation frame
+      // Client messages are not consumed; retain only incremental UTF-8 validation state.
+      if (opcode !== 0x0 && !fin) {
+        socket._wsFragment = opcode === 0x1 ? new TextDecoder('utf-8', { fatal: true }) : true;
+        socket._wsFragmentBytes = 0;
+      }
+      if (socket._wsFragment !== null) {
         if (socket._wsFragmentBytes + payload.length > MAX_MESSAGE_BYTES) {
           rejectFrame(socket, 1009);
           return;
         }
-        socket._wsFragment = Buffer.concat([socket._wsFragment, payload]);
         socket._wsFragmentBytes += payload.length;
-      } else if (fin) {
-        if (opcode === 0x1 && !isUtf8(payload)) {
-          rejectFrame(socket, 1007);
-          return;
+        if (socket._wsFragment !== true) {
+          try {
+            socket._wsFragment.decode(payload, { stream: !fin });
+          } catch (_) {
+            rejectFrame(socket, 1007);
+            return;
+          }
         }
-      } else {
-        // Start of fragmented message
-        socket._wsFragment = payload;
-        socket._wsFragmentOpcode = opcode;
-        socket._wsFragmentBytes = payload.length;
-      }
-
-      if (fin && socket._wsFragment !== null) {
-        if (socket._wsFragmentOpcode === 0x1 && !isUtf8(socket._wsFragment)) {
-          rejectFrame(socket, 1007);
-          return;
+        if (fin) {
+          socket._wsFragment = null;
+          socket._wsFragmentBytes = 0;
         }
-        // Fragmented message complete — reset
-        socket._wsFragment = null;
-        socket._wsFragmentOpcode = 0;
-        socket._wsFragmentBytes = 0;
+      } else if (opcode === 0x1 && !isUtf8(payload)) {
+        rejectFrame(socket, 1007);
+        return;
       }
-
-      // Loop continues to process next frame in buffer
     }
   }
 
   function ensureHeartbeat() {
     if (heartbeatTimer) return;
     heartbeatTimer = setInterval(() => {
-      const now = Date.now();
+      const now = performance.now();
       for (const socket of Array.from(sockets)) {
         if (now - socket._lastPongAt > socketTimeoutMs) {
           dropSocket(socket);
-        } else {
-          if (!sendWebSocketFrame(socket, Buffer.alloc(0), 0x9)) dropSocket(socket);
+        } else if (!sendWebSocketFrame(socket, Buffer.alloc(0), 0x9)) {
+          dropSocket(socket);
         }
       }
     }, heartbeatIntervalMs);
@@ -425,8 +436,8 @@ function parseSubscriptionTopics(searchParams) {
 
 const compatibilityHub = createWebSocketHub();
 
-function handleWebSocketUpgrade(context, req, socket) {
-  compatibilityHub.handleUpgrade(context, req, socket);
+function handleWebSocketUpgrade(context, req, socket, head) {
+  compatibilityHub.handleUpgrade(context, req, socket, head);
 }
 
 function broadcastSnapshot(context, reason) {

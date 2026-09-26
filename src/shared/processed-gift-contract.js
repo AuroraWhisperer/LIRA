@@ -343,23 +343,20 @@ function normalizeRequiredSyncMetadata(input, errorFactory) {
   const syncEpoch = input.syncEpoch;
   const earliestCursor = input.earliestCursor;
   const latestCursor = input.latestCursor;
-  const version = historyBootstrapVersion;
-  const earliest = earliestCursor;
-  const latest = latestCursor;
   if (
-    version !== HISTORY_BOOTSTRAP_VERSION ||
-    !Number.isSafeInteger(earliest) ||
-    earliest < 0 ||
-    !Number.isSafeInteger(latest) ||
-    latest < earliest
+    historyBootstrapVersion !== HISTORY_BOOTSTRAP_VERSION ||
+    !Number.isSafeInteger(earliestCursor) ||
+    earliestCursor < 0 ||
+    !Number.isSafeInteger(latestCursor) ||
+    latestCursor < earliestCursor
   ) {
     throw errorFactory();
   }
   return {
-    historyBootstrapVersion: version,
+    historyBootstrapVersion,
     syncEpoch: normalizeEpoch(syncEpoch, errorFactory),
-    earliestCursor: earliest,
-    latestCursor: latest,
+    earliestCursor,
+    latestCursor,
   };
 }
 

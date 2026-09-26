@@ -74,7 +74,7 @@ export function renderComparison(results) {
   // 按状态排序：漏记优先
   const sorted = [...results].sort((a, b) => {
     const order = { miss: 0, extra: 1, match: 2 };
-    return (order[a.status] || 3) - (order[b.status] || 3);
+    return (order[a.status] ?? 3) - (order[b.status] ?? 3);
   });
 
   tbody.innerHTML = sorted

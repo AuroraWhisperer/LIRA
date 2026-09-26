@@ -27,12 +27,9 @@ function mapKanaToLines(lines, kanaReadings) {
     const lineKana = [];
 
     for (const ch of chars) {
-      if (isCJK(ch)) {
-        if (readingIdx < kanaReadings.length) {
-          lineKana.push(kanaReadings[readingIdx]);
-          readingIdx++;
-        }
-      }
+      if (!isCJK(ch) || readingIdx >= kanaReadings.length) continue;
+      lineKana.push(kanaReadings[readingIdx]);
+      readingIdx++;
     }
 
     if (lineKana.length > 0) {
@@ -71,12 +68,13 @@ function parseLyricResult(rawLyric, rawTranslation, rawWordLyric, rawRoma) {
   return lines.map((line, index) => {
     const romaFromApi = resolveRoma(line.startMs);
     const kanaFromTag = kanaByLineStart ? kanaByLineStart.get(line.startMs) || '' : '';
+    const wordLine = wordLineByStart.get(line.startMs);
     return {
       ...line,
       endMs: line.endMs ?? (lines[index + 1] ? lines[index + 1].startMs : undefined),
       translation: resolveTranslation(line.startMs),
       roma: romaFromApi || kanaFromTag,
-      words: wordLineByStart.get(line.startMs) ? wordLineByStart.get(line.startMs).words : [],
+      words: wordLine ? wordLine.words : [],
     };
   });
 }

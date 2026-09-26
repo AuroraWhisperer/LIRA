@@ -37,8 +37,8 @@ function getBilibiliCookieSnapshotPath(dataDir) {
   return path.join(getBilibiliAuthDir(dataDir), 'cookies.enc');
 }
 
-function getBilibiliCookieExportPath(dataDir) {
-  return path.join(getBilibiliAuthDir(dataDir), 'cookies.txt');
+function removeLegacyCookieExport(dataDir) {
+  fs.rmSync(path.join(getBilibiliAuthDir(dataDir), 'cookies.txt'), { force: true });
 }
 
 function isAllowedBilibiliCookie(cookie) {
@@ -88,19 +88,13 @@ async function persistBilibiliCookieSnapshot(dataDir) {
   const encrypted = safeStorage.encryptString(JSON.stringify(payload));
   fs.writeFileSync(getBilibiliCookieSnapshotPath(dataDir), encrypted.toString('base64'), 'utf8');
 
-  const exportPath = getBilibiliCookieExportPath(dataDir);
-  if (fs.existsSync(exportPath) || process.env.BILIBILI_PLAINTEXT_COOKIE_EXPORT === '1') {
-    const cookieHeader = cookies
-      .filter((cookie) => cookie.name && cookie.value)
-      .map((cookie) => `${cookie.name}=${cookie.value}`)
-      .join('; ');
-    fs.writeFileSync(exportPath, cookieHeader, 'utf8');
-  }
+  removeLegacyCookieExport(dataDir);
 
   return { savedAt: payload.savedAt, cookieCount: payload.cookies.length };
 }
 
 async function restoreBilibiliCookieSnapshot(dataDir) {
+  removeLegacyCookieExport(dataDir);
   const snapshotPath = getBilibiliCookieSnapshotPath(dataDir);
   if (!fs.existsSync(snapshotPath)) return null;
   if (!safeStorage.isEncryptionAvailable()) return null;
@@ -145,8 +139,6 @@ async function getBilibiliAuthState(dataDir) {
     }
   }
 
-  const exportedCookieExists = fs.existsSync(getBilibiliCookieExportPath(dataDir));
-
   return {
     name: config.name,
     loggedIn: allKeyCookiesPresent,
@@ -157,7 +149,6 @@ async function getBilibiliAuthState(dataDir) {
     encryptedSnapshotExists: snapshotMeta.exists,
     lastSavedAt: snapshotMeta.savedAt,
     encryptionAvailable: safeStorage.isEncryptionAvailable(),
-    exportedCookieExists,
   };
 }
 
@@ -243,9 +234,7 @@ async function logoutBilibiliAccount(dataDir) {
   });
   const snapshotPath = getBilibiliCookieSnapshotPath(dataDir);
   if (fs.existsSync(snapshotPath)) fs.unlinkSync(snapshotPath);
-  // 清理旧版明文导出文件
-  const exportPath = getBilibiliCookieExportPath(dataDir);
-  if (fs.existsSync(exportPath)) fs.unlinkSync(exportPath);
+  removeLegacyCookieExport(dataDir);
   return getBilibiliAuthState(dataDir);
 }
 
@@ -261,5 +250,4 @@ module.exports = {
   replaceBilibiliCookieHeader,
   logoutBilibiliAccount,
   parseBilibiliCookieHeader,
-  getBilibiliCookieExportPath,
 };

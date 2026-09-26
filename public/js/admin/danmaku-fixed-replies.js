@@ -50,51 +50,49 @@ export function initFixedReplyEditor({ documentRef = globalThis.document, window
       target.textContent = source.textContent;
     });
   }
-  for (const [key, prefix] of [['diy', 'CustomReply']]) {
-    const status = documentRef.getElementById(`danmaku${prefix}Status`);
-    const note = root.querySelector(`[data-fixed-note="${key}"]`);
-    mirror(status, () => {
-      note.textContent = /未保存|更改|失败|保存中|正在保存/.test(status.textContent) ? status.textContent : '';
+  const status = documentRef.getElementById('danmakuCustomReplyStatus');
+  const note = root.querySelector('[data-fixed-note="diy"]');
+  mirror(status, () => {
+    note.textContent = /未保存|更改|失败|保存中|正在保存/.test(status.textContent) ? status.textContent : '';
+  });
+  const list = documentRef.getElementById('danmakuCustomReplyList');
+  const pager = documentRef.createElement('div');
+  pager.className = 'danmaku-library-pagination';
+  const previous = documentRef.createElement('button'),
+    next = documentRef.createElement('button');
+  const label = documentRef.createElement('span');
+  label.className = 'hint';
+  previous.type = next.type = 'button';
+  previous.className = next.className = 'ghost';
+  previous.textContent = '上一页';
+  next.textContent = '下一页';
+  pager.append(previous, label, next);
+  list.after(pager);
+  let page = 0;
+  const render = () => {
+    const rows = [...list.children],
+      pages = Math.max(1, Math.ceil(rows.length / 6));
+    page = Math.min(page, pages - 1);
+    rows.forEach((row, index) => {
+      row.hidden = Math.floor(index / 6) !== page;
     });
-    const list = documentRef.getElementById(`danmaku${prefix}List`);
-    const pager = documentRef.createElement('div');
-    pager.className = 'danmaku-library-pagination';
-    const previous = documentRef.createElement('button'),
-      next = documentRef.createElement('button');
-    const label = documentRef.createElement('span');
-    label.className = 'hint';
-    previous.type = next.type = 'button';
-    previous.className = next.className = 'ghost';
-    previous.textContent = '上一页';
-    next.textContent = '下一页';
-    pager.append(previous, label, next);
-    list.after(pager);
-    let page = 0;
-    const render = () => {
-      const rows = [...list.children],
-        pages = Math.max(1, Math.ceil(rows.length / 6));
-      page = Math.min(page, pages - 1);
-      rows.forEach((row, index) => {
-        row.hidden = Math.floor(index / 6) !== page;
-      });
-      pager.hidden = pages <= 1;
-      previous.disabled = page === 0;
-      next.disabled = page === pages - 1;
-      label.textContent = `第 ${page + 1} / ${pages} 页`;
-    };
-    previous.addEventListener('click', () => {
-      page -= 1;
-      render();
-    });
-    next.addEventListener('click', () => {
-      page += 1;
-      render();
-    });
-    const observer = new windowRef.MutationObserver(render);
-    observer.observe(list, { childList: true });
-    observers.push(observer);
+    pager.hidden = pages <= 1;
+    previous.disabled = page === 0;
+    next.disabled = page === pages - 1;
+    label.textContent = `第 ${page + 1} / ${pages} 页`;
+  };
+  previous.addEventListener('click', () => {
+    page -= 1;
     render();
-  }
+  });
+  next.addEventListener('click', () => {
+    page += 1;
+    render();
+  });
+  const observer = new windowRef.MutationObserver(render);
+  observer.observe(list, { childList: true });
+  observers.push(observer);
+  render();
   const pk = documentRef.getElementById('danmakuPkReportStatus');
   mirror(pk, () => {
     documentRef.getElementById('danmakuPkReportDetail').textContent = pk.textContent;

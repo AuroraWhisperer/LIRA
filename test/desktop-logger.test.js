@@ -44,13 +44,17 @@ test('desktop logger never grows a full compatibility file', (t) => {
   assert.equal(fs.statSync(filePath).size, 128);
 });
 
-test('desktop logger does not throw for an unserializable value', () => {
+test('desktop logger handles circular diagnostic data without throwing', (t) => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'desktop-log-circular-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  const filePath = path.join(directory, 'desktop.log');
   const value = {};
   value.self = value;
   const logger = createDesktopLogger({
-    getLogFile: () => path.join(os.tmpdir(), 'unused-desktop-log.log'),
+    getLogFile: () => filePath,
     loggingState: { runId: 'run-test', sequence: 0 },
   });
 
   assert.doesNotThrow(() => logger.writeLog('status', value));
+  assert.match(fs.readFileSync(filePath, 'utf8'), /\[Circular\]/);
 });

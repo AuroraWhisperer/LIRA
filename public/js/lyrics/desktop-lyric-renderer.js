@@ -211,7 +211,6 @@ function renderTimelineFrame(currentMs) {
   const nextActiveIndex = findActiveLyricIndex(lines, lyricTime);
 
   if (nextActiveIndex !== activeIndex) {
-    const previousIndex = activeIndex;
     activeIndex = nextActiveIndex;
     rowElements.forEach((row, index) => {
       row.classList.toggle('is-past', index < activeIndex);
@@ -219,7 +218,7 @@ function renderTimelineFrame(currentMs) {
       row.classList.toggle('is-active', index === activeIndex);
     });
     applyVisibleLineWindow();
-    if (previousIndex !== activeIndex) resetActiveWords();
+    resetActiveWords();
     renderActiveWords();
     followActiveLyric();
   }

@@ -1,5 +1,13 @@
 'use strict';
 
+const { readResponseText } = require('../../shared/response-body');
+
+const MAX_RESPONSE_BYTES = 16 * 1024 * 1024;
+
+function responseLimitError() {
+  return Object.assign(new Error('网易云音乐响应过大，无法处理。'), { code: 'MUSIC_RESPONSE_TOO_LARGE' });
+}
+
 const { parseLyricResult } = require('../lyrics');
 const { encryptNeteaseWeapiPayload } = require('./netease-weapi');
 const {
@@ -372,7 +380,7 @@ class NeteaseMusicProvider {
       redirect: 'follow',
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
-    const text = await response.text();
+    const text = await readResponseText(response, MAX_RESPONSE_BYTES, responseLimitError);
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
@@ -406,7 +414,7 @@ class NeteaseMusicProvider {
       redirect: 'follow',
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
-    const text = await response.text();
+    const text = await readResponseText(response, MAX_RESPONSE_BYTES, responseLimitError);
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     try {
       return text ? JSON.parse(text) : {};

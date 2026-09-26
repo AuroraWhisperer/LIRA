@@ -31,8 +31,8 @@ function buildImportPlan(currentSongs, input, currentCategories) {
     throw importError('SONG_IMPORT_INPUT_INVALID', '请提供 1 至 5000 行歌曲，空值选项必须是布尔值。', 400);
   }
   const allowEmptyClear = input.allowEmptyClear === true;
-  const byIdentity = new Map(currentSongs.map((song) => [JSON.stringify([song.name, song.artist || '']), song]));
-  const groups = new Map();
+  const songsByIdentity = new Map(currentSongs.map((song) => [JSON.stringify([song.name, song.artist || '']), song]));
+  const rowsByIdentity = new Map();
   const rows = input.rows.map((raw, index) => {
     const entry = {
       row: index + 1,
@@ -82,14 +82,14 @@ function buildImportPlan(currentSongs, input, currentCategories) {
       }
       const key = JSON.stringify([song.name, song.artist]);
       const signature = JSON.stringify(present.map((field) => [field, blank.has(field) ? '' : song[field]]));
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key).push({
+      if (!rowsByIdentity.has(key)) rowsByIdentity.set(key, []);
+      rowsByIdentity.get(key).push({
         entry,
         song,
         present,
         blank,
         signature,
-        existing: byIdentity.get(key),
+        existing: songsByIdentity.get(key),
       });
       entry.status = 'unchanged';
     } catch (error) {
@@ -101,11 +101,12 @@ function buildImportPlan(currentSongs, input, currentCategories) {
   });
 
   const changes = [];
-  for (const group of groups.values()) {
+  for (const group of rowsByIdentity.values()) {
     if (new Set(group.map((item) => item.signature)).size > 1) {
+      const rowNumbers = group.map((item) => item.entry.row).join('、');
       for (const { entry } of group) {
         entry.status = 'conflict';
-        entry.reason = `同一歌曲在数据第 ${group.map((item) => item.entry.row).join('、')} 行内容不同`;
+        entry.reason = `同一歌曲在数据第 ${rowNumbers} 行内容不同`;
       }
       continue;
     }

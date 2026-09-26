@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const test = require('node:test');
 const { createFixture } = require('./helpers/overtime-service-fixture');
+const { createOvertimeStore } = require('../src/overtime/overtime-store');
 
 test('enable epochs advance only on disabled to enabled transitions', () => {
   const fixture = createFixture();
@@ -296,3 +297,68 @@ test('update notification failure does not roll back a successfully saved state'
     fixture.close();
   }
 });
+
+test('an automatic zero transition retries a temporary database failure without an uncaught timer error', () => {
+  const fixture = createFixture();
+  const service = fixture.createService();
+  try {
+    service.setTime({ remainingSeconds: 1 });
+    service.act('enable');
+    service.act('start');
+    const revision = service.getSnapshot().revision;
+    fixture.db.giftDb.exec(`
+      CREATE TEMP TRIGGER fail_zero_save BEFORE UPDATE ON overtime_machine_state
+      BEGIN SELECT RAISE(ABORT, 'synthetic disk failure'); END;
+    `);
+    assert.doesNotThrow(() => fixture.clock.advance(1000));
+    assert.equal(service.getSnapshot().revision, revision);
+    fixture.db.giftDb.exec('DROP TRIGGER fail_zero_save');
+    fixture.clock.advance(1000);
+    assert.equal(service.getSnapshot().status, 'finished');
+    assert.equal(service.getSnapshot().revision, revision + 1);
+    assert.equal(fixture.db.giftDb.prepare('SELECT remaining_ms FROM overtime_machine_state').get().remaining_ms, 0);
+  } finally {
+    service.dispose();
+    fixture.close();
+  }
+});
+
+for (const method of ['listRecoverableFinal', 'getNextPendingAt']) {
+  test(`automatic settlement recovery retries ${method} database failures`, () => {
+    const fixture = createFixture();
+    const store = createOvertimeStore(fixture.db.giftDb);
+    const original = store[method];
+    let fail = false;
+    store[method] = (...args) => {
+      if (fail) throw new Error('synthetic recovery read failure');
+      return original(...args);
+    };
+    let attempts = 0;
+    const service = fixture.createService({
+      store,
+      randomInt() {
+        if (++attempts === 1) throw new Error('synthetic initial settlement failure');
+        return 0;
+      },
+    });
+    try {
+      service.act('enable');
+      service.replaceRules([{
+        giftId: 'retry-gift', giftName: 'Retry', mode: 'random', enabled: true,
+        outcomes: [{ seconds: 1, weight: 1 }, { seconds: 2, weight: 1 }],
+      }]);
+      const event = fixture.insertFinalGift({ giftId: 'retry-gift', overtimeEpoch: 1 });
+      assert.throws(() => service.finalizeGift(event), /synthetic initial/);
+      fail = true;
+      assert.doesNotThrow(() => fixture.clock.advance(1000));
+      fail = false;
+      fixture.clock.advance(1000);
+      assert.equal(fixture.getSettlement(event.giftEventId).status, 'applied');
+      assert.equal(fixture.countSettlements(event.giftEventId), 1);
+      assert.equal(attempts, 2);
+    } finally {
+      service.dispose();
+      fixture.close();
+    }
+  });
+}

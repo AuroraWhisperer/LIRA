@@ -51,7 +51,7 @@ function createDeepSeekClient(options = {}) {
   async function createChatResponse(request, config, endpoint) {
     const previousId = String(request.previousResponseId || '');
     const previousMessages = previousId ? chatHistory.get(previousId) : null;
-    const instructions = appendChatCapabilityNotice(request.instructions, request.tools);
+    const instructions = String(request.instructions || '').trim();
     const messages = previousMessages
       ? [...previousMessages, ...toChatInputMessages(request.input)]
       : buildInitialChatMessages(instructions, request.input);
@@ -302,11 +302,6 @@ function toGeminiReasoningEffort(value) {
   if (['minimal', 'low', 'medium', 'high'].includes(effort)) return effort;
   if (effort === 'xhigh' || effort === 'max') return 'high';
   return '';
-}
-
-function appendChatCapabilityNotice(instructions, tools) {
-  const text = String(instructions || '').trim();
-  return text;
 }
 
 function buildInitialChatMessages(instructions, input) {

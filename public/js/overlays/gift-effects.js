@@ -8,10 +8,7 @@ import { createGiftEffectPlayer } from './gift-effect-player.js';
   const params = new URLSearchParams(location.search);
   const DEBUG = params.get('debug') === '1';
   const PREVIEW_MODE = params.get('preview') === '1';
-  const MAX_PLAYING = 1;
   const MAX_PENDING = 3;
-  // Legacy lookup compatibility keeps its historical queue cap in the retired path.
-  // const MAX_PENDING = 10
   const MAX_EVENT_AGE_MS = 12000;
   const TIMELINE = Object.freeze({
     enterDuration: 900,
@@ -304,9 +301,6 @@ import { createGiftEffectPlayer } from './gift-effect-player.js';
       }),
     ]);
   }
-  function delayFor(duration) {
-    return new Promise((resolve) => setTimeout(resolve, Math.max(0, duration)));
-  }
 
   function isValidFramePayload(payload) {
     return (
@@ -358,93 +352,4 @@ import { createGiftEffectPlayer } from './gift-effect-player.js';
     status.textContent = String(message || '');
     status.hidden = false;
   }
-  function legacyQueueGuard() {
-    if (pending.length >= MAX_PENDING) return;
-  }
-  function playNextEffect() {
-    playNextFrame();
-  }
-
-  // Retired MP4 helpers remain isolated for old source audits and never run for gift:frame.
-  function handleLegacyGiftEffect(payload) {
-    if (payload.type === 'gift:effect') return false;
-    return false;
-  }
-  function keyOutBlack(context, x, y, width, height) {
-    const frame = context.getImageData(x, y, width, height);
-    const data = frame.data;
-    for (let i = 0; i < data.length; i += 4) data[i + 3] = Math.max(data[i], data[i + 1], data[i + 2]);
-    context.putImageData(frame, x, y);
-  }
-  function applyAlphaMask(context, maskContext, x, y, width, height) {
-    const frame = context.getImageData(x, y, width, height);
-    const mask = maskContext.getImageData(0, 0, width, height).data;
-    for (let i = 0; i < frame.data.length; i += 4) frame.data[i + 3] = mask[i];
-    context.putImageData(frame, x, y);
-  }
-  function containRect(sourceWidth, sourceHeight, targetWidth, targetHeight) {
-    const scale = Math.min(targetWidth / sourceWidth, targetHeight / sourceHeight);
-    const width = Math.max(1, Math.round(sourceWidth * scale));
-    const height = Math.max(1, Math.round(sourceHeight * scale));
-    return {
-      x: Math.floor((targetWidth - width) / 2),
-      y: Math.floor((targetHeight - height) / 2),
-      width,
-      height,
-    };
-  }
-  function getSourceLayout(layout, width, height) {
-    if (!layout || layout.videoWidth !== width || layout.videoHeight !== height) return null;
-    return {
-      packedAlpha: true,
-      colorX: layout.rgbFrame[0],
-      colorY: layout.rgbFrame[1],
-      colorWidth: layout.rgbFrame[2],
-      colorHeight: layout.rgbFrame[3],
-      maskX: layout.alphaFrame[0],
-      maskY: layout.alphaFrame[1],
-      maskWidth: layout.alphaFrame[2],
-      maskHeight: layout.alphaFrame[3],
-    };
-  }
-  function legacyDrawSource(source, context, video, target) {
-    context.drawImage(
-      video,
-      source.colorX,
-      source.colorY,
-      source.colorWidth,
-      source.colorHeight,
-      target.x,
-      target.y,
-      target.width,
-      target.height,
-    );
-    context.drawImage(
-      video,
-      source.maskX,
-      source.maskY,
-      source.maskWidth,
-      source.maskHeight,
-      0,
-      0,
-      target.width,
-      target.height,
-    );
-  }
-  function isTrustedEffectUrl(value) {
-    try {
-      const url = new URL(String(value || ''));
-      if (url.protocol !== 'https:') return false;
-      const hostname = url.hostname.toLowerCase();
-      return ['hdslb.com', 'bilibili.com', 'bilivideo.com'].some(
-        (host) => hostname === host || hostname.endsWith(`.${host}`),
-      );
-    } catch (_) {
-      return false;
-    }
-  }
-  const legacyVideo = document.createElement('video');
-  legacyVideo.referrerPolicy = 'no-referrer';
-  legacyVideo.crossOrigin = 'anonymous';
-  void legacyVideo;
 })();

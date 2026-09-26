@@ -7,6 +7,8 @@ const CACHE_PREFIX = 'playbackCache:v2:';
 
 /** 缓存有效期（毫秒） */
 const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000;
+const MAX_MEMORY_ENTRIES = 64;
+const MAX_MEMORY_BYTES = 8 * 1024 * 1024;
 
 /**
  * 缓存管理器
@@ -33,6 +35,8 @@ export class CacheManager {
     const memEntry = this._mem.get(key);
     if (memEntry) {
       if (Date.now() - memEntry.timestamp < ttl) {
+        this._mem.delete(key);
+        this._mem.set(key, memEntry);
         return memEntry.data;
       }
       this._mem.delete(key);
@@ -46,7 +50,7 @@ export class CacheManager {
       if (!entry || typeof entry.timestamp !== 'number') return null;
       if (Date.now() - entry.timestamp < ttl) {
         // 回填内存
-        this._mem.set(key, { data: entry.data, timestamp: entry.timestamp });
+        this._remember(key, entry.data, entry.timestamp, raw.length * 2);
         return entry.data;
       }
       // 过期则清理
@@ -68,16 +72,35 @@ export class CacheManager {
 
     const timestamp = Date.now();
 
-    // 内存
-    this._mem.set(key, { data, timestamp });
-
-    // localStorage
     try {
-      localStorage.setItem(CACHE_PREFIX + key, JSON.stringify({ data, timestamp }));
+      const raw = JSON.stringify({ data, timestamp });
+      if (!this._remember(key, data, timestamp, raw.length * 2)) {
+        this.remove(key);
+        return;
+      }
+      localStorage.setItem(CACHE_PREFIX + key, raw);
     } catch (error) {
       // localStorage 满了就只保留内存缓存，不影响功能
       console.warn('[CacheManager] localStorage write failed:', error.message);
     }
+  }
+
+  _remember(key, data, timestamp, bytes) {
+    this._mem.delete(key);
+    const cutoff = Date.now() - DEFAULT_TTL_MS;
+    let retainedBytes = 0;
+    for (const [existingKey, entry] of this._mem) {
+      if (entry.timestamp <= cutoff) this.remove(existingKey);
+      else retainedBytes += entry.bytes;
+    }
+    if (bytes > MAX_MEMORY_BYTES) return false;
+    while (this._mem.size >= MAX_MEMORY_ENTRIES || retainedBytes + bytes > MAX_MEMORY_BYTES) {
+      const oldest = this._mem.keys().next().value;
+      retainedBytes -= this._mem.get(oldest).bytes;
+      this._mem.delete(oldest);
+    }
+    this._mem.set(key, { data, timestamp, bytes });
+    return true;
   }
 
   /**

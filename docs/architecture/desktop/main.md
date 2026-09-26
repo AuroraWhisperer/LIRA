@@ -110,7 +110,7 @@ boolean enabled 输入，结果只投影 `{ ok: true, enabled }`。main 的账�
 
 `license-manager.js` 是设备身份状态、内存 access token、续期和 heartbeat 的唯一所有者。持久化文件只保存公开设备资料;私钥由 Electron `safeStorage` 加密,access token 不写磁盘也不进入 preload/renderer 返回值。
 
-`remote-license-client.js` 的普通 JSON 响应默认限制为 1 MiB（按 UTF-8 字节数计），其他端点沿用已有的独立上限。公共礼物目录包含持续增长的变体和特效元数据，不设固定响应大小上限；仍沿用请求超时、固定来源和目录结构校验。
+`remote-license-client.js` 的普通 JSON 响应默认限制为 1 MiB（按 UTF-8 字节数计），其他端点沿用已有的独立上限。公共礼物目录独立限制为 32 MiB，按解码后的响应流累计字节；超过时取消读取并返回 `RESPONSE_TOO_LARGE`，不替换上一份完整内存/磁盘目录或 ETag。首次没有可用目录时保持初始化失败，仍沿用现有重试入口。固定来源、总期限、结构校验和完整目录 schema 不变，不截断礼物或分页。该容量约为 2026-09-25 官方目录实测 1,689,296 字节的 19.9 倍；超过支持容量时需显式调整合同。验收见 [容量边界与旧缓存保留](../../../test/remote-catalog-capacity.test.js)。
 
 - 状态为 `CHECKING / NEEDS_ACTIVATION / NEEDS_CONNECTION / AUTHORIZING / AUTHORIZED / BLOCKED`;只有 `AUTHORIZED` 打开本地业务 gate
 - token 续期使用全局单飞 Promise,其他受保护请求和 heartbeat 必须等待该 Promise,避免旧 `token_jti` 与新 token 并发
@@ -278,6 +278,10 @@ Main: requestPlaybackFlush(mainWindow, 2000)
 行格式 `formatLogLine`([terminal-log.js](../../../src/electron/terminal-log.js)):`[ISO 时间] [run=<runId> seq=<n> pid=<pid> type=<processType>] [<source>] <message>`,消息内换行转义为 `\n`;`installTerminalLog` 返回恢复函数。A1 初始化不再清空 terminal.log；普通记录最终 UTF-8 最多 2 KiB、ERROR 最多 16 KiB，desktop.log/terminal.log 各达到 10 MiB 后停止新增。统一分流、轮转与跨重启预算属于后续阶段。所有日志写入失败静默(日志绝不干扰主流程)。
 
 已接入的日志输出(terminal.log 的 console 包裹与 desktop.log 的 `writeLog`)统一经 `src/shared/log-redaction.js` 的 `redactCredentials` 脱敏。terminal wrapper 在调用原 console **之前**按对象键脱敏参数，格式化后再脱敏拼接出的凭据字符串；同一安全消息用于原 console 与文件。格式化/脱敏失败只输出安全占位，写盘失败不回退原始参数。脱敏字段:`password`/`passwd`、`activationcode`、`pairingcode`、`fingerprint`、`hardwareid`(精确键名),`*apikey`/`*secret`/`*token`/`*signature`(键名后缀),包含 `privatekey` 的键名,`authorization`/`cookie` 头,以及 URL 查询参数中的同名键(大小写不敏感)。未包裹的 log/debug 或独立 Node 源日志仍需由各自 owner 在输出前保护；HTTP 错误路径只记录已解析 pathname，并脱敏 error/stack。
+
+共享脱敏器对对象、数组与 Error metadata 使用相同敏感字段策略；当前引用路径中的循环值替换为 `[Circular]`，超过 32 层的嵌套值替换为 `[Truncated]`，避免错误诊断因不可信深层输入再次栈溢出。不同分支共享同一对象不视为循环，普通浅层日志保持原结构。
+
+字符串脱敏按查询参数边界和完整 URL authority 扫描，缺失 `=`、`://` 或 userinfo 的长文本不反复扫描每个后缀；标准凭据、空密码和仅用户名的 URL 均隐藏 userinfo，保留主机/端口与路径文本。输入长度预算之外仍须保护诊断自身的 CPU 工作量。
 
 ## 9. Electron 版本与安全配置
 

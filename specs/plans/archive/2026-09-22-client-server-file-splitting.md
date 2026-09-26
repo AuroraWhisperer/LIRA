@@ -34,10 +34,8 @@
 | package-lock.json | 3725 | 保留 S | 固定读取契约 / 生成数据 |
 | docs/bilibili-live-api/message_stream.md | 2491 | 保留 D | 规范锚点 / 完整参考或历史记录 |
 | UPDATE.md | 2429 | 保留 D | 规范锚点 / 完整参考或历史记录 |
-| Review.md | 1466 | 保留 D | 规范锚点 / 完整参考或历史记录 |
 | public/pages/admin/toolbox/usage-guide.html | 1438 | 拆分 | A: getting-started / features / configuration / faq；复用单层 admin-fragment |
 | docs/bilibili-live-api/info.md | 946 | 保留 D | 规范锚点 / 完整参考或历史记录 |
-| lira-server-public-feature-inventory.md | 897 | 保留 D | 规范锚点 / 完整参考或历史记录 |
 | public/data/theme-presets.json | 893 | 保留 S | 固定读取契约 / 生成数据 |
 | specs/plans/archive/2026-08-16-ai-assisted-development-governance.md | 864 | 保留 D | 规范锚点 / 完整参考或历史记录 |
 | docs/客户端使用文档补充方案.md | 863 | 保留 D | 规范锚点 / 完整参考或历史记录 |

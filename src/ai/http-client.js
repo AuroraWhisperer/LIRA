@@ -1,5 +1,7 @@
 'use strict';
 
+const { readResponseText } = require('../shared/response-body');
+
 const MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
 
 async function fetchJson(url, options = {}) {
@@ -22,15 +24,16 @@ async function fetchJson(url, options = {}) {
     throw createPublicError('UPSTREAM_UNAVAILABLE', '查询服务暂时不可用。');
   }
 
-  const length = Number(response.headers?.get?.('content-length')) || 0;
-  if (length > MAX_RESPONSE_BYTES) {
+  let text;
+  try {
+    text = await readResponseText(response, MAX_RESPONSE_BYTES, () =>
+      createPublicError('UPSTREAM_TOO_LARGE', '查询结果过大，无法处理。'),
+    );
+  } catch (error) {
     await notifyResponse(options, response, '', null);
-    throw createPublicError('UPSTREAM_TOO_LARGE', '查询结果过大，无法处理。');
-  }
-  const text = await response.text();
-  if (Buffer.byteLength(text) > MAX_RESPONSE_BYTES) {
-    await notifyResponse(options, response, text, null);
-    throw createPublicError('UPSTREAM_TOO_LARGE', '查询结果过大，无法处理。');
+    if (options.signal?.aborted) throwAbortReason(options.signal);
+    if (signal.aborted) throw createPublicError('UPSTREAM_TIMEOUT', '查询超时了，请稍后再试。');
+    throw error;
   }
   let payload;
   try {

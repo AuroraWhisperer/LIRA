@@ -12,6 +12,7 @@ const DEFAULT_BASE_URL = 'https://api.lirahub.cn';
 // Includes canonical song fields, legacy aliases and the complete sync metadata.
 // The server checks this same UTF-8 budget before committing a song mutation.
 const MAX_SONG_SNAPSHOT_BYTES = 8 * 1024 * 1024;
+const MAX_GIFT_CATALOG_BYTES = 32 * 1024 * 1024;
 
 class RemoteLicenseError extends Error {
   constructor(code, message, options = {}) {
@@ -107,10 +108,8 @@ function createRemoteLicenseClient(options = {}) {
           retryable: response.ok || isRetryableStatus(response.status),
         });
       }
-      // Every successful or structured error response in the protocol is a
-      // JSON object.  Accessing `.ok` on `null` throws and spreading an array
-      // into the metadata result silently changes the response shape; both
-      // cases used to be misclassified as transient network failures.
+      // Protocol responses must be JSON objects. Reject other shapes here so
+      // they remain INVALID_RESPONSE instead of becoming network errors.
       if (!data || typeof data !== 'object' || Array.isArray(data)) {
         throw new RemoteLicenseError('INVALID_RESPONSE', '授权服务器返回无效响应。', {
           status: response.status,
@@ -175,8 +174,7 @@ function createRemoteLicenseClient(options = {}) {
       // even when a caller has one available for other protected operations.
       undefined,
       {
-        // The full resource catalog grows independently of small auth responses.
-        maxResponseBytes: Infinity,
+        maxResponseBytes: MAX_GIFT_CATALOG_BYTES,
         allowNotModified: true,
         includeResponseMeta: true,
         headers: normalizedEtag ? { 'If-None-Match': normalizedEtag } : {},
@@ -209,6 +207,12 @@ function createRemoteLicenseClient(options = {}) {
     if (!response.ok) throw await readStreamError(response, now());
     const contentType = String(response.headers?.get?.('content-type') || '');
     if (!/^text\/event-stream(?:\s*;|$)/iu.test(contentType) || !response.body?.getReader) {
+      try {
+        await response.body?.cancel?.();
+      } catch (error) {
+        // Preserve the protocol error when an invalid response already failed.
+        void error;
+      }
       throw new RemoteLicenseError('INVALID_RESPONSE', '授权服务器返回无效响应。', {
         status: response.status,
         retryable: true,
@@ -216,28 +220,28 @@ function createRemoteLicenseClient(options = {}) {
     }
 
     const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
+    // Parse each byte once; network fragments are not event boundaries.
+    const eventBytes = Buffer.allocUnsafe(64 * 1024);
+    let eventLength = 0;
+    let pendingNewline = false;
+    let pendingCarriageReturn = false;
+    let firstBlock = true;
     try {
       onOpen(response);
       while (true) {
         const { value, done } = await reader.read();
-        buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
-        if (buffer.length > 64 * 1024) {
-          throw new RemoteLicenseError('RESPONSE_TOO_LARGE', '授权服务器响应过大。', {
-            status: response.status,
-            retryable: true,
-          });
+        for (const byte of value || []) {
+          if (pendingCarriageReturn) {
+            pendingCarriageReturn = false;
+            if (byte !== 10) acceptByte(13);
+          }
+          if (byte === 13) pendingCarriageReturn = true;
+          else acceptByte(byte);
         }
-        buffer = buffer.replace(/\r\n/g, '\n');
-        let boundary = buffer.indexOf('\n\n');
-        while (boundary >= 0) {
-          const block = buffer.slice(0, boundary);
-          buffer = buffer.slice(boundary + 2);
-          onBlock(block);
-          boundary = buffer.indexOf('\n\n');
+        if (done) {
+          if (pendingCarriageReturn) acceptByte(13);
+          break;
         }
-        if (done) break;
       }
     } finally {
       try {
@@ -247,6 +251,37 @@ function createRemoteLicenseClient(options = {}) {
         void error;
       }
       reader.releaseLock?.();
+    }
+
+    function acceptByte(byte) {
+      if (byte === 10) {
+        if (!pendingNewline) {
+          pendingNewline = true;
+          return;
+        }
+        let block = eventBytes.toString('utf8', 0, eventLength);
+        if (firstBlock && block.startsWith('\uFEFF')) block = block.slice(1);
+        firstBlock = false;
+        pendingNewline = false;
+        eventLength = 0;
+        onBlock(block);
+        return;
+      }
+      if (pendingNewline) {
+        writeByte(10);
+        pendingNewline = false;
+      }
+      writeByte(byte);
+    }
+
+    function writeByte(byte) {
+      if (eventLength === eventBytes.length) {
+        throw new RemoteLicenseError('RESPONSE_TOO_LARGE', '授权服务器响应过大。', {
+          status: response.status,
+          retryable: true,
+        });
+      }
+      eventBytes[eventLength++] = byte;
     }
   }
 

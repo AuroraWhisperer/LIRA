@@ -56,77 +56,77 @@ function recordRow(record) {
     ${record.original.source !== 'manual' || record.revisions.length ? `<details class="fan-original"><summary>查看原始记录与修订</summary><pre>${html(JSON.stringify({ original: record.original, revisions: record.revisions }, null, 2))}</pre></details>` : ''}</article>`;
 }
 
-function overview(p) {
+function overview(profile) {
   const latest =
-    p.records.find((r) => r.kind === 'note' && r.data.pinned && !r.data.archived) ||
-    p.records.find((r) => r.kind === 'note' && !r.data.archived);
-  const topics = p.records.filter((r) => r.kind === 'topic' && !r.data.archived);
-  const cautions = p.records.filter((r) => r.kind === 'caution' && !r.data.archived);
-  const followups = p.records.filter((r) => r.kind === 'followup' && !r.data.archived && !r.data.completed);
+    profile.records.find((r) => r.kind === 'note' && r.data.pinned && !r.data.archived) ||
+    profile.records.find((r) => r.kind === 'note' && !r.data.archived);
+  const topics = profile.records.filter((r) => r.kind === 'topic' && !r.data.archived);
+  const cautions = profile.records.filter((r) => r.kind === 'caution' && !r.data.archived);
+  const followups = profile.records.filter((r) => r.kind === 'followup' && !r.data.archived && !r.data.completed);
   return `<section class="fan-section"><div class="fan-section-title"><h4>基本资料</h4>${button('edit-profile', '编辑资料')}</div>
-    <dl class="fan-facts fan-basic-facts"><div><dt>生日</dt><dd>${html(p.birthday ? `${p.birthday.monthDay}${p.birthday.calendar === 'lunar' ? '（农历，手动设置本年提醒）' : '（公历）'}` : '待补充')}</dd></div>
-    <div><dt>星座</dt><dd>${html(p.zodiacHint || '未知')}${p.zodiac ? '' : p.zodiacHint ? '（公历提示）' : ''}</dd></div><div><dt>MBTI</dt><dd>${html(p.mbti || '未知')}${p.mbtiNote ? ` · ${html(p.mbtiNote)}` : ''}</dd></div>
-    <div class="fan-former-names"><dt>曾用名</dt><dd>${p.formerNames?.length ? p.formerNames.map(html).join('、') : '暂无'}</dd></div></dl></section>
+    <dl class="fan-facts fan-basic-facts"><div><dt>生日</dt><dd>${html(profile.birthday ? `${profile.birthday.monthDay}${profile.birthday.calendar === 'lunar' ? '（农历，手动设置本年提醒）' : '（公历）'}` : '待补充')}</dd></div>
+    <div><dt>星座</dt><dd>${html(profile.zodiacHint || '未知')}${profile.zodiac ? '' : profile.zodiacHint ? '（公历提示）' : ''}</dd></div><div><dt>MBTI</dt><dd>${html(profile.mbti || '未知')}${profile.mbtiNote ? ` · ${html(profile.mbtiNote)}` : ''}</dd></div>
+    <div class="fan-former-names"><dt>曾用名</dt><dd>${profile.formerNames?.length ? profile.formerNames.map(html).join('、') : '暂无'}</dd></div></dl></section>
     <section class="fan-section"><div class="fan-section-title"><h4>可以聊的话题</h4><div class="fan-actions">${button('new-topic', '添加话题')}${button('new-followup', '记一个约定')}</div></div>${topics.length ? topics.map(recordRow).join('') : '<p class="fan-muted">从一次聊天开始记录。</p>'}
-    ${p.nextTopic ? `<p>下次想聊：${html(p.nextTopic)}</p>` : ''}${followups.length ? `<div class="fan-followups"><h5>待办约定</h5>${followups.map(recordRow).join('')}</div>` : ''}</section>
+    ${profile.nextTopic ? `<p>下次想聊：${html(profile.nextTopic)}</p>` : ''}${followups.length ? `<div class="fan-followups"><h5>待办约定</h5>${followups.map(recordRow).join('')}</div>` : ''}</section>
     <section class="fan-section fan-cautions"><details><summary>相处提醒${cautions.length ? ` · ${cautions.length} 条` : ''}</summary><p class="fan-muted">哪些话题不适合提起，仅自己可见。</p>${cautions.map(recordRow).join('')}${button('new-caution', '添加相处提醒')}</details></section>
     ${latest ? `<section class="fan-section"><h4>最近的一段记忆</h4>${recordRow(latest)}</section>` : ''}
-    ${p.musicSummary ? `<button type="button" class="fan-music-summary" data-fan-tab="music">音乐：${html(p.musicSummary)}<span>查看音乐</span></button>` : ''}
-    <section class="fan-section"><h4>个人备注</h4><p class="fan-prose${p.notes ? '' : ' fan-muted'}">${html(p.notes || '还没有备注。')}</p></section>
-    <section class="fan-section"><div class="fan-section-title"><h4>纪念日</h4>${button('new-anniversary', '添加纪念日')}</div>${p.records
+    ${profile.musicSummary ? `<button type="button" class="fan-music-summary" data-fan-tab="music">音乐：${html(profile.musicSummary)}<span>查看音乐</span></button>` : ''}
+    <section class="fan-section"><h4>个人备注</h4><p class="fan-prose${profile.notes ? '' : ' fan-muted'}">${html(profile.notes || '还没有备注。')}</p></section>
+    <section class="fan-section"><div class="fan-section-title"><h4>纪念日</h4>${button('new-anniversary', '添加纪念日')}</div>${profile.records
       .filter((r) => r.kind === 'anniversary')
       .map(recordRow)
       .join('')}</section>`;
 }
 
-function music(p) {
-  const categories = Object.entries(p.musicStats.categories).sort((a, b) => b[1] - a[1]);
+function music(profile) {
+  const categories = Object.entries(profile.musicStats.categories).sort((a, b) => b[1] - a[1]);
   return `<section class="fan-section"><div class="fan-section-title"><h4>明确偏好</h4>${button('new-preference', '记录喜欢 / 不喜欢')}</div>
-    ${p.preferences.length ? p.preferences.map((r) => `<article class="fan-record"><div class="fan-record-top"><strong>${r.data.sentiment === 'like' ? '喜欢' : '不喜欢'} ${html(r.data.label)}</strong>${button('edit-record', '编辑', `data-record-id="${attr(r.id)}"`)}</div><p class="fan-muted">${html(r.data.reason || '手动确认')}</p></article>`).join('') : '<p class="fan-muted">按交流确认偏好，点歌观察不会替你下结论。</p>'}</section>
-    <section class="fan-section"><h4>点歌观察</h4><p class="fan-muted">近 90 天已记录 ${p.musicStats.count} 次，按当时曲库分类计数；排除随机点歌及手动排除项。</p>
+    ${profile.preferences.length ? profile.preferences.map((r) => `<article class="fan-record"><div class="fan-record-top"><strong>${r.data.sentiment === 'like' ? '喜欢' : '不喜欢'} ${html(r.data.label)}</strong>${button('edit-record', '编辑', `data-record-id="${attr(r.id)}"`)}</div><p class="fan-muted">${html(r.data.reason || '手动确认')}</p></article>`).join('') : '<p class="fan-muted">按交流确认偏好，点歌观察不会替你下结论。</p>'}</section>
+    <section class="fan-section"><h4>点歌观察</h4><p class="fan-muted">近 90 天已记录 ${profile.musicStats.count} 次，按当时曲库分类计数；排除随机点歌及手动排除项。</p>
     <dl class="fan-facts">${categories.map(([name, count]) => `<div><dt>${html(name)}</dt><dd>${count} 次</dd></div>`).join('')}</dl></section>
-    <section class="fan-section"><div class="fan-section-title"><h4>歌曲记录</h4><div class="fan-actions">${button('new-song', '补记一次点歌')}${button('legacy', '补入本机旧点歌')}</div></div>${p.songs.map(recordRow).join('') || '<p class="fan-muted">已建档粉丝成功点歌后自动留档。</p>'}</section>`;
+    <section class="fan-section"><div class="fan-section-title"><h4>歌曲记录</h4><div class="fan-actions">${button('new-song', '补记一次点歌')}${button('legacy', '补入本机旧点歌')}</div></div>${profile.songs.map(recordRow).join('') || '<p class="fan-muted">已建档粉丝成功点歌后自动留档。</p>'}</section>`;
 }
 
-function membershipRecord(record, p) {
-  const d = record.data;
+function membershipRecord(record, profile) {
+  const data = record.data;
   const title =
-    d.type === 'interval'
-      ? `${levels[d.level]} · ${dateLabel(d.startAt)} 至 ${dateLabel(new Date(Date.parse(d.endAt) - 1).toISOString())}`
-      : d.type === 'baseline'
-        ? `截至 ${dateLabel(d.asOf)}：累计 ${d.totalDays ?? '未知'} 天，连续 ${d.continuousDays ?? '未知'} 天`
-        : d.type === 'first'
-          ? `首次上舰：${dateLabel(d.date)}`
-          : `${dateLabel(d.observedAt)} 观察到 ${levels[d.level]}${d.status === 'inactive' ? '（人工标记不在舰）' : ''}`;
-  const conflicts = d.conflicts?.map((id) => p.records.find((r) => r.id === id)).filter(Boolean) || [];
+    data.type === 'interval'
+      ? `${levels[data.level]} · ${dateLabel(data.startAt)} 至 ${dateLabel(new Date(Date.parse(data.endAt) - 1).toISOString())}`
+      : data.type === 'baseline'
+        ? `截至 ${dateLabel(data.asOf)}：累计 ${data.totalDays ?? '未知'} 天，连续 ${data.continuousDays ?? '未知'} 天`
+        : data.type === 'first'
+          ? `首次上舰：${dateLabel(data.date)}`
+          : `${dateLabel(data.observedAt)} 观察到 ${levels[data.level]}${data.status === 'inactive' ? '（人工标记不在舰）' : ''}`;
+  const conflicts = data.conflicts?.map((id) => profile.records.find((r) => r.id === id)).filter(Boolean) || [];
   return `<article class="fan-record"><div class="fan-record-top"><strong>${html(title)}</strong>${button('edit-record', '编辑', `data-record-id="${attr(record.id)}"`)}</div>
-    <p class="fan-muted">${record.original.source === 'platform' ? '平台观察' : '手动确认'} · ${{ adopted: '已采用', pending: '待核实', rejected: '保留原依据', superseded: '已被修订替代' }[d.decision] || ''}${d.precision === 'date' ? ' · 按日期补录' : ''}</p>
-    ${d.reason ? `<p>${html(d.reason)}</p>` : ''}${d.decision === 'pending' ? `<div class="fan-conflict"><p>与上次确认依据冲突。相关大航海提醒已暂停，生日提醒不受影响。</p><details><summary>核对双方依据</summary><pre>${html(JSON.stringify({ candidate: d, adopted: conflicts.map((r) => ({ data: r.data, original: r.original })) }, null, 2))}</pre></details><div class="fan-actions">${button('resolve-adopt', '采用这份依据', `data-record-id="${attr(record.id)}"`)}${button('resolve-keep', '保留上次确认', `data-record-id="${attr(record.id)}"`)}</div></div>` : ''}
+    <p class="fan-muted">${record.original.source === 'platform' ? '平台观察' : '手动确认'} · ${{ adopted: '已采用', pending: '待核实', rejected: '保留原依据', superseded: '已被修订替代' }[data.decision] || ''}${data.precision === 'date' ? ' · 按日期补录' : ''}</p>
+    ${data.reason ? `<p>${html(data.reason)}</p>` : ''}${data.decision === 'pending' ? `<div class="fan-conflict"><p>与上次确认依据冲突。相关大航海提醒已暂停，生日提醒不受影响。</p><details><summary>核对双方依据</summary><pre>${html(JSON.stringify({ candidate: data, adopted: conflicts.map((r) => ({ data: r.data, original: r.original })) }, null, 2))}</pre></details><div class="fan-actions">${button('resolve-adopt', '采用这份依据', `data-record-id="${attr(record.id)}"`)}${button('resolve-keep', '保留上次确认', `data-record-id="${attr(record.id)}"`)}</div></div>` : ''}
     <details class="fan-original"><summary>查看原始记录与修订</summary><pre>${html(JSON.stringify({ original: record.original, revisions: record.revisions }, null, 2))}</pre></details></article>`;
 }
 
-function membership(p) {
-  const m = p.membership;
-  return `<section class="fan-section"><div class="fan-section-title"><h4>${html(memberLabel(m, p.guardRoster))}</h4>${button('new-membership', '编辑大航海')}</div>
-    <dl class="fan-facts"><div><dt>${m.status === 'pending' ? '上次确认到期' : '有效至'}</dt><dd>${m.expiry ? `${html(m.expiry.date)} · ${m.expiry.source === 'platform' ? '平台确认' : '手动确认'}` : '待补到期时间'}</dd></div>
-    <div><dt>累计在舰${m.status === 'pending' ? '（待核实）' : ''}</dt><dd>${m.totalDays ?? '未知'}${m.totalDays !== null ? ` 天 · ${html(m.totalBasis)}，截至 ${html(m.totalAsOf)}` : ''}</dd></div>
-    <div><dt>连续在舰${m.status === 'pending' ? '（待核实）' : ''}</dt><dd>${m.continuousDays ?? '未知'}${m.continuousDays !== null ? ` 天 · 截至 ${html(m.continuousAsOf)}` : ''}</dd></div>
-    <div><dt>首次上舰</dt><dd>${html(m.firstDate || '待确认')}</dd></div></dl>
-    ${p.guardRoster ? `<p class="fan-muted">大航海名单同步于 ${html(dateLabel(p.guardRoster.observedAt))}，身份按这次同步显示。</p>` : m.observedAt ? `<p class="fan-muted">最近上舰观察：${html(dateLabel(m.observedAt))}。观察记录不代表当前仍在舰。</p>` : ''}
+function membership(profile) {
+  const summary = profile.membership;
+  return `<section class="fan-section"><div class="fan-section-title"><h4>${html(memberLabel(summary, profile.guardRoster))}</h4>${button('new-membership', '编辑大航海')}</div>
+    <dl class="fan-facts"><div><dt>${summary.status === 'pending' ? '上次确认到期' : '有效至'}</dt><dd>${summary.expiry ? `${html(summary.expiry.date)} · ${summary.expiry.source === 'platform' ? '平台确认' : '手动确认'}` : '待补到期时间'}</dd></div>
+    <div><dt>累计在舰${summary.status === 'pending' ? '（待核实）' : ''}</dt><dd>${summary.totalDays ?? '未知'}${summary.totalDays !== null ? ` 天 · ${html(summary.totalBasis)}，截至 ${html(summary.totalAsOf)}` : ''}</dd></div>
+    <div><dt>连续在舰${summary.status === 'pending' ? '（待核实）' : ''}</dt><dd>${summary.continuousDays ?? '未知'}${summary.continuousDays !== null ? ` 天 · 截至 ${html(summary.continuousAsOf)}` : ''}</dd></div>
+    <div><dt>首次上舰</dt><dd>${html(summary.firstDate || '待确认')}</dd></div></dl>
+    ${profile.guardRoster ? `<p class="fan-muted">大航海名单同步于 ${html(dateLabel(profile.guardRoster.observedAt))}，身份按这次同步显示。</p>` : summary.observedAt ? `<p class="fan-muted">最近上舰观察：${html(dateLabel(summary.observedAt))}。观察记录不代表当前仍在舰。</p>` : ''}
     <p class="fan-muted">按 Asia/Shanghai 计算已发生的有效日，当天生效计一天；未来有效期仅用于预测提醒。</p></section>
     ${
-      p.records
+      profile.records
         .filter((r) => r.kind === 'membership')
-        .map((r) => membershipRecord(r, p))
+        .map((r) => membershipRecord(r, profile))
         .join('') || '<p class="fan-muted">不知道起止日期也可以只补录天数及截至日期。</p>'
     }`;
 }
 
-export function renderDetail(p, tab = 'overview', timelineFilter = '') {
+export function renderDetail(profile, tab = 'overview', timelineFilter = '') {
   const sections = { overview, music, membership };
-  const timeline = p.records.filter((r) => !timelineFilter || r.kind === timelineFilter);
+  const timeline = profile.records.filter((r) => !timelineFilter || r.kind === timelineFilter);
   const content = sections[tab]
-    ? sections[tab](p)
+    ? sections[tab](profile)
     : `<div class="fan-timeline-filter"><label>记录类型 <select id="fanTimelineFilter">${[
         ['', '全部'],
         ['note', '手记'],
@@ -144,11 +144,11 @@ export function renderDetail(p, tab = 'overview', timelineFilter = '') {
         )
         .join(
           '',
-        )}</select></label></div>${timeline.map((r) => (r.kind === 'membership' ? membershipRecord(r, p) : recordRow(r))).join('') || '<div class="fan-empty"><p>还没有互动记录，记下今天聊过的事吧。</p></div>'}`;
-  return `<header class="fan-person-header"><div class="fan-detail-title"><div><div class="fan-detail-name"><h3 class="fan-name" data-guard-level="${attr(p.currentGuardLevel || '')}">${html(p.platformName || p.alias || '未命名档案')}</h3>${guardIcon(p.currentGuardLevel)}</div><p class="fan-muted">${html(p.platformName || '尚未获取平台昵称')} · ${p.identity ? `${p.identity.type === 'uid' ? 'UID' : 'open_id'} ${html(p.identity.value)}` : '身份待关联'}</p>${p.alias && p.platformName && p.alias !== p.platformName ? `<p class="fan-muted">常用称呼：${html(p.alias)}</p>` : ''}</div>
-    ${button('favorite', p.favorite ? '已关注' : '特别关注', `aria-pressed="${p.favorite}"`)}</div>
-    ${p.summary ? `<p class="fan-prose">${html(p.summary)}</p>` : ''}<p class="fan-muted fan-small">平台信息更新于 ${html(p.platformObservedAt ? dateLabel(p.platformObservedAt) : '尚未获取')}</p>
-    <div class="fan-actions">${button('new-note', '记一笔', 'class="primary"')}${button('expand', '展开 / 收起')}${button('back-list', '返回列表', 'class="fan-back-list"')}<details class="fan-more"><summary>管理</summary><div>${button('edit-profile', '编辑资料')}${button('archive', p.archived ? '恢复档案' : '归档')}${button('delete', '永久删除')}</div></details></div></header>
+        )}</select></label></div>${timeline.map((r) => (r.kind === 'membership' ? membershipRecord(r, profile) : recordRow(r))).join('') || '<div class="fan-empty"><p>还没有互动记录，记下今天聊过的事吧。</p></div>'}`;
+  return `<header class="fan-person-header"><div class="fan-detail-title"><div><div class="fan-detail-name"><h3 class="fan-name" data-guard-level="${attr(profile.currentGuardLevel || '')}">${html(profile.platformName || profile.alias || '未命名档案')}</h3>${guardIcon(profile.currentGuardLevel)}</div><p class="fan-muted">${html(profile.platformName || '尚未获取平台昵称')} · ${profile.identity ? `${profile.identity.type === 'uid' ? 'UID' : 'open_id'} ${html(profile.identity.value)}` : '身份待关联'}</p>${profile.alias && profile.platformName && profile.alias !== profile.platformName ? `<p class="fan-muted">常用称呼：${html(profile.alias)}</p>` : ''}</div>
+    ${button('favorite', profile.favorite ? '已关注' : '特别关注', `aria-pressed="${profile.favorite}"`)}</div>
+    ${profile.summary ? `<p class="fan-prose">${html(profile.summary)}</p>` : ''}<p class="fan-muted fan-small">平台信息更新于 ${html(profile.platformObservedAt ? dateLabel(profile.platformObservedAt) : '尚未获取')}</p>
+    <div class="fan-actions">${button('new-note', '记一笔', 'class="primary"')}${button('expand', '展开 / 收起')}${button('back-list', '返回列表', 'class="fan-back-list"')}<details class="fan-more"><summary>管理</summary><div>${button('edit-profile', '编辑资料')}${button('archive', profile.archived ? '恢复档案' : '归档')}${button('delete', '永久删除')}</div></details></div></header>
     <nav class="fan-detail-tabs" role="tablist" aria-label="档案详情">${[
       ['overview', '概览'],
       ['interactions', '互动'],

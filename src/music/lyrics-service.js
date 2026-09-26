@@ -90,9 +90,8 @@ async function getMusicHomeContentWithCache(registry, body, apiCacheDir) {
     if (cached) return { ...cached, cached: true };
   }
 
-  let result;
   if (action === 'personalized') {
-    result = {
+    const result = {
       source: platform,
       action,
       playlists: await provider.getPersonalizedPlaylists({
@@ -106,7 +105,7 @@ async function getMusicHomeContentWithCache(registry, body, apiCacheDir) {
   if (action === 'playlist-tracks') {
     const playlistId = cleanText(input.playlistId);
     if (!playlistId) throw new Error('缺少歌单 ID。');
-    result = {
+    const result = {
       source: platform,
       action,
       playlistId,

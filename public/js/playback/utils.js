@@ -110,6 +110,13 @@ export function isLocalTrack(track) {
   return !track || track.source === 'local';
 }
 
+export function canAddTrackToPlaylist(track) {
+  if (!track) return false;
+  if (track.source === 'qq') return Number(track.sourceSongId) > 0;
+  if (track.source === 'netease') return /^\d+$/.test(String(track.sourceTrackId || '').replace(/^netease:/, ''));
+  return false;
+}
+
 /**
  * 检查轨道的播放 URL 是否仍然可用
  * @param {Object} track - 轨道对象

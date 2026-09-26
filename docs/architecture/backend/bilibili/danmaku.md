@@ -114,7 +114,7 @@ text.startsWith('点歌') || text.startsWith('随机')
 | `点歌{songName}`                     | `{type:'request', songName}` |
 | 其他                                 | `null`(非命令)               |
 
-`normalizeRandomScopeText` 循环剥掉前导 `+ ＋ : ： - —` 字符([bilibili-message-handler.js:135-141](../../../../src/bilibili/bilibili-message-handler.js#L135-L141));`randomSourceValue` 生成 `random:{scope}`/`random` 来源标记([bilibili-message-handler.js:143-146](../../../../src/bilibili/bilibili-message-handler.js#L143-L146))。
+`normalizeRandomScopeText` 循环剥掉前导 `+ ＋ : ： - —` 字符；`randomSourceValue` 生成 `random:{scope}`/`random` 来源标记。两者共用 [song-field-utils.js](../../../../src/music/song-field-utils.js) 的实现，桥接层保留同名导出。
 
 ### 5.3 handleDanmakuMessage 处理链
 

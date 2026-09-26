@@ -2,7 +2,7 @@
 const { CLEAR_ALL_MATRIX } = require('./database-clear-operations');
 
 function createDeletedCounts() {
-  const counts = {
+  return {
     songs: 0,
     categories: 0,
     queue: 0,
@@ -21,7 +21,6 @@ function createDeletedCounts() {
     playQueueState: 0,
     checkins: 0,
   };
-  return counts;
 }
 
 function preCommitFailure({ errors, rolledBack, rollbackFailed, counts, giftProjectionReset }) {

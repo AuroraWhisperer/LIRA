@@ -48,7 +48,7 @@ function createAiRequestLogger(options = {}) {
     writeFailureEntries: 0,
     overflowGroupEvents: 0,
   };
-  let pending = Promise.resolve();
+  let pendingWrite = Promise.resolve();
   let summaryTimer = null;
 
   function log(event = {}, logOptions = {}) {
@@ -111,9 +111,9 @@ function createAiRequestLogger(options = {}) {
   }
 
   async function flushSummaries() {
-    const active = Array.from(summaries.values());
+    const summariesToFlush = Array.from(summaries.values());
     summaries.clear();
-    const writes = active.map((summary) => {
+    const writes = summariesToFlush.map((summary) => {
       const record = {
         schemaVersion: 1,
         timestamp: summary.windowEnd,
@@ -156,7 +156,7 @@ function createAiRequestLogger(options = {}) {
 
     health.queuedEntries += 1;
     health.queuedBytes += bytes;
-    const write = pending
+    const write = pendingWrite
       .catch(() => {})
       .then(() =>
         appendLine(stream, line, {
@@ -176,7 +176,7 @@ function createAiRequestLogger(options = {}) {
         health.queuedEntries -= 1;
         health.queuedBytes -= bytes;
       });
-    pending = write.then(() => undefined);
+    pendingWrite = write.then(() => undefined);
     return write;
   }
 
@@ -186,7 +186,7 @@ function createAiRequestLogger(options = {}) {
       summaryTimer = null;
     }
     await flushSummaries();
-    await pending;
+    await pendingWrite;
   }
 
   function getHealth() {

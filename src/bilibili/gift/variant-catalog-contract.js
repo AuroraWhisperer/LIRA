@@ -187,7 +187,7 @@ function validateVariantCatalog(value) {
     !/^sha256:[a-f0-9]{64}$/u.test(value.version)
   )
     throw new Error('CATALOG_INVALID');
-  const byId = new Map();
+  const giftsByVariantId = new Map();
   for (const item of value.variants) {
     if (
       !record(item, [
@@ -213,7 +213,7 @@ function validateVariantCatalog(value) {
         'lastSeenRunId',
       ]) ||
       !VARIANT_ID.test(item.variantId) ||
-      byId.has(item.variantId) ||
+      giftsByVariantId.has(item.variantId) ||
       typeof item.giftId !== 'string' ||
       !/^[1-9]\d{0,19}$/u.test(item.giftId) ||
       !Number.isSafeInteger(Number(item.giftId)) ||
@@ -241,7 +241,7 @@ function validateVariantCatalog(value) {
       item.silver !== (item.coinType === 'silver' && item.priceRaw > 0 ? item.priceRaw / 1000 : null)
     )
       throw new Error('CATALOG_INVALID');
-    byId.set(item.variantId, item);
+    giftsByVariantId.set(item.variantId, item);
   }
   if (new Set(value.variants.map((item) => item.giftId)).size !== value.count || value.blindBoxes.length > 100)
     throw new Error('CATALOG_INVALID');
@@ -250,8 +250,8 @@ function validateVariantCatalog(value) {
     if (
       !record(relation, ['variantId', 'outputVariantIds', 'awards']) ||
       boxes.has(relation.variantId) ||
-      byId.get(relation.variantId)?.giftCategory !== 'blindBox' ||
-      byId.get(relation.variantId)?.coinType !== 'gold' ||
+      giftsByVariantId.get(relation.variantId)?.giftCategory !== 'blindBox' ||
+      giftsByVariantId.get(relation.variantId)?.coinType !== 'gold' ||
       !Array.isArray(relation.outputVariantIds) ||
       relation.outputVariantIds.length > 200 ||
       !Array.isArray(relation.awards) ||
@@ -259,7 +259,7 @@ function validateVariantCatalog(value) {
       new Set(relation.awards.map((item) => item.awardId)).size !== relation.awards.length ||
       (!relation.outputVariantIds.length && !relation.awards.length) ||
       new Set(relation.outputVariantIds).size !== relation.outputVariantIds.length ||
-      relation.outputVariantIds.some((id) => id === relation.variantId || byId.get(id)?.coinType !== 'gold')
+      relation.outputVariantIds.some((id) => id === relation.variantId || giftsByVariantId.get(id)?.coinType !== 'gold')
     )
       throw new Error('CATALOG_INVALID');
     boxes.add(relation.variantId);

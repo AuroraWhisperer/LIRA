@@ -39,13 +39,13 @@ function requestedRepeatedDelta(effect, applicationCount, appliedDeltaSeconds) {
   return appliedDeltaSeconds;
 }
 
-function summarizeRandomOutcomes(outcomes) {
-  if (outcomes.length === 1) return outcomes[0];
+function summarizeRandomOutcomes(firstOutcome, selectedIndexes) {
+  if (selectedIndexes.length === 1) return firstOutcome;
   return {
     version: 3,
-    quantity: outcomes.length,
-    selectedIndexes: outcomes.map((outcome) => outcome.selectedIndex),
-    totalWeight: outcomes[0]?.totalWeight || 0,
+    quantity: selectedIndexes.length,
+    selectedIndexes,
+    totalWeight: firstOutcome?.totalWeight || 0,
   };
 }
 

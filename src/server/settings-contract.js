@@ -90,8 +90,7 @@ function normalizeSettingValue(key, rawValue) {
     try {
       const input = typeof rawValue === 'string' ? JSON.parse(rawValue) : rawValue;
       return JSON.stringify(normalizeGiftBlindBoxConfig(input));
-    } catch (error) {
-      void error;
+    } catch {
       return null;
     }
   }
@@ -100,8 +99,7 @@ function normalizeSettingValue(key, rawValue) {
     try {
       const input = typeof rawValue === 'string' ? JSON.parse(rawValue) : rawValue;
       return JSON.stringify(normalizeGiftBlindBoxCustomConfigV2(input));
-    } catch (error) {
-      void error;
+    } catch {
       return null;
     }
   }

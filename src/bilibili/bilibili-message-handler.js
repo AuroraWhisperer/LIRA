@@ -5,6 +5,7 @@
 
 const { cleanText, formatLogTimestamp } = require('../shared/utils');
 const { parseRandomSongTerms } = require('../music/random-song-filter');
+const { normalizeRandomScopeText, randomSourceValue } = require('../music/song-field-utils');
 const { logSongRequest, songRequestReason } = require('./diagnostics');
 
 // ── 弹幕指令入口 ──
@@ -159,21 +160,6 @@ function parseDanmakuCommand(message, settings) {
   const songName = cleanText(text.slice(2));
   if (!songName) return null;
   return { type: 'request', songName };
-}
-
-// ── 随机作用域辅助 ──
-
-function normalizeRandomScopeText(value) {
-  let text = cleanText(value);
-  while (text && '+＋:：-—'.includes(text[0])) {
-    text = cleanText(text.slice(1));
-  }
-  return text;
-}
-
-function randomSourceValue(scopeText) {
-  const scope = normalizeRandomScopeText(scopeText);
-  return scope ? `random:${scope}` : 'random';
 }
 
 // ── 日志 ──

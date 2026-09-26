@@ -57,6 +57,7 @@ function createShutdownHarness(options = {}) {
   let preShutdownHook;
   let startPromise;
   let runtimeOpen = false;
+  let requestRestart;
 
   const app = Object.assign(new EventEmitter(), {
     isPackaged: false,
@@ -93,6 +94,7 @@ function createShutdownHarness(options = {}) {
       this.webContents = new EventEmitter();
       this.webContents.setWindowOpenHandler = () => {};
       this.webContents.isDestroyed = () => false;
+      this.webContents.mainFrame = { url: 'http://127.0.0.1:3000/license' };
     }
     loadURL() {
       return Promise.resolve();
@@ -159,7 +161,10 @@ function createShutdownHarness(options = {}) {
       dialog: {
         showErrorBox: (_title, message) => startupErrors.push(message),
       },
-      ipcMain: { handle: (channel, handler) => handlers.set(channel, handler) },
+      ipcMain: { handle: (channel, handler) => handlers.set(channel, (...args) => {
+        const sender = state.window.main?.webContents;
+        return handler({ sender, senderFrame: sender?.mainFrame }, ...args);
+      }) },
       Menu: { setApplicationMenu() {} },
       protocol: { registerSchemesAsPrivileged() {} },
       session: { defaultSession: {} },
@@ -171,6 +176,8 @@ function createShutdownHarness(options = {}) {
     './desktop-runtime': require('../../src/electron/desktop-runtime'),
     './desktop-auth-controller': {
       createDesktopAuthController: () => ({
+        dispose: () => calls.push('auth:dispose'),
+        whenIdle: () => options.authIdle?.promise,
         restoreMusicCookieSnapshots: () => options.musicRestore?.promise,
         restoreBilibiliCookieSnapshot: () => options.bilibiliRestore?.promise,
       }),
@@ -289,7 +296,7 @@ function createShutdownHarness(options = {}) {
   };
 
   vm.runInNewContext(
-    MAIN_SOURCE,
+    MAIN_SOURCE + '\ncaptureRestart(() => requestDesktopShutdown({ restart: true }));',
     {
       require(id) {
         assert.ok(Object.hasOwn(modules, id), `Unexpected main dependency: ${id}`);
@@ -301,6 +308,7 @@ function createShutdownHarness(options = {}) {
       setTimeout: clock.setTimeout,
       clearTimeout: clock.clearTimeout,
       URL,
+      captureRestart: (callback) => { requestRestart = callback; },
     },
     { filename: MAIN_PATH },
   );
@@ -340,6 +348,7 @@ function createShutdownHarness(options = {}) {
       if (!expectStartupError) assert.deepEqual(startupErrors, []);
     },
     restart: () => handlers.get('desktop:restart')(),
+    requestRestart: () => requestRestart(),
     count: (call) => calls.filter((value) => value === call).length,
   };
 }

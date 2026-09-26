@@ -1,6 +1,7 @@
 'use strict';
 
 const { createPublicError, createRequestSignal } = require('../http-client');
+const { readResponseText } = require('../../shared/response-body');
 
 const SEARCH_URL = 'https://www.bing.com/search';
 const MAX_QUERY_CHARS = 200;
@@ -36,10 +37,9 @@ function createWebSearchTool(options = {}) {
       }
       throw createPublicError('WEB_SEARCH_UNAVAILABLE', '联网搜索暂时不可用。');
     }
-    const text = await response.text();
-    if (Buffer.byteLength(text) > MAX_RESPONSE_BYTES) {
-      throw createPublicError('WEB_SEARCH_TOO_LARGE', '联网搜索结果过大，暂时无法处理。');
-    }
+    const text = await readResponseText(response, MAX_RESPONSE_BYTES, () =>
+      createPublicError('WEB_SEARCH_TOO_LARGE', '联网搜索结果过大，暂时无法处理。'),
+    );
     if (!response.ok) throw createPublicError('WEB_SEARCH_FAILED', '联网搜索服务返回错误。');
     const results = parseRssResults(text);
     if (!results.length) throw createPublicError('WEB_SEARCH_EMPTY', '没有查到相关联网信息。');

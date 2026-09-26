@@ -136,12 +136,10 @@ export function createGiftNotification({ notify = showStackedToast } = {}) {
     giftNoticeKeys = null;
   }
 
-  // 导出
-  const module = {
+  return {
     notifyNewGift,
     resetNotificationState,
   };
-  return module;
 }
 export const giftNotification = createGiftNotification();
 publishGiftModule('notification', giftNotification);

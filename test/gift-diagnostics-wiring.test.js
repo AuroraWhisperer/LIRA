@@ -16,7 +16,7 @@ test('desktop keeps the gift display bridge as a no-op compatibility channel', (
     fs.readFileSync(path.join(ROOT_DIR, 'src', 'electron', 'main.js'), 'utf8'),
     fs.readFileSync(path.join(ROOT_DIR, 'src', 'electron', 'ipc', 'update-ipc.js'), 'utf8'),
   ].join('\n');
-  assert.match(mainSource, /ipcMain\.handle\('desktop:gift-display'/);
+  assert.match(mainSource, /handle\('desktop:gift-display'/);
   assert.doesNotMatch(mainSource, /\[Bilibili\]\[GiftDisplay\]/);
   assert.doesNotMatch(mainSource, /writeLog\('gift-display'/);
 });

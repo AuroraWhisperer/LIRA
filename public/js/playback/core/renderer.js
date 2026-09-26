@@ -30,7 +30,7 @@ export function createRenderer(deps) {
     const addToPlaylistBtn = document.getElementById('playbackAddToPlaylistBtn');
     if (addToPlaylistBtn) {
       const track = playbackState.current;
-      const canAdd = playbackState.selectedSource !== 'wesing' && canAddTrackToPlaylist(track);
+      const canAdd = playbackState.selectedSource !== 'wesing' && PlaybackUtils.canAddTrackToPlaylist(track);
       addToPlaylistBtn.disabled = !canAdd;
       addToPlaylistBtn.title = canAdd
         ? `添加到${track.source === 'netease' ? '网易云音乐' : 'QQ 音乐'}歌单`
@@ -76,13 +76,6 @@ export function createRenderer(deps) {
     if (isWeSing) weSingService.render();
   }
 
-  function canAddTrackToPlaylist(track) {
-    if (!track) return false;
-    if (track.source === 'qq') return Number(track.sourceSongId) > 0;
-    if (track.source === 'netease') return /^\d+$/.test(String(track.sourceTrackId || '').replace(/^netease:/, ''));
-    return false;
-  }
-
   function renderPlaybackSearchResults() {
     const resultNode = document.getElementById('playbackSearchResults');
     if (!resultNode) return;
@@ -109,7 +102,7 @@ export function createRenderer(deps) {
           <button type="button" data-playback-search-action="requested" data-playback-search-index="${index}" title="插入到当前播放歌曲之后">插队</button>
           <button type="button" data-playback-search-action="play" data-playback-search-index="${index}" title="立即播放这首歌">播放</button>
           ${
-            canAddTrackToPlaylist(track)
+            PlaybackUtils.canAddTrackToPlaylist(track)
               ? `<button type="button" data-playback-search-action="add-to-playlist" data-playback-search-index="${index}" title="添加到音乐歌单">歌单</button>`
               : ''
           }

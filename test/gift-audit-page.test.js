@@ -200,6 +200,21 @@ test('gift audit analysis separates matches, misses, and server-only gifts', asy
   );
 });
 
+test('gift audit displays suspected missing gifts before server-only and matched records', async () => {
+  const { documentRef } = require('./helpers/toast-dom').createDom();
+  const body = { innerHTML: '' };
+  const { renderComparison } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/gift-audit/view.js'), {
+    document: { ...documentRef, getElementById: () => body },
+  });
+  renderComparison([
+    { status: 'match', userName: 'matched-viewer', giftName: '花', count: 1 },
+    { status: 'extra', userName: 'server-viewer', giftName: '花', count: 1 },
+    { status: 'miss', userName: 'missing-viewer', giftName: '花', count: 1 },
+  ]);
+  assert.ok(body.innerHTML.indexOf('missing-viewer') < body.innerHTML.indexOf('server-viewer'));
+  assert.ok(body.innerHTML.indexOf('server-viewer') < body.innerHTML.indexOf('matched-viewer'));
+});
+
 async function loadAnalysisModule() {
   const filePath = path.join(ROOT_DIR, 'public', 'js', 'gift-audit', 'analysis.js');
   const module = new vm.SourceTextModule(fs.readFileSync(filePath, 'utf8'), {

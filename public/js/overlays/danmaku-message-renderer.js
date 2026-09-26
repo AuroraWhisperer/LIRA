@@ -211,15 +211,12 @@ export function createDanmakuMessageRenderer({
 
   function appendText(rootElement, text) {
     if (!text) return;
-    const span = document.createElement('span');
-    span.className = classNames.text;
-    span.textContent = text;
-    rootElement.append(span);
+    rootElement.append(createTextSpan(text));
   }
 
   function createEmoteImage(emote) {
     const source = String(resolveEmoteUrl(emote.url) || '');
-    if (!source) return createTextNode(emote.text);
+    if (!source) return createTextSpan(emote.text);
     const image = document.createElement('img');
     image.className = classNames.emote;
     image.alt = emote.text;
@@ -230,12 +227,12 @@ export function createDanmakuMessageRenderer({
       image.style.setProperty('--danmaku-emote-ratio', `${emote.width} / ${emote.height}`);
     }
     image.addEventListener('error', () => {
-      image.replaceWith(createTextNode(emote.text));
+      image.replaceWith(createTextSpan(emote.text));
     });
     return image;
   }
 
-  function createTextNode(text) {
+  function createTextSpan(text) {
     const fallback = document.createElement('span');
     fallback.className = classNames.text;
     fallback.textContent = text;

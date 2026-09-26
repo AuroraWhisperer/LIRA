@@ -4,8 +4,8 @@ function fail(code) {
   throw Object.assign(new Error(code), { code });
 }
 
-function users(value, max, code) {
-  if (!Array.isArray(value) || value.length > max) fail(code);
+function sanitizeUsers(value, maxUsers, code) {
+  if (!Array.isArray(value) || value.length > maxUsers) fail(code);
   return value.map((user) => {
     if (
       !user ||
@@ -20,7 +20,7 @@ function users(value, max, code) {
   });
 }
 
-function keywords(value, code) {
+function sanitizeKeywords(value, code) {
   if (
     !Array.isArray(value) ||
     value.length > 200 ||
@@ -37,24 +37,24 @@ function overlayFilterParameters(value) {
   if (!keys.length || keys.some((key) => !['blockedUsers', 'blockedKeywords'].includes(key))) fail(code);
   const result = {};
   if (Object.hasOwn(value, 'blockedUsers')) {
-    result.blockedUsers = users(value.blockedUsers, 500, code);
+    result.blockedUsers = sanitizeUsers(value.blockedUsers, 500, code);
     if (value.blockedUsers.some((user) => Object.keys(user).some((key) => !['uid', 'name'].includes(key)))) fail(code);
   }
-  if (Object.hasOwn(value, 'blockedKeywords')) result.blockedKeywords = keywords(value.blockedKeywords, code);
+  if (Object.hasOwn(value, 'blockedKeywords')) result.blockedKeywords = sanitizeKeywords(value.blockedKeywords, code);
   return result;
 }
 
 function sanitizeOverlayFilters(value) {
   return {
     ok: true,
-    blockedUsers: users(value?.blockedUsers, 500, 'INVALID_RESPONSE'),
-    blockedKeywords: keywords(value?.blockedKeywords, 'INVALID_RESPONSE'),
+    blockedUsers: sanitizeUsers(value?.blockedUsers, 500, 'INVALID_RESPONSE'),
+    blockedKeywords: sanitizeKeywords(value?.blockedKeywords, 'INVALID_RESPONSE'),
   };
 }
 
 function sanitizeOverlayViewers(value) {
   if (typeof value?.roomId !== 'string' || !/^[1-9]\d{0,19}$/u.test(value.roomId)) fail('INVALID_RESPONSE');
-  return { ok: true, roomId: value.roomId, viewers: users(value.viewers, 150, 'INVALID_RESPONSE') };
+  return { ok: true, roomId: value.roomId, viewers: sanitizeUsers(value.viewers, 150, 'INVALID_RESPONSE') };
 }
 
 module.exports = { overlayFilterParameters, sanitizeOverlayFilters, sanitizeOverlayViewers };

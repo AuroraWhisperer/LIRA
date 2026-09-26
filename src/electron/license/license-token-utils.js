@@ -38,8 +38,7 @@ function resolveTokenExpiresAt(result = {}, nowMs = Date.now()) {
   // Keep compatibility with older servers that only return expiresIn. Prefer
   // the explicit machine-readable fields above because legacy strings may be
   // rounded or retained by a proxy during a protocol rollout.
-  const duration = parseExpiresIn(result.expiresIn);
-  return referenceMs + (duration === null ? DEFAULT_TOKEN_TTL_MS : duration);
+  return referenceMs + parseExpiresIn(result.expiresIn);
 }
 
 function parseAbsoluteExpiry(value) {

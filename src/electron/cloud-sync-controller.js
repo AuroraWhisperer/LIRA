@@ -39,6 +39,7 @@ function createCloudSyncController(options = {}) {
   let accountKey = null;
   let requestController = null;
   let operation = Promise.resolve();
+  let pendingSync = null;
   let streamAbortController = null;
   let streamReconnectTimer = null;
   let streamRetryMs = STREAM_RETRY_MIN_MS;
@@ -332,7 +333,7 @@ function createCloudSyncController(options = {}) {
         },
         onChange(event) {
           if (streamAbortController !== controller || controller.signal.aborted) return;
-          if (!hasNewCloudRevision(event)) return;
+          if (pendingSync || !hasNewCloudRevision(event)) return;
           syncNow().catch((error) => {
             void error;
           });
@@ -458,6 +459,15 @@ function createCloudSyncController(options = {}) {
     const result = await licenseManager.getBilibiliCredentialsInternal({
       signal: work.signal,
     });
+    if (!isCurrent(work)) return;
+    if (
+      typeof result?.loggedIn !== 'boolean' ||
+      !Number.isSafeInteger(result.revision) ||
+      result.revision < 0 ||
+      (result.loggedIn && (typeof result.cookie !== 'string' || !result.cookie.trim()))
+    ) {
+      throw Object.assign(new Error('Invalid cloud credential snapshot.'), { code: 'INVALID_RESPONSE' });
+    }
     const cloudRevision = Math.max(Number(state.revision) || 0, Number(result?.revision) || 0);
     if (!shouldApply('bilibili', cloudRevision, work)) return;
     if (result?.loggedIn && result.cookie) {
@@ -480,6 +490,22 @@ function createCloudSyncController(options = {}) {
       await flushDirty(work);
       if (!isCurrent(work)) return false;
       const state = await licenseManager.getCloudState({ signal: work.signal });
+      if (!isCurrent(work)) return false;
+      for (const scope of VALID_SCOPES) {
+        const snapshot = state?.[scope];
+        if (
+          !snapshot ||
+          Array.isArray(snapshot) ||
+          typeof snapshot.initialized !== 'boolean' ||
+          !Number.isSafeInteger(snapshot.revision) ||
+          snapshot.revision < 0 ||
+          (scope === 'settings' &&
+            snapshot.initialized &&
+            (!snapshot.values || typeof snapshot.values !== 'object' || Array.isArray(snapshot.values)))
+        ) {
+          throw Object.assign(new Error('Invalid cloud state snapshot.'), { code: 'INVALID_RESPONSE' });
+        }
+      }
       await reconcileSettings(state?.settings, work);
       const songsRevision = await songSync.reconcile(state?.songs, work);
       if (songsRevision !== null) revisions.songs = songsRevision;
@@ -495,12 +521,19 @@ function createCloudSyncController(options = {}) {
   }
 
   function syncNow() {
+    if (pendingSync) return pendingSync.promise;
     const work = {
       generation: lifecycleGeneration,
       accountKey,
       signal: requestController?.signal,
     };
-    return enqueue(() => runSync(work));
+    const pending = {};
+    pendingSync = pending;
+    pending.promise = enqueue(() => {
+      if (pendingSync === pending) pendingSync = null;
+      return runSync(work);
+    });
+    return pending.promise;
   }
 
   async function start() {
@@ -514,6 +547,7 @@ function createCloudSyncController(options = {}) {
   function stop() {
     active = false;
     lifecycleGeneration += 1;
+    pendingSync = null;
     requestController?.abort();
     requestController = null;
     clearTimer();

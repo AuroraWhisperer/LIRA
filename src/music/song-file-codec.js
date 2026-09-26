@@ -133,14 +133,15 @@ function templateSongs() {
 function buildSongsWorkbook(rows) {
   const tableRows = [SONG_EXPORT_HEADERS].concat(rows.map(songToExportRow));
   const sheetRows = tableRows
-    .map((row, ri) => {
-      const rn = ri + 1;
+    .map((row, rowIndex) => {
+      const rowNumber = rowIndex + 1;
       const cells = row
         .map(
-          (cell, ci) => '<c r="' + columnName(ci) + rn + '" t="inlineStr"><is><t>' + escapeXml(cell) + '</t></is></c>',
+          (cell, columnIndex) =>
+            '<c r="' + columnName(columnIndex) + rowNumber + '" t="inlineStr"><is><t>' + escapeXml(cell) + '</t></is></c>',
         )
         .join('');
-      return '<row r="' + rn + '">' + cells + '</row>';
+      return '<row r="' + rowNumber + '">' + cells + '</row>';
     })
     .join('');
 

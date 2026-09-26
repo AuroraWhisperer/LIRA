@@ -44,6 +44,7 @@ function init({ notify = showStackedToast } = {}) {
   let dirty = false;
   let configLoaded = false;
   let savingPromise = null;
+  let editVersion = 0;
   let initialLoadPromise = null;
   let restoreManualEndpointAfterProviderSave = false;
   const editedFieldIds = new Set();
@@ -81,6 +82,7 @@ function init({ notify = showStackedToast } = {}) {
     saving = true;
     dirty = false;
     const submittedConfig = collectConfig();
+    const submittedEditVersion = editVersion;
     setState(saveState, '正在保存…');
     savingPromise = (async () => {
       try {
@@ -88,6 +90,8 @@ function init({ notify = showStackedToast } = {}) {
           method: 'PUT',
           body: JSON.stringify(submittedConfig),
         });
+        // Newer edits own the endpoint restoration flag and form rendering.
+        if (submittedEditVersion !== editVersion) return true;
         if (restoreManualEndpointAfterProviderSave) {
           const endpointInput = document.getElementById('xiaomiAiDeepSeekUrl');
           const protocolInput = document.getElementById('xiaomiAiModelApiProtocol');
@@ -101,7 +105,7 @@ function init({ notify = showStackedToast } = {}) {
         return true;
       } catch (error) {
         dirty = true;
-        if (restoreManualEndpointAfterProviderSave) {
+        if (submittedEditVersion === editVersion && restoreManualEndpointAfterProviderSave) {
           restoreManualEndpointAfterProviderSave = false;
           renderProviderSelection(providerInput?.value);
         }
@@ -121,6 +125,7 @@ function init({ notify = showStackedToast } = {}) {
   };
 
   const scheduleSave = (immediate = false) => {
+    editVersion += 1;
     dirty = true;
     clearTimeout(autosaveTimer);
     if (!form.checkValidity()) {

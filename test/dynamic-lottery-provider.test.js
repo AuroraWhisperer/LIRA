@@ -394,3 +394,26 @@ test('responses larger than four MiB are rejected before parsing', async () => {
     (error) => error.code === 'LOTTERY_RESPONSE_TOO_LARGE',
   );
 });
+
+test('chunked oversized lottery responses are cancelled before buffering the entire body', async () => {
+  let reads = 0;
+  let cancelled = false;
+  const response = new Response(
+    new ReadableStream({
+      pull(controller) {
+        if (++reads <= 12) controller.enqueue(new Uint8Array(1024 * 1024).fill(32));
+        else controller.close();
+      },
+      cancel() {
+        cancelled = true;
+      },
+    }),
+  );
+  const fixture = createFixture([response]);
+  await assert.rejects(
+    fixture.provider.inspectDynamic(`https://t.bilibili.com/${DYNAMIC_ID}`),
+    (error) => error.code === 'LOTTERY_RESPONSE_TOO_LARGE',
+  );
+  assert.equal(cancelled, true);
+  assert.ok(reads < 12);
+});

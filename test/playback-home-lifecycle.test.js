@@ -47,6 +47,51 @@ test('cached readers share refresh work without invalidating its cache write', a
   }
 });
 
+test('background refresh publishes interior track changes and playlist metadata changes', async () => {
+  const { ContentLoader } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/playback/content/loader.js'));
+  for (const action of ['liked', 'created-playlists']) {
+    const previous = Array.from({ length: 6 }, (_, index) => ({ id: String(index), title: `entry ${index}` }));
+    const current = previous.map((item, index) => (index === 3 ? { ...item, title: 'updated entry' } : item));
+    const updates = [];
+    const cache = new Map([['qq:' + action, { items: previous, itemType: 'track', action }]]);
+    const loader = new ContentLoader({
+      state: { selectedSource: 'qq' },
+      cacheManager: { get: (key) => cache.get(key), set: (key, value) => cache.set(key, value) },
+      onBackgroundUpdate: (update) => updates.push(update),
+    });
+    loader._fetchByAction = async () => ({ items: current, itemType: 'track', action });
+    await loader.loadHomeContent(action);
+    await new Promise(setImmediate);
+    assert.equal(updates.length, 1);
+    assert.equal(loader.homeItems[3].title, 'updated entry');
+  }
+});
+
+test('account invalidation preserves other providers and a replacement refresh keeps its ownership', async () => {
+  const { ContentLoader } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/playback/content/loader.js'));
+  const pending = [];
+  const state = { selectedSource: 'qq' };
+  const cache = new Map([['qq:liked', { items: [{ id: 'cached' }], itemType: 'track', action: 'liked' }]]);
+  const loader = new ContentLoader({
+    state,
+    cacheManager: { get: (key) => cache.get(key), set: (key, value) => cache.set(key, value) },
+  });
+  loader._fetchByAction = () => new Promise((resolve) => pending.push(resolve));
+  await loader.loadHomeContent('liked');
+  loader.invalidatePlatform('qq');
+  await loader.loadHomeContent('liked');
+  assert.equal(pending.length, 2);
+  pending[0]({ items: [{ id: 'old-account' }], itemType: 'track', action: 'liked' });
+  await new Promise(setImmediate);
+  assert.equal(loader._bgRefreshing.size, 1);
+  assert.equal(cache.get('qq:liked').items[0].id, 'cached');
+  loader.invalidatePlatform('netease');
+  pending[1]({ items: [{ id: 'new-account' }], itemType: 'track', action: 'liked' });
+  await new Promise(setImmediate);
+  assert.equal(cache.get('qq:liked').items[0].id, 'new-account');
+  assert.equal(loader._bgRefreshing.size, 0);
+});
+
 test('HomeService keeps the newest home request and ignores stale success or failure', async () => {
   const pending = new Map();
   const errors = [];
