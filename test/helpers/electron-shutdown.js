@@ -149,6 +149,10 @@ function createShutdownHarness(options = {}) {
     },
   });
   const modules = {
+    './desktop-resource-integrity': { createDesktopResourceIntegrity: () => ({
+      stop() { calls.push('integrity:stop'); return options.integrityIdle?.promise || Promise.resolve(); },
+      getState: () => ({ status: 'idle' }),
+    }) },
     'node:fs': {
       mkdirSync() {},
       existsSync: (value) => Boolean(options.recoveryDataDir && value === options.recoveryDataDir),

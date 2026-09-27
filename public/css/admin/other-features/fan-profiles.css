@@ -163,17 +163,20 @@
 .fan-search input {
   width: 100%;
 }
+.fan-scope,
 .fan-filters {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 6px;
 }
+.fan-scope button,
 .fan-filters button {
   font-size: 13px;
   min-height: 34px;
   padding: 5px 10px;
 }
+.fan-scope [aria-pressed='true'],
 .fan-filters [aria-pressed='true'] {
   color: var(--color-success-dark);
   background: var(--color-control-accent-light);
@@ -217,6 +220,15 @@
 .fan-person:hover {
   background: color-mix(in srgb, var(--surface-2) 65%, var(--surface));
 }
+.fan-person + .fan-person::after {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: 16px;
+  right: 16px;
+  border-top: 1px solid var(--border);
+  pointer-events: none;
+}
 .fan-person:active {
   background: var(--surface-2);
 }
@@ -258,16 +270,25 @@
 }
 .fan-person-line strong {
   min-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
   font-size: 15px;
   font-weight: var(--type-weight-semibold);
+  line-height: var(--type-leading-body);
 }
 .fan-person-name {
   display: flex;
   align-items: center;
   gap: 6px;
   min-width: 0;
+}
+.fan-person-platform-name {
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: top;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: var(--type-weight-regular);
 }
 .fan-favorite-star {
   flex-shrink: 0;
@@ -544,6 +565,10 @@
 }
 .fan-more button:hover {
   background: var(--color-bg-tertiary);
+}
+.fan-archive-hint {
+  margin: 0;
+  padding: 0 10px 8px;
 }
 .fan-back-list {
   display: none;

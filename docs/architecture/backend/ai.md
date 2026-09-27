@@ -191,7 +191,7 @@ AI 弹幕姬是一个由模型服务驱动的通用互动助手；当前默认�
 - **正常摘要**:`request_succeeded` 按 provider/model/purpose/protocol 在 15 分钟活动窗口汇总，最多 128 个分组，超出归入 `other`；记录成功/失败数、token、工具调用数、最大耗时和固定耗时桶。退出 `flush()` 保存尚未到期的非空窗口，不输出空摘要。
 - **错误与准入**:`request_failed` 立即保存安全错误核心。已知密钥全文替换；普通 JSONL 最终 UTF-8 最多 2 KiB，错误最多 16 KiB；待写队列最多 2,000 条/4 MiB并给错误预留空间，兼容文件达到 10 MiB 后停止新增并在 `getHealth()` 计数。跨日预算恢复、轮转保留和问题去重属于后续阶段。
 
-**数据库审计**:`ai_request_logs` 表由 `store.logRequest` 写入 `uid/user_name/category/status/latency_ms/input_tokens/output_tokens/tool_calls/error_code`(各字段截断上限见 [config-store.js:80-93](../../../src/ai/config-store.js#L80-L93));`category` 取 `cache/safety/tool/chat/failure`(生成)与 `delivery/generation`(失败),`status` 取 `generated/failed`。该表与 `ai_api_usage` 均可被保留期/清库策略覆盖(见 [storage.md](storage.md) §5–§6)。
+**数据库审计**:`ai_request_logs` 表由 `store.logRequest` 写入 `uid/user_name/category/status/latency_ms/input_tokens/output_tokens/tool_calls/error_code`(各字段截断上限见 [config-store.js:80-93](../../../src/ai/config-store.js#L80-L93));`category` 取 `cache/safety/tool/chat/failure`(生成)与 `delivery/generation`(失败),`status` 取 `generated/failed`。审计默认保留 30 天，由 `aiRequestLogRetentionDays` 配置（`0` 禁用），支持 dry-run 和实际删除计数；该保留策略不删除 `ai_api_usage` 配额、配置或黑名单。全部清库范围另见 [storage.md](storage.md) §5–§6。
 
 ## 9. 弹幕交付与送达验证
 

@@ -7,8 +7,57 @@ const path = require('node:path');
 const test = require('node:test');
 const { readCssBundle } = require('./helpers/css-bundle');
 const { loadModuleExports } = require('./helpers/frontend-modules');
+const { createDom } = require('./helpers/toast-dom');
 
 const ROOT_DIR = path.join(__dirname, '..');
+
+test('archive recovery FAQ is indexed by the existing guide search from its real heading and body', async () => {
+  const html = readAdminHtml();
+  const faq = (html.match(/<details class="usage-guide-faq">[\s\S]*?<\/details>/g) || [])
+    .find((block) => block.includes('收起后找不到了，如何恢复档案？'));
+  assert.ok(faq);
+  assert.match(faq, /清空搜索和筛选/);
+  assert.match(faq, /不适用于永久删除的档案/);
+  assert.match(html, /归档期间不显示该档案的提醒/);
+  assert.match(html, /归档与永久删除不同，不需要通过备份恢复/);
+  const { documentRef } = createDom();
+  const create = documentRef.createElement;
+  documentRef.createElement = (tag) => {
+    const node = create(tag);
+    const append = node.append.bind(node);
+    node.append = (...children) => append(...children.map((child) => {
+      if (typeof child !== 'string') return child;
+      const text = create('span');
+      text.textContent = child;
+      return text;
+    }));
+    return node;
+  };
+  const target = {
+    textContent: faq.replace(/<[^>]*>/g, ' '),
+    querySelector: () => ({ textContent: '收起后找不到了，如何恢复档案？' }),
+  };
+  const section = {
+    id: 'ug-faq', children: [],
+    querySelector: () => ({ textContent: '常见问题' }),
+    querySelectorAll: () => [target],
+  };
+  const nodes = new Map(['#usageGuideSearchInput', '.usage-guide-search-results',
+    '.usage-guide-search-status', '.usage-guide-search-list', '.usage-guide-search-clear']
+    .map((selector) => [selector, documentRef.createElement('div')]));
+  const panel = { querySelector: (selector) => nodes.get(selector), querySelectorAll: () => [section] };
+  const { initUsageGuideSearch } = await loadModuleExports(
+    path.join(ROOT_DIR, 'public/js/admin/usage-guide-search.js'), { document: documentRef },
+  );
+  initUsageGuideSearch(panel, () => {});
+  for (const query of ['收起', '归档', '恢复档案']) {
+    const input = nodes.get('#usageGuideSearchInput');
+    input.value = query;
+    input.fire('input', {});
+    assert.match(nodes.get('.usage-guide-search-status').textContent, /找到 1 处/);
+    assert.match(nodes.get('.usage-guide-search-list').textContent, /收起后找不到了，如何恢复档案/);
+  }
+});
 
 test('usage guide main-flow steps keep body text out of the number gutter', () => {
   const source = readCssBundle('public', 'css', 'admin', 'other-features.css');

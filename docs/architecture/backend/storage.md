@@ -187,7 +187,8 @@ v13 由 `gift-wish-migration.js` 幂等建表，v14 追加每条许愿的展示�
 
 [src/storage/retention.js](../../../src/storage/retention.js):默认策略 `DEFAULT_POLICY` = 礼物原始报文 30 天清文本(保留解析结果)、礼物事件/点歌流水/SC **永久保留(0 = 不清理)**、冷却记录 1 天。settings 键 → policy 翻译见 `readRetentionPolicy`(giftRawJsonRetentionDays 等,§7)。
 
-- `applyRetentionPolicies(databases, {policy, dryRun})`:dryRun 只统计不删除;gift_events 清 raw_json 用 UPDATE(保留行),其余按 `created_at < 阈值` 删行。
+- AI 请求审计通过 `aiRequestLogRetentionDays` 配置（默认 `30` 天，`0` 禁用），由 `readRetentionPolicy` 转为 `aiRequestLogDays`。`ai_request_logs.created_at` 为毫秒时间戳，严格早于期限才删除；配置、黑名单、API 配额、缓存和上下文不参与此项清理。
+- `applyRetentionPolicies(databases, {policy, dryRun})`:dryRun 只统计不删除;gift_events 清 raw_json 用 UPDATE(保留行),其余按 `created_at < 阈值` 删行。`aiRequestLogsDeleted` 在 dry-run 返回候选数量，实际执行返回删除数量；启动摘要同时记录该计数。
 - `runStartupRetention()`:启动时按 `autoRetentionOnStartup==='true'` 执行(见 [server-core.md](server-core.md) §5),失败不阻断启动。
 - `getRetentionStats(databases)`:各表行数/最早最晚时间/raw_json 字节数,供管理页展示。
 

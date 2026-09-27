@@ -42,6 +42,7 @@ const updateMgr = require('./update-manager');
 const playbackFlush = require('./playback-flush');
 const { installTerminalLog } = require('./terminal-log');
 const { registerUpdateIpc } = require('./ipc/update-ipc');
+const { createDesktopResourceIntegrity } = require('./desktop-resource-integrity');
 const { registerMusicIpc } = require('./ipc/music-ipc');
 const { registerBilibiliIpc } = require('./ipc/bilibili-ipc');
 const { registerLicenseIpc } = require('./ipc/license-ipc');
@@ -91,10 +92,17 @@ const {
   loginBilibiliAccount,
   logoutBilibiliAccount,
 } = desktopAuth;
+const resourceIntegrity = createDesktopResourceIntegrity({
+  app,
+  getMainWindow: () => windowState.main,
+  getDesktopBaseUrl: () => windowState.baseUrl,
+  writeLog,
+});
 const desktopUpdate = createDesktopUpdateController({
   app,
   updateManager: updateMgr,
   updateRuntime,
+  beforeInstall: () => resourceIntegrity.stop('UPDATE_INSTALLING'),
   getRuntime: () => lifecycleState.runtime,
   getMainWindow: () => windowState.main,
   writeLog,
@@ -203,6 +211,7 @@ app.on('window-all-closed', function () {
 });
 
 app.on('before-quit', function (event) {
+  void resourceIntegrity.stop();
   if (!lifecycleState.shutdownPromise && !lifecycleState.shutdown) return;
   event.preventDefault();
   requestDesktopShutdown();
@@ -213,6 +222,7 @@ function requestDesktopShutdown({ restart = false } = {}) {
   // The first request owns the final action and the deadline, including reentry.
   const { promise, resolve } = Promise.withResolvers();
   lifecycleState.shutdownPromise = promise;
+  const integrityStopped = resourceIntegrity.stop();
   let finished = false;
   writeLog('lifecycle', { event: 'QUIT_BEGIN' });
   const forceQuitTimer = setTimeout(function () {
@@ -264,6 +274,7 @@ function requestDesktopShutdown({ restart = false } = {}) {
       cloudSyncController = null;
       fanProfileController = null;
       await Promise.all([
+        integrityStopped,
         dynamicLotteryAuth?.whenIdle(),
         ...controllersToDrain.map((controller) => controller.whenIdle()),
       ]);
@@ -300,6 +311,7 @@ async function startDesktopApp() {
     getLogDir: () => pathState.logDir,
     getTerminalLogFile: () => pathState.terminalLogFile,
     getUpdateState: () => updateRuntime.value,
+    resourceIntegrity,
     githubRepoUrl: GITHUB_REPO_URL,
     checkForUpdates,
     downloadUpdate,

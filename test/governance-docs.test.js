@@ -4,6 +4,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
+const vm = require('node:vm');
+const { createRequire } = require('node:module');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 const REQUIRED_GOVERNANCE_FILES = [
@@ -43,6 +45,70 @@ const REQUIRED_ROUTE_IDS = [
   'ROUTE-OVERLAYS',
 ];
 const ALLOWED_SPEC_STATUSES = new Set(['Draft', 'Accepted', 'In Progress', 'Implemented', 'Reference', 'Superseded']);
+
+function registeredApiRoutes() {
+  const filename = absolutePath('src/server/api-routes.js');
+  // Evaluate the real composition root without invoking a handler or starting a server.
+  const modules = vm.runInNewContext(
+    `${read('src/server/api-routes.js')}
+ROUTE_MODULES;`,
+    { module: { exports: {} }, require: createRequire(filename) },
+  );
+  const keys = modules.flatMap((routeModule) => Object.keys(routeModule.routes));
+  assert.ok(keys.length > 0, 'HTTP route registry must not be empty');
+  assert.equal(new Set(keys).size, keys.length, 'HTTP route keys must be registered only once');
+  return new Set(keys);
+}
+
+function documentedApiRoutes(source) {
+  const keys = new Set();
+  let remoteSection = false;
+  for (const line of source.split(/\r?\n/)) {
+    if (/^## /.test(line)) remoteSection = /^## .*LIRA Server/.test(line);
+    if (remoteSection) continue;
+    for (const match of line.matchAll(
+      /`((?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)(?:\/(?:GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS))*) (\/api\/[^`\s?]+)(?:\?[^`\s]*)?`/g,
+    )) {
+      for (const method of match[1].split('/')) keys.add(`${method} ${match[2]}`);
+    }
+  }
+  return keys;
+}
+
+function apiRouteDifferences(registered, documented) {
+  return {
+    missing: [...registered].filter((key) => !documented.has(key)).sort(),
+    extra: [...documented].filter((key) => !registered.has(key)).sort(),
+  };
+}
+
+test('local API documentation matches the actual registered HTTP routes in both directions', () => {
+  const differences = apiRouteDifferences(
+    registeredApiRoutes(),
+    documentedApiRoutes(read('docs/architecture/backend/api.md')),
+  );
+  assert.deepEqual(
+    differences,
+    { missing: [], extra: [] },
+    'GOV-API-001: update the local METHOD /api/path entries in docs/architecture/backend/api.md',
+  );
+});
+
+test('API documentation comparison detects missing and extra methods without counting remote endpoints', () => {
+  const source = [
+    '## Local',
+    '`GET/POST /api/example` and `GET /api/example?limit=1`',
+    '## 0.1 LIRA Server remote',
+    '`GET /api/device/remote`',
+    '## Another local section',
+    '`DELETE /api/obsolete`',
+  ].join('\n');
+  const registered = new Set(['GET /api/example', 'POST /api/example', 'PUT /api/example']);
+  assert.deepEqual(apiRouteDifferences(registered, documentedApiRoutes(source)), {
+    missing: ['PUT /api/example'],
+    extra: ['DELETE /api/obsolete'],
+  });
+});
 
 function absolutePath(relativePath) {
   return path.resolve(ROOT_DIR, ...relativePath.split('/'));

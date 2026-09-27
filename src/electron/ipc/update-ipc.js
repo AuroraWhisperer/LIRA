@@ -11,6 +11,7 @@ function registerUpdateIpc({
   getLogDir,
   getTerminalLogFile,
   getUpdateState,
+  resourceIntegrity,
   githubRepoUrl,
   checkForUpdates,
   downloadUpdate,
@@ -20,6 +21,13 @@ function registerUpdateIpc({
   getDesktopBaseUrl,
   writeLog,
 }) {
+  const handleIntegrity = createMainWindowIpcRegistrar({ ipcMain, getMainWindow, getDesktopBaseUrl });
+  handleIntegrity('desktop:get-resource-integrity-state', (_event, ...args) => {
+    return args.length ? { ok: false, error: 'IPC_ARGUMENTS_INVALID' } : resourceIntegrity.getState();
+  });
+  handleIntegrity('desktop:check-resource-integrity', (_event, ...args) => {
+    return args.length ? { ok: false, error: 'IPC_ARGUMENTS_INVALID' } : resourceIntegrity.check();
+  });
   const handle = createMainWindowIpcRegistrar({ ipcMain, getMainWindow, getDesktopBaseUrl, allowLicense: true });
   handle('desktop:get-info', function () {
     return {

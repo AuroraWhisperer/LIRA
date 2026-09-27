@@ -103,6 +103,15 @@ Device settings，省略另一开关以保留服务器值；只有返回实际�
 
 ### 2.1 renderer → main(invoke)
 
+资源检查新增以下无参数接口（同属此注册表）：
+
+| 通道 | 输入 | 返回 | 注册与权限 |
+| --- | --- | --- | --- |
+| `desktop:get-resource-integrity-state` | 无 | 资源检查状态快照 | `ipc/update-ipc.js`；主窗口、主 frame、精确 origin 和管理页面路径，不含 `/license` |
+| `desktop:check-resource-integrity` | 无 | 立即返回当前/新任务状态 | 同上；重复请求合并，任何额外参数返回 `IPC_ARGUMENTS_INVALID` |
+
+preload 分别暴露 `songAssistantDesktop.getResourceIntegrityState()` 与 `checkResourceIntegrity()`，不传路径、清单或文件内容。状态结构及判断语义见 [update.md](update.md) 的「客户端资源检查」。
+
 | 通道                                  | 载荷                                                                    | 返回                                                                                             | handler 摘要                                                               | 出处                                                       |
 | ------------------------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------- | ---------------------------------------------------------- |
 | `desktop:get-info`                    | —                                                                       | `{version, isPackaged, platform, dataDir, logFile, terminalLogFile, githubRepoUrl, updateState}` | 桌面环境信息汇总                                                           | [desktop-ipc.js](../../../src/electron/ipc/desktop-ipc.js) |
@@ -156,6 +165,8 @@ Device settings，省略另一开关以保留服务器值；只有返回实际�
 所有者：[dynamic-lottery-auth-ipc.js](../../../src/electron/ipc/dynamic-lottery-auth-ipc.js)。错误统一 `{ok:false,error}`；公开错误码仅 `IPC_SOURCE_INVALID`、`LOTTERY_IDENTITY_UNAVAILABLE`、`LOTTERY_SESSION_CHANGED`、`LOTTERY_SESSION_DISPOSED`、`LOTTERY_AUTH_BUSY`、`LOTTERY_AUTH_ENCRYPTION_UNAVAILABLE`、`LOTTERY_AUTH_RESTORE_FAILED`、`LOTTERY_AUTH_FAILED`，不回传原始异常。`uid` 是十进制字符串，未登录为空；`warning` 只可为白名单代码或空字符串。调用方是 `public/js/admin/dynamic-lottery.js` 的 `window.dynamicLotteryAuth.getState/login/logout`，普通浏览器无桥时不可登录；不增加 HTTP 免鉴权入口。
 
 ### 2.2 main → renderer(send)
+
+`desktop:resource-integrity-state` 推送资源检查快照，仅发送到仍存活、符合上述 origin/页面条件的主窗口。桥接 `songAssistantDesktop.onResourceIntegrityState(callback)` 返回移除监听函数，页面刷新前清理；UI 按单调递增 `revision` 忽略旧快照。此事件不替代 `desktop:update-state` 或授权状态事件。
 
 | 通道                       | 载荷                                                                                                             | 发送点                                                 | 接收方                                          | 出处                                                                |
 | -------------------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ----------------------------------------------- | ------------------------------------------------------------------- |

@@ -13,6 +13,7 @@ function fixture(options = {}) {
   const commandOptions = [];
   const cleaned = [];
   const logs = [];
+  let verified = false;
   const head = 'a'.repeat(40);
   const bytes = Buffer.from('current artifact');
   const digest = `sha256:${crypto.createHash('sha256').update(bytes).digest('hex')}`;
@@ -36,7 +37,7 @@ function fixture(options = {}) {
       return { size: bytes.length };
     },
     async *createReadStream() {
-      yield bytes;
+      yield verified && options.artifactsChanged ? Buffer.from('changed artifact') : bytes;
     },
     mkdtempSync() {
       return path.join(__dirname, `fixture-verify-${commands.length}`);
@@ -62,6 +63,7 @@ function fixture(options = {}) {
       return Buffer.from(head);
     }
     if (command === 'npx' && options.buildFails) throw new Error('fixture build failure');
+    if (command === 'gh' && args[1] === 'upload' && options.uploadFails) throw new Error('fixture upload failure');
     if (command === 'gh' && args[0] === 'api') {
       return Buffer.from(
         JSON.stringify({
@@ -78,6 +80,11 @@ function fixture(options = {}) {
   }
   const filename = path.resolve(__dirname, '../scripts/publish-release.js');
   const requireFake = (name) => {
+    if (name === './verify-client-installer') return { async verifyInstaller() {
+      commands.push(['verify-installer']);
+      if (options.invalidInstaller) throw new Error('fixture invalid installer');
+      verified = true;
+    } };
     if (name === './release-output') return require('../scripts/release-output');
     if (name === 'node:fs') return fakeFs;
     if (name === 'node:child_process')
@@ -155,12 +162,33 @@ test('release preflight rejects dirty worktrees and mismatched tags before build
 
 test('a failed build cannot be accepted because old release assets exist', async () => {
   const f = fixture({ buildFails: true });
-  await assert.rejects(f.publisher.main(), /incomplete/);
-  assert.equal(f.commands.filter(([command]) => command === 'npx').length, 3);
+  await assert.rejects(f.publisher.main(), /fixture build failure/);
+  assert.equal(f.commands.filter(([command]) => command === 'npx').length, 1);
   assert.equal(
     f.commands.some(([command, action]) => command === 'gh' && action === 'api'),
     false,
   );
+});
+
+test('validation occurs before any upload, and failed or changed artifacts are never uploaded', async () => {
+  for (const options of [{ invalidInstaller: true }, { artifactsChanged: true }]) {
+    const f = fixture(options);
+    await assert.rejects(f.publisher.main());
+    assert.equal(f.commands.some(([command, action, operation]) => command === 'gh' && action === 'release' && operation === 'upload'), false);
+  }
+  const f = fixture();
+  await f.publisher.main();
+  const build = f.commands.find(([command]) => command === 'npx');
+  assert.equal(build[build.indexOf('--publish') + 1], 'never');
+  assert.ok(f.commands.findIndex(([command]) => command === 'verify-installer') < f.commands.findIndex((entry) => entry[2] === 'upload'));
+});
+
+test('upload retries never rebuild the already verified artifact set', async () => {
+  const f = fixture({ uploadFails: true });
+  await assert.rejects(f.publisher.main(), /incomplete/);
+  assert.equal(f.commands.filter(([command]) => command === 'npx').length, 1);
+  assert.equal(f.commands.filter(([command]) => command === 'verify-installer').length, 1);
+  assert.equal(f.commands.filter((entry) => entry[2] === 'upload').length, 3);
 });
 
 test('release assets must match this build content, not just its file names', async () => {

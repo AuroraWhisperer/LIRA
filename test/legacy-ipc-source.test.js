@@ -70,3 +70,22 @@ test('authorized playback save and shutdown acknowledgement keep their existing 
   assert.deepEqual(await f.handlers.get('playback:flush-ack')(f.event), { ok: true });
   assert.equal(f.calls(), 2);
 });
+
+for (const channel of ['desktop:get-resource-integrity-state', 'desktop:check-resource-integrity']) {
+  test(`${channel} permits only the main admin frame and rejects all arguments`, () => {
+    let calls = 0;
+    const state = { revision: 1, status: 'checking' };
+    const action = () => { calls += 1; return state; };
+    const f = fixture(registerUpdateIpc, channel, { resourceIntegrity: { getState: action, check: action } });
+    assert.deepEqual(f.invoke(f.event), state);
+    for (const arg of ['C:/secret', {}, undefined]) assert.deepEqual(f.invoke(f.event, arg), { ok: false, error: 'IPC_ARGUMENTS_INVALID' });
+    for (const event of [undefined, {}, { ...f.event, sender: {} }, { ...f.event, senderFrame: { url: f.mainFrame.url } }]) {
+      assert.deepEqual(f.invoke(event), { ok: false, error: 'IPC_SOURCE_INVALID' });
+    }
+    for (const url of [`${BASE_URL}/license`, `${BASE_URL}/clock`, 'http://127.0.0.1:31002/admin', 'https://example.com/admin']) {
+      f.mainFrame.url = url;
+      assert.deepEqual(f.invoke(f.event), { ok: false, error: 'IPC_SOURCE_INVALID' });
+    }
+    assert.equal(calls, 1);
+  });
+}

@@ -50,10 +50,13 @@
     <div id="fanProfilesPage" role="tabpanel" aria-labelledby="fanProfilesTab">
       <div id="fanReminderSummary" class="fan-reminder-summary" hidden></div>
       <div id="fanArchivedNotice" class="fan-archived-notice" hidden>
-        <span class="fan-muted">正在查看已收起的档案，资料仍然保留。</span>
-        <button type="button" data-fan-action="back-profiles">返回档案列表</button>
+        <span class="fan-muted">归档档案的资料与记录仍保留，归档期间不显示提醒。选中档案后可恢复到主列表。</span>
       </div>
       <div class="fan-searchbar">
+        <div class="fan-scope" role="group" aria-label="档案范围">
+          <button type="button" data-fan-action="back-profiles" aria-pressed="true">当前档案</button>
+          <button type="button" data-fan-action="archived" aria-pressed="false">已归档</button>
+        </div>
         <label class="fan-search"
           ><span class="sr-only">搜索昵称、备注名或 UID</span
           ><input id="fanSearch" type="search" placeholder="搜索昵称、备注名或 UID" maxlength="300"
@@ -149,13 +152,6 @@
             <p class="fan-muted">管理删除档案时停止自动建档的粉丝，可在这里恢复自动建档。</p>
           </div>
           <button type="button" data-fan-action="suppressions">管理排除名单</button>
-        </div>
-        <div class="fan-setting-row">
-          <div>
-            <h4>已收起的档案</h4>
-            <p class="fan-muted">资料仍然保留，可在档案的“更多”中恢复到主列表。</p>
-          </div>
-          <button type="button" data-fan-action="archived">查看已收起</button>
         </div>
         <div class="fan-setting-row">
           <div>

@@ -16,7 +16,8 @@ boolean enabled 输入，结果只投影 `{ ok: true, enabled }`。main 的账�
 只展示正人数；说明中明确贡献值估算。客户端不实现取数、统计或发送。
 
 服务器权威合同：lira-server `docs/protocol/pk-opponent-report.md` 和 Device OpenAPI。
-共享示例 `test/fixtures/pk-report-settings.json`；验收
+共享示例为服务器 `docs/protocol/fixtures/pk-report-settings.json`，客户端通过
+`server-contract.lock.json` 和 `readServerFixture` 校验提交与 SHA-256 后消费；验收
 `test/pk-report-settings-ipc.test.js` / `test/frontend-pk-report.test.js` 覆盖认证通路、
 非法 IPC、最小响应、切账号、同步失败和页面释放。UI 使用
 `public/js/admin/danmaku-pk-report.js` 和同名 fixed-reply fragment。

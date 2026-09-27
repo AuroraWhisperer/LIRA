@@ -598,9 +598,11 @@ Steps:
 - [ ] Resolve pending delivery waiters as false and clear every owned timer during
       stop.
 - [ ] Call TTL prune at trusted startup after exclusivity is acquired.
-- [ ] Add `aiRequestLogRetentionDays` with a documented default of 30 days;
+- [x] Add `aiRequestLogRetentionDays` with a documented default of 30 days;
       include log counts in dry-run/real retention results. Keep blacklist and current
-      provider configuration until explicit clear-all or user action.
+      provider configuration until explicit clear-all or user action. Verified on
+      2026-09-26 by `test/ai-request-log-retention.test.js` (millisecond cutoff,
+      dry-run, configured days, disabled policy, idempotence and protected rows).
 - [ ] Test a hanging generation released after shutdown: no DB write、delivery、
       ready job or timer may remain.
 
@@ -754,10 +756,11 @@ Files:
 
 Steps:
 
-- [ ] Export or derive the literal registered API route keys and compare them
+- [x] Export or derive the literal registered API route keys and compare them
       against backticked `METHOD /api/path` entries in the owner document; fail on
-      missing and stale entries. Add the four currently missing gift-effect/overtime
-      routes first.
+      missing and stale entries. Verified on 2026-09-26 by `GOV-API-001` in
+      `test/governance-docs.test.js`; the current two missing gift-effect routes
+      are documented, and explicitly remote Server references remain separate.
 - [ ] Keep numeric debt authority only in architecture tests. When a task removes
       SQL、global or empty-catch matches, lower or delete that exact per-file baseline.
 - [ ] Move only touched receiver-aware SQL into a real storage owner; do not

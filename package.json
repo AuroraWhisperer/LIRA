@@ -1,6 +1,6 @@
 {
   "name": "lira",
-  "version": "5.0.6",
+  "version": "5.0.7",
   "private": true,
   "license": "UNLICENSED",
   "description": "LIRA - Live Interactive Room Assistant",
@@ -23,8 +23,8 @@
     "sync:gifts": "node scripts/initialize-gift-catalog.js",
     "diagnose:wesing": "node scripts/inspect-wesing-playback.js",
     "make:icon": "node scripts/create-icon.js",
-    "dist:win": "npm run make:icon && electron-builder --win nsis --x64",
-    "dist:win:local": "npm run make:icon && set ELECTRON_SKIP_BINARY_DOWNLOAD=1 && electron-builder --win nsis --x64 --config.electronDist=node_modules/electron/dist",
+    "dist:win": "npm run make:icon && electron-builder --win nsis --x64 --publish never",
+    "dist:win:local": "npm run make:icon && set ELECTRON_SKIP_BINARY_DOWNLOAD=1 && electron-builder --win nsis --x64 --publish never --config.electronDist=node_modules/electron/dist",
     "release:win": "node scripts/publish-release.js",
     "test:offline": "node scripts/run-tests.js offline",
     "test:browser": "node scripts/run-tests.js browser",
@@ -85,6 +85,8 @@
     "asar": true,
     "npmRebuild": false,
     "afterPack": "scripts/after-pack.js",
+    "afterSign": "scripts/after-sign.js",
+    "artifactBuildCompleted": "scripts/verify-client-installer.js",
     "win": {
       "icon": "build/icon.ico",
       "target": [

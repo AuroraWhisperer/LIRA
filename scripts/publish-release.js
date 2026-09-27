@@ -7,6 +7,7 @@ const net = require('node:net');
 const os = require('node:os');
 const path = require('node:path');
 const { redactReleaseOutput, sanitizeCommandError, checkCommandResult } = require('./release-output');
+const { verifyInstaller } = require('./verify-client-installer');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 const PKG = JSON.parse(fs.readFileSync(path.join(ROOT_DIR, 'package.json'), 'utf8'));
@@ -37,34 +38,44 @@ async function main() {
   proxyUrl = await resolveProxy();
   ensureTag(head);
   ensureGhToken();
-  ensureGithubRelease();
 
   run('npm', ['run', '--silent', 'make:icon']);
   if (ensureCleanEnoughGitState() !== head) {
     throw new Error('Release source changed while preparing build resources.');
   }
 
+  // Build only once. Builder hooks verify the final NSIS payload before this returns.
+  run('npx', [
+    'electron-builder', '--win', 'nsis', '--x64', '--publish', 'never',
+    '--config.electronDist=node_modules/electron/dist',
+  ]);
+  const verifiedDigests = new Map();
+  for (const name of EXPECTED_ASSETS) verifiedDigests.set(name, await fileDigest(path.join(OUTPUT_DIR, name)));
+  await verifyInstaller(path.join(OUTPUT_DIR, EXE_NAME), { appVersion: VERSION, platform: 'win32', arch: 'x64' });
+  ensureGithubRelease();
+
   let lastPublishError = null;
   for (let attempt = 1; attempt <= MAX_PUBLISH_ATTEMPTS; attempt += 1) {
-    log(`electron-builder publish attempt ${attempt}/${MAX_PUBLISH_ATTEMPTS}`);
+    // A changed artifact requires a fresh invocation and validation, never an upload retry.
+    for (const [name, digest] of verifiedDigests) {
+      if (await fileDigest(path.join(OUTPUT_DIR, name)) !== digest) throw new Error('Verified release artifacts changed before upload.');
+    }
+    log(`Verified artifact upload attempt ${attempt}/${MAX_PUBLISH_ATTEMPTS}`);
     try {
-      // 使用本地 electron 构建，跳过下载
-      run('npx', [
-        'electron-builder',
-        '--win',
-        'nsis',
-        '--x64',
-        '--publish',
-        'always',
-        '--config.electronDist=node_modules/electron/dist',
+      run('gh', [
+        'release', 'upload', TAG, ...EXPECTED_ASSETS.map((name) => path.join(OUTPUT_DIR, name)),
+        '--repo', `${OWNER}/${REPO}`, '--clobber',
       ]);
       lastPublishError = null;
     } catch (error) {
       lastPublishError = error;
-      log(`electron-builder exited with an error: ${error.message}`);
+      log(`Artifact upload failed: ${error.message}`);
       continue;
     }
 
+    for (const [name, digest] of verifiedDigests) {
+      if (await fileDigest(path.join(OUTPUT_DIR, name)) !== digest) throw new Error('Verified release artifacts changed during upload.');
+    }
     const missing = await findMissingAssets();
     if (missing.length === 0) {
       log(`All expected assets uploaded: ${EXPECTED_ASSETS.join(', ')}`);

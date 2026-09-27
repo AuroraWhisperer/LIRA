@@ -3,8 +3,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { fanFixture, SCOPE } = require('./helpers/fan-profile-fixture');
-// Same synthetic v1 fixture as Server docs/protocol/fixtures/fan-facts-v1.json.
-const fixture = require('./fixtures/fan-facts-v1.json');
+const { readServerFixture } = require('../scripts/verify-server-contract');
+const fixture = readServerFixture('docs/protocol/fixtures/fan-facts-v1.json');
 
 test('the published Server fan facts fixture creates one unknown-term profile with its latest name', (t) => {
   const f = fanFixture(t);

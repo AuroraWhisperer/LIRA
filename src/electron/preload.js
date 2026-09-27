@@ -27,6 +27,14 @@ contextBridge.exposeInMainWorld('giftExport', {
 
 contextBridge.exposeInMainWorld('songAssistantDesktop', {
   getInfo: () => ipcRenderer.invoke('desktop:get-info'),
+  getResourceIntegrityState: () => ipcRenderer.invoke('desktop:get-resource-integrity-state'),
+  checkResourceIntegrity: () => ipcRenderer.invoke('desktop:check-resource-integrity'),
+  onResourceIntegrityState: (callback) => {
+    if (typeof callback !== 'function') return () => {};
+    const listener = (_event, state) => callback(state);
+    ipcRenderer.on('desktop:resource-integrity-state', listener);
+    return () => ipcRenderer.removeListener('desktop:resource-integrity-state', listener);
+  },
   checkForUpdates: () => ipcRenderer.invoke('desktop:check-for-updates'),
   downloadUpdate: () => ipcRenderer.invoke('desktop:download-update'),
   installUpdate: () => ipcRenderer.invoke('desktop:install-update'),

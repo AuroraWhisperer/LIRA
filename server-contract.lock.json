@@ -1,11 +1,15 @@
 {
   "schemaVersion": 1,
   "repository": "AuroraWhisperer/LIRA-server",
-  "revision": "5ea7b01c8fc7b1cec34a43b01f99c403fd9d1577",
+  "revision": "a28db3a2ccf5f0fec1626a4fe3bd97a7eb402d1b",
   "fixtures": {
+    "docs/protocol/fixtures/daily-bots-v1.json": "3a6215a8b26be900766c472bf419c211dddf1bc6e67070bbc6d6fda74acbe519",
+    "docs/protocol/fixtures/device-auth-v2-vectors.json": "bba705c5c6ff01aea177683d358fa025afb35a7a6a8a53d4f17ca33a187f05d0",
+    "docs/protocol/fixtures/fan-facts-v1.json": "d1f2b48dbe35819aaf2e4f18c0a6a1bdd2a2ebcac9a1d14c9256523a441ac64b",
     "docs/protocol/fixtures/gift-catalog-variants.json": "12f5fe2e31fdff486b247b100a889050a721c4fef24d1fba7105ea97e6cf5353",
     "docs/protocol/fixtures/gift-event-identity.json": "a373dff1dae1da96d0ea0c8f856e210d35355c9fb689dde14ae43571b318d037",
     "docs/protocol/fixtures/gift-sync-v1.json": "4c18826d06730502e8dc68ec1656702d61e0318dd2516f491c81130a56d7182c",
+    "docs/protocol/fixtures/pk-report-settings.json": "3a21067348af4527d3f68857cd7dca367585173cd7dd522c7346ddc46c01f537",
     "docs/protocol/fixtures/song-snapshot-budget.json": "858c5f0bdb92f2701fbc4d7674b2767b3e6445c521199a61e0ef4857b2be96c0",
     "test/fixtures/heart-blind-box-events.json": "5dc06d4c64c5958f9f662085407a3dd68a62e54d83afc42f33a7aa3dc77d2623",
     "test/fixtures/password-compatibility.json": "dc1a2c36a0e7ffd056b8214a1ce616a54b62c5fdbea6bed3007b20bdd550c1b9"

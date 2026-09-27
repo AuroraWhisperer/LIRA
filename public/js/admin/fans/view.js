@@ -27,21 +27,23 @@ function guardIcon(level) {
 function button(action, label, extra = '') {
   return `<button type="button" data-fan-action="${action}" ${extra}>${label}</button>`;
 }
-export function renderPeople(profiles, selected, filtered) {
+export function renderPeople(profiles, selected, filtered, archived = false) {
+  if (!profiles.length && archived)
+    return `<div class="fan-empty"><h3>${filtered ? '没有找到符合条件的归档档案。' : '暂无已归档档案。'}</h3>
+    ${filtered ? button('clear-filter', '清除筛选') : '<p class="fan-muted">归档后的档案会保留在这里，可随时恢复到主列表。</p>'}</div>`;
   if (!profiles.length)
     return `<div class="fan-empty"><h3>${filtered ? '没有符合条件的档案' : '暂无粉丝档案'}</h3>
     ${button(filtered ? 'clear-filter' : 'new', filtered ? '清除筛选' : '新建档案')}</div>`;
   return profiles
-    .map(
-      (
-        p,
-      ) => `<button type="button" class="fan-person ${selected === p.id ? 'is-selected' : ''}" data-fan-id="${attr(p.id)}" aria-pressed="${selected === p.id}">
-    <span class="fan-person-line"><span class="fan-person-name"><strong class="fan-name" data-guard-level="${attr(p.currentGuardLevel || '')}" title="${attr(p.platformName || p.alias)}">${html(p.platformName || p.alias || '未命名档案')}</strong>${p.favorite ? '<span class="fan-favorite-star" role="img" aria-label="特别关注" title="特别关注">★</span>' : ''}</span>${guardIcon(p.currentGuardLevel)}</span>
-    ${p.alias && p.platformName && p.alias !== p.platformName ? `<span class="fan-muted">常用称呼：${html(p.alias)}</span>` : ''}
+    .map((p) => {
+      const name = p.alias || p.platformName || '未命名档案';
+      const platformName = p.alias && p.platformName && p.alias !== p.platformName ? p.platformName : '';
+      return `<button type="button" class="fan-person ${selected === p.id ? 'is-selected' : ''}" data-fan-id="${attr(p.id)}" aria-pressed="${selected === p.id}">
+    <span class="fan-person-line"><span class="fan-person-name"><strong class="fan-name" data-guard-level="${attr(p.currentGuardLevel || '')}" title="${attr(name + (platformName ? `（${platformName}）` : ''))}">${html(name)}${platformName ? `<wbr><span class="fan-person-platform-name">（${html(platformName)}）</span>` : ''}</strong>${p.favorite ? '<span class="fan-favorite-star" role="img" aria-label="特别关注" title="特别关注">★</span>' : ''}</span>${guardIcon(p.currentGuardLevel)}</span>
     ${p.summary || p.tags?.length ? `<span class="fan-person-summary">${html(p.summary || p.tags.slice(0, 2).join('、'))}</span>` : ''}
     ${p.nextReminder ? `<span class="fan-person-date">${html(p.nextReminder.title)} · ${html(dateLabel(p.nextReminder.date))}</span>` : ''}
-  </button>`,
-    )
+  </button>`;
+    })
     .join('');
 }
 
@@ -151,7 +153,7 @@ export function renderDetail(profile, tab = 'overview') {
     <p class="fan-detail-meta fan-muted">${profile.identity ? `<span>${profile.identity.type === 'uid' ? 'UID' : 'B 站账号'} ${html(profile.identity.value)}</span>` : '<span>未关联 B 站账号</span>'}${profile.alias && profile.platformName && profile.alias !== profile.platformName ? `<span>常用称呼：${html(profile.alias)}</span>` : ''}${profile.platformObservedAt ? `<span>更新于 ${html(dateLabel(profile.platformObservedAt))}</span>` : ''}</p>
     ${profile.summary ? `<p class="fan-prose">${html(profile.summary)}</p>` : ''}</div>
     <div class="fan-header-actions"><div class="fan-actions">${button('new-note', '记一笔', 'class="primary"')}${button('favorite', profile.favorite ? '已关注' : '特别关注', `aria-pressed="${profile.favorite}"`)}</div>
-    <div class="fan-actions">${button('back-list', '返回列表', 'class="fan-back-list"')}${button('edit-profile', '编辑资料')}<details class="fan-more"><summary>更多</summary><div>${button('expand', '展开详情')}${button('archive', profile.archived ? '恢复档案' : '收起档案')}${button('delete', '永久删除')}</div></details></div></div></header>
+    <div class="fan-actions">${button('back-list', '返回列表', 'class="fan-back-list"')}${button('edit-profile', '编辑资料')}${profile.archived ? button('archive', '恢复到主列表') : ''}<details class="fan-more"><summary>更多</summary><div>${button('expand', '展开详情')}${profile.archived ? '' : `${button('archive', '归档档案')}<p class="fan-muted fan-archive-hint">保留资料与记录，归档期间不显示提醒。</p>`}${button('delete', '永久删除')}</div></details></div></div></header>
     <nav class="fan-detail-tabs" role="tablist" aria-label="档案详情">${[
       ['overview', '资料'],
       ['interactions', '手记'],

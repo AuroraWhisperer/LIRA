@@ -214,11 +214,12 @@ const DEFAULT_SETTINGS = {
   weSingLyricOffsetMs: '0',
   weSingLyricSource: 'netease',
   weSingSmartLyricMatch: 'true',
-  // 数据保留期（天），0 表示不清理。默认只清理礼物原始报文，业务数据保持永久保留。
+  // 数据保留期（天），0 表示不清理。默认清理礼物原始报文和 AI 请求审计，业务流水永久保留。
   giftRawJsonRetentionDays: '30',
   giftEventRetentionDays: '0',
   requestRetentionDays: '0',
   superChatRetentionDays: '0',
+  aiRequestLogRetentionDays: '30',
   autoRetentionOnStartup: 'true',
   openingEnabled: 'false',
   openingTitle: '唱一首，在一首，给你的歌',

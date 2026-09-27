@@ -22,6 +22,7 @@ function createFanUi() {
     roomId: '',
     profile: null,
     profiles: [],
+    listStatus: 'ready',
     tab: 'overview',
     page: 'profiles',
     filters: [],
@@ -30,6 +31,7 @@ function createFanUi() {
     syncStatus: 'pending',
     sequence: 0,
     selection: 0,
+    selectionId: null,
     editor: null,
     expanded: false,
   };
@@ -135,11 +137,16 @@ function createFanUi() {
   function renderList() {
     const list = get('fanPeople');
     const scroll = list.scrollTop;
-    list.innerHTML = renderPeople(
-      state.profiles,
-      state.profile?.id,
-      Boolean(get('fanSearch').value || state.filters.length || state.archived),
-    );
+    list.innerHTML = state.listStatus === 'loading'
+      ? '<p class="fan-empty" role="status">正在加载档案…</p>'
+      : state.listStatus === 'error'
+        ? '<p class="fan-empty">档案加载失败，请在设置中重新加载。</p>'
+        : renderPeople(
+            state.profiles,
+            state.profile?.id,
+            Boolean(get('fanSearch').value || state.filters.length),
+            state.archived,
+          );
     list.scrollTop = scroll;
     get('fanSplit').classList.toggle('fan-has-selection', Boolean(state.profile));
     get('fanSplit').classList.toggle('fan-expanded', state.expanded);
@@ -151,16 +158,28 @@ function createFanUi() {
   async function load(open = false) {
     const sequence = ++state.sequence;
     get('fanPageError').hidden = true;
-    const data = await request(open || !state.contextId ? 'open' : 'list', {
-      query: get('fanSearch').value,
-      filters: state.filters,
-      archived: state.archived,
-    });
-    if (sequence !== state.sequence) return;
+    state.listStatus = 'loading';
+    renderList();
+    let data;
+    try {
+      data = await request(open || !state.contextId ? 'open' : 'list', {
+        query: get('fanSearch').value,
+        filters: state.filters,
+        archived: state.archived,
+      });
+    } catch (error) {
+      if (sequence !== state.sequence) return false;
+      state.listStatus = 'error';
+      renderList();
+      throw error;
+    }
+    if (sequence !== state.sequence) return false;
     state.profiles = data.profiles;
     state.settings = data.settings;
+    state.listStatus = 'ready';
     renderList();
     await loadReminders();
+    return sequence === state.sequence;
   }
 
   async function loadReminders() {
@@ -174,10 +193,18 @@ function createFanUi() {
     get('fanRemindersPage').innerHTML = renderReminders(items);
   }
 
-  async function select(id, resetTab = true) {
-    const selection = ++state.selection;
+  async function select(id, resetTab = true, alignScope = false) {
+    let selection = ++state.selection;
+    state.selectionId = id;
     const profile = await request('detail', { id });
     if (selection !== state.selection) return;
+    if (alignScope && Boolean(profile.archived) !== state.archived) {
+      changeScope(Boolean(profile.archived));
+      selection = state.selection;
+      state.selectionId = id;
+      const contextId = state.contextId;
+      if (!(await load()) || selection !== state.selection || contextId !== state.contextId) return;
+    }
     state.profile = profile;
     if (resetTab) {
       state.tab = 'overview';
@@ -191,10 +218,38 @@ function createFanUi() {
     get('fanProfilesPage').hidden = state.page !== 'profiles';
     get('fanRemindersPage').hidden = state.page !== 'reminders';
     get('fanSettingsPage').hidden = state.page !== 'settings';
-    get('fanNewProfileButton').hidden = state.page !== 'profiles';
+    get('fanNewProfileButton').hidden = state.page !== 'profiles' || state.archived;
     get('fanArchivedNotice').hidden = !state.archived;
+    for (const node of root.querySelectorAll('.fan-scope [data-fan-action]'))
+      node.setAttribute('aria-pressed', String((node.dataset.fanAction === 'archived') === state.archived));
     for (const node of root.querySelectorAll('[data-fan-page][role="tab"]'))
       node.setAttribute('aria-selected', String(node.dataset.fanPage === state.page));
+  }
+
+  function clearSelection(preservePending = false) {
+    state.profile = null;
+    if (!preservePending) {
+      state.selection++;
+      state.selectionId = null;
+    }
+    state.tab = 'overview';
+    state.expanded = false;
+    detailNode.innerHTML = '<p class="fan-empty">选择一份档案查看详情</p>';
+    renderList();
+  }
+
+  function changeScope(archived) {
+    clearTimeout(searchTimer);
+    state.archived = archived;
+    state.page = 'profiles';
+    state.filters = [];
+    get('fanSearch').value = '';
+    for (const button of root.querySelectorAll('[data-fan-filter]'))
+      button.setAttribute('aria-pressed', String(!button.dataset.fanFilter));
+    state.profiles = [];
+    state.listStatus = 'loading';
+    clearSelection();
+    showPage();
   }
 
   function openForm(description, save) {
@@ -275,6 +330,13 @@ function createFanUi() {
       renderList();
       return;
     }
+    if (name === 'archived' || name === 'back-profiles') {
+      const archived = name === 'archived';
+      if (archived === state.archived) return;
+      changeScope(archived);
+      await load();
+      return;
+    }
     if (!state.contextId) await load(true);
     if (name === 'guard-roster') {
       await load(true);
@@ -313,17 +375,6 @@ function createFanUi() {
       await load();
       return;
     }
-    if (name === 'archived' || name === 'back-profiles') {
-      state.archived = name === 'archived';
-      state.page = 'profiles';
-      state.profile = null;
-      state.selection++;
-      state.expanded = false;
-      detailNode.innerHTML = '<p class="fan-empty">选择一份档案查看详情</p>';
-      showPage();
-      await load();
-      return;
-    }
     if (name === 'backup') {
       const data = await request('backup');
       transfer.download(JSON.stringify(data, null, 2), 'LIRA-粉丝档案备份.json', 'application/json');
@@ -356,6 +407,7 @@ function createFanUi() {
       state.expanded = false;
       state.selection++;
       detailNode.innerHTML = '<p class="fan-empty">档案已全部清除。</p>';
+      showPage();
       await load();
       toast(`已清除 ${result.deletedCount} 份档案`);
       return;
@@ -367,7 +419,7 @@ function createFanUi() {
       return;
     }
     if (name === 'open-reminder') {
-      await select(element.dataset.profileId);
+      await select(element.dataset.profileId, true, true);
       return;
     }
     if (name.startsWith('reminder-')) {
@@ -403,12 +455,29 @@ function createFanUi() {
         id: element.dataset.recordId,
         choice: name.slice(8),
       });
-    } else if (name === 'archive' || name === 'favorite') {
-      const key = name === 'archive' ? 'archived' : 'favorite';
+    } else if (name === 'archive') {
+      const profile = state.profile;
+      const selection = state.selection;
+      const saved = await request('save', {
+        id: profile.id,
+        revision: profile.revision,
+        archived: !profile.archived,
+      });
+      if (saved.archived !== state.archived) {
+        state.profiles = state.profiles.filter((item) => item.id !== saved.id);
+        if (selection === state.selection || state.selectionId === saved.id) clearSelection();
+        else if (state.profile?.id === saved.id) clearSelection(true);
+      }
+      toast(saved.archived
+        ? '已归档，资料仍保留。可在‘已归档’中恢复。'
+        : '已恢复到主列表，可在‘当前档案’中查看。');
+      await load();
+      return;
+    } else if (name === 'favorite') {
       state.profile = await request('save', {
         id: state.profile.id,
         revision: state.profile.revision,
-        [key]: !state.profile[key],
+        favorite: !state.profile.favorite,
       });
     } else if (name === 'delete') {
       const id = state.profile.id;

@@ -56,6 +56,18 @@ Windows 更新器沿用 `electron-updater.autoUpdater` 及其 Electron HTTP exec
 
 订阅的 electron-updater 事件 → 状态迁移:checking-for-update / update-available / update-not-available / download-progress / update-downloaded / error(错误映射见 §5)。`download-progress` 中计算下载速度 `speed = bytesDiff / timeDiff`(首帧为 0),percent 钳制 0-100([update-manager.js:65-86](../../../src/electron/update-manager.js#L65-L86))。
 
+## 客户端资源检查
+
+版本更新页「本地数据与支持」提供手动只读诊断，独立于更新状态机和授权构建指纹。`resource-integrity-manager.js` 拥有内存状态、单任务和取消；`desktop-resource-integrity.js` 负责原始文件系统及状态投递组合，主进程在退出/重启和安装更新前停止并等待检查。下载安装包和普通更新检查不停止资源检查。
+
+只支持打包 Windows x64。固定读取 `resources/client-integrity-manifest.json`，核对 appVersion/platform/arch、schemaVersion=1、scope=packaged-app-resources、SHA-256 及安全路径；范围仅 `app.asar` 和清单中的 `app.asar.unpacked/` 普通文件。清单最多 4 MiB/10000 项，拒绝链接、目录穿越、Windows 路径别名和大小写重复。清单无效不重建基准、不联网回退；额外资源和用户数据不扫描。
+
+`original-fs` 以 256 KiB 块顺序读取，比较文件大小、摘要及读取前后的句柄/路径身份。检查时限 120 秒，文件计数进度最多每 250 ms 推送一次，开始/结束立即通知。页面最多 20 条详情，日志最多 200 条，只含资源相对路径和归一化原因，无原始异常和文件内容。
+
+快照字段：`revision`、`status`、`appVersion`、`scope`、`startedAt`、`finishedAt`、`totalFiles`（未知为 null）、`checkedFiles`、`complete`、`issueCount`、`unresolvedCount`、`details[{path,reasonCode}]`、`reasonCode`。状态为 idle/checking/passed/issues/inconclusive/unavailable/cancelled。确定缺失或不一致优先为 issues；存在读取失败/变化/超时则 complete=false，保留已确认异常。取消后不会被晚到回调覆盖，新一轮重新读取全部资源。
+
+通过仅表示「本次检查范围内的资源与校验清单一致」，不是完整运行环境或防篡改认证。异常时建议备份后手动重装；日志与官方项目页面沿用已有受控入口，不自动更新、删除或修复。清单及最终安装器发布门禁见 [build.md](../engineering/build.md)。测试：`resource-integrity-files`、`resource-integrity-manager`、`resource-integrity-bridge`、真实 `resource-integrity-electron`，以及既有更新页、IPC、退出回归。
+
 ## 4. IPC 与 UI 同步
 
 | 通道                        | 方向    | 说明                                                | 出处                                                       |

@@ -21,8 +21,8 @@
 | `verify` | `npm run verify:contracts && npm run verify:quick && npm test` | 完整门禁:契约输入 → 快速检查 → 全量测试 |
 | `diagnose:wesing`     | `node scripts/inspect-wesing-playback.js`                                                                                                                         | 全民 K 歌播放状态交互诊断(见 [test.md](test.md) §4 与 [backend/music/wesing.md](../backend/music/wesing.md)) |
 | `make:icon`           | `node scripts/create-icon.js`                                                                                                                                     | 生成 `build/icon.png` + `build/icon.ico`(见 §5)                                                              |
-| `dist:win`            | `npm run make:icon && electron-builder --win nsis --x64`                                                                                                          | 正式打包:下载 Electron 二进制 + 构建 NSIS 安装包                                                             |
-| `dist:win:local`      | `npm run make:icon && set ELECTRON_SKIP_BINARY_DOWNLOAD=1 && electron-builder --win nsis --x64 --config.electronDist=node_modules/electron/dist`                  | 本地打包:跳过二进制下载,复用 `node_modules/electron/dist`                                                    |
+| `dist:win`            | `npm run make:icon && electron-builder --win nsis --x64 --publish never`                                                                                                          | 正式打包:下载 Electron 二进制 + 构建 NSIS 安装包                                                             |
+| `dist:win:local`      | `npm run make:icon && set ELECTRON_SKIP_BINARY_DOWNLOAD=1 && electron-builder --win nsis --x64 --publish never --config.electronDist=node_modules/electron/dist`                  | 本地打包:跳过二进制下载,复用 `node_modules/electron/dist`                                                    |
 | `release:win`         | `node scripts/publish-release.js`                                                                                                                                 | 完整发布流水线(见 §7)                                                                                        |
 
 - 出处:[package.json](../../../package.json) 的 `scripts` 字段。
@@ -117,23 +117,22 @@
 
 ## 7. 发布流程(scripts/publish-release.js)
 
-发布门禁先拒绝未提交或未跟踪的工作区变更，并核对本地标签对应提交和远端标签的 peeled commit 均与 HEAD 一致；图标生成后再次检查源状态。构建失败的一轮直接失败重试，不会因为已存在旧附件而判定成功。成功构建后逐项核对本次本地产物与远端附件的名称、字节数和 SHA-256；远端没有摘要时，下载到独立临时目录计算摘要并清理。Git 和 gh 使用直接进程参数，仅 Windows 的 npm/npx 使用命令 shell。导入脚本不会执行构建或发布，离线覆盖见 `test/publish-release.test.js`。
+支持的 Windows 构建入口统一指定 `--publish never`；`afterPack` 拒绝直接启用 builder 发布，以免 blockmap 或安装器在最终验证前开始上传。发布必须经过 `npm run release:win`。
 
-`npm run release:win` 一键发布,目标仓库取自 `build.publish[0]`([publish-release.js:12-13](../../../scripts/publish-release.js#L12-L13)):
+1. 拒绝有未提交/未跟踪修改的工作区，核对本地标签和远端 peeled commit 与 HEAD 一致；保留原标签创建/核验、代理探测和凭据脱敏。
+2. 解析 `GH_TOKEN` 或 gh CLI 登录态；生成图标后再次核验工作区与 HEAD。
+3. 只构建一次：`electron-builder --win nsis --x64 --publish never --config.electronDist=node_modules/electron/dist`。构建失败直接停止，不根据旧附件判定成功。
+4. `afterPack` 保留删除 default_app.asar 的行为，再按构建上下文版本/平台/架构生成资源清单；发生签名时 `afterSign` 重算最终资源。无签名构建不依赖 afterSign。
+5. `artifactBuildCompleted` 对 NSIS exe 执行最终资源验证；发布脚本再校验目标安装器，并记录 exe、exe.blockmap、latest.yml 的 SHA-256。验证失败不创建或上传发布附件。
+6. 验证后创建或复用 GitHub Release，标题使用当前版本，正文来自 UPDATE.md 的对应版本小节，经临时 notes 文件传入。
+7. 最多三次调用 `gh release upload --clobber` 上传同一组已验证文件；每次先复核全部文件摘要，文件改变则中止。重试不会重新构建。
+8. 每轮上传后核对远端名称、字节数和 SHA-256；远端无摘要时下载至独立临时目录计算并清理。不一致则重试，耗尽后报错。
 
-| 步骤 | 动作                                                                                                                                                                                                                                                                               | 出处                                                                                                                                                 |
-| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1    | 读 package.json `version` → tag `v{version}`;记录当前分支与 HEAD                                                                                                                                                                                                                   | [publish-release.js:8-11](../../../scripts/publish-release.js#L8-L11)                                                                                |
-| 2    | `ensureTag`:本地无标签则创建**附注标签**;远端无则 `git push origin v{version}`                                                                                                                                                                                                     | [publish-release.js:67-79](../../../scripts/publish-release.js#L67-L79)                                                                              |
-| 3    | `ensureGhToken`:取 `GH_TOKEN` 环境变量,未设则回退 `gh auth token`(gh CLI 已登录即可);两者皆无则报错                                                                                                                                                                                | [publish-release.js:81-89](../../../scripts/publish-release.js#L81-L89)                                                                              |
-| 4    | `ensureGithubRelease`:先 `gh release view` 探测;不存在则 `gh release create` **提前建好 Release**(规避 electron-builder 并发建 Release 的竞态),标题 `v{version}`,正文取 `UPDATE.md` 的 `## v{version} ` 小节,经临时文件 `--notes-file` 传入(规避 Windows shell 对反引号的命令替换) | [publish-release.js:91-115](../../../scripts/publish-release.js#L91-L115)                                                                            |
-| 5    | `npm run make:icon` 生成图标                                                                                                                                                                                                                                                       | [publish-release.js:30](../../../scripts/publish-release.js#L30)                                                                                     |
-| 6    | 循环最多 3 次:`npx electron-builder --win nsis --x64 --publish always --config.electronDist=node_modules/electron/dist`,env 注入 `ELECTRON_SKIP_BINARY_DOWNLOAD=1`(本地二进制,不重新下载)                                                                                          | [publish-release.js:32-44](../../../scripts/publish-release.js#L32-L44)                                                                              |
-| 7    | `findMissingAssets` 用 `gh api repos/{owner}/{repo}/releases/tags/{tag}` 核对三个产物均处于 `uploaded`:安装包 exe、`exe.blockmap`、`latest.yml`;缺什么补什么                                                                                                                       | [publish-release.js:46-52](../../../scripts/publish-release.js#L46-L52)、[publish-release.js:133-153](../../../scripts/publish-release.js#L133-L153) |
-| 8    | 3 次尝试后仍缺产物 → 抛错并提示 `gh release view v{version}` 人工介入                                                                                                                                                                                                              | [publish-release.js:55-58](../../../scripts/publish-release.js#L55-L58)                                                                              |
+**最终资源验证**：`scripts/verify-client-installer.js` 使用 Windows 自带的 libarchive `tar.exe` 从当前 NSIS exe 读取嵌入应用归档。先检查列表中将被提取的路径、类型及重复项，再只提取清单和应用资源到独立临时目录；不运行安装器，不读取现有安装/用户数据。要求清单与实际随包应用资源集合及字节完全一致，结束后清理临时目录。构建主机缺少兼容的 tar，或后续 NSIS 格式不再支持此提取方式时，构建/发布失败，不能跳过验证或退回只验证 win-unpacked。非 Windows 构建主机需要兼容的 `bsdtar`。
 
-**凭据**:仅认 `GH_TOKEN`(或 gh CLI 登录态),不读 `GITHUB_TOKEN`。`latest.yml` 由 electron-builder `--publish always` 上传,是 electron-updater 的更新清单,运行时机制见 [desktop/update.md](../desktop/update.md)。
+**清单**：`resources/client-integrity-manifest.json`，4 MiB/10000 项上限；仅包含 app.asar 和实际存在的 app.asar.unpacked 普通文件；稳定排序，不含清单自身、运行环境和用户数据。构建生成器和运行时共用 `resource-integrity-files.js` 的格式/路径/摘要规则。运行期语义见 [desktop/update.md](../desktop/update.md)。
 
+**凭据**：保持 GH_TOKEN/gh 登录态和已有输出脱敏，不将密钥放入参数。Git/gh 直接启动，仅 Windows npm/npx 使用 shell。latest.yml 与安装包/块映射一同由 gh 上传，不再由 builder 自动上传。测试见 `test/publish-release.test.js`、`test/packaging-scope.test.js`、`test/client-installer-integrity.test.js`。
 ## 8. 运行模式对比
 
 | 模式     | 入口                   | ELECTRON_DESKTOP | 进程                          | 认证与功能                                                                                                                                            |

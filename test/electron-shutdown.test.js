@@ -26,6 +26,24 @@ function assertFinalized(harness, restart) {
   assert.equal(harness.clock.pending, 0);
 }
 
+test('shutdown drains resource checking before playback and runtime teardown', async () => {
+  const integrityIdle = Promise.withResolvers();
+  const h = createShutdownHarness({ integrityIdle });
+  await h.start();
+  h.quit();
+  h.remoteIdle.resolve();
+  h.cloudIdle.resolve();
+  await h.settle();
+  assert.ok(h.count('integrity:stop') > 0);
+  assert.equal(h.count('runtime:stop'), 0);
+  integrityIdle.resolve();
+  await h.settle();
+  assert.equal(h.count('runtime:stop'), 1);
+  h.backendStop.resolve();
+  await h.settle();
+  assertFinalized(h, false);
+});
+
 test('shutdown drains ordinary login writes before stopping the backend', async () => {
   const authIdle = Promise.withResolvers();
   const h = createShutdownHarness({ authIdle });

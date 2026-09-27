@@ -215,3 +215,24 @@
   outline: 2px solid var(--primary-strong);
   outline-offset: 2px;
 }
+
+.desktop-integrity-result {
+  display: grid;
+  gap: var(--spacing-sm);
+  padding-bottom: var(--spacing-md);
+}
+
+.desktop-integrity-result p,
+.desktop-integrity-result ul {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.desktop-integrity-result .desktop-support-action {
+  justify-self: start;
+}
+
+.desktop-support-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}

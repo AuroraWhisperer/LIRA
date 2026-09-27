@@ -1,6 +1,6 @@
 # HTTP API 端点注册表
 
-粉丝私人档案不进入本地 HTTP/WS API 或公开状态，使用 [受限 IPC](../desktop/preload.md)。主进程通过 DeviceBearer 调用 Server `GET /api/device/fan-facts?after=&epoch=&limit=200` 获取可靠 typed identity 与会员观察；scope 来自已认证账号，离线保留本机编辑，旧服务 404 显示同步不可用。契约见 companion Server `docs/protocol/fan-facts.md`、Device OpenAPI 和 fixture；本地实现需求见 [fan-profiles](../../../specs/fan-profiles.md)。
+粉丝私人档案不进入本地 HTTP/WS API 或公开状态，使用 [受限 IPC](../desktop/preload.md)。主进程通过 DeviceBearer 调用远端 `LIRA Server: GET /api/device/fan-facts?after=&epoch=&limit=200` 获取可靠 typed identity 与会员观察；scope 来自已认证账号，离线保留本机编辑，旧服务 404 显示同步不可用。契约见 companion Server `docs/protocol/fan-facts.md`、Device OpenAPI 和 fixture；本地实现需求见 [fan-profiles](../../../specs/fan-profiles.md)。
 
 礼物身份扩展（2026-09-13）：本地 `/api/overtime/gifts`、`/api/overtime/gifts/catalog`、搜索响应中的完整礼物增加 `variantId` 与 `giftIdentity: {variantId, priceRaw, coinType, bagGift}`。全局快照以 `variantBlindBoxes` 提供完整官方关系，`blindBoxes` 保留当前投影的兼容关系；同 ID 资料不合并。`/api/overtime/rules` 保存可空 giftIdentity；规则快照增加 `bindingStatus`（bound/needs-selection），身份摘要与 giftId/giftName 必须一致。同一身份不能重复，旧无身份规则保留但不匹配普通平台事件，重新选择可保留原设置。见[礼物身份规格](../../../specs/gift-identity-overtime.md)。
 
@@ -9,6 +9,8 @@
 本文档是全部 HTTP API 端点的**唯一事实源**:每个端点的方法、路径、请求体、响应形态与错误码只在此成表。其他文档一律链接此处,不自行罗列端点。服务进程的端口、token 机制、请求管线详见 [server-core.md](server-core.md);WebSocket 消息与快照见 [ws.md](ws.md);数据库与设置见 [storage.md](storage.md)。
 
 ## 0. 路由机制与通用约定
+
+`npm run verify:docs` 的 `GOV-API-001` 从实际 `ROUTE_MODULES` 的 routes 映射推导本地方法/路径，并与本文完整的反引号端点条目双向比较（支持 `GET/POST` 和查询参数）。新增或删除接口时同步修改所属表，不维护另一份路由清单。独立服务器接口放在标题含 `LIRA Server` 的章节；其他位置的远端引用明确使用 `LIRA Server: METHOD /api/path`，不计入本地注册表。
 
 2026-09-14 新增动态抽奖路由模块，使用原管理鉴权，不加入公开白名单。专用账号凭据只经 Electron 注入后端；HTTP 不能提交 `streamerId`、作者 UID、候选顺序或中奖 UID。当前路由为客户端简化流程，不包含独立公示会话。
 
@@ -26,7 +28,7 @@
 
 | 事实            | 值                                                                                                                                  | 出处                                                             |
 | --------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| 模块注册        | `ROUTE_MODULES` 数组按序 require **18 个路由模块**,每个模块导出 `prefixes[]` 与 `routes` 映射(`"METHOD /path"` → handler)           | [api-routes.js](../../../src/server/api-routes.js)   |
+| 模块注册        | `ROUTE_MODULES` 数组按序 require **19 个路由模块**,每个模块导出 `prefixes[]` 与 `routes` 映射(`"METHOD /path"` → handler)           | [api-routes.js](../../../src/server/api-routes.js)   |
 | 匹配顺序        | 按模块顺序做前缀匹配(`pathName.startsWith(prefix)`);**先注册的模块优先**,因此 `/api/music/wesing/*` 归属 WeSing 模块而非 music 模块 | [api-routes.js:29-39](../../../src/server/api-routes.js#L29-L39) |
 | 405 与 404 区分 | 模块前缀命中但路径没有对应方法时,`findRoute` 置 `pathExists` → **405**;任何模块前缀都不命中 → **404**                               | [api-routes.js:34-38](../../../src/server/api-routes.js#L34-L38) |
 | 请求体惰性读取  | `createBodyReader` 只在 handler 真正调用 `request.body()` 时读一次 JSON(GET 请求不读 body)                                          | [api-routes.js:42-48](../../../src/server/api-routes.js#L42-L48) |
@@ -362,6 +364,8 @@ handler 未包 try/catch:抛错走顶层 **500**。
 | 端点                                | 请求                                                                                                                          | 响应(data)                                          | 错误码                              |
 | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- | ----------------------------------- |
 | `POST /api/gifts/sprint/reset`      | 无                                                                                                                            | 重置礼物冲刺进度;广播 `gift:sprint:reset`           | —                                   |
+| `GET /api/gifts/effects/resolve` | 查询参数 `giftId`（1–12 位正整数） | 解析可播放的 MP4 全屏特效，返回 `{giftId,effect}` | 400（ID 无效）、404（无可播放特效） |
+| `POST /api/gifts/effects/preview` | `{giftId}`（1–12 位正整数） | 返回 `{giftId,effect}`，并广播 `gift:effect` 预览（`eventId:0,preview:true`） | 400（ID 无效）、404（无可播放特效） |
 | `GET /api/gifts/history`            | 查询参数:`query?`(非空时规范化后 **1–100 个 Unicode code point**)、`range?`(`7d\|30d\|90d\|all\|today`,默认 `30d`)、`limit?`(**1–100**,默认 50)、`cursor?`(opaque keyset)、`sortField?`(`created_at\|gift_name\|price\|remarks`)、`sortDirection?`(`asc\|desc`)；`startDate/endDate`(北京时间 YYYY-MM-DD)、`userQuery/giftQuery`(独立名称交集)、`amountAbove?`(人民币元，非负且精确到分；单条总金额严格大于该值，留空不限；与其他条件取交集并绑定游标)、`viewRevision`(来源投影版本)；禁止 `sourceId/source_id` | 当前授权 source 的付费礼物分页、`total/totalPages` 及同步完整性状态 | 400(参数/排序/来源选择器无效)、409(来源未就绪) |
 | `POST /api/gifts/selection` | `viewRevision`、可选 `eventIds`（最多 10000）及与 history 相同的筛选/排序 | 固定记录快照，不合并；无 eventIds 时选择全部筛选结果，保留 partial 状态 | 400(无效参数/超限)、409(来源变化或记录失效) |
 | `GET /api/gifts/card-profiles` | 可选 `viewRevision`；来源由当前授权决定，日期固定北京时间今日 | 返回 `viewRevision/day/items/partial`；items 仅含 eventId、senderId、userName、avatarUrl、guardLevel、createdAt。运行时遍历服务端分页并验证来源、日期和同步代次；离线或旧服务器只复用同来源/日期缓存，否则返回空资料及 partial，不猜测身份 | 409(来源或日期变化/来源未就绪) |

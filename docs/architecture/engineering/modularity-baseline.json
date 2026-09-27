@@ -4,9 +4,9 @@
     {
       "path": "src/electron/main.js",
       "kind": "review",
-      "maxLines": 712,
+      "maxLines": 724,
       "owner": "桌面组合入口",
-      "reason": "2026-09-15 礼物互动接入复核：组合入口仅增加专用 IPC 的注册与关闭清理，设置确认/串行写入仍归云同步控制器，窄 IPC 校验在独立模块；保留 2026-09-14 抽奖认证与 runtime 接线。保护测试为 electron-shutdown 与 gift-interaction-controls。 2026-09-18 集成门禁逐块复核：礼物导出仅增加 IPC/controller 导入、启动接线和关闭清理，数据选择及文件导出仍在独立 controller；没有将业务逻辑加入入口。补齐既有 shutdown harness 两个依赖桩后，以启动/停机和 gift-export-controller 测试验证组合边界。 2026-09-18 粉丝档案逐项复核：粉丝档案的同步/来源校验已提取为 fan-profile-controller 与 fan-profile-ipc；入口只注册、传依赖、在现有 drain 集合中关闭。未增加领域状态；electron-shutdown 新增粉丝同步 drain 断言。 2026-09-25 审计跟进逐块复核：仅为旧 IPC 注入当前窗口/服务 origin，并将现有认证 owner 加入停机 drain；净增两行依赖接线。来源判定独立在 main-window-ipc，取消和串行写入在 desktop-auth-controller；不为两行组合接线新建抽象或压缩代码。legacy-ipc-source、真实 desktop-auth-race-electron 与 electron-shutdown 保护合法调用和停机顺序。",
+      "reason": "2026-09-15 礼物互动接入复核：组合入口仅增加专用 IPC 的注册与关闭清理，设置确认/串行写入仍归云同步控制器，窄 IPC 校验在独立模块；保留 2026-09-14 抽奖认证与 runtime 接线。保护测试为 electron-shutdown 与 gift-interaction-controls。 2026-09-18 集成门禁逐块复核：礼物导出仅增加 IPC/controller 导入、启动接线和关闭清理，数据选择及文件导出仍在独立 controller；没有将业务逻辑加入入口。补齐既有 shutdown harness 两个依赖桩后，以启动/停机和 gift-export-controller 测试验证组合边界。 2026-09-18 粉丝档案逐项复核：粉丝档案的同步/来源校验已提取为 fan-profile-controller 与 fan-profile-ipc；入口只注册、传依赖、在现有 drain 集合中关闭。未增加领域状态；electron-shutdown 新增粉丝同步 drain 断言。 2026-09-25 审计跟进逐块复核：仅为旧 IPC 注入当前窗口/服务 origin，并将现有认证 owner 加入停机 drain；净增两行依赖接线。来源判定独立在 main-window-ipc，取消和串行写入在 desktop-auth-controller；不为两行组合接线新建抽象或压缩代码。legacy-ipc-source、真实 desktop-auth-race-electron 与 electron-shutdown 保护合法调用和停机顺序。 2026-09-26 客户端资源检查复核：扫描/schema/摘要状态已拆分为 resource-integrity-files、resource-integrity-manager，原始文件系统和受限状态投递由 desktop-resource-integrity 组合；main 净增 12 行仅负责创建单例、注入 IPC 与安装前 stop、现有 shutdown drain，不承载新业务判断。resource-integrity-bridge、真实 resource-integrity-electron 和 electron-shutdown 保护边界及取消顺序。",
       "removal": "继续按真实独立职责整理组合阶段；保留启动失败、授权及停机验证。",
       "reviewBy": "2026-12-18",
       "test": "test/electron-shutdown.test.js"
@@ -130,6 +130,36 @@
       "removal": "增加独立采集模式时分组，保留录制状态转换覆盖。",
       "reviewBy": "2026-12-13",
       "test": "test/wesing-capture-recording-mode.test.js"
+    },
+    {
+      "path": "public/css/admin/other-features/fan-profiles.css",
+      "kind": "review",
+      "maxLines": 616,
+      "owner": "粉丝档案页面样式",
+      "reason": "2026-09-26 逐块复核：新增归档范围按钮、恢复操作和别名/平台名排版，均服务同一档案列表与详情页，复用既有主题变量；响应式规则与同页选择器保持相邻。没有引入其他页面样式或全局覆盖，单独拆出二十余行归档样式只会分散同一组件的级联关系。",
+      "removal": "新增独立页面或可复用组件时按样式 owner 提取；本文件不得容纳无关工具样式。",
+      "reviewBy": "2026-12-18",
+      "test": "test/frontend-fan-profiles.test.js"
+    },
+    {
+      "path": "public/js/admin/fans/index.js",
+      "kind": "review",
+      "maxLines": 646,
+      "owner": "粉丝档案页面状态与交互协调",
+      "reason": "2026-09-26 审阅归档恢复增量：列表 loading/error、范围切换、详情选择代次和提醒跳转共同维护一个页面状态 owner；表单、渲染、转移仍由现有 forms/view/transfer-ui 模块持有，没有新增持久化或服务端规则。异步切换、迟到响应、保存成功后刷新失败及提醒跳转均有直接回归，不为缩行把共享选择状态分散到多个控制器。",
+      "removal": "增加独立交互协议时提取窄协作者；同一范围与选择状态保持唯一 owner，长工厂按既有函数债务触发复审。",
+      "reviewBy": "2026-12-18",
+      "test": "test/frontend-fan-profiles.test.js"
+    },
+    {
+      "path": "test/frontend-fan-profiles.test.js",
+      "kind": "review",
+      "maxLines": 670,
+      "owner": "粉丝档案前端契约回归",
+      "reason": "2026-09-26 逐项审阅：归档/恢复、列表范围和异步选择回归复用同一隔离 archiveUi fixture，并通过真实 fans owner 验证身份、备注和提醒不丢失；其余用例覆盖同一页面的设置、提醒、会员和合并呈现，没有跨域测试或真实账号操作。当前保留同一页面契约，避免为行数复制 fixture 或降低竞态覆盖。",
+      "removal": "继续增加独立交互族时提取共享 fixture 并按归档恢复/设置与详情契约分组；不得通过删除断言降低行数。",
+      "reviewBy": "2026-12-18",
+      "test": "test/frontend-fan-profiles.test.js"
     }
   ]
 }

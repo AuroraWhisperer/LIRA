@@ -4,7 +4,8 @@ const { registerLicenseIpc } = require('../src/electron/ipc/license-ipc');
 const { createRemoteLicenseClient } = require('../src/electron/license/remote-license-client');
 const { createLicenseOperations } = require('../src/electron/license/license-operations');
 const { createHarness } = require('./helpers/license-manager-harness');
-const fixture = require('./fixtures/pk-report-settings.json');
+const { readServerFixture } = require('../scripts/verify-server-contract');
+const fixture = readServerFixture('docs/protocol/fixtures/pk-report-settings.json');
 
 test('PK settings use fixed authenticated endpoints and manager projection', async () => {
   const calls = [];

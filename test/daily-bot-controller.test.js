@@ -4,7 +4,8 @@ const assert = require('node:assert/strict');
 const { createDailyBotController } = require('../src/electron/daily-bot-controller');
 const { registerDailyBotIpc } = require('../src/electron/ipc/daily-bot-ipc');
 const { digest, sanitizeSettings } = require('../src/shared/daily-bot-contract');
-const fixture = require('./fixtures/daily-bots-v1.json');
+const { readServerFixture } = require('../scripts/verify-server-contract');
+const fixture = readServerFixture('docs/protocol/fixtures/daily-bots-v1.json');
 function setup(t, remote) {
   let identity = { streamerId: 1, accountName: 'synthetic' },
     listener;

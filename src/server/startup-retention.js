@@ -9,10 +9,11 @@ function runStartupRetention(settingsStore, dataService) {
       result.giftEventsDeleted +
       result.requestsDeleted +
       result.superChatsDeleted +
+      result.aiRequestLogsDeleted +
       result.cooldownsDeleted;
     if (total > 0) {
       console.log(
-        `[Startup] retention: rawJson=${result.giftRawJsonCleared} gifts=${result.giftEventsDeleted} requests=${result.requestsDeleted} sc=${result.superChatsDeleted} cooldowns=${result.cooldownsDeleted}`,
+        `[Startup] retention: rawJson=${result.giftRawJsonCleared} gifts=${result.giftEventsDeleted} requests=${result.requestsDeleted} sc=${result.superChatsDeleted} aiRequests=${result.aiRequestLogsDeleted} cooldowns=${result.cooldownsDeleted}`,
       );
     }
   } catch (error) {

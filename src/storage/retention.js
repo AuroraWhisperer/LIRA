@@ -12,6 +12,7 @@ const DEFAULT_POLICY = {
   giftEventDays: 0, // 礼物流水默认永久保留，删行要用户显式开启
   requestDays: 0, // 点歌流水同上
   superChatDays: 0,
+  aiRequestLogDays: 30,
   cooldownDays: 1,
 };
 
@@ -40,6 +41,7 @@ function applyRetentionPolicies(databases, options = {}) {
     giftEventsDeleted: 0,
     requestsDeleted: 0,
     superChatsDeleted: 0,
+    aiRequestLogsDeleted: 0,
     cooldownsDeleted: 0,
   };
 
@@ -97,6 +99,13 @@ function applyRetentionPolicies(databases, options = {}) {
     result.superChatsDeleted = deleteOlderThan(databases.superChatDb, 'super_chats', isoDaysAgo(superChatDays), dryRun);
   }
 
+  const aiRequestLogDays = normalizeDays(policy.aiRequestLogDays, DEFAULT_POLICY.aiRequestLogDays);
+  if (aiRequestLogDays > 0 && databases.songDb) {
+    // AI 审计使用毫秒时间戳，不同于业务流水的 ISO created_at。
+    const threshold = Date.now() - aiRequestLogDays * 24 * 60 * 60 * 1000;
+    result.aiRequestLogsDeleted = deleteOlderThan(databases.songDb, 'ai_request_logs', threshold, dryRun);
+  }
+
   const cooldownDays = normalizeDays(policy.cooldownDays, 1);
   if (cooldownDays > 0 && databases.songDb) {
     const threshold = Date.now() - cooldownDays * 24 * 60 * 60 * 1000;
@@ -133,6 +142,7 @@ function readRetentionPolicy(settings) {
     giftEventDays: normalizeDays(source.giftEventRetentionDays, DEFAULT_POLICY.giftEventDays),
     requestDays: normalizeDays(source.requestRetentionDays, DEFAULT_POLICY.requestDays),
     superChatDays: normalizeDays(source.superChatRetentionDays, DEFAULT_POLICY.superChatDays),
+    aiRequestLogDays: normalizeDays(source.aiRequestLogRetentionDays, DEFAULT_POLICY.aiRequestLogDays),
     cooldownDays: DEFAULT_POLICY.cooldownDays,
   };
 }
