@@ -1,6 +1,6 @@
 # QQ 音乐 Provider — 上游 API 逆向工程
 
-> 涉及文件:[qq-provider.js](../../../../src/music/providers/qq-provider.js)、[qq-provider-streams.js](../../../../src/music/providers/qq-provider-streams.js)、[lyrics.js](../../../../src/music/lyrics.js)(歌词行模型)、[provider-registry.js](../../../../src/music/provider-registry.js)
+> 涉及文件:[qq-provider.js](../../../../src/music/providers/qq-provider.js)、[qq-provider-streams.js](../../../../src/music/providers/qq-provider-streams.js)、[lyric-parser.js](../../../../src/music/lyric-parser.js)(歌词行模型)、[provider-registry.js](../../../../src/music/provider-registry.js)
 > 依赖:`@jixun/qmweb-sign`(zzcSign 签名)、`qrc-decoder`(QRC 加密歌词解密)
 
 本文档是 QQ 音乐**上游接口**(`*.qq.com`)的逆向工程唯一事实源:域名、请求头、Cookie 语义、GTK/zzcSign 签名、13 个上游端点及响应结构只在此成表。Cookie 持久化(登录分区、快照加密)见 [auth.md](../../desktop/auth.md);本地 `/api/music/*` 端点清单与行为见 [api.md](../api.md) 的 music-routes 节,不在此重复。网易云侧见 [netease-provider.md](netease-provider.md),歌词行解析算法见该文的歌词解析器一节。
@@ -377,7 +377,6 @@ POST https://u6.y.qq.com/cgi-bin/musics.fcg?_=<Date.now()>&sign=<zzcSign(body)>
 | `clampInteger`                     | 有限数值截断到 [min,max],否则回退值                       | [qq-provider-utils.js](../../../../src/music/providers/qq-provider-utils.js) |
 | `extractCookieValue`               | `(?:^                                                     | ;\s*)<name>=([^;]+)` 取单个 Cookie 值                                                  | [qq-provider-utils.js](../../../../src/music/providers/qq-provider-utils.js) |
 | `readQQModuleData`                 | 模块级 code 非 0 抛"<动作>失败(code=…)",返回 `inner.data` | [qq-provider-utils.js](../../../../src/music/providers/qq-provider-utils.js) |
-| `extractQQRecentSongs` 等 3 个辅助 | 泛化"最近播放"容器收集器,**当前无调用点(死代码)**         | [qq-provider-utils.js](../../../../src/music/providers/qq-provider-utils.js) |
 
 ## 9. 登录态要求总表
 

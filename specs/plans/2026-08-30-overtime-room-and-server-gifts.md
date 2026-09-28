@@ -28,7 +28,7 @@
 - 组合根：`src/server/domain-services.js`。
 - Admin 消费者：`public/js/admin/overtime.js`、`public/pages/admin/toolbox/overtime.html`。
 - 行为规范与事实文档：`specs/overtime-gift-sale-refresh_design.md`、`specs/remote-gift-catalog-sync_design.md`、`docs/architecture/backend/overtime.md`、`docs/architecture/backend/api.md`。
-- 直接测试：`test/remote-catalog-cache.test.js`、`test/remote-overtime-catalog.test.js`、`test/overtime-routes.test.js`、`test/frontend-admin-shell.test.js`、`test/frontend-queue.test.js`，以及新增的图片缓存聚焦测试。
+- 直接测试：`test/gifts/remote-catalog-cache.test.js`、`test/overtime/remote-overtime-catalog.test.js`、`test/overtime/overtime-routes.test.js`、`test/admin/frontend-admin-shell.test.js`、`test/songs/frontend-queue.test.js`，以及新增的图片缓存聚焦测试。
 
 ## Compatibility Constraints
 
@@ -51,15 +51,15 @@
 
 ## Milestones
 
-1. **目录所有权和服务器搜索**：先用测试证明 hybrid 的主读取/刷新走本地、远程搜索独立过滤和缓存降级，再修改服务。验证：`node --test test/remote-catalog-cache.test.js test/remote-overtime-catalog.test.js`。
-2. **安全图片缓存与本地响应**：测试 URL 限定、大小/类型校验、原子缓存复用、路径遍历拒绝和 GET/HEAD，再接入路由。验证：新增图片缓存测试和 `test/overtime-routes.test.js`。
-3. **Admin 与契约文档**：更新文案、端点和推送处理，并同步规范/架构事实。验证：`node --test test/frontend-admin-shell.test.js test/frontend-queue.test.js`。
+1. **目录所有权和服务器搜索**：先用测试证明 hybrid 的主读取/刷新走本地、远程搜索独立过滤和缓存降级，再修改服务。验证：`node --test test/gifts/remote-catalog-cache.test.js test/overtime/remote-overtime-catalog.test.js`。
+2. **安全图片缓存与本地响应**：测试 URL 限定、大小/类型校验、原子缓存复用、路径遍历拒绝和 GET/HEAD，再接入路由。验证：新增图片缓存测试和 `test/overtime/overtime-routes.test.js`。
+3. **Admin 与契约文档**：更新文案、端点和推送处理，并同步规范/架构事实。验证：`node --test test/admin/frontend-admin-shell.test.js test/songs/frontend-queue.test.js`。
 4. **集成验收**：在本地 Admin 刷新直播间目录、搜索服务器礼物并确认图片从 `127.0.0.1:3000/overtime-gift-images/...` 成功加载。验证：浏览器运行时检查、聚焦测试、diff 检查。
 
 ## Verification
 
-- `node --test test/remote-gift-image-cache.test.js test/remote-catalog-cache.test.js test/remote-overtime-catalog.test.js test/overtime-routes.test.js`
-- `node --test test/frontend-admin-shell.test.js test/frontend-queue.test.js test/overtime-service.test.js`
+- `node --test test/gifts/remote-gift-image-cache.test.js test/gifts/remote-catalog-cache.test.js test/overtime/remote-overtime-catalog.test.js test/overtime/overtime-routes.test.js`
+- `node --test test/admin/frontend-admin-shell.test.js test/songs/frontend-queue.test.js test/overtime/overtime-service.test.js`
 - 对实际 Admin 执行一次直播间刷新和一次服务器搜索，检查主目录来源、结果图片 `naturalWidth` 和网络 URL。
 - `git diff --check`
 - `git diff -- <task-owned files>` 并检查所有新增/修改行都对应本任务。

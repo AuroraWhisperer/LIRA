@@ -354,7 +354,7 @@ Bilibili 协议中的 `USER_TOAST_MSG*` 是礼物事件命令，不是本轮要�
 
 ### C03 · P2 · 导入摘要应反映部分失败
 
-位置：[public/js/admin/import.js:22](/D:/Work/Live/public/js/admin/import.js:22)、[public/js/admin/import.js:38](/D:/Work/Live/public/js/admin/import.js:38)、[public/js/admin/import.js:44](/D:/Work/Live/public/js/admin/import.js:44)。
+位置：[public/js/admin/song-import.js:22](/D:/Work/Live/public/js/admin/song-import.js:22)、[public/js/admin/song-import.js:38](/D:/Work/Live/public/js/admin/song-import.js:38)、[public/js/admin/song-import.js:44](/D:/Work/Live/public/js/admin/song-import.js:44)。
 
 页面详细结果已有新增、重复、失败计数，但 toast 恒为“Excel 导入完成”或“导入完成”。这句并不等于声称每行成功，然而当前绿色外观和缺少摘要区别容易让人漏看失败。
 
@@ -476,7 +476,7 @@ node --experimental-vm-modules --test --test-reporter=spec test/admin-style-owne
 | `public/js/admin/settings-operations.js`、`public/css/admin/toasts/live.css` | C01、V03/V04/V07 |
 | `public/js/admin/settings-form.js`、`public/js/admin/settings-auth.js`、`public/js/admin/settings-blindbox.js` | B07、U06、C01 |
 | `public/js/admin/danmaku-libraries.js` | U06；保留已有首个缺失字段聚焦行为 |
-| `public/js/admin/import.js` | C03；沿用现有导入详情 |
+| `public/js/admin/song-import.js` | C03；沿用现有导入详情 |
 | `public/js/admin/onboarding.js`、`public/js/admin/songs.js`、`public/js/admin/games-wheel.js` | C01/C04 的局部文案和反馈取舍 |
 | `public/js/gift-audit/index.js`、`public/js/gift-audit/view.js`、`public/css/gift-audit.css` | B08/B09、U05、V04/V06 |
 | `public/pages/admin/toolbox/usage-guide.html` | C05 |

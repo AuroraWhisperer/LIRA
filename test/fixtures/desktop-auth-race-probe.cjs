@@ -40,7 +40,7 @@ try {
   Module._load = originalLoad;
 }
 const auth = require('../../src/electron/bilibili-auth');
-const musicAuth = require('../../src/electron/auth-manager');
+const musicAuth = require('../../src/electron/music-auth-manager');
 
 function track(promise) {
   jobs.push(promise.catch(() => {}));

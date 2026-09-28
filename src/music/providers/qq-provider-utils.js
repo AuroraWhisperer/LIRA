@@ -208,62 +208,6 @@ function extractQQCoverUrl(song, albumMid) {
   return buildQQCoverUrl(albumMid);
 }
 
-function extractQQRecentSongs(data, limit) {
-  const candidates = [];
-  collectQQRecentSongContainers(data, candidates, false);
-  for (const candidate of candidates) {
-    const songs = collectQQSongsFromObject(candidate).slice(0, limit);
-    if (songs.length > 0) return songs;
-  }
-  return [];
-}
-
-function collectQQRecentSongContainers(value, output = [], inRecentContainer = false) {
-  if (!value || typeof value !== 'object') return output;
-  if (Array.isArray(value)) {
-    for (const item of value) collectQQRecentSongContainers(item, output, inRecentContainer);
-    return output;
-  }
-
-  const type = Number(value.Type || value.type || value.ResourceType || value.resourceType || 0);
-  if (type === 2 && value.Detail) output.push(value.Detail);
-
-  for (const [key, child] of Object.entries(value)) {
-    const isRecentKey = /recent|playhistory|history/i.test(key);
-    if ((inRecentContainer || isRecentKey) && /songlist|song_list|list|items|detail/i.test(key)) {
-      output.push(child);
-    }
-    collectQQRecentSongContainers(child, output, inRecentContainer || isRecentKey);
-  }
-  return output;
-}
-
-function collectQQSongsFromObject(value, output = [], seen = new Set()) {
-  if (!value || output.length >= 100) return output;
-  if (Array.isArray(value)) {
-    const mapped = value.map(mapQQSong).filter(Boolean);
-    if (mapped.length >= Math.min(value.length, 2)) {
-      for (const song of mapped) {
-        if (!seen.has(song.id)) {
-          seen.add(song.id);
-          output.push(song);
-        }
-      }
-      return output;
-    }
-    for (const item of value) collectQQSongsFromObject(item, output, seen);
-    return output;
-  }
-  if (typeof value !== 'object') return output;
-  const song = mapQQSong(value);
-  if (song && !seen.has(song.id)) {
-    seen.add(song.id);
-    output.push(song);
-  }
-  for (const child of Object.values(value)) collectQQSongsFromObject(child, output, seen);
-  return output;
-}
-
 function normalizeQQPlaylistWriteTarget(playlist) {
   if (!playlist || typeof playlist !== 'object') throw new Error('缺少 QQ 音乐歌单信息。');
   const dirId = Number(playlist.dirId);

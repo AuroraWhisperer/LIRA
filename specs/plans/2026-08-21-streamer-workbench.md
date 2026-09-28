@@ -13,14 +13,14 @@
 
 ## Current Behavior
 
-`public/js/admin/todo.js` 使用 `admin.streamerPlanner.v1` 在 `localStorage` 中保存任务数组。任务只有今天、本周、本月三个时间桶、四个类别和五档百分比进度；首次使用自动写入六条示例任务。`public/pages/admin/toolbox/planner.html` 和 `public/css/admin/other-features/streamer-planner.css` 将这些任务显示成三栏时间线。`test/toolbox-todo.test.js` 覆盖 HTML 结构、窄屏布局、任务增删改和 Admin 初始化。
+`public/js/admin/streamer-planner.js` 使用 `admin.streamerPlanner.v1` 在 `localStorage` 中保存任务数组。任务只有今天、本周、本月三个时间桶、四个类别和五档百分比进度；首次使用自动写入六条示例任务。`public/pages/admin/toolbox/planner.html` 和 `public/css/admin/toolbox/streamer-planner.css` 将这些任务显示成三栏时间线。`test/admin/streamer-planner.test.js` 覆盖 HTML 结构、窄屏布局、任务增删改和 Admin 初始化。
 
 ## Ownership
 
-- Owner: `public/js/admin/todo.js`、`public/pages/admin/toolbox/planner.html`、`public/css/admin/other-features/streamer-planner.css`
+- Owner: `public/js/admin/streamer-planner.js`、`public/pages/admin/toolbox/planner.html`、`public/css/admin/toolbox/streamer-planner.css`
 - Contract: `docs/architecture/frontend/app.md` §6、`docs/architecture/frontend/pages.md`
 - Consumers: `public/js/admin/app.js`、`public/js/admin/index.js`、`public/pages/admin/toolbox/shell-start.html`
-- Focused test: `test/toolbox-todo.test.js`
+- Focused test: `test/admin/streamer-planner.test.js`
 
 ## Compatibility Constraints
 
@@ -53,16 +53,16 @@
 
 ## Proposed Changes
 
-- `public/js/admin/todo.js`: 引入 v2 工作台状态、v1 迁移、场次自动保存、阶段清单、备忘增删及转计划；保留现有任务 API 的兼容入口。
+- `public/js/admin/streamer-planner.js`: 引入 v2 工作台状态、v1 迁移、场次自动保存、阶段清单、备忘增删及转计划；保留现有任务 API 的兼容入口。
 - `public/pages/admin/toolbox/planner.html`: 替换三时间桶页面为场次条、直播阶段清单和备忘面板。
-- `public/css/admin/other-features/streamer-planner.css`: 实现桌面优先的导播工作台布局、阶段轨道、备忘卡和窄窗口降级。
+- `public/css/admin/toolbox/streamer-planner.css`: 实现桌面优先的导播工作台布局、阶段轨道、备忘卡和窄窗口降级。
 - `public/pages/admin/toolbox/shell-start.html`: 将侧栏说明改成“直播清单与现场备忘”。
-- `test/toolbox-todo.test.js`: 先更新结构与迁移/持久化测试，再实现功能。
+- `test/admin/streamer-planner.test.js`: 先更新结构与迁移/持久化测试，再实现功能。
 - `docs/architecture/frontend/app.md`、`docs/architecture/frontend/pages.md`: 更新 owner 文档中的存储键和功能描述。
 
 ## Milestones
 
-1. 写出新 HTML、数据迁移和备忘行为的失败测试。验证：`node --test test/toolbox-todo.test.js` 按预期失败。
+1. 写出新 HTML、数据迁移和备忘行为的失败测试。验证：`node --test test/admin/streamer-planner.test.js` 按预期失败。
 2. 实现 v2 本地状态和计划/备忘交互。验证：聚焦测试全部通过。
 3. 实现桌面端导播布局并更新 owner 文档。验证：语法、文档与架构快速门禁通过。
 4. 在 Electron 桌面视图中打开主播工作台，检查默认态、添加计划、添加备忘和备忘转计划；根据截图做一次视觉收敛。
@@ -70,7 +70,7 @@
 
 ## Verification
 
-- `node --test test/toolbox-todo.test.js`
+- `node --test test/admin/streamer-planner.test.js`
 - `npm run check`
 - `npm run verify:quick`
 - Electron 桌面视图：下一场直播字段可保存；三阶段清单可增删勾选；备忘可新增并转计划；窄窗口不横向溢出。

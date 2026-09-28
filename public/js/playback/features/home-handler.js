@@ -20,7 +20,6 @@ export function createHomeHandler(deps) {
     escapeHtml,
     toast,
     showError,
-    readJsonResponse,
     savePlaybackState,
     renderPlayback,
     renderPlaybackHomeResults,

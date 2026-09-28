@@ -33,7 +33,7 @@
 | 1 数据安全 | LICENSE-CLIENT-ROBUST | `src/electron/license/license-activation.js`、`device-key-store.js`、`license-manager.js`、`remote-license-client.js` 与相关测试 | 临时密钥文件/合成 safeStorage、失败激活保留原文件、丢响应恢复、流式响应预算 |
 | 1 数据安全 | SONG-IMPORT-LIMIT | `src/storage/song-store.js`、`src/music/` 导入 owner、`src/server/routes/song-routes.js`（按需要） | 内存 SQLite、合并/替换最终数量、超限原子拒绝 |
 | 1 数据一致性 | PLAYBACK-SNAPSHOT-RACE | `src/storage/playback-store.js`、`public/js/playback/operations/state-persistence.js`、HTTP/IPC 调用边界（按需要） | 旧 HTTP 晚于新卸载快照、同一卸载双通道、重建/重启代次 |
-| 2 秘密/身份 | AVATAR-COOKIE-FORWARD、MUSIC-PLATFORM-LOOKUP、GAME-ROLE、GIFT-TOAST-SOURCE | Bilibili api-client / gift-command-utils、Electron music IPC / auth-manager / login-window、game-session-service | 假 fetch 和 Electron 桩、合成游戏/礼物消息；不接真实账号 |
+| 2 秘密/身份 | AVATAR-COOKIE-FORWARD、MUSIC-PLATFORM-LOOKUP、GAME-ROLE、GIFT-TOAST-SOURCE | Bilibili api-client / gift-command-utils、Electron music IPC / music-auth-manager / music-login-window、game-session-service | 假 fetch 和 Electron 桩、合成游戏/礼物消息；不接真实账号 |
 | 3 状态恢复 | DOM-REBUILD-MISC、DEAD-BRANCHES、WHEEL-SNAPSHOT、LYRIC-ENDPOINT-METHOD | `public/js/overlays/{queue,songs,blindbox,games,wheel,lyric-window}.js` | 受控 HTTP/WS 乱序、清空全部、配置变更、首次请求失败后的连接恢复 |
 | 3 接口行为 | REQ-BODY-DESTROY、4XX-AS-500、WESING-CONFIG-SNAPSHOT | http-utils、music-routes / qq-encrypted-stream、settings-routes / wesing-routes / music-runtime | 本地 HTTP 超限/滴流、4xx 与上游错误区分、通用/专用配置热更新 |
 | 4 权限契约 | HTML-TOKEN | HTTP 页面引导、API/WS 权限、Electron 初始加载与 OBS 消费者 | 先完成端点/消息能力清单与兼容方案，再判断可直接实施范围或需要的具体用户裁决 |

@@ -11,7 +11,7 @@
 ## Global Constraints
 
 - Move existing CSS without changing selectors, declarations, values, or responsive breakpoints.
-- Keep `public/css/admin/other-features.css` as the existing public ordered entrypoint.
+- Keep `public/css/admin/toolbox.css` as the existing public ordered entrypoint.
 - Preserve order as shared base → wheel → draw/word → all responsive overrides.
 - Update direct-source tests only where selector ownership moves; bundled consumer tests must continue to pass unchanged.
 - Do not change admin HTML, JavaScript, visual behavior, dependencies, or commits.
@@ -28,7 +28,7 @@
 
 ## Current Behavior
 
-- `public/css/admin/other-features/games.css` is 832 lines.
+- `public/css/admin/toolbox/games.css` is 832 lines.
 - Shared games/category/card rules occupy lines 1–258.
 - Wheel-specific rules occupy lines 259–414; draw and word-library rules occupy lines 415–751.
 - Three trailing media-query groups at lines 752–832 cover wheel, draw, and shared layout overrides in the required final cascade position.
@@ -37,11 +37,11 @@
 
 ## Ownership
 
-- Shared admin games shell/cards owner: `public/css/admin/other-features/games.css`.
-- Wheel editor owner: new `public/css/admin/other-features/games-wheel.css`.
-- Draw/word editor owner: new `public/css/admin/other-features/games-draw.css`.
-- Responsive owner for this composed surface: new `public/css/admin/other-features/games-responsive.css`.
-- Ordered composition owner: `public/css/admin/other-features.css`.
+- Shared admin games shell/cards owner: `public/css/admin/toolbox/games.css`.
+- Wheel editor owner: new `public/css/admin/toolbox/games-wheel.css`.
+- Draw/word editor owner: new `public/css/admin/toolbox/games-draw.css`.
+- Responsive owner for this composed surface: new `public/css/admin/toolbox/games-responsive.css`.
+- Ordered composition owner: `public/css/admin/toolbox.css`.
 - Direct ownership tests: `test/frontend-games.test.js`; composed CSS consumer test: `test/frontend-admin-shell.test.js`.
 
 ## Compatibility Constraints
@@ -49,7 +49,7 @@
 - Concatenating the four formatted owner files in import order must exactly reproduce the formatted Git baseline `games.css`.
 - The final responsive module must load after all three base/component owners.
 - Shared selectors such as `.game-admin-card:has(.lira-select.is-open)` remain in `games.css` for select overflow behavior.
-- Wheel selectors used by the admin shell bundle remain discoverable through `other-features.css`.
+- Wheel selectors used by the admin shell bundle remain discoverable through `toolbox.css`.
 - The word-library test must read `games-draw.css` after ownership moves without changing its assertions.
 - None of the source blocks contains asset URLs, so extraction must not introduce any.
 
@@ -83,11 +83,11 @@
 
 **Files:**
 
-- Create: `public/css/admin/other-features/games-wheel.css`
-- Create: `public/css/admin/other-features/games-draw.css`
-- Create: `public/css/admin/other-features/games-responsive.css`
-- Modify: `public/css/admin/other-features/games.css`
-- Modify: `public/css/admin/other-features.css`
+- Create: `public/css/admin/toolbox/games-wheel.css`
+- Create: `public/css/admin/toolbox/games-draw.css`
+- Create: `public/css/admin/toolbox/games-responsive.css`
+- Modify: `public/css/admin/toolbox/games.css`
+- Modify: `public/css/admin/toolbox.css`
 - Modify: `test/frontend-games.test.js`
 
 **Interfaces:**

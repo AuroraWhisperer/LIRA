@@ -1,0 +1,246 @@
+'use strict';
+
+const { readAdminHtml } = require('../helpers/admin-html');
+
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const test = require('node:test');
+const vm = require('node:vm');
+const { loadModuleExports } = require('../helpers/frontend-modules');
+const { readJsModuleBundle } = require('../helpers/js-module-bundle');
+
+const ROOT_DIR = path.join(__dirname, '../..');
+
+test('hardware summary hides memory temperature and renders missing CPU temperature as unknown', async () => {
+  const html = readAdminHtml();
+  const elements = new Map();
+  const getElementById = (id) => {
+    if (!elements.has(id)) elements.set(id, { textContent: '' });
+    return elements.get(id);
+  };
+  const sandbox = {
+    document: { getElementById },
+    window: {},
+  };
+
+  const { metrics } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/metrics.js'), sandbox);
+  assert.equal(sandbox.window.AdminApp.metrics, metrics);
+  sandbox.window.AdminApp = {};
+  metrics.renderHardwareSummary(
+    {
+      cpu: {
+        model: 'Example CPU',
+        physicalCores: 8,
+        logicalCores: 16,
+        temperatureCelsius: null,
+        temperatureMessage: 'Windows 未提供可靠的 CPU 温度',
+      },
+      memory: { totalBytes: 16, modules: [] },
+      gpus: [],
+    },
+    false,
+  );
+
+  assert.equal(elements.get('hardwareCpuTemperature').textContent, '未知');
+  assert.doesNotMatch(html, /id="hardwareMemoryTemperature"/);
+});
+
+test('other feature navigation selects panels without feature-specific dependencies', () => {
+  const source = readJsModuleBundle('public', 'js', 'admin', 'toolbox-navigation.js');
+  const createNode = ({ id = '', feature = '', hidden = false } = {}) => {
+    const classes = new Set();
+    const attributes = new Map();
+    const listeners = new Map();
+    return {
+      id,
+      dataset: feature ? { otherFeature: feature } : {},
+      hidden,
+      tabIndex: -1,
+      focused: false,
+      classList: {
+        contains(name) {
+          return classes.has(name);
+        },
+        toggle(name, enabled) {
+          if (enabled) classes.add(name);
+          else classes.delete(name);
+        },
+      },
+      addEventListener(name, listener) {
+        listeners.set(name, listener);
+      },
+      dispatch(name, event) {
+        listeners.get(name)?.(event);
+      },
+      focus() {
+        this.focused = true;
+      },
+      setAttribute(name, value) {
+        attributes.set(name, value);
+      },
+      getAttribute(name) {
+        return attributes.get(name);
+      },
+    };
+  };
+  const buttons = [
+    createNode({ feature: 'performanceFeature' }),
+    createNode({ feature: 'diagnosticsFeature' }),
+    createNode({ feature: 'desktopFeature', hidden: true }),
+  ];
+  const panels = [
+    createNode({ id: 'performanceFeature' }),
+    createNode({ id: 'diagnosticsFeature' }),
+    createNode({ id: 'desktopFeature', hidden: true }),
+  ];
+  const root = {
+    querySelectorAll(selector) {
+      return selector === '[data-other-feature]' ? buttons : panels;
+    },
+  };
+  const sandbox = {
+    console,
+    document: { getElementById: () => root },
+    window: { AdminApp: {} },
+  };
+
+  vm.runInNewContext(source, sandbox);
+  const selected = sandbox.window.AdminApp.other.selectFeature(root, 'diagnosticsFeature');
+
+  assert.equal(selected, true);
+  assert.equal(buttons[0].classList.contains('active'), false);
+  assert.equal(buttons[0].getAttribute('aria-selected'), 'false');
+  assert.equal(buttons[0].tabIndex, -1);
+  assert.equal(buttons[1].classList.contains('active'), true);
+  assert.equal(buttons[1].getAttribute('aria-selected'), 'true');
+  assert.equal(buttons[1].tabIndex, 0);
+  assert.equal(panels[0].hidden, true);
+  assert.equal(panels[1].hidden, false);
+
+  const activations = [];
+  sandbox.window.AdminApp.other.initOtherPage({
+    onFeatureSelected: (feature) => activations.push(feature),
+  });
+  assert.deepEqual(activations, ['diagnosticsFeature']);
+  let prevented = false;
+  buttons[1].dispatch('keydown', {
+    key: 'ArrowUp',
+    preventDefault() {
+      prevented = true;
+    },
+  });
+  assert.equal(prevented, true);
+  assert.deepEqual(activations, ['diagnosticsFeature', 'performanceFeature']);
+  assert.equal(buttons[0].focused, true);
+  assert.equal(panels[0].hidden, false);
+  assert.equal(panels[1].hidden, true);
+
+  sandbox.window.AdminApp.other.selectFeature(root, 'desktopFeature');
+  assert.equal(buttons[0].classList.contains('active'), true);
+  assert.equal(buttons[2].classList.contains('active'), false);
+  assert.equal(panels[2].hidden, true);
+});
+
+test('desktop update opens its toolbox feature through module APIs', () => {
+  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'desktop.js'), 'utf8');
+  let showUpdatePage;
+  let selectedPage = '';
+  let selectedFeature = '';
+  const sandbox = {
+    console,
+    document: {
+      body: { classList: { add() {} } },
+      getElementById: () => null,
+      querySelectorAll: () => [],
+    },
+    window: {
+      AdminApp: {
+        utils: {
+          toast() {},
+          showStackedToast() {},
+          showError() {},
+          api: async () => ({}),
+        },
+        navigation: {
+          setMainPage(pageId) {
+            selectedPage = pageId;
+          },
+        },
+        other: {
+          selectFeatureById(featureId) {
+            selectedFeature = featureId;
+          },
+        },
+      },
+      songAssistantDesktop: {
+        onShowUpdatePage(callback) {
+          showUpdatePage = callback;
+        },
+        onUpdateState() {},
+        getInfo: () => new Promise(() => {}),
+      },
+    },
+  };
+
+  vm.runInNewContext(source, sandbox);
+  sandbox.window.AdminApp.desktop.initDesktopShell();
+  showUpdatePage();
+
+  assert.equal(selectedPage, 'otherAssistantPage');
+  assert.equal(selectedFeature, 'otherDesktopUpdateFeature');
+});
+
+test('browser source tab classifies and exposes every overlay address', () => {
+  const html = readAdminHtml();
+  const displaySource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'display.js'), 'utf8');
+  const sources = [
+    ['queueUrl', '/queue'],
+    ['songsUrl', '/songlist'],
+    ['lyricsUrl', '/lyrics'],
+    ['liveBlindboxUrl', '/blindbox'],
+    ['liveGamesUrl', '/games'],
+    ['liveWheelUrl', '/wheel'],
+    ['liveInteractionsUrl', '/interactions'],
+    ['liveGiftFeedUrl', '/gift-feed'],
+    ['liveGiftWishLongUrl', '/gift-wishes?period=long'],
+    ['liveGiftWishDayUrl', '/gift-wishes?period=day'],
+    ['liveGiftWishSessionUrl', '/gift-wishes?period=session'],
+    ['liveOvertimeUrl', '/overtime'],
+    ['liveGiftEffectsUrl', '/gift-effects'],
+    ['liveOpeningUrl', '/opening'],
+    ['liveClockUrl', '/clock'],
+  ];
+
+  assert.match(html, /data-tab="overlayPage"[^>]*>\s*浏览器源\s*<\/button>/);
+  for (const [id, route] of sources) {
+    assert.match(html, new RegExp(`id="${id}"`));
+    assert.match(html, new RegExp(`data-copy-url="${id}"`));
+    const assignmentPattern = new RegExp(
+      'document\\s*\\.\\s*getElementById\\(\\s*[\'\"]' +
+        id +
+        '[\'\"]\\s*\\)\\s*\\.textContent\\s*=\\s*`\\$\\{origin\\}' +
+        route.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') +
+        '`;',
+    );
+    assert.match(displaySource, assignmentPattern, `${route} should be initialized in the live screen tab`);
+  }
+  assert.match(html, /id="liveDanmakuUrl"/);
+  assert.match(html, /data-copy-url="liveDanmakuUrl"[^>]*disabled/);
+  assert.match(
+    displaySource,
+    /observeServerOverlayUrl\(\(url\) => \{\s*document\.getElementById\('liveDanmakuUrl'\)\.textContent\s*=\s*url \|\|/,
+  );
+  assert.match(displaySource, /document\.querySelector\('\[data-copy-url="liveDanmakuUrl"\]'\)\.disabled = !url;/);
+  assert.match(html, />\s*点歌与音乐\s*<\/h3\s*>/);
+  assert.match(html, />\s*直播互动\s*<\/h3\s*>/);
+  assert.match(html, />\s*场景与氛围\s*<\/h3\s*>/);
+  assert.match(html, />\s*礼物与心愿\s*<\/h3\s*>/);
+  assert.match(html, />\s*网页页面\s*<\/h3\s*>/);
+  for (const id of ['webSongPageUrl', 'webAccountUrl', 'webGiftCatalogUrl', 'webGamesUrl', 'webHomeUrl']) {
+    assert.match(html, new RegExp(`id="${id}"`));
+    assert.match(html, new RegExp(`data-copy-url="${id}"`));
+    assert.match(html, new RegExp(`data-open-url="${id}"`));
+  }
+  assert.doesNotMatch(html, /playbackLyricBtn|playbackLyricLockBtn/);
+});

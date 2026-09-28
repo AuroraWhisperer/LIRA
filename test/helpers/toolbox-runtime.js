@@ -141,7 +141,7 @@ function createToolboxRuntime({ initialStorage = {} } = {}) {
       },
     },
   };
-  const other = vm.runInNewContext(`${readJsModuleBundle('public', 'js', 'admin', 'other.js')}\nother;`, sandbox);
+  const other = vm.runInNewContext(`${readJsModuleBundle('public', 'js', 'admin', 'toolbox-navigation.js')}\nother;`, sandbox);
   return {
     other,
     sandbox,

@@ -131,5 +131,5 @@ The preferred image source must be HTTPS on `hdslb.com` or a subdomain, without 
 ## Verification
 
 - Server contract evidence: `node --test test/gift-client-catalog.test.js test/gift-public-routes.test.js test/public-gift-catalog-contract.test.js` in lira-server when that repository changes.
-- Client: `node --experimental-vm-modules --test test/remote-gift-image-cache.test.js test/remote-catalog-cache.test.js test/remote-overtime-catalog.test.js test/overtime-routes.test.js test/gift-catalog-initializer.test.js test/gift-catalog-background-updates.test.js test/frontend-gifts.test.js`.
+- Client: `node --experimental-vm-modules --test test/gifts/remote-gift-image-cache.test.js test/gifts/remote-catalog-cache.test.js test/overtime/remote-overtime-catalog.test.js test/overtime/overtime-routes.test.js test/gifts/gift-catalog-initializer.test.js test/gifts/gift-catalog-background-updates.test.js test/gifts/frontend-gifts.test.js`.
 - Final review: `git diff --check` and inspect status for secrets/runtime files.

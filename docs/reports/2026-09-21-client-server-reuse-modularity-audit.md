@@ -126,7 +126,7 @@ review_status: complete
 
 桥接文件之外，21 个 Admin JS 文件有 237 处 `window.AdminApp` 原始文本引用，含注册、检查、读写，不能当作 237 条独立依赖。例如歌曲流程读取全局状态，礼物入口检查并调用其他全局子模块，入口通过副作用导入保证注册顺序。这使消费者需要知道全局对象结构，单独装配与测试较难。
 
-已有 [冻结门禁:203](../../test/module-boundaries.test.js) 和债务登记，因此不是新发现的架构失控。建议随功能改动逐个迁到显式 import/factory 参数，继续以 bridge 兼容旧调用；不要为了本次审查一次性重写 Admin。
+已有 [冻结门禁:203](../../test/engineering/module-boundaries.test.js) 和债务登记，因此不是新发现的架构失控。建议随功能改动逐个迁到显式 import/factory 参数，继续以 bridge 兼容旧调用；不要为了本次审查一次性重写 Admin。
 
 ### F06：房间资料缓存和请求合并各做了一套
 
@@ -156,7 +156,7 @@ renderer 大部分一致，服务器多了系统消息类名及不同的入场�
 
 ### F09：Cookie 序列化与 Electron 还原转换重复
 
-位置：[auth-manager.js:115、127](../../src/electron/auth-manager.js)、[bilibili-auth.js:83、95](../../src/electron/bilibili-auth.js)。两份 `toSerializableCookie`、`toElectronCookieDetails` 完全相同，域名、路径、sameSite、过期等映射应共同维护。
+位置：[music-auth-manager.js:115、127](../../src/electron/music-auth-manager.js)、[bilibili-auth.js:83、95](../../src/electron/bilibili-auth.js)。两份 `toSerializableCookie`、`toElectronCookieDetails` 完全相同，域名、路径、sameSite、过期等映射应共同维护。
 
 建议首先提取这两个纯转换函数，并用同一组 Cookie 样本验证。音乐平台与 B 站的 partition、保存/恢复策略、登录窗口和 B 站旧明文导出兼容有差异；不据此合并整个 auth manager，也没有由重复代码证明新的凭据漏洞。
 
@@ -214,7 +214,7 @@ renderer 大部分一致，服务器多了系统消息类名及不同的入场�
 | 云设置协调授权、事务、revision、通知，必须全部拆开 | 不成立。拆散会损伤原子性和复核顺序；保留服务协调，仅收敛存储表示。 |
 | 相同函数名的金额、正整数、时间戳校验都应统一 | 不成立。入口容错、取整、safe integer、默认时间等语义有差异；先逐字段核对契约。 |
 | 客户端和服务器都验证设置/过滤词，是无效重复 | 不成立。客户端体验校验与服务器信任边界校验都需要；trim/dedup 等规范化可有不同职责。 |
-| 桌面歌词/互动外观 defaults 多份就是未保护问题 | 有现成一致性测试：[歌词设置:229](../../test/desktop-lyric-settings.test.js)、[互动外观:10](../../test/interaction-appearance.test.js)。可改进来源管理，当前不升级为故障。 |
+| 桌面歌词/互动外观 defaults 多份就是未保护问题 | 有现成一致性测试：[歌词设置:229](../../test/lyrics/desktop-lyric-settings.test.js)、[互动外观:10](../../test/games/interaction-appearance.test.js)。可改进来源管理，当前不升级为故障。 |
 | 历史游戏 `vN` 副本和 schema/migration DDL 都应去重 | 不成立。前者有一年 immutable 契约；后者服务不同数据库升级阶段。不能修改历史资源来追求文本一致。 |
 | `ProviderManager.clearPlatformData` 导致当前退出登录索引错误 | 全局搜索只找到方法定义；当前 [provider-operations.js:263](../../public/js/playback/operations/provider-operations.js) 使用 `stateActions.forgetProviderStreams`。未证明生产触发，不列为现存退出登录 bug。该类的旧 `normalizeOnlineTrack` 也没有当前生产调用。 |
 | `HomeService._applyBackgroundUpdate` 或 `runtime.scheduler` 是内部越权 | 前者明确作为 ContentLoader 回调，且自行检查过期 generation；后者是显式公开能力。下划线或属性访问本身不足为证。 |
@@ -236,7 +236,7 @@ renderer 大部分一致，服务器多了系统消息类名及不同的入场�
 客户端定向命令，在 `D:/Work/Live` 运行：
 
 ```powershell
-node --experimental-vm-modules --test test/auth-manager.test.js test/bilibili-auth-profile.test.js test/dynamic-lottery-store.test.js test/qq-provider.test.js test/gift-query-service.test.js test/gift-sync-store.test.js test/log-redaction.test.js test/license-protocol.test.js test/danmaku-style-options.test.js test/interaction-appearance.test.js test/overtime-overlay.test.js
+node --experimental-vm-modules --test test/music-auth-manager.test.js test/bilibili-auth-profile.test.js test/dynamic-lottery-store.test.js test/qq-provider.test.js test/gift-query-service.test.js test/gift-sync-store.test.js test/log-redaction.test.js test/license-protocol.test.js test/danmaku-style-options.test.js test/interaction-appearance.test.js test/overtime-overlay.test.js
 ```
 
 服务器定向命令，在 `D:/Work/lira-server` 运行：

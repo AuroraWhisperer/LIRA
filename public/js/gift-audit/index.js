@@ -10,7 +10,6 @@ import {
 
 // ── 全局状态 ──
 let bubbleGifts = [];
-let serverGifts = [];
 let comparisonResults = [];
 let ws = null;
 let serverGiftCache = []; // 累积的服务器礼物
@@ -95,7 +94,6 @@ async function fetchServerGifts() {
     mergeServerGifts(recent);
     status.textContent = `已加载 ${recent.length} 条（缓存共 ${serverGiftCache.length} 条）`;
     status.style.color = 'var(--green)';
-    serverGifts = recent;
     renderServerTable(recent);
     return true;
   } catch (e) {
@@ -164,7 +162,6 @@ async function parseAndCompare() {
 function clearAll() {
   document.getElementById('bubbleHtml').value = '';
   bubbleGifts = [];
-  serverGifts = [];
   comparisonResults = [];
   document.getElementById('bubbleTableBody').innerHTML =
     '<tr><td colspan="5" class="empty-state">等待解析...</td></tr>';

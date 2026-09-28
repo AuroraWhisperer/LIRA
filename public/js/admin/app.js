@@ -1,13 +1,13 @@
 import { theme } from './theme.js';
 import { songs as songPanel } from './songs.js';
 import { metrics } from './metrics.js';
-import { todo } from './todo.js';
+import { todo } from './streamer-planner.js';
 import { giftEffects } from './gift-effects.js';
-import { other } from './other.js';
+import { other } from './toolbox-navigation.js';
 import { danmakuTool } from './danmaku-tool.js';
 import { aiAssistantSettings } from './ai-assistant-settings.js';
 import { desktopLyric } from './desktop-lyric.js';
-import { songImports } from './import.js';
+import { songImports } from './song-import.js';
 import { settings } from './settings.js';
 import { display } from './display.js';
 // 编写人：Aurora

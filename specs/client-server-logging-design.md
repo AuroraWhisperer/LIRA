@@ -401,7 +401,7 @@ Admin 第一版复用现有 `adminAuth + superAdmin`，仅 `super_admin` 可跨�
 
 ### 8.3 本轮已经完成的验证
 
-- Node.js v24.15.0 下，客户端 `node --test test/terminal-log.test.js test/ai-request-logger.test.js test/log-redaction.test.js`：13/13 通过。现有测试也明确验证 terminal/AI 覆盖旧会话，这是待改变的当前行为，并非本方案已实现。
+- Node.js v24.15.0 下，客户端 `node --test test/desktop/terminal-log.test.js test/ai/ai-request-logger.test.js test/shared/log-redaction.test.js`：13/13 通过。现有测试也明确验证 terminal/AI 覆盖旧会话，这是待改变的当前行为，并非本方案已实现。
 - 服务器 `node --test test/http-log-privacy.test.js`：2/2 通过，验证 HTTP/Nginx 的 path-only 约束。
 - 2026-09-14 复查补充本地旧日志匿名计数、AI logger 临时合成大事件实验、容量算例与线上部署只读核查；已验证 PM2 实际路径、账号、模式、Nginx 配置和日志文件描述符，当前 Nginx 配置检查通过。这不代表已实现新容量控制。
 - 新文档本地链接与代码围栏检查通过，`git diff --check` 通过；2026-09-14 的 `npm run verify:docs` 为 5/5 通过。本次仅修改报告/设计，未重复运行前次的运行代码测试。

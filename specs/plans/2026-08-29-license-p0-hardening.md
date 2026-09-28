@@ -43,8 +43,8 @@ Implement single-flight authorization maintenance, complete server error classif
 
 - Owner: `src/electron/license/license-manager.js`, `src/electron/main.js`.
 - Contracts: `specs/license-p0-hardening_design.md`, `D:/Work/lira-server/specs/lira-server_reverse_spec.md`, `docs/architecture/desktop/main.md`, `docs/architecture/desktop/preload.md`.
-- Consumers: `src/electron/ipc/license-ipc.js`, `src/server.js`, `public/js/license.js`, `public/js/admin/import.js`.
-- Tests: `test/license-manager.test.js`, `test/license-protocol.test.js`, `test/license-gate.test.js`, `test/license-ui.test.js`, and `D:/Work/lira-server/test/device-license-protocol.test.js`.
+- Consumers: `src/electron/ipc/license-ipc.js`, `src/server.js`, `public/js/license.js`, `public/js/admin/song-import.js`.
+- Tests: `test/license/license-manager.test.js`, `test/license/license-protocol.test.js`, `test/license/license-gate.test.js`, `test/license/license-ui.test.js`, and `D:/Work/lira-server/test/device-license-protocol.test.js`.
 
 ## Compatibility Constraints
 
@@ -57,7 +57,7 @@ Implement single-flight authorization maintenance, complete server error classif
 
 **Files:**
 
-- Modify: `test/license-protocol.test.js`
+- Modify: `test/license/license-protocol.test.js`
 - Create: `D:/Work/lira-server/test/device-license-protocol.test.js`
 
 **Interfaces:**
@@ -66,7 +66,7 @@ Implement single-flight authorization maintenance, complete server error classif
 - Produces: fixed complete canonical strings shared by both repositories.
 
 - [x] Replace fragment-only assertions with full-string client assertions for activation and challenge payloads.
-- [x] Run `node --experimental-vm-modules --test test/license-protocol.test.js`; expect the golden tests to pass against the current client.
+- [x] Run `node --experimental-vm-modules --test test/license/license-protocol.test.js`; expect the golden tests to pass against the current client.
 - [x] Add the same fixed strings to the server protocol test using server parameter names (`code`, `accountPassword`).
 - [x] Run `node --test test/device-license-protocol.test.js` in `D:/Work/lira-server`; expect both server vectors to pass.
 
@@ -75,7 +75,7 @@ Implement single-flight authorization maintenance, complete server error classif
 **Files:**
 
 - Modify: `src/electron/license/license-manager.js`
-- Modify: `test/license-manager.test.js`
+- Modify: `test/license/license-manager.test.js`
 
 **Interfaces:**
 
@@ -87,7 +87,7 @@ Implement single-flight authorization maintenance, complete server error classif
 - [x] Implement `renewalPromise`; make `ensureAuthorized()` await it before reading the token.
 - [x] Route profile, song sync, background, and pairing methods through one wrapper that retries once after a stale-token/session response and otherwise classifies the error centrally.
 - [x] Add a heartbeat overlap test proving heartbeat waits for renewal and uses the replacement token.
-- [x] Run `node --experimental-vm-modules --test test/license-manager.test.js`; expect all manager tests to pass.
+- [x] Run `node --experimental-vm-modules --test test/license/license-manager.test.js`; expect all manager tests to pass.
 
 ## Milestone 3: Complete state mapping and fail-closed transitions
 
@@ -95,7 +95,7 @@ Implement single-flight authorization maintenance, complete server error classif
 
 - Modify: `src/electron/license/license-manager.js`
 - Modify: `public/js/license.js`
-- Modify: `test/license-manager.test.js`
+- Modify: `test/license/license-manager.test.js`
 
 **Interfaces:**
 
@@ -114,8 +114,8 @@ Implement single-flight authorization maintenance, complete server error classif
 
 - Modify: `src/electron/main.js`
 - Modify: `src/electron/license/license-manager.js`
-- Modify: `test/license-manager.test.js`
-- Modify: `test/license-gate.test.js`
+- Modify: `test/license/license-manager.test.js`
+- Modify: `test/license/license-gate.test.js`
 
 **Interfaces:**
 

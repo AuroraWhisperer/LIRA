@@ -2,7 +2,7 @@
 
 **Goal:** Preserve the existing full-song lyric timeline while reducing repeated rendering work and allowing users to choose how many rows remain visible around the current line.
 
-**Ownership:** Playback/lyrics are owned by `public/js/playback/`, `public/js/admin/`, `public/js/shared/`, and `src/storage/`; the `/lyrics` overlay consumes the shared preview renderer. The focused contract and tests are `docs/architecture/frontend/playback.md`, `docs/architecture/frontend/overlays.md`, and `test/desktop-lyrics.test.js`.
+**Ownership:** Playback/lyrics are owned by `public/js/playback/`, `public/js/admin/`, `public/js/shared/`, and `src/storage/`; the `/lyrics` overlay consumes the shared preview renderer. The focused contract and tests are `docs/architecture/frontend/playback.md`, `docs/architecture/frontend/overlays.md`, and `test/lyrics/desktop-lyrics.test.js`.
 
 **Constraints:** Keep the existing `/lyrics` URL, WebSocket messages, settings persistence format, full timeline data, visual defaults, and CommonJS/ES-module boundaries. Do not add dependencies or change the server protocol.
 

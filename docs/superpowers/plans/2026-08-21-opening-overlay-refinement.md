@@ -23,7 +23,7 @@
 
 **Files:**
 
-- Modify: `test/opening-overlay.test.js`
+- Modify: `test/overlays/opening-overlay.test.js`
 
 **Interfaces:**
 
@@ -31,7 +31,7 @@
 - Produces: assertions for SVG motion-path heart, 16:9 container sizing, title count/scaling, empty name, browser audio, and Toolbox scrolling.
 
 - [ ] Add assertions for `openingTrackPath`, `animateMotion`, no fixed right-positioned heart, `container-type: size`, `cqw`, `white-space: nowrap`, `openingTitleCount`, empty `name`, no `@`, `audio=browser`, and `other-feature-panel-body`.
-- [ ] Run `node --test test/opening-overlay.test.js` and confirm the new assertions fail before implementation.
+- [ ] Run `node --test test/overlays/opening-overlay.test.js` and confirm the new assertions fail before implementation.
 
 ### Task 2: Refine overlay motion and layout
 
@@ -57,7 +57,7 @@
 **Files:**
 
 - Modify: `public/pages/admin/toolbox/start-animation.html`
-- Modify: `public/css/admin/other-features/start-animation.css`
+- Modify: `public/css/admin/toolbox/start-animation.css`
 - Modify: `public/js/admin/start-animation.js`
 
 **Interfaces:**
@@ -73,13 +73,13 @@
 
 **Files:**
 
-- Test: `test/opening-overlay.test.js`
+- Test: `test/overlays/opening-overlay.test.js`
 
 **Interfaces:**
 
 - Consumes: Tasks 1–3.
 - Produces: verified behavior without unrelated file changes.
 
-- [ ] Run `node --test test/opening-overlay.test.js` and the relevant admin composition tests.
+- [ ] Run `node --test test/overlays/opening-overlay.test.js` and the relevant admin composition tests.
 - [ ] Run `npm run check`, `npm run verify:architecture`, and `npm test`.
 - [ ] Review `git diff --check`, the task-scoped diff, and `git status --short`.

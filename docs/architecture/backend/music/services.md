@@ -20,7 +20,7 @@
 | song-import-schema.js + song-file-codec.js | 导入导出列契约与 CSV/XLSX 编解码                         | §11  |
 | requester-target-store.js                  | 随机点歌请求者定位(弹幕机器人用)                         | §12  |
 | lyric-state.js / lyric-timeline.js         | 歌词状态/时间轴归一化(WS 载荷生产者)                     | §13  |
-| providers/ + lyrics.js + wesing-*          | 见各自文档                                               | —    |
+| providers/ + lyric-parser.js + wesing-*          | 见各自文档                                               | —    |
 
 ## 2. 领域装配(server-core.md §5 的接线详情)
 
@@ -41,10 +41,8 @@
 | 导出                                   | 签名                                    | 行为                                                                                                            | 出处                                                                               |
 | -------------------------------------- | --------------------------------------- | --------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
 | `SUPPORTED_MUSIC_PLATFORMS`            | `Set['qq','netease']`                   | 平台白名单                                                                                                      | [provider-registry.js:6](../../../../src/music/provider-registry.js#L6)            |
-| `PROVIDER_LABELS`                      | `{ qq:'QQ音乐', netease:'网易云音乐' }` | 平台显示名                                                                                                      | [provider-registry.js:8-11](../../../../src/music/provider-registry.js#L8-L11)     |
 | `normalizeMusicPlatform`               | `(value) => 'qq'\|'netease'`            | 小写 trim 后校验白名单,否则抛"音乐平台只能是 qq 或 netease。"                                                   | [provider-registry.js:13-19](../../../../src/music/provider-registry.js#L13-L19)   |
 | `createMusicProviderRegistry(options)` | 工厂                                    | 见下                                                                                                            | [provider-registry.js:21-57](../../../../src/music/provider-registry.js#L21-L57)   |
-| `PlaceholderMusicProvider`             | 类                                      | 未接入平台占位:`healthCheck` 返回 `provider-not-integrated`(已登录)或 `login-required`;其余方法一律抛"尚未接入" | [provider-registry.js:59-112](../../../../src/music/provider-registry.js#L59-L112) |
 
 `createMusicProviderRegistry({ getAuthState, getCookieHeader })` 返回:
 
@@ -360,33 +358,33 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 
 歌词内容本身的时序消费在下方 §14 的解析器文档。
 
-## 14. 歌词解析器(src/music/lyrics.js)
+## 14. 歌词解析器(src/music/lyric-parser.js)
 
-`lyrics.js` 是 QQ 音乐与网易云音乐**共用**的歌词行模型实现。导出 4 个函数：`parseLyricResult`、`parseLrc`、`parseWordLyric`、`findCurrentLyricLine`([lyrics.js:225-230](../../../../src/music/lyrics.js#L225-L230))。
+`lyric-parser.js` 是 QQ 音乐与网易云音乐**共用**的歌词行模型实现。导出 4 个函数：`parseLyricResult`、`parseLrc`、`parseWordLyric`、`findCurrentLyricLine`([lyric-parser.js:225-230](../../../../src/music/lyric-parser.js#L225-L230))。
 
-### 14.1 parseLyricResult(rawLyric, rawTranslation, rawWordLyric, rawRoma)([lyrics.js:45-75](../../../../src/music/lyrics.js#L45-L75))
+### 14.1 parseLyricResult(rawLyric, rawTranslation, rawWordLyric, rawRoma)([lyric-parser.js:45-75](../../../../src/music/lyric-parser.js#L45-L75))
 
 组合四路原始文本，产出完整行数组：
 
 1. `parseWordLyric(rawWordLyric)` → 逐字行；`parseLrc(rawLyric)` → LRC 行
-2. **LRC 非空取 LRC，空则降级为逐字行**（无词版行，`{startMs, endMs, text}`）([lyrics.js:48-50](../../../../src/music/lyrics.js#L48-L50))
+2. **LRC 非空取 LRC，空则降级为逐字行**（无词版行，`{startMs, endMs, text}`）([lyric-parser.js:48-50](../../../../src/music/lyric-parser.js#L48-L50))
 3. 翻译/罗马音各经 `parseTimedText`（先 LRC 后逐字）解析，并构造各自的 `createTimedTextResolver`
 4. 每行输出 `{ startMs, endMs, text, translation, roma, words[] }`：
-   - `endMs` 缺失时取下一行 `startMs`([lyrics.js:69](../../../../src/music/lyrics.js#L69))
+   - `endMs` 缺失时取下一行 `startMs`([lyric-parser.js:69](../../../../src/music/lyric-parser.js#L69))
    - `roma` = API 罗马音优先；空则取 `[kana:…]` 假名注音（§14.5）
-   - `words` = 逐字行按 `startMs` 精确对齐([lyrics.js:72](../../../../src/music/lyrics.js#L72))
+   - `words` = 逐字行按 `startMs` 精确对齐([lyric-parser.js:72](../../../../src/music/lyric-parser.js#L72))
 
-### 14.2 parseLrc(rawText)([lyrics.js:113-137](../../../../src/music/lyrics.js#L113-L137))
+### 14.2 parseLrc(rawText)([lyric-parser.js:113-137](../../../../src/music/lyric-parser.js#L113-L137))
 
 | 事实         | 值                                                                                                      |
 | ------------ | ------------------------------------------------------------------------------------------------------- |
 | 行正则       | `/\[(\d{1,2}):(\d{1,2})(?:[.:](\d{1,3}))?\]/g` — 支持 `[mm:ss]`、`[mm:ss.xxx]`、`[mm:ss:xxx]`           |
 | 同行多时间戳 | 生成多条记录（卡拉 OK 重复行）                                                                          |
 | 空文本行     | 跳过（`if (!lyricText) continue`）                                                                      |
-| 分数位处理   | 3 位直接毫秒；不足 3 位 `padEnd(3,'0')`([lyrics.js:143-146](../../../../src/music/lyrics.js#L143-L146)) |
+| 分数位处理   | 3 位直接毫秒；不足 3 位 `padEnd(3,'0')`([lyric-parser.js:143-146](../../../../src/music/lyric-parser.js#L143-L146)) |
 | 排序         | `startMs` 升序，同值按文本字典序                                                                        |
 
-### 14.3 parseWordLyric(rawText)([lyrics.js:149-202](../../../../src/music/lyrics.js#L149-L202))
+### 14.3 parseWordLyric(rawText)([lyric-parser.js:149-202](../../../../src/music/lyric-parser.js#L149-L202))
 
 逐字歌词（QQ 音乐 QRC 解密产物 / 网易云 YRC）的行与词提取：
 
@@ -398,23 +396,23 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 
 每词输出 `{ startMs, endMs: startMs + max(0, durationMs), text }`；无词的行整体丢弃；行 `text` = 所有词文本拼接后 `trim()`。
 
-### 14.4 createTimedTextResolver(lines, toleranceMs=100)([lyrics.js:86-111](../../../../src/music/lyrics.js#L86-L111))
+### 14.4 createTimedTextResolver(lines, toleranceMs=100)([lyric-parser.js:86-111](../../../../src/music/lyric-parser.js#L86-L111))
 
 用于翻译/罗马音行的时间容差匹配（QQ 音乐翻译行常有毫秒级偏移）：
 
 1. 过滤非有限 `startMs` → 升序排序 → `exact = Map(startMs → text)`
 2. 查询：`exact.has(startMs)` 直中；否则二分查找最近邻，`|Δ| ≤ 100ms` 才命中，否则返回 `''`
 
-### 14.5 假名注音([lyrics.js:11-43](../../../../src/music/lyrics.js#L11-L43))
+### 14.5 假名注音([lyric-parser.js:11-43](../../../../src/music/lyric-parser.js#L11-L43))
 
 QQ 音乐 LRC 主歌词里可能携带 `[kana:…]` 标签存日语假名读音：
 
 - `extractKanaReadings`：`/\[kana:([^\]]+)\]/` 匹配后，按数字分隔符切分为读音数组
 - `mapKanaToLines`：遍历歌词行，按 CJK 字符（U+4E00-9FFF / U+3400-4DBF / U+F900-FAFF）消费读音，每行读音空格连接存入 `Map(startMs → kanaText)`；读音不足时已有读音的字就不再消费后续
 
-CJK 判定三范围：`0x4E00-0x9FFF`（基本汉字）、`0x3400-0x4DBF`（扩展 A）、`0xF900-0xFAFF`（兼容汉字）([lyrics.js:4-8](../../../../src/music/lyrics.js#L4-L8))。
+CJK 判定三范围：`0x4E00-0x9FFF`（基本汉字）、`0x3400-0x4DBF`（扩展 A）、`0xF900-0xFAFF`（兼容汉字）([lyric-parser.js:4-8](../../../../src/music/lyric-parser.js#L4-L8))。
 
-### 14.6 findCurrentLyricLine(lines, currentMs)([lyrics.js:204-223](../../../../src/music/lyrics.js#L204-L223))
+### 14.6 findCurrentLyricLine(lines, currentMs)([lyric-parser.js:204-223](../../../../src/music/lyric-parser.js#L204-L223))
 
 二分查找**最后一个 `startMs ≤ currentMs` 的行**；`lines` 为空或 `currentMs` 非数字时返回 `null`。是播放页、WeSing 采集与歌词窗口的唯一当前行定位入口。
 

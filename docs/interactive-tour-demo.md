@@ -39,10 +39,10 @@
 | [interactive-tour-config.js](../public/js/admin/interactive-tour-config.js) | `TOUR_CONFIG_STEPS`、版本、完成检查间隔及首次展示标记判定 |
 | [interactive-tour.js](../public/js/admin/interactive-tour.js) | 控制器、真实页面导航、操作检测、打开/关闭与退出确认；保留 `TOUR_STEPS` 等既有导出 |
 | [interactive-tour-position.js](../public/js/admin/interactive-tour-position.js) | 提示框定位计算 |
-| [interactive-tour.css](../public/css/admin/other-features/interactive-tour.css) | 遮罩、高亮、提示框与状态样式 |
+| [interactive-tour.css](../public/css/admin/toolbox/interactive-tour.css) | 遮罩、高亮、提示框与状态样式 |
 | [app.js](../public/js/admin/app.js) | 管理页初始化和首次自动打开 |
 | [usage-guide.js](../public/js/admin/usage-guide.js) | 手动重新打开入口 |
-| [interactive-tour.test.js](../test/interactive-tour.test.js) | 首次展示、手动重开、定位、目标配置与样式回归 |
-| [frontend-admin-startup.test.js](../test/frontend-admin-startup.test.js) | 初始数据、主题和桌面控制的启动顺序 |
+| [interactive-tour.test.js](../test/admin/interactive-tour.test.js) | 首次展示、手动重开、定位、目标配置与样式回归 |
+| [frontend-admin-startup.test.js](../test/admin/frontend-admin-startup.test.js) | 初始数据、主题和桌面控制的启动顺序 |
 
-验证命令：`node --experimental-vm-modules --test test/interactive-tour.test.js test/frontend-admin-startup.test.js`。真实登录仍要求 Electron 的正常授权环境，普通浏览器不能验证桌面登录能力。
+验证命令：`node --experimental-vm-modules --test test/admin/interactive-tour.test.js test/admin/frontend-admin-startup.test.js`。真实登录仍要求 Electron 的正常授权环境，普通浏览器不能验证桌面登录能力。

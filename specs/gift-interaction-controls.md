@@ -54,7 +54,7 @@ The canonical IPC registry is [preload](../docs/architecture/desktop/preload.md)
 
 ## Verification
 
-`test/gift-interaction-controls.test.js` exercises controller, IPC and renderer
+`test/gifts/gift-interaction-controls.test.js` exercises controller, IPC and renderer
 contracts with synthetic cloud responses and no real credentials. Existing cloud
 sync/isolation and Electron shutdown tests protect surrounding behavior. Real
 upstream login, live sending and the server's own reset/gate implementation are

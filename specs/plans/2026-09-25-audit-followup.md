@@ -8,7 +8,7 @@
 
 ## Compatibility and ownership
 
-- Authentication: src/electron/bilibili-auth.js, desktop-auth-controller.js, auth-manager.js and the existing login windows; docs/architecture/desktop/auth.md.
+- Authentication: src/electron/bilibili-auth.js, desktop-auth-controller.js, music-auth-manager.js and the existing login windows; docs/architecture/desktop/auth.md.
 - Catalog: src/electron/license/remote-license-client.js and src/bilibili/gift/remote-catalog-cache.js; catalog/auth contracts and tests. Preserve schema, ETag and the last complete memory/disk snapshot.
 - Settlement: src/overtime/overtime-service.js and overtime-store.js; specs/overtime-rule-quantity-mode_design.md and docs/architecture/backend/overtime.md. Preserve original gift quantity/value, per-item random order, transaction rollback and settle-once behavior.
 - IPC: music-ipc.js, update-ipc.js, bilibili-ipc.js and main.js wiring; docs/architecture/desktop/preload.md. Retain legitimate admin/license window capabilities and return only a fixed error for unauthorized callers.

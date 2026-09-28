@@ -2,11 +2,11 @@
 
 粉丝档案位于百宝箱 → 主播工作，沿用 `/admin`；`toolbox/fan-profiles-nav.html` 与 `toolbox/fan-profiles.html` 由既有 Admin composer 组合。页内“档案/提醒”与“概览/互动/音乐/大航海”由 `js/admin/fans/` 拥有；点歌姓名入口把同一个详情节点移入快捷 dialog，返回时还原，不新增公开页面或 OBS 源。私有数据通过主窗口 IPC 获取，页面本身不持有 token 或 scope 决策。
 
-> 涉及文件:[pages/admin/](../../../public/pages/admin/)、[server/admin-page.js](../../../src/server/admin-page.js)、[admin-page-composition.test.js](../../../test/admin-page-composition.test.js)、[gift-audit.html](../../../public/pages/gift-audit.html)、[overlays/](../../../public/pages/overlays/)、[js/admin/](../../../public/js/admin/)、[js/playback/](../../../public/js/playback/)、[js/overlays/](../../../public/js/overlays/)、[js/shared/](../../../public/js/shared/)、[css/](../../../public/css/)、[img/](../../../public/img/)
+> 涉及文件:[pages/admin/](../../../public/pages/admin/)、[server/admin-page.js](../../../src/server/admin-page.js)、[admin-page-composition.test.js](../../../test/admin/admin-page-composition.test.js)、[gift-audit.html](../../../public/pages/gift-audit.html)、[overlays/](../../../public/pages/overlays/)、[js/admin/](../../../public/js/admin/)、[js/playback/](../../../public/js/playback/)、[js/overlays/](../../../public/js/overlays/)、[js/shared/](../../../public/js/shared/)、[css/](../../../public/css/)、[img/](../../../public/img/)
 
 本文档是前端**页面清单**的唯一事实源:每个页面是什么、由谁打开、入口 URL 只在此成表。URL → HTML 的映射表(`pageMap`)本身归 [server-core.md](../backend/server-core.md) §4.3 所有,此处只列出面向使用者的入口语义。
 
-管理后台没有单一 `public/pages/admin.html` 文件。HTML 分片位于 [pages/admin/](../../../public/pages/admin/)，由 [server/admin-page.js](../../../src/server/admin-page.js) 组合，顺序由 [admin-page-composition.test.js](../../../test/admin-page-composition.test.js) 保护。
+管理后台没有单一 `public/pages/admin.html` 文件。HTML 分片位于 [pages/admin/](../../../public/pages/admin/)，由 [server/admin-page.js](../../../src/server/admin-page.js) 组合，顺序由 [admin-page-composition.test.js](../../../test/admin/admin-page-composition.test.js) 保护。
 
 ## 1. 技术选型
 
@@ -107,15 +107,15 @@ Admin 使用文档的 `toolbox/usage-guide.html` 保留面板、目录和搜索�
 | `theme.js`                                                                          | 点歌板主题(经典/身份/奶油画框样式、预设卡片、一键美化)                                                                                     | [app.md](app.md) §4                       |
 | `display.js`                                                                        | 展示板(歌单板)配置与主题                                                                                                                   | [app.md](app.md) §4                       |
 | `forms.js`                                                                          | `FormsService`:range↔number 绑定、选项卡、播放器全屏/收起、表单填充                                                                        | [app.md](app.md) §2                       |
-| `import.js` / `song-import-parser.js` / `cloud-song-sync.js` / `song-background.js` | 导入入口保留文件读取与兼容连接；纯 TSV/CSV 解析由导入和歌单更新共用；云同步拥有覆盖确认、数量与本机同步记录，背景模块拥有查询/上传/删除 UI | [app.md](app.md) §4                       |
+| `song-import.js` / `song-import-parser.js` / `cloud-song-sync.js` / `song-background.js` | 导入入口保留文件读取与兼容连接；纯 TSV/CSV 解析由导入和歌单更新共用；云同步拥有覆盖确认、数量与本机同步记录，背景模块拥有查询/上传/删除 UI | [app.md](app.md) §4                       |
 | `metrics.js`                                                                        | 系统性能检测(`/api/system/metrics` 5 秒采样)                                                                                               | [app.md](app.md) §4                       |
 | `danmaku-tool.js`                                                                   | 弹幕工具:连接状态刷新、固定 `/danmaku` 地址复制/打开、iframe 预览、Admin 内发送弹幕、点歌/固定回复开关；发送功能不另设网页地址             | [app.md](app.md) §6                       |
 | `danmaku-libraries.js`                                                              | 签到祝福语/抽签词库/DIY 关键词回复三个编辑器                                                                                               | [app.md](app.md) §6                       |
 | `danmaku-fixed-replies.js` / `danmaku-welcome.js` / `danmaku-welcome-library.js` / `danmaku-welcome-model.js` | 固定回复六项总览与单编辑区；欢迎参数、四库独立草稿/保存、虚构预览与底部注音 | [桌面欢迎设置](../desktop/main.md#服务器进场欢迎设置) |
 | `ai-assistant-settings.js`                                                          | AI 互动助手配置:模型拉取、供应商测试、限流参数                                                                                             | [app.md](app.md) §6                       |
 | `overtime.js`                                                                       | 加班机控制台:开关/初始时间/礼物规则(固定+时间盲盒)/背景                                                                                    | [app.md](app.md) §6                       |
-| `todo.js` / `todo-view.js`                                                          | 主播工作台：控制器拥有 localStorage 兼容、保存保护和编辑动作；视图只读取分离的展示快照并描述动作                                           | [app.md](app.md) §6                       |
-| `other.js`                                                                          | 百宝箱侧边导航(功能面板切换,不承载业务)                                                                                                    | [app.md](app.md) §6                       |
+| `streamer-planner.js` / `streamer-planner-view.js`                                                          | 主播工作台：控制器拥有 localStorage 兼容、保存保护和编辑动作；视图只读取分离的展示快照并描述动作                                           | [app.md](app.md) §6                       |
+| `toolbox-navigation.js`                                                                          | 百宝箱侧边导航(功能面板切换,不承载业务)                                                                                                    | [app.md](app.md) §6                       |
 | `desktop-lyric.js`                                                                  | 桌面歌词设置表单(自动保存)                                                                                                                 | [app.md](app.md) §6                       |
 | `desktop-lyric-preview.js`                                                          | 桌面歌词实时预览(完整时间轴 + 连续/离散逐字高亮 + 弹簧跟随动画)                                                                            | [app.md](app.md) §6                       |
 | `start-animation.js`                                                                | 开播动画编辑、轨道动效选择、固定 Browser Source 地址、人物图/音乐上传与清除、音量控制                                                      | [app.md](app.md) §6                       |
@@ -163,7 +163,7 @@ Admin 使用文档的 `toolbox/usage-guide.html` 保留面板、目录和搜索�
 | `css/styles-playback.css`            | 播放助手顶层样式(引用 playback/ 子目录)                                                                                                                                               |
 | `css/components/parameter-range.css` | 可复用参数滑块：`parameter-range` 为克制的天蓝默认款，按语义追加 `--tempo`（圆角方块）/`--scale`（圆环）/`--intensity`（短胶囊）/`--centered`（纵向椭圆）修饰类；不接管播放 seek/音量 |
 | `css/components/contextual-help.css` | Admin `<lira-help>` 的统一问号与顶层说明样式；只允许按视口空间切换上下位置，不提供页面级视觉变体                                                                                      |
-| `css/admin/*.css`                    | 管理后台分模块:workspace/layout/tabs/toasts/modals/collapsible/gifts/blindbox-analysis/overtime/other-features/song-filters/desktop-lyric-preview/responsive                          |
+| `css/admin/*.css`                    | 管理后台分模块:workspace/layout/tabs/toasts/modals/collapsible/gifts/blindbox-analysis/overtime/toolbox/song-filters/desktop-lyric-preview/responsive                          |
 | `css/playback/*.css`                 | 播放助手分模块:player/layout/panels/header/drawer/fullscreen/dialogs/queue-modal/song-row/desktop-lyric/responsive                                                                    |
 | `css/overlays/base.css`              | 叠加层框架(classic/identity 队列主题、滚动动画、歌单板)                                                                                                                               |
 | `css/overlays/blindbox.css`          | 盲盒叠加层动画与布局                                                                                                                                                                  |
@@ -206,25 +206,23 @@ Admin 使用文档的 `toolbox/usage-guide.html` 保留面板、目录和搜索�
 }
 ```
 
-`default` 中的键与 `ThemeSnapshot` 的键一致，作为未配置时的回退值。`classic` 组的预设名（如 `pure`/`cream`/`sky`/`peach`/`mint`/`sakura`/`starry`/`ocean`/`sunset`/`cyber`/`gold`/`lavender`/`emerald`/`rose`）共 14 套；`songBoard` 组共 14 套（名称可能不同）。
+`default` 保存默认主题值。`classic` 组的预设名（如 `pure`/`cream`/`sky`/`peach`/`mint`/`sakura`/`starry`/`ocean`/`sunset`/`cyber`/`gold`/`lavender`/`emerald`/`rose`）共 14 套；`songBoard` 组共 14 套（名称可能不同）。预设只保存当前表单和渲染器消费的字段。
 
-`ThemeSnapshot`（点歌板预设）的 37 个键：
+`ThemeSnapshot`（点歌板预设）的 17 个键：
 
 | 分组      | 键                                                                                                                                                                   | 类型/值域       |
 | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------- |
 | 基色      | `themePrimary` / `themeAccent` / `themeText` / `themeBackground`                                                                                                     | `"#rrggbb"`     |
 | 面板      | `themeOpacity`(`"0.00"`–`"1.00"`) / `themeRadius`(px 字符串) / `backdropBlur`(px) / `glowIntensity`(0–?)                                                             | string 数字     |
-| 渐变      | `enableGradient`(`"true"`/`"false"`) / `gradientEnd`(`"#rrggbb"`) / `gradientAngle`(度)                                                                              | string          |
+| 渐变      | `enableGradient`(`"true"`/`"false"`) / `gradientEnd`(`"#rrggbb"`)                                                                                                   | string          |
 | 字体      | `overlayFontFamily`(CSS font-family) / `overlayFontWeight`(`"400"`–`"900"`)                                                                                          | string          |
 | 颜色      | `overlaySongColor` / `overlayRequesterColor`                                                                                                                         | `"#rrggbb"`     |
 | 字号      | `queueSongFontSize` / `queueTitleFontSize`                                                                                                                           | string 数字(px) |
-| 滚动      | `queueScrollSpeed`(像素/秒) / `queueScrollMode`(`"0"`/`"1"`)                                                                                                         | string          |
-| 排版      | `lineHeight` / `letterSpacing` / `textShadowIntensity`                                                                                                               | string 数字     |
-| 阴影/边框 | `cardShadow`(`"none"`/`"medium"`/`"strong"`) / `cardShadowColor` / `shadowOpacity` / `cardBorderWidth` / `cardBorderColor` / `panelBorderWidth` / `panelBorderColor` | string          |
-| 间距      | `itemSpacing` / `rowSpacing` / `panelPadding`                                                                                                                        | string 数字(px) |
-| 其他      | `overlayTitle` / `overlayShowIndex`(`"true"`/`"false"`) / `overlayIndexThreshold` / `overlayIndexColor` / `queueFixedSixRows`(`"true"`/`"false"`)                    | string          |
+| 滚动      | `queueScrollSpeed`(像素/秒)                                                                                                                                        | string          |
 
-`SongBoardSnapshot` 键与 `ThemeSnapshot` 一一对应，但全部加 `songBoard` 前缀（如 `songBoardThemePrimary`、`songBoardFontFamily`、`songBoardBackdropBlur` 等）。`classicSwatches`/`songBoardSwatches` 每项为 4 元素数组 `["#背景","#主色","#强调色","#文字色"]`，用于预设选择器的色块预览。
+`default` 另含 `overlayLowPowerMode`、`overlayTitle`、`overlayShowIndex`、`overlayIndexThreshold`、`overlayIndexColor`、`queueFixedSixRows`、`queueScrollMode`，共 24 个键。
+
+`SongBoardSnapshot` 使用 `songBoardThemePrimary`、`songBoardThemeAccent`、`songBoardThemeText`、`songBoardThemeBackground`、`songBoardThemeOpacity`、`songBoardThemeRadius`、`songBoardBackdropBlur`、`songBoardGlowIntensity`、`songBoardEnableGradient`、`songBoardGradientEnd`、`songBoardFontFamily`、`songBoardFontWeight`、`songBoardSongColor`、`songBoardTitle`、`songBoardSongFontSize`、`songBoardTitleFontSize`、`scrollSeconds`，共 17 个键。`classicSwatches`/`songBoardSwatches` 每项为 4 元素数组 `["#背景","#主色","#强调色","#文字色"]`，用于预设选择器的色块预览。
 
 ## 7. 礼物完整历史页面（Implemented）
 

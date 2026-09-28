@@ -18,7 +18,6 @@
  */
 
 const { execFileSync, spawnSync } = require('node:child_process');
-const path = require('node:path');
 const { redactReleaseOutput, sanitizeCommandError, checkCommandResult } = require('./release-output');
 
 // RFC 3161 时间戳服务器(优先级顺序)

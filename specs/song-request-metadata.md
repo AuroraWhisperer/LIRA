@@ -8,7 +8,7 @@ Status: Implemented
 
 ## Architecture and compatibility
 
-沿用 songs.js 表单、import.js 文本解析、song-import-schema.js 规范化及 song-service.js 导入入口。复用 requestPrice / songClip，不改数据库、同步、IPC 或导出列序。默认重复歌名加歌手跳过。用户于 2026-09-13 授权报告全部阶段：新增显式批量更新模式，核对平台导出升级为保存值，替代此前第一版的固定空值约定。
+沿用 songs.js 表单、song-import.js 文本解析、song-import-schema.js 规范化及 song-service.js 导入入口。复用 requestPrice / songClip，不改数据库、同步、IPC 或导出列序。默认重复歌名加歌手跳过。用户于 2026-09-13 授权报告全部阶段：新增显式批量更新模式，核对平台导出升级为保存值，替代此前第一版的固定空值约定。
 
 本规范显式升级 services.md 的价格别名“取首非空”规则：点歌条件、点歌说明也是价格别名；同一行不同非空价格别名冲突时该行失败，合法行继续导入，失败序号按解析后的数据行计数。其他字段的首值规则不变。文本解析保留价格别名供领域入口统一判定，不在 UI 重复业务校验。
 

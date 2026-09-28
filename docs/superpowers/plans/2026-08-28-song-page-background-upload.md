@@ -78,7 +78,7 @@ Content-Type: image/png
 | 业务/令牌 | [src/electron/license/license-manager.js](../../../src/electron/license/license-manager.js)                                                                         | `syncSongs()`（约 203-208 行）                                      |
 | IPC       | [src/electron/ipc/license-ipc.js](../../../src/electron/ipc/license-ipc.js)                                                                                         | `license:sync-songs`（约 27-31 行）                                 |
 | Preload   | [src/electron/preload.js](../../../src/electron/preload.js)                                                                                                         | `window.liraLicense.syncSongs`（约 69-84 行）                       |
-| UI        | [public/pages/admin/song/import-export.html](../../../public/pages/admin/song/import-export.html) + [public/js/admin/import.js](../../../public/js/admin/import.js) | `licenseSongSync` fieldset + `initCloudSongSync()`（约 196-212 行） |
+| UI        | [public/pages/admin/song/import-export.html](../../../public/pages/admin/song/import-export.html) + [public/js/admin/song-import.js](../../../public/js/admin/song-import.js) | `licenseSongSync` fieldset + `initCloudSongSync()`（约 196-212 行） |
 
 ### 3.1 remote-license-client.js — 加二进制上传支持
 
@@ -245,7 +245,7 @@ deleteSongPageBackground: () => ipcRenderer.invoke('license:delete-song-page-bac
 </fieldset>
 ```
 
-渲染层 JS（[import.js](../../../public/js/admin/import.js)，参照 `initCloudSongSync` 与 [start-animation.js](../../../public/js/admin/start-animation.js) 约 238-267 行的文件读取模式）：
+渲染层 JS（[song-import.js](../../../public/js/admin/song-import.js)，参照 `initCloudSongSync` 与 [start-animation.js](../../../public/js/admin/start-animation.js) 约 238-267 行的文件读取模式）：
 
 ```js
 const BG_MAX = 5 * 1024 * 1024;

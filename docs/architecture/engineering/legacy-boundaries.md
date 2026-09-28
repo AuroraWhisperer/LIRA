@@ -19,7 +19,7 @@ the named test and test case are the only numeric authority.
   modules.
 - **Target architecture:** Admin dependencies are explicit ESM imports and
   exports; the bridge remains only while legacy producers or consumers exist.
-- **Enforcement:** Incrementally enforced by `test/module-boundaries.test.js`,
+- **Enforcement:** Incrementally enforced by `test/engineering/module-boundaries.test.js`,
   test `Admin legacy global usage is frozen and can only decrease`. That test is
   the only numeric authority.
 
@@ -40,7 +40,7 @@ existing constructor and exported query callers. This avoids a public facade
 break while production composition explicitly injects stores. Remove the fallback
 when the remaining context-based callers migrate; do not add context/SQLite
 dependencies to projection, consumer, query or analysis implementations.
-`test/module-boundaries.test.js`
+`test/engineering/module-boundaries.test.js`
 protects those implementations, and gift projection/import tests protect
 transaction, retry and idempotency behavior.
 
@@ -53,7 +53,7 @@ transaction, retry and idempotency behavior.
   focused regression test.
 - **Target architecture:** SQL, table knowledge, and transaction ownership live
   under `src/storage/`.
-- **Enforcement:** Incrementally enforced by `test/module-boundaries.test.js`,
+- **Enforcement:** Incrementally enforced by `test/engineering/module-boundaries.test.js`,
   test `receiver-aware domain SQL usage is frozen and can only decrease`. That
   test is the only numeric authority and uses receiver-aware raw-text scanning.
 
@@ -67,7 +67,7 @@ transaction, retry and idempotency behavior.
 - **Target architecture:** Small stable shared modules expose pure utilities with
   clear subjects and no runtime resource ownership.
 - **Enforcement:** N/A - prose boundary. Selected regression assertions in
-  `test/module-boundaries.test.js` prevent known spreadsheet and ZIP codecs from
+  `test/engineering/module-boundaries.test.js` prevent known spreadsheet and ZIP codecs from
   returning to the aggregation point; review covers other topics.
 
 ## Mutable Behavior In Composition Roots
@@ -81,7 +81,7 @@ transaction, retry and idempotency behavior.
   current change and preserve lifecycle ordering.
 - **Target architecture:** Composition roots contain wiring and lifecycle only.
 - **Enforcement:** Nonnumeric boundary assertions in
-  `test/module-boundaries.test.js` plus code review.
+  `test/engineering/module-boundaries.test.js` plus code review.
 
 ## Empty Catch Blocks
 
@@ -94,7 +94,7 @@ transaction, retry and idempotency behavior.
   paths.
 - **Target architecture:** Failure behavior is explicit and owned by the layer
   that can recover or report safely.
-- **Enforcement:** Incrementally enforced by `test/module-boundaries.test.js`,
+- **Enforcement:** Incrementally enforced by `test/engineering/module-boundaries.test.js`,
   test `empty catch text debt is frozen and can only decrease`. That test is the
   only numeric authority. Comments do not exempt a match.
 
@@ -109,7 +109,7 @@ transaction, retry and idempotency behavior.
 - **Target architecture:** Browser dependencies are statically visible through
   ESM boundaries, with narrow compatibility adapters for remaining classic
   scripts.
-- **Enforcement:** `test/esm-module-boundaries.test.js` checks declared and
+- **Enforcement:** `test/engineering/esm-module-boundaries.test.js` checks declared and
   imported identifiers in public ES modules. Classic-script exceptions and
   explicit exports remain review-enforced.
 
@@ -129,8 +129,8 @@ transaction, retry and idempotency behavior.
   policy, profile providers, or avatar proxy internals across the facade boundary;
   implicit `onMessage()` avatar hydration is removed.
 - **Enforcement:** focused tests in
-  `test/bilibili-user-info-service.test.js`,
-  `test/bilibili-user-info-pollers.test.js`, and the existing Bilibili client,
+  `test/bilibili/bilibili-user-info-service.test.js`,
+  `test/bilibili/bilibili-user-info-pollers.test.js`, and the existing Bilibili client,
   parser, and runtime suites, plus architecture review.
 
 Migration Target entries intentionally have no artificial numeric baseline.

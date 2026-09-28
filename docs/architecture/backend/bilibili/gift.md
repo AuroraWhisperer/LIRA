@@ -12,7 +12,7 @@
 
 远端目录的 `remote-catalog-cache.js` 独占刷新合并、ETag、停止代次及持久化后发布；`remote-catalog-contract.js` 校验响应封装、v2 礼物/盲盒关系并复用 v3 variant 契约；`remote-catalog-image-policy.js` 校验 B 站原图与配置服务器同源的不可变图片地址。缓存入口保留原具名导出以兼容既有消费者。
 
-Schema 3 按服务器协议接收完整历史活动目录，不额外设置 10,000 条活动身份的拒绝门槛；仍逐项核对字段、身份摘要、总数、业务版本和奖池引用，合法全包才持久化后发布。超过该数量的合法目录须完整刷新、重启可读；非法大目录保留旧快照，不能截断活动或删除未被当前奖池引用的历史身份。验证：`test/gift-identity-catalog.test.js`。
+Schema 3 按服务器协议接收完整历史活动目录，不额外设置 10,000 条活动身份的拒绝门槛；仍逐项核对字段、身份摘要、总数、业务版本和奖池引用，合法全包才持久化后发布。超过该数量的合法目录须完整刷新、重启可读；非法大目录保留旧快照，不能截断活动或删除未被当前奖池引用的历史身份。验证：`test/gifts/gift-identity-catalog.test.js`。
 
 ## 1. 架构总览
 
@@ -23,7 +23,7 @@ Schema 3 按服务器协议接收完整历史活动目录，不额外设置 10,0
 - 长效从每条许愿的服务端创建时间开始。本日从北京时间当天 00:00 起算，包含本日创建前流水。本场从确认的开播时间起算，重新连接和软件重启不会重置；下一场开始自动切换窗口。确认离线时本场归零并等待开播，不把再次打开页面的时间当成下播时间；上游不可用时暂停本场计数，冻结到最后确认仍在直播的时间，恢复后重新按窗口统计。直播状态最多延迟一个 30 秒缓存周期。
 - 目标必须是正整数，实际数量只累计正整数 `num`，可以超过目标；进度条封顶 100%。修改目标/文案不重置创建时间，删除只删除许愿定义。计数反映当前账本，用户主动清除流水也会影响许愿。
 - 目录复用加班机当前房间和全库缓存。新建普通礼物或盲盒许愿必须有已同步的 variant 身份；房间中尚未匹配身份的候选显示待同步且不可选，服务端也拒绝保存。完整 variant 身份精确匹配，未知历史身份不猜测；既有无 variant 的许愿仍按 ID 兼容。盲盒本体匹配 `blind_box_variant_id` / `blind_box_id`，产出匹配 `gift_variant_id` / `gift_id` 且要求 `is_blind_box=1`，一份产出事件可分别推动盒子与产出两条独立目标。
-- 普通礼物使用已校验的 B 站 WebP 本地缓存，舰长/提督/总督使用内置 WebP。OBS 只读投影不含内部来源或送礼人信息。验证见 `test/gift-wishes.test.js`、`test/gift-wish-routes.test.js` 与 `test/frontend-gift-wishes.test.js`。
+- 普通礼物使用已校验的 B 站 WebP 本地缓存，舰长/提督/总督使用内置 WebP。OBS 只读投影不含内部来源或送礼人信息。验证见 `test/gifts/gift-wishes.test.js`、`test/gifts/gift-wish-routes.test.js` 与 `test/gifts/frontend-gift-wishes.test.js`。
 
 ```
 Electron remote gift controller (服务器 SSE / cursor / history)

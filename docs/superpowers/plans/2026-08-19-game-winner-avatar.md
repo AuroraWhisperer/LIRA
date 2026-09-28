@@ -25,14 +25,14 @@
 - Modify `src/server/bilibili-runtime.js`, `src/server.js`, and `src/server/api-context.js`: expose a game-only resolver through the existing composition root and API context.
 - Modify `src/server/routes/game-routes.js`: add the game winner-profile endpoint, which uses the current session winner rather than client-supplied UIDs.
 - Modify `public/pages/overlays/games.html`, `public/js/overlays/games.js`, and `public/css/overlays/games.css`: render and clear the avatar beside the winner label.
-- Modify `test/games.test.js`, `test/game-routes.test.js`, and `test/games-overlay.test.js`: lock down winner metadata, endpoint validation, and DOM-safe overlay use.
+- Modify `test/games/games.test.js`, `test/games/game-routes.test.js`, and `test/games/games-overlay.test.js`: lock down winner metadata, endpoint validation, and DOM-safe overlay use.
 
 ### Task 1: Preserve Winning Viewer Identity
 
 **Files:**
 
 - Modify: `src/games/game-session-service.js`
-- Test: `test/games.test.js`
+- Test: `test/games/games.test.js`
 
 **Interfaces:**
 
@@ -62,7 +62,7 @@ test('game session retains the viewer identity that wins', () => {
 
 - [x] **Step 2: Run test to verify it fails**
 
-Run: `node --test test/games.test.js`
+Run: `node --test test/games/games.test.js`
 Expected: FAIL because the public session has no `winner` identity metadata.
 
 - [x] **Step 3: Write minimal implementation**
@@ -82,7 +82,7 @@ function move(input = {}, player = 'host', playerIdentity = {}) {
 
 - [x] **Step 4: Run test to verify it passes**
 
-Run: `node --test test/games.test.js`
+Run: `node --test test/games/games.test.js`
 Expected: PASS.
 
 ### Task 2: Resolve A Result Avatar On Demand
@@ -94,7 +94,7 @@ Expected: PASS.
 - Modify: `src/server.js`
 - Modify: `src/server/api-context.js`
 - Modify: `src/server/routes/game-routes.js`
-- Test: `test/game-routes.test.js`
+- Test: `test/games/game-routes.test.js`
 
 **Interfaces:**
 
@@ -127,7 +127,7 @@ test('game avatar route validates viewer uid and returns transient profile data'
 
 - [x] **Step 2: Run test to verify it fails**
 
-Run: `node --test test/game-routes.test.js`
+Run: `node --test test/games/game-routes.test.js`
 Expected: FAIL because the route does not exist.
 
 - [x] **Step 3: Write minimal implementation**
@@ -143,7 +143,7 @@ Use `BilibiliApiClient.fetchProfile(uid)` to extract only an HTTPS `hdslb.com` f
 
 - [x] **Step 4: Run test to verify it passes**
 
-Run: `node --test test/game-routes.test.js`
+Run: `node --test test/games/game-routes.test.js`
 Expected: PASS.
 
 ### Task 3: Render And Clear The Result Avatar
@@ -153,7 +153,7 @@ Expected: PASS.
 - Modify: `public/pages/overlays/games.html`
 - Modify: `public/js/overlays/games.js`
 - Modify: `public/css/overlays/games.css`
-- Test: `test/games-overlay.test.js`
+- Test: `test/games/games-overlay.test.js`
 
 **Interfaces:**
 
@@ -171,7 +171,7 @@ assert.doesNotMatch(script, /innerHTML/);
 
 - [x] **Step 2: Run test to verify it fails**
 
-Run: `node --test test/games-overlay.test.js`
+Run: `node --test test/games/games-overlay.test.js`
 Expected: FAIL because the result card has no avatar node or on-demand lookup.
 
 - [x] **Step 3: Write minimal implementation**
@@ -191,20 +191,20 @@ Clear `src` and hide the image in `hideGameResult()`; use an incrementing reques
 
 - [x] **Step 4: Run test to verify it passes**
 
-Run: `node --test test/games-overlay.test.js`
+Run: `node --test test/games/games-overlay.test.js`
 Expected: PASS.
 
 ### Task 4: Verify The Scoped Change
 
 **Files:**
 
-- Verify: `test/games.test.js`
-- Verify: `test/game-routes.test.js`
-- Verify: `test/games-overlay.test.js`
+- Verify: `test/games/games.test.js`
+- Verify: `test/games/game-routes.test.js`
+- Verify: `test/games/games-overlay.test.js`
 
 - [x] **Step 1: Run focused regressions**
 
-Run: `node --test test/games.test.js test/game-routes.test.js test/games-overlay.test.js`
+Run: `node --test test/games/games.test.js test/games/game-routes.test.js test/games/games-overlay.test.js`
 Expected: PASS.
 
 - [x] **Step 2: Run syntax checks**

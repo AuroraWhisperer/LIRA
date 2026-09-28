@@ -8,7 +8,7 @@
 
 ## 现状、所有权与兼容
 
-- `public/js/admin/fans/` 和 `public/css/admin/other-features/fan-profiles.css` 拥有交互。文字选中只有浅色背景，白字按钮失去对比；普通 details 缺少菜单关闭行为。
+- `public/js/admin/fans/` 和 `public/css/admin/toolbox/fan-profiles.css` 拥有交互。文字选中只有浅色背景，白字按钮失去对比；普通 details 缺少菜单关闭行为。
 - `src/bilibili/guard-roster.js` 负责固定 B 站 HTTPS 地址的房间解析和名单分页。房主 UID 必须从房间响应解析，不能使用登录观众 UID。名单完整读取后才交给档案领域。
 - `src/electron/fan-profile-controller.js` 固定认证归属、授权代次和配置房间，限制同时一个同步，账号切换/退出时中止；提交前重查归属和房间。沿用现有主窗口主 frame 私有 IPC，renderer 不提交名单或授权归属。
 - `src/fans/guard-roster-import.js` 在现有 store 事务内按可靠 UID 建档和保存观察记录；手动同步独立于后台自动更新开关，尊重归档和删除抑制。保留私人资料与人工修订；同房间/UID 在北京时间同日连续相同等级的观察去重，等级变化仍追加；来源键包含观察时间，确保同一快照重放去重。

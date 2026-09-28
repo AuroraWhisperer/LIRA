@@ -2,7 +2,6 @@
 // 播放助手队列弹窗组件
 'use strict';
 
-import * as PlaybackUtils from '../utils.js';
 import * as UIComponents from './components.js';
 
 /**

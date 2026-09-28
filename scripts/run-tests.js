@@ -9,44 +9,57 @@ const root = path.resolve(__dirname, '..');
 // tests use Node, VM modules and isolated local HTTP/SQLite fixtures.
 const groups = {
   browser: [
-    'daily-bot-frontend',
-    'frontend-admin-danmaku',
-    'frontend-gift-display-settings',
-    'frontend-gift-feed',
-    'frontend-gift-feed-pressure',
-    'frontend-gift-history-selection',
-    'frontend-gift-wishes',
-    'frontend-toast',
-    'ui-edit-state',
+    'bots/daily-bot-frontend',
+    'danmaku/frontend-admin-danmaku',
+    'gifts/frontend-gift-display-settings',
+    'gifts/frontend-gift-feed',
+    'gifts/frontend-gift-feed-pressure',
+    'gifts/frontend-gift-history-selection',
+    'gifts/frontend-gift-wishes',
+    'ui/frontend-toast',
+    'admin/ui-edit-state',
   ],
-  desktop: ['build-integrity', 'desktop-auth-race-electron', 'desktop-request-auth-electron', 'electron-data-layout', 'local-instance-windows', 'resource-lifecycle-electron', 'resource-integrity-electron'],
+  desktop: ['engineering/build-integrity', 'desktop/desktop-auth-race-electron', 'desktop/desktop-request-auth-electron', 'desktop/electron-data-layout', 'desktop/local-instance-windows', 'desktop/resource-lifecycle-electron', 'desktop/resource-integrity-electron'],
   installer: [
-    'installer-app-exit',
-    'installer-diagnostics',
-    'installer-directory',
-    'installer-migration',
-    'installer-uninstall',
+    'engineering/installer-app-exit',
+    'engineering/installer-diagnostics',
+    'engineering/installer-directory',
+    'engineering/installer-migration',
+    'engineering/installer-uninstall',
   ],
   contracts: [
-    'daily-bot-controller',
-    'fan-profiles-protocol',
-    'frontend-gifts-panel',
-    'gift-category',
-    'gift-identity-catalog',
-    'license-password-contract',
-    'license-protocol',
-    'overtime-gift-picker',
-    'pk-report-settings-ipc',
-    'processed-gift-contract',
-    'processed-gift-import',
-    'processed-gift-source',
+    'bots/daily-bot-controller',
+    'fan-profiles/fan-profiles-protocol',
+    'gifts/frontend-gifts-panel',
+    'gifts/gift-category',
+    'gifts/gift-identity-catalog',
+    'license/license-password-contract',
+    'license/license-protocol',
+    'overtime/overtime-gift-picker',
+    'gifts/pk-report-settings-ipc',
+    'gifts/processed-gift-contract',
+    'gifts/processed-gift-import',
+    'gifts/processed-gift-source',
   ],
 };
-const files = fs
-  .readdirSync(path.join(root, 'test'))
-  .filter((file) => file.endsWith('.test.js'))
-  .map((file) => `test/${file}`)
-  .sort();
+const files = [];
+function collectTests(directory) {
+  for (const entry of fs.readdirSync(path.join(root, directory), { withFileTypes: true })) {
+    const relativePath = `${directory}/${entry.name}`;
+    if (entry.isDirectory()) {
+      if (relativePath !== 'test/helpers' && relativePath !== 'test/fixtures') collectTests(relativePath);
+    } else if (entry.isFile() && entry.name.endsWith('.test.js')) {
+      files.push(relativePath);
+    }
+  }
+}
+collectTests('test');
+// Keep collection lists in filename order across domain directories.
+files.sort((left, right) => {
+  const leftKey = `${path.basename(left)}\0${left}`;
+  const rightKey = `${path.basename(right)}\0${right}`;
+  return leftKey < rightKey ? -1 : leftKey > rightKey ? 1 : 0;
+});
 const assigned = new Set();
 for (const [name, names] of Object.entries(groups)) {
   groups[name] = names.map((file) => `test/${file}.test.js`);
@@ -65,12 +78,41 @@ const group = testArgs[0]?.startsWith('--') ? 'all' : testArgs.shift() || 'all';
 if (!Object.hasOwn(groups, group)) {
   throw new Error(`Unknown test group ${group}; use ${Object.keys(groups).join(', ')}`);
 }
-if (testArgs.includes('--list')) {
-  console.log(groups[group].join('\n'));
+const domains = [...new Set(files.map((file) => file.split('/')[1]))].sort();
+const selectedDomains = new Set();
+const nodeArgs = [];
+let list = false;
+let help = false;
+for (let index = 0; index < testArgs.length; index += 1) {
+  const arg = testArgs[index];
+  if (arg === '--domain' || arg.startsWith('--domain=')) {
+    const domain = arg === '--domain' ? testArgs[++index] : arg.slice('--domain='.length);
+    if (!domains.includes(domain)) {
+      throw new Error(`Unknown test domain ${domain || '(empty)'}; use ${domains.join(', ')}`);
+    }
+    selectedDomains.add(domain);
+  } else if (arg === '--list') {
+    list = true;
+  } else if (arg === '--help') {
+    help = true;
+  } else {
+    nodeArgs.push(arg);
+  }
+}
+const selectedFiles = groups[group].filter((file) => !selectedDomains.size || selectedDomains.has(file.split('/')[1]));
+if (help) {
+  console.log('Usage: npm test -- [group] [--domain=<directory>] [--list] [Node test options]');
+  console.log(`Groups: ${Object.keys(groups).join(', ')}`);
+  console.log(`Domains: ${domains.join(', ')}`);
+  console.log('Repeat --domain to select multiple domains; the group limits their runtime dependencies.');
+} else if (!selectedFiles.length) {
+  throw new Error(`No tests selected for group ${group} and domains ${[...selectedDomains].join(', ')}`);
+} else if (list) {
+  console.log(selectedFiles.join('\n'));
 } else {
   const result = spawnSync(
     process.execPath,
-    ['--experimental-vm-modules', '--test', '--test-concurrency=6', ...testArgs, ...groups[group]],
+    ['--experimental-vm-modules', '--test', '--test-concurrency=6', ...nodeArgs, ...selectedFiles],
     { cwd: root, stdio: 'inherit', windowsHide: true },
   );
   if (result.error) throw result.error;

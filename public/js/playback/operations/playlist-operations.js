@@ -11,7 +11,7 @@ import * as PlaybackComponents from '../ui/components.js';
  * @returns {Object} 歌单操作函数集合
  */
 export function createPlaylistOperations(deps) {
-  const { playbackState, homeService, toast, showError, readJsonResponse, renderPlayback, escapeHtml } = deps;
+  const { playbackState, homeService, toast, showError, readJsonResponse, escapeHtml } = deps;
 
   /**
    * 显示确认对话框
@@ -101,7 +101,6 @@ export function createPlaylistOperations(deps) {
   async function removeTrackFromPlaylist(track, action) {
     if (!track) return;
 
-    const homeState = homeService.getHomeState();
     const platform = playbackState.selectedSource;
     const platformLabel = platform === 'netease' ? '网易云音乐' : 'QQ 音乐';
 

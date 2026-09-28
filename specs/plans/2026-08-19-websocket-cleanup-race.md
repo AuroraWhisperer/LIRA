@@ -9,7 +9,7 @@
 ## Global Constraints
 
 - Preserve existing WebSocket paths, frame formats, close codes, authentication, and snapshot semantics.
-- Make the smallest change in `src/server/ws.js` and `test/websocket-transport.test.js`.
+- Make the smallest change in `src/server/ws.js` and `test/transport/websocket-transport.test.js`.
 - Preserve existing unrelated working-tree changes.
 
 ## Current Behavior
@@ -22,13 +22,13 @@
 **Files:**
 
 - Modify: `src/server/ws.js`
-- Modify: `test/websocket-transport.test.js`
+- Modify: `test/transport/websocket-transport.test.js`
 
 - [x] Add a regression test that closes an upgraded fake socket, emits a late WebSocket data frame, and asserts that it does not throw, write a frame, recreate its buffer, or restore membership in `context.state.sockets`.
-- [x] Run `node --experimental-vm-modules --test test/websocket-transport.test.js` and confirm the new regression fails before the implementation.
+- [x] Run `node --experimental-vm-modules --test test/transport/websocket-transport.test.js` and confirm the new regression fails before the implementation.
 - [x] Store a removable per-socket data handler, initialize an explicit cleanup flag, and make cleanup return after its first invocation.
 - [x] Mark the socket cleaned up before removing its data listener and releasing resources; have the data handler return before accessing state if cleanup already started or the socket is no longer hub-managed.
-- [x] Run `node --experimental-vm-modules --test test/websocket-transport.test.js`, then `npm run check`.
+- [x] Run `node --experimental-vm-modules --test test/transport/websocket-transport.test.js`, then `npm run check`.
 
 ## Verification
 

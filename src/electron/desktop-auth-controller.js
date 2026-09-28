@@ -1,9 +1,9 @@
 'use strict';
 
-const authManager = require('./auth-manager');
+const authManager = require('./music-auth-manager');
 const bilibiliAuth = require('./bilibili-auth');
 const { openBilibiliLoginWindow } = require('./bilibili-login-window');
-const musicLoginWindow = require('./login-window');
+const musicLoginWindow = require('./music-login-window');
 const { createMusicProviderRegistry } = require('../music/provider-registry');
 const { logBilibiliDiagnostic, summarizeAuthState } = require('../bilibili/diagnostics');
 

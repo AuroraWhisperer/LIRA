@@ -13,7 +13,7 @@ import {
 } from './song-category-filter.js';
 
 export function createSongs({ state = stateService, utils = songUtils } = {}) {
-  const { escapeHtml, escapeAttr, value, setValue, toast, showError, api, debounce, dangerConfirm } = utils;
+  const { escapeHtml, escapeAttr, value, setValue, toast, api, debounce, dangerConfirm } = utils;
 
   function initSongForm() {
     document.getElementById('songRequestPrice').addEventListener('input', () => {

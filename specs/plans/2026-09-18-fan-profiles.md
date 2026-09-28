@@ -51,7 +51,7 @@ assert.throws(() => service.execute(scopeB, 'detail', { id }));
 | Live：受影响的迁移、退出顺序、Electron 模块及 license gate 测试 | 37/37 通过 |
 | Live：`npm run check` | 873 个 JavaScript 文件语法检查通过；最后的日期/协议修正另跑受影响语法检查及上述 76 项测试 |
 | Live：`npm run verify:docs` | 前次 5/5 通过；最终重跑为 4/5：并行工作新增 `specs/cloud-daily-bots.md` 尚未登记索引。本任务的粉丝档案规格已登记，未改动其他任务的规格 |
-| Live：`npm run verify:architecture` | 21 项通过，1 项失败：既有并行改动中的 `test/ui-edit-state.test.js` 为 833 行，超过其评审上限 739；本任务未修改该文件或放宽其上限 |
+| Live：`npm run verify:architecture` | 21 项通过，1 项失败：既有并行改动中的 `test/admin/ui-edit-state.test.js` 为 833 行，超过其评审上限 739；本任务未修改该文件或放宽其上限 |
 | Live：`npm test` | 2374 项，2369 通过、4 跳过、1 失败；唯一失败同上。此次全量运行之后的日期/分页修正已由 76 项聚焦测试重新验证 |
 | Server：`npm test` | 1631/1631 通过；最后格式整理后再跑事实协议及契约治理测试，31/31 通过 |
 | 两端最终范围检查 | 已检查本任务 diff、`git diff --check` 和工作区状态；保留无关修改与未跟踪文件 |

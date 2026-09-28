@@ -26,7 +26,6 @@ export class MatchService {
    */
   async matchQueueItem(item, platforms = []) {
     const songName = item.song_name || item.songName || '';
-    const artist = item.artist || '';
 
     if (!songName) return null;
 

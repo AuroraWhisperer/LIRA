@@ -116,11 +116,11 @@ Align LIRA's guard accounting with the current Bilibili Open Platform field cont
 ### Verification Results
 
 - `node --test test/guard-gift.test.js`: 7 passed, 0 failed.
-- `node --test test/gift-detection-service.test.js test/overtime-service.test.js`: 26 passed, 0 failed.
+- `node --test test/gift-detection-service.test.js test/overtime/overtime-service.test.js`: 26 passed, 0 failed.
 - `npm run verify:docs`: 5 passed, 0 failed.
 - `npm run check`: passed for 437 JavaScript files.
 - `npm run verify:quick`: passed.
-- `npm test`: attempted, but the full suite remains red in unrelated, pre-existing dirty admin UI work, including `test/opening-overlay.test.js` expecting the old `开场文案` markup while `public/pages/admin/toolbox/start-animation.html` already contains contextual-help markup. No unrelated failures were changed in this task.
+- `npm test`: attempted, but the full suite remains red in unrelated, pre-existing dirty admin UI work, including `test/overlays/opening-overlay.test.js` expecting the old `开场文案` markup while `public/pages/admin/toolbox/start-animation.html` already contains contextual-help markup. No unrelated failures were changed in this task.
 
 ## Rollback Or Failure Handling
 

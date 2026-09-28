@@ -22,9 +22,9 @@
 
 **Files:**
 
-- Modify: `D:/Work/Live/test/license-manager.test.js`
-- Modify: `D:/Work/Live/test/remote-license-client.test.js`
-- Modify: `D:/Work/Live/test/license-background.test.js`
+- Modify: `D:/Work/Live/test/license/license-manager.test.js`
+- Modify: `D:/Work/Live/test/license/remote-license-client.test.js`
+- Modify: `D:/Work/Live/test/license/license-background.test.js`
 - Modify: `D:/Work/lira-server/test/song-library-validation.test.js`
 - Modify: `D:/Work/lira-server/test/song-library-sync.test.js`
 - Modify: `D:/Work/lira-server/test/cloud-sync-http.test.js`
@@ -72,7 +72,7 @@ Send a Device sync containing `免费`, `30元SC`, and `舰长`, assert `200`, r
 Run:
 
 ```powershell
-node --test test/license-manager.test.js test/remote-license-client.test.js test/license-background.test.js
+node --test test/license/license-manager.test.js test/license/remote-license-client.test.js test/license/license-background.test.js
 ```
 
 from `D:/Work/Live`, and:
@@ -90,7 +90,7 @@ from `D:/Work/lira-server`. The new assertions should fail before implementation
 - Modify: `D:/Work/Live/src/electron/license/license-response-utils.js`
 - Modify: `D:/Work/Live/src/electron/license/remote-license-client.js`
 - Modify: `D:/Work/Live/src/electron/ipc/license-ipc.js`
-- Modify: `D:/Work/Live/public/js/admin/import.js`
+- Modify: `D:/Work/Live/public/js/admin/song-import.js`
 
 **Interfaces:**
 
@@ -127,7 +127,7 @@ When the sync response is not OK, construct an error with its `code` and safe `i
 - [ ] **Step 5: Run the client-focused checks**
 
 ```powershell
-node --test test/license-manager.test.js test/remote-license-client.test.js test/license-background.test.js test/license-ui.test.js
+node --test test/license/license-manager.test.js test/license/remote-license-client.test.js test/license/license-background.test.js test/license/license-ui.test.js
 node scripts/check-js.js
 ```
 
@@ -237,7 +237,7 @@ node --test test/cloud-sync-http.test.js test/public-song-page.test.js test/song
 
 ```powershell
 # D:/Work/Live
-node --test test/license-manager.test.js test/remote-license-client.test.js test/license-background.test.js test/license-ui.test.js
+node --test test/license/license-manager.test.js test/license/remote-license-client.test.js test/license/license-background.test.js test/license/license-ui.test.js
 node scripts/check-js.js
 
 # D:/Work/lira-server

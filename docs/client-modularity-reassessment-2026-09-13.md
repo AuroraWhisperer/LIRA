@@ -68,9 +68,9 @@
 | 文件                                                                        | 行数 | 结论与证据                                                                                                                                    | 具体调整方式                                                                                                                                                          |
 | --------------------------------------------------------------------------- | ---: | --------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [admin/gifts/history.js](D:/Work/Live/public/js/admin/gifts/history.js)     |  619 | **模块调整。** 同时负责请求取消与分页状态、列表 HTML、行状态展示。`loadGiftHistory` 71 行 / C估算17，`renderGiftHistoryRow` 34 行 / C估算19。 | 抽出礼物历史视图，负责行与状态展示；控制器保留排序游标、请求序号、AbortController、清空状态和重试。按实际展示分支拆小渲染函数，保持转义与旧请求失效语义。             |
-| [admin/import.js](D:/Work/Live/public/js/admin/import.js)                   |  624 | **模块调整。** 表格解析、导入导出、云端歌单同步、云背景上传是不同职责；`parseTable` 131 行，`initCloudSongSync` 142 行。                      | 首先提取纯表格解析器，供导入流程和现有歌单更新消费者使用；再把云同步、背景设置归到各自 UI 模块。采用具名 ESM 接口，原入口仅保留必要兼容连接，不新增 `AdminApp` 依赖。 |
+| [admin/song-import.js](D:/Work/Live/public/js/admin/song-import.js)                   |  624 | **模块调整。** 表格解析、导入导出、云端歌单同步、云背景上传是不同职责；`parseTable` 131 行，`initCloudSongSync` 142 行。                      | 首先提取纯表格解析器，供导入流程和现有歌单更新消费者使用；再把云同步、背景设置归到各自 UI 模块。采用具名 ESM 接口，原入口仅保留必要兼容连接，不新增 `AdminApp` 依赖。 |
 | [admin/overtime.js](D:/Work/Live/public/js/admin/overtime.js)               |  679 | **局部优化。** 已有状态视图、规则模型和编辑器等 8 个直接依赖，继续切控制器收益有限；`renderGiftPicker` 84 行 / C估算16。                      | 提取选项过滤、选项节点构造等有语义的函数；保留一个选择器请求与选中状态管理位置，维持搜索代次、身份及房间/全局来源规则。暂不再拆一套控制器。                           |
-| [admin/todo.js](D:/Work/Live/public/js/admin/todo.js)                       |  771 | **模块调整。** 已有独立模型，但文件仍集合存储兼容、动作、日历/议程/任务/笔记渲染；`init` 154 行，根点击回调 C估算20。                         | 提取规划器视图及明确的动作处理函数；视图接收只读展示数据并回传动作。状态、保存和读失败后禁止写回的保护仍由原模块管理，不用可变 `context` 让多个文件互相改状态。       |
+| [admin/streamer-planner.js](D:/Work/Live/public/js/admin/streamer-planner.js)                       |  771 | **模块调整。** 已有独立模型，但文件仍集合存储兼容、动作、日历/议程/任务/笔记渲染；`init` 154 行，根点击回调 C估算20。                         | 提取规划器视图及明确的动作处理函数；视图接收只读展示数据并回传动作。状态、保存和读失败后禁止写回的保护仍由原模块管理，不用可变 `context` 让多个文件互相改状态。       |
 | [overlays/danmaku-feed.js](D:/Work/Live/public/js/overlays/danmaku-feed.js) |  642 | **模块调整。** 消息队列/计时器与头像、勋章、表情 DOM 组装可分；`createBubble` 76 行 / C估算21。                                               | 提取弹幕消息渲染器，供现有弹幕和游戏使用；feed 保留消息生命周期、布局调度和过期清理。渲染器显式接收数据和必要环境，继续使用安全文本、图片处理。                       |
 
 ### 3.2 后端、Electron 与工具：8 个
@@ -92,9 +92,9 @@
 
 | 文件                                                                                                           | 行数 | 判断与处理                                                                                                                                                                                        |
 | -------------------------------------------------------------------------------------------------------------- | ---: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [admin/other-features/start-animation.css](D:/Work/Live/public/css/admin/other-features/start-animation.css)   |  614 | **保留观察。** 同一开场动画编辑界面的上传、音乐和质量控件，没有明显跨域职责；新增大型控件时再单独成组。                                                                                           |
-| [admin/other-features/streamer-planner.css](D:/Work/Live/public/css/admin/other-features/streamer-planner.css) |  746 | **随规划器配套调整。** 日历、议程、任务、笔记已形成明确视图区；与 `todo.js` 视图整理同批按组件组织，避免单独先切样式造成归属不一致。                                                              |
-| [admin/other-features/usage-guide.css](D:/Work/Live/public/css/admin/other-features/usage-guide.css)           |  774 | **保留观察。** 帮助页目录、正文、FAQ、响应式属于同一内容表面；当前没有必要另造多个样式入口。它仍是普通手写 CSS，接近上限须限制继续堆积。                                                          |
+| [admin/toolbox/start-animation.css](D:/Work/Live/public/css/admin/toolbox/start-animation.css)   |  614 | **保留观察。** 同一开场动画编辑界面的上传、音乐和质量控件，没有明显跨域职责；新增大型控件时再单独成组。                                                                                           |
+| [admin/toolbox/streamer-planner.css](D:/Work/Live/public/css/admin/toolbox/streamer-planner.css) |  746 | **随规划器配套调整。** 日历、议程、任务、笔记已形成明确视图区；与 `streamer-planner.js` 视图整理同批按组件组织，避免单独先切样式造成归属不一致。                                                              |
+| [admin/toolbox/usage-guide.css](D:/Work/Live/public/css/admin/toolbox/usage-guide.css)           |  774 | **保留观察。** 帮助页目录、正文、FAQ、响应式属于同一内容表面；当前没有必要另造多个样式入口。它仍是普通手写 CSS，接近上限须限制继续堆积。                                                          |
 | [admin/toasts/system.css](D:/Work/Live/public/css/admin/toasts/system.css)                                     |  763 | **建议调整。** 除通用通知外还有礼物目录更新、播放登录/队列/健康、cookie刷新、直播刷新、桌面更新通知。保留通知基础样式，把领域通知按现有消费者归组，并与超长 `toasts/gifts.css` 一起核对级联顺序。 |
 | [license.css](D:/Work/Live/public/css/license.css)                                                             |  722 | **保留观察。** 单一授权页面的布局、控件和状态；暂未发现值得新增独立模块的职责。                                                                                                                   |
 | [overlays/opening.css](D:/Work/Live/public/css/overlays/opening.css)                                           |  682 | **保留观察。** 同一个 OBS 开场动画的展示和质量/动效变体；无需按动画或媒体查询机械切块。                                                                                                           |
@@ -134,7 +134,7 @@ HTML 提取完整节点/表单区域，由现有页面组合器维护顺序；�
 | [admin/desktop-lyric-preview.css](D:/Work/Live/public/css/admin/desktop-lyric-preview.css)    | 1361 | 继续调整      | 分开管理页控件布局与共用歌词渲染样式；管理页和歌词源分别依赖合适部分。同步考虑第7节的JS反向复用问题；后段媒体查询和覆盖按原顺序放置。                                                                              |
 | [admin/toasts/gifts.css](D:/Work/Live/public/css/admin/toasts/gifts.css)                      |  969 | 继续调整      | 前段礼物通知保留；地址设置、身份规则、性能监控、硬件摘要回到对应组件。通用 `.switch-*` 必须核实全部消费者，不能误归给某一面板。与763行的 `system.css` 一起整理真实归属。                                           |
 | [overlays/games.css](D:/Work/Live/public/css/overlays/games.css)                              | 1504 | 继续调整      | 按公共布局、数字炸弹/棋盘、绘画、结果层组织；绘画弹幕随绘画归属。保留后段覆盖相对前段基础规则的顺序。                                                                                                              |
-| [admin/other-features/games.css](D:/Work/Live/public/css/admin/other-features/games.css)      |  832 | **保留→调整** | 把共同管理卡片与抽签/词条配置、转盘编辑器按控件分组；只超32行不是新规则的豁免理由，也不只随便搬走32行。                                                                                                            |
+| [admin/toolbox/games.css](D:/Work/Live/public/css/admin/toolbox/games.css)      |  832 | **保留→调整** | 把共同管理卡片与抽签/词条配置、转盘编辑器按控件分组；只超32行不是新规则的豁免理由，也不只随便搬走32行。                                                                                                            |
 | [admin/overtime.css](D:/Work/Live/public/css/admin/overtime.css)                              | 1040 | **保留→调整** | 按控制台、规则编辑器、礼物选择器划分，对齐已有JS组件；共享布局继续由入口明确引入。                                                                                                                                 |
 | [overlays/clock.css](D:/Work/Live/public/css/overlays/clock.css)                              | 1228 | **保留→调整** | 四套命名主题已有明显分区；拆成公共骨架、主题样式及公共动画，保留固定加载入口，不引入JS动态主题装载。                                                                                                               |
 | [overlays/danmaku.css](D:/Work/Live/public/css/overlays/danmaku.css)                          | 1271 | **保留→调整** | 按消息基础与已有信号、气泡、蝴蝶结、榜单、极简、全屏等命名样式组织；共用身份/动画归到公共部分，避免各主题复制基础规则。                                                                                            |
@@ -210,8 +210,8 @@ HTML 提取完整节点/表单区域，由现有页面组合器维护顺序；�
 
 | 文件中的函数                                           | 原始跨度 | 判断                                                                      |
 | ------------------------------------------------------ | -------: | ------------------------------------------------------------------------- |
-| `import.js` 的模块 IIFE                                |      620 | 含18个直接嵌套函数；职责确有分化，应按解析/云同步/背景设置拆。            |
-| `todo.js` 的模块 IIFE                                  |      743 | 含34个直接嵌套函数；先分出视图，状态保持单一管理。                        |
+| `song-import.js` 的模块 IIFE                                |      620 | 含18个直接嵌套函数；职责确有分化，应按解析/云同步/背景设置拆。            |
+| `streamer-planner.js` 的模块 IIFE                                  |      743 | 含34个直接嵌套函数；先分出视图，状态保持单一管理。                        |
 | `danmaku-feed.js:createDanmakuFeed`                    |      520 | 含29个直接嵌套函数；消息渲染有独立边界。                                  |
 | `license-manager.js:createLicenseManager`              |      560 | 含32个直接嵌套函数；局部参数优化后仍有结构债务，不立即分散token生命周期。 |
 | `main.js:startDesktopApp`                              |      323 | 既有阶段编排也有大量回调；就绪/导航策略应离开组合入口。                   |
@@ -273,7 +273,7 @@ HTML 提取完整节点/表单区域，由现有页面组合器维护顺序；�
 ## 11. 批次 D 实施记录
 
 - 通过 [ADR-0017](architecture/adr/0017-incremental-modularity-size-gate.md) 同步[模块化规范](architecture/engineering/modularity-standard.md)：普通源码 800 行上限、601–800 行逐文件评估、测试独立政策及具体静态内容例外。
-- 新增 [check-modularity.js](../scripts/check-modularity.js) 和 [modularity-size.test.js](../test/modularity-size.test.js)，接入 `verify:architecture`、快速/完整门禁及默认测试发现；可用 `npm run verify:modularity` 单独运行。扫描含 CSS、HTML、测试和夹具，不使用整体排除规避规则；没有另建托管 CI 工作流。
+- 新增 [check-modularity.js](../scripts/check-modularity.js) 和 [modularity-size.test.js](../test/engineering/modularity-size.test.js)，接入 `verify:architecture`、快速/完整门禁及默认测试发现；可用 `npm run verify:modularity` 单独运行。扫描含 CSS、HTML、测试和夹具，不使用整体排除规避规则；没有另建托管 CI 工作流。
 - [当前基线](architecture/engineering/modularity-baseline.json)按实施时工作区登记，不复制原报告已过时的行数。逐文件包含职责所有者、理由、冻结上限、整改/撤销条件、保护测试和 2026-12-13 复审期限。已有其他批次修改保留，已降低规模的文件不继续沿用旧预算。
 - [函数债务](architecture/engineering/modularity-debt.md)具体记录大型工厂、初始化和历史迁移的原始跨度、所有者、保护及下一次实质修改条件。按本报告的渐进要求保留状态及历史 SQL；此项是债务治理落地，不表示所有工厂已经拆分或函数指标已全面达标。
 - 机器门禁校验存储文本行数、登记结构、过期和增长；格式化、独立职责是否增加以及函数复杂度仍有明确人工评审要求，不将文件级门禁包装成全库架构认证。

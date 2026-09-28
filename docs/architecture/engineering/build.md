@@ -11,10 +11,10 @@
 | `start`               | `node src/server.js`                                                                                                                                              | 纯 Web 模式:仅启动 HTTP 服务,进程模型见 [backend/server-core.md](../backend/server-core.md)                  |
 | `desktop`             | `electron .`                                                                                                                                                      | 桌面模式:Electron 壳与 HTTP 服务同进程                                                                       |
 | `check`               | `node scripts/check-js.js`                                                                                                                                        | 全量 JS 语法检查(见 [test.md](test.md) §3)                                                                   |
-| `test`                | `node --experimental-vm-modules --test --test-concurrency=6`                                                                                                      | 单元测试:node:test,测试文件并发 6(见 [test.md](test.md))                                                     |
-| `test:admin`          | `node --experimental-vm-modules --test --test-concurrency=4 test/admin-page-composition.test.js test/frontend-admin-shell.test.js test/frontend-admin-ai.test.js` | 管理页完整回归测试(显式启用 ESM VM 模块)                                                                     |
-| `verify:docs`         | `node --test test/governance-docs.test.js`                                                                                                                        | 治理文件、路由表、规格索引和范围内 Markdown 链接检查                                                         |
-| `verify:architecture` | `node --experimental-vm-modules --test test/module-boundaries.test.js test/esm-module-boundaries.test.js`                                                         | 模块边界、遗留债务预算和前端 ESM 边界检查                                                                    |
+| `test` | `node scripts/run-tests.js` | 递归收集业务目录中的测试；默认文件并发 6，支持依赖组与目录筛选(见 [test.md](test.md)) |
+| `test:admin` | 具体文件清单见 [package.json](../../../package.json) 的 `scripts.test:admin` | 固定管理页组合、外壳、AI、弹幕与加班机回归；显式启用 ESM VM 模块 |
+| `verify:docs`         | `node --test test/engineering/governance-docs.test.js`                                                                                                                        | 治理文件、路由表、规格索引和范围内 Markdown 链接检查                                                         |
+| `verify:architecture` | `node --experimental-vm-modules --test test/engineering/module-boundaries.test.js test/engineering/esm-module-boundaries.test.js test/engineering/modularity-size.test.js`                                                         | 模块边界、遗留债务预算和前端 ESM 边界检查                                                                    |
 | `verify:quick`        | `npm run verify:docs && npm run check && npm run verify:architecture`                                                                                             | 日常评审前快速门禁:文档 → 语法 → 架构                                                                        |
 | `verify:contracts` | `node scripts/verify-server-contract.js` | 核对固定服务器提交和 fixture SHA-256；支持 `LIRA_SERVER_ROOT` |
 | `verify:roundtrip` | `node scripts/verify-song-roundtrip.cjs` | 固定服务器真实 HTTP 歌库往返；两仓需安装依赖 |
@@ -83,7 +83,7 @@
 
 ## 4. 产物(release/)
 
-正式应用不包含开发依赖 Playwright/Playwright Core 或 Electron 默认示例程序。`afterPack` 只处理构建输出里的默认示例文件,不修改开发环境的 Electron 分发目录、LIRA 的 `app.asar`、更新元数据或礼物特效素材。离线回归覆盖见 `test/packaging-scope.test.js`。
+正式应用不包含开发依赖 Playwright/Playwright Core 或 Electron 默认示例程序。`afterPack` 只处理构建输出里的默认示例文件,不修改开发环境的 Electron 分发目录、LIRA 的 `app.asar`、更新元数据或礼物特效素材。离线回归覆盖见 `test/engineering/packaging-scope.test.js`。
 
 礼物边框与弹幕装饰的 18 个 PNG 后缀资源保留为源码素材,对应 WebP 进入安装包:其中 15 张 PNG 无损转换,3 张守护气泡图原本就是 WebP 编码,保留原始字节并使用正确后缀;已有第 3–6 套队列主题 WebP 不变。开播音乐与人物图不再内置,三个原始素材移至 `test/fixtures/opening/` 供手动上传测试;该目录在打包白名单之外,`public/img/overlays/opening/` 也显式排除。实际用户上传继续写入现有 data 目录,不会打入 `app.asar`。
 
@@ -111,7 +111,7 @@
 - `ManifestDPIAware true`([installer.nsh:1](../../../build/installer.nsh#L1)):安装器进程高 DPI 感知。
 - `customInit`([installer.nsh](../../../build/installer.nsh))只选择默认目录并检查本应用在当前安装上下文中的卸载项；仅在带引号的卸载程序路径明确不存在时删除该项，不遍历其他应用。首次安装有 D 盘时默认 `D:\LIRA`，无 D 盘时保留 builder 默认目录；升级沿用本机已有路径，不限制盘符。[installer-directory.nsh](../../../build/installer-directory.nsh) 在安装模式切换后的目录页再次应用默认值，保留 builder 的更新跳页行为。命令行 `/D` 和目录页的显式选择优先。
 - [installer-data.nsh](../../../build/installer-data.nsh) 在标准安装 section 前确认旧 LIRA 已退出。交互安装检测到运行中程序时，先提示将自动关闭；用户确认后，仅向旧安装目录或所选安装目录中 LIRA 可执行文件所属的窗口发送正常关闭请求，不强制结束进程。等待约 10 秒仍未退出才提示手动关闭并重试或取消；取消不会移动数据。静默更新等待应用自行退出，不发送额外关闭请求，超时仍中止。确认退出后，用系统 `robocopy` 将完整数据复制并发布到 `<新安装目录>.lira-data-backup`。返回码 0–7 才允许运行旧卸载器；失败、数据冲突或无法检查进程时停止。程序替换后恢复 `data/`，恢复失败保留备份、报告位置并禁止启动空库。升级时 `customRemoveFiles` 只替换程序文件，保留 `data/`、`logs/`、`updates/`。详情见 [desktop/main.md](../desktop/main.md) §3 和 ADR [0015](../adr/0015-install-local-desktop-data.md)。
-- [installer-uninstall.nsh](../../../build/installer-uninstall.nsh) 拥有普通卸载选项和删除策略。普通卸载自动清理 `logs/`、`updates/`，完整保留 `data/`；“同时删除用户数据”默认不勾选。安装模式选定且程序退出后，勾选者需再次确认，默认回答“否”，拒绝确认会保留数据并继续卸载。确认后清理当前安装数据及当前用户的 `%APPDATA%/com.aurorawhisperer.lira`、`%APPDATA%/lira`，避免重装导入旧资料；手工/安装恢复备份及云端资料保留。静默卸载不删除数据，`--updated` 升级始终保留全部运行目录。删除前拒绝空路径、磁盘根与安装目录链接；递归清理只移除链接本身，不跟随目标，失败返回非零并留下卸载程序用于重试。[原生卸载回归](../../../test/installer-uninstall.test.js) 在隔离目录编译真实卸载页，覆盖默认保留、确认删除、静默/升级、目录链接和失败路径。
+- [installer-uninstall.nsh](../../../build/installer-uninstall.nsh) 拥有普通卸载选项和删除策略。普通卸载自动清理 `logs/`、`updates/`，完整保留 `data/`；“同时删除用户数据”默认不勾选。安装模式选定且程序退出后，勾选者需再次确认，默认回答“否”，拒绝确认会保留数据并继续卸载。确认后清理当前安装数据及当前用户的 `%APPDATA%/com.aurorawhisperer.lira`、`%APPDATA%/lira`，避免重装导入旧资料；手工/安装恢复备份及云端资料保留。静默卸载不删除数据，`--updated` 升级始终保留全部运行目录。删除前拒绝空路径、磁盘根与安装目录链接；递归清理只移除链接本身，不跟随目标，失败返回非零并留下卸载程序用于重试。[原生卸载回归](../../../test/engineering/installer-uninstall.test.js) 在隔离目录编译真实卸载页，覆盖默认保留、确认删除、静默/升级、目录链接和失败路径。
 - 交互安装在迁移期间显示等待提示；复制或目录发布失败时显示错误步骤与复制返回码，并把详细输出以 UTF-16 保存到 `%TEMP%/LIRA-install-error.txt`。报告无法写入时仍显示错误弹窗。静默安装不显示等待提示或阻塞弹窗，失败仍返回非零退出码。
 - [collect-install-diagnostics.cmd](../../../scripts/collect-install-diagnostics.cmd) 调用同目录的 [PowerShell 收集脚本](../../../scripts/collect-install-diagnostics.ps1)，在工具旁生成 `LIRA安装诊断-日期时间.txt`（写入失败时退回 `%TEMP%`）。内容限于 Windows 版本/位数、同目录最多五个安装包的大小/哈希/签名、相关进程名、两天内的迁移报告及匹配 LIRA 程序名的崩溃/拦截事件；不会运行安装包、读取业务数据库或上传报告。迁移报告不存在不能证明故障原因。
 
@@ -132,7 +132,7 @@
 
 **清单**：`resources/client-integrity-manifest.json`，4 MiB/10000 项上限；仅包含 app.asar 和实际存在的 app.asar.unpacked 普通文件；稳定排序，不含清单自身、运行环境和用户数据。构建生成器和运行时共用 `resource-integrity-files.js` 的格式/路径/摘要规则。运行期语义见 [desktop/update.md](../desktop/update.md)。
 
-**凭据**：保持 GH_TOKEN/gh 登录态和已有输出脱敏，不将密钥放入参数。Git/gh 直接启动，仅 Windows npm/npx 使用 shell。latest.yml 与安装包/块映射一同由 gh 上传，不再由 builder 自动上传。测试见 `test/publish-release.test.js`、`test/packaging-scope.test.js`、`test/client-installer-integrity.test.js`。
+**凭据**：保持 GH_TOKEN/gh 登录态和已有输出脱敏，不将密钥放入参数。Git/gh 直接启动，仅 Windows npm/npx 使用 shell。latest.yml 与安装包/块映射一同由 gh 上传，不再由 builder 自动上传。测试见 `test/engineering/publish-release.test.js`、`test/engineering/packaging-scope.test.js`、`test/engineering/client-installer-integrity.test.js`。
 ## 8. 运行模式对比
 
 | 模式     | 入口                   | ELECTRON_DESKTOP | 进程                          | 认证与功能                                                                                                                                            |

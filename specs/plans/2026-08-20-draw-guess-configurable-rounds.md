@@ -17,7 +17,7 @@
 
 ### 任务 1：服务端参数契约
 
-**文件：** `src/games/draw-guess.js`、`src/games/game-session-service.js`、`src/server/routes/game-routes.js`、`test/games.test.js`、`test/game-routes.test.js`
+**文件：** `src/games/draw-guess.js`、`src/games/game-session-service.js`、`src/server/routes/game-routes.js`、`test/games/games.test.js`、`test/games/game-routes.test.js`
 
 - 增加默认/最小/最大时长常量和 `normalizeRoundDuration`，使 `createDrawGuessState({ totalRounds, roundDurationSeconds })` 生成对应毫秒值。
 - 保持无参数调用的 5 局/90 秒结果；非法值回退默认值；公开状态和下一回合沿用状态中的时长。
@@ -26,7 +26,7 @@
 
 ### 任务 2：管理页配置控件
 
-**文件：** `public/pages/admin/toolbox/games.html`、`public/css/admin/other-features/games.css`、`public/js/admin/games.js`、`test/frontend-games.test.js`
+**文件：** `public/pages/admin/toolbox/games.html`、`public/css/admin/toolbox/games.css`、`public/js/admin/games.js`、`test/games/frontend-games.test.js`
 
 - 在展开的画猜主持区加入“回合数”和“每局时长”数字输入，使用 `min/max/step` 显示 1–12 局、15–300 秒范围，并标注范围。
 - 开始画猜时读取两个控件并传给现有启动 API；启动后禁用控件，结束后恢复。
@@ -42,7 +42,7 @@
 
 ## 验证
 
-1. `node --test test/games.test.js test/game-routes.test.js test/frontend-games.test.js`
+1. `node --test test/games/games.test.js test/games/game-routes.test.js test/games/frontend-games.test.js`
 2. `npm run check`
 3. `npm run verify:quick`
 4. `git diff --check` 与限定文件 `git diff`，确认无用户现有文件被改写。

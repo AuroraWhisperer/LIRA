@@ -57,7 +57,7 @@
 
 手动同步独立于自动更新开关，预存可靠 UID、可获取的昵称/头像、带同步时间和来源房间的大航海观察记录。保留私人字段、原始记录和人工修订；跳过归档及删除抑制身份。同房间/UID 在北京时间同一天连续同步到相同等级时不重复追加观察；真实等级变化保留新的观察，来源键包含房间/UID/观察时间/等级以支持重放去重。名单不用于推算到期日、累计或连续天数；缺席只更新当前身份展示，不删除档案、不生成虚构到期日期。完成反馈新增、更新及跳过数量，可继续通过已有表单补充基础和私人信息。
 
-按钮不可选中文字，正文选中同时保持可读前景色。隔离回归见 `test/bilibili-guard-roster.test.js`、`test/fan-profiles-guard-roster.test.js`、`test/fan-profiles-ipc.test.js`；执行与验收见 [实施计划](plans/archive/2026-09-18-fan-guard-roster.md)。
+按钮不可选中文字，正文选中同时保持可读前景色。隔离回归见 `test/bilibili/bilibili-guard-roster.test.js`、`test/fan-profiles/fan-profiles-guard-roster.test.js`、`test/fan-profiles/fan-profiles-ipc.test.js`；执行与验收见 [实施计划](plans/archive/2026-09-18-fan-guard-roster.md)。
 
 ### 每日自动同步名单（2026-09-20）
 

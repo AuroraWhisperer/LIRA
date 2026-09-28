@@ -3,7 +3,6 @@
 'use strict';
 
 import * as PlaybackUtils from '../utils.js';
-import * as PlaybackComponents from '../ui/components.js';
 
 const ONLINE_CONTROL_TITLES = {
   playbackPrev: '上一首',

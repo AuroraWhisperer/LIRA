@@ -22,10 +22,10 @@
 
 - Create: `src/bilibili/users/game-winner-profile.js` — reusable winner-role identity and profile resolver.
 - Modify: `src/server/bilibili-runtime.js` — compose the resolver and expose it through the existing runtime method.
-- Create: `test/bilibili-game-winner-profile.test.js` — host/viewer resolution and fallback coverage.
+- Create: `test/bilibili/bilibili-game-winner-profile.test.js` — host/viewer resolution and fallback coverage.
 - Modify: `public/css/overlays/games.css` — scale the result avatar with the overlay while preserving a square crop.
 - Modify: `public/pages/overlays/games.html` — bump the module cache-buster after the visual change.
-- Modify: `test/games-overlay.test.js` — assert the result avatar sizing contract and profile endpoint use.
+- Modify: `test/games/games-overlay.test.js` — assert the result avatar sizing contract and profile endpoint use.
 
 ## Task 1: Extract The Winner Profile Resolver
 
@@ -33,7 +33,7 @@
 
 - Create: `src/bilibili/users/game-winner-profile.js`
 - Modify: `src/server/bilibili-runtime.js:1-110`
-- Test: `test/bilibili-game-winner-profile.test.js`
+- Test: `test/bilibili/bilibili-game-winner-profile.test.js`
 
 **Interfaces:**
 
@@ -84,7 +84,7 @@ test('winner resolver captures the host from the connected identity or room fall
 
 - [x] **Step 2: Run the focused test to verify it fails**
 
-Run: `node --test test/bilibili-game-winner-profile.test.js`
+Run: `node --test test/bilibili/bilibili-game-winner-profile.test.js`
 Expected: FAIL because the resolver module does not exist.
 
 - [x] **Step 3: Implement the minimal resolver**
@@ -107,7 +107,7 @@ Replace the inline `getGameWinnerProfile()` body with `return resolveGameWinnerP
 
 - [x] **Step 5: Run focused tests**
 
-Run: `node --test test/bilibili-game-winner-profile.test.js test/game-routes.test.js test/games.test.js`
+Run: `node --test test/bilibili/bilibili-game-winner-profile.test.js test/games/game-routes.test.js test/games/games.test.js`
 Expected: PASS, including existing winner-profile route and winner identity regressions.
 
 ## Task 2: Make The Result Avatar Legible In All Desktop Game Viewports
@@ -116,7 +116,7 @@ Expected: PASS, including existing winner-profile route and winner identity regr
 
 - Modify: `public/css/overlays/games.css:106-107`
 - Modify: `public/pages/overlays/games.html:6,139`
-- Test: `test/games-overlay.test.js`
+- Test: `test/games/games-overlay.test.js`
 
 **Interfaces:**
 
@@ -129,7 +129,7 @@ Extend the overlay regression to require `aspect-ratio: 1`, `object-fit: cover`,
 
 - [x] **Step 2: Run the focused overlay test to verify the new assertion fails**
 
-Run: `node --test test/games-overlay.test.js`
+Run: `node --test test/games/games-overlay.test.js`
 Expected: FAIL because the existing avatar rule has no explicit aspect ratio and its 26–34px range is too small for the result card.
 
 - [x] **Step 3: Implement the minimal visual change**
@@ -138,7 +138,7 @@ Use the same bounded size for width and height, for example `clamp(36px, 4.6vw, 
 
 - [x] **Step 4: Run focused UI checks**
 
-Run: `node --test test/games-overlay.test.js test/frontend-games.test.js`
+Run: `node --test test/games/games-overlay.test.js test/games/frontend-games.test.js`
 Expected: PASS with the existing DOM-safe and cache-buster assertions.
 
 ## Task 3: Verify The Unified Contract

@@ -44,8 +44,8 @@ one canonical default song category after a successful clear.
 - Domain post-clear state owner: `src/server/domain-services.js`.
 - Admin transport and presentation consumers:
   `public/js/shared/utils.js` and `public/js/admin/settings.js`.
-- Regression coverage: `test/database-clear-all.test.js`, a focused route/UI
-  recovery test, and `test/server-smoke.test.js`.
+- Regression coverage: `test/storage/database-clear-all.test.js`, a focused route/UI
+  recovery test, and `test/server/server-smoke.test.js`.
 
 ## Compatibility Constraints
 
@@ -101,7 +101,7 @@ one canonical default song category after a successful clear.
 - Change the success expectation to exactly one category named `默认` and tighten
   the server smoke assertion to the exact category list.
 - Focused verification:
-  `node --test test/database-clear-all.test.js` must fail before implementation.
+  `node --test test/storage/database-clear-all.test.js` must fail before implementation.
 
 ### Milestone 2: Reproduce route and Admin recovery
 
@@ -131,15 +131,15 @@ one canonical default song category after a successful clear.
 Expected result for every command is zero failures.
 
 ```powershell
-node --test test/database-clear-all.test.js
-node --experimental-vm-modules --test test/data-clear-all-recovery.test.js
-node --test test/server-smoke.test.js
+node --test test/storage/database-clear-all.test.js
+node --experimental-vm-modules --test test/storage/data-clear-all-recovery.test.js
+node --test test/server/server-smoke.test.js
 npm run check
 npm run verify:docs
 npm run verify:architecture
 npm run verify:quick
 npm test
-git diff --check -- src/storage/database.js src/server/routes/data-routes.js public/js/shared/utils.js public/js/admin/settings.js docs/architecture/backend/storage.md test/database-clear-all.test.js test/data-clear-all-recovery.test.js test/server-smoke.test.js specs/plans/2026-08-23-clear-all-failure-recovery.md
+git diff --check -- src/storage/database.js src/server/routes/data-routes.js public/js/shared/utils.js public/js/admin/settings.js docs/architecture/backend/storage.md test/storage/database-clear-all.test.js test/storage/data-clear-all-recovery.test.js test/server/server-smoke.test.js specs/plans/2026-08-23-clear-all-failure-recovery.md
 git status --short --untracked-files=all
 ```
 
@@ -182,7 +182,7 @@ git status --short --untracked-files=all
   and architecture boundaries 9/9.
 - The complete suite was run twice. All task-owned tests passed, but the current
   concurrent worktree has three unrelated failures in
-  `test/contextual-help.test.js`, `test/desktop-lyrics.test.js`, and
-  `test/frontend-gifts.test.js`. Their corresponding source/tests were already
+  `test/admin/contextual-help.test.js`, `test/lyrics/desktop-lyrics.test.js`, and
+  `test/gifts/frontend-gifts.test.js`. Their corresponding source/tests were already
   modified or untracked outside this task and were not changed here.
 - Targeted `git diff --check` passed. No task-owned file is staged or committed.

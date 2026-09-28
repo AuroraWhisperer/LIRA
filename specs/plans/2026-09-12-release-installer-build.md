@@ -15,7 +15,7 @@
 ## Implementation and verification
 
 - [x] Replace `!insertmacro GetInQuotes $R4 "$R3"` in build/installer.nsh with `Push "$R3"`, `Call GetInQuotes`, `Pop $R4`.
-- [x] Update test/installer-registry.test.js to assert that stack sequence and reject the unavailable macro; retain registry safety assertions.
+- [x] Update test/engineering/installer-registry.test.js to assert that stack sequence and reject the unavailable macro; retain registry safety assertions.
 - [x] Run npm test and build with npm run dist:win:local. The full installer compiler is the regression reproduction; do not run the installer against user data.
 - [ ] Review the diff, run git diff --check, and record results. Publish only after the release tag and source commit consistently identify the corrected source.
 

@@ -42,8 +42,8 @@ The implementation replaces distributed identity merging and implicit avatar hyd
 
 **Files:**
 
-- Create: `test/bilibili-user-info-service.test.js`
-- Modify: `test/bilibili-identity-cache.test.js`
+- Create: `test/bilibili/bilibili-user-info-service.test.js`
+- Modify: `test/bilibili/bilibili-identity-cache.test.js`
 
 **Interfaces:**
 
@@ -51,7 +51,7 @@ The implementation replaces distributed identity merging and implicit avatar hyd
 - Produces: `peek`, `ingestHint`, `ensure`, `listRecent`, `listOnline`, `replaceOnlineSnapshot`, `subscribe`, `setRoom`, `beginRoomRun`, `endRoomRun`, `dispose`
 
 - [ ] Write failing `node:test` cases for name quality, SC/profile avatar freshness, room authority/absence, medal target ownership, field validation/projection, subscription filtering, A→B→A generation rejection, same-room run-token rejection, provider in-flight dedupe, negative cache, and dispose.
-- [ ] Run `node --test test/bilibili-user-info-service.test.js`; expect module-not-found or missing-contract failures.
+- [ ] Run `node --test test/bilibili/bilibili-user-info-service.test.js`; expect module-not-found or missing-contract failures.
 - [ ] Keep test inputs explicit, for example:
 
   ```js
@@ -116,9 +116,9 @@ The implementation replaces distributed identity merging and implicit avatar hyd
 - Modify: `src/bilibili/danmaku-client.js`
 - Modify: `src/server/bilibili-client.js`
 - Modify: `src/server/bilibili-runtime.js`
-- Modify: `test/danmaku-client.test.js`
-- Modify: `test/server-bilibili-client-avatar.test.js`
-- Modify: `test/bilibili-runtime.test.js`
+- Modify: `test/danmaku/danmaku-client.test.js`
+- Modify: `test/bilibili/server-bilibili-client-avatar.test.js`
+- Modify: `test/bilibili/bilibili-runtime.test.js`
 
 **Interfaces:**
 
@@ -150,7 +150,7 @@ The implementation replaces distributed identity merging and implicit avatar hyd
 - [ ] Run focused tests:
 
   ```powershell
-  node --test test/bilibili-user-info-service.test.js test/bilibili-superchat-parser.test.js test/bilibili-fans-medal-poller.test.js test/danmaku-client.test.js test/server-bilibili-client-avatar.test.js test/bilibili-runtime.test.js test/game-routes.test.js
+  node --test test/bilibili/bilibili-user-info-service.test.js test/bilibili/bilibili-superchat-parser.test.js test/bilibili/bilibili-fans-medal-poller.test.js test/danmaku/danmaku-client.test.js test/bilibili/server-bilibili-client-avatar.test.js test/bilibili/bilibili-runtime.test.js test/games/game-routes.test.js
   ```
 
 - [ ] Run `npm run check`, `npm run verify:architecture`, `npm run verify:quick`, and `npm test`; expect zero failures on Node 24+.

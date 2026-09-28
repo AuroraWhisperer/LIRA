@@ -1,8 +1,17 @@
 # 打包与更新说明
 
-当前版本：`5.0.7`
+当前版本：`5.0.8`
 
 ---
+
+## v5.0.8 变更
+
+- 🎨 **桌面界面细节优化**：管理页签采用更轻的半透明选中效果，调整悬停反馈；细化滚动条静止、悬停和拖动时的颜色，深色歌词预览使用独立配色，键盘聚焦时保留滚动条尺寸。
+- 🧹 **精简无效代码与主题参数**：清理未使用的音乐解析辅助、播放器依赖和局部变量，移除主题预设中已无消费者的排版字段，保留有效主题值、色板及既有功能入口。
+- 🧩 **统一模块命名与目录**：工具箱、歌单导入、主播计划、音乐登录及歌词解析模块改用职责更清晰的名称，同步引用和架构文档，保留页面地址、设置键及接口契约。
+- ✅ **整理测试并稳定媒体回归**：测试按业务领域归档，支持按目录与运行依赖组合筛选；更新路径加载和测试发现校验，使用固定合成视频替代不稳定的实时录制输入，保留真实 Electron 播放与资源回收检查。
+
+**使用提示**：本次发布客户端，不包含服务端部署；目录整理与代码清理不改变现有数据格式。
 
 ## v5.0.7 变更
 
@@ -711,7 +720,7 @@
 
 ## v3.6.12 变更
 
-- 🎵 **QQ 音乐登录状态感知与刷新**：新增 QQ 音乐登录状态检测——Electron 主进程通过 IPC 暴露 `qq-music:get-login-state` 方法，读取 `auth-manager` 存储的 QQ 音乐 cookie（`wxuin`/`psrf_qqaccess_token` 必需），返回登录状态（已登录/未登录/已过期）与用户信息（昵称/头像/VIP 等级）。点歌页/曲库/桌面歌词设置页新增 QQ 音乐登录状态显示——展示用户头像与昵称、VIP 等级标识、登录失效提示，点击可跳转登录页刷新。登录状态每 30 秒自动检测一次，状态变化时触发 UI 更新。
+- 🎵 **QQ 音乐登录状态感知与刷新**：新增 QQ 音乐登录状态检测——Electron 主进程通过 IPC 暴露 `qq-music:get-login-state` 方法，读取 `music-auth-manager` 存储的 QQ 音乐 cookie（`wxuin`/`psrf_qqaccess_token` 必需），返回登录状态（已登录/未登录/已过期）与用户信息（昵称/头像/VIP 等级）。点歌页/曲库/桌面歌词设置页新增 QQ 音乐登录状态显示——展示用户头像与昵称、VIP 等级标识、登录失效提示，点击可跳转登录页刷新。登录状态每 30 秒自动检测一次，状态变化时触发 UI 更新。
 - 🖼️ **桌面歌词本地字体自动发现**：桌面歌词字体选择器新增本地字体自动发现——Electron 主进程通过 IPC 暴露 `desktop-lyric:get-local-fonts` 方法，调用系统 API 枚举本地安装字体（Windows 读取注册表 `HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts`），前端下拉选择器自动加载系统字体列表与预设 Web 字体合并展示。字体选择器支持搜索过滤、预览渲染，避免手动输入字体名。
 - 🎮 **小游戏查看器启动竞态修复**：游戏 overlay 初始化时序优化——延迟游戏查看器监听器注册至 DOM 加载完成后，避免 WebSocket 消息在 DOM 未就绪时触发渲染导致的 `querySelector` null 引用错误。新增启动竞态诊断与修复文档。
 - 🎁 **礼物图鉴更新**：新增 2 个礼物资源（ID 35866/35867）与映射文档，礼物图鉴 JSON 同步更新。新增礼物目录完整性测试套件——检测图鉴 JSON 与实际资源文件一致性、100 元以下礼物映射文档覆盖率。
@@ -1154,7 +1163,7 @@
   - **服务端运行时**：`server.js` 瘦身为编排入口——API 上下文（`api-context.js`）、B 站事件桥接（`bilibili-client.js`）、设置引导（`settings-bootstrap.js`）、旧版兼容包装（`compatibility-runtime.js`）、音乐运行时（`music-runtime.js`）、AI 运行时（`ai-runtime.js`）各成独立模块，显式依赖注入、无隐藏全局状态。
   - **QQ 音乐 Provider**：认证请求/登录守卫/签名写歌单请求上移到新基类 `qq-provider-client.js`，`QQMusicProvider` 继承并保留全部公开方法与导出；无状态映射/解码/Cookie/规范化助手移到 `qq-provider-utils.js`。URL、payload、header、签名与回退顺序不变。
   - **全民 K 歌采集**：961 行的 `wesing-capture.js` 变为兼容门面——路径/日志/QRC 解析进 `wesing-cache.js`、采集状态机进 `wesing-capture-engine.js`、进程控制与 PowerShell 生成进 `wesing-monitor.js`；导出、计时常量、状态转换、缓存路径校验与生成的 PowerShell 源码逐字节保持。
-  - **CSS 按连续区间拆分**：`gifts.css`（6 文件）、`other-features.css`（6 文件）、`toasts.css`、`workspace.css`、`overlays/base.css`（3 文件）、`playback/panels.css`（8 文件）全部拆为特性文件，原文件改为有序 `@import` 门面，选择器与级联顺序逐字保留，入口 URL 不变；礼物审核页样式独立为新 `gift-audit.css`。
+  - **CSS 按连续区间拆分**：`gifts.css`（6 文件）、`toolbox.css`（6 文件）、`toasts.css`、`workspace.css`、`overlays/base.css`（3 文件）、`playback/panels.css`（8 文件）全部拆为特性文件，原文件改为有序 `@import` 门面，选择器与级联顺序逐字保留，入口 URL 不变；礼物审核页样式独立为新 `gift-audit.css`。
   - **Overlay/页面 JS 拆 ES 模块**：队列 overlay 控制器拆为 `queue-render.js`（DOM 生成/主题）、`queue-scroll.js`（动画/布局）、`queue-utils.js`（纯计算/转义）、`queue-viewport.js`（视口测量），网络与状态协调留在 `queue.js`；礼物审核页拆为 `analysis.js`（无 DOM 解析/比对）、`view.js`（转义渲染）、`index.js`（WS/fetch 协调）；加班规则编辑器从 `overtime.js` 抽出为 `overtime-rule-editor.js`。
   - **测试文件拆分与共享 helper**：2547 行的 `frontend-regressions.test.js` 按领域拆成 6 个文件（admin-AI / 礼物 / admin shell / 播放 / 队列 overlay / 歌曲面板），886 行的 `playback-queue.test.js` 与 790 行的 `gift-service.test.js` 拆成 4 个新文件；共享 VM 加载器、CSS 递归读取器与页面夹具沉淀为 `test/helpers/`（`js-module-bundle`、`css-bundle`、`playback-app`、`frontend-modules`、`admin-html`）。原有测试用例名称与断言全部保留。
 - 🐛 **弹幕点歌冷却表有界化**：`cooldown-store.js` 新增剪枝方法（24 小时保留期，持久化行按最旧优先加载），弹幕冷却查询前自动剪枝；AI 观众维度冷却表同样每 60 秒剪枝过期条目（保留期 = 冷却时长 + 60 秒）。长直播下两张冷却表不再无界增长。
@@ -1314,7 +1323,7 @@
 - 🎛️ **桌面歌词设置实时预览**：桌面歌词设置页新增「桌面歌词实时预览」卡片（LIVE PREVIEW）——全民 K 歌捕捉到歌词后在此实时逐字播放，与独立桌面歌词窗口同步，支持网格/纯色两种预览背景切换和「打开桌面歌词」直达按钮。新增共享模块 `lyric-word-renderer.js`（provider 无关的逐字歌词渲染器，含进度锚点与动画帧管理），WeSing 播放页与桌面歌词预览复用同一套时序行为。
 - 📅 **主播计划（原「每日待做」占位面板）**：百宝箱「每日待做」空面板升级为新手友好的本地规划器「主播计划」——按 今天/本周/本月 三个周期与 学歌/开播准备/内容发布/直播复盘 四类分类安排直播工作，含学歌进度标记。快速添加表单 + 四个常用安排模板按钮（学一首歌/开播前检查/整理直播切片/下播后复盘），任务完成度汇总实时显示。数据仅保存在本机浏览器 `localStorage`（版本化 key），无账号、无云端同步、无服务端路由，侧边栏入口同步更名并新增说明文案「安排今天、本周与本月」。
 - 🔌 **服务端集成**：新增认证路由 `GET /api/music/wesing/status`、`POST /api/music/wesing/configure|active|refresh`（配置缓存目录、启停捕捉、手动重新检测），`weSingCachePath` 设置项默认指向 `%APPDATA%\Tencent\WeSing\WeSingCache`，状态快照新增 `weSing` 字段。运行时状态注入 `weSing` 服务接口，关闭流程新增 `weSingCapture.stop()`。
-- 🧪 **测试覆盖增强**：新增 `test/wesing-capture.test.js`（缓存解析/加密 QRC 解密/路径与 mid 安全边界/进度变化状态机）、`test/wesing-routes.test.js`（Token 校验/配置持久化/激活与公开响应形状）、`test/playback-wesing.test.js`（第三来源 DOM 状态/缓存控件/IPC 目录选择器静态断言）、`test/toolbox-todo.test.js`（主播计划标记/表单/列表/持久化）。`test/desktop-lyrics.test.js` 新增实时预览断言，`test/frontend-regressions.test.js` 适配新来源与面板。新增 `specs/wesing-live-lyrics_design.md` 设计文档。
+- 🧪 **测试覆盖增强**：新增 `test/wesing-capture.test.js`（缓存解析/加密 QRC 解密/路径与 mid 安全边界/进度变化状态机）、`test/wesing-routes.test.js`（Token 校验/配置持久化/激活与公开响应形状）、`test/playback-wesing.test.js`（第三来源 DOM 状态/缓存控件/IPC 目录选择器静态断言）、`test/streamer-planner.test.js`（主播计划标记/表单/列表/持久化）。`test/desktop-lyrics.test.js` 新增实时预览断言，`test/frontend-regressions.test.js` 适配新来源与面板。新增 `specs/wesing-live-lyrics_design.md` 设计文档。
 
 ## v3.2.26 变更
 
@@ -1482,7 +1491,7 @@
 
 - 🔮 **抽签机器人**：新增 `FortuneService`（`fortune-service.js`），观众发送「抽签」弹幕时自动回复每日一签。签池含 20 支签（上上签 2 / 上吉签 4 / 中吉签 7 / 小吉签 5 / 平签 2），每支含签名、签文和宜忌指导（如「宜乘势而为，忌得意忘形」）。抽签结果按 `(uid, 北京时间日期)` 确定性哈希（FNV-1a），同一观众同一天多次抽签返回相同签文。弹幕姬面板新增「抽签机器人」独立开关，`enableFortuneBot` 默认开启。
 - 💬 **@回复超长拆分优化**：`splitDanmakuReplyMessage()` 在拆分 @ 回复时预留 @名字 空间——第一条消息长度上限 = 40 - @名字长度，确保第一条分片内 @名字 + 首段签文完整不截断。签到回复、抽签签文等自动回复的长消息均受益。`normalizeReplyTarget` 上提到 send 入口统一调用，各分片复用同一 target 而非每片重新构造。
-- 💾 **百宝箱功能选中持久化**：`other.js` 新增 `admin.toolboxSelectedFeature` localStorage 键——选中功能面板时自动写入、页面初始化时优先恢复上次选中项（仅当对应按钮和面板均可用时），避免每次刷新或切换页面后回到默认面板。
+- 💾 **百宝箱功能选中持久化**：`toolbox-navigation.js` 新增 `admin.toolboxSelectedFeature` localStorage 键——选中功能面板时自动写入、页面初始化时优先恢复上次选中项（仅当对应按钮和面板均可用时），避免每次刷新或切换页面后回到默认面板。
 - 🎨 **侧边栏快捷入口文案增强**：弹幕姬侧边栏链接新增描述 `<small>发送弹幕并管理互动回复</small>`，使用文档功能按钮新增 `<small>查看功能说明与常见问题</small>`，帮助新手快速理解入口用途。
 - 📖 **使用文档新增升级安装指南**：新增「电脑上已经安装过 LIRA」章节，含两张安装截图（已安装用户提示、安装位置确认），引导已有用户直接「下一步→安装」完成升级，无需手动卸载。新增 `.usage-guide-image` 样式（边框圆角、全宽自适应）。
 - 🎨 **机器人开关三列网格**：弹幕姬自动回复区的开关网格从 2 列扩展为 3 列（`repeat(3, minmax(0, 1fr))`），容纳随机点歌回复/签到机器人/抽签机器人三个独立开关。
@@ -1764,7 +1773,7 @@
 
 ## v2.1.2 变更
 
-- 🧰 **「其他」页面重构为「百宝箱」**：`other.js` 重命名注释和文案，新增 `selectFeatureById` / `isFeatureAvailable` API，按键导航过滤隐藏按钮，自动回退逻辑更稳健。
+- 🧰 **「其他」页面重构为「百宝箱」**：`toolbox-navigation.js` 重命名注释和文案，新增 `selectFeatureById` / `isFeatureAvailable` API，按键导航过滤隐藏按钮，自动回退逻辑更稳健。
 - 🖥️ **桌面更新迁移至百宝箱**：`desktopUpdatePage` 从歌曲管理标签页的溢出菜单移入百宝箱侧边栏，作为独立功能入口（`otherDesktopUpdateFeature`）；`desktop.js` 通过 `AdminApp.navigation.setMainPage` + `selectFeatureById` 导航，移除旧版手动标签切换逻辑。
 - 🧹 **标签页溢出菜单移除**：`tabs.css` 删除 `.tab-overflow` 全部样式；"导入导出""桌面歌词设置"从溢出菜单移入主标签栏；移除性能页面独立标签样式。
 - 🎨 **直播刷新 Toast 图标化**：`.admin-live-refresh-toast` 用 `live-refresh-icon.png` 替代纯 CSS 渐变圆形，新增 `live-refresh-icon-in` 入场动画，适配 `prefers-reduced-motion`。
@@ -1774,7 +1783,7 @@
 
 ## v2.1.1 变更
 
-- 🧹 **「其他」页面导航重构**：`other.js` 重写为数据属性驱动的功能导航（`data-other-feature` / `data-other-feature-panel`），切换逻辑不依赖任何具体功能模块，扩展新功能只需声明 HTML 属性。
+- 🧹 **「其他」页面导航重构**：`toolbox-navigation.js` 重写为数据属性驱动的功能导航（`data-other-feature` / `data-other-feature-panel`），切换逻辑不依赖任何具体功能模块，扩展新功能只需声明 HTML 属性。
 - 🎚️ **歌单滚动速率范围调整**：`scrollSeconds` 范围从 1-200 收缩为 1-100，默认值从 100 改为 45；新增 `migrateSongScrollSpeedSetting` 迁移逻辑，旧版数值自动按比例映射到新范围。
 - 🗑️ **移除性能检测页面**：管理后台移除「性能」标签页及其全部 HTML/CSS（整机 CPU/GPU/内存等指标卡片），简化管理界面。
 - 🎨 **管理后台样式微调**：`styles-admin.css` 缓存版本更新为 `20260803-04`；`modals.css`、`display.js`、`forms.js`、`theme.js`、`songs.js` 小幅调整。
@@ -1804,7 +1813,7 @@
 
 ## v2.0.8 变更
 
-- 🧭 **管理后台新增「其他」页面**：新增 `other.js` 模块和「其他」导航标签页，预留扩展功能入口；`app.js` 导航系统重构为声明式注册（`VALID_MAIN_PAGES`/`HASH_MAP`/`BODY_MAP`），新增页面只需加一行配置，显式注释降低后续维护成本。
+- 🧭 **管理后台新增「其他」页面**：新增 `toolbox-navigation.js` 模块和「其他」导航标签页，预留扩展功能入口；`app.js` 导航系统重构为声明式注册（`VALID_MAIN_PAGES`/`HASH_MAP`/`BODY_MAP`），新增页面只需加一行配置，显式注释降低后续维护成本。
 - 🎨 **歌单展示板字号控件重定位**：`songBoardFontSize` 从主题设置页迁移至投屏设置页，范围从 8-80 调整为 24-80，默认值从 16px 提升至 50px；旧值 16 自动迁移至新默认值 50。
 - 🎨 **危险操作确认弹窗视觉增强**：`dangerConfirm` 弹窗新增右上角滑入动画、模糊遮罩层、顶部渐变危险色条、脉冲发光效果，视觉层次更丰富、警示感更强（+193 行 CSS）。
 - 🧪 **测试同步更新**：歌单展示板字号测试适配新的控件位置和默认值（50px → display 页面）。
@@ -1922,7 +1931,7 @@
 ## v1.6.6 变更
 
 - 🔄 **QQ 音乐歌单接口升级**：`getCreatedPlaylists`、`getCollectedPlaylists` 优先使用 QQ 音乐桌面客户端 API（`musics.fcg` / `musicu.fcg`），失败时自动回退到旧版网页 API，提升歌单读取的稳定性和数据完整性。
-- 🔐 **QQ 登录态检测增强**：`auth-manager.js` 新增 `qm_keyst` Cookie 识别和 `authCookies` 鉴权 Cookie 列表，登录状态判断更准确，解决部分场景下误判为已登录的问题。
+- 🔐 **QQ 登录态检测增强**：`music-auth-manager.js` 新增 `qm_keyst` Cookie 识别和 `authCookies` 鉴权 Cookie 列表，登录状态判断更准确，解决部分场景下误判为已登录的问题。
 - 🎵 **我喜欢歌单兜底策略调整**：`getLikedSongs` 在找不到「我喜欢」歌单时直接抛出明确错误提示而非静默返回空列表，引导用户重新登录以恢复完整凭证。
 - 🎨 **全屏歌词切换按钮合并**：将独立的「翻译」和「罗马音」按钮合并为单一循环按钮（`fsLyricToggleBtn`），点击按 `none → trans → roma → none` 顺序循环切换，界面更简洁。
 - 🧪 **QQ 音乐测试更新**：测试用例同步适配新版客户端 API 返回格式，新增收藏歌单和请求签名验证的断言。
@@ -2049,7 +2058,7 @@
 - 🖥️ **管理后台优化**：`admin.html`（+110 行）、`gifts.js`（+296 行）、`main.js`、`queue.js`、`settings.js`、`songs.js` 功能增强。
 - 🎨 **CSS 重构**：`styles-admin.css`（+442 行）大幅扩展，`styles-playback.css` 清理冗余。
 - ⚡ **Electron 主进程增强**：`main.js`（+148 行）新增本地媒体协议、预关闭钩子等；`preload.js` 增强。
-- 🎵 **歌词与歌曲服务优化**：`lyrics.js`（+67 行）、`song-service.js` 改进。
+- 🎵 **歌词与歌曲服务优化**：`lyric-parser.js`（+67 行）、`song-service.js` 改进。
 - 🗄️ **存储层优化**：`database.js`、`schema.js`、`settings-store.js`（+61 行）增强。
 - 🧹 **清理**：移除过期的 `blivedm-compat.js`、`blivedm-runtime.js` 兼容层。
 
@@ -2332,7 +2341,7 @@
 
 - 从 monolithic `server.js`（5315 行）和 `electron/main.js`（778 行）中拆出 25+ 独立模块。
 - 新增模块：`shared/utils`、`storage/database`、`storage/settings-store`、`music/song-service`、`music/queue-service`、`music/lyrics-service`、`music/music-cache`、`music/stream-resolver`、`music/provider-health`、`bilibili/bilibili-message-handler`、`bilibili/superchat-service`、`bilibili/gift-service`、`bilibili/blivedm-compat`、`bilibili/danmaku-client`、`bilibili/helpers`、`bilibili/wbi-signer`、`bilibili/packet-parser`、`server/api-routes`、`server/http-utils`、`server/ws`。
-- Electron 模块：`auth-manager`、`login-window`、`lyric-window`、`update-manager`。
+- Electron 模块：`music-auth-manager`、`music-login-window`、`lyric-window`、`update-manager`。
 - 前端模块：`public/js/utils`、`public/js/theme`、`public/js/playback`、`public/js/desktop`。
 - 重构后：`server.js` 缩减至约 3300 行，`electron/main.js` 缩减至 328 行。
 - 所有既有功能零回退保留。

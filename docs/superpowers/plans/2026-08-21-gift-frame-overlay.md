@@ -23,7 +23,7 @@
 - Modify: `src/storage/settings-store.js`
 - Create: `src/bilibili/gift/frame-config.js`
 - Modify: `src/server.js`, `src/server/api-context.js`, `src/server/routes/gift-routes.js`
-- Test: `test/gift-frame-config.test.js`
+- Test: `test/gifts/gift-frame-config.test.js`
 
 **Interfaces:**
 
@@ -32,11 +32,11 @@
 - `POST /api/gifts/frame/preview` accepts `{ userName, giftName, num, totalPriceRmb, themeId, motionMode }` and broadcasts a `preview: true` frame event without consulting settings or the live dedupe set.
 
 - [ ] **Step 1: Add failing contract tests** for default keys, integer-cent threshold boundaries, stable IDs, authoritative `total_price`, disabled/invalid events, motion/theme allowlists, and preview payload validation.
-- [ ] **Step 2: Run `node --test test/gift-frame-config.test.js`** and confirm the new module/routes are absent or failing.
+- [ ] **Step 2: Run `node --test test/gifts/gift-frame-config.test.js`** and confirm the new module/routes are absent or failing.
 - [ ] **Step 3: Implement `frame-config.js`** with `20` RMB default, `woodland-bloom` allowlist, `auto/full/reduced` allowlist, `Math.round(totalRmb * 100)` conversion, safe text normalization, and `gift-frame:<id>` IDs.
 - [ ] **Step 4: Add the four settings defaults** and route normalization for non-negative threshold, allowed theme, and allowed motion mode; reject malformed preview bodies with HTTP 400.
 - [ ] **Step 5: In the finalized-gift callback**, broadcast the frame event only when `buildGiftFrameEvent` returns one; leave the old MP4 resolver isolated for its compatibility endpoints.
-- [ ] **Step 6: Run `node --test test/gift-frame-config.test.js test/gift-effect-config.test.js`** and verify both new and legacy contracts pass.
+- [ ] **Step 6: Run `node --test test/gifts/gift-frame-config.test.js test/gifts/gift-effect-config.test.js`** and verify both new and legacy contracts pass.
 
 ### Task 2: Inline frame renderer and playback lifecycle
 
@@ -45,7 +45,7 @@
 - Modify: `public/pages/overlays/gift-effects.html`
 - Modify: `public/css/overlays/gift-effects.css`
 - Replace/modify: `public/js/overlays/gift-effects.js`
-- Test: `test/gift-effects-overlay.test.js`, `test/gift-frame-overlay-runtime.test.js`
+- Test: `test/gifts/gift-effects-overlay.test.js`, `test/gift-frame-overlay-runtime.test.js`
 
 **Interfaces:**
 
@@ -67,8 +67,8 @@
 - Modify: `public/pages/admin/toolbox/gift.html`
 - Create: `public/js/admin/gift-frame.js`
 - Modify: `public/js/admin/index.js`
-- Modify: `public/css/admin/other-features/gift-effects.css`
-- Test: `test/gift-frame-admin.test.js`
+- Modify: `public/css/admin/toolbox/gift-effects.css`
+- Test: `test/gifts/gift-frame-admin.test.js`
 
 **Interfaces:**
 
@@ -88,7 +88,7 @@
 - Modify: `docs/architecture/frontend/overlays.md`
 - Modify: `docs/architecture/backend/bilibili/gift.md`
 - Modify: `docs/architecture/backend/storage.md`
-- Modify: `test/gift-effects-overlay.test.js` only if compatibility assertions need additive updates
+- Modify: `test/gifts/gift-effects-overlay.test.js` only if compatibility assertions need additive updates
 
 - [ ] **Step 1: Document the `gift:frame` event owner, settings keys, integer-cent rule, overlay ownership, and legacy MP4 isolation.**
 - [ ] **Step 2: Run `npm run verify:docs` and `npm run verify:architecture`.**

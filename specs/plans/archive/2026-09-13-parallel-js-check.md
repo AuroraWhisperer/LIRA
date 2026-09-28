@@ -99,6 +99,6 @@ verification follows the existing root risk policy. The temporary benchmark
 directory disappeared during the task; the measured timings are retained above,
 and final gate logs/results are under tmp/check-performance/.
 
-An unrelated concurrent change to public/css/admin/other-features/streamer-planner.css
+An unrelated concurrent change to public/css/admin/toolbox/streamer-planner.css
 was observed and left untouched. Final review is limited to this plan, the
 checker, its tests and the two owning documentation files.

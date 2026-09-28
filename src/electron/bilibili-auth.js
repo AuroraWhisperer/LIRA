@@ -1,6 +1,6 @@
 // 编写人：Aurora
 // Bilibili 直播账号 Cookie / 登录状态管理。
-// 与 auth-manager.js 同模式，但管理 bilibili.com 的 cookies。
+// 与 music-auth-manager.js 同模式，但管理 bilibili.com 的 cookies。
 'use strict';
 
 const fs = require('node:fs');

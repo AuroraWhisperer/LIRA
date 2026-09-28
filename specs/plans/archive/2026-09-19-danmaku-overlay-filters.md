@@ -47,6 +47,6 @@
 - Desktop 最终组合 29 项测试通过（新过滤 IPC/UI、原样式 IPC、Admin fragment/CSS 归属）；906 个 JavaScript 文件语法检查通过，新增 Electron 验证脚本单独语法检查通过。
 - `scripts/verify-overlay-filters.cjs` 使用真实 Electron、正式 preload/IPC、页面片段和 CSS、独立临时目录与合成数据验证链接位置、添加 UID/词、观众搜索勾选、清空、保存失败输入保留。首轮发现复选框继承通用宽度，修正后复验通过；未请求真实 B 站数据。
 - 过滤样式独立放入 `danmaku-overlay-filters.css`；固定远端调用加入既有 `remote-danmaku-settings.js`，避免扩大已达审查行数上限的 remote client。
-- 客户端架构/模块检查只有两项既有超限：`public/css/admin/other-features/usage-guide.css` 798/760，`public/pages/admin/song/queue-theme.html` 642/610。本任务未修改这些文件。
+- 客户端架构/模块检查只有两项既有超限：`public/css/admin/toolbox/usage-guide.css` 798/760，`public/pages/admin/song/queue-theme.html` 642/610。本任务未修改这些文件。
 - 设计检测只报告已有回复控件的左边线，未改变该无关区域。两次界面检查完成；最终差异和两个工作区状态已审查，无运行数据或凭据进入本任务新增文件。
 - 已完成本地客户端及服务器实现，未提交或部署；使用新功能需要发布服务器变更并重启更新后的客户端。现有旧服务器会明确提示更新。

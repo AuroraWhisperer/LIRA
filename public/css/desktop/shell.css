@@ -235,11 +235,6 @@ body.desktop-shell .status-strip {
   margin-left: auto;
 }
 
-body.desktop-shell .main-page-tabs {
-  border-color: rgba(183, 133, 50, 0.22);
-  background: #fffaf1;
-}
-
 body.desktop-shell .main-page-tab.active {
   background: transparent;
   color: #3f3026;

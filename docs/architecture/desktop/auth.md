@@ -1,6 +1,6 @@
 # 登录与会话:Cookie 分区、加密快照与注入契约
 
-> 涉及文件:[src/electron/auth-manager.js](../../../src/electron/auth-manager.js)、[src/electron/bilibili-auth.js](../../../src/electron/bilibili-auth.js)、[src/electron/login-window.js](../../../src/electron/login-window.js)、[src/electron/bilibili-login-window.js](../../../src/electron/bilibili-login-window.js)、[src/electron/main.js](../../../src/electron/main.js)(恢复时序与注入)
+> 涉及文件:[src/electron/music-auth-manager.js](../../../src/electron/music-auth-manager.js)、[src/electron/bilibili-auth.js](../../../src/electron/bilibili-auth.js)、[src/electron/music-login-window.js](../../../src/electron/music-login-window.js)、[src/electron/bilibili-login-window.js](../../../src/electron/bilibili-login-window.js)、[src/electron/main.js](../../../src/electron/main.js)(恢复时序与注入)
 
 本文档是登录会话的**唯一事实源**:分区模型、登录 URL、Cookie 域名与关键 Cookie、快照加密格式、恢复时序、服务器注入契约只在此成表。窗口行为(尺寸/导航/权限)见 [windows.md](windows.md),IPC 通道见 [preload.md](preload.md) §2。
 
@@ -12,8 +12,8 @@
 
 | 平台       | 分区                    | 出处                                                              |
 | ---------- | ----------------------- | ----------------------------------------------------------------- |
-| QQ音乐     | `persist:music-qq`      | [auth-manager.js:12](../../../src/electron/auth-manager.js#L12)   |
-| 网易云音乐 | `persist:music-netease` | [auth-manager.js:21](../../../src/electron/auth-manager.js#L21)   |
+| QQ音乐     | `persist:music-qq`      | [music-auth-manager.js:12](../../../src/electron/music-auth-manager.js#L12)   |
+| 网易云音乐 | `persist:music-netease` | [music-auth-manager.js:21](../../../src/electron/music-auth-manager.js#L21)   |
 | Bilibili   | `persist:bilibili`      | [bilibili-auth.js:12](../../../src/electron/bilibili-auth.js#L12) |
 
 > 历史文档曾写 `persist:qqmusic-login` / `persist:bilibili-login`,已纠正。
@@ -22,8 +22,8 @@
 
 | 平台       | 登录 URL                     | 出处                                                              |
 | ---------- | ---------------------------- | ----------------------------------------------------------------- |
-| QQ音乐     | `https://y.qq.com/`          | [auth-manager.js:13](../../../src/electron/auth-manager.js#L13)   |
-| 网易云音乐 | `https://music.163.com/`     | [auth-manager.js:22](../../../src/electron/auth-manager.js#L22)   |
+| QQ音乐     | `https://y.qq.com/`          | [music-auth-manager.js:13](../../../src/electron/music-auth-manager.js#L13)   |
+| 网易云音乐 | `https://music.163.com/`     | [music-auth-manager.js:22](../../../src/electron/music-auth-manager.js#L22)   |
 | Bilibili   | `https://live.bilibili.com/` | [bilibili-auth.js:13](../../../src/electron/bilibili-auth.js#L13) |
 
 > 历史文档曾把 Bilibili 登录 URL 误写为 passport 子域下的 `/login` 页面,已纠正。`passport` 子域仍在**允许导航域名**清单内(§3),登录窗口内的实际跳转不受影响。
@@ -32,7 +32,7 @@
 
 音乐登录和认证 owner 先通过 `normalizeMusicPlatform` 的 own-property 配置枚举校验，仅接受 qq/netease（忽略首尾空格和大小写）。`constructor`、`__proto__` 等继承属性在 BrowserWindow 创建、session 获取和快照路径操作前被拒绝；不允许回落默认 session。
 
-平台配置(来源 [auth-manager.js:9-27](../../../src/electron/auth-manager.js#L9-L27)、[bilibili-auth.js:10-22](../../../src/electron/bilibili-auth.js#L10-L22)),**唯一成表处**:
+平台配置(来源 [music-auth-manager.js:9-27](../../../src/electron/music-auth-manager.js#L9-L27)、[bilibili-auth.js:10-22](../../../src/electron/bilibili-auth.js#L10-L22)),**唯一成表处**:
 
 | 平台     | 允许 Cookie 域名                                                           | 关键 Cookie(keyCookies)                                                                                     | 认证 Cookie(authCookies)            |
 | -------- | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------- |
@@ -40,7 +40,7 @@
 | 网易云   | `.163.com`、`.music.163.com`、`music.163.com`                              | `MUSIC_U`、`__csrf`                                                                                         | 缺省 → 回退 keyCookies              |
 | Bilibili | `.bilibili.com`、`bilibili.com`、`.live.bilibili.com`、`live.bilibili.com` | `DedeUserID`、`SESSDATA`、`bili_jct`                                                                        | 三者缺一不可(§4)                    |
 
-Cookie 域名匹配(`isAllowedMusicCookie`/`isAllowedBilibiliCookie`):`domain === allowed` 或 `domain === hostAllowed`(剥离前导点)或 `domain.endsWith('.' + hostAllowed)` — 子域名通配([auth-manager.js:45-53](../../../src/electron/auth-manager.js#L45-L53)、[bilibili-auth.js:36-44](../../../src/electron/bilibili-auth.js#L36-L44))。
+Cookie 域名匹配(`isAllowedMusicCookie`/`isAllowedBilibiliCookie`):`domain === allowed` 或 `domain === hostAllowed`(剥离前导点)或 `domain.endsWith('.' + hostAllowed)` — 子域名通配([music-auth-manager.js:45-53](../../../src/electron/music-auth-manager.js#L45-L53)、[bilibili-auth.js:36-44](../../../src/electron/bilibili-auth.js#L36-L44))。
 
 **允许导航域名**(登录窗内跳转/外链判定,见 [windows.md](windows.md) §2-§3):
 
@@ -50,11 +50,11 @@ Cookie 域名匹配(`isAllowedMusicCookie`/`isAllowedBilibiliCookie`):`domain ==
 | 网易云   | `music.163.com`、`interface.music.163.com`、`interface3.music.163.com`、`passport.163.com`、`reg.163.com`、`163.com`                                                                                                                                                                                      |
 | Bilibili | `bilibili.com`、`www.bilibili.com`、`live.bilibili.com`,以及 passport、`api.bilibili.com`、`api.live.bilibili.com`、`space.bilibili.com`、`message.bilibili.com`、`member.bilibili.com`、`account.bilibili.com` 子域(完整清单见 [bilibili-auth.js:14-19](../../../src/electron/bilibili-auth.js#L14-L19)) |
 
-匹配方式 `host === allowed || host.endsWith('.' + allowed)`,仅接受 `https:`/`http:`([auth-manager.js:55-64](../../../src/electron/auth-manager.js#L55-L64)、[bilibili-auth.js:46-55](../../../src/electron/bilibili-auth.js#L46-L55))。
+匹配方式 `host === allowed || host.endsWith('.' + allowed)`,仅接受 `https:`/`http:`([music-auth-manager.js:55-64](../../../src/electron/music-auth-manager.js#L55-L64)、[bilibili-auth.js:46-55](../../../src/electron/bilibili-auth.js#L46-L55))。
 
 ## 4. 登录态判断
 
-- **音乐平台** `getMusicAuthState(platform, dataDir)`([auth-manager.js:128-154](../../../src/electron/auth-manager.js#L128-L154)):`loggedIn = authCookies 中任一 Cookie 值非空`(QQ 仅 `qqmusic_key`、`qm_keyst` 之一;`p_skey`/`skey` 虽保留在 `keyCookies` 中供 QQ Provider 的 GTK/Web 回退使用,但不单独完成 QQ 音乐登录;网易云回退到 keyCookies,即 `MUSIC_U` 或 `__csrf` 之一)。
+- **音乐平台** `getMusicAuthState(platform, dataDir)`([music-auth-manager.js:128-154](../../../src/electron/music-auth-manager.js#L128-L154)):`loggedIn = authCookies 中任一 Cookie 值非空`(QQ 仅 `qqmusic_key`、`qm_keyst` 之一;`p_skey`/`skey` 虽保留在 `keyCookies` 中供 QQ Provider 的 GTK/Web 回退使用,但不单独完成 QQ 音乐登录;网易云回退到 keyCookies,即 `MUSIC_U` 或 `__csrf` 之一)。
 - **Bilibili** `getBilibiliAuthState(dataDir)`([bilibili-auth.js:127-163](../../../src/electron/bilibili-auth.js#L127-L163)):**`DedeUserID`、`SESSDATA`、`bili_jct` 三者全部存在**才 `loggedIn`(比音乐平台严格);`uid = Number(DedeUserID.value) || 0`,并单独标记 `hasSessdata`。
 
 返回结构:音乐 `{platform, name, loggedIn, cookieCount, keyCookieNames, encryptedSnapshotExists, lastSavedAt, encryptionAvailable}`;Bilibili 追加 `uid`、`hasSessdata`。
@@ -63,7 +63,7 @@ Cookie 域名匹配(`isAllowedMusicCookie`/`isAllowedBilibiliCookie`):`domain ==
 
 ### 5.1 持久化
 
-`persistMusicCookieSnapshot(platform, dataDir)`([auth-manager.js:95-108](../../../src/electron/auth-manager.js#L95-L108)) / `persistBilibiliCookieSnapshot(dataDir)`([bilibili-auth.js:86-109](../../../src/electron/bilibili-auth.js#L86-L109)):
+`persistMusicCookieSnapshot(platform, dataDir)`([music-auth-manager.js:95-108](../../../src/electron/music-auth-manager.js#L95-L108)) / `persistBilibiliCookieSnapshot(dataDir)`([bilibili-auth.js:86-109](../../../src/electron/bilibili-auth.js#L86-L109)):
 
 1. 从平台分区读取全部 Cookie,按 §3 域名清单过滤
 2. 构建 payload `{platform?, savedAt: ISO时间, cookies:[{name, value, domain, path:'/', secure, httpOnly, expirationDate}]}`(`toSerializableCookie`,secure/httpOnly 语义化布尔)
@@ -73,23 +73,23 @@ Cookie 域名匹配(`isAllowedMusicCookie`/`isAllowedBilibiliCookie`):`domain ==
 
 | 平台     | 快照文件                              | 出处                                                                     |
 | -------- | ------------------------------------- | ------------------------------------------------------------------------ |
-| QQ音乐   | `data/music-auth/qq.cookies.enc`      | [auth-manager.js:41-43](../../../src/electron/auth-manager.js#L41-L43)   |
+| QQ音乐   | `data/music-auth/qq.cookies.enc`      | [music-auth-manager.js:41-43](../../../src/electron/music-auth-manager.js#L41-L43)   |
 | 网易云   | `data/music-auth/netease.cookies.enc` | 同上                                                                     |
 | Bilibili | `data/bilibili-auth/cookies.enc`      | [bilibili-auth.js:28-30](../../../src/electron/bilibili-auth.js#L28-L30) |
 
 ### 5.2 恢复
 
-`restoreMusicCookieSnapshot`([auth-manager.js:110-124](../../../src/electron/auth-manager.js#L110-L124)) / `restoreBilibiliCookieSnapshot`([bilibili-auth.js:111-125](../../../src/electron/bilibili-auth.js#L111-L125)):快照文件不存在 → `null`;`safeStorage` 不可用 → `null`;解密/解析失败 → 吞噬异常返回 `null`(当作未登录)。成功则逐条 `cookies.set(toElectronCookieDetails(cookie))` 写回分区。
+`restoreMusicCookieSnapshot`([music-auth-manager.js:110-124](../../../src/electron/music-auth-manager.js#L110-L124)) / `restoreBilibiliCookieSnapshot`([bilibili-auth.js:111-125](../../../src/electron/bilibili-auth.js#L111-L125)):快照文件不存在 → `null`;`safeStorage` 不可用 → `null`;解密/解析失败 → 吞噬异常返回 `null`(当作未登录)。成功则逐条 `cookies.set(toElectronCookieDetails(cookie))` 写回分区。
 
-`toElectronCookieDetails`([auth-manager.js:80-93](../../../src/electron/auth-manager.js#L80-L93)):`url` 由 `protocol(secure?https:http)://domain(去前导点)+path` 组装,写入时保留 `domain` 前导点;`expirationDate` 仅 `Number.isFinite` 时设置 — **会话 Cookie(无过期时间)恢复后仍是会话 Cookie,重启后可能丢失**。
+`toElectronCookieDetails`([music-auth-manager.js:80-93](../../../src/electron/music-auth-manager.js#L80-L93)):`url` 由 `protocol(secure?https:http)://domain(去前导点)+path` 组装,写入时保留 `domain` 前导点;`expirationDate` 仅 `Number.isFinite` 时设置 — **会话 Cookie(无过期时间)恢复后仍是会话 Cookie,重启后可能丢失**。
 
 ## 6. Bilibili 明文导出
 
-完整 Cookie 只保存在既有 Electron partition 和 safeStorage 加密快照中，不再导出明文。2026-09-25 用户确认外部采集脚本已停用，原明文导出开关失效；持久化加密快照后、启动恢复和退出时删除旧 `data/bilibili-auth/cookies.txt`，不读取或迁移其中内容。加密不可用时保持原有失败行为，不创建明文替代物。验收见 [Cookie 存储回归](../../../test/bilibili-cookie-storage.test.js)。
+完整 Cookie 只保存在既有 Electron partition 和 safeStorage 加密快照中，不再导出明文。2026-09-25 用户确认外部采集脚本已停用，原明文导出开关失效；持久化加密快照后、启动恢复和退出时删除旧 `data/bilibili-auth/cookies.txt`，不读取或迁移其中内容。加密不可用时保持原有失败行为，不创建明文替代物。验收见 [Cookie 存储回归](../../../test/bilibili/bilibili-cookie-storage.test.js)。
 
 ## 7. 登出
 
-`logoutMusicAccount(platform, dataDir)`([auth-manager.js:163-169](../../../src/electron/auth-manager.js#L163-L169)) / `logoutBilibiliAccount(dataDir)`([bilibili-auth.js:179-188](../../../src/electron/bilibili-auth.js#L179-L188)):
+`logoutMusicAccount(platform, dataDir)`([music-auth-manager.js:163-169](../../../src/electron/music-auth-manager.js#L163-L169)) / `logoutBilibiliAccount(dataDir)`([bilibili-auth.js:179-188](../../../src/electron/bilibili-auth.js#L179-L188)):
 
 1. 平台分区 `clearStorageData({storages:['cookies','localstorage','indexdb','websql']})`
 2. 删除 `.enc` 快照文件
@@ -103,8 +103,8 @@ Cookie 域名匹配(`isAllowedMusicCookie`/`isAllowedBilibiliCookie`):`domain ==
 恢复、导入、退出按请求顺序串行执行，后一次替换保留完整新账号；交互登录不占住写入队列等待用户，避免阻塞退出。
 旧登录完成时由代次检查返回 `{cancelled:true,snapshot:null,state:{loggedIn:false}}`，不将云端替换误判为本地登录成功。
 窗口关闭会等待已触发的 800 ms 保存任务；导航失败也等待关闭任务结束。主进程退出先取消并等待这些任务，再关闭后端。
-存储格式、分区键和正常登录返回值不变。验证见 [真实 Electron 时序测试](../../../test/desktop-auth-race-electron.test.js)
-及 [退出装配测试](../../../test/electron-shutdown.test.js)。
+存储格式、分区键和正常登录返回值不变。验证见 [真实 Electron 时序测试](../../../test/desktop/desktop-auth-race-electron.test.js)
+及 [退出装配测试](../../../test/desktop/electron-shutdown.test.js)。
 
 ## 8. 会话恢复时序
 
@@ -124,10 +124,10 @@ restoreMusicCookieSnapshots()    # Object.keys(MUSIC_LOGIN_CONFIG) → qq → ne
 
 | 机制                 | 说明                                                                                      | 出处                                                                   |
 | -------------------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| cookie change 主路径 | `cookies.on('changed')` 在没有进行中认证读取时立即 `getAuthState()`；重叠事件合并，并触发 800ms 防抖快照落盘 | [login-window.js](../../../src/electron/login-window.js) |
-| 1.5s 轮询安全网      | `setInterval(checkLoginComplete, 1500)` 兜底(防止漏掉 cookie 事件)                        | [login-window.js:73](../../../src/electron/login-window.js#L73)        |
-| 自动关闭             | 检测到 `loggedIn` → 登录窗自动 `close()`                                                  | [login-window.js:52-61](../../../src/electron/login-window.js#L52-L61) |
-| 最终快照             | 窗口 `closed` 时强制 persist 一次,随 promise resolve `{snapshot, state}`                  | [login-window.js:75-89](../../../src/electron/login-window.js#L75-L89) |
+| cookie change 主路径 | `cookies.on('changed')` 在没有进行中认证读取时立即 `getAuthState()`；重叠事件合并，并触发 800ms 防抖快照落盘 | [music-login-window.js](../../../src/electron/music-login-window.js) |
+| 1.5s 轮询安全网      | `setInterval(checkLoginComplete, 1500)` 兜底(防止漏掉 cookie 事件)                        | [music-login-window.js:73](../../../src/electron/music-login-window.js#L73)        |
+| 自动关闭             | 检测到 `loggedIn` → 登录窗自动 `close()`                                                  | [music-login-window.js:52-61](../../../src/electron/music-login-window.js#L52-L61) |
+| 最终快照             | 窗口 `closed` 时强制 persist 一次,随 promise resolve `{snapshot, state}`                  | [music-login-window.js:75-89](../../../src/electron/music-login-window.js#L75-L89) |
 
 音乐与 Bilibili 均由 `loginCheckInFlight` 保证同一窗口最多一次未完成的认证检查；读取失败后释放标记，后续 Cookie 事件或 1.5s 轮询重试。音乐窗口仅记录固定失败诊断，不输出 Cookie 或异常详情。窗口销毁后不再开启检查；最终关闭快照/状态读取保持独立。Bilibili 另带 `loginCloseRequested` 防止重复自动关闭(见 [windows.md](windows.md) §3)。
 
@@ -135,7 +135,7 @@ restoreMusicCookieSnapshots()    # Object.keys(MUSIC_LOGIN_CONFIG) → qq → ne
 
 头像 CDN 代理 `BilibiliApiClient.fetchAvatarImage` 不携带 Bilibili Cookie，保留 HTTPS/hdslb 域名、Referer 和图片响应检查；其他需要认证的 Bilibili API 请求头保持不变。
 
-`getMusicCookieHeader(platform)`([auth-manager.js:155-161](../../../src/electron/auth-manager.js#L155-L161)) / `getBilibiliCookieHeader()`([bilibili-auth.js:165-171](../../../src/electron/bilibili-auth.js#L165-L171)):实时从平台分区读取允许域名内的全部 Cookie,过滤空 name/value 后拼接 `"name1=value1; name2=value2; ..."`。`getBilibiliUid()`([bilibili-auth.js:173-177](../../../src/electron/bilibili-auth.js#L173-L177)):返回 `DedeUserID` 数值。
+`getMusicCookieHeader(platform)`([music-auth-manager.js:155-161](../../../src/electron/music-auth-manager.js#L155-L161)) / `getBilibiliCookieHeader()`([bilibili-auth.js:165-171](../../../src/electron/bilibili-auth.js#L165-L171)):实时从平台分区读取允许域名内的全部 Cookie,过滤空 name/value 后拼接 `"name1=value1; name2=value2; ..."`。`getBilibiliUid()`([bilibili-auth.js:173-177](../../../src/electron/bilibili-auth.js#L173-L177)):返回 `DedeUserID` 数值。
 
 `getBilibiliAccountProfile(dataDir)` 先复用上述登录态判定，再用当前 UID 和 Cookie 调用 Bilibili 用户卡片接口；只向 renderer 返回 `{uid, name, avatarUrl}`，其中头像地址仍经过 `hdslb.com` HTTPS 白名单归一化，不返回 Cookie。资料查询独立于登录态 IPC，接口失败不会阻塞登录窗口完成或改变登录判定。
 
@@ -193,8 +193,8 @@ detached 文档的 beacon 不放宽认证，桌面退出继续使用既有 IPC �
 这样展示脚本不能通过 `parent.fetch` 或父 DOM 借用主框架权限；服务端按展示 scope 校验
 `Origin: null` 请求，不能把 opaque origin 本身当作身份。
 
-验证：[desktop-request-auth.test.js](../../../test/desktop-request-auth.test.js) 与
-[desktop-request-auth-electron.test.js](../../../test/desktop-request-auth-electron.test.js)。后者在
+验证：[desktop-request-auth.test.js](../../../test/desktop/desktop-request-auth.test.js) 与
+[desktop-request-auth-electron.test.js](../../../test/desktop/desktop-request-auth-electron.test.js)。后者在
 Windows Electron 43.2 使用临时 profile 和本地测试服务，覆盖管理引导/重载/许可恢复、
 HTTP/WS/beacon、重定向、opaque iframe、四类 Worker 被 CSP 阻止、真实时钟预览、开场音频及
 带头像和礼物图片的主进程导出截图；主窗口沿用 `sandbox: false`，不使用真实用户数据。
@@ -203,7 +203,7 @@ HTTP/WS/beacon、重定向、opaque iframe、四类 Worker 被 CSP 阻止、真�
 
 | 项目        | 说明                                                                                                                                              | 出处                                                                                                                                        |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| 快照加密    | safeStorage(Windows 上 DPAPI);`isEncryptionAvailable()===false` 时 persist 抛异常、restore 返回 null、auth state 报告 `encryptionAvailable:false` | [auth-manager.js:99-101](../../../src/electron/auth-manager.js#L99-L101)、[auth-manager.js:113](../../../src/electron/auth-manager.js#L113) |
+| 快照加密    | safeStorage(Windows 上 DPAPI);`isEncryptionAvailable()===false` 时 persist 抛异常、restore 返回 null、auth state 报告 `encryptionAvailable:false` | [music-auth-manager.js:99-101](../../../src/electron/music-auth-manager.js#L99-L101)、[music-auth-manager.js:113](../../../src/electron/music-auth-manager.js#L113) |
 | 登录窗      | sandbox:true、contextIsolation:true、无 preload、权限请求全拒                                                                                     | [windows.md](windows.md) §2                                                                                                                 |
 | 导航限制    | 仅 allowedHosts 内导航,其余交系统浏览器                                                                                                           | §3                                                                                                                                          |
 | 子域名通配  | 剥离前导点后 `endsWith('.host')` 接受所有子域名                                                                                                   | §3                                                                                                                                          |
@@ -249,4 +249,4 @@ IPC/返回字段只在 [preload.md](preload.md) 登记。百宝箱已接入用�
 
 同一生命周期内的正常 token 续期保持请求有效，已失效 token 的调用仍可共享一次重新验证，并只向同主体重试一次。公开的 authorization epoch 仍在每次成功认证时更新，供既有消费者使用，不承担这个允许续期的请求代际职责。迟到成功以既有 `LICENSE_NOT_AUTHORIZED` 拒绝；迟到错误可返回原调用方，但不再清空或阻断新会话。`getProfile` 在通用层校验及敏感字段清洗后同步提交，避免后续异步恢复旧资料。
 
-内部凭据读取和 SSE 的完成/失败同样经过该约束；流的取消与事件消费仍由云同步、礼物控制器现有的 `AbortSignal` 和主体检查负责。旧续期、心跳的完成或 `finally` 不得替换新生命周期的共享任务引用或维护计时器。回归场景见 [license-manager-identity.test.js](../../../test/license-manager-identity.test.js)，使用合成身份、可控 Promise 与隔离的 manager，不访问真实服务。
+内部凭据读取和 SSE 的完成/失败同样经过该约束；流的取消与事件消费仍由云同步、礼物控制器现有的 `AbortSignal` 和主体检查负责。旧续期、心跳的完成或 `finally` 不得替换新生命周期的共享任务引用或维护计时器。回归场景见 [license-manager-identity.test.js](../../../test/license/license-manager-identity.test.js)，使用合成身份、可控 Promise 与隔离的 manager，不访问真实服务。

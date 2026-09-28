@@ -1,9 +1,10 @@
 /* 在 html 上设桌面主题变量（内联脚本在 CSS 加载前写入），
    避免页面先用粉色默认主题渲染再切金色的闪烁 */
 html.desktop-shell {
-  --scrollbar-thumb: #8c8279;
-  --scrollbar-thumb-hover: #6f665e;
-  --scrollbar-thumb-active: #514942;
+  /* Quiet at rest, stronger on hover, strongest while dragging. */
+  --scrollbar-thumb: #91857a;
+  --scrollbar-thumb-hover: #665a50;
+  --scrollbar-thumb-active: #453930;
   --page-bg: #f7f3ef;
   --surface: #fffcf8;
   --surface-2: #f5eee4;
@@ -16,6 +17,13 @@ html.desktop-shell {
   --danger: #b42318;
   --warning: #946200;
   --shadow: 0 12px 32px rgba(87, 58, 28, 0.1);
+}
+
+/* The lyric preview sits on a dark canvas, so interaction increases lightness. */
+body.desktop-shell .desktop-lyric-preview-viewport {
+  --scrollbar-thumb: #91969d;
+  --scrollbar-thumb-hover: #c3c7cd;
+  --scrollbar-thumb-active: #f0f2f5;
 }
 
 body.desktop-shell {

@@ -167,8 +167,8 @@ Electron 43, native fetch/SSE parsing, node:test.
 - [x] Wire authorization transitions, power resume and `before-quit` cleanup in
   `main.js`.
 - [x] Run the new controller/cursor tests plus
-  `test/remote-license-client.test.js`, `test/license-background.test.js`,
-  `test/license-protocol-e2e.test.js`, and `test/license-resume.test.js`.
+  `test/license/remote-license-client.test.js`, `test/license/license-background.test.js`,
+  `test/license/license-protocol-e2e.test.js`, and `test/license/license-resume.test.js`.
 
 ## Milestone 5: Preserve non-gift local Bilibili behavior
 
@@ -179,7 +179,7 @@ Electron 43, native fetch/SSE parsing, node:test.
 - [x] Update runtime/startup tests to prove client construction, danmaku/SC/game
   handlers and active room state remain enabled while local gifts are ignored.
 - [x] Run the Bilibili runtime/startup and message-handler tests.
-  `test/bilibili-startup-wiring.test.js`, relevant message/parser tests and the
+  `test/bilibili/bilibili-startup-wiring.test.js`, relevant message/parser tests and the
   new suppression assertion.
 
 ## Milestone 6: Blind-box cloud settings compatibility

@@ -21,9 +21,9 @@
 ## Ownership
 
 - Owner: `public/js/admin/interactive-tour.js`.
-- Styles: `public/css/admin/other-features/interactive-tour.css`.
+- Styles: `public/css/admin/toolbox/interactive-tour.css`.
 - Page inclusion: `public/pages/admin/shell-start.html`.
-- Focused tests: new `test/interactive-tour.test.js`; syntax gate `npm run check`.
+- Focused tests: new `test/admin/interactive-tour.test.js`; syntax gate `npm run check`.
 
 ## Proposed Changes
 
@@ -40,7 +40,7 @@
 
 ## Verification
 
-- `node --test test/interactive-tour.test.js`
+- `node --test test/admin/interactive-tour.test.js`
 - `npm run check`
 - `npm run verify:quick`
 - `git diff --check` and `git status --short`

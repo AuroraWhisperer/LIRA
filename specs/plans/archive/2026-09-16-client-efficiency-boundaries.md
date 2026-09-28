@@ -26,7 +26,7 @@ The review reproduced an older HTTP state response replacing a newer WebSocket s
 | Snapshot/rendering | `src/storage/song-store.js`, `src/server/domain-services.js`, Admin state/queue/app | unchanged `/api/state` and snapshot fields | song-store, Admin runtime and new render tests |
 | Playback writes | `public/js/playback/state/`, `features/`, `operations/`, `controller.js` | `docs/architecture/frontend/playback.md` | playback controller, queue, persistence and provider tests |
 | Gift persistence | `src/bilibili/gift/`, `src/storage/` | `docs/architecture/backend/bilibili/gift.md` | projection/import/sync tests, module boundaries |
-| Optional editors | `public/js/admin/app.js`, `other.js`, tool modules | toolbox navigation and `docs/architecture/frontend/app.md` | toolbox, opening, clock and lifecycle tests |
+| Optional editors | `public/js/admin/app.js`, `toolbox-navigation.js`, tool modules | toolbox navigation and `docs/architecture/frontend/app.md` | toolbox, opening, clock and lifecycle tests |
 
 ## Milestones
 

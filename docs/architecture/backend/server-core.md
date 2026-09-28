@@ -109,7 +109,7 @@ phase 为 `ready` 时，`server.on('upgrade')` 先复用 HTTP 的严格 Host:por
 - OBS 会话恢复：本机 WS 断开或 API 返回 401 后，使用旧页面能力请求其最小 `/api/state`；仅再次 401 才刷新。此错误响应可被 opaque 页面读取，不能借此读取数据。探测单飞、5 秒超时，离线/启动中/凭据有效不刷新，pagehide 取消探测。
 - 页面仍为 `Cache-Control: no-store`。只有已认证管理组合页的实际 GET 分配 `__PLAYBACK_SNAPSHOT_WRITER__`；HEAD、未授权页面、raw 片段和 overlay 都不改变播放代次。该字段用于顺序控制，不是认证凭据。
 
-开播音频和人物图的文件流由 `http-utils.js` 负责收尾：GET 在源文件成功打开后发送 200，打开前文件消失返回 404，其他打开错误返回不含内部路径的 500；发送头部后的读取失败终止响应。客户端提前关闭响应时销毁源流，HEAD 保持只返回元信息。该处理覆盖 stat 后文件消失的竞态，不承诺并发替换文件时的内容快照一致性。验证：`test/opening-media-stream.test.js`。
+开播音频和人物图的文件流由 `http-utils.js` 负责收尾：GET 在源文件成功打开后发送 200，打开前文件消失返回 404，其他打开错误返回不含内部路径的 500；发送头部后的读取失败终止响应。客户端提前关闭响应时销毁源流，HEAD 保持只返回元信息。该处理覆盖 stat 后文件消失的竞态，不承诺并发替换文件时的内容快照一致性。验证：`test/overlays/opening-media-stream.test.js`。
 
 ## 5. 领域服务装配
 

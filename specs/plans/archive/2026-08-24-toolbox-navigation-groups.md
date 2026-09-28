@@ -100,14 +100,14 @@ Expected: the new group-contract test fails because `data-other-feature-group` a
 **Files:**
 
 - Modify: `public/pages/admin/toolbox/shell-start.html`
-- Modify: `public/css/admin/other-features/shell.css`
-- Modify: `public/css/admin/other-features/usage-guide.css`
+- Modify: `public/css/admin/toolbox/shell.css`
+- Modify: `public/css/admin/toolbox/usage-guide.css`
 - Test: `test/toolbox-sidebar.test.js`
 - Test: `test/frontend-admin-shell.test.js`
 
 **Interfaces:**
 
-- Consumes: `other.js` queries for `[data-other-feature]`, existing panel IDs, and current desktop/mobile toolbox layout.
+- Consumes: `toolbox-navigation.js` queries for `[data-other-feature]`, existing panel IDs, and current desktop/mobile toolbox layout.
 - Produces: four presentational group headings and the same feature buttons in a clearer order; no JavaScript API changes.
 
 - [x] **Step 1: Move all feature buttons into the existing tab list**
@@ -192,7 +192,7 @@ Replace the flat “上方 / 下方依次” inventory with one concise sentence
 
 - [x] **Step 2: Update the Admin owner document**
 
-In `docs/architecture/frontend/app.md` §6, state that `other.js` still owns only navigation and that the HTML shell visually groups the unchanged feature IDs into 直播互动、直播画面、主播工作、软件与帮助.
+In `docs/architecture/frontend/app.md` §6, state that `toolbox-navigation.js` still owns only navigation and that the HTML shell visually groups the unchanged feature IDs into 直播互动、直播画面、主播工作、软件与帮助.
 
 - [x] **Step 3: Run focused and quick verification**
 

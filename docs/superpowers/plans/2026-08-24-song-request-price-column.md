@@ -22,8 +22,8 @@
 
 **Files:**
 
-- Modify: `test/song-file-codec.test.js`
-- Create: `test/song-import-table.test.js`
+- Modify: `test/songs/song-file-codec.test.js`
+- Create: `test/songs/song-import-table.test.js`
 
 **Interfaces:**
 
@@ -41,7 +41,7 @@ Add `requestPrice: '30元SC'` to the normalized expected object and assert the C
 
 - [x] **Step 2: Run the focused test and confirm the new assertion fails**
 
-Run: `node --test test/song-file-codec.test.js`
+Run: `node --test test/songs/song-file-codec.test.js`
 
 Expected: FAIL because the current schema has no `点歌价格` column or `requestPrice` normalization.
 
@@ -52,7 +52,7 @@ Expected: FAIL because the current schema has no `点歌价格` column or `reque
 - Modify: `src/storage/schema.js`
 - Modify: `src/storage/database.js`
 - Modify: `src/music/song-service.js`
-- Modify: `test/database-maintenance.test.js`
+- Modify: `test/storage/database-maintenance.test.js`
 
 **Interfaces:**
 
@@ -83,7 +83,7 @@ Normalize the two accepted input spellings with `cleanText`. On updates, retain 
 
 - [x] **Step 4: Run storage and codec tests**
 
-Run: `node --test test/database-maintenance.test.js test/song-file-codec.test.js`
+Run: `node --test test/storage/database-maintenance.test.js test/songs/song-file-codec.test.js`
 
 Expected: PASS, including two consecutive database startups and `PRAGMA integrity_check = ok`.
 
@@ -93,7 +93,7 @@ Expected: PASS, including two consecutive database startups and `PRAGMA integrit
 
 - Modify: `src/music/song-import-schema.js`
 - Modify: `src/music/song-file-codec.js`
-- Modify: `public/js/admin/import.js`
+- Modify: `public/js/admin/song-import.js`
 
 **Interfaces:**
 
@@ -121,7 +121,7 @@ Export `song.request_price || ''`. Give the two template sample rows representat
 
 - [x] **Step 3: Run the focused test**
 
-Run: `node --test test/song-file-codec.test.js`
+Run: `node --test test/songs/song-file-codec.test.js`
 
 Expected: PASS for CSV and XLSX round trips.
 
@@ -151,7 +151,7 @@ Document nine columns and the new free-text alias/normalization mapping.
 Run:
 
 ```powershell
-node --test test/song-file-codec.test.js test/database-maintenance.test.js
+node --test test/songs/song-file-codec.test.js test/storage/database-maintenance.test.js
 npm run check
 git diff --check
 git status --short

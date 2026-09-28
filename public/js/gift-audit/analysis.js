@@ -2,12 +2,9 @@
 
 export function parseBubbleHtml(html) {
   const results = [];
-  // 匹配每个 super-gift-item
-  const itemRegex =
-    /<div[^>]*class="[^"]*super-gift-item[^"]*"[^>]*>([\s\S]*?)(?=<div[^>]*class="[^"]*super-gift-item[^"]*"|$)/g;
   let match;
 
-  // 也尝试匹配 gift-item（非 super 的普通气泡）
+  // 匹配 super-gift-item 和普通 gift-item 气泡
   const itemFragments = [];
   const giftItemRegex =
     /<div[^>]*class="[^"]*(?:super-)?gift-item[^"]*"[^>]*>([\s\S]*?)(?=<div[^>]*class="[^"]*(?:super-)?gift-item[^"]*"|<\/div>\s*<\/div>\s*$)/g;

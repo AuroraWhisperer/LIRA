@@ -20,7 +20,7 @@
 
 **Files:**
 
-- Modify: `test/opening-overlay.test.js`
+- Modify: `test/overlays/opening-overlay.test.js`
 
 **Interfaces:**
 
@@ -28,7 +28,7 @@
 - Produces: Regression assertions for transparent/silent disabled behavior.
 
 - [x] **Step 1: Add failing assertions** for an audio element without parser-time autoplay/source, CSS transparent disabled selectors and paused disabled layers, and admin preview unloading to `about:blank`.
-- [x] **Step 2: Run the focused test** with `node --test test/opening-overlay.test.js` and confirm the new assertions fail against the current implementation.
+- [x] **Step 2: Run the focused test** with `node --test test/overlays/opening-overlay.test.js` and confirm the new assertions fail against the current implementation.
 
 ### Task 2: Make the overlay source transparent and silent when disabled
 
@@ -53,7 +53,7 @@
 **Files:**
 
 - Modify: `public/js/admin/start-animation.js`
-- Modify: `public/css/admin/other-features/start-animation.css`
+- Modify: `public/css/admin/toolbox/start-animation.css`
 - Modify: `public/pages/admin/toolbox/start-animation.html`
 
 **Interfaces:**
@@ -71,6 +71,6 @@
 
 - Review: `git diff --check`, affected files only.
 
-- [x] **Step 1: Run `node --test test/opening-overlay.test.js`**.
+- [x] **Step 1: Run `node --test test/overlays/opening-overlay.test.js`**.
 - [x] **Step 2: Run `npm run verify:quick`**.
 - [x] **Step 3: Review `git diff` and `git status --short`** to confirm only requested lines were added to already-touched files.

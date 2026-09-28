@@ -28,7 +28,7 @@
 
 ## Verification
 
-1. `node --test test/wesing-online-lyrics.test.js test/wesing-capture.test.js`
+1. `node --test test/wesing/wesing-online-lyrics.test.js test/wesing/wesing-capture.test.js`
 2. `npm run check`
 3. `npm run verify:quick`
 4. Review `git diff --check` and `git status --short`; do not alter unrelated worktree changes.

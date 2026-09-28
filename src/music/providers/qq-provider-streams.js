@@ -1,7 +1,7 @@
 'use strict';
 
 const crypto = require('node:crypto');
-const { parseLyricResult } = require('../lyrics');
+const { parseLyricResult } = require('../lyric-parser');
 const { QQMusicClient } = require('./qq-provider-client');
 const {
   buildGuid,

@@ -62,8 +62,8 @@
 - Modify: `D:/Work/Live/src/electron/main.js`
 - Modify: `D:/Work/Live/src/electron/license/remote-license-client.js`
 - Modify: `D:/Work/Live/src/electron/license/license-manager.js`
-- Test: `D:/Work/Live/test/remote-catalog-cache.test.js`
-- Test: `D:/Work/Live/test/remote-license-client.test.js`
+- Test: `D:/Work/Live/test/gifts/remote-catalog-cache.test.js`
+- Test: `D:/Work/Live/test/license/remote-license-client.test.js`
 
 **Interfaces:**
 
@@ -90,7 +90,7 @@
 
 - [x] **Step 5: Verify focused client tests.**
 
-  Run `node --test test/remote-catalog-cache.test.js test/remote-license-client.test.js test/overtime-routes.test.js` from `D:/Work/Live`.
+  Run `node --test test/gifts/remote-catalog-cache.test.js test/license/remote-license-client.test.js test/overtime/overtime-routes.test.js` from `D:/Work/Live`.
 
 ### Task 3: Admin picker and local WebSocket update
 
@@ -100,8 +100,8 @@
 - Modify: `D:/Work/Live/public/js/shared/event-bus.js`
 - Modify: `D:/Work/Live/public/js/admin/overtime.js`
 - Modify: `D:/Work/Live/public/pages/admin/toolbox/overtime.html`
-- Test: `D:/Work/Live/test/frontend-admin-shell.test.js`
-- Test: `D:/Work/Live/test/frontend-queue.test.js`
+- Test: `D:/Work/Live/test/admin/frontend-admin-shell.test.js`
+- Test: `D:/Work/Live/test/songs/frontend-queue.test.js`
 
 **Interfaces:**
 

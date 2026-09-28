@@ -25,7 +25,7 @@
 
 - Settings owner: `src/storage/settings-defaults.js`, `src/server/routes/settings-routes.js`, `src/storage/settings-store.js`。
 - Overlay owner: `public/pages/overlays/danmaku.html`, `public/js/overlays/danmaku.js`, `public/js/overlays/danmaku-feed.js`, `public/css/overlays/danmaku.css`。
-- Admin owner: `public/pages/admin/toolbox/danmaku.html`, `public/js/admin/danmaku-tool.js`, `public/css/admin/other-features/danmaku-tool.css`。
+- Admin owner: `public/pages/admin/toolbox/danmaku.html`, `public/js/admin/danmaku-tool.js`, `public/css/admin/toolbox/danmaku-tool.css`。
 - Consumers: OBS/browser-source `/danmaku`, Admin preview iframe, existing game overlay feed importer。
 - Proposed persisted key: `danmakuFullscreenDurationSeconds`, string value, default `6`, inclusive server range `2..30`.
 - Existing style key: `outline`, UI label changed to `全屏随机`; keeping the key preserves already-saved selections while the user-approved behavior changes.

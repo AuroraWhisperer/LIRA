@@ -19,7 +19,7 @@
 **Files:**
 
 - Modify: `public/css/admin/toasts/gifts.css`
-- Test: `test/frontend-queue.test.js`
+- Test: `test/songs/frontend-queue.test.js`
 
 - [x] Replace style 1/2 gradient fills with the shared neutral background while retaining their existing border/title/accent palettes.
 - [x] Update the style-card regression to require neutral backgrounds for classic and identity and distinct themed fills for styles 3–6.
@@ -42,7 +42,7 @@
 - Modify: `public/css/overlays/base/golden-lily.css`
 - Modify: `docs/architecture/frontend/app.md`
 - Modify: `docs/architecture/frontend/overlays.md`
-- Test: `test/frontend-queue.test.js`
+- Test: `test/songs/frontend-queue.test.js`
 
 - [x] Add `illustratedQueueFontFamily`, `illustratedQueueFontWeight`, and `illustratedQueueTextColor` defaults and include them in overlay theme snapshots.
 - [x] Add a common 3–6-only typography section with font family, weight, and color controls; collect and hydrate the values through the existing autosave path.
@@ -53,5 +53,5 @@
 
 ### Task 3: Verification
 
-- [x] Run `node --test test/frontend-queue.test.js`.
+- [x] Run `node --test test/songs/frontend-queue.test.js`.
 - [x] Run `npm run check` and `git diff --check`.

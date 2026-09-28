@@ -256,7 +256,7 @@ flowchart LR
 | `public/pages/admin/toolbox/games.html`、`public/js/admin/games.js`、`games-interactions.js`（拟新增） | 类别 3 链接、表单和主持操作；按现有 wheel 的入口方式初始化专用模块 |
 | `public/js/admin/state.js` | 转发 `interaction:update` 为类别 3 UI 事件，避免前端漏收新事件 |
 | `public/pages/overlays/interactions.html`、`public/js/overlays/interactions.js`、`public/css/overlays/interactions.css`（拟新增） | 独立展示页，复用 socket-client 与列表翻页 helper，不改旧 games 视图 |
-| `public/css/admin/other-features/` | 新卡片和表单样式，复用既有变量及样式入口 |
+| `public/css/admin/toolbox/` | 新卡片和表单样式，复用既有变量及样式入口 |
 
 实际开发前按 [PLANS.md](../PLANS.md) 编写实施计划，并核对对应目录的 scoped `AGENTS.md`。架构事实文档仅根据已落地的代码更新；未完成的真实接入验收不提前标记通过。
 
@@ -432,14 +432,14 @@ HTTP 与 WS 使用同一份公开快照。客户端比较同 runtimeId 的 revis
 3. **接口、权限与同步。** 新增并注册 `/api/interactions` 路由及只读 scope，补 HTTP/WS 投影、runtimeId/revision、clear 快照和管理端事件转发。验证两类开局冲突、重开失败保留旧结果、过期操作和评分隐藏；更新相关 API、WS、页面合同，保留旧游戏接口。
 4. **控制与展示。** 完成类别 3 的独立链接、表单、主持状态和 `/interactions` 两种画面；确定并标注推荐 OBS 尺寸，完成多页展示时长估算与提示。在隔离 Electron 环境检查主持操作，在浏览器源检查进度条、长列表、短时投票提示、隐藏均分与结算展示。最后再做经授权的真实直播间端到端复核，确认前置验证中的接入能力已贯穿实际计票与展示流程。
 
-新增功能应有专用的规则/会话、路由、管理页、展示页测试，拟使用 `test/interactions.test.js`、`test/interaction-routes.test.js`、`test/frontend-interactions.test.js`、`test/interactions-overlay.test.js`。上述文件已实现，具体证据见实施计划。直接相关的现有验证入口如下：
+新增功能应有专用的规则/会话、路由、管理页、展示页测试，拟使用 `test/games/interactions.test.js`、`test/games/interaction-routes.test.js`、`test/games/frontend-interactions.test.js`、`test/games/interactions-overlay.test.js`。上述文件已实现，具体证据见实施计划。直接相关的现有验证入口如下：
 
 | 现有测试 | 实施时核对的影响 |
 | --- | --- |
-| `test/games.test.js`、`test/game-routes.test.js` | 类别 1 开始/重开门禁、旧会话和原有接口 |
-| `test/frontend-games.test.js`、`test/games-overlay.test.js` | 类别 1 管理流程、旧 `/games` 展示 |
-| `test/overlay-http-access.test.js`、`test/overlay-projection.test.js` | 新 scope 的只读边界与字段隐藏、原 scope 隔离 |
-| `test/bilibili-runtime.test.js`、`test/danmaku-client.test.js`、`test/bilibili-danmaku-parser.test.js`、`test/websocket-connection.test.js` | 真实就绪口径、消息来源、接入顺序、重连与旧命令链路 |
+| `test/games/games.test.js`、`test/games/game-routes.test.js` | 类别 1 开始/重开门禁、旧会话和原有接口 |
+| `test/games/frontend-games.test.js`、`test/games/games-overlay.test.js` | 类别 1 管理流程、旧 `/games` 展示 |
+| `test/overlays/overlay-http-access.test.js`、`test/overlays/overlay-projection.test.js` | 新 scope 的只读边界与字段隐藏、原 scope 隔离 |
+| `test/bilibili/bilibili-runtime.test.js`、`test/danmaku/danmaku-client.test.js`、`test/bilibili/bilibili-danmaku-parser.test.js`、`test/transport/websocket-connection.test.js` | 真实就绪口径、消息来源、接入顺序、重连与旧命令链路 |
 
 确定性测试使用虚拟 UID、假时钟和临时状态，不连接真实平台或写入用户数据。浏览器检查前先确认准确路由及状态码；桌面主持流程使用正常 Electron 预加载和授权环境，不能用匿名浏览器代替。
 

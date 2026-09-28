@@ -43,7 +43,7 @@ Explanations use several always-visible forms: `.hint`, `<small>`, section-headi
 - Composition: `public/js/admin/index.js`, `public/pages/admin/` fragments, and `src/server/admin-page.js`.
 - Contract documentation: `docs/architecture/frontend/pages.md` and `docs/architecture/frontend/app.md`.
 - Consumers: Admin song settings, themes, display board, desktop lyrics, gifts, danmaku/AI, overtime, games, and toolbox utilities.
-- Focused tests: `test/frontend-admin-ai.test.js`, `test/frontend-song-board.test.js`, `test/desktop-lyrics.test.js`, `test/overtime-rule-editor.test.js`, and `test/admin-page-composition.test.js`.
+- Focused tests: `test/ai/frontend-admin-ai.test.js`, `test/songs/frontend-song-board.test.js`, `test/lyrics/desktop-lyrics.test.js`, `test/overtime/overtime-rule-editor.test.js`, and `test/admin/admin-page-composition.test.js`.
 
 ## Compatibility Constraints
 
@@ -62,16 +62,16 @@ The composed Admin document remains a no-build ESM page. Tooltip copy stays in t
 
 **Files:**
 
-- Create: `test/contextual-help.test.js`
-- Modify: `test/frontend-admin-ai.test.js`
-- Modify: `test/desktop-lyrics.test.js`
-- Modify: `test/overtime-rule-editor.test.js`
+- Create: `test/admin/contextual-help.test.js`
+- Modify: `test/ai/frontend-admin-ai.test.js`
+- Modify: `test/lyrics/desktop-lyrics.test.js`
+- Modify: `test/overtime/overtime-rule-editor.test.js`
 
 **Interfaces:**
 
 - Produces assertions for `<lira-help>`, `role="tooltip"`, `popover="manual"`, `aria-describedby`, keyboard activation, and representative migrated consumers.
 
-- [x] Add `test/contextual-help.test.js` with source and pure-position assertions, including that `public/js/admin/index.js` imports `./contextual-help.js` before feature modules.
+- [x] Add `test/admin/contextual-help.test.js` with source and pure-position assertions, including that `public/js/admin/index.js` imports `./contextual-help.js` before feature modules.
 - [x] Assert that Admin HTML uses `<lira-help>` for representative queue font size, color fallback, song-board size, gift filtering, AI endpoint, and desktop-lyric controls.
 - [x] Assert that status elements such as `xiaomiAiSaveState`, `giftStatusLine`, and `desktopLyricAutosaveState` remain outside `<lira-help>`.
 - [x] Assert that dynamic overtime descriptions create a `lira-help` element through DOM APIs.
@@ -145,7 +145,7 @@ The composed Admin document remains a no-build ESM page. Tooltip copy stays in t
 
 ## Verification
 
-1. `node --test test/frontend-admin-ai.test.js test/frontend-song-board.test.js test/desktop-lyrics.test.js test/overtime-rule-editor.test.js test/admin-page-composition.test.js`
+1. `node --test test/ai/frontend-admin-ai.test.js test/songs/frontend-song-board.test.js test/lyrics/desktop-lyrics.test.js test/overtime/overtime-rule-editor.test.js test/admin/admin-page-composition.test.js`
 2. `npm run check`
 3. `npm run verify:docs`
 4. `npm run verify:quick`

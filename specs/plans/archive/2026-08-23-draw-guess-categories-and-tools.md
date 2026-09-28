@@ -42,7 +42,7 @@
 - 词库内容：新建 `src/games/draw-guess-words.js`。
 - 游戏规则与筛选：`src/games/draw-guess.js`；会话传递：`src/games/game-session-service.js`。
 - HTTP 路由：`src/server/routes/game-routes.js`，契约文档 `docs/architecture/backend/api.md`。
-- Admin 消费者：`public/pages/admin/toolbox/games.html`、`public/js/admin/games.js`、`public/css/admin/other-features/games.css`。
+- Admin 消费者：`public/pages/admin/toolbox/games.html`、`public/js/admin/games.js`、`public/css/admin/toolbox/games.css`。
 - 直播画板消费者：`public/pages/overlays/games.html`、`public/js/overlays/games.js`、`public/css/overlays/games.css`。
 - 回归测试：`test/games.test.js`、`test/game-routes.test.js`、`test/frontend-games.test.js`、`test/games-overlay.test.js`。
 

@@ -39,7 +39,7 @@ Windows PowerShell CIM, Vanilla JavaScript ES modules, native CSS, `node:test`.
 - Modify: `src/server/system-metrics.js`
 - Modify: `src/server/api-context.js`
 - Modify: `src/server/routes/system-routes.js`
-- Test: `test/system-metrics.test.js`
+- Test: `test/server/system-metrics.test.js`
 
 - [x] Write focused tests for CPU and RAM normalization, cached static metadata,
       NVIDIA-only temperature probing, and unsupported-platform fallback.
@@ -48,7 +48,7 @@ Windows PowerShell CIM, Vanilla JavaScript ES modules, native CSS, `node:test`.
       output and never expose module serial numbers.
 - [x] Register `GET /api/system/hardware`; accept temperatures only when the
       query string is exactly `true`.
-- [x] Run `node --experimental-vm-modules --test test/system-metrics.test.js`.
+- [x] Run `node --experimental-vm-modules --test test/server/system-metrics.test.js`.
 
 ### Task 2: Render the hardware summary in the performance panel
 
@@ -57,7 +57,7 @@ Windows PowerShell CIM, Vanilla JavaScript ES modules, native CSS, `node:test`.
 - Modify: `public/pages/admin/toolbox/performance.html`
 - Modify: `public/js/admin/metrics.js`
 - Modify: `public/css/admin/toasts/gifts.css`
-- Test: `test/frontend-admin-shell.test.js`
+- Test: `test/admin/frontend-admin-shell.test.js`
 
 - [x] Add a compact hardware summary below the six existing utilization cards,
       with semantic labels for model, capacity, and temperature states.
@@ -66,7 +66,7 @@ Windows PowerShell CIM, Vanilla JavaScript ES modules, native CSS, `node:test`.
       existing metrics request and render using `textContent`.
 - [x] Add only the CSS needed for readable desktop summary rows; no animation or
       responsive redesign.
-- [x] Run `node --experimental-vm-modules --test test/frontend-admin-shell.test.js`.
+- [x] Run `node --experimental-vm-modules --test test/admin/frontend-admin-shell.test.js`.
 
 ### Task 3: Document and verify the public contract
 

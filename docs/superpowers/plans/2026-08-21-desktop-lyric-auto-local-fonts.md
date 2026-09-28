@@ -38,7 +38,7 @@
 
 **Files:**
 
-- Modify: `test/desktop-lyrics.test.js`
+- Modify: `test/lyrics/desktop-lyrics.test.js`
 - Modify: `docs/architecture/frontend/app.md`
 - Modify: `docs/architecture/desktop/main.md`
 
@@ -54,7 +54,7 @@
 
 ## Verification
 
-- `node --test test/desktop-lyrics.test.js`
+- `node --test test/lyrics/desktop-lyrics.test.js`
 - `npm run check`
 - `npm run verify:quick`
 - Review `git diff --check` and `git status --short`; only task-owned files should change.

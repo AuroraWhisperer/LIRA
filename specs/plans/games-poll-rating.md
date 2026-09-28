@@ -20,10 +20,10 @@
 
 | 责任 | 拥有者 / 消费者 | 合同 / 检查 |
 | --- | --- | --- |
-| 连接、鉴权、帧入口 | `src/bilibili/danmaku/websocket-connection.js` | `docs/architecture/backend/bilibili/protocol.md`、`test/websocket-connection.test.js` |
-| 实时解析与命令过滤 | `src/bilibili/danmaku/message-handlers.js`、`src/bilibili/parsers/danmaku-parser.js` | `docs/architecture/backend/bilibili/danmaku.md`、`test/bilibili-danmaku-parser.test.js` |
-| 房间/账号及连接代次 | `src/bilibili/danmaku-client.js`、`src/server/bilibili-runtime.js`、`src/server/bilibili-client.js` | `test/danmaku-client.test.js`、`test/bilibili-runtime.test.js` |
-| 游戏会话与组合 | `src/games/game-session-service.js`、`src/server.js` | `test/games.test.js`、`test/game-routes.test.js` |
+| 连接、鉴权、帧入口 | `src/bilibili/danmaku/websocket-connection.js` | `docs/architecture/backend/bilibili/protocol.md`、`test/transport/websocket-connection.test.js` |
+| 实时解析与命令过滤 | `src/bilibili/danmaku/message-handlers.js`、`src/bilibili/parsers/danmaku-parser.js` | `docs/architecture/backend/bilibili/danmaku.md`、`test/bilibili/bilibili-danmaku-parser.test.js` |
+| 房间/账号及连接代次 | `src/bilibili/danmaku-client.js`、`src/server/bilibili-runtime.js`、`src/server/bilibili-client.js` | `test/danmaku/danmaku-client.test.js`、`test/bilibili/bilibili-runtime.test.js` |
+| 游戏会话与组合 | `src/games/game-session-service.js`、`src/server.js` | `test/games/games.test.js`、`test/games/game-routes.test.js` |
 | API 与展示权限 | `src/server/api-context.js`、`src/server/api-routes.js`、`src/server/access-policy.js`、`src/server/overlay-http.js`、`src/server/overlay-projection.js` | `docs/architecture/backend/api.md`、`docs/architecture/backend/ws.md` |
 | 主持界面与推送 | `public/pages/admin/toolbox/games.html`、`public/js/admin/games.js`、`public/js/admin/state.js` | `docs/architecture/frontend/pages.md`；编辑前读取 admin 范围指令 |
 | OBS 与翻页 | `public/js/overlays/games.js`、`public/js/overlays/auto-pages.js` 为既有模式参考 | `docs/architecture/frontend/overlays.md` |
@@ -49,7 +49,7 @@
 
 ## M1：规则、接入和会话
 
-新增 `src/games/poll.js`、`rating.js`、`interaction-session-service.js`，配套 `test/interactions.test.js`。前后端共用规范化/字素与非法字符判定，按现有共享模块加载方式落地，避免两份规则漂移。
+新增 `src/games/poll.js`、`rating.js`、`interaction-session-service.js`，配套 `test/games/interactions.test.js`。前后端共用规范化/字素与非法字符判定，按现有共享模块加载方式落地，避免两份规则漂移。
 
 - [x] 覆盖 P1–P7、R1–R5：NFC/trim、合法 emoji 和组合字符、隐藏字符拒绝、超过十个选项、字节限制、首次计票/末次改分、空结果。
 - [x] 在现有传输入口补不可变来源、帧接收时间/序号、包内序号、连接代次、可用平台时间及 eventId=null 降级；过滤历史、SC、礼物和模拟输入。
@@ -58,11 +58,11 @@
 - [x] 在 `src/server.js` 组合根协调类别 1/3 开始与重开；409 保留旧结果，finished/interrupted 不占用跨类别收集资格。
 - [x] 假时钟与可控消息源覆盖 L1–L3、C1–C6，包括同秒 `8→9→8`、较旧平台时间、事件重放、异步帧反序和迟到定时器。
 
-验证：`node --test test/interactions.test.js test/games.test.js test/danmaku-client.test.js test/bilibili-danmaku-parser.test.js test/websocket-connection.test.js test/bilibili-runtime.test.js`。
+验证：`node --test test/games/interactions.test.js test/games/games.test.js test/danmaku/danmaku-client.test.js test/bilibili/bilibili-danmaku-parser.test.js test/transport/websocket-connection.test.js test/bilibili/bilibili-runtime.test.js`。
 
 ## M2：接口、权限与同步
 
-新增 `src/server/routes/interaction-routes.js`、`test/interaction-routes.test.js`；更新上表 API/权限拥有者和合同。
+新增 `src/server/routes/interaction-routes.js`、`test/games/interaction-routes.test.js`；更新上表 API/权限拥有者和合同。
 
 - [x] 实现报告 7.5 的 session GET/POST、host-state GET、finish/clear POST；变更请求要求匹配 sessionId，finish 幂等。
 - [x] 公开响应统一 `{ runtimeId, revision, session }`，revision 跨场递增，clear 保留 envelope。评级 collecting 时 average 为 null，无总分和分布；内部 Map 不序列化。
@@ -70,11 +70,11 @@
 - [x] 注册独立 `interaction:update`，投票合并推送，finish/clear 立即推送并取消旧任务。主持人数只经 host-state 查询。
 - [x] 对应 R3、C2、C3、C7、C8 增加 HTTP/WS 白名单、过期请求、clear、scope 隔离用例。
 
-验证：`node --test test/interaction-routes.test.js test/game-routes.test.js test/overlay-http-access.test.js test/overlay-projection.test.js`；运行 `npm run verify:contracts`。
+验证：`node --test test/games/interaction-routes.test.js test/games/game-routes.test.js test/overlays/overlay-http-access.test.js test/overlays/overlay-projection.test.js`；运行 `npm run verify:contracts`。
 
 ## M3：主持控制与 OBS 展示
 
-新增类别 3 主持模块、`public/pages/overlays/interactions.html`、`public/js/overlays/interactions.js` 及必要独立样式，复用现有 tokens。新增 `test/frontend-interactions.test.js`、`test/interactions-overlay.test.js`。
+新增类别 3 主持模块、`public/pages/overlays/interactions.html`、`public/js/overlays/interactions.js` 及必要独立样式，复用现有 tokens。新增 `test/games/frontend-interactions.test.js`、`test/games/interactions-overlay.test.js`。
 
 - [x] 配置表单显示逐项错误和字素数，IME 不截断；独立链接使用 `localOverlayOrigin()`。固定推荐 OBS 尺寸并按实际行高估算屏数，P 屏提示至少 P×8 秒，短时仍允许开始。
 - [x] 实现开始、提前结束/停止评分、取消与关闭结果；展示就绪/跨类别冲突与接收中断原因。人数轮询只在主持面板活跃期间执行。
@@ -84,7 +84,7 @@
 - [x] 验证 P8、C3、C7 和主持完整流程；浏览器只验证 OBS，主持流程在有 preload/IPC/授权的隔离 Electron 中检查。启动前确认用户数据、端口及单实例隔离。
 - [ ] 完成真实直播间端到端复核，记录与 M0 能力一致的计数和冻结结果。
 
-验证：`node --experimental-vm-modules --test test/frontend-interactions.test.js test/interactions-overlay.test.js test/frontend-games.test.js test/games-overlay.test.js`。
+验证：`node --experimental-vm-modules --test test/games/frontend-interactions.test.js test/games/interactions-overlay.test.js test/games/frontend-games.test.js test/games/games-overlay.test.js`。
 
 ## 最终验证与完成条件
 

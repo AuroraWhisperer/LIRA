@@ -77,7 +77,7 @@
 - Create: `public/js/shared/lyric-clock.js`
 - Create: `public/js/shared/lyric-frame-scheduler.js`
 - Modify: `public/js/shared/lyric-word-renderer.js`
-- Test: `test/desktop-lyrics.test.js`
+- Test: `test/lyrics/desktop-lyrics.test.js`
 
 **Interfaces:**
 
@@ -86,9 +86,9 @@
 - `LyricWordRenderer` 保持现有构造参数和 `setState/getPosition/dispose` 公共接口，内部改为复用共享 clock/scheduler。
 
 - [ ] 为暂停冻结、权威时间回跳、播放恢复、30fps 门控和隐藏页面停止调度补充失败测试。
-- [ ] 运行 `node --test test/desktop-lyrics.test.js`，确认新测试在实现前失败。
+- [ ] 运行 `node --test test/lyrics/desktop-lyrics.test.js`，确认新测试在实现前失败。
 - [ ] 实现 clock/scheduler，保持当前 WeSing 和桌面预览调用方式不变。
-- [ ] 运行 `node --test test/desktop-lyrics.test.js`，确认共享渲染器旧测试和新测试通过。
+- [ ] 运行 `node --test test/lyrics/desktop-lyrics.test.js`，确认共享渲染器旧测试和新测试通过。
 
 ### Task 2: 实现 WAAPI 当前行逐字动画器
 
@@ -98,7 +98,7 @@
 - Modify: `public/js/shared/lyric-word-renderer.js`
 - Modify: `public/js/admin/desktop-lyric-preview.js`
 - Modify: `public/css/admin/desktop-lyric-preview.css`
-- Test: `test/desktop-lyrics.test.js`
+- Test: `test/lyrics/desktop-lyrics.test.js`
 
 **Interfaces:**
 
@@ -110,7 +110,7 @@
 - [ ] 测试 WAAPI 不可用时回退、同一词签名不重建、暂停/seek 对齐 currentTime、旧行清理和无 words 静态文本。
 - [ ] 实现当前行双层文本节点和逐词 reveal，确保 base/highlight 层文本宽度一致、翻译和罗马音不重复动画；动画属性优先使用简单 inset/clip，不再每帧修改渐变停止点。
 - [ ] 将桌面预览的逐帧词进度从 `style.setProperty('--preview-word-progress', ...)` 改为当前行 animator；保留严格 30fps 的手动 reveal fallback。
-- [ ] 运行 `node --test test/desktop-lyrics.test.js`。
+- [ ] 运行 `node --test test/lyrics/desktop-lyrics.test.js`。
 
 ### Task 3: 消除桌面歌词的重复逐字渲染
 
@@ -119,7 +119,7 @@
 - Modify: `public/js/admin/desktop-lyric-preview.js`
 - Modify: `public/pages/overlays/lyric-window.html`
 - Modify: `public/js/overlays/lyric-window.js`
-- Test: `test/desktop-lyrics.test.js`
+- Test: `test/lyrics/desktop-lyrics.test.js`
 
 **Interfaces:**
 
@@ -129,7 +129,7 @@
 - [ ] 增加静态断言：桌面歌词页面只有一条逐字视觉更新链，隐藏 playback 节点不参与逐帧 word progress。
 - [ ] 删除重复的隐藏逐字 DOM 驱动，确保播放页、管理页预览和 `/lyrics` 均能显示当前行高亮。
 - [ ] 验证 aria-live 文本在切行、暂停、无歌词时仍正确。
-- [ ] 运行 `node --test test/desktop-lyrics.test.js`。
+- [ ] 运行 `node --test test/lyrics/desktop-lyrics.test.js`。
 
 ### Task 4: 启用浏览器原生可视区域懒绘制
 
@@ -137,7 +137,7 @@
 
 - Modify: `public/js/admin/desktop-lyric-preview.js`
 - Modify: `public/css/admin/desktop-lyric-preview.css`
-- Test: `test/desktop-lyrics.test.js`
+- Test: `test/lyrics/desktop-lyrics.test.js`
 
 **Interfaces:**
 
@@ -148,7 +148,7 @@
 - [ ] 给歌词行启用 `content-visibility: auto` 和 `contain-intrinsic-size`，不引入自定义虚拟滚动器；只有实测后才考虑额外 `contain: paint`。
 - [ ] 确保当前行、前后邻近行和自动跟随目标在 Chromium 下可正常测量；对不支持 `content-visibility` 的环境保留现有完整 DOM 回退。
 - [ ] 在字体加载、resize、设置变化后执行局部 relayout，不重建整首歌词。
-- [ ] 运行 `node --test test/desktop-lyrics.test.js`。
+- [ ] 运行 `node --test test/lyrics/desktop-lyrics.test.js`。
 
 ### Task 5: 增加性能档位和效果降级
 
@@ -158,7 +158,7 @@
 - Modify: `public/js/admin/desktop-lyric-preview.js`
 - Modify: `public/js/shared/lyric-word-animator.js`
 - Modify: `public/css/admin/desktop-lyric-preview.css`
-- Test: `test/desktop-lyrics.test.js`
+- Test: `test/lyrics/desktop-lyrics.test.js`
 
 **Interfaces:**
 
@@ -168,14 +168,14 @@
 - [ ] 测试默认 30fps、持续长帧降级、页面隐藏暂停和 reduced-motion 强制低功耗。
 - [ ] 实现固定 30fps 编排、掉帧时关闭 blur/scale/mask/重阴影并让逐字动画退回静态或 CSS fallback；不实现自动 60fps 升档。
 - [ ] 删除全行 `will-change`，只给当前动画元素临时设置并在结束时移除。
-- [ ] 运行 `node --test test/desktop-lyrics.test.js`。
+- [ ] 运行 `node --test test/lyrics/desktop-lyrics.test.js`。
 
 ### Task 6: 将歌词状态发布改为最新值优先
 
 **Files:**
 
 - Modify: `public/js/playback/services/lyric-service.js`
-- Test: `test/desktop-lyrics.test.js`
+- Test: `test/lyrics/desktop-lyrics.test.js`
 
 **Interfaces:**
 
@@ -184,7 +184,7 @@
 
 - [ ] 添加请求阻塞期间收到多个普通状态时只发送最终状态的测试，同时保留强制播放/暂停/seek 顺序测试。
 - [ ] 实现 latest-wins 队列，失败时清理待发送状态并允许下一次重试。
-- [ ] 运行 `node --test test/desktop-lyrics.test.js`。
+- [ ] 运行 `node --test test/lyrics/desktop-lyrics.test.js`。
 
 ### Task 7: 完成文档、回归和手工性能验收
 
@@ -193,10 +193,10 @@
 - Modify: `docs/architecture/frontend/playback.md`
 - Modify: `docs/architecture/frontend/overlays.md`
 - Modify: `docs/architecture/engineering/test.md`
-- Test: `test/desktop-lyrics.test.js`
+- Test: `test/lyrics/desktop-lyrics.test.js`
 
 - [ ] 更新架构文档，明确 WAAPI 优先、30fps 基线、当前行唯一逐字源、虚拟化和降级策略。
-- [ ] 运行聚焦测试：`node --test test/desktop-lyrics.test.js`。
+- [ ] 运行聚焦测试：`node --test test/lyrics/desktop-lyrics.test.js`。
 - [ ] 运行语法和架构门禁：`npm run check`、`npm run verify:architecture`。
 - [ ] 用 64 行、500 行、带翻译/罗马音的歌词分别测试管理页预览和 `/lyrics`。
 - [ ] 在 Electron 硬件加速开启和关闭两种情况下录制 Performance，确认普通设备默认约 30fps、无长时间重复 paint 风暴、切行/seek 不跳行。
@@ -222,5 +222,5 @@
 ## 执行记录
 
 - 已完成共享 `LyricClock`、rAF 30fps 门控、当前行 WAAPI/manual/static 三段降级、桌面唯一逐字渲染源、`content-visibility`、性能档位、latest-wins 以及 generation/sequence 版本过滤。
-- 已通过 `node --experimental-vm-modules --test test/desktop-lyrics.test.js`（25 项）、`npm run check`、`npm run verify:docs`、`npm run verify:architecture` 和 `npm test`（653 项，652 通过、1 skipped、0 failed）。
+- 已通过 `node --experimental-vm-modules --test test/lyrics/desktop-lyrics.test.js`（25 项）、`npm run check`、`npm run verify:docs`、`npm run verify:architecture` 和 `npm test`（653 项，652 通过、1 skipped、0 failed）。
 - 已在本地 `/lyrics` 页面验证完整时间轴、当前行、双层词节点和 aria-live 文本；当前浏览器控制面未暴露 DevTools Performance tracing 或页面 Performance API，因此 Paint/主线程/帧率的硬件加速开关对比仍需在 Electron DevTools 中由人工录制确认，不能在本次自动化结果中冒充已完成。

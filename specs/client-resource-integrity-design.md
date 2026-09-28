@@ -29,7 +29,7 @@
 | 更新包校验失败已有提示 | [`friendlyUpdateError`](../src/electron/update-manager.js)、[更新运行时文档](../docs/architecture/desktop/update.md) | 下载包校验不等于安装后资源扫描 |
 | 计算 `app.asar` 的 SHA-256，并用于构造 `buildId` | [`license/build-integrity.js`](../src/electron/license/build-integrity.js) | 当前函数的 `verified` 表示成功取得摘要；函数本身未与预期摘要比较，不能直接用作本功能的通过结论 |
 | 应用启用 ASAR，包含 `src/`、`public/` 等资源，并明确排除部分文件 | [`package.json`](../package.json) | 清单以实际打包产物为准，不能把整个源码目录当作必需资源集合 |
-| `afterPack` 目前仅移除 `default_app.asar` | [`scripts/after-pack.js`](../scripts/after-pack.js)、[`packaging-scope.test.js`](../test/packaging-scope.test.js) | 目前没有本功能所需的随包校验清单；后续构建接入须保留原清理行为 |
+| `afterPack` 目前仅移除 `default_app.asar` | [`scripts/after-pack.js`](../scripts/after-pack.js)、[`packaging-scope.test.js`](../test/engineering/packaging-scope.test.js) | 目前没有本功能所需的随包校验清单；后续构建接入须保留原清理行为 |
 | 发布脚本使用构建器的 `--publish always`，构建与上传连在一起 | [`scripts/publish-release.js`](../scripts/publish-release.js) | 不能在该命令返回后才检查本地资源，再宣称已阻止异常产物上传 |
 | 更新页已有本地数据、日志支持区 | [`desktop-update.html`](../public/pages/admin/toolbox/desktop-update.html) | 新入口放在此处，不再新增同用途设置入口 |
 | 设置页目前以账户与网站为主 | [`settings.html`](../public/pages/admin/toolbox/settings.html) | 不把低频安装诊断混入账户设置 |
@@ -305,7 +305,7 @@ flowchart LR
 4. 现有更新页接入：验证明确文案、一次订阅、进度、重新检查和异常详情，不影响更新按钮。
 5. 隔离的正式打包桌面验证：核对最终安装包、真实 ASAR 原始字节读取、响应性与用户数据隔离。
 
-直接相关的既有回归入口包括 `test/packaging-scope.test.js`、`test/build-integrity.test.js`、`test/update-manager.test.js`、`test/frontend-desktop-update.test.js` 及主窗口 IPC/桌面认证测试。新增测试优先归入对应现有测试组；需要扩展哪些仓库门禁由实际变更边界决定，不以文档编写为由运行全套或真实安装。
+直接相关的既有回归入口包括 `test/engineering/packaging-scope.test.js`、`test/engineering/build-integrity.test.js`、`test/desktop/update-manager.test.js`、`test/desktop/frontend-desktop-update.test.js` 及主窗口 IPC/桌面认证测试。新增测试优先归入对应现有测试组；需要扩展哪些仓库门禁由实际变更边界决定，不以文档编写为由运行全套或真实安装。
 
 ## 12. Done When 与待评审项
 

@@ -34,7 +34,7 @@ When a user opens `百宝箱 -> 使用文档 -> 主流程`, every numbered step 
 ## Current Behavior
 
 - `public/pages/admin/toolbox/usage-guide.html` renders each main-flow step as one `<li>` containing an inline `<strong>` followed by a direct text node.
-- `public/css/admin/other-features/usage-guide.css` makes that `<li>` a two-column grid: `26px minmax(0, 1fr)`.
+- `public/css/admin/toolbox/usage-guide.css` makes that `<li>` a two-column grid: `26px minmax(0, 1fr)`.
 - The `::before` number marker occupies the first grid cell, `<strong>` occupies the second, and the following anonymous text item is auto-placed into the next available cell: the first 26px column on the next grid row. Chinese text therefore wraps almost character by character, matching the supplied screenshot.
 - The main-flow section contains no `<img>`. The guide's only `.usage-guide-image` nodes are in the earlier "电脑上已经安装过 LIRA" section, so an image is not consuming the missing width.
 - `test/frontend-admin-shell.test.js` currently verifies that the usage-guide panel exists but does not protect the step layout.
@@ -43,7 +43,7 @@ When a user opens `百宝箱 -> 使用文档 -> 主流程`, every numbered step 
 
 ## Ownership
 
-- Owner: `public/css/admin/other-features/usage-guide.css` and `public/pages/admin/toolbox/usage-guide.html` under `ROUTE-ADMIN`.
+- Owner: `public/css/admin/toolbox/usage-guide.css` and `public/pages/admin/toolbox/usage-guide.html` under `ROUTE-ADMIN`.
 - Contracts: `docs/architecture/frontend/app.md` and `docs/architecture/frontend/pages.md`.
 - Consumer: the composed Admin page served by `src/server/admin-page.js`.
 - Focused test: `test/frontend-admin-shell.test.js`.
@@ -59,7 +59,7 @@ When a user opens `百宝箱 -> 使用文档 -> 主流程`, every numbered step 
 
 ## Proposed Changes
 
-- Modify `public/css/admin/other-features/usage-guide.css` only within `.usage-guide-steps li` and `.usage-guide-steps li::before`:
+- Modify `public/css/admin/toolbox/usage-guide.css` only within `.usage-guide-steps li` and `.usage-guide-steps li::before`:
   - remove the two-column grid declarations from the list item;
   - make the list item the positioning context;
   - reserve a fixed left gutter for the marker;
@@ -74,7 +74,7 @@ When a user opens `百宝箱 -> 使用文档 -> 主流程`, every numbered step 
 **Files:**
 
 - Modify: `test/frontend-admin-shell.test.js`
-- Modify: `public/css/admin/other-features/usage-guide.css`
+- Modify: `public/css/admin/toolbox/usage-guide.css`
 
 **Interfaces:**
 
@@ -87,7 +87,7 @@ Add a focused test beside the existing toolbox/usage-guide assertions:
 
 ```js
 test('usage guide main-flow steps keep body text out of the number gutter', () => {
-  const source = readCssBundle('public', 'css', 'admin', 'other-features.css');
+  const source = readCssBundle('public', 'css', 'admin', 'toolbox.css');
   const stepRule = source.match(/\.usage-guide-steps li\s*\{[\s\S]*?\n\}/)?.[0];
   const markerRule = source.match(
     /\.usage-guide-steps li::before\s*\{[\s\S]*?\n\}/,
@@ -216,7 +216,7 @@ node --test test/frontend-admin-shell.test.js
 npm run check
 npm run verify:quick
 git diff --check
-git diff -- public/css/admin/other-features/usage-guide.css test/frontend-admin-shell.test.js specs/plans/2026-08-18-usage-guide-main-flow-layout.md
+git diff -- public/css/admin/toolbox/usage-guide.css test/frontend-admin-shell.test.js specs/plans/2026-08-18-usage-guide-main-flow-layout.md
 git status --short
 ```
 

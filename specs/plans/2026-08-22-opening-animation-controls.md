@@ -8,7 +8,7 @@
 
 **Current behavior:** `openingEnabled` is outside `#openingAnimationForm`, so the form listeners do not react to its change. The editor uses a native range input whose displayed value can drift from the persisted fractional setting during hydration. The two effect options are checkbox cards with the checkbox before their text. The page also includes decorative or explanatory labels/status text that the streamer does not need.
 
-**Ownership:** `public/pages/admin/toolbox/start-animation.html` owns the editor markup; `public/js/admin/start-animation.js` owns config hydration, preview rendering, and settings persistence; `public/css/admin/other-features/start-animation.css` owns the control presentation; `test/opening-overlay.test.js` owns focused regression assertions.
+**Ownership:** `public/pages/admin/toolbox/start-animation.html` owns the editor markup; `public/js/admin/start-animation.js` owns config hydration, preview rendering, and settings persistence; `public/css/admin/toolbox/start-animation.css` owns the control presentation; `test/overlays/opening-overlay.test.js` owns focused regression assertions.
 
 **Compatibility constraints:** Keep the existing settings keys, `/api/settings` payload shape, fixed `/opening` source URL, `audio=browser` preview URL, safe overlay behavior, and default persisted volume (`0.35`). Disabling the master toggle must stop/hide the preview but must not overwrite the selected volume value. Visible page and default scene copy is Chinese; custom user-entered copy remains untouched.
 
@@ -21,10 +21,10 @@
 ## Verification
 
 ```text
-node --test test/opening-overlay.test.js
+node --test test/overlays/opening-overlay.test.js
 npm run check
 npm run verify:quick
-node --test test/frontend-admin-shell.test.js test/opening-overlay.test.js
+node --test test/admin/frontend-admin-shell.test.js test/overlays/opening-overlay.test.js
 npm test
 git diff --check
 git status --short

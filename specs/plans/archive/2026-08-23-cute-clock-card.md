@@ -18,7 +18,7 @@ preview patterns.
 **Ownership:** `public/pages/overlays/clock.html`, `public/css/overlays/clock.css`,
 and `public/js/overlays/clock.js` own the clock renderer. The Admin editor is owned
 by `public/pages/admin/toolbox/clock.html`,
-`public/css/admin/other-features/clock.css`, and
+`public/css/admin/toolbox/clock.css`, and
 `public/js/admin/clock-card.js`. Public page mapping and Admin composition remain
 owned by `src/server/http-utils.js` and `src/server/admin-page.js`. Contracts are
 documented in `docs/architecture/frontend/pages.md` and

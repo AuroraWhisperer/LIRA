@@ -18,7 +18,7 @@ boolean enabled 输入，结果只投影 `{ ok: true, enabled }`。main 的账�
 服务器权威合同：lira-server `docs/protocol/pk-opponent-report.md` 和 Device OpenAPI。
 共享示例为服务器 `docs/protocol/fixtures/pk-report-settings.json`，客户端通过
 `server-contract.lock.json` 和 `readServerFixture` 校验提交与 SHA-256 后消费；验收
-`test/pk-report-settings-ipc.test.js` / `test/frontend-pk-report.test.js` 覆盖认证通路、
+`test/gifts/pk-report-settings-ipc.test.js` / `test/gifts/frontend-pk-report.test.js` 覆盖认证通路、
 非法 IPC、最小响应、切账号、同步失败和页面释放。UI 使用
 `public/js/admin/danmaku-pk-report.js` 和同名 fixed-reply fragment。
 
@@ -111,7 +111,7 @@ boolean enabled 输入，结果只投影 `{ ok: true, enabled }`。main 的账�
 
 `license-manager.js` 是设备身份状态、内存 access token、续期和 heartbeat 的唯一所有者。持久化文件只保存公开设备资料;私钥由 Electron `safeStorage` 加密,access token 不写磁盘也不进入 preload/renderer 返回值。
 
-`remote-license-client.js` 的普通 JSON 响应默认限制为 1 MiB（按 UTF-8 字节数计），其他端点沿用已有的独立上限。公共礼物目录独立限制为 32 MiB，按解码后的响应流累计字节；超过时取消读取并返回 `RESPONSE_TOO_LARGE`，不替换上一份完整内存/磁盘目录或 ETag。首次没有可用目录时保持初始化失败，仍沿用现有重试入口。固定来源、总期限、结构校验和完整目录 schema 不变，不截断礼物或分页。该容量约为 2026-09-25 官方目录实测 1,689,296 字节的 19.9 倍；超过支持容量时需显式调整合同。验收见 [容量边界与旧缓存保留](../../../test/remote-catalog-capacity.test.js)。
+`remote-license-client.js` 的普通 JSON 响应默认限制为 1 MiB（按 UTF-8 字节数计），其他端点沿用已有的独立上限。公共礼物目录独立限制为 32 MiB，按解码后的响应流累计字节；超过时取消读取并返回 `RESPONSE_TOO_LARGE`，不替换上一份完整内存/磁盘目录或 ETag。首次没有可用目录时保持初始化失败，仍沿用现有重试入口。固定来源、总期限、结构校验和完整目录 schema 不变，不截断礼物或分页。该容量约为 2026-09-25 官方目录实测 1,689,296 字节的 19.9 倍；超过支持容量时需显式调整合同。验收见 [容量边界与旧缓存保留](../../../test/gifts/remote-catalog-capacity.test.js)。
 
 - 状态为 `CHECKING / NEEDS_ACTIVATION / NEEDS_CONNECTION / AUTHORIZING / AUTHORIZED / BLOCKED`;只有 `AUTHORIZED` 打开本地业务 gate
 - token 续期使用全局单飞 Promise,其他受保护请求和 heartbeat 必须等待该 Promise,避免旧 `token_jti` 与新 token 并发

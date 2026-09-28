@@ -9,7 +9,7 @@
       "reason": "2026-09-15 礼物互动接入复核：组合入口仅增加专用 IPC 的注册与关闭清理，设置确认/串行写入仍归云同步控制器，窄 IPC 校验在独立模块；保留 2026-09-14 抽奖认证与 runtime 接线。保护测试为 electron-shutdown 与 gift-interaction-controls。 2026-09-18 集成门禁逐块复核：礼物导出仅增加 IPC/controller 导入、启动接线和关闭清理，数据选择及文件导出仍在独立 controller；没有将业务逻辑加入入口。补齐既有 shutdown harness 两个依赖桩后，以启动/停机和 gift-export-controller 测试验证组合边界。 2026-09-18 粉丝档案逐项复核：粉丝档案的同步/来源校验已提取为 fan-profile-controller 与 fan-profile-ipc；入口只注册、传依赖、在现有 drain 集合中关闭。未增加领域状态；electron-shutdown 新增粉丝同步 drain 断言。 2026-09-25 审计跟进逐块复核：仅为旧 IPC 注入当前窗口/服务 origin，并将现有认证 owner 加入停机 drain；净增两行依赖接线。来源判定独立在 main-window-ipc，取消和串行写入在 desktop-auth-controller；不为两行组合接线新建抽象或压缩代码。legacy-ipc-source、真实 desktop-auth-race-electron 与 electron-shutdown 保护合法调用和停机顺序。 2026-09-26 客户端资源检查复核：扫描/schema/摘要状态已拆分为 resource-integrity-files、resource-integrity-manager，原始文件系统和受限状态投递由 desktop-resource-integrity 组合；main 净增 12 行仅负责创建单例、注入 IPC 与安装前 stop、现有 shutdown drain，不承载新业务判断。resource-integrity-bridge、真实 resource-integrity-electron 和 electron-shutdown 保护边界及取消顺序。",
       "removal": "继续按真实独立职责整理组合阶段；保留启动失败、授权及停机验证。",
       "reviewBy": "2026-12-18",
-      "test": "test/electron-shutdown.test.js"
+      "test": "test/desktop/electron-shutdown.test.js"
     },
     {
       "path": "src/electron/license/license-manager.js",
@@ -19,17 +19,17 @@
       "reason": "2026-09-16 B1 修复逐项审阅：新增主体与代际检查只约束现有授权请求、续期、心跳和资料提交；token 轮换仍在同一生命周期。父代理与独立代理复核异步交错，17 项身份回归和相关 326 项测试通过；未新增业务适配或分散可变授权状态。 2026-09-16 审计修复增量由根代理独立审阅：F02/F07及Retry-After：复核自动续期原Session前提、网络恢复、原子token接受、短TTL门禁和绝对等待期限；仍由既有生命周期持有可变授权状态，未新增业务适配。",
       "removal": "2026-09-18 审阅候选密钥恢复：bootstrap 选择候选并复用既有 challenge/verify，生命周期仍由 manager 持有；beforeAccept 在发布授权前同步完成 key/identity 提交，磁盘加密与原子写仍归 keyStore。真实签名、持久化失败和 dispose 回归由 license-activation-recovery 保护。后续出现独立协议或纯转换职责时提取；当前不为压行数拆分授权状态不变量，新增业务操作继续归 license-operations。",
       "reviewBy": "2026-12-18",
-      "test": "test/license-activation-recovery.test.js"
+      "test": "test/license/license-activation-recovery.test.js"
     },
     {
       "path": "src/electron/remote-gift-controller.js",
       "kind": "review",
       "maxLines": 768,
       "owner": "远端礼物同步",
-      "reason": "2026-09-14 审阅代码指令调整：展示回调只传递现有授权/来源/连接 fence 谓词，供异步解析前后检查；代码投影独立于 effect-event，解析复用测试播放，未新增恢复状态或定时器。test/gift-effect-danmaku.test.js 覆盖解析期间停用及授权变化。 2026-09-16 审计修复增量由根代理独立审阅：F01/F06：复核main-only稳定owner选源、迟到代际栅栏及Retry-After绝对期限；源归属和恢复定时器仍属于单个同步控制器，不分散可变同步状态。",
+      "reason": "2026-09-14 审阅代码指令调整：展示回调只传递现有授权/来源/连接 fence 谓词，供异步解析前后检查；代码投影独立于 effect-event，解析复用测试播放，未新增恢复状态或定时器。test/gifts/gift-effect-danmaku.test.js 覆盖解析期间停用及授权变化。 2026-09-16 审计修复增量由根代理独立审阅：F01/F06：复核main-only稳定owner选源、迟到代际栅栏及Retry-After绝对期限；源归属和恢复定时器仍属于单个同步控制器，不分散可变同步状态。",
       "removal": "文件已降到警告区；725 行工厂债务保留，后续按协议阶段评估，禁止分散可变状态。",
       "reviewBy": "2026-12-16",
-      "test": "test/remote-gift-owner-isolation.test.js"
+      "test": "test/gifts/remote-gift-owner-isolation.test.js"
     },
     {
       "path": "src/server.js",
@@ -39,17 +39,17 @@
       "reason": "2026-09-16 快照接线复核：getState 通过 domainServices.songs.getMetadata 复用歌曲元数据，只新增一行组合接线；缓存与失效机制位于 song-metadata/SongStore，入口不持有缓存策略。 2026-09-18 集成门禁逐块复核：新增一行播放页面代次 callback，版本状态仍归 PlaybackStore；并行礼物导出的查询、配置和来源通知已由 gift-export-runtime 持有，入口只导入并组合，替换原 setActiveGiftSource 透传。没有新增领域状态，模块依赖及播放 bootstrap 回归保护接线。 2026-09-18 粉丝档案逐项复核：粉丝档案只增加 authenticated scope provider 的组合接线和 service 访问口；领域、SQL、日期与归档都在独立 owner。保持现有组合根，不为四行依赖透传引入额外层。fan-profiles-music 与 module-boundaries 保护。 云端日机器人新增只读 legacy reader facade getter，由 main 控制一次性接管；执行业务仍在独立模块。",
       "removal": "按资源阶段继续评估组合职责，避免领域模块反向依赖 server 入口。",
       "reviewBy": "2026-12-18",
-      "test": "test/playback-snapshot-bootstrap.test.js"
+      "test": "test/playback/playback-snapshot-bootstrap.test.js"
     },
     {
-      "path": "public/css/admin/other-features/usage-guide.css",
+      "path": "public/css/admin/toolbox/usage-guide.css",
       "kind": "review",
       "maxLines": 792,
       "owner": "帮助界面样式",
       "reason": "2026-09-14 发布前审阅：目录及返回顶部的基础规则已提取至 usage-guide-navigation.css；本文件保留帮助正文、FAQ 和既有工具箱响应式布局，导入顺序保证布局覆盖继续生效。2026-09-19 逐块复核 38 行净增量：关键词、步骤列表与警告提示均服务同一帮助正文，移除旧介绍/定价规则，既有响应式覆盖顺序未变。新增规则依赖本文件的正文与 FAQ 选择器，拆为独立样式文件会分散同一内容层级；保留现有职责，后续独立控件仍须提取。Prettier 3.7.4 格式检查通过，frontend-usage-guide 与 frontend-admin-shell 覆盖正文、导航、布局和说明契约。",
       "removal": "新增独立控件时提取；不得继续堆积不相关页面样式。",
       "reviewBy": "2026-12-19",
-      "test": "test/frontend-admin-shell.test.js"
+      "test": "test/admin/frontend-admin-shell.test.js"
     },
     {
       "path": "public/css/overlays/opening.css",
@@ -59,7 +59,7 @@
       "reason": "同一开场动画及质量、动效变体，不机械拆媒体查询。",
       "removal": "增加独立展示组件时按组件整理。",
       "reviewBy": "2026-12-13",
-      "test": "test/opening-overlay.test.js"
+      "test": "test/overlays/opening-overlay.test.js"
     },
     {
       "path": "public/data/theme-presets.json",
@@ -69,7 +69,7 @@
       "reason": "纯数据由固定 JSON 地址读取；拆分会引入额外加载与合并。",
       "removal": "若加入业务逻辑或改用分段加载则撤销例外；当前保持纯数据。",
       "reviewBy": "2026-12-13",
-      "test": "test/frontend-admin-shell.test.js"
+      "test": "test/admin/frontend-admin-shell.test.js"
     },
     {
       "path": "public/js/admin/overtime.js",
@@ -79,7 +79,7 @@
       "reason": "2026-09-16 按需初始化复核：初始化读取已接纳的直播/礼物检测状态并提供具名导出，移除全局注册；只新增延迟激活接线，规则编辑和时钟仍由既有独立模块负责。",
       "removal": "继续按独立职责评估；不另建选择器状态控制器。",
       "reviewBy": "2026-12-13",
-      "test": "test/toolbox-lifecycle.test.js"
+      "test": "test/admin/toolbox-lifecycle.test.js"
     },
     {
       "path": "public/pages/admin/toolbox/shell-start.html",
@@ -89,57 +89,57 @@
       "reason": "2026-09-14 抽奖专用登录复核：仅增加既有导航合同下的一个 tab/SVG，账号面板独立在 dynamic-lottery.html，行为独立为命名 ESM；保留组合器管理开闭标签，未向外壳增加业务逻辑。 2026-09-18 粉丝档案逐项复核：粉丝档案导航本体独立为 fan-profiles-nav.html，父页面仅增加一行固定 fragment；不在父页面加入表单或业务。admin-page-composition 与 toolbox-sidebar 保护组合。",
       "removal": "导航改造时提取完整 aside；组合器继续管理外壳开闭标签。",
       "reviewBy": "2026-12-13",
-      "test": "test/admin-page-composition.test.js"
+      "test": "test/admin/admin-page-composition.test.js"
     },
     {
-      "path": "test/cloud-sync-controller.test.js",
+      "path": "test/cloud-sync/cloud-sync-controller.test.js",
       "kind": "review",
       "maxLines": 681,
       "owner": "云同步控制器测试",
       "reason": "已核对并行修改给既有云同步夹具补身份和账号准备接口，生命周期测试主题未改变。",
       "removal": "新增独立同步协议场景时再分组；当前保留完整时序。",
       "reviewBy": "2026-12-13",
-      "test": "test/cloud-sync-controller.test.js"
+      "test": "test/cloud-sync/cloud-sync-controller.test.js"
     },
     {
-      "path": "test/overtime-gift-picker.test.js",
+      "path": "test/overtime/overtime-gift-picker.test.js",
       "kind": "review",
       "maxLines": 692,
       "owner": "礼物选择器测试",
       "reason": "搜索代次、来源和身份规则共同约束一个选择器。2026-09-16 复审：固定服务器契约仅增加一行校验器导入并替换两处 fixture 读取，未增加场景或职责；保留内聚测试，不为该依赖引入额外夹具层。",
       "removal": "扩展独立控件时分组；DOM 夹具仅按真实复用提取。",
       "reviewBy": "2026-12-13",
-      "test": "test/overtime-gift-picker.test.js"
+      "test": "test/overtime/overtime-gift-picker.test.js"
     },
     {
-      "path": "test/qq-provider.test.js",
+      "path": "test/music/qq-provider.test.js",
       "kind": "review",
       "maxLines": 667,
       "owner": "QQ Provider 测试",
       "reason": "多个端点共同验证一个 provider 的协议与错误处理。",
       "removal": "新增独立协议家族时分组；暂保留同一 provider 契约。",
       "reviewBy": "2026-12-13",
-      "test": "test/qq-provider.test.js"
+      "test": "test/music/qq-provider.test.js"
     },
     {
-      "path": "test/wesing-capture-recording-mode.test.js",
+      "path": "test/wesing/wesing-capture-recording-mode.test.js",
       "kind": "review",
       "maxLines": 608,
       "owner": "全民 K 歌录制模式测试",
       "reason": "拖动、暂停、无进度与音频来源属于完整录制模式。",
       "removal": "增加独立采集模式时分组，保留录制状态转换覆盖。",
       "reviewBy": "2026-12-13",
-      "test": "test/wesing-capture-recording-mode.test.js"
+      "test": "test/wesing/wesing-capture-recording-mode.test.js"
     },
     {
-      "path": "public/css/admin/other-features/fan-profiles.css",
+      "path": "public/css/admin/toolbox/fan-profiles.css",
       "kind": "review",
       "maxLines": 616,
       "owner": "粉丝档案页面样式",
       "reason": "2026-09-26 逐块复核：新增归档范围按钮、恢复操作和别名/平台名排版，均服务同一档案列表与详情页，复用既有主题变量；响应式规则与同页选择器保持相邻。没有引入其他页面样式或全局覆盖，单独拆出二十余行归档样式只会分散同一组件的级联关系。",
       "removal": "新增独立页面或可复用组件时按样式 owner 提取；本文件不得容纳无关工具样式。",
       "reviewBy": "2026-12-18",
-      "test": "test/frontend-fan-profiles.test.js"
+      "test": "test/fan-profiles/frontend-fan-profiles.test.js"
     },
     {
       "path": "public/js/admin/fans/index.js",
@@ -149,17 +149,17 @@
       "reason": "2026-09-26 审阅归档恢复增量：列表 loading/error、范围切换、详情选择代次和提醒跳转共同维护一个页面状态 owner；表单、渲染、转移仍由现有 forms/view/transfer-ui 模块持有，没有新增持久化或服务端规则。异步切换、迟到响应、保存成功后刷新失败及提醒跳转均有直接回归，不为缩行把共享选择状态分散到多个控制器。",
       "removal": "增加独立交互协议时提取窄协作者；同一范围与选择状态保持唯一 owner，长工厂按既有函数债务触发复审。",
       "reviewBy": "2026-12-18",
-      "test": "test/frontend-fan-profiles.test.js"
+      "test": "test/fan-profiles/frontend-fan-profiles.test.js"
     },
     {
-      "path": "test/frontend-fan-profiles.test.js",
+      "path": "test/fan-profiles/frontend-fan-profiles.test.js",
       "kind": "review",
       "maxLines": 670,
       "owner": "粉丝档案前端契约回归",
       "reason": "2026-09-26 逐项审阅：归档/恢复、列表范围和异步选择回归复用同一隔离 archiveUi fixture，并通过真实 fans owner 验证身份、备注和提醒不丢失；其余用例覆盖同一页面的设置、提醒、会员和合并呈现，没有跨域测试或真实账号操作。当前保留同一页面契约，避免为行数复制 fixture 或降低竞态覆盖。",
       "removal": "继续增加独立交互族时提取共享 fixture 并按归档恢复/设置与详情契约分组；不得通过删除断言降低行数。",
       "reviewBy": "2026-12-18",
-      "test": "test/frontend-fan-profiles.test.js"
+      "test": "test/fan-profiles/frontend-fan-profiles.test.js"
     }
   ]
 }

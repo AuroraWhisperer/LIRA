@@ -24,7 +24,7 @@
 
 - Modify: `src/storage/settings-store.js`
 - Modify: `src/server/routes/settings-routes.js`
-- Test: `test/danmaku-overlay-settings.test.js`
+- Test: `test/danmaku/danmaku-overlay-settings.test.js`
 
 **Interfaces:**
 
@@ -42,7 +42,7 @@
 
 - Modify: `public/js/overlays/danmaku.js`
 - Modify: `public/css/overlays/danmaku.css`
-- Test: `test/danmaku-overlay.test.js`
+- Test: `test/danmaku/danmaku-overlay.test.js`
 
 **Interfaces:**
 
@@ -60,9 +60,9 @@
 
 - Modify: `public/pages/admin/toolbox/danmaku.html`
 - Modify: `public/js/admin/danmaku-tool.js`
-- Modify: `public/css/admin/other-features/danmaku-tool.css`
+- Modify: `public/css/admin/toolbox/danmaku-tool.css`
 - Modify: `public/pages/admin/toolbox/usage-guide.html`
-- Test: `test/frontend-admin-ai.test.js`
+- Test: `test/ai/frontend-admin-ai.test.js`
 
 **Interfaces:**
 

@@ -92,7 +92,7 @@
 
 代码定位：
 
-- [百宝箱分组](../../public/pages/admin/toolbox/shell-start.html)、[页面装配](../../src/server/admin-page.js)、[导航模块](../../public/js/admin/other.js)。
+- [百宝箱分组](../../public/pages/admin/toolbox/shell-start.html)、[页面装配](../../src/server/admin-page.js)、[导航模块](../../public/js/admin/toolbox-navigation.js)。
 - [点歌领域规则](../../src/music/queue-service.js)、[点歌事务](../../src/storage/queue-store.js)、[数据库定义](../../src/storage/schema.js)、[数据清理](../../src/storage/database-clear-operations.js)。
 - [本地消息入口](../../src/server/bilibili-client.js)、[本地直播运行时](../../src/server/bilibili-runtime.js)。
 - [礼物数据契约](../../src/shared/processed-gift-contract.js)、[远端礼物同步](../../src/electron/remote-gift-controller.js)、[设备 API 客户端](../../src/electron/license/remote-license-client.js)。

@@ -9,7 +9,6 @@ const {
   dialog,
   ipcMain,
   Menu,
-  net,
   protocol,
   safeStorage,
   session,

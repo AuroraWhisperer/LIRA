@@ -1,6 +1,6 @@
 # 网易云音乐 Provider — 上游 API 逆向工程
 
-> 涉及文件:[netease-provider.js](../../../../src/music/providers/netease-provider.js)、[netease-weapi.js](../../../../src/music/providers/netease-weapi.js)、[netease-mappers.js](../../../../src/music/providers/netease-mappers.js)、[lyrics.js](../../../../src/music/lyrics.js)(歌词解析器)、[stream-resolver.js](../../../../src/music/stream-resolver.js)(流解析编排)、[track-contract.js](../../../../src/music/track-contract.js)
+> 涉及文件:[netease-provider.js](../../../../src/music/providers/netease-provider.js)、[netease-weapi.js](../../../../src/music/providers/netease-weapi.js)、[netease-mappers.js](../../../../src/music/providers/netease-mappers.js)、[lyric-parser.js](../../../../src/music/lyric-parser.js)(歌词解析器)、[stream-resolver.js](../../../../src/music/stream-resolver.js)(流解析编排)、[track-contract.js](../../../../src/music/track-contract.js)
 
 本文档是网易云**上游接口**(`music.163.com`)的逆向工程唯一事实源:weapi 加密算法、Cookie 语义、12 个上游端点、歌词解析器与流解析契约只在此成表。Cookie 持久化(登录分区、快照加密)见 [auth.md](../../desktop/auth.md);本地 `/api/music/*` 端点清单见 [api.md](../api.md) 的 music-routes 节。QQ 侧见 [qq-provider.md](qq-provider.md);Provider 注册与缓存编排见 [services.md](services.md)。
 
@@ -283,35 +283,35 @@ GET https://music.163.com/api/nuser/account/get
 | `clampInteger`         | 同 QQ Provider 语义                          | [netease-mappers.js](../../../../src/music/providers/netease-mappers.js) |
 | `sliceByPage`          | §7.5 客户端翻页(绕回语义)                    | [netease-mappers.js](../../../../src/music/providers/netease-mappers.js) |
 
-## 9. 歌词解析器(src/music/lyrics.js)
+## 9. 歌词解析器(src/music/lyric-parser.js)
 
-**唯一歌词行模型实现**,QQ 与网易云共用(QQ 的 QRC 解密产物也喂给它,见 [qq-provider.md](qq-provider.md) §7.3)。模块只导出 4 个函数([lyrics.js](../../../../src/music/lyrics.js));其余为内部函数。
+**唯一歌词行模型实现**,QQ 与网易云共用(QQ 的 QRC 解密产物也喂给它,见 [qq-provider.md](qq-provider.md) §7.3)。模块只导出 4 个函数([lyric-parser.js](../../../../src/music/lyric-parser.js));其余为内部函数。
 
 ### 9.1 parseLyricResult(rawLyric, rawTranslation, rawWordLyric, rawRoma)
 
 1. `parseWordLyric(rawWordLyric)` → 逐字行;`parseLrc(rawLyric)` → LRC 行
-2. **LRC 非空取 LRC,空则用逐字行降级**:`lines = wordLines.map(line => ({startMs, endMs, text}))`([lyrics.js](../../../../src/music/lyrics.js))
+2. **LRC 非空取 LRC,空则用逐字行降级**:`lines = wordLines.map(line => ({startMs, endMs, text}))`([lyric-parser.js](../../../../src/music/lyric-parser.js))
 3. 翻译/罗马音经 `parseTimedText`(先 LRC 后逐字)解析,各建一个 `createTimedTextResolver` 按时间戳匹配
 4. 每行输出 `{ startMs, endMs, text, translation, roma, words }`:
-   - `endMs` 缺失时取下一行 `startMs`([lyrics.js](../../../../src/music/lyrics.js))
+   - `endMs` 缺失时取下一行 `startMs`([lyric-parser.js](../../../../src/music/lyric-parser.js))
    - `roma` = API 罗马音优先,空则取 `[kana:…]` 假名注音(§9.5)
-   - `words` = 逐字行按 `startMs` 精确对齐([lyrics.js](../../../../src/music/lyrics.js))
+   - `words` = 逐字行按 `startMs` 精确对齐([lyric-parser.js](../../../../src/music/lyric-parser.js))
 
-### 9.2 parseLrc(LRC 解析,[lyrics.js](../../../../src/music/lyrics.js))
+### 9.2 parseLrc(LRC 解析,[lyric-parser.js](../../../../src/music/lyric-parser.js))
 
 - 行正则 `/\[(\d{1,2}):(\d{1,2})(?:[.:](\d{1,3}))?\]/g` — 支持 `[mm:ss]`、`[mm:ss.xxx]`、`[mm:ss:xxx]`
 - **同一行多个时间标签 → 生成多条记录**(卡拉 OK 重复行);无时间戳的行跳过
-- `toStartMs`([lyrics.js](../../../../src/music/lyrics.js)):小数位 3 位按毫秒直用,不足 3 位 `padEnd(3,'0')`
+- `toStartMs`([lyric-parser.js](../../../../src/music/lyric-parser.js)):小数位 3 位按毫秒直用,不足 3 位 `padEnd(3,'0')`
 - 过滤负数/NaN,排序 `startMs` 升序、同值按文本字典序
 
-### 9.3 parseWordLyric(逐字歌词,[lyrics.js](../../../../src/music/lyrics.js))
+### 9.3 parseWordLyric(逐字歌词,[lyric-parser.js](../../../../src/music/lyric-parser.js))
 
 - 行正则 `/\[(\d+),(\d+)\]([\s\S]*)/` → `[startMs,durationMs,body]`
 - **前缀词**优先:`/\((\d+),(\d+),\d*\)([^()]+)/g` → `(start,duration,?)text`
 - **后缀词**仅当前缀无命中时使用:`/([^()]*)\((\d+),(\d+)\)/g` → `text(start,duration)`
 - 无词的行丢弃;`text` = 词文本拼接,`endMs = startMs + max(0, durationMs)`;排序按 startMs
 
-### 9.4 createTimedTextResolver(时间容差匹配,[lyrics.js](../../../../src/music/lyrics.js))
+### 9.4 createTimedTextResolver(时间容差匹配,[lyric-parser.js](../../../../src/music/lyric-parser.js))
 
 - 构造:过滤非有限 startMs → 排序 → `exact = Map(startMs → text)`
 - 查询:`exact.has(startMs)` 直中;否则**二分查找**(找最后一个 `startMs < 目标` 的位置)取邻近两候选,按距离取最近,`|Δ| ≤ toleranceMs(默认 100ms)` 才命中
@@ -321,9 +321,9 @@ GET https://music.163.com/api/nuser/account/get
 
 | 函数                                     | 行为                                                                                                      | 出处                                                           |
 | ---------------------------------------- | --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| `extractKanaReadings(rawLyric)`          | 匹配 `/\[kana:([^\]]+)\]/`,`1読1み2方` 按数字切分 → `['読','み','方']`                                    | [lyrics.js](../../../../src/music/lyrics.js)     |
-| `mapKanaToLines`                         | 逐行消费 CJK 字符(范围 U+4E00-9FFF / U+3400-4DBF / U+F900-FAFF),每字一个读音,空格连接,按 `startMs` 建 Map | [lyrics.js](../../../../src/music/lyrics.js)     |
-| `findCurrentLyricLine(lines, currentMs)` | **二分查找最后一个 `startMs ≤ currentMs` 的行**;空数组返回 null                                           | [lyrics.js](../../../../src/music/lyrics.js) |
+| `extractKanaReadings(rawLyric)`          | 匹配 `/\[kana:([^\]]+)\]/`,`1読1み2方` 按数字切分 → `['読','み','方']`                                    | [lyric-parser.js](../../../../src/music/lyric-parser.js)     |
+| `mapKanaToLines`                         | 逐行消费 CJK 字符(范围 U+4E00-9FFF / U+3400-4DBF / U+F900-FAFF),每字一个读音,空格连接,按 `startMs` 建 Map | [lyric-parser.js](../../../../src/music/lyric-parser.js)     |
+| `findCurrentLyricLine(lines, currentMs)` | **二分查找最后一个 `startMs ≤ currentMs` 的行**;空数组返回 null                                           | [lyric-parser.js](../../../../src/music/lyric-parser.js) |
 
 ## 10. 流解析契约(stream-resolver)
 

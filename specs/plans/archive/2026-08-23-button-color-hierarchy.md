@@ -45,8 +45,8 @@ Button element types, IDs, classes, labels, focus behavior, disabled behavior, c
 
 - `public/css/styles-base.css`: make shared primary buttons borderless solid fills and shared danger buttons frameless text/soft-hover actions.
 - `public/css/admin/gifts/main-page-tabs.css` and `public/css/overlays/desktop.css`: remove the outer segmented frame around the top-level navigation.
-- `public/css/admin/layout.css`, `public/css/admin/workspace/song.css`, `public/css/admin/desktop-lyric-preview.css`, `public/css/admin/responsive.css`, and `public/css/admin/other-features/shell.css`: remove local accent/danger outlines while preserving hierarchy through fill, text, or an existing active rail.
-- `public/css/admin/other-features/start-animation.css`, `public/css/admin/other-features/usage-guide.css`, and `public/css/playback/player.css`: convert remaining accent-outline action controls to solid or frameless alternatives.
+- `public/css/admin/layout.css`, `public/css/admin/workspace/song.css`, `public/css/admin/desktop-lyric-preview.css`, `public/css/admin/responsive.css`, and `public/css/admin/toolbox/shell.css`: remove local accent/danger outlines while preserving hierarchy through fill, text, or an existing active rail.
+- `public/css/admin/toolbox/start-animation.css`, `public/css/admin/toolbox/usage-guide.css`, and `public/css/playback/player.css`: convert remaining accent-outline action controls to solid or frameless alternatives.
 - `test/frontend-admin-shell.test.js`: add regression assertions for the shared hierarchy and key local exceptions.
 
 ## Milestones
@@ -78,9 +78,9 @@ Button element types, IDs, classes, labels, focus behavior, disabled behavior, c
 - Modify: `public/css/admin/workspace/song.css`
 - Modify: `public/css/admin/desktop-lyric-preview.css`
 - Modify: `public/css/admin/responsive.css`
-- Modify: `public/css/admin/other-features/shell.css`
-- Modify: `public/css/admin/other-features/start-animation.css`
-- Modify: `public/css/admin/other-features/usage-guide.css`
+- Modify: `public/css/admin/toolbox/shell.css`
+- Modify: `public/css/admin/toolbox/start-animation.css`
+- Modify: `public/css/admin/toolbox/usage-guide.css`
 - Modify: `public/css/playback/player.css`
 - Modify: `test/frontend-admin-shell.test.js`
 

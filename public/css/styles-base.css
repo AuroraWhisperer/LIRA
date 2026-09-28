@@ -4,7 +4,7 @@
 
   /* Native scrollbar geometry; desktop theme supplies the colors. */
   --scrollbar-size: 12px;
-  --scrollbar-inset: 3px;
+  --scrollbar-inset: 4px;
   --scrollbar-interactive-inset: 2px;
 
   /* ===== 主色调 ===== */

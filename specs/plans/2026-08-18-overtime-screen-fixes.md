@@ -19,7 +19,7 @@
 
 - Owner：`public/js/admin/overtime.js`；页面片段：`public/pages/admin/toolbox/overtime.html`；共享复制能力：`public/js/shared/utils.js`。
 - Contract：`docs/architecture/backend/api.md` §11、`docs/architecture/adr/0005-built-in-overtime-backgrounds.md`。
-- Focused tests：`test/frontend-queue.test.js`、`test/overtime-overlay.test.js`；必要时补充前端控制器的纯函数测试。
+- Focused tests：`test/songs/frontend-queue.test.js`、`test/overtime/overtime-overlay.test.js`；必要时补充前端控制器的纯函数测试。
 - 保持 Vanilla JS ESM、现有页面 URL、IPv4 loopback 地址生成和服务端背景校验。
 
 ## 提议改动
@@ -32,7 +32,7 @@
 ## 里程碑与验证
 
 1. 先补失败回归断言：按钮文案、复制工具调用、保存错误可见、背景修改状态。
-2. 实现最小前端改动，运行 `node --test test/frontend-queue.test.js test/overtime-overlay.test.js`。
+2. 实现最小前端改动，运行 `node --test test/songs/frontend-queue.test.js test/overtime/overtime-overlay.test.js`。
 3. 运行 `npm run check` 与 `npm run verify:quick`，审阅 `git diff --check` 和 `git status --short`，确认不触碰用户已有的 Bilibili 改动。
 
 ## 失败处理与回滚

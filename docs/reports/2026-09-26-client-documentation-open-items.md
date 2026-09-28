@@ -82,7 +82,7 @@
 
 - **原文**：[规格](../../specs/fan-profiles.md)开头明确第三阶段不在首发范围；[调研设计](2026-09-18-fan-profile-research-and-design.md)第 11.4、13 节。
 - **剩余范围**：外部 CSV/其他工具档案导入及字段/冲突映射、完整农历自动换算规则、工作台日历联动；每项仍需独立需求和验收。
-- **实现依据**：[profile-transfer.js](../../src/fans/profile-transfer.js)支持 LIRA 备份恢复、恢复点、本机旧点歌导入和列表导出，不是通用外部表格导入；[生日表单](../../public/js/admin/fans/forms.js)与[提醒 owner](../../src/fans/reminders.js)已支持农历资料和手工“今年提醒日期”，不能称为完全不支持农历；[工作台](../../public/js/admin/todo.js)与[日历视图](../../public/js/admin/todo-view.js)没有消费粉丝提醒。
+- **实现依据**：[profile-transfer.js](../../src/fans/profile-transfer.js)支持 LIRA 备份恢复、恢复点、本机旧点歌导入和列表导出，不是通用外部表格导入；[生日表单](../../public/js/admin/fans/forms.js)与[提醒 owner](../../src/fans/reminders.js)已支持农历资料和手工“今年提醒日期”，不能称为完全不支持农历；[工作台](../../public/js/admin/streamer-planner.js)与[日历视图](../../public/js/admin/streamer-planner-view.js)没有消费粉丝提醒。
 - **边界**：自动建档、会员事实、点歌归档、档案恢复等首发能力不列为待做；跨电脑同步、舰礼履约是按需求再考虑的方向，不宣称已经立项。
 
 ### 07. F07 / S04 共享源码分发
@@ -96,7 +96,7 @@
 
 - **原文**：[测试维护计划](../../specs/plans/2026-09-21-test-suite-maintenance.md)J01；[审计报告](2026-09-21-test-suite-maintenance-audit.md)第 5、10 节。
 - **剩余范围**：客户端把授权 canonical 手写 golden 常量迁移为受锁定版本及哈希保护的统一 fixture 消费，继续各测独立实现。
-- **实现依据**：[license-protocol.test.js](../../test/license-protocol.test.js)仍维护 `ACTIVATION_GOLDEN` / `AUTH_GOLDEN`；[lock](../../server-contract.lock.json)未登记 `docs/protocol/fixtures/device-auth-v2-vectors.json`。
+- **实现依据**：[license-protocol.test.js](../../test/license/license-protocol.test.js)仍维护 `ACTIVATION_GOLDEN` / `AUTH_GOLDEN`；[lock](../../server-contract.lock.json)未登记 `docs/protocol/fixtures/device-auth-v2-vectors.json`。
 - **纠正旧阻塞理由**：服务器该文件已有实际提交 `6b2bd4d3ce38f9f7dfb68e0e4a6e4657ef9455fa`（2026-09-21）。所以只保留“客户端尚未采纳”，剔除“仍须等待服务器创建提交”。更新锁仍须审核实际固定提交，不能直接改为任意 HEAD。
 
 ### 09. Windows 强制签名与上传前验签
@@ -111,13 +111,13 @@
 - **原文**：[modularity-debt.md](../architecture/engineering/modularity-debt.md)及其[当前基线](../architecture/engineering/modularity-baseline.json)。
 - **剩余范围**：对仍登记的 review/legacy/exception 和函数跨度按 owner 复审，按独立职责收敛，不按历史文件数量机械拆分。
 - **期限**：一般登记为 2026-12-13 前或实质修改时复核；粉丝档案新增函数债务为 2026-12-18 前或扩展相关能力时复核。两日期在本次核验时均未到期。
-- **当前门禁结果**：本次 `verify:modularity` 发现 3 个现有改动文件进入 601–800 行但尚缺逐文件 review：`public/css/admin/other-features/fan-profiles.css` 616 行、`public/js/admin/fans/index.js` 646 行、`test/frontend-fan-profiles.test.js` 670 行。应由相应改动完成边界复审/登记或职责收敛，不应直接提高上限。本次没有修改这些文件。
+- **当前门禁结果**：本次 `verify:modularity` 发现 3 个现有改动文件进入 601–800 行但尚缺逐文件 review：`public/css/admin/toolbox/fan-profiles.css` 616 行、`public/js/admin/fans/index.js` 646 行、`test/frontend-fan-profiles.test.js` 670 行。应由相应改动完成边界复审/登记或职责收敛，不应直接提高上限。本次没有修改这些文件。
 - **边界**：门禁通过说明符合当前登记，不证明所有函数债务消失；旧报告中的 B/C/D 批次、旧行数和旧超限总数不能继续列为未实施任务。
 
 ### 11. 主窗口沙箱兼容评估
 
 - **原文**：[两端架构审计](2026-09-16-client-server-architecture-audit.md)A3、7.6 和后续实施补记，要求用真实 Electron 证据处理沙箱例外。
-- **实现依据**：[main.js](../../src/electron/main.js)主窗口仍是 `contextIsolation: true`、`nodeIntegration: false`、`sandbox: false`；[音乐登录窗口](../../src/electron/login-window.js)、[B 站登录窗口](../../src/electron/bilibili-login-window.js)和[礼物导出窗口](../../src/electron/gift-export-controller.js)已经是 `sandbox: true`。
+- **实现依据**：[main.js](../../src/electron/main.js)主窗口仍是 `contextIsolation: true`、`nodeIntegration: false`、`sandbox: false`；[音乐登录窗口](../../src/electron/music-login-window.js)、[B 站登录窗口](../../src/electron/bilibili-login-window.js)和[礼物导出窗口](../../src/electron/gift-export-controller.js)已经是 `sandbox: true`。
 - **剩余范围**：仅对主窗口 preload/IPC 的沙箱兼容性做隔离真实环境核验，再决定取消或重新论证例外。
 - **边界**：不称为已证实可利用漏洞，不建议直接把 false 改为 true；不把已启用沙箱的其他窗口重复列入。
 

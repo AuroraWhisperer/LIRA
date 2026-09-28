@@ -10,12 +10,12 @@
 
 ## Current Behavior And Ownership
 
-- `public/js/admin/todo-model.js` normalizes the v2 session, task, and note format and supplies six beginner cue templates.
-- `public/js/admin/todo.js` owns storage, event handling, rendering, and the existing initialization facade.
-- `public/pages/admin/toolbox/planner.html` and `public/css/admin/other-features/streamer-planner.css` own the visible workbench.
+- `public/js/admin/streamer-planner-model.js` normalizes the v2 session, task, and note format and supplies six beginner cue templates.
+- `public/js/admin/streamer-planner.js` owns storage, event handling, rendering, and the existing initialization facade.
+- `public/pages/admin/toolbox/planner.html` and `public/css/admin/toolbox/streamer-planner.css` own the visible workbench.
 - `public/pages/admin/toolbox/shell-start.html` owns its navigation description.
 - Contracts: `docs/architecture/frontend/app.md` and `docs/architecture/frontend/pages.md`.
-- Tests: `test/toolbox-todo.test.js`, the new focused model test, admin composition and module boundary checks.
+- Tests: `test/streamer-planner.test.js`, the new focused model test, admin composition and module boundary checks.
 
 ## Global Constraints
 
@@ -51,15 +51,15 @@ Model exports: `STORAGE_KEY`, `PREVIOUS_STORAGE_KEY`, `LEGACY_STORAGE_KEY`, `STA
 
 ### 1. Model And Migration (Luna)
 
-Files: `public/js/admin/todo-model.js`, `test/toolbox-todo-model.test.js` only.
+Files: `public/js/admin/streamer-planner-model.js`, `test/streamer-planner-model.test.js` only.
 
 - [x] Implement the named interfaces and conservative v1/v2 migration.
 - [x] Test empty initialization, custom records and original IDs/completion, exact starter filtering, one-time session import, note links/pins, event normalization, leap days and cross-year calendar navigation.
-- [x] Run `node --experimental-vm-modules --test test/toolbox-todo-model.test.js`.
+- [x] Run `node --experimental-vm-modules --test test/streamer-planner-model.test.js`.
 
 ### 2. Usable Workbench (Primary)
 
-Files: `todo.js`, `planner.html`, `streamer-planner.css`, the navigation description, and `test/toolbox-todo.test.js`.
+Files: `streamer-planner.js`, `planner.html`, `streamer-planner.css`, the navigation description, and `test/streamer-planner.test.js`.
 
 - [x] Replace cue stages and template chips with a month calendar, selected-day agenda, memo composer/list and compact task list.
 - [x] Implement calendar navigation/today, event creation/edit/delete, memo editing/pinning/deleting/conversion to task, task completion/deletion, and reload persistence.

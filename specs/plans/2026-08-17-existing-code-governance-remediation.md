@@ -92,14 +92,14 @@
 
 | ID        | Finding                                     | Evidence                                                                                                                                                                                                                                                             | Impact                                                                                                  | Track |
 | --------- | ------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | ----- |
-| `AUD-H01` | AI 公开配置返回明文密钥                     | [config-store.js](../../src/ai/config-store.js#L38), [api-context.js](../../src/server/api-context.js#L104), [ai-routes.js](../../src/server/routes/ai-routes.js#L31), [ai-config-store.test.js](../../test/ai-config-store.test.js#L40)                             | renderer、注入脚本和调试工具可读取 DeepSeek、QWeather、Amap Key；测试与 owner 契约相反                  | 1     |
+| `AUD-H01` | AI 公开配置返回明文密钥                     | [config-store.js](../../src/ai/config-store.js#L38), [api-context.js](../../src/server/api-context.js#L104), [ai-routes.js](../../src/server/routes/ai-routes.js#L31), [ai-config-store.test.js](../../test/ai/ai-config-store.test.js#L40)                             | renderer、注入脚本和调试工具可读取 DeepSeek、QWeather、Amap Key；测试与 owner 契约相反                  | 1     |
 | `AUD-H02` | runtime 构造在旧实例清理前打开并修改数据库  | [server.js](../../src/server.js#L57), [server.js](../../src/server.js#L95), [server.js](../../src/server.js#L245)                                                                                                                                                    | 仅构造第二个 runtime 就可能迁移数据库、清直播队列和执行保留期，与旧实例并发写库                         | 2     |
 | `AUD-H03` | 当前索引阻断 pre-v1 数据库迁移              | [database.js](../../src/storage/database.js#L43), [schema.js](../../src/storage/schema.js#L179), [schema.js](../../src/storage/schema.js#L308)                                                                                                                       | 老用户 song/gift 数据库分别报 `no such column: pinned_at` 和 `counted_in_sprint`，无法启动升级          | 2     |
 | `AUD-H04` | clear-all 未清除全部业务与个人数据          | [database.js](../../src/storage/database.js#L532), [storage.md](../../docs/architecture/backend/storage.md#L128), [api.md](../../docs/architecture/backend/api.md#L298), [settings.js](../../public/js/admin/settings.js#L425)                                       | 用户确认清空后仍保留 AI 审计/上下文/黑名单、收藏、歌单、加班机状态和规则，违反隐私与公开契约            | 4     |
 | `AUD-H05` | `local-media://` 授权整个数据目录           | [local-media-access.js](../../src/electron/local-media-access.js#L15), [update-ipc.js](../../src/electron/ipc/update-ipc.js#L24), [music-ipc.js](../../src/electron/ipc/music-ipc.js#L68), [local-media-protocol.js](../../src/electron/local-media-protocol.js#L62) | renderer 边界失守时可读取 session token、五个数据库、Cookie 快照和访问清单                              | 3     |
 | `AUD-H06` | 本地 HTTP 浏览器源边界缺失                  | [server.js](../../src/server.js#L36), [server.js](../../src/server.js#L139), [http-utils.js](../../src/server/http-utils.js#L107), [main.js](../../src/electron/main.js#L158)                                                                                        | 非回环 `HOST` 可直接暴露到 LAN；即使绑定回环，伪造 Host/DNS rebinding 仍可取得注入 HTML 的 bearer token | 1     |
 | `AUD-H07` | Windows 自动更新发行链无签名                | [package.json](../../package.json#L56), [update-manager.js](../../src/electron/update-manager.js#L36), [publish-release.js](../../scripts/publish-release.js#L1)                                                                                                     | Release 凭据或资产被替换时，SHA-512 只能证明清单与安装器一致，不能证明发行者身份                        | 5     |
-| `AUD-H08` | 任意 URI scheme 可传给 `shell.openExternal` | [main.js](../../src/electron/main.js#L284), [login-window.js](../../src/electron/login-window.js#L31), [bilibili-login-window.js](../../src/electron/bilibili-login-window.js#L37)                                                                                   | 远程内容可触发 `file:`、`ms-settings:` 或自定义协议处理器；结果取决于宿主机注册程序                     | 3     |
+| `AUD-H08` | 任意 URI scheme 可传给 `shell.openExternal` | [main.js](../../src/electron/main.js#L284), [music-login-window.js](../../src/electron/music-login-window.js#L31), [bilibili-login-window.js](../../src/electron/bilibili-login-window.js#L37)                                                                                   | 远程内容可触发 `file:`、`ms-settings:` 或自定义协议处理器；结果取决于宿主机注册程序                     | 3     |
 | `AUD-H09` | production `js-yaml@4.3.0` 命中 High 公告   | [package-lock.json](../../package-lock.json), [package.json](../../package.json)                                                                                                                                                                                     | `GHSA-5p4m-2wfm-xmqj` 可造成二次方 CPU 消耗；`electron-updater@6.8.9` 的范围允许安全的 `4.3.1`          | 5     |
 
 ### Medium
@@ -112,19 +112,19 @@
 | `AUD-M04` | clear-all 跨五库逐个提交，失败后可能部分清空 | [database.js](../../src/storage/database.js#L539), [database.js](../../src/storage/database.js#L591)                                                                                                                                                                                                                                                                                     | 提交前失败统一回滚；不可避免的提交期失败返回精确 per-database partial 结果并触发状态重载                                     | 4     |
 | `AUD-M05` | AI 审计、上下文和缓存没有主动保留期          | [config-store.js](../../src/ai/config-store.js#L80), [config-store.js](../../src/ai/config-store.js#L149), [retention.js](../../src/storage/retention.js#L9)                                                                                                                                                                                                                             | 启动时清 TTL 数据；AI request log 采用明确、可配置的默认保留期并支持 dry-run                                                 | 4     |
 | `AUD-M06` | session token 被写入 `terminal.log`          | [server.js](../../src/server.js#L258), [terminal-log.js](../../src/electron/terminal-log.js#L49)                                                                                                                                                                                                                                                                                         | 不再输出 token 原值；桌面和终端日志统一脱敏 Authorization、Cookie、API Key、代理 userinfo 和敏感查询参数                     | 1     |
-| `AUD-M07` | 登录 URL 策略允许 HTTP 降级                  | [auth-manager.js](../../src/electron/auth-manager.js#L58), [bilibili-auth.js](../../src/electron/bilibili-auth.js#L49)                                                                                                                                                                                                                                                                   | 持久化认证窗口只允许精确白名单域名的 `https:`                                                                                | 3     |
+| `AUD-M07` | 登录 URL 策略允许 HTTP 降级                  | [music-auth-manager.js](../../src/electron/music-auth-manager.js#L58), [bilibili-auth.js](../../src/electron/bilibili-auth.js#L49)                                                                                                                                                                                                                                                                   | 持久化认证窗口只允许精确白名单域名的 `https:`                                                                                | 3     |
 | `AUD-M08` | 端口清理信任可伪造 `serviceId` 后强杀 PID    | [lifecycle.js](../../src/server/lifecycle.js#L76), [lifecycle.js](../../src/server/lifecycle.js#L94), [lifecycle.js](../../src/server/lifecycle.js#L100)                                                                                                                                                                                                                                 | 强制终止必须同时匹配可信 runtime 记录、health PID 和进程身份；HTTP 响应不能单独授权 kill                                     | 2     |
 | `AUD-M09` | 发布脚本记录完整代理 URL                     | [publish-release.js](../../scripts/publish-release.js#L74)                                                                                                                                                                                                                                                                                                                               | 日志只显示协议、主机和端口，不显示 userinfo 或敏感查询参数                                                                   | 5     |
 | `AUD-M10` | 未处理异常把原始 `error.message` 返回客户端  | [server.js](../../src/server.js#L152)                                                                                                                                                                                                                                                                                                                                                    | 已知输入错误映射稳定 4xx；未知 5xx 只返回固定公开消息，详细错误仅进脱敏日志                                                  | 1     |
 | `AUD-M11` | 旧实例清理预算短于合法 graceful shutdown     | [server.js](../../src/server.js#L31), [playback-flush.js](../../src/electron/playback-flush.js#L5), [lifecycle.js](../../src/server/lifecycle.js#L87)                                                                                                                                                                                                                                    | 等待预算覆盖 renderer flush、runtime drain 和 server close；强杀前重新验证实例                                               | 2     |
 | `AUD-M12` | Admin 控制页可被跨站 iframe                  | [http-utils.js](../../src/server/http-utils.js#L145)                                                                                                                                                                                                                                                                                                                                     | Admin HTML 返回 `Content-Security-Policy: frame-ancestors 'none'` 和 `X-Frame-Options: DENY`；overlay 页面保持可供 OBS 使用  | 1     |
-| `AUD-M13` | 加班机限制在后端、Admin 和 owner 文档间漂移  | [overtime-contract.js](../../src/overtime/overtime-contract.js#L3), [schema.js](../../src/storage/schema.js#L315), [overtime.js](../../public/js/admin/overtime.js#L380), [overtime-rule-editor.js](../../public/js/admin/overtime-rule-editor.js#L5), [overtime.md](../../docs/architecture/backend/overtime.md#L165), [frontend-queue.test.js](../../test/frontend-queue.test.js#L377) | Admin 必须无损加载、展示和提交所有服务端合法值；限制由后端契约通过 additive `limits` 下发，前端和 owner 文档不再复制过期常量 | 4     |
+| `AUD-M13` | 加班机限制在后端、Admin 和 owner 文档间漂移  | [overtime-contract.js](../../src/overtime/overtime-contract.js#L3), [schema.js](../../src/storage/schema.js#L315), [overtime.js](../../public/js/admin/overtime.js#L380), [overtime-rule-editor.js](../../public/js/admin/overtime-rule-editor.js#L5), [overtime.md](../../docs/architecture/backend/overtime.md#L165), [frontend-queue.test.js](../../test/songs/frontend-queue.test.js#L377) | Admin 必须无损加载、展示和提交所有服务端合法值；限制由后端契约通过 additive `limits` 下发，前端和 owner 文档不再复制过期常量 | 4     |
 
 ### Low And Informational
 
 | ID        | Severity | Finding                                                      | Evidence / disposition                                                                                                                                                                                                           |
 | --------- | -------- | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `AUD-L01` | Low      | 音乐登录首次 `loadURL` 失败会遗留窗口和 Cookie listener      | [login-window.js](../../src/electron/login-window.js#L68); Track 3 统一 cleanup 并补失败测试                                                                                                                                     |
+| `AUD-L01` | Low      | 音乐登录首次 `loadURL` 失败会遗留窗口和 Cookie listener      | [music-login-window.js](../../src/electron/music-login-window.js#L68); Track 3 统一 cleanup 并补失败测试                                                                                                                                     |
 | `AUD-L02` | Low      | API owner 文档漏记四个公开端点                               | [gift-routes.js](../../src/server/routes/gift-routes.js#L58), [overtime-routes.js](../../src/server/routes/overtime-routes.js#L21), [api.md](../../docs/architecture/backend/api.md#L5); Track 6 增加 route-key 与文档完整性门禁 |
 | `AUD-L03` | Low      | storage owner 文档仍写 gift DB v1-v5，代码已到 v6            | [storage.md](../../docs/architecture/backend/storage.md#L104), [database.js](../../src/storage/database.js#L94); Track 2 随迁移测试修正文档                                                                                      |
 | `AUD-L04` | Low      | server owner 文档错误描述 `PORT` 和启动迁移顺序              | [server-core.md](../../docs/architecture/backend/server-core.md#L43), [server.js](../../src/server.js#L57); Track 2 修正文档并避免复制易漂移顺序                                                                                 |
@@ -152,12 +152,12 @@
 
 | Area                                  | Runtime owner                                                     | Public contract                                                                 | Primary tests                                                                                                                              |
 | ------------------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| AI config and lifecycle               | `src/ai/`, `src/server/ai-runtime.js`                             | `docs/architecture/backend/ai.md`                                               | `test/ai-config-store.test.js`, `test/ai-routes.test.js`, `test/ai-assistant-service.test.js`                                              |
-| Server lifecycle and browser boundary | `src/server.js`, `src/server/`                                    | `docs/architecture/backend/server-core.md`, `api.md`, `ws.md`                   | `test/server-smoke.test.js`, `test/server-lifecycle.test.js`, `test/websocket-transport.test.js`                                           |
-| Storage and migrations                | `src/storage/`                                                    | `docs/architecture/backend/storage.md`                                          | `test/database-maintenance.test.js`, `test/overtime-service.test.js`                                                                       |
-| Electron security                     | `src/electron/`                                                   | `docs/architecture/desktop/`                                                    | `test/electron-main-modules.test.js`, `test/local-media-access.test.js`, `test/bilibili-login-window.test.js`, `test/terminal-log.test.js` |
-| Admin clear-data UX                   | `public/js/admin/settings.js`                                     | `docs/architecture/frontend/app.md`, backend API/storage owners                 | `test/frontend-admin-shell.test.js`, `test/server-smoke.test.js`                                                                           |
-| Release and dependencies              | `package.json`, `package-lock.json`, `scripts/publish-release.js` | `docs/architecture/engineering/build.md`, `docs/architecture/desktop/update.md` | `test/update-manager.test.js`, new release preflight tests                                                                                 |
+| AI config and lifecycle               | `src/ai/`, `src/server/ai-runtime.js`                             | `docs/architecture/backend/ai.md`                                               | `test/ai/ai-config-store.test.js`, `test/ai/ai-routes.test.js`, `test/ai/ai-assistant-service.test.js`                                              |
+| Server lifecycle and browser boundary | `src/server.js`, `src/server/`                                    | `docs/architecture/backend/server-core.md`, `api.md`, `ws.md`                   | `test/server/server-smoke.test.js`, `test/server/server-lifecycle.test.js`, `test/transport/websocket-transport.test.js`                                           |
+| Storage and migrations                | `src/storage/`                                                    | `docs/architecture/backend/storage.md`                                          | `test/storage/database-maintenance.test.js`, `test/overtime/overtime-service.test.js`                                                                       |
+| Electron security                     | `src/electron/`                                                   | `docs/architecture/desktop/`                                                    | `test/desktop/electron-main-modules.test.js`, `test/desktop/local-media-access.test.js`, `test/bilibili/bilibili-login-window.test.js`, `test/desktop/terminal-log.test.js` |
+| Admin clear-data UX                   | `public/js/admin/settings.js`                                     | `docs/architecture/frontend/app.md`, backend API/storage owners                 | `test/admin/frontend-admin-shell.test.js`, `test/server/server-smoke.test.js`                                                                           |
+| Release and dependencies              | `package.json`, `package-lock.json`, `scripts/publish-release.js` | `docs/architecture/engineering/build.md`, `docs/architecture/desktop/update.md` | `test/desktop/update-manager.test.js`, new release preflight tests                                                                                 |
 
 ## Compatibility Constraints
 
@@ -232,9 +232,9 @@ Files:
 - Modify: `src/ai/config-store.js`
 - Modify: `public/pages/admin/toolbox/danmaku.html`
 - Modify: `public/js/admin/ai-assistant-settings.js`
-- Modify: `test/ai-config-store.test.js`
-- Modify: `test/ai-routes.test.js`
-- Modify: `test/frontend-admin-ai.test.js`
+- Modify: `test/ai/ai-config-store.test.js`
+- Modify: `test/ai/ai-routes.test.js`
+- Modify: `test/ai/frontend-admin-ai.test.js`
 - Modify: `docs/architecture/backend/api.md`
 - Modify: `docs/architecture/backend/ai.md`
 - Modify: `docs/architecture/frontend/app.md`
@@ -266,7 +266,7 @@ Steps:
 Focused verification:
 
 ```powershell
-node --test test/ai-config-store.test.js test/ai-routes.test.js test/frontend-admin-ai.test.js
+node --test test/ai/ai-config-store.test.js test/ai/ai-routes.test.js test/ai/frontend-admin-ai.test.js
 ```
 
 ### Deliverable 1.2: Enforce The Local Browser Origin Boundary
@@ -276,9 +276,9 @@ Files:
 - Modify: `src/server.js`
 - Modify: `src/server/http-utils.js`
 - Modify: `src/server/ws.js`
-- Modify: `test/server-smoke.test.js`
-- Modify: `test/websocket-transport.test.js`
-- Modify: `test/admin-page-composition.test.js`
+- Modify: `test/server/server-smoke.test.js`
+- Modify: `test/transport/websocket-transport.test.js`
+- Modify: `test/admin/admin-page-composition.test.js`
 - Modify: `docs/architecture/backend/server-core.md`
 - Modify: `docs/architecture/backend/ws.md`
 
@@ -307,8 +307,8 @@ Files:
 - Modify: `src/server/http-utils.js`
 - Modify: `src/electron/terminal-log.js`
 - Modify: `src/electron/main.js`
-- Modify: `test/terminal-log.test.js`
-- Create: `test/http-utils.test.js`
+- Modify: `test/desktop/terminal-log.test.js`
+- Create: `test/transport/http-utils.test.js`
 
 Steps:
 
@@ -344,8 +344,8 @@ Files:
 
 - Modify: `src/server.js`
 - Modify: `src/server/lifecycle.js`
-- Modify: `test/server-smoke.test.js`
-- Modify: `test/server-lifecycle.test.js`
+- Modify: `test/server/server-smoke.test.js`
+- Modify: `test/server/server-lifecycle.test.js`
 - Modify: `docs/architecture/backend/server-core.md`
 
 Required startup order:
@@ -376,7 +376,7 @@ Files:
 
 - Modify: `src/storage/schema.js`
 - Modify: `src/storage/database.js`
-- Modify: `test/database-maintenance.test.js`
+- Modify: `test/storage/database-maintenance.test.js`
 - Modify: `docs/architecture/backend/storage.md`
 
 Steps:
@@ -397,8 +397,8 @@ Files:
 - Modify: `src/server.js`
 - Modify: `src/server/lifecycle.js`
 - Modify: `src/electron/playback-flush.js` only if a shared deadline is needed
-- Modify: `test/server-smoke.test.js`
-- Modify: `test/server-lifecycle.test.js`
+- Modify: `test/server/server-smoke.test.js`
+- Modify: `test/server/server-lifecycle.test.js`
 
 Required shutdown order:
 
@@ -440,8 +440,8 @@ Files:
 - Modify: `src/electron/local-media-access.js`
 - Modify: `src/electron/local-media-protocol.js`
 - Modify: `src/electron/ipc/music-ipc.js`
-- Modify: `test/local-media-access.test.js`
-- Modify: `test/electron-main-modules.test.js`
+- Modify: `test/desktop/local-media-access.test.js`
+- Modify: `test/desktop/electron-main-modules.test.js`
 - Modify: `docs/architecture/desktop/main.md`
 - Modify: `docs/architecture/desktop/preload.md`
 
@@ -463,12 +463,12 @@ Files:
 
 - Create: `src/electron/external-url-policy.js`
 - Modify: `src/electron/main.js`
-- Modify: `src/electron/login-window.js`
+- Modify: `src/electron/music-login-window.js`
 - Modify: `src/electron/bilibili-login-window.js`
-- Modify: `src/electron/auth-manager.js`
+- Modify: `src/electron/music-auth-manager.js`
 - Modify: `src/electron/bilibili-auth.js`
-- Create: `test/electron-url-policy.test.js`
-- Modify: `test/bilibili-login-window.test.js`
+- Create: `test/desktop/electron-url-policy.test.js`
+- Modify: `test/bilibili/bilibili-login-window.test.js`
 
 Steps:
 
@@ -514,9 +514,9 @@ Files:
 - Modify: `src/server/domain-services.js`
 - Modify: `src/server/routes/data-routes.js`
 - Modify: `public/js/admin/settings.js`
-- Modify: `test/database-maintenance.test.js`
-- Modify: `test/server-smoke.test.js`
-- Modify: `test/frontend-admin-shell.test.js`
+- Modify: `test/storage/database-maintenance.test.js`
+- Modify: `test/server/server-smoke.test.js`
+- Modify: `test/admin/frontend-admin-shell.test.js`
 - Modify: `docs/architecture/backend/storage.md`
 - Modify: `docs/architecture/backend/api.md`
 
@@ -560,8 +560,8 @@ Files:
 - Modify: `src/bilibili/gift/query-service.js`
 - Modify: `src/storage/retention.js`
 - Modify: `src/server/domain-services.js`
-- Modify: `test/overtime-service.test.js`
-- Modify: `test/database-maintenance.test.js`
+- Modify: `test/overtime/overtime-service.test.js`
+- Modify: `test/storage/database-maintenance.test.js`
 
 Steps:
 
@@ -586,9 +586,9 @@ Files:
 - Modify: `src/server/ai-runtime.js`
 - Modify: `src/storage/retention.js`
 - Modify: `src/storage/settings-store.js`
-- Modify: `test/ai-assistant-service.test.js`
-- Modify: `test/ai-danmaku-delivery-verifier.test.js`
-- Modify: `test/database-maintenance.test.js`
+- Modify: `test/ai/ai-assistant-service.test.js`
+- Modify: `test/ai/ai-danmaku-delivery-verifier.test.js`
+- Modify: `test/storage/database-maintenance.test.js`
 
 Steps:
 
@@ -601,7 +601,7 @@ Steps:
 - [x] Add `aiRequestLogRetentionDays` with a documented default of 30 days;
       include log counts in dry-run/real retention results. Keep blacklist and current
       provider configuration until explicit clear-all or user action. Verified on
-      2026-09-26 by `test/ai-request-log-retention.test.js` (millisecond cutoff,
+      2026-09-26 by `test/ai/ai-request-log-retention.test.js` (millisecond cutoff,
       dry-run, configured days, disabled policy, idempotence and protected rows).
 - [ ] Test a hanging generation released after shutdown: no DB write、delivery、
       ready job or timer may remain.
@@ -615,9 +615,9 @@ Files:
   at the HTTP boundary
 - Modify: `public/js/admin/overtime.js`
 - Modify: `public/js/admin/overtime-rule-editor.js`
-- Modify: `test/overtime-service.test.js`
-- Modify: `test/server-smoke.test.js`
-- Modify: `test/frontend-queue.test.js`
+- Modify: `test/overtime/overtime-service.test.js`
+- Modify: `test/server/server-smoke.test.js`
+- Modify: `test/songs/frontend-queue.test.js`
 - Modify: `docs/architecture/backend/overtime.md`
 - Modify: `docs/architecture/backend/api.md`
 - Modify: `docs/architecture/frontend/app.md`
@@ -685,7 +685,7 @@ Files:
 - Modify: `scripts/publish-release.js`
 - Create: `scripts/verify-windows-release.js`
 - Create: `test/release-verification.test.js`
-- Modify: `test/update-manager.test.js`
+- Modify: `test/desktop/update-manager.test.js`
 - Modify: `docs/architecture/engineering/build.md`
 - Modify: `docs/architecture/desktop/update.md`
 
@@ -726,7 +726,7 @@ Steps:
 Focused verification:
 
 ```powershell
-node --test test/release-verification.test.js test/update-manager.test.js
+node --test test/release-verification.test.js test/desktop/update-manager.test.js
 npm ci
 npm audit --omit=dev --audit-level=moderate
 npm run dist:win:local
@@ -750,8 +750,8 @@ Recommended child plan:
 Files:
 
 - Modify: `docs/architecture/backend/api.md`
-- Modify: `test/governance-docs.test.js`
-- Modify only when touched debt decreases: `test/module-boundaries.test.js`
+- Modify: `test/engineering/governance-docs.test.js`
+- Modify only when touched debt decreases: `test/engineering/module-boundaries.test.js`
 - Modify relevant owner documents identified by a child track
 
 Steps:
@@ -759,7 +759,7 @@ Steps:
 - [x] Export or derive the literal registered API route keys and compare them
       against backticked `METHOD /api/path` entries in the owner document; fail on
       missing and stale entries. Verified on 2026-09-26 by `GOV-API-001` in
-      `test/governance-docs.test.js`; the current two missing gift-effect routes
+      `test/engineering/governance-docs.test.js`; the current two missing gift-effect routes
       are documented, and explicitly remote Server references remain separate.
 - [ ] Keep numeric debt authority only in architecture tests. When a task removes
       SQL、global or empty-catch matches, lower or delete that exact per-file baseline.

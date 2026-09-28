@@ -2,15 +2,11 @@
 // 初始化模块
 'use strict';
 
-import * as PlaybackUtils from '../utils.js';
-
 export function createInitializer(deps) {
   const {
     playbackState,
     getPlaybackAudio,
     uiRenderer,
-    storageManager,
-    localFileManager,
     renderPlayback,
     renderPlaybackProgress,
     renderFullscreenPlayer,

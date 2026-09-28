@@ -64,7 +64,7 @@ the payload reconstructed by the server.
 - Normative contract: `D:/Work/lira-server/docs/protocol/device-authentication-v2.md`
   and `device-api.openapi.json`.
 - Requirements/acceptance: `REQ-AUTH-001` and `AC-AUTH-001`.
-- Regression tests: `test/license-protocol.test.js`,
+- Regression tests: `test/license/license-protocol.test.js`,
   `D:/Work/lira-server/test/device-license-protocol.test.js`, and
   `D:/Work/lira-server/test/device-protocol-contract.test.js`.
 
@@ -104,7 +104,7 @@ the payload reconstructed by the server.
 Focused verification:
 
 ```powershell
-node --test test/license-protocol.test.js
+node --test test/license/license-protocol.test.js
 node --test test/device-license-protocol.test.js test/device-protocol-contract.test.js
 ```
 
@@ -145,7 +145,7 @@ node --test test/device-license-protocol.test.js test/device-protocol-contract.t
 Client:
 
 ```powershell
-node --test test/license-protocol.test.js test/license-protocol-e2e.test.js
+node --test test/license/license-protocol.test.js test/license/license-protocol-e2e.test.js
 npm run check
 npm test
 git diff --check

@@ -16,7 +16,7 @@
 ## Tasks
 
 - [x] 更新 song-import-table.test.js、song-file-codec.test.js：新别名同值/空值/冲突、五行模板、显式清空与重复跳过。执行 `node --experimental-vm-modules --test test/song-import-table.test.js test/song-file-codec.test.js`。
-- [x] 更新 import.js 传递别名、song-import-schema.js 检查冲突、song-service.js 收集逐行失败、song-file-codec.js 模板；保持 `{total,inserted,duplicate,failed,createdCategories,failures}`。
+- [x] 更新 song-import.js 传递别名、song-import-schema.js 检查冲突、song-service.js 收集逐行失败、song-file-codec.js 模板；保持 `{total,inserted,duplicate,failed,createdCategories,failures}`。
 - [x] 更新 library.html、songs.js 价格/歌切输入与列表、预览及长度状态。沿用现有 `saveSong` 的可选字段与清空语义。添加表单行为测试，运行 `node --experimental-vm-modules --test test/song-library-filter.test.js test/song-request-form.test.js`。
 - [x] 同步 API / services / app 所属文档、导入说明和规范索引。执行 `node --test test/governance-docs.test.js` 与差异、状态检查。
 

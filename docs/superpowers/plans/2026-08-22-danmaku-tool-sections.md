@@ -22,7 +22,7 @@
 **Files:**
 
 - Modify: `public/pages/admin/toolbox/danmaku.html`
-- Test: `test/frontend-admin-ai.test.js`
+- Test: `test/ai/frontend-admin-ai.test.js`
 
 **Interfaces:**
 
@@ -35,7 +35,7 @@ Assert the old heading is absent, refresh is inside the connection heading, the 
 
 - [x] **Step 2: Run the focused test to verify it fails**
 
-Run: `node --test test/frontend-admin-ai.test.js`
+Run: `node --test test/ai/frontend-admin-ai.test.js`
 
 Expected: FAIL because the current fragment still has the hero heading, refresh button outside connection, and the four switches/three editor panels are not grouped as requested.
 
@@ -45,7 +45,7 @@ Remove the standalone hero heading, move its refresh button into the connection 
 
 - [x] **Step 4: Run the focused test to verify it passes**
 
-Run: `node --test test/frontend-admin-ai.test.js`
+Run: `node --test test/ai/frontend-admin-ai.test.js`
 
 Expected: PASS for the updated order and required IDs/text.
 
@@ -54,9 +54,9 @@ Expected: PASS for the updated order and required IDs/text.
 **Files:**
 
 - Modify: `public/js/admin/danmaku-tool.js`
-- Modify: `public/css/admin/other-features/danmaku-tool.css`
-- Modify: `public/css/admin/other-features.css` only if a shared stylesheet import is required
-- Test: `test/frontend-admin-ai.test.js`
+- Modify: `public/css/admin/toolbox/danmaku-tool.css`
+- Modify: `public/css/admin/toolbox.css` only if a shared stylesheet import is required
+- Test: `test/ai/frontend-admin-ai.test.js`
 
 **Interfaces:**
 
@@ -69,7 +69,7 @@ Require the Admin module to import `createDanmakuFeed`, find `danmakuStyleFeed`,
 
 - [x] **Step 2: Run the focused test to verify it fails**
 
-Run: `node --test test/frontend-admin-ai.test.js`
+Run: `node --test test/ai/frontend-admin-ai.test.js`
 
 Expected: FAIL because the module has no preview import/render and no preview styling.
 
@@ -79,7 +79,7 @@ Initialize the component once during `init()`, inject a bounded sample list, reu
 
 - [x] **Step 4: Run focused frontend checks**
 
-Run: `node --test test/frontend-admin-ai.test.js test/games-overlay.test.js`
+Run: `node --test test/ai/frontend-admin-ai.test.js test/games/games-overlay.test.js`
 
 Expected: PASS; the existing games overlay still imports and consumes the same component.
 
@@ -88,7 +88,7 @@ Expected: PASS; the existing games overlay still imports and consumes the same c
 **Files:**
 
 - Modify: `public/pages/admin/toolbox/usage-guide.html` if its section description/order is stale
-- Test: `test/frontend-admin-ai.test.js`, `test/games-overlay.test.js`
+- Test: `test/ai/frontend-admin-ai.test.js`, `test/games/games-overlay.test.js`
 
 - [x] **Step 1: Update the user guide copy**
 
@@ -96,6 +96,6 @@ Describe the new five-area flow (connection status, 弹幕姬 style/send, 点歌
 
 - [x] **Step 2: Run focused and repository checks**
 
-Run: `node --test test/frontend-admin-ai.test.js test/games-overlay.test.js`, then `npm run check`, then `npm run verify:quick`.
+Run: `node --test test/ai/frontend-admin-ai.test.js test/games/games-overlay.test.js`, then `npm run check`, then `npm run verify:quick`.
 
 Expected: all commands pass with no changed files outside the requested Admin/UI/docs/test scope and no diff-check whitespace errors.

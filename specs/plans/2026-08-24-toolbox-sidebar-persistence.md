@@ -30,15 +30,15 @@ When the user exits LIRA, the next desktop launch restores both the full left si
 
 ## Current Behavior
 
-`public/js/admin/other.js` now durably restores the full sidebar width. Feature-group headings currently call `setFeatureGroupExpanded()` only in memory, so groups such as “直播互动” and “直播画面” return to expanded after a complete desktop restart. Deep-link selection also intentionally opens a hidden group, so startup selection must avoid using that deep-link behavior while restoring the saved navigation layout.
+`public/js/admin/toolbox-navigation.js` now durably restores the full sidebar width. Feature-group headings currently call `setFeatureGroupExpanded()` only in memory, so groups such as “直播互动” and “直播画面” return to expanded after a complete desktop restart. Deep-link selection also intentionally opens a hidden group, so startup selection must avoid using that deep-link behavior while restoring the saved navigation layout.
 
 ## Ownership
 
 - Durable setting definitions and defaults: `src/storage/settings-store.js`.
 - Existing settings write contract: `POST /api/settings` in `src/server/routes/settings-routes.js`; its allowlist is derived from `DEFAULT_SETTINGS`, so no route change is required.
-- Toolbox renderer state and legacy-cache compatibility: `public/js/admin/other.js`.
+- Toolbox renderer state and legacy-cache compatibility: `public/js/admin/toolbox-navigation.js`.
 - Dependency injection from the ES-module composition root: `public/js/admin/app.js` using the existing shared `api()` helper.
-- Focused regression coverage: `test/toolbox-sidebar.test.js`.
+- Focused regression coverage: `test/admin/toolbox-sidebar.test.js`.
 
 ## Compatibility Constraints
 
@@ -54,8 +54,8 @@ When the user exits LIRA, the next desktop launch restores both the full left si
 
 - Modify `src/storage/settings-store.js` to retain `toolboxSidebarCollapsed: ''` and add `toolboxCollapsedFeatureGroups: ''` in `DEFAULT_SETTINGS`.
 - Modify `public/js/admin/app.js` to inject narrowly scoped persistence callbacks for the sidebar and feature groups.
-- Modify `public/js/admin/other.js` to reconcile durable and cached values for both navigation layers, save after each user toggle, and preserve restored group visibility during initial panel selection.
-- Modify `test/toolbox-sidebar.test.js` to cover full restart restoration for both layers, cached-state migration, malformed group data, toggle saves, and initial selection behavior.
+- Modify `public/js/admin/toolbox-navigation.js` to reconcile durable and cached values for both navigation layers, save after each user toggle, and preserve restored group visibility during initial panel selection.
+- Modify `test/admin/toolbox-sidebar.test.js` to cover full restart restoration for both layers, cached-state migration, malformed group data, toggle saves, and initial selection behavior.
 
 ## Milestone 1: Lock The Persistence Contract With Tests
 
@@ -64,7 +64,7 @@ When the user exits LIRA, the next desktop launch restores both the full left si
 - [x] Add a failing test where durable `'true'` restores a collapsed sidebar when local storage is absent.
 - [x] Add a failing test where legacy local state is retained and sent to the durable persistence callback.
 - [x] Add a failing test where clicking the toggle sends the final boolean state to the persistence callback.
-- [x] Run `node --test test/toolbox-sidebar.test.js` and confirm the new persistence assertions fail for the missing durable integration.
+- [x] Run `node --test test/admin/toolbox-sidebar.test.js` and confirm the new persistence assertions fail for the missing durable integration.
 
 ## Milestone 2: Implement The Smallest Durable Integration
 
@@ -72,7 +72,7 @@ When the user exits LIRA, the next desktop launch restores both the full left si
 - [x] Inject the existing authenticated settings API through `initOtherPage({ persistSidebarCollapsed })`.
 - [x] Reconcile startup state once: prefer a valid legacy value, otherwise use a valid durable value, otherwise remain expanded.
 - [x] Save after every explicit sidebar toggle while keeping local UI/cache updates synchronous.
-- [x] Run the four persistence-specific cases in `test/toolbox-sidebar.test.js`; all pass. The full file has one unrelated failure from the pre-existing `start-animation.html`/toolbox-title work in the dirty worktree.
+- [x] Run the four persistence-specific cases in `test/admin/toolbox-sidebar.test.js`; all pass. The full file has one unrelated failure from the pre-existing `start-animation.html`/toolbox-title work in the dirty worktree.
 
 ## Milestone 3: Persist Independent Feature Groups
 
@@ -85,10 +85,10 @@ When the user exits LIRA, the next desktop launch restores both the full left si
 
 ## Verification
 
-- `node --test test/toolbox-sidebar.test.js` — expected: all tests pass.
-- `node --test test/frontend-admin-shell.test.js` — expected: all tests pass because the Admin composition root and settings defaults remain consistent.
+- `node --test test/admin/toolbox-sidebar.test.js` — expected: all tests pass.
+- `node --test test/admin/frontend-admin-shell.test.js` — expected: all tests pass because the Admin composition root and settings defaults remain consistent.
 - `git diff --check` — expected: no whitespace errors.
-- Inspect `git diff -- public/js/admin/app.js public/js/admin/other.js src/storage/settings-store.js test/toolbox-sidebar.test.js specs/plans/2026-08-24-toolbox-sidebar-persistence.md` — expected: only the persistence contract, focused wiring, tests, and plan.
+- Inspect `git diff -- public/js/admin/app.js public/js/admin/toolbox-navigation.js src/storage/settings-store.js test/admin/toolbox-sidebar.test.js specs/plans/2026-08-24-toolbox-sidebar-persistence.md` — expected: only the persistence contract, focused wiring, tests, and plan.
 - Inspect `git status --short` and distinguish the task-owned files from pre-existing user changes.
 
 ## Rollback Or Failure Handling
@@ -105,9 +105,9 @@ If focused verification fails, inspect and reverse only the task-owned hunks wit
 
 ## Verification Results
 
-- `node --check public/js/admin/other.js`, `node --check public/js/admin/app.js`, and `node --check src/storage/settings-store.js`: passed.
-- Full `test/toolbox-sidebar.test.js`, including full-restart coverage for “直播互动” and “直播画面”: 19 passed, 0 failed.
-- `node --test test/module-boundaries.test.js`: 8 passed, 0 failed.
-- `node --test test/frontend-admin-shell.test.js`: 45 passed, 0 failed.
+- `node --check public/js/admin/toolbox-navigation.js`, `node --check public/js/admin/app.js`, and `node --check src/storage/settings-store.js`: passed.
+- Full `test/admin/toolbox-sidebar.test.js`, including full-restart coverage for “直播互动” and “直播画面”: 19 passed, 0 failed.
+- `node --test test/engineering/module-boundaries.test.js`: 8 passed, 0 failed.
+- `node --test test/admin/frontend-admin-shell.test.js`: 45 passed, 0 failed.
 - Focused core server smoke test: 1 passed, 0 failed.
 - Scoped `git diff --check`: passed; only the repository's existing LF-to-CRLF warnings were emitted.

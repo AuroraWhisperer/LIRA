@@ -8,7 +8,7 @@ function responseLimitError() {
   return Object.assign(new Error('网易云音乐响应过大，无法处理。'), { code: 'MUSIC_RESPONSE_TOO_LARGE' });
 }
 
-const { parseLyricResult } = require('../lyrics');
+const { parseLyricResult } = require('../lyric-parser');
 const { encryptNeteaseWeapiPayload } = require('./netease-weapi');
 const {
   clampInteger,

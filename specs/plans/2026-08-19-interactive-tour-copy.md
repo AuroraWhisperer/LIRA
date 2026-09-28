@@ -16,13 +16,13 @@
 
 ## Current Behavior
 
-`public/js/admin/interactive-tour.js` labels both the room-id and refresh-live cards as `第 2 步 · 连接直播间`. Several cards use implementation-oriented terms such as “连接生效” and “平台区域”, which are less clear to first-time主播 users. `test/interactive-tour.test.js` asserts some of the current wording.
+`public/js/admin/interactive-tour.js` labels both the room-id and refresh-live cards as `第 2 步 · 连接直播间`. Several cards use implementation-oriented terms such as “连接生效” and “平台区域”, which are less clear to first-time主播 users. `test/admin/interactive-tour.test.js` asserts some of the current wording.
 
 ## Ownership
 
 - Owner: `public/js/admin/interactive-tour.js`.
 - Supporting design guide: `docs/interactive-tour-demo.md`.
-- Focused tests: `test/interactive-tour.test.js`.
+- Focused tests: `test/admin/interactive-tour.test.js`.
 
 ## Proposed Changes
 
@@ -34,7 +34,7 @@
 
 - [x] Update step copy and numbering, then inspect the diff for accidental behavior changes.
 - [x] Update focused assertions and documentation.
-- [ ] Run `node --test test/interactive-tour.test.js`, `npm run check`, and `git diff --check`.
+- [ ] Run `node --test test/admin/interactive-tour.test.js`, `npm run check`, and `git diff --check`.
 
 ## Rollback Or Failure Handling
 

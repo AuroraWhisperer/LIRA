@@ -22,8 +22,8 @@
 **Files:**
 
 - Modify: `public/css/admin/desktop-lyric-preview.css`
-- Modify: `public/css/admin/other-features/ai-assistant.css`
-- Modify: `public/css/admin/other-features/streamer-planner.css`
+- Modify: `public/css/admin/toolbox/ai-assistant.css`
+- Modify: `public/css/admin/toolbox/streamer-planner.css`
 
 **Interfaces:**
 
@@ -49,7 +49,7 @@ Add the same open-state behavior to `.xiaomi-ai-section` and `.planner-notes-pan
 
 - [x] **Step 3: Run the focused static checks**
 
-Run: `node --test test/frontend-select-menu-overflow.test.js`
+Run: `node --test test/ui/frontend-select-menu-overflow.test.js`
 
 Expected: the new audit assertions pass for lyric settings, AI settings, planner notes, and the already-fixed games cards.
 
@@ -57,7 +57,7 @@ Expected: the new audit assertions pass for lyric settings, AI settings, planner
 
 **Files:**
 
-- Create: `test/frontend-select-menu-overflow.test.js`
+- Create: `test/ui/frontend-select-menu-overflow.test.js`
 
 **Interfaces:**
 
@@ -70,7 +70,7 @@ Read each CSS file and assert that the selector contains `z-index: 1` followed b
 
 - [x] **Step 2: Run the test and inspect failures**
 
-Run: `node --test test/frontend-select-menu-overflow.test.js`
+Run: `node --test test/ui/frontend-select-menu-overflow.test.js`
 
 Expected: PASS after Task 1; a missing rule or accidental removal reports the owning file.
 
@@ -94,11 +94,11 @@ Expected: documentation, syntax, and module-boundary gates pass.
 
 - [x] **Step 3: Review only task-owned changes**
 
-Run: `git diff --check`, `git diff -- public/css/admin/desktop-lyric-preview.css public/css/admin/other-features/ai-assistant.css public/css/admin/other-features/streamer-planner.css test/frontend-select-menu-overflow.test.js specs/plans/2026-08-22-select-menu-overflow-audit.md`, and `git status --short`.
+Run: `git diff --check`, `git diff -- public/css/admin/desktop-lyric-preview.css public/css/admin/toolbox/ai-assistant.css public/css/admin/toolbox/streamer-planner.css test/ui/frontend-select-menu-overflow.test.js specs/plans/2026-08-22-select-menu-overflow-audit.md`, and `git status --short`.
 
 Expected: only the scoped CSS, regression test, and plan verification notes are changed; pre-existing user edits remain untouched.
 
-Verification results: the focused overflow test, existing games/UI surface tests, `npm run check`, `npm run test:admin`, and `npm run verify:quick` passed. `npm test` ran 811 tests with 809 passing; two pre-existing `test/frontend-queue.test.js` assertions fail because the working tree already contains different cherry-ribbon and golden-lily `inset` values in the corresponding overlay CSS. Neither failure touches the select-menu files or this task's regression.
+Verification results: the focused overflow test, existing games/UI surface tests, `npm run check`, `npm run test:admin`, and `npm run verify:quick` passed. `npm test` ran 811 tests with 809 passing; two pre-existing `test/songs/frontend-queue.test.js` assertions fail because the working tree already contains different cherry-ribbon and golden-lily `inset` values in the corresponding overlay CSS. Neither failure touches the select-menu files or this task's regression.
 
 ## Rollback Or Failure Handling
 

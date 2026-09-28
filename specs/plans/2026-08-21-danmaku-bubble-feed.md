@@ -23,7 +23,7 @@
 **Files:**
 
 - Create: `public/js/overlays/danmaku-feed.js`
-- Test: `test/games-overlay.test.js`
+- Test: `test/games/games-overlay.test.js`
 
 **Interfaces:**
 
@@ -36,7 +36,7 @@
 
 - [x] **Step 2: 运行聚焦测试确认回归先失败**
 
-  Run: `node --test test/games-overlay.test.js`
+  Run: `node --test test/games/games-overlay.test.js`
 
   Expected: FAIL，因为 `danmaku-feed.js` 尚不存在。
 
@@ -46,7 +46,7 @@
 
 - [x] **Step 4: 运行聚焦测试确认通过**
 
-  Run: `node --test test/games-overlay.test.js`
+  Run: `node --test test/games/games-overlay.test.js`
 
   Expected: PASS。
 
@@ -57,7 +57,7 @@
 - Modify: `public/js/overlays/games.js`
 - Modify: `public/pages/overlays/games.html`
 - Modify: `public/css/overlays/games.css`
-- Test: `test/games-overlay.test.js`
+- Test: `test/games/games-overlay.test.js`
 
 **Interfaces:**
 
@@ -78,7 +78,7 @@
 
 - [x] **Step 4: 运行聚焦测试与语法检查**
 
-  Run: `node --test test/games-overlay.test.js test/esm-module-boundaries.test.js`
+  Run: `node --test test/games/games-overlay.test.js test/engineering/esm-module-boundaries.test.js`
 
   Expected: PASS。
 
@@ -102,6 +102,6 @@
 
   确认没有修改后端协议、没有加入依赖、没有生成 `data/`、`logs/`、`tmp/` 或 `release/` 文件，且每一处改动都能对应本需求。
 
-**Verification:** `node --test test/games-overlay.test.js`、`node --test test/esm-module-boundaries.test.js`、`npm run verify:docs`、`npm run verify:quick`、`npm test` 均通过；完整套件为 784 通过、1 跳过、0 失败。
+**Verification:** `node --test test/games/games-overlay.test.js`、`node --test test/engineering/esm-module-boundaries.test.js`、`npm run verify:docs`、`npm run verify:quick`、`npm test` 均通过；完整套件为 784 通过、1 跳过、0 失败。
 
 **Done When:** `draw-danmaku-feed.js` 可被其他 overlay 以同一接口复用；你画我猜弹幕按文本长度呈现不同宽度/高度并保持身份信息与头像；聚焦测试、ESM 边界、语法检查和 `verify:quick` 全部通过。

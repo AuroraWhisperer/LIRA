@@ -1,0 +1,124 @@
+'use strict';
+
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const test = require('node:test');
+const { readCssBundle } = require('../helpers/css-bundle');
+
+const ROOT = path.join(__dirname, '../..');
+const read = (...parts) => fs.readFileSync(path.join(ROOT, ...parts), 'utf8');
+
+test('confirmation dialog keeps one accessible shared contract', () => {
+  const source = read('public', 'js', 'shared', 'confirmation-dialog.js');
+  const styles = read('public', 'css', 'components', 'confirmation-dialog.css');
+
+  assert.match(source, /variant = \['normal', 'caution', 'destructive'\]/);
+  assert.match(source, /role="dialog" aria-modal="true"/);
+  assert.match(source, /aria-labelledby="\$\{titleId\}" aria-describedby="\$\{descriptionId\}"/);
+  assert.match(source, /event\.key === 'Escape'/);
+  assert.match(source, /event\.key !== 'Tab'/);
+  assert.match(source, /element\.inert = true/);
+  assert.match(source, /previousFocus\?\.focus/);
+  assert.match(styles, /prefers-reduced-motion/);
+  assert.match(styles, /\.is-destructive \.lira-confirm-confirm/);
+});
+
+test('transient surfaces use the shared typography hierarchy without orphan declarations', () => {
+  const files = [
+    ['public', 'css', 'components', 'confirmation-dialog.css'],
+    ['public', 'css', 'admin', 'toasts', 'desktop-update.css'],
+    ['public', 'css', 'admin', 'toasts', 'system.css'],
+    ['public', 'css', 'admin', 'toolbox', 'interactive-tour.css'],
+    ['public', 'css', 'overlays', 'desktop.css'],
+  ];
+  const styles = files.map((parts) => readCssBundle(...parts)).join('\n');
+  const settings = read('public', 'js', 'admin', 'settings-operations.js');
+
+  assert.doesNotMatch(styles, /^\s*;\s*$/m);
+  assert.match(styles, /\.lira-confirm-heading h2\s*\{[\s\S]*?font-size:\s*var\(--type-size-section-title\)/);
+  assert.match(styles, /\.toast-content > strong\s*\{[\s\S]*?font-size:\s*var\(--type-size-card-title\)/);
+  assert.match(styles, /\.lira-tour-title\s*\{[\s\S]*?font-size:\s*var\(--type-size-section-title\)/);
+  assert.match(styles, /\.shutdown-title\s*\{[\s\S]*?font-size:\s*var\(--type-size-page-title\)/);
+  assert.match(settings, /class="shutdown-title ui-page-title"/);
+  assert.match(settings, /class="shutdown-hint ui-caption"/);
+});
+
+test('native selects and custom menus use the control accent without replacing semantics', () => {
+  const baseStyles = read('public', 'css', 'styles-base.css');
+  const blindboxHtml = read('public', 'pages', 'admin', 'gifts', 'blindbox-analysis.html');
+  const blindboxJs = read('public', 'js', 'admin', 'gifts', 'blindbox-analysis.js');
+  const qualityJs = read('public', 'js', 'playback', 'core', 'event-handlers.js');
+  const qualityUi = read('public', 'js', 'playback', 'ui', 'playback-bar.js');
+  const qualityHtml = read('public', 'pages', 'admin', 'playback', 'page.html');
+  const aiHtml = read('public', 'pages', 'admin', 'toolbox', 'danmaku-ai.html');
+  const aiJs = [
+    read('public', 'js', 'admin', 'ai-assistant-settings.js'),
+    read('public', 'js', 'admin', 'ai-assistant-config-view.js'),
+  ].join('\n');
+
+  assert.match(baseStyles, /select\s*\{[\s\S]*appearance:\s*none/);
+  assert.match(baseStyles, /select:focus-visible\s*\{[\s\S]*var\(--color-control-focus\)/);
+  assert.match(blindboxHtml, /aria-haspopup="listbox"/);
+  assert.match(blindboxHtml, /role="listbox"/);
+  assert.match(blindboxJs, /event\.key === 'Escape'/);
+  assert.match(blindboxJs, /event\.key === ' '/);
+  assert.match(qualityHtml, /role="menu"/);
+  assert.match(qualityJs, /focusQualityOption/);
+  assert.match(qualityUi, /role="menuitemradio"/);
+  assert.match(aiHtml, /role="combobox"\s+aria-autocomplete="list"\s+aria-haspopup="listbox"/);
+  assert.match(aiJs, /modelMenu\.addEventListener\('keydown'/);
+});
+
+test('native select options are rendered through contextual listbox panels', () => {
+  const source = read('public', 'js', 'shared', 'select-menu.js');
+  const styles = read('public', 'css', 'components', 'select-menu.css');
+  const adminEntry = read('public', 'js', 'admin', 'app.js');
+  const adminCss = read('public', 'css', 'styles-admin.css');
+  const settings = read('public', 'pages', 'admin', 'song', 'queue-theme.html');
+  const filters = read('public', 'pages', 'admin', 'song', 'library.html');
+  const games = read('public', 'pages', 'admin', 'toolbox', 'games.html');
+
+  assert.match(source, /role', 'listbox'/);
+  assert.match(source, /role', 'option'/);
+  assert.match(source, /event\.key === 'ArrowDown'/);
+  assert.match(source, /event\.key === 'Escape'/);
+  assert.match(source, /dispatchEvent\(new Event\('change'/);
+  assert.match(source, /MutationObserver/);
+  assert.match(styles, /\.lira-select-option\.is-selected/);
+  assert.match(styles, /data-select-variant/);
+  assert.match(styles, /prefers-reduced-motion/);
+  assert.match(adminEntry, /enhanceSelects\(\)/);
+  assert.match(adminCss, /components\/select-menu\.css/);
+  assert.match(settings, /data-dropdown-variant="settings"/);
+  assert.match(filters, /data-dropdown-variant="filter"/);
+  assert.match(games, /data-dropdown-variant="game"/);
+});
+
+test('shared select toggles closed from its trigger and uses a centered CSS chevron', () => {
+  const source = read('public', 'js', 'shared', 'select-menu.js');
+  const styles = read('public', 'css', 'components', 'select-menu.css');
+
+  assert.match(source, /setTimeout\(\(\) => \{[\s\S]*state\.open && !wrapper\.contains\(document\.activeElement\)/);
+  assert.doesNotMatch(source, /chevron\.textContent/);
+  assert.match(styles, /\.lira-select-chevron\s*\{[\s\S]*display:\s*grid[\s\S]*place-items:\s*center/);
+  assert.match(styles, /\.lira-select-chevron::before\s*\{[\s\S]*border-right:[\s\S]*border-bottom:/);
+  assert.match(styles, /\.lira-select\.is-open \.lira-select-chevron\s*\{[\s\S]*transform:\s*rotate\(180deg\)/);
+});
+
+test('renderer code has no native confirm calls', () => {
+  const roots = [path.join(ROOT, 'public', 'js'), path.join(ROOT, 'src', 'electron')];
+  const files = [];
+  const visit = (directory) => {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const fullPath = path.join(directory, entry.name);
+      if (entry.isDirectory()) visit(fullPath);
+      else if (entry.name.endsWith('.js')) files.push(fullPath);
+    }
+  };
+  roots.forEach(visit);
+  const nativeConfirmPattern = /\bconfirm\s*\(/;
+  for (const file of files) {
+    assert.doesNotMatch(fs.readFileSync(file, 'utf8'), nativeConfirmPattern, path.relative(ROOT, file));
+  }
+});

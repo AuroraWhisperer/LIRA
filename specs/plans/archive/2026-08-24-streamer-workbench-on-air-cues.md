@@ -34,10 +34,10 @@
 ## Ownership
 
 - 页面与文案：`public/pages/admin/toolbox/planner.html`。
-- localStorage 读取、内置任务和渲染文案：`public/js/admin/todo.js`。
+- localStorage 读取、内置任务和渲染文案：`public/js/admin/streamer-planner.js`。
 - 侧栏与使用说明：`public/pages/admin/toolbox/shell-start.html`、`public/pages/admin/toolbox/usage-guide.html`。
 - 架构事实：`docs/architecture/frontend/app.md`、`docs/architecture/frontend/pages.md`。
-- 聚焦测试：`test/toolbox-todo.test.js`。
+- 聚焦测试：`test/streamer-planner.test.js`。
 
 ## Compatibility Constraints
 
@@ -60,7 +60,7 @@
 
 **Files:**
 
-- Modify: `test/toolbox-todo.test.js`
+- Modify: `test/streamer-planner.test.js`
 
 **Interfaces:**
 
@@ -77,7 +77,7 @@
 
 - [x] **Step 3: 运行测试确认先失败**
 
-  Run: `node --test test/toolbox-todo.test.js`
+  Run: `node --test test/streamer-planner.test.js`
 
   Expected: 新文案或迁移断言失败。
 
@@ -86,7 +86,7 @@
 **Files:**
 
 - Modify: `public/pages/admin/toolbox/planner.html`
-- Modify: `public/js/admin/todo.js`
+- Modify: `public/js/admin/streamer-planner.js`
 - Modify: `public/pages/admin/toolbox/shell-start.html`
 - Modify: `public/pages/admin/toolbox/usage-guide.html`
 - Modify: `docs/architecture/frontend/app.md`
@@ -103,7 +103,7 @@
 
 - [x] **Step 2: 更新内置提词和渲染文案**
 
-  在 `todo.js` 中定义六条新 `STARTER_TASKS`，将 `STAGE_CONFIG`、备忘标签、空状态、完成摘要和“转成提词”按钮同步到新语义。
+  在 `streamer-planner.js` 中定义六条新 `STARTER_TASKS`，将 `STAGE_CONFIG`、备忘标签、空状态、完成摘要和“转成提词”按钮同步到新语义。
 
 - [x] **Step 3: 实现精确旧内容替换**
 
@@ -115,16 +115,16 @@
 
 - [x] **Step 5: 运行聚焦测试**
 
-  Run: `node --test test/toolbox-todo.test.js test/toolbox-sidebar.test.js`
+  Run: `node --test test/streamer-planner.test.js test/toolbox-sidebar.test.js`
 
   Expected: 全部通过。
 
 ## Verification
 
-- `node --test test/toolbox-todo.test.js test/toolbox-sidebar.test.js`
-- `node scripts/check-js.js public/js/admin/todo.js`
+- `node --test test/streamer-planner.test.js test/toolbox-sidebar.test.js`
+- `node scripts/check-js.js public/js/admin/streamer-planner.js`
 - `git diff --check`
-- `git diff -- public/js/admin/todo.js public/pages/admin/toolbox/planner.html public/pages/admin/toolbox/shell-start.html public/pages/admin/toolbox/usage-guide.html test/toolbox-todo.test.js docs/architecture/frontend/app.md docs/architecture/frontend/pages.md specs/plans/2026-08-24-streamer-workbench-on-air-cues.md`
+- `git diff -- public/js/admin/streamer-planner.js public/pages/admin/toolbox/planner.html public/pages/admin/toolbox/shell-start.html public/pages/admin/toolbox/usage-guide.html test/streamer-planner.test.js docs/architecture/frontend/app.md docs/architecture/frontend/pages.md specs/plans/2026-08-24-streamer-workbench-on-air-cues.md`
 - `git status --short`
 
 ## Rollback Or Failure Handling
@@ -141,7 +141,7 @@
 
 ## Verification Results
 
-- `node --test test/toolbox-todo.test.js test/toolbox-sidebar.test.js`: 22 passed, 0 failed。
-- `node --check public/js/admin/todo.js`: passed。
+- `node --test test/streamer-planner.test.js test/toolbox-sidebar.test.js`: 22 passed, 0 failed。
+- `node --check public/js/admin/streamer-planner.js`: passed。
 - 旧可见文案扫描：仅测试中的反向断言保留旧词，运行页面无残留。
 - `git diff --check`: passed；换行符提示不影响检查结果。

@@ -172,7 +172,7 @@ A/B 区分滚动职责，不分别建立宽度、颜色皮肤；D 的横向滚�
 | 使用说明正文与目录 | 正文滚动；侧栏折叠布局下，目录也有独立高度上限 | 正文**保留 A**，目录超长时**保留 B**。两者边界、焦点和当前章节要清晰 |
 | 小游戏、动态抽奖、性能、账户/常规设置、更新等普通卡片 | 一般由右侧正文承载长度 | 不额外添加卡片内纵向滚动；长列表或真正独立的编辑器再单独评估 |
 
-依据：[shell.css:39](D:/Work/Live/public/css/admin/other-features/shell.css:39)、[shell.css:460](D:/Work/Live/public/css/admin/other-features/shell.css:460)、[danmaku-editors.css:60](D:/Work/Live/public/css/admin/other-features/danmaku-editors.css:60)、[ai-assistant.css:203](D:/Work/Live/public/css/admin/other-features/ai-assistant.css:203)、[streamer-planner/base.css:16](D:/Work/Live/public/css/admin/other-features/streamer-planner/base.css:16)、[tasks.css:50](D:/Work/Live/public/css/admin/other-features/streamer-planner/tasks.css:50)、[notes.css:56](D:/Work/Live/public/css/admin/other-features/streamer-planner/notes.css:56)、[gift-picker.css:40](D:/Work/Live/public/css/admin/overtime/gift-picker.css:40)、[usage-guide.css:476](D:/Work/Live/public/css/admin/other-features/usage-guide.css:476)。
+依据：[shell.css:39](D:/Work/Live/public/css/admin/toolbox/shell.css:39)、[shell.css:460](D:/Work/Live/public/css/admin/toolbox/shell.css:460)、[danmaku-editors.css:60](D:/Work/Live/public/css/admin/toolbox/danmaku-editors.css:60)、[ai-assistant.css:203](D:/Work/Live/public/css/admin/toolbox/ai-assistant.css:203)、[streamer-planner/base.css:16](D:/Work/Live/public/css/admin/toolbox/streamer-planner/base.css:16)、[tasks.css:50](D:/Work/Live/public/css/admin/toolbox/streamer-planner/tasks.css:50)、[notes.css:56](D:/Work/Live/public/css/admin/toolbox/streamer-planner/notes.css:56)、[gift-picker.css:40](D:/Work/Live/public/css/admin/overtime/gift-picker.css:40)、[usage-guide.css:476](D:/Work/Live/public/css/admin/toolbox/usage-guide.css:476)。
 
 ### 4.5 通用菜单、对话框、提示与输入
 
@@ -190,7 +190,7 @@ A/B 区分滚动职责，不分别建立宽度、颜色皮肤；D 的横向滚�
 
 通用确认框已经使用 `inert` 隔离背景交互，应保持这一点，不能把它报告为完全没有背景保护。滚动链行为仍应按具体浮层检查。[confirmation-dialog.js:88](D:/Work/Live/public/js/shared/confirmation-dialog.js:88)
 
-其余依据：[select-menu.css:143](D:/Work/Live/public/css/components/select-menu.css:143)、[song-filters.css:95](D:/Work/Live/public/css/admin/song-filters.css:95)、[confirmation-dialog.css:17](D:/Work/Live/public/css/components/confirmation-dialog.css:17)、[confirmation-dialog.css:140](D:/Work/Live/public/css/components/confirmation-dialog.css:140)、[onboarding.css:18](D:/Work/Live/public/css/admin/other-features/onboarding.css:18)、[contextual-help.css:69](D:/Work/Live/public/css/components/contextual-help.css:69)、[system.css:67](D:/Work/Live/public/css/admin/toasts/system.css:67)、[styles-base.css:274](D:/Work/Live/public/css/styles-base.css:274)。
+其余依据：[select-menu.css:143](D:/Work/Live/public/css/components/select-menu.css:143)、[song-filters.css:95](D:/Work/Live/public/css/admin/song-filters.css:95)、[confirmation-dialog.css:17](D:/Work/Live/public/css/components/confirmation-dialog.css:17)、[confirmation-dialog.css:140](D:/Work/Live/public/css/components/confirmation-dialog.css:140)、[onboarding.css:18](D:/Work/Live/public/css/admin/toolbox/onboarding.css:18)、[contextual-help.css:69](D:/Work/Live/public/css/components/contextual-help.css:69)、[system.css:67](D:/Work/Live/public/css/admin/toasts/system.css:67)、[styles-base.css:274](D:/Work/Live/public/css/styles-base.css:274)。
 
 ### 4.6 桌面歌词设置与展示窗口
 
@@ -260,9 +260,9 @@ A/B 区分滚动职责，不分别建立宽度、颜色皮肤；D 的横向滚�
 
 **开播动画：已确认布局原因。** 1024px 宽度下，右侧面板可用宽度约 709px；内部布局仍要求 `350px + 430px + 16px`，再加正文内边距后内容宽度约 832px，横向超出约 123px。画面右侧控件和预览需要左右拖动才能看全。
 
-其单列断点在 920px，低于客户端默认最小窗口宽度。断点按整窗判断，未充分考虑左侧导航占用的宽度。[start-animation.css:559](D:/Work/Live/public/css/admin/other-features/start-animation.css:559)
+其单列断点在 920px，低于客户端默认最小窗口宽度。断点按整窗判断，未充分考虑左侧导航占用的宽度。[start-animation.css:559](D:/Work/Live/public/css/admin/toolbox/start-animation.css:559)
 
-**萌时钟：已确认同类风险。** 双栏最小列宽为 360px 和 320px，间隔 24px；最小窗口样本出现约 15px 横向溢出。单列断点为 980px，同样低于默认最小窗口宽度。[clock.css:11](D:/Work/Live/public/css/admin/other-features/clock.css:11)、[clock.css:396](D:/Work/Live/public/css/admin/other-features/clock.css:396)
+**萌时钟：已确认同类风险。** 双栏最小列宽为 360px 和 320px，间隔 24px；最小窗口样本出现约 15px 横向溢出。单列断点为 980px，同样低于默认最小窗口宽度。[clock.css:11](D:/Work/Live/public/css/admin/toolbox/clock.css:11)、[clock.css:396](D:/Work/Live/public/css/admin/toolbox/clock.css:396)
 
 礼物姬右侧正文在同一布局样本中还出现约 18px 横向溢出，需要在完整初始化的控件状态下进一步定位；本报告将它列为复核项。
 

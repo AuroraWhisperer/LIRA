@@ -118,7 +118,7 @@ Expected: unauthenticated calls fail, actor scope cannot be overridden, and no w
 - Modify: `D:/Work/Live/src/electron/desktop-auth-controller.js`
 - Modify: `D:/Work/Live/src/electron/main.js`
 - Modify: `D:/Work/Live/src/electron/desktop-runtime.js`
-- Test: `D:/Work/Live/test/cloud-sync-controller.test.js`
+- Test: `D:/Work/Live/test/cloud-sync/cloud-sync-controller.test.js`
 
 **Interfaces:**
 - Controller consumes authorized main-process license calls plus runtime
@@ -129,7 +129,7 @@ Expected: unauthenticated calls fail, actor scope cannot be overridden, and no w
 - [ ] **Step 2: Add internal remote methods with bounded response validation**
 - [ ] **Step 3: Add safe cloud-cookie replacement in `persist:bilibili`**
 - [ ] **Step 4: Wire the controller to authorization/resume/shutdown lifecycle**
-- [ ] **Step 5: Run `node --test test/cloud-sync-controller.test.js test/remote-license-client.test.js test/bilibili-login-window.test.js`**
+- [ ] **Step 5: Run `node --test test/cloud-sync/cloud-sync-controller.test.js test/license/remote-license-client.test.js test/bilibili/bilibili-login-window.test.js`**
 
 Expected: timers are unref'd/cleaned, secret methods are absent from preload, and all scopes converge.
 
@@ -143,7 +143,7 @@ Expected: timers are unref'd/cleaned, secret methods are absent from preload, an
 - Modify: `D:/Work/Live/src/server/routes/song-routes.js`
 - Modify: `D:/Work/Live/src/server/domain-services.js`
 - Modify: `D:/Work/Live/src/music/song-service.js`
-- Test: `D:/Work/Live/test/cloud-runtime-sync.test.js`
+- Test: `D:/Work/Live/test/cloud-sync/cloud-runtime-sync.test.js`
 
 **Interfaces:**
 - Runtime exposes snapshot/apply methods and emits `settings` or `songs` dirty
@@ -154,7 +154,7 @@ Expected: timers are unref'd/cleaned, secret methods are absent from preload, an
 - [ ] **Step 1: Write failing runtime snapshot, settings apply, and song replacement tests**
 - [ ] **Step 2: Implement the narrow runtime methods**
 - [ ] **Step 3: Emit local dirty notifications only after successful writes**
-- [ ] **Step 4: Run `node --test test/cloud-runtime-sync.test.js test/bilibili-runtime.test.js test/server-smoke.test.js`**
+- [ ] **Step 4: Run `node --test test/cloud-sync/cloud-runtime-sync.test.js test/bilibili/bilibili-runtime.test.js test/server/server-smoke.test.js`**
 
 Expected: local UI routes continue to work and the controller receives exactly one coalescible dirty signal per mutation.
 

@@ -42,7 +42,7 @@
 | specs/plans/2026-08-17-existing-code-governance-remediation.md | 839 | 保留 D | 规范锚点 / 完整参考或历史记录 |
 | docs/startup-performance-evaluation-2026-08-21.md | 834 | 保留 D | 规范锚点 / 完整参考或历史记录 |
 | test/fan-profiles-ipc.test.js | 798 | 拆分 | A: ipc / sync / roster 场景及共享夹具 |
-| public/css/admin/other-features/usage-guide.css | 792 | 保留 | 正文、FAQ 和现有工具箱覆盖次序交织；导航已独立，不机械拆媒体查询 |
+| public/css/admin/toolbox/usage-guide.css | 792 | 保留 | 正文、FAQ 和现有工具箱覆盖次序交织；导航已独立，不机械拆媒体查询 |
 | public/css/admin/workspace/song.css | 768 | 拆分 | A: song-management / song-layout 连续规则 |
 | src/electron/remote-gift-controller.js | 768 | 保留 | 同一 source/cursor/epoch/generation、重连和定时器生命周期；恢复纯函数已独立 |
 | src/server.js | 743 | 保留 | 组合根启动/关闭与 facade；领域已归独立 runtimes |

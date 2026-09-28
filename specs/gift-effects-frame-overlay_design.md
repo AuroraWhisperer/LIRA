@@ -22,7 +22,7 @@ LIRA 已经具备以下基础能力：
 - [`public/js/overlays/gift-effects.js`](../public/js/overlays/gift-effects.js) 已连接 `/ws`，具备单个播放、有限队列、重复事件去重和预览模式的基础。
 - [`src/server.js`](../src/server.js) 已在礼物收尾后执行回调；礼物检测链已有 progress → final 的连击收尾语义，可作为独立边框事件的触发入口。
 - [`public/js/admin/gift-effects.js`](../public/js/admin/gift-effects.js) 已提供礼物特效工具入口和浏览器源地址复制，可以扩展为金额阈值、主题和测试信息配置。
-- [`test/gift-effects-overlay.test.js`](../test/gift-effects-overlay.test.js) 已覆盖透明 Overlay、队列、预览和管理页入口，可增加边框动画专用断言。
+- [`test/gifts/gift-effects-overlay.test.js`](../test/gifts/gift-effects-overlay.test.js) 已覆盖透明 Overlay、队列、预览和管理页入口，可增加边框动画专用断言。
 
 当前 Overlay 已渲染上、右、下、左四个透明 PNG 组件、动态礼物信息，并支持礼物金额阈值和内置主题选择。现有礼物数据包含礼物名称、数量、单价、观众名和最终总金额。
 
@@ -475,7 +475,7 @@ V1 只实现一个主题和一个动画强度，避免在没有第二套真实�
 | ------------------------------------- | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
 | 礼物 final 生命周期与总金额           | `src/bilibili/gift/`                                                    | `docs/architecture/backend/bilibili/gift.md`                                  |
 | 礼物 frame 事件构造、RMB→整数分和阈值 | `src/bilibili/gift/` 的具名 Frame Adapter                               | 新增 `gift-frame` focused tests                                               |
-| Overlay 页面与动画                    | `public/pages/overlays/`、`public/js/overlays/`、`public/css/overlays/` | `docs/architecture/frontend/overlays.md`、`test/gift-effects-overlay.test.js` |
+| Overlay 页面与动画                    | `public/pages/overlays/`、`public/js/overlays/`、`public/css/overlays/` | `docs/architecture/frontend/overlays.md`、`test/gifts/gift-effects-overlay.test.js` |
 | 浏览器源 URL 与预览                   | `public/js/admin/gift-effects.js`、`src/server/routes/gift-routes.js`   | `/gift-effects`、新增 `/api/gifts/frame/preview`                              |
 | settings 持久化                       | `src/storage/settings-store.js`                                         | `docs/architecture/backend/storage.md`                                        |
 

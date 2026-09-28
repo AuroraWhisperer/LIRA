@@ -114,7 +114,6 @@ export function renderComparison(results) {
 }
 
 export function updateStats({ bubbleCount, serverCount, results }) {
-  const total = results.length;
   const match = results.filter((r) => r.status === 'match').length;
   const miss = results.filter((r) => r.status === 'miss').length;
   const extra = results.filter((r) => r.status === 'extra').length;

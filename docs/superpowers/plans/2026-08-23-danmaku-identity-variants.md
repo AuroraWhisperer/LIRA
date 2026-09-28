@@ -24,7 +24,7 @@
 **Files:**
 
 - Modify: `public/js/overlays/danmaku-feed.js`
-- Test: `test/danmaku-overlay.test.js`
+- Test: `test/danmaku/danmaku-overlay.test.js`
 
 **Interfaces:**
 
@@ -49,7 +49,7 @@ assert.deepEqual(
 
 - [x] **Step 2: 运行聚焦测试并确认 `dataset.identity` 断言失败**
 
-Run: `node --test test/danmaku-overlay.test.js`
+Run: `node --test test/danmaku/danmaku-overlay.test.js`
 
 Expected: FAIL because rendered bubbles do not yet expose `data-identity`.
 
@@ -66,7 +66,7 @@ function identityVariant(guardLevel, medalName) {
 
 - [x] **Step 4: 运行聚焦测试确认通过**
 
-Run: `node --test test/danmaku-overlay.test.js`
+Run: `node --test test/danmaku/danmaku-overlay.test.js`
 
 Expected: PASS.
 
@@ -75,7 +75,7 @@ Expected: PASS.
 **Files:**
 
 - Modify: `public/css/overlays/danmaku.css`
-- Test: `test/danmaku-overlay.test.js`
+- Test: `test/danmaku/danmaku-overlay.test.js`
 
 **Interfaces:**
 
@@ -99,7 +99,7 @@ for (const style of ['signal', 'bubble', 'minimal']) {
 
 - [x] **Step 2: 运行测试并确认缺少身份分型样式**
 
-Run: `node --test test/danmaku-overlay.test.js`
+Run: `node --test test/danmaku/danmaku-overlay.test.js`
 
 Expected: FAIL on the first missing theme/identity selector.
 
@@ -122,7 +122,7 @@ body[data-style='minimal'] .draw-danmaku-item[data-identity='governor'] {
 
 - [x] **Step 4: 运行弹幕姬测试确认通过**
 
-Run: `node --test test/danmaku-overlay.test.js`
+Run: `node --test test/danmaku/danmaku-overlay.test.js`
 
 Expected: PASS.
 
@@ -133,7 +133,7 @@ Expected: PASS.
 - Modify: `public/pages/overlays/games.html`
 - Modify: `public/css/overlays/games.css`
 - Modify: `docs/architecture/frontend/overlays.md`
-- Test: `test/games-overlay.test.js`
+- Test: `test/games/games-overlay.test.js`
 
 **Interfaces:**
 
@@ -154,7 +154,7 @@ for (const identity of ['viewer', 'fan', 'captain', 'admiral', 'governor']) {
 
 - [x] **Step 2: 运行游戏 Overlay 测试确认失败**
 
-Run: `node --test test/games-overlay.test.js`
+Run: `node --test test/games/games-overlay.test.js`
 
 Expected: FAIL because the draw-guess feed has no explicit bubble style marker.
 
@@ -172,7 +172,7 @@ Expected: FAIL because the draw-guess feed has no explicit bubble style marker.
 
 - [x] **Step 4: 更新 Overlay 事实文档并运行聚焦与快速门禁**
 
-Run: `node --test test/danmaku-overlay.test.js test/games-overlay.test.js`
+Run: `node --test test/danmaku/danmaku-overlay.test.js test/games/games-overlay.test.js`
 
 Run: `npm run check`
 

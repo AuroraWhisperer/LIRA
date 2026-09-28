@@ -91,7 +91,7 @@ Interfaces: dailyBots.invoke({action,contextId,payload})，open 返回新的授�
 ## Verification results / rollout boundary
 
 - Server：`node --require ./test/support/test-mode.cjs --test --test-concurrency=4`：1644/1644 通过，包含完整文档、协议、架构及业务回归。此前默认并发全套曾出现一次 PK HTTP 子进程退出，单独重跑及此次完整重跑均通过。
-- Live：daily-bot controller/frontend 与 ui-edit-state 定向测试 36/36 通过；`npm run verify:quick` 文档、语法与架构全部通过。全套 2428 项：2423 通过、4 跳过、1 项 Windows 原生进程查询五秒超时（ETIMEDOUT）；`test/local-instance-windows.test.js` 随后单独重跑 2/2 通过，未修改其超时或断言。全套结果保留这次瞬时失败，不记作全绿。
+- Live：daily-bot controller/frontend 与 ui-edit-state 定向测试 36/36 通过；`npm run verify:quick` 文档、语法与架构全部通过。全套 2428 项：2423 通过、4 跳过、1 项 Windows 原生进程查询五秒超时（ETIMEDOUT）；`test/desktop/local-instance-windows.test.js` 随后单独重跑 2/2 通过，未修改其超时或断言。全套结果保留这次瞬时失败，不记作全绿。
 - 客户端旧契约继续使用锁定的服务端版本，未改锁：现有干净检出 `D:\Work\lira-server-release-4.2.3`，commit `5ea7b01c8fc7b1cec34a43b01f99c403fd9d1577`。新 daily-bots 另有两端一致 fixture 和实际 HTTP 验证。
 - 最后针对文档索引、弹幕页面与欢迎模块重跑 23/23 通过；既有锁定契约的 5 个 fixture 校验通过。两端变更保持未提交，任务新增文件不包含真实数据或凭据。
 - 未提交、未部署、未对真实旧库执行导入，也未替用户选择接管或开启开关。E 阶段真实关桌面、未开播、凭据异常、服务器重启及跨北京时间零点验收仍待实际环境执行；自动化不能替代这部分证据。

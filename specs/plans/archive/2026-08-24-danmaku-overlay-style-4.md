@@ -36,7 +36,7 @@
 
 - Owner: `docs/architecture/frontend/overlays.md` §6.1 和 `docs/architecture/frontend/pages.md` 的 `/danmaku` 页面事实。
 - Runtime: `public/js/overlays/danmaku.js`、`public/css/overlays/danmaku.css`、`public/pages/overlays/danmaku.html`。
-- Settings/Admin: `src/server/routes/settings-routes.js`、`public/pages/admin/toolbox/danmaku.html`、`public/js/admin/danmaku-tool.js`、`public/css/admin/other-features/danmaku-tool.css`。
+- Settings/Admin: `src/server/routes/settings-routes.js`、`public/pages/admin/toolbox/danmaku.html`、`public/js/admin/danmaku-tool.js`、`public/css/admin/toolbox/danmaku-tool.css`。
 - Tests: `test/danmaku-overlay.test.js`、`test/danmaku-overlay-settings.test.js`、`test/toolbox-sidebar.test.js`。
 
 ## Compatibility Constraints
@@ -54,7 +54,7 @@
 - `src/server/routes/settings-routes.js`: 将 `ranked` 加入设置白名单。
 - `public/js/overlays/danmaku.js`: 将 `ranked` 加入前端枚举，导出纯缩放计算并在加载/resize 时同步 CSS 变量。
 - `public/css/overlays/danmaku.css`: 添加身份横卡主题，不修改共享 DOM 组件。
-- `public/pages/admin/toolbox/danmaku.html`、`public/js/admin/danmaku-tool.js`、`public/css/admin/other-features/danmaku-tool.css`: 添加第四张选择卡片、名称和确定性缩略图。
+- `public/pages/admin/toolbox/danmaku.html`、`public/js/admin/danmaku-tool.js`、`public/css/admin/toolbox/danmaku-tool.css`: 添加第四张选择卡片、名称和确定性缩略图。
 - `docs/architecture/frontend/overlays.md`、`docs/architecture/frontend/pages.md`、`docs/architecture/frontend/app.md`: 将四主题、Admin 消费方和等比缩放行为写回 owner 文档。
 - `public/pages/admin/toolbox/usage-guide.html`、`UPDATE.md`: 同步用户帮助和当前版本变更说明。
 

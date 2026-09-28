@@ -52,12 +52,12 @@
 
 格式化还暴露了测试对单行 `import`、数组、链式调用和 HTML 空白的依赖。格式化前快照上的相关 86 项测试全部通过，确认这些失败由格式变化触发。随后只调整了以下六个测试文件，使其接受等价的换行、尾逗号和空白，保持原有业务断言：
 
-- [electron-main-modules.test.js](../test/electron-main-modules.test.js)
-- [license-gate.test.js](../test/license-gate.test.js)
-- [frontend-gifts.test.js](../test/frontend-gifts.test.js)
-- [gift-artwork-identity.test.js](../test/gift-artwork-identity.test.js)
-- [frontend-queue.test.js](../test/frontend-queue.test.js)
-- [settings-auth-profile.test.js](../test/settings-auth-profile.test.js)
+- [electron-main-modules.test.js](../test/desktop/electron-main-modules.test.js)
+- [license-gate.test.js](../test/license/license-gate.test.js)
+- [frontend-gifts.test.js](../test/gifts/frontend-gifts.test.js)
+- [gift-artwork-identity.test.js](../test/gifts/gift-artwork-identity.test.js)
+- [frontend-queue.test.js](../test/songs/frontend-queue.test.js)
+- [settings-auth-profile.test.js](../test/settings/settings-auth-profile.test.js)
 
 ## 3. 文件夹汇总
 
@@ -76,7 +76,7 @@
 | 根目录两个 JSON 配置 |       2 |                  0 |         117 |                       0 |
 | **合计**             | **749** |            **221** | **200,246** |                  **30** |
 
-生产 JavaScript 中接近阈值但没有超限的文件为：`src/electron/main.js` 789 行、`src/server.js` 785 行、`public/js/admin/todo.js` 771 行。它们不进入本次拆分清单，不能继续沿用旧的 600 行标准判定超限。
+生产 JavaScript 中接近阈值但没有超限的文件为：`src/electron/main.js` 789 行、`src/server.js` 785 行、`public/js/admin/streamer-planner.js` 771 行。它们不进入本次拆分清单，不能继续沿用旧的 600 行标准判定超限。
 
 ## 4. 建议拆分的 10 个文件
 
@@ -107,7 +107,7 @@ flowchart LR
   Controller --> Runtime["现有 runtime 投影提交接口"]
 ```
 
-验收重点是 bootstrap 续页、过期 token、游标缺口、SSE 即时 final、断线补拉、授权切换和 stop/dispose 后旧回调失效。沿用[remote-gift-controller.test.js](../test/remote-gift-controller.test.js)的行为回归，给提取出的纯规则补充有意义的边界用例。公开 HTTP、IPC、SSE 和投影事务契约保持不变。
+验收重点是 bootstrap 续页、过期 token、游标缺口、SSE 即时 final、断线补拉、授权切换和 stop/dispose 后旧回调失效。沿用[remote-gift-controller.test.js](../test/gifts/remote-gift-controller.test.js)的行为回归，给提取出的纯规则补充有意义的边界用例。公开 HTTP、IPC、SSE 和投影事务契约保持不变。
 
 ### 4.2 CSS：3 个
 
@@ -127,12 +127,12 @@ CSS 拆分复用现有 `@import` 机制，不新增构建步骤。首批仍从�
 
 | 文件                                                                      | 行数 | 已确认的主题边界                                                                                              | 建议拆法                                                                                                                                                |
 | ------------------------------------------------------------------------- | ---: | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| [test/frontend-gifts.test.js](../test/frontend-gifts.test.js)             | 2408 | 礼物历史抽屉、盲盒统计与配置、近期礼物卡片、盲盒 OBS 展示等混在一起。                                         | 历史、盲盒管理、近期卡片、盲盒 overlay 分组；先核对已有 `frontend-gift-history-recovery`、`frontend-gift-catalog-update` 等测试，避免平行复制相同夹具。 |
-| [test/frontend-admin-shell.test.js](../test/frontend-admin-shell.test.js) | 2008 | Shell 初始化与导航之外，还覆盖使用文档目录、硬件摘要、播放器 dock、队列布局和主题加载。                       | 原文件保留 Shell/导航/生命周期断言；使用文档、播放器布局、主题等回到对应主题测试。使用文档自己的 fixture 随其测试一起移动。                             |
-| [test/frontend-queue.test.js](../test/frontend-queue.test.js)             | 1936 | 队列皮肤和滚动之外，约第 1221 行开始的一组断言专门测试加班机控制台及规则编辑器。                              | 优先迁走加班机断言到现有加班机编辑器/选礼测试或独立前端加班机测试；剩余队列用例再按“样式设置”和“滚动布局”归组，不对每种皮肤各建一个文件。               |
-| [test/desktop-lyrics.test.js](../test/desktop-lyrics.test.js)             | 1718 | 同时覆盖后端时间轴约束、管理页设置、字体权限、播放发布顺序，以及共享渲染器的时钟/动画。                       | 按时间轴契约、管理页设置、播放同步、渲染器划分。保留跨层一致性用例，检查现有 `lyrics`、`lyric-performance` 测试的覆盖，避免遗漏或重复。                 |
-| [test/frontend-admin-ai.test.js](../test/frontend-admin-ai.test.js)       | 1430 | 名称是 AI，但前段还有通用模块装载、参数控件、弹幕连接/发送状态；后段是 AI 自动保存、provider 能力与密钥掩码。 | 通用 Shell/参数控件、弹幕工具和 AI 表单分别归属；AI 表单 fixture 留在 AI 测试，不制作全局可变 mock 容器。                                               |
-| [test/ai-provider-adapters.test.js](../test/ai-provider-adapters.test.js) | 1028 | 模型 Chat/Responses 协议之外，还包含当前时间、和风天气、高德地图以及月度配额回退。                            | 按模型协议、天气工具、地图工具划分；连接检测用例跟随其 provider。只有确实被多个测试使用的无状态 response helper 才共享。                                |
+| [test/frontend-gifts.test.js](../test/gifts/frontend-gifts.test.js)             | 2408 | 礼物历史抽屉、盲盒统计与配置、近期礼物卡片、盲盒 OBS 展示等混在一起。                                         | 历史、盲盒管理、近期卡片、盲盒 overlay 分组；先核对已有 `frontend-gift-history-recovery`、`frontend-gift-catalog-update` 等测试，避免平行复制相同夹具。 |
+| [test/frontend-admin-shell.test.js](../test/admin/frontend-admin-shell.test.js) | 2008 | Shell 初始化与导航之外，还覆盖使用文档目录、硬件摘要、播放器 dock、队列布局和主题加载。                       | 原文件保留 Shell/导航/生命周期断言；使用文档、播放器布局、主题等回到对应主题测试。使用文档自己的 fixture 随其测试一起移动。                             |
+| [test/frontend-queue.test.js](../test/songs/frontend-queue.test.js)             | 1936 | 队列皮肤和滚动之外，约第 1221 行开始的一组断言专门测试加班机控制台及规则编辑器。                              | 优先迁走加班机断言到现有加班机编辑器/选礼测试或独立前端加班机测试；剩余队列用例再按“样式设置”和“滚动布局”归组，不对每种皮肤各建一个文件。               |
+| [test/desktop-lyrics.test.js](../test/lyrics/desktop-lyrics.test.js)             | 1718 | 同时覆盖后端时间轴约束、管理页设置、字体权限、播放发布顺序，以及共享渲染器的时钟/动画。                       | 按时间轴契约、管理页设置、播放同步、渲染器划分。保留跨层一致性用例，检查现有 `lyrics`、`lyric-performance` 测试的覆盖，避免遗漏或重复。                 |
+| [test/frontend-admin-ai.test.js](../test/ai/frontend-admin-ai.test.js)       | 1430 | 名称是 AI，但前段还有通用模块装载、参数控件、弹幕连接/发送状态；后段是 AI 自动保存、provider 能力与密钥掩码。 | 通用 Shell/参数控件、弹幕工具和 AI 表单分别归属；AI 表单 fixture 留在 AI 测试，不制作全局可变 mock 容器。                                               |
+| [test/ai-provider-adapters.test.js](../test/ai/ai-provider-adapters.test.js) | 1028 | 模型 Chat/Responses 协议之外，还包含当前时间、和风天气、高德地图以及月度配额回退。                            | 按模型协议、天气工具、地图工具划分；连接检测用例跟随其 provider。只有确实被多个测试使用的无状态 response helper 才共享。                                |
 
 测试迁移还需更新 `package.json` 中显式列举文件的 `test:admin` 命令，以及受影响的架构测试路由。不能仅依赖 `npm test` 自动发现新文件，就让原有聚焦命令漏掉已迁移用例。
 
@@ -144,7 +144,7 @@ CSS 拆分复用现有 `@import` 机制，不新增构建步骤。首批仍从�
 
 | 文件                                                                                          | 行数 | 当前无需进一步拆分的原因                                                                                                              |
 | --------------------------------------------------------------------------------------------- | ---: | ------------------------------------------------------------------------------------------------------------------------------------- |
-| [public/css/admin/other-features/games.css](../public/css/admin/other-features/games.css)     |  832 | 同一个百宝箱游戏管理面板的卡片、配置与响应式样式；已从管理端总样式拆出，只超过 32 行，当前没有独立加载消费者。                        |
+| [public/css/admin/toolbox/games.css](../public/css/admin/toolbox/games.css)     |  832 | 同一个百宝箱游戏管理面板的卡片、配置与响应式样式；已从管理端总样式拆出，只超过 32 行，当前没有独立加载消费者。                        |
 | [public/css/admin/overtime.css](../public/css/admin/overtime.css)                             | 1040 | 加班机控制台、规则表单和礼物选择器共用这一页面的布局与状态选择器；业务逻辑已由独立控制器和规则编辑器负责，继续切样式的收益有限。      |
 | [public/css/overlays/clock.css](../public/css/overlays/clock.css)                             | 1228 | 大部分体积来自同一时钟 DOM 的四套外观、渐变和动画声明，已有清楚的主题注释分区；目前不需要独立装载主题文件。                           |
 | [public/css/overlays/danmaku.css](../public/css/overlays/danmaku.css)                         | 1271 | 已按弹幕样式划分选择器与注释区段，共享消息节点、身份展示和动画约定；长度主要来自同一消息表面的外观变体，没有混入其他业务面板。        |
@@ -159,16 +159,16 @@ CSS 拆分复用现有 `@import` 机制，不新增构建步骤。首批仍从�
 
 | 文件                                                                          | 行数 | 当前无需进一步拆分的原因                                                                                                        |
 | ----------------------------------------------------------------------------- | ---: | ------------------------------------------------------------------------------------------------------------------------------- |
-| [test/ai-assistant-service.test.js](../test/ai-assistant-service.test.js)     | 1105 | 围绕同一服务门面的触发、生成、发送、缓存与关闭链路，已有统一的服务 fixture；暂时保留完整行为回归。                              |
-| [test/danmaku-overlay.test.js](../test/danmaku-overlay.test.js)               | 1056 | 主要覆盖同一弹幕组件的固定/随机显示和安全渲染，体积明显受到假 DOM 与计时器场景影响；当前不为缩短文件引入新的通用 DOM 模拟层。   |
-| [test/gift-query-service.test.js](../test/gift-query-service.test.js)         |  809 | 同一来源隔离下的查询、分页、统计契约，只超出 9 行，没有迫切的拆分收益。                                                         |
-| [test/license-manager.test.js](../test/license-manager.test.js)               | 1098 | 授权门面统一保证续期、撤销、并发重验证和受保护请求的安全语义；共用授权 harness，有必要集中复查状态转换。                        |
-| [test/overtime-service.test.js](../test/overtime-service.test.js)             | 1703 | 一个结算服务的运算、幂等、回滚及恢复场景，规模主要来自规则组合和隔离数据库/时钟夹具；不应为了缩短测试而拆散同一结算契约。       |
-| [test/processed-gift-import.test.js](../test/processed-gift-import.test.js)   | 1190 | 对同一礼物导入链路验证 wire 拒绝、来源、历史/实时差异和原子性；保留完整导入契约，避免把跨层验证拆成彼此不覆盖的单元断言。       |
-| [test/remote-catalog-cache.test.js](../test/remote-catalog-cache.test.js)     | 1040 | 远端校验、持久化快照、失败回退和 room/hybrid 场景共同保护目录接入结果；当前先保留，后续若目录 owner 再分化才跟随迁移测试。      |
-| [test/remote-gift-controller.test.js](../test/remote-gift-controller.test.js) | 1333 | 共享包含 source/auth/controller/projection 四重校验的同步 fixture；本次建议生产代码只提取纯规则，完整控制器行为测试应继续保留。 |
-| [test/toolbox-sidebar.test.js](../test/toolbox-sidebar.test.js)               |  975 | 核心围绕侧栏分组、持久化、导航、隐藏与展开的一套 DOM runtime；少量面板映射断言用于验证导航目标，没有必要逐面板分散夹具。        |
-| [test/wesing-capture.test.js](../test/wesing-capture.test.js)                 |  817 | 单一采集门面的日志、QRC、播放时钟和重采集流程，只超出 17 行；现有边界已经足够清晰。                                             |
+| [test/ai-assistant-service.test.js](../test/ai/ai-assistant-service.test.js)     | 1105 | 围绕同一服务门面的触发、生成、发送、缓存与关闭链路，已有统一的服务 fixture；暂时保留完整行为回归。                              |
+| [test/danmaku-overlay.test.js](../test/danmaku/danmaku-overlay.test.js)               | 1056 | 主要覆盖同一弹幕组件的固定/随机显示和安全渲染，体积明显受到假 DOM 与计时器场景影响；当前不为缩短文件引入新的通用 DOM 模拟层。   |
+| [test/gift-query-service.test.js](../test/gifts/gift-query-service.test.js)         |  809 | 同一来源隔离下的查询、分页、统计契约，只超出 9 行，没有迫切的拆分收益。                                                         |
+| [test/license-manager.test.js](../test/license/license-manager.test.js)               | 1098 | 授权门面统一保证续期、撤销、并发重验证和受保护请求的安全语义；共用授权 harness，有必要集中复查状态转换。                        |
+| [test/overtime-service.test.js](../test/overtime/overtime-service.test.js)             | 1703 | 一个结算服务的运算、幂等、回滚及恢复场景，规模主要来自规则组合和隔离数据库/时钟夹具；不应为了缩短测试而拆散同一结算契约。       |
+| [test/processed-gift-import.test.js](../test/gifts/processed-gift-import.test.js)   | 1190 | 对同一礼物导入链路验证 wire 拒绝、来源、历史/实时差异和原子性；保留完整导入契约，避免把跨层验证拆成彼此不覆盖的单元断言。       |
+| [test/remote-catalog-cache.test.js](../test/gifts/remote-catalog-cache.test.js)     | 1040 | 远端校验、持久化快照、失败回退和 room/hybrid 场景共同保护目录接入结果；当前先保留，后续若目录 owner 再分化才跟随迁移测试。      |
+| [test/remote-gift-controller.test.js](../test/gifts/remote-gift-controller.test.js) | 1333 | 共享包含 source/auth/controller/projection 四重校验的同步 fixture；本次建议生产代码只提取纯规则，完整控制器行为测试应继续保留。 |
+| [test/toolbox-sidebar.test.js](../test/admin/toolbox-sidebar.test.js)               |  975 | 核心围绕侧栏分组、持久化、导航、隐藏与展开的一套 DOM runtime；少量面板映射断言用于验证导航目标，没有必要逐面板分散夹具。        |
+| [test/wesing-capture.test.js](../test/wesing/wesing-capture.test.js)                 |  817 | 单一采集门面的日志、QRC、播放时钟和重采集流程，只超出 17 行；现有边界已经足够清晰。                                             |
 
 ## 6. 后续实施顺序
 

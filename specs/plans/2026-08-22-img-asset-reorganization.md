@@ -26,8 +26,8 @@ root.
 - Packaging filters: `package.json` electron-builder `files` list.
 - Guard-rule image validation: `src/overtime/overtime-contract.js` and
   `docs/architecture/backend/api.md`.
-- Focused checks: `test/playback-wesing.test.js` and
-  `test/overtime-service.test.js`.
+- Focused checks: `test/playback/playback-wesing.test.js` and
+  `test/overtime/overtime-service.test.js`.
 
 ## Compatibility Constraints
 
@@ -54,7 +54,7 @@ root.
 ## Verification
 
 - `npm run check`
-- `node --test test/playback-wesing.test.js test/overtime-service.test.js`
+- `node --test test/playback/playback-wesing.test.js test/overtime/overtime-service.test.js`
 - `git diff --check`
 - Scan runtime files for stale `/img/` paths and confirm package exclusions
   match converted PNG/WebP pairs.

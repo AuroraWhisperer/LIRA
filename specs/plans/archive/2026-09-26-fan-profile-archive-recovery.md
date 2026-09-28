@@ -110,7 +110,7 @@
 | `public/pages/admin/toolbox/fan-profiles.html` | 新增范围按钮组、迁移设置入口、调整归档提示；保留片段和页面结构 |
 | `public/js/admin/fans/index.js` | 同步范围按钮和新建入口状态；处理范围切换时的旧条件、列表及加载反馈；对齐提醒跳转范围；归档/恢复成功后清理越界详情并反馈 |
 | `public/js/admin/fans/view.js` | 更换整份档案的操作文案；归档详情展示直接恢复按钮；区分归档空状态 |
-| `public/css/admin/other-features/fan-profiles.css` | 仅在现有样式不足时增加范围组/恢复按钮的局部布局；不改全局主题 |
+| `public/css/admin/toolbox/fan-profiles.css` | 仅在现有样式不足时增加范围组/恢复按钮的局部布局；不改全局主题 |
 | `public/pages/admin/toolbox/usage-guide-toolbox.html` | 在粉丝档案说明中补归档用途、入口、恢复步骤 |
 | `public/pages/admin/toolbox/usage-guide-faq.html` | 增加一条可搜索的归档找回 FAQ，不复制整篇使用说明 |
 | `specs/fan-profiles.md` | 实施时追加本次交互约定，并与原“档案设置”章节保持一致 |
@@ -228,7 +228,7 @@ git status --short
 
 ### 实际修改与边界
 
-- `public/pages/admin/toolbox/fan-profiles.html`、`public/js/admin/fans/index.js`、`public/js/admin/fans/view.js`、`public/css/admin/other-features/fan-profiles.css`：常驻范围入口、独立归档空状态、直接恢复操作、切换与异步响应处理，以及成功/失败反馈。
+- `public/pages/admin/toolbox/fan-profiles.html`、`public/js/admin/fans/index.js`、`public/js/admin/fans/view.js`、`public/css/admin/toolbox/fan-profiles.css`：常驻范围入口、独立归档空状态、直接恢复操作、切换与异步响应处理，以及成功/失败反馈。
 - `public/pages/admin/toolbox/usage-guide-toolbox.html`、`public/pages/admin/toolbox/usage-guide-faq.html`、`specs/fan-profiles.md`：使用说明、可搜索 FAQ 与交互规范同步。FAQ 放在独立的“粉丝档案”主题下。
 - `test/frontend-fan-profiles.test.js`、`test/frontend-usage-guide.test.js`：复用现有 VM、DOM、时钟和隔离领域夹具，覆盖范围切换、保存/读取失败、旧响应、提醒跳转与帮助搜索。
 - `public/img/usage-guide/E/toolbox-fan-profiles.webp` 与 `docs/images/usage-guide/E/toolbox-fan-profiles.webp`：更新为 1440×902 合成数据桌面截图，两份 SHA-256 一致；未重拍无关配图。

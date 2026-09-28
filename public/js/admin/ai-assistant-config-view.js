@@ -57,7 +57,7 @@ export function collectConfig() {
 }
 
 export function renderConfig(config, preservedFieldIds = new Set()) {
-  for (const [key, [id, kind, hasKeyField]] of Object.entries(FIELD_MAP)) {
+  for (const [key, [id, kind]] of Object.entries(FIELD_MAP)) {
     const element = document.getElementById(id);
     if (!element || preservedFieldIds.has(id)) continue;
     if (kind === 'checked') {

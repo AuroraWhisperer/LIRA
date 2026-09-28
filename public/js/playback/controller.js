@@ -3,7 +3,6 @@
 'use strict';
 
 // ── 基础设施导入 ──
-import * as PlaybackUtils from './utils.js';
 import { UIRenderer } from './ui/index.js';
 import { createInitialState } from './state/manager.js';
 import { createPlaybackStateActions } from './state/actions.js';
@@ -59,11 +58,8 @@ export function createPlaybackController(initialOptions = {}) {
   const value = Utils.value;
   const formatBytes = Utils.formatBytes;
 
-  let getSongs = () => [];
-  let reloadSongs = async () => {};
   let toast = Utils.toast;
   let showError = Utils.showError;
-  let api = Utils.api;
   let readJsonResponse = Utils.readJsonResponse;
 
   // ══════════════════════════════════════════════════════════════
@@ -89,7 +85,6 @@ export function createPlaybackController(initialOptions = {}) {
     save: savePlaybackState,
     render: () => renderPlayback(),
   });
-  const flushPlaybackStateOnUnload = statePersistence.flushPlaybackStateOnUnload;
 
   const providerManager = new ProviderManager({
     state: playbackState,
@@ -228,7 +223,6 @@ export function createPlaybackController(initialOptions = {}) {
   });
 
   const searchHandler = createSearchHandler({
-    playbackState,
     searchService,
     value,
     toast,
@@ -243,7 +237,6 @@ export function createPlaybackController(initialOptions = {}) {
     escapeHtml,
     toast,
     showError,
-    readJsonResponse,
     savePlaybackState,
     renderPlayback: () => renderPlayback(),
     renderPlaybackHomeResults: (...args) => renderPlaybackHomeResults(...args),
@@ -295,7 +288,6 @@ export function createPlaybackController(initialOptions = {}) {
     toast,
     showError,
     readJsonResponse,
-    renderPlayback: () => renderPlayback(),
     escapeHtml,
     renderPlaybackHomeResults: (...args) => renderPlaybackHomeResults(...args),
   });
@@ -340,15 +332,10 @@ export function createPlaybackController(initialOptions = {}) {
     toast,
   });
   const {
-    startPlaybackCollection,
-    appendPlaybackTracks,
-    insertPlaybackTracksNext,
-    insertAndPlayPlaybackTrack,
     takeNextPlaybackTrack,
     takePlaybackQueueTrack,
     clearPlaybackQueue,
     jumpToPlaylistTrack,
-    queuePlaybackTrack,
     rebuildPlaybackShuffleOrder,
   } = queueCoordinator;
 
@@ -445,17 +432,12 @@ export function createPlaybackController(initialOptions = {}) {
     playbackState,
     stateActions,
     getPlaybackAudio,
-    uiRenderer,
     homeService,
     searchService,
-    matchService,
-    providerManager,
     savePlaybackState,
     renderPlayback,
     renderPlaybackSearchResults,
-    renderPlaybackHomeResults,
     handlePlaybackPendingAction,
-    renderPlaybackMatchResults,
     renderFullscreenPlayer,
     syncPlaybackLyricWindow,
     clearPlaybackQueue,
@@ -489,16 +471,12 @@ export function createPlaybackController(initialOptions = {}) {
     playPlaybackTrack,
     rebuildPlaybackShuffleOrder,
     refreshSelectedMusicProviderState: () => providerOperations.refreshSelectedMusicProviderState(),
-    escapeHtml,
-    value,
   });
 
   const playbackInitializer = createInitializer({
     playbackState,
     getPlaybackAudio,
     uiRenderer,
-    storageManager,
-    localFileManager,
     renderPlayback,
     renderPlaybackProgress,
     renderFullscreenPlayer,
@@ -522,11 +500,8 @@ export function createPlaybackController(initialOptions = {}) {
 
   function updateContext(options) {
     if (!options) return;
-    if (options.getSongs) getSongs = options.getSongs;
-    if (options.reloadSongs) reloadSongs = options.reloadSongs;
     if (options.toast) toast = options.toast;
     if (options.showError) showError = options.showError;
-    if (options.api) api = options.api;
     if (options.readJsonResponse) readJsonResponse = options.readJsonResponse;
   }
 

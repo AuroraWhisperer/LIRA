@@ -25,4 +25,4 @@ Accepted — 2026-09-13。用户要求实施客户端模块化复审报告的批
 
 ## Verification
 
-[modularity-size.test.js](../../../test/modularity-size.test.js)使用临时源码树验证阈值、换行、源码类型、未跟踪文件、精确例外、增长、过期和无效登记，并运行当前仓库基线。`verify:architecture` 和默认测试发现均包含此测试。
+[modularity-size.test.js](../../../test/engineering/modularity-size.test.js)使用临时源码树验证阈值、换行、源码类型、未跟踪文件、精确例外、增长、过期和无效登记，并运行当前仓库基线。`verify:architecture` 和默认测试发现均包含此测试。

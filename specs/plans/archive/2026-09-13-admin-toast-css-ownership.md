@@ -4,7 +4,7 @@
 
 **Goal:** Complete the first independently testable item in client modularity batch A by separating shared toast foundations, domain toast variants, song-overlay settings, performance-page styles, and the shared switch control without changing rendered behavior.
 
-**Architecture:** Keep `public/css/admin/toasts.css` as the ordered compatibility entry for transient admin notifications. Move non-toast rules to their existing owning entries (`workspace.css`, `other-features.css`, and `styles-admin.css`) so consumers no longer depend on a gift-toast implementation file.
+**Architecture:** Keep `public/css/admin/toasts.css` as the ordered compatibility entry for transient admin notifications. Move non-toast rules to their existing owning entries (`workspace.css`, `toolbox.css`, and `styles-admin.css`) so consumers no longer depend on a gift-toast implementation file.
 
 **Tech Stack:** Native CSS `@import`, Electron admin renderer, Node.js test runner.
 
@@ -38,7 +38,7 @@
 - Toast compatibility entry: `public/css/admin/toasts.css`.
 - Shared switch owner: `public/css/components/switch-control.css`.
 - Song overlay settings owner: `public/css/admin/workspace/song-overlay-settings.css`, loaded by `public/css/admin/workspace.css`.
-- Performance owner: `public/css/admin/other-features/performance.css`, loaded by `public/css/admin/other-features.css`.
+- Performance owner: `public/css/admin/toolbox/performance.css`, loaded by `public/css/admin/toolbox.css`.
 - Relevant consumers: admin gift notification/catalog modules, AI settings, playback operations/controls, settings operations, desktop updater, song settings pages, and the toolbox performance page.
 - Focused tests: `test/admin-style-ownership.test.js`, `test/frontend-admin-shell.test.js`, `test/frontend-admin-ai.test.js`, `test/frontend-queue.test.js`, `test/ui-surface.test.js`, and `test/frontend-typography.test.js`.
 
@@ -56,7 +56,7 @@
 - Keep gift-catalog and gift-notification variants together in `toasts/gifts.css`.
 - Add `toasts/ai.css`, `toasts/playback.css`, `toasts/live.css`, and `toasts/desktop-update.css`; import them from `toasts.css` in a stable order after the shared foundation.
 - Remove the duplicate toast rules from `tabs.css`.
-- Add `components/switch-control.css`, `workspace/song-overlay-settings.css`, and `other-features/performance.css`; load them from their owning compatibility entries.
+- Add `components/switch-control.css`, `workspace/song-overlay-settings.css`, and `toolbox/performance.css`; load them from their owning compatibility entries.
 - Point tests at the owning bundle or compatibility entry instead of implementation files from another domain.
 
 ## Milestones
@@ -106,10 +106,10 @@
 
 - Modify: `public/css/styles-admin.css`
 - Modify: `public/css/admin/workspace.css`
-- Modify: `public/css/admin/other-features.css`
+- Modify: `public/css/admin/toolbox.css`
 - Create: `public/css/components/switch-control.css`
 - Create: `public/css/admin/workspace/song-overlay-settings.css`
-- Create: `public/css/admin/other-features/performance.css`
+- Create: `public/css/admin/toolbox/performance.css`
 - Modify: `test/frontend-admin-shell.test.js`
 - Modify: `test/frontend-queue.test.js`
 - Modify: `test/ui-surface.test.js`
@@ -120,7 +120,7 @@
 - Produces: feature-owned CSS available through the same top-level `styles-admin.css` bundle.
 
 - [x] Load shared switch styles before admin feature overrides.
-- [x] Load song-overlay settings through `workspace.css` and performance styles through `other-features.css`.
+- [x] Load song-overlay settings through `workspace.css` and performance styles through `toolbox.css`.
 - [x] Update tests to read owning bundles rather than cross-domain toast files.
 
 ### Task 4: Verify behavior and diff scope

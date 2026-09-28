@@ -12,7 +12,7 @@ const {
   MUSIC_API_CACHE_MAX_BYTES,
   MUSIC_LYRIC_CACHE_MAX_BYTES,
 } = require('./music-cache');
-const { parseLyricResult } = require('./lyrics');
+const { parseLyricResult } = require('./lyric-parser');
 const { rankTrackCandidates } = require('./song-matcher');
 const { normalizeMusicPlatform } = require('./provider-registry');
 const { normalizeMusicTrackForProvider } = require('./track-contract');

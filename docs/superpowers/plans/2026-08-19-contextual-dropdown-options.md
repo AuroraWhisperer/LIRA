@@ -42,7 +42,7 @@
 
 - Modify: native select fragments under `public/pages/admin/`
 - Modify: `public/js/admin/games.js`
-- Modify: `public/js/admin/todo.js`
+- Modify: `public/js/admin/streamer-planner.js`
 
 **Interfaces:**
 
@@ -57,9 +57,9 @@
 
 **Files:**
 
-- Modify: `test/ui-surface.test.js`
+- Modify: `test/ui/ui-surface.test.js`
 
 - [x] Assert the shared select contract, listbox roles, keyboard markers, variant hooks, and native value preservation.
-- [x] Run `node --test test/ui-surface.test.js`, `npm.cmd run check`, `npm.cmd run verify:quick`, and `npm.cmd test`.
+- [x] Run `node --test test/ui/ui-surface.test.js`, `npm.cmd run check`, `npm.cmd run verify:quick`, and `npm.cmd test`.
 - [x] Inspect the workspace admin page at desktop dimensions: open `overlayShowIndex` and verify the styled options panel, keyboard focus, selected state, and Escape restore.
 - [x] Review `git diff --check` and preserve unrelated user changes.

@@ -37,14 +37,17 @@ body.desktop-shell * {
     background-clip: padding-box;
   }
 
-  /* Only the thumb or the directly keyboard-focused scroller is enhanced. */
+  /* Keep the hit area fixed; only the visible thumb grows on pointer interaction. */
   body.desktop-shell::-webkit-scrollbar-thumb:hover,
-  body.desktop-shell ::-webkit-scrollbar-thumb:hover,
-  body.desktop-shell:focus-visible::-webkit-scrollbar-thumb,
-  body.desktop-shell :focus-visible::-webkit-scrollbar-thumb {
+  body.desktop-shell ::-webkit-scrollbar-thumb:hover {
     border-width: var(--scrollbar-interactive-inset);
     background-color: var(--scrollbar-thumb-hover);
     background-clip: padding-box;
+  }
+
+  body.desktop-shell:focus-visible::-webkit-scrollbar-thumb,
+  body.desktop-shell :focus-visible::-webkit-scrollbar-thumb {
+    background-color: var(--scrollbar-thumb-hover);
   }
 
   body.desktop-shell::-webkit-scrollbar-thumb:active,

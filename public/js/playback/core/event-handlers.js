@@ -18,16 +18,11 @@ export function createEventHandlers(deps) {
   const {
     playbackState,
     getPlaybackAudio,
-    uiRenderer,
     homeService,
     searchService,
-    matchService,
-    providerManager,
     savePlaybackState,
     renderPlayback,
     renderPlaybackSearchResults,
-    renderPlaybackHomeResults,
-    renderPlaybackMatchResults,
     renderFullscreenPlayer,
     syncPlaybackLyricWindow,
     clearPlaybackQueue,
@@ -62,8 +57,6 @@ export function createEventHandlers(deps) {
     playPlaybackTrack,
     rebuildPlaybackShuffleOrder,
     refreshSelectedMusicProviderState,
-    escapeHtml,
-    value,
   } = deps;
   const stateActions =
     deps.stateActions ||

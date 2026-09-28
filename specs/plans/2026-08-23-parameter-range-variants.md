@@ -13,7 +13,7 @@
 - Preserve all input IDs, min/max/step/value attributes, persistence keys, event wiring, and playback seek/volume controls.
 - Use named ESM exports and do not add `window.AdminApp` dependencies.
 - Add no package dependency, bundler, framework, process, port, or persisted setting.
-- Preserve unrelated worktree changes, including the in-progress danmaku test edits in `test/frontend-admin-ai.test.js`.
+- Preserve unrelated worktree changes, including the in-progress danmaku test edits in `test/ai/frontend-admin-ai.test.js`.
 - Do not create a commit unless the user explicitly requests one.
 
 ---
@@ -38,7 +38,7 @@ Admin parameter inputs retain identical values and behavior while their shape an
 - Composition: `public/css/styles-admin.css` and `public/js/admin/app.js`.
 - Consumers: `public/pages/admin/song/queue-theme.html`, `song-board.html`, `desktop-lyric.html`, and `public/pages/admin/playback/page.html`.
 - Contract documentation: `docs/architecture/frontend/app.md` and `docs/architecture/frontend/pages.md`.
-- Focused regression: `test/frontend-admin-ai.test.js`.
+- Focused regression: `test/ai/frontend-admin-ai.test.js`.
 
 ## Compatibility Constraints
 
@@ -49,14 +49,14 @@ The base `parameter-range` selector remains supported as a restrained sky-blue f
 - `public/css/components/parameter-range.css`: retain the base component and add `--tempo`, `--scale`, `--intensity`, and `--centered` modifier blocks with matching hover, focus, disabled, and reduced-motion behavior.
 - `public/js/shared/parameter-range.js`: compute zero-origin start and length variables for all component inputs; centered consumers use them, other variants ignore them.
 - Admin HTML fragments: add exactly one semantic modifier class to each existing `parameter-range` input.
-- `test/frontend-admin-ai.test.js`: assert the public modifier vocabulary, centered geometry, representative consumer assignments, and playback isolation.
+- `test/ai/frontend-admin-ai.test.js`: assert the public modifier vocabulary, centered geometry, representative consumer assignments, and playback isolation.
 - `docs/architecture/frontend/pages.md`: record the shared component and its caller-facing modifier interface.
 
 ### Task 1: Lock the reusable modifier contract
 
 **Files:**
 
-- Modify: `test/frontend-admin-ai.test.js`
+- Modify: `test/ai/frontend-admin-ai.test.js`
 
 **Interfaces:**
 
@@ -66,7 +66,7 @@ The base `parameter-range` selector remains supported as a restrained sky-blue f
 - [x] Add assertions that `getParameterRangeOrigin({ min: '-20', max: '20', value: '-5' })` returns `{ zeroProgress: 50, startProgress: 37.5, lengthProgress: 12.5, polarity: 'negative' }`, with positive and zero cases.
 - [x] Assert that the CSS defines all four modifier selectors and that playback seek/volume still omit `parameter-range`.
 - [x] Assert representative assignments: scroll speed uses `--tempo`, font size uses `--scale`, opacity uses `--intensity`, and time offset uses `--centered`.
-- [x] Run `node --test test/frontend-admin-ai.test.js`; expect failure because the new export and modifier classes do not exist yet.
+- [x] Run `node --test test/ai/frontend-admin-ai.test.js`; expect failure because the new export and modifier classes do not exist yet.
 
 ### Task 2: Implement the component variants
 
@@ -84,7 +84,7 @@ The base `parameter-range` selector remains supported as a restrained sky-blue f
 - [x] In `refreshParameterRange`, convert those percentages into pixels along the thumb-center-aligned track and set `data-range-polarity` for centered CSS color selection.
 - [x] Add the four modifier designs using only component-scoped selectors; keep a restrained sky-blue base as the compatibility fallback.
 - [x] Keep keyboard focus visible, disabled controls subdued, and thumb transitions disabled under `prefers-reduced-motion`.
-- [x] Run `node --test test/frontend-admin-ai.test.js`; the geometry assertions should pass while consumer assignment assertions still fail.
+- [x] Run `node --test test/ai/frontend-admin-ai.test.js`; the geometry assertions should pass while consumer assignment assertions still fail.
 
 ### Task 3: Assign variants by control meaning
 
@@ -104,7 +104,7 @@ The base `parameter-range` selector remains supported as a restrained sky-blue f
 - [x] Apply `parameter-range--scale` to typography, spacing, stroke, blur radius, perspective, and overall scale controls.
 - [x] Apply `parameter-range--intensity` to opacity, glow, shadow intensity, brightness, contrast, and saturation controls.
 - [x] Apply `parameter-range--centered` to signed time, position, shadow offset, interlude offset, and rotation controls.
-- [x] Run `node --test test/frontend-admin-ai.test.js test/frontend-song-board.test.js test/desktop-lyrics.test.js test/playback-wesing.test.js`; expect all tests to pass.
+- [x] Run `node --test test/ai/frontend-admin-ai.test.js test/songs/frontend-song-board.test.js test/lyrics/desktop-lyrics.test.js test/playback/playback-wesing.test.js`; expect all tests to pass.
 
 ### Task 4: Document and verify the finished module
 
@@ -124,7 +124,7 @@ The base `parameter-range` selector remains supported as a restrained sky-blue f
 
 ## Verification
 
-1. `node --test test/frontend-admin-ai.test.js test/frontend-song-board.test.js test/desktop-lyrics.test.js test/playback-wesing.test.js`
+1. `node --test test/ai/frontend-admin-ai.test.js test/songs/frontend-song-board.test.js test/lyrics/desktop-lyrics.test.js test/playback/playback-wesing.test.js`
 2. `npm run check`
 3. `npm run verify:docs`
 4. `npm run verify:quick`

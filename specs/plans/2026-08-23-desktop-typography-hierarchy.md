@@ -152,11 +152,11 @@ The scoped Admin role-class interface is also fixed:
 - Admin shell and common semantic role rules: `public/css/admin/layout.css`, loaded by `public/css/styles-admin.css`.
 - Point-song and gift workspaces: `public/css/admin/workspace/`, `public/css/admin/gifts/`, and their Admin fragments.
 - Playback typography: `public/css/playback/`, `public/pages/admin/playback/`, and dynamic templates under `public/js/playback/`.
-- Toolbox typography: `public/css/admin/other-features/`, `public/css/admin/overtime.css`, related legacy-owned styles under `public/css/admin/toasts/`, and `public/pages/admin/toolbox/`.
+- Toolbox typography: `public/css/admin/toolbox/`, `public/css/admin/overtime.css`, related legacy-owned styles under `public/css/admin/toasts/`, and `public/pages/admin/toolbox/`.
 - Electron-only late overrides: `public/css/overlays/desktop.css`; despite its path, it styles `/admin?desktop=1` and must be included in the desktop cascade review.
 - Contracts: `docs/architecture/frontend/pages.md`, `docs/architecture/frontend/app.md`, and `docs/architecture/desktop/main.md`.
 - Route owners: `ROUTE-ADMIN` and `ROUTE-PLAYBACK`. `ROUTE-OVERLAYS` remains an explicit compatibility boundary.
-- Focused tests: `test/admin-page-composition.test.js`, `test/frontend-admin-shell.test.js`, `test/frontend-playback.test.js`, `test/frontend-gifts.test.js`, `test/toolbox-sidebar.test.js`, `test/ui-surface.test.js`, and `test/desktop-lyrics.test.js`.
+- Focused tests: `test/admin/admin-page-composition.test.js`, `test/admin/frontend-admin-shell.test.js`, `test/playback/frontend-playback.test.js`, `test/gifts/frontend-gifts.test.js`, `test/admin/toolbox-sidebar.test.js`, `test/ui/ui-surface.test.js`, and `test/lyrics/desktop-lyrics.test.js`.
 
 ## Compatibility Constraints
 
@@ -172,7 +172,7 @@ The scoped Admin role-class interface is also fixed:
 
 ### Create
 
-- `test/frontend-typography.test.js`: deterministic token, role mapping, inline-style, minimum readable size, allowed-weight, and overlay-isolation checks.
+- `test/ui/frontend-typography.test.js`: deterministic token, role mapping, inline-style, minimum readable size, allowed-weight, and overlay-isolation checks.
 
 ### Shared files to modify
 
@@ -249,18 +249,18 @@ The scoped Admin role-class interface is also fixed:
 - `public/pages/admin/toolbox/performance.html`
 - `public/pages/admin/toolbox/usage-guide.html`
 - `public/pages/admin/toolbox/desktop-update.html`
-- `public/css/admin/other-features/shell.css`
-- `public/css/admin/other-features/danmaku-tool.css`
-- `public/css/admin/other-features/ai-assistant.css`
-- `public/css/admin/other-features/danmaku-editors.css`
-- `public/css/admin/other-features/gift-effects.css`
-- `public/css/admin/other-features/onboarding.css`
-- `public/css/admin/other-features/streamer-planner.css`
-- `public/css/admin/other-features/games.css`
-- `public/css/admin/other-features/start-animation.css`
-- `public/css/admin/other-features/clock.css`
-- `public/css/admin/other-features/usage-guide.css`
-- `public/css/admin/other-features/interactive-tour.css`
+- `public/css/admin/toolbox/shell.css`
+- `public/css/admin/toolbox/danmaku-tool.css`
+- `public/css/admin/toolbox/ai-assistant.css`
+- `public/css/admin/toolbox/danmaku-editors.css`
+- `public/css/admin/toolbox/gift-effects.css`
+- `public/css/admin/toolbox/onboarding.css`
+- `public/css/admin/toolbox/streamer-planner.css`
+- `public/css/admin/toolbox/games.css`
+- `public/css/admin/toolbox/start-animation.css`
+- `public/css/admin/toolbox/clock.css`
+- `public/css/admin/toolbox/usage-guide.css`
+- `public/css/admin/toolbox/interactive-tour.css`
 - `public/css/admin/overtime.css`
 - `public/css/admin/toasts/system.css`
 - `public/css/admin/toasts/gifts.css`
@@ -270,7 +270,7 @@ The scoped Admin role-class interface is also fixed:
 ### Documentation to modify
 
 - `docs/architecture/frontend/pages.md`: document the Admin typography role owner, token scale, and OBS/user-configurable-font exclusions.
-- `docs/architecture/engineering/test.md`: register `test/frontend-typography.test.js` in the frontend test inventory.
+- `docs/architecture/engineering/test.md`: register `test/ui/frontend-typography.test.js` in the frontend test inventory.
 
 Every listed file is reviewed. Change only its user-visible generic text-role declarations or markup; if an existing shared selector already supplies the complete role, record that result in the plan and leave the file unchanged. Specialized declarations remain component-owned.
 
@@ -282,7 +282,7 @@ Every listed file is reviewed. Change only its user-visible generic text-role de
 
 **Files:**
 
-- Create: `test/frontend-typography.test.js`
+- Create: `test/ui/frontend-typography.test.js`
 - Read: `test/helpers/css-bundle.js`
 - Read: `test/helpers/admin-html.js`
 
@@ -299,7 +299,7 @@ Every listed file is reviewed. Change only its user-visible generic text-role de
 - [x] Implement an explicit allowlist for 11px microcopy and `<12px` presentation exceptions. Require all normal descriptions, paragraphs, form help, and error text to be at least 12px.
 - [x] Implement an explicit allowlist for 800/900 presentation weights and dynamic font variables. Reject new 650/750/850 common UI declarations.
 - [x] Add representative cascade assertions for common panel titles, point-song subpages, playback queue groups, gift headings, toolbox page headers, confirmation dialogs, and captions.
-- [x] Run `node --experimental-vm-modules --test test/frontend-typography.test.js` and confirm it fails for missing tokens, unmapped roles, and the two known inline typography sites.
+- [x] Run `node --experimental-vm-modules --test test/ui/frontend-typography.test.js` and confirm it fails for missing tokens, unmapped roles, and the two known inline typography sites.
 
 ### Task 2: Add tokens and the scoped Admin foundation
 
@@ -309,7 +309,7 @@ Every listed file is reviewed. Change only its user-visible generic text-role de
 - Modify: `public/css/admin/layout.css`
 - Modify: `public/css/admin/workspace/base.css`
 - Modify: `public/css/admin/tabs.css`
-- Modify: `test/frontend-typography.test.js`
+- Modify: `test/ui/frontend-typography.test.js`
 
 **Interfaces:**
 
@@ -323,7 +323,7 @@ Every listed file is reviewed. Change only its user-visible generic text-role de
 - [x] Map primary navigation to control-label typography and secondary tabs to the same or lower scale; verify secondary navigation never appears larger than primary navigation.
 - [x] Map `label`, `legend`, `.hint`, `.pill`, table headers, and buttons by function. A group `legend` uses card-title or label role according to its structural level, not a blanket element rule.
 - [x] Replace generic common negative tracking and non-standard 650/750/850 weights with the semantic values where they describe ordinary UI copy.
-- [x] Re-run `test/frontend-typography.test.js`; confirm the token/foundation tests pass while page-migration assertions remain intentionally failing.
+- [x] Re-run `test/ui/frontend-typography.test.js`; confirm the token/foundation tests pass while page-migration assertions remain intentionally failing.
 - [x] Run `npm.cmd run test:admin` and confirm existing shell/composition behavior still passes.
 
 ### Task 3: Migrate point-song and gift workspaces
@@ -331,9 +331,9 @@ Every listed file is reviewed. Change only its user-visible generic text-role de
 **Files:**
 
 - Modify: the point-song and gift files listed in “Proposed File Map”.
-- Modify: `test/frontend-typography.test.js`
-- Modify: `test/frontend-admin-shell.test.js`
-- Modify: `test/frontend-gifts.test.js`
+- Modify: `test/ui/frontend-typography.test.js`
+- Modify: `test/admin/frontend-admin-shell.test.js`
+- Modify: `test/gifts/frontend-gifts.test.js`
 
 **Interfaces:**
 
@@ -348,7 +348,7 @@ Every listed file is reviewed. Change only its user-visible generic text-role de
 - [x] Remove inline typography from `song/settings.html`; keep the existing Bilibili colors, button types, IDs, and visibility behavior in scoped CSS classes.
 - [x] Raise all non-allowlisted 8–11px readable copy in these views to caption or label size. Keep only bounded status/eyebrow/table-header exceptions at 11px.
 - [x] Keep queue-theme and desktop-lyric user-selected fonts/sizes out of the Admin chrome contract; normalize only the surrounding configuration labels and descriptions.
-- [x] Run `node --experimental-vm-modules --test test/frontend-typography.test.js test/frontend-admin-shell.test.js test/frontend-gifts.test.js test/admin-page-composition.test.js` and confirm the batch passes.
+- [x] Run `node --experimental-vm-modules --test test/ui/frontend-typography.test.js test/admin/frontend-admin-shell.test.js test/gifts/frontend-gifts.test.js test/admin/admin-page-composition.test.js` and confirm the batch passes.
 - [x] Use Electron at 1280×720 and 1024×680 to inspect all seven point-song subviews plus empty/dense gift states before continuing.
 
 ### Task 4: Migrate playback, drawers, queue popups, and fullscreen chrome
@@ -356,9 +356,9 @@ Every listed file is reviewed. Change only its user-visible generic text-role de
 **Files:**
 
 - Modify: the playback files listed in “Proposed File Map”.
-- Modify: `test/frontend-typography.test.js`
-- Modify: `test/frontend-playback.test.js`
-- Modify: `test/desktop-lyrics.test.js`
+- Modify: `test/ui/frontend-typography.test.js`
+- Modify: `test/playback/frontend-playback.test.js`
+- Modify: `test/lyrics/desktop-lyrics.test.js`
 
 **Interfaces:**
 
@@ -372,7 +372,7 @@ Every listed file is reviewed. Change only its user-visible generic text-role de
 - [x] Apply the same role names to dynamic playlist picker, drawer loading/error/empty states, queue empty states, and pending request groups.
 - [x] Normalize playback buttons, source tabs, status pills, quality menus, and technical values without changing click targets or menu accessibility.
 - [x] Preserve fullscreen song/artist/lyric responsive sizes, playback progress metrics, and `desktop-lyric` custom variables. Normalize only surrounding chrome, labels, and help text.
-- [x] Run `node --experimental-vm-modules --test test/frontend-typography.test.js test/frontend-playback.test.js test/playback-layering.test.js test/desktop-lyrics.test.js` and confirm all pass.
+- [x] Run `node --experimental-vm-modules --test test/ui/frontend-typography.test.js test/playback/frontend-playback.test.js test/playback/playback-layering.test.js test/lyrics/desktop-lyrics.test.js` and confirm all pass.
 - [x] Inspect QQ/NetEase/WeSing, logged-out/error states, long mixed-language song names, drawer depth, queue popup, playlist picker, and fullscreen in Electron.
 
 ### Task 5: Give every toolbox feature a common page hierarchy
@@ -380,9 +380,9 @@ Every listed file is reviewed. Change only its user-visible generic text-role de
 **Files:**
 
 - Modify: the toolbox HTML and CSS files listed in “Proposed File Map”.
-- Modify: `test/frontend-typography.test.js`
-- Modify: `test/toolbox-sidebar.test.js`
-- Modify: `test/frontend-admin-ai.test.js`
+- Modify: `test/ui/frontend-typography.test.js`
+- Modify: `test/admin/toolbox-sidebar.test.js`
+- Modify: `test/ai/frontend-admin-ai.test.js`
 
 **Interfaces:**
 
@@ -397,7 +397,7 @@ Every listed file is reviewed. Change only its user-visible generic text-role de
 - [x] Normalize AI advanced settings, danmaku editors, overtime rule cards, game configuration cards, hardware cards, update cards, and guide sections independently so dense states remain readable.
 - [x] Preserve mono fonts for host/path/diagnostic values, tabular numbers for metrics/timers, and short Latin eyebrows at the 11px exception.
 - [x] Verify sidebar expanded/collapsed states still fit and the page heading remains visible in both states.
-- [x] Run `node --experimental-vm-modules --test test/frontend-typography.test.js test/toolbox-sidebar.test.js test/frontend-admin-ai.test.js test/overtime-rule-editor.test.js test/frontend-games.test.js` and confirm all pass.
+- [x] Run `node --experimental-vm-modules --test test/ui/frontend-typography.test.js test/admin/toolbox-sidebar.test.js test/ai/frontend-admin-ai.test.js test/overtime/overtime-rule-editor.test.js test/games/frontend-games.test.js` and confirm all pass.
 - [x] Inspect every toolbox feature at 1280×720 and 1024×680; for AI, overtime, games, planner, performance, and usage guide also inspect the densest reachable state.
 
 ### Task 6: Normalize transient UI and preserve special typography
@@ -408,11 +408,11 @@ Every listed file is reviewed. Change only its user-visible generic text-role de
 - Modify: `public/css/admin/modals.css`
 - Modify: `public/css/admin/toasts/system.css`
 - Modify: `public/css/admin/toasts/gifts.css`
-- Modify: `public/css/admin/other-features/interactive-tour.css`
+- Modify: `public/css/admin/toolbox/interactive-tour.css`
 - Modify: `public/css/overlays/desktop.css`
 - Modify: `public/js/admin/settings.js`
-- Modify: `test/frontend-typography.test.js`
-- Modify: `test/ui-surface.test.js`
+- Modify: `test/ui/frontend-typography.test.js`
+- Modify: `test/ui/ui-surface.test.js`
 
 **Interfaces:**
 
@@ -424,7 +424,7 @@ Every listed file is reviewed. Change only its user-visible generic text-role de
 - [x] Keep semantic warning/success colors and accessible focus states; typography must not become the only status indicator.
 - [x] Preserve hardware metric, timer, and status-number sizes in legacy-owned `toasts/gifts.css`; change only generic labels/descriptions/headings.
 - [x] Review the final source order so `overlays/desktop.css` and `interactive-tour.css` do not reintroduce non-standard common weights or undersized body text.
-- [x] Run `node --experimental-vm-modules --test test/frontend-typography.test.js test/ui-surface.test.js test/frontend-admin-shell.test.js test/update-manager.test.js`.
+- [x] Run `node --experimental-vm-modules --test test/ui/frontend-typography.test.js test/ui/ui-surface.test.js test/admin/frontend-admin-shell.test.js test/desktop/update-manager.test.js`.
 - [x] In Electron, inspect normal/caution/destructive confirmations, gift and system toasts, all tour tooltip positions, tour-exit confirmation, update states, and shutdown/restart screen with short and long copy.
 
 ### Task 7: Prove OBS, lyric, font-permission, and responsive isolation
@@ -432,7 +432,7 @@ Every listed file is reviewed. Change only its user-visible generic text-role de
 **Files:**
 
 - Modify only task-owned fixes revealed by the isolation checks.
-- Modify: `test/frontend-typography.test.js` if the exception list needs an evidence-backed correction.
+- Modify: `test/ui/frontend-typography.test.js` if the exception list needs an evidence-backed correction.
 
 **Interfaces:**
 
@@ -443,7 +443,7 @@ Every listed file is reviewed. Change only its user-visible generic text-role de
 - [x] Verify `/lyrics` computed preview/timeline typography still follows user settings and that Admin-only labels use the new roles only inside the desktop renderer.
 - [x] Verify point-song overlay theme variables and `overlayFontFamily`/title-size settings are unchanged.
 - [x] Verify Admin core UI never calls or depends on `queryLocalFonts()` and no permission, IPC, or settings contract changed.
-- [x] Run `node --experimental-vm-modules --test test/desktop-lyrics.test.js test/local-font-library.test.js test/queue-overlay-esm.test.js test/queue-overlay-responsive.test.js test/frontend-song-board.test.js test/overtime-overlay.test.js test/danmaku-overlay.test.js test/games-overlay.test.js test/clock-overlay.test.js test/gift-effects-overlay.test.js`.
+- [x] Run `node --experimental-vm-modules --test test/lyrics/desktop-lyrics.test.js test/desktop/local-font-library.test.js test/songs/queue-overlay-esm.test.js test/songs/queue-overlay-responsive.test.js test/songs/frontend-song-board.test.js test/overtime/overtime-overlay.test.js test/danmaku/danmaku-overlay.test.js test/games/games-overlay.test.js test/overlays/clock-overlay.test.js test/gifts/gift-effects-overlay.test.js`.
 - [x] Inspect representative `/queue`, `/songlist`, `/lyrics`, `/overtime`, `/danmaku`, `/games`, `/clock`, and `/gift-effects` browser-source views at their documented capture sizes; confirm no text, measurement, scrolling, transparency, or theme change.
 
 ### Task 8: Electron visual QA, documentation, and final gates
@@ -501,9 +501,9 @@ Every listed file is reviewed. Change only its user-visible generic text-role de
 ### Focused commands
 
 ```powershell
-node --experimental-vm-modules --test test/frontend-typography.test.js
+node --experimental-vm-modules --test test/ui/frontend-typography.test.js
 npm.cmd run test:admin
-node --experimental-vm-modules --test test/ui-surface.test.js test/frontend-playback.test.js test/frontend-gifts.test.js test/toolbox-sidebar.test.js test/desktop-lyrics.test.js
+node --experimental-vm-modules --test test/ui/ui-surface.test.js test/playback/frontend-playback.test.js test/gifts/frontend-gifts.test.js test/admin/toolbox-sidebar.test.js test/lyrics/desktop-lyrics.test.js
 ```
 
 Expected result: all tests pass; the new typography test proves the token/role contract and explicitly documents the small-size, heavy-weight, preview, metric, and overlay exceptions.
@@ -526,7 +526,7 @@ Expected result: every command exits successfully. If the full suite exposes unr
 ```powershell
 git diff --check
 git status --short
-git diff -- public/css/styles-base.css public/css/admin public/css/playback public/css/components public/css/overlays/desktop.css public/pages/admin public/js/admin/settings.js public/js/playback test/frontend-typography.test.js docs/architecture/frontend/pages.md docs/architecture/engineering/test.md specs/plans/2026-08-23-desktop-typography-hierarchy.md
+git diff -- public/css/styles-base.css public/css/admin public/css/playback public/css/components public/css/overlays/desktop.css public/pages/admin public/js/admin/settings.js public/js/playback test/ui/frontend-typography.test.js docs/architecture/frontend/pages.md docs/architecture/engineering/test.md specs/plans/2026-08-23-desktop-typography-hierarchy.md
 ```
 
 Expected result: no whitespace errors, generated assets, screenshots, data, logs, or unrelated files enter the task diff.

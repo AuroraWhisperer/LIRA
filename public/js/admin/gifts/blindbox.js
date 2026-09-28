@@ -7,7 +7,7 @@ import { giftAnalysis } from './blindbox-analysis.js';
 import { publishGiftModule } from '../legacy-admin-bridge.js';
 import { stateService } from '../state.js';
 import { eventBus, Events } from '../../shared/event-bus.js';
-import { escapeHtml, escapeAttr, formatTime, formatMoney, readJsonResponse } from '../../shared/utils.js';
+import { escapeHtml, escapeAttr, formatMoney, readJsonResponse } from '../../shared/utils.js';
 import { GIFT_PLACEHOLDER, setGiftImageFallbacks } from '../../shared/gift-image-fallback.js';
 
 export const giftBlindbox = (() => {

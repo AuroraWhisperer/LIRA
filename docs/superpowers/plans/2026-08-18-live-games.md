@@ -24,12 +24,12 @@
 - Create: `src/games/number-bomb.js`
 - Create: `src/games/gomoku.js`
 - Create: `src/games/game-session-service.js`
-- Test: `test/games.test.js`
+- Test: `test/games/games.test.js`
 
 - [ ] 编写数字炸弹 1–100 区间收窄、轮流、踩中炸弹结束的测试。
 - [ ] 编写五子棋 15×15 棋盘、坐标解析、轮流和五连判定测试。
 - [ ] 实现纯规则函数及会话服务（开始、主播落子、弹幕落子、观众列表、重置）。
-- [ ] 运行 `node --test test/games.test.js`。
+- [ ] 运行 `node --test test/games/games.test.js`。
 
 ### Task 2: 服务端 API、弹幕和 WS 接线
 
@@ -41,12 +41,12 @@
 - Modify: `src/server.js`
 - Modify: `src/server/bilibili-client.js`
 - Modify: `src/server/ws.js` only if helper exposure is needed
-- Test: `test/game-routes.test.js`
+- Test: `test/games/game-routes.test.js`
 
 - [ ] 为 `/api/games/viewers`、`/api/games/session`、`/api/games/session/move` 提供鉴权路由。
 - [ ] 在 Bilibili 弹幕入口登记观众并交给会话服务，广播 `game:update`。
 - [ ] 将游戏服务注入 API context，保持路由无状态。
-- [ ] 运行 `node --test test/game-routes.test.js` 及相关 Bilibili/WS 测试。
+- [ ] 运行 `node --test test/games/game-routes.test.js` 及相关 Bilibili/WS 测试。
 
 ### Task 3: Admin 百宝箱小游戏面板
 
@@ -54,12 +54,12 @@
 
 - Create: `public/pages/admin/toolbox/games.html`
 - Create: `public/js/admin/games.js`
-- Create: `public/css/admin/other-features/games.css`
+- Create: `public/css/admin/toolbox/games.css`
 - Modify: `public/pages/admin/toolbox/shell-start.html`
 - Modify: `src/server/admin-page.js`
 - Modify: `public/js/admin/index.js`
-- Modify: `public/css/admin/other-features.css`
-- Test: `test/toolbox-sidebar.test.js`
+- Modify: `public/css/admin/toolbox.css`
+- Test: `test/admin/toolbox-sidebar.test.js`
 
 - [ ] 在左侧增加“小游戏” tab 和面板映射。
 - [ ] 右侧展示数字炸弹/五子棋卡片、OBS 链接、观众选择、开始/结束/复制地址操作。
@@ -74,7 +74,7 @@
 - Create: `public/js/overlays/games.js`
 - Create: `public/css/overlays/games.css`
 - Modify: `src/server/http-utils.js`
-- Test: `test/games-overlay.test.js`
+- Test: `test/games/games-overlay.test.js`
 
 - [ ] 根据 `?game=number-bomb|gomoku` 渲染精美且可键盘操作的直播页面。
 - [ ] 主播点击数字/棋盘提交落子；观众弹幕通过 `game:update` 同步。

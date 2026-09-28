@@ -4,7 +4,7 @@
 
 **非目标**：不改变数字倒计时算法、fixed/random 规则、礼物检测去重/静默窗口、加班机页面地址或现有背景配置。
 
-**所有权与约束**：后端 owner 为 `src/overtime/`，契约为 `docs/architecture/backend/overtime.md` 与 `docs/architecture/backend/api.md` §11；Admin/叠加层消费者分别为 `public/js/admin/overtime-rule-editor.js`、`public/js/overlays/overtime.js`；聚焦测试为 `test/overtime-service.test.js`、`test/overtime-routes.test.js`、`test/overtime-overlay.test.js`、`test/overtime-rule-editor.test.js`。保持 Node.js 24+、CommonJS 后端、Vanilla JS ESM 前端、参数化 SQL、session token、`textContent` 输出。
+**所有权与约束**：后端 owner 为 `src/overtime/`，契约为 `docs/architecture/backend/overtime.md` 与 `docs/architecture/backend/api.md` §11；Admin/叠加层消费者分别为 `public/js/admin/overtime-rule-editor.js`、`public/js/overlays/overtime.js`；聚焦测试为 `test/overtime/overtime-service.test.js`、`test/overtime/overtime-routes.test.js`、`test/overtime/overtime-overlay.test.js`、`test/overtime/overtime-rule-editor.test.js`。保持 Node.js 24+、CommonJS 后端、Vanilla JS ESM 前端、参数化 SQL、session token、`textContent` 输出。
 
 ## 当前行为
 
@@ -22,10 +22,10 @@
 
 ## Milestones & Verification
 
-1. **契约与存储**：先补校验、迁移、规则归一化和 display 结算测试；运行 `node --test test/overtime-service.test.js test/overtime-limits-roundtrip.test.js`。
-2. **Admin 编辑器**：补模式输入、长度限制、读写和摘要测试；运行 `node --test test/overtime-rule-editor.test.js`。
-3. **叠加层**：补 display 卡片/动画回归断言；运行 `node --test test/overtime-overlay.test.js`。
-4. **路由与全量检查**：运行 `node --test test/overtime-routes.test.js`、`npm run check`、`npm run verify:quick`，最后审阅 `git diff --check` 与 `git status --short`。
+1. **契约与存储**：先补校验、迁移、规则归一化和 display 结算测试；运行 `node --test test/overtime/overtime-service.test.js test/overtime/overtime-limits-roundtrip.test.js`。
+2. **Admin 编辑器**：补模式输入、长度限制、读写和摘要测试；运行 `node --test test/overtime/overtime-rule-editor.test.js`。
+3. **叠加层**：补 display 卡片/动画回归断言；运行 `node --test test/overtime/overtime-overlay.test.js`。
+4. **路由与全量检查**：运行 `node --test test/overtime/overtime-routes.test.js`、`npm run check`、`npm run verify:quick`，最后审阅 `git diff --check` 与 `git status --short`。
 
 ## Rollback / Failure Handling
 

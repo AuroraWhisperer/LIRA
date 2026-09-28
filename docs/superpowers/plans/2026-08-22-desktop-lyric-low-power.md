@@ -26,7 +26,7 @@
 - Modify: `public/js/admin/desktop-lyric-defaults.js`
 - Modify: `src/storage/settings-store.js`
 - Modify: `public/js/admin/desktop-lyric-preview.js`
-- Modify: `test/desktop-lyrics.test.js`
+- Modify: `test/lyrics/desktop-lyrics.test.js`
 
 **Interfaces:**
 
@@ -34,10 +34,10 @@
 - Produces `resolveDesktopLyricSettings(...).karaokeMode` with compatibility mapping: missing mode + old boolean `true` → `continuous`; old boolean `false` → `off`.
 
 - [ ] **Step 1: Write failing tests** for storage/frontend default parity, mode normalization, and compatibility mapping.
-- [ ] **Step 2: Run the focused tests** with `node --test test/desktop-lyrics.test.js`; verify the new assertions fail before implementation.
+- [ ] **Step 2: Run the focused tests** with `node --test test/lyrics/desktop-lyrics.test.js`; verify the new assertions fail before implementation.
 - [ ] **Step 3: Add the additive storage and frontend defaults** and resolve the mode in `resolveDesktopLyricSettings` without removing `desktopLyricKaraokeEnabled`.
 - [ ] **Step 4: Update form collection/loading** so the new select/radio value is persisted and legacy settings still render as continuous/off.
-- [ ] **Step 5: Re-run `node --test test/desktop-lyrics.test.js`** and confirm mode/default assertions pass.
+- [ ] **Step 5: Re-run `node --test test/lyrics/desktop-lyrics.test.js`** and confirm mode/default assertions pass.
 
 ### Task 2: Implement explicit discrete word animation
 
@@ -46,7 +46,7 @@
 - Modify: `public/js/shared/lyric-word-animator.js`
 - Modify: `public/js/admin/desktop-lyric-preview.js`
 - Modify: `public/css/admin/desktop-lyric-preview.css`
-- Modify: `test/desktop-lyrics.test.js`
+- Modify: `test/lyrics/desktop-lyrics.test.js`
 
 **Interfaces:**
 
@@ -67,7 +67,7 @@
 - Modify: `public/pages/admin/song/desktop-lyric.html`
 - Modify: `public/js/admin/desktop-lyric.js`
 - Modify: `public/css/admin/desktop-lyric-preview.css`
-- Modify: `test/desktop-lyrics.test.js`
+- Modify: `test/lyrics/desktop-lyrics.test.js`
 
 **Interfaces:**
 
@@ -75,7 +75,7 @@
 - Keeps existing group order and all unrelated controls/IDs stable.
 
 - [ ] **Step 1: Add failing markup/style assertions** for the three options, the “已唱/未唱” visual legend, and the renamed display-strategy copy.
-- [ ] **Step 2: Run `node --test test/desktop-lyrics.test.js`** to confirm the assertions fail.
+- [ ] **Step 2: Run `node --test test/lyrics/desktop-lyrics.test.js`** to confirm the assertions fail.
 - [ ] **Step 3: Update the content group** with the mode selector, a concise low-power explanation, and a two-state preview legend; keep translation, hide-passed, traditional mode, and interlude controls below it.
 - [ ] **Step 4: Update settings collection/loading and autosave wiring** for the new input while preserving existing boolean behavior and reset defaults.
 - [ ] **Step 5: Add restrained visual treatment**: one accent card inside the content group, existing LIRA gold for completed text, muted text for upcoming text, clear focus states, and reduced-motion-safe transitions.
@@ -87,7 +87,7 @@
 
 - No new source files.
 
-- [ ] **Step 1: Run `node --test test/desktop-lyrics.test.js`.**
+- [ ] **Step 1: Run `node --test test/lyrics/desktop-lyrics.test.js`.**
 - [ ] **Step 2: Run `npm run check`.**
 - [ ] **Step 3: Run `npm run verify:quick`.**
 - [ ] **Step 4: Review `git diff`, `git diff --check`, and `git status --short`; confirm only the plan, lyric settings, animator, preview, styles, and focused tests changed.**

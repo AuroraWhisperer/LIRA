@@ -1,7 +1,7 @@
 // Queue overlay layout and animation mechanics.
 'use strict';
 
-import { bounceScrollTiming, overlayLowPowerEnabled, queueScrollSeconds, scrollTravelSeconds } from './queue-utils.js';
+import { bounceScrollTiming, queueScrollSeconds, scrollTravelSeconds } from './queue-utils.js';
 
 function scheduleLayout(callback) {
   if (typeof requestAnimationFrame === 'function') {

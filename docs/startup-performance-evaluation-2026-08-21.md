@@ -198,7 +198,7 @@ for (const cookie of Array.isArray(payload.cookies) ? payload.cookies : []) {
 }
 ```
 
-来源：[src/electron/auth-manager.js](../src/electron/auth-manager.js#L112-L124)
+来源：[src/electron/music-auth-manager.js](../src/electron/music-auth-manager.js#L112-L124)
 
 这说明 `START → READY` 同时覆盖 Cookie 恢复、端口处理、数据库初始化和窗口创建，现有总耗时不能直接归因给其中一个阶段。
 
@@ -641,8 +641,8 @@ LIRA 当前不是“数据库已经拖垮启动”的状态。正常启动样本
 - `src/electron/main.js`
 - `src/server.js`
 - `src/server/lifecycle.js`
-- `test/server-lifecycle.test.js`
-- `test/electron-main-modules.test.js`
+- `test/server/server-lifecycle.test.js`
+- `test/desktop/electron-main-modules.test.js`
 
 **实施步骤：**
 
@@ -661,7 +661,7 @@ LIRA 当前不是“数据库已经拖垮启动”的状态。正常启动样本
 
 - `public/js/admin/state.js`
 - `public/js/admin/app.js`
-- `test/frontend-admin-shell.test.js`（必要时新增针对 state service 的聚焦测试）
+- `test/admin/frontend-admin-shell.test.js`（必要时新增针对 state service 的聚焦测试）
 
 **实施步骤：**
 
@@ -680,7 +680,7 @@ LIRA 当前不是“数据库已经拖垮启动”的状态。正常启动样本
 - `public/js/admin/gifts/blindbox.js`
 - `public/js/admin/app.js`
 - `public/js/admin/state.js`
-- `test/frontend-admin-shell.test.js`
+- `test/admin/frontend-admin-shell.test.js`
 
 **实施步骤：**
 
@@ -702,8 +702,8 @@ LIRA 当前不是“数据库已经拖垮启动”的状态。正常启动样本
 - `src/server.js`
 - `src/music/song-service.js`
 - `src/bilibili/gift/query-service.js`
-- `test/websocket-transport.test.js`
-- `test/server-smoke.test.js`
+- `test/transport/websocket-transport.test.js`
+- `test/server/server-smoke.test.js`
 
 **实施步骤：**
 
@@ -726,7 +726,7 @@ LIRA 当前不是“数据库已经拖垮启动”的状态。正常启动样本
 - `src/electron/terminal-log.js`
 - `src/electron/main.js`
 - `test/gift-detection-service.test.js`
-- `test/electron-main-modules.test.js`
+- `test/desktop/electron-main-modules.test.js`
 
 **实施步骤：**
 
@@ -761,7 +761,7 @@ LIRA 当前不是“数据库已经拖垮启动”的状态。正常启动样本
 **涉及文件：**
 
 - `public/js/admin/games.js`
-- `test/frontend-games.test.js`
+- `test/games/frontend-games.test.js`
 
 **实施步骤：**
 
@@ -778,7 +778,7 @@ LIRA 当前不是“数据库已经拖垮启动”的状态。正常启动样本
 **涉及文件：**
 
 - `src/server/admin-page.js`
-- `test/admin-page-composition.test.js`
+- `test/admin/admin-page-composition.test.js`
 
 **实施步骤：**
 

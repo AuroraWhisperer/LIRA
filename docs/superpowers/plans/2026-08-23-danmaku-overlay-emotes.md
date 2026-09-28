@@ -27,8 +27,8 @@
 - Modify: `src/bilibili/parsers/danmaku-parser.js`
 - Modify: `src/bilibili/packet-parser.js`
 - Modify: `src/bilibili/danmaku/message-handlers.js`
-- Test: `test/bilibili-danmaku-parser.test.js`
-- Test: `test/danmaku-client.test.js`
+- Test: `test/bilibili/bilibili-danmaku-parser.test.js`
+- Test: `test/danmaku/danmaku-client.test.js`
 
 **Interfaces:**
 
@@ -50,7 +50,7 @@ assert.deepEqual(extractBilibiliDanmakuEmotes(info), [
 
 - [x] **Step 2: Run the focused parser tests and confirm the new export is missing**
 
-Run: `node --test test/bilibili-danmaku-parser.test.js`
+Run: `node --test test/bilibili/bilibili-danmaku-parser.test.js`
 
 Expected: FAIL because `extractBilibiliDanmakuEmotes` is not implemented.
 
@@ -70,7 +70,7 @@ this.handlers.onMessage({
 
 - [x] **Step 5: Run parser and client regressions**
 
-Run: `node --test test/bilibili-danmaku-parser.test.js test/danmaku-client.test.js`
+Run: `node --test test/bilibili/bilibili-danmaku-parser.test.js test/danmaku/danmaku-client.test.js`
 
 Expected: PASS with ordinary messages still returning an empty `emotes` array.
 
@@ -81,7 +81,7 @@ Expected: PASS with ordinary messages still returning an empty `emotes` array.
 - Create: `src/bilibili/danmaku/feed-buffer.js`
 - Modify: `src/server/bilibili-client.js`
 - Modify: `src/server.js`
-- Test: `test/danmaku-feed-buffer.test.js`
+- Test: `test/danmaku/danmaku-feed-buffer.test.js`
 
 **Interfaces:**
 
@@ -94,7 +94,7 @@ Cover public-field projection, monotonically increasing local IDs, configured ca
 
 - [x] **Step 2: Run the focused test and confirm the module is missing**
 
-Run: `node --test test/danmaku-feed-buffer.test.js`
+Run: `node --test test/danmaku/danmaku-feed-buffer.test.js`
 
 Expected: FAIL with `MODULE_NOT_FOUND`.
 
@@ -114,7 +114,7 @@ Call `feed.setRoom(roomId)` when building the active Bilibili client, call `publ
 
 - [x] **Step 5: Run the buffer and Bilibili runtime regressions**
 
-Run: `node --test test/danmaku-feed-buffer.test.js test/bilibili-runtime.test.js test/danmaku-client.test.js`
+Run: `node --test test/danmaku/danmaku-feed-buffer.test.js test/bilibili/bilibili-runtime.test.js test/danmaku/danmaku-client.test.js`
 
 Expected: PASS without changing current command, game, gift, or sender contracts.
 
@@ -128,9 +128,9 @@ Expected: PASS without changing current command, game, gift, or sender contracts
 - Modify: `public/js/overlays/danmaku-feed.js`
 - Modify: `public/css/overlays/games.css`
 - Modify: `src/server/http-utils.js`
-- Test: `test/danmaku-overlay.test.js`
-- Test: `test/games-overlay.test.js`
-- Test: `test/admin-page-composition.test.js`
+- Test: `test/danmaku/danmaku-overlay.test.js`
+- Test: `test/games/games-overlay.test.js`
+- Test: `test/admin/admin-page-composition.test.js`
 
 **Interfaces:**
 
@@ -143,7 +143,7 @@ Require the `/danmaku` page mapping and frame exception, ESM entry, snapshot plu
 
 - [x] **Step 2: Run the focused overlay tests and confirm they fail**
 
-Run: `node --test test/danmaku-overlay.test.js test/games-overlay.test.js test/admin-page-composition.test.js`
+Run: `node --test test/danmaku/danmaku-overlay.test.js test/games/games-overlay.test.js test/admin/admin-page-composition.test.js`
 
 Expected: FAIL because the fixed page and emote renderer do not exist.
 
@@ -161,7 +161,7 @@ Use a transparent stage, compact signal header, chamfered dark message strips, r
 
 - [x] **Step 6: Run focused overlay tests**
 
-Run: `node --test test/danmaku-overlay.test.js test/games-overlay.test.js test/admin-page-composition.test.js`
+Run: `node --test test/danmaku/danmaku-overlay.test.js test/games/games-overlay.test.js test/admin/admin-page-composition.test.js`
 
 Expected: PASS; `/games` still renders its existing bubble style while gaining emote images.
 
@@ -171,13 +171,13 @@ Expected: PASS; `/games` still renders its existing bubble style while gaining e
 
 - Modify: `public/pages/admin/toolbox/danmaku.html`
 - Modify: `public/js/admin/danmaku-tool.js`
-- Modify: `public/css/admin/other-features/danmaku-tool.css`
+- Modify: `public/css/admin/toolbox/danmaku-tool.css`
 - Modify: `public/pages/admin/toolbox/usage-guide.html`
 - Modify: `docs/architecture/frontend/overlays.md`
 - Modify: `docs/architecture/frontend/app.md`
 - Modify: `docs/architecture/backend/bilibili/danmaku.md`
 - Modify: `docs/architecture/backend/ws.md`
-- Test: `test/frontend-admin-ai.test.js`
+- Test: `test/ai/frontend-admin-ai.test.js`
 
 **Interfaces:**
 
@@ -190,7 +190,7 @@ Assert the fixed URL controls and preview iframe exist, the sender section is no
 
 - [x] **Step 2: Run the Admin regression and confirm it fails**
 
-Run: `node --test test/frontend-admin-ai.test.js`
+Run: `node --test test/ai/frontend-admin-ai.test.js`
 
 Expected: FAIL against the currently nested preview/sender structure.
 
@@ -208,6 +208,6 @@ Document the normalized emote shape and proxy rule, bounded `danmakuFeed` snapsh
 
 - [x] **Step 6: Run repository gates and review the final diff**
 
-Run: `node --test test/bilibili-danmaku-parser.test.js test/danmaku-feed-buffer.test.js test/danmaku-overlay.test.js test/games-overlay.test.js test/frontend-admin-ai.test.js test/admin-page-composition.test.js`, `npm run check`, `npm run verify:docs`, `npm run verify:architecture`, `npm run verify:quick`, `git diff --check`, and `git status --short`.
+Run: `node --test test/bilibili/bilibili-danmaku-parser.test.js test/danmaku/danmaku-feed-buffer.test.js test/danmaku/danmaku-overlay.test.js test/games/games-overlay.test.js test/ai/frontend-admin-ai.test.js test/admin/admin-page-composition.test.js`, `npm run check`, `npm run verify:docs`, `npm run verify:architecture`, `npm run verify:quick`, `git diff --check`, and `git status --short`.
 
 Expected: all focused and quick gates pass; every changed line belongs to the independent overlay, emote rendering, Admin separation, tests, or owning docs.

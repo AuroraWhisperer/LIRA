@@ -20,7 +20,7 @@ import { initLicenseAccountDevice as initLicenseAccountDeviceImpl } from './sett
 import { createSettingsOperations } from './settings-operations.js';
 import { createBilibiliRoomProfile } from './settings-room-profile.js';
 import { eventBus, Events } from '../shared/event-bus.js';
-import { songImports } from './import.js';
+import { songImports } from './song-import.js';
 import { stateService } from './state.js';
 import { formsService } from './forms.js';
 import { renderState } from './queue.js';

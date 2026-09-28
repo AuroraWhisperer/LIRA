@@ -22,9 +22,9 @@
 
 **Files:**
 
-- Modify: `test/song-file-codec.test.js`
-- Modify: `test/song-import-table.test.js`
-- Modify: `test/database-maintenance.test.js`
+- Modify: `test/songs/song-file-codec.test.js`
+- Modify: `test/songs/song-import-table.test.js`
+- Modify: `test/storage/database-maintenance.test.js`
 
 **Interfaces:**
 
@@ -41,7 +41,7 @@ Assert headered and positional TSV imports read column index 9, and pre-v1 datab
 
 - [x] **Step 3: Run the focused tests and confirm failure**
 
-Run: `node --test test/song-file-codec.test.js test/song-import-table.test.js test/database-maintenance.test.js`
+Run: `node --test test/songs/song-file-codec.test.js test/songs/song-import-table.test.js test/storage/database-maintenance.test.js`
 
 Expected: FAIL because the tenth column, `song_clip` schema, and v5 migration do not exist yet.
 
@@ -51,7 +51,7 @@ Expected: FAIL because the tenth column, `song_clip` schema, and v5 migration do
 
 - Modify: `src/music/song-import-schema.js`
 - Modify: `src/music/song-file-codec.js`
-- Modify: `public/js/admin/import.js`
+- Modify: `public/js/admin/song-import.js`
 - Modify: `src/music/song-service.js`
 - Modify: `src/storage/schema.js`
 - Modify: `src/storage/database.js`
@@ -83,7 +83,7 @@ Persist the value on inserts/imports and preserve it when edit payloads omit bot
 
 - [x] **Step 4: Run the focused tests**
 
-Run: `node --test test/song-file-codec.test.js test/song-import-table.test.js test/database-maintenance.test.js`
+Run: `node --test test/songs/song-file-codec.test.js test/songs/song-import-table.test.js test/storage/database-maintenance.test.js`
 
 Expected: PASS.
 

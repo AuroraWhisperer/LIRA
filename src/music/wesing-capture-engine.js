@@ -2,7 +2,7 @@
 
 const path = require('node:path');
 const { performance } = require('node:perf_hooks');
-const { findCurrentLyricLine } = require('./lyrics');
+const { findCurrentLyricLine } = require('./lyric-parser');
 const { normalizeLyricState } = require('./lyric-state');
 const {
   ensureWeSingCacheDirectory,

@@ -1,34 +1,15 @@
 'use strict';
 
+const fs = require('node:fs');
+const path = require('node:path');
+
 module.exports = async function verifyMedia(win) {
-  // Generate an in-memory, synthetic clip; no platform media or user audio is read.
-  const bytes = await win.webContents.executeJavaScript(`(async () => {
-    const source = document.createElement('canvas'); source.width = 64; source.height = 32;
-    const ctx = source.getContext('2d'); ctx.fillStyle = '#ff2060'; ctx.fillRect(0,0,32,32);
-    ctx.fillStyle = '#ffffff'; ctx.fillRect(32,0,32,32);
-    const track = new MediaStreamTrackGenerator({kind:'video'});
-    const writer = track.writable.getWriter();
-    const stream = new MediaStream([track]); const parts = [];
-    const recorder = new MediaRecorder(stream, {mimeType:'video/webm;codecs=vp8'});
-    recorder.ondataavailable = e => parts.push(e.data);
-    const done = new Promise(resolve => recorder.onstop = resolve);
-    recorder.start();
-    // Supply frames directly: hidden windows need not repaint a captured canvas.
-    for(let i=0;i<8;i++){
-      ctx.fillStyle=i%2?'#ff2060':'#ff4060';ctx.fillRect(0,0,32,32);
-      const frame = new VideoFrame(source,{timestamp:i*60000,duration:60000});
-      try { await writer.write(frame); } finally { frame.close(); }
-      await new Promise(resolve=>setTimeout(resolve,60));
-    }
-    recorder.stop(); await done;
-    await writer.close(); writer.releaseLock();
-    stream.getTracks().forEach(track => track.stop());
-    return [...new Uint8Array(await new Blob(parts).arrayBuffer())];
-  })()`);
+  // Fixed synthetic media keeps this lifecycle check independent of recorder startup.
+  const bytes = fs.readFileSync(path.join(__dirname, 'gift-effect-alpha.webm'));
   const protocol = win.webContents.session.protocol;
   await protocol.handle('https', (request) => {
     if (new URL(request.url).hostname !== 'i0.hdslb.com') return new Response('', { status: 404 });
-    return new Response(Buffer.from(bytes), { headers: { 'Content-Type': 'video/webm', 'Access-Control-Allow-Origin': '*' } });
+    return new Response(bytes, { headers: { 'Content-Type': 'video/webm', 'Access-Control-Allow-Origin': '*' } });
   });
   try {
     return await win.webContents.executeJavaScript(`(async () => {

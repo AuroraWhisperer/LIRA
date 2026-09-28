@@ -22,7 +22,7 @@
 **Files:**
 
 - Modify: `public/js/admin/games.js:1-55`
-- Test: `test/frontend-games.test.js`
+- Test: `test/games/frontend-games.test.js`
 
 **Interfaces:**
 
@@ -35,7 +35,7 @@
 
 - [x] **Step 2: Run the focused test to verify it fails**
 
-  Run: `node --test test/frontend-games.test.js`
+  Run: `node --test test/games/frontend-games.test.js`
 
   Expected: FAIL because the current module performs one uncoordinated fetch and does not subscribe to live-state readiness.
 
@@ -45,7 +45,7 @@
 
 - [x] **Step 4: Run the focused test to verify it passes**
 
-  Run: `node --test test/frontend-games.test.js`
+  Run: `node --test test/games/frontend-games.test.js`
 
   Expected: PASS.
 

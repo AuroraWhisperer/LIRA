@@ -32,12 +32,12 @@
 
 ## Ownership
 
-- Admin owner: `public/js/admin/onboarding.js`, `public/pages/admin/toolbox/shell-start.html`, `public/css/admin/other-features/onboarding.css`, `public/js/admin/app.js`。
+- Admin owner: `public/js/admin/onboarding.js`, `public/pages/admin/toolbox/shell-start.html`, `public/css/admin/toolbox/onboarding.css`, `public/js/admin/app.js`。
 - Storage owner: `src/storage/settings-store.js` and existing `src/server/routes/settings-routes.js` whitelist behavior.
-- Existing auth owners: `src/electron/bilibili-auth.js`, `src/electron/auth-manager.js`, `src/electron/preload.js`, `public/js/admin/settings.js`, `public/js/playback/operations/provider-operations.js`。
+- Existing auth owners: `src/electron/bilibili-auth.js`, `src/electron/music-auth-manager.js`, `src/electron/preload.js`, `public/js/admin/settings.js`, `public/js/playback/operations/provider-operations.js`。
 - Existing AI owner: `src/ai/config-store.js`, `src/server/routes/ai-routes.js`, `public/js/admin/ai-assistant-settings.js`。
 - Contracts: `docs/architecture/desktop/auth.md`, `docs/architecture/desktop/preload.md`, `docs/architecture/backend/storage.md`, `docs/architecture/frontend/app.md`, proposed `docs/architecture/adr/0009-first-run-onboarding.md`。
-- Focused tests: new `test/onboarding.test.js`, `test/settings-store.test.js` additions, `test/frontend-admin-shell.test.js`; existing Electron auth and AI route tests remain regression gates.
+- Focused tests: new `test/onboarding.test.js`, `test/settings-store.test.js` additions, `test/admin/frontend-admin-shell.test.js`; existing Electron auth and AI route tests remain regression gates.
 
 ## User Route
 
@@ -109,9 +109,9 @@ Add one dialog fragment inside the Admin composition, with stable IDs:
 
 The fragment must not duplicate the full settings or AI forms. It contains compact links/buttons that select the existing page/feature when a user needs advanced configuration.
 
-### New `public/css/admin/other-features/onboarding.css`
+### New `public/css/admin/toolbox/onboarding.css`
 
-Style the full-viewport scrim, centered dialog, step header, progress indicator, status rows, disabled/loading buttons, error text, focus ring and narrow-screen layout. Use existing CSS variables and `prefers-reduced-motion`; do not add a marketing hero or an unrelated card system. Import it from `public/css/admin/other-features.css`.
+Style the full-viewport scrim, centered dialog, step header, progress indicator, status rows, disabled/loading buttons, error text, focus ring and narrow-screen layout. Use existing CSS variables and `prefers-reduced-motion`; do not add a marketing hero or an unrelated card system. Import it from `public/css/admin/toolbox.css`.
 
 ### `src/storage/settings-store.js`
 
@@ -150,7 +150,7 @@ Add a compact “重新打开首次启动引导” action near the usage guide i
 - [ ] Add a failing test that creates a temporary settings database and asserts all three keys exist as empty strings on first bootstrap.
 - [ ] Run `node --test test/settings-store.test.js` (or the repository's exact focused settings test) and confirm failure before implementation.
 - [ ] Add only the three default keys; do not add a new table or alter existing setting serialization.
-- [ ] Re-run the focused settings test and `node --test test/server-smoke.test.js` settings assertions.
+- [ ] Re-run the focused settings test and `node --test test/server/server-smoke.test.js` settings assertions.
 
 ### Task 2: Implement the pure step machine and DOM controller
 
@@ -176,10 +176,10 @@ Add a compact “重新打开首次启动引导” action near the usage guide i
 **Files:**
 
 - Create: `public/pages/admin/toolbox/onboarding.html`
-- Create: `public/css/admin/other-features/onboarding.css`
-- Modify: `public/css/admin/other-features.css`
+- Create: `public/css/admin/toolbox/onboarding.css`
+- Modify: `public/css/admin/toolbox.css`
 - Modify: `public/js/admin/app.js`
-- Test: `test/frontend-admin-shell.test.js`
+- Test: `test/admin/frontend-admin-shell.test.js`
 
 **Interfaces:**
 
@@ -187,7 +187,7 @@ Add a compact “重新打开首次启动引导” action near the usage guide i
 - Produces an accessible hidden-by-default dialog with stable step/action IDs and no duplicate settings forms.
 
 - [ ] Add failing shell assertions for the dialog role, hidden default, required action IDs, CSS import and `app.js` onboarding initialization.
-- [ ] Run `node --test test/frontend-admin-shell.test.js` and confirm the new assertions fail.
+- [ ] Run `node --test test/admin/frontend-admin-shell.test.js` and confirm the new assertions fail.
 - [ ] Add `pages/admin/toolbox/onboarding.html` to `ADMIN_FRAGMENT_PATHS` in `src/server/admin-page.js` immediately after `pages/admin/toolbox/shell-start.html`, keeping the fragment order deterministic.
 - [ ] Add the CSS import and implement scrim/dialog/progress/loading/error/focus/narrow layout states using existing variables.
 - [ ] Import and initialize the module without delaying state/WebSocket startup.
@@ -201,7 +201,7 @@ Add a compact “重新打开首次启动引导” action near the usage guide i
 - Modify: `public/pages/admin/toolbox/usage-guide.html`
 - Modify: `public/js/admin/usage-guide.js`
 - Test: `test/onboarding.test.js`
-- Test: existing `test/electron-main-modules.test.js`, `test/ai-routes.test.js`, `test/bilibili-login-window.test.js` only when a contract regression is exposed
+- Test: existing `test/desktop/electron-main-modules.test.js`, `test/ai/ai-routes.test.js`, `test/bilibili/bilibili-login-window.test.js` only when a contract regression is exposed
 
 **Interfaces:**
 
@@ -215,16 +215,16 @@ Add a compact “重新打开首次启动引导” action near the usage guide i
 - [ ] Implement the import step as a link to the existing `点歌 → 导入导出` tab and a confirmation that the user knows how to upload XLSX/CSV/TSV or paste a table; do not copy the parser or invent an import endpoint.
 - [ ] Implement the documentation step as a link/selection to `百宝箱 → 使用文档`, a concise explanation of what that page contains, and a confirmation checkbox; do not duplicate the full guide inside the dialog.
 - [ ] Add the usage-guide reopen action and verify it does not reset completion automatically.
-- [ ] Run `node --test test/onboarding.test.js test/frontend-admin-shell.test.js test/ai-routes.test.js`.
+- [ ] Run `node --test test/onboarding.test.js test/admin/frontend-admin-shell.test.js test/ai/ai-routes.test.js`.
 
 ### Task 5: Save completion, reset behavior and mode handling
 
 **Files:**
 
 - Modify: `public/js/admin/onboarding.js`
-- Modify: `public/js/admin/other.js` only if navigation selection is needed for advanced links
+- Modify: `public/js/admin/toolbox-navigation.js` only if navigation selection is needed for advanced links
 - Modify: `test/onboarding.test.js`
-- Modify: `test/server-smoke.test.js` for settings round-trip coverage
+- Modify: `test/server/server-smoke.test.js` for settings round-trip coverage
 
 **Interfaces:**
 
@@ -247,7 +247,7 @@ Add a compact “重新打开首次启动引导” action near the usage guide i
 - Modify: `docs/architecture/frontend/app.md`, `docs/architecture/desktop/auth.md`, or `docs/architecture/backend/storage.md` only to record implemented facts owned by those documents
 - Test/verify: no new runtime files
 
-- [ ] Run `node --test test/onboarding.test.js test/frontend-admin-shell.test.js test/settings-store.test.js`.
+- [ ] Run `node --test test/onboarding.test.js test/admin/frontend-admin-shell.test.js test/settings-store.test.js`.
 - [ ] Run `npm run check` and `npm run verify:quick`.
 - [ ] Start the app with `npm start` or `npm run desktop` and verify first-run behavior at desktop width and narrow width: scrim covers the app, focus stays in the dialog, disabled Next cannot advance, errors remain readable, and no content overlaps.
 - [ ] Verify Electron: Bilibili, QQ and NetEase login buttons open only their existing allowed windows; Quanmin K-Ge is described as a host-app login; Web mode clearly reports desktop-only actions.
@@ -263,6 +263,6 @@ If a login bridge, API test or browser check fails, leave the current step open 
 - First-run Admin shows the welcome, Bilibili, import, music-location, AI, documentation-location and completion route and cannot advance past an unmet required gate.
 - Bilibili login + room ID are actually verified through existing status APIs; the import step explains the existing location; the music step distinguishes QQ/NetEase in-app login from Quanmin host-app login; the documentation step points to `百宝箱 → 使用文档`; AI has an explicit optional state.
 - Completion persists across refresh and restart; manual reopen/reset affects only onboarding keys.
-- No new process, dependency, HTTP/WS/IPC contract, database table, secret exposure or login-window security relaxation is introduced.
+- No new process, dependency, HTTP/WS/IPC contract, database table, secret exposure or music-login-window security relaxation is introduced.
 - Focused tests, syntax, quick verification and full test gate pass; desktop/Web visual and mode checks pass.
 - Architecture facts and the proposed ADR are updated consistently, and the final diff contains no unrelated or generated data.

@@ -223,7 +223,7 @@ public/js/overlays/opening.js
 public/img/overlays/opening/avatar.png
 public/img/overlays/opening/background.webp       # 可选
 public/img/overlays/opening/music.ogg             # MVP 必备的授权循环音频，默认不自动启用
-test/opening-overlay.test.js
+test/overlays/opening-overlay.test.js
 ```
 
 MVP 还会修改两个现有管理页文件，用于复制浏览器源地址：
@@ -466,7 +466,7 @@ low:
 实现时至少增加：
 
 ```text
-test/opening-overlay.test.js
+test/overlays/opening-overlay.test.js
 ```
 
 测试覆盖：
@@ -485,7 +485,7 @@ test/opening-overlay.test.js
 建议验证顺序：
 
 ```text
-node --test test/opening-overlay.test.js
+node --test test/overlays/opening-overlay.test.js
 npm run verify:docs
 npm run check
 npm run verify:quick

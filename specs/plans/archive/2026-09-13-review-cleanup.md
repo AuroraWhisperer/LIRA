@@ -7,7 +7,7 @@
 ## Current Behavior And Ownership
 
 - `public/pages/overlays/lyric-window.html` 和 `test/desktop-lyric-surface-ownership.test.js` 有 Prettier 3.7.4 换行差异。
-- `public/css/admin/other-features/streamer-planner.css` 为 746 行；规划器视图已拆分，样式尚未配套。
+- `public/css/admin/toolbox/streamer-planner.css` 为 746 行；规划器视图已拆分，样式尚未配套。
 - `test/database-clear-all.test.js` 的配置保留场景为 451 行，`test/server-smoke.test.js` 的完整 HTTP 场景为 243 行。
 - `test/installer-directory.test.js`、`test/installer-migration.test.js` 缺少测试进程所需的编译器和插件环境变量；本机 electron-builder 缓存已有工具。
 - 测试命令归 `docs/architecture/engineering/test.md`，规模登记归 `modularity-baseline.json`，完成记录归本轮模块化复评报告。
@@ -26,7 +26,7 @@
 
 ## Verification And Done When
 
-定向回归：`node --experimental-vm-modules --test test/database-clear-all.test.js test/server-smoke.test.js test/desktop-lyric-surface-ownership.test.js test/frontend-select-menu-overflow.test.js test/toolbox-todo.test.js test/toolbox-sidebar.test.js test/frontend-admin-toolbox.test.js`。
+定向回归：`node --experimental-vm-modules --test test/database-clear-all.test.js test/server-smoke.test.js test/desktop-lyric-surface-ownership.test.js test/frontend-select-menu-overflow.test.js test/streamer-planner.test.js test/toolbox-sidebar.test.js test/frontend-admin-toolbox.test.js`。
 
 最终执行 `npm run verify:quick`，在配置 NSIS 的进程执行 `npm test`，检查本轮文件 Prettier、差异和 `git diff --check`、`git status --short`。五项收尾完成、安装器场景真实执行且通过、文档记录一致后归档计划。
 

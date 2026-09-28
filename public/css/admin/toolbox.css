@@ -1,0 +1,26 @@
+/* Toolbox styles - ordered compatibility entrypoint. */
+@import url('./toolbox/shell.css');
+@import url('./toolbox/performance.css');
+@import url('./toolbox/danmaku-tool.css');
+@import url('./toolbox/ai-assistant.css');
+@import url('./toolbox/danmaku-editors.css');
+@import url('./toolbox/danmaku-fixed-replies.css');
+@import url('./toolbox/gift-effects.css');
+@import url('./toolbox/usage-guide-media.css');
+@import url('./toolbox/usage-guide-navigation.css');
+@import url('./toolbox/usage-guide.css');
+@import url('./toolbox/usage-guide-search.css');
+@import url('./toolbox/streamer-planner.css');
+@import url('./toolbox/fan-profiles.css');
+@import url('./toolbox/fan-profiles-editor.css');
+@import url('./toolbox/games.css');
+@import url('./toolbox/dynamic-lottery.css');
+@import url('./toolbox/games-wheel.css');
+@import url('./toolbox/games-draw.css');
+@import url('./toolbox/games-responsive.css');
+@import url('./toolbox/start-animation.css');
+@import url('./toolbox/start-animation-responsive.css');
+@import url('./toolbox/clock.css');
+@import url('./toolbox/settings.css');
+
+@import url('./toolbox/interactions.css');

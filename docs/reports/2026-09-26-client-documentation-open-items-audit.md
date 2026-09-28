@@ -66,7 +66,7 @@
 
 - 待做：需要恢复该延期范围时，补激活→challenge→verify→续期/撤销的真实 HTTP stub 联测。
 - 前提：这是额外验证层，不是已证实的授权功能故障。
-- 来源：[License P1 计划](../../specs/plans/2026-08-29-license-p1-hardening.md)、[现有链路测试](../../test/license-protocol-e2e.test.js)。
+- 来源：[License P1 计划](../../specs/plans/2026-08-29-license-p1-hardening.md)、[现有链路测试](../../test/license/license-protocol-e2e.test.js)。
 
 ## C. 尚缺验收或操作材料
 
@@ -107,13 +107,13 @@
 
 - 待做：触及相应 owner/consumer 时迁移 desktop/playback/shared 的 Admin 全局访问、AI/overtime 的域外 SQL 和登记的 empty-catch 债务；同步下调对应测试基线。
 - 边界：维持事务、生命周期和兼容合同，不进行无需求的大重构。
-- 来源：[Legacy Boundary Registry](../architecture/engineering/legacy-boundaries.md)、[架构测试](../../test/module-boundaries.test.js)。
+- 来源：[Legacy Boundary Registry](../architecture/engineering/legacy-boundaries.md)、[架构测试](../../test/engineering/module-boundaries.test.js)。
 
 ### D2. 文件登记与长函数的后续复审
 
 - 待做：按[唯一登记](../architecture/engineering/modularity-baseline.json)逐条遵守退出条件及复审日期；最早期限为 **2026-12-13**，粉丝档案相关期限为 **2026-12-18**，实质修改时提前复审。
 - 长函数需重新测量，不能照搬历史跨度或以文件行数合规代替职责复核。
-- 来源：[函数债务](../architecture/engineering/modularity-debt.md)、[规模门禁](../../test/modularity-size.test.js)。
+- 来源：[函数债务](../architecture/engineering/modularity-debt.md)、[规模门禁](../../test/engineering/modularity-size.test.js)。
 
 ### D3. B 站 API 参考资料的三处错误码缺口
 

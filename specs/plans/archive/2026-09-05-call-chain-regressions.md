@@ -96,7 +96,7 @@ plan only after final acceptance.
   security copy (`test/frontend-admin-shell.test.js:446`); a 10px calendar label
   (`test/frontend-typography.test.js:269`); the changed danmaku style markup
   (`test/toolbox-sidebar.test.js:750`); native confirm calls in existing
-  `public/js/admin/todo.js` (`test/ui-surface.test.js:172`). Their failing inputs
+  `public/js/admin/streamer-planner.js` (`test/ui-surface.test.js:172`). Their failing inputs
   were inspected and are outside this task's source edits.
 - No real Bilibili service or user data was used for regressions; no full Electron
   UI session was launched. Source/test/docs diffs were reviewed, user changes were

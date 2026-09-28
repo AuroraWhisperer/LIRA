@@ -24,8 +24,8 @@ loaded blind-box statistics, or initialized toolbox navigation.
   `docs/architecture/frontend/app.md`.
 - Desktop lyric controls: `public/js/admin/desktop-lyric.js` and
   `public/pages/admin/song/desktop-lyric.html`.
-- Focused regression coverage: `test/desktop-lyrics.test.js`,
-  `test/frontend-gifts.test.js`, and `test/toolbox-sidebar.test.js`.
+- Focused regression coverage: `test/lyrics/desktop-lyrics.test.js`,
+  `test/gifts/frontend-gifts.test.js`, and `test/admin/toolbox-sidebar.test.js`.
 
 ## Compatibility Constraints
 
@@ -43,7 +43,7 @@ loaded blind-box statistics, or initialized toolbox navigation.
 
 ## Verification
 
-1. Run `npm.cmd test -- test/desktop-lyrics.test.js test/frontend-gifts.test.js test/frontend-admin-shell.test.js test/toolbox-sidebar.test.js`.
+1. Run `npm.cmd test -- test/lyrics/desktop-lyrics.test.js test/gifts/frontend-gifts.test.js test/admin/frontend-admin-shell.test.js test/admin/toolbox-sidebar.test.js`.
 2. Run `npm.cmd run check` and `npm.cmd run verify:quick`.
 3. Open `/admin#gifts` in headless Chromium and verify recent gifts, blind-box
    completion state, and blind-box mapping markup replace their initial shells

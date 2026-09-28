@@ -70,9 +70,9 @@ history contracts/import without live side effects.
 Verification:
 
 ```text
-node --test test/gift-sync-store.test.js
-node --test test/processed-gift-import.test.js
-node --test test/database-maintenance.test.js test/gift-maintenance.test.js
+node --test test/gifts/gift-sync-store.test.js
+node --test test/gifts/processed-gift-import.test.js
+node --test test/storage/database-maintenance.test.js test/gifts/gift-maintenance.test.js
 ```
 
 ### 3. Remote synchronization and fences
@@ -85,9 +85,9 @@ machine, and principal-switch freeze/abort/await/open ordering.
 Verification:
 
 ```text
-node --test test/remote-license-client.test.js
-node --test test/remote-gift-controller.test.js
-node --test test/electron-main-modules.test.js test/server-lifecycle.test.js
+node --test test/license/remote-license-client.test.js
+node --test test/gifts/remote-gift-controller.test.js
+node --test test/desktop/electron-main-modules.test.js test/server/server-lifecycle.test.js
 ```
 
 ### 4. Active-source query, API, maintenance, and retention
@@ -100,9 +100,9 @@ query, route, and runtime active-source boundary.
 Verification:
 
 ```text
-node --test test/gift-query-service.test.js test/gift-routes.test.js
-node --test test/database-clear-all.test.js test/data-clear-all-recovery.test.js
-node --test test/gift-maintenance.test.js
+node --test test/gifts/gift-query-service.test.js test/gifts/gift-routes.test.js
+node --test test/storage/database-clear-all.test.js test/storage/data-clear-all-recovery.test.js
+node --test test/gifts/gift-maintenance.test.js
 ```
 
 ### 5. Gift page
@@ -114,8 +114,8 @@ display into filter reset using named ESM boundaries.
 Verification:
 
 ```text
-node --test test/frontend-gifts.test.js test/admin-page-composition.test.js
-node --test test/esm-module-boundaries.test.js test/ui-surface.test.js
+node --test test/gifts/frontend-gifts.test.js test/admin/admin-page-composition.test.js
+node --test test/engineering/esm-module-boundaries.test.js test/ui/ui-surface.test.js
 ```
 
 ### 6. Integration and release gates

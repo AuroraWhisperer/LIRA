@@ -17,24 +17,24 @@
 
 The client shall report QQ as logged in when the active `persist:music-qq` session contains a non-empty `qqmusic_key` or `qm_keyst` cookie within the existing allowed QQ domains. A non-empty `p_skey` or `skey` alone is not sufficient because the client playlist API still requires `authst` from one of the two QQ Music cookies.
 
-This does not import provider code into Electron, copy cookies from an external QQ Music/browser session, alter login-window navigation, or change the renderer’s status text.
+This does not import provider code into Electron, copy cookies from an external QQ Music/browser session, alter music-login-window navigation, or change the renderer’s status text.
 
 ## Current Behavior and Evidence
 
 - `v3.5.18` used `authCookies: ['qqmusic_key', 'qm_keyst']`; `v3.6.12` broadened that list to include `p_skey` and `skey` while changing the check to non-empty values.
 - `src/music/providers/qq-provider-client.js` still builds client `authst` only from `qm_keyst` or `qqmusic_key`, while `src/music/providers/qq-provider-utils.js` accepts all four names for GTK/Web compatibility.
-- `src/electron/login-window.js` closes the in-client login window whenever `getMusicAuthState()` reports `loggedIn`; generic QQ cookies can therefore close it before the QQ Music credentials arrive.
+- `src/electron/music-login-window.js` closes the in-client login window whenever `getMusicAuthState()` reports `loggedIn`; generic QQ cookies can therefore close it before the QQ Music credentials arrive.
 - `public/js/playback/ui/playback-bar.js` renders “QQ音乐待登录” directly from `authState.loggedIn`.
 - The current workspace’s `data/Partitions/music-qq/Network/Cookies` contains zero rows and no `data/music-auth/qq.cookies.enc`; this is diagnostic evidence for the current data directory, not a reason to read external application data.
 
 ## Ownership
 
-- Runtime owner: `src/electron/auth-manager.js`.
-- Login-window consumer: `src/electron/login-window.js`.
+- Runtime owner: `src/electron/music-auth-manager.js`.
+- Login-window consumer: `src/electron/music-login-window.js`.
 - Renderer consumer: `public/js/playback/ui/playback-bar.js`.
 - Provider compatibility reference: `src/music/providers/qq-provider-utils.js` (`extractQQGtkSource`/`hasQQMusicAuthCookie`); this is intentionally broader than the Electron completion signal.
 - Contract document: `docs/architecture/desktop/auth.md`.
-- Focused regression: new `test/auth-manager.test.js` with a mocked Electron session.
+- Focused regression: new `test/music/music-auth-manager.test.js` with a mocked Electron session.
 
 ## Proposed Changes
 
@@ -49,13 +49,13 @@ This does not import provider code into Electron, copy cookies from an external 
 
 Add mocked-session tests that fail against the broadened detector when only `p_skey`/`skey` are present and pass only when a non-empty QQ Music credential is present.
 
-Focused verification: `node --test test/auth-manager.test.js`.
+Focused verification: `node --test test/music/music-auth-manager.test.js`.
 
 ### Milestone 2: Minimal runtime fix
 
-Update `auth-manager.js` only for runtime behavior; retain the existing partition, domain filter, snapshot format, and IPC shape.
+Update `music-auth-manager.js` only for runtime behavior; retain the existing partition, domain filter, snapshot format, and IPC shape.
 
-Focused verification: `node --test test/auth-manager.test.js test/qq-provider.test.js`.
+Focused verification: `node --test test/music/music-auth-manager.test.js test/music/qq-provider.test.js`.
 
 ### Milestone 3: Contract documentation and gates
 

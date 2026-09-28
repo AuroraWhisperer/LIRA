@@ -90,7 +90,7 @@ Complete the accepted design with deterministic endpoint routing, validated pers
 
 - Modify: `public/pages/admin/toolbox/danmaku.html`
 - Modify: `public/js/admin/ai-assistant-settings.js`
-- Modify: `public/css/admin/other-features/ai-assistant.css`
+- Modify: `public/css/admin/toolbox/ai-assistant.css`
 - Test: `test/frontend-admin-ai.test.js`
 
 **Interfaces:**

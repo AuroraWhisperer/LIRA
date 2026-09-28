@@ -85,7 +85,7 @@ flowchart LR
 
 ### A1. 跨仓库测试输入依赖相邻工作区（优先处理，已确认事实）
 
-- **证据**：[processed-gift-contract.test.js](../../test/processed-gift-contract.test.js) 直接读取 `../../lira-server/docs/protocol/fixtures/gift-sync-v1.json`；[gift-category.test.js](../../test/gift-category.test.js) 等测试同样读取服务器仓库。
+- **证据**：[processed-gift-contract.test.js](../../test/gifts/processed-gift-contract.test.js) 直接读取 `../../lira-server/docs/protocol/fixtures/gift-sync-v1.json`；[gift-category.test.js](../../test/gifts/gift-category.test.js) 等测试同样读取服务器仓库。
 - **影响**：只检出客户端且未准备该目录时测试缺少输入；服务器工作区内容变化会改变客户端测试基线。当前客户端 package 清单没有声明这些文件的版本。
 - **判断**：共享同一权威 fixture 是合理目标，约定的相邻仓库目录和浮动版本是可复现性问题；本项以静态依赖为证据，未另做“仅检出客户端”的缺输入运行实验，也未据此证明运行协议错误。
 - **建议**：明确受版本约束的契约与 fixture 获取方式，两端 CI 消费固定 revision/发布产物；决定保留双仓库或正式 workspace 时一并处理，不临时复制出无归属的协议副本。
@@ -111,7 +111,7 @@ flowchart LR
 
 - **证据**：[songs.js](../../public/js/admin/songs.js)、[forms.js](../../public/js/admin/forms.js) 等仍通过 `window.AdminApp` 访问其他模块；[legacy-admin-bridge.js](../../public/js/admin/legacy-admin-bridge.js) 提供迁移桥接。
 - **影响**：模块调用关系、初始化顺序和可变状态归属不能全部从 ESM import 看出。
-- **已有控制**：[module-boundaries.test.js](../../test/module-boundaries.test.js) 冻结已知全局依赖数量，禁止新增文件继续扩散。
+- **已有控制**：[module-boundaries.test.js](../../test/engineering/module-boundaries.test.js) 冻结已知全局依赖数量，禁止新增文件继续扩散。
 - **建议**：随具体功能修改迁移到明确的 ESM 接口和状态 owner，避免一次性重写所有页面。
 - **建议采纳后的验收方向**：被迁移功能无需全局调用即可独立测试，既有交互与初始化顺序保持，旧依赖登记相应减少。
 
@@ -227,7 +227,7 @@ flowchart LR
 
 ### 7.4 复现附件与执行方法
 
-附件：[2026-09-16-architecture-probes.cjs](support/2026-09-16-architecture-probes.cjs)。显式传入两个检出的绝对路径，使用两仓库已安装依赖；本次 Node 运行环境支持原生 fetch 与 SQLite 依赖。
+本次审计曾使用一次性附件 `2026-09-16-architecture-probes.cjs`。该脚本只断言历史缺陷，已于 2026-09-28 移出维护目录，临时收拢至 `tmp/cleanup-2026-09-28/docs/reports/support/` 待清理。以下命令记录原始执行方式：显式传入两个检出的绝对路径，使用当时两仓库已安装依赖；本次 Node 运行环境支持原生 fetch 与 SQLite 依赖。
 
 ```powershell
 node D:\Work\Live\docs\reports\support\2026-09-16-architecture-probes.cjs D:\Work\Live D:\Work\lira-server
@@ -267,7 +267,7 @@ node D:\Work\Live\docs\reports\support\2026-09-16-architecture-probes.cjs D:\Wor
 
 通用授权执行层现在在等待授权之前捕获主体及生命周期，在首次发送、回包、错误处理和重试时核对。激活、重新 bootstrap、清理会话和 dispose 使旧生命周期失效；A → B → A 也不会复活旧请求。同主体正常 token 续期仍允许原请求按约定重试一次。资料在通用校验和敏感字段清洗后同步提交，旧续期/心跳的完成和清理不再作用于新账号任务。
 
-新增 [license-manager-identity.test.js](../../test/license-manager-identity.test.js) 覆盖迟到成功、失败、重试、首次发送前切换、ABA、续期、等待续期、阻断、dispose 和新旧维护任务交错。更详细的运行约束见 [desktop/auth.md](../architecture/desktop/auth.md)。这些检查不会撤回切换前已送达旧账号的请求；SSE 的流取消与事件消费继续由既有控制器的生命周期检查负责。
+新增 [license-manager-identity.test.js](../../test/license/license-manager-identity.test.js) 覆盖迟到成功、失败、重试、首次发送前切换、ABA、续期、等待续期、阻断、dispose 和新旧维护任务交错。更详细的运行约束见 [desktop/auth.md](../architecture/desktop/auth.md)。这些检查不会撤回切换前已送达旧账号的请求；SSE 的流取消与事件消费继续由既有控制器的生命周期检查负责。
 
 ### 8.2 B2：有限回读预算与提交前保护
 
@@ -299,7 +299,7 @@ A3 的真实 Electron 沙箱兼容验证、A4/A5 的按功能渐进整理，以�
 | 客户端完整测试阶段 | 1,983 通过、1 失败、4 跳过；未宣称全量通过 |
 | 两仓 `git diff --check`、任务差异与最终状态检查 | 通过；已有用户变更保持 |
 
-完整测试的唯一失败为 [frontend-admin-toolbox.test.js](../../test/frontend-admin-toolbox.test.js) 的 `browser source tab classifies and exposes every overlay address`：断言仍要求 [display.js](../../public/js/admin/display.js) 将地址设为本机 `/danmaku`，而已有未提交代码通过 `observeServerOverlayUrl` 使用服务器地址。这两个文件均未被本轮修改；定向单独重跑得到同一失败，未扩展本轮范围修改旧断言。4 项跳过来自未配置 NSIS 编译器/插件的安装器集成测试。完整运行后最终 BOM 解码兼容调整已用 26 项定向测试和 5 项往返检查重测，未重复完整套件。
+完整测试的唯一失败为 [frontend-admin-toolbox.test.js](../../test/admin/frontend-admin-toolbox.test.js) 的 `browser source tab classifies and exposes every overlay address`：断言仍要求 [display.js](../../public/js/admin/display.js) 将地址设为本机 `/danmaku`，而已有未提交代码通过 `observeServerOverlayUrl` 使用服务器地址。这两个文件均未被本轮修改；定向单独重跑得到同一失败，未扩展本轮范围修改旧断言。4 项跳过来自未配置 NSIS 编译器/插件的安装器集成测试。完整运行后最终 BOM 解码兼容调整已用 26 项定向测试和 5 项往返检查重测，未重复完整套件。
 
 所有新增场景使用合成数据、内存或临时数据库及本机监听。未执行 Electron/OBS GUI、生产容量或托管 CI 验收，也未部署服务器或发布客户端。实际命令见归档实施计划。
 

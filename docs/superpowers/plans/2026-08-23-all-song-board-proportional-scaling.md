@@ -23,9 +23,9 @@
 
 **Files:**
 
-- Modify: `test/queue-overlay-responsive.test.js`
-- Modify: `test/frontend-queue.test.js`
-- Modify: `test/queue-overlay-esm.test.js`
+- Modify: `test/songs/queue-overlay-responsive.test.js`
+- Modify: `test/songs/frontend-queue.test.js`
+- Modify: `test/songs/queue-overlay-esm.test.js`
 
 **Interfaces:**
 
@@ -46,7 +46,7 @@
 
 - [x] **Step 4: Run the focused tests and confirm failure**
 
-  Run `node --experimental-vm-modules --test test/frontend-queue.test.js test/queue-overlay-responsive.test.js test/queue-overlay-esm.test.js`. Expected failures must point to the old illustrated-only scale, the scale cap, or the old style 1–2 reflow rules.
+  Run `node --experimental-vm-modules --test test/songs/frontend-queue.test.js test/songs/queue-overlay-responsive.test.js test/songs/queue-overlay-esm.test.js`. Expected failures must point to the old illustrated-only scale, the scale cap, or the old style 1–2 reflow rules.
 
 ### Task 2: Apply one contain scale to all six styles
 

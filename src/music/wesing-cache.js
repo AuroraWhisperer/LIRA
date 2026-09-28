@@ -3,7 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { decryptQrc } = require('qrc-decoder');
-const { parseLyricResult } = require('./lyrics');
+const { parseLyricResult } = require('./lyric-parser');
 
 const LOG_TAIL_BYTES = 100 * 1024;
 const MAX_QRC_BYTES = 4 * 1024 * 1024;

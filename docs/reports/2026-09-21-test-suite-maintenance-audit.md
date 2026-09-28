@@ -50,7 +50,7 @@ implementation_status: implemented-with-j01-commit-dependency
 | 编号 / 顺序 | 需要修改的测试 | 理由与方案 |
 | --- | --- | --- |
 | C01 · 优先 | [frontend-admin-shell.test.js:439](/D:/Work/Live/test/frontend-admin-shell.test.js:439)、[license-ui.test.js:282](/D:/Work/Live/test/license-ui.test.js:282) | 外壳和账号面板测试重复检查同一设置片段的账号/设备字段、重置密码提示和敏感文案。账号面板负责内部内容，外壳只检查该面板已组合、入口可达及初始隐藏状态。保留独立 `license.html` 的注册/登录检查；同名字段不代表同一页面。 |
-| C02 · 优先 | [toolbox-sidebar-routing.test.js:115](/D:/Work/Live/test/toolbox-sidebar-routing.test.js:115)、[frontend-admin-danmaku.test.js:58](/D:/Work/Live/test/frontend-admin-danmaku.test.js:58) | 两者读取同一组合页面和 `other-features.css`，重复检查部分弹幕分组、布局及旧预览样式。删除重复断言，将侧栏独有的连接/发送分组、机器人双列和窄屏布局断言迁入弹幕测试；侧栏保留导航、可见性、选中状态和挂载验证。不整段删除或合并完整文件。 |
+| C02 · 优先 | [toolbox-sidebar-routing.test.js:115](/D:/Work/Live/test/toolbox-sidebar-routing.test.js:115)、[frontend-admin-danmaku.test.js:58](/D:/Work/Live/test/frontend-admin-danmaku.test.js:58) | 两者读取同一组合页面和 `toolbox.css`，重复检查部分弹幕分组、布局及旧预览样式。删除重复断言，将侧栏独有的连接/发送分组、机器人双列和窄屏布局断言迁入弹幕测试；侧栏保留导航、可见性、选中状态和挂载验证。不整段删除或合并完整文件。 |
 
 ### 第二批：实现耦合
 

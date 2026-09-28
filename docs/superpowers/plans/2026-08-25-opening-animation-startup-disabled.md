@@ -22,7 +22,7 @@
 **Files:**
 
 - Modify: `src/server/settings-bootstrap.js`
-- Test: `test/opening-overlay.test.js`
+- Test: `test/overlays/opening-overlay.test.js`
 
 **Interfaces:**
 
@@ -62,7 +62,7 @@ test('opening animation starts disabled for every application session', () => {
 
 - [x] **Step 2: Run the focused test and confirm the new assertion fails**
 
-Run: `node --experimental-vm-modules --test test/opening-overlay.test.js`
+Run: `node --experimental-vm-modules --test test/overlays/opening-overlay.test.js`
 
 Expected: the new test reports `'true' !== 'false'` before the implementation.
 
@@ -76,7 +76,7 @@ return { settingsStore };
 
 - [x] **Step 4: Run focused and static verification**
 
-Run: `node --experimental-vm-modules --test test/opening-overlay.test.js`
+Run: `node --experimental-vm-modules --test test/overlays/opening-overlay.test.js`
 
 Expected: all opening-animation tests pass.
 

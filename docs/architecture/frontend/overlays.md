@@ -257,7 +257,7 @@ HTTP 初始/重连请求带本页读取代次，较新的完整 WS 状态使旧�
 
 保留的非预览本地入口以 `topic=danmaku` 连接 WebSocket，按 snapshot 的 `settings.danmakuOverlayStyle` / `danmakuFullscreenDurationSeconds` 切换样式和停留时间，从 `danmakuFeed` 恢复消息并消费 `danmaku:message`。按消息 `id` 去重，同一帧批量追加；连接中断时指数退避重连，连接状态仍以 `liveStatus` 为准。客户端复制和打开的正式 OBS 地址由服务器提供，本地预览不改变服务器配置。
 
-本地页面对去重、截取最近 50 条后的消息内容做完整比较。内容未变且 feed 无需初始化时，快照保留现有消息节点、到期计时器及尚未绘制的增量帧；仍更新直播连接状态。首次空快照、实际消息修正/清空/重连补数、样式或全屏期限变更导致的 feed 重建仍执行恢复。此优化不改变远端正式 OBS 的 SSE，也不承诺有变化的快照完全免于重建。真实页面模块和共享 feed 的节点/计时器回归见 `test/danmaku-snapshot-stability.test.js`。
+本地页面对去重、截取最近 50 条后的消息内容做完整比较。内容未变且 feed 无需初始化时，快照保留现有消息节点、到期计时器及尚未绘制的增量帧；仍更新直播连接状态。首次空快照、实际消息修正/清空/重连补数、样式或全屏期限变更导致的 feed 重建仍执行恢复。此优化不改变远端正式 OBS 的 SSE，也不承诺有变化的快照完全免于重建。真实页面模块和共享 feed 的节点/计时器回归见 `test/danmaku/danmaku-snapshot-stability.test.js`。
 
 弹幕工具的显示顺序为直播链接、黑名单与屏蔽词、样式选择、参数调节、应用操作。`danmaku-style-options.js` 定义各样式字体、正文字号范围、背景不透明度及礼物插画选项；无底色样式不显示底色参数，蝴蝶结与流光气泡没有独立礼物图位。`styleOptions` 由服务端按样式保存，Electron 仅通过既有认证通道校验和投影；旧服务器不支持时禁用新参数并提示更新。切换样式保留各自草稿，恢复默认只重置当前样式，仍需显式应用。原有全屏停留时间位于参数区。
 
@@ -342,7 +342,7 @@ HTTP 初始/重连请求带本页读取代次，较新的完整 WS 状态使旧�
 
 服务器弹幕姬地址按服务端 ADR-0056 使用 `/overlay/<16位base64url>`。`server-overlay-url.js` 在初次授权资料和授权状态变化后，通过既有主进程 `getOverlaySettings()` 读取完整 URL，验证与资料 `songPageUrl` 同源，再同时提供给点歌投屏地址及弹幕工具；不从域名拼接裸路径、不生成或上传密钥。账号切换先清空地址，迟到回复按代际丢弃。该只读 capability 仅用于用户明确要求的展示/复制/打开，DeviceBearer 保持在 main。失败不回退公开地址。网页、不同设备和重装后使用同一服务端持久密钥；本地 `/danmaku?preview=1` 预览不依赖它。
 
-验收：首次加载两个观察者收到相同完整 URL；复制/打开保留随机串；错 origin、裸路径、带 query/hash 或非法长度拒绝；切换账号不显示旧 URL；本地预览与草稿行为不变。自动化见 `test/server-danmaku-settings.test.js` 与 `test/danmaku-overlay-ipc.test.js`。
+验收：首次加载两个观察者收到相同完整 URL；复制/打开保留随机串；错 origin、裸路径、带 query/hash 或非法长度拒绝；切换账号不显示旧 URL；本地预览与草稿行为不变。自动化见 `test/danmaku/server-danmaku-settings.test.js` 与 `test/danmaku/danmaku-overlay-ipc.test.js`。
 
 
 ## 投票与评分 `/interactions`

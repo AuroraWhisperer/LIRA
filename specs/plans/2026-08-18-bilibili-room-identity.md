@@ -23,7 +23,7 @@
 
 - Owner: `src/bilibili/`, contract: `docs/architecture/backend/bilibili/protocol.md` and `docs/architecture/backend/bilibili/danmaku.md`.
 - Consumers: `src/bilibili/danmaku/message-handlers.js`, `src/bilibili/danmaku-client.js`, queue service and overlay storage fields.
-- Tests: `test/bilibili-user-meta.test.js`, `test/bilibili-identity-cache.test.js`, parser/message-handler tests.
+- Tests: `test/bilibili/bilibili-user-meta.test.js`, `test/bilibili/bilibili-identity-cache.test.js`, parser/message-handler tests.
 
 ## Compatibility Constraints
 
@@ -49,7 +49,7 @@
 
 ## Verification
 
-- `node --test test/bilibili-user-meta.test.js test/bilibili-identity-cache.test.js test/bilibili-superchat-parser.test.js test/bilibili-fans-medal-poller.test.js test/danmaku-client.test.js`
+- `node --test test/bilibili/bilibili-user-meta.test.js test/bilibili/bilibili-identity-cache.test.js test/bilibili/bilibili-superchat-parser.test.js test/bilibili/bilibili-fans-medal-poller.test.js test/danmaku/danmaku-client.test.js`
 - `npm run check`
 - `npm run verify:quick`
 - `git diff --check` and `git status --short`

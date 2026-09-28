@@ -35,7 +35,7 @@
 - Owner: `src/games/game-session-service.js`、`src/bilibili/parsers/danmaku-parser.js`、`public/js/overlays/games.js`、`public/css/overlays/games.css`。
 - Contracts: `specs/danmaku-draw-guess_design.md`、`docs/architecture/backend/ws.md`、`docs/architecture/frontend/pages.md`。
 - Producer: `src/server/bilibili-client.js` 已提供 `requesterGuardLevel/requesterMedalName/requesterMedalLevel/avatarUrl`。
-- Tests: `test/games.test.js`、`test/games-overlay.test.js`、`test/bilibili-danmaku-parser.test.js`、`test/server-bilibili-client-avatar.test.js`。
+- Tests: `test/games/games.test.js`、`test/games/games-overlay.test.js`、`test/bilibili/bilibili-danmaku-parser.test.js`、`test/bilibili/server-bilibili-client-avatar.test.js`。
 
 ## Security Checkpoint
 
@@ -57,8 +57,8 @@
 
 **Files:**
 
-- Modify: `test/games.test.js`
-- Modify: `test/games-overlay.test.js`
+- Modify: `test/games/games.test.js`
+- Modify: `test/games/games-overlay.test.js`
 
 **Interfaces:**
 
@@ -94,7 +94,7 @@ assert.deepEqual(
 
 - [x] **Step 3: 运行测试并确认先失败**
 
-Run: `node --test test/games.test.js test/games-overlay.test.js`
+Run: `node --test test/games/games.test.js test/games/games-overlay.test.js`
 
 Expected: 新增字段/渲染钩子断言失败，既有测试保持通过。
 
@@ -106,7 +106,7 @@ Expected: 新增字段/渲染钩子断言失败，既有测试保持通过。
 - Modify: `src/bilibili/parsers/danmaku-parser.js`
 - Modify: `public/js/overlays/games.js`
 - Modify: `public/css/overlays/games.css`
-- Test: `test/bilibili-danmaku-parser.test.js`
+- Test: `test/bilibili/bilibili-danmaku-parser.test.js`
 
 **Interfaces:**
 
@@ -140,7 +140,7 @@ const medalLevel = Number.isFinite(requestedMedalLevel)
 
 - [x] **Step 4: 运行聚焦测试直到通过**
 
-Run: `node --test test/games.test.js test/games-overlay.test.js`
+Run: `node --test test/games/games.test.js test/games/games-overlay.test.js`
 
 Expected: 全部通过。
 
@@ -166,7 +166,7 @@ Expected: 全部通过。
 Run:
 
 ```text
-node --test test/games.test.js test/games-overlay.test.js
+node --test test/games/games.test.js test/games/games-overlay.test.js
 npm.cmd run verify:docs
 npm.cmd run check
 npm.cmd run verify:quick
