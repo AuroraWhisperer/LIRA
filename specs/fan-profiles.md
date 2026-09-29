@@ -11,7 +11,7 @@
 - `src/fans/` 拥有验证、会员日期/冲突/周期、提醒与档案应用流程。
 - `src/storage/fan-*.js` 拥有持久化；使用现有 songDb，保证点歌与档案快照在同一 SQLite 事务内提交。只追加迁移，档案没有指向可清理曲库/队列的外键。
 - `src/electron/fan-profile-controller.js` 从 licenseManager 的已认证服务器 origin 和 streamerId 生成归属；renderer 不提供授权归属。异步操作固定归属和授权代次，完成前重新检查。
-- `fan-profiles:invoke` 是主窗口、主 frame、精确本地 origin、Admin 路径限定的私有 IPC；通用 HTTP、WebSocket、OBS、AI、settings 同步不包含私人档案。
+- `fan-profiles:invoke` 是主窗口、主 frame、精确本地 origin、Admin 路径限定的私有 IPC；通用 HTTP、WebSocket、overlay、AI、settings 同步不包含私人档案。
 - Server 新增 device 认证的 `/api/device/fan-facts` 只读增量协议，租户从 `req.device.streamer_id` 解析。只同步可靠身份观察和会员事实，不上传手写资料。无经核实期限的数据输出观察事实。
 - `public/js/admin/fans/` 拥有列表、共用详情、编辑表单和提醒；百宝箱只负责导航。
 

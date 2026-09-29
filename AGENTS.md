@@ -7,8 +7,13 @@ backend, Vanilla JavaScript ES modules, and native CSS. Pages live in
 `public/pages/`, frontend modules in `public/js/`, and shared CSS tokens in
 `public/css/styles-base.css`.
 
-Electron desktop is the primary UI target. OBS browser-source overlays are
-explicit browser-first exceptions. Accepted server-assisted work may move selected
+LIRA targets Bilibili (B 站) as the live platform. OBS and Bilibili Livehime
+(哔哩哔哩直播姬) are both supported streaming applications, using the same
+browser-source overlays. Keep platform and streaming-application terminology
+distinct; generic overlay behavior must not be described as exclusive to either.
+
+Electron desktop is the primary UI target. Streaming-software browser-source
+overlays are explicit browser-first exceptions. Accepted server-assisted work may move selected
 shared, realtime, persistence, and authentication responsibilities to a remote
 LIRA Server without turning the product into unrelated services.
 
@@ -173,7 +178,8 @@ For multi-streamer/server behavior:
 
 Electron desktop is the source of truth for normal user-facing UI behavior,
 visual hierarchy, sizing, interaction, and privileged integration. Reuse existing
-design tokens and nearby patterns. OBS overlays are browser-source surfaces.
+design tokens and nearby patterns. Overlays for OBS and Bilibili Livehime are
+browser-source surfaces.
 
 For a small UI change, one targeted runtime inspection is normally enough when
 code alone cannot establish the result. Verify what the task actually changes.

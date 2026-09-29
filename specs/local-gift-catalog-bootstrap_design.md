@@ -41,7 +41,7 @@ outside the current room can remain unresolved.
 
 - Restoring personal backpack gifts or the removed Markdown/static artwork
   tree.
-- Changing gift event ingestion, settlement, overtime duration rules, or OBS
+- Changing gift event ingestion, settlement, overtime duration rules, or browser-source overlay
   contracts.
 - Requiring every image download to succeed before the application can ever
   open.

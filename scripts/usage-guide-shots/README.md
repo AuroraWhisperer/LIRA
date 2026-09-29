@@ -12,7 +12,7 @@ node scripts/usage-guide-shots/seed-data.cjs
 node scripts/usage-guide-shots/supplement.cjs
 node scripts/usage-guide-shots/supplement.cjs --only=A1,B1
 
-# 网页端补图：样式、完整 OBS 地址、展开的歌单外观
+# 网页端补图：样式、完整直播画面地址、展开的歌单外观
 node scripts/usage-guide-shots/web-supplement.cjs --only=S6,S6b,F3b
 
 # PNG → WebP（≤200 KB 目标自检）

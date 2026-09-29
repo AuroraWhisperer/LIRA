@@ -158,7 +158,7 @@ Electron main process 通过 [remote-license-client.js](../../../src/electron/li
 | `giftBlindBoxConfig` / `giftBlindBoxCustomConfigV2` | 数组或 JSON 文本，交给 [blind-box-config.js](../../../src/bilibili/gift/blind-box-config.js) 校验；失败返回无效字段。V2 特许 `null`/`'null'` 保存为 `'null'`（未确认）；`[]` 是明确空配置，不能混同 |
 | 礼物边框四键 | [frame-config.js](../../../src/bilibili/gift/frame-config.js)：enabled 仅 boolean/字符串 true/false；阈值用 Number 转换并四舍五入到安全整数分，拒绝空字符串、负数和非有限数，存元数字字符串；theme=`woodland-bloom`，motion=`auto/full/reduced` |
 | `danmakuOverlayStyle` / `danmakuFullscreenDurationSeconds` | 样式仅 `bubble/signal/minimal/ranked/transparent/identity/outline`；时长为 number 或十进制数字字符串，安全整数 2–30，存字符串 |
-| 时钟设置 | [clock-contract.js](../../../src/server/clock-contract.js)：style 为六种已登记样式，hourFormat=`12/24`；日期/秒开关经 trim/lowercase 后仅 true/false/0/1；label 去控制符、合并空白、按 Unicode code point 截取前 16 个，存字符串 |
+| 时钟设置 | [clock-contract.js](../../../src/server/clock-contract.js)：style 为八种已登记样式，hourFormat=`12/24`；日期/秒开关经 trim/lowercase 后仅 true/false/0/1；label 去控制符、合并空白、按 Unicode code point 截取前 16 个，存字符串；clockFlipFrameColor / clockFlipFaceColor / clockFlipTextColor 仅接受六位十六进制颜色 #RRGGBB 并统一小写 |
 | `openingTrackMotion` | [opening-contract.js](../../../src/server/opening-contract.js) 的 `heart/barber/progress` 枚举 |
 | 互动外观 | [interaction-appearance.js](../../../public/js/shared/interaction-appearance.js)：标题/提示为字符串且最多 60/80 字素；规则文本转 LF、NFC；显示开关仅 boolean/字符串 true/false；透明度整数 0–100、字号 16–24、圆角 0–32（数字或 1–3 位数字字符串）；颜色为六位十六进制，存小写；数字/布尔存字符串 |
 | `weSingCachePath` / `weSingLyricOffsetMs` | [wesing-cache.js](../../../src/music/wesing-cache.js)：路径转字符串、trim/去外层双引号，必须为绝对路径且末级名为 WeSingCache，长度 ≤1024、无控制字符；偏移 Number 转换、四舍五入后为 -3000～3000 ms，存字符串 |
@@ -216,7 +216,7 @@ Electron main process 通过 [remote-license-client.js](../../../src/electron/li
 
 | 端点                    | 请求                                                       | 响应(data)                                                                                               | 错误码 |
 | ----------------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ------ |
-| `GET /api/clock/config` | 无；管理身份或 clock 页面能力 | 已清洗的 `style`（六套样式）、`showDate`、`showSeconds`、`hourFormat`、`label`；非法存量值回退原默认配置 | —      |
+| `GET /api/clock/config` | 无；管理身份或 clock 页面能力 | 已清洗的 `style`（八套样式）、`showDate`、`showSeconds`、`hourFormat`、`label`、`flipFrameColor`、`flipFaceColor`、`flipTextColor`；非法存量值回退原默认配置 | —      |
 
 ## 3. WeSing 采集域(wesing)
 
@@ -384,7 +384,7 @@ handler 未包 try/catch:抛错走顶层 **500**。
 
 礼物许愿接口由 `routes/gift-wish-routes.js` 合并到礼物路由。`GET /api/gifts/wishes` 返回当前授权来源的 `viewRevision/asOf/day/partial/session/items`；管理页额外取得内置舰队选择项。`POST /api/gifts/wishes/save` 接收 `viewRevision`、整数 `target`（1–999999999）、`label`（最多 40 字）；新建另需 `period`（`long/day/session`）及目录 `giftKey`（variantId 优先，舰队使用 guard ID），编辑只需 `id`，不改变礼物和起算时间。每个来源最多 30 条。`POST /api/gifts/wishes/delete` 接收 `viewRevision/id`。非法参数返回 400，来源未就绪或版本变化返回 409，客户端禁止选择 sourceId。保存/删除广播 `gift:wishes` 快照刷新通知。计数与时间窗口合同见 [礼物许愿](bilibili/gift.md#礼物许愿)。
 
-保存支持可选 `displayStyle`（`card` / `text` / `circle`）、`textTemplate`（最多 240 个 Unicode code point，含标记，去除首尾空白）、`textImagePosition`（`none` / `before` / `after` / `inline`，兼容旧位置配置）和 `textImageFormat`（`animated` / `static`）。新建缺省为卡片、空模板、不显示图片及动态原图；旧编辑请求省略字段时保留已保存值，非法枚举返回 400。另支持可选 `textPendingColor` / `textReceivedColor`（`#` 加六位十六进制颜色，保存为小写；空字符串使用默认色，新建省略同空字符串，编辑省略保留旧值，非法值返回 400）。两色字段同时包含在管理与 OBS 许愿投影中，按每条许愿保存，只作用于文字版。当前编辑器统一将图片位置写入模板的 `{图片}`，并将 `textImagePosition` 保存为 `none`；读取旧配置时转换成对应标记，显式图片标记优先，避免重复显示。上限为旧 200 字模板加图片标记留出空间。切换样式不改变礼物、创建时间或已收数量。这些字段及服务端计算的 `todayCount` 均包含在管理与 OBS 的许愿条目中，图片和动态标记的展示规则见 [前端页面](../frontend/pages.md)。
+保存支持可选 `displayStyle`（`card` / `text` / `circle`）、`textTemplate`（最多 240 个 Unicode code point，含标记，去除首尾空白）、`textImagePosition`（`none` / `before` / `after` / `inline`，兼容旧位置配置）和 `textImageFormat`（`animated` / `static`）。新建缺省为卡片、空模板、不显示图片及动态原图；旧编辑请求省略字段时保留已保存值，非法枚举返回 400。另支持可选 `textPendingColor` / `textReceivedColor`（`#` 加六位十六进制颜色，保存为小写；空字符串使用默认色，新建省略同空字符串，编辑省略保留旧值，非法值返回 400）。两色字段同时包含在管理与 overlay 许愿投影中，按每条许愿保存，只作用于文字版。当前编辑器统一将图片位置写入模板的 `{图片}`，并将 `textImagePosition` 保存为 `none`；读取旧配置时转换成对应标记，显式图片标记优先，避免重复显示。上限为旧 200 字模板加图片标记留出空间。切换样式不改变礼物、创建时间或已收数量。这些字段及服务端计算的 `todayCount` 均包含在管理与 overlay 的许愿条目中，图片和动态标记的展示规则见 [前端页面](../frontend/pages.md)。
 
 | 端点                                | 请求                                                                                                                          | 响应(data)                                          | 错误码                              |
 | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- | ----------------------------------- |

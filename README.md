@@ -2,7 +2,7 @@
 
 English | [简体中文](README.zh-CN.md)
 
-**LIRA** (**L**ive **I**nteractive **R**oom **A**ssistant) is a lightweight, local-first companion for Bilibili streamers, featuring danmaku song requests, queue and library management, live overlays, and more. Live interaction, playback, the song library, and the queue run primarily in the desktop client; first use requires online LIRA account/device authorization, with an optional cloud public playlist and playlist-page background. Viewers request songs via danmaku, requests are queued automatically, and the queue is shown on stream through an OBS browser source. Beyond song requests, it packs a danmaku bot, an AI chat assistant, a gift-driven overtime timer, and Quanmin K-Ge lyrics capture.
+**LIRA** (**L**ive **I**nteractive **R**oom **A**ssistant) is a lightweight, local-first companion for Bilibili streamers, featuring danmaku song requests, queue and library management, live overlays, and more. Live interaction, playback, the song library, and the queue run primarily in the desktop client; first use requires online LIRA account/device authorization, with an optional cloud public playlist and playlist-page background. Viewers request songs via danmaku, requests are queued automatically, and the queue is shown on stream through a browser source in OBS or Bilibili Livehime (哔哩哔哩直播姬). Beyond song requests, it packs a danmaku bot, an AI chat assistant, a gift-driven overtime timer, and Quanmin K-Ge lyrics capture.
 
 ## Usage Declaration
 
@@ -21,7 +21,7 @@ LIRA remains local-first, but the desktop client must complete online authorizat
 3. **Pair another computer.** Ask the server administrator for a one-time device authorization code and enter it with the same account name and password on the new computer. Each computer gets an independent device identity. After authorization, cloud sync can restore supported shared songs and settings; local files, device identity, and music-platform sessions are not copied by pairing. Never copy the old computer's `data`, `userData`, private key, or token.
 4. **Cloud playlist sync is automatic.** Local library changes mark the song scope dirty and upload a full snapshot after authorization. When no local upload is pending, the client pulls newer cloud revisions. “Song requests → Import/Export” also supports a manual full sync. The service accepts up to 5,000 songs; snapshots do not merge concurrent edits. The same page manages a PNG/JPG/JPEG/WebP/GIF background up to 5 MB; uploading replaces the image and deleting restores the default.
 
-In the current client, the LIRA server handles account/device authorization, optional cloud data, and authoritative Bilibili gift detection. The desktop receives normalized gift events over the authenticated HTTPS device channel and projects them into its existing local history, statistics, overtime, and overlay flows. Bilibili login, danmaku, the queue, playback, and the local library remain in the local runtime. The public playlist URL usually looks like `https://account.lirahub.cn/`; use the URL shown by “Open web playlist” for the remote HTTPS song page. OBS and 直播姬 browser sources continue to use the local `127.0.0.1` URLs and require OBS/直播姬 and LIRA to run on the same computer.
+In the current client, the LIRA server handles account/device authorization, optional cloud data, and authoritative Bilibili gift detection. The desktop receives normalized gift events over the authenticated HTTPS device channel and projects them into its existing local history, statistics, overtime, and overlay flows. Bilibili login, local danmaku interactions, the queue, playback, and the local library remain in the local runtime; the server danmaku overlay receives and displays Bilibili chat independently. The public playlist URL usually looks like `https://account.lirahub.cn/`; use the URL shown by “Open web playlist” for the remote HTTPS song page. Both OBS and Bilibili Livehime can load LIRA overlays. Local overlays such as the song queue, lyrics, and overtime timer use `127.0.0.1` URLs and require LIRA and the streaming software to run on the same computer. The server danmaku overlay uses the complete HTTPS `/overlay/<token>` URL copied from LIRA or the streamer console; it depends on the server’s Bilibili connection and continues to work when the desktop client is closed. The public playlist, local overlays, and server danmaku overlay have separate URLs.
 
 ## Key Features
 
@@ -89,7 +89,7 @@ In the current client, the LIRA server handles account/device authorization, opt
 
 **Overtime Timer**
 
-- Gift-driven countdown: viewers extend the countdown with gifts, real-time OBS overlay
+- Gift-driven countdown: viewers extend the countdown with gifts, real-time overlay in OBS or Bilibili Livehime
 - Gift rule editor: direct time adjustment / random result draw / time mystery box
 - The gift picker prefers the server-wide catalog with a local cache, while the existing room catalog and local gift search remain available as fallbacks
 

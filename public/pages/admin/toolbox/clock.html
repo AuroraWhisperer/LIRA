@@ -70,7 +70,35 @@
               >
               <strong>白字数显</strong>
             </button>
+            <button class="clock-style-option" type="button" data-clock-style-option="orbit" aria-pressed="false">
+              <span class="clock-style-swatch is-orbit" aria-hidden="true"><i></i><b>13:07</b></span>
+              <strong>星轨时钟</strong>
+            </button>
+            <button class="clock-style-option" type="button" data-clock-style-option="flip" aria-pressed="false">
+              <span class="clock-style-swatch is-flip" aria-hidden="true"><b>21</b><b>18</b><b>52</b></span>
+              <strong>翻牌时钟</strong>
+            </button>
           </div>
+
+          <fieldset id="clockFlipColors" class="clock-flip-colors" hidden>
+            <legend>翻牌配色</legend>
+            <div class="clock-palette-options" role="group" aria-label="翻牌预设配色">
+              <button type="button" class="secondary" data-clock-palette="light" aria-pressed="true">经典白</button>
+              <button type="button" class="secondary" data-clock-palette="dark" aria-pressed="false">石墨黑</button>
+              <button type="button" class="secondary" data-clock-palette="lilac" aria-pressed="false">香芋紫</button>
+            </div>
+            <div class="clock-color-fields">
+              <label class="clock-form-field" for="clockFlipFrameColor">
+                <span>外框</span><input id="clockFlipFrameColor" type="color" value="#e4e4e4" />
+              </label>
+              <label class="clock-form-field" for="clockFlipFaceColor">
+                <span>牌面</span><input id="clockFlipFaceColor" type="color" value="#ffffff" />
+              </label>
+              <label class="clock-form-field" for="clockFlipTextColor">
+                <span>数字</span><input id="clockFlipTextColor" type="color" value="#303030" />
+              </label>
+            </div>
+          </fieldset>
 
           <div class="clock-toggle-grid">
             <label class="clock-toggle-field">

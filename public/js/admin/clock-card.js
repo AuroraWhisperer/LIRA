@@ -9,6 +9,8 @@ const CLOCK_STYLE_VALUES = new Set([
   'timeline-horizontal',
   'timeline-vertical',
   'digital',
+  'orbit',
+  'flip',
 ]);
 const CLOCK_STYLE_LABELS = Object.freeze({
   peach: '今天也要闪闪发光',
@@ -17,6 +19,13 @@ const CLOCK_STYLE_LABELS = Object.freeze({
   'timeline-horizontal': '',
   'timeline-vertical': '',
   digital: '',
+  orbit: '',
+  flip: '',
+});
+const FLIP_PALETTES = Object.freeze({
+  light: ['#e4e4e4', '#ffffff', '#303030'],
+  dark: ['#757575', '#353535', '#ffffff'],
+  lilac: ['#cb69e3', '#ffffff', '#bc59d6'],
 });
 const SETTINGS_ENDPOINT = '/api/' + 'settings';
 const CLOCK_CONFIG_ENDPOINT = '/api/clock/config';
@@ -40,6 +49,9 @@ function buildClockUrl(baseUrl, config) {
     .join('');
   if (label) params.set('label', label);
   else params.delete('label');
+  ['flipFrameColor', 'flipFaceColor', 'flipTextColor'].forEach((key) => {
+    if (config[key]) params.set(key, config[key]);
+  });
   return url.href;
 }
 
@@ -50,11 +62,14 @@ function clockSettingsPayload(config) {
     clockShowSeconds: config.showSeconds ? 'true' : 'false',
     clockHourFormat: config.hourFormat,
     clockLabel: config.label,
+    clockFlipFrameColor: config.flipFrameColor || FLIP_PALETTES.light[0],
+    clockFlipFaceColor: config.flipFaceColor || FLIP_PALETTES.light[1],
+    clockFlipTextColor: config.flipTextColor || FLIP_PALETTES.light[2],
   };
 }
 
 function isTransparentClockStyle(style) {
-  return style === 'timeline-horizontal' || style === 'timeline-vertical' || style === 'digital';
+  return ['timeline-horizontal', 'timeline-vertical', 'digital', 'orbit', 'flip'].includes(style);
 }
 
 function usesDefaultClockLabel(style, label) {
@@ -72,6 +87,11 @@ function initClockCard() {
   const customLabel = document.getElementById('clockCustomLabel');
   const customLabelHelp = document.getElementById('clockCustomLabelHelp');
   const recommendedSize = document.getElementById('clockRecommendedSize');
+  const flipColors = document.getElementById('clockFlipColors');
+  const colorInputs = ['clockFlipFrameColor', 'clockFlipFaceColor', 'clockFlipTextColor'].map((id) =>
+    document.getElementById(id),
+  );
+  const paletteButtons = Array.from(document.querySelectorAll('[data-clock-palette]'));
   const styleOptions = Array.from(document.querySelectorAll('[data-clock-style-option]'));
   if (
     !preview ||
@@ -99,6 +119,9 @@ function initClockCard() {
       showSeconds: showSeconds.checked,
       hourFormat: hourFormat.value,
       label: customLabel.value,
+      flipFrameColor: colorInputs[0].value,
+      flipFaceColor: colorInputs[1].value,
+      flipTextColor: colorInputs[2].value,
     };
   }
 
@@ -120,6 +143,15 @@ function initClockCard() {
     showSeconds.disabled = hydrating;
     hourFormat.disabled = hydrating;
     customLabel.disabled = hydrating || transparent;
+    flipColors.hidden = selectedStyle !== 'flip';
+    colorInputs.forEach((input) => {
+      input.disabled = hydrating;
+    });
+    paletteButtons.forEach((button) => {
+      button.disabled = hydrating;
+      const active = FLIP_PALETTES[button.dataset.clockPalette].every((color, index) => color === colorInputs[index].value);
+      button.setAttribute('aria-pressed', String(active));
+    });
     if (customLabelHelp) customLabelHelp.textContent = transparent ? '此样式不显示' : '最多 16 个字';
     if (recommendedSize) recommendedSize.textContent = vertical ? '推荐浏览器源：240 × 400' : '推荐浏览器源：580 × 210';
     styleOptions.forEach((button) => {
@@ -169,6 +201,9 @@ function initClockCard() {
       showSeconds.checked = config.showSeconds !== false;
       hourFormat.value = config.hourFormat === '12' ? '12' : '24';
       customLabel.value = String(config.label || CLOCK_STYLE_LABELS[selectedStyle]);
+      ['flipFrameColor', 'flipFaceColor', 'flipTextColor'].forEach((key, index) => {
+        colorInputs[index].value = config[key] || FLIP_PALETTES.light[index];
+      });
     } catch (error) {
       // Keep the defaults when the optional saved-config read fails.
       void error;
@@ -200,6 +235,15 @@ function initClockCard() {
   showSeconds.addEventListener('change', handleConfigChange);
   hourFormat.addEventListener('change', handleConfigChange);
   customLabel.addEventListener('input', handleConfigChange);
+  colorInputs.forEach((input) => input.addEventListener('input', handleConfigChange));
+  paletteButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      FLIP_PALETTES[button.dataset.clockPalette].forEach((color, index) => {
+        colorInputs[index].value = color;
+      });
+      handleConfigChange();
+    });
+  });
   preview.addEventListener('load', updatePreview);
 
   document.getElementById('clockCopyFixed')?.addEventListener('click', async () => {

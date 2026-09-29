@@ -45,12 +45,12 @@ frontend -> player
 frontend -> overlays
 admin: {label: "Admin ESM\n常驻入口 / 按需工具 / 状态渲染 owner"; link: ../frontend/app.md}
 player: {label: "播放助手\n状态机 / 音源 / 队列持久化"; link: ../frontend/playback.md}
-overlays: {label: "本地展示页与 OBS 源\n具体用途以页面入口表为准"; link: ../frontend/pages.md}
+overlays: {label: "本地展示页与网页源\n具体用途以页面入口表为准"; link: ../frontend/pages.md}
 
 engineering: {label: "工程与运行"; style.fill: "#f2f3f4"}
 engineering -> modes
 engineering -> registries
 engineering -> decisions
-modes: {label: "桌面产品 / 独立 Node 调试 / OBS\n调试入口仍需相应凭据"; link: ../engineering/build.md}
+modes: {label: "桌面 / Node 调试 / 网页源\n调试入口仍需相应凭据"; link: ../engineering/build.md}
 registries: {label: "依赖与构建脚本\n唯一清单见构建文档"; link: ../engineering/build.md}
 decisions: {label: "架构决策与规格\nAccepted / Superseded / Proposed"; link: ../README.md}

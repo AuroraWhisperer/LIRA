@@ -243,6 +243,9 @@ const DEFAULT_SETTINGS = {
   clockShowSeconds: 'true',
   clockHourFormat: '24',
   clockLabel: '今天也要闪闪发光',
+  clockFlipFrameColor: '#e4e4e4',
+  clockFlipFaceColor: '#ffffff',
+  clockFlipTextColor: '#303030',
 };
 
 module.exports = { DEFAULT_SETTINGS };

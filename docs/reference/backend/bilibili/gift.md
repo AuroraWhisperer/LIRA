@@ -24,8 +24,8 @@ Schema 3 按服务器协议接收完整历史活动目录，不额外设置 10,0
 - 目标必须是正整数，实际数量只累计正整数 `num`，可以超过目标；进度条封顶 100%。修改目标/文案不重置创建时间，删除只删除许愿定义。计数反映当前账本，用户主动清除流水也会影响许愿。
 - `todayCount` 按北京时间当日 00:00 至快照时间的同来源、同身份最终 active 流水统计，包含创建许愿前的当日礼物，与长效/本场目标进度独立；本日条目直接复用 count。文字版在 todayCount 大于零时切换为已收颜色，次日根据新日窗口恢复未收颜色，未达目标也会变色；两色可按每条许愿自定义，默认与预览规则见 [前端页面](../../frontend/pages.md)；卡片与徽章仍沿用目标完成状态。
 - 目录复用加班机当前房间和全库缓存。新建普通礼物或盲盒许愿必须有已同步的 variant 身份；房间中尚未匹配身份的候选显示待同步且不可选，服务端也拒绝保存。完整 variant 身份精确匹配，未知历史身份不猜测；既有无 variant 的许愿仍按 ID 兼容。盲盒本体匹配 `blind_box_variant_id` / `blind_box_id`，产出匹配 `gift_variant_id` / `gift_id` 且要求 `is_blind_box=1`，一份产出事件可分别推动盒子与产出两条独立目标。
-- 普通礼物使用已校验的 B 站原图本地缓存（包含 WebP 和部分 PNG），舰长/提督/总督使用内置 WebP。文字版在 `{图片}` 所在位置显示原图或由共享 renderer 取默认帧/首帧生成的静态 PNG；旧位置配置兼容规则见 [前端页面](../../frontend/pages.md)。转换只在页面内存缓存，不请求另一份远程素材，失败沿用占位图。OBS 只读投影不含内部来源或送礼人信息。验证见 `test/gifts/gift-wishes.test.js`、`test/gifts/gift-wish-routes.test.js` 与 `test/gifts/frontend-gift-wishes.test.js`。
-- 静态 PNG 转换以 anonymous CORS 加载公开素材。`/overtime-gift-images/` 的合法图片 GET/HEAD 响应与 public 静态资源一样提供 `Access-Control-Allow-Origin: *`，不允许跨域凭据；OBS 保持 opaque-origin 沙盒，API 仍按原 scope 验权。
+- 普通礼物使用已校验的 B 站原图本地缓存（包含 WebP 和部分 PNG），舰长/提督/总督使用内置 WebP。文字版在 `{图片}` 所在位置显示原图或由共享 renderer 取默认帧/首帧生成的静态 PNG；旧位置配置兼容规则见 [前端页面](../../frontend/pages.md)。转换只在页面内存缓存，不请求另一份远程素材，失败沿用占位图。overlay 只读投影不含内部来源或送礼人信息。验证见 `test/gifts/gift-wishes.test.js`、`test/gifts/gift-wish-routes.test.js` 与 `test/gifts/frontend-gift-wishes.test.js`。
+- 静态 PNG 转换以 anonymous CORS 加载公开素材。`/overtime-gift-images/` 的合法图片 GET/HEAD 响应与 public 静态资源一样提供 `Access-Control-Allow-Origin: *`，不允许跨域凭据；overlay 保持 opaque-origin 沙盒，API 仍按原 scope 验权。
 
 ```
 Electron remote gift controller (服务器 SSE / cursor / history)

@@ -6,7 +6,7 @@
 
 ## Context
 
-The overtime machine is rendered as an OBS browser source: the page refreshes, disconnects, and can be hidden, and several instances may be open at once. Placing the source of truth in any browser process would cause countdown drift between pages and duplicate gift settlement when a browser reloads or reconnects. This ADR was extracted from the overtime machine design specification (accepted 2026-08-10) and verified implemented in the v3.3.14 codebase (`src/overtime/overtime-service.js`).
+The overtime machine is rendered as a browser source in OBS or Bilibili Livehime: the page refreshes, disconnects, and can be hidden, and several instances may be open at once. Placing the source of truth in any browser process would cause countdown drift between pages and duplicate gift settlement when a browser reloads or reconnects. This ADR was extracted from the overtime machine design specification (accepted 2026-08-10) and verified implemented in the v3.3.14 codebase (`src/overtime/overtime-service.js`).
 
 ## Decision
 

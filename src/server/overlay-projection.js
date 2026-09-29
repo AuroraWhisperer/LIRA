@@ -187,7 +187,9 @@ const RESPONSE_SCHEMAS = {
     '/api/games/session/draw': fields('revision'),
   },
   wheel: { '/api/wheel': WHEEL, '/api/wheel/spin': WHEEL },
-  clock: { '/api/clock/config': fields('style showDate showSeconds hourFormat label') },
+  clock: {
+    '/api/clock/config': fields('style showDate showSeconds hourFormat label flipFrameColor flipFaceColor flipTextColor'),
+  },
   opening: {
     '/api/opening/config': fields(
       'enabled title subtitle name footer quality trackMotion showNotes showEq audio volume audioUrl characterUrl',

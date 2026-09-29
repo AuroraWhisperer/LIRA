@@ -1,0 +1,116 @@
+.clock-card[data-clock-style='orbit'] {
+  color: #fff;
+  background: transparent;
+  font-family: 'Bahnschrift', 'Microsoft YaHei', sans-serif;
+  text-shadow: 0 2px 2px rgba(0, 0, 0, 0.55);
+}
+
+.clock-card[data-clock-style='orbit'] .clock-orbit-art {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  filter: drop-shadow(0 1px 0.6px rgba(0, 0, 0, 0.35));
+}
+
+.clock-card[data-clock-style='orbit'] .clock-orbit-back {
+  z-index: 1;
+}
+
+.clock-card[data-clock-style='orbit'] .clock-orbit-front {
+  z-index: 4;
+}
+
+.clock-orbit-track {
+  stroke: #fff;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+}
+
+.clock-card[data-clock-style='orbit'] .clock-sparkles,
+.clock-card[data-clock-style='orbit'] .clock-peach-mascot,
+.clock-card[data-clock-style='orbit'] .clock-night-mascot,
+.clock-card[data-clock-style='orbit'] .clock-soda-mascot,
+.clock-card[data-clock-style='orbit'] .clock-label,
+.clock-card[data-clock-style='orbit'] .clock-year,
+.clock-card[data-clock-style='orbit'] .clock-date-row > i {
+  display: none;
+}
+
+.clock-card[data-clock-style='orbit'] .clock-content {
+  align-items: center;
+  justify-content: start;
+  padding: 8px 16px 0;
+}
+
+.clock-card[data-clock-style='orbit'] .clock-kicker-row {
+  position: absolute;
+  right: 24px;
+  bottom: 35px;
+}
+
+.clock-card[data-clock-style='orbit'] .clock-period {
+  padding: 0;
+  border: 0;
+  font-size: 16px;
+}
+
+.clock-card[data-clock-style='orbit'] .clock-time {
+  align-items: baseline;
+  justify-content: center;
+  height: 124px;
+  margin: 0;
+  font: 800 124px/1 'Arial Rounded MT Bold', 'Arial', sans-serif;
+  letter-spacing: 0.015em;
+  -webkit-text-stroke: 3px #363839;
+  paint-order: stroke fill;
+}
+
+.clock-card[data-clock-style='orbit'] .clock-colon {
+  margin: 0 0.015em;
+  animation: none;
+}
+
+.clock-card[data-clock-style='orbit']:has(.clock-seconds:not([hidden])) .clock-time {
+  font-size: 106px;
+}
+
+.clock-card[data-clock-style='orbit'] .clock-seconds {
+  flex: 0 0 auto;
+  min-width: 0;
+  margin-left: 8px;
+  padding: 0;
+  border: 0;
+  font-size: 32px;
+  letter-spacing: 0;
+  -webkit-text-stroke-width: 1.5px;
+}
+
+.clock-card[data-clock-style='orbit'] .clock-date-row {
+  gap: 16px;
+  margin-top: 18px;
+  font-size: 32px;
+  letter-spacing: 0.025em;
+  line-height: 1;
+}
+
+.clock-card[data-clock-style='orbit'] #clockDate {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 12px 3px;
+  border-radius: 22px;
+  background: #363839;
+  font-size: 30px;
+}
+
+.clock-card[data-clock-style='orbit'] #clockDate::before,
+.clock-card[data-clock-style='orbit'] #clockDate::after {
+  width: 12px;
+  height: 14px;
+  background: currentColor;
+  clip-path: polygon(50% 0, 65% 35%, 100% 50%, 65% 65%, 50% 100%, 35% 65%, 0 50%, 35% 35%);
+  content: '';
+}

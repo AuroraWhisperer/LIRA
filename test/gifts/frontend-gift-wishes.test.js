@@ -221,7 +221,7 @@ test('choose room or cached gifts, enforce integer targets, edit without resetti
   assert.equal(await page.locator('#giftWishCards .wish-card').count(), 0);
 });
 
-test('period changes update OBS URLs and source changes discard an in-progress edit', async (t) => {
+test('period changes update browser-source URLs and source changes discard an in-progress edit', async (t) => {
   const page = await open(t);
   for (const period of ['day', 'session', 'long']) {
     await page.locator(`[data-wish-period=${period}]`).click();
@@ -567,7 +567,7 @@ test('a missing static image falls back to the existing placeholder without show
   assert.equal(await page.locator('.wish-card-text').textContent(), '许愿小花花（3/10）');
 });
 
-test('static images remain PNG inside the opaque-origin OBS sandbox', async (t) => {
+test('static images remain PNG inside the opaque-origin browser-source sandbox', async (t) => {
   const page = await fixture(t, 'wish-sandbox');
   await page.route('**/js/shared/*.js', (route) => route.fulfill({
     contentType: 'text/javascript', headers: { 'Access-Control-Allow-Origin': '*' },

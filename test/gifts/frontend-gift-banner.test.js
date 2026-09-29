@@ -230,7 +230,7 @@ test('gift names fit their full text at normal and PNG scale while short names k
   assert.equal(result.output.width, 856);
 });
 
-test('long gift counts expand PNG and OBS canvases without moving artwork or squeezing text', async (t) => {
+test('long gift counts expand PNG and browser-source canvases without moving artwork or squeezing text', async (t) => {
   const page = await fixture(t, 'gift-display');
   await page.setContent('<div id="giftFeedViewport"><div id="stage" class="gift-banner-stage"></div></div>');
   await page.addStyleTag({ content: fs.readFileSync(path.resolve('public/css/shared/gift-banner.css'), 'utf8') });

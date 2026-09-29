@@ -290,7 +290,7 @@ async function screenshot(win, name) {
     JSON.stringify({
       ok: true,
       checks:
-        'cross-page selection, amount threshold/precision/reset, filtered export, filters, snapshot select-all, native save, return state, titlebar/footer, settings, 55-row OBS loop, source clear',
+        'cross-page selection, amount threshold/precision/reset, filtered export, filters, snapshot select-all, native save, return state, titlebar/footer, settings, 55-row browser-source loop, source clear',
       screenshots: root,
     }),
   );

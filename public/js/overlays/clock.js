@@ -1,5 +1,7 @@
 'use strict';
 
+import { createFlipCell } from './clock-flip.js';
+
 const CLOCK_STYLE_VALUES = new Set([
   'peach',
   'starlight',
@@ -7,6 +9,8 @@ const CLOCK_STYLE_VALUES = new Set([
   'timeline-horizontal',
   'timeline-vertical',
   'digital',
+  'orbit',
+  'flip',
 ]);
 const DEFAULT_LABELS = Object.freeze({
   peach: '今天也要闪闪发光',
@@ -15,7 +19,10 @@ const DEFAULT_LABELS = Object.freeze({
   'timeline-horizontal': '',
   'timeline-vertical': '',
   digital: '',
+  orbit: '',
+  flip: '',
 });
+const FLIP_COLORS = Object.freeze({ flipFrameColor: '#e4e4e4', flipFaceColor: '#ffffff', flipTextColor: '#303030' });
 const MAX_LABEL_LENGTH = 16;
 const CLOCK_FRAME_GUTTER = 20;
 const CLOCK_LAYOUTS = Object.freeze({
@@ -25,7 +32,18 @@ const CLOCK_LAYOUTS = Object.freeze({
   'timeline-horizontal': Object.freeze({ width: 560, height: 190 }),
   'timeline-vertical': Object.freeze({ width: 220, height: 380 }),
   digital: Object.freeze({ width: 560, height: 190 }),
+  orbit: Object.freeze({ width: 560, height: 190 }),
+  flip: Object.freeze({ width: 560, height: 190 }),
 });
+
+function readFlipColors(source) {
+  return Object.fromEntries(
+    Object.entries(FLIP_COLORS).map(([key, fallback]) => {
+      const value = String(source[key] || '').trim();
+      return [key, /^#[\da-f]{6}$/i.test(value) ? value.toLowerCase() : fallback];
+    }),
+  );
+}
 
 function clockLayoutForStyle(style = 'peach') {
   return CLOCK_LAYOUTS[CLOCK_STYLE_VALUES.has(style) ? style : 'peach'];
@@ -64,6 +82,7 @@ function readClockConfig(params) {
     showSeconds: booleanParameter(params, 'seconds', true),
     hour12: params.get('format') === '12',
     label: cleanLabel(params.get('label'), DEFAULT_LABELS[style]),
+    ...readFlipColors(Object.fromEntries(params)),
   };
 }
 
@@ -76,6 +95,7 @@ function normalizeSavedClockConfig(value) {
     showSeconds: source.showSeconds !== false,
     hour12: source.hourFormat === '12',
     label: cleanLabel(source.label, DEFAULT_LABELS[style]),
+    ...readFlipColors(source),
   };
 }
 
@@ -87,6 +107,7 @@ function mergeClockConfig(savedConfig, queryConfig, params) {
     showDate: params.has('date') ? queryConfig.showDate : saved.showDate,
     showSeconds: params.has('seconds') ? queryConfig.showSeconds : saved.showSeconds,
     hour12: params.has('format') ? queryConfig.hour12 : saved.hour12,
+    ...Object.fromEntries(Object.keys(FLIP_COLORS).map((key) => [key, params.has(key) ? queryConfig[key] : saved[key]])),
     label: params.has('label')
       ? cleanLabel(params.get('label'), DEFAULT_LABELS[style])
       : params.has('style')
@@ -125,7 +146,7 @@ function createClockFormatters(config) {
       day: '2-digit',
     }),
     weekday:
-      timelineStyle || config.style === 'digital'
+      timelineStyle || config.style === 'digital' || config.style === 'flip'
         ? new Intl.DateTimeFormat('en-US', { weekday: 'short' })
         : new Intl.DateTimeFormat('zh-CN', { weekday: 'long' }),
   };
@@ -152,6 +173,18 @@ async function initClock() {
   const weekdayNode = document.getElementById('clockWeekday');
   let timer = 0;
   let styleTransition = null;
+  let flipCells = null;
+
+  function syncFlipCells() {
+    if (config.style === 'flip' && !flipCells) {
+      const secondDigits = [document.createElement('span'), document.createElement('span')];
+      secondsNode.replaceChildren(...secondDigits);
+      flipCells = [hoursNode, minutesNode, ...secondDigits, dateNode, weekdayNode].map(createFlipCell);
+    } else if (config.style !== 'flip' && flipCells) {
+      flipCells.forEach((cell) => cell.dispose());
+      flipCells = null;
+    }
+  }
 
   function syncCardScale() {
     card.style.setProperty(
@@ -168,6 +201,10 @@ async function initClock() {
     config = nextConfig;
     document.documentElement.dataset.clockStyle = config.style;
     card.dataset.clockStyle = config.style;
+    card.style.setProperty('--flip-frame', config.flipFrameColor);
+    card.style.setProperty('--flip-face', config.flipFaceColor);
+    card.style.setProperty('--flip-ink', config.flipTextColor);
+    syncFlipCells();
     labelNode.textContent = config.label;
     secondsNode.hidden = !config.showSeconds;
     periodNode.hidden = !config.hour12;
@@ -207,24 +244,40 @@ async function initClock() {
     const seconds = partValue(parts, 'second', '00').padStart(2, '0');
     const period = partValue(parts, 'dayPeriod');
 
-    hoursNode.textContent = hours;
-    minutesNode.textContent = minutes;
-    secondsNode.textContent = seconds;
-    periodNode.textContent = config.style === 'digital' ? (now.getHours() < 12 ? 'AM' : 'PM') : period;
+    periodNode.textContent = ['digital', 'flip', 'orbit'].includes(config.style)
+      ? (now.getHours() < 12 ? 'AM' : 'PM')
+      : period;
     const dateParts = formatters.date.formatToParts(now);
     const month = partValue(dateParts, 'month', '01').padStart(2, '0');
     const day = partValue(dateParts, 'day', '01').padStart(2, '0');
     const timelineStyle = config.style.startsWith('timeline-');
     const digitalStyle = config.style === 'digital';
+    const orbitStyle = config.style === 'orbit';
     yearNode.textContent = String(now.getFullYear());
     timeSeparatorNode.textContent = timelineStyle ? '—' : ':';
-    dateNode.textContent = digitalStyle
+    const date = digitalStyle
       ? `${now.getFullYear()}-${month}-${day}`
-      : timelineStyle
-        ? `${month}/${day}`
-        : `${month}月${day}日`;
-    weekdayNode.textContent =
+      : orbitStyle
+        ? `${now.getFullYear()}.${month}.${day}`
+        : timelineStyle
+          ? `${month}/${day}`
+          : `${month}月${day}日`;
+    const weekday =
       timelineStyle || digitalStyle ? formatters.weekday.format(now).toUpperCase() : formatters.weekday.format(now);
+    if (flipCells) {
+      const values = [hours, minutes, seconds[0], seconds[1], `${now.getMonth() + 1}/${now.getDate()}`, weekday.toUpperCase()];
+      const animate = !card.hidden && !document.hidden && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      flipCells.forEach((cell, index) => {
+        const visible = index < 2 || (index < 4 ? config.showSeconds : config.showDate);
+        cell.update(values[index], animate && visible);
+      });
+    } else {
+      hoursNode.textContent = hours;
+      minutesNode.textContent = minutes;
+      secondsNode.textContent = seconds;
+      dateNode.textContent = date;
+      weekdayNode.textContent = weekday;
+    }
     timeNode.dateTime = now.toISOString();
     timeNode.setAttribute('aria-label', `${hours}点${minutes}分${config.showSeconds ? `${seconds}秒` : ''}`);
   }

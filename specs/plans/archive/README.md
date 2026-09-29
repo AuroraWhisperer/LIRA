@@ -6,6 +6,8 @@
 
 ## 文件索引
 
+- [2026-09-29-release-5.0.10-validation](2026-09-29-release-5.0.10-validation.md)
+- [2026-09-29-orbit-flip-clock](2026-09-29-orbit-flip-clock.md)
 - [2026-09-29-release-5.0.9-validation](2026-09-29-release-5.0.9-validation.md)
 - [2026-09-29-frontend-modularity](2026-09-29-frontend-modularity.md)
 - [2026-09-29-superchat-overlay](2026-09-29-superchat-overlay.md)

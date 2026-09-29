@@ -203,7 +203,7 @@ Server 保存每日抽签结果快照，同日重复命令、重启和词库更�
 | `socket-summary` / `listener-stopped` / `socket-closed` / `socket-error` | 断开/停止时的认证状态、包数、弹幕数、心跳回复数及最后收包时间，或连接错误 |
 | `history-start` / `history-stop` / `history-sample` | 历史补偿启停，以及首次成功拉取/有新命令时的总数、过期数、重复数和处理数；空闲轮询不重复写样本 |
 | `command-ingress` / `command-received` | 上游点歌进入及通过前置过滤；各自的 `nameMasked` 可比较原始昵称与身份缓存合并后的昵称 |
-| `command-filtered` / `command-result` / `queue-broadcast` | 时间或去重过滤、处理结果、入队后的广播调用完成；queue-broadcast 不是 OBS 渲染确认 |
+| `command-filtered` / `command-result` / `queue-broadcast` | 时间或去重过滤、处理结果、入队后的广播调用完成；queue-broadcast 不是 浏览器源渲染确认 |
 
 拒绝原因代码：`requests-paused` 暂停接收、`user-cooldown` 用户冷却、
 `song-request-blacklisted` 点歌内容完整命中本机黑名单、
@@ -221,7 +221,7 @@ Server 保存每日抽签结果快照，同日重复命令、重启和词库更�
 尚未入队的点歌，保留发送时间和软件显示结果。即使随后自行恢复，也从
 “工具箱 → 桌面更新 → 本地数据 → 日志目录”取 `terminal.log` 和 `desktop.log`。
 既有容量保护满额后不会再追加，日志缺失不能单独证明平台没有发送；本次未实现
-日志轮转、OBS 回执或自动上报。无需反复重启或清理日志来复现。
+日志轮转、浏览器源回执或自动上报。无需反复重启或清理日志来复现。
 
 ## 9. 关键常数速查
 

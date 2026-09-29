@@ -51,10 +51,10 @@ export const TOUR_CONFIG_STEPS = [
   },
   {
     id: 'bilibili-login',
-    title: '登录你的直播账号',
+    title: '登录你的 B 站账号',
     kicker: '第 2 步 · 登录账号',
     content:
-      '点击高亮区域里的<strong class="lira-tour-keyword">「扫码登录直播账号」</strong>，再用手机上的直播平台应用扫描弹出的二维码。扫码成功后，继续填写直播间号并保存设置。',
+      '点击高亮区域里的<strong class="lira-tour-keyword">「扫码登录 B 站账号」</strong>，再用手机上的哔哩哔哩 App 扫描弹出的二维码。扫码成功后，继续填写直播间号并保存设置。',
     note: '二维码会在新窗口中打开；请在这台电脑上的 LIRA 桌面版完成。',
     targetPage: 'songAssistantPage', // 切换到点歌页
     targetTab: '[data-tab="settingsPage"]', // 切换到设置子标签
@@ -94,7 +94,7 @@ export const TOUR_CONFIG_STEPS = [
     kicker: '第 4 步 · 刷新连接',
     content:
       '先在「点歌 → 设置」开启<strong class="lira-tour-keyword">「接收弹幕和礼物」</strong>并点击<strong class="lira-tour-keyword">「保存设置」</strong>，再查看右上角的直播间连接状态。连接异常时，点击<strong class="lira-tour-keyword">「刷新直播」</strong>。',
-    note: '请按连接状态的文字提示处理。仍未连接时，检查直播账号、直播间号和接收开关是否已保存。',
+    note: '请按连接状态的文字提示处理。仍未连接时，检查 B 站账号、直播间号和接收开关是否已保存。',
     targetPage: 'songAssistantPage',
     targetTab: null,
     targetSelector: '#liveStatus, #reconnectBtn',

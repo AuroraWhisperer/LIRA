@@ -122,7 +122,7 @@ The preferred image source must be HTTPS on `hdslb.com` or a subdomain, without 
 
 - The default remote origin is `https://api.lirahub.cn`; a configured HTTPS root origin with a valid DNS hostname reaches the fixed catalog endpoint.
 - HTTP, localhost, IP literals, invalid DNS labels, credentials, non-root paths, queries, fragments, cross-origin image URLs, and redirects are rejected without issuing a remote image request.
-- Removing the packaged debug page and API does not alter the local room catalog, paid global cache, or OBS/local WebSocket paths.
+- Removing the packaged debug page and API does not alter the local room catalog, paid global cache, or overlay/local WebSocket paths.
 - Current-room membership expands official outputs only from a box ID actually present in the room; exact-ID server artwork is used when available, missing artwork keeps the entry with a placeholder, and duplicate names remain separate.
 - First authorization does not navigate to Admin until the paid metadata mirror and full image scan finish; later completed launches do not wait for background incremental synchronization.
 - Global picker search and recent/high-value/blind-box artwork lookup use the local mirror and issue no request to LIRA Server or Bilibili while handling the UI lookup.

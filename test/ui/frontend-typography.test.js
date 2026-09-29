@@ -249,7 +249,7 @@ test('representative desktop selectors resolve to semantic role tokens', () => {
   }
 });
 
-test('OBS and configurable preview typography stay outside Admin roles', () => {
+test('Browser-source and configurable preview typography stay outside Admin roles', () => {
   const overlayRoot = path.join(ROOT, 'public', 'css', 'overlays');
   const overlayCss = filesBelow(overlayRoot, '.css')
     .filter((file) => path.basename(file) !== 'desktop.css')

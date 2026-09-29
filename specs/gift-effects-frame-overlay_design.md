@@ -407,9 +407,9 @@ V1 只实现一个主题和一个动画强度，避免在没有第二套真实�
 | 礼物事件短时间爆发             | 延迟或内存增长        | 队列上限、去重和可观测的丢弃计数                                |
 | 金额无效、为零或单位混用       | 错误触发或漏触发      | 只读取 final RMB 金额，在 Adapter 转整数分并要求 `> 0`          |
 | WAAPI/timer 未完成或控制器抛错 | 队列永久卡住          | PlaybackSession watchdog + AbortController + `finally` 强制清理 |
-| 直播姬与 LIRA 不在同一台机器   | 本地 URL 不可访问     | 第一版要求同机运行，不通过放宽 Host 绑定解决                    |
+| 直播软件与 LIRA 不在同一台机器   | 本地 URL 不可访问     | 第一版要求同机运行，不通过放宽 Host 绑定解决                    |
 
-不应为了让远程直播姬访问 Overlay 而把本地服务暴露到 LAN；这会触及 LIRA 现有本地服务和 token 安全边界，需要单独的架构决策。
+不应为了让远程直播软件访问 Overlay 而把本地服务暴露到 LAN；这会触及 LIRA 现有本地服务和 token 安全边界，需要单独的架构决策。
 
 ## Implementation Plan
 

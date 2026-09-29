@@ -110,7 +110,7 @@ phase 为 `ready` 时，`server.on('upgrade')` 先复用 HTTP 的严格 Host:por
 - 管理组合页和 raw 管理片段要求管理身份，任何 HTML 都不包含管理 token。管理页 CSP 另设 `worker-src 'none'`：Chromium 可将 dedicated/blob worker 请求归属主 frame，不能只靠请求 frame 元数据排除 worker；当前管理 UI 没有 worker 消费者。Electron main 给受信主窗口请求加头，见 [desktop/auth.md](../desktop/auth.md)；Node 调试脚本须自持 Bearer，匿名浏览器不获得管理入口。
 - 只有 13 个已知 overlay 页面注入 [overlay-bootstrap.js](../../../src/server/overlay-bootstrap.js) 与该 scope 的凭据，`window.__API_TOKEN__` 仅表示本页能力。fetch 包装保留 Request/Headers 语义，仅为精确本机 origin 的 API 加头；WS 只向精确本机 `/ws` 添加 query 凭据，外域、异端口和相似路径不带凭据。
 - overlay HTML 返回 `Content-Security-Policy: sandbox allow-scripts`，不含 allow-same-origin。公开静态 JS/CSS/字体等返回 `Access-Control-Allow-Origin: *`；HTML 不开放跨域读取。API 的 opaque-origin 预检只描述 overlay 已知路径/方法/头，实际请求仍验证 scope；管理凭据的 `Origin: null` 请求拒绝。没有 cookie 或 allow-credentials 例外。
-- OBS 会话恢复：本机 WS 断开或 API 返回 401 后，使用旧页面能力请求其最小 `/api/state`；仅再次 401 才刷新。此错误响应可被 opaque 页面读取，不能借此读取数据。探测单飞、5 秒超时，离线/启动中/凭据有效不刷新，pagehide 取消探测。
+- 浏览器源会话恢复：本机 WS 断开或 API 返回 401 后，使用旧页面能力请求其最小 `/api/state`；仅再次 401 才刷新。此错误响应可被 opaque 页面读取，不能借此读取数据。探测单飞、5 秒超时，离线/启动中/凭据有效不刷新，pagehide 取消探测。
 - 页面仍为 `Cache-Control: no-store`。只有已认证管理组合页的实际 GET 分配 `__PLAYBACK_SNAPSHOT_WRITER__`；HEAD、未授权页面、raw 片段和 overlay 都不改变播放代次。该字段用于顺序控制，不是认证凭据。
 
 开播音频和人物图的文件流由 `http-utils.js` 负责收尾：GET 在源文件成功打开后发送 200，打开前文件消失返回 404，其他打开错误返回不含内部路径的 500；发送头部后的读取失败终止响应。客户端提前关闭响应时销毁源流，HEAD 保持只返回元信息。该处理覆盖 stat 后文件消失的竞态，不承诺并发替换文件时的内容快照一致性。验证：`test/overlays/opening-media-stream.test.js`。

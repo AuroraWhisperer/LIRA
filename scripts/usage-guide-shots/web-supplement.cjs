@@ -16,7 +16,7 @@ const SHOTS = [
   {
     id: 'S6b',
     file: 'server-manage-danmaku-url',
-    title: '网页主播中心：OBS 地址与复制按钮',
+    title: '网页主播中心：直播画面地址与复制按钮',
     route: '/manage',
     workspace: 'overlay',
     scroll: '#overlayUrl',

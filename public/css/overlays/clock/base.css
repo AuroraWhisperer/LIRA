@@ -137,3 +137,7 @@ body {
 .clock-sparkles i {
   position: absolute;
 }
+
+.clock-orbit-art {
+  display: none;
+}

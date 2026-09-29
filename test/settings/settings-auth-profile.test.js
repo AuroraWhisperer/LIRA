@@ -141,7 +141,7 @@ test('Bilibili auth copy keeps local login separate from cloud capture', async (
   await new Promise((resolve) => setImmediate(resolve));
 
   await elements.get('bilibiliLoginBtn').listeners.get('click')();
-  assert.equal(toasts[0], '直播账号已在本机登录');
+  assert.equal(toasts[0], 'B 站账号已在本机登录');
   assert.doesNotMatch(toasts[0], /同步成功|同步完成|弹幕姬状态已刷新/);
   assert.deepEqual(authEvents, ['app:bilibili-auth-changed']);
 
@@ -149,7 +149,7 @@ test('Bilibili auth copy keeps local login separate from cloud capture', async (
   assert.match(logoutPrompt.message, /当前 LIRA 账号/);
   assert.match(logoutPrompt.message, /同步成功后停止/);
   assert.match(logoutPrompt.message, /不会回退为匿名采集/);
-  assert.equal(toasts[1], '直播账号已在本机退出');
+  assert.equal(toasts[1], 'B 站账号已在本机退出');
   assert.doesNotMatch(toasts[1], /同步完成|匿名模式/);
   assert.deepEqual(authEvents, ['app:bilibili-auth-changed', 'app:bilibili-auth-changed']);
 });
@@ -158,11 +158,11 @@ test('Bilibili settings explain connection setup and confirmed stop actions', ()
   const html = fs.readFileSync(path.join(ROOT, 'public', 'pages', 'admin', 'song', 'settings.html'), 'utf8');
 
   const help = html.match(/<lira-help\s*>(.*?)<\/lira-help/s)?.[1];
-  assert.match(help, /扫码登录后，填写自己的直播间号并保存/);
+  assert.match(help, /扫码登录后，填写自己的 B 站直播间号并保存/);
   assert.match(help, /弹幕和礼物默认持续监控/);
   assert.match(help, /关闭 LIRA 后服务端仍会接收/);
   assert.match(help, /在弹幕姬和礼物页面分别关闭监控/);
-  assert.match(help, /退出直播账号会停止两项监控/);
+  assert.match(help, /退出 B 站账号会停止两项监控/);
   assert.match(help, /等待同步完成/);
   assert.doesNotMatch(html, /id="enableBilibili"/);
   assert.doesNotMatch(html, /id="bilibiliAuthHint"/);

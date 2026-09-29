@@ -38,7 +38,7 @@ export function initBilibiliAuth({ documentRef, windowRef, toast, logoutConfirm 
     else nameEl.removeAttribute('title');
 
     avatarEl.hidden = !avatarSource;
-    avatarEl.alt = avatarSource ? (name ? `${name}的头像` : '直播账号头像') : '';
+    avatarEl.alt = avatarSource ? (name ? `${name}的头像` : 'B 站账号头像') : '';
     if (avatarSource) avatarEl.src = avatarSource;
     else avatarEl.removeAttribute('src');
   }
@@ -54,7 +54,7 @@ export function initBilibiliAuth({ documentRef, windowRef, toast, logoutConfirm 
     statusEl.textContent = 'Web 模式（不可用）';
     statusEl.className = 'pill';
     loginBtn.disabled = true;
-    loginBtn.title = '直播账号扫码登录仅在桌面版中可用';
+    loginBtn.title = 'B 站账号扫码登录仅在桌面版中可用';
     return;
   }
 
@@ -107,23 +107,23 @@ export function initBilibiliAuth({ documentRef, windowRef, toast, logoutConfirm 
         await refreshAuthState();
         if (result.state.loggedIn) {
           documentRef.dispatchEvent(new CustomEvent('app:bilibili-auth-changed'));
-          toast('直播账号已在本机登录', { type: 'success' });
+          toast('B 站账号已在本机登录', { type: 'success' });
         }
       }
     } catch (error) {
       toast('登录失败：' + (error.message || String(error)), { type: 'error' });
     } finally {
       loginBtn.disabled = false;
-      loginBtn.textContent = '📱 扫码登录直播账号';
+      loginBtn.textContent = '📱 扫码登录 B 站账号';
     }
   });
 
   logoutBtn.addEventListener('click', async () => {
     const confirmed = await logoutConfirm({
       title: '退出登录',
-      platform: '直播平台',
+      platform: 'B 站',
       message:
-        '退出后会同步当前 LIRA 账号的直播账号退出状态；同步成功后停止该账号的云端监听。离线时不会回退为匿名采集。',
+        '退出后会同步当前 LIRA 账号的 B 站账号退出状态；同步成功后停止该账号的云端监听。离线时不会回退为匿名采集。',
       icon: '→',
       confirmLabel: '确认退出',
     });
@@ -135,7 +135,7 @@ export function initBilibiliAuth({ documentRef, windowRef, toast, logoutConfirm 
       await windowRef.bilibiliAuth.logout();
       await refreshAuthState();
       documentRef.dispatchEvent(new CustomEvent('app:bilibili-auth-changed'));
-      toast('直播账号已在本机退出', { type: 'success' });
+      toast('B 站账号已在本机退出', { type: 'success' });
     } catch (error) {
       toast('退出失败：' + (error.message || String(error)), { type: 'error' });
     } finally {

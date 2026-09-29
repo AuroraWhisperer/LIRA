@@ -35,7 +35,7 @@
 | `formatBytes` / `formatMoney` / `formatCompactNumber` / `formatDuration` / `formatSuperChatPrice` | 展示格式化                                                                                                                 |
 | `debounce` / `normalizeRangeValue`                                                                | 输入防抖与滑块数值归一                                                                                                     |
 | `dangerConfirm` / `logoutConfirm`                                                                 | 危险操作 / 退出登录的自绘确认弹窗(替代原生 confirm)                                                                        |
-| `localOverlayOrigin(locationLike)`                                                                | 以 `127.0.0.1` 规范化叠加层 URL(供管理页生成 OBS 地址)                                                                     |
+| `localOverlayOrigin(locationLike)`                                                                | 以 `127.0.0.1` 规范化叠加层 URL(供管理页生成 浏览器源地址)                                                                     |
 | `withMultilingualFallback(fontFamily)`                                                            | 字体栈追加多语言回退                                                                                                       |
 
 ### 2.2 响应信封约定

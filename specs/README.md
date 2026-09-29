@@ -9,6 +9,8 @@ Remaining delivery and verification work is tracked in the [plan index](plans/RE
 Historical reports and archived plans retain their original evidence; their old
 status text does not override this index or explicitly retained acceptance gaps.
 
+Platform terminology follows the [documentation entry](../docs/README.md): the live platform is Bilibili; OBS and Bilibili Livehime are both supported streaming applications. Historical references to one application retain their original verification scope and do not imply exclusive support.
+
 ## Index
 
 <!-- SPEC_INDEX_START -->

@@ -154,10 +154,10 @@ async function run(mediaOnly = false) {
     for (let cycle = 0; cycle < (mediaOnly ? 0 : 8); cycle++) {
       const win = makeWindow();
       await win.loadURL(origin + '/gift-effects?preview=1');
-      await waitFor(() => sockets.size === 1, 'recreated OBS source connection');
+      await waitFor(() => sockets.size === 1, 'recreated browser source connection');
       await pause(120);
       win.destroy();
-      await waitFor(() => sockets.size === 0, 'destroyed OBS source releases connection');
+      await waitFor(() => sockets.size === 0, 'destroyed browser source releases connection');
     }
     report.sourceRecreations = mediaOnly ? 0 : 8;
     const mediaWindow = makeWindow();

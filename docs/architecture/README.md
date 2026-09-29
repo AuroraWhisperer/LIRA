@@ -4,7 +4,7 @@
 
 ## 进程与产品边界
 
-LIRA 是以 Electron 桌面为主要 UI 的模块化单体。Electron main 同进程内嵌本地 Node 后端；renderer 使用原生 JavaScript ES modules 和 CSS，本地 HTTP/WS 提供管理数据与展示投影。OBS 浏览器源是独立的浏览器消费场景。
+LIRA 是以 Electron 桌面为主要 UI 的模块化单体。Electron main 同进程内嵌本地 Node 后端；renderer 使用原生 JavaScript ES modules 和 CSS，本地 HTTP/WS 提供管理数据与展示投影。OBS / 哔哩哔哩直播姬的浏览器源是独立的浏览器消费场景，直播平台为 B 站。
 
 | 边界 | 稳定职责 | 实现参考 |
 | --- | --- | --- |
@@ -12,7 +12,7 @@ LIRA 是以 Electron 桌面为主要 UI 的模块化单体。Electron main 同�
 | Electron main | 窗口、设备会话、平台登录、受限 IPC、远端同步及生命周期 | [主进程](../reference/desktop/main.md)、[认证](../reference/desktop/auth.md) |
 | Renderer | UI 状态与用户交互；通过受限桥调用桌面能力 | [Admin](../reference/frontend/app.md)、[通信](../reference/frontend/comms.md) |
 | LIRA Server | 权威礼物检测与账本、云端机器人和设备接口 | [礼物投影](../reference/backend/bilibili/gift.md)、[服务器契约锁](../../server-contract.lock.json) |
-| OBS 展示 | 消费范围受限的展示数据，不取得管理或设备凭据 | [页面入口](../reference/frontend/pages.md)、[展示页](../reference/frontend/overlays.md) |
+| 直播画面展示 | 消费范围受限的展示数据，不取得管理或设备凭据 | [页面入口](../reference/frontend/pages.md)、[展示页](../reference/frontend/overlays.md) |
 
 管理页依赖桌面提供的本地授权；独立 Node 入口用于有明确凭据及能力边界的调试。本地 Bilibili 输入继续处理弹幕、点歌、SC、用户信息与互动。礼物原始检测及签到/抽签的执行属于服务器。
 

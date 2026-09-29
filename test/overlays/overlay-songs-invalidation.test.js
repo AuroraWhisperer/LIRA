@@ -27,7 +27,7 @@ class FakeWebSocket {
   }
 }
 
-test('OBS song overlay reloads for cloud and local song invalidations only', async () => {
+test('Browser-source song overlay reloads for cloud and local song invalidations only', async () => {
   const domHandlers = new Map();
   const timers = [];
   const globals = {

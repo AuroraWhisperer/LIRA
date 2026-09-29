@@ -58,6 +58,19 @@
           <i class="soda-bubble soda-bubble-two"></i>
         </div>
 
+        <svg class="clock-orbit-art clock-orbit-back" viewBox="0 0 560 190" fill="none" aria-hidden="true" focusable="false">
+          <defs>
+            <path id="clockOrbitTrack" d="M78 55C22 50 15 78 64 101C158 141 371 157 493 121" />
+            <path
+              id="clockOrbitStar"
+              d="M-5.59-26.41Q0-36 5.59-26.41L8.84-20.81Q11.64-16.02 17.06-14.84L23.39-13.47Q34.24-11.12 26.84-2.85L22.53 1.98Q18.83 6.12 19.39 11.64L20.04 18.08Q21.16 29.12 11 24.65L5.08 22.04Q0 19.8-5.08 22.04L-11 24.65Q-21.16 29.12-20.04 18.08L-19.39 11.64Q-18.83 6.12-22.53 1.98L-26.84-2.85Q-34.24-11.12-23.39-13.47L-17.06-14.84Q-11.64-16.02-8.84-20.81Z"
+            />
+            <clipPath id="clockOrbitBackClip"><path d="M0 0H560V101H0Z" /></clipPath>
+            <clipPath id="clockOrbitFrontClip"><path d="M0 101H560V190H0Z" /></clipPath>
+          </defs>
+          <use href="#clockOrbitTrack" class="clock-orbit-track" clip-path="url(#clockOrbitBackClip)" />
+        </svg>
+
         <div class="clock-content">
           <div class="clock-kicker-row">
             <span id="clockLabel" class="clock-label">今天也要闪闪发光</span>
@@ -74,6 +87,19 @@
             <span id="clockWeekday">星期日</span>
           </div>
         </div>
+
+        <svg class="clock-orbit-art clock-orbit-front" viewBox="0 0 560 190" fill="none" aria-hidden="true" focusable="false">
+          <use href="#clockOrbitTrack" class="clock-orbit-track" clip-path="url(#clockOrbitFrontClip)" />
+          <g fill="#383a3b" stroke="#f9f9f6" stroke-width="1.6">
+            <use href="#clockOrbitStar" transform="translate(510 48) rotate(-20)" />
+            <use href="#clockOrbitStar" transform="translate(51 131) rotate(16) scale(.58)" stroke-width="2.3" />
+          </g>
+          <g fill="#fff">
+            <use href="#clockOrbitStar" transform="translate(80 82) rotate(15) scale(.27)" />
+            <use href="#clockOrbitStar" transform="translate(493 121) rotate(-12) scale(.28)" />
+            <path d="M56 56Q56 64 51 65Q56 66 56 72Q57 66 62 65Q57 64 56 56Z" />
+          </g>
+        </svg>
       </article>
     </main>
     <script type="module" src="/js/overlays/clock.js"></script>

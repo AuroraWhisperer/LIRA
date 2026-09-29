@@ -7,9 +7,22 @@ const CLOCK_STYLE_VALUES = new Set([
   'timeline-horizontal',
   'timeline-vertical',
   'digital',
+  'orbit',
+  'flip',
 ]);
 const CLOCK_BOOLEAN_SETTING_KEYS = new Set(['clockShowDate', 'clockShowSeconds']);
-const CLOCK_SETTING_KEYS = new Set(['clockStyle', ...CLOCK_BOOLEAN_SETTING_KEYS, 'clockHourFormat', 'clockLabel']);
+const CLOCK_COLOR_DEFAULTS = Object.freeze({
+  clockFlipFrameColor: '#e4e4e4',
+  clockFlipFaceColor: '#ffffff',
+  clockFlipTextColor: '#303030',
+});
+const CLOCK_SETTING_KEYS = new Set([
+  'clockStyle',
+  ...CLOCK_BOOLEAN_SETTING_KEYS,
+  'clockHourFormat',
+  'clockLabel',
+  ...Object.keys(CLOCK_COLOR_DEFAULTS),
+]);
 const DEFAULT_LABELS = Object.freeze({
   peach: '今天也要闪闪发光',
   starlight: '今晚与星星一起值班',
@@ -17,6 +30,8 @@ const DEFAULT_LABELS = Object.freeze({
   'timeline-horizontal': '',
   'timeline-vertical': '',
   digital: '',
+  orbit: '',
+  flip: '',
 });
 const MAX_LABEL_LENGTH = 16;
 
@@ -38,6 +53,10 @@ function normalizeBooleanSetting(value) {
 }
 
 function normalizeClockSettingValue(key, rawValue) {
+  if (Object.hasOwn(CLOCK_COLOR_DEFAULTS, key)) {
+    const value = String(rawValue ?? '').trim();
+    return /^#[\da-f]{6}$/i.test(value) ? value.toLowerCase() : null;
+  }
   if (key === 'clockStyle') {
     const value = String(rawValue ?? '').trim();
     return CLOCK_STYLE_VALUES.has(value) ? value : null;
@@ -59,6 +78,12 @@ function getClockConfig(settings = {}) {
     showSeconds: normalizeClockSettingValue('clockShowSeconds', settings.clockShowSeconds) !== 'false',
     hourFormat: normalizeClockSettingValue('clockHourFormat', settings.clockHourFormat) || '24',
     label: cleanClockLabel(settings.clockLabel) || DEFAULT_LABELS[style],
+    flipFrameColor:
+      normalizeClockSettingValue('clockFlipFrameColor', settings.clockFlipFrameColor) || CLOCK_COLOR_DEFAULTS.clockFlipFrameColor,
+    flipFaceColor:
+      normalizeClockSettingValue('clockFlipFaceColor', settings.clockFlipFaceColor) || CLOCK_COLOR_DEFAULTS.clockFlipFaceColor,
+    flipTextColor:
+      normalizeClockSettingValue('clockFlipTextColor', settings.clockFlipTextColor) || CLOCK_COLOR_DEFAULTS.clockFlipTextColor,
   };
 }
 

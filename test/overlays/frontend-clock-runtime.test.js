@@ -15,14 +15,24 @@ function createClockDom() {
   const animations = [];
   let timerId = 0;
   function element() {
+    const classes = new Set();
     return {
       listeners: new Map(),
       dataset: {},
       hidden: false,
       value: '',
       textContent: '',
-      style: { setProperty() {} },
-      classList: { toggle() {} },
+      children: [],
+      style: { setProperty(key, value) { this[key] = value; } },
+      classList: {
+        toggle() {},
+        add(name) { classes.add(name); },
+        remove(name) { classes.delete(name); },
+        contains(name) { return classes.has(name); },
+      },
+      append(...children) { this.children.push(...children); },
+      replaceChildren(...children) { this.children = children; },
+      removeAttribute(name) { delete this[name]; },
       addEventListener(type, listener) {
         this.listeners.set(type, listener);
       },
@@ -32,8 +42,10 @@ function createClockDom() {
       setAttribute(name, value) {
         this[name] = value;
       },
-      animate() {
+      animate(keyframes, options) {
         const animation = {
+          keyframes,
+          options,
           cancelled: false,
           cancel() {
             this.cancelled = true;
@@ -48,6 +60,7 @@ function createClockDom() {
     ...element(),
     dataset: { clockStyleOption: style },
   }));
+  const palettes = ['light', 'dark', 'lilac'].map((name) => ({ ...element(), dataset: { clockPalette: name } }));
   const document = {
     ...element(),
     documentElement: element(),
@@ -55,7 +68,8 @@ function createClockDom() {
       if (!nodes.has(id)) nodes.set(id, element());
       return nodes.get(id);
     },
-    querySelectorAll: () => options,
+    querySelectorAll: (selector) => selector === '[data-clock-palette]' ? palettes : options,
+    createElement: element,
   };
   document.getElementById('clockCard').hidden = true;
   const window = {
@@ -72,7 +86,7 @@ function createClockDom() {
       timers.delete(id);
     },
   };
-  return { document, window, options, timers, animations };
+  return { document, window, options, palettes, timers, animations };
 }
 
 test('clock preview loads once and sends the latest controls after iframe load', async () => {
@@ -253,4 +267,99 @@ test('browser source reveals saved settings and current time together, retaining
   assert.match(dom.document.getElementById('clockTime').dateTime, /^\d{4}-/);
   assert.match(dom.document.getElementById('clockDate').textContent, /^\d{4}-\d{2}-\d{2}$/);
   assert.equal(dom.timers.size, 1);
+});
+
+test('flip presets and custom colors update and save without reloading the preview', async () => {
+  const dom = createClockDom();
+  const messages = [];
+  const writes = [];
+  const preview = dom.document.getElementById('clockPreview');
+  preview.contentWindow = { postMessage(message) { messages.push(message); } };
+  const module = await loadModuleExports(entry('admin', 'clock-card.js'), {
+    ...dom, URL, location: new URL('http://localhost:3000/admin'),
+    fetch: async (_url, options) => {
+      if (options.method === 'POST') {
+        writes.push(JSON.parse(options.body));
+        return { ok: true };
+      }
+      return { ok: true, json: async () => ({ ok: true, data: { style: 'flip', flipTextColor: '#123456' } }) };
+    },
+  });
+  module.initClockCard();
+  await flush();
+  const source = preview.src;
+  assert.equal(dom.document.getElementById('clockFlipColors').hidden, false);
+  assert.equal(dom.document.getElementById('clockFlipTextColor').value, '#123456');
+  dom.palettes.find((button) => button.dataset.clockPalette === 'lilac').listeners.get('click')();
+  const textColor = dom.document.getElementById('clockFlipTextColor');
+  textColor.value = '#113355';
+  textColor.listeners.get('input')();
+  assert.equal(messages.at(-1).config.flipTextColor, '#113355');
+  assert.equal(messages.at(-1).config.flipFrameColor, '#cb69e3');
+  assert.equal(preview.src, source);
+  assert.equal(dom.timers.size, 1);
+  await [...dom.timers.values()][0]();
+  assert.equal(writes[0].clockFlipTextColor, '#113355');
+  assert.equal(writes[0].clockFlipFrameColor, '#cb69e3');
+  dom.options.find((button) => button.dataset.clockStyleOption === 'orbit').listeners.get('click')();
+  assert.equal(dom.document.getElementById('clockFlipColors').hidden, true);
+  assert.equal(dom.document.getElementById('clockCustomLabel').disabled, true);
+});
+
+test('flip cells animate only changed values, settle on rollover and clean up on style changes', async () => {
+  const dom = createClockDom();
+  let now = new Date(2026, 8, 29, 23, 59, 58).getTime();
+  class ClockDate extends Date {
+    constructor() { super(now); }
+    static now() { return now; }
+  }
+  await loadModuleExports(entry('overlays', 'clock.js'), {
+    ...dom, URL, URLSearchParams, Date: ClockDate,
+    location: new URL('http://127.0.0.1:3000/clock?style=flip&date=1&seconds=1&format=24'),
+  });
+  const node = (id) => dom.document.getElementById(id);
+  const halves = (id) => node(id).children.map((half) => half.children[0].textContent);
+  assert.equal(dom.animations.length, 0, 'first frame must not flip from placeholder zeroes');
+  assert.equal(node('clockHours').getAttribute('aria-label'), '23');
+  assert.equal(node('clockDate').getAttribute('aria-label'), '9/29');
+  function tick() { [...dom.timers.values()][0](); }
+  now += 1000;
+  tick();
+  assert.equal(dom.animations.length, 2, 'only seconds units get two animated halves');
+  assert.equal(dom.animations[0].keyframes[1].transform, 'rotateX(-90deg)');
+  assert.equal(dom.animations[1].options.delay, 240);
+  dom.animations[1].onfinish();
+  assert.equal(dom.animations[0].cancelled, true);
+  now += 1000;
+  tick();
+  assert.equal(dom.animations.length, 14, 'midnight changes all six cells');
+  assert.equal(node('clockHours').getAttribute('aria-label'), '00');
+  assert.equal(node('clockDate').getAttribute('aria-label'), '9/30');
+  assert.equal(node('clockWeekday').getAttribute('aria-label'), 'WED');
+  for (const animation of dom.animations) animation.onfinish?.();
+  assert.deepEqual(halves('clockHours').slice(0, 2), ['00', '00']);
+  dom.window.matchMedia = () => ({ matches: true });
+  now += 1000;
+  tick();
+  assert.equal(dom.animations.length, 14, 'reduced motion still updates time without folding');
+  const receive = (config) => dom.window.listeners.get('message')({
+    source: dom.window.parent, origin: 'http://127.0.0.1:3000', data: { type: 'lira:clock-preview-config', config },
+  });
+  dom.window.matchMedia = () => ({ matches: false });
+  receive({ style: 'flip', showSeconds: false, showDate: false, hourFormat: '12', flipTextColor: '#bc59d6' });
+  assert.equal(node('clockHours').getAttribute('aria-label'), '12');
+  assert.equal(node('clockPeriod').textContent, 'AM');
+  assert.equal(node('clockSeconds').hidden, true);
+  assert.equal(node('clockDateRow').hidden, true);
+  assert.equal(node('clockCard').style['--flip-ink'], '#bc59d6');
+  const count = dom.animations.length;
+  now += 1000;
+  tick();
+  assert.equal(dom.animations.length, count, 'hidden seconds do not animate');
+  receive({ style: 'orbit', showSeconds: false });
+  assert.equal(node('clockHours').children.length, 0);
+  assert.equal(node('clockHours').classList.contains('clock-flip-cell'), false);
+  assert.equal(node('clockDate').textContent, '2026.09.30');
+  assert.equal(node('clockWeekday').textContent, '星期三');
+  assert.equal(dom.timers.size, 1, 'style switches retain a single timer');
 });

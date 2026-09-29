@@ -215,7 +215,7 @@ export function createGiftWishes() {
     const url = `${localOverlayOrigin(location)}/gift-wishes?period=${period}`;
     get('giftWishUrl').value = url;
     get('giftWishPreview').href = `${url}&preview=1`;
-    get('giftWishUrl').setAttribute('aria-label', `${WISH_PERIODS[period]} OBS 浏览器源地址`);
+    get('giftWishUrl').setAttribute('aria-label', `${WISH_PERIODS[period]}浏览器源地址`);
     get('giftWishError').textContent = '';
     signature = '';
     render();

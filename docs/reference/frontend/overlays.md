@@ -1,4 +1,6 @@
-# OBS 悬浮层(overlays/)
+# 直播画面悬浮层(overlays/)
+
+直播平台为 B 站；OBS 与哔哩哔哩直播姬均通过浏览器源 / 网页来源使用这些画面。文中的 overlay 指通用直播展示页。本机画面使用 `127.0.0.1`，要求与 LIRA 同机并保持客户端运行；正式服务器弹幕姬使用服务器返回的完整 HTTPS 地址，依赖服务器的 B 站连接，关闭客户端后仍可展示。本机 `/danmaku?preview=1` 是编辑预览，不替代正式服务器地址。
 
 > 涉及文件:[pages/overlays/queue.html](../../../public/pages/overlays/queue.html)、[pages/overlays/songs.html](../../../public/pages/overlays/songs.html)、[pages/overlays/blindbox.html](../../../public/pages/overlays/blindbox.html)、[pages/overlays/overtime.html](../../../public/pages/overlays/overtime.html)、[pages/overlays/lyric-window.html](../../../public/pages/overlays/lyric-window.html)、[pages/overlays/opening.html](../../../public/pages/overlays/opening.html)、[js/overlays/](../../../public/js/overlays)、[css/overlays/](../../../public/css/overlays)
 
@@ -18,7 +20,7 @@
 
 ### 1.0 本地页面权限与数据投影
 
-本地展示页面各有独立的 `overlay` 身份，不能调用其他页面或管理端的接口。固定页面地址仍可作为 OBS 浏览器源打开；服务端只在该页 HTML 中注入本次运行的页面凭据，管理凭据不进入 HTML。`songlist` 对应 `songs.html`，`lyrics` 对应 `lyric-window.html`，其余 scope 与同名 HTML 对应。`/pages/overlays/<文件名>` 原始地址和 `/<scope>` 使用相同权限与响应头；`/songs` 仍是管理入口。
+本地展示页面各有独立的 `overlay` 身份，不能调用其他页面或管理端的接口。固定页面地址仍可作为 浏览器源打开；服务端只在该页 HTML 中注入本次运行的页面凭据，管理凭据不进入 HTML。`songlist` 对应 `songs.html`，`lyrics` 对应 `lyric-window.html`，其余 scope 与同名 HTML 对应。`/pages/overlays/<文件名>` 原始地址和 `/<scope>` 使用相同权限与响应头；`/songs` 仍是管理入口。
 
 签发及精确路径/方法白名单由 [access-policy.js](../../../src/server/access-policy.js) 拥有，受限操作由 [overlay-http.js](../../../src/server/overlay-http.js) 适配。REST、初始快照、合并快照及所有 WS JSON 出口统一经过 [overlay-projection.js](../../../src/server/overlay-projection.js)。投影逐层选取已列出的标量、对象及数组字段；新增 owner 字段和新增设置不会自动对展示页开放，不能直接展开整个 `state` 或 `settings`。管理请求保留原 DTO。
 
@@ -38,7 +40,7 @@
 | `danmaku` | GET `/bilibili/avatar` | `danmakuFeed`、`liveStatus.enabled/roomId/connected/message`、`danmakuOverlayStyle/danmakuFullscreenDurationSeconds`；`danmaku:message` 仅展示消息、身份、头像与表情字段 |
 | `wheel` | GET `/wheel`；POST `/wheel/spin` | `wheel:update`；仅候选标签/权重、抽取时序/索引及上次结果索引 |
 | `opening` | GET `/opening/config` | 无；配置仅启用、文案、画质/轨道/音符/均衡器、音频开关/音量及当前音频/人物图 URL |
-| `clock` | GET `/clock/config` | 无；仅 `style/showDate/showSeconds/hourFormat/label` |
+| `clock` | GET `/clock/config` | 无；仅 `style/showDate/showSeconds/hourFormat/label/flipFrameColor/flipFaceColor/flipTextColor` |
 
 本日礼物的服务端读取固定北京时间今天、每页 100 条、按创建时间升序；页面只能传分页 cursor 和 viewRevision，不能扩大日期、来源或筛选范围。返回仅保留 `viewRevision/nextCursor/partial`，以及横幅需要的 `eventId/artworkPath` 和礼物显示名、礼物 ID/变体、币种、单价、数量、头像、大航海等级。目录仅保留礼物 ID/名称/变体和本地图片路径，不暴露来源配置、同步状态或完整流水元数据。
 
@@ -54,7 +56,7 @@
 
 所有叠加层:
 
-- **透明背景**:`html,body` 透明(`overlays/base.css`),只渲染卡片面板,供 OBS 浏览器源叠加;加班机层独立样式(整屏倒计时)。
+- **透明背景**:`html,body` 透明(`overlays/base.css`),只渲染卡片面板,供 浏览器源叠加;加班机层独立样式(整屏倒计时)。
 - **状态获取**:队列、歌单、盲盒、加班机等快照消费者先 `fetch('/api/state')` 拿首帧快照,再连 `/ws` 收后续快照;WS 断开时按指数退避重连,重连前再次 `loadState()` 兜底(见 [comms.md](comms.md) §3)。
 - **字体**:中文字体栈 `Microsoft YaHei / PingFang SC` + 多语言回退(`overlay-utils.js` 的 `multilingualFontFallback`);队列/歌单板经 CSS 变量 `--overlay-font-family` 由管理页设置注入,加班机数字与 LIVE 徽标用 Bahnschrift / Bahnschrift SemiCondensed(见 §4)。
 - **指纹去重**:内容未变不重渲染(队列层 `computeStateKey`、歌单层三段指纹、加班机 revision 比较,详见 [comms.md](comms.md) §3.2)。
@@ -144,7 +146,7 @@ SVG 时间轴，启用画面时统一归零并从首轮立即移动；
 PNG/JPEG/WebP 和受支持的音频，Overlay 只接受受限的 `/opening-character/`、`/opening-media/`
 当前文件 URL。未上传或清除后隐藏人物图并移除 src，不加载或播放空音频地址。
 
-Admin 预览使用与管理页同 origin 的 sandbox iframe，固定 OBS 地址仍规范化为 `127.0.0.1`。
+Admin 预览使用与管理页同 origin 的 sandbox iframe，固定 浏览器源地址仍规范化为 `127.0.0.1`。
 首次加载及 iframe load 后发送最新 `lira:opening-preview-config`，只接受同 origin 的直接父窗口消息；
 收到预览配置后由父窗口负责更新，不再重复轮询。晚到的初始读取不得覆盖正在编辑的值。
 文本、音量、轨道和画质变化就地应用；只有更换音乐、关闭或重新开启画面才重新加载相应音频。
@@ -161,7 +163,7 @@ Admin 预览使用与管理页同 origin 的 sandbox iframe，固定 OBS 地址�
 
 礼物助手的滚动礼物面板生成当前本地端口的 `127.0.0.1/gift-feed` 地址，`?preview=1` 只增加预览底色和状态。页面独立于管理面板生命周期，按北京时间遍历今天全部分页，包含未参与冲刺的有效付费历史。“最小礼物金额（元）”支持整数或一位小数，默认 0 不限制；正数在完整分页、合并卡片后按 `cardTotalCents` 严格大于门槛过滤，未知 UID 独立记录按历史单价乘数量计价，比较使用整数分。该过滤只作用于滚动集合，不改变历史记录、分色金额或图片导出；配置契约见 [API 设置端点](../backend/api.md)。`gift-feed-state.js` 用 eventId 去重并保留轮播锚点；默认 3 行、速率 25，速率 1–50 线性对应每行 `5000 - (scrollSpeed - 1) * 4900 / 49` 毫秒。过滤后的条目超过显示行数时连续匀速向上滚动，最后一条紧接第一条；不足或刚好填满时静态显示，不复制填满。动画按帧时间累计位移，换行保留余量，无间隔等待，DOM 只保留可见行及最多一条动画缓冲，并复用未变化的节点。页面隐藏时释放动画帧，恢复后接着当前位置移动。暂停和低功耗选项已移除。
 
-WebSocket 通知合并后重读，并每 30 秒对账；刷新保留滚动进度，新集合在换行边界应用，静态或隐藏时立即更新。礼物通知只重读礼物与身份资料，设置、素材分别在对应失效通知时读取，首次加载、重连及定时对账补读两者；请求期间收到的失效通知合并到下一批。横幅按稳定卡片键插入或复用，`updateGiftBanner` 就地更新数量、颜色、名字、头像与舰队框，只在文字改变时重新测量字体，成功图片不随连击重建。滚动换行先移除离开的行，再插入新的缓冲行，避免搬动仍可见的节点；重复通知且展示资料未变时没有 DOM 写入，失败头像仍可单独重试。午夜、来源切换或投影代次变化清空旧集合，迟到请求不得恢复旧来源。保存配置即更新静态行颜色。`shared/gift-banner.js` 和 `css/shared/gift-banner.css` 同时拥有管理预览、PNG 和 OBS 的横幅：基础尺寸 560×96，包含头像占位、可空大航海边框、昵称、黄色礼物名、本地 WebP 和数量。颜色条的圆弧左端与头像同心，头像四周留 10 像素内距；昵称区、颜色条和 WebP 位置固定，数量保持字号并只向右扩展画布。PNG 按实际画布的 2 倍尺寸导出，基础宽度 1120 像素，合并时取本页最宽横幅；OBS 浏览器源建议宽度 900，以容纳多位数量。金额/时间/备注不进入横幅。
+WebSocket 通知合并后重读，并每 30 秒对账；刷新保留滚动进度，新集合在换行边界应用，静态或隐藏时立即更新。礼物通知只重读礼物与身份资料，设置、素材分别在对应失效通知时读取，首次加载、重连及定时对账补读两者；请求期间收到的失效通知合并到下一批。横幅按稳定卡片键插入或复用，`updateGiftBanner` 就地更新数量、颜色、名字、头像与舰队框，只在文字改变时重新测量字体，成功图片不随连击重建。滚动换行先移除离开的行，再插入新的缓冲行，避免搬动仍可见的节点；重复通知且展示资料未变时没有 DOM 写入，失败头像仍可单独重试。午夜、来源切换或投影代次变化清空旧集合，迟到请求不得恢复旧来源。保存配置即更新静态行颜色。`shared/gift-banner.js` 和 `css/shared/gift-banner.css` 同时拥有管理预览、PNG 和 直播画面的横幅：基础尺寸 560×96，包含头像占位、可空大航海边框、昵称、黄色礼物名、本地 WebP 和数量。颜色条的圆弧左端与头像同心，头像四周留 10 像素内距；昵称区、颜色条和 WebP 位置固定，数量保持字号并只向右扩展画布。PNG 按实际画布的 2 倍尺寸导出，基础宽度 1120 像素，合并时取本页最宽横幅；浏览器源建议宽度 900，以容纳多位数量。金额/时间/备注不进入横幅。
 
 ## 2. 队列叠加层(/queue)
 
@@ -174,7 +176,7 @@ HTTP 初始/重连请求带本页读取代次，较新的完整 WS 状态使旧�
 - **风格 4 / 5**:各自的框体与词条素材位于 `public/img/overlays/song-board-style-4/` 和 `song-board-style-5/`;框体和词条素材自带粉色或紫金渐变底色。两种风格隐藏通用顶部标题和点歌顺序数字,省略四组字段的说明标签并将短内容居中。每条记录输出歌名、点歌人,并在有数据时输出大航海等级、灯牌名与等级;没有大航海或灯牌时省略对应字段。大航海身份按总督红、提督紫、舰长蓝区分,同一条记录后接的灯牌名与等级徽章沿用该身份色;无大航海时才使用灯牌自身等级色。整组内容实际宽度溢出时复用 `scheduleIdentityContentScroll` 左右往返,纵向超出画框时复用插画风格滚动测量。风格 4 的列表下边界与前景底边内沿对齐,保证滚动终点的最后一条完整露出;风格 5 的列表窗口顶部与首条词条上边缘对齐、底部收进 30px。`prefers-reduced-motion` 下停用横纵动画。
 - **风格 6**:奶油金唱片铃兰框体与横向词条素材位于 `public/img/overlays/song-board-style-6/`;词条以内容窗宽度的 72% 居中,完整收进画框的左右前景边框之间,列表上边界位于画框高度的 16.5% 以完整露出首条顶部装饰,相邻卡片以 `4px` 间距清晰分开,左侧花形圆圈显示从 1 开始的队列序号,右侧固定信息窗省略说明标签并输出歌名、点歌人,在有数据时输出大航海等级、灯牌名与等级;没有大航海或灯牌时省略对应字段。大航海与后接灯牌徽章使用和风格 4/5 相同的总督红、提督紫、舰长蓝身份色,无大航海时保留灯牌等级色。信息窗内容实际宽度溢出时复用 `scheduleIdentityContentScroll` 左右往返,纵向超出画框时复用插画风格滚动测量,列表下边界停在第 4 个序号附近;`prefers-reduced-motion` 下停用横纵动画。
 - **风格 4–6 的画框层级**:完整框图作为底层保留中间色块,卡片与文字位于中层,同一框图去掉中心填充后以 `border-image` 作为顶层装饰。卡片滚动时会从丝带、花朵、唱片等边框装饰下方经过,但始终显示在框内中间色块上方。
-- **六种风格的浏览器源缩放**:六款点歌板都在固定设计坐标中完成排版(`classic` 宽 405px、`identity` 宽 430px、插画风格宽 560px),内部背景、框体、词条、文字、徽章、间距和裁切窗口不随浏览器源单独重排。`queue-viewport.js` 在面板完成渲染后按浏览器源可用宽度与高度分别计算比例并取较小值;风格 1、3–6 可随浏览器源整体放大或缩小,风格 2 将最大倍率限制为 `1`,在较大的 OBS 画布中保持默认 430px 宽度,仅在画布不足时等比缩小。源比例与点歌板不一致时在未占满的一轴保留透明空白,不拉伸图片或文字。风格 3 的列表窗口仍在设计画布内整体上移 10px,为最底部可见词条保留安全距离。
+- **六种风格的浏览器源缩放**:六款点歌板都在固定设计坐标中完成排版(`classic` 宽 405px、`identity` 宽 430px、插画风格宽 560px),内部背景、框体、词条、文字、徽章、间距和裁切窗口不随浏览器源单独重排。`queue-viewport.js` 在面板完成渲染后按浏览器源可用宽度与高度分别计算比例并取较小值;风格 1、3–6 可随浏览器源整体放大或缩小,风格 2 将最大倍率限制为 `1`,在较大的 浏览器源画布中保持默认 430px 宽度,仅在画布不足时等比缩小。源比例与点歌板不一致时在未占满的一轴保留透明空白,不拉伸图片或文字。风格 3 的列表窗口仍在设计画布内整体上移 10px,为最底部可见词条保留安全距离。
 - **风格 3–6 的词条缩放**:词条盒、位图、文字窗口和序号共用同一坐标系,不通过裁剪去掉上下装饰。风格 3 在 CSS 背景坐标中排除原 PNG 顶部和右侧的大块透明留白,不改写原始素材;风格 4/5 的完整 PNG 占内容窗宽度的 94%,风格 4 使用 `2172:517.5` 显示比例(高度为此前的 115%),风格 5 的显示高度为素材原比例的 80%;风格 6 使用完整 PNG 比例占 72%,三款列表起点都避开画框顶部前景装饰。
 - **滚动**:classic 走 CSS 动画滚动(`classic-scroll` 循环 + `scrolling-bounce` 有节奏往返模式,loop clone 双份列表实现无缝循环),读取 `queueScrollMode`/`queueScrollSpeed`;identity 读取 `identityQueueScrollMode`/`identityQueueScrollSpeed`;风格 3–6 分别读取 `storybookQueue*`、`neonVinylQueue*`、`cherryRibbonQueue*`、`goldenLilyQueue*` 的滚动模式和速度。六种风格都在固定设计高度的列表窗内测量真实内容溢出,浏览器源 resize 后 `relayoutQueue` 重新配置并再次同步整板比例;重渲染时 `captureScrollAnimation/restoreScrollAnimation` 在 rAF 帧内恢复 CSS 动画进度,不跳帧不闪动([queue.js:174-202](../../../public/js/overlays/queue.js#L174-L202))。
 - **低功耗**:`overlayLowPowerMode` 或 `?quality=low` 时停用毛玻璃/辉光等重特效(`.overlay-panel.low-power` 面板级降级,classic/identity 共用,[foundation-and-classic.css](../../../public/css/overlays/base/foundation-and-classic.css))。
@@ -236,7 +238,7 @@ HTTP 初始/重连请求带本页读取代次，较新的完整 WS 状态使旧�
 
 [overlays/lyric-window.js](../../../public/js/overlays/lyric-window.js):
 
-- 使用方:管理页「复制桌面歌词」复制规范地址 `/lyrics`,供浏览器或 OBS 浏览器源使用;页面背景透明,实际输出不包含管理页预览使用的网格/纯色辅助背景。
+- 使用方:管理页「复制桌面歌词」复制规范地址 `/lyrics`,供浏览器或 浏览器源使用;页面背景透明,实际输出不包含管理页预览使用的网格/纯色辅助背景。
 - 数据:首次连接和重连均从 `/ws` 的 snapshot 取得 `desktopLyric*` 设置、`lyricState` 和 `lyricTimeline`，并消费增量 `lyric-state`、`lyric-timeline`。页面不再请求不存在的 `GET /api/settings`。
 - 渲染:直接复用 `admin/desktop-lyric-preview.js` 的完整时间轴渲染器,显示整首歌词、翻译、罗马音、当前行逐字进度、长间奏三秒倒计时和播放进度;逐字高亮支持连续填充与按时间点亮两种模式,隐藏 `desktopLyricPreviewPlayback` 只提供 aria-live 文本,当前行 `LyricWordAnimator` 是唯一视觉逐字更新源。样式设置通过同一组 `--preview-*` CSS 变量应用,因此浏览器源与管理页实时预览一致。
 - 显示行数:设置 `desktopLyricVisibleLines` 为 `0` 时保持整首可见;正整数仍创建整首时间轴,只将当前行窗口外的行标记为不可见。`1` 仅显示当前行;偶数向下扩展,奇数向上下扩展,整首数据继续保留以保证同步和自动跟随。
@@ -256,7 +258,7 @@ HTTP 初始/重连请求带本页读取代次，较新的完整 WS 状态使旧�
 
 桌面工具和直播画面地址使用服务器认证响应提供的完整 `/overlay/<token>` 链接。`server-overlay-url.js` 处理账号与授权状态；`danmaku-overlay-settings.js` 通过原受限IPC读取/保存展示配置，编辑仅为草稿，迟到回包不覆盖新编辑或新账号。
 
-“编辑画布”由 `admin/danmaku-canvas-dialog.js` 在管理页dialog内打开本机 `/danmaku?preview=1`。frame保留 `sandbox allow-scripts`、opaque origin，不能访问父页凭据/preload；精确source/origin和窄DTO验证后，由父页的显式应用函数保存。关闭/账号切换销毁frame和消息监听。独立浏览器预览不能保存；旧服务器缺layout字段时提示更新。失败保留草稿。直播姬等网页来源继续使用原服务器链接，关闭客户端不影响接收。
+“编辑画布”由 `admin/danmaku-canvas-dialog.js` 在管理页dialog内打开本机 `/danmaku?preview=1`。frame保留 `sandbox allow-scripts`、opaque origin，不能访问父页凭据/preload；精确source/origin和窄DTO验证后，由父页的显式应用函数保存。关闭/账号切换销毁frame和消息监听。独立浏览器预览不能保存；旧服务器缺layout字段时提示更新。失败保留草稿。OBS / 直播姬等网页来源继续使用原服务器链接，关闭客户端不影响接收。
 
 预览左侧设置、右侧等比画布，提供1280×720、1920×1080默认、2560×1440、3840×2160、1080×1920及自定义（320～7680整数）。`shared/danmaku-layout.js` 定义 `{canvas,contentScale,regions}` 及边界验证，与main和服务器镜像保持一致。九种样式各自记忆 `{x,y,width,height}`；六种固定默认距左/下40，尺寸依次为bubble380×560、signal560×600、minimal380×540、ranked640×640、transparent520×540、identity640×560；outline/cream/glow默认铺满，称“区域随机”。区域支持拖动、八方向缩放、方向键/Shift微调、数值输入、居中/铺满/恢复当前默认。区域至少64×64且不能超出画布。
 
@@ -268,9 +270,9 @@ HTTP 初始/重连请求带本页读取代次，较新的完整 WS 状态使旧�
 
 小表情 `kind:inline` 无论夹在文字里、重复发送或单独发送，图片高度均为正文的 `1em`；整张表情包 `kind:sticker` 使用原尺寸的 1.4 倍，即普通样式 `4.48em`、经典样式与头像横卡 `5.74em`，宽度按原比例并受现有画布限制。缺少 kind 的旧载荷仍沿用整条匹配时放大的兼容分类。预览文字示例显式标记 inline，纯图片示例标记 sticker。
 
-保留的非预览本地入口以 `topic=danmaku` 连接 WebSocket，按 snapshot 的 `settings.danmakuOverlayStyle` / `danmakuFullscreenDurationSeconds` 切换样式和停留时间，从 `danmakuFeed` 恢复消息并消费 `danmaku:message`。按消息 `id` 去重，同一帧批量追加；连接中断时指数退避重连，连接状态仍以 `liveStatus` 为准。客户端复制和打开的正式 OBS 地址由服务器提供，本地预览不改变服务器配置。
+保留的非预览本地入口以 `topic=danmaku` 连接 WebSocket，按 snapshot 的 `settings.danmakuOverlayStyle` / `danmakuFullscreenDurationSeconds` 切换样式和停留时间，从 `danmakuFeed` 恢复消息并消费 `danmaku:message`。按消息 `id` 去重，同一帧批量追加；连接中断时指数退避重连，连接状态仍以 `liveStatus` 为准。客户端复制和打开的正式 浏览器源地址由服务器提供，本地预览不改变服务器配置。
 
-本地页面对去重、截取最近 50 条后的消息内容做完整比较。内容未变且 feed 无需初始化时，快照保留现有消息节点、到期计时器及尚未绘制的增量帧；仍更新直播连接状态。首次空快照、实际消息修正/清空/重连补数、样式或全屏期限变更导致的 feed 重建仍执行恢复。此优化不改变远端正式 OBS 的 SSE，也不承诺有变化的快照完全免于重建。真实页面模块和共享 feed 的节点/计时器回归见 `test/danmaku/danmaku-snapshot-stability.test.js`。
+本地页面对去重、截取最近 50 条后的消息内容做完整比较。内容未变且 feed 无需初始化时，快照保留现有消息节点、到期计时器及尚未绘制的增量帧；仍更新直播连接状态。首次空快照、实际消息修正/清空/重连补数、样式或全屏期限变更导致的 feed 重建仍执行恢复。此优化不改变远端正式 overlay 的 SSE，也不承诺有变化的快照完全免于重建。真实页面模块和共享 feed 的节点/计时器回归见 `test/danmaku/danmaku-snapshot-stability.test.js`。
 
 弹幕工具的显示顺序为直播链接、黑名单与屏蔽词、样式选择、参数调节、应用操作。`danmaku-style-options.js` 定义各样式字体、正文字号范围、背景不透明度及礼物插画选项；无底色样式不显示底色参数，蝴蝶结与流光气泡没有独立礼物图位。`styleOptions` 由服务端按样式保存，Electron 仅通过既有认证通道校验和投影；旧服务器不支持时禁用新参数并提示更新。切换样式保留各自草稿，恢复默认只重置当前样式，仍需显式应用。六种固定样式另有“滚动方向”：up 为从下向上（默认），down 为从上向下；方向随当前样式草稿保存、传给本地预览并在应用后通过服务器推送更新。随机样式隐藏且不接受该参数；反向排列仍淘汰最旧消息。原有全屏停留时间位于参数区。
 
@@ -285,9 +287,9 @@ HTTP 初始/重连请求带本页读取代次，较新的完整 WS 状态使旧�
 - 透明文字风格在头像下沿居中显示 `LV{medalLevel}`，复用消息渲染器从本条消息的独立 `medalLevel` 写入头像数据属性；缺少灯牌名称不影响已知等级。缺失、零或非法等级不显示，不从舰队身份推算，也不复用上一条消息的等级。该风格不再在正文下重复显示粉丝牌；其他风格沿用原徽章。
 - `kind:'gift'` 使用专用 `is-gift` 节点，以 `textContent` 展示送礼人、“送出”、礼物名称和数量。登录账号发送的感谢按普通弹幕渲染，不转换成礼物卡，不额外生成感谢文案，也不提供单独的感谢示例。除保持原样的蝴蝶结外，礼物采用与普通聊天不同的排版和造型：聊天气泡为猫咪插画卡，信号带为切角通知牌，经典样式为礼章飘带，透明文字的礼物使用带细金边的实色圆角星光卡，身份横卡为纪念卡，简洁白卡为礼物小票，奶油气泡为花束礼物卡。除蝴蝶结外，送礼通知使用紧凑的两行结构：昵称在上，“送出＋礼物名”和数量在下一行，不显示“谢谢支持”。`gifts.css` 仅复用内容结构，各风格文件拥有配色、轮廓和装饰；插画仅用于适合的样式。素材全部内置于 `public/img/overlays/danmaku-gifts/`，各风格不复用同一礼物图。该展示能力不新增公开 SSE 事件或礼物业务处理链路。
 - 本地预览使用画布编辑器，按可用视口等比缩放。消息在当前样式的区域内动态展示；固定样式按区域高度移除最旧的超限消息，随机样式沿用正式直播的随机布局和寿命。样式切换重新播放，地址不变。
-- 透明文字和奶油气泡礼物卡通过 `showGiftTotal` 选项把数量放在礼物名旁边，原数量位置显示 `giftTotalPrice`（人民币元）的 `¥` 金额，最多两位小数。金额直接来自已结算总额；旧消息缺失金额时显示 `—`。奶油气泡沿用右侧粉色金额框，名称旁的数量不带底框。其他样式继续显示原数量布局。本地预览使用合成总额，正式 OBS 消费服务器同名展示字段。
+- 透明文字和奶油气泡礼物卡通过 `showGiftTotal` 选项把数量放在礼物名旁边，原数量位置显示 `giftTotalPrice`（人民币元）的 `¥` 金额，最多两位小数。金额直接来自已结算总额；旧消息缺失金额时显示 `—`。奶油气泡沿用右侧粉色金额框，名称旁的数量不带底框。其他样式继续显示原数量布局。本地预览使用合成总额，正式 overlay 消费服务器同名展示字段。
 
-- 固定礼物卡中，`bubble` / `signal` / `ranked` / `transparent` / `identity` 沿用原客户端 1.5 倍尺寸上限（460px 设计宽度 → 690px 显示宽度）。扣除两侧各 12px 后的空间不足时，卡片、昵称、礼物文字、数量或金额、头像、装饰和间距一起等比缩小；高度只影响可见条数。经典样式和头像横卡抵消列表已有倍率，避免重复缩放。列表裁剪计入节点自身的 CSS zoom；蝴蝶结、普通弹幕及全屏随机礼物保持现状。本地预览与正式 OBS 同步。
+- 固定礼物卡中，`bubble` / `signal` / `ranked` / `transparent` / `identity` 沿用原客户端 1.5 倍尺寸上限（460px 设计宽度 → 690px 显示宽度）。扣除两侧各 12px 后的空间不足时，卡片、昵称、礼物文字、数量或金额、头像、装饰和间距一起等比缩小；高度只影响可见条数。经典样式和头像横卡抵消列表已有倍率，避免重复缩放。列表裁剪计入节点自身的 CSS zoom；蝴蝶结、普通弹幕及全屏随机礼物保持现状。本地预览与正式 overlay 同步。
 
 - `createDanmakuFeed(root, options).render(items)` 使用 `DocumentFragment`、`textContent` 和受控 `<img>` 创建消息，`append(item)` 只追加新节点，不重建已有 DOM。游戏层继续按估算高度保留当前可见区及上方约 5 个视口并自动滚到底部；固定 `/danmaku` 配置 `offscreenViewports: 0`，按实际布局高度、行间距和容器内边距移除最旧的超限节点，保留完整可见消息。固定区域和全屏模式的 `ResizeObserver` 同时观察容器与消息，图片加载、昵称换行或窗口缩放后在动画帧内合并测量与调整，使用不受入场动画缩放影响的布局尺寸。节点移除或替换时取消观察，销毁时取消布局帧和到期计时器。表情按精确触发文本切分，加载失败回退原触发文本，不使用 `innerHTML`。页面数据和断线恢复快照仍分别硬限制为最近 50 条，共享组件默认上限仍为 120 条。
 - 流光气泡（`glow`）将发送者昵称居中放在消息框上方，文字或表情在深色半透明圆角框内，边框带柔光，不显示头像/徽章。`ranked-palette.css` 为它和经典样式提供同一份身份色，普通观众/粉丝青蓝、舰长蓝、提督紫、总督红、主播绿色覆盖优先。本地预览与正式直播共用随机布局与时长，礼物采用同色紧凑双行通知卡。
@@ -323,23 +325,31 @@ HTTP 初始/重连请求带本页读取代次，较新的完整 WS 状态使旧�
 设备本地时区显示当前时间、日期和星期。页面外层透明；横向样式使用 560×190
 设计画布，竖向时间轴使用 220×380 设计画布，并在浏览器源不足时按可用空间缩小。
 
-- 风格参数仅接受 `style=peach|starlight|soda|timeline-horizontal|timeline-vertical|digital`，
+- 风格参数仅接受 `style=peach|starlight|soda|timeline-horizontal|timeline-vertical|digital|orbit|flip`，
   非法或缺失值回退桃桃便签(`peach`)；前三套分别使用奶油蜜桃兔耳、靛蓝月亮云朵
   与薄荷气泡小鸭。横向刻度和竖向刻度使用无卡片底的细线排版、年份与英文星期，
   其中竖向款适配 240×400 Browser Source（含页面边距）。白字数显(`digital`)
   使用透明背景、白色粗窄数字和细暗描边，上排为 `YYYY-MM-DD` 与英文星期，
-  下排为同字号的 `HH:MM:SS`，沿用横向画布。
+  下排为同字号的 `HH:MM:SS`，沿用横向画布。星轨时钟(`orbit`) 使用白字暗描边、
+  星形与环绕线，下排为 `YYYY.MM.DD` 和中文星期；翻牌时钟(`flip`) 使用日期/英文星期
+  小牌、时/分双数字牌和两张秒数牌，均沿用横向画布。
+- 翻牌颜色为 `flipFrameColor` / `flipFaceColor` / `flipTextColor`，对应外框、牌面、数字，
+  仅接受 `#RRGGBB`；默认 `#e4e4e4` / `#ffffff` / `#303030`。参数覆盖保存配置时独立合并，
+  非法颜色回退默认值。设置面板提供经典白、石墨黑、香芋紫预设及三个自定义颜色选择器。
 - `date=0|1`、`seconds=0|1`、`format=12|24` 控制日期、秒数和小时制；非法值
   回退默认显示日期/秒数与 24 小时制。`label` 合并空白并截到 16 个 Unicode
-  字符，始终通过 `textContent` 输出；透明时间轴和白字数显不显示角标文案。
+  字符，始终通过 `textContent` 输出；透明时间轴、白字数显、星轨和翻牌不显示角标文案。
 - 时钟按下一秒边界使用一次性 timeout 更新；页面隐藏时停止调度，恢复可见后
   立即校时。冒号与星点动效在 `prefers-reduced-motion: reduce` 下停用。
+  翻牌由 [clock-flip.js](../../../public/js/overlays/clock-flip.js) 持有上下半牌与 WAAPI 动画，
+  仅数值变化时旋转；首次展示、隐藏字段/页面和减少动态效果时直接校准。
+  重入动画和切换样式取消旧动画，复用同一个时钟调度器。
 - Admin 百宝箱的「萌时钟」卡片只展示并复制固定地址；表单修改经受 token 保护的
   `POST /api/settings` 保存。预览 iframe 使用独立 opaque origin，首次用完整参数加载，后续
   通过校验父窗口来源及服务 origin 的 `lira:clock-preview-config` 消息原位更新；样式切换使用
   160ms 淡入衔接，减少动态效果时停用，不重载页面或重启计时器。完整参数无需重复
   读取配置，首帧在配置和当前时间就绪后显示。旧带参数地址保持兼容，显式参数逐字段
-  覆盖保存配置；已打开的 OBS 页面在 Browser Source 刷新后读取新设置。
+  覆盖保存配置；已打开的 overlay 页面在 Browser Source 刷新后读取新设置。
 
 ## 7. 数据消费一览
 
@@ -362,7 +372,7 @@ HTTP 初始/重连请求带本页读取代次，较新的完整 WS 状态使旧�
 歌词性能策略由 `shared/lyric-performance.js` 持有：连续四个长帧先从 WAAPI 降为手动，再连续四个长帧进入静态模式。`lyric-word-animator.js` 在模式实际改变时取消并清空旧动画，静态模式仍按当前时间更新进度。clock/opening 使用各自的 HTTP 配置接口，不订阅快照 WebSocket。
 
 
-## 服务器 OBS 地址
+## 服务器 浏览器源地址
 
 服务器弹幕姬地址按服务端 ADR-0056 使用 `/overlay/<16位base64url>`。`server-overlay-url.js` 在初次授权资料和授权状态变化后，通过既有主进程 `getOverlaySettings()` 读取完整 URL，验证与资料 `songPageUrl` 同源，再同时提供给点歌投屏地址及弹幕工具；不从域名拼接裸路径、不生成或上传密钥。账号切换先清空地址，迟到回复按代际丢弃。该只读 capability 仅用于用户明确要求的展示/复制/打开，DeviceBearer 保持在 main。失败不回退公开地址。网页、不同设备和重装后使用同一服务端持久密钥；本地 `/danmaku?preview=1` 预览不依赖它。
 

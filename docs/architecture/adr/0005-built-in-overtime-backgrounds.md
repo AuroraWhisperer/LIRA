@@ -6,11 +6,11 @@
 
 ## Context
 
-Allowing arbitrary local file uploads as overlay backgrounds would introduce a writable directory in installed deployments, file-type validation, path-traversal risks, and a cleanup policy. The V1 goal is to complete the core countdown and gift settlement chain with a configurable, OBS-friendly look. This ADR was extracted from the overtime machine design specification (accepted 2026-08-10) and verified implemented in the v3.3.14 codebase (`src/overtime/overtime-contract.js` `validateBackground`, `public/img/overtime-machine/`).
+Allowing arbitrary local file uploads as overlay backgrounds would introduce a writable directory in installed deployments, file-type validation, path-traversal risks, and a cleanup policy. The V1 goal is to complete the core countdown and gift settlement chain with a configurable look for browser sources. This ADR was extracted from the overtime machine design specification (accepted 2026-08-10) and verified implemented in the v3.3.14 codebase (`src/overtime/overtime-contract.js` `validateBackground`, `public/img/overtime-machine/`).
 
 ## Decision
 
-V1 supports a transparent background or built-in images under `public/img/overtime-machine/`, with three fit modes: `cover` (default), `contain`, and `fill`. Server-side validation accepts only an empty string or a relative site path matching `/img/overtime-machine/...`; paths containing `..`, backslashes, protocol prefixes, or absolute URLs are rejected, and no arbitrary upload endpoint exists. When a background fails to load, the overlay falls back to transparency without hiding the foreground, and the shade overlay is drawn only when a background image is configured (so transparent mode composites cleanly into OBS).
+V1 supports a transparent background or built-in images under `public/img/overtime-machine/`, with three fit modes: `cover` (default), `contain`, and `fill`. Server-side validation accepts only an empty string or a relative site path matching `/img/overtime-machine/...`; paths containing `..`, backslashes, protocol prefixes, or absolute URLs are rejected, and no arbitrary upload endpoint exists. When a background fails to load, the overlay falls back to transparency without hiding the foreground, and the shade overlay is drawn only when a background image is configured (so transparent mode composites cleanly into OBS or Bilibili Livehime).
 
 ## Consequences
 
