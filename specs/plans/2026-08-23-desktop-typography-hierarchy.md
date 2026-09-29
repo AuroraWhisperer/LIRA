@@ -1,5 +1,15 @@
 # Desktop Typography Hierarchy Implementation Plan
 
+**Status:** Awaiting Verification.
+
+**复核日期：** 2026-09-28。剩余 Windows 原生 100%/125% 显示缩放实机验收；不能用窗口缩放替代。
+
+当前依据：[所属规格或参考](../../docs/reference/frontend/app.md)。状态索引见 [计划入口](README.md)。
+
+## 原始计划与执行记录
+
+以下保留原计划时点的行为、命令和验证记录；它们不覆盖上述状态或当前契约，历史未勾选项不直接等同于当前缺陷。
+
 > **For agentic workers:** REQUIRED REVIEW SKILLS: use `frontend-design` for the hierarchy review and `playwright-interactive` for final Electron visual QA. Execute one milestone at a time with task-scoped agents and review the diff between milestones.
 
 **Goal:** Give every user-visible text element in the LIRA Electron Admin a clear role—page title, section title, card title, body, label, caption, status, or data—so users can understand the interface hierarchy at a glance without relying on color or position alone.
@@ -154,7 +164,7 @@ The scoped Admin role-class interface is also fixed:
 - Playback typography: `public/css/playback/`, `public/pages/admin/playback/`, and dynamic templates under `public/js/playback/`.
 - Toolbox typography: `public/css/admin/toolbox/`, `public/css/admin/overtime.css`, related legacy-owned styles under `public/css/admin/toasts/`, and `public/pages/admin/toolbox/`.
 - Electron-only late overrides: `public/css/overlays/desktop.css`; despite its path, it styles `/admin?desktop=1` and must be included in the desktop cascade review.
-- Contracts: `docs/architecture/frontend/pages.md`, `docs/architecture/frontend/app.md`, and `docs/architecture/desktop/main.md`.
+- Contracts: `docs/reference/frontend/pages.md`, `docs/reference/frontend/app.md`, and `docs/reference/desktop/main.md`.
 - Route owners: `ROUTE-ADMIN` and `ROUTE-PLAYBACK`. `ROUTE-OVERLAYS` remains an explicit compatibility boundary.
 - Focused tests: `test/admin/admin-page-composition.test.js`, `test/admin/frontend-admin-shell.test.js`, `test/playback/frontend-playback.test.js`, `test/gifts/frontend-gifts.test.js`, `test/admin/toolbox-sidebar.test.js`, `test/ui/ui-surface.test.js`, and `test/lyrics/desktop-lyrics.test.js`.
 
@@ -269,8 +279,8 @@ The scoped Admin role-class interface is also fixed:
 
 ### Documentation to modify
 
-- `docs/architecture/frontend/pages.md`: document the Admin typography role owner, token scale, and OBS/user-configurable-font exclusions.
-- `docs/architecture/engineering/test.md`: register `test/ui/frontend-typography.test.js` in the frontend test inventory.
+- `docs/reference/frontend/pages.md`: document the Admin typography role owner, token scale, and OBS/user-configurable-font exclusions.
+- `docs/reference/engineering/test.md`: register `test/ui/frontend-typography.test.js` in the frontend test inventory.
 
 Every listed file is reviewed. Change only its user-visible generic text-role declarations or markup; if an existing shared selector already supplies the complete role, record that result in the plan and leave the file unchanged. Specialized declarations remain component-owned.
 
@@ -450,8 +460,8 @@ Every listed file is reviewed. Change only its user-visible generic text-role de
 
 **Files:**
 
-- Modify: `docs/architecture/frontend/pages.md`
-- Modify: `docs/architecture/engineering/test.md`
+- Modify: `docs/reference/frontend/pages.md`
+- Modify: `docs/reference/engineering/test.md`
 - Update: this plan’s progress and verification sections as work completes.
 - Temporary screenshots: ignored `tmp/` only; do not commit them.
 
@@ -526,7 +536,7 @@ Expected result: every command exits successfully. If the full suite exposes unr
 ```powershell
 git diff --check
 git status --short
-git diff -- public/css/styles-base.css public/css/admin public/css/playback public/css/components public/css/overlays/desktop.css public/pages/admin public/js/admin/settings.js public/js/playback test/ui/frontend-typography.test.js docs/architecture/frontend/pages.md docs/architecture/engineering/test.md specs/plans/2026-08-23-desktop-typography-hierarchy.md
+git diff -- public/css/styles-base.css public/css/admin public/css/playback public/css/components public/css/overlays/desktop.css public/pages/admin public/js/admin/settings.js public/js/playback test/ui/frontend-typography.test.js docs/reference/frontend/pages.md docs/reference/engineering/test.md specs/plans/2026-08-23-desktop-typography-hierarchy.md
 ```
 
 Expected result: no whitespace errors, generated assets, screenshots, data, logs, or unrelated files enter the task diff.

@@ -21,7 +21,7 @@
 
 Owner: src/electron/fan-profile-controller.js、src/fans/guard-roster-import.js、src/fans/profile-service.js。
 Consumers: src/electron/main.js、public/js/admin/index.js、public/js/admin/fans/automatic-update.js、public/js/admin/fans/forms.js。
-Contracts: specs/fan-profiles.md、docs/architecture/desktop/preload.md、docs/architecture/backend/storage.md。
+Contracts: specs/fan-profiles.md、docs/reference/desktop/preload.md、docs/reference/backend/storage.md。
 Tests: test/fan-profiles-ipc.test.js、test/fan-profiles-guard-roster.test.js、test/frontend-fan-profiles.test.js。
 
 ## Proposed changes

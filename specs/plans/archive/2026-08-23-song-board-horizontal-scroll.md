@@ -25,7 +25,7 @@
 - Modify `public/js/overlays/queue-scroll.js`: own horizontal overflow detection and animation endpoint setup.
 - Modify `public/css/overlays/base/illustrated.css` only if an overflow-state class is required to preserve centered short content while start-aligning long content.
 - Modify `test/frontend-queue.test.js`: cover start/end transforms, non-overflow behavior, and the style 3–6 selector path.
-- Update `docs/architecture/frontend/overlays.md` only if the documented animation contract needs clarification.
+- Update `docs/reference/frontend/overlays.md` only if the documented animation contract needs clarification.
 - Create temporary QA output only under `tmp/`; do not commit it.
 
 ### Task 1: Reproduce and measure the defect

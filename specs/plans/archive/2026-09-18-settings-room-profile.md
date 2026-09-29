@@ -16,7 +16,7 @@ The account card already shows the authenticated account's identity. The room is
 
 - UI: `public/pages/admin/song/settings.html`, `public/css/admin/workspace/base.css`, `public/js/admin/settings-room-profile.js`, and the existing `settings.js` composition root.
 - Room data: `src/server/bilibili-runtime.js`, using `BilibiliApiClient.resolveRoomInfo()` and `UserInfoService.ensure()`.
-- Transport: the existing runtime/API composition roots and `src/server/routes/bilibili-routes.js`; document the additive route in `docs/architecture/backend/api.md`.
+- Transport: the existing runtime/API composition roots and `src/server/routes/bilibili-routes.js`; document the additive route in `docs/reference/backend/api.md`.
 - Add `GET /api/bilibili/room/profile`, protected by existing local management authentication. It accepts no client-selected room and returns only `{roomId, uid, name, avatarUrl}` for the saved room; an empty room returns empty fields.
 - Keep the existing account controls, settings IDs, `POST /api/settings`, avatar allowlist/proxy, form validation, and responsive grid behavior. Do not touch pre-existing toolbox edits.
 

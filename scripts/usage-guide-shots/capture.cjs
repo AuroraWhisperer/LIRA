@@ -26,9 +26,11 @@ function parseArgs(argv) {
     if (arg === '--reseed') options.reseed = true;
     else if (arg === '--list') options.list = true;
     else if (arg.startsWith('--only='))
-      options.only = arg.slice(7).split(',').map((s) => s.trim());
-    else if (arg === '--only')
-      throw new Error('--only 需要 = 连接，如 --only=A1,B1');
+      options.only = arg
+        .slice(7)
+        .split(',')
+        .map((s) => s.trim());
+    else if (arg === '--only') throw new Error('--only 需要 = 连接，如 --only=A1,B1');
     else if (arg.startsWith('--group=')) options.group = arg.slice(8);
     else if (arg.startsWith('--port=')) options.port = Number(arg.slice(7));
   }
@@ -37,13 +39,10 @@ function parseArgs(argv) {
 
 function checkPortFree(port) {
   return new Promise((resolve) => {
-    const req = http.request(
-      { host: '127.0.0.1', port, path: '/api/health', method: 'GET', timeout: 400 },
-      (res) => {
-        res.resume();
-        resolve(false);
-      },
-    );
+    const req = http.request({ host: '127.0.0.1', port, path: '/api/health', method: 'GET', timeout: 400 }, (res) => {
+      res.resume();
+      resolve(false);
+    });
     req.on('timeout', () => {
       req.destroy();
       resolve(true);
@@ -111,8 +110,11 @@ async function seedQueueViaApi(baseUrl, token) {
     ['锦鲤抄', '银临', 'skip'],
   ]) {
     const added = await postApi(baseUrl, token, '/api/queue/add', {
-      songName, artist, categoryName: '古风',
-      requesterName: '观众B', requesterUid: '100002',
+      songName,
+      artist,
+      categoryName: '古风',
+      requesterName: '观众B',
+      requesterUid: '100002',
     });
     if (added?.id) {
       await postApi(baseUrl, token, '/api/queue/action', { action, id: added.id });
@@ -150,9 +152,7 @@ async function captureShot(browser, baseUrl, token, shot) {
     deviceScaleFactor: 1,
     locale: 'zh-CN',
     timezoneId: 'Asia/Shanghai',
-    ...(needsToken
-      ? { extraHTTPHeaders: { Authorization: `Bearer ${token}` } }
-      : {}),
+    ...(needsToken ? { extraHTTPHeaders: { Authorization: `Bearer ${token}` } } : {}),
   });
   if (shot.type === 'license') {
     await context.addInitScript(tools.licenseStubSource(shot.license || {}));
@@ -186,9 +186,7 @@ async function captureShot(browser, baseUrl, token, shot) {
     await tools.settle(page, shot.settleMs || 0);
     // 点歌确认悬浮通知（#pendingConfirmPopup）会遮挡页面，除专门拍它的镜头外一律隐藏
     const covers = [
-      ...(shot.type === 'admin' && !shot.allowPendingPopup
-        ? [{ selector: '#pendingConfirmPopup', mode: 'hide' }]
-        : []),
+      ...(shot.type === 'admin' && !shot.allowPendingPopup ? [{ selector: '#pendingConfirmPopup', mode: 'hide' }] : []),
       ...(shot.covers || []),
     ];
     await tools.applyCovers(page, covers);
@@ -201,14 +199,9 @@ async function captureShot(browser, baseUrl, token, shot) {
     }
 
     const size = tools.pngSize(outFile);
-    const missing = await page.evaluate(
-      () => window.__shotAnnotationMissing || [],
-    );
+    const missing = await page.evaluate(() => window.__shotAnnotationMissing || []);
     const dimensionOk =
-      !shot.clip && size
-        ? size.width === shot.viewport.width &&
-          size.height === shot.viewport.height
-        : true;
+      !shot.clip && size ? size.width === shot.viewport.width && size.height === shot.viewport.height : true;
     return { outFile, size, dimensionOk, missing, consoleErrors, failedResponses };
   } finally {
     await context.close();
@@ -235,8 +228,7 @@ async function main() {
 
   if (!(await checkPortFree(options.port))) {
     console.error(
-      `端口 ${options.port} 已被占用（可能是正在运行的 LIRA）。` +
-        '请先关闭后重试，或用 --port=3927 换一个端口。',
+      `端口 ${options.port} 已被占用（可能是正在运行的 LIRA）。` + '请先关闭后重试，或用 --port=3927 换一个端口。',
     );
     process.exit(2);
   }
@@ -257,9 +249,7 @@ async function main() {
 
     // 礼物页/许愿/导出等功能依赖「活动礼物来源」：真实环境由 B 站同步链路设置，
     // 这里按种子数据直接置为 LIVE（对应 seed-meta.json 里 sourceId 的事件集）。
-    const meta = JSON.parse(
-      fs.readFileSync(path.join(DATA_DIR, 'seed-meta.json'), 'utf8'),
-    );
+    const meta = JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'seed-meta.json'), 'utf8'));
     runtime.setActiveGiftSource({
       sourceId: meta.giftSourceId,
       syncState: 'LIVE',
@@ -280,12 +270,8 @@ async function main() {
         results.push({ shot, ...result, ok: true });
         const warn = [
           result.dimensionOk ? '' : '尺寸不符',
-          result.missing.length
-            ? `标注未命中: ${result.missing.join(', ')}`
-            : '',
-          result.consoleErrors.length
-            ? `控制台报错 ${result.consoleErrors.length} 条`
-            : '',
+          result.missing.length ? `标注未命中: ${result.missing.join(', ')}` : '',
+          result.consoleErrors.length ? `控制台报错 ${result.consoleErrors.length} 条` : '',
         ].filter(Boolean);
         console.log(
           `[ok] ${shot.id} ${shot.file} ${result.size?.width}×${result.size?.height} ` +

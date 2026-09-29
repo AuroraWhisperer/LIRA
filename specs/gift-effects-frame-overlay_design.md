@@ -473,11 +473,11 @@ V1 只实现一个主题和一个动画强度，避免在没有第二套真实�
 
 | 责任                                  | Owner                                                                   | 现有契约/消费者                                                               |
 | ------------------------------------- | ----------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
-| 礼物 final 生命周期与总金额           | `src/bilibili/gift/`                                                    | `docs/architecture/backend/bilibili/gift.md`                                  |
+| 礼物 final 生命周期与总金额           | `src/bilibili/gift/`                                                    | `docs/reference/backend/bilibili/gift.md`                                  |
 | 礼物 frame 事件构造、RMB→整数分和阈值 | `src/bilibili/gift/` 的具名 Frame Adapter                               | 新增 `gift-frame` focused tests                                               |
-| Overlay 页面与动画                    | `public/pages/overlays/`、`public/js/overlays/`、`public/css/overlays/` | `docs/architecture/frontend/overlays.md`、`test/gifts/gift-effects-overlay.test.js` |
+| Overlay 页面与动画                    | `public/pages/overlays/`、`public/js/overlays/`、`public/css/overlays/` | `docs/reference/frontend/overlays.md`、`test/gifts/gift-effects-overlay.test.js` |
 | 浏览器源 URL 与预览                   | `public/js/admin/gift-effects.js`、`src/server/routes/gift-routes.js`   | `/gift-effects`、新增 `/api/gifts/frame/preview`                              |
-| settings 持久化                       | `src/storage/settings-store.js`                                         | `docs/architecture/backend/storage.md`                                        |
+| settings 持久化                       | `src/storage/settings-store.js`                                         | `docs/reference/backend/storage.md`                                        |
 
 兼容性约束：
 

@@ -242,7 +242,9 @@ function createAiAssistantService(dependencies) {
         'output_review',
       );
       throwIfShuttingDown();
-      const approvedText = outputReview.allowed ? outputReview.safeText || rawText : outputReview.safeText || SAFE_REFUSAL;
+      const approvedText = outputReview.allowed
+        ? outputReview.safeText || rawText
+        : outputReview.safeText || SAFE_REFUSAL;
       const text = truncateReply(approvedText, replyBudget.threeMessages);
       const result = {
         text,

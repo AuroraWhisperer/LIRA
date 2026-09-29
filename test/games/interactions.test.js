@@ -163,8 +163,8 @@ for (const hours of [12, 24, 168]) {
           f.service.sourceChanged();
           assert.equal(f.listener, originalListener);
         }
-        const uid = String(1 + minute % 64);
-        const score = 1 + minute % 10;
+        const uid = String(1 + (minute % 64));
+        const score = 1 + (minute % 10);
         f.send(uid, String(score), { platformTime: minute * 60_000, eventId: null });
         expectedScores.set(uid, score);
         assert.equal(f.tasks.size, 0);

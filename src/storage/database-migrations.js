@@ -10,7 +10,7 @@ const schema = require('./schema');
 const { seedThemePresets } = require('./theme-store');
 const { migrateGiftIdentities } = require('./gift-identity-migration');
 const { migrateGiftDisplay } = require('./gift-display-migration');
-const { migrateGiftWishes, migrateGiftWishDisplay } = require('./gift-wish-migration');
+const { migrateGiftWishes, migrateGiftWishDisplay, migrateGiftWishTextImages, migrateGiftWishTextColors } = require('./gift-wish-migration');
 const { migrateFanProfiles } = require('./fan-profile-migration');
 
 // ── 迁移注册表 ──
@@ -310,6 +310,10 @@ function runAllMigrations(databases, options = {}) {
       migrateGiftWishes,
       // v14: per-wish display style and custom text, preserving existing cards.
       migrateGiftWishDisplay,
+      // v15: optional text wish images, preserving existing text-only displays.
+      migrateGiftWishTextImages,
+      // v16: per-wish text colors; empty values use the shared renderer defaults.
+      migrateGiftWishTextColors,
     ]),
   );
 

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "repository": "AuroraWhisperer/LIRA-server",
-  "revision": "a28db3a2ccf5f0fec1626a4fe3bd97a7eb402d1b",
+  "revision": "d5457562f6e06c5beb4e276345374a931c28e075",
   "fixtures": {
     "docs/protocol/fixtures/daily-bots-v1.json": "3a6215a8b26be900766c472bf419c211dddf1bc6e67070bbc6d6fda74acbe519",
     "docs/protocol/fixtures/device-auth-v2-vectors.json": "bba705c5c6ff01aea177683d358fa025afb35a7a6a8a53d4f17ca33a187f05d0",

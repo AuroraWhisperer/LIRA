@@ -19,7 +19,7 @@
 - `state/manager.js` rejects the `repeat-one` value produced by `utils.getNextMode()`. `state/storage.js` consequently rejects an otherwise valid server/local snapshot before normalization.
 - `features/stream-handler.js` forwards an old track's late success or failure to play/next without checking ownership. `services/stream-service.js` can also publish an obsolete success/error notification and mutate the supplied track.
 - `features/playback-controls.js` assigns a new current track in its empty-URL branch while the old audio remains active.
-- Composition: `controller.js`; consumer: `core/initializer.js` audio error listener; contract: `docs/architecture/frontend/playback.md`, architecture route `ROUTE-PLAYBACK`.
+- Composition: `controller.js`; consumer: `core/initializer.js` audio error listener; contract: `docs/reference/frontend/playback.md`, architecture route `ROUTE-PLAYBACK`.
 - Tests: existing `test/helpers/playback-app.js`, `test/playback-persistence.test.js`, and a focused `test/playback-stream-recovery.test.js`. No helper infrastructure changes planned.
 
 ## Milestones

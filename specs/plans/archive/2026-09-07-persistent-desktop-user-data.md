@@ -26,9 +26,9 @@ song import committed successfully.
 
 - Owner: `src/electron/` for Electron path selection and startup migration;
   `build/installer.nsh` for the pre-uninstall update bridge.
-- Contracts: `docs/architecture/desktop/main.md`,
-  `docs/architecture/backend/storage.md`, and
-  `docs/architecture/engineering/build.md`.
+- Contracts: `docs/reference/desktop/main.md`,
+  `docs/reference/backend/storage.md`, and
+  `docs/reference/engineering/build.md`.
 - Consumers: the embedded server, authentication stores, local-media allowlist,
   update diagnostics, and Chromium persistent partitions.
 - Tests: a focused user-data path/migration test plus existing Electron module,

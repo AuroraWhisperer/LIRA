@@ -21,7 +21,7 @@
 - `src/storage/gift-wish-migration.js` 增加独立幂等迁移，`database-migrations.js` 追加 gift_db v14；`gift-wish-store.js` 持久化。保留 v13 表结构函数及既有数据、来源、创建时间和计数。
 - `src/server/overlay-projection.js` 仅新增两个展示字段；鉴权、来源限制与 OBS 只读权限不变。
 - 管理片段、`admin/gifts/wishes.js`、共享卡片 JS/CSS 拥有输入与展示。继续保留前一轮旧浏览器请求兼容修复。
-- 合同更新：`docs/architecture/backend/storage.md`、`backend/api.md`、`frontend/pages.md`。
+- 合同更新：`docs/reference/backend/storage.md`、`backend/api.md`、`frontend/pages.md`。
 
 ## Milestones and verification
 

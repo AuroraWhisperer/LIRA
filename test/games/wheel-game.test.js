@@ -156,7 +156,10 @@ test('wheel spin locks use monotonic elapsed time through wall clock changes', (
     clearTimeout: (timer) => tasks.delete(timer),
   });
   t.after(() => wheel.dispose());
-  const entries = [{ label: 'A', weight: 1 }, { label: 'B', weight: 1 }];
+  const entries = [
+    { label: 'A', weight: 1 },
+    { label: 'B', weight: 1 },
+  ];
   wheel.configure(entries);
   const started = wheel.spin();
   assert.equal(started.spin.startedAt, wallMs);

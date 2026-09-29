@@ -219,14 +219,29 @@ test('failed external browser launches are owned by the navigation handler', asy
   const f = fixture();
   const contents = new EventEmitter();
   contents.isDestroyed = () => false;
-  contents.setWindowOpenHandler = (handler) => { contents.open = handler; };
+  contents.setWindowOpenHandler = (handler) => {
+    contents.open = handler;
+  };
   const warnings = t.mock.method(console, 'warn', () => {});
-  f.auth.bindWindow({ webContents: contents }, {
-    openExternal: async () => { throw new Error('synthetic system browser failure'); },
-  });
+  f.auth.bindWindow(
+    { webContents: contents },
+    {
+      openExternal: async () => {
+        throw new Error('synthetic system browser failure');
+      },
+    },
+  );
   t.after(() => f.auth.dispose());
   let prevented = false;
-  contents.emit('will-navigate', { preventDefault() { prevented = true; } }, 'https://example.test');
+  contents.emit(
+    'will-navigate',
+    {
+      preventDefault() {
+        prevented = true;
+      },
+    },
+    'https://example.test',
+  );
   assert.equal(prevented, true);
   assert.deepEqual(contents.open({ url: 'https://example.test' }), { action: 'deny' });
   await new Promise(setImmediate);

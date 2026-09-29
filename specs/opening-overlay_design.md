@@ -2,9 +2,13 @@
 
 ## Status
 
-Draft — Ready for implementation after minor spec fixes
+Superseded — 早期视觉/MVP 草案。现行素材和空状态要求由 [人物上传规格](opening-character-upload_design.md) 替代，动作要求见 [轨迹规格](opening-track-motion_design.md)，现状入口见 [展示参考](../docs/reference/frontend/overlays.md)。下文的内置素材、无持久化键和“后续再加管理页”均为原草案假设，不作为当前实施要求。
 
 2026-09-05 素材策略更新: 本文早期 MVP 中内置 `music.ogg` 和默认人物图的要求已被用户上传专用策略取代。默认无音乐、无人物图;原始素材仅存放于 `test/fixtures/opening/` 供手动上传测试,不再位于 public 或进入安装包。当前行为见 [人物上传与空状态规格](opening-character-upload_design.md)。
+
+## 历史设计正文
+
+以下保留原草案的目标和设计推导。替代范围以顶部说明及后续规格为准。
 
 ## Goal
 

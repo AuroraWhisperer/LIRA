@@ -343,12 +343,15 @@ export function createDrawController({ byId, canDraw, getSession, loadSnapshot, 
   }
 
   function queueDrawOperation(operation) {
+    const sessionId = getSession()?.sessionId;
+    const round = getSession()?.state?.round;
     drawSendChain = drawSendChain
       .then(async () => {
+        if (getSession()?.sessionId !== sessionId || getSession()?.state?.round !== round) return;
         const response = await fetch('/api/games/session/draw', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(operation),
+          body: JSON.stringify({ ...operation, sessionId, round }),
         });
         const payload = await response.json();
         if (!payload.ok) throw new Error(payload.error || '画笔同步失败');
@@ -359,10 +362,10 @@ export function createDrawController({ byId, canDraw, getSession, loadSnapshot, 
       });
   }
 
-  function applyBroadcast(operation) {
+  function applyBroadcast(operation, replaying = false) {
     if (!operation || getSession()?.game !== 'draw-guess') return;
     // Undo waits for confirmation because the server selects the stroke.
-    if (operation.clientId === drawClientId && operation.action !== 'undo') {
+    if (!replaying && operation.clientId === drawClientId && operation.action !== 'undo') {
       if (getSession().state?.canvas) getSession().state.canvas.revision = operation.revision;
       return;
     }
@@ -457,6 +460,10 @@ export function createDrawController({ byId, canDraw, getSession, loadSnapshot, 
   }
 
   return {
+    waitForPendingDraws() {
+      finalizeActiveStroke();
+      return drawSendChain;
+    },
     applyBroadcast,
     init,
     redrawCanvas,

@@ -12,7 +12,7 @@
 
 - Current overlay waits `intervalSeconds`, animates one row over 400 ms, and recreates all rows. Refresh cancels motion; low-power and pause alter playback.
 - Settings owner: `src/bilibili/gift/display-settings.js`; consumers: admin display form, `/api/gifts/display-settings`, OBS feed, PNG export (thresholds only).
-- Contracts: `docs/architecture/backend/api.md` and `docs/architecture/frontend/overlays.md`.
+- Contracts: `docs/reference/backend/api.md` and `docs/reference/frontend/overlays.md`.
 - Preserve existing uncommitted banner/export/admin changes, gift ordering, source isolation, stale-request protection, midnight reset, artwork, and colors. No changes to Electron, storage schema, authentication, URLs, or export rendering.
 - Keep `giftDisplayConfig`. Canonical settings replace the old playback fields with integer `scrollSpeed` (default 1). Read legacy saved settings without losing thresholds or visible rows; their unsupported old intervals become speed 1. Legacy valid POST payloads are normalized for compatibility. Obsolete pause/low-power values no longer control playback.
 

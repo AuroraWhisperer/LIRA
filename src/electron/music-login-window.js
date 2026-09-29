@@ -57,7 +57,8 @@ async function loginMusicAccount(mainWindow, platform, dataDir, { signal } = {})
   const scheduleCookieSave = () => {
     clearTimeout(cookieSaveTimer);
     cookieSaveTimer = setTimeout(() => {
-      cookieSaveJob = cookieSaveJob.then(() => persistMusicCookieSnapshot(platform, dataDir))
+      cookieSaveJob = cookieSaveJob
+        .then(() => persistMusicCookieSnapshot(platform, dataDir))
         .catch((error) => writeLog('music-cookie-save', error));
     }, 800);
   };

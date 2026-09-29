@@ -138,7 +138,12 @@ function buildSongsWorkbook(rows) {
       const cells = row
         .map(
           (cell, columnIndex) =>
-            '<c r="' + columnName(columnIndex) + rowNumber + '" t="inlineStr"><is><t>' + escapeXml(cell) + '</t></is></c>',
+            '<c r="' +
+            columnName(columnIndex) +
+            rowNumber +
+            '" t="inlineStr"><is><t>' +
+            escapeXml(cell) +
+            '</t></is></c>',
         )
         .join('');
       return '<row r="' + rowNumber + '">' + cells + '</row>';

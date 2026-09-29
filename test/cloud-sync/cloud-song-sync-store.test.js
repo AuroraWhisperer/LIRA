@@ -89,7 +89,7 @@ for (const [name, mutate] of Object.entries(mutations)) {
 test('pending metadata is private and cloud replacements do not create upload echoes', (t) => {
   const f = fixture(t);
   f.songs.ensureCategory('Empty category');
-  songService.replaceCloudSongs(f.songs, [{ name: 'Cloud', artist: 'Artist' }]);
+  songService.replaceCloudSongs(f.songs, [{ title: 'Cloud', artist: 'Artist' }]);
   assert.equal(f.pending.readPending(ACCOUNT_A), null);
   mutations.save(f);
   const settings = createSettingsStore(f.db).getSettings();

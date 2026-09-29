@@ -8,6 +8,21 @@ const { DEFAULT_SETTINGS } = require('./settings-defaults');
 const settingsMigrations = require('./settings-migrations');
 const { CLOUD_SONG_SYNC_PENDING_PREFIX } = require('./cloud-song-sync-store');
 const CLOUD_ROOM_ACCOUNT_KEY = 'cloudRoomAccountKey';
+const MONITORING_KEYS = ['danmakuMonitoringEnabled', 'giftMonitoringEnabled'];
+
+function reconcileMonitoringSettings(values, previous) {
+  const hasChannels = MONITORING_KEYS.some((key) => Object.hasOwn(values, key));
+  if (!hasChannels && !Object.hasOwn(values, 'enableBilibili')) return values;
+  const legacyChanged = !hasChannels && values.enableBilibili !== previous.enableBilibili;
+  const channels = Object.fromEntries(MONITORING_KEYS.map((key) => [
+    key, legacyChanged ? values.enableBilibili : (values[key] ?? previous[key]),
+  ]));
+  return {
+    ...values,
+    ...channels,
+    enableBilibili: String(MONITORING_KEYS.some((key) => channels[key] === 'true')),
+  };
+}
 
 function bootstrapSettingsStore(db) {
   db.exec('BEGIN IMMEDIATE');
@@ -41,6 +56,7 @@ function bootstrapSettingsStore(db) {
 }
 
 function createSettingsStore(db) {
+  const legacyMonitoring = db.prepare('SELECT value FROM settings WHERE key = ?').get('enableBilibili')?.value;
   // Initialize defaults into DB on first call
   for (const [key, value] of Object.entries(DEFAULT_SETTINGS)) {
     if (key === 'desktopLyricKaraokeMode') {
@@ -62,7 +78,7 @@ function createSettingsStore(db) {
       INSERT OR IGNORE INTO settings (key, value, updated_at)
       VALUES (?, ?, ?)
     `,
-    ).run(key, value, now());
+    ).run(key, MONITORING_KEYS.includes(key) ? (legacyMonitoring ?? value) : value, now());
   }
 
   let cache = null;
@@ -70,6 +86,11 @@ function createSettingsStore(db) {
     INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)
     ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
   `);
+  const readSetting = db.prepare('SELECT value FROM settings WHERE key = ?');
+  const combinedMonitoring = String(MONITORING_KEYS.some((key) => readSetting.get(key)?.value === 'true'));
+  if (readSetting.get('enableBilibili')?.value !== combinedMonitoring) {
+    writeSetting.run('enableBilibili', combinedMonitoring, now());
+  }
 
   function getSettings() {
     if (cache) return { ...cache };
@@ -80,6 +101,23 @@ function createSettingsStore(db) {
       cache[row.key] = row.value;
     }
     return { ...cache };
+  }
+
+  function setSettings(values) {
+    const previous = getSettings();
+    const changes = Object.entries(reconcileMonitoringSettings(values, previous))
+      .filter(([key, value]) => previous[key] !== value);
+    if (changes.length === 0) return [];
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      for (const [key, value] of changes) writeSetting.run(key, value, now());
+      db.exec('COMMIT');
+    } catch (error) {
+      db.exec('ROLLBACK');
+      throw error;
+    }
+    cache = null;
+    return changes.map(([key]) => key);
   }
 
   return {
@@ -107,25 +145,15 @@ function createSettingsStore(db) {
     },
 
     setSetting(key, value) {
+      if (key === 'enableBilibili' || MONITORING_KEYS.includes(key)) {
+        setSettings({ [key]: value });
+        return;
+      }
       writeSetting.run(key, value, now());
       cache = null;
     },
 
-    setSettings(values) {
-      const previous = getSettings();
-      const changes = Object.entries(values).filter(([key, value]) => previous[key] !== value);
-      if (changes.length === 0) return [];
-      db.exec('BEGIN IMMEDIATE');
-      try {
-        for (const [key, value] of changes) writeSetting.run(key, value, now());
-        db.exec('COMMIT');
-      } catch (error) {
-        db.exec('ROLLBACK');
-        throw error;
-      }
-      cache = null;
-      return changes.map(([key]) => key);
-    },
+    setSettings,
   };
 }
 

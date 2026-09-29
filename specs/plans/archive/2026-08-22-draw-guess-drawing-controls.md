@@ -30,8 +30,8 @@
 
 - 状态与输入限制 owner：`src/games/draw-guess.js`。
 - 会话生命周期和广播 owner：`src/games/game-session-service.js`。
-- HTTP contract：`docs/architecture/backend/api.md` §小游戏 API。
-- WebSocket contract：`docs/architecture/backend/ws.md` §3 `game:draw`。
+- HTTP contract：`docs/reference/backend/api.md` §小游戏 API。
+- WebSocket contract：`docs/reference/backend/ws.md` §3 `game:draw`。
 - 画布消费者：`public/js/overlays/games.js`；主持说明：`public/pages/admin/toolbox/games.html` 与 `public/css/admin/toolbox/games.css`。
 - 回归测试：`test/games.test.js`、`test/games-overlay.test.js`、`test/frontend-games.test.js`、必要时 `test/game-routes.test.js`。
 
@@ -50,7 +50,7 @@
 - `public/js/overlays/games.js`：添加“撤销上一笔”按钮；抽取笔画宽度设置函数；实现 `B`、`E`、`Ctrl/Cmd+Z`、`[`、`]`；清空前调用浏览器确认；处理 undo 广播并重绘。
 - `public/pages/overlays/games.html`：在工具栏加入撤销按钮。
 - `public/pages/admin/toolbox/games.html` 与 `public/css/admin/toolbox/games.css`：加入简短快捷键/清空确认说明，保持桌面端卡片层级。
-- `docs/architecture/backend/api.md`、`docs/architecture/backend/ws.md`、`specs/danmaku-draw-guess_design.md`：补充 undo 操作 contract 和已实现行为。
+- `docs/reference/backend/api.md`、`docs/reference/backend/ws.md`、`specs/danmaku-draw-guess_design.md`：补充 undo 操作 contract 和已实现行为。
 - 测试文件：覆盖状态撤销、服务广播、前端按钮/快捷键/说明文本和旧操作兼容。
 
 ## Milestones

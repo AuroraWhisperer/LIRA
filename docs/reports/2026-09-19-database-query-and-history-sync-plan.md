@@ -1,4 +1,7 @@
 ---
+
+> 历史记录：本文的发现、建议和验证仅对应文内日期/基线，不是当前缺陷或执行清单。现状见 [技术参考](../reference/README.md)，剩余工作见 [计划索引](../../specs/plans/README.md) 与 [未结项台账](../../specs/plans/open-items.md)。原结论和后续执行记录保留，不据此恢复未获批准的提案。
+
 status: proposal
 review_date: 2026-09-19
 scope: LIRA desktop and LIRA Server
@@ -13,7 +16,7 @@ implementation_status: client-query-batch-complete
 
 ## 实施进度（2026-09-19）
 
-已完成队列关联索引、礼物最近列表索引、历史双向边界分页与有效版本内的计数复用、粉丝候选批量读取。song v7 / gift v12 均走正式迁移；旧时间解释、同时间 ID 降序、现有灯牌排序与来源隔离保留。参见[实施记录](../../specs/plans/archive/2026-09-19-query-optimization.md)和[存储事实源](../architecture/backend/storage.md)。没有发布或修改真实用户数据库。
+已完成队列关联索引、礼物最近列表索引、历史双向边界分页与有效版本内的计数复用、粉丝候选批量读取。song v7 / gift v12 均走正式迁移；旧时间解释、同时间 ID 降序、现有灯牌排序与来源隔离保留。参见[实施记录](../../specs/plans/archive/2026-09-19-query-optimization.md)和[存储事实源](../reference/backend/storage.md)。没有发布或修改真实用户数据库。
 
 基准入口：[benchmark-client-queries.js](../../scripts/benchmark-client-queries.js)，使用临时磁盘库及合成数据：10 万礼物、1,000 档案/50,000 明细、10 万条点歌流水。每项单列首次读取，随后保存 30 次热态原始样本，运行环境、commit、相关未提交差异与查询计划见[修改前](2026-09-19-client-queries-before.json)和[修改后](2026-09-19-client-queries-after.json)。执行命令分别为 `node scripts/benchmark-client-queries.js docs/reports/2026-09-19-client-queries-before.json`、`node scripts/benchmark-client-queries.js docs/reports/2026-09-19-client-queries-after.json`；before 文件在修改运行代码前生成。
 
@@ -78,7 +81,7 @@ implementation_status: client-query-batch-complete
 
 ### 3.1 客户端礼物查询
 
-主要位置：[gift-query-store.js](D:/Work/Live/src/storage/gift-query-store.js)、[query-service.js](D:/Work/Live/src/bilibili/gift/query-service.js)、[schema.js](D:/Work/Live/src/storage/schema.js)。
+主要位置：[gift-query-store.js](../../src/storage/gift-query-store.js)、[query-service.js](../../src/bilibili/gift/query-service.js)、[schema.js](../../src/storage/schema.js)。
 
 **最近记录：让查询表达式与索引一致。** 当前排序使用 `datetime(created_at)`，已有索引对应原始 `created_at`。SQLite 要求表达式索引与查询中的表达式匹配，不能指望它自动把两种排序等同处理。[SQLite 表达式索引说明](https://www.sqlite.org/expridx.html)
 
@@ -105,7 +108,7 @@ worker 需要处理只读连接、快照、取消、账号切换、清库和退�
 
 ### 3.2 粉丝列表
 
-主要位置：[profile-service.js](D:/Work/Live/src/fans/profile-service.js)、[fan-profile-store.js](D:/Work/Live/src/storage/fan-profile-store.js)、[fan-record-store.js](D:/Work/Live/src/storage/fan-record-store.js)。
+主要位置：[profile-service.js](../../src/fans/profile-service.js)、[fan-profile-store.js](../../src/storage/fan-profile-store.js)、[fan-record-store.js](../../src/storage/fan-record-store.js)。
 
 当前每份档案分别读取全部记录及提醒处理状态，计算会员信息、灯牌等级和提醒后，才匹配昵称、身份、摘要和标签。搜索一人也承担所有人的计算量。
 
@@ -121,7 +124,7 @@ worker 需要处理只读连接、快照、取消、账号切换、清库和退�
 
 ### 3.3 点歌队列关联索引
 
-主要位置：[queue-store.js](D:/Work/Live/src/storage/queue-store.js)、[database-migrations.js](D:/Work/Live/src/storage/database-migrations.js)。
+主要位置：[queue-store.js](../../src/storage/queue-store.js)、[database-migrations.js](../../src/storage/database-migrations.js)。
 
 更新队列状态时，需要通过 `requests.queue_id` 找到关联流水。外键不会自动为这个查询补齐所需索引，现有相关索引不覆盖此字段。
 
@@ -157,7 +160,7 @@ CREATE INDEX IF NOT EXISTS idx_requests_queue_id ON requests(queue_id);
 
 ## 4. 首次同步当前到底会发生什么
 
-主要位置：[remote-gift-controller.js](D:/Work/Live/src/electron/remote-gift-controller.js)、[remote-license-client.js](D:/Work/Live/src/electron/license/remote-license-client.js)、服务器 [device.js](D:/Work/lira-server/src/routes/device.js) 与 [gift-history-service.js](D:/Work/lira-server/src/modules/bilibili/gift-history-service.js)。
+主要位置：[remote-gift-controller.js](../../src/electron/remote-gift-controller.js)、[remote-license-client.js](../../src/electron/license/remote-license-client.js)、服务器 [device.js](D:/Work/lira-server/src/routes/device.js) 与 [gift-history-service.js](D:/Work/lira-server/src/modules/bilibili/gift-history-service.js)。
 
 1. 客户端识别当前账号的本地礼物投影；尚未完成 bootstrap 时自动进入历史恢复。
 2. 历史请求当前不传 `limit`，所以采用服务器默认的 **100 条/页**；协议允许最多 200 条。增量发现/追赶使用的 200 条，不能当成当前历史页大小。
@@ -245,7 +248,7 @@ flowchart TD
 
 验收至少包含旧 R=100、新 S=150、完成目标 C=180，证明 101～150 最终通过新历史快照补齐且不触发实时消费；另测 R=S、R>S、在线 cursor 已超过 R 但 S≤R 的合法续传，以及清除旧锚点前后崩溃重启。
 
-以上顺序要求扩展 [gift-sync-store.js](D:/Work/Live/src/storage/gift-sync-store.js) 的状态和提交规则，并验证重复 `eventId` 的历史合并不会改变既有消费状态。对外部弹幕等副作用沿用其现有投递保证，不把本地事务描述为能够实现跨网络的严格只执行一次。首次记录的 L0 只界定新记录自动处理范围，不代表更早数据已下载。既有按 `{sourceId, authorizationEpoch, controllerGeneration, projectionGeneration}` 丢弃旧响应的规则必须继续覆盖两条路径。
+以上顺序要求扩展 [gift-sync-store.js](../../src/storage/gift-sync-store.js) 的状态和提交规则，并验证重复 `eventId` 的历史合并不会改变既有消费状态。对外部弹幕等副作用沿用其现有投递保证，不把本地事务描述为能够实现跨网络的严格只执行一次。首次记录的 L0 只界定新记录自动处理范围，不代表更早数据已下载。既有按 `{sourceId, authorizationEpoch, controllerGeneration, projectionGeneration}` 丢弃旧响应的规则必须继续覆盖两条路径。
 
 长期离线产生的大量增量欠账也不能从高优先级通道无限冲刺。服务器应依据恢复距离和实际发送量，将批量追赶纳入同一低优先级预算；少量实时缺口仍优先。不能只信任客户端自报“这是实时请求”，也不能为避免下载而静默丢弃已承诺的连续增量。需要全量重建时回到确认流程。
 
@@ -285,7 +288,7 @@ flowchart TD
 
 ### 6.3 超时与分页必须配套修改
 
-[remote-license-client.js](D:/Work/Live/src/electron/license/remote-license-client.js) 当前默认请求总超时为 10 秒，涵盖响应体读取。全局限速后排队和传输可能超过它，若不调整，就会反复中断并重传同一页。
+[remote-license-client.js](../../src/electron/license/remote-license-client.js) 当前默认请求总超时为 10 秒，涵盖响应体读取。全局限速后排队和传输可能超过它，若不调整，就会反复中断并重传同一页。
 
 新客户端仅为批量恢复设置专用超时，建议先采用 60 秒单页总期限、15 秒无数据超时；总期限从发起请求开始，包含排队、查询、压缩和收包，无数据期限从请求开始并在实际收到数据时重置。取消操作仍应立即生效，不能把授权和普通设置请求都改成长期等待。页面继续同时受条数和字节上限约束，默认 100、最多 200 条，解压后整页仍须小于当前 512 KiB 上限；必要时返回较短页面，token 只推进到实际返回的最后一条。
 
@@ -340,7 +343,7 @@ flowchart TD
 
 粉丝服务端事实只能恢复可靠身份观察和会员事实，**不能恢复没有上传的手写资料、备注和全部私人档案**。服务器没有这些内容，就不能通过新增“同步”按钮承诺找回它们。本报告不扩展私人资料上传范围。
 
-相关位置：[fan-profile-controller.js](D:/Work/Live/src/electron/fan-profile-controller.js)、[cloud-sync-controller.js](D:/Work/Live/src/electron/cloud-sync-controller.js)、[fan-profiles.md](D:/Work/Live/specs/fan-profiles.md)。歌库目前读取上限为解压后 8 MiB；在低速共享通道上明显可能超过历史页期限。后续若要覆盖所有首次下载，应先设计固定 revision 的歌库分段恢复，完成后再原子替换，并保留 dirty 本地修改保护，或设计与最大体积匹配的有界流式超时策略。
+相关位置：[fan-profile-controller.js](../../src/electron/fan-profile-controller.js)、[cloud-sync-controller.js](../../src/electron/cloud-sync-controller.js)、[fan-profiles.md](../../specs/fan-profiles.md)。歌库目前读取上限为解压后 8 MiB；在低速共享通道上明显可能超过历史页期限。后续若要覆盖所有首次下载，应先设计固定 revision 的歌库分段恢复，完成后再原子替换，并保留 dirty 本地修改保护，或设计与最大体积匹配的有界流式超时策略。
 
 因此，首批上线可以承诺“礼物历史恢复合计受到限制”，**不能宣称整个服务器所有下载都已被这个预算约束**。其他批量恢复接入时复用同一预算，不能为每种数据再独立增加 100 KB/s。暂停礼物历史也不等于停止必要的账号同步。
 
@@ -367,13 +370,13 @@ flowchart TD
 
 ### 9.2 合同与旧版本
 
-需要更新客户端 [投影同步规格](D:/Work/Live/specs/gift-ledger-projection-sync_design.md) 和对应实施计划；服务器 [客户端协议](D:/Work/lira-server/docs/protocol/client-server-api.md)、[Device OpenAPI](D:/Work/lira-server/docs/protocol/device-api.openapi.json)、需求/验收及 fixture 同步更新。当前“先 bootstrap 再正常增量”是明确契约，不能只改控制器而保留文档和测试声称原行为。
+需要更新客户端 [投影同步规格](../../specs/gift-ledger-projection-sync_design.md) 和对应实施计划；服务器 [客户端协议](D:/Work/lira-server/docs/protocol/client-server-api.md)、[Device OpenAPI](D:/Work/lira-server/docs/protocol/device-api.openapi.json)、需求/验收及 fixture 同步更新。当前“先 bootstrap 再正常增量”是明确契约，不能只改控制器而保留文档和测试声称原行为。
 
 采用可协商的新恢复控制能力。新客户端即使连到旧服务器也不能越过用户选择偷偷开始批量历史；若旧服务器不能证明安全的部分历史在线模式，就明确说明该模式需要服务器升级，保留服务端监控，不误显示桌面礼物已实时接通。旧客户端不可能自动拥有新确认窗口，服务器的总限速必须独立生效。
 
 新增本地同步状态只能通过正式迁移：已证明完整的旧状态保持完整；部分历史保留已提交记录，token 仅在满足第 5.3 节的快照与固定在线起点衔接条件时保留。不满足时只重置该快照的进度与覆盖标记，等待有效同意后重取快照；不能把旧状态缺少新字段默认解释为已确认全部下载。
 
-**回退采用最低兼容版本与启动保护，不能只增加 schema 版本号。** 当前 [schema.js](D:/Work/Live/src/storage/schema.js) 在数据库版本高于代码版本时仍允许程序继续运行，旧程序也不会识别新增的暂停或部分在线字段。实施时必须配套以下措施：
+**回退采用最低兼容版本与启动保护，不能只增加 schema 版本号。** 当前 [schema.js](../../src/storage/schema.js) 在数据库版本高于代码版本时仍允许程序继续运行，旧程序也不会识别新增的暂停或部分在线字段。实施时必须配套以下措施：
 
 1. 新模式启用前先准备可回退的兼容保护版，并将它作为正式发布、更新及回退入口的最低版本；具体版本号在发行时登记，不在提案中虚构。该版本至少能够识别新的同步格式，或在不能安全使用时停止受影响来源的投影访问。
 2. 存储入口在自动迁移、投影读写、消费者恢复和控制器启动之前检查本地同步格式。兼容保护版与后续版本遇到不支持的格式时，禁止该来源的查询、消费及自动下载，给出升级提示；不得退回旧 bootstrap 流程，也不得删除新状态来使旧逻辑运行。新格式标记与状态迁移同事务提交。

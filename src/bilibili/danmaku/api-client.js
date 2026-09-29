@@ -260,9 +260,7 @@ class BilibiliApiClient {
     try {
       payload = JSON.parse(text);
     } catch (_) {
-      throw new Error(
-        `直播平台 API ${endpointName} returned non-JSON response. HTTP ${response.status}.`,
-      );
+      throw new Error(`直播平台 API ${endpointName} returned non-JSON response. HTTP ${response.status}.`);
     }
     if (!quiet) {
       console.log(

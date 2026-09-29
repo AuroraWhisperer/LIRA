@@ -1,3 +1,5 @@
+import { createSuperChatCard } from './danmaku-superchat-renderer.js';
+
 export const DEFAULT_DANMAKU_CLASSES = Object.freeze({
   item: 'draw-danmaku-item',
   bubble: 'draw-danmaku-bubble',
@@ -41,6 +43,7 @@ export function createDanmakuMessageRenderer({
   document,
   classNames,
   fullscreen,
+  style = 'ranked',
   showAvatar = !fullscreen,
   showGiftTotal = false,
   ...options
@@ -50,6 +53,9 @@ export function createDanmakuMessageRenderer({
   const getGuardLabel = typeof options.getGuardLabel === 'function' ? options.getGuardLabel : () => '';
 
   function createBubble(item = {}, index = 0) {
+    if (item.kind === 'superchat') {
+      return createSuperChatCard(document, item, style, resolveAvatarUrl, classNames);
+    }
     const message = String(item.message || '').trim();
     const metrics = measureDanmakuText(message);
     const bubble = document.createElement('article');

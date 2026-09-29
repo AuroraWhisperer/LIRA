@@ -36,7 +36,7 @@
 ## Ownership
 
 - Owner: `src/ai/deepseek-client.js`
-- Contract: `docs/architecture/backend/ai.md`
+- Contract: `docs/reference/backend/ai.md`
 - Consumers: `src/ai/ai-assistant-service.js`, `src/server/routes/ai-routes.js`, `public/js/admin/ai-assistant-settings.js`
 - Focused tests: `test/ai-provider-adapters.test.js`, `test/third-party-api-compatibility.test.js`, `test/frontend-admin-ai.test.js`
 
@@ -86,8 +86,8 @@ Focused verification: the tests from Milestone 1 pass with exact URL and body as
 ### Milestone 3: User-facing contract and secret hygiene
 
 - Update `public/pages/admin/toolbox/danmaku.html` and `public/js/admin/ai-assistant-settings.js` with accepted URL forms.
-- Update `docs/architecture/backend/ai.md`, the owning contract.
-- Correct `docs/third-party-api-support.md` and remove the plaintext temporary Key.
+- Update `docs/reference/backend/ai.md`, the owning contract.
+- Correct `docs/guides/third-party-api-support.md` and remove the plaintext temporary Key.
 
 Focused verification: `node --test test/frontend-admin-ai.test.js` and `npm run verify:docs` pass.
 

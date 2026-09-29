@@ -34,9 +34,9 @@ stream when the account or track lacks the requested entitlement.
 
 - Owner: `src/music/providers/qq-provider.js`,
   `src/music/providers/qq-provider-utils.js`, and `src/music/track-contract.js`.
-- Contract: `docs/architecture/backend/music/qq-provider.md`,
-  `docs/architecture/backend/music/services.md`, and
-  `docs/architecture/frontend/playback.md`.
+- Contract: `docs/reference/backend/music/qq-provider.md`,
+  `docs/reference/backend/music/services.md`, and
+  `docs/reference/frontend/playback.md`.
 - Consumers: `src/music/stream-resolver.js`, `public/js/playback/`, and
   `src/server/routes/playback-routes.js`.
 - Focused tests: `test/qq-provider.test.js`, `test/lyrics.test.js`,
@@ -83,7 +83,7 @@ stream when the account or track lacks the requested entitlement.
 - `npm run check`
 - `npm run verify:quick`
 - `git diff --check`
-- `git diff -- src/music/providers/qq-provider.js src/music/providers/qq-provider-utils.js src/music/track-contract.js public/js/playback/utils.js public/js/playback/operations/state-persistence.js test/qq-provider.test.js test/lyrics.test.js test/playback-persistence.test.js docs/architecture/backend/music/qq-provider.md docs/architecture/frontend/playback.md specs/plans/2026-08-20-qq-paid-playback-quality.md`
+- `git diff -- src/music/providers/qq-provider.js src/music/providers/qq-provider-utils.js src/music/track-contract.js public/js/playback/utils.js public/js/playback/operations/state-persistence.js test/qq-provider.test.js test/lyrics.test.js test/playback-persistence.test.js docs/reference/backend/music/qq-provider.md docs/reference/frontend/playback.md specs/plans/2026-08-20-qq-paid-playback-quality.md`
 - `git status --short`
 
 Verification result (2026-08-20): focused backend tests passed 21/21;

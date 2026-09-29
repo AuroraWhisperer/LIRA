@@ -17,10 +17,17 @@
   flex-wrap: wrap;
   gap: 16px;
   margin-bottom: 16px;
-  padding: 24px;
+  padding: 16px 24px;
   border: 1px solid var(--border);
   border-radius: 16px;
   background: var(--surface-2);
+}
+
+.gift-effect-find-card > div {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px 16px;
 }
 
 .gift-effect-find-card h3 {
@@ -30,7 +37,7 @@
 }
 
 .gift-effect-find-card p {
-  margin: 8px 0 0;
+  margin: 0;
   color: var(--muted);
   font-size: var(--type-size-caption);
   line-height: 1.7;
@@ -74,12 +81,11 @@
 .gift-effect-command-card,
 .gift-effect-address-card {
   min-width: 0;
-  padding: 24px;
+  padding: 20px 24px;
 }
 
 .gift-effect-command-card {
-  grid-column: 1 / -1;
-  border-top: 1px solid var(--border);
+  border-left: 1px solid var(--border);
 }
 
 .gift-effect-command-card .gift-effect-card-heading {
@@ -122,7 +128,12 @@
 }
 
 .gift-effect-address-card {
-  border-left: 1px solid var(--border);
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 24px;
+  border-top: 1px solid var(--border);
 }
 
 .gift-effect-card-heading {
@@ -198,7 +209,7 @@
 }
 
 .gift-effect-url-block {
-  margin-top: 20px;
+  min-width: 0;
 }
 
 .gift-effect-url-block code {
@@ -366,7 +377,7 @@
     grid-template-columns: 1fr;
   }
 
-  .gift-effect-address-card {
+  .gift-effect-command-card {
     border-left: 0;
     border-top: 1px solid var(--border);
   }
@@ -385,8 +396,13 @@
   }
 
   .gift-effect-input-row,
+  .gift-effect-address-card,
   .gift-effect-url-row {
     grid-template-columns: 1fr;
+  }
+
+  .gift-effect-address-card {
+    gap: 12px;
   }
 
   .gift-effect-url-actions {

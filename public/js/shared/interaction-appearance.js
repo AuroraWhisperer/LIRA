@@ -3,7 +3,7 @@ import { inspectInteractionText } from './interaction-rules.js';
 export const INTERACTION_APPEARANCE_DEFAULTS = Object.freeze({
   interactionOverlayTitle: '',
   interactionOverlayHint: '',
-  interactionRatingRules: '发弹幕评分：1–10 分\n只发整数，不带其他内容\n多次评分，以最后一次为准',
+  interactionRatingRules: '弹幕发送整数 1–10\n重复评分取最后一次',
   interactionTextColor: '#172b3a',
   interactionBackgroundColor: '#ffffff',
   interactionBackgroundOpacity: '100',

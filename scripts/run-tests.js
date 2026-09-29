@@ -11,7 +11,9 @@ const groups = {
   browser: [
     'bots/daily-bot-frontend',
     'danmaku/frontend-admin-danmaku',
+    'gifts/frontend-gift-banner',
     'gifts/frontend-gift-display-settings',
+    'gifts/frontend-gift-export-settings',
     'gifts/frontend-gift-feed',
     'gifts/frontend-gift-feed-pressure',
     'gifts/frontend-gift-history-selection',
@@ -19,7 +21,16 @@ const groups = {
     'ui/frontend-toast',
     'admin/ui-edit-state',
   ],
-  desktop: ['engineering/build-integrity', 'desktop/desktop-auth-race-electron', 'desktop/desktop-request-auth-electron', 'desktop/electron-data-layout', 'desktop/local-instance-windows', 'desktop/resource-lifecycle-electron', 'desktop/resource-integrity-electron'],
+  desktop: [
+    'desktop/danmaku-canvas-electron',
+    'engineering/build-integrity',
+    'desktop/desktop-auth-race-electron',
+    'desktop/desktop-request-auth-electron',
+    'desktop/electron-data-layout',
+    'desktop/local-instance-windows',
+    'desktop/resource-lifecycle-electron',
+    'desktop/resource-integrity-electron',
+  ],
   installer: [
     'engineering/installer-app-exit',
     'engineering/installer-diagnostics',

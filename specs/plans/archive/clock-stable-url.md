@@ -18,10 +18,10 @@
 
 ## Ownership
 
-- 设置持久化：`src/storage/settings-store.js`，契约 `docs/architecture/backend/storage.md`。
-- HTTP：`src/server/api-routes.js`、`src/server/routes/`，契约 `docs/architecture/backend/api.md`。
+- 设置持久化：`src/storage/settings-store.js`，契约 `docs/reference/backend/storage.md`。
+- HTTP：`src/server/api-routes.js`、`src/server/routes/`，契约 `docs/reference/backend/api.md`。
 - Admin：`public/js/admin/clock-card.js` 与对应 fragment。
-- Overlay：`public/js/overlays/clock.js`，契约 `docs/architecture/frontend/overlays.md`。
+- Overlay：`public/js/overlays/clock.js`，契约 `docs/reference/frontend/overlays.md`。
 
 ## Compatibility Constraints
 

@@ -1,6 +1,7 @@
 // Shared display contract; keep desktop/server browser and Node copies in sync.
 const DANMAKU_STYLE_OPTIONS = Object.freeze({
   bubble: {
+    scrollDirection: true,
     label: '聊天气泡',
     minFontSize: 18,
     maxFontSize: 48,
@@ -9,6 +10,7 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
     defaultTextColor: '#eaf2ff',
   },
   signal: {
+    scrollDirection: true,
     label: '深色面板',
     minFontSize: 18,
     maxFontSize: 48,
@@ -17,6 +19,7 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
     defaultTextColor: '#eaf2ff',
   },
   minimal: {
+    scrollDirection: true,
     label: '蝴蝶结',
     minFontSize: 18,
     maxFontSize: 40,
@@ -25,6 +28,7 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
     defaultTextColor: '#f7f9ff',
   },
   ranked: {
+    scrollDirection: true,
     label: '经典样式',
     minFontSize: 20,
     maxFontSize: 44,
@@ -33,6 +37,7 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
     defaultTextColor: '#ffffff',
   },
   transparent: {
+    scrollDirection: true,
     label: '透明文字',
     minFontSize: 18,
     maxFontSize: 56,
@@ -41,6 +46,7 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
     defaultTextColor: '#ffffff',
   },
   identity: {
+    scrollDirection: true,
     label: '头像横卡',
     minFontSize: 18,
     maxFontSize: 42,
@@ -49,6 +55,7 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
     defaultTextColor: '#ffffff',
   },
   outline: {
+    layout: 'fullscreen-random',
     label: '简洁白卡',
     minFontSize: 18,
     maxFontSize: 40,
@@ -57,6 +64,7 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
     defaultTextColor: '#1d1d1f',
   },
   cream: {
+    layout: 'fullscreen-random',
     label: '奶油气泡',
     minFontSize: 18,
     maxFontSize: 40,
@@ -65,6 +73,7 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
     defaultTextColor: '#584941',
   },
   glow: {
+    layout: 'fullscreen-random',
     label: '流光气泡',
     minFontSize: 18,
     maxFontSize: 40,
@@ -113,6 +122,8 @@ function normalizeStyleOptions(value) {
       else if (key === 'backgroundOpacity' && limits.background && Number.isInteger(item) && item >= 0 && item <= 100)
         normalized[key] = item;
       else if (key === 'giftImage' && limits.giftImage && ['theme', 'gift'].includes(item)) normalized[key] = item;
+      else if (key === 'scrollDirection' && limits.scrollDirection && ['up', 'down'].includes(item))
+        normalized[key] = item;
       else fail();
     }
     result[style] = normalized;
@@ -127,6 +138,7 @@ function styleOptionsFor(style, options = {}) {
     fontSize: 30,
     backgroundOpacity: 100,
     giftImage: 'theme',
+    scrollDirection: 'up',
   };
   try {
     return { ...defaults, ...normalizeStyleOptions({ [style]: options[style] || {} })[style] };
@@ -137,8 +149,13 @@ function styleOptionsFor(style, options = {}) {
 
 export { DANMAKU_STYLE_OPTIONS, DANMAKU_FONTS, normalizeStyleOptions, styleOptionsFor };
 
+export function isRandomDanmakuStyle(style) {
+  return DANMAKU_STYLE_OPTIONS[style]?.layout === 'fullscreen-random';
+}
+
 export function applyStyleOptions(document, style, allOptions) {
   const options = styleOptionsFor(style, allOptions);
+  document.body.dataset.scrollDirection = options.scrollDirection;
   const root = document.documentElement.style;
   root.setProperty('--danmaku-text-color', options.textColor);
   document.body.dataset.customTextColor = String(options.textColor !== DANMAKU_STYLE_OPTIONS[style]?.defaultTextColor);

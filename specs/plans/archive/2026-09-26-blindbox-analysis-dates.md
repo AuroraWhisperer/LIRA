@@ -12,7 +12,7 @@
 - `public/pages/admin/gifts/blindbox-analysis.html` 与 `public/css/admin/blindbox-analysis.css` 拥有布局。
 - `src/server/routes/gift-routes.js` 将查询交给 `src/bilibili/gift/blind-box-analysis.js`，后者目前固定本机当天。
 - `queryStore.listBlindBoxRows` 已支持起点包含、终点不包含的时间查询和来源隔离，无需改存储层。
-- 接口合同归属 `docs/architecture/backend/api.md`；现有覆盖位于 `test/gift-query-service.test.js`、`test/frontend-blindbox-admin.test.js`。
+- 接口合同归属 `docs/reference/backend/api.md`；现有覆盖位于 `test/gift-query-service.test.js`、`test/frontend-blindbox-admin.test.js`。
 
 ## 决策与兼容
 

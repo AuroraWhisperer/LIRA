@@ -41,4 +41,28 @@ function migrateGiftWishDisplay(db) {
   }
 }
 
-module.exports = { migrateGiftWishes, migrateGiftWishDisplay };
+function migrateGiftWishTextImages(db) {
+  const columns = new Set(
+    db.prepare('PRAGMA table_info(gift_wishes)').all().map((row) => row.name),
+  );
+  if (!columns.has('text_image_position')) {
+    db.exec("ALTER TABLE gift_wishes ADD COLUMN text_image_position TEXT NOT NULL DEFAULT 'none'");
+  }
+  if (!columns.has('text_image_format')) {
+    db.exec("ALTER TABLE gift_wishes ADD COLUMN text_image_format TEXT NOT NULL DEFAULT 'animated'");
+  }
+}
+
+function migrateGiftWishTextColors(db) {
+  const columns = new Set(
+    db.prepare('PRAGMA table_info(gift_wishes)').all().map((row) => row.name),
+  );
+  if (!columns.has('text_pending_color')) {
+    db.exec("ALTER TABLE gift_wishes ADD COLUMN text_pending_color TEXT NOT NULL DEFAULT ''");
+  }
+  if (!columns.has('text_received_color')) {
+    db.exec("ALTER TABLE gift_wishes ADD COLUMN text_received_color TEXT NOT NULL DEFAULT ''");
+  }
+}
+
+module.exports = { migrateGiftWishes, migrateGiftWishDisplay, migrateGiftWishTextImages, migrateGiftWishTextColors };

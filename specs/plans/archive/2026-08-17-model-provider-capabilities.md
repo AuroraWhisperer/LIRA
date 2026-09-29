@@ -34,7 +34,7 @@ Complete the accepted design with deterministic endpoint routing, validated pers
 ## Ownership
 
 - Owner: `src/ai/`
-- Contracts: `docs/architecture/backend/ai.md`, `docs/architecture/backend/api.md`, `docs/architecture/frontend/app.md`
+- Contracts: `docs/reference/backend/ai.md`, `docs/reference/backend/api.md`, `docs/reference/frontend/app.md`
 - Consumers: `src/server/routes/ai-routes.js`, `public/js/admin/ai-assistant-settings.js`
 - Tests: `test/ai-config-store.test.js`, `test/ai-provider-adapters.test.js`, `test/ai-routes.test.js`, `test/frontend-admin-ai.test.js`, `test/third-party-api-compatibility.test.js`
 
@@ -107,9 +107,9 @@ Complete the accepted design with deterministic endpoint routing, validated pers
 
 **Files:**
 
-- Modify: `docs/architecture/backend/ai.md`
-- Modify: `docs/architecture/backend/api.md`
-- Modify: `docs/third-party-api-support.md`
+- Modify: `docs/reference/backend/ai.md`
+- Modify: `docs/reference/backend/api.md`
+- Modify: `docs/guides/third-party-api-support.md`
 - Modify: `specs/README.md`
 - Archive: `specs/plans/archive/2026-08-17-model-provider-capabilities.md`
 

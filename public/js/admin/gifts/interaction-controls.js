@@ -45,6 +45,7 @@ export function initGiftInteractionControls({
     status.hidden = state.status === 'confirmed' && !saving;
     retry.hidden = state.status === 'confirmed';
     retry.disabled = saving || state.status === 'pending';
+    retry.title = status.textContent;
   }
 
   async function refresh() {
@@ -94,6 +95,7 @@ export function initGiftInteractionControls({
           ? '关闭还没同步，服务器可能仍在运行。'
           : ERRORS[result.error] || '设置尚未确认，请刷新核对后重试。';
       status.textContent = message;
+      retry.title = message;
       notify(message);
     }
   }

@@ -33,7 +33,7 @@ The Electron-styled Admin page renders the main navigation as a bordered segment
 ## Ownership
 
 - Owner: `public/css/styles-base.css`, `public/css/admin/`, and `public/css/playback/` under `ROUTE-ADMIN`.
-- Contracts: `docs/architecture/frontend/pages.md` and `docs/architecture/frontend/app.md`.
+- Contracts: `docs/reference/frontend/pages.md` and `docs/reference/frontend/app.md`.
 - Consumers: Admin fragments under `public/pages/admin/` loaded in the Electron desktop renderer.
 - Focused tests: `test/frontend-admin-shell.test.js`.
 

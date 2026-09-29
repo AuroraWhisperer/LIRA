@@ -57,4 +57,4 @@ sequenceDiagram
     FE->>API: POST /api/playback/history
 ```
 
-本地文件和全民 K 歌分别走本地媒体与采集通道；详细播放/歌词消息约束见 [music/services.md](../backend/music/services.md) 和 [ws.md](../backend/ws.md)。
+本地文件和全民 K 歌分别走本地媒体与采集通道；详细播放/歌词消息约束见 [music/services.md](../../reference/backend/music/services.md) 和 [ws.md](../../reference/backend/ws.md)。

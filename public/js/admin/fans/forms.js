@@ -346,7 +346,8 @@ export function recordForm(kind, record) {
       (kind === 'followup' ? check('completed', '已经完成', data.completed) : '') +
       check('pinned', '置顶', data.pinned);
   fields += field('occurredAt', '发生时间（北京时间）', localTime(record?.occurredAt), 'datetime-local', 'required');
-  if (record && !['song', 'membership'].includes(kind)) fields += check('archived', '收起这条记录（仍可找回）', data.archived);
+  if (record && !['song', 'membership'].includes(kind))
+    fields += check('archived', '收起这条记录（仍可找回）', data.archived);
   return {
     title: record ? `编辑${titles[kind]}` : kind === 'note' ? '记一笔' : `添加${titles[kind]}`,
     fields,

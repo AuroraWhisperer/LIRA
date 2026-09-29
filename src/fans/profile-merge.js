@@ -44,7 +44,8 @@ function createFanMergeService({ store, now, detail, requireProfile }) {
     const mergedProfile = { ...plan.target };
     const isEmpty = (value) => value == null || value === '' || (Array.isArray(value) && !value.length);
     for (const [key, incoming] of Object.entries(patch)) {
-      if (!isEmpty(incoming) && (isEmpty(mergedProfile[key]) || input.prefer === 'source')) mergedProfile[key] = incoming;
+      if (!isEmpty(incoming) && (isEmpty(mergedProfile[key]) || input.prefer === 'source'))
+        mergedProfile[key] = incoming;
     }
     mergedProfile.merges = [...(mergedProfile.merges || []), { sourceId: plan.source.id, mergedAt: at, snapshotId }];
     store.save(scope, mergedProfile, identityKey(mergedProfile.identity), at);

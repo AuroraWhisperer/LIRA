@@ -61,29 +61,38 @@ test('concurrent Bilibili requests release bodies on abort, overflow and valid r
     const index = states.length;
     const state = { pulls: 0, cancelled: 0, response: null, signal: options.signal };
     states.push(state);
-    state.response = new Response(new ReadableStream({
-      start(controller) {
-        if (index % 3 === 0) {
-          options.signal.addEventListener('abort', () => controller.error(options.signal.reason), { once: true });
-        }
-      },
-      pull(controller) {
-        state.pulls += 1;
-        if (index % 3 === 1) controller.enqueue(new Uint8Array(1024 * 1024));
-        if (index % 3 === 2) {
-          controller.enqueue(Buffer.from('{"code":0,"data":{}}'));
-          controller.close();
-        }
-      },
-      cancel() { state.cancelled += 1; },
-    }, { highWaterMark: 0 }));
+    state.response = new Response(
+      new ReadableStream(
+        {
+          start(controller) {
+            if (index % 3 === 0) {
+              options.signal.addEventListener('abort', () => controller.error(options.signal.reason), { once: true });
+            }
+          },
+          pull(controller) {
+            state.pulls += 1;
+            if (index % 3 === 1) controller.enqueue(new Uint8Array(1024 * 1024));
+            if (index % 3 === 2) {
+              controller.enqueue(Buffer.from('{"code":0,"data":{}}'));
+              controller.close();
+            }
+          },
+          cancel() {
+            state.cancelled += 1;
+          },
+        },
+        { highWaterMark: 0 },
+      ),
+    );
     return state.response;
   });
   const controllers = Array.from({ length: 24 }, () => new AbortController());
   const client = new BilibiliApiClient('123');
-  const settled = Promise.allSettled(controllers.map((controller) =>
-    client.fetchJson('gethistory', 'https://api.example.test/fixture', { signal: controller.signal }),
-  ));
+  const settled = Promise.allSettled(
+    controllers.map((controller) =>
+      client.fetchJson('gethistory', 'https://api.example.test/fixture', { signal: controller.signal }),
+    ),
+  );
   await new Promise(setImmediate);
   controllers.forEach((controller, index) => {
     if (index % 3 === 0) controller.abort(new Error('synthetic client cancellation'));
@@ -113,12 +122,15 @@ for (const [status, contentType, expected, cancelFails] of [
 ]) {
   test(`avatar rejection cancels the unread ${status} ${contentType} response (cancel failure: ${cancelFails})`, async (t) => {
     let cancelled = 0;
-    const response = new Response(new ReadableStream({
-      cancel() {
-        cancelled += 1;
-        if (cancelFails) throw new Error('underlying response already failed');
-      },
-    }), { status, headers: { 'content-type': contentType } });
+    const response = new Response(
+      new ReadableStream({
+        cancel() {
+          cancelled += 1;
+          if (cancelFails) throw new Error('underlying response already failed');
+        },
+      }),
+      { status, headers: { 'content-type': contentType } },
+    );
     t.mock.method(globalThis, 'fetch', async () => response);
     const client = new BilibiliApiClient('123');
     await assert.rejects(client.fetchAvatarImage('https://i0.hdslb.com/bfs/face/fixture.png'), expected);

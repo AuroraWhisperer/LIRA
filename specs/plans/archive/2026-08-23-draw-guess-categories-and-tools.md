@@ -41,7 +41,7 @@
 
 - 词库内容：新建 `src/games/draw-guess-words.js`。
 - 游戏规则与筛选：`src/games/draw-guess.js`；会话传递：`src/games/game-session-service.js`。
-- HTTP 路由：`src/server/routes/game-routes.js`，契约文档 `docs/architecture/backend/api.md`。
+- HTTP 路由：`src/server/routes/game-routes.js`，契约文档 `docs/reference/backend/api.md`。
 - Admin 消费者：`public/pages/admin/toolbox/games.html`、`public/js/admin/games.js`、`public/css/admin/toolbox/games.css`。
 - 直播画板消费者：`public/pages/overlays/games.html`、`public/js/overlays/games.js`、`public/css/overlays/games.css`。
 - 回归测试：`test/games.test.js`、`test/game-routes.test.js`、`test/frontend-games.test.js`、`test/games-overlay.test.js`。
@@ -94,7 +94,7 @@
 
 ### Milestone 4: 文档、桌面验证与全门禁
 
-- [x] 更新 `specs/danmaku-draw-guess_design.md`、`docs/architecture/backend/api.md`、`docs/architecture/frontend/app.md` 和 `docs/architecture/frontend/pages.md`。
+- [x] 更新 `specs/danmaku-draw-guess_design.md`、`docs/reference/backend/api.md`、`docs/reference/frontend/app.md` 和 `docs/reference/frontend/pages.md`。
 - [x] 在 Electron 优先的正常窗口尺寸检查 Admin 分类选择和 `/games` 工具栏，确认画板更小、控件不溢出、形状可同步。
 - [x] 运行 `node --test test/games.test.js test/game-routes.test.js test/frontend-games.test.js test/games-overlay.test.js`。
 - [x] 运行 `npm.cmd run check`、`npm.cmd run verify:architecture`、`npm.cmd run verify:quick` 和 `npm.cmd test`。

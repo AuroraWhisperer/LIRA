@@ -59,8 +59,8 @@
 - Modify: `D:/Work/lira-server/docs/protocol/error-codes.md`
 - Modify: `D:/Work/lira-server/docs/operations/bilibili-monitoring-and-reconnect.md`
 - Modify: `D:/Work/Live/specs/gift-ledger-projection-sync_design.md`
-- Modify: `D:/Work/Live/docs/architecture/backend/api.md`
-- Modify: `D:/Work/Live/docs/architecture/frontend/pages.md`
+- Modify: `D:/Work/Live/docs/reference/backend/api.md`
+- Modify: `D:/Work/Live/docs/reference/frontend/pages.md`
 
 **Interfaces:**
 - Produces: `POST /api/device/gift-history/clear` with exact body `{confirm: true}`.

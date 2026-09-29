@@ -82,19 +82,24 @@ test('cloud state event stream rejects non-SSE and oversized event data', async 
 
 test('SSE budgets each event independently of network chunk boundaries', async () => {
   const count = 2000;
-  const frames = Array.from({ length: count }, (_, index) =>
-    `event: cloud-state-changed\r\ndata: {"scopes":{"settings":${index}}}\r\n\r\n`,
+  const frames = Array.from(
+    { length: count },
+    (_, index) => `event: cloud-state-changed\r\ndata: {"scopes":{"settings":${index}}}\r\n\r\n`,
   ).join('');
   assert.ok(Buffer.byteLength(frames) > 64 * 1024);
   for (const chunks of [[frames], [frames.slice(0, 27), frames.slice(27)]]) {
     const events = [];
     const client = createRemoteLicenseClient({
-      fetchImpl: async () => new Response(new ReadableStream({
-        start(controller) {
-          for (const chunk of chunks) controller.enqueue(new TextEncoder().encode(chunk));
-          controller.close();
-        },
-      }), { headers: { 'content-type': 'text/event-stream' } }),
+      fetchImpl: async () =>
+        new Response(
+          new ReadableStream({
+            start(controller) {
+              for (const chunk of chunks) controller.enqueue(new TextEncoder().encode(chunk));
+              controller.close();
+            },
+          }),
+          { headers: { 'content-type': 'text/event-stream' } },
+        ),
     });
     await client.watchCloudStateChanges('synthetic', { onChange: (event) => events.push(event) });
     assert.equal(events.length, count);
@@ -106,32 +111,45 @@ test('SSE applies the event budget to UTF-8 bytes and cancels an oversized unfin
   let cancelled = false;
   let delivered = false;
   const client = createRemoteLicenseClient({
-    fetchImpl: async () => new Response(new ReadableStream({
-      pull(controller) {
-        if (delivered) controller.error(new Error('event budget was not applied'));
-        else controller.enqueue(new TextEncoder().encode(`data: ${'字'.repeat(23000)}`));
-        delivered = true;
-      },
-      cancel() {
-        cancelled = true;
-      },
-    }, { highWaterMark: 0 }), { headers: { 'content-type': 'text/event-stream' } }),
+    fetchImpl: async () =>
+      new Response(
+        new ReadableStream(
+          {
+            pull(controller) {
+              if (delivered) controller.error(new Error('event budget was not applied'));
+              else controller.enqueue(new TextEncoder().encode(`data: ${'字'.repeat(23000)}`));
+              delivered = true;
+            },
+            cancel() {
+              cancelled = true;
+            },
+          },
+          { highWaterMark: 0 },
+        ),
+        { headers: { 'content-type': 'text/event-stream' } },
+      ),
   });
   await assert.rejects(client.watchCloudStateChanges('synthetic'), { code: 'RESPONSE_TOO_LARGE' });
   assert.equal(cancelled, true);
 });
 
 test('tiny SSE chunks do not repeatedly scan the accumulated unfinished event', async (t) => {
-  const frame = new TextEncoder().encode(`event: cloud-state-changed\r\ndata: ${JSON.stringify({
-    scopes: { settings: 7 }, padding: 'a'.repeat(30000),
-  })}\r\n\r\n`);
+  const frame = new TextEncoder().encode(
+    `event: cloud-state-changed\r\ndata: ${JSON.stringify({
+      scopes: { settings: 7 },
+      padding: 'a'.repeat(30000),
+    })}\r\n\r\n`,
+  );
   let offset = 0;
-  const response = new Response(new ReadableStream({
-    pull(controller) {
-      if (offset < frame.length) controller.enqueue(frame.subarray(offset, ++offset));
-      else controller.close();
-    },
-  }), { headers: { 'content-type': 'text/event-stream' } });
+  const response = new Response(
+    new ReadableStream({
+      pull(controller) {
+        if (offset < frame.length) controller.enqueue(frame.subarray(offset, ++offset));
+        else controller.close();
+      },
+    }),
+    { headers: { 'content-type': 'text/event-stream' } },
+  );
   const client = createRemoteLicenseClient({ fetchImpl: async () => response });
   const byteLength = Buffer.byteLength;
   let scanned = 0;

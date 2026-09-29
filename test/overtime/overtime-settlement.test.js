@@ -71,7 +71,8 @@ test('startup compensation drains more than one batch of final events without ch
     const oldEpoch = fixture.insertFinalGift({ giftId: 'gift-a', overtimeEpoch: 0 });
     const progress = fixture.insertProgressGift({ giftId: 'gift-a', overtimeEpoch: 1 });
     service = fixture.createService();
-    const settledCount = () => fixture.db.giftDb.prepare('SELECT COUNT(*) AS count FROM overtime_settlements').get().count;
+    const settledCount = () =>
+      fixture.db.giftDb.prepare('SELECT COUNT(*) AS count FROM overtime_settlements').get().count;
     assert.equal(settledCount(), 100, 'startup yields after its first bounded batch');
     fixture.clock.advance(0);
     assert.equal(settledCount(), 250, 'the remaining batches recover without a new gift or restart');

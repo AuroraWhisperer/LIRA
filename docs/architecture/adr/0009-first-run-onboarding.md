@@ -4,7 +4,7 @@
 
 Superseded（旧七步弹窗方案）
 
-2026-09-22 按清理要求退役旧弹窗和 `window.AdminApp.onboarding`。现行行为见 [交互式引导说明](../../interactive-tour-demo.md)：在真实控件上引导操作，首次展示标记使用 localStorage；下文三个 settings 键仅保留兼容，不再由旧 UI 写入。下文为原方案。
+2026-09-22 按清理要求退役旧弹窗和 `window.AdminApp.onboarding`。现行行为见 [交互式引导说明](../../reference/frontend/interactive-tour.md)：在真实控件上引导操作，首次展示标记使用 localStorage；下文三个 settings 键仅保留兼容，不再由旧 UI 写入。下文为原方案。
 
 ## Context
 
@@ -70,8 +70,8 @@ LIRA 目前把 Bilibili 登录、直播间号、歌单导入、音乐平台登�
 
 ## References
 
-- [桌面端登录契约](../desktop/auth.md)
-- [桌面端窗口与 IPC](../desktop/windows.md)
-- [设置与持久化](../backend/storage.md)
-- [Admin 应用与页面组合](../frontend/app.md)
-- [首次启动配置引导实施计划](../../../specs/plans/2026-08-18-first-run-onboarding.md)
+- [桌面端登录契约](../../reference/desktop/auth.md)
+- [桌面端窗口与 IPC](../../reference/desktop/windows.md)
+- [设置与持久化](../../reference/backend/storage.md)
+- [Admin 应用与页面组合](../../reference/frontend/app.md)
+- [首次启动配置引导实施计划](../../../specs/plans/archive/2026-08-18-first-run-onboarding.md)

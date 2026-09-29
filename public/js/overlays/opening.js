@@ -92,12 +92,12 @@ function parseConfig(search = typeof location === 'undefined' ? '' : location.se
 
 function titleSizeForLength(length) {
   const safeLength = Math.max(1, Number(length) || 1);
-  return Math.max(0.92, Math.min(5.4, 39 / Math.max(safeLength, 7)));
+  return Math.max(3.4, Math.min(5.4, 39 / Math.max(safeLength, 7)));
 }
 
 function setText(id, value) {
   const element = document.getElementById(id);
-  if (element) element.textContent = value;
+  if (element && element.textContent !== value) element.textContent = value;
 }
 
 function createNodes(config) {
@@ -140,99 +140,105 @@ function createNodes(config) {
   }
 }
 
-function startRuntime(config) {
+function createOpeningRuntime() {
   const stage = document.getElementById('openingStage');
   const audio = document.getElementById('openingAudio');
   const debug = document.getElementById('openingDebug');
   const trackSvg = document.getElementById('openingTrackSvg');
-  if (!stage) return;
+  const viewport = document.querySelector('.opening-viewport');
+  const nameRow = document.getElementById('openingNameRow');
+  const avatar = document.getElementById('openingAvatar');
+  const reducedMotion = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
+  let config = null;
+  let disposed = false;
 
-  let particleTimer = null;
-  let lastPhase = 0;
-
-  const clearSchedulers = () => {
-    if (particleTimer) clearTimeout(particleTimer);
-    particleTimer = null;
-  };
-  const scheduleParticles = () => {
-    if (config.quality === 'low' || document.hidden || !stage.isConnected) return;
-    stage.style.setProperty('--particle-phase', `${(lastPhase += 1)}`);
-    particleTimer = setTimeout(scheduleParticles, 2400 + Math.random() * 2200);
-  };
-  const pause = () => {
-    clearSchedulers();
-    stage.classList.add('is-paused');
-    trackSvg?.pauseAnimations?.();
-    lastPhase = performance.now();
-  };
-  const resume = () => {
-    if (stage.classList.contains('is-disabled')) return;
-    stage.classList.remove('is-paused');
-    if (!stage.classList.contains('is-reduced-motion')) {
+  const updateMotion = () => {
+    if (!config) return;
+    const paused = !config.enabled || document.hidden;
+    stage.classList.toggle('is-paused', paused);
+    stage.classList.toggle('is-reduced-motion', Boolean(reducedMotion?.matches));
+    if (paused || reducedMotion?.matches || config.quality === 'low') {
+      trackSvg?.pauseAnimations?.();
+    } else {
       trackSvg?.unpauseAnimations?.();
-      scheduleParticles();
     }
   };
-
-  if (config.enabled) {
-    stage.classList.remove('is-disabled', 'is-paused');
-    trackSvg?.setCurrentTime?.(0);
-    scheduleParticles();
-  } else {
-    stage.classList.add('is-disabled', 'is-paused');
-    trackSvg?.pauseAnimations?.();
-    clearSchedulers();
-  }
-
-  const audioUrl = safeAudioUrl(config.audioUrl);
-  if (config.audio === 'browser' && config.enabled && audio && audioUrl) {
-    audio.src = audioUrl;
+  const updateAudio = () => {
+    if (!audio) return;
+    const audioUrl = config.enabled && config.audio === 'browser' ? safeAudioUrl(config.audioUrl) : '';
     audio.volume = parseVolume(config.volume);
+    if ((audio.getAttribute('src') || '') === audioUrl) return;
+    if (debug) debug.hidden = true;
+    if (!audioUrl) {
+      audio.pause();
+      audio.currentTime = 0;
+      audio.removeAttribute('src');
+      audio.load();
+      return;
+    }
+    audio.src = audioUrl;
     audio.load();
     audio.play().catch((error) => {
+      if (disposed || audio.getAttribute('src') !== audioUrl) return;
       console.warn('[opening-overlay] audio playback unavailable', error);
       if (config.debug && debug) {
         debug.hidden = false;
         debug.textContent = '网页音频未自动播放，画面已继续运行';
       }
     });
-  } else if (audio) {
-    audio.pause();
-    audio.currentTime = 0;
-    audio.removeAttribute('src');
-    audio.load();
-  }
-
-  window.addEventListener('message', (event) => {
-    if (
-      window.parent === window ||
-      event.source !== window.parent ||
-      event.origin !== new URL(location.href).origin ||
-      event.data?.type !== 'lira:opening-preview-volume'
-    )
-      return;
-    if (audio) audio.volume = parseVolume(event.data.volume, audio.volume);
-  });
-
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) pause();
-    else resume();
-  });
-
-  const reducedMotion = typeof matchMedia === 'function' ? matchMedia('(prefers-reduced-motion: reduce)') : null;
-  const updateReducedMotion = () => {
-    const shouldReduce = Boolean(reducedMotion?.matches);
-    stage.classList.toggle('is-reduced-motion', shouldReduce);
-    if (shouldReduce || config.quality === 'low') {
-      clearSchedulers();
-      trackSvg?.pauseAnimations?.();
-    } else if (!document.hidden && config.enabled) {
-      trackSvg?.unpauseAnimations?.();
-      if (!particleTimer) scheduleParticles();
-    }
   };
-  updateReducedMotion();
-  reducedMotion?.addEventListener?.('change', updateReducedMotion);
+
+  document.addEventListener('visibilitychange', updateMotion);
+  reducedMotion?.addEventListener?.('change', updateMotion);
+
+  return {
+    apply(nextConfig) {
+      if (disposed || (config && Object.keys(DEFAULTS).every((key) => config[key] === nextConfig[key]))) return;
+      const previous = config;
+      config = nextConfig;
+      setText('openingTitle', config.title);
+      setText('openingSubtitle', config.subtitle);
+      setText('openingName', config.name);
+      setText('openingFooter', config.footer);
+      stage.style.setProperty('--opening-title-size', `${titleSizeForLength(Array.from(config.title).length)}cqw`);
+      stage.dataset.trackMotion = config.trackMotion;
+      if (previous?.quality !== config.quality) {
+        if (previous) stage.classList.remove(`quality-${previous.quality}`);
+        stage.classList.add(`quality-${config.quality}`);
+        createNodes(config);
+      }
+      stage.classList.toggle('show-notes', config.showNotes);
+      stage.classList.toggle('show-eq', config.showEq);
+      stage.classList.toggle('is-disabled', !config.enabled);
+      viewport?.classList.toggle('opening-disabled', !config.enabled);
+      document.documentElement.classList.toggle('opening-disabled', !config.enabled);
+      document.body.classList.toggle('opening-disabled', !config.enabled);
+      if (nameRow) nameRow.hidden = config.name.length === 0;
+      const characterUrl = safeCharacterUrl(config.characterUrl);
+      stage.classList.toggle('no-character', !characterUrl);
+      if (avatar && (avatar.getAttribute('src') || '') !== characterUrl) {
+        avatar.hidden = !characterUrl;
+        if (characterUrl) avatar.src = characterUrl;
+        else avatar.removeAttribute('src');
+      }
+      if (config.enabled && (!previous?.enabled || previous.trackMotion !== config.trackMotion)) {
+        trackSvg?.setCurrentTime?.(0);
+      }
+      updateMotion();
+      updateAudio();
+    },
+    dispose() {
+      disposed = true;
+      document.removeEventListener('visibilitychange', updateMotion);
+      reducedMotion?.removeEventListener?.('change', updateMotion);
+      trackSvg?.pauseAnimations?.();
+      if (audio) {
+        audio.pause();
+        audio.removeAttribute('src');
+        audio.load();
+      }
+    },
+  };
 }
 
 function safeAudioUrl(value) {
@@ -247,39 +253,9 @@ function safeCharacterUrl(value) {
   return DEFAULTS.characterUrl;
 }
 
-function applyOpeningConfig(config) {
-  setText('openingTitle', config.title);
-  setText('openingSubtitle', config.subtitle);
-  setText('openingName', config.name);
-  setText('openingFooter', config.footer);
-  const stage = document.getElementById('openingStage');
-  const viewport = document.querySelector('.opening-viewport');
-  const nameRow = document.getElementById('openingNameRow');
-  const avatar = document.getElementById('openingAvatar');
-  const titleLength = Array.from(config.title).length;
-  stage?.style.setProperty('--opening-title-size', `${titleSizeForLength(titleLength)}cqw`);
-  if (stage) stage.dataset.trackMotion = config.trackMotion;
-  stage?.classList.add(`quality-${config.quality}`);
-  stage?.classList.toggle('show-notes', config.showNotes);
-  stage?.classList.toggle('show-eq', config.showEq);
-  stage?.classList.toggle('is-disabled', !config.enabled);
-  viewport?.classList.toggle('opening-disabled', !config.enabled);
-  document.documentElement.classList.toggle('opening-disabled', !config.enabled);
-  document.body.classList.toggle('opening-disabled', !config.enabled);
-  if (nameRow) nameRow.hidden = config.name.length === 0;
-  if (avatar) {
-    const characterUrl = safeCharacterUrl(config.characterUrl);
-    avatar.hidden = !characterUrl;
-    if (characterUrl) avatar.src = characterUrl;
-    else avatar.removeAttribute('src');
-  }
-  createNodes(config);
-  startRuntime(config);
-}
-
-async function loadSavedConfig() {
+async function loadSavedConfig(signal) {
   try {
-    const response = await fetch('/api/opening/config', { cache: 'no-store' });
+    const response = await fetch('/api/opening/config', { cache: 'no-store', signal });
     if (!response.ok) return null;
     const payload = await response.json();
     return payload && payload.ok && payload.data ? payload.data : null;
@@ -288,9 +264,12 @@ async function loadSavedConfig() {
   }
 }
 
-function mergeConfig(remote, query) {
+function mergeConfig(
+  remote,
+  query,
+  params = new URLSearchParams(typeof location === 'undefined' ? '' : location.search),
+) {
   const source = remote && typeof remote === 'object' ? remote : {};
-  const params = new URLSearchParams(typeof location === 'undefined' ? '' : location.search);
   const merged = { ...DEFAULTS, ...source, ...query };
   if (!params.has('enabled')) merged.enabled = Boolean(source.enabled ?? DEFAULTS.enabled);
   if (!params.has('title')) merged.title = cleanText(source.title, MAX_LENGTHS.title) || DEFAULTS.title;
@@ -310,10 +289,71 @@ function mergeConfig(remote, query) {
   return merged;
 }
 
-async function initOpeningOverlay() {
+function initOpeningOverlay() {
+  const runtime = createOpeningRuntime();
   const queryConfig = parseConfig();
-  const remoteConfig = await loadSavedConfig();
-  applyOpeningConfig(mergeConfig(remoteConfig, queryConfig));
+  let remoteConfig = null;
+  let previewConfig = null;
+  let pollTimer = null;
+  let controller = null;
+  let stopped = false;
+
+  const render = () => runtime.apply(
+    previewConfig
+      ? mergeConfig({ ...remoteConfig, ...previewConfig }, queryConfig, new URLSearchParams())
+      : mergeConfig(remoteConfig, queryConfig),
+  );
+
+  const refreshConfig = async () => {
+    if (stopped || previewConfig) return;
+    controller = new AbortController();
+    const request = controller;
+    const timeout = window.setTimeout(() => request.abort(), 5000);
+    try {
+      const saved = await loadSavedConfig(request.signal);
+      if (!stopped) {
+        if (saved && !request.signal.aborted) remoteConfig = saved;
+        render();
+      }
+    } finally {
+      window.clearTimeout(timeout);
+      controller = null;
+      if (!stopped && !previewConfig) pollTimer = window.setTimeout(refreshConfig, 1000);
+    }
+  };
+
+  const receivePreview = (event) => {
+    if (
+      window.parent === window ||
+      event.source !== window.parent ||
+      event.origin !== new URL(location.href).origin
+    )
+      return;
+    if (event.data?.type === 'lira:opening-preview-config') {
+      if (!event.data.config || typeof event.data.config !== 'object' || Array.isArray(event.data.config)) return;
+      previewConfig = event.data.config;
+    } else if (event.data?.type === 'lira:opening-preview-volume') {
+      previewConfig = {
+        ...(previewConfig || mergeConfig(remoteConfig, queryConfig)),
+        volume: parseVolume(event.data.volume),
+      };
+    } else return;
+    window.clearTimeout(pollTimer);
+    render();
+  };
+  window.addEventListener('message', receivePreview);
+  window.addEventListener(
+    'pagehide',
+    () => {
+      stopped = true;
+      window.clearTimeout(pollTimer);
+      controller?.abort();
+      window.removeEventListener('message', receivePreview);
+      runtime.dispose();
+    },
+    { once: true },
+  );
+  void refreshConfig();
 }
 
 if (typeof document !== 'undefined') initOpeningOverlay();

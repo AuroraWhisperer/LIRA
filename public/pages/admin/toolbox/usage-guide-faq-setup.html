@@ -1,0 +1,228 @@
+<h4 class="usage-guide-subsection-title">账号与设备</h4>
+<div class="usage-guide-faq-grid">
+  <details class="usage-guide-faq">
+    <summary>
+      <strong>打开软件时无法登录</strong>
+      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path
+          d="m5 8 5 5 5-5"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </summary>
+    <ol class="usage-guide-checks">
+      <li>
+        看到「无法连接授权服务器，请检查网络后重试。」或连接超时，先恢复网络，再点「重试连接」。首次使用选「注册新账号」；重装或换电脑选「登录已有账号」，两种模式需要的码不同。
+      </li>
+      <li>若显示「准备未完成」，按当前等待页提示重试；这与用户名或密码输入错误不是同一阶段，不必反复注册。</li>
+      <li>
+        仍失败时记录完整提示。若是账号停用、授权撤销或设备绑定不一致，联系管理员处理，不要自行删除登录文件。完整入口见<a
+          href="#ug-quick"
+          data-usage-guide-link
+          >快速上手</a
+        >。
+      </li>
+    </ol>
+  </details>
+  <details class="usage-guide-faq">
+    <summary>
+      <strong>用户名填了中文、横线或已有名字，注册不过去</strong>
+      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path
+          d="m5 8 5 5 5-5"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </summary>
+    <ol class="usage-guide-checks">
+      <li>
+        「用户名只能使用英文字母、数字和中划线（-），且不能以中划线开头或结尾，不支持中文。」用户名须为 2–32
+        个字符，大写会自动转小写。
+      </li>
+      <li>
+        例如可用
+        <code>demo-singer</code>，不要用中文、空格或首尾中划线。若提示「此用户名为系统保留名称，请更换。」，换一个名字。
+      </li>
+      <li>
+        若提示「此用户名已被使用；已有账号请选择“登录已有账号”。」，已有账号请切到登录模式；不确定归属时联系管理员。
+      </li>
+    </ol>
+  </details>
+  <details class="usage-guide-faq">
+    <summary>
+      <strong>密码不符合要求，或者忘记密码了</strong>
+      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path
+          d="m5 8 5 5 5-5"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </summary>
+    <ol class="usage-guide-checks">
+      <li>
+        若提示「密码不符合要求，请查看密码旁的说明。」，新密码须为 8–64
+        个字符，并包含大写字母、小写字母、中文、数字、符号中至少三类；允许空格，不要用常见弱密码。
+      </li>
+      <li>
+        若提示「密码的 UTF-8 编码不能超过 72
+        字节，请缩短密码。」，缩短包含较多中文或符号的密码；不要加入换行或不可见字符。
+      </li>
+      <li>
+        忘记密码时联系管理员取得密码重置码，再到网页登录页点「使用重置码」。重置码用于网页重置密码，不填入客户端的注册激活码或短效登录码栏。
+      </li>
+    </ol>
+  </details>
+  <details class="usage-guide-faq">
+    <summary>
+      <strong>管理员给的码用不了，或提示过期、已使用</strong>
+      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path
+          d="m5 8 5 5 5-5"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </summary>
+    <ol class="usage-guide-checks">
+      <li>「此激活密钥已过期，请联系管理员重新生成。」或「此激活密钥已使用或已撤销。」表示这串码不能继续使用。</li>
+      <li>
+        先核对模式：注册新账号用注册激活码；登录已有账号用短效登录码，并确认用户名属于这串码对应的账号。不要把密码重置码当登录码。
+      </li>
+      <li>检查复制是否完整；仍失败时把错误提示交给管理员，领取新的对应码，不需要另建一个账号绕过。</li>
+    </ol>
+  </details>
+  <details class="usage-guide-faq">
+    <summary>
+      <strong>提示设备授权被撤销、协议不兼容或构建校验失败</strong>
+      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path
+          d="m5 8 5 5 5-5"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </summary>
+    <ol class="usage-guide-checks">
+      <li>
+        「当前设备授权已被管理员撤销。」需要管理员核对授权；「本机保留的旧设备授权已撤销，请获取新的短效登录码后重新登录。」则按提示获取新码。
+      </li>
+      <li>
+        遇到客户端协议不兼容、构建校验失败，或「当前客户端版本不可使用，请更新
+        LIRA。」，使用管理员提供的新版安装包更新。
+      </li>
+      <li>更新后仍失败时提供完整错误与版本信息；不要通过删除数据或修改程序文件来跳过校验。</li>
+    </ol>
+  </details>
+  <details class="usage-guide-faq">
+    <summary>
+      <strong>提示“当前设备已由另一个 LIRA 进程登录”</strong>
+      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path
+          d="m5 8 5 5 5-5"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </summary>
+    <ol class="usage-guide-checks">
+      <li>
+        同一台电脑重复启动
+        LIRA，可能提示当前设备已由另一个进程登录。先关闭多余窗口，只保留要使用的那个，再点「重试连接」。
+      </li>
+      <li>
+        所有 LIRA 窗口已关闭却仍有提示时，按 Ctrl + Shift + Esc 打开任务管理器，确认残留项属于 LIRA
+        后选择「结束任务」，再正常启动一次。结束前先保存未完成的操作。
+      </li>
+      <li>仍提示会话被替换时联系管理员核查，不用重新注册。</li>
+    </ol>
+  </details>
+</div>
+<h4 class="usage-guide-subsection-title">安装与系统</h4>
+<div class="usage-guide-faq-grid">
+  <details class="usage-guide-faq">
+    <summary>
+      <strong>安装包被 Windows 或杀毒软件拦截</strong>
+      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path
+          d="m5 8 5 5 5-5"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </summary>
+    <ol class="usage-guide-checks">
+      <li>看到 Windows 或杀毒软件的拦截提示时，先核对安装包来自项目主页或管理员提供的可信渠道。</li>
+      <li>
+        把提示截图、文件名和版本交给管理员确认，再按确认后的处理方式操作。不要关闭整套防护，也不要从不明网站重新下载安装包。
+      </li>
+      <li>
+        安装位置可以选 D 盘，例如 <code>D:\Apps\LIRA</code>；安装与更新步骤见<a href="#ug-quick" data-usage-guide-link
+          >快速上手</a
+        >。
+      </li>
+    </ol>
+  </details>
+  <details class="usage-guide-faq">
+    <summary>
+      <strong>装完双击没反应，或页面空白</strong>
+      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path
+          d="m5 8 5 5 5-5"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </summary>
+    <ol class="usage-guide-checks">
+      <li>先查看是否已有 LIRA 窗口、未关闭的弹窗或仍在准备中的提示；若系统给出拦截或错误信息，先按该提示处理。</li>
+      <li>
+        确认并关闭重复或残留进程后重开 LIRA。若只有画面异常，可检查 Windows 与显卡厂商提供的驱动更新；不要先清空数据。
+      </li>
+      <li>
+        反复出现时记录电脑环境、操作步骤和错误提示；能进入软件时从「百宝箱 → 桌面更新 →
+        日志目录」打开日志，交给管理员排查。
+      </li>
+    </ol>
+  </details>
+  <details class="usage-guide-faq">
+    <summary>
+      <strong>更新一直卡住</strong>
+      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path
+          d="m5 8 5 5 5-5"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </summary>
+    <ol class="usage-guide-checks">
+      <li>
+        打开「百宝箱 →
+        桌面更新」查看正在检查、下载还是等待重启。网络恢复后重新检查或下载，下载完成后才能点「重启并更新」。
+      </li>
+      <li>反复失败时使用项目主页或管理员提供的安装包，按原安装位置更新。先保存未完成的工作。</li>
+      <li>把更新提示和日志交给管理员；不要把卸载或删除数据当成默认修复步骤。</li>
+    </ol>
+  </details>
+</div>

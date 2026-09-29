@@ -57,7 +57,10 @@ test('profile requests preserve finite deadlines, cancellation and upstream busi
   for (const milliseconds of [8000, 15000]) {
     deadlines.length = 0;
     const request = client.fetchUserProfile('123');
-    assert.deepEqual(deadlines.map((entry) => entry.milliseconds), [8000, 15000]);
+    assert.deepEqual(
+      deadlines.map((entry) => entry.milliseconds),
+      [8000, 15000],
+    );
     const reason = new Error(`synthetic ${milliseconds}ms deadline exceeded`);
     const rejected = assert.rejects(request, (error) => {
       assert.equal(error, reason, 'caller and shared deadline reasons must propagate unchanged');

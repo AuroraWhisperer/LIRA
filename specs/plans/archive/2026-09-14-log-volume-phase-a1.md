@@ -50,8 +50,8 @@
 - `test/terminal-log.test.js`: prove INFO/DEBUG are not mirrored, old content is preserved, and WARN/ERROR entries are bounded.
 - `test/gift-diagnostics-wiring.test.js`: prove finalized gifts still broadcast and toast display still works without per-gift diagnostic writes.
 - `test/frontend-playback.test.js`: prove the named high-frequency console statements stay absent.
-- `docs/architecture/backend/server-core.md`: remove the obsolete per-gift logging step from the runtime transport description.
-- `docs/architecture/backend/ai.md`, `docs/architecture/desktop/main.md`, `docs/architecture/desktop/preload.md`: keep owner documentation aligned with the A1 runtime behavior.
+- `docs/reference/backend/server-core.md`: remove the obsolete per-gift logging step from the runtime transport description.
+- `docs/reference/backend/ai.md`, `docs/reference/desktop/main.md`, `docs/reference/desktop/preload.md`: keep owner documentation aligned with the A1 runtime behavior.
 - `docs/reports/2026-09-14-log-volume-and-signal-report.md`: add a dated implementation-progress note without rewriting the original evidence.
 - `specs/client-server-logging-design.md`, `specs/README.md`, `docs/architecture/adr/0018-unified-logging-and-diagnostics.md`: record user approval and the in-progress scope without claiming later stages are implemented.
 
@@ -111,7 +111,7 @@
 - [x] Remove the diagnostic-only `reportGiftDisplay` call from `public/js/admin/gifts/notification.js`; do not change toast keys, copy, stacking, timing, or the user's current edits.
 - [x] Remove the final-gift reporting import/call/export from `src/server/runtime-transport.js` and delete only the obsolete `src/server/runtime-reporting.js` module.
 - [x] Remove the listed normal render/lyric console statements. Keep the warning for a rejected `audio.play()` call because it represents an actual operation failure.
-- [x] Update `docs/architecture/backend/server-core.md` so the runtime transport order matches the code.
+- [x] Update `docs/reference/backend/server-core.md` so the runtime transport order matches the code.
 - [x] Run:
 
   ```powershell

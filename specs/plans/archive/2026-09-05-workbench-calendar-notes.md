@@ -14,7 +14,7 @@
 - `public/js/admin/streamer-planner.js` owns storage, event handling, rendering, and the existing initialization facade.
 - `public/pages/admin/toolbox/planner.html` and `public/css/admin/toolbox/streamer-planner.css` own the visible workbench.
 - `public/pages/admin/toolbox/shell-start.html` owns its navigation description.
-- Contracts: `docs/architecture/frontend/app.md` and `docs/architecture/frontend/pages.md`.
+- Contracts: `docs/reference/frontend/app.md` and `docs/reference/frontend/pages.md`.
 - Tests: `test/streamer-planner.test.js`, the new focused model test, admin composition and module boundary checks.
 
 ## Global Constraints

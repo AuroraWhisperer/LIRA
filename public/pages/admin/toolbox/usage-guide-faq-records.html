@@ -1,0 +1,133 @@
+<h4 class="usage-guide-subsection-title">礼物与账本</h4>
+<div class="usage-guide-faq-grid">
+  <details class="usage-guide-faq">
+    <summary>
+      <strong>礼物列表不更新，或只显示部分历史</strong>
+      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path
+          d="m5 8 5 5 5-5"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </summary>
+    <ol class="usage-guide-checks">
+      <li>
+        「正在更新礼物记录…」表示仍在同步；「当前仅能查看部分历史记录。」表示历史尚不完整；「当前离线，显示已保存的记录」不能当成最新账本。
+      </li>
+      <li>
+        先检查直播间号、B
+        站登录，以及礼物页的「监控礼物」和「礼物统计」。恢复网络后等同步完成，按页面的「重新加载」或「重试」检查。
+      </li>
+      <li>仍与网页不一致时，用同一日期与筛选条件核对，提供状态提示和时间范围；不要为了对齐数量直接清空记录。</li>
+    </ol>
+  </details>
+  <details class="usage-guide-faq">
+    <summary>
+      <strong>清空后还看到“云端记录已清空，本机记录尚未更新。”</strong>
+      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path
+          d="m5 8 5 5 5-5"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </summary>
+    <ol class="usage-guide-checks">
+      <li>「云端记录已清空，本机记录尚未更新。」说明云端删除已完成，本机仍在等待更新，不代表清空失败。</li>
+      <li>恢复连接后重新加载礼物记录，等待本机与云端状态一致。</li>
+      <li>仍有旧记录时把提示交给管理员，不必再次执行清空；清空云端账本会影响同账号设备。</li>
+    </ol>
+  </details>
+  <details class="usage-guide-faq">
+    <summary>
+      <strong>关掉 LIRA 后，还会继续记录礼物吗</strong>
+      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path
+          d="m5 8 5 5 5-5"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </summary>
+    <ol class="usage-guide-checks">
+      <li>
+        服务器负责礼物记录；满足账号、直播间连接和统计设置等条件时，可在客户端关闭后继续工作。客户端关闭不等于关闭服务器功能。
+      </li>
+      <li>需要核对最新账本时到网页主播中心「礼物流水」查看，或重开客户端联网同步；断网本机显示的是已保存记录。</li>
+      <li>
+        本机加班机、礼物特效和本机投屏仍依赖 LIRA 运行，不会因为服务器继续记账就继续输出。见<a
+          href="#ug-data"
+          data-usage-guide-link
+          >数据保存与换电脑</a
+        >。
+      </li>
+    </ol>
+  </details>
+  <details class="usage-guide-faq">
+    <summary>
+      <strong>加班机没有增加时间，礼物统计关了也会生效吗</strong>
+      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path
+          d="m5 8 5 5 5-5"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </summary>
+    <ol class="usage-guide-checks">
+      <li>先确认「启用加班机」已打开，收到的礼物有对应且已开启的规则；减少、清零或文字展板规则不会增加时间。</li>
+      <li>
+        礼物连击尚未结束时等处理完成，再看「最近结算」。加班机不依赖礼物统计开关，因此关掉礼物统计也可能继续改时。
+      </li>
+      <li>「暂停」只停止倒计时，不停止礼物改时；需要停止加班机功能时检查它自己的启用状态。</li>
+    </ol>
+  </details>
+  <details class="usage-guide-faq">
+    <summary>
+      <strong>点“自动钓鱼 / 打劫”后为什么连续发弹幕</strong>
+      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path
+          d="m5 8 5 5 5-5"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </summary>
+    <ol class="usage-guide-checks">
+      <li>开始提示会说明：钓鱼 ×10、打劫 ×5，每 5 秒一条，共 15 条。这是一次批量发送，请确认目标直播间后再点击。</li>
+      <li>查看发送进度与结果；发送完毕会提示「自动发送完成：钓鱼 ×10、打劫 ×5」，不会无限循环。</li>
+      <li>若发送失败，先检查发送账号和连接状态，不要连续重复点击增加任务。</li>
+    </ol>
+  </details>
+</div>
+<h4 class="usage-guide-subsection-title">粉丝档案</h4>
+<div class="usage-guide-faq-grid">
+  <details class="usage-guide-faq">
+    <summary>
+      <strong>收起后找不到了，如何恢复档案？</strong>
+      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path
+          d="m5 8 5 5 5-5"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </summary>
+    <p>
+      旧界面中的“收起档案”就是归档。打开“档案”，切换到“已归档”，选中对应档案，点击“恢复到主列表”。如果列表没有匹配结果，先清空搜索和筛选。恢复后可在“当前档案”中找到。此操作适用于归档档案，不适用于永久删除的档案。
+    </p>
+  </details>
+</div>

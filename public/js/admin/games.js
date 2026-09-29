@@ -8,6 +8,7 @@ import { initWheelAdmin } from './games-wheel.js';
 let initialized = false;
 let interactionCollecting = false;
 let activeGameSession = null;
+let sessionRequest = 0;
 let drawClock = null;
 let drawClockTimer = null;
 let drawWordCategories = [];
@@ -42,8 +43,29 @@ export function initGames() {
     }),
   );
   window.addEventListener('app:game-update', (event) => {
+    sessionRequest += 1;
     renderSession(event.detail);
     refreshHostState().catch(() => {});
+  });
+  window.addEventListener('app:game-patch', (event) => {
+    const patch = event.detail;
+    if (patch.sessionId !== activeGameSession?.sessionId) {
+      refreshSession().then(refreshHostState).catch(() => {});
+      return;
+    }
+    if (patch.eventRevision <= activeGameSession.eventRevision) return;
+    sessionRequest += 1;
+    const phaseChanged = patch.state.phase !== activeGameSession.state.phase;
+    renderSession({
+      ...activeGameSession,
+      eventRevision: patch.eventRevision,
+      restartBlocked: patch.restartBlocked,
+      state: { ...patch.state, canvas: activeGameSession.state.canvas },
+    });
+    if (phaseChanged) refreshHostState().catch(() => {});
+  });
+  eventBus.on('ws:connected', () => {
+    refreshSession().then(refreshHostState).catch(() => {});
   });
   eventBus.on(Events.STATE_LOADED, ({ state }) => {
     const liveStatus = state?.liveStatus || {};
@@ -120,10 +142,11 @@ function renderViewerOptions(select, viewers) {
 }
 
 async function refreshSession() {
+  const request = ++sessionRequest;
   const response = await fetch('/api/games/session');
   const payload = await readJsonResponse(response, '读取游戏状态失败');
   if (!payload.ok) throw new Error(payload.error || '读取游戏状态失败');
-  renderSession(payload.data);
+  if (request === sessionRequest) renderSession(payload.data);
 }
 
 async function refreshHostState() {

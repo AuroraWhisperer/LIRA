@@ -53,10 +53,13 @@ function isAdminPageRoute(pathname) {
   return ADMIN_PAGE_ROUTES.has(pathname);
 }
 
-function readAdminFragment(publicDir, relativePath) {
+function readAdminFragment(publicDir, relativePath, ancestors = []) {
+  if (ancestors.includes(relativePath)) {
+    throw new Error(`Circular admin fragment: ${[...ancestors, relativePath].join(' -> ')}`);
+  }
   const html = fs.readFileSync(path.join(publicDir, relativePath), 'utf8');
   return html.replace(ADMIN_FRAGMENT_INCLUDE_PATTERN, (_marker, includePath) =>
-    fs.readFileSync(path.join(publicDir, includePath), 'utf8'),
+    readAdminFragment(publicDir, includePath, [...ancestors, relativePath]),
   );
 }
 

@@ -58,6 +58,7 @@ function songRequestReason(reason) {
   const text = String(reason || '');
   if (/不是点歌指令/.test(text)) return 'not-a-song-command';
   if (/暂停接收点歌/.test(text)) return 'requests-paused';
+  if (/点歌内容命中黑名单/.test(text)) return 'song-request-blacklisted';
   if (/用户冷却中/.test(text)) return 'user-cooldown';
   if (/没有.*可随机歌曲/.test(text)) return 'no-random-candidate';
   if (/歌曲名不能为空/.test(text)) return 'empty-song-name';

@@ -153,11 +153,11 @@ maintainability > minimal diff > cleverness.`
 | `test/governance-docs.test.js`                                          | Create             | Small deterministic governance and documentation checks                              |
 | `test/module-boundaries.test.js`                                        | Extend             | Exact legacy text-debt budgets                                                       |
 | `package.json`                                                          | Modify             | Add quick and full verification scripts                                              |
-| `docs/architecture/frontend/app.md`                                     | Correct            | Replace stale `admin.html` references                                                |
-| `docs/architecture/frontend/pages.md`                                   | Correct            | Replace stale `admin.html` references                                                |
+| `docs/reference/frontend/app.md`                                     | Correct            | Replace stale `admin.html` references                                                |
+| `docs/reference/frontend/pages.md`                                   | Correct            | Replace stale `admin.html` references                                                |
 | `docs/architecture/README.md`                                           | Update             | Engineering navigation, ADR, fact-map entries, and volatile-version cleanup          |
-| `docs/architecture/engineering/build.md`                                | Update             | Verification scripts only                                                            |
-| `docs/architecture/engineering/test.md`                                 | Update             | Governance checks and verification commands                                          |
+| `docs/reference/engineering/build.md`                                | Update             | Verification scripts only                                                            |
+| `docs/reference/engineering/test.md`                                 | Update             | Governance checks and verification commands                                          |
 | `docs/superpowers/plans/2026-08-16-modularity-low-coupling-refactor.md` | Move and normalize | Archive the completed historical plan without changing historical changelog text     |
 
 ## Milestone 1: Root Constitution And Planning Standard
@@ -665,8 +665,8 @@ Expected: pass without business-code changes.
 
 Files:
 
-- Modify: `docs/architecture/frontend/app.md`
-- Modify: `docs/architecture/frontend/pages.md`
+- Modify: `docs/reference/frontend/app.md`
+- Modify: `docs/reference/frontend/pages.md`
 
 Replace all stale `public/pages/admin.html` references with the actual model:
 
@@ -681,8 +681,8 @@ Do not invent fragment line-number links. Link stable files or directories only.
 Files:
 
 - Modify: `docs/architecture/README.md`
-- Modify: `docs/architecture/engineering/build.md`
-- Modify: `docs/architecture/engineering/test.md`
+- Modify: `docs/reference/engineering/build.md`
+- Modify: `docs/reference/engineering/test.md`
 
 Required updates:
 

@@ -1,4 +1,7 @@
 ---
+
+> 历史记录：本文的发现、建议和验证仅对应文内日期/基线，不是当前缺陷或执行清单。现状见 [技术参考](../reference/README.md)，剩余工作见 [计划索引](../../specs/plans/README.md) 与 [未结项台账](../../specs/plans/open-items.md)。原结论和后续执行记录保留，不据此恢复未获批准的提案。
+
 status: informative
 review_date: 2026-09-21
 scope: LIRA desktop and LIRA Server working trees
@@ -75,7 +78,7 @@ implementation_status: implemented-with-j01-commit-dependency
 | --- | --- | --- |
 | C10 · 优先 | [package.json:13](/D:/Work/Live/package.json:13)、[test/helpers](/D:/Work/Live/test/helpers) | `node --test` 使用默认发现；本机 Node 24.15 的默认模式包含 `test/**/*.{js,mjs,cjs}`。已列出的 29 个非测试 JS 辅助文件也落在匹配范围。明确收集真正的 `*.test.js`，辅助模块由测试导入；对子进程探针保留显式启动。收集前后核对真实测试文件集合，不能只比较总通过数；不关闭进程隔离。 |
 | C11 · 优先设计分组 | [package.json](/D:/Work/Live/package.json:13)、[ui-edit-state-fixture.js:39](/D:/Work/Live/test/helpers/ui-edit-state-fixture.js:39)、[desktop-request-auth-electron.test.js:10](/D:/Work/Live/test/desktop-request-auth-electron.test.js:10)、[CI](/D:/Work/Live/.github/workflows/check.yml:11) | 当前同一 Node 入口混有纯逻辑、临时数据库/HTTP、Chromium、Electron 和安装器场景。为离线行为、浏览器组件、桌面集成、契约建立明确执行组；普通变更运行所属组及直接消费者，完整入口仍覆盖全部。浏览器带模拟 bridge 的测试不能替代真实 Electron 权限验证；安装器跳过数要单列。PR 的 quick 当前以静态门禁为主，应补所选模块的行为组，不能把 quick 通过当作行为回归通过。 |
-| C12 · 后续，先看耗时 | [package.json:20](/D:/Work/Live/package.json:20)、[CI:34](/D:/Work/Live/.github/workflows/check.yml:34)、[测试策略:17](/D:/Work/Live/docs/architecture/engineering/test.md:17) | quick job 执行后，main 的 full job 又通过 `verify` 执行 quick，随后全量还发现文档/架构测试。仓库已明确允许这类有限重复，不是现有错误。先避免人工连续重复调用；若实测占比高，再精简同一提交的 CI 编排，保持独立执行 `verify` 的完整语义，不优先维护复杂的排除名单。 |
+| C12 · 后续，先看耗时 | [package.json:20](/D:/Work/Live/package.json:20)、[CI:34](/D:/Work/Live/.github/workflows/check.yml:34)、[测试策略:17](/D:/Work/Live/docs/reference/engineering/test.md:17) | quick job 执行后，main 的 full job 又通过 `verify` 执行 quick，随后全量还发现文档/架构测试。仓库已明确允许这类有限重复，不是现有错误。先避免人工连续重复调用；若实测占比高，再精简同一提交的 CI 编排，保持独立执行 `verify` 的完整语义，不优先维护复杂的排除名单。 |
 
 ## 4. 服务器
 

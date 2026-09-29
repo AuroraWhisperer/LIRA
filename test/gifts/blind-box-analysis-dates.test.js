@@ -44,7 +44,9 @@ test('blind box date ranges include both local days across months in all views a
   const fixture = seed(t);
   for (const view of ['users', 'boxes', 'records']) {
     const result = getBlindBoxAnalysis(fixture.context, {
-      startDate: '2026-08-31', endDate: '2026-09-01', view,
+      startDate: '2026-08-31',
+      endDate: '2026-09-01',
+      view,
     });
     assert.deepEqual(result.dateRange, { startDate: '2026-08-31', endDate: '2026-09-01' });
     assert.deepEqual(result.summary, { boxCount: 2, totalCost: 18, totalValue: 20, totalProfit: 2 });
@@ -62,14 +64,23 @@ test('single-day analysis accepts identical endpoints or one endpoint, with filt
     { startDate: '2026-09-01', endDate: '2026-09-01' },
   ]) {
     const result = getBlindBoxAnalysis(fixture.context, { ...dates, view: 'records' });
-    assert.deepEqual(result.items.map((item) => item.giftName), ['end']);
+    assert.deepEqual(
+      result.items.map((item) => item.giftName),
+      ['end'],
+    );
     assert.deepEqual(result.dateRange, { startDate: '2026-09-01', endDate: '2026-09-01' });
   }
   const dates = { startDate: '2026-08-31', endDate: '2026-09-01', view: 'records' };
   const filtered = getBlindBoxAnalysis(fixture.context, { ...dates, viewer: 'name:小月', box: '心动盲盒' });
-  assert.deepEqual(filtered.items.map((item) => item.giftName), ['start']);
+  assert.deepEqual(
+    filtered.items.map((item) => item.giftName),
+    ['start'],
+  );
   const page = getBlindBoxAnalysis(fixture.context, { ...dates, limit: 1, page: 2 });
-  assert.deepEqual(page.items.map((item) => item.giftName), ['start']);
+  assert.deepEqual(
+    page.items.map((item) => item.giftName),
+    ['start'],
+  );
   assert.deepEqual(page.summary, { boxCount: 2, totalCost: 18, totalValue: 20, totalProfit: 2 });
 });
 
@@ -87,8 +98,10 @@ test('omitted dates preserve today stats and explicit empty dates match that def
 
 test('invalid dates and reversed ranges fail before querying records', () => {
   for (const options of [
-    { startDate: '2026-02-29' }, { endDate: '2026-04-31' },
-    { startDate: '2026-9-01' }, { startDate: 'not-a-date' },
+    { startDate: '2026-02-29' },
+    { endDate: '2026-04-31' },
+    { startDate: '2026-9-01' },
+    { startDate: 'not-a-date' },
     { startDate: '2026-09-02', endDate: '2026-09-01' },
   ]) {
     assert.throws(() => getBlindBoxAnalysis({}, options), { code: 'INVALID_GIFT_FILTER' });
@@ -103,7 +116,14 @@ test('local date bounds follow daylight saving changes instead of assuming 24 ho
     else process.env.TZ = timezone;
   });
   let bounds;
-  const context = { queryStore: { listBlindBoxRows(options) { bounds = options; return []; } } };
+  const context = {
+    queryStore: {
+      listBlindBoxRows(options) {
+        bounds = options;
+        return [];
+      },
+    },
+  };
   getBlindBoxAnalysis(context, { startDate: '2026-03-08' });
   assert.equal(bounds.from, '2026-03-08T05:00:00.000Z');
   assert.equal(bounds.to, '2026-03-09T04:00:00.000Z');
@@ -118,10 +138,18 @@ test('analysis route passes dates through and returns 400 for invalid ranges', (
   function request(query) {
     let status;
     let payload;
-    routes['GET /api/gifts/blind-box-analysis'](context, { query: new URLSearchParams(query) }, {
-      writeHead(code) { status = code; },
-      end(body) { payload = JSON.parse(body); },
-    });
+    routes['GET /api/gifts/blind-box-analysis'](
+      context,
+      { query: new URLSearchParams(query) },
+      {
+        writeHead(code) {
+          status = code;
+        },
+        end(body) {
+          payload = JSON.parse(body);
+        },
+      },
+    );
     return { status, payload };
   }
   const result = request('startDate=2026-08-31&endDate=2026-09-01');

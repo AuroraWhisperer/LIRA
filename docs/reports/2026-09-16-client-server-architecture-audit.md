@@ -1,4 +1,7 @@
 ---
+
+> 历史记录：本文的发现、建议和验证仅对应文内日期/基线，不是当前缺陷或执行清单。现状见 [技术参考](../reference/README.md)，剩余工作见 [计划索引](../../specs/plans/README.md) 与 [未结项台账](../../specs/plans/open-items.md)。原结论和后续执行记录保留，不据此恢复未获批准的提案。
+
 status: informative
 review_date: 2026-09-16
 scope: LIRA desktop and LIRA Server working trees
@@ -101,7 +104,7 @@ flowchart LR
 
 ### A3. 主窗口关闭沙箱，文档理由不足（优先验证，已确认配置与文档问题）
 
-- **证据**：[main.js](../../src/electron/main.js) 主窗口设置 `sandbox: false`；[desktop/main.md](../architecture/desktop/main.md) 将原因归于 preload 需要 `contextBridge` 与 `ipcRenderer`。[preload.js](../../src/electron/preload.js) 当前只 require Electron API。
+- **证据**：[main.js](../../src/electron/main.js) 主窗口设置 `sandbox: false`；[desktop/main.md](../reference/desktop/main.md) 将原因归于 preload 需要 `contextBridge` 与 `ipcRenderer`。[preload.js](../../src/electron/preload.js) 当前只 require Electron API。
 - **对照**：[Electron 官方沙箱说明](https://www.electronjs.org/docs/latest/tutorial/sandbox) 明确允许沙箱 preload 使用这两个 API。
 - **判断**：现有文档理由不足以说明必须关闭沙箱；关闭后少了一层 OS 隔离。当前仍开启 context isolation 并禁用 renderer Node integration，不能把该配置直接等同任意代码执行漏洞。
 - **建议**：单独验证沙箱下全部 IPC、播放、登录、更新和本地资源流程，再决定修改配置及说明；本次未运行 Electron 沙箱切换测试。
@@ -267,7 +270,7 @@ node D:\Work\Live\docs\reports\support\2026-09-16-architecture-probes.cjs D:\Wor
 
 通用授权执行层现在在等待授权之前捕获主体及生命周期，在首次发送、回包、错误处理和重试时核对。激活、重新 bootstrap、清理会话和 dispose 使旧生命周期失效；A → B → A 也不会复活旧请求。同主体正常 token 续期仍允许原请求按约定重试一次。资料在通用校验和敏感字段清洗后同步提交，旧续期/心跳的完成和清理不再作用于新账号任务。
 
-新增 [license-manager-identity.test.js](../../test/license/license-manager-identity.test.js) 覆盖迟到成功、失败、重试、首次发送前切换、ABA、续期、等待续期、阻断、dispose 和新旧维护任务交错。更详细的运行约束见 [desktop/auth.md](../architecture/desktop/auth.md)。这些检查不会撤回切换前已送达旧账号的请求；SSE 的流取消与事件消费继续由既有控制器的生命周期检查负责。
+新增 [license-manager-identity.test.js](../../test/license/license-manager-identity.test.js) 覆盖迟到成功、失败、重试、首次发送前切换、ABA、续期、等待续期、阻断、dispose 和新旧维护任务交错。更详细的运行约束见 [desktop/auth.md](../reference/desktop/auth.md)。这些检查不会撤回切换前已送达旧账号的请求；SSE 的流取消与事件消费继续由既有控制器的生命周期检查负责。
 
 ### 8.2 B2：有限回读预算与提交前保护
 
@@ -319,7 +322,7 @@ A3 的真实 Electron 沙箱兼容验证、A4/A5 的按功能渐进整理，以�
 
 新增 [Check 工作流](../../.github/workflows/check.yml)：Windows / Node 24 的快速检查覆盖 push、PR 和手动运行；完整两仓检查只在 `main` push 或 `main` 手动运行时执行，按锁检出固定服务器，运行客户端完整验证与真实 HTTP 往返。工作流 Actions 固定完整 SHA，使用只读权限，关闭凭据持久化和自动缓存。
 
-只读调查确认客户端仓库公开、服务器仓库私有，客户端当时没有 Actions repository secrets 或 Environments。完整检查绑定 `server-contract` Environment；启用者需将该环境的部署分支限制为 `main`，在环境内配置仅有服务器 Contents 读取权限的 `LIRA_SERVER_READ_TOKEN`，再推送已审工作流并完成实际首跑。普通 PR job 不检出私有服务器。具体步骤见 [构建文档](../architecture/engineering/build.md#持续集成)。本次没有创建凭据、改变 GitHub 设置或声称托管执行已通过。
+只读调查确认客户端仓库公开、服务器仓库私有，客户端当时没有 Actions repository secrets 或 Environments。完整检查绑定 `server-contract` Environment；启用者需将该环境的部署分支限制为 `main`，在环境内配置仅有服务器 Contents 读取权限的 `LIRA_SERVER_READ_TOKEN`，再推送已审工作流并完成实际首跑。普通 PR job 不检出私有服务器。具体步骤见 [构建文档](../reference/engineering/build.md#本地发布验证)。本次没有创建凭据、改变 GitHub 设置或声称托管执行已通过。
 
 ### 9.3 本地验证
 

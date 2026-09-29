@@ -89,7 +89,7 @@ function sanitizeDevice(value) {
 }
 
 function mapSongForSync(song = {}) {
-  const enabled = song.isEnabled ?? song.is_enabled ?? song.enabled ?? true;
+  const enabled = song.enabled ?? song.isEnabled ?? song.is_enabled ?? true;
   const rawRequestPrice = song.requestPrice !== undefined ? song.requestPrice : song.request_price;
   const requestPrice =
     rawRequestPrice === undefined || rawRequestPrice === null
@@ -98,7 +98,7 @@ function mapSongForSync(song = {}) {
         ? rawRequestPrice.trim() || null
         : rawRequestPrice;
   return {
-    name: String(song.name ?? song.title ?? '').trim(),
+    title: String(song.title ?? song.name ?? '').trim(),
     artist: String(song.artist ?? '').trim(),
     categoryName: String(song.categoryName ?? song.category_name ?? '').trim(),
     tags: String(song.tags ?? '').trim(),
@@ -107,7 +107,7 @@ function mapSongForSync(song = {}) {
     note: String(song.note ?? '').trim(),
     requestPrice,
     songClip: String(song.songClip ?? song.song_clip ?? '').trim(),
-    isEnabled: !(enabled === false || enabled === 0 || String(enabled).toLowerCase() === 'false'),
+    enabled: !(enabled === false || enabled === 0 || String(enabled).toLowerCase() === 'false'),
     sortOrder: Number(song.sortOrder ?? song.sort_order ?? 0) || 0,
   };
 }

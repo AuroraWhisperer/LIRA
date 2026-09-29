@@ -13,7 +13,7 @@
 
 const path = require('node:path');
 
-const OUT_ROOT = path.resolve(__dirname, '../../screenshots/usage-guide');
+const OUT_ROOT = path.resolve(__dirname, '../../tmp/screenshots/usage-guide');
 const DATA_DIR = path.join(OUT_ROOT, 'data');
 
 const SHOTS = [
@@ -56,9 +56,7 @@ const SHOTS = [
     settleMs: 400,
     setup: async (page) => {
       // 播放器底栏在页内布局可能超出视口，用 JS 点击绕过
-      await page.evaluate(() =>
-        document.getElementById('playbackQueueBtn')?.click(),
-      );
+      await page.evaluate(() => document.getElementById('playbackQueueBtn')?.click());
       await page.waitForSelector('#queuePopup.open', { timeout: 5000 });
     },
     annotations: [

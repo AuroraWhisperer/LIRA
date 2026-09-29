@@ -58,7 +58,7 @@ exports.default = async function sign(configuration) {
       'Windows code signing certificate not configured.\n' +
         'Set either WINDOWS_CERT_FILE + WINDOWS_CERT_PASSWORD (for .pfx file)\n' +
         'or WINDOWS_CERT_THUMBPRINT (for Windows certificate store).\n' +
-        'See docs/architecture/engineering/code-signing.md for details.',
+        'See docs/reference/engineering/code-signing.md for details.',
     );
   }
 

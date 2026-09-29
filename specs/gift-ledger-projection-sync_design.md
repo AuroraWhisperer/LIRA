@@ -1,6 +1,6 @@
 # Feature: Source-partitioned gift ledger projection sync
 
-- Status: Accepted
+- Decision status: Accepted. Delivery status is maintained in [the specification index](README.md); remaining dataset verification is tracked in [the plan](plans/2026-09-01-gift-ledger-projection-sync.md).
 - Date: 2026-09-01
 
 ## Goal
@@ -217,17 +217,29 @@ any active state -> OFFLINE | ERROR
 Every asynchronous operation captures and rechecks the immutable fence
 `{sourceId, authorizationEpoch, controllerGeneration, projectionGeneration}`
 before enqueueing, after awaits, and before a transaction. After bootstrap is
-complete, the SSE epoch is validated, and the controller is in clean `LIVE`, a
-`final` event whose cursor is exactly the next cursor is passed immediately to
-the idempotent live importer so the local UI and consumers do not wait for an
-HTTP round trip. The controller still marks the projection dirty and schedules
-cursor catch-up; the immediate import
-does not advance the durable cursor. During bootstrap, legacy mode, an
-unvalidated or mismatched epoch, a cursor gap/duplicate, rebuild, or a stale
-fence, the event is handled only by pull/rebuild. Cursor pull remains recovery
-and continuity truth. The controller serializes recovery imports, keeps the
-immediate path idempotent, and marks LIVE only after epoch and latest-cursor
-validation with no dirty/gap/in-flight work.
+complete, the current SSE stream's epoch is validated, and the controller is in
+clean LIVE with no pending recovery, a final event with the next contiguous
+cursor commits synchronously through the existing gift-sync-store transaction.
+The event and durable cursor commit together; effects run only after commit.
+Success preserves LIVE and does not request a redundant cursor pull. An already
+committed cursor on that validated stream is ignored without another import.
+
+During bootstrap, legacy mode, an unvalidated/mismatched epoch, a cursor gap,
+rebuild, or pending catch-up, events use the existing pull/rebuild path. Aborted
+or replaced stream callbacks and stale fences cannot import or invalidate the
+current stream. A failed live commit advances neither rows nor cursor and falls
+back to catch-up. If post-commit delivery throws, reload the durable cursor
+before recovery so an already committed final is not reapplied. The controller
+rechecks its fence after post-commit effects
+before publishing the returned state, since a consumer may stop the source.
+
+Cursor pull remains recovery and continuity truth on startup, reconnect, gaps
+and every 10 seconds while live. A healthy SSE commit does not restart that
+periodic deadline. The latestCursor context value is the highest final cursor
+observed from the server; a new final proves continuity through its cursor, not
+that no later final exists. Only a completed HTTP catch-up updates lastValidatedAt
+and syncedAt. Progress never advances the final cursor. Recovery commits stay
+serialized, and no live commit overlaps an in-flight HTTP recovery.
 
 On principal change, main first freezes the local gift API in
 `SOURCE_SWITCHING`, increments controller generation, aborts HTTP and SSE, and
@@ -379,10 +391,14 @@ New renderer modules use named ESM imports/exports and do not add to `window.Adm
     summary/ranking/trend panels, or statistics requests. It reads all dates with
     keyset navigation and shows incomplete/offline/error synchronization status
     only when relevant.
-17. After a capable source is clean `LIVE`, a final SSE event with a validated
-    epoch and the next contiguous cursor is projected before the cursor pull it
-    triggers resolves; gaps, unvalidated epochs, bootstrap/rebuild, and stale
-    fences wait for recovery, and replay does not duplicate side effects.
+17. After a capable source is clean LIVE, a final from the current validated
+    stream with the next cursor commits its row and cursor immediately without
+    an extra GET; duplicates do not re-import. Transaction failure rolls back
+    rows, cursor and effects before recovery. Gaps, pending HTTP, unvalidated
+    epochs and bootstrap/rebuild use recovery; stale stream/fence callbacks do
+    not write. Restart resumes from the committed cursor without duplicate effects.
+    Continuous finals do not postpone the 10-second reconciliation deadline or
+    refresh the last successful HTTP validation time.
 18. Valid `Retry-After` seconds/date headers govern recovery scheduling end to end;
     server delays above 60 seconds are not shortened, and invalid headers retain
     bounded backoff without clearing the owner or projection.

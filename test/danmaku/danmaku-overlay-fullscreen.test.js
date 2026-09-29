@@ -65,6 +65,13 @@ test('fullscreen random danmaku positions are stable, bounded, and expire from t
   const scheduled = [];
   const cancelled = [];
   let now = 1000;
+  const motionPreference = {
+    matches: false,
+    addEventListener(_type, listener) { this.listener = listener; },
+    removeEventListener(_type, listener) {
+      if (this.listener === listener) this.listener = null;
+    },
+  };
   const resizeObservers = [];
   class FakeResizeObserver {
     constructor(callback) {
@@ -83,6 +90,7 @@ test('fullscreen random danmaku positions are stable, bounded, and expire from t
       createDocumentFragment: () => Object.assign(new FakeNode(), { isFragment: true }),
     },
     ResizeObserver: FakeResizeObserver,
+    matchMedia: () => motionPreference,
   });
   const feed = module.createDanmakuFeed(root, {
     layout: 'fullscreen-random',
@@ -203,6 +211,72 @@ test('fullscreen random danmaku positions are stable, bounded, and expire from t
   assert.equal(root.children.length, 1);
   assert.equal(root.children[0], fittingNode, 'an oversized item must not evict fitting messages');
   collisionFeed.destroy();
+
+  const animations = [];
+  FakeNode.prototype.animate = function (keyframes, options) {
+    const animation = { keyframes, options, cancelled: false, cancel() { this.cancelled = true; } };
+    animations.push(animation);
+    return animation;
+  };
+  const animatedFeed = module.createDanmakuFeed(root, {
+    layout: 'fullscreen-random',
+    itemLifetimeMs: 2000,
+    autoScroll: false,
+    now: () => now,
+    scheduleTimeout(callback, delay) {
+      const timer = { callback, delay };
+      scheduled.push(timer);
+      return timer;
+    },
+    cancelTimeout: (timer) => cancelled.push(timer),
+  });
+  now = 5000;
+  animatedFeed.append({ id: 'fading', timestamp: now, message: '正常到期' });
+  const fadingNode = root.children[0];
+  const fadeStart = scheduled.at(-1);
+  assert.equal(fadeStart.delay, 1600);
+  assert.equal(animations.length, 0);
+  now = 6600;
+  fadeStart.callback();
+  assert.equal(animations[0].options.duration, 400);
+  assert.equal(animations[0].options.easing, 'cubic-bezier(0.4, 0, 1, 1)');
+  assert.equal(animations[0].options.fill, 'forwards');
+  assert.equal(animations[0].keyframes[0].opacity, 1);
+  assert.equal(animations[0].keyframes[1].opacity, 0);
+  const expiry = scheduled.at(-1);
+  assert.equal(expiry.delay, 400);
+  now = 6700;
+  animatedFeed.append({ id: 'next', timestamp: now, message: '淡出时追加' });
+  const nextFadeStart = scheduled.at(-1);
+  assert.ok(root.children.includes(fadingNode));
+  assert.equal(animations[0].cancelled, false);
+  now = 7000;
+  expiry.callback();
+  assert.equal(root.children.length, 1);
+  assert.equal(animations[0].cancelled, true);
+
+  now = 8300;
+  nextFadeStart.callback();
+  motionPreference.matches = true;
+  motionPreference.listener();
+  assert.equal(animations[1].cancelled, true);
+  assert.equal(root.children.length, 1, 'reducing motion must preserve the original deadline');
+  now = 8700;
+  scheduled.at(-1).callback();
+  animatedFeed.append({ id: 'reduced', timestamp: now, message: '减少动态效果' });
+  assert.equal(scheduled.at(-1).delay, 2000);
+  assert.equal(animations.length, 2);
+
+  motionPreference.matches = false;
+  animatedFeed.render([{ id: 'cleanup', timestamp: now, message: '销毁时取消淡出' }]);
+  now = 10300;
+  scheduled.at(-1).callback();
+  const activeFadeTimer = scheduled.at(-1);
+  animatedFeed.destroy();
+  assert.equal(animations[2].cancelled, true);
+  assert.ok(cancelled.includes(activeFadeTimer));
+  assert.equal(motionPreference.listener, null);
+  assert.equal(root.children.length, 0);
 });
 
 test('fullscreen random preview keeps rendered items without expiration timers', async () => {

@@ -28,6 +28,6 @@ Windows 注册表、安装器解压及诊断使用的系统临时文件仍由系
 
 ## References
 
-- [桌面数据路径与恢复](../desktop/main.md)
-- [NSIS 打包流程](../engineering/build.md)
-- [更新缓存](../desktop/update.md)
+- [桌面数据路径与恢复](../../reference/desktop/main.md)
+- [NSIS 打包流程](../../reference/engineering/build.md)
+- [更新缓存](../../reference/desktop/update.md)

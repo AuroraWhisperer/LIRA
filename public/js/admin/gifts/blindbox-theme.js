@@ -9,10 +9,11 @@ const BLIND_BOX_THEMES = [
 ];
 
 export function findBlindBoxTheme(name, id) {
-  const boxName = String(name || '').normalize('NFKC').replace(/\s+/gu, ' ').trim();
+  const boxName = String(name || '')
+    .normalize('NFKC')
+    .replace(/\s+/gu, ' ')
+    .trim();
   const boxId = String(id || '').trim();
   // Gift IDs can be reused for another seasonal box; the full name must also match.
-  return BLIND_BOX_THEMES.find(
-    (theme) => theme.name === boxName && (!theme.id || !boxId || theme.id === boxId),
-  );
+  return BLIND_BOX_THEMES.find((theme) => theme.name === boxName && (!theme.id || !boxId || theme.id === boxId));
 }

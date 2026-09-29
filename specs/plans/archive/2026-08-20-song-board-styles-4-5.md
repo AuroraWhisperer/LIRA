@@ -38,7 +38,7 @@ The 点歌板 tab offers style 4 and style 5. Style 4 is a dark violet/cyan/cora
 
 - Owner: `public/js/overlays/`, `public/css/overlays/`, and `public/pages/overlays/queue.html` (`ROUTE-OVERLAYS`).
 - Admin consumer: `public/pages/admin/song/queue-theme.html` and `public/js/admin/theme.js` (`ROUTE-ADMIN`).
-- Persisted contract: `src/storage/theme-store.js` already permits `overlayQueueStyle`; the documented accepted values are owned by `docs/architecture/backend/storage.md`.
+- Persisted contract: `src/storage/theme-store.js` already permits `overlayQueueStyle`; the documented accepted values are owned by `docs/reference/backend/storage.md`.
 - Tests: `test/frontend-queue.test.js` and `test/queue-overlay-esm.test.js`.
 
 ## Compatibility Constraints
@@ -126,9 +126,9 @@ Focused verification: inspect both styles in the desktop/OBS renderer at represe
 
 **Files:**
 
-- Modify: `docs/architecture/frontend/overlays.md`
-- Modify: `docs/architecture/frontend/app.md`
-- Modify: `docs/architecture/backend/storage.md`
+- Modify: `docs/reference/frontend/overlays.md`
+- Modify: `docs/reference/frontend/app.md`
+- Modify: `docs/reference/backend/storage.md`
 - Modify: `specs/plans/2026-08-20-song-board-styles-4-5.md`
 
 - [x] Document the two new accepted style values, generated asset locations, four-field rendering, and shared controls.

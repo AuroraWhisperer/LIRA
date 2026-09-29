@@ -59,7 +59,7 @@ test('ordinary JSON streaming accepts the exact byte boundary and preserves spli
       new Response(
         new ReadableStream({
           start(controller) {
-            for (let offset = 0; offset < bytes.length; ) {
+            for (let offset = 0; offset < bytes.length;) {
               const end = offset + (offset < 32 ? 2 : 1024);
               controller.enqueue(bytes.subarray(offset, end));
               offset = end;

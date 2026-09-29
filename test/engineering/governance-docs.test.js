@@ -11,7 +11,10 @@ const ROOT_DIR = path.resolve(__dirname, '../..');
 const REQUIRED_GOVERNANCE_FILES = [
   'AGENTS.md',
   'PLANS.md',
+  'docs/README.md',
   'docs/architecture/README.md',
+  'docs/reference/README.md',
+  'docs/reports/README.md',
   'docs/architecture/adr/0008-ai-assisted-change-governance.md',
   'docs/architecture/engineering/ai-workflow.md',
   'docs/architecture/engineering/legacy-boundaries.md',
@@ -20,16 +23,18 @@ const REQUIRED_GOVERNANCE_FILES = [
   'docs/architecture/engineering/modularity-debt.md',
   'public/js/admin/AGENTS.md',
   'specs/README.md',
+  'specs/plans/README.md',
+  'specs/plans/archive/README.md',
   'src/electron/AGENTS.md',
   'src/storage/AGENTS.md',
 ];
-const LINK_CHECK_FILES = [
+const LINK_CHECK_FILES = [...new Set([
   ...REQUIRED_GOVERNANCE_FILES,
-  'docs/architecture/engineering/build.md',
-  'docs/architecture/engineering/test.md',
-  'docs/architecture/frontend/app.md',
-  'docs/architecture/frontend/pages.md',
-];
+  ...markdownFiles('docs/architecture'),
+  ...markdownFiles('docs/reference'),
+  ...markdownFiles('docs/guides'),
+  ...markdownFiles('docs/bilibili-live-api'),
+])];
 const REQUIRED_ROUTE_IDS = [
   'ROUTE-MUSIC-REQUESTS',
   'ROUTE-PLAYBACK',
@@ -45,6 +50,26 @@ const REQUIRED_ROUTE_IDS = [
   'ROUTE-OVERLAYS',
 ];
 const ALLOWED_SPEC_STATUSES = new Set(['Draft', 'Accepted', 'In Progress', 'Implemented', 'Reference', 'Superseded']);
+
+function markdownFiles(directory) {
+  return fs.readdirSync(path.join(ROOT_DIR, directory), { withFileTypes: true }).flatMap((entry) => {
+    const file = `${directory}/${entry.name}`;
+    return entry.isDirectory() ? markdownFiles(file) : entry.name.endsWith('.md') ? [file] : [];
+  });
+}
+
+function markdownProse(source) {
+  let fence = null;
+  return source.split('\n').map((line) => {
+    const marker = /^\s*(`{3,}|~{3,})/.exec(line)?.[1];
+    if (marker) {
+      if (!fence) fence = marker[0];
+      else if (marker[0] === fence) fence = null;
+      return '';
+    }
+    return fence ? '' : line.replace(/(`+).*?\1/g, '');
+  }).join('\n');
+}
 
 function registeredApiRoutes() {
   const filename = absolutePath('src/server/api-routes.js');
@@ -85,12 +110,12 @@ function apiRouteDifferences(registered, documented) {
 test('local API documentation matches the actual registered HTTP routes in both directions', () => {
   const differences = apiRouteDifferences(
     registeredApiRoutes(),
-    documentedApiRoutes(read('docs/architecture/backend/api.md')),
+    documentedApiRoutes(read('docs/reference/backend/api.md')),
   );
   assert.deepEqual(
     differences,
     { missing: [], extra: [] },
-    'GOV-API-001: update the local METHOD /api/path entries in docs/architecture/backend/api.md',
+    'GOV-API-001: update the local METHOD /api/path entries in docs/reference/backend/api.md',
   );
 });
 
@@ -200,11 +225,11 @@ test('root constitution references each scoped constitution', () => {
   assertNoFindings(findings);
 });
 
-test('relative Markdown links in governance and architecture index files resolve', () => {
+test('relative Markdown links in governance and current documentation resolve', () => {
   const findings = [];
 
   for (const relativePath of LINK_CHECK_FILES) {
-    const source = read(relativePath);
+    const source = markdownProse(read(relativePath));
     const links = [
       ...[...source.matchAll(/!?\[[^\]]*\]\(([^)]+)\)/g)].map((match) => ({
         target: match[1],
@@ -250,6 +275,39 @@ test('relative Markdown links in governance and architecture index files resolve
   }
 
   assertNoFindings(findings);
+});
+
+test('relative document links resolve across current and historical documentation', () => {
+  const findings = [];
+  for (const file of [...markdownFiles('docs'), ...markdownFiles('specs')]) {
+    const source = markdownProse(read(file));
+    for (const match of source.matchAll(/!?\[[^\]]*\]\(([^)]+)\)/g)) {
+      const target = match[1].replace(/^<|>$/g, '').split('#', 1)[0];
+      if (!target.endsWith('.md') || /^(?:https?:|mailto:|\/|[A-Za-z]:)/.test(target)) continue;
+      const resolved = path.resolve(path.dirname(absolutePath(file)), target);
+      if (isInsideRepository(resolved) && !fs.existsSync(resolved)) findings.push(`${file}: missing ${target}`);
+    }
+  }
+  assertNoFindings(findings);
+});
+
+test('active plans have current nonterminal status and appear in the plan index', () => {
+  const allowed = new Set([
+    'Draft', 'In Progress', 'Needs Review', 'Awaiting Verification',
+    'Awaiting Evidence', 'Deferred', 'Paused', 'Blocked',
+  ]);
+  const index = read('specs/plans/README.md');
+  const plans = fs.readdirSync(absolutePath('specs/plans')).filter((file) =>
+    file.endsWith('.md') && !['README.md', 'open-items.md'].includes(file),
+  );
+  for (const file of plans) {
+    const source = read(`specs/plans/${file}`);
+    const status = /^\*\*Status:\*\* ([^.\n—(]+)/m.exec(source)?.[1].trim();
+    assert.ok(allowed.has(status), `${file}: provide a current status or archive the completed/superseded plan`);
+    assert.ok(index.includes(`](${file}) | ${status} |`), `${file}: plan index status must match the plan`);
+  }
+  const legacyDirectory = absolutePath('docs/superpowers/plans');
+  assert.equal(fs.existsSync(legacyDirectory) && fs.readdirSync(legacyDirectory).some((file) => file.endsWith('.md')), false);
 });
 
 test('AI route table has stable unique IDs and existing literal paths', () => {

@@ -16,8 +16,12 @@ function fixture(t) {
     db,
     createStore,
     store: createStore(),
-    advanceTo(value) { now = value; },
-    count(table) { return db.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get().count; },
+    advanceTo(value) {
+      now = value;
+    },
+    count(table) {
+      return db.prepare(`SELECT COUNT(*) AS count FROM ${table}`).get().count;
+    },
   };
 }
 

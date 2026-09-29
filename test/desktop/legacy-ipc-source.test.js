@@ -14,17 +14,36 @@ function fixture(register, channel, options = {}) {
   const mainFrame = { url: `${BASE_URL}/admin` };
   const webContents = { mainFrame, session: {} };
   const window = { webContents, isDestroyed: () => false };
-  const run = () => { calls += 1; return { marker: 'authorized-result' }; };
+  const run = () => {
+    calls += 1;
+    return { marker: 'authorized-result' };
+  };
   register({
     ipcMain: { handle: (name, handler) => handlers.set(name, handler) },
-    getMainWindow: () => window, getDesktopBaseUrl: () => BASE_URL,
-    getAuthState: run, getProfile: run, login: run, logout: run,
-    getMusicAuthState: run, loginMusicAccount: run, logoutMusicAccount: run,
-    clearMusicBrowserCache: run, writePlaybackSnapshot: run, acknowledgePlaybackFlush: run,
-    checkForUpdates: run, writeLog() {}, ...options,
+    getMainWindow: () => window,
+    getDesktopBaseUrl: () => BASE_URL,
+    getAuthState: run,
+    getProfile: run,
+    login: run,
+    logout: run,
+    getMusicAuthState: run,
+    loginMusicAccount: run,
+    logoutMusicAccount: run,
+    clearMusicBrowserCache: run,
+    writePlaybackSnapshot: run,
+    acknowledgePlaybackFlush: run,
+    checkForUpdates: run,
+    writeLog() {},
+    ...options,
   });
-  return { handlers, window, mainFrame, event: { sender: webContents, senderFrame: mainFrame },
-    calls: () => calls, invoke: (event, ...args) => handlers.get(channel)(event, ...args) };
+  return {
+    handlers,
+    window,
+    mainFrame,
+    event: { sender: webContents, senderFrame: mainFrame },
+    calls: () => calls,
+    invoke: (event, ...args) => handlers.get(channel)(event, ...args),
+  };
 }
 
 for (const [register, channel, allowLicense] of [
@@ -35,10 +54,20 @@ for (const [register, channel, allowLicense] of [
   test(`${channel} keeps legal pages and rejects other windows, frames and origins`, async () => {
     const f = fixture(register, channel);
     assert.deepEqual(await f.invoke(f.event, 'qq'), { marker: 'authorized-result' });
-    const rejected = [undefined, {}, { ...f.event, sender: { ...f.window.webContents } },
-      { ...f.event, senderFrame: { url: f.mainFrame.url } }, { ...f.event, senderFrame: null }];
+    const rejected = [
+      undefined,
+      {},
+      { ...f.event, sender: { ...f.window.webContents } },
+      { ...f.event, senderFrame: { url: f.mainFrame.url } },
+      { ...f.event, senderFrame: null },
+    ];
     for (const event of rejected) assert.deepEqual(await f.invoke(event), { ok: false, error: 'IPC_SOURCE_INVALID' });
-    for (const url of ['https://example.com/admin', 'http://127.0.0.1:31002/admin', `${BASE_URL}/clock`, 'file:///admin']) {
+    for (const url of [
+      'https://example.com/admin',
+      'http://127.0.0.1:31002/admin',
+      `${BASE_URL}/clock`,
+      'file:///admin',
+    ]) {
       f.mainFrame.url = url;
       assert.deepEqual(await f.invoke(f.event), { ok: false, error: 'IPC_SOURCE_INVALID' });
     }
@@ -48,7 +77,10 @@ for (const [register, channel, allowLicense] of [
       assert.deepEqual(await f.invoke(f.event), { marker: 'authorized-result' });
     }
     f.mainFrame.url = `${BASE_URL}/license`;
-    assert.deepEqual(await f.invoke(f.event), allowLicense ? { marker: 'authorized-result' } : { ok: false, error: 'IPC_SOURCE_INVALID' });
+    assert.deepEqual(
+      await f.invoke(f.event),
+      allowLicense ? { marker: 'authorized-result' } : { ok: false, error: 'IPC_SOURCE_INVALID' },
+    );
     f.mainFrame.url = `${BASE_URL}/admin?desktop=1`;
     assert.deepEqual(await f.invoke(f.event), { marker: 'authorized-result' });
     f.window.isDestroyed = () => true;
@@ -75,14 +107,28 @@ for (const channel of ['desktop:get-resource-integrity-state', 'desktop:check-re
   test(`${channel} permits only the main admin frame and rejects all arguments`, () => {
     let calls = 0;
     const state = { revision: 1, status: 'checking' };
-    const action = () => { calls += 1; return state; };
+    const action = () => {
+      calls += 1;
+      return state;
+    };
     const f = fixture(registerUpdateIpc, channel, { resourceIntegrity: { getState: action, check: action } });
     assert.deepEqual(f.invoke(f.event), state);
-    for (const arg of ['C:/secret', {}, undefined]) assert.deepEqual(f.invoke(f.event, arg), { ok: false, error: 'IPC_ARGUMENTS_INVALID' });
-    for (const event of [undefined, {}, { ...f.event, sender: {} }, { ...f.event, senderFrame: { url: f.mainFrame.url } }]) {
+    for (const arg of ['C:/secret', {}, undefined])
+      assert.deepEqual(f.invoke(f.event, arg), { ok: false, error: 'IPC_ARGUMENTS_INVALID' });
+    for (const event of [
+      undefined,
+      {},
+      { ...f.event, sender: {} },
+      { ...f.event, senderFrame: { url: f.mainFrame.url } },
+    ]) {
       assert.deepEqual(f.invoke(event), { ok: false, error: 'IPC_SOURCE_INVALID' });
     }
-    for (const url of [`${BASE_URL}/license`, `${BASE_URL}/clock`, 'http://127.0.0.1:31002/admin', 'https://example.com/admin']) {
+    for (const url of [
+      `${BASE_URL}/license`,
+      `${BASE_URL}/clock`,
+      'http://127.0.0.1:31002/admin',
+      'https://example.com/admin',
+    ]) {
       f.mainFrame.url = url;
       assert.deepEqual(f.invoke(f.event), { ok: false, error: 'IPC_SOURCE_INVALID' });
     }

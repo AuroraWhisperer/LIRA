@@ -170,6 +170,11 @@ body:not(.is-connected) .danmaku-signal-count {
   overflow: hidden;
 }
 
+body[data-scroll-direction='down'] .draw-danmaku-feed {
+  flex-direction: column-reverse;
+  --danmaku-entry-direction: -1;
+}
+
 .draw-danmaku-item {
   --signal-accent: var(--signal-cyan);
   --danmaku-avatar-art: url('/img/overlays/danmaku-ranked/viewer.webp');

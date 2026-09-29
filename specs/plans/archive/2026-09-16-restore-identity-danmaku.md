@@ -16,7 +16,7 @@
 
 当前为五种固定位置样式及一种全屏随机样式。Admin 在 `public/js/admin/danmaku-tool.js` 与 `public/pages/admin/toolbox/danmaku.html` 定义选项；`src/server/settings-contract.js` 校验设置值；`public/js/overlays/danmaku.js` 接收快照并渲染。历史 `ranked` 在 v4.0.4 中被直播气泡替换。
 
-契约文档：`docs/architecture/backend/storage.md`、`docs/architecture/frontend/{app,overlays,pages}.md`。路由沿用 `src/server/routes/settings-routes.js`。
+契约文档：`docs/reference/backend/storage.md`、`docs/reference/frontend/{app,overlays,pages}.md`。路由沿用 `src/server/routes/settings-routes.js`。
 
 ## Milestones / Verification
 

@@ -9,33 +9,22 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 16px;
+  gap: var(--spacing-md);
 }
 .gift-wishes-heading h3 {
   margin: 0;
 }
-.gift-wishes-heading p {
-  margin: 8px 0 0;
-}
 .gift-wish-periods {
   display: flex;
-  gap: 10px;
-  margin-top: 26px;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-md);
 }
 .gift-wish-periods button {
   flex: 1;
-  padding: 14px 18px;
-  text-align: left;
+  padding: var(--spacing-sm) var(--spacing-md);
   color: var(--text);
   background: var(--surface);
   box-shadow: none;
-}
-.gift-wish-periods button span {
-  display: block;
-  margin-top: 5px;
-  font-size: 12px;
-  font-weight: 400;
-  color: var(--muted);
 }
 .gift-wish-periods [aria-pressed='true'] {
   background: var(--surface-2);
@@ -48,37 +37,58 @@
 .gift-wish-error:empty {
   display: none;
 }
+#giftWishStatus:empty {
+  display: none;
+}
 .gift-wishes-workspace {
   display: grid;
-  grid-template-columns: minmax(240px, 0.75fr) minmax(330px, 1.25fr);
-  gap: 32px;
-  margin-top: 24px;
-  align-items: start;
+  gap: var(--spacing-lg);
+  margin-top: var(--spacing-md);
 }
 .gift-wish-editor {
   min-width: 0;
 }
-.gift-wish-editor h4 {
-  margin: 0 0 20px;
+.gift-wish-editor h4,
+.gift-wishes-preview h4 {
+  margin: 0 0 var(--spacing-md);
   font-size: var(--type-size-card-title);
 }
-.gift-wish-editor label {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 10px;
-  margin: 20px 0 8px;
+.gift-wish-editor-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) minmax(300px, 1fr);
+  align-items: start;
+  gap: var(--spacing-lg);
+}
+.gift-wish-settings,
+.gift-wish-appearance {
+  display: grid;
+  min-width: 0;
+  gap: var(--spacing-md);
+}
+.gift-wish-details {
+  display: grid;
+  grid-template-columns: minmax(100px, 0.7fr) minmax(0, 1.3fr);
+  gap: var(--spacing-md);
+}
+.gift-wish-field {
+  min-width: 0;
+}
+.gift-wish-field > label,
+.gift-wish-style-field > legend {
+  display: block;
+  margin: 0 0 var(--spacing-sm);
+  padding: 0;
   font-size: 13px;
   font-weight: 600;
 }
-.gift-wish-editor input,
+.gift-wish-editor input:not([type='radio']),
 .gift-wish-editor select,
 .gift-wish-editor textarea {
   width: 100%;
   min-width: 0;
 }
 .gift-wish-editor textarea {
-  min-height: 84px;
+  min-height: 80px;
   line-height: 1.5;
   resize: vertical;
 }
@@ -94,28 +104,92 @@
   font-size: 12px;
   color: var(--text);
 }
-.gift-wish-text-preview {
-  display: block;
-  margin-top: var(--spacing-md);
-  color: var(--text);
-  line-height: 1.5;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
+.gift-wish-colors {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-sm);
 }
-.gift-wish-editor .hint {
-  font-weight: 400;
+.gift-wish-colors input[type='color'] {
+  height: 36px;
+  padding: 4px;
+  cursor: pointer;
+}
+#giftWishPreviewStateField {
+  margin-top: var(--spacing-sm);
+}
+.gift-wish-styles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--spacing-sm);
+}
+.gift-wish-styles label {
+  position: relative;
+  margin: 0;
+  cursor: pointer;
+}
+.gift-wish-styles input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: inherit;
+}
+.gift-wish-styles span {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 40px;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text);
+  font-size: 13px;
+}
+.gift-wish-styles input:checked + span {
+  border-color: var(--color-primary-strong);
+  background: var(--surface-2);
+  font-weight: 600;
+}
+.gift-wish-styles input:focus-visible + span {
+  outline: 2px solid var(--color-control-accent);
+  outline-offset: 2px;
+}
+.gift-wish-styles input:hover:not(:disabled) + span {
+  background: var(--surface-2);
+}
+.gift-wish-styles input:disabled + span {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.gift-wish-draft {
+  min-width: 0;
+  padding: var(--spacing-md);
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+}
+.gift-wish-draft-preview {
+  display: grid;
+  place-items: center;
+  min-height: 112px;
+  margin-top: var(--spacing-sm);
+}
+.gift-wish-draft-preview > .wish-card {
+  max-width: 440px;
 }
 .gift-wish-pick {
   display: flex;
   width: 100%;
-  min-height: 72px;
+  min-height: 64px;
   align-items: center;
-  gap: 12px;
+  gap: var(--spacing-sm);
   text-align: left;
 }
 .gift-wish-pick img {
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
   object-fit: contain;
 }
 .gift-wish-pick-action {
@@ -123,34 +197,44 @@
   font-size: 12px;
   color: var(--muted);
 }
+.gift-wish-pick:disabled .gift-wish-pick-action,
+#giftWishSelectedImage[hidden] ~ .gift-wish-pick-action {
+  display: none;
+}
 .gift-wish-editor-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 24px;
+  gap: var(--spacing-sm);
 }
 .gift-wish-editor-actions .primary {
-  flex: 1;
+  min-width: 128px;
 }
 .gift-wishes-preview {
   min-width: 0;
-  padding: 22px;
-  background: var(--surface-2);
-  border-radius: var(--radius-lg);
+  padding-top: var(--spacing-lg);
+  border-top: 1px solid var(--border);
 }
 .gift-wish-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
-  gap: 22px 16px;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+  gap: var(--spacing-md);
 }
 .gift-wish-item {
+  display: grid;
+  align-content: space-between;
   min-width: 0;
+  padding: var(--spacing-md);
+  background: var(--surface-2);
+  border-radius: var(--radius-lg);
+}
+.gift-wish-item > .wish-card--circle {
+  justify-self: center;
 }
 .gift-wish-item-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 12px;
-  margin-top: 9px;
+  gap: var(--spacing-sm);
+  margin-top: var(--spacing-sm);
 }
 .gift-wish-item-actions button {
   min-height: 32px;
@@ -166,36 +250,20 @@
   color: var(--text);
 }
 .gift-wish-empty {
-  padding: 35px 10px 42px;
-  text-align: center;
-}
-.gift-wish-empty img {
-  width: 78px;
-  height: 78px;
-  object-fit: contain;
-  margin-bottom: 14px;
-}
-.gift-wish-empty h4 {
-  margin: 0 0 10px;
-}
-.gift-wish-empty p {
-  font-size: 13px;
-  line-height: 1.8;
-  color: var(--muted);
   margin: 0;
 }
 .gift-wish-source {
-  margin-top: 30px;
-  padding-top: 22px;
+  margin-top: var(--spacing-lg);
+  padding-top: var(--spacing-lg);
   border-top: 1px solid var(--border);
 }
 .gift-wish-source h4 {
-  margin: 0 0 8px;
+  margin: 0 0 var(--spacing-sm);
 }
 .gift-wish-source-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: var(--spacing-sm);
   align-items: center;
 }
 .gift-wish-source-actions input {
@@ -280,7 +348,7 @@
   overflow-wrap: anywhere;
 }
 @media (max-width: 1100px) {
-  .gift-wishes-workspace {
+  .gift-wish-editor-grid {
     grid-template-columns: 1fr;
   }
   .gift-wish-periods {

@@ -24,7 +24,7 @@
 - `src/electron/gift-export-controller.js`：默认设置读取、校验、原生目录选择、任务配置冻结。
 - `src/electron/preload.js` / `ipc/gift-export-ipc.js`：新增窄接口 `giftExport.settings(options?)`；旧方法保持兼容。
 - `src/server/gift-export-runtime.js`：通过既有 settings store 原子保存默认值；复用 `giftExportDirectory`，新增 `giftExportMode` 和 `giftExportBackground`。
-- 契约文档：`docs/architecture/desktop/preload.md`、`backend/storage.md`、`frontend/app.md`。
+- 契约文档：`docs/reference/desktop/preload.md`、`backend/storage.md`、`frontend/app.md`。
 
 ## 接口与兼容
 

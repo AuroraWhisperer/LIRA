@@ -23,10 +23,10 @@ Fix five verified runtime and documentation defects: isolate the high-frequency 
 
 ## Ownership
 
-- WebSocket transport and public message contract: `src/server/ws.js`, `src/server.js`, `docs/architecture/backend/ws.md`, `test/websocket-transport.test.js` (`ROUTE-SERVER`).
+- WebSocket transport and public message contract: `src/server/ws.js`, `src/server.js`, `docs/reference/backend/ws.md`, `test/websocket-transport.test.js` (`ROUTE-SERVER`).
 - Danmaku overlay rendering and status: `public/js/overlays/danmaku.js`, `public/js/overlays/danmaku-feed.js`, `test/danmaku-overlay.test.js` (`ROUTE-OVERLAYS`).
 - Overtime countdown presentation: `public/js/overlays/overtime.js`, `test/overtime-overlay.test.js` (`ROUTE-OVERTIME`, `ROUTE-OVERLAYS`).
-- HTTP/public snapshot facts: `src/server/api-routes.js`, `docs/architecture/backend/api.md`, `docs/architecture/backend/server-core.md`, `docs/architecture/README.md`, and linked consumer documents (`ROUTE-SERVER`).
+- HTTP/public snapshot facts: `src/server/api-routes.js`, `docs/reference/backend/api.md`, `docs/reference/backend/server-core.md`, `docs/architecture/README.md`, and linked consumer documents (`ROUTE-SERVER`).
 
 ## Compatibility
 

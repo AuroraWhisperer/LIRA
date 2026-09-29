@@ -81,6 +81,11 @@ test('wish overlay can read only its progress and never mutate or expose source 
         target: 10,
         displayStyle: 'text',
         textTemplate: '许愿{礼物}（{已收}/{目标}）',
+        textImagePosition: 'inline',
+        textImageFormat: 'static',
+        textPendingColor: '#123456',
+        textReceivedColor: '#654321',
+        todayCount: 1,
         createdAt: 'private',
         sender: 'private',
       },
@@ -90,4 +95,9 @@ test('wish overlay can read only its progress and never mutate or expose source 
   assert.equal(result.items[0].count, 3);
   assert.equal(result.items[0].displayStyle, 'text');
   assert.equal(result.items[0].textTemplate, '许愿{礼物}（{已收}/{目标}）');
+  assert.equal(result.items[0].textImagePosition, 'inline');
+  assert.equal(result.items[0].textImageFormat, 'static');
+  assert.equal(result.items[0].textPendingColor, '#123456');
+  assert.equal(result.items[0].textReceivedColor, '#654321');
+  assert.equal(result.items[0].todayCount, 1);
 });

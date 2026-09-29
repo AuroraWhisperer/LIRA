@@ -25,7 +25,7 @@ test('gift database v4 exposes the shared projection ledger columns', () => {
   const db = createDatabases({ dataDir });
 
   try {
-    assert.equal(getSchemaVersions(db).giftDb, 14);
+    assert.equal(getSchemaVersions(db).giftDb, 16);
     const columns = new Set(
       db.giftDb
         .prepare('PRAGMA table_info(gift_events)')
@@ -85,7 +85,7 @@ test('gift database v3 upgrades before creating indexes that depend on v4 column
     giftDb.close();
 
     db = createDatabases({ dataDir });
-    assert.equal(getSchemaVersions(db).giftDb, 14);
+    assert.equal(getSchemaVersions(db).giftDb, 16);
     const indexes = new Set(
       db.giftDb
         .prepare("SELECT name FROM sqlite_master WHERE type = 'index'")
@@ -281,20 +281,25 @@ test('a transient database read failure during consumer retry is contained and r
     return read(id);
   };
   let attempts = 0;
-  const projection = createGiftProjectionService({ db, projectionStore, settings: () => ({}) }, {
-    now: clock.now,
-    setTimeout: clock.setTimeout,
-    clearTimeout: clock.clearTimeout,
-    consumerRegistry: createGiftConsumerRegistry({
-      consumers: [{
-        name: 'once',
-        handle() {
-          if (++attempts === 1) throw new Error('synthetic consumer failure');
-        },
-      }],
-      onError() {},
-    }),
-  });
+  const projection = createGiftProjectionService(
+    { db, projectionStore, settings: () => ({}) },
+    {
+      now: clock.now,
+      setTimeout: clock.setTimeout,
+      clearTimeout: clock.clearTimeout,
+      consumerRegistry: createGiftConsumerRegistry({
+        consumers: [
+          {
+            name: 'once',
+            handle() {
+              if (++attempts === 1) throw new Error('synthetic consumer failure');
+            },
+          },
+        ],
+        onError() {},
+      }),
+    },
+  );
   try {
     projection.importProcessedEvent(makeProcessedGiftEvent(), sourceId);
     assert.equal(attempts, 1);

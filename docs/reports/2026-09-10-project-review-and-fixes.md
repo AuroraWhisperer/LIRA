@@ -1,5 +1,8 @@
 # LIRA 现有功能检查与修复报告
 
+> 历史记录：本文的发现、建议和验证仅对应文内日期/基线，不是当前缺陷或执行清单。现状见 [技术参考](../reference/README.md)，剩余工作见 [计划索引](../../specs/plans/README.md) 与 [未结项台账](../../specs/plans/open-items.md)。原结论和后续执行记录保留，不据此恢复未获批准的提案。
+
+
 - 日期：2026-09-10。
 - 对象：当前工作树，LIRA 4.0.19；不代表已发布安装包。
 - 状态：修复与验证完成。本文先记录检查结果，再记录实际修改与证据。
@@ -75,5 +78,5 @@ P1：`src/electron/main.js` 查找 `ROOT_DIR/build/icon.png`，但 `package.json
 - 本次测试使用隔离数据和模拟外部接口，没有真实音乐歌单写入、弹幕发送或用户数据清空。
 - 真实 Electron/OBS GUI、外部平台联调及安装包构建未执行；图标验证使用当前构建器的实际规则，没有声称已生成新安装包。
 - OBS 会话恢复脚本需要页面装载新版后生效；升级时已打开的旧版浏览器源需刷新一次。
-- 本轮保留了并行出现的授权页面修改（`public/css/license.css`、`public/pages/license.html`、`test/license-ui.test.js`），以及 `docs/architecture/desktop/main.md`、`specs/cloud-authoritative-streamer-sync_design.md`、`test/cloud-runtime-sync.test.js` 修改；这些不属于本报告修复。
+- 本轮保留了并行出现的授权页面修改（`public/css/license.css`、`public/pages/license.html`、`test/license-ui.test.js`），以及 `docs/reference/desktop/main.md`、`specs/cloud-authoritative-streamer-sync_design.md`、`test/cloud-runtime-sync.test.js` 修改；这些不属于本报告修复。
 - 未提交、未创建分支、未发布。

@@ -1,20 +1,15 @@
-import { copyText, localOverlayOrigin } from '../shared/utils.js';
+import { copyText } from '../shared/utils.js';
+import { openDanmakuCanvas } from './danmaku-canvas-dialog.js';
 import { observeServerOverlayUrl } from './server-overlay-url.js';
-import { DANMAKU_STYLE_OPTIONS, styleOptionsFor } from '../shared/danmaku-style-options.js';
+import { DANMAKU_STYLE_OPTIONS, isRandomDanmakuStyle, styleOptionsFor } from '../shared/danmaku-style-options.js';
+import {
+  readAppearanceValue,
+  editStyleOption,
+  resetStyleOptions,
+  isValidFullscreenDuration,
+} from '../shared/danmaku-appearance-draft.js';
 import { ensureSavedFontOption, registerLocalFontSelect } from './local-font-library.js';
 import { initParameterRanges, refreshParameterRange } from '../shared/parameter-range.js';
-
-const STYLES = {
-  bubble: '聊天气泡',
-  signal: '深色面板',
-  minimal: '蝴蝶结',
-  ranked: '经典样式',
-  transparent: '透明文字',
-  identity: '头像横卡',
-  outline: '简洁白卡',
-  cream: '奶油气泡',
-  glow: '流光气泡',
-};
 
 export function initDanmakuOverlaySettings(elements, toast) {
   let overlayUrl = '';
@@ -25,6 +20,7 @@ export function initDanmakuOverlaySettings(elements, toast) {
   let loaded = false;
   let loading = false;
   let saving = false;
+  let canvasEditor = null;
   const bridge = window.liraLicense;
   const applyButton = document.getElementById('danmakuApplyOverlayBtn');
   const reloadButton = document.getElementById('danmakuReloadOverlayBtn');
@@ -36,6 +32,7 @@ export function initDanmakuOverlaySettings(elements, toast) {
   const textColor = document.getElementById('danmakuTextColor');
   const backgroundOpacity = document.getElementById('danmakuBackgroundOpacity');
   const giftImage = document.getElementById('danmakuGiftImage');
+  const scrollDirection = document.getElementById('danmakuScrollDirection');
   registerLocalFontSelect(fontFamily);
   initParameterRanges(backgroundOpacity);
 
@@ -47,22 +44,22 @@ export function initDanmakuOverlaySettings(elements, toast) {
       button.disabled = !loaded;
     });
     elements.styleChip.textContent = loaded
-      ? `${dirty ? '待应用' : '已应用样式'} · ${STYLES[draft.style]}`
+      ? `${dirty ? '待应用' : '已应用样式'} · ${DANMAKU_STYLE_OPTIONS[draft.style].label}`
       : loading
         ? '正在读取样式'
         : '尚未读取样式';
-    elements.fullscreenDurationField.hidden = !['outline', 'cream', 'glow'].includes(draft.style);
+    elements.fullscreenDurationField.hidden = !isRandomDanmakuStyle(draft.style);
     elements.fullscreenDuration.value = String(draft.fullscreenDurationSeconds);
     elements.fullscreenDuration.disabled = !loaded;
     const limits = DANMAKU_STYLE_OPTIONS[draft.style];
     const options = styleOptionsFor(draft.style, draft.styleOptions);
     const supported = Object.hasOwn(draft, 'styleOptions');
-    parameterTitle.textContent = `参数调节 · ${STYLES[draft.style]}`;
+    parameterTitle.textContent = `参数调节 · ${limits.label}`;
     parameterHint.textContent = !loaded
       ? '登录并读取配置后可调节参数。'
       : !supported
         ? '当前服务器尚不支持参数调节，请更新服务器。'
-        : '各样式分别记住参数。先预览效果，再应用到直播画面。';
+        : '各样式独立设置。';
     const selectedFont =
       {
         default: draft.style === 'outline' ? '"Segoe UI"' : '"Microsoft YaHei UI"',
@@ -84,7 +81,9 @@ export function initDanmakuOverlaySettings(elements, toast) {
     document.getElementById('danmakuBackgroundOpacityValue').textContent = `${options.backgroundOpacity}%`;
     document.getElementById('danmakuGiftImageField').hidden = !limits.giftImage;
     giftImage.value = options.giftImage;
-    for (const control of [fontFamily, fontSize, textColor, backgroundOpacity, giftImage])
+    document.getElementById('danmakuScrollDirectionField').hidden = !limits.scrollDirection;
+    scrollDirection.value = options.scrollDirection;
+    for (const control of [fontFamily, fontSize, textColor, backgroundOpacity, giftImage, scrollDirection])
       control.disabled = !loaded || !supported;
     resetButton.disabled = !loaded || !supported || !Object.keys(draft.styleOptions?.[draft.style] || {}).length;
     for (const button of [elements.copyOverlayUrlButton, elements.openOverlayButton]) {
@@ -104,10 +103,8 @@ export function initDanmakuOverlaySettings(elements, toast) {
           : '暂时无法读取弹幕姬设置，请稍后重试；仍有问题时联系管理员。',
       );
     if (
-      !Object.hasOwn(STYLES, response.style) ||
-      !Number.isInteger(response.fullscreenDurationSeconds) ||
-      response.fullscreenDurationSeconds < 2 ||
-      response.fullscreenDurationSeconds > 30 ||
+      !Object.hasOwn(DANMAKU_STYLE_OPTIONS, response.style) ||
+      !isValidFullscreenDuration(response.fullscreenDurationSeconds) ||
       response.overlayUrl !== overlayUrl
     )
       throw new Error('服务器返回的弹幕姬配置无效。');
@@ -115,6 +112,7 @@ export function initDanmakuOverlaySettings(elements, toast) {
       style: response.style,
       fullscreenDurationSeconds: response.fullscreenDurationSeconds,
       ...(response.styleOptions === undefined ? {} : { styleOptions: response.styleOptions }),
+      ...(response.layout === undefined ? {} : { layout: response.layout }),
     };
   }
 
@@ -132,7 +130,7 @@ export function initDanmakuOverlaySettings(elements, toast) {
       if (requestedRevision === revision) {
         draft = settings;
         loaded = true;
-        elements.styleSaveState.textContent = '先调整并预览，确认后应用到直播画面。';
+        elements.styleSaveState.textContent = '';
       }
     } catch (error) {
       if (requestedGeneration === generation) elements.styleSaveState.textContent = error.message;
@@ -148,54 +146,58 @@ export function initDanmakuOverlaySettings(elements, toast) {
     draft = nextDraft;
     revision += 1;
     dirty = true;
-    elements.styleSaveState.textContent = '有修改尚未应用，预览不会改变直播画面。';
+    elements.styleSaveState.textContent = '修改尚未应用。';
     render();
   }
 
   elements.styleButtons.forEach((button) =>
     button.addEventListener('click', () => {
-      if (loaded && Object.hasOwn(STYLES, button.dataset.danmakuStyle)) {
+      if (loaded && Object.hasOwn(DANMAKU_STYLE_OPTIONS, button.dataset.danmakuStyle)) {
         edit({ ...draft, style: button.dataset.danmakuStyle });
       }
     }),
   );
-  for (const [key, control] of Object.entries({ fontFamily, fontSize, textColor, backgroundOpacity, giftImage })) {
+  for (const [key, control] of Object.entries({
+    fontFamily,
+    fontSize,
+    textColor,
+    backgroundOpacity,
+    giftImage,
+    scrollDirection,
+  })) {
     control.addEventListener(['backgroundOpacity', 'textColor'].includes(key) ? 'input' : 'change', () => {
       if (!loaded || !Object.hasOwn(draft, 'styleOptions')) return;
-      const value = ['fontSize', 'backgroundOpacity'].includes(key) ? Number(control.value) : control.value;
-      if (
-        typeof value === 'number' &&
-        (!Number.isInteger(value) || value < Number(control.min) || value > Number(control.max))
-      ) {
-        elements.styleSaveState.textContent = `请输入 ${control.min}～${control.max} 之间的整数。`;
+      let value;
+      try {
+        value = readAppearanceValue(key, control.value, control.min, control.max);
+      } catch (error) {
+        elements.styleSaveState.textContent = error.message;
         render();
         return;
       }
-      edit({
-        ...draft,
-        styleOptions: { ...draft.styleOptions, [draft.style]: { ...draft.styleOptions[draft.style], [key]: value } },
-      });
+      edit(editStyleOption(draft, key, value));
     });
   }
   resetButton.addEventListener('click', () => {
     if (!loaded || !Object.hasOwn(draft, 'styleOptions')) return;
-    edit({ ...draft, styleOptions: { ...draft.styleOptions, [draft.style]: {} } });
+    edit(resetStyleOptions(draft));
   });
   elements.fullscreenDuration.addEventListener('change', () => {
     if (!loaded) return;
     const duration = Number(elements.fullscreenDuration.value);
-    if (!Number.isInteger(duration) || duration < 2 || duration > 30) {
+    if (!isValidFullscreenDuration(duration)) {
       elements.styleSaveState.textContent = '停留时间请输入 2～30 秒的整数。';
       elements.fullscreenDuration.value = String(draft.fullscreenDurationSeconds);
       return;
     }
     edit({ ...draft, fullscreenDurationSeconds: duration });
   });
-  applyButton.addEventListener('click', async () => {
+  async function applyDraft() {
     if (!loaded || !dirty || saving) return;
     const submittedRevision = revision;
     const submittedGeneration = generation;
     saving = true;
+    canvasEditor?.status(true, '正在应用…');
     render();
     try {
       const response = await bridge.updateOverlaySettings({ ...draft });
@@ -204,13 +206,16 @@ export function initDanmakuOverlaySettings(elements, toast) {
       if (Object.hasOwn(draft, 'styleOptions') && !Object.hasOwn(saved, 'styleOptions')) {
         throw new Error('服务器未保存样式参数，请更新服务器后重试。');
       }
+      if (Object.hasOwn(draft, 'layout') && !Object.hasOwn(saved, 'layout')) {
+        throw new Error('服务器未保存画布，请更新服务器后重试。');
+      }
       if (submittedRevision === revision) {
         draft = saved;
         dirty = false;
       }
       elements.styleSaveState.textContent = dirty
-        ? '已应用刚才的修改，还有新的修改尚未应用。'
-        : '已应用到直播画面，在线弹幕姬将自动更新。';
+        ? '已应用，仍有新修改待应用。'
+        : '已应用到直播画面。';
       toast('弹幕姬样式已应用到直播画面');
     } catch (error) {
       if (submittedGeneration === generation)
@@ -218,10 +223,12 @@ export function initDanmakuOverlaySettings(elements, toast) {
     } finally {
       if (submittedGeneration === generation) {
         saving = false;
+        canvasEditor?.status(false, elements.styleSaveState.textContent);
         render();
       }
     }
-  });
+  }
+  applyButton.addEventListener('click', applyDraft);
   reloadButton.addEventListener('click', reload);
   elements.copyOverlayUrlButton.addEventListener('click', async () => {
     if (!overlayUrl) return;
@@ -236,17 +243,18 @@ export function initDanmakuOverlaySettings(elements, toast) {
     if (overlayUrl) window.open(overlayUrl, '_blank', 'noopener');
   });
   elements.previewOverlayButton.addEventListener('click', () => {
-    const url = new URL('/danmaku', localOverlayOrigin());
-    url.search = new URLSearchParams({
-      preview: '1',
-      ...draft,
-      styleOptions: JSON.stringify(draft.styleOptions || {}),
-    }).toString();
-    window.open(url.href, '_blank', 'noopener');
+    canvasEditor?.close();
+    canvasEditor = openDanmakuCanvas({ draft,
+      canApply: loaded && Object.hasOwn(draft, 'layout') && Object.hasOwn(draft, 'styleOptions'),
+      fonts: Array.from(fontFamily.options || []).map((option) => ({ value: option.value, label: option.textContent })),
+      onChange: edit, onApply: applyDraft,
+    });
   });
   observeServerOverlayUrl((url) => {
     if (url === overlayUrl) return;
     generation += 1;
+    canvasEditor?.close();
+    canvasEditor = null;
     overlayUrl = url;
     draft = { style: 'signal', fullscreenDurationSeconds: 6 };
     loaded = dirty = loading = saving = false;

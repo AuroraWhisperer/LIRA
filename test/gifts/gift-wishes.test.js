@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { createFixture } = require('../helpers/gift-query-fixture');
 const { createGiftWishStore } = require('../../src/storage/gift-wish-store');
-const { migrateGiftWishes, migrateGiftWishDisplay } = require('../../src/storage/gift-wish-migration');
+const { migrateGiftWishes, migrateGiftWishDisplay, migrateGiftWishTextImages, migrateGiftWishTextColors } = require('../../src/storage/gift-wish-migration');
 const { runAllMigrations } = require('../../src/storage/database-migrations');
 const { createGiftWishService } = require('../../src/bilibili/gift/wish-service');
 const { giftVariantId } = require('../../src/shared/gift-identity');
@@ -135,6 +135,7 @@ test('three periods count final integer quantities in their own windows and surv
     day: 9,
     session: 7,
   });
+  assert.ok(snapshot.items.every((item) => item.todayCount === 9));
   const restarted = await createGiftWishService(f.options).getSnapshot();
   assert.deepEqual(restarted.items, snapshot.items);
   assert.deepEqual((await f.service.getSnapshot()).items, snapshot.items, 'reads do not accumulate twice');
@@ -182,6 +183,7 @@ test('blind box body and output use separate confirmed identities, guards use bu
   assert.equal(items.find((item) => item.giftId === '3').count, 7);
   const guard = items.find((item) => item.giftId === 'guard-3');
   assert.equal(guard.count, 2);
+  assert.deepEqual(items.map((item) => item.todayCount), items.map((item) => item.count));
   assert.match(guard.imagePath, /bilibili-guard-captain.webp$/);
 });
 
@@ -197,6 +199,7 @@ test('Beijing midnight and a new broadcast reset only their matching periods', a
   const midnight = await f.service.getSnapshot();
   assert.equal(midnight.items.find((item) => item.period === 'day').count, 0);
   assert.equal(midnight.items.find((item) => item.period === 'session').count, 4);
+  assert.ok(midnight.items.every((item) => item.todayCount === 0));
   f.time('2026-09-20T17:00:00Z');
   f.room({ live_status: 0 });
   f.event('offline-before-reopen', '2026-09-20T16:30:00Z', 2);
@@ -312,29 +315,41 @@ test('v13 wishes upgrade to card display without losing identity, progress or cr
 test('display choices persist across restart and edits preserve counts and omitted display fields', async (t) => {
   const f = setup(t);
   const textTemplate = '今天想要{礼物}：{已收}/{目标}';
-  const id = f.add('long', 'flower-v1', { displayStyle: 'text', textTemplate });
+  const id = f.add('long', 'flower-v1', {
+    displayStyle: 'text', textTemplate, textImagePosition: 'after', textImageFormat: 'static',
+    textPendingColor: '#664499', textReceivedColor: '#22AA66',
+  });
   f.event('received', '2026-09-20T04:01:00Z', 4);
   f.time('2026-09-20T04:02:00Z');
   const service = createGiftWishService({ ...f.options, store: createGiftWishStore(f.fixture.giftDb) });
   const first = (await service.getSnapshot()).items[0];
   assert.equal(first.displayStyle, 'text');
   assert.equal(first.textTemplate, textTemplate);
+  assert.equal(first.textImagePosition, 'after');
+  assert.equal(first.textImageFormat, 'static');
+  assert.equal(first.textPendingColor, '#664499');
+  assert.equal(first.textReceivedColor, '#22aa66');
   service.save({ id, viewRevision: `source-${f.source}`, target: 20, label: '仅备注' });
   const updated = (await service.getSnapshot()).items[0];
   assert.equal(updated.displayStyle, 'text');
   assert.equal(updated.textTemplate, textTemplate);
+  assert.equal(updated.textImagePosition, 'after');
+  assert.equal(updated.textImageFormat, 'static');
+  assert.equal(updated.textPendingColor, '#664499');
+  assert.equal(updated.textReceivedColor, '#22aa66');
   assert.equal(updated.createdAt, first.createdAt);
   assert.equal(updated.count, 4);
   service.save({ id, viewRevision: `source-${f.source}`, target: 20, label: '', displayStyle: 'card' });
   assert.equal((await service.getSnapshot()).items[0].textTemplate, textTemplate);
   f.fixture.setActiveSource(f.other);
   assert.throws(
-    () => service.save({ id, viewRevision: `source-${f.other}`, target: 20, label: '', displayStyle: 'text' }),
+    () => service.save({ id, viewRevision: `source-${f.other}`, target: 20, label: '', displayStyle: 'text', textPendingColor: '#000000' }),
     {
       code: 'INVALID_GIFT_WISH',
     },
   );
   assert.equal(f.store.list(f.source)[0].display_style, 'card');
+  assert.equal(f.store.list(f.source)[0].text_pending_color, '#664499');
 });
 
 test('circle wishes persist and switching display styles preserves the gift and collected progress', async (t) => {
@@ -362,7 +377,13 @@ test('display validation rejects unsupported styles and invalid text without cha
     { displayStyle: 1 },
     { textTemplate: null },
     { textTemplate: {} },
-    { textTemplate: '字'.repeat(201) },
+    { textTemplate: '字'.repeat(241) },
+    { textImagePosition: 'middle' },
+    { textImagePosition: null },
+    { textImageFormat: 'png' },
+    { textImageFormat: false },
+    ...['textPendingColor', 'textReceivedColor'].flatMap((key) =>
+      [null, true, 123, [], ['#112233'], '#fff', '#12345g', '#12345678', 'red', 'var(--color)', '#112233; color: red'].map((value) => ({ [key]: value }))),
   ]) {
     assert.throws(() => f.add('long', 'flower-v1', values), { code: 'INVALID_GIFT_WISH' });
     assert.throws(() => f.service.save({ id, viewRevision: `source-${f.source}`, target: 10, label: '', ...values }), {
@@ -373,6 +394,10 @@ test('display validation rejects unsupported styles and invalid text without cha
   const wish = (await f.service.getSnapshot()).items[0];
   assert.equal(wish.displayStyle, 'card');
   assert.equal(wish.textTemplate, '');
+  assert.equal(wish.textImagePosition, 'none');
+  assert.equal(wish.textImageFormat, 'animated');
+  assert.equal(wish.textPendingColor, '');
+  assert.equal(wish.textReceivedColor, '');
   f.service.save({
     id,
     viewRevision: `source-${f.source}`,
@@ -382,4 +407,80 @@ test('display validation rejects unsupported styles and invalid text without cha
     textTemplate: '  ',
   });
   assert.equal((await f.service.getSnapshot()).items[0].textTemplate, '');
+});
+
+test('image tokens save without truncating legacy maximum-length templates', async (t) => {
+  const f = setup(t);
+  const id = f.add('long', 'flower-v1', { displayStyle: 'text', textTemplate: '字'.repeat(200), textImagePosition: 'before' });
+  for (const textTemplate of [`{图片}${'字'.repeat(200)}`, `{图片}${'🌸'.repeat(236)}`]) {
+    f.service.save({ id, viewRevision: `source-${f.source}`, target: 10, label: '', textTemplate, textImagePosition: 'none' });
+    const wish = (await f.service.getSnapshot()).items[0];
+    assert.equal(wish.textTemplate, textTemplate);
+    assert.equal(wish.textImagePosition, 'none');
+  }
+});
+
+test('v14 text wishes upgrade without changing saved text, identity or progress', async (t) => {
+  const f = setup(t);
+  f.add('day', 'flower-v1', { displayStyle: 'text', textTemplate: '想要{礼物}' });
+  f.event('received', '2026-09-20T03:59:00Z', 1);
+  const before = (await f.service.getSnapshot()).items;
+  f.fixture.giftDb.exec(`
+    ALTER TABLE gift_wishes DROP COLUMN text_image_position;
+    ALTER TABLE gift_wishes DROP COLUMN text_image_format;
+    UPDATE schema_version SET version = 14 WHERE key = 'gift_db';
+  `);
+  runAllMigrations(f.fixture.databases);
+  migrateGiftWishTextImages(f.fixture.giftDb);
+  runAllMigrations(f.fixture.databases);
+  const restarted = createGiftWishService({ ...f.options, store: createGiftWishStore(f.fixture.giftDb) });
+  assert.deepEqual((await restarted.getSnapshot()).items, before);
+  const id = before[0].id;
+  for (const textImagePosition of ['before', 'after', 'inline', 'none']) {
+    restarted.save({ id, viewRevision: `source-${f.source}`, target: 10, label: '', textImagePosition });
+    assert.equal((await restarted.getSnapshot()).items[0].textImagePosition, textImagePosition);
+  }
+});
+
+test('today receipts include gifts before a wish was created and follow ledger removals', async (t) => {
+  const f = setup(t);
+  f.add('long', 'flower-v1', { displayStyle: 'text' });
+  f.event('before-creation', '2026-09-20T03:00:00Z', 1);
+  const first = (await f.service.getSnapshot()).items[0];
+  assert.equal(first.count, 0);
+  assert.equal(first.todayCount, 1);
+  assert.equal(first.completed, false);
+  f.fixture.giftDb.prepare("UPDATE gift_events SET status = 'deleted' WHERE source_id = ?").run(f.source);
+  assert.equal((await f.service.getSnapshot()).items[0].todayCount, 0);
+});
+
+test('v15 wishes gain default colors without losing text, images, progress or identity', async (t) => {
+  const f = setup(t);
+  f.add('day', 'flower-v1', { displayStyle: 'text', textTemplate: '{图片}{礼物}', textImageFormat: 'static' });
+  f.event('received', '2026-09-20T03:59:00Z', 1);
+  const before = (await f.service.getSnapshot()).items;
+  f.fixture.giftDb.exec(`
+    ALTER TABLE gift_wishes DROP COLUMN text_pending_color;
+    ALTER TABLE gift_wishes DROP COLUMN text_received_color;
+    UPDATE schema_version SET version = 15 WHERE key = 'gift_db';
+  `);
+  runAllMigrations(f.fixture.databases);
+  migrateGiftWishTextColors(f.fixture.giftDb);
+  runAllMigrations(f.fixture.databases);
+  const restarted = createGiftWishService({ ...f.options, store: createGiftWishStore(f.fixture.giftDb) });
+  assert.deepEqual((await restarted.getSnapshot()).items, before);
+});
+
+test('each text color can be changed or reset while omitted colors remain saved', async (t) => {
+  const f = setup(t);
+  const id = f.add('long', 'flower-v1', { textPendingColor: '#123456', textReceivedColor: '#654321' });
+  const update = { id, viewRevision: `source-${f.source}`, target: 10, label: '' };
+  f.service.save({ ...update, textPendingColor: '#ABCDEF' });
+  let wish = (await f.service.getSnapshot()).items[0];
+  assert.equal(wish.textPendingColor, '#abcdef');
+  assert.equal(wish.textReceivedColor, '#654321');
+  f.service.save({ ...update, textPendingColor: '', textReceivedColor: '' });
+  wish = (await f.service.getSnapshot()).items[0];
+  assert.equal(wish.textPendingColor, '');
+  assert.equal(wish.textReceivedColor, '');
 });

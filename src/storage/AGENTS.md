@@ -10,7 +10,7 @@ specialize it for `src/storage/`.
 - Stores own transaction boundaries and return stable domain-facing shapes. Do
   not leak `DatabaseSync`, statements, or SQLite-specific result objects.
 - A schema change updates migration code, affected stores, regression tests, and
-  the [storage owner document](../../docs/architecture/backend/storage.md).
+  the [storage owner document](../../docs/reference/backend/storage.md).
 - Preserve retention, data-directory, and database ownership contracts unless an
   accepted specification and plan explicitly change them.
 - Tests use isolated temporary directories and databases. Never read, mutate, or

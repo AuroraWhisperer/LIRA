@@ -149,10 +149,15 @@ function createShutdownHarness(options = {}) {
     },
   });
   const modules = {
-    './desktop-resource-integrity': { createDesktopResourceIntegrity: () => ({
-      stop() { calls.push('integrity:stop'); return options.integrityIdle?.promise || Promise.resolve(); },
-      getState: () => ({ status: 'idle' }),
-    }) },
+    './desktop-resource-integrity': {
+      createDesktopResourceIntegrity: () => ({
+        stop() {
+          calls.push('integrity:stop');
+          return options.integrityIdle?.promise || Promise.resolve();
+        },
+        getState: () => ({ status: 'idle' }),
+      }),
+    },
     'node:fs': {
       mkdirSync() {},
       existsSync: (value) => Boolean(options.recoveryDataDir && value === options.recoveryDataDir),
@@ -165,10 +170,13 @@ function createShutdownHarness(options = {}) {
       dialog: {
         showErrorBox: (_title, message) => startupErrors.push(message),
       },
-      ipcMain: { handle: (channel, handler) => handlers.set(channel, (...args) => {
-        const sender = state.window.main?.webContents;
-        return handler({ sender, senderFrame: sender?.mainFrame }, ...args);
-      }) },
+      ipcMain: {
+        handle: (channel, handler) =>
+          handlers.set(channel, (...args) => {
+            const sender = state.window.main?.webContents;
+            return handler({ sender, senderFrame: sender?.mainFrame }, ...args);
+          }),
+      },
       Menu: { setApplicationMenu() {} },
       protocol: { registerSchemesAsPrivileged() {} },
       session: { defaultSession: {} },
@@ -312,7 +320,9 @@ function createShutdownHarness(options = {}) {
       setTimeout: clock.setTimeout,
       clearTimeout: clock.clearTimeout,
       URL,
-      captureRestart: (callback) => { requestRestart = callback; },
+      captureRestart: (callback) => {
+        requestRestart = callback;
+      },
     },
     { filename: MAIN_PATH },
   );

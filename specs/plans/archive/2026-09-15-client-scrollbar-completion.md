@@ -16,7 +16,7 @@
 - 不将设计建议解释为无限功能扩展。条件风险必须检查并记录结论，必要时修复；“保留”的区域也必须有证据，不能只检查新代码。
 - 非目标：业务功能重构、换主题、增加滚动条设置页、模拟滚动条、外部服务接入。
 - 所有测试使用隔离配置和合成数据；不登录、发送消息、写入真实业务记录或修改用户系统偏好。
-- 所属路线：`ROUTE-ADMIN`、`ROUTE-PLAYBACK`、`ROUTE-OVERLAYS`、`ROUTE-GAMES`；契约见 `docs/architecture/frontend/pages.md`、`playback.md`、`overlays.md`，以报告的具体区域为实施边界。
+- 所属路线：`ROUTE-ADMIN`、`ROUTE-PLAYBACK`、`ROUTE-OVERLAYS`、`ROUTE-GAMES`；契约见 `docs/reference/frontend/pages.md`、`playback.md`、`overlays.md`，以报告的具体区域为实施边界。
 
 ## 阶段一：操作页面、辅助页面和滚动边界
 

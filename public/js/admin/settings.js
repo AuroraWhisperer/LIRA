@@ -16,6 +16,7 @@ import {
 import { initBilibiliAuth as initBilibiliAuthImpl } from './settings-auth.js';
 import { createBlindboxSettings } from './settings-blindbox.js';
 import { createSettingsForm } from './settings-form.js';
+import { createSongRequestBlacklist } from './song-request-blacklist.js';
 import { initLicenseAccountDevice as initLicenseAccountDeviceImpl } from './settings-license.js';
 import { createSettingsOperations } from './settings-operations.js';
 import { createBilibiliRoomProfile } from './settings-room-profile.js';
@@ -86,6 +87,7 @@ const settingsForm = createSettingsForm({
       licenseBridge: windowRef.liraLicense,
     }),
   blindboxSettings,
+  blacklistEditor: createSongRequestBlacklist({ documentRef, getState }),
   ...operations,
   desktopRef: windowRef.songAssistantDesktop,
 });

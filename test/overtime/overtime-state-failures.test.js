@@ -343,10 +343,18 @@ for (const method of ['listRecoverableFinal', 'getNextPendingAt']) {
     });
     try {
       service.act('enable');
-      service.replaceRules([{
-        giftId: 'retry-gift', giftName: 'Retry', mode: 'random', enabled: true,
-        outcomes: [{ seconds: 1, weight: 1 }, { seconds: 2, weight: 1 }],
-      }]);
+      service.replaceRules([
+        {
+          giftId: 'retry-gift',
+          giftName: 'Retry',
+          mode: 'random',
+          enabled: true,
+          outcomes: [
+            { seconds: 1, weight: 1 },
+            { seconds: 2, weight: 1 },
+          ],
+        },
+      ]);
       const event = fixture.insertFinalGift({ giftId: 'retry-gift', overtimeEpoch: 1 });
       assert.throws(() => service.finalizeGift(event), /synthetic initial/);
       fail = true;

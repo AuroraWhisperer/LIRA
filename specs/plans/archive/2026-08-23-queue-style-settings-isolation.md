@@ -79,9 +79,9 @@
 
 **Files:**
 
-- Modify: `docs/architecture/backend/storage.md`
-- Modify: `docs/architecture/frontend/app.md`
-- Modify: `docs/architecture/frontend/overlays.md`
+- Modify: `docs/reference/backend/storage.md`
+- Modify: `docs/reference/frontend/app.md`
+- Modify: `docs/reference/frontend/overlays.md`
 - Modify: `specs/README.md`
 - Modify: `specs/queue-style-settings-isolation_design.md`
 - Move after completion: `specs/plans/2026-08-23-queue-style-settings-isolation.md` to `specs/plans/archive/2026-08-23-queue-style-settings-isolation.md`

@@ -1,6 +1,16 @@
 # License P1 Hardening Implementation Plan
 
-> Status: Complete — automated verification green (979/980; the single failure is the pre-existing `src/bilibili/gift/event-service.js` SQL-debt regression from the uncommitted P0 workstream, HEAD baseline 11 → worktree 12, unrelated to P1). Manual desktop verification items below remain for the user.
+**Status:** Deferred.
+
+**复核日期：** 2026-09-28。实现和自动化已有历史记录；真实 HTTP stub E2E 为延期验证，原手工离线续期、配对及同步确认仍未补齐证据。
+
+当前依据：[所属规格或参考](../../docs/reference/desktop/auth.md)。状态索引见 [计划入口](README.md)。
+
+## 原始计划与执行记录
+
+以下保留原计划时点的行为、命令和验证记录；它们不覆盖上述状态或当前契约，历史未勾选项不直接等同于当前缺陷。
+
+原状态记录：> Status: Complete — automated verification green (979/980; the single failure is the pre-existing `src/bilibili/gift/event-service.js` SQL-debt regression from the uncommitted P0 workstream, HEAD baseline 11 → worktree 12, unrelated to P1). Manual desktop verification items below remain for the user.
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -142,9 +152,9 @@
 
 **Files:**
 
-- Modify: `docs/architecture/desktop/preload.md`
-- Modify: `docs/architecture/frontend/pages.md`
-- Modify: `docs/architecture/desktop/main.md`
+- Modify: `docs/reference/desktop/preload.md`
+- Modify: `docs/reference/frontend/pages.md`
+- Modify: `docs/reference/desktop/main.md`
 
 - [x] `preload.md`: complete the `liraLicense` channel registry (get-state/activate/retry/get-profile/sync-songs/pairing trio/state-changed) plus new `license:get-cloud-songs`.
 - [x] `pages.md`: import/export page gains overwrite confirmation, cloud count compare, last-sync display; settings page gains pairing timestamps and revoke confirmation.

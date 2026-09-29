@@ -96,6 +96,9 @@ test('Bilibili IPC exposes only the public profile result', async () => {
     logout: async () => ({}),
   });
 
-  assert.deepEqual(await handlers.get('bilibili:get-profile')({ sender: webContents, senderFrame: mainFrame }), profile);
+  assert.deepEqual(
+    await handlers.get('bilibili:get-profile')({ sender: webContents, senderFrame: mainFrame }),
+    profile,
+  );
   assert.equal('cookieHeader' in profile, false);
 });

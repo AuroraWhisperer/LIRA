@@ -31,9 +31,10 @@ async function readResponseBytes(response, maxBytes, createLimitError) {
   }
 
   // Preserve injected response fixtures that implement only the body helpers.
-  const bytes = typeof response.arrayBuffer === 'function'
-    ? Buffer.from(await response.arrayBuffer())
-    : Buffer.from(await response.text());
+  const bytes =
+    typeof response.arrayBuffer === 'function'
+      ? Buffer.from(await response.arrayBuffer())
+      : Buffer.from(await response.text());
   if (bytes.length > maxBytes) throw createLimitError();
   return bytes;
 }

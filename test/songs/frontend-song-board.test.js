@@ -70,7 +70,10 @@ for (const initialProfile of ['older response', 'initial rejection', 'late rejec
     const pagehide = [];
     let resolveProfile;
     let rejectProfile;
-    const profile = new Promise((resolve, reject) => { resolveProfile = resolve; rejectProfile = reject; });
+    const profile = new Promise((resolve, reject) => {
+      resolveProfile = resolve;
+      rejectProfile = reject;
+    });
     const bridge = {
       getProfile: () => profile,
       getOverlaySettings: async () => ({ ok: false }),
@@ -83,7 +86,9 @@ for (const initialProfile of ['older response', 'initial rejection', 'late rejec
       URL,
       window: {
         liraLicense: bridge,
-        addEventListener(name, listener) { if (name === 'pagehide') pagehide.push(listener); },
+        addEventListener(name, listener) {
+          if (name === 'pagehide') pagehide.push(listener);
+        },
       },
       location: { protocol: 'http:', hostname: 'localhost', port: '3012' },
       document: {
@@ -130,7 +135,6 @@ for (const initialProfile of ['older response', 'initial rejection', 'late rejec
     pagehide.forEach((listener) => listener());
     assert.equal(listeners.size, 0);
   });
-
 }
 
 test('song list exposes a display board font size control', () => {

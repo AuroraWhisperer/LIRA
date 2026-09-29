@@ -11,8 +11,20 @@ export function createFanTransferUi({ request, openForm, getProfile, onProfile, 
       const fields = [
         ['常用称呼', p.alias],
         ['一句话印象', p.summary],
-        ['生日', birthday ? `${birthday.year ? `${birthday.year}-` : ''}${birthday.monthDay}（${birthday.calendar === 'lunar' ? '农历' : '公历'}${birthday.leapMonth ? '闰月' : ''}）` : ''],
-        ['生日提醒', !birthday ? '' : birthday.calendar === 'lunar' && !birthday.thisYearDate ? '尚未设置今年的提醒日期' : `${birthday.advance ? '提前 7 天提醒' : '当天提醒'}${birthday.thisYearDate ? ` · 今年提醒日：${birthday.thisYearDate}` : ''}${birthday.calendar !== 'lunar' && birthday.monthDay === '02-29' ? ` · 非闰年：${birthday.leapDay === 'mar01' ? '3 月 1 日' : '2 月 28 日'}` : ''}`],
+        [
+          '生日',
+          birthday
+            ? `${birthday.year ? `${birthday.year}-` : ''}${birthday.monthDay}（${birthday.calendar === 'lunar' ? '农历' : '公历'}${birthday.leapMonth ? '闰月' : ''}）`
+            : '',
+        ],
+        [
+          '生日提醒',
+          !birthday
+            ? ''
+            : birthday.calendar === 'lunar' && !birthday.thisYearDate
+              ? '尚未设置今年的提醒日期'
+              : `${birthday.advance ? '提前 7 天提醒' : '当天提醒'}${birthday.thisYearDate ? ` · 今年提醒日：${birthday.thisYearDate}` : ''}${birthday.calendar !== 'lunar' && birthday.monthDay === '02-29' ? ` · 非闰年：${birthday.leapDay === 'mar01' ? '3 月 1 日' : '2 月 28 日'}` : ''}`,
+        ],
         ['MBTI', p.mbti],
         ['个人备注', p.notes],
         ['下次想聊', p.nextTopic],

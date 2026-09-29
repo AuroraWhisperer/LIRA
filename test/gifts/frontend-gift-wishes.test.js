@@ -54,6 +54,8 @@ async function open(t) {
             giftName: '小花花',
             giftId: '1',
             giftCategory: 'directGift',
+            imagePath: window.catalogGift.imagePath,
+            todayCount: 1,
             count: 3,
             remaining: body.target - 3,
             progress: 30,
@@ -201,22 +203,22 @@ test('choose room or cached gifts, enforce integer targets, edit without resetti
   await page.locator('#giftWishTarget').fill('10');
   await page.locator('#giftWishLabel').fill('<img src=x>');
   await page.locator('#giftWishSave').click();
-  await page.locator('.wish-card').waitFor();
-  assert.equal(await page.locator('.wish-card').getAttribute('aria-label'), '长效许愿 · 小花花 · <img src=x>');
-  assert.equal(await page.locator('.wish-card img').count(), 1);
-  assert.equal(await page.locator('.wish-card-count').textContent(), '3');
-  assert.equal(await page.locator('[role=progressbar]').getAttribute('aria-valuenow'), '3');
+  await page.locator('#giftWishCards .wish-card').waitFor();
+  assert.equal(await page.locator('#giftWishCards .wish-card').getAttribute('aria-label'), '长效许愿 · 小花花 · <img src=x>');
+  assert.equal(await page.locator('#giftWishCards .wish-card img').count(), 1);
+  assert.equal(await page.locator('#giftWishCards .wish-card-count').textContent(), '3');
+  assert.equal(await page.locator('#giftWishCards [role=progressbar]').getAttribute('aria-valuenow'), '3');
   assert.equal(await page.evaluate(() => window.wishSaves[0].giftKey), 'flower-v1');
   await page.getByRole('button', { name: '编辑', exact: true }).click();
   await page.locator('#giftWishTarget').fill('20');
   await page.locator('#giftWishSave').click();
-  await page.waitForFunction(() => document.querySelector('.wish-card-target').textContent.includes('20'));
-  assert.equal(await page.locator('.wish-card-count').textContent(), '3');
+  await page.waitForFunction(() => document.querySelector('#giftWishCards .wish-card-target').textContent.includes('20'));
+  assert.equal(await page.locator('#giftWishCards .wish-card-count').textContent(), '3');
   assert.equal(await page.evaluate(() => window.wishSaves[1].id), 'new');
   await page.getByRole('button', { name: '删除', exact: true }).click();
   await page.getByRole('button', { name: '确认删除', exact: true }).click();
   await page.waitForFunction(() => document.getElementById('giftWishEmpty').hidden === false);
-  assert.equal(await page.locator('.wish-card').count(), 0);
+  assert.equal(await page.locator('#giftWishCards .wish-card').count(), 0);
 });
 
 test('period changes update OBS URLs and source changes discard an in-progress edit', async (t) => {
@@ -307,58 +309,78 @@ test('consecutive source changes cancel pending reads and never restore the prev
     };
     window.resolveWishRead(1, 'three');
   });
-  await page.waitForFunction(() => document.querySelector('.wish-card-image')?.alt === 'three');
+  await page.waitForFunction(() => document.querySelector('#giftWishCards .wish-card-image')?.alt === 'three');
   await page.evaluate(async () => {
     window.resolveWishRead(0, 'two');
     await new Promise((resolve) => setTimeout(resolve, 0));
   });
-  assert.equal(await page.locator('.wish-card-image').getAttribute('alt'), 'three');
+  assert.equal(await page.locator('#giftWishCards .wish-card-image').getAttribute('alt'), 'three');
   assert.equal(await page.locator('#giftWishSave').isDisabled(), false);
 });
 
 test('custom text uses the selected gift and switches between all three styles without losing progress', async (t) => {
   const page = await open(t);
+  const draft = page.locator('#giftWishDraftPreview');
+  const saved = page.locator('#giftWishCards');
   assert.equal(await page.locator('#giftWishesSummary, .gift-wish-preview-note').count(), 0);
   assert.equal(await page.locator('#giftWishTextFields').isVisible(), false);
   await page.locator('#giftWishPick').click();
   await page.locator('.gift-wish-option').click();
-  await page.locator('#giftWishDisplayStyle').selectOption('text');
-  assert.equal(await page.locator('#giftWishTextPreview').textContent(), '许愿小花花（0/10）');
+  assert.equal(await draft.locator('.wish-card-image').getAttribute('alt'), '小花花');
+  assert.equal(await draft.locator('.wish-card-track').count(), 1);
+  await page.getByRole('radio', { name: '圆形徽章', exact: true }).check();
+  assert.equal(await draft.locator('.wish-card--circle').count(), 1);
+  assert.equal(await draft.locator('.wish-card-total').textContent(), '0/10');
+  assert.equal(await draft.locator('.wish-card-track').count(), 0);
+  assert.equal(await page.evaluate(() => window.wishSaves.length), 0);
+  await page.getByRole('radio', { name: '文字版', exact: true }).check();
+  assert.equal(await draft.textContent(), '许愿小花花（0/10）');
+  assert.equal(await draft.locator('img, [role=progressbar]').count(), 0);
   await page.locator('#giftWishTextTemplate').fill('今天想要');
-  await page.getByRole('button', { name: '礼物名称', exact: true }).click();
+  await page.getByRole('button', { name: '插入礼物名称', exact: true }).click();
   assert.equal(await page.locator('#giftWishTextTemplate').inputValue(), '今天想要{礼物}');
   await page.locator('#giftWishTextTemplate').fill('今天想要{礼物}\n已收 {已收} / {目标}');
   await page.locator('#giftWishSave').click();
-  await page.waitForFunction(() => document.querySelector('.wish-card-text'));
-  assert.equal(await page.locator('.wish-card-text').textContent(), '今天想要小花花\n已收 3 / 10');
-  assert.equal(await page.locator('.wish-card img, .wish-card [role=progressbar]').count(), 0);
+  await saved.locator('.wish-card-text').waitFor();
+  assert.equal(await saved.locator('.wish-card-text').textContent(), '今天想要小花花\n已收 3 / 10');
+  assert.equal(await saved.locator('img, [role=progressbar]').count(), 0);
   assert.equal(await page.evaluate(() => window.wishSaves[0].displayStyle), 'text');
   assert.equal(await page.evaluate(() => window.wishSaves[0].giftKey), 'flower-v1');
   await page.getByRole('button', { name: '编辑', exact: true }).click();
-  assert.equal(await page.locator('#giftWishDisplayStyle').inputValue(), 'text');
+  assert.equal(await page.getByRole('radio', { name: '文字版', exact: true }).isChecked(), true);
   await page.locator('#giftWishTarget').fill('20');
-  assert.equal(await page.locator('#giftWishTextPreview').textContent(), '今天想要小花花\n已收 3 / 20');
-  await page.locator('#giftWishDisplayStyle').selectOption('card');
+  assert.equal(await draft.textContent(), '今天想要小花花\n已收 3 / 20');
+  await page.getByRole('radio', { name: '礼物卡片', exact: true }).check();
   assert.equal(await page.locator('#giftWishTextFields').isVisible(), false);
+  assert.equal(await draft.locator('.wish-card-fill').evaluate((element) => element.style.transform), 'scaleX(0.15)');
+  assert.equal(await saved.locator('.wish-card-text').textContent(), '今天想要小花花\n已收 3 / 10');
   await page.locator('#giftWishSave').click();
-  await page.waitForFunction(() => document.querySelector('.wish-card-count'));
-  assert.equal(await page.locator('.wish-card-count').textContent(), '3');
-  assert.match(await page.locator('.wish-card-target').textContent(), /20/);
+  await saved.locator('.wish-card-count').waitFor();
+  assert.equal(await saved.locator('.wish-card-count').textContent(), '3');
+  assert.match(await saved.locator('.wish-card-target').textContent(), /20/);
   await page.getByRole('button', { name: '编辑', exact: true }).click();
-  await page.locator('#giftWishDisplayStyle').selectOption('circle');
+  await page.getByRole('radio', { name: '圆形徽章', exact: true }).check();
   assert.equal(await page.locator('#giftWishTextFields').isVisible(), false);
+  assert.equal(await draft.locator('.wish-card--circle').count(), 1);
+  await page.locator('#giftWishTarget').fill('2');
+  assert.equal(await draft.locator('.wish-card.is-complete').count(), 1);
+  assert.equal(await draft.locator('[role=progressbar]').getAttribute('aria-valuenow'), '2');
+  await page.locator('#giftWishTarget').fill('20');
   await page.locator('#giftWishSave').click();
-  await page.locator('.wish-card--circle').waitFor();
-  assert.equal(await page.locator('.wish-card-total').textContent(), '3/20');
-  assert.equal(await page.locator('.wish-card-circle img').count(), 1);
-  assert.equal(await page.locator('.wish-card-track').count(), 0);
+  await saved.locator('.wish-card--circle').waitFor();
+  assert.equal(await saved.locator('.wish-card-total').textContent(), '3/20');
+  assert.equal(await saved.locator('.wish-card-circle img').count(), 1);
+  assert.equal(await saved.locator('.wish-card-track').count(), 0);
   assert.equal(await page.evaluate(() => window.wishSaves[2].displayStyle), 'circle');
   await page.getByRole('button', { name: '编辑', exact: true }).click();
-  assert.equal(await page.locator('#giftWishDisplayStyle').inputValue(), 'circle');
-  await page.locator('#giftWishDisplayStyle').selectOption('text');
+  assert.equal(await page.getByRole('radio', { name: '圆形徽章', exact: true }).isChecked(), true);
+  await page.getByRole('radio', { name: '文字版', exact: true }).check();
   assert.equal(await page.locator('#giftWishTextTemplate').inputValue(), '今天想要{礼物}\n已收 {已收} / {目标}');
   await page.locator('#giftWishCancel').click();
-  assert.equal(await page.locator('#giftWishDisplayStyle').inputValue(), 'card');
+  assert.equal(await page.getByRole('radio', { name: '礼物卡片', exact: true }).isChecked(), true);
+  assert.equal(await page.locator('#giftWishTextFields').isVisible(), false);
+  assert.equal(await draft.locator('.wish-card-count').textContent(), '0');
+  assert.equal(await saved.locator('.wish-card--circle').count(), 1);
 });
 
 test('circle overlay displays the gift WebP and updates numeric progress on completion', async (t) => {
@@ -406,3 +428,163 @@ for (const period of ['long', 'day', 'session']) {
     assert.equal(await page.locator('.wish-card.is-complete').count(), 1);
   });
 }
+
+const animatedWishImage = 'data:image/webp;base64,UklGRoQAAABXRUJQVlA4WAoAAAACAAAAAwAAAwAAQU5JTQYAAAAAAAAAAABBTk1GKAAAAAAAAAAAAAMAAAMAAGQAAAJWUDhMDwAAAC8DwAAABxD9j/4HIqL/AQBBTk1GKAAAAAAAAAAAAAMAAAMAAGQAAABWUDhMDwAAAC8DwAAAB9D/iP4HIqL/AQA=';
+
+test('image tokens insert at the cursor, move, persist and disappear when deleted', async (t) => {
+  const page = await open(t);
+  await page.evaluate((imagePath) => { window.catalogGift.imagePath = imagePath; }, animatedWishImage);
+  await page.locator('#giftWishPick').click();
+  await page.locator('.gift-wish-option').click();
+  await page.getByRole('radio', { name: '文字版', exact: true }).check();
+  const draft = page.locator('#giftWishDraftPreview');
+  const saved = page.locator('#giftWishCards');
+  const input = page.locator('#giftWishTextTemplate');
+  assert.equal(await page.locator('#giftWishImageFields').isVisible(), false);
+  assert.equal(await page.locator('#giftWishTextImageFormat').isVisible(), false);
+  await input.evaluate((node) => node.setSelectionRange(0, 0));
+  await page.getByRole('button', { name: '插入礼物图片', exact: true }).click();
+  assert.equal(await input.inputValue(), '{图片}许愿{礼物}（{已收}/{目标}）');
+  assert.equal(await draft.locator('.wish-card-text').evaluate((node) => node.firstChild.tagName), 'IMG');
+  assert.equal(await page.locator('#giftWishTextImageFormat').isVisible(), true);
+  assert.equal(await draft.locator('img').getAttribute('src'), animatedWishImage);
+  await input.fill('许愿{礼物}（{已收}/{目标}）{图片}');
+  assert.equal(await draft.locator('.wish-card-text').evaluate((node) => node.lastChild.tagName), 'IMG');
+  await input.fill('<b>想要</b>{礼物}，再来一个{礼物}\n{已收}/{目标}');
+  await input.evaluate((node) => node.setSelectionRange(9, 9));
+  await page.getByRole('button', { name: '插入礼物图片', exact: true }).click();
+  const template = '<b>想要</b>{图片}{礼物}，再来一个{礼物}\n{已收}/{目标}';
+  assert.equal(await input.inputValue(), template);
+  assert.equal(await draft.locator('.wish-card-text img').count(), 1);
+  assert.equal(await draft.locator('b').count(), 0);
+  assert.equal(await draft.locator('.wish-card-text').evaluate((node) => node.firstChild.textContent), '<b>想要</b>');
+  await page.locator('#giftWishTextImageFormat').selectOption('static');
+  await page.waitForFunction(() => document.querySelector('#giftWishDraftPreview img')?.src.startsWith('data:image/png'));
+  await page.locator('#giftWishSave').click();
+  await saved.locator('.wish-card-text img').waitFor();
+  assert.equal(await saved.locator('.is-received-today').count(), 1);
+  assert.deepEqual(await page.evaluate(() => {
+    const { textImagePosition, textImageFormat, textTemplate } = window.wishSaves[0];
+    return { textImagePosition, textImageFormat, textTemplate };
+  }), { textImagePosition: 'none', textImageFormat: 'static', textTemplate: template });
+  await page.getByRole('button', { name: '编辑', exact: true }).click();
+  assert.equal(await input.inputValue(), template);
+  assert.equal(await page.locator('#giftWishTextImageFormat').inputValue(), 'static');
+  await input.fill(template.replace('{图片}', ''));
+  assert.equal(await draft.locator('img').count(), 0);
+  assert.equal(await page.locator('#giftWishImageFields').isVisible(), false);
+  assert.equal(await saved.locator('img').count(), 1);
+  await page.locator('#giftWishSave').click();
+  await page.waitForFunction(() => !document.querySelector('#giftWishCards img'));
+  await page.getByRole('button', { name: '编辑', exact: true }).click();
+  assert.equal(await input.inputValue(), template.replace('{图片}', ''));
+  await page.locator('#giftWishCancel').click();
+  await page.getByRole('radio', { name: '文字版', exact: true }).check();
+  assert.equal(await input.inputValue(), '许愿{礼物}（{已收}/{目标}）');
+  assert.equal(await page.locator('#giftWishTextImageFormat').inputValue(), 'animated');
+});
+
+test('legacy image positions convert when edited without losing long text or duplicating explicit tokens', async (t) => {
+  const page = await open(t);
+  for (const [position, template, expected] of [
+    ['before', '字'.repeat(200), `{图片}${'字'.repeat(200)}`],
+    ['after', '想要{礼物}', '想要{礼物}{图片}'],
+    ['inline', '想要{礼物}和{礼物}', '想要{图片}{礼物}和{礼物}'],
+    ['inline', '谢谢', '{图片}谢谢'],
+    ['before', '想要{礼物}{图片}', '想要{礼物}{图片}'],
+    ['after', '{图片}{礼物}{图片}', '{图片}{礼物}{图片}'],
+  ]) {
+    await page.evaluate(({ position, template }) => {
+      window.wishData.items = [{ id: 'old', period: 'long', giftId: '1', giftName: '小花花', label: '',
+        target: 10, count: 3, displayStyle: 'text', textTemplate: template, textImagePosition: position }];
+    }, { position, template });
+    await page.locator('#giftWishesRefresh').click();
+    const saved = page.locator('#giftWishCards .wish-card-text');
+    const rendered = expected.replaceAll('{礼物}', '小花花');
+    await page.waitForFunction((rendered) => {
+      const node = document.querySelector('#giftWishCards .wish-card-text');
+      return node && [...node.childNodes].map((child) => child.nodeName === 'IMG' ? '{图片}' : child.textContent).join('') === rendered;
+    }, rendered);
+    await page.getByRole('button', { name: '编辑', exact: true }).click();
+    assert.equal(await page.locator('#giftWishTextTemplate').inputValue(), expected);
+    const saveCount = await page.evaluate(() => window.wishSaves.length);
+    await page.locator('#giftWishSave').click();
+    await page.waitForFunction((count) => window.wishSaves.length > count && !document.getElementById('giftWishFields').disabled, saveCount);
+    assert.equal(await page.evaluate(() => window.wishSaves.at(-1).textImagePosition), 'none');
+    assert.equal(await saved.locator('img').count(), expected.match(/\{图片\}/g).length);
+    assert.equal(await saved.textContent(), rendered.replaceAll('{图片}', ''));
+  }
+});
+
+test('static text images are PNG first frames and today color resets even when the cumulative wish is complete', async (t) => {
+  const page = await openOverlay(t, 'long', [], {
+    displayStyle: 'text', imagePath: animatedWishImage, textImageFormat: 'static',
+    textTemplate: '{图片}谢谢大家\n{已收}/{目标}', completed: true, count: 12, todayCount: 1,
+  });
+  await page.addStyleTag({ content: fs.readFileSync('public/css/shared/gift-wish-card.css', 'utf8') });
+  await page.waitForFunction(() => document.querySelector('.wish-card img')?.src.startsWith('data:image/png') && document.querySelector('.wish-card img').naturalWidth > 0);
+  const png = await page.locator('.wish-card img').getAttribute('src');
+  assert.equal(await page.locator('.wish-card-text').evaluate((node) => node.firstChild.tagName), 'IMG');
+  assert.deepEqual(await page.locator('.wish-card img').evaluate((image) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = 4;
+    const context = canvas.getContext('2d');
+    context.drawImage(image, 0, 0);
+    return [...context.getImageData(0, 0, 1, 1).data];
+  }), [255, 0, 0, 255], 'the first frame is red, not the second green frame');
+  assert.equal(await page.locator('.wish-card-text').evaluate((node) => getComputedStyle(node).color), 'rgb(33, 129, 92)');
+  await page.evaluate(() => {
+    window.wishData.items[0].todayCount = 0;
+    window.socketOptions.onMessage({ type: 'snapshot', reason: 'gift:wishes', state: { gifts: { viewRevision: 'one' } } });
+  });
+  await page.waitForFunction(() => !document.querySelector('.is-received-today') && document.querySelector('.wish-card img')?.src.startsWith('data:image/png'));
+  assert.equal(await page.locator('.wish-card img').getAttribute('src'), png);
+  assert.equal(await page.locator('.wish-card.is-complete').count(), 1);
+  assert.equal(await page.locator('.wish-card-text').evaluate((node) => getComputedStyle(node).color), 'rgb(59, 110, 168)');
+  await page.evaluate(() => {
+    Object.assign(window.wishData.items[0], { count: 1, completed: false, todayCount: 1, textImageFormat: 'animated', textTemplate: '谢谢大家{图片}' });
+    window.socketOptions.onMessage({ type: 'snapshot', reason: 'gift:wishes', state: { gifts: { viewRevision: 'one' } } });
+  });
+  await page.waitForFunction(() => document.querySelector('.is-received-today img')?.src.startsWith('data:image/webp'));
+  assert.equal(await page.locator('.wish-card.is-complete').count(), 0);
+  assert.equal(await page.locator('.wish-card-text > :last-child').getAttribute('src'), animatedWishImage);
+  assert.equal(await page.locator('.wish-card-text').evaluate((node) => getComputedStyle(node).color), 'rgb(33, 129, 92)');
+  for (const [todayCount, color] of [[0, 'rgb(102, 51, 153)'], [1, 'rgb(180, 83, 9)']]) {
+    await page.evaluate((todayCount) => {
+      Object.assign(window.wishData.items[0], { todayCount, textPendingColor: '#663399', textReceivedColor: '#b45309' });
+      window.socketOptions.onMessage({ type: 'snapshot', reason: 'gift:wishes', state: { gifts: { viewRevision: 'one' } } });
+    }, todayCount);
+    await page.waitForFunction((color) => getComputedStyle(document.querySelector('.wish-card-text')).color === color, color);
+    assert.equal(await page.locator('.wish-card-text').textContent(), '谢谢大家');
+  }
+});
+
+test('a missing static image falls back to the existing placeholder without showing an animation', async (t) => {
+  const page = await openOverlay(t, 'day', [], {
+    displayStyle: 'text', imagePath: '/missing.webp', textTemplate: '{图片}许愿{礼物}（{已收}/{目标}）', textImageFormat: 'static',
+  });
+  await page.waitForFunction(() => document.querySelector('.wish-card img')?.getAttribute('src') === '/img/gift-placeholder.png');
+  assert.equal(await page.locator('.wish-card-text').textContent(), '许愿小花花（3/10）');
+});
+
+test('static images remain PNG inside the opaque-origin OBS sandbox', async (t) => {
+  const page = await fixture(t, 'wish-sandbox');
+  await page.route('**/js/shared/*.js', (route) => route.fulfill({
+    contentType: 'text/javascript', headers: { 'Access-Control-Allow-Origin': '*' },
+    body: fs.readFileSync(`public${new URL(route.request().url()).pathname}`, 'utf8'),
+  }));
+  await page.route('**/animated.webp', (route) => route.fulfill({
+    contentType: 'image/webp', headers: { 'Access-Control-Allow-Origin': '*' },
+    body: Buffer.from(animatedWishImage.split(',')[1], 'base64'),
+  }));
+  await page.setContent('<iframe sandbox="allow-scripts"></iframe>');
+  const frame = page.frames()[1];
+  await frame.setContent(`<script type="module">
+    import { createGiftWishCard } from 'http://lira-ui.test/js/shared/gift-wish-card.js';
+    document.body.append(createGiftWishCard({id:'one',period:'day',giftName:'花',count:1,target:10,
+      displayStyle:'text',textTemplate:'{图片}{礼物}',textImageFormat:'static',
+      imagePath:'http://lira-ui.test/animated.webp'}));
+  </script>`);
+  assert.equal(await frame.evaluate(() => origin), 'null');
+  await frame.waitForFunction(() => document.querySelector('img')?.src.startsWith('data:image/png'), null, { timeout: 2000 });
+});

@@ -41,7 +41,8 @@ export function createOvertimeStatusView({
       setValueUnlessFocused('overtimeBackgroundFit', overtimeState.background?.fit || 'cover');
     }
     const quantityLimitedCount = Number(overtimeState.quantityLimitedCount) || 0;
-    byId('overtimePendingCount').textContent = `待结算 ${Number(overtimeState.pendingCount) || 0}` +
+    byId('overtimePendingCount').textContent =
+      `待结算 ${Number(overtimeState.pendingCount) || 0}` +
       (quantityLimitedCount > 0 ? `（${quantityLimitedCount} 笔数量超限，尚未结算）` : '');
     renderConsumerStatus();
     if (Array.isArray(nextState.rules) && !isRulesDirty()) {

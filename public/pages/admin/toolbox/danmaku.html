@@ -60,258 +60,284 @@
               <path d="M3 9h18M9 9v12" />
             </svg>
             弹幕姬
-            <lira-help
-              >先选择样式并预览，确认后应用到直播画面。 将固定链接添加到 OBS
-              或直播姬浏览器源，关闭客户端后仍可接收。</lira-help
-            >
+            <lira-help>预览不影响直播，应用后生效。关闭客户端后仍可接收弹幕。</lira-help>
           </h3>
         </div>
         <div class="danmaku-style-tools">
+          <div class="danmaku-monitoring-control">
+            <label for="danmakuMonitoringEnabled">监控弹幕</label>
+            <lira-help label="监控弹幕说明" tooltip-id="danmakuMonitoringHelp">默认持续监控，关闭客户端后服务端仍会接收。关闭后不再接收新弹幕、醒目留言和进场消息，点歌及自动回复也会暂停；礼物监控独立控制。</lira-help>
+            <label class="switch-control">
+              <input id="danmakuMonitoringEnabled" type="checkbox" aria-label="监控弹幕" aria-describedby="danmakuMonitoringHelp" checked />
+              <span class="switch-track" aria-hidden="true"></span>
+            </label>
+          </div>
           <span id="danmakuStyleChip" class="danmaku-style-chip">当前样式 · 深色面板</span>
-          <button id="danmakuPreviewOverlayBtn" class="secondary" type="button">预览效果</button>
+          <button id="danmakuPreviewOverlayBtn" class="secondary" type="button">编辑画布</button>
         </div>
       </div>
-      <div class="danmaku-overlay-link">
-        <label><span>直播画面链接</span><input id="danmakuOverlayUrl" type="text" readonly /></label>
-        <div class="danmaku-overlay-actions">
-          <button id="danmakuCopyOverlayUrlBtn" class="secondary" type="button" disabled>复制链接</button>
-          <button id="danmakuOpenOverlayBtn" class="secondary" type="button" disabled>打开网页</button>
+      <section class="danmaku-settings-block" aria-labelledby="danmakuOverlayLinkTitle">
+        <div class="danmaku-settings-heading">
+          <h4 id="danmakuOverlayLinkTitle">直播画面链接</h4>
         </div>
-      </div>
-      <p class="danmaku-preview-hint">将链接添加到 OBS 或直播姬浏览器源。切换样式后，链接保持不变。</p>
-      <section id="danmakuOverlayFilters" class="danmaku-overlay-filters" aria-label="弹幕屏蔽设置">
-        <div class="danmaku-filter-toolbar">
-          <p class="hint">添加、移除后自动保存，对之后收到的弹幕生效。仅影响弹幕姬显示。</p>
-          <button id="danmakuFiltersReload" class="secondary" type="button">重新读取</button>
-        </div>
-        <p id="danmakuFiltersState" class="hint" role="status" aria-live="polite"></p>
-        <div class="danmaku-filter-grid">
-          <section class="danmaku-filter-group" aria-labelledby="danmakuBlacklistTitle">
-            <div class="danmaku-filter-heading">
-              <h4 id="danmakuBlacklistTitle">用户黑名单</h4>
-              <span id="danmakuBlacklistCount" class="hint">0 人</span>
-            </div>
-            <p class="hint">按 UID 屏蔽该用户发送的所有弹幕，昵称变化也有效。</p>
-            <form id="danmakuBlacklistForm" class="danmaku-filter-form">
-              <label for="danmakuBlacklistUid">用户 UID</label>
-              <div class="danmaku-filter-input-row">
-                <input
-                  id="danmakuBlacklistUid"
-                  type="text"
-                  inputmode="numeric"
-                  pattern="[1-9][0-9]{0,19}"
-                  maxlength="20"
-                  placeholder="输入 B 站 UID"
-                  required
-                  disabled
-                />
-                <button class="primary" type="submit" disabled>添加</button>
-              </div>
-            </form>
-            <div>
-              <button id="danmakuReadViewers" class="secondary" type="button" disabled>读取当前直播间观众</button>
-            </div>
-            <div id="danmakuViewerPicker" class="danmaku-viewer-picker" hidden>
-              <div class="danmaku-filter-toolbar">
-                <strong id="danmakuViewerTitle">选择观众</strong>
-                <button id="danmakuCloseViewers" class="secondary" type="button">收起</button>
-              </div>
-              <p class="hint">来自当前直播间的 B 站在线榜，仅包含接口返回的观众；找不到时可手动输入 UID。</p>
-              <label for="danmakuViewerSearch">查找观众</label>
-              <input id="danmakuViewerSearch" type="search" placeholder="搜索昵称或 UID" />
-              <p id="danmakuViewerState" class="hint" role="status" aria-live="polite"></p>
-              <ul id="danmakuViewerList" class="danmaku-filter-list danmaku-viewer-list" aria-label="可选择的观众"></ul>
-              <button id="danmakuAddViewers" class="primary" type="button" disabled>加入黑名单</button>
-            </div>
-            <ul id="danmakuBlacklist" class="danmaku-filter-list" aria-label="已屏蔽的用户"></ul>
-            <p id="danmakuBlacklistEmpty" class="hint">尚未添加黑名单用户。</p>
-          </section>
-          <section class="danmaku-filter-group" aria-labelledby="danmakuKeywordTitle">
-            <div class="danmaku-filter-heading">
-              <h4 id="danmakuKeywordTitle">敏感词屏蔽</h4>
-              <span id="danmakuKeywordCount" class="hint">0 个词</span>
-            </div>
-            <p class="hint">正文包含任一屏蔽词就不显示，英文不区分大小写。</p>
-            <form id="danmakuKeywordForm" class="danmaku-filter-form">
-              <label for="danmakuKeywordInput">屏蔽词</label>
-              <div class="danmaku-filter-input-row">
-                <input
-                  id="danmakuKeywordInput"
-                  type="text"
-                  maxlength="100"
-                  placeholder="输入要屏蔽的文字"
-                  required
-                  disabled
-                />
-                <button class="primary" type="submit" disabled>添加</button>
-              </div>
-            </form>
-            <div>
-              <button id="danmakuClearKeywords" class="secondary" type="button" disabled>一键清空屏蔽词</button>
-            </div>
-            <ul id="danmakuKeywords" class="danmaku-filter-list" aria-label="已添加的屏蔽词"></ul>
-            <p id="danmakuKeywordsEmpty" class="hint">尚未添加屏蔽词。</p>
-          </section>
-        </div>
-      </section>
-      <div class="danmaku-style-picker">
-        <section class="danmaku-style-group danmaku-style-group-fixed" aria-labelledby="danmakuFixedStyleTitle">
-          <div class="danmaku-style-group-heading">
-            <strong id="danmakuFixedStyleTitle">固定位置弹幕</strong>
-            <lira-help label="添加弹幕样式说明">有想要添加的弹幕样式，可以截图通过微信发给我，我会试着添加。</lira-help>
-            <p>在画面一侧依次排列</p>
+        <div class="danmaku-overlay-link">
+          <input id="danmakuOverlayUrl" type="text" aria-labelledby="danmakuOverlayLinkTitle" readonly />
+          <div class="danmaku-overlay-actions">
+            <button id="danmakuCopyOverlayUrlBtn" class="secondary" type="button" disabled>复制链接</button>
+            <button id="danmakuOpenOverlayBtn" class="secondary" type="button" disabled>打开网页</button>
           </div>
-          <div class="danmaku-style-options danmaku-style-options-fixed" role="group" aria-label="选择固定位置弹幕样式">
-            <button class="danmaku-style-option" type="button" data-danmaku-style="bubble" aria-pressed="false">
-              <img src="/img/overlays/danmaku-previews/bubble.png" class="danmaku-style-sample" alt="" />
-              <span class="danmaku-style-name">聊天气泡</span>
-              <span class="danmaku-style-description">圆角底色，头像在左</span>
-            </button>
-            <button class="danmaku-style-option" type="button" data-danmaku-style="signal" aria-pressed="true">
-              <img src="/img/overlays/danmaku-previews/signal.png" class="danmaku-style-sample" alt="" />
-              <span class="danmaku-style-name">深色面板</span>
-              <span class="danmaku-style-description">深色切角，彩色边线</span>
-            </button>
-            <button class="danmaku-style-option" type="button" data-danmaku-style="minimal" aria-pressed="false">
-              <img src="/img/overlays/danmaku-previews/minimal.png" class="danmaku-style-sample" alt="" />
-              <span class="danmaku-style-name">蝴蝶结</span>
-              <span class="danmaku-style-description">居中文字，蝴蝶结装饰</span>
-            </button>
-            <button class="danmaku-style-option" type="button" data-danmaku-style="ranked" aria-pressed="false">
-              <img src="/img/overlays/danmaku-previews/ranked.png" class="danmaku-style-sample" alt="" />
-              <span class="danmaku-style-name">经典样式</span>
-              <span class="danmaku-style-description">大圆头像，昵称在气泡上方</span>
-            </button>
-            <button class="danmaku-style-option" type="button" data-danmaku-style="transparent" aria-pressed="false">
-              <img src="/img/overlays/danmaku-previews/transparent.png" class="danmaku-style-sample" alt="" />
-              <span class="danmaku-style-name">透明文字</span>
-              <span class="danmaku-style-description">无底色，文字直接叠加</span>
-            </button>
-            <button class="danmaku-style-option" type="button" data-danmaku-style="identity" aria-pressed="false">
-              <img src="/img/overlays/danmaku-previews/identity.png" class="danmaku-style-sample" alt="" />
-              <span class="danmaku-style-name">头像横卡</span>
-              <span class="danmaku-style-description">横向色块，右侧头像渐隐</span>
-            </button>
+        </div>
+        <p class="danmaku-preview-hint">切换样式无需更换链接。</p>
+      </section>
+      <details
+        id="danmakuOverlayFilters"
+        class="danmaku-settings-block danmaku-overlay-filters"
+        aria-labelledby="danmakuFiltersTitle"
+      >
+        <summary class="danmaku-settings-heading">
+          <h4 id="danmakuFiltersTitle">弹幕过滤</h4>
+          <svg class="danmaku-details-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <path
+              d="m5 8 5 5 5-5"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </summary>
+        <div class="danmaku-filter-body">
+          <div class="danmaku-filter-toolbar">
+            <p class="hint">自动保存，仅影响弹幕姬的新弹幕。</p>
+            <button id="danmakuFiltersReload" class="secondary" type="button">重新读取</button>
+          </div>
+          <div class="danmaku-filter-grid">
+            <section class="danmaku-filter-group" aria-labelledby="danmakuBlacklistTitle">
+              <div class="danmaku-filter-heading">
+                <h5 id="danmakuBlacklistTitle">用户黑名单</h5>
+                <span id="danmakuBlacklistCount" class="hint">0 人</span>
+              </div>
+              <form id="danmakuBlacklistForm" class="danmaku-filter-form">
+                <label for="danmakuBlacklistUid">用户 UID</label>
+                <div class="danmaku-filter-input-row">
+                  <input
+                    id="danmakuBlacklistUid"
+                    type="text"
+                    inputmode="numeric"
+                    pattern="[1-9][0-9]{0,19}"
+                    maxlength="20"
+                    placeholder="输入 B 站 UID"
+                    required
+                    disabled
+                  />
+                  <button class="secondary" type="submit" disabled>添加</button>
+                </div>
+              </form>
+              <div>
+                <button id="danmakuReadViewers" class="secondary" type="button" disabled>读取在线观众</button>
+              </div>
+              <div id="danmakuViewerPicker" class="danmaku-viewer-picker" hidden>
+                <div class="danmaku-filter-toolbar">
+                  <strong id="danmakuViewerTitle">选择观众</strong>
+                  <button id="danmakuCloseViewers" class="secondary" type="button">收起</button>
+                </div>
+                <p class="hint">在线榜不含所有观众，可手动输入 UID。</p>
+                <label for="danmakuViewerSearch">查找观众</label>
+                <input id="danmakuViewerSearch" type="search" placeholder="搜索昵称或 UID" />
+                <p id="danmakuViewerState" class="hint" role="status" aria-live="polite"></p>
+                <ul id="danmakuViewerList" class="danmaku-filter-list danmaku-viewer-list" aria-label="可选择的观众"></ul>
+                <button id="danmakuAddViewers" class="primary" type="button" disabled>加入黑名单</button>
+              </div>
+              <ul id="danmakuBlacklist" class="danmaku-filter-list" aria-label="已屏蔽的用户"></ul>
+              <p id="danmakuBlacklistEmpty" class="hint">暂无屏蔽用户</p>
+            </section>
+            <section class="danmaku-filter-group" aria-labelledby="danmakuKeywordTitle">
+              <div class="danmaku-filter-heading">
+                <h5 id="danmakuKeywordTitle">
+                  敏感词屏蔽
+                  <lira-help label="敏感词匹配规则">包含即屏蔽，英文不区分大小写。</lira-help>
+                </h5>
+                <span id="danmakuKeywordCount" class="hint">0 个词</span>
+              </div>
+              <form id="danmakuKeywordForm" class="danmaku-filter-form">
+                <label for="danmakuKeywordInput">屏蔽词</label>
+                <div class="danmaku-filter-input-row">
+                  <input
+                    id="danmakuKeywordInput"
+                    type="text"
+                    maxlength="100"
+                    placeholder="输入要屏蔽的文字"
+                    required
+                    disabled
+                  />
+                  <button class="secondary" type="submit" disabled>添加</button>
+                </div>
+              </form>
+              <div>
+                <button id="danmakuClearKeywords" class="secondary" type="button" disabled>清空屏蔽词</button>
+              </div>
+              <ul id="danmakuKeywords" class="danmaku-filter-list" aria-label="已添加的屏蔽词"></ul>
+              <p id="danmakuKeywordsEmpty" class="hint">暂无屏蔽词</p>
+            </section>
+          </div>
+          <p id="danmakuFiltersState" class="hint" role="status" aria-live="polite"></p>
+        </div>
+      </details>
+      <section class="danmaku-settings-block" aria-labelledby="danmakuAppearanceTitle">
+        <div class="danmaku-settings-heading">
+          <h4 id="danmakuAppearanceTitle">弹幕样式</h4>
+        </div>
+        <div class="danmaku-style-picker">
+          <section class="danmaku-style-group danmaku-style-group-fixed" aria-labelledby="danmakuFixedStyleTitle">
+            <div class="danmaku-style-group-heading">
+              <strong id="danmakuFixedStyleTitle">固定位置弹幕</strong>
+              <lira-help label="添加弹幕样式说明">想要其他样式，可通过微信发截图。</lira-help>
+            </div>
+            <div class="danmaku-style-options danmaku-style-options-fixed" role="group" aria-label="选择固定位置弹幕样式">
+              <button class="danmaku-style-option" type="button" data-danmaku-style="bubble" aria-pressed="false">
+                <img src="/img/overlays/danmaku-previews/bubble.png" class="danmaku-style-sample" alt="" />
+                <span class="danmaku-style-name">聊天气泡</span>
+              </button>
+              <button class="danmaku-style-option" type="button" data-danmaku-style="signal" aria-pressed="true">
+                <img src="/img/overlays/danmaku-previews/signal.png" class="danmaku-style-sample" alt="" />
+                <span class="danmaku-style-name">深色面板</span>
+              </button>
+              <button class="danmaku-style-option" type="button" data-danmaku-style="minimal" aria-pressed="false">
+                <img src="/img/overlays/danmaku-previews/minimal.png" class="danmaku-style-sample" alt="" />
+                <span class="danmaku-style-name">蝴蝶结</span>
+              </button>
+              <button class="danmaku-style-option" type="button" data-danmaku-style="ranked" aria-pressed="false">
+                <img src="/img/overlays/danmaku-previews/ranked.png" class="danmaku-style-sample" alt="" />
+                <span class="danmaku-style-name">经典样式</span>
+              </button>
+              <button class="danmaku-style-option" type="button" data-danmaku-style="transparent" aria-pressed="false">
+                <img src="/img/overlays/danmaku-previews/transparent.png" class="danmaku-style-sample" alt="" />
+                <span class="danmaku-style-name">透明文字</span>
+              </button>
+              <button class="danmaku-style-option" type="button" data-danmaku-style="identity" aria-pressed="false">
+                <img src="/img/overlays/danmaku-previews/identity.png" class="danmaku-style-sample" alt="" />
+                <span class="danmaku-style-name">头像横卡</span>
+              </button>
+            </div>
+          </section>
+          <section class="danmaku-style-group danmaku-style-group-random" aria-labelledby="danmakuRandomStyleTitle">
+            <div class="danmaku-style-group-heading">
+              <strong id="danmakuRandomStyleTitle">区域随机弹幕</strong>
+            </div>
+            <div
+              class="danmaku-style-options danmaku-style-options-random"
+              role="group"
+              aria-label="选择区域随机弹幕样式"
+            >
+              <button class="danmaku-style-option" type="button" data-danmaku-style="outline" aria-pressed="false">
+                <img src="/img/overlays/danmaku-previews/outline.png" class="danmaku-style-sample" alt="" />
+                <span class="danmaku-style-name">简洁白卡</span>
+              </button>
+              <button class="danmaku-style-option" type="button" data-danmaku-style="cream" aria-pressed="false">
+                <img src="/img/overlays/danmaku-previews/cream.png" class="danmaku-style-sample" alt="" />
+                <span class="danmaku-style-name">奶油气泡</span>
+              </button>
+              <button class="danmaku-style-option" type="button" data-danmaku-style="glow" aria-pressed="false">
+                <img src="/img/overlays/danmaku-previews/glow.png" class="danmaku-style-sample" alt="" />
+                <span class="danmaku-style-name">流光气泡</span>
+              </button>
+            </div>
+          </section>
+        </div>
+        <section class="danmaku-parameters" aria-labelledby="danmakuParametersTitle">
+          <div class="danmaku-filter-heading">
+            <h5 id="danmakuParametersTitle">参数调节 · 深色面板</h5>
+            <button id="danmakuResetParameters" class="secondary" type="button" disabled>恢复默认</button>
+          </div>
+          <p id="danmakuParametersHint" class="hint">各样式独立设置。</p>
+          <div class="danmaku-parameter-grid">
+            <label class="danmaku-parameter-field" for="danmakuFontFamily">
+              <span>字体</span>
+              <select id="danmakuFontFamily" disabled>
+                <optgroup label="推荐字体">
+                  <option value='"Microsoft YaHei UI"'>微软雅黑</option>
+                  <option value='"SimHei"'>黑体</option>
+                  <option value='"SimSun"'>宋体</option>
+                  <option value='"KaiTi"'>楷体</option>
+                  <option value='"YouYuan"'>幼圆</option>
+                  <option value='"Noto Sans SC"'>思源黑体</option>
+                  <option value='"PingFang SC"'>苹方</option>
+                </optgroup>
+              </select>
+              <small class="hint">需在直播软件所在电脑安装该字体。</small>
+            </label>
+            <label class="danmaku-parameter-field" for="danmakuFontSize">
+              <span>正文字号</span>
+              <input
+                id="danmakuFontSize"
+                type="number"
+                min="18"
+                max="48"
+                step="1"
+                value="30"
+                inputmode="numeric"
+                aria-describedby="danmakuFontSizeHint"
+                disabled
+              />
+              <small id="danmakuFontSizeHint" class="hint">18～48 px</small>
+            </label>
+            <label class="danmaku-parameter-field" for="danmakuTextColor">
+              <span>正文颜色 <output id="danmakuTextColorValue" for="danmakuTextColor">#EAF2FF</output></span>
+              <input id="danmakuTextColor" type="color" value="#eaf2ff" disabled />
+            </label>
+            <label id="danmakuBackgroundOpacityField" class="danmaku-parameter-field" for="danmakuBackgroundOpacity">
+              <span
+                >背景不透明度
+                <output id="danmakuBackgroundOpacityValue" for="danmakuBackgroundOpacity">100%</output></span
+              >
+              <input
+                id="danmakuBackgroundOpacity"
+                class="parameter-range"
+                type="range"
+                min="0"
+                max="100"
+                step="1"
+                value="100"
+                disabled
+              />
+            </label>
+            <label id="danmakuGiftImageField" class="danmaku-parameter-field" for="danmakuGiftImage">
+              <span>礼物通知图片</span>
+              <select id="danmakuGiftImage" disabled>
+                <option value="theme">样式插画</option>
+                <option value="gift">礼物原图</option>
+              </select>
+              <small class="hint">原图不可用时显示样式插画。</small>
+            </label>
+            <label id="danmakuScrollDirectionField" class="danmaku-parameter-field" for="danmakuScrollDirection">
+              <span>滚动方向</span>
+              <select id="danmakuScrollDirection" disabled>
+                <option value="up">从下向上（新弹幕在底部）</option>
+                <option value="down">从上向下（新弹幕在顶部）</option>
+              </select>
+            </label>
+            <label id="danmakuFullscreenDurationField" class="danmaku-fullscreen-duration danmaku-parameter-field" hidden>
+              <span>停留（秒）</span>
+              <input
+                id="danmakuFullscreenDurationSeconds"
+                type="number"
+                min="2"
+                max="30"
+                step="1"
+                value="6"
+                inputmode="numeric"
+              />
+            </label>
           </div>
         </section>
-        <section class="danmaku-style-group danmaku-style-group-random" aria-labelledby="danmakuRandomStyleTitle">
-          <div class="danmaku-style-group-heading">
-            <strong id="danmakuRandomStyleTitle">全屏随机弹幕</strong>
-            <p>在整个画面随机出现，停留后消失</p>
+        <div class="danmaku-style-footer">
+          <p id="danmakuStyleSaveState" class="danmaku-style-save-state" role="status" aria-live="polite"></p>
+          <div class="danmaku-overlay-actions">
+            <button id="danmakuReloadOverlayBtn" class="secondary" type="button" disabled>重新读取</button>
+            <button id="danmakuApplyOverlayBtn" class="primary" type="button" disabled>应用到直播画面</button>
           </div>
-          <div
-            class="danmaku-style-options danmaku-style-options-random"
-            role="group"
-            aria-label="选择全屏随机弹幕样式"
-          >
-            <button class="danmaku-style-option" type="button" data-danmaku-style="outline" aria-pressed="false">
-              <img src="/img/overlays/danmaku-previews/outline.png" class="danmaku-style-sample" alt="" />
-              <span class="danmaku-style-name">简洁白卡</span>
-              <span class="danmaku-style-description">白底圆角，只显示昵称和正文</span>
-            </button>
-            <button class="danmaku-style-option" type="button" data-danmaku-style="cream" aria-pressed="false">
-              <img src="/img/overlays/danmaku-previews/cream.png" class="danmaku-style-sample" alt="" />
-              <span class="danmaku-style-name">奶油气泡</span>
-              <span class="danmaku-style-description">奶油底色，粉边与外置头像</span>
-            </button>
-            <button class="danmaku-style-option" type="button" data-danmaku-style="glow" aria-pressed="false">
-              <img src="/img/overlays/danmaku-previews/glow.png" class="danmaku-style-sample" alt="" />
-              <span class="danmaku-style-name">流光气泡</span>
-              <span class="danmaku-style-description">昵称在框上方，经典身份色柔光</span>
-            </button>
-          </div>
-        </section>
-      </div>
-      <section class="danmaku-parameters" aria-labelledby="danmakuParametersTitle">
-        <div class="danmaku-filter-heading">
-          <h4 id="danmakuParametersTitle">参数调节 · 深色面板</h4>
-          <button id="danmakuResetParameters" class="secondary" type="button" disabled>恢复当前样式默认值</button>
-        </div>
-        <p id="danmakuParametersHint" class="hint">各样式分别记住参数。先预览效果，再应用到直播画面。</p>
-        <div class="danmaku-parameter-grid">
-          <label class="danmaku-parameter-field" for="danmakuFontFamily">
-            <span>字体</span>
-            <select id="danmakuFontFamily" disabled>
-              <optgroup label="推荐字体">
-                <option value='"Microsoft YaHei UI"'>微软雅黑</option>
-                <option value='"SimHei"'>黑体</option>
-                <option value='"SimSun"'>宋体</option>
-                <option value='"KaiTi"'>楷体</option>
-                <option value='"YouYuan"'>幼圆</option>
-                <option value='"Noto Sans SC"'>思源黑体</option>
-                <option value='"PingFang SC"'>苹方</option>
-              </optgroup>
-            </select>
-            <small class="hint"
-              >推荐字体置顶，下方列出本机已安装字体。直播画面使用 OBS 所在电脑的字体，缺失时自动回退。</small
-            >
-          </label>
-          <label class="danmaku-parameter-field" for="danmakuFontSize">
-            <span>正文字号</span>
-            <input
-              id="danmakuFontSize"
-              type="number"
-              min="18"
-              max="48"
-              step="1"
-              value="30"
-              inputmode="numeric"
-              aria-describedby="danmakuFontSizeHint"
-              disabled
-            />
-            <small id="danmakuFontSizeHint" class="hint">18～48 px</small>
-          </label>
-          <label class="danmaku-parameter-field" for="danmakuTextColor">
-            <span>弹幕文字颜色 <output id="danmakuTextColorValue" for="danmakuTextColor">#EAF2FF</output></span>
-            <input id="danmakuTextColor" type="color" value="#eaf2ff" disabled />
-            <small class="hint">调整弹幕正文颜色，昵称、身份标识和礼物通知保留原配色。</small>
-          </label>
-          <label id="danmakuBackgroundOpacityField" class="danmaku-parameter-field" for="danmakuBackgroundOpacity">
-            <span
-              >背景不透明度
-              <output id="danmakuBackgroundOpacityValue" for="danmakuBackgroundOpacity">100%</output></span
-            >
-            <input
-              id="danmakuBackgroundOpacity"
-              class="parameter-range"
-              type="range"
-              min="0"
-              max="100"
-              step="1"
-              value="100"
-              disabled
-            />
-            <small class="hint">0% 隐去底色，100% 为原样式；文字和图片保持清晰。</small>
-          </label>
-          <label id="danmakuGiftImageField" class="danmaku-parameter-field" for="danmakuGiftImage">
-            <span>礼物通知图片</span>
-            <select id="danmakuGiftImage" disabled>
-              <option value="theme">使用样式插画</option>
-              <option value="gift">使用对应礼物原图</option>
-            </select>
-            <small class="hint">原图由浏览器直接从 B 站加载；不可用时显示样式插画。</small>
-          </label>
-          <label id="danmakuFullscreenDurationField" class="danmaku-fullscreen-duration danmaku-parameter-field" hidden>
-            <span>停留（秒）</span>
-            <input
-              id="danmakuFullscreenDurationSeconds"
-              type="number"
-              min="2"
-              max="30"
-              step="1"
-              value="6"
-              inputmode="numeric"
-            />
-          </label>
         </div>
       </section>
-      <div class="danmaku-style-footer">
-        <p id="danmakuStyleSaveState" class="danmaku-style-save-state" role="status" aria-live="polite"></p>
-        <div class="danmaku-overlay-actions">
-          <button id="danmakuReloadOverlayBtn" class="secondary" type="button" disabled>读取服务器配置</button>
-          <button id="danmakuApplyOverlayBtn" class="primary" type="button" disabled>应用到直播画面</button>
-        </div>
-      </div>
     </section>
     <section class="danmaku-feature-section danmaku-compose-section" aria-labelledby="danmakuComposeTitle">
       <div class="danmaku-section-heading">

@@ -1,5 +1,6 @@
 'use strict';
 
+const { randomUUID } = require('node:crypto');
 const { performance } = require('node:perf_hooks');
 const numberBomb = require('./number-bomb');
 const gomoku = require('./gomoku');
@@ -64,6 +65,8 @@ function createGameSessionService(options = {}) {
     viewer = targetUid ? { uid: targetUid, name: targetName || '观众' } : null;
     winner = null;
     session = {
+      sessionId: randomUUID(),
+      eventRevision: 0,
       game,
       mode,
       targetUid,
@@ -85,7 +88,7 @@ function createGameSessionService(options = {}) {
     };
     if (game === 'draw-guess') session.danmaku = [];
     scheduleDrawGuessTimer();
-    publish();
+    publish(true);
     return publicSessionRaw();
   }
 
@@ -142,13 +145,15 @@ function createGameSessionService(options = {}) {
     const isStreamer = danmaku.isStreamer === true;
     if (!isStreamer) touchViewer(danmaku);
     if (session?.game === 'draw-guess') {
-      session.danmaku.push(normalizeGameDanmaku(danmaku));
-      if (session.danmaku.length > MAX_DANMAKU) session.danmaku.splice(0, session.danmaku.length - MAX_DANMAKU);
       materializeDrawGuessDeadline();
+      const item = normalizeGameDanmaku(danmaku);
+      session.danmaku.push(item);
+      if (session.danmaku.length > MAX_DANMAKU) session.danmaku.splice(0, session.danmaku.length - MAX_DANMAKU);
       const result = isStreamer ? { accepted: false } : drawGuess.submitGuess(session.state, danmaku, monotonicNow());
       if (result.accepted) session.state = result.state;
-      publish();
-      return { ...result, session: publicSessionRaw() };
+      if (result.accepted) publish(false, { item });
+      else publishPatch({ item });
+      return { ...result, game: 'draw-guess' };
     }
     materializeDrawGuessDeadline();
     if (isStreamer || !session || session.state.winner || session.state.turn !== 'viewer') return { accepted: false };
@@ -163,11 +168,20 @@ function createGameSessionService(options = {}) {
   function draw(input = {}) {
     materializeDrawGuessDeadline();
     if (!session || session.game !== 'draw-guess') return { accepted: false, reason: '你画我猜尚未开始。' };
+    if (
+      (input.sessionId && input.sessionId !== session.sessionId) ||
+      (input.round !== undefined && input.round !== session.state.round)
+    ) {
+      return { accepted: false, reason: '画笔所属回合已经结束。' };
+    }
     const result = drawGuess.applyDrawOperation(session.state, input);
     if (!result.accepted) return result;
     session.state = result.state;
     broadcast({
       type: 'game:draw',
+      sessionId: session.sessionId,
+      eventRevision: ++session.eventRevision,
+      round: session.state.round,
       operation: result.operation,
       revision: result.operation.revision,
     });
@@ -188,7 +202,7 @@ function createGameSessionService(options = {}) {
         changed = true;
       }
     }
-    if (changed) publish();
+    if (changed) publishPatch({ avatar: { uid, avatarUrl } });
     return changed;
   }
 
@@ -209,6 +223,8 @@ function createGameSessionService(options = {}) {
   function publicSessionRaw() {
     if (!session) return null;
     return {
+      sessionId: session.sessionId,
+      eventRevision: session.eventRevision,
       game: session.game,
       ...(options.isInteractionCollecting?.() ? { restartBlocked: true } : {}),
       mode: session.mode,
@@ -229,8 +245,31 @@ function createGameSessionService(options = {}) {
     };
   }
 
-  function publish() {
+  function publish(full = false, extraFields = {}) {
+    if (session?.game === 'draw-guess' && !full) {
+      publishPatch({
+        ...extraFields,
+        state: drawGuess.publicDrawGuessState(session.state, {
+          nowMs: monotonicNow(),
+          serverNowMs: wallNow(),
+          includeCanvas: false,
+        }),
+        restartBlocked: Boolean(options.isInteractionCollecting?.()),
+      });
+      return;
+    }
+    if (session) session.eventRevision += 1;
     broadcast({ type: 'game:update', session: publicSessionRaw() });
+  }
+
+  function publishPatch(fields) {
+    broadcast({
+      type: 'game:patch',
+      sessionId: session.sessionId,
+      eventRevision: ++session.eventRevision,
+      round: session.state.round,
+      ...fields,
+    });
   }
 
   function controlDrawGuess(input, player) {
@@ -269,7 +308,7 @@ function createGameSessionService(options = {}) {
         nowMs: monotonicNow(),
       });
       scheduleDrawGuessTimer();
-      publish();
+      publish(true);
       return {
         accepted: true,
         state: session.state,

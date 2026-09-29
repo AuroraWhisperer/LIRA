@@ -54,6 +54,21 @@ test('invalid setting batches do not commit earlier valid fields', async (t) => 
   assert.deepEqual(f.dirtyScopes, []);
 });
 
+test('song request blacklist persists normalized lines locally and can be cleared', async (t) => {
+  const f = fixture(t);
+  assert.equal(f.store.getSettings().songRequestBlacklist, '');
+  assert.equal((await f.post({ songRequestBlacklist: ' 78 \r\n\n不要唱\r78\r\n hello   world ' })).status, 200);
+  assert.equal(createSettingsStore(f.db).getSettings().songRequestBlacklist, '78\n不要唱\nhello world');
+  assert.deepEqual(f.dirtyScopes, []);
+  for (const invalid of [78, ['78'], null, { word: '78' }]) {
+    assert.equal((await f.post({ paused: true, songRequestBlacklist: invalid })).status, 400);
+    assert.equal(f.store.getSettings().paused, 'false');
+    assert.equal(f.store.getSettings().songRequestBlacklist, '78\n不要唱\nhello world');
+  }
+  assert.equal((await f.post({ songRequestBlacklist: ' \r\n ' })).status, 200);
+  assert.equal(createSettingsStore(f.db).getSettings().songRequestBlacklist, '');
+});
+
 test('interaction appearance persists, preserves saved values on reinitialization and rejects invalid batches atomically', async (t) => {
   const f = fixture(t);
   assert.equal(f.store.getSettings().interactionBackgroundOpacity, '100');

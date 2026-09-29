@@ -124,11 +124,11 @@ New source archives and installers contain no `public/img/bilibili-gifts/` tree 
 - Modify: `specs/overtime-gift-sale-refresh_design.md`
 - Modify: `specs/remote-gift-catalog-sync_design.md`
 - Modify: `specs/qixi-que-box-default_design.md`
-- Modify: `docs/architecture/backend/overtime.md`
-- Modify: `docs/architecture/backend/api.md`
-- Modify: `docs/architecture/frontend/app.md`
-- Modify: `docs/architecture/frontend/pages.md`
-- Modify: `docs/architecture/engineering/build.md`
+- Modify: `docs/reference/backend/overtime.md`
+- Modify: `docs/reference/backend/api.md`
+- Modify: `docs/reference/frontend/app.md`
+- Modify: `docs/reference/frontend/pages.md`
+- Modify: `docs/reference/engineering/build.md`
 - Modify: `specs/README.md`
 
 - [x] Update normative behavior, endpoint descriptions, asset ownership, and build documentation.

@@ -9,7 +9,7 @@
 The raw client detector described below has been removed. Parsing, grouping,
 amount/blind-box decisions, and finalization are now owned by the server under
 the [server-authoritative gift specification](../../../specs/server-authoritative-gift-detection_design.md).
-The client [projection service](../backend/bilibili/gift.md) retains consumer
+The client [projection service](../../reference/backend/bilibili/gift.md) retains consumer
 isolation, frozen eligibility, and idempotent delivery for server events only.
 The original decision below remains a historical record, not a local fallback.
 

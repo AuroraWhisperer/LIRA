@@ -117,9 +117,7 @@ test('top navigation keeps one moving active capsule on its outer track', () => 
   const appSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'app.js'), 'utf8');
   const tabsRule = mainTabs.match(/\.main-page-tabs\s*\{[\s\S]*?\n\}/)?.[0];
   const pillRule = workspace.match(/\.main-page-tabs::before\s*\{[\s\S]*?\n\}/)?.[0];
-  const readyRule = workspace.match(
-    /\.main-page-tabs\.indicator-ready::before\s*\{[\s\S]*?\n\}/,
-  )?.[0];
+  const readyRule = workspace.match(/\.main-page-tabs\.indicator-ready::before\s*\{[\s\S]*?\n\}/)?.[0];
   const activeRule = workspace.match(/\.main-page-tab\.active\s*\{[\s\S]*?\n\}/)?.[0];
   const desktopActiveRule = desktop.match(/body\.desktop-shell \.main-page-tab\.active\s*\{[\s\S]*?\n\}/)?.[0];
 

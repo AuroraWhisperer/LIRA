@@ -7,8 +7,8 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawn, spawnSync } = require('node:child_process');
 
-const compiler = process.env.LIRA_TEST_MAKENSIS;
-const plugins = process.env.LIRA_TEST_NSIS_PLUGINS;
+const { resolveInstallerTools } = require('../helpers/installer-tools');
+const { compiler, plugins } = resolveInstallerTools();
 const definePath = (value) => value.replaceAll('$', () => '$$');
 
 test(

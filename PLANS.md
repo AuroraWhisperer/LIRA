@@ -32,6 +32,13 @@ are simple and deterministic.
 
 - Active plans live in `specs/plans/`.
 - Completed or superseded plans live in `specs/plans/archive/`.
+- Maintain current status and remaining work in the [plan index](specs/plans/README.md).
+  `Deferred`, `Paused`, `Blocked`, and missing verification are not completion.
+- Do not create plans under `docs/` or `docs/superpowers/plans/`. Architecture,
+  implementation reference, and historical reports follow the [documentation map](docs/README.md).
+- When retiring an old plan, name its replacement or completion evidence. Preserve
+  historical test results and unresolved acceptance conditions; do not check off
+  tests that were not actually run.
 - Plans are living documents. Record material discoveries, scope changes,
   deviations, and verification results while the work proceeds.
 - Mark a plan complete only after its Done When conditions and final verification

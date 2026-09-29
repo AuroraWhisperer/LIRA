@@ -37,6 +37,13 @@ function handleDanmakuMessage(
     return { accepted: false, reason: '当前已暂停接收点歌。', command };
   }
 
+  if (
+    command.type === 'request' &&
+    (settings.songRequestBlacklist || '').split('\n').some((word) => cleanText(word) === command.songName)
+  ) {
+    return { accepted: false, reason: '点歌内容命中黑名单。', command };
+  }
+
   const defaults = context.settingsStore.getDefaultSettings();
   const cooldownSeconds = Number(settings.userCooldownSeconds || defaults.userCooldownSeconds);
   const cooldownKey = cleanText(uid) || cleanText(userName) || 'anonymous';

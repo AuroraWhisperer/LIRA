@@ -148,7 +148,7 @@ const RESPONSE_SCHEMAS = {
       session: fields('state stale startedAt endedAt'),
       items: [
         fields(
-          'id period giftId giftName giftCategory imagePath target label displayStyle textTemplate count remaining completed progress startAt',
+          'id period giftId giftName giftCategory imagePath target label displayStyle textTemplate textImagePosition textImageFormat textPendingColor textReceivedColor count todayCount remaining completed progress startAt',
         ),
       ],
     },
@@ -214,7 +214,7 @@ const EVENT_SCHEMAS = {
   },
   'game:draw': {
     scope: 'games',
-    schema: { operation: { ...fields('action clientId revision strokeId color width'), points: [POINT] } },
+    schema: { ...fields('sessionId eventRevision round'), operation: { ...fields('action clientId revision strokeId color width'), points: [POINT] } },
   },
   'wheel:update': { scope: 'wheel', schema: { state: WHEEL } },
   'lyric-state': { scope: 'lyrics', schema: { state: LYRIC_STATE } },
@@ -258,7 +258,7 @@ function select(value, schema) {
 
 function projectGameSession(session) {
   if (!session || !Object.hasOwn(GAME_STATES, session.game)) return null;
-  const result = select(session, { ...fields('game restartBlocked'), winner: fields('uid'), danmaku: [DANMAKU_ITEM] });
+  const result = select(session, { ...fields('game restartBlocked sessionId eventRevision'), winner: fields('uid'), danmaku: [DANMAKU_ITEM] });
   result.state = select(session.state, GAME_STATES[session.game]);
   if (session.game === 'draw-guess' && result.state) {
     if (result.state.answerRevealed !== true) result.state.revealedAnswer = '';
@@ -307,6 +307,17 @@ function projectWebSocketPayload(principal, payload) {
   if (payload.type === 'shutdown') return select(payload, fields('type reason'));
   if (payload.type === 'game:update') {
     return scope === 'games' ? { type: 'game:update', session: projectGameSession(payload.session) } : null;
+  }
+  if (payload.type === 'game:patch') {
+    if (scope !== 'games') return null;
+    const result = select(payload, { ...fields('type sessionId eventRevision round restartBlocked'),
+      item: DANMAKU_ITEM, avatar: fields('uid avatarUrl') });
+    if (payload.state) {
+      const { canvas, ...stateSchema } = DRAW_STATE;
+      result.state = select(payload.state, stateSchema);
+      if (result.state.answerRevealed !== true) result.state.revealedAnswer = '';
+    }
+    return result;
   }
   if (payload.type === 'interaction:update')
     return scope === 'interactions' ? { type: payload.type, state: projectInteraction(payload.state) } : null;

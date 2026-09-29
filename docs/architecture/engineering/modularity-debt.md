@@ -1,6 +1,6 @@
 # 模块化存量与函数债务
 
-日期：2026-09-13。对应[复审报告](../../client-modularity-reassessment-2026-09-13.md)批次 D；规则见[模块化规范](modularity-standard.md)。
+日期：2026-09-13。对应[复审报告](../../reports/2026-09-13-client-modularity-reassessment.md)批次 D；规则见[模块化规范](modularity-standard.md)。
 
 ## 文件登记与复审
 

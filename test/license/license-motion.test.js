@@ -51,7 +51,10 @@ function createPage(reduced = false) {
 
 test('license page loads welcome artwork styles and the motion controller', () => {
   const css = fs.readFileSync(path.join(__dirname, '../..', 'public', 'css', 'license.css'), 'utf8');
-  const artworkCss = fs.readFileSync(path.join(__dirname, '../..', 'public', 'css', 'license', 'welcome-art.css'), 'utf8');
+  const artworkCss = fs.readFileSync(
+    path.join(__dirname, '../..', 'public', 'css', 'license', 'welcome-art.css'),
+    'utf8',
+  );
   const html = fs.readFileSync(path.join(__dirname, '../..', 'public', 'pages', 'license.html'), 'utf8');
   assert.match(css, /@import url\('\.\/license\/welcome-art\.css'\);/);
   assert.match(artworkCss, /animation-play-state: var\(--license-motion-play-state, paused\)/);

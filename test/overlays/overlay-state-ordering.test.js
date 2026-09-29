@@ -342,7 +342,7 @@ for (const name of ['games', 'wheel']) {
     assert.equal(f.timers.size, 0);
   });
 
-  test(`${name} bounds REST retry attempts without reopening a healthy socket`, async () => {
+  test(`${name} bounds REST retry work without reopening a healthy socket`, async () => {
     const f = fixture(name);
     f.context.connectSocket();
     f.sockets[0].emit('open');
@@ -350,11 +350,20 @@ for (const name of ['games', 'wheel']) {
       assert.equal(f.requests.length, attempt + 1);
       f.requests[attempt].reject(new Error('offline'));
       await flush();
-      if (attempt < 4) await f.timer(350);
+      if (attempt < 4) await f.timer(name === 'games' ? Math.min(5000, 350 * 2 ** (attempt + 1)) : 350);
     }
-    assert.equal(f.timers.size, 0);
+    if (name === 'games') {
+      await f.timer(5000);
+      f.requests[5].reject(new Error('still offline'));
+      await flush();
+      assert.equal(f.timers.size, 1, 'recovery keeps one bounded retry alive');
+      assert.equal([...f.timers.values()][0].delay, 5000);
+    } else {
+      assert.equal(f.timers.size, 0);
+    }
     assert.equal(f.sockets.length, 1);
     f.message(update({ id: 'event-restored' }));
+    assert.equal(f.timers.size, 0);
     assert.equal(f.observed.at(-1).id, 'event-restored');
   });
 
@@ -381,6 +390,51 @@ for (const name of ['games', 'wheel']) {
     assert.equal(f.observed.at(-1).id, 'after-action');
   });
 }
+
+test('games merge chat, avatar and score patches without reloading or replacing the canvas', () => {
+  const f = fixture('games');
+  f.context.connectSocket();
+  vm.runInContext(
+    `drawController = { scheduleDrawDanmakuRender: () => observed.push('chat') };
+    renderDrawGuess = (state, redraw) => observed.push({ phase: state.phase, redraw });`,
+    f.context,
+  );
+  f.message({ type: 'game:update', session: {
+    sessionId: 'a', eventRevision: 1, game: 'draw-guess', danmaku: [],
+    state: { round: 1, phase: 'drawing', canvas: { strokes: [{ id: 'stroke' }] } },
+  } });
+  f.message({ type: 'game:patch', sessionId: 'a', eventRevision: 2,
+    item: { uid: '1', message: 'hello' } });
+  f.message({ type: 'game:patch', sessionId: 'a', eventRevision: 3,
+    avatar: { uid: '1', avatarUrl: 'https://i0.hdslb.com/avatar.png' } });
+  f.message({ type: 'game:patch', sessionId: 'a', eventRevision: 4,
+    state: { round: 1, phase: 'drawing', scores: [{ name: 'Viewer', score: 10 }] } });
+  assert.equal(f.read('session.danmaku').length, 1);
+  assert.equal(f.read('session.danmaku')[0].avatarUrl, 'https://i0.hdslb.com/avatar.png');
+  assert.deepEqual(f.read('session.state.canvas'), { strokes: [{ id: 'stroke' }] });
+  assert.equal(f.read('session.state.scores')[0].score, 10);
+  assert.equal(f.observed.at(-1).redraw, false);
+  assert.equal(f.requests.length, 0);
+});
+
+test('games replay chat received during reconnect and ignore older complete updates', async () => {
+  const f = fixture('games');
+  f.context.connectSocket();
+  f.message({ type: 'game:update', session: {
+    sessionId: 'a', eventRevision: 1, game: 'draw-guess', danmaku: [], state: {},
+  } });
+  const pending = f.context.loadSnapshot();
+  f.message({ type: 'game:patch', sessionId: 'a', eventRevision: 3,
+    item: { uid: '1', message: 'new message' } });
+  f.requests[0].resolve({ sessionId: 'a', eventRevision: 2, game: 'draw-guess', danmaku: [], state: {} });
+  await pending;
+  f.message({ type: 'game:update', session: {
+    sessionId: 'a', eventRevision: 1, game: 'draw-guess', danmaku: [], state: {},
+  } });
+  assert.equal(f.read('session.eventRevision'), 3);
+  assert.deepEqual(f.read('session.danmaku'), [{ uid: '1', message: 'new message' }]);
+  assert.equal(f.requests.length, 1);
+});
 
 test('games accept an authoritative empty session on later reconciliation', async () => {
   const f = fixture('games');

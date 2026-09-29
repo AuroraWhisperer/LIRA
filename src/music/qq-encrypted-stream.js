@@ -99,11 +99,13 @@ async function serveQQEncryptedStream(record, req, res, options = {}) {
   try {
     if (req.aborted || res.destroyed) return;
     const fetchImpl = options.fetchImpl || fetch;
-    upstream = await waitForUpstream(() => fetchImpl(mediaUrl, {
-      headers,
-      redirect: 'follow',
-      signal: controller.signal,
-    }));
+    upstream = await waitForUpstream(() =>
+      fetchImpl(mediaUrl, {
+        headers,
+        redirect: 'follow',
+        signal: controller.signal,
+      }),
+    );
     if (controller.signal.aborted) return;
     try {
       validateMediaUrl(upstream.url || mediaUrl);

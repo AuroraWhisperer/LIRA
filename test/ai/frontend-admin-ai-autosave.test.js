@@ -130,7 +130,7 @@ test('AI refresh cannot replace edits protected by a newer pending save', async 
   const responses = [0, 1].map(() => new Promise((resolve) => complete.push(resolve)));
   let saveCount = 0;
   const f = await createAiSettingsFixture({
-    request: (_url, options) => options.method === 'PUT' ? responses[saveCount++] : undefined,
+    request: (_url, options) => (options.method === 'PUT' ? responses[saveCount++] : undefined),
   });
   t.after(() => complete.forEach((resolve) => resolve(aiResponse(f.publicConfig))));
   f.input('xiaomiAiModel', 'first-model');

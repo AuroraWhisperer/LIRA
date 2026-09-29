@@ -15,7 +15,10 @@ test('malformed packet stops parsing and discards later packets in the same buff
 
 test('compressed packets cannot expand an oversized JSON body on the main process', () => {
   const message = createPacket(JSON.stringify({ cmd: 'DANMU_MSG', text: 'x'.repeat(9 * 1024 * 1024) }));
-  for (const [version, compress] of [[2, zlib.deflateSync], [3, zlib.brotliCompressSync]]) {
+  for (const [version, compress] of [
+    [2, zlib.deflateSync],
+    [3, zlib.brotliCompressSync],
+  ]) {
     const packet = createPacket(compress(message), version);
     assert.ok(packet.length < 16 * 1024);
     assert.deepEqual(parseBilibiliPackets(packet), []);

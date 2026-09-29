@@ -8,7 +8,10 @@ const test = require('node:test');
 const crypto = require('node:crypto');
 const { readServerFixture } = require('../../scripts/verify-server-contract');
 const fixture = readServerFixture('docs/protocol/fixtures/gift-catalog-variants.json');
-const { createRemoteGiftCatalogCache, normalizeRemoteCatalog } = require('../../src/bilibili/gift/remote-catalog-cache');
+const {
+  createRemoteGiftCatalogCache,
+  normalizeRemoteCatalog,
+} = require('../../src/bilibili/gift/remote-catalog-cache');
 const { mergeRoomCatalog, createHybridGiftSaleCatalogService } = require('../../src/bilibili/gift/hybrid-catalog');
 
 function largeArchive(size) {

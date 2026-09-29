@@ -128,10 +128,13 @@ test('QQ stream times out an upstream that never returns headers', async (t) => 
   t.mock.timers.enable({ apis: ['setTimeout'] });
   const f = streamFixture(t);
   let signal;
-  const running = f.run((_url, options) => new Promise((_resolve, reject) => {
-    signal = options.signal;
-    signal.addEventListener('abort', () => reject(signal.reason), { once: true });
-  }));
+  const running = f.run(
+    (_url, options) =>
+      new Promise((_resolve, reject) => {
+        signal = options.signal;
+        signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+      }),
+  );
   t.mock.timers.tick(30000);
   await new Promise(setImmediate);
   assert.equal(signal.aborted, true);
@@ -148,12 +151,14 @@ test('QQ stream releases the cipher and response when an upstream body stalls', 
   let signal;
   const running = f.run(async (_url, options) => {
     signal = options.signal;
-    return new Response(new ReadableStream({
-      start(controller) {
-        controller.enqueue(Buffer.alloc(1));
-        signal.addEventListener('abort', () => controller.error(signal.reason), { once: true });
-      },
-    }));
+    return new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(Buffer.alloc(1));
+          signal.addEventListener('abort', () => controller.error(signal.reason), { once: true });
+        },
+      }),
+    );
   });
   await new Promise(setImmediate);
   t.mock.timers.tick(30000);
@@ -172,10 +177,16 @@ test('QQ upstream read timeout does not expire a stream blocked by downstream ba
   let cancelled = 0;
   const running = f.run(async (_url, options) => {
     signal = options.signal;
-    return new Response(new ReadableStream({
-      pull(controller) { controller.enqueue(Buffer.alloc(65536)); },
-      cancel() { cancelled += 1; },
-    }));
+    return new Response(
+      new ReadableStream({
+        pull(controller) {
+          controller.enqueue(Buffer.alloc(65536));
+        },
+        cancel() {
+          cancelled += 1;
+        },
+      }),
+    );
   });
   await new Promise(setImmediate);
   t.mock.timers.tick(2 * 30000);
@@ -193,7 +204,13 @@ test('QQ stream continues while each upstream chunk arrives within the read time
   let bodyController;
   const running = f.run(async (_url, options) => {
     signal = options.signal;
-    return new Response(new ReadableStream({ start(controller) { bodyController = controller; } }));
+    return new Response(
+      new ReadableStream({
+        start(controller) {
+          bodyController = controller;
+        },
+      }),
+    );
   });
   await new Promise(setImmediate);
   for (let chunk = 0; chunk < 3; chunk += 1) {

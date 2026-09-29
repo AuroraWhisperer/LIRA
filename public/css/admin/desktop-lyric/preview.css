@@ -52,6 +52,10 @@
   box-shadow: 0 2px 7px rgba(22, 31, 43, 0.08);
 }
 
+.desktop-lyric-preview-stage {
+  height: clamp(560px, calc(100vh - 170px), 800px);
+}
+
 .desktop-lyric-workspace .desktop-lyric-preview-viewport:has(.desktop-lyric-preview-empty) {
   overflow-y: hidden;
 }
@@ -64,6 +68,10 @@
 .desktop-lyric-workspace .desktop-lyric-preview-timeline {
   padding-right: clamp(18px, 6%, 44px);
   padding-left: clamp(18px, 6%, 44px);
+}
+
+.desktop-lyric-workspace .desktop-lyric-preview-timeline:has(.desktop-lyric-preview-empty) {
+  padding-block: 24px;
 }
 
 .desktop-lyric-workspace .desktop-lyric-preview-row-text {

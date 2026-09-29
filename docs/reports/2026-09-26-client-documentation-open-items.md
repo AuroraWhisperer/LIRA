@@ -1,5 +1,8 @@
 # 客户端文档遗留事项核验
 
+> 历史记录：本文的发现、建议和验证仅对应文内日期/基线，不是当前缺陷或执行清单。现状见 [技术参考](../reference/README.md)，剩余工作见 [计划索引](../../specs/plans/README.md) 与 [未结项台账](../../specs/plans/open-items.md)。原结论和后续执行记录保留，不据此恢复未获批准的提案。
+
+
 - 核验日期：2026-09-26。对象：`D:/Work/Live` 当前工作区，不是已安装或已发布版本。
 - 状态：**两轮核验完成，最终保留 15 个主题。** 前 11 项为实现缺口、待评审/延期事项或复审工作；后 4 项为验收/文档证据缺口。不是 15 个已证实软件缺陷。
 - 本文是事实审查，不新增需求、不批准草案、不恢复用户已暂停的任务。仅新增本报告，保留两仓已有修改。
@@ -50,7 +53,7 @@
 
 ### 02. AI 请求审计表保留期
 
-- **原文**：[旧代码治理计划](../../specs/plans/2026-08-17-existing-code-governance-remediation.md)Deliverable 4.3，尤其 `aiRequestLogRetentionDays`、30 天建议和 dry-run/实删计数。
+- **原文**：[旧代码治理计划](../../specs/plans/archive/2026-08-17-existing-code-governance-remediation.md)Deliverable 4.3，尤其 `aiRequestLogRetentionDays`、30 天建议和 dry-run/实删计数。
 - **剩余范围**：`ai_request_logs` 的按时间清理及结果统计没有进入当前保留期策略；需在实施前明确是否仍采用旧计划建议的默认天数。
 - **实现依据**：[retention.js](../../src/storage/retention.js)的 `DEFAULT_POLICY` 和 `applyRetentionPolicies` 处理礼物、点歌、醒目留言及 cooldown，没有 AI 请求审计表；[config-store.js](../../src/ai/config-store.js)仍写该表；[database-clear-operations.js](../../src/storage/database-clear-operations.js)只有显式全量清理路径。
 - **第二轮复现**：Node 原生 SQLite `:memory:` 中放入一条 2000-01-01 的合成审计记录；经真实 `readRetentionPolicy`、dry-run 和实际 `applyRetentionPolicies` 后仍为 1 条，策略不读取 `aiRequestLogRetentionDays`，结果也没有 AI 审计计数。探针结束关闭内存库，未访问任何业务库。
@@ -94,14 +97,14 @@
 
 ### 08. J01 客户端 golden vectors 接入
 
-- **原文**：[测试维护计划](../../specs/plans/2026-09-21-test-suite-maintenance.md)J01；[审计报告](2026-09-21-test-suite-maintenance-audit.md)第 5、10 节。
+- **原文**：[测试维护计划](../../specs/plans/archive/2026-09-21-test-suite-maintenance.md)J01；[审计报告](2026-09-21-test-suite-maintenance-audit.md)第 5、10 节。
 - **剩余范围**：客户端把授权 canonical 手写 golden 常量迁移为受锁定版本及哈希保护的统一 fixture 消费，继续各测独立实现。
 - **实现依据**：[license-protocol.test.js](../../test/license/license-protocol.test.js)仍维护 `ACTIVATION_GOLDEN` / `AUTH_GOLDEN`；[lock](../../server-contract.lock.json)未登记 `docs/protocol/fixtures/device-auth-v2-vectors.json`。
 - **纠正旧阻塞理由**：服务器该文件已有实际提交 `6b2bd4d3ce38f9f7dfb68e0e4a6e4657ef9455fa`（2026-09-21）。所以只保留“客户端尚未采纳”，剔除“仍须等待服务器创建提交”。更新锁仍须审核实际固定提交，不能直接改为任意 HEAD。
 
 ### 09. Windows 强制签名与上传前验签
 
-- **原文**：[签名文档](../architecture/engineering/code-signing.md)当前状态及第五节；[旧治理计划](../../specs/plans/2026-08-17-existing-code-governance-remediation.md)Deliverable 5.1。
+- **原文**：[签名文档](../reference/engineering/code-signing.md)当前状态及第五节；[旧治理计划](../../specs/plans/archive/2026-08-17-existing-code-governance-remediation.md)Deliverable 5.1。
 - **剩余范围**：明确并落实项目强制签名策略，以及在任何上传之前拒绝无效、无签名或发布者不匹配的产物。
 - **实现依据**：[sign-windows.js](../../scripts/sign-windows.js)和[verify-windows-release.js](../../scripts/verify-windows-release.js)已经存在；[package.json](../../package.json)未接入相应签名钩子/发布者配置，[publish-release.js](../../scripts/publish-release.js)仍调用 builder 的发布流程，没有串入该验签脚本。
 - **边界**：现有 SHA/远端资产一致性核验不是发布者认证；builder 可能从外部环境取得签名配置，因此本报告不声称所有现有安装包都未签名，也不推断用户是否已有证书。能确认缺少的是仓库入口的强制/上传前验签门禁，本次不执行签名或发布。
@@ -139,7 +142,7 @@
 
 ### 14. 使用指南成功状态与发布确认
 
-- **原文**：[补充方案](../客户端使用文档补充方案.md)第十章、附录 D.2；[复核报告](../usage-guide-review-2026-09-22.md)。
+- **原文**：[补充方案](../../specs/plans/2026-09-22-usage-guide-supplement.md)第十章、附录 D.2；[复核报告](2026-09-22-usage-guide-review.md)。
 - **剩余证据**：与真实操作一致的登录/连接、实际歌词、抽奖结果、AI 成功反馈、真实同步及更新成功状态、OBS 添加来源；隔离档案的提醒/恢复与游戏/结算配图按 D.2 补齐。独立网页文档的发布位置及正式链接仍需确认。
 - **已剔除范围**：不能把正式手册 HTML、粉丝档案章节、动态抽奖说明等整体写成没落地；[toolbox](../../public/pages/admin/toolbox/usage-guide-toolbox.html)、[FAQ](../../public/pages/admin/toolbox/usage-guide-faq.html)等已经存在实际内容。
 - **边界**：旧配图说明中的 `getGlobalSnapshot` 报错不直接作为当前产品 bug；这里要求的是成功流程证据，而非未经复现地安排修复。演示截图可作操作说明，但不能替代实测。
@@ -158,7 +161,7 @@
 - 2026-09-17 的 15 项旧“明确修复候选”：有[后续修复记录](../../specs/plans/archive/2026-09-18-current-review-remediation.md)，不能整表复制；礼物数量上限、IPC/登录时序和 Admin Host 等还有 2026-09-25 后续处理。未取得真实业务证据的旧条件风险不列为已证实缺陷。
 - 首次引导、云端同步、歌词调度、公共目录/盲盒映射、查询优化、手册 HTML 等：以当前 owner/消费者为准，不凭归档遗漏或未勾选状态重复排期。
 - 历史“全套门禁失败/缺索引”：不等于当前失败，已被后续完整验证或当前索引覆盖；不沿用旧测试计数。
-- GitHub Check 工作流托管启用：现行[构建文档](../architecture/engineering/build.md)明确已经移除该工作流，改为 Windows/Node 24 本地发布前验证，不恢复旧的启用任务。
+- GitHub Check 工作流托管启用：现行[构建文档](../reference/engineering/build.md)明确已经移除该工作流，改为 Windows/Node 24 本地发布前验证，不恢复旧的启用任务。
 - 历史会话撤销确认：初稿曾按 2026-09-25 计划保留；第二轮发现重整后的[最终审计汇总](../../../lira-audit/05-第五次两端三轮审计-2026-09-25/final-audit-summary.md)第 3.3 节已按用户决定关闭该待办，因此从最终清单删除，不恢复用户已经取消的事项。该决定不等于证明历史会话有效或无效。
 - J01 的“服务器还没提交”、农历“完全不支持”、所有 Electron 窗口“未沙箱化”：均收窄为第 08、06、11 项的真实剩余范围。
 - `pending` 运行状态、引导“下一步”、错误提示“未完成”、正常重连重试、可选非目标，以及为将来假设条件准备的建议：不自动成为开发待办。

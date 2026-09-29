@@ -22,11 +22,11 @@ The review reproduced an older HTTP state response replacing a newer WebSocket s
 
 | Area | Owners | Consumers/contracts | Protection |
 | --- | --- | --- | --- |
-| Admin state/drafts | `public/js/admin/state.js`, `gift-frame.js` | Admin events, `docs/architecture/frontend/comms.md` | new state-ordering and draft behavior tests |
+| Admin state/drafts | `public/js/admin/state.js`, `gift-frame.js` | Admin events, `docs/reference/frontend/comms.md` | new state-ordering and draft behavior tests |
 | Snapshot/rendering | `src/storage/song-store.js`, `src/server/domain-services.js`, Admin state/queue/app | unchanged `/api/state` and snapshot fields | song-store, Admin runtime and new render tests |
-| Playback writes | `public/js/playback/state/`, `features/`, `operations/`, `controller.js` | `docs/architecture/frontend/playback.md` | playback controller, queue, persistence and provider tests |
-| Gift persistence | `src/bilibili/gift/`, `src/storage/` | `docs/architecture/backend/bilibili/gift.md` | projection/import/sync tests, module boundaries |
-| Optional editors | `public/js/admin/app.js`, `toolbox-navigation.js`, tool modules | toolbox navigation and `docs/architecture/frontend/app.md` | toolbox, opening, clock and lifecycle tests |
+| Playback writes | `public/js/playback/state/`, `features/`, `operations/`, `controller.js` | `docs/reference/frontend/playback.md` | playback controller, queue, persistence and provider tests |
+| Gift persistence | `src/bilibili/gift/`, `src/storage/` | `docs/reference/backend/bilibili/gift.md` | projection/import/sync tests, module boundaries |
+| Optional editors | `public/js/admin/app.js`, `toolbox-navigation.js`, tool modules | toolbox navigation and `docs/reference/frontend/app.md` | toolbox, opening, clock and lifecycle tests |
 
 ## Milestones
 

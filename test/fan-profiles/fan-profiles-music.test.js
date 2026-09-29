@@ -63,7 +63,10 @@ test('song category statistics count arbitrary valid names as ordinary keys', (t
   assert.equal(stats.categories.constructor, 1);
   assert.equal(stats.categories.toString, 1);
   assert.equal(stats.categories['粤语'], 1);
-  assert.deepEqual(JSON.parse(JSON.stringify(stats.categories)), JSON.parse('{"__proto__":2,"constructor":1,"toString":1,"粤语":1}'));
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(stats.categories)),
+    JSON.parse('{"__proto__":2,"constructor":1,"toString":1,"粤语":1}'),
+  );
 });
 
 test('A04: duplicate callbacks archive once, while the next real request gets a new stable source', (t) => {

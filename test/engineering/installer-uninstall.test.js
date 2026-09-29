@@ -8,8 +8,8 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { NsisScriptGenerator } = require('app-builder-lib/out/targets/nsis/nsisScriptGenerator');
 
-const compiler = process.env.LIRA_TEST_MAKENSIS;
-const plugins = process.env.LIRA_TEST_NSIS_PLUGINS;
+const { resolveInstallerTools } = require('../helpers/installer-tools');
+const { compiler, plugins } = resolveInstallerTools();
 const quote = (value) => value.replaceAll('$', () => '$$');
 const installerPath = path.join(__dirname, '../../build/installer.nsh');
 
@@ -159,6 +159,7 @@ test(
           assert.equal(writeUninstaller.error, undefined);
           assert.equal(writeUninstaller.status, 0);
           const run = spawnSync(uninstaller, ['/S', ...(updated ? ['--updated'] : []), `_?=${installDir}`], {
+            cwd: root,
             // NSIS requires the final _?= path unquoted, including embedded spaces.
             windowsVerbatimArguments: true,
             windowsHide: true,

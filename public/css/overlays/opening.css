@@ -1,3 +1,5 @@
+@import url('./opening-layout.css');
+
 :root {
   --opening-night: #1d151c;
   --opening-cocoa: #35252e;
@@ -129,36 +131,6 @@ body {
   mask-image: linear-gradient(120deg, transparent 15%, black 42%, transparent 80%);
 }
 
-.opening-copy {
-  position: absolute;
-  z-index: 3;
-  top: 24%;
-  left: 9%;
-  width: 43%;
-  text-shadow: 0 0.42cqw 1.25cqw var(--opening-shadow);
-}
-
-.opening-copy h1 {
-  width: 100%;
-  max-width: none;
-  margin: 0.94cqw 0 0.52cqw;
-  color: var(--opening-text);
-  font-size: var(--opening-title-size, 5.4cqw);
-  font-weight: 800;
-  letter-spacing: 0.02em;
-  line-height: 1.12;
-  white-space: nowrap;
-}
-
-.opening-copy p {
-  margin: 0;
-}
-.opening-copy #openingSubtitle {
-  color: var(--opening-pink-soft);
-  font-size: 1.67cqw;
-  letter-spacing: 0.18em;
-}
-
 .track {
   position: relative;
   width: 39.583cqw;
@@ -237,12 +209,6 @@ body {
   stroke-width: 3;
   vector-effect: non-scaling-stroke;
   filter: drop-shadow(0 0 5px rgba(255, 226, 168, 0.5));
-}
-
-.opening-name {
-  color: rgba(255, 248, 251, 0.78);
-  font-size: 1.3cqw;
-  letter-spacing: 0.12em;
 }
 
 .opening-character {
@@ -365,27 +331,6 @@ body {
   animation: eq-smooth var(--eq-duration, 3s) ease-in-out var(--eq-delay, 0s) infinite alternate;
   will-change: transform, opacity;
 }
-.opening-footer {
-  position: absolute;
-  z-index: 6;
-  right: 5%;
-  bottom: 4%;
-  color: rgba(255, 226, 168, 0.7);
-  font-size: 0.94cqw;
-  letter-spacing: 0.38em;
-}
-.opening-debug {
-  position: absolute;
-  z-index: 9;
-  left: 2%;
-  bottom: 2%;
-  margin: 0;
-  color: var(--opening-gold);
-  font:
-    0.625cqw ui-monospace,
-    monospace;
-}
-
 .opening-stage.is-paused *,
 .opening-stage.is-paused *::before,
 .opening-stage.is-paused *::after {

@@ -373,6 +373,54 @@ html.admin-starting .admin-startup-status {
   position: fixed;
   inset: 58px 0 0;
   display: grid;
+  place-content: center;
   place-items: center;
+  gap: var(--spacing-md);
   color: var(--muted);
+}
+
+.admin-startup-logo {
+  display: block;
+  filter: drop-shadow(0 8px 12px rgba(180, 35, 24, 0.16));
+}
+
+.admin-startup-bar {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  animation: admin-startup-equalizer 1200ms ease-in-out infinite;
+}
+
+.admin-startup-bar:nth-child(1) {
+  animation-delay: -800ms;
+}
+
+.admin-startup-bar:nth-child(2) {
+  animation-delay: -400ms;
+}
+
+@keyframes admin-startup-equalizer {
+  0%,
+  100% {
+    transform: scaleY(0.24);
+  }
+  25% {
+    transform: scaleY(1);
+  }
+  50% {
+    transform: scaleY(0.4);
+  }
+  75% {
+    transform: scaleY(0.8);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-startup-bar {
+    animation: none;
+    transform: scaleY(0.55);
+  }
+
+  .admin-startup-bar:nth-child(2) {
+    transform: scaleY(0.85);
+  }
 }

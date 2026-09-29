@@ -20,7 +20,7 @@
 ## Ownership and compatibility
 
 - Owner: `scripts/run-tests.js`; direct consumers: `package.json` and tests.
-- Contract: `docs/architecture/engineering/test.md`; related consumers: architecture routing, modularity registry, active specifications and documentation links.
+- Contract: `docs/reference/engineering/test.md`; related consumers: architecture routing, modularity registry, active specifications and documentation links.
 - Domain folders group frontend/backend tests for the same feature together. Shared helpers and executable fixtures retain their current locations and ownership.
 - Historical reports retain their recorded results; update navigable local file references without claiming a fresh historical execution.
 

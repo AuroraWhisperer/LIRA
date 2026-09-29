@@ -13,7 +13,7 @@
 The v4.1.1 preservation section runs before electron-builder's `CHECK_APP_RUNNING`. Its `liraWaitForAppExit` only asks interactive users to close the application manually. The built-in close flow is therefore unreachable until the user has already closed LIRA. Reusing that flow directly would also permit forced termination before application cleanup finishes.
 
 - Owner: `build/installer-data.nsh`; caller: `build/installer.nsh` preservation section.
-- Contracts: `docs/architecture/engineering/build.md` section 6 and ADR-0015.
+- Contracts: `docs/reference/engineering/build.md` section 6 and ADR-0015.
 - Consumers: manual installation and silent electron-updater installation.
 - Existing verification: installer migration, directory, uninstall, desktop data, updater and Electron shutdown tests.
 

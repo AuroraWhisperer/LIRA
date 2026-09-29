@@ -9,8 +9,23 @@
   </head>
   <body class="danmaku-overlay-body" data-style="signal">
     <aside id="danmakuPreviewControls" class="danmaku-preview-controls" aria-label="弹幕样式预览" hidden>
-      <h1>弹幕样式预览</h1>
-      <p>本地示例，选一个样式即可查看。</p>
+      <h1>弹幕画布</h1>
+      <p>布置弹幕在直播画面中的位置。</p>
+      <section class="canvas-settings" aria-labelledby="canvasSettingsTitle">
+        <h2 id="canvasSettingsTitle">直播画布</h2>
+        <label>分辨率<select id="canvasPreset">
+          <option value="1280x720">1280 × 720 · 720p</option>
+          <option value="1920x1080" selected>1920 × 1080 · 1080p</option>
+          <option value="2560x1440">2560 × 1440 · 1440p</option>
+          <option value="3840x2160">3840 × 2160 · 4K</option>
+          <option value="1080x1920">1080 × 1920 · 竖屏</option>
+          <option value="custom">自定义</option>
+        </select></label>
+        <div class="canvas-fields">
+          <label>画布宽度<input id="canvasWidth" type="number" min="320" max="7680" step="1" /></label>
+          <label>画布高度<input id="canvasHeight" type="number" min="320" max="7680" step="1" /></label>
+        </div>
+      </section>
       <div class="danmaku-preview-choices" role="group" aria-label="固定位置弹幕">
         <h2>固定位置</h2>
         <button type="button" data-preview-style="bubble" aria-pressed="false">
@@ -38,8 +53,8 @@
           <span>头像横卡<small>横向色块，右侧头像渐隐</small></span>
         </button>
       </div>
-      <div class="danmaku-preview-choices" role="group" aria-label="全屏随机弹幕">
-        <h2>全屏随机</h2>
+      <div class="danmaku-preview-choices" role="group" aria-label="区域随机弹幕">
+        <h2>区域随机</h2>
         <button type="button" data-preview-style="outline" aria-pressed="false">
           <img src="/img/overlays/danmaku-previews/outline.png" alt="" />
           <span>简洁白卡<small>白底圆角，只显示昵称和正文</small></span>
@@ -53,30 +68,76 @@
           <span>流光气泡<small>昵称在框上方，经典身份色柔光</small></span>
         </button>
       </div>
-      <p class="danmaku-preview-note">
-        总督、提督、舰长、主播、普通观众<br />文字、表情包与送礼通知<br />共 6 条示例，可滚动查看全部。<br />账号发送的感谢按普通弹幕显示。<br />随机样式在此静态排布，直播时随机出现。<br />不循环、不影响直播。
-      </p>
+      <section class="canvas-settings" aria-labelledby="regionSettingsTitle">
+        <h2 id="regionSettingsTitle">弹幕区域</h2>
+        <div class="canvas-fields">
+          <label>区域宽度<input id="regionWidth" type="number" min="64" step="1" /></label>
+          <label>区域高度<input id="regionHeight" type="number" min="64" step="1" /></label>
+          <label>水平位置 X<input id="regionX" type="number" min="0" step="1" /></label>
+          <label>垂直位置 Y<input id="regionY" type="number" min="0" step="1" /></label>
+        </div>
+        <div class="canvas-actions">
+          <button id="regionCenter" type="button">居中</button>
+          <button id="regionFill" type="button">铺满画布</button>
+          <button id="regionReset" type="button">恢复默认</button>
+        </div>
+        <p id="regionHint">拖动区域移动，拖动边框调整大小。单位：px。</p>
+      </section>
+      <section class="canvas-settings" aria-labelledby="appearanceTitle">
+        <h2 id="appearanceTitle">样式参数</h2>
+        <label>字体<select id="previewFontFamily"><option value="default">样式默认</option><option value="sans">微软雅黑</option><option value="serif">宋体</option><option value="kai">楷体</option></select></label>
+        <div class="canvas-fields">
+          <label>画布字号<input id="previewFontSize" type="number" step="1" /></label>
+          <label>正文颜色<input id="previewTextColor" type="color" /></label>
+          <label id="previewBackgroundField">背景不透明度<input id="previewBackgroundOpacity" type="number" min="0" max="100" step="1" /></label>
+          <label id="previewGiftField">礼物图片<select id="previewGiftImage"><option value="theme">样式插画</option><option value="gift">礼物原图</option></select></label>
+          <label id="previewDirectionField">滚动方向<select id="previewScrollDirection"><option value="up">向上</option><option value="down">向下</option></select></label>
+          <label id="previewDurationField">停留秒数<input id="previewDuration" type="number" min="2" max="30" step="1" /></label>
+        </div>
+        <button id="previewAppearanceReset" type="button">恢复当前样式参数</button>
+      </section>
+      <p class="danmaku-preview-note">本地示例每 1.5 秒一条，循环演示。修改仅为草稿，应用后更新直播画面。</p>
     </aside>
     <div id="danmakuPreviewViewport" class="danmaku-overlay-viewport">
-      <p id="danmakuPreviewDescription" class="danmaku-preview-description" role="status"></p>
-      <main class="danmaku-signal-stage">
-        <header class="danmaku-signal-header" aria-label="弹幕接收状态">
-          <span class="danmaku-signal-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
-          <span class="danmaku-signal-copy">
-            <small>ROOM SIGNAL / CHAT</small>
-            <strong id="danmakuConnectionState">正在连接弹幕</strong>
-          </span>
-          <span id="danmakuMessageCount" class="danmaku-signal-count">00</span>
-        </header>
-        <section
-          id="danmakuFeed"
-          class="draw-danmaku-feed"
-          role="log"
-          aria-live="polite"
-          aria-relevant="additions"
-        ></section>
-      </main>
+      <div class="canvas-toolbar">
+        <p id="danmakuPreviewDescription" role="status"></p>
+        <span id="canvasZoom"></span>
+        <button id="previewRefresh" type="button">重新播放</button>
+        <button id="previewClose" type="button" hidden>关闭</button>
+      </div>
+      <div id="danmakuCanvasHost" class="danmaku-canvas-space">
+        <div id="danmakuCanvas" class="danmaku-canvas">
+          <div id="danmakuSelection" class="danmaku-selection" tabindex="0" role="group" aria-label="弹幕区域，方向键微调，Shift 加速">
+            <span class="selection-label" id="selectionLabel"></span>
+            <i data-handle="nw"></i><i data-handle="n"></i><i data-handle="ne"></i><i data-handle="e"></i>
+            <i data-handle="se"></i><i data-handle="s"></i><i data-handle="sw"></i><i data-handle="w"></i>
+          </div>
+          <div id="danmakuRegion" class="danmaku-region">
+            <main class="danmaku-signal-stage">
+              <header class="danmaku-signal-header" aria-label="弹幕接收状态">
+                <span class="danmaku-signal-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+                <span class="danmaku-signal-copy">
+                  <small>ROOM SIGNAL / CHAT</small>
+                  <strong id="danmakuConnectionState">正在连接弹幕</strong>
+                </span>
+                <span id="danmakuMessageCount" class="danmaku-signal-count">00</span>
+              </header>
+              <section
+                id="danmakuFeed"
+                class="draw-danmaku-feed"
+                role="log"
+                aria-live="polite"
+                aria-relevant="additions"
+              ></section>
+            </main>
+          </div>
+        </div>
+      </div>
     </div>
+    <footer class="canvas-footer">
+      <div><p id="previewSaveState" role="status">本地草稿</p><small id="canvasSourceHint"></small></div>
+      <button id="previewApply" type="button" disabled>应用到直播画面</button>
+    </footer>
     <script type="module" src="/js/overlays/danmaku.js?v=20260901-01"></script>
   </body>
 </html>

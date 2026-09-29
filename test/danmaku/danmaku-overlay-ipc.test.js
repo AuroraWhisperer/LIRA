@@ -124,10 +124,18 @@ test('overlay IPC gates sender, validates parameters and allowlists the server r
     reply = { ...reply, overlayUrl };
     assert.equal((await read(event)).error, 'INVALID_RESPONSE');
   }
-  const styleOptions = { cream: { fontSize: 24, fontFamily: 'kai', backgroundOpacity: 0, giftImage: 'gift' } };
+  const styleOptions = {
+    cream: { fontSize: 24, fontFamily: 'kai', backgroundOpacity: 0, giftImage: 'gift' },
+    signal: { scrollDirection: 'down' },
+  };
   reply = { ...expected, style: 'cream', styleOptions, token: 'private' };
   assert.deepEqual(await update(event, reply), { ...expected, style: 'cream', styleOptions });
   assert.deepEqual(writes.at(-1), { style: 'cream', fullscreenDurationSeconds: 12, styleOptions });
+  const layout = require('../../src/shared/danmaku-layout').createLayout();
+  reply = { ...reply, layout };
+  assert.deepEqual((await update(event, reply)).layout, layout);
+  assert.deepEqual(writes.at(-1).layout, layout);
+  assert.equal((await update(event, { ...reply, layout: { ...layout, contentScale: '1' } })).error, 'INVALID_OVERLAY_LAYOUT');
   const count = writes.length;
   assert.equal(
     (await update(event, { ...reply, styleOptions: { cream: { fontSize: 41 } } })).error,

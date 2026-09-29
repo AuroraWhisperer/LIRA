@@ -1,6 +1,14 @@
 'use strict';
 
-function createDesktopUpdateController({ app, updateManager, updateRuntime, getRuntime, getMainWindow, writeLog, beforeInstall = async () => {} }) {
+function createDesktopUpdateController({
+  app,
+  updateManager,
+  updateRuntime,
+  getRuntime,
+  getMainWindow,
+  writeLog,
+  beforeInstall = async () => {},
+}) {
   function sendUpdateState() {
     const mainWindow = getMainWindow();
     if (!mainWindow || mainWindow.isDestroyed()) return;

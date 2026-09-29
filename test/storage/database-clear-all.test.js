@@ -23,7 +23,7 @@ describe('clearAllData Matrix', () => {
   let tempDir;
 
   beforeEach(() => {
-    tempDir = path.join(process.cwd(), 'test', 'tmp', `clear-all-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+    tempDir = path.join(process.cwd(), 'tmp', 'test', `clear-all-${Date.now()}-${Math.random().toString(36).slice(2)}`);
     fs.mkdirSync(tempDir, { recursive: true });
     databases = createDatabases({ dataDir: tempDir });
   });

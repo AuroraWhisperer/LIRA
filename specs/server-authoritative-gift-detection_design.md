@@ -18,13 +18,15 @@ server's latest cursor and does not replay older gifts.
 
 The Accepted
 [`gift-ledger-projection-sync_design.md`](gift-ledger-projection-sync_design.md)
-adds source-partitioned storage, complete historical bootstrap, epoch validation,
-and local all-time queries for a capable client/server pair. It supersedes only
-the fresh-client no-replay baseline in that capability mode; it does not rewrite
-this document's original behavior or weaken the live Device DTO, server
-authority, consumer-idempotency, or non-gift Bilibili requirements. When the
-capability is absent, the client retains compatible live delivery and explicitly
-reports `LEGACY_PARTIAL` rather than claiming complete history.
+defines current source-partitioned storage and recovery. It replaces the former
+JSON cursor store with transactional SQLite progress and adds complete historical
+bootstrap, epoch validation and local all-time queries for a capable client/server
+pair. [ADR-0021](../docs/architecture/adr/0021-atomic-live-gift-progress.md) refines
+healthy live reception so contiguous finals also commit their cursor. The live
+Device DTO, server authority, consumer idempotency and non-gift Bilibili requirements
+remain. Without history capability, the client still uses source-partitioned
+SQLite progress but retains the no-replay baseline and reports `LEGACY_PARTIAL`
+rather than claiming complete history.
 
 ## Requirements
 
@@ -171,15 +173,17 @@ selector; unknown, ambiguous, name-only custom, and legacy history use null.
   invalid DNS labels, bounds response and SSE buffers, and keeps the Device token
   inside the main process.
 - The remote gift controller owns exactly one stream, reconnect backoff,
-  backfill serialization, and cleanup. Initial startup obtains a no-replay
-  baseline, opens the stream, and then pulls after that cursor so the
-  baseline-to-subscription race is recovered. Reconnect opens the stream first
-  and then pulls after the durable cursor, so events finalized during recovery
-  are either pulled or streamed and are harmlessly deduplicated.
-- The cursor store atomically replaces a small local JSON file after each
-  successfully imported final event. Its source key is derived locally from the
-  configured server and licensed Streamer so a different tenant cannot inherit
-  an unrelated cursor.
+  serialized recovery, and cleanup. With history capability it discovers the
+  epoch, resumes or completes bootstrap, then opens the stream and catches up
+  from durable progress. A server without that capability uses the no-replay
+  baseline in `LEGACY_PARTIAL`. Reconnect opens the stream before catch-up so
+  events finalized during recovery are pulled or streamed and deduplicated.
+- `gift-sync-store` persists progress in the existing source-partitioned gift
+  SQLite database. Bootstrap pages, catch-up pages and admitted contiguous LIVE
+  finals commit rows and progress together. Live consumers run only after commit;
+  historical bootstrap remains side-effect-free. The former JSON cursor file is
+  not the current state source. Source identity and stale-work fencing follow the
+  projection-sync specification.
 - The local processed-event importer projects `progress` and `final` directly
   into the current gift ledger using an event-derived platform key. It freezes
   local consumer eligibility on the first observed phase, dispatches final
@@ -208,8 +212,9 @@ selector; unknown, ambiguous, name-only custom, and legacy history use null.
   revisions. Custom edits use the authenticated settings scope, and the client
   cannot upload an official relation or claim that a detector adopted a version.
 - The server publishes no more than two Device messages per detected gift group.
-  Keepalive comments contain no event or identity data. Final recovery is pull
-  based and happens only at startup/reconnect, using pages of at most 200.
+  Keepalive comments contain no event or identity data. Final recovery and
+  periodic reconciliation use cursor-pull pages of at most 200; admission and
+  scheduling follow the failure and ordering semantics below.
 - Neither event payloads nor credentials are logged by the new client
   controller. The renderer receives the existing local snapshots and WebSocket
   events only; it never receives the Device token or remote SSE handle.
@@ -221,14 +226,16 @@ selector; unknown, ambiguous, name-only custom, and legacy history use null.
 - The final ledger transition and final outbox cursor are one SQLite
   transaction. Process failure after commit but before SSE publication is
   recovered by cursor pull.
-- A client crash after local import but before cursor persistence replays the
-  same public event ID; the local importer treats it as already final and does
-  not re-run consumers, then advances the cursor.
+- A healthy live final and its durable cursor commit in one local SQLite
+  transaction. Failure before commit saves neither; restart after commit uses
+  the saved cursor. Duplicate final delivery does not re-run consumers.
 - SSE is an acceleration path, not the source of recovery truth. After bootstrap
   and stream-epoch validation, while the controller is clean `LIVE`, a contiguous
-  final event is projected immediately through the idempotent live importer;
-  cursor pull remains the recovery and continuity path, and progress is
-  intentionally not replayed.
+  final event is committed immediately with its durable cursor through the
+  existing transaction, without an additional event-triggered pull. Periodic
+  reconciliation, startup, reconnect and gaps still use cursor pull; progress
+  is intentionally not replayed. See the projection-sync specification for
+  admission, validation-time and timer semantics.
 - Bilibili REST/WebSocket disconnects and server downtime before ingress still
   have no upstream historical replay guarantee. This design does not claim
   zero-loss Bilibili ingestion.
@@ -265,7 +272,8 @@ selector; unknown, ambiguous, name-only custom, and legacy history use null.
    UID, room/Streamer identity, command/combo/platform identity, raw JSON, or
    credentials.
 5. While the controller is clean `LIVE`, a validated contiguous final SSE is
-   projected immediately; a disconnect after final commit is recovered in cursor
+   committed immediately with its cursor and without an extra GET; a disconnect
+   after final commit is recovered in cursor
    order without double local statistics, overtime settlement, history, snapshot,
    or `gift:frame`.
 6. A fresh client establishes a latest-cursor baseline and does not replay old

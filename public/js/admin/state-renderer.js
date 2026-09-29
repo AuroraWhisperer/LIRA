@@ -37,6 +37,10 @@ export function createAdminStateRenderer({
 
 function fillSettings(settings) {
   formsService.fillForm(settings);
+  for (const key of ['danmakuMonitoringEnabled', 'giftMonitoringEnabled']) {
+    const toggle = document.getElementById(key);
+    if (toggle && !toggle.disabled) toggle.checked = (settings[key] ?? settings.enableBilibili) !== 'false';
+  }
   const giftToggle = document.getElementById('giftDetectToggle');
   if (giftToggle) giftToggle.checked = settings.enableGiftSprint !== 'false';
   const autoUpdateToggle = document.getElementById('autoUpdateToggle');

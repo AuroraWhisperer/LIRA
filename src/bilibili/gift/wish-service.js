@@ -26,6 +26,8 @@ const GUARD_WISH_GIFTS = [
 ];
 const PERIODS = new Set(['long', 'day', 'session']);
 const DISPLAY_STYLES = new Set(['card', 'text', 'circle']);
+const TEXT_IMAGE_POSITIONS = new Set(['none', 'before', 'after', 'inline']);
+const TEXT_IMAGE_FORMATS = new Set(['animated', 'static']);
 
 function createGiftWishService({ store, gifts, catalog, getRoomId, now = Date.now, readRoom }) {
   const sessions = createGiftWishSession({ store, now, readRoom });
@@ -55,15 +57,17 @@ function createGiftWishService({ store, gifts, catalog, getRoomId, now = Date.no
     const { source, revision } = scope();
     const session = await sessions.get(source.sourceId, String(getRoomId() || ''));
     scope(revision);
-    const asOf = new Date(now()).toISOString();
-    const day = new Date(now() + 8 * 3600000).toISOString().slice(0, 10);
+    const timestamp = now();
+    const asOf = new Date(timestamp).toISOString();
+    const day = new Date(timestamp + 8 * 3600000).toISOString().slice(0, 10);
+    const todayStart = shanghaiDayStart(day);
     const artwork = new Map(catalogItems().map((gift) => [gift.variantId || String(gift.id), gift.imagePath]));
     const items = store.list(source.sourceId).map((wish) => {
       let start;
       if (wish.period === 'long') {
         start = wish.created_at;
       } else if (wish.period === 'day') {
-        start = shanghaiDayStart(day);
+        start = todayStart;
       } else {
         start = session.state === 'offline' || session.ended_at ? null : session.started_at;
       }
@@ -80,8 +84,13 @@ function createGiftWishService({ store, gifts, catalog, getRoomId, now = Date.no
         label: wish.label,
         displayStyle: wish.display_style,
         textTemplate: wish.text_template,
+        textImagePosition: wish.text_image_position,
+        textImageFormat: wish.text_image_format,
+        textPendingColor: wish.text_pending_color,
+        textReceivedColor: wish.text_received_color,
         createdAt: wish.created_at,
         count,
+        todayCount: wish.period === 'day' ? count : store.count(source.sourceId, wish, todayStart, asOf),
         remaining: Math.max(0, wish.target - count),
         completed: count >= wish.target,
         progress: Math.min(100, Math.floor((count / wish.target) * 100)),
@@ -116,10 +125,20 @@ function createGiftWishService({ store, gifts, catalog, getRoomId, now = Date.no
       throw invalid('请选择有效的展示样式。');
     if (
       input.textTemplate !== undefined &&
-      (typeof input.textTemplate !== 'string' || [...input.textTemplate].length > 200)
+      (typeof input.textTemplate !== 'string' || [...input.textTemplate].length > 240)
     )
-      throw invalid('展示文字最多 200 个字。');
+      throw invalid('展示文字最多 240 个字。');
     const textTemplate = input.textTemplate?.trim();
+    if (input.textImagePosition !== undefined && !TEXT_IMAGE_POSITIONS.has(input.textImagePosition))
+      throw invalid('请选择有效的礼物图片位置。');
+    if (input.textImageFormat !== undefined && !TEXT_IMAGE_FORMATS.has(input.textImageFormat))
+      throw invalid('请选择有效的礼物图片格式。');
+    for (const key of ['textPendingColor', 'textReceivedColor']) {
+      if (input[key] !== undefined && (typeof input[key] !== 'string' || !/^(?:#[\da-f]{6})?$/i.test(input[key])))
+        throw invalid('文字颜色无效，请用取色器重新选择。');
+    }
+    const textPendingColor = input.textPendingColor?.toLowerCase();
+    const textReceivedColor = input.textReceivedColor?.toLowerCase();
     if (input.id !== undefined) {
       if (
         typeof input.id !== 'string' ||
@@ -128,6 +147,10 @@ function createGiftWishService({ store, gifts, catalog, getRoomId, now = Date.no
           label,
           displayStyle: input.displayStyle,
           textTemplate,
+          textImagePosition: input.textImagePosition,
+          textImageFormat: input.textImageFormat,
+          textPendingColor,
+          textReceivedColor,
         })
       )
         throw invalid('这条许愿已不存在，请刷新。');
@@ -150,6 +173,10 @@ function createGiftWishService({ store, gifts, catalog, getRoomId, now = Date.no
       label,
       displayStyle: input.displayStyle || 'card',
       textTemplate: textTemplate || '',
+      textImagePosition: input.textImagePosition || 'none',
+      textImageFormat: input.textImageFormat || 'animated',
+      textPendingColor: textPendingColor || '',
+      textReceivedColor: textReceivedColor || '',
       createdAt: new Date(now()).toISOString(),
     };
     store.insert(source.sourceId, wish);

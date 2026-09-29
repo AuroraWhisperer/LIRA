@@ -1,32 +1,28 @@
 import { createDanmakuFeed } from './danmaku-feed.js';
 import { initDanmakuPreview } from './danmaku-preview.js';
-import { applyStyleOptions, parseStyleOptions } from '../shared/danmaku-style-options.js';
+import { DANMAKU_STYLE_OPTIONS, isRandomDanmakuStyle, applyStyleOptions, parseStyleOptions } from '../shared/danmaku-style-options.js';
 
 ('use strict');
 
 const MAX_ITEMS = 50;
+const PREVIEW_MESSAGE_MIN_DELAY_MS = 800;
+const PREVIEW_MESSAGE_MAX_DELAY_MS = 2200;
 const DEFAULT_FULLSCREEN_DURATION_SECONDS = 6;
-const OVERLAY_STYLES = new Set([
-  'bubble',
-  'signal',
-  'minimal',
-  'ranked',
-  'transparent',
-  'identity',
-  'outline',
-  'cream',
-  'glow',
-]);
+const OVERLAY_STYLES = new Set(Object.keys(DANMAKU_STYLE_OPTIONS));
 const FIXED_STAGE_PADDING = 12;
 const RANKED_CONTENT_WIDTH = 600;
 const GIFT_CARD_WIDTH = 460;
 const MAX_GIFT_SCALE = 1.5;
 const params = new URLSearchParams(location.search);
 const previewMode = params.get('preview') === '1';
+let previewHistory = null;
+if (previewMode) {
+  try { previewHistory = window.history.state || {}; } catch { previewHistory = {}; }
+}
 const previewOptions = previewMode
   ? params.has('styleOptions')
     ? parseStyleOptions(params.get('styleOptions'))
-    : window.history.state?.danmakuStyleOptions || {}
+    : previewHistory.danmakuStyleOptions || {}
   : {};
 
 let items = [];
@@ -44,27 +40,53 @@ let currentFullscreenDurationSeconds = DEFAULT_FULLSCREEN_DURATION_SECONDS;
 let currentGiftImage = 'theme';
 
 document.addEventListener('DOMContentLoaded', () => {
-  createOverlayFeed(currentOverlayStyle, currentFullscreenDurationSeconds);
   syncRankedOverlayScale();
   window.addEventListener('resize', syncRankedOverlayScale);
   if (previewMode) {
     document.body.classList.add('is-preview');
+    let previewTimer = null;
+    let previewSequence = 0;
+    let playNext;
     initDanmakuPreview({
       initialStyle: params.get('style'),
       styleOptions: previewOptions,
-      duration: params.get('fullscreenDurationSeconds') || window.history.state?.danmakuDuration,
-      renderSamples(style) {
-        applyConfiguration(
-          style,
-          params.get('fullscreenDurationSeconds') || window.history.state?.danmakuDuration,
-          previewOptions,
-        );
-        applyItems(previewItems());
+      duration: params.get('fullscreenDurationSeconds') || previewHistory.danmakuDuration,
+      renderSamples(style, options, duration) {
+        const samples = previewItems().filter((item) =>
+          !isRandomDanmakuStyle(style) || item.kind !== 'superchat');
+        clearTimeout(previewTimer);
+        applyConfiguration(style, duration, options, true);
+        applyItems([]);
+        let remainingSamples = [];
+        playNext = () => {
+          if (document.hidden) return;
+          // Draw without replacement so every SC tier appears before the next round.
+          if (!remainingSamples.length) remainingSamples = [...samples];
+          const [sample] = remainingSamples.splice(Math.floor(Math.random() * remainingSamples.length), 1);
+          previewSequence += 1;
+          appendItem({ ...sample, id: `${sample.id}-${previewSequence}`, timestamp: Date.now() });
+          const delay = PREVIEW_MESSAGE_MIN_DELAY_MS
+            + Math.floor(Math.random() * (PREVIEW_MESSAGE_MAX_DELAY_MS - PREVIEW_MESSAGE_MIN_DELAY_MS + 1));
+          previewTimer = setTimeout(playNext, delay);
+        };
+        playNext();
       },
     });
-    setConnectionState('样式预览', true);
+    const onVisibilityChange = () => {
+      clearTimeout(previewTimer);
+      if (!document.hidden) playNext();
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('pagehide', () => {
+      clearTimeout(previewTimer);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      if (renderFrame !== null) cancelAnimationFrame(renderFrame);
+      feed?.destroy();
+    }, { once: true });
+    setConnectionState('模拟直播 · 随机消息', true);
     return;
   }
+  createOverlayFeed(currentOverlayStyle, currentFullscreenDurationSeconds);
   connectSocket();
 });
 
@@ -156,8 +178,9 @@ function createOverlayFeed(style, durationSeconds) {
   feed?.destroy();
   feedNeedsRender = true;
   const options = {
+    style,
     maxItems: MAX_ITEMS,
-    offscreenViewports: previewMode ? Number.POSITIVE_INFINITY : 0,
+    offscreenViewports: 0,
     autoScroll: false,
     resolveAvatarUrl: bilibiliAvatarSource,
     resolveEmoteUrl: bilibiliImageSource,
@@ -171,10 +194,9 @@ function createOverlayFeed(style, durationSeconds) {
     showAvatar: !['outline', 'glow'].includes(style),
     showGiftTotal: ['transparent', 'cream'].includes(style),
   };
-  if (['outline', 'cream', 'glow'].includes(style)) {
-    if (!previewMode) options.layout = 'fullscreen-random';
+  if (isRandomDanmakuStyle(style)) {
+    options.layout = 'fullscreen-random';
     options.itemLifetimeMs = durationSeconds * 1000;
-    options.expireItems = !previewMode;
   }
   feed = createDanmakuFeed(document.getElementById('danmakuFeed'), options);
 }
@@ -189,19 +211,19 @@ function normalizeFullscreenDuration(value) {
     : DEFAULT_FULLSCREEN_DURATION_SECONDS;
 }
 
-function applyConfiguration(styleValue, durationValue, styleOptions = {}) {
+function applyConfiguration(styleValue, durationValue, styleOptions = {}, refreshPreview = false) {
   const style = OVERLAY_STYLES.has(styleValue) ? styleValue : 'signal';
   const duration = normalizeFullscreenDuration(durationValue);
   const appearance = applyStyleOptions(document, style, styleOptions);
   const changed =
     style !== currentOverlayStyle ||
     appearance.giftImage !== currentGiftImage ||
-    (['outline', 'cream', 'glow'].includes(style) && duration !== currentFullscreenDurationSeconds);
+    (isRandomDanmakuStyle(style) && duration !== currentFullscreenDurationSeconds);
   currentOverlayStyle = style;
   currentFullscreenDurationSeconds = duration;
   currentGiftImage = appearance.giftImage;
   document.body.dataset.style = style;
-  if (changed) createOverlayFeed(style, duration);
+  if (changed || refreshPreview) createOverlayFeed(style, duration);
   syncRankedOverlayScale();
 }
 
@@ -210,12 +232,13 @@ function itemKey(item = {}) {
 }
 
 function syncRankedOverlayScale() {
-  const viewport = previewMode ? document.getElementById('danmakuPreviewViewport') : null;
+  const viewport = previewMode ? document.getElementById('danmakuRegion') : null;
   const width = viewport?.clientWidth || window.innerWidth;
   const scale = calculateRankedOverlayScale(width);
   const giftScale = Math.min(MAX_GIFT_SCALE, Math.max(1, width - FIXED_STAGE_PADDING * 2) / GIFT_CARD_WIDTH);
   document.documentElement.style.setProperty('--ranked-scale', String(scale));
   document.documentElement.style.setProperty('--danmaku-gift-scale', String(giftScale));
+  document.documentElement.style.setProperty('--danmaku-superchat-scale', String(giftScale));
 }
 
 export function calculateRankedOverlayScale(viewportWidth) {
@@ -225,6 +248,7 @@ export function calculateRankedOverlayScale(viewportWidth) {
 }
 
 function bilibiliAvatarSource(value) {
+  if (previewMode && value === '/img/overlays/danmaku-ranked/viewer.webp') return value;
   try {
     const url = new URL(String(value || ''));
     if (url.protocol !== 'https:' || !url.hostname.endsWith('.hdslb.com') || url.username || url.password) return '';
@@ -334,15 +358,41 @@ function previewItems() {
       message: '[打call]',
       emotes: [{ ...emotes[0], kind: 'sticker' }],
     },
-    {
-      id: 'preview-gift',
+    ...[
+      ['柠檬汽水', '晚上好～'],
+      ['路过听一首', '刚进来，这首歌叫什么名字呀？'],
+      ['橘子海', '哈哈哈哈哈哈'],
+      ['山间晚风', '戴上耳机听这一段真的好舒服。今天也辛苦啦，大家早点休息！'],
+    ].map(([name, message], index) => ({ id: `preview-chat-${index}`, name, message })),
+    ...[
+      ['星河来客', 10],
+      ['云端来信', 1],
+      ['金色航线', 66],
+    ].map(([name, giftCount]) => ({
+      id: `preview-gift-${giftCount}`,
       kind: 'gift',
-      name: '星河来客',
-      message: '送出 小花花 × 10',
+      name,
+      message: `送出 小花花 × ${giftCount}`,
       giftName: '小花花',
-      giftCount: 10,
-      giftTotalPrice: 1,
+      giftCount,
+      giftTotalPrice: giftCount / 10,
       giftImageUrl: '/img/gift-placeholder.png',
-    },
+    })),
+    ...[
+      [2, '橘子汽水', '这首好听！'],
+      [30, '晚风来信', '今天的歌单太喜欢了，这首可以再唱一次吗？'],
+      [50, '星河来客', '刚下班就赶上喜欢的歌，今天的快乐有了～'],
+      [100, '云端来信', '陪伴是最长情的告白，今晚也一起听歌。'],
+      [500, '阿沐', '恭喜解锁新歌！\n以后也要一起唱下去呀。'],
+      [1000, '金色航线', '谢谢每一次认真准备的直播，希望你一直做自己喜欢的事。'],
+      [2000, '山间晚风', '今天的歌单太喜欢了，这首可以再唱一次吗？\n从第一场直播听到现在，每次下班打开直播间，都会觉得一天的疲惫慢慢散去。希望你也照顾好自己，按时吃饭、早点休息。我们下次直播见！'],
+    ].map(([price, name, message]) => ({
+      id: `preview-superchat-${price}`,
+      kind: 'superchat',
+      name,
+      avatarUrl: '/img/overlays/danmaku-ranked/viewer.webp',
+      message,
+      price,
+    })),
   ];
 }

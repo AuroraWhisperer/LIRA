@@ -1,0 +1,200 @@
+.song-management-panel:has(> #themePage.active) {
+  flex: 0 0 auto;
+  min-height: 0;
+}
+
+#themePage > .panel-body,
+#songRequestSettingsForm {
+  gap: 12px;
+}
+
+.song-board-section {
+  min-width: 0;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 14px;
+}
+
+#songBoardAppearance {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.song-board-section > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 4px 0;
+  color: var(--text);
+  cursor: pointer;
+  list-style: none;
+}
+
+.song-board-section > summary::-webkit-details-marker {
+  display: none;
+}
+
+.song-board-section > summary:hover {
+  color: var(--primary-strong);
+}
+
+.song-board-section > summary:focus-visible {
+  outline: 2px solid var(--color-control-focus);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+.song-board-section-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+
+.song-board-section-title strong {
+  font-family: var(--font-display);
+  font-size: var(--type-size-page-title);
+  font-weight: var(--type-weight-semibold);
+  line-height: var(--type-leading-page-title);
+}
+
+.song-board-section-meta {
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-regular);
+}
+
+.song-board-section > summary > svg {
+  flex: none;
+  width: 20px;
+  height: 20px;
+}
+
+.song-board-section[open] > summary > svg {
+  transform: rotate(180deg);
+}
+
+.song-board-section-body {
+  margin-top: 10px;
+}
+
+.song-request-rules {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.song-blacklist-toolbar {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.song-blacklist-empty {
+  flex: 1;
+  align-self: center;
+  margin: 0;
+}
+
+.song-blacklist-toolbar button {
+  flex: none;
+}
+
+.song-blacklist-words {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.song-blacklist-words:empty {
+  display: none;
+}
+
+.song-blacklist-word {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.song-blacklist-word:focus-within {
+  border-color: var(--color-control-focus);
+  outline: 2px solid var(--color-control-focus);
+  outline-offset: 2px;
+}
+
+.song-blacklist-word input {
+  flex: 1 1 0;
+  width: 0;
+  min-width: 0;
+  border: 0;
+  border-radius: 8px 0 0 8px;
+  background: transparent;
+  box-shadow: none;
+  text-overflow: clip;
+}
+
+.song-blacklist-word input:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.song-blacklist-word .song-blacklist-remove {
+  flex: none;
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+}
+
+.song-blacklist-word .song-blacklist-remove:hover {
+  color: var(--danger);
+  background: var(--surface);
+}
+
+.song-board-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (max-width: 1100px) {
+  .song-request-rules {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .song-request-rules > label {
+    grid-column: span 2;
+  }
+
+  .song-request-rules > label:nth-last-child(-n + 2) {
+    grid-column: span 3;
+  }
+
+  .song-blacklist-words {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .song-request-rules {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .song-request-rules > label,
+  .song-request-rules > label:nth-last-child(-n + 2) {
+    grid-column: auto;
+  }
+
+  .song-blacklist-words {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

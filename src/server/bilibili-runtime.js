@@ -151,7 +151,7 @@ function createBilibiliRuntime(options) {
     if (stopped) return;
     const settings = settingsStore.getSettings();
     const roomId = sharedUtils.normalizeRoomInput(settings.roomId);
-    const enabled = settings.enableBilibili === 'true' && roomId;
+    const enabled = (settings.danmakuMonitoringEnabled ?? settings.enableBilibili) === 'true' && roomId;
     options.onRealtimeStatus?.();
     setActiveDanmakuRoom(enabled ? roomId : '');
 
@@ -186,7 +186,7 @@ function createBilibiliRuntime(options) {
     if (stopped) throw new Error('Bilibili runtime is shutting down.');
     const settings = settingsStore.getSettings();
     const roomId = sharedUtils.normalizeRoomInput(settings.roomId);
-    const enabled = settings.enableBilibili === 'true' && roomId;
+    const enabled = (settings.danmakuMonitoringEnabled ?? settings.enableBilibili) === 'true' && roomId;
     logBilibiliDiagnostic('refresh-requested', {
       roomId,
       enabled: Boolean(enabled),

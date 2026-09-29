@@ -42,9 +42,12 @@ async function fixture({ reloadError } = {}) {
   );
   await module.link((specifier) =>
     specifier === './song-import-parser.js'
-      ? new vm.SourceTextModule(fs.readFileSync(require.resolve('../../public/js/admin/song-import-parser.js'), 'utf8'), {
-          context,
-        })
+      ? new vm.SourceTextModule(
+          fs.readFileSync(require.resolve('../../public/js/admin/song-import-parser.js'), 'utf8'),
+          {
+            context,
+          },
+        )
       : new vm.SyntheticModule(
           ['api'],
           function () {

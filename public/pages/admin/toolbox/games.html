@@ -274,6 +274,7 @@
           <button id="interactionsCopy" class="primary" type="button">复制链接</button
           ><button id="interactionsOpen" class="secondary" type="button">打开网页</button>
         </div>
+        <p class="interaction-source-note">投票与评分共用此地址，每次仅运行一场。</p>
       </section>
       <div class="interaction-tabs" role="tablist" aria-label="选择互动类型">
         <button
@@ -303,57 +304,66 @@
           <div id="interactionActivityView">
             <div class="interaction-section-heading">
               <h4 id="interactionActivityTitle">本场设置</h4>
-              <span id="interactionModeNote">限时收票</span>
             </div>
             <form id="pollForm" class="interaction-config">
               <fieldset id="pollFields">
-                <label
-                  ><span class="interaction-field-label">投票主题<small>选填，最多 60 字符</small></span
-                  ><input id="pollTitle" type="text" placeholder="例如：下一首想听什么？"
-                /></label>
-                <div class="interaction-options-group">
-                  <div class="interaction-field-label">投票选项<small>每项最多 10 字符</small></div>
+                <div class="interaction-setting-group interaction-title-setting">
+                  <label
+                    ><span class="interaction-field-label">投票主题<small>选填 · 最多 60 字符</small></span
+                    ><input id="pollTitle" type="text" placeholder="下一首想听什么？"
+                  /></label>
+                </div>
+                <div class="interaction-setting-group interaction-options-group">
+                  <div class="interaction-field-label">投票选项<small>每项 10 字符内</small></div>
                   <div id="pollOptions" aria-label="投票选项"></div>
                   <button id="pollAddOption" type="button" class="secondary interaction-quiet">添加选项</button>
+                  <p class="interaction-rule">
+                    发送完整选项，每个账号仅计首次有效投票。<lira-help label="查看计票规则"><span id="pollRule"></span></lira-help>
+                  </p>
                 </div>
-                <div class="interaction-duration-setting" role="group" aria-labelledby="pollDurationLabel">
-                  <div id="pollDurationLabel">投票时长</div>
-                  <div class="interaction-duration">
-                    <label
-                      ><input
-                        id="pollDurationMinutes"
-                        type="number"
-                        min="0"
-                        max="60"
-                        step="1"
-                        value="1"
-                        required
-                        aria-label="投票分钟"
-                      />分</label
-                    >
-                    <label
-                      ><input
-                        id="pollDurationSeconds"
-                        type="number"
-                        min="0"
-                        max="59"
-                        step="1"
-                        value="0"
-                        required
-                        aria-label="投票秒数"
-                      />秒</label
-                    >
-                  </div>
-                  <div class="interaction-presets">
-                    <button type="button" class="secondary" data-poll-seconds="60" aria-pressed="true">1 分钟</button
-                    ><button type="button" class="secondary" data-poll-seconds="120" aria-pressed="false">2 分钟</button
-                    ><button type="button" class="secondary" data-poll-seconds="300" aria-pressed="false">
-                      5 分钟
-                    </button>
+                <div
+                  class="interaction-setting-group interaction-duration-setting"
+                  role="group"
+                  aria-labelledby="pollDurationLabel"
+                >
+                  <div id="pollDurationLabel" class="interaction-field-label">投票时长</div>
+                  <div class="interaction-duration-controls">
+                    <div class="interaction-duration">
+                      <label
+                        ><input
+                          id="pollDurationMinutes"
+                          type="number"
+                          min="0"
+                          max="60"
+                          step="1"
+                          value="1"
+                          required
+                          aria-label="投票分钟"
+                        />分</label
+                      >
+                      <label
+                        ><input
+                          id="pollDurationSeconds"
+                          type="number"
+                          min="0"
+                          max="59"
+                          step="1"
+                          value="0"
+                          required
+                          aria-label="投票秒数"
+                        />秒</label
+                      >
+                    </div>
+                    <div class="interaction-presets">
+                      <button type="button" class="secondary" data-poll-seconds="60" aria-pressed="true">1 分钟</button
+                      ><button type="button" class="secondary" data-poll-seconds="120" aria-pressed="false">2 分钟</button
+                      ><button type="button" class="secondary" data-poll-seconds="300" aria-pressed="false">
+                        5 分钟
+                      </button>
+                    </div>
                   </div>
                   <p id="pollPageHint" hidden></p>
                 </div>
-                <p id="pollRule" class="interaction-rule"></p>
                 <div class="interaction-form-actions">
                   <button id="pollStart" type="submit" class="primary" disabled>开始投票</button>
                 </div>
@@ -361,20 +371,22 @@
             </form>
             <form id="ratingForm" class="interaction-config" hidden>
               <fieldset id="ratingFields">
-                <label
-                  ><span class="interaction-field-label">评分主题<small>选填，最多 60 字符</small></span
-                  ><input id="ratingTitle" type="text" placeholder="例如：为这次演唱打个分"
-                /></label>
-                <div class="interaction-rating-setting">
-                  <div class="interaction-field-label">评分范围<small>固定整数</small></div>
-                  <div class="interaction-rating-scale" aria-label="评分范围 1 至 10 分">
-                    <span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span
-                    ><span>8</span><span>9</span><span>10</span>
-                  </div>
-                  <div class="interaction-scale-ends"><span>最低</span><span>最高</span></div>
-                  <p>收集中不显示平均分。<br />由你停止后，统一公布最终均分。</p>
+                <div class="interaction-setting-group interaction-title-setting">
+                  <label
+                    ><span class="interaction-field-label">评分主题<small>选填 · 最多 60 字符</small></span
+                    ><input id="ratingTitle" type="text" placeholder="为这次演唱打个分"
+                  /></label>
                 </div>
-                <p id="ratingRule" class="interaction-rule"></p>
+                <div class="interaction-setting-group interaction-rating-setting">
+                  <div class="interaction-field-label">
+                    <span>评分规则 <lira-help label="查看评分规则"><span id="ratingRule"></span></lira-help></span>
+                  </div>
+                  <dl class="interaction-rating-details">
+                    <dt>参与方式</dt><dd>弹幕发送整数 1–10</dd>
+                    <dt>重复评分</dt><dd>每个账号取最后一次</dd>
+                    <dt>公布结果</dt><dd>手动结束后显示均分</dd>
+                  </dl>
+                </div>
                 <div class="interaction-form-actions">
                   <button id="ratingStart" type="submit" class="primary" disabled>开始评分</button>
                 </div>
@@ -384,7 +396,7 @@
               <p id="interactionSessionTitle" class="interaction-session-title" hidden></p>
               <div id="interactionHostRows" class="interaction-rows"></div>
               <strong id="interactionHostAverage"></strong>
-              <p id="interactionRatingPending" hidden>收集中不显示平均分，停止后统一公布。</p>
+              <p id="interactionRatingPending" hidden>结束评分后公布均分。</p>
               <div class="interaction-result-actions">
                 <button id="interactionFinish" class="primary" type="button">结束本场</button
                 ><button id="interactionClear" class="secondary" type="button">取消本场</button>
@@ -396,7 +408,7 @@
             <div class="interaction-section-heading">
               <h4 id="interactionAppearanceTitle">画面样式</h4>
               <button id="interactionAppearanceBack" class="secondary interaction-quiet" type="button">
-                返回本场设置
+                返回设置
               </button>
             </div>
             <form
@@ -485,7 +497,7 @@
         <aside class="interaction-preview-area" aria-label="直播画面预览">
           <div class="interaction-section-heading">
             <div class="interaction-preview-heading">
-              <h4>直播画面</h4>
+              <h4>画面预览</h4>
               <span>示例</span>
             </div>
             <button
@@ -519,7 +531,6 @@
           <div class="interaction-preview-footer"><span>透明背景</span><span>800 × 600</span></div>
         </aside>
       </div>
-      <p class="interaction-footnote">投票与评分每次仅运行一场，共用一个直播画面。</p>
     </section>
   </div>
 </section>

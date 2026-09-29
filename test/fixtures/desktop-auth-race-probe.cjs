@@ -71,8 +71,11 @@ async function runProbe() {
   await checkLegacyIpc(results);
   async function check(name, action) {
     const controller = createDesktopAuthController({
-      BrowserWindow: ProbeWindow, shell: electron.shell,
-      getMainWindow: () => null, getDataDir: () => dataDir, writeLog: () => {},
+      BrowserWindow: ProbeWindow,
+      shell: electron.shell,
+      getMainWindow: () => null,
+      getDataDir: () => dataDir,
+      writeLog: () => {},
     });
     try {
       await auth.logoutBilibiliAccount(dataDir);
@@ -109,7 +112,11 @@ async function runProbe() {
     const login = await openLogin(controller);
     await controller.replaceBilibiliCookieHeader(header(202));
     assert.equal(login.window.isDestroyed(), true, 'cloud credentials left the old login active');
-    assert.equal((await login.completion).state.loggedIn, false, 'old login reported the cloud account as its own success');
+    assert.equal(
+      (await login.completion).state.loggedIn,
+      false,
+      'old login reported the cloud account as its own success',
+    );
     assert.equal(await controller.getBilibiliUid(), 202);
   });
 
@@ -119,10 +126,15 @@ async function runProbe() {
     const originalGet = cookies.get.bind(cookies);
     let captured = false;
     let release;
-    const gate = new Promise((resolve) => { release = resolve; });
+    const gate = new Promise((resolve) => {
+      release = resolve;
+    });
     cookies.get = async (filter) => {
       const values = await originalGet(filter);
-      if (!captured) { captured = true; await gate; }
+      if (!captured) {
+        captured = true;
+        await gate;
+      }
       return values;
     };
     try {
@@ -137,7 +149,11 @@ async function runProbe() {
       cookies.get = originalGet;
     }
     await controller.restoreBilibiliCookieSnapshot();
-    assert.equal((await controller.getBilibiliAuthState()).loggedIn, false, 'old encrypted snapshot restored the logged-out account');
+    assert.equal(
+      (await controller.getBilibiliAuthState()).loggedIn,
+      false,
+      'old encrypted snapshot restored the logged-out account',
+    );
     assert.equal(fs.existsSync(path.join(dataDir, 'bilibili-auth', 'cookies.enc')), false);
   });
 
@@ -145,7 +161,9 @@ async function runProbe() {
     const originalSet = cookies.set.bind(cookies);
     let captured = false;
     let release;
-    const gate = new Promise((resolve) => { release = resolve; });
+    const gate = new Promise((resolve) => {
+      release = resolve;
+    });
     cookies.set = async (details) => {
       await originalSet(details);
       if (details.name === 'SESSDATA' && details.value === 'synthetic-session-101') {
@@ -164,7 +182,11 @@ async function runProbe() {
       release();
       cookies.set = originalSet;
     }
-    const expected = Object.fromEntries(header(202).split('; ').map((part) => part.split('=')));
+    const expected = Object.fromEntries(
+      header(202)
+        .split('; ')
+        .map((part) => part.split('=')),
+    );
     const assertCurrent = async () => {
       const actual = Object.fromEntries((await cookies.get({})).map((cookie) => [cookie.name, cookie.value]));
       assert.deepEqual(actual, expected);
@@ -191,10 +213,15 @@ async function runProbe() {
     const originalGet = musicCookies.get.bind(musicCookies);
     let captured = false;
     let release;
-    const gate = new Promise((resolve) => { release = resolve; });
+    const gate = new Promise((resolve) => {
+      release = resolve;
+    });
     musicCookies.get = async (filter) => {
       const values = await originalGet(filter);
-      if (!captured) { captured = true; await gate; }
+      if (!captured) {
+        captured = true;
+        await gate;
+      }
       return values;
     };
     try {
@@ -202,7 +229,9 @@ async function runProbe() {
       controller.dispose();
       assert.equal(login.window.isDestroyed(), true);
       let idle = false;
-      const completion = controller.whenIdle().then(() => { idle = true; });
+      const completion = controller.whenIdle().then(() => {
+        idle = true;
+      });
       await pause(50);
       assert.equal(idle, false, 'shutdown returned while a captured Cookie write was still in flight');
       release();
@@ -236,35 +265,57 @@ async function checkLegacyIpc(results) {
   const { registerUpdateIpc } = require('../../src/electron/ipc/update-ipc');
   const server = http.createServer((req, res) => {
     res.setHeader('Content-Type', 'text/html');
-    res.end(req.url === '/frame' ? '<html><body>Subframe</body></html>' :
-      '<html><body><button onclick="window.checkResult=Promise.all([musicAPI.getAuthState(\'qq\'),bilibiliAuth.getAuthState(),songAssistantDesktop.checkForUpdates()])">Check bridge</button><iframe src="/frame"></iframe></body></html>');
+    res.end(
+      req.url === '/frame'
+        ? '<html><body>Subframe</body></html>'
+        : '<html><body><button onclick="window.checkResult=Promise.all([musicAPI.getAuthState(\'qq\'),bilibiliAuth.getAuthState(),songAssistantDesktop.checkForUpdates()])">Check bridge</button><iframe src="/frame"></iframe></body></html>',
+    );
   });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const baseUrl = `http://127.0.0.1:${server.address().port}`;
   let mainWindow;
   let calls = 0;
   const channels = [];
-  const run = () => { calls += 1; return { ok: true }; };
+  const run = () => {
+    calls += 1;
+    return { ok: true };
+  };
   const dependencies = {
-    ipcMain: { handle: (channel, handler) => { channels.push(channel); ipcMain.handle(channel, handler); } },
-    getMainWindow: () => mainWindow, getDesktopBaseUrl: () => baseUrl,
-    getAuthState: run, getMusicAuthState: run, checkForUpdates: run, writeLog() {},
+    ipcMain: {
+      handle: (channel, handler) => {
+        channels.push(channel);
+        ipcMain.handle(channel, handler);
+      },
+    },
+    getMainWindow: () => mainWindow,
+    getDesktopBaseUrl: () => baseUrl,
+    getAuthState: run,
+    getMusicAuthState: run,
+    checkForUpdates: run,
+    writeLog() {},
   };
   registerMusicIpc(dependencies);
   registerBilibiliIpc(dependencies);
   registerUpdateIpc(dependencies);
   const owned = [];
   function windowFor(partition) {
-    const window = new BrowserWindow({ show: false, webPreferences: {
-      partition, preload: path.resolve(__dirname, '../../src/electron/preload.js'),
-      contextIsolation: true, nodeIntegration: false, sandbox: true,
-      // Adversarial fixture: explicitly expose preload in subframes so the main-frame check is exercised.
-      nodeIntegrationInSubFrames: true,
-    } });
+    const window = new BrowserWindow({
+      show: false,
+      webPreferences: {
+        partition,
+        preload: path.resolve(__dirname, '../../src/electron/preload.js'),
+        contextIsolation: true,
+        nodeIntegration: false,
+        sandbox: true,
+        // Adversarial fixture: explicitly expose preload in subframes so the main-frame check is exercised.
+        nodeIntegrationInSubFrames: true,
+      },
+    });
     owned.push(window);
     return window;
   }
-  const invoke = 'Promise.all([musicAPI.getAuthState("qq"), bilibiliAuth.getAuthState(), songAssistantDesktop.checkForUpdates()])';
+  const invoke =
+    'Promise.all([musicAPI.getAuthState("qq"), bilibiliAuth.getAuthState(), songAssistantDesktop.checkForUpdates()])';
   const allowed = { ok: true };
   const denied = { ok: false, error: 'IPC_SOURCE_INVALID' };
   try {
@@ -273,8 +324,10 @@ async function checkLegacyIpc(results) {
     for (const pathname of ['/admin', '/', '/settings', '/songs', '/license']) {
       await mainWindow.loadURL(baseUrl + pathname);
       await mainWindow.webContents.executeJavaScript('document.querySelector("button").click()');
-      assert.deepEqual(await mainWindow.webContents.executeJavaScript('window.checkResult'),
-        pathname === '/license' ? [denied, denied, allowed] : [allowed, allowed, allowed]);
+      assert.deepEqual(
+        await mainWindow.webContents.executeJavaScript('window.checkResult'),
+        pathname === '/license' ? [denied, denied, allowed] : [allowed, allowed, allowed],
+      );
     }
     await mainWindow.loadURL(`${baseUrl}/admin`);
     const before = calls;
@@ -305,7 +358,11 @@ global.runAuthProbe = runProbe;
 app.whenReady().then(async () => {
   if (process.argv.includes('--interactive-probe')) return;
   let result;
-  try { result = await runProbe(); } catch (error) { result = { ok: false, error: error.stack }; }
+  try {
+    result = await runProbe();
+  } catch (error) {
+    result = { ok: false, error: error.stack };
+  }
   fs.writeFileSync(path.join(directory, 'result.json'), JSON.stringify(result, null, 2));
   app.exit(result.ok ? 0 : 1);
 });

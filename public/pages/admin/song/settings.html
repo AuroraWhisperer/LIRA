@@ -6,8 +6,7 @@
           <legend>
             🔐 直播账号登录
             <lira-help
-              >扫码登录后，填写自己的直播间号，开启接收并保存设置。显示「本机已登录」只说明扫码成功，还要确认连接正常。关闭
-              LIRA 后仍会接收；需要停止时关闭接收并保存，或退出直播账号，等待保存成功。</lira-help
+              >扫码登录后，填写自己的直播间号并保存。弹幕和礼物默认持续监控，关闭 LIRA 后服务端仍会接收。可在弹幕姬和礼物页面分别关闭监控；退出直播账号会停止两项监控。修改或退出后请等待同步完成。</lira-help
             >
           </legend>
           <div class="bilibili-auth-row">
@@ -61,44 +60,6 @@
         </fieldset>
       </div>
 
-      <div class="grid-3">
-        <label>
-          接收弹幕和礼物
-          <select id="enableBilibili" data-dropdown-variant="settings">
-            <option value="false">暂不启用</option>
-            <option value="true">启用</option>
-          </select>
-        </label>
-        <label>
-          暂停接收点歌
-          <select id="paused" data-dropdown-variant="settings">
-            <option value="false">接收点歌</option>
-            <option value="true">暂停点歌</option>
-          </select>
-        </label>
-        <label>
-          最多排队歌曲数
-          <input id="queueLimit" type="number" min="1" max="300" />
-        </label>
-        <label>
-          同一观众点歌间隔（秒）
-          <input id="userCooldownSeconds" type="number" min="0" max="3600" />
-        </label>
-        <label>
-          只允许点歌库歌曲
-          <select id="onlyFromLibrary" data-dropdown-variant="settings">
-            <option value="false">不限制</option>
-            <option value="true">只允许歌库歌曲</option>
-          </select>
-        </label>
-        <label>
-          允许重复点歌
-          <select id="allowDuplicate" data-dropdown-variant="settings">
-            <option value="true">允许</option>
-            <option value="false">不允许</option>
-          </select>
-        </label>
-      </div>
       <button class="primary" type="submit">保存设置</button>
     </form>
   </div>

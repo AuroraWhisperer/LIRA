@@ -1,12 +1,22 @@
 # 投票与评分实施计划
 
+**Status:** Awaiting Verification.
+
+**复核日期：** 2026-09-28。功能代码和隔离界面验证已有记录；C0 真实直播间 UID/时间/计数及端到端验收待补。
+
+当前依据：[所属规格或参考](../games-poll-rating_design.md)。状态索引见 [计划入口](README.md)。
+
+## 原始计划与执行记录
+
+以下保留原计划时点的行为、命令和验证记录；它们不覆盖上述状态或当前契约，历史未勾选项不直接等同于当前缺陷。
+
 **Goal:** 按 `specs/games-poll-rating_design.md` 新增类别 3、投票/评分独立会话和只读 `/interactions` 浏览器源。
 
 **Architecture:** 本地 Node 服务负责计数、截止和冻结结果，复用 Bilibili 实时连接。在组合根绑定接入生命周期与跨类别门禁，HTTP/WS 仅发布公开投影。
 
 **Tech Stack:** Node.js 24+、CommonJS 后端、Vanilla ESM / CSS、Electron；不新增依赖。
 
-**Status:** 执行中，2026-09-20。功能代码与隔离界面验证已完成；C0 真实直播间验收待补。用户明确要求“直接执行修改，测试不行之后再修改”，因此 C0 不再阻塞实现，不将合成测试计为真实接入通过。
+原状态记录：**Status:** 执行中，2026-09-20。功能代码与隔离界面验证已完成；C0 真实直播间验收待补。用户明确要求“直接执行修改，测试不行之后再修改”，因此 C0 不再阻塞实现，不将合成测试计为真实接入通过。
 
 ## 范围与兼容性
 
@@ -20,13 +30,13 @@
 
 | 责任 | 拥有者 / 消费者 | 合同 / 检查 |
 | --- | --- | --- |
-| 连接、鉴权、帧入口 | `src/bilibili/danmaku/websocket-connection.js` | `docs/architecture/backend/bilibili/protocol.md`、`test/transport/websocket-connection.test.js` |
-| 实时解析与命令过滤 | `src/bilibili/danmaku/message-handlers.js`、`src/bilibili/parsers/danmaku-parser.js` | `docs/architecture/backend/bilibili/danmaku.md`、`test/bilibili/bilibili-danmaku-parser.test.js` |
+| 连接、鉴权、帧入口 | `src/bilibili/danmaku/websocket-connection.js` | `docs/reference/backend/bilibili/protocol.md`、`test/transport/websocket-connection.test.js` |
+| 实时解析与命令过滤 | `src/bilibili/danmaku/message-handlers.js`、`src/bilibili/parsers/danmaku-parser.js` | `docs/reference/backend/bilibili/danmaku.md`、`test/bilibili/bilibili-danmaku-parser.test.js` |
 | 房间/账号及连接代次 | `src/bilibili/danmaku-client.js`、`src/server/bilibili-runtime.js`、`src/server/bilibili-client.js` | `test/danmaku/danmaku-client.test.js`、`test/bilibili/bilibili-runtime.test.js` |
 | 游戏会话与组合 | `src/games/game-session-service.js`、`src/server.js` | `test/games/games.test.js`、`test/games/game-routes.test.js` |
-| API 与展示权限 | `src/server/api-context.js`、`src/server/api-routes.js`、`src/server/access-policy.js`、`src/server/overlay-http.js`、`src/server/overlay-projection.js` | `docs/architecture/backend/api.md`、`docs/architecture/backend/ws.md` |
-| 主持界面与推送 | `public/pages/admin/toolbox/games.html`、`public/js/admin/games.js`、`public/js/admin/state.js` | `docs/architecture/frontend/pages.md`；编辑前读取 admin 范围指令 |
-| OBS 与翻页 | `public/js/overlays/games.js`、`public/js/overlays/auto-pages.js` 为既有模式参考 | `docs/architecture/frontend/overlays.md` |
+| API 与展示权限 | `src/server/api-context.js`、`src/server/api-routes.js`、`src/server/access-policy.js`、`src/server/overlay-http.js`、`src/server/overlay-projection.js` | `docs/reference/backend/api.md`、`docs/reference/backend/ws.md` |
+| 主持界面与推送 | `public/pages/admin/toolbox/games.html`、`public/js/admin/games.js`、`public/js/admin/state.js` | `docs/reference/frontend/pages.md`；编辑前读取 admin 范围指令 |
+| OBS 与翻页 | `public/js/overlays/games.js`、`public/js/overlays/auto-pages.js` 为既有模式参考 | `docs/reference/frontend/overlays.md` |
 
 代码核查发现：
 

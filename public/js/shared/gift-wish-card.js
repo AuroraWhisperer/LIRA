@@ -1,4 +1,5 @@
 import { setGiftImage } from './gift-image-fallback.js';
+import { setGiftWishTextImage } from './gift-wish-image.js';
 
 export const WISH_PERIODS = {
   long: '长效许愿',
@@ -12,10 +13,22 @@ export const WISH_CATEGORIES = {
   directGift: '礼物',
 };
 export const DEFAULT_WISH_TEXT = '许愿{礼物}（{已收}/{目标}）';
+export const DEFAULT_WISH_TEXT_COLORS = { pending: '#3b6ea8', received: '#21815c' };
 
-export function formatGiftWishText(wish) {
+export function getGiftWishTextTemplate(wish) {
+  const template = wish.textTemplate?.trim() || DEFAULT_WISH_TEXT;
+  if (template.includes('{图片}')) return template;
+  // Keep saved image positions readable until the editor saves explicit image tokens.
+  if (wish.textImagePosition === 'after') return `${template}{图片}`;
+  if (wish.textImagePosition === 'inline' && template.includes('{礼物}'))
+    return template.replace('{礼物}', '{图片}{礼物}');
+  if (wish.textImagePosition === 'before' || wish.textImagePosition === 'inline') return `{图片}${template}`;
+  return template;
+}
+
+export function formatGiftWishText(wish, template = wish.textTemplate?.trim() || DEFAULT_WISH_TEXT) {
   const values = { 礼物: wish.giftName, 已收: wish.count, 目标: wish.target };
-  return (wish.textTemplate?.trim() || DEFAULT_WISH_TEXT).replace(/\{(礼物|已收|目标)\}/g, (_match, key) =>
+  return template.replace(/\{(礼物|已收|目标)\}/g, (_match, key) =>
     String(values[key]),
   );
 }
@@ -32,7 +45,22 @@ export function createGiftWishCard(wish, documentRef = document) {
   card.setAttribute('aria-label', [WISH_PERIODS[wish.period], wish.giftName, wish.label].filter(Boolean).join(' · '));
   if (wish.displayStyle === 'text') {
     card.classList.add('wish-card--text');
-    card.append(element('p', 'wish-card-text', formatGiftWishText(wish)));
+    card.classList.toggle('is-received-today', wish.todayCount > 0);
+    card.style.setProperty('--wish-ink', wish.todayCount > 0
+      ? wish.textReceivedColor || DEFAULT_WISH_TEXT_COLORS.received
+      : wish.textPendingColor || DEFAULT_WISH_TEXT_COLORS.pending);
+    const text = element('p', 'wish-card-text');
+    const parts = getGiftWishTextTemplate(wish).split('{图片}');
+    parts.forEach((part, index) => {
+      if (index > 0) {
+        const image = element('img', 'wish-card-text-image');
+        image.alt = '';
+        setGiftWishTextImage(image, wish.imagePath, wish.textImageFormat);
+        text.append(image);
+      }
+      if (part) text.append(documentRef.createTextNode(formatGiftWishText(wish, part)));
+    });
+    card.append(text);
     return card;
   }
   const image = element('img', 'wish-card-image');

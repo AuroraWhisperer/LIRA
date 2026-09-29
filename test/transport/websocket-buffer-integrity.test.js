@@ -12,7 +12,7 @@ function frame(body, opcode = 9, fin = true) {
   result[0] = (fin ? 0x80 : 0) | opcode;
   result[1] = 0x80 | payload.length;
   result.set([0x12, 0x34, 0x56, 0x78], 2);
-  for (let index = 0; index < payload.length; index += 1) result[6 + index] = payload[index] ^ result[2 + index % 4];
+  for (let index = 0; index < payload.length; index += 1) result[6 + index] = payload[index] ^ result[2 + (index % 4)];
   return result;
 }
 
@@ -23,18 +23,27 @@ function fixture(t) {
     writes: [],
     writableLength: 0,
     destroyed: false,
-    write(bytes) { this.writes.push(bytes); return true; },
-    end() { this.destroy(); },
+    write(bytes) {
+      this.writes.push(bytes);
+      return true;
+    },
+    end() {
+      this.destroy();
+    },
     destroy() {
       if (this.destroyed) return;
       this.destroyed = true;
       this.emit('close');
     },
   });
-  hub.handleUpgrade(context, {
-    url: '/ws',
-    headers: { authorization: 'Bearer synthetic-integrity-token', 'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==' },
-  }, socket);
+  hub.handleUpgrade(
+    context,
+    {
+      url: '/ws',
+      headers: { authorization: 'Bearer synthetic-integrity-token', 'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==' },
+    },
+    socket,
+  );
   t.after(() => hub.stop());
   return { hub, context, socket };
 }
@@ -44,11 +53,19 @@ test('WebSocket buffer compaction preserves overlapping leftovers and already-wr
   const payloads = ['a'.repeat(100), 'b'.repeat(100), 'c'.repeat(100)];
   const input = Buffer.concat(payloads.map((payload) => frame(payload)));
   const original = Buffer.from(input);
-  for (const [start, end] of [[0, 1], [1, 196], [196, 215], [215, input.length]]) {
+  for (const [start, end] of [
+    [0, 1],
+    [1, 196],
+    [196, 215],
+    [215, input.length],
+  ]) {
     socket.emit('data', input.subarray(start, end));
   }
   const pongs = socket.writes.filter((entry) => Buffer.isBuffer(entry) && entry[0] === 0x8a);
-  assert.deepEqual(pongs.map((entry) => entry.subarray(2).toString()), payloads);
+  assert.deepEqual(
+    pongs.map((entry) => entry.subarray(2).toString()),
+    payloads,
+  );
   assert.deepEqual(input, original);
   assert.equal(socket.destroyed, false);
   assert.equal(socket._wsBuffer.length, 0);
@@ -74,7 +91,8 @@ test('all small TCP chunk sizes preserve repeated UTF-8 fragments, control frame
   for (let size = 1; size <= input.length; size += 1) {
     const { hub, socket } = fixture(t);
     for (let repeat = 0; repeat < 8; repeat += 1) {
-      for (let offset = 0; offset < input.length; offset += size) socket.emit('data', input.subarray(offset, offset + size));
+      for (let offset = 0; offset < input.length; offset += size)
+        socket.emit('data', input.subarray(offset, offset + size));
     }
     assert.equal(socket.destroyed, false, `chunk size ${size}`);
     assert.equal(socket._wsFragment, null);

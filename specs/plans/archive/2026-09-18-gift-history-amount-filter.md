@@ -12,7 +12,7 @@
 - `src/server/routes/gift-routes.js` 白名单转交历史查询；选择和导出复用 `getGiftSelection`。
 - `src/bilibili/gift/history-filters.js` 规范化筛选，`query-service.js` 将其绑定到分页游标和选择快照。
 - `src/storage/gift-query-store.js` 共用参数化条件查询列表、数量和快照；已有整数分转换函数。
-- 契约归属 `docs/architecture/backend/api.md`；验证复用金额查询、路由、前端测试和 `scripts/verify-gift-history.cjs` 的隔离 Electron 环境。
+- 契约归属 `docs/reference/backend/api.md`；验证复用金额查询、路由、前端测试和 `scripts/verify-gift-history.cjs` 的隔离 Electron 环境。
 
 ## Non-goals / Compatibility Constraints
 

@@ -1,5 +1,8 @@
 # 盲盒映射、礼物资料与图片更新方案报告
 
+> 历史记录：本文的发现、建议和验证仅对应文内日期/基线，不是当前缺陷或执行清单。现状见 [技术参考](../reference/README.md)，剩余工作见 [计划索引](../../specs/plans/README.md) 与 [未结项台账](../../specs/plans/open-items.md)。原结论和后续执行记录保留，不据此恢复未获批准的提案。
+
+
 - 日期：2026-09-05。
 - 状态：设计提案，待确认后实施；不是已完成功能或已接受 ADR。
 - 范围：客户端 `D:/Work/Live` 与服务器 `D:/Work/lira-server`。本轮只编写本报告，不修改业务代码、数据库、接口或部署。
@@ -55,14 +58,14 @@
 | 范围 | 当前工作树中的实现 | 证据 |
 | --- | --- | --- |
 | 公共礼物目录 | `/api/public/gifts/catalog` 一次返回扁平礼物资料，有 ETag 与条件请求 | [服务器目录查询](D:/Work/lira-server/src/modules/gifts/gift-catalog-queries.js:479)、[公共路由](D:/Work/lira-server/src/routes/gifts-public.js:135) |
-| 首次初始化 | 首次授权后获取资料并扫描图片，单张图片失败不等于整个初始化失败 | [初始化器](D:/Work/Live/src/bilibili/gift/gift-catalog-initializer.js:65) |
-| 后续更新 | 后续启动后台检查，运行中每 12 小时检查；包括 304 在内的检查会扫描缺图和换图 | [当前更新设计](D:/Work/Live/specs/remote-gift-catalog-sync_design.md)、[缓存周期](D:/Work/Live/src/bilibili/gift/remote-catalog-cache.js:8) |
-| 图片增量与提示 | 按 ID 和图片来源标识复用缓存，换图失败保留旧图；有实际下载时使用同一条进度 Toast | [图片缓存](D:/Work/Live/src/bilibili/gift/remote-gift-image-cache.js)、[提示模块](D:/Work/Live/public/js/admin/gifts/catalog-update-toast.js) |
+| 首次初始化 | 首次授权后获取资料并扫描图片，单张图片失败不等于整个初始化失败 | [初始化器](../../src/bilibili/gift/gift-catalog-initializer.js:65) |
+| 后续更新 | 后续启动后台检查，运行中每 12 小时检查；包括 304 在内的检查会扫描缺图和换图 | [当前更新设计](../../specs/remote-gift-catalog-sync_design.md)、[缓存周期](../../src/bilibili/gift/remote-catalog-cache.js:8) |
+| 图片增量与提示 | 按 ID 和图片来源标识复用缓存，换图失败保留旧图；有实际下载时使用同一条进度 Toast | [图片缓存](../../src/bilibili/gift/remote-gift-image-cache.js)、[提示模块](../../public/js/admin/gifts/catalog-update-toast.js) |
 | 服务端盲盒关系 | 维护 `盲盒 ID -> 产物 ID[]`，供公共礼物详情使用；另有独立权益奖品表 | [官方关系来源](D:/Work/lira-server/src/modules/gifts/blind-box-catalog.js:4) |
 | 主播映射同步 | `giftBlindBoxConfig` 是可选云设置，结构仍为名称、价格、产物名称数组 | [服务端设置校验](D:/Work/lira-server/src/lib/streamer-sync-settings.js:55)、[协议](D:/Work/lira-server/docs/protocol/client-server-api.md:81) |
 | 服务端实际检测 | 从本主播的设置读取映射，不是直接读取公共目录的 ID 关系 | [检测器注入](D:/Work/lira-server/src/modules/bilibili/monitor-manager.js:73) |
-| 远程事件客户端消费 | 规范化并导入服务器盲盒字段，不调用本地映射再次判定 | [远程控制器](D:/Work/Live/src/electron/remote-gift-controller.js:401)、[权威结果导入](D:/Work/Live/src/bilibili/gift/detection-service.js:166) |
-| 卡片和通知颜色 | 最近礼物固定五种盒型/颜色，盲盒通知 Toast 目前使用通用粉色 | [固定盒型](D:/Work/Live/public/js/admin/gifts/recent.js:11)、[卡片 CSS](D:/Work/Live/public/css/admin/gifts/recent.css:328)、[通知 CSS](D:/Work/Live/public/css/admin/toasts/gifts.css:161) |
+| 远程事件客户端消费 | 规范化并导入服务器盲盒字段，不调用本地映射再次判定 | [远程控制器](../../src/electron/remote-gift-controller.js:401)、[权威结果导入](../../src/bilibili/gift/detection-service.js:166) |
+| 卡片和通知颜色 | 最近礼物固定五种盒型/颜色，盲盒通知 Toast 目前使用通用粉色 | [固定盒型](../../public/js/admin/gifts/recent.js:11)、[卡片 CSS](../../public/css/admin/gifts/recent.css:328)、[通知 CSS](../../public/css/admin/toasts/gifts.css:161) |
 
 ### 3.2 必须补齐的缺口
 
@@ -75,7 +78,7 @@
 7. **事件缺少稳定的盒子 ID。** 当前解析器会读取部分盲盒字段判断真假，但标准化结果主要保留盒名和盒价；远程 DTO 也没有 `blindBoxId`。
 8. **新增盒型不只是 CSS。** 设置、展示分类、统计筛选、OBS 和加班目录都有消费者，不能只加一条颜色规则。
 
-证据：[名称映射](D:/Work/lira-server/src/lib/gift-blind-box-config.js:84)、[检测映射应用](D:/Work/lira-server/src/modules/bilibili/gift-detector.js:167)、[公共版本缓存](D:/Work/lira-server/src/modules/gifts/gift-catalog-queries.js:495)、[客户端标准化](D:/Work/Live/src/bilibili/gift/remote-catalog-cache.js:200)、[正价筛选](D:/Work/Live/src/bilibili/gift/remote-catalog-cache.js:304)、[事件解析](D:/Work/lira-server/src/modules/bilibili/gift-parser.js:482)、[远程 DTO 协议](D:/Work/lira-server/docs/protocol/client-server-api.md:79)。
+证据：[名称映射](D:/Work/lira-server/src/lib/gift-blind-box-config.js:84)、[检测映射应用](D:/Work/lira-server/src/modules/bilibili/gift-detector.js:167)、[公共版本缓存](D:/Work/lira-server/src/modules/gifts/gift-catalog-queries.js:495)、[客户端标准化](../../src/bilibili/gift/remote-catalog-cache.js:200)、[正价筛选](../../src/bilibili/gift/remote-catalog-cache.js:304)、[事件解析](D:/Work/lira-server/src/modules/bilibili/gift-parser.js:482)、[远程 DTO 协议](D:/Work/lira-server/docs/protocol/client-server-api.md:79)。
 
 ### 3.3 同名不同 ID 的已知例子
 
@@ -396,7 +399,7 @@ flowchart TD
 | 本地检测兼容路径 | 保留代码，后续用同一规范的 ID 解析器/适配输入 | 不自动恢复监听，不让同一远程事件重复本地入账 |
 | 月度冲刺、通知、特效等下游 | 验证新可空身份字段和既有金额传播 | 映射更新不发礼物、不重放、不重复结算 |
 
-当前代码的直接依据：[名称编辑器](D:/Work/Live/public/js/admin/settings-blindbox.js:64)、[按名称展开房间产物](D:/Work/Live/src/bilibili/gift/sale-catalog-parser.js:88)、[最近礼物盒型判定](D:/Work/Live/public/js/admin/gifts/recent.js:278)、[历史展示](D:/Work/Live/public/js/admin/gifts/history.js:307)、[按历史金额聚合](D:/Work/Live/src/storage/gift-query-store.js:17)、[盲盒分析](D:/Work/Live/src/bilibili/gift/blind-box-analysis.js:191)、[OBS 统计读取](D:/Work/Live/public/js/overlays/blindbox.js:79)、[加班规则 ID 查找](D:/Work/Live/src/overtime/overtime-store.js:167)、[旧云配置回种](D:/Work/Live/src/electron/cloud-sync-controller.js:223)。现有 OBS 的心动过滤使用固定盒名，应保留 URL 兼容并核对新 ID 路径，不能让新数据格式破坏原过滤器。
+当前代码的直接依据：[名称编辑器](../../public/js/admin/settings-blindbox.js:64)、[按名称展开房间产物](../../src/bilibili/gift/sale-catalog-parser.js:88)、[最近礼物盒型判定](../../public/js/admin/gifts/recent.js:278)、[历史展示](../../public/js/admin/gifts/history.js:307)、[按历史金额聚合](../../src/storage/gift-query-store.js:17)、[盲盒分析](../../src/bilibili/gift/blind-box-analysis.js:191)、[OBS 统计读取](../../public/js/overlays/blindbox.js:79)、[加班规则 ID 查找](../../src/overtime/overtime-store.js:167)、[旧云配置回种](../../src/electron/cloud-sync-controller.js:223)。现有 OBS 的心动过滤使用固定盒名，应保留 URL 兼容并核对新 ID 路径，不能让新数据格式破坏原过滤器。
 
 ### 9.1 加班机展开的具体例子
 
@@ -475,7 +478,7 @@ flowchart TD
 
 遵循已有模块边界：路由负责输入输出，目录拥有官方数据，主播运行时拥有有效映射及检测，存储层负责持久化，Electron main 持有远程连接和凭据。不要把所有规则塞到页面、路由或一个全局可变“当前主播”里。
 
-需要更新的规范包括客户端现有 [远程目录设计](D:/Work/Live/specs/remote-gift-catalog-sync_design.md)、[初始化设计](D:/Work/Live/specs/local-gift-catalog-bootstrap_design.md)、对应拥有者架构文档，以及服务器 [系统规则](D:/Work/lira-server/docs/requirements/system-rules.md)、[客户端协议](D:/Work/lira-server/docs/protocol/client-server-api.md)、公共目录/设备 OpenAPI 和验收条件。它们当前仍是旧契约；本报告不原地将其改成“已接受”。
+需要更新的规范包括客户端现有 [远程目录设计](../../specs/remote-gift-catalog-sync_design.md)、[初始化设计](../../specs/local-gift-catalog-bootstrap_design.md)、对应拥有者架构文档，以及服务器 [系统规则](D:/Work/lira-server/docs/requirements/system-rules.md)、[客户端协议](D:/Work/lira-server/docs/protocol/client-server-api.md)、公共目录/设备 OpenAPI 和验收条件。它们当前仍是旧契约；本报告不原地将其改成“已接受”。
 
 ## 13. 后续验收清单
 
@@ -525,7 +528,7 @@ flowchart TD
 - [ ] 包回退不依赖数值版本比较，不恢复被接管自定义，也不重放旧礼物。
 - [ ] Electron 的令牌、session、`safeStorage`、HTTPS origin、图片白名单与本地媒体约束未被放宽。
 
-直接复用已有 `remote-catalog-cache`、`remote-gift-image-cache`、`gift-catalog-initializer`、`gift-catalog-background-updates`、`frontend-gift-catalog-update`、礼物检测/历史/加班/云设置测试，并为上述新增边界补 focused 用例。消费者侧现有入口包括 [前端礼物测试](D:/Work/Live/test/frontend-gifts.test.js)、[销售目录测试](D:/Work/Live/test/gift-sale-catalog.test.js)、[远程事件测试](D:/Work/Live/test/remote-gift-controller.test.js)、[云同步测试](D:/Work/Live/test/cloud-sync-controller.test.js)、[分析测试](D:/Work/Live/test/gift-analysis-service.test.js)、[加班测试](D:/Work/Live/test/overtime-service.test.js)。服务器已有 `gift-public-routes`、`gift-catalog-service`、`bilibili-gift-parser`、`device-gift-events` 等测试可作为对应入口。实施跨越协议、持久化和检测，届时再执行相关架构及安全门禁；本轮文档不需要启动真实检测或请求用户数据。
+直接复用已有 `remote-catalog-cache`、`remote-gift-image-cache`、`gift-catalog-initializer`、`gift-catalog-background-updates`、`frontend-gift-catalog-update`、礼物检测/历史/加班/云设置测试，并为上述新增边界补 focused 用例。消费者侧现有入口包括 [前端礼物测试](../../test/frontend-gifts.test.js)、[销售目录测试](../../test/gift-sale-catalog.test.js)、[远程事件测试](../../test/remote-gift-controller.test.js)、[云同步测试](../../test/cloud-sync-controller.test.js)、[分析测试](../../test/gift-analysis-service.test.js)、[加班测试](../../test/overtime-service.test.js)。服务器已有 `gift-public-routes`、`gift-catalog-service`、`bilibili-gift-parser`、`device-gift-events` 等测试可作为对应入口。实施跨越协议、持久化和检测，届时再执行相关架构及安全门禁；本轮文档不需要启动真实检测或请求用户数据。
 
 ## 14. 关键决策记录草案
 

@@ -36,7 +36,7 @@
 
 - Owner: `src/bilibili/gift/event-service.js`.
 - Caller: `src/bilibili/gift/detection-service.js`.
-- Contract: `docs/architecture/backend/bilibili/gift.md` §2.1 and §8.
+- Contract: `docs/reference/backend/bilibili/gift.md` §2.1 and §8.
 - Consumers: gift snapshots, sprint statistics, blind-box analysis, gift effects, and overtime settlement.
 - Focused tests: `test/gift-capture-service.test.js`, `test/gift-detection-service.test.js`, and `test/overtime-service.test.js`.
 
@@ -51,7 +51,7 @@
 
 - Modify `src/bilibili/gift/event-service.js` to restore the legacy same-command SQL fallback after the existing cross-command query.
 - Update `test/gift-capture-service.test.js` so high-value `SEND_GIFT` and `BLIND_GIFT` messages with different IDs inside the window deduplicate, while otherwise identical messages outside the window remain distinct.
-- Update `docs/architecture/backend/bilibili/gift.md` to describe both fallback branches and the known rapid-repeat trade-off.
+- Update `docs/reference/backend/bilibili/gift.md` to describe both fallback branches and the known rapid-repeat trade-off.
 
 ## Milestones
 
@@ -175,7 +175,7 @@ Expected: all cases pass, including one row for different IDs inside five second
 
 **Files:**
 
-- Modify: `docs/architecture/backend/bilibili/gift.md`
+- Modify: `docs/reference/backend/bilibili/gift.md`
 
 **Interfaces:**
 
@@ -194,9 +194,9 @@ Expected: all tests pass with zero failures.
 
 - [x] **Step 3: Review the scoped diff and repository state**
 
-Run: `git diff --check -- src/bilibili/gift/event-service.js test/gift-capture-service.test.js docs/architecture/backend/bilibili/gift.md specs/plans/2026-08-28-restore-legacy-gift-deduplication.md`
+Run: `git diff --check -- src/bilibili/gift/event-service.js test/gift-capture-service.test.js docs/reference/backend/bilibili/gift.md specs/plans/2026-08-28-restore-legacy-gift-deduplication.md`
 
-Run: `git diff -- src/bilibili/gift/event-service.js test/gift-capture-service.test.js docs/architecture/backend/bilibili/gift.md specs/plans/2026-08-28-restore-legacy-gift-deduplication.md`
+Run: `git diff -- src/bilibili/gift/event-service.js test/gift-capture-service.test.js docs/reference/backend/bilibili/gift.md specs/plans/2026-08-28-restore-legacy-gift-deduplication.md`
 
 Run: `git status --short`
 

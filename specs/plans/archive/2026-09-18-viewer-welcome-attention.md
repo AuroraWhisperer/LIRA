@@ -51,6 +51,6 @@ The report is a user-authorized design input, not evidence of deployed functiona
 
 ## Release and evidence limits
 
-`npm run verify:contracts` correctly refuses the current server checkout: client lock expects `5ea7b01c8fc7b1cec34a43b01f99c403fd9d1577`, server HEAD is `d92f28a3d817f655ddd9bd7cc6d40a319b2ad910` with uncommitted changes. The existing lock is unchanged. Per `docs/architecture/engineering/test.md`, pinning must follow a committed, available server implementation; no commits were authorized. The V2 fixture/schema/HTTP/IPC tests pass independently, but the release gate needs the eventual committed revision and fixture hashes.
+`npm run verify:contracts` correctly refuses the current server checkout: client lock expects `5ea7b01c8fc7b1cec34a43b01f99c403fd9d1577`, server HEAD is `d92f28a3d817f655ddd9bd7cc6d40a319b2ad910` with uncommitted changes. The existing lock is unchanged. Per `docs/reference/engineering/test.md`, pinning must follow a committed, available server implementation; no commits were authorized. The V2 fixture/schema/HTTP/IPC tests pass independently, but the release gate needs the eventual committed revision and fixture hashes.
 
 Honor parsing is covered by schema-based synthetic packets only. Real upstream field availability and pronunciation coverage for every nickname remain unverified. Private attention reminders are outside phases A–C. Nothing was deployed; ADR-0061 remains draft for review.

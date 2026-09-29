@@ -5,7 +5,12 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const { handleApi } = require('../../src/server/api-routes');
-const { CLOCK_STYLE_VALUES, DEFAULT_LABELS, cleanClockLabel, getClockConfig } = require('../../src/server/clock-contract');
+const {
+  CLOCK_STYLE_VALUES,
+  DEFAULT_LABELS,
+  cleanClockLabel,
+  getClockConfig,
+} = require('../../src/server/clock-contract');
 const { addFrameProtectionHeaders } = require('../../src/server/http-utils');
 const clockRoutes = require('../../src/server/routes/clock-routes');
 const settingsRoutes = require('../../src/server/routes/settings-routes');

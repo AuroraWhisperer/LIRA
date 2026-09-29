@@ -16,7 +16,7 @@ Read-only runtime inspection found cursor 1524 last validated at 13:03:21 on Sep
 
 - Owner: `src/electron/remote-gift-controller.js`.
 - Tests: `test/remote-gift-controller.test.js`; existing processed-import, gift-sync-store and remote-license-client tests protect adjacent contracts.
-- Fact owner: `docs/architecture/desktop/main.md`.
+- Fact owner: `docs/reference/desktop/main.md`.
 - Preserve DeviceBearer handling, source/auth/controller/projection fences, durable cursor ordering, history-only bootstrap, idempotent consumers and all HTTP/IPC/schema contracts.
 - Do not enable local gift detection, change recent-list eligibility, modify real user data, edit/deploy the remote server, package or publish.
 

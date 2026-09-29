@@ -47,11 +47,7 @@ test('recent cards and mappings share exact themes for each box and fall back fo
     fixture.module.renderBlindBoxList();
 
     assert.equal(list.innerHTML.match(/data-blind-box-theme="([^"]+)"/)?.[1], theme, `card: ${name}`);
-    assert.equal(
-      fixture.container.innerHTML.match(/data-blind-box-theme="([^"]+)"/)?.[1],
-      theme,
-      `mapping: ${name}`,
-    );
+    assert.equal(fixture.container.innerHTML.match(/data-blind-box-theme="([^"]+)"/)?.[1], theme, `mapping: ${name}`);
     assert.deepEqual(fixture.visibleNames(), [name]);
   }
 });

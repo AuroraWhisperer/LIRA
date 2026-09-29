@@ -54,7 +54,13 @@ test('personal playlist cache survives a restart for up to twenty-four hours', a
 
 test('large playlist caches have a bounded memory footprint without truncating playlist data', async () => {
   const { CacheManager } = await loadCacheManager({
-    localStorage: { setItem() {}, getItem() { return null; }, removeItem() {} },
+    localStorage: {
+      setItem() {},
+      getItem() {
+        return null;
+      },
+      removeItem() {},
+    },
   });
   const cache = new CacheManager();
   let latest;
@@ -73,8 +79,18 @@ for (const hours of [12, 24, 168]) {
   test(`playlist writes evict expired entries over ${hours} accelerated hours without revisiting old keys`, async () => {
     let now = 1000;
     const { CacheManager } = await loadCacheManager({
-      Date: class extends Date { static now() { return now; } },
-      localStorage: { setItem() {}, getItem() { return null; }, removeItem() {} },
+      Date: class extends Date {
+        static now() {
+          return now;
+        }
+      },
+      localStorage: {
+        setItem() {},
+        getItem() {
+          return null;
+        },
+        removeItem() {},
+      },
     });
     const cache = new CacheManager();
     for (let hour = 0; hour < hours; hour += 1) {

@@ -1,5 +1,15 @@
 # Cloud Daily Bots Implementation Plan
 
+**Status:** Awaiting Verification.
+
+**复核日期：** 2026-09-28。实现与自动化已有记录；E 阶段真实关桌面、服务器重启、跨日及需要时的旧库停写/导入证据待补。
+
+当前依据：[所属规格或参考](../cloud-daily-bots.md)。状态索引见 [计划入口](README.md)。
+
+## 原始计划与执行记录
+
+以下保留原计划时点的行为、命令和验证记录；它们不覆盖上述状态或当前契约，历史未勾选项不直接等同于当前缺陷。
+
 **Goal:** 按设计将签到与抽签执行权移到 Server，提供两端控制和受控一次性接管。
 
 **Architecture:** 复用持续 RoomMonitor、租户 streamer.db、统一 scheduler。SQLite 同事务保存配置 revision、每日结果和接管凭证；Electron main 拥有认证与本机旧数据快照。

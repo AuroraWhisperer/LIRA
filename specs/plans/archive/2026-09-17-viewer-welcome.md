@@ -8,7 +8,7 @@ The client reads and updates `/api/device/welcome-settings` through the existing
 authorized license manager and narrow main-window IPC; no local welcome sender.
 
 Owners: `public/js/admin/danmaku-welcome.js`, `public/pages/admin/toolbox/danmaku.html`,
-license operations/client/IPC/preload. Contract: `docs/architecture/desktop/main.md`
+license operations/client/IPC/preload. Contract: `docs/reference/desktop/main.md`
 and the server's `docs/protocol/viewer-welcome.md`. No local database changes.
 
 Preserve pre-existing changes, Electron origin checks, account ownership guards,

@@ -3,7 +3,7 @@
 
 // PNG → WebP 转换（复用 Playwright 的 Chromium canvas，零新依赖）。
 // 用法：node scripts/usage-guide-shots/to-webp.cjs [--quality 0.86]
-// 读取 screenshots/usage-guide/png/**，输出到 webp/ 同名目录，并自检体积与宽高。
+// 读取 tmp/screenshots/usage-guide/png/**，输出到 webp/ 同名目录，并自检体积与宽高。
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -37,11 +37,7 @@ async function main() {
     const page = await browser.newPage();
     for (const file of files) {
       const relative = path.relative(pngDir, file);
-      const outFile = path.join(
-        OUT_ROOT,
-        'webp',
-        relative.replace(/\.png$/i, '.webp'),
-      );
+      const outFile = path.join(OUT_ROOT, 'webp', relative.replace(/\.png$/i, '.webp'));
       fs.mkdirSync(path.dirname(outFile), { recursive: true });
       const dataUrl = `data:image/png;base64,${fs.readFileSync(file).toString('base64')}`;
       const webpDataUrl = await page.evaluate(

@@ -26,7 +26,7 @@
 | 现有能力 | 依据 | 与本功能的关系 |
 | --- | --- | --- |
 | 更新检查、下载安装由 Electron 更新模块管理 | [`update-manager.js`](../src/electron/update-manager.js)、[`desktop-update-controller.js`](../src/electron/desktop-update-controller.js) | 继续复用，不改版本判定和更新状态枚举 |
-| 更新包校验失败已有提示 | [`friendlyUpdateError`](../src/electron/update-manager.js)、[更新运行时文档](../docs/architecture/desktop/update.md) | 下载包校验不等于安装后资源扫描 |
+| 更新包校验失败已有提示 | [`friendlyUpdateError`](../src/electron/update-manager.js)、[更新运行时文档](../docs/reference/desktop/update.md) | 下载包校验不等于安装后资源扫描 |
 | 计算 `app.asar` 的 SHA-256，并用于构造 `buildId` | [`license/build-integrity.js`](../src/electron/license/build-integrity.js) | 当前函数的 `verified` 表示成功取得摘要；函数本身未与预期摘要比较，不能直接用作本功能的通过结论 |
 | 应用启用 ASAR，包含 `src/`、`public/` 等资源，并明确排除部分文件 | [`package.json`](../package.json) | 清单以实际打包产物为准，不能把整个源码目录当作必需资源集合 |
 | `afterPack` 目前仅移除 `default_app.asar` | [`scripts/after-pack.js`](../scripts/after-pack.js)、[`packaging-scope.test.js`](../test/engineering/packaging-scope.test.js) | 目前没有本功能所需的随包校验清单；后续构建接入须保留原清理行为 |

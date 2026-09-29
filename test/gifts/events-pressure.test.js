@@ -17,7 +17,7 @@ test('1000 fan facts preserve full history across replay, a failed page and rest
   const f = fanFixture(t);
   const events = Array.from({ length: 1000 }, (_, index) => ({
     id: `pressure-membership-${index}`,
-    identity: { platform: 'bilibili', type: 'uid', value: String(900000001 + index % 100) },
+    identity: { platform: 'bilibili', type: 'uid', value: String(900000001 + (index % 100)) },
     name: 'Same display name',
     kind: 'membership',
     membership: { type: 'observation', level: 3, observedAt: NOW },
@@ -35,13 +35,18 @@ test('1000 fan facts preserve full history across replay, a failed page and rest
   }
   const revisions = profiles.map((profile) => f.detail(profile.id).revision);
   const latePage = Array.from({ length: 200 }, (_, index) => ({
-    ...events[index], id: `later-${index}`, name: 'This page must roll back',
+    ...events[index],
+    id: `later-${index}`,
+    name: 'This page must roll back',
     observedAt: '2026-09-19T04:00:00.000Z',
   }));
   latePage[199].membership = { type: 'interval', level: 3, start: '2026-09-01', end: '2026-09-30' };
   assert.throws(() => f.consume(latePage), /已核实证据/);
   assert.equal(f.run('settings').cursor, 1000);
-  assert.deepEqual(profiles.map((profile) => f.detail(profile.id).revision), revisions);
+  assert.deepEqual(
+    profiles.map((profile) => f.detail(profile.id).revision),
+    revisions,
+  );
   f.restart();
   for (const profile of profiles) {
     const actual = f.detail(profile.id);
@@ -50,8 +55,17 @@ test('1000 fan facts preserve full history across replay, a failed page and rest
     assert.equal(new Set(actual.records.map((record) => record.sourceKey)).size, 10);
   }
   assert.equal(f.run('settings').cursor, 1000);
-  t.diagnostic(JSON.stringify({ scenario: 'fan-facts', facts: 1000, replays: 1000, users: 100,
-    rejectedPage: 200, retainedRecords: 1000, elapsedMs: Number((performance.now() - started).toFixed(2)) }));
+  t.diagnostic(
+    JSON.stringify({
+      scenario: 'fan-facts',
+      facts: 1000,
+      replays: 1000,
+      users: 100,
+      rejectedPage: 200,
+      retainedRecords: 1000,
+      elapsedMs: Number((performance.now() - started).toFixed(2)),
+    }),
+  );
 });
 
 test('100000 processed gift items preserve independent draws, exact indexes and replay idempotence', (t) => {
@@ -65,21 +79,33 @@ test('100000 processed gift items preserve independent draws, exact indexes and 
       return draws++ % 2;
     },
   });
-  const projection = createGiftProjectionService({ db: fixture.db, settings: () => ({}) }, {
-    getOvertimeEpoch: service.getCurrentEpoch,
-    onGiftFinalized: (row) => service.finalizeGift({ giftEventId: row.id }),
+  const projection = createGiftProjectionService(
+    { db: fixture.db, settings: () => ({}) },
+    {
+      getOvertimeEpoch: service.getCurrentEpoch,
+      onGiftFinalized: (row) => service.finalizeGift({ giftEventId: row.id }),
+    },
+  );
+  t.after(() => {
+    projection.dispose();
+    service.dispose();
+    fixture.close();
   });
-  t.after(() => { projection.dispose(); service.dispose(); fixture.close(); });
   service.act('enable');
   service.setTime({ remainingSeconds: 60 });
-  service.replaceRules([{
-    giftId: 'guard-3',
-    giftName: '舰长',
-    mode: 'random',
-    quantityMode: 'item',
-    outcomes: [{ operation: 'add', value: 2, weight: 1 }, { operation: 'subtract', value: 1, weight: 1 }],
-    enabled: true,
-  }]);
+  service.replaceRules([
+    {
+      giftId: 'guard-3',
+      giftName: '舰长',
+      mode: 'random',
+      quantityMode: 'item',
+      outcomes: [
+        { operation: 'add', value: 2, weight: 1 },
+        { operation: 'subtract', value: 1, weight: 1 },
+      ],
+      enabled: true,
+    },
+  ]);
   const source = createGiftSource(fixture.db.giftDb);
   const event = makeProcessedGiftEvent({ giftId: '10003', giftName: '舰长', num: 100000, totalPrice: 10000 });
   normalizeProcessedGiftEvent(event);
@@ -101,15 +127,17 @@ test('100000 processed gift items preserve independent draws, exact indexes and 
   projection.importProcessedEvent(event, source);
   assert.equal(draws, 100000);
   assert.equal(fixture.countSettlements(row.id), 1);
-  t.diagnostic(JSON.stringify({
-    scenario: 'overtime-random-items',
-    quantity: draws,
-    elapsedMs: Number(elapsedMs.toFixed(2)),
-    sampledHeapIncreaseBytes: Math.max(0, sampledPeak - beforeHeap),
-    persistedOutcomesBytes: Buffer.byteLength(settlement.outcomes_json),
-    acceptedMaximum,
-    maximumInputBytes: Buffer.byteLength(JSON.stringify(maximum)),
-  }));
+  t.diagnostic(
+    JSON.stringify({
+      scenario: 'overtime-random-items',
+      quantity: draws,
+      elapsedMs: Number(elapsedMs.toFixed(2)),
+      sampledHeapIncreaseBytes: Math.max(0, sampledPeak - beforeHeap),
+      persistedOutcomesBytes: Buffer.byteLength(settlement.outcomes_json),
+      acceptedMaximum,
+      maximumInputBytes: Buffer.byteLength(JSON.stringify(maximum)),
+    }),
+  );
 });
 
 test('1000 distinct final gifts and their replays settle once with one countdown timer', (t) => {
@@ -123,13 +151,23 @@ test('1000 distinct final gifts and their replays settle once with one countdown
       peakTimers = Math.max(peakTimers, timers.size);
       return timer;
     },
-    clearTimeout(timer) { timers.delete(timer); fixture.clock.clearTimeout(timer); },
+    clearTimeout(timer) {
+      timers.delete(timer);
+      fixture.clock.clearTimeout(timer);
+    },
   });
-  const projection = createGiftProjectionService({ db: fixture.db, settings: () => ({}) }, {
-    getOvertimeEpoch: service.getCurrentEpoch,
-    onGiftFinalized: (row) => service.finalizeGift({ giftEventId: row.id }),
+  const projection = createGiftProjectionService(
+    { db: fixture.db, settings: () => ({}) },
+    {
+      getOvertimeEpoch: service.getCurrentEpoch,
+      onGiftFinalized: (row) => service.finalizeGift({ giftEventId: row.id }),
+    },
+  );
+  t.after(() => {
+    projection.dispose();
+    service.dispose();
+    fixture.close();
   });
-  t.after(() => { projection.dispose(); service.dispose(); fixture.close(); });
   service.act('enable');
   service.setTime({ remainingSeconds: 10 });
   service.act('start');
@@ -137,9 +175,13 @@ test('1000 distinct final gifts and their replays settle once with one countdown
   const source = createGiftSource(fixture.db.giftDb);
   const started = performance.now();
   for (let index = 0; index < 1000; index++) {
-    const event = makeProcessedGiftEvent({ giftId: '10003', giftName: '舰长' }, {
-      eventId: `pressure-${index}`, cursor: index + 1,
-    });
+    const event = makeProcessedGiftEvent(
+      { giftId: '10003', giftName: '舰长' },
+      {
+        eventId: `pressure-${index}`,
+        cursor: index + 1,
+      },
+    );
     normalizeProcessedGiftEvent(event);
     projection.importProcessedEvent(event, source);
     projection.importProcessedEvent(event, source);
@@ -151,8 +193,15 @@ test('1000 distinct final gifts and their replays settle once with one countdown
   projection.dispose();
   service.dispose();
   assert.equal(timers.size, 0);
-  t.diagnostic(JSON.stringify({ scenario: 'gift-burst', events: 1000, deliveries: 2000, peakTimers,
-    elapsedMs: Number((performance.now() - started).toFixed(2)) }));
+  t.diagnostic(
+    JSON.stringify({
+      scenario: 'gift-burst',
+      events: 1000,
+      deliveries: 2000,
+      peakTimers,
+      elapsedMs: Number((performance.now() - started).toFixed(2)),
+    }),
+  );
 });
 
 for (const scenario of [
@@ -164,19 +213,29 @@ for (const scenario of [
     const maps = [];
     const sets = [];
     class CountedMap extends Map {
-      constructor(...args) { super(...args); maps.push(this); }
+      constructor(...args) {
+        super(...args);
+        maps.push(this);
+      }
     }
     class CountedSet extends Set {
-      constructor(...args) { super(...args); sets.push(this); }
+      constructor(...args) {
+        super(...args);
+        sets.push(this);
+      }
     }
     const filename = path.join(__dirname, '../../src/games/interaction-session-service.js');
     const module = { exports: {} };
-    vm.runInNewContext(fs.readFileSync(filename, 'utf8'), {
-      module,
-      require: createRequire(filename),
-      Map: CountedMap,
-      Set: CountedSet,
-    }, { filename });
+    vm.runInNewContext(
+      fs.readFileSync(filename, 'utf8'),
+      {
+        module,
+        require: createRequire(filename),
+        Map: CountedMap,
+        Set: CountedSet,
+      },
+      { filename },
+    );
     const source = { ready: true, accountUid: '80000', roomId: '100', ownerUid: '90000', connectionKey: '1' };
     let listener = null;
     let tasks = 0;
@@ -184,8 +243,16 @@ for (const scenario of [
       now: () => 1000,
       wallNow: () => 1_800_000_000_000,
       getSourceState: () => source,
-      subscribe(callback) { listener = callback; return () => { listener = null; }; },
-      setTimeout() { tasks++; return {}; },
+      subscribe(callback) {
+        listener = callback;
+        return () => {
+          listener = null;
+        };
+      },
+      setTimeout() {
+        tasks++;
+        return {};
+      },
       clearTimeout() {},
     });
     t.after(() => service.dispose());
@@ -193,15 +260,29 @@ for (const scenario of [
     const expected = new Map();
     const started = performance.now();
     for (let index = 0; index < 50000; index++) {
-      const uid = String(1 + index % scenario.users);
-      const score = 1 + index % 10;
-      listener({ ...source, source: 'danmaku', receivedAt: 1000, platformTime: 1,
-        eventId: scenario.reliableIds ? `event-${index}` : null, uid, message: String(score) });
+      const uid = String(1 + (index % scenario.users));
+      const score = 1 + (index % 10);
+      listener({
+        ...source,
+        source: 'danmaku',
+        receivedAt: 1000,
+        platformTime: 1,
+        eventId: scenario.reliableIds ? `event-${index}` : null,
+        uid,
+        message: String(score),
+      });
       expected.set(uid, score);
     }
     if (scenario.reliableIds) {
-      listener({ ...source, source: 'danmaku', receivedAt: 1000, platformTime: 1,
-        eventId: 'event-0', uid: '1', message: '10' });
+      listener({
+        ...source,
+        source: 'danmaku',
+        receivedAt: 1000,
+        platformTime: 1,
+        eventId: 'event-0',
+        uid: '1',
+        message: '10',
+      });
     }
     assert.equal(service.getHostState().participants, scenario.users);
     assert.equal(tasks, 0);
@@ -212,11 +293,25 @@ for (const scenario of [
     const final = service.finish(id);
     assert.equal(final.session.average, [...expected.values()].reduce((sum, value) => sum + value, 0) / expected.size);
     assert.equal(listener, null);
-    assert.equal(maps.reduce((sum, map) => sum + map.size, 0), 0);
-    assert.equal(sets.reduce((sum, set) => sum + set.size, 0), 0);
+    assert.equal(
+      maps.reduce((sum, map) => sum + map.size, 0),
+      0,
+    );
+    assert.equal(
+      sets.reduce((sum, set) => sum + set.size, 0),
+      0,
+    );
     service.clear(id);
     assert.equal(service.getState().session, null);
-    t.diagnostic(JSON.stringify({ scenario: 'rating', ...scenario, messages: 50000, retainedTimestamps,
-      retainedEventIds, elapsedMs: Number((performance.now() - started).toFixed(2)) }));
+    t.diagnostic(
+      JSON.stringify({
+        scenario: 'rating',
+        ...scenario,
+        messages: 50000,
+        retainedTimestamps,
+        retainedEventIds,
+        elapsedMs: Number((performance.now() - started).toFixed(2)),
+      }),
+    );
   });
 }

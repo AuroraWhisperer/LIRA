@@ -32,9 +32,7 @@ function buildReminders(profile, records, states, now = Date.now()) {
       handledAt: state?.handledAt,
       until: state?.until,
       revisedBelowThreshold: Boolean(
-        extra.metric &&
-        (membership[`${extra.metric}Days`] ?? -1) < extra.threshold &&
-        isResolved,
+        extra.metric && (membership[`${extra.metric}Days`] ?? -1) < extra.threshold && isResolved,
       ),
       group: isResolved
         ? 'history'

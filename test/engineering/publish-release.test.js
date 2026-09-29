@@ -80,11 +80,14 @@ function fixture(options = {}) {
   }
   const filename = path.resolve(__dirname, '../../scripts/publish-release.js');
   const requireFake = (name) => {
-    if (name === './verify-client-installer') return { async verifyInstaller() {
-      commands.push(['verify-installer']);
-      if (options.invalidInstaller) throw new Error('fixture invalid installer');
-      verified = true;
-    } };
+    if (name === './verify-client-installer')
+      return {
+        async verifyInstaller() {
+          commands.push(['verify-installer']);
+          if (options.invalidInstaller) throw new Error('fixture invalid installer');
+          verified = true;
+        },
+      };
     if (name === './release-output') return require('../../scripts/release-output');
     if (name === 'node:fs') return fakeFs;
     if (name === 'node:child_process')
@@ -174,13 +177,21 @@ test('validation occurs before any upload, and failed or changed artifacts are n
   for (const options of [{ invalidInstaller: true }, { artifactsChanged: true }]) {
     const f = fixture(options);
     await assert.rejects(f.publisher.main());
-    assert.equal(f.commands.some(([command, action, operation]) => command === 'gh' && action === 'release' && operation === 'upload'), false);
+    assert.equal(
+      f.commands.some(
+        ([command, action, operation]) => command === 'gh' && action === 'release' && operation === 'upload',
+      ),
+      false,
+    );
   }
   const f = fixture();
   await f.publisher.main();
   const build = f.commands.find(([command]) => command === 'npx');
   assert.equal(build[build.indexOf('--publish') + 1], 'never');
-  assert.ok(f.commands.findIndex(([command]) => command === 'verify-installer') < f.commands.findIndex((entry) => entry[2] === 'upload'));
+  assert.ok(
+    f.commands.findIndex(([command]) => command === 'verify-installer') <
+      f.commands.findIndex((entry) => entry[2] === 'upload'),
+  );
 });
 
 test('upload retries never rebuild the already verified artifact set', async () => {

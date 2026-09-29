@@ -12,7 +12,7 @@ packages. Preserve all other packaged runtime files, including gift effects.
 - Local builds copy `node_modules/electron/dist`. The installed builder skips
   default-app cleanup for a directory-based `electronDist`, leaving
   `resources/default_app.asar` in the output.
-- The build contract is `docs/architecture/engineering/build.md`; the focused
+- The build contract is `docs/reference/engineering/build.md`; the focused
   regression owner will be `test/packaging-scope.test.js`.
 
 ## Constraints And Non-goals

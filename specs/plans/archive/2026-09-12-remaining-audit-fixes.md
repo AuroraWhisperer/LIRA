@@ -21,7 +21,7 @@
 
 每项按“确认具体入口 → 捕捉回归 → 最小修复 → 直接测试 → 同步 owning 文档/证据”执行；具体发现和验证命令追加到执行记录。
 
-- [x] S5-002：`src/storage/settings-store.js` 拥有设置启动事务，`src/server/settings-bootstrap.js` 委托；旧版本读取、默认值、转换、版本写入在同一 `BEGIN IMMEDIATE/COMMIT` 中，错误 `ROLLBACK`。新增 `test/settings-bootstrap.test.js`，以 SQLite trigger 注入版本写入失败，断言重启只转换一次、缺版本不提前发布、新库和已完成版本稳定。更新 `docs/architecture/backend/storage.md`。
+- [x] S5-002：`src/storage/settings-store.js` 拥有设置启动事务，`src/server/settings-bootstrap.js` 委托；旧版本读取、默认值、转换、版本写入在同一 `BEGIN IMMEDIATE/COMMIT` 中，错误 `ROLLBACK`。新增 `test/settings-bootstrap.test.js`，以 SQLite trigger 注入版本写入失败，断言重启只转换一次、缺版本不提前发布、新库和已完成版本稳定。更新 `docs/reference/backend/storage.md`。
 - [x] S7-001：`src/electron/media-request-headers.js`、`src/electron/main.js` 合成同 session 的请求头策略；`test/electron-main-modules.test.js` 覆盖网易、QQ、B站与无关请求，核对现有 session 调用者。
 - [x] S6-004：`src/music/qq-encrypted-stream.js` 联合处理流背压、下游取消、实际字节上限和清理；增加合成流回归，保持响应契约。
 - [x] S6-005：`src/music/wesing-capture-engine.js` 统一启停代次，旧目录/歌词异步结果不能重新启动或发布；扩充直接 WeSing 测试。

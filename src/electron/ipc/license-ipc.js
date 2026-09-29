@@ -1,5 +1,6 @@
 'use strict';
-const { normalizeStyleOptions } = require('../../shared/danmaku-style-options');
+const { DANMAKU_STYLE_OPTIONS, normalizeStyleOptions } = require('../../shared/danmaku-style-options');
+const { normalizeLayout } = require('../../shared/danmaku-layout');
 
 const { isDnsHostname } = require('../../shared/remote-url-policy');
 const {
@@ -14,17 +15,7 @@ const {
 } = require('../../shared/welcome-settings-contract');
 const SONG_BACKGROUND_MAX_BYTES = 5 * 1024 * 1024;
 const SAFE_ERROR_CODE_PATTERN = /^[A-Z][A-Z0-9_]{0,63}$/;
-const OVERLAY_STYLES = new Set([
-  'bubble',
-  'signal',
-  'minimal',
-  'ranked',
-  'transparent',
-  'identity',
-  'outline',
-  'cream',
-  'glow',
-]);
+const OVERLAY_STYLES = new Set(Object.keys(DANMAKU_STYLE_OPTIONS));
 const SAFE_LICENSE_STATES = new Set([
   'checking',
   'needs_activation',
@@ -386,6 +377,7 @@ function overlayParameters(value) {
   return {
     style: value.style,
     fullscreenDurationSeconds: duration,
+    ...(value.layout === undefined ? {} : { layout: normalizeLayout(value.layout) }),
     ...(value.styleOptions === undefined
       ? {}
       : {

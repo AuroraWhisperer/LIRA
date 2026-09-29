@@ -14,7 +14,7 @@
 
 ## Ownership and constraints
 
-- Owner: `build/installer.nsh`; contract: ADR-0013 and `docs/architecture/engineering/build.md` section 6.
+- Owner: `build/installer.nsh`; contract: ADR-0013 and `docs/reference/engineering/build.md` section 6.
 - Preserve data paths, successful migration behavior, existing destination precedence, old data on failure, registry cleanup, and silent updater operation.
 - Do not change Electron, application code, signing policy, version, releases, tags, or unrelated working changes.
 - Build the local test installer using the original 4.1.0 application payload so unrelated working changes are not shipped accidentally.

@@ -5,10 +5,13 @@ const { GUARD_GIFT_ALIASES } = require('../bilibili/gift/guard-gift-aliases');
 function createGiftWishStore(db) {
   const list = db.prepare('SELECT * FROM gift_wishes WHERE source_id = ? ORDER BY created_at, id');
   const insert = db.prepare(`INSERT INTO gift_wishes
-    (id, source_id, period, gift_id, variant_id, gift_name, gift_category, image_path, target, label, created_at, display_style, text_template)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+    (id, source_id, period, gift_id, variant_id, gift_name, gift_category, image_path, target, label, created_at,
+      display_style, text_template, text_image_position, text_image_format, text_pending_color, text_received_color)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
   const update = db.prepare(`UPDATE gift_wishes SET target = ?, label = ?,
-    display_style = COALESCE(?, display_style), text_template = COALESCE(?, text_template)
+    display_style = COALESCE(?, display_style), text_template = COALESCE(?, text_template),
+    text_image_position = COALESCE(?, text_image_position), text_image_format = COALESCE(?, text_image_format),
+    text_pending_color = COALESCE(?, text_pending_color), text_received_color = COALESCE(?, text_received_color)
     WHERE source_id = ? AND id = ?`);
   const remove = db.prepare('DELETE FROM gift_wishes WHERE source_id = ? AND id = ?');
   const session = db.prepare('SELECT * FROM gift_wish_sessions WHERE source_id = ? AND room_id = ?');
@@ -61,10 +64,27 @@ function createGiftWishStore(db) {
         wish.createdAt,
         wish.displayStyle,
         wish.textTemplate,
+        wish.textImagePosition,
+        wish.textImageFormat,
+        wish.textPendingColor,
+        wish.textReceivedColor,
       );
     },
-    update: (sourceId, id, { target, label, displayStyle, textTemplate }) =>
-      Number(update.run(target, label, displayStyle ?? null, textTemplate ?? null, sourceId, id).changes),
+    update: (sourceId, id, { target, label, displayStyle, textTemplate, textImagePosition, textImageFormat, textPendingColor, textReceivedColor }) =>
+      Number(
+        update.run(
+          target,
+          label,
+          displayStyle ?? null,
+          textTemplate ?? null,
+          textImagePosition ?? null,
+          textImageFormat ?? null,
+          textPendingColor ?? null,
+          textReceivedColor ?? null,
+          sourceId,
+          id,
+        ).changes,
+      ),
     remove: (sourceId, id) => Number(remove.run(sourceId, id).changes),
     count,
     readSession: (sourceId, roomId) => session.get(sourceId, roomId) || null,

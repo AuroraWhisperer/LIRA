@@ -10,7 +10,7 @@
 
 ## Requirements / Compatibility
 
-- 来源：[已接受的权限决策](../2026-09-18-overlay-access-decision.md) 和审计 R4-HTML-TOKEN；用户明确各页面权限独立。
+- 来源：[已接受的权限决策](2026-09-18-overlay-access-decision.md) 和审计 R4-HTML-TOKEN；用户明确各页面权限独立。
 - 保留 overlay 正式 URL、各页展示及游戏落子/画笔/停止/重开和转盘抽取；仅管理端可编辑游戏/转盘配置、改设置、导入/清空/退出。
 - 管理 token 不进入 HTML、renderer、URL、日志或其他窗口；保留 Electron context isolation、safeStorage、session partitions、IPC 来源检查和 local-media origin 检查。
 - 精确 Host 和普通 Origin 检查不变；仅已认证 overlay 能以 opaque Origin 调用其允许的 API/WS。OPTIONS 仅描述可公开的 overlay 路径/方法，实际请求仍验证凭据。
@@ -27,7 +27,7 @@
 | playback_ordering：WS | `src/server/ws.js` 握手持有已验证 principal，所有 JSON 出口统一投影、过滤，拒绝 overlay 业务入站帧；真实 socket 回归 |
 | license_safety：Electron | 新 `desktop-request-auth.js`，现有唯一 media request listener、main/desktop-runtime 接线；管理预览 iframe/postMessage；安全和真实隐藏 Electron 探针 |
 
-源事实与边界文档：`docs/architecture/backend/{server-core,api,ws}.md`、`desktop/{auth,main}.md`、`frontend/overlays.md`。现有 scoped AGENTS 在对应 owner 编辑前读取。
+源事实与边界文档：`docs/reference/backend/{server-core,api,ws}.md`、`desktop/{auth,main}.md`、`frontend/overlays.md`。现有 scoped AGENTS 在对应 owner 编辑前读取。
 
 ## Public / Internal Contracts
 

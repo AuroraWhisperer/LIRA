@@ -107,7 +107,10 @@ test('replacement rejects oversized results before detaching references or remov
   assert.throws(() => store.replaceAll(songs(5001, '替换')), limitError);
   assert.deepEqual(snapshot(), before);
 
-  const result = songService.replaceCloudSongs(store, [...songs(4999, '替换'), ...songs(1, '替换')]);
+  const result = songService.replaceCloudSongs(
+    store,
+    [...songs(4999, '替换'), ...songs(1, '替换')].map(({ name, artist }) => ({ title: name, artist })),
+  );
   assert.deepEqual(result, { total: 5000, count: 4999, duplicate: 1 });
   assert.equal(store.countSongs(), 4999);
   assert.equal(db.prepare('SELECT song_id FROM queue').get().song_id, null);

@@ -21,12 +21,12 @@
 
 | 项目 | Owner / Consumers | Contract | Focused tests |
 | --- | --- | --- | --- |
-| F1 | `src/overtime/overtime-service.js`、`src/server/domain-services.js` / data routes | `docs/architecture/backend/overtime.md` | `test/overtime-service.test.js` 及真实 domain-services 清空集成回归 |
-| F2/F7 | `src/server/http-utils.js`、`src/server/http-server.js` / OBS HTML、WS | `docs/architecture/backend/server-core.md`、`docs/architecture/frontend/comms.md` | 页面 token 注入/会话恢复、升级请求、本地重启重连回归 |
-| F3/F4 | `public/js/playback/features/`、组合控制器 / 播放页面 | `docs/architecture/frontend/playback.md` | `test/playback-quality.test.js`、`test/playback-queue-behavior.test.js` |
-| F5 | `src/music/providers/netease-provider.js` / playlist write service | `docs/architecture/backend/music/netease-provider.md` | `test/netease-provider.test.js` |
-| F6 | `src/ai/ai-assistant-service.js` / AI store、回复管线 | `docs/architecture/backend/ai.md` | `test/ai-assistant-service.test.js` |
-| P1 | `package.json` / Electron 主窗口 | `docs/architecture/engineering/build.md` | `test/packaging-scope.test.js` |
+| F1 | `src/overtime/overtime-service.js`、`src/server/domain-services.js` / data routes | `docs/reference/backend/overtime.md` | `test/overtime-service.test.js` 及真实 domain-services 清空集成回归 |
+| F2/F7 | `src/server/http-utils.js`、`src/server/http-server.js` / OBS HTML、WS | `docs/reference/backend/server-core.md`、`docs/reference/frontend/comms.md` | 页面 token 注入/会话恢复、升级请求、本地重启重连回归 |
+| F3/F4 | `public/js/playback/features/`、组合控制器 / 播放页面 | `docs/reference/frontend/playback.md` | `test/playback-quality.test.js`、`test/playback-queue-behavior.test.js` |
+| F5 | `src/music/providers/netease-provider.js` / playlist write service | `docs/reference/backend/music/netease-provider.md` | `test/netease-provider.test.js` |
+| F6 | `src/ai/ai-assistant-service.js` / AI store、回复管线 | `docs/reference/backend/ai.md` | `test/ai-assistant-service.test.js` |
+| P1 | `package.json` / Electron 主窗口 | `docs/reference/engineering/build.md` | `test/packaging-scope.test.js` |
 
 ## Milestones And Proposed Changes
 

@@ -73,11 +73,16 @@ function recordHistory(records, label, render = recordRow) {
 
 function journal(profile) {
   const notes = profile.records.filter((r) => r.kind === 'note');
-  const active = notes.filter((r) => !r.data.archived)
+  const active = notes
+    .filter((r) => !r.data.archived)
     .sort((a, b) => Number(Boolean(b.data.pinned)) - Number(Boolean(a.data.pinned)));
   return (
-    (active.map(recordRow).join('') || '<div class="fan-empty"><p>还没有手记，点击“记一笔”记录今天聊过的事。</p></div>') +
-    recordHistory(notes.filter((r) => r.data.archived), '已收起的手记')
+    (active.map(recordRow).join('') ||
+      '<div class="fan-empty"><p>还没有手记，点击“记一笔”记录今天聊过的事。</p></div>') +
+    recordHistory(
+      notes.filter((r) => r.data.archived),
+      '已收起的手记',
+    )
   );
 }
 
@@ -109,19 +114,20 @@ function music(profile) {
     <section class="fan-section"><h4>最近点歌</h4><p class="fan-muted">近 90 天点歌 ${profile.musicStats.count} 次。</p>
     <dl class="fan-facts">${categories.map(([name, count]) => `<div><dt>${html(name)}</dt><dd>${count} 次</dd></div>`).join('')}</dl></section>
     <section class="fan-section"><div class="fan-section-title"><h4>点过的歌</h4><div class="fan-actions">${button('new-song', '补记一次点歌')}${button('legacy', '导入以前的点歌')}</div></div>${profile.songs.map(songRecord).join('') || '<p class="fan-muted">还没有点歌记录，点歌后会自动记在这里。</p>'}</section>
-    ${recordHistory(profile.records.filter((r) => ['song', 'preference'].includes(r.kind) && (r.data.excluded || r.data.archived)), '已收起的音乐记录')}`;
+    ${recordHistory(
+      profile.records.filter((r) => ['song', 'preference'].includes(r.kind) && (r.data.excluded || r.data.archived)),
+      '已收起的音乐记录',
+    )}`;
 }
 
 function membershipDescription(data) {
-  return (
-    data.type === 'interval'
-      ? `${levels[data.level]} · ${dateLabel(data.startAt)} 至 ${dateLabel(new Date(Date.parse(data.endAt) - 1).toISOString())}`
-      : data.type === 'baseline'
-        ? `截至 ${dateLabel(data.asOf)}：累计 ${data.totalDays ?? '未知'} 天，连续 ${data.continuousDays ?? '未知'} 天`
-        : data.type === 'first'
-          ? `首次上舰：${dateLabel(data.date)}`
-          : `${dateLabel(data.observedAt)}：${data.status === 'inactive' ? '当时未在舰' : `当时为${levels[data.level]}`}`
-  );
+  return data.type === 'interval'
+    ? `${levels[data.level]} · ${dateLabel(data.startAt)} 至 ${dateLabel(new Date(Date.parse(data.endAt) - 1).toISOString())}`
+    : data.type === 'baseline'
+      ? `截至 ${dateLabel(data.asOf)}：累计 ${data.totalDays ?? '未知'} 天，连续 ${data.continuousDays ?? '未知'} 天`
+      : data.type === 'first'
+        ? `首次上舰：${dateLabel(data.date)}`
+        : `${dateLabel(data.observedAt)}：${data.status === 'inactive' ? '当时未在舰' : `当时为${levels[data.level]}`}`;
 }
 
 function membershipRecord(record, profile) {
@@ -141,8 +147,15 @@ function membership(profile) {
     <div><dt>连续在舰${summary.status === 'pending' ? '（待核实）' : ''}</dt><dd>${summary.continuousDays ?? '未知'}${summary.continuousDays !== null ? ` 天 · 截至 ${html(summary.continuousAsOf)}` : ''}</dd></div>
     <div><dt>首次上舰</dt><dd>${html(summary.firstDate || '待确认')}</dd></div></dl>
     ${profile.guardRoster ? `<p class="fan-muted">名单更新于 ${html(dateLabel(profile.guardRoster.observedAt))}</p>` : summary.observedAt ? `<p class="fan-muted">上次上舰记录：${html(dateLabel(summary.observedAt))}，当前是否在舰还需确认。</p>` : ''}</section>
-    ${records.filter((r) => r.data.decision === 'pending').map((r) => membershipRecord(r, profile)).join('')}
-    ${recordHistory(records.filter((r) => r.data.decision !== 'pending'), '查看上舰记录', (r) => membershipRecord(r, profile))}
+    ${records
+      .filter((r) => r.data.decision === 'pending')
+      .map((r) => membershipRecord(r, profile))
+      .join('')}
+    ${recordHistory(
+      records.filter((r) => r.data.decision !== 'pending'),
+      '查看上舰记录',
+      (r) => membershipRecord(r, profile),
+    )}
     ${records.length ? '' : '<p class="fan-muted">不知道起止日期，也可以只填写已在舰的天数。</p>'}`;
 }
 

@@ -48,14 +48,24 @@ function packedLayout() {
 test('catalog rotation retains layout caches only for current URLs, including late requests', async () => {
   const maps = [];
   class CountedMap extends Map {
-    constructor(...args) { super(...args); maps.push(this); }
+    constructor(...args) {
+      super(...args);
+      maps.push(this);
+    }
   }
   const filename = path.join(__dirname, '../../src/bilibili/gift/effect-config.js');
   const module = { exports: {} };
-  vm.runInNewContext(fs.readFileSync(filename, 'utf8'), {
-    module, require: createRequire(filename), Map: CountedMap, URL,
-    console: { log() {}, warn() {} },
-  }, { filename });
+  vm.runInNewContext(
+    fs.readFileSync(filename, 'utf8'),
+    {
+      module,
+      require: createRequire(filename),
+      Map: CountedMap,
+      URL,
+      console: { log() {}, warn() {} },
+    },
+    { filename },
+  );
   let generation = 0;
   let nowMs = 1000;
   let releaseSuccess;
@@ -63,13 +73,25 @@ test('catalog rotation retains layout caches only for current URLs, including la
   const resolver = module.exports.createGiftEffectResolver({
     now: () => nowMs,
     refreshMs: 1,
-    fetchJson: async () => ({ payload: { data: { full_sc_resource: {
-      conf_list: [confEntry(generation * 2 + 1, [1]), confEntry(generation * 2 + 2, [2])],
-    } } } }),
+    fetchJson: async () => ({
+      payload: {
+        data: {
+          full_sc_resource: {
+            conf_list: [confEntry(generation * 2 + 1, [1]), confEntry(generation * 2 + 2, [2])],
+          },
+        },
+      },
+    }),
     fetchLayoutJson: async (name, url) => {
       const id = Number(/effect-(\d+)\.json$/.exec(url)[1]);
-      if (id === 1) await new Promise((resolve) => { releaseSuccess = resolve; });
-      if (id === 2) await new Promise((resolve) => { releaseFailure = resolve; });
+      if (id === 1)
+        await new Promise((resolve) => {
+          releaseSuccess = resolve;
+        });
+      if (id === 2)
+        await new Promise((resolve) => {
+          releaseFailure = resolve;
+        });
       if (id % 2 === 0) throw new Error('synthetic layout unavailable');
       return { payload: packedLayout() };
     },
@@ -88,8 +110,9 @@ test('catalog rotation retains layout caches only for current URLs, including la
     await resolver.resolveEffect(1);
     await resolver.resolveEffect(2);
   }
-  const retainedLayoutUrls = maps.flatMap((map) => [...map.keys()].filter((key) =>
-    typeof key === 'string' && key.startsWith('https://')));
+  const retainedLayoutUrls = maps.flatMap((map) =>
+    [...map.keys()].filter((key) => typeof key === 'string' && key.startsWith('https://')),
+  );
   assert.deepEqual(retainedLayoutUrls.sort(), [
     'https://i0.hdslb.com/bfs/live/effect-201.json',
     'https://i0.hdslb.com/bfs/live/effect-202.json',

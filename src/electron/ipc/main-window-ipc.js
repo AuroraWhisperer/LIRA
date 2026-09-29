@@ -9,10 +9,13 @@ function createMainWindowIpcRegistrar({ ipcMain, getMainWindow, getDesktopBaseUr
       const window = getMainWindow();
       const frame = event?.senderFrame;
       if (
-        !window || window.isDestroyed() ||
-        event?.sender !== window.webContents || frame !== window.webContents.mainFrame ||
+        !window ||
+        window.isDestroyed() ||
+        event?.sender !== window.webContents ||
+        frame !== window.webContents.mainFrame ||
         !hasExactOrigin(frame?.url, getDesktopBaseUrl())
-      ) return { ok: false, error: 'IPC_SOURCE_INVALID' };
+      )
+        return { ok: false, error: 'IPC_SOURCE_INVALID' };
       const pathname = new URL(frame.url).pathname;
       if (!ADMIN_PATHS.has(pathname) && !(allowLicense && pathname === '/license')) {
         return { ok: false, error: 'IPC_SOURCE_INVALID' };

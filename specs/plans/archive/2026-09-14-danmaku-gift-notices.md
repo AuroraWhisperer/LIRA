@@ -15,7 +15,7 @@
 - `public/js/overlays/danmaku-message-renderer.js` 被弹幕姬和游戏共用；当前只渲染聊天。
 - `public/js/overlays/danmaku.js` 拥有六套样式与默认预览。
 - 视觉所有权为 `public/css/overlays/danmaku/{base,signal,bubble,minimal,ranked,transparent,outline}.css`，资源置于 `public/img/overlays/danmaku-gifts/`。
-- 契约归属 `docs/architecture/frontend/overlays.md` 与 `docs/architecture/backend/ws.md`。
+- 契约归属 `docs/reference/frontend/overlays.md` 与 `docs/reference/backend/ws.md`。
 
 ## Compatibility Constraints And Non-goals
 

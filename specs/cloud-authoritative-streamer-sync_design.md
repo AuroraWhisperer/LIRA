@@ -55,6 +55,9 @@ synchronization.
   shall not poll the room or capture danmaku/gifts anonymously. Local login alone
   is not proof of successful cloud synchronization.
 
+- 歌曲网络请求和响应统一使用 canonical camelCase 字段；服务端 title/enabled 与本地 name/is_enabled 只在既有边界映射，不在网络同时携带别名。测试阶段双方同步升级，无旧客户端双格式分支。
+- 验收：上传后回读所有文本、启用状态、排序和 revision 一致，网络 DTO 不含旧别名；待传快照恢复不重复替换相同歌库；2 MiB 请求、8 MiB 响应和事务回滚仍验证。显式工作区联测使用 scripts/verify-song-roundtrip.cjs --working-tree 加两个绝对检出路径；默认发布验证继续检查 server-contract.lock.json，提交发布时更新其固定 revision。
+
 ## Synchronized data
 
 The settings scope is intentionally limited to the controls in the current

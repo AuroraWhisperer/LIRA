@@ -86,7 +86,7 @@ test('late invalid-token writes never retry under the next account', async (t) =
     calls.map(({ token }) => token),
     ['token-alpha'],
   );
-  assert.equal(calls[0].songs[0].name, 'Alpha song');
+  assert.equal(calls[0].songs[0].title, 'Alpha song');
   assertCurrentAccount(manager);
 });
 

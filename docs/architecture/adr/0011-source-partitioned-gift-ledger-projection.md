@@ -4,6 +4,9 @@
 - Date: 2026-09-01
 - Source identity superseded by [ADR-0019](0019-stable-gift-source-owner.md):
   stable Streamer ID distinguishes same-name recreated owners.
+- Live reception refined by [ADR-0021](0021-atomic-live-gift-progress.md):
+  validated contiguous SSE finals commit with their durable cursor; HTTP remains
+  the recovery and periodic reconciliation path.
 
 ## Context
 

@@ -49,7 +49,7 @@
 **Files:**
 - Modify: `src/electron/cloud-sync-controller.js`
 - Modify: `test/cloud-sync-controller.test.js`
-- Modify: `docs/architecture/desktop/main.md`
+- Modify: `docs/reference/desktop/main.md`
 
 **Interfaces:**
 - Consumes: `markDirty(scope)`, `syncNow()`, runtime snapshot/apply methods and license-manager reads/writes.
@@ -68,7 +68,7 @@
 - Modify: `src/storage/settings-migrations.js`
 - Modify: `test/blind-box-defaults.test.js`
 - Modify: one focused settings-route test and `test/frontend-gifts.test.js`
-- Modify: `docs/architecture/backend/storage.md`
+- Modify: `docs/reference/backend/storage.md`
 
 **Interfaces:**
 - Consumes: `normalizeGiftBlindBoxConfig(input)` with arrays of `{name, price, outputs}`.
@@ -85,7 +85,7 @@
 **Files:**
 - Modify: `src/electron/main.js`
 - Modify: `test/electron-main-modules.test.js`
-- Modify: `docs/architecture/desktop/main.md`
+- Modify: `docs/reference/desktop/main.md`
 
 **Interfaces:**
 - Consumes: both controllers' existing `dispose()` and `whenIdle()` methods.

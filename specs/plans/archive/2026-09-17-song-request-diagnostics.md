@@ -37,9 +37,9 @@ reference, type, timing, masked-name flags and stable outcome codes.
   own ingress and pre-business filters. `src/server/bilibili-client.js` owns the
   request dispatch and queue broadcast. Existing command console.log output is
   excluded by `src/electron/terminal-log.js`.
-- Contracts: `docs/architecture/desktop/auth.md`,
-  `docs/architecture/backend/bilibili/danmaku.md`,
-  `docs/architecture/backend/bilibili/protocol.md`, ADR-0018 and
+- Contracts: `docs/reference/desktop/auth.md`,
+  `docs/reference/backend/bilibili/danmaku.md`,
+  `docs/reference/backend/bilibili/protocol.md`, ADR-0018 and
   `specs/client-server-logging-design.md` field privacy rules.
 
 ## Milestones

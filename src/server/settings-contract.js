@@ -1,6 +1,6 @@
 'use strict';
 
-const { normalizeRoomInput } = require('../shared/utils');
+const { cleanText, normalizeRoomInput } = require('../shared/utils');
 const {
   INTERACTION_APPEARANCE_DEFAULTS,
   normalizeInteractionAppearanceValue,
@@ -25,6 +25,8 @@ const CLOUD_SETTING_KEYS = Object.freeze([
   'allowDuplicate',
 ]);
 const CLOUD_BOOLEAN_KEYS = new Set([
+  'danmakuMonitoringEnabled',
+  'giftMonitoringEnabled',
   'giftEffectDanmakuEnabled',
   'enableBilibili',
   'paused',
@@ -32,6 +34,8 @@ const CLOUD_BOOLEAN_KEYS = new Set([
   'allowDuplicate',
 ]);
 const CLOUD_SYNC_KEYS = new Set([
+  'danmakuMonitoringEnabled',
+  'giftMonitoringEnabled',
   'giftEffectDanmakuEnabled',
   ...CLOUD_SETTING_KEYS,
   'giftBlindBoxConfig',
@@ -86,6 +90,10 @@ function normalizeSettingValue(key, rawValue) {
     return String(rawValue || '').trim() && !value ? null : value;
   }
   if (key === 'customReplyRules') return JSON.stringify(parseCustomReplyRules(rawValue));
+  if (key === 'songRequestBlacklist') {
+    if (typeof rawValue !== 'string') return null;
+    return [...new Set(rawValue.split(/\r\n?|\n/).map(cleanText).filter(Boolean))].join('\n');
+  }
   if (key === 'giftBlindBoxConfig') {
     try {
       const input = typeof rawValue === 'string' ? JSON.parse(rawValue) : rawValue;
@@ -141,6 +149,12 @@ function normalizeCloudSettingsSnapshot(input) {
     if (value === null) throw new Error(`云端同步设置 ${key} 的值无效。`);
     values[key] = value;
   }
+  for (const key of ['danmakuMonitoringEnabled', 'giftMonitoringEnabled']) {
+    if (!Object.hasOwn(input, key)) continue;
+    const value = normalizeSettingValue(key, input[key]);
+    if (value === null) throw new Error(`云端同步设置 ${key} 的值无效。`);
+    values[key] = value;
+  }
   if (Object.prototype.hasOwnProperty.call(input, 'giftBlindBoxConfig')) {
     const value = normalizeSettingValue('giftBlindBoxConfig', input.giftBlindBoxConfig);
     if (value === null) throw new Error('INVALID_GIFT_BLIND_BOX_CONFIG');
@@ -159,6 +173,8 @@ function serializeCloudSettings(settings) {
     giftEffectDanmakuEnabled: settings.giftEffectDanmakuEnabled === 'true',
     roomId: normalizeRoomInput(settings.roomId),
     enableBilibili: settings.enableBilibili === 'true',
+    danmakuMonitoringEnabled: (settings.danmakuMonitoringEnabled ?? settings.enableBilibili) === 'true',
+    giftMonitoringEnabled: (settings.giftMonitoringEnabled ?? settings.enableBilibili) === 'true',
     paused: settings.paused === 'true',
     queueLimit: Number(settings.queueLimit),
     userCooldownSeconds: Number(settings.userCooldownSeconds),

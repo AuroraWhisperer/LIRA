@@ -9,14 +9,17 @@ const { createRequire } = require('node:module');
 const test = require('node:test');
 const { resolveServerRoot } = require('./verify-server-contract');
 
-const args = process.argv.slice(2);
+const workingTree = process.argv.includes('--working-tree');
+const args = process.argv.slice(2).filter((arg) => arg !== '--working-tree');
+if (workingTree && args.length !== 2) throw new Error('--working-tree requires two explicit checkout paths.');
 if (args.length !== 0 && (args.length !== 2 || args.some((root) => !path.isAbsolute(root)))) {
   throw new Error('Pass no arguments or two absolute client and server checkout paths.');
 }
 const [clientRoot, serverRoot] = args.length === 2 ? args : [path.resolve(__dirname, '..'), resolveServerRoot()];
 const clientRequire = createRequire(path.join(clientRoot, 'package.json'));
 const { verifyServerContract, readServerFixture } = clientRequire('./scripts/verify-server-contract');
-verifyServerContract({ serverRoot, runtime: true });
+if (!workingTree) verifyServerContract({ serverRoot, runtime: true });
+else console.log('Development roundtrip: explicit working checkouts; this does not verify the release contract pin.');
 const serverRequire = createRequire(path.join(serverRoot, 'package.json'));
 const { createRemoteLicenseClient } = clientRequire('./src/electron/license/remote-license-client');
 const { mapSongForSync } = clientRequire('./src/electron/license/license-response-utils');
@@ -26,7 +29,9 @@ const { createApp } = serverRequire('./src/app');
 const store = serverRequire('./src/storage/song-library-store');
 const { normalizeSong, MAX_SONG_SNAPSHOT_BYTES } = serverRequire('./src/lib/song-library');
 const { createSongLibrarySyncService } = serverRequire('./src/modules/streamer/song-library-sync');
-const budget = readServerFixture('docs/protocol/fixtures/song-snapshot-budget.json', { serverRoot });
+const budget = workingTree
+  ? serverRequire('./docs/protocol/fixtures/song-snapshot-budget.json')
+  : readServerFixture('docs/protocol/fixtures/song-snapshot-budget.json', { serverRoot });
 assert.equal(MAX_SONG_SNAPSHOT_BYTES, budget.snapshotMaxBytes);
 
 async function fixture(t) {
@@ -35,7 +40,7 @@ async function fixture(t) {
   t.after(async () => {
     if (listener?.listening) await new Promise((resolve) => listener.close(resolve));
     db.close();
-    assert.equal(require.cache[serverRequire.resolve('./src/db')], undefined);
+    assert.equal(require.cache[path.join(serverRoot, 'src/identity-db.js')], undefined);
   });
   db.exec(`
     CREATE TABLE songs (
@@ -129,6 +134,10 @@ async function assertRoundtrip(fixture, input) {
     .map((song, index) => normalizeSong(song, index))
     .sort((left, right) => left.sortOrder - right.sortOrder);
   result.songs.forEach((song, index) => {
+    if (workingTree) {
+      const canonical = serverRequire('./docs/protocol/fixtures/song-canonical-fields.json');
+      assert.deepEqual(Object.keys(song).sort(), Object.keys(canonical.song).sort());
+    }
     for (const field of [
       'title',
       'artist',
@@ -144,8 +153,8 @@ async function assertRoundtrip(fixture, input) {
       assert.equal(song[field], expected[index][field], `${index}: ${field}`);
     }
     assert.equal(song.enabled, Boolean(expected[index].enabled));
-    for (const [alias, canonical] of Object.entries(aliases)) {
-      assert.equal(song[alias], song[canonical], `${index}: ${alias}`);
+    for (const alias of Object.keys(aliases)) {
+      assert.equal(Object.hasOwn(song, alias), false, `${index}: removed alias ${alias}`);
     }
   });
   const responseBytes = Buffer.byteLength(JSON.stringify(result));
@@ -165,9 +174,9 @@ function auditSongs() {
   );
 }
 
-test('the historical 5000-song ASCII upload can now be read back with every legacy alias', async (t) => {
+test('5000-song ASCII uploads roundtrip using only canonical fields', async (t) => {
   const size = await assertRoundtrip(await fixture(t), auditSongs());
-  assert.ok(size.responseBytes > budget.legacySnapshotMaxBytes);
+  assert.ok(size.responseBytes < budget.legacySnapshotMaxBytes);
   t.diagnostic(JSON.stringify(size));
 });
 
@@ -196,24 +205,24 @@ test('exactly 2 MiB uploads roundtrip; one additional byte leaves the prior snap
   assert.equal(f.events.length, eventsBefore);
 });
 
-test('UTF-8, escaped controls, legacy input aliases and every text field boundary roundtrip', async (t) => {
+test('UTF-8, escaped controls and every canonical text field boundary roundtrip', async (t) => {
   const f = await fixture(t);
   const sample = budget.cases.find((item) => item.id === 'utf8-json-escaping').text;
   const atLimit = (length) => `😀${'曲"\\\u0000'.repeat(length)}`.slice(0, length);
   const input = Array.from({ length: 64 }, (_, index) => ({
-    name: atLimit(200),
+    title: atLimit(200),
     artist: atLimit(200),
-    category_name: atLimit(120),
+    categoryName: atLimit(120),
     tags: atLimit(500),
     language: atLimit(80),
-    source_platform: atLimit(80),
+    sourcePlatform: atLimit(80),
     note: atLimit(1000),
-    request_price: atLimit(1000),
-    song_clip: atLimit(1000),
-    is_enabled: index % 2 === 0,
-    sort_order: index === 0 ? Number.MIN_SAFE_INTEGER : Number.MAX_SAFE_INTEGER,
+    requestPrice: atLimit(1000),
+    songClip: atLimit(1000),
+    enabled: index % 2 === 0,
+    sortOrder: index === 0 ? Number.MIN_SAFE_INTEGER : Number.MAX_SAFE_INTEGER,
   }));
-  input.push({ name: sample, request_price: 12.5, song_clip: sample, sort_order: 0 });
+  input.push({ title: sample, requestPrice: 12.5, songClip: sample, sortOrder: 0 });
   await assertRoundtrip(f, input);
 });
 
@@ -226,7 +235,7 @@ test('normalizer expansion exceeding the response budget is rejected before comm
   // Existing String(array) normalization can amplify a small JSON body. It must
   // never circumvent the complete response budget or overwrite the last snapshot.
   const repeatedObjects = Array.from({ length: 63 }, () => ({}));
-  const input = Array.from({ length: 3000 }, () => ({
+  const input = Array.from({ length: 4000 }, () => ({
     title: 'Synthetic',
     songClip: repeatedObjects,
     note: repeatedObjects,
@@ -245,11 +254,11 @@ test('normalizer expansion exceeding the response budget is rejected before comm
 
 test('5001-song rejection and an empty replacement retain their transactional semantics', async (t) => {
   const f = await fixture(t);
-  await assertRoundtrip(f, [{ name: 'Original' }]);
+  await assertRoundtrip(f, [{ title: 'Original' }]);
   const before = f.snapshot();
   await assert.rejects(
     f.remote.syncSongs(
-      Array.from({ length: budget.maxSongs + 1 }, () => ({ name: 'Song' })),
+      Array.from({ length: budget.maxSongs + 1 }, () => ({ title: 'Song' })),
       'synthetic-token',
     ),
     {

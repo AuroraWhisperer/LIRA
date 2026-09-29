@@ -1,6 +1,6 @@
 # 2026-09-18 Current Review Remediation Implementation Plan
 
-状态：Completed（2026-09-18）。本轮 14 项修复完成；HTML-TOKEN 按用户要求跳过，权限决策草案继续保留在 `specs/plans/2026-09-18-overlay-access-decision.md`。
+状态：Completed（2026-09-18）。本轮 14 项修复完成；HTML-TOKEN 按用户要求跳过，权限决策草案继续保留在 `specs/plans/archive/2026-09-18-overlay-access-decision.md`。
 
 后续：用户已批准每页独立权限，HTML-TOKEN 实施与验证完成，见 [后续修复记录](2026-09-18-overlay-access-isolation.md)。上面的跳过状态仅记录此前阶段，不表示该问题仍被延期。
 

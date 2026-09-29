@@ -2,12 +2,46 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { pathToFileURL } = require('node:url');
 const contract = require('../../src/shared/danmaku-style-options');
 
+test('fixed styles accept both scroll directions and reset to upward by default', async () => {
+  const source = fs.readFileSync(path.join(__dirname, '../../public/js/shared/danmaku-style-options.js'), 'utf8');
+  const browser = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
+  const document = {
+    documentElement: { style: { setProperty() {} } },
+    body: { dataset: {} },
+  };
+  for (const style of ['bubble', 'signal', 'minimal', 'ranked', 'transparent', 'identity']) {
+    assert.equal(contract.styleOptionsFor(style).scrollDirection, 'up');
+    for (const scrollDirection of ['up', 'down']) {
+      const options = { [style]: { scrollDirection } };
+      assert.deepEqual(contract.normalizeStyleOptions(options), options);
+      assert.deepEqual(browser.normalizeStyleOptions(options), options);
+      browser.applyStyleOptions(document, style, options);
+      assert.equal(document.body.dataset.scrollDirection, scrollDirection);
+    }
+    browser.applyStyleOptions(document, style, {});
+    assert.equal(document.body.dataset.scrollDirection, 'up');
+  }
+  for (const scrollDirection of ['left', 'DOWN', '', null, true, 1]) {
+    assert.throws(() => contract.normalizeStyleOptions({ signal: { scrollDirection } }), {
+      code: 'INVALID_OVERLAY_OPTIONS',
+    });
+  }
+  for (const style of ['outline', 'cream', 'glow']) {
+    assert.throws(() => contract.normalizeStyleOptions({ [style]: { scrollDirection: 'down' } }), {
+      code: 'INVALID_OVERLAY_OPTIONS',
+    });
+    browser.applyStyleOptions(document, 'signal', { signal: { scrollDirection: 'down' } });
+    browser.applyStyleOptions(document, style, { signal: { scrollDirection: 'down' } });
+    assert.equal(document.body.dataset.scrollDirection, 'up');
+  }
+});
+
 test('gift images keep theme artwork while loading and restore it on failure', async () => {
-  const source = fs.readFileSync(path.join(__dirname, '../../public/js/overlays/danmaku-message-renderer.js'), 'utf8');
   const { createDanmakuMessageRenderer, DEFAULT_DANMAKU_CLASSES } = await import(
-    `data:text/javascript;base64,${Buffer.from(source).toString('base64')}`
+    pathToFileURL(path.join(__dirname, '../../public/js/overlays/danmaku-message-renderer.js')).href
   );
   const document = {
     createElement() {

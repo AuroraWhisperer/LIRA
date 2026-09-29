@@ -41,7 +41,9 @@ define intended behavior.
 
 Use these only when relevant:
 
-- `docs/architecture/README.md` — fact map.
+- `docs/README.md` — document roles and current entry points.
+- `docs/architecture/README.md` — system boundaries and accepted decisions.
+- `docs/reference/README.md` — implementation contract fact map.
 - `docs/architecture/engineering/ai-workflow.md` — owners/contracts/consumers.
 - `docs/architecture/engineering/modularity-standard.md` — dependency rules.
 - `PLANS.md` — planning policy.
@@ -58,6 +60,8 @@ Use these only when relevant:
 - Do not commit, branch, tag, release, or publish unless explicitly asked.
 - Never use destructive reset, blanket checkout, or broad deletion as rollback.
 - Keep runtime/generated data and secrets out of commits.
+- Put ad hoc scripts, temporary/intermediate artifacts, QA screenshots, and test
+  scratch directories inside the repository-root `tmp/`.
 - Stop when the requested behavior is implemented and evidence is sufficient.
 
 ## Workflow By Risk

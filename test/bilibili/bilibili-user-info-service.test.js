@@ -363,9 +363,10 @@ test('expired profile failures are evicted and late failures cannot repopulate d
   let rejectProfile;
   const { service, advance } = createService({
     profileProvider: {
-      fetchProfile: () => new Promise((resolve, reject) => {
-        rejectProfile = reject;
-      }),
+      fetchProfile: () =>
+        new Promise((resolve, reject) => {
+          rejectProfile = reject;
+        }),
     },
   });
   const first = service.ensure('100');

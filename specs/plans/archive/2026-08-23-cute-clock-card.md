@@ -21,8 +21,8 @@ by `public/pages/admin/toolbox/clock.html`,
 `public/css/admin/toolbox/clock.css`, and
 `public/js/admin/clock-card.js`. Public page mapping and Admin composition remain
 owned by `src/server/http-utils.js` and `src/server/admin-page.js`. Contracts are
-documented in `docs/architecture/frontend/pages.md` and
-`docs/architecture/frontend/overlays.md`; focused regressions live in
+documented in `docs/reference/frontend/pages.md` and
+`docs/reference/frontend/overlays.md`; focused regressions live in
 `test/clock-overlay.test.js`.
 
 **Compatibility constraints:** Keep the app framework-free and dependency-free,

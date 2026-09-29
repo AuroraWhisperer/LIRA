@@ -1,23 +1,16 @@
 'use strict';
 
 // 使用文档截图 · 合成示例数据种子
-// 在隔离数据目录（默认 screenshots/usage-guide/data）内创建全部 SQLite 库，
+// 在隔离数据目录（默认 tmp/screenshots/usage-guide/data）内创建全部 SQLite 库，
 // 并按方案 6.2 的脱敏规范填入示例数据：示例主播 / 房间号 123456 / 观众A·B·C·D。
 // 用法：node scripts/usage-guide-shots/seed-data.cjs [dataDir] [--force]
 
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const {
-  createDatabases,
-  closeDatabases,
-} = require('../../src/storage/database');
-const {
-  createSettingsStore,
-} = require('../../src/storage/settings-store');
-const {
-  createGiftSyncStore,
-} = require('../../src/storage/gift-sync-store');
+const { createDatabases, closeDatabases } = require('../../src/storage/database');
+const { createSettingsStore } = require('../../src/storage/settings-store');
+const { createGiftSyncStore } = require('../../src/storage/gift-sync-store');
 
 const VIEWERS = [
   { uid: '100001', name: '观众A', guard: 3, medal: '示例团', medalLevel: 12 },
@@ -95,8 +88,16 @@ function seedSongs(songDb, categoryIds) {
     const enabled = name === '忐忑' ? 0 : 1; // 一首「不可点」示例
     const initial = (pinyin[0] || '#').toUpperCase();
     const result = insert.run(
-      name, pinyin, /[A-Z]/.test(initial) ? initial : '#', artist,
-      categoryIds[category], enabled, tags, language, now, now,
+      name,
+      pinyin,
+      /[A-Z]/.test(initial) ? initial : '#',
+      artist,
+      categoryIds[category],
+      enabled,
+      tags,
+      language,
+      now,
+      now,
     );
     ids[name] = Number(result.lastInsertRowid);
   }
@@ -117,33 +118,46 @@ function seedSuperChats(superChatDb) {
   );
   const base = Date.now();
   insert.run(
-    `sc-${base}-1`, VIEWERS[0].uid, VIEWERS[0].name, 30,
-    '点一首《晴天》送给直播间的大家！', VIEWERS[0].guard,
-    VIEWERS[0].medal, VIEWERS[0].medalLevel,
-    iso(base - 25 * 60 * 1000), iso(base - 25 * 60 * 1000),
+    `sc-${base}-1`,
+    VIEWERS[0].uid,
+    VIEWERS[0].name,
+    30,
+    '点一首《晴天》送给直播间的大家！',
+    VIEWERS[0].guard,
+    VIEWERS[0].medal,
+    VIEWERS[0].medalLevel,
+    iso(base - 25 * 60 * 1000),
+    iso(base - 25 * 60 * 1000),
   );
   insert.run(
-    `sc-${base}-2`, VIEWERS[3].uid, VIEWERS[3].name, 50,
-    '主播今天状态好好，加油加油～', VIEWERS[3].guard,
-    VIEWERS[3].medal, VIEWERS[3].medalLevel,
-    iso(base - 8 * 60 * 1000), iso(base - 8 * 60 * 1000),
+    `sc-${base}-2`,
+    VIEWERS[3].uid,
+    VIEWERS[3].name,
+    50,
+    '主播今天状态好好，加油加油～',
+    VIEWERS[3].guard,
+    VIEWERS[3].medal,
+    VIEWERS[3].medalLevel,
+    iso(base - 8 * 60 * 1000),
+    iso(base - 8 * 60 * 1000),
   );
 }
 
 function seedGifts(giftDb) {
   const syncStore = createGiftSyncStore({ giftDb });
-  const sourceKey = crypto
-    .createHash('sha256').update('lira-usage-guide-demo').digest('hex');
+  const sourceKey = crypto.createHash('sha256').update('lira-usage-guide-demo').digest('hex');
   const source = syncStore.resolveSource(sourceKey);
   const now = Date.now();
-  giftDb.prepare(
-    `UPDATE gift_sync_state SET
+  giftDb
+    .prepare(
+      `UPDATE gift_sync_state SET
        sync_epoch = 'demo-epoch', final_cursor = 1000, bootstrap_complete = 1,
        bootstrap_page_token = NULL, bootstrap_recovery_cursor = NULL,
        bootstrap_sync_epoch = NULL, projection_generation = 1,
        last_validated_at = ?, updated_at = ?
      WHERE source_id = ?`,
-  ).run(iso(now), iso(now), source.id);
+    )
+    .run(iso(now), iso(now), source.id);
 
   const insert = giftDb.prepare(
     `INSERT INTO gift_events
@@ -163,14 +177,23 @@ function seedGifts(giftDb) {
     const total = unitPrice * count;
     const isBlindBox = extra.blindBox === true;
     insert.run(
-      source.id, `lira-server:demo-${String(seq).padStart(3, '0')}`,
-      GIFT_IDS[name] || '1099', name, viewer.uid, viewer.name,
-      count, unitPrice, total,
+      source.id,
+      `lira-server:demo-${String(seq).padStart(3, '0')}`,
+      GIFT_IDS[name] || '1099',
+      name,
+      viewer.uid,
+      viewer.name,
+      count,
+      unitPrice,
+      total,
       isBlindBox ? 1 : 0,
-      extra.blindBoxId ?? null, extra.blindBoxName || '',
+      extra.blindBoxId ?? null,
+      extra.blindBoxName || '',
       isBlindBox ? (extra.boxPrice ?? null) : null,
       isBlindBox ? total - (extra.boxPrice ?? 0) : null,
-      extra.sprint ? 1 : 0, iso(atMs), iso(atMs),
+      extra.sprint ? 1 : 0,
+      iso(atMs),
+      iso(atMs),
     );
   }
 
@@ -197,14 +220,23 @@ function seedGifts(giftDb) {
   // 棒棒糖与盲盒
   gift(start + 6400e3, VIEWERS[3], '棒棒糖', 6, 0.5, { sprint: true });
   gift(start + 6600e3, VIEWERS[0], '水晶球', 1, 100, {
-    blindBox: true, blindBoxId: '2001', blindBoxName: '心动盲盒', boxPrice: 10,
+    blindBox: true,
+    blindBoxId: '2001',
+    blindBoxName: '心动盲盒',
+    boxPrice: 10,
     sprint: true,
   });
   gift(start + 6900e3, VIEWERS[1], '棒棒糖', 1, 0.5, {
-    blindBox: true, blindBoxId: '2001', blindBoxName: '心动盲盒', boxPrice: 10,
+    blindBox: true,
+    blindBoxId: '2001',
+    blindBoxName: '心动盲盒',
+    boxPrice: 10,
   });
   gift(start + 7100e3, VIEWERS[2], '辣条', 2, 0.1, {
-    blindBox: true, blindBoxId: '2002', blindBoxName: '心愿盲盒', boxPrice: 5,
+    blindBox: true,
+    blindBoxId: '2002',
+    blindBoxName: '心愿盲盒',
+    boxPrice: 5,
   });
   // 三个水晶球（「长效」许愿进度来源）
   gift(start + 7600e3, VIEWERS[3], '水晶球', 1, 100, { sprint: true });
@@ -222,45 +254,87 @@ function seedGiftWishes(giftDb, sourceId) {
      VALUES (?, ?, ?, ?, '', ?, 'gift', '', ?, ?, ?, ?, ?)`,
   );
   insert.run(
-    'wish-long-crystal', sourceId, 'long', GIFT_IDS['水晶球'], '水晶球',
-    10, '集齐 10 个水晶球开专属歌回', iso(now - 3 * 86400e3), 'card', '',
+    'wish-long-crystal',
+    sourceId,
+    'long',
+    GIFT_IDS['水晶球'],
+    '水晶球',
+    10,
+    '集齐 10 个水晶球开专属歌回',
+    iso(now - 3 * 86400e3),
+    'card',
+    '',
   );
   insert.run(
-    'wish-long-call', sourceId, 'long', GIFT_IDS['打call'], '打call',
-    50, '本月打 call 冲 50 个', iso(now - 2 * 86400e3), 'card', '',
+    'wish-long-call',
+    sourceId,
+    'long',
+    GIFT_IDS['打call'],
+    '打call',
+    50,
+    '本月打 call 冲 50 个',
+    iso(now - 2 * 86400e3),
+    'card',
+    '',
   );
   insert.run(
-    'wish-long-flower', sourceId, 'long', GIFT_IDS['小花花'], '小花花',
-    99, '', iso(now - 86400e3), 'text',
+    'wish-long-flower',
+    sourceId,
+    'long',
+    GIFT_IDS['小花花'],
+    '小花花',
+    99,
+    '',
+    iso(now - 86400e3),
+    'text',
     '许愿小花花（{已收}/{目标}），谢谢大家的花花！',
   );
   insert.run(
-    'wish-day-flower', sourceId, 'day', GIFT_IDS['小花花'], '小花花',
-    99, '今天的小花花冲 99 朵', iso(now - 3600e3), 'card', '',
+    'wish-day-flower',
+    sourceId,
+    'day',
+    GIFT_IDS['小花花'],
+    '小花花',
+    99,
+    '今天的小花花冲 99 朵',
+    iso(now - 3600e3),
+    'card',
+    '',
   );
   insert.run(
-    'wish-session-call', sourceId, 'session', GIFT_IDS['打call'], '打call',
-    30, '本场打 call 到 30 个', iso(now - 1800e3), 'text',
+    'wish-session-call',
+    sourceId,
+    'session',
+    GIFT_IDS['打call'],
+    '打call',
+    30,
+    '本场打 call 到 30 个',
+    iso(now - 1800e3),
+    'text',
     '{name} 进度 {current}/{target}',
   );
   const today = new Date();
   today.setHours(9, 0, 0, 0);
-  giftDb.prepare(
-    `INSERT INTO gift_wish_sessions
+  giftDb
+    .prepare(
+      `INSERT INTO gift_wish_sessions
        (source_id, room_id, started_at, ended_at, checked_at)
      VALUES (?, '', ?, '', ?)`,
-  ).run(sourceId, iso(today.getTime()), iso(now));
+    )
+    .run(sourceId, iso(today.getTime()), iso(now));
 }
 
 function seedOvertime(giftDb) {
   const now = Date.now();
-  giftDb.prepare(
-    `UPDATE overtime_machine_state SET
+  giftDb
+    .prepare(
+      `UPDATE overtime_machine_state SET
        enabled = 1, enable_epoch = 1, initial_seconds = 3600,
        remaining_ms = 2345000, anchor_at_ms = ?, status = 'running',
        revision = 1, updated_at = ?
      WHERE id = 1`,
-  ).run(now, iso(now));
+    )
+    .run(now, iso(now));
   const rule = giftDb.prepare(
     `INSERT INTO overtime_gift_rules
        (gift_id, gift_name, image_path, mode, fixed_seconds, outcomes_json,
@@ -274,8 +348,13 @@ function seedOvertime(giftDb) {
 function seedPlayback(musicDb) {
   const track = (id, title, artist, durationMs, requesterName = '') => ({
     id: `demo-${id}`,
-    source: 'qq', trackId: `demo-${id}`, title, artists: [artist],
-    album: '示例专辑', coverUrl: '', durationMs,
+    source: 'qq',
+    trackId: `demo-${id}`,
+    title,
+    artists: [artist],
+    album: '示例专辑',
+    coverUrl: '',
+    durationMs,
     ...(requesterName ? { requesterName } : {}),
   });
   const payload = {
@@ -300,9 +379,12 @@ function seedPlayback(musicDb) {
     playlistIndex: -1,
     pendingRequests: [
       {
-        id: 'pending-1', songName: '紅蓮華',
+        id: 'pending-1',
+        songName: '紅蓮華',
         track: track('008', '紅蓮華', 'LiSA', 238000),
-        requesterName: '观众C', score: 90, reasons: ['歌名匹配'],
+        requesterName: '观众C',
+        score: 90,
+        reasons: ['歌名匹配'],
       },
     ],
     history: [track('009', '不老梦', '银临', 252000)],
@@ -317,10 +399,12 @@ function seedPlayback(musicDb) {
     clientId: 'default',
     timestamp: Date.now(),
   };
-  musicDb.prepare(
-    `INSERT INTO play_queue_state (client_id, payload, updated_at)
+  musicDb
+    .prepare(
+      `INSERT INTO play_queue_state (client_id, payload, updated_at)
      VALUES ('default', ?, ?)`,
-  ).run(JSON.stringify(payload), iso(Date.now()));
+    )
+    .run(JSON.stringify(payload), iso(Date.now()));
 
   const fav = musicDb.prepare(
     `INSERT INTO favorites
@@ -333,10 +417,7 @@ function seedPlayback(musicDb) {
     ['Lemon', '米津玄師', 255000],
     ['牵丝戏', '银临&Aki阿杰', 240000],
   ].forEach(([title, artists, durationMs], index) => {
-    fav.run(
-      `qq:fav-${index}`, `fav-${index}`, title, artists, durationMs, index,
-      iso(Date.now()),
-    );
+    fav.run(`qq:fav-${index}`, `fav-${index}`, title, artists, durationMs, index, iso(Date.now()));
   });
 
   const history = musicDb.prepare(
@@ -352,10 +433,7 @@ function seedPlayback(musicDb) {
     ['年少有为', '李荣浩', 276000, ''],
   ].forEach(([title, artists, durationMs, requester], index) => {
     const at = iso(Date.now() - (index + 1) * 900e3);
-    history.run(
-      `qq:hist-${index}`, `hist-${index}`, title, artists, durationMs,
-      requester, at, at, at,
-    );
+    history.run(`qq:hist-${index}`, `hist-${index}`, title, artists, durationMs, requester, at, at, at);
   });
 }
 
@@ -370,7 +448,15 @@ function seedCheckin(checkinDb) {
   const today = iso(now).slice(0, 10);
   insert.run('100001', '观众A', 30, iso(now - 30 * 86400e3), iso(now - 3600e3), today, iso(now));
   insert.run('100002', '观众B', 12, iso(now - 20 * 86400e3), iso(now - 7200e3), today, iso(now));
-  insert.run('100003', '观众C', 5, iso(now - 9 * 86400e3), iso(now - 86400e3), iso(now - 86400e3).slice(0, 10), iso(now));
+  insert.run(
+    '100003',
+    '观众C',
+    5,
+    iso(now - 9 * 86400e3),
+    iso(now - 86400e3),
+    iso(now - 86400e3).slice(0, 10),
+    iso(now),
+  );
 }
 
 function seedSettings(songDb) {
@@ -404,18 +490,14 @@ function seed(dataDir) {
     closeDatabases(databases);
   }
   // 截图运行器需要 sourceId 来设置活动礼物来源（setActiveGiftSource）
-  fs.writeFileSync(
-    path.join(dataDir, 'seed-meta.json'),
-    `${JSON.stringify({ giftSourceId: sourceId }, null, 2)}\n`,
-  );
+  fs.writeFileSync(path.join(dataDir, 'seed-meta.json'), `${JSON.stringify({ giftSourceId: sourceId }, null, 2)}\n`);
 }
 
 function main() {
   const args = process.argv.slice(2);
   const force = args.includes('--force');
   const target =
-    args.find((arg) => !arg.startsWith('--')) ||
-    path.resolve(__dirname, '../../screenshots/usage-guide/data');
+    args.find((arg) => !arg.startsWith('--')) || path.resolve(__dirname, '../../tmp/screenshots/usage-guide/data');
   const dataDir = path.resolve(target);
   if (fs.existsSync(dataDir)) {
     if (!force) {

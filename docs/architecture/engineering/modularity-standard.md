@@ -111,7 +111,7 @@ start resources, and close them in reverse order.
 - Store return values are stable domain objects and do not expose
   `DatabaseSync`, prepared statements, or SQLite-specific result objects.
 - A schema change updates migrations, affected stores, regression tests, and
-  `docs/architecture/backend/storage.md`.
+  `docs/reference/backend/storage.md`.
 
 ## 6. Shared Modules
 
@@ -195,7 +195,7 @@ full dependency-graph enforcement.
 13 reassessment's batch D policy. `npm run verify:modularity` reports the size
 gate directly; `verify:architecture`, `verify:quick`, `verify` and `npm test`
 also run it. Release validation runs these local gates with the pinned server
-checkout and installer test prerequisites described in [build.md](build.md).
+checkout and installer test prerequisites described in [build.md](../../reference/engineering/build.md).
 
 - Count physical lines, including comments and blanks. Empty files have zero
   lines; a final newline adds no phantom line. CRLF, LF and CR use the same

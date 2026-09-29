@@ -1,90 +1,137 @@
 <section id="giftWishesPanel" class="gift-wishes-panel" role="tabpanel" aria-labelledby="giftAssistantWishesTab" hidden>
   <header class="gift-wishes-heading">
-    <div>
-      <h3 class="ui-section-title">礼物许愿</h3>
-      <p class="hint">选一份喜欢的礼物，把小小心愿一点点攒满。</p>
-    </div>
+    <h3 class="ui-section-title">礼物许愿</h3>
     <button id="giftWishesRefresh" type="button" class="secondary">刷新进度</button>
   </header>
   <div class="gift-wish-periods" role="group" aria-label="许愿统计周期">
-    <button type="button" data-wish-period="long" aria-pressed="true">长效许愿<span>从创建时开始累计</span></button>
-    <button type="button" data-wish-period="day" aria-pressed="false">本日许愿<span>北京时间零点换日</span></button>
-    <button type="button" data-wish-period="session" aria-pressed="false">
-      本场直播许愿<span>下次开播重新计数</span>
-    </button>
+    <button type="button" data-wish-period="long" aria-pressed="true">长效许愿</button>
+    <button type="button" data-wish-period="day" aria-pressed="false">本日许愿</button>
+    <button type="button" data-wish-period="session" aria-pressed="false">本场直播许愿</button>
   </div>
-  <p id="giftWishPeriodHint" class="hint">每条许愿从创建时开始，跨天、跨直播持续累计。</p>
+  <p id="giftWishPeriodHint" class="hint">从创建时开始累计，不重置。</p>
   <p id="giftWishStatus" class="hint" role="status">正在读取许愿…</p>
   <p id="giftWishError" class="gift-wish-error" role="alert"></p>
   <div class="gift-wishes-workspace">
     <form id="giftWishForm" class="gift-wish-editor">
       <fieldset id="giftWishFields" disabled>
-        <h4 id="giftWishEditorTitle">许一个小心愿</h4>
-        <label>心愿礼物</label>
-        <button id="giftWishPick" type="button" class="gift-wish-pick secondary">
-          <img id="giftWishSelectedImage" src="/img/admin/nav-icons/nav-gift.webp" alt="" hidden /><span
-            id="giftWishSelectedName"
-            >选择心愿礼物</span
-          ><span class="gift-wish-pick-action">选择</span>
-        </button>
-        <p id="giftWishSelectedRole" class="hint">可选直播间在售礼物、盲盒本体及产出，或全部缓存礼物。</p>
-        <label for="giftWishTarget">目标数量<span class="hint">只支持整数</span></label>
-        <input
-          id="giftWishTarget"
-          name="target"
-          type="number"
-          inputmode="numeric"
-          min="1"
-          max="999999999"
-          step="1"
-          value="10"
-          required
-        />
-        <label for="giftWishDisplayStyle">展示样式</label>
-        <select id="giftWishDisplayStyle" name="displayStyle">
-          <option value="card">礼物卡片</option>
-          <option value="text">纯文字</option>
-          <option value="circle">圆形徽章</option>
-        </select>
-        <div id="giftWishTextFields" hidden>
-          <label for="giftWishTextTemplate">展示文字</label>
-          <textarea
-            id="giftWishTextTemplate"
-            name="textTemplate"
-            rows="3"
-            maxlength="200"
-            placeholder="许愿{礼物}（{已收}/{目标}）"
-            aria-describedby="giftWishTextHint"
-          ></textarea>
-          <div class="gift-wish-text-tokens" role="group" aria-label="插入动态内容">
-            <span id="giftWishTextHint" class="hint">插入</span
-            ><button type="button" class="secondary" data-wish-token="{礼物}">礼物名称</button
-            ><button type="button" class="secondary" data-wish-token="{已收}">已收数量</button
-            ><button type="button" class="secondary" data-wish-token="{目标}">目标数量</button>
+        <h4 id="giftWishEditorTitle">新建许愿</h4>
+        <div class="gift-wish-editor-grid">
+          <div class="gift-wish-settings">
+            <div class="gift-wish-field">
+              <label id="giftWishPickLabel" for="giftWishPick">心愿礼物</label>
+              <button id="giftWishPick" type="button" class="gift-wish-pick secondary" aria-labelledby="giftWishPickLabel giftWishSelectedName">
+                <img id="giftWishSelectedImage" src="/img/admin/nav-icons/nav-gift.webp" alt="" hidden />
+                <span id="giftWishSelectedName">选择心愿礼物</span>
+                <span class="gift-wish-pick-action" aria-hidden="true">更换</span>
+              </button>
+            </div>
+            <div class="gift-wish-details">
+              <div class="gift-wish-field">
+                <label for="giftWishTarget">目标数量</label>
+                <input
+                  id="giftWishTarget"
+                  name="target"
+                  type="number"
+                  inputmode="numeric"
+                  min="1"
+                  max="999999999"
+                  step="1"
+                  value="10"
+                  required
+                />
+              </div>
+              <div class="gift-wish-field">
+                <label for="giftWishLabel">备注</label>
+                <input id="giftWishLabel" name="label" type="text" maxlength="40" placeholder="选填，不在直播画面显示" />
+              </div>
+            </div>
+            <div id="giftWishTextFields" class="gift-wish-field" hidden>
+              <label for="giftWishTextTemplate">
+                展示文字
+                <lira-help label="文字版使用说明">
+                  用下方按钮插入标记，直播画面会自动换成对应内容：{图片} 是礼物图片，{礼物} 是礼物名称，{已收} 是当前统计周期内的数量，{目标} 是目标数量。<br />
+                  例如「许愿{图片}{礼物}」会在礼物名称前显示图片。移动整个标记就能换位置，删除整个标记就不显示该内容。<br />
+                  在效果预览中确认后，点击「添加许愿」或「保存修改」，直播画面才会更新。
+                </lira-help>
+              </label>
+              <textarea
+                id="giftWishTextTemplate"
+                name="textTemplate"
+                rows="3"
+                maxlength="240"
+                aria-describedby="giftWishTextHint"
+                placeholder="许愿{礼物}（{已收}/{目标}）"
+              ></textarea>
+              <p id="giftWishTextHint" class="hint">先点文字框中想插入的位置，再点下方按钮。标记可移动、删除，效果看右侧预览。</p>
+              <div class="gift-wish-text-tokens" role="group" aria-label="插入图片、名称或数量">
+                <button type="button" class="secondary" data-wish-token="{图片}">插入礼物图片</button>
+                <button type="button" class="secondary" data-wish-token="{礼物}">插入礼物名称</button>
+                <button type="button" class="secondary" data-wish-token="{已收}">插入已收数量</button>
+                <button type="button" class="secondary" data-wish-token="{目标}">插入目标数量</button>
+              </div>
+              <p class="hint">今天收到过这份礼物，文字会切换为「今天已收到」的颜色；北京时间零点重新判断。</p>
+            </div>
+            <div class="gift-wish-editor-actions">
+              <button id="giftWishSave" type="submit" class="primary">添加许愿</button>
+              <button id="giftWishCancel" type="button" class="secondary" hidden>取消编辑</button>
+            </div>
           </div>
-          <output id="giftWishTextPreview" class="gift-wish-text-preview" aria-label="文字效果预览"></output>
+          <div class="gift-wish-appearance">
+            <fieldset id="giftWishDisplayStyle" class="gift-wish-style-field">
+              <legend>展示样式</legend>
+              <div class="gift-wish-styles">
+                <label><input type="radio" name="displayStyle" value="card" checked /><span>礼物卡片</span></label>
+                <label><input type="radio" name="displayStyle" value="text" /><span>文字版</span></label>
+                <label><input type="radio" name="displayStyle" value="circle" /><span>圆形徽章</span></label>
+              </div>
+            </fieldset>
+            <div id="giftWishImageFields" class="gift-wish-field" hidden>
+              <label for="giftWishTextImageFormat">礼物图片效果</label>
+              <select id="giftWishTextImageFormat" name="textImageFormat">
+                <option value="animated">动态原图（有动画时播放）</option>
+                <option value="static">静态图片（PNG，不播放动画）</option>
+              </select>
+            </div>
+            <fieldset id="giftWishColorFields" class="gift-wish-style-field" hidden>
+              <legend>
+                文字颜色
+                <lira-help label="文字颜色说明">点击色块即可选色，每条许愿可以单独设置。默认是未收到时雾蓝、已收到时翠绿；不满意可点「恢复默认颜色」，确认后保存。</lira-help>
+              </legend>
+              <div class="gift-wish-colors">
+                <div class="gift-wish-field">
+                  <label for="giftWishTextPendingColor">今天未收到</label>
+                  <input id="giftWishTextPendingColor" name="textPendingColor" type="color" />
+                </div>
+                <div class="gift-wish-field">
+                  <label for="giftWishTextReceivedColor">今天已收到</label>
+                  <input id="giftWishTextReceivedColor" name="textReceivedColor" type="color" />
+                </div>
+              </div>
+              <button id="giftWishResetColors" type="button" class="secondary">恢复默认颜色</button>
+            </fieldset>
+            <div class="gift-wish-draft">
+              <span class="hint">效果预览</span>
+              <div id="giftWishPreviewStateField" class="gift-wish-field" hidden>
+                <label for="giftWishPreviewState">对比预览（不改变已收数量）</label>
+                <select id="giftWishPreviewState">
+                  <option value="pending">今天未收到</option>
+                  <option value="received">今天已收到</option>
+                </select>
+              </div>
+              <div id="giftWishDraftPreview" class="gift-wish-draft-preview" role="region" aria-label="当前许愿效果预览"></div>
+            </div>
+          </div>
         </div>
-        <label for="giftWishLabel">许愿备注<span class="hint">选填，不在直播画面显示</span></label>
-        <input id="giftWishLabel" name="label" type="text" maxlength="40" placeholder="例如：达成后唱首歌" />
-        <div class="gift-wish-editor-actions">
-          <button id="giftWishSave" type="submit" class="primary">添加许愿</button
-          ><button id="giftWishCancel" type="button" class="secondary" hidden>取消编辑</button>
-        </div>
-        <p class="hint">修改目标会保留已收进度。</p>
       </fieldset>
     </form>
     <div class="gift-wishes-preview" role="region" aria-label="已保存的许愿预览">
+      <h4>已保存的许愿</h4>
       <div id="giftWishCards" class="gift-wish-cards"></div>
-      <div id="giftWishEmpty" class="gift-wish-empty" hidden>
-        <img src="/img/admin/nav-icons/nav-gift.webp" alt="" />
-        <h4>第一份心愿，想留给谁？</h4>
-        <p>选好礼物和目标后，心愿卡就会出现在这里。</p>
-      </div>
+      <p id="giftWishEmpty" class="gift-wish-empty hint" hidden>暂无许愿</p>
     </div>
   </div>
   <div class="gift-wish-source">
-    <h4>放进直播画面</h4>
-    <p id="giftWishSourceHint" class="hint">OBS 浏览器源 · 长效许愿</p>
+    <h4>OBS 浏览器源</h4>
     <div class="gift-wish-source-actions">
       <input id="giftWishUrl" readonly aria-label="许愿 OBS 浏览器源地址" /><button
         id="giftWishCopy"
@@ -94,7 +141,7 @@
         复制地址</button
       ><a id="giftWishPreview" target="_blank" rel="noopener">打开预览</a>
     </div>
-    <p class="hint">背景透明，建议宽度 440。三个周期可分别添加到 OBS。</p>
+    <p class="hint">对应当前统计周期，建议宽度 440。</p>
   </div>
   <dialog id="giftWishPicker" class="gift-wish-picker" aria-labelledby="giftWishPickerTitle">
     <header>

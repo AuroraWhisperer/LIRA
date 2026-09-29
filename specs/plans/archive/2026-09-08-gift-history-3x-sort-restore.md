@@ -46,7 +46,7 @@
 - SQL owner: `src/storage/gift-query-store.js`.
 - HTTP boundary: `src/server/routes/gift-routes.js`.
 - Renderer: `public/pages/admin/gifts/history.html`, `public/js/admin/gifts/history.js`, and `public/css/admin/responsive.css`.
-- Contract documentation: `docs/architecture/backend/api.md` and `docs/architecture/backend/bilibili/gift.md`.
+- Contract documentation: `docs/reference/backend/api.md` and `docs/reference/backend/bilibili/gift.md`.
 - Direct tests: `test/gift-query-service.test.js`, `test/gift-routes.test.js`, and `test/frontend-gifts.test.js`.
 
 ## Compatibility Constraints
@@ -128,8 +128,8 @@
 
 **Files:**
 - Modify: `specs/gift-ledger-projection-sync_design.md`
-- Modify: `docs/architecture/backend/api.md`
-- Modify: `docs/architecture/backend/bilibili/gift.md`
+- Modify: `docs/reference/backend/api.md`
+- Modify: `docs/reference/backend/bilibili/gift.md`
 - Modify: this plan, moving it to `specs/plans/archive/` only after all checks pass.
 
 **Interfaces:**

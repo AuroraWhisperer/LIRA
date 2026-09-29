@@ -68,7 +68,7 @@ test('transient discovery failure retries initialization and reaches LIVE', asyn
   controller.dispose();
 });
 
-test('a final event burst shares one cursor catch-up task', async () => {
+test('a contiguous final event burst commits without cursor pulls', async () => {
   const fixture = createFixture();
   const controller = createRemoteGiftController(fixture.options);
   await controller.start();
@@ -85,50 +85,69 @@ test('a final event burst shares one cursor catch-up task', async () => {
   for (let i = 0; i < 20; i += 1) fixture.stream.onEvent(makeEvent(`burst-${i}`, i + 11));
   await controller.whenIdle();
   assert.equal(controller.getCursor(), 30);
-  assert.equal(pulls, 1);
+  assert.equal(pulls, 0);
+  assert.equal(fixture.liveImports.length, 20);
   controller.dispose();
 });
 
-test('a contiguous final SSE is projected before cursor catch-up returns', async () => {
+test('a gapped final burst still shares one recovery pull', async (t) => {
   const fixture = createFixture();
   const controller = createRemoteGiftController(fixture.options);
+  t.after(() => controller.dispose());
+  await controller.start();
+  let pulls = 0;
+  fixture.options.licenseManager.getGiftEventsInternal = async (input) => {
+    pulls += 1;
+    assert.equal(input.after, 10);
+    return capabilityPage({
+      events: Array.from({ length: 20 }, (_, i) => makeEvent('gap-' + (i + 11), i + 11)),
+      nextCursor: 30,
+      latestCursor: 30,
+    });
+  };
+  for (let cursor = 12; cursor <= 30; cursor += 1) {
+    fixture.stream.onEvent(makeEvent('gap-' + cursor, cursor));
+  }
+  await controller.whenIdle();
+  assert.equal(controller.getCursor(), 30);
+  assert.equal(pulls, 1);
+  assert.equal(fixture.liveImports.length, 20);
+});
+
+test('spaced final SSE events commit immediately without refreshing HTTP validation', async (t) => {
+  const fixture = createFixture();
+  let timestamp = '2026-09-01T02:00:00.000Z';
+  fixture.options.now = () => timestamp;
+  const controller = createRemoteGiftController(fixture.options);
+  t.after(() => controller.dispose());
   await controller.start();
   await controller.whenIdle();
+  const pullCount = fixture.pullCalls.length;
+  const validatedAt = fixture.runtimeState.lastValidatedAt;
+  const timer = fixture.scheduledTimers.at(-1);
 
-  const deferred = createDeferred();
-  let pulls = 0;
-  fixture.options.licenseManager.getGiftEventsInternal = async (input = {}) => {
-    pulls += 1;
-    if (input.after === 10) return deferred.promise;
-    return capabilityPage({ nextCursor: 11, latestCursor: 11 });
-  };
+  for (let cursor = 11; cursor <= 20; cursor += 1) {
+    timestamp = '2026-09-01T02:00:05.000Z';
+    fixture.stream.onEvent(makeEvent('spaced-' + cursor, cursor));
+    assert.equal(controller.getCursor(), cursor);
+    assert.equal(fixture.runtimeState.finalCursor, cursor);
+    assert.equal(controller.getStatus().latestCursor, cursor);
+    assert.equal(controller.getStatus().state, GiftSyncState.LIVE);
+    await new Promise((resolve) => setImmediate(resolve));
+  }
 
-  const event = makeEvent('live-final', 11);
-  fixture.stream.onEvent(event);
-  await waitFor(() => pulls === 1);
-
-  assert.deepEqual(fixture.liveImports, ['live-final']);
-  assert.equal(controller.getCursor(), 10);
-  assert.equal(controller.getStatus().state, GiftSyncState.CATCHING_UP);
-
-  deferred.resolve(
-    capabilityPage({
-      events: [event],
-      nextCursor: 11,
-      latestCursor: 11,
-    }),
-  );
-  await controller.whenIdle();
-
-  assert.equal(controller.getCursor(), 11);
-  assert.equal(controller.getStatus().state, GiftSyncState.LIVE);
-  controller.dispose();
+  assert.equal(fixture.pullCalls.length, pullCount);
+  assert.equal(fixture.liveImports.length, 10);
+  assert.equal(fixture.runtimeState.lastValidatedAt, validatedAt);
+  assert.equal(fixture.activeContexts.at(-1).syncedAt, validatedAt);
+  assert.equal(fixture.activeContexts.at(-1).partial, false);
+  assert.equal(fixture.scheduledTimers.at(-1), timer);
+  assert.equal(timer.cleared, undefined);
 });
 
 test('validated SSE canonical events reach progress and immediate final handoff', async () => {
   const encoder = new TextEncoder();
   let streamController;
-  let delayedRecovery;
   let recoveryCalls = 0;
   const receivedEvents = [];
   const fixture = createFixture({
@@ -140,13 +159,17 @@ test('validated SSE canonical events reach progress and immediate final handoff'
       if (recoveryCalls === 1) {
         return capabilityPage({ nextCursor: 10, latestCursor: 10 });
       }
-      delayedRecovery = createDeferred();
-      return delayedRecovery.promise;
+      return capabilityPage({ nextCursor: 11, latestCursor: 11 });
     },
     importProcessedGiftEvent(event) {
       receivedEvents.push(event);
     },
   });
+  const commitPage = fixture.options.runtime.commitGiftCatchUpPage;
+  fixture.options.runtime.commitGiftCatchUpPage = (input) => {
+    receivedEvents.push(...input.events);
+    return commitPage(input);
+  };
   const client = createRemoteLicenseClient({
     baseUrl: 'https://api.example.test',
     fetchImpl: async (_url, init) => {
@@ -187,21 +210,20 @@ test('validated SSE canonical events reach progress and immediate final handoff'
     streamController.enqueue(
       encoder.encode(`event: gift-event\ndata: ${JSON.stringify(makeEvent('sse-final', 11))}\n\n`),
     );
-    await waitFor(() => recoveryCalls === 2);
     await waitFor(() => receivedEvents.some((event) => event.eventId === 'sse-final'));
 
     const finalEvent = receivedEvents.find((event) => event.eventId === 'sse-final');
     assert.equal(finalEvent.phase, 'final');
     assert.equal(finalEvent.gift.totalPriceCents, 10);
-    assert.equal(controller.getCursor(), 10);
-    assert.equal(controller.getStatus().state, GiftSyncState.CATCHING_UP);
+    assert.equal(controller.getCursor(), 11);
+    assert.equal(controller.getStatus().state, GiftSyncState.LIVE);
+    assert.equal(recoveryCalls, 1);
     assert.equal(
       fixture.timerDelays.some((delay) => delay === 1000),
       false,
     );
   } finally {
     controller.dispose();
-    delayedRecovery?.resolve(capabilityPage({ nextCursor: 10, latestCursor: 10 }));
     await controller.whenIdle();
   }
 });
@@ -280,14 +302,17 @@ test('gift SSE wire boundary rejects malformed and privacy-sensitive extra field
   }
 });
 
-test('a failed immediate final projection falls back to cursor catch-up', async () => {
+test('a failed immediate final commit falls back to cursor catch-up', async () => {
   let immediateAttempts = 0;
-  const fixture = createFixture({
-    importProcessedGiftEvent() {
+  const fixture = createFixture();
+  const commitPage = fixture.options.runtime.commitGiftCatchUpPage;
+  fixture.options.runtime.commitGiftCatchUpPage = (input) => {
+    if (!input.validatedAt && input.events.length) {
       immediateAttempts += 1;
-      return Promise.reject(new Error('LOCAL_IMPORT_FAILED'));
-    },
-  });
+      throw new Error('LOCAL_COMMIT_FAILED');
+    }
+    return commitPage(input);
+  };
   const controller = createRemoteGiftController(fixture.options);
   await controller.start();
   await controller.whenIdle();

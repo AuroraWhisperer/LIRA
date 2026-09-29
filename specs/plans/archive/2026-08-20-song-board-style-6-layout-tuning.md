@@ -32,7 +32,7 @@
 ## Ownership
 
 - Owner: `public/css/overlays/base/golden-lily.css`
-- Contract: `docs/architecture/frontend/overlays.md`
+- Contract: `docs/reference/frontend/overlays.md`
 - Consumer: `/queue` overlay in Electron/OBS
 - Focused test: `test/frontend-queue.test.js`
 

@@ -116,7 +116,12 @@ test('music login remains usable after a subframe fails to load', async () => {
   await new Promise((resolve) => setImmediate(resolve));
   try {
     fixture.window.webContents.emit(
-      'did-fail-load', {}, -105, 'ERR_NAME_NOT_RESOLVED', 'https://invalid.example/', false,
+      'did-fail-load',
+      {},
+      -105,
+      'ERR_NAME_NOT_RESOLVED',
+      'https://invalid.example/',
+      false,
     );
     assert.equal(fixture.window.isDestroyed(), false);
     assert.equal(fixture.window.webContents.session.cookies.listenerCount('changed'), 1);
@@ -129,7 +134,9 @@ test('music login remains usable after a subframe fails to load', async () => {
 test('music login coalesces cookie bursts and retries after a failed pending auth check', async () => {
   let reads = 0;
   let rejectCheck;
-  const pending = new Promise((_resolve, reject) => { rejectCheck = reject; });
+  const pending = new Promise((_resolve, reject) => {
+    rejectCheck = reject;
+  });
   const fixture = createFixture({
     getAuthState: () => {
       reads += 1;

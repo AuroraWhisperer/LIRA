@@ -132,6 +132,26 @@ test('explicit roots override LIRA_SERVER_ROOT and the sibling default', (t) => 
   }
 });
 
+test('a dedicated pinned checkout takes precedence without relaxing fixture validation', (t) => {
+  const f = fixture(t);
+  const contractRoot = path.join(f.root, 'lira-server-contract');
+  fs.cpSync(f.serverRoot, contractRoot, { recursive: true });
+  const previous = process.env.LIRA_SERVER_ROOT;
+  try {
+    delete process.env.LIRA_SERVER_ROOT;
+    assert.equal(f.verifier.resolveServerRoot(), contractRoot);
+    assert.equal(f.verifier.verifyServerContract().revision, f.lock.revision);
+    fs.appendFileSync(path.join(contractRoot, FIRST_FIXTURE), '\n');
+    assert.throws(() => f.verifier.verifyServerContract(), { code: 'SERVER_CONTRACT_FIXTURE_MISMATCH' });
+    assert.equal(f.verifier.verifyServerContract({ serverRoot: f.serverRoot }).revision, f.lock.revision);
+    process.env.LIRA_SERVER_ROOT = f.serverRoot;
+    assert.equal(f.verifier.resolveServerRoot(), f.serverRoot);
+  } finally {
+    if (previous === undefined) delete process.env.LIRA_SERVER_ROOT;
+    else process.env.LIRA_SERVER_ROOT = previous;
+  }
+});
+
 test('an unavailable checkout fails without creating or replacing it', (t) => {
   const f = fixture(t);
   const missing = path.join(f.root, 'missing server');

@@ -13,8 +13,9 @@ of sync with its visibility animation.
   enabled scene starts, and move from the first cycle without the old endpoint
   holds.
 - Admin accepts one PNG, JPEG, or WebP character image up to 16 MiB, shows the
-  saved display name, reloads the preview after upload, and can clear the
-  selected image. With no upload, the character is hidden and has no src.
+  saved display name, updates the preview after upload, and can clear the
+  selected image without reloading the preview document or restarting unchanged
+  music. With no upload, the character is hidden and has no src.
 - Opening music likewise has no bundled default: no selection or a missing
   selected file returns empty URL/name fields and does not start audio playback.
 - Original music and character samples live in `test/fixtures/opening/` for
@@ -29,11 +30,14 @@ of sync with its visibility animation.
 `public/pages/admin/toolbox/start-animation.html` adds a character media card
 beside the existing opening controls. `public/js/admin/start-animation.js`
 performs early extension and size checks for feedback, uploads with
-`multipart/form-data`, and reloads the existing preview URL after success or
-clear. `public/js/overlays/opening.js` accepts only the dedicated local
+`multipart/form-data`, and sends the current configuration to the existing
+preview after success or clear. `public/js/overlays/opening.js` accepts only the dedicated local
 character-media prefix before assigning `img.src`; an empty or unsupported URL
 hides the image and removes src. Audio uses the dedicated music-media prefix
-and never loads or plays an empty source.
+and never loads or plays an empty source. Independent sources re-read the same
+configuration endpoint after each one-second interval; preview updates preserve
+the document, unchanged audio, and animation progress. See the current
+[overlay runtime contract](../docs/reference/frontend/overlays.md#15-开播动画opening).
 
 The heart's opacity animation moves from CSS to the same inline SVG as
 `animateMotion`. The motion has no initial endpoint hold. The overlay resets the

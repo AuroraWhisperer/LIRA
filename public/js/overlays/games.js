@@ -1,3 +1,4 @@
+import { createGameSessionStream } from './games-session.js';
 import { createDanmakuFeed } from './danmaku-feed.js';
 import { createDrawController } from './games-drawing.js';
 import { startOverlayPages } from './auto-pages.js';
@@ -9,7 +10,11 @@ let session = null;
 let socketController = null;
 let snapshotRetryTimer = null;
 let initialSnapshotLoaded = false;
-let snapshotRevision = 0;
+const gameStream = createGameSessionStream({
+  onSnapshot: (value) => renderGame(value),
+  onDelta: applyGameDelta,
+  recover: () => loadSnapshot(),
+});
 let resultProfileRequest = 0;
 let drawDanmakuFeed = null;
 let drawController = null;
@@ -28,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
     'beforeunload',
     () => {
       stopPages.forEach((stop) => stop());
-      snapshotRevision += 1;
+      gameStream.dispose();
       clearTimeout(snapshotRetryTimer);
       socketController?.dispose();
     },
@@ -52,7 +57,6 @@ document.addEventListener('DOMContentLoaded', () => {
     renderDanmaku: renderDrawDanmaku,
   });
   drawController.init();
-  loadSnapshot();
   connectSocket();
   byId('gameResultAvatar').addEventListener('error', hideGameResultAvatar);
   byId('gameResultExit').addEventListener('click', () => submitGameResultAction('stop'));
@@ -62,34 +66,37 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function loadSnapshot(attempt = 0) {
-  const revision = ++snapshotRevision;
+  const revision = gameStream.beginSnapshot();
   clearTimeout(snapshotRetryTimer);
   try {
+    if (drawController) await drawController.waitForPendingDraws();
+    if (!gameStream.isCurrent(revision)) return;
     const token = window.__API_TOKEN__;
     const response = await fetch('/api/games/session', {
       cache: 'no-store',
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     });
     const payload = await response.json();
-    if (revision !== snapshotRevision) return;
+    if (!gameStream.isCurrent(revision)) return;
     if (!payload.ok) throw new Error(payload.error || '读取游戏状态失败');
     if (payload.data || initialSnapshotLoaded || attempt >= INITIAL_SNAPSHOT_RETRIES) {
       initialSnapshotLoaded = true;
       clearTimeout(snapshotRetryTimer);
-      renderGame(payload.data);
+      gameStream.finishSnapshot(revision, payload.data);
       return;
     }
     scheduleSnapshotRetry(attempt + 1);
   } catch (_) {
-    if (revision !== snapshotRevision) return;
+    if (!gameStream.isCurrent(revision)) return;
     if (attempt >= INITIAL_SNAPSHOT_RETRIES) byId('gameTurn').textContent = '等待连接';
-    else scheduleSnapshotRetry(attempt + 1);
+    scheduleSnapshotRetry(attempt + 1);
   }
 }
 
 function scheduleSnapshotRetry(attempt) {
   clearTimeout(snapshotRetryTimer);
-  snapshotRetryTimer = setTimeout(() => loadSnapshot(attempt), INITIAL_SNAPSHOT_RETRY_DELAY_MS);
+  const delay = Math.min(5000, INITIAL_SNAPSHOT_RETRY_DELAY_MS * 2 ** Math.min(attempt, 4));
+  snapshotRetryTimer = setTimeout(() => loadSnapshot(attempt), delay);
 }
 
 function connectSocket() {
@@ -97,28 +104,46 @@ function connectSocket() {
   socketController = createOverlaySocket({
     onOpen: () => loadSnapshot(),
     onMessage: (payload) => {
-      if (payload.type === 'game:update') {
-        snapshotRevision += 1;
-        initialSnapshotLoaded = true;
-        clearTimeout(snapshotRetryTimer);
-        renderGame(payload.session);
+      if (
+        payload.type === 'snapshot' && payload.state &&
+        Object.prototype.hasOwnProperty.call(payload.state, 'games')
+      ) {
+        gameStream.receive({ type: 'game:update', session: payload.state.games || null });
       }
-      if (payload.type === 'game:draw') drawController?.applyBroadcast(payload.operation);
-      if (payload.type === 'snapshot') {
-        if (
-          !payload.state ||
-          typeof payload.state !== 'object' ||
-          !Object.prototype.hasOwnProperty.call(payload.state, 'games')
-        )
-          return;
-        snapshotRevision += 1;
-        initialSnapshotLoaded = true;
-        clearTimeout(snapshotRetryTimer);
-        renderGame(payload.state.games || null);
+      if (payload.type.startsWith('game:')) {
+        if (payload.type === 'game:update') {
+          initialSnapshotLoaded = true;
+          clearTimeout(snapshotRetryTimer);
+        }
+        gameStream.receive(payload);
       }
     },
   });
   socketController.start();
+}
+
+function applyGameDelta(payload, replaying) {
+  if (!session || session.game !== 'draw-guess') return;
+  session.eventRevision = payload.eventRevision;
+  if (payload.type === 'game:draw') {
+    drawController?.applyBroadcast(payload.operation, replaying);
+    return;
+  }
+  if (payload.item) {
+    session.danmaku.push(payload.item);
+    if (session.danmaku.length > 500) session.danmaku.splice(0, session.danmaku.length - 500);
+  }
+  if (payload.avatar) {
+    for (const item of session.danmaku) {
+      if (item.uid === payload.avatar.uid && !item.avatarUrl) item.avatarUrl = payload.avatar.avatarUrl;
+    }
+  }
+  if (payload.item || payload.avatar) drawController?.scheduleDrawDanmakuRender(session.danmaku);
+  if (payload.state) {
+    session.state = { ...payload.state, canvas: session.state.canvas };
+    session.restartBlocked = payload.restartBlocked;
+    renderDrawGuess(session.state, false);
+  }
 }
 
 function renderGame(nextSession) {
@@ -200,7 +225,7 @@ function renderGomokuCoordinates(size) {
   }
 }
 
-function renderDrawGuess(state) {
+function renderDrawGuess(state, redraw = true) {
   drawController?.setDrawingClock(
     state.phase === 'drawing'
       ? {
@@ -218,7 +243,7 @@ function renderDrawGuess(state) {
   byId('drawCorrectCount').textContent = `${state.correct.length} 人答对`;
   renderDrawScoreboard(state.scores || []);
   renderDrawCorrectFeed(state.correct || []);
-  drawController?.redrawCanvas(state.canvas);
+  if (redraw) drawController?.redrawCanvas(state.canvas);
   const result = byId('drawRoundResult');
   result.hidden = state.phase === 'drawing' || !state.answerRevealed;
   byId('drawRevealedAnswer').textContent = state.revealedAnswer || '';
@@ -288,11 +313,12 @@ function createEmptyDrawItem(message) {
 }
 
 function canDraw() {
+  if (gameStream.isRecovering()) return false;
   return session?.game === 'draw-guess' && session.state?.phase === 'drawing';
 }
 
 async function submitMove(value) {
-  const revision = ++snapshotRevision;
+  const revision = gameStream.beginSnapshot();
   clearTimeout(snapshotRetryTimer);
   try {
     const response = await fetch('/api/games/session/move', {
@@ -301,10 +327,12 @@ async function submitMove(value) {
       body: JSON.stringify({ value }),
     });
     const payload = await response.json();
-    if (payload.ok && revision === snapshotRevision) renderGame(payload.data);
+    if (!payload.ok) throw new Error(payload.error);
+    gameStream.finishSnapshot(revision, payload.data);
   } catch (_) {
-    if (revision !== snapshotRevision) return;
+    if (!gameStream.isCurrent(revision)) return;
     byId('gameTurn').textContent = '操作失败';
+    loadSnapshot();
   }
 }
 
@@ -378,7 +406,7 @@ async function loadWinnerProfile(requestId, winner) {
 async function submitGameResultAction(action) {
   const resultEl = byId('gameResult');
   if (resultEl.hidden || !['stop', 'restart'].includes(action)) return;
-  const revision = ++snapshotRevision;
+  const revision = gameStream.beginSnapshot();
   clearTimeout(snapshotRetryTimer);
   setGameResultActionsPending(true, action);
   setGameResultActionStatus('');
@@ -393,14 +421,16 @@ async function submitGameResultAction(action) {
       body: JSON.stringify({ action }),
     });
     const payload = await response.json();
-    if (revision !== snapshotRevision) return;
+    if (!gameStream.isCurrent(revision)) return;
     if (!response.ok || !payload.ok) throw new Error(payload.error || '操作失败');
-    renderGame(payload.data);
+    gameStream.finishSnapshot(revision, payload.data);
   } catch (_) {
-    if (revision !== snapshotRevision) return;
-    if (resultEl.hidden) return;
-    setGameResultActionsPending(false);
-    setGameResultActionStatus('操作失败，请重试');
+    if (!gameStream.isCurrent(revision)) return;
+    if (!resultEl.hidden) {
+      setGameResultActionsPending(false);
+      setGameResultActionStatus('操作失败，请重试');
+    }
+    loadSnapshot();
   }
 }
 

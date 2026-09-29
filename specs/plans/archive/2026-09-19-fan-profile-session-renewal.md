@@ -20,7 +20,7 @@
 
 `license-manager.js` 每次接受自动续期结果都会增加 authorizationEpoch。`src/electron/fan-profile-controller.js` 将 epoch 变化和所有状态通知都视为页面上下文变化；`public/js/admin/fans/index.js` 在定时 open 返回不同 contextId 时清空选中项并显示“账号已切换”。
 
-controller 拥有上下文、取消和同步生命周期；renderer 消费 contextId 并持有详情。私有 IPC 契约归属 `docs/architecture/desktop/preload.md`，产品要求归属 `specs/fan-profiles.md`。既有 `test/fan-profiles-ipc.test.js` 验证调用来源、归属、授权代次、迟到结果、名单同步和关闭。
+controller 拥有上下文、取消和同步生命周期；renderer 消费 contextId 并持有详情。私有 IPC 契约归属 `docs/reference/desktop/preload.md`，产品要求归属 `specs/fan-profiles.md`。既有 `test/fan-profiles-ipc.test.js` 验证调用来源、归属、授权代次、迟到结果、名单同步和关闭。
 
 ## Proposed changes
 

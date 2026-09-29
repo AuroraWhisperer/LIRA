@@ -51,7 +51,11 @@ test('redaction preserves repeated noncyclic references in separate branches', (
 });
 
 test('malformed URL text cannot stall the Bilibili error diagnostic path', (t) => {
-  const result = spawnSync(process.execPath, ['-e', `
+  const result = spawnSync(
+    process.execPath,
+    [
+      '-e',
+      `
     const assert = require('node:assert/strict');
     const { BilibiliApiClient } = require('./src/bilibili/danmaku/api-client');
     (async () => {
@@ -70,12 +74,15 @@ test('malformed URL text cannot stall the Bilibili error diagnostic path', (t) =
       }
       console.log(JSON.stringify(samples));
     })().catch((error) => { console.error(error); process.exitCode = 1; });
-  `], {
-    cwd: path.resolve(__dirname, '../..'),
-    encoding: 'utf8',
-    timeout: 5000,
-    windowsHide: true,
-  });
+  `,
+    ],
+    {
+      cwd: path.resolve(__dirname, '../..'),
+      encoding: 'utf8',
+      timeout: 5000,
+      windowsHide: true,
+    },
+  );
   assert.equal(result.error, undefined, result.error?.message);
   assert.equal(result.status, 0, result.stderr);
   t.diagnostic(result.stdout.trim());

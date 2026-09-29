@@ -52,7 +52,10 @@ test('malformed cloud credentials preserve the login and remain retryable', asyn
     });
     try {
       await assert.rejects(fixture.controller.start(), { code: 'INVALID_RESPONSE' });
-      assert.equal(fixture.calls.some(([kind]) => kind.startsWith('apply-bilibili')), false);
+      assert.equal(
+        fixture.calls.some(([kind]) => kind.startsWith('apply-bilibili')),
+        false,
+      );
       response = { revision: 4, loggedIn: false };
       await fixture.controller.syncNow();
       assert.equal(fixture.calls.filter(([kind]) => kind === 'apply-bilibili-logout').length, 1);

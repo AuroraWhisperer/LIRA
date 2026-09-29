@@ -137,41 +137,75 @@ function initStartAnimation() {
   const characterStatus = document.getElementById('openingCharacterStatus');
   const origin = localOverlayOrigin(location);
   const sourceUrl = buildOpeningSourceUrl(origin);
+  const previewOrigin = new URL(location.href).origin;
   let persistTimer = null;
-  let previewVersion = 0;
   let hydrated = false;
+  let mediaConfig = { audioUrl: '', characterUrl: '' };
+  let saveInFlight = false;
+  let saveQueued = false;
+  let lastSavedPayload = '';
 
-  const render = (forcePreviewReload = false) => {
+  const updateMediaConfig = (config) => {
+    mediaConfig = { audioUrl: config.audioUrl || '', characterUrl: config.characterUrl || '' };
+  };
+
+  const updatePreview = () => {
     const config = readStartAnimationConfig(root);
-    const previewUrl = buildOpeningUrl(origin, config);
+    if (!hydrated || !config.enabled) return;
+    preview?.contentWindow?.postMessage(
+      {
+        type: 'lira:opening-preview-config',
+        config: { ...config, ...mediaConfig },
+      },
+      '*',
+    );
+  };
+
+  const render = () => {
+    const config = readStartAnimationConfig(root);
     if (titleCount) titleCount.textContent = `${Array.from(config.title).length}/20`;
     updateVolumeOutput(root, config);
     if (urlNode) urlNode.textContent = sourceUrl;
-    if (preview) {
+    if (preview && hydrated) {
       if (!config.enabled) {
         preview.hidden = true;
         if (preview.src !== 'about:blank') preview.src = 'about:blank';
       } else {
         preview.hidden = false;
-        const nextPreviewUrl = forcePreviewReload ? `${previewUrl}&preview=${(previewVersion += 1)}` : previewUrl;
-        if (preview.src !== nextPreviewUrl) preview.src = nextPreviewUrl;
+        if (!preview.getAttribute('src') || preview.src === 'about:blank') {
+          preview.src = buildOpeningUrl(previewOrigin, config);
+        } else {
+          updatePreview();
+        }
       }
     }
     return config;
   };
 
-  const persist = () => {
+  const persist = async () => {
     if (!hydrated) return;
-    const config = readStartAnimationConfig(root);
-    fetch(SETTINGS_ENDPOINT, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(openingSettingsPayload(config)),
-    })
-      .then((response) => {
+    saveQueued = true;
+    if (saveInFlight) return;
+    saveInFlight = true;
+    try {
+      while (saveQueued) {
+        saveQueued = false;
+        const body = JSON.stringify(openingSettingsPayload(readStartAnimationConfig(root)));
+        if (body === lastSavedPayload) continue;
+        const response = await fetch(SETTINGS_ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body,
+        });
         if (!response.ok) throw new Error('配置保存失败');
-      })
-      .catch((error) => toast(error.message || '配置保存失败，请重试。'));
+        lastSavedPayload = body;
+      }
+    } catch (error) {
+      toast(error.message || '配置保存失败，请重试。');
+    } finally {
+      saveInFlight = false;
+      if (saveQueued) void persist();
+    }
   };
 
   const schedulePersist = () => {
@@ -179,54 +213,38 @@ function initStartAnimation() {
     persistTimer = window.setTimeout(persist, 220);
   };
 
-  const updatePreviewVolume = () => {
-    const config = readStartAnimationConfig(root);
-    updateVolumeOutput(root, config);
-    preview?.contentWindow?.postMessage(
-      {
-        type: 'lira:opening-preview-volume',
-        volume: config.volume,
-      },
-      '*',
-    );
-  };
-
   const loadSavedConfig = async () => {
     try {
       const response = await fetch(OPENING_CONFIG_ENDPOINT, {
         cache: 'no-store',
       });
-      if (!response.ok) {
-        hydrated = true;
-        return;
-      }
+      if (!response.ok) return;
       const payload = await response.json();
-      if (!payload?.ok || !payload.data) {
-        hydrated = true;
-        return;
-      }
+      if (!payload?.ok || !payload.data) return;
       setFormConfig(root, payload.data);
+      updateMediaConfig(payload.data);
       if (audioName) audioName.textContent = payload.data.audioName || '未上传音乐';
       if (characterName) characterName.textContent = payload.data.characterName || '未上传人物图';
-      hydrated = true;
-      render(true);
-    } catch (_) {
+      lastSavedPayload = JSON.stringify(openingSettingsPayload(readStartAnimationConfig(root)));
+    } catch {
+      toast('开播配置读取失败，暂时显示默认设置。');
+    } finally {
       hydrated = true;
       render();
     }
   };
 
-  const handleConfigChange = (event) => {
-    if (event.target?.id === 'openingAudioVolume') updatePreviewVolume();
-    else render();
+  const handleConfigChange = () => {
+    render();
     schedulePersist();
   };
   form.addEventListener('input', handleConfigChange);
   form.addEventListener('change', handleConfigChange);
   document.getElementById('openingEnabled')?.addEventListener('change', () => {
-    render(true);
+    render();
     schedulePersist();
   });
+  preview?.addEventListener('load', updatePreview);
 
   document.getElementById('openingAudioFile')?.addEventListener('change', async (event) => {
     const file = event.target.files?.[0];
@@ -243,7 +261,8 @@ function initStartAnimation() {
       if (!response.ok || !payload?.ok) throw new Error(payload?.error || '歌曲上传失败');
       if (audioName) audioName.textContent = payload.data.audioName || file.name;
       if (audioStatus) audioStatus.textContent = '歌曲已保存到开播音乐文件夹。';
-      render(true);
+      updateMediaConfig(payload.data);
+      render();
     } catch (error) {
       if (audioStatus) audioStatus.textContent = error.message || '歌曲上传失败，请重试。';
     } finally {
@@ -277,7 +296,8 @@ function initStartAnimation() {
       if (!response.ok || !payload?.ok) throw new Error(payload?.error || '人物图片上传失败');
       if (characterName) characterName.textContent = payload.data.characterName || file.name;
       if (characterStatus) characterStatus.textContent = '人物图片已保存。';
-      render(true);
+      updateMediaConfig(payload.data);
+      render();
     } catch (error) {
       if (characterStatus) characterStatus.textContent = error.message || '人物图片上传失败，请重试。';
     } finally {
@@ -294,7 +314,8 @@ function initStartAnimation() {
       if (!response.ok || !payload?.ok) throw new Error(payload?.error || '清除人物图失败');
       if (characterName) characterName.textContent = payload.data.characterName || '未上传人物图';
       if (characterStatus) characterStatus.textContent = '已清除人物图。';
-      render(true);
+      updateMediaConfig(payload.data);
+      render();
     } catch (error) {
       if (characterStatus) characterStatus.textContent = error.message || '清除人物图失败。';
     }
@@ -309,7 +330,8 @@ function initStartAnimation() {
       if (!response.ok || !payload?.ok) throw new Error(payload?.error || '清除音乐失败');
       if (audioName) audioName.textContent = payload.data.audioName || '未上传音乐';
       if (audioStatus) audioStatus.textContent = '已清除音乐。';
-      render(true);
+      updateMediaConfig(payload.data);
+      render();
     } catch (error) {
       if (audioStatus) audioStatus.textContent = error.message || '清除音乐失败。';
     }

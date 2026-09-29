@@ -16,7 +16,7 @@
 
 ## Tasks
 
-- [x] Update `specs/gift-identity-overtime.md` and `docs/architecture/backend/bilibili/gift.md` for `directGift | blindBox | blindBoxOutput`.
+- [x] Update `specs/gift-identity-overtime.md` and `docs/reference/backend/bilibili/gift.md` for `directGift | blindBox | blindBoxOutput`.
 - [x] Update `src/bilibili/gift/variant-catalog-contract.js` and `remote-catalog-contract.js` to validate named categories and relation consistency; preserve atomic cache behavior and category in normalized snapshots.
 - [x] Ensure `variant-room-catalog.js` does not retain a category when the complete identity is unmatched.
 - [x] Update `public/js/shared/gift-catalog-roles.js` and `public/js/admin/gifts/blindbox.js` to display/select by the enum.

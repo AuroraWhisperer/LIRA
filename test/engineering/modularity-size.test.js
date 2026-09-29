@@ -187,15 +187,12 @@ test('the static preset exception and help chapters retain their content respons
   const read = (file) => fs.readFileSync(path.join(ROOT_DIR, file), 'utf8');
   const presets = JSON.parse(read('public/data/theme-presets.json'));
   assert.equal(typeof presets.default, 'object');
-  for (const file of [
-    'usage-guide.html',
-    'usage-guide-getting-started.html',
-    'usage-guide-features.html',
-    'usage-guide-configuration.html',
-    'usage-guide-faq.html',
-  ]) {
+  const chapters = fs
+    .readdirSync(path.join(ROOT_DIR, 'public/pages/admin/toolbox'))
+    .filter((file) => /^usage-guide(?:-[a-z-]+)?\.html$/.test(file) && file !== 'usage-guide-search.html');
+  for (const file of chapters) {
     const help = read(`public/pages/admin/toolbox/${file}`);
-    assert.doesNotMatch(help, /<(?:script|form|input|select|textarea)\b|\son[a-z]+\s*=/i);
+    assert.doesNotMatch(help, /<(?:script|form|input|select|textarea)\b|\son[a-z]+\s*=/i, file);
   }
 });
 

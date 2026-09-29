@@ -81,7 +81,7 @@ BiliCLMonkey 的粉丝显示使用正数关系值判断，且包含跨用户的�
 - `src/server/routes/bilibili-routes.js` 已承载 B站本地 HTTP 能力；新增能力遵守现有鉴权和 loopback 边界。
 - 现有用户资料查询只能补充昵称/头像，不能据此推断关注关系。动态采集也不应依赖直播弹幕监听是否开启。
 
-相关契约：[架构事实地图](../docs/architecture/README.md)、[模块化标准](../docs/architecture/engineering/modularity-standard.md)、[桌面会话](../docs/architecture/desktop/auth.md)、[存储边界](../src/storage/AGENTS.md)。
+相关契约：[架构事实地图](../docs/architecture/README.md)、[模块化标准](../docs/architecture/engineering/modularity-standard.md)、[桌面会话](../docs/reference/desktop/auth.md)、[存储边界](../src/storage/AGENTS.md)。
 
 ## 能力与边界
 

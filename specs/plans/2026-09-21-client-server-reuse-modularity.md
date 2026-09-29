@@ -1,5 +1,15 @@
 # Client/server reuse and modularity implementation plan
 
+**Status:** Deferred.
+
+**复核日期：** 2026-09-28。18 项已有完成记录；F07 及依赖它的 S04 按用户决定延期，不能记为已实施。
+
+当前依据：[所属规格或参考](../../docs/architecture/adr/0020-shared-danmaku-source.md)。状态索引见 [计划入口](README.md)。
+
+## 原始计划与执行记录
+
+以下保留原计划时点的行为、命令和验证记录；它们不覆盖上述状态或当前契约，历史未勾选项不直接等同于当前缺陷。
+
 **Goal:** Resolve F01–F14 and the six secondary reuse opportunities in the
 2026-09-21 audit, one independently verified change at a time.
 
@@ -50,7 +60,7 @@ Owner: `src/storage/gift-query-store.js` and `gift-maintenance-store.js` own SQL
 `src/bilibili/gift/query-service.js`, `blind-box-analysis.js` and `source-scope.js`
 own domain formatting/filter policy. `src/server/domain-services.js` constructs
 stores; the existing gift constructor facade retains its legacy database adapter.
-Contracts: `docs/architecture/backend/bilibili/gift.md`, storage rules and
+Contracts: `docs/reference/backend/bilibili/gift.md`, storage rules and
 `docs/architecture/engineering/legacy-boundaries.md`.
 
 - [x] Replace `{sql, params}` domain scope with `{kind: 'local'}`, `{kind: 'source', sourceId}` or `{kind: 'unavailable'}`. Only storage translates to predicates; invalid scope fails closed.

@@ -1,0 +1,292 @@
+<h4 class="usage-guide-subsection-title">点歌与播放</h4>
+<div class="usage-guide-faq-grid">
+  <details class="usage-guide-faq">
+    <summary>
+      <strong>观众点了歌，但没有任何反应</strong>
+      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path
+          d="m5 8 5 5 5-5"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </summary>
+    <ol class="usage-guide-checks">
+      <li>
+        先到「点歌 →
+        设置」检查直播账号和直播间号，并确认弹幕姬的「监控弹幕」已开启。再到「点歌板」检查是否暂停点歌或命中黑名单，并核对指令和歌名。
+      </li>
+      <li>查看「同一观众点歌间隔」：间隔未到可能静默拦截，等设定时间过后再试，不能把所有无响应都归因于冷却。</li>
+      <li>仍无反应时到弹幕姬查看连接状态；连接异常可「刷新直播」。保留观众发送的原文和发送时间，便于管理员定位。</li>
+    </ol>
+  </details>
+  <details class="usage-guide-faq">
+    <summary>
+      <strong>观众说“点歌队列已达到上限。”</strong>
+      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path
+          d="m5 8 5 5 5-5"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </summary>
+    <ol class="usage-guide-checks">
+      <li>「点歌队列已达到上限。」表示当前等待歌曲已满。先完成或删除已处理的点歌，再让观众重试。</li>
+      <li>确实需要更长队列时到「点歌 → 点歌板」调整最多排队歌曲数（1–300，默认 50）并保存。</li>
+      <li>点歌队列清空会移除全部等待条目；不要为了腾一首歌的位置就随意清空。</li>
+    </ol>
+  </details>
+  <details class="usage-guide-faq">
+    <summary>
+      <strong>观众说“队列里已经有这首歌。”或“当前已暂停接收点歌。”</strong>
+      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path
+          d="m5 8 5 5 5-5"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </summary>
+    <ol class="usage-guide-checks">
+      <li>「队列里已经有这首歌。」时，先核对当前队列；需要允许重复时再到「点歌 → 点歌板」调整重复点歌规则并保存。</li>
+      <li>「当前已暂停接收点歌。」时，在同页检查暂停点歌状态，需要继续接收时再解除并保存。</li>
+      <li>解除后让观众重新发送一次；不会自动补回暂停期间被拒绝的请求。</li>
+    </ol>
+  </details>
+  <details class="usage-guide-faq">
+    <summary>
+      <strong>随机点歌没反应，或找不到符合条件的歌</strong>
+      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path
+          d="m5 8 5 5 5-5"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </summary>
+    <ol class="usage-guide-checks">
+      <li>
+        若显示「请先登录直播账号后再随机点歌。」，先在「点歌 → 设置」完成直播账号登录。其他情况先检查歌库歌曲是否可点。
+      </li>
+      <li>
+        语言、分类和标签等多个条件需要同时满足，可先用少量条件尝试。「百宝箱 →
+        弹幕姬」开启「随机点歌回复」后，没有符合条件的歌曲会提醒观众。
+      </li>
+      <li>歌曲已入队但版本不对时，到播放页搜索歌名与歌手。「点歌匹配诊断」没有结果不代表歌库没有该歌曲。</li>
+    </ol>
+  </details>
+  <details class="usage-guide-faq">
+    <summary>
+      <strong>歌曲已经排队，为什么没有声音</strong>
+      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path
+          d="m5 8 5 5 5-5"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </summary>
+    <ol class="usage-guide-checks">
+      <li>
+        先确认你看到的是点歌队列还是播放队列：点歌队列记录观众请求，不等于播放器正在播放；需要时在播放队列使用「导入点歌」，再选择歌曲播放。
+      </li>
+      <li>
+        检查播放器是否暂停或静音、音量以及 Windows 音量混合器；随后确认对应 QQ
+        音乐或网易云账号仍已登录，歌曲具有可播放的音源。
+      </li>
+      <li>
+        单首异常可重新搜索相同歌名与歌手选择可播版本；所有歌曲异常时点「检查音乐平台连接」，并提供错误提示。详见<a
+          href="#ug-playback"
+          data-usage-guide-link
+          >播放页</a
+        >。
+      </li>
+    </ol>
+  </details>
+  <details class="usage-guide-faq">
+    <summary>
+      <strong>QQ 音乐或网易云登录过期了</strong>
+      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path
+          d="m5 8 5 5 5-5"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </summary>
+    <ol class="usage-guide-checks">
+      <li>
+        音乐平台提示未登录或账号失效时，在「播放」页切到该平台，使用它自己的登录入口重新登录。LIRA 账号和 B
+        站账号不能替代音乐平台账号。
+      </li>
+      <li>登录后点「检查音乐平台连接」，再试一首可播放的歌曲。</li>
+      <li>仍失败时记录平台名与连接结果，不要反复清空歌库；音乐平台登录仅在本机保留，换电脑后需重新登录。</li>
+    </ol>
+  </details>
+  <details class="usage-guide-faq">
+    <summary>
+      <strong>全民 K 歌歌词不出现或时间对不上</strong>
+      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path
+          d="m5 8 5 5 5-5"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </summary>
+    <ol class="usage-guide-checks">
+      <li>
+        先打开全民 K 歌电脑版并播放伴奏，再到「播放 → 全民 K 歌」核对「全民 K 歌缓存文件夹」，选择实际使用的
+        <code>WeSingCache</code> 并点「保存并检测」。
+      </li>
+      <li>
+        默认位置通常在当前 Windows 用户的
+        <code>%APPDATA%\Tencent\WeSing\WeSingCache</code>；可粘贴到文件资源管理器地址栏查找。若全民 K
+        歌改过缓存位置，使用实际位置，不要任意选择空文件夹。
+      </li>
+      <li>
+        已有歌词但快慢不一致时，用「歌词时间调整」在 ±3000 毫秒内按 50
+        毫秒微调；仍异常时记录检测提示和歌曲。桌面歌词另有 ±5000 毫秒偏移，不要混淆两处设置。
+      </li>
+    </ol>
+  </details>
+</div>
+<h4 class="usage-guide-subsection-title">歌库与同步</h4>
+<div class="usage-guide-faq-grid">
+  <details class="usage-guide-faq">
+    <summary>
+      <strong>歌单表格导入失败</strong>
+      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path
+          d="m5 8 5 5 5-5"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </summary>
+    <ol class="usage-guide-checks">
+      <li>先使用「点歌 → 导入导出」提供的模板，保留「歌曲名字」等表头；不要只改文件后缀。</li>
+      <li>
+        无法读取时用 Excel 重新另存为 .xlsx，或复制表格内容粘贴到导入框，也支持
+        CSV、TSV。导入结束后查看新增、更新、跳过或失败的结果，再核对歌库。
+      </li>
+      <li>仍失败时提供结果提示与去掉个人信息的少量示例行，不要直接反复导入整个文件。</li>
+    </ol>
+  </details>
+  <details class="usage-guide-faq">
+    <summary>
+      <strong>提示歌库超过 5000 首，传不上去</strong>
+      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path
+          d="m5 8 5 5 5-5"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </summary>
+    <ol class="usage-guide-checks">
+      <li>
+        「歌库超过 5000 首限制。」或「结果歌库超过 5000 首，无法完整同步；请先在歌库整理至 5000
+        首以内。」表示本次内容超出数量限制。
+      </li>
+      <li>
+        先导出备份，再整理重复或不再使用的歌曲，让最终歌库不超过 5000 首；导入更新也要计算原有歌曲加上新增后的总量。
+      </li>
+      <li>精简后重新核对并同步。若提示的是数据大小限制，即使歌曲数量未超限，也需缩短过长备注、点歌价格或歌切内容。</li>
+    </ol>
+  </details>
+  <details class="usage-guide-faq">
+    <summary>
+      <strong>同步到一半断网，不知道成功没有</strong>
+      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path
+          d="m5 8 5 5 5-5"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </summary>
+    <ol class="usage-guide-checks">
+      <li>看到「同步失败」或超时，不要把按钮曾经点过当作成功，也不能据此断言服务器一定没收到。</li>
+      <li>
+        恢复网络后查看网页歌曲数量和实际歌单，再核对本机完整歌库。只有成功反馈才会更新「本机上次同步」时间与数量。
+      </li>
+      <li>
+        需要重试时先确认当前本机版本无误：「同步到网页」会覆盖云端歌库，不会自动合并。见<a
+          href="#ug-data"
+          data-usage-guide-link
+          >数据保存与换电脑</a
+        >。
+      </li>
+    </ol>
+  </details>
+  <details class="usage-guide-faq">
+    <summary>
+      <strong>两台电脑的歌库不一样，换机后也少了设置</strong>
+      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path
+          d="m5 8 5 5 5-5"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </summary>
+    <ol class="usage-guide-checks">
+      <li>
+        登录同一账号并联网后歌库会同步，但不要同时在两台电脑编辑：最后同步成功的歌库会替换先前版本，不会自动合并。
+      </li>
+      <li>先停止两边继续修改，分别核对与导出需要保留的版本，再确定完整歌库。不要立即用少歌的电脑执行覆盖同步。</li>
+      <li>
+        点歌队列、播放队列、音乐平台登录、歌词缓存位置及本机画面样式等不随歌库迁移；按<a
+          href="#ug-data"
+          data-usage-guide-link
+          >数据保存与换电脑</a
+        >重新核对。
+      </li>
+    </ol>
+  </details>
+  <details class="usage-guide-faq">
+    <summary>
+      <strong>歌单背景图传不上去</strong>
+      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path
+          d="m5 8 5 5 5-5"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </summary>
+    <ol class="usage-guide-checks">
+      <li>
+        「图片超过 5MB，请压缩后再上传。」时先压缩图片；「仅支持 PNG / JPG / WebP / GIF 图片。」时使用支持的图片格式。
+      </li>
+      <li>到「点歌 → 导入导出 → 歌单背景」重新上传；恢复默认使用「恢复默认背景」。</li>
+      <li>若提示网络或授权失效，先恢复连接或处理授权。仍失败时提供具体提示，不要反复更改图片扩展名。</li>
+    </ol>
+  </details>
+</div>

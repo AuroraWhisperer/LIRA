@@ -3,7 +3,7 @@
 > Status: Completed
 > Started: 2026-08-17
 > Completed: 2026-08-17
-> Source audit: `specs/plans/2026-08-17-existing-code-governance-remediation.md`
+> Source audit: `specs/plans/archive/2026-08-17-existing-code-governance-remediation.md`
 > Findings: `AUD-H02`, `AUD-H03`, `AUD-M02`, `AUD-M03`, `AUD-M08`, `AUD-M11`
 
 ## Goal
@@ -50,16 +50,16 @@ asynchronous work before any database handle or port is released.
 
 - Storage schema and migration ownership:
   `src/storage/schema.js`, `src/storage/database.js`,
-  `docs/architecture/backend/storage.md`, and
+  `docs/reference/backend/storage.md`, and
   `test/database-maintenance.test.js`.
 - Server composition, process ownership, and HTTP lifecycle:
   `src/server.js`, `src/server/lifecycle.js`,
-  `docs/architecture/backend/server-core.md`,
+  `docs/reference/backend/server-core.md`,
   `test/server-smoke.test.js`, and `test/server-lifecycle.test.js`.
 - AI runtime lifecycle:
   `src/server/ai-runtime.js`, `src/ai/async-coordinator.js`,
   `src/ai/xiaomi-ai-service.js`, provider/tool clients, delivery verification,
-  request logging, `docs/architecture/backend/ai.md`, and
+  request logging, `docs/reference/backend/ai.md`, and
   `test/xiaomi-ai-service.test.js`.
 - Gift and overtime lifecycle remains owned by the existing domain runtimes.
   Server shutdown may call their narrow lifecycle methods but must not absorb

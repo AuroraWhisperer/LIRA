@@ -58,7 +58,7 @@ test('danmaku tool separates the fixed live overlay from the sender and reply gr
   assert.match(html, /id="danmakuOverlayUrl"/);
   assert.match(html, /id="danmakuCopyOverlayUrlBtn"/);
   assert.match(html, /id="danmakuOpenOverlayBtn"/);
-  assert.match(html, /id="danmakuPreviewOverlayBtn"[^>]*>\s*预览效果\s*<\/button>/);
+  assert.match(html, /id="danmakuPreviewOverlayBtn"[^>]*>\s*编辑画布\s*<\/button>/);
   const styleOptions = Array.from(
     html.matchAll(
       /<button\b[^>]*data-danmaku-style="([^"]+)"[^>]*>[\s\S]*?<span class="danmaku-style-name">([^<]+)<\/span>[\s\S]*?<\/button>/g,
@@ -83,7 +83,7 @@ test('danmaku tool separates the fixed live overlay from the sender and reply gr
   );
   assert.match(
     html,
-    /class="danmaku-style-group danmaku-style-group-random"[^>]+aria-labelledby="danmakuRandomStyleTitle"[\s\S]*id="danmakuRandomStyleTitle">全屏随机弹幕<[\s\S]*aria-label="选择全屏随机弹幕样式"/,
+    /class="danmaku-style-group danmaku-style-group-random"[^>]+aria-labelledby="danmakuRandomStyleTitle"[\s\S]*id="danmakuRandomStyleTitle">区域随机弹幕<[\s\S]*aria-label="选择区域随机弹幕样式"/,
   );
   assert.doesNotMatch(html, /danmaku-style-option-(?:visual|copy)/);
   assert.match(html, /id="danmakuStyleSaveState"[^>]+role="status"[^>]+aria-live="polite"[^>]*><\/p>/);
@@ -111,7 +111,7 @@ test('danmaku tool separates the fixed live overlay from the sender and reply gr
   const overlaySource = fs.readFileSync(path.join(ROOT_DIR, 'public/js/admin/danmaku-overlay-settings.js'), 'utf8');
   assert.match(overlaySource, /observeServerOverlayUrl/);
   assert.match(overlaySource, /bridge\.updateOverlaySettings/);
-  assert.match(overlaySource, /preview: '1'/);
+  assert.match(overlaySource, /openDanmakuCanvas/);
   assert.match(styles, /\.danmaku-style-options/);
   assert.match(
     styles,

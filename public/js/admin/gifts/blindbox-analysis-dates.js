@@ -51,15 +51,18 @@ export function createBlindBoxDatePicker({ onChange, onOpen }) {
     });
     get('Selection').textContent = formatRange(startDate, endDate);
     get('Month').textContent = `${month.getFullYear()} 年 ${month.getMonth() + 1} 月`;
-    get('Hint').textContent = mode === 'single'
-      ? '选择要查看的日期'
-      : endDate ? '包含开始和结束日期' : startDate ? '请选择结束日期' : '请选择开始日期';
+    get('Hint').textContent =
+      mode === 'single'
+        ? '选择要查看的日期'
+        : endDate
+          ? '包含开始和结束日期'
+          : startDate
+            ? '请选择结束日期'
+            : '请选择开始日期';
     get('Apply').disabled = !endDate;
     const firstWeekday = (month.getDay() + 6) % 7;
     const today = dateKey(new Date());
-    const tabDate = focusedDate || (
-      startDate.slice(0, 7) === dateKey(month).slice(0, 7) ? startDate : dateKey(month)
-    );
+    const tabDate = focusedDate || (startDate.slice(0, 7) === dateKey(month).slice(0, 7) ? startDate : dateKey(month));
     const fragment = document.createDocumentFragment();
     for (let index = 0; index < 42; index += 1) {
       const date = new Date(month);
@@ -143,7 +146,12 @@ export function createBlindBoxDatePicker({ onChange, onOpen }) {
     const date = parseDate(key);
     const weekday = (date.getDay() + 6) % 7;
     const offsets = {
-      ArrowLeft: -1, ArrowRight: 1, ArrowUp: -7, ArrowDown: 7, Home: -weekday, End: 6 - weekday,
+      ArrowLeft: -1,
+      ArrowRight: 1,
+      ArrowUp: -7,
+      ArrowDown: 7,
+      Home: -weekday,
+      End: 6 - weekday,
     };
     if (!Object.hasOwn(offsets, event.key) && !['PageUp', 'PageDown'].includes(event.key)) return;
     event.preventDefault();

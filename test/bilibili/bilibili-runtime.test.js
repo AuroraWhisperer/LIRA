@@ -128,6 +128,30 @@ test('only the latest requested room starts after pending auth resolves', async 
   );
 });
 
+test('local commands follow danmaku monitoring independently of gift monitoring', async (t) => {
+  const fixture = createReplacementFixture();
+  t.after(() => fixture.runtime.stop());
+  fixture.settings.danmakuMonitoringEnabled = 'true';
+  fixture.settings.giftMonitoringEnabled = 'true';
+  await fixture.runtime.reconnect();
+  const client = fixture.clients[0];
+  fixture.settings.giftMonitoringEnabled = 'false';
+  fixture.runtime.configure();
+  assert.equal(fixture.clients.length, 1);
+  assert.equal(client.stopCount, 0);
+  fixture.settings.giftMonitoringEnabled = 'true';
+  fixture.settings.danmakuMonitoringEnabled = 'false';
+  fixture.runtime.configure();
+  assert.equal(client.stopCount, 1);
+  assert.equal(client.context.isShuttingDown(), true);
+  assert.equal(fixture.runtime.getLiveStatus().enabled, false);
+  await fixture.runtime.reconnect();
+  assert.equal(fixture.clients.length, 1);
+  fixture.settings.danmakuMonitoringEnabled = 'true';
+  await fixture.runtime.reconnect();
+  assert.equal(fixture.clients.length, 2);
+});
+
 test('missing room status is distinct from disabled listening', async (t) => {
   const fixture = createReplacementFixture();
   t.after(() => fixture.runtime.stop());

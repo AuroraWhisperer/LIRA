@@ -19,7 +19,12 @@ function createGiftFeedFixture() {
     await page.evaluate(
       async ({ count, scrollSpeed, missingAbortMethods }) => {
         for (const method of missingAbortMethods) delete AbortSignal[method];
-        window.feedConfig = { palette: 'bilibili-four', thresholds: [3000, 10000, 100000], visibleRows: 3, scrollSpeed };
+        window.feedConfig = {
+          palette: 'bilibili-four',
+          thresholds: [3000, 10000, 100000],
+          visibleRows: 3,
+          scrollSpeed,
+        };
         window.feedItems = Array.from({ length: count }, (_, index) => ({
           eventId: String(index),
           gift: { giftId: 'sample', giftName: '礼物', userName: `观众${index}`, unitPrice: 2, num: 1 },

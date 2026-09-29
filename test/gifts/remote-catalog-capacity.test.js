@@ -29,22 +29,37 @@ test('over-limit streaming catalog is cancelled and the previous memory and disk
   const chunk = new Uint8Array(1024 * 1024).fill(32);
   const client = createRemoteLicenseClient({
     fetchImpl: async () => {
-      if (!overflow) return new Response(JSON.stringify({
-        ok: true, version: 'known-good', updatedAt: UPDATED_AT,
-        gifts: [{ id: '1001', name: 'Saved gift', priceRaw: 1000, coinType: 'gold' }],
-      }), { headers: { ETag: '"known-good"' } });
-      return new Response(new ReadableStream({
-        pull(controller) {
-          pulls += 1;
-          controller.enqueue(pulls <= 32 ? chunk : new Uint8Array([32]));
-          if (pulls === 34) controller.close();
-        },
-        cancel() { cancelled = true; },
-      }, { highWaterMark: 0 }));
+      if (!overflow)
+        return new Response(
+          JSON.stringify({
+            ok: true,
+            version: 'known-good',
+            updatedAt: UPDATED_AT,
+            gifts: [{ id: '1001', name: 'Saved gift', priceRaw: 1000, coinType: 'gold' }],
+          }),
+          { headers: { ETag: '"known-good"' } },
+        );
+      return new Response(
+        new ReadableStream(
+          {
+            pull(controller) {
+              pulls += 1;
+              controller.enqueue(pulls <= 32 ? chunk : new Uint8Array([32]));
+              if (pulls === 34) controller.close();
+            },
+            cancel() {
+              cancelled = true;
+            },
+          },
+          { highWaterMark: 0 },
+        ),
+      );
     },
   });
   const cache = createRemoteGiftCatalogCache({
-    dataDir, logger: QUIET_LOGGER, fetchRemote: ({ etag }) => client.getGiftCatalog(etag),
+    dataDir,
+    logger: QUIET_LOGGER,
+    fetchRemote: ({ etag }) => client.getGiftCatalog(etag),
   });
   t.after(() => cache.stop());
   await cache.refresh({ force: true });

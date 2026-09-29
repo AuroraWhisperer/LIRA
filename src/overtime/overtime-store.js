@@ -252,12 +252,20 @@ function createOvertimeStore(giftDb) {
   }
 
   function getNextPendingAt(enableEpoch, includeUnobserved = false) {
-    if (includeUnobserved && giftDb.prepare(`
+    if (
+      includeUnobserved &&
+      giftDb
+        .prepare(
+          `
       SELECT 1 FROM gift_events g
       LEFT JOIN overtime_settlements s ON g.id = s.gift_event_id
       WHERE g.overtime_epoch = ? AND g.detection_status = 'final' AND s.id IS NULL
       LIMIT 1
-    `).get(Number(enableEpoch))) return 0;
+    `,
+        )
+        .get(Number(enableEpoch))
+    )
+      return 0;
     const row = giftDb
       .prepare(
         `
@@ -314,10 +322,16 @@ function createOvertimeStore(giftDb) {
   }
 
   function countQuantityLimited() {
-    return Number(giftDb.prepare(`
+    return Number(
+      giftDb
+        .prepare(
+          `
       SELECT COUNT(*) AS count FROM overtime_settlements
       WHERE status = 'pending' AND last_error = 'OVERTIME_QUANTITY_LIMIT'
-    `).get().count);
+    `,
+        )
+        .get().count,
+    );
   }
 
   function getGift(giftEventId) {

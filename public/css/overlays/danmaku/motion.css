@@ -21,7 +21,7 @@
 @keyframes bubbleMessageIn {
   from {
     opacity: 0;
-    transform: translateY(8px) scale(0.97);
+    transform: translateY(calc(8px * var(--danmaku-entry-direction, 1))) scale(0.97);
   }
   to {
     opacity: 1;
@@ -31,7 +31,7 @@
 @keyframes minimalMessageIn {
   from {
     opacity: 0;
-    transform: translateY(5px);
+    transform: translateY(calc(5px * var(--danmaku-entry-direction, 1)));
   }
   to {
     opacity: 1;
@@ -60,16 +60,16 @@
 }
 
 @media (max-width: 480px) {
-  .draw-danmaku-item {
+  :where(body:not(.has-layout)) .draw-danmaku-item {
     grid-template-columns: 36px minmax(0, 1fr);
     min-height: 54px;
     padding-left: 7px;
   }
-  .draw-danmaku-avatar {
+  :where(body:not(.has-layout)) .draw-danmaku-avatar {
     width: 36px;
     height: 36px;
   }
-  .danmaku-signal-copy small {
+  :where(body:not(.has-layout)) .danmaku-signal-copy small {
     letter-spacing: 0.1em;
   }
 }

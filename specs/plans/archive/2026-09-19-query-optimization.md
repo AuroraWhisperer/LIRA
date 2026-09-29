@@ -15,7 +15,7 @@ Status: Complete（仅本计划列出的客户端查询批次，2026-09-19）。
 - `src/storage/database-migrations.js`：song v6、gift v11；下一条迁移追加索引，`schema.js` 的旧路径不改。
 - `src/storage/gift-query-store.js`：最近列表按 datetime 排序；时间游标使用 OR；每次历史页 COUNT。`src/bilibili/gift/query-service.js` 为消费者。
 - `src/fans/profile-service.js`：先读每人的记录和提醒再文本筛选；已有未提交的灯牌排序须保留。存储归属 `fan-profile-store.js` / `fan-record-store.js`。
-- 存储事实源 `docs/architecture/backend/storage.md`；直接用例 `gift-query-service`、`gift-display-query`、`fan-profiles-*`、`queue-service` 与数据库生命周期用例。
+- 存储事实源 `docs/reference/backend/storage.md`；直接用例 `gift-query-service`、`gift-display-query`、`fan-profiles-*`、`queue-service` 与数据库生命周期用例。
 
 ## Compatibility Constraints
 

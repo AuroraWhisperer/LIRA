@@ -23,7 +23,7 @@
 - `public/pages/admin/toolbox/gift.html` 与 `public/js/admin/gifts/display-settings.js` 拥有设置表单、草稿、保存、取消及默认值。
 - `public/js/shared/gift-card-model.js` 已计算合并卡片的 `cardTotalCents`；未知 UID 的独立记录仍需按历史单价乘数量计算。
 - `public/js/overlays/gift-feed.js` 拥有滚动集合；当前不按金额过滤，完整重读后在换行边界应用新集合，静态/隐藏时立即更新。
-- 契约归属 `docs/architecture/backend/api.md`；展示行为归属 `docs/architecture/frontend/overlays.md`。
+- 契约归属 `docs/reference/backend/api.md`；展示行为归属 `docs/reference/frontend/overlays.md`。
 
 ## Compatibility
 

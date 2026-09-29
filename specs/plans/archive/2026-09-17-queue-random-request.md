@@ -20,7 +20,7 @@ Bilibili account through the existing danmaku command rules.
   selection, cooldown and pause rules; queue-service retains queue validation.
 - `src/server/runtime-api-context.js` and `src/server/api-context.js` expose
   this operation to `src/server/routes/queue-routes.js` as `queue.requestRandom`.
-- `docs/architecture/backend/api.md` owns the new HTTP contract.
+- `docs/reference/backend/api.md` owns the new HTTP contract.
 
 ## Compatibility Constraints And Non-goals
 

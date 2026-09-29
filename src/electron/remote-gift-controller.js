@@ -368,6 +368,8 @@ function createRemoteGiftController(options = {}) {
     const controller = new AbortController();
     streamController = controller;
     const streamFence = captureFence();
+    const isCurrent = () =>
+      streamController === controller && !controller.signal.aborted && ensureFenceCurrent(streamFence);
     const generationSignal = generationController.signal;
     const abortFromGeneration = () => controller.abort();
     generationSignal.addEventListener('abort', abortFromGeneration, {
@@ -378,7 +380,7 @@ function createRemoteGiftController(options = {}) {
       task = licenseManager.watchGiftEventsInternal({
         signal: controller.signal,
         onOpen(metadata = {}) {
-          if (!ensureFenceCurrent(streamFence)) return;
+          if (!isCurrent()) return;
           const streamEpoch = metadata.syncEpoch || null;
           if (!legacyMode && expectedSyncEpoch && streamEpoch !== expectedSyncEpoch) {
             epochValidated = false;
@@ -395,12 +397,10 @@ function createRemoteGiftController(options = {}) {
           if (!initializing) requestReconcile(generation);
         },
         onEffect(input) {
-          const isCurrent = () =>
-            streamController === controller && !controller.signal.aborted && ensureFenceCurrent(streamFence);
           if (isCurrent()) runtime.publishGiftEffect?.(input, isCurrent);
         },
         onEvent(input) {
-          if (!ensureFenceCurrent(streamFence)) return;
+          if (!isCurrent()) return;
           let event;
           try {
             event = canonicalizeProcessedGiftEvent(input);
@@ -417,8 +417,8 @@ function createRemoteGiftController(options = {}) {
             return;
           }
           if (event.phase === 'final') {
-            projectFinalImmediately(event);
-            if (!ensureFenceCurrent(streamFence)) return;
+            if (commitFinalImmediately(event)) return;
+            if (!isCurrent()) return;
           }
           dirty = true;
           if (legacyMode) publishContext();
@@ -448,47 +448,47 @@ function createRemoteGiftController(options = {}) {
       });
   }
 
-  // Keep the live path independent from a potentially slow cursor pull.
-  function projectFinalImmediately(event) {
+  // A healthy live event can commit without waiting for an HTTP round trip.
+  function commitFinalImmediately(event) {
     if (
       event.phase !== 'final' ||
       legacyMode ||
       initializing ||
       syncState !== GiftSyncState.LIVE ||
       dirty ||
+      reconcileTask ||
       !epochValidated ||
       !currentState?.bootstrapComplete ||
-      !Number.isSafeInteger(currentState.finalCursor) ||
-      event.cursor !== currentState.finalCursor + 1 ||
-      typeof runtime.importProcessedGiftEvent !== 'function'
+      !Number.isSafeInteger(currentState.finalCursor)
     ) {
       return false;
     }
 
     const fence = captureFence();
     if (!ensureFenceCurrent(fence)) return false;
+    if (event.cursor <= currentState.finalCursor) return true;
+    if (event.cursor !== currentState.finalCursor + 1) return false;
 
-    let result;
+    let nextState;
     try {
-      result = runtime.importProcessedGiftEvent(event, fence.sourceId);
+      nextState = runtime.commitGiftCatchUpPage({
+        sourceId: fence.sourceId,
+        projectionGeneration: fence.projectionGeneration,
+        events: [event],
+        nextCursor: event.cursor,
+        syncEpoch: currentState.syncEpoch,
+      });
     } catch {
+      // Delivery can throw after the transaction has already saved its cursor.
+      if (ensureFenceCurrent(fence)) currentState = runtime.getGiftSyncState(fence.sourceId);
       return false;
     }
-
-    if (result && typeof result.then === 'function') {
-      Promise.resolve(result)
-        .then(
-          () => {
-            ensureFenceCurrent(fence);
-          },
-          () => {
-            if (!ensureFenceCurrent(fence)) return;
-            dirty = true;
-            requestReconcile(fence.controllerGeneration).catch(() => {});
-          },
-        )
-        .catch(() => {});
-    }
+    // Post-commit consumers may stop or switch the active source.
+    if (!ensureFenceCurrent(fence)) return true;
+    currentState = nextState;
+    latestCursor = event.cursor;
+    // Preserve the last HTTP validation time and the existing reconcile deadline.
+    publishContext();
     return true;
   }
 

@@ -11,6 +11,7 @@ export function createSettingsForm({
   getState,
   initLicenseAccountDevice,
   blindboxSettings,
+  blacklistEditor,
   clearDatabase,
   clearSuperChats,
   clearAll,
@@ -43,6 +44,7 @@ export function createSettingsForm({
   function initImmediateToggle(id, settingKey, enabledText, disabledText) {
     documentRef.getElementById(id).addEventListener('change', async (event) => {
       const enabled = event.target.checked ? 'true' : 'false';
+      event.target.disabled = true;
       try {
         await api('/api/settings', { [settingKey]: enabled }, { notifyError: false });
         toast(enabled === 'true' ? enabledText : disabledText, { type: 'success' });
@@ -51,6 +53,8 @@ export function createSettingsForm({
         toast('保存失败：' + (error.message || String(error)), { type: 'error' });
         const settings = getState()?.getAppState?.()?.settings;
         if (settings) event.target.checked = settings[settingKey] === 'true';
+      } finally {
+        event.target.disabled = false;
       }
     });
   }
@@ -65,12 +69,38 @@ export function createSettingsForm({
 
   async function init() {
     initDesktopControls();
+    blacklistEditor?.init();
     await initLicenseAccountDevice();
     documentRef.getElementById('settingsForm').addEventListener('submit', async (event) => {
       event.preventDefault();
       const result = await api('/api/settings', collectSettings());
       eventBus.emit(Events.STATE_SAVED, { settings: result.data.settings });
       toast('设置已保存', { type: 'success' });
+      await reloadState();
+    });
+    const songRequestForm = documentRef.getElementById('songRequestSettingsForm');
+    const markRequestSettingDirty = ({ target }) => {
+      target.dataset.preserveDirty = 'true';
+      target.dataset.dirty = 'true';
+    };
+    songRequestForm.addEventListener('input', markRequestSettingDirty);
+    songRequestForm.addEventListener('change', markRequestSettingDirty);
+    songRequestForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const updates = {
+        paused: value('paused'),
+        queueLimit: value('queueLimit'),
+        userCooldownSeconds: value('userCooldownSeconds'),
+        onlyFromLibrary: value('onlyFromLibrary'),
+        allowDuplicate: value('allowDuplicate'),
+        songRequestBlacklist: value('songRequestBlacklist'),
+      };
+      const result = await api('/api/settings', updates);
+      for (const [key, savedValue] of Object.entries(updates)) {
+        if (value(key) === savedValue) documentRef.getElementById(key).dataset.dirty = 'false';
+      }
+      blacklistEditor?.render(result.data.settings.songRequestBlacklist);
+      toast('点歌设置已保存', { type: 'success' });
       await reloadState();
     });
     documentRef.getElementById('giftSprintForm').addEventListener('submit', async (event) => {
@@ -82,6 +112,8 @@ export function createSettingsForm({
       await reloadState();
     });
 
+    initImmediateToggle('danmakuMonitoringEnabled', 'danmakuMonitoringEnabled', '监控设置已保存', '监控设置已保存');
+    initImmediateToggle('giftMonitoringEnabled', 'giftMonitoringEnabled', '监控设置已保存', '监控设置已保存');
     initImmediateToggle('giftDetectToggle', 'enableGiftSprint', '礼物统计已开启', '礼物统计已关闭');
     initImmediateToggle('enableGiftNotification', 'enableGiftNotification', '礼物提示已开启', '礼物提示已关闭');
     documentRef.getElementById('giftSprintResetBtn').addEventListener('click', async () => {
@@ -105,12 +137,6 @@ export function createSettingsForm({
   function collectSettings() {
     return {
       roomId: value('roomId'),
-      enableBilibili: value('enableBilibili'),
-      paused: value('paused'),
-      queueLimit: value('queueLimit'),
-      userCooldownSeconds: value('userCooldownSeconds'),
-      onlyFromLibrary: value('onlyFromLibrary'),
-      allowDuplicate: value('allowDuplicate'),
     };
   }
 

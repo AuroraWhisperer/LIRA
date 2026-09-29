@@ -10,7 +10,7 @@
 - `public/css/admin/toolbox/streamer-planner.css` 为 746 行；规划器视图已拆分，样式尚未配套。
 - `test/database-clear-all.test.js` 的配置保留场景为 451 行，`test/server-smoke.test.js` 的完整 HTTP 场景为 243 行。
 - `test/installer-directory.test.js`、`test/installer-migration.test.js` 缺少测试进程所需的编译器和插件环境变量；本机 electron-builder 缓存已有工具。
-- 测试命令归 `docs/architecture/engineering/test.md`，规模登记归 `modularity-baseline.json`，完成记录归本轮模块化复评报告。
+- 测试命令归 `docs/reference/engineering/test.md`，规模登记归 `modularity-baseline.json`，完成记录归本轮模块化复评报告。
 
 ## Compatibility Constraints And Non-goals
 

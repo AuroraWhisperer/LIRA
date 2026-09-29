@@ -135,14 +135,54 @@
   width: 18px;
   height: 18px;
 }
-.danmaku-style-section {
+.danmaku-feature-section.danmaku-style-section {
+  --border: var(--color-border-default);
+  gap: 0;
+  padding: 0;
+  border: 1px solid var(--border);
   overflow: hidden;
 }
 .danmaku-style-section > .danmaku-section-heading {
   align-items: center;
+  padding: var(--spacing-md) var(--spacing-lg);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
 }
 .danmaku-tool-panel .danmaku-style-section h3 {
   font-size: var(--type-size-page-title);
+}
+.danmaku-style-section .hint {
+  margin: 0;
+  line-height: 1.2;
+}
+.danmaku-settings-block {
+  display: grid;
+  gap: var(--spacing-md);
+  min-width: 0;
+  padding: var(--spacing-lg);
+}
+.danmaku-settings-block + .danmaku-settings-block {
+  border-top: 1px solid var(--border);
+}
+.danmaku-settings-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm) var(--spacing-md);
+}
+.danmaku-settings-heading h4 {
+  margin: 0;
+  color: var(--danmaku-heading-color);
+  font-size: var(--type-size-card-title);
+  font-weight: 600;
+  line-height: 1.4;
+}
+.danmaku-settings-heading .hint {
+  margin-top: var(--spacing-xs);
+}
+.danmaku-tool-panel .danmaku-style-section :is(input, select, button, .lira-select-trigger) {
+  border-width: 1px;
 }
 .danmaku-style-tools {
   display: flex;
@@ -155,6 +195,23 @@
   color: var(--muted);
   font-size: var(--type-size-caption);
   font-weight: 500;
+  line-height: 1.2;
+}
+.danmaku-monitoring-control {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  font-size: var(--type-size-body);
+  font-weight: var(--type-weight-semibold);
+  white-space: nowrap;
+}
+.danmaku-monitoring-control input:disabled + .switch-track {
+  opacity: 0.5;
+  cursor: wait;
+}
+.danmaku-monitoring-control input:focus-visible + .switch-track {
+  outline: 2px solid var(--color-border-focus);
+  outline-offset: 3px;
 }
 .danmaku-style-picker {
   container: danmaku-style-picker / inline-size;
@@ -169,8 +226,8 @@
   min-width: 0;
 }
 .danmaku-style-group-heading strong {
-  color: var(--danmaku-heading-color);
-  font-size: var(--type-size-card-title);
+  color: var(--text);
+  font-size: var(--type-size-body);
   font-weight: 600;
   line-height: 1.35;
 }
@@ -237,20 +294,12 @@
   color: var(--text);
   font-weight: 500;
 }
-.danmaku-style-description,
-.danmaku-style-group-heading p,
 .danmaku-preview-hint {
   margin: 0;
   color: var(--muted);
   font-size: var(--type-size-caption);
   font-weight: 400;
-  line-height: 1.5;
-}
-.danmaku-style-description {
-  padding: 0 3px 2px;
-}
-.danmaku-style-group-heading p {
-  margin-top: 4px;
+  line-height: 1.2;
 }
 .danmaku-style-option:hover:not(:disabled) {
   background: var(--surface);
@@ -300,7 +349,7 @@
   margin: 0;
   color: var(--muted);
   font-size: var(--type-size-caption);
-  line-height: 1.5;
+  line-height: 1.2;
 }
 .danmaku-style-save-state:empty {
   display: none;
@@ -310,6 +359,8 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 12px var(--spacing-md);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--border);
 }
 .danmaku-style-footer > .danmaku-overlay-actions {
   margin-left: auto;
@@ -317,11 +368,9 @@
 .danmaku-parameters {
   display: grid;
   gap: 12px;
+  margin-top: var(--spacing-sm);
   padding-top: var(--spacing-lg);
-  border-top: 1px solid var(--danmaku-section-border);
-}
-.danmaku-parameters .hint {
-  margin: 0;
+  border-top: 1px solid var(--border);
 }
 .danmaku-parameter-grid {
   display: grid;
@@ -367,16 +416,9 @@
   gap: 12px;
   align-items: end;
 }
-.danmaku-overlay-link label {
-  display: grid;
-  gap: 6px;
-  min-width: 0;
-  color: var(--muted);
-  font-size: var(--type-size-control);
-  font-weight: 500;
-}
 .danmaku-overlay-link input {
   width: 100%;
+  min-width: 0;
   color: var(--text);
   font-family: var(--font-mono);
 }
@@ -536,6 +578,10 @@
 }
 
 @media (max-width: 600px) {
+  .danmaku-settings-block,
+  .danmaku-style-section > .danmaku-section-heading {
+    padding: var(--spacing-md);
+  }
   .danmaku-style-section > .danmaku-section-heading {
     align-items: stretch;
     flex-direction: column;

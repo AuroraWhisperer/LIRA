@@ -18,7 +18,7 @@ test('song sync maps local snake_case song fields to the remote contract', () =>
       sort_order: 3,
     }),
     {
-      name: 'Song',
+      title: 'Song',
       artist: 'Artist',
       categoryName: 'Pop',
       tags: '',
@@ -27,7 +27,7 @@ test('song sync maps local snake_case song fields to the remote contract', () =>
       note: '',
       requestPrice: '30',
       songClip: 'clip',
-      isEnabled: false,
+      enabled: false,
       sortOrder: 3,
     },
   );

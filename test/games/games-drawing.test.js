@@ -84,34 +84,37 @@ async function createDrawingFixture(t) {
         });
       return nodes.get(id);
     }
-    const module = await loadModuleExports(path.join(__dirname, '../..', 'public', 'js', 'overlays', 'games-drawing.js'), {
-      document: {
-        querySelectorAll: () => [],
-        addEventListener: (type, listener) => keyboard.set(type, listener),
-      },
-      crypto: { randomUUID: () => clientId },
-      setTimeout,
-      clearTimeout,
-      fetch: async (url, options) => {
-        assert.equal(url, '/api/games/session/draw');
-        assert.equal(options.method, 'POST');
-        const operation = JSON.parse(options.body);
-        requests.push(operation);
-        let payload;
-        await routes['POST /api/games/session/draw'](
-          { games },
-          { body: async () => operation },
-          {
-            writeHead() {},
-            end: (body) => {
-              payload = JSON.parse(body);
+    const module = await loadModuleExports(
+      path.join(__dirname, '../..', 'public', 'js', 'overlays', 'games-drawing.js'),
+      {
+        document: {
+          querySelectorAll: () => [],
+          addEventListener: (type, listener) => keyboard.set(type, listener),
+        },
+        crypto: { randomUUID: () => clientId },
+        setTimeout,
+        clearTimeout,
+        fetch: async (url, options) => {
+          assert.equal(url, '/api/games/session/draw');
+          assert.equal(options.method, 'POST');
+          const operation = JSON.parse(options.body);
+          requests.push(operation);
+          let payload;
+          await routes['POST /api/games/session/draw'](
+            { games },
+            { body: async () => operation },
+            {
+              writeHead() {},
+              end: (body) => {
+                payload = JSON.parse(body);
+              },
             },
-          },
-        );
-        responses.push(payload);
-        return { json: async () => payload };
+          );
+          responses.push(payload);
+          return { json: async () => payload };
+        },
       },
-    });
+    );
     const loadSnapshot = t.mock.fn(() => {
       session = structuredClone(games.getSession());
       controller.redrawCanvas(session.state.canvas);
@@ -134,6 +137,10 @@ async function createDrawingFixture(t) {
       painted,
       loadSnapshot,
       canvas: () => structuredClone(session.state.canvas),
+      restore: (value) => {
+        session = structuredClone(value);
+        controller.redrawCanvas(session.state.canvas);
+      },
       undo: () => byId('drawUndoBtn').listeners.get('click')(),
       shortcut: (modifier) => {
         const preventDefault = t.mock.fn();
@@ -183,7 +190,7 @@ test('draw undo confirmation redraws the initiating canvas and other subscribers
   const fixture = await createDrawingFixture(t);
   fixture.host.undo();
   await fixture.flushRequests();
-  assert.deepEqual(fixture.requests, [{ action: 'undo', clientId: 'draw-host' }]);
+  assert.deepEqual(fixture.requests, [{ action: 'undo', clientId: 'draw-host', sessionId: fixture.games.getSession().sessionId, round: 1 }]);
   assert.deepEqual(fixture.responses, [{ ok: true, data: { revision: 3 } }]);
   assert.equal(fixture.host.canvas().strokes.length, 2);
 
@@ -275,4 +282,32 @@ test('a rejected undo recovers the initiating canvas from the existing snapshot 
   assert.deepEqual(fixture.host.canvas(), fixture.games.getSession().state.canvas);
   assert.deepEqual(fixture.host.painted, []);
   assert.equal(fixture.host.byId('drawUndoBtn').disabled, true);
+});
+
+
+test('drawing recovery replays the initiating page append after restoring an earlier canvas', async (t) => {
+  const f = await createDrawingFixture(t);
+  const snapshot = structuredClone(f.games.getSession());
+  f.host.pointer('pointerdown', 30);
+  f.host.pointer('pointermove', 40);
+  await f.host.controller.waitForPendingDraws();
+  assert.equal(f.requests.length, 1);
+  assert.equal(f.requests[0].action, 'append');
+  f.host.restore(snapshot);
+  f.host.controller.applyBroadcast(f.broadcasts[0], true);
+  f.observer.controller.applyBroadcast(f.broadcasts[0]);
+  f.assertSynchronized();
+});
+
+test('queued drawing is discarded after its round is replaced', async (t) => {
+  const f = await createDrawingFixture(t);
+  f.host.pointer('pointerdown', 30);
+  const pending = f.host.controller.waitForPendingDraws();
+  const next = structuredClone(f.games.getSession());
+  next.state.round += 1;
+  next.state.canvas = { revision: 0, totalPoints: 0, strokes: [] };
+  f.host.restore(next);
+  await pending;
+  assert.equal(f.requests.length, 0);
+  assert.deepEqual(f.host.canvas().strokes, []);
 });

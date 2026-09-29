@@ -29,9 +29,7 @@ async function getBilibiliWbiMixinKey(headers) {
   try {
     payload = JSON.parse(text);
   } catch (_) {
-    throw new Error(
-      `直播平台 WBI key request returned non-JSON response. HTTP ${response.status}.`,
-    );
+    throw new Error(`直播平台 WBI key request returned non-JSON response. HTTP ${response.status}.`);
   }
 
   console.log(

@@ -13,10 +13,10 @@
 .other-workspace {
   display: grid;
   grid-template-columns: 250px minmax(0, 1fr);
-  gap: 16px;
+  gap: 16px 8px;
   height: calc(100vh - 58px - var(--player-dock-height, 96px));
   min-height: 0;
-  padding: 16px 16px 0;
+  padding: 12px 12px 0;
   overflow: hidden;
   transition: grid-template-columns var(--other-sidebar-duration) var(--other-sidebar-easing);
 }

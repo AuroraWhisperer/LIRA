@@ -8,7 +8,7 @@ const test = require('node:test');
 const vm = require('node:vm');
 const { createGameSessionService } = require('../../src/games/game-session-service');
 
-test('a burst of correct guesses publishes one complete result per message without dropping scores', () => {
+test('a burst of correct guesses publishes one canvas-free patch per message without dropping scores', () => {
   let updates = 0;
   let latest;
   const service = createGameSessionService({
@@ -17,7 +17,10 @@ test('a burst of correct guesses publishes one complete result per message witho
     setTimeout: () => null,
     clearTimeout() {},
     drawGuessWords: [{ word: '猫', category: '动物' }],
-    broadcast(event) { updates++; latest = event.session; },
+    broadcast(event) {
+      updates++;
+      latest = event;
+    },
   });
   try {
     service.start({ game: 'draw-guess' });
@@ -26,15 +29,23 @@ test('a burst of correct guesses publishes one complete result per message witho
       const result = service.handleDanmaku({ uid: String(index + 1), userName: `Viewer ${index}`, message: '猫' });
       assert.equal(result.accepted, true);
     }
-    assert.equal(updates, 1000, 'each accepted message should publish its complete result once');
+    assert.equal(updates, 1000, 'each accepted message publishes chat and scores together');
+    assert.equal(latest.type, 'game:patch');
+    assert.equal(latest.item.message, '猫');
+    assert.equal(latest.state.canvas, undefined);
+    assert.equal(latest.session, undefined);
     assert.equal(latest.state.correct.length, 1000);
     assert.equal(latest.state.scores.length, 1000);
-    assert.equal(latest.state.scores.reduce((sum, viewer) => sum + viewer.score, 0), 10 + 7 + 5 + 997 * 3);
-    assert.equal(latest.danmaku.length, 500);
+    assert.equal(
+      latest.state.scores.reduce((sum, viewer) => sum + viewer.score, 0),
+      10 + 7 + 5 + 997 * 3,
+    );
+    assert.equal(service.getSession().danmaku.length, 500);
     assert.equal(Object.hasOwn(latest.state, 'answer'), false);
     assert.equal(service.handleDanmaku({ uid: '1001', message: '狗' }).accepted, false);
     assert.equal(updates, 1001, 'an incorrect guess still appears in chat');
-    assert.equal(latest.state.correct.length, 1000);
+    assert.equal(latest.state, undefined);
+    assert.equal(service.getSession().state.correct.length, 1000);
   } finally {
     service.dispose();
   }
@@ -59,14 +70,20 @@ function measuredGameService() {
   }
   const filename = path.join(__dirname, '../../src/games/game-session-service.js');
   const module = { exports: {} };
-  vm.runInNewContext(fs.readFileSync(filename, 'utf8'), {
-    module,
-    require: createRequire(filename),
-    Map: CountedMap,
-    Date: class extends Date {
-      static now() { return wallMs; }
+  vm.runInNewContext(
+    fs.readFileSync(filename, 'utf8'),
+    {
+      module,
+      require: createRequire(filename),
+      Map: CountedMap,
+      Date: class extends Date {
+        static now() {
+          return wallMs;
+        }
+      },
     },
-  }, { filename });
+    { filename },
+  );
   const service = module.exports.createGameSessionService({
     wallNow: () => wallMs,
     monotonicNow: () => monotonicMs,
@@ -75,10 +92,19 @@ function measuredGameService() {
   });
   return {
     service,
-    get visits() { return visits; },
-    get retained() { return maps.reduce((total, map) => total + map.size, 0); },
-    advance(ms) { wallMs += ms; monotonicMs += ms; },
-    shiftWall(ms) { wallMs += ms; },
+    get visits() {
+      return visits;
+    },
+    get retained() {
+      return maps.reduce((total, map) => total + map.size, 0);
+    },
+    advance(ms) {
+      wallMs += ms;
+      monotonicMs += ms;
+    },
+    shiftWall(ms) {
+      wallMs += ms;
+    },
   };
 }
 
@@ -107,7 +133,10 @@ test('viewer expiry keeps a refreshed UID and uses elapsed time through a wall c
   f.shiftWall(-7 * 24 * 60 * 60_000);
   f.advance(5 * 60_000 + 1);
   const viewers = JSON.parse(JSON.stringify(f.service.listViewers()));
-  assert.deepEqual(viewers.map((viewer) => viewer.uid), ['1']);
+  assert.deepEqual(
+    viewers.map((viewer) => viewer.uid),
+    ['1'],
+  );
   assert.deepEqual(Object.keys(viewers[0]).sort(), ['lastSeenAt', 'name', 'uid']);
   f.advance(5 * 60_000);
   assert.equal(f.service.listViewers().length, 0);

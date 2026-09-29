@@ -1,5 +1,15 @@
 # Gift Ledger Projection Sync Implementation Plan
 
+**Status:** Awaiting Verification.
+
+**复核日期：** 2026-09-28。完整投影实现由规格索引标记 Implemented；原计划要求的最大租户脱敏数据集性能证据未提供，本次不把源码测试当作该发布验收。
+
+当前依据：[所属规格或参考](../gift-ledger-projection-sync_design.md)。状态索引见 [计划入口](README.md)。
+
+## 原始计划与执行记录
+
+以下保留原计划时点的行为、命令和验证记录；它们不覆盖上述状态或当前契约，历史未勾选项不直接等同于当前缺陷。
+
 - Status: Active
 - Date: 2026-09-01
 - Owner specification: `specs/gift-ledger-projection-sync_design.md`

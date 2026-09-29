@@ -46,7 +46,12 @@ async function main() {
 
   // Build only once. Builder hooks verify the final NSIS payload before this returns.
   run('npx', [
-    'electron-builder', '--win', 'nsis', '--x64', '--publish', 'never',
+    'electron-builder',
+    '--win',
+    'nsis',
+    '--x64',
+    '--publish',
+    'never',
     '--config.electronDist=node_modules/electron/dist',
   ]);
   const verifiedDigests = new Map();
@@ -58,13 +63,19 @@ async function main() {
   for (let attempt = 1; attempt <= MAX_PUBLISH_ATTEMPTS; attempt += 1) {
     // A changed artifact requires a fresh invocation and validation, never an upload retry.
     for (const [name, digest] of verifiedDigests) {
-      if (await fileDigest(path.join(OUTPUT_DIR, name)) !== digest) throw new Error('Verified release artifacts changed before upload.');
+      if ((await fileDigest(path.join(OUTPUT_DIR, name))) !== digest)
+        throw new Error('Verified release artifacts changed before upload.');
     }
     log(`Verified artifact upload attempt ${attempt}/${MAX_PUBLISH_ATTEMPTS}`);
     try {
       run('gh', [
-        'release', 'upload', TAG, ...EXPECTED_ASSETS.map((name) => path.join(OUTPUT_DIR, name)),
-        '--repo', `${OWNER}/${REPO}`, '--clobber',
+        'release',
+        'upload',
+        TAG,
+        ...EXPECTED_ASSETS.map((name) => path.join(OUTPUT_DIR, name)),
+        '--repo',
+        `${OWNER}/${REPO}`,
+        '--clobber',
       ]);
       lastPublishError = null;
     } catch (error) {
@@ -74,7 +85,8 @@ async function main() {
     }
 
     for (const [name, digest] of verifiedDigests) {
-      if (await fileDigest(path.join(OUTPUT_DIR, name)) !== digest) throw new Error('Verified release artifacts changed during upload.');
+      if ((await fileDigest(path.join(OUTPUT_DIR, name))) !== digest)
+        throw new Error('Verified release artifacts changed during upload.');
     }
     const missing = await findMissingAssets();
     if (missing.length === 0) {

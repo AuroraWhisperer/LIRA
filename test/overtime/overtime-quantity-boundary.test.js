@@ -7,8 +7,15 @@ const { createFixture } = require('../helpers/overtime-service-fixture');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 
 const randomRule = {
-  giftId: 'guard-3', giftName: '舰长', mode: 'random', quantityMode: 'item', enabled: true,
-  outcomes: [{ operation: 'add', value: 2, weight: 1 }, { operation: 'subtract', value: 1, weight: 1 }],
+  giftId: 'guard-3',
+  giftName: '舰长',
+  mode: 'random',
+  quantityMode: 'item',
+  enabled: true,
+  outcomes: [
+    { operation: 'add', value: 2, weight: 1 },
+    { operation: 'subtract', value: 1, weight: 1 },
+  ],
 };
 
 for (const quantity of [100001, Number.MAX_SAFE_INTEGER]) {
@@ -17,13 +24,19 @@ for (const quantity of [100001, Number.MAX_SAFE_INTEGER]) {
     let draws = 0;
     let prohibitDraws = true;
     const updates = [];
-    const options = { onUpdate: (update) => updates.push(update), randomInt() {
-      draws += 1;
-      if (prohibitDraws) throw new Error('Unexpected random work for an oversized quantity');
-      return 0;
-    } };
+    const options = {
+      onUpdate: (update) => updates.push(update),
+      randomInt() {
+        draws += 1;
+        if (prohibitDraws) throw new Error('Unexpected random work for an oversized quantity');
+        return 0;
+      },
+    };
     let service = f.createService(options);
-    t.after(() => { service.dispose(); f.close(); });
+    t.after(() => {
+      service.dispose();
+      f.close();
+    });
     service.act('enable');
     service.setTime({ remainingSeconds: 60 });
     service.replaceRules([randomRule]);
@@ -68,7 +81,10 @@ test('100000 items settle fully and once, while group mode remains one draw for 
   const f = createFixture();
   let draws = 0;
   const service = f.createService({ randomInt: () => draws++ % 2 });
-  t.after(() => { service.dispose(); f.close(); });
+  t.after(() => {
+    service.dispose();
+    f.close();
+  });
   service.act('enable');
   service.setTime({ remainingSeconds: 60 });
   service.replaceRules([randomRule]);
@@ -81,7 +97,11 @@ test('100000 items settle fully and once, while group mode remains one draw for 
   assert.equal(audit.selectedIndexes.length, 100000);
   assert.ok(Buffer.byteLength(JSON.stringify(audit)) < 201000);
   service.replaceRules([{ ...randomRule, quantityMode: 'group' }]);
-  const group = f.insertFinalGift({ giftId: 'guard-3', num: Number.MAX_SAFE_INTEGER, overtimeEpoch: service.getCurrentEpoch() });
+  const group = f.insertFinalGift({
+    giftId: 'guard-3',
+    num: Number.MAX_SAFE_INTEGER,
+    overtimeEpoch: service.getCurrentEpoch(),
+  });
   assert.equal(service.finalizeGift(group), true);
   assert.equal(draws, 100001);
   assert.equal(f.getSettlement(group.giftEventId).quantity, Number.MAX_SAFE_INTEGER);
@@ -98,9 +118,15 @@ test('the existing pending indicator explicitly identifies gifts that have not b
     { performance: { now: () => 0 }, document: { visibilityState: 'hidden' } },
   );
   const view = createOvertimeStatusView({
-    byId, formatClockDisplay: () => '01:00', renderInitialDuration() {}, setValueUnlessFocused() {},
-    getGiftDetection: () => ({}), getRuleEditor: () => null, isRulesDirty: () => false,
-    isBackgroundDirty: () => false, onLimits() {},
+    byId,
+    formatClockDisplay: () => '01:00',
+    renderInitialDuration() {},
+    setValueUnlessFocused() {},
+    getGiftDetection: () => ({}),
+    getRuleEditor: () => null,
+    isRulesDirty: () => false,
+    isBackgroundDirty: () => false,
+    onLimits() {},
   });
   view.renderState({ status: 'paused', pendingCount: 2, quantityLimitedCount: 1 });
   assert.match(byId('overtimePendingCount').textContent, /1 笔数量超限，尚未结算/);

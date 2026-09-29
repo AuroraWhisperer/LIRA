@@ -25,8 +25,13 @@ function fixture(t) {
     },
     session: {
       fromPartition: () => ({
-        cookies: { get: async () => cookies.map((cookie) => ({ ...cookie })), set: async (cookie) => cookies.push(cookie) },
-        clearStorageData: async () => { cookies = []; },
+        cookies: {
+          get: async () => cookies.map((cookie) => ({ ...cookie })),
+          set: async (cookie) => cookies.push(cookie),
+        },
+        clearStorageData: async () => {
+          cookies = [];
+        },
       }),
     },
   };
@@ -50,7 +55,17 @@ function fixture(t) {
     else process.env.BILIBILI_PLAINTEXT_COOKIE_EXPORT = previousSwitch;
     fs.rmSync(dataDir, { recursive: true, force: true });
   });
-  return { auth, dataDir, authDir, clearCookies: () => { cookies = []; }, disableEncryption: () => { encryptionAvailable = false; } };
+  return {
+    auth,
+    dataDir,
+    authDir,
+    clearCookies: () => {
+      cookies = [];
+    },
+    disableEncryption: () => {
+      encryptionAvailable = false;
+    },
+  };
 }
 
 test('Bilibili login persists and restores encrypted cookies without honoring the retired export switch', async (t) => {

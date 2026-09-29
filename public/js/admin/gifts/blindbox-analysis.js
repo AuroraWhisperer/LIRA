@@ -172,11 +172,7 @@ export const giftAnalysis = (() => {
     state.viewerLabel = viewers.find((item) => item.value === state.viewer)?.label || '';
     const boxes = [...(filters.boxes || [])];
     if (state.box && !boxes.includes(state.box)) boxes.push(state.box);
-    renderSelect(
-      'blindBoxAnalysisViewer',
-      [{ value: '', label: '全部观众' }, ...viewers],
-      state.viewer,
-    );
+    renderSelect('blindBoxAnalysisViewer', [{ value: '', label: '全部观众' }, ...viewers], state.viewer);
     renderSelect(
       'blindBoxAnalysisBox',
       [{ value: '', label: '全部盲盒' }, ...boxes.map((name) => ({ value: name, label: name }))],

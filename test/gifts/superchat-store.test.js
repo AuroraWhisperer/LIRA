@@ -5,7 +5,11 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
-const { addSuperChatItem, getSuperChatSnapshot, handleSuperChatAction } = require('../../src/bilibili/superchat-service');
+const {
+  addSuperChatItem,
+  getSuperChatSnapshot,
+  handleSuperChatAction,
+} = require('../../src/bilibili/superchat-service');
 const { closeDatabases, createDatabases } = require('../../src/storage/database');
 const { createSuperChatStore } = require('../../src/storage/superchat-store');
 

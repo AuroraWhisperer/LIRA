@@ -38,4 +38,4 @@ flowchart TD
 
 ## Verification
 
-[迁移回归](../../../test/storage/data-directory-migration.test.js) 覆盖保留、冲突、中断恢复和活动服务；[启动接线](../../../test/desktop/electron-startup-data.test.js) 检查持锁与 ready 时序；[原生 Electron 回归](../../../test/desktop/electron-data-layout.test.js) 使用临时 profile 验证 Cookie、音乐分区、localStorage、safeStorage 和单实例。权威目录树见 [storage.md](../backend/storage.md)。
+[迁移回归](../../../test/storage/data-directory-migration.test.js) 覆盖保留、冲突、中断恢复和活动服务；[启动接线](../../../test/desktop/electron-startup-data.test.js) 检查持锁与 ready 时序；[原生 Electron 回归](../../../test/desktop/electron-data-layout.test.js) 使用临时 profile 验证 Cookie、音乐分区、localStorage、safeStorage 和单实例。权威目录树见 [storage.md](../../reference/backend/storage.md)。

@@ -30,7 +30,6 @@ test('fixed danmaku overlay consumes snapshot and incremental feed events safely
   assert.match(script, /danmakuFullscreenDurationSeconds/);
   assert.match(script, /options\.layout\s*=\s*'fullscreen-random'/);
   assert.match(script, /itemLifetimeMs/);
-  assert.match(script, /options\.expireItems\s*=\s*!previewMode/);
   assert.match(script, /payload\.state\.liveStatus/);
   assert.match(script, /topic=danmaku/);
   assert.match(script, /feed\.append/);

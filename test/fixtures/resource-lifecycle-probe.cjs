@@ -31,18 +31,35 @@ async function run(mediaOnly = false) {
   const token = 'synthetic-resource-audit-token';
   const settings = { giftEffectDanmakuEnabled: 'true' };
   const state = { settings, gifts: { recent: [] }, lyricState: {}, lyricTimeline: { lines: [] } };
-  const api = { sessionToken: token, settings: { get: () => settings }, system: { dataDir: directory, getState: () => state } };
+  const api = {
+    sessionToken: token,
+    settings: { get: () => settings },
+    system: { dataDir: directory, getState: () => state },
+  };
   const hub = createWebSocketHub({ heartbeatIntervalMs: 100, closeTimeoutMs: 100 });
   let origin;
   const server = createHttpServer({
-    host: '127.0.0.1', startPort: 0, dataDir: directory,
-    getPhase: () => 'ready', getStartedPort: () => server.address().port,
-    isLicenseAuthorized: () => true, inflightTracker: { run: (fn) => fn() },
-    createApiContext: () => api, getSettings: () => settings,
-    getWebSocketContext: () => ({ sessionToken: token, allowedOrigins: [origin], getState: () => state, state: { sockets } }),
+    host: '127.0.0.1',
+    startPort: 0,
+    dataDir: directory,
+    getPhase: () => 'ready',
+    getStartedPort: () => server.address().port,
+    isLicenseAuthorized: () => true,
+    inflightTracker: { run: (fn) => fn() },
+    createApiContext: () => api,
+    getSettings: () => settings,
+    getWebSocketContext: () => ({
+      sessionToken: token,
+      allowedOrigins: [origin],
+      getState: () => state,
+      state: { sockets },
+    }),
     getWebSocketHub: () => hub,
     servePageOrAsset(req, res, url) {
-      if (url.pathname === '/audit-empty') { res.end('<html><title>Resource audit</title></html>'); return; }
+      if (url.pathname === '/audit-empty') {
+        res.end('<html><title>Resource audit</title></html>');
+        return;
+      }
       servePageOrAsset(path.resolve(__dirname, '../../public'), req, res, url, token);
     },
   });
@@ -52,10 +69,20 @@ async function run(mediaOnly = false) {
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   origin = `http://127.0.0.1:${server.address().port}`;
   let currentMain;
-  const auth = createDesktopRequestAuth({ desktopSession: session.defaultSession, getMainWindow: () => currentMain, getBaseUrl: () => origin, getToken: () => token });
+  const auth = createDesktopRequestAuth({
+    desktopSession: session.defaultSession,
+    getMainWindow: () => currentMain,
+    getBaseUrl: () => origin,
+    getToken: () => token,
+  });
   configureMediaRequestHeaders(session.defaultSession, {}, auth);
   const makeWindow = () => {
-    const win = new BrowserWindow({ show: false, width: 960, height: 540, webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, backgroundThrottling: false } });
+    const win = new BrowserWindow({
+      show: false,
+      width: 960,
+      height: 540,
+      webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, backgroundThrottling: false },
+    });
     windows.add(win);
     win.once('closed', () => windows.delete(win));
     return win;
@@ -65,12 +92,20 @@ async function run(mediaOnly = false) {
     for (const route of mediaOnly ? [] : ['/gift-effects', '/lyrics', '/danmaku']) {
       const win = makeWindow();
       currentMain = win;
-      auth.bindWindow(win, { openExternal() { assert.fail('unexpected external navigation'); } });
+      auth.bindWindow(win, {
+        openExternal() {
+          assert.fail('unexpected external navigation');
+        },
+      });
       const response = await fetch(origin + route);
       assert.equal(response.status, 200, route);
       await win.loadURL(origin + route);
       await waitFor(() => sockets.size === 1, `${route} initial connection`);
-      assert.equal(await win.webContents.executeJavaScript("fetch('/api/state').then(response => response.status)"), 200, `${route} normal scoped recovery read`);
+      assert.equal(
+        await win.webContents.executeJavaScript("fetch('/api/state').then(response => response.status)"),
+        200,
+        `${route} normal scoped recovery read`,
+      );
       await pause(100);
       win.webContents.debugger.attach('1.3');
       const measureDom = async () => {
@@ -88,7 +123,11 @@ async function run(mediaOnly = false) {
         connectionCounts.push(sockets.size);
       }
       const reconnectedDom = await measureDom();
-      assert.equal(reconnectedDom.jsEventListeners, initialDom.jsEventListeners, `${route} listeners do not accumulate across reconnects`);
+      assert.equal(
+        reconnectedDom.jsEventListeners,
+        initialDom.jsEventListeners,
+        `${route} listeners do not accumulate across reconnects`,
+      );
       win.webContents.debugger.detach();
       // Navigation destroys the old page while keeping the owning window alive.
       await win.loadURL(origin + '/audit-empty');
@@ -98,7 +137,14 @@ async function run(mediaOnly = false) {
       const ownedContents = win.webContents;
       win.destroy();
       await waitFor(() => ownedContents.isDestroyed(), `${route} WebContents destruction completes`);
-      report.scenarios.push({ route, reconnects: connectionCounts, initialDom, reconnectedDom, afterNavigation: sockets.size, webContentsDestroyed: true });
+      report.scenarios.push({
+        route,
+        reconnects: connectionCounts,
+        initialDom,
+        reconnectedDom,
+        afterNavigation: sockets.size,
+        webContentsDestroyed: true,
+      });
     }
     // The legacy developer page is outside the desktop's current privileged routes.
     // Preserve the current authorization boundary rather than enabling a retired page.
@@ -126,7 +172,9 @@ async function run(mediaOnly = false) {
     await waitFor(() => sockets.size === 0, 'media window socket released');
     await waitFor(() => windows.size === 0, 'all owned windows destroyed');
     report.remainingWindows = windows.size;
-    report.remainingWebContents = webContents.getAllWebContents().filter((entry) => entry.getURL().startsWith(origin)).length;
+    report.remainingWebContents = webContents
+      .getAllWebContents()
+      .filter((entry) => entry.getURL().startsWith(origin)).length;
     assert.equal(report.remainingWebContents, 0);
     report.gpuFeatureStatus = app.getGPUFeatureStatus();
     return report;
@@ -142,8 +190,20 @@ async function run(mediaOnly = false) {
 module.exports = { run };
 globalThis.runResourceProbe = run;
 if (!process.argv.includes('--interactive-audit')) {
-  app.whenReady().then(run).then(
-    (result) => { fs.writeFileSync(path.join(directory, 'result.json'), JSON.stringify({ ok: true, ...result }, null, 2)); app.quit(); },
-    (error) => { fs.writeFileSync(path.join(directory, 'result.json'), JSON.stringify({ ok: false, error: error.stack }, null, 2)); app.exit(1); },
-  );
+  app
+    .whenReady()
+    .then(run)
+    .then(
+      (result) => {
+        fs.writeFileSync(path.join(directory, 'result.json'), JSON.stringify({ ok: true, ...result }, null, 2));
+        app.quit();
+      },
+      (error) => {
+        fs.writeFileSync(
+          path.join(directory, 'result.json'),
+          JSON.stringify({ ok: false, error: error.stack }, null, 2),
+        );
+        app.exit(1);
+      },
+    );
 }

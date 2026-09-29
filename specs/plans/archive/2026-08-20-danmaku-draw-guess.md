@@ -33,7 +33,7 @@
 ## Ownership
 
 - Owner: `src/games/`、`src/server/routes/game-routes.js`、`public/js/admin/games.js`、`public/js/overlays/games.js`。
-- Contracts: `docs/architecture/backend/api.md`、`docs/architecture/backend/ws.md`、`docs/architecture/frontend/pages.md`、`docs/architecture/frontend/app.md`。
+- Contracts: `docs/reference/backend/api.md`、`docs/reference/backend/ws.md`、`docs/reference/frontend/pages.md`、`docs/reference/frontend/app.md`。
 - Consumers: Bilibili client、Admin 百宝箱、OBS/直播姬 `/games` 浏览器源。
 - Tests: `test/games.test.js`、`test/game-routes.test.js`、`test/frontend-games.test.js`、`test/games-overlay.test.js`。
 

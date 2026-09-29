@@ -44,7 +44,7 @@ test('admin stylesheet entries load shared and feature-owned styles in order', (
   assert.match(toolboxEntry, /@import url\('\.\/toolbox\/performance\.css'\);/);
   assert.match(
     toolboxEntry,
-    /@import url\('\.\/toolbox\/usage-guide-navigation\.css'\);\s*@import url\('\.\/toolbox\/usage-guide\.css'\);/,
+    /@import url\('\.\/toolbox\/usage-guide-navigation\.css'\);\s*@import url\('\.\/toolbox\/usage-guide\.css'\);\s*@import url\('\.\/toolbox\/toolbox-responsive\.css'\);/,
   );
 });
 

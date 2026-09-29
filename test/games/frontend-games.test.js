@@ -130,10 +130,7 @@ test('games admin uses one base URL and never opens a game-specific URL', () => 
 });
 
 test('games admin gives the word library a compact selectable shelf', () => {
-  const styles = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'css', 'admin', 'toolbox', 'games-draw.css'),
-    'utf8',
-  );
+  const styles = fs.readFileSync(path.join(ROOT_DIR, 'public', 'css', 'admin', 'toolbox', 'games-draw.css'), 'utf8');
 
   assert.match(styles, /\.draw-word-library\s*\{/);
   assert.match(styles, /\.draw-word-categories\s*\{[^}]*grid-template-columns:\s*repeat\(3/);

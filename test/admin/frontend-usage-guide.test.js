@@ -13,8 +13,9 @@ const ROOT_DIR = path.join(__dirname, '../..');
 
 test('archive recovery FAQ is indexed by the existing guide search from its real heading and body', async () => {
   const html = readAdminHtml();
-  const faq = (html.match(/<details class="usage-guide-faq">[\s\S]*?<\/details>/g) || [])
-    .find((block) => block.includes('收起后找不到了，如何恢复档案？'));
+  const faq = (html.match(/<details class="usage-guide-faq">[\s\S]*?<\/details>/g) || []).find((block) =>
+    block.includes('收起后找不到了，如何恢复档案？'),
+  );
   assert.ok(faq);
   assert.match(faq, /清空搜索和筛选/);
   assert.match(faq, /不适用于永久删除的档案/);
@@ -25,12 +26,15 @@ test('archive recovery FAQ is indexed by the existing guide search from its real
   documentRef.createElement = (tag) => {
     const node = create(tag);
     const append = node.append.bind(node);
-    node.append = (...children) => append(...children.map((child) => {
-      if (typeof child !== 'string') return child;
-      const text = create('span');
-      text.textContent = child;
-      return text;
-    }));
+    node.append = (...children) =>
+      append(
+        ...children.map((child) => {
+          if (typeof child !== 'string') return child;
+          const text = create('span');
+          text.textContent = child;
+          return text;
+        }),
+      );
     return node;
   };
   const target = {
@@ -38,16 +42,24 @@ test('archive recovery FAQ is indexed by the existing guide search from its real
     querySelector: () => ({ textContent: '收起后找不到了，如何恢复档案？' }),
   };
   const section = {
-    id: 'ug-faq', children: [],
+    id: 'ug-faq',
+    children: [],
     querySelector: () => ({ textContent: '常见问题' }),
     querySelectorAll: () => [target],
   };
-  const nodes = new Map(['#usageGuideSearchInput', '.usage-guide-search-results',
-    '.usage-guide-search-status', '.usage-guide-search-list', '.usage-guide-search-clear']
-    .map((selector) => [selector, documentRef.createElement('div')]));
+  const nodes = new Map(
+    [
+      '#usageGuideSearchInput',
+      '.usage-guide-search-results',
+      '.usage-guide-search-status',
+      '.usage-guide-search-list',
+      '.usage-guide-search-clear',
+    ].map((selector) => [selector, documentRef.createElement('div')]),
+  );
   const panel = { querySelector: (selector) => nodes.get(selector), querySelectorAll: () => [section] };
   const { initUsageGuideSearch } = await loadModuleExports(
-    path.join(ROOT_DIR, 'public/js/admin/usage-guide-search.js'), { document: documentRef },
+    path.join(ROOT_DIR, 'public/js/admin/usage-guide-search.js'),
+    { document: documentRef },
   );
   initUsageGuideSearch(panel, () => {});
   for (const query of ['收起', '归档', '恢复档案']) {
@@ -142,6 +154,7 @@ function createUsageGuideFixture({
   const windowListeners = new Map();
   const timers = new Map();
   let nextTimerId = 1;
+  let now = 0;
   const createClassList = () => {
     const names = new Set();
     return {
@@ -154,6 +167,26 @@ function createUsageGuideFixture({
       },
     };
   };
+  const createNode = () => {
+    const attributes = new Map();
+    return {
+      classList: createClassList(),
+      style: {
+        setProperty(name, value) {
+          this[name] = value;
+        },
+      },
+      setAttribute: (name, value) => attributes.set(name, value),
+      getAttribute: (name) => attributes.get(name),
+      removeAttribute: (name) => attributes.delete(name),
+      addEventListener(name, listener) {
+        this[name] = listener;
+      },
+      focus() {
+        document.activeElement = this;
+      },
+    };
+  };
   const sections = sectionTops.map((_, index) => ({
     id: `usage-section-${index + 1}`,
     scrollCalls: 0,
@@ -162,12 +195,10 @@ function createUsageGuideFixture({
     },
     getBoundingClientRect: () => ({ top: sectionTops[index] }),
   }));
-  const links = sections.map((section) => ({
+  const links = sections.map((section, index) => ({
+    ...createNode(),
     hash: `#${section.id}`,
-    classList: createClassList(),
-    addEventListener(name, listener) {
-      this[name] = listener;
-    },
+    textContent: ['快速上手', '账号与设备'][index],
   }));
   const backToTopButton = {
     hidden: true,
@@ -176,13 +207,19 @@ function createUsageGuideFixture({
     },
   };
   const toc = {
+    ...createNode(),
+    flexDirection,
     height: tocHeight,
     reads: 0,
     getBoundingClientRect() {
       this.reads += 1;
-      return { height: this.height };
+      return { height: this.height, bottom: scrollerTop + this.height };
     },
+    contains: (target) => target === toc || target === tocToggle || tocMenu.contains(target),
   };
+  const tocToggle = createNode();
+  const tocCurrent = createNode();
+  const tocMenu = { ...createNode(), contains: (target) => target === tocMenu || links.includes(target) };
   const scrollerListeners = new Map();
   const scroller = {
     clientHeight: scrollerHeight,
@@ -192,7 +229,7 @@ function createUsageGuideFixture({
       this.scrollTop = top;
     },
     addEventListener: (name, listener) => scrollerListeners.set(name, listener),
-    getBoundingClientRect: () => ({ top: scrollerTop }),
+    getBoundingClientRect: () => ({ top: scrollerTop, bottom: scrollerTop + scrollerHeight }),
   };
   const panel = {
     hidden: false,
@@ -205,6 +242,9 @@ function createUsageGuideFixture({
     querySelector(selector) {
       if (selector === '.other-feature-panel-body') return scroller;
       if (selector === '.usage-guide-toc') return toc;
+      if (selector === '.usage-guide-toc-toggle') return tocToggle;
+      if (selector === '.usage-guide-toc-links') return tocMenu;
+      if (selector === '.usage-guide-toc-current') return tocCurrent;
       if (selector === '.usage-guide-back-to-top') return backToTopButton;
       return null;
     },
@@ -215,6 +255,10 @@ function createUsageGuideFixture({
     },
   };
   const document = {
+    activeElement: null,
+    addEventListener(name, listener) {
+      this[name] = listener;
+    },
     documentElement: { scrollHeight: 2000 },
     getElementById: (id) =>
       id === 'otherUsageGuideFeature' ? panel : sections.find((section) => section.id === id) || null,
@@ -225,12 +269,12 @@ function createUsageGuideFixture({
     matchMedia: () => ({ matches: false }),
     getComputedStyle: (element) =>
       element === toc
-        ? { flexDirection, top: tocTop }
+        ? { flexDirection: toc.flexDirection, top: tocTop }
         : { paddingTop: scrollerPaddingTop, overflowY: scrollerOverflowY },
     requestAnimationFrame: (callback) => callback(),
-    setTimeout(callback) {
+    setTimeout(callback, delay = 0) {
       const timerId = nextTimerId++;
-      timers.set(timerId, callback);
+      timers.set(timerId, { callback, at: now + delay });
       return timerId;
     },
     clearTimeout: (timerId) => timers.delete(timerId),
@@ -246,6 +290,18 @@ function createUsageGuideFixture({
     observe() {}
   };
 
+  function advanceTime(milliseconds) {
+    const until = now + milliseconds;
+    while (timers.size) {
+      const [id, timer] = [...timers.entries()].sort((a, b) => a[1].at - b[1].at)[0];
+      if (timer.at > until) break;
+      timers.delete(id);
+      now = timer.at;
+      timer.callback();
+    }
+    now = until;
+  }
+
   return {
     document,
     panel,
@@ -255,11 +311,14 @@ function createUsageGuideFixture({
     sectionTops,
     links,
     toc,
+    tocToggle,
+    tocMenu,
+    tocCurrent,
     window,
     ResizeObserver,
+    advanceTime,
     flushTimers() {
-      for (const callback of timers.values()) callback();
-      timers.clear();
+      advanceTime(Math.max(now, ...[...timers.values()].map((timer) => timer.at)) - now);
     },
     triggerResize: () => observers.at(-1)?.(),
     get scrollOffset() {
@@ -281,6 +340,90 @@ async function loadUsageGuide(fixture) {
   );
   initUsageGuide();
 }
+
+test('compact guide directory ignores brief hover and opens after 400ms without changing the scroll offset', async () => {
+  const fixture = createUsageGuideFixture({ tocHeight: 48 });
+  await loadUsageGuide(fixture);
+  fixture.triggerResize();
+  const mouse = { pointerType: 'mouse' };
+
+  fixture.toc.pointerenter(mouse);
+  fixture.advanceTime(399);
+  assert.equal(fixture.tocToggle.getAttribute('aria-expanded'), 'false');
+  fixture.toc.pointerleave(mouse);
+  fixture.advanceTime(1000);
+  assert.equal(fixture.tocMenu.inert, true);
+
+  fixture.toc.pointerenter(mouse);
+  fixture.advanceTime(400);
+  assert.equal(fixture.tocToggle.getAttribute('aria-expanded'), 'true');
+  assert.equal(fixture.tocMenu.inert, false);
+  assert.equal(fixture.toc.style['--usage-guide-toc-max-height'], '340px');
+  assert.equal(fixture.scrollOffset, '68px');
+});
+
+test('compact guide directory waits 600ms to close and cancels closure when the pointer returns', async () => {
+  const fixture = createUsageGuideFixture();
+  await loadUsageGuide(fixture);
+  const mouse = { pointerType: 'mouse' };
+  fixture.toc.pointerenter(mouse);
+  fixture.advanceTime(400);
+  fixture.toc.pointerleave(mouse);
+  fixture.advanceTime(599);
+  assert.equal(fixture.tocMenu.inert, false);
+  fixture.toc.pointerenter(mouse);
+  fixture.advanceTime(1000);
+  assert.equal(fixture.tocMenu.inert, false);
+  fixture.toc.pointerleave(mouse);
+  fixture.advanceTime(600);
+  assert.equal(fixture.tocMenu.inert, true);
+  assert.equal(fixture.tocToggle.getAttribute('aria-expanded'), 'false');
+});
+
+test('compact guide directory supports touch and keyboard, keeps focused links open, and closes after selection', async () => {
+  const fixture = createUsageGuideFixture();
+  await loadUsageGuide(fixture);
+  fixture.toc.pointerenter({ pointerType: 'touch' });
+  fixture.advanceTime(1000);
+  assert.equal(fixture.tocMenu.inert, true);
+  fixture.tocToggle.click();
+  fixture.links[0].focus();
+  fixture.toc.pointerleave({ pointerType: 'mouse' });
+  fixture.advanceTime(1000);
+  assert.equal(fixture.tocMenu.inert, false);
+  fixture.toc.keydown({ key: 'Escape', preventDefault() {} });
+  assert.equal(fixture.document.activeElement, fixture.tocToggle);
+  assert.equal(fixture.tocMenu.inert, true);
+
+  fixture.tocToggle.click();
+  fixture.links[1].click({ preventDefault() {} });
+  assert.equal(fixture.tocCurrent.textContent, '账号与设备');
+  assert.equal(fixture.links[1].getAttribute('aria-current'), 'location');
+  assert.equal(fixture.sections[1].scrollCalls, 1);
+  assert.equal(fixture.tocMenu.inert, true);
+});
+
+test('switching to the existing sidebar directory exposes its links and resets the compact popup', async () => {
+  const fixture = createUsageGuideFixture();
+  await loadUsageGuide(fixture);
+  fixture.tocToggle.click();
+  fixture.toc.flexDirection = 'column';
+  fixture.triggerResize();
+  assert.equal(fixture.tocMenu.inert, false);
+  assert.equal(fixture.toc.classList.contains('is-open'), false);
+  fixture.toc.pointerenter({ pointerType: 'mouse' });
+  fixture.advanceTime(1000);
+  assert.equal(fixture.toc.classList.contains('is-open'), false);
+
+  fixture.toc.flexDirection = 'row';
+  fixture.triggerResize();
+  assert.equal(fixture.tocMenu.inert, true);
+  fixture.tocToggle.click();
+  fixture.document.pointerdown({ target: fixture.links[0] });
+  assert.equal(fixture.tocMenu.inert, false);
+  fixture.document.pointerdown({ target: {} });
+  assert.equal(fixture.tocMenu.inert, true);
+});
 
 test('usage guide recalculates visible toc offset and skips hidden layout updates', async () => {
   const fixture = createUsageGuideFixture({ tocHeight: 72, tocTop: '8px' });

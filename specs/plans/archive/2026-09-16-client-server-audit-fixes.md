@@ -40,7 +40,7 @@ serialization and desktop transport; it does not exercise production auth.
 
 | Work | Owner | Contracts/consumers | Verification |
 | --- | --- | --- | --- |
-| B1 | `src/electron/license/license-manager.js`, `license-operations.js` | `docs/architecture/desktop/auth.md`; cloud sync, IPC, gift and overlay operations | license-manager, renewal, revalidation, operation and account-isolation tests |
+| B1 | `src/electron/license/license-manager.js`, `license-operations.js` | `docs/reference/desktop/auth.md`; cloud sync, IPC, gift and overlay operations | license-manager, renewal, revalidation, operation and account-isolation tests |
 | B2 | `src/electron/license/remote-license-client.js`; server song-library normalizer/store/sync if required | server `docs/protocol/client-server-api.md`, device OpenAPI and requirements; cloud song sync | transport boundary tests and an explicit two-checkout HTTP roundtrip |
 | A1/A2 investigation | cross-repository fixture consumers and CI definitions | engineering test/build/modularity docs; server fixture authority | identify reproducible pinned inputs without claiming dirty files are published |
 

@@ -290,9 +290,21 @@ test('danmaku panel initializes every shipped style and keeps existing controls 
     await button.click();
     assert.equal(await button.getAttribute('aria-pressed'), 'true');
     await page.locator('#danmakuPreviewOverlayBtn').click();
-    const preview = new URL(await page.evaluate(() => window.opened.at(-1)));
-    assert.equal(preview.searchParams.get('style'), await button.getAttribute('data-danmaku-style'));
+    const iframe = page.locator('.danmaku-canvas-dialog iframe');
+    const preview = new URL(await iframe.getAttribute('src'));
     assert.equal(preview.searchParams.get('preview'), '1');
+    assert.equal(await iframe.getAttribute('sandbox'), 'allow-scripts');
+    const style = await iframe.contentFrame().locator('body').evaluate(() => new Promise((resolve) => {
+      window.addEventListener('message', (event) => {
+        if (event.data?.type === 'danmaku-editor:init') resolve(event.data.draft.style);
+      }, { once: true });
+      window.parent.postMessage({ type: 'danmaku-editor:ready' }, '*');
+    }));
+    assert.equal(style, await button.getAttribute('data-danmaku-style'));
+    await iframe.contentFrame().locator('body').evaluate(() => {
+      window.parent.postMessage({ type: 'danmaku-editor:close' }, '*');
+    });
+    await page.locator('.danmaku-canvas-dialog').waitFor({ state: 'detached' });
   }
 });
 

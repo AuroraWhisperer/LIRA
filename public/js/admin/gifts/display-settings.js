@@ -8,6 +8,7 @@ import {
 
 export function createGiftDisplaySettings() {
   const get = (id) => document.getElementById(id);
+  const previewRoot = get('giftStylePreview');
   let config;
   const sample = {
     eventId: 'sample',
@@ -16,6 +17,25 @@ export function createGiftDisplaySettings() {
   let catalog = [];
   let sequence = 0;
   let saving = false;
+  let previewVisible = false;
+  function updatePreviewPlayback() {
+    previewRoot.classList.toggle('is-playing', previewVisible && !document.hidden);
+  }
+  const previewObserver = new IntersectionObserver(([entry]) => {
+    previewVisible = entry.isIntersecting;
+    updatePreviewPlayback();
+  });
+  previewObserver.observe(previewRoot);
+  document.addEventListener('visibilitychange', updatePreviewPlayback);
+  window.addEventListener(
+    'pagehide',
+    () => {
+      previewObserver.disconnect();
+      document.removeEventListener('visibilitychange', updatePreviewPlayback);
+      previewRoot.classList.remove('is-playing');
+    },
+    { once: true },
+  );
   const fail = (error) => {
     get('giftDisplayError').textContent = error.message;
   };
@@ -42,8 +62,15 @@ export function createGiftDisplaySettings() {
     const draft = values();
     const thresholds = draft.thresholds.map((n) => Math.round(n));
     if (thresholds.every((n) => Number.isSafeInteger(n) && n > 0)) {
-      get('giftStylePreview').replaceChildren(createGiftBanner(sample, { ...draft, thresholds }, catalog));
-      fitGiftBannerNames(get('giftStylePreview'));
+      previewRoot.replaceChildren(
+        ...GIFT_PALETTE.map(([start, end]) => {
+          const banner = createGiftBanner(sample, { ...draft, thresholds }, catalog);
+          banner.style.setProperty('--gift-start', start);
+          banner.style.setProperty('--gift-end', end);
+          return banner;
+        }),
+      );
+      fitGiftBannerNames(previewRoot);
     }
   }
 

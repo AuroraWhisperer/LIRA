@@ -1,0 +1,325 @@
+# 测试策略
+
+> 涉及文件:[package.json](../../../package.json)(测试与验证脚本)、[test/](../../../test)、[scripts/check-js.js](../../../scripts/check-js.js)、[scripts/inspect-wesing-playback.js](../../../scripts/inspect-wesing-playback.js)、[scripts/capture-bilibili-events.js](../../../scripts/capture-bilibili-events.js)、[scripts/bilibili-capture-electron/](../../../scripts/bilibili-capture-electron)
+
+本文档是测试的**唯一事实源**:测试框架与命令、按领域的重点行为与测试入口、静态检查、专用诊断、辅助捕获脚本均只在此成表。构建/发布相关命令见 [build.md](build.md)。
+
+## 1. 框架与命令
+
+- **框架**:Node 内置 `node:test` + `node:assert/strict`,**零第三方测试依赖**([package.json](../../../package.json));测试文件全部基于 `node:test`。
+- **全量运行**:`npm test` 通过 [run-tests.js](../../../scripts/run-tests.js) 递归收集 `test/` 各业务目录中的 `*.test.js`，排除 `helpers/` 和 `fixtures/`，再运行 `node --experimental-vm-modules --test --test-concurrency=6`。helper 和探针仍由拥有者导入或显式启动；保留进程隔离，收集清单按文件名排序。
+- **管理页回归**:`npm run test:admin` 固定运行 Admin 页面组合、外壳和 AI 测试并显式启用 ESM VM 模块;测试辅助加载器在未启用该 flag 时自动回退到静态 bundle,因此直接执行管理页测试也不会跳过 ESM 用例。
+- **文档门禁**:`npm run verify:docs` 检查治理文件、相对链接、AI 路由表和规格索引。
+- **架构门禁**:`npm run verify:architecture` 运行模块边界、遗留债务预算、前端 ESM 边界与源码规模登记测试。
+- **规模门禁**:`npm run verify:modularity` 直接检查物理行数、601–800 行评估、存量上限及逐文件例外；同一检查已接入架构和全量测试，口径见 [modularity-standard.md](../../architecture/engineering/modularity-standard.md)。
+- **快速门禁**:`npm run verify:quick` 按文档 → 语法 → 架构顺序运行,用于日常评审前反馈。
+- **契约输入门禁**:`npm run verify:contracts` 核对固定服务器提交和全部 fixture 的 SHA-256；不下载或切换检出目录。
+- **完整门禁**:`npm run verify` 先校验契约输入，再运行快速门禁和 `npm test`，保留独立调用的完整语义。CI 的 quick job 执行快速门禁和离线行为；依赖它的 main full job 只补浏览器、桌面、安装器、契约及 HTTP 往返，避免在同一提交重跑 quick 和离线组。全量入口内少量文档/架构重复仍可接受。
+- **为什么需要 `--experimental-vm-modules`**:源码以 CJS(`require`)为主,但多个前端测试会通过 `vm.SourceTextModule` 或动态 `import()` 加载 `public/js/` 下的 ESM 模块;去掉该 flag 这些测试会失败。
+- **单文件运行**:`node --experimental-vm-modules --test test/ai/ai-config-store.test.js`(flag 必须保留)。
+- **测试方式**:以离线单元和集成测试为主,不访问真实外部网络;服务端模块直接 require 真实实现并注入临时 SQLite 目录或 mock,server smoke 类测试会在随机本地端口启动完整服务;浏览器模块用 vm + 假 `window`/`localStorage` 求值。
+
+### 按运行依赖选择
+
+| 命令 | 实际依赖与边界 |
+| --- | --- |
+| `npm run test:offline` | Node/VM、临时 SQLite/HTTP；含使用合成 Git 仓库的契约校验器测试，无私有服务器读取依赖 |
+| `npm run test:browser` | Chromium 组件测试及模拟 bridge；不替代 Electron 权限测试 |
+| `npm run test:desktop` | Electron、原生 Windows TCP/进程查询及其显式子进程探针 |
+| `npm run test:installer` | Windows/NSIS 安装器；保留已有工具检测，缺失导致的 skip 必须单列 |
+| `npm run test:contracts` | 从锁定服务器检出读取 fixture 的消费者；包括完整密码兼容样例，UI/协议/HTTP 本地测试另留自主输入 |
+
+五组互不重叠且合计等于 `npm test`。用 `node scripts/run-tests.js <组名或all> --list` 查看实际文件；新增使用浏览器、桌面或服务器 fixture 的测试需在执行器中登记，普通 Node 测试自动进入离线组。日常运行所属组和直接消费者；完整验证仍用 `npm run verify`。管理页定向入口包含浏览器组件，须先安装 Chromium：`npx playwright install chromium`。
+
+### 按业务职责定位和运行
+
+测试目录表达业务职责，运行分组表达环境依赖。同一业务的前端、后端和 IPC 测试放在一起；例如 `desktop/` 下的普通 Node 测试仍属于 `offline`，而 `engineering/build-integrity.test.js` 属于 `desktop` 运行组。保留原文件名，便于按模块名称搜索。
+
+| `test/` 下的目录 | 测试职责 |
+| --- | --- |
+| `admin/` | 管理页组合、状态、工作区、工具箱导航、主播计划和帮助 |
+| `ai/` | AI 配置、模型、工具、生成、配额与送达 |
+| `bilibili/` | B站协议、认证、直播状态、用户资料和事件解析 |
+| `bots/` | 每日播报、签到、抽签和自定义回复 |
+| `cloud-sync/` | 云端歌库、账号与运行状态同步 |
+| `danmaku/` | 弹幕客户端、发送、缓冲、桌面预览与悬浮层 |
+| `desktop/` | Electron 生命周期、桌面认证、数据路径、资源检查与更新 |
+| `engineering/` | 测试执行器、语法、文档、架构、契约输入、构建与安装器 |
+| `fan-profiles/` | 粉丝档案、合并、导入导出和同步 |
+| `games/` | 小游戏、转盘、互动场次与动态抽奖 |
+| `gifts/` | 礼物目录、历史、盲盒、投影、特效、同步和 PK 战报 |
+| `license/` | 设备授权、激活、续期、协议与远端授权客户端 |
+| `lyrics/` | 歌词解析、请求、发布、渲染与性能 |
+| `music/` | 音乐平台认证、Provider、响应与媒体请求头 |
+| `overlays/` | 跨悬浮层通信、开播画面和时钟 |
+| `overtime/` | 加班机规则、结算、状态、编辑器与悬浮层 |
+| `playback/` | 播放器状态、缓存、队列、音质和恢复 |
+| `server/` | 服务启动、模块接线、会话、事件发布和本地访问边界 |
+| `settings/` | 设置契约、初始化、资料与欢迎设置 |
+| `shared/` | 日志脱敏和敏感字段识别 |
+| `songs/` | 歌库、导入导出、点歌、排队、冷却和歌单展示 |
+| `storage/` | 数据库初始化、维护、清空、迁移和查询 |
+| `transport/` | HTTP、WebSocket、响应体和资源上限 |
+| `ui/` | 通用 Toast、选择菜单、排版与界面约束 |
+| `wesing/` | 全民 K 歌采集、缓存、歌词与诊断 |
+| `helpers/`、`fixtures/` | 共享测试辅助模块、素材和由拥有者显式启动的探针 |
+
+```powershell
+npm test -- --help
+npm run test:offline -- --domain=ai
+npm run test:browser -- --domain=gifts
+npm test -- --domain=gifts --domain=overtime --list
+```
+
+`--domain=<目录名>` 可重复传入；先取这些目录的并集，再与指定运行组求交集。不指定组时默认 `all`，不指定目录时保留整个运行组。`--list` 只列出文件；拼错目录或交集为空会报错，避免误跑全套或产生虚假的成功。其余 Node 参数继续转发，例如 `--test-name-pattern`、`--test-reporter`、`--test-concurrency`。
+
+日常先用目录和依赖组选取改动所属范围，再补直接消费者。目录迁移本身不会减少完整测试的工作量；定向选择可以减少开发过程中的无关测试启动。历史报告与归档计划中的原始执行记录保留当时路径，可点击的本仓库测试链接更新为现位置。
+
+### 固定服务器契约输入
+
+[server-contract.lock.json](../../../server-contract.lock.json) 声明服务器仓库、完整 commit SHA 和各份原始 fixture 的 SHA-256。服务器继续拥有协议和样例，客户端不保存副本。[verify-server-contract.js](../../../scripts/verify-server-contract.js) 在消费前核对提交和内容，错误提交、缺失或被改动的样例都会使检查失败，不能用同名目录掩盖版本差异。
+
+目录选择顺序为显式路径、`LIRA_SERVER_ROOT`、已存在的相邻 `lira-server-contract`、相邻 `lira-server`。专用契约检出存在时仍须通过完整版本与哈希校验，损坏或过期不会退回开发工作区。下面在一个新的独立目录准备服务器，不切换正在开发的服务器工作区；读取私有仓库需要已有的 Git 只读权限。
+
+```powershell
+$contract = Get-Content -LiteralPath server-contract.lock.json -Raw | ConvertFrom-Json
+git clone --no-checkout "https://github.com/$($contract.repository).git" ..\lira-server-contract
+git -C ..\lira-server-contract checkout --detach $contract.revision
+$env:LIRA_SERVER_ROOT = (Resolve-Path ..\lira-server-contract).Path
+node scripts/verify-server-contract.js --runtime
+npm ci
+npm --prefix "$env:LIRA_SERVER_ROOT" ci
+npm run verify
+npm run verify:roundtrip
+```
+
+`--runtime` 还拒绝服务器 `src/`、`package.json`、`package-lock.json` 中已暂存、未暂存或未跟踪的变更，供加载真实服务器实现的联测使用。仅消费 fixture 的测试不因无关服务器文档修改失败。验证器不会自动拉取、修改或清理服务器文件；目录或版本不匹配时应另建检出或有意识地更新锁。
+
+升级契约时，先确认服务器协议和实现已经提交且该提交可获取，再一起更新锁中的完整 SHA 和全部登记 fixture 的原始字节 SHA-256；服务器 `.gitattributes` 保证这些 JSON 使用 LF。随后运行完整门禁和往返检查，评审两端行为变化。不能只为消除失败而改成浮动分支、跳过哈希或复制工作区样例。
+
+### 两仓歌库往返回归
+
+[verify-song-roundtrip.cjs](../../../scripts/verify-song-roundtrip.cjs) 使用解析后的两仓绝对检出路径，在本机随机端口运行真实服务器 JSON parser、歌曲事务、内存 SQLite store 与 DTO，再由真实桌面 HTTP client 上传、回读。设备鉴权与路由接线使用测试 adapter，不能把结果当作生产认证或线上容量验收。两仓需先安装各自锁文件依赖；服务器的 `better-sqlite3` 必须匹配执行测试的 Node ABI。
+
+```powershell
+node scripts/verify-song-roundtrip.cjs D:\Work\Live D:\Work\lira-server
+```
+
+该检查独立于 `npm test`。`npm run verify:roundtrip` 使用当前客户端和上述服务器目录解析规则；原有两个显式绝对路径的调用方式继续有效。脚本在加载服务器模块前校验锁、fixture 和运行时工作区，再执行往返场景。客户端完整测试也需要锁定的服务器 fixture；单仓的 `verify:quick` 和 `node --test test/engineering/server-contract.test.js` 不需要私有服务器检出。本地发布验证及访问配置见 [构建文档](build.md#本地发布验证)。
+
+### Windows 安装器集成测试
+
+[安装目录测试](../../../test/engineering/installer-directory.test.js)验证默认目录、沿用旧路径、用户指定路径优先和无 D 盘的情况；[数据保护测试](../../../test/engineering/installer-migration.test.js)验证升级、换目录、旧数据迁回、备份恢复、冲突、复制/报告失败、文件占用、运行中进程，以及升级清理时保留数据和下载文件；[自动关闭测试](../../../test/engineering/installer-app-exit.test.js)使用隐藏的原生窗口验证确认关闭、取消、拒绝关闭、超时重试、其他安装目录隔离和静默退出，确认退出时的最后一次写入完整进入备份。
+
+上述安装目录、数据保护、自动关闭，以及[卸载保留与清理测试](../../../test/engineering/installer-uninstall.test.js)需要 Windows 和 NSIS。[installer-tools.js](../../../test/helpers/installer-tools.js) 优先使用 `LIRA_TEST_MAKENSIS`（编译器）和 `LIRA_TEST_NSIS_PLUGINS`（包含 `StdUtils.dll`、`nsProcess.dll` 的 Unicode 插件目录）；未指定的路径从已有 electron-builder 缓存查找。缓存根目录采用 `ELECTRON_BUILDER_CACHE`，缺省为 `%LOCALAPPDATA%/electron-builder/Cache`，支持 `nsis-3.0.4.1`、`nsis-resources-3.4.1` 的平铺和嵌套解压目录。
+
+发现过程只读，不下载工具或修改全局环境。显式配置的无效路径会使实际执行失败，不会被缓存覆盖；缺少工具或不在 Windows 时仍明确报告跳过。完整 Windows 验证前可检查工具，然后通过普通测试入口执行：
+
+```powershell
+node -e "const tools = require('./test/helpers/installer-tools').resolveInstallerTools(); if (!tools.compiler || !tools.plugins) throw new Error('Configure the NSIS compiler and Unicode plugins first'); console.log(tools)"
+npm run test:installer
+npm run verify
+```
+
+已有完整缓存时不再需要每次设置环境变量；显式覆盖只影响当前进程及其子进程。完整安装器分组应实际执行所有场景并报告 0 项跳过。
+
+测试会编译并静默执行夹具程序，目录选择测试替换注册表读取，数据保护测试将 AppData、临时目录和安装目录重定向到隔离的临时目录；没有执行真实 LIRA 安装或读写用户数据库。此结果验证的是 NSIS 脚本场景，发布包的人工安装验收仍按 [构建文档](build.md)执行。
+
+## 2. 重点行为与测试入口(按领域分组)
+
+下表选取有代表性的测试，不是全量文件索引或代码覆盖率声明。完整发现结果使用 `node scripts/run-tests.js all --list`；发现规则与环境分组见 §1、[test/README.md](../../../test/README.md) 和 [run-tests.js](../../../scripts/run-tests.js)。
+
+| 测试文件                                                                                                     | 被测模块                                                                                        | 覆盖文档                                                                                          |
+| ------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| **治理与架构**                                                                                               |                                                                                                 | [modularity-standard.md](../../architecture/engineering/modularity-standard.md) + [ai-workflow.md](../../architecture/engineering/ai-workflow.md)               |
+| [run-tests.test.js](../../../test/engineering/run-tests.test.js) | 递归收集、依赖分组、目录筛选、辅助文件排除、进程隔离、参数转发和失败退出码 | 本文 §1 |
+| [check-js.test.js](../../../test/engineering/check-js.test.js)                                                           | 语法检查的并发上限、完整扫描、失败退出与原生 CJS/ESM 语法行为                                   | 本文 §3                                                                                           |
+| [server-contract.test.js](../../../test/engineering/server-contract.test.js) | 固定服务器版本、fixture 完整性、目录选择和运行时漂移拒绝；使用临时 Git 仓库 | 本文 §1 |
+| [modularity-size.test.js](../../../test/engineering/modularity-size.test.js)                                             | `scripts/check-modularity.js`：物理行边界、源码类型、未跟踪文件、增长、过期、无效登记及当前基线 | [modularity-standard.md](../../architecture/engineering/modularity-standard.md) + [modularity-debt.md](../../architecture/engineering/modularity-debt.md)       |
+| [governance-docs.test.js](../../../test/engineering/governance-docs.test.js)                                             | 治理文件、路由表、规格索引与范围内 Markdown 链接                                                | 同上 + [legacy-boundaries.md](../../architecture/engineering/legacy-boundaries.md)                                               |
+| **AI 助手**                                                                                                  |                                                                                                 | [backend/ai.md](../backend/ai.md)                                                                 |
+| [ai-api-quota-store.test.js](../../../test/ai/ai-api-quota-store.test.js)                                       | `ai/api-quota-store`(配额存储)                                                                  | 同上                                                                                              |
+| [ai-config-store.test.js](../../../test/ai/ai-config-store.test.js)                                             | `ai/config-store`(配置存储)                                                                     | 同上                                                                                              |
+| [ai-danmaku-delivery-verifier.test.js](../../../test/ai/ai-danmaku-delivery-verifier.test.js)                   | `ai/danmaku-delivery-verifier`(投递校验)                                                        | 同上                                                                                              |
+| [ai-provider-adapters.test.js](../../../test/ai/ai-provider-adapters.test.js)                                   | DeepSeek Chat/Responses 请求协议与 Provider 预设                                                | 同上                                                                                              |
+| [ai-provider-contracts.test.js](../../../test/ai/ai-provider-contracts.test.js)                                 | Provider 错误、追踪、模型列表与连接校验契约                                                     | 同上                                                                                              |
+| [ai-tools.test.js](../../../test/ai/ai-tools.test.js)                                                           | 时间、天气配额与地图工具契约                                                                    | 同上                                                                                              |
+| [ai-request-logger.test.js](../../../test/ai/ai-request-logger.test.js)                                         | `ai/request-logger`(请求日志)                                                                   | 同上                                                                                              |
+| [ai-routes.test.js](../../../test/ai/ai-routes.test.js)                                                         | `server/routes/ai-routes`(API 路由)                                                             | 同上 + [backend/api.md](../backend/api.md)                                                        |
+| [ai-safety.test.js](../../../test/ai/ai-safety.test.js)                                                         | `ai/safety`(输出安全审查)                                                                       | 同上                                                                                              |
+| [ai-web-search-tool.test.js](../../../test/ai/ai-web-search-tool.test.js)                                       | `ai/tools/web-search-tool`(联网搜索工具)                                                        | 同上                                                                                              |
+| [frontend-admin-ai.test.js](../../../test/ai/frontend-admin-ai.test.js)                                         | Admin AI 通用参数与编辑态契约                                                                   | 同上 + [frontend/app.md](../frontend/app.md)                                                      |
+| [frontend-admin-danmaku.test.js](../../../test/danmaku/frontend-admin-danmaku.test.js)                               | Admin 弹幕连接、发送与助手入口                                                                  | 同上 + [frontend/app.md](../frontend/app.md)                                                      |
+| [frontend-admin-ai-autosave.test.js](../../../test/ai/frontend-admin-ai-autosave.test.js)                       | AI 配置自动保存与能力切换                                                                       | 同上 + [frontend/app.md](../frontend/app.md)                                                      |
+| [frontend-admin-ai-secrets.test.js](../../../test/ai/frontend-admin-ai-secrets.test.js)                         | AI 密钥遮罩、保留与提交                                                                         | 同上 + [frontend/app.md](../frontend/app.md)                                                      |
+| [ai-assistant-service.test.js](../../../test/ai/ai-assistant-service.test.js)                                   | AI 触发、回复策略与本地安全                                                                     | 同上                                                                                              |
+| [ai-assistant-delivery.test.js](../../../test/ai/ai-assistant-delivery.test.js)                                 | 顺序投递、分块节奏、冷却与房间回声重试                                                          | 同上                                                                                              |
+| [ai-assistant-generation.test.js](../../../test/ai/ai-assistant-generation.test.js)                             | 生成预算、工具回合、复核阶段与官方聊天搜索                                                      | 同上                                                                                              |
+| [ai-assistant-lifecycle.test.js](../../../test/ai/ai-assistant-lifecycle.test.js)                               | Provider 操作、关闭排空与回复缓存失效                                                           | 同上                                                                                              |
+| **Bilibili 弹幕/协议**                                                                                       |                                                                                                 | [backend/bilibili/danmaku.md](../backend/bilibili/danmaku.md)                                     |
+| [bilibili-danmaku-send.test.js](../../../test/bilibili/bilibili-danmaku-send.test.js)                                 | `bilibili/danmaku/api-client`(发弹幕)                                                           | 同上                                                                                              |
+| [bilibili-identity-cache.test.js](../../../test/bilibili/bilibili-identity-cache.test.js)                             | `bilibili/danmaku/identity-cache`(身份缓存)                                                     | 同上                                                                                              |
+| [bilibili-message-log.test.js](../../../test/bilibili/bilibili-message-log.test.js)                                   | `bilibili/bilibili-message-handler`(消息日志格式)                                               | 同上                                                                                              |
+| [bilibili-runtime.test.js](../../../test/bilibili/bilibili-runtime.test.js)                                           | `server/bilibili-runtime` 的认证缓存、客户端替换与关闭所有权                                    | [backend/server-core.md](../backend/server-core.md)                                               |
+| [bilibili-user-meta.test.js](../../../test/bilibili/bilibili-user-meta.test.js)                                       | `bilibili/utils/user-meta-extractor`(用户信息提取)                                              | 同上                                                                                              |
+| [checkin-service.test.js](../../../test/bots/checkin-service.test.js)                                             | 签到命令过滤、默认祝福词库与云端独占（本地不落库、不回复）                                                                | 同上                                                                                              |
+| [custom-reply-service.test.js](../../../test/bots/custom-reply-service.test.js)                                   | `bilibili/danmaku/command-text`(自定义回复)                                                     | 同上                                                                                              |
+| [danmaku-client.test.js](../../../test/danmaku/danmaku-client.test.js)                                               | `bilibili/danmaku-client`(主客户端)                                                             | 同上                                                                                              |
+| [danmaku-sender-service.test.js](../../../test/danmaku/danmaku-sender-service.test.js)                               | `bilibili/danmaku/sender-service`(弹幕发送服务)                                                 | 同上                                                                                              |
+| [fortune-service.test.js](../../../test/bots/fortune-service.test.js)                                             | 默认签池、抽签命令过滤与云端独占（本地不回复）                                                                | 同上                                                                                              |
+| [message-deduplicator.test.js](../../../test/bilibili/message-deduplicator.test.js)                                   | `bilibili/danmaku/message-deduplicator`(去重)                                                   | 同上                                                                                              |
+| [packet-decoder.test.js](../../../test/bilibili/packet-decoder.test.js)                                               | `bilibili/parsers/packet-decoder`(恶意/损坏数据包边界)                                          | [backend/bilibili/protocol.md](../backend/bilibili/protocol.md)                                   |
+| [websocket-connection.test.js](../../../test/transport/websocket-connection.test.js)                                   | `bilibili/danmaku/websocket-connection`(WS 连接)                                                | 同上                                                                                              |
+| **礼物**                                                                                                     |                                                                                                 | [backend/bilibili/gift.md](../backend/bilibili/gift.md)                                           |
+| [capture-bilibili-events.test.js](../../../test/bilibili/capture-bilibili-events.test.js)                             | `scripts/capture-bilibili-events`(捕获工具,见 §5)                                               | 同上                                                                                              |
+| [gift-analysis-service.test.js](../../../test/gifts/gift-analysis-service.test.js)                                 | 盲盒统计、筛选、分页与 V2/V3 数据兼容                                                           | 同上                                                                                              |
+| [gift-audit-page.test.js](../../../test/gifts/gift-audit-page.test.js)                                             | 礼物审计页组成与离线分析                                                                        | 同上 + [frontend/pages.md](../frontend/pages.md)                                                  |
+| [gift-projection-service.test.js](../../../test/gifts/gift-projection-service.test.js)                             | `bilibili/gift`(服务器结果投影与消费者重试)                                                     | 同上                                                                                              |
+| [gift-diagnostics-wiring.test.js](../../../test/gifts/gift-diagnostics-wiring.test.js)                             | `electron/preload`+`main`+`public/js/admin/gifts/notification`(源码装配断言)                    | 同上 + [desktop/main.md](../desktop/main.md)                                                      |
+| [gift-effect-config.test.js](../../../test/gifts/gift-effect-config.test.js)                                       | 礼物特效配置拉取、缓存、URL 信任边界与事件构造                                                  | 同上                                                                                              |
+| [gift-effects-overlay.test.js](../../../test/gifts/gift-effects-overlay.test.js)                                   | 礼物特效 API、管理工具与 OBS 透明叠加层                                                         | 同上 + [frontend/overlays.md](../frontend/overlays.md)                                            |
+| [bilibili-superchat-log.test.js](../../../test/bilibili/bilibili-superchat-log.test.js)                               | `bilibili/danmaku/message-handlers`(SC 日志)                                                    | 同上                                                                                              |
+| [bilibili-gift-identity-hints.test.js](../../../test/bilibili/bilibili-gift-identity-hints.test.js)                   | `bilibili/users/gift-identity-hints`(发送者与舰队身份提示)                                      | 同上                                                                                              |
+| [gift-query-service.test.js](../../../test/gifts/gift-query-service.test.js)                                       | 礼物历史查询、搜索、排序、游标分页与来源边界                                                    | 同上 + [backend/storage.md](../backend/storage.md)                                                |
+| [gift-statistics-service.test.js](../../../test/gifts/gift-statistics-service.test.js)                             | 礼物金额、指标、月份分桶与聚合失败                                                              | 同上 + [backend/storage.md](../backend/storage.md)                                                |
+| [processed-gift-import.test.js](../../../test/gifts/processed-gift-import.test.js)                                 | 已处理礼物的历史与实时投影消费者                                                                | 同上 + [backend/storage.md](../backend/storage.md)                                                |
+| [processed-gift-import-atomicity.test.js](../../../test/gifts/processed-gift-import-atomicity.test.js)             | 暂停、清空代次与完整重放回滚                                                                    | 同上 + [backend/storage.md](../backend/storage.md)                                                |
+| [processed-gift-contract.test.js](../../../test/gifts/processed-gift-contract.test.js)                             | 隐私、规范化与分页 wire 契约                                                                    | 同上                                                                                              |
+| [processed-gift-source.test.js](../../../test/gifts/processed-gift-source.test.js)                                 | 捕获来源、协商身份与重新绑定                                                                    | 同上                                                                                              |
+| [remote-catalog-cache.test.js](../../../test/gifts/remote-catalog-cache.test.js)                                   | 远端目录缓存、ETag、落盘回退与停止生命周期                                                      | 同上                                                                                              |
+| [remote-catalog-contract.test.js](../../../test/gifts/remote-catalog-contract.test.js)                             | 远端目录 v2、图片来源、关系与替换契约                                                           | 同上                                                                                              |
+| [hybrid-gift-catalog.test.js](../../../test/gifts/hybrid-gift-catalog.test.js)                                     | 房间优先合并、关系过滤与服务不可用搜索                                                          | 同上                                                                                              |
+| [remote-gift-controller.test.js](../../../test/gifts/remote-gift-controller.test.js)                               | 远端礼物 bootstrap、历史能力、代次与游标校验                                                    | 同上 + [desktop/main.md](../desktop/main.md)                                                      |
+| [remote-gift-controller-sse.test.js](../../../test/gifts/remote-gift-controller-sse.test.js)                       | SSE 关闭、发现重试、即时投影、wire 校验与顺序补拉                                               | 同上 + [desktop/main.md](../desktop/main.md)                                                      |
+| [remote-gift-controller-reconciliation.test.js](../../../test/gifts/remote-gift-controller-reconciliation.test.js) | 静默补拉、停止/授权失效、退避与在途隔离                                                         | 同上 + [desktop/main.md](../desktop/main.md)                                                      |
+| **音乐服务**                                                                                                 |                                                                                                 | [backend/music/services.md](../backend/music/services.md)                                         |
+| [lyrics.test.js](../../../test/lyrics/lyrics.test.js)                                                               | `music/lyric-parser`(歌词解析)                                                                        | 同上                                                                                              |
+| [netease-provider.test.js](../../../test/music/netease-provider.test.js)                                           | `music/providers/netease-provider`                                                              | [backend/music/netease.md](../backend/music/netease-provider.md)                                  |
+| [qq-provider.test.js](../../../test/music/qq-provider.test.js)                                                     | `music/providers/qq-provider`                                                                   | [backend/music/qq.md](../backend/music/qq-provider.md)                                            |
+| [queue-service.test.js](../../../test/songs/queue-service.test.js)                                                 | `music/queue-service`(点歌队列)                                                                 | 同上(music-services)                                                                              |
+| [random-song-filter.test.js](../../../test/songs/random-song-filter.test.js)                                       | `music/random-song-filter`(随机筛选)                                                            | 同上                                                                                              |
+| [song-file-codec.test.js](../../../test/songs/song-file-codec.test.js)                                             | `music/song-file-codec`(文件编码)                                                               | 同上                                                                                              |
+| [song-request-autocomplete.test.js](../../../test/songs/song-request-autocomplete.test.js)                         | `music/song-service`(歌单补全)                                                                  | 同上                                                                                              |
+| [tag-aliases.test.js](../../../test/songs/tag-aliases.test.js)                                                     | `music/tag-aliases`(标签别名)                                                                   | 同上                                                                                              |
+| **全民 K 歌**                                                                                                |                                                                                                 | [backend/music/wesing.md](../backend/music/wesing.md)                                             |
+| [wesing-capture.test.js](../../../test/wesing/wesing-capture.test.js)                                               | 采集门面、本地日志/QRC 解码与缓存目录                                                           | 同上                                                                                              |
+| [wesing-capture-timing.test.js](../../../test/wesing/wesing-capture-timing.test.js)                                 | 激活、进度门控、暂停、校准、重载与监控错误时序                                                  | 同上                                                                                              |
+| [wesing-capture-refresh.test.js](../../../test/wesing/wesing-capture-refresh.test.js)                               | 在线回退、监控节奏、延迟 QRC 与歌词偏移                                                         | 同上                                                                                              |
+| [wesing-capture-recording-mode.test.js](../../../test/wesing/wesing-capture-recording-mode.test.js)                 | `music/wesing-capture`(录制模式)                                                                | 同上                                                                                              |
+| [wesing-online-lyrics.test.js](../../../test/wesing/wesing-online-lyrics.test.js)                                   | `music/wesing-online-lyrics`(在线歌词)                                                          | 同上                                                                                              |
+| [wesing-playback-diagnostic.test.js](../../../test/wesing/wesing-playback-diagnostic.test.js)                       | `scripts/inspect-wesing-playback`(诊断脚本,见 §4)                                               | 同上                                                                                              |
+| [wesing-routes.test.js](../../../test/wesing/wesing-routes.test.js)                                                 | `server/routes`(wesing API 路由)                                                                | 同上 + [backend/api.md](../backend/api.md)                                                        |
+| **加班机**                                                                                                   |                                                                                                 | [backend/overtime.md](../backend/overtime.md)                                                     |
+| [overtime-service.test.js](../../../test/overtime/overtime-service.test.js)                                           | 加班机 schema 迁移与恢复暂停/重载                                                               | 同上                                                                                              |
+| [overtime-state.test.js](../../../test/overtime/overtime-state.test.js)                                               | 单调计时、重启与状态校验                                                                        | 同上                                                                                              |
+| [overtime-state-failures.test.js](../../../test/overtime/overtime-state-failures.test.js)                             | 状态动作保存失败矩阵                                                                            | 同上                                                                                              |
+| [overtime-rules.test.js](../../../test/overtime/overtime-rules.test.js)                                               | 固定、分组、单项、随机与效果规则                                                                | 同上                                                                                              |
+| [overtime-settlement.test.js](../../../test/overtime/overtime-settlement.test.js)                                     | 待结算代次、补偿、回滚/重试、清空与身份重放                                                     | 同上                                                                                              |
+| [frontend-overtime.test.js](../../../test/overtime/frontend-overtime.test.js)                                         | Admin 加班机控制台与规则编辑器                                                                  | 同上 + [frontend/app.md](../frontend/app.md)                                                      |
+| [overtime-routes.test.js](../../../test/overtime/overtime-routes.test.js)                                             | `server/routes`(加班机 API)                                                                     | 同上 + [backend/api.md](../backend/api.md)                                                        |
+| [overtime-gift-picker.test.js](../../../test/overtime/overtime-gift-picker.test.js)                                   | 加班机选礼器身份、搜索与选择行为                                                                | 同上 + [frontend/app.md](../frontend/app.md)                                                      |
+| [overtime-rule-editor.test.js](../../../test/overtime/overtime-rule-editor.test.js)                                   | 加班机礼物规则编辑器模块边界                                                                    | 同上 + [frontend/app.md](../frontend/app.md)                                                      |
+| [overtime-overlay.test.js](../../../test/overtime/overtime-overlay.test.js)                                           | `public/pages/overlays/overtime.html`+js/css(叠加层)                                            | 同上 + [frontend/pages.md](../frontend/pages.md)                                                  |
+| **服务器核心**                                                                                               |                                                                                                 | [backend/server-core.md](../backend/server-core.md)                                               |
+| [admin-page-composition.test.js](../../../test/admin/admin-page-composition.test.js)                               | Admin HTML 分片组合顺序、完整性与 token 注入                                                    | 同上 + [frontend/pages.md](../frontend/pages.md)                                                  |
+| [server-lifecycle.test.js](../../../test/server/server-lifecycle.test.js)                                           | `server/lifecycle`(端口/生命周期)                                                               | 同上                                                                                              |
+| [server-modules.test.js](../../../test/server/server-modules.test.js)                                               | 服务兼容层与 API Context 模块边界                                                               | 同上                                                                                              |
+| [server-smoke.test.js](../../../test/server/server-smoke.test.js)                                                   | `src/server`(端到端冒烟)                                                                        | 同上 + [backend/api.md](../backend/api.md)                                                        |
+| [module-boundaries.test.js](../../../test/engineering/module-boundaries.test.js)                                         | 持久化、Admin、播放、组合根和 shared 工具的架构适应度函数                                       | [modularity-standard.md](../../architecture/engineering/modularity-standard.md)                                                  |
+| [websocket-transport.test.js](../../../test/transport/websocket-transport.test.js)                                     | `server/ws`(WS 传输)                                                                            | [backend/ws.md](../backend/ws.md)                                                                 |
+| **桌面层**                                                                                                   |                                                                                                 | 见各列                                                                                            |
+| [bilibili-login-window.test.js](../../../test/bilibili/bilibili-login-window.test.js)                                 | `electron/bilibili-login-window`(登录窗口)                                                      | [desktop/auth.md](../desktop/auth.md)                                                             |
+| [bilibili-startup-wiring.test.js](../../../test/bilibili/bilibili-startup-wiring.test.js)                             | `server.js`+`electron/main.js`(启动装配断言)                                                    | [backend/server-core.md](../backend/server-core.md) + [desktop/main.md](../desktop/main.md)       |
+| [desktop-lyrics.test.js](../../../test/lyrics/desktop-lyrics.test.js)                                               | 桌面歌词浏览器源状态与时间轴规范化                                                              | [frontend/playback.md](../frontend/playback.md) + [frontend/overlays.md](../frontend/overlays.md) |
+| [desktop-lyric-settings.test.js](../../../test/lyrics/desktop-lyric-settings.test.js)                               | 桌面歌词设置标记、默认值与样式契约                                                              | [frontend/app.md](../frontend/app.md) + [frontend/overlays.md](../frontend/overlays.md)           |
+| [desktop-lyric-settings-runtime.test.js](../../../test/lyrics/desktop-lyric-settings-runtime.test.js)               | 字体权限、设置预览与自动保存                                                                    | 同上                                                                                              |
+| [desktop-lyric-publication.test.js](../../../test/lyrics/desktop-lyric-publication.test.js)                         | 授权发布、顺序、调度器与共享时钟                                                                | [frontend/playback.md](../frontend/playback.md) + [frontend/overlays.md](../frontend/overlays.md) |
+| [desktop-lyric-renderer.test.js](../../../test/lyrics/desktop-lyric-renderer.test.js)                               | 当前行、弹簧、卡拉 OK、离散词与可见行渲染                                                       | 同上                                                                                              |
+| [license-manager.test.js](../../../test/license/license-manager.test.js)                                             | 授权 bootstrap、激活与过期解析                                                                  | [desktop/auth.md](../desktop/auth.md)                                                             |
+| [license-manager-operations.test.js](../../../test/license/license-manager-operations.test.js)                       | 歌曲、背景、目录、礼物与渲染器边界的受保护操作                                                  | 同上                                                                                              |
+| [license-manager-renewal.test.js](../../../test/license/license-manager-renewal.test.js)                             | 续期、撤销、心跳与暂时性受保护失败                                                              | 同上                                                                                              |
+| [license-manager-revalidation.test.js](../../../test/license/license-manager-revalidation.test.js)                   | 云读取、共享重验证、代次、销毁与挑战竞态                                                        | 同上                                                                                              |
+| [license-manager-identity.test.js](../../../test/license/license-manager-identity.test.js)                           | 跨账号迟到请求、ABA 切换、续期与心跳生命周期隔离                                                | 同上                                                                                              |
+| [remote-license-client.test.js](../../../test/license/remote-license-client.test.js)                                 | 远端授权 HTTP 请求、错误与脱敏契约                                                              | [desktop/auth.md](../desktop/auth.md)                                                             |
+| [remote-license-song-budget.test.js](../../../test/license/remote-license-song-budget.test.js)                       | 歌库 8 MiB 精确字节边界、UTF-8、超限流取消与不可重试错误                                        | 本文 §1 两仓歌库往返回归                                                                          |
+| [remote-license-event-stream.test.js](../../../test/license/remote-license-event-stream.test.js)                     | 远端授权 SSE 分块、取消与 reader 释放                                                           | 同上                                                                                              |
+| [desktop-state.test.js](../../../test/desktop/desktop-state.test.js)                                                 | Electron 主进程运行时状态隔离                                                                   | [desktop/main.md](../desktop/main.md)                                                             |
+| [electron-main-modules.test.js](../../../test/desktop/electron-main-modules.test.js)                                 | Electron server runtime 适配与 `local-media://` 协议                                            | [desktop/main.md](../desktop/main.md)                                                             |
+| [local-media-access.test.js](../../../test/desktop/local-media-access.test.js)                                       | `electron/local-media-access`(local-media:// 协议)                                              | [desktop/main.md](../desktop/main.md)                                                             |
+| [playback-flush.test.js](../../../test/playback/playback-flush.test.js)                                               | `electron/playback-flush`(播放状态落盘)                                                         | [backend/storage.md](../backend/storage.md) + [desktop/main.md](../desktop/main.md)               |
+| [terminal-log.test.js](../../../test/desktop/terminal-log.test.js)                                                   | `electron/terminal-log`(终端日志)                                                               | [desktop/main.md](../desktop/main.md)                                                             |
+| [update-manager.test.js](../../../test/desktop/update-manager.test.js)                                               | `electron/update-manager`(自动更新)                                                             | [desktop/update.md](../desktop/update.md)                                                         |
+| **存储**                                                                                                     |                                                                                                 | [backend/storage.md](../backend/storage.md)                                                       |
+| [cooldown-store.test.js](../../../test/songs/cooldown-store.test.js)                                               | 冷却 Map 的过期剪枝                                                                             | 同上                                                                                              |
+| [database-maintenance.test.js](../../../test/storage/database-maintenance.test.js)                                   | 全量清理的删除计数与队列处理                                                                    | 同上                                                                                              |
+| [playback-store.test.js](../../../test/playback/playback-store.test.js)                                               | `storage/playback-store`(播放状态库)                                                            | 同上                                                                                              |
+| [superchat-store.test.js](../../../test/gifts/superchat-store.test.js)                                             | `storage/superchat-store` 的 SQLite 映射与领域对象契约                                          | 同上                                                                                              |
+| **前端**                                                                                                     |                                                                                                 | 见各列                                                                                            |
+| [esm-module-boundaries.test.js](../../../test/engineering/esm-module-boundaries.test.js)                                 | `public/js/` ESM 未声明标识符边界审计                                                           | [frontend/app.md](../frontend/app.md)                                                             |
+| [frontend-admin-shell.test.js](../../../test/admin/frontend-admin-shell.test.js)                                   | Admin 外壳、导航与共享顶层表面                                                                  | [frontend/app.md](../frontend/app.md)                                                             |
+| [frontend-admin-toolbox.test.js](../../../test/admin/frontend-admin-toolbox.test.js)                               | 硬件、引导、导览、工具箱、更新与浏览器源导航                                                    | 同上                                                                                              |
+| [frontend-usage-guide.test.js](../../../test/admin/frontend-usage-guide.test.js)                                   | 帮助目录、搜索与章节行为                                                                        | 同上 + [frontend/pages.md](../frontend/pages.md)                                                  |
+| [frontend-admin-layout.test.js](../../../test/admin/frontend-admin-layout.test.js)                                 | 播放器、工作区与队列布局                                                                        | 同上                                                                                              |
+| [frontend-admin-runtime.test.js](../../../test/admin/frontend-admin-runtime.test.js)                               | Admin 状态初始化与主题兼容                                                                      | 同上                                                                                              |
+| [frontend-gifts.test.js](../../../test/gifts/frontend-gifts.test.js)                                               | 礼物工作区与摘要契约                                                                            | [frontend/app.md](../frontend/app.md)                                                             |
+| [frontend-gift-history.test.js](../../../test/gifts/frontend-gift-history.test.js)                                 | 礼物历史抽屉、查询、排序与分页 UI                                                               | 同上                                                                                              |
+| [frontend-blindbox-admin.test.js](../../../test/gifts/frontend-blindbox-admin.test.js)                             | 盲盒管理与配置 UI                                                                               | 同上                                                                                              |
+| [frontend-blindbox-mapping-state.test.js](../../../test/gifts/frontend-blindbox-mapping-state.test.js)             | 盲盒映射状态与本地编辑                                                                          | 同上                                                                                              |
+| [frontend-blindbox-mapping-refresh.test.js](../../../test/gifts/frontend-blindbox-mapping-refresh.test.js)         | 盲盒映射刷新与目录更新                                                                          | 同上                                                                                              |
+| [frontend-blindbox-overlay.test.js](../../../test/gifts/frontend-blindbox-overlay.test.js)                         | 盲盒 OBS 渲染                                                                                   | [frontend/overlays.md](../frontend/overlays.md)                                                   |
+| [frontend-recent-gifts.test.js](../../../test/gifts/frontend-recent-gifts.test.js)                                 | 近期礼物卡片、图像与目录事件                                                                    | [frontend/app.md](../frontend/app.md)                                                             |
+| [frontend-playback.test.js](../../../test/playback/frontend-playback.test.js)                                         | 全屏歌词、收藏分页与播放搜索竞态                                                                | [frontend/playback.md](../frontend/playback.md)                                                   |
+| [frontend-typography.test.js](../../../test/ui/frontend-typography.test.js)                                     | 桌面 Admin 字体 token、语义角色、可读字号/字重与 OBS/用户字体隔离契约                           | [frontend/pages.md](../frontend/pages.md)                                                         |
+| [frontend-queue.test.js](../../../test/songs/frontend-queue.test.js)                                               | 队列设置、持久化排版、尺寸与所选样式                                                            | [frontend/overlays.md](../frontend/overlays.md)                                                   |
+| [frontend-queue-themes.test.js](../../../test/songs/frontend-queue-themes.test.js)                                 | 队列完整插画主题 3–6                                                                            | 同上                                                                                              |
+| [frontend-queue-scrolling.test.js](../../../test/songs/frontend-queue-scrolling.test.js)                           | 队列溢出、缩放、行高与循环副本                                                                  | 同上                                                                                              |
+| [danmaku-overlay.test.js](../../../test/danmaku/danmaku-overlay.test.js)                                             | 固定弹幕整合与连接状态                                                                          | 同上                                                                                              |
+| [danmaku-overlay-renderer.test.js](../../../test/danmaku/danmaku-overlay-renderer.test.js)                           | 排名视口、共享表情渲染与固定流裁剪                                                              | 同上                                                                                              |
+| [danmaku-overlay-fullscreen.test.js](../../../test/danmaku/danmaku-overlay-fullscreen.test.js)                       | 全屏随机位置、计时、预览与时间戳                                                                | 同上                                                                                              |
+| [opening-overlay.test.js](../../../test/overlays/opening-overlay.test.js)                                             | 开场动画管理设置与 OBS 展示                                                                     | 同上                                                                                              |
+| [opening-upload-api.test.js](../../../test/overlays/opening-upload-api.test.js)                                       | 开场媒体上传、鉴权与静态提供                                                                    | 同上 + [backend/api.md](../backend/api.md)                                                        |
+| [frontend-song-board.test.js](../../../test/songs/frontend-song-board.test.js)                                     | 歌单展示板字号、视口与滚动速率                                                                  | [frontend/pages.md](../frontend/pages.md)                                                         |
+| [playback-cache.test.js](../../../test/playback/playback-cache.test.js)                                               | `public/js`(个人歌单缓存 CacheManager)                                                          | [frontend/playback.md](../frontend/playback.md)                                                   |
+| [playback-layering.test.js](../../../test/playback/playback-layering.test.js)                                         | `public/css/playback/*`(播放页 CSS 分层)                                                        | 同上                                                                                              |
+| [playback-persistence.test.js](../../../test/playback/playback-persistence.test.js)                                   | 播放队列、进度、Provider 与关闭刷新持久化                                                       | 同上 + [backend/storage.md](../backend/storage.md)                                                |
+| [playback-provider-operations.test.js](../../../test/playback/playback-provider-operations.test.js)                   | Provider 操作的选中音源语义                                                                     | 同上                                                                                              |
+| [playback-queue-behavior.test.js](../../../test/playback/playback-queue-behavior.test.js)                             | 歌单、电台、搜索直播与历史队列行为                                                              | 同上                                                                                              |
+| [playback-track-menu.test.js](../../../test/playback/playback-track-menu.test.js)                                     | `public/js`(播放页曲目菜单)                                                                     | 同上                                                                                              |
+| [playback-wesing.test.js](../../../test/playback/playback-wesing.test.js)                                             | `public/js`(播放器全民 K 歌集成)                                                                | 同上                                                                                              |
+| [provider-manager.test.js](../../../test/playback/provider-manager.test.js)                                           | `public/js`(Provider 状态管理)                                                                  | [frontend/pages.md](../frontend/pages.md)                                                         |
+| [queue-overlay-esm.test.js](../../../test/songs/queue-overlay-esm.test.js)                                         | 队列叠加层真实 ESM 依赖图与渲染路径                                                             | [frontend/overlays.md](../frontend/overlays.md)                                                   |
+| [queue-overlay-responsive.test.js](../../../test/songs/queue-overlay-responsive.test.js)                           | `public`(队列叠加层响应式)                                                                      | 同上                                                                                              |
+| [song-library-filter.test.js](../../../test/songs/song-library-filter.test.js)                                     | `public/js` + `storage/database`(歌单筛选)                                                      | 同上 + [backend/storage.md](../backend/storage.md)                                                |
+| [song-library-filter-menu.test.js](../../../test/songs/song-library-filter-menu.test.js)                           | `public/js`(筛选菜单)                                                                           | 同上                                                                                              |
+| [toolbox-sidebar.test.js](../../../test/admin/toolbox-sidebar.test.js)                                             | 工具箱侧栏静态布局、分组与排版                                                                  | 同上                                                                                              |
+| [toolbox-sidebar-preferences.test.js](../../../test/admin/toolbox-sidebar-preferences.test.js)                     | 侧栏默认/持久偏好与旧数据迁移                                                                   | 同上                                                                                              |
+| [toolbox-sidebar-routing.test.js](../../../test/admin/toolbox-sidebar-routing.test.js)                             | 面板路由、深链、键盘、更新与标题行为                                                            | 同上                                                                                              |
+| [streamer-planner.test.js](../../../test/admin/streamer-planner.test.js)                                                   | `public/js`(工具箱待办)                                                                         | 同上                                                                                              |
+
+## 3. 静态检查:npm run check
+
+- 命令:`npm run check` → `node scripts/check-js.js`([package.json:12](../../../package.json#L12))。
+- 行为:[check-js.js](../../../scripts/check-js.js) 递归收集 `src/`、`public/`、`scripts/`、`test/` 下全部 `.js` 文件，排序后以最多 4 个子进程执行原生 `node --check`；并发数同时受可用 CPU 数和文件数限制。仍只校验语法、不执行源码。任一文件失败后停止分配待检查文件，等待已启动的检查结束，保留错误信息并以非零状态退出；全部通过时输出文件总数。
+- 边界:**仅查语法**,不做类型检查、模块导入一致性或风格检查(旧文档的描述不准确)。
+- 日常按根 [AGENTS.md](../../../AGENTS.md) 的风险分级选择验证：小改动只检查相关文件或运行一次针对性界面验证；单个功能运行自身及直接受影响的测试；跨领域或关键边界变化运行相关完整门禁。`npm run verify:quick` 和 `npm run verify` 仍执行各自完整范围，发布遵循 [RELEASE_GUIDE.md](../../../RELEASE_GUIDE.md)。输入和相关环境未变时，不重复运行已通过的同一检查。
+
+## 4. 专用诊断:diagnose:wesing
+
+- 命令:`npm run diagnose:wesing` → `node scripts/inspect-wesing-playback.js`([package.json:14](../../../package.json#L14));Windows 便捷包装 [scripts/inspect-wesing-playback.cmd](../../../scripts/inspect-wesing-playback.cmd)(chcp 65001、运行后 pause)。
+- 用途:现场诊断全民 K 歌播放状态识别问题。同时抓两条数据流 — PowerShell 窗口采样(`createPowerShellWeSingMonitor`:标题/进度/audioActive 等,250ms 轮询)与 WeSingCache 日志 tail(UTF-16LE,轮询最新 .log 的新增字节),并解析 `StartKSong` 行提取 mid/歌名。日志选择、UTF-16 残字节、偏移和停止刷新由 [wesing-log-probe.js](../../../scripts/wesing-log-probe.js) 管理；[wesing-diagnostic-terminal.js](../../../scripts/wesing-diagnostic-terminal.js) 管理键盘 setup/cleanup，CLI 保持统一结束顺序。
+- 交互:启动后在全民 K 歌执行动作并按键打标 — `1` 点击 K 歌/开始录制、`2` 暂停、`3` 继续、`4` 退出录制、`5` 重新进入同一首歌、`6` 歌词状态不正确;`q`/Ctrl+C 结束。JSONL 落盘 `logs/wesing-playback-diagnostic-{时间戳}.jsonl`(含 diagnostic-start/monitor-sample/wesing-log-line/user-marker/diagnostic-stop 事件)。
+- 参数:`--cache <WeSingCache 目录>`(缺省时经 `/api/music/wesing/status` 从运行中的服务读取,[inspect-wesing-playback.js:96-126](../../../scripts/inspect-wesing-playback.js#L96-L126))、`--output <文件>`、`--duration <秒>`(1-3600)、`--help`。
+- 配套测试:[wesing-playback-diagnostic.test.js](../../../test/wesing/wesing-playback-diagnostic.test.js)、[wesing-diagnostic-resources.test.js](../../../test/wesing/wesing-diagnostic-resources.test.js);数据流细节见 [backend/music/wesing.md](../backend/music/wesing.md)。
+
+## 5. 其他辅助脚本:独立弹幕捕获
+
+- [scripts/capture-bilibili-events.js](../../../scripts/capture-bilibili-events.js):独立捕获工具 — 用生产代码(`BilibiliApiClient` + `WebSocketConnection` + `packet-parser`)直连房间弹幕,解析后的原始消息以 NDJSON 写入 `tmp/bilibili-events-{时间戳}.ndjson`(`meta`/`event`/`summary` 三种行,[capture-bilibili-events.js:155-167](../../../scripts/capture-bilibili-events.js#L155-L167))。
+- 参数:`--room <房间号>`(必填)、`--duration <秒>`(默认 300)、`--output <路径>`、`--gift-only`(仅礼物类命令)、`--bilibili-user-data <Electron userData>`;另支持环境变量 `BILIBILI_COOKIE`/`BILIBILI_UID`。
+- 登录态捕获:`--bilibili-user-data` 需以 Electron 运行 — 入口 [scripts/bilibili-capture-electron/index.js](../../../scripts/bilibili-capture-electron/index.js)(目录内私有 package.json),复用桌面端保存的 Bilibili 登录注入 Cookie([capture-bilibili-events.js:177-198](../../../scripts/capture-bilibili-events.js#L177-L198))。
+- 配套测试:[capture-bilibili-events.test.js](../../../test/bilibili/capture-bilibili-events.test.js)(参数解析与消息过滤,离线)。
+
+## 6. 测试约定
+
+- **命名与布局**:所有 `*.test.js` 平铺在 `test/` 根目录;`test/helpers/` 仅存放共享测试辅助模块。测试文件使用 `xxx.test.js` 命名,对应 `src/xxx.js`、`public/` 资源或 `scripts/xxx.js` 的行为契约。
+- **新增测试**:服务端模块直接 require 真实实现(内存 DB / mock 注入);浏览器模块用 vm 求值,测试间不共享全局状态;新增文件后 `npm run check` 仍须通过(check 覆盖 `test/` 目录)。
+- **运行单个文件**:`node --experimental-vm-modules --test test/xxx.test.js`(见 §1)。

@@ -16,7 +16,7 @@ No changes to eligibility, cutoff, random order, digest, rate limits, identity/a
 - `dynamic-lottery-migrations.js` currently has one migration; append a nullable `display_name` column without changing v1 DDL.
 - `dynamic-lottery-draw-store.js` freezes the selected evidence source/record ID but results only expose UID and verification.
 - `public/pages/admin/toolbox/dynamic-lottery.html`, its CSS, `dynamic-lottery.js` and `dynamic-lottery-workflow.js` own the existing UI. Preserve async cancellation, license resets and every existing operation.
-- Contract owners: `docs/architecture/backend/api.md`, `storage.md`, `frontend/app.md`. Existing provider/store/collection/auth frontend tests are the focused checks.
+- Contract owners: `docs/reference/backend/api.md`, `storage.md`, `frontend/app.md`. Existing provider/store/collection/auth frontend tests are the focused checks.
 
 ## Compatibility And Security
 

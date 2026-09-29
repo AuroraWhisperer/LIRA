@@ -7,8 +7,8 @@ Implemented（实现、聚焦回归、架构检查和完整测试已通过；不
 **审阅日期：** 2026-08-21
 **Owner：** `src/bilibili/` 领域；跨域装配由 `src/server/bilibili-runtime.js` 和
 `src/server/bilibili-client.js` 负责。
-**相关契约：** [Bilibili 协议](../docs/architecture/backend/bilibili/protocol.md)、
-[弹幕监听管线](../docs/architecture/backend/bilibili/danmaku.md)、
+**相关契约：** [Bilibili 协议](../docs/reference/backend/bilibili/protocol.md)、
+[弹幕监听管线](../docs/reference/backend/bilibili/danmaku.md)、
 [模块化标准](../docs/architecture/engineering/modularity-standard.md)。
 
 ## Goal
@@ -523,7 +523,7 @@ poller 的每个 context 必须是组合根一次 `beginRoomRun()` 返回的共�
 
 - 在没有直接消费者后再移动或收窄 `IdentityCache`。
 - 将头像 URL 归一化规则收敛到现有用户头像模块。
-- 更新 [Bilibili 弹幕架构事实源](../docs/architecture/backend/bilibili/danmaku.md)、[协议事实源](../docs/architecture/backend/bilibili/protocol.md)、AI route table 和 legacy boundary registry。
+- 更新 [Bilibili 弹幕架构事实源](../docs/reference/backend/bilibili/danmaku.md)、[协议事实源](../docs/reference/backend/bilibili/protocol.md)、AI route table 和 legacy boundary registry。
 - 本稿当前为 Accepted；开始实现后变为 In Progress，只有实现和验收证据齐全后才变为 Implemented，并同步维护 ADR 与规格索引状态。
 
 ## Acceptance Criteria
@@ -558,6 +558,12 @@ poller 的每个 context 必须是组合根一次 `beginRoomRun()` 返回的共�
 | 主动刷新               | 第一阶段不提供业务公开的 force refresh | 避免绕过去重和 TTL；以后可另立契约        |
 | guard/fans medal 历史  | 不做，只提供当前 room state            | 历史身份是独立的审计/分析需求             |
 | preload 暴露           | 不暴露；仅后端 service                 | 保持 renderer 权限面和现有 HTTP/WS 边界   |
+
+## 粉丝名单调度要求与验收
+
+同一房间的短暂重连沿用现有资料刷新，不重新扫描第一页；全量分页保持串行并分批让出执行时间，后续页最终仍覆盖。失败逐步退避，不清空仍有效的缓存、不人为续期过期身份；成功后恢复正常刷新目标。切房、停止和 run 变化后，迟到响应不得写入当前房间或重新启动旧 timer。调度参数由 [弹幕监听参考](../docs/reference/backend/bilibili/danmaku.md) 维护。
+
+验收：合成 1000 人名单完整覆盖；同 context 重启不增加请求；慢响应触发时间预算并从下一页续传；连续失败延长等待且成功恢复；在途请求切房后只有新房结果进入门面；停止后不再入库或排期。由 test/bilibili/bilibili-fans-medal-poller.test.js 验证，既有身份有效期/三态测试保持通过。
 
 ## Verification Plan
 

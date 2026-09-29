@@ -262,7 +262,11 @@ function createOvertimeService(options = {}) {
       if (error.code === 'OVERTIME_QUANTITY_LIMIT' && retry) {
         onUpdate({
           reason: 'quantity-limit',
-          state: { ...getSnapshot(), pendingCount: store.countPending(), quantityLimitedCount: store.countQuantityLimited() },
+          state: {
+            ...getSnapshot(),
+            pendingCount: store.countPending(),
+            quantityLimitedCount: store.countQuantityLimited(),
+          },
         });
       }
       throw error;

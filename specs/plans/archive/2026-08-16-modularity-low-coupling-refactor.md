@@ -24,7 +24,7 @@
 **Files:**
 
 - Create: `test/module-boundaries.test.js`
-- Modify: `docs/architecture/engineering/test.md`
+- Modify: `docs/reference/engineering/test.md`
 
 **Interfaces:**
 
@@ -167,10 +167,10 @@ Expected: entrypoints retain wiring and lifecycle ownership while domain-specifi
 **Files:**
 
 - Modify: `docs/architecture/README.md`
-- Modify: `docs/architecture/backend/server-core.md`
-- Modify: `docs/architecture/frontend/app.md`
-- Modify: `docs/architecture/frontend/playback.md`
-- Modify: `docs/architecture/engineering/test.md`
+- Modify: `docs/reference/backend/server-core.md`
+- Modify: `docs/reference/frontend/app.md`
+- Modify: `docs/reference/frontend/playback.md`
+- Modify: `docs/reference/engineering/test.md`
 
 **Interfaces:**
 

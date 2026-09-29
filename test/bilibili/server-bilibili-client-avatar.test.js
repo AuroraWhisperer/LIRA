@@ -27,7 +27,7 @@ test('server Bilibili client explicitly requests and applies avatar hydration on
     bilibiliDiagnostics: {},
     bilibiliAuthCache: { cookieHeader: '', uid: 0 },
     games: {
-      handleDanmaku: () => ({ session: { game: 'draw-guess' } }),
+      handleDanmaku: () => ({ game: 'draw-guess' }),
       updateDanmakuAvatar: (profile) => hydrated.push(profile),
     },
   });

@@ -1,6 +1,16 @@
 # 审计问题分阶段收尾（撤销后）
 
-状态：产品修复按用户此前要求暂停；本次只移除不应修改的条目并核对回退。
+**Status:** Paused.
+
+**复核日期：** 2026-09-28。保留用户暂停产品修复及规则/兼容裁决的决定；本次仅整理文档，不恢复任何暂停项。
+
+当前依据：[所属规格或参考](open-items.md)。状态索引见 [计划入口](README.md)。
+
+## 原始计划与执行记录
+
+以下保留原计划时点的行为、命令和验证记录；它们不覆盖上述状态或当前契约，历史未勾选项不直接等同于当前缺陷。
+
+原状态记录：状态：产品修复按用户此前要求暂停；本次只移除不应修改的条目并核对回退。
 
 ## Goal
 
@@ -18,7 +28,7 @@
 
 ## Ownership
 
-[当前逐项清单](<D:/Work/lira-audit/current-review-2026-09-18/current-review.md>) 是当前事实/范围入口；[执行进度](<D:/Work/lira-audit/复核与第四轮指导-2026-09-17/07-全量修复进度.md>) 跟踪当前保留项。
+当前逐项清单（历史外部材料，当前仓库不包含：`D:/Work/lira-audit/current-review-2026-09-18/current-review.md`） 是当前事实/范围入口；执行进度（历史外部材料，当前仓库不包含：`D:/Work/lira-audit/复核与第四轮指导-2026-09-17/07-全量修复进度.md`） 跟踪当前保留项。
 
 ## Compatibility Constraints
 
@@ -81,7 +91,7 @@
 
 ## Rollback Or Failure Handling
 
-只按 [撤销与代码回退核对登记](<D:/Work/lira-audit/current-review-2026-09-18/withdrawal-manifest.json>) 的具体归属处理；[撤销前历史材料](<D:/Work/lira-audit/current-review-2026-09-18/archive/before-withdrawal-2026-09-18/README.md>) 保存撤销前文档。禁止用 reset/checkout 覆盖其它任务改动。
+只按 撤销与代码回退核对登记（历史外部材料，当前仓库不包含：`D:/Work/lira-audit/current-review-2026-09-18/withdrawal-manifest.json`） 的具体归属处理；撤销前历史材料（历史外部材料，当前仓库不包含：`D:/Work/lira-audit/current-review-2026-09-18/archive/before-withdrawal-2026-09-18/README.md`） 保存撤销前文档。禁止用 reset/checkout 覆盖其它任务改动。
 
 ## Done When
 

@@ -11,9 +11,10 @@ for (const liveStatus of [0, 1]) {
     const restarts = [];
     const monitor = new LiveStatusMonitor(
       {
-        resolveRoomInfo: () => new Promise((resolve) => {
-          resolveRoom = resolve;
-        }),
+        resolveRoomInfo: () =>
+          new Promise((resolve) => {
+            resolveRoom = resolve;
+          }),
       },
       (room) => restarts.push(room),
       (status) => statuses.push(status),

@@ -1,6 +1,16 @@
 # 客户端资源完整性检查实施计划
 
-状态：In Progress。2026-09-26。实现和自动化门禁已完成，正式签名安装验收待完成；本任务不提交、不发布、不操作真实安装和业务数据。
+**Status:** Awaiting Verification.
+
+**复核日期：** 2026-09-28。实现和自动化已有记录；正式签名安装包验收尚未完成，依赖签名接入。
+
+当前依据：[所属规格或参考](../client-resource-integrity-design.md)。状态索引见 [计划入口](README.md)。
+
+## 原始计划与执行记录
+
+以下保留原计划时点的行为、命令和验证记录；它们不覆盖上述状态或当前契约，历史未勾选项不直接等同于当前缺陷。
+
+原状态记录：状态：In Progress。2026-09-26。实现和自动化门禁已完成，正式签名安装验收待完成；本任务不提交、不发布、不操作真实安装和业务数据。
 
 ## Goal
 
@@ -16,7 +26,7 @@
 - `src/electron/ipc/main-window-ipc.js` 负责主窗口、主 frame、origin 和页面路径校验；新增诊断不能复用允许 license 页的注册器配置。
 - `src/electron/main.js` 负责组合和退出；`desktop-update-controller.js`/`update-manager.js` 负责安装。
 - `src/electron/preload.js`、`public/js/desktop.js` 和现有更新页是展示消费者。
-- 契约事实源为 `docs/architecture/desktop/preload.md`、`desktop/update.md`、`engineering/build.md`。
+- 契约事实源为 `docs/reference/desktop/preload.md`、`desktop/update.md`、`engineering/build.md`。
 
 ## Compatibility Constraints
 

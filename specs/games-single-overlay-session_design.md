@@ -25,7 +25,7 @@
 
 - Frontend owner: `public/js/admin/games.js`、`public/pages/admin/toolbox/games.html`、`public/js/overlays/games.js`。
 - Backend owner: `src/games/game-session-service.js`；路由 `src/server/routes/game-routes.js` 负责将会话冲突映射为 HTTP 409。
-- Contract owners: `docs/architecture/backend/api.md`、`docs/architecture/backend/ws.md`、`docs/architecture/frontend/pages.md`。
+- Contract owners: `docs/reference/backend/api.md`、`docs/reference/backend/ws.md`、`docs/reference/frontend/pages.md`。
 - The service owns the invariant. The Admin disables start controls for immediate feedback, but a second Admin tab is still rejected by the service.
 
 ## Security

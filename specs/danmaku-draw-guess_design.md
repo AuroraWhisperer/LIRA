@@ -29,7 +29,7 @@
 
 - Backend owner: `src/games/draw-guess-words.js` 负责分类词库内容，`src/games/draw-guess.js` 负责分类筛选、答案规范化、回合、计分、公开状态和绘画输入限制；`src/games/game-session-service.js` 负责单会话互斥、服务端倒计时、弹幕接入和广播。
 - HTTP contract: `GET /api/games/draw-guess/categories` 只返回分类 ID、名称和词数；`GET /api/games/host-state` 返回主持人私有题词与本场分类选择；`POST /api/games/session` 可接收分类 ID 数组；`POST /api/games/session/draw` 接收受限的增量绘画、清空和撤销上一笔操作；现有 `POST /api/games/session/move` 接收结束作画、公布答案和开始下一题操作。
-- WebSocket contract: `game:update` 继续广播公开会话；`game:draw` 广播已经校验的增量画笔、清空或撤销操作，撤销操作包含服务端选定的 `strokeId`。
+- WebSocket contract: `game:update` 建立完整公开会话；`game:patch` 只传新增弹幕、头像补充或不含画布的回合状态；`game:draw` 传画笔操作。恢复顺序及字段由 [WebSocket 契约](../docs/reference/backend/ws.md) 维护。
 - Frontend owner: `public/js/admin/games.js` 管理第四张卡片、私有题词和回合控制；`public/js/overlays/games.js` 在 `/games` 上提供主播画布并同步给其它浏览器源实例。
 - Timer authority: 服务端维护单个回合截止计时器；客户端只根据 `remainingMs` 和 `serverNowMs` 插值显示。回合时长来自主播的开局配置，非法值回退为 90 秒。
 
@@ -65,6 +65,11 @@
 12. Admin 展示 9 个各 100 词的内置分类与已选词数，支持全选、清空和任意组合；至少选择一类才能开局，题目只来自本场所选分类。
 13. `/games` 增加直线、矩形、圆形和取色器；图形转换为现有受限折线笔画后同步，取色只落在服务端允许的可见调色板中。
 14. Electron 桌面正常窗口下画板的宽高占比比现状更小，新增工具、积分与弹幕仍保持一个视口内可用。
+
+15. 普通弹幕不携带画布或完整聊天历史，前端不重绘画布；头像补充只发送对应用户，答对和回合变化仍即时更新管理页及 OBS。
+16. 快照在途的新画笔和聊天不丢失，重复事件不重复追加；缺口、断线或缓冲溢出通过完整快照恢复，迟到 HTTP 不覆盖新会话。撤销、清空及下一回合正确；旧回合排队画笔不进入新画布。
+
+自动化：test/games/game-transport.test.js、test/games/games-drawing.test.js、test/games/frontend-games.test.js 及 overlay scope 投影测试。
 
 ## Done When
 

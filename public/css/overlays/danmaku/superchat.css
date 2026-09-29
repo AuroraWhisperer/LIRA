@@ -1,0 +1,280 @@
+/* SC owns its markup and palette; ordinary danmaku and gift styles do not paint it. */
+body[data-style] .draw-danmaku-item.is-superchat {
+  position: relative;
+  display: block;
+  flex: 0 0 auto;
+  width: 460px;
+  min-width: 0;
+  max-width: 460px;
+  min-height: 0;
+  padding: 20px;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  clip-path: none;
+  color: #fff;
+  text-shadow: none;
+  zoom: calc(var(--danmaku-superchat-scale, 1) * var(--sc-fit, 1));
+}
+body:is([data-style='ranked'], [data-style='identity']) .draw-danmaku-item.is-superchat {
+  zoom: calc(var(--danmaku-superchat-scale, 1) * var(--sc-fit, 1) / var(--ranked-scale));
+}
+body[data-style] .draw-danmaku-item.is-superchat::before,
+body[data-style] .draw-danmaku-item.is-superchat::after {
+  display: none;
+}
+.is-superchat .sc-message {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  isolation: isolate;
+}
+.is-superchat .sc-copy {
+  margin: 0;
+  font-size: var(--danmaku-font-size, 30px);
+  font-weight: 500;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.is-superchat .sc-money {
+  white-space: nowrap;
+  font-family: 'Segoe UI', 'Microsoft YaHei UI', sans-serif;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+.is-superchat .sc-avatar {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--sc-surface);
+  color: var(--sc-on-surface);
+  font-size: 18px;
+}
+.is-superchat .sc-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.is-superchat .sc-person {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.is-superchat .sc-name {
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+body[data-custom-font='true'] .is-superchat .sc-copy,
+body[data-custom-font='true'] .is-superchat .sc-name {
+  font-family: var(--danmaku-custom-font);
+}
+
+/* Classic: compact colored header above the complete message. */
+.is-superchat .sc-ranked {
+  border-radius: 6px;
+  overflow: hidden;
+}
+.is-superchat .sc-classic-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-height: 58px;
+  padding: 11px 19px;
+  background: var(--sc-accent);
+  color: var(--sc-on-accent);
+}
+.is-superchat .sc-classic-head .sc-money { font-size: 25px; }
+.is-superchat .sc-ranked .sc-copy {
+  padding: 18px 22px 22px;
+  color: var(--sc-on-surface);
+  background: var(--sc-surface);
+}
+
+/* Bubble: a floating amount tab, original text, and a quiet signature. */
+.is-superchat .sc-bubble {
+  padding: 31px 27px 20px;
+  border-radius: 22px 22px 22px 7px;
+  color: var(--sc-on-surface);
+  background: var(--sc-surface);
+}
+.is-superchat .sc-bubble-price {
+  position: absolute;
+  right: 22px;
+  top: -20px;
+  padding: 9px 16px;
+  border-radius: 11px 11px 11px 3px;
+  color: var(--sc-on-accent);
+  background: var(--sc-accent);
+  font-size: 22px;
+}
+.is-superchat .sc-bubble-foot { margin-top: 17px; }
+
+/* Signal: a cut-corner panel with a distinct amount column. */
+.is-superchat .sc-signal {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  color: #fff;
+  background: #191919;
+  clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
+}
+.is-superchat .sc-signal-amount {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 96px;
+  padding: 24px 12px;
+  background: var(--sc-accent);
+  color: var(--sc-on-accent);
+  font-size: 26px;
+}
+.is-superchat .sc-signal-amount::after {
+  content: '';
+  position: absolute;
+  left: 19px;
+  right: 19px;
+  bottom: 14px;
+  height: 1px;
+  background: currentColor;
+  opacity: .28;
+}
+.is-superchat .sc-signal .sc-copy { padding: 22px 23px; line-height: 1.6; }
+
+/* Minimal: symmetric fine ornaments around a centered message. */
+.is-superchat .sc-minimal {
+  padding: 23px 36px 21px;
+  text-align: center;
+  color: #fff;
+}
+.is-superchat .sc-minimal .sc-copy {
+  font-family: 'SimSun', 'Songti SC', serif;
+  font-weight: 600;
+  text-shadow: 0 2px 4px #0008;
+}
+.is-superchat .sc-bow-edge {
+  position: absolute;
+  width: 31px;
+  top: 9px;
+  bottom: 8px;
+  color: var(--sc-price);
+}
+.is-superchat .sc-bow-edge::before,
+.is-superchat .sc-bow-edge::after {
+  content: '';
+  position: absolute;
+  width: 31px;
+  height: 29px;
+  border: 1px solid currentColor;
+}
+.is-superchat .sc-bow-edge-left { left: 0; }
+.is-superchat .sc-bow-edge-right { right: 0; transform: scaleX(-1); }
+.is-superchat .sc-bow-edge::before {
+  top: 0; border-right: 0; border-bottom: 0; border-radius: 20px 0 0 0;
+}
+.is-superchat .sc-bow-edge::after {
+  bottom: 0; border-right: 0; border-top: 0; border-radius: 0 0 0 20px;
+}
+.is-superchat .sc-bow-price {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+  margin-top: 20px;
+  color: var(--sc-price);
+  font-size: 22px;
+  text-shadow: 0 2px 4px #0008;
+}
+.is-superchat .sc-bow-price::before,
+.is-superchat .sc-bow-price::after { content: ''; width: 28px; height: 1px; background: currentColor; }
+
+/* Transparent: marginal numerals with open brackets that follow the text height. */
+.is-superchat .sc-transparent {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: start;
+  column-gap: 25px;
+  background: transparent;
+}
+.is-superchat .sc-transparent::before,
+.is-superchat .sc-transparent::after {
+  content: '';
+  position: absolute;
+  top: -19px;
+  bottom: -19px;
+  width: 46px;
+  border: 1px solid var(--sc-price);
+  pointer-events: none;
+}
+.is-superchat .sc-transparent::before { left: -19px; border-right: 0; border-radius: 12px 0 0 12px; }
+.is-superchat .sc-transparent::after { right: -19px; border-left: 0; border-radius: 0 12px 12px 0; }
+.is-superchat .sc-transparent .sc-copy {
+  padding-top: 7px;
+  font-weight: 400;
+  line-height: 1.8;
+  color: #fff;
+  text-shadow: 0 2px 5px #0008;
+}
+.is-superchat .sc-transparent .sc-money {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  min-width: 72px;
+  padding-top: 5px;
+  color: var(--sc-price);
+  font-size: 41px;
+  font-weight: 350;
+  letter-spacing: -.025em;
+  text-shadow: 0 2px 5px #0008;
+}
+.is-superchat .sc-transparent .sc-currency {
+  align-self: flex-start;
+  margin-bottom: 2px;
+  font-size: 16px;
+  font-weight: 400;
+}
+
+/* Identity: the portrait extends beyond a single continuous backing surface. */
+.is-superchat .sc-identity {
+  min-height: 148px;
+  padding: 24px 26px 25px 107px;
+  color: #fff;
+}
+.is-superchat .sc-identity::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: 0 0 0 34px;
+  border-radius: 17px;
+  background: #242424;
+}
+.is-superchat .sc-identity-profile { position: absolute; left: 0; top: 24px; width: 82px; }
+.is-superchat .sc-identity .sc-avatar {
+  width: 82px;
+  height: 82px;
+  border: 5px solid #242424;
+  font-size: 30px;
+}
+.is-superchat .sc-identity .sc-money {
+  position: absolute;
+  left: 50%;
+  bottom: -5px;
+  transform: translateX(-50%);
+  padding: 5px 9px;
+  border-radius: 6px;
+  background: var(--sc-accent);
+  color: var(--sc-on-accent);
+  font-size: 17px;
+}
+.is-superchat .sc-identity .sc-name { display: block; margin-bottom: 9px; font-size: 15px; font-weight: 400; }

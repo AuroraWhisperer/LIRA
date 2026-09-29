@@ -23,7 +23,12 @@ function createFixture() {
   documentRef.getElementById = (id) => nodes[id] || null;
   windowRef.AdminApp = { utils: {} };
   vm.runInNewContext(source, { document: documentRef, window: windowRef });
-  return { nodes, windowRef, desktop: windowRef.AdminApp.desktop, render: windowRef.AdminApp.desktop.renderDesktopUpdateState };
+  return {
+    nodes,
+    windowRef,
+    desktop: windowRef.AdminApp.desktop,
+    render: windowRef.AdminApp.desktop.renderDesktopUpdateState,
+  };
 }
 
 test('desktop update shows only the action for the current update phase', () => {
@@ -93,20 +98,45 @@ test('preparing a download does not show fabricated download metrics', () => {
 
 test('resource checks show scope-limited results, incomplete issues and safe bounded details', () => {
   const { nodes, desktop } = createFixture();
-  const initial = { revision: 1, status: 'checking', appVersion: '1.0.0', totalFiles: null, checkedFiles: 0, issueCount: 0, unresolvedCount: 0, details: [] };
+  const initial = {
+    revision: 1,
+    status: 'checking',
+    appVersion: '1.0.0',
+    totalFiles: null,
+    checkedFiles: 0,
+    issueCount: 0,
+    unresolvedCount: 0,
+    details: [],
+  };
   desktop.renderResourceIntegrityState(initial);
   assert.equal(nodes.desktopIntegrityCheckBtn.disabled, true);
   assert.match(nodes.desktopIntegrityStatus.textContent, /正在读取并验证校验清单/);
   assert.equal(nodes.desktopIntegrityMeta.textContent.includes('0 / 0'), false);
-  desktop.renderResourceIntegrityState({ ...initial, revision: 2, status: 'issues', totalFiles: 30, checkedFiles: 30, issueCount: 25, unresolvedCount: 2, complete: false,
-    details: Array.from({ length: 25 }, () => ({ path: 'app.asar.unpacked/<img>', reasonCode: 'FILE_UNREADABLE' })) });
+  desktop.renderResourceIntegrityState({
+    ...initial,
+    revision: 2,
+    status: 'issues',
+    totalFiles: 30,
+    checkedFiles: 30,
+    issueCount: 25,
+    unresolvedCount: 2,
+    complete: false,
+    details: Array.from({ length: 25 }, () => ({ path: 'app.asar.unpacked/<img>', reasonCode: 'FILE_UNREADABLE' })),
+  });
   assert.match(nodes.desktopIntegrityStatus.textContent, /已发现 25.*部分项目未完成/);
   assert.equal(nodes.desktopIntegrityDetails.children.length, 20);
   assert.equal(nodes.desktopIntegrityDetails.children[0].textContent, 'app.asar.unpacked/<img>：无法读取文件');
   assert.equal(nodes.desktopIntegrityDetails.children[0].children.length, 0);
   assert.match(nodes.desktopIntegrityHint.textContent, /共 27 项.*备份.*关闭客户端/);
   assert.equal(nodes.desktopIntegrityGithubBtn.hidden, false);
-  desktop.renderResourceIntegrityState({ ...initial, revision: 3, status: 'passed', totalFiles: 1, checkedFiles: 1, complete: true });
+  desktop.renderResourceIntegrityState({
+    ...initial,
+    revision: 3,
+    status: 'passed',
+    totalFiles: 1,
+    checkedFiles: 1,
+    complete: true,
+  });
   desktop.renderResourceIntegrityState({ ...initial, revision: 2, status: 'checking' });
   assert.match(nodes.desktopIntegrityStatus.textContent, /本次检查范围内.*不代表所有功能正常/);
   assert.equal(nodes.desktopIntegrityCheckBtn.textContent, '重新检查');
@@ -122,10 +152,21 @@ test('resource check subscription is registered once and an old initial snapshot
   let listener;
   let dispose;
   let removed = 0;
-  windowRef.addEventListener = (name, callback) => { if (name === 'beforeunload') dispose = callback; };
+  windowRef.addEventListener = (name, callback) => {
+    if (name === 'beforeunload') dispose = callback;
+  };
   const bridge = {
-    onResourceIntegrityState(callback) { subscribeCount += 1; listener = callback; return () => { removed += 1; }; },
-    getResourceIntegrityState() { readCount += 1; return snapshot.promise; },
+    onResourceIntegrityState(callback) {
+      subscribeCount += 1;
+      listener = callback;
+      return () => {
+        removed += 1;
+      };
+    },
+    getResourceIntegrityState() {
+      readCount += 1;
+      return snapshot.promise;
+    },
     checkResourceIntegrity() {},
   };
   desktop.initResourceIntegrity(bridge);

@@ -1,199 +1,65 @@
-.danmaku-overlay-viewport {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  min-width: 0;
-  min-height: 0;
-}
-.danmaku-preview-controls[hidden],
-.danmaku-preview-description {
-  display: none;
-}
+.danmaku-preview-controls[hidden], .canvas-toolbar, .canvas-footer, .danmaku-selection { display: none; }
+.danmaku-overlay-viewport { width: 100%; height: 100%; min-width: 0; min-height: 0; }
 body.is-preview {
-  display: grid;
-  grid-template-columns: 310px minmax(0, 1fr);
+  display: grid; grid-template-columns: 310px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto;
+  background: #eff1f4; color: #303942; font-size: 13px;
 }
-.danmaku-preview-controls {
-  overflow-y: auto;
-  padding: 24px 18px;
-  color: #2d3238;
-  background: #fffefb;
-  scrollbar-color: #b9c3ce #fffefb;
+.is-preview button, .is-preview input, .is-preview select { font: inherit; }
+.is-preview button { cursor: pointer; }
+.is-preview button:disabled { cursor: default; opacity: .5; }
+.is-preview :is(button, input, select):focus-visible { outline: 2px solid #526b87; outline-offset: 2px; }
+.danmaku-preview-controls { grid-row: 1 / -1; overflow-y: auto; padding: 22px 18px; background: #fffefb; border-right: 1px solid #dce0e6; }
+.danmaku-preview-controls h1 { margin: 0 0 6px; font-size: 22px; font-weight: 600; }
+.danmaku-preview-controls h2 { margin: 0 0 12px; font-size: 13px; font-weight: 600; }
+.danmaku-preview-controls p { margin: 0; color: #6b747e; font-size: 12px; line-height: 1.65; }
+.canvas-settings, .danmaku-preview-choices { margin-top: 22px; }
+.canvas-settings { padding-top: 18px; border-top: 1px solid #e2e5e8; }
+.canvas-settings label { display: grid; gap: 6px; color: #68727b; font-size: 12px; }
+.canvas-settings input, .canvas-settings select { width: 100%; min-width: 0; height: 34px; padding: 5px 8px; border: 1px solid #d9dfe6; border-radius: 5px; color: #303942; background: #fff; }
+.canvas-settings input[type='color'] { padding: 4px; }
+.canvas-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0; }
+.canvas-fields [hidden] { display: none; }
+.canvas-actions { display: flex; gap: 6px; margin: 12px 0; }
+.canvas-settings button, .canvas-toolbar button { padding: 6px 8px; border: 1px solid #d9dfe6; border-radius: 5px; color: #4c5e70; background: #fff; font-size: 12px; }
+.danmaku-preview-choices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.danmaku-preview-choices h2 { grid-column: 1 / -1; margin-bottom: 4px; }
+.danmaku-preview-choices button { display: grid; gap: 5px; padding: 5px; border: 1px solid #e1e5e8; border-radius: 6px; background: transparent; color: #4c5865; font-size: 11px; }
+.danmaku-preview-choices button:hover { background: #f3f5f6; }
+.danmaku-preview-choices button[aria-pressed='true'] { border-color: #526b87; background: #edf1f5; }
+.danmaku-preview-choices img { display: block; width: 100%; height: 42px; object-fit: contain; padding: 4px; background: #343a45; border-radius: 3px; }
+.danmaku-preview-choices small { display: none; }
+.danmaku-preview-controls .danmaku-preview-note { margin-top: 24px; }
+body.is-preview .danmaku-overlay-viewport { display: grid; grid-template-rows: auto minmax(0, 1fr); padding: 0 24px 24px; }
+.is-preview .canvas-toolbar { display: flex; align-items: center; gap: 12px; min-height: 68px; }
+.canvas-toolbar p { margin: 0 auto 0 0; font-weight: 600; }
+#canvasZoom { color: #77818d; font-size: 12px; white-space: nowrap; }
+.is-preview .danmaku-canvas { background-color: #303741; background-image: linear-gradient(45deg, #ffffff05 25%, transparent 25%, transparent 75%, #ffffff05 75%), linear-gradient(45deg, #ffffff05 25%, transparent 25%, transparent 75%, #ffffff05 75%); background-size: 48px 48px; background-position: 0 0, 24px 24px; }
+.is-preview .danmaku-region { pointer-events: none; }
+.is-preview .danmaku-selection {
+  display: block; position: absolute; z-index: 2; left: var(--region-x); top: var(--region-y);
+  width: var(--region-width); height: var(--region-height); border: calc(1.5px / var(--canvas-fit)) solid #75adc9;
+  cursor: move; touch-action: none; outline: none;
 }
-.danmaku-preview-controls h1 {
-  margin: 0 0 8px;
-  font-size: 22px;
-  font-weight: 600;
-}
-.danmaku-preview-controls p {
-  margin: 0;
-  color: #626c77;
-  font-size: 13px;
-  line-height: 1.7;
-}
-.danmaku-preview-choices {
-  display: grid;
-  gap: 6px;
-  margin-top: 24px;
-}
-.danmaku-preview-choices h2 {
-  margin: 0 0 4px;
-  font-size: 14px;
-  font-weight: 600;
-}
-.danmaku-preview-choices button {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  min-height: 64px;
-  padding: 6px;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  color: inherit;
-  background: transparent;
-  font-family: inherit;
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 1.5;
-  text-align: left;
-  cursor: pointer;
-}
-.danmaku-preview-choices button:hover {
-  background: #f3f5f6;
-}
-.danmaku-preview-choices button[aria-pressed='true'] {
-  border-color: #526b87;
-  background: #edf1f5;
-}
-.danmaku-preview-choices button:focus-visible {
-  outline: 2px solid #526b87;
-  outline-offset: 2px;
-}
-.danmaku-preview-choices img {
-  flex: 0 0 auto;
-  width: 78px;
-  height: 46px;
-  padding: 4px;
-  border-radius: 3px;
-  background: #343a45;
-  object-fit: contain;
-}
-.danmaku-preview-choices small {
-  display: block;
-  color: #626c77;
-  font-size: 12px;
-  font-weight: 400;
-}
-.danmaku-preview-controls .danmaku-preview-note {
-  margin-top: 24px;
-  padding-top: 16px;
-  border-top: 1px solid #e2e5e8;
-}
-body.is-preview .danmaku-overlay-viewport {
-  overflow-x: hidden;
-  overflow-y: auto;
-  background: #343a45;
-  scrollbar-gutter: stable;
-  scrollbar-color: #8190a0 #343a45;
-}
-body.is-preview .danmaku-preview-description {
-  position: sticky;
-  z-index: 1;
-  top: 0;
-  display: block;
-  margin: 0;
-  padding: 12px 20px;
-  color: #ecf0f5;
-  background: #343a45;
-  font-size: 13px;
-}
-body.is-preview .danmaku-signal-stage {
-  position: relative;
-  inset: auto;
-  display: block;
-  max-width: 100%;
-  height: auto;
-  padding-bottom: 36px;
-  transform: none;
-}
-body.is-preview .draw-danmaku-feed {
-  display: flex;
-  height: auto;
-  max-height: none;
-  overflow: visible;
-  justify-content: flex-start;
-}
-body.is-preview[data-style='cream'] .danmaku-signal-stage,
-body.is-preview[data-style='glow'] .danmaku-signal-stage {
-  padding: 12px 16px 36px;
-}
-body.is-preview[data-style='outline'] .draw-danmaku-feed,
-body.is-preview[data-style='cream'] .draw-danmaku-feed {
-  width: 100%;
-}
-body.is-preview:is([data-style='outline'], [data-style='cream'], [data-style='glow']) .draw-danmaku-feed {
-  gap: 20px;
-}
-body.is-preview:is([data-style='outline'], [data-style='cream'], [data-style='glow']) .draw-danmaku-item {
-  position: relative;
-}
-body.is-preview:is([data-style='outline'], [data-style='cream'], [data-style='glow'])
-  .draw-danmaku-item:nth-child(even) {
-  align-self: flex-end;
-}
-@media (max-width: 900px) {
-  body.is-preview {
-    grid-template-columns: 250px minmax(0, 1fr);
-  }
-  .danmaku-preview-controls {
-    padding: 20px 12px;
-  }
-  .danmaku-preview-choices img {
-    width: 54px;
-  }
-}
-@media (max-width: 760px) {
-  body.is-preview {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto minmax(0, 1fr);
-  }
-  .danmaku-preview-controls {
-    display: grid;
-    grid-template-columns: minmax(0, 3fr) minmax(0, 1fr);
-    gap: 12px;
-    padding: 12px;
-  }
-  .danmaku-preview-controls h1 {
-    grid-column: 1 / -1;
-    margin: 0;
-    font-size: 18px;
-  }
-  .danmaku-preview-controls p,
-  .danmaku-preview-choices small {
-    display: none;
-  }
-  .danmaku-preview-choices {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 4px;
-    margin: 0;
-  }
-  .danmaku-preview-choices:last-of-type {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .danmaku-preview-choices h2 {
-    grid-column: 1 / -1;
-    font-size: 12px;
-  }
-  .danmaku-preview-choices button {
-    gap: 6px;
-    min-height: 44px;
-    padding: 4px;
-    font-size: 12px;
-  }
-  .danmaku-preview-choices img {
-    width: 36px;
-    height: 30px;
-    padding: 2px;
-  }
+.danmaku-selection:focus-visible { border-color: #c6e8fa; }
+.selection-label { position: absolute; left: 0; top: 0; padding: 3px 6px; background: #305675; color: #fff; font-size: 11px; white-space: nowrap; transform: scale(calc(1 / var(--canvas-fit))); transform-origin: top left; }
+.danmaku-selection i { position: absolute; width: calc(9px / var(--canvas-fit)); height: calc(9px / var(--canvas-fit)); border: calc(1px / var(--canvas-fit)) solid #517a95; background: #fff; }
+.danmaku-selection [data-handle*='n'] { top: 0; }
+.danmaku-selection [data-handle*='s'] { top: 100%; }
+.danmaku-selection [data-handle*='w'] { left: 0; }
+.danmaku-selection [data-handle*='e'] { left: 100%; }
+.danmaku-selection [data-handle='n'], .danmaku-selection [data-handle='s'] { left: 50%; cursor: ns-resize; }
+.danmaku-selection [data-handle='w'], .danmaku-selection [data-handle='e'] { top: 50%; cursor: ew-resize; }
+.danmaku-selection [data-handle='nw'], .danmaku-selection [data-handle='se'] { cursor: nwse-resize; }
+.danmaku-selection [data-handle='ne'], .danmaku-selection [data-handle='sw'] { cursor: nesw-resize; }
+.danmaku-selection i { transform: translate(-50%, -50%); }
+.is-preview .canvas-footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 24px; background: #fffefb; border-top: 1px solid #dce0e6; }
+.canvas-footer p { margin: 0 0 4px; font-size: 13px; }
+.canvas-footer small { font-size: 11px; color: #78818b; }
+.canvas-footer button { flex-shrink: 0; border: 0; border-radius: 6px; background: #3e617d; color: white; padding: 10px 16px; }
+@media (max-width: 850px) {
+  body.is-preview { grid-template-columns: 264px minmax(0, 1fr); }
+  body.is-preview .danmaku-overlay-viewport { padding: 0 12px 12px; }
+  .is-preview .canvas-toolbar { gap: 6px; flex-wrap: wrap; padding: 12px 0; }
+  .canvas-toolbar p { flex-basis: 100%; }
+  .is-preview .canvas-footer { padding: 12px; flex-wrap: wrap; }
 }

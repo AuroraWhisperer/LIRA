@@ -13,6 +13,7 @@ const DANMAKU_ITEM_SPACING_PX = 11;
 const FULLSCREEN_SAFE_INSET_PX = 16;
 const FULLSCREEN_ITEM_GAP_PX = 10;
 const FULLSCREEN_LAYOUT = 'fullscreen-random';
+const FADE_DURATION_MS = 400;
 
 /**
  * Build a reusable live-message feed. The game owns data and lifecycle while
@@ -42,6 +43,7 @@ export function createDanmakuFeed(root, options = {}) {
     document,
     classNames,
     fullscreen,
+    style: options.style,
     showAvatar: options.showAvatar,
     showGiftTotal: options.showGiftTotal,
     resolveAvatarUrl: options.resolveAvatarUrl,
@@ -70,6 +72,7 @@ export function createDanmakuFeed(root, options = {}) {
   let renderedContentHeight = 0;
   let renderedEntries = [];
   let layoutFrame = null;
+  const reducedMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)');
   const resizeObserver =
     typeof ResizeObserver === 'function'
       ? new ResizeObserver(() => {
@@ -79,6 +82,16 @@ export function createDanmakuFeed(root, options = {}) {
         })
       : null;
   resizeObserver?.observe(root);
+  reducedMotion?.addEventListener?.('change', finishFades);
+
+  function cancelFade(entry) {
+    entry.fade?.cancel();
+    entry.fade = null;
+  }
+
+  function finishFades() {
+    if (reducedMotion?.matches) renderedEntries.forEach(cancelFade);
+  }
 
   function render(items) {
     const showingEmptyState = root.children.length === 1 && root.children[0].className === classNames.empty;
@@ -116,6 +129,7 @@ export function createDanmakuFeed(root, options = {}) {
   }
 
   function append(item) {
+    if (fullscreen && item?.kind === 'superchat') return;
     if (root.children.length === 1 && root.children[0].className === classNames.empty) {
       root.replaceChildren();
     }
@@ -161,6 +175,16 @@ export function createDanmakuFeed(root, options = {}) {
     const styles = globalThis.getComputedStyle?.(root);
     const gap = Number.parseFloat(styles?.rowGap) || 0;
     const padding = (Number.parseFloat(styles?.paddingTop) || 0) + (Number.parseFloat(styles?.paddingBottom) || 0);
+    // Fit an unusually tall SC as a whole instead of clipping its original text.
+    for (const entry of renderedEntries) {
+      if (entry.item?.kind !== 'superchat' || viewportHeight <= padding) continue;
+      entry.node.style.setProperty('--sc-fit', '1');
+      const zoom = Number.parseFloat(globalThis.getComputedStyle?.(entry.node)?.zoom) || 1;
+      const height = Number(entry.node.offsetHeight) * zoom;
+      if (height > viewportHeight - padding) {
+        entry.node.style.setProperty('--sc-fit', String((viewportHeight - padding - 1) / height));
+      }
+    }
     renderedContentHeight = renderedEntries.reduce((total, entry) => {
       const zoom = Number.parseFloat(globalThis.getComputedStyle?.(entry.node)?.zoom) || 1;
       const measured = Number(entry.node.offsetHeight) * zoom;
@@ -199,6 +223,7 @@ export function createDanmakuFeed(root, options = {}) {
       entry.timer = null;
     }
     renderedEntries.splice(index, 1);
+    cancelFade(entry);
     resizeObserver?.unobserve?.(entry.node);
     renderedContentHeight = Math.max(0, renderedContentHeight - entry.height);
     if (entry.node.parentNode === root || Array.from(root.children || []).includes(entry.node)) {
@@ -211,6 +236,7 @@ export function createDanmakuFeed(root, options = {}) {
     renderedEntries.forEach((entry) => {
       if (entry.timer !== null) cancelTimeout(entry.timer);
       entry.timer = null;
+      cancelFade(entry);
     });
   }
 
@@ -225,10 +251,26 @@ export function createDanmakuFeed(root, options = {}) {
       removeEntry(entry);
       return;
     }
-    entry.timer = scheduleTimeout(() => {
+    const expire = () => {
       entry.timer = null;
       removeEntry(entry);
-    }, remaining);
+    };
+    if (reducedMotion?.matches || typeof entry.node.animate !== 'function') {
+      entry.timer = scheduleTimeout(expire, remaining);
+      return;
+    }
+    entry.timer = scheduleTimeout(() => {
+      const fadeMs = Math.max(0, timestamp + itemLifetimeMs - Number(now()));
+      if (!fadeMs) return expire();
+      if (!reducedMotion?.matches) {
+        entry.fade = entry.node.animate([{ opacity: 1 }, { opacity: 0 }], {
+          duration: fadeMs,
+          easing: 'cubic-bezier(0.4, 0, 1, 1)',
+          fill: 'forwards',
+        });
+      }
+      entry.timer = scheduleTimeout(expire, fadeMs);
+    }, Math.max(0, remaining - FADE_DURATION_MS));
   }
 
   function repositionFullscreenItems() {
@@ -323,7 +365,8 @@ export function createDanmakuFeed(root, options = {}) {
   }
 
   function selectMessages(items, bypassViewportPruning = false) {
-    const bounded = Array.isArray(items) ? items.slice(-maxItems) : [];
+    const bounded = Array.isArray(items)
+      ? items.filter((item) => !fullscreen || item?.kind !== 'superchat').slice(-maxItems) : [];
     if (fullscreen || fitViewport || bypassViewportPruning || viewportHeight <= 0 || bounded.length <= 1)
       return bounded;
 
@@ -352,6 +395,7 @@ export function createDanmakuFeed(root, options = {}) {
       if (layoutFrame !== null) globalThis.cancelAnimationFrame?.(layoutFrame);
       layoutFrame = null;
       resizeObserver?.disconnect();
+      reducedMotion?.removeEventListener?.('change', finishFades);
       clearExpirationTimers();
       renderedSequence = 0;
       viewportHeight = 0;

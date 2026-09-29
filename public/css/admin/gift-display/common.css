@@ -1,0 +1,26 @@
+.gift-history-filters label,
+.gift-display-group > label,
+.gift-feed-source > label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
+
+#giftHistoryFilterError,
+#giftDisplayError {
+  color: var(--danger);
+}
+
+.gift-directory-actions,
+.gift-preview-pagination,
+.gift-display-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.gift-feed-source .gift-directory-actions {
+  margin-top: var(--spacing-md);
+}

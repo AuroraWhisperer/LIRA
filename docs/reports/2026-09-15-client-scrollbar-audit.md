@@ -1,5 +1,8 @@
 # LIRA 客户端滚动条审查与设计建议
 
+> 历史记录：本文的发现、建议和验证仅对应文内日期/基线，不是当前缺陷或执行清单。现状见 [技术参考](../reference/README.md)，剩余工作见 [计划索引](../../specs/plans/README.md) 与 [未结项台账](../../specs/plans/open-items.md)。原结论和后续执行记录保留，不据此恢复未获批准的提案。
+
+
 日期：2026-09-15
 
 对象：Electron 桌面客户端，以及由客户端打开或预览的辅助页面
@@ -64,7 +67,7 @@
 
 检查窗口使用独立临时目录，未接入真实业务数据。布局样本初始化了说明控件，关闭了业务脚本和 iframe 内容加载。**这些测量证明对应布局条件能够复现，不等同于已逐一操作正在运行的客户端及所有真实数据状态。** 登录流程、实际 OBS 采集和系统“始终显示滚动条”偏好未做端到端验证。
 
-当前主窗口默认尺寸为 1280×720，最小尺寸为 1024×680，见 [main.js:625](D:/Work/Live/src/electron/main.js:625)。报告中的尺寸均指 CSS 空间，不把截图像素宽度直接当成 CSS 宽度。
+当前主窗口默认尺寸为 1280×720，最小尺寸为 1024×680，见 [main.js:625](../../src/electron/main.js:625)。报告中的尺寸均指 CSS 空间，不把截图像素宽度直接当成 CSS 宽度。
 
 全文用以下证据等级：
 
@@ -125,7 +128,7 @@ A/B 区分滚动职责，不分别建立宽度、颜色皮肤；D 的横向滚�
 | 歌切、点歌价格、导入文本框 | 原生多行输入，长内容可内部滚动 | **保留 B**。短内容无滑块；长内容可滚动、选中、复制和编辑 |
 | 下方七项标签导航 | 等分宽度、文字不换行 | 默认不显示横条。文字或缩放导致拥挤时先调整导航布局；如果选择横向导航方案，必须有可发现的左右入口 |
 
-依据：[song.css:335](D:/Work/Live/public/css/admin/workspace/song.css:335)、[song.css:564](D:/Work/Live/public/css/admin/workspace/song.css:564)、[collapsible.css:405](D:/Work/Live/public/css/admin/collapsible.css:405)、[song.css:74](D:/Work/Live/public/css/admin/workspace/song.css:74)、[tabs.css:2](D:/Work/Live/public/css/admin/tabs.css:2)、[responsive.css:2](D:/Work/Live/public/css/admin/responsive.css:2)。
+依据：[song.css:335](../../public/css/admin/workspace/song.css:335)、[song.css:564](../../public/css/admin/workspace/song.css:564)、[collapsible.css:405](../../public/css/admin/collapsible.css:405)、[song.css:74](../../public/css/admin/workspace/song.css:74)、[tabs.css:2](../../public/css/admin/tabs.css:2)、[responsive.css:2](../../public/css/admin/responsive.css:2)。
 
 ### 4.2 播放
 
@@ -141,7 +144,7 @@ A/B 区分滚动职责，不分别建立宽度、颜色皮肤；D 的横向滚�
 | 全屏歌词 `.player-fs-lyrics` | 可纵向滚动，但滑块永久隐藏 | 自动跟随时采用 **C** 合理；若强调手动浏览，建议悬浮/聚焦时提供细提示和返回当前行入口 |
 | 窄宽度全屏 `.player-fs-content` | ≤900px 时外层也开启纵向滚动 | 条件风险：外层与歌词内层可能同时纵向滚动。应先让封面、信息和歌词布局适应，再决定唯一的主要滚动层 |
 
-依据：[layout.css:6](D:/Work/Live/public/css/playback/layout.css:6)、[discovery.css:144](D:/Work/Live/public/css/playback/panels/discovery.css:144)、[search.css:2](D:/Work/Live/public/css/playback/panels/search.css:2)、[queue-modal.css:87](D:/Work/Live/public/css/playback/queue-modal.css:87)、[drawer.css:99](D:/Work/Live/public/css/playback/drawer.css:99)、[responsive.css:337](D:/Work/Live/public/css/playback/responsive.css:337)、[fullscreen.css:118](D:/Work/Live/public/css/playback/fullscreen.css:118)。
+依据：[layout.css:6](../../public/css/playback/layout.css:6)、[discovery.css:144](../../public/css/playback/panels/discovery.css:144)、[search.css:2](../../public/css/playback/panels/search.css:2)、[queue-modal.css:87](../../public/css/playback/queue-modal.css:87)、[drawer.css:99](../../public/css/playback/drawer.css:99)、[responsive.css:337](../../public/css/playback/responsive.css:337)、[fullscreen.css:118](../../public/css/playback/fullscreen.css:118)。
 
 ### 4.3 礼物
 
@@ -153,7 +156,7 @@ A/B 区分滚动职责，不分别建立宽度、颜色皮肤；D 的横向滚�
 | 盲盒完整分析 `.blind-analysis-table-wrap` | 分析工作区中的表格 `overflow:auto` | **保留纵向 B 和必要的 D**。这里属于数据操作区，表头应持续可见 |
 | 分析页观众选择 `.blind-analysis-select-menu` | 菜单高度受视口约束 | **保留 B**。长用户名应换行或合理省略，不把菜单撑成横向滚动区 |
 
-依据：[workspace/gifts.css:2](D:/Work/Live/public/css/admin/workspace/gifts.css:2)、[page.html:151](D:/Work/Live/public/pages/admin/gifts/page.html:151)、[blindbox-stats.css:294](D:/Work/Live/public/css/admin/gifts/blindbox-stats.css:294)、[responsive.css:269](D:/Work/Live/public/css/admin/responsive.css:269)、[blindbox-analysis.css:424](D:/Work/Live/public/css/admin/blindbox-analysis.css:424)。
+依据：[workspace/gifts.css:2](../../public/css/admin/workspace/gifts.css:2)、[page.html:151](../../public/pages/admin/gifts/page.html:151)、[blindbox-stats.css:294](../../public/css/admin/gifts/blindbox-stats.css:294)、[responsive.css:269](../../public/css/admin/responsive.css:269)、[blindbox-analysis.css:424](../../public/css/admin/blindbox-analysis.css:424)。
 
 ### 4.4 百宝箱
 
@@ -172,7 +175,7 @@ A/B 区分滚动职责，不分别建立宽度、颜色皮肤；D 的横向滚�
 | 使用说明正文与目录 | 正文滚动；侧栏折叠布局下，目录也有独立高度上限 | 正文**保留 A**，目录超长时**保留 B**。两者边界、焦点和当前章节要清晰 |
 | 小游戏、动态抽奖、性能、账户/常规设置、更新等普通卡片 | 一般由右侧正文承载长度 | 不额外添加卡片内纵向滚动；长列表或真正独立的编辑器再单独评估 |
 
-依据：[shell.css:39](D:/Work/Live/public/css/admin/toolbox/shell.css:39)、[shell.css:460](D:/Work/Live/public/css/admin/toolbox/shell.css:460)、[danmaku-editors.css:60](D:/Work/Live/public/css/admin/toolbox/danmaku-editors.css:60)、[ai-assistant.css:203](D:/Work/Live/public/css/admin/toolbox/ai-assistant.css:203)、[streamer-planner/base.css:16](D:/Work/Live/public/css/admin/toolbox/streamer-planner/base.css:16)、[tasks.css:50](D:/Work/Live/public/css/admin/toolbox/streamer-planner/tasks.css:50)、[notes.css:56](D:/Work/Live/public/css/admin/toolbox/streamer-planner/notes.css:56)、[gift-picker.css:40](D:/Work/Live/public/css/admin/overtime/gift-picker.css:40)、[usage-guide.css:476](D:/Work/Live/public/css/admin/toolbox/usage-guide.css:476)。
+依据：[shell.css:39](../../public/css/admin/toolbox/shell.css:39)、[shell.css:460](../../public/css/admin/toolbox/shell.css:460)、[danmaku-editors.css:60](../../public/css/admin/toolbox/danmaku-editors.css:60)、[ai-assistant.css:203](../../public/css/admin/toolbox/ai-assistant.css:203)、[streamer-planner/base.css:16](../../public/css/admin/toolbox/streamer-planner/base.css:16)、[tasks.css:50](../../public/css/admin/toolbox/streamer-planner/tasks.css:50)、[notes.css:56](../../public/css/admin/toolbox/streamer-planner/notes.css:56)、[gift-picker.css:40](../../public/css/admin/overtime/gift-picker.css:40)、[usage-guide.css:476](../../public/css/admin/toolbox/usage-guide.css:476)。
 
 ### 4.5 通用菜单、对话框、提示与输入
 
@@ -188,9 +191,9 @@ A/B 区分滚动职责，不分别建立宽度、颜色皮肤；D 的横向滚�
 | 多行输入框：导入、AI 人格、弹幕、备注等 | **保留 B**。输入很多时允许滚动；短内容保持干净。不要因追求无滚动条而影响选中、编辑或复制 |
 | 歌曲行操作菜单、帮助标记、颜色/音量/进度控件 | 不新增滚动条。超出边界时应调整定位和控件布局；音量、进度滑块不属于本次应统一的滚动条 |
 
-通用确认框已经使用 `inert` 隔离背景交互，应保持这一点，不能把它报告为完全没有背景保护。滚动链行为仍应按具体浮层检查。[confirmation-dialog.js:88](D:/Work/Live/public/js/shared/confirmation-dialog.js:88)
+通用确认框已经使用 `inert` 隔离背景交互，应保持这一点，不能把它报告为完全没有背景保护。滚动链行为仍应按具体浮层检查。[confirmation-dialog.js:88](../../public/js/shared/confirmation-dialog.js:88)
 
-其余依据：[select-menu.css:143](D:/Work/Live/public/css/components/select-menu.css:143)、[song-filters.css:95](D:/Work/Live/public/css/admin/song-filters.css:95)、[confirmation-dialog.css:17](D:/Work/Live/public/css/components/confirmation-dialog.css:17)、[confirmation-dialog.css:140](D:/Work/Live/public/css/components/confirmation-dialog.css:140)、[onboarding.css:18](D:/Work/Live/public/css/admin/toolbox/onboarding.css:18)、[contextual-help.css:69](D:/Work/Live/public/css/components/contextual-help.css:69)、[system.css:67](D:/Work/Live/public/css/admin/toasts/system.css:67)、[styles-base.css:274](D:/Work/Live/public/css/styles-base.css:274)。
+其余依据：[select-menu.css:143](../../public/css/components/select-menu.css:143)、[song-filters.css:95](../../public/css/admin/song-filters.css:95)、[confirmation-dialog.css:17](../../public/css/components/confirmation-dialog.css:17)、[confirmation-dialog.css:140](../../public/css/components/confirmation-dialog.css:140)、[onboarding.css:18](../../public/css/admin/toolbox/onboarding.css:18)、[contextual-help.css:69](../../public/css/components/contextual-help.css:69)、[system.css:67](../../public/css/admin/toasts/system.css:67)、[styles-base.css:274](../../public/css/styles-base.css:274)。
 
 ### 4.6 桌面歌词设置与展示窗口
 
@@ -200,9 +203,9 @@ A/B 区分滚动职责，不分别建立宽度、颜色皮肤；D 的横向滚�
 | 右侧歌词预览时间轴 | 与左侧设置承担不同任务，独立滚动合理。自动跟随时用 **C**，手动查看时可用 B；空歌词不显示 |
 | 独立桌面歌词窗口、`/lyrics` | 自动展示时**不应持续露出金色滑块**。手动浏览模式可保留轻量提示；不能直接修改共享类而同时破坏管理页预览 |
 
-宽屏歌词设置使用 `max-height:clamp(580px, calc(100vh - 145px), 820px)`；主工作区本身也在滚动，且上面还有队列。这是当前最明确的同方向嵌套候选。≤980px 的现有规则已经会释放设置表单的内部滚动，可以参考这种层级处理。[settings.css:9](D:/Work/Live/public/css/admin/desktop-lyric/settings.css:9)、[preview.css:111](D:/Work/Live/public/css/admin/desktop-lyric/preview.css:111)
+宽屏歌词设置使用 `max-height:clamp(580px, calc(100vh - 145px), 820px)`；主工作区本身也在滚动，且上面还有队列。这是当前最明确的同方向嵌套候选。≤980px 的现有规则已经会释放设置表单的内部滚动，可以参考这种层级处理。[settings.css:9](../../public/css/admin/desktop-lyric/settings.css:9)、[preview.css:111](../../public/css/admin/desktop-lyric/preview.css:111)
 
-共享歌词视口设有金色 `scrollbar-color` 和 `thin`。渲染器已经响应滚轮、触摸、指针和键盘操作来暂停自动跟随；后续样式调整应保持这些行为。[desktop-lyric.css:73](D:/Work/Live/public/css/lyrics/desktop-lyric.css:73)、[desktop-lyric-renderer.js:108](D:/Work/Live/public/js/lyrics/desktop-lyric-renderer.js:108)
+共享歌词视口设有金色 `scrollbar-color` 和 `thin`。渲染器已经响应滚轮、触摸、指针和键盘操作来暂停自动跟随；后续样式调整应保持这些行为。[desktop-lyric.css:73](../../public/css/lyrics/desktop-lyric.css:73)、[desktop-lyric-renderer.js:108](../../public/js/lyrics/desktop-lyric-renderer.js:108)
 
 ### 4.7 辅助页面与 OBS 边界
 
@@ -216,9 +219,9 @@ A/B 区分滚动职责，不分别建立宽度、颜色皮肤；D 的横向滚�
 | 游戏展示中的积分、正确答案、弹幕流 | 部分列表已隐藏滑块，适合自动展示；要保证更新和自动展示机制使内容可读 |
 | 游戏结果 `.game-result-card`、窄宽度画猜视图 | 当前存在 `overflow:auto`，是展示画面出现系统滚动条的候选。纯 OBS 模式调整排版/展示内容；主播直接操作的浏览器窗口则保留必要操作能力 |
 
-`noScroll` 目前改变的是滚动条可见性，不能解释为它会自动让全部盲盒内容适应画面。单纯隐藏滑块可能让较低位置的信息继续留在可视范围外。[blindbox.css:14](D:/Work/Live/public/css/overlays/blindbox.css:14)、[blindbox.js:35](D:/Work/Live/public/js/overlays/blindbox.js:35)
+`noScroll` 目前改变的是滚动条可见性，不能解释为它会自动让全部盲盒内容适应画面。单纯隐藏滑块可能让较低位置的信息继续留在可视范围外。[blindbox.css:14](../../public/css/overlays/blindbox.css:14)、[blindbox.js:35](../../public/js/overlays/blindbox.js:35)
 
-其他依据：[license.css:725](D:/Work/Live/public/css/license.css:725)、[gift-audit.css:211](D:/Work/Live/public/css/gift-audit.css:211)、[drawing-live.css:161](D:/Work/Live/public/css/overlays/games/drawing-live.css:161)、[result.css:27](D:/Work/Live/public/css/overlays/games/result.css:27)。
+其他依据：[license.css:725](../../public/css/license.css:725)、[gift-audit.css:211](../../public/css/gift-audit.css:211)、[drawing-live.css:161](../../public/css/overlays/games/drawing-live.css:161)、[result.css:27](../../public/css/overlays/games/result.css:27)。
 
 ## 五、已确认的重点问题
 
@@ -250,7 +253,7 @@ A/B 区分滚动职责，不分别建立宽度、颜色皮肤；D 的横向滚�
 
 **推荐策略：**按窗口高度及播放器占用后的可用空间，为队列分配较紧凑、稳定的区域。窗口、播放器状态等布局条件相同时，空、少量、长队列共用同一高度；内容超出后只在列表内部滚动。两个并列面板保持对齐，首条消息到达、消息持续增加或队列清空时，不能因队列高度切换把下方歌库、设置及正在点击的按钮推走。保留用户主动触发的既有布局操作。
 
-原建议的 **140–180px 总高偏紧，不作为默认方案**。当前队列标题最小高度为 72px，空态插画为 68px，尚未计入文字、间距和正文内边距。若继续评估这个紧凑候选，必须同时缩小插画、简化空态排版，并验证按钮换行及内容到达后的稳定性，不能仅改外层 `height`。[song.css:388](D:/Work/Live/public/css/admin/workspace/song.css:388)、[song.css:733](D:/Work/Live/public/css/admin/workspace/song.css:733)
+原建议的 **140–180px 总高偏紧，不作为默认方案**。当前队列标题最小高度为 72px，空态插画为 68px，尚未计入文字、间距和正文内边距。若继续评估这个紧凑候选，必须同时缩小插画、简化空态排版，并验证按钮换行及内容到达后的稳定性，不能仅改外层 `height`。[song.css:388](../../public/css/admin/workspace/song.css:388)、[song.css:733](../../public/css/admin/workspace/song.css:733)
 
 最终队列高度尚待布局验证，以首批记录可读、歌库入口不被大块空白推远为依据；在报告列出的三个窗口尺寸及播放器状态下分别检查。新消息到达不触发空态与有数据状态之间的外部高度切换。
 
@@ -260,9 +263,9 @@ A/B 区分滚动职责，不分别建立宽度、颜色皮肤；D 的横向滚�
 
 **开播动画：已确认布局原因。** 1024px 宽度下，右侧面板可用宽度约 709px；内部布局仍要求 `350px + 430px + 16px`，再加正文内边距后内容宽度约 832px，横向超出约 123px。画面右侧控件和预览需要左右拖动才能看全。
 
-其单列断点在 920px，低于客户端默认最小窗口宽度。断点按整窗判断，未充分考虑左侧导航占用的宽度。[start-animation.css:559](D:/Work/Live/public/css/admin/toolbox/start-animation.css:559)
+其单列断点在 920px，低于客户端默认最小窗口宽度。断点按整窗判断，未充分考虑左侧导航占用的宽度。[start-animation.css:559](../../public/css/admin/toolbox/start-animation.css:559)
 
-**萌时钟：已确认同类风险。** 双栏最小列宽为 360px 和 320px，间隔 24px；最小窗口样本出现约 15px 横向溢出。单列断点为 980px，同样低于默认最小窗口宽度。[clock.css:11](D:/Work/Live/public/css/admin/toolbox/clock.css:11)、[clock.css:396](D:/Work/Live/public/css/admin/toolbox/clock.css:396)
+**萌时钟：已确认同类风险。** 双栏最小列宽为 360px 和 320px，间隔 24px；最小窗口样本出现约 15px 横向溢出。单列断点为 980px，同样低于默认最小窗口宽度。[clock.css:11](../../public/css/admin/toolbox/clock.css:11)、[clock.css:396](../../public/css/admin/toolbox/clock.css:396)
 
 礼物姬右侧正文在同一布局样本中还出现约 18px 横向溢出，需要在完整初始化的控件状态下进一步定位；本报告将它列为复核项。
 
@@ -270,7 +273,7 @@ A/B 区分滚动职责，不分别建立宽度、颜色皮肤；D 的横向滚�
 
 ### 5.4 [P2] 源码里的“6px 粉色”不等于实际看到的样式
 
-队列基础 CSS 写有 6px 的 WebKit 滚动条与粉色滑块；桌面主工作区又设置了 `scrollbar-color:rgba(117,102,91,.34) transparent`，该值会向后代继承。[collapsible.css:106](D:/Work/Live/public/css/admin/collapsible.css:106)、[desktop.css:447](D:/Work/Live/public/css/overlays/desktop.css:447)
+队列基础 CSS 写有 6px 的 WebKit 滚动条与粉色滑块；桌面主工作区又设置了 `scrollbar-color:rgba(117,102,91,.34) transparent`，该值会向后代继承。[collapsible.css:106](../../public/css/admin/collapsible.css:106)、[desktop.css:447](../../public/css/overlays/desktop.css:447)
 
 在 Electron 43 的 20 条队列样本中：
 
@@ -374,7 +377,7 @@ A/B 区分滚动职责，不分别建立宽度、颜色皮肤；D 的横向滚�
 
 ### 第二批：统一基础样式
 
-在 [styles-base.css](D:/Work/Live/public/css/styles-base.css) 建立少量滚动条语义变量，在桌面主题 [desktop.css](D:/Work/Live/public/css/overlays/desktop.css) 指定中性色。主区与局部列表复用统一的 12px 槽宽、6px / 8px 滑块及状态颜色；展示区域按用途限定规则。
+在 [styles-base.css](../../public/css/styles-base.css) 建立少量滚动条语义变量，在桌面主题 [desktop.css](../../public/css/overlays/desktop.css) 指定中性色。主区与局部列表复用统一的 12px 槽宽、6px / 8px 滑块及状态颜色；展示区域按用途限定规则。
 
 先以点歌主工作区和一个有溢出的长列表验证静止、悬浮 / 键盘聚焦、拖动三种状态及正文位置稳定性，再扩展到其他操作区域；这一步不混入队列高度调整。
 
@@ -451,7 +454,7 @@ A/B 区分滚动职责，不分别建立宽度、颜色皮肤；D 的横向滚�
 
 五项重点问题的源码依据成立，按报告选定方向实施。礼物姬的复核项进一步确认为表单网格最小列宽导致的横向溢出，一并修复。
 
-- **统一桌面皮肤：**新增 [desktop-scrollbars.css](D:/Work/Live/public/css/overlays/desktop-scrollbars.css)，通过桌面主题加载；几何变量放在共享基础样式，暖灰颜色由桌面主题定义。操作区域统一 12px 槽宽、静止 6px、悬浮/直接键盘聚焦/拖动 8px，使用原生滚动和拖动，不新增运行时依赖。
+- **统一桌面皮肤：**新增 [desktop-scrollbars.css](../../public/css/overlays/desktop-scrollbars.css)，通过桌面主题加载；几何变量放在共享基础样式，暖灰颜色由桌面主题定义。操作区域统一 12px 槽宽、静止 6px、悬浮/直接键盘聚焦/拖动 8px，使用原生滚动和拖动，不新增运行时依赖。
 - **恢复提示：**移除百宝箱导航、主播工作台、任务和备忘列表的永久隐藏规则；为这些区域和点歌工作区、双队列补充可命名的键盘聚焦入口。
 - **消除横向溢出：**开播动画、萌时钟、礼物姬表单按自身容器宽度换列，兼顾侧栏展开和折叠。没有用横向裁剪掩盖表单控件。
 - **减少重复阅读路径：**桌面歌词设置表单释放内部高度限制，随点歌主工作区滚动；价格预览和确认框明细也释放额外的短滚动窗口。保留原生多行编辑能力。

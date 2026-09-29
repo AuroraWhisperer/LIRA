@@ -9,7 +9,10 @@ const test = require('node:test');
 const { readServerFixture } = require('../../scripts/verify-server-contract');
 const fixture = readServerFixture('docs/protocol/fixtures/gift-catalog-variants.json');
 const { giftVariantId } = require('../../src/shared/gift-identity');
-const { createRemoteGiftCatalogCache, normalizeRemoteCatalog } = require('../../src/bilibili/gift/remote-catalog-cache');
+const {
+  createRemoteGiftCatalogCache,
+  normalizeRemoteCatalog,
+} = require('../../src/bilibili/gift/remote-catalog-cache');
 const { mergeRoomCatalog } = require('../../src/bilibili/gift/hybrid-catalog');
 
 function sign(catalog) {

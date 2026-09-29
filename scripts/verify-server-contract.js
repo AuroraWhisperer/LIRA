@@ -8,7 +8,9 @@ const { execFileSync } = require('node:child_process');
 const LOCK_PATH = path.resolve(__dirname, '../server-contract.lock.json');
 
 function resolveServerRoot(serverRoot) {
-  return path.resolve(serverRoot || process.env.LIRA_SERVER_ROOT || path.join(__dirname, '../../lira-server'));
+  if (serverRoot || process.env.LIRA_SERVER_ROOT) return path.resolve(serverRoot || process.env.LIRA_SERVER_ROOT);
+  const contractRoot = path.join(__dirname, '../../lira-server-contract');
+  return path.resolve(fs.existsSync(contractRoot) ? contractRoot : path.join(__dirname, '../../lira-server'));
 }
 
 function contractError(code, message) {

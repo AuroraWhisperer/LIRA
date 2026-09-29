@@ -37,7 +37,7 @@
 ## Ownership
 
 - Owner: `public/pages/overlays/opening.html`, `public/css/overlays/opening.css`, and `public/js/overlays/opening.js` under `ROUTE-OVERLAYS`.
-- Contract: `docs/architecture/frontend/overlays.md` and the implemented runtime portions of `specs/opening-overlay_design.md`.
+- Contract: `docs/reference/frontend/overlays.md` and the implemented runtime portions of `specs/opening-overlay_design.md`.
 - Consumer: Bilibili Live Companion/OBS Browser Source and the Admin opening-animation preview iframe.
 - Focused test: `test/opening-overlay.test.js`.
 

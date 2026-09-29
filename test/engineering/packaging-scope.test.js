@@ -86,11 +86,19 @@ test('afterPack removes only the default example and tolerates prior cleanup', a
   };
 
   await afterPack(context);
-  assert.deepEqual((await fs.readdir(resourcesDir)).sort(), ['app-update.yml', 'app.asar', 'client-integrity-manifest.json']);
+  assert.deepEqual((await fs.readdir(resourcesDir)).sort(), [
+    'app-update.yml',
+    'app.asar',
+    'client-integrity-manifest.json',
+  ]);
   assert.equal(await fs.readFile(path.join(resourcesDir, 'app.asar'), 'utf8'), 'application');
   assert.equal(await fs.readFile(path.join(resourcesDir, 'app-update.yml'), 'utf8'), 'updater');
   await afterPack(context);
-  assert.deepEqual((await fs.readdir(resourcesDir)).sort(), ['app-update.yml', 'app.asar', 'client-integrity-manifest.json']);
+  assert.deepEqual((await fs.readdir(resourcesDir)).sort(), [
+    'app-update.yml',
+    'app.asar',
+    'client-integrity-manifest.json',
+  ]);
   const before = JSON.parse(await fs.readFile(path.join(resourcesDir, 'client-integrity-manifest.json'), 'utf8'));
   await fs.writeFile(path.join(resourcesDir, 'app.asar'), 'final signed resources');
   await require(path.resolve(__dirname, '../..', pkg.build.afterSign))(context);
@@ -106,5 +114,8 @@ test('all Windows build commands disable direct publishing and share the final i
   assert.match(pkg.scripts['dist:win:local'], /--publish never/);
   assert.equal(pkg.build.artifactBuildCompleted, 'scripts/verify-client-installer.js');
   const afterPack = require('../../scripts/after-pack');
-  await assert.rejects(afterPack({ packager: { info: { options: { publish: 'always' } } } }), /Direct builder publishing is disabled/);
+  await assert.rejects(
+    afterPack({ packager: { info: { options: { publish: 'always' } } } }),
+    /Direct builder publishing is disabled/,
+  );
 });

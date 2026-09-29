@@ -307,7 +307,9 @@ test('catalog initialization caches images and both searches stay local', async 
     assert.equal(remoteCalls, 1);
     assert.equal(imageCalls, 1);
 
-    const image = await fetch(`${app.baseUrl}/overtime-gift-images/search.webp`);
+    const image = await fetch(`${app.baseUrl}/overtime-gift-images/search.webp`, { headers: { Origin: 'null' } });
+    assert.equal(image.headers.get('access-control-allow-origin'), '*');
+    assert.equal(image.headers.get('access-control-allow-credentials'), null);
     assert.equal(image.status, 200);
     assert.equal(image.headers.get('content-type'), 'image/webp');
     assert.equal(image.headers.get('x-content-type-options'), 'nosniff');

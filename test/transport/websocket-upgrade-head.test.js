@@ -27,15 +27,18 @@ test('a frame arriving with the HTTP upgrade is processed exactly once', async (
     await new Promise((resolve) => server.close(resolve));
   });
   await once(client, 'connect');
-  const handshake = Buffer.from([
-    'GET /ws?token=synthetic-token HTTP/1.1',
-    `Host: 127.0.0.1:${server.address().port}`,
-    'Connection: Upgrade',
-    'Upgrade: websocket',
-    'Sec-WebSocket-Version: 13',
-    'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==',
-    '', '',
-  ].join('\r\n'));
+  const handshake = Buffer.from(
+    [
+      'GET /ws?token=synthetic-token HTTP/1.1',
+      `Host: 127.0.0.1:${server.address().port}`,
+      'Connection: Upgrade',
+      'Upgrade: websocket',
+      'Sec-WebSocket-Version: 13',
+      'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==',
+      '',
+      '',
+    ].join('\r\n'),
+  );
   // Masked ping with a zero mask, immediately followed by the close frame.
   const frames = Buffer.from([0x89, 0x84, 0, 0, 0, 0, 112, 105, 110, 103, 0x88, 0x80, 0, 0, 0, 0]);
   let received = Buffer.alloc(0);
@@ -43,7 +46,9 @@ test('a frame arriving with the HTTP upgrade is processed exactly once', async (
     const timer = setTimeout(() => reject(new Error('Upgrade head was not consumed.')), 2000);
     t.after(() => clearTimeout(timer));
     client.on('error', reject);
-    client.on('data', (chunk) => { received = Buffer.concat([received, chunk]); });
+    client.on('data', (chunk) => {
+      received = Buffer.concat([received, chunk]);
+    });
     client.on('end', resolve);
   });
   client.write(Buffer.concat([handshake, frames]));

@@ -21,7 +21,13 @@ import {
 } from './streamer-planner-model.js';
 import { dangerConfirm, showConfirmationDialog } from '../shared/confirmation-dialog.js';
 
-import { renderTodo, renderTodoCalendar, renderTodoAgenda, renderTodoTasks, readTodoAction } from './streamer-planner-view.js';
+import {
+  renderTodo,
+  renderTodoCalendar,
+  renderTodoAgenda,
+  renderTodoTasks,
+  readTodoAction,
+} from './streamer-planner-view.js';
 
 export const todo = (() => {
   let readFailed = false;

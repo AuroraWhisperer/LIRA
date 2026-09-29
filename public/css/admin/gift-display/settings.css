@@ -1,0 +1,215 @@
+.gift-assistant [hidden] {
+  display: none !important;
+}
+
+.gift-assistant-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: var(--spacing-md);
+}
+
+.gift-assistant-tabs [role='tab'] {
+  background: transparent;
+  color: var(--muted);
+  box-shadow: none;
+}
+
+.gift-assistant-tabs [aria-selected='true'] {
+  color: var(--text);
+  background: var(--surface-2);
+  border-color: var(--border);
+  font-weight: 700;
+}
+
+.gift-display-settings {
+  min-width: 0;
+  padding: var(--spacing-lg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.gift-assistant-heading {
+  margin-bottom: var(--spacing-lg);
+}
+
+.gift-assistant-heading h3 {
+  margin: 0 0 var(--spacing-sm);
+}
+
+.gift-assistant-heading p {
+  margin: 0;
+}
+
+.gift-assistant fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.gift-display-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: var(--spacing-xl);
+}
+
+.gift-display-group {
+  min-width: 0;
+}
+
+.gift-display-group-head {
+  margin-bottom: var(--spacing-md);
+  padding-bottom: var(--spacing-md);
+  border-bottom: 1px solid var(--border);
+}
+
+.gift-display-group-head h4 {
+  margin: 0;
+  font-size: var(--type-size-card-title);
+}
+
+.gift-display-group .hint {
+  margin: var(--spacing-sm) 0 0;
+}
+
+.gift-display-group > label {
+  margin: var(--spacing-md) 0;
+}
+
+.gift-feed-amount-help {
+  display: inline-flex;
+  margin-left: 6px;
+  vertical-align: middle;
+  color: var(--muted);
+  cursor: help;
+}
+
+.gift-tier-inputs > div {
+  display: grid;
+  grid-template-columns: 26px 40px minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.gift-tier-inputs > :first-child {
+  padding-top: 0;
+}
+
+.gift-tier-inputs > :last-child {
+  border-bottom: 0;
+}
+
+.gift-tier-inputs input {
+  min-width: 0;
+  width: 100%;
+  font-variant-numeric: tabular-nums;
+}
+
+.gift-tier-inputs input[readonly] {
+  background: var(--surface-2);
+  color: var(--muted);
+}
+
+.gift-tier-swatch {
+  display: inline-block;
+  width: 26px;
+  height: 20px;
+  border-radius: 4px;
+  flex: none;
+  background: linear-gradient(90deg, var(--gift-start), var(--gift-end)), #fff;
+}
+
+.gift-display-preview,
+.gift-feed-source {
+  margin-top: var(--spacing-lg);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--border);
+}
+
+.gift-display-preview {
+  overflow-x: auto;
+}
+
+#giftStylePreview {
+  --gift-preview-offset: 12px;
+  display: grid;
+  overflow: hidden;
+  background: #f5f5f5;
+  border-radius: var(--radius-md);
+}
+
+#giftStylePreview > .gift-banner {
+  grid-area: 1 / 1;
+  /* Four turns, each with a 3-second hold and a 300ms transition. */
+  animation: gift-style-preview-cycle 13.2s ease-in-out infinite paused;
+}
+
+#giftStylePreview.is-playing > .gift-banner {
+  animation-play-state: running;
+}
+
+#giftStylePreview > .gift-banner:nth-child(2) {
+  animation-delay: -9.9s;
+}
+
+#giftStylePreview > .gift-banner:nth-child(3) {
+  animation-delay: -6.6s;
+}
+
+#giftStylePreview > .gift-banner:nth-child(4) {
+  animation-delay: -3.3s;
+}
+
+@keyframes gift-style-preview-cycle {
+  0%,
+  22.727273%,
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+    visibility: visible;
+  }
+  25% {
+    opacity: 0;
+    transform: translateY(calc(-1 * var(--gift-preview-offset)));
+    visibility: hidden;
+  }
+  25.01%,
+  97.727273% {
+    opacity: 0;
+    transform: translateY(var(--gift-preview-offset));
+    visibility: hidden;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #giftStylePreview {
+    --gift-preview-offset: 0px;
+  }
+}
+
+#giftFeedPreviewLink {
+  color: var(--text);
+  text-underline-offset: 3px;
+}
+
+#giftFeedUrl {
+  width: 100%;
+}
+
+.gift-display-actions {
+  margin-top: var(--spacing-lg);
+  padding-top: var(--spacing-md);
+  border-top: 1px solid var(--border);
+}
+
+@media (max-width: 1100px) {
+  .gift-display-columns {
+    grid-template-columns: 1fr;
+  }
+}

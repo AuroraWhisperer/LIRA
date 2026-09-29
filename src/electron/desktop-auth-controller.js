@@ -27,7 +27,7 @@ function createDesktopAuthController({ BrowserWindow, shell, getMainWindow, getD
         if (disposed || generation !== account.generation) return { completion: Promise.resolve(cancelledLogin()) };
         const abortController = new AbortController();
         const completion = operation(abortController.signal).then(
-          (result) => generation === account.generation && !disposed ? result : cancelledLogin(),
+          (result) => (generation === account.generation && !disposed ? result : cancelledLogin()),
           (error) => {
             if (generation !== account.generation || disposed) return cancelledLogin();
             throw error;
@@ -39,8 +39,11 @@ function createDesktopAuthController({ BrowserWindow, shell, getMainWindow, getD
       return operation();
     });
     // Do not hold this queue for the interactive window's lifetime: logout must be able to cancel it.
-    account.tail = started.then(() => {}, () => {});
-    return started.then((result) => isLogin ? result.completion : result);
+    account.tail = started.then(
+      () => {},
+      () => {},
+    );
+    return started.then((result) => (isLogin ? result.completion : result));
   }
 
   function dispose() {
@@ -50,10 +53,12 @@ function createDesktopAuthController({ BrowserWindow, shell, getMainWindow, getD
   }
 
   function whenIdle() {
-    return Promise.all([...accounts.values()].map(async (account) => {
-      await account.tail;
-      await account.login?.completion.catch(() => {});
-    }));
+    return Promise.all(
+      [...accounts.values()].map(async (account) => {
+        await account.tail;
+        await account.login?.completion.catch(() => {});
+      }),
+    );
   }
 
   function getMusicAuthState(platform) {
@@ -93,8 +98,11 @@ function createDesktopAuthController({ BrowserWindow, shell, getMainWindow, getD
     platform = authManager.normalizeMusicPlatform(platform);
     writeLog('window', { event: 'create', window: 'music-login', platform });
     try {
-      return await runAccountOperation(platform, (signal) =>
-        musicLoginWindow.loginMusicAccount(getMainWindow(), platform, getDataDir(), { signal }), true);
+      return await runAccountOperation(
+        platform,
+        (signal) => musicLoginWindow.loginMusicAccount(getMainWindow(), platform, getDataDir(), { signal }),
+        true,
+      );
     } finally {
       writeLog('window', { event: 'closed', window: 'music-login', platform });
     }
@@ -117,7 +125,9 @@ function createDesktopAuthController({ BrowserWindow, shell, getMainWindow, getD
   }
 
   async function restoreBilibiliCookieSnapshot() {
-    const snapshot = await runAccountOperation('bilibili', () => bilibiliAuth.restoreBilibiliCookieSnapshot(getDataDir()));
+    const snapshot = await runAccountOperation('bilibili', () =>
+      bilibiliAuth.restoreBilibiliCookieSnapshot(getDataDir()),
+    );
     logBilibiliDiagnostic('credentials-restore', { restored: Boolean(snapshot) });
     return snapshot;
   }
@@ -125,7 +135,9 @@ function createDesktopAuthController({ BrowserWindow, shell, getMainWindow, getD
   async function replaceBilibiliCookieHeader(cookieHeader) {
     logBilibiliDiagnostic('credentials-import-start');
     try {
-      const state = await runAccountOperation('bilibili', () => bilibiliAuth.replaceBilibiliCookieHeader(getDataDir(), cookieHeader));
+      const state = await runAccountOperation('bilibili', () =>
+        bilibiliAuth.replaceBilibiliCookieHeader(getDataDir(), cookieHeader),
+      );
       logBilibiliDiagnostic('credentials-import-complete', summarizeAuthState(state));
       return state;
     } catch (error) {
@@ -137,15 +149,20 @@ function createDesktopAuthController({ BrowserWindow, shell, getMainWindow, getD
   async function loginBilibiliAccount() {
     writeLog('window', { event: 'create', window: 'bilibili-login' });
     try {
-      return await runAccountOperation('bilibili', (signal) => openBilibiliLoginWindow({
-        BrowserWindow,
-        shell,
-        auth: bilibiliAuth,
-        mainWindow: getMainWindow(),
-        dataDir: getDataDir(),
-        writeLog,
-        signal,
-      }), true);
+      return await runAccountOperation(
+        'bilibili',
+        (signal) =>
+          openBilibiliLoginWindow({
+            BrowserWindow,
+            shell,
+            auth: bilibiliAuth,
+            mainWindow: getMainWindow(),
+            dataDir: getDataDir(),
+            writeLog,
+            signal,
+          }),
+        true,
+      );
     } finally {
       writeLog('window', { event: 'closed', window: 'bilibili-login' });
     }

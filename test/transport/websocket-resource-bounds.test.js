@@ -43,13 +43,17 @@ function frame(payload, opcode = 1, fin = true) {
 
 function openSocket(hub, context) {
   const socket = new CountingSocket();
-  hub.handleUpgrade(context, {
-    url: '/ws',
-    headers: {
-      authorization: 'Bearer synthetic-resource-token',
-      'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
+  hub.handleUpgrade(
+    context,
+    {
+      url: '/ws',
+      headers: {
+        authorization: 'Bearer synthetic-resource-token',
+        'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
+      },
     },
-  }, socket);
+    socket,
+  );
   return socket;
 }
 

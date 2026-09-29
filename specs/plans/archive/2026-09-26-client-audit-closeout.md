@@ -14,7 +14,7 @@
 
 - A5：`src/storage/retention.js` 未清理 `ai_request_logs`；默认设置及启动摘要缺少对应字段。既有治理计划明确要求默认 30 天和 dry-run/实际删除计数。
 - A3：`server-contract.lock.json` 没有四组已在服务器真实提交中的样例；客户端测试仍维护本地副本/黄金值。只迁移测试数据，不改变生产协议。
-- A4：`test/governance-docs.test.js` 不核对 HTTP 注册路由与 `docs/architecture/backend/api.md` 的集合。
+- A4：`test/governance-docs.test.js` 不核对 HTTP 注册路由与 `docs/reference/backend/api.md` 的集合。
 - D2/文档索引：先复现当前门禁，只处理本报告已发现的未登记文件或格式问题，不批量重构未到期债务。
 - C5：若已有隔离 NSIS 工具环境可用，运行现成测试；不修改用户安装和全局工具环境。
 

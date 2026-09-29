@@ -30,7 +30,7 @@
 - Route: `ROUTE-OVERLAYS`.
 - CSS owners: `public/css/overlays/base/illustrated.css`, `neon-vinyl.css`, `cherry-ribbon.css`, and `golden-lily.css`.
 - JavaScript owners: `public/js/overlays/queue-render.js` and `public/js/overlays/queue.js`.
-- Contract: `docs/architecture/frontend/overlays.md` section 2.
+- Contract: `docs/reference/frontend/overlays.md` section 2.
 - Tests: `test/frontend-queue.test.js` and `test/queue-overlay-responsive.test.js`.
 
 ## Compatibility Constraints
@@ -80,7 +80,7 @@
 
 **Files:**
 
-- Modify: `docs/architecture/frontend/overlays.md`
+- Modify: `docs/reference/frontend/overlays.md`
 - Modify: `public/pages/overlays/queue.html`
 
 - [x] Document the background/cards/decorative-border layer contract and tightened style 5/6 viewport behavior.

@@ -94,5 +94,5 @@ LIRA 当前在 Bilibili 弹幕、SC、历史消息、在线榜、粉丝牌轮询
 
 - [Bilibili 用户信息模块化设计](../../../specs/bilibili-user-info-service_design.md)
 - [模块化与低耦合工程标准](../engineering/modularity-standard.md)
-- [Bilibili 弹幕监听管线](../backend/bilibili/danmaku.md)
-- [Bilibili 直播协议](../backend/bilibili/protocol.md)
+- [Bilibili 弹幕监听管线](../../reference/backend/bilibili/danmaku.md)
+- [Bilibili 直播协议](../../reference/backend/bilibili/protocol.md)

@@ -36,7 +36,7 @@
 - 页面与文案：`public/pages/admin/toolbox/planner.html`。
 - localStorage 读取、内置任务和渲染文案：`public/js/admin/streamer-planner.js`。
 - 侧栏与使用说明：`public/pages/admin/toolbox/shell-start.html`、`public/pages/admin/toolbox/usage-guide.html`。
-- 架构事实：`docs/architecture/frontend/app.md`、`docs/architecture/frontend/pages.md`。
+- 架构事实：`docs/reference/frontend/app.md`、`docs/reference/frontend/pages.md`。
 - 聚焦测试：`test/streamer-planner.test.js`。
 
 ## Compatibility Constraints
@@ -89,8 +89,8 @@
 - Modify: `public/js/admin/streamer-planner.js`
 - Modify: `public/pages/admin/toolbox/shell-start.html`
 - Modify: `public/pages/admin/toolbox/usage-guide.html`
-- Modify: `docs/architecture/frontend/app.md`
-- Modify: `docs/architecture/frontend/pages.md`
+- Modify: `docs/reference/frontend/app.md`
+- Modify: `docs/reference/frontend/pages.md`
 
 **Interfaces:**
 
@@ -124,7 +124,7 @@
 - `node --test test/streamer-planner.test.js test/toolbox-sidebar.test.js`
 - `node scripts/check-js.js public/js/admin/streamer-planner.js`
 - `git diff --check`
-- `git diff -- public/js/admin/streamer-planner.js public/pages/admin/toolbox/planner.html public/pages/admin/toolbox/shell-start.html public/pages/admin/toolbox/usage-guide.html test/streamer-planner.test.js docs/architecture/frontend/app.md docs/architecture/frontend/pages.md specs/plans/2026-08-24-streamer-workbench-on-air-cues.md`
+- `git diff -- public/js/admin/streamer-planner.js public/pages/admin/toolbox/planner.html public/pages/admin/toolbox/shell-start.html public/pages/admin/toolbox/usage-guide.html test/streamer-planner.test.js docs/reference/frontend/app.md docs/reference/frontend/pages.md specs/plans/2026-08-24-streamer-workbench-on-air-cues.md`
 - `git status --short`
 
 ## Rollback Or Failure Handling

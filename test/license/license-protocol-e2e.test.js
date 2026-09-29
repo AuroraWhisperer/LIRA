@@ -486,7 +486,7 @@ test('an administrator-issued pairing code lets a second device join once', asyn
   await first.manager.syncSongs([{ name: '共享歌' }]);
   const cloudForSecond = await second.manager.getCloudSongs();
   assert.equal(cloudForSecond.songs.length, 1);
-  assert.equal(cloudForSecond.songs[0].name, '共享歌');
+  assert.equal(cloudForSecond.songs[0].title, '共享歌');
 
   const third = createClient({ server, runtimeId: 'rt-c' });
   const rejected = await third.manager.activate({

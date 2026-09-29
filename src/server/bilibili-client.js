@@ -39,7 +39,7 @@ function createBilibiliClient(roomId, context) {
           }
           aiDanmakuDeliveryVerifier.observe(danmaku);
           const gameResult = games?.handleDanmaku?.(danmaku);
-          if (gameResult?.session?.game === 'draw-guess' && !danmaku.avatarUrl) {
+          if (gameResult?.game === 'draw-guess' && !danmaku.avatarUrl) {
             void client
               .ensureUserInfo(danmaku.uid, { fields: ['name', 'avatarUrl'] })
               .then((snapshot) => {
@@ -107,7 +107,7 @@ function createBilibiliClient(roomId, context) {
               queueId: Number(result.queueItem?.id) || 0,
             });
           }
-          return gameResult?.session?.game === 'draw-guess';
+          return gameResult?.game === 'draw-guess';
         } catch (error) {
           logSongRequest('command-result', danmaku, {
             status: 'failed',

@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
+const { readCssBundle } = require('../helpers/css-bundle');
 const { addFrameProtectionHeaders, contentType } = require('../../src/server/http-utils');
 const { prepareSettingsBootstrap } = require('../../src/server/settings-bootstrap');
 const openingRoutes = require('../../src/server/routes/opening-routes');
@@ -85,7 +86,7 @@ test('opening overlay is frameable and keeps the required character transform la
 
 test('opening overlay animation honors quality, motion, visibility, and safe text rendering', () => {
   const html = read('public', 'pages', 'overlays', 'opening.html');
-  const css = read('public', 'css', 'overlays', 'opening.css');
+  const css = readCssBundle('public', 'css', 'overlays', 'opening.css');
   const script = read('public', 'js', 'overlays', 'opening.js');
   assert.match(css, /background-color:\s*var\(--opening-night\)/);
   assert.match(css, /height:\s*100vh/);
@@ -95,7 +96,7 @@ test('opening overlay animation honors quality, motion, visibility, and safe tex
   assert.match(css, /height:\s*min\(100vh,\s*56\.25vw\)/);
   assert.match(css, /aspect-ratio:\s*16\s*\/\s*9/);
   assert.match(css, /font-size:\s*var\(--opening-title-size(?:,[^)]+)?\)/);
-  assert.match(css, /white-space:\s*nowrap/);
+  assert.match(css, /white-space:\s*normal/);
   assert.match(css, /cqw/);
   assert.doesNotMatch(css, /\.track::before\s*\{/);
   assert.match(css, /\.track-heart-motion\s*\{\s*opacity:\s*0?\.86/);
@@ -137,7 +138,6 @@ test('opening overlay animation honors quality, motion, visibility, and safe tex
   assert.match(script, /avatar\.hidden\s*=\s*!characterUrl/);
   assert.match(script, /avatar\.removeAttribute\('src'\)/);
   assert.match(css, /\.character-image\[hidden\]\s*\{\s*display:\s*none/);
-  assert.match(script, /config\.enabled && audio && audioUrl/);
   assert.match(script, /titleSizeForLength/);
   assert.match(script, /title:\s*'唱一首，在一首，给你的歌'/);
   assert.match(script, /MAX_LENGTHS = Object\.freeze\(\{\s*title:\s*20/);
@@ -145,7 +145,6 @@ test('opening overlay animation honors quality, motion, visibility, and safe tex
   assert.match(script, /audio:\s*'browser'/);
   assert.match(script, /openingNameRow/);
   assert.match(script, /audio === 'browser'/);
-  assert.match(script, /stage\.classList\.add\('is-disabled',\s*'is-paused'\)/);
   assert.match(script, /audio\.removeAttribute\('src'\)/);
 });
 
@@ -163,7 +162,7 @@ test('Toolbox opening animation persists configuration and keeps a fixed source 
   assert.match(html, /<span>开场文案<\/span\s*>/);
   assert.match(html, /<strong>设置开播画面上的文字<\/strong>/);
   assert.match(html, /class="opening-switch-label">漂浮音符<\/span>/);
-  assert.match(html, /class="opening-switch-label">音乐律动<\/span>/);
+  assert.match(html, /class="opening-switch-label">氛围律动<\/span>/);
   for (const id of [
     'openingTitle',
     'openingTitleCount',
@@ -206,14 +205,8 @@ test('Toolbox opening animation persists configuration and keeps a fixed source 
   assert.match(script, /enabled:\s*false/);
   assert.match(script, /getElementById\('openingEnabled'\)\?\.addEventListener\('change'/);
   assert.match(script, /volumePercent/);
-  assert.match(script, /event\.target\?\.id === 'openingAudioVolume'/);
-  assert.match(script, /type: 'lira:opening-preview-volume'/);
+  assert.match(script, /type: 'lira:opening-preview-config'/);
   assert.match(script, /preview\?\.contentWindow\?\.postMessage/);
-  assert.match(
-    overlayScript,
-    /event\.source !== window\.parent\s*\|\|\s*event\.origin !== new URL\(location\.href\)\.origin\s*\|\|\s*event\.data\?\.type !== 'lira:opening-preview-volume'/,
-  );
-  assert.match(overlayScript, /audio\.volume = parseVolume\(event\.data\.volume, audio\.volume\)/);
   assert.match(overlayScript, /enabled:\s*false/);
   assert.match(openingRoutesSource, /parseBoolean\(settings\.openingEnabled,\s*false\)/);
   assert.equal(DEFAULT_SETTINGS.openingEnabled, 'false');

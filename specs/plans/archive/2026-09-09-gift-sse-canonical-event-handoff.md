@@ -12,7 +12,7 @@
 
 `remote-license-client.js` calls `normalizeProcessedGiftEvent` on raw SSE JSON. Its result contains derived `unitPriceCents`, `totalPriceCents`, `blindBoxPriceCents`, and `blindProfitCents` fields. `remote-gift-controller.js` repeats strict wire validation on that canonical object, rejects the derived fields, and silently returns before import or reconciliation. This rejection was reproduced in both source and the installed application archive. Existing controller tests feed raw events directly, bypassing the failing boundary.
 
-The accepted source-partitioned gift projection specification requires a contiguous final event in clean `LIVE` to reach the idempotent importer before HTTP catch-up completes. The owning fact document is `docs/architecture/desktop/main.md`.
+The accepted source-partitioned gift projection specification requires a contiguous final event in clean `LIVE` to reach the idempotent importer before HTTP catch-up completes. The owning fact document is `docs/reference/desktop/main.md`.
 
 ## Scope and Compatibility
 

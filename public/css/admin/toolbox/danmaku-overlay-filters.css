@@ -1,20 +1,46 @@
-.danmaku-overlay-filters {
-  display: grid;
-  gap: 12px;
-  padding-top: var(--spacing-lg);
-  border-top: 1px solid var(--danmaku-section-border);
+.danmaku-settings-block.danmaku-overlay-filters {
+  display: block;
+  padding: 0;
   container: danmaku-filters / inline-size;
+}
+.danmaku-overlay-filters > summary {
+  padding: var(--spacing-md) var(--spacing-lg);
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.danmaku-overlay-filters > summary::-webkit-details-marker {
+  display: none;
+}
+.danmaku-overlay-filters > summary:hover {
+  background: var(--surface-2);
+}
+.danmaku-overlay-filters > summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+.danmaku-overlay-filters[open] > summary .danmaku-details-chevron {
+  transform: rotate(180deg);
+}
+.danmaku-filter-body {
+  display: grid;
+  gap: var(--spacing-md);
+  padding: 0 var(--spacing-lg) var(--spacing-lg);
 }
 .danmaku-filter-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--spacing-xl);
+  gap: var(--spacing-lg);
 }
 .danmaku-filter-group {
   display: flex;
   flex-direction: column;
   gap: 12px;
   min-width: 0;
+}
+.danmaku-filter-group + .danmaku-filter-group {
+  padding-left: var(--spacing-lg);
+  border-left: 1px solid var(--border);
 }
 .danmaku-filter-toolbar,
 .danmaku-filter-heading {
@@ -24,15 +50,14 @@
   flex-wrap: wrap;
   gap: 8px 12px;
 }
-.danmaku-filter-heading h4 {
+.danmaku-filter-heading h5 {
   margin: 0;
-  color: var(--danmaku-heading-color);
+  color: var(--text);
   font-size: var(--type-size-body);
   font-weight: 600;
 }
 .danmaku-overlay-filters .hint {
   margin: 0;
-  line-height: 1.6;
 }
 .danmaku-overlay-filters .hint:empty {
   display: none;
@@ -55,6 +80,9 @@
   margin: 0;
   max-height: 260px;
   overflow-y: auto;
+}
+.danmaku-filter-list:empty {
+  display: none;
 }
 .danmaku-filter-list li {
   display: flex;
@@ -102,5 +130,19 @@
 @container danmaku-filters (max-width: 720px) {
   .danmaku-filter-grid {
     grid-template-columns: minmax(0, 1fr);
+  }
+  .danmaku-filter-group + .danmaku-filter-group {
+    padding-top: var(--spacing-lg);
+    padding-left: 0;
+    border-top: 1px solid var(--border);
+    border-left: 0;
+  }
+}
+@media (max-width: 600px) {
+  .danmaku-overlay-filters > summary {
+    padding-inline: var(--spacing-md);
+  }
+  .danmaku-filter-body {
+    padding: 0 var(--spacing-md) var(--spacing-md);
   }
 }

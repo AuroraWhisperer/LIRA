@@ -28,7 +28,7 @@ The illustrated queue selector in `public/pages/admin/song/queue-theme.html` con
 
 - Admin owner: `public/js/admin/theme.js`, `public/js/admin/desktop-lyric.js`, and the new `public/js/admin/local-font-library.js` (`ROUTE-ADMIN`).
 - Electron permission owner: `src/electron/desktop-permissions.js` (`ROUTE-ELECTRON`).
-- Contracts: `docs/architecture/frontend/app.md` and `docs/architecture/desktop/main.md`.
+- Contracts: `docs/reference/frontend/app.md` and `docs/reference/desktop/main.md`.
 - Consumers: the styles 3–6 font selector, the desktop lyric font selector, and the existing custom select `MutationObserver`.
 - Focused tests: `test/local-font-library.test.js`, `test/frontend-queue.test.js`, `test/desktop-lyrics.test.js`, and `test/electron-main-modules.test.js`.
 
@@ -93,8 +93,8 @@ The illustrated queue selector in `public/pages/admin/song/queue-theme.html` con
 **Files:**
 
 - Modify: `src/electron/desktop-permissions.js`
-- Modify: `docs/architecture/desktop/main.md`
-- Modify: `docs/architecture/frontend/app.md`
+- Modify: `docs/reference/desktop/main.md`
+- Modify: `docs/reference/frontend/app.md`
 
 **Interfaces:**
 

@@ -16,7 +16,7 @@ dependency, process service, parser, cache or test-selection algorithm.
 `scripts/check-js.js` recursively scans src/public/scripts/test and synchronously
 launches Node once for each .js file. `package.json` wires this into check,
 verify:quick and verify. The owning behavior is recorded in
-docs/architecture/engineering/test.md and referenced by engineering/build.md.
+docs/reference/engineering/test.md and referenced by engineering/build.md.
 
 The clean 4.1.1 checkout has 615 JavaScript files. On the current Windows host,
 the existing checker took 40.686 seconds; the identical native checks took

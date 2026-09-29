@@ -1,10 +1,10 @@
 import { copyText, localOverlayOrigin, toast } from '../../shared/utils.js';
 import {
   createGiftWishCard,
+  getGiftWishTextTemplate,
   WISH_PERIODS,
-  WISH_CATEGORIES,
   DEFAULT_WISH_TEXT,
-  formatGiftWishText,
+  DEFAULT_WISH_TEXT_COLORS,
 } from '../../shared/gift-wish-card.js';
 import { createGiftWishFeed, requestGiftWish } from '../../shared/gift-wish-client.js';
 import { setGiftImage } from '../../shared/gift-image-fallback.js';
@@ -12,9 +12,9 @@ import { createWishPicker } from './wish-picker.js';
 import { eventBus, Events } from '../../shared/event-bus.js';
 
 const PERIOD_HINTS = {
-  long: '每条许愿从创建时开始，跨天、跨直播持续累计。',
-  day: '统计北京时间今天已捕获的礼物，次日零点自动重新计数。',
-  session: '统计 B 站本次开播以来已捕获的礼物，未开播时等待，开播后重新计数。',
+  long: '从创建时开始累计，不重置。',
+  day: '统计当天已捕获的礼物，北京时间零点重置。',
+  session: '统计本次开播以来已捕获的礼物，下次开播重置。',
 };
 
 export function createGiftWishes() {
@@ -67,20 +67,47 @@ export function createGiftWishes() {
     const image = get('giftWishSelectedImage');
     if (selected) setGiftImage(image, selected.imagePath);
     else image.hidden = true;
-    get('giftWishSelectedRole').textContent = selected
-      ? `${WISH_CATEGORIES[selected.giftCategory] || '礼物'} · ${selected.id}`
-      : '可选直播间在售礼物、盲盒本体及产出，或全部缓存礼物。';
-    updateTextPreview();
+    updateDraftPreview();
   }
 
-  function updateTextPreview() {
-    get('giftWishTextFields').hidden = get('giftWishDisplayStyle').value !== 'text';
-    get('giftWishTextPreview').textContent = formatGiftWishText({
-      giftName: selected?.name || '礼物',
-      count: snapshot?.items.find((wish) => wish.id === editing)?.count || 0,
-      target: get('giftWishTarget').value || 10,
-      textTemplate: get('giftWishTextTemplate').value,
-    });
+  function getDisplayStyle() {
+    return get('giftWishDisplayStyle').querySelector('input:checked').value;
+  }
+
+  function updateDraftPreview() {
+    const displayStyle = getDisplayStyle();
+    const saved = snapshot?.items.find((wish) => wish.id === editing);
+    const count = saved?.count || 0;
+    const textTemplate = get('giftWishTextTemplate').value;
+    const targetInput = get('giftWishTarget');
+    const target = targetInput.validity.valid ? targetInput.valueAsNumber : 10;
+    get('giftWishTextFields').hidden = displayStyle !== 'text';
+    get('giftWishImageFields').hidden = displayStyle !== 'text' || !textTemplate.includes('{图片}');
+    get('giftWishColorFields').hidden = displayStyle !== 'text';
+    get('giftWishPreviewStateField').hidden = displayStyle !== 'text';
+    get('giftWishDraftPreview').replaceChildren(
+      createGiftWishCard({
+        id: 'draft',
+        period,
+        giftName: selected?.name || '礼物',
+        imagePath: selected ? selected.imagePath : '/img/admin/nav-icons/nav-gift.webp',
+        count,
+        todayCount: get('giftWishPreviewState').value === 'received' ? 1 : 0,
+        target,
+        progress: Math.min(100, (count / target) * 100),
+        completed: count >= target,
+        displayStyle,
+        textTemplate,
+        textImageFormat: get('giftWishTextImageFormat').value,
+        textPendingColor: get('giftWishTextPendingColor').value,
+        textReceivedColor: get('giftWishTextReceivedColor').value,
+      }),
+    );
+  }
+
+  function resetTextColors() {
+    get('giftWishTextPendingColor').value = DEFAULT_WISH_TEXT_COLORS.pending;
+    get('giftWishTextReceivedColor').value = DEFAULT_WISH_TEXT_COLORS.received;
   }
 
   function resetEditor() {
@@ -88,10 +115,11 @@ export function createGiftWishes() {
     selected = null;
     picker.close();
     get('giftWishForm').reset();
+    resetTextColors();
     get('giftWishTextTemplate').value = DEFAULT_WISH_TEXT;
     get('giftWishPick').disabled = false;
     get('giftWishCancel').hidden = true;
-    get('giftWishEditorTitle').textContent = '许一个小心愿';
+    get('giftWishEditorTitle').textContent = '新建许愿';
     get('giftWishSave').textContent = '添加许愿';
     showSelected();
   }
@@ -104,15 +132,22 @@ export function createGiftWishes() {
       imagePath: wish.imagePath,
       giftCategory: wish.giftCategory,
     };
-    showSelected();
     get('giftWishPick').disabled = true;
     get('giftWishTarget').value = wish.target;
     get('giftWishLabel').value = wish.label;
-    get('giftWishDisplayStyle').value = wish.displayStyle || 'card';
-    get('giftWishTextTemplate').value = wish.textTemplate || DEFAULT_WISH_TEXT;
-    updateTextPreview();
+    get('giftWishDisplayStyle')
+      .querySelectorAll('input')
+      .forEach((input) => {
+        input.checked = input.value === (wish.displayStyle || 'card');
+      });
+    get('giftWishTextTemplate').value = getGiftWishTextTemplate(wish);
+    get('giftWishTextImageFormat').value = wish.textImageFormat || 'animated';
+    get('giftWishTextPendingColor').value = wish.textPendingColor || DEFAULT_WISH_TEXT_COLORS.pending;
+    get('giftWishTextReceivedColor').value = wish.textReceivedColor || DEFAULT_WISH_TEXT_COLORS.received;
+    get('giftWishPreviewState').value = wish.todayCount > 0 ? 'received' : 'pending';
+    showSelected();
     get('giftWishCancel').hidden = false;
-    get('giftWishEditorTitle').textContent = '编辑这份心愿';
+    get('giftWishEditorTitle').textContent = '编辑许愿';
     get('giftWishSave').textContent = '保存修改';
     get('giftWishTarget').focus();
     get('giftWishForm').scrollIntoView({ block: 'nearest' });
@@ -133,7 +168,7 @@ export function createGiftWishes() {
         );
     }
     get('giftWishStatus').textContent = status.join(' ');
-    updateTextPreview();
+    updateDraftPreview();
     get('giftWishEmpty').hidden = items.length > 0;
     const nextSignature = JSON.stringify(items);
     if (signature === nextSignature) return;
@@ -180,7 +215,7 @@ export function createGiftWishes() {
     const url = `${localOverlayOrigin(location)}/gift-wishes?period=${period}`;
     get('giftWishUrl').value = url;
     get('giftWishPreview').href = `${url}&preview=1`;
-    get('giftWishSourceHint').textContent = `OBS 浏览器源 · ${WISH_PERIODS[period]}`;
+    get('giftWishUrl').setAttribute('aria-label', `${WISH_PERIODS[period]} OBS 浏览器源地址`);
     get('giftWishError').textContent = '';
     signature = '';
     render();
@@ -224,17 +259,28 @@ export function createGiftWishes() {
         ...(editing ? { id: editing } : { period, giftKey: selected.variantId || String(selected.id) }),
         target,
         label: get('giftWishLabel').value,
-        displayStyle: get('giftWishDisplayStyle').value,
+        displayStyle: getDisplayStyle(),
         textTemplate: get('giftWishTextTemplate').value,
+        textImagePosition: 'none',
+        textImageFormat: get('giftWishTextImageFormat').value,
+        textPendingColor: get('giftWishTextPendingColor').value,
+        textReceivedColor: get('giftWishTextReceivedColor').value,
       },
-      editing ? '许愿已更新' : '小心愿已加入，开始收集吧',
+      editing ? '许愿已更新' : '许愿已添加',
     );
   });
   get('giftWishPick').addEventListener('click', () => picker.open(snapshot?.guards || []));
   get('giftWishCancel').addEventListener('click', resetEditor);
-  get('giftWishDisplayStyle').addEventListener('change', updateTextPreview);
-  get('giftWishTextTemplate').addEventListener('input', updateTextPreview);
-  get('giftWishTarget').addEventListener('input', updateTextPreview);
+  get('giftWishDisplayStyle').addEventListener('change', updateDraftPreview);
+  get('giftWishTextTemplate').addEventListener('input', updateDraftPreview);
+  get('giftWishImageFields').addEventListener('change', updateDraftPreview);
+  get('giftWishColorFields').addEventListener('input', updateDraftPreview);
+  get('giftWishPreviewState').addEventListener('change', updateDraftPreview);
+  get('giftWishResetColors').addEventListener('click', () => {
+    resetTextColors();
+    updateDraftPreview();
+  });
+  get('giftWishTarget').addEventListener('input', updateDraftPreview);
   get('giftWishTextFields')
     .querySelectorAll('[data-wish-token]')
     .forEach((button) => {
@@ -242,7 +288,7 @@ export function createGiftWishes() {
         const input = get('giftWishTextTemplate');
         input.setRangeText(button.dataset.wishToken, input.selectionStart, input.selectionEnd, 'end');
         input.focus();
-        updateTextPreview();
+        updateDraftPreview();
       });
     });
   get('giftWishesRefresh').addEventListener('click', () => {

@@ -123,7 +123,6 @@ export function initInteractions({ onCollecting = () => {} } = {}) {
     get('pollForm').hidden = Boolean(session) || selectedKind !== 'poll';
     get('ratingForm').hidden = Boolean(session) || selectedKind !== 'rating';
     get('interactionActivityTitle').textContent = session ? '本场互动' : '本场设置';
-    get('interactionModeNote').textContent = selectedKind === 'rating' ? '手动公布均分' : '限时收票';
     get('interactionRatingRulesField').hidden = selectedKind !== 'rating';
     appearance.setKind(selectedKind);
   }

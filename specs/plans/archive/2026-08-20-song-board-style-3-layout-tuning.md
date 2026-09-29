@@ -29,7 +29,7 @@
 ## Ownership
 
 - Owner: `public/css/overlays/base/storybook.css`、`public/img/overlays/song-board-style-3/entry.png`
-- Contract: `specs/song-request-board-style-3_design.md`、`docs/architecture/frontend/overlays.md`
+- Contract: `specs/song-request-board-style-3_design.md`、`docs/reference/frontend/overlays.md`
 - Consumer: `public/js/overlays/queue-render.js`、OBS `/queue`
 - Focused test: `test/frontend-queue.test.js`
 

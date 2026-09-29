@@ -1,5 +1,6 @@
 @import url('./workspace/base.css');
 @import url('./workspace/song-overlay-settings.css');
+@import url('./workspace/song-request-settings.css');
 @import url('./workspace/song.css');
 @import url('./workspace/gifts.css');
 @import url('./workspace/notifications.css');

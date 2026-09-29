@@ -266,9 +266,13 @@ test('catch-up keeps an invalidation that arrives during its pending pull', asyn
   const controller = createRemoteGiftController(fixture.options);
   await controller.start();
   await controller.whenIdle();
+  fixture.stream.onEvent(makeEvent('first', 11));
+  assert.equal(controller.getCursor(), 11);
   const first = createDeferred();
+  const afters = [];
   let pulls = 0;
-  fixture.options.licenseManager.getGiftEventsInternal = async () => {
+  fixture.options.licenseManager.getGiftEventsInternal = async (input) => {
+    afters.push(input.after);
     pulls += 1;
     if (pulls === 1) return first.promise;
     return capabilityPage({
@@ -277,18 +281,22 @@ test('catch-up keeps an invalidation that arrives during its pending pull', asyn
       events: pulls === 2 ? [makeEvent('second', 12)] : [],
     });
   };
-  fixture.stream.onEvent(makeEvent('first', 11));
+  fixture.scheduledTimers.at(-1).callback();
   await waitFor(() => pulls === 1);
   fixture.stream.onEvent(makeEvent('second', 12));
+  assert.equal(controller.getCursor(), 11);
+  assert.deepEqual(fixture.liveImports, ['first']);
   first.resolve(
     capabilityPage({
       nextCursor: 11,
       latestCursor: 11,
-      events: [makeEvent('first', 11)],
+      events: [],
     }),
   );
   await controller.whenIdle();
   assert.equal(controller.getCursor(), 12);
   assert.equal(pulls, 2);
+  assert.deepEqual(afters, [11, 11]);
+  assert.deepEqual(fixture.liveImports, ['first', 'second']);
   controller.dispose();
 });

@@ -1,6 +1,6 @@
 # 使用文档截图管线（usage-guide-shots）
 
-按 `docs/客户端使用文档补充方案.md` 第六章的清单，在隔离环境中生成截图。本文档当前内嵌的图片与状态说明见方案附录 D、E。
+按 `specs/plans/2026-09-22-usage-guide-supplement.md` 第六章的清单，在隔离环境中生成截图。本文档当前内嵌的图片与状态说明见方案附录 D、E。
 
 ## 用法
 
@@ -41,7 +41,7 @@ node scripts/usage-guide-shots/capture.cjs --list
 ## 产出
 
 ```
-screenshots/usage-guide/
+tmp/screenshots/usage-guide/
   data/          隔离示例数据（SQLite，合成数据，不含真实账号）
   png/<组>/      原始截图
   webp/<组>/     发布候选图

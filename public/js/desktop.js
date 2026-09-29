@@ -10,14 +10,23 @@
   let resourceIntegrityState = null;
   let resourceIntegrityPending = false;
   const integrityReasons = {
-    FILE_MISSING: '文件缺失', SIZE_MISMATCH: '文件大小不一致', HASH_MISMATCH: '文件内容不一致',
-    FILE_UNREADABLE: '无法读取文件', FILE_CHANGED: '文件在检查期间发生变化',
-    MANIFEST_MISSING: '当前安装缺少校验清单', MANIFEST_INVALID: '校验清单无效或无法读取',
-    MANIFEST_UNSUPPORTED: '不支持此校验清单格式', MANIFEST_VERSION_MISMATCH: '校验清单与当前版本、平台或架构不符',
-    PATH_INVALID: '校验清单包含不允许的路径', PATH_UNSAFE: '检测到链接或不安全的资源路径',
-    DEV_MODE: '开发模式不支持此检查', PLATFORM_UNSUPPORTED: '当前平台或架构暂不支持此检查',
-    UPDATE_INSTALLING: '正在安装更新，暂不能开始检查', CHECK_TIMEOUT: '检查超时，部分项目未完成',
-    CHECK_CANCELLED: '检查已停止，未完成全部项目', CHECK_FAILED: '检查未能完成，请查看日志',
+    FILE_MISSING: '文件缺失',
+    SIZE_MISMATCH: '文件大小不一致',
+    HASH_MISMATCH: '文件内容不一致',
+    FILE_UNREADABLE: '无法读取文件',
+    FILE_CHANGED: '文件在检查期间发生变化',
+    MANIFEST_MISSING: '当前安装缺少校验清单',
+    MANIFEST_INVALID: '校验清单无效或无法读取',
+    MANIFEST_UNSUPPORTED: '不支持此校验清单格式',
+    MANIFEST_VERSION_MISMATCH: '校验清单与当前版本、平台或架构不符',
+    PATH_INVALID: '校验清单包含不允许的路径',
+    PATH_UNSAFE: '检测到链接或不安全的资源路径',
+    DEV_MODE: '开发模式不支持此检查',
+    PLATFORM_UNSUPPORTED: '当前平台或架构暂不支持此检查',
+    UPDATE_INSTALLING: '正在安装更新，暂不能开始检查',
+    CHECK_TIMEOUT: '检查超时，部分项目未完成',
+    CHECK_CANCELLED: '检查已停止，未完成全部项目',
+    CHECK_FAILED: '检查未能完成，请查看日志',
   };
 
   function initDesktopShell() {
@@ -109,18 +118,28 @@
   }
 
   function initResourceIntegrity(desktop) {
-    if (resourceIntegrityInitialized || !desktop.getResourceIntegrityState || !desktop.checkResourceIntegrity || !desktop.onResourceIntegrityState) return;
+    if (
+      resourceIntegrityInitialized ||
+      !desktop.getResourceIntegrityState ||
+      !desktop.checkResourceIntegrity ||
+      !desktop.onResourceIntegrityState
+    )
+      return;
     const button = document.getElementById('desktopIntegrityCheckBtn');
     if (!button) return;
     resourceIntegrityInitialized = true;
     const unsubscribe = desktop.onResourceIntegrityState(renderResourceIntegrityState);
     window.addEventListener('beforeunload', unsubscribe, { once: true });
-    desktop.getResourceIntegrityState().then(renderResourceIntegrityState).catch(() => {
-      if (!resourceIntegrityState) {
-        document.getElementById('desktopIntegrityStatus').textContent = '无法读取检查状态，请重新打开页面或查看日志。';
-        button.disabled = false;
-      }
-    });
+    desktop
+      .getResourceIntegrityState()
+      .then(renderResourceIntegrityState)
+      .catch(() => {
+        if (!resourceIntegrityState) {
+          document.getElementById('desktopIntegrityStatus').textContent =
+            '无法读取检查状态，请重新打开页面或查看日志。';
+          button.disabled = false;
+        }
+      });
     button.addEventListener('click', async () => {
       if (resourceIntegrityPending) return;
       resourceIntegrityPending = true;
@@ -134,20 +153,30 @@
         button.disabled = ['checking', 'unavailable'].includes(resourceIntegrityState?.status);
       }
     });
-    document.getElementById('desktopIntegrityGithubBtn')?.addEventListener('click', () => runDesktopAction(() => desktop.openGithub(), false));
+    document
+      .getElementById('desktopIntegrityGithubBtn')
+      ?.addEventListener('click', () => runDesktopAction(() => desktop.openGithub(), false));
   }
 
   function renderResourceIntegrityState(state) {
-    if (!state || !Number.isSafeInteger(state.revision) || state.revision <= (resourceIntegrityState?.revision ?? -1)) return;
+    if (!state || !Number.isSafeInteger(state.revision) || state.revision <= (resourceIntegrityState?.revision ?? -1))
+      return;
     resourceIntegrityState = state;
     const button = document.getElementById('desktopIntegrityCheckBtn');
     const status = document.getElementById('desktopIntegrityStatus');
     if (!button || !status) return;
     const checking = state.status === 'checking';
     button.disabled = resourceIntegrityPending || checking || state.status === 'unavailable';
-    button.textContent = checking ? '检查中…' : state.status === 'idle' || state.status === 'unavailable' ? '开始检查' : state.status === 'passed' || state.status === 'issues' ? '重新检查' : '重试';
+    button.textContent = checking
+      ? '检查中…'
+      : state.status === 'idle' || state.status === 'unavailable'
+        ? '开始检查'
+        : state.status === 'passed' || state.status === 'issues'
+          ? '重新检查'
+          : '重试';
     const reason = integrityReasons[state.reasonCode] || '暂不能确认资源完整性';
-    const counts = state.totalFiles == null ? '正在读取并验证校验清单' : `已检查 ${state.checkedFiles} / ${state.totalFiles} 个文件`;
+    const counts =
+      state.totalFiles == null ? '正在读取并验证校验清单' : `已检查 ${state.checkedFiles} / ${state.totalFiles} 个文件`;
     const knownIssues = state.issueCount ? `已发现 ${state.issueCount} 个文件缺失或内容不一致。` : '';
     const messages = {
       idle: '可在内置页面或资源异常时检查当前安装。',
@@ -174,9 +203,13 @@
     const hint = document.getElementById('desktopIntegrityHint');
     const totalDetails = state.issueCount + state.unresolvedCount;
     const truncated = totalDetails > 20 ? `异常或未确定共 ${totalDetails} 项，仅展示前 20 项详情。` : '';
-    const nextStep = state.issueCount ? '建议先备份重要业务数据，关闭客户端后从官方渠道重新安装适用安装包；重装不保证解决所有故障。'
-      : state.status === 'passed' ? '如果问题仍在，请通过上方日志目录继续排查其他原因。'
-        : ['inconclusive', 'cancelled'].includes(state.status) ? '可重试或通过上方日志目录查看诊断信息，无法读取不等于资源损坏。' : '';
+    const nextStep = state.issueCount
+      ? '建议先备份重要业务数据，关闭客户端后从官方渠道重新安装适用安装包；重装不保证解决所有故障。'
+      : state.status === 'passed'
+        ? '如果问题仍在，请通过上方日志目录继续排查其他原因。'
+        : ['inconclusive', 'cancelled'].includes(state.status)
+          ? '可重试或通过上方日志目录查看诊断信息，无法读取不等于资源损坏。'
+          : '';
     hint.textContent = `${truncated}${state.reasonCode && state.status === 'issues' ? `${reason}。` : ''}${nextStep}`;
     hint.hidden = !hint.textContent;
     document.getElementById('desktopIntegrityGithubBtn').hidden = !state.issueCount;

@@ -14,3 +14,5 @@ Keep this input fixed: recording at test runtime intermittently returned a
 110-byte clip that could not play. The test still uses the real player, decoder,
 WebGL renderer, natural completion, context loss and disposal paths. Test
 fixtures are not served as product assets or included in application packages.
+
+`danmaku-canvas-editor.cjs` 使用独立临时目录/端口，加载真实管理页、preload、桌面请求认证与overlay IPC，只初始化弹幕设置。合成license manager保留测试草稿，不读取实际账号、数据目录或启动正式main。由 `test/desktop/danmaku-canvas-electron.test.js` 拥有进程与清理。

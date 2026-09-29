@@ -27,7 +27,7 @@ function fixture(t) {
   const uploads = [];
   const cloud = new Map();
   const key = () => JSON.stringify([origin, identity.accountName.toLowerCase(), identity.streamerId]);
-  const currentCloud = () => cloud.get(key()) || { songs: [{ name: `Cloud ${identity.accountName}` }], revision: 1 };
+  const currentCloud = () => cloud.get(key()) || { songs: [{ title: `Cloud ${identity.accountName}` }], revision: 1 };
   function restart() {
     active?.controller.dispose();
     active = createFixture({
@@ -135,7 +135,7 @@ test('failed uploads retain song edits across controller restarts until upload s
   assert.deepEqual(
     f.cloud
       .get(f.key())
-      .songs.map((song) => song.name)
+      .songs.map((song) => song.title)
       .sort(),
     f.names(),
   );
@@ -195,7 +195,7 @@ test('a committed edit without a dirty notification is recovered and cannot be o
   await initial;
   assert.deepEqual(f.names(), ['Missed notification']);
   await f.controller.syncNow();
-  assert.equal(f.cloud.get(f.key()).songs[0].name, 'Missed notification');
+  assert.equal(f.cloud.get(f.key()).songs[0].title, 'Missed notification');
   assert.equal(f.pending.readPending(f.key()), null);
 });
 
@@ -217,7 +217,7 @@ test('an older successful upload cannot acknowledge newer edits without a dirty 
   assert.ok(f.names().includes('Newer edit'));
   await f.controller.syncNow();
   assert.equal(f.pending.readPending(f.key()), null);
-  assert.ok(f.cloud.get(f.key()).songs.some((song) => song.name === 'Newer edit'));
+  assert.ok(f.cloud.get(f.key()).songs.some((song) => song.title === 'Newer edit'));
 });
 
 test('disposal during upload retains its pending snapshot for a later controller', async (t) => {

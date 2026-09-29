@@ -74,7 +74,8 @@ async function openBilibiliLoginWindow(options = {}) {
   const scheduleCookieSave = () => {
     clearTimeout(cookieSaveTimer);
     cookieSaveTimer = setTimeout(() => {
-      cookieSaveJob = cookieSaveJob.then(() => auth.persistBilibiliCookieSnapshot(dataDir))
+      cookieSaveJob = cookieSaveJob
+        .then(() => auth.persistBilibiliCookieSnapshot(dataDir))
         .catch((error) => writeLog('bilibili-cookie-save', error));
     }, 800);
   };

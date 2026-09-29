@@ -11,7 +11,7 @@
 - 审计依据：`D:/Work/lira-audit/phase-six-findings.md` 的 S6-001。
 - `setTime`、`enable/disable/start/pause/reset`、`setBackground` 先修改唯一活跃 state；`commit` 先增加 revision 再保存，异常不恢复。
 - 禁用通过 `saveStateAndIgnorePending` 同事务修改状态与 pending；服务必须等待整个事务成功。
-- 消费者：`src/server/routes/overtime-routes.js`、加班快照与礼物 consumer；合同为 `docs/architecture/backend/overtime.md`。
+- 消费者：`src/server/routes/overtime-routes.js`、加班快照与礼物 consumer；合同为 `docs/reference/backend/overtime.md`。
 - 修改前 `node --test test/overtime-service.test.js`：24/24 通过，缺少手动保存失败回归。
 
 ## 边界和兼容约束

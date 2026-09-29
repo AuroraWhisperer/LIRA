@@ -236,14 +236,14 @@ function publicDrawGuessState(state, timing = {}) {
       score: item.score,
       firsts: item.firsts,
     })),
-    canvas: {
+    ...(timing.includeCanvas === false ? {} : { canvas: {
       revision: state.canvas.revision,
       totalPoints: state.canvas.totalPoints,
       strokes: state.canvas.strokes.map((stroke) => ({
         ...stroke,
         points: stroke.points.map((point) => ({ ...point })),
       })),
-    },
+    } }),
   };
 }
 

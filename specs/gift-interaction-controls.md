@@ -30,7 +30,7 @@ The renderer sends only the flag name and exact boolean. Main checks the current
 main window, exact main frame and desktop origin. The response and event contain
 only two booleans, `confirmed`/`pending`/`unconfirmed`, an error code and `ok`.
 No Cookie, CSRF, token, account identity or upstream response body is exposed.
-The canonical IPC registry is [preload](../docs/architecture/desktop/preload.md).
+The canonical IPC registry is [preload](../docs/reference/desktop/preload.md).
 
 ## Acceptance criteria
 

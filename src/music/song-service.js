@@ -171,11 +171,19 @@ function replaceCloudSongs(store, rows) {
   const songsByIdentity = new Map();
   for (const rawRow of rows) {
     const row = normalizeImportedSongRow({
-      ...rawRow,
-      name: rawRow?.name ?? rawRow?.title,
+      name: rawRow?.title,
+      artist: rawRow?.artist,
+      categoryName: rawRow?.categoryName,
+      tags: rawRow?.tags,
+      language: rawRow?.language,
+      sourcePlatform: rawRow?.sourcePlatform,
+      note: rawRow?.note,
+      requestPrice: rawRow?.requestPrice,
+      songClip: rawRow?.songClip,
+      sortOrder: rawRow?.sortOrder,
     });
     if (!row.name) throw new Error('云端歌库包含空歌名。');
-    const enabled = rawRow?.isEnabled ?? rawRow?.enabled ?? rawRow?.is_enabled;
+    const enabled = rawRow?.enabled;
     if (enabled !== undefined) {
       row.isEnabled = !(enabled === false || enabled === 0 || String(enabled).toLowerCase() === 'false');
     }

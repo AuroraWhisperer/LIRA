@@ -137,16 +137,17 @@ function createFanUi() {
   function renderList() {
     const list = get('fanPeople');
     const scroll = list.scrollTop;
-    list.innerHTML = state.listStatus === 'loading'
-      ? '<p class="fan-empty" role="status">正在加载档案…</p>'
-      : state.listStatus === 'error'
-        ? '<p class="fan-empty">档案加载失败，请在设置中重新加载。</p>'
-        : renderPeople(
-            state.profiles,
-            state.profile?.id,
-            Boolean(get('fanSearch').value || state.filters.length),
-            state.archived,
-          );
+    list.innerHTML =
+      state.listStatus === 'loading'
+        ? '<p class="fan-empty" role="status">正在加载档案…</p>'
+        : state.listStatus === 'error'
+          ? '<p class="fan-empty">档案加载失败，请在设置中重新加载。</p>'
+          : renderPeople(
+              state.profiles,
+              state.profile?.id,
+              Boolean(get('fanSearch').value || state.filters.length),
+              state.archived,
+            );
     list.scrollTop = scroll;
     get('fanSplit').classList.toggle('fan-has-selection', Boolean(state.profile));
     get('fanSplit').classList.toggle('fan-expanded', state.expanded);
@@ -468,9 +469,7 @@ function createFanUi() {
         if (selection === state.selection || state.selectionId === saved.id) clearSelection();
         else if (state.profile?.id === saved.id) clearSelection(true);
       }
-      toast(saved.archived
-        ? '已归档，资料仍保留。可在‘已归档’中恢复。'
-        : '已恢复到主列表，可在‘当前档案’中查看。');
+      toast(saved.archived ? '已归档，资料仍保留。可在‘已归档’中恢复。' : '已恢复到主列表，可在‘当前档案’中查看。');
       await load();
       return;
     } else if (name === 'favorite') {

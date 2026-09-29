@@ -44,7 +44,7 @@ When a user opens `百宝箱 -> 使用文档 -> 主流程`, every numbered step 
 ## Ownership
 
 - Owner: `public/css/admin/toolbox/usage-guide.css` and `public/pages/admin/toolbox/usage-guide.html` under `ROUTE-ADMIN`.
-- Contracts: `docs/architecture/frontend/app.md` and `docs/architecture/frontend/pages.md`.
+- Contracts: `docs/reference/frontend/app.md` and `docs/reference/frontend/pages.md`.
 - Consumer: the composed Admin page served by `src/server/admin-page.js`.
 - Focused test: `test/frontend-admin-shell.test.js`.
 

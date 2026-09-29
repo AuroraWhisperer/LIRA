@@ -15,7 +15,7 @@ function response(payload) {
 
 const ROOT_DIR = path.join(__dirname, '../..');
 
-test('gift workspace avoids a redundant page heading and exposes nine semantic panel titles', () => {
+test('gift workspace avoids a redundant page heading and exposes ten semantic panel titles', () => {
   const page = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin', 'gifts', 'page.html'), 'utf8');
   const styles = [
     readCssBundle('public', 'css', 'admin', 'gifts.css'),
@@ -23,7 +23,7 @@ test('gift workspace avoids a redundant page heading and exposes nine semantic p
   ].join('\n');
 
   assert.doesNotMatch(page, /<h1 class="ui-page-title">礼物<\/h1>/);
-  assert.equal((page.match(/class="gift-section-title ui-section-title"/g) || []).length, 9);
+  assert.equal((page.match(/class="gift-section-title ui-section-title"/g) || []).length, 10);
   assert.match(styles, /\.gift-recent-heading \.gift-section-title\s*\{/);
   assert.match(styles, /\.blind-stats-heading \.gift-section-title\s*\{/);
   assert.doesNotMatch(styles, /\.(?:gift-recent-heading|blind-stats-heading) h3\s*\{/);

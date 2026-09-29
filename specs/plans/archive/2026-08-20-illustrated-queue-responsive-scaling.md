@@ -44,7 +44,7 @@ Styles 3–6 must keep every overlay element at the same position relative to it
 - Owner CSS: `public/css/overlays/base/storybook.css`, `illustrated.css`, `neon-vinyl.css`, `cherry-ribbon.css`, and `golden-lily.css`.
 - Owner JavaScript: `public/js/overlays/queue-viewport.js` and `public/js/overlays/queue.js`.
 - Public page consumer: `public/pages/overlays/queue.html`, consumed by OBS/直播姬 browser sources.
-- Contract: `docs/architecture/frontend/overlays.md` section 2.
+- Contract: `docs/reference/frontend/overlays.md` section 2.
 - Focused tests: `test/frontend-queue.test.js` and `test/queue-overlay-responsive.test.js`.
 
 ## Compatibility Constraints
@@ -65,7 +65,7 @@ Styles 3–6 must keep every overlay element at the same position relative to it
 - `test/queue-overlay-responsive.test.js`: cover the pure contain-scale calculation and the shared canvas CSS contract.
 - `test/frontend-queue.test.js`: preserve the user's current style 3 coordinates and assert the new bottom offset.
 - `public/pages/overlays/queue.html`: bump CSS and JavaScript cache keys.
-- `docs/architecture/frontend/overlays.md`: document the single-canvas scaling contract for styles 3–6.
+- `docs/reference/frontend/overlays.md`: document the single-canvas scaling contract for styles 3–6.
 
 ## Milestones
 
@@ -113,7 +113,7 @@ Styles 3–6 must keep every overlay element at the same position relative to it
 
 **Files:**
 
-- Modify: `docs/architecture/frontend/overlays.md`
+- Modify: `docs/reference/frontend/overlays.md`
 - Modify: `public/pages/overlays/queue.html`
 
 **Interfaces:**

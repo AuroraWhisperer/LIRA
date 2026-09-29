@@ -1,4 +1,7 @@
 ---
+
+> 历史记录：本文的发现、建议和验证仅对应文内日期/基线，不是当前缺陷或执行清单。现状见 [技术参考](../reference/README.md)，剩余工作见 [计划索引](../../specs/plans/README.md) 与 [未结项台账](../../specs/plans/open-items.md)。原结论和后续执行记录保留，不据此恢复未获批准的提案。
+
 status: informative
 review_date: 2026-09-21
 scope: LIRA desktop and LIRA Server current working trees

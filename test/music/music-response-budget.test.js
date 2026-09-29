@@ -13,17 +13,24 @@ test('music JSON, JSONP and text paths stop oversized chunked responses', async 
   t.mock.method(globalThis, 'fetch', async () => {
     pulls = 0;
     cancelled = false;
-    return new Response(new ReadableStream({
-      pull(controller) {
-        pulls += 1;
-        controller.enqueue(Buffer.alloc(1024 * 1024, ' '));
-        if (pulls === 20) {
-          controller.enqueue(Buffer.from('{}'));
-          controller.close();
-        }
-      },
-      cancel() { cancelled = true; },
-    }, { highWaterMark: 0 }));
+    return new Response(
+      new ReadableStream(
+        {
+          pull(controller) {
+            pulls += 1;
+            controller.enqueue(Buffer.alloc(1024 * 1024, ' '));
+            if (pulls === 20) {
+              controller.enqueue(Buffer.from('{}'));
+              controller.close();
+            }
+          },
+          cancel() {
+            cancelled = true;
+          },
+        },
+        { highWaterMark: 0 },
+      ),
+    );
   });
   for (const request of [
     () => qq.requestJson('https://music.test'),

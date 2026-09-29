@@ -158,11 +158,13 @@ test('Bilibili settings explain connection setup and confirmed stop actions', ()
   const html = fs.readFileSync(path.join(ROOT, 'public', 'pages', 'admin', 'song', 'settings.html'), 'utf8');
 
   const help = html.match(/<lira-help\s*>(.*?)<\/lira-help/s)?.[1];
-  assert.match(help, /扫码登录后，填写自己的直播间号，开启接收并保存设置/);
-  assert.match(help, /「本机已登录」只说明扫码成功/);
-  assert.match(help, /还要确认连接正常/);
-  assert.match(help, /关闭\s+LIRA\s+后仍会接收/);
-  assert.match(help, /需要停止时关闭接收并保存，或退出直播账号，等待保存成功/);
+  assert.match(help, /扫码登录后，填写自己的直播间号并保存/);
+  assert.match(help, /弹幕和礼物默认持续监控/);
+  assert.match(help, /关闭 LIRA 后服务端仍会接收/);
+  assert.match(help, /在弹幕姬和礼物页面分别关闭监控/);
+  assert.match(help, /退出直播账号会停止两项监控/);
+  assert.match(help, /等待同步完成/);
+  assert.doesNotMatch(html, /id="enableBilibili"/);
   assert.doesNotMatch(html, /id="bilibiliAuthHint"/);
 });
 

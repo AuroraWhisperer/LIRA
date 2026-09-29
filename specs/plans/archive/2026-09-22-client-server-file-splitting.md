@@ -38,9 +38,9 @@
 | docs/bilibili-live-api/info.md | 946 | 保留 D | 规范锚点 / 完整参考或历史记录 |
 | public/data/theme-presets.json | 893 | 保留 S | 固定读取契约 / 生成数据 |
 | specs/plans/archive/2026-08-16-ai-assisted-development-governance.md | 864 | 保留 D | 规范锚点 / 完整参考或历史记录 |
-| docs/客户端使用文档补充方案.md | 863 | 保留 D | 规范锚点 / 完整参考或历史记录 |
-| specs/plans/2026-08-17-existing-code-governance-remediation.md | 839 | 保留 D | 规范锚点 / 完整参考或历史记录 |
-| docs/startup-performance-evaluation-2026-08-21.md | 834 | 保留 D | 规范锚点 / 完整参考或历史记录 |
+| specs/plans/2026-09-22-usage-guide-supplement.md | 863 | 保留 D | 规范锚点 / 完整参考或历史记录 |
+| specs/plans/archive/2026-08-17-existing-code-governance-remediation.md | 839 | 保留 D | 规范锚点 / 完整参考或历史记录 |
+| docs/reports/2026-08-21-startup-performance-evaluation.md | 834 | 保留 D | 规范锚点 / 完整参考或历史记录 |
 | test/fan-profiles-ipc.test.js | 798 | 拆分 | A: ipc / sync / roster 场景及共享夹具 |
 | public/css/admin/toolbox/usage-guide.css | 792 | 保留 | 正文、FAQ 和现有工具箱覆盖次序交织；导航已独立，不机械拆媒体查询 |
 | public/css/admin/workspace/song.css | 768 | 拆分 | A: song-management / song-layout 连续规则 |

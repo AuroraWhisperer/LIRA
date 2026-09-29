@@ -98,10 +98,7 @@ function licenseStubSource({ state, catalogState, activateResult }) {
 async function settle(page, extraWaitMs = 0) {
   await page.evaluate(async () => {
     try {
-      await Promise.race([
-        document.fonts.ready,
-        new Promise((r) => setTimeout(r, 2000)),
-      ]);
+      await Promise.race([document.fonts.ready, new Promise((r) => setTimeout(r, 2000))]);
     } catch (_) {}
     const finite = document
       .getAnimations()
@@ -110,13 +107,8 @@ async function settle(page, extraWaitMs = 0) {
         return timing && timing.iterations !== Infinity;
       })
       .map((a) => a.finished.catch(() => {}));
-    await Promise.race([
-      Promise.all(finite),
-      new Promise((r) => setTimeout(r, 1500)),
-    ]);
-    await new Promise((r) =>
-      requestAnimationFrame(() => requestAnimationFrame(r)),
-    );
+    await Promise.race([Promise.all(finite), new Promise((r) => setTimeout(r, 1500))]);
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
   });
   if (extraWaitMs > 0) await page.waitForTimeout(extraWaitMs);
 }
@@ -130,24 +122,23 @@ async function injectAnnotations(page, annotations) {
   await page.evaluate((items) => {
     const layer = document.createElement('div');
     layer.id = '__shot_annotations__';
-    layer.style.cssText =
-      'position:fixed;inset:0;pointer-events:none;z-index:2147483647;';
+    layer.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:2147483647;';
     document.body.appendChild(layer);
     const COLOR = '#FF5630';
     items.forEach((item, order) => {
-      const nodes = item.all
-        ? [...document.querySelectorAll(item.selector)]
-        : [document.querySelector(item.selector)];
+      const nodes = item.all ? [...document.querySelectorAll(item.selector)] : [document.querySelector(item.selector)];
       nodes.filter(Boolean).forEach((node) => {
         const r = node.getBoundingClientRect();
         if (r.width === 0 && r.height === 0) return;
         const box = document.createElement('div');
-        box.style.cssText = `position:fixed;left:${r.left - 4}px;top:${r.top - 4}px;` +
+        box.style.cssText =
+          `position:fixed;left:${r.left - 4}px;top:${r.top - 4}px;` +
           `width:${r.width + 8}px;height:${r.height + 8}px;border:2px solid ${COLOR};` +
           'border-radius:8px;box-shadow:0 0 0 2px rgba(255,255,255,.85);';
         const badge = document.createElement('div');
         badge.textContent = String(item.label ?? order + 1);
-        badge.style.cssText = `position:absolute;top:-13px;left:-13px;width:24px;height:24px;` +
+        badge.style.cssText =
+          `position:absolute;top:-13px;left:-13px;width:24px;height:24px;` +
           `border-radius:50%;background:${COLOR};color:#fff;font:600 13px/24px sans-serif;` +
           'text-align:center;box-shadow:0 1px 4px rgba(0,0,0,.3);';
         box.appendChild(badge);

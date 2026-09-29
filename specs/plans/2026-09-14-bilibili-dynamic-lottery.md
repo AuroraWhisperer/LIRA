@@ -1,5 +1,15 @@
 # Bilibili Dynamic Lottery Implementation Plan
 
+**Status:** Draft.
+
+**复核日期：** 2026-09-28。简化客户端流程已有实现；真实上游/受控账号验收待补，旧 M2–M4 增强须重新确认，不按原任务列表自动恢复。
+
+当前依据：[所属规格或参考](../bilibili-dynamic-lottery_design.md)。状态索引见 [计划入口](README.md)。
+
+## 原始计划与执行记录
+
+以下保留原计划时点的行为、命令和验证记录；它们不覆盖上述状态或当前契约，历史未勾选项不直接等同于当前缺陷。
+
 > 执行约定：按下面的任务逐项实现、验证和更新状态。遵守仓库 AGENTS.md；计划位置使用仓库规定的 `specs/plans/`，不自动创建分支、提交或发布。M0/M1 已开始实施；未勾选条目仍未完成对应验证。
 
 **Goal:** 在 LIRA 桌面完成主播自有动态的截止后采集、关注检测、可选规则抽奖和结果留档，并能打开独立浏览器页面开奖、全屏公示及保存图片。
@@ -8,7 +18,7 @@
 
 **Tech Stack:** Electron 43、Node.js 24+、CommonJS 后端、原生 ESM 前端、原生 CSS、`node:sqlite`、`node:crypto`、`node:test`。
 
-**Status:** Draft / 当前简化客户端流程已接入、未测试，2026-09-14。已有独立登录和 M0/M1 基础，本轮接入三个条件、采集、持久随机顺序、按需关注核验/递补及历史结果。按用户要求未运行测试，不声称已经验证真实来源。以下旧 M2–M4 多奖项、领奖、导出、公示网页及全面恢复验收仍未完成；最新范围以本节及[设计与实施报告](../bilibili-dynamic-lottery_design.md)顶部补充为准。
+原状态记录：**Status:** Draft / 当前简化客户端流程已接入、未测试，2026-09-14。已有独立登录和 M0/M1 基础，本轮接入三个条件、采集、持久随机顺序、按需关注核验/递补及历史结果。按用户要求未运行测试，不声称已经验证真实来源。以下旧 M2–M4 多奖项、领奖、导出、公示网页及全面恢复验收仍未完成；最新范围以本节及[设计与实施报告](../bilibili-dynamic-lottery_design.md)顶部补充为准。
 
 ## 2026-09-14 当前实施：客户端评论交集抽奖
 
@@ -173,7 +183,7 @@ assert.throws(() => normalizeDynamicLink('http://127.0.0.1/opus/1'));
 
 **新增：** `src/storage/dynamic-lottery-schema.js`、`dynamic-lottery-store.js`、`src/bilibili/dynamic-lottery/request-scheduler.js`、`collection-service.js`、`test/games/dynamic-lottery-store.test.js`、`test/games/dynamic-lottery-scheduler.test.js`、`test/games/dynamic-lottery-collection.test.js`。
 
-**修改：** `src/storage/database.js`、`src/storage/database-migrations.js`、`docs/architecture/backend/storage.md`。
+**修改：** `src/storage/database.js`、`src/storage/database-migrations.js`、`docs/reference/backend/storage.md`。
 
 **接口：**
 

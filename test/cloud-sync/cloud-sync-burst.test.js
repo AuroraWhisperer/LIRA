@@ -17,7 +17,10 @@ test('cloud notification bursts need at most one trailing sync while a read is p
     licenseManager: {
       getCloudState: async () => {
         reads += 1;
-        if (reads === 1) await new Promise((resolve) => { release = resolve; });
+        if (reads === 1)
+          await new Promise((resolve) => {
+            release = resolve;
+          });
         return state;
       },
     },
@@ -26,7 +29,11 @@ test('cloud notification bursts need at most one trailing sync while a read is p
   const starting = fixture.controller.start();
   await new Promise(setImmediate);
   let promises = 0;
-  const hook = createHook({ init(_id, type) { if (type === 'PROMISE') promises += 1; } });
+  const hook = createHook({
+    init(_id, type) {
+      if (type === 'PROMISE') promises += 1;
+    },
+  });
   hook.enable();
   try {
     for (let revision = 1; revision <= 2000; revision += 1) {

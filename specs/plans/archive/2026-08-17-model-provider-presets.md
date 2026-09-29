@@ -18,7 +18,7 @@
 ## Ownership
 
 - Owner: `src/ai/config.js`, `src/ai/model-endpoint.js`, `src/ai/deepseek-client.js`
-- Contract: `docs/architecture/backend/ai.md`, `docs/architecture/backend/api.md`
+- Contract: `docs/reference/backend/ai.md`, `docs/reference/backend/api.md`
 - Consumer: `public/js/admin/ai-assistant-settings.js`
 - Tests: `test/ai-config-store.test.js`, `test/ai-provider-adapters.test.js`, `test/ai-routes.test.js`, `test/frontend-admin-ai.test.js`
 

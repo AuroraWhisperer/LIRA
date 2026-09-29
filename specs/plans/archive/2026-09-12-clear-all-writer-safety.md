@@ -36,7 +36,7 @@ transaction. Gift detection and overtime own their pause state and timers.
   commits, catches errors and unconditionally returns cleared/recreated success.
 - src/server/domain-services.js reloads runtime state after storage success;
   exceptions here must not be confused with fully rolled-back storage failure.
-- Contracts: docs/architecture/backend/api.md and storage.md. Route/owner map:
+- Contracts: docs/reference/backend/api.md and storage.md. Route/owner map:
   ROUTE-SERVER, ROUTE-STORAGE, ROUTE-GIFTS and ROUTE-OVERTIME.
 
 ## Milestone 1: Reproduce and fix required defaults

@@ -1,5 +1,15 @@
 # 资源生命周期、生产运行时与历史秘密轻量验证
 
+**Status:** Blocked.
+
+**复核日期：** 2026-09-28。资源与生产运行时审计已有记录；仅剩历史会话失效/撤销的持有人确认，不探测会话或复制秘密。
+
+当前依据：[所属规格或参考](open-items.md)。状态索引见 [计划入口](README.md)。
+
+## 原始计划与执行记录
+
+以下保留原计划时点的行为、命令和验证记录；它们不覆盖上述状态或当前契约，历史未勾选项不直接等同于当前缺陷。
+
 **Goal:** 对 OPEN-V01、当前生产运行时和两端仓库秘密材料建立证据；只修复实际复现的问题。
 
 **Architecture:** 沿用既有页面、播放器、连接控制器与 Electron 窗口 owner。不扩建资源管理框架，不改变协议、数据格式或部署架构。
@@ -16,7 +26,7 @@
 
 ## Owner / 合同 / 验证
 
-- 页面连接：`public/js/overlays/{socket-client,gift-effects,lyric-window}.js`、`public/js/gift-audit/index.js`；对应 `docs/architecture/frontend/{overlays,comms}.md`。
+- 页面连接：`public/js/overlays/{socket-client,gift-effects,lyric-window}.js`、`public/js/gift-audit/index.js`；对应 `docs/reference/frontend/{overlays,comms}.md`。
 - 媒体：`public/js/overlays/gift-effect-player.js`、`public/js/lyrics/desktop-lyric-renderer.js` 和播放 engine；既有 gift effect、lyric、playback 生命周期测试。
 - 桌面窗口：`src/electron/` 现有 controller/shutdown owner；既有窗口与 shutdown 测试，以及隔离 Electron 浏览器源反复打开、重连和销毁检查。
 - 生产：服务端 `docs/operations/deployment-runtime.md`、`ecosystem.config.cjs`、`package.json`；实际 `/proc`、PM2、健康端点、内存 SQLite 与经源码审阅的隔离测试。

@@ -29,8 +29,8 @@ transparent background, and center the existing horizontal timeline separator.
 - `public/js/admin/clock-card.js`, `public/pages/admin/toolbox/clock.html`, and
   `public/css/admin/toolbox/clock.css`: picker, label state, and swatch.
 - `test/clock-overlay.test.js`: existing route, settings, renderer, and picker checks.
-- Owning contract docs: `docs/architecture/backend/api.md`,
-  `docs/architecture/frontend/app.md`, `docs/architecture/frontend/overlays.md`.
+- Owning contract docs: `docs/reference/backend/api.md`,
+  `docs/reference/frontend/app.md`, `docs/reference/frontend/overlays.md`.
 
 ## Milestones
 

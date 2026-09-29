@@ -37,7 +37,7 @@ Add a visible “获取本地字体” action beside the desktop lyric primary-f
 ## Ownership
 
 - Owner: `public/js/admin/desktop-lyric.js` and `public/pages/admin/song/desktop-lyric.html`.
-- Contract: `docs/architecture/frontend/pages.md` and `docs/architecture/frontend/overlays.md`; the existing persisted key remains documented in `docs/architecture/backend/storage.md`.
+- Contract: `docs/reference/frontend/pages.md` and `docs/reference/frontend/overlays.md`; the existing persisted key remains documented in `docs/reference/backend/storage.md`.
 - Consumer: the Admin desktop lyric form and `public/js/admin/desktop-lyric-preview.js`; the `/lyrics` browser source continues to consume the stored family string.
 - Focused test: `test/desktop-lyrics.test.js`.
 
@@ -54,7 +54,7 @@ Add a visible “获取本地字体” action beside the desktop lyric primary-f
 - Modify `public/css/admin/desktop-lyric-preview.css` to fit the selector, button, and status within the existing control layout.
 - Modify `public/js/admin/desktop-lyric.js` to confirm authorization, query fonts, normalize and deduplicate families, safely quote CSS family values, preserve selection, and render status/error states.
 - Create `src/electron/desktop-permissions.js` and wire it from `src/electron/main.js` so the exact LIRA origin can request only `localFonts` after an Electron-native confirmation.
-- Modify `docs/architecture/desktop/main.md` to record the permission boundary.
+- Modify `docs/reference/desktop/main.md` to record the permission boundary.
 - Modify `test/desktop-lyrics.test.js` with renderer-level regression coverage for successful population, deduplication, repeat loading, and non-destructive permission denial.
 
 Discovery during implementation: Electron 43 exposed `window.queryLocalFonts()`, but its default session denied `localFonts` without presenting a usable prompt. The implementation therefore moved the consent prompt from a renderer confirmation to the owning Electron permission handler; a real client retry then enumerated 219 unique installed families.
@@ -103,7 +103,7 @@ Discovery during implementation: Electron 43 exposed `window.queryLocalFonts()`,
 
 - Create: `src/electron/desktop-permissions.js`
 - Modify: `src/electron/main.js`
-- Modify: `docs/architecture/desktop/main.md`
+- Modify: `docs/reference/desktop/main.md`
 - Test: `test/electron-main-modules.test.js`
 
 **Interfaces:**

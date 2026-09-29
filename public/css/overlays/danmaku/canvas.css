@@ -1,0 +1,33 @@
+.danmaku-canvas-space, .danmaku-canvas, .danmaku-region {
+  width: 100%;
+  height: 100%;
+}
+.has-layout .danmaku-canvas-space { position: relative; overflow: hidden; }
+.has-layout .danmaku-canvas {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: var(--canvas-width); height: var(--canvas-height);
+  transform: translate(-50%, -50%) scale(var(--canvas-fit));
+  transform-origin: center;
+  overflow: hidden;
+}
+.has-layout .danmaku-region {
+  position: absolute;
+  left: var(--region-x); top: var(--region-y);
+  width: var(--region-width); height: var(--region-height);
+  overflow: hidden;
+}
+body.has-layout .danmaku-signal-stage {
+  width: var(--region-content-width); height: var(--region-content-height);
+  max-width: none;
+  transform: scale(var(--content-scale)); transform-origin: top left;
+}
+body.has-layout .draw-danmaku-feed { --ranked-scale: 1; --danmaku-gift-scale: 1; }
+body.has-layout[data-style='ranked'] .draw-danmaku-item { max-width: 100%; }
+body.has-layout[data-style='identity'] .draw-danmaku-item {
+  width: min(600px, 100%); min-width: 0; max-width: 100%;
+  grid-template-columns: minmax(0, 1fr) min(180px, 30%);
+}
+body.has-layout:is([data-style='outline'], [data-style='cream'], [data-style='glow']) .draw-danmaku-feed {
+  width: 100%; height: 100%;
+}

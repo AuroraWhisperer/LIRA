@@ -10,6 +10,7 @@ const { createDomainServices } = require('../../src/server/domain-services');
 const { closeDatabases, createDatabases } = require('../../src/storage/database');
 const { createSongStore } = require('../../src/storage/song-store');
 const { createSettingsStore } = require('../../src/storage/settings-store');
+const { songRequestReason } = require('../../src/bilibili/diagnostics');
 
 function createTestDatabases(prefix) {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -109,6 +110,45 @@ test('danmaku requests preserve the submitted name when multiple library songs m
     assert.equal(result.accepted, true);
     assert.equal(result.queueItem.song_name, '不醉');
     assert.equal(result.queueItem.song_id, null);
+  } finally {
+    closeTestDatabases(testContext);
+  }
+});
+
+test('blacklisted request text is rejected before autocomplete without consuming cooldown or writing requests', () => {
+  const testContext = createTestDatabases('song-plugin-blacklist-');
+  const settingsStore = createSettingsStore(testContext.databases.songDb);
+  try {
+    settingsStore.setSettings({ songRequestBlacklist: '78\n不要唱', userCooldownSeconds: '60' });
+    const services = createDomainServices({ db: testContext.databases, settingsStore });
+    services.songs.save({ name: '78号公路' });
+    for (const message of ['点歌78', '点歌 78', '点歌　78　', '点歌 不要唱']) {
+      const result = services.messages.handleDanmaku({ message, userName: '观众', uid: '123' });
+      assert.equal(result.accepted, false, message);
+      assert.equal(songRequestReason(result.reason), 'song-request-blacklisted');
+    }
+    assert.equal(testContext.databases.songDb.prepare('SELECT COUNT(*) AS count FROM requests').get().count, 0);
+    const allowed = services.messages.handleDanmaku({ message: '点歌78号公路', userName: '观众', uid: '123' });
+    assert.equal(allowed.accepted, true);
+    assert.equal(allowed.queueItem.song_name, '78号公路');
+    assert.equal(testContext.databases.songDb.prepare('SELECT COUNT(*) AS count FROM requests').get().count, 1);
+  } finally {
+    closeTestDatabases(testContext);
+  }
+});
+
+test('blacklist changes take effect on the next request and do not filter random commands', () => {
+  const testContext = createTestDatabases('song-plugin-blacklist-clear-');
+  const settingsStore = createSettingsStore(testContext.databases.songDb);
+  try {
+    settingsStore.setSetting('songRequestBlacklist', '78');
+    const services = createDomainServices({ db: testContext.databases, settingsStore });
+    services.songs.save({ name: '晴天' });
+    const request = { message: '点歌78', userName: '观众', uid: '123' };
+    assert.equal(services.messages.handleDanmaku(request).accepted, false);
+    assert.equal(services.messages.handleDanmaku({ ...request, message: '随机点歌' }).accepted, true);
+    settingsStore.setSetting('songRequestBlacklist', '');
+    assert.equal(services.messages.handleDanmaku(request).accepted, true);
   } finally {
     closeTestDatabases(testContext);
   }

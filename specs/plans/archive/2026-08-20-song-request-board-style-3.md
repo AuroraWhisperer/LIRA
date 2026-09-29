@@ -27,7 +27,7 @@
 ## Ownership
 
 - Owner: `public/js/overlays/`、`public/css/overlays/`。
-- Contract: `docs/architecture/frontend/overlays.md`、`docs/architecture/frontend/app.md`、`docs/architecture/backend/storage.md`。
+- Contract: `docs/reference/frontend/overlays.md`、`docs/reference/frontend/app.md`、`docs/reference/backend/storage.md`。
 - Consumers: `/queue` OBS 浏览器源、`public/pages/admin/song/queue-theme.html`。
 - Tests: `test/frontend-queue.test.js`、`test/queue-overlay-esm.test.js`、`test/queue-overlay-responsive.test.js`、`test/frontend-admin-shell.test.js`。
 
@@ -75,9 +75,9 @@
 - Modify: `public/pages/admin/song/queue-theme.html`
 - Modify: `public/js/admin/theme.js`
 - Modify: `public/css/admin/toasts/gifts.css`
-- Modify: `docs/architecture/frontend/overlays.md`
-- Modify: `docs/architecture/frontend/app.md`
-- Modify: `docs/architecture/backend/storage.md`
+- Modify: `docs/reference/frontend/overlays.md`
+- Modify: `docs/reference/frontend/app.md`
+- Modify: `docs/reference/backend/storage.md`
 - Modify: `specs/README.md`
 
 - [x] 增加“点歌板风格 3”按钮并将选择器调整为三列；窄屏仍按既有规则变为单列。

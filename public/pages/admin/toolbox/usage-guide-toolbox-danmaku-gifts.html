@@ -1,0 +1,290 @@
+<article class="usage-guide-feature" id="ug-danmaku">
+  <div class="usage-guide-feature-head"><strong>弹幕姬</strong></div>
+  <p>
+    打开「百宝箱 → 直播互动 →
+    弹幕姬」。先看连接状态区的发送账号、目标直播间和是否可发送，必要时点右侧刷新。未登录或未设置直播间时，先回「点歌 →
+    设置」完成配置。
+  </p>
+  <ol class="usage-guide-checks">
+    <li>
+      选样式：固定位置共 6 种（聊天气泡、深色面板、蝴蝶结、经典样式、透明文字、头像横卡）；全屏随机共 3
+      种（简洁白卡、奶油气泡、流光气泡）。
+    </li>
+    <li>
+      调节对应参数。例如「深色面板」可改字体、正文字号（18–48
+      px）、弹幕文字颜色、背景不透明度和礼物通知图片。全屏随机样式另有 2–30 秒停留时间。
+    </li>
+    <li>点击「预览效果」看示例。满意后点「应用到直播画面」，将「直播画面链接」添加到 OBS 或直播姬。</li>
+  </ol>
+  <p>
+    只预览不会改变直播画面；应用后不用重新复制链接。服务器弹幕姬不依赖桌面进程持续运行，但仍需要服务器与直播间连接正常。
+  </p>
+  <figure class="usage-guide-figure">
+    <img
+      class="usage-guide-image"
+      src="/img/usage-guide/E/danmaku-styles.webp"
+      alt="六种固定位置样式与三种全屏随机样式。"
+      width="1048"
+      height="500"
+      loading="lazy"
+      decoding="async"
+    />
+    <figcaption>六种固定位置样式与三种全屏随机样式。</figcaption>
+  </figure>
+  <details class="usage-guide-foldout">
+    <summary>查看参数调节与应用位置</summary>
+    <figure class="usage-guide-figure">
+      <img
+        class="usage-guide-image"
+        src="/img/usage-guide/E/danmaku-apply-style.webp"
+        alt="深色面板参数与「应用到直播画面」入口。"
+        width="1440"
+        height="902"
+        loading="lazy"
+        decoding="async"
+      />
+      <figcaption>深色面板参数与「应用到直播画面」入口。</figcaption>
+    </figure>
+    <figure class="usage-guide-figure">
+      <img
+        class="usage-guide-image"
+        src="/img/usage-guide/E/danmaku-random-params.webp"
+        alt="全屏随机样式可设置停留时间。"
+        width="1440"
+        height="902"
+        loading="lazy"
+        decoding="async"
+      />
+      <figcaption>全屏随机样式可设置停留时间。</figcaption>
+    </figure>
+  </details>
+  <h4>屏蔽不想显示的内容</h4>
+  <p>
+    「用户黑名单」按 UID
+    添加，也可从当前直播间在线榜读取观众；「敏感词屏蔽」用于屏蔽指定词语。点「一键清空屏蔽词」会移除已有屏蔽词，请先确认。
+  </p>
+  <details class="usage-guide-foldout">
+    <summary>查看黑名单与敏感词设置</summary>
+    <figure class="usage-guide-figure usage-guide-figure--compact">
+      <img
+        class="usage-guide-image"
+        src="/img/usage-guide/E/danmaku-blacklist.webp"
+        alt="黑名单按 UID 管理，图中名单与屏蔽词为示例。"
+        width="1048"
+        height="331"
+        loading="lazy"
+        decoding="async"
+      />
+      <figcaption>黑名单按 UID 管理，图中名单与屏蔽词为示例。</figcaption>
+    </figure>
+  </details>
+  <h4>发送弹幕与自动回复</h4>
+  <p>在发送区输入文字，按 Ctrl + Enter 发送，并查看发送结果；这里还可设置自动钓鱼 / 打劫。该区域没有独立网页地址。</p>
+  <p>
+    「回复与辅助」包括随机点歌回复、签到机器人、抽签机器人、自定义关键词回复、进场欢迎、PK
+    对手信息播报和昵称生僻字自动注音。按需要开启；自定义关键词需填写关键词与回复后保存，欢迎与 PK
+    的参数在各自设置中展开。
+  </p>
+  <p>
+    随机点歌回复可在观众所给条件没有匹配歌曲时自动 @ 提醒。签到、抽签、进场欢迎和 PK
+    播报由服务器运行，关闭客户端不会自动停止。
+  </p>
+  <details class="usage-guide-foldout">
+    <summary>查看发送区及自定义回复</summary>
+    <figure class="usage-guide-figure">
+      <img
+        class="usage-guide-image"
+        src="/img/usage-guide/E/danmaku-send.webp"
+        alt="弹幕输入、发送和自动钓鱼入口；截图未实际发送消息。"
+        width="1092"
+        height="323"
+        loading="lazy"
+        decoding="async"
+      />
+      <figcaption>弹幕输入、发送和自动钓鱼入口；截图未实际发送消息。</figcaption>
+    </figure>
+    <figure class="usage-guide-figure">
+      <img
+        class="usage-guide-image"
+        src="/img/usage-guide/E/danmaku-custom-reply.webp"
+        alt="自定义关键词、回复内容、添加与保存入口；请按自己的规则填写。"
+        width="1440"
+        height="902"
+        loading="lazy"
+        decoding="async"
+      />
+      <figcaption>自定义关键词、回复内容、添加与保存入口；请按自己的规则填写。</figcaption>
+    </figure>
+  </details>
+</article>
+<article class="usage-guide-feature">
+  <div class="usage-guide-feature-head">
+    <strong>AI 互动助手</strong>
+  </div>
+  <p>
+    触发关键词没有默认值，需要主播自定义并保存。观众发送的弹幕包含已保存的触发关键词时，AI
+    会生成回复并发送到直播间；未设置关键词时不会触发回复。
+  </p>
+  <ul>
+    <li>
+      <strong>AI 平台</strong>：选择你使用的平台，填写它提供的密钥（API
+      Key），再获取并选择模型。密钥保存后不会完整显示。
+    </li>
+    <li>
+      <strong>回复规则</strong
+      >：填写自定义触发关键词，等待显示「已保存」，再设置回复长度、联网搜索和深度思考。是否支持这些功能，以所选平台和模型为准。
+    </li>
+    <li><strong>扩展能力</strong>：按需接入和风天气、高德地图，让助手能回答天气、地点和路线问题。</li>
+    <li>
+      <strong>高级设置</strong>：调整同时处理的提问数、同一观众提问间隔、每分钟提问上限，以及 AI
+      的性格和说话方式。设置好后，点击<strong class="usage-guide-keyword">「测试 AI 连接」</strong>。
+    </li>
+  </ul>
+  <details class="usage-guide-foldout">
+    <summary>查看 AI 配置入口</summary>
+    <figure class="usage-guide-figure">
+      <img
+        class="usage-guide-image"
+        src="/img/usage-guide/E/ai-assistant-config.webp"
+        alt="AI 助手配置示例；未填写密钥，也未验证真实回复。"
+        width="1092"
+        height="1107"
+        loading="lazy"
+        decoding="async"
+      />
+      <figcaption>AI 助手配置示例；未填写密钥，也未验证真实回复。</figcaption>
+    </figure>
+  </details>
+</article>
+<article class="usage-guide-feature">
+  <div class="usage-guide-feature-head"><strong>礼物姬</strong></div>
+  <p>打开「百宝箱 → 直播互动 → 礼物姬」，有「礼物边框」「滚动礼物」「礼物许愿」三个页签。它们各自提供直播画面地址。</p>
+  <h4>礼物边框</h4>
+  <p>
+    默认页签。触发金额默认 20 元，填 0 表示所有付费礼物；动效可选「跟随系统 / 完整动效 /
+    简化动效」。设置后点「保存礼物边框设置」，用「播放预览」试效果，再复制地址添加到直播软件。
+  </p>
+  <figure class="usage-guide-figure">
+    <img
+      class="usage-guide-image"
+      src="/img/usage-guide/E/gift-frame-settings.webp"
+      alt="礼物边框的金额门槛、动效模式、保存与预览。"
+      width="1440"
+      height="902"
+      loading="lazy"
+      decoding="async"
+    />
+    <figcaption>礼物边框的金额门槛、动效模式、保存与预览。</figcaption>
+  </figure>
+  <h4>滚动礼物</h4>
+  <p>
+    按四档金额区间设置配色，调整显示行数（1–10）、滚动速率（1–50）和最小礼物金额（0
+    表示不限制）。「本日礼物循环」在零点换日。
+  </p>
+  <p>
+    修改先进入草稿，点「保存滚动与样式设置」后应用；「恢复默认」和「取消修改」按需要使用。复制地址后，浏览器源建议宽
+    900，高度随行数调整。金额配色也会用于之后的礼物图片导出。
+  </p>
+  <details class="usage-guide-foldout">
+    <summary>查看滚动礼物设置</summary>
+    <figure class="usage-guide-figure">
+      <img
+        class="usage-guide-image"
+        src="/img/usage-guide/E/gift-feed-settings.webp"
+        alt="滚动礼物的金额配色、行数、滚动速率和保存入口。"
+        width="1440"
+        height="902"
+        loading="lazy"
+        decoding="async"
+      />
+      <figcaption>滚动礼物的金额配色、行数、滚动速率和保存入口。</figcaption>
+    </figure>
+  </details>
+</article>
+<article class="usage-guide-feature" id="ug-gift-wishes">
+  <div class="usage-guide-feature-head"><strong>礼物许愿</strong></div>
+  <ol class="usage-guide-checks">
+    <li>
+      打开「百宝箱 → 礼物姬 →
+      礼物许愿」，先选周期：「长效许愿」从每条创建时累计；「本日许愿」北京时间零点换日；「本场直播许愿」下次开播重新计数。
+    </li>
+    <li>点击「选择心愿礼物」，从本直播间或全部缓存礼物里按名称 / ID 查找。注意区分盲盒本体与盲盒开出的礼物。</li>
+    <li>
+      填写目标数量（整数，默认 10，可填
+      1–999999999），选择「礼物卡片」「文字版」或「圆形徽章」。文字版可按下方说明加入图片和数量，确认效果后点击「添加许愿」。备注选填，不会显示在直播画面。
+    </li>
+    <li>
+      在已保存的预览中查看已收数量 /
+      目标数量，必要时点「刷新进度」。进度按所选周期内该礼物的已记录数量计算，不按金额；修改目标会保留已收进度。
+    </li>
+    <li>
+      在「OBS 浏览器源」点「复制地址」，添加到 OBS / 直播姬浏览器源，建议宽
+      440，高度随内容调整。三个周期各有地址，可分别添加。
+    </li>
+  </ol>
+  <p><strong>文字版：用同一种方法插入图片、礼物名称和数量</strong></p>
+  <ol class="usage-guide-checks">
+    <li>先选择心愿礼物，再把展示样式切到「文字版」。在「展示文字」框里输入自己想说的话。</li>
+    <li>
+      点文字框中想插入的位置，再点「插入礼物图片」「插入礼物名称」「插入已收数量」或「插入目标数量」。
+      按钮会自动填入带花括号的标记，不用自己记写法；右侧「效果预览」会显示实际效果。
+    </li>
+    <li>
+      图片和文字都按标记所在位置显示。想换位置，就把整个标记（包括两边的花括号）剪切、粘贴到新位置；
+      不需要某项内容，就删除整个标记。删除所有 <code>{图片}</code> 后就是不带图的文字版。
+    </li>
+    <li>
+      插入图片后，可在「礼物图片效果」选择「动态原图（有动画时播放）」或「静态图片（PNG，不播放动画）」。
+      原图自带动画时才会动；静态图片显示固定画面。不需要另外上传图片，会自动使用当前心愿礼物的图片。
+    </li>
+    <li>
+      在「文字颜色」点击「今天未收到」或「今天已收到」下的色块，即可分别选色。
+      默认未收到时为雾蓝，已收到时为翠绿。每条许愿可以单独设置；想重新使用推荐配色，点「恢复默认颜色」。
+    </li>
+    <li>在「效果预览」中切换「对比预览」，检查收礼前后的颜色。这里只模拟颜色，不改变已收数量或实际收礼状态。</li>
+    <li>确认效果后点「添加许愿」；编辑已有许愿时点「保存修改」。只改文字框里的内容还不会更新 OBS。</li>
+  </ol>
+  <ul>
+    <li><code>{图片}</code>：当前心愿礼物的图片；每插入一次，就显示一张。</li>
+    <li><code>{礼物}</code>：当前心愿礼物的名称。</li>
+    <li><code>{已收}</code>：所选统计周期内已收到的数量，会自动更新。</li>
+    <li><code>{目标}</code>：设置的目标数量。</li>
+  </ul>
+  <p>可以直接复制这些例子到「展示文字」中，再按喜好修改普通文字：</p>
+  <ul>
+    <li>图片在前：<code>{图片}许愿{礼物}（{已收}/{目标}）</code></li>
+    <li>图片在后：<code>许愿{礼物}（{已收}/{目标}）{图片}</code></li>
+    <li>图片在文字中间：<code>今天想要{图片}{礼物}，已收{已收}/{目标}</code></li>
+  </ul>
+  <p>
+    「展示文字」旁的问号也能查看用法。今天收到过这份礼物，文字会切换为设置的「今天已收到」颜色，不必达到目标数量；
+    北京时间零点按新一天重新判断。这与 <code>{已收}</code> 的统计周期独立，例如长效许愿保留累计数量，文字颜色仍按今天是否收到判断。
+  </p>
+  <figure class="usage-guide-figure">
+    <img
+      class="usage-guide-image"
+      src="/img/usage-guide/D/gift-wishes.webp"
+      alt="礼物许愿的三个周期、目标与预览；进度为示例。"
+      width="1440"
+      height="902"
+      loading="lazy"
+      decoding="async"
+    />
+    <figcaption>礼物许愿的三个周期、目标与预览；进度为示例。</figcaption>
+  </figure>
+  <details class="usage-guide-foldout">
+    <summary>查看文字版模板示例</summary>
+    <figure class="usage-guide-figure usage-guide-figure--compact">
+      <img
+        class="usage-guide-image"
+        src="/img/usage-guide/D/gift-wishes-text.webp"
+        alt="文字版模板与数量预览示例。"
+        width="1092"
+        height="1193"
+        loading="lazy"
+        decoding="async"
+      />
+      <figcaption>文字版模板与数量预览示例；图片插入方法见上方步骤。</figcaption>
+    </figure>
+  </details>
+</article>

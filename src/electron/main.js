@@ -267,7 +267,9 @@ function requestDesktopShutdown({ restart = false } = {}) {
       disposeFanProfileIpc?.();
       disposeDailyBotIpc?.();
       dynamicLotteryAuth?.dispose();
-      const controllersToDrain = [remoteGiftController, cloudSyncController, fanProfileController, desktopAuth].filter(Boolean);
+      const controllersToDrain = [remoteGiftController, cloudSyncController, fanProfileController, desktopAuth].filter(
+        Boolean,
+      );
       for (const controller of controllersToDrain) controller.dispose();
       remoteGiftController = null;
       cloudSyncController = null;

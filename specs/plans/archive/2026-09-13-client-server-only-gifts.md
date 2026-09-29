@@ -36,7 +36,7 @@ parsers remain available for user identity hints and isolated compatibility test
   the raw `add` alias. Remote delivery remains owned by the existing Electron
   controller and the processed importer.
 - Contracts: `specs/server-authoritative-gift-detection_design.md` and
-  `docs/architecture/backend/bilibili/gift.md`.
+  `docs/reference/backend/bilibili/gift.md`.
 - Baseline: 27 focused startup/client/import/clear-all tests pass.
 
 ## Milestones

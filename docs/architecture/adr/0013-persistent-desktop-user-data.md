@@ -69,7 +69,7 @@ flowchart LR
 
 ## References
 
-- [桌面壳数据目录](../desktop/main.md)
-- [存储目录与保留策略](../backend/storage.md)
-- [构建与 NSIS 安装脚本](../engineering/build.md)
+- [桌面壳数据目录](../../reference/desktop/main.md)
+- [存储目录与保留策略](../../reference/backend/storage.md)
+- [构建与 NSIS 安装脚本](../../reference/engineering/build.md)
 - [实施计划](../../../specs/plans/archive/2026-09-07-persistent-desktop-user-data.md)

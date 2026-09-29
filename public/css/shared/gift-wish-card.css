@@ -22,7 +22,15 @@
 .wish-card--text {
   display: block;
 }
+.wish-card-text-image {
+  width: 1.35em;
+  height: 1.35em;
+  object-fit: contain;
+  margin-inline: 0.15em;
+  vertical-align: -0.35em;
+}
 .wish-card-text {
+  min-width: 0;
   margin: 0;
   font-size: 24px;
   font-weight: 700;
@@ -84,7 +92,7 @@
   transform-origin: left;
   transition: transform 400ms ease-out;
 }
-.wish-card.is-complete {
+.wish-card.is-complete:not(.wish-card--text) {
   --wish-ink: #38654f;
   --wish-pink: #78ad97;
 }

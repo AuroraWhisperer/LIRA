@@ -14,6 +14,8 @@ async function fixture(search = '?preview=1', savedStyle) {
         textContent: '',
         hidden: true,
         dataset: {},
+        options: [],
+        append(option) { this.options.push(option); },
         events: {},
         clientWidth: 1000,
         clientHeight: 800,
@@ -34,15 +36,20 @@ async function fixture(search = '?preview=1', savedStyle) {
   const buttons = styles.map((style) => {
     const button = node(style);
     button.dataset.previewStyle = style;
-    button.querySelector = () => ({ textContent: `${style} description` });
+    button.querySelector = () => ({ textContent: `${style} description`, firstChild: { textContent: style } });
     return button;
   });
   node('danmakuPreviewControls').querySelectorAll = () => buttons;
   const listeners = {};
   const document = {
+    hidden: false,
     getElementById: node,
+    createElement: () => ({}),
     addEventListener(name, handler) {
       listeners[name] = handler;
+    },
+    removeEventListener(name, handler) {
+      if (listeners[name] === handler) delete listeners[name];
     },
     documentElement: node('root'),
     body: { dataset: {}, classList: { add() {}, toggle() {} } },
@@ -55,42 +62,98 @@ async function fixture(search = '?preview=1', savedStyle) {
       location.href = new URL(url, location).href;
     },
   };
-  const renders = [],
-    options = [];
+  const renders = [], appends = [], options = [], destroyedFeeds = [];
+  const timeouts = new Map();
+  const appendTimes = [];
+  const frames = new Map();
+  const windowListeners = new Map();
+  let timerSequence = 0;
+  let elapsed = 0;
+  function flushFrames() {
+    const pending = [...frames.values()];
+    frames.clear();
+    pending.forEach((callback) => callback());
+  }
+  function advance(milliseconds) {
+    const target = elapsed + milliseconds;
+    while (true) {
+      const next = [...timeouts.values()].sort((a, b) => a.next - b.next)[0];
+      if (!next || next.next > target) break;
+      elapsed = next.next;
+      timeouts.delete(next.id);
+      next.callback();
+      flushFrames();
+    }
+    elapsed = target;
+    flushFrames();
+  }
+  function advanceMessages(count) {
+    for (let index = 0; index < count; index += 1) {
+      const next = [...timeouts.values()].sort((a, b) => a.next - b.next)[0];
+      assert.ok(next, 'playback must schedule the next message');
+      advance(next.next - elapsed);
+    }
+  }
+  let randomSeed = 1;
+  const math = Object.create(Math);
+  math.random = () => {
+    randomSeed = (Math.imul(randomSeed, 1664525) + 1013904223) >>> 0;
+    return randomSeed / 2 ** 32;
+  };
   const context = vm.createContext({
+    Math: math,
     document,
     location,
     URLSearchParams,
+    ResizeObserver: class { observe() {} disconnect() {} },
     URL,
-    window: { location, history, innerWidth: 1366, innerHeight: 900, addEventListener() {} },
+    window: {
+      location, history, innerWidth: 1366, innerHeight: 900,
+      addEventListener(name, handler) {
+        if (!windowListeners.has(name)) windowListeners.set(name, new Set());
+        windowListeners.get(name).add(handler);
+      },
+      removeEventListener(name, handler) { windowListeners.get(name)?.delete(handler); },
+    },
     WebSocket: class {
       constructor() {
         assert.fail('preview must not connect');
       }
     },
-    setInterval() {
-      assert.fail('preview must not loop');
+    setTimeout(callback, delay) {
+      const id = ++timerSequence;
+      timeouts.set(id, { id, callback, delay, next: elapsed + delay });
+      return id;
     },
-    setTimeout() {
-      assert.fail('preview must not schedule message playback');
+    clearTimeout: (id) => timeouts.delete(id),
+    requestAnimationFrame(callback) {
+      const id = ++timerSequence;
+      frames.set(id, callback);
+      return id;
     },
+    cancelAnimationFrame: (id) => frames.delete(id),
   });
   const read = (file) => fs.readFileSync(path.join(__dirname, '../../public/js/overlays', file), 'utf8');
-  const module = new vm.SourceTextModule(read('danmaku.js'), { context });
-  await module.link((specifier) => {
-    if (specifier.includes('danmaku-style-options'))
-      return new vm.SourceTextModule(read('../shared/danmaku-style-options.js'), { context });
-    if (specifier === './danmaku-preview.js') return new vm.SourceTextModule(read('danmaku-preview.js'), { context });
+  context.window.parent = context.window;
+  const module = new vm.SourceTextModule(read('danmaku.js'), { context, identifier: path.resolve(__dirname, '../../public/js/overlays/danmaku.js') });
+  const cache = new Map();
+  await module.link((specifier, parent) => {
+    if (specifier !== './danmaku-feed.js') {
+      const file = path.resolve(path.dirname(parent.identifier), specifier);
+      if (!cache.has(file)) cache.set(file, new vm.SourceTextModule(fs.readFileSync(file, 'utf8'), { context, identifier: file }));
+      return cache.get(file);
+    }
     return new vm.SyntheticModule(
       ['createDanmakuFeed'],
       function () {
         this.setExport('createDanmakuFeed', (_root, config) => {
           options.push(config);
           return {
-            destroy() {},
+            destroy() { destroyedFeeds.push(config); },
             render(items) {
               renders.push(items);
             },
+            append(item) { appends.push(item); appendTimes.push(elapsed); },
           };
         });
       },
@@ -99,60 +162,177 @@ async function fixture(search = '?preview=1', savedStyle) {
   });
   await module.evaluate();
   listeners.DOMContentLoaded();
-  return { node, location, history, document, renders, options };
+  flushFrames();
+  return { node, location, history, document, renders, appends, appendTimes, options, timeouts, frames, destroyedFeeds,
+    advance, advanceMessages, flushFrames,
+    setHidden(hidden) { document.hidden = hidden; listeners.visibilitychange?.(); },
+    pagehide: () => windowListeners.get('pagehide').forEach((handler) => handler()) };
 }
 
-test('all local styles share one address and retain every example without looping or connecting', async () => {
+test('all local styles replay every example through the live feed without connecting', async () => {
   const f = await fixture('?preview=1&style=cream&fullscreenDurationSeconds=12');
   const url = 'http://127.0.0.1:3000/danmaku?preview=1';
   assert.equal(f.location.href, url);
   assert.equal(f.document.body.dataset.style, 'cream');
   for (const style of styles) {
+    const start = f.appends.length;
+    const fullscreen = ['outline', 'cream', 'glow'].includes(style);
+    const sampleCount = fullscreen ? 12 : 19;
     f.node(style).events.click();
+    f.flushFrames();
+    f.advanceMessages(sampleCount - 1);
     assert.equal(f.document.body.dataset.style, style);
     assert.equal(f.location.href, url);
     assert.equal(f.history.state.danmakuPreviewStyle, style);
     assert.equal(f.node(style)['aria-pressed'], 'true');
-    const items = f.renders.at(-1);
-    assert.equal(items.length, 6);
+    const items = f.appends.slice(start);
+    assert.equal(items.length, sampleCount);
+    const members = items.filter((item) => item.medalName);
     assert.deepEqual(
-      Array.from(items.slice(0, 4), (item) => item.guardLevel || 0),
-      [1, 2, 3, 0],
+      Array.from(members, (item) => item.guardLevel || 0).sort(),
+      [0, 1, 2, 3],
     );
-    assert.ok(items.slice(0, 4).every((item) => item.message.includes('[打call]') && item.emotes.length));
-    assert.ok(items.slice(0, 4).every((item) => item.emotes[0].kind === 'inline'));
+    assert.ok(members.every((item) => item.message.includes('[打call]') && item.emotes.length));
+    assert.ok(members.every((item) => item.emotes[0].kind === 'inline'));
     assert.ok(items.some((item) => item.message === '[打call]'));
-    assert.equal(items.find((item) => item.id === 'preview-emote').isStreamer, true);
-    assert.equal(items.find((item) => item.id === 'preview-emote').emotes[0].kind, 'sticker');
-    assert.ok(items.slice(0, 4).every((item) => item.isStreamer !== true));
+    assert.equal(items.find((item) => item.id.startsWith('preview-emote-')).isStreamer, true);
+    assert.equal(items.find((item) => item.id.startsWith('preview-emote-')).emotes[0].kind, 'sticker');
+    assert.ok(members.every((item) => item.isStreamer !== true));
+    assert.ok(items.some((item) => !item.kind && !item.medalName && !item.isStreamer));
     assert.ok(items.some((item) => item.kind === 'gift' && item.giftCount === 10));
-    assert.equal(items.filter((item) => item.kind === 'gift').length, 1);
-    assert.equal(items.find((item) => item.kind === 'gift').giftTotalPrice, 1);
+    assert.equal(items.filter((item) => item.kind === 'gift').length, 3);
+    assert.equal(items.find((item) => item.kind === 'gift' && item.giftCount === 10).giftTotalPrice, 1);
     assert.equal(f.options.at(-1).showGiftTotal, ['transparent', 'cream'].includes(style));
-    assert.ok(items.every((item) => item.id !== 'preview-thanks'));
-    assert.equal(f.options.at(-1).resolveEmoteUrl(items[0].emotes[0].url), '/img/overlays/danmaku-previews/dacall.png');
-    if (['outline', 'cream', 'glow'].includes(style)) {
-      assert.equal(f.options.at(-1).expireItems, false);
-      assert.equal(f.options.at(-1).layout, undefined, 'preview keeps all samples in static document flow');
+    assert.ok(items.every((item) => !item.id.startsWith('preview-thanks')));
+    assert.equal(f.options.at(-1).resolveEmoteUrl(members[0].emotes[0].url), '/img/overlays/danmaku-previews/dacall.png');
+    const superChats = items.filter((item) => item.kind === 'superchat');
+    if (!fullscreen) {
+      assert.deepEqual(Array.from(superChats, (item) => item.price).sort((a, b) => a - b), [2, 30, 50, 100, 500, 1000, 2000]);
+      assert.ok(superChats.every((item) => item.message));
+      assert.ok(superChats.find((item) => item.price === 2000).message.includes('\n'));
+      assert.equal(f.options.at(-1).style, style);
+    }
+    if (fullscreen) {
+      assert.equal(superChats.length, 0);
+      assert.notEqual(f.options.at(-1).expireItems, false);
+      assert.equal(f.options.at(-1).itemLifetimeMs, 12000);
+      assert.equal(f.options.at(-1).layout, 'fullscreen-random', 'preview uses the same region layout as live output');
       assert.equal(f.options.at(-1).showAvatar, style === 'cream');
     }
   }
 });
 
+test('preview mixes every sample at varied intervals, reshuffles each round and stops on close', async () => {
+  const f = await fixture();
+  assert.equal(f.renders.at(-1).length, 0, 'examples must arrive incrementally instead of as a snapshot');
+  assert.equal(f.appends.length, 1);
+  assert.equal(f.timeouts.size, 1);
+  f.advance(799);
+  assert.equal(f.appends.length, 1);
+  f.advanceMessages(1);
+  assert.equal(f.appends.length, 2);
+  f.advanceMessages(36);
+  const firstRound = f.appends.slice(0, 19).map((item) => item.id.replace(/-\d+$/u, ''));
+  const secondRound = f.appends.slice(19).map((item) => item.id.replace(/-\d+$/u, ''));
+  assert.equal(new Set(firstRound).size, 19, 'all examples appear before any repeats');
+  assert.deepEqual([...firstRound].sort(), [...secondRound].sort());
+  assert.notDeepEqual(firstRound, secondRound, 'later rounds must not repeat the same order');
+  const kinds = f.appends.slice(0, 19).map((item) => item.kind || 'chat');
+  assert.deepEqual(new Set(kinds), new Set(['chat', 'gift', 'superchat']));
+  assert.ok(kinds.some((kind, index) => kind === 'superchat' && kinds[index + 1] === 'chat'));
+  const delays = f.appendTimes.slice(1).map((time, index) => time - f.appendTimes[index]);
+  assert.ok(delays.every((delay) => delay >= 800 && delay <= 2200));
+  assert.ok(new Set(delays).size > 1, 'arrivals must vary rather than use a fixed interval');
+  assert.equal(new Set(f.appends.map((item) => item.id)).size, 38);
+  assert.ok(f.appends.every((item) => Number.isFinite(item.timestamp) && item.timestamp > 0));
+  for (const control of ['previewRefresh', 'cream', 'glow', 'signal']) {
+    f.node(control).events.click();
+    assert.equal(f.timeouts.size, 1, 'restarting must replace the existing playback timer');
+    f.flushFrames();
+  }
+  const count = f.appends.length;
+  f.advanceMessages(1);
+  assert.equal(f.appends.length, count + 1);
+  f.node('previewRefresh').events.click();
+  assert.equal(f.frames.size, 1);
+  f.pagehide();
+  assert.equal(f.timeouts.size, 0);
+  assert.equal(f.frames.size, 0);
+  assert.equal(f.destroyedFeeds.at(-1), f.options.at(-1));
+  f.advance(9000);
+  assert.equal(f.appends.length, count + 1);
+});
+
+test('preview pauses while hidden and resumes without accumulating messages or timers', async () => {
+  const f = await fixture();
+  f.setHidden(true);
+  assert.equal(f.timeouts.size, 0);
+  f.advance(20000);
+  assert.equal(f.appends.length, 1);
+  f.node('cream').events.click();
+  assert.equal(f.timeouts.size, 0);
+  f.setHidden(false);
+  f.flushFrames();
+  assert.equal(f.appends.length, 2);
+  assert.equal(f.timeouts.size, 1);
+  f.advanceMessages(1);
+  assert.equal(f.appends.length, 3);
+  f.pagehide();
+  f.setHidden(false);
+  assert.equal(f.timeouts.size, 0, 'closing removes the visibility listener');
+});
+
 test('local preview applies per-style parameters without external image requests', async () => {
   const options = {
-    signal: { fontSize: 42, fontFamily: 'serif', backgroundOpacity: 35, giftImage: 'gift' },
+    signal: { fontSize: 42, fontFamily: 'serif', backgroundOpacity: 35, giftImage: 'gift', scrollDirection: 'down' },
     minimal: { fontSize: 24 },
   };
   const f = await fixture(`?preview=1&style=signal&styleOptions=${encodeURIComponent(JSON.stringify(options))}`);
   assert.equal(f.node('root').style['--danmaku-font-size'], '42px');
+  assert.equal(f.document.body.dataset.scrollDirection, 'down');
   assert.equal(f.node('root').style['--danmaku-background-opacity'], '0.35');
   assert.deepEqual(JSON.parse(JSON.stringify(f.history.state.danmakuStyleOptions)), options);
   assert.equal(f.options.at(-1).resolveGiftImageUrl('/img/gift-placeholder.png'), '/img/gift-placeholder.png');
   f.node('minimal').events.click();
   assert.equal(f.node('root').style['--danmaku-font-size'], '24px');
   assert.equal(f.document.body.dataset.customBackground, 'false');
+  assert.equal(f.document.body.dataset.scrollDirection, 'up');
   assert.equal(f.options.at(-1).resolveGiftImageUrl('/img/gift-placeholder.png'), '');
+  f.node('signal').events.click();
+  assert.equal(f.document.body.dataset.scrollDirection, 'down');
+  f.node('outline').events.click();
+  assert.equal(f.document.body.dataset.scrollDirection, 'up');
+});
+
+test('scaled appearance edits keep logical font sizes and reset only the selected style', async () => {
+  const f = await fixture('?preview=1&style=signal');
+  const preset = f.node('canvasPreset');
+  preset.value = '3840x2160';
+  preset.events.change({ target: preset });
+  const fontSize = f.node('previewFontSize');
+  assert.equal(fontSize.value, '60');
+  fontSize.value = '80';
+  fontSize.events.change();
+  assert.equal(f.history.state.danmakuStyleOptions.signal.fontSize, 40);
+
+  f.node('bubble').events.click();
+  const color = f.node('previewTextColor');
+  color.value = '#abcdef';
+  color.events.change();
+  assert.equal(f.history.state.danmakuStyleOptions.bubble.textColor, '#abcdef');
+  f.node('previewAppearanceReset').events.click();
+  assert.deepEqual(JSON.parse(JSON.stringify(f.history.state.danmakuStyleOptions)), {
+    signal: { fontSize: 40 },
+    bubble: {},
+  });
+
+  f.node('signal').events.click();
+  assert.equal(fontSize.value, '80');
+  fontSize.value = '97';
+  fontSize.events.change();
+  assert.equal(fontSize.value, '80');
+  assert.equal(f.history.state.danmakuStyleOptions.signal.fontSize, 40);
+  assert.match(f.node('previewSaveState').textContent, /请输入 36～96 之间的整数/);
 });
 
 test('local preview restores the last style on reload and rejects unknown initial styles', async () => {

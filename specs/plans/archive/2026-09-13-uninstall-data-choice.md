@@ -16,7 +16,7 @@ The desktop can restore old data from `%APPDATA%/com.aurorawhisperer.lira/data` 
 
 - Owner: `build/installer.nsh` and new `build/installer-uninstall.nsh`.
 - Consumers: electron-builder's `customUnWelcomePage`, `customUnInit`, and `customRemoveFiles` hooks; installation recovery in `build/installer-data.nsh`.
-- Contracts: `docs/architecture/engineering/build.md` and ADR-0015.
+- Contracts: `docs/reference/engineering/build.md` and ADR-0015.
 - Tests: existing installer migration/directory/registry/diagnostics fixtures and new `test/installer-uninstall.test.js`.
 - Preserve default installer paths, app identity, shortcuts/registry lifecycle, upgrade recovery, data formats and Electron security boundaries. Existing staged changes stay intact.
 - Silent uninstall preserves data; deletion requires interactive checkbox selection and explicit confirmation. Upgrades preserve all three existing runtime directories regardless of selection state.

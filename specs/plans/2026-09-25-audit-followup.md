@@ -1,5 +1,15 @@
 # Audit follow-up implementation plan
 
+**Status:** Awaiting Evidence.
+
+**复核日期：** 2026-09-28。代码及隔离检查已有记录；生产认证 SSE 持续交付、完整恢复与独立备份材料仍缺证据。
+
+当前依据：[所属规格或参考](open-items.md)。状态索引见 [计划入口](README.md)。
+
+## 原始计划与执行记录
+
+以下保留原计划时点的行为、命令和验证记录；它们不覆盖上述状态或当前契约，历史未勾选项不直接等同于当前缺陷。
+
 **Goal:** Close the explicitly requested audit items with bounded input handling, existing desktop trust boundaries and verified production evidence.
 
 **Architecture:** Keep the modular monolith, current encrypted Cookie stores, catalog replacement owner and SQLite settlement transaction. Execute in this task without commits, releases or unrelated refactors. The user's current single official server model supersedes speculative multi-server migration work.
@@ -8,10 +18,10 @@
 
 ## Compatibility and ownership
 
-- Authentication: src/electron/bilibili-auth.js, desktop-auth-controller.js, music-auth-manager.js and the existing login windows; docs/architecture/desktop/auth.md.
+- Authentication: src/electron/bilibili-auth.js, desktop-auth-controller.js, music-auth-manager.js and the existing login windows; docs/reference/desktop/auth.md.
 - Catalog: src/electron/license/remote-license-client.js and src/bilibili/gift/remote-catalog-cache.js; catalog/auth contracts and tests. Preserve schema, ETag and the last complete memory/disk snapshot.
-- Settlement: src/overtime/overtime-service.js and overtime-store.js; specs/overtime-rule-quantity-mode_design.md and docs/architecture/backend/overtime.md. Preserve original gift quantity/value, per-item random order, transaction rollback and settle-once behavior.
-- IPC: music-ipc.js, update-ipc.js, bilibili-ipc.js and main.js wiring; docs/architecture/desktop/preload.md. Retain legitimate admin/license window capabilities and return only a fixed error for unauthorized callers.
+- Settlement: src/overtime/overtime-service.js and overtime-store.js; specs/overtime-rule-quantity-mode_design.md and docs/reference/backend/overtime.md. Preserve original gift quantity/value, per-item random order, transaction rollback and settle-once behavior.
+- IPC: music-ipc.js, update-ipc.js, bilibili-ipc.js and main.js wiring; docs/reference/desktop/preload.md. Retain legitimate admin/license window capabilities and return only a fixed error for unauthorized callers.
 - Production: inspect the existing lira-server SSH target. Read process/configuration metadata and aggregate sensitive-log findings; never print secrets, user rows or Cookie values. Do not restart or change correct services.
 
 ## Milestones and checks

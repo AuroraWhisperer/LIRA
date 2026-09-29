@@ -105,6 +105,9 @@ FunctionEnd
 
 !macro liraValidateUninstallDirectory
   StrCmp $INSTDIR "" liraUnsafeUninstallDirectory
+  ; NSIS strips the trailing slash from drive roots before storing $INSTDIR.
+  StrCpy $R7 $INSTDIR "" 1
+  StrCmp $R7 ":" liraUnsafeUninstallDirectory
   GetFullPathName $R7 "$INSTDIR"
   StrCmp $R7 "" liraUnsafeUninstallDirectory
   GetFullPathName $R8 "$R7\.."

@@ -1,6 +1,17 @@
 <section id="giftAssistantPage" class="main-page gift-page">
   <div class="gift-workspace">
     <div class="gift-controls-grid">
+      <section class="gift-control-panel gift-monitoring-panel">
+        <div class="gift-control-heading">
+          <h2 class="gift-section-title ui-section-title"><label for="giftMonitoringEnabled">监控礼物</label></h2>
+          <lira-help label="监控礼物说明" tooltip-id="giftMonitoringHelp">默认持续监控，关闭客户端后服务端仍会接收。关闭后不再接收新礼物或自动答谢，已收到的礼物会完成结算，历史记录保留；弹幕监控独立控制。</lira-help>
+        </div>
+        <label class="switch-control">
+          <input id="giftMonitoringEnabled" type="checkbox" aria-label="监控礼物" aria-describedby="giftMonitoringHelp" checked />
+          <span class="switch-track" aria-hidden="true"></span>
+        </label>
+      </section>
+
       <section class="gift-control-panel gift-detection-panel">
         <div class="gift-control-heading">
           <h2 class="gift-section-title ui-section-title"><label for="giftDetectToggle">礼物统计</label></h2>
@@ -63,8 +74,8 @@
         </section>
 
         <div class="gift-interaction-summary">
-          <div id="giftInteractionStatus" class="hint" role="status" aria-live="polite">状态未确认，请刷新核对。</div>
-          <button id="giftInteractionRefresh" type="button" class="btn secondary">刷新状态</button>
+          <span id="giftInteractionStatus" class="sr-only" role="status" aria-live="polite">状态未确认，请刷新核对。</span>
+          <button id="giftInteractionRefresh" type="button" class="btn gift-interaction-refresh" aria-describedby="giftInteractionStatus">刷新状态</button>
         </div>
       </div>
     </div>

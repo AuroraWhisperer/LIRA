@@ -1,0 +1,259 @@
+<h4 class="usage-guide-subsection-title">投屏与 OBS</h4>
+<div class="usage-guide-faq-grid">
+  <details class="usage-guide-faq">
+    <summary>
+      <strong>弹幕姬链接是灰的，或者复制不了</strong>
+      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path
+          d="m5 8 5 5 5-5"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </summary>
+    <ol class="usage-guide-checks">
+      <li>弹幕姬链接需要 LIRA 授权有效，并成功读取服务器配置。先检查 LIRA 与服务器的连接，等地址可用后再复制。</li>
+      <li>有地址但复制失败时，按「复制失败，请手动复制地址」提示手动选择并复制；不要拿示例截图里的地址使用。</li>
+      <li>B 站登录影响接收直播消息，但不能把链接读不出来一律归因于未登录 B 站。仍灰色时记录页面提示交给管理员。</li>
+    </ol>
+  </details>
+  <details class="usage-guide-faq">
+    <summary>
+      <strong>直播姬 / OBS 投屏画面不显示或尺寸不对</strong>
+      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path
+          d="m5 8 5 5 5-5"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </summary>
+    <ol class="usage-guide-checks">
+      <li>
+        先从对应功能面板重新复制链接，添加为浏览器源；不要使用网页歌单链接替代。含 127.0.0.1 的本机源要与 LIRA
+        在同一电脑运行。
+      </li>
+      <li>
+        保持 LIRA
+        开启，按功能说明设置源宽高，再检查是否有点歌、正在播放的歌词、许愿或礼物触发事件；无内容时透明是可能的正常状态。
+      </li>
+      <li>
+        更新或重启 LIRA 后可刷新一次浏览器源。仍不显示时核对功能启用状态与地址，见<a
+          href="#ug-obs"
+          data-usage-guide-link
+          >投屏设置</a
+        >。
+      </li>
+    </ol>
+  </details>
+  <details class="usage-guide-faq">
+    <summary>
+      <strong>弹幕姬画面不更新，或者改了样式 OBS 没变化</strong>
+      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path
+          d="m5 8 5 5 5-5"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </summary>
+    <ol class="usage-guide-checks">
+      <li>在「百宝箱 → 弹幕姬」修改样式后，要点「应用到直播画面」并等待结果提示；只改预览不代表已应用。</li>
+      <li>服务器弹幕姬还需要服务器与直播间连接正常。先看连接状态、目标房间与屏蔽设置，再发一条测试弹幕检查。</li>
+      <li>
+        确认成功应用且地址正确后仍旧样式，可刷新浏览器源；请保留应用结果和连接状态。萌时钟是修改自动保存，不要给所有功能找同一个保存按钮。
+      </li>
+    </ol>
+  </details>
+  <details class="usage-guide-faq">
+    <summary>
+      <strong>换电脑后，原来的画面链接还能用吗</strong>
+      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path
+          d="m5 8 5 5 5-5"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </summary>
+    <ol class="usage-guide-checks">
+      <li>
+        本机地址中的 127.0.0.1 指向当前电脑。换电脑后必须在新电脑运行
+        LIRA，并重新核对复制出来的地址、端口和画面配置；地址不一定变化。
+      </li>
+      <li>在新电脑按对应功能页核对源宽高、样式与歌词来源，不能仅复制 OBS 场景就认定全部已迁移。</li>
+      <li>
+        服务器弹幕姬使用在线地址，另外核对账号授权与服务器连接；两类画面的依赖见<a href="#ug-obs" data-usage-guide-link
+          >投屏设置</a
+        >。
+      </li>
+    </ol>
+  </details>
+  <details class="usage-guide-faq">
+    <summary>
+      <strong>弹幕发不出去</strong>
+      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path
+          d="m5 8 5 5 5-5"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </summary>
+    <ol class="usage-guide-checks">
+      <li>到「百宝箱 → 弹幕姬」核对发送账号、目标直播间和发送结果；只显示「本机已登录」不代表已能正常发送。</li>
+      <li>登录过期时到「点歌 → 设置」重新扫码登录并保存，等待账号同步成功；连接异常可点「刷新直播」后重试。</li>
+      <li>仍失败时提供发送结果与目标房间，先不要反复批量发送。</li>
+    </ol>
+  </details>
+</div>
+<h4 class="usage-guide-subsection-title">云端功能、AI 与维护</h4>
+<div class="usage-guide-faq-grid">
+  <details class="usage-guide-faq">
+    <summary>
+      <strong>自动答谢、弹幕查询等开关点了没反应</strong>
+      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path
+          d="m5 8 5 5 5-5"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </summary>
+    <ol class="usage-guide-checks">
+      <li>
+        「请先登录 B 站，再同步到服务器。」或「连接云端账号后可设置」时，先检查「点歌 → 设置」里的 B 站登录和云端连接。
+      </li>
+      <li>
+        若提示「B
+        站登录已失效，请重新登录并同步。」，重新扫码登录并保存；等待账号自动同步成功后，再开启所需功能。没有额外的手动“同步
+        B 站账号”步骤。
+      </li>
+      <li>等待「已同步到服务器」确认；状态未确认时按面板刷新核对，仍失败再提供提示给管理员。</li>
+    </ol>
+  </details>
+  <details class="usage-guide-faq">
+    <summary>
+      <strong>已经关了功能，为什么提示服务器可能仍在运行</strong>
+      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path
+          d="m5 8 5 5 5-5"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </summary>
+    <ol class="usage-guide-checks">
+      <li>
+        「关闭还没同步，服务器可能仍在运行。」表示关闭操作尚未被服务器确认；不能仅凭开关外观或退出客户端认定已关闭。
+      </li>
+      <li>恢复网络与云端连接后，刷新状态，再关闭并等「已同步到服务器」。</li>
+      <li>如果一直无法确认，请联系管理员核查服务器状态。</li>
+    </ol>
+  </details>
+  <details class="usage-guide-faq">
+    <summary>
+      <strong>签到机器人没有回复</strong>
+      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path
+          d="m5 8 5 5 5-5"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </summary>
+    <ol class="usage-guide-checks">
+      <li>先到「百宝箱 → 弹幕姬 → 回复与辅助」检查「签到机器人」是否开启，云端状态是否已确认。</li>
+      <li>确认祝福语列表有内容，直播账号与房间连接正常，再让观众发送「签到」。</li>
+      <li>仍无回复时刷新云端状态并保留提示；不要只通过反复开关判断服务器是否已生效。</li>
+    </ol>
+  </details>
+  <details class="usage-guide-faq">
+    <summary>
+      <strong>AI 互动助手不回复</strong>
+      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path
+          d="m5 8 5 5 5-5"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </summary>
+    <ol class="usage-guide-checks">
+      <li>先在「百宝箱 → 弹幕姬 → AI 互动助手」检查「启用 AI」、平台、密钥和模型，点击「测试 AI 连接」。</li>
+      <li>
+        保存自定义触发关键词，发送包含该关键词的弹幕；关键词留空不会触发。再查看「等待队列」、同一观众间隔和每分钟上限，过于频繁时稍等再试。
+      </li>
+      <li>
+        测试失败按结果检查服务地址、模型或平台余额；测试通过仍无回复时检查直播账号与发送状态。配置步骤见<a
+          href="#ug-deepseek"
+          data-usage-guide-link
+          >配置 AI 助手</a
+        >。
+      </li>
+    </ol>
+  </details>
+  <details class="usage-guide-faq">
+    <summary>
+      <strong>报错后，日志在哪里找、怎么交给管理员</strong>
+      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path
+          d="m5 8 5 5 5-5"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </summary>
+    <ol class="usage-guide-checks">
+      <li>在「百宝箱 → 桌面更新」找到「日志目录」，点击旁边的「打开目录」；不要与「数据目录」混淆。</li>
+      <li>记录发生时间、当前版本、操作步骤和界面完整提示，按管理员指定方式提供对应时间的日志。</li>
+      <li>
+        只提供排查需要的文件，不要发送整个数据目录、密码或 API 密钥；无法进入软件时先把屏幕上的错误与版本交给管理员。
+      </li>
+    </ol>
+  </details>
+  <details class="usage-guide-faq">
+    <summary>
+      <strong>想彻底清空数据或换一个 LIRA 账号</strong>
+      <svg class="usage-guide-faq-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path
+          d="m5 8 5 5 5-5"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+    </summary>
+    <ol class="usage-guide-checks">
+      <li>当前桌面客户端没有切换或退出 LIRA 账号的入口；「点歌 → 设置」里的「退出登录」只退出直播账号。</li>
+      <li>
+        先按<a href="#ug-data" data-usage-guide-link>数据保存与换电脑</a
+        >分别备份需要的本机资料，再联系管理员确认账号与设备处理方式。
+      </li>
+      <li>
+        不要直接删除数据目录或复制别人的目录尝试换号：本机数据与服务器账本边界不同，删除本机文件不会替你清空服务器数据。
+      </li>
+    </ol>
+  </details>
+</div>

@@ -5,7 +5,10 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
-const { createRemoteGiftCursorStore, createRemoteGiftSourceKey } = require('../../src/electron/remote-gift-cursor-store');
+const {
+  createRemoteGiftCursorStore,
+  createRemoteGiftSourceKey,
+} = require('../../src/electron/remote-gift-cursor-store');
 
 test('remote gift cursor store atomically keeps only the matching source cursor', () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-gift-cursor-'));

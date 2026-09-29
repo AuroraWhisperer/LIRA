@@ -1,7 +1,7 @@
 @import url('../../shared/interaction-results.css');
 #interactionsAdmin {
   container: interaction-editor / inline-size;
-  gap: var(--spacing-lg);
+  gap: var(--spacing-md);
 }
 .interaction-source {
   display: grid;
@@ -15,20 +15,30 @@
 .interaction-source .games-link-field {
   font-weight: 400;
 }
+.interaction-source-note {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--type-size-caption);
+}
 .interaction-tabs {
   display: flex;
   gap: var(--spacing-lg);
+  height: 1.2em;
+  font-size: 14px;
   border-bottom: 1px solid var(--color-border-default);
 }
 .interaction-tabs button {
-  padding: 0 2px 12px;
+  min-height: 0;
+  padding: 0 2px;
   margin-bottom: -1px;
   border: 0;
   border-bottom: 2px solid transparent;
   border-radius: 0;
   background: transparent;
   color: var(--color-text-secondary);
-  font-size: 14px;
+  font-size: inherit;
+  line-height: 1;
 }
 .interaction-tabs button[aria-selected='true'] {
   color: var(--primary);
@@ -44,7 +54,7 @@
 }
 .interaction-workspace {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--spacing-lg);
   align-items: start;
 }
@@ -58,12 +68,12 @@
   justify-content: space-between;
   gap: var(--spacing-sm);
   min-height: 36px;
-  margin-bottom: var(--spacing-md);
+  margin-bottom: 12px;
 }
 .interaction-section-heading h4 {
   margin: 0;
-  font-size: 15px;
-  font-weight: 600;
+  font-size: var(--type-size-card-title);
+  font-weight: var(--type-weight-semibold);
 }
 .interaction-section-heading span {
   color: var(--color-text-secondary);
@@ -78,20 +88,31 @@
   margin: 0;
   min-width: 0;
   display: grid;
-  gap: var(--spacing-lg);
+  gap: var(--spacing-md);
 }
 .interaction-config label {
   display: grid;
   gap: 6px;
   color: var(--color-text-primary);
-  font-size: 13px;
+  font-size: var(--type-size-control);
+  font-weight: var(--type-weight-medium);
+}
+.interaction-config input:not([type='checkbox']):not([type='range']):not([type='color']),
+.interaction-config textarea {
+  font-size: var(--type-size-control);
+  font-weight: var(--type-weight-regular);
+}
+.interaction-config input::placeholder,
+.interaction-config textarea::placeholder {
+  color: var(--color-text-secondary);
+  opacity: 1;
 }
 .interaction-config p,
 #pollPageHint,
 #interactionRatingPending {
   margin: 0;
   color: var(--color-text-secondary);
-  font-size: 13px;
+  font-size: var(--type-size-caption);
   line-height: 1.6;
 }
 .interaction-field-label {
@@ -99,7 +120,8 @@
   justify-content: space-between;
   align-items: baseline;
   gap: var(--spacing-sm);
-  font-size: 13px;
+  font-size: var(--type-size-control);
+  font-weight: var(--type-weight-medium);
 }
 .interaction-field-label small {
   color: var(--color-text-secondary);
@@ -126,6 +148,7 @@
   background: transparent;
   padding-inline: 4px;
   font-size: 13px;
+  font-weight: var(--type-weight-medium);
 }
 #interactionsAdmin button.interaction-quiet:hover:not(:disabled) {
   color: var(--primary);
@@ -145,6 +168,7 @@
 .interaction-input-row button {
   grid-column: 2;
   grid-row: 1;
+  color: var(--color-text-secondary);
 }
 .interaction-input-row small {
   grid-column: 1;
@@ -166,15 +190,21 @@
   margin: 0;
   color: var(--color-danger);
 }
+.interaction-duration-controls,
 .interaction-presets {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: var(--spacing-sm);
+}
+.interaction-duration-controls {
+  column-gap: var(--spacing-md);
 }
 .interaction-presets button {
   min-height: 28px;
   padding: 3px 8px;
   font-size: 12px;
+  font-weight: var(--type-weight-medium);
 }
 .interaction-presets button[aria-pressed='true'] {
   border-color: var(--color-control-accent);
@@ -192,33 +222,25 @@
   color: var(--color-text-secondary);
 }
 .interaction-duration input {
-  width: 64px;
+  width: 52px;
   min-width: 0;
   text-align: center;
   font-variant-numeric: tabular-nums;
 }
-.interaction-rating-scale {
+.interaction-rating-details {
   display: grid;
-  grid-template-columns: repeat(10, minmax(0, 1fr));
-  gap: 4px;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px var(--spacing-md);
+  margin: 0;
+  font-size: var(--type-size-control);
+  line-height: var(--type-leading-body);
 }
-.interaction-rating-scale span {
-  display: grid;
-  place-items: center;
-  min-height: 34px;
-  border-radius: 4px;
-  background: var(--color-bg-secondary);
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-}
-.interaction-scale-ends {
-  display: flex;
-  justify-content: space-between;
+.interaction-rating-details dt {
   color: var(--color-text-secondary);
-  font-size: 12px;
 }
-.interaction-rating-setting p {
-  margin-top: var(--spacing-md);
+.interaction-rating-details dd {
+  margin: 0;
+  text-align: right;
 }
 .interaction-form-actions,
 .interaction-result-actions {
@@ -374,13 +396,6 @@
   justify-content: space-between;
   gap: var(--spacing-sm);
   margin-top: var(--spacing-sm);
-  color: var(--color-text-secondary);
-  font-size: 12px;
-}
-.interaction-footnote {
-  margin: 0;
-  padding-top: var(--spacing-md);
-  border-top: 1px solid var(--color-border-default);
   color: var(--color-text-secondary);
   font-size: 12px;
 }

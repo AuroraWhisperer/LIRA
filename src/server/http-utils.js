@@ -322,6 +322,7 @@ function serveOvertimeGiftImage(dataDir, req, res, requestUrl) {
         'Content-Length': bytes.length,
         'Cache-Control': 'public, max-age=31536000, immutable',
         'X-Content-Type-Options': 'nosniff',
+        'Access-Control-Allow-Origin': '*',
       });
       if (req.method === 'HEAD') res.end();
       else res.end(bytes);

@@ -32,6 +32,8 @@ test('room account preparation reaches the runtime without dirty echo or metadat
       ...runtime.getCloudSettingsSnapshot(),
       roomId: '111',
       enableBilibili: false,
+      danmakuMonitoringEnabled: false,
+      giftMonitoringEnabled: false,
     });
     assert.equal(adapter.prepareCloudRoomAccount('first'), false);
     assert.equal(runtime.getCloudSettingsSnapshot().roomId, '111');
@@ -237,6 +239,8 @@ test('runtime applies cloud snapshots without echo and emits dirty scopes after 
       giftEffectDanmakuEnabled: false,
       roomId: '1963694209',
       enableBilibili: false,
+      danmakuMonitoringEnabled: false,
+      giftMonitoringEnabled: false,
       paused: true,
       queueLimit: 75,
       userCooldownSeconds: 12,

@@ -13,19 +13,78 @@ export function initUsageGuide() {
   if (!panel) return;
   const scroller = panel.querySelector('.other-feature-panel-body');
   const toc = panel.querySelector('.usage-guide-toc');
+  const tocToggle = panel.querySelector('.usage-guide-toc-toggle');
+  const tocMenu = panel.querySelector('.usage-guide-toc-links');
+  const tocCurrent = panel.querySelector('.usage-guide-toc-current');
   const backToTopButton = panel.querySelector('.usage-guide-back-to-top');
   const links = Array.from(panel.querySelectorAll('[data-usage-guide-link]'));
-  if (!scroller || !toc || !links.length) return;
+  if (!scroller || !toc || !tocToggle || !tocMenu || !tocCurrent || !links.length) return;
 
   const reduceMotionQuery = window.matchMedia?.('(prefers-reduced-motion: reduce)');
   const sections = Array.from(panel.querySelectorAll('.usage-guide-section[id]'));
   if (!sections.length) return;
 
   let sectionOffset = 110;
+  let compactToc = true;
+  let tocTimer = null;
+
+  function updateTocAvailableHeight() {
+    const scrollerBottom =
+      window.getComputedStyle(scroller).overflowY === 'auto'
+        ? scroller.getBoundingClientRect().bottom
+        : window.innerHeight;
+    const available = Math.min(scrollerBottom, window.innerHeight) - toc.getBoundingClientRect().bottom - 12;
+    toc.style.setProperty('--usage-guide-toc-max-height', `${Math.max(0, available)}px`);
+  }
+
+  function setTocOpen(open) {
+    window.clearTimeout(tocTimer);
+    const expanded = open && compactToc && !panel.hidden;
+    if (expanded) updateTocAvailableHeight();
+    if (!expanded && compactToc && tocMenu.contains(document.activeElement)) {
+      tocToggle.focus({ preventScroll: true });
+    }
+    toc.classList.toggle('is-open', expanded);
+    tocToggle.setAttribute('aria-expanded', String(expanded));
+    tocMenu.inert = compactToc && !expanded;
+  }
+
+  function scheduleToc(open) {
+    window.clearTimeout(tocTimer);
+    if (!compactToc || (open && toc.classList.contains('is-open'))) return;
+    tocTimer = window.setTimeout(() => setTocOpen(open), open ? 400 : 600);
+  }
+
+  toc.addEventListener('pointerenter', (event) => {
+    if (event.pointerType !== 'touch') scheduleToc(true);
+  });
+  toc.addEventListener('pointerleave', (event) => {
+    if (event.pointerType !== 'touch' && !tocMenu.contains(document.activeElement)) scheduleToc(false);
+  });
+  toc.addEventListener('focusin', () => window.clearTimeout(tocTimer));
+  toc.addEventListener('focusout', (event) => {
+    if (!toc.contains(event.relatedTarget)) scheduleToc(false);
+  });
+  // 点击供键盘和触屏使用；鼠标悬停无需点击。
+  tocToggle.addEventListener('click', () => setTocOpen(!toc.classList.contains('is-open')));
+  toc.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && compactToc && toc.classList.contains('is-open')) {
+      event.preventDefault();
+      setTocOpen(false);
+    }
+  });
+  document.addEventListener('pointerdown', (event) => {
+    if (!toc.contains(event.target)) setTocOpen(false);
+  });
 
   function updateTocLayout() {
     if (panel.hidden) return;
     const tocStyle = window.getComputedStyle(toc);
+    const nextCompactToc = tocStyle.flexDirection !== 'column';
+    if (nextCompactToc !== compactToc) {
+      compactToc = nextCompactToc;
+      setTocOpen(false);
+    }
     const scrollerStyle = window.getComputedStyle(scroller);
     const scrollerPadding = scrollerStyle.overflowY === 'auto' ? parseFloat(scrollerStyle.paddingTop) : 0;
     sectionOffset =
@@ -33,12 +92,23 @@ export function initUsageGuide() {
         ? 24
         : toc.getBoundingClientRect().height + parseFloat(tocStyle.top) + scrollerPadding + 12;
     panel.style.setProperty('--usage-guide-scroll-offset', `${sectionOffset}px`);
+    if (toc.classList.contains('is-open')) updateTocAvailableHeight();
     updateActiveOnScroll();
   }
 
   function setActiveLink(id) {
     links.forEach((link) => {
-      link.classList.toggle('active', link.hash.slice(1) === id);
+      const active = link.hash.slice(1) === id;
+      link.classList.toggle('active', active);
+      if (toc.contains(link)) {
+        if (active) {
+          link.setAttribute('aria-current', 'location');
+          tocCurrent.textContent = link.textContent.trim();
+          tocCurrent.title = tocCurrent.textContent;
+        } else {
+          link.removeAttribute('aria-current');
+        }
+      }
     });
   }
 
@@ -74,11 +144,13 @@ export function initUsageGuide() {
     scrollTicking = true;
     window.requestAnimationFrame(() => {
       scrollTicking = false;
+      if (toc.classList.contains('is-open')) updateTocAvailableHeight();
       updateActiveOnScroll();
     });
   }
 
   function navigateToTarget(target, sectionId, focusTarget = false, onArrive) {
+    setTocOpen(false);
     setActiveLink(sectionId);
     panel.classList.add('usage-guide-render-all');
     window.requestAnimationFrame(() => {
@@ -125,6 +197,7 @@ export function initUsageGuide() {
 
   scroller.addEventListener('scroll', onScroll, { passive: true });
   window.addEventListener('scroll', onScroll, { passive: true });
+  setTocOpen(false);
   setActiveLink(sections[0].id);
   const tocObserver = new ResizeObserver(updateTocLayout);
   tocObserver.observe(toc);

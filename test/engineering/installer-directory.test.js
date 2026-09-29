@@ -6,11 +6,14 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+const { resolveInstallerTools } = require('../helpers/installer-tools');
+
+const { compiler } = resolveInstallerTools();
 
 test(
   'installer defaults respect existing paths, explicit paths and computers without D',
   {
-    skip: process.platform !== 'win32' || !process.env.LIRA_TEST_MAKENSIS,
+    skip: process.platform !== 'win32' || !compiler,
   },
   () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-directory-test-'));
@@ -58,7 +61,7 @@ test(
             'SectionEnd',
           ].join('\n'),
         );
-        const build = spawnSync(process.env.LIRA_TEST_MAKENSIS, ['/V2', '-INPUTCHARSET', 'UTF8', script], {
+        const build = spawnSync(compiler, ['/V2', '-INPUTCHARSET', 'UTF8', script], {
           encoding: 'utf8',
           windowsHide: true,
           timeout: 30000,

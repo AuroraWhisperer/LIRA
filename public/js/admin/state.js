@@ -115,6 +115,8 @@ export class StateService {
         dispatchRealtimeState('app:lyric-timeline', payload.timeline);
       } else if (payload.type === 'game:update') {
         dispatchRealtimeState('app:game-update', payload.session, true);
+      } else if (payload.type === 'game:patch' && payload.state) {
+        dispatchRealtimeState('app:game-patch', payload, true);
       } else if (payload.type === 'interaction:update') {
         dispatchRealtimeState('app:interaction-update', payload.state, true);
       } else if (payload.type === 'wheel:update') {

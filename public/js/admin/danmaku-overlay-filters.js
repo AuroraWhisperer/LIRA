@@ -91,7 +91,7 @@ export function initDanmakuOverlayFilters() {
     for (const node of root.querySelectorAll('form input, form button')) node.disabled = disabled;
     get('FiltersReload').disabled = !owner || loading || saving;
     get('ReadViewers').disabled = disabled || readingViewers;
-    get('ReadViewers').textContent = readingViewers ? '正在读取观众…' : '读取当前直播间观众';
+    get('ReadViewers').textContent = readingViewers ? '正在读取观众…' : '读取在线观众';
     get('ClearKeywords').disabled = disabled || !settings.blockedKeywords.length;
     get('BlacklistCount').textContent = `${settings.blockedUsers.length} 人`;
     get('KeywordCount').textContent = `${settings.blockedKeywords.length} 个词`;
@@ -127,7 +127,7 @@ export function initDanmakuOverlayFilters() {
       settings = checked(response);
       selected.clear();
       loaded = true;
-      state.textContent = '设置已同步。添加和移除后自动保存。';
+      state.textContent = '';
     } catch (error) {
       if (current === generation) state.textContent = error.message;
     } finally {
@@ -150,7 +150,7 @@ export function initDanmakuOverlayFilters() {
       settings = checked(response);
       selected = new Set([...selected].filter((uid) => !settings.blockedUsers.some((user) => user.uid === uid)));
       afterSave?.();
-      state.textContent = '已保存，对之后收到的弹幕生效。';
+      state.textContent = '已保存。';
     } catch (error) {
       if (current === generation) state.textContent = `保存失败，输入已保留：${error.message}`;
     } finally {
