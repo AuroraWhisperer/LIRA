@@ -234,7 +234,7 @@ test('period changes update browser-source URLs and source changes discard an in
     window.wishData.viewRevision = 'other';
   });
   await page.locator('#giftWishesRefresh').click();
-  await page.waitForFunction(() => document.getElementById('giftWishSelectedName').textContent === '选择心愿礼物');
+  await page.waitForFunction(() => document.getElementById('giftWishSelectedName').textContent === '选个礼物');
   assert.equal(await page.locator('#giftWishTarget').inputValue(), '10');
 });
 
@@ -336,10 +336,10 @@ test('custom text uses the selected gift and switches between all three styles w
   await page.getByRole('radio', { name: '文字版', exact: true }).check();
   assert.equal(await draft.textContent(), '许愿小花花（0/10）');
   assert.equal(await draft.locator('img, [role=progressbar]').count(), 0);
-  await page.locator('#giftWishTextTemplate').fill('今天想要');
+  await page.locator('#giftWishTextEditor').fill('今天想要');
   await page.getByRole('button', { name: '插入礼物名称', exact: true }).click();
   assert.equal(await page.locator('#giftWishTextTemplate').inputValue(), '今天想要{礼物}');
-  await page.locator('#giftWishTextTemplate').fill('今天想要{礼物}\n已收 {已收} / {目标}');
+  await page.locator('#giftWishTextEditor').fill('今天想要{礼物}\n已收 {已收} / {目标}');
   await page.locator('#giftWishSave').click();
   await saved.locator('.wish-card-text').waitFor();
   assert.equal(await saved.locator('.wish-card-text').textContent(), '今天想要小花花\n已收 3 / 10');
@@ -439,22 +439,24 @@ test('image tokens insert at the cursor, move, persist and disappear when delete
   await page.getByRole('radio', { name: '文字版', exact: true }).check();
   const draft = page.locator('#giftWishDraftPreview');
   const saved = page.locator('#giftWishCards');
-  const input = page.locator('#giftWishTextTemplate');
+  const input = page.locator('#giftWishTextEditor');
+  const templateInput = page.locator('#giftWishTextTemplate');
   assert.equal(await page.locator('#giftWishImageFields').isVisible(), false);
   assert.equal(await page.locator('#giftWishTextImageFormat').isVisible(), false);
-  await input.evaluate((node) => node.setSelectionRange(0, 0));
+  await input.press('Control+Home');
   await page.getByRole('button', { name: '插入礼物图片', exact: true }).click();
-  assert.equal(await input.inputValue(), '{图片}许愿{礼物}（{已收}/{目标}）');
+  assert.equal(await templateInput.inputValue(), '{图片}许愿{礼物}（{已收}/{目标}）');
   assert.equal(await draft.locator('.wish-card-text').evaluate((node) => node.firstChild.tagName), 'IMG');
   assert.equal(await page.locator('#giftWishTextImageFormat').isVisible(), true);
   assert.equal(await draft.locator('img').getAttribute('src'), animatedWishImage);
   await input.fill('许愿{礼物}（{已收}/{目标}）{图片}');
   assert.equal(await draft.locator('.wish-card-text').evaluate((node) => node.lastChild.tagName), 'IMG');
   await input.fill('<b>想要</b>{礼物}，再来一个{礼物}\n{已收}/{目标}');
-  await input.evaluate((node) => node.setSelectionRange(9, 9));
+  await input.press('Control+Home');
+  for (let index = 0; index < 9; index++) await input.press('ArrowRight');
   await page.getByRole('button', { name: '插入礼物图片', exact: true }).click();
   const template = '<b>想要</b>{图片}{礼物}，再来一个{礼物}\n{已收}/{目标}';
-  assert.equal(await input.inputValue(), template);
+  assert.equal(await templateInput.inputValue(), template);
   assert.equal(await draft.locator('.wish-card-text img').count(), 1);
   assert.equal(await draft.locator('b').count(), 0);
   assert.equal(await draft.locator('.wish-card-text').evaluate((node) => node.firstChild.textContent), '<b>想要</b>');
@@ -468,7 +470,7 @@ test('image tokens insert at the cursor, move, persist and disappear when delete
     return { textImagePosition, textImageFormat, textTemplate };
   }), { textImagePosition: 'none', textImageFormat: 'static', textTemplate: template });
   await page.getByRole('button', { name: '编辑', exact: true }).click();
-  assert.equal(await input.inputValue(), template);
+  assert.equal(await templateInput.inputValue(), template);
   assert.equal(await page.locator('#giftWishTextImageFormat').inputValue(), 'static');
   await input.fill(template.replace('{图片}', ''));
   assert.equal(await draft.locator('img').count(), 0);
@@ -477,10 +479,10 @@ test('image tokens insert at the cursor, move, persist and disappear when delete
   await page.locator('#giftWishSave').click();
   await page.waitForFunction(() => !document.querySelector('#giftWishCards img'));
   await page.getByRole('button', { name: '编辑', exact: true }).click();
-  assert.equal(await input.inputValue(), template.replace('{图片}', ''));
+  assert.equal(await templateInput.inputValue(), template.replace('{图片}', ''));
   await page.locator('#giftWishCancel').click();
   await page.getByRole('radio', { name: '文字版', exact: true }).check();
-  assert.equal(await input.inputValue(), '许愿{礼物}（{已收}/{目标}）');
+  assert.equal(await templateInput.inputValue(), '许愿{礼物}（{已收}/{目标}）');
   assert.equal(await page.locator('#giftWishTextImageFormat').inputValue(), 'animated');
 });
 
@@ -514,6 +516,111 @@ test('legacy image positions convert when edited without losing long text or dup
     assert.equal(await saved.locator('img').count(), expected.match(/\{图片\}/g).length);
     assert.equal(await saved.textContent(), rendered.replaceAll('{图片}', ''));
   }
+});
+
+test('wish text chips insert, delete and restore as a whole through native undo and redo', async (t) => {
+  const page = await open(t);
+  await page.getByRole('radio', { name: '文字版', exact: true }).check();
+  const editor = page.locator('#giftWishTextEditor');
+  const value = () => page.locator('#giftWishTextTemplate').inputValue();
+  const original = await value();
+  await page.evaluate(() => {
+    window.templateChanges = 0;
+    document.getElementById('giftWishTextTemplate').addEventListener('input', () => window.templateChanges++);
+  });
+  assert.equal(await editor.locator('[contenteditable=false]').count(), 3);
+  await editor.press('Control+Home');
+  await page.getByRole('button', { name: '插入礼物图片', exact: true }).click();
+  assert.equal(await value(), `{图片}${original}`);
+  assert.equal(await page.evaluate(() => window.templateChanges), 1);
+  await editor.press('Control+z');
+  assert.equal(await value(), original);
+  await editor.press('Control+y');
+  assert.equal(await value(), `{图片}${original}`);
+  await editor.press('Control+Home');
+  await editor.press('Delete');
+  assert.equal(await value(), original);
+  await editor.press('Control+z');
+  assert.equal(await value(), `{图片}${original}`);
+  await editor.locator('[data-wish-token="{礼物}"]').click();
+  await editor.press('Backspace');
+  assert.equal(await value(), `{图片}${original.replace('{礼物}', '')}`);
+  await editor.press('Control+z');
+  assert.equal(await value(), `{图片}${original}`);
+  await editor.press('Control+End');
+  await editor.press('Enter');
+  await page.keyboard.insertText('谢谢大家');
+  assert.equal(await value(), `{图片}${original}\n谢谢大家`);
+  assert.equal(await page.locator('#giftWishDraftPreview .wish-card-text').textContent(), '许愿礼物（0/10）\n谢谢大家');
+  await editor.press('Control+z');
+  assert.equal((await value()).includes('谢谢大家'), false);
+  await page.locator('[data-wish-period=day]').click();
+  await page.getByRole('radio', { name: '文字版', exact: true }).check();
+  await editor.press('Control+z');
+  assert.equal(await value(), original);
+});
+
+test('wish text clipboard preserves complete tokens, treats HTML as text and supports undoing cut and paste', async (t) => {
+  const page = await open(t);
+  await page.getByRole('radio', { name: '文字版', exact: true }).check();
+  const editor = page.locator('#giftWishTextEditor');
+  const value = () => page.locator('#giftWishTextTemplate').inputValue();
+  // A selection ending inside a token must copy/cut the complete variable.
+  const copyOrCut = (type) => editor.evaluate((node, type) => {
+    const text = node.querySelector('[data-wish-token="{礼物}"]').firstChild;
+    const range = document.createRange();
+    range.setStart(text, 1);
+    range.setEnd(text, 2);
+    node.focus();
+    window.getSelection().removeAllRanges();
+    window.getSelection().addRange(range);
+    const clipboardData = new DataTransfer();
+    node.dispatchEvent(new ClipboardEvent(type, { clipboardData, bubbles: true, cancelable: true }));
+    return clipboardData.getData('text/plain');
+  }, type);
+  assert.equal(await copyOrCut('copy'), '{礼物}');
+  assert.equal(await copyOrCut('cut'), '{礼物}');
+  assert.equal(await value(), '许愿（{已收}/{目标}）');
+  await editor.press('Control+z');
+  assert.equal(await value(), '许愿{礼物}（{已收}/{目标}）');
+  await editor.press('Control+End');
+  await editor.evaluate((node) => {
+    const clipboardData = new DataTransfer();
+    clipboardData.setData('text/plain', '\n<b>谢谢</b>{图片}{礼物}{未知}');
+    clipboardData.setData('text/html', '<img src=x onerror="window.pasteExecuted=true">');
+    node.dispatchEvent(new ClipboardEvent('paste', { clipboardData, bubbles: true, cancelable: true }));
+  });
+  assert.equal(await value(), '许愿{礼物}（{已收}/{目标}）\n<b>谢谢</b>{图片}{礼物}{未知}');
+  assert.equal(await editor.locator('[contenteditable=false]').count(), 5);
+  assert.equal(await editor.locator('b, img').count(), 0);
+  assert.equal(await page.evaluate(() => !!window.pasteExecuted), false);
+  await editor.press('Control+z');
+  assert.equal(await value(), '许愿{礼物}（{已收}/{目标}）');
+  await editor.press('Control+Shift+z');
+  assert.equal(await editor.locator('[contenteditable=false]').count(), 5);
+});
+
+test('wish text editing locks with the form and reports the existing template length limit before saving', async (t) => {
+  const page = await open(t);
+  await page.locator('#giftWishPick').click();
+  await page.locator('.gift-wish-option').click();
+  await page.getByRole('radio', { name: '文字版', exact: true }).check();
+  const editor = page.locator('#giftWishTextEditor');
+  await editor.fill('字'.repeat(241));
+  await page.locator('#giftWishSave').click();
+  assert.match(await page.locator('#giftWishError').textContent(), /240/);
+  assert.equal(await page.evaluate(() => window.wishSaves.length), 0);
+  await editor.fill('🌸'.repeat(240));
+  await page.locator('#giftWishSave').click();
+  await page.waitForFunction(() => window.wishSaves.length === 1);
+  assert.equal(await page.evaluate(() => [...window.wishSaves[0].textTemplate].length), 240);
+  await page.evaluate(() => {
+    window.fetch = async () => ({ ok: false, status: 409,
+      json: async () => ({ ok: false, error: '来源未就绪', code: 'GIFT_SOURCE_UNAVAILABLE' }) });
+  });
+  await page.locator('#giftWishesRefresh').click();
+  await page.waitForFunction(() => document.getElementById('giftWishFields').disabled);
+  assert.equal(await editor.getAttribute('contenteditable'), 'false');
 });
 
 test('static text images are PNG first frames and today color resets even when the cumulative wish is complete', async (t) => {

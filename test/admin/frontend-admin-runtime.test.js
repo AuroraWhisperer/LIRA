@@ -80,21 +80,21 @@ test('admin loads theme presets before initializing theme forms', () => {
   assert.ok(loadPosition < displayFormPosition, 'theme presets should load before the display form');
 });
 
-test('song request and display board forms autosave every parameter change', () => {
-  const themeSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme.js'), 'utf8');
+test('queue theme uses explicit draft saves while the display board retains autosave', () => {
+  const themeSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'queue-theme-view.js'), 'utf8');
   const displaySource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'display.js'), 'utf8');
 
-  assert.match(themeSource, /themeForm\.addEventListener\('input', scheduleThemeAutosave\)/);
-  assert.match(themeSource, /themeForm\.addEventListener\('change', scheduleThemeAutosave\)/);
-  assert.match(themeSource, /autosaveTheme\(normalizePersistedQueueStyle\(value\('overlayQueueStyle'\)\)\)/);
+  assert.match(themeSource, /root\.addEventListener\('input', edit\)/);
+  assert.match(themeSource, /root\.addEventListener\('change', edit\)/);
+  assert.match(themeSource, /'submit'[\s\S]*controller\.save\(\)/);
   assert.match(displaySource, /displayForm\.addEventListener\('input', autosaveDisplay\)/);
   assert.match(displaySource, /displayForm\.addEventListener\('change', autosaveDisplay\)/);
   assert.match(displaySource, /await copyText\(url\)/);
   assert.doesNotMatch(displaySource, /navigator\.clipboard\.writeText\(url\)/);
 
-  assert.match(themeSource, /classicPresets[\s\S]*?await saveTheme\(\)/);
-  assert.match(themeSource, /quickBeautifyBtn[\s\S]*?await saveTheme\(\)/);
-  assert.match(themeSource, /resetClassicTheme[\s\S]*?await saveTheme\(\)/);
+  assert.match(themeSource, /classicPresets[\s\S]*?controller\.edit\(/);
+  assert.match(themeSource, /quickBeautifyBtn[\s\S]*?controller\.edit\(/);
+  assert.match(themeSource, /resetClassicTheme[\s\S]*?controller\.edit\(/);
   assert.match(displaySource, /songBoardPresets[\s\S]*?await saveDisplay\(\)/);
   assert.match(displaySource, /songBoardResetTheme[\s\S]*?await saveDisplay\(\)/);
   assert.doesNotMatch(themeSource, /保存后生效/);

@@ -105,6 +105,40 @@ async function initializeApp() {
   });
   settings.initBilibiliAuth();
   theme.initThemeForm();
+  document.getElementById('componentWorkspaceOpen')?.addEventListener('click', async (event) => {
+    const button = event.currentTarget;
+    button.disabled = true;
+    try {
+      const [clock, overtime, workspace] = await Promise.all([
+        import('./clock-card.js'), import('./overtime.js'), import('./component-workspace.js'),
+      ]);
+      clock.initClockCard();
+      overtime.initOvertime(stateService.getAppState());
+      danmakuTool.init({ toast: Utils.toast, reconnectBilibili: settings.reconnectBilibili });
+      workspace.openComponentWorkspace();
+    } catch (error) {
+      Utils.showError(error);
+    } finally {
+      button.disabled = false;
+    }
+  });
+  document.getElementById('sceneEditorOpen')?.addEventListener('click', async (event) => {
+    const button = event.currentTarget;
+    button.disabled = true;
+    try {
+      const [clock, overtime, editor] = await Promise.all([
+        import('./clock-card.js'), import('./overtime.js'), import('./scene-editor.js'),
+      ]);
+      clock.initClockCard();
+      overtime.initOvertime(stateService.getAppState());
+      danmakuTool.init({ toast: Utils.toast, reconnectBilibili: settings.reconnectBilibili });
+      editor.openSceneEditor();
+    } catch (error) {
+      Utils.showError(error);
+    } finally {
+      button.disabled = false;
+    }
+  });
   display.initDisplayForm();
   display.initOverlayUrls();
   desktopLyric.initDesktopLyricForm();

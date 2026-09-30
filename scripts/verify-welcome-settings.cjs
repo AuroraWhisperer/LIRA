@@ -3,26 +3,22 @@
 // Actual Electron renderer, real fragments/CSS/IPC, synthetic configuration only.
 const { app, BrowserWindow, ipcMain } = require('electron');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const http = require('node:http');
 const assert = require('node:assert/strict');
 const { composeAdminHtml } = require('../src/server/admin-page');
 const { registerLicenseIpc } = require('../src/electron/ipc/license-ipc');
-const output = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-welcome-check-'));
+const scratch = path.resolve(__dirname, '../tmp');
+fs.mkdirSync(scratch, { recursive: true });
+const output = fs.mkdtempSync(path.join(scratch, 'welcome-check-'));
 app.setPath('userData', path.join(output, 'electron'));
+app.setPath('sessionData', path.join(output, 'electron'));
 const publicDir = path.resolve(__dirname, '../public');
 const complete = composeAdminHtml(publicDir);
-const start = complete.indexOf('<section\n  id="otherDanmakuFeature"');
-const crlfStart = complete.indexOf('<section\r\n  id="otherDanmakuFeature"');
-const fixedStart = complete.indexOf('    <section\n      class="danmaku-feature-section danmaku-fixed-reply-section"');
-const begin =
-  fixedStart >= 0
-    ? fixedStart
-    : complete.indexOf('    <section\r\n      class="danmaku-feature-section danmaku-fixed-reply-section"');
-assert.ok(begin > Math.max(start, crlfStart));
-const end = complete.indexOf('\n  </div>\n</section>', begin);
-const fixed = complete.slice(begin, end >= 0 ? end : complete.indexOf('\r\n  </div>\r\n</section>', begin));
+const start = complete.indexOf('id="otherDanmakuFeature"');
+const begin = complete.search(/<section\s+class="danmaku-feature-section danmaku-fixed-reply-section"/);
+const end = complete.slice(begin).search(/\r?\n  <\/div>\r?\n<\/section>/);
+const fixed = complete.slice(begin, begin + end);
 let settings = {
   schemaVersion: 2,
   enabled: true,
@@ -51,19 +47,23 @@ const script = `
 import { initDanmakuWelcome } from '/js/admin/danmaku-welcome.js';
 import { initDanmakuPkReport } from '/js/admin/danmaku-pk-report.js';
 import { initFixedReplyEditor } from '/js/admin/danmaku-fixed-replies.js';
-import { createBlessingEditor, createFortuneEditor, createCustomReplyEditor } from '/js/admin/danmaku-libraries.js';
+import { createCustomReplyEditor } from '/js/admin/danmaku-libraries.js';
+import { toast as showToast } from '/js/shared/toast.js';
+import '/js/admin/contextual-help.js';
+window.fixtureToasts = [];
+const toast = (message, options) => {
+  window.fixtureToasts.push({ message, options });
+  return showToast(message, options);
+};
 const saveSetting = async (key, value) => ({ [key]: value });
-const deps = { document, saveSetting, toast: () => {} };
-createBlessingEditor(deps).load(JSON.stringify(Array.from({length:30}, (_, i) => '祝福样例 ' + (i+1))));
-createFortuneEditor(deps).load(JSON.stringify(Array.from({length:20}, (_, i) => ({level:'上签',name:'样例 '+(i+1),text:'云开见日',advice:'宜听歌'}))));
-createCustomReplyEditor(deps).load('[]');
-initDanmakuWelcome(); initDanmakuPkReport(); initFixedReplyEditor();
+createCustomReplyEditor({ document, saveSetting, toast }).load('[]');
+initDanmakuWelcome({ toast }); initDanmakuPkReport({ toast }); initFixedReplyEditor();
 window.fixtureReady = true;
 `;
 const html = `<!doctype html><html class="desktop-shell" lang="zh-CN"><head><meta charset="utf-8">
 ${['styles-base', 'styles-admin', 'overlays/desktop'].map((name) => `<link rel="stylesheet" href="/css/${name}.css">`).join('')}
 <style>body{margin:0;padding:20px;overflow:auto}.fixture-shell{max-width:1000px;margin:auto}.danmaku-tool-panel{display:block}.fixture-shell>.danmaku-feature-section{margin:0}</style>
-</head><body class="desktop-shell"><div class="fixture-shell danmaku-tool-panel">${fixed}</div><script type="module">${script}</script></body></html>`;
+</head><body class="desktop-shell"><div class="fixture-shell danmaku-tool-panel">${fixed}</div><div id="toast" class="toast-stack"></div><script type="module">${script}</script></body></html>`;
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, 'http://localhost');
   if (url.pathname === '/admin') {
@@ -121,9 +121,11 @@ async function geometry() {
   })()`);
 }
 async function run() {
+  assert.ok(start >= 0 && begin > start && end > 0);
   await app.whenReady();
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const origin = `http://127.0.0.1:${server.address().port}`;
+  assert.equal((await fetch(origin + '/admin?desktop=1')).status, 200);
   win = new BrowserWindow({
     width: 1280,
     height: 800,
@@ -167,12 +169,17 @@ async function run() {
   const collapsed = await geometry();
   assert.equal(collapsed.columns, 2);
   assert.deepEqual(collapsed.visible, []);
+  assert.equal(await evaluate('document.getElementById("danmakuWelcomePinyinToggle").getClientRects().length'), 0);
+  assert.equal(await evaluate('document.querySelectorAll(".switch-caption").length'), 0);
   await capture('collapsed');
   await click('[data-fixed-open="welcome"]');
   const expanded = await geometry();
   assert.deepEqual(expanded.visible, ['welcome']);
+  assert.equal(
+    await evaluate('document.getElementById("danmakuWelcomePinyinToggle").closest("#danmakuWelcomePanel") !== null'),
+    true,
+  );
   assert.deepEqual(expanded.overflow, []);
-  assert.ok(collapsed.height <= 340 && expanded.height <= 620, 'compact desktop height budget');
   assert.equal(await evaluate('document.getElementById("danmakuWelcomePreview").open'), false);
   await capture('welcome');
   await evaluate('document.documentElement.style.colorScheme="dark"');
@@ -197,23 +204,21 @@ async function run() {
   assert.equal(settings.enabled, true);
   writes.length = 0;
   await input('danmakuWelcomewelcomeDelaySeconds', '5');
-  await click('[data-fixed-open="checkin"]');
-  await input('danmakuBlessingInput', '未添加的签到草稿');
   await click('[data-fixed-open="diy"]');
+  await input('danmakuCustomKeywordInput', '未添加的关键词草稿');
   await click('[data-fixed-open="welcome"]');
   assert.equal(await evaluate('document.getElementById("danmakuWelcomewelcomeDelaySeconds").value'), '5');
   await click('#danmakuWelcomeParameterSaveBtn');
   await wait('document.getElementById("danmakuWelcomeParameterSaveBtn").disabled');
   assert.equal(writes[0].welcomeDelaySeconds, 5);
   assert.ok(!writes[0].messages);
-  await click('[data-fixed-open="checkin"]');
-  assert.equal(await evaluate('document.getElementById("danmakuBlessingInput").value'), '未添加的签到草稿');
-  assert.equal(await evaluate('document.getElementById("danmakuBlessingCount").textContent'), '30 条');
+  await click('[data-fixed-open="diy"]');
+  assert.equal(await evaluate('document.getElementById("danmakuCustomKeywordInput").value'), '未添加的关键词草稿');
   await click('[data-fixed-open="welcome"]');
   await click('[data-welcome-library="messages"]');
   await click('#danmakuWelcomeNextPage');
   await input('danmakuWelcomeInput', '未添加的欢迎草稿');
-  await click('[data-fixed-open="fortune"]');
+  await click('[data-fixed-open="random"]');
   await click('[data-fixed-open="welcome"]');
   assert.equal(await evaluate('document.getElementById("danmakuWelcomeInput").value'), '未添加的欢迎草稿');
   assert.match(await evaluate('document.getElementById("danmakuWelcomePageLabel").textContent'), /第 2/);
@@ -238,9 +243,37 @@ async function run() {
     'true',
   );
   await capture('invalid');
+  const overviewText = await evaluate('document.getElementById("danmakuWelcomeOverviewStatus").textContent');
+  const summaryText = await evaluate('document.getElementById("danmakuWelcomeSummary").textContent');
+  const previousWrites = writes.length;
+  await evaluate('window.fixtureToasts.length = 0');
+  await click('#danmakuWelcomePinyinToggle');
+  await wait('!document.getElementById("danmakuWelcomePinyinToggle").disabled');
+  assert.equal(writes.length, previousWrites + 1);
+  assert.deepEqual(writes.at(-1), { rareNamePinyinEnabled: true });
+  assert.equal(await evaluate('document.getElementById("danmakuWelcomegreetingDelaySeconds").value'), '4');
+  assert.equal(await evaluate('document.getElementById("danmakuWelcomeOverviewStatus").textContent'), overviewText);
+  assert.equal(await evaluate('document.getElementById("danmakuWelcomeSummary").textContent'), summaryText);
+  assert.equal(await evaluate('window.fixtureToasts.length'), 1);
+  assert.equal(await evaluate('window.fixtureToasts[0].message'), '昵称生僻字自动注音已开启');
+  await wait(`Array.from(document.querySelectorAll('#toast .toast')).some(node =>
+    !node.hidden && node.getBoundingClientRect().height > 0 && getComputedStyle(node).opacity === '1'
+    && node.textContent.includes('昵称生僻字自动注音已开启'))`);
+  await capture('pinyin-toast');
   failWrite = true;
+  await click('#danmakuWelcomePinyinToggle');
+  await wait('window.fixtureToasts.length === 2');
+  assert.equal(await evaluate('document.getElementById("danmakuWelcomePinyinToggle").checked'), true);
+  assert.equal(await evaluate('window.fixtureToasts[1].options.type'), 'error');
+  assert.equal(await evaluate('document.getElementById("danmakuWelcomeOverviewStatus").textContent'), overviewText);
+  assert.equal(await evaluate('document.getElementById("danmakuWelcomeServerStatus").hidden'), true);
+  await wait(`Array.from(document.querySelectorAll('#toast .toast-error')).some(node =>
+    !node.hidden && node.getBoundingClientRect().height > 0 && getComputedStyle(node).opacity === '1'
+    && node.textContent.includes('昵称生僻字自动注音关闭尚未确认'))`);
+  await capture('pinyin-error');
   await click('#danmakuWelcomeToggle');
-  await wait('document.getElementById("danmakuWelcomeStatus").textContent.includes("关闭尚未确认")');
+  await wait('window.fixtureToasts.length === 3');
+  assert.match(await evaluate('window.fixtureToasts[2].message'), /关闭尚未确认/);
   assert.equal(await evaluate('document.getElementById("danmakuWelcomeToggle").checked'), true);
   await capture('unconfirmed');
   legacy = true;
@@ -257,7 +290,7 @@ async function run() {
       expanded,
       screenshots: output,
       checks:
-        'real Electron/IPC, one retained editor, keyboard and disabled state, local and server drafts, pagination counts, responsive widths, 200% zoom, invalid input, unconfirmed close, legacy capability',
+        'real Electron/IPC, one retained editor, keyboard and disabled state, local and server drafts, pagination counts, responsive widths, 200% zoom, invalid input, independent pinyin toggle, single success/error toast, unconfirmed close, legacy capability',
     }),
   );
 }

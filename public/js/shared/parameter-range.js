@@ -3,7 +3,7 @@
 
 const PARAMETER_RANGE_SELECTOR = 'input.parameter-range[type="range"]';
 const DEFAULT_THUMB_SIZE = 18;
-const initializedInputs = new WeakSet();
+const initializedInputs = new WeakMap();
 
 const resizeObserver =
   typeof ResizeObserver === 'undefined'
@@ -130,8 +130,19 @@ export function initParameterRanges(root = document) {
     input.addEventListener('input', refresh);
     input.addEventListener('change', refresh);
     resizeObserver?.observe(input);
-    initializedInputs.add(input);
+    initializedInputs.set(input, refresh);
   });
 
   return inputs;
+}
+
+export function disposeParameterRanges(root) {
+  for (const input of getInputs(root)) {
+    const refresh = initializedInputs.get(input);
+    if (!refresh) continue;
+    input.removeEventListener('input', refresh);
+    input.removeEventListener('change', refresh);
+    resizeObserver?.unobserve(input);
+    initializedInputs.delete(input);
+  }
 }

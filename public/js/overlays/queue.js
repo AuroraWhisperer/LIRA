@@ -23,6 +23,7 @@ import {
 import { syncQueuePanelViewport } from './queue-viewport.js';
 import { normalizePersistedQueueStyle, resolveQueueStyleSettings } from '../shared/queue-style-settings.js';
 import { createOverlaySocket } from './socket-client.js';
+import { createComponentPreviewClient, isComponentPreview } from './component-preview-client.js';
 
 const ILLUSTRATED_QUEUE_RENDERERS = {
   storybook: renderStorybookQueue,
@@ -46,8 +47,18 @@ let lastRenderKey = null;
 let stateRevision = 0;
 let liveStatusRevision = 0;
 document.addEventListener('DOMContentLoaded', () => {
-  loadState();
-  connectSocket();
+  if (isComponentPreview()) {
+    let settings = {};
+    let data = { queue: { current: null, waiting: [] }, superChats: [] };
+    createComponentPreviewClient({
+      onConfig(config) { settings = config; applyState({ settings, ...data }); },
+      onData(value) { data = value; applyState({ settings, ...data }); },
+      onDispose: disposeSocket,
+    });
+  } else {
+    loadState();
+    connectSocket();
+  }
   window.addEventListener('resize', handleQueueViewportResize);
   window.addEventListener('beforeunload', disposeSocket, { once: true });
 });
@@ -109,6 +120,9 @@ function connectSocket() {
 function disposeSocket() {
   stateRevision += 1;
   clearTimeout(stateRefreshTimer);
+  clearTimeout(overlayResizeTimer);
+  window.removeEventListener('resize', handleQueueViewportResize);
+  document.getAnimations?.().forEach((animation) => animation.cancel());
   socketController?.dispose();
   socketController = null;
 }

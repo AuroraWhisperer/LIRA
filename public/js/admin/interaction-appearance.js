@@ -70,10 +70,11 @@ export function initInteractionAppearance() {
       controls[key].setAttribute('aria-valuetext', value);
       refreshParameterRange(controls[key]);
     }
-    const options = [...get('pollOptions').querySelectorAll('input')].map((input, index) => ({
+    const inputs = [...get('pollOptions').querySelectorAll('input')];
+    const options = inputs.map((input, index) => ({
       text: input.value.trim() || `选项 ${index + 1}`,
-      votes: index === 0 ? 68 : index === 1 ? 32 : 0,
-      percentage: index === 0 ? 68 : index === 1 ? 32 : 0,
+      votes: inputs.length === 1 ? 100 : index === 0 ? 68 : index === 1 ? 32 : 0,
+      percentage: inputs.length === 1 ? 100 : index === 0 ? 68 : index === 1 ? 32 : 0,
     }));
     renderPollRows(get('interactionPreviewRows'), {
       sessionId: `preview-${options.length}`,

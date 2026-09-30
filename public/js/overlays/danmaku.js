@@ -1,5 +1,7 @@
 import { createDanmakuFeed } from './danmaku-feed.js';
 import { initDanmakuPreview } from './danmaku-preview.js';
+import { isSceneComponent } from './component-preview-client.js';
+import { createSceneDanmakuDisplay } from './scene-danmaku-display.js';
 import { DANMAKU_STYLE_OPTIONS, isRandomDanmakuStyle, applyStyleOptions, parseStyleOptions } from '../shared/danmaku-style-options.js';
 
 ('use strict');
@@ -47,10 +49,17 @@ document.addEventListener('DOMContentLoaded', () => {
     let previewTimer = null;
     let previewSequence = 0;
     let playNext;
+    const sceneDisplay = createSceneDanmakuDisplay({ clear: () => applyItems([]), append: appendItem,
+      status: setConnectionState, getStyle: () => currentOverlayStyle });
     initDanmakuPreview({
       initialStyle: params.get('style'),
       styleOptions: previewOptions,
       duration: params.get('fullscreenDurationSeconds') || previewHistory.danmakuDuration,
+      renderConfiguration(config) {
+        applyConfiguration(config.style, config.fullscreenDurationSeconds, config.styleOptions, true);
+        applyItems([]);
+      },
+      renderData: sceneDisplay.update,
       renderSamples(style, options, duration) {
         const samples = previewItems().filter((item) =>
           !isRandomDanmakuStyle(style) || item.kind !== 'superchat');
@@ -74,16 +83,21 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     const onVisibilityChange = () => {
       clearTimeout(previewTimer);
-      if (!document.hidden) playNext();
+      if (!document.hidden) playNext?.();
     };
     document.addEventListener('visibilitychange', onVisibilityChange);
-    window.addEventListener('pagehide', () => {
+    const disposePreview = () => {
       clearTimeout(previewTimer);
       document.removeEventListener('visibilitychange', onVisibilityChange);
       if (renderFrame !== null) cancelAnimationFrame(renderFrame);
       feed?.destroy();
-    }, { once: true });
-    setConnectionState('模拟直播 · 随机消息', true);
+      feed = null;
+      window.removeEventListener('pagehide', disposePreview);
+      window.removeEventListener('lira:preview-dispose', disposePreview);
+    };
+    window.addEventListener('pagehide', disposePreview, { once: true });
+    window.addEventListener('lira:preview-dispose', disposePreview, { once: true });
+    setConnectionState(isSceneComponent() ? '正在连接直播数据' : '模拟直播 · 随机消息', !isSceneComponent());
     return;
   }
   createOverlayFeed(currentOverlayStyle, currentFullscreenDurationSeconds);
@@ -262,6 +276,7 @@ function bilibiliImageSource(value) {
   if (previewMode && value === '/img/overlays/danmaku-previews/dacall.png') return value;
   const source = bilibiliAvatarSource(value);
   if (!source) return '';
+  if (isSceneComponent()) return source;
   const token = String(window.__API_TOKEN__ || '');
   return `/api/bilibili/avatar?url=${encodeURIComponent(source)}${token ? `&token=${encodeURIComponent(token)}` : ''}`;
 }

@@ -4,9 +4,9 @@
     {
       "path": "src/electron/main.js",
       "kind": "review",
-      "maxLines": 725,
+      "maxLines": 734,
       "owner": "桌面组合入口",
-      "reason": "2026-09-15 礼物互动接入复核：组合入口仅增加专用 IPC 的注册与关闭清理，设置确认/串行写入仍归云同步控制器，窄 IPC 校验在独立模块；保留 2026-09-14 抽奖认证与 runtime 接线。保护测试为 electron-shutdown 与 gift-interaction-controls。 2026-09-18 集成门禁逐块复核：礼物导出仅增加 IPC/controller 导入、启动接线和关闭清理，数据选择及文件导出仍在独立 controller；没有将业务逻辑加入入口。补齐既有 shutdown harness 两个依赖桩后，以启动/停机和 gift-export-controller 测试验证组合边界。 2026-09-18 粉丝档案逐项复核：粉丝档案的同步/来源校验已提取为 fan-profile-controller 与 fan-profile-ipc；入口只注册、传依赖、在现有 drain 集合中关闭。未增加领域状态；electron-shutdown 新增粉丝同步 drain 断言。 2026-09-25 审计跟进逐块复核：仅为旧 IPC 注入当前窗口/服务 origin，并将现有认证 owner 加入停机 drain；净增两行依赖接线。来源判定独立在 main-window-ipc，取消和串行写入在 desktop-auth-controller；不为两行组合接线新建抽象或压缩代码。legacy-ipc-source、真实 desktop-auth-race-electron 与 electron-shutdown 保护合法调用和停机顺序。 2026-09-26 客户端资源检查复核：扫描/schema/摘要状态已拆分为 resource-integrity-files、resource-integrity-manager，原始文件系统和受限状态投递由 desktop-resource-integrity 组合；main 净增 12 行仅负责创建单例、注入 IPC 与安装前 stop、现有 shutdown drain，不承载新业务判断。resource-integrity-bridge、真实 resource-integrity-electron 和 electron-shutdown 保护边界及取消顺序。 2026-09-28 格式化复核：统一排版后为 725 行，较格式化前增加两行；本次没有新增启动、停机或业务逻辑。现有控制器已承接独立职责，保留组合入口中的显式依赖接线和生命周期顺序，不为一行登记超限引入依赖袋或新的转发层。",
+      "reason": "2026-09-15 礼物互动接入复核：组合入口仅增加专用 IPC 的注册与关闭清理，设置确认/串行写入仍归云同步控制器，窄 IPC 校验在独立模块；保留 2026-09-14 抽奖认证与 runtime 接线。保护测试为 electron-shutdown 与 gift-interaction-controls。 2026-09-18 集成门禁逐块复核：礼物导出仅增加 IPC/controller 导入、启动接线和关闭清理，数据选择及文件导出仍在独立 controller；没有将业务逻辑加入入口。补齐既有 shutdown harness 两个依赖桩后，以启动/停机和 gift-export-controller 测试验证组合边界。 2026-09-18 粉丝档案逐项复核：粉丝档案的同步/来源校验已提取为 fan-profile-controller 与 fan-profile-ipc；入口只注册、传依赖、在现有 drain 集合中关闭。未增加领域状态；electron-shutdown 新增粉丝同步 drain 断言。 2026-09-25 审计跟进逐块复核：仅为旧 IPC 注入当前窗口/服务 origin，并将现有认证 owner 加入停机 drain；净增两行依赖接线。来源判定独立在 main-window-ipc，取消和串行写入在 desktop-auth-controller；不为两行组合接线新建抽象或压缩代码。legacy-ipc-source、真实 desktop-auth-race-electron 与 electron-shutdown 保护合法调用和停机顺序。 2026-09-26 客户端资源检查复核：扫描/schema/摘要状态已拆分为 resource-integrity-files、resource-integrity-manager，原始文件系统和受限状态投递由 desktop-resource-integrity 组合；main 净增 12 行仅负责创建单例、注入 IPC 与安装前 stop、现有 shutdown drain，不承载新业务判断。resource-integrity-bridge、真实 resource-integrity-electron 和 electron-shutdown 保护边界及取消顺序。 2026-09-28 格式化复核：统一排版后为 725 行，较格式化前增加两行；本次没有新增启动、停机或业务逻辑。现有控制器已承接独立职责，保留组合入口中的显式依赖接线和生命周期顺序，不为一行登记超限引入依赖袋或新的转发层。 2026-09-30 本地场景复核：净增九行仅导入、创建、启动及排空 scene-cloud-controller，并注入可信 owner provider。SSE 解析、重连、投影及身份判断留在独立 owner，关闭沿用现有 dispose/whenIdle 顺序；scene-cloud-controller、scene-runtime 与 electron-shutdown 测试保护。",
       "removal": "继续按真实独立职责整理组合阶段；保留启动失败、授权及停机验证。",
       "reviewBy": "2026-12-18",
       "test": "test/desktop/electron-shutdown.test.js"
@@ -34,9 +34,9 @@
     {
       "path": "src/server.js",
       "kind": "review",
-      "maxLines": 743,
+      "maxLines": 749,
       "owner": "服务组合入口",
-      "reason": "2026-09-16 快照接线复核：getState 通过 domainServices.songs.getMetadata 复用歌曲元数据，只新增一行组合接线；缓存与失效机制位于 song-metadata/SongStore，入口不持有缓存策略。 2026-09-18 集成门禁逐块复核：新增一行播放页面代次 callback，版本状态仍归 PlaybackStore；并行礼物导出的查询、配置和来源通知已由 gift-export-runtime 持有，入口只导入并组合，替换原 setActiveGiftSource 透传。没有新增领域状态，模块依赖及播放 bootstrap 回归保护接线。 2026-09-18 粉丝档案逐项复核：粉丝档案只增加 authenticated scope provider 的组合接线和 service 访问口；领域、SQL、日期与归档都在独立 owner。保持现有组合根，不为四行依赖透传引入额外层。fan-profiles-music 与 module-boundaries 保护。 云端日机器人新增只读 legacy reader facade getter，由 main 控制一次性接管；执行业务仍在独立模块。",
+      "reason": "2026-09-16 快照接线复核：getState 通过 domainServices.songs.getMetadata 复用歌曲元数据，只新增一行组合接线；缓存与失效机制位于 song-metadata/SongStore，入口不持有缓存策略。 2026-09-18 集成门禁逐块复核：新增一行播放页面代次 callback，版本状态仍归 PlaybackStore；并行礼物导出的查询、配置和来源通知已由 gift-export-runtime 持有，入口只导入并组合，替换原 setActiveGiftSource 透传。没有新增领域状态，模块依赖及播放 bootstrap 回归保护接线。 2026-09-18 粉丝档案逐项复核：粉丝档案只增加 authenticated scope provider 的组合接线和 service 访问口；领域、SQL、日期与归档都在独立 owner。保持现有组合根，不为四行依赖透传引入额外层。fan-profiles-music 与 module-boundaries 保护。 云端日机器人新增只读 legacy reader facade getter，由 main 控制一次性接管；执行业务仍在独立模块。 2026-09-30 本地场景复核：净增六行仅装配 scene-runtime、传入 facade、接收投影和关闭引用；文档校验、版本发布及凭据校验在 scenes service，SQL 在 scene-store；scene-runtime、scene-http 与 scene-store 测试保护，不增加业务判断。",
       "removal": "按资源阶段继续评估组合职责，避免领域模块反向依赖 server 入口。",
       "reviewBy": "2026-12-18",
       "test": "test/playback/playback-snapshot-bootstrap.test.js"
@@ -52,21 +52,11 @@
       "test": "test/admin/frontend-admin-shell.test.js"
     },
     {
-      "path": "public/js/admin/overtime.js",
-      "kind": "review",
-      "maxLines": 617,
-      "owner": "加班机管理控制器",
-      "reason": "2026-09-16 按需初始化复核：初始化读取已接纳的直播/礼物检测状态并提供具名导出，移除全局注册；只新增延迟激活接线，规则编辑和时钟仍由既有独立模块负责。",
-      "removal": "继续按独立职责评估；不另建选择器状态控制器。",
-      "reviewBy": "2026-12-13",
-      "test": "test/admin/toolbox-lifecycle.test.js"
-    },
-    {
       "path": "public/pages/admin/toolbox/shell-start.html",
       "kind": "review",
-      "maxLines": 735,
+      "maxLines": 747,
       "owner": "百宝箱页面组合",
-      "reason": "2026-09-14 抽奖专用登录复核：仅增加既有导航合同下的一个 tab/SVG，账号面板独立在 dynamic-lottery.html，行为独立为命名 ESM；保留组合器管理开闭标签，未向外壳增加业务逻辑。 2026-09-18 粉丝档案逐项复核：粉丝档案导航本体独立为 fan-profiles-nav.html，父页面仅增加一行固定 fragment；不在父页面加入表单或业务。admin-page-composition 与 toolbox-sidebar 保护组合。",
+      "reason": "2026-09-14 抽奖专用登录复核：仅增加既有导航合同下的一个 tab/SVG，账号面板独立在 dynamic-lottery.html，行为独立为命名 ESM；保留组合器管理开闭标签，未向外壳增加业务逻辑。 2026-09-18 粉丝档案逐项复核：粉丝档案导航本体独立为 fan-profiles-nav.html，父页面仅增加一行固定 fragment；不在父页面加入表单或业务。admin-page-composition 与 toolbox-sidebar 保护组合。2026-09-30 复核：增加六行工作区入口按钮/SVG，仍仅导航；工作区表单、预览生命周期和批量保存分别由独立 ESM 拥有，不为该导航按钮拆分外壳标签。 2026-09-30 本地场景入口复核：另增六行场景编辑器导航按钮，行为通过 app 惰性加载至独立 scene-editor 模块；无业务逻辑、领域状态或重复页面内容。scene-editor 与 admin-page-composition 保护入口和生命周期。",
       "removal": "导航改造时提取完整 aside；组合器继续管理外壳开闭标签。",
       "reviewBy": "2026-12-13",
       "test": "test/admin/admin-page-composition.test.js"
@@ -82,11 +72,21 @@
       "test": "test/cloud-sync/cloud-sync-controller.test.js"
     },
     {
+      "path": "test/gifts/frontend-gift-wishes.test.js",
+      "kind": "review",
+      "maxLines": 697,
+      "owner": "礼物许愿编辑与展示集成测试",
+      "reason": "2026-09-30 发布复核：新增三个场景验证同一许愿文字编辑器的原生撤销重做、完整变量复制剪切与纯文本粘贴、表单禁用及既有长度限制；继续使用原许愿表单和展示 fixture，保留草稿、保存 DTO 与实际卡片之间的集成断言。未新增其他领域或运行时责任；仅拆出这三个场景会同时要求提取或复制专用表单 fixture，本次保留同一编辑到展示契约的完整覆盖。",
+      "removal": "新增独立展示协议或编辑能力继续扩展时，按编辑和浏览器源场景拆分，并仅提取真实共用的 fixture；不扩大当前 697 行上限。",
+      "reviewBy": "2026-12-30",
+      "test": "test/gifts/frontend-gift-wishes.test.js"
+    },
+    {
       "path": "test/overtime/overtime-gift-picker.test.js",
       "kind": "review",
-      "maxLines": 692,
+      "maxLines": 698,
       "owner": "礼物选择器测试",
-      "reason": "搜索代次、来源和身份规则共同约束一个选择器。2026-09-16 复审：固定服务器契约仅增加一行校验器导入并替换两处 fixture 读取，未增加场景或职责；保留内聚测试，不为该依赖引入额外夹具层。",
+      "reason": "搜索代次、来源和身份规则共同约束一个选择器。2026-09-16 复审：固定服务器契约仅增加一行校验器导入并替换两处 fixture 读取，未增加场景或职责；保留内聚测试，不为该依赖引入额外夹具层。2026-09-30 复核：预览从 overtime 拆出后增加六行窄模块替身，保持原选择器测试边界和全部断言，不新增测试职责；固定 Server 契约测试已通过。",
       "removal": "扩展独立控件时分组；DOM 夹具仅按真实复用提取。",
       "reviewBy": "2026-12-13",
       "test": "test/overtime/overtime-gift-picker.test.js"

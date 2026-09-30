@@ -51,14 +51,12 @@
 }
 
 .clock-card[data-clock-style='flip'] .clock-seconds {
-  display: flex;
+  display: block;
   flex: 0 0 auto;
-  gap: 8px;
   min-width: 0;
-  margin: 0 0 0 6px;
+  margin: 0;
   padding: 0;
   border: 0;
-  border-radius: 0;
   font-size: inherit;
   line-height: inherit;
   letter-spacing: inherit;
@@ -98,23 +96,23 @@
   border-radius: 4px;
 }
 
-.clock-seconds .clock-flip-cell {
-  width: 58px;
-}
-
 .clock-flip-half {
   position: absolute;
-  left: 0;
+  inset: 0;
   width: 100%;
-  height: 50%;
+  height: 100%;
   overflow: hidden;
+  border-radius: 7px;
   background: var(--flip-face, #fff);
   backface-visibility: hidden;
+  /* Keep static and animated glyphs on the same raster origin when scaled. */
+  transform: translateZ(0);
+  transform-origin: center;
 }
 
 .clock-flip-half > span {
   position: absolute;
-  inset-inline: 0;
+  inset: 0;
   display: grid;
   place-items: center;
   height: var(--flip-height);
@@ -122,24 +120,13 @@
 
 .clock-flip-half.is-top,
 .clock-flip-half.is-outgoing {
-  top: 0;
-  border-radius: 7px 7px 0 0;
-  background-image: linear-gradient(rgba(0, 0, 0, 0.025), rgba(0, 0, 0, 0.085));
-  box-shadow: inset 0 -1px rgba(0, 0, 0, 0.25);
-  transform-origin: bottom;
+  clip-path: inset(0 0 50%);
+  background-image: linear-gradient(rgba(0, 0, 0, 0.025), rgba(0, 0, 0, 0.085) 50%);
 }
 
 .clock-flip-half.is-bottom,
 .clock-flip-half.is-incoming {
-  bottom: 0;
-  border-radius: 0 0 7px 7px;
-  box-shadow: inset 0 1px rgba(255, 255, 255, 0.3);
-  transform-origin: top;
-}
-
-.clock-flip-half.is-bottom > span,
-.clock-flip-half.is-incoming > span {
-  bottom: 0;
+  clip-path: inset(50% 0 0);
 }
 
 .clock-flip-half.is-outgoing,
@@ -151,12 +138,10 @@
 .clock-flip-cell::after {
   position: absolute;
   z-index: 3;
-  top: calc(50% - 4px);
-  left: -1px;
-  width: 3px;
-  height: 8px;
-  border-radius: 1px;
-  background: color-mix(in srgb, var(--flip-frame, #e4e4e4), #000 45%);
-  box-shadow: 1px 0 1px rgba(0, 0, 0, 0.2);
+  top: calc(50% - 1px);
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background: rgba(0, 0, 0, 0.25);
   content: '';
 }

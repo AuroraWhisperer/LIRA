@@ -10,6 +10,25 @@
 
 ## 0. 路由机制与通用约定
 
+### 本地场景
+
+管理接口沿用管理页鉴权，并由 main 当前授权的 Server origin 与 streamerId 决定归属。`document` 是展示文档；管理 DTO 为 `{document,revision,publishedVersion,hasPublication}`，普通读写不包含凭据。领域模型见 [场景规格](../../../specs/component-scenes.md)。
+
+| 端点 | 输入 | 输出与行为 |
+| --- | --- | --- |
+| `GET /api/scenes/list` | 无 | 管理 DTO 数组，仅当前账号 |
+| `GET /api/scenes/document?id=UUID` | 场景 ID | 管理 DTO |
+| `POST /api/scenes/validate` | `{document}` | 规范化后的展示文档；模板导入先验证所有独立外观，不写入或创建场景 |
+| `POST /api/scenes/create` | `{title,canvas:{width,height}}` | 空场景管理 DTO，凭据仅加密保存 |
+| `POST /api/scenes/save` | `{id,expectedRevision,document}` | 更新草稿并递增 revision，不改变已发布版；旧 revision 返回 409 |
+| `POST /api/scenes/publish` | `{id,expectedRevision,expectedDefaults?}` | 固定所有有效外观后原子发布，递增 publishedVersion；编辑器传共享类型外观快照确认，缓存尚未同步或已变化返回 503；失败保留旧版 |
+| `GET /api/scenes/source?id=UUID` | 场景 ID | `{id,token}`，仅显式复制来源使用 |
+| `POST /api/scenes/rotate` | `{id}` | 新 `{id,token}`，旧凭据立即失效 |
+| `GET /api/scene/output` | `id,version,epoch,cursor` 查询；场景 Bearer | `{sceneId,version,document,data}`；相同发布版本 document 为 null；仅必要显示投影，不含凭据 |
+| `OPTIONS /api/scene/output` | Origin 为 null，请求方法 GET、请求头 Authorization | 204，仅此路径允许不带凭据的预检，实际 GET 必须验凭据 |
+
+上述响应均禁止缓存。场景 Bearer 不属于通用 HTTP/WS principal，不能访问管理 API、旧 overlay API 或其他场景。输出轮询不重叠，约每 750ms 一次；云事件提供本地缓冲 `epoch/nextCursor/reset/gap/events`，不提供服务端历史重放。
+
 `npm run verify:docs` 的 `GOV-API-001` 从实际 `ROUTE_MODULES` 的 routes 映射推导本地方法/路径，并与本文完整的反引号端点条目双向比较（支持 `GET/POST` 和查询参数）。新增或删除接口时同步修改所属表，不维护另一份路由清单。独立服务器接口放在标题含 `LIRA Server` 的章节；其他位置的远端引用明确使用 `LIRA Server: METHOD /api/path`，不计入本地注册表。
 
 2026-09-14 新增动态抽奖路由模块，使用原管理鉴权，不加入公开白名单。专用账号凭据只经 Electron 注入后端；HTTP 不能提交 `streamerId`、作者 UID、候选顺序或中奖 UID。当前路由为客户端简化流程，不包含独立公示会话。
@@ -619,7 +638,7 @@ handler 未包 try/catch:抛错走顶层 **500**。
 | --- | --- | --- |
 | `GET /api/interactions/session` | 管理端、interactions scope | `{ok:true,data:{runtimeId,revision,session}}`，空场 session=null，不启动收集 |
 | `GET /api/interactions/host-state` | 管理端 | 公开 envelope 加 ready、blockedReason、participants；无 UID/未公布总分 |
-| `POST /api/interactions/session` | 管理端 | `{kind:'poll'|'rating',title?,options?,durationSeconds?}`；poll 至少两项，每项 1–10 字素，时长 1–3600 秒 |
+| `POST /api/interactions/session` | 管理端 | `{kind:'poll'|'rating',title?,options?,durationSeconds?}`；poll 1–6 项，每项 1–10 字素，时长 1–3600 秒 |
 | `POST /api/interactions/session/finish` | 管理端 | `{sessionId}`；立即退订、冻结保留结果，同一已完成场次幂等 |
 | `POST /api/interactions/session/clear` | 管理端 | `{sessionId}`；取消或关闭结果，推送带新 revision 的 null |
 

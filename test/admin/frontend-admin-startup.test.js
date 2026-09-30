@@ -50,6 +50,7 @@ async function createStartupFixture() {
       readyState: 'interactive',
       documentElement: { classList: { remove: (name) => classes.delete(name) } },
       querySelectorAll: () => [],
+      getElementById: () => null,
       addEventListener: (name, listener) => {
         if (name === 'DOMContentLoaded') start = listener;
       },

@@ -13,6 +13,7 @@ test('cloud daily controls keep confirmed state, disclose failed close and ignor
     panel.hidden = false;
     document.body.append(panel);
     window.dailyRequests = [];
+    window.dailyToasts = [];
     const account = (name) => ({
       state: 'authorized',
       streamer: { accountName: name, songPageUrl: `https://${name}.test` },
@@ -27,7 +28,11 @@ test('cloud daily controls keep confirmed state, disclose failed close and ignor
     };
     const bridge = { invoke: (request) => new Promise((resolve) => window.dailyRequests.push({ request, resolve })) };
     const { initDanmakuDailyBots } = await import('/js/admin/danmaku-daily-bots.js');
-    initDanmakuDailyBots({ bridge, license });
+    initDanmakuDailyBots({
+      bridge,
+      license,
+      toast: (message, options) => window.dailyToasts.push({ message, options }),
+    });
     window.resolveDaily = (index, enabled, contextId = 'one') =>
       window.dailyRequests[index].resolve({
         ok: true,
@@ -45,13 +50,17 @@ test('cloud daily controls keep confirmed state, disclose failed close and ignor
   await page.evaluate(() => window.resolveDaily(0, true));
   await page.waitForFunction(() => !document.getElementById('danmakuCheckinToggle').disabled);
   assert.equal(await page.locator('#danmakuCheckinToggle').isChecked(), true);
-  assert.match(await page.locator('#dailyBotcheckinStatus').textContent(), /最后确认/);
+  assert.equal(await page.locator('#dailyBotcheckinStatus').textContent(), '');
   await page.locator('#danmakuCheckinToggle').click();
   assert.equal(await page.locator('#danmakuCheckinToggle').isChecked(), true);
   assert.equal(await page.locator('#danmakuCheckinToggle').isDisabled(), true);
   await page.evaluate(() => window.dailyRequests[1].resolve({ ok: false, error: 'DAILY_BOT_UNAVAILABLE' }));
-  await page.waitForFunction(() => document.getElementById('dailyBotStatus').textContent.includes('关闭尚未同步'));
-  assert.match(await page.locator('#dailyBotcheckinStatus').textContent(), /状态未知.*最后确认/);
+  await page.waitForFunction(() => window.dailyToasts.length === 1);
+  const [failure] = await page.evaluate(() => window.dailyToasts);
+  assert.match(failure.message, /关闭尚未同步/);
+  assert.equal(failure.options.type, 'error');
+  assert.equal(await page.locator('#dailyBotcheckinStatus').textContent(), '云端状态待刷新');
+  assert.equal(await page.locator('#dailyBotStatus').textContent(), '开启后在云端运行，关闭客户端也不影响。');
   await page.locator('#dailyBotRefresh').click();
   await page.evaluate(() => window.dailyState(window.dailyAccount('two')));
   await page.waitForFunction(() => window.dailyRequests.length === 4);
@@ -80,6 +89,7 @@ for (const [name, takeover] of [
         panel.hidden = false;
         document.body.append(panel);
         window.dailyRequests = [];
+        window.dailyToasts = [];
         const data = {
           executionOwner: 'server',
           observedAt: '2026-09-18T01:00:00.000Z',
@@ -106,7 +116,7 @@ for (const [name, takeover] of [
           }),
         };
         const { initDanmakuDailyBots } = await import('/js/admin/danmaku-daily-bots.js');
-        initDanmakuDailyBots({ bridge, license });
+        initDanmakuDailyBots({ bridge, license, toast: (message) => window.dailyToasts.push(message) });
       },
       { html: readAdminHtml(), takeover },
     );
@@ -126,9 +136,11 @@ for (const [name, takeover] of [
       ['open', 'update'],
     );
     assert.deepEqual(requests[1].payload, { kind: 'checkin', enabled: true, expectedRevision: 0 });
+    assert.deepEqual(await page.evaluate(() => window.dailyToasts), ['签到机器人已开启']);
+    assert.equal(await page.locator('#dailyBotcheckinStatus').textContent(), '');
     assert.equal(await page.locator('#dailyBotStatus').textContent(), '开启后在云端运行，关闭客户端也不影响。');
     await page.evaluate(() => window.dispatchEvent(new Event('offline')));
-    assert.match(await page.locator('#dailyBotcheckinStatus').textContent(), /状态未知.*最后确认/);
+    assert.equal(await page.locator('#dailyBotcheckinStatus').textContent(), '云端状态待刷新');
     assert.equal(await page.locator('#danmakuCheckinToggle').isDisabled(), true);
     await page.evaluate(() => window.dispatchEvent(new Event('online')));
     await page.waitForFunction(() => !document.getElementById('danmakuCheckinToggle').disabled);

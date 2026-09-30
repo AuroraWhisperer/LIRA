@@ -20,6 +20,7 @@ const { runStartupRetention } = require('./server/startup-retention');
 const lifecycle = require('./server/lifecycle');
 const wsTransport = require('./server/ws');
 const { createDomainServices } = require('./server/domain-services');
+const { createSceneRuntime } = require('./server/scene-runtime');
 const sharedUtils = require('./shared/utils');
 const { createDatabases, optimizeDatabases, closeDatabases } = require('./storage/database');
 const { createGiftSyncStore } = require('./storage/gift-sync-store');
@@ -61,6 +62,7 @@ function createServerRuntime(runtimeOptions = {}) {
   let webSocketHub = null;
   let giftEffectResolver = null;
   let domainServices = null;
+  let sceneRuntime = null;
   let giftSyncStore = null;
   let musicRuntime = null;
   let bilibiliRuntime = null;
@@ -172,6 +174,7 @@ function createServerRuntime(runtimeOptions = {}) {
         onGiftFlushed: publishGiftFlushed,
         onOvertimeUpdate: (update) => publishOvertimeUpdate(update),
       });
+      sceneRuntime = createSceneRuntime({ songDb: db.songDb, runtimeOptions, getState });
       giftSyncStore = createGiftSyncStore({
         giftDb: db.giftDb,
         importHistoryRecord: (record, sourceId) => domainServices.gifts.importProcessedHistoryRecord(record, sourceId),
@@ -261,6 +264,7 @@ function createServerRuntime(runtimeOptions = {}) {
     rebuildGiftProjection: giftRuntime.rebuildGiftProjection,
     clearRemoteGiftHistory: giftRuntime.clearRemoteGiftHistory,
     getDomainServices: () => domainServices,
+    getScenes: () => sceneRuntime?.service,
     getMusicRuntime: () => musicRuntime,
     getBilibiliRuntime: () => bilibiliRuntime,
     getLiveStatus: () => liveStatus,
@@ -493,6 +497,7 @@ function createServerRuntime(runtimeOptions = {}) {
     webSocketHub = null;
     giftEffectResolver = null;
     domainServices = null;
+    sceneRuntime = null;
     giftSyncStore = null;
     musicRuntime = null;
     bilibiliRuntime = null;
@@ -714,6 +719,7 @@ function createServerRuntime(runtimeOptions = {}) {
     onGiftCatalogInitializationStateChanged,
     getApiToken: () => sessionToken,
     getFanProfiles: () => domainServices?.fans,
+    receiveSceneCloud: (update) => sceneRuntime?.receiveCloud(update),
     getDailyBotLegacy: () => domainServices?.dailyBotLegacy,
     ...giftRuntime,
     getSetting,

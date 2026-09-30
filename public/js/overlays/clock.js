@@ -1,6 +1,9 @@
 'use strict';
 
 import { createFlipCell } from './clock-flip.js';
+import { createOverlaySocket } from './socket-client.js';
+import { clockConfigFromSettings } from '../shared/clock-settings.js';
+import { createComponentPreviewClient, isComponentPreview } from './component-preview-client.js';
 
 const CLOCK_STYLE_VALUES = new Set([
   'peach',
@@ -156,8 +159,13 @@ async function initClock() {
   const params = new URLSearchParams(location.search);
   const queryConfig = readClockConfig(params);
   const completeQuery = ['style', 'date', 'seconds', 'format'].every((key) => params.has(key));
-  const savedConfig = completeQuery ? null : await loadSavedClockConfig();
-  let config = mergeClockConfig(savedConfig, queryConfig, params);
+  const componentPreview = isComponentPreview();
+  const legacyPreview = window.parent !== window && completeQuery;
+  let config = mergeClockConfig(null, queryConfig, params);
+  let stateRevision = 0;
+  let disposed = false;
+  let clockStarted = false;
+  let socketController = null;
   let formatters = createClockFormatters(config);
   const card = document.getElementById('clockCard');
   const timeNode = document.getElementById('clockTime');
@@ -177,9 +185,7 @@ async function initClock() {
 
   function syncFlipCells() {
     if (config.style === 'flip' && !flipCells) {
-      const secondDigits = [document.createElement('span'), document.createElement('span')];
-      secondsNode.replaceChildren(...secondDigits);
-      flipCells = [hoursNode, minutesNode, ...secondDigits, dateNode, weekdayNode].map(createFlipCell);
+      flipCells = [hoursNode, minutesNode, secondsNode, dateNode, weekdayNode].map(createFlipCell);
     } else if (config.style !== 'flip' && flipCells) {
       flipCells.forEach((cell) => cell.dispose());
       flipCells = null;
@@ -225,16 +231,17 @@ async function initClock() {
   }
 
   window.addEventListener('resize', syncCardScale);
-  window.addEventListener('message', (event) => {
+  const receiveLegacyPreview = (event) => {
     if (
-      window.parent === window ||
+      !legacyPreview || window.parent === window ||
       event.source !== window.parent ||
       event.origin !== new URL(location.href).origin ||
       event.data?.type !== 'lira:clock-preview-config'
     )
       return;
     applyConfig(normalizeSavedClockConfig(event.data.config));
-  });
+  };
+  window.addEventListener('message', receiveLegacyPreview);
 
   function render() {
     const now = new Date();
@@ -265,10 +272,10 @@ async function initClock() {
     const weekday =
       timelineStyle || digitalStyle ? formatters.weekday.format(now).toUpperCase() : formatters.weekday.format(now);
     if (flipCells) {
-      const values = [hours, minutes, seconds[0], seconds[1], `${now.getMonth() + 1}/${now.getDate()}`, weekday.toUpperCase()];
+      const values = [hours, minutes, seconds, `${now.getMonth() + 1}/${now.getDate()}`, weekday.toUpperCase()];
       const animate = !card.hidden && !document.hidden && !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       flipCells.forEach((cell, index) => {
-        const visible = index < 2 || (index < 4 ? config.showSeconds : config.showDate);
+        const visible = index < 2 || (index === 2 ? config.showSeconds : config.showDate);
         cell.update(values[index], animate && visible);
       });
     } else {
@@ -283,6 +290,7 @@ async function initClock() {
   }
 
   function schedule() {
+    if (disposed || !clockStarted) return;
     window.clearTimeout(timer);
     render();
     if (document.hidden) return;
@@ -291,8 +299,47 @@ async function initClock() {
   }
 
   document.addEventListener('visibilitychange', schedule);
-  applyConfig(config);
-  schedule();
+  function showConfig(nextConfig) {
+    if (disposed) return;
+    applyConfig(nextConfig);
+    if (!clockStarted) { clockStarted = true; schedule(); }
+  }
+  function dispose() {
+    if (disposed) return;
+    disposed = true;
+    stateRevision += 1;
+    window.clearTimeout(timer);
+    socketController?.dispose();
+    styleTransition?.cancel();
+    flipCells?.forEach((cell) => cell.dispose());
+    window.removeEventListener('resize', syncCardScale);
+    window.removeEventListener('message', receiveLegacyPreview);
+    document.removeEventListener('visibilitychange', schedule);
+    window.removeEventListener('pagehide', dispose);
+  }
+  window.addEventListener('pagehide', dispose, { once: true });
+  if (componentPreview) {
+    createComponentPreviewClient({ onConfig: (value) => showConfig(normalizeSavedClockConfig(value)), onDispose: dispose });
+    return;
+  }
+  if (legacyPreview) { showConfig(config); return; }
+  async function loadCurrent() {
+    const requestedRevision = ++stateRevision;
+    const savedConfig = await loadSavedClockConfig();
+    if (!disposed && requestedRevision === stateRevision) showConfig(mergeClockConfig(savedConfig, queryConfig, params));
+  }
+  socketController = createOverlaySocket({
+    onReconnect: loadCurrent,
+    onClose: () => { stateRevision += 1; },
+    onMessage: (payload) => {
+      if (payload.type !== 'snapshot' || !payload.state?.settings) return;
+      stateRevision += 1;
+      showConfig(mergeClockConfig(clockConfigFromSettings(payload.state.settings), queryConfig, params));
+    },
+  });
+  socketController.start();
+  if (completeQuery) showConfig(config);
+  else await loadCurrent();
 }
 
 if (typeof document !== 'undefined') initClock();

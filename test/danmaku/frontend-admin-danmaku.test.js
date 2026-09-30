@@ -58,7 +58,7 @@ test('danmaku tool separates the fixed live overlay from the sender and reply gr
   assert.match(html, /id="danmakuOverlayUrl"/);
   assert.match(html, /id="danmakuCopyOverlayUrlBtn"/);
   assert.match(html, /id="danmakuOpenOverlayBtn"/);
-  assert.match(html, /id="danmakuPreviewOverlayBtn"[^>]*>\s*编辑画布\s*<\/button>/);
+  assert.match(html, /id="danmakuPreviewOverlayBtn"[^>]*>\s*预览与调整\s*<\/button>/);
   const styleOptions = Array.from(
     html.matchAll(
       /<button\b[^>]*data-danmaku-style="([^"]+)"[^>]*>[\s\S]*?<span class="danmaku-style-name">([^<]+)<\/span>[\s\S]*?<\/button>/g,

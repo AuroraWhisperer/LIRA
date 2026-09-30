@@ -11,7 +11,7 @@
       <section class="clock-preview-card" aria-labelledby="clockPreviewTitle">
         <div class="clock-card-heading">
           <h3 id="clockPreviewTitle" class="ui-section-title">实时预览</h3>
-          <button id="clockOpenPreview" class="secondary" type="button">打开预览</button>
+          <button id="clockOpenPreview" class="secondary" type="button">预览与调整</button>
         </div>
         <div class="clock-preview-canvas">
           <iframe sandbox="allow-scripts" id="clockPreview" title="萌时钟实时预览" loading="lazy"></iframe>
@@ -126,6 +126,12 @@
             <input id="clockCustomLabel" type="text" maxlength="16" value="今天也要闪闪发光" autocomplete="off" />
           </label>
         </section>
+        <p id="clockSaveState" role="status" aria-live="polite"></p>
+        <div class="row">
+          <button id="clockReload" class="secondary" type="button">重新读取</button>
+          <button id="clockDiscard" class="secondary" type="button" disabled>放弃未保存修改</button>
+          <button id="clockSave" class="primary" type="button" disabled>保存时钟设置</button>
+        </div>
       </aside>
     </div>
   </div>

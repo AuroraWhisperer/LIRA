@@ -73,7 +73,7 @@
             </label>
           </div>
           <span id="danmakuStyleChip" class="danmaku-style-chip">当前样式 · 深色面板</span>
-          <button id="danmakuPreviewOverlayBtn" class="secondary" type="button">编辑画布</button>
+          <button id="danmakuPreviewOverlayBtn" class="secondary" type="button">预览与调整</button>
         </div>
       </div>
       <section class="danmaku-settings-block" aria-labelledby="danmakuOverlayLinkTitle">
@@ -249,10 +249,10 @@
             <h5 id="danmakuParametersTitle">参数调节 · 深色面板</h5>
             <button id="danmakuResetParameters" class="secondary" type="button" disabled>恢复默认</button>
           </div>
-          <p id="danmakuParametersHint" class="hint">各样式独立设置。</p>
+          <p id="danmakuParametersHint" class="hint" hidden></p>
           <div class="danmaku-parameter-grid">
             <label class="danmaku-parameter-field" for="danmakuFontFamily">
-              <span>字体</span>
+              <span><strong>字体<lira-help label="字体说明">需在直播软件所在电脑安装该字体。</lira-help></strong></span>
               <select id="danmakuFontFamily" disabled>
                 <optgroup label="推荐字体">
                   <option value='"Microsoft YaHei UI"'>微软雅黑</option>
@@ -264,10 +264,9 @@
                   <option value='"PingFang SC"'>苹方</option>
                 </optgroup>
               </select>
-              <small class="hint">需在直播软件所在电脑安装该字体。</small>
             </label>
             <label class="danmaku-parameter-field" for="danmakuFontSize">
-              <span>正文字号</span>
+              <span><strong>正文字号<lira-help label="正文字号说明"><span id="danmakuFontSizeHint">18～48 px</span></lira-help></strong></span>
               <input
                 id="danmakuFontSize"
                 type="number"
@@ -279,15 +278,14 @@
                 aria-describedby="danmakuFontSizeHint"
                 disabled
               />
-              <small id="danmakuFontSizeHint" class="hint">18～48 px</small>
             </label>
             <label class="danmaku-parameter-field" for="danmakuTextColor">
-              <span>正文颜色 <output id="danmakuTextColorValue" for="danmakuTextColor">#EAF2FF</output></span>
-              <input id="danmakuTextColor" type="color" value="#eaf2ff" disabled />
+              <span><strong>正文颜色</strong> <output id="danmakuTextColorValue" for="danmakuTextColor">#EAF2FF</output></span>
+              <input id="danmakuTextColor" class="color-control" type="color" value="#eaf2ff" disabled />
             </label>
             <label id="danmakuBackgroundOpacityField" class="danmaku-parameter-field" for="danmakuBackgroundOpacity">
               <span
-                >背景不透明度
+                ><strong>背景不透明度</strong>
                 <output id="danmakuBackgroundOpacityValue" for="danmakuBackgroundOpacity">100%</output></span
               >
               <input
@@ -302,22 +300,21 @@
               />
             </label>
             <label id="danmakuGiftImageField" class="danmaku-parameter-field" for="danmakuGiftImage">
-              <span>礼物通知图片</span>
+              <span><strong>礼物通知图片<lira-help label="礼物通知图片说明">原图不可用时显示样式插画。</lira-help></strong></span>
               <select id="danmakuGiftImage" disabled>
                 <option value="theme">样式插画</option>
                 <option value="gift">礼物原图</option>
               </select>
-              <small class="hint">原图不可用时显示样式插画。</small>
             </label>
             <label id="danmakuScrollDirectionField" class="danmaku-parameter-field" for="danmakuScrollDirection">
-              <span>滚动方向</span>
+              <span><strong>滚动方向</strong></span>
               <select id="danmakuScrollDirection" disabled>
                 <option value="up">从下向上（新弹幕在底部）</option>
                 <option value="down">从上向下（新弹幕在顶部）</option>
               </select>
             </label>
             <label id="danmakuFullscreenDurationField" class="danmaku-fullscreen-duration danmaku-parameter-field" hidden>
-              <span>停留（秒）</span>
+              <span><strong>停留（秒）</strong></span>
               <input
                 id="danmakuFullscreenDurationSeconds"
                 type="number"
@@ -334,6 +331,7 @@
           <p id="danmakuStyleSaveState" class="danmaku-style-save-state" role="status" aria-live="polite"></p>
           <div class="danmaku-overlay-actions">
             <button id="danmakuReloadOverlayBtn" class="secondary" type="button" disabled>重新读取</button>
+            <button id="danmakuDiscardOverlayBtn" class="secondary" type="button" disabled>放弃未保存修改</button>
             <button id="danmakuApplyOverlayBtn" class="primary" type="button" disabled>应用到直播画面</button>
           </div>
         </div>
@@ -363,7 +361,7 @@
       </div>
       <form id="danmakuSendForm" class="stack">
         <label
-          >弹幕内容<textarea id="danmakuMessage" rows="4" required placeholder="输入内容，Ctrl + Enter 发送"></textarea>
+          >弹幕内容<textarea id="danmakuMessage" rows="1" required placeholder="输入内容，Ctrl + Enter 发送"></textarea>
         </label>
         <div class="form-actions-row">
           <span id="danmakuCounter" class="hint">0 字</span
@@ -421,7 +419,6 @@
             ><input id="danmakuReplyToggle" type="checkbox" aria-labelledby="danmakuReplyTitle" /><span
               class="switch-track"
             ></span
-            ><span class="switch-caption" aria-hidden="true"></span
           ></label>
         </div>
         <div class="danmaku-fixed-item" data-fixed-item="checkin">
@@ -434,7 +431,6 @@
             ><input id="danmakuCheckinToggle" type="checkbox" aria-labelledby="danmakuCheckinTitle" disabled /><span
               class="switch-track"
             ></span
-            ><span class="switch-caption" aria-hidden="true"></span
           ></label>
         </div>
         <div class="danmaku-fixed-item" data-fixed-item="fortune">
@@ -447,7 +443,6 @@
             ><input id="danmakuFortuneToggle" type="checkbox" aria-labelledby="danmakuFortuneTitle" disabled /><span
               class="switch-track"
             ></span
-            ><span class="switch-caption" aria-hidden="true"></span
           ></label>
         </div>
         <div class="danmaku-fixed-item" data-fixed-item="diy">
@@ -470,7 +465,6 @@
             ><input id="danmakuCustomReplyToggle" type="checkbox" aria-labelledby="danmakuCustomReplyTitle" /><span
               class="switch-track"
             ></span
-            ><span class="switch-caption" aria-hidden="true"></span
           ></label>
         </div>
         <!-- admin-fragment: pages/admin/toolbox/danmaku-welcome-switch.html -->
@@ -541,23 +535,6 @@
       <div class="daily-bot-cloud-status">
         <p id="dailyBotStatus" class="hint" role="status">连接云端账号后可设置</p>
         <button id="dailyBotRefresh" type="button" class="danmaku-text-action" disabled>刷新云端状态</button>
-      </div>
-      <div class="danmaku-welcome-pinyin">
-        <div>
-          <strong id="danmakuWelcomePinyinTitle">昵称生僻字自动注音</strong
-          ><span id="danmakuWelcomePinyinStatus" class="hint" role="status">尚未确认</span>
-          <p class="hint danmaku-fixed-help">
-            <strong>读音会随欢迎、问候弹幕公开发送。</strong>多音字或读音不确定时，保留原字。
-          </p>
-        </div>
-        <label class="switch-control"
-          ><input
-            id="danmakuWelcomePinyinToggle"
-            type="checkbox"
-            disabled
-            aria-labelledby="danmakuWelcomePinyinTitle" /><span class="switch-track"></span
-          ><span class="switch-caption" aria-hidden="true"></span
-        ></label>
       </div>
     </section>
   </div>

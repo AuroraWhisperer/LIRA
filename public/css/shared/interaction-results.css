@@ -54,16 +54,12 @@
   display: none;
 }
 .interaction-rows {
-  max-height: 352px;
-  overflow-y: auto;
-  scroll-behavior: smooth;
-  scrollbar-width: none;
+  display: grid;
+  gap: 8px;
   font-size: var(--interaction-font-size, 20px);
 }
 .interaction-row {
   box-sizing: border-box;
-  height: 88px;
-  padding-bottom: 12px;
 }
 .interaction-track {
   position: relative;
@@ -72,7 +68,7 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  height: 100%;
+  min-height: 56px;
   padding: 8px 18px;
   overflow: hidden;
   border-radius: var(--interaction-inner-radius, 12px);
@@ -192,8 +188,5 @@
 @media (prefers-reduced-motion: reduce) {
   .interaction-fill {
     transition: none;
-  }
-  .interaction-rows {
-    scroll-behavior: auto;
   }
 }

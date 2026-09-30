@@ -108,7 +108,6 @@
   opacity: 1;
 }
 .interaction-config p,
-#pollPageHint,
 #interactionRatingPending {
   margin: 0;
   color: var(--color-text-secondary);
@@ -261,7 +260,6 @@
   overflow-wrap: anywhere;
 }
 #interactionHostRows {
-  max-height: 352px;
   margin-bottom: var(--spacing-md);
 }
 #interactionHostAverage {
@@ -373,7 +371,6 @@
 .interaction-preview-canvas {
   display: grid;
   align-items: center;
-  min-height: 320px;
   padding: var(--spacing-md);
   border: 1px solid var(--color-border-default);
   border-radius: 10px;

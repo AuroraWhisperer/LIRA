@@ -3,8 +3,55 @@ import { isRandomDanmakuStyle, normalizeStyleOptions } from '../shared/danmaku-s
 import { applyCanvas } from './danmaku-canvas.js';
 import { initRegionEditor } from './danmaku-region-editor.js';
 import { initPreviewAppearance } from './danmaku-preview-appearance.js';
+import { createComponentPreviewClient, isComponentPreview, isSceneComponent } from './component-preview-client.js';
 
-export function initDanmakuPreview({ initialStyle, styleOptions, duration, renderSamples }) {
+function initComponentCanvas({ initialStyle, styleOptions, duration, renderSamples, renderConfiguration, renderData }) {
+  const host = document.getElementById('danmakuCanvasHost');
+  let draft = { style: initialStyle || 'signal', styleOptions: styleOptions || {},
+    fullscreenDurationSeconds: Number(duration) || 6, layout: createLayout() };
+  let scale = 1;
+  let editable = false;
+  let sampleKey = '';
+  document.body.classList.add('is-component-preview');
+  function fit() {
+    scale = applyCanvas(document, draft.layout, draft.style, host.clientWidth, host.clientHeight);
+  }
+  const observer = new ResizeObserver(fit);
+  observer.observe(host);
+  const client = createComponentPreviewClient({
+    onConfig(config, canEdit) {
+      if (!Object.hasOwn(draft.layout.regions, config?.style)) return false;
+      try {
+        draft = { style: config.style, styleOptions: normalizeStyleOptions(config.styleOptions || {}),
+          fullscreenDurationSeconds: config.fullscreenDurationSeconds, layout: normalizeLayout(config.layout ?? null) || createLayout() };
+      } catch { return false; }
+      editable = canEdit && Boolean(config.layout);
+      document.getElementById('danmakuSelection').hidden = !editable;
+      const region = draft.layout.regions[draft.style];
+      document.getElementById('selectionLabel').textContent = `${region.width} × ${region.height}`;
+      fit();
+      if (isSceneComponent()) {
+        renderConfiguration(draft);
+        return;
+      }
+      const nextSampleKey = JSON.stringify([draft.style, draft.styleOptions, draft.fullscreenDurationSeconds]);
+      if (nextSampleKey !== sampleKey) {
+        sampleKey = nextSampleKey;
+        renderSamples(draft.style, draft.styleOptions, draft.fullscreenDurationSeconds, draft.layout);
+      }
+    },
+    onData(data) { if (isSceneComponent()) renderData(data); },
+    onDispose() { observer.disconnect(); window.dispatchEvent(new Event('lira:preview-dispose')); },
+  });
+  initRegionEditor(document.getElementById('danmakuSelection'), { getLayout: () => draft.layout, getStyle: () => draft.style,
+    getScale: () => scale, change: (region) => {
+      if (!editable) return;
+      client.edit({ style: draft.style, region });
+    } });
+}
+
+export function initDanmakuPreview({ initialStyle, styleOptions, duration, renderSamples, renderConfiguration, renderData }) {
+  if (isComponentPreview()) return initComponentCanvas({ initialStyle, styleOptions, duration, renderSamples, renderConfiguration, renderData });
   const byId = (id) => document.getElementById(id);
   const controls = byId('danmakuPreviewControls');
   const buttons = Array.from(controls.querySelectorAll('[data-preview-style]'));

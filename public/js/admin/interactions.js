@@ -3,7 +3,8 @@ import { eventBus } from '../shared/event-bus.js';
 import {
   inspectInteractionText,
   validateInteractionConfig,
-  pollPageDuration,
+  POLL_MIN_OPTIONS,
+  POLL_MAX_OPTIONS,
   POLL_RULE,
   RATING_RULE,
 } from '../shared/interaction-rules.js';
@@ -68,21 +69,17 @@ export function initInteractions({ onCollecting = () => {} } = {}) {
       input.setCustomValidity(error);
       input.nextElementSibling.textContent = `${result.length} / 10${error ? ` · ${error}` : ''}`;
     }
-    const { pages, seconds } = pollPageDuration(inputs().length);
-    get('pollPageHint').textContent =
-      pages > 1
-        ? `推荐尺寸下约 ${pages} 屏，每 8 秒翻页，一轮至少 ${seconds} 秒。${durationSeconds() < seconds ? '当前时长较短，后面的选项可能来不及完整展示。' : ''}`
-        : '推荐尺寸下单屏展示。';
-    get('pollPageHint').hidden = pages <= 1;
+    get('pollAddOption').disabled = inputs().length >= POLL_MAX_OPTIONS;
     root.querySelectorAll('[data-poll-seconds]').forEach((button) => {
       button.setAttribute('aria-pressed', String(Number(button.dataset.pollSeconds) === durationSeconds()));
     });
     for (const [index, button] of [...get('pollOptions').querySelectorAll('button')].entries()) {
-      button.disabled = Boolean(session) || busy || inputs().length <= 2;
+      button.disabled = Boolean(session) || busy || inputs().length <= POLL_MIN_OPTIONS;
       button.setAttribute('aria-label', `删除选项 ${index + 1}`);
     }
   }
   function addOption(value = '') {
+    if (inputs().length >= POLL_MAX_OPTIONS) return;
     const row = document.createElement('div');
     row.className = 'interaction-input-row';
     const input = document.createElement('input');

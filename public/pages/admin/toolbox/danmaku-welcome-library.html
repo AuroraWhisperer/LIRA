@@ -3,6 +3,25 @@
     服务器暂不支持新设置，欢迎开关和原词库仍可使用。
   </p>
   <div id="danmakuWelcomeParameters">
+    <div class="danmaku-welcome-pinyin">
+      <div>
+        <strong id="danmakuWelcomePinyinTitle">昵称生僻字自动注音</strong>
+        <lira-help label="昵称注音说明">
+          3,500 个一级常用字和补充的常见姓名字（如“婷、梓”）不注音，只标注范围外且字典读音唯一的汉字。
+          同一字在昵称中只注音一次；多音字、未知字保留原样，字典读音仅供参考。
+        </lira-help>
+        <p class="hint danmaku-fixed-help">读音会随欢迎、问候弹幕公开发送。</p>
+      </div>
+      <label class="switch-control">
+        <input
+          id="danmakuWelcomePinyinToggle"
+          type="checkbox"
+          disabled
+          aria-labelledby="danmakuWelcomePinyinTitle"
+        />
+        <span class="switch-track"></span>
+      </label>
+    </div>
     <div class="danmaku-welcome-rules">
       <div class="danmaku-welcome-rule">
         <strong>首次欢迎</strong><span></span>

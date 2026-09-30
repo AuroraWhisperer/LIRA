@@ -1,8 +1,8 @@
 const REASONS = {
-  pending: '已关闭',
+  pending: '',
   importing: '暂时不可用',
-  disabled: '已关闭',
-  running: '云端运行中',
+  disabled: '',
+  running: '',
   'streamer-disabled': '账号已停用',
   'monitor-disabled': '已开启，总监听已关闭',
   'room-not-set': '已开启，等待配置直播间',
@@ -44,7 +44,9 @@ export function initDanmakuDailyBots({
       toggles[kind].disabled = !owner || !bridge || busy || stale || !saved || saved.takeover.state === 'importing';
       const status = documentRef.getElementById(`dailyBot${kind}Status`);
       status.textContent = saved
-        ? `${stale ? '状态未知' : REASONS[saved[kind].reason]} · 最后确认 ${new Date(saved.observedAt).toLocaleTimeString('zh-CN')}`
+        ? stale
+          ? '云端状态待刷新'
+          : REASONS[saved[kind].reason]
         : '尚未确认云端状态';
     }
     refreshButton.disabled = !owner || !bridge || busy;
@@ -65,18 +67,21 @@ export function initDanmakuDailyBots({
         stale = false;
       }
       overall.textContent = '开启后在云端运行，关闭客户端也不影响。';
+      if (action === 'update') {
+        const name = payload.kind === 'checkin' ? '签到机器人' : '抽签机器人';
+        toast(`${name}已${saved[payload.kind].enabled ? '开启' : '关闭'}`);
+      }
       return response;
     } catch (error) {
       if (disposed || generation !== requested) return;
       stale = true;
-      overall.textContent =
+      const message =
         action === 'update' && payload.enabled === false
           ? '关闭尚未同步，机器人可能还在回复。请刷新确认。'
           : ERRORS[error.code] || '状态读取或保存失败，请检查连接并重试。';
-      if (error.code === 'DAILY_BOT_REVISION_CONFLICT') {
-        toast(overall.textContent);
-        reload = true;
-      }
+      if (action === 'update') toast(message, { type: 'error' });
+      else overall.textContent = message;
+      reload = error.code === 'DAILY_BOT_REVISION_CONFLICT';
     } finally {
       if (!disposed && generation === requested) {
         busy = false;

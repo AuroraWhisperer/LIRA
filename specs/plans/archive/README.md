@@ -6,6 +6,10 @@
 
 ## 文件索引
 
+- [2026-09-30-release-5.0.11-validation](2026-09-30-release-5.0.11-validation.md)
+- [2026-09-30-component-preview](2026-09-30-component-preview.md)
+- [2026-09-30-component-workspace](2026-09-30-component-workspace.md)
+
 - [2026-09-29-release-5.0.10-validation](2026-09-29-release-5.0.10-validation.md)
 - [2026-09-29-orbit-flip-clock](2026-09-29-orbit-flip-clock.md)
 - [2026-09-29-release-5.0.9-validation](2026-09-29-release-5.0.9-validation.md)

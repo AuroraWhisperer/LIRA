@@ -76,22 +76,34 @@ async function fixture() {
   const context = vm.createContext({
     URL,
     URLSearchParams,
-    document: { getElementById: node },
+    document: { getElementById: (id) => node({ danmakuFullscreenDurationSeconds: 'fullscreenDuration',
+      danmakuFullscreenDurationField: 'fullscreenDurationField' }[id] || id) },
     window: { liraLicense: bridge, open: (...args) => opened.push(args) },
   });
   const editors = [];
-  const module = new vm.SourceTextModule(source('danmaku-overlay-settings.js'), { context });
-  await module.link((specifier) =>
-    ['danmaku-style-options', 'danmaku-appearance-draft', 'local-font-library', 'parameter-range'].some((name) => specifier.includes(name))
-      ? new vm.SourceTextModule(source(specifier), { context })
+  const module = new vm.SourceTextModule(source('danmaku-overlay-settings.js'), {
+    context, identifier: path.resolve(__dirname, '../../public/js/admin/danmaku-overlay-settings.js'),
+  });
+  const modules = new Map();
+  await module.link((specifier, parent) => {
+    const filename = path.resolve(path.dirname(parent.identifier), specifier);
+    if (modules.has(filename)) return modules.get(filename);
+    const dependency = !['utils.js', 'danmaku-canvas-dialog.js', 'server-overlay-url.js'].includes(path.basename(filename))
+      ? new vm.SourceTextModule(fs.readFileSync(filename, 'utf8'), { context, identifier: filename })
       : new vm.SyntheticModule(
-          specifier.includes('utils') ? ['copyText', 'localOverlayOrigin'] : specifier.includes('canvas-dialog') ? ['openDanmakuCanvas'] : ['observeServerOverlayUrl'],
+          specifier.includes('utils') ? ['copyText', 'localOverlayOrigin'] : specifier.includes('canvas-dialog') ? ['createDanmakuPreview', 'openDanmakuCanvas'] : ['observeServerOverlayUrl'],
           function () {
             if (specifier.includes('utils')) {
               this.setExport('copyText', async (value) => copied.push(value));
               this.setExport('localOverlayOrigin', () => 'http://127.0.0.1:3000');
             } else if (specifier.includes('canvas-dialog')) {
-              this.setExport('openDanmakuCanvas', (options) => { editors.push(options); return { close() {}, status() {} }; });
+              this.setExport('createDanmakuPreview', ({ controller }) => ({ id: 'danmaku', controller }));
+              this.setExport('openDanmakuCanvas', ({ controller }) => {
+                editors.push({ controller, get draft() { return controller.getState().draft; },
+                  get canApply() { return controller.getState().loaded; },
+                  onChange: (draft) => controller.edit(draft), onApply: () => controller.save() });
+                return { close() {} };
+              });
             } else
               this.setExport('observeServerOverlayUrl', (callback) => {
                 observer = callback;
@@ -99,8 +111,10 @@ async function fixture() {
               });
           },
           { context },
-        ),
-  );
+        );
+    modules.set(filename, dependency);
+    return dependency;
+  });
   await module.evaluate();
   module.namespace.initDanmakuOverlaySettings(elements, () => {});
   const click = (key) => node(key).events.click();
@@ -144,7 +158,7 @@ test('edits and local preview do not write until explicit apply; late save prese
   assert.equal(f.opened.length, 0);
   assert.equal(f.writes.length, 0);
   const first = f.click('danmakuApplyOverlayBtn');
-  await f.click('danmakuApplyOverlayBtn');
+  void f.click('danmakuApplyOverlayBtn');
   assert.equal(f.writes.length, 1);
   assert.deepEqual(f.writes[0].parameters, { style: 'outline', fullscreenDurationSeconds: 12 });
   f.click('identity');

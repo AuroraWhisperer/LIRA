@@ -42,12 +42,12 @@
   font-weight: 400;
   line-height: var(--type-leading-control);
 }
-.danmaku-tool-panel input:not([type='checkbox']) {
+.danmaku-tool-panel input:not([type='checkbox'], [type='color']) {
   min-height: 32px;
   padding: 5px 10px;
 }
 .danmaku-tool-panel
-  :where(input:not([type='checkbox']), select, textarea, button.icon, .lira-select-trigger, .lira-select-menu) {
+  :where(input:not([type='checkbox'], [type='color']), select, textarea, button.icon, .lira-select-trigger, .lira-select-menu) {
   border-width: 2px;
 }
 .danmaku-tool-panel .lira-select {
@@ -181,7 +181,7 @@
 .danmaku-settings-heading .hint {
   margin-top: var(--spacing-xs);
 }
-.danmaku-tool-panel .danmaku-style-section :is(input, select, button, .lira-select-trigger) {
+.danmaku-tool-panel .danmaku-style-section :is(input:not([type='color']), select, button, .lira-select-trigger) {
   border-width: 1px;
 }
 .danmaku-style-tools {
@@ -394,9 +394,10 @@
   gap: 8px;
 }
 .danmaku-parameter-field output {
+  font-weight: 400;
   font-variant-numeric: tabular-nums;
 }
-.danmaku-parameter-field :is(input, select) {
+.danmaku-parameter-field :is(input:not([type='color']), select) {
   width: 100%;
   min-width: 0;
 }
@@ -405,10 +406,6 @@
   --parameter-range-accent-hover: var(--danmaku-action);
   height: 40px;
   padding: 0;
-}
-.danmaku-parameter-field input[type='color'] {
-  height: 40px;
-  padding: 4px;
 }
 .danmaku-overlay-link {
   display: grid;
@@ -535,8 +532,10 @@
   outline-offset: 2px;
 }
 #danmakuMessage {
-  min-height: 96px;
-  resize: vertical;
+  min-height: calc(1.6em + 18px);
+  max-height: 160px;
+  field-sizing: content;
+  resize: none;
   line-height: 1.6;
   transition:
     border-color 160ms ease,

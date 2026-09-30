@@ -314,7 +314,7 @@
                   /></label>
                 </div>
                 <div class="interaction-setting-group interaction-options-group">
-                  <div class="interaction-field-label">投票选项<small>每项 10 字符内</small></div>
+                  <div class="interaction-field-label">投票选项<small>1–6 项 · 每项 10 字符内</small></div>
                   <div id="pollOptions" aria-label="投票选项"></div>
                   <button id="pollAddOption" type="button" class="secondary interaction-quiet">添加选项</button>
                   <p class="interaction-rule">
@@ -360,9 +360,9 @@
                       ><button type="button" class="secondary" data-poll-seconds="300" aria-pressed="false">
                         5 分钟
                       </button>
+                      <button type="button" class="secondary" data-poll-seconds="600" aria-pressed="false">10 分钟</button>
                     </div>
                   </div>
-                  <p id="pollPageHint" hidden></p>
                 </div>
                 <div class="interaction-form-actions">
                   <button id="pollStart" type="submit" class="primary" disabled>开始投票</button>

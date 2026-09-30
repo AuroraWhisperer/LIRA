@@ -112,7 +112,6 @@ test('admin queue style cards keep styles 1 and 2 neutral while styles 3-6 use t
 
 test('illustrated queue styles expose persisted typography controls', () => {
   const html = readAdminHtml();
-  const formSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme.js'), 'utf8');
   const formsSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'forms.js'), 'utf8');
   const localFontSource = fs.readFileSync(
     path.join(ROOT_DIR, 'public', 'js', 'admin', 'local-font-library.js'),
@@ -135,21 +134,23 @@ test('illustrated queue styles expose persisted typography controls', () => {
   assert.match(html, /id="illustratedQueueFontWeight"/);
   assert.match(html, /id="illustratedQueueUseCustomTextColor"/);
   assert.match(html, /id="illustratedQueueTextColor"[^>]*type="color"/);
-  assert.match(formSource, /fontFamily:\s*value\('illustratedQueueFontFamily'\)/);
+  const configSource = fs.readFileSync(path.join(ROOT_DIR, 'public/js/admin/queue-theme-config.js'), 'utf8');
+  const viewSource = fs.readFileSync(path.join(ROOT_DIR, 'public/js/admin/queue-theme-view.js'), 'utf8');
+  assert.match(configSource, /fontFamily: 'illustratedQueueFontFamily'/);
   assert.match(
-    formSource,
-    /registerLocalFontSelect\(\s*document\.getElementById\(\s*['"]illustratedQueueFontFamily['"]\s*,?\s*\)\s*,?\s*\)/,
+    viewSource,
+    /registerLocalFontSelect\(node\('illustratedQueueFontFamily'\)\)/,
   );
   assert.match(formsSource, /ensureSavedFontOption\([\s\S]*?illustratedQueueFontFamily/);
   assert.match(localFontSource, /group\.label = '本机字体'/);
   assert.match(localFontSource, /window\.queryLocalFonts\(\)/);
-  assert.match(formSource, /fontWeight:\s*value\('illustratedQueueFontWeight'\)/);
+  assert.match(configSource, /fontWeight: 'illustratedQueueFontWeight'/);
   assert.match(
     fs.readFileSync(path.join(ROOT_DIR, 'public/js/admin/theme-style-view.js'), 'utf8'),
     /ILLUSTRATED_DEFAULT_LABELS[\s\S]*'neon-vinyl'[\s\S]*fontFamily:\s*'微软雅黑'[\s\S]*fontWeight:\s*'较粗'/,
   );
-  assert.match(formSource, /useCustomTextColor:\s*value\('illustratedQueueUseCustomTextColor'\)/);
-  assert.match(formSource, /textColor:\s*value\('illustratedQueueTextColor'\)/);
+  assert.match(configSource, /useCustomTextColor: 'illustratedQueueUseCustomTextColor'/);
+  assert.match(configSource, /textColor: 'illustratedQueueTextColor'/);
   assert.match(defaultsSource, /illustratedQueueFontFamily:\s*'default'/);
   assert.match(defaultsSource, /illustratedQueueFontWeight:\s*'default'/);
   assert.match(defaultsSource, /illustratedQueueUseCustomTextColor:\s*'false'/);
@@ -217,9 +218,11 @@ test('admin queue form exposes and persists controls for only the selected style
   const themeStoreSource = fs.readFileSync(path.join(ROOT_DIR, 'src', 'storage', 'theme-store.js'), 'utf8');
 
   assert.match(html, /id="identityQueueScrollMode"/);
-  assert.match(formSource, /queueStyleSettingsPayload\(/);
-  assert.match(formSource, /normalizePersistedQueueStyle\(value\('overlayQueueStyle'\)\)\s*!==\s*styleAtEdit/);
-  assert.match(formSource, /if \(currentStyle !== nextStyle\) await saveTheme\(\);[\s\S]*setOverlayStyle\(nextStyle\)/);
+  const configSource = fs.readFileSync(path.join(ROOT_DIR, 'public/js/admin/queue-theme-config.js'), 'utf8');
+  const viewSource = fs.readFileSync(path.join(ROOT_DIR, 'public/js/admin/queue-theme-view.js'), 'utf8');
+  assert.match(configSource, /queueStyleSettingsPayload\(/);
+  assert.match(formSource, /queueSettingsPayload\(draft, changed\)/);
+  assert.match(viewSource, /controller\.edit\(\{ overlayQueueStyle: button\.dataset\.overlayStyle \}\)/);
   assert.match(formsSource, /readQueueStyleSettings\(/);
   for (const prefix of ['storybook', 'neonVinyl', 'cherryRibbon', 'goldenLily']) {
     assert.match(defaultsSource, new RegExp(`${prefix}QueueFontSize:\\s*'28'`));
@@ -324,22 +327,18 @@ test('identity queue colors Super Chats by price tier', () => {
 
 test('identity queue has an independent scroll speed setting', () => {
   const html = readAdminHtml();
-  const formSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme.js'), 'utf8');
   const defaultsSource = fs.readFileSync(path.join(ROOT_DIR, 'src', 'storage', 'settings-defaults.js'), 'utf8');
 
   assert.match(html, /id="identityQueueScrollSpeedRange"/);
   assert.match(html, /id="identityQueueScrollSpeed"/);
-  assert.match(
-    formSource,
-    /scrollSpeed:\s*formsService\.normalizeQueueScrollSpeedForDisplay\(\s*value\(\s*['"]identityQueueScrollSpeed['"]\s*,?\s*\)\s*,?\s*\)/,
-  );
+  const configSource = fs.readFileSync(path.join(ROOT_DIR, 'public/js/admin/queue-theme-config.js'), 'utf8');
+  assert.match(configSource, /scrollSpeed: 'identityQueueScrollSpeed'/);
   assert.match(defaultsSource, /identityQueueScrollSpeed: '80'/);
   assert.match(defaultsSource, /identityQueueScrollMode: 'bounce'/);
 });
 
 test('styles 2-6 hydrate the active style content font size setting', () => {
   const html = readAdminHtml();
-  const formSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme.js'), 'utf8');
   const formsSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'forms.js'), 'utf8');
   const overlaySource = readJsModuleBundle('public', 'js', 'overlays', 'queue.js');
   const overlayStyles = readCssBundle('public', 'css', 'overlays', 'base.css');
@@ -347,7 +346,8 @@ test('styles 2-6 hydrate the active style content font size setting', () => {
 
   assert.match(html, /id="identityQueueFontSize"[^>]*min="9"[^>]*max="78"[^>]*value="28"/);
   assert.match(html, /id="identityQueueFontSizeNumber"[^>]*min="9"[^>]*max="78"[^>]*value="28"/);
-  assert.match(formSource, /fontSize:\s*value\('identityQueueFontSize'\)/);
+  const configSource = fs.readFileSync(path.join(ROOT_DIR, 'public/js/admin/queue-theme-config.js'), 'utf8');
+  assert.match(configSource, /fontSize: 'identityQueueFontSize'/);
   assert.match(formsSource, /readQueueStyleSettings\(values, overlayStyle\)/);
   assert.match(defaultsSource, /identityQueueFontSize: '28'/);
   assert.match(overlaySource, /--identity-queue-font-size[\s\S]*?identityQueueFontSize\(\s*settings\s*\)/);

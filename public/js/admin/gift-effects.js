@@ -21,25 +21,21 @@ export const giftEffects = (() => {
     urlNode.textContent = liveUrl;
 
     const commandToggle = document.getElementById('giftEffectDanmakuEnabled');
-    const commandState = document.getElementById('giftEffectCommandState');
     let commandEnabled = false;
     window.addEventListener('app:settings-state', (event) => {
       commandEnabled = event.detail?.giftEffectDanmakuEnabled === 'true';
       commandToggle.checked = commandEnabled;
-      commandState.textContent = commandEnabled ? '已开启' : '未开启';
     });
     commandToggle.addEventListener('change', async () => {
       const nextEnabled = commandToggle.checked;
       commandToggle.disabled = true;
-      commandState.textContent = '正在保存…';
       try {
         await api('/api/settings', {
           giftEffectDanmakuEnabled: String(nextEnabled),
         });
         commandEnabled = nextEnabled;
-        commandState.textContent = nextEnabled ? '已开启' : '未开启';
       } catch (_) {
-        commandState.textContent = '保存失败，请重试。';
+        toast('保存失败，请重试。');
       } finally {
         commandToggle.checked = commandEnabled;
         commandToggle.disabled = false;

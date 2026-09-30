@@ -67,6 +67,7 @@ LIRA 是以 Electron 桌面为主要 UI 的模块化单体。Electron main 同�
 | [0019-stable-gift-source-owner](adr/0019-stable-gift-source-owner.md) | Accepted；替代 [ADR-0011](adr/0011-source-partitioned-gift-ledger-projection.md) 的旧来源身份 |
 | [0020-shared-danmaku-source](adr/0020-shared-danmaku-source.md) | Proposed；共享源码分发方案，不代表已部署能力 |
 | [0021-atomic-live-gift-progress](adr/0021-atomic-live-gift-progress.md) | Accepted；连续 SSE 礼物和游标原子提交，HTTP 保留恢复与周期核对 |
+| [0022-local-component-scenes](adr/0022-local-component-scenes.md) | Accepted；本地场景 owner、完整外观版本及独立只读来源；本地范围已实现并验证 |
 
 
 ## 事实地图

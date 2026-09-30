@@ -5,9 +5,11 @@
 const { readJsonBody, sendJson } = require('./http-utils');
 const { resolveRequestPrincipal, isOverlayRequestAllowed, isOverlayRoute } = require('./access-policy');
 const { handleOverlayApi } = require('./overlay-http');
+const { handleSceneOutput, publicRoutes: scenePublicRoutes } = require('./routes/scene-routes');
 
 // 按前缀顺序匹配；每个模块只关心自己领域的路由表
 const ROUTE_MODULES = [
+  require('./routes/scene-routes'),
   require('./routes/system-routes'),
   require('./routes/settings-routes'),
   require('./routes/clock-routes'),
@@ -53,6 +55,9 @@ function createBodyReader(req, maxBodyBytes) {
 async function handleApi(context, req, res, requestUrl) {
   const method = req.method || 'GET';
   const pathName = requestUrl.pathname;
+  const sceneOutputRoute = scenePublicRoutes[`${method} ${pathName}`];
+  if (sceneOutputRoute) return sceneOutputRoute(context, req, res, requestUrl);
+  if (pathName === '/api/scene/output') return handleSceneOutput(context, req, res, requestUrl);
   const principal = resolveRequestPrincipal(context, req, requestUrl);
   const origin = req.headers?.origin;
   if (origin === 'null') {

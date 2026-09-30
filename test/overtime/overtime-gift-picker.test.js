@@ -467,6 +467,12 @@ async function loadOvertimeModule({ document, window, state, saleGifts }) {
         getState: () => null,
       }),
     }),
+    './overtime-preview.js': stub({
+      createOvertimeAppearance: () => ({
+        receive() {},
+        open() {},
+      }),
+    }),
   };
   for (const specifier of [
     '../shared/gift-image-fallback.js',

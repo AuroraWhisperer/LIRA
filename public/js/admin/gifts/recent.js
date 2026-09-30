@@ -83,6 +83,10 @@ export const giftRecent = (() => {
   const MAX_RECENT_GIFT_ROWS = 6;
   const HIGH_VALUE_GIFT_MIN_RMB = 1000;
   let recentGiftResizeObserver = null;
+  let giftSheenObserver = null;
+  let giftSheenMotionQuery = null;
+  let giftSheenTimer = null;
+  const visibleSheenCards = new Set();
   let giftArtworkLoadPromise = null;
   let giftArtworkRevision = 0;
   let giftArtworkEventsUnsubscribe = null;
@@ -101,6 +105,54 @@ export const giftRecent = (() => {
     if (recentGiftResizeObserver || !window.ResizeObserver) return;
     recentGiftResizeObserver = new window.ResizeObserver(() => limitRecentGiftRows(list));
     recentGiftResizeObserver.observe(list);
+  }
+
+  function syncGiftSheenTimer() {
+    if (document.hidden || giftSheenMotionQuery.matches || visibleSheenCards.size === 0) {
+      window.clearTimeout(giftSheenTimer);
+      giftSheenTimer = null;
+      visibleSheenCards.forEach((card) => card.classList.remove('is-gold-sheening'));
+      return;
+    }
+    if (giftSheenTimer !== null) return;
+
+    giftSheenTimer = window.setTimeout(() => {
+      giftSheenTimer = null;
+      visibleSheenCards.forEach((card) => card.classList.add('is-gold-sheening'));
+      syncGiftSheenTimer();
+    }, 3000 + Math.random() * 2000);
+  }
+
+  function observeGiftSheen(list) {
+    if (!window.IntersectionObserver || !window.matchMedia) return;
+    if (!giftSheenObserver) {
+      giftSheenMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+      giftSheenObserver = new window.IntersectionObserver(
+        (entries) => {
+          for (const entry of entries) {
+            if (entry.target.isConnected && entry.isIntersecting && entry.intersectionRatio >= 0.01) {
+              visibleSheenCards.add(entry.target);
+            } else {
+              visibleSheenCards.delete(entry.target);
+              entry.target.classList.remove('is-gold-sheening');
+            }
+          }
+          syncGiftSheenTimer();
+        },
+        { threshold: 0.01 },
+      );
+      document.addEventListener('visibilitychange', syncGiftSheenTimer);
+      giftSheenMotionQuery.addEventListener('change', syncGiftSheenTimer);
+      list.addEventListener('animationend', (event) => {
+        if (event.animationName === 'gift-gold-sheen') event.target.classList.remove('is-gold-sheening');
+      });
+    }
+
+    giftSheenObserver.disconnect();
+    visibleSheenCards.clear();
+    const cards = list.querySelectorAll('.high-value-gift-card');
+    cards.forEach((card) => giftSheenObserver.observe(card));
+    if (cards.length === 0) syncGiftSheenTimer();
   }
 
   async function loadGiftArtworkCatalog() {
@@ -200,6 +252,7 @@ export const giftRecent = (() => {
         </div>
       `;
       setGiftImageFallbacks(list);
+      observeGiftSheen(list);
       return;
     }
 
@@ -255,6 +308,7 @@ export const giftRecent = (() => {
     setGiftImageFallbacks(list);
     limitRecentGiftRows(list);
     observeRecentGiftGrid(list);
+    observeGiftSheen(list);
   }
 
   /**

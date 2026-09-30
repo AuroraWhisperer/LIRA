@@ -76,6 +76,22 @@
   --blind-box-source-color: var(--blind-box-name-color);
 }
 
+:is(.blind-box-card, .blind-box-chip)[data-blind-box-theme='national-day'] {
+  --blind-box-card-border: var(--blind-box-mapping-border);
+  --blind-box-card-accent: var(--blind-box-mapping-hover-border);
+  --blind-box-card-background: linear-gradient(90deg, #ffedce 0%, #fff8ec 52%, var(--color-bg-primary) 100%);
+  --blind-box-mapping-border: #e7b070;
+  --blind-box-mapping-background: linear-gradient(135deg, #fff8ec 0%, #ffe4bf 100%);
+  --blind-box-mapping-shadow: 0 1px 3px rgba(165, 79, 42, 0.06);
+  --blind-box-mapping-hover-border: #b95437;
+  --blind-box-mapping-hover-shadow: 0 4px 12px rgba(165, 79, 42, 0.18);
+  --blind-box-icon-background: linear-gradient(135deg, #fff0d4 0%, #f7d49a 100%);
+  --blind-box-name-color: #9b3f2b;
+  --blind-box-price-color: var(--blind-box-name-color);
+  --blind-box-price-background: rgba(155, 63, 43, 0.1);
+  --blind-box-source-color: var(--blind-box-name-color);
+}
+
 /* 这三种盲盒原有专属配色仅用于映射；最近礼物卡片继续使用默认色。 */
 :is(.blind-box-card, .blind-box-chip)[data-blind-box-theme='bear'] {
   --blind-box-mapping-border: #f5a6cb;

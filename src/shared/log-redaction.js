@@ -67,7 +67,7 @@ function redactString(str) {
   // broadly, then apply the same normalized-key policy used for objects so
   // variants such as private_key_pem and accessToken cannot bypass logging
   // redaction.
-  result = result.replace(/([?&])([^=?&#\s]+)=([^&#\s]*)/g, (match, separator, key, value) =>
+  result = result.replace(/([?&#])([^=?&#\s]+)=([^&#\s]*)/g, (match, separator, key, value) =>
     isSensitiveKey(key) ? `${separator}${key}=${REDACTED_PLACEHOLDER}` : match,
   );
 
@@ -154,6 +154,15 @@ function redactUrl(url) {
       redactedUrl.searchParams.set(param, REDACTED_PLACEHOLDER);
     }
   }
+
+  const fragment = new URLSearchParams(redactedUrl.hash.slice(1));
+  let fragmentChanged = false;
+  for (const key of [...fragment.keys()]) {
+    if (!isSensitiveKey(key)) continue;
+    fragment.set(key, REDACTED_PLACEHOLDER);
+    fragmentChanged = true;
+  }
+  if (fragmentChanged) redactedUrl.hash = fragment.toString();
 
   if (hadUserInfo) {
     return `${redactedUrl.protocol}//${REDACTED_PLACEHOLDER}@${redactedUrl.host}${redactedUrl.pathname}${redactedUrl.search}${redactedUrl.hash}`;

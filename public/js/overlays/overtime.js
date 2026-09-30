@@ -3,6 +3,7 @@
 import { formatClockDisplay, formatClockSeconds } from '../shared/overtime-time-format.js';
 import { createOverlaySocket } from './socket-client.js';
 import { setGiftImage } from '../shared/gift-image-fallback.js';
+import { createComponentPreviewClient, isComponentPreview } from './component-preview-client.js';
 
 const MAX_ANIMATION_QUEUE = 5;
 const quality = new URLSearchParams(location.search).get('quality') || '';
@@ -17,13 +18,33 @@ let socketController = null;
 let clockTimer = null;
 let lastClockValue = '';
 let animationActive = false;
+let previewBackground = null;
+let previewSource = 0;
 const animationQueue = [];
+const animationTimers = new Set();
 
 document.addEventListener('DOMContentLoaded', () => {
   byId('overtimeMachine').classList.toggle('low-motion', lowMotion);
   document.addEventListener('visibilitychange', syncClock);
-  loadSnapshot();
-  connectSocket();
+  if (isComponentPreview()) {
+    createComponentPreviewClient({
+      onConfig(config) { previewBackground = config; renderBackground(); },
+      onData(state, source) {
+        if (!Number.isInteger(source) || source < previewSource) return;
+        if (source !== previewSource) {
+          clearAdjustments();
+          previewSource = source;
+          currentRevision = -1;
+          connectionGeneration += 1;
+        }
+        if (applyState(state) && state.adjustment) enqueueAdjustment(state.adjustment);
+      },
+      onDispose: disposeSocket,
+    });
+  } else {
+    loadSnapshot();
+    connectSocket();
+  }
   window.addEventListener('beforeunload', disposeSocket, { once: true });
 });
 
@@ -72,8 +93,30 @@ function connectSocket() {
 
 function disposeSocket() {
   connectionGeneration += 1;
+  clearTimeout(clockTimer);
+  clockTimer = null;
+  document.removeEventListener('visibilitychange', syncClock);
+  clearAdjustments();
   socketController?.dispose();
   socketController = null;
+}
+
+function clearAdjustments() {
+  for (const timer of animationTimers) clearTimeout(timer);
+  animationTimers.clear();
+  animationQueue.length = 0;
+  animationActive = false;
+  document.getAnimations?.().forEach((animation) => animation.cancel());
+  byId('overtimeAdjustmentStage').replaceChildren();
+  byId('overtimeClock').classList.remove('is-positive', 'is-negative');
+}
+
+function afterAdjustment(callback, delay) {
+  const timer = setTimeout(() => {
+    animationTimers.delete(timer);
+    callback();
+  }, delay);
+  animationTimers.add(timer);
 }
 
 function applyState(state) {
@@ -138,9 +181,10 @@ function setConnectionStatus(label) {
 function renderBackground() {
   const machine = byId('overtimeMachine');
   const background = byId('overtimeBackground');
-  const imagePath = String(currentState?.background?.path || '');
-  const fit = ['cover', 'contain', 'fill'].includes(currentState?.background?.fit)
-    ? currentState.background.fit
+  const config = previewBackground || currentState?.background;
+  const imagePath = String(config?.path || '');
+  const fit = ['cover', 'contain', 'fill'].includes(config?.fit)
+    ? config.fit
     : 'cover';
   background.style.backgroundImage = imagePath ? `url(${JSON.stringify(imagePath)})` : '';
   background.style.backgroundSize = fit;
@@ -236,7 +280,7 @@ function playNextAdjustment() {
   stage.replaceChildren(card);
   flashClock(delta);
 
-  setTimeout(
+  afterAdjustment(
     () => {
       stage.replaceChildren();
       animationActive = false;
@@ -252,7 +296,7 @@ function highlightTicket(giftId) {
   ticket.classList.remove('is-hit');
   void ticket.offsetWidth;
   ticket.classList.add('is-hit');
-  setTimeout(() => ticket.classList.remove('is-hit'), lowMotion ? 220 : 920);
+  afterAdjustment(() => ticket.classList.remove('is-hit'), lowMotion ? 220 : 920);
 }
 
 function flashClock(delta) {
@@ -261,7 +305,7 @@ function flashClock(delta) {
   clock.classList.remove('is-positive', 'is-negative');
   void clock.offsetWidth;
   clock.classList.add(className);
-  setTimeout(() => clock.classList.remove(className), lowMotion ? 220 : 920);
+  afterAdjustment(() => clock.classList.remove(className), lowMotion ? 220 : 920);
 }
 
 function nextClockDelay(remainingMs) {

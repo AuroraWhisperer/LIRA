@@ -4,6 +4,7 @@ const { normalizeGiftEffectEvent } = require('../../bilibili/gift/effect-event')
 
 const { normalizeProcessedGiftEvent } = require('../../shared/processed-gift-contract');
 const { isDnsHostname } = require('../../shared/remote-url-policy');
+const { readBoundedSse, parseEventBlock } = require('../../shared/bounded-sse-reader');
 const { sanitizeWelcomeFieldErrors } = require('../../shared/welcome-settings-contract');
 const { createRemoteDanmakuSettings } = require('./remote-danmaku-settings');
 const { createRemoteGiftReads } = require('./remote-gift-reads');
@@ -219,70 +220,15 @@ function createRemoteLicenseClient(options = {}) {
       });
     }
 
-    const reader = response.body.getReader();
-    // Parse each byte once; network fragments are not event boundaries.
-    const eventBytes = Buffer.allocUnsafe(64 * 1024);
-    let eventLength = 0;
-    let pendingNewline = false;
-    let pendingCarriageReturn = false;
-    let firstBlock = true;
-    try {
-      onOpen(response);
-      while (true) {
-        const { value, done } = await reader.read();
-        for (const byte of value || []) {
-          if (pendingCarriageReturn) {
-            pendingCarriageReturn = false;
-            if (byte !== 10) acceptByte(13);
-          }
-          if (byte === 13) pendingCarriageReturn = true;
-          else acceptByte(byte);
-        }
-        if (done) {
-          if (pendingCarriageReturn) acceptByte(13);
-          break;
-        }
-      }
-    } finally {
-      try {
-        await reader.cancel?.();
-      } catch (error) {
-        // An aborted stream may already be errored when cleanup runs.
-        void error;
-      }
-      reader.releaseLock?.();
-    }
-
-    function acceptByte(byte) {
-      if (byte === 10) {
-        if (!pendingNewline) {
-          pendingNewline = true;
-          return;
-        }
-        let block = eventBytes.toString('utf8', 0, eventLength);
-        if (firstBlock && block.startsWith('\uFEFF')) block = block.slice(1);
-        firstBlock = false;
-        pendingNewline = false;
-        eventLength = 0;
-        onBlock(block);
-        return;
-      }
-      if (pendingNewline) {
-        writeByte(10);
-        pendingNewline = false;
-      }
-      writeByte(byte);
-    }
-
-    function writeByte(byte) {
-      if (eventLength === eventBytes.length) {
-        throw new RemoteLicenseError('RESPONSE_TOO_LARGE', '授权服务器响应过大。', {
+    return readBoundedSse(response, {
+      onOpen,
+      onBlock,
+      createLimitError: () =>
+        new RemoteLicenseError('RESPONSE_TOO_LARGE', '授权服务器响应过大。', {
           status: response.status,
           retryable: true,
-        });
-      }
-      eventBytes[eventLength++] = byte;
-    }
+        }),
+    });
   }
 
   function watchCloudStateChanges(token, options = {}) {
@@ -389,16 +335,6 @@ async function readResponseText(response, maxBytes, createLimitError) {
   } finally {
     reader.releaseLock();
   }
-}
-
-function parseEventBlock(block) {
-  let eventName = '';
-  const dataLines = [];
-  for (const line of String(block || '').split('\n')) {
-    if (line.startsWith('event:')) eventName = line.slice(6).trim();
-    else if (line.startsWith('data:')) dataLines.push(line.slice(5).trimStart());
-  }
-  return { eventName, data: dataLines.join('\n') };
 }
 
 function handleGiftEventBlock(block, onEvent, onEffect) {

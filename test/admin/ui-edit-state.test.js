@@ -284,27 +284,30 @@ test('danmaku panel initializes every shipped style and keeps existing controls 
   for (const [id, value] of [['danmakuCustomReplyList', '测试关键词']]) {
     assert.equal(await page.locator(`#${id} input`).first().inputValue(), value);
   }
-  const styleButtons = page.locator('[data-danmaku-style]');
+  const styleButtons = page.locator('#otherDanmakuFeature [data-danmaku-style]');
   for (let index = 0; index < (await styleButtons.count()); index += 1) {
     const button = styleButtons.nth(index);
     await button.click();
     assert.equal(await button.getAttribute('aria-pressed'), 'true');
     await page.locator('#danmakuPreviewOverlayBtn').click();
-    const iframe = page.locator('.danmaku-canvas-dialog iframe');
+    const dialog = page.locator('.component-preview-dialog');
+    const iframe = dialog.locator('iframe');
     const preview = new URL(await iframe.getAttribute('src'));
     assert.equal(preview.searchParams.get('preview'), '1');
+    assert.equal(preview.searchParams.get('componentPreview'), '1');
+    assert.equal(preview.searchParams.has('token'), false);
+    assert.equal(preview.hash, '');
     assert.equal(await iframe.getAttribute('sandbox'), 'allow-scripts');
     const style = await iframe.contentFrame().locator('body').evaluate(() => new Promise((resolve) => {
       window.addEventListener('message', (event) => {
-        if (event.data?.type === 'danmaku-editor:init') resolve(event.data.draft.style);
+        if (event.data?.type === 'component-preview:init') resolve(event.data.config.style);
       }, { once: true });
-      window.parent.postMessage({ type: 'danmaku-editor:ready' }, '*');
+      window.parent.postMessage({ type: 'component-preview:ready' }, '*');
     }));
     assert.equal(style, await button.getAttribute('data-danmaku-style'));
-    await iframe.contentFrame().locator('body').evaluate(() => {
-      window.parent.postMessage({ type: 'danmaku-editor:close' }, '*');
-    });
-    await page.locator('.danmaku-canvas-dialog').waitFor({ state: 'detached' });
+    assert.equal(await dialog.locator(`[data-danmaku-style="${style}"]`).getAttribute('aria-pressed'), 'true');
+    await dialog.getByRole('button', { name: '关闭', exact: true }).click();
+    await dialog.waitFor({ state: 'detached' });
   }
 });
 

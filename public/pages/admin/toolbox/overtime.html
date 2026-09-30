@@ -63,6 +63,41 @@
       <button id="overtimeApplyTimeBtn" type="button">设置初始时间</button>
     </section>
 
+    <section class="overtime-admin-section overtime-screen-section">
+      <div class="overtime-section-heading">
+        <div>
+          <h3>
+            直播画面
+            <lira-help>背景与前景独立；透明背景适合叠加到直播画面。</lira-help>
+          </h3>
+        </div>
+      </div>
+      <div id="overtimeAppearanceFields" class="overtime-appearance-fields">
+        <label
+          >背景
+          <select id="overtimeBackgroundPath" data-dropdown-variant="overtime">
+            <option value="">透明</option>
+            <option value="/img/overtime-machine/midnight-grid.svg">深夜票券</option>
+          </select>
+        </label>
+        <label
+          >适配
+          <select id="overtimeBackgroundFit" data-dropdown-variant="overtime">
+            <option value="cover">铺满</option>
+            <option value="contain">完整显示</option>
+            <option value="fill">拉伸</option>
+          </select>
+        </label>
+      </div>
+      <p id="overtimeBackgroundSaveState" role="status" aria-live="polite"></p>
+      <div class="overtime-screen-actions">
+        <button id="overtimeSaveBackgroundBtn" class="secondary" type="button">保存画面</button>
+        <button id="overtimeOpenOverlayBtn" class="secondary" type="button">预览与调整</button>
+        <button id="overtimeCopyOverlayBtn" type="button">复制地址</button>
+        <button id="overtimeDiscardBackgroundBtn" class="secondary" type="button" disabled>放弃未保存修改</button>
+      </div>
+    </section>
+
     <section class="overtime-admin-section">
       <div class="overtime-section-heading">
         <div>
@@ -91,42 +126,6 @@
         </div>
       </div>
       <div id="overtimeRules" class="overtime-rule-list" aria-live="polite"></div>
-    </section>
-
-    <section class="overtime-admin-section overtime-screen-section">
-      <div class="overtime-section-heading">
-        <div>
-          <h3>
-            直播画面
-            <lira-help>背景与前景独立；透明背景适合叠加到直播画面。</lira-help>
-          </h3>
-        </div>
-      </div>
-      <label
-        >背景
-        <select id="overtimeBackgroundPath" data-dropdown-variant="overtime">
-          <option value="">透明</option>
-          <option value="/img/overtime-machine/midnight-grid.svg">深夜票券</option>
-        </select>
-      </label>
-      <label
-        >适配
-        <select id="overtimeBackgroundFit" data-dropdown-variant="overtime">
-          <option value="cover">铺满</option>
-          <option value="contain">完整显示</option>
-          <option value="fill">拉伸</option>
-        </select>
-      </label>
-      <button id="overtimeSaveBackgroundBtn" class="secondary" type="button">保存画面</button>
-      <button id="overtimeOpenOverlayBtn" class="secondary" type="button">打开画面</button>
-      <button id="overtimeCopyOverlayBtn" type="button">复制地址</button>
-      <iframe
-        sandbox="allow-scripts"
-        id="overtimePreview"
-        class="overtime-preview"
-        title="加班机实时预览"
-        loading="lazy"
-      ></iframe>
     </section>
 
     <section class="overtime-admin-section">

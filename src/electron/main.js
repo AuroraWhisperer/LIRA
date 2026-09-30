@@ -25,6 +25,7 @@ const { fetchGuardRoster } = require('../bilibili/guard-roster');
 const { createDailyBotController } = require('./daily-bot-controller');
 const { registerDailyBotIpc } = require('./ipc/daily-bot-ipc');
 const { createRemoteGiftController } = require('./remote-gift-controller');
+const { createSceneCloudController, getSceneOwner } = require('./scene-cloud-controller');
 const { createDesktopReadinessController } = require('./desktop-readiness-controller');
 const { createDesktopLogger } = require('./desktop-logger');
 const { createDesktopRuntime } = require('./desktop-runtime');
@@ -119,6 +120,7 @@ var licenseManager = null;
 var licenseResumeController = null;
 var cloudSyncController = null;
 var remoteGiftController = null;
+var sceneCloudController = null;
 var readinessController = null;
 var dynamicLotteryAuth = null;
 var disposeLotteryAuthIpc = null;
@@ -267,11 +269,12 @@ function requestDesktopShutdown({ restart = false } = {}) {
       disposeFanProfileIpc?.();
       disposeDailyBotIpc?.();
       dynamicLotteryAuth?.dispose();
-      const controllersToDrain = [remoteGiftController, cloudSyncController, fanProfileController, desktopAuth].filter(
+      const controllersToDrain = [sceneCloudController, remoteGiftController, cloudSyncController, fanProfileController, desktopAuth].filter(
         Boolean,
       );
       for (const controller of controllersToDrain) controller.dispose();
       remoteGiftController = null;
+      sceneCloudController = null;
       cloudSyncController = null;
       fanProfileController = null;
       await Promise.all([
@@ -425,6 +428,7 @@ async function startDesktopApp() {
       isAuthorized: () => licenseManager?.isAuthorized() === true,
     },
     getFanScope: () => fanScopeFor(licenseManager),
+    getSceneOwner: () => getSceneOwner(licenseManager),
     onPhase: (phase, durationMs, extra) =>
       writeLog('lifecycle', {
         event: 'PHASE',
@@ -522,6 +526,11 @@ async function startDesktopApp() {
     licenseManager,
     runtime: lifecycleState.runtime,
   });
+  sceneCloudController = createSceneCloudController({
+    licenseManager,
+    publish: (update) => lifecycleState.runtime.receiveSceneCloud(update),
+  });
+  sceneCloudController.start();
   fanProfileController = createFanProfileController({
     licenseManager,
     getService: () => lifecycleState.runtime.getFanProfiles(),

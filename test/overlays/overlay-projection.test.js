@@ -29,6 +29,14 @@ const scopes = [
   'clock',
 ];
 const secret = 'PRIVATE_SENTINEL';
+test('clock snapshot allows exactly the eight clock settings and no other domain state', () => {
+  const clockKeys = ['clockStyle', 'clockShowDate', 'clockShowSeconds', 'clockHourFormat', 'clockLabel',
+    'clockFlipFrameColor', 'clockFlipFaceColor', 'clockFlipTextColor'];
+  const settings = Object.fromEntries(clockKeys.map((key) => [key, 'value']));
+  const projected = projectOverlayState('clock', { settings: { ...settings, roomId: secret, aiApiKey: secret },
+    queue: { private: true }, overtime: { private: true } });
+  assert.deepEqual(projected, { settings });
+});
 const item = {
   id: 'message',
   name: '观众',
@@ -107,6 +115,7 @@ test('every scope receives only its own snapshot fields and unknown principals f
     'gift-wishes': ['gifts'],
     lyrics: ['settings', 'lyricState', 'lyricTimeline'],
     danmaku: ['settings', 'liveStatus', 'danmakuFeed'],
+    clock: ['settings'],
   };
   for (const scope of scopes) {
     const result = projectWebSocketPayload(

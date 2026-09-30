@@ -35,7 +35,6 @@ export function initDanmakuWelcome({
     disposed = false;
   let view = 'parameters',
     notice = '',
-    pinyinNotice = '',
     errors = {};
   const editor = createWelcomeLibrary({ documentRef, element, libraries, changed: libraryChanged });
   const isV2 = () => settings?.schemaVersion === 2;
@@ -144,7 +143,7 @@ export function initDanmakuWelcome({
         busy ||
         (key !== 'enabled' && !isV2()) ||
         (['greetingEnabled', 'attentionEnabled'].includes(key) && !settings?.enabled);
-      field.title = parameters.dirty && !settings?.[key] ? '开启并保存参数' : '';
+      field.title = key !== 'rareNamePinyinEnabled' && parameters.dirty && !settings?.[key] ? '开启并保存参数' : '';
     }
     input.disabled = !loaded;
     const library = libraries[editor.current()];
@@ -205,11 +204,8 @@ export function initDanmakuWelcome({
     element('Summary').textContent = !loaded
       ? '尚未确认服务器设置'
       : isV2()
-        ? `${settings.enabled ? '' : '已关闭 · '}${settings.welcomeDelaySeconds} 秒后欢迎 · ${settings.welcomeMinHonorLevel ? `至少 ${settings.welcomeMinHonorLevel} 级` : '等级不限'}`
-        : `${settings.enabled ? '已开启' : '已关闭'} · 服务器暂不支持新增设置`;
-    element('PinyinStatus').textContent =
-      pinyinNotice ||
-      (!loaded ? '尚未确认' : !isV2() ? '服务器暂不支持此功能' : settings.rareNamePinyinEnabled ? '已开启' : '已关闭');
+        ? `${settings.welcomeDelaySeconds} 秒后欢迎 · ${settings.welcomeMinHonorLevel ? `至少 ${settings.welcomeMinHonorLevel} 级` : '等级不限'}`
+        : '服务器暂不支持新增设置';
     updatePreview();
   }
   function libraryChanged(key) {
@@ -263,7 +259,6 @@ export function initDanmakuWelcome({
         : await bridge.getWelcomeSettings();
       if (requested !== generation || disposed) return;
       accept(bridge.getWelcomeSettingsV2 ? result : { ...result, schemaVersion: 1 });
-      pinyinNotice = '';
       displayNotice(hasDrafts() ? '已读取，仍有未保存的更改' : '已读取服务器设置');
     } catch {
       if (requested === generation && !disposed) displayNotice('尚未确认服务器设置，请检查连接后刷新核对。');
@@ -280,12 +275,13 @@ export function initDanmakuWelcome({
       return;
     }
     const requested = generation;
+    const switchKey = Object.keys(SWITCHES).find((key) => key in patch);
+    const switchTitle = switchKey ? element(SWITCHES[switchKey].replace('Toggle', 'Title')).textContent : '';
     const submitted = Object.fromEntries(
       domains.map((key) => [key, key === 'parameters' ? parameters.revision : libraries[key].revision]),
     );
     saving = true;
-    displayNotice('正在保存到服务器…');
-    if ('rareNamePinyinEnabled' in patch) pinyinNotice = '正在同步…';
+    if (!switchKey) displayNotice('正在保存到服务器…');
     controls();
     try {
       const response = isV2() ? await bridge.updateWelcomeSettingsV2(patch) : await bridge.updateWelcomeSettings(patch);
@@ -302,28 +298,28 @@ export function initDanmakuWelcome({
         showErrors(fieldErrors, true);
       }
       accept(isV2() ? response : { ...response, schemaVersion: 1 }, submitted);
-      pinyinNotice = '';
+      if (switchKey) {
+        displayNotice('');
+        toast(`${switchTitle}已${settings[switchKey] ? '开启' : '关闭'}${domains.includes('parameters') ? '，参数已保存' : ''}`);
+        return;
+      }
       const libraryKey = domains.find((key) => LIBRARIES[key]);
       displayNotice(
         hasDrafts()
           ? '本次已保存，仍有未保存的更改'
           : libraryKey
             ? `已保存 ${settings[libraryKey].length} 条${LIBRARIES[libraryKey]}`
-            : domains.includes('parameters')
-              ? '参数已保存'
-              : patch.enabled === false
-                ? '欢迎已关闭'
-                : '开关已由服务器确认',
+            : '参数已保存',
       );
       toast(status.textContent);
     } catch (error) {
       if (requested !== generation || disposed) return;
       const closing = Object.keys(SWITCHES).some((key) => patch[key] === false);
-      displayNotice(
-        closing ? '关闭尚未确认，服务器可能仍在运行；请刷新核对。' : '保存未确认，请检查连接与输入后重试。',
-      );
-      if ('rareNamePinyinEnabled' in patch) pinyinNotice = status.textContent;
-      toast(status.textContent);
+      const message = closing
+        ? `${switchTitle}关闭尚未确认，请刷新核对。`
+        : `${switchTitle || '设置'}保存未确认，请检查连接与输入后重试。`;
+      if (!switchKey) displayNotice(message);
+      toast(message, { type: 'error' });
     } finally {
       if (requested === generation && !disposed) {
         saving = false;
@@ -333,10 +329,15 @@ export function initDanmakuWelcome({
   }
   function setSwitch(key) {
     const target = element(SWITCHES[key]).checked;
+    if (key === 'rareNamePinyinEnabled') {
+      void write({ [key]: target });
+      return;
+    }
     if (target && parameters.dirty && isV2()) {
       const parsed = parameterValues(parameters.values, { ...settings, [key]: true });
       showErrors(parsed.errors, true);
       if (Object.keys(parsed.errors).length) {
+        toast(Object.values(parsed.errors)[0], { type: 'error' });
         controls();
         return;
       }
@@ -347,6 +348,7 @@ export function initDanmakuWelcome({
       const parsed = parameterValues(settings, { ...settings, [key]: true });
       showErrors(parsed.errors, true);
       if (Object.keys(parsed.errors).length) {
+        toast(Object.values(parsed.errors)[0], { type: 'error' });
         controls();
         return;
       }
@@ -384,7 +386,6 @@ export function initDanmakuWelcome({
     settings = null;
     loading = false;
     saving = false;
-    pinyinNotice = '';
     parameters.values = {};
     parameters.dirty = false;
     parameters.revision += 1;

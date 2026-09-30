@@ -140,15 +140,6 @@
 .danmaku-fixed-reply-section .switch-control input:checked + .switch-track::after {
   transform: translateX(14px);
 }
-.danmaku-fixed-reply-section .switch-caption {
-  font-size: 12px;
-}
-.danmaku-fixed-reply-section .switch-caption::after {
-  content: '关';
-}
-.danmaku-fixed-reply-section input:checked ~ .switch-caption::after {
-  content: '开';
-}
 .danmaku-fixed-editor-heading {
   display: flex;
   align-items: center;
@@ -354,15 +345,12 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding-top: 12px;
-  margin-top: 6px;
-  border-top: 1px solid var(--fixed-divider);
+  padding-bottom: 12px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--fixed-divider);
 }
 .danmaku-welcome-pinyin .hint {
   margin-top: 2px;
-}
-#danmakuWelcomePinyinStatus {
-  margin-left: 12px;
 }
 .danmaku-fixed-notes {
   display: grid;

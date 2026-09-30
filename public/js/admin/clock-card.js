@@ -1,71 +1,31 @@
 'use strict';
 
 import { copyText, localOverlayOrigin, toast } from '../shared/utils.js';
+import { CLOCK_STYLE_LABELS, FLIP_PALETTES, clockSettingsPayload, clockConfigFromSettings } from '../shared/clock-settings.js';
+import { createComponentConfigController, componentSaveMessage } from './component-config-controller.js';
+import { openComponentPreview } from './component-preview-dialog.js';
+import { registerComponentPreview } from './component-preview-registry.js';
+import { cloneComponentPanel, componentField } from './component-preview-panel.js';
+import { registerComponentSettings } from './component-settings-sync.js';
+import { saveComponentSettings } from './component-settings-save.js';
 
-const CLOCK_STYLE_VALUES = new Set([
-  'peach',
-  'starlight',
-  'soda',
-  'timeline-horizontal',
-  'timeline-vertical',
-  'digital',
-  'orbit',
-  'flip',
-]);
-const CLOCK_STYLE_LABELS = Object.freeze({
-  peach: '今天也要闪闪发光',
-  starlight: '今晚与星星一起值班',
-  soda: '今天也要元气满满',
-  'timeline-horizontal': '',
-  'timeline-vertical': '',
-  digital: '',
-  orbit: '',
-  flip: '',
-});
-const FLIP_PALETTES = Object.freeze({
-  light: ['#e4e4e4', '#ffffff', '#303030'],
-  dark: ['#757575', '#353535', '#ffffff'],
-  lilac: ['#cb69e3', '#ffffff', '#bc59d6'],
-});
-const SETTINGS_ENDPOINT = '/api/' + 'settings';
-const CLOCK_CONFIG_ENDPOINT = '/api/clock/config';
+const CLOCK_STYLE_VALUES = new Set(Object.keys(CLOCK_STYLE_LABELS));
 let initialized = false;
-let selectedStyle = 'peach';
 
 function buildClockUrl(baseUrl, config) {
   const url = new URL(baseUrl);
   const params = url.searchParams;
-  const style = CLOCK_STYLE_VALUES.has(config.style) ? config.style : 'peach';
-  params.set('style', style);
+  params.set('style', CLOCK_STYLE_VALUES.has(config.style) ? config.style : 'peach');
   params.set('date', config.showDate ? '1' : '0');
   params.set('seconds', config.showSeconds ? '1' : '0');
   params.set('format', config.hourFormat === '12' ? '12' : '24');
-  const label = Array.from(
-    String(config.label || '')
-      .replace(/\s+/g, ' ')
-      .trim(),
-  )
-    .slice(0, 16)
-    .join('');
+  const label = Array.from(String(config.label || '').replace(/\s+/g, ' ').trim()).slice(0, 16).join('');
   if (label) params.set('label', label);
   else params.delete('label');
-  ['flipFrameColor', 'flipFaceColor', 'flipTextColor'].forEach((key) => {
+  for (const key of ['flipFrameColor', 'flipFaceColor', 'flipTextColor']) {
     if (config[key]) params.set(key, config[key]);
-  });
+  }
   return url.href;
-}
-
-function clockSettingsPayload(config) {
-  return {
-    clockStyle: config.style,
-    clockShowDate: config.showDate ? 'true' : 'false',
-    clockShowSeconds: config.showSeconds ? 'true' : 'false',
-    clockHourFormat: config.hourFormat,
-    clockLabel: config.label,
-    clockFlipFrameColor: config.flipFrameColor || FLIP_PALETTES.light[0],
-    clockFlipFaceColor: config.flipFaceColor || FLIP_PALETTES.light[1],
-    clockFlipTextColor: config.flipTextColor || FLIP_PALETTES.light[2],
-  };
 }
 
 function isTransparentClockStyle(style) {
@@ -77,190 +37,127 @@ function usesDefaultClockLabel(style, label) {
   return !current || current === (CLOCK_STYLE_LABELS[style] || '');
 }
 
+function bindClockParameters(root, controller) {
+  const node = (id) => componentField(root, id);
+  const fields = { showDate: 'clockShowDate', showSeconds: 'clockShowSeconds', hourFormat: 'clockHourFormat',
+    label: 'clockCustomLabel', flipFrameColor: 'clockFlipFrameColor', flipFaceColor: 'clockFlipFaceColor', flipTextColor: 'clockFlipTextColor' };
+  const styles = Array.from(root.querySelectorAll('[data-clock-style-option]'));
+  const palettes = Array.from(root.querySelectorAll('[data-clock-palette]'));
+  for (const [key, id] of Object.entries(fields)) {
+    const control = node(id);
+    control.addEventListener(['hourFormat', 'showDate', 'showSeconds'].includes(key) ? 'change' : 'input', () => {
+      controller.edit({ [key]: key.startsWith('show') ? control.checked : control.value });
+    });
+  }
+  for (const button of styles) button.addEventListener('click', () => {
+    const { draft } = controller.getState();
+    const style = button.dataset.clockStyleOption;
+    if (!CLOCK_STYLE_VALUES.has(style)) return;
+    controller.edit({ style, ...(!isTransparentClockStyle(style) && usesDefaultClockLabel(draft.style, draft.label)
+      ? { label: CLOCK_STYLE_LABELS[style] } : {}) });
+  });
+  for (const button of palettes) button.addEventListener('click', () => {
+    const [flipFrameColor, flipFaceColor, flipTextColor] = FLIP_PALETTES[button.dataset.clockPalette];
+    controller.edit({ flipFrameColor, flipFaceColor, flipTextColor });
+  });
+  return { dispose: controller.subscribe(({ draft, loaded }) => {
+    const transparent = isTransparentClockStyle(draft.style);
+    for (const [key, id] of Object.entries(fields)) {
+      const control = node(id);
+      if (key.startsWith('show')) control.checked = draft[key];
+      else if (control.value !== draft[key]) control.value = draft[key];
+      control.disabled = !loaded || (key === 'label' && transparent);
+    }
+    node('clockCustomLabelHelp').textContent = transparent ? '此样式不显示' : '最多 16 个字';
+    node('clockFlipColors').hidden = draft.style !== 'flip';
+    for (const button of styles) {
+      const active = button.dataset.clockStyleOption === draft.style;
+      button.classList.toggle('active', active);
+      button.setAttribute('aria-pressed', String(active));
+      button.disabled = !loaded;
+    }
+    for (const button of palettes) {
+      button.disabled = !loaded;
+      button.setAttribute('aria-pressed', String(FLIP_PALETTES[button.dataset.clockPalette].every((color, index) =>
+        color === draft[['flipFrameColor', 'flipFaceColor', 'flipTextColor'][index]])));
+    }
+  }) };
+}
+
 function initClockCard() {
   if (initialized) return;
   const preview = document.getElementById('clockPreview');
-  const fixedUrlNode = document.getElementById('clockFixedUrl');
-  const showDate = document.getElementById('clockShowDate');
-  const showSeconds = document.getElementById('clockShowSeconds');
-  const hourFormat = document.getElementById('clockHourFormat');
-  const customLabel = document.getElementById('clockCustomLabel');
-  const customLabelHelp = document.getElementById('clockCustomLabelHelp');
-  const recommendedSize = document.getElementById('clockRecommendedSize');
-  const flipColors = document.getElementById('clockFlipColors');
-  const colorInputs = ['clockFlipFrameColor', 'clockFlipFaceColor', 'clockFlipTextColor'].map((id) =>
-    document.getElementById(id),
-  );
-  const paletteButtons = Array.from(document.querySelectorAll('[data-clock-palette]'));
-  const styleOptions = Array.from(document.querySelectorAll('[data-clock-style-option]'));
-  if (
-    !preview ||
-    !fixedUrlNode ||
-    !showDate ||
-    !showSeconds ||
-    !hourFormat ||
-    !customLabel ||
-    styleOptions.length !== CLOCK_STYLE_VALUES.size
-  )
-    return;
+  if (!preview) return;
   initialized = true;
-
+  let largePreviewOpen = false;
   const fixedUrl = `${localOverlayOrigin(location)}/clock`;
-  const previewBaseUrl = new URL('/clock', location.href).href;
-  let persistTimer = 0;
-  let hydrated = false;
-  let hydrating = true;
-  fixedUrlNode.textContent = fixedUrl;
-
-  function currentConfig() {
-    return {
-      style: selectedStyle,
-      showDate: showDate.checked,
-      showSeconds: showSeconds.checked,
-      hourFormat: hourFormat.value,
-      label: customLabel.value,
-      flipFrameColor: colorInputs[0].value,
-      flipFaceColor: colorInputs[1].value,
-      flipTextColor: colorInputs[2].value,
+  const controller = createComponentConfigController({
+    initial: clockConfigFromSettings({}),
+    read: async () => {
+      const response = await fetch('/api/clock/config', { cache: 'no-store' });
+      const payload = await response.json();
+      if (!response.ok || !payload.ok || !payload.data) throw new Error('萌时钟配置读取失败，请重新读取。');
+      return clockConfigFromSettings(clockSettingsPayload(payload.data));
+    },
+    persist: async (config) => {
+      const settings = await saveComponentSettings(clockSettingsPayload(config));
+      if (settings.clockStyle !== config.style) throw new Error('服务端未保存时钟样式，请更新服务后重试。');
+      return clockConfigFromSettings(settings);
+    },
+  });
+  bindClockParameters(document, controller);
+  function updatePreview() {
+    const state = controller.getState();
+    if (largePreviewOpen || !state.loaded) return;
+    if (!preview.getAttribute('src')) {
+      const url = new URL(buildClockUrl(new URL('/clock', location.href).href, state.draft));
+      url.searchParams.set('componentPreview', '1');
+      preview.src = url.href;
+    } else {
+      preview.contentWindow?.postMessage({ type: 'component-preview:config', config: state.draft }, '*');
+    }
+  }
+  controller.subscribe((state) => {
+    preview.dataset.clockStyle = state.draft.style;
+    document.getElementById('clockRecommendedSize').textContent = state.draft.style === 'timeline-vertical'
+      ? '推荐浏览器源：240 × 400' : '推荐浏览器源：580 × 210';
+    const save = document.getElementById('clockSave');
+    save.disabled = !state.loaded || !state.dirty || state.saving;
+    save.textContent = state.saving ? '正在保存…' : '保存时钟设置';
+    document.getElementById('clockDiscard').disabled = !state.dirty || state.saving;
+    document.getElementById('clockSaveState').textContent = componentSaveMessage(state);
+    updatePreview();
+  });
+  registerComponentSettings('clock', controller, clockConfigFromSettings, clockSettingsPayload);
+  preview.addEventListener('load', updatePreview);
+  window.addEventListener('message', (event) => {
+    if (event.source === preview.contentWindow && event.origin === 'null' && event.data?.type === 'component-preview:ready') updatePreview();
+  });
+  document.getElementById('clockFixedUrl').textContent = fixedUrl;
+  document.getElementById('clockCopyFixed').addEventListener('click', async () => {
+    try { await copyText(fixedUrl); toast('萌时钟固定网址已复制'); }
+    catch (error) { toast(error.message || '复制失败，请手动复制网址。'); }
+  });
+  document.getElementById('clockSave').addEventListener('click', () => controller.save());
+  document.getElementById('clockDiscard').addEventListener('click', () => controller.discard());
+  document.getElementById('clockReload').addEventListener('click', () => controller.reload());
+  function createClockPreview() {
+    return { id: 'clock', title: '萌时钟', controller,
+      url: new URL('/clock?componentPreview=1', location.href).href, dataLabel: '设备当前时间',
+      size: (draft) => draft.style === 'timeline-vertical' ? [240, 400] : [580, 210],
+      createPanel: (host, targetController = controller) => {
+        const panel = cloneComponentPanel(document.querySelector('.clock-parameter-section'), 'preview-clock');
+        host.append(panel);
+        return bindClockParameters(panel, targetController);
+      },
+      onOpen() { largePreviewOpen = true; preview.removeAttribute('src'); },
+      onClose() { largePreviewOpen = false; updatePreview(); },
     };
   }
-
-  function updatePreview() {
-    if (hydrating) return;
-    const config = currentConfig();
-    if (!preview.getAttribute('src')) {
-      preview.src = buildClockUrl(previewBaseUrl, config);
-      return;
-    }
-    preview.contentWindow?.postMessage({ type: 'lira:clock-preview-config', config }, '*');
-  }
-
-  function render() {
-    const transparent = isTransparentClockStyle(selectedStyle);
-    const vertical = selectedStyle === 'timeline-vertical';
-    preview.dataset.clockStyle = selectedStyle;
-    showDate.disabled = hydrating;
-    showSeconds.disabled = hydrating;
-    hourFormat.disabled = hydrating;
-    customLabel.disabled = hydrating || transparent;
-    flipColors.hidden = selectedStyle !== 'flip';
-    colorInputs.forEach((input) => {
-      input.disabled = hydrating;
-    });
-    paletteButtons.forEach((button) => {
-      button.disabled = hydrating;
-      const active = FLIP_PALETTES[button.dataset.clockPalette].every((color, index) => color === colorInputs[index].value);
-      button.setAttribute('aria-pressed', String(active));
-    });
-    if (customLabelHelp) customLabelHelp.textContent = transparent ? '此样式不显示' : '最多 16 个字';
-    if (recommendedSize) recommendedSize.textContent = vertical ? '推荐浏览器源：240 × 400' : '推荐浏览器源：580 × 210';
-    styleOptions.forEach((button) => {
-      const active = button.dataset.clockStyleOption === selectedStyle;
-      button.disabled = hydrating;
-      button.classList.toggle('active', active);
-      button.setAttribute('aria-pressed', String(active));
-    });
-    updatePreview();
-  }
-
-  async function persist() {
-    if (!hydrated) return;
-    try {
-      const response = await fetch(SETTINGS_ENDPOINT, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(clockSettingsPayload(currentConfig())),
-      });
-      if (!response.ok) throw new Error('萌时钟配置保存失败');
-    } catch (error) {
-      toast(error.message || '萌时钟配置保存失败，请重试。');
-    }
-  }
-
-  function schedulePersist() {
-    window.clearTimeout(persistTimer);
-    persistTimer = window.setTimeout(persist, 220);
-  }
-
-  function handleConfigChange() {
-    render();
-    schedulePersist();
-  }
-
-  async function loadSavedConfig() {
-    try {
-      const response = await fetch(CLOCK_CONFIG_ENDPOINT, {
-        cache: 'no-store',
-      });
-      if (!response.ok) throw new Error('萌时钟配置读取失败');
-      const payload = await response.json();
-      const config = payload?.ok ? payload.data : null;
-      if (!config) throw new Error('萌时钟配置读取失败');
-      selectedStyle = CLOCK_STYLE_VALUES.has(config.style) ? config.style : 'peach';
-      showDate.checked = config.showDate !== false;
-      showSeconds.checked = config.showSeconds !== false;
-      hourFormat.value = config.hourFormat === '12' ? '12' : '24';
-      customLabel.value = String(config.label || CLOCK_STYLE_LABELS[selectedStyle]);
-      ['flipFrameColor', 'flipFaceColor', 'flipTextColor'].forEach((key, index) => {
-        colorInputs[index].value = config[key] || FLIP_PALETTES.light[index];
-      });
-    } catch (error) {
-      // Keep the defaults when the optional saved-config read fails.
-      void error;
-    } finally {
-      hydrated = true;
-      hydrating = false;
-      render();
-    }
-  }
-
-  styleOptions.forEach((button) => {
-    button.addEventListener('click', () => {
-      const style = button.dataset.clockStyleOption;
-      if (!CLOCK_STYLE_VALUES.has(style) || style === selectedStyle) return;
-      const currentLabel = customLabel.value.trim();
-      // Only replace the label when it is the default for the style that is
-      // currently selected. A user may intentionally choose text that happens
-      // to be another style's built-in label.
-      const usesDefaultLabel = usesDefaultClockLabel(selectedStyle, currentLabel);
-      selectedStyle = style;
-      if (!isTransparentClockStyle(selectedStyle) && usesDefaultLabel) {
-        customLabel.value = CLOCK_STYLE_LABELS[selectedStyle];
-      }
-      handleConfigChange();
-    });
-  });
-
-  showDate.addEventListener('change', handleConfigChange);
-  showSeconds.addEventListener('change', handleConfigChange);
-  hourFormat.addEventListener('change', handleConfigChange);
-  customLabel.addEventListener('input', handleConfigChange);
-  colorInputs.forEach((input) => input.addEventListener('input', handleConfigChange));
-  paletteButtons.forEach((button) => {
-    button.addEventListener('click', () => {
-      FLIP_PALETTES[button.dataset.clockPalette].forEach((color, index) => {
-        colorInputs[index].value = color;
-      });
-      handleConfigChange();
-    });
-  });
-  preview.addEventListener('load', updatePreview);
-
-  document.getElementById('clockCopyFixed')?.addEventListener('click', async () => {
-    try {
-      await copyText(fixedUrl);
-      toast('萌时钟固定网址已复制');
-    } catch (error) {
-      toast(error.message || '复制失败，请手动复制网址。');
-    }
-  });
-
-  document.getElementById('clockOpenPreview')?.addEventListener('click', () => {
-    window.open(fixedUrl, '_blank', 'noopener');
-  });
-
-  render();
-  loadSavedConfig();
+  registerComponentPreview('clock', createClockPreview);
+  document.getElementById('clockOpenPreview').addEventListener('click', () => openComponentPreview(createClockPreview()));
+  void controller.reload();
+  return controller;
 }
 
 export { buildClockUrl, clockSettingsPayload, initClockCard, usesDefaultClockLabel };

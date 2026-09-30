@@ -1,12 +1,10 @@
 import { createOverlaySocket } from './socket-client.js';
-import { startOverlayPages } from './auto-pages.js';
 import { createInteractionClient } from '../shared/interaction-client.js';
 import { renderPollRows, interactionStatus } from '../shared/interaction-view.js';
 import { readInteractionAppearance, applyInteractionAppearance } from '../shared/interaction-appearance.js';
 
 const byId = (id) => document.getElementById(id);
 let session = null;
-let stopPages = null;
 let retry = null;
 let disposed = false;
 let appearance = readInteractionAppearance();
@@ -51,8 +49,6 @@ const socket = createOverlaySocket({
 function render(state) {
   const next = state.session;
   if (next?.sessionId !== session?.sessionId) {
-    stopPages?.();
-    stopPages = null;
     byId('interactionRows').replaceChildren();
     delete byId('interactionRows').dataset.sessionId;
     byId('interactionAverage').textContent = '';
@@ -77,7 +73,6 @@ function render(state) {
   byId('interactionScore').classList.toggle('is-revealed', session.phase === 'finished');
   if (session.kind === 'poll') {
     renderPollRows(byId('interactionRows'), session);
-    if (!stopPages) stopPages = startOverlayPages(byId('interactionRows'));
     byId('interactionParticipants').textContent =
       session.phase === 'finished' && !session.participants ? '暂无有效投票' : `${session.participants} 人参与`;
   } else {
@@ -103,7 +98,6 @@ window.addEventListener(
   'beforeunload',
   () => {
     disposed = true;
-    stopPages?.();
     clearInterval(clock);
     clearTimeout(retry);
     client.dispose();

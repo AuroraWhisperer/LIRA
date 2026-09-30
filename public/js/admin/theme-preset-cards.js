@@ -1,7 +1,8 @@
 'use strict';
+import { componentField } from './component-preview-panel.js';
 
-export function renderPresetCards(containerId, presets, labels, swatches) {
-  const container = document.getElementById(containerId);
+export function renderPresetCards(containerId, presets, labels, swatches, root = document) {
+  const container = componentField(root, containerId);
   if (!container) return;
   container.innerHTML = Object.entries(presets)
     .map(([key]) => {

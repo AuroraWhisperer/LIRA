@@ -1,0 +1,190 @@
+'use strict';
+
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const { createCipheriv, createDecipheriv, randomBytes, randomUUID } = require('node:crypto');
+const test = require('node:test');
+const { createServerRuntime } = require('../../src/server');
+
+function createSafeStorage() {
+  const key = randomBytes(32);
+  return {
+    isEncryptionAvailable: () => true,
+    encryptString(value) {
+      const nonce = randomBytes(12);
+      const cipher = createCipheriv('aes-256-gcm', key, nonce);
+      const encrypted = Buffer.concat([cipher.update(value, 'utf8'), cipher.final()]);
+      return Buffer.concat([nonce, cipher.getAuthTag(), encrypted]);
+    },
+    decryptString(value) {
+      const decipher = createDecipheriv('aes-256-gcm', key, value.subarray(0, 12));
+      decipher.setAuthTag(value.subarray(12, 28));
+      return Buffer.concat([decipher.update(value.subarray(28)), decipher.final()]).toString('utf8');
+    },
+  };
+}
+
+async function fixture(t) {
+  const scratchRoot = path.resolve(__dirname, '../../tmp');
+  fs.mkdirSync(scratchRoot, { recursive: true });
+  const dataDir = fs.mkdtempSync(path.join(scratchRoot, 'scene-runtime-'));
+  const safeStorage = createSafeStorage();
+  const state = { owner: { scope: '["https://scene.test","streamer-1"]', epoch: 1 }, authorized: false };
+  const externalRequests = [];
+  const originalFetch = globalThis.fetch;
+  t.mock.method(globalThis, 'fetch', (url, options) => {
+    if (new URL(url).hostname !== '127.0.0.1') {
+      externalRequests.push(String(url));
+      throw new Error('External services are forbidden in scene runtime tests.');
+    }
+    return originalFetch(url, options);
+  });
+  let runtime;
+  let app;
+  t.after(async () => {
+    await runtime?.stop({ exitProcess: false });
+    assert.equal(path.dirname(fs.realpathSync(dataDir)), fs.realpathSync(scratchRoot));
+    fs.rmSync(dataDir, { recursive: true, force: true });
+    assert.deepEqual(externalRequests, []);
+  });
+  async function start(startPort = 0) {
+    state.authorized = false;
+    runtime = createServerRuntime({ dataDir, safeStorage, getSceneOwner: () => state.owner,
+      licenseGate: { isAuthorized: () => state.authorized } });
+    assert.equal(typeof runtime.receiveSceneCloud, 'function');
+    assert.equal(runtime.receiveSceneCloud({}), undefined);
+    app = await runtime.start({ startPort });
+    state.authorized = true;
+  }
+  await start();
+  async function request(route, { body, token = runtime.getApiToken(), status = 200 } = {}) {
+    const response = await fetch(app.baseUrl + route, {
+      method: body === undefined ? 'GET' : 'POST',
+      headers: { Authorization: `Bearer ${token}`, ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) },
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+    });
+    const result = await response.json();
+    assert.equal(response.status, status, JSON.stringify(result));
+    assert.equal(result.ok, status === 200);
+    return status === 200 ? result.data : result;
+  }
+  return {
+    state, request,
+    get runtime() { return runtime; },
+    get baseUrl() { return app.baseUrl; },
+    async restart() {
+      const port = app.port;
+      await runtime.stop({ exitProcess: false });
+      assert.equal(runtime.receiveSceneCloud({}), undefined);
+      await start(port);
+    },
+  };
+}
+
+function component(type) {
+  return { id: randomUUID(), type, name: type, x: 0, y: 0, width: 320, height: 180,
+    visible: true, locked: false, appearance: { mode: 'shared' } };
+}
+
+async function createScene(request, items) {
+  const created = await request('/api/scenes/create', { body: { title: '本地场景', canvas: { width: 1920, height: 1080 } } });
+  return request('/api/scenes/save', { body: { id: created.document.id, expectedRevision: created.revision,
+    document: { ...created.document, items } } });
+}
+
+test('runtime HTTP saves and publishes a scene, retaining its capability and frozen version across restart', async (t) => {
+  const fixtureState = await fixture(t);
+  const { request } = fixtureState;
+  assert.deepEqual(await request('/api/scenes/list'), []);
+  await request('/api/settings', { body: { clockLabel: '首次发布' } });
+  const saved = await createScene(request, ['clock', 'queue', 'overtime'].map(component));
+  const id = saved.document.id;
+  assert.equal(saved.revision, 2);
+  assert.equal(saved.hasPublication, false);
+  assert.deepEqual(await request(`/api/scenes/document?id=${id}`), saved);
+  const source = await request(`/api/scenes/source?id=${id}`);
+  const outputRoute = `/api/scene/output?id=${id}`;
+  const readOutput = (suffix = '') => request(outputRoute + suffix, { token: source.token });
+  const unpublished = await request(outputRoute, { token: source.token, status: 409 });
+  assert.equal(unpublished.code, 'SCENE_NOT_PUBLISHED');
+  const published = await request('/api/scenes/publish', { body: { id, expectedRevision: saved.revision } });
+  assert.equal(published.publishedVersion, 1);
+  assert.equal(published.revision, saved.revision);
+  const firstOutput = await readOutput();
+  assert.equal(firstOutput.document.items[0].appearance.config.label, '首次发布');
+  assert.ok(firstOutput.document.items.every((item) => item.appearance.mode === 'independent'));
+  assert.deepEqual(Object.keys(firstOutput.data).sort(), ['overtime', 'queue']);
+  assert.deepEqual(firstOutput.data.queue, { queue: { current: null, waiting: [] }, superChats: [] });
+  assert.equal(typeof firstOutput.data.overtime.effectiveRemainingMs, 'number');
+  assert.equal(Object.hasOwn(firstOutput.data.overtime, 'background'), false);
+  assert.equal((await readOutput('&version=1')).document, null);
+
+  await request('/api/settings', { body: { clockLabel: '下一次发布' } });
+  const draft = { ...saved.document, title: '未发布的修改' };
+  const updated = await request('/api/scenes/save', { body: { id, expectedRevision: saved.revision, document: draft } });
+  assert.equal(updated.revision, 3);
+  const conflict = await request('/api/scenes/save', { body: { id, expectedRevision: saved.revision, document: draft }, status: 409 });
+  assert.equal(conflict.code, 'SCENE_CONFLICT');
+  assert.deepEqual((await readOutput()).document, firstOutput.document);
+  const oldBaseUrl = fixtureState.baseUrl;
+  const oldAdminToken = fixtureState.runtime.getApiToken();
+  await fixtureState.restart();
+  assert.equal(fixtureState.baseUrl, oldBaseUrl);
+  assert.notEqual(fixtureState.runtime.getApiToken(), oldAdminToken);
+  await request('/api/scenes/list', { token: oldAdminToken, status: 401 });
+  assert.deepEqual(await request(`/api/scenes/source?id=${id}`), source);
+  assert.deepEqual(await request(`/api/scenes/document?id=${id}`), updated);
+  assert.deepEqual((await readOutput()).document, firstOutput.document);
+  assert.deepEqual((await request('/api/scenes/list')).map((scene) => scene.document.id), [id]);
+  await request('/api/scenes/publish', { body: { id, expectedRevision: updated.revision } });
+  const nextOutput = await readOutput('&version=1');
+  assert.equal(nextOutput.version, 2);
+  assert.equal(nextOutput.document.title, draft.title);
+  assert.equal(nextOutput.document.items[0].appearance.config.label, '下一次发布');
+});
+
+test('runtime cloud ingress projects current-owner events and fences owner changes and revoked sources', async (t) => {
+  const { runtime, request, state } = await fixture(t);
+  const owner = state.owner;
+  const update = (status, event) => runtime.receiveSceneCloud({ ownerScope: owner.scope,
+    authorizationEpoch: owner.epoch, connectionEpoch: 'connection-1', status, ...(event ? { event } : {}) });
+  assert.equal(update('connecting'), true);
+  assert.equal(update('connected', { type: 'overlay-state', style: 'signal', state: 'running', liveStatus: 1,
+    liveSessionId: 'session-1', confirmationMessage: '开播' }), true);
+  const saved = await createScene(request, [component('danmaku')]);
+  const id = saved.document.id;
+  await request('/api/scenes/publish', { body: { id, expectedRevision: saved.revision } });
+  const source = await request(`/api/scenes/source?id=${id}`);
+  const outputRoute = `/api/scene/output?id=${id}`;
+  const initial = await request(outputRoute, { token: source.token });
+  assert.equal(initial.document.items[0].appearance.config.style, 'signal');
+  assert.equal(initial.data.danmaku.status, 'connected');
+  assert.deepEqual(initial.data.danmaku.events, []);
+  const event = { type: 'danmaku', liveSessionId: 'session-1', name: '观众', message: '真实事件',
+    timestamp: '2026-09-30T08:00:00.000Z', emotes: [] };
+  assert.equal(update('connected', { ...event, deviceToken: 'private-test-value' }), true);
+  const cursorRoute = outputRoute + `&version=1&epoch=${initial.data.danmaku.epoch}&cursor=0`;
+  const displayed = await request(cursorRoute, { token: source.token });
+  assert.equal(displayed.document, null);
+  assert.deepEqual(displayed.data.danmaku.events, [event]);
+  assert.equal(displayed.data.danmaku.nextCursor, 1);
+
+  state.owner = { scope: '["https://scene.test","streamer-2"]', epoch: 2 };
+  assert.equal(update('connected', event), false);
+  assert.deepEqual(await request('/api/scenes/list'), []);
+  await request(`/api/scenes/document?id=${id}`, { status: 404 });
+  await request(outputRoute, { token: source.token, status: 404 });
+  state.owner = { ...owner, epoch: 3 };
+  const renewed = await request(cursorRoute, { token: source.token });
+  assert.equal(renewed.data.danmaku.status, 'offline');
+  assert.equal(renewed.data.danmaku.reset, true);
+  assert.deepEqual(renewed.data.danmaku.events, []);
+  const rotated = await request('/api/scenes/rotate', { body: { id } });
+  assert.notEqual(rotated.token, source.token);
+  await request(outputRoute, { token: source.token, status: 403 });
+  assert.equal((await request(outputRoute, { token: rotated.token })).version, 1);
+  state.owner = null;
+  const loggedOut = await request(outputRoute, { token: rotated.token, status: 403 });
+  assert.equal(loggedOut.code, 'SCENE_OWNER_REQUIRED');
+});

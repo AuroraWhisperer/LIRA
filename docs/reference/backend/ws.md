@@ -81,7 +81,8 @@ HTTP upgrade 的 `head` 在鉴权及握手成功后进入同一帧解析器，�
 | `danmaku` | 弹幕展示设置、公开直播连接状态、`danmakuFeed` | `danmaku:message`，另需 topic 订阅 |
 | `games` | 当前全局快照无游戏字段；兼容专用 `games` 字段时仍投影公开会话 | `game:update`、`game:patch`、`game:draw`；不含未公布答案 |
 | `wheel` | 空 state | `wheel:update` |
-| `gift-export`、`opening`、`clock` | 空 state | 无 |
+| `clock` | 八个 `clock*` 展示设置键；不含其他业务字段 | 无；通过 settings 快照更新 |
+| `gift-export`、`opening` | 空 state | 无 |
 
 全部已知 overlay scope 允许 `{type:'shutdown', reason}`；未列出的专用消息默认不投递。Admin 保持完整消息能力，包括 `wesing-state` 和完整目录更新。scope 对初始与后续广播始终相同，不能通过连接重建、topic、兼容发送函数或伪造业务入站消息升级。
 

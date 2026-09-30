@@ -30,6 +30,7 @@ function createApiContext(options) {
 
   return {
     dynamicLottery: options.dynamicLottery,
+    scenes: options.scenes,
     maxBodyBytes,
     sessionToken,
     broadcastSnapshot,

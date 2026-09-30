@@ -4,11 +4,9 @@ export function createOvertimeStatusView({
   byId,
   formatClockDisplay,
   renderInitialDuration,
-  setValueUnlessFocused,
   getGiftDetection,
   getRuleEditor,
   isRulesDirty,
-  isBackgroundDirty,
   onLimits,
 }) {
   let overtimeState = null;
@@ -36,10 +34,6 @@ export function createOvertimeStatusView({
     byId('overtimePauseBtn').disabled = !enabled || overtimeState.status !== 'running';
     byId('overtimeResetBtn').disabled = !enabled;
     renderInitialDuration(Number(overtimeState.initialSeconds) || 0);
-    if (!isBackgroundDirty()) {
-      setValueUnlessFocused('overtimeBackgroundPath', overtimeState.background?.path || '');
-      setValueUnlessFocused('overtimeBackgroundFit', overtimeState.background?.fit || 'cover');
-    }
     const quantityLimitedCount = Number(overtimeState.quantityLimitedCount) || 0;
     byId('overtimePendingCount').textContent =
       `待结算 ${Number(overtimeState.pendingCount) || 0}` +

@@ -159,7 +159,7 @@ test('createDatabases upgrades genuine pre-v1 song and gift databases idempotent
       databases = createDatabases({ dataDir });
 
       assert.deepEqual(getSchemaVersions(databases), {
-        songDb: 7,
+        songDb: 8,
         superChatDb: 1,
         giftDb: 16,
         musicDb: 1,

@@ -1,4 +1,4 @@
-import { setValue } from '../shared/utils.js';
+import { componentField } from './component-preview-panel.js';
 import { theme } from '../shared/theme.js';
 import { normalizePersistedQueueStyle } from '../shared/queue-style-settings.js';
 import { renderPresetCards } from './theme-preset-cards.js';
@@ -11,20 +11,21 @@ const ILLUSTRATED_DEFAULT_LABELS = {
   'golden-lily': { fontFamily: '微软雅黑', fontWeight: '较粗' },
 };
 
-export function setOverlayStyle(style) {
+export function setOverlayStyle(style, root = document) {
   const { classicThemePresets, classicPresetLabels, classicPresetSwatches } = theme;
   const nextStyle = normalizePersistedQueueStyle(style);
-  setValue('overlayQueueStyle', nextStyle);
+  const styleControl = componentField(root, 'overlayQueueStyle');
+  if (styleControl) styleControl.value = nextStyle;
   const illustratedDefaults = ILLUSTRATED_DEFAULT_LABELS[nextStyle] || ILLUSTRATED_DEFAULT_LABELS.storybook;
-  const fontFamilyDefault = document.querySelector('#illustratedQueueFontFamily option[value="default"]');
-  const fontWeightDefault = document.querySelector('#illustratedQueueFontWeight option[value="default"]');
+  const fontFamilyDefault = componentField(root, 'illustratedQueueFontFamily')?.querySelector('option[value="default"]');
+  const fontWeightDefault = componentField(root, 'illustratedQueueFontWeight')?.querySelector('option[value="default"]');
   if (fontFamilyDefault) fontFamilyDefault.textContent = illustratedDefaults.fontFamily;
   if (fontWeightDefault) fontWeightDefault.textContent = illustratedDefaults.fontWeight;
-  document.querySelectorAll('[data-overlay-style]').forEach((button) => {
+  root.querySelectorAll('[data-overlay-style]').forEach((button) => {
     button.classList.toggle('active', button.dataset.overlayStyle === nextStyle);
   });
-  const classicArea = document.getElementById('classicThemeArea');
-  const identityArea = document.getElementById('identityThemeArea');
+  const classicArea = componentField(root, 'classicThemeArea');
+  const identityArea = componentField(root, 'identityThemeArea');
   if (nextStyle !== 'classic') {
     if (classicArea) classicArea.hidden = true;
     if (identityArea) identityArea.hidden = false;
@@ -37,6 +38,6 @@ export function setOverlayStyle(style) {
   } else {
     if (classicArea) classicArea.hidden = false;
     if (identityArea) identityArea.hidden = true;
-    renderPresetCards('classicPresets', classicThemePresets, classicPresetLabels, classicPresetSwatches);
+    renderPresetCards('classicPresets', classicThemePresets, classicPresetLabels, classicPresetSwatches, root);
   }
 }

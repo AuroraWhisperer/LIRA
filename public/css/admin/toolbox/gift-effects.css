@@ -89,38 +89,26 @@
 }
 
 .gift-effect-command-card .gift-effect-card-heading {
+  max-width: 280px;
   flex-wrap: wrap;
-}
-
-.gift-effect-command-help,
-.gift-effect-command-state {
-  color: var(--muted);
-  font-size: var(--type-size-caption);
-  line-height: 1.7;
 }
 
 .gift-effect-command-help {
-  display: grid;
-  gap: 8px;
-  margin-top: 12px;
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+  line-height: 2.5;
 }
 
-.gift-effect-command-help p {
-  margin: 0;
-}
-
-.gift-effect-command-examples {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-}
-
-.gift-effect-command-examples code {
+.gift-effect-command-help code {
+  display: inline-block;
+  margin: 4px 8px 4px 0;
   padding: 4px 8px;
   border-radius: 6px;
   background: var(--surface-2);
   color: var(--text);
+  line-height: 1.7;
+  white-space: nowrap;
 }
 
 .gift-effect-command-card .switch-control {

@@ -205,22 +205,17 @@ test('toolbox composes the named clock card with fixed URL and custom controls',
   assert.match(script, /params\.set\('seconds'/);
   assert.match(script, /params\.set\('format'/);
   assert.match(script, /params\.set\('label'/);
-  assert.match(
-    script,
-    /new Set\(\[\s*'peach',\s*'starlight',\s*'soda',\s*'timeline-horizontal',\s*'timeline-vertical',\s*'digital',\s*'orbit',\s*'flip',?\s*\]\)/,
-  );
+  assert.match(script, /new Set\(Object.keys\(CLOCK_STYLE_LABELS\)\)/);
   assert.match(script, /clockSettingsPayload/);
-  assert.match(script, /fetch\(SETTINGS_ENDPOINT/);
-  assert.match(script, /fetch\(CLOCK_CONFIG_ENDPOINT/);
-  assert.match(script, /fixedUrlNode\.textContent\s*=\s*fixedUrl/);
-  assert.match(script, /window\.open\(fixedUrl/);
+  assert.match(script, /saveComponentSettings\(clockSettingsPayload\(config\)\)/);
+  assert.match(script, /fetch\('\/api\/clock\/config'/);
+  assert.match(script, /getElementById\('clockFixedUrl'\).textContent = fixedUrl/);
+  assert.match(script, /openComponentPreview/);
   assert.doesNotMatch(script, /clockCustomUrl|clockCopyCustom/);
   assert.match(script, /copyText/);
-  assert.match(script, /window\.open/);
-  assert.match(script, /let hydrating = true/);
-  assert.match(script, /button\.disabled = hydrating/);
-  assert.match(script, /customLabel\.disabled\s*=\s*hydrating\s*\|\|\s*transparent/);
-  assert.match(script, /label:\s*customLabel\.value/);
+  assert.match(script, /createComponentConfigController/);
+  assert.match(script, /button\.disabled = !loaded/);
+  assert.match(script, /control\.disabled = !loaded/);
   assert.doesNotMatch(script, /customLabel\.value\s*=\s*''/);
   assert.match(script, /此样式不显示/);
   assert.match(styles, /aspect-ratio:\s*240\s*\/\s*400/);

@@ -74,7 +74,7 @@ module.exports = async function verifyRealOverlays({ directory, createWindow, se
       }
       if (url.pathname === '/preview-host') {
         res.setHeader('Content-Type', 'text/html');
-        res.end('<html><body><iframe sandbox="allow-scripts" src="/clock"></iframe></body></html>');
+        res.end('<html><body><iframe sandbox="allow-scripts" src="/clock?style=digital&date=true&seconds=true&format=24"></iframe></body></html>');
         return;
       }
       servePageOrAsset(path.resolve(__dirname, '../../public'), req, res, url, token);
@@ -133,8 +133,8 @@ module.exports = async function verifyRealOverlays({ directory, createWindow, se
   admin.destroy();
   const preview = createWindow();
   await preview.loadURL(`${origin}/preview-host`);
-  await waitFor(() => preview.webContents.mainFrame.frames.some((frame) => frame.url.endsWith('/clock')));
-  const frame = preview.webContents.mainFrame.frames.find((item) => item.url.endsWith('/clock'));
+  await waitFor(() => preview.webContents.mainFrame.frames.some((frame) => frame.url.includes('/clock?')));
+  const frame = preview.webContents.mainFrame.frames.find((item) => item.url.includes('/clock?'));
   await waitFor(async () => await frame.executeJavaScript("document.getElementById('clockCard')?.hidden===false"));
   assert.equal(await frame.executeJavaScript('window.origin'), 'null');
   assert.equal(await frame.executeJavaScript("window.__API_TOKEN__.startsWith('ov1:clock:')"), true);

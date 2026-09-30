@@ -123,7 +123,8 @@ export function registerLocalFontSelect(select) {
   registeredSelects.add(select);
   if (localFontFamilies !== null) {
     replaceLocalFontOptions(select, localFontFamilies);
-    return;
+  } else {
+    void loadRegisteredLocalFonts();
   }
-  void loadRegisteredLocalFonts();
+  return () => registeredSelects.delete(select);
 }

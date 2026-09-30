@@ -4,6 +4,9 @@
 }
 
 @media (max-width: 820px) {
+  .overtime-admin { grid-template-columns: minmax(0, 1fr); }
+  .overtime-admin > .overtime-time-editor,
+  .overtime-admin > .overtime-screen-section { grid-column: 1 / -1; }
   .overtime-console,
   .overtime-section-heading {
     align-items: stretch;

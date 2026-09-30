@@ -9,6 +9,7 @@ import {
 import { createGiftWishFeed, requestGiftWish } from '../../shared/gift-wish-client.js';
 import { setGiftImage } from '../../shared/gift-image-fallback.js';
 import { createWishPicker } from './wish-picker.js';
+import { createWishTextEditor } from './wish-text-editor.js';
 import { eventBus, Events } from '../../shared/event-bus.js';
 
 const PERIOD_HINTS = {
@@ -20,6 +21,7 @@ const PERIOD_HINTS = {
 export function createGiftWishes() {
   const get = (id) => document.getElementById(id);
   if (!get('giftWishesPanel')) return { open() {}, close() {} };
+  const textEditor = createWishTextEditor(get('giftWishTextEditor'), get('giftWishTextTemplate'));
   let period = 'long';
   let snapshot = null;
   let revision = null;
@@ -44,7 +46,7 @@ export function createGiftWishes() {
       if (snapshot && data.viewRevision !== snapshot.viewRevision) resetEditor();
       snapshot = data;
       revision = data.viewRevision;
-      get('giftWishFields').disabled = busy;
+      setEditorDisabled(busy);
       render();
     },
     onError(error) {
@@ -53,7 +55,7 @@ export function createGiftWishes() {
       if (['GIFT_SOURCE_UNAVAILABLE', 'GIFT_VIEW_STALE'].includes(error.code)) {
         snapshot = null;
         resetEditor();
-        get('giftWishFields').disabled = true;
+        setEditorDisabled(true);
         get('giftWishCards').replaceChildren();
         get('giftWishEmpty').hidden = true;
         signature = '';
@@ -62,11 +64,19 @@ export function createGiftWishes() {
     },
   });
 
+  function setEditorDisabled(value) {
+    get('giftWishFields').disabled = value;
+    textEditor.setDisabled(value);
+  }
+
   function showSelected() {
-    get('giftWishSelectedName').textContent = selected?.name || '选择心愿礼物';
+    get('giftWishSelectedName').textContent = selected?.name || '选个礼物';
     const image = get('giftWishSelectedImage');
     if (selected) setGiftImage(image, selected.imagePath);
-    else image.hidden = true;
+    else {
+      image.src = '/img/admin/nav-icons/nav-gift.webp';
+      image.hidden = false;
+    }
     updateDraftPreview();
   }
 
@@ -82,6 +92,7 @@ export function createGiftWishes() {
     const targetInput = get('giftWishTarget');
     const target = targetInput.validity.valid ? targetInput.valueAsNumber : 10;
     get('giftWishTextFields').hidden = displayStyle !== 'text';
+    get('giftWishEditorGrid').classList.toggle('is-text', displayStyle === 'text');
     get('giftWishImageFields').hidden = displayStyle !== 'text' || !textTemplate.includes('{图片}');
     get('giftWishColorFields').hidden = displayStyle !== 'text';
     get('giftWishPreviewStateField').hidden = displayStyle !== 'text';
@@ -116,10 +127,9 @@ export function createGiftWishes() {
     picker.close();
     get('giftWishForm').reset();
     resetTextColors();
-    get('giftWishTextTemplate').value = DEFAULT_WISH_TEXT;
+    textEditor.setValue(DEFAULT_WISH_TEXT);
     get('giftWishPick').disabled = false;
     get('giftWishCancel').hidden = true;
-    get('giftWishEditorTitle').textContent = '新建许愿';
     get('giftWishSave').textContent = '添加许愿';
     showSelected();
   }
@@ -140,14 +150,13 @@ export function createGiftWishes() {
       .forEach((input) => {
         input.checked = input.value === (wish.displayStyle || 'card');
       });
-    get('giftWishTextTemplate').value = getGiftWishTextTemplate(wish);
+    textEditor.setValue(getGiftWishTextTemplate(wish));
     get('giftWishTextImageFormat').value = wish.textImageFormat || 'animated';
     get('giftWishTextPendingColor').value = wish.textPendingColor || DEFAULT_WISH_TEXT_COLORS.pending;
     get('giftWishTextReceivedColor').value = wish.textReceivedColor || DEFAULT_WISH_TEXT_COLORS.received;
     get('giftWishPreviewState').value = wish.todayCount > 0 ? 'received' : 'pending';
     showSelected();
     get('giftWishCancel').hidden = false;
-    get('giftWishEditorTitle').textContent = '编辑许愿';
     get('giftWishSave').textContent = '保存修改';
     get('giftWishTarget').focus();
     get('giftWishForm').scrollIntoView({ block: 'nearest' });
@@ -224,7 +233,7 @@ export function createGiftWishes() {
   async function mutate(path, body, message) {
     if (busy || !snapshot) return;
     busy = true;
-    get('giftWishFields').disabled = true;
+    setEditorDisabled(true);
     get('giftWishError').textContent = '';
     try {
       await requestGiftWish(path, {
@@ -238,7 +247,7 @@ export function createGiftWishes() {
       fail(error);
     } finally {
       busy = false;
-      get('giftWishFields').disabled = !snapshot;
+      setEditorDisabled(!snapshot);
     }
   }
 
@@ -251,6 +260,11 @@ export function createGiftWishes() {
     const target = Number(get('giftWishTarget').value);
     if (!Number.isSafeInteger(target) || target < 1 || target > 999999999) {
       fail(new Error('目标数量必须是 1–999999999 的整数。'));
+      return;
+    }
+    if ([...get('giftWishTextTemplate').value].length > 240) {
+      fail(new Error('展示文字最多 240 字，请缩短后再保存。'));
+      get('giftWishTextEditor').focus();
       return;
     }
     mutate(
@@ -285,10 +299,7 @@ export function createGiftWishes() {
     .querySelectorAll('[data-wish-token]')
     .forEach((button) => {
       button.addEventListener('click', () => {
-        const input = get('giftWishTextTemplate');
-        input.setRangeText(button.dataset.wishToken, input.selectionStart, input.selectionEnd, 'end');
-        input.focus();
-        updateDraftPreview();
+        textEditor.insert(button.dataset.wishToken);
       });
     });
   get('giftWishesRefresh').addEventListener('click', () => {
@@ -309,7 +320,7 @@ export function createGiftWishes() {
     revision = state.gifts.viewRevision;
     snapshot = null;
     resetEditor();
-    get('giftWishFields').disabled = true;
+    setEditorDisabled(true);
     get('giftWishCards').replaceChildren();
     get('giftWishEmpty').hidden = true;
     signature = '';

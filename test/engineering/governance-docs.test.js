@@ -79,7 +79,7 @@ function registeredApiRoutes() {
 ROUTE_MODULES;`,
     { module: { exports: {} }, require: createRequire(filename) },
   );
-  const keys = modules.flatMap((routeModule) => Object.keys(routeModule.routes));
+  const keys = modules.flatMap((routeModule) => [...Object.keys(routeModule.routes), ...Object.keys(routeModule.publicRoutes || {})]);
   assert.ok(keys.length > 0, 'HTTP route registry must not be empty');
   assert.equal(new Set(keys).size, keys.length, 'HTTP route keys must be registered only once');
   return new Set(keys);

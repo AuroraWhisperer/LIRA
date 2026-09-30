@@ -19,6 +19,7 @@ function readOvertimeAdminSource() {
     'overtime-rule-editor.js',
     'overtime-time-view.js',
     'overtime-status-view.js',
+    'overtime-preview.js',
     'overtime.js',
   ]
     .map((file) =>
@@ -89,7 +90,9 @@ test('overtime toolbox panel loads its isolated controller and renders untrusted
   assert.match(html, /id="overtimeRefreshGiftsBtn"/);
   assert.match(html, /id="overtimeGlobalGiftSearchBtn"[^>]*>\s*搜索全部礼物\s*<\/button\s*>/);
   assert.match(html, /id="overtimeGiftCatalogStatus"[^>]+role="status"/);
-  assert.match(html, /id="overtimePreview"/);
+  assert.doesNotMatch(html, /id="overtimePreview"/);
+  assert.match(html, /id="overtimeAppearanceFields"/);
+  assert.match(html, /id="overtimeDiscardBackgroundBtn"/);
   assert.match(entrySource, /import\('\.\/overtime\.js'\)/);
   assert.match(styles, /@import url\('\.\/admin\/overtime\.css'\);/);
   assert.match(source, /\.textContent\s*=/);
@@ -121,8 +124,9 @@ test('overtime screen controls expose save state, visible errors, and a plain ad
 
   assert.match(html, /id="overtimeSaveBackgroundBtn"[^>]*>\s*保存画面\s*<\/button\s*>/);
   assert.match(html, /id="overtimeCopyOverlayBtn"[^>]*>\s*复制地址\s*<\/button\s*>/);
-  assert.match(source, /overtimeBackgroundPath.*addEventListener\('change', markBackgroundDirty\)/s);
-  assert.match(source, /overtimeBackgroundFit.*addEventListener\('change', markBackgroundDirty\)/s);
+  assert.match(source, /'path', 'overtimeBackgroundPath'/);
+  assert.match(source, /'fit', 'overtimeBackgroundFit'/);
+  assert.match(source, /addEventListener\('change', \(\) => targetController\.edit/);
   assert.match(source, /showError\(error\)/);
   assert.match(source, /保存中…/);
   assert.match(source, /copyText\(overlayUrl\(\)\)/);

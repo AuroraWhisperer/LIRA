@@ -107,6 +107,7 @@ function servePageOrAsset(publicDir, req, res, requestUrl, sessionToken, beginPl
   const isAdminPage = isAdminPageRoute(requestUrl.pathname);
   const pageMap = new Map([
     ['/license', 'pages/license.html'],
+    ['/scene', 'pages/overlays/scene.html'],
     ...Object.entries(OVERLAY_PAGES).map(([scope, file]) => [`/${scope}`, `pages/overlays/${file}`]),
   ]);
   const assetPath = pageMap.get(requestUrl.pathname) || requestUrl.pathname.replace(/^\/+/, '');
@@ -127,6 +128,7 @@ function servePageOrAsset(publicDir, req, res, requestUrl, sessionToken, beginPl
   if (
     isHtml &&
     !overlayScope &&
+    relativePath !== 'pages/overlays/scene.html' &&
     relativePath !== 'pages/license.html' &&
     !verifyToken({ sessionToken }, req, requestUrl)
   ) {
@@ -148,7 +150,7 @@ function servePageOrAsset(publicDir, req, res, requestUrl, sessionToken, beginPl
       );
       body = Buffer.concat([body.subarray(0, headEnd), bootstrap, body.subarray(headEnd)]);
     }
-    if (overlayScope && sessionToken) {
+    if (overlayScope && sessionToken && requestUrl.searchParams.get('componentPreview') !== '1') {
       const bootstrap = Buffer.from(createOverlayBootstrap(createOverlayToken(sessionToken, overlayScope)));
       const headEnd = body.indexOf(Buffer.from('</head>'));
       if (headEnd !== -1) {
@@ -157,7 +159,7 @@ function servePageOrAsset(publicDir, req, res, requestUrl, sessionToken, beginPl
     }
 
     if (isHtml) {
-      addFrameProtectionHeaders(res, overlayScope ? `/${overlayScope}` : requestUrl.pathname);
+      addFrameProtectionHeaders(res, relativePath === 'pages/overlays/scene.html' ? '/scene' : overlayScope ? `/${overlayScope}` : requestUrl.pathname);
     } else {
       // Sandboxed overlays have opaque origins. Only public static assets may
       // be read cross-origin; API data and HTML use their own access policy.
@@ -376,7 +378,7 @@ function validateOrigin(req, allowedOrigins) {
 }
 
 function addFrameProtectionHeaders(res, pathname) {
-  if (getOverlayScope(pathname)) {
+  if (getOverlayScope(pathname) || pathname === '/scene') {
     // Do not add allow-same-origin: an embedded overlay must not call the
     // privileged parent frame or inherit its credentials.
     res.setHeader('Content-Security-Policy', 'sandbox allow-scripts');

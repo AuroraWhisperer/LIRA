@@ -58,6 +58,9 @@ function createShutdownHarness(options = {}) {
   let startPromise;
   let runtimeOpen = false;
   let requestRestart;
+  let runtimeOptions;
+  let publishSceneCloud;
+  const sceneUpdates = [];
 
   const app = Object.assign(new EventEmitter(), {
     isPackaged: false,
@@ -126,6 +129,10 @@ function createShutdownHarness(options = {}) {
       preShutdownHook = hook;
     },
     onGiftCatalogInitializationStateChanged() {},
+    receiveSceneCloud(update) {
+      assert.equal(runtimeOpen, true);
+      sceneUpdates.push(update);
+    },
   };
   const licenseManager = {
     bootstrap: () => options.licenseBootstrap?.promise,
@@ -243,6 +250,21 @@ function createShutdownHarness(options = {}) {
         return controller('remote', remoteIdle);
       },
     },
+    './scene-cloud-controller': {
+      getSceneOwner(manager) {
+        assert.equal(manager, licenseManager);
+        return options.sceneOwner || null;
+      },
+      createSceneCloudController({ licenseManager: manager, publish }) {
+        assert.equal(manager, licenseManager);
+        calls.push('scene:create');
+        publishSceneCloud = publish;
+        return {
+          ...controller('scene', { promise: options.sceneIdle?.promise }),
+          start: () => calls.push('scene:start'),
+        };
+      },
+    },
     './fan-profile-controller': {
       fanScopeFor: () => null,
       createFanProfileController: () => ({
@@ -303,7 +325,12 @@ function createShutdownHarness(options = {}) {
     },
     './license/remote-license-client': { resolveConfiguredBaseUrl: () => '' },
     './license/license-resume': require('../../src/electron/license/license-resume'),
-    '../server': runtime,
+    '../server': {
+      createServerRuntime(options) {
+        runtimeOptions = options;
+        return runtime;
+      },
+    },
     './external-url-policy': {},
   };
 
@@ -351,6 +378,11 @@ function createShutdownHarness(options = {}) {
     storageCalls,
     powerMonitor,
     handlers,
+    sceneUpdates,
+    publishSceneCloud: (update) => publishSceneCloud(update),
+    get runtimeOptions() {
+      return runtimeOptions;
+    },
     quit,
     settle,
     get runtimeOpen() {

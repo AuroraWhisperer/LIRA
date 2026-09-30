@@ -8,6 +8,7 @@ import { api, copyText, localOverlayOrigin, readJsonResponse, showError, toast }
 import { createOvertimeRuleEditor } from './overtime-rule-editor.js';
 import { createOvertimeTimeView } from './overtime-time-view.js';
 import { createOvertimeStatusView } from './overtime-status-view.js';
+import { createOvertimeAppearance } from './overtime-preview.js';
 
 const GUARD_GIFTS = [
   {
@@ -35,8 +36,8 @@ let settlements = [];
 let rulesDirty = false;
 let rulesSaving = false;
 let rulesEditRevision = 0;
-let backgroundDirty = false;
-let backgroundSaving = false;
+let appearance = null;
+let displayRevision = 0;
 let catalogRefreshing = false;
 let globalGiftSearchPending = false;
 let globalGiftSearchError = '';
@@ -72,7 +73,6 @@ const overtimeStatusView = createOvertimeStatusView({
   byId,
   formatClockDisplay,
   renderInitialDuration,
-  setValueUnlessFocused,
   getGiftDetection: () => giftDetection,
   getRuleEditor: () =>
     ruleEditor
@@ -81,23 +81,30 @@ const overtimeStatusView = createOvertimeStatusView({
         }
       : null,
   isRulesDirty: () => rulesDirty,
-  isBackgroundDirty: () => backgroundDirty,
   onLimits: (limits) => {
     serverLimits = limits;
     ruleEditor?.setLimits(limits);
   },
 });
-const { renderState, syncClockLoop, stopClockLoop } = overtimeStatusView;
+const { syncClockLoop, stopClockLoop } = overtimeStatusView;
+
+function renderState(state) {
+  displayRevision += 1;
+  overtimeStatusView.renderState(state);
+  appearance?.receive(overtimeStatusView.getState());
+}
 
 export function initOvertime(currentState = {}) {
   if (initialized || !document.getElementById('overtimePanel')) return;
   initialized = true;
   giftDetection = currentState?.giftDetection || giftDetection;
   catalogLiveStatus = currentState?.liveStatus || catalogLiveStatus;
+  appearance = createOvertimeAppearance({ initial: currentState?.overtime || {}, onSavedState: renderState });
   ruleEditor = createOvertimeRuleEditor(byId('overtimeRules'), markRulesDirty, {
     onReselect: (row) => openGiftPicker(row),
   });
   bindControls();
+  if (currentState?.overtime) renderState(currentState.overtime);
   eventBus.on(Events.STATE_LOADED, ({ state }) => {
     giftDetection = state?.giftDetection || giftDetection;
     catalogLiveStatus = state?.liveStatus || catalogLiveStatus;
@@ -119,11 +126,12 @@ export function initOvertime(currentState = {}) {
 }
 
 async function refresh() {
+  const requestedRevision = displayRevision;
   const response = await fetch('/api/overtime');
   const payload = await readJsonResponse(response, '读取加班机失败');
   if (!payload.ok) throw new Error(payload.error || '读取加班机失败');
   settlements = payload.data.settlements || [];
-  renderState(payload.data);
+  if (requestedRevision === displayRevision) renderState(payload.data);
   renderSettlements();
 }
 
@@ -147,14 +155,9 @@ function bindControls() {
   byId('overtimeRules').addEventListener('input', markRulesDirty);
   byId('overtimeRules').addEventListener('change', markRulesDirty);
   byId('overtimeSaveRulesBtn').addEventListener('click', saveRules);
-  byId('overtimeSaveBackgroundBtn').addEventListener('click', saveBackground);
-  byId('overtimeBackgroundPath').addEventListener('change', markBackgroundDirty);
-  byId('overtimeBackgroundFit').addEventListener('change', markBackgroundDirty);
-  byId('overtimeOpenOverlayBtn').addEventListener('click', () => window.open(overlayUrl(), '_blank', 'noopener'));
+  byId('overtimeOpenOverlayBtn').addEventListener('click', () => appearance.open());
   byId('overtimeCopyOverlayBtn').addEventListener('click', copyOverlayUrl);
-  byId('overtimePreview').src = '/overtime?quality=low';
   syncRulesSaveButton();
-  syncBackgroundSaveButton();
 }
 
 async function runAction(action) {
@@ -175,28 +178,6 @@ async function applyTime() {
     toast('初始时间已设置，倒计时已重置并暂停');
   } catch (error) {
     showError(error);
-  }
-}
-
-async function saveBackground() {
-  if (backgroundSaving || !backgroundDirty) return;
-  backgroundSaving = true;
-  syncBackgroundSaveButton();
-  try {
-    const result = await api('/api/overtime/config', {
-      path: byId('overtimeBackgroundPath').value,
-      fit: byId('overtimeBackgroundFit').value,
-    });
-    renderState(result.data);
-    backgroundDirty = false;
-    syncBackgroundSaveButton();
-    byId('overtimePreview').src = `/overtime?quality=low&t=${Date.now()}`;
-    toast('直播画面已保存');
-  } catch (error) {
-    showError(error);
-  } finally {
-    backgroundSaving = false;
-    syncBackgroundSaveButton();
   }
 }
 
@@ -238,25 +219,6 @@ function syncRulesSaveButton() {
   button.textContent = state.label;
   button.disabled = state.disabled;
   button.classList.toggle('is-dirty', state.dirty);
-}
-
-function markBackgroundDirty() {
-  backgroundDirty = true;
-  syncBackgroundSaveButton();
-}
-
-function getBackgroundSaveButtonState(dirty, saving) {
-  if (saving) return { label: '保存中…', disabled: true };
-  if (dirty) return { label: '保存画面', disabled: false };
-  return { label: '已保存', disabled: true };
-}
-
-function syncBackgroundSaveButton() {
-  const button = byId('overtimeSaveBackgroundBtn');
-  if (!button) return;
-  const state = getBackgroundSaveButtonState(backgroundDirty, backgroundSaving);
-  button.textContent = state.label;
-  button.disabled = state.disabled;
 }
 
 async function loadCatalog() {

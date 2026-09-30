@@ -2,6 +2,7 @@
 
 import { escapeHtml } from '../shared/utils.js';
 import { formsService } from './forms.js';
+import { receiveComponentSettings, projectComponentDrafts } from './component-settings-sync.js';
 import { songs } from './songs.js';
 import { renderQueueState, renderSuperChatQueue, applyAdminQueueFontPreview } from './queue.js';
 
@@ -22,7 +23,7 @@ export function createAdminStateRenderer({
     // Settings must hydrate before the gift view reads its form controls.
     if (changed.has('settings')) {
       renderSettings(state.settings || {});
-      renderQueueStyle(state.settings || {});
+      renderQueueStyle(projectComponentDrafts(state.settings || {}));
     }
     if (changed.has('queue')) renderQueue(state.queue);
     if (changed.has('superChats')) renderSuperChats(state.superChats || []);
@@ -36,7 +37,8 @@ export function createAdminStateRenderer({
 }
 
 function fillSettings(settings) {
-  formsService.fillForm(settings);
+  receiveComponentSettings(settings);
+  formsService.fillForm(projectComponentDrafts(settings));
   for (const key of ['danmakuMonitoringEnabled', 'giftMonitoringEnabled']) {
     const toggle = document.getElementById(key);
     if (toggle && !toggle.disabled) toggle.checked = (settings[key] ?? settings.enableBilibili) !== 'false';

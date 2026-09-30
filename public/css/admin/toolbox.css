@@ -1,5 +1,7 @@
 /* Toolbox styles - ordered compatibility entrypoint. */
 @import url('./toolbox/shell.css');
+@import url('./component-preview.css');
+@import url('./component-workspace.css');
 @import url('./toolbox/performance.css');
 @import url('./toolbox/danmaku-tool.css');
 @import url('./toolbox/ai-assistant.css');

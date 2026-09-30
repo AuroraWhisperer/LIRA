@@ -35,7 +35,7 @@ export function initDanmakuPkReport({
     const requested = generation;
     pending = true;
     controls();
-    status.textContent = '正在同步 PK 播报设置…';
+    if (!writing) status.textContent = '正在读取 PK 播报设置…';
     try {
       const result = writing
         ? await bridge.updatePkReportSettings({ enabled: value })
@@ -43,14 +43,16 @@ export function initDanmakuPkReport({
       if (disposed || generation !== requested) return;
       enabled = confirmed(result);
       loaded = true;
-      status.textContent = enabled ? '已开启，服务器将在 PK 开始时播报' : 'PK 对手信息播报已关闭';
+      status.textContent = 'PK 开始时播报对手概况';
       if (writing) toast(enabled ? 'PK 对手信息播报已开启' : 'PK 对手信息播报已关闭');
     } catch {
       if (disposed || generation !== requested) return;
-      status.textContent =
+      const message =
         writing && value === false
           ? '关闭尚未同步，服务器可能仍在播报；请刷新核对。'
           : 'PK 播报功能暂不可用，请检查连接或升级服务器后刷新。';
+      if (writing) toast(message, { type: 'error' });
+      else status.textContent = message;
     } finally {
       if (!disposed && generation === requested) {
         pending = false;

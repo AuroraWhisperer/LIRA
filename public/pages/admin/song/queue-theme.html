@@ -563,7 +563,13 @@
           </fieldset>
         </div>
 
-        <button class="primary" type="submit">保存点歌板主题</button>
+        <p id="queueThemeSaveState" role="status" aria-live="polite"></p>
+        <p class="hint">共享主题参数也用于启用主题跟随的歌单板。</p>
+        <div class="row" id="queueThemeActions">
+          <button id="queueThemePreview" class="secondary" type="button">预览与调整</button>
+          <button id="queueThemeDiscard" class="secondary" type="button" disabled>放弃未保存修改</button>
+          <button id="queueThemeSave" class="primary" type="submit" disabled>保存点歌板主题</button>
+        </div>
       </form>
     </details>
   </div>

@@ -18,7 +18,7 @@ let dailyBots = null;
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function init({ toast = defaultToast, reconnectBilibili } = {}) {
-  dailyBots ||= initDanmakuDailyBots();
+  dailyBots ||= initDanmakuDailyBots({ toast });
   const elements = getElements();
   if (initialized || !elements) return;
 
@@ -237,7 +237,7 @@ function bindSettingToggle(element, options) {
       options.toast(enabled === 'true' ? options.onText : options.offText);
     } catch (error) {
       element.checked = !element.checked;
-      options.toast(error.message || '保存设置失败');
+      options.toast(error.message || '保存设置失败', { type: 'error' });
     }
   });
 }

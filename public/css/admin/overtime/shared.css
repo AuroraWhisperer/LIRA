@@ -7,16 +7,20 @@
   --ot-action-add: #6657c7;
   --ot-action-save: #147d73;
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
   gap: 14px;
   align-content: start;
   color: var(--text);
 }
 
 .overtime-admin > .overtime-admin-section {
+  grid-column: 1 / -1;
   content-visibility: auto;
   contain-intrinsic-size: auto 260px;
 }
+.overtime-admin > .overtime-console { grid-column: 1 / -1; }
+.overtime-admin > .overtime-time-editor { grid-column: 1; }
+.overtime-admin > .overtime-screen-section { grid-column: 2; }
 
 .overtime-section-heading,
 .overtime-console,
@@ -113,20 +117,22 @@
 }
 
 .overtime-screen-section label {
-  grid-column: span 3;
+  grid-column: span 6;
 }
-.overtime-screen-section > button {
-  grid-column: span 2;
+.overtime-screen-section > .overtime-screen-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   align-self: end;
 }
-.overtime-preview {
+.overtime-appearance-fields {
   grid-column: 1 / -1;
-  width: 100%;
-  min-height: 280px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: repeating-conic-gradient(#d9dbe2 0 25%, #f4f5f8 0 50%) 0 / 20px 20px;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 12px;
 }
+#overtimeBackgroundSaveState { grid-column: 1 / -1; }
 .overtime-settlement-row {
   display: grid;
   grid-template-columns: minmax(140px, 1fr) auto auto auto;

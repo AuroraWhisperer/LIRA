@@ -26,7 +26,7 @@ async function run() {
   const root = path.resolve(__dirname, '../..');
   let saved = { style: 'signal', fullscreenDurationSeconds: 6, styleOptions: {}, layout: null,
     overlayUrl: 'https://canvas.example.test/overlay/syntheticKey_123' };
-  global.canvasTest = { writes: [], failNext: false, saved: () => saved };
+  global.canvasTest = { writes: [], attempts: 0, requests: [], failNext: false, saved: () => saved };
   const server = createHttpServer({
     host: '127.0.0.1', startPort: 0, dataDir: directory, getPhase: () => 'ready',
     getStartedPort: () => server.address().port, isLicenseAuthorized: () => true,
@@ -51,9 +51,12 @@ async function run() {
       servePageOrAsset(path.join(root, 'public'), req, res, url, token);
     },
   });
+  server.prependListener('request', (req) => {
+    global.canvasTest.requests.push({ url: req.url, authorization: req.headers.authorization || '' });
+  });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const origin = `http://127.0.0.1:${server.address().port}`;
-  if ((await fetch(`${origin}/danmaku?preview=1`)).status !== 200) throw new Error('Preview route unavailable.');
+  if ((await fetch(`${origin}/danmaku?preview=1&componentPreview=1`)).status !== 200) throw new Error('Preview route unavailable.');
   if ((await fetch(`${origin}/admin`)).status !== 401) throw new Error('Admin route must require desktop auth.');
   const window = new BrowserWindow({ width: 1440, height: 960, show: false,
     webPreferences: { preload: path.join(root, 'src/electron/preload.js'), contextIsolation: true, sandbox: true, nodeIntegration: false, backgroundThrottling: false } });
@@ -68,6 +71,7 @@ async function run() {
       getProfile: async () => ({ state: 'authorized', streamer: { accountName: 'canvas-test', songPageUrl: 'https://canvas.example.test/' } }),
       getOverlaySettings: async () => saved,
       updateOverlaySettings: async (value) => {
+        global.canvasTest.attempts += 1;
         if (global.canvasTest.failNext) { global.canvasTest.failNext = false; throw new Error('NETWORK_UNAVAILABLE'); }
         saved = { ...saved, ...value };
         global.canvasTest.writes.push(value);

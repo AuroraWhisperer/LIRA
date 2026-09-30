@@ -55,7 +55,8 @@ const SETTING_KEYS = {
   'gift-wishes': '',
   'gift-export': '',
   opening: '',
-  clock: '',
+  clock: `clockStyle clockShowDate clockShowSeconds clockHourFormat clockLabel
+    clockFlipFrameColor clockFlipFaceColor clockFlipTextColor`,
 };
 
 function fields(names) {

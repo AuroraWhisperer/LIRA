@@ -14,6 +14,12 @@
 
 本次无 schema 迁移：既有 import_batches 记录总数、新增数、未改变数（存 duplicate_count）及新分类数，实时响应单独返回 updated 数量；不将更新错误记录为新增。预览 token 含全部歌曲与分类内容及时间戳，不依赖内存全局租户状态。要求见 [点歌资料规范](../../../specs/song-request-metadata.md)。
 
+### 本地场景持久化
+
+songDb 的 v8 迁移通过 `scene-migration.js` 新增 `component_scenes`，不改写旧表。列为 `id`、`owner_scope`、`draft_json`、`revision`、`published_json`、`published_version`、`capability_version`、`capability_hash`、`capability_encrypted`；按 owner_scope 建索引。草稿与发布 JSON 均限制为 256KiB。`scene-store.js` 用单条带归属和期望版本条件的 UPDATE/RETURNING 原子提交；失败不改变旧行。
+
+capability_hash 为随机 256 位 token 的 SHA-256，capability_encrypted 保存 safeStorage 加密的 schema、归属、scene ID、凭据版本和 token 包。无明文回退；解密后复核全部绑定与摘要。历史、选择、实时事件与业务状态不入场景表；场景随本地数据库保留，没有自动删除策略。接口见 [HTTP API](api.md#本地场景)，边界见 [ADR-0022](../../architecture/adr/0022-local-component-scenes.md)。
+
 ## 1. 技术选型
 
 礼物投影读写由 `gift-projection-store.js` 拥有，参与调用者已有的历史/游标事务；统计投递由 `gift-statistics-store.js` 拥有独立的 `BEGIN IMMEDIATE` / COMMIT / ROLLBACK，原子检查并标记已投递。两个适配器保持既有表结构与同步调用，不把数据库句柄或 statement 暴露给领域实现。领域校验、终态决策和提交后扇出见 [gift.md](bilibili/gift.md#3-历史导入与存储边界)。
@@ -174,7 +180,7 @@ v13 由 `gift-wish-migration.js` 幂等建表，v14 追加每条许愿的展示�
 
 | 库          | key             | 版本  | 步骤内容                                                                                                                                                                                                                                                                                                                      |
 | ----------- | --------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| songDb      | `song_db`       | v1-v7 | v1 列补全(tags/language/source_platform/original_group、pinned_at、requester_* 元数据);v2 `seedThemePresets`;v3 清理重复 (name, artist) 后建唯一索引;v4 幂等补充 `songs.request_price`;v5 幂等补充 `songs.song_clip`，旧歌曲的新字段均默认空字符串；v6 新增六张私密粉丝档案表及 requests 的稳定标识、归属和身份类型，旧流水归属保持空值；v7 新增 idx_requests_queue_id(queue_id)，用于队列关联查询 |
+| songDb      | `song_db`       | v1-v8 | v1 列补全(tags/language/source_platform/original_group、pinned_at、requester_* 元数据);v2 `seedThemePresets`;v3 清理重复 (name, artist) 后建唯一索引;v4 幂等补充 `songs.request_price`;v5 幂等补充 `songs.song_clip`，旧歌曲的新字段均默认空字符串；v6 新增六张私密粉丝档案表及 requests 的稳定标识、归属和身份类型，旧流水归属保持空值；v7 新增 idx_requests_queue_id(queue_id)，用于队列关联查询；v8 新增 component_scenes 本地场景草稿、发布快照与加密来源 |
 | superChatDb | `super_chat_db` | v1    | 基线                                                                                                                                                                                                                                                                                                                          |
 | giftDb      | `gift_db`       | v1-v16 | v1 `ensureGiftColumns`(cmd/blind_box/raw_json 等);v2 platform_id 索引;v3 `collapseDuplicateGiftIdentities` + 唯一索引 (platform_id, uid);v4 **检测账本升级**(`ensureGiftDetectionColumns`,历史记录标记 final 且仅归属礼物统计);v5 插入加班机单例行(id=1);v6 扩展加班机倒计时安全上限;v7 放开加班机 `display` 文字展板规则模式;v8 增加来源分区、同步状态、远程来源约束与索引；v9 幂等增加可空 `gift_events.blind_box_id`，旧行保持 `NULL`；v10 增加冻结事件身份列并将规则主键升级为 ID + 身份，旧规则设置原样保留；v11 幂等增加可空 avatar_url/guard_level，旧记录保持 NULL，等级约束为 0–3；v12 新增 source_recent 表达式部分索引及 source_time_asc 索引；v13 新增来源隔离的 gift_wishes / gift_wish_sessions；v14 增加许愿展示样式和文字模板；v15 增加文字版图片位置与格式；v16 增加文字版未收/已收颜色，旧行为空，保留所有定义与进度 |
 | musicDb     | `music_db`      | v1    | 基线                                                                                                                                                                                                                                                                                                                          |

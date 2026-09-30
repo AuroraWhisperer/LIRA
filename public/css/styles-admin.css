@@ -14,6 +14,9 @@
 /* Optional setting explanations */
 @import url('./components/contextual-help.css');
 
+/* 颜色选择控件 */
+@import url('./components/color-control.css');
+
 /* 参数调节滑块 */
 @import url('./components/parameter-range.css');
 
@@ -47,6 +50,7 @@
 
 /* 百宝箱功能侧栏 */
 @import url('./admin/toolbox.css');
+@import url('./admin/scene-editor.css');
 
 /* 加班机控制台 */
 @import url('./admin/overtime.css');

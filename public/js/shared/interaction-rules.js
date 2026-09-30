@@ -1,14 +1,8 @@
 // Pure rules shared by the desktop form and the Node session owner (Node 24).
 export const POLL_RULE = '发送任一完整选项，每个账号首次有效选择计票；以客户端截止前收到并处理为准。';
 export const RATING_RULE = '发送整数 1–10，每个账号只计结束前最后一次有效评分。';
-export const INTERACTION_LAYOUT = {
-  width: 800,
-  height: 600,
-  listHeight: 352,
-  rowHeight: 88,
-  pageStep: 320,
-  pageSeconds: 8,
-};
+export const POLL_MIN_OPTIONS = 1;
+export const POLL_MAX_OPTIONS = 6;
 
 export function inspectInteractionText(value, max = 10) {
   const text = String(value ?? '')
@@ -40,7 +34,8 @@ export function validateInteractionConfig(input = {}) {
   if (title.text && title.error) throw new Error(`主题：${title.error}`);
   const config = { kind: input.kind, title: title.text || (input.kind === 'poll' ? '弹幕投票' : '观众评分') };
   if (input.kind === 'rating') return config;
-  if (!Array.isArray(input.options) || input.options.length < 2) throw new Error('请至少填写两个选项');
+  if (!Array.isArray(input.options) || input.options.length < POLL_MIN_OPTIONS || input.options.length > POLL_MAX_OPTIONS)
+    throw new Error(`请填写 ${POLL_MIN_OPTIONS}–${POLL_MAX_OPTIONS} 个选项`);
   const seen = new Set();
   config.options = input.options.map((value, index) => {
     const result = inspectInteractionText(value);
@@ -56,10 +51,4 @@ export function validateInteractionConfig(input = {}) {
   if (new TextEncoder().encode(JSON.stringify(worst)).length + 2048 > 64 * 1024)
     throw new Error('选项过多，展示快照不能超过 64 KiB');
   return config;
-}
-
-export function pollPageDuration(optionCount) {
-  const { rowHeight, listHeight, pageStep, pageSeconds } = INTERACTION_LAYOUT;
-  const pages = 1 + Math.ceil(Math.max(0, optionCount * rowHeight - listHeight) / pageStep);
-  return { pages, seconds: pages * pageSeconds };
 }

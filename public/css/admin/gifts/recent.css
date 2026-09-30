@@ -276,6 +276,8 @@
 }
 
 .gift-card.high-value-gift-card {
+  isolation: isolate;
+  overflow: hidden;
   border-color: #d6b45f;
   border-left-color: #9f7425;
   background: linear-gradient(90deg, #c99a3d 0%, #e8c972 34%, #fff4cf 72%, #fffaf0 100%);
@@ -289,7 +291,57 @@
 }
 
 .gift-card.high-value-gift-card .gift-meta {
-  color: #72551d;
+  color: #49320d;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .gift-card.high-value-gift-card::before {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(
+      115deg,
+      transparent 28%,
+      rgba(255, 237, 178, 0.12) 40%,
+      rgba(255, 253, 230, 0.48) 48%,
+      rgba(255, 255, 248, 0.72) 50%,
+      rgba(255, 247, 208, 0.24) 54%,
+      transparent 68%
+    );
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+
+  .gift-card.high-value-gift-card.is-gold-sheening::before {
+    animation: gift-gold-sheen 1800ms cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  }
+
+  .gift-card.high-value-gift-card:nth-child(3n + 1)::before {
+    animation-delay: 180ms;
+  }
+
+  .gift-card.high-value-gift-card:nth-child(3n + 2)::before {
+    animation-delay: 360ms;
+  }
+
+  @keyframes gift-gold-sheen {
+    0% {
+      opacity: 0;
+      transform: translateX(-100%);
+    }
+
+    15%,
+    65% {
+      opacity: 1;
+    }
+
+    100% {
+      opacity: 0;
+      transform: translateX(100%);
+    }
+  }
 }
 
 .gift-card .gift-high-value-icon {

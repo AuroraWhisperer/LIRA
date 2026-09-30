@@ -46,13 +46,21 @@ async function fixture(initialProfile = account('one'), v2 = false) {
   const nodes = new Map(),
     reads = [],
     writes = [],
-    toasts = [];
+    toasts = [],
+    toastOptions = [];
   const get = (suffix) => {
     if (!nodes.has(suffix)) nodes.set(suffix, node());
     return nodes.get(suffix);
   };
   let listener;
   const windowRef = node();
+  for (const [suffix, title] of Object.entries({
+    Title: '进场欢迎',
+    GreetingTitle: '二次问候',
+    AttentionTitle: '重点关注',
+    PinyinTitle: '昵称生僻字自动注音',
+  }))
+    get(suffix).textContent = title;
   const module = await loadModuleExports(path.join(__dirname, '../../public/js/admin/danmaku-welcome.js'));
   windowRef.CustomEvent = class {
     constructor(type) {
@@ -81,7 +89,10 @@ async function fixture(initialProfile = account('one'), v2 = false) {
     },
     windowRef,
     bridge,
-    toast: (value) => toasts.push(value),
+    toast: (value, options) => {
+      toasts.push(value);
+      toastOptions.push(options);
+    },
   });
   await flush();
   return {
@@ -89,6 +100,7 @@ async function fixture(initialProfile = account('one'), v2 = false) {
     reads,
     writes,
     toasts,
+    toastOptions,
     account: (name) => listener(account(name)),
     change: (suffix) => get(suffix).events.change(),
     click: (suffix) => get(suffix).events.click(),
@@ -118,7 +130,10 @@ test('welcome uses the compact single-editor layout and retains all six feature 
   assert.equal((html.match(/data-fixed-open=/g) || []).length, 4);
   assert.equal((html.match(/data-fixed-item=/g) || []).length, 6);
   assert.equal((html.match(/id="danmakuWelcomeToggle"/g) || []).length, 1);
-  assert.match(html, /id="danmakuWelcomePinyinToggle"/);
+  const panel = html.match(/<section id="danmakuWelcomePanel"[\s\S]*?<\/section>/)[0];
+  assert.match(panel, /id="danmakuWelcomePinyinToggle"/);
+  assert.equal((html.match(/id="danmakuWelcomePinyinToggle"/g) || []).length, 1);
+  assert.doesNotMatch(html, /switch-caption|danmakuWelcomePinyinStatus/);
 });
 
 test('loads server settings and saves switch independently from message drafts', async () => {
@@ -190,7 +205,10 @@ test('failed writes are not reported as saved, and failed disable warns of uncon
   f.writes[0].resolve({ ok: false, error: 'NETWORK_UNAVAILABLE' });
   await flush();
   assert.equal(f.get('Toggle').checked, true);
-  assert.match(f.get('Status').textContent, /关闭尚未确认/);
+  assert.match(f.toasts.at(-1), /进场欢迎关闭尚未确认/);
+  assert.equal(f.toastOptions.at(-1).type, 'error');
+  assert.equal(f.get('ServerStatus').hidden, true);
+  assert.equal(f.get('OverviewStatus').textContent, '');
   f.edit(0, '仍在草稿 {username}');
   f.click('SaveBtn');
   f.writes[1].reject(new Error('连接失败'));
@@ -236,6 +254,69 @@ const savedV2 = (patch = {}) => ({
   attentionWelcomeMessages: ['专属 {username}'],
   attentionGreetingMessages: ['{username}，来点歌吧'],
   ...patch,
+});
+
+test('pinyin saves independently of invalid parameter drafts and reports changes only through toast', async () => {
+  const f = await fixture(account('one'), true);
+  f.reads[0].resolve(savedV2({ enabled: true, greetingEnabled: true }));
+  await flush();
+  f.parameter('welcomeDelaySeconds', '20');
+  f.edit(0, '草稿 {username}');
+  const summary = f.get('Summary').textContent;
+  const overview = f.get('OverviewStatus').textContent;
+  const status = f.get('Status').textContent;
+  f.get('PinyinToggle').checked = true;
+  f.change('PinyinToggle');
+  assert.deepEqual(f.writes[0].patch, { rareNamePinyinEnabled: true });
+  assert.equal(f.get('PinyinToggle').disabled, true);
+  assert.equal(f.get('Status').textContent, status);
+  assert.equal(f.get('OverviewStatus').textContent, overview);
+  assert.equal(f.get('Summary').textContent, summary);
+  assert.equal(f.toasts.length, 0);
+  f.writes[0].resolve(savedV2({ enabled: true, greetingEnabled: true, rareNamePinyinEnabled: true }));
+  await flush();
+  assert.equal(f.get('PinyinToggle').checked, true);
+  assert.equal(f.get('PinyinToggle').title, '');
+  assert.equal(f.get('welcomeDelaySeconds').value, '20');
+  assert.equal(f.get('ParameterSaveBtn').disabled, false);
+  assert.equal(f.get('List').children[0].children[1].value, '草稿 {username}');
+  assert.equal(f.get('Summary').textContent, summary);
+  assert.equal(f.get('OverviewStatus').textContent, overview);
+  assert.equal(f.get('ServerStatus').hidden, true);
+  assert.deepEqual(f.toasts, ['昵称生僻字自动注音已开启']);
+  f.get('PinyinToggle').checked = false;
+  f.change('PinyinToggle');
+  f.writes[1].reject(new Error('offline'));
+  await flush();
+  assert.equal(f.get('PinyinToggle').checked, true);
+  assert.equal(f.get('PinyinToggle').disabled, false);
+  assert.equal(f.get('Summary').textContent, summary);
+  assert.equal(f.get('OverviewStatus').textContent, overview);
+  assert.equal(f.get('ServerStatus').hidden, true);
+  assert.equal(f.toasts.length, 2);
+  assert.match(f.toasts[1], /昵称生僻字自动注音关闭尚未确认/);
+  assert.equal(f.toastOptions[1].type, 'error');
+});
+
+test('welcome stage switches use confirmed state in toast without changing overview feedback', async () => {
+  for (const [suffix, key, title] of [
+    ['Toggle', 'enabled', '进场欢迎'],
+    ['GreetingToggle', 'greetingEnabled', '二次问候'],
+    ['AttentionToggle', 'attentionEnabled', '重点关注'],
+  ]) {
+    const f = await fixture(account('one'), true);
+    f.reads[0].resolve(savedV2({ enabled: key !== 'enabled' }));
+    await flush();
+    const summary = f.get('Summary').textContent;
+    f.get(suffix).checked = true;
+    f.change(suffix);
+    assert.equal(f.get('OverviewStatus').textContent, '');
+    f.writes[0].resolve(savedV2({ enabled: true, [key]: true }));
+    await flush();
+    assert.deepEqual(f.toasts, [`${title}已开启`]);
+    assert.equal(f.get('OverviewStatus').textContent, '');
+    assert.equal(f.get('Summary').textContent, summary);
+  }
 });
 
 test('suggestions only edit the draft; enabling atomically includes parameters and leaves libraries dirty', async () => {

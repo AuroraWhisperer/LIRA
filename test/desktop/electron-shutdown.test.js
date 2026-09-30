@@ -307,6 +307,7 @@ test('quit while runtime starts waits for stop without creating license or contr
   assert.equal(h.count('license:create'), 0);
   assert.equal(h.count('cloud:create'), 0);
   assert.equal(h.count('remote:create'), 0);
+  assert.equal(h.count('scene:create'), 0);
   assert.equal(h.count('app:exit'), 1);
   assert.deepEqual(h.startupErrors, []);
 });
@@ -325,6 +326,7 @@ test('quit during license bootstrap cannot create sync controllers after termina
   await h.settle();
   assert.equal(h.count('cloud:create'), 0);
   assert.equal(h.count('remote:create'), 0);
+  assert.equal(h.count('scene:create'), 0);
   assert.deepEqual(h.startupErrors, []);
 });
 
@@ -356,3 +358,39 @@ test('fan synchronization is disposed and drained before database shutdown', asy
   await h.state.lifecycle.shutdownPromise;
   assertFinalized(h, false);
 });
+
+for (const intent of ['quit', 'restart']) {
+  test(`${intent} drains scene cloud delivery before closing the runtime`, async () => {
+    const sceneIdle = Promise.withResolvers();
+    const sceneOwner = { scope: '["https://scene.test","streamer-1"]', epoch: 1 };
+    const h = createShutdownHarness({ sceneIdle, sceneOwner });
+    await h.start();
+    assert.equal(h.count('scene:create'), 1);
+    assert.equal(h.count('scene:start'), 1);
+    assert.equal(h.runtimeOptions.getSceneOwner(), sceneOwner);
+    const update = { ownerScope: sceneOwner.scope, authorizationEpoch: 1, status: 'offline' };
+    h.publishSceneCloud(update);
+    assert.deepEqual(h.sceneUpdates, [update]);
+
+    if (intent === 'restart') h.restart();
+    else h.quit();
+    h.quit();
+    h.remoteIdle.resolve();
+    h.cloudIdle.resolve();
+    await h.settle();
+    assert.equal(h.count('scene:dispose'), 1);
+    assert.equal(h.count('scene:idle'), 1);
+    assert.equal(h.count('playback:flush'), 0);
+    assert.equal(h.count('runtime:stop'), 0);
+    assert.equal(h.runtimeOpen, true);
+
+    sceneIdle.resolve();
+    await h.settle();
+    assert.equal(h.count('runtime:stop'), 1);
+    assert.ok(h.calls.indexOf('scene:dispose') < h.calls.indexOf('scene:idle'));
+    assert.ok(h.calls.indexOf('scene:idle') < h.calls.indexOf('runtime:stop'));
+    h.backendStop.resolve();
+    await h.state.lifecycle.shutdownPromise;
+    assertFinalized(h, intent === 'restart');
+  });
+}

@@ -8,7 +8,6 @@ const { createGameRuntime } = require('../../src/server/game-runtime');
 const {
   inspectInteractionText,
   validateInteractionConfig,
-  pollPageDuration,
 } = require('../../public/js/shared/interaction-rules.js');
 
 function fixture() {
@@ -78,18 +77,32 @@ test('shared Unicode rules preserve visible graphemes and reject invisible input
     assert.ok(inspectInteractionText(value).error, value);
   assert.equal(inspectInteractionText(' 唱 歌 ').text, '唱 歌');
   assert.throws(() => validateInteractionConfig({ ...poll, options: ['é', 'e\u0301'] }), /重复/);
-  for (const options of [[], ['a'], ['a', ''], ['a', 'a']])
+  for (const options of [[], ['a', ''], ['a', 'a']])
     assert.throws(() => validateInteractionConfig({ ...poll, options }));
   assert.equal(
-    validateInteractionConfig({ ...poll, options: Array.from({ length: 20 }, (_, i) => String(i)) }).options.length,
-    20,
+    validateInteractionConfig({ ...poll, options: Array.from({ length: 6 }, (_, i) => String(i)) }).options.length,
+    6,
   );
   assert.throws(
-    () => validateInteractionConfig({ ...poll, options: Array.from({ length: 3000 }, (_, i) => String(i)) }),
-    /16 KiB|64 KiB/,
+    () => validateInteractionConfig({ ...poll, options: Array.from({ length: 7 }, (_, i) => String(i)) }),
+    /1–6/,
   );
-  assert.deepEqual(pollPageDuration(11), { pages: 3, seconds: 24 });
-  assert.equal(pollPageDuration(2).pages, 1);
+  assert.deepEqual(validateInteractionConfig({ ...poll, options: ['a'] }).options, ['a']);
+  assert.throws(
+    () => validateInteractionConfig({ ...poll, options: Array.from({ length: 3000 }, (_, i) => String(i)) }),
+    /16 KiB/,
+  );
+});
+
+test('poll session enforces one to six options before starting', () => {
+  const f = fixture();
+  for (const count of [0, 7]) {
+    assert.throws(() => f.service.start({ ...poll, options: Array.from({ length: count }, (_, i) => String(i)) }), /1–6/);
+    assert.equal(f.service.getState().session, null);
+  }
+  f.service.start({ ...poll, options: ['唯一选项'] });
+  f.send('1', '唯一选项');
+  assert.equal(f.service.getState().session.options[0].percentage, 100);
 });
 
 test('poll accepts the first complete valid choice per reliable viewer and preserves order', () => {
@@ -250,7 +263,7 @@ test('failed start does not subscribe, clear is versioned, and empty rating sett
   f.source.ready = false;
   assert.throws(() => f.service.start(poll), { statusCode: 409 });
   f.source.ready = true;
-  assert.throws(() => f.service.start({ ...poll, options: ['a'] }), { statusCode: 400 });
+  assert.throws(() => f.service.start({ ...poll, options: [] }), { statusCode: 400 });
   assert.equal(f.listener, null);
   const start = f.service.start({ kind: 'rating' });
   const final = f.service.finish(start.session.sessionId);

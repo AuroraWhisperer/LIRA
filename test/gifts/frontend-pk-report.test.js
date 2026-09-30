@@ -14,7 +14,8 @@ const account = (name) => ({
 async function fixture(profile = account('one')) {
   const nodes = new Map(),
     reads = [],
-    writes = [];
+    writes = [],
+    toasts = [];
   const get = (key) => {
     if (!nodes.has(key))
       nodes.set(key, {
@@ -40,6 +41,7 @@ async function fixture(profile = account('one')) {
   await module.link(() => {});
   await module.evaluate();
   module.namespace.initDanmakuPkReport({
+    toast: (message, options) => toasts.push({ message, options }),
     documentRef: { getElementById: (id) => get(id.replace('danmakuPkReport', '')) },
     windowRef: get('window'),
     bridge: {
@@ -60,6 +62,7 @@ async function fixture(profile = account('one')) {
     get,
     reads,
     writes,
+    toasts,
     account: (name) => listener(account(name)),
     toggle: (value) => {
       get('Toggle').checked = value;
@@ -84,18 +87,26 @@ test('pending and failed writes preserve confirmed state, failed disable warns e
   assert.equal(f.get('Toggle').disabled, true);
   f.reads[0].resolve(saved(false));
   await flush();
+  const summary = f.get('Status').textContent;
   f.toggle(true);
   assert.deepEqual(f.writes[0].patch, { enabled: true });
   assert.equal(f.get('Toggle').checked, false);
   assert.equal(f.get('Toggle').disabled, true);
+  assert.equal(f.get('Status').textContent, summary);
+  assert.equal(f.toasts.length, 0);
   f.writes[0].resolve(saved(true));
   await flush();
   assert.equal(f.get('Toggle').checked, true);
+  assert.equal(f.toasts[0].message, 'PK 对手信息播报已开启');
+  assert.equal(f.get('Status').textContent, summary);
   f.toggle(false);
   f.writes[1].reject(new Error('offline'));
   await flush();
   assert.equal(f.get('Toggle').checked, true);
-  assert.match(f.get('Status').textContent, /关闭尚未同步，服务器可能仍在播报/);
+  assert.equal(f.get('Status').textContent, summary);
+  assert.equal(f.toasts.length, 2);
+  assert.match(f.toasts[1].message, /关闭尚未同步，服务器可能仍在播报/);
+  assert.equal(f.toasts[1].options.type, 'error');
 });
 
 test('old server is unavailable and explicit refresh can recover', async () => {
