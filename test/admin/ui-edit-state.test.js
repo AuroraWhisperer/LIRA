@@ -289,25 +289,31 @@ test('danmaku panel initializes every shipped style and keeps existing controls 
     const button = styleButtons.nth(index);
     await button.click();
     assert.equal(await button.getAttribute('aria-pressed'), 'true');
+    const style = await button.getAttribute('data-danmaku-style');
     await page.locator('#danmakuPreviewOverlayBtn').click();
-    const dialog = page.locator('.component-preview-dialog');
-    const iframe = dialog.locator('iframe');
-    const preview = new URL(await iframe.getAttribute('src'));
-    assert.equal(preview.searchParams.get('preview'), '1');
-    assert.equal(preview.searchParams.get('componentPreview'), '1');
+    await page.waitForFunction((style) => window.pendingSaves.some((request) =>
+      request.url === '/api/component-preview' && request.body.action === 'open'
+        && request.body.state.draft.style === style), style);
+    const component = await page.evaluate((style) => {
+      const request = window.pendingSaves.find((request) => request.body.action === 'open'
+        && request.body.state.draft.style === style);
+      request.resolve({ data: { id: `preview-${style}`, token: `synthetic-preview-${style}` } });
+      return request.body.component;
+    }, style);
+    assert.equal(component, 'danmaku');
+    await page.waitForFunction((count) => window.opened.length === count, index + 1);
+    const preview = new URL(await page.evaluate(() => window.opened.at(-1)));
+    assert.equal(preview.pathname, '/component-preview');
+    assert.equal(preview.searchParams.get('component'), 'danmaku');
     assert.equal(preview.searchParams.has('token'), false);
-    assert.equal(preview.hash, '');
-    assert.equal(await iframe.getAttribute('sandbox'), 'allow-scripts');
-    const style = await iframe.contentFrame().locator('body').evaluate(() => new Promise((resolve) => {
-      window.addEventListener('message', (event) => {
-        if (event.data?.type === 'component-preview:init') resolve(event.data.config.style);
-      }, { once: true });
-      window.parent.postMessage({ type: 'component-preview:ready' }, '*');
-    }));
-    assert.equal(style, await button.getAttribute('data-danmaku-style'));
-    assert.equal(await dialog.locator(`[data-danmaku-style="${style}"]`).getAttribute('aria-pressed'), 'true');
-    await dialog.getByRole('button', { name: '关闭', exact: true }).click();
-    await dialog.waitFor({ state: 'detached' });
+    const session = new URLSearchParams(preview.hash.slice(1));
+    assert.equal(session.get('id'), `preview-${style}`);
+    assert.equal(session.get('token'), `synthetic-preview-${style}`);
+    assert.equal(await page.locator('.component-preview-dialog').count(), 0);
+    await page.evaluate(async () => {
+      const { closeComponentPreview } = await import('/js/admin/component-preview-session.js');
+      closeComponentPreview();
+    });
   }
 });
 

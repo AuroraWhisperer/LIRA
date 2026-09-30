@@ -2,7 +2,12 @@ let initialized = false;
 let currentUrl = '';
 let currentOwner = '';
 let generation = 0;
+let initialization = Promise.resolve();
 const listeners = new Set();
+
+export function waitForServerOverlayUrlInitialization() {
+  return initialization;
+}
 
 export function serverOverlayUrl(snapshot, settings) {
   if (snapshot?.state !== 'authorized' || !settings?.ok) return '';
@@ -62,12 +67,12 @@ export function observeServerOverlayUrl(listener) {
       void refresh(snapshot);
     });
     const requestedGeneration = generation;
-    Promise.resolve(bridge?.getProfile?.())
+    initialization = Promise.resolve(bridge?.getProfile?.())
       .then((snapshot) => {
-        if (generation === requestedGeneration) void refresh(snapshot);
+        if (generation === requestedGeneration) return refresh(snapshot);
       })
       .catch(() => {
-        if (generation === requestedGeneration) void refresh(null);
+        if (generation === requestedGeneration) return refresh(null);
       });
     window.addEventListener(
       'pagehide',

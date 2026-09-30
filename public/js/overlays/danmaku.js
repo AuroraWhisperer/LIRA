@@ -2,6 +2,7 @@ import { createDanmakuFeed } from './danmaku-feed.js';
 import { initDanmakuPreview } from './danmaku-preview.js';
 import { isSceneComponent } from './component-preview-client.js';
 import { createSceneDanmakuDisplay } from './scene-danmaku-display.js';
+import { initDanmakuComponentSource } from './danmaku-component-source.js';
 import { DANMAKU_STYLE_OPTIONS, isRandomDanmakuStyle, applyStyleOptions, parseStyleOptions } from '../shared/danmaku-style-options.js';
 
 ('use strict');
@@ -44,6 +45,19 @@ let currentGiftImage = 'theme';
 document.addEventListener('DOMContentLoaded', () => {
   syncRankedOverlayScale();
   window.addEventListener('resize', syncRankedOverlayScale);
+  if (!previewMode && params.get('source') === 'component') {
+    createOverlayFeed(currentOverlayStyle, currentFullscreenDurationSeconds);
+    initDanmakuComponentSource({
+      configure: (config) => applyConfiguration(config.style, config.fullscreenDurationSeconds, config.styleOptions, true),
+      clear: () => applyItems([]), append: appendItem, status: setConnectionState, getStyle: () => currentOverlayStyle,
+      dispose() {
+        window.removeEventListener('resize', syncRankedOverlayScale);
+        if (renderFrame !== null) cancelAnimationFrame(renderFrame);
+        feed?.destroy();
+      },
+    });
+    return;
+  }
   if (previewMode) {
     document.body.classList.add('is-preview');
     let previewTimer = null;

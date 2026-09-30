@@ -9,6 +9,8 @@ const root = path.resolve(__dirname, '..');
 // tests use Node, VM modules and isolated local HTTP/SQLite fixtures.
 const groups = {
   browser: [
+    'admin/component-preview-browser',
+    'admin/component-preview-output',
     'bots/daily-bot-frontend',
     'danmaku/frontend-admin-danmaku',
     'gifts/frontend-gift-banner',
@@ -18,6 +20,7 @@ const groups = {
     'gifts/frontend-gift-feed-pressure',
     'gifts/frontend-gift-history-selection',
     'gifts/frontend-gift-wishes',
+    'overlays/component-source',
     'ui/frontend-toast',
     'admin/ui-edit-state',
   ],

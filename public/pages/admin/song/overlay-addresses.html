@@ -6,6 +6,30 @@
     </p>
 
     <div class="overlay-address-directory">
+      <section class="overlay-address-group" aria-labelledby="canvasOverlayGroupTitle">
+        <header class="overlay-address-group-header">
+          <div>
+            <h3 id="canvasOverlayGroupTitle" class="ui-section-title">组件统一管理</h3>
+            <p>在同一画布中摆放弹幕姬、萌时钟、点歌板和加班机，用一个地址导入整张画面。</p>
+          </div>
+        </header>
+        <div class="overlay-address-grid">
+          <section class="overlay-address-item overlay-address-item-wide">
+            <div>
+              <strong class="ui-card-title">统一直播画布</strong>
+              <p>打开统一预览，添加组件并保存应用；之后复制整张画布的直播源地址。</p>
+            </div>
+            <code id="liveCanvasUrl" class="ui-caption">保存并应用画布后，点击复制获取完整地址</code>
+            <span class="overlay-address-actions">
+              <button type="button" id="copyLiveCanvasUrl">复制统一地址</button>
+              <button type="button" id="liveCanvasPreview" class="secondary">打开统一预览</button>
+            </span>
+            <div><p id="liveCanvasSourceStatus" class="hint" role="status">浏览器源的宽高请设为画布分辨率。</p></div>
+          </section>
+        </div>
+        <p class="hint">只用单个组件时，直接复制下方对应地址即可，使用已保存样式，无需打开统一预览或调整参数。</p>
+      </section>
+
       <section class="overlay-address-group" aria-labelledby="musicOverlayGroupTitle">
         <header class="overlay-address-group-header">
           <div>
@@ -56,15 +80,24 @@
             <h3 id="interactiveOverlayGroupTitle" class="ui-section-title">直播互动</h3>
             <p>把弹幕、互动游戏和投票结果放进直播画面。</p>
           </div>
-          <span>4 个地址</span>
+          <span>5 个地址</span>
         </header>
         <div class="overlay-address-grid">
           <section class="overlay-address-item">
             <div>
+              <strong class="ui-card-title">弹幕姬 · 本机组件</strong>
+              <p>单独导入弹幕姬，使用该组件已保存的样式；保持 LIRA 运行。</p>
+            </div>
+            <code id="localDanmakuUrl" class="ui-caption"></code>
+            <button type="button" data-copy-url="localDanmakuUrl">复制</button>
+          </section>
+
+          <section class="overlay-address-item">
+            <div>
               <strong class="ui-card-title"
-                >弹幕姬
+                >弹幕姬 · 在线源
                 <lira-help
-                  >在「弹幕姬」中选择六种固定位置样式或两种全屏随机样式；先预览效果，再应用到直播画面，链接不变。</lira-help
+                  >在「弹幕姬」中选择样式并应用到直播画面，直播源地址保持不变。</lira-help
                 ></strong
               >
               <p>显示观众弹幕、头像和粉丝身份。使用在线链接，关闭 LIRA 后仍可显示。</p>

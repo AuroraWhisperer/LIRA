@@ -95,8 +95,9 @@ export function mountSceneEditorStage(host, { model, components, getSelection, s
         canvas.append(node);
         const controller = createSceneItemController(model, item.id, component.controller);
         const surface = mountComponentPreview(node, { ...component, controller,
-          onOpen: undefined, onClose: undefined, onEdit: undefined,
-          ...(item.type === 'overtime' ? { dataModes: undefined, startData: startSceneEditorOvertimeData } : {}),
+          onOpen: undefined, onClose: undefined, onEdit: undefined, bounds: undefined,
+          ...(item.type === 'overtime' ? { dataModes: undefined,
+            startData: component.startLayerData || (component.startActualData ? ({ emit }) => component.startActualData(emit) : startSceneEditorOvertimeData) } : {}),
           size: () => {
             const current = model.getDocument().items.find((value) => value.id === item.id) || item;
             return [current.width, current.height];
@@ -119,7 +120,7 @@ export function mountSceneEditorStage(host, { model, components, getSelection, s
       entry.host.style.zIndex = String(index + 1);
       entry.host.classList.toggle('is-locked', item.locked);
       entry.host.setAttribute('aria-label', `${item.name}${item.locked ? '（已锁定）' : ''}`);
-      entry.label.textContent = item.name;
+      entry.label.textContent = `${item.name} · ${Math.round(item.width)} × ${Math.round(item.height)} px`;
     }
     empty.hidden = document.items.some((item) => item.visible);
     fit();

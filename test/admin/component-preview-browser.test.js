@@ -1,0 +1,327 @@
+'use strict';
+
+const assert = require('node:assert/strict');
+const test = require('node:test');
+const { chromium } = require('playwright');
+const { startComponentPreviewServer } = require('../helpers/component-preview-server');
+const { DEFAULT_SETTINGS } = require('../../src/storage/settings-defaults');
+
+let browser;
+test.before(async () => { browser = await chromium.launch({ headless: true }); });
+test.after(async () => { await browser?.close(); });
+
+for (const component of ['clock', 'queue', 'danmaku', 'overtime']) {
+  test(`${component} opens a separate browser page and edits/saves through its original controller`, { timeout: 25000 }, async (t) => {
+    const fixture = await startComponentPreviewServer({ parentHtml: '<!doctype html><html><body></body></html>' });
+    const desktopContext = await browser.newContext();
+    const browserContext = await browser.newContext();
+    const desktop = await desktopContext.newPage();
+    const page = await browserContext.newPage();
+    const errors = [];
+    page.on('pageerror', error => errors.push(error.message));
+    desktop.on('pageerror', error => errors.push(error.message));
+    t.after(async () => {
+      await browserContext.close();
+      await desktopContext.close();
+      await fixture.close();
+      assert.deepEqual(errors, []);
+    });
+    // The synthetic desktop credential is attached only to the originating
+    // context. The external browser has neither preload nor admin credentials.
+    await desktop.route('**/api/component-preview', route => route.continue({
+      headers: { ...route.request().headers(), Authorization: `Bearer ${fixture.token}` },
+    }));
+    await desktop.goto(`${fixture.origin}/preview-test-host`);
+    await desktop.evaluate(async ({ component, settings }) => {
+      const { createComponentConfigController } = await import('/js/admin/component-config-controller.js');
+      const { openComponentPreview } = await import('/js/admin/component-preview-dialog.js');
+      const { setComponentPreviewPreparation } = await import('/js/admin/component-preview-registry.js');
+      const { clockConfigFromSettings } = await import('/js/shared/clock-settings.js');
+      const { queueConfigFromSettings } = await import('/js/admin/queue-theme-config.js');
+      const { createLayout } = await import('/js/shared/danmaku-layout.js');
+      const { normalizeStyleOptions } = await import('/js/shared/danmaku-style-options.js');
+      const configs = { clock: clockConfigFromSettings(settings), queue: queueConfigFromSettings(settings),
+        danmaku: { style: 'signal', fullscreenDurationSeconds: 6, styleOptions: normalizeStyleOptions({}), layout: createLayout() },
+        overtime: { path: '', fit: 'cover' } };
+      window.writes = [];
+      window.failSave = false;
+      window.open = (url) => { window.externalPreviewUrl = url; };
+      window.controller = createComponentConfigController({ initial: configs[component], persist: async (draft) => {
+        if (window.failSave) throw new Error('模拟保存失败');
+        window.writes.push(structuredClone(draft));
+        return draft;
+      } });
+      window.canvasWrites = [];
+      window.canvasController = createComponentConfigController({ initial: { document: {
+        schemaVersion: 1, id: crypto.randomUUID(), title: '公共画布', canvas: { width: 1920, height: 1080 }, items: [],
+      } }, persist: async draft => { window.canvasWrites.push(structuredClone(draft)); return draft; } });
+      setComponentPreviewPreparation(() => ({ id: 'canvas', controller: window.canvasController,
+        async publish() {
+          for (const controller of [window.controller, window.canvasController]) {
+            if (controller.getState().dirty && !await controller.save()) throw new Error(controller.getState().error);
+          }
+          return { publishedVersion: 1 };
+        } }));
+      window.previewOptions = { id: component, controller: window.controller,
+        startActualData: component === 'overtime' ? (emit) => {
+          emit({ revision: 1, status: 'paused', effectiveRemainingMs: 60000, serverNowMs: Date.now(), rules: [] });
+          return () => {};
+        } : undefined };
+      window.reopen = () => { window.handle = openComponentPreview(window.previewOptions); };
+      window.reopen();
+    }, { component, settings: DEFAULT_SETTINGS });
+    await desktop.waitForFunction(() => window.externalPreviewUrl);
+    const url = await desktop.evaluate(() => window.externalPreviewUrl);
+    assert.equal(new URL(url).pathname, '/component-preview');
+    assert.equal(new URL(url).searchParams.get('component'), component);
+    assert.equal(await desktop.locator('dialog').count(), 0);
+    const response = await fetch(url);
+    assert.equal(response.status, 200);
+    await page.goto(url);
+    await page.locator('.component-preview-frame').waitFor();
+    await page.waitForFunction(() => document.querySelector('.component-preview-load-state')?.hidden);
+    assert.equal(await page.evaluate(() => Boolean(window.liraLicense || window.__API_TOKEN__)), false);
+    const dimensions = page.locator('.scene-editor-item-label');
+    const initialSize = { clock: '580 × 210 px', queue: '480 × 800 px', danmaku: '560 × 600 px', overtime: '640 × 480 px' };
+    assert.ok((await dimensions.textContent()).endsWith(initialSize[component]));
+    assert.equal(await dimensions.isVisible(), true);
+    const labelHeight = await dimensions.evaluate(node => node.getBoundingClientRect().height);
+    await page.getByRole('button', { name: '画布设置', exact: true }).click();
+    await dimensions.waitFor({ state: 'hidden' });
+    await page.locator('.preview-canvas-layer-select').click();
+    const key = component === 'clock' ? 'label' : component === 'queue' ? 'overlayQueueStyle' : component === 'danmaku' ? 'style' : 'fit';
+    const expected = component === 'clock' ? '网页修改' : component === 'queue' ? 'storybook' : component === 'danmaku' ? 'cream' : 'contain';
+    if (component === 'clock') await page.locator('[data-preview-field="clockCustomLabel"]').fill(expected);
+    if (component === 'queue') await page.locator('[data-overlay-style="storybook"]').click();
+    if (component === 'danmaku') await page.locator('[data-danmaku-style="cream"]').click();
+    if (component === 'overtime') await page.locator('[data-preview-field="overtimeBackgroundFit"]').selectOption(expected, { force: true });
+    await desktop.waitForFunction(({ key, expected }) => window.controller.getState().draft[key] === expected, { key, expected });
+    assert.equal(await desktop.evaluate(() => window.writes.length), 0);
+    if (component === 'danmaku') {
+      assert.equal(await page.getByRole('spinbutton', { name: '画布宽度', exact: true }).count(), 0);
+      for (const [name, value] of [['宽度', '720'], ['高度', '240']]) {
+        await page.getByRole('spinbutton', { name, exact: true }).fill(value);
+        await page.getByRole('spinbutton', { name, exact: true }).press('Tab');
+        await desktop.waitForFunction(({ name, value }) => window.canvasController.getState().draft.document.items[0][
+          name === '宽度' ? 'width' : 'height'] === Number(value), { name, value });
+      }
+      await page.waitForFunction(() => document.querySelector('.scene-editor-item-label').textContent.endsWith('720 × 240 px'));
+      assert.equal(await dimensions.isVisible(), true);
+      assert.equal(await page.frameLocator('.component-preview-frame').locator('.selection-label').isVisible(), false);
+      assert.deepEqual(await desktop.evaluate(() => window.canvasController.getState().draft.document.canvas), { width: 1920, height: 1080 });
+      await page.getByRole('button', { name: '画布设置', exact: true }).click();
+      await page.getByRole('button', { name: '公共画布分辨率', exact: true }).click();
+      await page.getByRole('option', { name: '1280 × 720', exact: true }).click();
+      await page.locator('.preview-canvas-layer-select').click();
+      await page.waitForFunction(() => document.querySelector('.scene-editor-item-label').textContent.endsWith('480 × 160 px'));
+      await page.setViewportSize({ width: 1000, height: 700 });
+      assert.ok(Math.abs(await dimensions.evaluate(node => node.getBoundingClientRect().height) - labelHeight) < 1);
+      for (const name of ['宽度', '高度']) {
+        await page.getByRole('spinbutton', { name, exact: true }).fill('64');
+        await page.getByRole('spinbutton', { name, exact: true }).press('Tab');
+        await desktop.waitForFunction((name) => window.canvasController.getState().draft.document.items[0][
+          name === '宽度' ? 'width' : 'height'] === 64, name);
+      }
+      await page.waitForFunction(() => document.querySelector('.scene-editor-item-label').textContent.endsWith('64 × 64 px'));
+      assert.equal(await dimensions.evaluate((node) => {
+        const badge = node.getBoundingClientRect();
+        const stage = node.closest('.scene-editor-canvas').getBoundingClientRect();
+        return badge.left >= stage.left && badge.top >= stage.top && badge.right <= stage.right && badge.bottom <= stage.bottom;
+      }), true);
+    }
+    if (component === 'clock') {
+      await desktop.evaluate(() => { window.failSave = true; });
+      await page.getByRole('button', { name: '保存并应用', exact: true }).click();
+      await page.getByRole('status').filter({ hasText: '模拟保存失败' }).waitFor();
+      assert.equal(await desktop.evaluate(() => window.controller.getState().dirty), true);
+      await desktop.evaluate(() => { window.failSave = false; });
+    }
+    await page.getByRole('button', { name: '保存并应用', exact: true }).click();
+    await desktop.waitForFunction(() => window.writes.length === 1);
+    await page.getByRole('status').filter({ hasText: '已保存并应用到直播源' }).waitFor();
+    assert.equal(await desktop.evaluate(key => window.writes[0][key], key), expected);
+    if (component === 'overtime') {
+      await page.getByRole('button', { name: '加班机展示数据', exact: true }).click();
+      await page.getByRole('option', { name: '示例 · 运行中', exact: true }).click();
+      await page.getByRole('button', { name: '演示加时 +1 分钟' }).click();
+      assert.equal(await desktop.evaluate(() => window.writes.length), 1);
+    }
+    await desktop.evaluate(() => window.handle.close());
+    await page.getByRole('status').filter({ hasText: '预览连接已结束' }).waitFor();
+    assert.equal(await page.getByRole('button', { name: '保存并应用', exact: true }).isDisabled(), true);
+    await desktop.evaluate(() => { window.externalPreviewUrl = ''; window.reopen(); });
+    await desktop.waitForFunction(() => window.externalPreviewUrl);
+    const reopened = await desktop.evaluate(() => window.externalPreviewUrl);
+    assert.notEqual(reopened, url);
+  });
+}
+
+test('shared canvas retains multiple layers, custom resolution and drafts, and drains every save on closure', { timeout: 45000 }, async (t) => {
+  const fixture = await startComponentPreviewServer({ parentHtml: '<!doctype html><html><body></body></html>' });
+  const desktopContext = await browser.newContext();
+  const browserContext = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+  const desktop = await desktopContext.newPage();
+  const page = await browserContext.newPage();
+  const errors = [];
+  let holdExchanges = false;
+  let heldExchanges = 0;
+  let onExchangesHeld;
+  let resumeExchanges;
+  const exchangesHeld = new Promise(resolve => { onExchangesHeld = resolve; });
+  const exchangesResumed = new Promise(resolve => { resumeExchanges = resolve; });
+  page.on('pageerror', error => errors.push(error.message));
+  desktop.on('pageerror', error => errors.push(error.message));
+  t.after(async () => {
+    resumeExchanges();
+    await browserContext.close();
+    await desktopContext.close();
+    await fixture.close();
+    assert.deepEqual(errors, []);
+  });
+  await desktop.route('**/api/component-preview', async route => {
+    if (holdExchanges && route.request().postDataJSON().action === 'exchange') {
+      if (++heldExchanges === 5) onExchangesHeld();
+      await exchangesResumed;
+    }
+    await route.continue({ headers: { ...route.request().headers(), Authorization: `Bearer ${fixture.token}` } });
+  });
+  await desktop.goto(`${fixture.origin}/preview-test-host`);
+  await desktop.evaluate(async settings => {
+    const { createComponentConfigController } = await import('/js/admin/component-config-controller.js');
+    const { openComponentPreview } = await import('/js/admin/component-preview-dialog.js');
+    const { registerComponentPreview, setComponentPreviewPreparation } = await import('/js/admin/component-preview-registry.js');
+    const { clockConfigFromSettings } = await import('/js/shared/clock-settings.js');
+    const { queueConfigFromSettings } = await import('/js/admin/queue-theme-config.js');
+    const { createLayout } = await import('/js/shared/danmaku-layout.js');
+    window.writes = [];
+    window.closedComponents = [];
+    window.controllers = {};
+    window.open = url => { window.externalPreviewUrl = url; };
+    const configs = { clock: clockConfigFromSettings(settings), queue: queueConfigFromSettings(settings),
+      danmaku: { style: 'signal', fullscreenDurationSeconds: 6, layout: createLayout() },
+      overtime: { path: '', fit: 'cover' },
+      canvas: { document: { schemaVersion: 1, id: crypto.randomUUID(), title: '共享画布',
+        canvas: { width: 1920, height: 1080 }, items: [] } } };
+    for (const [id, initial] of Object.entries(configs)) {
+      const controller = createComponentConfigController({ initial, persist: async draft => {
+        window.writes.push({ id, draft });
+        return draft;
+      } });
+      window.controllers[id] = controller;
+      const options = () => ({ id, controller, onClose: () => window.closedComponents.push(id),
+        async publish() {
+          for (const current of Object.values(window.controllers)) if (current.getState().dirty) await current.save();
+          return { publishedVersion: 1 };
+        } });
+      if (id === 'canvas') setComponentPreviewPreparation(options);
+      else registerComponentPreview(id, options);
+    }
+    window.reopen = () => openComponentPreview({ id: 'clock', controller: window.controllers.clock,
+      onClose: () => window.closedComponents.push('clock') });
+    window.reopen();
+  }, DEFAULT_SETTINGS);
+  await desktop.waitForFunction(() => window.externalPreviewUrl);
+  const url = await desktop.evaluate(() => window.externalPreviewUrl);
+  assert.equal((await fetch(url)).status, 200);
+  await page.goto(url);
+  await page.waitForFunction(() => document.querySelector('.component-preview-load-state')?.hidden);
+  const names = { clock: '萌时钟', queue: '点歌板', danmaku: '弹幕姬', overtime: '加班机' };
+  const add = async id => {
+    await page.getByRole('button', { name: '添加组件', exact: true }).click();
+    await page.locator(`[data-category="${id}"]`).click();
+    await page.locator('.preview-picker-style').first().click();
+  };
+  const choose = async id => {
+    const layer = page.locator('.preview-canvas-layer-select').filter({ hasText: `${names[id]} 1` });
+    if (await layer.count()) await layer.click();
+    else await add(id);
+  };
+  assert.equal(await page.locator('.component-preview-add').count(), 1);
+  await page.locator('[data-preview-field="clockCustomLabel"]').fill('切换后保留');
+  await choose('queue');
+  await page.locator('[data-overlay-style="storybook"]').click();
+  await choose('clock');
+  assert.equal(await page.locator('[data-preview-field="clockCustomLabel"]').inputValue(), '切换后保留');
+  await page.getByRole('button', { name: '保存并应用', exact: true }).click();
+  await desktop.waitForFunction(() => window.writes.length === 2);
+  assert.deepEqual(await desktop.evaluate(() => window.writes.map(write => write.id).sort()), ['canvas', 'clock']);
+  assert.equal(await desktop.evaluate(() => window.controllers.queue.getState().dirty), false);
+  await page.getByRole('button', { name: '锁定', exact: true }).click();
+  await page.getByRole('button', { name: '解锁', exact: true }).waitFor();
+  assert.equal(await page.getByRole('spinbutton', { name: '宽度', exact: true }).isDisabled(), true);
+  await page.getByRole('button', { name: '放弃未保存修改', exact: true }).click();
+  await page.getByRole('button', { name: '锁定', exact: true }).waitFor();
+  assert.equal(await page.getByRole('spinbutton', { name: '宽度', exact: true }).isEnabled(), true);
+  await page.getByRole('spinbutton', { name: '宽度', exact: true }).fill('581');
+  await page.getByRole('spinbutton', { name: '宽度', exact: true }).press('Tab');
+  await page.getByRole('button', { name: '居中', exact: true }).click();
+  assert.equal(await page.getByRole('spinbutton', { name: 'X', exact: true }).inputValue(), '670');
+  assert.equal(await page.getByRole('spinbutton', { name: 'X', exact: true }).evaluate(input => input.checkValidity()), true);
+  await page.getByRole('button', { name: '放弃未保存修改', exact: true }).click();
+  const added = new Set(['clock', 'queue']);
+  for (const id of ['danmaku', 'overtime', 'queue', 'clock', 'queue']) {
+    await choose(id);
+    added.add(id);
+    assert.equal(await page.locator('iframe').count(), added.size);
+    assert.equal(await page.locator('.scene-editor-parameters').count(), 1);
+  }
+  assert.equal(await page.locator('[data-overlay-style="storybook"]').evaluate(button => button.classList.contains('active')), true);
+  assert.deepEqual(await page.locator('.scene-editor-canvas').evaluate(node => [node.offsetWidth, node.offsetHeight]), [1920, 1080]);
+  await add('clock');
+  assert.equal(await page.locator('iframe').count(), 5);
+  for (const [name, value] of [['宽度', '610'], ['X', '100'], ['Y', '100']]) {
+    await page.getByRole('spinbutton', { name, exact: true }).fill(value);
+    await page.getByRole('spinbutton', { name, exact: true }).press('Tab');
+  }
+  const moving = page.locator('.scene-editor-item[aria-label="萌时钟 2"]');
+  const box = await moving.boundingBox();
+  await page.mouse.move(box.x + 12, box.y + 12);
+  await page.mouse.down(); await page.mouse.move(box.x + 52, box.y + 42, { steps: 8 }); await page.mouse.up();
+  await desktop.waitForFunction(() => window.controllers.canvas.getState().draft.document.items.at(-1).x !== 100);
+  assert.deepEqual(await page.locator('.scene-editor-canvas').evaluate(node => [node.offsetWidth, node.offsetHeight]), [1920, 1080]);
+  await page.getByRole('button', { name: '画布设置', exact: true }).click();
+  await page.getByRole('button', { name: '公共画布分辨率', exact: true }).click();
+  await page.getByRole('option', { name: '2560 × 1440', exact: true }).click();
+  for (const [name, value] of [['画布宽度', '2000'], ['画布高度', '1200']]) {
+    await page.getByRole('spinbutton', { name, exact: true }).fill(value);
+    await page.getByRole('spinbutton', { name, exact: true }).press('Tab');
+  }
+  assert.deepEqual(await page.locator('.scene-editor-canvas').evaluate(node => [node.offsetWidth, node.offsetHeight]), [2000, 1200]);
+  await page.getByRole('button', { name: '保存并应用', exact: true }).click();
+  await desktop.waitForFunction(() => window.writes.length === 3);
+  assert.equal(await desktop.evaluate(() => window.writes.at(-1).id), 'canvas');
+  await page.goto('about:blank');
+  await desktop.waitForFunction(() => window.closedComponents.length === 5);
+  assert.deepEqual(await desktop.evaluate(() => window.closedComponents.sort()), ['canvas', 'clock', 'danmaku', 'overtime', 'queue']);
+  await desktop.evaluate(() => { window.externalPreviewUrl = ''; window.reopen(); });
+  await desktop.waitForFunction(() => window.externalPreviewUrl);
+  await page.goto(await desktop.evaluate(() => window.externalPreviewUrl));
+  await page.locator('[data-preview-field="clockCustomLabel"]').waitFor();
+  assert.equal(await page.locator('[data-preview-field="clockCustomLabel"]').inputValue(), '切换后保留');
+  assert.equal(await page.locator('iframe').count(), 5);
+  assert.deepEqual(await page.locator('.scene-editor-canvas').evaluate(node => [node.offsetWidth, node.offsetHeight]), [2000, 1200]);
+
+  // Accepted commands for every component must drain even when the browser closes first.
+  await page.locator('[data-preview-field="clockCustomLabel"]').fill('关闭后也保存');
+  await choose('queue');
+  await page.locator('[data-overlay-style="storybook"]').waitFor();
+  await page.locator('[data-overlay-style="classic"]').click();
+  await desktop.waitForFunction(() => window.controllers.clock.getState().draft.label === '关闭后也保存'
+    && window.controllers.canvas.getState().draft.document.items.find(item => item.type === 'queue').appearance.config.overlayQueueStyle === 'classic');
+  holdExchanges = true;
+  await exchangesHeld;
+  const closingUrl = new URL(await desktop.evaluate(() => window.externalPreviewUrl));
+  const capabilities = new URLSearchParams(closingUrl.hash.slice(1));
+  const sessions = [{ id: capabilities.get('id'), token: capabilities.get('token') },
+    ...JSON.parse(capabilities.get('components')), JSON.parse(capabilities.get('canvas'))];
+  const canvasSession = JSON.parse(capabilities.get('canvas'));
+  assert.equal((await fixture.post({ action: 'publish', id: canvasSession.id }, canvasSession.token)).status, 200);
+  for (const session of sessions) {
+    assert.equal((await fixture.post({ action: 'close', id: session.id }, session.token)).status, 200);
+  }
+  await page.goto('about:blank');
+  resumeExchanges();
+  await desktop.waitForFunction(() => window.closedComponents.length === 10 && window.writes.length === 5);
+  assert.deepEqual(await desktop.evaluate(() => window.writes.slice(3).map(write => write.id).sort()), ['canvas', 'clock']);
+  assert.equal(await desktop.evaluate(() => window.controllers.clock.getState().saved.label), '关闭后也保存');
+});

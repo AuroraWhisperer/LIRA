@@ -6,7 +6,7 @@ export function previewElement(tag, className, text) {
 }
 
 export function mountComponentPreview(host, { title, controller, url, projectConfig = (draft) => draft,
-  size, onEdit, dataLabel = '示例数据 · 不影响直播', dataModes, startData, onOpen, onClose }) {
+  size, bounds, onEdit, dataLabel = '示例数据 · 不影响直播', dataModes, startData, onOpen, onClose }) {
   onOpen?.();
   const display = previewElement('section', 'component-preview-display');
   const toolbar = previewElement('div', 'component-preview-toolbar');
@@ -27,13 +27,15 @@ export function mountComponentPreview(host, { title, controller, url, projectCon
   frame.title = `${title}展示预览`;
   frame.setAttribute('sandbox', 'allow-scripts');
   const output = previewElement('p', 'component-preview-output');
+  const dimensions = previewElement('span', 'component-preview-dimensions');
   const loadState = previewElement('p', 'component-preview-load-state', '正在加载预览…');
   loadState.setAttribute('role', 'status');
-  stage.append(frame, loadState);
+  stage.append(frame, dimensions, loadState);
   display.append(toolbar, stage, output);
   host.append(display);
   let closed = false;
   let ready = false;
+  let focusTimer = 0;
   let dataGeneration = 0;
   let stopData = null;
   let mode = dataModes?.[0]?.value;
@@ -41,16 +43,39 @@ export function mountComponentPreview(host, { title, controller, url, projectCon
     if (!closed) frame.contentWindow?.postMessage({ type: `component-preview:${type}`, ...values }, '*');
   };
   function fit() {
-    const [width, height] = size(controller.getState().draft);
+    const state = controller.getState();
+    const [width, height] = size(state.draft);
     const scale = Math.min(stage.clientWidth / width, stage.clientHeight / height, 1);
     frame.style.width = `${width}px`;
     frame.style.height = `${height}px`;
     frame.style.transform = `scale(${scale})`;
     output.textContent = `输出视口 ${width} × ${height} · 适应窗口 ${Math.round(scale * 100)}%`;
+    const region = bounds?.(state.draft) || { x: 0, y: 0, width, height };
+    dimensions.textContent = `${region.width} × ${region.height} px`;
+    dimensions.setAttribute('aria-label', `${title}尺寸：宽 ${region.width} 像素，高 ${region.height} 像素`);
+    dimensions.hidden = !ready || !state.loaded;
+    const labelWidth = dimensions.offsetWidth;
+    const labelHeight = dimensions.offsetHeight;
+    const frameRect = frame.getBoundingClientRect();
+    const stageRect = stage.getBoundingClientRect();
+    const offsetX = frameRect.left - stageRect.left;
+    const offsetY = frameRect.top - stageRect.top;
+    const inside = region.width * scale >= labelWidth + 16 && region.height * scale >= labelHeight + 16;
+    let top = offsetY + region.y * scale + (inside ? 8 : -labelHeight - 6);
+    if (top < 8) top = offsetY + (region.y + region.height) * scale + 6;
+    const left = offsetX + (region.x + region.width) * scale - labelWidth - (inside ? 8 : 0);
+    dimensions.style.left = `${Math.max(8, Math.min(left, stage.clientWidth - labelWidth - 8))}px`;
+    dimensions.style.top = `${Math.max(8, Math.min(top, stage.clientHeight - labelHeight - 8))}px`;
   }
   function update(state) {
     if (ready) send('config', { config: projectConfig(state.draft), editable: state.loaded });
     fit();
+  }
+  function trackFrameFocus() {
+    window.clearTimeout(focusTimer);
+    focusTimer = window.setTimeout(() => {
+      display.classList.toggle('is-editing', document.activeElement === frame);
+    }, 0);
   }
   function beginData() {
     stopData?.();
@@ -82,6 +107,7 @@ export function mountComponentPreview(host, { title, controller, url, projectCon
       ready = true;
       window.clearTimeout(loadTimer);
       loadState.hidden = true;
+      fit();
       const state = controller.getState();
       send('init', { config: projectConfig(state.draft), editable: state.loaded });
       beginData();
@@ -99,6 +125,8 @@ export function mountComponentPreview(host, { title, controller, url, projectCon
     if (!ready && !closed) loadState.textContent = '预览未能加载，请关闭后重试。';
   }, 12000);
   background.addEventListener('change', () => { stage.dataset.background = background.value; });
+  window.addEventListener('focus', trackFrameFocus);
+  window.addEventListener('blur', trackFrameFocus);
   window.addEventListener('message', receive);
   frame.src = url;
   return { fit, dispose() {
@@ -110,6 +138,9 @@ export function mountComponentPreview(host, { title, controller, url, projectCon
     unsubscribe();
     observer.disconnect();
     window.clearTimeout(loadTimer);
+    window.clearTimeout(focusTimer);
+    window.removeEventListener('focus', trackFrameFocus);
+    window.removeEventListener('blur', trackFrameFocus);
     window.removeEventListener('message', receive);
     frame.remove();
     display.remove();

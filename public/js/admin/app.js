@@ -34,6 +34,9 @@ import { stateService } from './state.js';
 import { formsService } from './forms.js';
 import { initQueueForm } from './queue.js';
 import { createAdminStateRenderer } from './state-renderer.js';
+import { setComponentPreviewPreparation, getComponentPreviews } from './component-preview-registry.js';
+import { waitForServerOverlayUrlInitialization } from './server-overlay-url.js';
+import { prepareComponentPreviewCanvas } from './component-preview-canvas-controller.js';
 
 const toolbox = createToolboxLifecycle({
   loaders: {
@@ -105,39 +108,17 @@ async function initializeApp() {
   });
   settings.initBilibiliAuth();
   theme.initThemeForm();
-  document.getElementById('componentWorkspaceOpen')?.addEventListener('click', async (event) => {
-    const button = event.currentTarget;
-    button.disabled = true;
-    try {
-      const [clock, overtime, workspace] = await Promise.all([
-        import('./clock-card.js'), import('./overtime.js'), import('./component-workspace.js'),
-      ]);
-      clock.initClockCard();
-      overtime.initOvertime(stateService.getAppState());
-      danmakuTool.init({ toast: Utils.toast, reconnectBilibili: settings.reconnectBilibili });
-      workspace.openComponentWorkspace();
-    } catch (error) {
-      Utils.showError(error);
-    } finally {
-      button.disabled = false;
-    }
+  setComponentPreviewPreparation(async () => {
+    danmakuTool.init({ toast: Utils.toast, reconnectBilibili: settings.reconnectBilibili });
+    const [clock, overtime] = await Promise.all([import('./clock-card.js'), import('./overtime.js')]);
+    clock.initClockCard();
+    overtime.initOvertime(stateService.getAppState());
+    await waitForServerOverlayUrlInitialization();
+    return prepareComponentPreviewCanvas(getComponentPreviews());
   });
-  document.getElementById('sceneEditorOpen')?.addEventListener('click', async (event) => {
-    const button = event.currentTarget;
-    button.disabled = true;
-    try {
-      const [clock, overtime, editor] = await Promise.all([
-        import('./clock-card.js'), import('./overtime.js'), import('./scene-editor.js'),
-      ]);
-      clock.initClockCard();
-      overtime.initOvertime(stateService.getAppState());
-      danmakuTool.init({ toast: Utils.toast, reconnectBilibili: settings.reconnectBilibili });
-      editor.openSceneEditor();
-    } catch (error) {
-      Utils.showError(error);
-    } finally {
-      button.disabled = false;
-    }
+  document.getElementById('liveCanvasOpen')?.addEventListener('click', async () => {
+    const { openComponentPreview } = await import('./component-preview-dialog.js');
+    openComponentPreview();
   });
   display.initDisplayForm();
   display.initOverlayUrls();

@@ -1,7 +1,7 @@
 import { previewElement } from './component-preview-surface.js';
 import { createSceneItemController } from './scene-editor-state.js';
 
-export function mountSceneEditorInspector(host, { model, components, getSelection, report }) {
+export function mountSceneEditorInspector(host, { model, components, getSelection, report, embedded = false }) {
   let key = '';
   let panel = null;
   let stopDefault = null;
@@ -46,7 +46,7 @@ export function mountSceneEditorInspector(host, { model, components, getSelectio
     if (key !== nextKey) {
       key = nextKey;
       clear();
-      host.append(previewElement('h3', '', item ? '实例属性' : selected.length ? `已选择 ${selected.length} 个组件` : '选择组件'));
+      host.append(previewElement('h3', '', item ? (embedded ? `${item.name}参数` : '实例属性') : selected.length ? `已选择 ${selected.length} 个组件` : '选择组件'));
       if (!item) {
         host.append(previewElement('p', 'hint', selected.length
           ? '使用工具栏进行组合移动、对齐或图层操作。锁定的组件不会被移动或修改。'
@@ -56,7 +56,7 @@ export function mountSceneEditorInspector(host, { model, components, getSelectio
       const component = components.find((entry) => entry.id === item.type);
       const geometry = previewElement('fieldset', 'scene-editor-geometry');
       geometry.disabled = item.locked;
-      geometry.append(field('实例名称', 'name', 'text'));
+      geometry.append(field(embedded ? '组件名称' : '实例名称', 'name', 'text'));
       const grid = previewElement('div', 'component-preview-fields');
       for (const [label, property] of [['X', 'x'], ['Y', 'y'], ['宽度', 'width'], ['高度', 'height']]) grid.append(field(label, property));
       geometry.append(grid);
@@ -77,9 +77,9 @@ export function mountSceneEditorInspector(host, { model, components, getSelectio
       parameters.disabled = item.locked;
       const controller = item.appearance.mode === 'shared' ? component.controller
         : createSceneItemController(model, item.id, component.controller);
-      host.append(geometry, target, mode, parameters);
+      host.append(geometry, target, ...(embedded ? [] : [mode]), parameters);
       panel = component.createPanel(parameters, controller);
-      if (item.appearance.mode === 'shared') {
+      if (item.appearance.mode === 'shared' && !embedded) {
         saveDefault = previewElement('button', 'secondary', '单独保存组件默认配置');
         const discardDefault = previewElement('button', 'secondary', '放弃默认配置修改');
         saveDefault.type = 'button';
@@ -104,6 +104,7 @@ export function mountSceneEditorInspector(host, { model, components, getSelectio
       }
     }
     if (!item) return;
+    if (embedded) host.firstElementChild.textContent = `${item.name}参数`;
     for (const [property, input] of Object.entries(fields)) {
       if (input.value !== String(item[property])) input.value = String(item[property]);
     }
@@ -112,7 +113,7 @@ export function mountSceneEditorInspector(host, { model, components, getSelectio
     fields.y.max = String(canvas.height - item.height);
     fields.width.max = String(canvas.width - item.x);
     fields.height.max = String(canvas.height - item.y);
-    target.textContent = item.appearance.mode === 'shared'
+    target.textContent = embedded ? (item.appearance.mode === 'shared' ? '样式与客户端的同类组件共用；位置和尺寸仅属于此图层。' : '样式、位置和尺寸仅属于此图层。') : item.appearance.mode === 'shared'
       ? '编辑目标：当前组件默认配置。更改会影响其他共享此默认配置的入口；场景发布时固定外观。'
       : '编辑目标：仅此场景实例。更改随场景草稿保存。';
     mode.textContent = item.appearance.mode === 'shared' ? '复制当前外观为独立配置' : '改用组件默认配置';

@@ -1,4 +1,4 @@
-import { value, setValue, localOverlayOrigin } from '../shared/utils.js';
+import { value, setValue } from '../shared/utils.js';
 import { formsService } from './forms.js';
 import { stateService } from './state.js';
 import { applyAdminQueueFontPreview } from './queue.js';
@@ -14,7 +14,7 @@ import { registerComponentSettings } from './component-settings-sync.js';
 import { saveComponentSettings } from './component-settings-save.js';
 import { openComponentPreview } from './component-preview-dialog.js';
 import { registerComponentPreview } from './component-preview-registry.js';
-import { cloneComponentPanel, componentField } from './component-preview-panel.js';
+import { createQueuePreview } from './queue-preview.js';
 import { bindQueueTheme } from './queue-theme-view.js';
 import { collectQueueTheme, queueConfigFromSettings, queueSettingsPayload, pickQueueSettings } from './queue-theme-config.js';
 
@@ -36,27 +36,9 @@ export const theme = (() => {
     bindQueueTheme(form, controller);
     controller.subscribe(({ draft }) => applyAdminQueueFontPreview(draft));
     registerComponentSettings('queue', controller, queueConfigFromSettings, pickQueueSettings);
-    function createQueuePreview() {
-      return { id: 'queue', title: '点歌板', controller,
-        url: new URL('/queue?componentPreview=1', localOverlayOrigin()).href,
-        size: () => [480, 800], projectConfig: pickQueueSettings,
-        createPanel: (host, targetController = controller) => {
-          const panel = cloneComponentPanel(form, 'preview-queue');
-          componentField(panel, 'queueThemeActions').remove();
-          componentField(panel, 'queueThemeSaveState').remove();
-          host.append(panel);
-          return bindQueueTheme(panel, targetController);
-        },
-        startData: ({ emit }) => {
-          emit({ queue: { current: { song_name: '当前演唱 · 示例歌曲', requester_name: '示例观众' },
-            waiting: Array.from({ length: 12 }, (_, index) => ({ song_name: `待唱歌曲 ${index + 1}`,
-              requester_name: `示例观众 ${index + 1}`, is_pinned: index === 0 })) },
-            superChats: [{ message: '这是一条示例留言', price: 30 }] });
-        },
-      };
-    }
-    registerComponentPreview('queue', createQueuePreview);
-    document.getElementById('queueThemePreview').addEventListener('click', () => openComponentPreview(createQueuePreview()));
+    const getQueuePreview = () => createQueuePreview({ controller });
+    registerComponentPreview('queue', getQueuePreview);
+    document.getElementById('queueThemePreview').addEventListener('click', () => openComponentPreview(getQueuePreview()));
     return controller;
   }
 

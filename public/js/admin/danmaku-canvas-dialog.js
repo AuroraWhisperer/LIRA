@@ -15,21 +15,30 @@ export function applyDanmakuRegionEdit(controller, change) {
   } catch { return; }
 }
 
-function createPanel(host, controller) {
+function createPanel(host, controller, source, embedded) {
   const choices = document.createElement('div');
   choices.className = 'danmaku-style-options';
-  for (const original of document.querySelectorAll('[data-danmaku-style]')) {
+  for (const original of source.querySelectorAll('[data-danmaku-style]')) {
     const button = original.cloneNode(true);
     button.addEventListener('click', () => {
       controller.edit({ style: button.dataset.danmakuStyle });
     });
     choices.append(button);
   }
-  const parameters = cloneComponentPanel(document.querySelector('.danmaku-parameters'), 'preview-danmaku');
+  const parameters = cloneComponentPanel(source.querySelector('.danmaku-parameters'), 'preview-danmaku');
   const error = document.createElement('p');
   error.setAttribute('role', 'status');
   host.append(choices, parameters, error);
   const parameterView = bindDanmakuParameters(parameters, controller, (message) => { error.textContent = message; });
+  if (embedded) {
+    const stop = controller.subscribe(({ draft, loaded }) => {
+      for (const button of choices.querySelectorAll('button')) {
+        button.disabled = !loaded;
+        button.setAttribute('aria-pressed', String(button.dataset.danmakuStyle === draft.style));
+      }
+    });
+    return { dispose() { stop(); parameterView.dispose(); } };
+  }
   const heading = document.createElement('h3');
   heading.textContent = '直播画布与弹幕区域';
   const fields = document.createElement('div');
@@ -123,12 +132,13 @@ function createPanel(host, controller) {
   return { dispose() { unsubscribe(); parameterView.dispose(); } };
 }
 
-export function createDanmakuPreview({ controller }) {
+export function createDanmakuPreview({ controller, source = document, embedded = false }) {
   return { id: 'danmaku', title: '弹幕姬', controller,
-    url: new URL('/danmaku?preview=1&componentPreview=1', localOverlayOrigin()).href,
-    createPanel: (host, targetController = controller) => createPanel(host, targetController),
+    url: new URL(`/danmaku?preview=1&componentPreview=1${embedded ? '&componentLayer=1' : ''}`, localOverlayOrigin()).href,
+    createPanel: (host, targetController = controller) => createPanel(host, targetController, source, embedded),
     projectConfig: (draft) => ({ ...draft, ...(Object.hasOwn(draft, 'layout') ? { layout: draft.layout || createLayout() } : {}) }),
     size: (draft) => { const canvas = (draft.layout || createLayout()).canvas; return [canvas.width, canvas.height]; },
+    bounds: (draft) => (draft.layout || createLayout()).regions[draft.style],
     onEdit: (change) => applyDanmakuRegionEdit(controller, change),
   };
 }

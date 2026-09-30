@@ -19,6 +19,7 @@ import { renderPresetCards } from './theme-preset-cards.js';
 import { updateBlindboxOverlayUrl } from './settings.js';
 import { publishDisplay } from './legacy-admin-bridge.js';
 import { observeServerOverlayUrl } from './server-overlay-url.js';
+import { initCanvasOverlaySource } from './canvas-overlay-source.js';
 
 export const display = (() => {
   const { songBoardThemePresets, songBoardPresetLabels, songBoardPresetSwatches } = theme;
@@ -168,6 +169,8 @@ export const display = (() => {
 
   function initOverlayUrls() {
     const origin = localOverlayOrigin(location);
+    initCanvasOverlaySource();
+    document.getElementById('localDanmakuUrl').textContent = `${origin}/danmaku?source=component`;
     document.getElementById('queueUrl').textContent = `${origin}/queue`;
     document.getElementById('songsUrl').textContent = `${origin}/songlist`;
     document.getElementById('lyricsUrl').textContent = `${origin}/lyrics`;

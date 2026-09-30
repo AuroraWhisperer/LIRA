@@ -1,12 +1,11 @@
+const { CANVAS_PRESETS } = require('./canvas-presets');
+
 // Display contract mirrored by the desktop main process and the server.
 const REGION_DEFAULTS = Object.freeze({
   bubble: [380, 560], signal: [560, 600], minimal: [380, 540],
   ranked: [640, 640], transparent: [520, 540], identity: [640, 560],
   outline: null, cream: null, glow: null,
 });
-const CANVAS_PRESETS = Object.freeze([
-  [1280, 720], [1920, 1080], [2560, 1440], [3840, 2160], [1080, 1920],
-]);
 
 function fitRegion(region, canvas) {
   const width = Math.min(canvas.width, Math.max(64, Math.round(region.width)));

@@ -73,7 +73,7 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
       frame.style.top = `${item.y}px`;
       frame.style.width = `${item.width}px`;
       frame.style.height = `${item.height}px`;
-      frame.src = `/${item.type}?componentPreview=1&sceneComponent=1${item.type === 'danmaku' ? '&preview=1' : ''}`;
+      frame.src = `/${item.type}?componentPreview=1&sceneComponent=1${item.type === 'danmaku' ? '&preview=1&componentLayer=1' : ''}`;
       root.append(frame);
       entries.push({ item, frame, ready: false, prepared: false });
     }

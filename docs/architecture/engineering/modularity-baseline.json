@@ -34,9 +34,9 @@
     {
       "path": "src/server.js",
       "kind": "review",
-      "maxLines": 749,
+      "maxLines": 751,
       "owner": "服务组合入口",
-      "reason": "2026-09-16 快照接线复核：getState 通过 domainServices.songs.getMetadata 复用歌曲元数据，只新增一行组合接线；缓存与失效机制位于 song-metadata/SongStore，入口不持有缓存策略。 2026-09-18 集成门禁逐块复核：新增一行播放页面代次 callback，版本状态仍归 PlaybackStore；并行礼物导出的查询、配置和来源通知已由 gift-export-runtime 持有，入口只导入并组合，替换原 setActiveGiftSource 透传。没有新增领域状态，模块依赖及播放 bootstrap 回归保护接线。 2026-09-18 粉丝档案逐项复核：粉丝档案只增加 authenticated scope provider 的组合接线和 service 访问口；领域、SQL、日期与归档都在独立 owner。保持现有组合根，不为四行依赖透传引入额外层。fan-profiles-music 与 module-boundaries 保护。 云端日机器人新增只读 legacy reader facade getter，由 main 控制一次性接管；执行业务仍在独立模块。 2026-09-30 本地场景复核：净增六行仅装配 scene-runtime、传入 facade、接收投影和关闭引用；文档校验、版本发布及凭据校验在 scenes service，SQL 在 scene-store；scene-runtime、scene-http 与 scene-store 测试保护，不增加业务判断。",
+      "reason": "2026-09-16 快照接线复核：getState 通过 domainServices.songs.getMetadata 复用歌曲元数据，只新增一行组合接线；缓存与失效机制位于 song-metadata/SongStore，入口不持有缓存策略。 2026-09-18 集成门禁逐块复核：新增一行播放页面代次 callback，版本状态仍归 PlaybackStore；并行礼物导出的查询、配置和来源通知已由 gift-export-runtime 持有，入口只导入并组合，替换原 setActiveGiftSource 透传。没有新增领域状态，模块依赖及播放 bootstrap 回归保护接线。 2026-09-18 粉丝档案逐项复核：粉丝档案只增加 authenticated scope provider 的组合接线和 service 访问口；领域、SQL、日期与归档都在独立 owner。保持现有组合根，不为四行依赖透传引入额外层。fan-profiles-music 与 module-boundaries 保护。 云端日机器人新增只读 legacy reader facade getter，由 main 控制一次性接管；执行业务仍在独立模块。 2026-09-30 本地场景复核：净增六行仅装配 scene-runtime、传入 facade、接收投影和关闭引用；文档校验、版本发布及凭据校验在 scenes service，SQL 在 scene-store；scene-runtime、scene-http 与 scene-store 测试保护，不增加业务判断。 2026-09-30 网页预览修正复核：新增一行把现有授权归属回调传给 HTTP 会话，会话与命令状态由 component-preview-sessions 持有；入口不新增业务判断，component-preview transport 测试覆盖换账号失效。 2026-09-30 组件独立来源复核：净增一行只把 scene-runtime 的只读弹幕展示口接入 API context；配置和消息投影仍由既有 cloud-display-buffer 持有，未引入入口状态、分支或上游连接。scene-runtime 的真实 HTTP/账号隔离测试及 component-source 浏览器测试保护该接线。",
       "removal": "按资源阶段继续评估组合职责，避免领域模块反向依赖 server 入口。",
       "reviewBy": "2026-12-18",
       "test": "test/playback/playback-snapshot-bootstrap.test.js"

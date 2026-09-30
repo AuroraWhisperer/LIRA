@@ -15,6 +15,11 @@ async function run() {
   const { createDesktopRequestAuth } = require('../../src/electron/desktop-request-auth');
   const { configureMediaRequestHeaders } = require('../../src/electron/media-request-headers');
   const { registerLicenseIpc } = require('../../src/electron/ipc/license-ipc');
+  const { DatabaseSync } = require('node:sqlite');
+  const { migrateScenes } = require('../../src/storage/scene-migration');
+  const { createSceneStore } = require('../../src/storage/scene-store');
+  const { createSceneService } = require('../../src/scenes/scene-service');
+  const { createSceneComponentPorts } = require('../../src/server/scene-components');
   const directory = process.argv[2];
   if (!directory || !path.isAbsolute(directory)) throw new Error('An isolated absolute test directory is required.');
   fs.mkdirSync(directory, { recursive: true });
@@ -26,16 +31,29 @@ async function run() {
   const root = path.resolve(__dirname, '../..');
   let saved = { style: 'signal', fullscreenDurationSeconds: 6, styleOptions: {}, layout: null,
     overlayUrl: 'https://canvas.example.test/overlay/syntheticKey_123' };
-  global.canvasTest = { writes: [], attempts: 0, requests: [], failNext: false, saved: () => saved };
+  const db = new DatabaseSync(':memory:');
+  migrateScenes(db);
+  const scenes = createSceneService({ store: createSceneStore(db), getOwner: () => ({ scope: 'canvas-test', epoch: 1 }),
+    secretCodec: { isAvailable: () => true, encrypt: value => Buffer.from(value).toString('base64'),
+      decrypt: value => Buffer.from(value, 'base64').toString() },
+    ...createSceneComponentPorts({ getState: () => ({ settings: {} }), cloud: { getSettings: () => {
+      const { style, fullscreenDurationSeconds, styleOptions, layout } = saved;
+      return { style, fullscreenDurationSeconds, styleOptions, layout };
+    } } }) });
+  global.canvasTest = { writes: [], attempts: 0, requests: [], externalUrls: [], failNext: false,
+    saved: () => saved, scene: () => scenes.list()[0] };
   const server = createHttpServer({
     host: '127.0.0.1', startPort: 0, dataDir: directory, getPhase: () => 'ready',
     getStartedPort: () => server.address().port, isLicenseAuthorized: () => true,
     inflightTracker: { run: (fn) => fn() }, getSettings: () => ({}),
-    createApiContext: () => ({ sessionToken: token, settings: { get: () => ({}) }, system: { dataDir: directory } }),
+    createApiContext: () => ({ sessionToken: token, scenes, settings: { get: () => ({}) }, system: { dataDir: directory } }),
     servePageOrAsset(req, res, url) {
       if (url.pathname === '/js/admin/index.js') {
         res.setHeader('Content-Type', 'application/javascript');
         res.end(`import { initDanmakuOverlaySettings } from './danmaku-overlay-settings.js';
+          import { setComponentPreviewPreparation, getComponentPreviews } from './component-preview-registry.js';
+          import { prepareComponentPreviewCanvas } from './component-preview-canvas-controller.js';
+          import { waitForServerOverlayUrlInitialization } from './server-overlay-url.js';
           const panel = document.getElementById('otherDanmakuFeature');
           document.body.replaceChildren(panel); panel.hidden = false; panel.style.display = "block";
           document.body.style.cssText = 'display:block;overflow:auto;padding:24px';
@@ -44,7 +62,11 @@ async function run() {
             copyOverlayUrlButton:'danmakuCopyOverlayUrlBtn', openOverlayButton:'danmakuOpenOverlayBtn', previewOverlayButton:'danmakuPreviewOverlayBtn' };
           const elements = Object.fromEntries(Object.entries(ids).map(([key,id]) => [key,document.getElementById(id)]));
           elements.styleButtons = Array.from(document.querySelectorAll('[data-danmaku-style]'));
-          initDanmakuOverlaySettings(elements, () => {});`);
+          initDanmakuOverlaySettings(elements, () => {});
+          setComponentPreviewPreparation(async () => {
+            await waitForServerOverlayUrlInitialization();
+            return prepareComponentPreviewCanvas(getComponentPreviews());
+          });`);
         return;
       }
       if (url.pathname === '/js/playback.js') { res.setHeader('Content-Type', 'application/javascript'); res.end(''); return; }
@@ -63,7 +85,7 @@ async function run() {
   const auth = createDesktopRequestAuth({ desktopSession: session.defaultSession, getMainWindow: () => window,
     getBaseUrl: () => origin, getToken: () => token });
   configureMediaRequestHeaders(session.defaultSession, {}, auth);
-  auth.bindWindow(window, { openExternal() { throw new Error('Test must not open external applications.'); } });
+  auth.bindWindow(window, { openExternal(url) { global.canvasTest.externalUrls.push(url); } });
   registerLicenseIpc({ ipcMain, getMainWindow: () => window, getDesktopBaseUrl: () => origin,
     hasExactOrigin: (url, expected) => new URL(url).origin === expected,
     licenseManager: {
@@ -79,7 +101,7 @@ async function run() {
       },
     },
   });
-  app.once('before-quit', () => { auth.dispose(); server.closeAllConnections(); server.close(); });
+  app.once('before-quit', () => { auth.dispose(); server.closeAllConnections(); server.close(); db.close(); });
   app.on('window-all-closed', () => app.quit());
   await window.loadURL(`${origin}/admin`);
 }

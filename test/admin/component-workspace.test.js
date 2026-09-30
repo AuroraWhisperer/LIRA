@@ -62,7 +62,7 @@ async function workspaceFixture(t) {
   return page;
 }
 
-test('workspace shares drafts with a single editor and disposes all renderers when closed', async (t) => {
+test('workspace retains drafts for the browser launcher and disposes all renderers when closed', async (t) => {
   const page = await workspaceFixture(t);
   assert.equal(await page.locator('iframe').count(), 4);
   await page.getByRole('button', { name: /clock已保存配置/ }).click();
@@ -75,10 +75,11 @@ test('workspace shares drafts with a single editor and disposes all renderers wh
   assert.deepEqual(await page.evaluate(() => window.previewClosed.sort()), ['clock', 'danmaku', 'overtime', 'queue']);
   assert.deepEqual(await page.evaluate(() => window.dataStopped.sort()), ['clock', 'danmaku', 'overtime', 'queue']);
   await page.evaluate(() => window.openSingle('clock'));
-  assert.equal(await page.getByRole('spinbutton', { name: 'clock字号' }).inputValue(), '36');
-  await page.getByRole('button', { name: '保存并应用', exact: true }).click();
-  await page.waitForFunction(() => !window.controllers.clock.getState().dirty);
-  assert.deepEqual(await page.evaluate(() => window.writes), [{ id: 'clock', draft: { size: 36 } }]);
+  assert.equal(await page.locator('dialog[open]').count(), 0);
+  assert.equal(await page.locator('iframe').count(), 0);
+  assert.equal(await page.evaluate(() => window.pendingSaves[0].body.component), 'clock');
+  assert.equal(await page.evaluate(() => window.pendingSaves[0].body.state.draft.size), 36);
+  assert.deepEqual(await page.evaluate(() => window.writes), []);
   await page.evaluate(() => window.openWorkspace());
   assert.equal(await page.locator('dialog[open]').count(), 1);
   assert.equal(await page.locator('iframe').count(), 4);

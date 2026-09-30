@@ -58,5 +58,10 @@ test('Node and browser layout contracts stay identical', () => {
   const root = path.join(__dirname, '../..');
   const browser = fs.readFileSync(path.join(root, 'public/js/shared/danmaku-layout.js'), 'utf8');
   const node = fs.readFileSync(path.join(root, 'src/shared/danmaku-layout.js'), 'utf8');
-  assert.equal(node.replace(/\r\n/g, '\n'), browser.replace(/\r\n/g, '\n').replace(/export \{([^}]+)\};\s*$/, 'module.exports = {$1};\n'));
+  assert.equal(node.replace(/\r\n/g, '\n'), browser.replace(/\r\n/g, '\n')
+    .replace("import { CANVAS_PRESETS } from './canvas-presets.js';", "const { CANVAS_PRESETS } = require('./canvas-presets');")
+    .replace(/export \{([^}]+)\};\s*$/, 'module.exports = {$1};\n'));
+  const presets = fs.readFileSync(path.join(root, 'public/js/shared/canvas-presets.js'), 'utf8');
+  assert.equal(fs.readFileSync(path.join(root, 'src/shared/canvas-presets.js'), 'utf8').replace(/\r\n/g, '\n'),
+    `${presets.replace(/\r\n/g, '\n').replace('export const', 'const').trim()}\n\nmodule.exports = { CANVAS_PRESETS };\n`);
 });

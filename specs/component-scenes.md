@@ -4,6 +4,12 @@
 
 Implemented and verified. This specification defines P3 and local P4 of the user-approved component design. The output is a real local browser source for OBS and Bilibili Livehime. P2 remains a default-component tuning workspace; a scene is a separately owned document and publication target. Completion evidence is in [the archived implementation plan](plans/archive/2026-09-30-component-workspace.md).
 
+The 2026-09-30 browser editor reuses these scene documents for a common canvas. Resolution presets and custom dimensions are shared by every layer; new layers are centered and selection/style changes do not resize the canvas. The desktop loads the first existing scene or creates one using the loaded danmaku canvas dimensions when none exists. Direct entry starts empty on first use and restores saved layouts later; component preview entry selects or adds its component. One Add Component dialog groups existing styles by category and creates independent appearance snapshots, allowing different styles of one type to coexist. Component-entry layers retain shared defaults and their original save owners.
+
+The browser's Save and Apply waits for queued edits to be acknowledged, saves component owners and the bound scene, then publishes through the scene owner. Save failures, outstanding drafts and publication conflicts retain the previous live version. A canvas-only temporary capability grants bound publication and explicit source retrieval, never arbitrary scene management or rotation. Copy Live Source produces one persistent `127.0.0.1:<actual-port>/scene?id=…#token=…` address for the combined output; subsequent publication reuses it. The source capability is returned only on copy and never added to documents or templates.
+
+The desktop Browser Sources directory exposes that same bound source and a unified-preview launcher. Copying never publishes implicitly and clears its displayed credential when the account/source changes. Standalone component sources remain usable without creating or publishing a scene: `/clock`, `/queue`, `/overtime` and `/danmaku?source=component`. The latter reads the existing scoped cloud display buffer and saved default appearance through the danmaku-only display API; the legacy `/danmaku` path and online source remain compatible. Output pages use live data, a transparent canvas and no editor session; closing the editor does not interrupt output. Setup and dimensions are specified in [the component guide](../docs/guides/component-sources.md).
+
 ## Ownership And Compatibility
 
 - Scene service owns scene draft, publication, capability and bounded display-event buffer. Store owns SQLite transactions in existing songDb, through an appended migration. No new database process or framework.
@@ -17,7 +23,7 @@ Version 1 contains a scene ID, title, canvas width/height and ordered items. Eac
 
 Appearance target is either shared default or scene-independent configuration. The editor labels this target explicitly. Shared edits use the existing default controller and its separate save action; independent edits belong to the scene draft. Switching to independent takes an explicit current appearance copy.
 
-The complete publish action explicitly freezes every item's effective appearance, including shared defaults, into the published version. Later default changes affect references in the editor but require another scene publication to alter the complete output. The UI calls this “发布整套（固定当前外观）”, never claims live shared defaults are atomically versioned.
+The complete publish action explicitly freezes every item's effective appearance, including shared defaults, into the published version. Later default changes affect references in the editor but require another scene publication to alter the complete output. The legacy scene editor calls this “发布整套（固定当前外观）”; the browser canvas uses “保存并应用” after saving the affected owners. Neither claims live shared defaults are atomically versioned.
 
 The editor requires referenced shared defaults to be loaded and saved before publication. It sends their appearance snapshots for equality checking against the owner's normalized defaults. A delayed cloud appearance update or concurrent default change rejects the publication without replacing the previous version; it never silently publishes an older cached appearance.
 

@@ -1,6 +1,6 @@
 # 直播画面悬浮层(overlays/)
 
-直播平台为 B 站；OBS 与哔哩哔哩直播姬均通过浏览器源 / 网页来源使用这些画面。文中的 overlay 指通用直播展示页。本机画面使用 `127.0.0.1`，要求与 LIRA 同机并保持客户端运行；正式服务器弹幕姬使用服务器返回的完整 HTTPS 地址，依赖服务器的 B 站连接，关闭客户端后仍可展示。本机 `/danmaku?preview=1` 是编辑预览，不替代正式服务器地址。
+直播平台为 B 站；OBS 与哔哩哔哩直播姬均通过浏览器源 / 网页来源使用这些画面。文中的 overlay 指通用直播展示页。本机画面使用 `127.0.0.1`，要求与 LIRA 同机并保持客户端运行；既可用统一画布的一个来源，也可直接导入独立组件。在线弹幕姬使用服务器返回的完整 HTTPS 地址，关闭客户端后仍可展示。本机 `/danmaku?source=component` 是独立组件来源，`/danmaku?preview=1` 是示例预览；完整操作见 [组件与浏览器源指南](../../guides/component-sources.md)。
 
 > 涉及文件:[pages/overlays/queue.html](../../../public/pages/overlays/queue.html)、[pages/overlays/songs.html](../../../public/pages/overlays/songs.html)、[pages/overlays/blindbox.html](../../../public/pages/overlays/blindbox.html)、[pages/overlays/overtime.html](../../../public/pages/overlays/overtime.html)、[pages/overlays/lyric-window.html](../../../public/pages/overlays/lyric-window.html)、[pages/overlays/opening.html](../../../public/pages/overlays/opening.html)、[js/overlays/](../../../public/js/overlays)、[css/overlays/](../../../public/css/overlays)
 
@@ -258,9 +258,9 @@ HTTP 初始/重连请求带本页读取代次，较新的完整 WS 状态使旧�
 
 桌面工具和直播画面地址使用服务器认证响应提供的完整 `/overlay/<token>` 链接。`server-overlay-url.js` 处理账号与授权状态；`danmaku-overlay-settings.js` 通过原受限IPC读取/保存展示配置，编辑仅为草稿，迟到回包不覆盖新编辑或新账号。
 
-“预览与调整”由 `admin/danmaku-canvas-dialog.js` 接入公共窗口，在管理页 dialog 内打开本机 `/danmaku?preview=1&componentPreview=1`。frame 保留 `sandbox allow-scripts`、opaque origin，不能访问父页凭据/preload；精确 source/origin 校验后，区域编辑意图只合并到父控制器当前布局，保存仍经主进程 IPC。关闭销毁 frame 和消息监听但保留草稿；账号切换使草稿及迟到保存响应失效。独立浏览器预览不能保存；旧服务器缺 layout 字段时提示更新。失败保留草稿。OBS / 直播姬等网页来源继续使用原服务器链接，关闭客户端不影响接收。
+“预览与调整”由 `admin/danmaku-canvas-dialog.js` 提供组件描述，经 `component-preview-dialog.js` 打开系统浏览器中的统一画布。其 `/danmaku?preview=1&componentPreview=1` 子 frame 保留 `sandbox allow-scripts`、opaque origin，不能访问父页凭据/preload；网页修改经临时组件会话返回客户端原控制器，保存仍经主进程 IPC。关闭销毁 frame 和消息监听但保留共享草稿；账号切换使旧会话及迟到保存响应失效。旧服务器缺 layout 字段时提示更新。独立导入可选本机组件源或原在线源；在线源在关闭客户端后仍可接收。
 
-预览左侧设置、右侧等比画布，提供1280×720、1920×1080默认、2560×1440、3840×2160、1080×1920及自定义（320～7680整数）。`shared/danmaku-layout.js` 定义 `{canvas,contentScale,regions}` 及边界验证，与main和服务器镜像保持一致。九种样式各自记忆 `{x,y,width,height}`；六种固定默认距左/下40，尺寸依次为bubble380×560、signal560×600、minimal380×540、ranked640×640、transparent520×540、identity640×560；outline/cream/glow默认铺满，称“区域随机”。区域支持拖动、八方向缩放、方向键/Shift微调、数值输入、居中/铺满/恢复当前默认。区域至少64×64且不能超出画布。
+独立弹幕的布局契约由 `shared/danmaku-layout.js` 定义为 `{canvas,contentScale,regions}`，与 main 和服务器镜像保持一致；公共分辨率预设由 `shared/canvas-presets.js` 提供1280×720、1920×1080默认、2560×1440、3840×2160、1080×1920及自定义（320～7680整数）。九种样式各自记忆 `{x,y,width,height}`；六种固定默认距左/下40，尺寸依次为bubble380×560、signal560×600、minimal380×540、ranked640×640、transparent520×540、identity640×560；outline/cream/glow默认铺满，称“区域随机”。独立弹幕区域至少64×64且不能超出其画布；统一编辑器的三栏布局及公共图层操作见下方组件系统说明。
 
 拖拽改变容纳范围而不拉伸字体。同比改分辨率会同比改变区域和contentScale；换宽高比保留字号，未调整的默认区域继续靠左下，自定义区域收敛到新边界，原铺满区域继续铺满。styleOptions保存逻辑字号，编辑器显示乘contentScale后的画布字号。`overlays/danmaku-canvas.js` 与服务器使用同一CSS变量/坐标规则，正式页等比居中、透明且不含选框。网页来源尺寸与画布一致即可精确还原位置。旧配置layout:null继续使用原来源窗口布局，旧PUT省略layout不清除已保存画布，首次显式应用编辑器才启用新画布。
 
@@ -351,9 +351,9 @@ HTTP 初始/重连请求带本页读取代次，较新的完整 WS 状态使旧�
 - 正式来源使用 `createOverlaySocket()` 接收 clock scope 的八个展示设置键；重连回读配置，
   晚到 HTTP 不覆盖新快照。旧 URL 显式参数逐字段覆盖保存设置；配置更新复用同一个计时器。
 
-### 6.4 公共组件预览与双入口保存
+### 6.4 组件系统的统一管理与独立导入
 
-`admin/component-preview-session.js` 让单组件窗口和多组件工作区互斥；
+`admin/component-preview-session.js` 管理当前浏览器编辑会话；
 `component-preview-surface.js` 共用 iframe 消息、数据来源、缩放与释放逻辑，参数面板由各组件提供。
 `component-config-controller.js` 持有页面会话的已保存基线和草稿；两个入口共用显式保存、
 放弃修改、错误及冲突状态。保存期间的后续编辑保留；外部快照只回填未修改字段。
@@ -363,13 +363,22 @@ HTTP 初始/重连请求带本页读取代次，较新的完整 WS 状态使旧�
 校验直接父页和页面 URL origin。iframe 仅接收展示配置与受限数据，不接收完整管理快照。
 关闭释放数据订阅、观察器、监听和 iframe；检查底色与适配缩放不进入保存参数。
 
-百宝箱「组件工作区」惰性加载四个 owner，通过 `component-preview-registry.js` 创建视图描述；
-控制器与客户端/单组件窗口为同一实例。工作区同时展示四个 renderer，选择只切换参数面板。
-四格排布仅用于检查外观，不是已发布的场景布局；编辑目标为当前组件默认配置。
-`component-save-batch.js` 先对所有目标同步预检并冻结提交，再分别保存；任一预检失败不写入。
-结果区分成功、失败、未提交；只重试失败项，不回滚成功项，也不提交成功项后来产生的新编辑。
-批次结果与窗口生命周期分离，关窗重开可继续查看保存结果并重试；controller 账号代次变化清除
-旧结果和重试资格，迟到响应不回填新账号。关闭窗口释放 DOM 校验回调，保留共享草稿和批次状态。
+百宝箱「直播画布」与「点歌 → 浏览器源 → 打开统一预览」通过 `component-preview-registry.js`
+惰性加载四个 owner，并在系统浏览器打开 `/component-preview`。首次为空，之后恢复已保存布局；
+单组件预览入口会添加或选中该组件。左侧只有一个「添加组件」动作和已有图层列表，小窗按类别
+展示已有样式；新建图层默认独立外观，右侧调整选中实例。公共分辨率预设/自定义尺寸独立于组件，
+图层默认以预定大小居中，窗口改变只影响查看比例。
+
+「保存并应用」等待网页编辑得到客户端确认，保存各原组件 owner 及绑定场景后发布组合画面。
+部分保存失败、冲突或未完成草稿会停止发布，保留之前的直播版本。客户端浏览器源中的
+`canvas-overlay-source.js` 与网页按钮共用 `scene-source-url.js`，显式复制时取得同一绑定场景地址，
+复制不会自动发布；账号/在线来源改变会清除已显示地址。编辑会话能力与持久输出能力不同。
+
+独立组件来源 `/clock`、`/queue`、`/overtime` 和 `/danmaku?source=component` 可直接复制使用，
+无需统一预览、场景创建或发布。它们使用已保存的默认外观；画布内独立外观的修改不影响这些默认值。
+本机弹幕的 `danmaku-component-source.js` 每次完成请求后间隔 750ms 读取 `/api/danmaku/display`，
+复用已有云展示缓冲、样式渲染和 canvas 坐标逻辑；不建立本地旧弹幕 WS 或第二条上游 SSE。
+首次/断线/换账号清空旧消息并按 epoch/cursor 继续，不生成示例。旧 `/danmaku` 本地 WS 行为兼容保留。
 
 队列预设、默认值和样式切换只修改草稿；保存提交所有已编辑样式键和最终样式。
 队列预览使用样例歌曲和同一渲染器，历史共享主题键仍影响跟随主题的歌单板。
@@ -389,7 +398,8 @@ HTTP 初始/重连请求带本页读取代次，较新的完整 WS 状态使旧�
 | opening      | `/api/opening/config`                                                | 无                                          | 无；首帧配置经枚举/文本清洗             | 页面加载一次；Admin 预览可由 URL 参数覆盖                      |
 | clock        | `/api/clock/config` + 设备本地时间；URL 参数可覆盖 | clock scope settings snapshot + 秒边界定时器 | HTTP 修订保护；单一计时器 | 初始读取及重连；快照原位更新 |
 | lyrics       | snapshot 中的设置、状态和时间轴                                      | `lyric-state` + `lyric-timeline` + snapshot | 当前行与时间轴内部去重                  | 播放页按状态变化推送                                           |
-| danmaku      | snapshot 中的 `danmakuFeed`                                          | `danmaku:message`                           | 有 id 时按 id；兼容消息按 uid+时间+正文 | 无 reason 重载；断线重连后由 snapshot 恢复                     |
+| danmaku（本机组件） | `/api/danmaku/display` 的 config 与 data | epoch/cursor 轮询 | 同一缓冲的 cursor、直播 session 和 reset | 保存默认外观后原位更新；断线/账号变化清空旧消息 |
+| danmaku（旧 URL） | snapshot 中的 `danmakuFeed` | `danmaku:message` | 有 id 时按 id；兼容消息按 uid+时间+正文 | 无 reason 重载；断线重连后由 snapshot 恢复 |
 | games        | `/api/games/session`                                                 | snapshot + `game:update` + `game:patch` + `game:draw`      | 游戏入口调度器按更新频率合并渲染        | `game:update` / `game:patch` / `game:draw`                                    |
 | wheel        | `/api/wheel`，连接成功后补读并有限重试                               | `wheel:update`                            | 状态/抽取 ID 与读取代次                 | 每次 WebSocket 连接成功                                      |
 
@@ -400,11 +410,9 @@ HTTP 初始/重连请求带本页读取代次，较新的完整 WS 状态使旧�
 
 ## 本地场景浏览器来源
 
-在百宝箱打开「本地场景」，新建场景后添加组件；右侧可选择共享默认外观或此实例的独立外观。共享外观需要单独保存默认配置，独立外观随场景草稿保存。拖动或输入逻辑坐标调整布局，多选后可组合移动、对齐；锁定保护误操作，显隐控制输出。撤销/重做只作用于当前文档编辑，一次拖动为一次操作。
+当前入口和操作见上方组件系统说明。统一画布使用既有 scene 文档、保存与发布 owner；模板导入导出、多选与撤销等旧场景编辑器能力保留在其模块中，不作为当前网页入口已提供的功能。
 
-「导出模板」下载展示文档；「导入模板」要求明确确认字体、素材和逻辑来源的本机绑定，校验通过后创建新场景，不携带账号凭据、发布版本或业务数据。
-
-本地完整场景使用 `/scene?id=<UUID>#token=<secret>`，与以下服务器弹幕地址分开。桌面场景编辑器保存草稿后，点击“发布整套（固定当前外观）”才改变完整来源；默认配置之后的修改需要重新发布。OBS 与哔哩哔哩直播姬使用同一浏览器源，尺寸设为场景画布尺寸。
+本地完整画布使用 `/scene?id=<UUID>#token=<secret>`。网页点击「保存并应用」才改变完整来源；默认配置之后的修改需要再次应用。OBS 与哔哩哔哩直播姬使用同一浏览器源，尺寸设为场景画布尺寸。输出背景透明，包含可见组件的实际数据，不含编辑控件、检查底色或示例消息。关闭编辑网页后仍能从本地运行时加载、刷新和接收更新。
 
 `scene-renderer.js` 为可见实例创建无凭据的沙箱子 renderer，全体准备成功后替换整套；准备失败保留旧版，旧版仍接收数据。同版本不重载。`scene.js` 只从 fragment 取凭据，子页面仅收外观和显示数据，真实弹幕模式不会生成示例；授权失效清空画面。主进程接收现有 public overlay SSE 并作账号/连接代际隔离，断线报告缺口，不向本地结算管线补消息。重启且端口不变时来源有效；端口冲突改用其他端口后需重新复制来源。完整 HTTP 契约见 [API 注册表](../backend/api.md#本地场景)。
 

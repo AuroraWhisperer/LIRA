@@ -25,6 +25,23 @@ function fixture() {
   };
 }
 
+test('shared canvas resizing scales equal ratios and contains layers after aspect-ratio changes', async () => {
+  const [{ resizeSceneCanvas }] = await modules;
+  const document = fixture();
+  const scaled = resizeSceneCanvas(document, { width: 1600, height: 1200 });
+  assert.deepEqual(plain(scaled.items.map(({ x, y, width, height }) => ({ x, y, width, height }))),
+    document.items.map(({ x, y, width, height }) => ({ x: x * 2, y: y * 2, width: width * 2, height: height * 2 })));
+  const portrait = resizeSceneCanvas(scaled, { width: 400, height: 800 });
+  for (const item of portrait.items) {
+    assert.ok(item.x >= 0 && item.y >= 0 && item.x + item.width <= 400 && item.y + item.height <= 800);
+  }
+  assert.deepEqual(plain(document.canvas), { width: 800, height: 600 });
+  assert.equal(portrait.items[0].width, scaled.items[0].width);
+  for (const canvas of [{ width: 0, height: 800 }, { width: 8000, height: 800 }, { width: 400.5, height: 800 }]) {
+    assert.throws(() => resizeSceneCanvas(document, canvas));
+  }
+});
+
 test('model owns immutable document snapshots and isolated subscription values', async () => {
   const [{ createSceneDocumentModel }] = await modules;
   const document = fixture();

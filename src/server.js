@@ -265,6 +265,7 @@ function createServerRuntime(runtimeOptions = {}) {
     clearRemoteGiftHistory: giftRuntime.clearRemoteGiftHistory,
     getDomainServices: () => domainServices,
     getScenes: () => sceneRuntime?.service,
+    getDanmakuDisplay: () => sceneRuntime?.readDanmakuDisplay,
     getMusicRuntime: () => musicRuntime,
     getBilibiliRuntime: () => bilibiliRuntime,
     getLiveStatus: () => liveStatus,
@@ -279,6 +280,7 @@ function createServerRuntime(runtimeOptions = {}) {
   });
 
   const server = createHttpServer({
+    getPreviewOwner: runtimeOptions.getSceneOwner,
     host: HOST,
     startPort: START_PORT,
     rootDir: ROOT_DIR,

@@ -37,6 +37,11 @@ function usesDefaultClockLabel(style, label) {
   return !current || current === (CLOCK_STYLE_LABELS[style] || '');
 }
 
+export function clockStyleChange(draft, style) {
+  return { style, ...(!isTransparentClockStyle(style) && usesDefaultClockLabel(draft.style, draft.label)
+    ? { label: CLOCK_STYLE_LABELS[style] } : {}) };
+}
+
 function bindClockParameters(root, controller) {
   const node = (id) => componentField(root, id);
   const fields = { showDate: 'clockShowDate', showSeconds: 'clockShowSeconds', hourFormat: 'clockHourFormat',
@@ -53,8 +58,7 @@ function bindClockParameters(root, controller) {
     const { draft } = controller.getState();
     const style = button.dataset.clockStyleOption;
     if (!CLOCK_STYLE_VALUES.has(style)) return;
-    controller.edit({ style, ...(!isTransparentClockStyle(style) && usesDefaultClockLabel(draft.style, draft.label)
-      ? { label: CLOCK_STYLE_LABELS[style] } : {}) });
+    controller.edit(clockStyleChange(draft, style));
   });
   for (const button of palettes) button.addEventListener('click', () => {
     const [flipFrameColor, flipFaceColor, flipTextColor] = FLIP_PALETTES[button.dataset.clockPalette];
@@ -82,6 +86,19 @@ function bindClockParameters(root, controller) {
         color === draft[['flipFrameColor', 'flipFaceColor', 'flipTextColor'][index]])));
     }
   }) };
+}
+
+export function createClockPreview({ controller, source = document, onOpen, onClose }) {
+  return { id: 'clock', title: '萌时钟', controller,
+    url: new URL('/clock?componentPreview=1', location.href).href, dataLabel: '设备当前时间',
+    size: (draft) => draft.style === 'timeline-vertical' ? [240, 400] : [580, 210],
+    createPanel: (host, targetController = controller) => {
+      const panel = cloneComponentPanel(source.querySelector('.clock-parameter-section'), 'preview-clock');
+      host.append(panel);
+      return bindClockParameters(panel, targetController);
+    },
+    onOpen, onClose,
+  };
 }
 
 function initClockCard() {
@@ -141,21 +158,12 @@ function initClockCard() {
   document.getElementById('clockSave').addEventListener('click', () => controller.save());
   document.getElementById('clockDiscard').addEventListener('click', () => controller.discard());
   document.getElementById('clockReload').addEventListener('click', () => controller.reload());
-  function createClockPreview() {
-    return { id: 'clock', title: '萌时钟', controller,
-      url: new URL('/clock?componentPreview=1', location.href).href, dataLabel: '设备当前时间',
-      size: (draft) => draft.style === 'timeline-vertical' ? [240, 400] : [580, 210],
-      createPanel: (host, targetController = controller) => {
-        const panel = cloneComponentPanel(document.querySelector('.clock-parameter-section'), 'preview-clock');
-        host.append(panel);
-        return bindClockParameters(panel, targetController);
-      },
-      onOpen() { largePreviewOpen = true; preview.removeAttribute('src'); },
-      onClose() { largePreviewOpen = false; updatePreview(); },
-    };
-  }
-  registerComponentPreview('clock', createClockPreview);
-  document.getElementById('clockOpenPreview').addEventListener('click', () => openComponentPreview(createClockPreview()));
+  const getClockPreview = () => createClockPreview({ controller,
+    onOpen() { largePreviewOpen = true; preview.removeAttribute('src'); },
+    onClose() { largePreviewOpen = false; updatePreview(); },
+  });
+  registerComponentPreview('clock', getClockPreview);
+  document.getElementById('clockOpenPreview').addEventListener('click', () => openComponentPreview(getClockPreview()));
   void controller.reload();
   return controller;
 }

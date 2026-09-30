@@ -20,6 +20,11 @@ test('display overlay URLs use explicit settings capabilities without the legacy
       'songsUrl',
       'lyricsUrl',
       'liveDanmakuUrl',
+      'localDanmakuUrl',
+      'liveCanvasUrl',
+      'liveCanvasSourceStatus',
+      'liveCanvasPreview',
+      'copyLiveCanvasUrl',
       'liveBlindboxUrl',
       'liveGamesUrl',
       'liveWheelUrl',
@@ -35,7 +40,7 @@ test('display overlay URLs use explicit settings capabilities without the legacy
       'webSongPageUrl',
       'blindboxOverlayUrl',
       'blindboxLiveLink',
-    ].map((id) => [id, {}]),
+    ].map((id) => [id, { addEventListener() {} }]),
   );
   const copyButton = {};
   const window = { addEventListener() {} };
@@ -62,7 +67,7 @@ test('display overlay URLs use explicit settings capabilities without the legacy
 for (const initialProfile of ['older response', 'initial rejection', 'late rejection']) {
   test('web song page follows the current account with ' + initialProfile, async () => {
     const html = fs.readFileSync(path.join(ROOT_DIR, 'public/pages/admin/song/overlay-addresses.html'), 'utf8');
-    const nodes = new Map([...html.matchAll(/id="([^"]+)"/g)].map(([, id]) => [id, {}]));
+    const nodes = new Map([...html.matchAll(/id="([^"]+)"/g)].map(([, id]) => [id, { addEventListener() {} }]));
     nodes.set('blindboxOverlayUrl', {});
     nodes.set('blindboxLiveLink', {});
     const buttons = new Map();

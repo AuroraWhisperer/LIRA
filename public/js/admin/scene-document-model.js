@@ -32,6 +32,7 @@ export function createSceneDocumentModel(document) {
   return {
     getDocument,
     getState,
+    isGestureActive: () => gesture !== null,
     subscribe(listener) {
       listeners.add(listener);
       listener(getState(), getDocument());
@@ -102,6 +103,20 @@ export function createSceneDocumentModel(document) {
 export function snapSceneCoordinate(value) {
   if (!Number.isFinite(value)) throw new Error('坐标必须为有限数值。');
   return Math.round(value / 8) * 8;
+}
+
+export function resizeSceneCanvas(document, canvas) {
+  const next = validateSceneDocument(document);
+  const sameRatio = next.canvas.width * canvas.height === canvas.width * next.canvas.height;
+  const ratio = sameRatio ? canvas.width / next.canvas.width : 1;
+  next.canvas = { ...canvas };
+  for (const item of next.items) {
+    item.width = Math.min(canvas.width, Math.max(32, Math.round(item.width * ratio)));
+    item.height = Math.min(canvas.height, Math.max(32, Math.round(item.height * ratio)));
+    item.x = Math.max(0, Math.min(canvas.width - item.width, Math.round(item.x * ratio)));
+    item.y = Math.max(0, Math.min(canvas.height - item.height, Math.round(item.y * ratio)));
+  }
+  return validateSceneDocument(next);
 }
 
 function selection(document, ids) {

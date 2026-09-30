@@ -186,6 +186,19 @@ app
     }
     assert.ok(requests.some((row) => row.path === '/api/iframe' && row.scoped && row.origin === 'null'));
     assert.equal(requests.filter((row) => row.path === '/admin' && row.management).length, 3);
+    const browserPreviews = [];
+    auth.bindWindow(mainWindow, { openExternal: (url) => browserPreviews.push(url) });
+    const windowCount = BrowserWindow.getAllWindows().length;
+    for (const component of ['clock', 'queue', 'danmaku', 'overtime']) {
+      const previewUrl = `${baseUrl}/component-preview?component=${component}#id=synthetic&token=preview-only`;
+      await mainWindow.webContents.executeJavaScript(`(async () => {
+        await fetch('/api/preview-open');
+        window.open(${JSON.stringify(previewUrl)}, '_blank', 'noopener,noreferrer');
+      })()`);
+      await waitFor(() => browserPreviews.includes(previewUrl));
+      assert.equal(BrowserWindow.getAllWindows().length, windowCount);
+      assert.match(mainWindow.webContents.getURL(), /\/admin\?reload=1$/);
+    }
     auth.dispose();
     await mainWindow.webContents.executeJavaScript("fetch('/api/disposed').then(()=>null)");
     assert.equal(requests.find((row) => row.path === '/api/disposed').management, false);

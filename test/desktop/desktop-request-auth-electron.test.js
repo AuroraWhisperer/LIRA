@@ -2,7 +2,6 @@
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
 const test = require('node:test');
@@ -14,7 +13,9 @@ test(
     timeout: 20000,
   },
   async (t) => {
-    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-desktop-auth-'));
+    const scratchRoot = path.resolve(__dirname, '../../tmp');
+    fs.mkdirSync(scratchRoot, { recursive: true });
+    const directory = fs.mkdtempSync(path.join(scratchRoot, 'lira-desktop-auth-'));
     t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
     const environment = { ...process.env };
     delete environment.ELECTRON_RUN_AS_NODE;

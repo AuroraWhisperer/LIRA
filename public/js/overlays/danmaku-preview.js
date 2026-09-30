@@ -7,6 +7,7 @@ import { createComponentPreviewClient, isComponentPreview, isSceneComponent } fr
 
 function initComponentCanvas({ initialStyle, styleOptions, duration, renderSamples, renderConfiguration, renderData }) {
   const host = document.getElementById('danmakuCanvasHost');
+  const layer = new URLSearchParams(location.search).get('componentLayer') === '1';
   let draft = { style: initialStyle || 'signal', styleOptions: styleOptions || {},
     fullscreenDurationSeconds: Number(duration) || 6, layout: createLayout() };
   let scale = 1;
@@ -14,7 +15,10 @@ function initComponentCanvas({ initialStyle, styleOptions, duration, renderSampl
   let sampleKey = '';
   document.body.classList.add('is-component-preview');
   function fit() {
-    scale = applyCanvas(document, draft.layout, draft.style, host.clientWidth, host.clientHeight);
+    const canvas = { width: host.clientWidth, height: host.clientHeight };
+    const layout = layer ? { ...draft.layout, canvas,
+      regions: { ...draft.layout.regions, [draft.style]: { x: 0, y: 0, ...canvas } } } : draft.layout;
+    scale = applyCanvas(document, layout, draft.style, host.clientWidth, host.clientHeight);
   }
   const observer = new ResizeObserver(fit);
   observer.observe(host);
@@ -25,7 +29,7 @@ function initComponentCanvas({ initialStyle, styleOptions, duration, renderSampl
         draft = { style: config.style, styleOptions: normalizeStyleOptions(config.styleOptions || {}),
           fullscreenDurationSeconds: config.fullscreenDurationSeconds, layout: normalizeLayout(config.layout ?? null) || createLayout() };
       } catch { return false; }
-      editable = canEdit && Boolean(config.layout);
+      editable = canEdit && !layer && Boolean(config.layout);
       document.getElementById('danmakuSelection').hidden = !editable;
       const region = draft.layout.regions[draft.style];
       document.getElementById('selectionLabel').textContent = `${region.width} × ${region.height}`;

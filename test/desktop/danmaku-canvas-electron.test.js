@@ -2,60 +2,61 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
 const path = require('node:path');
-const { _electron: electron } = require('playwright');
+const { _electron: electron, chromium } = require('playwright');
 
-test('canvas editor keeps sandbox isolation and saves through the real desktop bridge', { timeout: 90000 }, async (t) => {
+test('browser canvas keeps sandbox isolation and saves through the real desktop bridge', { timeout: 90000 }, async (t) => {
   const scratchRoot = path.resolve(__dirname, '../../tmp');
   await fs.mkdir(scratchRoot, { recursive: true });
   const directory = await fs.mkdtemp(path.join(scratchRoot, 'lira-canvas-electron-'));
   let app;
+  let browser;
   t.after(async () => {
+    await browser?.close();
     await app?.close();
     assert.equal(path.dirname(await fs.realpath(directory)), await fs.realpath(scratchRoot));
     await fs.rm(directory, { recursive: true, force: true });
   });
   app = await electron.launch({ cwd: path.resolve(__dirname, '../..'),
     args: ['test/fixtures/danmaku-canvas-editor.cjs', directory], timeout: 15000 });
-  const page = await app.firstWindow();
-  page.setDefaultTimeout(4000);
+  const desktop = await app.firstWindow();
+  desktop.setDefaultTimeout(5000);
   const errors = [];
-  page.on('pageerror', (error) => errors.push(error.message));
-  await page.locator('#danmakuStyleChip').filter({ hasText: '已应用' }).waitFor();
-  await page.locator('#danmakuPreviewOverlayBtn').click();
-  const dialog = page.locator('.component-preview-dialog');
-  const iframe = dialog.locator('iframe');
+  desktop.on('pageerror', (error) => errors.push(error.message));
+  await desktop.locator('#danmakuStyleChip').filter({ hasText: '已应用' }).waitFor();
+  browser = await chromium.launch({ headless: true });
+  const context = await browser.newContext({ viewport: { width: 1440, height: 960 } });
+  const openPreview = async (count) => {
+    await desktop.locator('#danmakuPreviewOverlayBtn').click();
+    const deadline = Date.now() + 5000;
+    let urls;
+    do {
+      urls = await app.evaluate(() => global.canvasTest.externalUrls);
+      if (urls.length >= count) break;
+      await new Promise(resolve => setTimeout(resolve, 25));
+    } while (Date.now() < deadline);
+    assert.equal(urls.length, count, 'Desktop must hand the editor URL to the external browser.');
+    const url = urls.at(-1);
+    assert.equal(new URL(url).pathname, '/component-preview');
+    assert.equal((await fetch(url)).status, 200);
+    const page = await context.newPage();
+    page.setDefaultTimeout(5000);
+    page.on('pageerror', (error) => errors.push(error.message));
+    await page.goto(url);
+    await page.locator('.component-preview-frame').waitFor();
+    await page.waitForFunction(() => document.querySelector('.component-preview-load-state')?.hidden);
+    return page;
+  };
+  const page = await openPreview(1);
+  assert.equal(app.windows().length, 1);
+  assert.equal(await desktop.locator('.component-preview-dialog').count(), 0);
+  assert.equal(await page.evaluate(() => Boolean(window.liraLicense || window.__API_TOKEN__)), false);
+  const iframe = page.locator('.component-preview-frame');
   const frame = iframe.contentFrame();
-  const labels = { regionX: '区域 X', regionY: '区域 Y', regionWidth: '区域宽度', regionHeight: '区域高度',
-    canvasWidth: '画布宽度', canvasHeight: '画布高度' };
-  const field = (id) => id === 'previewFontSize' ? dialog.locator('[data-preview-field="danmakuFontSize"]')
-    : dialog.getByLabel(labels[id], { exact: true });
-  const number = async (id) => Number(await field(id).inputValue());
-  const change = async (id, value) => {
-    await field(id).fill(String(value));
-    await field(id).press('Tab');
-  };
-  const pointerPosition = async (locator) => {
-    const local = await locator.evaluate((node) => {
-      const box = node.getBoundingClientRect();
-      return { x: box.x + box.width / 2, y: box.y + box.height / 2,
-        width: window.innerWidth, height: window.innerHeight };
-    });
-    const outer = await iframe.boundingBox();
-    return { x: outer.x + local.x * outer.width / local.width,
-      y: outer.y + local.y * outer.height / local.height };
-  };
-  const saveState = dialog.locator('.component-preview-footer [role="status"]');
-  const save = dialog.getByRole('button', { name: '保存并应用', exact: true });
-  await saveState.filter({ hasText: '当前为已保存配置' }).waitFor();
-  await frame.locator('#danmakuSelection').waitFor({ state: 'visible' });
-  assert.equal(await save.isDisabled(), true);
   const source = new URL(await iframe.getAttribute('src'));
   assert.equal(source.pathname, '/danmaku');
-  assert.deepEqual([...source.searchParams], [['preview', '1'], ['componentPreview', '1']]);
+  assert.deepEqual([...source.searchParams], [['preview', '1'], ['componentPreview', '1'], ['componentLayer', '1']]);
   assert.equal(source.hash, '');
   assert.equal(await iframe.getAttribute('sandbox'), 'allow-scripts');
-  assert.equal(await number('regionX'), 40);
-  assert.equal(await number('regionY'), 440);
   assert.equal(await frame.locator('body').evaluate(() => window.origin), 'null');
   assert.equal(await frame.locator('body').evaluate(() => {
     try { void parent.document.body; return false; } catch (error) { return error.name === 'SecurityError'; }
@@ -68,70 +69,56 @@ test('canvas editor keeps sandbox isolation and saves through the real desktop b
     request.url.startsWith('/danmaku?')));
   assert.ok(previewRequests.length >= 2);
   assert.ok(previewRequests.every((request) => request.authorization === ''));
-  // Wait for the hidden window's initial composite before routing input to its iframe.
-  await app.evaluate(async ({ BrowserWindow }) => {
-    await BrowserWindow.getAllWindows()[0].webContents.capturePage();
-  });
-  let point = await pointerPosition(frame.locator('#danmakuSelection'));
-  await page.mouse.move(point.x, point.y);
+  const number = async (label) => Number(await page.getByRole('spinbutton', { name: label, exact: true }).inputValue());
+  const change = async (label, value) => {
+    const input = page.getByRole('spinbutton', { name: label, exact: true });
+    await input.fill(String(value));
+    await input.press('Tab');
+  };
+  assert.equal(await number('宽度'), 560);
+  const previousX = await number('X');
+  const box = await page.locator('.scene-editor-item').boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await page.mouse.down();
-  await page.mouse.move(point.x + 80, point.y - 40, { steps: 4 });
+  await page.mouse.move(box.x + box.width / 2 + 40, box.y + box.height / 2, { steps: 4 });
   await page.mouse.up();
-  assert.ok(await number('regionX') > 40, JSON.stringify({ point, x: await number('regionX'), y: await number('regionY') }));
-  for (const handle of ['n', 'ne', 'e', 'se', 's', 'sw', 'w', 'nw']) {
-    await dialog.getByRole('button', { name: '恢复区域默认', exact: true }).click();
-    const previous = { width: await number('regionWidth'), height: await number('regionHeight') };
-    point = await pointerPosition(frame.locator(`[data-handle='${handle}']`));
-    await page.mouse.move(point.x, point.y);
-    await page.mouse.down();
-    await page.mouse.move(point.x + 12, point.y - 12, { steps: 3 });
-    await page.mouse.up();
-    assert.ok(await number('regionWidth') !== previous.width || await number('regionHeight') !== previous.height, handle);
-  }
-  await change('regionWidth', 740);
-  await dialog.locator('[data-danmaku-style="bubble"]').click();
-  assert.equal(await number('regionWidth'), 380);
-  await dialog.locator('[data-danmaku-style="signal"]').click();
-  assert.equal(await number('regionWidth'), 740);
-  await dialog.getByLabel('直播画布分辨率', { exact: true }).selectOption('2560x1440');
-  assert.equal(await number('regionWidth'), 987);
-  assert.equal(await number('previewFontSize'), 30);
-  const effectiveFontSize = () => frame.locator('html').evaluate((node) => Math.round(
-    Number.parseFloat(node.style.getPropertyValue('--content-scale'))
-    * Number.parseFloat(node.style.getPropertyValue('--danmaku-font-size'))));
-  assert.equal(await effectiveFontSize(), 40);
-  await dialog.getByLabel('直播画布分辨率', { exact: true }).selectOption('1080x1920');
-  assert.equal(await effectiveFontSize(), 40);
-  await dialog.getByRole('button', { name: '区域居中', exact: true }).click();
-  await frame.locator('#danmakuSelection').focus();
-  const x = await number('regionX');
-  await frame.locator('#danmakuSelection').press('Shift+ArrowLeft');
-  assert.equal(await number('regionX'), x - 10);
-  await change('regionWidth', -1);
-  assert.equal(await number('regionWidth'), 64);
-  await change('regionWidth', 987);
-  await change('regionWidth', 987.5);
-  assert.equal(await number('regionWidth'), 987);
+  assert.ok(await number('X') > previousX);
+  await change('宽度', 740);
+  await page.locator('[data-danmaku-style="bubble"]').click();
+  assert.equal(await number('宽度'), 740);
+  await page.locator('[data-danmaku-style="signal"]').click();
+  const fontSize = page.locator('[data-preview-field="danmakuFontSize"]');
+  await fontSize.fill('36');
+  await fontSize.press('Tab');
+  await page.getByRole('button', { name: '画布设置', exact: true }).click();
+  await page.getByRole('button', { name: '公共画布分辨率', exact: true }).click();
+  await page.getByRole('option', { name: '2560 × 1440', exact: true }).click();
+  await page.locator('.preview-canvas-layer-select').click();
+  assert.equal(await number('宽度'), 987);
+  assert.equal(await fontSize.inputValue(), '36');
   assert.equal(await app.evaluate(() => global.canvasTest.attempts), 0);
-  assert.equal(await app.evaluate(() => global.canvasTest.saved().layout), null);
+  assert.equal(await app.evaluate(() => global.canvasTest.scene().publishedVersion), 0);
   await app.evaluate(() => { global.canvasTest.failNext = true; });
+  const save = page.getByRole('button', { name: '保存并应用', exact: true });
+  const saveState = page.locator('.component-preview-footer [role="status"]');
   await save.click();
-  await saveState.filter({ hasText: '草稿已保留' }).waitFor();
-  assert.equal(await number('regionWidth'), 987);
+  await saveState.filter({ hasText: '无法连接服务器' }).waitFor();
+  assert.equal(await number('宽度'), 987);
   assert.equal(await app.evaluate(() => global.canvasTest.writes.length), 0);
+  assert.equal(await app.evaluate(() => global.canvasTest.scene().publishedVersion), 0);
   assert.equal(await save.isEnabled(), true);
   await save.click();
-  await saveState.filter({ hasText: '已保存，已发布更新' }).waitFor();
-  const saved = await app.evaluate(() => global.canvasTest.saved());
-  assert.equal(saved.layout.canvas.height, 1920);
-  assert.equal(saved.layout.regions.signal.width, 987);
+  await saveState.filter({ hasText: '已保存并应用到直播源' }).waitFor();
+  assert.equal(await app.evaluate(() => global.canvasTest.saved().styleOptions.signal.fontSize), 36);
+  const savedScene = await app.evaluate(() => global.canvasTest.scene());
+  assert.equal(savedScene.document.canvas.width, 2560);
+  assert.equal(savedScene.document.items[0].width, 987);
+  assert.equal(savedScene.publishedVersion, 1);
   assert.equal(await app.evaluate(() => global.canvasTest.writes.length), 1);
   assert.equal(await app.evaluate(() => global.canvasTest.attempts), 2);
-  assert.equal(await save.isDisabled(), true);
-  await dialog.getByRole('button', { name: '关闭', exact: true }).click();
-  await page.locator('#danmakuPreviewOverlayBtn').click();
-  await saveState.filter({ hasText: '已保存，已发布更新' }).waitFor();
-  assert.equal(await number('canvasHeight'), 1920);
-  assert.equal(await number('regionWidth'), 987);
+  await page.close();
+  const reopened = await openPreview(2);
+  assert.equal(await reopened.getByRole('spinbutton', { name: '宽度', exact: true }).inputValue(), '987');
+  assert.equal(await reopened.locator('[data-preview-field="danmakuFontSize"]').inputValue(), '36');
   assert.deepEqual(errors, []);
 });

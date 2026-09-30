@@ -72,4 +72,4 @@ function composeAdminHtml(publicDir) {
   return html;
 }
 
-module.exports = { ADMIN_FRAGMENT_PATHS, composeAdminHtml, isAdminPageRoute };
+module.exports = { ADMIN_FRAGMENT_PATHS, composeAdminHtml, isAdminPageRoute, readAdminFragment };

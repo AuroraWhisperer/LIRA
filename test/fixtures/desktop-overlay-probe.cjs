@@ -129,6 +129,53 @@ module.exports = async function verifyRealOverlays({ directory, createWindow, se
   assert.deepEqual(workers.results, [true, true, true, true]);
   assert.equal(workers.violations.filter((directive) => directive === 'worker-src').length, 4);
   assert.equal(workerScriptRequests, 0);
+  const canvasId = '49a91cc5-2d97-43c9-9c9a-286a077f4428';
+  const canvasDto = { document: { schemaVersion: 1, id: canvasId, title: 'Fixture canvas',
+    canvas: { width: 1920, height: 1080 }, items: [] }, revision: 1, publishedVersion: 0 };
+  const source = { id: canvasId, token: 'synthetic-scene-source' };
+  context.scenes = {
+    list: () => [canvasDto],
+    publish: () => { canvasDto.publishedVersion += 1; return canvasDto; },
+    getSource: id => { assert.equal(id, canvasId); return source; },
+  };
+  await admin.webContents.executeJavaScript(`(async () => {
+    window.liraLicense = {
+      getProfile: async () => ({ state: 'authorized', streamer: { songPageUrl: 'https://synthetic.test/songs/one' } }),
+      getOverlaySettings: async () => ({ ok: true, overlayUrl: 'https://synthetic.test/overlay/abcdefghijklmnop' }),
+      onStateChanged: callback => { window.changeCanvasOwner = callback; return () => {}; },
+    };
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText: async text => { window.copiedCanvasSource = text; } } });
+    const { createComponentConfigController } = await import('/js/admin/component-config-controller.js');
+    const { registerComponentPreview, setComponentPreviewPreparation, getComponentPreviews } = await import('/js/admin/component-preview-registry.js');
+    const { prepareComponentPreviewCanvas } = await import('/js/admin/component-preview-canvas-controller.js');
+    const clock = createComponentConfigController({ initial: { style: 'digital' } });
+    registerComponentPreview('clock', () => ({ id: 'clock', controller: clock }));
+    setComponentPreviewPreparation(() => prepareComponentPreviewCanvas(getComponentPreviews()));
+    const { initCanvasOverlaySource } = await import('/js/admin/canvas-overlay-source.js');
+    initCanvasOverlaySource();
+    const { waitForServerOverlayUrlInitialization } = await import('/js/admin/server-overlay-url.js');
+    await waitForServerOverlayUrlInitialization();
+    document.getElementById('copyLiveCanvasUrl').click();
+  })()`);
+  await waitFor(() => admin.webContents.executeJavaScript("document.getElementById('liveCanvasSourceStatus').textContent.includes('请先保存并应用')"));
+  assert.equal(canvasDto.publishedVersion, 0);
+  await admin.webContents.executeJavaScript(`(async () => {
+    const { prepareComponentPreviews } = await import('/js/admin/component-preview-registry.js');
+    await (await prepareComponentPreviews()).find(item => item.id === 'canvas').publish();
+    document.getElementById('copyLiveCanvasUrl').click();
+  })()`);
+  await waitFor(() => admin.webContents.executeJavaScript('Boolean(window.copiedCanvasSource)'));
+  assert.equal(await admin.webContents.executeJavaScript('window.copiedCanvasSource'), `${origin}/scene?id=${canvasId}#token=${source.token}`);
+  assert.equal(await admin.webContents.executeJavaScript("document.getElementById('liveCanvasUrl').textContent"), `${origin}/scene?id=${canvasId}#token=${source.token}`);
+  let canvasPreviewUrl = '';
+  auth.bindWindow(admin, { openExternal: url => { canvasPreviewUrl = url; } });
+  await admin.webContents.executeJavaScript("document.getElementById('liveCanvasPreview').click()");
+  await waitFor(() => Boolean(canvasPreviewUrl));
+  assert.equal(new URL(canvasPreviewUrl).pathname, '/component-preview');
+  assert.equal(new URL(canvasPreviewUrl).search, '');
+  assert.ok(new URLSearchParams(new URL(canvasPreviewUrl).hash.slice(1)).has('canvas'));
+  await admin.webContents.executeJavaScript("window.changeCanvasOwner({state:'unauthorized'})");
+  await waitFor(() => admin.webContents.executeJavaScript("!document.getElementById('liveCanvasUrl').textContent.includes('#token=')"));
   auth.dispose();
   admin.destroy();
   const preview = createWindow();

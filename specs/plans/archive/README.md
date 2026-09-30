@@ -6,6 +6,12 @@
 
 ## 文件索引
 
+- [2026-09-30-release-5.0.12-validation](2026-09-30-release-5.0.12-validation.md)
+- [2026-09-30-component-source-directory](2026-09-30-component-source-directory.md)
+- [2026-09-30-canvas-library-output](2026-09-30-canvas-library-output.md)
+- [2026-09-30-shared-preview-canvas](2026-09-30-shared-preview-canvas.md)
+- [2026-09-30-component-preview-layout](2026-09-30-component-preview-layout.md)
+- [2026-09-30-browser-component-preview](2026-09-30-browser-component-preview.md)
 - [2026-09-30-release-5.0.11-validation](2026-09-30-release-5.0.11-validation.md)
 - [2026-09-30-component-preview](2026-09-30-component-preview.md)
 - [2026-09-30-component-workspace](2026-09-30-component-workspace.md)

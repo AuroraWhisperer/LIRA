@@ -6,12 +6,14 @@ const httpUtils = require('./http-utils');
 const { SERVICE_ID } = require('./lifecycle');
 const apiRoutes = require('./api-routes');
 const { redactCredentials } = require('../shared/log-redaction');
+const { createComponentPreviewSessions } = require('./component-preview-sessions');
 
 /**
  * Build the HTTP/upgrade transport for one server runtime.
  * Domain state stays behind the explicitly supplied callbacks.
  */
 function createHttpServer(options = {}) {
+  const componentPreviews = createComponentPreviewSessions({ getOwner: options.getPreviewOwner });
   const {
     host,
     startPort,
@@ -71,6 +73,7 @@ function createHttpServer(options = {}) {
       }
 
       if (!isLicenseAuthorized()) {
+        componentPreviews.clear();
         if (
           requestUrl.pathname === '/admin' ||
           requestUrl.pathname === '/' ||
@@ -113,7 +116,7 @@ function createHttpServer(options = {}) {
       }
 
       if (requestUrl.pathname.startsWith('/api/')) {
-        await inflightTracker.run(() => apiRoutes.handleApi(createApiContext(), req, res, requestUrl));
+        await inflightTracker.run(() => apiRoutes.handleApi({ ...createApiContext(), componentPreviews }, req, res, requestUrl));
         return;
       }
 
@@ -180,6 +183,8 @@ function createHttpServer(options = {}) {
     }
     getWebSocketHub().handleUpgrade(getWebSocketContext(baseUrl), req, socket, head);
   });
+
+  server.on('close', () => componentPreviews.clear());
 
   return server;
 }

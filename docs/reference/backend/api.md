@@ -10,9 +10,33 @@
 
 ## 0. 路由机制与通用约定
 
+### 浏览器组件预览
+
+`POST /api/component-preview` 由 [component-preview-routes.js](../../../src/server/routes/component-preview-routes.js) 处理，响应 `{ok:true,data}`。这是客户端与默认浏览器之间的临时配置会话；组件保存与绑定画布的发布、来源读取，由创建会话的客户端控制器调用已有领域 owner 处理。
+
+网页三栏编辑器为四个已注册组件及公共画布分别创建会话。从单组件预览进入时，初始组件使用 query `component` 和 fragment 的 `id`/`token`，`components` 携带其他组件的 `{component,id,token}` 数组；从客户端“直播画布”直接进入时没有初始组件 query，四个组件均放入 `components`。`canvas` 携带独立画布会话的 `{id,token}`。画布编辑仅传递 `{document}` 草稿，客户端适配器固定场景 ID，浏览器不能替换绑定 ID、创建或轮换场景凭据。缺少画布会话的旧链接仍可保存组件参数，但公共布局须从客户端重新打开后保存。
+
+“保存并应用”先等待所有浏览器编辑被客户端确认，再保存组件及画布，最后按 revision 发布组合画面；任一保存失败或仍有并发草稿时停止发布。`publish`/`source` 仅允许 canvas 能力排队，结果通过该会话 `display` 的 `{sequence,busy,result?,error?}` 返回。来源仅在显式复制时读取，拼成 `http://127.0.0.1:<实际端口>/scene?id=<场景ID>#token=<来源能力>`；后续正常保存和发布沿用该地址，来源能力不进入文档或模板。
+
+每个请求只使用目标会话自己的凭据，能力不可互换。多个图层同时保留各自 renderer，选中组件只切换参数面板。关闭时各会话分别处理已接受命令并撤销，不提前撤销其他会话的待保存操作。
+
+| action | 身份与请求 | data |
+| --- | --- | --- |
+| `open` | 管理身份；`{component,state,display?}`，component 为 danmaku/clock/queue/overtime/canvas | `{id,token}`，256 位随机预览能力；同类型旧会话失效 |
+| `exchange` | 管理身份；`{id,state,display?,ack}` | `{commands:[{sequence,action,change?}],closed}`，按序确认，已确认命令不重放；closed 时处理已排队操作后释放会话 |
+| `revoke` | 管理身份；`{id}` | `{closed}` |
+| `read` | 当前会话 Bearer；`{id}` | `{component,state,display,ack}`，只含组件草稿、已保存值、保存状态和必要展示数据 |
+| `edit` / `save` / `discard` | 当前会话 Bearer；`{id,change?}`，edit 只允许该组件已有草稿字段 | `{sequence}`；仅表示已排队，保存完成以之后的 state 为准 |
+| `publish` / `source` | 仅当前 canvas 会话 Bearer；`{id}` 是临时会话 ID，领域场景 ID 由客户端绑定 | `{sequence}`；publish 结果 `{publishedVersion}`，source 结果 `{id,token}`，均从后续 display 按 sequence 读取 |
+| `close` | 当前会话 Bearer；`{id}` | `{}`，关闭浏览器访问；客户端先处理已经接受的修改/保存，再撤销会话 |
+
+请求体上限 256 KiB，每会话最多 64 条待确认命令、每类型最多一会话。15 秒无客户端 exchange、账号归属/授权代次变化或控制器 generation 变化使旧会话失效。状态只在内存中，服务关闭清理；不保存用户配置。页面能力仅用于此端点，不能访问管理 API、WebSocket 或其他预览。凭据通过 URL fragment 交付，随后只放在 Authorization 请求头；无管理凭据注入浏览器 HTML。拒绝 opaque/外站 Origin，沿用 loopback/Host 和授权闸门；401 管理身份缺失，403 能力或 Origin 无效，409 配置未就绪，410 会话结束，413 请求过大，429 待处理操作过多，其他非法请求 400。客户端/网页关闭停止轮询并撤销会话；领域保存失败保留原控制器草稿。
+
 ### 本地场景
 
 管理接口沿用管理页鉴权，并由 main 当前授权的 Server origin 与 streamerId 决定归属。`document` 是展示文档；管理 DTO 为 `{document,revision,publishedVersion,hasPublication}`，普通读写不包含凭据。领域模型见 [场景规格](../../../specs/component-scenes.md)。
+
+客户端「点歌 → 浏览器源 → 统一直播画布」与网页画布共用同一绑定场景，显式复制时读取 `source`，不会自动保存或发布。复制前未应用时提示先打开统一预览并保存应用；账号/在线来源变化清空客户端已显示的地址。
 
 | 端点 | 输入 | 输出与行为 |
 | --- | --- | --- |
@@ -86,12 +110,14 @@ QQ 流的上游响应字节预算、主动读取超时、背压及取消见 [音
 | gift-wishes | `GET /api/gifts/wishes` | 仅心愿展示字段、整数计数、进度及直播窗口；无来源 ID、送礼人或管理写权限 |
 | interactions | `GET /api/interactions/session` | 只读投票/评分公开结果；禁止写入与 host-state |
 | games | `GET /api/games/session`、`/api/games/winner-profile`、`/api/bilibili/avatar`；`POST /api/games/session`、`/api/games/session/move`、`/api/games/session/draw` | session 仅 stop/restart；move 的 value 仅 number/string，禁止夹带主持动作对象；draw 仅 append/undo/clear。不能新开配置、读取 host-state/词库/观众或揭晓答案 |
-| danmaku | `GET /api/bilibili/avatar` | 保留现有头像/表情 CDN 校验 |
+| danmaku | `GET /api/bilibili/avatar`、`GET /api/danmaku/display` | 保留现有头像/表情 CDN 校验；display 仅返回当前账号的已规范化弹幕外观及展示缓冲投影 |
 | wheel | `GET /api/wheel`、`POST /api/wheel/spin` | 只读展示配置与抽取，不允许编辑配置 |
 | opening | `GET /api/opening/config` | 仅文案、展示参数、当前媒体 URL |
 | clock | `GET /api/clock/config` | 仅时钟显示参数 |
 
 HTML sandbox 使展示请求的 Origin 为 `null`。该值本身没有权限：预检仅对上表已知方法/路径开放 Authorization/Content-Type，实际请求再校验有效 scope；管理凭据对此来源一律拒绝。仅上述路径的实际错误响应允许页面读取，以便旧凭据收到 401 后刷新，不返回额外状态。没有 `Access-Control-Allow-Credentials`。
+
+`GET /api/danmaku/display?epoch=…&cursor=…` 由 [danmaku-display-routes.js](../../../src/server/routes/danmaku-display-routes.js) 处理，供本机独立地址 `/danmaku?source=component` 使用。响应 `{ok:true,data:{config,data}}`，其中 `config` 为已保存的 `{style,fullscreenDurationSeconds,styleOptions,layout}`，配置尚未取得时为 `null`；内层 `data` 是已有云展示缓冲的 `{epoch,status,state,nextCursor,reset,gap,events}`。读口由 `scene-runtime` 复用当前账号的同一缓冲，不创建场景或第二条上游连接。首次/无效 cursor/切账号按已有缓冲契约 reset，不重放旧直播消息。每次读取 `no-store`，未就绪端口为 503；匿名为 401，其他 overlay scope、管理凭据配 opaque Origin 或写方法均被拒绝。固定页仍只注入 danmaku 展示凭据，不能读取管理配置。
 
 ---
 

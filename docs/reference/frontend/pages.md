@@ -45,10 +45,12 @@
 | --- | --- | --- |
 | 管理 HTML（`/`、`/admin`、`/settings`、`/songs`） | 需要本地管理凭据；Electron main 的 [desktop-request-auth.js](../../../src/electron/desktop-request-auth.js) 对受信主窗口主 frame 的精确 origin 请求注入 Bearer | `?desktop=1` 只切换表现；旧书签、手动浏览器打开或 `AUTO_OPEN_ADMIN=1` 均不授予权限 |
 | 登录页 `/license` | HTML 无需本地管理凭据，供 Electron 登录流程使用 | 浏览器可读页面不等于拥有 preload/设备会话；登录能力须走受限 IPC |
+| 直播画布 `/component-preview`，可选 `?component=danmaku\|clock\|queue\|overtime` | 百宝箱“直播画布”或原组件预览按钮，经 Electron 既有外部导航策略交给系统默认浏览器 | 直接入口首次为空，后续恢复保存布局；组件入口添加/选中对应组件。左侧是已有图层和单个“添加组件”按钮，小窗按分类选择样式，新增独立外观图层并在右侧调参。公共分辨率仅由画布设置改变。“保存并应用”保存各 owner 后发布组合输出，“复制直播源地址”返回一条 `127.0.0.1:<实际端口>/scene…` 地址供 OBS 或哔哩哔哩直播姬使用；后续应用沿用该地址。详见 [预览 API](../backend/api.md#浏览器组件预览)，无 preload 或管理凭据 |
+| 组件浏览器源目录 | 客户端“点歌 → 浏览器源” | “统一直播画布”提供打开统一预览及复制组合来源；独立点歌板、萌时钟、加班机、本机弹幕姬继续单独复制。本机弹幕地址 `/danmaku?source=component` 使用已保存的服务器样式和展示数据；在线弹幕源同时保留。统一编辑地址不用于直播导入。完整步骤见 [组件指南](../../guides/component-sources.md) |
 | 本地展示页 | [access-policy.js](../../../src/server/access-policy.js) 的 `OVERLAY_PAGES` 定义能力范围；HTML 注入本 scope 的 overlay 凭据 | 可供 overlay/本地预览；只能调用本 scope 允许的 HTTP/WS，不能取得管理权限；如 `gift-export` 是内部导出用途，并非普通 浏览器源 |
 | 独立 Node 调试 | `npm start` 保留同一 HTML/API 鉴权；受保护调用必须显式使用当前运行时的有效管理凭据 | 没有 Electron preload、主进程 Device API 代理、分区登录和本地媒体协议，不是完整 Web 管理产品 |
 
-[servePageOrAsset](../../../src/server/http-utils.js) 对非展示、非登录 HTML 的匿名请求返回 401“请从桌面应用打开管理页面。”；API 中无效凭据为 401，越权或不受信 Origin 为 403。这些响应说明服务已可达，应检查正常桌面入口与请求身份，不应关闭保护或据此判断 localhost 不可用。
+[servePageOrAsset](../../../src/server/http-utils.js) 对非展示、非登录、非组件预览 HTML 的匿名请求返回 401“请从桌面应用打开管理页面。”；API 中无效凭据为 401，越权或不受信 Origin 为 403。这些响应说明服务已可达，应检查正常桌面入口与请求身份，不应关闭保护或据此判断 localhost 不可用。
 
 
 | 入口 URL           | 实际 HTML                                                                                                          | 打开者                                                       | 行为说明                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |

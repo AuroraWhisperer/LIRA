@@ -6,6 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { resolveDataPaths } = require('../shared/data-paths');
 const { composeAdminHtml, isAdminPageRoute } = require('./admin-page');
+const { composeComponentPreviewHtml } = require('./component-preview-page');
 const { OVERLAY_PAGES, getOverlayScope, createOverlayToken, resolveRequestPrincipal } = require('./access-policy');
 const { createOverlayBootstrap } = require('./overlay-bootstrap');
 const { isSafeBasename, MAX_IMAGE_BYTES, validateImageBytes } = require('../bilibili/gift/remote-gift-image-cache');
@@ -108,6 +109,7 @@ function servePageOrAsset(publicDir, req, res, requestUrl, sessionToken, beginPl
   const pageMap = new Map([
     ['/license', 'pages/license.html'],
     ['/scene', 'pages/overlays/scene.html'],
+    ['/component-preview', 'pages/component-preview.html'],
     ...Object.entries(OVERLAY_PAGES).map(([scope, file]) => [`/${scope}`, `pages/overlays/${file}`]),
   ]);
   const assetPath = pageMap.get(requestUrl.pathname) || requestUrl.pathname.replace(/^\/+/, '');
@@ -129,6 +131,7 @@ function servePageOrAsset(publicDir, req, res, requestUrl, sessionToken, beginPl
     isHtml &&
     !overlayScope &&
     relativePath !== 'pages/overlays/scene.html' &&
+    relativePath !== 'pages/component-preview.html' &&
     relativePath !== 'pages/license.html' &&
     !verifyToken({ sessionToken }, req, requestUrl)
   ) {
@@ -176,6 +179,15 @@ function servePageOrAsset(publicDir, req, res, requestUrl, sessionToken, beginPl
       res.end(body);
     }
   };
+
+  if (relativePath === 'pages/component-preview.html') {
+    try {
+      sendContent(null, Buffer.from(composeComponentPreviewHtml(publicDir, requestUrl.searchParams.get('component'))));
+    } catch (error) {
+      sendContent(error);
+    }
+    return;
+  }
 
   if (isAdminPage) {
     try {

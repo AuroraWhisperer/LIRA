@@ -12,6 +12,7 @@
 | 尚未完成的实施或验收 | [计划索引](../specs/plans/README.md) | 活动、阻塞、暂停和延期事项；完成或被替代后归档 |
 | 当时的调查、评审和验证结果 | [报告索引](reports/README.md) | 保留日期和范围，不作为当前缺陷或待办清单直接执行 |
 | 第三方模型配置 | [使用指南](guides/third-party-api-support.md) | 使用者操作与产品限制 |
+| 组件统一编排或独立导入直播软件 | [组件与浏览器源指南](guides/component-sources.md) | 统一预览、组合来源、单组件地址及尺寸设置 |
 | Bilibili 外部协议资料 | [上游参考](bilibili-live-api/README.md) | 外部资料，不代表本客户端支持全部上游接口 |
 
 ## 维护规则

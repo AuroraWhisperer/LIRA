@@ -195,6 +195,7 @@ test('browser source tab classifies and exposes every overlay address', () => {
   const html = readAdminHtml();
   const displaySource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'display.js'), 'utf8');
   const sources = [
+    ['localDanmakuUrl', '/danmaku?source=component'],
     ['queueUrl', '/queue'],
     ['songsUrl', '/songlist'],
     ['lyricsUrl', '/lyrics'],
@@ -226,6 +227,10 @@ test('browser source tab classifies and exposes every overlay address', () => {
     assert.match(displaySource, assignmentPattern, `${route} should be initialized in the live screen tab`);
   }
   assert.match(html, /id="liveDanmakuUrl"/);
+  assert.match(html, /id="liveCanvasUrl"/);
+  assert.match(html, /id="copyLiveCanvasUrl"/);
+  assert.match(html, /id="liveCanvasPreview"/);
+  assert.match(displaySource, /initCanvasOverlaySource\(\)/);
   assert.match(html, /data-copy-url="liveDanmakuUrl"[^>]*disabled/);
   assert.match(
     displaySource,

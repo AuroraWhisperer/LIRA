@@ -12,7 +12,8 @@ function createSceneRuntime({ songDb, runtimeOptions, getState }) {
   const service = createSceneService({ store: createSceneStore(songDb), getOwner,
     secretCodec: runtimeOptions.sceneSecretCodec || createElectronSecretCodec(runtimeOptions.safeStorage),
     ...createSceneComponentPorts({ getState, cloud }) });
-  return { service, receiveCloud: cloud.receive };
+  return { service, receiveCloud: cloud.receive,
+    readDanmakuDisplay: (request) => ({ config: cloud.getSettings(), data: cloud.getSnapshot(request) }) };
 }
 
 module.exports = { createSceneRuntime };

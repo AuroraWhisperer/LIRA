@@ -6,6 +6,7 @@ const path = require('node:path');
 const { createCipheriv, createDecipheriv, randomBytes, randomUUID } = require('node:crypto');
 const test = require('node:test');
 const { createServerRuntime } = require('../../src/server');
+const { createOverlayToken } = require('../../src/server/access-policy');
 
 function createSafeStorage() {
   const key = randomBytes(32);
@@ -187,4 +188,38 @@ test('runtime cloud ingress projects current-owner events and fences owner chang
   state.owner = null;
   const loggedOut = await request(outputRoute, { token: rotated.token, status: 403 });
   assert.equal(loggedOut.code, 'SCENE_OWNER_REQUIRED');
+});
+
+test('standalone danmaku reads the shared cloud projection without a scene and keeps page capability isolation', async (t) => {
+  const { runtime, request, state } = await fixture(t);
+  const token = createOverlayToken(runtime.getApiToken(), 'danmaku');
+  const other = createOverlayToken(runtime.getApiToken(), 'clock');
+  const owner = { ...state.owner };
+  const update = (status, event) => runtime.receiveSceneCloud({ ownerScope: owner.scope,
+    authorizationEpoch: owner.epoch, connectionEpoch: 'standalone', status, ...(event ? { event } : {}) });
+  const initial = await request('/api/danmaku/display', { token });
+  assert.equal(initial.config, null);
+  assert.equal(initial.data.status, 'offline');
+  update('connecting');
+  update('connected', { type: 'overlay-state', style: 'bubble', state: 'running', liveStatus: 1,
+    liveSessionId: 'live-standalone', confirmationMessage: '开播', privateToken: 'private-sentinel' });
+  const ready = await request('/api/danmaku/display', { token });
+  assert.equal(ready.config.style, 'bubble');
+  update('connected', { type: 'danmaku', liveSessionId: 'live-standalone', name: '观众', message: '独立组件', privateToken: 'private-sentinel' });
+  const route = `/api/danmaku/display?epoch=${ready.data.epoch}&cursor=${ready.data.nextCursor}`;
+  const live = await request(route, { token });
+  assert.equal(live.data.events[0].message, '独立组件');
+  assert.equal(JSON.stringify(live).includes('private-sentinel'), false);
+  assert.deepEqual(await request('/api/scenes/list'), []);
+  await request(route, { token: other, status: 403 });
+  await request(route, { token: '', status: 401 });
+  await request('/api/scenes/list', { token, status: 403 });
+  await request('/api/danmaku/display', { body: {}, token, status: 403 });
+  assert.equal((await request(`/api/danmaku/display?epoch=${ready.data.epoch}&cursor=invalid`, { token })).data.reset, true);
+  state.owner = { scope: 'new-owner', epoch: 2 };
+  const switched = await request(route, { token });
+  assert.equal(switched.config, null);
+  assert.equal(switched.data.status, 'offline');
+  assert.deepEqual(switched.data.events, []);
+  assert.equal(update('connected', { type: 'danmaku', liveSessionId: 'live-standalone', message: 'stale' }), false);
 });

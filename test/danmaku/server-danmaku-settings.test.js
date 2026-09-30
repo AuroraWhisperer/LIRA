@@ -385,11 +385,17 @@ test('both address observers read the server capability and discard late account
     second = [];
   module.namespace.observeServerOverlayUrl((value) => first.push(value));
   module.namespace.observeServerOverlayUrl((value) => second.push(value));
+  let initialized = false;
+  const initialization = module.namespace.waitForServerOverlayUrlInitialization().then(() => {
+    initialized = true;
+  });
   await flush();
   assert.equal(reads.length, 1);
+  assert.equal(initialized, false);
   const aUrl = 'https://a.example.test/overlay/syntheticKey_123';
   reads.shift()(saved('signal', 6, aUrl));
-  await flush();
+  await initialization;
+  assert.equal(initialized, true);
   assert.equal(first.at(-1), aUrl);
   assert.deepEqual(second, first);
   onState(a); // An old account request remains in flight.

@@ -115,6 +115,9 @@ async function createStartupFixture() {
     './theme.js': { theme: { initThemeForm: noop, renderPresetCards: noop } },
     './display.js': { display: { initDisplayForm: noop, initOverlayUrls: noop } },
     './state-renderer.js': { createAdminStateRenderer: noop },
+    './component-preview-registry.js': { setComponentPreviewPreparation: noop, getComponentPreviews: () => [] },
+    './server-overlay-url.js': { waitForServerOverlayUrlInitialization: async () => {} },
+    './component-preview-canvas-controller.js': { prepareComponentPreviewCanvas: noop },
   };
   const entry = new vm.SourceTextModule(fs.readFileSync(path.join(ROOT_DIR, 'public/js/admin/app.js'), 'utf8'), {
     context,

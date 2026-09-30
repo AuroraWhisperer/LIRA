@@ -31,6 +31,7 @@ function createApiContext(options) {
   return {
     dynamicLottery: options.dynamicLottery,
     scenes: options.scenes,
+    readDanmakuDisplay: options.readDanmakuDisplay,
     maxBodyBytes,
     sessionToken,
     broadcastSnapshot,

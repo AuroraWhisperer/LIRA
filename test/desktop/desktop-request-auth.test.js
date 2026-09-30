@@ -247,3 +247,18 @@ test('failed external browser launches are owned by the navigation handler', asy
   await new Promise(setImmediate);
   assert.equal(warnings.mock.callCount(), 2);
 });
+
+test('editable component previews open in the system browser and never gain desktop headers', () => {
+  const f = fixture();
+  const contents = new EventEmitter();
+  contents.isDestroyed = () => false;
+  contents.setWindowOpenHandler = (handler) => { contents.open = handler; };
+  const opened = [];
+  f.auth.bindWindow({ webContents: contents }, { openExternal: (url) => opened.push(url) });
+  const url = `${BASE}/component-preview?component=clock#id=synthetic&token=preview-only`;
+  assert.deepEqual(contents.open({ url }), { action: 'deny' });
+  assert.deepEqual(opened, [url]);
+  assert.equal(f.auth.isAllowedNavigation(url), false);
+  assert.deepEqual(f.request({ url, resourceType: 'mainFrame' }), {});
+  f.auth.dispose();
+});
